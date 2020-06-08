@@ -1,7 +1,6 @@
 package install
 
-const localYml = `
-version: '2.3'
+const localYml = `version: '2.3'
 services:
   kibana:
     ports:

@@ -1,7 +1,6 @@
 package install
 
-const agentYml = `
-version: '2.3'
+const agentYml = `version: '2.3'
 services:
   elastic-agent:
     image: docker.elastic.co/beats/elastic-agent:8.0.0-SNAPSHOT

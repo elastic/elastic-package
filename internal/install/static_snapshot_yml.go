@@ -1,7 +1,6 @@
 package install
 
-const snapshotYml = `
-version: '2.3'
+const snapshotYml = `version: '2.3'
 services:
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.0.0-SNAPSHOT
