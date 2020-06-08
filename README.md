@@ -38,4 +38,4 @@ source code:
 
 `make vendor` - vendor code of dependencies
 
-`make check` - one-liner, used to verify by the CI if source code is ready to be pushed to the repository
+`make check` - one-liner, used by CI to verify if source code is ready to be pushed to the repository
