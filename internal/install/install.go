@@ -44,6 +44,10 @@ func EnsureInstalled() error {
 	return nil
 }
 
+func Configuration() {
+
+}
+
 func checkIfAlreadyInstalled(elasticPackagePath string) (bool, error) {
 	_, err := os.Stat(elasticPackagePath)
 	if os.IsNotExist(err) {

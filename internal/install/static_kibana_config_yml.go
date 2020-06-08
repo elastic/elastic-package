@@ -1,6 +1,6 @@
 package install
 
-const kibanaConfigYml = `server.name: kibana
+var kibanaConfigYml = `server.name: kibana
 server.host: "0"
 
 elasticsearch.hosts: [ "http://elasticsearch:9200" ]

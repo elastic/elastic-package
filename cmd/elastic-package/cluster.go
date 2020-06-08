@@ -1,6 +1,10 @@
 package main
 
-import "github.com/spf13/cobra"
+import (
+	"github.com/elastic/elastic-package/internal/cluster"
+	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
+)
 
 func setupClusterCommand() *cobra.Command {
 	upCommand := &cobra.Command{
@@ -19,6 +23,19 @@ func setupClusterCommand() *cobra.Command {
 		},
 	}
 
+	shellInitCommand := &cobra.Command{
+		Use:   "shellinit",
+		Short: "Initiate environment variables",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			shell, err := cluster.ShellInit()
+			if err != nil {
+				return errors.Wrap(err, "shellinit failed")
+			}
+			cmd.Println(shell)
+			return nil
+		},
+	}
+
 	cmd := &cobra.Command{
 		Use:   "cluster",
 		Short: "Manage the testing environment",
@@ -26,6 +43,7 @@ func setupClusterCommand() *cobra.Command {
 	}
 	cmd.AddCommand(
 		upCommand,
-		downCommand)
+		downCommand,
+		shellInitCommand)
 	return cmd
 }
