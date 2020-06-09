@@ -12,19 +12,22 @@ import (
 	"github.com/elastic/elastic-package/internal/install"
 )
 
+const envFile = ".env"
+
 func BootUp() error {
 	buildPublicPath, found, err := findBuildPublicDirectory()
 	if err != nil {
 		return errors.Wrap(err, "finding build packages directory failed")
 	}
 
+	var envFileContent string
 	if found {
 		fmt.Printf("Custom build/public directory found: %s\n", buildPublicPath)
-
-		err := writeEnvFile(buildPublicPath)
-		if err != nil {
-			return errors.Wrapf(err, "writing .env file failed (packagesPath: %s)", buildPublicPath)
-		}
+		envFileContent = fmt.Sprintf("PACKAGES_PATH=%s\n", buildPublicPath)
+	}
+	err = writeEnvFile(buildPublicPath, envFileContent)
+	if err != nil {
+		return errors.Wrapf(err, "writing .env file failed (packagesPath: %s)", buildPublicPath)
 	}
 
 	err = dockerComposeUp(found)
@@ -56,18 +59,15 @@ func findBuildPublicDirectory() (string, bool, error) {
 	return "", false, nil
 }
 
-func writeEnvFile(buildPublicPath string) error {
-	envFile := fmt.Sprintf("PACKAGES_PATH=%s\n", buildPublicPath)
-
+func writeEnvFile(buildPublicPath, content string) error {
 	clusterDir, err := install.ClusterDir()
 	if err != nil {
 		return errors.Wrap(err, "locating cluster directory failed")
 	}
-
-	envFilePath := filepath.Join(clusterDir, ".env")
-	err = ioutil.WriteFile(envFilePath, []byte(envFile), 0644)
+	envFilePath := filepath.Join(clusterDir, envFile)
+	err = ioutil.WriteFile(envFilePath, []byte(content), 0644)
 	if err != nil {
-		return errors.Wrapf(err, "writing .env file failed (path: %s)", envFilePath)
+		return errors.Wrapf(err, "writing file failed (path: %s)", envFilePath)
 	}
 	return nil
 }
