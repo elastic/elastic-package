@@ -44,10 +44,6 @@ func EnsureInstalled() error {
 	return nil
 }
 
-func Configuration() {
-
-}
-
 func checkIfAlreadyInstalled(elasticPackagePath string) (bool, error) {
 	_, err := os.Stat(elasticPackagePath)
 	if os.IsNotExist(err) {
@@ -74,10 +70,10 @@ func writeClusterResources(elasticPackagePath string) error {
 		return errors.Wrapf(err, "creating directory failed (path: %s)", elasticPackagePath)
 	}
 
-	err = writeStaticResource(nil, clusterPath, "agent.yml", agentYml)
 	err = writeStaticResource(err, clusterPath, "kibana.config.yml", kibanaConfigYml)
 	err = writeStaticResource(err, clusterPath, "local.yml", localYml)
 	err = writeStaticResource(err, clusterPath, "snapshot.yml", snapshotYml)
+	err = writeStaticResource(err, clusterPath, "package-registry-volume.yml", packageRegistryVolumeYml)
 
 	if err != nil {
 		return errors.Wrap(err, "writing static resource failed")
