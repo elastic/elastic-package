@@ -1,11 +1,12 @@
 package main
 
 import (
-	"github.com/elastic/elastic-package/internal/install"
-	"github.com/pkg/errors"
 	"log"
 
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+
+	"github.com/elastic/elastic-package/internal/install"
 )
 
 func main() {

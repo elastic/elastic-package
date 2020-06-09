@@ -24,12 +24,12 @@ type kibanaConfiguration struct {
 }
 
 func ShellInit() (string, error) {
-	clusterPath, err := install.ClusterDir()
+	clusterDir, err := install.ClusterDir()
 	if err != nil {
-		return "", errors.Wrap(err, "location cluster configuration failed")
+		return "", errors.Wrap(err, "location cluster directory failed")
 	}
 
-	kibanaConfigurationPath := filepath.Join(clusterPath, "kibana.config.yml")
+	kibanaConfigurationPath := filepath.Join(clusterDir, "kibana.config.yml")
 	body, err := ioutil.ReadFile(kibanaConfigurationPath)
 	if err != nil {
 		return "", errors.Wrap(err, "reading Kibana configuration file failed")

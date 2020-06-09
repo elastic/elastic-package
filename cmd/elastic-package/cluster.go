@@ -1,9 +1,10 @@
 package main
 
 import (
-	"github.com/elastic/elastic-package/internal/cluster"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+
+	"github.com/elastic/elastic-package/internal/cluster"
 )
 
 func setupClusterCommand() *cobra.Command {
@@ -11,6 +12,10 @@ func setupClusterCommand() *cobra.Command {
 		Use:   "up",
 		Short: "Boot up the testing cluster",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			err := cluster.BootUp()
+			if err != nil {
+				return errors.Wrap(err, "booting up the cluster failed")
+			}
 			return nil
 		},
 	}
@@ -19,6 +24,10 @@ func setupClusterCommand() *cobra.Command {
 		Use:   "down",
 		Short: "Take down the testing cluster",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			err := cluster.TearDown()
+			if err != nil {
+				return errors.Wrap(err, "tearing down the cluster failed")
+			}
 			return nil
 		},
 	}
