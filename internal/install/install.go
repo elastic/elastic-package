@@ -15,11 +15,10 @@ const (
 )
 
 func EnsureInstalled() error {
-	homeDir, err := os.UserHomeDir()
+	elasticPackagePath, err := configurationDir()
 	if err != nil {
-		return errors.Wrap(err, "reading home dir failed")
+		return errors.Wrap(err, "failed locating the configuration directory")
 	}
-	elasticPackagePath := filepath.Join(homeDir, elasticPackageDir)
 
 	installed, err := checkIfAlreadyInstalled(elasticPackagePath)
 	if err != nil {
@@ -42,6 +41,22 @@ func EnsureInstalled() error {
 
 	fmt.Println("elastic-package has been installed.")
 	return nil
+}
+
+func ClusterDir() (string, error) {
+	configurationDir, err := configurationDir()
+	if err != nil {
+		return "", errors.Wrap(err, "location configuration directory failed")
+	}
+	return filepath.Join(configurationDir, clusterDir), nil
+}
+
+func configurationDir() (string, error) {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "", errors.Wrap(err, "reading home dir failed")
+	}
+	return filepath.Join(homeDir, elasticPackageDir), nil
 }
 
 func checkIfAlreadyInstalled(elasticPackagePath string) (bool, error) {

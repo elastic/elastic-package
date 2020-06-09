@@ -2,11 +2,13 @@ package cluster
 
 import (
 	"fmt"
-	"github.com/pkg/errors"
 	"io/ioutil"
 	"path/filepath"
 
+	"github.com/pkg/errors"
 	yaml "gopkg.in/yaml.v2"
+
+	"github.com/elastic/elastic-package/internal/install"
 )
 
 const shellInitFormat = `ELASTIC_PACKAGE_ELASTICSEARCH_HOST=%s
@@ -22,8 +24,13 @@ type kibanaConfiguration struct {
 }
 
 func ShellInit() (string, error) {
-	elasticPackagePath := filepath.Join("/Users/marcin.tojek/.elastic-package", "cluster", "kibana.config.yml")
-	body, err := ioutil.ReadFile(elasticPackagePath)
+	clusterPath, err := install.ClusterDir()
+	if err != nil {
+		return "", errors.Wrap(err, "location cluster configuration failed")
+	}
+
+	kibanaConfigurationPath := filepath.Join(clusterPath, "kibana.config.yml")
+	body, err := ioutil.ReadFile(kibanaConfigurationPath)
 	if err != nil {
 		return "", errors.Wrap(err, "reading Kibana configuration file failed")
 	}
