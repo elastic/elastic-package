@@ -86,7 +86,7 @@ func writeClusterResources(elasticPackagePath string) error {
 	}
 
 	err = writeStaticResource(err, clusterPath, "kibana.config.yml", kibanaConfigYml)
-	err = writeStaticResource(err, clusterPath, "local.yml", localYml)
+	err = writeStaticResource(err, clusterPath, "package-registry.config.yml", packageRegistryConfigYml)
 	err = writeStaticResource(err, clusterPath, "snapshot.yml", snapshotYml)
 	err = writeStaticResource(err, clusterPath, "package-registry-volume.yml", packageRegistryVolumeYml)
 
