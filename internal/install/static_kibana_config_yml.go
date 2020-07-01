@@ -1,6 +1,7 @@
 package install
 
-var kibanaConfigYml = `server.name: kibana
+const kibanaConfigYml = `  
+server.name: kibana
 server.host: "0"
 
 elasticsearch.hosts: [ "http://elasticsearch:9200" ]
@@ -12,7 +13,9 @@ xpack.ingestManager.enabled: true
 xpack.ingestManager.epm.enabled: true
 xpack.ingestManager.epm.registryUrl: "http://package-registry:8080"
 xpack.ingestManager.fleet.enabled: true
-xpack.ingestManager.fleet.elasticsearch.host: "http://elasticsearch:9200"
-xpack.ingestManager.fleet.kibana.host: "http://kibana:5601"
+xpack.ingestManager.fleet.elasticsearch.host: "http://localhost:9200"
+xpack.ingestManager.fleet.kibana.host: "http://localhost:5601"
 xpack.ingestManager.fleet.tlsCheckDisabled: true
+
+xpack.encryptedSavedObjects.encryptionKey: "12345678901234567890123456789012"
 `

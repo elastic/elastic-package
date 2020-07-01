@@ -18,6 +18,8 @@ services:
     - "xpack.security.enabled=true"
     - "xpack.security.authc.api_key.enabled=true"
     - "ELASTIC_PASSWORD=changeme"
+    ports:
+      - "127.0.0.1:9200:9200"
 
   kibana:
     image: docker.elastic.co/kibana/kibana:8.0.0-SNAPSHOT
@@ -27,28 +29,20 @@ services:
       package-registry:
         condition: service_healthy
     healthcheck:
-      test: "curl -f http://localhost:5601/login | grep kbn-injected-metadata 2>&1 >/dev/null"
+      test: "curl -f http://127.0.0.1:5601/login | grep kbn-injected-metadata 2>&1 >/dev/null"
       retries: 600
       interval: 1s
     volumes:
       - ./kibana.config.yml:/usr/share/kibana/config/kibana.yml
+    ports:
+      - "127.0.0.1:5601:5601"
 
   package-registry:
     image: docker.elastic.co/package-registry/package-registry:master
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080"]
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8080"]
       retries: 300
       interval: 1s
-
-  elastic-agent:
-    image: docker.elastic.co/beats/elastic-agent:8.0.0-SNAPSHOT
-    depends_on:
-      elasticsearch:
-        condition: service_healthy
-      kibana:
-        condition: service_healthy
-    environment:
-    - "FLEET_ENROLL=1"
-    - "FLEET_SETUP=1"
-    - "KIBANA_HOST=http://kibana:5601"
+    ports:
+      - "127.0.0.1:8080:8080"
 `

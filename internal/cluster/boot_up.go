@@ -15,19 +15,19 @@ import (
 const envFile = ".env"
 
 func BootUp() error {
-	buildPublicPath, found, err := findBuildPublicDirectory()
+	buildPackagesPath, found, err := findBuildPackagesDirectory()
 	if err != nil {
 		return errors.Wrap(err, "finding build packages directory failed")
 	}
 
 	var envFileContent string
 	if found {
-		fmt.Printf("Custom build/public directory found: %s\n", buildPublicPath)
-		envFileContent = fmt.Sprintf("PACKAGES_PATH=%s\n", buildPublicPath)
+		fmt.Printf("Custom build packages directory found: %s\n", buildPackagesPath)
+		envFileContent = fmt.Sprintf("PACKAGES_PATH=%s\n", buildPackagesPath)
 	}
-	err = writeEnvFile(buildPublicPath, envFileContent)
+	err = writeEnvFile(envFileContent)
 	if err != nil {
-		return errors.Wrapf(err, "writing .env file failed (packagesPath: %s)", buildPublicPath)
+		return errors.Wrapf(err, "writing .env file failed (packagesPath: %s)", buildPackagesPath)
 	}
 
 	err = dockerComposeUp(found)
@@ -37,7 +37,7 @@ func BootUp() error {
 	return nil
 }
 
-func findBuildPublicDirectory() (string, bool, error) {
+func findBuildPackagesDirectory() (string, bool, error) {
 	workDir, err := os.Getwd()
 	if err != nil {
 		return "", false, errors.Wrap(err, "locating working directory failed")
@@ -45,7 +45,7 @@ func findBuildPublicDirectory() (string, bool, error) {
 
 	dir := workDir
 	for dir != "." {
-		path := filepath.Join(dir, "build", "public")
+		path := filepath.Join(dir, "build", "integrations")
 		fileInfo, err := os.Stat(path)
 		if err == nil && fileInfo.IsDir() {
 			return path, true, nil
@@ -59,7 +59,7 @@ func findBuildPublicDirectory() (string, bool, error) {
 	return "", false, nil
 }
 
-func writeEnvFile(buildPublicPath, content string) error {
+func writeEnvFile(content string) error {
 	clusterDir, err := install.ClusterDir()
 	if err != nil {
 		return errors.Wrap(err, "locating cluster directory failed")
@@ -79,8 +79,7 @@ func dockerComposeUp(useCustomPackagesPath bool) error {
 	}
 
 	var args []string
-	args = append(args, "-f", filepath.Join(clusterDir, "snapshot.yml"),
-		"-f", filepath.Join(clusterDir, "local.yml"))
+	args = append(args, "-f", filepath.Join(clusterDir, "snapshot.yml"))
 
 	if useCustomPackagesPath {
 		args = append(args, "-f", filepath.Join(clusterDir, "package-registry-volume.yml"))
