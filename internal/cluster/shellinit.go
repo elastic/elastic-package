@@ -17,10 +17,10 @@ ELASTIC_PACKAGE_ELASTICSEARCH_PASSWORD=%s
 ELASTIC_PACKAGE_KIBANA_HOST=%s`
 
 type kibanaConfiguration struct {
-	ElasticsearchHost     string   `yaml:"xpack.ingestManager.fleet.elasticsearch.host"`
-	ElasticsearchUsername string   `yaml:"elasticsearch.username"`
-	ElasticsearchPassword string   `yaml:"elasticsearch.password"`
-	KibanaHost            string   `yaml:"xpack.ingestManager.fleet.kibana.host"`
+	ElasticsearchHost     string `yaml:"xpack.ingestManager.fleet.elasticsearch.host"`
+	ElasticsearchUsername string `yaml:"elasticsearch.username"`
+	ElasticsearchPassword string `yaml:"elasticsearch.password"`
+	KibanaHost            string `yaml:"xpack.ingestManager.fleet.kibana.host"`
 }
 
 func ShellInit() (string, error) {
