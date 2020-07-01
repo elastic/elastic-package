@@ -17,7 +17,7 @@ ELASTIC_PACKAGE_ELASTICSEARCH_PASSWORD=%s
 ELASTIC_PACKAGE_KIBANA_HOST=%s`
 
 type kibanaConfiguration struct {
-	ElasticsearchHosts    []string `yaml:"elasticsearch.hosts"`
+	ElasticsearchHost     string   `yaml:"xpack.ingestManager.fleet.elasticsearch.host"`
 	ElasticsearchUsername string   `yaml:"elasticsearch.username"`
 	ElasticsearchPassword string   `yaml:"elasticsearch.password"`
 	KibanaHost            string   `yaml:"xpack.ingestManager.fleet.kibana.host"`
@@ -40,12 +40,8 @@ func ShellInit() (string, error) {
 	if err != nil {
 		return "", errors.Wrap(err, "unmarshalling Kibana configuration failed")
 	}
-
-	if len(kibanaCfg.ElasticsearchHosts) == 0 {
-		return "", errors.New("expected at least one Elasticsearch defined")
-	}
 	return fmt.Sprintf(shellInitFormat,
-		kibanaCfg.ElasticsearchHosts[0],
+		kibanaCfg.ElasticsearchHost,
 		kibanaCfg.ElasticsearchUsername,
 		kibanaCfg.ElasticsearchPassword,
 		kibanaCfg.KibanaHost), nil
