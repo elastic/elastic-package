@@ -2,7 +2,6 @@ package cluster
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -10,9 +9,8 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/install"
+	"github.com/magefile/mage/sh"
 )
-
-const envFile = ".env"
 
 func BootUp() error {
 	buildPackagesPath, found, err := findBuildPackagesDirectory()
@@ -20,17 +18,26 @@ func BootUp() error {
 		return errors.Wrap(err, "finding build packages directory failed")
 	}
 
-	var envFileContent string
 	if found {
 		fmt.Printf("Custom build packages directory found: %s\n", buildPackagesPath)
-		envFileContent = fmt.Sprintf("PACKAGES_PATH=%s\n", buildPackagesPath)
-	}
-	err = writeEnvFile(envFileContent)
-	if err != nil {
-		return errors.Wrapf(err, "writing .env file failed (packagesPath: %s)", buildPackagesPath)
+
+		clusterPackagesDir, err := install.ClusterPackagesDir()
+		if err != nil {
+			return errors.Wrap(err, "locating cluster packages directory failed")
+		}
+
+		err = copyPackageContents(buildPackagesPath, clusterPackagesDir)
+		if err != nil {
+			return errors.Wrap(err, "copying package contents failed")
+		}
 	}
 
-	err = dockerComposeUp(found)
+	err = dockerComposeBuild()
+	if err != nil {
+		return errors.Wrap(err, "building docker images failed")
+	}
+
+	err = dockerComposeUp()
 	if err != nil {
 		return errors.Wrap(err, "running docker-compose failed")
 	}
@@ -59,35 +66,70 @@ func findBuildPackagesDirectory() (string, bool, error) {
 	return "", false, nil
 }
 
-func writeEnvFile(content string) error {
+func copyPackageContents(sourcePath, destinationPath string) error {
+	err := os.RemoveAll(destinationPath)
+	if err != nil {
+		return errors.Wrapf(err, "removing directory failed (path: %s)", destinationPath)
+	}
+
+	err = os.MkdirAll(destinationPath, 0755)
+	if err != nil {
+		return errors.Wrapf(err, "creating directory failed (path: %s)", destinationPath)
+	}
+	return filepath.Walk(sourcePath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		relativePath, err := filepath.Rel(sourcePath, path)
+		if err != nil {
+			return err
+		}
+
+		if relativePath == "." {
+			return nil
+		}
+
+		if info.IsDir() {
+			return os.MkdirAll(filepath.Join(destinationPath, relativePath), 0755)
+		}
+
+		return sh.Copy(
+			filepath.Join(destinationPath, relativePath),
+			filepath.Join(sourcePath, relativePath))
+	})
+}
+
+func dockerComposeBuild() error {
 	clusterDir, err := install.ClusterDir()
 	if err != nil {
 		return errors.Wrap(err, "locating cluster directory failed")
 	}
-	envFilePath := filepath.Join(clusterDir, envFile)
-	err = ioutil.WriteFile(envFilePath, []byte(content), 0644)
+
+	args := []string{
+		"-f", filepath.Join(clusterDir, "snapshot.yml"),
+		"build", "package-registry",
+	}
+	cmd := exec.Command("docker-compose", args...)
+	cmd.Stderr = os.Stderr
+	cmd.Stdout = os.Stdout
+	err = cmd.Run()
 	if err != nil {
-		return errors.Wrapf(err, "writing file failed (path: %s)", envFilePath)
+		return errors.Wrap(err, "running command failed")
 	}
 	return nil
 }
 
-func dockerComposeUp(useCustomPackagesPath bool) error {
+func dockerComposeUp() error {
 	clusterDir, err := install.ClusterDir()
 	if err != nil {
 		return errors.Wrap(err, "locating cluster directory failed")
 	}
 
-	var args []string
-	args = append(args, "-f", filepath.Join(clusterDir, "snapshot.yml"))
-
-	if useCustomPackagesPath {
-		args = append(args, "-f", filepath.Join(clusterDir, "package-registry-volume.yml"))
+	args := []string{
+		"-f", filepath.Join(clusterDir, "snapshot.yml"),
+		"up", "-d",
 	}
-
-	args = append(args, "--project-directory", clusterDir,
-		"up", "-d")
-
 	cmd := exec.Command("docker-compose", args...)
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout

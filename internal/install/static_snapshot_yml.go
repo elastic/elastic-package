@@ -38,7 +38,9 @@ services:
       - "127.0.0.1:5601:5601"
 
   package-registry:
-    image: docker.elastic.co/package-registry/package-registry:master
+    build:
+      context: .
+      dockerfile: Dockerfile.package-registry
     healthcheck:
       test: ["CMD", "curl", "-f", "http://127.0.0.1:8080"]
       retries: 300

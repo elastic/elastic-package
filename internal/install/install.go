@@ -12,6 +12,7 @@ import (
 const (
 	elasticPackageDir = ".elastic-package"
 	clusterDir        = "cluster"
+	packagesDir       = "development"
 )
 
 func EnsureInstalled() error {
@@ -21,10 +22,6 @@ func EnsureInstalled() error {
 	}
 
 	installed, err := checkIfAlreadyInstalled(elasticPackagePath)
-	if err != nil {
-		return errors.Wrap(err, "can't check if the tool is installed")
-	}
-
 	if installed {
 		return nil
 	}
@@ -46,9 +43,17 @@ func EnsureInstalled() error {
 func ClusterDir() (string, error) {
 	configurationDir, err := configurationDir()
 	if err != nil {
-		return "", errors.Wrap(err, "location configuration directory failed")
+		return "", errors.Wrap(err, "locating configuration directory failed")
 	}
 	return filepath.Join(configurationDir, clusterDir), nil
+}
+
+func ClusterPackagesDir() (string, error) {
+	clusterDir, err := ClusterDir()
+	if err != nil {
+		return "", errors.Wrap(err, "locating cluster directory failed")
+	}
+	return filepath.Join(clusterDir, packagesDir), nil
 }
 
 func configurationDir() (string, error) {
@@ -80,16 +85,16 @@ func createElasticPackageDirectory(elasticPackagePath string) error {
 
 func writeClusterResources(elasticPackagePath string) error {
 	clusterPath := filepath.Join(elasticPackagePath, clusterDir)
-	err := os.MkdirAll(clusterPath, 0755)
+	packagesPath := filepath.Join(clusterPath, packagesDir)
+	err := os.MkdirAll(packagesPath, 0755)
 	if err != nil {
 		return errors.Wrapf(err, "creating directory failed (path: %s)", elasticPackagePath)
 	}
 
 	err = writeStaticResource(err, clusterPath, "kibana.config.yml", kibanaConfigYml)
-	err = writeStaticResource(err, clusterPath, "package-registry.config.yml", packageRegistryConfigYml)
 	err = writeStaticResource(err, clusterPath, "snapshot.yml", snapshotYml)
-	err = writeStaticResource(err, clusterPath, "package-registry-volume.yml", packageRegistryVolumeYml)
-
+	err = writeStaticResource(err, clusterPath, "package-registry.config.yml", packageRegistryConfigYml)
+	err = writeStaticResource(err, clusterPath, "Dockerfile.package-registry", packageRegistryDockerfile)
 	if err != nil {
 		return errors.Wrap(err, "writing static resource failed")
 	}
