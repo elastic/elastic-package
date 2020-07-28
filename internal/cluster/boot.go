@@ -37,9 +37,22 @@ func BootUp() error {
 		return errors.Wrap(err, "building docker images failed")
 	}
 
+	err = dockerComposeDown()
+	if err != nil {
+		return errors.Wrap(err, "stopping docker containers failed")
+	}
+
 	err = dockerComposeUp()
 	if err != nil {
 		return errors.Wrap(err, "running docker-compose failed")
+	}
+	return nil
+}
+
+func TearDown() error {
+	err := dockerComposeDown()
+	if err != nil {
+		return errors.Wrap(err, "stopping docker containers failed")
 	}
 	return nil
 }
@@ -131,6 +144,25 @@ func dockerComposeUp() error {
 		"up", "-d",
 	}
 	cmd := exec.Command("docker-compose", args...)
+	cmd.Stderr = os.Stderr
+	cmd.Stdout = os.Stdout
+	err = cmd.Run()
+	if err != nil {
+		return errors.Wrap(err, "running command failed")
+	}
+	return nil
+}
+
+func dockerComposeDown() error {
+	clusterDir, err := install.ClusterDir()
+	if err != nil {
+		return errors.Wrap(err, "locating cluster directory failed")
+	}
+
+	cmd := exec.Command("docker-compose",
+		"-f", filepath.Join(clusterDir, "snapshot.yml"),
+		"--project-directory", clusterDir,
+		"down")
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
 	err = cmd.Run()
