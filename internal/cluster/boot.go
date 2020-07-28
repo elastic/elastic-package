@@ -18,14 +18,18 @@ func BootUp() error {
 		return errors.Wrap(err, "finding build packages directory failed")
 	}
 
+	clusterPackagesDir, err := install.ClusterPackagesDir()
+	if err != nil {
+		return errors.Wrap(err, "locating cluster packages directory failed")
+	}
+
+	err = clearPackageContents(clusterPackagesDir)
+	if err != nil {
+		return errors.Wrap(err, "clearing package contents failed")
+	}
+
 	if found {
 		fmt.Printf("Custom build packages directory found: %s\n", buildPackagesPath)
-
-		clusterPackagesDir, err := install.ClusterPackagesDir()
-		if err != nil {
-			return errors.Wrap(err, "locating cluster packages directory failed")
-		}
-
 		err = copyPackageContents(buildPackagesPath, clusterPackagesDir)
 		if err != nil {
 			return errors.Wrap(err, "copying package contents failed")
@@ -79,7 +83,7 @@ func findBuildPackagesDirectory() (string, bool, error) {
 	return "", false, nil
 }
 
-func copyPackageContents(sourcePath, destinationPath string) error {
+func clearPackageContents(destinationPath string) error {
 	err := os.RemoveAll(destinationPath)
 	if err != nil {
 		return errors.Wrapf(err, "removing directory failed (path: %s)", destinationPath)
@@ -89,6 +93,10 @@ func copyPackageContents(sourcePath, destinationPath string) error {
 	if err != nil {
 		return errors.Wrapf(err, "creating directory failed (path: %s)", destinationPath)
 	}
+	return nil
+}
+
+func copyPackageContents(sourcePath, destinationPath string) error {
 	return filepath.Walk(sourcePath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
