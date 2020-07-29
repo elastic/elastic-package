@@ -1,5 +1,9 @@
 # github.com/inconshreveable/mousetrap v1.0.0
 github.com/inconshreveable/mousetrap
+# github.com/magefile/mage v1.10.0
+## explicit
+github.com/magefile/mage/mg
+github.com/magefile/mage/sh
 # github.com/pkg/errors v0.9.1
 ## explicit
 github.com/pkg/errors

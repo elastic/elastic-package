@@ -1,3 +1,6 @@
+.PHONY: vendor
+
+
 build:
 	go get github.com/elastic/elastic-package/cmd/elastic-package
 
