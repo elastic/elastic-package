@@ -15,6 +15,7 @@ func main() {
 		Short: "elastic-package - Command line tool for developing Elastic Integrations",
 	}
 	rootCmd.AddCommand(
+		setupBuildCommand(),
 		setupClusterCommand(),
 		setupTestCommand())
 
