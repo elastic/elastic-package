@@ -2,7 +2,7 @@
 
 
 build:
-	go get github.com/elastic/elastic-package/cmd/elastic-package
+	go get github.com/elastic/elastic-package
 
 format:
 	gofmt -s -w .
