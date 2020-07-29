@@ -13,6 +13,7 @@ import (
 	"github.com/elastic/elastic-package/internal/install"
 )
 
+// BootUp method boots up the testing cluster.
 func BootUp() error {
 	buildPackagesPath, found, err := builder.FindBuildPackagesDirectory()
 	if err != nil {
@@ -54,6 +55,7 @@ func BootUp() error {
 	return nil
 }
 
+// TearDown method takes down the testing cluster.
 func TearDown() error {
 	err := dockerComposeDown()
 	if err != nil {

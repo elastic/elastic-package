@@ -15,6 +15,7 @@ const (
 	packagesDir       = "development"
 )
 
+// EnsureInstalled method installs once static resources for the testing Docker cluster.
 func EnsureInstalled() error {
 	elasticPackagePath, err := configurationDir()
 	if err != nil {
@@ -40,6 +41,7 @@ func EnsureInstalled() error {
 	return nil
 }
 
+// ClusterDir method returns the cluster directory (see: clusterDir).
 func ClusterDir() (string, error) {
 	configurationDir, err := configurationDir()
 	if err != nil {
@@ -48,6 +50,7 @@ func ClusterDir() (string, error) {
 	return filepath.Join(configurationDir, clusterDir), nil
 }
 
+// ClusterPackagesDir method returns the cluster packages directory used for package development.
 func ClusterPackagesDir() (string, error) {
 	clusterDir, err := ClusterDir()
 	if err != nil {

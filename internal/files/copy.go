@@ -7,6 +7,7 @@ import (
 	"github.com/magefile/mage/sh"
 )
 
+// CopyAll method copies files from the source to the destination.
 func CopyAll(sourcePath, destinationPath string) error {
 	return filepath.Walk(sourcePath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {

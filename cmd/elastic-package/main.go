@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"os"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -11,8 +12,9 @@ import (
 
 func main() {
 	rootCmd := &cobra.Command{
-		Use:   "elastic-package",
-		Short: "elastic-package - Command line tool for developing Elastic Integrations",
+		Use:          "elastic-package",
+		Short:        "elastic-package - Command line tool for developing Elastic Integrations",
+		SilenceUsage: true,
 	}
 	rootCmd.AddCommand(
 		setupBuildCommand(),
@@ -26,6 +28,6 @@ func main() {
 
 	err = rootCmd.Execute()
 	if err != nil {
-		log.Fatal(err)
+		os.Exit(1)
 	}
 }

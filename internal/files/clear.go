@@ -6,6 +6,8 @@ import (
 	"github.com/pkg/errors"
 )
 
+// ClearDir method removes all items from the destination directory.
+// Internally it deletes and recreates the directory.
 func ClearDir(destinationPath string) error {
 	err := os.RemoveAll(destinationPath)
 	if err != nil {

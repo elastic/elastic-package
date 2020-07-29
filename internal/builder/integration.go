@@ -11,12 +11,15 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+const packageManifestFile = "manifest.yml"
+
 type packageManifest struct {
 	Name    string `json:"name"`
 	Type    string `json:"type"`
 	Version string `json:"version"`
 }
 
+// BuildIntegration method builds the integration package.
 func BuildIntegration() error {
 	packageRoot, found, err := findPackageRoot()
 	if !found {
@@ -33,6 +36,7 @@ func BuildIntegration() error {
 	return nil
 }
 
+// FindBuildPackagesDirectory method locates the target build directory for integrations.
 func FindBuildPackagesDirectory() (string, bool, error) {
 	workDir, err := os.Getwd()
 	if err != nil {
@@ -63,7 +67,7 @@ func findPackageRoot() (string, bool, error) {
 
 	dir := workDir
 	for dir != "." {
-		path := filepath.Join(dir, "manifest.yml")
+		path := filepath.Join(dir, packageManifestFile)
 		fileInfo, err := os.Stat(path)
 		if err == nil && !fileInfo.IsDir() {
 			ok, err := isPackageManifest(path)
@@ -71,7 +75,7 @@ func findPackageRoot() (string, bool, error) {
 				return "", false, errors.Wrapf(err, "verifying manifest file failed (path: %s)", path)
 			}
 			if ok {
-				return path, true, nil
+				return dir, true, nil
 			}
 		}
 
@@ -102,7 +106,7 @@ func buildPackage(sourcePath string) error {
 		return errors.New("build directory not found")
 	}
 
-	m, err := readPackageManifest(sourcePath)
+	m, err := readPackageManifest(filepath.Join(sourcePath, packageManifestFile))
 	if err != nil {
 		return errors.Wrapf(err, "reading package manifest failed (path: %s)", sourcePath)
 	}
