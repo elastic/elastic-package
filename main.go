@@ -5,21 +5,13 @@ import (
 	"os"
 
 	"github.com/pkg/errors"
-	"github.com/spf13/cobra"
 
+	"github.com/elastic/elastic-package/cmd"
 	"github.com/elastic/elastic-package/internal/install"
 )
 
 func main() {
-	rootCmd := &cobra.Command{
-		Use:          "elastic-package",
-		Short:        "elastic-package - Command line tool for developing Elastic Integrations",
-		SilenceUsage: true,
-	}
-	rootCmd.AddCommand(
-		setupBuildCommand(),
-		setupClusterCommand(),
-		setupTestCommand())
+	rootCmd := cmd.RootCmd()
 
 	err := install.EnsureInstalled()
 	if err != nil {
