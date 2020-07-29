@@ -23,6 +23,7 @@ type kibanaConfiguration struct {
 	KibanaHost            string `yaml:"xpack.ingestManager.fleet.kibana.host"`
 }
 
+// ShellInit method exposes environment variables that can be used for testing purposes.
 func ShellInit() (string, error) {
 	clusterDir, err := install.ClusterDir()
 	if err != nil {
