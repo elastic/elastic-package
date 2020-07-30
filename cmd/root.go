@@ -11,9 +11,12 @@ func RootCmd() *cobra.Command {
 		Short: "elastic-package - Command line tool for developing Elastic Integrations",
 	}
 	rootCmd.AddCommand(
+		setupCheckCommand(),
 		setupClusterCommand(),
 		setupBuildCommand(),
-		setupTestCommand())
+		setupFormatCommand(),
+		setupTestCommand(),
+		setupValidateCommand())
 
 	return rootCmd
 }
