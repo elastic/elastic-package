@@ -8,7 +8,7 @@ import (
 func RootCmd() *cobra.Command {
 	rootCmd := &cobra.Command{
 		Use:   "elastic-package",
-		Short: "elastic-package - Command line tool for developing Elastic Integrations",
+		Short: "elastic-package - Command line tool for developing Elastic packages",
 	}
 	rootCmd.AddCommand(
 		setupCheckCommand(),

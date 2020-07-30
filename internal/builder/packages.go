@@ -19,8 +19,8 @@ type packageManifest struct {
 	Version string `json:"version"`
 }
 
-// BuildIntegration method builds the integration package.
-func BuildIntegration() error {
+// BuildPackage method builds the package.
+func BuildPackage() error {
 	packageRoot, found, err := findPackageRoot()
 	if !found {
 		return errors.New("package root not found")
@@ -36,7 +36,7 @@ func BuildIntegration() error {
 	return nil
 }
 
-// FindBuildPackagesDirectory method locates the target build directory for integrations.
+// FindBuildPackagesDirectory method locates the target build directory for packages.
 func FindBuildPackagesDirectory() (string, bool, error) {
 	workDir, err := os.Getwd()
 	if err != nil {
@@ -45,7 +45,7 @@ func FindBuildPackagesDirectory() (string, bool, error) {
 
 	dir := workDir
 	for dir != "." {
-		path := filepath.Join(dir, "build", "integrations") // TODO add support for other repositories
+		path := filepath.Join(dir, "build", "integrations") // TODO add support for other package types
 		fileInfo, err := os.Stat(path)
 		if err == nil && fileInfo.IsDir() {
 			return path, true, nil
@@ -92,11 +92,11 @@ func isPackageManifest(path string) (bool, error) {
 	if err != nil {
 		return false, errors.Wrapf(err, "reading package manifest failed (path: %s)", path)
 	}
-	return m.Type == "integration" && m.Version != "", nil
+	return m.Type == "integration" && m.Version != "", nil // TODO add support for other package types
 }
 
 func buildPackage(sourcePath string) error {
-	fmt.Printf("Building integration: %s\n", sourcePath)
+	fmt.Printf("Building package: %s\n", sourcePath)
 
 	buildDir, found, err := FindBuildPackagesDirectory()
 	if err != nil {

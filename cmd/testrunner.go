@@ -9,8 +9,8 @@ import (
 func setupTestCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "test",
-		Short: "Run test suite for the integration",
-		Long:  "Use test runners to verify if the integration collect logs are metrics properly.",
+		Short: "Run test suite for the package",
+		Long:  "Use test runners to verify if the package collects logs and metrics properly.",
 		RunE:  testCommandAction,
 	}
 }

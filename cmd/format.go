@@ -9,8 +9,8 @@ import (
 func setupFormatCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "format",
-		Short: "Format the integration",
-		Long:  "Use format command to format the integration files.",
+		Short: "Format the package",
+		Long:  "Use format command to format the package files.",
 		RunE:  formatCommandAction,
 	}
 	return cmd

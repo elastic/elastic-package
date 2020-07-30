@@ -15,7 +15,7 @@ func main() {
 
 	err := install.EnsureInstalled()
 	if err != nil {
-		log.Fatal(errors.Wrap(err, "checking installation failed"))
+		log.Fatal(errors.Wrap(err, "validating installation failed"))
 	}
 
 	err = rootCmd.Execute()
