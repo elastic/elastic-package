@@ -9,8 +9,8 @@ import (
 func setupLintCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "lint",
-		Short: "Lint the integration",
-		Long:  "Use lint command to lint the integration files.",
+		Short: "Lint the package",
+		Long:  "Use lint command to lint the package files.",
 		RunE:  lintCommandAction,
 	}
 	return cmd
