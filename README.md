@@ -8,7 +8,7 @@ The elastic-package is a command line tool, written in Go, used for developing E
 
 TODO
 
-## Supported packages
+## Supported package types
 
 * [Elastic Integrations](https://github.com/elastic/integrations)
 
