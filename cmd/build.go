@@ -12,13 +12,15 @@ func setupBuildCommand() *cobra.Command {
 		Use:   "build",
 		Short: "Build the integration",
 		Long:  "Use build command to build the integration.",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			err := builder.BuildIntegration()
-			if err != nil {
-				return errors.Wrap(err, "building integration failed")
-			}
-			return nil
-		},
+		RunE:  buildCommandAction,
 	}
 	return cmd
+}
+
+func buildCommandAction(cmd *cobra.Command, args []string) error {
+	err := builder.BuildIntegration()
+	if err != nil {
+		return errors.Wrap(err, "building integration failed")
+	}
+	return nil
 }
