@@ -16,7 +16,7 @@ func RootCmd() *cobra.Command {
 		setupBuildCommand(),
 		setupFormatCommand(),
 		setupTestCommand(),
-		setupValidateCommand())
+		setupLintCommand())
 
 	return rootCmd
 }

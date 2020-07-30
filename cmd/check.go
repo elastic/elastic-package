@@ -13,7 +13,7 @@ func setupCheckCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			err := composeCommandActions(cmd, args,
 				formatCommandAction,
-				validateCommandAction,
+				lintCommandAction,
 				buildCommandAction,
 				testCommandAction,
 			)
