@@ -11,7 +11,7 @@ TODO
 Download and build the `elastic-package` binary:
 
 ```bash
-go get github.com/elastic/elastic-package/cmd/elastic-package
+go get github.com/elastic/elastic-package
 ```
 
 Change directory to the integration under development
