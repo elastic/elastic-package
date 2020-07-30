@@ -18,8 +18,11 @@ func main() {
 	}
 	rootCmd.AddCommand(
 		setupBuildCommand(),
+		setupCheckCommand(),
+		setupFormatCommand(),
 		setupClusterCommand(),
-		setupTestCommand())
+		setupTestCommand(),
+		setupValidateCommand())
 
 	err := install.EnsureInstalled()
 	if err != nil {
