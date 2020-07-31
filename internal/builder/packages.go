@@ -163,7 +163,7 @@ func createBuildPackagesDirectory() (string, error) {
 		}
 		dir = filepath.Dir(dir)
 	}
-	return "", nil
+	return "", errors.New("locating place for build directory failed")
 }
 
 func readPackageManifest(path string) (*packageManifest, error) {
