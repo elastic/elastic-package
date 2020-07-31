@@ -1,6 +1,3 @@
-.PHONY: vendor
-
-
 build:
 	go get github.com/elastic/elastic-package
 
@@ -15,6 +12,6 @@ gomod:
 	go mod tidy
 
 check-git-clean:
-	git diff-index --quiet HEAD
+	git diff-index HEAD
 
 check: build format lint gomod check-git-clean
