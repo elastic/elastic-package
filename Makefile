@@ -15,6 +15,6 @@ gomod:
 	go mod tidy
 
 check-git-clean:
-	git diff-index HEAD && echo ok
+	git diff-index --quiet HEAD
 
 check: build format lint gomod check-git-clean
