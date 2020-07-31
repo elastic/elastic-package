@@ -103,7 +103,10 @@ func buildPackage(sourcePath string) error {
 		return errors.Wrap(err, "locating build directory failed")
 	}
 	if !found {
-		return errors.New("build directory not found")
+		buildDir, err = createBuildPackagesDirectory()
+		if err != nil {
+			return errors.Wrap(err, "creating new build directory failed")
+		}
 	}
 
 	m, err := readPackageManifest(filepath.Join(sourcePath, packageManifestFile))
@@ -134,6 +137,33 @@ func buildPackage(sourcePath string) error {
 
 	fmt.Println("Done.")
 	return nil
+}
+
+func createBuildPackagesDirectory() (string, error) {
+	workDir, err := os.Getwd()
+	if err != nil {
+		return "", errors.Wrap(err, "locating working directory failed")
+	}
+
+	dir := workDir
+	for dir != "." {
+		path := filepath.Join(dir, ".git")
+		fileInfo, err := os.Stat(path)
+		if err == nil && fileInfo.IsDir() {
+			buildDir := filepath.Join(dir, "build", "integrations") // TODO add support for other package types
+			err = os.MkdirAll(buildDir, 0755)
+			if err != nil {
+				return "", errors.Wrapf(err, "mkdir failed (path: %s)", buildDir)
+			}
+			return buildDir, nil
+		}
+
+		if dir == "/" {
+			break
+		}
+		dir = filepath.Dir(dir)
+	}
+	return "", errors.New("locating place for build directory failed")
 }
 
 func readPackageManifest(path string) (*packageManifest, error) {
