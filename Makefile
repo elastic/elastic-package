@@ -5,7 +5,7 @@ build:
 	go get github.com/elastic/elastic-package
 
 format:
-	gofmt -s -w .
+	go fmt $(go list ./... | grep -v /vendor/)
 
 lint:
 	GO111MODULE=off go get -u golang.org/x/lint/golint
@@ -16,6 +16,6 @@ vendor:
 	go mod vendor
 
 check-git-clean:
-	git diff-index --quiet HEAD
+	git diff-index --quiet HEAD && echo ok
 
 check: build format lint vendor check-git-clean
