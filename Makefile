@@ -5,17 +5,16 @@ build:
 	go get github.com/elastic/elastic-package
 
 format:
-	go fmt $(go list ./... | grep -v /vendor/)
+	gofmt -s -w .
 
 lint:
 	GO111MODULE=off go get -u golang.org/x/lint/golint
-	go list ./... | grep -v /vendor/ | xargs -n 1 golint -set_exit_status
+	go list ./... | xargs -n 1 golint -set_exit_status
 
-vendor:
+gomod:
 	go mod tidy
-	go mod vendor
 
 check-git-clean:
-	git diff-index --quiet HEAD && echo ok
+	git diff-index HEAD && echo ok
 
-check: build format lint vendor check-git-clean
+check: build format lint gomod check-git-clean
