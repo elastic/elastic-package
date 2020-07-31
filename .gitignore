@@ -8,6 +8,9 @@
 # Test binary, built with `go test -c`
 *.test
 
+# elastic-package binary built with go build
+elastic-package
+
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
 
