@@ -1,9 +1,9 @@
 package cmd
 
 import (
-	"fmt"
-
+	"github.com/elastic/package-spec/code/go/pkg/validator"
 	"github.com/spf13/cobra"
+	"os"
 )
 
 func setupLintCommand() *cobra.Command {
@@ -17,6 +17,10 @@ func setupLintCommand() *cobra.Command {
 }
 
 func lintCommandAction(cmd *cobra.Command, args []string) error {
-	fmt.Println("lint is not implemented yet.")
-	return nil
+	packageRootPath, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+
+	return validator.ValidateFromPath(packageRootPath)
 }
