@@ -12,6 +12,7 @@ func setupLintCommand() *cobra.Command {
 		Short: "Lint the package",
 		Long:  "Use lint command to lint the package files.",
 		RunE:  lintCommandAction,
+		SilenceUsage: true,
 	}
 	return cmd
 }
