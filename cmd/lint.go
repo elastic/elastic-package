@@ -1,10 +1,11 @@
 package cmd
 
 import (
-	"os"
-
 	"github.com/elastic/package-spec/code/go/pkg/validator"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+
+	"github.com/elastic/elastic-package/internal/packages"
 )
 
 func setupLintCommand() *cobra.Command {
@@ -18,9 +19,12 @@ func setupLintCommand() *cobra.Command {
 }
 
 func lintCommandAction(cmd *cobra.Command, args []string) error {
-	packageRootPath, err := os.Getwd()
+	packageRootPath, found, err := packages.FindPackageRoot()
+	if !found {
+		return errors.New("package root not found")
+	}
 	if err != nil {
-		return err
+		return errors.Wrap(err, "locating package root failed")
 	}
 
 	return validator.ValidateFromPath(packageRootPath)

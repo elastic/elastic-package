@@ -2,26 +2,18 @@ package builder
 
 import (
 	"fmt"
-	"github.com/elastic/elastic-package/internal/files"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
+	"github.com/elastic/elastic-package/internal/files"
+	"github.com/elastic/elastic-package/internal/packages"
+
 	"github.com/pkg/errors"
-	"gopkg.in/yaml.v2"
 )
-
-const packageManifestFile = "manifest.yml"
-
-type packageManifest struct {
-	Name    string `json:"name"`
-	Type    string `json:"type"`
-	Version string `json:"version"`
-}
 
 // BuildPackage method builds the package.
 func BuildPackage() error {
-	packageRoot, found, err := findPackageRoot()
+	packageRoot, found, err := packages.FindPackageRoot()
 	if !found {
 		return errors.New("package root not found")
 	}
@@ -59,42 +51,6 @@ func FindBuildPackagesDirectory() (string, bool, error) {
 	return "", false, nil
 }
 
-func findPackageRoot() (string, bool, error) {
-	workDir, err := os.Getwd()
-	if err != nil {
-		return "", false, errors.Wrap(err, "locating working directory failed")
-	}
-
-	dir := workDir
-	for dir != "." {
-		path := filepath.Join(dir, packageManifestFile)
-		fileInfo, err := os.Stat(path)
-		if err == nil && !fileInfo.IsDir() {
-			ok, err := isPackageManifest(path)
-			if err != nil {
-				return "", false, errors.Wrapf(err, "verifying manifest file failed (path: %s)", path)
-			}
-			if ok {
-				return dir, true, nil
-			}
-		}
-
-		if dir == "/" {
-			break
-		}
-		dir = filepath.Dir(dir)
-	}
-	return "", false, nil
-}
-
-func isPackageManifest(path string) (bool, error) {
-	m, err := readPackageManifest(path)
-	if err != nil {
-		return false, errors.Wrapf(err, "reading package manifest failed (path: %s)", path)
-	}
-	return m.Type == "integration" && m.Version != "", nil // TODO add support for other package types
-}
-
 func buildPackage(sourcePath string) error {
 	fmt.Printf("Building package: %s\n", sourcePath)
 
@@ -109,7 +65,7 @@ func buildPackage(sourcePath string) error {
 		}
 	}
 
-	m, err := readPackageManifest(filepath.Join(sourcePath, packageManifestFile))
+	m, err := packages.ReadPackageManifest(filepath.Join(sourcePath, packages.PackageManifestFile))
 	if err != nil {
 		return errors.Wrapf(err, "reading package manifest failed (path: %s)", sourcePath)
 	}
@@ -164,18 +120,4 @@ func createBuildPackagesDirectory() (string, error) {
 		dir = filepath.Dir(dir)
 	}
 	return "", errors.New("locating place for build directory failed")
-}
-
-func readPackageManifest(path string) (*packageManifest, error) {
-	content, err := ioutil.ReadFile(path)
-	if err != nil {
-		return nil, errors.Wrapf(err, "reading file body failed (path: %s)", path)
-	}
-
-	var m packageManifest
-	err = yaml.Unmarshal(content, &m)
-	if err != nil {
-		return nil, errors.Wrapf(err, "unmarshalling package manifest failed (path: %s)", path)
-	}
-	return &m, nil
 }
