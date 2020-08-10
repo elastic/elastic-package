@@ -9,14 +9,17 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+// PackageManifestFile is the name of the package's main manifest file.
 const PackageManifestFile = "manifest.yml"
 
-type packageManifest struct {
+// PackageManifest represents the basic structure of a package's manifest
+type PackageManifest struct {
 	Name    string `json:"name"`
 	Type    string `json:"type"`
 	Version string `json:"version"`
 }
 
+// FindPackageRoot finds and returns the path to the root folder of a package.
 func FindPackageRoot() (string, bool, error) {
 	workDir, err := os.Getwd()
 	if err != nil {
@@ -45,13 +48,14 @@ func FindPackageRoot() (string, bool, error) {
 	return "", false, nil
 }
 
-func ReadPackageManifest(path string) (*packageManifest, error) {
+// ReadPackageManifest reads and parses the given package manifest file.
+func ReadPackageManifest(path string) (*PackageManifest, error) {
 	content, err := ioutil.ReadFile(path)
 	if err != nil {
 		return nil, errors.Wrapf(err, "reading file body failed (path: %s)", path)
 	}
 
-	var m packageManifest
+	var m PackageManifest
 	err = yaml.Unmarshal(content, &m)
 	if err != nil {
 		return nil, errors.Wrapf(err, "unmarshalling package manifest failed (path: %s)", path)
