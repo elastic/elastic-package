@@ -1,14 +1,15 @@
 package cmd
 
 import (
-	"github.com/elastic/elastic-package/internal/promote"
+	"fmt"
 	"log"
 	"strings"
 
-	"github.com/pkg/errors"
-
 	"github.com/AlecAivazis/survey/v2"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+
+	"github.com/elastic/elastic-package/internal/promote"
 )
 
 func setupPromoteCommand() *cobra.Command {
@@ -43,12 +44,23 @@ func promoteCommandAction(cmd *cobra.Command, args []string) error {
 		return errors.Wrapf(err, "listing packages failed (newestOnly: %t)", newestOnly)
 	}
 
-	selectedPackages, err := promptPackages(allPackages.Strings())
+	if len(allPackages) == 0 {
+		fmt.Println("No packages available for promotion.")
+		return nil
+	}
+
+	selectedPackages, err := promptPackages(allPackages)
 	if err != nil {
 		return errors.Wrap(err, "prompt for package selection failed")
 	}
 
 	log.Println(sourceStage, destinationStage, selectedPackages, newestOnly)
+	// TODO copy from source to destination repository
+	// TODO remove from source repository (consider "newest only")
+	// TODO push destination
+	// TODO push source
+	// TODO open PR for destination
+	// TODO open PR for source
 	return nil
 }
 
@@ -82,17 +94,26 @@ func promptPromoteNewestOnly() (bool, error) {
 	return newestOnly, nil
 }
 
-func promptPackages(allPackages []string) ([]string, error) {
+func promptPackages(allPackages promote.PackageRevisions) (promote.PackageRevisions, error) {
 	packagesPrompt := &survey.MultiSelect{
-		Message: "Which packages would you like to promote",
-		Options: allPackages,
+		Message:  "Which packages would you like to promote",
+		Options:  allPackages.Strings(),
 		PageSize: 100,
 	}
 
-	var selected []string
-	err := survey.AskOne(packagesPrompt, &selected, survey.WithValidator(survey.Required))
+	var selectedOptions []string
+	err := survey.AskOne(packagesPrompt, &selectedOptions, survey.WithValidator(survey.Required))
 	if err != nil {
 		return nil, err
+	}
+
+	var selected promote.PackageRevisions
+	for _, option := range selectedOptions {
+		for _, p := range allPackages {
+			if p.String() == option {
+				selected = append(selected, p)
+			}
+		}
 	}
 	return selected, nil
 }

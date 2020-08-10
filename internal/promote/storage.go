@@ -13,6 +13,12 @@ import (
 	"github.com/pkg/errors"
 )
 
+const (
+	snapshotPackage = "snapshot"
+	stagingPackage  = "staging"
+)
+
+// PackageRevision represents a package revision stored in the package-storage.
 type PackageRevision struct {
 	Name    string
 	Version string
@@ -20,12 +26,15 @@ type PackageRevision struct {
 	semver semver.Version
 }
 
+// String method returns a string representation of the PackageRevision.
 func (pr *PackageRevision) String() string {
 	return fmt.Sprintf("%s-%s", pr.Name, pr.Version)
 }
 
+// PackageRevisions is an array of PackageRevision.
 type PackageRevisions []PackageRevision
 
+// Strings method returns an array of string representations.
 func (prs PackageRevisions) Strings() []string {
 	var entries []string
 	for _, pr := range prs {
@@ -34,6 +43,7 @@ func (prs PackageRevisions) Strings() []string {
 	return entries
 }
 
+// CloneRepository method clones the repository and changes branch to stage.
 func CloneRepository(stage string) (*git.Repository, error) {
 	r, err := git.Clone(memory.NewStorage(), memfs.New(), &git.CloneOptions{
 		URL:           "https://github.com/elastic/package-storage",
@@ -46,6 +56,8 @@ func CloneRepository(stage string) (*git.Repository, error) {
 	return r, nil
 }
 
+// ListPackages method lists available packages in the package-storage.
+// It skips technical packages (snapshot, staging) and preserves "newest revisions only" policy (if selected).
 func ListPackages(r *git.Repository, newestOnly bool) (PackageRevisions, error) {
 	wt, err := r.Worktree()
 	if err != nil {
@@ -63,11 +75,16 @@ func ListPackages(r *git.Repository, newestOnly bool) (PackageRevisions, error) 
 			continue
 		}
 
+		if packageDir.Name() == snapshotPackage || packageDir.Name() == stagingPackage {
+			continue
+		}
+
 		versionDirs, err := wt.Filesystem.ReadDir(filepath.Join("/packages", packageDir.Name()))
 		if err != nil {
 			return nil, errors.Wrap(err, "reading packages directory failed")
 		}
 
+		var t []PackageRevision
 		for _, versionDir := range versionDirs {
 			if !versionDir.IsDir() {
 				continue
@@ -78,11 +95,23 @@ func ListPackages(r *git.Repository, newestOnly bool) (PackageRevisions, error) 
 				return nil, errors.Wrapf(err, "reading package version failed (name: %s, version: %s)", packageDir.Name(), versionDir.Name())
 			}
 
-			revisions = append(revisions, PackageRevision{
+			t = append(t, PackageRevision{
 				Name:    packageDir.Name(),
 				Version: versionDir.Name(),
 				semver:  *packageVersion,
 			})
+		}
+
+		if newestOnly {
+			var newest PackageRevision
+			for _, pr := range t {
+				if pr.semver.GreaterThan(&newest.semver) {
+					newest = pr
+				}
+			}
+			revisions = append(revisions, newest)
+		} else {
+			revisions = append(revisions, t...)
 		}
 	}
 
