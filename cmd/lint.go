@@ -1,9 +1,10 @@
 package cmd
 
 import (
+	"os"
+
 	"github.com/elastic/package-spec/code/go/pkg/validator"
 	"github.com/spf13/cobra"
-	"os"
 )
 
 func setupLintCommand() *cobra.Command {
