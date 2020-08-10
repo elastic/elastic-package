@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"github.com/elastic/elastic-package/internal/promote"
 	"log"
 	"strings"
 
@@ -22,23 +23,32 @@ func setupPromoteCommand() *cobra.Command {
 }
 
 func promoteCommandAction(cmd *cobra.Command, args []string) error {
-	from, to, err := promptPromotion()
+	sourceStage, destinationStage, err := promptPromotion()
 	if err != nil {
 		return errors.Wrap(err, "prompt for promotion failed")
 	}
 
-	allPackages := []string{"apache-0.1.0", "aws-0.2.0", "kubernetes-0.3.0"}
 	newestOnly, err := promptPromoteNewestOnly()
 	if err != nil {
 		return errors.Wrap(err, "prompt for promoting newest revisions only failed")
 	}
 
-	selectedPackages, err := promptPackages(allPackages)
+	sourceRepository, err := promote.CloneRepository(sourceStage)
+	if err != nil {
+		return errors.Wrapf(err, "cloning repository failed (branch: %s)", sourceStage)
+	}
+
+	allPackages, err := promote.ListPackages(sourceRepository, newestOnly)
+	if err != nil {
+		return errors.Wrapf(err, "listing packages failed (newestOnly: %t)", newestOnly)
+	}
+
+	selectedPackages, err := promptPackages(allPackages.Strings())
 	if err != nil {
 		return errors.Wrap(err, "prompt for package selection failed")
 	}
 
-	log.Println(from, to, selectedPackages, newestOnly)
+	log.Println(sourceStage, destinationStage, selectedPackages, newestOnly)
 	return nil
 }
 
@@ -76,6 +86,7 @@ func promptPackages(allPackages []string) ([]string, error) {
 	packagesPrompt := &survey.MultiSelect{
 		Message: "Which packages would you like to promote",
 		Options: allPackages,
+		PageSize: 100,
 	}
 
 	var selected []string
