@@ -16,7 +16,7 @@ import (
 func setupPromoteCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:          "promote",
-		Short:        "Promote the package",
+		Short:        "Promote packages",
 		Long:         "Use promote command to move packages between stages in package-storage.",
 		RunE:         promoteCommandAction,
 		SilenceUsage: true,
