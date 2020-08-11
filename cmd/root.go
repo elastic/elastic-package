@@ -7,16 +7,17 @@ import (
 // RootCmd creates and returns root cmd for elastic-package
 func RootCmd() *cobra.Command {
 	rootCmd := &cobra.Command{
-		Use:   "elastic-package",
-		Short: "elastic-package - Command line tool for developing Elastic packages",
+		Use:          "elastic-package",
+		Short:        "elastic-package - Command line tool for developing Elastic Integrations",
+		SilenceUsage: true,
 	}
 	rootCmd.AddCommand(
 		setupCheckCommand(),
 		setupClusterCommand(),
 		setupBuildCommand(),
 		setupFormatCommand(),
-		setupTestCommand(),
 		setupLintCommand(),
+		setupTestCommand(),
 		setupPromoteCommand())
 	return rootCmd
 }
