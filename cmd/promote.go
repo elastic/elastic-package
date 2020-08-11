@@ -2,13 +2,14 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/elastic/elastic-package/internal/github"
 	"strings"
+	"time"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
+	"github.com/elastic/elastic-package/internal/github"
 	"github.com/elastic/elastic-package/internal/promote"
 )
 
@@ -62,39 +63,42 @@ func promoteCommandAction(cmd *cobra.Command, args []string) error {
 
 	removedPackages := promote.DeterminePackagesToBeRemoved(allPackages, promotedPackages, newestOnly)
 
+	nonce := time.Now().UnixNano()
 	// Copy packages to destination
-	newDestinationStage, err := promote.CopyPackages(repository, sourceStage, destinationStage, promotedPackages)
+	newDestinationStage, err := promote.CopyPackages(repository, sourceStage, destinationStage, promotedPackages, nonce)
 	if err != nil {
 		return errors.Wrapf(err, "copying packages failed (source: %s, destination: %s)", sourceStage, destinationStage)
 	}
 
 	// Remove packages from source
-	newSourceStage, err := promote.RemovePackages(repository, sourceStage, removedPackages)
+	newSourceStage, err := promote.RemovePackages(repository, sourceStage, removedPackages, nonce)
 	if err != nil {
 		return errors.Wrapf(err, "removing packages failed (source: %s)", sourceStage)
 	}
 
 	// Push changes
-	err = promote.PushChanges(repository, newDestinationStage)
+	err = promote.PushChanges(repository)
 	if err != nil {
-		return errors.Wrapf(err, "pushing changes failed (stage: %s)", newDestinationStage)
-	}
-
-	err = promote.PushChanges(repository, newDestinationStage)
-	if err != nil {
-		return errors.Wrapf(err, "pushing changes failed (stage: %s)", newSourceStage)
+		return errors.Wrapf(err, "pushing changes failed")
 	}
 
 	// Open PRs
-	err = promote.OpenPullRequestWithPromotedPackages(newDestinationStage, destinationStage, promotedPackages)
+	user, err := promote.User(repository)
+	if err != nil {
+		return errors.Wrap(err, "reading Git user failed")
+	}
+
+	url, err := promote.OpenPullRequestWithPromotedPackages(user, newDestinationStage, destinationStage, sourceStage, destinationStage, promotedPackages)
 	if err != nil {
 		return errors.Wrapf(err, "opening PR with promoted packages failed (head: %s, base: %s)", newDestinationStage, destinationStage)
 	}
+	fmt.Println("Pull request with promoted packages: ", url)
 
-	err = promote.OpenPullRequestWithRemovedPackages(newDestinationStage, destinationStage, removedPackages)
+	url, err = promote.OpenPullRequestWithRemovedPackages(user, newSourceStage, sourceStage, sourceStage, destinationStage, removedPackages)
 	if err != nil {
 		return errors.Wrapf(err, "opening PR with removed packages failed (head: %s, base: %s)", newDestinationStage, destinationStage)
 	}
+	fmt.Println("Pull request with removed packages: ", url)
 	return nil
 }
 

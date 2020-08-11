@@ -5,7 +5,6 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"sort"
-	"time"
 
 	"github.com/Masterminds/semver"
 	"github.com/go-git/go-billy/v5"
@@ -79,15 +78,15 @@ func CloneRepository(stage string) (*git.Repository, error) {
 		return nil, errors.Wrap(err, "fetch remote branches failed")
 	}
 
-	c, err := r.ConfigScoped(config.SystemScope)
+	user, err := User(r)
 	if err != nil {
-		return nil, errors.Wrap(err, "reading config failed")
+		return nil, errors.Wrap(err, "reading Git user failed")
 	}
 
 	_, err = r.CreateRemote(&config.RemoteConfig{
-		Name: c.User.Name,
+		Name: user,
 		URLs: []string{
-			fmt.Sprintf(repositoryURL, c.User.Name),
+			fmt.Sprintf(repositoryURL, user),
 		},
 	})
 	if err != nil {
@@ -197,7 +196,7 @@ func DeterminePackagesToBeRemoved(allPackages PackageRevisions, promotedPackages
 }
 
 // CopyPackages method copies packages between branches. It creates a new branch with selected packages.
-func CopyPackages(r *git.Repository, sourceStage, destinationStage string, packages PackageRevisions) (string, error) {
+func CopyPackages(r *git.Repository, sourceStage, destinationStage string, packages PackageRevisions, nonce int64) (string, error) {
 	fmt.Printf("Promote packages from %s to %s...\n", sourceStage, destinationStage)
 
 	wt, err := r.Worktree()
@@ -230,7 +229,7 @@ func CopyPackages(r *git.Repository, sourceStage, destinationStage string, packa
 		return "", errors.Wrapf(err, "changing branch failed (path: %s)", destinationStage)
 	}
 
-	newDestinationStage := fmt.Sprintf("promote-from-%s-to-%s-%d", sourceStage, destinationStage, time.Now().UnixNano())
+	newDestinationStage := fmt.Sprintf("promote-from-%s-to-%s-%d", sourceStage, destinationStage, nonce)
 	err = wt.Checkout(&git.CheckoutOptions{
 		Branch: plumbing.NewBranchReferenceName(newDestinationStage),
 		Create: true,
@@ -327,7 +326,7 @@ func writePackageContents(filesystem billy.Filesystem, contents fileContents) er
 }
 
 // RemovePackages method removes packages from "stage" branch. It creates a new branch with removed packages.
-func RemovePackages(r *git.Repository, sourceStage string, packages PackageRevisions) (string, error) {
+func RemovePackages(r *git.Repository, sourceStage string, packages PackageRevisions, nonce int64) (string, error) {
 	fmt.Printf("Remove packages from %s...\n", sourceStage)
 
 	wt, err := r.Worktree()
@@ -343,7 +342,7 @@ func RemovePackages(r *git.Repository, sourceStage string, packages PackageRevis
 		return "", errors.Wrapf(err, "changing branch failed (path: %s)", sourceStage)
 	}
 
-	newSourceStage := fmt.Sprintf("delete-from-%s-%d", sourceStage, time.Now().UnixNano())
+	newSourceStage := fmt.Sprintf("delete-from-%s-%d", sourceStage, nonce)
 	err = wt.Checkout(&git.CheckoutOptions{
 		Branch: plumbing.NewBranchReferenceName(newSourceStage),
 		Create: true,
@@ -366,21 +365,11 @@ func RemovePackages(r *git.Repository, sourceStage string, packages PackageRevis
 	return newSourceStage, nil
 }
 
-// PushChanges method pushes branch with updated packages (updated stage) to the remote repository.
-func PushChanges(r *git.Repository, stage string) error {
-	wt, err := r.Worktree()
+// PushChanges method pushes all branches to the remote repository.
+func PushChanges(r *git.Repository) error {
+	user, err := User(r)
 	if err != nil {
-		return errors.Wrap(err, "fetching worktree reference failed")
-	}
-
-	err = wt.Checkout(&git.CheckoutOptions{
-		Branch: plumbing.NewBranchReferenceName(stage),
-		Create: true,
-	})
-
-	c, err := r.ConfigScoped(config.SystemScope)
-	if err != nil {
-		return errors.Wrap(err, "reading config failed")
+		return errors.Wrap(err, "reading Git user failed")
 	}
 
 	authToken, err := github.AuthToken()
@@ -389,9 +378,9 @@ func PushChanges(r *git.Repository, stage string) error {
 	}
 
 	err = r.Push(&git.PushOptions{
-		RemoteName: c.User.Name,
+		RemoteName: user,
 		Auth: &http.BasicAuth{
-			Username: c.User.Name,
+			Username: user,
 			Password: authToken,
 		},
 	})
@@ -399,6 +388,15 @@ func PushChanges(r *git.Repository, stage string) error {
 		return errors.Wrap(err, "pushing branch failed")
 	}
 	return nil
+}
+
+// User method returns the Git user.
+func User(r *git.Repository) (string, error) {
+	c, err := r.ConfigScoped(config.SystemScope)
+	if err != nil {
+		return "", errors.Wrap(err, "reading config failed")
+	}
+	return c.User.Name, nil
 }
 
 func sortPackageRevisions(revisions PackageRevisions) PackageRevisions {
