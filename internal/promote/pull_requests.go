@@ -21,9 +21,9 @@ type createPullRequestResponse struct {
 
 // OpenPullRequestWithRemovedPackages method opens a PR against "base" branch with removed packages.
 // Head is the branch containing the changes that will be added to the base branch.
-func OpenPullRequestWithRemovedPackages(username, head, base, sourceStage, destinationStage string, promotedPackages PackageRevisions) (string, error) {
-	title := fmt.Sprintf("[%s] Remove packages from %s to %s", destinationStage, sourceStage, destinationStage)
-	description := buildPullRequestRemoveDescription(sourceStage, destinationStage, promotedPackages)
+func OpenPullRequestWithRemovedPackages(username, head, base, sourceStage string, promotedPackages PackageRevisions) (string, error) {
+	title := fmt.Sprintf("[%s] Remove packages from %s", sourceStage, sourceStage)
+	description := buildPullRequestRemoveDescription(sourceStage, promotedPackages)
 	return openPullRequestWithPackages(username, head, base, title, description)
 }
 
@@ -125,9 +125,9 @@ func updatePullRequestAssignee(pullRequestID int, user string) error {
 	return nil
 }
 
-func buildPullRequestRemoveDescription(sourceStage, destinationStage string, revisions PackageRevisions) string {
+func buildPullRequestRemoveDescription(sourceStage string, revisions PackageRevisions) string {
 	var builder strings.Builder
-	builder.WriteString(fmt.Sprintf("This PR removes packages from `%s` to `%s`.\n", sourceStage, destinationStage))
+	builder.WriteString(fmt.Sprintf("This PR removes packages from `%s`.\n", sourceStage))
 	builder.WriteString("\n")
 	builder.WriteString("Removed packages:\n")
 	for _, revision := range revisions {
@@ -142,7 +142,7 @@ func buildPullRequestPromoteDescription(sourceStage, destinationStage string, re
 	builder.WriteString("\n")
 	builder.WriteString("Promoted packages:\n")
 	for _, revision := range revisions {
-		builder.WriteString(fmt.Sprintf("* %s-%s\n", revision.Name, revision.Version))
+		builder.WriteString(fmt.Sprintf("* `%s-%s`\n", revision.Name, revision.Version))
 	}
 	return builder.String()
 }
