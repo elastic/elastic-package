@@ -2,11 +2,15 @@ package promote
 
 import (
 	"fmt"
+	"io/ioutil"
 	"path/filepath"
 	"sort"
+	"time"
 
 	"github.com/Masterminds/semver"
+	"github.com/go-git/go-billy/v5"
 	"github.com/go-git/go-billy/v5/memfs"
+	"github.com/go-git/go-billy/v5/util"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
@@ -19,6 +23,8 @@ const (
 	stagingPackage  = "staging"
 	repositoryURL   = "https://github.com/%s/package-storage"
 )
+
+type fileContents map[string][]byte
 
 // PackageRevision represents a package revision stored in the package-storage.
 type PackageRevision struct {
@@ -75,7 +81,7 @@ func CloneRepository(stage string) (*git.Repository, error) {
 func ListPackages(r *git.Repository) (PackageRevisions, error) {
 	wt, err := r.Worktree()
 	if err != nil {
-		return nil, errors.Wrap(err, "reading worktree failed")
+		return nil, errors.Wrap(err, "fetching worktree reference failed")
 	}
 
 	packageDirs, err := wt.Filesystem.ReadDir("/packages")
@@ -172,7 +178,132 @@ func DeterminePackagesToBeRemoved(allPackages PackageRevisions, promotedPackages
 
 // CopyPackages method copies packages between branches. It creates a new branch with selected packages.
 func CopyPackages(r *git.Repository, sourceStage, destinationStage string, packages PackageRevisions) (string, error) {
-	return "", errors.New("CopyPackages: not implemented yet") // TODO
+	wt, err := r.Worktree()
+	if err != nil {
+		return "", errors.Wrap(err, "fetching worktree reference failed")
+	}
+
+	err = wt.Checkout(&git.CheckoutOptions{
+		Branch: plumbing.NewBranchReferenceName(sourceStage),
+	})
+	if err != nil {
+		return "", errors.Wrapf(err, "changing branch failed (path: %s)", sourceStage)
+	}
+
+	// Load package resources from source stage
+	resourcePaths, err := walkPackageRevisions(wt.Filesystem, packages)
+	if err != nil {
+		return "", errors.Wrap(err, "walking package revisions failed")
+	}
+
+	contents, err := loadPackageContents(wt.Filesystem, resourcePaths)
+	if err != nil {
+		return "", errors.Wrap(err, "loading package contents failed")
+	}
+
+	// Create new branch for updated destination
+	newDestinationStage := fmt.Sprintf("promote-from-%s-to-%s-%d", sourceStage, destinationStage, time.Now().UnixNano())
+
+	err = r.CreateBranch(&config.Branch{
+		Name: newDestinationStage,
+	})
+	if err != nil {
+		return "", errors.Wrapf(err, "creating branch filed (path: %s)", newDestinationStage)
+	}
+
+	err = wt.Checkout(&git.CheckoutOptions{
+		Branch: plumbing.NewBranchReferenceName(newDestinationStage),
+	})
+	if err != nil {
+		return "", errors.Wrapf(err, "changing branch failed (path: %s)", destinationStage)
+	}
+
+	err = writePackageContents(wt.Filesystem, contents)
+	if err != nil {
+		return "", errors.Wrap(err, "writing package contents failed")
+	}
+
+	for _, resourcePath := range resourcePaths {
+		_, err := wt.Add(resourcePath)
+		if err != nil {
+			return "", errors.Wrapf(err, "adding resource to index failed (path: %s)", resourcePath)
+		}
+	}
+
+	_, err = wt.Commit(fmt.Sprintf("Promote packages from %s to %s", sourceStage, destinationStage), new(git.CommitOptions))
+	if err != nil {
+		return "", errors.Wrapf(err, "committing files failed (stage: %s)", newDestinationStage)
+	}
+	return newDestinationStage, nil
+}
+
+func walkPackageRevisions(filesystem billy.Filesystem, revisions PackageRevisions) ([]string, error) {
+	var collected []string
+	for _, r := range revisions {
+		path := filepath.Join("packages", r.Name, r.Version)
+		paths, err := walkPackageResources(filesystem, path)
+		if err != nil {
+			return nil, errors.Wrap(err, "walking package resources failed")
+		}
+		collected = append(collected, paths...)
+	}
+	return collected, nil
+}
+
+func walkPackageResources(filesystem billy.Filesystem, path string) ([]string, error) {
+	fis, err := filesystem.ReadDir(path)
+	if err != nil {
+		return nil, errors.Wrapf(err, "reading directory failed (path: %s)", path)
+	}
+
+	var collected []string
+	for _, fi := range fis {
+		if fi.IsDir() {
+			p := filepath.Join(path, fi.Name())
+			c, err := walkPackageResources(filesystem, p)
+			if err != nil {
+				return nil, errors.Wrapf(err, "recursive walking failed (path: %s)", p)
+			}
+			collected = append(collected, c...)
+			continue
+		}
+		collected = append(collected, filepath.Join(path, fi.Name()))
+	}
+	return collected, nil
+}
+
+func loadPackageContents(filesystem billy.Filesystem, resourcePaths []string) (fileContents, error) {
+	m := fileContents{}
+	for _, path := range resourcePaths {
+		f, err := filesystem.Open(path)
+		if err != nil {
+			return nil, errors.Wrapf(err, "reading file failed (path: %s)", path)
+		}
+
+		c, err := ioutil.ReadAll(f)
+		if err != nil {
+			return nil, errors.Wrapf(err, "reading file content failed (path: %s)", path)
+		}
+
+		m[path] = c
+	}
+	return m, nil
+}
+
+func writePackageContents(filesystem billy.Filesystem, contents fileContents) error {
+	for resourcePath, content := range contents {
+		dir := filepath.Dir(resourcePath)
+		err := filesystem.MkdirAll(dir, 0644)
+		if err != nil {
+			return errors.Wrapf(err, "creating directory failed (path: %s)", dir)
+		}
+
+		err = util.WriteFile(filesystem, filepath.Base(resourcePath), content, 0755)
+		if err != nil {
+			return errors.Wrapf(err, "writing file failed (path: %s)", dir)
+		}
+	}
+	return nil
 }
 
 // RemovePackages method removes packages from "stage" branch. It creates a new branch with removed packages.
