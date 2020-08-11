@@ -14,9 +14,9 @@ import (
 )
 
 type createPullRequestResponse struct {
-	Number    int      `json:"number"`
-	HTMLURL   string   `json:"html_url"`
-	Assignees []string `json:"assignees"`
+	Number    int           `json:"number"`
+	HTMLURL   string        `json:"html_url"`
+	Assignees []interface{} `json:"assignees"`
 }
 
 // OpenPullRequestWithRemovedPackages method opens a PR against "base" branch with removed packages.
@@ -75,7 +75,7 @@ func openPullRequestWithPackages(user, head, base, title, description string) (s
 
 	err = updatePullRequestAssignee(data.Number, user)
 	if err != nil {
-		return "", errors.Wrapf(err, "updating assignees failed (pull request ID: %d, user: %s)", data.Number, user)
+		return "", errors.Wrapf(err, "updating assignees failed (pullRequestID: %d, user: %s)", data.Number, user)
 	}
 	return data.HTMLURL, nil
 }
