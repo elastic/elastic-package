@@ -23,7 +23,7 @@ type createPullRequestResponse struct {
 // Head is the branch containing the changes that will be added to the base branch.
 func OpenPullRequestWithRemovedPackages(username, head, base, sourceStage, destinationStage string, promotedPackages PackageRevisions) (string, error) {
 	title := fmt.Sprintf("[%s] Remove packages from %s to %s", destinationStage, sourceStage, destinationStage)
-	description := buildPullRequestRemoveDescription(base, head, promotedPackages)
+	description := buildPullRequestRemoveDescription(sourceStage, destinationStage, promotedPackages)
 	return openPullRequestWithPackages(username, head, base, title, description)
 }
 
@@ -31,7 +31,7 @@ func OpenPullRequestWithRemovedPackages(username, head, base, sourceStage, desti
 // Head is the branch containing the changes that will be added to the base branch.
 func OpenPullRequestWithPromotedPackages(username, head, base, sourceStage, destinationStage string, promotedPackages PackageRevisions) (string, error) {
 	title := fmt.Sprintf("[%s] Promote packages from %s to %s", destinationStage, sourceStage, destinationStage)
-	description := buildPullRequestPromoteDescription(base, head, promotedPackages)
+	description := buildPullRequestPromoteDescription(sourceStage, destinationStage, promotedPackages)
 	return openPullRequestWithPackages(username, head, base, title, description)
 }
 
@@ -91,7 +91,7 @@ func updatePullRequestAssignee(pullRequestID int, user string) error {
 		return errors.Wrap(err, "building assignees request body failed")
 	}
 
-	request, err := http.NewRequest("POST", fmt.Sprintf("https://api.github.com/repos/elastic/package-storage/pulls/%d/requested_reviewers", pullRequestID),
+	request, err := http.NewRequest("PATCH", fmt.Sprintf("https://api.github.com/repos/elastic/package-storage/issues/%d", pullRequestID),
 		bytes.NewReader(requestBody))
 	if err != nil {
 		return errors.Wrap(err, "creating new HTTP request failed")
@@ -127,20 +127,20 @@ func updatePullRequestAssignee(pullRequestID int, user string) error {
 
 func buildPullRequestRemoveDescription(sourceStage, destinationStage string, revisions PackageRevisions) string {
 	var builder strings.Builder
-	builder.WriteString(fmt.Sprintf(`This PR removes packages from "%s" to "%s".\n`, sourceStage, destinationStage))
+	builder.WriteString(fmt.Sprintf("This PR removes packages from `%s` to `%s`.\n", sourceStage, destinationStage))
 	builder.WriteString("\n")
-	builder.WriteString("Removed packages:")
+	builder.WriteString("Removed packages:\n")
 	for _, revision := range revisions {
-		builder.WriteString(fmt.Sprintf("* %s-%s\n", revision.Name, revision.Version))
+		builder.WriteString(fmt.Sprintf("* `%s-%s`\n", revision.Name, revision.Version))
 	}
 	return builder.String()
 }
 
 func buildPullRequestPromoteDescription(sourceStage, destinationStage string, revisions PackageRevisions) string {
 	var builder strings.Builder
-	builder.WriteString(fmt.Sprintf(`This PR promotes packages from "%s" to "%s".\n`, sourceStage, destinationStage))
+	builder.WriteString(fmt.Sprintf("This PR promotes packages from `%s` to `%s`.\n", sourceStage, destinationStage))
 	builder.WriteString("\n")
-	builder.WriteString("Promoted packages:")
+	builder.WriteString("Promoted packages:\n")
 	for _, revision := range revisions {
 		builder.WriteString(fmt.Sprintf("* %s-%s\n", revision.Name, revision.Version))
 	}
