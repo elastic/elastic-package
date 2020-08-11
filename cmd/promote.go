@@ -92,13 +92,13 @@ func promoteCommandAction(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return errors.Wrapf(err, "opening PR with promoted packages failed (head: %s, base: %s)", newDestinationStage, destinationStage)
 	}
-	fmt.Println("Pull request with promoted packages: ", url)
+	fmt.Println("Pull request with promoted packages:", url)
 
 	url, err = promote.OpenPullRequestWithRemovedPackages(user, newSourceStage, sourceStage, sourceStage, removedPackages)
 	if err != nil {
 		return errors.Wrapf(err, "opening PR with removed packages failed (head: %s, base: %s)", newDestinationStage, destinationStage)
 	}
-	fmt.Println("Pull request with removed packages: ", url)
+	fmt.Println("Pull request with removed packages:", url)
 	return nil
 }
 

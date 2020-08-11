@@ -42,6 +42,5 @@ func AuthToken() (string, error) {
 	if err != nil {
 		return "", errors.Wrapf(err, "reading Github token file failed (path: %s)", githubTokenPath)
 	}
-	fmt.Println("Using GitHub token from file.")
 	return strings.TrimSpace(string(token)), nil
 }
