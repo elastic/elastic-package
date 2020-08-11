@@ -2,6 +2,7 @@ package promote
 
 import (
 	"fmt"
+	"github.com/go-git/go-git/v5/config"
 	"path/filepath"
 	"sort"
 
@@ -16,6 +17,7 @@ import (
 const (
 	snapshotPackage = "snapshot"
 	stagingPackage  = "staging"
+	repositoryURL   = "https://github.com/%s/package-storage"
 )
 
 // PackageRevision represents a package revision stored in the package-storage.
@@ -46,13 +48,25 @@ func (prs PackageRevisions) Strings() []string {
 // CloneRepository method clones the repository and changes branch to stage.
 func CloneRepository(stage string) (*git.Repository, error) {
 	r, err := git.Clone(memory.NewStorage(), memfs.New(), &git.CloneOptions{
-		URL:           "https://github.com/elastic/package-storage",
+		URL:           fmt.Sprintf(repositoryURL, "elastic"),
 		RemoteName:    "elastic",
 		ReferenceName: plumbing.NewBranchReferenceName(stage),
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "cloning package-storage repository failed")
 	}
+
+	c, err := r.Config()
+	if err != nil {
+		return nil, errors.Wrap(err, "reading config failed")
+	}
+
+	_, err = r.CreateRemote(&config.RemoteConfig{
+		Name: c.User.Name,
+		URLs: []string{
+			fmt.Sprintf(repositoryURL, c.User.Name),
+		},
+	})
 	return r, nil
 }
 
@@ -122,4 +136,24 @@ func ListPackages(r *git.Repository, newestOnly bool) (PackageRevisions, error) 
 		return revisions[i].semver.LessThan(&revisions[j].semver)
 	})
 	return revisions, nil
+}
+
+// DetermineRemovedPackages method lists packages supposed to be removed from the stage.
+func DetermineRemovedPackages(allPackages PackageRevisions, promotedPackages PackageRevisions, newestOnly bool) PackageRevisions {
+	return nil // TODO
+}
+
+// CopyPackages method copies packages between branches. It creates a new branch with selected packages.
+func CopyPackages(repository *git.Repository, sourceStage, destinationStage string, packages PackageRevisions) (string, error) {
+	return "", errors.New("CopyPackages: not implemented yet") // TODO
+}
+
+// RemovePackages method removes packages from "stage" branch. It creates a new branch with removed packages.
+func RemovePackages(repository *git.Repository, stage string, packages PackageRevisions) (string, error) {
+	return "", errors.New("RemovePackages: not implemented yet") // TODO
+}
+
+// PushChanges method pushes branch with updated packages (updated stage) to the remote repository.
+func PushChanges(repository *git.Repository, stage string) error {
+	return errors.New("PushChanges: not implemented yet") // TODO
 }

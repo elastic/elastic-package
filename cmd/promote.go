@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"log"
 	"strings"
 
 	"github.com/AlecAivazis/survey/v2"
@@ -34,12 +33,12 @@ func promoteCommandAction(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "prompt for promoting newest revisions only failed")
 	}
 
-	sourceRepository, err := promote.CloneRepository(sourceStage)
+	repository, err := promote.CloneRepository(sourceStage)
 	if err != nil {
-		return errors.Wrapf(err, "cloning repository failed (branch: %s)", sourceStage)
+		return errors.Wrapf(err, "cloning source repository failed (branch: %s)", sourceStage)
 	}
 
-	allPackages, err := promote.ListPackages(sourceRepository, newestOnly)
+	allPackages, err := promote.ListPackages(repository, newestOnly)
 	if err != nil {
 		return errors.Wrapf(err, "listing packages failed (newestOnly: %t)", newestOnly)
 	}
@@ -49,18 +48,46 @@ func promoteCommandAction(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	selectedPackages, err := promptPackages(allPackages)
+	promotedPackages, err := promptPackages(allPackages)
 	if err != nil {
 		return errors.Wrap(err, "prompt for package selection failed")
 	}
 
-	log.Println(sourceStage, destinationStage, selectedPackages, newestOnly)
-	// TODO copy from source to destination repository
-	// TODO remove from source repository (consider "newest only")
-	// TODO push destination
-	// TODO push source
-	// TODO open PR for destination
-	// TODO open PR for source
+	removedPackages := promote.DetermineRemovedPackages(allPackages, promotedPackages, newestOnly)
+
+	// Copy packages to destination
+	newDestinationStage, err := promote.CopyPackages(repository, sourceStage, destinationStage, promotedPackages)
+	if err != nil {
+		return errors.Wrapf(err, "copying packages failed (source: %s, destination: %s)", sourceStage, destinationStage)
+	}
+
+	// Remove packages from source
+	newSourceStage, err := promote.RemovePackages(repository, sourceStage, removedPackages)
+	if err != nil {
+		return errors.Wrapf(err, "removing packages failed (source: %s)", sourceStage)
+	}
+
+	// Push changes
+	err = promote.PushChanges(repository, newDestinationStage)
+	if err != nil {
+		return errors.Wrapf(err, "pushing changes failed (stage: %s)", newDestinationStage)
+	}
+
+	err = promote.PushChanges(repository, newDestinationStage)
+	if err != nil {
+		return errors.Wrapf(err, "pushing changes failed (stage: %s)", newSourceStage)
+	}
+
+	// Open PRs
+	err = promote.OpenPullRequestWithPromotedPackages(newDestinationStage, destinationStage, promotedPackages)
+	if err != nil {
+		return errors.Wrapf(err, "opening PR with promoted packages failed (head: %s, base: %s)", newDestinationStage, destinationStage)
+	}
+
+	err = promote.OpenPullRequestWithRemovedPackages(newDestinationStage, destinationStage, removedPackages)
+	if err != nil {
+		return errors.Wrapf(err, "opening PR with removed packages failed (head: %s, base: %s)", newDestinationStage, destinationStage)
+	}
 	return nil
 }
 
