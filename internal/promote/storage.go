@@ -368,6 +368,16 @@ func RemovePackages(r *git.Repository, sourceStage string, packages PackageRevis
 
 // PushChanges method pushes branch with updated packages (updated stage) to the remote repository.
 func PushChanges(r *git.Repository, stage string) error {
+	wt, err := r.Worktree()
+	if err != nil {
+		return errors.Wrap(err, "fetching worktree reference failed")
+	}
+
+	err = wt.Checkout(&git.CheckoutOptions{
+		Branch: plumbing.NewBranchReferenceName(stage),
+		Create: true,
+	})
+
 	c, err := r.ConfigScoped(config.SystemScope)
 	if err != nil {
 		return errors.Wrap(err, "reading config failed")
