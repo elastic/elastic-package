@@ -9,11 +9,13 @@ import (
 
 	"github.com/Masterminds/semver"
 	"github.com/go-git/go-billy/v5"
+	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/go-git/go-billy/v5/util"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
+	"github.com/go-git/go-git/v5/storage/memory"
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/github"
@@ -60,8 +62,7 @@ func (prs PackageRevisions) Strings() []string {
 
 // CloneRepository method clones the repository and changes branch to stage.
 func CloneRepository(stage string) (*git.Repository, error) {
-	// TODO memory.NewStorage(), memfs.New()
-	r, err := git.PlainClone("/Users/marcin.tojek/k", false, &git.CloneOptions{
+	r, err := git.Clone(memory.NewStorage(), memfs.New(), &git.CloneOptions{
 		URL:           fmt.Sprintf(repositoryURL, "elastic"),
 		RemoteName:    remoteName,
 		ReferenceName: plumbing.NewBranchReferenceName(stage),
