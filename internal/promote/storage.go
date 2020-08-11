@@ -9,13 +9,14 @@ import (
 
 	"github.com/Masterminds/semver"
 	"github.com/go-git/go-billy/v5"
-	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/go-git/go-billy/v5/util"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
-	"github.com/go-git/go-git/v5/storage/memory"
+	"github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/pkg/errors"
+
+	"github.com/elastic/elastic-package/internal/github"
 )
 
 const (
@@ -34,6 +35,10 @@ type PackageRevision struct {
 	Version string
 
 	semver semver.Version
+}
+
+func (pr *PackageRevision) path() string {
+	return filepath.Join("packages", pr.Name, pr.Version)
 }
 
 // String method returns a string representation of the PackageRevision.
@@ -55,7 +60,8 @@ func (prs PackageRevisions) Strings() []string {
 
 // CloneRepository method clones the repository and changes branch to stage.
 func CloneRepository(stage string) (*git.Repository, error) {
-	r, err := git.Clone(memory.NewStorage(), memfs.New(), &git.CloneOptions{
+	// TODO memory.NewStorage(), memfs.New()
+	r, err := git.PlainClone("/Users/marcin.tojek/k", false, &git.CloneOptions{
 		URL:           fmt.Sprintf(repositoryURL, "elastic"),
 		RemoteName:    remoteName,
 		ReferenceName: plumbing.NewBranchReferenceName(stage),
@@ -64,7 +70,15 @@ func CloneRepository(stage string) (*git.Repository, error) {
 		return nil, errors.Wrap(err, "cloning package-storage repository failed")
 	}
 
-	c, err := r.Config()
+	err = r.Fetch(&git.FetchOptions{
+		RemoteName: remoteName,
+		RefSpecs:   []config.RefSpec{"refs/*:refs/*", "HEAD:refs/heads/HEAD"},
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "fetch remote branches failed")
+	}
+
+	c, err := r.ConfigScoped(config.SystemScope)
 	if err != nil {
 		return nil, errors.Wrap(err, "reading config failed")
 	}
@@ -75,6 +89,9 @@ func CloneRepository(stage string) (*git.Repository, error) {
 			fmt.Sprintf(repositoryURL, c.User.Name),
 		},
 	})
+	if err != nil {
+		return nil, errors.Wrap(err, "creating remote failed")
+	}
 	return r, nil
 }
 
@@ -180,6 +197,8 @@ func DeterminePackagesToBeRemoved(allPackages PackageRevisions, promotedPackages
 
 // CopyPackages method copies packages between branches. It creates a new branch with selected packages.
 func CopyPackages(r *git.Repository, sourceStage, destinationStage string, packages PackageRevisions) (string, error) {
+	fmt.Printf("Promote packages from %s to %s...\n", sourceStage, destinationStage)
+
 	wt, err := r.Worktree()
 	if err != nil {
 		return "", errors.Wrap(err, "fetching worktree reference failed")
@@ -203,7 +222,13 @@ func CopyPackages(r *git.Repository, sourceStage, destinationStage string, packa
 		return "", errors.Wrap(err, "loading package contents failed")
 	}
 
-	// Create new branch for updated destination
+	err = wt.Checkout(&git.CheckoutOptions{
+		Branch: plumbing.NewBranchReferenceName(destinationStage),
+	})
+	if err != nil {
+		return "", errors.Wrapf(err, "changing branch failed (path: %s)", destinationStage)
+	}
+
 	newDestinationStage := fmt.Sprintf("promote-from-%s-to-%s-%d", sourceStage, destinationStage, time.Now().UnixNano())
 	err = wt.Checkout(&git.CheckoutOptions{
 		Branch: plumbing.NewBranchReferenceName(newDestinationStage),
@@ -218,7 +243,7 @@ func CopyPackages(r *git.Repository, sourceStage, destinationStage string, packa
 		return "", errors.Wrap(err, "writing package contents failed")
 	}
 
-	for _, resourcePath := range resourcePaths {
+	for resourcePath := range contents {
 		_, err := wt.Add(resourcePath)
 		if err != nil {
 			return "", errors.Wrapf(err, "adding resource to index failed (path: %s)", resourcePath)
@@ -235,8 +260,7 @@ func CopyPackages(r *git.Repository, sourceStage, destinationStage string, packa
 func walkPackageRevisions(filesystem billy.Filesystem, revisions PackageRevisions) ([]string, error) {
 	var collected []string
 	for _, r := range revisions {
-		path := filepath.Join("packages", r.Name, r.Version)
-		paths, err := walkPackageResources(filesystem, path)
+		paths, err := walkPackageResources(filesystem, r.path())
 		if err != nil {
 			return nil, errors.Wrap(err, "walking package resources failed")
 		}
@@ -293,7 +317,7 @@ func writePackageContents(filesystem billy.Filesystem, contents fileContents) er
 			return errors.Wrapf(err, "creating directory failed (path: %s)", dir)
 		}
 
-		err = util.WriteFile(filesystem, filepath.Base(resourcePath), content, 0755)
+		err = util.WriteFile(filesystem, resourcePath, content, 0755)
 		if err != nil {
 			return errors.Wrapf(err, "writing file failed (path: %s)", dir)
 		}
@@ -302,13 +326,68 @@ func writePackageContents(filesystem billy.Filesystem, contents fileContents) er
 }
 
 // RemovePackages method removes packages from "stage" branch. It creates a new branch with removed packages.
-func RemovePackages(r *git.Repository, stage string, packages PackageRevisions) (string, error) {
-	return "", errors.New("RemovePackages: not implemented yet") // TODO
+func RemovePackages(r *git.Repository, sourceStage string, packages PackageRevisions) (string, error) {
+	fmt.Printf("Remove packages from %s...\n", sourceStage)
+
+	wt, err := r.Worktree()
+	if err != nil {
+		return "", errors.Wrap(err, "fetching worktree reference failed")
+	}
+
+	// Create branch for updated stage
+	err = wt.Checkout(&git.CheckoutOptions{
+		Branch: plumbing.NewBranchReferenceName(sourceStage),
+	})
+	if err != nil {
+		return "", errors.Wrapf(err, "changing branch failed (path: %s)", sourceStage)
+	}
+
+	newSourceStage := fmt.Sprintf("delete-from-%s-%d", sourceStage, time.Now().UnixNano())
+	err = wt.Checkout(&git.CheckoutOptions{
+		Branch: plumbing.NewBranchReferenceName(newSourceStage),
+		Create: true,
+	})
+	if err != nil {
+		return "", errors.Wrapf(err, "changing branch failed (path: %s)", newSourceStage)
+	}
+
+	for _, p := range packages {
+		_, err := wt.Remove(p.path())
+		if err != nil {
+			return "", errors.Wrapf(err, "removing package from index failed (path: %s)", p.path())
+		}
+	}
+
+	_, err = wt.Commit(fmt.Sprintf("Delete packages from %s", sourceStage), new(git.CommitOptions))
+	if err != nil {
+		return "", errors.Wrapf(err, "committing files failed (stage: %s)", sourceStage)
+	}
+	return newSourceStage, nil
 }
 
 // PushChanges method pushes branch with updated packages (updated stage) to the remote repository.
 func PushChanges(r *git.Repository, stage string) error {
-	return errors.New("PushChanges: not implemented yet") // TODO
+	c, err := r.ConfigScoped(config.SystemScope)
+	if err != nil {
+		return errors.Wrap(err, "reading config failed")
+	}
+
+	authToken, err := github.AuthToken()
+	if err != nil {
+		return errors.Wrap(err, "reading auth token failed")
+	}
+
+	err = r.Push(&git.PushOptions{
+		RemoteName: c.User.Name,
+		Auth: &http.BasicAuth{
+			Username: c.User.Name,
+			Password: authToken,
+		},
+	})
+	if err != nil {
+		return errors.Wrap(err, "pushing branch failed")
+	}
+	return nil
 }
 
 func sortPackageRevisions(revisions PackageRevisions) PackageRevisions {
