@@ -19,6 +19,8 @@ import (
 )
 
 const (
+	remoteName = "elastic"
+
 	snapshotPackage = "snapshot"
 	stagingPackage  = "staging"
 	repositoryURL   = "https://github.com/%s/package-storage"
@@ -55,7 +57,7 @@ func (prs PackageRevisions) Strings() []string {
 func CloneRepository(stage string) (*git.Repository, error) {
 	r, err := git.Clone(memory.NewStorage(), memfs.New(), &git.CloneOptions{
 		URL:           fmt.Sprintf(repositoryURL, "elastic"),
-		RemoteName:    "elastic",
+		RemoteName:    remoteName,
 		ReferenceName: plumbing.NewBranchReferenceName(stage),
 	})
 	if err != nil {
@@ -203,19 +205,12 @@ func CopyPackages(r *git.Repository, sourceStage, destinationStage string, packa
 
 	// Create new branch for updated destination
 	newDestinationStage := fmt.Sprintf("promote-from-%s-to-%s-%d", sourceStage, destinationStage, time.Now().UnixNano())
-
-	err = r.CreateBranch(&config.Branch{
-		Name: newDestinationStage,
-	})
-	if err != nil {
-		return "", errors.Wrapf(err, "creating branch filed (path: %s)", newDestinationStage)
-	}
-
 	err = wt.Checkout(&git.CheckoutOptions{
 		Branch: plumbing.NewBranchReferenceName(newDestinationStage),
+		Create: true,
 	})
 	if err != nil {
-		return "", errors.Wrapf(err, "changing branch failed (path: %s)", destinationStage)
+		return "", errors.Wrapf(err, "changing branch failed (path: %s)", newDestinationStage)
 	}
 
 	err = writePackageContents(wt.Filesystem, contents)
