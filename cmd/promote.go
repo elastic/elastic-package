@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/elastic/elastic-package/internal/github"
 	"strings"
 
 	"github.com/AlecAivazis/survey/v2"
@@ -23,6 +24,11 @@ func setupPromoteCommand() *cobra.Command {
 }
 
 func promoteCommandAction(cmd *cobra.Command, args []string) error {
+	err := github.EnsureAuthConfigured()
+	if err != nil {
+		return errors.Wrap(err, "GitHub auth configuration failed")
+	}
+
 	sourceStage, destinationStage, err := promptPromotion()
 	if err != nil {
 		return errors.Wrap(err, "prompt for promotion failed")
