@@ -71,8 +71,8 @@ func CloneRepository(stage string) (*git.Repository, error) {
 }
 
 // ListPackages method lists available packages in the package-storage.
-// It skips technical packages (snapshot, staging) and preserves "newest revisions only" policy (if selected).
-func ListPackages(r *git.Repository, newestOnly bool) (PackageRevisions, error) {
+// It skips technical packages (snapshot, staging).
+func ListPackages(r *git.Repository) (PackageRevisions, error) {
 	wt, err := r.Worktree()
 	if err != nil {
 		return nil, errors.Wrap(err, "reading worktree failed")
@@ -98,7 +98,6 @@ func ListPackages(r *git.Repository, newestOnly bool) (PackageRevisions, error) 
 			return nil, errors.Wrap(err, "reading packages directory failed")
 		}
 
-		var t []PackageRevision
 		for _, versionDir := range versionDirs {
 			if !versionDir.IsDir() {
 				continue
@@ -109,51 +108,89 @@ func ListPackages(r *git.Repository, newestOnly bool) (PackageRevisions, error) 
 				return nil, errors.Wrapf(err, "reading package version failed (name: %s, version: %s)", packageDir.Name(), versionDir.Name())
 			}
 
-			t = append(t, PackageRevision{
+			revisions = append(revisions, PackageRevision{
 				Name:    packageDir.Name(),
 				Version: versionDir.Name(),
 				semver:  *packageVersion,
 			})
 		}
+	}
+	return sortPackageRevisions(revisions), nil
+}
 
-		if newestOnly {
-			var newest PackageRevision
-			for _, pr := range t {
-				if pr.semver.GreaterThan(&newest.semver) {
-					newest = pr
-				}
-			}
-			revisions = append(revisions, newest)
-		} else {
-			revisions = append(revisions, t...)
+// FilterPackages method filters package revisions based on the "newest revision only" policy.
+func FilterPackages(allPackages PackageRevisions, newestOnly bool) PackageRevisions {
+	if !newestOnly {
+		return allPackages
+	}
+
+	m := map[string]PackageRevision{}
+
+	for _, p := range allPackages {
+		if v, ok := m[p.Name]; ok {
+			m[p.Name] = p
+		} else if v.semver.LessThan(&p.semver) {
+			m[p.Name] = p
 		}
 	}
 
+	var revisions PackageRevisions
+	for _, v := range m {
+		revisions = append(revisions, v)
+	}
+	return sortPackageRevisions(revisions)
+}
+
+// DeterminePackagesToBeRemoved method lists packages supposed to be removed from the stage.
+func DeterminePackagesToBeRemoved(allPackages PackageRevisions, promotedPackages PackageRevisions, newestOnly bool) PackageRevisions {
+	var removed PackageRevisions
+
+	for _, p := range allPackages {
+		var toBeRemoved bool
+
+		for _, r := range promotedPackages {
+			if p.Name != r.Name {
+				continue
+			}
+
+			if newestOnly {
+				toBeRemoved = true
+				break
+			}
+
+			if p.semver.Equal(&r.semver) {
+				toBeRemoved = true
+			}
+		}
+
+		if toBeRemoved {
+			removed = append(removed, p)
+		}
+	}
+	return removed
+}
+
+// CopyPackages method copies packages between branches. It creates a new branch with selected packages.
+func CopyPackages(r *git.Repository, sourceStage, destinationStage string, packages PackageRevisions) (string, error) {
+	return "", errors.New("CopyPackages: not implemented yet") // TODO
+}
+
+// RemovePackages method removes packages from "stage" branch. It creates a new branch with removed packages.
+func RemovePackages(r *git.Repository, stage string, packages PackageRevisions) (string, error) {
+	return "", errors.New("RemovePackages: not implemented yet") // TODO
+}
+
+// PushChanges method pushes branch with updated packages (updated stage) to the remote repository.
+func PushChanges(r *git.Repository, stage string) error {
+	return errors.New("PushChanges: not implemented yet") // TODO
+}
+
+func sortPackageRevisions(revisions PackageRevisions) PackageRevisions {
 	sort.Slice(revisions, func(i, j int) bool {
 		if revisions[i].Name != revisions[j].Name {
 			return sort.StringsAreSorted([]string{revisions[i].Name, revisions[j].Name})
 		}
 		return revisions[i].semver.LessThan(&revisions[j].semver)
 	})
-	return revisions, nil
-}
-
-// DetermineRemovedPackages method lists packages supposed to be removed from the stage.
-func DetermineRemovedPackages(allPackages PackageRevisions, promotedPackages PackageRevisions, newestOnly bool) PackageRevisions {
-	return nil // TODO
-}
-
-// CopyPackages method copies packages between branches. It creates a new branch with selected packages.
-func CopyPackages(repository *git.Repository, sourceStage, destinationStage string, packages PackageRevisions) (string, error) {
-	return "", errors.New("CopyPackages: not implemented yet") // TODO
-}
-
-// RemovePackages method removes packages from "stage" branch. It creates a new branch with removed packages.
-func RemovePackages(repository *git.Repository, stage string, packages PackageRevisions) (string, error) {
-	return "", errors.New("RemovePackages: not implemented yet") // TODO
-}
-
-// PushChanges method pushes branch with updated packages (updated stage) to the remote repository.
-func PushChanges(repository *git.Repository, stage string) error {
-	return errors.New("PushChanges: not implemented yet") // TODO
+	return revisions
 }

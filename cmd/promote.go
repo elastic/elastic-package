@@ -44,22 +44,23 @@ func promoteCommandAction(cmd *cobra.Command, args []string) error {
 		return errors.Wrapf(err, "cloning source repository failed (branch: %s)", sourceStage)
 	}
 
-	allPackages, err := promote.ListPackages(repository, newestOnly)
+	allPackages, err := promote.ListPackages(repository)
 	if err != nil {
-		return errors.Wrapf(err, "listing packages failed (newestOnly: %t)", newestOnly)
+		return errors.Wrapf(err, "listing packages failed")
 	}
 
-	if len(allPackages) == 0 {
+	packagesToBeSelected := promote.FilterPackages(allPackages, newestOnly)
+	if len(packagesToBeSelected) == 0 {
 		fmt.Println("No packages available for promotion.")
 		return nil
 	}
 
-	promotedPackages, err := promptPackages(allPackages)
+	promotedPackages, err := promptPackages(packagesToBeSelected)
 	if err != nil {
 		return errors.Wrap(err, "prompt for package selection failed")
 	}
 
-	removedPackages := promote.DetermineRemovedPackages(allPackages, promotedPackages, newestOnly)
+	removedPackages := promote.DeterminePackagesToBeRemoved(allPackages, promotedPackages, newestOnly)
 
 	// Copy packages to destination
 	newDestinationStage, err := promote.CopyPackages(repository, sourceStage, destinationStage, promotedPackages)
@@ -127,10 +128,10 @@ func promptPromoteNewestOnly() (bool, error) {
 	return newestOnly, nil
 }
 
-func promptPackages(allPackages promote.PackageRevisions) (promote.PackageRevisions, error) {
+func promptPackages(packages promote.PackageRevisions) (promote.PackageRevisions, error) {
 	packagesPrompt := &survey.MultiSelect{
 		Message:  "Which packages would you like to promote",
-		Options:  allPackages.Strings(),
+		Options:  packages.Strings(),
 		PageSize: 100,
 	}
 
@@ -142,7 +143,7 @@ func promptPackages(allPackages promote.PackageRevisions) (promote.PackageRevisi
 
 	var selected promote.PackageRevisions
 	for _, option := range selectedOptions {
-		for _, p := range allPackages {
+		for _, p := range packages {
 			if p.String() == option {
 				selected = append(selected, p)
 			}
