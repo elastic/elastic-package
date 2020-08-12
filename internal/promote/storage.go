@@ -50,6 +50,16 @@ func (pr *PackageRevision) String() string {
 // PackageRevisions is an array of PackageRevision.
 type PackageRevisions []PackageRevision
 
+func (prs PackageRevisions) sort() PackageRevisions {
+	sort.Slice(prs, func(i, j int) bool {
+		if prs[i].Name != prs[j].Name {
+			return sort.StringsAreSorted([]string{prs[i].Name, prs[j].Name})
+		}
+		return prs[i].semver.LessThan(&prs[j].semver)
+	})
+	return prs
+}
+
 // Strings method returns an array of string representations.
 func (prs PackageRevisions) Strings() []string {
 	var entries []string
@@ -108,7 +118,7 @@ func ListPackages(r *git.Repository) (PackageRevisions, error) {
 		return nil, errors.Wrap(err, "reading packages directory failed")
 	}
 
-	var revisions []PackageRevision
+	var revisions PackageRevisions
 	for _, packageDir := range packageDirs {
 		if !packageDir.IsDir() {
 			continue
@@ -140,7 +150,7 @@ func ListPackages(r *git.Repository) (PackageRevisions, error) {
 			})
 		}
 	}
-	return sortPackageRevisions(revisions), nil
+	return revisions.sort(), nil
 }
 
 // FilterPackages method filters package revisions based on the "newest revision only" policy.
@@ -163,7 +173,7 @@ func FilterPackages(allPackages PackageRevisions, newestOnly bool) PackageRevisi
 	for _, v := range m {
 		revisions = append(revisions, v)
 	}
-	return sortPackageRevisions(revisions)
+	return revisions.sort()
 }
 
 // DeterminePackagesToBeRemoved method lists packages supposed to be removed from the stage.
@@ -397,14 +407,4 @@ func User(r *git.Repository) (string, error) {
 		return "", errors.Wrap(err, "reading config failed")
 	}
 	return c.User.Name, nil
-}
-
-func sortPackageRevisions(revisions PackageRevisions) PackageRevisions {
-	sort.Slice(revisions, func(i, j int) bool {
-		if revisions[i].Name != revisions[j].Name {
-			return sort.StringsAreSorted([]string{revisions[i].Name, revisions[j].Name})
-		}
-		return revisions[i].semver.LessThan(&revisions[j].semver)
-	})
-	return revisions
 }
