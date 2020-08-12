@@ -21,9 +21,9 @@ type createPullRequestResponse struct {
 
 // OpenPullRequestWithRemovedPackages method opens a PR against "base" branch with removed packages.
 // Head is the branch containing the changes that will be added to the base branch.
-func OpenPullRequestWithRemovedPackages(username, head, base, sourceStage string, promotedPackages PackageRevisions) (string, error) {
+func OpenPullRequestWithRemovedPackages(username, head, base, sourceStage, promotionURL string, promotedPackages PackageRevisions) (string, error) {
 	title := fmt.Sprintf("[%s] Remove packages from %s", sourceStage, sourceStage)
-	description := buildPullRequestRemoveDescription(sourceStage, promotedPackages)
+	description := buildPullRequestRemoveDescription(sourceStage, promotionURL, promotedPackages)
 	return openPullRequestWithPackages(username, head, base, title, description)
 }
 
@@ -125,7 +125,7 @@ func updatePullRequestAssignee(pullRequestID int, user string) error {
 	return nil
 }
 
-func buildPullRequestRemoveDescription(sourceStage string, revisions PackageRevisions) string {
+func buildPullRequestRemoveDescription(sourceStage, promotionURL string, revisions PackageRevisions) string {
 	var builder strings.Builder
 	builder.WriteString(fmt.Sprintf("This PR removes packages from `%s`.\n", sourceStage))
 	builder.WriteString("\n")
@@ -133,6 +133,8 @@ func buildPullRequestRemoveDescription(sourceStage string, revisions PackageRevi
 	for _, revision := range revisions {
 		builder.WriteString(fmt.Sprintf("* `%s-%s`\n", revision.Name, revision.Version))
 	}
+	builder.WriteString("\n")
+	builder.WriteString(fmt.Sprintf("Please make sure that the promotion PR is merged first: %s", promotionURL))
 	return builder.String()
 }
 
