@@ -39,6 +39,7 @@ func promoteCommandAction(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return errors.Wrap(err, "prompt for promoting newest revisions only failed")
 	}
+	cmd.Println("Creating list of packages...")
 
 	repository, err := promote.CloneRepository(sourceStage)
 	if err != nil {
@@ -97,13 +98,13 @@ func promoteCommandAction(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return errors.Wrapf(err, "opening PR with promoted packages failed (head: %s, base: %s)", newDestinationStage, destinationStage)
 	}
-	fmt.Println("Pull request with promoted packages:", url)
+	cmd.Println("Pull request with promoted packages:", url)
 
 	url, err = promote.OpenPullRequestWithRemovedPackages(githubClient, user, newSourceStage, sourceStage, sourceStage, url, removedPackages)
 	if err != nil {
 		return errors.Wrapf(err, "opening PR with removed packages failed (head: %s, base: %s)", newDestinationStage, destinationStage)
 	}
-	fmt.Println("Pull request with removed packages:", url)
+	cmd.Println("Pull request with removed packages:", url)
 	return nil
 }
 
