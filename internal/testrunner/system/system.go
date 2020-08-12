@@ -1,7 +1,6 @@
 package system
 
 import (
-	"fmt"
 	"os"
 	"path"
 
@@ -16,7 +15,15 @@ func Run(packageRootPath string) error {
 		return err
 	}
 
-	fmt.Printf("system tests found in [%s]!\n", systemTestsPath)
+	runner, err := newRunner(systemTestsPath)
+	if err != nil {
+		return errors.Wrap(err, "could not instantiate system tests runner")
+	}
+
+	if err := runner.run(); err != nil {
+		return errors.Wrap(err, "system tests failed")
+	}
+
 	return nil
 }
 
@@ -24,10 +31,10 @@ func findSystemTestsPath(packageRootPath string) (string, error) {
 	systemTestsPath := path.Join(packageRootPath, "_dev", "test", "system")
 	info, err := os.Stat(systemTestsPath)
 	if err != nil && os.IsNotExist(err) {
-		return "", errors.Wrap(err, "package does not have system tests folder defined")
+		return "", ErrNoSystemTests
 	}
 	if err != nil {
-		return "", errors.Wrap(err, "error finding system tests folder")
+		return "", ErrNoSystemTests
 	}
 
 	if !info.IsDir() {
