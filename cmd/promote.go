@@ -40,7 +40,7 @@ func promoteCommandAction(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return errors.Wrap(err, "fetching GitHub user failed")
 	}
-	cmd.Printf("Use GitHub user: %s", githubUser)
+	cmd.Printf("Current GitHub user: %s\n", githubUser)
 
 	// Prompt for promotion options
 	sourceStage, destinationStage, err := promptPromotion()
@@ -52,13 +52,14 @@ func promoteCommandAction(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return errors.Wrap(err, "prompt for promoting newest versions only failed")
 	}
-	cmd.Println("Creating list of packages...")
 
+	cmd.Println("Cloning repository...")
 	repository, err := promote.CloneRepository(githubUser, sourceStage)
 	if err != nil {
 		return errors.Wrapf(err, "cloning source repository failed (branch: %s)", sourceStage)
 	}
 
+	cmd.Println("Creating list of packages...")
 	allPackages, err := promote.ListPackages(repository)
 	if err != nil {
 		return errors.Wrapf(err, "listing packages failed")
