@@ -50,7 +50,7 @@ func openPullRequestWithPackages(client *github.Client, user, head, base, title,
 		},
 	})
 	if err != nil {
-		return "", errors.Wrap(err, "editing assignees in pull request failed")
+		return "", errors.Wrap(err, "editing assignees in the pull request failed")
 	}
 	return *pullRequest.HTMLURL, nil
 }
