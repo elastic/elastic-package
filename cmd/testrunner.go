@@ -22,6 +22,7 @@ func setupTestCommand() *cobra.Command {
 		Long:  "Use test runners to verify if the package collects logs and metrics properly.",
 		RunE:  testCommandAction,
 	}
+	cmd.PersistentFlags().BoolP("ignoreMissing", "i", false, "ignore missing tests")
 	cmd.AddCommand(
 		testSystemCmd)
 	return cmd
@@ -36,7 +37,17 @@ func testSystemCommandAction(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "locating package root failed")
 	}
 
-	if err := system.Run(packageRootPath); err != nil {
+	ignoreMissing, err := cmd.Flags().GetBool("ignoreMissing")
+	if err != nil {
+		return errors.Wrap(err, "error parsing ignoreMissing flag")
+	}
+
+	err = system.Run(packageRootPath)
+	if err != nil && ignoreMissing && err == system.ErrNoSystemTests {
+		return nil
+	}
+
+	if err != nil {
 		return errors.Wrap(err, "error running package system tests")
 	}
 
