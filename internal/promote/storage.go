@@ -124,7 +124,7 @@ func CloneRepository(user, stage string) (*git.Repository, error) {
 }
 
 // ListPackages method lists available packages in the package-storage.
-// It skips technical packages (snapshot, staging).
+// It skips packages: snapshot, staging.
 func ListPackages(r *git.Repository) (PackageVersions, error) {
 	wt, err := r.Worktree()
 	if err != nil {
