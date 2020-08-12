@@ -50,7 +50,7 @@ func promoteCommandAction(cmd *cobra.Command, args []string) error {
 		return errors.Wrapf(err, "listing packages failed")
 	}
 
-	packagesToBeSelected := promote.FilterPackages(allPackages, newestOnly)
+	packagesToBeSelected := allPackages.FilterPackages(newestOnly)
 	if len(packagesToBeSelected) == 0 {
 		fmt.Println("No packages available for promotion.")
 		return nil

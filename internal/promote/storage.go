@@ -50,6 +50,29 @@ func (pr *PackageRevision) String() string {
 // PackageRevisions is an array of PackageRevision.
 type PackageRevisions []PackageRevision
 
+// FilterPackages method filters package revisions based on the "newest revision only" policy.
+func (prs PackageRevisions) FilterPackages(newestOnly bool) PackageRevisions {
+	if !newestOnly {
+		return prs
+	}
+
+	m := map[string]PackageRevision{}
+
+	for _, p := range prs {
+		if v, ok := m[p.Name]; ok {
+			m[p.Name] = p
+		} else if v.semver.LessThan(&p.semver) {
+			m[p.Name] = p
+		}
+	}
+
+	var revisions PackageRevisions
+	for _, v := range m {
+		revisions = append(revisions, v)
+	}
+	return revisions.sort()
+}
+
 func (prs PackageRevisions) sort() PackageRevisions {
 	sort.Slice(prs, func(i, j int) bool {
 		if prs[i].Name != prs[j].Name {
@@ -151,29 +174,6 @@ func ListPackages(r *git.Repository) (PackageRevisions, error) {
 		}
 	}
 	return revisions.sort(), nil
-}
-
-// FilterPackages method filters package revisions based on the "newest revision only" policy.
-func FilterPackages(allPackages PackageRevisions, newestOnly bool) PackageRevisions {
-	if !newestOnly {
-		return allPackages
-	}
-
-	m := map[string]PackageRevision{}
-
-	for _, p := range allPackages {
-		if v, ok := m[p.Name]; ok {
-			m[p.Name] = p
-		} else if v.semver.LessThan(&p.semver) {
-			m[p.Name] = p
-		}
-	}
-
-	var revisions PackageRevisions
-	for _, v := range m {
-		revisions = append(revisions, v)
-	}
-	return revisions.sort()
 }
 
 // DeterminePackagesToBeRemoved method lists packages supposed to be removed from the stage.
