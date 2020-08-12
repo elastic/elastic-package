@@ -55,5 +55,6 @@ func testSystemCommandAction(cmd *cobra.Command, args []string) error {
 }
 
 func testCommandAction(cmd *cobra.Command, args []string) error {
+	// TODO: call actions for other types of tests
 	return testSystemCommandAction(cmd, args)
 }
