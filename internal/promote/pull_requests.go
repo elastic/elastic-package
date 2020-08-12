@@ -26,10 +26,11 @@ func OpenPullRequestWithPromotedPackages(client *github.Client, username, head, 
 }
 
 func openPullRequestWithPackages(client *github.Client, user, head, base, title, description string) (string, error) {
+	userHead := fmt.Sprintf("%s:%s", user, head)
 	maintainerCanModify := true
 	pullRequest, _, err := client.PullRequests.Create(context.Background(), "elastic", "package-storage", &github.NewPullRequest{
 		Title:               &title,
-		Head:                &head,
+		Head:                &userHead,
 		Base:                &base,
 		Body:                &description,
 		MaintainerCanModify: &maintainerCanModify,
