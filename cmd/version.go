@@ -17,12 +17,12 @@ func setupVersionCommand() *cobra.Command {
 		Use:   "version",
 		Short: "Show application version",
 		Long:  "Use version command to show the application version.",
-		RunE:  formatVersionAction,
+		RunE:  versionCommandAction,
 	}
 	return cmd
 }
 
-func formatVersionAction(cmd *cobra.Command, args []string) error {
-	cmd.Printf("elastic-package version %s (build time: %s)\n", CommitHash, BuildTime)
+func versionCommandAction(cmd *cobra.Command, args []string) error {
+	cmd.Printf("elastic-package version-hash %s (build time: %s)\n", CommitHash, BuildTime)
 	return nil
 }
