@@ -7,8 +7,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-// Test runner for system tests.
-
+// Run runs the system tests for the given package.
 func Run(packageRootPath string) error {
 	systemTestsPath, err := findSystemTestsPath(packageRootPath)
 	if err != nil {
