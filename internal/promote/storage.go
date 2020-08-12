@@ -93,7 +93,7 @@ func (prs PackageVersions) Strings() []string {
 }
 
 // CloneRepository method clones the repository and changes branch to stage.
-func CloneRepository(stage string) (*git.Repository, error) {
+func CloneRepository(user, stage string) (*git.Repository, error) {
 	r, err := git.Clone(memory.NewStorage(), memfs.New(), &git.CloneOptions{
 		URL:           fmt.Sprintf(repositoryURL, "elastic"),
 		RemoteName:    remoteName,
@@ -109,11 +109,6 @@ func CloneRepository(stage string) (*git.Repository, error) {
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "fetch remote branches failed")
-	}
-
-	user, err := User(r)
-	if err != nil {
-		return nil, errors.Wrap(err, "reading Git user failed")
 	}
 
 	_, err = r.CreateRemote(&config.RemoteConfig{
@@ -376,12 +371,7 @@ func RemovePackages(r *git.Repository, sourceStage string, packages PackageVersi
 }
 
 // PushChanges method pushes all branches to the remote repository.
-func PushChanges(r *git.Repository) error {
-	user, err := User(r)
-	if err != nil {
-		return errors.Wrap(err, "reading Git user failed")
-	}
-
+func PushChanges(user string, r *git.Repository) error {
 	authToken, err := github.AuthToken()
 	if err != nil {
 		return errors.Wrap(err, "reading auth token failed")
@@ -398,13 +388,4 @@ func PushChanges(r *git.Repository) error {
 		return errors.Wrap(err, "pushing branch failed")
 	}
 	return nil
-}
-
-// User method returns the Git user.
-func User(r *git.Repository) (string, error) {
-	c, err := r.ConfigScoped(config.SystemScope)
-	if err != nil {
-		return "", errors.Wrap(err, "reading config failed")
-	}
-	return c.User.Name, nil
 }

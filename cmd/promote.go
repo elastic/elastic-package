@@ -25,9 +25,20 @@ func setupPromoteCommand() *cobra.Command {
 }
 
 func promoteCommandAction(cmd *cobra.Command, args []string) error {
+	// Setup GitHub
 	err := github.EnsureAuthConfigured()
 	if err != nil {
 		return errors.Wrap(err, "GitHub auth configuration failed")
+	}
+
+	githubClient, err := github.Client()
+	if err != nil {
+		return errors.Wrap(err, "creating GitHub client failed")
+	}
+
+	githubUser, err := github.User(githubClient)
+	if err != nil {
+		return errors.Wrap(err, "fetching GitHub user failed")
 	}
 
 	sourceStage, destinationStage, err := promptPromotion()
@@ -41,7 +52,7 @@ func promoteCommandAction(cmd *cobra.Command, args []string) error {
 	}
 	cmd.Println("Creating list of packages...")
 
-	repository, err := promote.CloneRepository(sourceStage)
+	repository, err := promote.CloneRepository(githubUser, sourceStage)
 	if err != nil {
 		return errors.Wrapf(err, "cloning source repository failed (branch: %s)", sourceStage)
 	}
@@ -78,29 +89,19 @@ func promoteCommandAction(cmd *cobra.Command, args []string) error {
 	}
 
 	// Push changes
-	err = promote.PushChanges(repository)
+	err = promote.PushChanges(githubUser, repository)
 	if err != nil {
 		return errors.Wrapf(err, "pushing changes failed")
 	}
 
 	// Open PRs
-	githubClient, err := github.Client()
-	if err != nil {
-		return errors.Wrap(err, "creating GitHub client failed")
-	}
-
-	user, err := promote.User(repository)
-	if err != nil {
-		return errors.Wrap(err, "reading Git user failed")
-	}
-
-	url, err := promote.OpenPullRequestWithPromotedPackages(githubClient, user, newDestinationStage, destinationStage, sourceStage, destinationStage, promotedPackages)
+	url, err := promote.OpenPullRequestWithPromotedPackages(githubClient, githubUser, newDestinationStage, destinationStage, sourceStage, destinationStage, promotedPackages)
 	if err != nil {
 		return errors.Wrapf(err, "opening PR with promoted packages failed (head: %s, base: %s)", newDestinationStage, destinationStage)
 	}
 	cmd.Println("Pull request with promoted packages:", url)
 
-	url, err = promote.OpenPullRequestWithRemovedPackages(githubClient, user, newSourceStage, sourceStage, sourceStage, url, removedPackages)
+	url, err = promote.OpenPullRequestWithRemovedPackages(githubClient, githubUser, newSourceStage, sourceStage, sourceStage, url, removedPackages)
 	if err != nil {
 		return errors.Wrapf(err, "opening PR with removed packages failed (head: %s, base: %s)", newDestinationStage, destinationStage)
 	}

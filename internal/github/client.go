@@ -18,3 +18,12 @@ func Client() (*github.Client, error) {
 		&oauth2.Token{AccessToken: authToken},
 	))), nil
 }
+
+// User method returns the GitHub authenticated user.
+func User(client *github.Client) (string, error) {
+	user, _, err := client.Users.Get(context.Background(), "")
+	if err != nil {
+		return "", errors.Wrap(err, "fetching authenticated user failed")
+	}
+	return *user.Login, nil
+}
