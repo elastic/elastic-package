@@ -83,18 +83,23 @@ func promoteCommandAction(cmd *cobra.Command, args []string) error {
 	}
 
 	// Open PRs
+	githubClient, err := github.Client()
+	if err != nil {
+		return errors.Wrap(err, "creating GitHub client failed")
+	}
+
 	user, err := promote.User(repository)
 	if err != nil {
 		return errors.Wrap(err, "reading Git user failed")
 	}
 
-	url, err := promote.OpenPullRequestWithPromotedPackages(user, newDestinationStage, destinationStage, sourceStage, destinationStage, promotedPackages)
+	url, err := promote.OpenPullRequestWithPromotedPackages(githubClient, user, newDestinationStage, destinationStage, sourceStage, destinationStage, promotedPackages)
 	if err != nil {
 		return errors.Wrapf(err, "opening PR with promoted packages failed (head: %s, base: %s)", newDestinationStage, destinationStage)
 	}
 	fmt.Println("Pull request with promoted packages:", url)
 
-	url, err = promote.OpenPullRequestWithRemovedPackages(user, newSourceStage, sourceStage, sourceStage, url, removedPackages)
+	url, err = promote.OpenPullRequestWithRemovedPackages(githubClient, user, newSourceStage, sourceStage, sourceStage, url, removedPackages)
 	if err != nil {
 		return errors.Wrapf(err, "opening PR with removed packages failed (head: %s, base: %s)", newDestinationStage, destinationStage)
 	}
