@@ -9,6 +9,11 @@ import (
 	"github.com/pkg/errors"
 )
 
+const (
+	repositoryOwner = "elastic"
+	repositoryName  = "package-storage"
+)
+
 // OpenPullRequestWithRemovedPackages method opens a PR against "base" branch with removed packages.
 // Head is the branch containing the changes that will be added to the base branch.
 func OpenPullRequestWithRemovedPackages(client *github.Client, username, head, base, sourceStage, promotionURL string, promotedPackages PackageRevisions) (string, error) {
@@ -28,7 +33,7 @@ func OpenPullRequestWithPromotedPackages(client *github.Client, username, head, 
 func openPullRequestWithPackages(client *github.Client, user, head, base, title, description string) (string, error) {
 	userHead := fmt.Sprintf("%s:%s", user, head)
 	maintainerCanModify := true
-	pullRequest, _, err := client.PullRequests.Create(context.Background(), "elastic", "package-storage", &github.NewPullRequest{
+	pullRequest, _, err := client.PullRequests.Create(context.Background(), repositoryOwner, repositoryName, &github.NewPullRequest{
 		Title:               &title,
 		Head:                &userHead,
 		Base:                &base,
@@ -39,7 +44,7 @@ func openPullRequestWithPackages(client *github.Client, user, head, base, title,
 		return "", errors.Wrap(err, "opening pull request failed")
 	}
 
-	_, _, err = client.Issues.Edit(context.Background(), "elastic", "package-storage", int(*pullRequest.ID), &github.IssueRequest{
+	_, _, err = client.Issues.Edit(context.Background(), repositoryOwner, repositoryName, *pullRequest.Number, &github.IssueRequest{
 		Assignees: &[]string{
 			user,
 		},
