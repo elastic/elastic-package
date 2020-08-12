@@ -14,7 +14,7 @@ TODO
 
 ## Getting started
 
-Download and build the `elastic-package` binary:
+Download and build the latest master of `elastic-package` binary:
 
 ```bash
 go get github.com/elastic/elastic-package

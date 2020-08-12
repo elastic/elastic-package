@@ -1,5 +1,6 @@
 build:
-	go get github.com/elastic/elastic-package
+	go get -ldflags "-X github.com/elastic/elastic-package/cmd.CommitHash=`git describe --always --long --dirty` -X github.com/elastic/elastic-package/cmd.BuildTime=`date +%FT%T%z`" \
+	    github.com/elastic/elastic-package
 
 format:
 	gofmt -s -w .
