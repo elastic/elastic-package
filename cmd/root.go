@@ -16,8 +16,8 @@ func RootCmd() *cobra.Command {
 		setupClusterCommand(),
 		setupBuildCommand(),
 		setupFormatCommand(),
+		setupLintCommand(),
 		setupTestCommand(),
-		setupLintCommand())
-
+		setupPromoteCommand())
 	return rootCmd
 }
