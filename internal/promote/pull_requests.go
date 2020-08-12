@@ -130,8 +130,8 @@ func buildPullRequestRemoveDescription(sourceStage, promotionURL string, revisio
 	builder.WriteString(fmt.Sprintf("This PR removes packages from `%s`.\n", sourceStage))
 	builder.WriteString("\n")
 	builder.WriteString("Removed packages:\n")
-	for _, revision := range revisions {
-		builder.WriteString(fmt.Sprintf("* `%s-%s`\n", revision.Name, revision.Version))
+	for _, str := range revisions.Strings() {
+		builder.WriteString(fmt.Sprintf("* `%s`\n", str))
 	}
 	builder.WriteString("\n")
 	builder.WriteString(fmt.Sprintf("Please make sure that the promotion PR is merged first: %s", promotionURL))
@@ -143,8 +143,8 @@ func buildPullRequestPromoteDescription(sourceStage, destinationStage string, re
 	builder.WriteString(fmt.Sprintf("This PR promotes packages from `%s` to `%s`.\n", sourceStage, destinationStage))
 	builder.WriteString("\n")
 	builder.WriteString("Promoted packages:\n")
-	for _, revision := range revisions {
-		builder.WriteString(fmt.Sprintf("* `%s-%s`\n", revision.Name, revision.Version))
+	for _, str := range revisions.Strings() {
+		builder.WriteString(fmt.Sprintf("* `%s`\n", str))
 	}
 	return builder.String()
 }
