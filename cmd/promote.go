@@ -37,7 +37,7 @@ func promoteCommandAction(cmd *cobra.Command, args []string) error {
 
 	newestOnly, err := promptPromoteNewestOnly()
 	if err != nil {
-		return errors.Wrap(err, "prompt for promoting newest revisions only failed")
+		return errors.Wrap(err, "prompt for promoting newest versions only failed")
 	}
 	cmd.Println("Creating list of packages...")
 
@@ -128,7 +128,7 @@ func promptPromotion() (string, string, error) {
 func promptPromoteNewestOnly() (bool, error) {
 	newestOnly := true
 	prompt := &survey.Confirm{
-		Message: "Would you like to promote newest revisions only and remove older ones?",
+		Message: "Would you like to promote newest versions only and remove older ones?",
 		Default: true,
 	}
 	err := survey.AskOne(prompt, &newestOnly)
@@ -138,7 +138,7 @@ func promptPromoteNewestOnly() (bool, error) {
 	return newestOnly, nil
 }
 
-func promptPackages(packages promote.PackageRevisions) (promote.PackageRevisions, error) {
+func promptPackages(packages promote.PackageVersions) (promote.PackageVersions, error) {
 	packagesPrompt := &survey.MultiSelect{
 		Message:  "Which packages would you like to promote",
 		Options:  packages.Strings(),
@@ -151,7 +151,7 @@ func promptPackages(packages promote.PackageRevisions) (promote.PackageRevisions
 		return nil, err
 	}
 
-	var selected promote.PackageRevisions
+	var selected promote.PackageVersions
 	for _, option := range selectedOptions {
 		for _, p := range packages {
 			if p.String() == option {

@@ -16,7 +16,7 @@ const (
 
 // OpenPullRequestWithRemovedPackages method opens a PR against "base" branch with removed packages.
 // Head is the branch containing the changes that will be added to the base branch.
-func OpenPullRequestWithRemovedPackages(client *github.Client, username, head, base, sourceStage, promotionURL string, promotedPackages PackageRevisions) (string, error) {
+func OpenPullRequestWithRemovedPackages(client *github.Client, username, head, base, sourceStage, promotionURL string, promotedPackages PackageVersions) (string, error) {
 	title := fmt.Sprintf("[%s] Remove packages from %s", sourceStage, sourceStage)
 	description := buildPullRequestRemoveDescription(sourceStage, promotionURL, promotedPackages)
 	return openPullRequestWithPackages(client, username, head, base, title, description)
@@ -24,7 +24,7 @@ func OpenPullRequestWithRemovedPackages(client *github.Client, username, head, b
 
 // OpenPullRequestWithPromotedPackages method opens a PR against "base" branch with promoted packages.
 // Head is the branch containing the changes that will be added to the base branch.
-func OpenPullRequestWithPromotedPackages(client *github.Client, username, head, base, sourceStage, destinationStage string, promotedPackages PackageRevisions) (string, error) {
+func OpenPullRequestWithPromotedPackages(client *github.Client, username, head, base, sourceStage, destinationStage string, promotedPackages PackageVersions) (string, error) {
 	title := fmt.Sprintf("[%s] Promote packages from %s to %s", destinationStage, sourceStage, destinationStage)
 	description := buildPullRequestPromoteDescription(sourceStage, destinationStage, promotedPackages)
 	return openPullRequestWithPackages(client, username, head, base, title, description)
@@ -55,12 +55,12 @@ func openPullRequestWithPackages(client *github.Client, user, head, base, title,
 	return *pullRequest.HTMLURL, nil
 }
 
-func buildPullRequestRemoveDescription(sourceStage, promotionURL string, revisions PackageRevisions) string {
+func buildPullRequestRemoveDescription(sourceStage, promotionURL string, versions PackageVersions) string {
 	var builder strings.Builder
 	builder.WriteString(fmt.Sprintf("This PR removes packages from `%s`.\n", sourceStage))
 	builder.WriteString("\n")
 	builder.WriteString("Removed packages:\n")
-	for _, str := range revisions.Strings() {
+	for _, str := range versions.Strings() {
 		builder.WriteString(fmt.Sprintf("* `%s`\n", str))
 	}
 	builder.WriteString("\n")
@@ -68,12 +68,12 @@ func buildPullRequestRemoveDescription(sourceStage, promotionURL string, revisio
 	return builder.String()
 }
 
-func buildPullRequestPromoteDescription(sourceStage, destinationStage string, revisions PackageRevisions) string {
+func buildPullRequestPromoteDescription(sourceStage, destinationStage string, versions PackageVersions) string {
 	var builder strings.Builder
 	builder.WriteString(fmt.Sprintf("This PR promotes packages from `%s` to `%s`.\n", sourceStage, destinationStage))
 	builder.WriteString("\n")
 	builder.WriteString("Promoted packages:\n")
-	for _, str := range revisions.Strings() {
+	for _, str := range versions.Strings() {
 		builder.WriteString(fmt.Sprintf("* `%s`\n", str))
 	}
 	return builder.String()

@@ -30,33 +30,33 @@ const (
 
 type fileContents map[string][]byte
 
-// PackageRevision represents a package revision stored in the package-storage.
-type PackageRevision struct {
+// PackageVersion represents a package version stored in the package-storage.
+type PackageVersion struct {
 	Name    string
 	Version string
 
 	semver semver.Version
 }
 
-func (pr *PackageRevision) path() string {
+func (pr *PackageVersion) path() string {
 	return filepath.Join("packages", pr.Name, pr.Version)
 }
 
-// String method returns a string representation of the PackageRevision.
-func (pr *PackageRevision) String() string {
+// String method returns a string representation of the PackageVersion.
+func (pr *PackageVersion) String() string {
 	return fmt.Sprintf("%s-%s", pr.Name, pr.Version)
 }
 
-// PackageRevisions is an array of PackageRevision.
-type PackageRevisions []PackageRevision
+// PackageVersions is an array of PackageVersion.
+type PackageVersions []PackageVersion
 
-// FilterPackages method filters package revisions based on the "newest revision only" policy.
-func (prs PackageRevisions) FilterPackages(newestOnly bool) PackageRevisions {
+// FilterPackages method filters package versions based on the "newest version only" policy.
+func (prs PackageVersions) FilterPackages(newestOnly bool) PackageVersions {
 	if !newestOnly {
 		return prs
 	}
 
-	m := map[string]PackageRevision{}
+	m := map[string]PackageVersion{}
 
 	for _, p := range prs {
 		if v, ok := m[p.Name]; ok {
@@ -66,14 +66,14 @@ func (prs PackageRevisions) FilterPackages(newestOnly bool) PackageRevisions {
 		}
 	}
 
-	var revisions PackageRevisions
+	var versions PackageVersions
 	for _, v := range m {
-		revisions = append(revisions, v)
+		versions = append(versions, v)
 	}
-	return revisions.sort()
+	return versions.sort()
 }
 
-func (prs PackageRevisions) sort() PackageRevisions {
+func (prs PackageVersions) sort() PackageVersions {
 	sort.Slice(prs, func(i, j int) bool {
 		if prs[i].Name != prs[j].Name {
 			return sort.StringsAreSorted([]string{prs[i].Name, prs[j].Name})
@@ -84,7 +84,7 @@ func (prs PackageRevisions) sort() PackageRevisions {
 }
 
 // Strings method returns an array of string representations.
-func (prs PackageRevisions) Strings() []string {
+func (prs PackageVersions) Strings() []string {
 	var entries []string
 	for _, pr := range prs {
 		entries = append(entries, pr.String())
@@ -130,7 +130,7 @@ func CloneRepository(stage string) (*git.Repository, error) {
 
 // ListPackages method lists available packages in the package-storage.
 // It skips technical packages (snapshot, staging).
-func ListPackages(r *git.Repository) (PackageRevisions, error) {
+func ListPackages(r *git.Repository) (PackageVersions, error) {
 	wt, err := r.Worktree()
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching worktree reference failed")
@@ -141,7 +141,7 @@ func ListPackages(r *git.Repository) (PackageRevisions, error) {
 		return nil, errors.Wrap(err, "reading packages directory failed")
 	}
 
-	var revisions PackageRevisions
+	var versions PackageVersions
 	for _, packageDir := range packageDirs {
 		if !packageDir.IsDir() {
 			continue
@@ -166,19 +166,19 @@ func ListPackages(r *git.Repository) (PackageRevisions, error) {
 				return nil, errors.Wrapf(err, "reading package version failed (name: %s, version: %s)", packageDir.Name(), versionDir.Name())
 			}
 
-			revisions = append(revisions, PackageRevision{
+			versions = append(versions, PackageVersion{
 				Name:    packageDir.Name(),
 				Version: versionDir.Name(),
 				semver:  *packageVersion,
 			})
 		}
 	}
-	return revisions.sort(), nil
+	return versions.sort(), nil
 }
 
 // DeterminePackagesToBeRemoved method lists packages supposed to be removed from the stage.
-func DeterminePackagesToBeRemoved(allPackages PackageRevisions, promotedPackages PackageRevisions, newestOnly bool) PackageRevisions {
-	var removed PackageRevisions
+func DeterminePackagesToBeRemoved(allPackages PackageVersions, promotedPackages PackageVersions, newestOnly bool) PackageVersions {
+	var removed PackageVersions
 
 	for _, p := range allPackages {
 		var toBeRemoved bool
@@ -206,7 +206,7 @@ func DeterminePackagesToBeRemoved(allPackages PackageRevisions, promotedPackages
 }
 
 // CopyPackages method copies packages between branches. It creates a new branch with selected packages.
-func CopyPackages(r *git.Repository, sourceStage, destinationStage string, packages PackageRevisions, nonce int64) (string, error) {
+func CopyPackages(r *git.Repository, sourceStage, destinationStage string, packages PackageVersions, nonce int64) (string, error) {
 	fmt.Printf("Promote packages from %s to %s...\n", sourceStage, destinationStage)
 
 	wt, err := r.Worktree()
@@ -222,9 +222,9 @@ func CopyPackages(r *git.Repository, sourceStage, destinationStage string, packa
 	}
 
 	// Load package resources from source stage
-	resourcePaths, err := walkPackageRevisions(wt.Filesystem, packages)
+	resourcePaths, err := walkPackageVersions(wt.Filesystem, packages)
 	if err != nil {
-		return "", errors.Wrap(err, "walking package revisions failed")
+		return "", errors.Wrap(err, "walking package versions failed")
 	}
 
 	contents, err := loadPackageContents(wt.Filesystem, resourcePaths)
@@ -267,9 +267,9 @@ func CopyPackages(r *git.Repository, sourceStage, destinationStage string, packa
 	return newDestinationStage, nil
 }
 
-func walkPackageRevisions(filesystem billy.Filesystem, revisions PackageRevisions) ([]string, error) {
+func walkPackageVersions(filesystem billy.Filesystem, versions PackageVersions) ([]string, error) {
 	var collected []string
-	for _, r := range revisions {
+	for _, r := range versions {
 		paths, err := walkPackageResources(filesystem, r.path())
 		if err != nil {
 			return nil, errors.Wrap(err, "walking package resources failed")
@@ -336,7 +336,7 @@ func writePackageContents(filesystem billy.Filesystem, contents fileContents) er
 }
 
 // RemovePackages method removes packages from "stage" branch. It creates a new branch with removed packages.
-func RemovePackages(r *git.Repository, sourceStage string, packages PackageRevisions, nonce int64) (string, error) {
+func RemovePackages(r *git.Repository, sourceStage string, packages PackageVersions, nonce int64) (string, error) {
 	fmt.Printf("Remove packages from %s...\n", sourceStage)
 
 	wt, err := r.Worktree()
