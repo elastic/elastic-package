@@ -40,7 +40,9 @@ func promoteCommandAction(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return errors.Wrap(err, "fetching GitHub user failed")
 	}
+	cmd.Printf("Use GitHub user: %s", githubUser)
 
+	// Prompt for promotion options
 	sourceStage, destinationStage, err := promptPromotion()
 	if err != nil {
 		return errors.Wrap(err, "prompt for promotion failed")
