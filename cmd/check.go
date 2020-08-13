@@ -22,6 +22,7 @@ func setupCheckCommand() *cobra.Command {
 			return nil
 		},
 	}
+	cmd.PersistentFlags().BoolP(failFastFlagName, "f", true, "fail if any file requires updates")
 	return cmd
 }
 

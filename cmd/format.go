@@ -37,7 +37,7 @@ func formatCommandAction(cmd *cobra.Command, args []string) error {
 
 	err = formatter.Format(packageRoot, ff)
 	if err != nil {
-		return errors.Wrapf(err, "formatting integration failed (path: %s, failFast: %t)", packageRoot, ff)
+		return errors.Wrapf(err, "formatting the integration failed (path: %s, failFast: %t)", packageRoot, ff)
 	}
 	return nil
 }
