@@ -7,6 +7,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
+	internalCmd "github.com/elastic/elastic-package/internal/cmd"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/testrunner"
 	"github.com/elastic/elastic-package/internal/testrunner/system"
@@ -22,7 +23,7 @@ func setupTestCommand() *cobra.Command {
 		Short: "Run test suite for the package",
 		Long:  "Use test runners to verify if the package collects logs and metrics properly.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return composeCommandActions(cmd, args, testTypeCmdActions...)
+			return internalCmd.ComposeCommandActions(cmd, args, testTypeCmdActions...)
 		}}
 
 	cmd.PersistentFlags().BoolP("fail-on-missing", "m", false, "fail if tests are missing")
