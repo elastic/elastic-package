@@ -92,7 +92,7 @@ func promoteCommandAction(cmd *cobra.Command, args []string) error {
 	}
 
 	// Push changes
-	err = promote.PushChanges(githubUser, repository)
+	err = promote.PushChanges(githubUser, repository, newSourceStage, newDestinationStage)
 	if err != nil {
 		return errors.Wrapf(err, "pushing changes failed")
 	}

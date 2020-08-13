@@ -105,7 +105,12 @@ func CloneRepository(user, stage string) (*git.Repository, error) {
 
 	err = r.Fetch(&git.FetchOptions{
 		RemoteName: remoteName,
-		RefSpecs:   []config.RefSpec{"refs/*:refs/*", "HEAD:refs/heads/HEAD"},
+		RefSpecs: []config.RefSpec{
+			"HEAD:refs/heads/HEAD",
+			"refs/heads/snapshot:refs/heads/snapshot",
+			"refs/heads/staging:refs/heads/staging",
+			"refs/heads/production:refs/heads/production",
+		},
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "fetch remote branches failed")
@@ -370,8 +375,8 @@ func RemovePackages(r *git.Repository, sourceStage string, packages PackageVersi
 	return newSourceStage, nil
 }
 
-// PushChanges method pushes all branches to the remote repository.
-func PushChanges(user string, r *git.Repository) error {
+// PushChanges method pushes branches to the remote repository.
+func PushChanges(user string, r *git.Repository, newSourceStage, newDestinationStage string) error {
 	authToken, err := github.AuthToken()
 	if err != nil {
 		return errors.Wrap(err, "reading auth token failed")
@@ -379,6 +384,10 @@ func PushChanges(user string, r *git.Repository) error {
 
 	err = r.Push(&git.PushOptions{
 		RemoteName: user,
+		RefSpecs: []config.RefSpec{
+			config.RefSpec(fmt.Sprintf("refs/heads/%s:refs/heads/%s", newSourceStage, newSourceStage)),
+			config.RefSpec(fmt.Sprintf("refs/heads/%s:refs/heads/%s", newDestinationStage, newDestinationStage)),
+		},
 		Auth: &http.BasicAuth{
 			Username: user,
 			Password: authToken,
