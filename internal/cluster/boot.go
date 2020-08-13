@@ -84,6 +84,26 @@ func dockerComposeBuild() error {
 	return nil
 }
 
+func DockerComposePull() error {
+	clusterDir, err := install.ClusterDir()
+	if err != nil {
+		return errors.Wrap(err, "locating cluster directory failed")
+	}
+
+	args := []string{
+		"-f", filepath.Join(clusterDir, "snapshot.yml"),
+		"pull",
+	}
+	cmd := exec.Command("docker-compose", args...)
+	cmd.Stderr = os.Stderr
+	cmd.Stdout = os.Stdout
+	err = cmd.Run()
+	if err != nil {
+		return errors.Wrap(err, "running command failed")
+	}
+	return nil
+}
+
 func dockerComposeUp() error {
 	clusterDir, err := install.ClusterDir()
 	if err != nil {
