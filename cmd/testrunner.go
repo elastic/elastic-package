@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -18,7 +19,9 @@ func setupTestCommand() *cobra.Command {
 		Long:  "Use test runners to verify if the package collects logs and metrics properly.",
 		RunE:  testCommandAction,
 	}
+
 	cmd.PersistentFlags().BoolP("fail-on-missing", "m", false, "fail if tests are missing")
+	cmd.PersistentFlags().StringP("dataset", "d", "", "comma-separated datasets to test")
 
 	testTypes := []testrunner.TestType{testrunner.TestTypeSystem}
 	for _, testType := range testTypes {
@@ -37,6 +40,20 @@ func setupTestCommand() *cobra.Command {
 
 func testTypeCommandActionFactory(testType testrunner.TestType) func(cmd *cobra.Command, args []string) error {
 	return func(cmd *cobra.Command, args []string) error {
+		failOnMissing, err := cmd.Flags().GetBool("fail-on-missing")
+		if err != nil {
+			return errors.Wrap(err, "error parsing --fail-on-missing flag")
+		}
+
+		dataset, err := cmd.Flags().GetString("dataset")
+		if err != nil {
+			return errors.Wrap(err, "error parsing --dataset flag")
+		}
+		var datasets []string
+		if dataset != "" {
+			datasets = strings.Split(dataset, ",")
+		}
+
 		packageRootPath, found, err := packages.FindPackageRoot()
 		if !found {
 			return errors.New("package root not found")
@@ -45,20 +62,13 @@ func testTypeCommandActionFactory(testType testrunner.TestType) func(cmd *cobra.
 			return errors.Wrap(err, "locating package root failed")
 		}
 
-		// TODO: populate datasets argument
-		testFolderPaths, err := testrunner.FindTestFolders(packageRootPath, testType, nil)
+		testFolderPaths, err := testrunner.FindTestFolders(packageRootPath, testType, datasets)
 		if err != nil {
 			return errors.Wrap(err, "unable to determine test folder paths")
 		}
 
-		// TODO: account for fail on missin
-		failOnMissing, err := cmd.Flags().GetBool("fail-on-missing")
-		if err != nil {
-			return errors.Wrap(err, "error parsing --fail-on-missing flag")
-		}
-
 		if failOnMissing && len(testFolderPaths) == 0 {
-			return fmt.Errorf("no %s tests found", testType)
+			return fmt.Errorf("no %s tests found for %s dataset(s)", testType, dataset)
 		}
 
 		for _, path := range testFolderPaths {
