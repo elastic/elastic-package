@@ -12,12 +12,13 @@ func RootCmd() *cobra.Command {
 		SilenceUsage: true,
 	}
 	rootCmd.AddCommand(
+		setupBuildCommand(),
 		setupCheckCommand(),
 		setupClusterCommand(),
-		setupBuildCommand(),
 		setupFormatCommand(),
 		setupLintCommand(),
+		setupPromoteCommand(),
 		setupTestCommand(),
-		setupPromoteCommand())
+		setupVersionCommand())
 	return rootCmd
 }
