@@ -22,7 +22,7 @@ func setupTestCommand() *cobra.Command {
 		Long:  "Use test runners to verify if the package collects logs and metrics properly.",
 		RunE:  testCommandAction,
 	}
-	cmd.PersistentFlags().BoolP("failOnMissing", "m", false, "fail if tests are missing")
+	cmd.PersistentFlags().BoolP("fail-on-missing", "m", false, "fail if tests are missing")
 	cmd.AddCommand(
 		testSystemCmd)
 	return cmd
@@ -55,7 +55,7 @@ func testCommandAction(cmd *cobra.Command, args []string) error {
 }
 
 func makeOptions(cmd *cobra.Command) (*system.Options, error) {
-	failOnMissing, err := cmd.Flags().GetBool("failOnMissing")
+	failOnMissing, err := cmd.Flags().GetBool("fail-on-missing")
 	if err != nil {
 		return nil, errors.Wrap(err, "error parsing failOnMissing flag")
 	}
