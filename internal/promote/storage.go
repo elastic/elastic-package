@@ -375,7 +375,7 @@ func RemovePackages(r *git.Repository, sourceStage string, packages PackageVersi
 	return newSourceStage, nil
 }
 
-// PushChanges method pushes all branches to the remote repository.
+// PushChanges method pushes branches to the remote repository.
 func PushChanges(user string, r *git.Repository, newSourceStage, newDestinationStage string) error {
 	authToken, err := github.AuthToken()
 	if err != nil {
