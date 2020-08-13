@@ -66,12 +66,12 @@ func formatFile(path string, failFast bool) error {
 		return errors.Wrap(err, "unmarshalling file failed")
 	}
 
-	newContent, err := marshal(c, " ", " ")
+	formatted, err := marshal(c, " ", " ")
 	if err != nil {
 		return errors.Wrap(err, "marshalling file failed ")
 	}
 
-	if string(content) == string(newContent) {
+	if string(content) == string(formatted) {
 		return nil // file is already in good shape
 	}
 
@@ -79,7 +79,7 @@ func formatFile(path string, failFast bool) error {
 		return fmt.Errorf("file is not formatted (path: %s)", path)
 	}
 
-	err = ioutil.WriteFile(path, newContent, 0755)
+	err = ioutil.WriteFile(path, formatted, 0755)
 	if err != nil {
 		return errors.Wrapf(err, "rewriting file failed (path: %s)", path)
 	}
