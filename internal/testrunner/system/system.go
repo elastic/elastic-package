@@ -7,9 +7,17 @@ import (
 	"github.com/pkg/errors"
 )
 
+type Options struct {
+	FailOnMissing bool
+}
+
 // Run runs the system tests for the given package.
-func Run(packageRootPath string) error {
+func Run(packageRootPath string, options Options) error {
 	systemTestsPath, err := findSystemTestsPath(packageRootPath)
+	if err != nil && err == ErrNoSystemTests && !options.FailOnMissing {
+		return nil
+	}
+
 	if err != nil {
 		return err
 	}

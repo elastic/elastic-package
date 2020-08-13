@@ -22,7 +22,7 @@ func setupTestCommand() *cobra.Command {
 		Long:  "Use test runners to verify if the package collects logs and metrics properly.",
 		RunE:  testCommandAction,
 	}
-	cmd.PersistentFlags().BoolP("ignoreMissing", "i", false, "ignore missing tests")
+	cmd.PersistentFlags().BoolP("failOnMissing", "m", false, "fail if tests are missing")
 	cmd.AddCommand(
 		testSystemCmd)
 	return cmd
@@ -37,17 +37,12 @@ func testSystemCommandAction(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "locating package root failed")
 	}
 
-	ignoreMissing, err := cmd.Flags().GetBool("ignoreMissing")
+	options, err := makeOptions(cmd)
 	if err != nil {
-		return errors.Wrap(err, "error parsing ignoreMissing flag")
+		return errors.Wrap(err, "could not build test runner options")
 	}
 
-	err = system.Run(packageRootPath)
-	if err != nil && ignoreMissing && err == system.ErrNoSystemTests {
-		return nil
-	}
-
-	if err != nil {
+	if err := system.Run(packageRootPath, *options); err != nil {
 		return errors.Wrap(err, "error running package system tests")
 	}
 
@@ -57,4 +52,15 @@ func testSystemCommandAction(cmd *cobra.Command, args []string) error {
 func testCommandAction(cmd *cobra.Command, args []string) error {
 	// TODO: call actions for other types of tests
 	return testSystemCommandAction(cmd, args)
+}
+
+func makeOptions(cmd *cobra.Command) (*system.Options, error) {
+	failOnMissing, err := cmd.Flags().GetBool("failOnMissing")
+	if err != nil {
+		return nil, errors.Wrap(err, "error parsing failOnMissing flag")
+	}
+
+	return &system.Options{
+		FailOnMissing: failOnMissing,
+	}, nil
 }
