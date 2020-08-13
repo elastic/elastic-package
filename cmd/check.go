@@ -1,8 +1,6 @@
 package cmd
 
 import (
-	internalCmd "github.com/elastic/elastic-package/internal/cmd"
-
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -13,7 +11,7 @@ func setupCheckCommand() *cobra.Command {
 		Short: "Check the package",
 		Long:  "Use check command to verify if the package is correct in terms of formatting, validation and building.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			err := internalCmd.ComposeCommandActions(cmd, args,
+			err := composeCommandActions(cmd, args,
 				formatCommandAction,
 				lintCommandAction,
 				buildCommandAction,
