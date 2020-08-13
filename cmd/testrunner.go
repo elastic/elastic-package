@@ -16,7 +16,7 @@ import (
 func setupTestCommand() *cobra.Command {
 	// TODO: add more test types as their runners are implemented
 	testTypes := []testrunner.TestType{testrunner.TestTypeSystem}
-	var testTypeCmdActions []func(cmd *cobra.Command, args []string) error
+	var testTypeCmdActions []internalCmd.CommandAction
 
 	cmd := &cobra.Command{
 		Use:   "test",
@@ -46,7 +46,7 @@ func setupTestCommand() *cobra.Command {
 	return cmd
 }
 
-func testTypeCommandActionFactory(testType testrunner.TestType) func(cmd *cobra.Command, args []string) error {
+func testTypeCommandActionFactory(testType testrunner.TestType) internalCmd.CommandAction {
 	return func(cmd *cobra.Command, args []string) error {
 		failOnMissing, err := cmd.Flags().GetBool("fail-on-missing")
 		if err != nil {
