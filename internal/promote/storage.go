@@ -385,8 +385,8 @@ func PushChanges(user string, r *git.Repository, newSourceStage, newDestinationS
 	err = r.Push(&git.PushOptions{
 		RemoteName: user,
 		RefSpecs: []config.RefSpec{
-			config.RefSpec(fmt.Sprintf("refs/heads/%s:refs/heads:%s", newSourceStage, newSourceStage)),
-			config.RefSpec(fmt.Sprintf("refs/heads/%s:refs/heads:%s", newDestinationStage, newDestinationStage)),
+			config.RefSpec(fmt.Sprintf("refs/heads/%s:refs/heads/%s", newSourceStage, newSourceStage)),
+			config.RefSpec(fmt.Sprintf("refs/heads/%s:refs/heads/%s", newDestinationStage, newDestinationStage)),
 		},
 		Auth: &http.BasicAuth{
 			Username: user,
