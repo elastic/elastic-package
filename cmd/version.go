@@ -1,10 +1,11 @@
 package cmd
 
 import (
-	"github.com/pkg/errors"
-	"github.com/spf13/cobra"
 	"strconv"
 	"time"
+
+	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
 )
 
 var (
