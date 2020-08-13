@@ -13,23 +13,30 @@ import (
 )
 
 func setupTestCommand() *cobra.Command {
+	// TODO: add more test types as their runners are implemented
+	testTypes := []testrunner.TestType{testrunner.TestTypeSystem}
+	var testTypeCmdActions []func(cmd *cobra.Command, args []string) error
+
 	cmd := &cobra.Command{
 		Use:   "test",
 		Short: "Run test suite for the package",
 		Long:  "Use test runners to verify if the package collects logs and metrics properly.",
-		RunE:  testCommandAction,
-	}
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return composeCommandActions(cmd, args, testTypeCmdActions...)
+		}}
 
 	cmd.PersistentFlags().BoolP("fail-on-missing", "m", false, "fail if tests are missing")
 	cmd.PersistentFlags().StringP("dataset", "d", "", "comma-separated datasets to test")
 
-	testTypes := []testrunner.TestType{testrunner.TestTypeSystem}
 	for _, testType := range testTypes {
+		action := testTypeCommandActionFactory(testType)
+		testTypeCmdActions = append(testTypeCmdActions, action)
+
 		testTypeCmd := &cobra.Command{
 			Use:   string(testType),
 			Short: fmt.Sprintf("Run %s tests", testType),
 			Long:  fmt.Sprintf("Run %s tests for a package", testType),
-			RunE:  testTypeCommandActionFactory(testType),
+			RunE:  action,
 		}
 
 		cmd.AddCommand(testTypeCmd)
@@ -79,9 +86,4 @@ func testTypeCommandActionFactory(testType testrunner.TestType) func(cmd *cobra.
 
 		return nil
 	}
-}
-
-func testCommandAction(cmd *cobra.Command, args []string) error {
-	// TODO: call actions for other types of tests
-	return testTypeCommandActionFactory(testrunner.TestTypeSystem)(cmd, args)
 }
