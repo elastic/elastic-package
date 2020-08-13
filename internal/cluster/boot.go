@@ -84,6 +84,7 @@ func dockerComposeBuild() error {
 	return nil
 }
 
+// DockerComposePull pulls down the most recent versions of the Docker images
 func DockerComposePull() error {
 	clusterDir, err := install.ClusterDir()
 	if err != nil {
