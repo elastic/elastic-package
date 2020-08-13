@@ -1,52 +1,15 @@
 package system
 
-import (
-	"os"
-	"path"
-
-	"github.com/pkg/errors"
-)
-
-type Options struct {
-	FailOnMissing bool
+type runner struct {
+	testFolderPath string
 }
 
-// Run runs the system tests for the given package.
-func Run(packageRootPath string, options Options) error {
-	systemTestsPath, err := findSystemTestsPath(packageRootPath)
-	if err != nil && err == ErrNoSystemTests && !options.FailOnMissing {
-		return nil
-	}
+// Run runs the system tests defined under the given folder
+func Run(testFolderPath string) error {
+	r := runner{testFolderPath}
+	return r.run()
+}
 
-	if err != nil {
-		return err
-	}
-
-	runner, err := newRunner(systemTestsPath)
-	if err != nil {
-		return errors.Wrap(err, "could not instantiate system tests runner")
-	}
-
-	if err := runner.run(); err != nil {
-		return errors.Wrap(err, "system tests failed")
-	}
-
+func (r *runner) run() error {
 	return nil
-}
-
-func findSystemTestsPath(packageRootPath string) (string, error) {
-	systemTestsPath := path.Join(packageRootPath, "_dev", "test", "system")
-	info, err := os.Stat(systemTestsPath)
-	if err != nil && os.IsNotExist(err) {
-		return "", ErrNoSystemTests
-	}
-	if err != nil {
-		return "", ErrNoSystemTests
-	}
-
-	if !info.IsDir() {
-		return "", errors.New("system tests path is not a folder")
-	}
-
-	return systemTestsPath, nil
 }
