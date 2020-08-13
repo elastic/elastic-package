@@ -33,7 +33,7 @@ Run the `help` command and see available actions:
 elastic-package help
 ```
 
-## GitHub Authorization
+## GitHub authorization
 
 The `promote` subcommand requires access to the GitHub API to open pull requests or check authorized account data.
 The tool uses the GitHub token to authorize user's call to API. The token can be stored in the `~/.elastic/github.token`
