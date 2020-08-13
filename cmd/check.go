@@ -24,13 +24,3 @@ func setupCheckCommand() *cobra.Command {
 	}
 	return cmd
 }
-
-func composeCommandActions(cmd *cobra.Command, args []string, actions ...func(cmd *cobra.Command, args []string) error) error {
-	for _, action := range actions {
-		err := action(cmd, args)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
