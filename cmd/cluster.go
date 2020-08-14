@@ -32,13 +32,13 @@ func setupClusterCommand() *cobra.Command {
 		},
 	}
 
-	pullCommand := &cobra.Command{
-		Use:   "pull",
-		Short: "Pulls down the most recent version of the images",
+	updateCommand := &cobra.Command{
+		Use:   "update",
+		Short: "Updates the cluster to the most recent versions.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			err := cluster.DockerComposePull()
+			err := cluster.Update()
 			if err != nil {
-				return errors.Wrap(err, "pulling down the images failed")
+				return errors.Wrap(err, "failed updating the cluster images")
 			}
 			return nil
 		},
@@ -65,7 +65,7 @@ func setupClusterCommand() *cobra.Command {
 	cmd.AddCommand(
 		upCommand,
 		downCommand,
-		pullCommand,
+		updateCommand,
 		shellInitCommand)
 	return cmd
 }

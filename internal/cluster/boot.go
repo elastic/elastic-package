@@ -64,6 +64,11 @@ func TearDown() error {
 	return nil
 }
 
+// Update pulls down the most recent versions of the Docker images
+func Update() error {
+	return dockerComposePull()
+}
+
 func dockerComposeBuild() error {
 	clusterDir, err := install.ClusterDir()
 	if err != nil {
@@ -84,8 +89,7 @@ func dockerComposeBuild() error {
 	return nil
 }
 
-// DockerComposePull pulls down the most recent versions of the Docker images
-func DockerComposePull() error {
+func dockerComposePull() error {
 	clusterDir, err := install.ClusterDir()
 	if err != nil {
 		return errors.Wrap(err, "locating cluster directory failed")
