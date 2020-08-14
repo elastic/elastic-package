@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/version"
@@ -18,10 +17,6 @@ func setupVersionCommand() *cobra.Command {
 }
 
 func versionCommandAction(cmd *cobra.Command, args []string) error {
-	buildInfo, err := version.Info()
-	if err != nil {
-		return errors.Wrap(err, "reading version information failed")
-	}
-	cmd.Printf("elastic-package version-hash %s (build time: %s)\n", buildInfo.CommitHash, buildInfo.BuildTime)
+	cmd.Printf("elastic-package version-hash %s (build time: %s)\n", version.CommitHash, version.BuildTimeFormatted())
 	return nil
 }

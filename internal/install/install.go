@@ -7,8 +7,6 @@ import (
 	"path/filepath"
 
 	"github.com/pkg/errors"
-
-	"github.com/elastic/elastic-package/internal/version"
 )
 
 const (
@@ -84,22 +82,7 @@ func checkIfAlreadyInstalled(elasticPackagePath string) (bool, error) {
 	if err != nil {
 		return false, errors.Wrapf(err, "stat file failed (path: %s)", elasticPackagePath)
 	}
-
-	// check if installed resources are up-to-date
-	versionFile, err := ioutil.ReadFile(filepath.Join(elasticPackagePath, versionFilename))
-	if os.IsExist(err) {
-		return false, nil // old version, no version file
-	}
-	if err != nil {
-		return false, errors.Wrap(err, "reading version file failed")
-	}
-	v := string(versionFile)
-
-	buildInfo, err := version.Info()
-	if err != nil {
-		return false, errors.Wrap(err, "reading version information failed")
-	}
-	return buildInfo.CommitHash == v, nil
+	return checkIfLatestVersionInstalled(elasticPackagePath)
 }
 
 func createElasticPackageDirectory(elasticPackagePath string) error {
@@ -127,19 +110,6 @@ func writeClusterResources(elasticPackagePath string) error {
 	err = writeStaticResource(err, filepath.Join(clusterPath, "snapshot.yml"), snapshotYml)
 	err = writeStaticResource(err, filepath.Join(clusterPath, "package-registry.config.yml"), packageRegistryConfigYml)
 	err = writeStaticResource(err, filepath.Join(clusterPath, "Dockerfile.package-registry"), packageRegistryDockerfile)
-	if err != nil {
-		return errors.Wrap(err, "writing static resource failed")
-	}
-	return nil
-}
-
-func writeVersionFile(elasticPackagePath string) error {
-	buildInfo, err := version.Info()
-	if err != nil {
-		return errors.Wrap(err, "reading version information failed")
-	}
-
-	err = writeStaticResource(err, filepath.Join(elasticPackagePath, versionFilename), buildInfo.CommitHash)
 	if err != nil {
 		return errors.Wrap(err, "writing static resource failed")
 	}

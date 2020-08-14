@@ -3,8 +3,6 @@ package version
 import (
 	"strconv"
 	"time"
-
-	"github.com/pkg/errors"
 )
 
 var (
@@ -15,32 +13,15 @@ var (
 	CommitHash = "undefined"
 )
 
-// BuildInfo describes the version of the application.
-type BuildInfo struct {
-	BuildTime  string
-	CommitHash string
-}
-
-// Info method returns the application version.
-func Info() (BuildInfo, error) {
-	buildTime, err := formattedBuildTime()
-	if err != nil {
-		return BuildInfo{}, errors.Wrap(err, "formatting build time failed")
-	}
-	return BuildInfo{
-		BuildTime:  buildTime,
-		CommitHash: CommitHash,
-	}, nil
-}
-
-func formattedBuildTime() (string, error) {
+// BuildTimeFormatted method returns the build time preserving the RFC3339 format.
+func BuildTimeFormatted() string {
 	if BuildTime == "" {
-		return "unknown", nil
+		return "unknown"
 	}
 
 	seconds, err := strconv.ParseInt(BuildTime, 10, 64)
 	if err != nil {
-		return "", errors.Wrap(err, "parsing build time failed")
+		return "invalid"
 	}
-	return time.Unix(seconds, 0).Format(time.RFC3339), nil
+	return time.Unix(seconds, 0).Format(time.RFC3339)
 }
