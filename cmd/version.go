@@ -1,19 +1,10 @@
 package cmd
 
 import (
-	"strconv"
-	"time"
-
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-)
 
-var (
-	// BuildTime is the build time of the binary (set externally with ldflags).
-	BuildTime string
-
-	// CommitHash is the Git hash of the branch, used for version purposes (set externally with ldflags).
-	CommitHash = "undefined"
+	"github.com/elastic/elastic-package/internal/version"
 )
 
 func setupVersionCommand() *cobra.Command {
@@ -27,22 +18,10 @@ func setupVersionCommand() *cobra.Command {
 }
 
 func versionCommandAction(cmd *cobra.Command, args []string) error {
-	t, err := formattedBuildTime()
+	buildInfo, err := version.Info()
 	if err != nil {
-		return errors.Wrap(err, "formatting build time failed")
+		return errors.Wrap(err, "reading version information failed")
 	}
-	cmd.Printf("elastic-package version-hash %s (build time: %s)\n", CommitHash, t)
+	cmd.Printf("elastic-package version-hash %s (build time: %s)\n", buildInfo.CommitHash, buildInfo.BuildTime)
 	return nil
-}
-
-func formattedBuildTime() (string, error) {
-	if BuildTime == "" {
-		return "unknown", nil
-	}
-
-	seconds, err := strconv.ParseInt(BuildTime, 10, 64)
-	if err != nil {
-		return "", errors.Wrap(err, "parsing build time failed")
-	}
-	return time.Unix(seconds, 0).Format(time.RFC3339), nil
 }

@@ -83,7 +83,6 @@ func testTypeCommandActionFactory(testType testrunner.TestType) commandAction {
 				return errors.Wrap(err, "error running package system tests")
 			}
 		}
-
 		return nil
 	}
 }
