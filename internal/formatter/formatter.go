@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 
 	"github.com/pkg/errors"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 // Format method formats files inside of the integration directory.
@@ -35,40 +35,38 @@ func Format(packageRoot string, failFast bool) error {
 }
 
 func formatFile(path string, failFast bool) error {
+	content, err := ioutil.ReadFile(path)
+	if err != nil {
+		return errors.Wrap(err, "reading file content failed")
+	}
+
 	file := filepath.Base(path)
 	ext := filepath.Ext(file)
 
-	var c interface{}
-	var unmarshal func([]byte, interface{}) error
-	var marshal func(interface{}, string, string) ([]byte, error)
+	var formatted []byte
 	switch ext {
 	case ".json":
-		c = json.RawMessage{}
-		unmarshal = json.Unmarshal
-		marshal = json.MarshalIndent
-	case ".yml":
-		c = yaml.MapSlice{}
-		unmarshal = yaml.Unmarshal
-		marshal = func(v interface{}, prefix string, indent string) ([]byte, error) {
-			return yaml.Marshal(v)
+		var c json.RawMessage
+		err = json.Unmarshal(content, &c)
+		if err != nil {
+			return errors.Wrap(err, "unmarshalling JSON file failed")
 		}
-	default:
-		return nil // file won't be formatted
-	}
 
-	content, err := ioutil.ReadFile(path)
-	if err != nil {
-		return errors.Wrap(err, "reading file content failed ")
-	}
+		formatted, err = json.MarshalIndent(&c, " ", " ")
+		if err != nil {
+			return errors.Wrap(err, "marshalling JSON raw message failed")
+		}
+	case ".yml":
+		var b yaml.Node
+		err = yaml.Unmarshal(content, &b)
+		if err != nil {
+			return errors.Wrap(err, "unmarshalling YAML file failed")
+		}
 
-	err = unmarshal(content, &c)
-	if err != nil {
-		return errors.Wrap(err, "unmarshalling file failed")
-	}
-
-	formatted, err := marshal(c, " ", " ")
-	if err != nil {
-		return errors.Wrap(err, "marshalling file failed ")
+		formatted, err = yaml.Marshal(&b)
+		if err != nil {
+			return errors.Wrap(err, "marshalling JSON raw message failed")
+		}
 	}
 
 	if string(content) == string(formatted) {
