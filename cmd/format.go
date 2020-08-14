@@ -4,8 +4,15 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
+	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/formatter"
 	"github.com/elastic/elastic-package/internal/packages"
+)
+
+// Flag "fail-fast" is used by commands: check, format
+const (
+	failFastFlagName        = "fail-fast"
+	failFastFlagDescription = "fail immediately if any file requires updates"
 )
 
 func setupFormatCommand() *cobra.Command {
@@ -30,7 +37,7 @@ func formatCommandAction(cmd *cobra.Command, args []string) error {
 
 	ff, err := cmd.Flags().GetBool(failFastFlagName)
 	if err != nil {
-		return errors.Wrapf(err, "flag not found (flag: %s)", failFastFlagName)
+		return cobraext.FlagParsingError(err, failFastFlagName)
 	}
 
 	err = formatter.Format(packageRoot, ff)
