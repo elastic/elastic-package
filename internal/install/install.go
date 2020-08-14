@@ -15,6 +15,8 @@ const (
 	packagesDir       = "development"
 )
 
+const versionFilename = "version"
+
 // EnsureInstalled method installs once static resources for the testing Docker cluster.
 func EnsureInstalled() error {
 	elasticPackagePath, err := configurationDir()
@@ -30,6 +32,11 @@ func EnsureInstalled() error {
 	err = createElasticPackageDirectory(elasticPackagePath)
 	if err != nil {
 		return errors.Wrap(err, "creating elastic package directory failed")
+	}
+
+	err = writeVersionFile(elasticPackagePath)
+	if err != nil {
+		return errors.Wrap(err, "writing version file failed")
 	}
 
 	err = writeClusterResources(elasticPackagePath)
@@ -75,11 +82,16 @@ func checkIfAlreadyInstalled(elasticPackagePath string) (bool, error) {
 	if err != nil {
 		return false, errors.Wrapf(err, "stat file failed (path: %s)", elasticPackagePath)
 	}
-	return true, nil
+	return checkIfLatestVersionInstalled(elasticPackagePath)
 }
 
 func createElasticPackageDirectory(elasticPackagePath string) error {
-	err := os.MkdirAll(elasticPackagePath, 0755)
+	err := os.RemoveAll(elasticPackagePath) // remove in case of potential upgrade
+	if err != nil {
+		return errors.Wrapf(err, "removing directory failed (path: %s)", elasticPackagePath)
+	}
+
+	err = os.MkdirAll(elasticPackagePath, 0755)
 	if err != nil {
 		return errors.Wrapf(err, "creating directory failed (path: %s)", elasticPackagePath)
 	}
@@ -94,22 +106,21 @@ func writeClusterResources(elasticPackagePath string) error {
 		return errors.Wrapf(err, "creating directory failed (path: %s)", elasticPackagePath)
 	}
 
-	err = writeStaticResource(err, clusterPath, "kibana.config.yml", kibanaConfigYml)
-	err = writeStaticResource(err, clusterPath, "snapshot.yml", snapshotYml)
-	err = writeStaticResource(err, clusterPath, "package-registry.config.yml", packageRegistryConfigYml)
-	err = writeStaticResource(err, clusterPath, "Dockerfile.package-registry", packageRegistryDockerfile)
+	err = writeStaticResource(err, filepath.Join(clusterPath, "kibana.config.yml"), kibanaConfigYml)
+	err = writeStaticResource(err, filepath.Join(clusterPath, "snapshot.yml"), snapshotYml)
+	err = writeStaticResource(err, filepath.Join(clusterPath, "package-registry.config.yml"), packageRegistryConfigYml)
+	err = writeStaticResource(err, filepath.Join(clusterPath, "Dockerfile.package-registry"), packageRegistryDockerfile)
 	if err != nil {
 		return errors.Wrap(err, "writing static resource failed")
 	}
 	return nil
 }
 
-func writeStaticResource(err error, elasticPackagePath, filename, content string) error {
+func writeStaticResource(err error, path, content string) error {
 	if err != nil {
 		return err
 	}
 
-	path := filepath.Join(elasticPackagePath, filename)
 	err = ioutil.WriteFile(path, []byte(content), 0644)
 	if err != nil {
 		return errors.Wrapf(err, "writing file failed (path: %s)", path)
