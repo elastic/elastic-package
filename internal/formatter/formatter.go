@@ -35,35 +35,42 @@ func Format(packageRoot string, failFast bool) error {
 }
 
 func formatFile(path string, failFast bool) error {
+	file := filepath.Base(path)
+	ext := filepath.Ext(file)
+
+	switch ext {
+	case ".json":
+	case ".yml":
+	default:
+		return nil
+	}
+
 	content, err := ioutil.ReadFile(path)
 	if err != nil {
 		return errors.Wrap(err, "reading file content failed")
 	}
 
-	file := filepath.Base(path)
-	ext := filepath.Ext(file)
-
 	var formatted []byte
 	switch ext {
 	case ".json":
-		var c json.RawMessage
-		err = json.Unmarshal(content, &c)
+		var rawMessage json.RawMessage
+		err = json.Unmarshal(content, &rawMessage)
 		if err != nil {
 			return errors.Wrap(err, "unmarshalling JSON file failed")
 		}
 
-		formatted, err = json.MarshalIndent(&c, " ", " ")
+		formatted, err = json.MarshalIndent(&rawMessage, " ", " ")
 		if err != nil {
 			return errors.Wrap(err, "marshalling JSON raw message failed")
 		}
 	case ".yml":
-		var b yaml.Node
-		err = yaml.Unmarshal(content, &b)
+		var node yaml.Node
+		err = yaml.Unmarshal(content, &node)
 		if err != nil {
 			return errors.Wrap(err, "unmarshalling YAML file failed")
 		}
 
-		formatted, err = yaml.Marshal(&b)
+		formatted, err = yaml.Marshal(&node)
 		if err != nil {
 			return errors.Wrap(err, "marshalling JSON raw message failed")
 		}
