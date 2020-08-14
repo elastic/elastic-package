@@ -8,8 +8,6 @@ import (
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
-const failFastFlagName = "fail-fast"
-
 func setupFormatCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "format",
@@ -17,7 +15,7 @@ func setupFormatCommand() *cobra.Command {
 		Long:  "Use format command to format the package files.",
 		RunE:  formatCommandAction,
 	}
-	cmd.Flags().BoolP(failFastFlagName, "f", false, "fail if any file requires formatting")
+	cmd.Flags().BoolP(failFastFlagName, "f", false, failFastFlagDescription)
 	return cmd
 }
 

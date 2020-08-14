@@ -3,6 +3,8 @@ package cmd
 import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+
+	"github.com/elastic/elastic-package/internal/cobraext"
 )
 
 func setupCheckCommand() *cobra.Command {
@@ -11,7 +13,7 @@ func setupCheckCommand() *cobra.Command {
 		Short: "Check the package",
 		Long:  "Use check command to verify if the package is correct in terms of formatting, validation and building.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			err := composeCommandActions(cmd, args,
+			err := cobraext.ComposeCommandActions(cmd, args,
 				formatCommandAction,
 				lintCommandAction,
 				buildCommandAction,
@@ -22,6 +24,6 @@ func setupCheckCommand() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.PersistentFlags().BoolP(failFastFlagName, "f", true, "fail if any file requires updates")
+	cmd.PersistentFlags().BoolP(failFastFlagName, "f", true, failFastFlagDescription)
 	return cmd
 }

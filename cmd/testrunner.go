@@ -7,6 +7,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
+	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/testrunner"
 	"github.com/elastic/elastic-package/internal/testrunner/system"
@@ -15,14 +16,14 @@ import (
 func setupTestCommand() *cobra.Command {
 	// TODO: add more test types as their runners are implemented
 	testTypes := []testrunner.TestType{testrunner.TestTypeSystem}
-	var testTypeCmdActions []commandAction
+	var testTypeCmdActions []cobraext.CommandAction
 
 	cmd := &cobra.Command{
 		Use:   "test",
 		Short: "Run test suite for the package",
 		Long:  "Use test runners to verify if the package collects logs and metrics properly.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return composeCommandActions(cmd, args, testTypeCmdActions...)
+			return cobraext.ComposeCommandActions(cmd, args, testTypeCmdActions...)
 		}}
 
 	cmd.PersistentFlags().BoolP("fail-on-missing", "m", false, "fail if tests are missing")
@@ -45,7 +46,7 @@ func setupTestCommand() *cobra.Command {
 	return cmd
 }
 
-func testTypeCommandActionFactory(testType testrunner.TestType) commandAction {
+func testTypeCommandActionFactory(testType testrunner.TestType) cobraext.CommandAction {
 	return func(cmd *cobra.Command, args []string) error {
 		failOnMissing, err := cmd.Flags().GetBool("fail-on-missing")
 		if err != nil {
