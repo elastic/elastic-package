@@ -23,7 +23,7 @@ func setupClusterCommand() *cobra.Command {
 			return nil
 		},
 	}
-	upCommand.Flags().Bool("d", false, "Run cluster as daemon")
+	upCommand.Flags().BoolP("daemon","d", false, "Run cluster as daemon")
 
 	downCommand := &cobra.Command{
 		Use:   "down",
