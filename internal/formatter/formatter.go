@@ -64,6 +64,8 @@ func formatFile(path string, failFast bool) error {
 			return errors.Wrap(err, "marshalling JSON raw message failed")
 		}
 	case ".yml":
+		// yaml.Unmarshal() requires `yaml.Node` to be passed instead of generic `interface{}`.
+		// Otherwise it can detect any comments and fields are considered as normal map.
 		var node yaml.Node
 		err = yaml.Unmarshal(content, &node)
 		if err != nil {
