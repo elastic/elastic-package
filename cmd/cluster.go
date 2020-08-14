@@ -32,6 +32,18 @@ func setupClusterCommand() *cobra.Command {
 		},
 	}
 
+	updateCommand := &cobra.Command{
+		Use:   "update",
+		Short: "Updates the cluster to the most recent versions.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			err := cluster.Update()
+			if err != nil {
+				return errors.Wrap(err, "failed updating the cluster images")
+			}
+			return nil
+		},
+	}
+
 	shellInitCommand := &cobra.Command{
 		Use:   "shellinit",
 		Short: "Initiate environment variables",
@@ -53,6 +65,7 @@ func setupClusterCommand() *cobra.Command {
 	cmd.AddCommand(
 		upCommand,
 		downCommand,
+		updateCommand,
 		shellInitCommand)
 	return cmd
 }

@@ -64,6 +64,15 @@ func TearDown() error {
 	return nil
 }
 
+// Update pulls down the most recent versions of the Docker images
+func Update() error {
+	err := dockerComposePull()
+	if err != nil {
+		return errors.Wrap(err, "updating docker images failed")
+	}
+	return nil
+}
+
 func dockerComposeBuild() error {
 	clusterDir, err := install.ClusterDir()
 	if err != nil {
@@ -73,6 +82,26 @@ func dockerComposeBuild() error {
 	args := []string{
 		"-f", filepath.Join(clusterDir, "snapshot.yml"),
 		"build", "package-registry",
+	}
+	cmd := exec.Command("docker-compose", args...)
+	cmd.Stderr = os.Stderr
+	cmd.Stdout = os.Stdout
+	err = cmd.Run()
+	if err != nil {
+		return errors.Wrap(err, "running command failed")
+	}
+	return nil
+}
+
+func dockerComposePull() error {
+	clusterDir, err := install.ClusterDir()
+	if err != nil {
+		return errors.Wrap(err, "locating cluster directory failed")
+	}
+
+	args := []string{
+		"-f", filepath.Join(clusterDir, "snapshot.yml"),
+		"pull",
 	}
 	cmd := exec.Command("docker-compose", args...)
 	cmd.Stderr = os.Stderr
