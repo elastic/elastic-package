@@ -25,13 +25,3 @@ func setupCheckCommand() *cobra.Command {
 	cmd.PersistentFlags().BoolP(failFastFlagName, "f", true, "fail if any file requires updates")
 	return cmd
 }
-
-func composeCommandActions(cmd *cobra.Command, args []string, actions ...func(cmd *cobra.Command, args []string) error) error {
-	for _, action := range actions {
-		err := action(cmd, args)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
