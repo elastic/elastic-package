@@ -14,7 +14,7 @@ import (
 )
 
 // BootUp method boots up the testing cluster.
-func BootUp() error {
+func BootUp(d bool) error {
 	buildPackagesPath, found, err := builder.FindBuildPackagesDirectory()
 	if err != nil {
 		return errors.Wrap(err, "finding build packages directory failed")
@@ -48,7 +48,7 @@ func BootUp() error {
 		return errors.Wrap(err, "stopping docker containers failed")
 	}
 
-	err = dockerComposeUpD()
+	err = dockerComposeUp(d)
 	if err != nil {
 		return errors.Wrap(err, "running docker-compose failed")
 	}
@@ -146,7 +146,7 @@ func dockerComposeUpD() error {
 	return nil
 }
 
-func dockerComposeUp() error {
+func dockerComposeUp(d bool) error {
 	clusterDir, err := install.ClusterDir()
 	if err != nil {
 		return errors.Wrap(err, "locating cluster directory failed")
@@ -154,7 +154,14 @@ func dockerComposeUp() error {
 
 	args := []string{
 		"-f", filepath.Join(clusterDir, "snapshot.yml"),
+<<<<<<< HEAD
 		"up", "--force-recreate", "--remove-orphans", "--build",
+=======
+		"up",
+	}
+	if d {
+		args = append(args, "-d")
+>>>>>>> 09dcb9e... push some code changes
 	}
 	cmd := exec.Command("docker-compose", args...)
 	cmd.Stderr = os.Stderr

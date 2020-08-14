@@ -12,13 +12,18 @@ func setupClusterCommand() *cobra.Command {
 		Use:   "up",
 		Short: "Boot up the testing cluster",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			err := cluster.BootUp()
+			d, err := cmd.Flags().GetBool("d")
+			if err != nil {
+				return err
+			}
+			err = cluster.BootUp(d)
 			if err != nil {
 				return errors.Wrap(err, "booting up the cluster failed")
 			}
 			return nil
 		},
 	}
+	upCommand.Flags().Bool("d", false, "Run cluster as daemon")
 
 	runCommand := &cobra.Command{
 		Use:   "run",
