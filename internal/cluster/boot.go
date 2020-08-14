@@ -55,48 +55,6 @@ func BootUp(d bool) error {
 	return nil
 }
 
-// Run method runs the cluster and shows the logs.
-func Run() error {
-	buildPackagesPath, found, err := builder.FindBuildPackagesDirectory()
-	if err != nil {
-		return errors.Wrap(err, "finding build packages directory failed")
-	}
-
-	clusterPackagesDir, err := install.ClusterPackagesDir()
-	if err != nil {
-		return errors.Wrap(err, "locating cluster packages directory failed")
-	}
-
-	err = files.ClearDir(clusterPackagesDir)
-	if err != nil {
-		return errors.Wrap(err, "clearing package contents failed")
-	}
-
-	if found {
-		fmt.Printf("Custom build packages directory found: %s\n", buildPackagesPath)
-		err = files.CopyAll(buildPackagesPath, clusterPackagesDir)
-		if err != nil {
-			return errors.Wrap(err, "copying package contents failed")
-		}
-	}
-
-	err = dockerComposeBuild()
-	if err != nil {
-		return errors.Wrap(err, "building docker images failed")
-	}
-
-	err = dockerComposeDown()
-	if err != nil {
-		return errors.Wrap(err, "stopping docker containers failed")
-	}
-
-	err = dockerComposeUp()
-	if err != nil {
-		return errors.Wrap(err, "running docker containers failed")
-	}
-	return nil
-}
-
 // TearDown method takes down the testing cluster.
 func TearDown() error {
 	err := dockerComposeDown()
@@ -154,14 +112,10 @@ func dockerComposeUp(d bool) error {
 
 	args := []string{
 		"-f", filepath.Join(clusterDir, "snapshot.yml"),
-<<<<<<< HEAD
 		"up", "--force-recreate", "--remove-orphans", "--build",
-=======
-		"up",
 	}
 	if d {
 		args = append(args, "-d")
->>>>>>> 09dcb9e... push some code changes
 	}
 	cmd := exec.Command("docker-compose", args...)
 	cmd.Stderr = os.Stderr

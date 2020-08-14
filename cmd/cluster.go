@@ -25,18 +25,6 @@ func setupClusterCommand() *cobra.Command {
 	}
 	upCommand.Flags().Bool("d", false, "Run cluster as daemon")
 
-	runCommand := &cobra.Command{
-		Use:   "run",
-		Short: "Run the testing cluster",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			err := cluster.Run()
-			if err != nil {
-				return errors.Wrap(err, "running the cluster failed")
-			}
-			return nil
-		},
-	}
-
 	downCommand := &cobra.Command{
 		Use:   "down",
 		Short: "Take down the testing cluster",
@@ -69,7 +57,6 @@ func setupClusterCommand() *cobra.Command {
 	}
 	cmd.AddCommand(
 		upCommand,
-		runCommand,
 		downCommand,
 		shellInitCommand)
 	return cmd
