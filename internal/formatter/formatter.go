@@ -59,7 +59,7 @@ func formatFile(path string, failFast bool) error {
 			return errors.Wrap(err, "unmarshalling JSON file failed")
 		}
 
-		formatted, err = json.MarshalIndent(&rawMessage, " ", " ")
+		formatted, err = json.MarshalIndent(&rawMessage, "", "    ")
 		if err != nil {
 			return errors.Wrap(err, "marshalling JSON raw message failed")
 		}
