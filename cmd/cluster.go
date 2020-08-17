@@ -1,11 +1,11 @@
 package cmd
 
 import (
-	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/cluster"
+	"github.com/elastic/elastic-package/internal/cobraext"
 )
 
 func setupClusterCommand() *cobra.Command {
@@ -25,6 +25,7 @@ func setupClusterCommand() *cobra.Command {
 			return nil
 		},
 	}
+	upCommand.Flags().BoolP(cobraext.DaemonModeFlagName, "d", false, cobraext.DaemonModeFlagDescription)
 
 	downCommand := &cobra.Command{
 		Use:   "down",
