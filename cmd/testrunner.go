@@ -92,7 +92,6 @@ func testTypeCommandActionFactory(testType testrunner.TestType) cobraext.Command
 				return errors.Wrap(err, "error running package system tests")
 			}
 		}
-
 		return nil
 	}
 }
