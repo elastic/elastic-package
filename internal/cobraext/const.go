@@ -2,6 +2,9 @@ package cobraext
 
 // Flag names and descriptions used by CLI commands.
 const (
+	DaemonModeFlagName        = "daemon"
+	DaemonModeFlagDescription = "daemon mode"
+
 	DatasetFlagName        = "dataset"
 	DatasetFlagDescription = "comma-separated datasets to test"
 
