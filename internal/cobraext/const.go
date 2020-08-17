@@ -10,4 +10,7 @@ const (
 
 	FailFastFlagName        = "fail-fast"
 	FailFastFlagDescription = "fail immediately if any file requires updates"
+
+	VerboseFlagName        = "verbose"
+	VerboseFlagDescription = "verbose mode"
 )
