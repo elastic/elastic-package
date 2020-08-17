@@ -1,15 +1,21 @@
 package formatter
 
 import (
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 
 	"github.com/pkg/errors"
-	"gopkg.in/yaml.v3"
 )
+
+type formatter func(content []byte) ([]byte, bool, error)
+
+var formatters = map[string]formatter{
+	".json": jsonFormatter,
+	".yaml": yamlFormatter,
+	".yml":  yamlFormatter,
+}
 
 // Format method formats files inside of the integration directory.
 func Format(packageRoot string, failFast bool) error {
@@ -38,55 +44,30 @@ func formatFile(path string, failFast bool) error {
 	file := filepath.Base(path)
 	ext := filepath.Ext(file)
 
-	switch ext {
-	case ".json":
-	case ".yml":
-	default:
-		return nil
-	}
-
 	content, err := ioutil.ReadFile(path)
 	if err != nil {
 		return errors.Wrap(err, "reading file content failed")
 	}
 
-	var formatted []byte
-	switch ext {
-	case ".json":
-		var rawMessage json.RawMessage
-		err = json.Unmarshal(content, &rawMessage)
-		if err != nil {
-			return errors.Wrap(err, "unmarshalling JSON file failed")
-		}
-
-		formatted, err = json.MarshalIndent(&rawMessage, "", "    ")
-		if err != nil {
-			return errors.Wrap(err, "marshalling JSON raw message failed")
-		}
-	case ".yml":
-		// yaml.Unmarshal() requires `yaml.Node` to be passed instead of generic `interface{}`.
-		// Otherwise it can detect any comments and fields are considered as normal map.
-		var node yaml.Node
-		err = yaml.Unmarshal(content, &node)
-		if err != nil {
-			return errors.Wrap(err, "unmarshalling YAML file failed")
-		}
-
-		formatted, err = yaml.Marshal(&node)
-		if err != nil {
-			return errors.Wrap(err, "marshalling JSON raw message failed")
-		}
+	format, undefined := formatters[ext]
+	if !undefined {
+		return nil // no errors returned as we have few files that will be never formatted (png, svg, log, etc.)
 	}
 
-	if string(content) == string(formatted) {
-		return nil // file is already in good shape
+	newContent, alreadyFormatted, err := format(content)
+	if err != nil {
+		return errors.Wrap(err, "formatting file content failed")
+	}
+
+	if alreadyFormatted {
+		return nil
 	}
 
 	if failFast {
 		return fmt.Errorf("file is not formatted (path: %s)", path)
 	}
 
-	err = ioutil.WriteFile(path, formatted, 0755)
+	err = ioutil.WriteFile(path, newContent, 0755)
 	if err != nil {
 		return errors.Wrapf(err, "rewriting file failed (path: %s)", path)
 	}
