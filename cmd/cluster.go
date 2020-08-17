@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
@@ -12,7 +13,12 @@ func setupClusterCommand() *cobra.Command {
 		Use:   "up",
 		Short: "Boot up the testing cluster",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			err := cluster.BootUp()
+			daemonMode, err := cmd.Flags().GetBool(cobraext.DaemonModeFlagName)
+			if err != nil {
+				return cobraext.FlagParsingError(err, cobraext.DaemonModeFlagName)
+			}
+
+			err = cluster.BootUp(daemonMode)
 			if err != nil {
 				return errors.Wrap(err, "booting up the cluster failed")
 			}
