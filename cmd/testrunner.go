@@ -7,6 +7,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
+	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/testrunner"
 	"github.com/elastic/elastic-package/internal/testrunner/system"
@@ -15,18 +16,18 @@ import (
 func setupTestCommand() *cobra.Command {
 	// TODO: add more test types as their runners are implemented
 	testTypes := []testrunner.TestType{testrunner.TestTypeSystem}
-	var testTypeCmdActions []commandAction
+	var testTypeCmdActions []cobraext.CommandAction
 
 	cmd := &cobra.Command{
 		Use:   "test",
 		Short: "Run test suite for the package",
 		Long:  "Use test runners to verify if the package collects logs and metrics properly.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return composeCommandActions(cmd, args, testTypeCmdActions...)
+			return cobraext.ComposeCommandActions(cmd, args, testTypeCmdActions...)
 		}}
 
-	cmd.PersistentFlags().BoolP("fail-on-missing", "m", false, "fail if tests are missing")
-	cmd.PersistentFlags().StringP("dataset", "d", "", "comma-separated datasets to test")
+	cmd.PersistentFlags().BoolP(cobraext.FailOnMissingFlagName, "m", false, cobraext.FailOnMissingFlagDescription)
+	cmd.PersistentFlags().StringP(cobraext.DatasetFlagName, "d", "", cobraext.DatasetFlagDescription)
 
 	for _, testType := range testTypes {
 		action := testTypeCommandActionFactory(testType)
@@ -45,16 +46,16 @@ func setupTestCommand() *cobra.Command {
 	return cmd
 }
 
-func testTypeCommandActionFactory(testType testrunner.TestType) commandAction {
+func testTypeCommandActionFactory(testType testrunner.TestType) cobraext.CommandAction {
 	return func(cmd *cobra.Command, args []string) error {
-		failOnMissing, err := cmd.Flags().GetBool("fail-on-missing")
+		failOnMissing, err := cmd.Flags().GetBool(cobraext.FailOnMissingFlagName)
 		if err != nil {
-			return errors.Wrap(err, "error parsing --fail-on-missing flag")
+			return cobraext.FlagParsingError(err, cobraext.FailOnMissingFlagName)
 		}
 
-		dataset, err := cmd.Flags().GetString("dataset")
+		dataset, err := cmd.Flags().GetString(cobraext.DatasetFlagName)
 		if err != nil {
-			return errors.Wrap(err, "error parsing --dataset flag")
+			return cobraext.FlagParsingError(err, cobraext.DatasetFlagName)
 		}
 		var datasets []string
 		if dataset != "" {
