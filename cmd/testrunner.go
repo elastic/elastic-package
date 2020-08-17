@@ -10,12 +10,10 @@ import (
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/testrunner"
-	"github.com/elastic/elastic-package/internal/testrunner/system"
+	_ "github.com/elastic/elastic-package/internal/testrunner/runners" // register all test runners
 )
 
 func setupTestCommand() *cobra.Command {
-	// TODO: add more test types as their runners are implemented
-	testTypes := []testrunner.TestType{testrunner.TestTypeSystem}
 	var testTypeCmdActions []cobraext.CommandAction
 
 	cmd := &cobra.Command{
@@ -23,13 +21,16 @@ func setupTestCommand() *cobra.Command {
 		Short: "Run test suite for the package",
 		Long:  "Use test runners to verify if the package collects logs and metrics properly.",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) > 0 {
+				return fmt.Errorf("unsupported test type: %s", args[0])
+			}
 			return cobraext.ComposeCommandActions(cmd, args, testTypeCmdActions...)
 		}}
 
 	cmd.PersistentFlags().BoolP(cobraext.FailOnMissingFlagName, "m", false, cobraext.FailOnMissingFlagDescription)
 	cmd.PersistentFlags().StringP(cobraext.DatasetFlagName, "d", "", cobraext.DatasetFlagDescription)
 
-	for _, testType := range testTypes {
+	for _, testType := range testrunner.TestTypes() {
 		action := testTypeCommandActionFactory(testType)
 		testTypeCmdActions = append(testTypeCmdActions, action)
 
@@ -76,12 +77,15 @@ func testTypeCommandActionFactory(testType testrunner.TestType) cobraext.Command
 		}
 
 		if failOnMissing && len(testFolderPaths) == 0 {
-			return fmt.Errorf("no %s tests found for %s dataset(s)", testType, dataset)
+			if dataset != "" {
+				return fmt.Errorf("no %s tests found for %s dataset(s)", testType, dataset)
+			}
+			return fmt.Errorf("no %s tests found", testType)
 		}
 
 		for _, path := range testFolderPaths {
-			if err := system.Run(path); err != nil {
-				return errors.Wrap(err, "error running package system tests")
+			if err := testrunner.Run(testType, path); err != nil {
+				return errors.Wrapf(err, "error running package %s tests", testType)
 			}
 		}
 		return nil
