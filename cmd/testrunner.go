@@ -13,14 +13,6 @@ import (
 	"github.com/elastic/elastic-package/internal/testrunner/system"
 )
 
-const (
-	datasetFlagName        = "dataset"
-	datasetFlagDescription = "comma-separated datasets to test"
-
-	failOnMissingFlagName    = "fail-on-missing"
-	failOnMissingDescription = "fail if tests are missing"
-)
-
 func setupTestCommand() *cobra.Command {
 	// TODO: add more test types as their runners are implemented
 	testTypes := []testrunner.TestType{testrunner.TestTypeSystem}
@@ -34,8 +26,8 @@ func setupTestCommand() *cobra.Command {
 			return cobraext.ComposeCommandActions(cmd, args, testTypeCmdActions...)
 		}}
 
-	cmd.PersistentFlags().BoolP(failOnMissingFlagName, "m", false, failOnMissingDescription)
-	cmd.PersistentFlags().StringP(datasetFlagName, "d", "", datasetFlagDescription)
+	cmd.PersistentFlags().BoolP(cobraext.FailOnMissingFlagName, "m", false, cobraext.FailOnMissingFlagDescription)
+	cmd.PersistentFlags().StringP(cobraext.DatasetFlagName, "d", "", cobraext.DatasetFlagDescription)
 
 	for _, testType := range testTypes {
 		action := testTypeCommandActionFactory(testType)
@@ -56,14 +48,14 @@ func setupTestCommand() *cobra.Command {
 
 func testTypeCommandActionFactory(testType testrunner.TestType) cobraext.CommandAction {
 	return func(cmd *cobra.Command, args []string) error {
-		failOnMissing, err := cmd.Flags().GetBool(failOnMissingFlagName)
+		failOnMissing, err := cmd.Flags().GetBool(cobraext.FailOnMissingFlagName)
 		if err != nil {
-			return cobraext.FlagParsingError(err, failOnMissingFlagName)
+			return cobraext.FlagParsingError(err, cobraext.FailOnMissingFlagName)
 		}
 
-		dataset, err := cmd.Flags().GetString(datasetFlagName)
+		dataset, err := cmd.Flags().GetString(cobraext.DatasetFlagName)
 		if err != nil {
-			return cobraext.FlagParsingError(err, datasetFlagName)
+			return cobraext.FlagParsingError(err, cobraext.DatasetFlagName)
 		}
 		var datasets []string
 		if dataset != "" {

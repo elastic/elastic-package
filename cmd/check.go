@@ -24,6 +24,6 @@ func setupCheckCommand() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.PersistentFlags().BoolP(failFastFlagName, "f", true, failFastFlagDescription)
+	cmd.PersistentFlags().BoolP(cobraext.FailFastFlagName, "f", true, cobraext.FailFastFlagDescription)
 	return cmd
 }

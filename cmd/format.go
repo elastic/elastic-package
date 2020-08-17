@@ -9,12 +9,6 @@ import (
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
-// Flag "fail-fast" is used by commands: check, format
-const (
-	failFastFlagName        = "fail-fast"
-	failFastFlagDescription = "fail immediately if any file requires updates"
-)
-
 func setupFormatCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "format",
@@ -22,22 +16,22 @@ func setupFormatCommand() *cobra.Command {
 		Long:  "Use format command to format the package files.",
 		RunE:  formatCommandAction,
 	}
-	cmd.Flags().BoolP(failFastFlagName, "f", false, failFastFlagDescription)
+	cmd.Flags().BoolP(cobraext.FailFastFlagName, "f", false, cobraext.FailFastFlagDescription)
 	return cmd
 }
 
 func formatCommandAction(cmd *cobra.Command, args []string) error {
-	packageRoot, ok, err := packages.FindPackageRoot()
+	packageRoot, found, err := packages.FindPackageRoot()
 	if err != nil {
 		return errors.Wrap(err, "locating package root failed")
 	}
-	if !ok {
+	if !found {
 		return errors.New("package root not found")
 	}
 
-	ff, err := cmd.Flags().GetBool(failFastFlagName)
+	ff, err := cmd.Flags().GetBool(cobraext.FailFastFlagName)
 	if err != nil {
-		return cobraext.FlagParsingError(err, failFastFlagName)
+		return cobraext.FlagParsingError(err, cobraext.FailFastFlagName)
 	}
 
 	err = formatter.Format(packageRoot, ff)
