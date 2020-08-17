@@ -49,8 +49,8 @@ func formatFile(path string, failFast bool) error {
 		return errors.Wrap(err, "reading file content failed")
 	}
 
-	format, undefined := formatters[ext]
-	if !undefined {
+	format, defined := formatters[ext]
+	if !defined {
 		return nil // no errors returned as we have few files that will be never formatted (png, svg, log, etc.)
 	}
 
