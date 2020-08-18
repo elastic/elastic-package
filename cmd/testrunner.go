@@ -97,6 +97,7 @@ func testTypeCommandActionFactory(testType testrunner.TestType) cobraext.Command
 		for _, path := range testFolderPaths {
 			if err := testrunner.Run(testType, testrunner.TestOptions{
 				TestFolderPath:     path,
+				PackageRootPath:    packageRootPath,
 				GenerateTestResult: generateTestResult,
 			}); err != nil {
 				return errors.Wrapf(err, "error running package %s tests", testType)

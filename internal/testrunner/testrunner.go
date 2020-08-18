@@ -19,6 +19,7 @@ type TestType string
 // TestOptions contains test runner options.
 type TestOptions struct {
 	TestFolderPath     string
+	PackageRootPath    string
 	GenerateTestResult bool
 }
 
