@@ -7,6 +7,8 @@ import (
 )
 
 var (
+	// ErrNotFound is returned when the appropriate service runner for a package
+	// cannot be found.
 	ErrNotFound = errors.New("unable to find service runner")
 )
 
