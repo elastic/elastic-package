@@ -1,6 +1,7 @@
 package testrunner
 
 import (
+	"fmt"
 	"path"
 	"path/filepath"
 	"strings"
@@ -11,10 +12,10 @@ import (
 // TestType represents the various supported test types
 type TestType string
 
-const (
-	// TestTypeSystem represents system tests
-	TestTypeSystem TestType = "system"
-)
+// RunFunc method defines main run function of a test runner.
+type RunFunc func(testFolderPath string) error
+
+var runners = map[TestType]RunFunc{}
 
 // FindTestFolders finds test folders for the given package and, optionally, test type and datasets
 func FindTestFolders(packageRootPath string, testType TestType, datasets []string) ([]string, error) {
@@ -46,4 +47,27 @@ func FindTestFolders(packageRootPath string, testType TestType, datasets []strin
 	}
 
 	return matches, nil
+}
+
+// RegisterRunner method registers the test runner.
+func RegisterRunner(testType TestType, runFunc RunFunc) {
+	runners[testType] = runFunc
+}
+
+// Run method delegates execution to the registered test runner, based on the test type.
+func Run(testType TestType, testFolderPath string) error {
+	runFunc, defined := runners[testType]
+	if !defined {
+		return fmt.Errorf("unregistered runner test: %s", testType)
+	}
+	return runFunc(testFolderPath)
+}
+
+// TestTypes method returns registered test types.
+func TestTypes() []TestType {
+	var testTypes []TestType
+	for t := range runners {
+		testTypes = append(testTypes, t)
+	}
+	return testTypes
 }
