@@ -9,6 +9,8 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/elastic/elastic-package/internal/cluster"
+	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/testrunner"
 	"github.com/elastic/elastic-package/internal/testrunner/runners/system/service"
 )
@@ -39,21 +41,26 @@ func Run(options testrunner.TestOptions) error {
 func (r *runner) run() error {
 	fmt.Println("system run", r.testFolderPath)
 
+	// Step 1. Setup test cluster (ES + Kibana + Agent).
+	if err := cluster.BootUp(false); err != nil {
+		return errors.Wrap(err, "could not setup test cluster")
+	}
+
+	ctxt := common.MapStr{}
+	ctxt.Put("DOCKER_COMPOSE_NETWORK", "TODO") // TODO: get value from cluster.BootUp()?
+
+	// Step 2. Setup service.
+	// Step 2a. (Deferred) Tear down service.
 	serviceRunner, err := service.Factory(r.packageRootPath)
 	if err != nil {
 		return errors.Wrap(err, "could not create service runner")
 	}
 
-	// Step 1. Setup service.
-	// Step 1a. (Deferred) Tear down service.
-	ctxt, err := serviceRunner.SetUp()
+	ctxt, err = serviceRunner.SetUp(ctxt)
 	defer serviceRunner.TearDown(ctxt)
 	if err != nil {
 		return errors.Wrap(err, "could not setup service")
 	}
-
-	// Step 2. Setup test cluster (ES + Kibana + Agent).
-	// Step 2a. Register Agent with Fleet.
 
 	// Step 3. Configure package (single data stream) via Ingest Manager APIs.
 

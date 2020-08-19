@@ -1,26 +1,46 @@
 package service
 
+import (
+	"fmt"
+
+	"github.com/pkg/errors"
+
+	"github.com/elastic/elastic-package/internal/common"
+)
+
 // DockerComposeRunner knows how to setup and teardown a service defined via
 // a docker-compose.yml file.
 type DockerComposeRunner struct {
 	ymlPath string
+	network string
 }
 
 // NewDockerComposeRunner returns a new instance of a DockerComposeRunner.
 func NewDockerComposeRunner(ymlPath string) (*DockerComposeRunner, error) {
 	return &DockerComposeRunner{
-		ymlPath,
+		ymlPath: ymlPath,
 	}, nil
 }
 
 // SetUp sets up the service and returns any relevant information.
-func (r *DockerComposeRunner) SetUp() (Ctx, error) {
+func (r *DockerComposeRunner) SetUp(ctxt common.MapStr) (common.MapStr, error) {
+	v, err := ctxt.GetValue("DOCKER_COMPOSE_NETWORK")
+	if err != nil {
+		return ctxt, errors.Wrap(err, "could not determine docker compose network to join")
+	}
+
+	network, ok := v.(string)
+	if !ok {
+		return ctxt, fmt.Errorf("expected docker compose network name to be a string, got: %v", v)
+	}
+	r.network = network
+
 	// TODO
-	return nil, nil
+	return ctxt, nil
 }
 
 // TearDown tears down the service.
-func (r *DockerComposeRunner) TearDown(ctxt Ctx) error {
+func (r *DockerComposeRunner) TearDown(ctxt common.MapStr) error {
 	// TODO
 	return nil
 }
