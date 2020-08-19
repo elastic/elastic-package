@@ -14,13 +14,13 @@ func NewDockerComposeRunner(ymlPath string) (*DockerComposeRunner, error) {
 }
 
 // SetUp sets up the service and returns any relevant information.
-func (r *DockerComposeRunner) SetUp() (ctx, error) {
+func (r *DockerComposeRunner) SetUp() (Ctx, error) {
 	// TODO
 	return nil, nil
 }
 
 // TearDown tears down the service.
-func (r *DockerComposeRunner) TearDown(ctxt ctx) error {
+func (r *DockerComposeRunner) TearDown(ctxt Ctx) error {
 	// TODO
 	return nil
 }
