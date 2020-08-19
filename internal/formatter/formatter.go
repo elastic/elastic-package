@@ -24,6 +24,9 @@ func Format(packageRoot string, failFast bool) error {
 			return err
 		}
 
+		if info.IsDir() && info.Name() == "ingest_pipeline" {
+			return filepath.SkipDir
+		}
 		if info.IsDir() {
 			return nil
 		}
