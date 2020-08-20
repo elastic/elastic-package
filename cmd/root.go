@@ -20,7 +20,7 @@ func RootCmd() *cobra.Command {
 	rootCmd.AddCommand(
 		setupBuildCommand(),
 		setupCheckCommand(),
-		setupClusterCommand(),
+		setupStackCommand(),
 		setupFormatCommand(),
 		setupLintCommand(),
 		setupPromoteCommand(),

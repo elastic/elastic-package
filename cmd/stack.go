@@ -4,23 +4,23 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
-	"github.com/elastic/elastic-package/internal/cluster"
 	"github.com/elastic/elastic-package/internal/cobraext"
+	"github.com/elastic/elastic-package/internal/stack"
 )
 
-func setupClusterCommand() *cobra.Command {
+func setupStackCommand() *cobra.Command {
 	upCommand := &cobra.Command{
 		Use:   "up",
-		Short: "Boot up the testing cluster",
+		Short: "Boot up the testing stack",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			daemonMode, err := cmd.Flags().GetBool(cobraext.DaemonModeFlagName)
 			if err != nil {
 				return cobraext.FlagParsingError(err, cobraext.DaemonModeFlagName)
 			}
 
-			err = cluster.BootUp(daemonMode)
+			err = stack.BootUp(daemonMode)
 			if err != nil {
-				return errors.Wrap(err, "booting up the cluster failed")
+				return errors.Wrap(err, "booting up the stack failed")
 			}
 			return nil
 		},
@@ -29,11 +29,11 @@ func setupClusterCommand() *cobra.Command {
 
 	downCommand := &cobra.Command{
 		Use:   "down",
-		Short: "Take down the testing cluster",
+		Short: "Take down the testing stack",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			err := cluster.TearDown()
+			err := stack.TearDown()
 			if err != nil {
-				return errors.Wrap(err, "tearing down the cluster failed")
+				return errors.Wrap(err, "tearing down the stack failed")
 			}
 			return nil
 		},
@@ -41,11 +41,11 @@ func setupClusterCommand() *cobra.Command {
 
 	updateCommand := &cobra.Command{
 		Use:   "update",
-		Short: "Updates the cluster to the most recent versions.",
+		Short: "Updates the stack to the most recent versions.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			err := cluster.Update()
+			err := stack.Update()
 			if err != nil {
-				return errors.Wrap(err, "failed updating the cluster images")
+				return errors.Wrap(err, "failed updating the stack images")
 			}
 			return nil
 		},
@@ -55,7 +55,7 @@ func setupClusterCommand() *cobra.Command {
 		Use:   "shellinit",
 		Short: "Initiate environment variables",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			shell, err := cluster.ShellInit()
+			shell, err := stack.ShellInit()
 			if err != nil {
 				return errors.Wrap(err, "shellinit failed")
 			}
@@ -65,9 +65,9 @@ func setupClusterCommand() *cobra.Command {
 	}
 
 	cmd := &cobra.Command{
-		Use:   "cluster",
+		Use:   "stack",
 		Short: "Manage the testing environment",
-		Long:  "Use cluster command to boot up and take down the local testing cluster.",
+		Long:  "Use stack command to boot up and take down the local testing stack.",
 	}
 	cmd.AddCommand(
 		upCommand,

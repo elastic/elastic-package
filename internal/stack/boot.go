@@ -1,11 +1,12 @@
-package cluster
+package stack
 
 import (
 	"fmt"
-	"github.com/elastic/elastic-package/internal/files"
 	"os"
 	"os/exec"
 	"path/filepath"
+
+	"github.com/elastic/elastic-package/internal/files"
 
 	"github.com/pkg/errors"
 
@@ -13,26 +14,26 @@ import (
 	"github.com/elastic/elastic-package/internal/install"
 )
 
-// BootUp method boots up the testing cluster.
+// BootUp method boots up the testing stack.
 func BootUp(daemonMode bool) error {
 	buildPackagesPath, found, err := builder.FindBuildPackagesDirectory()
 	if err != nil {
 		return errors.Wrap(err, "finding build packages directory failed")
 	}
 
-	clusterPackagesDir, err := install.ClusterPackagesDir()
+	stackPackagesDir, err := install.StackPackagesDir()
 	if err != nil {
-		return errors.Wrap(err, "locating cluster packages directory failed")
+		return errors.Wrap(err, "locating stack packages directory failed")
 	}
 
-	err = files.ClearDir(clusterPackagesDir)
+	err = files.ClearDir(stackPackagesDir)
 	if err != nil {
 		return errors.Wrap(err, "clearing package contents failed")
 	}
 
 	if found {
 		fmt.Printf("Custom build packages directory found: %s\n", buildPackagesPath)
-		err = files.CopyAll(buildPackagesPath, clusterPackagesDir)
+		err = files.CopyAll(buildPackagesPath, stackPackagesDir)
 		if err != nil {
 			return errors.Wrap(err, "copying package contents failed")
 		}
@@ -55,7 +56,7 @@ func BootUp(daemonMode bool) error {
 	return nil
 }
 
-// TearDown method takes down the testing cluster.
+// TearDown method takes down the testing stack.
 func TearDown() error {
 	err := dockerComposeDown()
 	if err != nil {
@@ -74,13 +75,13 @@ func Update() error {
 }
 
 func dockerComposeBuild() error {
-	clusterDir, err := install.ClusterDir()
+	stackDir, err := install.StackDir()
 	if err != nil {
-		return errors.Wrap(err, "locating cluster directory failed")
+		return errors.Wrap(err, "locating stack directory failed")
 	}
 
 	args := []string{
-		"-f", filepath.Join(clusterDir, "snapshot.yml"),
+		"-f", filepath.Join(stackDir, "snapshot.yml"),
 		"build", "package-registry",
 	}
 	cmd := exec.Command("docker-compose", args...)
@@ -94,13 +95,13 @@ func dockerComposeBuild() error {
 }
 
 func dockerComposePull() error {
-	clusterDir, err := install.ClusterDir()
+	stackDir, err := install.StackDir()
 	if err != nil {
-		return errors.Wrap(err, "locating cluster directory failed")
+		return errors.Wrap(err, "locating stack directory failed")
 	}
 
 	args := []string{
-		"-f", filepath.Join(clusterDir, "snapshot.yml"),
+		"-f", filepath.Join(stackDir, "snapshot.yml"),
 		"pull",
 	}
 	cmd := exec.Command("docker-compose", args...)
@@ -114,13 +115,13 @@ func dockerComposePull() error {
 }
 
 func dockerComposeUp(daemonMode bool) error {
-	clusterDir, err := install.ClusterDir()
+	stackDir, err := install.StackDir()
 	if err != nil {
-		return errors.Wrap(err, "locating cluster directory failed")
+		return errors.Wrap(err, "locating stack directory failed")
 	}
 
 	args := []string{
-		"-f", filepath.Join(clusterDir, "snapshot.yml"),
+		"-f", filepath.Join(stackDir, "snapshot.yml"),
 		"up",
 	}
 
@@ -139,14 +140,14 @@ func dockerComposeUp(daemonMode bool) error {
 }
 
 func dockerComposeDown() error {
-	clusterDir, err := install.ClusterDir()
+	stackDir, err := install.StackDir()
 	if err != nil {
-		return errors.Wrap(err, "locating cluster directory failed")
+		return errors.Wrap(err, "locating stack directory failed")
 	}
 
 	cmd := exec.Command("docker-compose",
-		"-f", filepath.Join(clusterDir, "snapshot.yml"),
-		"--project-directory", clusterDir,
+		"-f", filepath.Join(stackDir, "snapshot.yml"),
+		"--project-directory", stackDir,
 		"down")
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
