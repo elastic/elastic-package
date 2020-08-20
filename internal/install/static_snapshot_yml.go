@@ -47,4 +47,10 @@ services:
       interval: 1s
     ports:
       - "127.0.0.1:8080:8080"
+
+  is_ready:
+    image: alpine:3.7
+    depends_on:
+      kibana:
+        condition: service_healthy
 `
