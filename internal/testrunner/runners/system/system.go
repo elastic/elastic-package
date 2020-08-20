@@ -5,12 +5,11 @@
 package system
 
 import (
-	"fmt"
-
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/cluster"
 	"github.com/elastic/elastic-package/internal/common"
+	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/testrunner"
 	"github.com/elastic/elastic-package/internal/testrunner/runners/system/service"
 )
@@ -39,25 +38,33 @@ func Run(options testrunner.TestOptions) error {
 }
 
 func (r *runner) run() error {
-	fmt.Println("system run", r.testFolderPath)
-
 	// Step 1. Setup test cluster (ES + Kibana + Agent).
-	if err := cluster.BootUp(false); err != nil {
+	logger.Info("Setting up test cluster...")
+	err := cluster.BootUp(true)
+	defer func() {
+		logger.Info("Tearing down test cluster...")
+		cluster.TearDown()
+	}()
+	if err != nil {
 		return errors.Wrap(err, "could not setup test cluster")
 	}
 
 	ctxt := common.MapStr{}
-	ctxt.Put("DOCKER_COMPOSE_NETWORK", "TODO") // TODO: get value from cluster.BootUp()?
+	ctxt.Put("docker.compose.network", "cluster_default") // TODO: get value from cluster.BootUp()?
 
 	// Step 2. Setup service.
 	// Step 2a. (Deferred) Tear down service.
+	logger.Info("Setting up service")
 	serviceRunner, err := service.Factory(r.packageRootPath)
 	if err != nil {
 		return errors.Wrap(err, "could not create service runner")
 	}
 
 	ctxt, err = serviceRunner.SetUp(ctxt)
-	defer serviceRunner.TearDown(ctxt)
+	defer func() {
+		logger.Info("Tearing down service...")
+		serviceRunner.TearDown(ctxt)
+	}()
 	if err != nil {
 		return errors.Wrap(err, "could not setup service")
 	}

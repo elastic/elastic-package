@@ -6,6 +6,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/common"
+	"github.com/elastic/elastic-package/internal/logger"
 )
 
 // DockerComposeRunner knows how to setup and teardown a service defined via
@@ -24,7 +25,8 @@ func NewDockerComposeRunner(ymlPath string) (*DockerComposeRunner, error) {
 
 // SetUp sets up the service and returns any relevant information.
 func (r *DockerComposeRunner) SetUp(ctxt common.MapStr) (common.MapStr, error) {
-	v, err := ctxt.GetValue("DOCKER_COMPOSE_NETWORK")
+	logger.Infof("Setting up service using docker compose runner")
+	v, err := ctxt.GetValue("docker.compose.network")
 	if err != nil {
 		return ctxt, errors.Wrap(err, "could not determine docker compose network to join")
 	}
@@ -41,6 +43,7 @@ func (r *DockerComposeRunner) SetUp(ctxt common.MapStr) (common.MapStr, error) {
 
 // TearDown tears down the service.
 func (r *DockerComposeRunner) TearDown(ctxt common.MapStr) error {
+	logger.Infof("Tearing down service using docker compose runner")
 	// TODO
 	return nil
 }
