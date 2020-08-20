@@ -6,11 +6,10 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"github.com/elastic/elastic-package/internal/files"
-
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/builder"
+	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/install"
 )
 
