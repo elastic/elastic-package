@@ -80,7 +80,7 @@ func buildPackage(sourcePath string) error {
 	}
 
 	fmt.Printf("Copy package content (source: %s)\n", sourcePath)
-	err = files.CopyAll(sourcePath, destinationDir)
+	err = files.CopyWithoutDev(sourcePath, destinationDir)
 	if err != nil {
 		return errors.Wrap(err, "copying package contents failed")
 	}
