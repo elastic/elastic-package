@@ -49,7 +49,7 @@ services:
       - "127.0.0.1:8080:8080"
 
   is_ready:
-    image: alpine:3.7
+    image: tianon/true
     depends_on:
       kibana:
         condition: service_healthy
