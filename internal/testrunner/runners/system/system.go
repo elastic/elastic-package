@@ -12,7 +12,7 @@ import (
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/testrunner"
-	"github.com/elastic/elastic-package/internal/testrunner/runners/system/service"
+	"github.com/elastic/elastic-package/internal/testrunner/runners/system/servicedeployer"
 )
 
 func init() {
@@ -55,7 +55,7 @@ func (r *runner) run() error {
 	// Step 1. Setup service.
 	// Step 1a. (Deferred) Tear down service.
 	logger.Info("Setting up service...")
-	serviceRunner, err := service.Factory(r.packageRootPath)
+	serviceRunner, err := servicedeployer.Factory(r.packageRootPath)
 	if err != nil {
 		return errors.Wrap(err, "could not create service runner")
 	}
@@ -72,7 +72,9 @@ func (r *runner) run() error {
 
 	// Step 2. Setup agent and enroll it with Fleet
 	// TODO: Should this be part of the service factory, since the agent might need
-	// to be deployed "close to" the service?
+	// to be deployed "close to" the service? So for docker-compose based services,
+	// we could use the Agent Docker image, for TF-based services, we use TF to
+	// deploy the agent "near" the service, etc.?
 
 	// Step 3. Configure package (single data stream) via Ingest Manager APIs.
 

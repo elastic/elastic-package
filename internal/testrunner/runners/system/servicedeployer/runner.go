@@ -1,4 +1,4 @@
-package service
+package servicedeployer
 
 import (
 	"github.com/elastic/elastic-package/internal/common"
