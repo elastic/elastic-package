@@ -42,7 +42,7 @@ func (r *runner) run() error {
 		fmt.Printf("Run test case: %s\n", tc.name)
 
 		for i := range tc.entries {
-			fmt.Printf("Process input data no. %d\n", i)
+			fmt.Printf("Process input data %d/%d\n", i+1, len(tc.entries))
 
 		}
 	}
