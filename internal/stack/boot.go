@@ -153,6 +153,9 @@ func dockerComposeDown() error {
 		"-f", filepath.Join(stackDir, "snapshot.yml"),
 		"--project-directory", stackDir,
 		"down")
+	// We set the STACK_VERSION env var here to avoid showing a warning to the user about
+	// it not being set.
+	cmd.Env = append(os.Environ(), fmt.Sprintf("STACK_VERSION=%s", DefaultVersion))
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
 	err = cmd.Run()
