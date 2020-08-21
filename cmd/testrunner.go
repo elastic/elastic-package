@@ -82,7 +82,7 @@ func testTypeCommandActionFactory(testType testrunner.TestType) cobraext.Command
 			return errors.Wrap(err, "locating package root failed")
 		}
 
-		testFolderPaths, err := testrunner.FindTestFolders(packageRootPath, testType, datasets)
+		testFolders, err := testrunner.FindTestFolders(packageRootPath, testType, datasets)
 		if err != nil {
 			return errors.Wrap(err, "unable to determine test folder paths")
 		}
@@ -94,9 +94,9 @@ func testTypeCommandActionFactory(testType testrunner.TestType) cobraext.Command
 			return fmt.Errorf("no %s tests found", testType)
 		}
 
-		for _, path := range testFolderPaths {
+		for _, folder := range testFolders {
 			if err := testrunner.Run(testType, testrunner.TestOptions{
-				TestFolderPath:     path,
+				TestFolder:         folder,
 				PackageRootPath:    packageRootPath,
 				GenerateTestResult: generateTestResult,
 			}); err != nil {

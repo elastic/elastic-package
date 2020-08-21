@@ -5,11 +5,13 @@
 package system
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/common"
+	"github.com/elastic/elastic-package/internal/kibana/ingestmanager"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/testrunner"
 	"github.com/elastic/elastic-package/internal/testrunner/runners/system/servicedeployer"
@@ -25,7 +27,7 @@ const (
 )
 
 type runner struct {
-	testFolderPath  string
+	testFolder      testrunner.TestFolder
 	packageRootPath string
 	stackSettings   stackSettings
 }
@@ -44,7 +46,7 @@ type stackSettings struct {
 // Run runs the system tests defined under the given folder
 func Run(options testrunner.TestOptions) error {
 	r := runner{
-		options.TestFolderPath,
+		options.TestFolder,
 		options.PackageRootPath,
 		getStackSettingsFromEnv(),
 	}
@@ -77,6 +79,20 @@ func (r *runner) run() error {
 	// deploy the agent "near" the service, etc.?
 
 	// Step 3. Configure package (single data stream) via Ingest Manager APIs.
+	im, err := ingestmanager.NewClient(r.stackSettings.kibana.host, r.stackSettings.elasticsearch.username, r.stackSettings.elasticsearch.password)
+	if err != nil {
+		return errors.Wrap(err, "could not create ingest manager client")
+	}
+
+	policy := ingestmanager.Policy{
+		Name:        fmt.Sprintf("ep-test-system-%s-%s", r.testFolder.Package, r.testFolder.Dataset),
+		Description: fmt.Sprintf("test policy created by elastic-package test system for data stream %s/%s", r.testFolder.Package, r.testFolder.Dataset),
+		Namespace:   "ep",
+	}
+	policy, err = im.CreatePolicy(policy)
+	if err != nil {
+		return errors.Wrap(err, "could not create policy")
+	}
 
 	// Step 4. (TODO in future) Optionally exercise service to generate load.
 

@@ -6,7 +6,6 @@ package testrunner
 
 import (
 	"fmt"
-	"path"
 	"path/filepath"
 	"strings"
 
@@ -18,7 +17,7 @@ type TestType string
 
 // TestOptions contains test runner options.
 type TestOptions struct {
-	TestFolderPath     string
+	TestFolder         TestFolder
 	PackageRootPath    string
 	GenerateTestResult bool
 }
@@ -28,8 +27,14 @@ type RunFunc func(options TestOptions) error
 
 var runners = map[TestType]RunFunc{}
 
+type TestFolder struct {
+	Path    string
+	Package string
+	Dataset string
+}
+
 // FindTestFolders finds test folders for the given package and, optionally, test type and datasets
-func FindTestFolders(packageRootPath string, testType TestType, datasets []string) ([]string, error) {
+func FindTestFolders(packageRootPath string, testType TestType, datasets []string) ([]TestFolder, error) {
 
 	// Expected folder structure:
 	// <packageRootPath>/
@@ -51,13 +56,28 @@ func FindTestFolders(packageRootPath string, testType TestType, datasets []strin
 		datasetsGlob += ")"
 	}
 
-	testFoldersGlob := path.Join(packageRootPath, "dataset", datasetsGlob, "_dev", "test", testTypeGlob)
-	matches, err := filepath.Glob(testFoldersGlob)
+	testFoldersGlob := filepath.Join(packageRootPath, "dataset", datasetsGlob, "_dev", "test", testTypeGlob)
+	paths, err := filepath.Glob(testFoldersGlob)
 	if err != nil {
 		return nil, errors.Wrap(err, "error finding test folders")
 	}
 
-	return matches, nil
+	folders := make([]TestFolder, len(matches))
+	for _, p := range paths {
+		parts := filepath.SplitList(p)
+		pkg := parts[0]
+		dataset := parts[2]
+
+		folder := TestFolder{
+			p,
+			pkg,
+			dataset,
+		}
+
+		folders = append(folders, folder)
+	}
+
+	return folders, nil
 }
 
 // RegisterRunner method registers the test runner.
