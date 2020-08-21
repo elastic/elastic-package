@@ -4,7 +4,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
-	"github.com/elastic/elastic-package/internal/cluster"
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/stack"
 )
@@ -32,7 +31,7 @@ func setupStackCommand() *cobra.Command {
 		},
 	}
 	upCommand.Flags().BoolP(cobraext.DaemonModeFlagName, "d", false, cobraext.DaemonModeFlagDescription)
-	upCommand.Flags().StringP(cobraext.StackVersionFlagName, "", cluster.DefaultVersion, cobraext.StackVersionDescription)
+	upCommand.Flags().StringP(cobraext.StackVersionFlagName, "", stack.DefaultVersion, cobraext.StackVersionDescription)
 
 	downCommand := &cobra.Command{
 		Use:   "down",
@@ -62,7 +61,7 @@ func setupStackCommand() *cobra.Command {
 			return nil
 		},
 	}
-	updateCommand.Flags().StringP(cobraext.StackVersionFlagName, "", cluster.DefaultVersion, cobraext.StackVersionDescription)
+	updateCommand.Flags().StringP(cobraext.StackVersionFlagName, "", stack.DefaultVersion, cobraext.StackVersionDescription)
 
 	shellInitCommand := &cobra.Command{
 		Use:   "shellinit",
