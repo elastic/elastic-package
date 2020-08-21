@@ -23,8 +23,8 @@ type runner struct {
 }
 
 type testCase struct {
-	name string
-	inputEvents []byte
+	name            string
+	inputEvents     []byte
 	expectedResults []byte
 }
 
@@ -35,13 +35,10 @@ func Run(testFolderPath string) error {
 }
 
 func (r *runner) run() error {
-	testCases, err := r.prepareTestCases()
+	/*testCases*/ _, err := r.prepareTestCases()
 	if err != nil {
 		return errors.Wrap(err, "prepare test cases")
 	}
-
-
-
 	return nil
 }
 
@@ -78,7 +75,7 @@ func (r *runner) prepareTestCases() ([]testCase, error) {
 }
 
 func createInputEvents(inputData []byte) []byte {
-
+	return nil // TODO
 }
 
 func expectedTestResultFile(testFile string) string {
