@@ -62,7 +62,7 @@ func FindTestFolders(packageRootPath string, testType TestType, datasets []strin
 		return nil, errors.Wrap(err, "error finding test folders")
 	}
 
-	folders := make([]TestFolder, len(matches))
+	folders := make([]TestFolder, len(paths))
 	for _, p := range paths {
 		parts := filepath.SplitList(p)
 		pkg := parts[0]

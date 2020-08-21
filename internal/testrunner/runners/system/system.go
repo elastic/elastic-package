@@ -84,15 +84,17 @@ func (r *runner) run() error {
 		return errors.Wrap(err, "could not create ingest manager client")
 	}
 
-	policy := ingestmanager.Policy{
+	p := ingestmanager.Policy{
 		Name:        fmt.Sprintf("ep-test-system-%s-%s", r.testFolder.Package, r.testFolder.Dataset),
 		Description: fmt.Sprintf("test policy created by elastic-package test system for data stream %s/%s", r.testFolder.Package, r.testFolder.Dataset),
 		Namespace:   "ep",
 	}
-	policy, err = im.CreatePolicy(policy)
+	policy, err := im.CreatePolicy(p)
 	if err != nil {
 		return errors.Wrap(err, "could not create policy")
 	}
+
+	fmt.Println(policy)
 
 	// Step 4. (TODO in future) Optionally exercise service to generate load.
 

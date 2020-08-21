@@ -51,7 +51,7 @@ func (c *Client) post(resourcePath string, reqBody io.Reader) (int, []byte, erro
 	url := path.Join(c.apiBaseUrl, resourcePath)
 	req, err := http.NewRequest(http.MethodPost, url, reqBody)
 	if err != nil {
-		return 0, "", errors.Wrapf(err, "could not create POST request to Ingest Manager resource: %s", resourcePath)
+		return 0, nil, errors.Wrapf(err, "could not create POST request to Ingest Manager resource: %s", resourcePath)
 	}
 
 	req.SetBasicAuth(c.username, c.password)
@@ -70,13 +70,13 @@ func sendRequest(req *http.Request) (*http.Response, int, []byte, error) {
 	client := http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, 0, "", errors.Wrap(err, "could not send request to Kibana API")
+		return nil, 0, nil, errors.Wrap(err, "could not send request to Kibana API")
 	}
 
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return resp, resp.StatusCode, "", errors.Wrap(err, "could not read response body")
+		return resp, resp.StatusCode, nil, errors.Wrap(err, "could not read response body")
 	}
 
 	return resp, resp.StatusCode, body, nil
