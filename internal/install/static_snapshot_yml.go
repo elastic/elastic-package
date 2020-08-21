@@ -3,7 +3,7 @@ package install
 const snapshotYml = `version: '2.3'
 services:
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:7.9.0
+    image: docker.elastic.co/elasticsearch/elasticsearch:${STACK_VERSION}
     healthcheck:
       test: ["CMD", "curl", "-f", "-u", "elastic:changeme", "http://127.0.0.1:9200/"]
       retries: 300
@@ -22,7 +22,7 @@ services:
       - "127.0.0.1:9200:9200"
 
   kibana:
-    image: docker.elastic.co/kibana/kibana:7.9.0
+    image: docker.elastic.co/kibana/kibana:${STACK_VERSION}
     depends_on:
       elasticsearch:
         condition: service_healthy

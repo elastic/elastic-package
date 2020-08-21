@@ -16,4 +16,7 @@ const (
 
 	VerboseFlagName        = "verbose"
 	VerboseFlagDescription = "verbose mode"
+
+	StackVersionFlagName    = "version"
+	StackVersionDescription = "stack version"
 )

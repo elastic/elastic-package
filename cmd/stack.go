@@ -18,7 +18,12 @@ func setupStackCommand() *cobra.Command {
 				return cobraext.FlagParsingError(err, cobraext.DaemonModeFlagName)
 			}
 
-			err = stack.BootUp(daemonMode)
+			stackVersion, err := cmd.Flags().GetString(cobraext.StackVersionFlagName)
+			if err != nil {
+				return cobraext.FlagParsingError(err, cobraext.StackVersionFlagName)
+			}
+
+			err = stack.BootUp(daemonMode, stackVersion)
 			if err != nil {
 				return errors.Wrap(err, "booting up the stack failed")
 			}
@@ -26,6 +31,7 @@ func setupStackCommand() *cobra.Command {
 		},
 	}
 	upCommand.Flags().BoolP(cobraext.DaemonModeFlagName, "d", false, cobraext.DaemonModeFlagDescription)
+	upCommand.Flags().StringP(cobraext.StackVersionFlagName, "", stack.DefaultVersion, cobraext.StackVersionDescription)
 
 	downCommand := &cobra.Command{
 		Use:   "down",
@@ -43,13 +49,19 @@ func setupStackCommand() *cobra.Command {
 		Use:   "update",
 		Short: "Updates the stack to the most recent versions.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			err := stack.Update()
+			stackVersion, err := cmd.Flags().GetString(cobraext.StackVersionFlagName)
+			if err != nil {
+				return cobraext.FlagParsingError(err, cobraext.StackVersionFlagName)
+			}
+
+			err = stack.Update(stackVersion)
 			if err != nil {
 				return errors.Wrap(err, "failed updating the stack images")
 			}
 			return nil
 		},
 	}
+	updateCommand.Flags().StringP(cobraext.StackVersionFlagName, "", stack.DefaultVersion, cobraext.StackVersionDescription)
 
 	shellInitCommand := &cobra.Command{
 		Use:   "shellinit",
