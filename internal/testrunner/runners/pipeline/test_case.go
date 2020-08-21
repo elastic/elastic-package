@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"regexp"
 	"strings"
 
@@ -74,14 +73,10 @@ func createTestCaseEntriesForRawInput(inputData, configData, expectedResultsData
 		}
 	}
 
-	rawInputEntries, err := readRawInputEntries(inputData, c)
-	for _, entry := range rawInputEntries {
-		fmt.Println("x", entry)
+	inputEntries, err := readRawInputEntries(inputData, c)
+	if err != nil {
+		return nil, errors.Wrap(err, "reading raw input entries failed")
 	}
-
-	var inputEvents events
-
-	// TODO
 
 	var expectedResults results
 	err = json.Unmarshal(expectedResultsData, &expectedResults)
@@ -89,8 +84,24 @@ func createTestCaseEntriesForRawInput(inputData, configData, expectedResultsData
 		return nil, errors.Wrap(err, "unmarshalling expected results failed")
 	}
 
-	if len(inputEvents.Events) != len(expectedResults.Expected) {
+	if len(inputEntries) != len(expectedResults.Expected) {
 		return nil, errors.New("number of input events and expected results is not equal")
+	}
+
+	var inputEvents events
+	for _, entry := range inputEntries {
+		event := map[string]interface{}{}
+		event["message"] = entry
+
+		for k, v := range c.Fields {
+			event[k] = v
+		}
+
+		m, err := json.Marshal(&event)
+		if err != nil {
+			return nil, errors.Wrap(err, "marshalling mocked event failed")
+		}
+		inputEvents.Events = append(inputEvents.Events, m)
 	}
 
 	var entries []testCaseEntry

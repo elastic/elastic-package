@@ -43,7 +43,6 @@ func (r *runner) run() error {
 
 		for i := range tc.entries {
 			fmt.Printf("Process input data %d/%d\n", i+1, len(tc.entries))
-
 		}
 	}
 
