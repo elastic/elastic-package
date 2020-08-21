@@ -11,13 +11,13 @@ import (
 
 const (
 	elasticPackageDir = ".elastic-package"
-	clusterDir        = "cluster"
+	stackDir          = "stack"
 	packagesDir       = "development"
 )
 
 const versionFilename = "version"
 
-// EnsureInstalled method installs once static resources for the testing Docker cluster.
+// EnsureInstalled method installs once static resources for the testing Docker stack.
 func EnsureInstalled() error {
 	elasticPackagePath, err := configurationDir()
 	if err != nil {
@@ -39,7 +39,7 @@ func EnsureInstalled() error {
 		return errors.Wrap(err, "writing version file failed")
 	}
 
-	err = writeClusterResources(elasticPackagePath)
+	err = writeStackResources(elasticPackagePath)
 	if err != nil {
 		return errors.Wrap(err, "writing static resources failed")
 	}
@@ -48,22 +48,22 @@ func EnsureInstalled() error {
 	return nil
 }
 
-// ClusterDir method returns the cluster directory (see: clusterDir).
-func ClusterDir() (string, error) {
+// StackDir method returns the stack directory (see: stackDir).
+func StackDir() (string, error) {
 	configurationDir, err := configurationDir()
 	if err != nil {
 		return "", errors.Wrap(err, "locating configuration directory failed")
 	}
-	return filepath.Join(configurationDir, clusterDir), nil
+	return filepath.Join(configurationDir, stackDir), nil
 }
 
-// ClusterPackagesDir method returns the cluster packages directory used for package development.
-func ClusterPackagesDir() (string, error) {
-	clusterDir, err := ClusterDir()
+// StackPackagesDir method returns the stack packages directory used for package development.
+func StackPackagesDir() (string, error) {
+	stackDir, err := StackDir()
 	if err != nil {
-		return "", errors.Wrap(err, "locating cluster directory failed")
+		return "", errors.Wrap(err, "locating stack directory failed")
 	}
-	return filepath.Join(clusterDir, packagesDir), nil
+	return filepath.Join(stackDir, packagesDir), nil
 }
 
 func configurationDir() (string, error) {
@@ -98,18 +98,18 @@ func createElasticPackageDirectory(elasticPackagePath string) error {
 	return nil
 }
 
-func writeClusterResources(elasticPackagePath string) error {
-	clusterPath := filepath.Join(elasticPackagePath, clusterDir)
-	packagesPath := filepath.Join(clusterPath, packagesDir)
+func writeStackResources(elasticPackagePath string) error {
+	stackPath := filepath.Join(elasticPackagePath, stackDir)
+	packagesPath := filepath.Join(stackPath, packagesDir)
 	err := os.MkdirAll(packagesPath, 0755)
 	if err != nil {
 		return errors.Wrapf(err, "creating directory failed (path: %s)", elasticPackagePath)
 	}
 
-	err = writeStaticResource(err, filepath.Join(clusterPath, "kibana.config.yml"), kibanaConfigYml)
-	err = writeStaticResource(err, filepath.Join(clusterPath, "snapshot.yml"), snapshotYml)
-	err = writeStaticResource(err, filepath.Join(clusterPath, "package-registry.config.yml"), packageRegistryConfigYml)
-	err = writeStaticResource(err, filepath.Join(clusterPath, "Dockerfile.package-registry"), packageRegistryDockerfile)
+	err = writeStaticResource(err, filepath.Join(stackPath, "kibana.config.yml"), kibanaConfigYml)
+	err = writeStaticResource(err, filepath.Join(stackPath, "snapshot.yml"), snapshotYml)
+	err = writeStaticResource(err, filepath.Join(stackPath, "package-registry.config.yml"), packageRegistryConfigYml)
+	err = writeStaticResource(err, filepath.Join(stackPath, "Dockerfile.package-registry"), packageRegistryDockerfile)
 	if err != nil {
 		return errors.Wrap(err, "writing static resource failed")
 	}

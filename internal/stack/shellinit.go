@@ -1,4 +1,4 @@
-package cluster
+package stack
 
 import (
 	"fmt"
@@ -25,12 +25,12 @@ type kibanaConfiguration struct {
 
 // ShellInit method exposes environment variables that can be used for testing purposes.
 func ShellInit() (string, error) {
-	clusterDir, err := install.ClusterDir()
+	stackDir, err := install.StackDir()
 	if err != nil {
-		return "", errors.Wrap(err, "location cluster directory failed")
+		return "", errors.Wrap(err, "locating stack directory failed")
 	}
 
-	kibanaConfigurationPath := filepath.Join(clusterDir, "kibana.config.yml")
+	kibanaConfigurationPath := filepath.Join(stackDir, "kibana.config.yml")
 	body, err := ioutil.ReadFile(kibanaConfigurationPath)
 	if err != nil {
 		return "", errors.Wrap(err, "reading Kibana configuration file failed")
