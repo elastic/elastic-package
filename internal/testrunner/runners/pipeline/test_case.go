@@ -1,7 +1,12 @@
 package pipeline
 
 import (
+	"bufio"
+	"bytes"
 	"encoding/json"
+	"fmt"
+	"regexp"
+	"strings"
 
 	"github.com/pkg/errors"
 )
@@ -22,6 +27,15 @@ type events struct {
 
 type results struct {
 	Expected []json.RawMessage `json:"expected"`
+}
+
+type testConfig struct {
+	Multiline *multiline             `json:"multiline"`
+	Fields    map[string]interface{} `json:"fields"`
+}
+
+type multiline struct {
+	FirstLinePattern string `json:"first_line_pattern"`
 }
 
 func createTestCaseEntriesForEvents(inputData, expectedResultsData []byte) ([]testCaseEntry, error) {
@@ -51,6 +65,80 @@ func createTestCaseEntriesForEvents(inputData, expectedResultsData []byte) ([]te
 	return entries, nil
 }
 
-func createTestCaseEntriesForRawInput(inputData, configData, expectedResults []byte) []testCaseEntry {
-	return nil // TODO
+func createTestCaseEntriesForRawInput(inputData, configData, expectedResultsData []byte) ([]testCaseEntry, error) {
+	var c testConfig
+	if configData != nil {
+		err := json.Unmarshal(configData, &c)
+		if err != nil {
+			return nil, errors.Wrap(err, "unmarshalling test config failed")
+		}
+	}
+
+	rawInputEntries, err := readRawInputEntries(inputData, c)
+	for _, entry := range rawInputEntries {
+		fmt.Println("x", entry)
+	}
+
+	var inputEvents events
+
+	// TODO
+
+	var expectedResults results
+	err = json.Unmarshal(expectedResultsData, &expectedResults)
+	if err != nil {
+		return nil, errors.Wrap(err, "unmarshalling expected results failed")
+	}
+
+	if len(inputEvents.Events) != len(expectedResults.Expected) {
+		return nil, errors.New("number of input events and expected results is not equal")
+	}
+
+	var entries []testCaseEntry
+	for i := range inputEvents.Events {
+		entries = append(entries, testCaseEntry{
+			event:    inputEvents.Events[i],
+			expected: expectedResults.Expected[i],
+		})
+	}
+	return entries, nil
+}
+
+func readRawInputEntries(inputData []byte, c testConfig) ([]string, error) {
+	var inputDataEntries []string
+
+	var builder strings.Builder
+	scanner := bufio.NewScanner(bytes.NewReader(inputData))
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		var body string
+		if c.Multiline != nil && c.Multiline.FirstLinePattern != "" {
+			matched, err := regexp.MatchString(c.Multiline.FirstLinePattern, line)
+			if err != nil {
+				return nil, errors.Wrapf(err, "regexp matching failed (pattern: %s)", c.Multiline.FirstLinePattern)
+			}
+
+			if matched {
+				body = builder.String()
+				builder.Reset()
+			}
+			if builder.Len() > 0 {
+				builder.WriteByte('\n')
+			}
+			builder.WriteString(line)
+			if !matched || body == "" {
+				continue
+			}
+		} else {
+			body = line
+		}
+		inputDataEntries = append(inputDataEntries, body)
+	}
+	err := scanner.Err()
+	if err != nil {
+		return nil, errors.Wrap(err, "reading raw input test file failed")
+	}
+	inputDataEntries = append(inputDataEntries, builder.String())
+
+	return inputDataEntries, nil
 }

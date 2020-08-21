@@ -87,10 +87,14 @@ func (r *runner) prepareTestCases() ([]testCase, error) {
 		case ".log":
 			configPath := filepath.Join(r.testFolderPath, expectedTestConfigFile(fi.Name()))
 			configData, err := ioutil.ReadFile(configPath)
-			if os.IsNotExist(err) && err != nil {
+			if err != nil && !os.IsNotExist(err) {
 				return nil, errors.Wrapf(err, "reading test config file failed (path: %s)", configPath)
 			}
-			entries = createTestCaseEntriesForRawInput(inputData, configData, expectedResults)
+			entries, err = createTestCaseEntriesForRawInput(inputData, configData, expectedResults)
+			if err != nil {
+				return nil, errors.Wrapf(err, "creating test case entries for raw input failed (inputPath: %s, expectedResultsPath: %s)",
+					inputPath, expectedResultsPath)
+			}
 		default:
 			continue // unsupported test file extension
 		}
