@@ -7,7 +7,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
-	"path"
+	"strings"
 
 	"github.com/pkg/errors"
 
@@ -47,8 +47,23 @@ func (c *Client) CreatePolicy(p Policy) (*Policy, error) {
 	return &resp.Item, nil
 }
 
+func (c *Client) DeletePolicy(p Policy) error {
+	reqBody := `{ "agentPolicyId": "` + p.ID + `" }`
+
+	statusCode, _, err := c.post("agent_policies/delete", strings.NewReader(reqBody))
+	if err != nil {
+		return errors.Wrap(err, "could not delete policy")
+	}
+
+	if statusCode != 200 {
+		return fmt.Errorf("could not delete policy; API status code = %d", statusCode)
+	}
+
+	return nil
+}
+
 func (c *Client) post(resourcePath string, reqBody io.Reader) (int, []byte, error) {
-	url := path.Join(c.apiBaseUrl, resourcePath)
+	url := c.apiBaseUrl + "/" + resourcePath
 	req, err := http.NewRequest(http.MethodPost, url, reqBody)
 	if err != nil {
 		return 0, nil, errors.Wrapf(err, "could not create POST request to Ingest Manager resource: %s", resourcePath)

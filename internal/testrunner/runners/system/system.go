@@ -93,6 +93,7 @@ func (r *runner) run() error {
 	if err != nil {
 		return errors.Wrap(err, "could not create policy")
 	}
+	defer im.DeletePolicy(*policy)
 
 	fmt.Println(policy)
 

@@ -1,9 +1,5 @@
 package ingestmanager
 
-import (
-	"path"
-)
-
 type Client struct {
 	apiBaseUrl string
 
@@ -13,7 +9,7 @@ type Client struct {
 
 func NewClient(baseUrl, username, password string) (*Client, error) {
 	return &Client{
-		path.Join(baseUrl, "api", "ingest_manager"),
+		baseUrl + "/api/ingest_manager",
 		username,
 		password,
 	}, nil

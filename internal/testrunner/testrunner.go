@@ -63,9 +63,10 @@ func FindTestFolders(packageRootPath string, testType TestType, datasets []strin
 	}
 
 	folders := make([]TestFolder, len(paths))
-	for _, p := range paths {
-		parts := filepath.SplitList(p)
-		pkg := parts[0]
+	_, pkg := filepath.Split(packageRootPath)
+	for idx, p := range paths {
+		relP := strings.TrimPrefix(p, packageRootPath)
+		parts := strings.Split(relP, string(filepath.Separator))
 		dataset := parts[2]
 
 		folder := TestFolder{
@@ -74,7 +75,7 @@ func FindTestFolders(packageRootPath string, testType TestType, datasets []strin
 			dataset,
 		}
 
-		folders = append(folders, folder)
+		folders[idx] = folder
 	}
 
 	return folders, nil
