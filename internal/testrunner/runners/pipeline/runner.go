@@ -31,87 +31,90 @@ func Run(testFolderPath string) error {
 }
 
 func (r *runner) run() error {
-	testCases, err := r.prepareTestCases()
+	testCaseFiles, err := r.listTestCaseFiles()
 	if err != nil {
-		return errors.Wrap(err, "preparing test cases failed")
+		return errors.Wrap(err, "listing test case definitions failed")
 	}
 
-	// TODO install pipeline
+	// TODO Find default pipeline
+	// TODO Find all pipelines
+	// TODO Render templates
+	// TODO Convert yaml to json
+	// TODO Install pipeline
 
-	for _, tc := range testCases {
+	for _, file := range testCaseFiles {
+		tc, err := r.loadTestCaseFile(file)
+		if err != nil {
+			return errors.Wrap(err, "loading test case failed")
+		}
+
 		fmt.Printf("Run test case: %s\n", tc.name)
 
-		for i := range tc.entries {
-			fmt.Printf("Process input data %d/%d\n", i+1, len(tc.entries))
+		for i := range tc.events {
+			fmt.Printf("Verify event %d/%d\n", i+1, len(tc.events))
 		}
+
+		// TODO call Simulate API
+
+		// TODO Check "generate" flag
+
+		// TODO compare results
 	}
 
 	// TODO uninstall pipeline
 	return nil
 }
 
-func (r *runner) prepareTestCases() ([]testCase, error) {
+func (r *runner) listTestCaseFiles() ([]string, error) {
 	fis, err := ioutil.ReadDir(r.testFolderPath)
 	if err != nil {
 		return nil, errors.Wrapf(err, "reading pipeline tests failed (path: %s)", r.testFolderPath)
 	}
 
-	var testCases []testCase
+	var files []string
 	for _, fi := range fis {
 		if strings.HasSuffix(fi.Name(), expectedTestResultSuffix) || strings.HasSuffix(fi.Name(), configTestSuffix) {
 			continue
 		}
-
-		inputPath := filepath.Join(r.testFolderPath, fi.Name())
-		inputData, err := ioutil.ReadFile(inputPath)
-		if err != nil {
-			return nil, errors.Wrapf(err, "reading input file failed (path: %s)", inputPath)
-		}
-
-		expectedResultsPath := filepath.Join(r.testFolderPath, expectedTestResultFile(fi.Name()))
-		expectedResults, err := ioutil.ReadFile(expectedResultsPath)
-		if err != nil {
-			return nil, errors.Wrapf(err, "reading expected results failed (path: %s)", expectedResultsPath)
-		}
-
-		var entries []testCaseEntry
-		ext := filepath.Ext(fi.Name())
-		switch ext {
-		case ".json":
-			entries, err = createTestCaseEntriesForEvents(inputData, expectedResults)
-			if err != nil {
-				return nil, errors.Wrapf(err, "creating test case entries for events failed (inputPath: %s, expectedResultsPath: %s)",
-					inputPath, expectedResultsPath)
-			}
-		case ".log":
-			configPath := filepath.Join(r.testFolderPath, expectedTestConfigFile(fi.Name()))
-			configData, err := ioutil.ReadFile(configPath)
-			if err != nil && !os.IsNotExist(err) {
-				return nil, errors.Wrapf(err, "reading test config file failed (path: %s)", configPath)
-			}
-			entries, err = createTestCaseEntriesForRawInput(inputData, configData, expectedResults)
-			if err != nil {
-				return nil, errors.Wrapf(err, "creating test case entries for raw input failed (inputPath: %s, expectedResultsPath: %s)",
-					inputPath, expectedResultsPath)
-			}
-		default:
-			continue // unsupported test file extension
-		}
-
-		testCases = append(testCases, testCase{
-			name:    fi.Name(),
-			entries: entries,
-		})
+		files = append(files, fi.Name())
 	}
-	return testCases, nil
+	return files, nil
+}
+
+func (r *runner) loadTestCaseFile(filename string) (*testCase, error) {
+	inputPath := filepath.Join(r.testFolderPath, filename)
+	inputData, err := ioutil.ReadFile(inputPath)
+	if err != nil {
+		return nil, errors.Wrapf(err, "reading input file failed (path: %s)", inputPath)
+	}
+
+	var tc *testCase
+	ext := filepath.Ext(filename)
+	switch ext {
+	case ".json":
+		tc, err = createTestCaseForEvents(filename, inputData)
+		if err != nil {
+			return nil, errors.Wrapf(err, "creating test case for events failed (path: %s)", inputPath)
+		}
+	case ".log":
+		configPath := filepath.Join(r.testFolderPath, expectedTestConfigFile(filename))
+		configData, err := ioutil.ReadFile(configPath)
+		if err != nil && !os.IsNotExist(err) {
+			return nil, errors.Wrapf(err, "reading test config file failed (path: %s)", configPath)
+		}
+
+		tc, err = createTestCaseForRawInput(filename, inputData, configData)
+		if err != nil {
+			return nil, errors.Wrapf(err, "creating test case for events failed (path: %s)", inputPath)
+		}
+	default:
+		return nil, fmt.Errorf("unsupported extension for test case file (ext: %s)", ext)
+	}
+	return tc, nil
 }
 
 func expectedTestConfigFile(testFile string) string {
 	return fmt.Sprintf("%s%s", testFile, configTestSuffix)
-}
-
-func expectedTestResultFile(testFile string) string {
-	return fmt.Sprintf("%s%s", testFile, expectedTestResultSuffix)
 }
 
 func init() {
