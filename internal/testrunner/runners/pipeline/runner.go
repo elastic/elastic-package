@@ -48,10 +48,10 @@ func (r *runner) run() error {
 			return errors.Wrap(err, "loading test case failed")
 		}
 
-		fmt.Printf("Run test case: %s\n", tc.name)
+		fmt.Printf("Test case: %s\n", tc.name)
 
 		for i := range tc.events {
-			fmt.Printf("Verify event %d/%d\n", i+1, len(tc.events))
+			fmt.Printf("Event %d/%d\n", i+1, len(tc.events))
 		}
 
 		// TODO call Simulate API
