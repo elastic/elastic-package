@@ -2,7 +2,9 @@ package pipeline
 
 import (
 	"fmt"
+	"github.com/elastic/elastic-package/internal/packages"
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -35,6 +37,16 @@ func (r *runner) run() error {
 	if err != nil {
 		return errors.Wrap(err, "listing test case definitions failed")
 	}
+
+	datasetPath, found, err := packages.FindDatasetRootForPath(r.testFolderPath)
+	if err != nil {
+		return errors.Wrap(err, "locating dataset root failed")
+	}
+	if !found {
+		return errors.New("dataset root not found")
+	}
+
+	log.Println(datasetPath)
 
 	// TODO Find default pipeline
 	// TODO Find all pipelines
