@@ -2,15 +2,14 @@ package pipeline
 
 import (
 	"fmt"
-	"github.com/elastic/elastic-package/internal/packages"
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/pkg/errors"
 
+	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
 
@@ -46,13 +45,16 @@ func (r *runner) run() error {
 		return errors.New("dataset root not found")
 	}
 
-	log.Println(datasetPath)
-
-	// TODO Find default pipeline
-	// TODO Find all pipelines
-	// TODO Render templates
-	// TODO Convert yaml to json
-	// TODO Install pipeline
+	_, pipelineIDs, err := installIngestPipelines(datasetPath)
+	if err != nil {
+		return errors.New("installing ingest pipelines failed")
+	}
+	defer func() {
+		err := uninstallIngestPipeline(pipelineIDs)
+		if err != nil {
+			fmt.Printf("uninstalling ingest pipelines failed: %v", err)
+		}
+	}()
 
 	for _, file := range testCaseFiles {
 		tc, err := r.loadTestCaseFile(file)
@@ -66,14 +68,12 @@ func (r *runner) run() error {
 			fmt.Printf("Event %d/%d\n", i+1, len(tc.events))
 		}
 
-		// TODO call Simulate API
+		// TODO call Simulate API against entry pipeline
 
 		// TODO Check "generate" flag
 
 		// TODO compare results
 	}
-
-	// TODO uninstall pipeline
 	return nil
 }
 
