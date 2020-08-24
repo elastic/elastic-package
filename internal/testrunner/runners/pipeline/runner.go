@@ -126,10 +126,11 @@ func (r *runner) loadTestCaseFile(testCaseFile string) (*testCase, error) {
 func (r *runner) verifyResults(testCaseFile string, result *testResult) error {
 	testCasePath := filepath.Join(r.options.TestFolderPath, testCaseFile)
 
-	// TODO Check "generate" flag
-	err := writeTestResult(testCasePath, result)
-	if err != nil {
-		return errors.Wrap(err, "writing test result failed")
+	if r.options.GenerateTestResult {
+		err := writeTestResult(testCasePath, result)
+		if err != nil {
+			return errors.Wrap(err, "writing test result failed")
+		}
 	}
 
 	// TODO compare results

@@ -14,7 +14,8 @@ type TestType string
 
 // TestOptions contains test runner options.
 type TestOptions struct {
-	TestFolderPath string
+	TestFolderPath     string
+	GenerateTestResult bool
 }
 
 // RunFunc method defines main run function of a test runner.
