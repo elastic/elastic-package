@@ -1,6 +1,10 @@
 package pipeline
 
 import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"path/filepath"
 	"strings"
@@ -26,19 +30,15 @@ func installIngestPipelines(datasetPath string) (string, []pipelineResource, err
 		return "", nil, errors.Wrap(err, "reading dataset manifest failed")
 	}
 
-	mainPipeline := getPipelineNameOrDefault(datasetManifest)
-	pipelines, err := loadIngestPipelineFiles(datasetPath)
+	nonce := time.Now().UnixNano()
+
+	mainPipeline := getWithPipelineNameWithNonce(getPipelineNameOrDefault(datasetManifest), nonce)
+	pipelines, err := loadIngestPipelineFiles(datasetPath, nonce)
 	if err != nil {
 		return "", nil, errors.Wrap(err, "loading ingest pipeline files failed")
 	}
 
-	nonce := time.Now().UnixNano()
-	rendered, err := renderPipelineTemplates(pipelines, nonce)
-	if err != nil {
-		return "", nil, errors.Wrap(err, "rendering pipeline templates failed")
-	}
-
-	jsonPipelines, err := convertPipelineToJSON(rendered)
+	jsonPipelines, err := convertPipelineToJSON(pipelines)
 	if err != nil {
 		return "", nil, errors.Wrap(err, "converting pipelines failed")
 	}
@@ -57,52 +57,73 @@ func getPipelineNameOrDefault(datasetManifest *packages.DatasetManifest) string 
 	return defaultPipelineName
 }
 
-func loadIngestPipelineFiles(datasetPath string) ([]pipelineResource, error) {
+func loadIngestPipelineFiles(datasetPath string, nonce int64) ([]pipelineResource, error) {
 	elasticsearchPath := filepath.Join(datasetPath, "elasticsearch")
 	fis, err := ioutil.ReadDir(elasticsearchPath)
 	if err != nil {
 		return nil, errors.Wrapf(err, "reading ingest pipelines directory failed (path: %s)", elasticsearchPath)
 	}
 
-	var pipelines []pipelineResource
+	var paths []string
 	for _, fi := range fis {
 		path := filepath.Join(datasetPath, fi.Name())
-		c, err := ioutil.ReadFile(path)
+		paths = append(paths, path)
+	}
+
+	t, err := template.New("pipeline").
+		Funcs(map[string]interface{}{
+			"IngestPipeline": func(pipelineName string) string {
+				return getWithPipelineNameWithNonce(pipelineName, nonce)
+			}},
+		).
+		ParseFiles(paths...)
+	if err != nil {
+		return nil, errors.Wrap(err, "parsing ingest pipeline failed")
+	}
+
+	var pipelines []pipelineResource
+	for _, fi := range fis {
+		var buffer bytes.Buffer
+		err := t.ExecuteTemplate(&buffer, fi.Name(), nil)
 		if err != nil {
-			return nil, errors.Wrapf(err, "reading pipeline file failed (path: %s)", path)
+			return nil, errors.Wrapf(err, "executing pipeline template failed (filename: %s)", fi.Name())
 		}
+
 		pipelines = append(pipelines, pipelineResource{
-			name:    fi.Name()[strings.Index(fi.Name(), "."):],
+			name:    getWithPipelineNameWithNonce(fi.Name()[strings.Index(fi.Name(), "."):], nonce),
 			format:  filepath.Ext(fi.Name())[1:],
-			content: c,
+			content: buffer.Bytes(),
 		})
 	}
 	return pipelines, nil
 }
 
-func renderPipelineTemplates(pipelines []pipelineResource, nonce int64) ([]pipelineResource, error) {
-	var rendered []pipelineResource
-
-	for _, pipeline := range rendered {
-		t, err := template.New("pipeline").
-			Funcs(map[string]interface{}{
-				"IngestPipeline": func(pipelineName string) string {
-					return ""
-				},},
-			).
-			ParseFiles(string(pipeline.content))
-		if err != nil {
-			return nil, errors.Wrap(err, "parsing ingest pipeline failed")
+func convertPipelineToJSON(pipelines []pipelineResource) ([]pipelineResource, error) {
+	var jsonPipelines []pipelineResource
+	for _, pipeline := range pipelines {
+		if pipeline.format == "json" {
+			jsonPipelines = append(jsonPipelines, pipeline)
+			continue
 		}
 
-		t.Execute()
+		var node map[string]interface{}
+		err := yaml.Unmarshal(pipeline.content, &node)
+		if err != nil {
+			return nil, errors.Wrapf(err, "unmarshalling pipeline content failed (pipeline: %s)", pipeline.name)
+		}
+
+		c, err := json.Marshal(node)
+		if err != nil {
+			return nil, errors.Wrapf(err, "marshalling pipeline content failed (pipeline: %s)", pipeline.name)
+		}
+
+		jsonPipelines = append(jsonPipelines, pipelineResource{
+			name:    pipeline.name,
+			format:  pipeline.format,
+			content: c,
+		})
 	}
-
-	return rendered, nil
-}
-
-func convertPipelineToJSON(pipelines []pipelineResource) ([]pipelineResource, error) {
-	return nil, errors.New("not implemented yet") // TODO
+	return jsonPipelines, nil
 }
 
 func installPipelinesInElasticsearch(pipelines []pipelineResource) error {
@@ -111,4 +132,8 @@ func installPipelinesInElasticsearch(pipelines []pipelineResource) error {
 
 func uninstallIngestPipelines(pipelines []pipelineResource) error {
 	return errors.New("not implemented yet") // TODO
+}
+
+func getWithPipelineNameWithNonce(pipelineName string, nonce int64) string {
+	return fmt.Sprintf("%s-%d", pipelineName, nonce)
 }
