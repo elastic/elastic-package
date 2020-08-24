@@ -52,7 +52,7 @@ func (r *runner) run() error {
 
 	_, pipelineIDs, err := installIngestPipelines(esClient, datasetPath)
 	if err != nil {
-		return errors.New("installing ingest pipelines failed")
+		return errors.Wrap(err, "installing ingest pipelines failed")
 	}
 	defer func() {
 		err := uninstallIngestPipelines(esClient, pipelineIDs)

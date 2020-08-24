@@ -7,9 +7,10 @@ import (
 	"github.com/elastic/go-elasticsearch/v7"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
+	"log"
 	"path/filepath"
+	"regexp"
 	"strings"
-	"text/template"
 	"time"
 
 	"github.com/pkg/errors"
@@ -18,6 +19,8 @@ import (
 )
 
 const defaultPipelineName = "default"
+
+var ingestPipelineTag = regexp.MustCompile("{{ IngestPipeline.+ }}")
 
 type pipelineResource struct {
 	name    string
@@ -59,41 +62,32 @@ func getPipelineNameOrDefault(datasetManifest *packages.DatasetManifest) string 
 }
 
 func loadIngestPipelineFiles(datasetPath string, nonce int64) ([]pipelineResource, error) {
-	elasticsearchPath := filepath.Join(datasetPath, "elasticsearch")
+	elasticsearchPath := filepath.Join(datasetPath, "elasticsearch", "ingest_pipeline")
 	fis, err := ioutil.ReadDir(elasticsearchPath)
 	if err != nil {
 		return nil, errors.Wrapf(err, "reading ingest pipelines directory failed (path: %s)", elasticsearchPath)
 	}
 
-	var paths []string
-	for _, fi := range fis {
-		path := filepath.Join(datasetPath, fi.Name())
-		paths = append(paths, path)
-	}
-
-	t, err := template.New("pipeline").
-		Funcs(map[string]interface{}{
-			"IngestPipeline": func(pipelineName string) string {
-				return getWithPipelineNameWithNonce(pipelineName, nonce)
-			}},
-		).
-		ParseFiles(paths...)
-	if err != nil {
-		return nil, errors.Wrap(err, "parsing ingest pipeline failed")
-	}
-
 	var pipelines []pipelineResource
 	for _, fi := range fis {
-		var buffer bytes.Buffer
-		err := t.ExecuteTemplate(&buffer, fi.Name(), nil)
+		path := filepath.Join(elasticsearchPath, fi.Name())
+		c, err := ioutil.ReadFile(path)
 		if err != nil {
-			return nil, errors.Wrapf(err, "executing pipeline template failed (filename: %s)", fi.Name())
+			return nil, errors.Wrap(err, "reading ingest pipeline failed")
 		}
 
+		c = ingestPipelineTag.ReplaceAllFunc(c, func(found []byte) []byte {
+			s := strings.Split(string(found), `"`)
+			if len(s) != 3 {
+				log.Fatalf("invalid IngestPipeline tag in template (path: %s)", path)
+			}
+			pipelineTag := s[1]
+			return []byte(getWithPipelineNameWithNonce(pipelineTag, nonce))
+		})
 		pipelines = append(pipelines, pipelineResource{
 			name:    getWithPipelineNameWithNonce(fi.Name()[strings.Index(fi.Name(), "."):], nonce),
 			format:  filepath.Ext(fi.Name())[1:],
-			content: buffer.Bytes(),
+			content: c,
 		})
 	}
 	return pipelines, nil
