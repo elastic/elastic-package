@@ -18,9 +18,11 @@ type testConfig struct {
 }
 
 func readConfigForTestCase(testCasePath string) (testConfig, error) {
-	var c testConfig
+	testCaseDir := filepath.Dir(testCasePath)
+	testCaseFile := filepath.Base(testCasePath)
 
-	configData, err := ioutil.ReadFile(filepath.Join(testCasePath, expectedTestConfigFile(testCasePath)))
+	var c testConfig
+	configData, err := ioutil.ReadFile(filepath.Join(testCaseDir, expectedTestConfigFile(testCaseFile)))
 	if err != nil && !os.IsNotExist(err) {
 		return c, errors.Wrapf(err, "reading test config file failed (path: %s)", testCasePath)
 	}

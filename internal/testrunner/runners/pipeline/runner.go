@@ -69,13 +69,10 @@ func (r *runner) run() error {
 			return errors.Wrap(err, "simulating pipeline processing failed")
 		}
 
-		// TODO Check "generate" flag
-		err = writeTestResult(testCaseFile, result)
+		err = r.verifyResults(testCaseFile, result)
 		if err != nil {
 			return errors.Wrap(err, "writing test result failed")
 		}
-
-		// TODO compare results
 	}
 	return nil
 }
@@ -112,7 +109,7 @@ func (r *runner) loadTestCaseFile(testCaseFile string) (*testCase, error) {
 			return nil, errors.Wrapf(err, "creating test case for events failed (testCasePath: %s)", testCasePath)
 		}
 	case ".log":
-		config, err := readConfigForTestCase(testCaseFile)
+		config, err := readConfigForTestCase(testCasePath)
 		if err != nil {
 			return nil, errors.Wrapf(err, "reading config for test case failed (testCasePath: %s)", testCasePath)
 		}
@@ -124,6 +121,19 @@ func (r *runner) loadTestCaseFile(testCaseFile string) (*testCase, error) {
 		return nil, fmt.Errorf("unsupported extension for test case file (ext: %s)", ext)
 	}
 	return tc, nil
+}
+
+func (r *runner) verifyResults(testCaseFile string, result *testResult) error {
+	testCasePath := filepath.Join(r.testFolderPath, testCaseFile)
+
+	// TODO Check "generate" flag
+	err := writeTestResult(testCasePath, result)
+	if err != nil {
+		return errors.Wrap(err, "writing test result failed")
+	}
+
+	// TODO compare results
+	return nil
 }
 
 func init() {
