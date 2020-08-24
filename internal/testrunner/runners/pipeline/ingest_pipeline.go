@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/elastic/go-elasticsearch/v7"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"log"
 	"path/filepath"
@@ -85,7 +85,7 @@ func loadIngestPipelineFiles(datasetPath string, nonce int64) ([]pipelineResourc
 			return []byte(getWithPipelineNameWithNonce(pipelineTag, nonce))
 		})
 		pipelines = append(pipelines, pipelineResource{
-			name:    getWithPipelineNameWithNonce(fi.Name()[strings.Index(fi.Name(), "."):], nonce),
+			name:    getWithPipelineNameWithNonce(fi.Name()[:strings.Index(fi.Name(), ".")], nonce),
 			format:  filepath.Ext(fi.Name())[1:],
 			content: c,
 		})
@@ -107,7 +107,7 @@ func convertPipelineToJSON(pipelines []pipelineResource) ([]pipelineResource, er
 			return nil, errors.Wrapf(err, "unmarshalling pipeline content failed (pipeline: %s)", pipeline.name)
 		}
 
-		c, err := json.Marshal(node)
+		c, err := json.Marshal(&node)
 		if err != nil {
 			return nil, errors.Wrapf(err, "marshalling pipeline content failed (pipeline: %s)", pipeline.name)
 		}
