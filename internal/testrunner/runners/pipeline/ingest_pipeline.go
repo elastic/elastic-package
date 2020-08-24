@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/elastic/go-elasticsearch/v7"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"path/filepath"
@@ -24,7 +25,7 @@ type pipelineResource struct {
 	content []byte
 }
 
-func installIngestPipelines(datasetPath string) (string, []pipelineResource, error) {
+func installIngestPipelines(esClient *elasticsearch.Client, datasetPath string) (string, []pipelineResource, error) {
 	datasetManifest, err := packages.ReadDatasetManifest(filepath.Join(datasetPath, packages.DatasetManifestFile))
 	if err != nil {
 		return "", nil, errors.Wrap(err, "reading dataset manifest failed")
@@ -43,7 +44,7 @@ func installIngestPipelines(datasetPath string) (string, []pipelineResource, err
 		return "", nil, errors.Wrap(err, "converting pipelines failed")
 	}
 
-	err = installPipelinesInElasticsearch(jsonPipelines)
+	err = installPipelinesInElasticsearch(esClient, jsonPipelines)
 	if err != nil {
 		return "", nil, errors.Wrap(err, "installing pipelines failed")
 	}
@@ -126,12 +127,24 @@ func convertPipelineToJSON(pipelines []pipelineResource) ([]pipelineResource, er
 	return jsonPipelines, nil
 }
 
-func installPipelinesInElasticsearch(pipelines []pipelineResource) error {
-	return errors.New("not implemented yet") // TODO
+func installPipelinesInElasticsearch(esClient *elasticsearch.Client, pipelines []pipelineResource) error {
+	for _, pipeline := range pipelines {
+		_, err := esClient.API.Ingest.PutPipeline(pipeline.name, bytes.NewReader(pipeline.content))
+		if err != nil {
+			return errors.Wrapf(err, "PutPipeline API call failed (pipelineName: %s)", pipeline.name)
+		}
+	}
+	return nil
 }
 
-func uninstallIngestPipelines(pipelines []pipelineResource) error {
-	return errors.New("not implemented yet") // TODO
+func uninstallIngestPipelines(esClient *elasticsearch.Client, pipelines []pipelineResource) error {
+	for _, pipeline := range pipelines {
+		_, err := esClient.API.Ingest.DeletePipeline(pipeline.name)
+		if err != nil {
+			return errors.Wrapf(err, "DeletePipeline API call failed (pipelineName: %s)", pipeline.name)
+		}
+	}
+	return nil
 }
 
 func getWithPipelineNameWithNonce(pipelineName string, nonce int64) string {

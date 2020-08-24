@@ -2,6 +2,7 @@ package pipeline
 
 import (
 	"fmt"
+	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/pkg/errors"
 	"io/ioutil"
 	"os"
@@ -44,12 +45,17 @@ func (r *runner) run() error {
 		return errors.New("dataset root not found")
 	}
 
-	_, pipelineIDs, err := installIngestPipelines(datasetPath)
+	esClient, err := elasticsearch.Client()
+	if err != nil {
+		return errors.Wrap(err, "fetching Elasticsearch client instance failed")
+	}
+
+	_, pipelineIDs, err := installIngestPipelines(esClient, datasetPath)
 	if err != nil {
 		return errors.New("installing ingest pipelines failed")
 	}
 	defer func() {
-		err := uninstallIngestPipelines(pipelineIDs)
+		err := uninstallIngestPipelines(esClient, pipelineIDs)
 		if err != nil {
 			fmt.Printf("uninstalling ingest pipelines failed: %v", err)
 		}

@@ -11,10 +11,20 @@ import (
 	"github.com/elastic/elastic-package/internal/install"
 )
 
-const shellInitFormat = `ELASTIC_PACKAGE_ELASTICSEARCH_HOST=%s
-ELASTIC_PACKAGE_ELASTICSEARCH_USERNAME=%s
-ELASTIC_PACKAGE_ELASTICSEARCH_PASSWORD=%s
-ELASTIC_PACKAGE_KIBANA_HOST=%s`
+const (
+	elasticPackageEnvPrefix = "ELASTIC_PACKAGE_"
+)
+
+// Environment variables describing the stack.
+var (
+	ElasticsearchHostEnv     = elasticPackageEnvPrefix + "ELASTICSEARCH_HOST"
+	ElasticsearchUsernameEnv = elasticPackageEnvPrefix + "ELASTICSEARCH_USERNAME"
+	ElasticsearchPasswordEnv = elasticPackageEnvPrefix + "ELASTICSEARCH_PASSWORD"
+	KibanaHostEnv            = elasticPackageEnvPrefix + "KIBANA_HOST"
+)
+
+var shellInitFormat = ElasticsearchHostEnv + "=%s\n" + ElasticsearchUsernameEnv + "=%s\n" +
+	ElasticsearchPasswordEnv + "=%s\n" + KibanaHostEnv + "=%s\n"
 
 type kibanaConfiguration struct {
 	ElasticsearchHost     string `yaml:"xpack.ingestManager.fleet.elasticsearch.host"`
