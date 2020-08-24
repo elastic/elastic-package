@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/elastic/go-elasticsearch/v7"
-	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"log"
 	"path/filepath"
@@ -13,7 +11,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/elastic/go-elasticsearch/v7"
 	"github.com/pkg/errors"
+	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/packages"
 )
