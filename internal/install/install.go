@@ -44,7 +44,7 @@ func EnsureInstalled() error {
 		return errors.Wrap(err, "writing static resources failed")
 	}
 
-	fmt.Println("elastic-package has been installed.")
+	fmt.Fprintln(os.Stderr, "elastic-package has been installed.")
 	return nil
 }
 

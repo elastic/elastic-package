@@ -1,11 +1,11 @@
 package cmd
 
 import (
-	"github.com/pkg/errors"
-	"github.com/spf13/cobra"
-
+	"fmt"
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/stack"
+	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
 )
 
 func setupStackCommand() *cobra.Command {
@@ -71,7 +71,7 @@ func setupStackCommand() *cobra.Command {
 			if err != nil {
 				return errors.Wrap(err, "shellinit failed")
 			}
-			cmd.Println(shell)
+			fmt.Println(shell)
 			return nil
 		},
 	}

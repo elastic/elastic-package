@@ -23,8 +23,8 @@ var (
 	KibanaHostEnv            = elasticPackageEnvPrefix + "KIBANA_HOST"
 )
 
-var shellInitFormat = ElasticsearchHostEnv + "=%s\n" + ElasticsearchUsernameEnv + "=%s\n" +
-	ElasticsearchPasswordEnv + "=%s\n" + KibanaHostEnv + "=%s\n"
+var shellInitFormat = "export " + ElasticsearchHostEnv + "=%s\nexport " + ElasticsearchUsernameEnv + "=%s\nexport " +
+	ElasticsearchPasswordEnv + "=%s\nexport " + KibanaHostEnv + "=%s"
 
 type kibanaConfiguration struct {
 	ElasticsearchHost     string `yaml:"xpack.ingestManager.fleet.elasticsearch.host"`
