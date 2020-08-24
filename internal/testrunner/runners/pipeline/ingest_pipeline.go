@@ -29,6 +29,22 @@ type pipelineResource struct {
 	content []byte
 }
 
+type simulatePipelineRequest struct {
+	Docs []pipelineDocument `json:"docs"`
+}
+
+type pipelineDocument struct {
+	Source json.RawMessage `json:"_source"`
+}
+
+type simulatePipelineResponse struct {
+	Docs []pipelineIngestedDocument `json:"docs"`
+}
+
+type pipelineIngestedDocument struct {
+	Doc pipelineDocument `json:"doc"`
+}
+
 func installIngestPipelines(esClient *elasticsearch.Client, datasetPath string) (string, []pipelineResource, error) {
 	datasetManifest, err := packages.ReadDatasetManifest(filepath.Join(datasetPath, packages.DatasetManifestFile))
 	if err != nil {
@@ -160,4 +176,44 @@ func uninstallIngestPipelines(esClient *elasticsearch.Client, pipelines []pipeli
 
 func getWithPipelineNameWithNonce(pipelineName string, nonce int64) string {
 	return fmt.Sprintf("%s-%d", pipelineName, nonce)
+}
+
+func simulatePipelineProcessing(esClient *elasticsearch.Client, pipelineName string, tc *testCase) (*testResult, error) {
+	var request simulatePipelineRequest
+	for _, event := range tc.events {
+		request.Docs = append(request.Docs, pipelineDocument{
+			Source: event,
+		})
+	}
+
+	requestBody, err := json.Marshal(&request)
+	if err != nil {
+		return nil, errors.Wrap(err, "marshalling simulate request failed")
+	}
+
+	r, err := esClient.API.Ingest.Simulate(bytes.NewReader(requestBody), func(request *esapi.IngestSimulateRequest) {
+		request.PipelineID = pipelineName
+	})
+	if err != nil {
+		return nil, errors.Wrapf(err, "Simulate API call failed (pipelineName: %s)", pipelineName)
+	}
+
+	if r.StatusCode != 200 {
+		return nil, fmt.Errorf("unexpected response status for Simulate (%d): %s", r.StatusCode, r.Status())
+	}
+
+	body, err := ioutil.ReadAll(r.Body)
+	defer r.Body.Close()
+
+	var response simulatePipelineResponse
+	err = json.Unmarshal(body, &response)
+	if err != nil {
+		return nil, errors.Wrap(err, "unmarshalling simulate request failed")
+	}
+
+	var tr testResult
+	for _, doc := range response.Docs {
+		tr.events = append(tr.events, doc.Doc.Source)
+	}
+	return &tr, nil
 }

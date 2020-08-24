@@ -50,7 +50,7 @@ func (r *runner) run() error {
 		return errors.Wrap(err, "fetching Elasticsearch client instance failed")
 	}
 
-	_, pipelineIDs, err := installIngestPipelines(esClient, datasetPath)
+	entryPipeline, pipelineIDs, err := installIngestPipelines(esClient, datasetPath)
 	if err != nil {
 		return errors.Wrap(err, "installing ingest pipelines failed")
 	}
@@ -68,12 +68,10 @@ func (r *runner) run() error {
 		}
 
 		fmt.Printf("Test case: %s\n", tc.name)
-
-		for i := range tc.events {
-			fmt.Printf("Event %d/%d\n", i+1, len(tc.events))
+		_, err = simulatePipelineProcessing(esClient, entryPipeline, tc)
+		if err != nil {
+			return errors.Wrap(err, "simulating pipeline processing failed")
 		}
-
-		// TODO call Simulate API against entry pipeline
 
 		// TODO Check "generate" flag
 

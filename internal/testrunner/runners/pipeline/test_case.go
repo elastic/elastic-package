@@ -15,6 +15,10 @@ type testCase struct {
 	events []json.RawMessage
 }
 
+type testResult struct {
+	events []json.RawMessage
+}
+
 type testCaseDefinition struct {
 	Events []json.RawMessage `json:"events"`
 }
