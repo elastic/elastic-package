@@ -50,7 +50,7 @@ func compareResults(testCasePath string, result *testResult) error {
 
 	report := diff.Diff(string(current), string(expected))
 	if report != "" {
-		fmt.Println("Expected results after different from current ones:")
+		fmt.Println("Expected results are different from current ones:")
 		fmt.Println(report)
 		return errTestCaseFailed
 	}
