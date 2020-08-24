@@ -114,7 +114,7 @@ func convertPipelineToJSON(pipelines []pipelineResource) ([]pipelineResource, er
 
 		jsonPipelines = append(jsonPipelines, pipelineResource{
 			name:    pipeline.name,
-			format:  pipeline.format,
+			format:  "json",
 			content: c,
 		})
 	}
