@@ -21,7 +21,7 @@ import (
 
 const defaultPipelineName = "default"
 
-var ingestPipelineTag = regexp.MustCompile("{{ IngestPipeline.+ }}")
+var ingestPipelineTag = regexp.MustCompile("{{\\s*IngestPipeline.+}}")
 
 type pipelineResource struct {
 	name    string

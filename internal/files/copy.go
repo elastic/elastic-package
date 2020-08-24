@@ -32,7 +32,7 @@ func copy(sourcePath, destinationPath string, skippedDirs []string) error {
 			return nil
 		}
 
-		if info.IsDir() && shouldDirectoryBeSkips(info.Name(), skippedDirs) {
+		if info.IsDir() && shouldDirectoryBeSkipped(info.Name(), skippedDirs) {
 			return filepath.SkipDir
 		}
 
@@ -46,7 +46,7 @@ func copy(sourcePath, destinationPath string, skippedDirs []string) error {
 	})
 }
 
-func shouldDirectoryBeSkips(name string, skippedDirs []string) bool {
+func shouldDirectoryBeSkipped(name string, skippedDirs []string) bool {
 	for _, d := range skippedDirs {
 		if name == d {
 			return true
