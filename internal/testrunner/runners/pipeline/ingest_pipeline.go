@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/elastic/go-elasticsearch/v7/esapi"
 	"io/ioutil"
 	"log"
 	"path/filepath"
@@ -129,7 +130,19 @@ func installPipelinesInElasticsearch(esClient *elasticsearch.Client, pipelines [
 		}
 
 		if r.StatusCode != 200 {
-			return fmt.Errorf("unexpected response status (%d): %s", r.StatusCode, r.Status())
+			return fmt.Errorf("unexpected response status for PutPipeline (%d): %s", r.StatusCode, r.Status())
+		}
+
+		// Just to be sure the pipeline has been uploaded
+		r, err = esClient.API.Ingest.GetPipeline(func(request *esapi.IngestGetPipelineRequest) {
+			request.PipelineID = pipeline.name
+		})
+		if err != nil {
+			return errors.Wrapf(err, "GetPipeline API call failed (pipelineName: %s)", pipeline.name)
+		}
+
+		if r.StatusCode != 200 {
+			return fmt.Errorf("unexpected response status for GetPipeline (%d): %s", r.StatusCode, r.Status())
 		}
 	}
 	return nil
