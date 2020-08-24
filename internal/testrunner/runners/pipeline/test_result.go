@@ -3,6 +3,7 @@ package pipeline
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/kylelemons/godebug/diff"
 	"io/ioutil"
 	"path/filepath"
 
@@ -10,6 +11,8 @@ import (
 )
 
 const expectedTestResultSuffix = "-expected.json"
+
+var errTestCaseFailed = errors.New("test case failed")
 
 type testResult struct {
 	events []json.RawMessage
@@ -45,7 +48,12 @@ func compareResults(testCasePath string, result *testResult) error {
 		return errors.Wrap(err, "reading expected test result failed")
 	}
 
-	fmt.Println(current, expected)
+	report := diff.Diff(string(current), string(expected))
+	if report != "" {
+		fmt.Println("Expected results after different from current ones:")
+		fmt.Println(report)
+		return errTestCaseFailed
+	}
 	return nil
 }
 

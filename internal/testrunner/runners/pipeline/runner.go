@@ -58,6 +58,7 @@ func (r *runner) run() error {
 		}
 	}()
 
+	var failed bool
 	for _, testCaseFile := range testCaseFiles {
 		tc, err := r.loadTestCaseFile(testCaseFile)
 		if err != nil {
@@ -71,9 +72,17 @@ func (r *runner) run() error {
 		}
 
 		err = r.verifyResults(testCaseFile, result)
-		if err != nil {
-			return errors.Wrap(err, "writing test result failed")
+		if err == errTestCaseFailed {
+			failed = true
+			continue
 		}
+		if err != nil {
+			return errors.Wrap(err, "verifying test result failed")
+		}
+	}
+
+	if failed {
+		return errors.New("at least one test case failed")
 	}
 	return nil
 }
