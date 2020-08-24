@@ -2,12 +2,13 @@ package pipeline
 
 import (
 	"fmt"
-	"github.com/elastic/elastic-package/internal/elasticsearch"
-	"github.com/pkg/errors"
 	"io/ioutil"
 	"path/filepath"
 	"strings"
 
+	"github.com/pkg/errors"
+
+	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
@@ -133,7 +134,10 @@ func (r *runner) verifyResults(testCaseFile string, result *testResult) error {
 		}
 	}
 
-	// TODO compare results
+	err := compareResults(testCasePath, result)
+	if err != nil {
+		return errors.Wrap(err, "results comparison failed")
+	}
 	return nil
 }
 
