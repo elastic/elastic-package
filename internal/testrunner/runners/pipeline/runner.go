@@ -144,8 +144,11 @@ func (r *runner) verifyResults(testCaseFile string, result *testResult) error {
 	}
 
 	err := compareResults(testCasePath, result)
+	if err == errTestCaseFailed {
+		return errTestCaseFailed
+	}
 	if err != nil {
-		return errors.Wrap(err, "results comparison failed")
+		return errors.Wrap(err, "comparing test results failed")
 	}
 	return nil
 }

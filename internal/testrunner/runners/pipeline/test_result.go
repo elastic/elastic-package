@@ -3,10 +3,10 @@ package pipeline
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/kylelemons/godebug/diff"
 	"io/ioutil"
 	"path/filepath"
 
+	"github.com/kylelemons/godebug/diff"
 	"github.com/pkg/errors"
 )
 
