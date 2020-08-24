@@ -48,7 +48,7 @@ func compareResults(testCasePath string, result *testResult) error {
 		return errors.Wrap(err, "reading expected test result failed")
 	}
 
-	report := diff.Diff(string(current), string(expected))
+	report := diff.Diff(string(expected), string(current))
 	if report != "" {
 		fmt.Println("Expected results are different from current ones:")
 		fmt.Println(report)
