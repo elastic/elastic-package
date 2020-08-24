@@ -123,9 +123,13 @@ func convertPipelineToJSON(pipelines []pipelineResource) ([]pipelineResource, er
 
 func installPipelinesInElasticsearch(esClient *elasticsearch.Client, pipelines []pipelineResource) error {
 	for _, pipeline := range pipelines {
-		_, err := esClient.API.Ingest.PutPipeline(pipeline.name, bytes.NewReader(pipeline.content))
+		r, err := esClient.API.Ingest.PutPipeline(pipeline.name, bytes.NewReader(pipeline.content))
 		if err != nil {
 			return errors.Wrapf(err, "PutPipeline API call failed (pipelineName: %s)", pipeline.name)
+		}
+
+		if r.StatusCode != 200 {
+			return fmt.Errorf("unexpected response status (%d): %s", r.StatusCode, r.Status())
 		}
 	}
 	return nil
