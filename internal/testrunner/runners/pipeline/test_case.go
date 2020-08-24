@@ -15,17 +15,8 @@ type testCase struct {
 	events []json.RawMessage
 }
 
-type testResult struct {
-	events []json.RawMessage
-}
-
 type testCaseDefinition struct {
 	Events []json.RawMessage `json:"events"`
-}
-
-type testConfig struct {
-	Multiline *multiline             `json:"multiline"`
-	Fields    map[string]interface{} `json:"fields"`
 }
 
 type multiline struct {
@@ -44,16 +35,8 @@ func createTestCaseForEvents(filename string, inputData []byte) (*testCase, erro
 	}, nil
 }
 
-func createTestCaseForRawInput(filename string, inputData, configData []byte) (*testCase, error) {
-	var c testConfig
-	if configData != nil {
-		err := json.Unmarshal(configData, &c)
-		if err != nil {
-			return nil, errors.Wrap(err, "unmarshalling test config failed")
-		}
-	}
-
-	entries, err := readRawInputEntries(inputData, c)
+func createTestCaseForRawInput(filename string, inputData []byte, config testConfig) (*testCase, error) {
+	entries, err := readRawInputEntries(inputData, config)
 	if err != nil {
 		return nil, errors.Wrap(err, "reading raw input entries failed")
 	}
@@ -63,7 +46,7 @@ func createTestCaseForRawInput(filename string, inputData, configData []byte) (*
 		event := map[string]interface{}{}
 		event["message"] = entry
 
-		for k, v := range c.Fields {
+		for k, v := range config.Fields {
 			event[k] = v
 		}
 
