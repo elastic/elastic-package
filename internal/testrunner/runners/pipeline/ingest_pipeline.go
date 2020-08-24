@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"strings"
+	"text/template"
 	"time"
 
 	"github.com/pkg/errors"
@@ -80,7 +81,24 @@ func loadIngestPipelineFiles(datasetPath string) ([]pipelineResource, error) {
 }
 
 func renderPipelineTemplates(pipelines []pipelineResource, nonce int64) ([]pipelineResource, error) {
-	return nil, errors.New("not implemented yet") // TODO
+	var rendered []pipelineResource
+
+	for _, pipeline := range rendered {
+		t, err := template.New("pipeline").
+			Funcs(map[string]interface{}{
+				"IngestPipeline": func(pipelineName string) string {
+					return ""
+				},},
+			).
+			ParseFiles(string(pipeline.content))
+		if err != nil {
+			return nil, errors.Wrap(err, "parsing ingest pipeline failed")
+		}
+
+		t.Execute()
+	}
+
+	return rendered, nil
 }
 
 func convertPipelineToJSON(pipelines []pipelineResource) ([]pipelineResource, error) {
