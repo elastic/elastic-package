@@ -29,6 +29,7 @@ func setupTestCommand() *cobra.Command {
 
 	cmd.PersistentFlags().BoolP(cobraext.FailOnMissingFlagName, "m", false, cobraext.FailOnMissingFlagDescription)
 	cmd.PersistentFlags().StringP(cobraext.DatasetFlagName, "d", "", cobraext.DatasetFlagDescription)
+	cmd.PersistentFlags().StringP(cobraext.GenerateTestResultFlagName, "g", "", cobraext.GenerateTestResultFlagDescription)
 
 	for _, testType := range testrunner.TestTypes() {
 		action := testTypeCommandActionFactory(testType)
@@ -84,7 +85,9 @@ func testTypeCommandActionFactory(testType testrunner.TestType) cobraext.Command
 		}
 
 		for _, path := range testFolderPaths {
-			if err := testrunner.Run(testType, path); err != nil {
+			if err := testrunner.Run(testType, testrunner.TestOptions{
+				TestFolderPath: path,
+			}); err != nil {
 				return errors.Wrapf(err, "error running package %s tests", testType)
 			}
 		}

@@ -12,8 +12,13 @@ import (
 // TestType represents the various supported test types
 type TestType string
 
+// TestOptions contains test runner options.
+type TestOptions struct {
+	TestFolderPath string
+}
+
 // RunFunc method defines main run function of a test runner.
-type RunFunc func(testFolderPath string) error
+type RunFunc func(options TestOptions) error
 
 var runners = map[TestType]RunFunc{}
 
@@ -55,12 +60,12 @@ func RegisterRunner(testType TestType, runFunc RunFunc) {
 }
 
 // Run method delegates execution to the registered test runner, based on the test type.
-func Run(testType TestType, testFolderPath string) error {
+func Run(testType TestType, options TestOptions) error {
 	runFunc, defined := runners[testType]
 	if !defined {
 		return fmt.Errorf("unregistered runner test: %s", testType)
 	}
-	return runFunc(testFolderPath)
+	return runFunc(options)
 }
 
 // TestTypes method returns registered test types.

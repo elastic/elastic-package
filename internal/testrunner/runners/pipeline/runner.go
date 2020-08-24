@@ -18,12 +18,12 @@ const (
 )
 
 type runner struct {
-	testFolderPath string
+	options testrunner.TestOptions
 }
 
 // Run runs the pipeline tests defined under the given folder
-func Run(testFolderPath string) error {
-	r := runner{testFolderPath}
+func Run(options testrunner.TestOptions) error {
+	r := runner{options}
 	return r.run()
 }
 
@@ -33,7 +33,7 @@ func (r *runner) run() error {
 		return errors.Wrap(err, "listing test case definitions failed")
 	}
 
-	datasetPath, found, err := packages.FindDatasetRootForPath(r.testFolderPath)
+	datasetPath, found, err := packages.FindDatasetRootForPath(r.options.TestFolderPath)
 	if err != nil {
 		return errors.Wrap(err, "locating dataset root failed")
 	}
@@ -78,9 +78,9 @@ func (r *runner) run() error {
 }
 
 func (r *runner) listTestCaseFiles() ([]string, error) {
-	fis, err := ioutil.ReadDir(r.testFolderPath)
+	fis, err := ioutil.ReadDir(r.options.TestFolderPath)
 	if err != nil {
-		return nil, errors.Wrapf(err, "reading pipeline tests failed (path: %s)", r.testFolderPath)
+		return nil, errors.Wrapf(err, "reading pipeline tests failed (path: %s)", r.options.TestFolderPath)
 	}
 
 	var files []string
@@ -94,7 +94,7 @@ func (r *runner) listTestCaseFiles() ([]string, error) {
 }
 
 func (r *runner) loadTestCaseFile(testCaseFile string) (*testCase, error) {
-	testCasePath := filepath.Join(r.testFolderPath, testCaseFile)
+	testCasePath := filepath.Join(r.options.TestFolderPath, testCaseFile)
 	testCaseData, err := ioutil.ReadFile(testCasePath)
 	if err != nil {
 		return nil, errors.Wrapf(err, "reading input file failed (testCasePath: %s)", testCasePath)
@@ -124,7 +124,7 @@ func (r *runner) loadTestCaseFile(testCaseFile string) (*testCase, error) {
 }
 
 func (r *runner) verifyResults(testCaseFile string, result *testResult) error {
-	testCasePath := filepath.Join(r.testFolderPath, testCaseFile)
+	testCasePath := filepath.Join(r.options.TestFolderPath, testCaseFile)
 
 	// TODO Check "generate" flag
 	err := writeTestResult(testCasePath, result)
