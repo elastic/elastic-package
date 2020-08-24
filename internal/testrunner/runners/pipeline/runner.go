@@ -50,7 +50,7 @@ func (r *runner) run() error {
 		return errors.New("installing ingest pipelines failed")
 	}
 	defer func() {
-		err := uninstallIngestPipeline(pipelineIDs)
+		err := uninstallIngestPipelines(pipelineIDs)
 		if err != nil {
 			fmt.Printf("uninstalling ingest pipelines failed: %v", err)
 		}
