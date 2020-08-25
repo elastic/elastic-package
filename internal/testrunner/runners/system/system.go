@@ -104,10 +104,11 @@ func (r *runner) run() error {
 		}
 	}()
 
-	// TODO: add package to policy, enable datastream, and configure it
 	// TODO: build data stream config by taking appropriate vars sections from package manifest + dataset manifest,
-	// starting with defaults, then overridding with vars from {dataset}/_dev/test/system/vars.yml. See expected
-	// structure in im.AddPackageToPolicy method
+	// starting with defaults, then overridding with vars from {dataset}/_dev/test/system/vars.yml. Then treat result
+	// as go template and evaulate against ctxt. See expected final structure in im.AddPackageToPolicy method.
+
+	// TODO: add package/datastream config to policy (im.AddPackageToPolicy)
 
 	fmt.Println(policy)
 
