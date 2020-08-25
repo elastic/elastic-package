@@ -62,6 +62,98 @@ func (c *Client) DeletePolicy(p Policy) error {
 	return nil
 }
 
+func (c *Client) AddPackageToPolicy(p Policy, pkg Package) error {
+	json := `
+{
+  "name":"apache-1",
+  "description":"",
+  "namespace":"ep",
+  "policy_id":"5cbde330-e672-11ea-b5be-15057523bf1c",
+  "enabled":true,
+  "output_id":"",
+  "inputs":[
+    {
+      "type":"logfile",
+      "enabled":true,
+      "streams":[
+        {
+          "id":"logfile-apache.access",
+          "enabled":true,
+          "data_stream":{
+            "type":"logs",
+            "dataset":"apache.access"
+          },
+          "vars":{
+            "paths":{
+              "value":[
+                "/var/log/apache2/access.log*",
+                "/var/log/apache2/other_vhosts_access.log*",
+                "/var/log/httpd/access_log*"
+              ],
+              "type":"text"
+            }
+          }
+        },
+        {
+          "id":"logfile-apache.error",
+          "enabled":true,
+          "data_stream":{
+            "type":"logs",
+            "dataset":"apache.error"
+          },
+          "vars":{
+            "paths":{
+              "value":[
+                "/var/log/apache2/error.log*",
+                "/var/log/httpd/error_log*"
+              ],
+              "type":"text"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type":"apache/metrics",
+      "enabled":true,
+      "streams":[
+        {
+          "id":"apache/metrics-apache.status",
+          "enabled":true,
+          "data_stream":{
+            "type":"metrics",
+            "dataset":"apache.status"
+          },
+          "vars":{
+            "period":{
+              "value":"10s",
+              "type":"text"
+            },
+            "server_status_path":{
+              "value":"/server-status",
+              "type":"text"
+            }
+          }
+        }
+      ],
+      "vars":{
+        "hosts":{
+          "value":[
+            "http://127.0.0.1"
+          ],
+          "type":"text"
+        }
+      }
+    }
+  ],
+  "package":{
+    "name":"apache",
+    "title":"Apache",
+    "version":"0.1.4"
+  }
+}`
+}
+
 func (c *Client) post(resourcePath string, reqBody io.Reader) (int, []byte, error) {
 	url := c.apiBaseUrl + "/" + resourcePath
 	req, err := http.NewRequest(http.MethodPost, url, reqBody)

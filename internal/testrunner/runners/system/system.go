@@ -7,6 +7,7 @@ package system
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/pkg/errors"
 
@@ -65,8 +66,10 @@ func (r *runner) run() error {
 	ctxt := common.MapStr{}
 	ctxt, err = serviceRunner.SetUp(ctxt)
 	defer func() {
-		logger.Info("Tearing down service...")
-		serviceRunner.TearDown(ctxt)
+		logger.Info("tearing down service...")
+		if err := serviceRunner.TearDown(ctxt); err != nil {
+			logger.Errorf("error tearing down service: %s", err)
+		}
 	}()
 	if err != nil {
 		return errors.Wrap(err, "could not setup service")
@@ -77,6 +80,7 @@ func (r *runner) run() error {
 	// to be deployed "close to" the service? So for docker-compose based services,
 	// we could use the Agent Docker image, for TF-based services, we use TF to
 	// deploy the agent "near" the service, etc.?
+	// TODO: mount ctxt.Get("stdoutFilePath") and ctxt.Get("stderrFilePath")
 
 	// Step 3. Configure package (single data stream) via Ingest Manager APIs.
 	im, err := ingestmanager.NewClient(r.stackSettings.kibana.host, r.stackSettings.elasticsearch.username, r.stackSettings.elasticsearch.password)
@@ -93,7 +97,17 @@ func (r *runner) run() error {
 	if err != nil {
 		return errors.Wrap(err, "could not create policy")
 	}
-	defer im.DeletePolicy(*policy)
+	defer func() {
+		time.Sleep(5 * time.Minute) // TODO: remove
+		if err := im.DeletePolicy(*policy); err != nil {
+			logger.Errorf("error cleaning up policy: %s", err)
+		}
+	}()
+
+	// TODO: add package to policy, enable datastream, and configure it
+	// TODO: build data stream config by taking appropriate vars sections from package manifest + dataset manifest,
+	// starting with defaults, then overridding with vars from {dataset}/_dev/test/system/vars.yml. See expected
+	// structure in im.AddPackageToPolicy method
 
 	fmt.Println(policy)
 

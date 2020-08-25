@@ -33,6 +33,12 @@ func (r *DockerComposeRunner) SetUp(ctxt common.MapStr) (common.MapStr, error) {
 	//}
 	//r.network = network
 
+	// TODO: Write stdout and stderr streams to local filesystem files
+	// TODO: Return locations of stdout and stderr local files
+	newCtxt := ctxt
+	newCtxt.Put("stdoutFilePath": "/tmp/foo/bar/TODO-stdout")
+	newCtxt.Put("stderrFilePath": "/tmp/foo/bar/TODO-stderr")
+
 	// TODO
 	return ctxt, nil
 }
