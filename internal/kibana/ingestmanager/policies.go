@@ -11,6 +11,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/stack"
 )
 
@@ -62,96 +63,119 @@ func (c *Client) DeletePolicy(p Policy) error {
 	return nil
 }
 
-func (c *Client) AddPackageToPolicy(p Policy, pkg Package) error {
-	json := `
-{
-  "name":"apache-1",
-  "description":"",
-  "namespace":"ep",
-  "policy_id":"5cbde330-e672-11ea-b5be-15057523bf1c",
-  "enabled":true,
-  "output_id":"",
-  "inputs":[
-    {
-      "type":"logfile",
-      "enabled":true,
-      "streams":[
-        {
-          "id":"logfile-apache.access",
-          "enabled":true,
-          "data_stream":{
-            "type":"logs",
-            "dataset":"apache.access"
-          },
-          "vars":{
-            "paths":{
-              "value":[
-                "/var/log/apache2/access.log*",
-                "/var/log/apache2/other_vhosts_access.log*",
-                "/var/log/httpd/access_log*"
-              ],
-              "type":"text"
-            }
-          }
-        },
-        {
-          "id":"logfile-apache.error",
-          "enabled":true,
-          "data_stream":{
-            "type":"logs",
-            "dataset":"apache.error"
-          },
-          "vars":{
-            "paths":{
-              "value":[
-                "/var/log/apache2/error.log*",
-                "/var/log/httpd/error_log*"
-              ],
-              "type":"text"
-            }
-          }
-        }
-      ]
-    },
-    {
-      "type":"apache/metrics",
-      "enabled":true,
-      "streams":[
-        {
-          "id":"apache/metrics-apache.status",
-          "enabled":true,
-          "data_stream":{
-            "type":"metrics",
-            "dataset":"apache.status"
-          },
-          "vars":{
-            "period":{
-              "value":"10s",
-              "type":"text"
-            },
-            "server_status_path":{
-              "value":"/server-status",
-              "type":"text"
-            }
-          }
-        }
-      ],
-      "vars":{
-        "hosts":{
-          "value":[
-            "http://127.0.0.1"
-          ],
-          "type":"text"
-        }
-      }
-    }
-  ],
-  "package":{
-    "name":"apache",
-    "title":"Apache",
-    "version":"0.1.4"
-  }
-}`
+type varType struct {
+	Value packages.VarValue `json:"value"`
+	Type  string            `json:"type"`
+}
+
+type vars map[string]varType
+
+type datastream struct {
+	Type    string `json:"type"`
+	Dataset string `json:"dataset"`
+}
+
+type stream struct {
+	ID         string     `json:"id"`
+	Enabled    bool       `json:"enabled"`
+	DataStream datastream `json:"data_stream"`
+	Vars       vars       `json:"vars"`
+}
+
+type input struct {
+	Type    string   `json:"type"`
+	Enabled bool     `json:"enabled"`
+	Streams []stream `json:"streams"`
+	Vars    vars     `json:"vars"`
+}
+
+func (c *Client) AddPackageDataStreamToPolicy(p Policy, pkg packages.PackageManifest, ds packages.DatasetManifest) error {
+	streamInput := ds.Streams[0].Input
+
+	r := struct {
+		Name        string  `json:"name"`
+		Description string  `json:"description"`
+		Namespace   string  `json:"namespace"`
+		PolicyID    string  `json:"policy_id"`
+		Enabled     bool    `json:"enabled"`
+		OutputID    string  `json:"output_id"`
+		Inputs      []input `json:"inputs"`
+		Package     struct {
+			Name    string `json:"name"`
+			Title   string `json:"title"`
+			Version string `json:"version"`
+		} `json:"package"`
+	}{
+		Name:      fmt.Sprintf("%s-%s", pkg.Name, ds.Name),
+		Namespace: "ep",
+		PolicyID:  p.ID,
+		Enabled:   true,
+	}
+
+	r.Package.Name = pkg.Name
+	r.Package.Title = pkg.Title
+	r.Package.Version = pkg.Version
+
+	r.Inputs = []input{
+		{
+			Type:    streamInput,
+			Enabled: true,
+		},
+	}
+
+	streams := []stream{
+		{
+			ID:      fmt.Sprintf("%s-%s.%s", streamInput, pkg.Name, ds.Name),
+			Enabled: true,
+			DataStream: datastream{
+				Type:    ds.Type,
+				Dataset: fmt.Sprintf("%s-%s", pkg.Name, ds.Name),
+			},
+		},
+	}
+
+	// Add dataset-level vars
+	dsVars := vars{}
+	for _, dsVar := range ds.Streams[0].Vars {
+		dsVars[dsVar.Name] = varType{
+			Type:  dsVar.Type,
+			Value: dsVar.Default,
+		}
+		// TODO: overlay var values from test configuration
+	}
+	streams[0].Vars = dsVars
+	r.Inputs[0].Streams = streams
+
+	// Add package-level vars
+	pkgVars := vars{}
+	input := pkg.ConfigTemplates[0].FindInputByType(streamInput)
+	if input != nil {
+		for _, pkgVar := range input.Vars {
+			pkgVars[pkgVar.Name] = varType{
+				Type:  pkgVar.Type,
+				Value: pkgVar.Default,
+			}
+			// TODO: overlay var values from test configuration
+		}
+	}
+	r.Inputs[0].Vars = pkgVars
+
+	reqBody, err := json.Marshal(r)
+	if err != nil {
+		return errors.Wrap(err, "could not convert policy-package (request) to JSON")
+	}
+
+	statusCode, respBody, err := c.post("agent_policies", bytes.NewReader(reqBody))
+	if err != nil {
+		return errors.Wrap(err, "could not add package to policy")
+	}
+
+	if statusCode != 200 {
+		fmt.Println(respBody)
+		return fmt.Errorf("could not add package to policy; API status code = %d", statusCode)
+	}
+
+	return nil
 }
 
 func (c *Client) post(resourcePath string, reqBody io.Reader) (int, []byte, error) {

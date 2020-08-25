@@ -5,6 +5,7 @@
 package packages
 
 import (
+	"encoding/json"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -21,20 +22,49 @@ const (
 	DatasetManifestFile = "manifest.yml"
 )
 
+type VarValue interface {
+	json.Marshaler
+	yaml.Marshaler
+	json.Unmarshaler
+	yaml.Unmarshaler
+}
+
+type variable struct {
+	Name    string   `json:"name"`
+	Type    string   `json:"type"`
+	Default VarValue `json:"default"`
+}
+
+type input struct {
+	Type string     `json:"type"`
+	Vars []variable `json:"vars"`
+}
+
+type configTemplate struct {
+	Inputs []input `json:"inputs"`
+}
+
 // PackageManifest represents the basic structure of a package's manifest
 type PackageManifest struct {
-	Name    string `json:"name"`
-	Type    string `json:"type"`
-	Version string `json:"version"`
+	Name            string           `json:"name"`
+	Title           string           `json:"title"`
+	Type            string           `json:"type"`
+	Version         string           `json:"version"`
+	ConfigTemplates []configTemplate `json:"config_templates"`
 }
 
 // DatasetManifest represents the structure of a dataset's manifest
 type DatasetManifest struct {
+	Name          string `json:"name"`
 	Title         string `json:"title"`
 	Type          string `json:"type"`
 	Elasticsearch *struct {
 		IngestPipelineName string `json:"ingest_pipeline.name"`
 	} `json:"elasticsearch"`
+	Streams []struct {
+		Input string     `json:"input"`
+		Vars  []variable `json:"vars"`
+	} `json:"streams"`
 }
 
 // FindPackageRoot finds and returns the path to the root folder of a package.
@@ -118,6 +148,15 @@ func ReadDatasetManifest(path string) (*DatasetManifest, error) {
 		return nil, errors.Wrapf(err, "unmarshalling dataset manifest failed (path: %s)", path)
 	}
 	return &m, nil
+}
+
+func (ct *configTemplate) FindInputByType(inputType string) *input {
+	for _, input := range ct.Inputs {
+		if input.Type == inputType {
+			return &input
+		}
+	}
+	return nil
 }
 
 func isPackageManifest(path string) (bool, error) {
