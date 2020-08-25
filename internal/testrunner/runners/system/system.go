@@ -7,6 +7,7 @@ package system
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/pkg/errors"
@@ -14,6 +15,7 @@ import (
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/kibana/ingestmanager"
 	"github.com/elastic/elastic-package/internal/logger"
+	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/testrunner"
 	"github.com/elastic/elastic-package/internal/testrunner/runners/system/servicedeployer"
 )
@@ -55,6 +57,24 @@ func Run(options testrunner.TestOptions) error {
 }
 
 func (r *runner) run() error {
+	pkgManifest, err := packages.ReadPackageManifest(filepath.Join(r.packageRootPath, packages.PackageManifestFile))
+	if err != nil {
+		return errors.Wrap(err, "reading package manifest failed")
+	}
+
+	datasetPath, found, err := packages.FindDatasetRootForPath(r.testFolder.Path)
+	if err != nil {
+		return errors.Wrap(err, "locating dataset root failed")
+	}
+	if !found {
+		return errors.New("dataset root not found")
+	}
+
+	datasetManifest, err := packages.ReadDatasetManifest(filepath.Join(datasetPath, packages.DatasetManifestFile))
+	if err != nil {
+		return errors.Wrap(err, "reading dataset manifest failed")
+	}
+
 	// Step 1. Setup service.
 	// Step 1a. (Deferred) Tear down service.
 	logger.Info("Setting up service...")
@@ -108,7 +128,9 @@ func (r *runner) run() error {
 	// starting with defaults, then overridding with vars from {dataset}/_dev/test/system/vars.yml. Then treat result
 	// as go template and evaulate against ctxt. See expected final structure in im.AddPackageDataStreamToPolicy method.
 
-	// TODO: add package/datastream config to policy (im.AddPackageDataStreamToPolicy)
+	if err := im.AddPackageDataStreamToPolicy(p, *pkgManifest, *datasetManifest); err != nil {
+		return errors.Wrap(err, "could not add dataset config to policy")
+	}
 
 	fmt.Println(policy)
 
