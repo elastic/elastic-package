@@ -3,6 +3,7 @@ package pipeline
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/elastic/elastic-package/internal/logger"
 	"io/ioutil"
 	"path/filepath"
 
@@ -50,8 +51,8 @@ func compareResults(testCasePath string, result *testResult) error {
 
 	report := diff.Diff(string(expected), string(current))
 	if report != "" {
-		fmt.Println("Expected results are different from current ones:")
-		fmt.Println(report)
+		logger.Warnf("Expected results are different from current ones:")
+		logger.Warn(report)
 		return errTestCaseFailed
 	}
 	return nil

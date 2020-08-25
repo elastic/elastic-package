@@ -2,6 +2,7 @@ package pipeline
 
 import (
 	"fmt"
+	"github.com/elastic/elastic-package/internal/logger"
 	"io/ioutil"
 	"path/filepath"
 	"strings"
@@ -54,7 +55,7 @@ func (r *runner) run() error {
 	defer func() {
 		err := uninstallIngestPipelines(esClient, pipelineIDs)
 		if err != nil {
-			fmt.Printf("uninstalling ingest pipelines failed: %v", err)
+			logger.Warnf("uninstalling ingest pipelines failed: %v", err)
 		}
 	}()
 
