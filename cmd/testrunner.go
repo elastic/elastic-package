@@ -28,6 +28,7 @@ func setupTestCommand() *cobra.Command {
 		}}
 
 	cmd.PersistentFlags().BoolP(cobraext.FailOnMissingFlagName, "m", false, cobraext.FailOnMissingFlagDescription)
+	cmd.PersistentFlags().BoolP(cobraext.GenerateTestResultFlagName, "g", false, cobraext.GenerateTestResultFlagDescription)
 	cmd.PersistentFlags().StringP(cobraext.DatasetFlagName, "d", "", cobraext.DatasetFlagDescription)
 
 	for _, testType := range testrunner.TestTypes() {
@@ -63,6 +64,11 @@ func testTypeCommandActionFactory(testType testrunner.TestType) cobraext.Command
 			datasets = strings.Split(dataset, ",")
 		}
 
+		generateTestResult, err := cmd.Flags().GetBool(cobraext.GenerateTestResultFlagName)
+		if err != nil {
+			return cobraext.FlagParsingError(err, cobraext.GenerateTestResultFlagName)
+		}
+
 		packageRootPath, found, err := packages.FindPackageRoot()
 		if !found {
 			return errors.New("package root not found")
@@ -84,7 +90,10 @@ func testTypeCommandActionFactory(testType testrunner.TestType) cobraext.Command
 		}
 
 		for _, path := range testFolderPaths {
-			if err := testrunner.Run(testType, path); err != nil {
+			if err := testrunner.Run(testType, testrunner.TestOptions{
+				TestFolderPath:     path,
+				GenerateTestResult: generateTestResult,
+			}); err != nil {
 				return errors.Wrapf(err, "error running package %s tests", testType)
 			}
 		}

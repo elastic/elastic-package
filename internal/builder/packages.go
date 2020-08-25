@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/elastic/elastic-package/internal/files"
+	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 
 	"github.com/pkg/errors"
@@ -71,27 +72,25 @@ func buildPackage(sourcePath string) error {
 	}
 
 	destinationDir := filepath.Join(buildDir, m.Name, m.Version)
-	fmt.Printf("Build directory: %s\n", destinationDir)
+	logger.Debugf("Build directory: %s\n", destinationDir)
 
-	fmt.Printf("Clear target directory (path: %s)\n", destinationDir)
+	logger.Debugf("Clear target directory (path: %s)", destinationDir)
 	err = files.ClearDir(destinationDir)
 	if err != nil {
 		return errors.Wrap(err, "clearing package contents failed")
 	}
 
-	fmt.Printf("Copy package content (source: %s)\n", sourcePath)
-	err = files.CopyAll(sourcePath, destinationDir)
+	logger.Debugf("Copy package content (source: %s)", sourcePath)
+	err = files.CopyWithoutDev(sourcePath, destinationDir)
 	if err != nil {
 		return errors.Wrap(err, "copying package contents failed")
 	}
 
-	fmt.Println("Encode dashboards")
+	logger.Debug("Encode dashboards")
 	err = encodeDashboards(destinationDir)
 	if err != nil {
 		return errors.Wrap(err, "encoding dashboards failed")
 	}
-
-	fmt.Println("Done.")
 	return nil
 }
 

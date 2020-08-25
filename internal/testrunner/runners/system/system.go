@@ -16,8 +16,8 @@ type runner struct {
 }
 
 // Run runs the system tests defined under the given folder
-func Run(testFolderPath string) error {
-	r := runner{testFolderPath}
+func Run(options testrunner.TestOptions) error {
+	r := runner{options.TestFolderPath}
 	return r.run()
 }
 

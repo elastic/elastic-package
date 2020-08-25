@@ -14,6 +14,9 @@ const (
 	FailFastFlagName        = "fail-fast"
 	FailFastFlagDescription = "fail immediately if any file requires updates"
 
+	GenerateTestResultFlagName        = "generate"
+	GenerateTestResultFlagDescription = "generate test result file"
+
 	VerboseFlagName        = "verbose"
 	VerboseFlagDescription = "verbose mode"
 

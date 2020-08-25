@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"fmt"
+
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
@@ -71,7 +73,7 @@ func setupStackCommand() *cobra.Command {
 			if err != nil {
 				return errors.Wrap(err, "shellinit failed")
 			}
-			cmd.Println(shell)
+			fmt.Println(shell)
 			return nil
 		},
 	}
