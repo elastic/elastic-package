@@ -9,7 +9,8 @@ import (
 )
 
 type Agent struct {
-	ID string `json:"id"`
+	ID       string `json:"id"`
+	PolicyID string `json:"policy_id"`
 }
 
 func (c *Client) ListAgents() ([]Agent, error) {

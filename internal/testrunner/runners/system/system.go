@@ -141,12 +141,19 @@ func (r *runner) run() error {
 		return errors.New("no agents found")
 	}
 	agent := agents[0]
+	origPolicy := ingestmanager.Policy{
+		ID: agent.PolicyID,
+	}
 
 	// Assign policy to agent
 	if err := im.AssignPolicyToAgent(agent, *policy); err != nil {
 		return errors.Wrap(err, "could not assign policy to agent")
-
 	}
+	defer func() {
+		if err := im.AssignPolicyToAgent(agent, origPolicy); err != nil {
+			logger.Errorf("error reassigning original policy to agent: %s", err)
+		}
+	}()
 
 	// Step 4. (TODO in future) Optionally exercise service to generate load.
 
