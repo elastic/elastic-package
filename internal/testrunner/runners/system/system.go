@@ -118,7 +118,7 @@ func (r *runner) run() error {
 		return errors.Wrap(err, "could not create policy")
 	}
 	defer func() {
-		time.Sleep(30 * time.Second) // TODO: remove
+		time.Sleep(1 * time.Minute) // TODO: remove
 		if err := im.DeletePolicy(*policy); err != nil {
 			logger.Errorf("error cleaning up policy: %s", err)
 		}
@@ -132,7 +132,21 @@ func (r *runner) run() error {
 		return errors.Wrap(err, "could not add dataset config to policy")
 	}
 
-	fmt.Println(policy)
+	// Get enrolled agent ID
+	agents, err := im.ListAgents()
+	if err != nil {
+		return errors.Wrap(err, "could not list agents")
+	}
+	if agents == nil || len(agents) == 0 {
+		return errors.New("no agents found")
+	}
+	agent := agents[0]
+
+	// Assign policy to agent
+	if err := im.AssignPolicyToAgent(agent, *policy); err != nil {
+		return errors.Wrap(err, "could not assign policy to agent")
+
+	}
 
 	// Step 4. (TODO in future) Optionally exercise service to generate load.
 
