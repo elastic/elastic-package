@@ -3,7 +3,6 @@ package ingestmanager
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
 
 	"github.com/pkg/errors"
 )
@@ -39,13 +38,13 @@ func (c *Client) AssignPolicyToAgent(a Agent, p Policy) error {
 	reqBody := `{ "policy_id": "` + p.ID + `" }`
 
 	path := fmt.Sprintf("fleet/agents/%s/reassign", a.ID)
-	statusCode, _, err := c.put(path, strings.NewReader(reqBody))
+	statusCode, respBody, err := c.put(path, []byte(reqBody))
 	if err != nil {
 		return errors.Wrap(err, "could not assign policy to agent")
 	}
 
 	if statusCode != 200 {
-		return fmt.Errorf("could not assign policy to agent; API status code = %d", statusCode)
+		return fmt.Errorf("could not assign policy to agent; API status code = %d; response body = %s", statusCode, respBody)
 	}
 
 	return nil

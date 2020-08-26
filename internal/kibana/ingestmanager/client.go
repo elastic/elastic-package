@@ -1,12 +1,13 @@
 package ingestmanager
 
 import (
-	"io"
+	"bytes"
 	"io/ioutil"
 	"net/http"
 
 	"github.com/pkg/errors"
 
+	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/stack"
 )
 
@@ -42,16 +43,21 @@ func (c *Client) get(resourcePath string) (int, []byte, error) {
 	return statusCode, respBody, nil
 }
 
-func (c *Client) post(resourcePath string, reqBody io.Reader) (int, []byte, error) {
-	return c.putOrPost(http.MethodPost, resourcePath, reqBody)
+func (c *Client) post(resourcePath string, body []byte) (int, []byte, error) {
+	return c.putOrPost(http.MethodPost, resourcePath, body)
 }
 
-func (c *Client) put(resourcePath string, reqBody io.Reader) (int, []byte, error) {
-	return c.putOrPost(http.MethodPut, resourcePath, reqBody)
+func (c *Client) put(resourcePath string, body []byte) (int, []byte, error) {
+	return c.putOrPost(http.MethodPut, resourcePath, body)
 }
 
-func (c *Client) putOrPost(method, resourcePath string, reqBody io.Reader) (int, []byte, error) {
+func (c *Client) putOrPost(method, resourcePath string, body []byte) (int, []byte, error) {
+	reqBody := bytes.NewReader(body)
 	url := c.apiBaseUrl + "/" + resourcePath
+
+	logger.Debugf("%s %s", method, url)
+	logger.Debugf("%s", body)
+
 	req, err := http.NewRequest(method, url, reqBody)
 	if err != nil {
 		return 0, nil, errors.Wrapf(err, "could not create POST request to Ingest Manager resource: %s", resourcePath)
