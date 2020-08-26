@@ -118,7 +118,7 @@ func (r *runner) run() error {
 		return errors.Wrap(err, "could not create policy")
 	}
 	defer func() {
-		time.Sleep(5 * time.Minute) // TODO: remove
+		time.Sleep(30 * time.Second) // TODO: remove
 		if err := im.DeletePolicy(*policy); err != nil {
 			logger.Errorf("error cleaning up policy: %s", err)
 		}
@@ -128,7 +128,7 @@ func (r *runner) run() error {
 	// starting with defaults, then overridding with vars from {dataset}/_dev/test/system/vars.yml. Then treat result
 	// as go template and evaulate against ctxt. See expected final structure in im.AddPackageDataStreamToPolicy method.
 
-	if err := im.AddPackageDataStreamToPolicy(p, *pkgManifest, *datasetManifest); err != nil {
+	if err := im.AddPackageDataStreamToPolicy(*policy, *pkgManifest, *datasetManifest); err != nil {
 		return errors.Wrap(err, "could not add dataset config to policy")
 	}
 

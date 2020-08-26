@@ -11,6 +11,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/stack"
 )
@@ -90,8 +91,8 @@ type input struct {
 }
 
 func (c *Client) AddPackageDataStreamToPolicy(p Policy, pkg packages.PackageManifest, ds packages.DatasetManifest) error {
+	logger.Info("adding package datastream to policy")
 	streamInput := ds.Streams[0].Input
-
 	r := struct {
 		Name        string  `json:"name"`
 		Description string  `json:"description"`
@@ -129,7 +130,7 @@ func (c *Client) AddPackageDataStreamToPolicy(p Policy, pkg packages.PackageMani
 			Enabled: true,
 			DataStream: datastream{
 				Type:    ds.Type,
-				Dataset: fmt.Sprintf("%s-%s", pkg.Name, ds.Name),
+				Dataset: fmt.Sprintf("%s.%s", pkg.Name, ds.Name),
 			},
 		},
 	}
@@ -165,13 +166,15 @@ func (c *Client) AddPackageDataStreamToPolicy(p Policy, pkg packages.PackageMani
 		return errors.Wrap(err, "could not convert policy-package (request) to JSON")
 	}
 
-	statusCode, respBody, err := c.post("agent_policies", bytes.NewReader(reqBody))
+	fmt.Println("reqBody:", string(reqBody))
+
+	statusCode, respBody, err := c.post("package_policies", bytes.NewReader(reqBody))
 	if err != nil {
 		return errors.Wrap(err, "could not add package to policy")
 	}
 
 	if statusCode != 200 {
-		fmt.Println(respBody)
+		fmt.Println(string(respBody))
 		return fmt.Errorf("could not add package to policy; API status code = %d", statusCode)
 	}
 

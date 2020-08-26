@@ -22,11 +22,33 @@ const (
 	DatasetManifestFile = "manifest.yml"
 )
 
-type VarValue interface {
-	json.Marshaler
-	yaml.Marshaler
-	json.Unmarshaler
-	yaml.Unmarshaler
+type VarValue struct {
+	scalar string
+	list   []string
+}
+
+func (vv *VarValue) UnmarshalYAML(value *yaml.Node) error {
+	switch value.Kind {
+	case yaml.ScalarNode:
+		vv.scalar = value.Value
+	case yaml.SequenceNode:
+		vv.list = make([]string, len(value.Content))
+		for idx, content := range value.Content {
+			vv.list[idx] = content.Value
+		}
+	default:
+		return errors.New("unknown variable value")
+	}
+	return nil
+}
+
+func (vv VarValue) MarshalJSON() ([]byte, error) {
+	if vv.scalar != "" {
+		return json.Marshal(vv.scalar)
+	} else if vv.list != nil {
+		return json.Marshal(vv.list)
+	}
+	return nil, nil
 }
 
 type variable struct {
@@ -50,7 +72,7 @@ type PackageManifest struct {
 	Title           string           `json:"title"`
 	Type            string           `json:"type"`
 	Version         string           `json:"version"`
-	ConfigTemplates []configTemplate `json:"config_templates"`
+	ConfigTemplates []configTemplate `json:"config_templates" yaml:"config_templates"`
 }
 
 // DatasetManifest represents the structure of a dataset's manifest
@@ -147,6 +169,8 @@ func ReadDatasetManifest(path string) (*DatasetManifest, error) {
 	if err != nil {
 		return nil, errors.Wrapf(err, "unmarshalling dataset manifest failed (path: %s)", path)
 	}
+
+	m.Name = filepath.Base(filepath.Dir(path))
 	return &m, nil
 }
 
