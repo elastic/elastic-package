@@ -77,6 +77,10 @@ services:
         condition: service_healthy
       kibana:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "grep", "Agent is starting", "/usr/share/elastic-agent/elastic-agent.log"]
+      retries: 30
+      interval: 1s
     environment:
     - "FLEET_ENROLL=1"
     - "FLEET_ENROLL_INSECURE=1"
