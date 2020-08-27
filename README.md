@@ -1,12 +1,11 @@
 # elastic-package
 
-The elastic-package is a command line tool, written in Go, used for developing Elastic packages.
-
-*For experimental use only*
+`elastic-package` is a command line tool, written in Go, used for developing Elastic packages.
 
 ## Features
 
-TODO
+`elastic-package` can help you lint, format, test, and build your packages. Learn about each
+of these features in _Commands_ below.
 
 ## Supported package types
 
@@ -24,18 +23,80 @@ Change directory to the package under development. Note: an integration is a spe
 
 ```bash
 cd integrations
-cd package/my-integration
+cd package/my-package
 ```
 
-Run the `help` command and see available actions:
+Run the `help` command and see available commands:
 
 ```bash
 elastic-package help
 ```
 
-## GitHub authorization
+## Commands
 
-The `promote` subcommand requires access to the GitHub API to open pull requests or check authorized account data.
+`elastic-package` current offers the commands listed below. 
+
+Some commands have a global context, meaning that they can be run from anywhere and they will have the 
+same result. Other commands have a package context; these must be run from anywhere under a package's
+root folder and they will operate on the contents of that package.
+
+For more details on a specific command, run `elastic-package help <command>`.
+
+### `elastic-package help`
+
+Use this command to get a listing of all commands available under `elastic-package` and a brief
+description of what each command does.
+
+_Context: global_
+
+### `elastic-package version`
+
+Use this command to print the version of `elastic-package` that you have installed. This is
+especially useful when reporting bugs.
+
+_Context: global_
+
+### `elastic-package build`
+
+Use this command to build a package. TODO: what is the purpose of building a package — when would
+a package developer want/need to run this command?
+
+_Context: package_
+
+### `elastic-package lint`
+
+Use this command to validate the contents of a package.
+
+_Context: package_
+
+### `elastic-package format`
+
+Use this command to format the contents of a package.
+
+_Context: package_
+
+### `elastic-package check`
+
+Use this command to run the `format`, `lint`, and `build` all at once, in that order.
+
+_Context: package_
+
+### `elastic-package stack`
+
+Use this command to spin up a Docker-based Elastic Stack consisting of Elasticsearch, Kibana, and 
+the Package Registry.
+
+_Context: global_
+
+### `elastic-package promote`
+
+Use this command to promote a package to the Snapshot Package Registry.
+
+_Context: package_
+
+#### GitHub authorization
+
+The `promote` command requires access to the GitHub API to open pull requests or check authorized account data.
 The tool uses the GitHub token to authorize user's call to API. The token can be stored in the `~/.elastic/github.token`
 file or passed via the `GITHUB_TOKEN` environment variable.
 
