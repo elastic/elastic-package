@@ -50,12 +50,6 @@ description of what each command does.
 
 _Context: global_
 
-### `elastic-package version`
-
-Use this command to print the version of `elastic-package` that you have installed. This is
-especially useful when reporting bugs.
-
-_Context: global_
 
 ### `elastic-package build`
 
@@ -64,17 +58,6 @@ a package developer want/need to run this command?
 
 _Context: package_
 
-### `elastic-package lint`
-
-Use this command to validate the contents of a package.
-
-_Context: package_
-
-### `elastic-package format`
-
-Use this command to format the contents of a package.
-
-_Context: package_
 
 ### `elastic-package check`
 
@@ -82,12 +65,21 @@ Use this command to run the `format`, `lint`, and `build` commands all at once, 
 
 _Context: package_
 
-### `elastic-package stack`
 
-Use this command to spin up a Docker-based Elastic Stack consisting of Elasticsearch, Kibana, and 
-the Package Registry.
+### `elastic-package format`
 
-_Context: global_
+Use this command to format the contents of a package.
+
+_Context: package_
+
+
+### `elastic-package lint`
+
+Use this command to validate the contents of a package using the 
+[package specification](https://github.com/elastic/package-spec).
+
+_Context: package_
+
 
 ### `elastic-package promote`
 
@@ -107,6 +99,23 @@ https://docs.github.com/en/github/authenticating-to-github/creating-a-personal-a
 Make sure you have enabled the following scopes:
 * `public_repo` — to open pull requests on GitHub repositories.
 * `read:user` and `user:email` — to read your user profile information from GitHub in order to populate pull requests appropriately.
+
+
+### `elastic-package stack`
+
+Use this command to spin up a Docker-based Elastic Stack consisting of Elasticsearch, Kibana, and 
+the Package Registry.
+
+_Context: global_
+
+
+### `elastic-package version`
+
+Use this command to print the version of `elastic-package` that you have installed. This is
+especially useful when reporting bugs.
+
+_Context: global_
+
 
 ## Development
 
