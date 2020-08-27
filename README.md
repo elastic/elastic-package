@@ -104,7 +104,8 @@ Make sure you have enabled the following scopes:
 ### `elastic-package stack`
 
 Use this command to spin up a Docker-based Elastic Stack consisting of Elasticsearch, Kibana, and 
-the Package Registry.
+the Package Registry. By default the latest released version of the stack is spun up but it is possible
+to specify a different version, including SNAPSHOT versions.
 
 _Context: global_
 
