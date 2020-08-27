@@ -5,8 +5,8 @@ const (
 	DaemonModeFlagName        = "daemon"
 	DaemonModeFlagDescription = "daemon mode"
 
-	DatasetFlagName        = "dataset"
-	DatasetFlagDescription = "comma-separated datasets to test"
+	DatasetsFlagName        = "datasets"
+	DatasetsFlagDescription = "comma-separated datasets to test"
 
 	FailOnMissingFlagName        = "fail-on-missing"
 	FailOnMissingFlagDescription = "fail if tests are missing"

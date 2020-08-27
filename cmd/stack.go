@@ -10,10 +10,10 @@ import (
 	"github.com/elastic/elastic-package/internal/stack"
 )
 
-var availableServices = map[string]bool{
-	"elasticsearch":    true,
-	"kibana":           true,
-	"package-registry": true,
+var availableServices = map[string]struct{}{
+	"elasticsearch":    {},
+	"kibana":           {},
+	"package-registry": {},
 }
 
 func setupStackCommand() *cobra.Command {
