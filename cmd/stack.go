@@ -113,7 +113,7 @@ func setupStackCommand() *cobra.Command {
 }
 
 func validateServicesFlag(services []string) error {
-	selected := map[string]bool{}
+	selected := map[string]struct{}{}
 
 	for _, aService := range services {
 		if _, found := availableServices[aService]; !found {
@@ -124,7 +124,7 @@ func validateServicesFlag(services []string) error {
 			return fmt.Errorf("service \"%s\" must be selected at most once", aService)
 		}
 
-		selected[aService] = true
+		selected[aService] = struct{}{}
 	}
 	return nil
 }
