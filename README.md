@@ -28,7 +28,7 @@ elastic-package help
 
 ## Commands
 
-`elastic-package` current offers the commands listed below. 
+`elastic-package` currently offers the commands listed below. 
 
 Some commands have a _global context_, meaning that they can be run from anywhere and they will have the 
 same result. Other commands have a _package context_; these must be run from anywhere under a package's
