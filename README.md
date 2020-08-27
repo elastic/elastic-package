@@ -1,15 +1,9 @@
 # elastic-package
 
-`elastic-package` is a command line tool, written in Go, used for developing Elastic packages.
+`elastic-package` is a command line tool, written in Go, used for developing Elastic packages. It can help you lint, format, 
+test, build, and promote your packages. Learn about each of these and other features in [_Commands_](#commands) below.
 
-## Features
-
-`elastic-package` can help you lint, format, test, and build your packages. Learn about each
-of these features in _Commands_ below.
-
-## Supported package types
-
-* [Elastic Integrations](https://github.com/elastic/integrations)
+Currently, `elastic-package` only supports packages of type [Elastic Integrations](https://github.com/elastic/integrations).
 
 ## Getting started
 
