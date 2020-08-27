@@ -25,6 +25,8 @@ func setupPromoteCommand() *cobra.Command {
 }
 
 func promoteCommandAction(cmd *cobra.Command, args []string) error {
+	cmd.Println("Promote packages")
+
 	// Setup GitHub
 	err := github.EnsureAuthConfigured()
 	if err != nil {
@@ -109,6 +111,8 @@ func promoteCommandAction(cmd *cobra.Command, args []string) error {
 		return errors.Wrapf(err, "opening PR with removed packages failed (head: %s, base: %s)", newDestinationStage, destinationStage)
 	}
 	cmd.Println("Pull request with removed packages:", url)
+
+	cmd.Println("Done")
 	return nil
 }
 

@@ -1,7 +1,6 @@
 package builder
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 
@@ -53,8 +52,6 @@ func FindBuildPackagesDirectory() (string, bool, error) {
 }
 
 func buildPackage(sourcePath string) error {
-	fmt.Printf("Building package: %s\n", sourcePath)
-
 	buildDir, found, err := FindBuildPackagesDirectory()
 	if err != nil {
 		return errors.Wrap(err, "locating build directory failed")

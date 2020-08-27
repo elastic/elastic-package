@@ -21,6 +21,8 @@ func setupFormatCommand() *cobra.Command {
 }
 
 func formatCommandAction(cmd *cobra.Command, args []string) error {
+	cmd.Println("Format the package")
+
 	packageRoot, found, err := packages.FindPackageRoot()
 	if err != nil {
 		return errors.Wrap(err, "locating package root failed")
@@ -38,5 +40,7 @@ func formatCommandAction(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return errors.Wrapf(err, "formatting the integration failed (path: %s, failFast: %t)", packageRoot, ff)
 	}
+
+	cmd.Println("Done")
 	return nil
 }

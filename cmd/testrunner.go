@@ -21,9 +21,12 @@ func setupTestCommand() *cobra.Command {
 		Short: "Run test suite for the package",
 		Long:  "Use test runners to verify if the package collects logs and metrics properly.",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			cmd.Println("Run test suite for the package")
+
 			if len(args) > 0 {
 				return fmt.Errorf("unsupported test type: %s", args[0])
 			}
+
 			return cobraext.ComposeCommandActions(cmd, args, testTypeCmdActions...)
 		}}
 
@@ -38,7 +41,7 @@ func setupTestCommand() *cobra.Command {
 		testTypeCmd := &cobra.Command{
 			Use:   string(testType),
 			Short: fmt.Sprintf("Run %s tests", testType),
-			Long:  fmt.Sprintf("Run %s tests for a package", testType),
+			Long:  fmt.Sprintf("Run %s tests for the package", testType),
 			RunE:  action,
 		}
 
@@ -50,6 +53,8 @@ func setupTestCommand() *cobra.Command {
 
 func testTypeCommandActionFactory(testType testrunner.TestType) cobraext.CommandAction {
 	return func(cmd *cobra.Command, args []string) error {
+		cmd.Printf("Run %s tests for the package\n", testType)
+
 		failOnMissing, err := cmd.Flags().GetBool(cobraext.FailOnMissingFlagName)
 		if err != nil {
 			return cobraext.FlagParsingError(err, cobraext.FailOnMissingFlagName)
@@ -97,6 +102,8 @@ func testTypeCommandActionFactory(testType testrunner.TestType) cobraext.Command
 				return errors.Wrapf(err, "error running package %s tests", testType)
 			}
 		}
+
+		cmd.Println("Done")
 		return nil
 	}
 }

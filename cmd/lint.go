@@ -19,6 +19,8 @@ func setupLintCommand() *cobra.Command {
 }
 
 func lintCommandAction(cmd *cobra.Command, args []string) error {
+	cmd.Println("Lint the package")
+
 	packageRootPath, found, err := packages.FindPackageRoot()
 	if !found {
 		return errors.New("package root not found")
@@ -27,5 +29,11 @@ func lintCommandAction(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "locating package root failed")
 	}
 
-	return validator.ValidateFromPath(packageRootPath)
+	err = validator.ValidateFromPath(packageRootPath)
+	if err != nil {
+		return errors.Wrap(err, "linting package failed")
+	}
+
+	cmd.Println("Done")
+	return nil
 }
