@@ -30,8 +30,8 @@ elastic-package help
 
 `elastic-package` current offers the commands listed below. 
 
-Some commands have a global context, meaning that they can be run from anywhere and they will have the 
-same result. Other commands have a package context; these must be run from anywhere under a package's
+Some commands have a _global context_, meaning that they can be run from anywhere and they will have the 
+same result. Other commands have a _package context_; these must be run from anywhere under a package's
 root folder and they will operate on the contents of that package.
 
 For more details on a specific command, run `elastic-package help <command>`.
