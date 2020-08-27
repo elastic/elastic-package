@@ -13,8 +13,16 @@ import (
 	"github.com/elastic/elastic-package/internal/install"
 )
 
+// BootOptions defines available image booting options.
+type BootOptions struct {
+	DaemonMode   bool
+	StackVersion string
+
+	Services []string
+}
+
 // BootUp method boots up the testing stack.
-func BootUp(daemonMode bool, stackVersion string) error {
+func BootUp(options BootOptions) error {
 	buildPackagesPath, found, err := builder.FindBuildPackagesDirectory()
 	if err != nil {
 		return errors.Wrap(err, "finding build packages directory failed")
@@ -38,7 +46,7 @@ func BootUp(daemonMode bool, stackVersion string) error {
 		}
 	}
 
-	err = dockerComposeBuild(stackVersion)
+	err = dockerComposeBuild(options.StackVersion)
 	if err != nil {
 		return errors.Wrap(err, "building docker images failed")
 	}
@@ -48,7 +56,7 @@ func BootUp(daemonMode bool, stackVersion string) error {
 		return errors.Wrap(err, "stopping docker containers failed")
 	}
 
-	err = dockerComposeUp(daemonMode, stackVersion)
+	err = dockerComposeUp(options)
 	if err != nil {
 		return errors.Wrap(err, "running docker-compose failed")
 	}
@@ -81,8 +89,9 @@ func dockerComposeBuild(stackVersion string) error {
 
 	args := []string{
 		"-f", filepath.Join(stackDir, "snapshot.yml"),
-		"build", "package-registry",
+		"build",
 	}
+
 	cmd := exec.Command("docker-compose", args...)
 	cmd.Env = append(os.Environ(), fmt.Sprintf("STACK_VERSION=%s", stackVersion))
 	cmd.Stderr = os.Stderr
@@ -117,7 +126,7 @@ func dockerComposePull(stackVersion string) error {
 	return nil
 }
 
-func dockerComposeUp(daemonMode bool, stackVersion string) error {
+func dockerComposeUp(options BootOptions) error {
 	stackDir, err := install.StackDir()
 	if err != nil {
 		return errors.Wrap(err, "locating stack directory failed")
@@ -128,12 +137,18 @@ func dockerComposeUp(daemonMode bool, stackVersion string) error {
 		"up",
 	}
 
-	if daemonMode {
+	if options.DaemonMode {
 		args = append(args, "-d")
 	}
 
+	if len(options.Services) > 0 {
+		for _, aService := range options.Services {
+			args = append(args, aService, fmt.Sprintf("%s_is_ready", aService))
+		}
+	}
+
 	cmd := exec.Command("docker-compose", args...)
-	cmd.Env = append(os.Environ(), fmt.Sprintf("STACK_VERSION=%s", stackVersion))
+	cmd.Env = append(os.Environ(), fmt.Sprintf("STACK_VERSION=%s", options.StackVersion))
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
 	err = cmd.Run()

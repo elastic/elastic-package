@@ -20,6 +20,9 @@ const (
 	VerboseFlagName        = "verbose"
 	VerboseFlagDescription = "verbose mode"
 
+	StackServicesFlagName        = "services"
+	StackServicesFlagDescription = "component services (comma-separated values: elasticsearch, kibana, package-registry)"
+
 	StackVersionFlagName    = "version"
 	StackVersionDescription = "stack version"
 )

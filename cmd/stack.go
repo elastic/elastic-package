@@ -10,6 +10,12 @@ import (
 	"github.com/elastic/elastic-package/internal/stack"
 )
 
+var availableServices = map[string]bool{
+	"elasticsearch":    true,
+	"kibana":           true,
+	"package-registry": true,
+}
+
 func setupStackCommand() *cobra.Command {
 	upCommand := &cobra.Command{
 		Use:   "up",
@@ -20,12 +26,26 @@ func setupStackCommand() *cobra.Command {
 				return cobraext.FlagParsingError(err, cobraext.DaemonModeFlagName)
 			}
 
+			services, err := cmd.Flags().GetStringSlice(cobraext.StackServicesFlagName)
+			if err != nil {
+				return cobraext.FlagParsingError(err, cobraext.StackServicesFlagName)
+			}
+
+			err = validateServicesFlag(services)
+			if err != nil {
+				return errors.Wrap(err, "validating services failed")
+			}
+
 			stackVersion, err := cmd.Flags().GetString(cobraext.StackVersionFlagName)
 			if err != nil {
 				return cobraext.FlagParsingError(err, cobraext.StackVersionFlagName)
 			}
 
-			err = stack.BootUp(daemonMode, stackVersion)
+			err = stack.BootUp(stack.BootOptions{
+				DaemonMode:   daemonMode,
+				StackVersion: stackVersion,
+				Services:     services,
+			})
 			if err != nil {
 				return errors.Wrap(err, "booting up the stack failed")
 			}
@@ -33,6 +53,7 @@ func setupStackCommand() *cobra.Command {
 		},
 	}
 	upCommand.Flags().BoolP(cobraext.DaemonModeFlagName, "d", false, cobraext.DaemonModeFlagDescription)
+	upCommand.Flags().StringSliceP(cobraext.StackServicesFlagName, "s", nil, cobraext.StackServicesFlagDescription)
 	upCommand.Flags().StringP(cobraext.StackVersionFlagName, "", stack.DefaultVersion, cobraext.StackVersionDescription)
 
 	downCommand := &cobra.Command{
@@ -89,4 +110,21 @@ func setupStackCommand() *cobra.Command {
 		updateCommand,
 		shellInitCommand)
 	return cmd
+}
+
+func validateServicesFlag(services []string) error {
+	selected := map[string]bool{}
+
+	for _, aService := range services {
+		if _, found := availableServices[aService]; !found {
+			return fmt.Errorf("service \"%s\" is not available", aService)
+		}
+
+		if _, found := selected[aService]; found {
+			return fmt.Errorf("service \"%s\" must be selected at most once", aService)
+		}
+
+		selected[aService] = true
+	}
+	return nil
 }

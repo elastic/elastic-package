@@ -21,6 +21,12 @@ services:
     ports:
       - "127.0.0.1:9200:9200"
 
+  elasticsearch_is_ready:
+    image: tianon/true
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+
   kibana:
     image: docker.elastic.co/kibana/kibana:${STACK_VERSION}
     depends_on:
@@ -37,6 +43,12 @@ services:
     ports:
       - "127.0.0.1:5601:5601"
 
+  kibana_is_ready:
+    image: tianon/true
+    depends_on:
+      kibana:
+        condition: service_healthy
+
   package-registry:
     build:
       context: .
@@ -48,9 +60,9 @@ services:
     ports:
       - "127.0.0.1:8080:8080"
 
-  is_ready:
+  package-registry_is_ready:
     image: tianon/true
     depends_on:
-      kibana:
+      package-registry:
         condition: service_healthy
 `
