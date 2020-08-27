@@ -71,7 +71,7 @@ _Context: package_
 
 ### `elastic-package check`
 
-Use this command to run the `format`, `lint`, and `build` all at once, in that order.
+Use this command to run the `format`, `lint`, and `build` commands all at once, in that order.
 
 _Context: package_
 
