@@ -77,7 +77,9 @@ func setupStackCommand() *cobra.Command {
 				return cobraext.FlagParsingError(err, cobraext.StackVersionFlagName)
 			}
 
-			err = stack.Update(stackVersion)
+			err = stack.Update(stack.BootOptions{
+				StackVersion: stackVersion,
+			})
 			if err != nil {
 				return errors.Wrap(err, "failed updating the stack images")
 			}
