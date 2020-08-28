@@ -24,7 +24,7 @@ type BootOptions struct {
 	Services []string
 }
 
-const DockerComposeProjectName = "elastic-package-stack"
+const dockerComposeProjectName = "elastic-package-stack"
 
 // BootUp method boots up the testing stack.
 func BootUp(options BootOptions) error {
@@ -94,7 +94,7 @@ func dockerComposeBuild(options BootOptions) error {
 
 	services := withIsReadyServices(withDependentServices(options.Services))
 
-	c, err := compose.NewProject(DockerComposeProjectName, filepath.Join(stackDir, "snapshot.yml"))
+	c, err := compose.NewProject(dockerComposeProjectName, filepath.Join(stackDir, "snapshot.yml"))
 	if err != nil {
 		return errors.Wrap(err, "could not create docker compose project")
 	}
@@ -115,7 +115,7 @@ func dockerComposePull(options BootOptions) error {
 
 	services := withIsReadyServices(withDependentServices(options.Services))
 
-	c, err := compose.NewProject(DockerComposeProjectName, filepath.Join(stackDir, "snapshot.yml"))
+	c, err := compose.NewProject(dockerComposeProjectName, filepath.Join(stackDir, "snapshot.yml"))
 	if err != nil {
 		return errors.Wrap(err, "could not create docker compose project")
 	}
@@ -136,7 +136,7 @@ func dockerComposeUp(options BootOptions) error {
 
 	services := withIsReadyServices(withDependentServices(options.Services))
 
-	c, err := compose.NewProject(DockerComposeProjectName, filepath.Join(stackDir, "snapshot.yml"))
+	c, err := compose.NewProject(dockerComposeProjectName, filepath.Join(stackDir, "snapshot.yml"))
 	if err != nil {
 		return errors.Wrap(err, "could not create docker compose project")
 	}
@@ -160,7 +160,7 @@ func dockerComposeDown() error {
 		return errors.Wrap(err, "locating stack directory failed")
 	}
 
-	c, err := compose.NewProject(DockerComposeProjectName, filepath.Join(stackDir, "snapshot.yml"))
+	c, err := compose.NewProject(dockerComposeProjectName, filepath.Join(stackDir, "snapshot.yml"))
 	if err != nil {
 		return errors.Wrap(err, "could not create docker compose project")
 	}
