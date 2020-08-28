@@ -8,6 +8,7 @@ import (
 	"github.com/pkg/errors"
 )
 
+// Project represents a Docker Compose project.
 type Project struct {
 	name  string
 	paths []string
