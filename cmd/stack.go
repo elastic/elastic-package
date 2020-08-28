@@ -117,9 +117,11 @@ func setupStackCommand() *cobra.Command {
 }
 
 func availableServicesAsList() []string {
-	var available []string
+	available := make([]string, len(availableServices))
+	i := 0
 	for aService := range availableServices {
-		available = append(available, aService)
+		available[i] = aService
+		i++
 	}
 	return available
 }
