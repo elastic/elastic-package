@@ -6,13 +6,12 @@ package stack
 
 import (
 	"fmt"
-	"os"
-	"os/exec"
 	"path/filepath"
 
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/builder"
+	"github.com/elastic/elastic-package/internal/compose"
 	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/install"
 )
@@ -24,6 +23,8 @@ type BootOptions struct {
 
 	Services []string
 }
+
+const DockerComposeProjectName = "elastic-package-stack"
 
 // BootUp method boots up the testing stack.
 func BootUp(options BootOptions) error {
@@ -91,23 +92,16 @@ func dockerComposeBuild(options BootOptions) error {
 		return errors.Wrap(err, "locating stack directory failed")
 	}
 
-	args := []string{
-		"-f", filepath.Join(stackDir, "snapshot.yml"),
-		"build",
-	}
-
 	services := withIsReadyServices(withDependentServices(options.Services))
-	if len(services) > 0 {
-		args = append(args, services...)
+
+	c, err := compose.NewProject(DockerComposeProjectName, filepath.Join(stackDir, "snapshot.yml"))
+	if err != nil {
+		return errors.Wrap(err, "could not create docker compose project")
 	}
 
-	cmd := exec.Command("docker-compose", args...)
-	cmd.Env = append(os.Environ(), fmt.Sprintf("STACK_VERSION=%s", options.StackVersion))
-	cmd.Stderr = os.Stderr
-	cmd.Stdout = os.Stdout
+	env := []string{fmt.Sprintf("STACK_VERSION=%s", options.StackVersion)}
 
-	err = cmd.Run()
-	if err != nil {
+	if err := c.Build(nil, env, services...); err != nil {
 		return errors.Wrap(err, "running command failed")
 	}
 	return nil
@@ -119,23 +113,16 @@ func dockerComposePull(options BootOptions) error {
 		return errors.Wrap(err, "locating stack directory failed")
 	}
 
-	args := []string{
-		"-f", filepath.Join(stackDir, "snapshot.yml"),
-		"pull",
-	}
-
 	services := withIsReadyServices(withDependentServices(options.Services))
-	if len(services) > 0 {
-		args = append(args, services...)
+
+	c, err := compose.NewProject(DockerComposeProjectName, filepath.Join(stackDir, "snapshot.yml"))
+	if err != nil {
+		return errors.Wrap(err, "could not create docker compose project")
 	}
 
-	cmd := exec.Command("docker-compose", args...)
-	cmd.Env = append(os.Environ(), fmt.Sprintf("STACK_VERSION=%s", options.StackVersion))
-	cmd.Stderr = os.Stderr
-	cmd.Stdout = os.Stdout
+	env := []string{fmt.Sprintf("STACK_VERSION=%s", options.StackVersion)}
 
-	err = cmd.Run()
-	if err != nil {
+	if err := c.Pull(nil, env, services...); err != nil {
 		return errors.Wrap(err, "running command failed")
 	}
 	return nil
@@ -147,32 +134,21 @@ func dockerComposeUp(options BootOptions) error {
 		return errors.Wrap(err, "locating stack directory failed")
 	}
 
-	args := []string{
-		"-f", filepath.Join(stackDir, "snapshot.yml"),
-		"up",
+	services := withIsReadyServices(withDependentServices(options.Services))
+
+	c, err := compose.NewProject(DockerComposeProjectName, filepath.Join(stackDir, "snapshot.yml"))
+	if err != nil {
+		return errors.Wrap(err, "could not create docker compose project")
 	}
 
+	var args []string
 	if options.DaemonMode {
 		args = append(args, "-d")
 	}
 
-	services := withIsReadyServices(withDependentServices(options.Services))
-	if len(services) > 0 {
-		args = append(args, services...)
-	}
+	env := []string{fmt.Sprintf("STACK_VERSION=%s", options.StackVersion)}
 
-	if len(options.Services) > 0 {
-		for _, aService := range options.Services {
-			args = append(args, aService, fmt.Sprintf("%s_is_ready", aService))
-		}
-	}
-
-	cmd := exec.Command("docker-compose", args...)
-	cmd.Env = append(os.Environ(), fmt.Sprintf("STACK_VERSION=%s", options.StackVersion))
-	cmd.Stderr = os.Stderr
-	cmd.Stdout = os.Stdout
-	err = cmd.Run()
-	if err != nil {
+	if err := c.Up(args, env, services...); err != nil {
 		return errors.Wrap(err, "running command failed")
 	}
 	return nil
@@ -184,17 +160,16 @@ func dockerComposeDown() error {
 		return errors.Wrap(err, "locating stack directory failed")
 	}
 
-	cmd := exec.Command("docker-compose",
-		"-f", filepath.Join(stackDir, "snapshot.yml"),
-		"--project-directory", stackDir,
-		"down")
+	c, err := compose.NewProject(DockerComposeProjectName, filepath.Join(stackDir, "snapshot.yml"))
+	if err != nil {
+		return errors.Wrap(err, "could not create docker compose project")
+	}
+
 	// We set the STACK_VERSION env var here to avoid showing a warning to the user about
 	// it not being set.
-	cmd.Env = append(os.Environ(), fmt.Sprintf("STACK_VERSION=%s", DefaultVersion))
-	cmd.Stderr = os.Stderr
-	cmd.Stdout = os.Stdout
-	err = cmd.Run()
-	if err != nil {
+	env := []string{fmt.Sprintf("STACK_VERSION=%s", DefaultVersion)}
+
+	if err := c.Down(nil, env); err != nil {
 		return errors.Wrap(err, "running command failed")
 	}
 	return nil
