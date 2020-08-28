@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -53,7 +54,8 @@ func setupStackCommand() *cobra.Command {
 		},
 	}
 	upCommand.Flags().BoolP(cobraext.DaemonModeFlagName, "d", false, cobraext.DaemonModeFlagDescription)
-	upCommand.Flags().StringSliceP(cobraext.StackServicesFlagName, "s", nil, cobraext.StackServicesFlagDescription)
+	upCommand.Flags().StringSliceP(cobraext.StackServicesFlagName, "s", nil,
+		fmt.Sprintf(cobraext.StackServicesFlagDescription, strings.Join(availableServicesAsList(), ", ")))
 	upCommand.Flags().StringP(cobraext.StackVersionFlagName, "", stack.DefaultVersion, cobraext.StackVersionDescription)
 
 	downCommand := &cobra.Command{
@@ -112,6 +114,14 @@ func setupStackCommand() *cobra.Command {
 		updateCommand,
 		shellInitCommand)
 	return cmd
+}
+
+func availableServicesAsList() []string {
+	var available []string
+	for aService := range availableServices {
+		available = append(available, aService)
+	}
+	return available
 }
 
 func validateServicesFlag(services []string) error {
