@@ -13,9 +13,11 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/common"
+	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/kibana/ingestmanager"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/internal/stack"
 	"github.com/elastic/elastic-package/internal/testrunner"
 	"github.com/elastic/elastic-package/internal/testrunner/runners/system/servicedeployer"
 )
@@ -88,7 +90,15 @@ func (r *runner) run() error {
 		return errors.Wrap(err, "could not create service runner")
 	}
 
+	tempDir, err := install.TempDir()
+	if err != nil {
+		return errors.Wrap(err, "could not get temporary folder")
+	}
+
 	ctxt := common.MapStr{}
+	ctxt.Put("docker.compose.project", stack.DockerComposeProjectName)
+	ctxt.Put("tempdir", tempDir)
+
 	ctxt, err = serviceRunner.SetUp(ctxt)
 	defer func() {
 		logger.Info("tearing down service...")
@@ -105,7 +115,7 @@ func (r *runner) run() error {
 	// to be deployed "close to" the service? So for docker-compose based services,
 	// we could use the Agent Docker image, for TF-based services, we use TF to
 	// deploy the agent "near" the service, etc.?
-	// TODO: mount ctxt.Get("stdoutFilePath") and ctxt.Get("stderrFilePath")
+	// TODO: mount tempdir
 
 	// Step 3. Configure package (single data stream) via Ingest Manager APIs.
 	im, err := ingestmanager.NewClient(r.stackSettings.kibana.host, r.stackSettings.elasticsearch.username, r.stackSettings.elasticsearch.password)

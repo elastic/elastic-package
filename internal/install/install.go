@@ -17,6 +17,7 @@ const (
 	elasticPackageDir = ".elastic-package"
 	stackDir          = "stack"
 	packagesDir       = "development"
+	tempDir           = "tmp"
 )
 
 const versionFilename = "version"
@@ -48,6 +49,10 @@ func EnsureInstalled() error {
 		return errors.Wrap(err, "writing static resources failed")
 	}
 
+	if err := createTempDir(elasticPackagePath); err != nil {
+		return errors.Wrap(err, "creating temp dir failed")
+	}
+
 	fmt.Fprintln(os.Stderr, "elastic-package has been installed.")
 	return nil
 }
@@ -68,6 +73,14 @@ func StackPackagesDir() (string, error) {
 		return "", errors.Wrap(err, "locating stack directory failed")
 	}
 	return filepath.Join(stackDir, packagesDir), nil
+}
+
+func TempDir() (string, error) {
+	configurationDir, err := configurationDir()
+	if err != nil {
+		return "", errors.Wrap(err, "locating configuration directory failed")
+	}
+	return filepath.Join(configurationDir, tempDir), nil
 }
 
 func configurationDir() (string, error) {
@@ -129,5 +142,15 @@ func writeStaticResource(err error, path, content string) error {
 	if err != nil {
 		return errors.Wrapf(err, "writing file failed (path: %s)", path)
 	}
+	return nil
+}
+
+func createTempDir(elasticPackagePath string) error {
+	tempPath := filepath.Join(elasticPackagePath, tempDir)
+	err := os.Mkdir(tempPath, 0755)
+	if err != nil {
+		return errors.Wrapf(err, "creating directory failed (path: %s)", tempPath)
+	}
+
 	return nil
 }
