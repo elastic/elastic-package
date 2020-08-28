@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -9,6 +10,12 @@ import (
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/stack"
 )
+
+var availableServices = map[string]struct{}{
+	"elasticsearch":    {},
+	"kibana":           {},
+	"package-registry": {},
+}
 
 func setupStackCommand() *cobra.Command {
 	upCommand := &cobra.Command{
@@ -20,12 +27,26 @@ func setupStackCommand() *cobra.Command {
 				return cobraext.FlagParsingError(err, cobraext.DaemonModeFlagName)
 			}
 
+			services, err := cmd.Flags().GetStringSlice(cobraext.StackServicesFlagName)
+			if err != nil {
+				return cobraext.FlagParsingError(err, cobraext.StackServicesFlagName)
+			}
+
+			err = validateServicesFlag(services)
+			if err != nil {
+				return errors.Wrap(err, "validating services failed")
+			}
+
 			stackVersion, err := cmd.Flags().GetString(cobraext.StackVersionFlagName)
 			if err != nil {
 				return cobraext.FlagParsingError(err, cobraext.StackVersionFlagName)
 			}
 
-			err = stack.BootUp(daemonMode, stackVersion)
+			err = stack.BootUp(stack.BootOptions{
+				DaemonMode:   daemonMode,
+				StackVersion: stackVersion,
+				Services:     services,
+			})
 			if err != nil {
 				return errors.Wrap(err, "booting up the stack failed")
 			}
@@ -33,6 +54,8 @@ func setupStackCommand() *cobra.Command {
 		},
 	}
 	upCommand.Flags().BoolP(cobraext.DaemonModeFlagName, "d", false, cobraext.DaemonModeFlagDescription)
+	upCommand.Flags().StringSliceP(cobraext.StackServicesFlagName, "s", nil,
+		fmt.Sprintf(cobraext.StackServicesFlagDescription, strings.Join(availableServicesAsList(), ", ")))
 	upCommand.Flags().StringP(cobraext.StackVersionFlagName, "", stack.DefaultVersion, cobraext.StackVersionDescription)
 
 	downCommand := &cobra.Command{
@@ -56,7 +79,9 @@ func setupStackCommand() *cobra.Command {
 				return cobraext.FlagParsingError(err, cobraext.StackVersionFlagName)
 			}
 
-			err = stack.Update(stackVersion)
+			err = stack.Update(stack.BootOptions{
+				StackVersion: stackVersion,
+			})
 			if err != nil {
 				return errors.Wrap(err, "failed updating the stack images")
 			}
@@ -89,4 +114,31 @@ func setupStackCommand() *cobra.Command {
 		updateCommand,
 		shellInitCommand)
 	return cmd
+}
+
+func availableServicesAsList() []string {
+	available := make([]string, len(availableServices))
+	i := 0
+	for aService := range availableServices {
+		available[i] = aService
+		i++
+	}
+	return available
+}
+
+func validateServicesFlag(services []string) error {
+	selected := map[string]struct{}{}
+
+	for _, aService := range services {
+		if _, found := availableServices[aService]; !found {
+			return fmt.Errorf("service \"%s\" is not available", aService)
+		}
+
+		if _, found := selected[aService]; found {
+			return fmt.Errorf("service \"%s\" must be selected at most once", aService)
+		}
+
+		selected[aService] = struct{}{}
+	}
+	return nil
 }

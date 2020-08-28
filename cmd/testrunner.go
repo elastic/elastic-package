@@ -29,7 +29,7 @@ func setupTestCommand() *cobra.Command {
 
 	cmd.PersistentFlags().BoolP(cobraext.FailOnMissingFlagName, "m", false, cobraext.FailOnMissingFlagDescription)
 	cmd.PersistentFlags().BoolP(cobraext.GenerateTestResultFlagName, "g", false, cobraext.GenerateTestResultFlagDescription)
-	cmd.PersistentFlags().StringP(cobraext.DatasetFlagName, "d", "", cobraext.DatasetFlagDescription)
+	cmd.PersistentFlags().StringSliceP(cobraext.DatasetsFlagName, "d", nil, cobraext.DatasetsFlagDescription)
 
 	for _, testType := range testrunner.TestTypes() {
 		action := testTypeCommandActionFactory(testType)
@@ -55,13 +55,9 @@ func testTypeCommandActionFactory(testType testrunner.TestType) cobraext.Command
 			return cobraext.FlagParsingError(err, cobraext.FailOnMissingFlagName)
 		}
 
-		dataset, err := cmd.Flags().GetString(cobraext.DatasetFlagName)
+		datasets, err := cmd.Flags().GetStringSlice(cobraext.DatasetsFlagName)
 		if err != nil {
-			return cobraext.FlagParsingError(err, cobraext.DatasetFlagName)
-		}
-		var datasets []string
-		if dataset != "" {
-			datasets = strings.Split(dataset, ",")
+			return cobraext.FlagParsingError(err, cobraext.DatasetsFlagName)
 		}
 
 		generateTestResult, err := cmd.Flags().GetBool(cobraext.GenerateTestResultFlagName)
@@ -83,8 +79,8 @@ func testTypeCommandActionFactory(testType testrunner.TestType) cobraext.Command
 		}
 
 		if failOnMissing && len(testFolderPaths) == 0 {
-			if dataset != "" {
-				return fmt.Errorf("no %s tests found for %s dataset(s)", testType, dataset)
+			if len(datasets) > 0 {
+				return fmt.Errorf("no %s tests found for %s dataset(s)", testType, strings.Join(datasets, ","))
 			}
 			return fmt.Errorf("no %s tests found", testType)
 		}

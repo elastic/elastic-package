@@ -13,8 +13,16 @@ import (
 	"github.com/elastic/elastic-package/internal/install"
 )
 
+// BootOptions defines available image booting options.
+type BootOptions struct {
+	DaemonMode   bool
+	StackVersion string
+
+	Services []string
+}
+
 // BootUp method boots up the testing stack.
-func BootUp(daemonMode bool, stackVersion string) error {
+func BootUp(options BootOptions) error {
 	buildPackagesPath, found, err := builder.FindBuildPackagesDirectory()
 	if err != nil {
 		return errors.Wrap(err, "finding build packages directory failed")
@@ -38,7 +46,7 @@ func BootUp(daemonMode bool, stackVersion string) error {
 		}
 	}
 
-	err = dockerComposeBuild(stackVersion)
+	err = dockerComposeBuild(options)
 	if err != nil {
 		return errors.Wrap(err, "building docker images failed")
 	}
@@ -48,7 +56,7 @@ func BootUp(daemonMode bool, stackVersion string) error {
 		return errors.Wrap(err, "stopping docker containers failed")
 	}
 
-	err = dockerComposeUp(daemonMode, stackVersion)
+	err = dockerComposeUp(options)
 	if err != nil {
 		return errors.Wrap(err, "running docker-compose failed")
 	}
@@ -65,15 +73,15 @@ func TearDown() error {
 }
 
 // Update pulls down the most recent versions of the Docker images
-func Update(stackVersion string) error {
-	err := dockerComposePull(stackVersion)
+func Update(options BootOptions) error {
+	err := dockerComposePull(options)
 	if err != nil {
 		return errors.Wrap(err, "updating docker images failed")
 	}
 	return nil
 }
 
-func dockerComposeBuild(stackVersion string) error {
+func dockerComposeBuild(options BootOptions) error {
 	stackDir, err := install.StackDir()
 	if err != nil {
 		return errors.Wrap(err, "locating stack directory failed")
@@ -81,10 +89,16 @@ func dockerComposeBuild(stackVersion string) error {
 
 	args := []string{
 		"-f", filepath.Join(stackDir, "snapshot.yml"),
-		"build", "package-registry",
+		"build",
 	}
+
+	services := withIsReadyServices(withDependentServices(options.Services))
+	if len(services) > 0 {
+		args = append(args, services...)
+	}
+
 	cmd := exec.Command("docker-compose", args...)
-	cmd.Env = append(os.Environ(), fmt.Sprintf("STACK_VERSION=%s", stackVersion))
+	cmd.Env = append(os.Environ(), fmt.Sprintf("STACK_VERSION=%s", options.StackVersion))
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
 
@@ -95,7 +109,7 @@ func dockerComposeBuild(stackVersion string) error {
 	return nil
 }
 
-func dockerComposePull(stackVersion string) error {
+func dockerComposePull(options BootOptions) error {
 	stackDir, err := install.StackDir()
 	if err != nil {
 		return errors.Wrap(err, "locating stack directory failed")
@@ -105,8 +119,14 @@ func dockerComposePull(stackVersion string) error {
 		"-f", filepath.Join(stackDir, "snapshot.yml"),
 		"pull",
 	}
+
+	services := withIsReadyServices(withDependentServices(options.Services))
+	if len(services) > 0 {
+		args = append(args, services...)
+	}
+
 	cmd := exec.Command("docker-compose", args...)
-	cmd.Env = append(os.Environ(), fmt.Sprintf("STACK_VERSION=%s", stackVersion))
+	cmd.Env = append(os.Environ(), fmt.Sprintf("STACK_VERSION=%s", options.StackVersion))
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
 
@@ -117,7 +137,7 @@ func dockerComposePull(stackVersion string) error {
 	return nil
 }
 
-func dockerComposeUp(daemonMode bool, stackVersion string) error {
+func dockerComposeUp(options BootOptions) error {
 	stackDir, err := install.StackDir()
 	if err != nil {
 		return errors.Wrap(err, "locating stack directory failed")
@@ -128,12 +148,23 @@ func dockerComposeUp(daemonMode bool, stackVersion string) error {
 		"up",
 	}
 
-	if daemonMode {
+	services := withIsReadyServices(withDependentServices(options.Services))
+	if len(services) > 0 {
+		args = append(args, services...)
+	}
+
+	if options.DaemonMode {
 		args = append(args, "-d")
 	}
 
+	if len(options.Services) > 0 {
+		for _, aService := range options.Services {
+			args = append(args, aService, fmt.Sprintf("%s_is_ready", aService))
+		}
+	}
+
 	cmd := exec.Command("docker-compose", args...)
-	cmd.Env = append(os.Environ(), fmt.Sprintf("STACK_VERSION=%s", stackVersion))
+	cmd.Env = append(os.Environ(), fmt.Sprintf("STACK_VERSION=%s", options.StackVersion))
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
 	err = cmd.Run()
@@ -163,4 +194,25 @@ func dockerComposeDown() error {
 		return errors.Wrap(err, "running command failed")
 	}
 	return nil
+}
+
+func withDependentServices(services []string) []string {
+	for _, aService := range services {
+		if aService == "kibana" {
+			return []string{} // kibana service requires to load all other services
+		}
+	}
+	return services
+}
+
+func withIsReadyServices(services []string) []string {
+	if len(services) == 0 {
+		return services // load all defined services
+	}
+
+	var allServices []string
+	for _, aService := range services {
+		allServices = append(allServices, aService, fmt.Sprintf("%s_is_ready", aService))
+	}
+	return allServices
 }
