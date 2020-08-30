@@ -13,10 +13,7 @@ gomod:
 	go mod tidy
 
 test-stack-command:
-	elastic-package stack up -d
-	eval "$(elastic-package stack shellinit)"
-	curl -f ${ELASTIC_PACKAGE_KIBANA_HOST}/login | grep kbn-injected-metadata >/dev/null # healthcheck
-	elastic-package stack down
+	./scripts/test-stack-command.sh
 
 test: test-stack-command
 
