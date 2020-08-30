@@ -12,8 +12,16 @@ lint:
 gomod:
 	go mod tidy
 
+test-stack-command:
+	elastic-package stack up -d
+	eval "$(elastic-package stack shellinit)"
+	curl -f ${ELASTIC_PACKAGE_KIBANA_HOST}/login | grep kbn-injected-metadata >/dev/null # healthcheck
+	elastic-package stack down
+
+test: test-stack-command
+
 check-git-clean:
 	git update-index --really-refresh
 	git diff-index --quiet HEAD
 
-check: build format lint gomod check-git-clean
+check: build format lint gomod test check-git-clean
