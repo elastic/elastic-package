@@ -20,7 +20,7 @@ type BootOptions struct {
 	Services []string
 }
 
-const dockerComposeProjectName = "elastic-package-stack"
+const DockerComposeProjectName = "elastic-package-stack"
 
 // BootUp method boots up the testing stack.
 func BootUp(options BootOptions) error {

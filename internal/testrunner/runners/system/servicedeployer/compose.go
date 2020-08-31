@@ -67,7 +67,8 @@ func (r *DockerComposeRunner) SetUp(ctxt common.MapStr) (common.MapStr, error) {
 	c.SetStderr(r.stderr)
 	ctxt.Put("Service.STDERR", errFilePath)
 
-	if err := c.Up(nil, nil); err != nil {
+	opts := compose.CommandOptions{}
+	if err := c.Up(opts); err != nil {
 		return ctxt, errors.Wrap(err, "could not boot up service using docker compose")
 	}
 
@@ -82,7 +83,8 @@ func (r *DockerComposeRunner) TearDown(ctxt common.MapStr) error {
 		return errors.Wrap(err, "could not create docker compose project for service")
 	}
 
-	if err := c.Down(nil, nil); err != nil {
+	opts := compose.CommandOptions{}
+	if err := c.Down(opts); err != nil {
 		return errors.Wrap(err, "could not shut down service using docker compose")
 	}
 

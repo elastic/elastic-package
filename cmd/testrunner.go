@@ -87,7 +87,7 @@ func testTypeCommandActionFactory(testType testrunner.TestType) cobraext.Command
 			return errors.Wrap(err, "unable to determine test folder paths")
 		}
 
-		if failOnMissing && len(testFolderPaths) == 0 {
+		if failOnMissing && len(testFolders) == 0 {
 			if len(datasets) > 0 {
 				return fmt.Errorf("no %s tests found for %s dataset(s)", testType, strings.Join(datasets, ","))
 			}
