@@ -18,11 +18,8 @@ type Project struct {
 func NewProject(name string, paths ...string) (*Project, error) {
 	for _, path := range paths {
 		info, err := os.Stat(path)
-		if err != nil && os.IsNotExist(err) {
-			return nil, errors.Wrapf(err, "could not find Docker Compose configuration file: %s", path)
-		}
 		if err != nil {
-			return nil, errors.Wrapf(err, "error finding Docker Compose configuration file: %s", path)
+			return nil, errors.Wrapf(err, "could not find Docker Compose configuration file: %s", path)
 		}
 
 		if info.IsDir() {
