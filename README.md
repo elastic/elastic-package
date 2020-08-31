@@ -83,9 +83,11 @@ _Context: package_
 
 ### `elastic-package promote`
 
-Use this command to promote a package to the Snapshot Package Registry.
+Use this command to promote packages from one stage of the Package Registry to another.
 
-_Context: package_
+:warning: This command is intended primarily for use by administrators. 
+
+_Context: global_
 
 #### GitHub authorization
 
