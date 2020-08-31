@@ -14,6 +14,8 @@ type Project struct {
 	composeFilePaths []string
 }
 
+// CommandOptions encapsulates the environment variables, extra arguments, and Docker Compose services
+// that can be passed to each Docker Compose command.
 type CommandOptions struct {
 	Env       []string
 	ExtraArgs []string
