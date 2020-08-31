@@ -53,8 +53,9 @@ _Context: global_
 
 ### `elastic-package build`
 
-Use this command to build a package. TODO: what is the purpose of building a package — when would
-a package developer want/need to run this command?
+Use this command to build a package. Built packages are stored in the `build/` folder located at the root folder of the local Git repository checkout that contains your package folder.
+
+Built packages are served up by the Elastic Package Registry running locally (see `elastic-package stack`). They can also be published to the `package-storage` repository.
 
 _Context: package_
 
