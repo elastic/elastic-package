@@ -113,6 +113,16 @@ to specify a different version, including SNAPSHOT versions.
 _Context: global_
 
 
+### `elastic-package test`
+
+Use this command to run tests on a package. Currently, the only type of test that is supported are Pipeline Tests.
+
+#### Pipeline Tests
+
+These tests allow you to exercise any Ingest Node Pipelines defined by your packages.
+
+_Context: package_
+
 ### `elastic-package version`
 
 Use this command to print the version of `elastic-package` that you have installed. This is
