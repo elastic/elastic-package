@@ -14,6 +14,12 @@ type Project struct {
 	composeFilePaths []string
 }
 
+type CommandOptions struct {
+	Env       []string
+	ExtraArgs []string
+	Services  []string
+}
+
 // NewProject creates a new Docker Compose project given a sequence of Docker Compose configuration files.
 func NewProject(name string, paths ...string) (*Project, error) {
 	for _, path := range paths {
@@ -36,13 +42,13 @@ func NewProject(name string, paths ...string) (*Project, error) {
 }
 
 // Up brings up a Docker Compose project.
-func (p *Project) Up(extraArgs, env []string, services ...string) error {
+func (p *Project) Up(opts CommandOptions) error {
 	args := p.baseArgs()
 	args = append(args, "up")
-	args = append(args, extraArgs...)
-	args = append(args, services...)
+	args = append(args, opts.ExtraArgs...)
+	args = append(args, opts.Services...)
 
-	if err := runDockerComposeCmd(args, env); err != nil {
+	if err := runDockerComposeCmd(args, opts.Env); err != nil {
 		return errors.Wrap(err, "running Docker Compose up command failed")
 	}
 
@@ -50,12 +56,12 @@ func (p *Project) Up(extraArgs, env []string, services ...string) error {
 }
 
 // Down tears down a Docker Compose project.
-func (p *Project) Down(extraArgs, env []string) error {
+func (p *Project) Down(opts CommandOptions) error {
 	args := p.baseArgs()
 	args = append(args, "down")
-	args = append(args, extraArgs...)
+	args = append(args, opts.ExtraArgs...)
 
-	if err := runDockerComposeCmd(args, env); err != nil {
+	if err := runDockerComposeCmd(args, opts.Env); err != nil {
 		return errors.Wrap(err, "running Docker Compose down command failed")
 	}
 
@@ -63,13 +69,13 @@ func (p *Project) Down(extraArgs, env []string) error {
 }
 
 // Build builds a Docker Compose project.
-func (p *Project) Build(extraArgs, env []string, services ...string) error {
+func (p *Project) Build(opts CommandOptions) error {
 	args := p.baseArgs()
 	args = append(args, "build")
-	args = append(args, extraArgs...)
-	args = append(args, services...)
+	args = append(args, opts.ExtraArgs...)
+	args = append(args, opts.Services...)
 
-	if err := runDockerComposeCmd(args, env); err != nil {
+	if err := runDockerComposeCmd(args, opts.Env); err != nil {
 		return errors.Wrap(err, "running Docker Compose build command failed")
 	}
 
@@ -77,13 +83,13 @@ func (p *Project) Build(extraArgs, env []string, services ...string) error {
 }
 
 // Pull pulls down images for a Docker Compose project.
-func (p *Project) Pull(extraArgs, env []string, services ...string) error {
+func (p *Project) Pull(opts CommandOptions) error {
 	args := p.baseArgs()
 	args = append(args, "pull")
-	args = append(args, extraArgs...)
-	args = append(args, services...)
+	args = append(args, opts.ExtraArgs...)
+	args = append(args, opts.Services...)
 
-	if err := runDockerComposeCmd(args, env); err != nil {
+	if err := runDockerComposeCmd(args, opts.Env); err != nil {
 		return errors.Wrap(err, "running Docker Compose pull command failed")
 	}
 

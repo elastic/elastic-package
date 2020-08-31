@@ -92,16 +92,17 @@ func dockerComposeBuild(options BootOptions) error {
 		return errors.Wrap(err, "locating stack directory failed")
 	}
 
-	services := withIsReadyServices(withDependentServices(options.Services))
-
 	c, err := compose.NewProject(dockerComposeProjectName, filepath.Join(stackDir, "snapshot.yml"))
 	if err != nil {
 		return errors.Wrap(err, "could not create docker compose project")
 	}
 
-	env := []string{fmt.Sprintf("STACK_VERSION=%s", options.StackVersion)}
+	opts := compose.CommandOptions{
+		Env:      []string{fmt.Sprintf("STACK_VERSION=%s", options.StackVersion)},
+		Services: withIsReadyServices(withDependentServices(options.Services)),
+	}
 
-	if err := c.Build(nil, env, services...); err != nil {
+	if err := c.Build(opts); err != nil {
 		return errors.Wrap(err, "running command failed")
 	}
 	return nil
@@ -113,16 +114,17 @@ func dockerComposePull(options BootOptions) error {
 		return errors.Wrap(err, "locating stack directory failed")
 	}
 
-	services := withIsReadyServices(withDependentServices(options.Services))
-
 	c, err := compose.NewProject(dockerComposeProjectName, filepath.Join(stackDir, "snapshot.yml"))
 	if err != nil {
 		return errors.Wrap(err, "could not create docker compose project")
 	}
 
-	env := []string{fmt.Sprintf("STACK_VERSION=%s", options.StackVersion)}
+	opts := compose.CommandOptions{
+		Env:      []string{fmt.Sprintf("STACK_VERSION=%s", options.StackVersion)},
+		Services: withIsReadyServices(withDependentServices(options.Services)),
+	}
 
-	if err := c.Pull(nil, env, services...); err != nil {
+	if err := c.Pull(opts); err != nil {
 		return errors.Wrap(err, "running command failed")
 	}
 	return nil
@@ -134,8 +136,6 @@ func dockerComposeUp(options BootOptions) error {
 		return errors.Wrap(err, "locating stack directory failed")
 	}
 
-	services := withIsReadyServices(withDependentServices(options.Services))
-
 	c, err := compose.NewProject(dockerComposeProjectName, filepath.Join(stackDir, "snapshot.yml"))
 	if err != nil {
 		return errors.Wrap(err, "could not create docker compose project")
@@ -146,9 +146,13 @@ func dockerComposeUp(options BootOptions) error {
 		args = append(args, "-d")
 	}
 
-	env := []string{fmt.Sprintf("STACK_VERSION=%s", options.StackVersion)}
+	opts := compose.CommandOptions{
+		Env:       []string{fmt.Sprintf("STACK_VERSION=%s", options.StackVersion)},
+		ExtraArgs: args,
+		Services:  withIsReadyServices(withDependentServices(options.Services)),
+	}
 
-	if err := c.Up(args, env, services...); err != nil {
+	if err := c.Up(opts); err != nil {
 		return errors.Wrap(err, "running command failed")
 	}
 	return nil
@@ -165,11 +169,13 @@ func dockerComposeDown() error {
 		return errors.Wrap(err, "could not create docker compose project")
 	}
 
-	// We set the STACK_VERSION env var here to avoid showing a warning to the user about
-	// it not being set.
-	env := []string{fmt.Sprintf("STACK_VERSION=%s", DefaultVersion)}
+	opts := compose.CommandOptions{
+		// We set the STACK_VERSION env var here to avoid showing a warning to the user about
+		// it not being set.
+		Env: []string{fmt.Sprintf("STACK_VERSION=%s", DefaultVersion)},
+	}
 
-	if err := c.Down(nil, env); err != nil {
+	if err := c.Down(opts); err != nil {
 		return errors.Wrap(err, "running command failed")
 	}
 	return nil
