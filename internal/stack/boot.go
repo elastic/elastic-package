@@ -1,3 +1,7 @@
+// Copyright Elasticsearch B.V. and/or licensed to Elasticsearch B.V. under one
+// or more contributor license agreements. Licensed under the Elastic License;
+// you may not use this file except in compliance with the Elastic License.
+
 package stack
 
 import (
@@ -148,13 +152,13 @@ func dockerComposeUp(options BootOptions) error {
 		"up",
 	}
 
+	if options.DaemonMode {
+		args = append(args, "-d")
+	}
+
 	services := withIsReadyServices(withDependentServices(options.Services))
 	if len(services) > 0 {
 		args = append(args, services...)
-	}
-
-	if options.DaemonMode {
-		args = append(args, "-d")
 	}
 
 	if len(options.Services) > 0 {
