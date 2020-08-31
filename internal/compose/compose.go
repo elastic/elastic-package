@@ -19,14 +19,14 @@ func NewProject(name string, paths ...string) (*Project, error) {
 	for _, path := range paths {
 		info, err := os.Stat(path)
 		if err != nil && os.IsNotExist(err) {
-			return nil, errors.Wrapf(err, "could not find docker-compose configuration file: %s", path)
+			return nil, errors.Wrapf(err, "could not find Docker Compose configuration file: %s", path)
 		}
 		if err != nil {
-			return nil, errors.Wrapf(err, "error finding docker-compose configuration file: %s", path)
+			return nil, errors.Wrapf(err, "error finding Docker Compose configuration file: %s", path)
 		}
 
 		if info.IsDir() {
-			return nil, fmt.Errorf("expected docker-compose configuration file (%s) to be a file, not a folder", path)
+			return nil, fmt.Errorf("expected Docker Compose configuration file (%s) to be a file, not a folder", path)
 		}
 	}
 
@@ -46,7 +46,7 @@ func (p *Project) Up(extraArgs, env []string, services ...string) error {
 	args = append(args, services...)
 
 	if err := runDockerComposeCmd(args, env); err != nil {
-		return errors.Wrap(err, "running docker-compose up command failed")
+		return errors.Wrap(err, "running Docker Compose up command failed")
 	}
 
 	return nil
@@ -59,7 +59,7 @@ func (p *Project) Down(extraArgs, env []string) error {
 	args = append(args, extraArgs...)
 
 	if err := runDockerComposeCmd(args, env); err != nil {
-		return errors.Wrap(err, "running docker-compose down command failed")
+		return errors.Wrap(err, "running Docker Compose down command failed")
 	}
 
 	return nil
@@ -73,7 +73,7 @@ func (p *Project) Build(extraArgs, env []string, services ...string) error {
 	args = append(args, services...)
 
 	if err := runDockerComposeCmd(args, env); err != nil {
-		return errors.Wrap(err, "running docker-compose build command failed")
+		return errors.Wrap(err, "running Docker Compose build command failed")
 	}
 
 	return nil
@@ -87,7 +87,7 @@ func (p *Project) Pull(extraArgs, env []string, services ...string) error {
 	args = append(args, services...)
 
 	if err := runDockerComposeCmd(args, env); err != nil {
-		return errors.Wrap(err, "running docker-compose pull command failed")
+		return errors.Wrap(err, "running Docker Compose pull command failed")
 	}
 
 	return nil
