@@ -22,9 +22,13 @@ func setupBuildCommand() *cobra.Command {
 }
 
 func buildCommandAction(cmd *cobra.Command, args []string) error {
+	cmd.Println("Build the package")
+
 	err := builder.BuildPackage()
 	if err != nil {
 		return errors.Wrap(err, "building package failed")
 	}
+
+	cmd.Println("Done")
 	return nil
 }

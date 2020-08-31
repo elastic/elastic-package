@@ -24,8 +24,10 @@ var availableServices = map[string]struct{}{
 func setupStackCommand() *cobra.Command {
 	upCommand := &cobra.Command{
 		Use:   "up",
-		Short: "Boot up the testing stack",
+		Short: "Boot up the stack",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			cmd.Println("Boot up the Elastic stack")
+
 			daemonMode, err := cmd.Flags().GetBool(cobraext.DaemonModeFlagName)
 			if err != nil {
 				return cobraext.FlagParsingError(err, cobraext.DaemonModeFlagName)
@@ -54,6 +56,8 @@ func setupStackCommand() *cobra.Command {
 			if err != nil {
 				return errors.Wrap(err, "booting up the stack failed")
 			}
+
+			cmd.Println("Done")
 			return nil
 		},
 	}
@@ -64,20 +68,26 @@ func setupStackCommand() *cobra.Command {
 
 	downCommand := &cobra.Command{
 		Use:   "down",
-		Short: "Take down the testing stack",
+		Short: "Take down the stack",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			cmd.Println("Take down the Elastic stack")
+
 			err := stack.TearDown()
 			if err != nil {
 				return errors.Wrap(err, "tearing down the stack failed")
 			}
+
+			cmd.Println("Done")
 			return nil
 		},
 	}
 
 	updateCommand := &cobra.Command{
 		Use:   "update",
-		Short: "Updates the stack to the most recent versions.",
+		Short: "Update the stack to the most recent versions",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			cmd.Println("Update the Elastic stack")
+
 			stackVersion, err := cmd.Flags().GetString(cobraext.StackVersionFlagName)
 			if err != nil {
 				return cobraext.FlagParsingError(err, cobraext.StackVersionFlagName)
@@ -89,6 +99,8 @@ func setupStackCommand() *cobra.Command {
 			if err != nil {
 				return errors.Wrap(err, "failed updating the stack images")
 			}
+
+			cmd.Println("Done")
 			return nil
 		},
 	}
@@ -96,7 +108,7 @@ func setupStackCommand() *cobra.Command {
 
 	shellInitCommand := &cobra.Command{
 		Use:   "shellinit",
-		Short: "Initiate environment variables",
+		Short: "Export environment variables",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			shell, err := stack.ShellInit()
 			if err != nil {
@@ -109,8 +121,8 @@ func setupStackCommand() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "stack",
-		Short: "Manage the testing environment",
-		Long:  "Use stack command to boot up and take down the local testing stack.",
+		Short: "Manage the Elastic stack",
+		Long:  "Use stack command to boot up and take down the local Elastic stack.",
 	}
 	cmd.AddCommand(
 		upCommand,
