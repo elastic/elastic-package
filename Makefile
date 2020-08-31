@@ -16,8 +16,13 @@ licenser:
 gomod:
 	go mod tidy
 
+test-stack-command:
+	./scripts/test-stack-command.sh
+
+test: test-stack-command
+
 check-git-clean:
 	git update-index --really-refresh
 	git diff-index --quiet HEAD
 
-check: build format lint licenser gomod check-git-clean
+check: build format lint licenser gomod test check-git-clean
