@@ -148,13 +148,13 @@ func dockerComposeUp(options BootOptions) error {
 		"up",
 	}
 
+	if options.DaemonMode {
+		args = append(args, "-d")
+	}
+
 	services := withIsReadyServices(withDependentServices(options.Services))
 	if len(services) > 0 {
 		args = append(args, services...)
-	}
-
-	if options.DaemonMode {
-		args = append(args, "-d")
 	}
 
 	if len(options.Services) > 0 {
