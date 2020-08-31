@@ -10,8 +10,8 @@ import (
 
 // Project represents a Docker Compose project.
 type Project struct {
-	name  string
-	paths []string
+	name             string
+	composeFilePaths []string
 }
 
 // NewProject creates a new Docker Compose project given a sequence of Docker Compose configuration files.
@@ -95,7 +95,7 @@ func (p *Project) Pull(extraArgs, env []string, services ...string) error {
 
 func (p *Project) baseArgs() []string {
 	var args []string
-	for _, path := range p.paths {
+	for _, path := range p.composeFilePaths {
 		args = append(args, "-f", path)
 	}
 
