@@ -262,7 +262,7 @@ func createPackageDatastream(
 	p ingestmanager.Policy,
 	pkg packages.PackageManifest,
 	ds packages.DatasetManifest,
-	c config,
+	c testConfig,
 ) ingestmanager.PackageDatastream {
 	streamInput := ds.Streams[0].Input
 	r := ingestmanager.PackageDatastream{

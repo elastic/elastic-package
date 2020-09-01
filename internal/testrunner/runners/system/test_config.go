@@ -15,14 +15,14 @@ import (
 
 const configFileName = "config.yml"
 
-type config struct {
+type testConfig struct {
 	Vars    map[string]packages.VarValue `yaml:"vars"`
 	Dataset struct {
 		Vars map[string]packages.VarValue `yaml:"vars"`
 	} `yaml:"dataset"`
 }
 
-func newConfig(systemTestFolderPath string, ctxt common.ServiceContext) (*config, error) {
+func newConfig(systemTestFolderPath string, ctxt common.ServiceContext) (*testConfig, error) {
 	configFilePath := filepath.Join(systemTestFolderPath, configFileName)
 	data, err := ioutil.ReadFile(configFilePath)
 	if err != nil && os.IsNotExist(err) {
@@ -38,7 +38,7 @@ func newConfig(systemTestFolderPath string, ctxt common.ServiceContext) (*config
 		return nil, errors.Wrapf(err, "could not apply context to test configuration file: %s", configFilePath)
 	}
 
-	var c config
+	var c testConfig
 	if err := yaml.Unmarshal(data, &c); err != nil {
 		return nil, errors.Wrapf(err, "unable to parse system test configuration file: %s", configFilePath)
 	}
