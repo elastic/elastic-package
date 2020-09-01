@@ -5,14 +5,18 @@
 package system
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
+	es "github.com/elastic/go-elasticsearch/v7"
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/common"
+	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/kibana/ingestmanager"
 	"github.com/elastic/elastic-package/internal/logger"
@@ -152,6 +156,24 @@ func (r *runner) run() error {
 		ID: agent.PolicyID,
 	}
 
+	// Delete old data
+	esClient, err := elasticsearch.Client()
+	if err != nil {
+		return errors.Wrap(err, "fetching Elasticsearch client instance failed")
+	}
+
+	dataStream := fmt.Sprintf(
+		"%s-%s-%s",
+		ds.Inputs[0].Streams[0].DataStream.Type,
+		ds.Inputs[0].Streams[0].DataStream.Dataset,
+		ds.Namespace,
+	)
+
+	logger.Info("deleting old data in data stream...")
+	if err := deleteDataStreamDocs(esClient, dataStream); err != nil {
+		return errors.Wrapf(err, "error deleting old data in data stream: %s", dataStream)
+	}
+
 	// Assign policy to agent
 	logger.Info("assigning package datastream to agent...")
 	if err := im.AssignPolicyToAgent(agent, *policy); err != nil {
@@ -166,7 +188,50 @@ func (r *runner) run() error {
 
 	// Step 4. (TODO in future) Optionally exercise service to generate load.
 
-	// Step 5. TODO: Assert that there's expected data in data stream.
+	logger.Info("checking for expected data in data stream...")
+	passed, err := waitUntilTrue(func() (bool, error) {
+		resp, err := esClient.Search(
+			esClient.Search.WithIndex(dataStream),
+		)
+		if err != nil {
+			return false, errors.Wrap(err, "could not search data stream")
+		}
+		defer resp.Body.Close()
+
+		var results struct {
+			Hits struct {
+				Total struct {
+					Value int
+				}
+			}
+		}
+
+		if err := json.NewDecoder(resp.Body).Decode(&results); err != nil {
+			return false, errors.Wrap(err, "could not decode search results response")
+		}
+
+		hits := results.Hits.Total.Value
+		logger.Debugf("found %d hits in %s data stream", hits, dataStream)
+		return hits > 0, nil
+	}, 2*time.Minute)
+
+	if err != nil {
+		return errors.Wrap(err, "could not check for expected data in data stream")
+	}
+
+	if passed {
+		fmt.Printf("System test for %s/%s dataset passed!\n", r.testFolder.Package, r.testFolder.Dataset)
+	} else {
+		fmt.Printf("System test for %s/%s dataset failed\n", r.testFolder.Package, r.testFolder.Dataset)
+		return fmt.Errorf("system test for %s/%s dataset failed", r.testFolder.Package, r.testFolder.Dataset)
+	}
+
+	defer func() {
+		logger.Debugf("deleting data in data stream...")
+		if err := deleteDataStreamDocs(esClient, dataStream); err != nil {
+			logger.Errorf("error deleting data in data stream", err)
+		}
+	}()
 
 	defer func() {
 		sleepFor := 1 * time.Minute
@@ -272,4 +337,32 @@ func createPackageDatastream(
 	r.Inputs[0].Vars = pkgVars
 
 	return r
+}
+
+func deleteDataStreamDocs(esClient *es.Client, dataStream string) error {
+	body := strings.NewReader(`{ "query": { "match_all": {} } }`)
+	_, err := esClient.DeleteByQuery([]string{dataStream}, body)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func waitUntilTrue(fn func() (bool, error), timeout time.Duration) (bool, error) {
+	startTime := time.Now()
+	for time.Now().Sub(startTime) < timeout {
+		result, err := fn()
+		if err != nil {
+			return false, err
+		}
+
+		if result {
+			return true, nil
+		}
+
+		time.Sleep(1 * time.Second)
+	}
+
+	return false, nil
 }
