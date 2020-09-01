@@ -135,6 +135,22 @@ func (r *DockerComposeRunner) SetUp(ctxt common.MapStr) (common.MapStr, error) {
 // TearDown tears down the service.
 func (r *DockerComposeRunner) TearDown(ctxt common.MapStr) error {
 	logger.Infof("tearing down service using docker compose runner")
+	defer func() {
+		if err := r.stderr.Close(); err != nil {
+			logger.Errorf("could not close STDERR file: %s: %s", r.stderrFilePath, err)
+		} else if err := os.Remove(r.stderrFilePath); err != nil {
+			logger.Errorf("could not delete STDERR file: %s: %s", r.stderrFilePath, err)
+		}
+	}()
+
+	defer func() {
+		if err := r.stdout.Close(); err != nil {
+			logger.Errorf("could not close STDOUT file: %s: %s", r.stdoutFilePath, err)
+		} else if err := os.Remove(r.stdoutFilePath); err != nil {
+			logger.Errorf("could not delete STDOUT file: %s: %s", r.stdoutFilePath, err)
+		}
+	}()
+
 	c, err := compose.NewProject(r.project, r.ymlPath)
 	if err != nil {
 		return errors.Wrap(err, "could not create docker compose project for service")
@@ -143,20 +159,6 @@ func (r *DockerComposeRunner) TearDown(ctxt common.MapStr) error {
 	opts := compose.CommandOptions{}
 	if err := c.Down(opts); err != nil {
 		return errors.Wrap(err, "could not shut down service using docker compose")
-	}
-
-	if err := r.stderr.Close(); err != nil {
-		return errors.Wrapf(err, "could not close STDERR file: %s", r.stderrFilePath)
-	}
-	if err := os.Remove(r.stderrFilePath); err != nil {
-		return errors.Wrapf(err, "could not delete STDERR file: %s", r.stderrFilePath)
-	}
-
-	if err := r.stdout.Close(); err != nil {
-		return errors.Wrap(err, "could not close STDOUT file")
-	}
-	if err := os.Remove(r.stdoutFilePath); err != nil {
-		return errors.Wrapf(err, "could not delete STDOUT file: %s", r.stdoutFilePath)
 	}
 
 	return nil
