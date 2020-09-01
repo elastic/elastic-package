@@ -109,14 +109,7 @@ func (r *runner) run() error {
 		return errors.Wrap(err, "could not setup service")
 	}
 
-	// Step 2. Setup agent and enroll it with Fleet
-	// TODO: Should this be part of the service factory, since the agent might need
-	// to be deployed "close to" the service? So for docker-compose based services,
-	// we could use the Agent Docker image, for TF-based services, we use TF to
-	// deploy the agent "near" the service, etc.?
-	// TODO: mount tempdir
-
-	// Step 3. Configure package (single data stream) via Ingest Manager APIs.
+	// Step 2. Configure package (single data stream) via Ingest Manager APIs.
 	im, err := ingestmanager.NewClient(r.stackSettings.kibana.host, r.stackSettings.elasticsearch.username, r.stackSettings.elasticsearch.password)
 	if err != nil {
 		return errors.Wrap(err, "could not create ingest manager client")
@@ -142,6 +135,7 @@ func (r *runner) run() error {
 	// TODO: build data stream Config by taking appropriate vars sections from package manifest + dataset manifest,
 	// starting with defaults, then overridding with vars from {dataset}/_dev/test/system/vars.yml. Then treat result
 	// as go template and evaulate against ctxt. See expected final structure in im.AddPackageDataStreamToPolicy method.
+	logger.Debugf("ctxt: %s", ctxt.StringToPrint())
 
 	logger.Info("adding package datastream to test policy...")
 	if err := im.AddPackageDataStreamToPolicy(createPackageDatastream(*policy, *pkgManifest, *datasetManifest, *testConfig)); err != nil {
@@ -175,7 +169,7 @@ func (r *runner) run() error {
 
 	// Step 4. (TODO in future) Optionally exercise service to generate load.
 
-	// Step 5. Assert that there's expected data in data stream.
+	// Step 5. TODO: Assert that there's expected data in data stream.
 
 	defer func() {
 		sleepFor := 1 * time.Minute
