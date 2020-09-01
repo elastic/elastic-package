@@ -11,23 +11,25 @@ import (
 	"github.com/elastic/elastic-package/internal/stack"
 )
 
+// Client represents an Ingest Manager API client.
 type Client struct {
-	apiBaseUrl string
+	apiBaseURL string
 
 	username string
 	password string
 }
 
-func NewClient(baseUrl, username, password string) (*Client, error) {
+// NewClient returns a new Ingest Manager API client.
+func NewClient(baseURL, username, password string) (*Client, error) {
 	return &Client{
-		baseUrl + "/api/ingest_manager",
+		baseURL + "/api/ingest_manager",
 		username,
 		password,
 	}, nil
 }
 
 func (c *Client) get(resourcePath string) (int, []byte, error) {
-	url := c.apiBaseUrl + "/" + resourcePath
+	url := c.apiBaseURL + "/" + resourcePath
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return 0, nil, errors.Wrapf(err, "could not create GET request to Ingest Manager resource: %s", resourcePath)
@@ -53,7 +55,7 @@ func (c *Client) put(resourcePath string, body []byte) (int, []byte, error) {
 
 func (c *Client) putOrPost(method, resourcePath string, body []byte) (int, []byte, error) {
 	reqBody := bytes.NewReader(body)
-	url := c.apiBaseUrl + "/" + resourcePath
+	url := c.apiBaseURL + "/" + resourcePath
 
 	logger.Debugf("%s %s", method, url)
 	logger.Debugf("%s", body)

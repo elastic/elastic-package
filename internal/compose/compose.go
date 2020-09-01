@@ -25,7 +25,8 @@ type Project struct {
 	composeFilePaths []string
 }
 
-type config struct {
+// Config represents a Docker Compose configuration file.
+type Config struct {
 	Services map[string]service
 }
 type service struct {
@@ -157,7 +158,7 @@ func (p *Project) Build(opts CommandOptions) error {
 }
 
 // Config returns the combined configuration for a Docker Compose project.
-func (p *Project) Config(opts CommandOptions) (*config, error) {
+func (p *Project) Config(opts CommandOptions) (*Config, error) {
 	args := p.baseArgs()
 	args = append(args, "config")
 	args = append(args, opts.ExtraArgs...)
@@ -168,7 +169,7 @@ func (p *Project) Config(opts CommandOptions) (*config, error) {
 		return nil, err
 	}
 
-	var config config
+	var config Config
 	if err := yaml.Unmarshal(b.Bytes(), &config); err != nil {
 		return nil, err
 	}
