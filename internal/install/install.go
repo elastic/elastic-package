@@ -17,7 +17,7 @@ const (
 	elasticPackageDir = ".elastic-package"
 	stackDir          = "stack"
 	packagesDir       = "development"
-	tempDir           = "tmp"
+	serviceLogsDir    = "tmp/service_logs"
 )
 
 const versionFilename = "version"
@@ -49,7 +49,7 @@ func EnsureInstalled() error {
 		return errors.Wrap(err, "writing static resources failed")
 	}
 
-	if err := createTempDir(elasticPackagePath); err != nil {
+	if err := createServiceLogsDir(elasticPackagePath); err != nil {
 		return errors.Wrap(err, "creating temp dir failed")
 	}
 
@@ -75,14 +75,14 @@ func StackPackagesDir() (string, error) {
 	return filepath.Join(stackDir, packagesDir), nil
 }
 
-// TempDir method returns the location of the temporary directory to use as a "scratch pad"
-// for various purposes, as needed.
-func TempDir() (string, error) {
+// ServiceLogsDir method returns the location of the directory to store service logs on the
+// local filesystem, i.e. the same one where elastic-package is installed.
+func ServiceLogsDir() (string, error) {
 	configurationDir, err := configurationDir()
 	if err != nil {
 		return "", errors.Wrap(err, "locating configuration directory failed")
 	}
-	return filepath.Join(configurationDir, tempDir), nil
+	return filepath.Join(configurationDir, serviceLogsDir), nil
 }
 
 func configurationDir() (string, error) {
@@ -147,11 +147,11 @@ func writeStaticResource(err error, path, content string) error {
 	return nil
 }
 
-func createTempDir(elasticPackagePath string) error {
-	tempPath := filepath.Join(elasticPackagePath, tempDir)
-	err := os.Mkdir(tempPath, 0755)
+func createServiceLogsDir(elasticPackagePath string) error {
+	dirPath := filepath.Join(elasticPackagePath, serviceLogsDir)
+	err := os.MkdirAll(dirPath, 0755)
 	if err != nil {
-		return errors.Wrapf(err, "creating directory failed (path: %s)", tempPath)
+		return errors.Wrapf(err, "creating service logs directory failed (path: %s)", dirPath)
 	}
 
 	return nil

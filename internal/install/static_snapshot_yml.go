@@ -88,7 +88,7 @@ services:
     - "KIBANA_HOST=http://kibana:5601"
     volumes:
     - type: bind
-      source: ../tmp/
+      source: ../tmp/service_logs/
       target: /tmp/service_logs/
 
   elastic-agent_is_ready:

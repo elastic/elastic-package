@@ -89,7 +89,7 @@ func (r *runner) run() error {
 		return errors.Wrap(err, "could not create service runner")
 	}
 
-	tempDir, err := install.TempDir()
+	tempDir, err := install.ServiceLogsDir()
 	if err != nil {
 		return errors.Wrap(err, "could not get temporary folder")
 	}
