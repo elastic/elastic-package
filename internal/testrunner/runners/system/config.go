@@ -22,7 +22,7 @@ type config struct {
 	} `yaml:"dataset"`
 }
 
-func newConfig(systemTestFolderPath string, ctxt common.MapStr) (*config, error) {
+func newConfig(systemTestFolderPath string, ctxt common.ServiceContext) (*config, error) {
 	configFilePath := filepath.Join(systemTestFolderPath, configFileName)
 	data, err := ioutil.ReadFile(configFilePath)
 	if err != nil && os.IsNotExist(err) {
@@ -33,7 +33,7 @@ func newConfig(systemTestFolderPath string, ctxt common.MapStr) (*config, error)
 		return nil, errors.Wrapf(err, "could not load system test configuration file: %s", configFilePath)
 	}
 
-	data, err = applyContext(ctxt, data)
+	data, err = applyContext(data, ctxt)
 	if err != nil {
 		return nil, errors.Wrapf(err, "could not apply context to test configuration file: %s", configFilePath)
 	}
@@ -49,7 +49,7 @@ func newConfig(systemTestFolderPath string, ctxt common.MapStr) (*config, error)
 // applyContext takes the given system test configuration (data) and replaces any placeholder variables in
 // it with values from the given context (ctxt). The context may be populated from various sources but usually the
 // most interesting context values will be set by a ServiceDeployer in its SetUp method.
-func applyContext(ctxt common.MapStr, data []byte) ([]byte, error) {
+func applyContext(data []byte, ctxt common.ServiceContext) ([]byte, error) {
 	tpl := string(data)
 	result, err := raymond.Render(tpl, ctxt)
 	if err != nil {

@@ -93,10 +93,11 @@ func (r *runner) run() error {
 		return errors.Wrap(err, "could not get temporary folder")
 	}
 
-	ctxt := common.MapStr{}
-	ctxt.Put("service.name", r.testFolder.Package)
-	ctxt.Put("service.logs.folder.local", tempDir)
-	ctxt.Put("service.logs.folder.agent", "/tmp/service_logs/")
+	ctxt := common.ServiceContext{
+		Name: r.testFolder.Package,
+	}
+	ctxt.Logs.Folder.Local = tempDir
+	ctxt.Logs.Folder.Agent = "/tmp/service_logs/"
 
 	service, err := serviceDeployer.SetUp(ctxt)
 	if err != nil {

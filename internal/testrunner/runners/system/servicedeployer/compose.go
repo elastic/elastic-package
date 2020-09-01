@@ -27,7 +27,7 @@ type DockerComposeServiceDeployer struct {
 }
 
 type DockerComposeDeployedService struct {
-	ctxt common.MapStr
+	ctxt common.ServiceContext
 
 	ymlPath string
 	project string
@@ -47,7 +47,7 @@ func NewDockerComposeServiceDeployer(ymlPath string) (*DockerComposeServiceDeplo
 }
 
 // SetUp sets up the service and returns any relevant information.
-func (r *DockerComposeServiceDeployer) SetUp(ctxt common.MapStr) (DeployedService, error) {
+func (r *DockerComposeServiceDeployer) SetUp(ctxt common.ServiceContext) (DeployedService, error) {
 	logger.Debug("setting up service using Docker Compose service deployer")
 	service := DockerComposeDeployedService{
 		ymlPath: r.ymlPath,
@@ -69,23 +69,13 @@ func (r *DockerComposeServiceDeployer) SetUp(ctxt common.MapStr) (DeployedServic
 	}
 
 	// Build service container name
-	serviceName, err := getStrFromCtxt(ctxt, "service.name")
-	if err != nil {
-		return nil, errors.Wrap(err, "could not get service name")
-	}
+	serviceName := ctxt.Name
 	serviceContainer := fmt.Sprintf("%s_%s_1", service.project, serviceName)
-	service.ctxt.Put("Service.Hostname", serviceContainer)
+	service.ctxt.Hostname = serviceContainer
 
 	// Redirect service container's STDOUT and STDERR streams to files in local logs folder
-	localLogsFolder, err := getStrFromCtxt(ctxt, "service.logs.folder.local")
-	if err != nil {
-		return nil, errors.Wrap(err, "could not get service logs folder path on local filesystem")
-	}
-
-	agentLogsFolder, err := getStrFromCtxt(ctxt, "service.logs.folder.agent")
-	if err != nil {
-		return nil, errors.Wrap(err, "could not get service logs folder path on agent container filesystem")
-	}
+	localLogsFolder := ctxt.Logs.Folder.Local
+	agentLogsFolder := ctxt.Logs.Folder.Agent
 
 	service.stdoutFilePath = filepath.Join(localLogsFolder, stdoutFileName)
 	logger.Debugf("creating temp file %s to hold service container %s STDOUT", service.stdoutFilePath, serviceContainer)
@@ -94,7 +84,7 @@ func (r *DockerComposeServiceDeployer) SetUp(ctxt common.MapStr) (DeployedServic
 		return nil, errors.Wrap(err, "could not create STDOUT file")
 	}
 	service.stdout = outFile
-	ctxt.Put("Service.STDOUT", agentLogsFolder+stdoutFileName)
+	ctxt.STDOUT = agentLogsFolder + stdoutFileName
 
 	service.stderrFilePath = filepath.Join(localLogsFolder, stderrFileName)
 	logger.Debugf("creating temp file %s to hold service container %s STDERR", service.stderrFilePath, serviceContainer)
@@ -103,7 +93,7 @@ func (r *DockerComposeServiceDeployer) SetUp(ctxt common.MapStr) (DeployedServic
 		return nil, errors.Wrap(err, "could not create STDERR file")
 	}
 	service.stderr = errFile
-	ctxt.Put("Service.STDERR", agentLogsFolder+stderrFileName)
+	ctxt.STDERR = agentLogsFolder + stderrFileName
 
 	logger.Debugf("redirecting service container %s STDOUT and STDERR to temp files", serviceContainer)
 	cmd := exec.Command("docker", "attach", "--no-stdin", serviceContainer)
@@ -129,13 +119,9 @@ func (r *DockerComposeServiceDeployer) SetUp(ctxt common.MapStr) (DeployedServic
 	}
 
 	s := serviceComposeConfig.Services[serviceName]
+	service.ctxt.Ports = make([]int, len(s.Ports))
 	for idx, port := range s.Ports {
-		service.ctxt.Put(fmt.Sprintf("Service.Ports.%d", idx), port)
-
-		// Special case for convenience: assume first port is the main port
-		if idx == 0 {
-			service.ctxt.Put("Service.Port", port)
-		}
+		service.ctxt.Ports[idx] = port.InternalPort
 	}
 
 	return &service, nil
@@ -174,26 +160,12 @@ func (s *DockerComposeDeployedService) TearDown() error {
 }
 
 // GetContext returns the current context for the service.
-func (s *DockerComposeDeployedService) GetContext() common.MapStr {
+func (s *DockerComposeDeployedService) GetContext() common.ServiceContext {
 	return s.ctxt
 }
 
 // SetContext sets the current context for the service.
-func (s *DockerComposeDeployedService) SetContext(ctxt common.MapStr) error {
+func (s *DockerComposeDeployedService) SetContext(ctxt common.ServiceContext) error {
 	s.ctxt = ctxt
 	return nil
-}
-
-func getStrFromCtxt(ctxt common.MapStr, key string) (string, error) {
-	v, err := ctxt.GetValue(key)
-	if err != nil {
-		return "", errors.Wrapf(err, "could not get key %s from context", key)
-	}
-
-	val, ok := v.(string)
-	if !ok {
-		return "", fmt.Errorf("expected value for key %s be a string, got: %v", key, v)
-	}
-
-	return val, nil
 }
