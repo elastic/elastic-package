@@ -25,21 +25,23 @@ type Project struct {
 	composeFilePaths []string
 }
 
-type Config struct {
-	Services map[string]Service
+type config struct {
+	Services map[string]service
 }
-type Service struct {
-	Ports []PortMapping
+type service struct {
+	Ports []portMapping
 }
 
-type PortMapping struct {
+type portMapping struct {
 	ExternalIP   string
 	ExternalPort int
 	InternalPort int
 	Protocol     string
 }
 
-func (p *PortMapping) UnmarshalYAML(node *yaml.Node) error {
+// UnmarshalYAML unmarshals a Docker Compose port mapping in YAML to
+// a portMapping.
+func (p *portMapping) UnmarshalYAML(node *yaml.Node) error {
 	var str string
 	if err := node.Decode(&str); err != nil {
 		return err
@@ -155,7 +157,7 @@ func (p *Project) Build(opts CommandOptions) error {
 }
 
 // Config returns the combined configuration for a Docker Compose project.
-func (p *Project) Config(opts CommandOptions) (*Config, error) {
+func (p *Project) Config(opts CommandOptions) (*config, error) {
 	args := p.baseArgs()
 	args = append(args, "config")
 	args = append(args, opts.ExtraArgs...)
@@ -166,7 +168,7 @@ func (p *Project) Config(opts CommandOptions) (*Config, error) {
 		return nil, err
 	}
 
-	var config Config
+	var config config
 	if err := yaml.Unmarshal(b.Bytes(), &config); err != nil {
 		return nil, err
 	}

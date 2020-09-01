@@ -75,6 +75,8 @@ func StackPackagesDir() (string, error) {
 	return filepath.Join(stackDir, packagesDir), nil
 }
 
+// TempDir method returns the location of the temporary directory to use as a "scratch pad"
+// for various purposes, as needed.
 func TempDir() (string, error) {
 	configurationDir, err := configurationDir()
 	if err != nil {

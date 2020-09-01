@@ -1,5 +1,8 @@
 package common
 
+// ServiceContext encapsulates context that is both available to a ServiceDeployer and
+// populated by a DeployedService. The fields in ServiceContext may be used in handlebars
+// templates in system test configuration files, for example: {{ Hostname }}.
 type ServiceContext struct {
 	// Name is the name of the service.
 	Name string
