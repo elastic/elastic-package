@@ -1,3 +1,7 @@
+// Copyright Elasticsearch B.V. and/or licensed to Elasticsearch B.V. under one
+// or more contributor license agreements. Licensed under the Elastic License;
+// you may not use this file except in compliance with the Elastic License.
+
 package ingestmanager
 
 import (
@@ -9,6 +13,7 @@ import (
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
+// Policy represents an Ingest Manager policy.
 type Policy struct {
 	ID          string `json:"id,omitempty"`
 	Name        string `json:"name"`
@@ -16,6 +21,7 @@ type Policy struct {
 	Namespace   string `json:"namespace"`
 }
 
+// CreatePolicy persists the given Policy in the Ingest Manager.
 func (c *Client) CreatePolicy(p Policy) (*Policy, error) {
 	reqBody, err := json.Marshal(p)
 	if err != nil {
@@ -42,6 +48,7 @@ func (c *Client) CreatePolicy(p Policy) (*Policy, error) {
 	return &resp.Item, nil
 }
 
+// DeletePolicy removes the given Policy from the Ingest Manager.
 func (c *Client) DeletePolicy(p Policy) error {
 	reqBody := `{ "agentPolicyId": "` + p.ID + `" }`
 
@@ -57,25 +64,33 @@ func (c *Client) DeletePolicy(p Policy) error {
 	return nil
 }
 
-type VarType struct {
+// Var represents a single variable at the package or
+// data stream level, encapsulating the data type of the
+// variable and it's value.
+type Var struct {
 	Value packages.VarValue `json:"value"`
 	Type  string            `json:"type"`
 }
 
-type Vars map[string]VarType
+// Vars is a collection of variables either at the package or
+// data stream level.
+type Vars map[string]Var
 
-type Datastream struct {
+// DataStream represents a data stream within a package.
+type DataStream struct {
 	Type    string `json:"type"`
 	Dataset string `json:"dataset"`
 }
 
+// Stream encapsulates a data stream and it's variables.
 type Stream struct {
 	ID         string     `json:"id"`
 	Enabled    bool       `json:"enabled"`
-	DataStream Datastream `json:"data_stream"`
+	DataStream DataStream `json:"data_stream"`
 	Vars       Vars       `json:"vars"`
 }
 
+// Input represents a package-level input.
 type Input struct {
 	Type    string   `json:"type"`
 	Enabled bool     `json:"enabled"`
@@ -83,7 +98,9 @@ type Input struct {
 	Vars    Vars     `json:"vars"`
 }
 
-type PackageDatastream struct {
+// PackageDataStream represents a request to add a single package's single data stream to a
+// Policy in Ingest Manager.
+type PackageDataStream struct {
 	Name        string  `json:"name"`
 	Description string  `json:"description"`
 	Namespace   string  `json:"namespace"`
@@ -98,7 +115,8 @@ type PackageDatastream struct {
 	} `json:"package"`
 }
 
-func (c *Client) AddPackageDataStreamToPolicy(r PackageDatastream) error {
+// AddPackageDataStreamToPolicy adds a PackageDataStream to a Policy in Ingest Manager.
+func (c *Client) AddPackageDataStreamToPolicy(r PackageDataStream) error {
 	reqBody, err := json.Marshal(r)
 	if err != nil {
 		return errors.Wrap(err, "could not convert policy-package (request) to JSON")

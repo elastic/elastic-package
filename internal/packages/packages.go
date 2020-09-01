@@ -22,11 +22,15 @@ const (
 	DatasetManifestFile = "manifest.yml"
 )
 
+// VarValue represents a variable value as defined in a package or dataset
+// manifest file.
 type VarValue struct {
 	scalar string
 	list   []string
 }
 
+// UnmarshalYAML knows how to parse a variable value from a package or dataset
+// manifest file into a VarValue.
 func (vv *VarValue) UnmarshalYAML(value *yaml.Node) error {
 	switch value.Kind {
 	case yaml.ScalarNode:
@@ -42,6 +46,8 @@ func (vv *VarValue) UnmarshalYAML(value *yaml.Node) error {
 	return nil
 }
 
+// MarshalJSON knows how to serialize a VarValue into the appropriate
+// JSON data type and value.
 func (vv VarValue) MarshalJSON() ([]byte, error) {
 	if vv.scalar != "" {
 		return json.Marshal(vv.scalar)

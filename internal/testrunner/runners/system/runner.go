@@ -263,9 +263,9 @@ func createPackageDatastream(
 	pkg packages.PackageManifest,
 	ds packages.DatasetManifest,
 	c testConfig,
-) ingestmanager.PackageDatastream {
+) ingestmanager.PackageDataStream {
 	streamInput := ds.Streams[0].Input
-	r := ingestmanager.PackageDatastream{
+	r := ingestmanager.PackageDataStream{
 		Name:      fmt.Sprintf("%s-%s", pkg.Name, ds.Name),
 		Namespace: "ep",
 		PolicyID:  p.ID,
@@ -287,7 +287,7 @@ func createPackageDatastream(
 		{
 			ID:      fmt.Sprintf("%s-%s.%s", streamInput, pkg.Name, ds.Name),
 			Enabled: true,
-			DataStream: ingestmanager.Datastream{
+			DataStream: ingestmanager.DataStream{
 				Type:    ds.Type,
 				Dataset: fmt.Sprintf("%s.%s", pkg.Name, ds.Name),
 			},
@@ -305,7 +305,7 @@ func createPackageDatastream(
 			val = cfgVar
 		}
 
-		dsVars[dsVar.Name] = ingestmanager.VarType{
+		dsVars[dsVar.Name] = ingestmanager.Var{
 			Type:  dsVar.Type,
 			Value: val,
 		}
@@ -326,7 +326,7 @@ func createPackageDatastream(
 				val = cfgVar
 			}
 
-			pkgVars[pkgVar.Name] = ingestmanager.VarType{
+			pkgVars[pkgVar.Name] = ingestmanager.Var{
 				Type:  pkgVar.Type,
 				Value: val,
 			}

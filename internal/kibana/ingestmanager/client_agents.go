@@ -1,3 +1,7 @@
+// Copyright Elasticsearch B.V. and/or licensed to Elasticsearch B.V. under one
+// or more contributor license agreements. Licensed under the Elastic License;
+// you may not use this file except in compliance with the Elastic License.
+
 package ingestmanager
 
 import (
@@ -7,11 +11,13 @@ import (
 	"github.com/pkg/errors"
 )
 
+// Agent represents an Elastic Agent enrolled with fleet.
 type Agent struct {
 	ID       string `json:"id"`
 	PolicyID string `json:"policy_id"`
 }
 
+// ListAgents returns the list of agents enrolled with Fleet.
 func (c *Client) ListAgents() ([]Agent, error) {
 	statusCode, respBody, err := c.get("fleet/agents")
 	if err != nil {
@@ -34,6 +40,7 @@ func (c *Client) ListAgents() ([]Agent, error) {
 
 }
 
+// AssignPolicyToAgent assigns the given Policy to the given Agent.
 func (c *Client) AssignPolicyToAgent(a Agent, p Policy) error {
 	reqBody := `{ "policy_id": "` + p.ID + `" }`
 

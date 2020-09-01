@@ -1,3 +1,7 @@
+// Copyright Elasticsearch B.V. and/or licensed to Elasticsearch B.V. under one
+// or more contributor license agreements. Licensed under the Elastic License;
+// you may not use this file except in compliance with the Elastic License.
+
 package servicedeployer
 
 import (
@@ -26,7 +30,7 @@ type DockerComposeServiceDeployer struct {
 	ymlPath string
 }
 
-type DockerComposeDeployedService struct {
+type dockerComposeDeployedService struct {
 	ctxt common.ServiceContext
 
 	ymlPath string
@@ -49,7 +53,7 @@ func NewDockerComposeServiceDeployer(ymlPath string) (*DockerComposeServiceDeplo
 // SetUp sets up the service and returns any relevant information.
 func (r *DockerComposeServiceDeployer) SetUp(ctxt common.ServiceContext) (DeployedService, error) {
 	logger.Debug("setting up service using Docker Compose service deployer")
-	service := DockerComposeDeployedService{
+	service := dockerComposeDeployedService{
 		ymlPath: r.ymlPath,
 		ctxt:    ctxt,
 		project: "elastic-package-service",
@@ -128,7 +132,7 @@ func (r *DockerComposeServiceDeployer) SetUp(ctxt common.ServiceContext) (Deploy
 }
 
 // TearDown tears down the service.
-func (s *DockerComposeDeployedService) TearDown() error {
+func (s *dockerComposeDeployedService) TearDown() error {
 	logger.Infof("tearing down service using docker compose runner")
 	defer func() {
 		if err := s.stderr.Close(); err != nil {
@@ -160,12 +164,12 @@ func (s *DockerComposeDeployedService) TearDown() error {
 }
 
 // GetContext returns the current context for the service.
-func (s *DockerComposeDeployedService) GetContext() common.ServiceContext {
+func (s *dockerComposeDeployedService) GetContext() common.ServiceContext {
 	return s.ctxt
 }
 
 // SetContext sets the current context for the service.
-func (s *DockerComposeDeployedService) SetContext(ctxt common.ServiceContext) error {
+func (s *dockerComposeDeployedService) SetContext(ctxt common.ServiceContext) error {
 	s.ctxt = ctxt
 	return nil
 }

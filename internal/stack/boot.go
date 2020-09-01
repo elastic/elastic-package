@@ -1,3 +1,7 @@
+// Copyright Elasticsearch B.V. and/or licensed to Elasticsearch B.V. under one
+// or more contributor license agreements. Licensed under the Elastic License;
+// you may not use this file except in compliance with the Elastic License.
+
 package stack
 
 import (
@@ -20,6 +24,8 @@ type BootOptions struct {
 	Services []string
 }
 
+// DockerComposeProjectName is the name of the Docker Compose project used to boot up
+// Elastic Stack containers.
 const DockerComposeProjectName = "elastic-package-stack"
 
 // BootUp method boots up the testing stack.
