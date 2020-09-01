@@ -179,8 +179,8 @@ func dockerComposeDown() error {
 
 func withDependentServices(services []string) []string {
 	for _, aService := range services {
-		if aService == "kibana" {
-			return []string{} // kibana service requires to load all other services
+		if aService == "elastic-agent" {
+			return []string{} // elastic-agent service requires to load all other services
 		}
 	}
 	return services
