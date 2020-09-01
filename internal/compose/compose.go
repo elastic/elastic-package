@@ -5,21 +5,83 @@
 package compose
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
+	"strconv"
+	"strings"
 
 	"github.com/pkg/errors"
+	"gopkg.in/yaml.v3"
+
+	"github.com/elastic/elastic-package/internal/logger"
 )
 
 // Project represents a Docker Compose project.
 type Project struct {
 	name             string
 	composeFilePaths []string
+}
 
-	stdout io.Writer
-	stderr io.Writer
+type Config struct {
+	Services map[string]Service
+}
+type Service struct {
+	Ports []PortMapping
+}
+
+type PortMapping struct {
+	ExternalIP   string
+	ExternalPort int
+	InternalPort int
+	Protocol     string
+}
+
+func (p *PortMapping) UnmarshalYAML(node *yaml.Node) error {
+	var str string
+	if err := node.Decode(&str); err != nil {
+		return err
+	}
+
+	// First, parse out the protocol.
+	parts := strings.Split(str, "/")
+	p.Protocol = parts[1]
+
+	// Now, try to parse out external host, external IP, and internal port.
+	parts = strings.Split(parts[0], ":")
+	var externalIP, internalPortStr, externalPortStr string
+	switch len(parts) {
+	case 1:
+		// All we have is an internal port.
+		internalPortStr = parts[0]
+	case 3:
+		// We have an external IP, external port, and an internal port.
+		externalIP = parts[0]
+		externalPortStr = parts[1]
+		internalPortStr = parts[2]
+	default:
+		return errors.New("could not parse port mapping")
+	}
+
+	internalPort, err := strconv.Atoi(internalPortStr)
+	if err != nil {
+		return errors.Wrap(err, "error parsing internal port as integer")
+	}
+	p.InternalPort = internalPort
+
+	if externalPortStr != "" {
+		externalPort, err := strconv.Atoi(externalPortStr)
+		if err != nil {
+			return errors.Wrap(err, "error parsing external port as integer")
+		}
+		p.ExternalPort = externalPort
+	}
+
+	p.ExternalIP = externalIP
+
+	return nil
 }
 
 // CommandOptions encapsulates the environment variables, extra arguments, and Docker Compose services
@@ -46,22 +108,9 @@ func NewProject(name string, paths ...string) (*Project, error) {
 	c := Project{
 		name,
 		paths,
-
-		os.Stdout,
-		os.Stderr,
 	}
 
 	return &c, nil
-}
-
-// SetStdout redirects the docker compose project's STDOUT stream to the given destination
-func (p *Project) SetStdout(stdout io.Writer) {
-	p.stdout = stdout
-}
-
-// SetStderr redirects the docker compose project's STDERR stream to the given destination
-func (p *Project) SetStderr(stderr io.Writer) {
-	p.stderr = stderr
 }
 
 // Up brings up a Docker Compose project.
@@ -71,7 +120,7 @@ func (p *Project) Up(opts CommandOptions) error {
 	args = append(args, opts.ExtraArgs...)
 	args = append(args, opts.Services...)
 
-	if err := p.runDockerComposeCmd(args, opts.Env); err != nil {
+	if err := p.runDockerComposeCmd(args, opts.Env, nil); err != nil {
 		return errors.Wrap(err, "running Docker Compose up command failed")
 	}
 
@@ -84,7 +133,7 @@ func (p *Project) Down(opts CommandOptions) error {
 	args = append(args, "down")
 	args = append(args, opts.ExtraArgs...)
 
-	if err := p.runDockerComposeCmd(args, opts.Env); err != nil {
+	if err := p.runDockerComposeCmd(args, opts.Env, nil); err != nil {
 		return errors.Wrap(err, "running Docker Compose down command failed")
 	}
 
@@ -98,11 +147,31 @@ func (p *Project) Build(opts CommandOptions) error {
 	args = append(args, opts.ExtraArgs...)
 	args = append(args, opts.Services...)
 
-	if err := p.runDockerComposeCmd(args, opts.Env); err != nil {
+	if err := p.runDockerComposeCmd(args, opts.Env, nil); err != nil {
 		return errors.Wrap(err, "running Docker Compose build command failed")
 	}
 
 	return nil
+}
+
+// Config returns the combined configuration for a Docker Compose project.
+func (p *Project) Config(opts CommandOptions) (*Config, error) {
+	args := p.baseArgs()
+	args = append(args, "config")
+	args = append(args, opts.ExtraArgs...)
+	args = append(args, opts.Services...)
+
+	var b bytes.Buffer
+	if err := p.runDockerComposeCmd(args, opts.Env, &b); err != nil {
+		return nil, err
+	}
+
+	var config Config
+	if err := yaml.Unmarshal(b.Bytes(), &config); err != nil {
+		return nil, err
+	}
+
+	return &config, nil
 }
 
 // Pull pulls down images for a Docker Compose project.
@@ -112,7 +181,7 @@ func (p *Project) Pull(opts CommandOptions) error {
 	args = append(args, opts.ExtraArgs...)
 	args = append(args, opts.Services...)
 
-	if err := p.runDockerComposeCmd(args, opts.Env); err != nil {
+	if err := p.runDockerComposeCmd(args, opts.Env, nil); err != nil {
 		return errors.Wrap(err, "running Docker Compose pull command failed")
 	}
 
@@ -129,11 +198,14 @@ func (p *Project) baseArgs() []string {
 	return args
 }
 
-func (p *Project) runDockerComposeCmd(args, env []string) error {
+func (p *Project) runDockerComposeCmd(args, env []string, stdout io.Writer) error {
 	cmd := exec.Command("docker-compose", args...)
 	cmd.Env = append(os.Environ(), env...)
-	cmd.Stdout = p.stdout
-	cmd.Stderr = p.stderr
+	if stdout != nil {
+		cmd.Stdout = stdout
+	}
+
+	logger.Debugf("running command: %s", cmd)
 
 	return cmd.Run()
 }

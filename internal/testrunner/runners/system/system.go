@@ -17,7 +17,6 @@ import (
 	"github.com/elastic/elastic-package/internal/kibana/ingestmanager"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
-	"github.com/elastic/elastic-package/internal/stack"
 	"github.com/elastic/elastic-package/internal/testrunner"
 	"github.com/elastic/elastic-package/internal/testrunner/runners/system/servicedeployer"
 )
@@ -96,7 +95,7 @@ func (r *runner) run() error {
 	}
 
 	ctxt := common.MapStr{}
-	ctxt.Put("docker.compose.project", stack.DockerComposeProjectName)
+	ctxt.Put("service.name", r.testFolder.Package)
 	ctxt.Put("tempdir", tempDir)
 
 	ctxt, err = serviceRunner.SetUp(ctxt)

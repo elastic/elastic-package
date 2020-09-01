@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 
 	"github.com/pkg/errors"
@@ -11,16 +12,21 @@ import (
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/compose"
 	"github.com/elastic/elastic-package/internal/logger"
+	"github.com/elastic/elastic-package/internal/stack"
 )
 
 // DockerComposeRunner knows how to setup and teardown a service defined via
 // a docker-compose.yml file.
 type DockerComposeRunner struct {
-	ymlPath string
-	project string
+	ymlPath      string
+	project      string
+	stackNetwork string
 
 	stdout io.WriteCloser
 	stderr io.WriteCloser
+
+	stdoutFilePath string
+	stderrFilePath string
 }
 
 // NewDockerComposeRunner returns a new instance of a DockerComposeRunner.
@@ -33,43 +39,83 @@ func NewDockerComposeRunner(ymlPath string) (*DockerComposeRunner, error) {
 // SetUp sets up the service and returns any relevant information.
 func (r *DockerComposeRunner) SetUp(ctxt common.MapStr) (common.MapStr, error) {
 	logger.Infof("setting up service using docker compose runner")
-	project, err := getStrFromCtxt(ctxt, "docker.compose.project")
-	if err != nil {
-		return ctxt, errors.Wrap(err, "could not get docker compose project")
-	}
-	r.project = project
+	r.project = "elastic-package-service"
 
-	c, err := compose.NewProject(project, r.ymlPath)
+	c, err := compose.NewProject(r.project, r.ymlPath)
 	if err != nil {
 		return ctxt, errors.Wrap(err, "could not create docker compose project for service")
 	}
 
+	// Boot up service
+	opts := compose.CommandOptions{
+		ExtraArgs: []string{"-d"},
+	}
+	if err := c.Up(opts); err != nil {
+		return ctxt, errors.Wrap(err, "could not boot up service using docker compose")
+	}
+
+	// Build service container name
+	serviceName, err := getStrFromCtxt(ctxt, "service.name")
+	if err != nil {
+		return ctxt, errors.Wrap(err, "could not get service name")
+	}
+	serviceContainer := fmt.Sprintf("%s_%s_1", r.project, serviceName)
+
+	// Redirect service container's STDOUT and STDERR streams to temp files
 	tempDirPath, err := getStrFromCtxt(ctxt, "tempdir")
 	if err != nil {
 		return ctxt, errors.Wrap(err, "could not get temporary folder path")
 	}
 
-	outFilePath := filepath.Join(tempDirPath, "stdout")
-	outFile, err := os.Create(outFilePath)
+	r.stdoutFilePath = filepath.Join(tempDirPath, "stdout")
+	logger.Debugf("creating temp file %s to hold service container %s STDOUT", r.stdoutFilePath, serviceContainer)
+	outFile, err := os.Create(r.stdoutFilePath)
 	if err != nil {
 		return ctxt, errors.Wrap(err, "could not create STDOUT file")
 	}
 	r.stdout = outFile
-	c.SetStdout(r.stdout)
-	ctxt.Put("Service.STDOUT", outFilePath)
+	ctxt.Put("Service.STDOUT", r.stdoutFilePath)
 
-	errFilePath := filepath.Join(tempDirPath, "stderr")
-	errFile, err := os.Create(errFilePath)
+	r.stderrFilePath = filepath.Join(tempDirPath, "stderr")
+	logger.Debugf("creating temp file %s to hold service container %s STDERR", r.stderrFilePath, serviceContainer)
+	errFile, err := os.Create(r.stderrFilePath)
 	if err != nil {
 		return ctxt, errors.Wrap(err, "could not create STDERR file")
 	}
 	r.stderr = errFile
-	c.SetStderr(r.stderr)
-	ctxt.Put("Service.STDERR", errFilePath)
+	ctxt.Put("Service.STDERR", r.stderrFilePath)
 
-	opts := compose.CommandOptions{}
-	if err := c.Up(opts); err != nil {
-		return ctxt, errors.Wrap(err, "could not boot up service using docker compose")
+	logger.Debugf("redirecting service container %s STDOUT and STDERR to temp files", serviceContainer)
+	cmd := exec.Command("docker", "attach", "--no-stdin", serviceContainer)
+	cmd.Stdout = r.stdout
+	cmd.Stderr = r.stderr
+
+	if err := cmd.Start(); err != nil {
+		return ctxt, errors.Wrap(err, "could not redirect service container STDOUT and STDERR streams")
+	}
+
+	logger.Debugf("attaching service container %s to stack network %s", serviceContainer, r.stackNetwork)
+	r.stackNetwork = fmt.Sprintf("%s_default", stack.DockerComposeProjectName)
+
+	cmd = exec.Command("docker", "network", "connect", r.stackNetwork, serviceContainer)
+	if err := cmd.Run(); err != nil {
+		return ctxt, errors.Wrap(err, "could not attach service container to stack network")
+	}
+
+	logger.Debugf("adding service container %s internal ports to context", serviceContainer)
+	serviceComposeConfig, err := c.Config(compose.CommandOptions{})
+	if err != nil {
+		return ctxt, errors.Wrap(err, "could not get Docker Compose configuration for service")
+	}
+
+	service := serviceComposeConfig.Services[serviceName]
+	for idx, port := range service.Ports {
+		ctxt.Put(fmt.Sprintf("Service.Ports.%d", idx), port)
+
+		// Special case for convenience: assume first port is the main port
+		if idx == 0 {
+			ctxt.Put("Service.Port", port)
+		}
 	}
 
 	return ctxt, nil
@@ -89,11 +135,17 @@ func (r *DockerComposeRunner) TearDown(ctxt common.MapStr) error {
 	}
 
 	if err := r.stderr.Close(); err != nil {
-		return errors.Wrap(err, "could not close STDERR file")
+		return errors.Wrapf(err, "could not close STDERR file: %s", r.stderrFilePath)
+	}
+	if err := os.Remove(r.stderrFilePath); err != nil {
+		return errors.Wrapf(err, "could not delete STDERR file: %s", r.stderrFilePath)
 	}
 
 	if err := r.stdout.Close(); err != nil {
 		return errors.Wrap(err, "could not close STDOUT file")
+	}
+	if err := os.Remove(r.stdoutFilePath); err != nil {
+		return errors.Wrapf(err, "could not delete STDOUT file: %s", r.stdoutFilePath)
 	}
 
 	return nil
