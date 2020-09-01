@@ -4,9 +4,9 @@ import (
 	"github.com/elastic/elastic-package/internal/common"
 )
 
-// Runner defines the interface for controlling a service. It defines methods for
+// ServiceDeployer defines the interface for deploying a service. It defines methods for
 // controlling the lifecycle of a service.
-type Runner interface {
+type ServiceDeployer interface {
 	// SetUp implements the logic for setting up a service. It takes a context and returns one that
 	// may contain additional information. SetUp must not remove information from the context.
 	SetUp(ctxt common.MapStr) (common.MapStr, error)

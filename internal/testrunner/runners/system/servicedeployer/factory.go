@@ -14,7 +14,7 @@ var (
 
 // Factory chooses the appropriate service runner for the given package, depending
 // on service configuration files defined in the package.
-func Factory(packageRootPath string) (Runner, error) {
+func Factory(packageRootPath string) (ServiceDeployer, error) {
 	packageDevPath := path.Join(packageRootPath, "_dev")
 
 	// Is the service defined using a docker compose configuration file?
