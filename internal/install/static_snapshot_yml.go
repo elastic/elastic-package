@@ -86,6 +86,10 @@ services:
     - "FLEET_ENROLL_INSECURE=1"
     - "FLEET_SETUP=1"
     - "KIBANA_HOST=http://kibana:5601"
+    volumes:
+    - type: bind
+      source: ../tmp/
+      target: /tmp/service_logs/
 
   elastic-agent_is_ready:
     image: tianon/true
