@@ -58,11 +58,6 @@ func Run(options testrunner.TestOptions) error {
 }
 
 func (r *runner) run() error {
-	testConfig, err := newConfig(r.testFolder.Path)
-	if err != nil {
-		return errors.Wrap(err, "unable to load system test configuration")
-	}
-
 	pkgManifest, err := packages.ReadPackageManifest(filepath.Join(r.packageRootPath, packages.PackageManifestFile))
 	if err != nil {
 		return errors.Wrap(err, "reading package manifest failed")
@@ -133,9 +128,9 @@ func (r *runner) run() error {
 		}
 	}()
 
-	testConfig, err = evalTestConfigWithContext(*testConfig, ctxt)
+	testConfig, err := newConfig(r.testFolder.Path, ctxt)
 	if err != nil {
-		return errors.Wrap(err, "could not evaluate test configuration with context")
+		return errors.Wrap(err, "unable to load system test configuration")
 	}
 
 	logger.Info("adding package datastream to test policy...")
@@ -277,12 +272,4 @@ func createPackageDatastream(
 	r.Inputs[0].Vars = pkgVars
 
 	return r
-}
-
-// TODO: flesh out
-func evalTestConfigWithContext(c config, ctxt common.MapStr) (*config, error) {
-	logger.Debugf("c: %s", c)
-	logger.Debugf("ctxt: %s", ctxt.StringToPrint())
-
-	return nil, nil
 }
