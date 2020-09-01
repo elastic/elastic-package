@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/elastic/go-elasticsearch/v7"
 	"github.com/pkg/errors"
 )
 
@@ -20,6 +21,7 @@ type TestOptions struct {
 	TestFolder         TestFolder
 	PackageRootPath    string
 	GenerateTestResult bool
+	ESClient           *elasticsearch.Client
 }
 
 // RunFunc method defines main run function of a test runner.

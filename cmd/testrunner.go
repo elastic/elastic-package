@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
+	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/testrunner"
 	_ "github.com/elastic/elastic-package/internal/testrunner/runners" // register all test runners
@@ -94,11 +95,17 @@ func testTypeCommandActionFactory(testType testrunner.TestType) cobraext.Command
 			return fmt.Errorf("no %s tests found", testType)
 		}
 
+		esClient, err := elasticsearch.Client()
+		if err != nil {
+			return errors.Wrap(err, "fetching Elasticsearch client instance failed")
+		}
+
 		for _, folder := range testFolders {
 			if err := testrunner.Run(testType, testrunner.TestOptions{
 				TestFolder:         folder,
 				PackageRootPath:    packageRootPath,
 				GenerateTestResult: generateTestResult,
+				ESClient:           esClient,
 			}); err != nil {
 				return errors.Wrapf(err, "error running package %s tests", testType)
 			}

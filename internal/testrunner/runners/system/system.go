@@ -16,7 +16,6 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/common"
-	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/kibana/ingestmanager"
 	"github.com/elastic/elastic-package/internal/logger"
@@ -38,6 +37,7 @@ type runner struct {
 	testFolder      testrunner.TestFolder
 	packageRootPath string
 	stackSettings   stackSettings
+	esClient        *es.Client
 }
 
 type stackSettings struct {
@@ -57,6 +57,7 @@ func Run(options testrunner.TestOptions) error {
 		options.TestFolder,
 		options.PackageRootPath,
 		getStackSettingsFromEnv(),
+		options.ESClient,
 	}
 	return r.run()
 }
@@ -159,11 +160,6 @@ func (r *runner) run() error {
 	}
 
 	// Delete old data
-	esClient, err := elasticsearch.Client()
-	if err != nil {
-		return errors.Wrap(err, "fetching Elasticsearch client instance failed")
-	}
-
 	dataStream := fmt.Sprintf(
 		"%s-%s-%s",
 		ds.Inputs[0].Streams[0].DataStream.Type,
@@ -172,7 +168,7 @@ func (r *runner) run() error {
 	)
 
 	logger.Info("deleting old data in data stream...")
-	if err := deleteDataStreamDocs(esClient, dataStream); err != nil {
+	if err := deleteDataStreamDocs(r.esClient, dataStream); err != nil {
 		return errors.Wrapf(err, "error deleting old data in data stream: %s", dataStream)
 	}
 
@@ -192,8 +188,8 @@ func (r *runner) run() error {
 
 	logger.Info("checking for expected data in data stream...")
 	passed, err := waitUntilTrue(func() (bool, error) {
-		resp, err := esClient.Search(
-			esClient.Search.WithIndex(dataStream),
+		resp, err := r.esClient.Search(
+			r.esClient.Search.WithIndex(dataStream),
 		)
 		if err != nil {
 			return false, errors.Wrap(err, "could not search data stream")
@@ -230,7 +226,7 @@ func (r *runner) run() error {
 
 	defer func() {
 		logger.Debugf("deleting data in data stream...")
-		if err := deleteDataStreamDocs(esClient, dataStream); err != nil {
+		if err := deleteDataStreamDocs(r.esClient, dataStream); err != nil {
 			logger.Errorf("error deleting data in data stream", err)
 		}
 	}()
