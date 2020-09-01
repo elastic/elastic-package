@@ -133,13 +133,14 @@ func (r *runner) run() error {
 		}
 	}()
 
-	// TODO: build data stream Config by taking appropriate vars sections from package manifest + dataset manifest,
-	// starting with defaults, then overridding with vars from {dataset}/_dev/test/system/vars.yml. Then treat result
-	// as go template and evaulate against ctxt. See expected final structure in im.AddPackageDataStreamToPolicy method.
-	logger.Debugf("ctxt: %s", ctxt.StringToPrint())
+	testConfig, err = evalTestConfigWithContext(*testConfig, ctxt)
+	if err != nil {
+		return errors.Wrap(err, "could not evaluate test configuration with context")
+	}
 
 	logger.Info("adding package datastream to test policy...")
-	if err := im.AddPackageDataStreamToPolicy(createPackageDatastream(*policy, *pkgManifest, *datasetManifest, *testConfig)); err != nil {
+	ds := createPackageDatastream(*policy, *pkgManifest, *datasetManifest, *testConfig)
+	if err := im.AddPackageDataStreamToPolicy(ds); err != nil {
 		return errors.Wrap(err, "could not add dataset Config to policy")
 	}
 
@@ -199,7 +200,12 @@ func getStackSettingsFromEnv() stackSettings {
 	return s
 }
 
-func createPackageDatastream(p ingestmanager.Policy, pkg packages.PackageManifest, ds packages.DatasetManifest, c config) ingestmanager.PackageDatastream {
+func createPackageDatastream(
+	p ingestmanager.Policy,
+	pkg packages.PackageManifest,
+	ds packages.DatasetManifest,
+	c config,
+) ingestmanager.PackageDatastream {
 	streamInput := ds.Streams[0].Input
 	r := ingestmanager.PackageDatastream{
 		Name:      fmt.Sprintf("%s-%s", pkg.Name, ds.Name),
@@ -271,4 +277,12 @@ func createPackageDatastream(p ingestmanager.Policy, pkg packages.PackageManifes
 	r.Inputs[0].Vars = pkgVars
 
 	return r
+}
+
+// TODO: flesh out
+func evalTestConfigWithContext(c config, ctxt common.MapStr) (*config, error) {
+	logger.Debugf("c: %s", c)
+	logger.Debugf("ctxt: %s", ctxt.StringToPrint())
+
+	return nil, nil
 }
