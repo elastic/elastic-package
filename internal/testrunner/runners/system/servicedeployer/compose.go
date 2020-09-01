@@ -65,6 +65,7 @@ func (r *DockerComposeRunner) SetUp(ctxt common.MapStr) (common.MapStr, error) {
 		return ctxt, errors.Wrap(err, "could not get service name")
 	}
 	serviceContainer := fmt.Sprintf("%s_%s_1", r.project, serviceName)
+	ctxt.Put("Service.Hostname", serviceContainer)
 
 	// Redirect service container's STDOUT and STDERR streams to files in local logs folder
 	localLogsFolder, err := getStrFromCtxt(ctxt, "service.logs.folder.local")
