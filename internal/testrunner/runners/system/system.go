@@ -83,7 +83,7 @@ func (r *runner) run() error {
 	// Step 1. Setup service.
 	// Step 1a. (Deferred) Tear down service.
 	logger.Info("setting up service...")
-	serviceRunner, err := servicedeployer.Factory(r.packageRootPath)
+	serviceDeployer, err := servicedeployer.Factory(r.packageRootPath)
 	if err != nil {
 		return errors.Wrap(err, "could not create service runner")
 	}
@@ -98,16 +98,17 @@ func (r *runner) run() error {
 	ctxt.Put("service.logs.folder.local", tempDir)
 	ctxt.Put("service.logs.folder.agent", "/tmp/service_logs/")
 
-	ctxt, err = serviceRunner.SetUp(ctxt)
-	defer func() {
-		logger.Info("tearing down service...")
-		if err := serviceRunner.TearDown(ctxt); err != nil {
-			logger.Errorf("error tearing down service: %s", err)
-		}
-	}()
+	service, err := serviceDeployer.SetUp(ctxt)
 	if err != nil {
 		return errors.Wrap(err, "could not setup service")
 	}
+	ctxt = service.GetContext()
+	defer func() {
+		logger.Info("tearing down service...")
+		if err := service.TearDown(); err != nil {
+			logger.Errorf("error tearing down service: %s", err)
+		}
+	}()
 
 	// Step 2. Configure package (single data stream) via Ingest Manager APIs.
 	im, err := ingestmanager.NewClient(r.stackSettings.kibana.host, r.stackSettings.elasticsearch.username, r.stackSettings.elasticsearch.password)

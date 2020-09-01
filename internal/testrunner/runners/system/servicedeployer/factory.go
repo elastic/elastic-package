@@ -20,7 +20,7 @@ func Factory(packageRootPath string) (ServiceDeployer, error) {
 	// Is the service defined using a docker compose configuration file?
 	dockerComposeYMLPath := path.Join(packageDevPath, "docker-compose.yml")
 	if _, err := os.Stat(dockerComposeYMLPath); err == nil {
-		return NewDockerComposeRunner(dockerComposeYMLPath)
+		return NewDockerComposeServiceDeployer(dockerComposeYMLPath)
 	}
 
 	return nil, ErrNotFound
