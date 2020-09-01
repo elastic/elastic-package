@@ -46,6 +46,9 @@ func newConfig(systemTestFolderPath string, ctxt common.MapStr) (*config, error)
 	return &c, nil
 }
 
+// applyContext takes the given system test configuration (data) and replaces any placeholder variables in
+// it with values from the given context (ctxt). The context may be populated from various sources but usually the
+// most interesting context values will be set by a ServiceDeployer in its SetUp method.
 func applyContext(ctxt common.MapStr, data []byte) ([]byte, error) {
 	tpl := string(data)
 	result, err := raymond.Render(tpl, ctxt)
