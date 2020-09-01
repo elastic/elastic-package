@@ -15,6 +15,11 @@ import (
 	"github.com/elastic/elastic-package/internal/stack"
 )
 
+const (
+	stdoutFileName = "stdout"
+	stderrFileName = "stderr"
+)
+
 // DockerComposeRunner knows how to setup and teardown a service defined via
 // a docker-compose.yml file.
 type DockerComposeRunner struct {
@@ -61,29 +66,34 @@ func (r *DockerComposeRunner) SetUp(ctxt common.MapStr) (common.MapStr, error) {
 	}
 	serviceContainer := fmt.Sprintf("%s_%s_1", r.project, serviceName)
 
-	// Redirect service container's STDOUT and STDERR streams to temp files
-	tempDirPath, err := getStrFromCtxt(ctxt, "tempdir")
+	// Redirect service container's STDOUT and STDERR streams to files in local logs folder
+	localLogsFolder, err := getStrFromCtxt(ctxt, "service.logs.folder.local")
 	if err != nil {
-		return ctxt, errors.Wrap(err, "could not get temporary folder path")
+		return ctxt, errors.Wrap(err, "could not get service logs folder path on local filesystem")
 	}
 
-	r.stdoutFilePath = filepath.Join(tempDirPath, "stdout")
+	agentLogsFolder, err := getStrFromCtxt(ctxt, "service.logs.folder.agent")
+	if err != nil {
+		return ctxt, errors.Wrap(err, "could not get service logs folder path on agent container filesystem")
+	}
+
+	r.stdoutFilePath = filepath.Join(localLogsFolder, stdoutFileName)
 	logger.Debugf("creating temp file %s to hold service container %s STDOUT", r.stdoutFilePath, serviceContainer)
 	outFile, err := os.Create(r.stdoutFilePath)
 	if err != nil {
 		return ctxt, errors.Wrap(err, "could not create STDOUT file")
 	}
 	r.stdout = outFile
-	ctxt.Put("Service.STDOUT", r.stdoutFilePath)
+	ctxt.Put("Service.STDOUT", agentLogsFolder+stdoutFileName)
 
-	r.stderrFilePath = filepath.Join(tempDirPath, "stderr")
+	r.stderrFilePath = filepath.Join(localLogsFolder, stderrFileName)
 	logger.Debugf("creating temp file %s to hold service container %s STDERR", r.stderrFilePath, serviceContainer)
 	errFile, err := os.Create(r.stderrFilePath)
 	if err != nil {
 		return ctxt, errors.Wrap(err, "could not create STDERR file")
 	}
 	r.stderr = errFile
-	ctxt.Put("Service.STDERR", r.stderrFilePath)
+	ctxt.Put("Service.STDERR", agentLogsFolder+stderrFileName)
 
 	logger.Debugf("redirecting service container %s STDOUT and STDERR to temp files", serviceContainer)
 	cmd := exec.Command("docker", "attach", "--no-stdin", serviceContainer)

@@ -96,7 +96,8 @@ func (r *runner) run() error {
 
 	ctxt := common.MapStr{}
 	ctxt.Put("service.name", r.testFolder.Package)
-	ctxt.Put("tempdir", tempDir)
+	ctxt.Put("service.logs.folder.local", tempDir)
+	ctxt.Put("service.logs.folder.agent", "/tmp/service_logs/")
 
 	ctxt, err = serviceRunner.SetUp(ctxt)
 	defer func() {
