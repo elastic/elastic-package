@@ -13,8 +13,8 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 
-	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/internal/testrunner/runners/system/servicedeployer"
 )
 
 const configFileName = "config.yml"
@@ -26,7 +26,7 @@ type testConfig struct {
 	} `yaml:"dataset"`
 }
 
-func newConfig(systemTestFolderPath string, ctxt common.ServiceContext) (*testConfig, error) {
+func newConfig(systemTestFolderPath string, ctxt servicedeployer.ServiceContext) (*testConfig, error) {
 	configFilePath := filepath.Join(systemTestFolderPath, configFileName)
 	data, err := ioutil.ReadFile(configFilePath)
 	if err != nil && os.IsNotExist(err) {
@@ -53,7 +53,7 @@ func newConfig(systemTestFolderPath string, ctxt common.ServiceContext) (*testCo
 // applyContext takes the given system test configuration (data) and replaces any placeholder variables in
 // it with values from the given context (ctxt). The context may be populated from various sources but usually the
 // most interesting context values will be set by a ServiceDeployer in its SetUp method.
-func applyContext(data []byte, ctxt common.ServiceContext) ([]byte, error) {
+func applyContext(data []byte, ctxt servicedeployer.ServiceContext) ([]byte, error) {
 	tpl := string(data)
 	result, err := raymond.Render(tpl, ctxt)
 	if err != nil {

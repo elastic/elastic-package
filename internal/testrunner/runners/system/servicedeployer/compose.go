@@ -13,7 +13,6 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/compose"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/stack"
@@ -31,7 +30,7 @@ type DockerComposeServiceDeployer struct {
 }
 
 type dockerComposeDeployedService struct {
-	ctxt common.ServiceContext
+	ctxt ServiceContext
 
 	ymlPath string
 	project string
@@ -51,7 +50,7 @@ func NewDockerComposeServiceDeployer(ymlPath string) (*DockerComposeServiceDeplo
 }
 
 // SetUp sets up the service and returns any relevant information.
-func (r *DockerComposeServiceDeployer) SetUp(ctxt common.ServiceContext) (DeployedService, error) {
+func (r *DockerComposeServiceDeployer) SetUp(ctxt ServiceContext) (DeployedService, error) {
 	logger.Debug("setting up service using Docker Compose service deployer")
 	service := dockerComposeDeployedService{
 		ymlPath: r.ymlPath,
@@ -164,12 +163,12 @@ func (s *dockerComposeDeployedService) TearDown() error {
 }
 
 // GetContext returns the current context for the service.
-func (s *dockerComposeDeployedService) GetContext() common.ServiceContext {
+func (s *dockerComposeDeployedService) GetContext() ServiceContext {
 	return s.ctxt
 }
 
 // SetContext sets the current context for the service.
-func (s *dockerComposeDeployedService) SetContext(ctxt common.ServiceContext) error {
+func (s *dockerComposeDeployedService) SetContext(ctxt ServiceContext) error {
 	s.ctxt = ctxt
 	return nil
 }

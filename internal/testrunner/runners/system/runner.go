@@ -15,7 +15,6 @@ import (
 	es "github.com/elastic/go-elasticsearch/v7"
 	"github.com/pkg/errors"
 
-	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/kibana/ingestmanager"
 	"github.com/elastic/elastic-package/internal/logger"
@@ -94,7 +93,7 @@ func (r *runner) run() error {
 		return errors.Wrap(err, "could not get temporary folder")
 	}
 
-	ctxt := common.ServiceContext{
+	ctxt := servicedeployer.ServiceContext{
 		Name: r.testFolder.Package,
 	}
 	ctxt.Logs.Folder.Local = tempDir
