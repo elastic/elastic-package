@@ -6,5 +6,5 @@ package stack
 
 const (
 	// DefaultVersion is the default version of the stack
-	DefaultVersion = "7.9.1"
+	DefaultVersion = "7.10.0-SNAPSHOT"
 )
