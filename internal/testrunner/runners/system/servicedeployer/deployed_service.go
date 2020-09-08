@@ -9,8 +9,8 @@ type DeployedService interface {
 	// TearDown implements the logic for tearing down a service.
 	TearDown() error
 
-	// GetContext returns the current context from the service.
-	GetContext() ServiceContext
+	// Context returns the current context from the service.
+	Context() ServiceContext
 
 	// SetContext sets the current context for the service.
 	SetContext(str ServiceContext) error

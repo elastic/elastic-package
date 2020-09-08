@@ -103,7 +103,7 @@ func (r *runner) run() error {
 	if err != nil {
 		return errors.Wrap(err, "could not setup service")
 	}
-	ctxt = service.GetContext()
+	ctxt = service.Context()
 	defer func() {
 		logger.Info("tearing down service...")
 		if err := service.TearDown(); err != nil {

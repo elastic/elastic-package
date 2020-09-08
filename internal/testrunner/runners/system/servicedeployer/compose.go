@@ -163,7 +163,7 @@ func (s *dockerComposeDeployedService) TearDown() error {
 }
 
 // GetContext returns the current context for the service.
-func (s *dockerComposeDeployedService) GetContext() ServiceContext {
+func (s *dockerComposeDeployedService) Context() ServiceContext {
 	return s.ctxt
 }
 
