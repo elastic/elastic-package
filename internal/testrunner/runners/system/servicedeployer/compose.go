@@ -162,7 +162,7 @@ func (s *dockerComposeDeployedService) TearDown() error {
 	return nil
 }
 
-// GetContext returns the current context for the service.
+// Context returns the current context for the service.
 func (s *dockerComposeDeployedService) Context() ServiceContext {
 	return s.ctxt
 }
