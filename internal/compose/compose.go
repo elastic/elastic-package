@@ -123,7 +123,7 @@ func (p *Project) Up(opts CommandOptions) error {
 	args = append(args, opts.ExtraArgs...)
 	args = append(args, opts.Services...)
 
-	if err := p.runDockerComposeCmd(args, opts.Env, nil); err != nil {
+	if err := p.runDockerComposeCmd(dockerComposeOptions{args: args, env: opts.Env}); err != nil {
 		return errors.Wrap(err, "running Docker Compose up command failed")
 	}
 
@@ -136,7 +136,7 @@ func (p *Project) Down(opts CommandOptions) error {
 	args = append(args, "down")
 	args = append(args, opts.ExtraArgs...)
 
-	if err := p.runDockerComposeCmd(args, opts.Env, nil); err != nil {
+	if err := p.runDockerComposeCmd(dockerComposeOptions{args: args, env: opts.Env}); err != nil {
 		return errors.Wrap(err, "running Docker Compose down command failed")
 	}
 
@@ -150,7 +150,7 @@ func (p *Project) Build(opts CommandOptions) error {
 	args = append(args, opts.ExtraArgs...)
 	args = append(args, opts.Services...)
 
-	if err := p.runDockerComposeCmd(args, opts.Env, nil); err != nil {
+	if err := p.runDockerComposeCmd(dockerComposeOptions{args: args, env: opts.Env}); err != nil {
 		return errors.Wrap(err, "running Docker Compose build command failed")
 	}
 
@@ -165,7 +165,7 @@ func (p *Project) Config(opts CommandOptions) (*Config, error) {
 	args = append(args, opts.Services...)
 
 	var b bytes.Buffer
-	if err := p.runDockerComposeCmd(args, opts.Env, &b); err != nil {
+	if err := p.runDockerComposeCmd(dockerComposeOptions{args: args, env: opts.Env, stdout: &b}); err != nil {
 		return nil, err
 	}
 
@@ -184,7 +184,7 @@ func (p *Project) Pull(opts CommandOptions) error {
 	args = append(args, opts.ExtraArgs...)
 	args = append(args, opts.Services...)
 
-	if err := p.runDockerComposeCmd(args, opts.Env, nil); err != nil {
+	if err := p.runDockerComposeCmd(dockerComposeOptions{args: args, env: opts.Env}); err != nil {
 		return errors.Wrap(err, "running Docker Compose pull command failed")
 	}
 
@@ -201,11 +201,17 @@ func (p *Project) baseArgs() []string {
 	return args
 }
 
-func (p *Project) runDockerComposeCmd(args, env []string, stdout io.Writer) error {
-	cmd := exec.Command("docker-compose", args...)
-	cmd.Env = append(os.Environ(), env...)
-	if stdout != nil {
-		cmd.Stdout = stdout
+type dockerComposeOptions struct {
+	args   []string
+	env    []string
+	stdout io.Writer
+}
+
+func (p *Project) runDockerComposeCmd(opts dockerComposeOptions) error {
+	cmd := exec.Command("docker-compose", opts.args...)
+	cmd.Env = append(os.Environ(), opts.env...)
+	if opts.stdout != nil {
+		cmd.Stdout = opts.stdout
 	}
 
 	logger.Debugf("running command: %s", cmd)
