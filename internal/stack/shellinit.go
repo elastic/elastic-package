@@ -68,10 +68,10 @@ func ShellInit() (string, error) {
 	}
 
 	kib := serviceComposeConfig.Services["kibana"]
-	kibHostPort := fmt.Sprintf("%s:%d", kib.Ports[0].ExternalIP, kib.Ports[0].ExternalPort)
+	kibHostPort := fmt.Sprintf("http://%s:%d", kib.Ports[0].ExternalIP, kib.Ports[0].ExternalPort)
 
 	es := serviceComposeConfig.Services["elasticsearch"]
-	esHostPort := fmt.Sprintf("%s:%d", es.Ports[0].ExternalIP, es.Ports[0].ExternalPort)
+	esHostPort := fmt.Sprintf("http://%s:%d", es.Ports[0].ExternalIP, es.Ports[0].ExternalPort)
 
 	return fmt.Sprintf(shellInitFormat,
 		esHostPort,
