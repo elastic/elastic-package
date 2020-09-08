@@ -118,8 +118,9 @@ func (r *runner) run() error {
 	}
 
 	logger.Info("creating test policy...")
+	testTime := time.Now().Format("20060102T15:04:05Z")
 	p := ingestmanager.Policy{
-		Name:        fmt.Sprintf("ep-test-system-%s-%s", r.testFolder.Package, r.testFolder.Dataset),
+		Name:        fmt.Sprintf("ep-test-system-%s-%s-%s", r.testFolder.Package, r.testFolder.Dataset, testTime),
 		Description: fmt.Sprintf("test policy created by elastic-package test system for data stream %s/%s", r.testFolder.Package, r.testFolder.Dataset),
 		Namespace:   "ep",
 	}
