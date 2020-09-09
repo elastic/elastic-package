@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
+	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/testrunner"
 	_ "github.com/elastic/elastic-package/internal/testrunner/runners" // register all test runners
@@ -82,22 +83,29 @@ func testTypeCommandActionFactory(testType testrunner.TestType) cobraext.Command
 			return errors.Wrap(err, "locating package root failed")
 		}
 
-		testFolderPaths, err := testrunner.FindTestFolders(packageRootPath, testType, datasets)
+		testFolders, err := testrunner.FindTestFolders(packageRootPath, testType, datasets)
 		if err != nil {
 			return errors.Wrap(err, "unable to determine test folder paths")
 		}
 
-		if failOnMissing && len(testFolderPaths) == 0 {
+		if failOnMissing && len(testFolders) == 0 {
 			if len(datasets) > 0 {
 				return fmt.Errorf("no %s tests found for %s dataset(s)", testType, strings.Join(datasets, ","))
 			}
 			return fmt.Errorf("no %s tests found", testType)
 		}
 
-		for _, path := range testFolderPaths {
+		esClient, err := elasticsearch.Client()
+		if err != nil {
+			return errors.Wrap(err, "fetching Elasticsearch client instance failed")
+		}
+
+		for _, folder := range testFolders {
 			if err := testrunner.Run(testType, testrunner.TestOptions{
-				TestFolderPath:     path,
+				TestFolder:         folder,
+				PackageRootPath:    packageRootPath,
 				GenerateTestResult: generateTestResult,
+				ESClient:           esClient,
 			}); err != nil {
 				return errors.Wrapf(err, "error running package %s tests", testType)
 			}

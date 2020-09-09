@@ -6,14 +6,13 @@ package pipeline
 
 import (
 	"fmt"
-	"github.com/elastic/elastic-package/internal/logger"
 	"io/ioutil"
 	"path/filepath"
 	"strings"
 
 	"github.com/pkg/errors"
 
-	"github.com/elastic/elastic-package/internal/elasticsearch"
+	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
@@ -39,7 +38,7 @@ func (r *runner) run() error {
 		return errors.Wrap(err, "listing test case definitions failed")
 	}
 
-	datasetPath, found, err := packages.FindDatasetRootForPath(r.options.TestFolderPath)
+	datasetPath, found, err := packages.FindDatasetRootForPath(r.options.TestFolder.Path)
 	if err != nil {
 		return errors.Wrap(err, "locating dataset root failed")
 	}
@@ -47,17 +46,12 @@ func (r *runner) run() error {
 		return errors.New("dataset root not found")
 	}
 
-	esClient, err := elasticsearch.Client()
-	if err != nil {
-		return errors.Wrap(err, "fetching Elasticsearch client instance failed")
-	}
-
-	entryPipeline, pipelineIDs, err := installIngestPipelines(esClient, datasetPath)
+	entryPipeline, pipelineIDs, err := installIngestPipelines(r.options.ESClient, datasetPath)
 	if err != nil {
 		return errors.Wrap(err, "installing ingest pipelines failed")
 	}
 	defer func() {
-		err := uninstallIngestPipelines(esClient, pipelineIDs)
+		err := uninstallIngestPipelines(r.options.ESClient, pipelineIDs)
 		if err != nil {
 			logger.Warnf("uninstalling ingest pipelines failed: %v", err)
 		}
@@ -71,7 +65,7 @@ func (r *runner) run() error {
 		}
 		fmt.Printf("Test case: %s\n", tc.name)
 
-		result, err := simulatePipelineProcessing(esClient, entryPipeline, tc)
+		result, err := simulatePipelineProcessing(r.options.ESClient, entryPipeline, tc)
 		if err != nil {
 			return errors.Wrap(err, "simulating pipeline processing failed")
 		}
@@ -93,9 +87,9 @@ func (r *runner) run() error {
 }
 
 func (r *runner) listTestCaseFiles() ([]string, error) {
-	fis, err := ioutil.ReadDir(r.options.TestFolderPath)
+	fis, err := ioutil.ReadDir(r.options.TestFolder.Path)
 	if err != nil {
-		return nil, errors.Wrapf(err, "reading pipeline tests failed (path: %s)", r.options.TestFolderPath)
+		return nil, errors.Wrapf(err, "reading pipeline tests failed (path: %s)", r.options.TestFolder.Path)
 	}
 
 	var files []string
@@ -109,7 +103,7 @@ func (r *runner) listTestCaseFiles() ([]string, error) {
 }
 
 func (r *runner) loadTestCaseFile(testCaseFile string) (*testCase, error) {
-	testCasePath := filepath.Join(r.options.TestFolderPath, testCaseFile)
+	testCasePath := filepath.Join(r.options.TestFolder.Path, testCaseFile)
 	testCaseData, err := ioutil.ReadFile(testCasePath)
 	if err != nil {
 		return nil, errors.Wrapf(err, "reading input file failed (testCasePath: %s)", testCasePath)
@@ -139,7 +133,7 @@ func (r *runner) loadTestCaseFile(testCaseFile string) (*testCase, error) {
 }
 
 func (r *runner) verifyResults(testCaseFile string, result *testResult) error {
-	testCasePath := filepath.Join(r.options.TestFolderPath, testCaseFile)
+	testCasePath := filepath.Join(r.options.TestFolder.Path, testCaseFile)
 
 	if r.options.GenerateTestResult {
 		err := writeTestResult(testCasePath, result)

@@ -69,4 +69,31 @@ services:
     depends_on:
       package-registry:
         condition: service_healthy
+
+  elastic-agent:
+    image: docker.elastic.co/beats/elastic-agent:${STACK_VERSION}
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+      kibana:
+        condition: service_healthy
+    healthcheck:
+      test: "sh -c 'grep \"Agent is starting\" /usr/share/elastic-agent/elastic-agent.log*'"
+      retries: 30
+      interval: 1s
+    environment:
+    - "FLEET_ENROLL=1"
+    - "FLEET_ENROLL_INSECURE=1"
+    - "FLEET_SETUP=1"
+    - "KIBANA_HOST=http://kibana:5601"
+    volumes:
+    - type: bind
+      source: ../tmp/service_logs/
+      target: /tmp/service_logs/
+
+  elastic-agent_is_ready:
+    image: tianon/true
+    depends_on:
+      elastic-agent:
+        condition: service_healthy
 `

@@ -6,10 +6,10 @@ package testrunner
 
 import (
 	"fmt"
-	"path"
 	"path/filepath"
 	"strings"
 
+	"github.com/elastic/go-elasticsearch/v7"
 	"github.com/pkg/errors"
 )
 
@@ -18,8 +18,10 @@ type TestType string
 
 // TestOptions contains test runner options.
 type TestOptions struct {
-	TestFolderPath     string
+	TestFolder         TestFolder
+	PackageRootPath    string
 	GenerateTestResult bool
+	ESClient           *elasticsearch.Client
 }
 
 // RunFunc method defines main run function of a test runner.
@@ -27,8 +29,16 @@ type RunFunc func(options TestOptions) error
 
 var runners = map[TestType]RunFunc{}
 
+// TestFolder encapsulates the test folder path and names of the package + dataset
+// to which the test folder belongs.
+type TestFolder struct {
+	Path    string
+	Package string
+	Dataset string
+}
+
 // FindTestFolders finds test folders for the given package and, optionally, test type and datasets
-func FindTestFolders(packageRootPath string, testType TestType, datasets []string) ([]string, error) {
+func FindTestFolders(packageRootPath string, testType TestType, datasets []string) ([]TestFolder, error) {
 
 	// Expected folder structure:
 	// <packageRootPath>/
@@ -50,13 +60,29 @@ func FindTestFolders(packageRootPath string, testType TestType, datasets []strin
 		datasetsGlob += ")"
 	}
 
-	testFoldersGlob := path.Join(packageRootPath, "dataset", datasetsGlob, "_dev", "test", testTypeGlob)
-	matches, err := filepath.Glob(testFoldersGlob)
+	testFoldersGlob := filepath.Join(packageRootPath, "dataset", datasetsGlob, "_dev", "test", testTypeGlob)
+	paths, err := filepath.Glob(testFoldersGlob)
 	if err != nil {
 		return nil, errors.Wrap(err, "error finding test folders")
 	}
 
-	return matches, nil
+	folders := make([]TestFolder, len(paths))
+	_, pkg := filepath.Split(packageRootPath)
+	for idx, p := range paths {
+		relP := strings.TrimPrefix(p, packageRootPath)
+		parts := strings.Split(relP, string(filepath.Separator))
+		dataset := parts[2]
+
+		folder := TestFolder{
+			p,
+			pkg,
+			dataset,
+		}
+
+		folders[idx] = folder
+	}
+
+	return folders, nil
 }
 
 // RegisterRunner method registers the test runner.

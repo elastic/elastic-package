@@ -54,6 +54,16 @@ func Warnf(format string, a ...interface{}) {
 	logMessagef("WARN", format, a...)
 }
 
+// Error method logs message with "error" level.
+func Error(a ...interface{}) {
+	logMessage("ERROR", a...)
+}
+
+// Errorf method logs message with "error" level and formats it.
+func Errorf(format string, a ...interface{}) {
+	logMessagef("ERROR", format, a...)
+}
+
 func logMessage(level string, a ...interface{}) {
 	var all []interface{}
 	all = append(all, fmt.Sprintf("%5s ", level))

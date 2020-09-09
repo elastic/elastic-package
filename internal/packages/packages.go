@@ -5,6 +5,7 @@
 package packages
 
 import (
+	"encoding/json"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -21,20 +22,77 @@ const (
 	DatasetManifestFile = "manifest.yml"
 )
 
+// VarValue represents a variable value as defined in a package or dataset
+// manifest file.
+type VarValue struct {
+	scalar string
+	list   []string
+}
+
+// UnmarshalYAML knows how to parse a variable value from a package or dataset
+// manifest file into a VarValue.
+func (vv *VarValue) UnmarshalYAML(value *yaml.Node) error {
+	switch value.Kind {
+	case yaml.ScalarNode:
+		vv.scalar = value.Value
+	case yaml.SequenceNode:
+		vv.list = make([]string, len(value.Content))
+		for idx, content := range value.Content {
+			vv.list[idx] = content.Value
+		}
+	default:
+		return errors.New("unknown variable value")
+	}
+	return nil
+}
+
+// MarshalJSON knows how to serialize a VarValue into the appropriate
+// JSON data type and value.
+func (vv VarValue) MarshalJSON() ([]byte, error) {
+	if vv.scalar != "" {
+		return json.Marshal(vv.scalar)
+	} else if vv.list != nil {
+		return json.Marshal(vv.list)
+	}
+	return nil, nil
+}
+
+type variable struct {
+	Name    string   `json:"name"`
+	Type    string   `json:"type"`
+	Default VarValue `json:"default"`
+}
+
+type input struct {
+	Type string     `json:"type"`
+	Vars []variable `json:"vars"`
+}
+
+type configTemplate struct {
+	Inputs []input `json:"inputs"`
+}
+
 // PackageManifest represents the basic structure of a package's manifest
 type PackageManifest struct {
-	Name    string `json:"name"`
-	Type    string `json:"type"`
-	Version string `json:"version"`
+	Name            string           `json:"name"`
+	Title           string           `json:"title"`
+	Type            string           `json:"type"`
+	Version         string           `json:"version"`
+	ConfigTemplates []configTemplate `json:"config_templates" yaml:"config_templates"`
 }
 
 // DatasetManifest represents the structure of a dataset's manifest
 type DatasetManifest struct {
+	Name          string `json:"name"`
 	Title         string `json:"title"`
 	Type          string `json:"type"`
 	Elasticsearch *struct {
 		IngestPipelineName string `json:"ingest_pipeline.name"`
 	} `json:"elasticsearch"`
+	Streams []struct {
+		Input string     `json:"input"`
+		Vars  []variable `json:"vars"`
+	} `json:"streams"`
 }
 
 // FindPackageRoot finds and returns the path to the root folder of a package.
@@ -117,7 +175,18 @@ func ReadDatasetManifest(path string) (*DatasetManifest, error) {
 	if err != nil {
 		return nil, errors.Wrapf(err, "unmarshalling dataset manifest failed (path: %s)", path)
 	}
+
+	m.Name = filepath.Base(filepath.Dir(path))
 	return &m, nil
+}
+
+func (ct *configTemplate) FindInputByType(inputType string) *input {
+	for _, input := range ct.Inputs {
+		if input.Type == inputType {
+			return &input
+		}
+	}
+	return nil
 }
 
 func isPackageManifest(path string) (bool, error) {
