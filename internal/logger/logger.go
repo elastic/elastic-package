@@ -20,7 +20,7 @@ func EnableDebugMode() {
 
 // Debug method logs message with "debug" level.
 func Debug(a ...interface{}) {
-	if !isDebugMode {
+	if !IsDebugMode() {
 		return
 	}
 	logMessage("DEBUG", a...)
@@ -28,10 +28,15 @@ func Debug(a ...interface{}) {
 
 // Debugf method logs message with "debug" level and formats it.
 func Debugf(format string, a ...interface{}) {
-	if !isDebugMode {
+	if !IsDebugMode() {
 		return
 	}
 	logMessagef("DEBUG", format, a...)
+}
+
+// IsDebugMode method checks if the debug mode is enabled.
+func IsDebugMode() bool {
+	return isDebugMode
 }
 
 // Info method logs message with "info" level.
