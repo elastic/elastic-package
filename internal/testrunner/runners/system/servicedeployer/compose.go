@@ -50,13 +50,13 @@ func NewDockerComposeServiceDeployer(ymlPath string) (*DockerComposeServiceDeplo
 }
 
 // SetUp sets up the service and returns any relevant information.
-func (r *DockerComposeServiceDeployer) SetUp(ctxt ServiceContext) (DeployedService, error) {
+func (r *DockerComposeServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedService, error) {
 	logger.Debug("setting up service using Docker Compose service deployer")
 	service := dockerComposeDeployedService{
 		ymlPath: r.ymlPath,
-		ctxt:    ctxt,
 		project: "elastic-package-service",
 	}
+	outCtxt := inCtxt
 
 	p, err := compose.NewProject(service.project, service.ymlPath)
 	if err != nil {
@@ -72,13 +72,13 @@ func (r *DockerComposeServiceDeployer) SetUp(ctxt ServiceContext) (DeployedServi
 	}
 
 	// Build service container name
-	serviceName := ctxt.Name
+	serviceName := inCtxt.Name
 	serviceContainer := fmt.Sprintf("%s_%s_1", service.project, serviceName)
-	service.ctxt.Hostname = serviceContainer
+	outCtxt.Hostname = serviceContainer
 
 	// Redirect service container's STDOUT and STDERR streams to files in local logs folder
-	localLogsFolder := ctxt.Logs.Folder.Local
-	agentLogsFolder := ctxt.Logs.Folder.Agent
+	localLogsFolder := inCtxt.Logs.Folder.Local
+	agentLogsFolder := inCtxt.Logs.Folder.Agent
 
 	service.stdoutFilePath = filepath.Join(localLogsFolder, stdoutFileName)
 	logger.Debugf("creating temp file %s to hold service container %s STDOUT", service.stdoutFilePath, serviceContainer)
@@ -87,7 +87,7 @@ func (r *DockerComposeServiceDeployer) SetUp(ctxt ServiceContext) (DeployedServi
 		return nil, errors.Wrap(err, "could not create STDOUT file")
 	}
 	service.stdout = outFile
-	service.ctxt.STDOUT = agentLogsFolder + stdoutFileName
+	outCtxt.STDOUT = agentLogsFolder + stdoutFileName
 
 	service.stderrFilePath = filepath.Join(localLogsFolder, stderrFileName)
 	logger.Debugf("creating temp file %s to hold service container %s STDERR", service.stderrFilePath, serviceContainer)
@@ -96,7 +96,7 @@ func (r *DockerComposeServiceDeployer) SetUp(ctxt ServiceContext) (DeployedServi
 		return nil, errors.Wrap(err, "could not create STDERR file")
 	}
 	service.stderr = errFile
-	service.ctxt.STDERR = agentLogsFolder + stderrFileName
+	outCtxt.STDERR = agentLogsFolder + stderrFileName
 
 	logger.Debugf("redirecting service container %s STDOUT and STDERR to temp files", serviceContainer)
 	cmd := exec.Command("docker", "attach", "--no-stdin", serviceContainer)
@@ -122,11 +122,12 @@ func (r *DockerComposeServiceDeployer) SetUp(ctxt ServiceContext) (DeployedServi
 	}
 
 	s := serviceComposeConfig.Services[serviceName]
-	service.ctxt.Ports = make([]int, len(s.Ports))
+	outCtxt.Ports = make([]int, len(s.Ports))
 	for idx, port := range s.Ports {
-		service.ctxt.Ports[idx] = port.InternalPort
+		outCtxt.Ports[idx] = port.InternalPort
 	}
 
+	service.ctxt = outCtxt
 	return &service, nil
 }
 
