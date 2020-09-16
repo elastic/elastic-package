@@ -87,7 +87,7 @@ func (r *DockerComposeServiceDeployer) SetUp(ctxt ServiceContext) (DeployedServi
 		return nil, errors.Wrap(err, "could not create STDOUT file")
 	}
 	service.stdout = outFile
-	ctxt.STDOUT = agentLogsFolder + stdoutFileName
+	service.ctxt.STDOUT = agentLogsFolder + stdoutFileName
 
 	service.stderrFilePath = filepath.Join(localLogsFolder, stderrFileName)
 	logger.Debugf("creating temp file %s to hold service container %s STDERR", service.stderrFilePath, serviceContainer)
@@ -96,7 +96,7 @@ func (r *DockerComposeServiceDeployer) SetUp(ctxt ServiceContext) (DeployedServi
 		return nil, errors.Wrap(err, "could not create STDERR file")
 	}
 	service.stderr = errFile
-	ctxt.STDERR = agentLogsFolder + stderrFileName
+	service.ctxt.STDERR = agentLogsFolder + stderrFileName
 
 	logger.Debugf("redirecting service container %s STDOUT and STDERR to temp files", serviceContainer)
 	cmd := exec.Command("docker", "attach", "--no-stdin", serviceContainer)
