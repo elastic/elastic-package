@@ -17,7 +17,7 @@ xpack.ingestManager.enabled: true
 xpack.ingestManager.registryUrl: "http://package-registry:8080"
 xpack.ingestManager.fleet.enabled: true
 xpack.ingestManager.fleet.elasticsearch.host: "http://elasticsearch:9200"
-xpack.ingestManager.fleet.kibana.host: "http://localhost:5601"
+xpack.ingestManager.fleet.kibana.host: "http://kibana:5601"
 xpack.ingestManager.fleet.tlsCheckDisabled: true
 
 xpack.encryptedSavedObjects.encryptionKey: "12345678901234567890123456789012"
