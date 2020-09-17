@@ -51,8 +51,8 @@ func EnsureInstalled() error {
 		return errors.Wrap(err, "writing static resources failed")
 	}
 
-	if err := createTemporaryDir(elasticPackagePath); err != nil {
-		return errors.Wrap(err, "creating temporary directory failed")
+	if err := createServiceLogsDir(elasticPackagePath); err != nil {
+		return errors.Wrap(err, "creating service logs directory failed")
 	}
 
 	fmt.Fprintln(os.Stderr, "elastic-package has been installed.")
@@ -149,11 +149,11 @@ func writeStaticResource(err error, path, content string) error {
 	return nil
 }
 
-func createTemporaryDir(elasticPackagePath string) error {
-	dirPath := filepath.Join(elasticPackagePath, temporaryDir)
+func createServiceLogsDir(elasticPackagePath string) error {
+	dirPath := filepath.Join(elasticPackagePath, serviceLogsDir)
 	err := os.MkdirAll(dirPath, 0755)
 	if err != nil {
-		return errors.Wrapf(err, "creating service logs directory failed (path: %s)", dirPath)
+		return errors.Wrapf(err, "mkdir failed (path: %s)", dirPath)
 	}
 	return nil
 }

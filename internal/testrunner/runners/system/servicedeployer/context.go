@@ -23,4 +23,8 @@ type ServiceContext struct {
 	// the service are stored on the local filesystem, i.e. where
 	// elastic-package is running.
 	LogsFolderLocal string
+
+	// Agent contains the folder path where log files produced by
+	// the service are stored on the Agent container's filesystem.
+	LogsFolderAgent string
 }

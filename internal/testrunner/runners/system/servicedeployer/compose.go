@@ -6,15 +6,19 @@ package servicedeployer
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/compose"
+	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/logger"
 )
 
-const serviceLogsDirEnv = "ELASTIC_PACKAGE_SERVICE_LOGS_DIR"
+const (
+	serviceLogsDirEnv = "ELASTIC_PACKAGE_SERVICE_LOGS_DIR"
+
+	serviceLogsAgentDir = "/tmp/service_logs"
+)
 
 // DockerComposeServiceDeployer knows how to deploy a service defined via
 // a Docker Compose file.
@@ -51,10 +55,11 @@ func (r *DockerComposeServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedSer
 	}
 
 	// Clean service logs
-	err = os.RemoveAll(outCtxt.LogsFolderLocal)
+	err = files.RemoveContent(outCtxt.LogsFolderLocal)
 	if err != nil {
 		return nil, errors.Wrap(err, "removing service logs failed")
 	}
+	outCtxt.LogsFolderAgent = serviceLogsAgentDir
 
 	// Boot up service
 	opts := compose.CommandOptions{
@@ -92,7 +97,7 @@ func (r *DockerComposeServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedSer
 func (s *dockerComposeDeployedService) TearDown() error {
 	logger.Infof("tearing down service using docker compose runner")
 	defer func() {
-		err := os.RemoveAll(s.ctxt.LogsFolderLocal)
+		err := files.RemoveContent(s.ctxt.LogsFolderLocal)
 		if err != nil {
 			logger.Errorf("could not remove the service logs (path: %s)", s.ctxt.LogsFolderLocal)
 		}
