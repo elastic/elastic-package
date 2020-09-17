@@ -6,12 +6,14 @@ package servicedeployer
 
 import (
 	"fmt"
+	"os/exec"
 
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/compose"
 	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/logger"
+	"github.com/elastic/elastic-package/internal/stack"
 )
 
 const (
@@ -74,6 +76,13 @@ func (r *DockerComposeServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedSer
 	serviceName := inCtxt.Name
 	serviceContainer := fmt.Sprintf("%s_%s_1", service.project, serviceName)
 	outCtxt.Hostname = serviceContainer
+
+	// Connect service network with stack network (for the purpose of metrics collection)
+	stackNetwork := fmt.Sprintf("%s_default", stack.DockerComposeProjectName)
+	cmd := exec.Command("docker", "network", "connect", stackNetwork, serviceContainer)
+	if err := cmd.Run(); err != nil {
+		return nil, errors.Wrap(err, "could not attach service container to stack network")
+	}
 
 	logger.Debugf("adding service container %s internal ports to context", serviceContainer)
 	serviceComposeConfig, err := p.Config(compose.CommandOptions{
