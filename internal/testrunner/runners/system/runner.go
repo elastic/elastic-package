@@ -80,6 +80,11 @@ func (r *runner) run() error {
 		return errors.Wrap(err, "reading dataset manifest failed")
 	}
 
+	serviceLogsDir, err := install.ServiceLogsDir()
+	if err != nil {
+		return errors.Wrap(err, "reading service logs directory failed")
+	}
+
 	// Step 1. Setup service.
 	// Step 1a. (Deferred) Tear down service.
 	logger.Info("setting up service...")
@@ -88,16 +93,10 @@ func (r *runner) run() error {
 		return errors.Wrap(err, "could not create service runner")
 	}
 
-	tempDir, err := install.ServiceLogsDir()
-	if err != nil {
-		return errors.Wrap(err, "could not get temporary folder")
-	}
-
 	ctxt := servicedeployer.ServiceContext{
-		Name: r.testFolder.Package,
+		Name:            r.testFolder.Package,
+		LogsFolderLocal: serviceLogsDir,
 	}
-	ctxt.Logs.Folder.Local = tempDir
-	ctxt.Logs.Folder.Agent = "/tmp/service_logs/"
 
 	service, err := serviceDeployer.SetUp(ctxt)
 	if err != nil {
