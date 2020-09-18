@@ -93,10 +93,9 @@ func (r *runner) run() error {
 		return errors.Wrap(err, "could not create service runner")
 	}
 
-	ctxt := servicedeployer.ServiceContext{
-		Name:            r.testFolder.Package,
-		LogsFolderLocal: serviceLogsDir,
-	}
+	var ctxt servicedeployer.ServiceContext
+	ctxt.Name = r.testFolder.Package
+	ctxt.Logs.Folder.Local = serviceLogsDir
 
 	service, err := serviceDeployer.SetUp(ctxt)
 	if err != nil {

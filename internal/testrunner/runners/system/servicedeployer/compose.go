@@ -57,15 +57,15 @@ func (r *DockerComposeServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedSer
 	}
 
 	// Clean service logs
-	err = files.RemoveContent(outCtxt.LogsFolderLocal)
+	err = files.RemoveContent(outCtxt.Logs.Folder.Local)
 	if err != nil {
 		return nil, errors.Wrap(err, "removing service logs failed")
 	}
-	outCtxt.LogsFolderAgent = serviceLogsAgentDir
+	outCtxt.Logs.Folder.Agent = serviceLogsAgentDir
 
 	// Boot up service
 	opts := compose.CommandOptions{
-		Env:       []string{fmt.Sprintf("%s=%s", serviceLogsDirEnv, outCtxt.LogsFolderLocal)},
+		Env:       []string{fmt.Sprintf("%s=%s", serviceLogsDirEnv, outCtxt.Logs.Folder.Local)},
 		ExtraArgs: []string{"-d"},
 	}
 	if err := p.Up(opts); err != nil {
@@ -79,14 +79,15 @@ func (r *DockerComposeServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedSer
 
 	// Connect service network with stack network (for the purpose of metrics collection)
 	stackNetwork := fmt.Sprintf("%s_default", stack.DockerComposeProjectName)
+	logger.Debugf("attaching service container %s to stack network %s", serviceContainer, stackNetwork)
 	cmd := exec.Command("docker", "network", "connect", stackNetwork, serviceContainer)
 	if err := cmd.Run(); err != nil {
-		return nil, errors.Wrap(err, "could not attach service container to stack network")
+		return nil, errors.Wrap(err, "could not attach service container to the stack network")
 	}
 
 	logger.Debugf("adding service container %s internal ports to context", serviceContainer)
 	serviceComposeConfig, err := p.Config(compose.CommandOptions{
-		Env: []string{fmt.Sprintf("%s=%s", serviceLogsDirEnv, outCtxt.LogsFolderLocal)},
+		Env: []string{fmt.Sprintf("%s=%s", serviceLogsDirEnv, outCtxt.Logs.Folder.Local)},
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "could not get Docker Compose configuration for service")
@@ -106,9 +107,9 @@ func (r *DockerComposeServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedSer
 func (s *dockerComposeDeployedService) TearDown() error {
 	logger.Infof("tearing down service using docker compose runner")
 	defer func() {
-		err := files.RemoveContent(s.ctxt.LogsFolderLocal)
+		err := files.RemoveContent(s.ctxt.Logs.Folder.Local)
 		if err != nil {
-			logger.Errorf("could not remove the service logs (path: %s)", s.ctxt.LogsFolderLocal)
+			logger.Errorf("could not remove the service logs (path: %s)", s.ctxt.Logs.Folder.Local)
 		}
 	}()
 
@@ -118,7 +119,7 @@ func (s *dockerComposeDeployedService) TearDown() error {
 	}
 
 	if err := p.Down(compose.CommandOptions{
-		Env: []string{fmt.Sprintf("%s=%s", serviceLogsDirEnv, s.ctxt.LogsFolderLocal)},
+		Env: []string{fmt.Sprintf("%s=%s", serviceLogsDirEnv, s.ctxt.Logs.Folder.Local)},
 	}); err != nil {
 		return errors.Wrap(err, "could not shut down service using docker compose")
 	}

@@ -19,12 +19,17 @@ type ServiceContext struct {
 	// from the Agent container.
 	Ports []int
 
-	// Local contains the folder path where log files produced by
-	// the service are stored on the local filesystem, i.e. where
-	// elastic-package is running.
-	LogsFolderLocal string
+	// Logs contains folder paths for log files produced by the service.
+	Logs struct {
+		Folder struct {
+			// Local contains the folder path where log files produced by
+			// the service are stored on the local filesystem, i.e. where
+			// elastic-package is running.
+			Local string
 
-	// Agent contains the folder path where log files produced by
-	// the service are stored on the Agent container's filesystem.
-	LogsFolderAgent string
+			// Agent contains the folder path where log files produced by
+			// the service are stored on the Agent container's filesystem.
+			Agent string
+		}
+	}
 }
