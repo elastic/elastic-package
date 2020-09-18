@@ -1,5 +1,0 @@
-vars: ~
-dataset:
-  vars:
-    paths:
-      - "{{STDOUT}}"
