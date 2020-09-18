@@ -1,6 +1,11 @@
+.PHONY: build
+
 build:
 	go get -ldflags "-X github.com/elastic/elastic-package/internal/version.CommitHash=`git describe --always --long --dirty` -X github.com/elastic/elastic-package/internal/version.BuildTime=`date +%s`" \
 	    github.com/elastic/elastic-package
+
+clean:
+	rm -rf build
 
 format:
 	gofmt -s -w .
