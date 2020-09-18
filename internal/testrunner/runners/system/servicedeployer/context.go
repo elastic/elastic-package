@@ -36,6 +36,7 @@ type ServiceContext struct {
 	}
 }
 
+// Aliases method returned aliases to properties of the service context.
 func (sc *ServiceContext) Aliases() map[string]interface{} {
 	return map[string]interface{}{
 		serviceLogsDirEnv: func() interface{} {
