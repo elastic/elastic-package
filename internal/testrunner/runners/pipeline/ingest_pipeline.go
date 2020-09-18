@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/elastic/go-elasticsearch/v7/esapi"
 	"io/ioutil"
 	"log"
 	"path/filepath"
@@ -17,6 +16,7 @@ import (
 	"time"
 
 	"github.com/elastic/go-elasticsearch/v7"
+	"github.com/elastic/go-elasticsearch/v7/esapi"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 
