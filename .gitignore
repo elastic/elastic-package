@@ -19,3 +19,6 @@ elastic-package
 
 # IDEA
 .idea
+
+# Build directory
+build

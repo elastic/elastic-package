@@ -1,6 +1,11 @@
+.PHONY: build
+
 build:
 	go get -ldflags "-X github.com/elastic/elastic-package/internal/version.CommitHash=`git describe --always --long --dirty` -X github.com/elastic/elastic-package/internal/version.BuildTime=`date +%s`" \
 	    github.com/elastic/elastic-package
+
+clean:
+	rm -rf build
 
 format:
 	go get -u golang.org/x/tools/cmd/goimports
@@ -20,7 +25,10 @@ gomod:
 test-stack-command:
 	./scripts/test-stack-command.sh
 
-test: test-stack-command
+test-check-packages:
+	./scripts/test-check-packages.sh
+
+test: test-stack-command test-check-packages
 
 check-git-clean:
 	git update-index --really-refresh
