@@ -3,8 +3,6 @@ build:
 	    github.com/elastic/elastic-package
 
 format:
-	gofmt -s -w .
-	
 	go get -u golang.org/x/tools/cmd/goimports
 	goimports -local github.com/elastic/elastic-package/ -w .
 
