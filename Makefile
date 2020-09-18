@@ -4,8 +4,7 @@ build:
 
 format:
 	gofmt -s -w .
-
-imports:
+	
 	go get -u golang.org/x/tools/cmd/goimports
 	goimports -local github.com/elastic/elastic-package/ -w .
 
@@ -29,4 +28,4 @@ check-git-clean:
 	git update-index --really-refresh
 	git diff-index --quiet HEAD
 
-check: build format imports lint licenser gomod test check-git-clean
+check: build format lint licenser gomod test check-git-clean
