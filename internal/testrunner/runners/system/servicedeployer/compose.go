@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	serviceLogsDirEnv = "ELASTIC_PACKAGE_SERVICE_LOGS_DIR"
+	serviceLogsDirEnv = "SERVICE_LOGS_DIR"
 
 	serviceLogsAgentDir = "/tmp/service_logs"
 )
