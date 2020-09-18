@@ -54,11 +54,15 @@ func newConfig(systemTestFolderPath string, ctxt servicedeployer.ServiceContext)
 // it with values from the given context (ctxt). The context may be populated from various sources but usually the
 // most interesting context values will be set by a ServiceDeployer in its SetUp method.
 func applyContext(data []byte, ctxt servicedeployer.ServiceContext) ([]byte, error) {
-	tpl := string(data)
-	result, err := raymond.Render(tpl, ctxt)
+	tmpl, err := raymond.Parse(string(data))
+	if err != nil {
+		return data, errors.Wrap(err, "parsing template body failed")
+	}
+	tmpl.RegisterHelpers(ctxt.Aliases())
+
+	result, err := tmpl.Exec(ctxt)
 	if err != nil {
 		return data, errors.Wrap(err, "could not render data with context")
 	}
-
 	return []byte(result), nil
 }

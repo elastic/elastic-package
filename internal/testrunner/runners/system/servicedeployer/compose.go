@@ -16,11 +16,7 @@ import (
 	"github.com/elastic/elastic-package/internal/stack"
 )
 
-const (
-	serviceLogsDirEnv = "SERVICE_LOGS_DIR"
-
-	serviceLogsAgentDir = "/tmp/service_logs"
-)
+const serviceLogsAgentDir = "/tmp/service_logs"
 
 // DockerComposeServiceDeployer knows how to deploy a service defined via
 // a Docker Compose file.
