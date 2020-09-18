@@ -19,7 +19,10 @@ gomod:
 test-stack-command:
 	./scripts/test-stack-command.sh
 
-test: test-stack-command
+test-check-packages:
+	./scripts/test-check-packages.sh
+
+test: test-stack-command test-check-packages
 
 check-git-clean:
 	git update-index --really-refresh
