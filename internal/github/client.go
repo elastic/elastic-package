@@ -6,6 +6,7 @@ package github
 
 import (
 	"context"
+
 	"github.com/pkg/errors"
 
 	"github.com/google/go-github/v32/github"
