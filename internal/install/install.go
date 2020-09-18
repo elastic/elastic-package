@@ -17,8 +17,10 @@ const (
 	elasticPackageDir = ".elastic-package"
 	stackDir          = "stack"
 	packagesDir       = "development"
-	serviceLogsDir    = "tmp/service_logs"
+	temporaryDir      = "tmp"
 )
+
+var serviceLogsDir = filepath.Join(temporaryDir, "service_logs")
 
 const versionFilename = "version"
 
@@ -50,7 +52,7 @@ func EnsureInstalled() error {
 	}
 
 	if err := createServiceLogsDir(elasticPackagePath); err != nil {
-		return errors.Wrap(err, "creating temp dir failed")
+		return errors.Wrap(err, "creating service logs directory failed")
 	}
 
 	fmt.Fprintln(os.Stderr, "elastic-package has been installed.")
@@ -151,8 +153,7 @@ func createServiceLogsDir(elasticPackagePath string) error {
 	dirPath := filepath.Join(elasticPackagePath, serviceLogsDir)
 	err := os.MkdirAll(dirPath, 0755)
 	if err != nil {
-		return errors.Wrapf(err, "creating service logs directory failed (path: %s)", dirPath)
+		return errors.Wrapf(err, "mkdir failed (path: %s)", dirPath)
 	}
-
 	return nil
 }

@@ -6,22 +6,17 @@ package servicedeployer
 
 import (
 	"fmt"
-	"io"
-	"os"
 	"os/exec"
-	"path/filepath"
 
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/compose"
+	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/stack"
 )
 
-const (
-	stdoutFileName = "stdout"
-	stderrFileName = "stderr"
-)
+const serviceLogsAgentDir = "/tmp/service_logs"
 
 // DockerComposeServiceDeployer knows how to deploy a service defined via
 // a Docker Compose file.
@@ -34,12 +29,6 @@ type dockerComposeDeployedService struct {
 
 	ymlPath string
 	project string
-
-	stdout io.WriteCloser
-	stderr io.WriteCloser
-
-	stdoutFilePath string
-	stderrFilePath string
 }
 
 // NewDockerComposeServiceDeployer returns a new instance of a DockerComposeServiceDeployer.
@@ -63,8 +52,16 @@ func (r *DockerComposeServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedSer
 		return nil, errors.Wrap(err, "could not create docker compose project for service")
 	}
 
+	// Clean service logs
+	err = files.RemoveContent(outCtxt.Logs.Folder.Local)
+	if err != nil {
+		return nil, errors.Wrap(err, "removing service logs failed")
+	}
+	outCtxt.Logs.Folder.Agent = serviceLogsAgentDir
+
 	// Boot up service
 	opts := compose.CommandOptions{
+		Env:       []string{fmt.Sprintf("%s=%s", serviceLogsDirEnv, outCtxt.Logs.Folder.Local)},
 		ExtraArgs: []string{"-d"},
 	}
 	if err := p.Up(opts); err != nil {
@@ -76,47 +73,18 @@ func (r *DockerComposeServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedSer
 	serviceContainer := fmt.Sprintf("%s_%s_1", service.project, serviceName)
 	outCtxt.Hostname = serviceContainer
 
-	// Redirect service container's STDOUT and STDERR streams to files in local logs folder
-	localLogsFolder := inCtxt.Logs.Folder.Local
-	agentLogsFolder := inCtxt.Logs.Folder.Agent
-
-	service.stdoutFilePath = filepath.Join(localLogsFolder, stdoutFileName)
-	logger.Debugf("creating temp file %s to hold service container %s STDOUT", service.stdoutFilePath, serviceContainer)
-	outFile, err := os.Create(service.stdoutFilePath)
-	if err != nil {
-		return nil, errors.Wrap(err, "could not create STDOUT file")
-	}
-	service.stdout = outFile
-	outCtxt.STDOUT = agentLogsFolder + stdoutFileName
-
-	service.stderrFilePath = filepath.Join(localLogsFolder, stderrFileName)
-	logger.Debugf("creating temp file %s to hold service container %s STDERR", service.stderrFilePath, serviceContainer)
-	errFile, err := os.Create(service.stderrFilePath)
-	if err != nil {
-		return nil, errors.Wrap(err, "could not create STDERR file")
-	}
-	service.stderr = errFile
-	outCtxt.STDERR = agentLogsFolder + stderrFileName
-
-	logger.Debugf("redirecting service container %s STDOUT and STDERR to temp files", serviceContainer)
-	cmd := exec.Command("docker", "attach", "--no-stdin", serviceContainer)
-	cmd.Stdout = service.stdout
-	cmd.Stderr = service.stderr
-
-	if err := cmd.Start(); err != nil {
-		return nil, errors.Wrap(err, "could not redirect service container STDOUT and STDERR streams")
-	}
-
+	// Connect service network with stack network (for the purpose of metrics collection)
 	stackNetwork := fmt.Sprintf("%s_default", stack.DockerComposeProjectName)
 	logger.Debugf("attaching service container %s to stack network %s", serviceContainer, stackNetwork)
-
-	cmd = exec.Command("docker", "network", "connect", stackNetwork, serviceContainer)
+	cmd := exec.Command("docker", "network", "connect", stackNetwork, serviceContainer)
 	if err := cmd.Run(); err != nil {
-		return nil, errors.Wrap(err, "could not attach service container to stack network")
+		return nil, errors.Wrap(err, "could not attach service container to the stack network")
 	}
 
 	logger.Debugf("adding service container %s internal ports to context", serviceContainer)
-	serviceComposeConfig, err := p.Config(compose.CommandOptions{})
+	serviceComposeConfig, err := p.Config(compose.CommandOptions{
+		Env: []string{fmt.Sprintf("%s=%s", serviceLogsDirEnv, outCtxt.Logs.Folder.Local)},
+	})
 	if err != nil {
 		return nil, errors.Wrap(err, "could not get Docker Compose configuration for service")
 	}
@@ -135,18 +103,9 @@ func (r *DockerComposeServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedSer
 func (s *dockerComposeDeployedService) TearDown() error {
 	logger.Infof("tearing down service using docker compose runner")
 	defer func() {
-		if err := s.stderr.Close(); err != nil {
-			logger.Errorf("could not close STDERR file: %s: %s", s.stderrFilePath, err)
-		} else if err := os.Remove(s.stderrFilePath); err != nil {
-			logger.Errorf("could not delete STDERR file: %s: %s", s.stderrFilePath, err)
-		}
-	}()
-
-	defer func() {
-		if err := s.stdout.Close(); err != nil {
-			logger.Errorf("could not close STDOUT file: %s: %s", s.stdoutFilePath, err)
-		} else if err := os.Remove(s.stdoutFilePath); err != nil {
-			logger.Errorf("could not delete STDOUT file: %s: %s", s.stdoutFilePath, err)
+		err := files.RemoveContent(s.ctxt.Logs.Folder.Local)
+		if err != nil {
+			logger.Errorf("could not remove the service logs (path: %s)", s.ctxt.Logs.Folder.Local)
 		}
 	}()
 
@@ -155,11 +114,11 @@ func (s *dockerComposeDeployedService) TearDown() error {
 		return errors.Wrap(err, "could not create docker compose project for service")
 	}
 
-	opts := compose.CommandOptions{}
-	if err := p.Down(opts); err != nil {
+	if err := p.Down(compose.CommandOptions{
+		Env: []string{fmt.Sprintf("%s=%s", serviceLogsDirEnv, s.ctxt.Logs.Folder.Local)},
+	}); err != nil {
 		return errors.Wrap(err, "could not shut down service using docker compose")
 	}
-
 	return nil
 }
 

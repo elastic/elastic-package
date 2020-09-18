@@ -4,6 +4,8 @@
 
 package servicedeployer
 
+const serviceLogsDirEnv = "SERVICE_LOGS_DIR"
+
 // ServiceContext encapsulates context that is both available to a ServiceDeployer and
 // populated by a DeployedService. The fields in ServiceContext may be used in handlebars
 // templates in system test configuration files, for example: {{ Hostname }}.
@@ -32,14 +34,13 @@ type ServiceContext struct {
 			Agent string
 		}
 	}
+}
 
-	// STDOUT is a path to a file on the Agent container, where the STDOUT
-	// stream of the service is available. This is generally only useful
-	// for services running in Docker containers.
-	STDOUT string
-
-	// STDERR is a path to a file on the Agent container, where the STDERR
-	// stream of the service is available. This is generally only useful
-	// for services running in Docker containers.
-	STDERR string
+// Aliases method returned aliases to properties of the service context.
+func (sc *ServiceContext) Aliases() map[string]interface{} {
+	return map[string]interface{}{
+		serviceLogsDirEnv: func() interface{} {
+			return sc.Logs.Folder.Local
+		},
+	}
 }
