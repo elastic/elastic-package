@@ -6,6 +6,7 @@ package formatter
 
 import (
 	"bytes"
+
 	"gopkg.in/yaml.v3"
 
 	"github.com/pkg/errors"

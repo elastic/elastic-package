@@ -10,8 +10,9 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/elastic/elastic-package/internal/stack"
 	"github.com/elastic/go-elasticsearch/v7"
+
+	"github.com/elastic/elastic-package/internal/stack"
 )
 
 // Client method creates new instance of the Elasticsearch client.
