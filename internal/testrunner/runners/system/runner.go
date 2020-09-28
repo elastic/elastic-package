@@ -238,6 +238,12 @@ func (r *runner) run() error {
 }
 
 func (r *runner) tearDown() {
+	if logger.IsDebugMode() {
+		sleepFor := 1 * time.Minute
+		logger.Debugf("waiting for %s before tearing down...", sleepFor)
+		time.Sleep(sleepFor)
+	}
+
 	if r.resetAgentPolicyHandler != nil {
 		r.resetAgentPolicyHandler()
 	}
