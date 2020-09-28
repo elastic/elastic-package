@@ -54,6 +54,7 @@ func (c *Client) AssignPolicyToAgent(a Agent, p Policy) error {
 		return fmt.Errorf("could not assign policy to agent; API status code = %d; response body = %s", statusCode, respBody)
 	}
 
+	// TODO make sure the policy has been propagated to agents.
 	return nil
 
 }
