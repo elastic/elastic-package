@@ -102,10 +102,21 @@ func (r *runner) run() error {
 		return errors.Wrap(err, "could not setup service")
 	}
 	ctxt = service.Context()
+
+	var dataStream string
 	defer func() {
 		logger.Info("tearing down service...")
 		if err := service.TearDown(); err != nil {
 			logger.Errorf("error tearing down service: %s", err)
+		}
+
+		if len(dataStream) == 0 {
+			return // data stream hasn't been configured.
+		}
+
+		logger.Debugf("deleting data in data stream...")
+		if err := deleteDataStreamDocs(r.esClient, dataStream); err != nil {
+			logger.Errorf("error deleting data in data stream", err)
 		}
 	}()
 
@@ -158,7 +169,7 @@ func (r *runner) run() error {
 	}
 
 	// Delete old data
-	dataStream := fmt.Sprintf(
+	dataStream = fmt.Sprintf(
 		"%s-%s-%s",
 		ds.Inputs[0].Streams[0].DataStream.Type,
 		ds.Inputs[0].Streams[0].DataStream.Dataset,
@@ -183,7 +194,6 @@ func (r *runner) run() error {
 	}()
 
 	// Step 4. (TODO in future) Optionally exercise service to generate load.
-
 	logger.Info("checking for expected data in data stream...")
 	passed, err := waitUntilTrue(func() (bool, error) {
 		resp, err := r.esClient.Search(
@@ -221,19 +231,6 @@ func (r *runner) run() error {
 		fmt.Printf("System test for %s/%s dataset failed\n", r.testFolder.Package, r.testFolder.Dataset)
 		return fmt.Errorf("system test for %s/%s dataset failed", r.testFolder.Package, r.testFolder.Dataset)
 	}
-
-	defer func() {
-		logger.Debugf("deleting data in data stream...")
-		if err := deleteDataStreamDocs(r.esClient, dataStream); err != nil {
-			logger.Errorf("error deleting data in data stream", err)
-		}
-	}()
-
-	defer func() {
-		sleepFor := 1 * time.Minute
-		logger.Debugf("waiting for %s before destructing...", sleepFor)
-		time.Sleep(sleepFor)
-	}()
 	return nil
 }
 
