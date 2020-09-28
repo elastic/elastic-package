@@ -78,7 +78,7 @@ type Vars map[string]Var
 
 // DataStream represents a data stream within a package.
 type DataStream struct {
-	Type    string `json:"type"`
+	Type       string `json:"type"`
 	DataStream string `json:"data_stream"`
 }
 

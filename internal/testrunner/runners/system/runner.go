@@ -286,7 +286,7 @@ func createPackageDatastream(
 			ID:      fmt.Sprintf("%s-%s.%s", streamInput, pkg.Name, ds.Name),
 			Enabled: true,
 			DataStream: ingestmanager.DataStream{
-				Type:    ds.Type,
+				Type:       ds.Type,
 				DataStream: fmt.Sprintf("%s.%s", pkg.Name, ds.Name),
 			},
 		},

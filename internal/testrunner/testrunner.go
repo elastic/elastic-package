@@ -32,8 +32,8 @@ var runners = map[TestType]RunFunc{}
 // TestFolder encapsulates the test folder path and names of the package + dataStream
 // to which the test folder belongs.
 type TestFolder struct {
-	Path    string
-	Package string
+	Path       string
+	Package    string
 	DataStream string
 }
 
