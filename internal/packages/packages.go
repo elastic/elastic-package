@@ -18,18 +18,18 @@ const (
 	// PackageManifestFile is the name of the package's main manifest file.
 	PackageManifestFile = "manifest.yml"
 
-	// DatasetManifestFile is the name of the dataset's manifest file.
-	DatasetManifestFile = "manifest.yml"
+	// DataStreamManifestFile is the name of the dataStream's manifest file.
+	DataStreamManifestFile = "manifest.yml"
 )
 
-// VarValue represents a variable value as defined in a package or dataset
+// VarValue represents a variable value as defined in a package or dataStream
 // manifest file.
 type VarValue struct {
 	scalar string
 	list   []string
 }
 
-// UnmarshalYAML knows how to parse a variable value from a package or dataset
+// UnmarshalYAML knows how to parse a variable value from a package or dataStream
 // manifest file into a VarValue.
 func (vv *VarValue) UnmarshalYAML(value *yaml.Node) error {
 	switch value.Kind {
@@ -68,7 +68,7 @@ type input struct {
 	Vars []variable `json:"vars"`
 }
 
-type configTemplate struct {
+type policyTemplate struct {
 	Inputs []input `json:"inputs"`
 }
 
@@ -78,11 +78,11 @@ type PackageManifest struct {
 	Title           string           `json:"title"`
 	Type            string           `json:"type"`
 	Version         string           `json:"version"`
-	ConfigTemplates []configTemplate `json:"config_templates" yaml:"config_templates"`
+	PolicyTemplates []policyTemplate `json:"policy_templates" yaml:"policy_templates"`
 }
 
-// DatasetManifest represents the structure of a dataset's manifest
-type DatasetManifest struct {
+// DataStreamManifest represents the structure of a dataStream's manifest
+type DataStreamManifest struct {
 	Name          string `json:"name"`
 	Title         string `json:"title"`
 	Type          string `json:"type"`
@@ -124,14 +124,14 @@ func FindPackageRoot() (string, bool, error) {
 	return "", false, nil
 }
 
-// FindDatasetRootForPath finds and returns the path to the root folder of a dataset.
-func FindDatasetRootForPath(workDir string) (string, bool, error) {
+// FindDataStreamRootForPath finds and returns the path to the root folder of a dataStream.
+func FindDataStreamRootForPath(workDir string) (string, bool, error) {
 	dir := workDir
 	for dir != "." {
-		path := filepath.Join(dir, DatasetManifestFile)
+		path := filepath.Join(dir, DataStreamManifestFile)
 		fileInfo, err := os.Stat(path)
 		if err == nil && !fileInfo.IsDir() {
-			ok, err := isDatasetManifest(path)
+			ok, err := isDataStreamManifest(path)
 			if err != nil {
 				return "", false, errors.Wrapf(err, "verifying manifest file failed (path: %s)", path)
 			}
@@ -163,25 +163,25 @@ func ReadPackageManifest(path string) (*PackageManifest, error) {
 	return &m, nil
 }
 
-// ReadDatasetManifest reads and parses the given dataset manifest file.
-func ReadDatasetManifest(path string) (*DatasetManifest, error) {
+// ReadDataStreamManifest reads and parses the given data streammanifest file.
+func ReadDataStreamManifest(path string) (*DataStreamManifest, error) {
 	content, err := ioutil.ReadFile(path)
 	if err != nil {
 		return nil, errors.Wrapf(err, "reading file body failed (path: %s)", path)
 	}
 
-	var m DatasetManifest
+	var m DataStreamManifest
 	err = yaml.Unmarshal(content, &m)
 	if err != nil {
-		return nil, errors.Wrapf(err, "unmarshalling dataset manifest failed (path: %s)", path)
+		return nil, errors.Wrapf(err, "unmarshalling data streammanifest failed (path: %s)", path)
 	}
 
 	m.Name = filepath.Base(filepath.Dir(path))
 	return &m, nil
 }
 
-func (ct *configTemplate) FindInputByType(inputType string) *input {
-	for _, input := range ct.Inputs {
+func (pt *policyTemplate) FindInputByType(inputType string) *input {
+	for _, input := range pt.Inputs {
 		if input.Type == inputType {
 			return &input
 		}
@@ -197,8 +197,8 @@ func isPackageManifest(path string) (bool, error) {
 	return m.Type == "integration" && m.Version != "", nil // TODO add support for other package types
 }
 
-func isDatasetManifest(path string) (bool, error) {
-	m, err := ReadDatasetManifest(path)
+func isDataStreamManifest(path string) (bool, error) {
+	m, err := ReadDataStreamManifest(path)
 	if err != nil {
 		return false, errors.Wrapf(err, "reading package manifest failed (path: %s)", path)
 	}

@@ -29,21 +29,21 @@ type RunFunc func(options TestOptions) error
 
 var runners = map[TestType]RunFunc{}
 
-// TestFolder encapsulates the test folder path and names of the package + dataset
+// TestFolder encapsulates the test folder path and names of the package + dataStream
 // to which the test folder belongs.
 type TestFolder struct {
 	Path    string
 	Package string
-	Dataset string
+	DataStream string
 }
 
-// FindTestFolders finds test folders for the given package and, optionally, test type and datasets
-func FindTestFolders(packageRootPath string, testType TestType, datasets []string) ([]TestFolder, error) {
+// FindTestFolders finds test folders for the given package and, optionally, test type and dataStreams
+func FindTestFolders(packageRootPath string, testType TestType, dataStreams []string) ([]TestFolder, error) {
 
 	// Expected folder structure:
 	// <packageRootPath>/
-	//   datasets/
-	//     <dataset>/
+	//   dataStreams/
+	//     <dataStream>/
 	//       _dev/
 	//         test/
 	//           <testType>/
@@ -53,14 +53,14 @@ func FindTestFolders(packageRootPath string, testType TestType, datasets []strin
 		testTypeGlob = string(testType)
 	}
 
-	datasetsGlob := "*"
-	if datasets != nil && len(datasets) > 0 {
-		datasetsGlob = "("
-		datasetsGlob += strings.Join(datasets, "|")
-		datasetsGlob += ")"
+	dataStreamsGlob := "*"
+	if dataStreams != nil && len(dataStreams) > 0 {
+		dataStreamsGlob = "("
+		dataStreamsGlob += strings.Join(dataStreams, "|")
+		dataStreamsGlob += ")"
 	}
 
-	testFoldersGlob := filepath.Join(packageRootPath, "dataset", datasetsGlob, "_dev", "test", testTypeGlob)
+	testFoldersGlob := filepath.Join(packageRootPath, "data_stream", dataStreamsGlob, "_dev", "test", testTypeGlob)
 	paths, err := filepath.Glob(testFoldersGlob)
 	if err != nil {
 		return nil, errors.Wrap(err, "error finding test folders")
@@ -71,12 +71,12 @@ func FindTestFolders(packageRootPath string, testType TestType, datasets []strin
 	for idx, p := range paths {
 		relP := strings.TrimPrefix(p, packageRootPath)
 		parts := strings.Split(relP, string(filepath.Separator))
-		dataset := parts[2]
+		dataStream := parts[2]
 
 		folder := TestFolder{
 			p,
 			pkg,
-			dataset,
+			dataStream,
 		}
 
 		folders[idx] = folder

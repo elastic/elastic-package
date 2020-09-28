@@ -67,17 +67,17 @@ func (r *runner) run() error {
 		return errors.Wrap(err, "reading package manifest failed")
 	}
 
-	datasetPath, found, err := packages.FindDatasetRootForPath(r.testFolder.Path)
+	dataStreamPath, found, err := packages.FindDataStreamRootForPath(r.testFolder.Path)
 	if err != nil {
-		return errors.Wrap(err, "locating dataset root failed")
+		return errors.Wrap(err, "locating data stream root failed")
 	}
 	if !found {
-		return errors.New("dataset root not found")
+		return errors.New("dataStream root not found")
 	}
 
-	datasetManifest, err := packages.ReadDatasetManifest(filepath.Join(datasetPath, packages.DatasetManifestFile))
+	dataStreamManifest, err := packages.ReadDataStreamManifest(filepath.Join(dataStreamPath, packages.DataStreamManifestFile))
 	if err != nil {
-		return errors.Wrap(err, "reading dataset manifest failed")
+		return errors.Wrap(err, "reading data stream manifest failed")
 	}
 
 	serviceLogsDir, err := install.ServiceLogsDir()
@@ -118,8 +118,8 @@ func (r *runner) run() error {
 	logger.Info("creating test policy...")
 	testTime := time.Now().Format("20060102T15:04:05Z")
 	p := ingestmanager.Policy{
-		Name:        fmt.Sprintf("ep-test-system-%s-%s-%s", r.testFolder.Package, r.testFolder.Dataset, testTime),
-		Description: fmt.Sprintf("test policy created by elastic-package test system for data stream %s/%s", r.testFolder.Package, r.testFolder.Dataset),
+		Name:        fmt.Sprintf("ep-test-system-%s-%s-%s", r.testFolder.Package, r.testFolder.DataStream, testTime),
+		Description: fmt.Sprintf("test policy created by elastic-package test system for data stream %s/%s", r.testFolder.Package, r.testFolder.DataStream),
 		Namespace:   "ep",
 	}
 	policy, err := im.CreatePolicy(p)
@@ -138,10 +138,10 @@ func (r *runner) run() error {
 		return errors.Wrap(err, "unable to load system test configuration")
 	}
 
-	logger.Info("adding package datastream to test policy...")
-	ds := createPackageDatastream(*policy, *pkgManifest, *datasetManifest, *testConfig)
+	logger.Info("adding package data stream to test policy...")
+	ds := createPackageDatastream(*policy, *pkgManifest, *dataStreamManifest, *testConfig)
 	if err := im.AddPackageDataStreamToPolicy(ds); err != nil {
-		return errors.Wrap(err, "could not add dataset Config to policy")
+		return errors.Wrap(err, "could not add data stream config to policy")
 	}
 
 	// Get enrolled agent ID
@@ -161,7 +161,7 @@ func (r *runner) run() error {
 	dataStream := fmt.Sprintf(
 		"%s-%s-%s",
 		ds.Inputs[0].Streams[0].DataStream.Type,
-		ds.Inputs[0].Streams[0].DataStream.Dataset,
+		ds.Inputs[0].Streams[0].DataStream.DataStream,
 		ds.Namespace,
 	)
 
@@ -171,7 +171,7 @@ func (r *runner) run() error {
 	}
 
 	// Assign policy to agent
-	logger.Info("assigning package datastream to agent...")
+	logger.Info("assigning package data streamto agent...")
 	if err := im.AssignPolicyToAgent(agent, *policy); err != nil {
 		return errors.Wrap(err, "could not assign policy to agent")
 	}
@@ -216,10 +216,10 @@ func (r *runner) run() error {
 	}
 
 	if passed {
-		fmt.Printf("System test for %s/%s dataset passed!\n", r.testFolder.Package, r.testFolder.Dataset)
+		fmt.Printf("System test for %s/%s data stream passed!\n", r.testFolder.Package, r.testFolder.DataStream)
 	} else {
-		fmt.Printf("System test for %s/%s dataset failed\n", r.testFolder.Package, r.testFolder.Dataset)
-		return fmt.Errorf("system test for %s/%s dataset failed", r.testFolder.Package, r.testFolder.Dataset)
+		fmt.Printf("System test for %s/%s data stream failed\n", r.testFolder.Package, r.testFolder.DataStream)
+		return fmt.Errorf("system test for %s/%s data stream failed", r.testFolder.Package, r.testFolder.DataStream)
 	}
 
 	defer func() {
@@ -259,7 +259,7 @@ func getStackSettingsFromEnv() stackSettings {
 func createPackageDatastream(
 	p ingestmanager.Policy,
 	pkg packages.PackageManifest,
-	ds packages.DatasetManifest,
+	ds packages.DataStreamManifest,
 	c testConfig,
 ) ingestmanager.PackageDataStream {
 	streamInput := ds.Streams[0].Input
@@ -287,17 +287,17 @@ func createPackageDatastream(
 			Enabled: true,
 			DataStream: ingestmanager.DataStream{
 				Type:    ds.Type,
-				Dataset: fmt.Sprintf("%s.%s", pkg.Name, ds.Name),
+				DataStream: fmt.Sprintf("%s.%s", pkg.Name, ds.Name),
 			},
 		},
 	}
 
-	// Add dataset-level vars
+	// Add dataStream-level vars
 	dsVars := ingestmanager.Vars{}
 	for _, dsVar := range ds.Streams[0].Vars {
 		val := dsVar.Default
 
-		cfgVar, exists := c.Dataset.Vars[dsVar.Name]
+		cfgVar, exists := c.DataStream.Vars[dsVar.Name]
 		if exists {
 			// overlay var value from test configuration
 			val = cfgVar
@@ -313,7 +313,7 @@ func createPackageDatastream(
 
 	// Add package-level vars
 	pkgVars := ingestmanager.Vars{}
-	input := pkg.ConfigTemplates[0].FindInputByType(streamInput)
+	input := pkg.PolicyTemplates[0].FindInputByType(streamInput)
 	if input != nil {
 		for _, pkgVar := range input.Vars {
 			val := pkgVar.Default

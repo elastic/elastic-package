@@ -37,7 +37,7 @@ func setupTestCommand() *cobra.Command {
 
 	cmd.PersistentFlags().BoolP(cobraext.FailOnMissingFlagName, "m", false, cobraext.FailOnMissingFlagDescription)
 	cmd.PersistentFlags().BoolP(cobraext.GenerateTestResultFlagName, "g", false, cobraext.GenerateTestResultFlagDescription)
-	cmd.PersistentFlags().StringSliceP(cobraext.DatasetsFlagName, "d", nil, cobraext.DatasetsFlagDescription)
+	cmd.PersistentFlags().StringSliceP(cobraext.DataStreamsFlagName, "d", nil, cobraext.DataStreamsFlagDescription)
 
 	for _, testType := range testrunner.TestTypes() {
 		action := testTypeCommandActionFactory(testType)
@@ -65,9 +65,9 @@ func testTypeCommandActionFactory(testType testrunner.TestType) cobraext.Command
 			return cobraext.FlagParsingError(err, cobraext.FailOnMissingFlagName)
 		}
 
-		datasets, err := cmd.Flags().GetStringSlice(cobraext.DatasetsFlagName)
+		dataStreams, err := cmd.Flags().GetStringSlice(cobraext.DataStreamsFlagName)
 		if err != nil {
-			return cobraext.FlagParsingError(err, cobraext.DatasetsFlagName)
+			return cobraext.FlagParsingError(err, cobraext.DataStreamsFlagName)
 		}
 
 		generateTestResult, err := cmd.Flags().GetBool(cobraext.GenerateTestResultFlagName)
@@ -83,14 +83,14 @@ func testTypeCommandActionFactory(testType testrunner.TestType) cobraext.Command
 			return errors.Wrap(err, "locating package root failed")
 		}
 
-		testFolders, err := testrunner.FindTestFolders(packageRootPath, testType, datasets)
+		testFolders, err := testrunner.FindTestFolders(packageRootPath, testType, dataStreams)
 		if err != nil {
 			return errors.Wrap(err, "unable to determine test folder paths")
 		}
 
 		if failOnMissing && len(testFolders) == 0 {
-			if len(datasets) > 0 {
-				return fmt.Errorf("no %s tests found for %s dataset(s)", testType, strings.Join(datasets, ","))
+			if len(dataStreams) > 0 {
+				return fmt.Errorf("no %s tests found for %s data stream(s)", testType, strings.Join(dataStreams, ","))
 			}
 			return fmt.Errorf("no %s tests found", testType)
 		}
