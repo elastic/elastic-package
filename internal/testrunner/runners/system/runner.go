@@ -37,6 +37,11 @@ type runner struct {
 	packageRootPath string
 	stackSettings   stackSettings
 	esClient        *es.Client
+
+	// Execution order of following handlers is defined in runner.tearDown() method.
+	resetAgentPolicyHandler func()
+	shutdownServiceHandler func()
+	wipeDataStreamHandler func()
 }
 
 type stackSettings struct {
@@ -53,11 +58,12 @@ type stackSettings struct {
 // Run runs the system tests defined under the given folder
 func Run(options testrunner.TestOptions) error {
 	r := runner{
-		options.TestFolder,
-		options.PackageRootPath,
-		getStackSettingsFromEnv(),
-		options.ESClient,
+		testFolder: options.TestFolder,
+		packageRootPath: options.PackageRootPath,
+		stackSettings: getStackSettingsFromEnv(),
+		esClient: options.ESClient,
 	}
+	defer r.tearDown()
 	return r.run()
 }
 
@@ -103,22 +109,12 @@ func (r *runner) run() error {
 	}
 	ctxt = service.Context()
 
-	var dataStream string
-	defer func() {
+	r.shutdownServiceHandler = func() {
 		logger.Info("tearing down service...")
 		if err := service.TearDown(); err != nil {
 			logger.Errorf("error tearing down service: %s", err)
 		}
-
-		if len(dataStream) == 0 {
-			return // data stream hasn't been configured.
-		}
-
-		logger.Debugf("deleting data in data stream...")
-		if err := deleteDataStreamDocs(r.esClient, dataStream); err != nil {
-			logger.Errorf("error deleting data in data stream", err)
-		}
-	}()
+	}
 
 	// Step 2. Configure package (single data stream) via Ingest Manager APIs.
 	im, err := ingestmanager.NewClient(r.stackSettings.kibana.host, r.stackSettings.elasticsearch.username, r.stackSettings.elasticsearch.password)
@@ -169,12 +165,19 @@ func (r *runner) run() error {
 	}
 
 	// Delete old data
-	dataStream = fmt.Sprintf(
+	dataStream := fmt.Sprintf(
 		"%s-%s-%s",
 		ds.Inputs[0].Streams[0].DataStream.Type,
 		ds.Inputs[0].Streams[0].DataStream.Dataset,
 		ds.Namespace,
 	)
+
+	r.wipeDataStreamHandler = func() {
+		logger.Debugf("deleting data in data stream...")
+		if err := deleteDataStreamDocs(r.esClient, dataStream); err != nil {
+			logger.Errorf("error deleting data in data stream", err)
+		}
+	}
 
 	logger.Info("deleting old data in data stream...")
 	if err := deleteDataStreamDocs(r.esClient, dataStream); err != nil {
@@ -186,12 +189,12 @@ func (r *runner) run() error {
 	if err := im.AssignPolicyToAgent(agent, *policy); err != nil {
 		return errors.Wrap(err, "could not assign policy to agent")
 	}
-	defer func() {
+	r.resetAgentPolicyHandler = func() {
 		logger.Debug("reassigning original policy back to agent...")
 		if err := im.AssignPolicyToAgent(agent, origPolicy); err != nil {
 			logger.Errorf("error reassigning original policy to agent: %s", err)
 		}
-	}()
+	}
 
 	// Step 4. (TODO in future) Optionally exercise service to generate load.
 	logger.Info("checking for expected data in data stream...")
@@ -232,6 +235,12 @@ func (r *runner) run() error {
 		return fmt.Errorf("system test for %s/%s dataset failed", r.testFolder.Package, r.testFolder.Dataset)
 	}
 	return nil
+}
+
+func (r *runner) tearDown() {
+	r.resetAgentPolicyHandler()
+	r.shutdownServiceHandler()
+	r.wipeDataStreamHandler()
 }
 
 func getStackSettingsFromEnv() stackSettings {
