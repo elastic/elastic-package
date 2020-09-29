@@ -7,6 +7,9 @@ package ingestmanager
 import (
 	"encoding/json"
 	"fmt"
+	"time"
+
+	"github.com/elastic/elastic-package/internal/logger"
 
 	"github.com/pkg/errors"
 )
@@ -37,7 +40,6 @@ func (c *Client) ListAgents() ([]Agent, error) {
 	}
 
 	return resp.List, nil
-
 }
 
 // AssignPolicyToAgent assigns the given Policy to the given Agent.
@@ -51,9 +53,47 @@ func (c *Client) AssignPolicyToAgent(a Agent, p Policy) error {
 	}
 
 	if statusCode != 200 {
-		return fmt.Errorf("could not assign policy to agent; API status code = %d; response body = %s", statusCode, respBody)
+		return fmt.Errorf("could not assign policy to agent; API status code = %d; response body = %s", statusCode, string(respBody))
 	}
 
+	err = c.waitUntilPolicyAssigned(p)
+	if err != nil {
+		return errors.Wrap(err, "error occurred while waiting for the policy to be assigned to all agents")
+	}
 	return nil
+}
 
+func (c *Client) waitUntilPolicyAssigned(p Policy) error {
+	path := fmt.Sprintf("fleet/agent-status?=%s", p.ID)
+
+	var assigned bool
+	for !assigned {
+		statusCode, respBody, err := c.get(path)
+		if err != nil {
+			return errors.Wrapf(err, "could not check agent status; API status code = %d; policy ID = %s; response body = %s", statusCode, p.ID, string(respBody))
+		}
+
+		var resp struct {
+			Results struct {
+				Online int `json:"online"`
+				Total  int `json:"total"`
+			} `json:"results"`
+		}
+
+		if err := json.Unmarshal(respBody, &resp); err != nil {
+			return errors.Wrap(err, "could not convert agent status (response) to JSON")
+		}
+
+		if resp.Results.Total == 0 {
+			return fmt.Errorf("no agent is available")
+		}
+
+		if resp.Results.Total == resp.Results.Online {
+			assigned = true
+		}
+
+		logger.Debugf("Wait until the policy (ID: %s) is assigned to all agents...", p.ID)
+		time.Sleep(2 * time.Second)
+	}
+	return nil
 }
