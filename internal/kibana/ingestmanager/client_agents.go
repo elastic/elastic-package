@@ -64,7 +64,7 @@ func (c *Client) AssignPolicyToAgent(a Agent, p Policy) error {
 }
 
 func (c *Client) waitUntilPolicyAssigned(p Policy) error {
-	path := fmt.Sprintf("fleet/agent-status?=%s", p.ID)
+	path := fmt.Sprintf("fleet/agent-status?policyId=%s", p.ID)
 
 	var assigned bool
 	for !assigned {
