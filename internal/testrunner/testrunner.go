@@ -7,6 +7,7 @@ package testrunner
 import (
 	"fmt"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/elastic/go-elasticsearch/v7"
@@ -53,17 +54,24 @@ func FindTestFolders(packageRootPath string, testType TestType, datasets []strin
 		testTypeGlob = string(testType)
 	}
 
-	datasetsGlob := "*"
+	var paths []string
 	if datasets != nil && len(datasets) > 0 {
-		datasetsGlob = "("
-		datasetsGlob += strings.Join(datasets, "|")
-		datasetsGlob += ")"
-	}
+		sort.Strings(datasets)
+		for _, dataset := range datasets {
+			p, err := findTestFolderPaths(packageRootPath, dataset, testTypeGlob)
+			if err != nil {
+				return nil, err
+			}
 
-	testFoldersGlob := filepath.Join(packageRootPath, "dataset", datasetsGlob, "_dev", "test", testTypeGlob)
-	paths, err := filepath.Glob(testFoldersGlob)
-	if err != nil {
-		return nil, errors.Wrap(err, "error finding test folders")
+			paths = append(paths, p...)
+		}
+	} else {
+		p, err := findTestFolderPaths(packageRootPath, "*", testTypeGlob)
+		if err != nil {
+			return nil, err
+		}
+
+		paths = p
 	}
 
 	folders := make([]TestFolder, len(paths))
@@ -106,4 +114,14 @@ func TestTypes() []TestType {
 		testTypes = append(testTypes, t)
 	}
 	return testTypes
+}
+
+func findTestFolderPaths(packageRootPath, datasetGlob, testTypeGlob string) ([]string, error) {
+	testFoldersGlob := filepath.Join(packageRootPath, "dataset", datasetGlob, "_dev", "test", testTypeGlob)
+	paths, err := filepath.Glob(testFoldersGlob)
+	if err != nil {
+		return nil, errors.Wrap(err, "error finding test folders")
+	}
+
+	return paths, err
 }
