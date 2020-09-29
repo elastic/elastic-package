@@ -238,9 +238,17 @@ func (r *runner) run() error {
 }
 
 func (r *runner) tearDown() {
-	r.resetAgentPolicyHandler()
-	r.shutdownServiceHandler()
-	r.wipeDataStreamHandler()
+	if r.resetAgentPolicyHandler != nil {
+		r.resetAgentPolicyHandler()
+	}
+
+	if r.shutdownServiceHandler != nil {
+		r.shutdownServiceHandler()
+	}
+
+	if r.wipeDataStreamHandler != nil {
+		r.wipeDataStreamHandler()
+	}
 }
 
 func getStackSettingsFromEnv() stackSettings {
