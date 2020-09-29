@@ -40,8 +40,8 @@ type runner struct {
 
 	// Execution order of following handlers is defined in runner.tearDown() method.
 	resetAgentPolicyHandler func()
-	shutdownServiceHandler func()
-	wipeDataStreamHandler func()
+	shutdownServiceHandler  func()
+	wipeDataStreamHandler   func()
 }
 
 type stackSettings struct {
@@ -58,10 +58,10 @@ type stackSettings struct {
 // Run runs the system tests defined under the given folder
 func Run(options testrunner.TestOptions) error {
 	r := runner{
-		testFolder: options.TestFolder,
+		testFolder:      options.TestFolder,
 		packageRootPath: options.PackageRootPath,
-		stackSettings: getStackSettingsFromEnv(),
-		esClient: options.ESClient,
+		stackSettings:   getStackSettingsFromEnv(),
+		esClient:        options.ESClient,
 	}
 	defer r.tearDown()
 	return r.run()
