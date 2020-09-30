@@ -7,7 +7,7 @@ require (
 	github.com/Masterminds/semver v1.5.0
 	github.com/aymerick/raymond v2.0.2+incompatible
 	github.com/elastic/go-elasticsearch/v7 v7.9.0
-	github.com/elastic/package-spec/code/go v0.0.0-20200930112347-763ab44be25b
+	github.com/elastic/package-spec/code/go v0.0.0-20200930145841-f3a4262e317f
 	github.com/go-git/go-billy/v5 v5.0.0
 	github.com/go-git/go-git/v5 v5.1.0
 	github.com/google/go-github/v32 v32.1.0
