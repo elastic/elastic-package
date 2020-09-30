@@ -40,7 +40,7 @@ type ServiceContext struct {
 func (sc *ServiceContext) Aliases() map[string]interface{} {
 	return map[string]interface{}{
 		serviceLogsDirEnv: func() interface{} {
-			return sc.Logs.Folder.Local
+			return sc.Logs.Folder.Agent
 		},
 	}
 }
