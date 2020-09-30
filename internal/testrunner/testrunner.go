@@ -30,7 +30,7 @@ type RunFunc func(options TestOptions) error
 
 var runners = map[TestType]RunFunc{}
 
-// TestFolder encapsulates the test folder path and names of the package + dataStream
+// TestFolder encapsulates the test folder path and names of the package + data stream
 // to which the test folder belongs.
 type TestFolder struct {
 	Path       string
