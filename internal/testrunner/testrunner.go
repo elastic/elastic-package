@@ -38,7 +38,7 @@ type TestFolder struct {
 	DataStream string
 }
 
-// FindTestFolders finds test folders for the given package and, optionally, test type and dataStreams
+// FindTestFolders finds test folders for the given package and, optionally, test type and data streams
 func FindTestFolders(packageRootPath string, testType TestType, dataStreams []string) ([]TestFolder, error) {
 	// Expected folder structure:
 	// <packageRootPath>/
