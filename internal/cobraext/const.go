@@ -9,8 +9,8 @@ const (
 	DaemonModeFlagName        = "daemon"
 	DaemonModeFlagDescription = "daemon mode"
 
-	DatasetsFlagName        = "datasets"
-	DatasetsFlagDescription = "comma-separated datasets to test"
+	DataStreamsFlagName        = "data-streams"
+	DataStreamsFlagDescription = "comma-separated data streams to test"
 
 	FailOnMissingFlagName        = "fail-on-missing"
 	FailOnMissingFlagDescription = "fail if tests are missing"

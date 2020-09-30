@@ -49,16 +49,16 @@ type pipelineIngestedDocument struct {
 	Doc pipelineDocument `json:"doc"`
 }
 
-func installIngestPipelines(esClient *elasticsearch.Client, datasetPath string) (string, []pipelineResource, error) {
-	datasetManifest, err := packages.ReadDatasetManifest(filepath.Join(datasetPath, packages.DatasetManifestFile))
+func installIngestPipelines(esClient *elasticsearch.Client, dataStreamPath string) (string, []pipelineResource, error) {
+	dataStreamManifest, err := packages.ReadDataStreamManifest(filepath.Join(dataStreamPath, packages.DataStreamManifestFile))
 	if err != nil {
-		return "", nil, errors.Wrap(err, "reading dataset manifest failed")
+		return "", nil, errors.Wrap(err, "reading data stream manifest failed")
 	}
 
 	nonce := time.Now().UnixNano()
 
-	mainPipeline := getWithPipelineNameWithNonce(getPipelineNameOrDefault(datasetManifest), nonce)
-	pipelines, err := loadIngestPipelineFiles(datasetPath, nonce)
+	mainPipeline := getWithPipelineNameWithNonce(getPipelineNameOrDefault(dataStreamManifest), nonce)
+	pipelines, err := loadIngestPipelineFiles(dataStreamPath, nonce)
 	if err != nil {
 		return "", nil, errors.Wrap(err, "loading ingest pipeline files failed")
 	}
@@ -75,15 +75,15 @@ func installIngestPipelines(esClient *elasticsearch.Client, datasetPath string) 
 	return mainPipeline, jsonPipelines, nil
 }
 
-func getPipelineNameOrDefault(datasetManifest *packages.DatasetManifest) string {
-	if datasetManifest.Elasticsearch != nil && datasetManifest.Elasticsearch.IngestPipelineName != "" {
-		return datasetManifest.Elasticsearch.IngestPipelineName
+func getPipelineNameOrDefault(dataStreamManifest *packages.DataStreamManifest) string {
+	if dataStreamManifest.Elasticsearch != nil && dataStreamManifest.Elasticsearch.IngestPipelineName != "" {
+		return dataStreamManifest.Elasticsearch.IngestPipelineName
 	}
 	return defaultPipelineName
 }
 
-func loadIngestPipelineFiles(datasetPath string, nonce int64) ([]pipelineResource, error) {
-	elasticsearchPath := filepath.Join(datasetPath, "elasticsearch", "ingest_pipeline")
+func loadIngestPipelineFiles(dataStreamPath string, nonce int64) ([]pipelineResource, error) {
+	elasticsearchPath := filepath.Join(dataStreamPath, "elasticsearch", "ingest_pipeline")
 	fis, err := ioutil.ReadDir(elasticsearchPath)
 	if err != nil {
 		return nil, errors.Wrapf(err, "reading ingest pipelines directory failed (path: %s)", elasticsearchPath)

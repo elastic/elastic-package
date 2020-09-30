@@ -30,21 +30,20 @@ type RunFunc func(options TestOptions) error
 
 var runners = map[TestType]RunFunc{}
 
-// TestFolder encapsulates the test folder path and names of the package + dataset
+// TestFolder encapsulates the test folder path and names of the package + data stream
 // to which the test folder belongs.
 type TestFolder struct {
-	Path    string
-	Package string
-	Dataset string
+	Path       string
+	Package    string
+	DataStream string
 }
 
-// FindTestFolders finds test folders for the given package and, optionally, test type and datasets
-func FindTestFolders(packageRootPath string, testType TestType, datasets []string) ([]TestFolder, error) {
-
+// FindTestFolders finds test folders for the given package and, optionally, test type and data streams
+func FindTestFolders(packageRootPath string, testType TestType, dataStreams []string) ([]TestFolder, error) {
 	// Expected folder structure:
 	// <packageRootPath>/
-	//   datasets/
-	//     <dataset>/
+	//   data_stream/
+	//     <dataStream>/
 	//       _dev/
 	//         test/
 	//           <testType>/
@@ -55,10 +54,10 @@ func FindTestFolders(packageRootPath string, testType TestType, datasets []strin
 	}
 
 	var paths []string
-	if datasets != nil && len(datasets) > 0 {
-		sort.Strings(datasets)
-		for _, dataset := range datasets {
-			p, err := findTestFolderPaths(packageRootPath, dataset, testTypeGlob)
+	if dataStreams != nil && len(dataStreams) > 0 {
+		sort.Strings(dataStreams)
+		for _, dataStream := range dataStreams {
+			p, err := findTestFolderPaths(packageRootPath, dataStream, testTypeGlob)
 			if err != nil {
 				return nil, err
 			}
@@ -79,12 +78,12 @@ func FindTestFolders(packageRootPath string, testType TestType, datasets []strin
 	for idx, p := range paths {
 		relP := strings.TrimPrefix(p, packageRootPath)
 		parts := strings.Split(relP, string(filepath.Separator))
-		dataset := parts[2]
+		dataStream := parts[2]
 
 		folder := TestFolder{
 			p,
 			pkg,
-			dataset,
+			dataStream,
 		}
 
 		folders[idx] = folder
@@ -116,12 +115,11 @@ func TestTypes() []TestType {
 	return testTypes
 }
 
-func findTestFolderPaths(packageRootPath, datasetGlob, testTypeGlob string) ([]string, error) {
-	testFoldersGlob := filepath.Join(packageRootPath, "dataset", datasetGlob, "_dev", "test", testTypeGlob)
+func findTestFolderPaths(packageRootPath, dataStreamGlob, testTypeGlob string) ([]string, error) {
+	testFoldersGlob := filepath.Join(packageRootPath, "data_stream", dataStreamGlob, "_dev", "test", testTypeGlob)
 	paths, err := filepath.Glob(testFoldersGlob)
 	if err != nil {
 		return nil, errors.Wrap(err, "error finding test folders")
 	}
-
 	return paths, err
 }

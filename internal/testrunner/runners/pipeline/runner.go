@@ -38,15 +38,15 @@ func (r *runner) run() error {
 		return errors.Wrap(err, "listing test case definitions failed")
 	}
 
-	datasetPath, found, err := packages.FindDatasetRootForPath(r.options.TestFolder.Path)
+	dataStreamPath, found, err := packages.FindDataStreamRootForPath(r.options.TestFolder.Path)
 	if err != nil {
-		return errors.Wrap(err, "locating dataset root failed")
+		return errors.Wrap(err, "locating data_stream root failed")
 	}
 	if !found {
-		return errors.New("dataset root not found")
+		return errors.New("dataStream root not found")
 	}
 
-	entryPipeline, pipelineIDs, err := installIngestPipelines(r.options.ESClient, datasetPath)
+	entryPipeline, pipelineIDs, err := installIngestPipelines(r.options.ESClient, dataStreamPath)
 	if err != nil {
 		return errors.Wrap(err, "installing ingest pipelines failed")
 	}
