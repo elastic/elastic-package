@@ -42,7 +42,7 @@ type TestFolder struct {
 func FindTestFolders(packageRootPath string, testType TestType, dataStreams []string) ([]TestFolder, error) {
 	// Expected folder structure:
 	// <packageRootPath>/
-	//   dataStreams/
+	//   data_stream/
 	//     <dataStream>/
 	//       _dev/
 	//         test/
