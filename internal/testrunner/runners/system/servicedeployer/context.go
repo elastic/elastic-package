@@ -21,6 +21,10 @@ type ServiceContext struct {
 	// from the Agent container.
 	Ports []int
 
+	// Port points to the first port in the list of ports. It's provided as
+	// a convenient shortcut as most services tend to listen on a single port.
+	Port int
+
 	// Logs contains folder paths for log files produced by the service.
 	Logs struct {
 		Folder struct {
