@@ -1,5 +1,5 @@
 vars:
   hosts:
     - http://{{Hostname}}:{{Port}}
-dataset:
+data_stream:
   vars: ~

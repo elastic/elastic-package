@@ -1,5 +1,5 @@
 vars: ~
-dataset:
+data_stream:
   vars:
     paths:
       - "{{SERVICE_LOGS_DIR}}/error.log*"
