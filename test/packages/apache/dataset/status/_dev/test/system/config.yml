@@ -1,5 +1,5 @@
 vars:
   hosts:
-    - http://{{Hostname}}:{{Ports[0]}}
+    - http://{{Hostname}}:{{Port}}
 dataset:
   vars: ~
