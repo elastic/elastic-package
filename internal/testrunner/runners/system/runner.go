@@ -240,7 +240,7 @@ func (r *runner) run() error {
 
 func (r *runner) tearDown() {
 	if logger.IsDebugMode() {
-		sleepFor := 1 * time.Minute
+		sleepFor := 30 * time.Second
 		logger.Debugf("waiting for %s before tearing down...", sleepFor)
 		time.Sleep(sleepFor)
 	}
