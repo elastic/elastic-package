@@ -39,6 +39,7 @@ type runner struct {
 	esClient        *es.Client
 
 	// Execution order of following handlers is defined in runner.tearDown() method.
+	deleteTestPolicyHandler func()
 	resetAgentPolicyHandler func()
 	shutdownServiceHandler  func()
 	wipeDataStreamHandler   func()
@@ -133,12 +134,12 @@ func (r *runner) run() error {
 	if err != nil {
 		return errors.Wrap(err, "could not create test policy")
 	}
-	defer func() {
+	r.deleteTestPolicyHandler = func() {
 		logger.Debug("deleting test policy...")
 		if err := im.DeletePolicy(*policy); err != nil {
 			logger.Errorf("error cleaning up test policy: %s", err)
 		}
-	}()
+	}
 
 	testConfig, err := newConfig(r.testFolder.Path, ctxt)
 	if err != nil {
@@ -246,6 +247,10 @@ func (r *runner) tearDown() {
 
 	if r.resetAgentPolicyHandler != nil {
 		r.resetAgentPolicyHandler()
+	}
+
+	if r.deleteTestPolicyHandler != nil {
+		r.deleteTestPolicyHandler()
 	}
 
 	if r.shutdownServiceHandler != nil {
