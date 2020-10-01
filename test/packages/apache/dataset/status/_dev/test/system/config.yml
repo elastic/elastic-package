@@ -2,4 +2,4 @@ vars: ~
 dataset:
   vars:
     hosts:
-      - http://scb:8999
+      - http://{{Hostname}}:{{Ports.0}}
