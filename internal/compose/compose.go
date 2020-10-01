@@ -35,14 +35,21 @@ type service struct {
 
 type portMapping struct {
 	ExternalIP   string
-	ExternalPort int
-	InternalPort int
+	ExternalPort int `yaml:"published"`
+	InternalPort int `yaml:"target"`
 	Protocol     string
 }
 
 // UnmarshalYAML unmarshals a Docker Compose port mapping in YAML to
 // a portMapping.
 func (p *portMapping) UnmarshalYAML(node *yaml.Node) error {
+	// Depending on how the port mapping is specified in the Docker Compose
+	// configuration file, sometimes a map is returned and other times a
+	// string is returned. Here we first check if a map was returned.
+	if node.Kind == yaml.MappingNode {
+		return yaml.Unmarshal([]byte(node.Value), p)
+	}
+
 	var str string
 	if err := node.Decode(&str); err != nil {
 		return err
