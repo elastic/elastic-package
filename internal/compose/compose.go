@@ -35,8 +35,8 @@ type service struct {
 
 type portMapping struct {
 	ExternalIP   string
-	ExternalPort int `yaml:"published"`
-	InternalPort int `yaml:"target"`
+	ExternalPort int
+	InternalPort int
 	Protocol     string
 }
 
@@ -47,7 +47,26 @@ func (p *portMapping) UnmarshalYAML(node *yaml.Node) error {
 	// configuration file, sometimes a map is returned and other times a
 	// string is returned. Here we first check if a map was returned.
 	if node.Kind == yaml.MappingNode {
-		return yaml.Unmarshal([]byte(node.Value), p)
+		b, err := yaml.Marshal(node)
+		if err != nil {
+			return errors.Wrap(err, "could not re-encode YAML map node to YAML")
+		}
+
+		var s struct {
+			Target    int
+			Published int
+			Protocol  string
+		}
+
+		if err := yaml.Unmarshal(b, &s); err != nil {
+			return errors.Wrap(err, "could not unmarshal YAML map node")
+		}
+
+		p.InternalPort = s.Target
+		p.ExternalPort = s.Published
+		p.Protocol = s.Protocol
+
+		return nil
 	}
 
 	var str string
