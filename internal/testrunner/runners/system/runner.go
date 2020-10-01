@@ -169,7 +169,7 @@ func (r *runner) run() error {
 	dataStream := fmt.Sprintf(
 		"%s-%s-%s",
 		ds.Inputs[0].Streams[0].DataStream.Type,
-		ds.Inputs[0].Streams[0].DataStream.DataStream,
+		ds.Inputs[0].Streams[0].DataStream.Dataset,
 		ds.Namespace,
 	)
 
@@ -311,8 +311,8 @@ func createPackageDatastream(
 			ID:      fmt.Sprintf("%s-%s.%s", streamInput, pkg.Name, ds.Name),
 			Enabled: true,
 			DataStream: ingestmanager.DataStream{
-				Type:       ds.Type,
-				DataStream: fmt.Sprintf("%s.%s", pkg.Name, ds.Name),
+				Type:    ds.Type,
+				Dataset: fmt.Sprintf("%s.%s", pkg.Name, ds.Name),
 			},
 		},
 	}
