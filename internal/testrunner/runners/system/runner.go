@@ -79,7 +79,7 @@ func (r *runner) run() error {
 		return errors.Wrap(err, "locating data stream root failed")
 	}
 	if !found {
-		return errors.New("dataStream root not found")
+		return errors.New("data stream root not found")
 	}
 
 	dataStreamManifest, err := packages.ReadDataStreamManifest(filepath.Join(dataStreamPath, packages.DataStreamManifestFile))
