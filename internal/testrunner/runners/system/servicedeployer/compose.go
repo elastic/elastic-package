@@ -95,6 +95,11 @@ func (r *DockerComposeServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedSer
 		outCtxt.Ports[idx] = port.InternalPort
 	}
 
+	// Shortcut to first port for convenience
+	if len(outCtxt.Ports) > 0 {
+		outCtxt.Port = outCtxt.Ports[0]
+	}
+
 	service.ctxt = outCtxt
 	return &service, nil
 }

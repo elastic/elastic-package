@@ -43,7 +43,7 @@ func (r *runner) run() error {
 		return errors.Wrap(err, "locating data_stream root failed")
 	}
 	if !found {
-		return errors.New("dataStream root not found")
+		return errors.New("data stream root not found")
 	}
 
 	entryPipeline, pipelineIDs, err := installIngestPipelines(r.options.ESClient, dataStreamPath)

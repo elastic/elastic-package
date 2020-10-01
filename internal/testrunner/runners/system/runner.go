@@ -39,6 +39,7 @@ type runner struct {
 	esClient        *es.Client
 
 	// Execution order of following handlers is defined in runner.tearDown() method.
+	deleteTestPolicyHandler func()
 	resetAgentPolicyHandler func()
 	shutdownServiceHandler  func()
 	wipeDataStreamHandler   func()
@@ -78,7 +79,7 @@ func (r *runner) run() error {
 		return errors.Wrap(err, "locating data stream root failed")
 	}
 	if !found {
-		return errors.New("dataStream root not found")
+		return errors.New("data stream root not found")
 	}
 
 	dataStreamManifest, err := packages.ReadDataStreamManifest(filepath.Join(dataStreamPath, packages.DataStreamManifestFile))
@@ -133,12 +134,12 @@ func (r *runner) run() error {
 	if err != nil {
 		return errors.Wrap(err, "could not create test policy")
 	}
-	defer func() {
+	r.deleteTestPolicyHandler = func() {
 		logger.Debug("deleting test policy...")
 		if err := im.DeletePolicy(*policy); err != nil {
 			logger.Errorf("error cleaning up test policy: %s", err)
 		}
-	}()
+	}
 
 	testConfig, err := newConfig(r.testFolder.Path, ctxt)
 	if err != nil {
@@ -168,7 +169,7 @@ func (r *runner) run() error {
 	dataStream := fmt.Sprintf(
 		"%s-%s-%s",
 		ds.Inputs[0].Streams[0].DataStream.Type,
-		ds.Inputs[0].Streams[0].DataStream.DataStream,
+		ds.Inputs[0].Streams[0].DataStream.Dataset,
 		ds.Namespace,
 	)
 
@@ -238,8 +239,20 @@ func (r *runner) run() error {
 }
 
 func (r *runner) tearDown() {
+	if logger.IsDebugMode() {
+		// Sleep to give some time for humans to scrutinize the current
+		// state of the system.
+		sleepFor := 30 * time.Second
+		logger.Debugf("waiting for %s before tearing down...", sleepFor)
+		time.Sleep(sleepFor)
+	}
+
 	if r.resetAgentPolicyHandler != nil {
 		r.resetAgentPolicyHandler()
+	}
+
+	if r.deleteTestPolicyHandler != nil {
+		r.deleteTestPolicyHandler()
 	}
 
 	if r.shutdownServiceHandler != nil {
@@ -300,8 +313,8 @@ func createPackageDatastream(
 			ID:      fmt.Sprintf("%s-%s.%s", streamInput, pkg.Name, ds.Name),
 			Enabled: true,
 			DataStream: ingestmanager.DataStream{
-				Type:       ds.Type,
-				DataStream: fmt.Sprintf("%s.%s", pkg.Name, ds.Name),
+				Type:    ds.Type,
+				Dataset: fmt.Sprintf("%s.%s", pkg.Name, ds.Name),
 			},
 		},
 	}
