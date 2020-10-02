@@ -6,6 +6,7 @@ package stack
 
 import (
 	"fmt"
+
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/builder"
