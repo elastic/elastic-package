@@ -1,7 +1,7 @@
 # HOWTO: Writing system tests for a package
 
 ## Introduction
-Elastic Packages are comprised of data streams. A system test exercises the end-to-end flow of data for a package's data stream — from ingesting it from the package's integration service all the way to indexing it into an Elasticsearch data stream.
+Elastic Packages are comprised of data streams. A system test exercises the end-to-end flow of data for a package's data stream — from ingesting data from the package's integration service all the way to indexing it into an Elasticsearch data stream.
 
 ## Process
 
@@ -88,6 +88,19 @@ The top-level `vars` field corresponds to package-level variables defined in the
 The `data_stream.vars` field corresponds to data stream-level variables for the current data stream (`apache/access` in the above example). In the above example we override the `paths` variable. All other variables are populated with their default values, as specified in the `apache/access` data stream's `manifest.yml` file.
 
 Notice the use of the `{{SERVICE_LOGS_DIR}}` placeholder. This corresponds to the `${SERVICE_LOGS_DIR}` variable we saw in the `docker-compose.yml` file earlier. In the above example, the net effect is as if the `/usr/local/apache2/logs/access.log*` files located inside the Apache integration service container become available at the same path from Elastic Agent's perspective.
+
+#### Placeholders
+
+The `SERVICE_LOGS_DIR` placeholder is not the only one available for use in a data stream's `config.yml` file. The complete list of available placeholder is shown below.
+
+| Placeholder name | Data type | Description |
+| --- | --- | --- |
+| `Hostname`| string | Addressable host name of the integration service. |
+| `Ports` | []int | Array of addressable ports the integration service is listening on. |
+| `Port` | int | Alias for `Ports[0]`. Provided as a convenience. |
+| `Logs.Folder.Agent` | string | Path to integration service's logs folder, as addressable by the Agent. |
+| `SERVICE_LOGS_DIR` | string | Alias for `Logs.Folder.Agent`. Provided as a convenience. |
+
 
 ## Running a system test
 
