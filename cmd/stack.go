@@ -48,7 +48,7 @@ func setupStackCommand() *cobra.Command {
 				return cobraext.FlagParsingError(err, cobraext.StackVersionFlagName)
 			}
 
-			err = stack.BootUp(stack.BootOptions{
+			err = stack.BootUp(stack.Options{
 				DaemonMode:   daemonMode,
 				StackVersion: stackVersion,
 				Services:     services,
@@ -93,7 +93,7 @@ func setupStackCommand() *cobra.Command {
 				return cobraext.FlagParsingError(err, cobraext.StackVersionFlagName)
 			}
 
-			err = stack.Update(stack.BootOptions{
+			err = stack.Update(stack.Options{
 				StackVersion: stackVersion,
 			})
 			if err != nil {
