@@ -13,7 +13,7 @@ import (
 	"github.com/elastic/elastic-package/internal/logger"
 )
 
-// Pull method downloads the latest available revision of the image.
+// Pull downloads the latest available revision of the image.
 func Pull(image string) error {
 	cmd := exec.Command("docker", "pull", image)
 
