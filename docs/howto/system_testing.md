@@ -7,19 +7,19 @@ Elastic Packages are comprised of data streams. A system test exercises the end-
 
 Conceptually, running a system test involves the following steps:
 
-1. Deploy the Elastic Stack, including Elasticsearch, Kibana, and the Elastic Agent. This step takes time so it should typically be done once as a pre-requisite to running system tests on multiple packages.
+1. Deploy the Elastic Stack, including Elasticsearch, Kibana, and the Elastic Agent. This step takes time so it should typically be done once as a pre-requisite to running system tests on multiple data streams.
 1. Enroll the Elastic Agent with Fleet (running in the Kibana instance). This step also can be done once, as a pre-requisite.
 1. Depending on the Elastic Package whose data stream is being tested, deploy an instance of the package's integration service.
 1. Create a test policy that configures a single data stream for a single package.
 1. Assign the test policy to the enrolled Agent.
 1. Wait a reasonable amount of time for the Agent to collect data from the integration service and index it into the correct Elasticsearch data stream.
 1. Delete test artifacts and tear down the instance of the package's integration service.
-1. Once all packages have been system tested, tear down the Elastic Stack.
+1. Once all desired data streams have been system tested, tear down the Elastic Stack.
 
 ## Limitations
 
 At the moment system tests have limitations. The salient ones are:
-* They can only test package's whose integration services can be deployed via Docker Compose. Eventually they will be able to test package's that can be deployed via other means, e.g. a Terraform configuration.
+* They can only test packages whose integration services can be deployed via Docker Compose. Eventually they will be able to test packages that can be deployed via other means, e.g. a Terraform configuration.
 * They can only check for the _existence_ of data in the correct Elasticsearch data stream. Eventually they will be able to test the shape and contents of the indexed data as well.
 
 ## Defining a system test
