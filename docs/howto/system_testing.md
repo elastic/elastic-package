@@ -138,6 +138,3 @@ When you are done running system tests, bring down the Elastic Stack.
 ```
 elastic-package stack down
 ```
-
-
-
