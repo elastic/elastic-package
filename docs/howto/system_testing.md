@@ -3,7 +3,7 @@
 ## Introduction
 Elastic Packages are comprised of data streams. A system test exercises the end-to-end flow of data for a package's data stream — from ingesting data from the package's integration service all the way to indexing it into an Elasticsearch data stream.
 
-## Process
+## Conceptual process
 
 Conceptually, running a system test involves the following steps:
 
@@ -109,7 +109,7 @@ Placeholders used in the `config.yml` must be enclosed in `{{` and `}}` delimite
 
 Once the two levels of configurations are defined as described in the previous section, you are ready to run system tests for a package's data streams.
 
-First you must deploy the Elastic Stack.
+First you must deploy the Elastic Stack. This corresponds to steps 1 and 2 as described in the [_Conceptual process_](#Conceptual_process) section.
 
 ```
 elastic-package stack up -d
@@ -117,11 +117,13 @@ elastic-package stack up -d
 
 For a complete listing of options available for this command, run `elastic-package stack up -h` or `elastic-package help stack up`.
 
-Next you must set environment variables needed for further `elastic-package` commands.
+Next, you must set environment variables needed for further `elastic-package` commands.
 
 ```
 $(elastic-package stack shellinit)
 ```
+
+Next, you must invoke the system tests runner. This corresponds to steps 3 through 7 as described in the [_Conceptual process_](#Conceptual_process) section.
 
 If you want to run system tests for **all data streams** in a package, navigate to the package's root folder (or any sub-folder under it) and run the following command.
 
@@ -135,7 +137,7 @@ If you want to run system tests for **specific data streams** in a package, navi
 elastic-package test system --data-streams <data stream 1>[,<data stream 2>,...]
 ```
 
-When you are done running system tests, bring down the Elastic Stack.
+Finally, when you are done running all system tests, bring down the Elastic Stack. This corresponds to step 8 as described in the [_Conceptual process_](#Conceptual_process) section.
 
 ```
 elastic-package stack down
