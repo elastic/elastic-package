@@ -9,8 +9,6 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
-
-	"github.com/elastic/elastic-package/internal/packages"
 )
 
 // Policy represents an Ingest Manager policy.
@@ -68,8 +66,8 @@ func (c *Client) DeletePolicy(p Policy) error {
 // data stream level, encapsulating the data type of the
 // variable and it's value.
 type Var struct {
-	Value packages.VarValue `json:"value"`
-	Type  string            `json:"type"`
+	Value interface{} `json:"value"`
+	Type  string      `json:"type"`
 }
 
 // Vars is a collection of variables either at the package or

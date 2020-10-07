@@ -13,16 +13,15 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 
-	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/testrunner/runners/system/servicedeployer"
 )
 
 const configFileName = "config.yml"
 
 type testConfig struct {
-	Vars       map[string]packages.VarValue `yaml:"vars"`
+	Vars       map[string]interface{} `yaml:"vars"`
 	DataStream struct {
-		Vars map[string]packages.VarValue `yaml:"vars"`
+		Vars map[string]interface{} `yaml:"vars"`
 	} `yaml:"data_stream"`
 }
 

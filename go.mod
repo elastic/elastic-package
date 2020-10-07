@@ -7,7 +7,8 @@ require (
 	github.com/Masterminds/semver v1.5.0
 	github.com/aymerick/raymond v2.0.2+incompatible
 	github.com/elastic/go-elasticsearch/v7 v7.9.0
-	github.com/elastic/package-spec/code/go v0.0.0-20200930145841-f3a4262e317f
+	github.com/elastic/go-ucfg v0.8.3
+	github.com/elastic/package-spec/code/go v0.0.0-20201006155108-bc98b6baa952
 	github.com/go-git/go-billy/v5 v5.0.0
 	github.com/go-git/go-git/v5 v5.1.0
 	github.com/google/go-github/v32 v32.1.0
@@ -24,5 +25,6 @@ require (
 	golang.org/x/net v0.0.0-20200904194848-62affa334b73 // indirect
 	golang.org/x/oauth2 v0.0.0-20200902213428-5d25da1a8d43
 	golang.org/x/sys v0.0.0-20200915084602-288bc346aa39 // indirect
+	golang.org/x/tools v0.0.0-20201007032633-0806396f153e // indirect
 	gopkg.in/yaml.v3 v3.0.0-20200615113413-eeeca48fe776
 )

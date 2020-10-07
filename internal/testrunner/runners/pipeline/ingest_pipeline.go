@@ -75,9 +75,9 @@ func installIngestPipelines(esClient *elasticsearch.Client, dataStreamPath strin
 	return mainPipeline, jsonPipelines, nil
 }
 
-func getPipelineNameOrDefault(dataStreamManifest *packages.DataStreamManifest) string {
-	if dataStreamManifest.Elasticsearch != nil && dataStreamManifest.Elasticsearch.IngestPipelineName != "" {
-		return dataStreamManifest.Elasticsearch.IngestPipelineName
+func getPipelineNameOrDefault(dsm *packages.DataStreamManifest) string {
+	if dsm.Elasticsearch != nil && dsm.Elasticsearch.IngestPipeline != nil && dsm.Elasticsearch.IngestPipeline.Name != "" {
+		return dsm.Elasticsearch.IngestPipeline.Name
 	}
 	return defaultPipelineName
 }

@@ -5,13 +5,12 @@
 package packages
 
 import (
-	"encoding/json"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
+	"github.com/elastic/go-ucfg"
+	"github.com/elastic/go-ucfg/yaml"
 	"github.com/pkg/errors"
-	"gopkg.in/yaml.v3"
 )
 
 const (
@@ -22,82 +21,47 @@ const (
 	DataStreamManifestFile = "manifest.yml"
 )
 
-// VarValue represents a Variable value as defined in a package or data stream
-// manifest file.
-type VarValue struct {
-	scalar string
-	list   []string
-}
-
-// UnmarshalYAML knows how to parse a Variable value from a package or data stream
-// manifest file into a VarValue.
-func (vv *VarValue) UnmarshalYAML(value *yaml.Node) error {
-	switch value.Kind {
-	case yaml.ScalarNode:
-		vv.scalar = value.Value
-	case yaml.SequenceNode:
-		vv.list = make([]string, len(value.Content))
-		for idx, content := range value.Content {
-			vv.list[idx] = content.Value
-		}
-	default:
-		return errors.New("unknown Variable value")
-	}
-	return nil
-}
-
-// MarshalJSON knows how to serialize a VarValue into the appropriate
-// JSON data type and value.
-func (vv VarValue) MarshalJSON() ([]byte, error) {
-	if vv.scalar != "" {
-		return json.Marshal(vv.scalar)
-	} else if vv.list != nil {
-		return json.Marshal(vv.list)
-	}
-	return nil, nil
-}
-
 // Variable is an instance of configuration variable (named, typed).
 type Variable struct {
-	Name    string   `json:"name"`
-	Type    string   `json:"type"`
-	Default VarValue `json:"default"`
+	Name    string      `config:"name" json:"name" yaml:"name"`
+	Type    string      `config:"type" json:"type" yaml:"type"`
+	Default interface{} `config:"default" json:"default" yaml:"default"`
 }
 
 // Input is a single input configuration.
 type Input struct {
-	Type string     `json:"type"`
-	Vars []Variable `json:"vars"`
+	Type string     `config:"type" json:"type" yaml:"type"`
+	Vars []Variable `config:"vars" json:"vars" yaml:"vars"`
 }
 
 // PolicyTemplate is a configuration of inputs responsible for collecting log or metric data.
 type PolicyTemplate struct {
-	Inputs []Input `json:"inputs"`
+	Inputs []Input `config:"inputs" json:"inputs" yaml:"inputs"`
 }
 
 // PackageManifest represents the basic structure of a package's manifest
 type PackageManifest struct {
-	Name            string           `json:"name"`
-	Title           string           `json:"title"`
-	Type            string           `json:"type"`
-	Version         string           `json:"version"`
-	PolicyTemplates []PolicyTemplate `json:"policy_templates" yaml:"policy_templates"`
+	Name            string           `config:"name" json:"name" yaml:"name"`
+	Title           string           `config:"title" json:"title" yaml:"title"`
+	Type            string           `config:"type" json:"type" yaml:"type"`
+	Version         string           `config:"version" json:"version" yaml:"version"`
+	PolicyTemplates []PolicyTemplate `config:"policy_templates" json:"policy_templates" yaml:"policy_templates"`
 }
 
 // DataStreamManifest represents the structure of a data stream's manifest
 type DataStreamManifest struct {
-	Name          string `json:"name" yaml:"name"`
-	Title         string `json:"title" yaml:"title"`
-	Type          string `json:"type" yaml:"type"`
+	Name          string `config:"name" json:"name" yaml:"name"`
+	Title         string `config:"title" json:"title" yaml:"title"`
+	Type          string `config:"type" json:"type" yaml:"type"`
 	Elasticsearch *struct {
 		IngestPipeline *struct {
-			Name string `json:"name"`
-		} `json:"ingest_pipeline"`
-	} `json:"elasticsearch"`
+			Name string `config:"name" json:"name" yaml:"name"`
+		} `config:"ingest_pipeline" json:"ingest_pipeline" yaml:"ingest_pipeline"`
+	} `config:"elasticsearch" json:"elasticsearch" yaml:"elasticsearch"`
 	Streams []struct {
-		Input string     `json:"input"`
-		Vars  []Variable `json:"vars"`
-	} `json:"streams"`
+		Input string     `config:"input" json:"input" yaml:"input"`
+		Vars  []Variable `config:"vars" json:"vars" yaml:"vars"`
+	} `config:"streams" json:"streams" yaml:"streams"`
 }
 
 // FindPackageRoot finds and returns the path to the root folder of a package.
@@ -155,30 +119,30 @@ func FindDataStreamRootForPath(workDir string) (string, bool, error) {
 
 // ReadPackageManifest reads and parses the given package manifest file.
 func ReadPackageManifest(path string) (*PackageManifest, error) {
-	content, err := ioutil.ReadFile(path)
+	cfg, err := yaml.NewConfigWithFile(path, ucfg.PathSep("."))
 	if err != nil {
-		return nil, errors.Wrapf(err, "reading file body failed (path: %s)", path)
+		return nil, errors.Wrapf(err, "reading file failed (path: %s)", path)
 	}
 
 	var m PackageManifest
-	err = yaml.Unmarshal(content, &m)
+	err = cfg.Unpack(&m)
 	if err != nil {
-		return nil, errors.Wrapf(err, "unmarshalling package manifest failed (path: %s)", path)
+		return nil, errors.Wrapf(err, "unpacking package manifest failed (path: %s)", path)
 	}
 	return &m, nil
 }
 
 // ReadDataStreamManifest reads and parses the given data stream manifest file.
 func ReadDataStreamManifest(path string) (*DataStreamManifest, error) {
-	content, err := ioutil.ReadFile(path)
+	cfg, err := yaml.NewConfigWithFile(path, ucfg.PathSep("."))
 	if err != nil {
-		return nil, errors.Wrapf(err, "reading file body failed (path: %s)", path)
+		return nil, errors.Wrapf(err, "reading file failed (path: %s)", path)
 	}
 
 	var m DataStreamManifest
-	err = yaml.Unmarshal(content, &m)
+	err = cfg.Unpack(&m)
 	if err != nil {
-		return nil, errors.Wrapf(err, "unmarshalling data stream manifest failed (path: %s)", path)
+		return nil, errors.Wrapf(err, "unpacking data stream manifest failed (path: %s)", path)
 	}
 
 	m.Name = filepath.Base(filepath.Dir(path))
