@@ -120,7 +120,7 @@ _Context: global_
 
 ### `elastic-package test`
 
-Use this command to run tests on a package. Currently, the only type of test that is supported are Pipeline Tests.
+Use this command to run tests on a package. Currently, there are two types of tests available.
 
 #### Pipeline Tests
 
