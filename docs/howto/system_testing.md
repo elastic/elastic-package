@@ -22,7 +22,7 @@ At the moment system tests have limitations. The salient ones are:
 
 ## Defining a system test
 
-Package's have a folder structure like so (only relevant parts shown):
+Packages have a specific folder structure (only relevant parts shown).
 
 ```
 <package root>/
@@ -36,7 +36,7 @@ To define a system test we must define configuration at two levels: the package 
 
 ### Package-level configuration
 
-First, we must define the configuration for deploying a package's integration service. As mentioned in the [_Limitations_](#Limitations) section above, only package's whose integration services can be deployed via Docker Compose are supported at the moment. Configuration for such package's looks like so:
+First, we must define the configuration for deploying a package's integration service. As mentioned in the [_Limitations_](#Limitations) section above, only packages whose integration services can be deployed via Docker Compose are supported at the moment.
 
 ```
 <package root>/
@@ -46,7 +46,7 @@ First, we must define the configuration for deploying a package's integration se
         docker-compose.yml
 ```
 
-The `docker-compose.yml` file defines the integration service(s) for the package. If your package has a logs data stream, the log files from your package's integration service must be written to a volume. For example, the `apache` package has the following definition in it's integration service's `docker-compose.yml` file:
+The `docker-compose.yml` file defines the integration service(s) for the package. If your package has a logs data stream, the log files from your package's integration service must be written to a volume. For example, the `apache` package has the following definition in it's integration service's `docker-compose.yml` file.
 
 ```
 version: '2.3'
@@ -61,7 +61,7 @@ Here, `SERVICE_LOGS_DIR` is a special keyword. It is something that we will need
 
 ### Dataset-level configuration
 
-Next, we must define configuration for each data stream that we want to system test, like so:
+Next, we must define configuration for each data stream that we want to system test.
 
 ```
 <package root>/
@@ -73,7 +73,7 @@ Next, we must define configuration for each data stream that we want to system t
             config.yml
 ```
 
-The `config.yml` file allows you define values for package and data stream-level variables. For example, the `apache/access` data stream's `config.yml` looks like this:
+The `config.yml` file allows you define values for package and data stream-level variables. For example, the `apache/access` data stream's `config.yml` is shown below.
 
 ```
 vars: ~
@@ -91,7 +91,7 @@ Notice the use of the `{{SERVICE_LOGS_DIR}}` placeholder. This corresponds to th
 
 #### Placeholders
 
-The `SERVICE_LOGS_DIR` placeholder is not the only one available for use in a data stream's `config.yml` file. The complete list of available placeholder is shown below.
+The `SERVICE_LOGS_DIR` placeholder is not the only one available for use in a data stream's `config.yml` file. The complete list of available placeholders is shown below.
 
 | Placeholder name | Data type | Description |
 | --- | --- | --- |
@@ -101,8 +101,43 @@ The `SERVICE_LOGS_DIR` placeholder is not the only one available for use in a da
 | `Logs.Folder.Agent` | string | Path to integration service's logs folder, as addressable by the Agent. |
 | `SERVICE_LOGS_DIR` | string | Alias for `Logs.Folder.Agent`. Provided as a convenience. |
 
+Placeholders used in the `config.yml` must be enclosed in `{{` and `}}` delimiters, per Handlebars syntax.
 
 ## Running a system test
+
+Once the two levels of configurations are defined as described in the previous section, you are ready to run system tests for a package's data streams.
+
+First you must deploy the Elastic Stack.
+
+```
+elastic-package stack up -d
+```
+
+For a complete listing of options available for this command, run `elastic-package stack up -h` or `elastic-package help stack up`.
+
+Next you must set environment variables needed for further `elastic-package` commands.
+
+```
+eval $(elastic-package stack shellinit)
+```
+
+If you want to run system tests for **all data streams** in a package, navigate to the package's root folder (or any sub-folder under it) and run the following command.
+
+```
+elastic-package test system
+```
+
+If you want to run system tests for **specific data streams** in a package, navigate to the package's root folder (or any sub-folder under it) and run the following command.
+
+```
+elastic-package test system --data-streams <data stream 1>[,<data stream 2>,...]
+```
+
+When you are done running system tests, bring down the Elastic Stack.
+
+```
+elastic-package stack down
+```
 
 
 
