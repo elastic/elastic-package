@@ -5,14 +5,16 @@ Elastic Packages are comprised of data streams. A system test exercises the end-
 
 ## Process
 
-Conceptually, a system test will perform the following steps:
-1. Deploy the Elastic Stack, including a 1-node Elasticsearch cluster, a Kibana instance, and an instance of Elastic Agent.
-1. Enroll the Elastic Agent with Fleet (running in the Kibana instance).
+Conceptually, running a system test involves the following steps:
+
+1. Deploy the Elastic Stack, including Elasticsearch, Kibana, and the Elastic Agent. This step takes time so it should typically be done once as a pre-requisite to running system tests on multiple packages.
+1. Enroll the Elastic Agent with Fleet (running in the Kibana instance). This step also can be done once, as a pre-requisite.
 1. Depending on the Elastic Package whose data stream is being tested, deploy an instance of the package's integration service.
 1. Create a test policy that configures a single data stream for a single package.
 1. Assign the test policy to the enrolled Agent.
 1. Wait a reasonable amount of time for the Agent to collect data from the integration service and index it into the correct Elasticsearch data stream.
-1. Delete test artifacts and tear down deployed resources.
+1. Delete test artifacts and tear down the instance of the package's integration service.
+1. Once all packages have been system tested, tear down the Elastic Stack.
 
 ## Limitations
 
