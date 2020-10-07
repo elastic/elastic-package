@@ -18,18 +18,18 @@ const (
 	// PackageManifestFile is the name of the package's main manifest file.
 	PackageManifestFile = "manifest.yml"
 
-	// DataStreamManifestFile is the name of the dataStream's manifest file.
+	// DataStreamManifestFile is the name of the data stream's manifest file.
 	DataStreamManifestFile = "manifest.yml"
 )
 
-// VarValue represents a variable value as defined in a package or dataStream
+// VarValue represents a Variable value as defined in a package or data stream
 // manifest file.
 type VarValue struct {
 	scalar string
 	list   []string
 }
 
-// UnmarshalYAML knows how to parse a variable value from a package or dataStream
+// UnmarshalYAML knows how to parse a Variable value from a package or data stream
 // manifest file into a VarValue.
 func (vv *VarValue) UnmarshalYAML(value *yaml.Node) error {
 	switch value.Kind {
@@ -41,7 +41,7 @@ func (vv *VarValue) UnmarshalYAML(value *yaml.Node) error {
 			vv.list[idx] = content.Value
 		}
 	default:
-		return errors.New("unknown variable value")
+		return errors.New("unknown Variable value")
 	}
 	return nil
 }
@@ -57,19 +57,22 @@ func (vv VarValue) MarshalJSON() ([]byte, error) {
 	return nil, nil
 }
 
-type variable struct {
+// Variable is an instance of configuration variable (named, typed).
+type Variable struct {
 	Name    string   `json:"name"`
 	Type    string   `json:"type"`
 	Default VarValue `json:"default"`
 }
 
-type input struct {
+// Input is a single input configuration.
+type Input struct {
 	Type string     `json:"type"`
-	Vars []variable `json:"vars"`
+	Vars []Variable `json:"vars"`
 }
 
-type policyTemplate struct {
-	Inputs []input `json:"inputs"`
+// PolicyTemplate is a configuration of inputs responsible for collecting log or metric data.
+type PolicyTemplate struct {
+	Inputs []Input `json:"inputs"`
 }
 
 // PackageManifest represents the basic structure of a package's manifest
@@ -78,10 +81,10 @@ type PackageManifest struct {
 	Title           string           `json:"title"`
 	Type            string           `json:"type"`
 	Version         string           `json:"version"`
-	PolicyTemplates []policyTemplate `json:"policy_templates" yaml:"policy_templates"`
+	PolicyTemplates []PolicyTemplate `json:"policy_templates" yaml:"policy_templates"`
 }
 
-// DataStreamManifest represents the structure of a dataStream's manifest
+// DataStreamManifest represents the structure of a data stream's manifest
 type DataStreamManifest struct {
 	Name          string `json:"name"`
 	Title         string `json:"title"`
@@ -90,8 +93,8 @@ type DataStreamManifest struct {
 		IngestPipelineName string `json:"ingest_pipeline.name"`
 	} `json:"elasticsearch"`
 	Streams []struct {
-		Input string     `json:"input"`
-		Vars  []variable `json:"vars"`
+		Input string     `json:"Input"`
+		Vars  []Variable `json:"vars"`
 	} `json:"streams"`
 }
 
@@ -124,7 +127,7 @@ func FindPackageRoot() (string, bool, error) {
 	return "", false, nil
 }
 
-// FindDataStreamRootForPath finds and returns the path to the root folder of a dataStream.
+// FindDataStreamRootForPath finds and returns the path to the root folder of a data stream.
 func FindDataStreamRootForPath(workDir string) (string, bool, error) {
 	dir := workDir
 	for dir != "." {
@@ -180,7 +183,7 @@ func ReadDataStreamManifest(path string) (*DataStreamManifest, error) {
 	return &m, nil
 }
 
-func (pt *policyTemplate) FindInputByType(inputType string) *input {
+func (pt *PolicyTemplate) FindInputByType(inputType string) *Input {
 	for _, input := range pt.Inputs {
 		if input.Type == inputType {
 			return &input
