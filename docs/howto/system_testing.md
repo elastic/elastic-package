@@ -120,7 +120,7 @@ For a complete listing of options available for this command, run `elastic-packa
 Next you must set environment variables needed for further `elastic-package` commands.
 
 ```
-eval $(elastic-package stack shellinit)
+$(elastic-package stack shellinit)
 ```
 
 If you want to run system tests for **all data streams** in a package, navigate to the package's root folder (or any sub-folder under it) and run the following command.
