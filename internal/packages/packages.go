@@ -149,6 +149,7 @@ func ReadDataStreamManifest(path string) (*DataStreamManifest, error) {
 	return &m, nil
 }
 
+// FindInputByType returns the input for the provided type.
 func (pt *PolicyTemplate) FindInputByType(inputType string) *Input {
 	for _, input := range pt.Inputs {
 		if input.Type == inputType {
