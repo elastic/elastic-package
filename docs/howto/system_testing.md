@@ -109,7 +109,7 @@ Placeholders used in the `config.yml` must be enclosed in `{{` and `}}` delimite
 
 Once the two levels of configurations are defined as described in the previous section, you are ready to run system tests for a package's data streams.
 
-First you must deploy the Elastic Stack. This corresponds to steps 1 and 2 as described in the [_Conceptual process_](#Conceptual_process) section.
+First you must deploy the Elastic Stack. This corresponds to steps 1 and 2 as described in the [_Conceptual process_](#Conceptual-process) section.
 
 ```
 elastic-package stack up -d
@@ -123,7 +123,7 @@ Next, you must set environment variables needed for further `elastic-package` co
 $(elastic-package stack shellinit)
 ```
 
-Next, you must invoke the system tests runner. This corresponds to steps 3 through 7 as described in the [_Conceptual process_](#Conceptual_process) section.
+Next, you must invoke the system tests runner. This corresponds to steps 3 through 7 as described in the [_Conceptual process_](#Conceptual-process) section.
 
 If you want to run system tests for **all data streams** in a package, navigate to the package's root folder (or any sub-folder under it) and run the following command.
 

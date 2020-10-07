@@ -120,13 +120,11 @@ _Context: global_
 
 ### `elastic-package test`
 
-Use this command to run tests on a package. Currently, the only type of test that is supported are Pipeline Tests.
+Use this command to run tests on a package. Currently, there are two types of tests available.
 
 #### Pipeline Tests
 
 These tests allow you to exercise any Ingest Node Pipelines defined by your packages.
-
-_Context: package_
 
 #### System Tests
 
@@ -135,6 +133,9 @@ These tests allow you to test a package's ability to ingest data end-to-end.
 These tests will spin up an Elasticsearch node, a Kibana instance, a Package Registry, an Elastic Agent, and — depending on the package — an instance of the integration service for the package being tested. Then the tests will enroll the Agent with Fleet, configure a policy via Ingest Manager APIs, and assign the policy to the enrolled Agent. Once the Agent has received the policy, the tests will wait for the Agent to collect the appropriate data from the integration service and ingest it into the appropriate data stream in Elasticsearch.
 
 For details on how to configure system tests for a package, see the [HOWTO guide](docs/howto/system_testing.md).
+
+_Context: package_
+
 
 ### `elastic-package version`
 
