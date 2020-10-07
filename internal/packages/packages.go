@@ -86,14 +86,16 @@ type PackageManifest struct {
 
 // DataStreamManifest represents the structure of a data stream's manifest
 type DataStreamManifest struct {
-	Name          string `json:"name"`
-	Title         string `json:"title"`
-	Type          string `json:"type"`
+	Name          string `json:"name" yaml:"name"`
+	Title         string `json:"title" yaml:"title"`
+	Type          string `json:"type" yaml:"type"`
 	Elasticsearch *struct {
-		IngestPipelineName string `json:"ingest_pipeline.name"`
+		IngestPipeline *struct {
+			Name string `json:"name"`
+		} `json:"ingest_pipeline"`
 	} `json:"elasticsearch"`
 	Streams []struct {
-		Input string     `json:"Input"`
+		Input string     `json:"input"`
 		Vars  []Variable `json:"vars"`
 	} `json:"streams"`
 }
@@ -166,7 +168,7 @@ func ReadPackageManifest(path string) (*PackageManifest, error) {
 	return &m, nil
 }
 
-// ReadDataStreamManifest reads and parses the given data streammanifest file.
+// ReadDataStreamManifest reads and parses the given data stream manifest file.
 func ReadDataStreamManifest(path string) (*DataStreamManifest, error) {
 	content, err := ioutil.ReadFile(path)
 	if err != nil {
@@ -176,7 +178,7 @@ func ReadDataStreamManifest(path string) (*DataStreamManifest, error) {
 	var m DataStreamManifest
 	err = yaml.Unmarshal(content, &m)
 	if err != nil {
-		return nil, errors.Wrapf(err, "unmarshalling data streammanifest failed (path: %s)", path)
+		return nil, errors.Wrapf(err, "unmarshalling data stream manifest failed (path: %s)", path)
 	}
 
 	m.Name = filepath.Base(filepath.Dir(path))
