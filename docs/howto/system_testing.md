@@ -34,7 +34,7 @@ Packages have a specific folder structure (only relevant parts shown).
   manifest.yml
 ```
 
-To define a system test we must define configuration at two levels: the package level and each dataset's level.
+To define a system test we must define configuration at two levels: the package level and each data stream's level.
 
 ### Package-level configuration
 
@@ -61,7 +61,7 @@ services:
 
 Here, `SERVICE_LOGS_DIR` is a special keyword. It is something that we will need later.
 
-### Dataset-level configuration
+### Data stream-level configuration
 
 Next, we must define configuration for each data stream that we want to system test.
 
