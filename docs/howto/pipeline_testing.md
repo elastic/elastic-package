@@ -148,10 +148,10 @@ elastic-package test pipeline --generate
 
 Once the configurations is defined as described in the previous section, you are ready to run pipeline tests for a package's data streams.
 
-First you must deploy the Elastic Stack. This corresponds to step 1 as described in the [_Conceptual process_](#Conceptual-process) section.
+First you must deploy the Elasticsearch instance. This corresponds to step 1 as described in the [_Conceptual process_](#Conceptual-process) section.
 
 ```
-elastic-package stack up -d
+elastic-package stack up -d --services=elasticsearch
 ```
 
 For a complete listing of options available for this command, run `elastic-package stack up -h` or `elastic-package help stack up`.
