@@ -51,7 +51,7 @@ Next, we must define configuration for each data stream that we want to pipeline
 
 ### Test case definitions
 
-There are two types of test case definitions - raw files and input events.
+There are two types of test case definitions - *raw files* and *input events*.
 
 #### Raw files
 
