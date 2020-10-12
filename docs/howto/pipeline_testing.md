@@ -88,7 +88,7 @@ The `fields` section allows for customizing extra fields to be added to every re
 
 #### Input events
 
-The input events contain mocked JSON events that are ready to be passed to the ingest pipeline - no data transformation is applied on-the-fly. Such events can be helpful in situations in which an input event can't be serialized to a standard log file, e.g. Redis input. A sample file with input events look as following:
+The input events contain mocked JSON events that are ready to be passed to the ingest pipeline as-is. Such events can be helpful in situations in which an input event can't be serialized to a standard log file, e.g. Redis input. A sample file with input events look as following:
 
 ```json
 {
