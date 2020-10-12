@@ -26,7 +26,7 @@ type Client struct {
 // NewClient returns a new Ingest Manager API client.
 func NewClient(baseURL, username, password string) (*Client, error) {
 	return &Client{
-		baseURL + "/api/ingest_manager",
+		baseURL + "/api/fleet",
 		username,
 		password,
 	}, nil

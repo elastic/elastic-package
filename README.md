@@ -120,13 +120,20 @@ _Context: global_
 
 ### `elastic-package test`
 
-Use this command to run tests on a package. Currently, the only type of test that is supported are Pipeline Tests.
+Use this command to run tests on a package. Currently, there are two types of tests available.
 
 #### Pipeline Tests
 
 These tests allow you to exercise any Ingest Node Pipelines defined by your packages.
 
+#### System Tests
+
+These tests allow you to test a package's ability to ingest data end-to-end. 
+
+For details on how to configure amd run system tests, see the [HOWTO guide](docs/howto/system_testing.md).
+
 _Context: package_
+
 
 ### `elastic-package version`
 
