@@ -95,13 +95,17 @@ func readRawInputEntries(inputData []byte, c testConfig) ([]string, error) {
 		} else {
 			body = line
 		}
+
 		inputDataEntries = append(inputDataEntries, body)
 	}
 	err := scanner.Err()
 	if err != nil {
 		return nil, errors.Wrap(err, "reading raw input test file failed")
 	}
-	inputDataEntries = append(inputDataEntries, builder.String())
 
+	lastEntry := builder.String()
+	if len(lastEntry) > 0 {
+		inputDataEntries = append(inputDataEntries, lastEntry)
+	}
 	return inputDataEntries, nil
 }
