@@ -16,7 +16,7 @@ Conceptually, running a pipeline test involves the following steps:
 ## Limitations
 
 At the moment pipeline tests have limitations. The main ones are:
-* Results of simulation can be different from real documents. They depend on the input data which may not have all fields defined.
+* As you're only testing the ingest pipeline, you can prepare mocked documents with imaginary fields, different from ones collected in Beats. Also the other way round, you can skip most of fields and as examples use tiny documents with minimal set of fields just to satisfy the pipeline validation.
 * There might be integrations which transform data mostly using Beats processors instead of ingest pipelines. In such cases ingest pipelines are rather plain.
 
 ## Defining a pipeline test
