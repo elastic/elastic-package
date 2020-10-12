@@ -162,7 +162,7 @@ Next, you must set environment variables needed for further `elastic-package` co
 $(elastic-package stack shellinit)
 ```
 
-Next, you must invoke the pipeline tests runner. This corresponds to steps 2 and 3 as described in the [_Conceptual process_](#Conceptual-process) section.
+Next, you must invoke the pipeline tests runner. This corresponds to steps 2 through 4 as described in the [_Conceptual process_](#Conceptual-process) section.
 
 If you want to run pipeline tests for **all data streams** in a package, navigate to the package's root folder (or any sub-folder under it) and run the following command.
 
