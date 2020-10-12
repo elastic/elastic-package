@@ -11,7 +11,9 @@ import (
 
 	"github.com/aymerick/raymond"
 	"github.com/pkg/errors"
-	"gopkg.in/yaml.v3"
+
+	"github.com/elastic/go-ucfg"
+	"github.com/elastic/go-ucfg/yaml"
 
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/testrunner/runners/system/servicedeployer"
@@ -43,10 +45,14 @@ func newConfig(systemTestFolderPath string, ctxt servicedeployer.ServiceContext)
 	}
 
 	var c testConfig
-	if err := yaml.Unmarshal(data, &c); err != nil {
-		return nil, errors.Wrapf(err, "unable to parse system test configuration file: %s", configFilePath)
+	cfg, err := yaml.NewConfig(data, ucfg.PathSep("."))
+	if err != nil {
+		return nil, errors.Wrapf(err, "unable to load system test configuration file: %s", configFilePath)
 	}
 
+	if err := cfg.Unpack(&c); err != nil {
+		return nil, errors.Wrapf(err, "unable to unpack system test configuration file: %s", configFilePath)
+	}
 	return &c, nil
 }
 
