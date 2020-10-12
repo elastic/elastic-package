@@ -138,7 +138,7 @@ Once the Simulate API processes the given input data, the pipeline test runner c
 }
 ```
 
-It's possible to generate the expected test results from the output of the Simulate API. To do so, use the `-generate` switch:
+It's possible to generate the expected test results from the output of the Simulate API. To do so, use the `--generate` switch:
 
 ```
 elastic-package test pipeline --generate
