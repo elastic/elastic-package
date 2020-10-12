@@ -146,7 +146,7 @@ elastic-package test pipeline --generate
 
 ## Running a pipeline test
 
-Once the configurations is defined as described in the previous section, you are ready to run pipeline tests for a package's data streams.
+Once the configurations are defined as described in the previous section, you are ready to run pipeline tests for a package's data streams.
 
 First you must deploy the Elasticsearch instance. This corresponds to step 1 as described in the [_Conceptual process_](#Conceptual-process) section.
 
