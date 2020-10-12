@@ -5,6 +5,7 @@
 package packages
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 
@@ -21,11 +22,41 @@ const (
 	DataStreamManifestFile = "manifest.yml"
 )
 
+// VarValue represents a variable value as defined in a package or data stream
+// manifest file.
+type VarValue struct {
+	scalar string
+	list   []string
+}
+
+// Unpack knows how to parse a variable value from a package or data stream
+// manifest file into a VarValue.
+func (vv *VarValue) Unpack(cfg *ucfg.Config) error {
+	if cfg.IsArray() {
+		return cfg.Unpack(&vv.list)
+	}
+	if !cfg.IsDict() { // is scalar as dict is not supported
+		return cfg.Unpack(&vv.scalar)
+	}
+	return errors.New("unknown variable value")
+}
+
+// MarshalJSON knows how to serialize a VarValue into the appropriate
+// JSON data type and value.
+func (vv VarValue) MarshalJSON() ([]byte, error) {
+	if vv.scalar != "" {
+		return json.Marshal(vv.scalar)
+	} else if vv.list != nil {
+		return json.Marshal(vv.list)
+	}
+	return nil, nil
+}
+
 // Variable is an instance of configuration variable (named, typed).
 type Variable struct {
-	Name    string      `config:"name" json:"name" yaml:"name"`
-	Type    string      `config:"type" json:"type" yaml:"type"`
-	Default interface{} `config:"default" json:"default" yaml:"default"`
+	Name    string   `config:"name" json:"name" yaml:"name"`
+	Type    string   `config:"type" json:"type" yaml:"type"`
+	Default VarValue `config:"default" json:"default" yaml:"default"`
 }
 
 // Input is a single input configuration.
