@@ -2,7 +2,7 @@
 
 ## Introduction
 
-Elastic Packages are comprised of data streams. A pipeline test exercises ingest pipelines defined for a package's data stream.
+Elastic Packages are comprised of data streams. A pipeline test exercises Elasticsearch Ingest Node pipelines defined for a package's data stream.
 
 ## Conceptual process
 
@@ -31,7 +31,7 @@ Packages have a specific folder structure (only relevant parts shown).
   manifest.yml
 ```
 
-To define a pipeline test we must define configuration at two levels: the package level and each dataset's level.
+To define a pipeline test we must define configuration at the dataset's level.
 
 ### Dataset-level configuration
 
