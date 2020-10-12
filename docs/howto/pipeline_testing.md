@@ -107,7 +107,7 @@ The input events contain mocked JSON events that are ready to be passed to the i
 
 #### Expected results
 
-Once the Simulate API processes the given input data, the pipeline test runner can compare them with expected results. Test results are stored as JSON files with the suffix `-expected.json`. A sample test results file looks as following:
+Once the Simulate API processes the given input data, the pipeline test runner will compare them with expected results. Test results are stored as JSON files with the suffix `-expected.json`. A sample test results file is shown below.
 
 ```json
 {
