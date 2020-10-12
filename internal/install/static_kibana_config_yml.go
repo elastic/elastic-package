@@ -13,15 +13,14 @@ elasticsearch.username: elastic
 elasticsearch.password: changeme
 xpack.monitoring.ui.container.elasticsearch.enabled: true
 
-xpack.ingestManager.enabled: true
-xpack.ingestManager.registryUrl: "http://package-registry:8080"
-xpack.ingestManager.fleet.enabled: true
-xpack.ingestManager.fleet.elasticsearch.host: "http://elasticsearch:9200"
-xpack.ingestManager.fleet.kibana.host: "http://kibana:5601"
-xpack.ingestManager.fleet.tlsCheckDisabled: true
+xpack.fleet.registryUrl: "http://package-registry:8080"
+xpack.fleet.enabled: true
+xpack.fleet.elasticsearch.host: "http://elasticsearch:9200"
+xpack.fleet.kibana.host: "http://kibana:5601"
+xpack.fleet.tlsCheckDisabled: true
 
 # TODO: Remove once https://github.com/elastic/kibana/issues/77613 is resolved.
-xpack.ingestManager.fleet.pollingRequestTimeout: 60000
+xpack.fleet.pollingRequestTimeout: 60000
 
 xpack.encryptedSavedObjects.encryptionKey: "12345678901234567890123456789012"
 `
