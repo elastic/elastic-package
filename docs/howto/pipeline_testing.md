@@ -31,11 +31,7 @@ Packages have a specific folder structure (only relevant parts shown).
   manifest.yml
 ```
 
-To define a pipeline test we must define configuration at the dataset's level.
-
-### Dataset-level configuration
-
-Next, we must define configuration for each data stream that we want to pipeline test.
+To define a pipeline test we must define configuration at each dataset's level:
 
 ```
 <package root>/
