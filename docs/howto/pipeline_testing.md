@@ -176,7 +176,7 @@ If you want to run pipeline tests for **specific data streams** in a package, na
 elastic-package test pipeline --data-streams <data stream 1>[,<data stream 2>,...]
 ```
 
-Finally, when you are done running all pipeline tests, bring down the Elastic Stack. This corresponds to step 8 as described in the [_Conceptual process_](#Conceptual_process) section.
+Finally, when you are done running all pipeline tests, bring down the Elastic Stack. This corresponds to step 4 as described in the [_Conceptual process_](#Conceptual-process) section.
 
 ```
 elastic-package stack down
