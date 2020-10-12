@@ -122,13 +122,9 @@ _Context: global_
 
 Use this command to run tests on a package. Currently, there are two types of tests available.
 
-_Context: package_
-
 #### Pipeline Tests
 
 These tests allow you to exercise any Ingest Node Pipelines defined by your packages.
-
-They require only an Elasticsearch node to be up and running, to use the [Simulate API](https://www.elastic.co/guide/en/elasticsearch/reference/master/simulate-pipeline-api.html).
 
 For details on how to configure pipeline test for a package, see the [HOWTO guide](docs/howto/pipeline_testing.md).
 
@@ -138,6 +134,7 @@ These tests allow you to test a package's ability to ingest data end-to-end.
 
 For details on how to configure amd run system tests, see the [HOWTO guide](docs/howto/system_testing.md).
 
+_Context: package_
 
 
 ### `elastic-package version`
