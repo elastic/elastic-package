@@ -40,7 +40,7 @@ To define a pipeline test we must define configuration at each dataset's level:
       _dev/
         test/
           pipeline/
-            (test case definitions)
+            (test case definitions, both raw files and input events, optional configuration)
       manifest.yml
   manifest.yml
 ```
@@ -51,7 +51,7 @@ There are two types of test case definitions - **raw files** and **input events*
 
 #### Raw files
 
-The raw files simplify preparing test cases using real application `.log` files. A sample log file may look like the following one for Nginx:
+The raw files simplify preparing test cases using real application `.log` files. A sample log (e.g. `test-access-sample.log`) file may look like the following one for Nginx:
 
 ```
 127.0.0.1 - - [07/Dec/2016:11:04:37 +0100] "GET /test1 HTTP/1.1" 404 571 "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.98 Safari/537.36"
@@ -59,7 +59,7 @@ The raw files simplify preparing test cases using real application `.log` files.
 127.0.0.1 - - [07/Dec/2016:11:04:59 +0100] "GET / HTTP/1.1" 304 0 "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:49.0) Gecko/20100101 Firefox/49.0"
 ```
 
-The pipeline test runner transforms log lines into file input events and sends to the ingest pipeline. The transformation process can be customized using a predefined configuration file:
+The pipeline test runner transforms log lines into file input events and sends to the ingest pipeline. The transformation process can be customized using an optional configuration stored as JSON file with the suffix `-config.json` (e.g. `test-access-sample.log-config.json`):
 
 ```json
 {
@@ -84,7 +84,7 @@ The `fields` section allows for customizing extra fields to be added to every re
 
 #### Input events
 
-The input events contain mocked JSON events that are ready to be passed to the ingest pipeline as-is. Such events can be helpful in situations in which an input event can't be serialized to a standard log file, e.g. Redis input. A sample file with input events look as following:
+The input events contain mocked JSON events that are ready to be passed to the ingest pipeline as-is. Such events can be helpful in situations in which an input event can't be serialized to a standard log file, e.g. Redis input. A sample file with input events  (e.g. `test-access-event.json`) looks as following:
 
 ```json
 {
