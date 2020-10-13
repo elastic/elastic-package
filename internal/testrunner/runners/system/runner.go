@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/coreos/pkg/multierror"
 	es "github.com/elastic/go-elasticsearch/v7"
 	"github.com/pkg/errors"
 
@@ -213,6 +214,9 @@ func (r *runner) run() error {
 				Total struct {
 					Value int
 				}
+				Hits []struct {
+					Source Document `json:"_source"`
+				}
 			}
 		}
 
@@ -220,9 +224,23 @@ func (r *runner) run() error {
 			return false, errors.Wrap(err, "could not decode search results response")
 		}
 
-		hits := results.Hits.Total.Value
-		logger.Debugf("found %d hits in %s data stream", hits, dataStream)
-		return hits > 0, nil
+		numHits := results.Hits.Total.Value
+		logger.Debugf("found %d hits in %s data stream", numHits, dataStream)
+		if numHits == 0 {
+			return false, nil
+		}
+
+		var multiErr multierror.Error
+		for _, hit := range results.Hits.Hits {
+			if hit.Source.Error != nil {
+				multiErr = append(multiErr, errors.New(hit.Source.Error.Message))
+			}
+		}
+
+		if len(multiErr) > 0 {
+			return false, multiErr
+		}
+		return true, nil
 	}, 2*time.Minute)
 
 	if err != nil {
