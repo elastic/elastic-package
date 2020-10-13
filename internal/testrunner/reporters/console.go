@@ -25,7 +25,7 @@ func ReportConsole(results []testrunner.TestResult) (string, error) {
 		if r.ErrorMsg != "" {
 			result = fmt.Sprintf("ERROR: %s", r.ErrorMsg)
 		} else if r.FailureMsg != "" {
-			result = fmt.Sprintf("FAILURE: %s", r.FailureMsg)
+			result = fmt.Sprintf("FAIL: %s", r.FailureMsg)
 		} else {
 			result = "PASS"
 		}
