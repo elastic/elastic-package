@@ -69,14 +69,14 @@ func (c *Client) getTotalAgentForPolicy(p Policy) (int, error) {
 	path := fmt.Sprintf("agents?kuery=%s", kuery)
 	statusCode, respBody, err := c.get(path)
 	if err != nil {
-		return -1, errors.Wrapf(err, "could not check agent status; API status code = %d; policy ID = %s; response body = %s", statusCode, p.ID, string(respBody))
+		return 0, errors.Wrapf(err, "could not check agent status; API status code = %d; policy ID = %s; response body = %s", statusCode, p.ID, string(respBody))
 	}
 	var resp struct {
 		Total int `json:"total"`
 	}
 
 	if err := json.Unmarshal(respBody, &resp); err != nil {
-		return -1, errors.Wrap(err, "could not convert agent list (response) to JSON")
+		return 0, errors.Wrap(err, "could not convert agent list (response) to JSON")
 	}
 
 	return resp.Total, nil
@@ -105,7 +105,7 @@ func (c *Client) waitUntilPolicyAssigned(p Policy) error {
 		}
 
 		if err := json.Unmarshal(respBody, &resp); err != nil {
-			return errors.Wrap(err, "could not convert agent lost (response) to JSON")
+			return errors.Wrap(err, "could not convert agent list (response) to JSON")
 		}
 
 		if resp.Total == totalAgents {
