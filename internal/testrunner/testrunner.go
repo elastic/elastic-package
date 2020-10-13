@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/elastic/go-elasticsearch/v7"
 	"github.com/pkg/errors"
@@ -17,18 +18,41 @@ import (
 // TestType represents the various supported test types
 type TestType string
 
+// TestReporter represents the various supported test results reporters
+type TestReporter string
+
 // TestOptions contains test runner options.
 type TestOptions struct {
 	TestFolder         TestFolder
 	PackageRootPath    string
 	GenerateTestResult bool
 	ESClient           *elasticsearch.Client
+	TestResults        []TestResult
 }
 
 // RunFunc method defines main run function of a test runner.
 type RunFunc func(options TestOptions) error
 
 var runners = map[TestType]RunFunc{}
+
+// TestResult contains a single test's results
+type TestResult struct {
+	TestType TestType
+	Name     string
+
+	Package    string
+	DataStream string
+
+	TimeTaken time.Duration
+
+	FailureMsg string
+	ErrorMsg   string
+}
+
+// ReportFunc defines the reporter function.
+type ReportFunc func(results []TestResult) (string, error)
+
+var reporters = map[TestReporter]ReportFunc{}
 
 // TestFolder encapsulates the test folder path and names of the package + data stream
 // to which the test folder belongs.
@@ -113,6 +137,21 @@ func TestTypes() []TestType {
 		testTypes = append(testTypes, t)
 	}
 	return testTypes
+}
+
+// RegisterReporter registers a test reporter.
+func RegisterReporter(name TestReporter, reportFunc ReportFunc) {
+	reporters[name] = reportFunc
+}
+
+// Report delegates reporting of test results to the registered test reporter, based on reporter name.
+func Report(name TestReporter, results []TestResult) (string, error) {
+	reportFunc, defined := reporters[name]
+	if !defined {
+		return "", fmt.Errorf("unregistered test reporter: %s", name)
+	}
+
+	return reportFunc(results)
 }
 
 func findTestFolderPaths(packageRootPath, dataStreamGlob, testTypeGlob string) ([]string, error) {

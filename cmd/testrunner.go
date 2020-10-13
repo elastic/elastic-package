@@ -15,6 +15,7 @@ import (
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/testrunner"
+	"github.com/elastic/elastic-package/internal/testrunner/reporters"
 	_ "github.com/elastic/elastic-package/internal/testrunner/runners" // register all test runners
 )
 
@@ -38,6 +39,7 @@ func setupTestCommand() *cobra.Command {
 	cmd.PersistentFlags().BoolP(cobraext.FailOnMissingFlagName, "m", false, cobraext.FailOnMissingFlagDescription)
 	cmd.PersistentFlags().BoolP(cobraext.GenerateTestResultFlagName, "g", false, cobraext.GenerateTestResultFlagDescription)
 	cmd.PersistentFlags().StringSliceP(cobraext.DataStreamsFlagName, "d", nil, cobraext.DataStreamsFlagDescription)
+	cmd.PersistentFlags().StringP(cobraext.ReporterFlagName, "r", string(reporters.ConsoleReporter), cobraext.ReporterFlagDescription)
 
 	for _, testType := range testrunner.TestTypes() {
 		action := testTypeCommandActionFactory(testType)
@@ -75,6 +77,11 @@ func testTypeCommandActionFactory(testType testrunner.TestType) cobraext.Command
 			return cobraext.FlagParsingError(err, cobraext.GenerateTestResultFlagName)
 		}
 
+		reporter, err := cmd.Flags().GetString(cobraext.ReporterFlagName)
+		if err != nil {
+			return cobraext.FlagParsingError(err, cobraext.ReporterFlagName)
+		}
+
 		packageRootPath, found, err := packages.FindPackageRoot()
 		if !found {
 			return errors.New("package root not found")
@@ -100,18 +107,23 @@ func testTypeCommandActionFactory(testType testrunner.TestType) cobraext.Command
 			return errors.Wrap(err, "fetching Elasticsearch client instance failed")
 		}
 
+		results := make([]testrunner.TestResult, 0)
+
 		for _, folder := range testFolders {
 			if err := testrunner.Run(testType, testrunner.TestOptions{
 				TestFolder:         folder,
 				PackageRootPath:    packageRootPath,
 				GenerateTestResult: generateTestResult,
 				ESClient:           esClient,
+				TestResults:        results,
 			}); err != nil {
 				return errors.Wrapf(err, "error running package %s tests", testType)
 			}
 		}
 
+		cmd.Println(testrunner.Report(testrunner.TestReporter(reporter), results))
 		cmd.Println("Done")
+
 		return nil
 	}
 }
