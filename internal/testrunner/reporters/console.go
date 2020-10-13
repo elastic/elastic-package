@@ -13,9 +13,11 @@ func init() {
 }
 
 const (
+	// ConsoleReporter reports test results in a console-friendly tabular format
 	ConsoleReporter testrunner.TestReporter = "console"
 )
 
+// ReportConsole returns the given test results formatted in a console-friendly tabular format
 func ReportConsole(results []testrunner.TestResult) (string, error) {
 	t := table.NewWriter()
 	t.AppendHeader(table.Row{"Package", "Data stream", "Test name", "Result", "Time taken"})
