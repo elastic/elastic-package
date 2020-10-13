@@ -238,7 +238,8 @@ func (r *runner) run() error {
 		}
 
 		if len(multiErr) > 0 {
-			return false, multiErr
+			return false, errors.Wrapf(multiErr, "one or more errors found in documents stored in %s data stream",
+				dataStream)
 		}
 		return true, nil
 	}, 2*time.Minute)
