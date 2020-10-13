@@ -62,7 +62,6 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 	results := make([]testrunner.TestResult, 0)
 	for _, testCaseFile := range testCaseFiles {
 		tr := testrunner.TestResult{
-			TestType:   TestType,
 			Package:    r.options.TestFolder.Package,
 			DataStream: r.options.TestFolder.DataStream,
 		}

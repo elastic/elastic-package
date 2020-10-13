@@ -34,23 +34,19 @@ type testCase struct {
 }
 
 func ReportXUnit(results []testrunner.TestResult) (string, error) {
-	// package => data stream => test type => test cases
-	packages := map[string]map[string]map[testrunner.TestType][]testCase{}
+	// package => data stream => test cases
+	packages := map[string]map[string][]testCase{}
 
 	var numPackages int
 
 	for _, r := range results {
 		if _, exists := packages[r.Package]; !exists {
-			packages[r.Package] = map[string]map[testrunner.TestType][]testCase{}
+			packages[r.Package] = map[string][]testCase{}
 			numPackages++
 		}
 
 		if _, exists := packages[r.Package][r.DataStream]; !exists {
-			packages[r.Package][r.DataStream] = map[testrunner.TestType][]testCase{}
-		}
-
-		if packages[r.Package][r.DataStream][r.TestType] == nil {
-			packages[r.Package][r.DataStream][r.TestType] = make([]testCase, 1)
+			packages[r.Package][r.DataStream] = make([]testCase, 1)
 		}
 
 		c := testCase{
@@ -60,7 +56,7 @@ func ReportXUnit(results []testrunner.TestResult) (string, error) {
 			Failure: r.FailureMsg,
 		}
 
-		packages[r.Package][r.DataStream][r.TestType] = append(packages[r.Package][r.DataStream][r.TestType], c)
+		packages[r.Package][r.DataStream] = append(packages[r.Package][r.DataStream], c)
 	}
 
 	var ts testSuites
@@ -73,14 +69,7 @@ func ReportXUnit(results []testrunner.TestResult) (string, error) {
 
 		for _, ds := range pkg {
 			dsSuite := testSuite{
-				Suites: make([]testSuite, 1),
-			}
-
-			for _, cases := range ds {
-				testTypeSuite := testSuite{
-					Cases: cases,
-				}
-				dsSuite.Suites = append(dsSuite.Suites, testTypeSuite)
+				Cases: ds,
 			}
 
 			pkgSuite.Suites = append(pkgSuite.Suites, dsSuite)

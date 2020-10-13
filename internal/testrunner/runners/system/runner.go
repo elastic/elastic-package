@@ -70,41 +70,50 @@ func Run(options testrunner.TestOptions) ([]testrunner.TestResult, error) {
 }
 
 func (r *runner) run() ([]testrunner.TestResult, error) {
-	results := []testrunner.TestResult{
-		{
-			TestType: TestType,
-		},
+	result := testrunner.TestResult{
+		Package:    r.testFolder.Package,
+		DataStream: r.testFolder.DataStream,
+	}
+	startTime := time.Now()
+	resultsWith := func(tr testrunner.TestResult, err error) ([]testrunner.TestResult, error) {
+		tr.TimeTaken = time.Now().Sub(startTime)
+		if err != nil {
+			tr.ErrorMsg = err.Error()
+
+		}
+
+		return []testrunner.TestResult{tr}, err
 	}
 
 	pkgManifest, err := packages.ReadPackageManifest(filepath.Join(r.packageRootPath, packages.PackageManifestFile))
 	if err != nil {
-		return results, errors.Wrap(err, "reading package manifest failed")
+		return resultsWith(result, errors.Wrap(err, "reading package manifest failed"))
 	}
 
 	dataStreamPath, found, err := packages.FindDataStreamRootForPath(r.testFolder.Path)
 	if err != nil {
-		return results, errors.Wrap(err, "locating data stream root failed")
+		return resultsWith(result, errors.Wrap(err, "locating data stream root failed"))
 	}
 	if !found {
-		return results, errors.New("data stream root not found")
+		return resultsWith(result, errors.New("data stream root not found"))
 	}
 
 	dataStreamManifest, err := packages.ReadDataStreamManifest(filepath.Join(dataStreamPath, packages.DataStreamManifestFile))
 	if err != nil {
-		return results, errors.Wrap(err, "reading data stream manifest failed")
+		return resultsWith(result, errors.Wrap(err, "reading data stream manifest failed"))
 	}
 
 	serviceLogsDir, err := install.ServiceLogsDir()
 	if err != nil {
-		return results, errors.Wrap(err, "reading service logs directory failed")
+		return resultsWith(result, errors.Wrap(err, "reading service logs directory failed"))
 	}
 
 	// Step 1. Setup service.
 	// Step 1a. (Deferred) Tear down service.
-	logger.Info("setting up service...")
+	logger.Debug("setting up service...")
 	serviceDeployer, err := servicedeployer.Factory(r.packageRootPath)
 	if err != nil {
-		return results, errors.Wrap(err, "could not create service runner")
+		return resultsWith(result, errors.Wrap(err, "could not create service runner"))
 	}
 
 	var ctxt servicedeployer.ServiceContext
@@ -113,12 +122,12 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 
 	service, err := serviceDeployer.SetUp(ctxt)
 	if err != nil {
-		return results, errors.Wrap(err, "could not setup service")
+		return resultsWith(result, errors.Wrap(err, "could not setup service"))
 	}
 	ctxt = service.Context()
 
 	r.shutdownServiceHandler = func() {
-		logger.Info("tearing down service...")
+		logger.Debug("tearing down service...")
 		if err := service.TearDown(); err != nil {
 			logger.Errorf("error tearing down service: %s", err)
 		}
@@ -127,10 +136,10 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 	// Step 2. Configure package (single data stream) via Ingest Manager APIs.
 	im, err := ingestmanager.NewClient(r.stackSettings.kibana.host, r.stackSettings.elasticsearch.username, r.stackSettings.elasticsearch.password)
 	if err != nil {
-		return results, errors.Wrap(err, "could not create ingest manager client")
+		return resultsWith(result, errors.Wrap(err, "could not create ingest manager client"))
 	}
 
-	logger.Info("creating test policy...")
+	logger.Debug("creating test policy...")
 	testTime := time.Now().Format("20060102T15:04:05Z")
 	p := ingestmanager.Policy{
 		Name:        fmt.Sprintf("ep-test-system-%s-%s-%s", r.testFolder.Package, r.testFolder.DataStream, testTime),
@@ -139,7 +148,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 	}
 	policy, err := im.CreatePolicy(p)
 	if err != nil {
-		return results, errors.Wrap(err, "could not create test policy")
+		return resultsWith(result, errors.Wrap(err, "could not create test policy"))
 	}
 	r.deleteTestPolicyHandler = func() {
 		logger.Debug("deleting test policy...")
@@ -150,22 +159,22 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 
 	testConfig, err := newConfig(r.testFolder.Path, ctxt)
 	if err != nil {
-		return results, errors.Wrap(err, "unable to load system test configuration")
+		return resultsWith(result, errors.Wrap(err, "unable to load system test configuration"))
 	}
 
-	logger.Info("adding package data stream to test policy...")
+	logger.Debug("adding package data stream to test policy...")
 	ds := createPackageDatastream(*policy, *pkgManifest, *dataStreamManifest, *testConfig)
 	if err := im.AddPackageDataStreamToPolicy(ds); err != nil {
-		return results, errors.Wrap(err, "could not add data stream config to policy")
+		return resultsWith(result, errors.Wrap(err, "could not add data stream config to policy"))
 	}
 
 	// Get enrolled agent ID
 	agents, err := im.ListAgents()
 	if err != nil {
-		return results, errors.Wrap(err, "could not list agents")
+		return resultsWith(result, errors.Wrap(err, "could not list agents"))
 	}
 	if agents == nil || len(agents) == 0 {
-		return results, errors.New("no agents found")
+		return resultsWith(result, errors.New("no agents found"))
 	}
 	agent := agents[0]
 	origPolicy := ingestmanager.Policy{
@@ -187,15 +196,15 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		}
 	}
 
-	logger.Info("deleting old data in data stream...")
+	logger.Debug("deleting old data in data stream...")
 	if err := deleteDataStreamDocs(r.esClient, dataStream); err != nil {
-		return results, errors.Wrapf(err, "error deleting old data in data stream: %s", dataStream)
+		return resultsWith(result, errors.Wrapf(err, "error deleting old data in data stream: %s", dataStream))
 	}
 
 	// Assign policy to agent
-	logger.Info("assigning package data stream to agent...")
+	logger.Debug("assigning package data stream to agent...")
 	if err := im.AssignPolicyToAgent(agent, *policy); err != nil {
-		return results, errors.Wrap(err, "could not assign policy to agent")
+		return resultsWith(result, errors.Wrap(err, "could not assign policy to agent"))
 	}
 	r.resetAgentPolicyHandler = func() {
 		logger.Debug("reassigning original policy back to agent...")
@@ -205,7 +214,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 	}
 
 	// Step 4. (TODO in future) Optionally exercise service to generate load.
-	logger.Info("checking for expected data in data stream...")
+	logger.Debug("checking for expected data in data stream...")
 	passed, err := waitUntilTrue(func() (bool, error) {
 		resp, err := r.esClient.Search(
 			r.esClient.Search.WithIndex(dataStream),
@@ -251,16 +260,14 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 	}, 2*time.Minute)
 
 	if err != nil {
-		return results, errors.Wrap(err, "could not check for expected data in data stream")
+		return resultsWith(result, errors.Wrap(err, "could not check for expected data in data stream"))
 	}
 
-	if passed {
-		fmt.Printf("System test for %s/%s data stream passed!\n", r.testFolder.Package, r.testFolder.DataStream)
-	} else {
-		fmt.Printf("System test for %s/%s data stream failed\n", r.testFolder.Package, r.testFolder.DataStream)
-		return results, fmt.Errorf("system test for %s/%s data stream failed", r.testFolder.Package, r.testFolder.DataStream)
+	if !passed {
+		result.FailureMsg = fmt.Sprintf("could not find hits in %s data stream", dataStream)
 	}
-	return results, nil
+
+	return resultsWith(result, nil)
 }
 
 func (r *runner) tearDown() {

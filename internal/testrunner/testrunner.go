@@ -36,8 +36,7 @@ var runners = map[TestType]RunFunc{}
 
 // TestResult contains a single test's results
 type TestResult struct {
-	TestType TestType
-	Name     string
+	Name string
 
 	Package    string
 	DataStream string
