@@ -18,6 +18,6 @@ for d in test/packages/*/; do
   (
     cd $d
     elastic-package check -v
-    elastic-package test -v
+    elastic-package test -v -r xUnit
   )
 done
