@@ -2,7 +2,8 @@ package reporters
 
 import (
 	"fmt"
-	"strings"
+
+	"github.com/jedib0t/go-pretty/table"
 
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
@@ -16,7 +17,9 @@ const (
 )
 
 func ReportConsole(results []testrunner.TestResult) (string, error) {
-	var sb strings.Builder
+	t := table.NewWriter()
+	t.AppendHeader(table.Row{"Package", "Data stream", "Test type", "Test name", "Result", "Time taken"})
+
 	for _, r := range results {
 		var result string
 		if r.ErrorMsg != "" {
@@ -27,15 +30,9 @@ func ReportConsole(results []testrunner.TestResult) (string, error) {
 			result = "PASS"
 		}
 
-		sb.WriteString(fmt.Sprintf(
-			"[%s/%s] - %s test - %s - %s (took %s)\n",
-			r.Package, r.DataStream,
-			r.TestType,
-			r.Name,
-			result,
-			r.TimeTaken,
-		))
+		t.AppendRow(table.Row{r.Package, r.DataStream, r.TestType, r.Name, result, r.TimeTaken})
 	}
 
-	return sb.String(), nil
+	t.SetStyle(table.StyleRounded)
+	return t.Render(), nil
 }

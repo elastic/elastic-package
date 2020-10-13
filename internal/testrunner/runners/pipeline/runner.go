@@ -74,7 +74,6 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 			tr.ErrorMsg = err.Error()
 			return results, err
 		}
-		fmt.Printf("Test case: %s\n", tc.name)
 		tr.Name = tc.name
 		results = append(results, tr)
 
