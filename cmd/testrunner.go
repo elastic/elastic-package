@@ -107,21 +107,29 @@ func testTypeCommandActionFactory(testType testrunner.TestType) cobraext.Command
 			return errors.Wrap(err, "fetching Elasticsearch client instance failed")
 		}
 
-		results := make([]testrunner.TestResult, 0)
-
+		var results []testrunner.TestResult
 		for _, folder := range testFolders {
-			if err := testrunner.Run(testType, testrunner.TestOptions{
+			r, err := testrunner.Run(testType, testrunner.TestOptions{
 				TestFolder:         folder,
 				PackageRootPath:    packageRootPath,
 				GenerateTestResult: generateTestResult,
 				ESClient:           esClient,
-				TestResults:        results,
-			}); err != nil {
+			})
+
+			results = append(results, r...)
+
+			if err != nil {
 				return errors.Wrapf(err, "error running package %s tests", testType)
 			}
 		}
 
-		cmd.Println(testrunner.Report(testrunner.TestReporter(reporter), results))
+		report, err := testrunner.Report(testrunner.TestReporter(reporter), results)
+		if err != nil {
+			return errors.Wrap(err, "error generating test report")
+		}
+		cmd.Println("--- Test results: START ---")
+		fmt.Println(report)
+		cmd.Println("--- Test results: END ---")
 		cmd.Println("Done")
 
 		return nil

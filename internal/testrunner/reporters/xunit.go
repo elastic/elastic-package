@@ -22,15 +22,15 @@ type testSuites struct {
 	Suites  []testSuite `xml:"testsuite"`
 }
 type testSuite struct {
-	Suites []testSuite `xml:"testsuite"`
-	Cases  []testCase  `xml:"testcase"`
+	Suites []testSuite `xml:"testsuite,omitempty"`
+	Cases  []testCase  `xml:"testcase,omitempty"`
 }
 type testCase struct {
 	Name string        `xml:"Name,attr"`
 	Time time.Duration `xml:"Time,attr"`
 
-	Error   string `xml:"Error"`
-	Failure string `xml:"Failure"`
+	Error   string `xml:"Error,omitempty"`
+	Failure string `xml:"Failure,omitempty"`
 }
 
 func ReportXUnit(results []testrunner.TestResult) (string, error) {

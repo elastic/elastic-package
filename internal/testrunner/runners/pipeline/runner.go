@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 
@@ -27,28 +28,28 @@ type runner struct {
 }
 
 // Run runs the pipeline tests defined under the given folder
-func Run(options testrunner.TestOptions) error {
+func Run(options testrunner.TestOptions) ([]testrunner.TestResult, error) {
 	r := runner{options}
 	return r.run()
 }
 
-func (r *runner) run() error {
+func (r *runner) run() ([]testrunner.TestResult, error) {
 	testCaseFiles, err := r.listTestCaseFiles()
 	if err != nil {
-		return errors.Wrap(err, "listing test case definitions failed")
+		return nil, errors.Wrap(err, "listing test case definitions failed")
 	}
 
 	dataStreamPath, found, err := packages.FindDataStreamRootForPath(r.options.TestFolder.Path)
 	if err != nil {
-		return errors.Wrap(err, "locating data_stream root failed")
+		return nil, errors.Wrap(err, "locating data_stream root failed")
 	}
 	if !found {
-		return errors.New("data stream root not found")
+		return nil, errors.New("data stream root not found")
 	}
 
 	entryPipeline, pipelineIDs, err := installIngestPipelines(r.options.ESClient, dataStreamPath)
 	if err != nil {
-		return errors.Wrap(err, "installing ingest pipelines failed")
+		return nil, errors.Wrap(err, "installing ingest pipelines failed")
 	}
 	defer func() {
 		err := uninstallIngestPipelines(r.options.ESClient, pipelineIDs)
@@ -58,32 +59,49 @@ func (r *runner) run() error {
 	}()
 
 	var failed bool
+	results := make([]testrunner.TestResult, 0)
 	for _, testCaseFile := range testCaseFiles {
+		tr := testrunner.TestResult{
+			TestType:   TestType,
+			Package:    r.options.TestFolder.Package,
+			DataStream: r.options.TestFolder.DataStream,
+		}
+		startTime := time.Now()
+
 		tc, err := r.loadTestCaseFile(testCaseFile)
 		if err != nil {
-			return errors.Wrap(err, "loading test case failed")
+			err := errors.Wrap(err, "loading test case failed")
+			tr.ErrorMsg = err.Error()
+			return results, err
 		}
 		fmt.Printf("Test case: %s\n", tc.name)
+		tr.Name = tc.name
+		results = append(results, tr)
 
 		result, err := simulatePipelineProcessing(r.options.ESClient, entryPipeline, tc)
 		if err != nil {
-			return errors.Wrap(err, "simulating pipeline processing failed")
+			err := errors.Wrap(err, "simulating pipeline processing failed")
+			tr.ErrorMsg = err.Error()
+			return results, err
 		}
 
+		tr.TimeTaken = time.Now().Sub(startTime)
 		err = r.verifyResults(testCaseFile, result)
 		if err == errTestCaseFailed {
 			failed = true
+			tr.FailureMsg = err.Error()
 			continue
 		}
 		if err != nil {
-			return errors.Wrap(err, "verifying test result failed")
+			return results, errors.Wrap(err, "verifying test result failed")
 		}
 	}
 
 	if failed {
-		return errors.New("at least one test case failed")
+		return results, errors.New("at least one test case failed")
 	}
-	return nil
+
+	return results, nil
 }
 
 func (r *runner) listTestCaseFiles() ([]string, error) {

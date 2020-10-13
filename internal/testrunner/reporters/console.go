@@ -28,12 +28,12 @@ func ReportConsole(results []testrunner.TestResult) (string, error) {
 		}
 
 		sb.WriteString(fmt.Sprintf(
-			"[%s/%s] - %s test - %s (took %d) - %s\n",
+			"[%s/%s] - %s test - %s - %s (took %s)\n",
 			r.Package, r.DataStream,
 			r.TestType,
 			r.Name,
-			r.TimeTaken,
 			result,
+			r.TimeTaken,
 		))
 	}
 

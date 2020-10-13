@@ -27,11 +27,10 @@ type TestOptions struct {
 	PackageRootPath    string
 	GenerateTestResult bool
 	ESClient           *elasticsearch.Client
-	TestResults        []TestResult
 }
 
 // RunFunc method defines main run function of a test runner.
-type RunFunc func(options TestOptions) error
+type RunFunc func(options TestOptions) ([]TestResult, error)
 
 var runners = map[TestType]RunFunc{}
 
@@ -122,10 +121,10 @@ func RegisterRunner(testType TestType, runFunc RunFunc) {
 }
 
 // Run method delegates execution to the registered test runner, based on the test type.
-func Run(testType TestType, options TestOptions) error {
+func Run(testType TestType, options TestOptions) ([]TestResult, error) {
 	runFunc, defined := runners[testType]
 	if !defined {
-		return fmt.Errorf("unregistered runner test: %s", testType)
+		return nil, fmt.Errorf("unregistered runner test: %s", testType)
 	}
 	return runFunc(options)
 }
