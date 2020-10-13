@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/go-git/go-git/v5"
 	"github.com/google/go-github/v32/github"
 	"github.com/pkg/errors"
 )
@@ -28,9 +29,12 @@ func OpenPullRequestWithRemovedPackages(client *github.Client, username, head, b
 
 // OpenPullRequestWithPromotedPackages method opens a PR against "base" branch with promoted packages.
 // Head is the branch containing the changes that will be added to the base branch.
-func OpenPullRequestWithPromotedPackages(client *github.Client, username, head, base, sourceStage, destinationStage string, promotedPackages PackageVersions) (string, error) {
+func OpenPullRequestWithPromotedPackages(client *github.Client, username, head, base, sourceStage, destinationStage string, promotedPackages PackageVersions, r *git.Repository) (string, error) {
 	title := fmt.Sprintf("[%s] Promote packages from %s to %s", destinationStage, sourceStage, destinationStage)
-	description := buildPullRequestPromoteDescription(sourceStage, destinationStage, promotedPackages)
+	description, err := buildPullRequestPromoteDescription(sourceStage, destinationStage, promotedPackages, r, head)
+	if err != nil {
+		return "", err
+	}
 	return openPullRequestWithPackages(client, username, head, base, title, description)
 }
 
@@ -72,13 +76,17 @@ func buildPullRequestRemoveDescription(sourceStage, promotionURL string, version
 	return builder.String()
 }
 
-func buildPullRequestPromoteDescription(sourceStage, destinationStage string, versions PackageVersions) string {
+func buildPullRequestPromoteDescription(sourceStage, destinationStage string, versions PackageVersions, r *git.Repository, head string) (string, error) {
 	var builder strings.Builder
 	builder.WriteString(fmt.Sprintf("This PR promotes packages from `%s` to `%s`.\n", sourceStage, destinationStage))
 	builder.WriteString("\n")
 	builder.WriteString("Promoted packages:\n")
-	for _, str := range versions.Strings() {
+	packageStrs, err := versions.StringsWithHash(r, head)
+	if err != nil {
+		return "", err
+	}
+	for _, str := range packageStrs {
 		builder.WriteString(fmt.Sprintf("* `%s`\n", str))
 	}
-	return builder.String()
+	return builder.String(), nil
 }

@@ -104,7 +104,7 @@ func promoteCommandAction(cmd *cobra.Command, args []string) error {
 	}
 
 	// Open PRs
-	url, err := promote.OpenPullRequestWithPromotedPackages(githubClient, githubUser, newDestinationStage, destinationStage, sourceStage, destinationStage, promotedPackages)
+	url, err := promote.OpenPullRequestWithPromotedPackages(githubClient, githubUser, newDestinationStage, destinationStage, sourceStage, destinationStage, promotedPackages, repository)
 	if err != nil {
 		return errors.Wrapf(err, "opening PR with promoted packages failed (head: %s, base: %s)", newDestinationStage, destinationStage)
 	}

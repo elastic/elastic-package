@@ -51,6 +51,34 @@ func (pr *PackageVersion) String() string {
 	return fmt.Sprintf("%s-%s", pr.Name, pr.Version)
 }
 
+// StringWithHash method returns a string representation of the PackageVersion.
+func (pr *PackageVersion) StringWithHash(r *git.Repository, branch string) (string, error) {
+	hash, err := pr.sha1Hash(r, branch)
+	if err != nil {
+		return "", errors.Wrapf(err, "Unable to calculate hash for %s-%s", pr.Name, pr.Version)
+	}
+	return fmt.Sprintf("%s-%s: %s", pr.Name, pr.Version, hash), nil
+}
+
+func (pr *PackageVersion) sha1Hash(r *git.Repository, branch string) (string, error) {
+	wt, err := r.Worktree()
+	if err != nil {
+		return "", errors.Wrap(err, "fetching worktree reference failed while calculating directory hash")
+	}
+
+	err = wt.Checkout(&git.CheckoutOptions{
+		Branch: plumbing.NewBranchReferenceName(branch),
+	})
+	if err != nil {
+		return "", errors.Wrapf(err, "changing branch failed (path: %s) while calculating directory hash", branch)
+	}
+	resources, err := walkPackageResources(wt.Filesystem, pr.path())
+	if err != nil {
+		return "", errors.Wrap(err, "failed to retrieve package paths while calculating directory hash")
+	}
+	return hashFiles(wt.Filesystem, resources)
+}
+
 // PackageVersions is an array of PackageVersion.
 type PackageVersions []PackageVersion
 
@@ -94,6 +122,19 @@ func (prs PackageVersions) Strings() []string {
 		entries = append(entries, pr.String())
 	}
 	return entries
+}
+
+// StringsWithHash method returns an array of string representations including the directory hash.
+func (prs PackageVersions) StringsWithHash(r *git.Repository, branch string) ([]string, error) {
+	var entries []string
+	for _, pr := range prs {
+		hash, err := pr.StringWithHash(r, branch)
+		if err != nil {
+			return nil, err
+		}
+		entries = append(entries, hash)
+	}
+	return entries, nil
 }
 
 // CloneRepository method clones the repository and changes branch to stage.
