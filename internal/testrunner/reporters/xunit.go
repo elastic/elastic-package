@@ -2,6 +2,7 @@ package reporters
 
 import (
 	"encoding/xml"
+	"fmt"
 	"time"
 
 	"github.com/pkg/errors"
@@ -22,9 +23,10 @@ type testSuites struct {
 	Suites  []testSuite `xml:"testsuite"`
 }
 type testSuite struct {
-	Name   string      `xml:"Name,attr"`
-	Suites []testSuite `xml:"testsuite,omitempty"`
-	Cases  []testCase  `xml:"testcase,omitempty"`
+	Name    string      `xml:"Name,attr"`
+	Comment string      `xml:",comment"`
+	Suites  []testSuite `xml:"testsuite,omitempty"`
+	Cases   []testCase  `xml:"testcase,omitempty"`
 }
 type testCase struct {
 	Name string        `xml:"Name,attr"`
@@ -65,14 +67,16 @@ func ReportXUnit(results []testrunner.TestResult) (string, error) {
 
 	for pkgName, pkg := range packages {
 		pkgSuite := testSuite{
-			Name:   pkgName,
-			Suites: make([]testSuite, 0),
+			Name:    pkgName,
+			Comment: fmt.Sprintf("test suite for package: %s", pkgName),
+			Suites:  make([]testSuite, 0),
 		}
 
 		for dsName, ds := range pkg {
 			dsSuite := testSuite{
-				Name:  dsName,
-				Cases: ds,
+				Name:    dsName,
+				Comment: fmt.Sprintf("test suite for data stream: %s", dsName),
+				Cases:   ds,
 			}
 
 			pkgSuite.Suites = append(pkgSuite.Suites, dsSuite)
