@@ -22,10 +22,10 @@ import (
 const configFileName = "config.yml"
 
 type testConfig struct {
-	Vars       map[string]packages.VarValue `yaml:"vars"`
+	Vars       map[string]packages.VarValue `config:"vars"`
 	DataStream struct {
-		Vars map[string]packages.VarValue `yaml:"vars"`
-	} `yaml:"data_stream"`
+		Vars map[string]packages.VarValue `config:"vars"`
+	} `config:"data_stream"`
 }
 
 func newConfig(systemTestFolderPath string, ctxt servicedeployer.ServiceContext) (*testConfig, error) {
