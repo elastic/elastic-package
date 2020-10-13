@@ -22,6 +22,7 @@ type testSuites struct {
 	Suites  []testSuite `xml:"testsuite"`
 }
 type testSuite struct {
+	Name   string      `xml:"Name,attr"`
 	Suites []testSuite `xml:"testsuite,omitempty"`
 	Cases  []testCase  `xml:"testcase,omitempty"`
 }
@@ -46,7 +47,7 @@ func ReportXUnit(results []testrunner.TestResult) (string, error) {
 		}
 
 		if _, exists := packages[r.Package][r.DataStream]; !exists {
-			packages[r.Package][r.DataStream] = make([]testCase, 1)
+			packages[r.Package][r.DataStream] = make([]testCase, 0)
 		}
 
 		c := testCase{
@@ -60,15 +61,17 @@ func ReportXUnit(results []testrunner.TestResult) (string, error) {
 	}
 
 	var ts testSuites
-	ts.Suites = make([]testSuite, numPackages)
+	ts.Suites = make([]testSuite, 0)
 
-	for _, pkg := range packages {
+	for pkgName, pkg := range packages {
 		pkgSuite := testSuite{
-			Suites: make([]testSuite, 1),
+			Name:   pkgName,
+			Suites: make([]testSuite, 0),
 		}
 
-		for _, ds := range pkg {
+		for dsName, ds := range pkg {
 			dsSuite := testSuite{
+				Name:  dsName,
 				Cases: ds,
 			}
 
