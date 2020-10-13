@@ -45,13 +45,15 @@ For more details on a specific command, run `elastic-package help <command>`.
 
 ### `elastic-package help`
 
+_Context: global_
+
 Use this command to get a listing of all commands available under `elastic-package` and a brief
 description of what each command does.
 
-_Context: global_
-
 
 ### `elastic-package build`
+
+_Context: package_
 
 Use this command to build a package. Built packages are stored in the `build/` folder located at the root folder of the local Git repository checkout that contains your package folder.
 
@@ -62,38 +64,36 @@ Elastic Package Registry, make sure to build that package _first_ using
 
 Built packages can also be published to the `package-storage` repository.
 
-_Context: package_
-
 
 ### `elastic-package check`
 
-Use this command to run the `format`, `lint`, and `build` commands all at once, in that order.
-
 _Context: package_
+
+Use this command to run the `format`, `lint`, and `build` commands all at once, in that order.
 
 
 ### `elastic-package format`
 
-Use this command to format the contents of a package.
-
 _Context: package_
+
+Use this command to format the contents of a package.
 
 
 ### `elastic-package lint`
 
+_Context: package_
+
 Use this command to validate the contents of a package using the 
 [package specification](https://github.com/elastic/package-spec).
-
-_Context: package_
 
 
 ### `elastic-package promote`
 
+_Context: global_
+
 Use this command to promote packages from one stage of the Package Registry to another.
 
 :warning: This command is intended primarily for use by administrators. 
-
-_Context: global_
 
 #### GitHub authorization
 
@@ -111,14 +111,16 @@ Make sure you have enabled the following scopes:
 
 ### `elastic-package stack`
 
+_Context: global_
+
 Use this command to spin up a Docker-based Elastic Stack consisting of Elasticsearch, Kibana, and 
 the Package Registry. By default the latest released version of the stack is spun up but it is possible
 to specify a different version, including SNAPSHOT versions.
 
-_Context: global_
-
 
 ### `elastic-package test`
+
+_Context: package_
 
 Use this command to run tests on a package. Currently, there are two types of tests available.
 
@@ -134,15 +136,13 @@ These tests allow you to test a package's ability to ingest data end-to-end.
 
 For details on how to configure amd run system tests, see the [HOWTO guide](docs/howto/system_testing.md).
 
-_Context: package_
-
 
 ### `elastic-package version`
 
+_Context: global_
+
 Use this command to print the version of `elastic-package` that you have installed. This is
 especially useful when reporting bugs.
-
-_Context: global_
 
 
 ## Development
