@@ -19,9 +19,5 @@ xpack.fleet.agents.enabled: true
 xpack.fleet.agents.elasticsearch.host: "http://elasticsearch:9200"
 xpack.fleet.agents.kibana.host: "http://kibana:5601"
 xpack.fleet.agents.tlsCheckDisabled: true
-
-# TODO: Remove once https://github.com/elastic/kibana/issues/77613 is resolved.
-xpack.fleet.agents.pollingRequestTimeout: 60000
-
 xpack.encryptedSavedObjects.encryptionKey: "12345678901234567890123456789012"
 `
