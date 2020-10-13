@@ -25,18 +25,20 @@ const (
 // VarValue represents a variable value as defined in a package or data stream
 // manifest file.
 type VarValue struct {
-	scalar string
-	list   []string
+	scalar interface{}
+	list   []interface{}
 }
 
 // Unpack knows how to parse a variable value from a package or data stream
 // manifest file into a VarValue.
-func (vv *VarValue) Unpack(cfg *ucfg.Config) error {
-	if cfg.IsArray() {
-		return cfg.Unpack(&vv.list)
-	}
-	if !cfg.IsDict() { // is scalar as dict is not supported
-		return cfg.Unpack(&vv.scalar)
+func (vv *VarValue) Unpack(value interface{}) error {
+	switch u := value.(type) {
+	case []interface{}:
+		vv.list = u
+		return nil
+	default:
+		vv.scalar = u
+		return nil
 	}
 	return errors.New("unknown variable value")
 }
@@ -44,7 +46,7 @@ func (vv *VarValue) Unpack(cfg *ucfg.Config) error {
 // MarshalJSON knows how to serialize a VarValue into the appropriate
 // JSON data type and value.
 func (vv VarValue) MarshalJSON() ([]byte, error) {
-	if vv.scalar != "" {
+	if vv.scalar != nil {
 		return json.Marshal(vv.scalar)
 	} else if vv.list != nil {
 		return json.Marshal(vv.list)
