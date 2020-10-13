@@ -186,7 +186,7 @@ func (r *runner) run() error {
 	}
 
 	// Assign policy to agent
-	logger.Info("assigning package data streamto agent...")
+	logger.Info("assigning package data stream to agent...")
 	if err := im.AssignPolicyToAgent(agent, *policy); err != nil {
 		return errors.Wrap(err, "could not assign policy to agent")
 	}
