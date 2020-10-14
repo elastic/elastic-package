@@ -36,15 +36,24 @@ var runners = map[TestType]RunFunc{}
 
 // TestResult contains a single test's results
 type TestResult struct {
+	// Name of test result. Optional.
 	Name string
 
-	Package    string
+	// Package to which this test result belongs.
+	Package string
+
+	// Data stream to which this test result belongs.
 	DataStream string
 
+	// Time taken to run the test case and arrive at a result.
 	TimeElapsed time.Duration
 
+	// If test case failed, description of the failure.
 	FailureMsg string
-	ErrorMsg   string
+
+	// If there was an error while running the test case, description
+	// of the error.
+	ErrorMsg string
 }
 
 // ReportFunc defines the reporter function.
