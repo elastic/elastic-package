@@ -79,7 +79,6 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		tr.TimeTaken = time.Now().Sub(startTime)
 		if err != nil {
 			tr.ErrorMsg = err.Error()
-
 		}
 
 		return []testrunner.TestResult{tr}, err
