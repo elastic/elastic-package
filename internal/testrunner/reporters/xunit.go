@@ -55,7 +55,7 @@ func reportXUnit(results []testrunner.TestResult) (string, error) {
 
 		c := testCase{
 			Name:    r.Name,
-			Time:    r.TimeTaken,
+			Time:    r.TimeElapsed,
 			Error:   r.ErrorMsg,
 			Failure: r.FailureMsg,
 		}

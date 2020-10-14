@@ -19,7 +19,7 @@ const (
 
 func reportConsole(results []testrunner.TestResult) (string, error) {
 	t := table.NewWriter()
-	t.AppendHeader(table.Row{"Package", "Data stream", "Test name", "Result", "Time taken"})
+	t.AppendHeader(table.Row{"Package", "Data stream", "Test name", "Result", "Time elapsed"})
 
 	for _, r := range results {
 		var result string
@@ -31,7 +31,7 @@ func reportConsole(results []testrunner.TestResult) (string, error) {
 			result = "PASS"
 		}
 
-		t.AppendRow(table.Row{r.Package, r.DataStream, r.Name, result, r.TimeTaken})
+		t.AppendRow(table.Row{r.Package, r.DataStream, r.Name, result, r.TimeElapsed})
 	}
 
 	t.SetStyle(table.StyleRounded)

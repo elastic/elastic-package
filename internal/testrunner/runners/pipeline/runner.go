@@ -83,7 +83,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 			return results, err
 		}
 
-		tr.TimeTaken = time.Now().Sub(startTime)
+		tr.TimeElapsed = time.Now().Sub(startTime)
 		err = r.verifyResults(testCaseFile, result)
 		if err == errTestCaseFailed {
 			failed = true

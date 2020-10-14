@@ -41,7 +41,7 @@ type TestResult struct {
 	Package    string
 	DataStream string
 
-	TimeTaken time.Duration
+	TimeElapsed time.Duration
 
 	FailureMsg string
 	ErrorMsg   string
