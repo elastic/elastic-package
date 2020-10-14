@@ -60,6 +60,9 @@ func (pr *PackageVersion) StringWithHash(r *git.Repository, branch string) (stri
 	return fmt.Sprintf("%s-%s: %s", pr.Name, pr.Version, hash), nil
 }
 
+// sha1Hash computes the combined sha1 hash for all the files in the package
+// this is equivalent to doing find <package> -type f -exec shasum {} + | awk '{print $1}' | sort | shasum
+// on the package version directory
 func (pr *PackageVersion) sha1Hash(r *git.Repository, branch string) (string, error) {
 	wt, err := r.Worktree()
 	if err != nil {
