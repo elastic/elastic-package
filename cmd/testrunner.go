@@ -15,7 +15,8 @@ import (
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/testrunner"
-	"github.com/elastic/elastic-package/internal/testrunner/reporters"
+	"github.com/elastic/elastic-package/internal/testrunner/reporters/formats"
+	"github.com/elastic/elastic-package/internal/testrunner/reporters/outputs"
 	_ "github.com/elastic/elastic-package/internal/testrunner/runners" // register all test runners
 )
 
@@ -39,7 +40,8 @@ func setupTestCommand() *cobra.Command {
 	cmd.PersistentFlags().BoolP(cobraext.FailOnMissingFlagName, "m", false, cobraext.FailOnMissingFlagDescription)
 	cmd.PersistentFlags().BoolP(cobraext.GenerateTestResultFlagName, "g", false, cobraext.GenerateTestResultFlagDescription)
 	cmd.PersistentFlags().StringSliceP(cobraext.DataStreamsFlagName, "d", nil, cobraext.DataStreamsFlagDescription)
-	cmd.PersistentFlags().StringP(cobraext.ReporterFlagName, "r", string(reporters.ConsoleReporter), cobraext.ReporterFlagDescription)
+	cmd.PersistentFlags().StringP(cobraext.ReportFormatFlagName, "", string(formats.ReportFormatHuman), cobraext.ReportFormatFlagDescription)
+	cmd.PersistentFlags().StringP(cobraext.ReportOutputFlagName, "", string(outputs.ReportOutputSTDOUT), cobraext.ReportOutputFlagDescription)
 
 	for _, testType := range testrunner.TestTypes() {
 		action := testTypeCommandActionFactory(testType)
@@ -77,9 +79,14 @@ func testTypeCommandActionFactory(testType testrunner.TestType) cobraext.Command
 			return cobraext.FlagParsingError(err, cobraext.GenerateTestResultFlagName)
 		}
 
-		reporter, err := cmd.Flags().GetString(cobraext.ReporterFlagName)
+		reportFormat, err := cmd.Flags().GetString(cobraext.ReportFormatFlagName)
 		if err != nil {
-			return cobraext.FlagParsingError(err, cobraext.ReporterFlagName)
+			return cobraext.FlagParsingError(err, cobraext.ReportFormatFlagName)
+		}
+
+		reportOutput, err := cmd.Flags().GetString(cobraext.ReportOutputFlagName)
+		if err != nil {
+			return cobraext.FlagParsingError(err, cobraext.ReportOutputFlagName)
 		}
 
 		packageRootPath, found, err := packages.FindPackageRoot()
@@ -123,14 +130,15 @@ func testTypeCommandActionFactory(testType testrunner.TestType) cobraext.Command
 			}
 		}
 
-		report, err := testrunner.Report(testrunner.TestReporter(reporter), results)
+		format := testrunner.TestReportFormat(reportFormat)
+		report, err := testrunner.FormatReport(format, results)
 		if err != nil {
-			return errors.Wrap(err, "error generating test report")
+			return errors.Wrap(err, "error formatting test report")
 		}
-		cmd.Println("--- Test results: START ---")
-		fmt.Println(report)
-		cmd.Println("--- Test results: END ---")
-		cmd.Println("Done")
+
+		if err := testrunner.WriteReport(testrunner.TestReportOutput(reportOutput), report, format); err != nil {
+			return errors.Wrap(err, "error writing test report")
+		}
 
 		return nil
 	}

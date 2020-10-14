@@ -71,6 +71,7 @@ func Run(options testrunner.TestOptions) ([]testrunner.TestResult, error) {
 
 func (r *runner) run() ([]testrunner.TestResult, error) {
 	result := testrunner.TestResult{
+		TestType:   TestType,
 		Package:    r.testFolder.Package,
 		DataStream: r.testFolder.DataStream,
 	}

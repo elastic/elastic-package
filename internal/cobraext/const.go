@@ -21,8 +21,11 @@ const (
 	GenerateTestResultFlagName        = "generate"
 	GenerateTestResultFlagDescription = "generate test result file"
 
-	ReporterFlagName        = "reporter"
-	ReporterFlagDescription = "test reporter to use"
+	ReportFormatFlagName        = "report-format"
+	ReportFormatFlagDescription = "format of test report"
+
+	ReportOutputFlagName        = "report-output"
+	ReportOutputFlagDescription = "output location for test report"
 
 	VerboseFlagName        = "verbose"
 	VerboseFlagDescription = "verbose mode"

@@ -16,7 +16,14 @@ import (
 
 const expectedTestResultSuffix = "-expected.json"
 
-var errTestCaseFailed = errors.New("test case failed")
+type ErrTestCaseFailed struct {
+	Reason  string
+	Details string
+}
+
+func (e ErrTestCaseFailed) Error() string {
+	return fmt.Sprintf("test case failed: %s", e.Reason)
+}
 
 type testResult struct {
 	events []json.RawMessage
@@ -54,9 +61,10 @@ func compareResults(testCasePath string, result *testResult) error {
 
 	report := diff.Diff(string(expected), string(actual))
 	if report != "" {
-		fmt.Println("Expected results are different from actual ones:")
-		fmt.Println(report)
-		return errTestCaseFailed
+		return ErrTestCaseFailed{
+			Reason:  "Expected results are different from actual ones",
+			Details: report,
+		}
 	}
 	return nil
 }

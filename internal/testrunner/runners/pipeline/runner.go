@@ -58,10 +58,10 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		}
 	}()
 
-	var failed bool
 	results := make([]testrunner.TestResult, 0)
 	for _, testCaseFile := range testCaseFiles {
 		tr := testrunner.TestResult{
+			TestType:   TestType,
 			Package:    r.options.TestFolder.Package,
 			DataStream: r.options.TestFolder.DataStream,
 		}
@@ -71,32 +71,36 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		if err != nil {
 			err := errors.Wrap(err, "loading test case failed")
 			tr.ErrorMsg = err.Error()
-			return results, err
+			results = append(results, tr)
+			continue
 		}
 		tr.Name = tc.name
-		results = append(results, tr)
 
 		result, err := simulatePipelineProcessing(r.options.ESClient, entryPipeline, tc)
 		if err != nil {
 			err := errors.Wrap(err, "simulating pipeline processing failed")
 			tr.ErrorMsg = err.Error()
-			return results, err
+			results = append(results, tr)
+			continue
 		}
 
 		tr.TimeElapsed = time.Now().Sub(startTime)
 		err = r.verifyResults(testCaseFile, result)
-		if err == errTestCaseFailed {
-			failed = true
-			tr.FailureMsg = err.Error()
+		if e, ok := err.(ErrTestCaseFailed); ok {
+			tr.FailureMsg = e.Error()
+			tr.FailureDetails = e.Details
+
+			results = append(results, tr)
 			continue
 		}
 		if err != nil {
-			return results, errors.Wrap(err, "verifying test result failed")
+			err := errors.Wrap(err, "verifying test result failed")
+			tr.ErrorMsg = err.Error()
+			results = append(results, tr)
+			continue
 		}
-	}
 
-	if failed {
-		return results, errors.New("at least one test case failed")
+		results = append(results, tr)
 	}
 
 	return results, nil
@@ -159,8 +163,8 @@ func (r *runner) verifyResults(testCaseFile string, result *testResult) error {
 	}
 
 	err := compareResults(testCasePath, result)
-	if err == errTestCaseFailed {
-		return errTestCaseFailed
+	if _, ok := err.(ErrTestCaseFailed); ok {
+		return err
 	}
 	if err != nil {
 		return errors.Wrap(err, "comparing test results failed")
