@@ -11,7 +11,7 @@ import (
 )
 
 func init() {
-	testrunner.RegisterReporter(XUnitReporter, ReportXUnit)
+	testrunner.RegisterReporter(XUnitReporter, reportXUnit)
 }
 
 const (
@@ -37,8 +37,7 @@ type testCase struct {
 	Failure string `xml:"Failure,omitempty"`
 }
 
-// ReportXUnit returns the given test results formatted in the xUnit format
-func ReportXUnit(results []testrunner.TestResult) (string, error) {
+func reportXUnit(results []testrunner.TestResult) (string, error) {
 	// package => data stream => test cases
 	packages := map[string]map[string][]testCase{}
 
