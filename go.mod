@@ -6,6 +6,7 @@ require (
 	github.com/AlecAivazis/survey/v2 v2.1.1
 	github.com/Masterminds/semver v1.5.0
 	github.com/aymerick/raymond v2.0.2+incompatible
+	github.com/cespare/xxhash/v2 v2.1.1
 	github.com/coreos/pkg v0.0.0-20180928190104-399ea9e2e55f
 	github.com/elastic/go-elasticsearch/v7 v7.9.0
 	github.com/elastic/go-ucfg v0.8.3

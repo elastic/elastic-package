@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/google/go-github/v32/github"
 	"github.com/pkg/errors"
 )
@@ -81,12 +82,36 @@ func buildPullRequestPromoteDescription(sourceStage, destinationStage string, ve
 	builder.WriteString(fmt.Sprintf("This PR promotes packages from `%s` to `%s`.\n", sourceStage, destinationStage))
 	builder.WriteString("\n")
 	builder.WriteString("Promoted packages:\n")
-	packageStrs, err := versions.StringsWithHash(r, head)
-	if err != nil {
-		return "", err
-	}
-	for _, str := range packageStrs {
-		builder.WriteString(fmt.Sprintf("* `%s`\n", str))
+
+	for _, packageVersion := range versions {
+		sig, err := calculatePackageSignature(r, head, packageVersion)
+		if err != nil {
+			return "", err
+		}
+		builder.WriteString(fmt.Sprintf("* `%s: %s`\n", packageVersion.String(), sig))
 	}
 	return builder.String(), nil
+}
+
+// calculatePackageSignature computes the combined sha1 hash for all the files in the package
+// this is equivalent to doing find <package> -type f -exec <hash tool> {} + | awk '{print $1}' | sort | <hash tool>
+// on the package version directory
+func calculatePackageSignature(r *git.Repository, branch string, packageVersion PackageVersion) (string, error) {
+	wt, err := r.Worktree()
+	if err != nil {
+		return "", errors.Wrap(err, "fetching worktree reference failed while calculating directory hash")
+	}
+
+	err = wt.Checkout(&git.CheckoutOptions{
+		Branch: plumbing.NewBranchReferenceName(branch),
+	})
+	if err != nil {
+		return "", errors.Wrapf(err, "changing branch failed (path: %s) while calculating directory hash", branch)
+	}
+	resources, err := walkPackageResources(wt.Filesystem, packageVersion.path())
+	if err != nil {
+		return "", errors.Wrap(err, "failed to retrieve package paths while calculating directory hash")
+	}
+
+	return calculateFilesSignature(wt.Filesystem, resources)
 }

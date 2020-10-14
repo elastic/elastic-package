@@ -5,24 +5,24 @@
 package promote
 
 import (
-	"crypto/sha1"
 	"encoding/hex"
 	"fmt"
 	"io/ioutil"
 	"sort"
 	"strings"
 
+	"github.com/cespare/xxhash/v2"
 	"github.com/go-git/go-billy/v5"
 	"github.com/pkg/errors"
 )
 
-// hashFiles computes the sha1 hash of a list of files
+// calculateFilesSignature computes the sha1 hash of a list of files
 // First it computes the hash of each of the file's contents then it sorts those
 // encoded strings, creates a final string with the sorted file hashes delimited by a newline
 // and hashes the final string.
 // This effectively produces a hash of a directory
-// It is equivalent to: find <path> -type f -exec shasum {} + | awk '{print $1}' | sort | shasum
-func hashFiles(filesystem billy.Filesystem, files []string) (string, error) {
+// It is equivalent to: find <path> -type f -exec <hash tool> {} + | awk '{print $1}' | sort | <hash tool>
+func calculateFilesSignature(filesystem billy.Filesystem, files []string) (string, error) {
 	var fileHashes []string
 	for _, file := range files {
 		if strings.Contains(file, "\n") {
@@ -39,7 +39,7 @@ func hashFiles(filesystem billy.Filesystem, files []string) (string, error) {
 			return "", errors.Wrapf(err, "reading file content failed (path: %s)", file)
 		}
 
-		fileHash := sha1.New()
+		fileHash := xxhash.New()
 		fileHash.Write(c)
 		fileHashes = append(fileHashes, hex.EncodeToString(fileHash.Sum(nil)))
 	}
@@ -49,7 +49,7 @@ func hashFiles(filesystem billy.Filesystem, files []string) (string, error) {
 	for _, fileHash := range fileHashes {
 		builder.WriteString(fmt.Sprintf("%s\n", fileHash))
 	}
-	combinedHash := sha1.New()
+	combinedHash := xxhash.New()
 	combinedHash.Write([]byte(builder.String()))
 	return hex.EncodeToString(combinedHash.Sum(nil)), nil
 }
