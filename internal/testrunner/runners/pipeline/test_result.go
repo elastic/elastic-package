@@ -42,7 +42,7 @@ func writeTestResult(testCasePath string, result *testResult) error {
 }
 
 func compareResults(testCasePath string, result *testResult) error {
-	current, err := marshalTestResult(result)
+	actual, err := marshalTestResult(result)
 	if err != nil {
 		return errors.Wrap(err, "marshalling test result failed")
 	}
@@ -52,9 +52,9 @@ func compareResults(testCasePath string, result *testResult) error {
 		return errors.Wrap(err, "reading expected test result failed")
 	}
 
-	report := diff.Diff(string(expected), string(current))
+	report := diff.Diff(string(expected), string(actual))
 	if report != "" {
-		fmt.Println("Expected results are different from current ones:")
+		fmt.Println("Expected results are different from actual ones:")
 		fmt.Println(report)
 		return errTestCaseFailed
 	}
