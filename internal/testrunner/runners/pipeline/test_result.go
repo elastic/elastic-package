@@ -16,6 +16,7 @@ import (
 
 const expectedTestResultSuffix = "-expected.json"
 
+// ErrTestCaseFailed represents a test case failure result
 type ErrTestCaseFailed struct {
 	Reason  string
 	Details string
