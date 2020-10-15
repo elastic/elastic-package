@@ -13,8 +13,72 @@ import (
 
 	"github.com/cespare/xxhash/v2"
 	"github.com/go-git/go-billy/v5"
+	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/pkg/errors"
 )
+
+// SignedPackageVersion represents a package version stored in the package-storage with a calculated signature.
+type SignedPackageVersion struct {
+	PackageVersion
+
+	Signature string
+}
+
+// NewSignedPackageVersion constructs a new SignedPackageVersion struct composed of the package version and signature
+func NewSignedPackageVersion(version PackageVersion, signature string) SignedPackageVersion {
+	return SignedPackageVersion{PackageVersion: version, Signature: signature}
+}
+
+// String method returns a string representation of the SignedPackageVersion.
+func (s *SignedPackageVersion) String() string {
+	return fmt.Sprintf("%s: %s", s.PackageVersion.String(), s.Signature)
+}
+
+// SignedPackageVersions is an array of SignedPackageVersion.
+type SignedPackageVersions []SignedPackageVersion
+
+// Strings method returns an array of string representations.
+func (s SignedPackageVersions) Strings() []string {
+	var entries []string
+	for _, pr := range s {
+		entries = append(entries, pr.String())
+	}
+	return entries
+}
+
+// CalculatePackageSignatures computes the combined sha1 hash for all the files in the package
+// this is equivalent to doing find <package> -type f -exec <hash tool> {} + | awk '{print $1}' | sort | <hash tool>
+// on the package version directory
+func CalculatePackageSignatures(r *git.Repository, branch string, packageVersions PackageVersions) (SignedPackageVersions, error) {
+	wt, err := r.Worktree()
+	if err != nil {
+		return nil, errors.Wrap(err, "fetching worktree reference failed while calculating directory hash")
+	}
+
+	err = wt.Checkout(&git.CheckoutOptions{
+		Branch: plumbing.NewBranchReferenceName(branch),
+	})
+	if err != nil {
+		return nil, errors.Wrapf(err, "changing branch failed (path: %s) while calculating directory hash", branch)
+	}
+
+	var signedPackages SignedPackageVersions
+	for _, version := range packageVersions {
+		resources, err := walkPackageResources(wt.Filesystem, version.path())
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to retrieve package paths while calculating directory hash")
+		}
+
+		signature, err := calculateFilesSignature(wt.Filesystem, resources)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to calculate the package signature for %s", version.Name)
+		}
+		signedPackages = append(signedPackages, NewSignedPackageVersion(version, signature))
+	}
+
+	return signedPackages, nil
+}
 
 // calculateFilesSignature computes the sha1 hash of a list of files
 // First it computes the hash of each of the file's contents then it sorts those
