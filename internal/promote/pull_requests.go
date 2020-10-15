@@ -30,10 +30,7 @@ func OpenPullRequestWithRemovedPackages(client *github.Client, username, head, b
 // Head is the branch containing the changes that will be added to the base branch.
 func OpenPullRequestWithPromotedPackages(client *github.Client, username, head, base, sourceStage, destinationStage string, signedPackages SignedPackageVersions) (string, error) {
 	title := fmt.Sprintf("[%s] Promote packages from %s to %s", destinationStage, sourceStage, destinationStage)
-	description, err := buildPullRequestPromoteDescription(sourceStage, destinationStage, signedPackages)
-	if err != nil {
-		return "", err
-	}
+	description := buildPullRequestPromoteDescription(sourceStage, destinationStage, signedPackages)
 	return openPullRequestWithPackages(client, username, head, base, title, description)
 }
 
@@ -75,7 +72,7 @@ func buildPullRequestRemoveDescription(sourceStage, promotionURL string, version
 	return builder.String()
 }
 
-func buildPullRequestPromoteDescription(sourceStage, destinationStage string, signedPackages SignedPackageVersions) (string, error) {
+func buildPullRequestPromoteDescription(sourceStage, destinationStage string, signedPackages SignedPackageVersions) string {
 	var builder strings.Builder
 	builder.WriteString(fmt.Sprintf("This PR promotes packages from `%s` to `%s`.\n", sourceStage, destinationStage))
 	builder.WriteString("\n")
@@ -83,5 +80,5 @@ func buildPullRequestPromoteDescription(sourceStage, destinationStage string, si
 	for _, str := range signedPackages.Strings() {
 		builder.WriteString(fmt.Sprintf("* `%s`\n", str))
 	}
-	return builder.String(), nil
+	return builder.String()
 }
