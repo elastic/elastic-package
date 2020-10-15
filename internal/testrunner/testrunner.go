@@ -51,7 +51,7 @@ type TestResult struct {
 	// Data stream to which this test result belongs.
 	DataStream string
 
-	// Time taken to run the test case and arrive at a result.
+	// Time elapsed from running a test case to arriving at its result.
 	TimeElapsed time.Duration
 
 	// If test case failed, short description of the failure.
