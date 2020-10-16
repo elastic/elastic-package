@@ -28,10 +28,15 @@ type testSuites struct {
 	Suites  []testSuite `xml:"testsuite"`
 }
 type testSuite struct {
-	Name    string      `xml:"name,attr"`
-	Comment string      `xml:",comment"`
-	Suites  []testSuite `xml:"testsuite,omitempty"`
-	Cases   []testCase  `xml:"testcase,omitempty"`
+	Comment string `xml:",comment"`
+
+	Name        string `xml:"name,attr"`
+	NumTests    int    `xml:"tests,attr"`
+	NumFailures int    `xml:"failures,attr"`
+	NumErrors   int    `xml:"errors,attr"`
+
+	Suites []testSuite `xml:"testsuite,omitempty"`
+	Cases  []testCase  `xml:"testcase,omitempty"`
 }
 type testCase struct {
 	Name string        `xml:"name,attr"`
@@ -45,6 +50,7 @@ func reportXUnitFormat(results []testrunner.TestResult) (string, error) {
 	// test type => package => data stream => test cases
 	tests := map[string]map[string]map[string][]testCase{}
 
+	var numTests, numFailures, numErrors int
 	for _, r := range results {
 		testType := string(r.TestType)
 		if _, exists := tests[testType]; !exists {
@@ -62,10 +68,15 @@ func reportXUnitFormat(results []testrunner.TestResult) (string, error) {
 		var failure string
 		if r.FailureMsg != "" {
 			failure = r.FailureMsg
+			numFailures++
 		}
 
 		if r.FailureDetails != "" {
 			failure += ": " + r.FailureDetails
+		}
+
+		if r.ErrorMsg != "" {
+			numErrors++
 		}
 
 		c := testCase{
@@ -74,6 +85,7 @@ func reportXUnitFormat(results []testrunner.TestResult) (string, error) {
 			Error:   r.ErrorMsg,
 			Failure: failure,
 		}
+		numTests++
 
 		tests[testType][r.Package][r.DataStream] = append(tests[testType][r.Package][r.DataStream], c)
 	}
@@ -83,9 +95,14 @@ func reportXUnitFormat(results []testrunner.TestResult) (string, error) {
 
 	for testType, packages := range tests {
 		testTypeSuite := testSuite{
-			Name:    testType,
 			Comment: fmt.Sprintf("test suite for %s tests", testType),
-			Suites:  make([]testSuite, 0),
+			Name:    testType,
+
+			NumTests:    numTests,
+			NumFailures: numFailures,
+			NumErrors:   numErrors,
+
+			Suites: make([]testSuite, 0),
 		}
 
 		for pkgName, pkg := range packages {
