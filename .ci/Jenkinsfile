@@ -70,7 +70,7 @@ def reportTestResults(){
   dir("${WORKSPACE}"){
     sh "ls -al ${WORKSPACE}/.elastic-package/tmp/test/reports/"
   }
-  junit(allowEmptyResults: true,
+  junit(allowEmptyResults: false,
     keepLongStdio: true,
     testResults: "${WORKSPACE}/.elastic-package/tmp/test/reports/*.xml")
 }
