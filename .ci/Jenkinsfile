@@ -68,7 +68,7 @@ def cleanup(){
 
 def reportTestResults(){
   dir("${WORKSPACE}"){
-    sh "ls -al ${WORKSPACE}/.elastic-package/tmp/test/reports/"
+    sh "cat ${WORKSPACE}/.elastic-package/tmp/test/reports/"
   }
   junit(allowEmptyResults: false,
     keepLongStdio: true,
