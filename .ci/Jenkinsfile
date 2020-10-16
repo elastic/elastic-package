@@ -45,6 +45,11 @@ pipeline {
           }
         }
       }
+      post {
+        always {
+          reportTestResults()
+        }
+      }
     }
   }
   post {
@@ -59,4 +64,10 @@ def cleanup(){
     deleteDir()
   }
   unstash 'source'
+}
+
+def reportTestResults(){
+  junit(allowEmptyResults: true,
+    keepLongStdio: true,
+    testResults: "${HOME}/.elastic-package/tmp/test/repots/*.xml")
 }
