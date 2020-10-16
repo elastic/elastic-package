@@ -40,7 +40,7 @@ type testSuite struct {
 }
 type testCase struct {
 	Name      string        `xml:"name,attr"`
-	ClassName string        `xml:"classname,attr`
+	ClassName string        `xml:"classname,attr"`
 	Time      time.Duration `xml:"time,attr"`
 
 	Error   string `xml:"error,omitempty"`
