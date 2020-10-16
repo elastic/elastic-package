@@ -69,5 +69,5 @@ def cleanup(){
 def reportTestResults(){
   junit(allowEmptyResults: true,
     keepLongStdio: true,
-    testResults: "${HOME}/.elastic-package/tmp/test/repots/*.xml")
+    testResults: "${WORKSPACE}/.elastic-package/tmp/test/repots/*.xml")
 }
