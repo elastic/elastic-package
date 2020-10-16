@@ -54,14 +54,17 @@ type TestResult struct {
 	// Time elapsed from running a test case to arriving at its result.
 	TimeElapsed time.Duration
 
-	// If test case failed, short description of the failure.
+	// If test case failed, short description of the failure. A failure is
+	// when the test completes execution but the actual results of the test
+	// don't match the expected results.
 	FailureMsg string
 
 	// If test case failed, longer description of the failure.
 	FailureDetails string
 
 	// If there was an error while running the test case, description
-	// of the error.
+	// of the error. An error is when the test cannot complete execution due
+	// to an unexpected runtime error in the test execution.
 	ErrorMsg string
 }
 
