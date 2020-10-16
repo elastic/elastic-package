@@ -31,9 +31,9 @@ type testSuite struct {
 	Comment string `xml:",comment"`
 
 	Name        string `xml:"name,attr"`
-	NumTests    int    `xml:"tests,attr"`
-	NumFailures int    `xml:"failures,attr"`
-	NumErrors   int    `xml:"errors,attr"`
+	NumTests    int    `xml:"tests,attr,omitempty"`
+	NumFailures int    `xml:"failures,attr,omitempty"`
+	NumErrors   int    `xml:"errors,attr,omitempty"`
 
 	Suites []testSuite `xml:"testsuite,omitempty"`
 	Cases  []testCase  `xml:"testcase,omitempty"`
