@@ -39,8 +39,9 @@ type testSuite struct {
 	Cases  []testCase  `xml:"testcase,omitempty"`
 }
 type testCase struct {
-	Name string        `xml:"name,attr"`
-	Time time.Duration `xml:"time,attr"`
+	Name      string        `xml:"name,attr"`
+	ClassName string        `xml:"classname,attr`
+	Time      time.Duration `xml:"time,attr"`
 
 	Error   string `xml:"error,omitempty"`
 	Failure string `xml:"failure,omitempty"`
