@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/elastic/elastic-package/internal/common"
+
 	"github.com/coreos/pkg/multierror"
 	es "github.com/elastic/go-elasticsearch/v7"
 	"github.com/pkg/errors"
@@ -215,7 +217,7 @@ func (r *runner) run() error {
 					Value int
 				}
 				Hits []struct {
-					Source Document `json:"_source"`
+					Source common.MapStr `json:"_source"`
 				}
 			}
 		}
@@ -232,8 +234,8 @@ func (r *runner) run() error {
 
 		var multiErr multierror.Error
 		for _, hit := range results.Hits.Hits {
-			if hit.Source.Error != nil {
-				multiErr = append(multiErr, errors.New(hit.Source.Error.Message))
+			if message, err := hit.Source.GetValue("error.message"); err == common.ErrKeyNotFound {
+				multiErr = append(multiErr, errors.New(message.(string)))
 			}
 		}
 

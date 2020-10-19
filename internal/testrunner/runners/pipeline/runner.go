@@ -10,6 +10,10 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/coreos/pkg/multierror"
+
+	"github.com/elastic/elastic-package/internal/fields"
+
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/logger"
@@ -57,6 +61,11 @@ func (r *runner) run() error {
 		}
 	}()
 
+	fieldsValidator, err := fields.CreateValidatorForDataStream(dataStreamPath)
+	if err != nil {
+		return errors.Wrapf(err, "creating fields validator for data stream failed (path: %s)", dataStreamPath)
+	}
+
 	var failed bool
 	for _, testCaseFile := range testCaseFiles {
 		tc, err := r.loadTestCaseFile(testCaseFile)
@@ -70,7 +79,7 @@ func (r *runner) run() error {
 			return errors.Wrap(err, "simulating pipeline processing failed")
 		}
 
-		err = r.verifyResults(testCaseFile, result)
+		err = r.verifyResults(testCaseFile, result, fieldsValidator)
 		if err == errTestCaseFailed {
 			failed = true
 			continue
@@ -132,7 +141,7 @@ func (r *runner) loadTestCaseFile(testCaseFile string) (*testCase, error) {
 	return tc, nil
 }
 
-func (r *runner) verifyResults(testCaseFile string, result *testResult) error {
+func (r *runner) verifyResults(testCaseFile string, result *testResult, fieldsValidator *fields.Validator) error {
 	testCasePath := filepath.Join(r.options.TestFolder.Path, testCaseFile)
 
 	if r.options.GenerateTestResult {
@@ -148,6 +157,26 @@ func (r *runner) verifyResults(testCaseFile string, result *testResult) error {
 	}
 	if err != nil {
 		return errors.Wrap(err, "comparing test results failed")
+	}
+
+	err = verifyFieldsInTestResult(result, fieldsValidator)
+	if err != nil {
+		return errors.Wrap(err, "fields verification in test results failed")
+	}
+	return nil
+}
+
+func verifyFieldsInTestResult(result *testResult, fieldsValidator *fields.Validator) error {
+	var multiErr multierror.Error
+	for _, event := range result.events {
+		err := fieldsValidator.ValidateDocumentBody(event)
+		if err != nil {
+			multiErr = append(multiErr, err)
+		}
+	}
+
+	if len(multiErr) > 0 {
+		return errors.Wrap(multiErr, "one or more problems with fields found in document")
 	}
 	return nil
 }

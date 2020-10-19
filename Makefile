@@ -22,13 +22,16 @@ licenser:
 gomod:
 	go mod tidy
 
+test-go:
+	go test -v -count 1 ./...
+
 test-stack-command:
 	./scripts/test-stack-command.sh
 
 test-check-packages:
 	./scripts/test-check-packages.sh
 
-test: test-stack-command test-check-packages
+test: test-go test-stack-command test-check-packages
 
 check-git-clean:
 	git update-index --really-refresh
