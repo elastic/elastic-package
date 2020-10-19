@@ -47,7 +47,10 @@ pipeline {
       }
       post {
         always {
-          reportTestResults()
+          sh 'find . -name "*.xml" || true'
+          junit(allowEmptyResults: false,
+                keepLongStdio: true,
+                testResults: "${WORKSPACE}/**/reports/*.xml")
         }
       }
     }
@@ -64,13 +67,4 @@ def cleanup(){
     deleteDir()
   }
   unstash 'source'
-}
-
-def reportTestResults(){
-  dir("${WORKSPACE}"){
-    sh "cat ${WORKSPACE}/.elastic-package/tmp/test/reports/*.xml"
-  }
-  junit(allowEmptyResults: false,
-    keepLongStdio: true,
-    testResults: "${WORKSPACE}/.elastic-package/tmp/test/reports/*.xml")
 }
