@@ -20,7 +20,10 @@ const (
 	temporaryDir      = "tmp"
 )
 
-var serviceLogsDir = filepath.Join(temporaryDir, "service_logs")
+var (
+	serviceLogsDir = filepath.Join(temporaryDir, "service_logs")
+	testReportsDir = filepath.Join(temporaryDir, "test", "reports")
+)
 
 const versionFilename = "version"
 
@@ -85,6 +88,15 @@ func ServiceLogsDir() (string, error) {
 		return "", errors.Wrap(err, "locating configuration directory failed")
 	}
 	return filepath.Join(configurationDir, serviceLogsDir), nil
+}
+
+// TestReportsDir returns the location of the directory to store test reports.
+func TestReportsDir() (string, error) {
+	configurationDir, err := configurationDir()
+	if err != nil {
+		return "", errors.Wrap(err, "locating configuration directory failed")
+	}
+	return filepath.Join(configurationDir, testReportsDir), nil
 }
 
 func configurationDir() (string, error) {

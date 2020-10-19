@@ -106,7 +106,7 @@ func (r *DockerComposeServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedSer
 
 // TearDown tears down the service.
 func (s *dockerComposeDeployedService) TearDown() error {
-	logger.Infof("tearing down service using docker compose runner")
+	logger.Debugf("tearing down service using docker compose runner")
 	defer func() {
 		err := files.RemoveContent(s.ctxt.Logs.Folder.Local)
 		if err != nil {
