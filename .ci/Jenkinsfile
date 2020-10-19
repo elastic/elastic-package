@@ -47,10 +47,10 @@ pipeline {
       }
       post {
         always {
-          sh 'find . -name "*.xml" || true'
+          archiveArtifacts(allowEmptyArchive: true, artifacts: '.elastic-package/tmp/test/reports/*.xml')
           junit(allowEmptyResults: false,
                 keepLongStdio: true,
-                testResults: "${WORKSPACE}/**/reports/*.xml")
+                testResults: ".elastic-package/tmp/test/reports/*.xml")
         }
       }
     }
