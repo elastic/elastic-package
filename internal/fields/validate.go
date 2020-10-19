@@ -16,10 +16,12 @@ import (
 	"github.com/pkg/errors"
 )
 
+// Validator is responsible for fields validation.
 type Validator struct {
 	schema []field
 }
 
+// CreateValidatorForDataStream method creates a validator for the data stream.
 func CreateValidatorForDataStream(dataStreamRootPath string) (*Validator, error) {
 	fieldsDir := filepath.Join(dataStreamRootPath, "fields")
 	fis, err := ioutil.ReadDir(fieldsDir)
@@ -47,6 +49,7 @@ func CreateValidatorForDataStream(dataStreamRootPath string) (*Validator, error)
 	}, nil
 }
 
+// ValidateDocumentBody validates the provided document body.
 func (v *Validator) ValidateDocumentBody(body json.RawMessage) error {
 	var c common.MapStr
 	err := json.Unmarshal(body, &c)

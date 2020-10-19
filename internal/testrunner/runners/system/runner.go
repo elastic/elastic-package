@@ -234,7 +234,7 @@ func (r *runner) run() error {
 
 		var multiErr multierror.Error
 		for _, hit := range results.Hits.Hits {
-			if message, err := hit.Source.GetValue("error.message"); err == common.ErrKeyNotFound {
+			if message, err := hit.Source.GetValue("error.message"); err != common.ErrKeyNotFound {
 				multiErr = append(multiErr, errors.New(message.(string)))
 			}
 		}
