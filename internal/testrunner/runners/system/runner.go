@@ -71,6 +71,7 @@ func Run(options testrunner.TestOptions) ([]testrunner.TestResult, error) {
 
 func (r *runner) run() ([]testrunner.TestResult, error) {
 	result := testrunner.TestResult{
+		Name:       fmt.Sprintf("system test for %s/%s data stream", r.testFolder.Package, r.testFolder.DataStream),
 		TestType:   TestType,
 		Package:    r.testFolder.Package,
 		DataStream: r.testFolder.DataStream,
