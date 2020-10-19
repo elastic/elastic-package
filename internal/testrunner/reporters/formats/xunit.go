@@ -7,7 +7,6 @@ package formats
 import (
 	"encoding/xml"
 	"fmt"
-	"time"
 
 	"github.com/pkg/errors"
 
@@ -39,9 +38,9 @@ type testSuite struct {
 	Cases  []testCase  `xml:"testcase,omitempty"`
 }
 type testCase struct {
-	Name      string        `xml:"name,attr"`
-	ClassName string        `xml:"classname,attr"`
-	Time      time.Duration `xml:"time,attr"`
+	Name          string  `xml:"name,attr"`
+	ClassName     string  `xml:"classname,attr"`
+	TimeInSeconds float64 `xml:"time,attr"`
 
 	Error   string `xml:"error,omitempty"`
 	Failure string `xml:"failure,omitempty"`
@@ -81,10 +80,10 @@ func reportXUnitFormat(results []testrunner.TestResult) (string, error) {
 		}
 
 		c := testCase{
-			Name:    r.Name,
-			Time:    r.TimeElapsed,
-			Error:   r.ErrorMsg,
-			Failure: failure,
+			Name:          r.Name,
+			TimeInSeconds: r.TimeElapsed.Seconds(),
+			Error:         r.ErrorMsg,
+			Failure:       failure,
 		}
 		numTests++
 
