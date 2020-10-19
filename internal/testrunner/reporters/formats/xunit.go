@@ -79,8 +79,13 @@ func reportXUnitFormat(results []testrunner.TestResult) (string, error) {
 			numErrors++
 		}
 
+		name := fmt.Sprintf("[%s/%s] %s test", r.Package, r.DataStream, r.TestType)
+		if r.Name != "" {
+			name += ": " + r.Name
+		}
+
 		c := testCase{
-			Name:          r.Name,
+			Name:          name,
 			TimeInSeconds: r.TimeElapsed.Seconds(),
 			Error:         r.ErrorMsg,
 			Failure:       failure,
