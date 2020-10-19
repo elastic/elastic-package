@@ -11,11 +11,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/elastic/elastic-package/internal/common"
-
+	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 
-	"github.com/pkg/errors"
+	"github.com/elastic/elastic-package/internal/common"
 )
 
 // Validator is responsible for fields validation.
