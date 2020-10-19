@@ -6,8 +6,10 @@ package fields
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"path/filepath"
+	"strings"
 
 	"github.com/elastic/elastic-package/internal/common"
 
@@ -56,5 +58,48 @@ func (v *Validator) ValidateDocumentBody(body json.RawMessage) error {
 	if err != nil {
 		return errors.Wrap(err, "unmarshalling document body failed")
 	}
-	return nil // TODO
+
+	err = v.validateMapElement("", c)
+	if err != nil {
+		return errors.Wrap(err, "element validation failed")
+	}
+	return nil
+}
+
+func (v *Validator) validateMapElement(root string, elem common.MapStr) error {
+	var err error
+	for name, val := range elem {
+		key := strings.TrimLeft(root+"."+name, ".")
+
+		switch val.(type) {
+		case []map[string]interface{}:
+			for _, m := range val.([]map[string]interface{}) {
+				err = v.validateMapElement(key, m)
+				if err != nil {
+					return err
+				}
+			}
+		case map[string]interface{}:
+			err = v.validateMapElement(key, val.(map[string]interface{}))
+			if err != nil {
+				return err
+			}
+		default:
+			err = v.validateElementFormat(key, elem)
+			if err != nil {
+				return err
+			}
+			break
+		}
+	}
+	return nil
+}
+
+func (v *Validator) validateElementFormat(key, val interface{}) error {
+	if key == "" {
+		return nil // root key is always valid
+	}
+
+	fmt.Println(key) // TODO
+	return nil
 }
