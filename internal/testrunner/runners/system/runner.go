@@ -12,17 +12,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/elastic/elastic-package/internal/fields"
-
-	"github.com/elastic/elastic-package/internal/common"
-
-	"github.com/coreos/pkg/multierror"
 	es "github.com/elastic/go-elasticsearch/v7"
 	"github.com/pkg/errors"
 
+	"github.com/elastic/elastic-package/internal/common"
+	"github.com/elastic/elastic-package/internal/fields"
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/kibana/ingestmanager"
 	"github.com/elastic/elastic-package/internal/logger"
+	"github.com/elastic/elastic-package/internal/multierror"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/testrunner"
 	"github.com/elastic/elastic-package/internal/testrunner/runners/system/servicedeployer"
@@ -268,8 +266,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		}
 
 		if len(multiErr) > 0 {
-			return false, errors.Wrapf(multiErr, "one or more errors found in documents stored in %s data stream",
-				dataStream)
+			return false, errors.Wrapf(multiErr, "one or more errors found in documents stored in %s data stream", dataStream)
 		}
 		return true, nil
 	}, 2*time.Minute)
