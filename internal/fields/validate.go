@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -19,7 +20,7 @@ import (
 
 // Validator is responsible for fields validation.
 type Validator struct {
-	schema []field
+	schema []fieldDefinition
 }
 
 // CreateValidatorForDataStream method creates a validator for the data stream.
@@ -30,7 +31,7 @@ func CreateValidatorForDataStream(dataStreamRootPath string) (*Validator, error)
 		return nil, errors.Wrapf(err, "reading directory with fields failed (path: %s)", fieldsDir)
 	}
 
-	var fields []field
+	var fields []fieldDefinition
 	for _, fi := range fis {
 		f := filepath.Join(fieldsDir, fi.Name())
 		body, err := ioutil.ReadFile(f)
@@ -38,7 +39,7 @@ func CreateValidatorForDataStream(dataStreamRootPath string) (*Validator, error)
 			return nil, errors.Wrap(err, "reading fields file failed")
 		}
 
-		var u []field
+		var u []fieldDefinition
 		err = yaml.Unmarshal(body, &u)
 		if err != nil {
 			return nil, errors.Wrap(err, "unmarshalling field body failed")
@@ -84,7 +85,7 @@ func (v *Validator) validateMapElement(root string, elem common.MapStr) error {
 				return err
 			}
 		default:
-			err = v.validateElementFormat(key, elem)
+			err = v.validateElementFormat(key, val)
 			if err != nil {
 				return err
 			}
@@ -94,11 +95,44 @@ func (v *Validator) validateMapElement(root string, elem common.MapStr) error {
 	return nil
 }
 
-func (v *Validator) validateElementFormat(key, val interface{}) error {
+func (v *Validator) validateElementFormat(key string, val interface{}) error {
 	if key == "" {
 		return nil // root key is always valid
 	}
 
-	fmt.Println(key) // TODO
+	definition := findElementDefinitionInSlice("", key, v.schema)
+	if definition != nil {
+		return nil
+	}
+	return fmt.Errorf(`field "%s" is not defined`, key)
+}
+
+func findElementDefinitionInSlice(root, searchedKey string, fieldDefinitions []fieldDefinition) *fieldDefinition {
+	for _, def := range fieldDefinitions {
+		key := strings.TrimLeft(root+"."+def.Name, ".")
+		if compareKeys(key, searchedKey) {
+			return &def
+		}
+
+		if len(def.Fields) == 0 {
+			continue
+		}
+
+		fd := findElementDefinitionInSlice(key, searchedKey, def.Fields)
+		if fd != nil {
+			return fd
+		}
+	}
 	return nil
+}
+
+func compareKeys(key, searchedKey string) bool {
+	k := strings.ReplaceAll(key, ".", "\\.")
+	k = strings.ReplaceAll(k, "*", "[^.]+")
+	k = fmt.Sprintf("^%s$", k)
+	matched, err := regexp.MatchString(k, searchedKey)
+	if err != nil {
+		panic(err)
+	}
+	return matched
 }

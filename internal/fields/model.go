@@ -4,8 +4,8 @@
 
 package fields
 
-type field struct {
-	Name   string  `yaml:"name"`
-	Type   string  `yaml:"type"`
-	Fields []field `yaml:"fields"`
+type fieldDefinition struct {
+	Name   string            `yaml:"name"`
+	Type   string            `yaml:"type"`
+	Fields []fieldDefinition `yaml:"fields"`
 }
