@@ -9,13 +9,12 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/coreos/pkg/multierror"
-
-	"github.com/elastic/elastic-package/internal/fields"
-
 	"github.com/pkg/errors"
 
+	"github.com/elastic/elastic-package/internal/fields"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/testrunner"
@@ -31,28 +30,28 @@ type runner struct {
 }
 
 // Run runs the pipeline tests defined under the given folder
-func Run(options testrunner.TestOptions) error {
+func Run(options testrunner.TestOptions) ([]testrunner.TestResult, error) {
 	r := runner{options}
 	return r.run()
 }
 
-func (r *runner) run() error {
+func (r *runner) run() ([]testrunner.TestResult, error) {
 	testCaseFiles, err := r.listTestCaseFiles()
 	if err != nil {
-		return errors.Wrap(err, "listing test case definitions failed")
+		return nil, errors.Wrap(err, "listing test case definitions failed")
 	}
 
 	dataStreamPath, found, err := packages.FindDataStreamRootForPath(r.options.TestFolder.Path)
 	if err != nil {
-		return errors.Wrap(err, "locating data_stream root failed")
+		return nil, errors.Wrap(err, "locating data_stream root failed")
 	}
 	if !found {
-		return errors.New("data stream root not found")
+		return nil, errors.New("data stream root not found")
 	}
 
 	entryPipeline, pipelineIDs, err := installIngestPipelines(r.options.ESClient, dataStreamPath)
 	if err != nil {
-		return errors.Wrap(err, "installing ingest pipelines failed")
+		return nil, errors.Wrap(err, "installing ingest pipelines failed")
 	}
 	defer func() {
 		err := uninstallIngestPipelines(r.options.ESClient, pipelineIDs)
@@ -63,36 +62,54 @@ func (r *runner) run() error {
 
 	fieldsValidator, err := fields.CreateValidatorForDataStream(dataStreamPath)
 	if err != nil {
-		return errors.Wrapf(err, "creating fields validator for data stream failed (path: %s)", dataStreamPath)
+		return nil, errors.Wrapf(err, "creating fields validator for data stream failed (path: %s)", dataStreamPath)
 	}
 
-	var failed bool
+	results := make([]testrunner.TestResult, 0)
 	for _, testCaseFile := range testCaseFiles {
+		tr := testrunner.TestResult{
+			TestType:   TestType,
+			Package:    r.options.TestFolder.Package,
+			DataStream: r.options.TestFolder.DataStream,
+		}
+		startTime := time.Now()
+
 		tc, err := r.loadTestCaseFile(testCaseFile)
 		if err != nil {
-			return errors.Wrap(err, "loading test case failed")
+			err := errors.Wrap(err, "loading test case failed")
+			tr.ErrorMsg = err.Error()
+			results = append(results, tr)
+			continue
 		}
-		fmt.Printf("Test case: %s\n", tc.name)
+		tr.Name = tc.name
 
 		result, err := simulatePipelineProcessing(r.options.ESClient, entryPipeline, tc)
 		if err != nil {
-			return errors.Wrap(err, "simulating pipeline processing failed")
+			err := errors.Wrap(err, "simulating pipeline processing failed")
+			tr.ErrorMsg = err.Error()
+			results = append(results, tr)
+			continue
 		}
 
+		tr.TimeElapsed = time.Now().Sub(startTime)
 		err = r.verifyResults(testCaseFile, result, fieldsValidator)
-		if err == errTestCaseFailed {
-			failed = true
+		if e, ok := err.(ErrTestCaseFailed); ok {
+			tr.FailureMsg = e.Error()
+			tr.FailureDetails = e.Details
+
+			results = append(results, tr)
 			continue
 		}
 		if err != nil {
-			return errors.Wrap(err, "verifying test result failed")
+			err := errors.Wrap(err, "verifying test result failed")
+			tr.ErrorMsg = err.Error()
+			results = append(results, tr)
+			continue
 		}
-	}
 
-	if failed {
-		return errors.New("at least one test case failed")
+		results = append(results, tr)
 	}
-	return nil
+	return results, nil
 }
 
 func (r *runner) listTestCaseFiles() ([]string, error) {
@@ -152,8 +169,8 @@ func (r *runner) verifyResults(testCaseFile string, result *testResult, fieldsVa
 	}
 
 	err := compareResults(testCasePath, result)
-	if err == errTestCaseFailed {
-		return errTestCaseFailed
+	if _, ok := err.(ErrTestCaseFailed); ok {
+		return err
 	}
 	if err != nil {
 		return errors.Wrap(err, "comparing test results failed")

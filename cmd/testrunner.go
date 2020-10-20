@@ -15,6 +15,8 @@ import (
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/testrunner"
+	"github.com/elastic/elastic-package/internal/testrunner/reporters/formats"
+	"github.com/elastic/elastic-package/internal/testrunner/reporters/outputs"
 	_ "github.com/elastic/elastic-package/internal/testrunner/runners" // register all test runners
 )
 
@@ -38,6 +40,8 @@ func setupTestCommand() *cobra.Command {
 	cmd.PersistentFlags().BoolP(cobraext.FailOnMissingFlagName, "m", false, cobraext.FailOnMissingFlagDescription)
 	cmd.PersistentFlags().BoolP(cobraext.GenerateTestResultFlagName, "g", false, cobraext.GenerateTestResultFlagDescription)
 	cmd.PersistentFlags().StringSliceP(cobraext.DataStreamsFlagName, "d", nil, cobraext.DataStreamsFlagDescription)
+	cmd.PersistentFlags().StringP(cobraext.ReportFormatFlagName, "", string(formats.ReportFormatHuman), cobraext.ReportFormatFlagDescription)
+	cmd.PersistentFlags().StringP(cobraext.ReportOutputFlagName, "", string(outputs.ReportOutputSTDOUT), cobraext.ReportOutputFlagDescription)
 
 	for _, testType := range testrunner.TestTypes() {
 		action := testTypeCommandActionFactory(testType)
@@ -75,6 +79,16 @@ func testTypeCommandActionFactory(testType testrunner.TestType) cobraext.Command
 			return cobraext.FlagParsingError(err, cobraext.GenerateTestResultFlagName)
 		}
 
+		reportFormat, err := cmd.Flags().GetString(cobraext.ReportFormatFlagName)
+		if err != nil {
+			return cobraext.FlagParsingError(err, cobraext.ReportFormatFlagName)
+		}
+
+		reportOutput, err := cmd.Flags().GetString(cobraext.ReportOutputFlagName)
+		if err != nil {
+			return cobraext.FlagParsingError(err, cobraext.ReportOutputFlagName)
+		}
+
 		packageRootPath, found, err := packages.FindPackageRoot()
 		if !found {
 			return errors.New("package root not found")
@@ -100,18 +114,32 @@ func testTypeCommandActionFactory(testType testrunner.TestType) cobraext.Command
 			return errors.Wrap(err, "fetching Elasticsearch client instance failed")
 		}
 
+		var results []testrunner.TestResult
 		for _, folder := range testFolders {
-			if err := testrunner.Run(testType, testrunner.TestOptions{
+			r, err := testrunner.Run(testType, testrunner.TestOptions{
 				TestFolder:         folder,
 				PackageRootPath:    packageRootPath,
 				GenerateTestResult: generateTestResult,
 				ESClient:           esClient,
-			}); err != nil {
+			})
+
+			results = append(results, r...)
+
+			if err != nil {
 				return errors.Wrapf(err, "error running package %s tests", testType)
 			}
 		}
 
-		cmd.Println("Done")
+		format := testrunner.TestReportFormat(reportFormat)
+		report, err := testrunner.FormatReport(format, results)
+		if err != nil {
+			return errors.Wrap(err, "error formatting test report")
+		}
+
+		if err := testrunner.WriteReport(testrunner.TestReportOutput(reportOutput), report, format); err != nil {
+			return errors.Wrap(err, "error writing test report")
+		}
+
 		return nil
 	}
 }
