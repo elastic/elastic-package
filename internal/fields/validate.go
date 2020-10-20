@@ -66,6 +66,15 @@ func (v *Validator) ValidateDocumentBody(body json.RawMessage) error {
 	return nil
 }
 
+// ValidateDocumentMap validates the provided document as common.MapStr.
+func (v *Validator) ValidateDocumentMap(body common.MapStr) error {
+	err := v.validateMapElement("", body)
+	if err != nil {
+		return errors.Wrap(err, "element validation failed")
+	}
+	return nil
+}
+
 func (v *Validator) validateMapElement(root string, elem common.MapStr) error {
 	var err error
 	for name, val := range elem {

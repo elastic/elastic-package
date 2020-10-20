@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/elastic/elastic-package/internal/fields"
+
 	"github.com/elastic/elastic-package/internal/common"
 
 	"github.com/coreos/pkg/multierror"
@@ -215,6 +217,11 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		}
 	}
 
+	fieldsValidator, err := fields.CreateValidatorForDataStream(dataStreamPath)
+	if err != nil {
+		return resultsWith(result, errors.Wrapf(err, "creating fields validator for data stream failed (path: %s)", dataStreamPath))
+	}
+
 	// Step 4. (TODO in future) Optionally exercise service to generate load.
 	logger.Debug("checking for expected data in data stream...")
 	passed, err := waitUntilTrue(func() (bool, error) {
@@ -251,6 +258,12 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		for _, hit := range results.Hits.Hits {
 			if message, err := hit.Source.GetValue("error.message"); err != common.ErrKeyNotFound {
 				multiErr = append(multiErr, errors.New(message.(string)))
+				continue
+			}
+
+			err := fieldsValidator.ValidateDocumentMap(hit.Source)
+			if err != nil {
+				multiErr = append(multiErr, err)
 			}
 		}
 
