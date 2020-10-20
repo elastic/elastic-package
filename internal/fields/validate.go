@@ -58,21 +58,12 @@ func (v *Validator) ValidateDocumentBody(body json.RawMessage) error {
 	if err != nil {
 		return errors.Wrap(err, "unmarshalling document body failed")
 	}
-
-	err = v.validateMapElement("", c)
-	if err != nil {
-		return errors.Wrap(err, "element validation failed")
-	}
-	return nil
+	return v.validateMapElement("", c)
 }
 
 // ValidateDocumentMap validates the provided document as common.MapStr.
 func (v *Validator) ValidateDocumentMap(body common.MapStr) error {
-	err := v.validateMapElement("", body)
-	if err != nil {
-		return errors.Wrap(err, "element validation failed")
-	}
-	return nil
+	return v.validateMapElement("", body)
 }
 
 func (v *Validator) validateMapElement(root string, elem common.MapStr) error {

@@ -11,11 +11,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/coreos/pkg/multierror"
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/fields"
 	"github.com/elastic/elastic-package/internal/logger"
+	"github.com/elastic/elastic-package/internal/multierror"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
@@ -178,7 +178,7 @@ func (r *runner) verifyResults(testCaseFile string, result *testResult, fieldsVa
 
 	err = verifyFieldsInTestResult(result, fieldsValidator)
 	if err != nil {
-		return errors.Wrap(err, "fields verification in test results failed")
+		return err
 	}
 	return nil
 }
@@ -193,7 +193,10 @@ func verifyFieldsInTestResult(result *testResult, fieldsValidator *fields.Valida
 	}
 
 	if len(multiErr) > 0 {
-		return errors.Wrap(multiErr, "one or more problems with fields found in document")
+		return ErrTestCaseFailed{
+			Reason:  "one or more problems with fields found in document",
+			Details: multiErr.Error(),
+		}
 	}
 	return nil
 }
