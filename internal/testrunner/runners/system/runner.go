@@ -88,7 +88,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		if tcf, ok := err.(testerrors.ErrTestCaseFailed); ok {
 			tr.FailureMsg = tcf.Reason
 			tr.FailureDetails = tcf.Details
-			return []testrunner.TestResult{tr}, err
+			return []testrunner.TestResult{tr}, nil
 		}
 
 		tr.ErrorMsg = err.Error()
