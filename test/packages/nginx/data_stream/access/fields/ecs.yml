@@ -145,3 +145,30 @@
     - name: ip
       type: ip
       description: All of the IPs seen on your event.
+- name: event.category
+  type: keyword
+- name: event.created
+  type: date
+  description: Date/time when the event was first read by an agent, or by your pipeline.
+- name: event.outcome
+  type: date
+- name: event.type
+  type: keyword
+- name: event.kind
+  type: keyword
+- name: user_agent.os.full
+  type: keyword
+- name: user_agent.os.version
+  type: keyword
+  description: Operating system version as a raw string.
+- name: user_agent.version
+  type: keyword
+  description: Version of the user agent.
+- name: source.geo.location
+  type: geo_point
+- name: source.geo.country_name
+  type: keyword
+- name: source.as.number
+  type: long
+- name: source.as.organization.name
+  type: long
