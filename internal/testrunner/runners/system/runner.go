@@ -24,6 +24,7 @@ import (
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/testrunner"
 	"github.com/elastic/elastic-package/internal/testrunner/runners/system/servicedeployer"
+	"github.com/elastic/elastic-package/internal/testrunner/runners/testerrors"
 )
 
 func init() {
@@ -80,10 +81,17 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 	startTime := time.Now()
 	resultsWith := func(tr testrunner.TestResult, err error) ([]testrunner.TestResult, error) {
 		tr.TimeElapsed = time.Now().Sub(startTime)
-		if err != nil {
-			tr.ErrorMsg = err.Error()
+		if err == nil {
+			return []testrunner.TestResult{tr}, nil
 		}
 
+		if tcf, ok := err.(testerrors.ErrTestCaseFailed); ok {
+			tr.FailureMsg = tcf.Reason
+			tr.FailureDetails = tcf.Details
+			return []testrunner.TestResult{tr}, err
+		}
+
+		tr.ErrorMsg = err.Error()
 		return []testrunner.TestResult{tr}, err
 	}
 
@@ -266,19 +274,20 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		}
 
 		if len(multiErr) > 0 {
-			return false, errors.Wrapf(multiErr, "one or more errors found in documents stored in %s data stream", dataStream)
+			return false, testerrors.ErrTestCaseFailed{
+				Reason:  fmt.Sprintf("one or more errors found in documents stored in %s data stream", dataStream),
+				Details: multiErr.Error(),
+			}
 		}
 		return true, nil
 	}, 2*time.Minute)
-
 	if err != nil {
-		return resultsWith(result, errors.Wrap(err, "could not check for expected data in data stream"))
+		return resultsWith(result, err)
 	}
 
 	if !passed {
 		result.FailureMsg = fmt.Sprintf("could not find hits in %s data stream", dataStream)
 	}
-
 	return resultsWith(result, nil)
 }
 

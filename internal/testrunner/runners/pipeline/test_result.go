@@ -10,22 +10,13 @@ import (
 	"io/ioutil"
 	"path/filepath"
 
+	"github.com/elastic/elastic-package/internal/testrunner/runners/testerrors"
+
 	"github.com/kylelemons/godebug/diff"
 	"github.com/pkg/errors"
 )
 
 const expectedTestResultSuffix = "-expected.json"
-
-// ErrTestCaseFailed represents a test case failure result
-type ErrTestCaseFailed struct {
-	Reason  string
-	Details string
-}
-
-// Error returns the message detailing the test case failure.
-func (e ErrTestCaseFailed) Error() string {
-	return fmt.Sprintf("test case failed: %s", e.Reason)
-}
 
 type testResult struct {
 	events []json.RawMessage
@@ -63,7 +54,7 @@ func compareResults(testCasePath string, result *testResult) error {
 
 	report := diff.Diff(string(expected), string(actual))
 	if report != "" {
-		return ErrTestCaseFailed{
+		return testerrors.ErrTestCaseFailed{
 			Reason:  "Expected results are different from actual ones",
 			Details: report,
 		}
