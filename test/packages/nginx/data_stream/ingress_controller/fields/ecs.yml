@@ -35,6 +35,9 @@
   group: 2
   type: group
   fields:
+    - name: address
+      type: keyword
+      description: Source address
     - name: geo.city_name
       level: core
       type: keyword

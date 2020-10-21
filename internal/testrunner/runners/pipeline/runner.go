@@ -195,7 +195,7 @@ func verifyFieldsInTestResult(result *testResult, fieldsValidator *fields.Valida
 
 	if len(multiErr) > 0 {
 		return testerrors.ErrTestCaseFailed{
-			Reason:  "one or more problems with fields found in document",
+			Reason:  "one or more problems with fields found in documents",
 			Details: multiErr.Error(),
 		}
 	}

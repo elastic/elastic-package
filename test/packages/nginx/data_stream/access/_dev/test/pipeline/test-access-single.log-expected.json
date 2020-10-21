@@ -1,17 +1,22 @@
 {
     "expected": [
         {
+            "@timestamp": "2016-12-07T10:04:37.000Z",
             "nginx": {
                 "access": {
                     "remote_ip_list": [
                         "127.0.0.1"
-                    ],
-                    "time": "07/Dec/2016:11:04:37 +0100"
+                    ]
                 }
+            },
+            "related": {
+                "ip": [
+                    "127.0.0.1"
+                ]
             },
             "http": {
                 "request": {
-                    "method": "GET"
+                    "method": "get"
                 },
                 "version": "1.1",
                 "response": {
@@ -25,11 +30,29 @@
                 "address": "127.0.0.1",
                 "ip": "127.0.0.1"
             },
-            "error": {
-                "message": "field [@timestamp] doesn't exist"
+            "event": {
+                "category": [
+                    "web"
+                ],
+                "type": [
+                    "access"
+                ],
+                "created": "2020-04-28T11:07:58.223Z",
+                "kind": "event",
+                "outcome": "failure"
             },
             "user_agent": {
-                "original": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.98 Safari/537.36"
+                "name": "Chrome",
+                "original": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.98 Safari/537.36",
+                "os": {
+                    "name": "Mac OS X",
+                    "version": "10.12.0",
+                    "full": "Mac OS X 10.12.0"
+                },
+                "device": {
+                    "name": "Mac"
+                },
+                "version": "54.0.2840.98"
             },
             "url": {
                 "original": "/test1"
