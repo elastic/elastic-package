@@ -102,7 +102,7 @@ func (v *Validator) validateElementFormat(key string, val interface{}) error {
 
 	definition := findElementDefinitionInSlice("", key, v.schema)
 	if definition != nil {
-		return nil
+		return nil // TODO check field type
 	}
 	return fmt.Errorf(`field "%s" is not defined`, key)
 }
@@ -110,7 +110,7 @@ func (v *Validator) validateElementFormat(key string, val interface{}) error {
 func findElementDefinitionInSlice(root, searchedKey string, fieldDefinitions []fieldDefinition) *fieldDefinition {
 	for _, def := range fieldDefinitions {
 		key := strings.TrimLeft(root+"."+def.Name, ".")
-		if compareKeys(key, searchedKey) {
+		if compareKeys(key, def, searchedKey) {
 			return &def
 		}
 
@@ -126,9 +126,15 @@ func findElementDefinitionInSlice(root, searchedKey string, fieldDefinitions []f
 	return nil
 }
 
-func compareKeys(key, searchedKey string) bool {
+func compareKeys(key string, def fieldDefinition, searchedKey string) bool {
 	k := strings.ReplaceAll(key, ".", "\\.")
 	k = strings.ReplaceAll(k, "*", "[^.]+")
+
+	// Workaround for potential geo_point, as "lot" and "lat" fields are not present in field definitions.
+	if def.Type == "geo_point" {
+		k += "\\.(lon|lat)"
+	}
+
 	k = fmt.Sprintf("^%s$", k)
 	matched, err := regexp.MatchString(k, searchedKey)
 	if err != nil {
