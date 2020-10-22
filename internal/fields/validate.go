@@ -157,18 +157,16 @@ func parseElementValue(key string, definition fieldDefinition, val interface{}) 
 
 	var valid bool
 	switch definition.Type {
-	case "date", "ip", "constant_keyword", "keyword":
+	case "date", "ip", "constant_keyword", "keyword", "text":
 		_, valid = val.(string)
 	case "float", "long", "double":
 		_, valid = val.(float64)
-	case "object":
-		valid = true // all object properties are considered valid
 	default:
-		return fmt.Errorf("field \"%s\" has unsupported type: %s", key, definition.Type)
+		valid = true // all other types are considered valid not blocking validation
 	}
 
 	if !valid {
-		return fmt.Errorf("field \"%s\" has invalid type, expected: %s, actual raw type: %s", key, definition.Type, reflect.TypeOf(val))
+		return fmt.Errorf("field \"%s\" has invalid type, expected: %s, actual Go type: %s", key, definition.Type, reflect.TypeOf(val))
 	}
 	return nil
 }

@@ -171,4 +171,4 @@
 - name: source.as.number
   type: long
 - name: source.as.organization.name
-  type: long
+  type: keyword
