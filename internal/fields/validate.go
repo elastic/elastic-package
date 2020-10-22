@@ -101,6 +101,10 @@ func (v *Validator) validateElementFormat(key string, val interface{}) error {
 		return nil // root key is always valid
 	}
 
+	if skipValidationForField(key) {
+		return nil // generic field, let's skip validation for now
+	}
+
 	definition := findElementDefinitionInSlice("", key, v.schema)
 	if definition == nil {
 		return fmt.Errorf(`field "%s" is not defined`, key)
@@ -111,6 +115,15 @@ func (v *Validator) validateElementFormat(key string, val interface{}) error {
 		return errors.Wrap(err, "parsing field value failed")
 	}
 	return nil
+}
+
+func skipValidationForField(key string) bool {
+	return isFieldFamilyMatching("agent", key) ||
+		isFieldFamilyMatching("elastic_agent", key)
+}
+
+func isFieldFamilyMatching(family, key string) bool {
+	return key == family || strings.HasPrefix(key, family+".")
 }
 
 func findElementDefinitionInSlice(root, searchedKey string, fieldDefinitions []fieldDefinition) *fieldDefinition {
