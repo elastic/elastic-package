@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"strings"
 
@@ -101,10 +102,15 @@ func (v *Validator) validateElementFormat(key string, val interface{}) error {
 	}
 
 	definition := findElementDefinitionInSlice("", key, v.schema)
-	if definition != nil {
-		return nil // TODO check field type
+	if definition == nil {
+		return fmt.Errorf(`field "%s" is not defined`, key)
 	}
-	return fmt.Errorf(`field "%s" is not defined`, key)
+
+	err := parseElementValue(key, *definition, val)
+	if err != nil {
+		return errors.Wrap(err, "parsing field value failed")
+	}
+	return nil
 }
 
 func findElementDefinitionInSlice(root, searchedKey string, fieldDefinitions []fieldDefinition) *fieldDefinition {
@@ -141,4 +147,39 @@ func compareKeys(key string, def fieldDefinition, searchedKey string) bool {
 		panic(err)
 	}
 	return matched
+}
+
+func parseElementValue(key string, definition fieldDefinition, val interface{}) error {
+	val, ok := ensureSingleElementValue(val)
+	if !ok {
+		return nil // it's an array, but it's not possible to extract the single value.
+	}
+
+	var valid bool
+	switch definition.Type {
+	case "date", "ip", "constant_keyword", "keyword":
+		_, valid = val.(string)
+	case "float", "long", "double":
+		_, valid = val.(float64)
+	case "object":
+		valid = true // all object properties are considered valid
+	default:
+		return fmt.Errorf("field \"%s\" has unsupported type: %s", key, definition.Type)
+	}
+
+	if !valid {
+		return fmt.Errorf("field \"%s\" has invalid type, expected: %s, actual raw type: %s", key, definition.Type, reflect.TypeOf(val))
+	}
+	return nil
+}
+
+func ensureSingleElementValue(val interface{}) (interface{}, bool) {
+	arr, isArray := val.([]interface{})
+	if !isArray {
+		return val, true
+	}
+	if len(arr) > 0 {
+		return arr[0], true
+	}
+	return nil, false // false: empty array, can't deduce single value type
 }
