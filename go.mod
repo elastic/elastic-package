@@ -10,7 +10,7 @@ require (
 	github.com/coreos/pkg v0.0.0-20180928190104-399ea9e2e55f
 	github.com/elastic/go-elasticsearch/v7 v7.9.0
 	github.com/elastic/go-ucfg v0.8.3
-	github.com/elastic/package-spec/code/go v0.0.0-20201014114156-e7102f8cbd39
+	github.com/elastic/package-spec/code/go v0.0.0-20201026084717-cdb8fbed8491
 	github.com/go-git/go-billy/v5 v5.0.0
 	github.com/go-git/go-git/v5 v5.1.0
 	github.com/go-openapi/strfmt v0.19.6 // indirect
@@ -27,8 +27,7 @@ require (
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
 	golang.org/x/crypto v0.0.0-20200820211705-5c72a883971a // indirect
-	golang.org/x/net v0.0.0-20200904194848-62affa334b73 // indirect
+	golang.org/x/net v0.0.0-20201021035429-f5854403a974 // indirect
 	golang.org/x/oauth2 v0.0.0-20200902213428-5d25da1a8d43
-	golang.org/x/sys v0.0.0-20200915084602-288bc346aa39 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20200615113413-eeeca48fe776
 )
