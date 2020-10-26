@@ -122,7 +122,8 @@ func (v *Validator) validateScalarElement(key string, val interface{}) error {
 // FIXME https://github.com/elastic/elastic-package/issues/147
 func skipValidationForField(key string) bool {
 	return isFieldFamilyMatching("agent", key) ||
-		isFieldFamilyMatching("elastic_agent", key)
+		isFieldFamilyMatching("elastic_agent", key) ||
+		isFieldFamilyMatching("metricset", key)
 }
 
 func isFieldFamilyMatching(family, key string) bool {

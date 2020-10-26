@@ -1,2 +1,6 @@
 - name: event.dataset
   type: keyword
+- name: service.type
+  type: keyword
+- name: ecs.version
+  type: keyword

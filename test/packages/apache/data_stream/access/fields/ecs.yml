@@ -185,6 +185,10 @@
       type: keyword
       ignore_above: 1024
       description: Version of the user agent.
+- name: ecs.version
+  type: keyword
+- name: event.category
+  type: keyword
 - name: event.created
   type: date
 - name: event.kind
@@ -197,3 +201,7 @@
   type: keyword
 - name: cloud.project.id
   type: keyword
+- name: log.file.path
+  type: keyword
+- name: log.offset
+  type: long
