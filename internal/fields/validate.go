@@ -86,7 +86,7 @@ func (v *Validator) validateMapElement(root string, elem common.MapStr) error {
 				return err
 			}
 		default:
-			err = v.validateElementFormat(key, val)
+			err = v.validateScalarElement(key, val)
 			if err != nil {
 				return err
 			}
@@ -96,7 +96,7 @@ func (v *Validator) validateMapElement(root string, elem common.MapStr) error {
 	return nil
 }
 
-func (v *Validator) validateElementFormat(key string, val interface{}) error {
+func (v *Validator) validateScalarElement(key string, val interface{}) error {
 	if key == "" {
 		return nil // root key is always valid
 	}
