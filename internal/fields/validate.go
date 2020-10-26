@@ -119,6 +119,7 @@ func (v *Validator) validateScalarElement(key string, val interface{}) error {
 
 // skipValidationForField skips field validation (field presence) of special fields. The special fields are present
 // in every (most?) documents collected by Elastic Agent, but aren't defined in any integration in `fields.yml` files.
+// FIXME https://github.com/elastic/elastic-package/issues/147
 func skipValidationForField(key string) bool {
 	return isFieldFamilyMatching("agent", key) ||
 		isFieldFamilyMatching("elastic_agent", key)
