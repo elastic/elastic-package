@@ -185,3 +185,15 @@
       type: keyword
       ignore_above: 1024
       description: Version of the user agent.
+- name: event.created
+  type: date
+- name: event.kind
+  type: keyword
+- name: source.ip
+  type: ip
+- name: cloud.machine.type
+  type: keyword
+- name: cloud.availability_zone
+  type: keyword
+- name: cloud.project.id
+  type: keyword

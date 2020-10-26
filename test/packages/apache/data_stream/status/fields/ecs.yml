@@ -1,0 +1,2 @@
+- name: event.dataset
+  type: keyword

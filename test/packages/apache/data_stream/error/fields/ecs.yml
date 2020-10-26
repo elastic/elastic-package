@@ -175,3 +175,5 @@
           type: text
           norms: false
           default_field: false
+- name: ecs.version
+  type: keyword
