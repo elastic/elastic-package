@@ -23,6 +23,10 @@ const (
 )
 
 func reportHumanFormat(results []testrunner.TestResult) (string, error) {
+	if len(results) == 0 {
+		return "No test results", nil
+	}
+
 	t := table.NewWriter()
 	t.AppendHeader(table.Row{"Package", "Data stream", "Test type", "Test name", "Result", "Time elapsed"})
 
