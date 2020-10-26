@@ -149,7 +149,7 @@ func compareKeys(key string, def fieldDefinition, searchedKey string) bool {
 	k := strings.ReplaceAll(key, ".", "\\.")
 	k = strings.ReplaceAll(k, "*", "[^.]+")
 
-	// Workaround for potential geo_point, as "lot" and "lat" fields are not present in field definitions.
+	// Workaround for potential geo_point, as "lon" and "lat" fields are not present in field definitions.
 	if def.Type == "geo_point" {
 		k += "\\.(lon|lat)"
 	}
