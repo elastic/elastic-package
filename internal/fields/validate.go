@@ -105,7 +105,7 @@ func (v *Validator) validateScalarElement(key string, val interface{}) error {
 		return nil // generic field, let's skip validation for now
 	}
 
-	definition := findElementDefinitionInSlice("", key, v.schema)
+	definition := findElementDefinition("", key, v.schema)
 	if definition == nil {
 		return fmt.Errorf(`field "%s" is not defined`, key)
 	}
@@ -129,7 +129,7 @@ func isFieldFamilyMatching(family, key string) bool {
 	return key == family || strings.HasPrefix(key, family+".")
 }
 
-func findElementDefinitionInSlice(root, searchedKey string, fieldDefinitions []fieldDefinition) *fieldDefinition {
+func findElementDefinition(root, searchedKey string, fieldDefinitions []fieldDefinition) *fieldDefinition {
 	for _, def := range fieldDefinitions {
 		key := strings.TrimLeft(root+"."+def.Name, ".")
 		if compareKeys(key, def, searchedKey) {
@@ -140,7 +140,7 @@ func findElementDefinitionInSlice(root, searchedKey string, fieldDefinitions []f
 			continue
 		}
 
-		fd := findElementDefinitionInSlice(key, searchedKey, def.Fields)
+		fd := findElementDefinition(key, searchedKey, def.Fields)
 		if fd != nil {
 			return fd
 		}
