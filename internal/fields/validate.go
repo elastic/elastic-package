@@ -157,7 +157,7 @@ func compareKeys(key string, def fieldDefinition, searchedKey string) bool {
 	k = fmt.Sprintf("^%s$", k)
 	matched, err := regexp.MatchString(k, searchedKey)
 	if err != nil {
-		panic(err)
+		panic(errors.Wrapf(err, "regexp built using the given field/key (%s) is invalid", k))
 	}
 	return matched
 }
