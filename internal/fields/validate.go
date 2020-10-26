@@ -187,6 +187,8 @@ func parseElementValue(key string, definition fieldDefinition, val interface{}) 
 	return nil
 }
 
+// ensureSingleElementValue extracts single entity from a potential array, which is a valid field representation
+// in Elasticsearch. For type assertion we need a single value.
 func ensureSingleElementValue(val interface{}) (interface{}, bool) {
 	arr, isArray := val.([]interface{})
 	if !isArray {
