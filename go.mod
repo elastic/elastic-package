@@ -10,7 +10,7 @@ require (
 	github.com/coreos/pkg v0.0.0-20180928190104-399ea9e2e55f
 	github.com/elastic/go-elasticsearch/v7 v7.9.0
 	github.com/elastic/go-ucfg v0.8.3
-	github.com/elastic/package-spec/code/go v0.0.0-20201014114156-e7102f8cbd39
+	github.com/elastic/package-spec/code/go v0.0.0-20201026084717-cdb8fbed8491
 	github.com/go-git/go-billy/v5 v5.0.0
 	github.com/go-git/go-git/v5 v5.1.0
 	github.com/go-openapi/strfmt v0.19.6 // indirect
