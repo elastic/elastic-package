@@ -74,7 +74,7 @@ type ReportFormatFunc func(results []TestResult) (string, error)
 var reportFormatters = map[TestReportFormat]ReportFormatFunc{}
 
 // ReportOutputFunc defines the report writer function.
-type ReportOutputFunc func(report string, format TestReportFormat) error
+type ReportOutputFunc func(pkg, report string, format TestReportFormat) error
 
 var reportOutputs = map[TestReportOutput]ReportOutputFunc{}
 
@@ -184,13 +184,13 @@ func RegisterReporterOutput(name TestReportOutput, outputFunc ReportOutputFunc) 
 }
 
 // WriteReport delegates writing of test results to the registered test report output
-func WriteReport(name TestReportOutput, report string, format TestReportFormat) error {
+func WriteReport(pkg string, name TestReportOutput, report string, format TestReportFormat) error {
 	outputFunc, defined := reportOutputs[name]
 	if !defined {
 		return fmt.Errorf("unregistered test report output: %s", name)
 	}
 
-	return outputFunc(report, format)
+	return outputFunc(pkg, report, format)
 }
 
 func findTestFolderPaths(packageRootPath, dataStreamGlob, testTypeGlob string) ([]string, error) {
