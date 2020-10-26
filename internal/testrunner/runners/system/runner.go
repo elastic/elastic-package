@@ -270,6 +270,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 			err := fieldsValidator.ValidateDocumentMap(hit.Source)
 			if err != nil {
 				multiErr = append(multiErr, err)
+				continue
 			}
 		}
 
