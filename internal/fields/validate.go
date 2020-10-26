@@ -27,14 +27,14 @@ type Validator struct {
 // CreateValidatorForDataStream method creates a validator for the data stream.
 func CreateValidatorForDataStream(dataStreamRootPath string) (*Validator, error) {
 	fieldsDir := filepath.Join(dataStreamRootPath, "fields")
-	fis, err := ioutil.ReadDir(fieldsDir)
+	fileInfos, err := ioutil.ReadDir(fieldsDir)
 	if err != nil {
 		return nil, errors.Wrapf(err, "reading directory with fields failed (path: %s)", fieldsDir)
 	}
 
 	var fields []fieldDefinition
-	for _, fi := range fis {
-		f := filepath.Join(fieldsDir, fi.Name())
+	for _, fileInfo := range fileInfos {
+		f := filepath.Join(fieldsDir, fileInfo.Name())
 		body, err := ioutil.ReadFile(f)
 		if err != nil {
 			return nil, errors.Wrap(err, "reading fields file failed")
