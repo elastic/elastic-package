@@ -195,13 +195,45 @@
   type: keyword
 - name: source.ip
   type: ip
-- name: cloud.machine.type
-  type: keyword
-- name: cloud.availability_zone
-  type: keyword
-- name: cloud.project.id
-  type: keyword
 - name: log.file.path
   type: keyword
 - name: log.offset
   type: long
+- name: cloud.project.id
+  type: keyword
+- name: cloud.instance.id
+  type: keyword
+- name: cloud.instance.name
+  type: keyword
+- name: cloud.provider
+  type: keyword
+- name: cloud.machine.type
+  type: keyword
+- name: cloud.availability_zone
+  type: keyword
+- name: host.architecture
+  type: keyword
+- name: host.containerized
+  type: keyword
+- name: host.hostname
+  type: keyword
+- name: host.ip
+  type: ip
+- name: host.mac
+  type: keyword
+- name: host.name
+  type: keyword
+- name: host.os.codename
+  type: keyword
+- name: host.os.family
+  type: keyword
+- name: host.os.kernel
+  type: keyword
+- name: host.os.name
+  type: keyword
+- name: host.os.platform
+  type: keyword
+- name: host.os.version
+  type: keyword
+- name: input.type
+  type: keyword

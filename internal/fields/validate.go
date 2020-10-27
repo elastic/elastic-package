@@ -135,7 +135,8 @@ func (v *Validator) validateScalarElement(key string, val interface{}) error {
 func skipValidationForField(key string) bool {
 	return isFieldFamilyMatching("agent", key) ||
 		isFieldFamilyMatching("elastic_agent", key) ||
-		isFieldFamilyMatching("metricset", key)
+		isFieldFamilyMatching("metricset", key) || // field is deprecated
+		isFieldFamilyMatching("event.module", key) // field is deprecated
 }
 
 func isFieldFamilyMatching(family, key string) bool {
