@@ -198,7 +198,7 @@
 - name: host.architecture
   type: keyword
 - name: host.containerized
-  type: keyword
+  type: boolean
 - name: host.hostname
   type: keyword
 - name: host.ip

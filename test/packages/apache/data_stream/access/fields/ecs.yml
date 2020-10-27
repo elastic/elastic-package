@@ -191,7 +191,11 @@
   type: keyword
 - name: event.created
   type: date
+- name: event.dataset
+  type: keyword
 - name: event.kind
+  type: keyword
+- name: event.outcome
   type: keyword
 - name: source.ip
   type: ip
@@ -214,7 +218,7 @@
 - name: host.architecture
   type: keyword
 - name: host.containerized
-  type: keyword
+  type: boolean
 - name: host.hostname
   type: keyword
 - name: host.ip
