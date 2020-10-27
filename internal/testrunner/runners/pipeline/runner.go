@@ -13,9 +13,12 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/elastic/elastic-package/internal/fields"
 	"github.com/elastic/elastic-package/internal/logger"
+	"github.com/elastic/elastic-package/internal/multierror"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/testrunner"
+	"github.com/elastic/elastic-package/internal/testrunner/runners/testerrors"
 )
 
 const (
@@ -58,6 +61,11 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		}
 	}()
 
+	fieldsValidator, err := fields.CreateValidatorForDataStream(dataStreamPath)
+	if err != nil {
+		return nil, errors.Wrapf(err, "creating fields validator for data stream failed (path: %s)", dataStreamPath)
+	}
+
 	results := make([]testrunner.TestResult, 0)
 	for _, testCaseFile := range testCaseFiles {
 		tr := testrunner.TestResult{
@@ -85,8 +93,8 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		}
 
 		tr.TimeElapsed = time.Now().Sub(startTime)
-		err = r.verifyResults(testCaseFile, result)
-		if e, ok := err.(ErrTestCaseFailed); ok {
+		err = r.verifyResults(testCaseFile, result, fieldsValidator)
+		if e, ok := err.(testerrors.ErrTestCaseFailed); ok {
 			tr.FailureMsg = e.Error()
 			tr.FailureDetails = e.Details
 
@@ -102,7 +110,6 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 
 		results = append(results, tr)
 	}
-
 	return results, nil
 }
 
@@ -152,7 +159,7 @@ func (r *runner) loadTestCaseFile(testCaseFile string) (*testCase, error) {
 	return tc, nil
 }
 
-func (r *runner) verifyResults(testCaseFile string, result *testResult) error {
+func (r *runner) verifyResults(testCaseFile string, result *testResult, fieldsValidator *fields.Validator) error {
 	testCasePath := filepath.Join(r.options.TestFolder.Path, testCaseFile)
 
 	if r.options.GenerateTestResult {
@@ -163,11 +170,35 @@ func (r *runner) verifyResults(testCaseFile string, result *testResult) error {
 	}
 
 	err := compareResults(testCasePath, result)
-	if _, ok := err.(ErrTestCaseFailed); ok {
+	if _, ok := err.(testerrors.ErrTestCaseFailed); ok {
 		return err
 	}
 	if err != nil {
 		return errors.Wrap(err, "comparing test results failed")
+	}
+
+	err = verifyFieldsInTestResult(result, fieldsValidator)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func verifyFieldsInTestResult(result *testResult, fieldsValidator *fields.Validator) error {
+	var multiErr multierror.Error
+	for _, event := range result.events {
+		errs := fieldsValidator.ValidateDocumentBody(event)
+		if errs != nil {
+			multiErr = append(multiErr, errs...)
+		}
+	}
+
+	if len(multiErr) > 0 {
+		multiErr = multiErr.Unique()
+		return testerrors.ErrTestCaseFailed{
+			Reason:  "one or more problems with fields found in documents",
+			Details: multiErr.Error(),
+		}
 	}
 	return nil
 }

@@ -2,11 +2,10 @@
 // or more contributor license agreements. Licensed under the Elastic License;
 // you may not use this file except in compliance with the Elastic License.
 
-package system
+package fields
 
-// Document corresponds to the logs or metrics event stored in the data stream.
-type Document struct {
-	Error *struct {
-		Message string
-	}
+type fieldDefinition struct {
+	Name   string            `yaml:"name"`
+	Type   string            `yaml:"type"`
+	Fields []fieldDefinition `yaml:"fields"`
 }

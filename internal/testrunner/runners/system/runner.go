@@ -12,16 +12,19 @@ import (
 	"strings"
 	"time"
 
-	"github.com/coreos/pkg/multierror"
 	es "github.com/elastic/go-elasticsearch/v7"
 	"github.com/pkg/errors"
 
+	"github.com/elastic/elastic-package/internal/common"
+	"github.com/elastic/elastic-package/internal/fields"
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/kibana/ingestmanager"
 	"github.com/elastic/elastic-package/internal/logger"
+	"github.com/elastic/elastic-package/internal/multierror"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/testrunner"
 	"github.com/elastic/elastic-package/internal/testrunner/runners/system/servicedeployer"
+	"github.com/elastic/elastic-package/internal/testrunner/runners/testerrors"
 )
 
 func init() {
@@ -78,10 +81,17 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 	startTime := time.Now()
 	resultsWith := func(tr testrunner.TestResult, err error) ([]testrunner.TestResult, error) {
 		tr.TimeElapsed = time.Now().Sub(startTime)
-		if err != nil {
-			tr.ErrorMsg = err.Error()
+		if err == nil {
+			return []testrunner.TestResult{tr}, nil
 		}
 
+		if tcf, ok := err.(testerrors.ErrTestCaseFailed); ok {
+			tr.FailureMsg = tcf.Reason
+			tr.FailureDetails = tcf.Details
+			return []testrunner.TestResult{tr}, nil
+		}
+
+		tr.ErrorMsg = err.Error()
 		return []testrunner.TestResult{tr}, err
 	}
 
@@ -213,6 +223,11 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		}
 	}
 
+	fieldsValidator, err := fields.CreateValidatorForDataStream(dataStreamPath)
+	if err != nil {
+		return resultsWith(result, errors.Wrapf(err, "creating fields validator for data stream failed (path: %s)", dataStreamPath))
+	}
+
 	// Step 4. (TODO in future) Optionally exercise service to generate load.
 	logger.Debug("checking for expected data in data stream...")
 	passed, err := waitUntilTrue(func() (bool, error) {
@@ -230,7 +245,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 					Value int
 				}
 				Hits []struct {
-					Source Document `json:"_source"`
+					Source common.MapStr `json:"_source"`
 				}
 			}
 		}
@@ -247,26 +262,34 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 
 		var multiErr multierror.Error
 		for _, hit := range results.Hits.Hits {
-			if hit.Source.Error != nil {
-				multiErr = append(multiErr, errors.New(hit.Source.Error.Message))
+			if message, err := hit.Source.GetValue("error.message"); err != common.ErrKeyNotFound {
+				multiErr = append(multiErr, errors.New(message.(string)))
+				continue
+			}
+
+			errs := fieldsValidator.ValidateDocumentMap(hit.Source)
+			if errs != nil {
+				multiErr = append(multiErr, errs...)
+				continue
 			}
 		}
 
 		if len(multiErr) > 0 {
-			return false, errors.Wrapf(multiErr, "one or more errors found in documents stored in %s data stream",
-				dataStream)
+			multiErr = multiErr.Unique()
+			return false, testerrors.ErrTestCaseFailed{
+				Reason:  fmt.Sprintf("one or more errors found in documents stored in %s data stream", dataStream),
+				Details: multiErr.Error(),
+			}
 		}
 		return true, nil
 	}, 2*time.Minute)
-
 	if err != nil {
-		return resultsWith(result, errors.Wrap(err, "could not check for expected data in data stream"))
+		return resultsWith(result, err)
 	}
 
 	if !passed {
 		result.FailureMsg = fmt.Sprintf("could not find hits in %s data stream", dataStream)
 	}
-
 	return resultsWith(result, nil)
 }
 

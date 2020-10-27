@@ -35,6 +35,9 @@
   group: 2
   type: group
   fields:
+    - name: address
+      type: keyword
+      description: Source address
     - name: geo.city_name
       level: core
       type: keyword
@@ -131,3 +134,9 @@
           type: text
           norms: false
           default_field: false
+- name: user_agent.os.version
+  type: keyword
+- name: user_agent.os.full
+  type: keyword
+- name: user_agent.version
+  type: keyword

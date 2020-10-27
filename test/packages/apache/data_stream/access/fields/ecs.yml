@@ -185,3 +185,13 @@
       type: keyword
       ignore_above: 1024
       description: Version of the user agent.
+- name: ecs.version
+  type: keyword
+- name: source.ip
+  type: ip
+- name: log.file.path
+  type: keyword
+- name: log.offset
+  type: long
+- name: input.type
+  type: keyword

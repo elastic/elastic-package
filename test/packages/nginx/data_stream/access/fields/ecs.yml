@@ -35,6 +35,9 @@
   group: 2
   type: group
   fields:
+    - name: address
+      type: keyword
+      description: Source address
     - name: geo.city_name
       level: core
       type: keyword
@@ -64,6 +67,10 @@
       type: keyword
       description: Region name.
       ignore_above: 1024
+    - name: ip
+      level: core
+      type: ip
+      description: IP address of the source (IPv4 or IPv6).
 - name: url
   title: URL
   group: 2
@@ -131,3 +138,31 @@
           type: text
           norms: false
           default_field: false
+- name: related
+  description: 'This field set is meant to facilitate pivoting around a piece of data.'
+  type: group
+  fields:
+    - name: ip
+      type: ip
+      description: All of the IPs seen on your event.
+- name: event.category
+  type: keyword
+- name: event.created
+  type: date
+  description: Date/time when the event was first read by an agent, or by your pipeline.
+- name: user_agent.os.full
+  type: keyword
+- name: user_agent.os.version
+  type: keyword
+  description: Operating system version as a raw string.
+- name: user_agent.version
+  type: keyword
+  description: Version of the user agent.
+- name: source.geo.location
+  type: geo_point
+- name: source.geo.country_name
+  type: keyword
+- name: source.as.number
+  type: long
+- name: source.as.organization.name
+  type: keyword

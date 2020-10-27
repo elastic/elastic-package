@@ -175,3 +175,11 @@
           type: text
           norms: false
           default_field: false
+- name: ecs.version
+  type: keyword
+- name: log.file.path
+  type: keyword
+- name: log.offset
+  type: long
+- name: input.type
+  type: keyword

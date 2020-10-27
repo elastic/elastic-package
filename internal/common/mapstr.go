@@ -17,8 +17,8 @@ import (
 )
 
 var (
-	// errKeyNotFound indicates that the specified key was not found.
-	errKeyNotFound = errors.New("key not found")
+	// ErrKeyNotFound indicates that the specified key was not found.
+	ErrKeyNotFound = errors.New("key not found")
 )
 
 // MapStr is a map[string]interface{} wrapper with utility methods for common
@@ -33,7 +33,7 @@ func (m MapStr) GetValue(key string) (interface{}, error) {
 		return nil, err
 	}
 	if !found {
-		return nil, errKeyNotFound
+		return nil, ErrKeyNotFound
 	}
 	return v, nil
 }
@@ -120,7 +120,7 @@ func mapFind(
 				d = MapStr{}
 				data[k] = d
 			} else {
-				return "", nil, nil, false, errKeyNotFound
+				return "", nil, nil, false, ErrKeyNotFound
 			}
 		}
 
