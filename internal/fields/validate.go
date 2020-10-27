@@ -13,6 +13,8 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/elastic/elastic-package/internal/multierror"
+
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 
@@ -59,41 +61,49 @@ func (v *Validator) ValidateDocumentBody(body json.RawMessage) error {
 	if err != nil {
 		return errors.Wrap(err, "unmarshalling document body failed")
 	}
-	return v.validateMapElement("", c)
+
+	errs := v.validateMapElement("", c)
+	if len(errs) == 0 {
+		return nil
+	}
+	return errs
 }
 
 // ValidateDocumentMap validates the provided document as common.MapStr.
 func (v *Validator) ValidateDocumentMap(body common.MapStr) error {
-	return v.validateMapElement("", body)
+	errs := v.validateMapElement("", body)
+	if len(errs) == 0 {
+		return nil
+	}
+	return errs
 }
 
-func (v *Validator) validateMapElement(root string, elem common.MapStr) error {
-	var err error
+func (v *Validator) validateMapElement(root string, elem common.MapStr) multierror.Error {
+	var errs multierror.Error
 	for name, val := range elem {
 		key := strings.TrimLeft(root+"."+name, ".")
 
 		switch val.(type) {
 		case []map[string]interface{}:
 			for _, m := range val.([]map[string]interface{}) {
-				err = v.validateMapElement(key, m)
+				err := v.validateMapElement(key, m)
 				if err != nil {
-					return err
+					errs = append(errs, err...)
 				}
 			}
 		case map[string]interface{}:
-			err = v.validateMapElement(key, val.(map[string]interface{}))
+			err := v.validateMapElement(key, val.(map[string]interface{}))
 			if err != nil {
-				return err
+				errs = append(errs, err...)
 			}
 		default:
-			err = v.validateScalarElement(key, val)
+			err := v.validateScalarElement(key, val)
 			if err != nil {
-				return err
+				errs = append(errs, err)
 			}
-			break
 		}
 	}
-	return nil
+	return errs
 }
 
 func (v *Validator) validateScalarElement(key string, val interface{}) error {
