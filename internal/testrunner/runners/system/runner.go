@@ -275,6 +275,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		}
 
 		if len(multiErr) > 0 {
+			multiErr = multiErr.Unique()
 			return false, testerrors.ErrTestCaseFailed{
 				Reason:  fmt.Sprintf("one or more errors found in documents stored in %s data stream", dataStream),
 				Details: multiErr.Error(),
