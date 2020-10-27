@@ -187,9 +187,9 @@ func (r *runner) verifyResults(testCaseFile string, result *testResult, fieldsVa
 func verifyFieldsInTestResult(result *testResult, fieldsValidator *fields.Validator) error {
 	var multiErr multierror.Error
 	for _, event := range result.events {
-		err := fieldsValidator.ValidateDocumentBody(event)
-		if err != nil {
-			multiErr = append(multiErr, err)
+		errs := fieldsValidator.ValidateDocumentBody(event)
+		if errs != nil {
+			multiErr = append(multiErr, errs...)
 		}
 	}
 

@@ -55,11 +55,13 @@ func CreateValidatorForDataStream(dataStreamRootPath string) (*Validator, error)
 }
 
 // ValidateDocumentBody validates the provided document body.
-func (v *Validator) ValidateDocumentBody(body json.RawMessage) error {
+func (v *Validator) ValidateDocumentBody(body json.RawMessage) multierror.Error {
 	var c common.MapStr
 	err := json.Unmarshal(body, &c)
 	if err != nil {
-		return errors.Wrap(err, "unmarshalling document body failed")
+		var errs multierror.Error
+		errs = append(errs, errors.Wrap(err, "unmarshalling document body failed"))
+		return errs
 	}
 
 	errs := v.validateMapElement("", c)
@@ -70,7 +72,7 @@ func (v *Validator) ValidateDocumentBody(body json.RawMessage) error {
 }
 
 // ValidateDocumentMap validates the provided document as common.MapStr.
-func (v *Validator) ValidateDocumentMap(body common.MapStr) error {
+func (v *Validator) ValidateDocumentMap(body common.MapStr) multierror.Error {
 	errs := v.validateMapElement("", body)
 	if len(errs) == 0 {
 		return nil
