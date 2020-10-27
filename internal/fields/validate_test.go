@@ -25,8 +25,8 @@ func TestValidate_NoWildcardFields(t *testing.T) {
 
 	f := readTestResults(t, "../../test/packages/aws/data_stream/elb_logs/_dev/test/pipeline/test-alb.log-expected.json")
 	for _, e := range f.Expected {
-		err = validator.ValidateDocumentBody(e)
-		require.NoError(t, err)
+		errs := validator.ValidateDocumentBody(e)
+		require.Empty(t, errs)
 	}
 }
 
@@ -36,8 +36,8 @@ func TestValidate_WithWildcardFields(t *testing.T) {
 	require.NotNil(t, validator)
 
 	e := readSampleEvent(t, "../../test/packages/aws/data_stream/sns/sample_event.json")
-	err = validator.ValidateDocumentBody(e)
-	require.NoError(t, err)
+	errs := validator.ValidateDocumentBody(e)
+	require.Empty(t, errs)
 }
 
 func readTestResults(t *testing.T, path string) (f results) {
