@@ -134,14 +134,6 @@
           type: text
           norms: false
           default_field: false
-- name: event.category
-  type: keyword
-- name: event.type
-  type: keyword
-- name: event.kind
-  type: keyword
-- name: event.outcome
-  type: date
 - name: user_agent.os.version
   type: keyword
 - name: user_agent.os.full

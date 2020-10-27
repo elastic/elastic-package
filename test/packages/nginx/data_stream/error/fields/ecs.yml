@@ -33,9 +33,3 @@
       type: long
       format: string
       description: Thread ID.
-- name: event.category
-  type: keyword
-- name: event.type
-  type: keyword
-- name: event.kind
-  type: keyword

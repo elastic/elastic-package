@@ -113,13 +113,12 @@ func (v *Validator) validateScalarElement(key string, val interface{}) error {
 		return nil // root key is always valid
 	}
 
-	if skipValidationForField(key) {
+	definition := findElementDefinition("", key, v.schema)
+	if definition == nil && skipValidationForField(key) {
 		return nil // generic field, let's skip validation for now
 	}
-
-	definition := findElementDefinition("", key, v.schema)
 	if definition == nil {
-		return fmt.Errorf(`field "%s" is not defined`, key)
+		return fmt.Errorf(`field "%s" is undefined`, key)
 	}
 
 	err := parseElementValue(key, *definition, val)
@@ -135,6 +134,9 @@ func (v *Validator) validateScalarElement(key string, val interface{}) error {
 func skipValidationForField(key string) bool {
 	return isFieldFamilyMatching("agent", key) ||
 		isFieldFamilyMatching("elastic_agent", key) ||
+		isFieldFamilyMatching("cloud", key) || // too many common fields
+		isFieldFamilyMatching("event", key) || // too many common fields
+		isFieldFamilyMatching("host", key) || // too many common fields
 		isFieldFamilyMatching("metricset", key) || // field is deprecated
 		isFieldFamilyMatching("event.module", key) // field is deprecated
 }

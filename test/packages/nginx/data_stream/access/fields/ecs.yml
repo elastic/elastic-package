@@ -150,12 +150,6 @@
 - name: event.created
   type: date
   description: Date/time when the event was first read by an agent, or by your pipeline.
-- name: event.outcome
-  type: date
-- name: event.type
-  type: keyword
-- name: event.kind
-  type: keyword
 - name: user_agent.os.full
   type: keyword
 - name: user_agent.os.version
