@@ -16,8 +16,7 @@ type Error []error
 // Unique selects only unique
 func (me Error) Unique() Error {
 	// Create copy of multi error array
-	var errs []error
-	copy(errs, me)
+	errs := me
 
 	// Sort them first
 	sort.Slice(errs, func(i, j int) bool {
