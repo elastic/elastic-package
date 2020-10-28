@@ -146,6 +146,12 @@ func testTypeCommandActionFactory(testType testrunner.TestType) cobraext.Command
 			return errors.Wrap(err, "error writing test report")
 		}
 
+		// Check if there is any error or failure reported
+		for _, r := range results {
+			if r.ErrorMsg != "" || r.FailureMsg != "" {
+				return errors.New("one or more test cases failed")
+			}
+		}
 		return nil
 	}
 }
