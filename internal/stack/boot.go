@@ -48,9 +48,11 @@ func BootUp(options Options) error {
 		return errors.Wrap(err, "building docker images failed")
 	}
 
-	err = dockerComposeDown()
-	if err != nil {
-		return errors.Wrap(err, "stopping docker containers failed")
+	if len(options.Services) == 0 { // stop Docker containers
+		err = dockerComposeDown()
+		if err != nil {
+			return errors.Wrap(err, "stopping docker containers failed")
+		}
 	}
 
 	err = dockerComposeUp(options)
