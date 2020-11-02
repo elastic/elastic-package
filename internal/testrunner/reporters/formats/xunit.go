@@ -99,41 +99,6 @@ func reportXUnitFormat(results []testrunner.TestResult) (string, error) {
 	var ts testSuites
 	ts.Suites = make([]testSuite, 0)
 
-	//for testType, packages := range tests {
-	//	testTypeSuite := testSuite{
-	//		Comment: fmt.Sprintf("test suite for %s tests", testType),
-	//		Name:    testType,
-	//
-	//		NumTests:    numTests,
-	//		NumFailures: numFailures,
-	//		NumErrors:   numErrors,
-	//
-	//		Suites: make([]testSuite, 0),
-	//	}
-	//
-	//	for pkgName, pkg := range packages {
-	//		pkgSuite := testSuite{
-	//			Name:    pkgName,
-	//			Comment: fmt.Sprintf("test suite for package: %s", pkgName),
-	//			Suites:  make([]testSuite, 0),
-	//		}
-	//
-	//		for dsName, ds := range pkg {
-	//			dsSuite := testSuite{
-	//				Name:    dsName,
-	//				Comment: fmt.Sprintf("test suite for data stream: %s", dsName),
-	//				Cases:   ds,
-	//			}
-	//
-	//			pkgSuite.Suites = append(pkgSuite.Suites, dsSuite)
-	//		}
-	//
-	//		testTypeSuite.Suites = append(testTypeSuite.Suites, pkgSuite)
-	//	}
-	//
-	//	ts.Suites = append(ts.Suites, testTypeSuite)
-	//}
-
 	for testType, packages := range tests {
 		testTypeSuite := testSuite{
 			Comment: fmt.Sprintf("test suite for %s tests", testType),
