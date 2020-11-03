@@ -11,8 +11,6 @@ import (
 	"path/filepath"
 
 	"github.com/pkg/errors"
-
-	"github.com/elastic/elastic-package/internal/builder"
 )
 
 const (
@@ -20,7 +18,6 @@ const (
 	stackDir          = "stack"
 	packagesDir       = "development"
 	temporaryDir      = "tmp"
-	testReportsDir    = "test-results"
 )
 
 var (
@@ -90,15 +87,6 @@ func ServiceLogsDir() (string, error) {
 		return "", errors.Wrap(err, "locating configuration directory failed")
 	}
 	return filepath.Join(configurationDir, serviceLogsDir), nil
-}
-
-// TestReportsDir returns the location of the directory to store test reports.
-func TestReportsDir() (string, error) {
-	buildDir, _, err := builder.FindBuildDirectory()
-	if err != nil {
-		return "", errors.Wrap(err, "locating build directory failed")
-	}
-	return filepath.Join(buildDir, testReportsDir), nil
 }
 
 func configurationDir() (string, error) {
