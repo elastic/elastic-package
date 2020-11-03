@@ -47,10 +47,12 @@ pipeline {
       }
       post {
         always {
-          archiveArtifacts(allowEmptyArchive: true, artifacts: 'src/github.com/elastic/elastic-package/build/test-results/*.xml')
-          junit(allowEmptyResults: false,
+          dir("${BASE_DIR}") {
+            archiveArtifacts(allowEmptyArchive: true, artifacts: 'build/test-results/*.xml')
+            junit(allowEmptyResults: false,
                 keepLongStdio: true,
-                testResults: "src/github.com/elastic/elastic-package/build/test-results/*.xml")
+                testResults: "build/test-results/*.xml")
+          }
         }
       }
     }
