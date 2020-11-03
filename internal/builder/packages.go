@@ -65,7 +65,11 @@ func FindBuildPackagesDirectory() (string, bool, error) {
 	if found {
 		path := filepath.Join(buildDir, "integrations") // TODO add support for other package types
 		fileInfo, err := os.Stat(path)
-		if err == nil && fileInfo.IsDir() {
+		if err != nil {
+			return "", false, err
+		}
+
+		if fileInfo.IsDir() {
 			return path, true, nil
 		}
 	}
