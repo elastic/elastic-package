@@ -60,10 +60,6 @@ func EnsureInstalled() error {
 		return errors.Wrap(err, "creating service logs directory failed")
 	}
 
-	if err := createTestReportsDir(elasticPackagePath); err != nil {
-		return errors.Wrap(err, "creating test reports directory failed")
-	}
-
 	fmt.Fprintln(os.Stderr, "elastic-package has been installed.")
 	return nil
 }
@@ -169,15 +165,6 @@ func writeStaticResource(err error, path, content string) error {
 
 func createServiceLogsDir(elasticPackagePath string) error {
 	dirPath := filepath.Join(elasticPackagePath, serviceLogsDir)
-	err := os.MkdirAll(dirPath, 0755)
-	if err != nil {
-		return errors.Wrapf(err, "mkdir failed (path: %s)", dirPath)
-	}
-	return nil
-}
-
-func createTestReportsDir(elasticPackagePath string) error {
-	dirPath := filepath.Join(elasticPackagePath, testReportsDir)
 	err := os.MkdirAll(dirPath, 0755)
 	if err != nil {
 		return errors.Wrapf(err, "mkdir failed (path: %s)", dirPath)
