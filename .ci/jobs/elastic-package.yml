@@ -1,6 +1,6 @@
 ---
 - job:
-    name: Beats/elastic-package
+    name: Ingest-manager/elastic-package
     display-name: Elastic Package
     description: Jenkins pipeline for the Elastic Package project
     view: Beats
