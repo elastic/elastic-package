@@ -190,7 +190,19 @@ func parseElementValue(key string, definition fieldDefinition, val interface{}) 
 	var valid bool
 	switch definition.Type {
 	case "date", "ip", "constant_keyword", "keyword", "text":
-		_, valid = val.(string)
+		var valStr string
+		valStr, valid = val.(string)
+		if !valid || definition.Pattern == "" {
+			break
+		}
+
+		valid, err := regexp.MatchString(definition.Pattern, valStr)
+		if err != nil {
+			return errors.Wrap(err, "invalid pattern")
+		}
+		if !valid {
+			return fmt.Errorf("field \"%s\"''s value, %s, does not match the expected pattern: %s", key, valStr, definition.Pattern)
+		}
 	case "float", "long", "double":
 		_, valid = val.(float64)
 	default:
@@ -198,7 +210,7 @@ func parseElementValue(key string, definition fieldDefinition, val interface{}) 
 	}
 
 	if !valid {
-		return fmt.Errorf("field \"%s\" has invalid type, expected: %s, actual Go type: %s", key, definition.Type, reflect.TypeOf(val))
+		return fmt.Errorf("field \"%s\"''s Go type, %s, does not match the expected field type: %s", key, reflect.TypeOf(val), definition.Type)
 	}
 	return nil
 }
