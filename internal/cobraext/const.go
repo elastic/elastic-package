@@ -9,6 +9,9 @@ const (
 	DaemonModeFlagName        = "daemon"
 	DaemonModeFlagDescription = "daemon mode"
 
+	DashboardIDsFlagName = "dashboards"
+	DashboardIDsFlagDescriptions = "Kibana dashboard IDs (comma-separated values)"
+
 	DataStreamsFlagName        = "data-streams"
 	DataStreamsFlagDescription = "comma-separated data streams to test"
 

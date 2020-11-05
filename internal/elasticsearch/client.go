@@ -5,7 +5,6 @@
 package elasticsearch
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/pkg/errors"
@@ -19,7 +18,7 @@ import (
 func Client() (*elasticsearch.Client, error) {
 	host := os.Getenv(stack.ElasticsearchHostEnv)
 	if host == "" {
-		return nil, undefinedEnvError(stack.ElasticsearchHostEnv)
+		return nil, stack.UndefinedEnvError(stack.ElasticsearchHostEnv)
 	}
 
 	username := os.Getenv(stack.ElasticsearchUsernameEnv)
@@ -34,8 +33,4 @@ func Client() (*elasticsearch.Client, error) {
 		return nil, errors.Wrap(err, "creating Elasticsearch client failed")
 	}
 	return client, nil
-}
-
-func undefinedEnvError(envName string) error {
-	return fmt.Errorf("undefined environment variable: %s", envName)
 }
