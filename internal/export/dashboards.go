@@ -21,6 +21,8 @@ func Dashboards(kibanaDashboardsClient *dashboards.Client, dashboardsIDs []strin
 		return errors.Wrap(err, "exporting dashboards using Kibana client failed")
 	}
 
+	objects = filterObjectsBySupportedType(objects)
+
 	for _, object := range objects {
 		id, _ := object.GetValue("id")
 		aType, _ := object.GetValue("type")
@@ -32,6 +34,19 @@ func Dashboards(kibanaDashboardsClient *dashboards.Client, dashboardsIDs []strin
 		return errors.Wrap(err, "can't save Kibana objects")
 	}
 	return nil
+}
+
+func filterObjectsBySupportedType(objects []common.MapStr) []common.MapStr {
+	var filtered []common.MapStr
+	for _, object := range objects {
+		aType, _ := object.GetValue("type")
+		switch aType {
+		case "index-pattern": // unsupported types
+		default:
+			filtered = append(filtered, object)
+		}
+	}
+	return filtered
 }
 
 func saveObjectsToFiles(objects []common.MapStr) error {
@@ -58,7 +73,7 @@ func saveObjectsToFiles(objects []common.MapStr) error {
 		}
 
 		// Marshal object to byte content
-		b, err := json.Marshal(object)
+		b, err := json.MarshalIndent(&object, "", "    ")
 		if err != nil {
 			return errors.Wrapf(err, "marshalling Kibana object failed (ID: %s)", id.(string))
 		}
@@ -71,7 +86,7 @@ func saveObjectsToFiles(objects []common.MapStr) error {
 		}
 
 		// Save object to file
-		objectPath := filepath.Join(targetDir, id.(string) + ".json")
+		objectPath := filepath.Join(targetDir, id.(string)+".json")
 		err = ioutil.WriteFile(objectPath, b, 0644)
 		if err != nil {
 			return errors.Wrap(err, "writing to file failed")
