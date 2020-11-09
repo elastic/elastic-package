@@ -33,10 +33,6 @@ func reportToFile(pkg, report string, format testrunner.TestReportFormat) error 
 		return errors.Wrap(err, "could not determine test reports folder")
 	}
 
-	if err := os.MkdirAll(dest, 0755); err != nil {
-		return errors.Wrap(err, "could not create test reports folder")
-	}
-
 	ext := "txt"
 	if format == formats.ReportFormatXUnit {
 		ext = "xml"
@@ -61,6 +57,8 @@ func testReportsDir() (string, error) {
 	return filepath.Join(buildDir, "test-results"), nil
 }
 
+// CleanTestReportsDir removes creates the test reports folder if it already exists, then
+// creates it, effectively resulting in a clean (aka empty) test reports folder.
 func CleanTestReportsDir() error {
 	dest, err := testReportsDir()
 	if err != nil {
@@ -75,6 +73,10 @@ func CleanTestReportsDir() error {
 		}
 	} else {
 		return errors.Wrap(err, "could not check test reports folder path")
+	}
+
+	if err := os.MkdirAll(dest, 0755); err != nil {
+		return errors.Wrap(err, "could not create test reports folder")
 	}
 
 	return nil
