@@ -34,12 +34,18 @@ func reportToFile(pkg, report string, format testrunner.TestReportFormat) error 
 	}
 
 	_, err = os.Stat(dest)
-	if os.IsNotExist(err) {
-		if err := os.MkdirAll(dest, 0755); err != nil {
-			return errors.Wrap(err, "could not create test reports folder")
+	if err == nil {
+		// Destination path exists; remove it so we can have an empty folder for new
+		// test report files.
+		if err := os.RemoveAll(dest); err != nil {
+			return errors.Wrap(err, "could not remove old test reports")
 		}
-	} else if err != nil {
-		return errors.Wrap(err, "could not check test reports folder")
+	} else {
+		return errors.Wrap(err, "could not check test reports folder path")
+	}
+
+	if err := os.MkdirAll(dest, 0755); err != nil {
+		return errors.Wrap(err, "could not create test reports folder")
 	}
 
 	ext := "txt"
