@@ -91,15 +91,8 @@ func saveObjectsToFiles(objects []common.MapStr) error {
 	logger.Debugf("Package root found: %s", root)
 
 	for _, object := range objects {
-		id, err := object.GetValue("id")
-		if err != nil {
-			return errors.Wrap(err, "can't find object ID")
-		}
-
-		aType, err := object.GetValue("type")
-		if err != nil {
-			return errors.Wrap(err, "can't find object type")
-		}
+		id, _ := object.GetValue("id")
+		aType, _ := object.GetValue("type")
 
 		// Marshal object to byte content
 		b, err := json.MarshalIndent(&object, "", "    ")

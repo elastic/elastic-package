@@ -6,7 +6,6 @@ package export
 
 import (
 	"encoding/json"
-	"fmt"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -15,11 +14,7 @@ import (
 )
 
 func filterUnsupportedTypes(object common.MapStr) (common.MapStr, error) {
-	aType, err := object.GetValue("type")
-	if err != nil {
-		return nil, errors.Wrap(err, "missing object type")
-	}
-
+	aType, _ := object.GetValue("type")
 	switch aType {
 	case "index-pattern": // unsupported types
 		return nil, nil
@@ -80,7 +75,6 @@ func stripObjectProperties(object common.MapStr) (common.MapStr, error) {
 func standardizeObjectProperties(object common.MapStr) (common.MapStr, error) {
 	for key, value := range object {
 		if key == "title" {
-			fmt.Println(key, value)
 			_, err := object.Put(key, standardizeTitleProperty(value.(string)))
 			if err != nil {
 				return nil, errors.Wrapf(err, "can't update field (key: %s)", key)
