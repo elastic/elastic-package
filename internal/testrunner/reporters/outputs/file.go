@@ -33,17 +33,6 @@ func reportToFile(pkg, report string, format testrunner.TestReportFormat) error 
 		return errors.Wrap(err, "could not determine test reports folder")
 	}
 
-	_, err = os.Stat(dest)
-	if err == nil {
-		// Destination path exists; remove it so we can have an empty folder for new
-		// test report files.
-		if err := os.RemoveAll(dest); err != nil {
-			return errors.Wrap(err, "could not remove old test reports")
-		}
-	} else {
-		return errors.Wrap(err, "could not check test reports folder path")
-	}
-
 	if err := os.MkdirAll(dest, 0755); err != nil {
 		return errors.Wrap(err, "could not create test reports folder")
 	}
@@ -70,4 +59,23 @@ func testReportsDir() (string, error) {
 		return "", errors.Wrap(err, "locating build directory failed")
 	}
 	return filepath.Join(buildDir, "test-results"), nil
+}
+
+func CleanTestReportsDir() error {
+	dest, err := testReportsDir()
+	if err != nil {
+		return errors.Wrap(err, "could not determine test reports folder")
+	}
+
+	if _, err := os.Stat(dest); err == nil {
+		// Destination path exists; remove it so we can have an empty folder for new
+		// test report files.
+		if err := os.RemoveAll(dest); err != nil {
+			return errors.Wrap(err, "could not remove old test reports")
+		}
+	} else {
+		return errors.Wrap(err, "could not check test reports folder path")
+	}
+
+	return nil
 }
