@@ -57,7 +57,7 @@ func testReportsDir() (string, error) {
 	return filepath.Join(buildDir, "test-results"), nil
 }
 
-// CleanTestReportsDir removes creates the test reports folder if it already exists, then
+// CleanTestReportsDir removes the test reports folder if it already exists, then
 // creates it, effectively resulting in a clean (aka empty) test reports folder.
 func CleanTestReportsDir() error {
 	dest, err := testReportsDir()
