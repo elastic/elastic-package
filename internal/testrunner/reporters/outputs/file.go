@@ -71,7 +71,7 @@ func CleanTestReportsDir() error {
 		if err := os.RemoveAll(dest); err != nil {
 			return errors.Wrap(err, "could not remove old test reports")
 		}
-	} else {
+	} else if !os.IsNotExist(err) {
 		return errors.Wrap(err, "could not check test reports folder path")
 	}
 
