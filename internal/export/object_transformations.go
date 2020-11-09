@@ -108,7 +108,6 @@ func standardizeObjectProperties(object common.MapStr) (common.MapStr, error) {
 			if err != nil {
 				return nil, errors.Wrapf(err, "can't update field (key: %s)", key)
 			}
-
 			continue
 		}
 	}
