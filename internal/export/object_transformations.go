@@ -116,7 +116,7 @@ func standardizeObjectProperties(object common.MapStr) (common.MapStr, error) {
 }
 
 func standardizeTitleProperty(title string) string {
-	if strings.HasSuffix(title," ECS") {
+	if strings.HasSuffix(title, " ECS") {
 		return strings.ReplaceAll(title, " ECS", "")
 	}
 	return title
