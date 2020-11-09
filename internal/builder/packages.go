@@ -32,8 +32,8 @@ func BuildPackage() error {
 	return nil
 }
 
-// FindBuildPackagesDirectory method locates the target build directory for packages.
-func FindBuildPackagesDirectory() (string, bool, error) {
+// FindBuildDirectory locates the target build directory.
+func FindBuildDirectory() (string, bool, error) {
 	workDir, err := os.Getwd()
 	if err != nil {
 		return "", false, errors.Wrap(err, "locating working directory failed")
@@ -41,7 +41,7 @@ func FindBuildPackagesDirectory() (string, bool, error) {
 
 	dir := workDir
 	for dir != "." {
-		path := filepath.Join(dir, "build", "integrations") // TODO add support for other package types
+		path := filepath.Join(dir, "build")
 		fileInfo, err := os.Stat(path)
 		if err == nil && fileInfo.IsDir() {
 			return path, true, nil
@@ -52,6 +52,28 @@ func FindBuildPackagesDirectory() (string, bool, error) {
 		}
 		dir = filepath.Dir(dir)
 	}
+	return "", false, nil
+}
+
+// FindBuildPackagesDirectory method locates the target build directory for packages.
+func FindBuildPackagesDirectory() (string, bool, error) {
+	buildDir, found, err := FindBuildDirectory()
+	if err != nil {
+		return "", false, err
+	}
+
+	if found {
+		path := filepath.Join(buildDir, "integrations") // TODO add support for other package types
+		fileInfo, err := os.Stat(path)
+		if err != nil {
+			return "", false, err
+		}
+
+		if fileInfo.IsDir() {
+			return path, true, nil
+		}
+	}
+
 	return "", false, nil
 }
 

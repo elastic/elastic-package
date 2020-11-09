@@ -35,6 +35,16 @@ func setupTestCommand() *cobra.Command {
 				return fmt.Errorf("unsupported test type: %s", args[0])
 			}
 
+			reportOutput, err := cmd.Flags().GetString(cobraext.ReportOutputFlagName)
+			if err != nil {
+				return cobraext.FlagParsingError(err, cobraext.ReportOutputFlagName)
+			}
+			if reportOutput == string(outputs.ReportOutputFile) {
+				if err := outputs.CleanTestReportsDir(); err != nil {
+					return cobraext.FlagParsingError(err, cobraext.ReportOutputFlagName)
+				}
+			}
+
 			return cobraext.ComposeCommandActions(cmd, args, testTypeCmdActions...)
 		}}
 
