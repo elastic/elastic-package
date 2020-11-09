@@ -1,9 +1,10 @@
 package cmd
 
 import (
-	"github.com/elastic/elastic-package/internal/kibana/dashboards"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+
+	"github.com/elastic/elastic-package/internal/kibana/dashboards"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/export"
@@ -11,12 +12,13 @@ import (
 
 func setupExportCommand() *cobra.Command {
 	exportDashboardCmd := &cobra.Command{
-		Use:   "dashboard",
-		Short: "Export dashboard from Kibana",
-		Long:  "Use dashboard subcommand to export dashboard from the Kibana instance.",
-		RunE:  exportDashboardCmd,
+		Use:   "dashboards",
+		Short: "Export dashboards from Kibana",
+		Long:  "Use dashboards subcommand to export dashboards with referenced objects from the Kibana instance.",
+		RunE:  exportDashboardsCmd,
 	}
 	exportDashboardCmd.Flags().StringSliceP(cobraext.DashboardIDsFlagName, "d", nil, cobraext.DashboardIDsFlagDescriptions)
+	exportDashboardCmd.MarkFlagRequired(cobraext.DashboardIDsFlagName)
 
 	cmd := &cobra.Command{
 		Use:   "export",
@@ -27,8 +29,8 @@ func setupExportCommand() *cobra.Command {
 	return cmd
 }
 
-func exportDashboardCmd(cmd *cobra.Command, args []string) error {
-	cmd.Println("Export Kibana dashboard")
+func exportDashboardsCmd(cmd *cobra.Command, args []string) error {
+	cmd.Println("Export Kibana dashboards")
 
 	dashboardIDs, err := cmd.Flags().GetStringSlice(cobraext.DashboardIDsFlagName)
 	if err != nil {
