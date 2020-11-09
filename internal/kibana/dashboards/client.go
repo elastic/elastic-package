@@ -2,7 +2,6 @@ package dashboards
 
 import (
 	"encoding/json"
-	"github.com/elastic/elastic-package/internal/logger"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -11,6 +10,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/common"
+	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/multierror"
 	"github.com/elastic/elastic-package/internal/stack"
 )
@@ -19,12 +19,14 @@ type exportedType struct {
 	Objects []common.MapStr `json:"objects"`
 }
 
+// Client is responsible for exporting dashboards from Kibana.
 type Client struct {
 	host     string
 	username string
 	password string
 }
 
+// NewClient creates a new instance of the client.
 func NewClient() (*Client, error) {
 	host := os.Getenv(stack.KibanaHostEnv)
 	if host == "" {
@@ -41,6 +43,7 @@ func NewClient() (*Client, error) {
 	}, nil
 }
 
+// Export method exports selected dashboards using the Kibana Export API.
 func (c *Client) Export(dashboardIDs []string) ([]common.MapStr, error) {
 	logger.Debug("Export dashboards using the Kibana Export API")
 

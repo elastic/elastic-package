@@ -27,6 +27,8 @@ var (
 	}
 )
 
+// Dashboards method exports selected dashboards with references objects. All Kibana objects are saved to local files
+// in appropriate directories.
 func Dashboards(kibanaDashboardsClient *dashboards.Client, dashboardsIDs []string) error {
 	objects, err := kibanaDashboardsClient.Export(dashboardsIDs)
 	if err != nil {
