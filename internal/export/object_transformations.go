@@ -6,6 +6,7 @@ package export
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -79,6 +80,7 @@ func stripObjectProperties(object common.MapStr) (common.MapStr, error) {
 func standardizeObjectProperties(object common.MapStr) (common.MapStr, error) {
 	for key, value := range object {
 		if key == "title" {
+			fmt.Println(key, value)
 			_, err := object.Put(key, standardizeTitleProperty(value.(string)))
 			if err != nil {
 				return nil, errors.Wrapf(err, "can't update field (key: %s)", key)
@@ -86,9 +88,8 @@ func standardizeObjectProperties(object common.MapStr) (common.MapStr, error) {
 			continue
 		}
 
-		switch value.(type) {
-		case map[string]interface{}:
-			newValue, err := standardizeObjectProperties(value.(map[string]interface{}))
+		if m, ok := value.(common.MapStr); ok {
+			newValue, err := standardizeObjectProperties(m)
 			if err != nil {
 				return nil, errors.Wrapf(err, "can't standardize object (key: %s)", key)
 			}
@@ -97,20 +98,24 @@ func standardizeObjectProperties(object common.MapStr) (common.MapStr, error) {
 			if err != nil {
 				return nil, errors.Wrapf(err, "can't update field (key: %s)", key)
 			}
-		case []map[string]interface{}:
-			vArr := value.([]map[string]interface{})
-			for i, obj := range vArr {
+			continue
+		}
+
+		if mArr, ok := value.([]common.MapStr); ok {
+			for i, obj := range mArr {
 				newValue, err := standardizeObjectProperties(obj)
 				if err != nil {
 					return nil, errors.Wrapf(err, "can't standardize object (array index: %d)", i)
 				}
-				vArr[i] = newValue
+				mArr[i] = newValue
 			}
 
-			_, err := object.Put(key, vArr)
+			_, err := object.Put(key, mArr)
 			if err != nil {
 				return nil, errors.Wrapf(err, "can't update field (key: %s)", key)
 			}
+			
+			continue
 		}
 	}
 	return object, nil

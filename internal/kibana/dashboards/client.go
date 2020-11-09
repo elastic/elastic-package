@@ -34,7 +34,7 @@ type Client struct {
 func NewClient() (*Client, error) {
 	host := os.Getenv(stack.KibanaHostEnv)
 	if host == "" {
-		return nil, stack.UndefinedEnvError(stack.ElasticsearchHostEnv)
+		return nil, stack.UndefinedEnvError(stack.KibanaHostEnv)
 	}
 
 	username := os.Getenv(stack.ElasticsearchUsernameEnv)
