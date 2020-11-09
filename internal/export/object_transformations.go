@@ -54,7 +54,12 @@ func decodeObject(object common.MapStr) (common.MapStr, error) {
 }
 
 func stripObjectProperties(object common.MapStr) (common.MapStr, error) {
-	err := object.Delete("updated_at")
+	err := object.Delete("namespaces")
+	if err != nil {
+		return nil, errors.Wrapf(err, "removing field \"namespaces\" failed")
+	}
+
+	err = object.Delete("updated_at")
 	if err != nil {
 		return nil, errors.Wrapf(err, "removing field \"updated_at\" failed")
 	}
