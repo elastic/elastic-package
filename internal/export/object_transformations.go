@@ -6,6 +6,7 @@ package export
 
 import (
 	"encoding/json"
+	"strings"
 
 	"github.com/pkg/errors"
 
@@ -73,4 +74,51 @@ func stripObjectProperties(object common.MapStr) (common.MapStr, error) {
 		return nil, errors.Wrapf(err, "removing field \"version\" failed")
 	}
 	return object, nil
+}
+
+func standardizeObjectProperties(object common.MapStr) (common.MapStr, error) {
+	for key, value := range object {
+		if key == "title" {
+			_, err := object.Put(key, standardizeTitleProperty(value.(string)))
+			if err != nil {
+				return nil, errors.Wrapf(err, "can't update field (key: %s)", key)
+			}
+			continue
+		}
+
+		switch value.(type) {
+		case map[string]interface{}:
+			newValue, err := standardizeObjectProperties(value.(map[string]interface{}))
+			if err != nil {
+				return nil, errors.Wrapf(err, "can't standardize object (key: %s)", key)
+			}
+
+			_, err = object.Put(key, newValue)
+			if err != nil {
+				return nil, errors.Wrapf(err, "can't update field (key: %s)", key)
+			}
+		case []map[string]interface{}:
+			vArr := value.([]map[string]interface{})
+			for i, obj := range vArr {
+				newValue, err := standardizeObjectProperties(obj)
+				if err != nil {
+					return nil, errors.Wrapf(err, "can't standardize object (array index: %d)", i)
+				}
+				vArr[i] = newValue
+			}
+
+			_, err := object.Put(key, vArr)
+			if err != nil {
+				return nil, errors.Wrapf(err, "can't update field (key: %s)", key)
+			}
+		}
+	}
+	return object, nil
+}
+
+func standardizeTitleProperty(title string) string {
+	if strings.HasSuffix(title," ECS") {
+		return strings.ReplaceAll(title, " ECS", "")
+	}
+	return title
 }

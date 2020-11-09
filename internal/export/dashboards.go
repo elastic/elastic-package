@@ -41,7 +41,8 @@ func Dashboards(kibanaDashboardsClient *dashboards.Client, dashboardsIDs []strin
 	objects, err = transformObjects(objects,
 		filterUnsupportedTypes,
 		decodeObject,
-		stripObjectProperties)
+		stripObjectProperties,
+		standardizeObjectProperties)
 	if err != nil {
 		return errors.Wrap(err, "can't transform Kibana objects")
 	}
