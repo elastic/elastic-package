@@ -6,7 +6,6 @@ package export
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -39,16 +38,12 @@ func Dashboards(kibanaDashboardsClient *dashboards.Client, dashboardsIDs []strin
 		return errors.Wrap(err, "exporting dashboards using Kibana client failed")
 	}
 
-	objects = filterObjectsBySupportedType(objects)
-	objects, err = decodeObjects(objects)
+	objects, err = transformObjects(objects,
+		filterUnsupportedTypes,
+		decodeObject,
+		stripObjectProperties)
 	if err != nil {
-		return errors.Wrap(err, "can't decode Kibana objects")
-	}
-
-	for _, object := range objects {
-		id, _ := object.GetValue("id")
-		aType, _ := object.GetValue("type")
-		fmt.Println(id, aType)
+		return errors.Wrap(err, "can't transform Kibana objects")
 	}
 
 	err = saveObjectsToFiles(objects)
@@ -58,62 +53,28 @@ func Dashboards(kibanaDashboardsClient *dashboards.Client, dashboardsIDs []strin
 	return nil
 }
 
-func filterObjectsBySupportedType(objects []common.MapStr) []common.MapStr {
-	var filtered []common.MapStr
-	for _, object := range objects {
-		aType, _ := object.GetValue("type")
-		switch aType {
-		case "index-pattern": // unsupported types
-		default:
-			filtered = append(filtered, object)
-		}
-	}
-	return filtered
-}
-
-func decodeObjects(objects []common.MapStr) ([]common.MapStr, error) {
+func transformObjects(objects []common.MapStr, transforms ...func(common.MapStr) (common.MapStr, error)) ([]common.MapStr, error) {
 	var decoded []common.MapStr
+	var err error
+
 	for _, object := range objects {
-		d, err := decodeObject(object)
-		if err != nil {
-			id, _ := object.GetValue("id")
-			return nil, errors.Wrapf(err, "object decoding failed (ID: %s)", id)
+		for _, fn := range transforms {
+			if object == nil {
+				continue
+			}
+
+			object, err = fn(object)
+			if err != nil {
+				id, _ := object.GetValue("id")
+				return nil, errors.Wrapf(err, "object transformation failed (ID: %s)", id)
+			}
 		}
 
-		decoded = append(decoded, d)
+		if object != nil {
+			decoded = append(decoded, object)
+		}
 	}
 	return decoded, nil
-}
-
-func decodeObject(object common.MapStr) (common.MapStr, error) {
-	for _, fieldToDecode := range encodedFields {
-		v, err := object.GetValue(fieldToDecode)
-		if err == common.ErrKeyNotFound {
-			continue
-		} else if err != nil {
-			return nil, errors.Wrapf(err, "retrieving value failed (key: %s)", fieldToDecode)
-		}
-
-		var target interface{}
-		var single common.MapStr
-		var array []common.MapStr
-
-		err = json.Unmarshal([]byte(v.(string)), &single)
-		if err == nil {
-			target = single
-		} else {
-			err = json.Unmarshal([]byte(v.(string)), &array)
-			if err != nil {
-				return nil, errors.Wrapf(err, "can't unmarshal encoded field (key: %s)", fieldToDecode)
-			}
-			target = array
-		}
-		_, err = object.Put(fieldToDecode, target)
-		if err != nil {
-			return nil, errors.Wrapf(err, "can't update field (key: %s)", fieldToDecode)
-		}
-	}
-	return object, nil
 }
 
 func saveObjectsToFiles(objects []common.MapStr) error {
