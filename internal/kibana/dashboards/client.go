@@ -2,6 +2,7 @@ package dashboards
 
 import (
 	"encoding/json"
+	"github.com/elastic/elastic-package/internal/logger"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -41,6 +42,8 @@ func NewClient() (*Client, error) {
 }
 
 func (c *Client) Export(dashboardIDs []string) ([]common.MapStr, error) {
+	logger.Debug("Export dashboards using the Kibana Export API")
+
 	var query strings.Builder
 	query.WriteByte('?')
 	for _, dashboardID := range dashboardIDs {
