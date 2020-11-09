@@ -4,10 +4,9 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
-	"github.com/elastic/elastic-package/internal/kibana/dashboards"
-
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/export"
+	"github.com/elastic/elastic-package/internal/kibana/dashboards"
 )
 
 func setupExportCommand() *cobra.Command {
