@@ -22,33 +22,37 @@ func standardizeObjectProperties(object common.MapStr) (common.MapStr, error) {
 			continue
 		}
 
-		if m, ok := value.(map[string]interface{}); ok {
-			newValue, err := standardizeObjectProperties(m)
+		var target interface{}
+		var err error
+		var updated bool
+
+		switch value.(type) {
+		case map[string]interface{}:
+			target, err = standardizeObjectProperties(value.(map[string]interface{}))
 			if err != nil {
 				return nil, errors.Wrapf(err, "can't standardize object (key: %s)", key)
 			}
-
-			_, err = object.Put(key, newValue)
-			if err != nil {
-				return nil, errors.Wrapf(err, "can't update field (key: %s)", key)
-			}
-			continue
-		}
-
-		if mArr, ok := value.([]map[string]interface{}); ok {
-			for i, obj := range mArr {
+			updated = true
+		case []map[string]interface{}:
+			arr := value.([]map[string]interface{})
+			for i, obj := range arr {
 				newValue, err := standardizeObjectProperties(obj)
 				if err != nil {
 					return nil, errors.Wrapf(err, "can't standardize object (array index: %d)", i)
 				}
-				mArr[i] = newValue
+				arr[i] = newValue
 			}
+			target = arr
+			updated = true
+		}
 
-			_, err := object.Put(key, mArr)
-			if err != nil {
-				return nil, errors.Wrapf(err, "can't update field (key: %s)", key)
-			}
+		if !updated {
 			continue
+		}
+
+		_, err = object.Put(key, target)
+		if err != nil {
+			return nil, errors.Wrapf(err, "can't update field (key: %s)", key)
 		}
 	}
 	return object, nil
