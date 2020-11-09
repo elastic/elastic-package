@@ -38,8 +38,8 @@ func decodeObject(object common.MapStr) (common.MapStr, error) {
 		}
 
 		var target interface{}
-		var single common.MapStr
-		var array []common.MapStr
+		var single map[string]interface{}
+		var array []map[string]interface{}
 
 		err = json.Unmarshal([]byte(v.(string)), &single)
 		if err == nil {
@@ -88,7 +88,7 @@ func standardizeObjectProperties(object common.MapStr) (common.MapStr, error) {
 			continue
 		}
 
-		if m, ok := value.(common.MapStr); ok {
+		if m, ok := value.(map[string]interface{}); ok {
 			newValue, err := standardizeObjectProperties(m)
 			if err != nil {
 				return nil, errors.Wrapf(err, "can't standardize object (key: %s)", key)
@@ -101,7 +101,7 @@ func standardizeObjectProperties(object common.MapStr) (common.MapStr, error) {
 			continue
 		}
 
-		if mArr, ok := value.([]common.MapStr); ok {
+		if mArr, ok := value.([]map[string]interface{}); ok {
 			for i, obj := range mArr {
 				newValue, err := standardizeObjectProperties(obj)
 				if err != nil {
@@ -114,7 +114,7 @@ func standardizeObjectProperties(object common.MapStr) (common.MapStr, error) {
 			if err != nil {
 				return nil, errors.Wrapf(err, "can't update field (key: %s)", key)
 			}
-			
+
 			continue
 		}
 	}
