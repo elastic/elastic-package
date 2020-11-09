@@ -15,7 +15,7 @@ import (
 func standardizeObjectProperties(object common.MapStr) (common.MapStr, error) {
 	for key, value := range object {
 		if key == "title" {
-			_, err := object.Put(key, standardizeTitleProperty(value.(string)))
+			_, err := object.Put(key, adjustTitleProperty(value.(string)))
 			if err != nil {
 				return nil, errors.Wrapf(err, "can't update field (key: %s)", key)
 			}
@@ -54,7 +54,7 @@ func standardizeObjectProperties(object common.MapStr) (common.MapStr, error) {
 	return object, nil
 }
 
-func standardizeTitleProperty(title string) string {
+func adjustTitleProperty(title string) string {
 	if strings.HasSuffix(title, " ECS") {
 		return strings.ReplaceAll(title, " ECS", "")
 	}
