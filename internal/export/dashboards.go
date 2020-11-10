@@ -21,28 +21,44 @@ import (
 // Dashboards method exports selected dashboards with references objects. All Kibana objects are saved to local files
 // in appropriate directories.
 func Dashboards(kibanaDashboardsClient *dashboards.Client, dashboardsIDs []string) error {
+	packageRoot, err := packages.MustFindPackageRoot()
+	if err != nil {
+		return errors.Wrap(err, "locating package root failed")
+	}
+	logger.Debugf("Package root found: %s", packageRoot)
+
+	m, err := packages.ReadPackageManifest(filepath.Join(packageRoot, packages.PackageManifestFile))
+	if err != nil {
+		return errors.Wrapf(err, "reading package manifest failed (path: %s)", packageRoot)
+	}
+
 	objects, err := kibanaDashboardsClient.Export(dashboardsIDs)
 	if err != nil {
 		return errors.Wrap(err, "exporting dashboards using Kibana client failed")
 	}
 
-	objects, err = transformObjects(objects,
+	ctx := &transformationContext{
+		packageName: m.Name,
+	}
+
+	objects, err = transformObjects(ctx, objects,
 		filterUnsupportedTypes,
 		decodeObject,
 		stripObjectProperties,
-		standardizeObjectProperties)
+		standardizeObjectProperties,
+		standardizeObjectID)
 	if err != nil {
 		return errors.Wrap(err, "can't transform Kibana objects")
 	}
 
-	err = saveObjectsToFiles(objects)
+	err = saveObjectsToFiles(packageRoot, objects)
 	if err != nil {
 		return errors.Wrap(err, "can't save Kibana objects")
 	}
 	return nil
 }
 
-func transformObjects(objects []common.MapStr, transforms ...func(common.MapStr) (common.MapStr, error)) ([]common.MapStr, error) {
+func transformObjects(ctx *transformationContext, objects []common.MapStr, transforms ...func(*transformationContext, common.MapStr) (common.MapStr, error)) ([]common.MapStr, error) {
 	var decoded []common.MapStr
 	var err error
 
@@ -52,7 +68,7 @@ func transformObjects(objects []common.MapStr, transforms ...func(common.MapStr)
 				continue
 			}
 
-			object, err = fn(object)
+			object, err = fn(ctx, object)
 			if err != nil {
 				id, _ := object.GetValue("id")
 				return nil, errors.Wrapf(err, "object transformation failed (ID: %s)", id)
@@ -66,17 +82,8 @@ func transformObjects(objects []common.MapStr, transforms ...func(common.MapStr)
 	return decoded, nil
 }
 
-func saveObjectsToFiles(objects []common.MapStr) error {
+func saveObjectsToFiles(packageRoot string, objects []common.MapStr) error {
 	logger.Debug("Save Kibana objects to files")
-
-	root, found, err := packages.FindPackageRoot()
-	if err != nil {
-		return errors.Wrap(err, "locating package root failed")
-	}
-	if !found {
-		return errors.New("package root not found")
-	}
-	logger.Debugf("Package root found: %s", root)
 
 	for _, object := range objects {
 		id, _ := object.GetValue("id")
@@ -89,7 +96,7 @@ func saveObjectsToFiles(objects []common.MapStr) error {
 		}
 
 		// Create target directory
-		targetDir := filepath.Join(root, "kibana", aType.(string))
+		targetDir := filepath.Join(packageRoot, "kibana", aType.(string))
 		err = os.MkdirAll(targetDir, 0755)
 		if err != nil {
 			return errors.Wrapf(err, "creating target directory failed (path: %s)", targetDir)

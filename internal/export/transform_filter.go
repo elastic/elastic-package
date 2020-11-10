@@ -8,7 +8,7 @@ import (
 	"github.com/elastic/elastic-package/internal/common"
 )
 
-func filterUnsupportedTypes(object common.MapStr) (common.MapStr, error) {
+func filterUnsupportedTypes(ctx *transformationContext, object common.MapStr) (common.MapStr, error) {
 	aType, _ := object.GetValue("type")
 	switch aType {
 	case "index-pattern": // unsupported types

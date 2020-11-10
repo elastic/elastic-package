@@ -24,7 +24,7 @@ var (
 	}
 )
 
-func decodeObject(object common.MapStr) (common.MapStr, error) {
+func decodeObject(ctx *transformationContext, object common.MapStr) (common.MapStr, error) {
 	for _, fieldToDecode := range encodedFields {
 		v, err := object.GetValue(fieldToDecode)
 		if err == common.ErrKeyNotFound {

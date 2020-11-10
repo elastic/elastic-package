@@ -10,7 +10,7 @@ import (
 	"github.com/elastic/elastic-package/internal/common"
 )
 
-func stripObjectProperties(object common.MapStr) (common.MapStr, error) {
+func stripObjectProperties(ctx *transformationContext, object common.MapStr) (common.MapStr, error) {
 	err := object.Delete("namespaces")
 	if err != nil {
 		return nil, errors.Wrapf(err, "removing field \"namespaces\" failed")
