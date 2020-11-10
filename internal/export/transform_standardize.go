@@ -41,6 +41,10 @@ func standardizeObjectID(ctx *transformationContext, object common.MapStr) (comm
 func adjustObjectReferences(ctx *transformationContext, references []interface{}) ([]interface{}, error) {
 	for i, r := range references {
 		reference := r.(map[string]interface{})
+		if aType, ok := reference["type"]; ok && aType == "index-pattern" {
+			continue // don't modify ID for index-patterns
+		}
+
 		if id, ok := reference["id"]; ok {
 			newID := adjustObjectID(ctx, id.(string))
 			reference["id"] = newID
