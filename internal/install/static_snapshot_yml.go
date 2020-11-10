@@ -22,6 +22,10 @@ services:
     - "xpack.security.enabled=true"
     - "xpack.security.authc.api_key.enabled=true"
     - "ELASTIC_PASSWORD=changeme"
+    - "script.context.template.max_compilations_rate=unlimited"
+    - "script.context.ingest.cache_max_size=2000"
+    - "script.context.processor_conditional.cache_max_size=2000"
+    - "script.context.template.cache_max_size=2000"
     ports:
       - "127.0.0.1:9200:9200"
 
