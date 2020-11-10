@@ -10,10 +10,10 @@ import (
 	"io/ioutil"
 	"path/filepath"
 
-	"github.com/elastic/elastic-package/internal/testrunner/runners/testerrors"
-
 	"github.com/kylelemons/godebug/diff"
 	"github.com/pkg/errors"
+
+	"github.com/elastic/elastic-package/internal/testrunner"
 )
 
 const expectedTestResultSuffix = "-expected.json"
@@ -54,7 +54,7 @@ func compareResults(testCasePath string, result *testResult) error {
 
 	report := diff.Diff(string(expected), string(actual))
 	if report != "" {
-		return testerrors.ErrTestCaseFailed{
+		return testrunner.ErrTestCaseFailed{
 			Reason:  "Expected results are different from actual ones",
 			Details: report,
 		}
