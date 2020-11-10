@@ -41,12 +41,7 @@ func Dashboards(kibanaDashboardsClient *dashboards.Client, dashboardsIDs []strin
 		packageName: m.Name,
 	}
 
-	objects, err = transformObjects(ctx, objects,
-		filterUnsupportedTypes,
-		decodeObject,
-		stripObjectProperties,
-		standardizeObjectProperties,
-		standardizeObjectID)
+	objects, err = applyTransformations(ctx, objects)
 	if err != nil {
 		return errors.Wrap(err, "can't transform Kibana objects")
 	}
@@ -56,6 +51,15 @@ func Dashboards(kibanaDashboardsClient *dashboards.Client, dashboardsIDs []strin
 		return errors.Wrap(err, "can't save Kibana objects")
 	}
 	return nil
+}
+
+func applyTransformations(ctx *transformationContext, objects []common.MapStr) ([]common.MapStr, error) {
+	return transformObjects(ctx, objects,
+		filterUnsupportedTypes,
+		decodeObject,
+		stripObjectProperties,
+		standardizeObjectProperties,
+		standardizeObjectID)
 }
 
 func transformObjects(ctx *transformationContext, objects []common.MapStr, transforms ...func(*transformationContext, common.MapStr) (common.MapStr, error)) ([]common.MapStr, error) {

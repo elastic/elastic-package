@@ -12,17 +12,17 @@ import (
 
 func stripObjectProperties(ctx *transformationContext, object common.MapStr) (common.MapStr, error) {
 	err := object.Delete("namespaces")
-	if err != nil {
+	if err != nil && err != common.ErrKeyNotFound {
 		return nil, errors.Wrapf(err, "removing field \"namespaces\" failed")
 	}
 
 	err = object.Delete("updated_at")
-	if err != nil {
+	if err != nil && err != common.ErrKeyNotFound {
 		return nil, errors.Wrapf(err, "removing field \"updated_at\" failed")
 	}
 
 	err = object.Delete("version")
-	if err != nil {
+	if err != nil && err != common.ErrKeyNotFound {
 		return nil, errors.Wrapf(err, "removing field \"version\" failed")
 	}
 	return object, nil
