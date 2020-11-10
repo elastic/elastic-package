@@ -41,9 +41,6 @@
                 "address": "127.0.0.1",
                 "ip": "127.0.0.1"
             },
-            "url": {
-                "original": "/test1"
-            },
             "user_agent": {
                 "device": {
                     "name": "Mac"
@@ -98,9 +95,6 @@
             "source": {
                 "address": "127.0.0.1",
                 "ip": "127.0.0.1"
-            },
-            "url": {
-                "original": "/"
             },
             "user_agent": {
                 "device": {
@@ -157,9 +151,6 @@
                 "address": "127.0.0.1",
                 "ip": "127.0.0.1"
             },
-            "url": {
-                "original": "/"
-            },
             "user_agent": {
                 "device": {
                     "name": "Mac"
@@ -214,9 +205,6 @@
             "source": {
                 "address": "127.0.0.1",
                 "ip": "127.0.0.1"
-            },
-            "url": {
-                "original": "/taga"
             },
             "user_agent": {
                 "device": {
@@ -290,9 +278,6 @@
                     "region_name": "Rheinland-Pfalz"
                 },
                 "ip": "77.179.66.156"
-            },
-            "url": {
-                "original": "/"
             },
             "user_agent": {
                 "device": {
@@ -368,9 +353,6 @@
                 },
                 "ip": "77.179.66.156"
             },
-            "url": {
-                "original": "/favicon.ico"
-            },
             "user_agent": {
                 "device": {
                     "name": "Mac"
@@ -443,9 +425,6 @@
                     "region_name": "Rheinland-Pfalz"
                 },
                 "ip": "77.179.66.156"
-            },
-            "url": {
-                "original": "/test"
             },
             "user_agent": {
                 "device": {
@@ -520,9 +499,6 @@
                 },
                 "ip": "77.179.66.156"
             },
-            "url": {
-                "original": "/test"
-            },
             "user_agent": {
                 "device": {
                     "name": "Mac"
@@ -596,9 +572,6 @@
                 },
                 "ip": "77.179.66.156"
             },
-            "url": {
-                "original": "/test1"
-            },
             "user_agent": {
                 "device": {
                     "name": "Mac"
@@ -671,9 +644,6 @@
                     "region_name": "Rheinland-Pfalz"
                 },
                 "ip": "77.179.66.156"
-            },
-            "url": {
-                "original": "/"
             },
             "user_agent": {
                 "device": {
@@ -749,9 +719,6 @@
                 },
                 "ip": "77.179.66.156"
             },
-            "url": {
-                "original": "/favicon.ico"
-            },
             "user_agent": {
                 "device": {
                     "name": "Mac"
@@ -824,9 +791,6 @@
                     "region_name": "Rheinland-Pfalz"
                 },
                 "ip": "77.179.66.156"
-            },
-            "url": {
-                "original": "/adsasd"
             },
             "user_agent": {
                 "device": {
