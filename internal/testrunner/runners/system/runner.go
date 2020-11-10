@@ -24,7 +24,6 @@ import (
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/testrunner"
 	"github.com/elastic/elastic-package/internal/testrunner/runners/system/servicedeployer"
-	"github.com/elastic/elastic-package/internal/testrunner/runners/testerrors"
 )
 
 func init() {
@@ -85,7 +84,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 			return []testrunner.TestResult{tr}, nil
 		}
 
-		if tcf, ok := err.(testerrors.ErrTestCaseFailed); ok {
+		if tcf, ok := err.(testrunner.ErrTestCaseFailed); ok {
 			tr.FailureMsg = tcf.Reason
 			tr.FailureDetails = tcf.Details
 			return []testrunner.TestResult{tr}, nil
@@ -276,7 +275,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 
 		if len(multiErr) > 0 {
 			multiErr = multiErr.Unique()
-			return false, testerrors.ErrTestCaseFailed{
+			return false, testrunner.ErrTestCaseFailed{
 				Reason:  fmt.Sprintf("one or more errors found in documents stored in %s data stream", dataStream),
 				Details: multiErr.Error(),
 			}

@@ -18,7 +18,6 @@ import (
 	"github.com/elastic/elastic-package/internal/multierror"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/testrunner"
-	"github.com/elastic/elastic-package/internal/testrunner/runners/testerrors"
 )
 
 const (
@@ -94,7 +93,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 
 		tr.TimeElapsed = time.Now().Sub(startTime)
 		err = r.verifyResults(testCaseFile, result, fieldsValidator)
-		if e, ok := err.(testerrors.ErrTestCaseFailed); ok {
+		if e, ok := err.(testrunner.ErrTestCaseFailed); ok {
 			tr.FailureMsg = e.Error()
 			tr.FailureDetails = e.Details
 
@@ -170,7 +169,7 @@ func (r *runner) verifyResults(testCaseFile string, result *testResult, fieldsVa
 	}
 
 	err := compareResults(testCasePath, result)
-	if _, ok := err.(testerrors.ErrTestCaseFailed); ok {
+	if _, ok := err.(testrunner.ErrTestCaseFailed); ok {
 		return err
 	}
 	if err != nil {
@@ -195,7 +194,7 @@ func verifyFieldsInTestResult(result *testResult, fieldsValidator *fields.Valida
 
 	if len(multiErr) > 0 {
 		multiErr = multiErr.Unique()
-		return testerrors.ErrTestCaseFailed{
+		return testrunner.ErrTestCaseFailed{
 			Reason:  "one or more problems with fields found in documents",
 			Details: multiErr.Error(),
 		}
