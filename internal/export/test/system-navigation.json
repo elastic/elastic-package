@@ -7,7 +7,7 @@
     "title": "System Navigation [Metrics System] ECS",
     "uiStateJSON": "{}",
     "version": 1,
-    "visState": "{\n      \"aggs\": [],\n      \"params\": {\n        \"fontSize\": 12,\n        \"markdown\": \"[System Overview](#/dashboard/Metrics-system-overview-ecs) | [Host Overview](#/dashboard/System-79ffd6e0-faa0-11e6-947f-177f697178b8-ECS)\"\n      },\n      \"title\": \"System Navigation [Metrics System]\",\n      \"type\": \"markdown\"\n    }"
+    "visState": "{\n      \"aggs\": [],\n      \"params\": {\n        \"fontSize\": 12,\n        \"markdown\": \"[System Overview](#/dashboard/Metrics-system-overview-ecs) | [Host Overview](#/dashboard/System-79ffd6e0-faa0-11e6-947f-177f697178b8-ecs)\"\n      },\n      \"title\": \"System Navigation [Metrics System]\",\n      \"type\": \"markdown\"\n    }"
   },
   "id": "system-Navigation-ecs",
   "references": [],

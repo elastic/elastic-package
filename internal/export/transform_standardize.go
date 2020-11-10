@@ -5,12 +5,15 @@
 package export
 
 import (
+	"regexp"
 	"strings"
 
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/common"
 )
+
+const dashboardLinkPrefix = "#/dashboard/"
 
 func standardizeObjectID(ctx *transformationContext, object common.MapStr) (common.MapStr, error) {
 	// Adjust object ID
@@ -54,34 +57,18 @@ func adjustObjectReferences(ctx *transformationContext, references []interface{}
 	return references, nil
 }
 
-func adjustObjectID(ctx *transformationContext, id string) string {
-	// If object ID starts with the package name, make sure that package name is all lowercase
-	// Else, prefix an all-lowercase module name to the object ID.
-	newID := id
-	prefix := ctx.packageName + "-"
-	if strings.HasPrefix(strings.ToLower(newID), prefix) {
-		newID = newID[len(prefix):]
-	}
-	newID = prefix + newID
-
-	// If object ID ends with "-ecs", trim it off.
-	ecsSuffix := "-ecs"
-	if strings.HasSuffix(newID, "-ecs") {
-		newID = strings.TrimSuffix(newID, ecsSuffix)
-	}
-
-	// Finally, if after all transformations if the new ID is the same as the
-	// original one, to avoid a collision, we suffix "-pkg"
-	if newID == id {
-		newID += "-pkg"
-	}
-	return newID
-}
-
 func standardizeObjectProperties(ctx *transformationContext, object common.MapStr) (common.MapStr, error) {
 	for key, value := range object {
 		if key == "title" {
 			_, err := object.Put(key, adjustTitleProperty(value.(string)))
+			if err != nil {
+				return nil, errors.Wrapf(err, "can't update field (key: %s)", key)
+			}
+			continue
+		}
+
+		if key == "markdown" {
+			_, err := object.Put(key, adjustMarkdownProperty(ctx, value.(string)))
 			if err != nil {
 				return nil, errors.Wrapf(err, "can't update field (key: %s)", key)
 			}
@@ -129,4 +116,35 @@ func adjustTitleProperty(title string) string {
 		return strings.ReplaceAll(title, " ECS", "")
 	}
 	return title
+}
+
+func adjustMarkdownProperty(ctx *transformationContext, content string) string {
+	r := regexp.MustCompile("(" + dashboardLinkPrefix + "[^)]+)")
+	return r.ReplaceAllStringFunc(content, func(match string) string {
+		match = match[len(dashboardLinkPrefix):]
+		return dashboardLinkPrefix + adjustObjectID(ctx, match)
+	})
+}
+
+func adjustObjectID(ctx *transformationContext, id string) string {
+	// If object ID starts with the package name, make sure that package name is all lowercase
+	// Else, prefix an all-lowercase module name to the object ID.
+	newID := id
+	prefix := ctx.packageName + "-"
+	if strings.HasPrefix(strings.ToLower(newID), prefix) {
+		newID = newID[len(prefix):]
+	}
+	newID = prefix + newID
+
+	// If object ID ends with "-ecs", trim it off.
+	if strings.HasSuffix(newID, "-ecs") {
+		newID = strings.TrimSuffix(newID, "-ecs")
+	}
+
+	// Finally, if after all transformations if the new ID is the same as the
+	// original one, to avoid a collision, we suffix "-pkg"
+	if newID == id {
+		newID += "-pkg"
+	}
+	return newID
 }
