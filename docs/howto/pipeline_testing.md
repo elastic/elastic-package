@@ -74,7 +74,10 @@ The pipeline test runner transforms log lines into file input events and sends t
         "event.category": [
             "web"
         ]
-    }
+    },
+    "ignored_fields": [
+        "event.ingested"
+    ]
 }
 ```
 

@@ -56,6 +56,20 @@ func (m MapStr) Put(key string, value interface{}) (interface{}, error) {
 	return old, nil
 }
 
+// Delete deletes the given key from the map.
+func (m MapStr) Delete(key string) error {
+	k, d, _, found, err := mapFind(key, m, false)
+	if err != nil {
+		return err
+	}
+	if !found {
+		return ErrKeyNotFound
+	}
+
+	delete(d, k)
+	return nil
+}
+
 // StringToPrint returns the MapStr as pretty JSON.
 func (m MapStr) StringToPrint() string {
 	j, err := json.MarshalIndent(m, "", "  ")

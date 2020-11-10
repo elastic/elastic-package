@@ -16,6 +16,7 @@ import (
 
 type testCase struct {
 	name   string
+	config *testConfig
 	events []json.RawMessage
 }
 
@@ -62,6 +63,7 @@ func createTestCaseForRawInput(filename string, inputData []byte, config testCon
 	}
 	return &testCase{
 		name:   filename,
+		config: &config,
 		events: events,
 	}, nil
 }
