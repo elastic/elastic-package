@@ -11,7 +11,7 @@ import (
 )
 
 func init() {
-	testrunner.RegisterRunner(TestType, Run)
+	testrunner.RegisterRunner(&runner{})
 }
 
 const (
@@ -26,15 +26,23 @@ type runner struct {
 	esClient        *es.Client
 }
 
+// Type returns the type of test that can be run by this test runner.
+func (r *runner) Type() testrunner.TestType {
+	return TestType
+}
+
+// String returns the name of the test runner.
+func (r runner) String() string {
+	return "asset loading"
+}
+
 // Run runs the asset loading tests
-func Run(options testrunner.TestOptions) ([]testrunner.TestResult, error) {
-	r := runner{
-		testFolder:      options.TestFolder,
-		packageRootPath: options.PackageRootPath,
-		stackSettings:   testrunner.GetStackSettingsFromEnv(),
-		esClient:        options.ESClient,
-	}
-	defer r.tearDown()
+func (r runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, error) {
+	r.testFolder = options.TestFolder
+	r.packageRootPath = options.PackageRootPath
+	r.stackSettings = testrunner.GetStackSettingsFromEnv()
+	r.esClient = options.ESClient
+
 	return r.run()
 }
 
@@ -47,5 +55,6 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 	return []testrunner.TestResult{result}, nil
 }
 
-func (r *runner) tearDown() {
+func (r *runner) TearDown() error {
+	return nil
 }

@@ -51,17 +51,6 @@ type runner struct {
 	wipeDataStreamHandler   func() error
 }
 
-type stackSettings struct {
-	elasticsearch struct {
-		host     string
-		username string
-		password string
-	}
-	kibana struct {
-		host string
-	}
-}
-
 // Type returns the type of test that can be run by this test runner.
 func (r *runner) Type() testrunner.TestType {
 	return TestType
