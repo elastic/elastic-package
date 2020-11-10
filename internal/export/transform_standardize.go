@@ -140,11 +140,5 @@ func adjustObjectID(ctx *transformationContext, id string) string {
 	if strings.HasSuffix(newID, "-ecs") {
 		newID = strings.TrimSuffix(newID, "-ecs")
 	}
-
-	// Finally, if after all transformations if the new ID is the same as the
-	// original one, to avoid a collision, we suffix "-pkg"
-	if newID == id {
-		newID += "-pkg"
-	}
 	return newID
 }
