@@ -26,7 +26,7 @@ func standardizeObjectID(ctx *transformationContext, object common.MapStr) (comm
 		return nil, errors.Wrap(err, "retrieving object references failed")
 	}
 
-	newReferences, err := adjustObjectReferences(ctx, references.([]map[string]interface{}))
+	newReferences, err := adjustObjectReferences(ctx, references.([]interface{}))
 	if err != nil {
 		return nil, errors.Wrapf(err, "can't adjust object references (ID: %s)", id)
 	}
@@ -38,11 +38,13 @@ func standardizeObjectID(ctx *transformationContext, object common.MapStr) (comm
 	return object, nil
 }
 
-func adjustObjectReferences(ctx *transformationContext, references []map[string]interface{}) ([]map[string]interface{}, error) {
-	for i, reference := range references {
+func adjustObjectReferences(ctx *transformationContext, references []interface{}) ([]interface{}, error) {
+	for i, r := range references {
+		reference := r.(map[string]interface{})
 		if id, ok := reference["id"]; ok {
 			newID := adjustObjectID(ctx, id.(string))
-			references[i]["id"] = newID
+			reference["id"] = newID
+			references[i] = reference
 		}
 	}
 	return references, nil
