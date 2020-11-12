@@ -185,6 +185,9 @@ func (r *runner) verifyResults(testCaseFile string, config *testConfig, result *
 	}
 
 	err = verifyDynamicFields(result, config)
+	if err != nil {
+		return err
+	}
 
 	err = verifyFieldsInTestResult(result, fieldsValidator)
 	if err != nil {
@@ -198,6 +201,7 @@ func verifyDynamicFields(result *testResult, config *testConfig) error {
 		return nil
 	}
 
+	var multiErr multierror.Error
 	for _, event := range result.events {
 		var m common.MapStr
 		err := json.Unmarshal(event, &m)
@@ -222,9 +226,16 @@ func verifyDynamicFields(result *testResult, config *testConfig) error {
 			}
 
 			if !matched {
-				return fmt.Errorf("dynamic field value doesn't match the defined pattern (key: %s, value: %s, pattern: %s",
-					key, valStr, pattern)
+				multiErr = append(multiErr, fmt.Errorf("dynamic field value doesn't match the defined pattern (key: %s, value: %s, pattern: %s",
+					key, valStr, pattern))
 			}
+		}
+	}
+
+	if len(multiErr) > 0 {
+		return testrunner.ErrTestCaseFailed{
+			Reason:  "one or more problems with dynamic fields found in documents",
+			Details: multiErr.Error(),
 		}
 	}
 	return nil
