@@ -5,6 +5,9 @@
 package cmd
 
 import (
+	"fmt"
+
+	"github.com/AlecAivazis/survey/v2"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
@@ -39,16 +42,21 @@ func exportDashboardsCmd(cmd *cobra.Command, args []string) error {
 		return cobraext.FlagParsingError(err, cobraext.DashboardIDsFlagName)
 	}
 
-	if len(dashboardIDs) == 0 {
-		dashboardIDs, err = promptDashboardIDs()
-		if err != nil {
-			return errors.Wrap(err, "prompt for dashboard selection failed")
-		}
-	}
-
 	kibanaClient, err := kibana.NewClient()
 	if err != nil {
 		return errors.Wrap(err, "creating Kibana client failed")
+	}
+
+	if len(dashboardIDs) == 0 {
+		dashboardIDs, err = promptDashboardIDs(kibanaClient)
+		if err != nil {
+			return errors.Wrap(err, "prompt for dashboard selection failed")
+		}
+
+		if len(dashboardIDs) == 0 {
+			fmt.Println("No dashboard has been found.")
+			return nil
+		}
 	}
 
 	err = export.Dashboards(kibanaClient, dashboardIDs)
@@ -60,6 +68,35 @@ func exportDashboardsCmd(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func promptDashboardIDs() ([]string, error) {
-	return nil, errors.New("not implemented yet")
+func promptDashboardIDs(kibanaClient *kibana.Client) ([]string, error) {
+	savedDashboards, err := kibanaClient.FindDashboards()
+	if err != nil {
+		return nil, errors.Wrap(err, "finding dashboards failed")
+	}
+
+	if len(savedDashboards) == 0 {
+		return []string{}, nil
+	}
+
+	dashboardsPrompt := &survey.MultiSelect{
+		Message:  "Which dashboards would you like to export",
+		Options:  savedDashboards.Strings(),
+		PageSize: 100,
+	}
+
+	var selectedOptions []string
+	err = survey.AskOne(dashboardsPrompt, &selectedOptions, survey.WithValidator(survey.Required))
+	if err != nil {
+		return nil, err
+	}
+
+	var selected []string
+	for _, option := range selectedOptions {
+		for _, sd := range savedDashboards {
+			if sd.String() == option {
+				selected = append(selected, sd.ID)
+			}
+		}
+	}
+	return selected, nil
 }
