@@ -136,7 +136,6 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 			return errors.Wrap(err, "can't create Elasticsearch client")
 		}
 
-		fmt.Println(asset.TestType)
 		var results []testrunner.TestResult
 		for _, folder := range testFolders {
 			r, err := testrunner.Run(testType, testrunner.TestOptions{

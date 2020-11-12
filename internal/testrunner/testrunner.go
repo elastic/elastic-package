@@ -149,9 +149,7 @@ func RegisterRunner(runner TestRunner) {
 
 // Run method delegates execution to the registered test runner, based on the test type.
 func Run(testType TestType, options TestOptions) ([]TestResult, error) {
-	fmt.Println("34")
 	runner, defined := runners[testType]
-	fmt.Println(testType, runner)
 	if !defined {
 		return nil, fmt.Errorf("unregistered runner test: %s", testType)
 	}
