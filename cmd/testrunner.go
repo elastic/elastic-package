@@ -18,6 +18,7 @@ import (
 	"github.com/elastic/elastic-package/internal/testrunner/reporters/formats"
 	"github.com/elastic/elastic-package/internal/testrunner/reporters/outputs"
 	_ "github.com/elastic/elastic-package/internal/testrunner/runners" // register all test runners
+	"github.com/elastic/elastic-package/internal/testrunner/runners/asset"
 )
 
 const testLongDescription = `Use this command to run tests on a package. Currently, the following types of tests are available:
@@ -112,7 +113,8 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 			return errors.Wrap(err, "locating package root failed")
 		}
 
-		testFolders, err := testrunner.FindTestFolders(packageRootPath, testType, dataStreams)
+		noConfigTestTypes := []testrunner.TestType{asset.TestType}
+		testFolders, err := testrunner.FindTestFolders(packageRootPath, dataStreams, testType, noConfigTestTypes)
 		if err != nil {
 			return errors.Wrap(err, "unable to determine test folder paths")
 		}
@@ -134,6 +136,7 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 			return errors.Wrap(err, "can't create Elasticsearch client")
 		}
 
+		fmt.Println(asset.TestType)
 		var results []testrunner.TestResult
 		for _, folder := range testFolders {
 			r, err := testrunner.Run(testType, testrunner.TestOptions{

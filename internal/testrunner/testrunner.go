@@ -89,7 +89,7 @@ type TestFolder struct {
 }
 
 // FindTestFolders finds test folders for the given package and, optionally, test type and data streams
-func FindTestFolders(packageRootPath string, testType TestType, dataStreams []string) ([]TestFolder, error) {
+func FindTestFolders(packageRootPath string, dataStreams []string, testType TestType, noConfigTestTypes []TestType) ([]TestFolder, error) {
 	// Expected folder structure:
 	// <packageRootPath>/
 	//   data_stream/
@@ -107,7 +107,7 @@ func FindTestFolders(packageRootPath string, testType TestType, dataStreams []st
 	if dataStreams != nil && len(dataStreams) > 0 {
 		sort.Strings(dataStreams)
 		for _, dataStream := range dataStreams {
-			p, err := findTestFolderPaths(packageRootPath, dataStream, testTypeGlob)
+			p, err := findTestFolderPaths(packageRootPath, dataStream, testTypeGlob, noConfigTestTypes)
 			if err != nil {
 				return nil, err
 			}
@@ -115,7 +115,7 @@ func FindTestFolders(packageRootPath string, testType TestType, dataStreams []st
 			paths = append(paths, p...)
 		}
 	} else {
-		p, err := findTestFolderPaths(packageRootPath, "*", testTypeGlob)
+		p, err := findTestFolderPaths(packageRootPath, "*", testTypeGlob, noConfigTestTypes)
 		if err != nil {
 			return nil, err
 		}
@@ -149,7 +149,9 @@ func RegisterRunner(runner TestRunner) {
 
 // Run method delegates execution to the registered test runner, based on the test type.
 func Run(testType TestType, options TestOptions) ([]TestResult, error) {
+	fmt.Println("34")
 	runner, defined := runners[testType]
+	fmt.Println(testType, runner)
 	if !defined {
 		return nil, fmt.Errorf("unregistered runner test: %s", testType)
 	}
@@ -186,11 +188,26 @@ func TestRunners() map[TestType]TestRunner {
 	return runners
 }
 
-func findTestFolderPaths(packageRootPath, dataStreamGlob, testTypeGlob string) ([]string, error) {
+func findTestFolderPaths(packageRootPath, dataStreamGlob, testTypeGlob string, noConfigTestTypes []TestType) ([]string, error) {
 	testFoldersGlob := filepath.Join(packageRootPath, "data_stream", dataStreamGlob, "_dev", "test", testTypeGlob)
 	paths, err := filepath.Glob(testFoldersGlob)
 	if err != nil {
 		return nil, errors.Wrap(err, "error finding test folders")
 	}
+
+	// Handle test types that don't need configuration folders.
+	dataStreamFoldersGlob := filepath.Join(packageRootPath, "data_stream", dataStreamGlob)
+	dataStreamFolderPaths, err := filepath.Glob(dataStreamFoldersGlob)
+	if err != nil {
+		return nil, errors.Wrap(err, "error finding data stream folders")
+	}
+	for _, t := range noConfigTestTypes {
+		if testTypeGlob == "*" || testTypeGlob == string(t) {
+			for _, p := range dataStreamFolderPaths {
+				paths = append(paths, filepath.Join(p, string(t)))
+			}
+		}
+	}
+
 	return paths, err
 }
