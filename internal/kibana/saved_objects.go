@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"sort"
+	"strings"
 
 	"github.com/pkg/errors"
 
@@ -84,7 +85,7 @@ func (c *Client) FindDashboards() (DashboardSavedObjects, error) {
 	}
 
 	sort.Slice(foundObjects, func(i, j int) bool {
-		return sort.StringsAreSorted([]string{foundObjects[i].Title, foundObjects[j].Title})
+		return sort.StringsAreSorted([]string{strings.ToLower(foundObjects[i].Title), strings.ToLower(foundObjects[j].Title)})
 	})
 	return foundObjects, nil
 }
