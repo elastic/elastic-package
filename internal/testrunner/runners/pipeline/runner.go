@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -92,13 +93,9 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 			results = append(results, tr)
 			continue
 		}
-		result, err = adjustTestResult(result, tc.config)
-		if err != nil {
-			return nil, errors.Wrap(err, "can't adjust test result")
-		}
 
 		tr.TimeElapsed = time.Now().Sub(startTime)
-		err = r.verifyResults(testCaseFile, result, fieldsValidator)
+		err = r.verifyResults(testCaseFile, tc.config, result, fieldsValidator)
 		if e, ok := err.(testrunner.ErrTestCaseFailed); ok {
 			tr.FailureMsg = e.Error()
 			tr.FailureDetails = e.Details
@@ -164,17 +161,22 @@ func (r *runner) loadTestCaseFile(testCaseFile string) (*testCase, error) {
 	return tc, nil
 }
 
-func (r *runner) verifyResults(testCaseFile string, result *testResult, fieldsValidator *fields.Validator) error {
+func (r *runner) verifyResults(testCaseFile string, config *testConfig, result *testResult, fieldsValidator *fields.Validator) error {
 	testCasePath := filepath.Join(r.options.TestFolder.Path, testCaseFile)
 
+	resultWithoutDynamicFields, err := adjustTestResult(result, config)
+	if err != nil {
+		return errors.Wrap(err, "can't adjust test result")
+	}
+
 	if r.options.GenerateTestResult {
-		err := writeTestResult(testCasePath, result)
+		err := writeTestResult(testCasePath, resultWithoutDynamicFields)
 		if err != nil {
 			return errors.Wrap(err, "writing test result failed")
 		}
 	}
 
-	err := compareResults(testCasePath, result)
+	err = compareResults(testCasePath, resultWithoutDynamicFields)
 	if _, ok := err.(testrunner.ErrTestCaseFailed); ok {
 		return err
 	}
@@ -182,9 +184,48 @@ func (r *runner) verifyResults(testCaseFile string, result *testResult, fieldsVa
 		return errors.Wrap(err, "comparing test results failed")
 	}
 
+	err = verifyDynamicFields(result, config)
+
 	err = verifyFieldsInTestResult(result, fieldsValidator)
 	if err != nil {
 		return err
+	}
+	return nil
+}
+
+func verifyDynamicFields(result *testResult, config *testConfig) error {
+	if config == nil || config.DynamicFields == nil {
+		return nil
+	}
+
+	for _, event := range result.events {
+		var m common.MapStr
+		err := json.Unmarshal(event, &m)
+		if err != nil {
+			return errors.Wrap(err, "can't unmarshal event")
+		}
+
+		for key, pattern := range config.DynamicFields {
+			val, err := m.GetValue(key)
+			if err != nil && err != common.ErrKeyNotFound {
+				return errors.Wrap(err, "can't remove dynamic field")
+			}
+
+			valStr, ok := val.(string)
+			if !ok {
+				continue // regular expressions can be verify only string values
+			}
+
+			matched, err := regexp.MatchString(pattern, valStr)
+			if err != nil {
+				return errors.Wrap(err, "dynamic field pattern matching failed")
+			}
+
+			if !matched {
+				return fmt.Errorf("dynamic field value doesn't match the defined pattern (key: %s, value: %s, pattern: %s",
+					key, valStr, pattern)
+			}
+		}
 	}
 	return nil
 }
