@@ -222,12 +222,12 @@ func verifyDynamicFields(result *testResult, config *testConfig) error {
 
 			matched, err := regexp.MatchString(pattern, valStr)
 			if err != nil {
-				return errors.Wrap(err, "dynamic field pattern matching failed")
+				return errors.Wrap(err, "pattern matching for dynamic field failed")
 			}
 
 			if !matched {
-				multiErr = append(multiErr, fmt.Errorf("dynamic field value doesn't match the defined pattern (key: %s, value: %s, pattern: %s",
-					key, valStr, pattern))
+				multiErr = append(multiErr, fmt.Errorf("dynamic field \"%s\" doesn't match the pattern \"%s\": %s",
+					key, pattern, valStr))
 			}
 		}
 	}
