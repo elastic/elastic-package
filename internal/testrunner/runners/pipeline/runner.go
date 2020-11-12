@@ -226,7 +226,7 @@ func verifyDynamicFields(result *testResult, config *testConfig) error {
 			}
 
 			if !matched {
-				multiErr = append(multiErr, fmt.Errorf("dynamic field \"%s\" doesn't match the pattern \"%s\": %s",
+				multiErr = append(multiErr, fmt.Errorf("dynamic field \"%s\" doesn't match the pattern (%s): %s",
 					key, pattern, valStr))
 			}
 		}
@@ -235,7 +235,7 @@ func verifyDynamicFields(result *testResult, config *testConfig) error {
 	if len(multiErr) > 0 {
 		return testrunner.ErrTestCaseFailed{
 			Reason:  "one or more problems with dynamic fields found in documents",
-			Details: multiErr.Error(),
+			Details: multiErr.Unique().Error(),
 		}
 	}
 	return nil
@@ -251,10 +251,9 @@ func verifyFieldsInTestResult(result *testResult, fieldsValidator *fields.Valida
 	}
 
 	if len(multiErr) > 0 {
-		multiErr = multiErr.Unique()
 		return testrunner.ErrTestCaseFailed{
 			Reason:  "one or more problems with fields found in documents",
-			Details: multiErr.Error(),
+			Details: multiErr.Unique().Error(),
 		}
 	}
 	return nil
