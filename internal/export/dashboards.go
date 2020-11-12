@@ -13,14 +13,14 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/common"
-	"github.com/elastic/elastic-package/internal/kibana/dashboards"
+	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
 // Dashboards method exports selected dashboards with references objects. All Kibana objects are saved to local files
 // in appropriate directories.
-func Dashboards(kibanaDashboardsClient *dashboards.Client, dashboardsIDs []string) error {
+func Dashboards(kibanaClient *kibana.Client, dashboardsIDs []string) error {
 	packageRoot, err := packages.MustFindPackageRoot()
 	if err != nil {
 		return errors.Wrap(err, "locating package root failed")
@@ -32,7 +32,7 @@ func Dashboards(kibanaDashboardsClient *dashboards.Client, dashboardsIDs []strin
 		return errors.Wrapf(err, "reading package manifest failed (path: %s)", packageRoot)
 	}
 
-	objects, err := kibanaDashboardsClient.Export(dashboardsIDs)
+	objects, err := kibanaClient.Export(dashboardsIDs)
 	if err != nil {
 		return errors.Wrap(err, "exporting dashboards using Kibana client failed")
 	}

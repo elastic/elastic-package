@@ -10,7 +10,7 @@ import (
 
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/export"
-	"github.com/elastic/elastic-package/internal/kibana/dashboards"
+	"github.com/elastic/elastic-package/internal/kibana"
 )
 
 func setupExportCommand() *cobra.Command {
@@ -21,7 +21,6 @@ func setupExportCommand() *cobra.Command {
 		RunE:  exportDashboardsCmd,
 	}
 	exportDashboardCmd.Flags().StringSliceP(cobraext.DashboardIDsFlagName, "d", nil, cobraext.DashboardIDsFlagDescriptions)
-	exportDashboardCmd.MarkFlagRequired(cobraext.DashboardIDsFlagName)
 
 	cmd := &cobra.Command{
 		Use:   "export",
@@ -40,16 +39,27 @@ func exportDashboardsCmd(cmd *cobra.Command, args []string) error {
 		return cobraext.FlagParsingError(err, cobraext.DashboardIDsFlagName)
 	}
 
-	kibanaDashboardsClient, err := dashboards.NewClient()
-	if err != nil {
-		return errors.Wrap(err, "creating Kibana Dashboards client failed")
+	if len(dashboardIDs) == 0 {
+		dashboardIDs, err = promptDashboardIDs()
+		if err != nil {
+			return errors.Wrap(err, "prompt for dashboard selection failed")
+		}
 	}
 
-	err = export.Dashboards(kibanaDashboardsClient, dashboardIDs)
+	kibanaClient, err := kibana.NewClient()
+	if err != nil {
+		return errors.Wrap(err, "creating Kibana client failed")
+	}
+
+	err = export.Dashboards(kibanaClient, dashboardIDs)
 	if err != nil {
 		return errors.Wrap(err, "dashboards export failed")
 	}
 
 	cmd.Println("Done")
 	return nil
+}
+
+func promptDashboardIDs() ([]string, error) {
+	return nil, errors.New("not implemented yet")
 }
