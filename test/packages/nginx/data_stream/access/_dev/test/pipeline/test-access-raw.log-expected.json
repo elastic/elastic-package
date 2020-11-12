@@ -2,84 +2,64 @@
     "expected": [
         {
             "@timestamp": "2016-12-07T10:04:37.000Z",
-            "event": {
-                "category": [
-                    "web"
-                ],
-                "created": "2020-04-28T11:07:58.223Z",
-                "kind": "event",
-                "outcome": "failure",
-                "type": [
-                    "access"
+            "nginx": {
+                "access": {
+                    "remote_ip_list": [
+                        "127.0.0.1"
+                    ]
+                }
+            },
+            "related": {
+                "ip": [
+                    "127.0.0.1"
                 ]
             },
             "http": {
                 "request": {
                     "method": "get"
                 },
+                "version": "1.1",
                 "response": {
                     "body": {
                         "bytes": 571
                     },
                     "status_code": 404
-                },
-                "version": "1.1"
-            },
-            "nginx": {
-                "access": {
-                    "remote_ip_list": [
-                        "127.0.0.1"
-                    ]
                 }
-            },
-            "related": {
-                "ip": [
-                    "127.0.0.1"
-                ]
             },
             "source": {
                 "address": "127.0.0.1",
                 "ip": "127.0.0.1"
             },
+            "event": {
+                "category": [
+                    "web"
+                ],
+                "type": [
+                    "access"
+                ],
+                "created": "2020-04-28T11:07:58.223Z",
+                "kind": "event",
+                "outcome": "failure"
+            },
             "user_agent": {
-                "device": {
-                    "name": "Mac"
-                },
                 "name": "Chrome",
                 "original": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.98 Safari/537.36",
                 "os": {
-                    "full": "Mac OS X 10.12.0",
                     "name": "Mac OS X",
-                    "version": "10.12.0"
+                    "version": "10.12.0",
+                    "full": "Mac OS X 10.12.0"
+                },
+                "device": {
+                    "name": "Mac"
                 },
                 "version": "54.0.2840.98"
+            },
+            "url": {
+                "original": "/test1"
             }
         },
         {
             "@timestamp": "2016-12-07T10:04:58.000Z",
-            "event": {
-                "category": [
-                    "web"
-                ],
-                "created": "2020-04-28T11:07:58.223Z",
-                "kind": "event",
-                "outcome": "success",
-                "type": [
-                    "access"
-                ]
-            },
-            "http": {
-                "request": {
-                    "method": "get"
-                },
-                "response": {
-                    "body": {
-                        "bytes": 0
-                    },
-                    "status_code": 304
-                },
-                "version": "1.1"
-            },
             "nginx": {
                 "access": {
                     "remote_ip_list": [
@@ -92,49 +72,52 @@
                     "127.0.0.1"
                 ]
             },
+            "http": {
+                "request": {
+                    "method": "get"
+                },
+                "version": "1.1",
+                "response": {
+                    "body": {
+                        "bytes": 0
+                    },
+                    "status_code": 304
+                }
+            },
             "source": {
                 "address": "127.0.0.1",
                 "ip": "127.0.0.1"
             },
+            "event": {
+                "category": [
+                    "web"
+                ],
+                "type": [
+                    "access"
+                ],
+                "created": "2020-04-28T11:07:58.223Z",
+                "kind": "event",
+                "outcome": "success"
+            },
             "user_agent": {
-                "device": {
-                    "name": "Mac"
-                },
                 "name": "Firefox",
                 "original": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:49.0) Gecko/20100101 Firefox/49.0",
                 "os": {
-                    "full": "Mac OS X 10.12",
                     "name": "Mac OS X",
-                    "version": "10.12"
+                    "version": "10.12",
+                    "full": "Mac OS X 10.12"
+                },
+                "device": {
+                    "name": "Mac"
                 },
                 "version": "49.0."
+            },
+            "url": {
+                "original": "/"
             }
         },
         {
             "@timestamp": "2016-12-07T10:04:59.000Z",
-            "event": {
-                "category": [
-                    "web"
-                ],
-                "created": "2020-04-28T11:07:58.223Z",
-                "kind": "event",
-                "outcome": "success",
-                "type": [
-                    "access"
-                ]
-            },
-            "http": {
-                "request": {
-                    "method": "get"
-                },
-                "response": {
-                    "body": {
-                        "bytes": 0
-                    },
-                    "status_code": 304
-                },
-                "version": "1.1"
-            },
             "nginx": {
                 "access": {
                     "remote_ip_list": [
@@ -147,104 +130,110 @@
                     "127.0.0.1"
                 ]
             },
+            "http": {
+                "request": {
+                    "method": "get"
+                },
+                "version": "1.1",
+                "response": {
+                    "body": {
+                        "bytes": 0
+                    },
+                    "status_code": 304
+                }
+            },
             "source": {
                 "address": "127.0.0.1",
                 "ip": "127.0.0.1"
             },
-            "user_agent": {
-                "device": {
-                    "name": "Mac"
-                },
-                "name": "Firefox",
-                "original": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:49.0) Gecko/20100101 Firefox/49.0",
-                "os": {
-                    "full": "Mac OS X 10.12",
-                    "name": "Mac OS X",
-                    "version": "10.12"
-                },
-                "version": "49.0."
-            }
-        },
-        {
-            "@timestamp": "2016-12-07T10:05:07.000Z",
             "event": {
                 "category": [
                     "web"
                 ],
-                "created": "2020-04-28T11:07:58.223Z",
-                "kind": "event",
-                "outcome": "failure",
                 "type": [
                     "access"
+                ],
+                "created": "2020-04-28T11:07:58.223Z",
+                "kind": "event",
+                "outcome": "success"
+            },
+            "user_agent": {
+                "name": "Firefox",
+                "original": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:49.0) Gecko/20100101 Firefox/49.0",
+                "os": {
+                    "name": "Mac OS X",
+                    "version": "10.12",
+                    "full": "Mac OS X 10.12"
+                },
+                "device": {
+                    "name": "Mac"
+                },
+                "version": "49.0."
+            },
+            "url": {
+                "original": "/"
+            }
+        },
+        {
+            "@timestamp": "2016-12-07T10:05:07.000Z",
+            "nginx": {
+                "access": {
+                    "remote_ip_list": [
+                        "127.0.0.1"
+                    ]
+                }
+            },
+            "related": {
+                "ip": [
+                    "127.0.0.1"
                 ]
             },
             "http": {
                 "request": {
                     "method": "get"
                 },
+                "version": "1.1",
                 "response": {
                     "body": {
                         "bytes": 169
                     },
                     "status_code": 404
-                },
-                "version": "1.1"
-            },
-            "nginx": {
-                "access": {
-                    "remote_ip_list": [
-                        "127.0.0.1"
-                    ]
                 }
-            },
-            "related": {
-                "ip": [
-                    "127.0.0.1"
-                ]
             },
             "source": {
                 "address": "127.0.0.1",
                 "ip": "127.0.0.1"
             },
-            "user_agent": {
-                "device": {
-                    "name": "Mac"
-                },
-                "name": "Firefox",
-                "original": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:49.0) Gecko/20100101 Firefox/49.0",
-                "os": {
-                    "full": "Mac OS X 10.12",
-                    "name": "Mac OS X",
-                    "version": "10.12"
-                },
-                "version": "49.0."
-            }
-        },
-        {
-            "@timestamp": "2016-12-07T09:34:43.000Z",
             "event": {
                 "category": [
                     "web"
                 ],
-                "created": "2020-04-28T11:07:58.223Z",
-                "kind": "event",
-                "outcome": "success",
                 "type": [
                     "access"
-                ]
+                ],
+                "created": "2020-04-28T11:07:58.223Z",
+                "kind": "event",
+                "outcome": "failure"
             },
-            "http": {
-                "request": {
-                    "method": "get"
+            "user_agent": {
+                "name": "Firefox",
+                "original": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:49.0) Gecko/20100101 Firefox/49.0",
+                "os": {
+                    "name": "Mac OS X",
+                    "version": "10.12",
+                    "full": "Mac OS X 10.12"
                 },
-                "response": {
-                    "body": {
-                        "bytes": 612
-                    },
-                    "status_code": 200
+                "device": {
+                    "name": "Mac"
                 },
-                "version": "1.1"
+                "version": "49.0."
             },
+            "url": {
+                "original": "/taga"
+            }
+        },
+        {
+            "@timestamp": "2016-12-07T09:34:43.000Z",
             "nginx": {
                 "access": {
                     "remote_ip_list": [
@@ -257,53 +246,80 @@
                     "77.179.66.156"
                 ]
             },
+            "http": {
+                "request": {
+                    "method": "get"
+                },
+                "version": "1.1",
+                "response": {
+                    "body": {
+                        "bytes": 612
+                    },
+                    "status_code": 200
+                }
+            },
             "source": {
-                "address": "77.179.66.156",
+                "geo": {
+                    "continent_name": "Europe",
+                    "region_iso_code": "DE-RP",
+                    "city_name": "Germersheim",
+                    "country_iso_code": "DE",
+                    "country_name": "Germany",
+                    "region_name": "Rheinland-Pfalz",
+                    "location": {
+                        "lon": 8.3639,
+                        "lat": 49.2231
+                    }
+                },
                 "as": {
                     "number": 6805,
                     "organization": {
                         "name": "Telefonica Germany"
                     }
                 },
-                "geo": {
-                    "city_name": "Germersheim",
-                    "continent_name": "Europe",
-                    "country_iso_code": "DE",
-                    "country_name": "Germany",
-                    "location": {
-                        "lat": 49.2231,
-                        "lon": 8.3639
-                    },
-                    "region_iso_code": "DE-RP",
-                    "region_name": "Rheinland-Pfalz"
-                },
+                "address": "77.179.66.156",
                 "ip": "77.179.66.156"
             },
-            "user_agent": {
-                "device": {
-                    "name": "Mac"
-                },
-                "name": "Chrome",
-                "original": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.98 Safari/537.36",
-                "os": {
-                    "full": "Mac OS X 10.12.0",
-                    "name": "Mac OS X",
-                    "version": "10.12.0"
-                },
-                "version": "54.0.2840.98"
-            }
-        },
-        {
-            "@timestamp": "2016-12-07T09:34:43.000Z",
             "event": {
                 "category": [
                     "web"
                 ],
-                "created": "2020-04-28T11:07:58.223Z",
-                "kind": "event",
-                "outcome": "failure",
                 "type": [
                     "access"
+                ],
+                "created": "2020-04-28T11:07:58.223Z",
+                "kind": "event",
+                "outcome": "success"
+            },
+            "user_agent": {
+                "name": "Chrome",
+                "original": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.98 Safari/537.36",
+                "os": {
+                    "name": "Mac OS X",
+                    "version": "10.12.0",
+                    "full": "Mac OS X 10.12.0"
+                },
+                "device": {
+                    "name": "Mac"
+                },
+                "version": "54.0.2840.98"
+            },
+            "url": {
+                "original": "/"
+            }
+        },
+        {
+            "@timestamp": "2016-12-07T09:34:43.000Z",
+            "nginx": {
+                "access": {
+                    "remote_ip_list": [
+                        "77.179.66.156"
+                    ]
+                }
+            },
+            "related": {
+                "ip": [
+                    "77.179.66.156"
                 ]
             },
             "http": {
@@ -311,87 +327,66 @@
                     "method": "get",
                     "referrer": "http://localhost:8080/"
                 },
+                "version": "1.1",
                 "response": {
                     "body": {
                         "bytes": 571
                     },
                     "status_code": 404
-                },
-                "version": "1.1"
-            },
-            "nginx": {
-                "access": {
-                    "remote_ip_list": [
-                        "77.179.66.156"
-                    ]
                 }
             },
-            "related": {
-                "ip": [
-                    "77.179.66.156"
-                ]
-            },
             "source": {
-                "address": "77.179.66.156",
+                "geo": {
+                    "continent_name": "Europe",
+                    "region_iso_code": "DE-RP",
+                    "city_name": "Germersheim",
+                    "country_iso_code": "DE",
+                    "country_name": "Germany",
+                    "region_name": "Rheinland-Pfalz",
+                    "location": {
+                        "lon": 8.3639,
+                        "lat": 49.2231
+                    }
+                },
                 "as": {
                     "number": 6805,
                     "organization": {
                         "name": "Telefonica Germany"
                     }
                 },
-                "geo": {
-                    "city_name": "Germersheim",
-                    "continent_name": "Europe",
-                    "country_iso_code": "DE",
-                    "country_name": "Germany",
-                    "location": {
-                        "lat": 49.2231,
-                        "lon": 8.3639
-                    },
-                    "region_iso_code": "DE-RP",
-                    "region_name": "Rheinland-Pfalz"
-                },
+                "address": "77.179.66.156",
                 "ip": "77.179.66.156"
             },
+            "event": {
+                "category": [
+                    "web"
+                ],
+                "type": [
+                    "access"
+                ],
+                "created": "2020-04-28T11:07:58.223Z",
+                "kind": "event",
+                "outcome": "failure"
+            },
             "user_agent": {
-                "device": {
-                    "name": "Mac"
-                },
                 "name": "Chrome",
                 "original": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.98 Safari/537.36",
                 "os": {
-                    "full": "Mac OS X 10.12.0",
                     "name": "Mac OS X",
-                    "version": "10.12.0"
+                    "version": "10.12.0",
+                    "full": "Mac OS X 10.12.0"
+                },
+                "device": {
+                    "name": "Mac"
                 },
                 "version": "54.0.2840.98"
+            },
+            "url": {
+                "original": "/favicon.ico"
             }
         },
         {
             "@timestamp": "2016-12-07T09:43:18.000Z",
-            "event": {
-                "category": [
-                    "web"
-                ],
-                "created": "2020-04-28T11:07:58.223Z",
-                "kind": "event",
-                "outcome": "failure",
-                "type": [
-                    "access"
-                ]
-            },
-            "http": {
-                "request": {
-                    "method": "get"
-                },
-                "response": {
-                    "body": {
-                        "bytes": 571
-                    },
-                    "status_code": 404
-                },
-                "version": "1.1"
-            },
             "nginx": {
                 "access": {
                     "remote_ip_list": [
@@ -404,67 +399,70 @@
                     "77.179.66.156"
                 ]
             },
+            "http": {
+                "request": {
+                    "method": "get"
+                },
+                "version": "1.1",
+                "response": {
+                    "body": {
+                        "bytes": 571
+                    },
+                    "status_code": 404
+                }
+            },
             "source": {
-                "address": "77.179.66.156",
+                "geo": {
+                    "continent_name": "Europe",
+                    "region_iso_code": "DE-RP",
+                    "city_name": "Germersheim",
+                    "country_iso_code": "DE",
+                    "country_name": "Germany",
+                    "region_name": "Rheinland-Pfalz",
+                    "location": {
+                        "lon": 8.3639,
+                        "lat": 49.2231
+                    }
+                },
                 "as": {
                     "number": 6805,
                     "organization": {
                         "name": "Telefonica Germany"
                     }
                 },
-                "geo": {
-                    "city_name": "Germersheim",
-                    "continent_name": "Europe",
-                    "country_iso_code": "DE",
-                    "country_name": "Germany",
-                    "location": {
-                        "lat": 49.2231,
-                        "lon": 8.3639
-                    },
-                    "region_iso_code": "DE-RP",
-                    "region_name": "Rheinland-Pfalz"
-                },
+                "address": "77.179.66.156",
                 "ip": "77.179.66.156"
             },
+            "event": {
+                "category": [
+                    "web"
+                ],
+                "type": [
+                    "access"
+                ],
+                "created": "2020-04-28T11:07:58.223Z",
+                "kind": "event",
+                "outcome": "failure"
+            },
             "user_agent": {
-                "device": {
-                    "name": "Mac"
-                },
                 "name": "Chrome",
                 "original": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.98 Safari/537.36",
                 "os": {
-                    "full": "Mac OS X 10.12.0",
                     "name": "Mac OS X",
-                    "version": "10.12.0"
+                    "version": "10.12.0",
+                    "full": "Mac OS X 10.12.0"
+                },
+                "device": {
+                    "name": "Mac"
                 },
                 "version": "54.0.2840.98"
+            },
+            "url": {
+                "original": "/test"
             }
         },
         {
             "@timestamp": "2016-12-07T09:43:21.000Z",
-            "event": {
-                "category": [
-                    "web"
-                ],
-                "created": "2020-04-28T11:07:58.223Z",
-                "kind": "event",
-                "outcome": "failure",
-                "type": [
-                    "access"
-                ]
-            },
-            "http": {
-                "request": {
-                    "method": "get"
-                },
-                "response": {
-                    "body": {
-                        "bytes": 571
-                    },
-                    "status_code": 404
-                },
-                "version": "1.1"
-            },
             "nginx": {
                 "access": {
                     "remote_ip_list": [
@@ -477,67 +475,70 @@
                     "77.179.66.156"
                 ]
             },
+            "http": {
+                "request": {
+                    "method": "get"
+                },
+                "version": "1.1",
+                "response": {
+                    "body": {
+                        "bytes": 571
+                    },
+                    "status_code": 404
+                }
+            },
             "source": {
-                "address": "77.179.66.156",
+                "geo": {
+                    "continent_name": "Europe",
+                    "region_iso_code": "DE-RP",
+                    "city_name": "Germersheim",
+                    "country_iso_code": "DE",
+                    "country_name": "Germany",
+                    "region_name": "Rheinland-Pfalz",
+                    "location": {
+                        "lon": 8.3639,
+                        "lat": 49.2231
+                    }
+                },
                 "as": {
                     "number": 6805,
                     "organization": {
                         "name": "Telefonica Germany"
                     }
                 },
-                "geo": {
-                    "city_name": "Germersheim",
-                    "continent_name": "Europe",
-                    "country_iso_code": "DE",
-                    "country_name": "Germany",
-                    "location": {
-                        "lat": 49.2231,
-                        "lon": 8.3639
-                    },
-                    "region_iso_code": "DE-RP",
-                    "region_name": "Rheinland-Pfalz"
-                },
+                "address": "77.179.66.156",
                 "ip": "77.179.66.156"
             },
+            "event": {
+                "category": [
+                    "web"
+                ],
+                "type": [
+                    "access"
+                ],
+                "created": "2020-04-28T11:07:58.223Z",
+                "kind": "event",
+                "outcome": "failure"
+            },
             "user_agent": {
-                "device": {
-                    "name": "Mac"
-                },
                 "name": "Chrome",
                 "original": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.98 Safari/537.36",
                 "os": {
-                    "full": "Mac OS X 10.12.0",
                     "name": "Mac OS X",
-                    "version": "10.12.0"
+                    "version": "10.12.0",
+                    "full": "Mac OS X 10.12.0"
+                },
+                "device": {
+                    "name": "Mac"
                 },
                 "version": "54.0.2840.98"
+            },
+            "url": {
+                "original": "/test"
             }
         },
         {
             "@timestamp": "2016-12-07T09:43:23.000Z",
-            "event": {
-                "category": [
-                    "web"
-                ],
-                "created": "2020-04-28T11:07:58.223Z",
-                "kind": "event",
-                "outcome": "failure",
-                "type": [
-                    "access"
-                ]
-            },
-            "http": {
-                "request": {
-                    "method": "get"
-                },
-                "response": {
-                    "body": {
-                        "bytes": 571
-                    },
-                    "status_code": 404
-                },
-                "version": "1.1"
-            },
             "nginx": {
                 "access": {
                     "remote_ip_list": [
@@ -550,67 +551,146 @@
                     "77.179.66.156"
                 ]
             },
+            "http": {
+                "request": {
+                    "method": "get"
+                },
+                "version": "1.1",
+                "response": {
+                    "body": {
+                        "bytes": 571
+                    },
+                    "status_code": 404
+                }
+            },
             "source": {
-                "address": "77.179.66.156",
+                "geo": {
+                    "continent_name": "Europe",
+                    "region_iso_code": "DE-RP",
+                    "city_name": "Germersheim",
+                    "country_iso_code": "DE",
+                    "country_name": "Germany",
+                    "region_name": "Rheinland-Pfalz",
+                    "location": {
+                        "lon": 8.3639,
+                        "lat": 49.2231
+                    }
+                },
                 "as": {
                     "number": 6805,
                     "organization": {
                         "name": "Telefonica Germany"
                     }
                 },
-                "geo": {
-                    "city_name": "Germersheim",
-                    "continent_name": "Europe",
-                    "country_iso_code": "DE",
-                    "country_name": "Germany",
-                    "location": {
-                        "lat": 49.2231,
-                        "lon": 8.3639
-                    },
-                    "region_iso_code": "DE-RP",
-                    "region_name": "Rheinland-Pfalz"
-                },
+                "address": "77.179.66.156",
                 "ip": "77.179.66.156"
             },
-            "user_agent": {
-                "device": {
-                    "name": "Mac"
-                },
-                "name": "Chrome",
-                "original": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.98 Safari/537.36",
-                "os": {
-                    "full": "Mac OS X 10.12.0",
-                    "name": "Mac OS X",
-                    "version": "10.12.0"
-                },
-                "version": "54.0.2840.98"
-            }
-        },
-        {
-            "@timestamp": "2016-10-25T12:49:33.000Z",
             "event": {
                 "category": [
                     "web"
                 ],
-                "created": "2020-04-28T11:07:58.223Z",
-                "kind": "event",
-                "outcome": "success",
                 "type": [
                     "access"
+                ],
+                "created": "2020-04-28T11:07:58.223Z",
+                "kind": "event",
+                "outcome": "failure"
+            },
+            "user_agent": {
+                "name": "Chrome",
+                "original": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.98 Safari/537.36",
+                "os": {
+                    "name": "Mac OS X",
+                    "version": "10.12.0",
+                    "full": "Mac OS X 10.12.0"
+                },
+                "device": {
+                    "name": "Mac"
+                },
+                "version": "54.0.2840.98"
+            },
+            "url": {
+                "original": "/test1"
+            }
+        },
+        {
+            "@timestamp": "2016-10-25T12:49:33.000Z",
+            "nginx": {
+                "access": {
+                    "remote_ip_list": [
+                        "77.179.66.156"
+                    ]
+                }
+            },
+            "related": {
+                "ip": [
+                    "77.179.66.156"
                 ]
             },
             "http": {
                 "request": {
                     "method": "get"
                 },
+                "version": "1.1",
                 "response": {
                     "body": {
                         "bytes": 612
                     },
                     "status_code": 200
-                },
-                "version": "1.1"
+                }
             },
+            "source": {
+                "geo": {
+                    "continent_name": "Europe",
+                    "region_iso_code": "DE-RP",
+                    "city_name": "Germersheim",
+                    "country_iso_code": "DE",
+                    "country_name": "Germany",
+                    "region_name": "Rheinland-Pfalz",
+                    "location": {
+                        "lon": 8.3639,
+                        "lat": 49.2231
+                    }
+                },
+                "as": {
+                    "number": 6805,
+                    "organization": {
+                        "name": "Telefonica Germany"
+                    }
+                },
+                "address": "77.179.66.156",
+                "ip": "77.179.66.156"
+            },
+            "event": {
+                "category": [
+                    "web"
+                ],
+                "type": [
+                    "access"
+                ],
+                "created": "2020-04-28T11:07:58.223Z",
+                "kind": "event",
+                "outcome": "success"
+            },
+            "user_agent": {
+                "name": "Chrome",
+                "original": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.59 Safari/537.36",
+                "os": {
+                    "name": "Mac OS X",
+                    "version": "10.12.0",
+                    "full": "Mac OS X 10.12.0"
+                },
+                "device": {
+                    "name": "Mac"
+                },
+                "version": "54.0.2840.59"
+            },
+            "url": {
+                "original": "/"
+            }
+        },
+        {
+            "@timestamp": "2016-10-25T12:49:34.000Z",
             "nginx": {
                 "access": {
                     "remote_ip_list": [
@@ -621,55 +701,6 @@
             "related": {
                 "ip": [
                     "77.179.66.156"
-                ]
-            },
-            "source": {
-                "address": "77.179.66.156",
-                "as": {
-                    "number": 6805,
-                    "organization": {
-                        "name": "Telefonica Germany"
-                    }
-                },
-                "geo": {
-                    "city_name": "Germersheim",
-                    "continent_name": "Europe",
-                    "country_iso_code": "DE",
-                    "country_name": "Germany",
-                    "location": {
-                        "lat": 49.2231,
-                        "lon": 8.3639
-                    },
-                    "region_iso_code": "DE-RP",
-                    "region_name": "Rheinland-Pfalz"
-                },
-                "ip": "77.179.66.156"
-            },
-            "user_agent": {
-                "device": {
-                    "name": "Mac"
-                },
-                "name": "Chrome",
-                "original": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.59 Safari/537.36",
-                "os": {
-                    "full": "Mac OS X 10.12.0",
-                    "name": "Mac OS X",
-                    "version": "10.12.0"
-                },
-                "version": "54.0.2840.59"
-            }
-        },
-        {
-            "@timestamp": "2016-10-25T12:49:34.000Z",
-            "event": {
-                "category": [
-                    "web"
-                ],
-                "created": "2020-04-28T11:07:58.223Z",
-                "kind": "event",
-                "outcome": "failure",
-                "type": [
-                    "access"
                 ]
             },
             "http": {
@@ -677,14 +708,66 @@
                     "method": "get",
                     "referrer": "http://localhost:8080/"
                 },
+                "version": "1.1",
                 "response": {
                     "body": {
                         "bytes": 571
                     },
                     "status_code": 404
-                },
-                "version": "1.1"
+                }
             },
+            "source": {
+                "geo": {
+                    "continent_name": "Europe",
+                    "region_iso_code": "DE-RP",
+                    "city_name": "Germersheim",
+                    "country_iso_code": "DE",
+                    "country_name": "Germany",
+                    "region_name": "Rheinland-Pfalz",
+                    "location": {
+                        "lon": 8.3639,
+                        "lat": 49.2231
+                    }
+                },
+                "as": {
+                    "number": 6805,
+                    "organization": {
+                        "name": "Telefonica Germany"
+                    }
+                },
+                "address": "77.179.66.156",
+                "ip": "77.179.66.156"
+            },
+            "event": {
+                "category": [
+                    "web"
+                ],
+                "type": [
+                    "access"
+                ],
+                "created": "2020-04-28T11:07:58.223Z",
+                "kind": "event",
+                "outcome": "failure"
+            },
+            "user_agent": {
+                "name": "Chrome",
+                "original": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.59 Safari/537.36",
+                "os": {
+                    "name": "Mac OS X",
+                    "version": "10.12.0",
+                    "full": "Mac OS X 10.12.0"
+                },
+                "device": {
+                    "name": "Mac"
+                },
+                "version": "54.0.2840.59"
+            },
+            "url": {
+                "original": "/favicon.ico"
+            }
+        },
+        {
+            "@timestamp": "2016-10-25T12:50:44.000Z",
             "nginx": {
                 "access": {
                     "remote_ip_list": [
@@ -695,115 +778,68 @@
             "related": {
                 "ip": [
                     "77.179.66.156"
-                ]
-            },
-            "source": {
-                "address": "77.179.66.156",
-                "as": {
-                    "number": 6805,
-                    "organization": {
-                        "name": "Telefonica Germany"
-                    }
-                },
-                "geo": {
-                    "city_name": "Germersheim",
-                    "continent_name": "Europe",
-                    "country_iso_code": "DE",
-                    "country_name": "Germany",
-                    "location": {
-                        "lat": 49.2231,
-                        "lon": 8.3639
-                    },
-                    "region_iso_code": "DE-RP",
-                    "region_name": "Rheinland-Pfalz"
-                },
-                "ip": "77.179.66.156"
-            },
-            "user_agent": {
-                "device": {
-                    "name": "Mac"
-                },
-                "name": "Chrome",
-                "original": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.59 Safari/537.36",
-                "os": {
-                    "full": "Mac OS X 10.12.0",
-                    "name": "Mac OS X",
-                    "version": "10.12.0"
-                },
-                "version": "54.0.2840.59"
-            }
-        },
-        {
-            "@timestamp": "2016-10-25T12:50:44.000Z",
-            "event": {
-                "category": [
-                    "web"
-                ],
-                "created": "2020-04-28T11:07:58.223Z",
-                "kind": "event",
-                "outcome": "failure",
-                "type": [
-                    "access"
                 ]
             },
             "http": {
                 "request": {
                     "method": "get"
                 },
+                "version": "1.1",
                 "response": {
                     "body": {
                         "bytes": 571
                     },
                     "status_code": 404
-                },
-                "version": "1.1"
-            },
-            "nginx": {
-                "access": {
-                    "remote_ip_list": [
-                        "77.179.66.156"
-                    ]
                 }
             },
-            "related": {
-                "ip": [
-                    "77.179.66.156"
-                ]
-            },
             "source": {
-                "address": "77.179.66.156",
+                "geo": {
+                    "continent_name": "Europe",
+                    "region_iso_code": "DE-RP",
+                    "city_name": "Germersheim",
+                    "country_iso_code": "DE",
+                    "country_name": "Germany",
+                    "region_name": "Rheinland-Pfalz",
+                    "location": {
+                        "lon": 8.3639,
+                        "lat": 49.2231
+                    }
+                },
                 "as": {
                     "number": 6805,
                     "organization": {
                         "name": "Telefonica Germany"
                     }
                 },
-                "geo": {
-                    "city_name": "Germersheim",
-                    "continent_name": "Europe",
-                    "country_iso_code": "DE",
-                    "country_name": "Germany",
-                    "location": {
-                        "lat": 49.2231,
-                        "lon": 8.3639
-                    },
-                    "region_iso_code": "DE-RP",
-                    "region_name": "Rheinland-Pfalz"
-                },
+                "address": "77.179.66.156",
                 "ip": "77.179.66.156"
             },
+            "event": {
+                "category": [
+                    "web"
+                ],
+                "type": [
+                    "access"
+                ],
+                "created": "2020-04-28T11:07:58.223Z",
+                "kind": "event",
+                "outcome": "failure"
+            },
             "user_agent": {
-                "device": {
-                    "name": "Mac"
-                },
                 "name": "Chrome",
                 "original": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.59 Safari/537.36",
                 "os": {
-                    "full": "Mac OS X 10.12.0",
                     "name": "Mac OS X",
-                    "version": "10.12.0"
+                    "version": "10.12.0",
+                    "full": "Mac OS X 10.12.0"
+                },
+                "device": {
+                    "name": "Mac"
                 },
                 "version": "54.0.2840.59"
+            },
+            "url": {
+                "original": "/adsasd"
             }
         }
     ]

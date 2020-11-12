@@ -5,7 +5,6 @@
 package pipeline
 
 import (
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
@@ -14,7 +13,6 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/fields"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/multierror"
@@ -91,10 +89,6 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 			tr.ErrorMsg = err.Error()
 			results = append(results, tr)
 			continue
-		}
-		result, err = adjustTestResult(result, tc.config)
-		if err != nil {
-			return nil, errors.Wrap(err, "can't adjust test result")
 		}
 
 		tr.TimeElapsed = time.Now().Sub(startTime)
@@ -206,36 +200,6 @@ func verifyFieldsInTestResult(result *testResult, fieldsValidator *fields.Valida
 		}
 	}
 	return nil
-}
-
-func adjustTestResult(result *testResult, config *testConfig) (*testResult, error) {
-	if config == nil || config.IgnoredFields == nil {
-		return result, nil
-	}
-
-	// Strip ignored fields from test result
-	var stripped testResult
-	for _, event := range result.events {
-		var m common.MapStr
-		err := json.Unmarshal(event, &m)
-		if err != nil {
-			return nil, errors.Wrap(err, "can't unmarshal event")
-		}
-
-		for _, ignored := range config.IgnoredFields {
-			err := m.Delete(ignored)
-			if err != nil && err != common.ErrKeyNotFound {
-				return nil, errors.Wrap(err, "can't remove ignored field")
-			}
-		}
-
-		b, err := json.Marshal(&m)
-		if err != nil {
-			return nil, errors.Wrap(err, "can't marshal event")
-		}
-		stripped.events = append(stripped.events, b)
-	}
-	return &stripped, nil
 }
 
 func init() {
