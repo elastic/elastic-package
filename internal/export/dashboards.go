@@ -54,36 +54,14 @@ func Dashboards(kibanaClient *kibana.Client, dashboardsIDs []string) error {
 }
 
 func applyTransformations(ctx *transformationContext, objects []common.MapStr) ([]common.MapStr, error) {
-	return transformObjects(ctx, objects,
-		filterUnsupportedTypes,
-		decodeObject,
-		stripObjectProperties,
-		standardizeObjectProperties,
-		standardizeObjectID)
-}
-
-func transformObjects(ctx *transformationContext, objects []common.MapStr, transforms ...func(*transformationContext, common.MapStr) (common.MapStr, error)) ([]common.MapStr, error) {
-	var decoded []common.MapStr
-	var err error
-
-	for _, object := range objects {
-		for _, fn := range transforms {
-			if object == nil {
-				continue
-			}
-
-			object, err = fn(ctx, object)
-			if err != nil {
-				id, _ := object.GetValue("id")
-				return nil, errors.Wrapf(err, "object transformation failed (ID: %s)", id)
-			}
-		}
-
-		if object != nil {
-			decoded = append(decoded, object)
-		}
-	}
-	return decoded, nil
+	return newObjectTransformer().
+		withContext(ctx).
+		withTransforms(filterUnsupportedTypes,
+			decodeObject,
+			stripObjectProperties,
+			standardizeObjectProperties,
+			standardizeObjectID).
+		transform(objects)
 }
 
 func saveObjectsToFiles(packageRoot string, objects []common.MapStr) error {
