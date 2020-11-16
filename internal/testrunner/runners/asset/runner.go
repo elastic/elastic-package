@@ -93,7 +93,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 	}
 
 	logger.Debug("installing package...")
-	assets, err := im.InstallPackage(*pkgManifest)
+	actualAssets, err := im.InstallPackage(*pkgManifest)
 	if err != nil {
 		return resultsWith(result, errors.Wrap(err, "could not install package"))
 	}
@@ -105,11 +105,17 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		return nil
 	}
 
-	// TODO: Verify that data stream assets are loaded as expected
-	fmt.Println(assets)
-	// index templates
-	// kibana saved objects
+	// TODO: Verify that package assets are loaded as expected
+	expectedAssets, err := packages.LoadPackageAssets(r.packageRootPath)
+	if err != nil {
+		return resultsWith(result, errors.Wrap(err, "could not load expected package assets"))
+	}
 
+	for _, e := range expectedAssets {
+		if !findActualAsset(actualAssets, e) {
+			return resultsWith(result, fmt.Errorf("could not find expected asset with ID = %s and type = %s", e.ID, e.Type))
+		}
+	}
 	return resultsWith(result, nil)
 }
 
@@ -121,4 +127,14 @@ func (r *runner) TearDown() error {
 	}
 
 	return nil
+}
+
+func findActualAsset(actualAssets []packages.Asset, expectedAsset packages.Asset) bool {
+	for _, a := range actualAssets {
+		if a.Type == expectedAsset.Type && a.ID == expectedAsset.ID {
+			return true
+		}
+	}
+
+	return false
 }

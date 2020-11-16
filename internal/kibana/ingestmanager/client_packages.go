@@ -9,22 +9,17 @@ import (
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
-type Asset struct {
-	ID   string `json:"id"`
-	Type string `json:"type"`
-}
-
 // InstallPackage installs the given package in Fleet.
-func (c *Client) InstallPackage(pkg packages.PackageManifest) ([]Asset, error) {
+func (c *Client) InstallPackage(pkg packages.PackageManifest) ([]packages.Asset, error) {
 	return managePackage(pkg, "install", c.post)
 }
 
 // RemovePackage removes the given package from Fleet.
-func (c *Client) RemovePackage(pkg packages.PackageManifest) ([]Asset, error) {
+func (c *Client) RemovePackage(pkg packages.PackageManifest) ([]packages.Asset, error) {
 	return managePackage(pkg, "remove", c.delete)
 }
 
-func managePackage(pkg packages.PackageManifest, action string, actionFunc func(string, []byte) (int, []byte, error)) ([]Asset, error) {
+func managePackage(pkg packages.PackageManifest, action string, actionFunc func(string, []byte) (int, []byte, error)) ([]packages.Asset, error) {
 	path := fmt.Sprintf("epm/packages/%s-%s", pkg.Name, pkg.Version)
 	statusCode, respBody, err := actionFunc(path, nil)
 	if err != nil {
@@ -36,7 +31,7 @@ func managePackage(pkg packages.PackageManifest, action string, actionFunc func(
 	}
 
 	var resp struct {
-		Assets []Asset `json:"response"`
+		Assets []packages.Asset `json:"response"`
 	}
 
 	if err := json.Unmarshal(respBody, &resp); err != nil {
