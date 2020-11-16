@@ -164,19 +164,14 @@ func (r *runner) loadTestCaseFile(testCaseFile string) (*testCase, error) {
 func (r *runner) verifyResults(testCaseFile string, config *testConfig, result *testResult, fieldsValidator *fields.Validator) error {
 	testCasePath := filepath.Join(r.options.TestFolder.Path, testCaseFile)
 
-	resultWithoutDynamicFields, err := adjustTestResult(result, config)
-	if err != nil {
-		return errors.Wrap(err, "can't adjust test result")
-	}
-
 	if r.options.GenerateTestResult {
-		err := writeTestResult(testCasePath, resultWithoutDynamicFields)
+		err := writeTestResult(testCasePath, result)
 		if err != nil {
 			return errors.Wrap(err, "writing test result failed")
 		}
 	}
 
-	err = compareResults(testCasePath, resultWithoutDynamicFields)
+	err := compareResults(testCasePath, config, result)
 	if _, ok := err.(testrunner.ErrTestCaseFailed); ok {
 		return err
 	}
@@ -257,36 +252,6 @@ func verifyFieldsInTestResult(result *testResult, fieldsValidator *fields.Valida
 		}
 	}
 	return nil
-}
-
-func adjustTestResult(result *testResult, config *testConfig) (*testResult, error) {
-	if config == nil || config.DynamicFields == nil {
-		return result, nil
-	}
-
-	// Strip dynamic fields from test result
-	var stripped testResult
-	for _, event := range result.events {
-		var m common.MapStr
-		err := json.Unmarshal(event, &m)
-		if err != nil {
-			return nil, errors.Wrap(err, "can't unmarshal event")
-		}
-
-		for key := range config.DynamicFields {
-			err := m.Delete(key)
-			if err != nil && err != common.ErrKeyNotFound {
-				return nil, errors.Wrap(err, "can't remove dynamic field")
-			}
-		}
-
-		b, err := json.Marshal(&m)
-		if err != nil {
-			return nil, errors.Wrap(err, "can't marshal event")
-		}
-		stripped.events = append(stripped.events, b)
-	}
-	return &stripped, nil
 }
 
 func init() {

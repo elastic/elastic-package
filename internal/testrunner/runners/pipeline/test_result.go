@@ -13,6 +13,7 @@ import (
 	"github.com/kylelemons/godebug/diff"
 	"github.com/pkg/errors"
 
+	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
 
@@ -30,7 +31,7 @@ func writeTestResult(testCasePath string, result *testResult) error {
 	testCaseDir := filepath.Dir(testCasePath)
 	testCaseFile := filepath.Base(testCasePath)
 
-	data, err := marshalTestResult(result)
+	data, err := marshalTestResultDefinition(result)
 	if err != nil {
 		return errors.Wrap(err, "marshalling test result failed")
 	}
@@ -41,8 +42,13 @@ func writeTestResult(testCasePath string, result *testResult) error {
 	return nil
 }
 
-func compareResults(testCasePath string, result *testResult) error {
-	actual, err := marshalTestResult(result)
+func compareResults(testCasePath string, config *testConfig, result *testResult) error {
+	resultsWithoutDynamicFields, err := adjustTestResult(result, config)
+	if err != nil {
+		return errors.Wrap(err, "can't adjust test results")
+	}
+
+	actual, err := marshalTestResultDefinition(resultsWithoutDynamicFields)
 	if err != nil {
 		return errors.Wrap(err, "marshalling test result failed")
 	}
@@ -50,6 +56,21 @@ func compareResults(testCasePath string, result *testResult) error {
 	expected, err := readExpectedTestResult(testCasePath)
 	if err != nil {
 		return errors.Wrap(err, "reading expected test result failed")
+	}
+
+	u, err := unmarshalTestResult(expected)
+	if err != nil {
+		return errors.Wrap(err, "unmarshalling expected test result failed")
+	}
+
+	adjusted, err := adjustTestResult(u, config)
+	if err != nil {
+		return errors.Wrap(err, "adjusting test result failed")
+	}
+
+	expected, err = marshalTestResultDefinition(adjusted)
+	if err != nil {
+		return errors.Wrap(err, "marshalling adjusted test result failed")
 	}
 
 	report := diff.Diff(string(expected), string(actual))
@@ -62,16 +83,6 @@ func compareResults(testCasePath string, result *testResult) error {
 	return nil
 }
 
-func marshalTestResult(result *testResult) ([]byte, error) {
-	var trd testResultDefinition
-	trd.Expected = result.events
-	body, err := json.MarshalIndent(&trd, "", "    ")
-	if err != nil {
-		return nil, errors.Wrap(err, "marshalling test result failed")
-	}
-	return body, nil
-}
-
 func readExpectedTestResult(testCasePath string) ([]byte, error) {
 	testCaseDir := filepath.Dir(testCasePath)
 	testCaseFile := filepath.Base(testCasePath)
@@ -82,6 +93,60 @@ func readExpectedTestResult(testCasePath string) ([]byte, error) {
 		return nil, errors.Wrap(err, "reading test result file failed")
 	}
 	return data, nil
+}
+
+func adjustTestResult(result *testResult, config *testConfig) (*testResult, error) {
+	if config == nil || config.DynamicFields == nil {
+		return result, nil
+	}
+
+	// Strip dynamic fields from test result
+	var stripped testResult
+	for _, event := range result.events {
+		var m common.MapStr
+		err := json.Unmarshal(event, &m)
+		if err != nil {
+			return nil, errors.Wrap(err, "can't unmarshal event")
+		}
+
+		for key := range config.DynamicFields {
+			err := m.Delete(key)
+			if err != nil && err != common.ErrKeyNotFound {
+				return nil, errors.Wrap(err, "can't remove dynamic field")
+			}
+		}
+
+		b, err := json.Marshal(&m)
+		if err != nil {
+			return nil, errors.Wrap(err, "can't marshal event")
+		}
+		stripped.events = append(stripped.events, b)
+	}
+	return &stripped, nil
+}
+
+func unmarshalTestResult(body []byte) (*testResult, error) {
+	var trd testResultDefinition
+	err := json.Unmarshal(body, &trd)
+	if err != nil {
+		return nil, errors.Wrap(err, "unmarshalling test result failed")
+	}
+
+	var tr testResult
+	for _, doc := range trd.Expected {
+		tr.events = append(tr.events, doc)
+	}
+	return &tr, nil
+}
+
+func marshalTestResultDefinition(result *testResult) ([]byte, error) {
+	var trd testResultDefinition
+	trd.Expected = result.events
+	body, err := json.MarshalIndent(&trd, "", "    ")
+	if err != nil {
+		return nil, errors.Wrap(err, "marshalling test result definition failed")
+	}
+	return body, nil
 }
 
 func expectedTestResultFile(testFile string) string {

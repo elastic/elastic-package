@@ -75,15 +75,17 @@ The pipeline test runner transforms log lines into file input events and sends t
             "web"
         ]
     },
-    "ignored_fields": [
-        "event.ingested"
-    ]
+    "dynamic_fields": {
+        "url.original": "^/.*$"
+    }
 }
 ```
 
 The `multiline` section configures the log file reader to correctly detect multiline log entries using the `first_line_pattern`. Use this property if your logs may be split into multiple lines, e.g. Java stack traces.
 
 The `fields` section allows for customizing extra fields to be added to every read log entry (e.g. `@timestamp`, `ecs`). Use this property to extend your logs with data that can't be extracted from log content, but it's fine to have same field values for every record (e.g. timezone, hostname).
+
+The `dynamic_fields` section allows for marking fields as dynamic (every time they have different non-static values), so that pattern matching instead of strict value check is applied. 
 
 #### Input events
 
