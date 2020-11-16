@@ -24,8 +24,6 @@ import (
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
-const defaultPipelineName = "default"
-
 var ingestPipelineTag = regexp.MustCompile("{{\\s*IngestPipeline.+}}")
 
 type pipelineResource struct {
@@ -58,7 +56,7 @@ func installIngestPipelines(esClient *elasticsearch.Client, dataStreamPath strin
 
 	nonce := time.Now().UnixNano()
 
-	mainPipeline := getWithPipelineNameWithNonce(getPipelineNameOrDefault(dataStreamManifest), nonce)
+	mainPipeline := getWithPipelineNameWithNonce(dataStreamManifest.GetPipelineNameOrDefault(), nonce)
 	pipelines, err := loadIngestPipelineFiles(dataStreamPath, nonce)
 	if err != nil {
 		return "", nil, errors.Wrap(err, "loading ingest pipeline files failed")
@@ -74,13 +72,6 @@ func installIngestPipelines(esClient *elasticsearch.Client, dataStreamPath strin
 		return "", nil, errors.Wrap(err, "installing pipelines failed")
 	}
 	return mainPipeline, jsonPipelines, nil
-}
-
-func getPipelineNameOrDefault(dsm *packages.DataStreamManifest) string {
-	if dsm.Elasticsearch != nil && dsm.Elasticsearch.IngestPipeline != nil && dsm.Elasticsearch.IngestPipeline.Name != "" {
-		return dsm.Elasticsearch.IngestPipeline.Name
-	}
-	return defaultPipelineName
 }
 
 func loadIngestPipelineFiles(dataStreamPath string, nonce int64) ([]pipelineResource, error) {

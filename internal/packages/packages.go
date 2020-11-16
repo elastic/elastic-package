@@ -20,6 +20,8 @@ const (
 
 	// DataStreamManifestFile is the name of the data stream's manifest file.
 	DataStreamManifestFile = "manifest.yml"
+
+	defaultPipelineName = "default"
 )
 
 // VarValue represents a variable value as defined in a package or data stream
@@ -198,6 +200,13 @@ func ReadDataStreamManifest(path string) (*DataStreamManifest, error) {
 
 	m.Name = filepath.Base(filepath.Dir(path))
 	return &m, nil
+}
+
+func (dsm *DataStreamManifest) GetPipelineNameOrDefault() string {
+	if dsm.Elasticsearch != nil && dsm.Elasticsearch.IngestPipeline != nil && dsm.Elasticsearch.IngestPipeline.Name != "" {
+		return dsm.Elasticsearch.IngestPipeline.Name
+	}
+	return defaultPipelineName
 }
 
 // FindInputByType returns the input for the provided type.
