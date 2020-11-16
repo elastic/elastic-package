@@ -5,14 +5,17 @@
 package pipeline
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
 	"github.com/pkg/errors"
 
+	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/fields"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/multierror"
@@ -92,7 +95,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		}
 
 		tr.TimeElapsed = time.Now().Sub(startTime)
-		err = r.verifyResults(testCaseFile, result, fieldsValidator)
+		err = r.verifyResults(testCaseFile, tc.config, result, fieldsValidator)
 		if e, ok := err.(testrunner.ErrTestCaseFailed); ok {
 			tr.FailureMsg = e.Error()
 			tr.FailureDetails = e.Details
@@ -158,7 +161,7 @@ func (r *runner) loadTestCaseFile(testCaseFile string) (*testCase, error) {
 	return tc, nil
 }
 
-func (r *runner) verifyResults(testCaseFile string, result *testResult, fieldsValidator *fields.Validator) error {
+func (r *runner) verifyResults(testCaseFile string, config *testConfig, result *testResult, fieldsValidator *fields.Validator) error {
 	testCasePath := filepath.Join(r.options.TestFolder.Path, testCaseFile)
 
 	if r.options.GenerateTestResult {
@@ -168,7 +171,7 @@ func (r *runner) verifyResults(testCaseFile string, result *testResult, fieldsVa
 		}
 	}
 
-	err := compareResults(testCasePath, result)
+	err := compareResults(testCasePath, config, result)
 	if _, ok := err.(testrunner.ErrTestCaseFailed); ok {
 		return err
 	}
@@ -176,9 +179,59 @@ func (r *runner) verifyResults(testCaseFile string, result *testResult, fieldsVa
 		return errors.Wrap(err, "comparing test results failed")
 	}
 
+	err = verifyDynamicFields(result, config)
+	if err != nil {
+		return err
+	}
+
 	err = verifyFieldsInTestResult(result, fieldsValidator)
 	if err != nil {
 		return err
+	}
+	return nil
+}
+
+func verifyDynamicFields(result *testResult, config *testConfig) error {
+	if config == nil || config.DynamicFields == nil {
+		return nil
+	}
+
+	var multiErr multierror.Error
+	for _, event := range result.events {
+		var m common.MapStr
+		err := json.Unmarshal(event, &m)
+		if err != nil {
+			return errors.Wrap(err, "can't unmarshal event")
+		}
+
+		for key, pattern := range config.DynamicFields {
+			val, err := m.GetValue(key)
+			if err != nil && err != common.ErrKeyNotFound {
+				return errors.Wrap(err, "can't remove dynamic field")
+			}
+
+			valStr, ok := val.(string)
+			if !ok {
+				continue // regular expressions can be verify only string values
+			}
+
+			matched, err := regexp.MatchString(pattern, valStr)
+			if err != nil {
+				return errors.Wrap(err, "pattern matching for dynamic field failed")
+			}
+
+			if !matched {
+				multiErr = append(multiErr, fmt.Errorf("dynamic field \"%s\" doesn't match the pattern (%s): %s",
+					key, pattern, valStr))
+			}
+		}
+	}
+
+	if len(multiErr) > 0 {
+		return testrunner.ErrTestCaseFailed{
+			Reason:  "one or more problems with dynamic fields found in documents",
+			Details: multiErr.Unique().Error(),
+		}
 	}
 	return nil
 }
@@ -193,10 +246,9 @@ func verifyFieldsInTestResult(result *testResult, fieldsValidator *fields.Valida
 	}
 
 	if len(multiErr) > 0 {
-		multiErr = multiErr.Unique()
 		return testrunner.ErrTestCaseFailed{
 			Reason:  "one or more problems with fields found in documents",
-			Details: multiErr.Error(),
+			Details: multiErr.Unique().Error(),
 		}
 	}
 	return nil

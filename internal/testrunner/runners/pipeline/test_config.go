@@ -17,8 +17,9 @@ import (
 const configTestSuffix = "-config.json"
 
 type testConfig struct {
-	Multiline *multiline             `json:"multiline"`
-	Fields    map[string]interface{} `json:"fields"`
+	Multiline     *multiline             `json:"multiline"`
+	Fields        map[string]interface{} `json:"fields"`
+	DynamicFields map[string]string      `json:"dynamic_fields"`
 }
 
 func readConfigForTestCase(testCasePath string) (testConfig, error) {
