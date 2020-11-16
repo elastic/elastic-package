@@ -35,10 +35,6 @@ func setupTestCommand() *cobra.Command {
 				return fmt.Errorf("unsupported test type: %s", args[0])
 			}
 
-			if err := setupTestReportsFolder(cmd); err != nil {
-				return errors.Wrap(err, "could not setup test reports folder")
-			}
-
 			return cobraext.ComposeCommandActions(cmd, args, testTypeCmdActions...)
 		}}
 
@@ -56,13 +52,7 @@ func setupTestCommand() *cobra.Command {
 			Use:   string(testType),
 			Short: fmt.Sprintf("Run %s tests", testType),
 			Long:  fmt.Sprintf("Run %s tests for the package", testType),
-			RunE: func(cmd *cobra.Command, args []string) error {
-				if err := setupTestReportsFolder(cmd); err != nil {
-					return errors.Wrap(err, "could not setup test reports folder")
-				}
-
-				return action(cmd, args)
-			},
+			RunE:  action,
 		}
 
 		cmd.AddCommand(testTypeCmd)
@@ -73,10 +63,6 @@ func setupTestCommand() *cobra.Command {
 
 func testTypeCommandActionFactory(testType testrunner.TestType) cobraext.CommandAction {
 	return func(cmd *cobra.Command, args []string) error {
-		if err := setupTestReportsFolder(cmd); err != nil {
-			return errors.Wrap(err, "could not setup test reports folder")
-		}
-
 		cmd.Printf("Run %s tests for the package\n", testType)
 
 		failOnMissing, err := cmd.Flags().GetBool(cobraext.FailOnMissingFlagName)
@@ -168,17 +154,4 @@ func testTypeCommandActionFactory(testType testrunner.TestType) cobraext.Command
 		}
 		return nil
 	}
-}
-
-func setupTestReportsFolder(cmd *cobra.Command) error {
-	reportOutput, err := cmd.Flags().GetString(cobraext.ReportOutputFlagName)
-	if err != nil {
-		return cobraext.FlagParsingError(err, cobraext.ReportOutputFlagName)
-	}
-	if reportOutput == string(outputs.ReportOutputFile) {
-		if err := outputs.CleanTestReportsDir(); err != nil {
-			return cobraext.FlagParsingError(err, cobraext.ReportOutputFlagName)
-		}
-	}
-	return nil
 }
