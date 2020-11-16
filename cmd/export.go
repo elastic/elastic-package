@@ -54,7 +54,7 @@ func exportDashboardsCmd(cmd *cobra.Command, args []string) error {
 		}
 
 		if len(dashboardIDs) == 0 {
-			fmt.Println("No dashboard has been found.")
+			fmt.Println("No dashboards were found in Kibana.")
 			return nil
 		}
 	}
@@ -79,7 +79,7 @@ func promptDashboardIDs(kibanaClient *kibana.Client) ([]string, error) {
 	}
 
 	dashboardsPrompt := &survey.MultiSelect{
-		Message:  "Which dashboards would you like to export",
+		Message:  "Which dashboards would you like to export?",
 		Options:  savedDashboards.Strings(),
 		PageSize: 100,
 	}
