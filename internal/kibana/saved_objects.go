@@ -17,6 +17,8 @@ import (
 	"github.com/elastic/elastic-package/internal/logger"
 )
 
+const findDashboardsPerPage = 100
+
 // DashboardSavedObject corresponds to the Kibana dashboard saved object
 type DashboardSavedObject struct {
 	ID    string
@@ -91,7 +93,7 @@ func (c *Client) FindDashboards() (DashboardSavedObjects, error) {
 }
 
 func (c *Client) findDashboardsNextPage(page int) (*savedObjectsResponse, error) {
-	request, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s%s%d", c.host, "/api/saved_objects/_find?type=dashboard&fields=title&per_page=100&page=", page), nil)
+	request, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s%s%d", c.host, fmt.Sprintf("/api/saved_objects/_find?type=dashboard&fields=title&per_page=%d&page=", findDashboardsPerPage), page), nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "building HTTP request failed")
 	}
