@@ -50,27 +50,17 @@ func compareResults(testCasePath string, config *testConfig, result *testResult)
 
 	actual, err := marshalTestResultDefinition(resultsWithoutDynamicFields)
 	if err != nil {
-		return errors.Wrap(err, "marshalling test result failed")
+		return errors.Wrap(err, "marshalling actual test results failed")
 	}
 
-	expected, err := readExpectedTestResult(testCasePath)
+	expectedResults, err := readExpectedTestResult(testCasePath, config)
 	if err != nil {
 		return errors.Wrap(err, "reading expected test result failed")
 	}
 
-	u, err := unmarshalTestResult(expected)
+	expected, err := marshalTestResultDefinition(expectedResults)
 	if err != nil {
-		return errors.Wrap(err, "unmarshalling expected test result failed")
-	}
-
-	adjusted, err := adjustTestResult(u, config)
-	if err != nil {
-		return errors.Wrap(err, "adjusting test result failed")
-	}
-
-	expected, err = marshalTestResultDefinition(adjusted)
-	if err != nil {
-		return errors.Wrap(err, "marshalling adjusted test result failed")
+		return errors.Wrap(err, "marshalling expected test results failed")
 	}
 
 	report := diff.Diff(string(expected), string(actual))
@@ -83,7 +73,7 @@ func compareResults(testCasePath string, config *testConfig, result *testResult)
 	return nil
 }
 
-func readExpectedTestResult(testCasePath string) ([]byte, error) {
+func readExpectedTestResult(testCasePath string, config *testConfig) (*testResult, error) {
 	testCaseDir := filepath.Dir(testCasePath)
 	testCaseFile := filepath.Base(testCasePath)
 
@@ -92,7 +82,17 @@ func readExpectedTestResult(testCasePath string) ([]byte, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "reading test result file failed")
 	}
-	return data, nil
+
+	u, err := unmarshalTestResult(data)
+	if err != nil {
+		return nil, errors.Wrap(err, "unmarshalling expected test result failed")
+	}
+
+	adjusted, err := adjustTestResult(u, config)
+	if err != nil {
+		return nil, errors.Wrap(err, "adjusting test result failed")
+	}
+	return adjusted, nil
 }
 
 func adjustTestResult(result *testResult, config *testConfig) (*testResult, error) {
