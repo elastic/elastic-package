@@ -45,6 +45,9 @@ type TestRunner interface {
 	// TearDown cleans up any test runner resources. It must be called
 	// after the test runner has finished executing.
 	TearDown() error
+
+	CanRunPerDataStream() bool
+	IsConfigRequired() bool
 }
 
 var runners = map[TestType]TestRunner{}
@@ -89,7 +92,7 @@ type TestFolder struct {
 }
 
 // FindTestFolders finds test folders for the given package and, optionally, test type and data streams
-func FindTestFolders(packageRootPath string, dataStreams []string, testType TestType, noConfigTestTypes []TestType) ([]TestFolder, error) {
+func FindTestFolders(packageRootPath string, dataStreams []string, testType TestType) ([]TestFolder, error) {
 	// Expected folder structure:
 	// <packageRootPath>/
 	//   data_stream/
@@ -107,7 +110,7 @@ func FindTestFolders(packageRootPath string, dataStreams []string, testType Test
 	if dataStreams != nil && len(dataStreams) > 0 {
 		sort.Strings(dataStreams)
 		for _, dataStream := range dataStreams {
-			p, err := findTestFolderPaths(packageRootPath, dataStream, testTypeGlob, noConfigTestTypes)
+			p, err := findTestFolderPaths(packageRootPath, dataStream, testTypeGlob)
 			if err != nil {
 				return nil, err
 			}
@@ -115,7 +118,7 @@ func FindTestFolders(packageRootPath string, dataStreams []string, testType Test
 			paths = append(paths, p...)
 		}
 	} else {
-		p, err := findTestFolderPaths(packageRootPath, "*", testTypeGlob, noConfigTestTypes)
+		p, err := findTestFolderPaths(packageRootPath, "*", testTypeGlob)
 		if err != nil {
 			return nil, err
 		}
@@ -170,7 +173,6 @@ func Run(testType TestType, options TestOptions) ([]TestResult, error) {
 			errs = append(errs, err, tdErr)
 			return nil, errors.Wrap(err, "could not complete test run and teardown test runner")
 		}
-
 		return nil, errors.Wrap(err, "could not complete test run")
 	}
 
@@ -181,12 +183,24 @@ func Run(testType TestType, options TestOptions) ([]TestResult, error) {
 	return results, nil
 }
 
+// NoConfigTestRunners returns test runners that don't need configuration.
+func NoConfigTestRunners() []TestRunner {
+	noConfigRunners := make([]TestRunner, 0)
+	for _, runner := range runners {
+		if !runner.IsConfigRequired() {
+			noConfigRunners = append(noConfigRunners, runner)
+		}
+	}
+
+	return noConfigRunners
+}
+
 // TestRunners returns registered test runners.
 func TestRunners() map[TestType]TestRunner {
 	return runners
 }
 
-func findTestFolderPaths(packageRootPath, dataStreamGlob, testTypeGlob string, noConfigTestTypes []TestType) ([]string, error) {
+func findTestFolderPaths(packageRootPath, dataStreamGlob, testTypeGlob string) ([]string, error) {
 	testFoldersGlob := filepath.Join(packageRootPath, "data_stream", dataStreamGlob, "_dev", "test", testTypeGlob)
 	paths, err := filepath.Glob(testFoldersGlob)
 	if err != nil {
@@ -199,7 +213,8 @@ func findTestFolderPaths(packageRootPath, dataStreamGlob, testTypeGlob string, n
 	if err != nil {
 		return nil, errors.Wrap(err, "error finding data stream folders")
 	}
-	for _, t := range noConfigTestTypes {
+	for _, noConfigRunner := range NoConfigTestRunners() {
+		t := noConfigRunner.Type()
 		if testTypeGlob == "*" || testTypeGlob == string(t) {
 			for _, p := range dataStreamFolderPaths {
 				paths = append(paths, filepath.Join(p, string(t)))

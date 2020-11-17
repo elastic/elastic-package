@@ -47,6 +47,17 @@ func (r runner) String() string {
 	return "asset loading"
 }
 
+// CanRunPerDataStream returns whether this test runner can run on individual
+// data streams within the package.
+func (r runner) CanRunPerDataStream() bool {
+	return false
+}
+
+// IsConfigRequired returns whether this test runner needs configuration.
+func (r runner) IsConfigRequired() bool {
+	return false
+}
+
 // Run runs the asset loading tests
 func (r runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, error) {
 	r.testFolder = options.TestFolder
@@ -59,9 +70,8 @@ func (r runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, er
 
 func (r *runner) run() ([]testrunner.TestResult, error) {
 	result := testrunner.TestResult{
-		TestType:   TestType,
-		Package:    r.testFolder.Package,
-		DataStream: r.testFolder.DataStream,
+		TestType: TestType,
+		Package:  r.testFolder.Package,
 	}
 
 	startTime := time.Now()

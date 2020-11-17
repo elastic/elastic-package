@@ -48,9 +48,20 @@ func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, e
 	return r.run()
 }
 
-// ShutDown shuts down the pipeline test runner.
+// TearDown shuts down the pipeline test runner.
 func (r *runner) TearDown() error {
 	return nil
+}
+
+// CanRunPerDataStream returns whether this test runner can run on individual
+// data streams within the package.
+func (r *runner) CanRunPerDataStream() bool {
+	return true
+}
+
+// IsConfigRequired returns whether this test runner needs configuration.
+func (r *runner) IsConfigRequired() bool {
+	return true
 }
 
 func (r *runner) run() ([]testrunner.TestResult, error) {
