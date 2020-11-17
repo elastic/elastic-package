@@ -10,8 +10,10 @@ import (
 	"github.com/pkg/errors"
 )
 
+// AssetType represents the type of package asset.
 type AssetType string
 
+// Supported asset types.
 const (
 	AssetTypeElasticsearchIndexTemplate  AssetType = "index_template"
 	AssetTypeElasticsearchIngestPipeline AssetType = "ingest_pipeline"
@@ -22,12 +24,14 @@ const (
 	AssetTypeKibanaMap           AssetType = "map"
 )
 
+// Asset represents a package asset to be loaded into Kibana or Elasticsearch.
 type Asset struct {
 	ID         string    `json:"id"`
 	Type       AssetType `json:"type"`
 	DataStream string
 }
 
+// LoadPackageAssets parses the package contents and returns a list of assets defined by the package.
 func LoadPackageAssets(pkgRootPath string) ([]Asset, error) {
 	assets, err := loadKibanaAssets(pkgRootPath)
 	if err != nil {

@@ -205,6 +205,8 @@ func ReadDataStreamManifest(path string) (*DataStreamManifest, error) {
 	return &m, nil
 }
 
+// GetPipelineNameOrDefault returns the name of the data stream's pipeline, if one is explicitly defined in the
+// data stream manifest. If not, the default pipeline name is returned.
 func (dsm *DataStreamManifest) GetPipelineNameOrDefault() string {
 	if dsm.Elasticsearch != nil && dsm.Elasticsearch.IngestPipeline != nil && dsm.Elasticsearch.IngestPipeline.Name != "" {
 		return dsm.Elasticsearch.IngestPipeline.Name
