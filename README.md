@@ -155,6 +155,11 @@ These tests allow you to test a package's ability to ingest data end-to-end.
 
 For details on how to configure amd run system tests, see the [HOWTO guide](docs/howto/system_testing.md).
 
+#### Asset Loading Tests
+
+These tests ensure that all the Elasticsearch and Kibana assets defined by your package get loaded up as expected.
+
+For details on how to run asset loading tests for a package, see the [HOWTO guide](docs/howto/asset_testing.md).
 
 ### `elastic-package version`
 
