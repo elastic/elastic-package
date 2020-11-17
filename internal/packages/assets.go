@@ -39,7 +39,7 @@ func LoadPackageAssets(pkgRootPath string) ([]Asset, error) {
 	}
 	assets = append(assets, a...)
 
-	return a, nil
+	return assets, nil
 }
 
 func loadKibanaAssets(pkgRootPath string) ([]Asset, error) {

@@ -119,7 +119,6 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 	if err != nil {
 		return resultsWith(result, errors.Wrap(err, "could not load expected package assets"))
 	}
-	// TODO: figure out why all assets are not being parsed from package
 
 	results := make([]testrunner.TestResult, 0, len(expectedAssets))
 	for _, e := range expectedAssets {
