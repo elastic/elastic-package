@@ -115,18 +115,30 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		return nil
 	}
 
-	// TODO: Verify that package assets are loaded as expected
 	expectedAssets, err := packages.LoadPackageAssets(r.packageRootPath)
 	if err != nil {
 		return resultsWith(result, errors.Wrap(err, "could not load expected package assets"))
 	}
+	// TODO: figure out why all assets are not being parsed from package
 
+	results := make([]testrunner.TestResult, 0, len(expectedAssets))
 	for _, e := range expectedAssets {
-		if !findActualAsset(actualAssets, e) {
-			return resultsWith(result, fmt.Errorf("could not find expected asset with ID = %s and type = %s", e.ID, e.Type))
+		// TODO: amend Asset to include optional data stream field and use it below
+		result := testrunner.TestResult{
+			Name:        fmt.Sprintf("%s %s is loaded", e.Type, e.ID),
+			Package:     pkgManifest.Name,
+			TestType:    TestType,
+			TimeElapsed: time.Now().Sub(startTime),
 		}
+		if !findActualAsset(actualAssets, e) {
+			result.FailureMsg = "could not find expected asset"
+			result.FailureDetails = fmt.Sprintf("could not find expected asset with ID = %s and type = %s. Assets loaded = %v", e.ID, e.Type, actualAssets)
+		}
+
+		results = append(results, result)
 	}
-	return resultsWith(result, nil)
+
+	return results, nil
 }
 
 func (r *runner) TearDown() error {
