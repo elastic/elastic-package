@@ -2,6 +2,7 @@ package testrunner
 
 import "os"
 
+// StackSettings encapsulate the various settings required to connect to the Elastic Stack.
 type StackSettings struct {
 	Elasticsearch struct {
 		Host     string

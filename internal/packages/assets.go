@@ -103,7 +103,7 @@ func loadElasticsearchAssets(pkgRootPath string) ([]Asset, error) {
 		}
 		assets = append(assets, asset)
 
-		if dsManifest.Type == DataStreamTypeLogs {
+		if dsManifest.Type == dataStreamTypeLogs {
 			ingestPipelineName := dsManifest.GetPipelineNameOrDefault()
 			if ingestPipelineName == defaultPipelineName {
 				ingestPipelineName = fmt.Sprintf("%s-%s.%s-%s", dsManifest.Type, pkgManifest.Name, dsManifest.Name, pkgManifest.Version)
