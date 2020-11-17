@@ -147,13 +147,13 @@ Use this command to run tests on a package. Currently, there are two types of te
 
 These tests allow you to exercise any Ingest Node Pipelines defined by your packages.
 
-For details on how to configure pipeline test for a package, see the [HOWTO guide](docs/howto/pipeline_testing.md).
+For details on how to configure and run pipeline tests for a package, see the [HOWTO guide](docs/howto/pipeline_testing.md).
 
 #### System Tests
 
 These tests allow you to test a package's ability to ingest data end-to-end. 
 
-For details on how to configure amd run system tests, see the [HOWTO guide](docs/howto/system_testing.md).
+For details on how to configure and run system tests for a package, see the [HOWTO guide](docs/howto/system_testing.md).
 
 #### Asset Loading Tests
 
