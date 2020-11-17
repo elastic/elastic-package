@@ -23,8 +23,9 @@ const (
 )
 
 type Asset struct {
-	ID   string    `json:"id"`
-	Type AssetType `json:"type"`
+	ID         string    `json:"id"`
+	Type       AssetType `json:"type"`
+	DataStream string
 }
 
 func LoadPackageAssets(pkgRootPath string) ([]Asset, error) {
@@ -92,19 +93,21 @@ func loadElasticsearchAssets(pkgRootPath string) ([]Asset, error) {
 
 		indexTemplateName := fmt.Sprintf("%s-%s.%s", dsManifest.Type, pkgManifest.Name, dsManifest.Name)
 		asset := Asset{
-			ID:   indexTemplateName,
-			Type: AssetTypeElasticsearchIndexTemplate,
+			ID:         indexTemplateName,
+			Type:       AssetTypeElasticsearchIndexTemplate,
+			DataStream: dsManifest.Name,
 		}
 		assets = append(assets, asset)
 
-		if dsManifest.Type == "log" {
+		if dsManifest.Type == DataStreamTypeLogs {
 			ingestPipelineName := dsManifest.GetPipelineNameOrDefault()
 			if ingestPipelineName == defaultPipelineName {
 				ingestPipelineName = fmt.Sprintf("%s-%s.%s-%s", dsManifest.Type, pkgManifest.Name, dsManifest.Name, pkgManifest.Version)
 			}
 			asset = Asset{
-				ID:   ingestPipelineName,
-				Type: AssetTypeElasticsearchIngestPipeline,
+				ID:         ingestPipelineName,
+				Type:       AssetTypeElasticsearchIngestPipeline,
+				DataStream: dsManifest.Name,
 			}
 			assets = append(assets, asset)
 		}

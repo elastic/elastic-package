@@ -122,19 +122,21 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 
 	results := make([]testrunner.TestResult, 0, len(expectedAssets))
 	for _, e := range expectedAssets {
-		// TODO: amend Asset to include optional data stream field and use it below
 		result := testrunner.TestResult{
 			Name:        fmt.Sprintf("%s %s is loaded", e.Type, e.ID),
 			Package:     pkgManifest.Name,
+			DataStream:  e.DataStream,
 			TestType:    TestType,
 			TimeElapsed: time.Now().Sub(startTime),
 		}
+
 		if !findActualAsset(actualAssets, e) {
 			result.FailureMsg = "could not find expected asset"
 			result.FailureDetails = fmt.Sprintf("could not find expected asset with ID = %s and type = %s. Assets loaded = %v", e.ID, e.Type, actualAssets)
 		}
 
 		results = append(results, result)
+		startTime = time.Now()
 	}
 
 	return results, nil
