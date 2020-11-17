@@ -17,10 +17,7 @@ import (
 
 // BuildPackage method builds the package.
 func BuildPackage() error {
-	packageRoot, found, err := packages.FindPackageRoot()
-	if !found {
-		return errors.New("package root not found")
-	}
+	packageRoot, err := packages.MustFindPackageRoot()
 	if err != nil {
 		return errors.Wrap(err, "locating package root failed")
 	}

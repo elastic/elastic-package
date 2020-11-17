@@ -97,6 +97,19 @@ type DataStreamManifest struct {
 	} `config:"streams" json:"streams" yaml:"streams"`
 }
 
+// MustFindPackageRoot finds and returns the path to the root folder of a package.
+// It fails with an error if the package root can't be found.
+func MustFindPackageRoot() (string, error) {
+	root, found, err := FindPackageRoot()
+	if err != nil {
+		return "", errors.Wrap(err, "locating package root failed")
+	}
+	if !found {
+		return "", errors.New("package root not found")
+	}
+	return root, nil
+}
+
 // FindPackageRoot finds and returns the path to the root folder of a package.
 func FindPackageRoot() (string, bool, error) {
 	workDir, err := os.Getwd()

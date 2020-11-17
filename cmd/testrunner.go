@@ -51,7 +51,7 @@ func setupTestCommand() *cobra.Command {
 		testTypeCmd := &cobra.Command{
 			Use:   string(testType),
 			Short: fmt.Sprintf("Run %s tests", testType),
-			Long:  fmt.Sprintf("Run %s tests for the package", testType),
+			Long:  fmt.Sprintf("Run %s tests for the package.", testType),
 			RunE:  action,
 		}
 

@@ -87,6 +87,13 @@ Use this command to validate the contents of a package using the
 [package specification](https://github.com/elastic/package-spec).
 
 
+### `elastic-package export`
+
+_Context: package_
+
+Use this command to export assets relevant for the package, e.g. Kibana dashboards.
+
+
 ### `elastic-package promote`
 
 _Context: global_
