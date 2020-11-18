@@ -9,6 +9,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
@@ -22,6 +23,8 @@ func IsReadmeUpToDate() (bool, error) {
 // UpdateReadme function updates the README file using ą defined template file. The function doesn't perform any action
 // if the template file is not present.
 func UpdateReadme() error {
+	logger.Debugf("Update the %s file", ReadmeFile)
+
 	packageRoot, err := packages.MustFindPackageRoot()
 	if err != nil {
 		return errors.Wrap(err, "package root not found")
@@ -32,19 +35,23 @@ func UpdateReadme() error {
 		return errors.Wrapf(err, "can't locate %s template file", ReadmeFile)
 	}
 	if !found {
-		return nil // README file is static, can't be generated from the template file
+		logger.Debug("README file is static, can't be generated from the template file")
+		return nil
 	}
 
+	logger.Debugf("Template file for %s found: %s", ReadmeFile, templatePath)
 	manifest, err := packages.ReadPackageManifestForPackage(packageRoot)
 	if err != nil {
 		return errors.Wrapf(err, "reading package manifest failed (packageRoot: %s)", packageRoot)
 	}
 
+	logger.Debugf("Render %s file", ReadmeFile)
 	rendered, err := renderReadme(manifest.Name, templatePath)
 	if err != nil {
 		return errors.Wrap(err, "rendering Readme failed")
 	}
 
+	logger.Debugf("Write %s file", ReadmeFile)
 	err = writeReadme(packageRoot, rendered)
 	if err != nil {
 		return errors.Wrapf(err, "writing %s file failed", ReadmeFile)
@@ -88,12 +95,15 @@ func renderReadme(packageName, templatePath string) ([]byte, error) {
 
 func writeReadme(packageRoot string, content []byte) error {
 	docsPath := filepath.Join(packageRoot, "docs")
+	logger.Debugf("Create directories: %s", docsPath)
 	err := os.MkdirAll(docsPath, 0755)
 	if err != nil {
 		return errors.Wrapf(err, "mkdir failed (path: %s)", docsPath)
 	}
 
 	readmePath := filepath.Join(docsPath, ReadmeFile)
+	logger.Debugf("Write %s file to: %s", ReadmeFile, readmePath)
+
 	err = ioutil.WriteFile(readmePath, content, 0644)
 	if err != nil {
 		return errors.Wrapf(err, "writing file failed (path: %s)", readmePath)
