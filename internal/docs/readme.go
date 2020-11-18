@@ -45,7 +45,7 @@ func UpdateReadme() error {
 		return errors.Wrap(err, "rendering Readme failed")
 	}
 
-	err = writeReadme(templatePath, rendered)
+	err = writeReadme(packageRoot, rendered)
 	if err != nil {
 		return errors.Wrapf(err, "writing %s file failed", ReadmeFile)
 	}
