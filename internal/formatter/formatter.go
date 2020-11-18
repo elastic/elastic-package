@@ -16,7 +16,7 @@ import (
 type formatter func(content []byte) ([]byte, bool, error)
 
 var formatters = map[string]formatter{
-	".json": JsonFormatter,
+	".json": JSONFormatter,
 	".yaml": YamlFormatter,
 	".yml":  YamlFormatter,
 }
