@@ -21,7 +21,7 @@ func renderSampleEvent(packageRoot, dataStreamName string) (string, error) {
 		return "", errors.Wrapf(err, "reading sample event file failed (path: %s)", eventPath)
 	}
 
-	formatted, _, err := formatter.JsonFormatter(body)
+	formatted, _, err := formatter.JSONFormatter(body)
 	if err != nil {
 		return "", errors.Wrapf(err, "formatting sample event file failed (path: %s)", eventPath)
 	}
