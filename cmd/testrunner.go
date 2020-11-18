@@ -6,7 +6,6 @@ package cmd
 
 import (
 	"fmt"
-	"path/filepath"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -137,7 +136,7 @@ func testTypeCommandActionFactory(testType testrunner.TestType) cobraext.Command
 			return errors.Wrap(err, "error formatting test report")
 		}
 
-		m, err := packages.ReadPackageManifest(filepath.Join(packageRootPath, packages.PackageManifestFile))
+		m, err := packages.ReadPackageManifestForPackage(packageRootPath)
 		if err != nil {
 			return errors.Wrapf(err, "reading package manifest failed (path: %s)", packageRootPath)
 		}

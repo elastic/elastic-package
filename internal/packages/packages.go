@@ -163,6 +163,11 @@ func FindDataStreamRootForPath(workDir string) (string, bool, error) {
 	return "", false, nil
 }
 
+// ReadPackageManifestForPackage reads and parses the package manifest file for the given package.
+func ReadPackageManifestForPackage(packageRoot string) (*PackageManifest, error) {
+	return ReadPackageManifest(filepath.Join(packageRoot, PackageManifestFile))
+}
+
 // ReadPackageManifest reads and parses the given package manifest file.
 func ReadPackageManifest(path string) (*PackageManifest, error) {
 	cfg, err := yaml.NewConfigWithFile(path, ucfg.PathSep("."))

@@ -15,7 +15,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-// BuildPackage method builds the package.
+// BuildPackage function builds the package.
 func BuildPackage() error {
 	packageRoot, err := packages.MustFindPackageRoot()
 	if err != nil {
@@ -52,7 +52,7 @@ func FindBuildDirectory() (string, bool, error) {
 	return "", false, nil
 }
 
-// FindBuildPackagesDirectory method locates the target build directory for packages.
+// FindBuildPackagesDirectory function locates the target build directory for packages.
 func FindBuildPackagesDirectory() (string, bool, error) {
 	buildDir, found, err := FindBuildDirectory()
 	if err != nil {
@@ -89,7 +89,7 @@ func buildPackage(sourcePath string) error {
 		}
 	}
 
-	m, err := packages.ReadPackageManifest(filepath.Join(sourcePath, packages.PackageManifestFile))
+	m, err := packages.ReadPackageManifestForPackage(sourcePath)
 	if err != nil {
 		return errors.Wrapf(err, "reading package manifest failed (path: %s)", sourcePath)
 	}

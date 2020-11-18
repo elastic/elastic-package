@@ -94,7 +94,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		return []testrunner.TestResult{tr}, err
 	}
 
-	pkgManifest, err := packages.ReadPackageManifest(filepath.Join(r.packageRootPath, packages.PackageManifestFile))
+	pkgManifest, err := packages.ReadPackageManifestForPackage(r.packageRootPath)
 	if err != nil {
 		return resultsWith(result, errors.Wrap(err, "reading package manifest failed"))
 	}

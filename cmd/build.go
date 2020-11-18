@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/builder"
+	"github.com/elastic/elastic-package/internal/docs"
 )
 
 func setupBuildCommand() *cobra.Command {
@@ -24,7 +25,12 @@ func setupBuildCommand() *cobra.Command {
 func buildCommandAction(cmd *cobra.Command, args []string) error {
 	cmd.Println("Build the package")
 
-	err := builder.BuildPackage()
+	err := docs.UpdateReadme()
+	if err != nil {
+		return errors.Wrapf(err, "updating %s file failed", docs.ReadmeFile)
+	}
+
+	err = builder.BuildPackage()
 	if err != nil {
 		return errors.Wrap(err, "building package failed")
 	}
