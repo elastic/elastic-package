@@ -2,10 +2,10 @@ package docs
 
 import (
 	"bytes"
-	"html/template"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"text/template"
 
 	"github.com/pkg/errors"
 
@@ -85,7 +85,7 @@ func generateReadme(packageRoot string) ([]byte, bool, error) {
 		return nil, true, errors.Wrapf(err, "reading package manifest failed (packageRoot: %s)", packageRoot)
 	}
 
-	rendered, err := renderReadme(manifest.Name, templatePath)
+	rendered, err := renderReadme(packageRoot, manifest.Name, templatePath)
 	if err != nil {
 		return nil, true, errors.Wrap(err, "rendering Readme failed")
 	}
@@ -104,13 +104,13 @@ func findReadmeTemplatePath(packageRoot string) (string, bool, error) {
 	return templatePath, true, nil
 }
 
-func renderReadme(packageName, templatePath string) ([]byte, error) {
-	logger.Debugf("Render %s file (packageName: %s, templatePath: %s)", ReadmeFile, packageName, templatePath)
+func renderReadme(packageRoot, packageName, templatePath string) ([]byte, error) {
+	logger.Debugf("Render %s file (package: %s, templatePath: %s)", ReadmeFile, packageRoot, templatePath)
 
 	t := template.New(ReadmeFile)
 	t, err := t.Funcs(template.FuncMap{
 		"event": func(dataStreamName string) (string, error) {
-			return renderSampleEvent(packageName, dataStreamName)
+			return renderSampleEvent(packageRoot, dataStreamName)
 		},
 		"fields": func(dataStreamName string) (string, error) {
 			return renderExportedFields(packageName, dataStreamName)
