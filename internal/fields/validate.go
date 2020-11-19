@@ -103,6 +103,9 @@ func (v *Validator) validateMapElement(root string, elem common.MapStr) multierr
 				}
 			}
 		case map[string]interface{}:
+			if definition := findElementDefinition("", key, v.schema); definition != nil && definition.Type == "flattened" {
+				continue
+			}
 			err := v.validateMapElement(key, val.(map[string]interface{}))
 			if err != nil {
 				errs = append(errs, err...)
