@@ -82,14 +82,9 @@ func generateReadme(packageRoot string) ([]byte, bool, error) {
 		logger.Debug("README file is static, can't be generated from the template file")
 		return nil, false, nil
 	}
-
 	logger.Debugf("Template file for %s found: %s", ReadmeFile, templatePath)
-	manifest, err := packages.ReadPackageManifestForPackage(packageRoot)
-	if err != nil {
-		return nil, true, errors.Wrapf(err, "reading package manifest failed (packageRoot: %s)", packageRoot)
-	}
 
-	rendered, err := renderReadme(packageRoot, manifest.Name, templatePath)
+	rendered, err := renderReadme(packageRoot, templatePath)
 	if err != nil {
 		return nil, true, errors.Wrap(err, "rendering Readme failed")
 	}
@@ -108,7 +103,7 @@ func findReadmeTemplatePath(packageRoot string) (string, bool, error) {
 	return templatePath, true, nil
 }
 
-func renderReadme(packageRoot, packageName, templatePath string) ([]byte, error) {
+func renderReadme(packageRoot, templatePath string) ([]byte, error) {
 	logger.Debugf("Render %s file (package: %s, templatePath: %s)", ReadmeFile, packageRoot, templatePath)
 
 	t := template.New(ReadmeFile)
@@ -117,7 +112,7 @@ func renderReadme(packageRoot, packageName, templatePath string) ([]byte, error)
 			return renderSampleEvent(packageRoot, dataStreamName)
 		},
 		"fields": func(dataStreamName string) (string, error) {
-			return renderExportedFields(packageName, dataStreamName)
+			return renderExportedFields(packageRoot, dataStreamName)
 		},
 	}).ParseFiles(templatePath)
 	if err != nil {

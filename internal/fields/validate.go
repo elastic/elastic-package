@@ -23,18 +23,29 @@ import (
 
 // Validator is responsible for fields validation.
 type Validator struct {
-	schema []fieldDefinition
+	schema []FieldDefinition
 }
 
-// CreateValidatorForDataStream method creates a validator for the data stream.
+// CreateValidatorForDataStream function creates a validator for the data stream.
 func CreateValidatorForDataStream(dataStreamRootPath string) (*Validator, error) {
+	fields, err := LoadFieldsForDataStream(dataStreamRootPath)
+	if err != nil {
+		return nil, errors.Wrapf(err, "can't load fields for data stream (path: %s)", dataStreamRootPath)
+	}
+	return &Validator{
+		schema: fields,
+	}, nil
+}
+
+// LoadFieldsForDataStream function loads fields defined for the given data stream.
+func LoadFieldsForDataStream(dataStreamRootPath string) ([]FieldDefinition, error) {
 	fieldsDir := filepath.Join(dataStreamRootPath, "fields")
 	fileInfos, err := ioutil.ReadDir(fieldsDir)
 	if err != nil {
 		return nil, errors.Wrapf(err, "reading directory with fields failed (path: %s)", fieldsDir)
 	}
 
-	var fields []fieldDefinition
+	var fields []FieldDefinition
 	for _, fileInfo := range fileInfos {
 		f := filepath.Join(fieldsDir, fileInfo.Name())
 		body, err := ioutil.ReadFile(f)
@@ -42,16 +53,14 @@ func CreateValidatorForDataStream(dataStreamRootPath string) (*Validator, error)
 			return nil, errors.Wrap(err, "reading fields file failed")
 		}
 
-		var u []fieldDefinition
+		var u []FieldDefinition
 		err = yaml.Unmarshal(body, &u)
 		if err != nil {
 			return nil, errors.Wrap(err, "unmarshalling field body failed")
 		}
 		fields = append(fields, u...)
 	}
-	return &Validator{
-		schema: fields,
-	}, nil
+	return fields, nil
 }
 
 // ValidateDocumentBody validates the provided document body.
@@ -145,8 +154,8 @@ func isFieldFamilyMatching(family, key string) bool {
 	return key == family || strings.HasPrefix(key, family+".")
 }
 
-func findElementDefinition(root, searchedKey string, fieldDefinitions []fieldDefinition) *fieldDefinition {
-	for _, def := range fieldDefinitions {
+func findElementDefinition(root, searchedKey string, FieldDefinitions []FieldDefinition) *FieldDefinition {
+	for _, def := range FieldDefinitions {
 		key := strings.TrimLeft(root+"."+def.Name, ".")
 		if compareKeys(key, def, searchedKey) {
 			return &def
@@ -164,7 +173,7 @@ func findElementDefinition(root, searchedKey string, fieldDefinitions []fieldDef
 	return nil
 }
 
-func compareKeys(key string, def fieldDefinition, searchedKey string) bool {
+func compareKeys(key string, def FieldDefinition, searchedKey string) bool {
 	k := strings.ReplaceAll(key, ".", "\\.")
 	k = strings.ReplaceAll(k, "*", "[^.]+")
 
@@ -181,7 +190,7 @@ func compareKeys(key string, def fieldDefinition, searchedKey string) bool {
 	return matched
 }
 
-func parseElementValue(key string, definition fieldDefinition, val interface{}) error {
+func parseElementValue(key string, definition FieldDefinition, val interface{}) error {
 	val, ok := ensureSingleElementValue(val)
 	if !ok {
 		return nil // it's an array, but it's not possible to extract the single value.
