@@ -25,15 +25,19 @@ func setupBuildCommand() *cobra.Command {
 func buildCommandAction(cmd *cobra.Command, args []string) error {
 	cmd.Println("Build the package")
 
-	err := docs.UpdateReadme()
+	target, err := docs.UpdateReadme()
 	if err != nil {
 		return errors.Wrapf(err, "updating %s file failed", docs.ReadmeFile)
 	}
+	if target != "" {
+		cmd.Printf("%s file rendered: %s\n", docs.ReadmeFile, target)
+	}
 
-	err = builder.BuildPackage()
+	target, err = builder.BuildPackage()
 	if err != nil {
 		return errors.Wrap(err, "building package failed")
 	}
+	cmd.Printf("Package built: %s\n", target)
 
 	cmd.Println("Done")
 	return nil

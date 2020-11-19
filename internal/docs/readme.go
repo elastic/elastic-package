@@ -49,27 +49,27 @@ func IsReadmeUpToDate() (bool, error) {
 
 // UpdateReadme function updates the README file using ą defined template file. The function doesn't perform any action
 // if the template file is not present.
-func UpdateReadme() error {
+func UpdateReadme() (string, error) {
 	logger.Debugf("Update the %s file", ReadmeFile)
 
 	packageRoot, err := packages.MustFindPackageRoot()
 	if err != nil {
-		return errors.Wrap(err, "package root not found")
+		return "", errors.Wrap(err, "package root not found")
 	}
 
 	rendered, shouldBeRendered, err := generateReadme(packageRoot)
 	if err != nil {
-		return err
+		return "", err
 	}
 	if !shouldBeRendered {
-		return nil
+		return "", nil
 	}
 
-	err = writeReadme(packageRoot, rendered)
+	target, err := writeReadme(packageRoot, rendered)
 	if err != nil {
-		return errors.Wrapf(err, "writing %s file failed", ReadmeFile)
+		return "", errors.Wrapf(err, "writing %s file failed", ReadmeFile)
 	}
-	return nil
+	return target, nil
 }
 
 func generateReadme(packageRoot string) ([]byte, bool, error) {
@@ -141,22 +141,30 @@ func readReadme(packageRoot string) ([]byte, bool, error) {
 	return b, true, err
 }
 
-func writeReadme(packageRoot string, content []byte) error {
+func writeReadme(packageRoot string, content []byte) (string, error) {
 	logger.Debugf("Write %s file (package: %s)", ReadmeFile, packageRoot)
 
-	docsPath := filepath.Join(packageRoot, "docs")
+	docsPath := docsPath(packageRoot)
 	logger.Debugf("Create directories: %s", docsPath)
 	err := os.MkdirAll(docsPath, 0755)
 	if err != nil {
-		return errors.Wrapf(err, "mkdir failed (path: %s)", docsPath)
+		return "", errors.Wrapf(err, "mkdir failed (path: %s)", docsPath)
 	}
 
-	readmePath := filepath.Join(docsPath, ReadmeFile)
-	logger.Debugf("Write %s file to: %s", ReadmeFile, readmePath)
+	aReadmePath := readmePath(packageRoot)
+	logger.Debugf("Write %s file to: %s", ReadmeFile, aReadmePath)
 
-	err = ioutil.WriteFile(readmePath, content, 0644)
+	err = ioutil.WriteFile(aReadmePath, content, 0644)
 	if err != nil {
-		return errors.Wrapf(err, "writing file failed (path: %s)", readmePath)
+		return "", errors.Wrapf(err, "writing file failed (path: %s)", aReadmePath)
 	}
-	return nil
+	return aReadmePath, nil
+}
+
+func readmePath(packageRoot string) string {
+	return filepath.Join(docsPath(packageRoot), ReadmeFile)
+}
+
+func docsPath(packageRoot string) string {
+	return filepath.Join(packageRoot, "docs")
 }

@@ -16,17 +16,17 @@ import (
 )
 
 // BuildPackage function builds the package.
-func BuildPackage() error {
+func BuildPackage() (string, error) {
 	packageRoot, err := packages.MustFindPackageRoot()
 	if err != nil {
-		return errors.Wrap(err, "locating package root failed")
+		return "", errors.Wrap(err, "locating package root failed")
 	}
 
-	err = buildPackage(packageRoot)
+	target, err := buildPackage(packageRoot)
 	if err != nil {
-		return errors.Wrapf(err, "building package failed (root: %s)", packageRoot)
+		return "", errors.Wrapf(err, "building package failed (root: %s)", packageRoot)
 	}
-	return nil
+	return target, nil
 }
 
 // FindBuildDirectory locates the target build directory.
@@ -77,21 +77,21 @@ func FindBuildPackagesDirectory() (string, bool, error) {
 	return "", false, nil
 }
 
-func buildPackage(sourcePath string) error {
+func buildPackage(sourcePath string) (string, error) {
 	buildDir, found, err := FindBuildPackagesDirectory()
 	if err != nil {
-		return errors.Wrap(err, "locating build directory failed")
+		return "", errors.Wrap(err, "locating build directory failed")
 	}
 	if !found {
 		buildDir, err = createBuildPackagesDirectory()
 		if err != nil {
-			return errors.Wrap(err, "creating new build directory failed")
+			return "", errors.Wrap(err, "creating new build directory failed")
 		}
 	}
 
 	m, err := packages.ReadPackageManifestFromPackageRoot(sourcePath)
 	if err != nil {
-		return errors.Wrapf(err, "reading package manifest failed (path: %s)", sourcePath)
+		return "", errors.Wrapf(err, "reading package manifest failed (path: %s)", sourcePath)
 	}
 
 	destinationDir := filepath.Join(buildDir, m.Name, m.Version)
@@ -100,21 +100,21 @@ func buildPackage(sourcePath string) error {
 	logger.Debugf("Clear target directory (path: %s)", destinationDir)
 	err = files.ClearDir(destinationDir)
 	if err != nil {
-		return errors.Wrap(err, "clearing package contents failed")
+		return "", errors.Wrap(err, "clearing package contents failed")
 	}
 
 	logger.Debugf("Copy package content (source: %s)", sourcePath)
 	err = files.CopyWithoutDev(sourcePath, destinationDir)
 	if err != nil {
-		return errors.Wrap(err, "copying package contents failed")
+		return "", errors.Wrap(err, "copying package contents failed")
 	}
 
 	logger.Debug("Encode dashboards")
 	err = encodeDashboards(destinationDir)
 	if err != nil {
-		return errors.Wrap(err, "encoding dashboards failed")
+		return "", errors.Wrap(err, "encoding dashboards failed")
 	}
-	return nil
+	return destinationDir, nil
 }
 
 func createBuildPackagesDirectory() (string, error) {
