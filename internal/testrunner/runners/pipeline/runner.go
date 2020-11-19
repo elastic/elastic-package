@@ -57,9 +57,14 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		return nil, errors.Wrap(err, "installing ingest pipelines failed")
 	}
 	defer func() {
+		if r.options.DeferCleanup > 0 {
+			logger.Debugf("Waiting for %s before cleanup...", r.options.DeferCleanup)
+			time.Sleep(r.options.DeferCleanup)
+		}
+
 		err := uninstallIngestPipelines(r.options.ESClient, pipelineIDs)
 		if err != nil {
-			logger.Warnf("uninstalling ingest pipelines failed: %v", err)
+			logger.Warnf("Uninstalling ingest pipelines failed: %v", err)
 		}
 	}()
 

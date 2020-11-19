@@ -67,7 +67,7 @@ func Run(options testrunner.TestOptions) ([]testrunner.TestResult, error) {
 		stackSettings:   getStackSettingsFromEnv(),
 		esClient:        options.ESClient,
 	}
-	defer r.tearDown()
+	defer r.tearDown(options)
 	return r.run()
 }
 
@@ -292,13 +292,10 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 	return resultsWith(result, nil)
 }
 
-func (r *runner) tearDown() {
-	if logger.IsDebugMode() {
-		// Sleep to give some time for humans to scrutinize the current
-		// state of the system.
-		sleepFor := 30 * time.Second
-		logger.Debugf("waiting for %s before tearing down...", sleepFor)
-		time.Sleep(sleepFor)
+func (r *runner) tearDown(options testrunner.TestOptions) {
+	if options.DeferCleanup > 0 {
+		logger.Debugf("waiting for %s before tearing down...", options.DeferCleanup)
+		time.Sleep(options.DeferCleanup)
 	}
 
 	if r.resetAgentPolicyHandler != nil {
