@@ -30,6 +30,8 @@ type TestOptions struct {
 	PackageRootPath    string
 	GenerateTestResult bool
 	ESClient           *elasticsearch.Client
+
+	DeferCleanup time.Duration
 }
 
 // RunFunc method defines main run function of a test runner.
