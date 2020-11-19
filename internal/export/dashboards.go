@@ -27,7 +27,7 @@ func Dashboards(kibanaClient *kibana.Client, dashboardsIDs []string) error {
 	}
 	logger.Debugf("Package root found: %s", packageRoot)
 
-	m, err := packages.ReadPackageManifestForPackage(packageRoot)
+	m, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
 	if err != nil {
 		return errors.Wrapf(err, "reading package manifest failed (path: %s)", packageRoot)
 	}

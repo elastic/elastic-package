@@ -136,7 +136,7 @@ func testTypeCommandActionFactory(testType testrunner.TestType) cobraext.Command
 			return errors.Wrap(err, "error formatting test report")
 		}
 
-		m, err := packages.ReadPackageManifestForPackage(packageRootPath)
+		m, err := packages.ReadPackageManifestFromPackageRoot(packageRootPath)
 		if err != nil {
 			return errors.Wrapf(err, "reading package manifest failed (path: %s)", packageRootPath)
 		}

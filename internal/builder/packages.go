@@ -89,7 +89,7 @@ func buildPackage(sourcePath string) error {
 		}
 	}
 
-	m, err := packages.ReadPackageManifestForPackage(sourcePath)
+	m, err := packages.ReadPackageManifestFromPackageRoot(sourcePath)
 	if err != nil {
 		return errors.Wrapf(err, "reading package manifest failed (path: %s)", sourcePath)
 	}
