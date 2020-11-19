@@ -24,12 +24,16 @@ Access logs collects the Apache access logs.
 | data_stream.dataset | Data stream dataset. | constant_keyword |
 | data_stream.namespace | Data stream namespace. | constant_keyword |
 | data_stream.type | Data stream type. | constant_keyword |
+| ecs.version |  | keyword |
 | http.request.method | HTTP request method. Prior to ECS 1.6.0 the following guidance was provided: "The field value must be normalized to lowercase for querying." As of ECS 1.6.0, the guidance is deprecated because the original case of the method may be useful in anomaly detection.  Original case will be mandated in ECS 2.0.0 | keyword |
 | http.request.referrer | Referrer for this HTTP request. | keyword |
 | http.response.body.bytes | Size in bytes of the response body. | long |
 | http.response.status_code | HTTP response status code. | long |
 | http.version | HTTP version. | keyword |
+| input.type |  | keyword |
+| log.file.path |  | keyword |
 | log.level | Original log level of the log event. If the source of the event provides a log level or textual severity, this is the one that goes in `log.level`. If your source doesn't specify one, you may put your event transport's severity here (e.g. Syslog severity). Some examples are `warn`, `err`, `i`, `informational`. | keyword |
+| log.offset |  | long |
 | message | For log events the message field contains the log message, optimized for viewing in a log viewer. For structured logs without an original message field, other fields can be concatenated to form a human-readable summary of the event. If multiple messages exist, they can be combined into one message. | text |
 | process.pid | Process id. | long |
 | process.thread.id | Thread ID. | long |
@@ -40,6 +44,7 @@ Access logs collects the Apache access logs.
 | source.geo.location | Longitude and latitude. | geo_point |
 | source.geo.region_iso_code | Region ISO code. | keyword |
 | source.geo.region_name | Region name. | keyword |
+| source.ip |  | ip |
 | url.original | Unmodified original url as seen in the event source. Note that in network monitoring, the observed URL may be a full URL, whereas in access logs, the URL is often just represented as a path. This field is meant to represent the URL as it was observed, complete or not. | keyword |
 | user.name | Short name or login of the user. | keyword |
 | user_agent.device.name | Name of the device. | keyword |
@@ -63,12 +68,16 @@ Error logs collects the Apache error logs.
 | data_stream.dataset | Data stream dataset. | constant_keyword |
 | data_stream.namespace | Data stream namespace. | constant_keyword |
 | data_stream.type | Data stream type. | constant_keyword |
+| ecs.version |  | keyword |
 | http.request.method | HTTP request method. Prior to ECS 1.6.0 the following guidance was provided: "The field value must be normalized to lowercase for querying." As of ECS 1.6.0, the guidance is deprecated because the original case of the method may be useful in anomaly detection.  Original case will be mandated in ECS 2.0.0 | keyword |
 | http.request.referrer | Referrer for this HTTP request. | keyword |
 | http.response.body.bytes | Size in bytes of the response body. | long |
 | http.response.status_code | HTTP response status code. | long |
 | http.version | HTTP version. | keyword |
+| input.type |  | keyword |
+| log.file.path |  | keyword |
 | log.level | Original log level of the log event. If the source of the event provides a log level or textual severity, this is the one that goes in `log.level`. If your source doesn't specify one, you may put your event transport's severity here (e.g. Syslog severity). Some examples are `warn`, `err`, `i`, `informational`. | keyword |
+| log.offset |  | long |
 | message | For log events the message field contains the log message, optimized for viewing in a log viewer. For structured logs without an original message field, other fields can be concatenated to form a human-readable summary of the event. If multiple messages exist, they can be combined into one message. | text |
 | process.pid | Process id. | long |
 | process.thread.id | Thread ID. | long |
@@ -98,98 +107,98 @@ An example event for `status` looks as following:
 
 ```$json
 {
-  "@metadata": {
-    "beat": "metricbeat",
-    "raw_index": "metrics-apache.status-default",
-    "type": "_doc",
-    "version": "8.0.0"
-  },
-  "@timestamp": "2020-06-24T10:19:48.005Z",
-  "agent": {
-    "ephemeral_id": "685f03e4-76e7-4d05-b398-8454b8964681",
-    "id": "a74466da-3ea4-44f9-aea0-11c5e4b920be",
-    "name": "MacBook-Elastic.local",
-    "type": "metricbeat",
-    "version": "8.0.0"
-  },
-  "apache": {
-    "status": {
-      "bytes_per_request": 94.0933,
-      "bytes_per_sec": 83.6986,
-      "connections": {
-        "async": {
-          "closing": 0,
-          "keep_alive": 0,
-          "writing": 0
-        },
-        "total": 0
-      },
-      "cpu": {
-        "children_system": 0,
-        "children_user": 0,
-        "load": 0.185185,
-        "system": 1.79,
-        "user": 1.11
-      },
-      "hostname": "127.0.0.1:8088",
-      "load": {
-        "1": 3.58,
-        "15": 2.79,
-        "5": 3.54
-      },
-      "requests_per_sec": 0.889527,
-      "scoreboard": {
-        "closing_connection": 0,
-        "dns_lookup": 0,
-        "gracefully_finishing": 0,
-        "idle_cleanup": 0,
-        "keepalive": 0,
-        "logging": 0,
-        "open_slot": 325,
-        "reading_request": 0,
-        "sending_reply": 1,
-        "starting_up": 0,
-        "total": 400,
-        "waiting_for_connection": 74
-      },
-      "total_accesses": 1393,
-      "total_kbytes": 128,
-      "uptime": {
-        "server_uptime": 1566,
-        "uptime": 1566
-      },
-      "workers": {
-        "busy": 1,
-        "idle": 74
-      }
+    "@timestamp": "2020-06-24T10:19:48.005Z",
+    "@metadata": {
+        "beat": "metricbeat",
+        "type": "_doc",
+        "version": "8.0.0",
+        "raw_index": "metrics-apache.status-default"
+    },
+    "metricset": {
+        "name": "status",
+        "period": 10000
+    },
+    "apache": {
+        "status": {
+            "connections": {
+                "total": 0,
+                "async": {
+                    "writing": 0,
+                    "keep_alive": 0,
+                    "closing": 0
+                }
+            },
+            "total_kbytes": 128,
+            "cpu": {
+                "children_user": 0,
+                "children_system": 0,
+                "load": 0.185185,
+                "user": 1.11,
+                "system": 1.79
+            },
+            "scoreboard": {
+                "logging": 0,
+                "idle_cleanup": 0,
+                "starting_up": 0,
+                "reading_request": 0,
+                "dns_lookup": 0,
+                "closing_connection": 0,
+                "gracefully_finishing": 0,
+                "sending_reply": 1,
+                "keepalive": 0,
+                "total": 400,
+                "open_slot": 325,
+                "waiting_for_connection": 74
+            },
+            "workers": {
+                "busy": 1,
+                "idle": 74
+            },
+            "bytes_per_sec": 83.6986,
+            "hostname": "127.0.0.1:8088",
+            "uptime": {
+                "server_uptime": 1566,
+                "uptime": 1566
+            },
+            "total_accesses": 1393,
+            "bytes_per_request": 94.0933,
+            "requests_per_sec": 0.889527,
+            "load": {
+                "1": 3.58,
+                "5": 3.54,
+                "15": 2.79
+            }
+        }
+    },
+    "service": {
+        "address": "127.0.0.1:8088",
+        "type": "apache"
+    },
+    "event": {
+        "duration": 2381832,
+        "dataset": "apache.status",
+        "module": "apache"
+    },
+    "dataset": {
+        "type": "metrics",
+        "name": "apache.status",
+        "namespace": "default"
+    },
+    "stream": {
+        "dataset": "apache.status",
+        "namespace": "default",
+        "type": "metrics"
+    },
+    "ecs": {
+        "version": "1.5.0"
+    },
+    "agent": {
+        "type": "metricbeat",
+        "version": "8.0.0",
+        "ephemeral_id": "685f03e4-76e7-4d05-b398-8454b8964681",
+        "id": "a74466da-3ea4-44f9-aea0-11c5e4b920be",
+        "name": "MacBook-Elastic.local"
     }
-  },
-  "dataset": {
-    "name": "apache.status",
-    "namespace": "default",
-    "type": "metrics"
-  },
-  "ecs": {
-    "version": "1.5.0"
-  },
-  "event": {
-    "dataset": "apache.status",
-    "duration": 2381832,
-    "module": "apache"
-  },
-  "metricset": {
-    "name": "status",
-    "period": 10000
-  },
-  "service": {
-    "address": "127.0.0.1:8088",
-    "type": "apache"
-  },
-  "stream": {
-    "dataset": "apache.status",
-    "namespace": "default",
-    "type": "metrics"
-  }
 }
 ```
 
@@ -235,4 +244,6 @@ An example event for `status` looks as following:
 | data_stream.dataset | Data stream dataset. | constant_keyword |
 | data_stream.namespace | Data stream namespace. | constant_keyword |
 | data_stream.type | Data stream type. | constant_keyword |
-
+| ecs.version |  | keyword |
+| service.address |  | keyword |
+| service.type |  | keyword |

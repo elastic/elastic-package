@@ -9,7 +9,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.1.1
 	github.com/elastic/go-elasticsearch/v7 v7.9.0
 	github.com/elastic/go-ucfg v0.8.3
-	github.com/elastic/package-spec/code/go v0.0.0-20201112111544-52a4b4358929
+	github.com/elastic/package-spec/code/go v0.0.0-20201119081501-49ecd87c589a
 	github.com/go-git/go-billy/v5 v5.0.0
 	github.com/go-git/go-git/v5 v5.1.0
 	github.com/go-openapi/strfmt v0.19.6 // indirect

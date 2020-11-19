@@ -10,7 +10,9 @@ import (
 	"github.com/pkg/errors"
 )
 
-func jsonFormatter(content []byte) ([]byte, bool, error) {
+// JSONFormatter function is responsible for formatting the given JSON input.
+// The function is exposed, so it can be used by other internal packages, e.g. to format sample events in docs.
+func JSONFormatter(content []byte) ([]byte, bool, error) {
 	var rawMessage json.RawMessage
 	err := json.Unmarshal(content, &rawMessage)
 	if err != nil {

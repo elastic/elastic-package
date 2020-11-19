@@ -5,10 +5,14 @@
 package cmd
 
 import (
-	"github.com/elastic/package-spec/code/go/pkg/validator"
+	"fmt"
+
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
+	"github.com/elastic/package-spec/code/go/pkg/validator"
+
+	"github.com/elastic/elastic-package/internal/docs"
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
@@ -31,6 +35,14 @@ func lintCommandAction(cmd *cobra.Command, args []string) error {
 	}
 	if err != nil {
 		return errors.Wrap(err, "locating package root failed")
+	}
+
+	ok, err := docs.IsReadmeUpToDate()
+	if err != nil {
+		return errors.Wrapf(err, "can't check if %s file is up-to-date", docs.ReadmeFile)
+	}
+	if !ok {
+		return fmt.Errorf("%s file is outdated. Rebuild the package with 'elastic-package build'", docs.ReadmeFile)
 	}
 
 	err = validator.ValidateFromPath(packageRootPath)

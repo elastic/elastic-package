@@ -16,9 +16,9 @@ import (
 type formatter func(content []byte) ([]byte, bool, error)
 
 var formatters = map[string]formatter{
-	".json": jsonFormatter,
-	".yaml": yamlFormatter,
-	".yml":  yamlFormatter,
+	".json": JSONFormatter,
+	".yaml": YAMLFormatter,
+	".yml":  YAMLFormatter,
 }
 
 // Format method formats files inside of the integration directory.

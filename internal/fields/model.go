@@ -4,9 +4,11 @@
 
 package fields
 
-type fieldDefinition struct {
-	Name    string            `yaml:"name"`
-	Type    string            `yaml:"type"`
-	Pattern string            `yaml:"pattern"`
-	Fields  []fieldDefinition `yaml:"fields"`
+// FieldDefinition describes a single field with its properties.
+type FieldDefinition struct {
+	Name        string            `yaml:"name"`
+	Description string            `yaml:"description"`
+	Type        string            `yaml:"type"`
+	Pattern     string            `yaml:"pattern"`
+	Fields      []FieldDefinition `yaml:"fields"`
 }
