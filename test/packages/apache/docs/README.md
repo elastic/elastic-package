@@ -14,13 +14,87 @@ all versions >= 2.2.31 and >= 2.4.16.
 
 Access logs collects the Apache access logs.
 
-TODO-renderExportedFields
+**Exported fields**
+
+| Field | Description | Type |
+|---|---|---|
+| @timestamp | Event timestamp. | date |
+| apache.access.ssl.cipher | SSL cipher name. | keyword |
+| apache.access.ssl.protocol | SSL protocol version. | keyword |
+| data_stream.dataset | Data stream dataset. | constant_keyword |
+| data_stream.namespace | Data stream namespace. | constant_keyword |
+| data_stream.type | Data stream type. | constant_keyword |
+| ecs.version |  | keyword |
+| http.request.method | HTTP request method. Prior to ECS 1.6.0 the following guidance was provided: "The field value must be normalized to lowercase for querying." As of ECS 1.6.0, the guidance is deprecated because the original case of the method may be useful in anomaly detection.  Original case will be mandated in ECS 2.0.0 | keyword |
+| http.request.referrer | Referrer for this HTTP request. | keyword |
+| http.response.body.bytes | Size in bytes of the response body. | long |
+| http.response.status_code | HTTP response status code. | long |
+| http.version | HTTP version. | keyword |
+| input.type |  | keyword |
+| log.file.path |  | keyword |
+| log.level | Original log level of the log event. If the source of the event provides a log level or textual severity, this is the one that goes in `log.level`. If your source doesn't specify one, you may put your event transport's severity here (e.g. Syslog severity). Some examples are `warn`, `err`, `i`, `informational`. | keyword |
+| log.offset |  | long |
+| message | For log events the message field contains the log message, optimized for viewing in a log viewer. For structured logs without an original message field, other fields can be concatenated to form a human-readable summary of the event. If multiple messages exist, they can be combined into one message. | text |
+| process.pid | Process id. | long |
+| process.thread.id | Thread ID. | long |
+| source.address | Some event source addresses are defined ambiguously. The event will sometimes list an IP, a domain or a unix socket.  You should always store the raw address in the `.address` field. Then it should be duplicated to `.ip` or `.domain`, depending on which one it is. | keyword |
+| source.geo.city_name | City name. | keyword |
+| source.geo.continent_name | Name of the continent. | keyword |
+| source.geo.country_iso_code | Country ISO code. | keyword |
+| source.geo.location | Longitude and latitude. | geo_point |
+| source.geo.region_iso_code | Region ISO code. | keyword |
+| source.geo.region_name | Region name. | keyword |
+| source.ip |  | ip |
+| url.original | Unmodified original url as seen in the event source. Note that in network monitoring, the observed URL may be a full URL, whereas in access logs, the URL is often just represented as a path. This field is meant to represent the URL as it was observed, complete or not. | keyword |
+| user.name | Short name or login of the user. | keyword |
+| user_agent.device.name | Name of the device. | keyword |
+| user_agent.name | Name of the user agent. | keyword |
+| user_agent.original | Unparsed user_agent string. | keyword |
+| user_agent.os.name | Operating system name, without the version. | keyword |
+| user_agent.os.version | Operating system version as a raw string. | keyword |
+| user_agent.version | Version of the user agent. | keyword |
+
 
 ### Error Logs
 
 Error logs collects the Apache error logs.
 
-TODO-renderExportedFields
+**Exported fields**
+
+| Field | Description | Type |
+|---|---|---|
+| @timestamp | Event timestamp. | date |
+| apache.error.module | The module producing the logged message. | keyword |
+| data_stream.dataset | Data stream dataset. | constant_keyword |
+| data_stream.namespace | Data stream namespace. | constant_keyword |
+| data_stream.type | Data stream type. | constant_keyword |
+| ecs.version |  | keyword |
+| http.request.method | HTTP request method. Prior to ECS 1.6.0 the following guidance was provided: "The field value must be normalized to lowercase for querying." As of ECS 1.6.0, the guidance is deprecated because the original case of the method may be useful in anomaly detection.  Original case will be mandated in ECS 2.0.0 | keyword |
+| http.request.referrer | Referrer for this HTTP request. | keyword |
+| http.response.body.bytes | Size in bytes of the response body. | long |
+| http.response.status_code | HTTP response status code. | long |
+| http.version | HTTP version. | keyword |
+| input.type |  | keyword |
+| log.file.path |  | keyword |
+| log.level | Original log level of the log event. If the source of the event provides a log level or textual severity, this is the one that goes in `log.level`. If your source doesn't specify one, you may put your event transport's severity here (e.g. Syslog severity). Some examples are `warn`, `err`, `i`, `informational`. | keyword |
+| log.offset |  | long |
+| message | For log events the message field contains the log message, optimized for viewing in a log viewer. For structured logs without an original message field, other fields can be concatenated to form a human-readable summary of the event. If multiple messages exist, they can be combined into one message. | text |
+| process.pid | Process id. | long |
+| process.thread.id | Thread ID. | long |
+| source.address | Some event source addresses are defined ambiguously. The event will sometimes list an IP, a domain or a unix socket.  You should always store the raw address in the `.address` field. Then it should be duplicated to `.ip` or `.domain`, depending on which one it is. | keyword |
+| source.geo.city_name | City name. | keyword |
+| source.geo.continent_name | Name of the continent. | keyword |
+| source.geo.country_iso_code | Country ISO code. | keyword |
+| source.geo.location | Longitude and latitude. | geo_point |
+| source.geo.region_iso_code | Region ISO code. | keyword |
+| source.geo.region_name | Region name. | keyword |
+| url.original | Unmodified original url as seen in the event source. Note that in network monitoring, the observed URL may be a full URL, whereas in access logs, the URL is often just represented as a path. This field is meant to represent the URL as it was observed, complete or not. | keyword |
+| user.name | Short name or login of the user. | keyword |
+| user_agent.device.name | Name of the device. | keyword |
+| user_agent.name | Name of the user agent. | keyword |
+| user_agent.original | Unparsed user_agent string. | keyword |
+| user_agent.os.name | Operating system name, without the version. | keyword |
+
 
 ## Metrics
 
@@ -128,4 +202,48 @@ An example event for `status` looks as following:
 }
 ```
 
-TODO-renderExportedFields
+**Exported fields**
+
+| Field | Description | Type |
+|---|---|---|
+| @timestamp | Event timestamp. | date |
+| apache.status.bytes_per_request | Bytes per request. | scaled_float |
+| apache.status.bytes_per_sec | Bytes per second. | scaled_float |
+| apache.status.connections.async.closing | Async closed connections. | long |
+| apache.status.connections.async.keep_alive | Async keeped alive connections. | long |
+| apache.status.connections.async.writing | Async connection writing. | long |
+| apache.status.connections.total | Total connections. | long |
+| apache.status.cpu.children_system | CPU of children system. | scaled_float |
+| apache.status.cpu.children_user | CPU of children user. | scaled_float |
+| apache.status.cpu.load | CPU Load. | scaled_float |
+| apache.status.cpu.system | System cpu. | scaled_float |
+| apache.status.cpu.user | CPU user load. | scaled_float |
+| apache.status.hostname | Apache hostname. | keyword |
+| apache.status.load.1 | Load average for the last minute. | scaled_float |
+| apache.status.load.15 | Load average for the last 15 minutes. | scaled_float |
+| apache.status.load.5 | Load average for the last 5 minutes. | scaled_float |
+| apache.status.requests_per_sec | Requests per second. | scaled_float |
+| apache.status.scoreboard.closing_connection | Closing connections. | long |
+| apache.status.scoreboard.dns_lookup | Dns Lookups. | long |
+| apache.status.scoreboard.gracefully_finishing | Gracefully finishing. | long |
+| apache.status.scoreboard.idle_cleanup | Idle cleanups. | long |
+| apache.status.scoreboard.keepalive | Keep alive. | long |
+| apache.status.scoreboard.logging | Logging | long |
+| apache.status.scoreboard.open_slot | Open slots. | long |
+| apache.status.scoreboard.reading_request | Reading requests. | long |
+| apache.status.scoreboard.sending_reply | Sending Reply. | long |
+| apache.status.scoreboard.starting_up | Starting up. | long |
+| apache.status.scoreboard.total | Total. | long |
+| apache.status.scoreboard.waiting_for_connection | Waiting for connections. | long |
+| apache.status.total_accesses | Total number of access requests. | long |
+| apache.status.total_kbytes | Total number of kilobytes served. | long |
+| apache.status.uptime.server_uptime | Server uptime in seconds. | long |
+| apache.status.uptime.uptime | Server uptime. | long |
+| apache.status.workers.busy | Number of busy workers. | long |
+| apache.status.workers.idle | Number of idle workers. | long |
+| data_stream.dataset | Data stream dataset. | constant_keyword |
+| data_stream.namespace | Data stream namespace. | constant_keyword |
+| data_stream.type | Data stream type. | constant_keyword |
+| ecs.version |  | keyword |
+| service.address |  | keyword |
+| service.type |  | keyword |
