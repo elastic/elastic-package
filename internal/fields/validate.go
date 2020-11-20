@@ -127,7 +127,7 @@ func (v *Validator) validateScalarElement(key string, val interface{}) error {
 		return nil // root key is always valid
 	}
 
-	definition := findElementDefinitionRoot(key, v.schema)
+	definition := findElementDefinition(key, v.schema)
 	if definition == nil && skipValidationForField(key) {
 		return nil // generic field, let's skip validation for now
 	}
@@ -160,11 +160,11 @@ func isFieldFamilyMatching(family, key string) bool {
 }
 
 func isFieldTypeFlattened(key string, fieldDefinitions []FieldDefinition) bool {
-	definition := findElementDefinitionRoot(key, fieldDefinitions)
+	definition := findElementDefinition(key, fieldDefinitions)
 	return definition != nil && "flattened" == definition.Type
 }
 
-func findElementDefinition(root, searchedKey string, FieldDefinitions []FieldDefinition) *FieldDefinition {
+func findElementDefinitionForRoot(root, searchedKey string, FieldDefinitions []FieldDefinition) *FieldDefinition {
 	for _, def := range FieldDefinitions {
 		key := strings.TrimLeft(root+"."+def.Name, ".")
 		if compareKeys(key, def, searchedKey) {
@@ -175,7 +175,7 @@ func findElementDefinition(root, searchedKey string, FieldDefinitions []FieldDef
 			continue
 		}
 
-		fd := findElementDefinition(key, searchedKey, def.Fields)
+		fd := findElementDefinitionForRoot(key, searchedKey, def.Fields)
 		if fd != nil {
 			return fd
 		}
@@ -183,8 +183,8 @@ func findElementDefinition(root, searchedKey string, FieldDefinitions []FieldDef
 	return nil
 }
 
-func findElementDefinitionRoot(searchedKey string, fieldDefinitions []FieldDefinition) *FieldDefinition {
-	return findElementDefinition("", searchedKey, fieldDefinitions)
+func findElementDefinition(searchedKey string, fieldDefinitions []FieldDefinition) *FieldDefinition {
+	return findElementDefinitionForRoot("", searchedKey, fieldDefinitions)
 }
 
 func compareKeys(key string, def FieldDefinition, searchedKey string) bool {
