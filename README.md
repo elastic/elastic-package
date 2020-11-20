@@ -20,6 +20,9 @@ Alternatively, you may use `go get` but you will not be able to use the `elastic
 go get github.com/elastic/elastic-package
 ```
 
+_Please make sure the you've correctly [setup variables](https://golang.org/doc/gopath_code.html#GOPATH) -
+`$GOPATH` and `$PATH`, and the `elastic-package` is accessible from your `$PATH`._
+
 Change directory to the package under development. Note: an integration is a specific type of a package.
 
 ```bash
