@@ -103,7 +103,9 @@ func (v *Validator) validateMapElement(root string, elem common.MapStr) multierr
 				}
 			}
 		case map[string]interface{}:
-			if definition := findElementDefinition("", key, v.schema); definition != nil && definition.Type == "flattened" {
+			if isFieldTypeFlattened(key, v.schema) {
+				// Do not traverse into objects with flattened data types
+				// because the entire object is mapped as a single field.
 				continue
 			}
 			err := v.validateMapElement(key, val.(map[string]interface{}))
@@ -125,7 +127,7 @@ func (v *Validator) validateScalarElement(key string, val interface{}) error {
 		return nil // root key is always valid
 	}
 
-	definition := findElementDefinition("", key, v.schema)
+	definition := findElementDefinitionRoot(key, v.schema)
 	if definition == nil && skipValidationForField(key) {
 		return nil // generic field, let's skip validation for now
 	}
@@ -157,6 +159,11 @@ func isFieldFamilyMatching(family, key string) bool {
 	return key == family || strings.HasPrefix(key, family+".")
 }
 
+func isFieldTypeFlattened(key string, fieldDefinitions []FieldDefinition) bool {
+	definition := findElementDefinitionRoot(key, fieldDefinitions)
+	return definition != nil && "flattened" == definition.Type
+}
+
 func findElementDefinition(root, searchedKey string, FieldDefinitions []FieldDefinition) *FieldDefinition {
 	for _, def := range FieldDefinitions {
 		key := strings.TrimLeft(root+"."+def.Name, ".")
@@ -174,6 +181,10 @@ func findElementDefinition(root, searchedKey string, FieldDefinitions []FieldDef
 		}
 	}
 	return nil
+}
+
+func findElementDefinitionRoot(searchedKey string, fieldDefinitions []FieldDefinition) *FieldDefinition {
+	return findElementDefinition("", searchedKey, fieldDefinitions)
 }
 
 func compareKeys(key string, def FieldDefinition, searchedKey string) bool {
