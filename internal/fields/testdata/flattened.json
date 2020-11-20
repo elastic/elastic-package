@@ -1,0 +1,10 @@
+{
+  "foo": {
+    "flattened": {
+      "request_parameters": {
+        "userName": "Bob",
+        "groupName": "admin"
+      }
+    }
+  }
+}

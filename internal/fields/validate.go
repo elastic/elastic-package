@@ -103,6 +103,11 @@ func (v *Validator) validateMapElement(root string, elem common.MapStr) multierr
 				}
 			}
 		case map[string]interface{}:
+			if isFieldTypeFlattened(key, v.schema) {
+				// Do not traverse into objects with flattened data types
+				// because the entire object is mapped as a single field.
+				continue
+			}
 			err := v.validateMapElement(key, val.(map[string]interface{}))
 			if err != nil {
 				errs = append(errs, err...)
@@ -122,7 +127,7 @@ func (v *Validator) validateScalarElement(key string, val interface{}) error {
 		return nil // root key is always valid
 	}
 
-	definition := findElementDefinition("", key, v.schema)
+	definition := findElementDefinition(key, v.schema)
 	if definition == nil && skipValidationForField(key) {
 		return nil // generic field, let's skip validation for now
 	}
@@ -154,7 +159,12 @@ func isFieldFamilyMatching(family, key string) bool {
 	return key == family || strings.HasPrefix(key, family+".")
 }
 
-func findElementDefinition(root, searchedKey string, FieldDefinitions []FieldDefinition) *FieldDefinition {
+func isFieldTypeFlattened(key string, fieldDefinitions []FieldDefinition) bool {
+	definition := findElementDefinition(key, fieldDefinitions)
+	return definition != nil && "flattened" == definition.Type
+}
+
+func findElementDefinitionForRoot(root, searchedKey string, FieldDefinitions []FieldDefinition) *FieldDefinition {
 	for _, def := range FieldDefinitions {
 		key := strings.TrimLeft(root+"."+def.Name, ".")
 		if compareKeys(key, def, searchedKey) {
@@ -165,12 +175,16 @@ func findElementDefinition(root, searchedKey string, FieldDefinitions []FieldDef
 			continue
 		}
 
-		fd := findElementDefinition(key, searchedKey, def.Fields)
+		fd := findElementDefinitionForRoot(key, searchedKey, def.Fields)
 		if fd != nil {
 			return fd
 		}
 	}
 	return nil
+}
+
+func findElementDefinition(searchedKey string, fieldDefinitions []FieldDefinition) *FieldDefinition {
+	return findElementDefinitionForRoot("", searchedKey, fieldDefinitions)
 }
 
 func compareKeys(key string, def FieldDefinition, searchedKey string) bool {

@@ -1,0 +1,8 @@
+- name: foo
+  type: group
+  fields:
+    - name: flattened
+      type: group
+      fields:
+        - name: request_parameters
+          type: flattened

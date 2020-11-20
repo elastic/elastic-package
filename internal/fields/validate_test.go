@@ -40,6 +40,16 @@ func TestValidate_WithWildcardFields(t *testing.T) {
 	require.Empty(t, errs)
 }
 
+func TestValidate_WithFlattenedFields(t *testing.T) {
+	validator, err := fields.CreateValidatorForDataStream("testdata")
+	require.NoError(t, err)
+	require.NotNil(t, validator)
+
+	e := readSampleEvent(t, "testdata/flattened.json")
+	errs := validator.ValidateDocumentBody(e)
+	require.Empty(t, errs)
+}
+
 func readTestResults(t *testing.T, path string) (f results) {
 	c, err := ioutil.ReadFile(path)
 	require.NoError(t, err)
