@@ -27,7 +27,7 @@ import (
 )
 
 func init() {
-	testrunner.RegisterRunner(TestType, Run)
+	testrunner.RegisterRunner(runner{})
 }
 
 const (
@@ -59,14 +59,23 @@ type stackSettings struct {
 	}
 }
 
+// Type returns the type of test that can be run by this test runner.
+func (r runner) Type() testrunner.TestType {
+	return TestType
+}
+
+// String returns the human-friendly name of the test runner.
+func (r runner) String() string {
+	return "system"
+}
+
 // Run runs the system tests defined under the given folder
-func Run(options testrunner.TestOptions) ([]testrunner.TestResult, error) {
-	r := runner{
-		testFolder:      options.TestFolder,
-		packageRootPath: options.PackageRootPath,
-		stackSettings:   getStackSettingsFromEnv(),
-		esClient:        options.ESClient,
-	}
+func (r runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, error) {
+	r.testFolder = options.TestFolder
+	r.packageRootPath = options.PackageRootPath
+	r.stackSettings = getStackSettingsFromEnv()
+	r.esClient = options.ESClient
+
 	defer r.tearDown(options)
 	return r.run()
 }

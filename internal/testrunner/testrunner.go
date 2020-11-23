@@ -28,10 +28,14 @@ type TestOptions struct {
 	DeferCleanup time.Duration
 }
 
-// RunFunc method defines main run function of a test runner.
-type RunFunc func(options TestOptions) ([]TestResult, error)
+// TestRunner is the interface all test runners must implement.
+type TestRunner interface {
+	Type() TestType
+	Run(options TestOptions) ([]TestResult, error)
+	fmt.Stringer
+}
 
-var runners = map[TestType]RunFunc{}
+var runners = map[TestType]TestRunner{}
 
 // TestResult contains a single test's results
 type TestResult struct {
@@ -127,17 +131,22 @@ func FindTestFolders(packageRootPath string, testType TestType, dataStreams []st
 }
 
 // RegisterRunner method registers the test runner.
-func RegisterRunner(testType TestType, runFunc RunFunc) {
-	runners[testType] = runFunc
+func RegisterRunner(runner TestRunner) {
+	runners[runner.Type()] = runner
 }
 
 // Run method delegates execution to the registered test runner, based on the test type.
 func Run(testType TestType, options TestOptions) ([]TestResult, error) {
-	runFunc, defined := runners[testType]
+	runner, defined := runners[testType]
 	if !defined {
 		return nil, fmt.Errorf("unregistered runner test: %s", testType)
 	}
-	return runFunc(options)
+	return runner.Run(options)
+}
+
+// TestRunners returns registered test runners.
+func TestRunners() map[TestType]TestRunner {
+	return runners
 }
 
 // TestTypes method returns registered test types.
