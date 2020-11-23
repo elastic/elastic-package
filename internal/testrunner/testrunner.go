@@ -32,10 +32,17 @@ type TestOptions struct {
 
 // TestRunner is the interface all test runners must implement.
 type TestRunner interface {
-	fmt.Stringer
+	// Type returns the test runner's type.
 	Type() TestType
 
+	// String returns the human-friendly name of the test runner.
+	String() string
+
+	// Run executes the test runner.
 	Run(TestOptions) ([]TestResult, error)
+
+	// TearDown cleans up any test runner resources. It must be called
+	// after the test runner has finished executing.
 	TearDown()
 }
 
