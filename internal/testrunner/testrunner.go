@@ -171,15 +171,6 @@ func TestRunners() map[TestType]TestRunner {
 	return runners
 }
 
-// TestTypes method returns registered test types.
-func TestTypes() []TestType {
-	var testTypes []TestType
-	for t := range runners {
-		testTypes = append(testTypes, t)
-	}
-	return testTypes
-}
-
 func findTestFolderPaths(packageRootPath, dataStreamGlob, testTypeGlob string) ([]string, error) {
 	testFoldersGlob := filepath.Join(packageRootPath, "data_stream", dataStreamGlob, "_dev", "test", testTypeGlob)
 	paths, err := filepath.Glob(testFoldersGlob)
