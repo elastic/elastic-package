@@ -18,12 +18,6 @@ import (
 // TestType represents the various supported test types
 type TestType string
 
-// TestReportFormat represents a test report format
-type TestReportFormat string
-
-// TestReportOutput represents an output for a test report
-type TestReportOutput string
-
 // TestOptions contains test runner options.
 type TestOptions struct {
 	TestFolder         TestFolder
@@ -69,16 +63,6 @@ type TestResult struct {
 	// to an unexpected runtime error in the test execution.
 	ErrorMsg string
 }
-
-// ReportFormatFunc defines the report formatter function.
-type ReportFormatFunc func(results []TestResult) (string, error)
-
-var reportFormatters = map[TestReportFormat]ReportFormatFunc{}
-
-// ReportOutputFunc defines the report writer function.
-type ReportOutputFunc func(pkg, report string, format TestReportFormat) error
-
-var reportOutputs = map[TestReportOutput]ReportOutputFunc{}
 
 // TestFolder encapsulates the test folder path and names of the package + data stream
 // to which the test folder belongs.
@@ -163,36 +147,6 @@ func TestTypes() []TestType {
 		testTypes = append(testTypes, t)
 	}
 	return testTypes
-}
-
-// RegisterReporterFormat registers a test report formatter.
-func RegisterReporterFormat(name TestReportFormat, formatFunc ReportFormatFunc) {
-	reportFormatters[name] = formatFunc
-}
-
-// FormatReport delegates formatting of test results to the registered test report formatter
-func FormatReport(name TestReportFormat, results []TestResult) (string, error) {
-	reportFunc, defined := reportFormatters[name]
-	if !defined {
-		return "", fmt.Errorf("unregistered test report format: %s", name)
-	}
-
-	return reportFunc(results)
-}
-
-// RegisterReporterOutput registers a test report output.
-func RegisterReporterOutput(name TestReportOutput, outputFunc ReportOutputFunc) {
-	reportOutputs[name] = outputFunc
-}
-
-// WriteReport delegates writing of test results to the registered test report output
-func WriteReport(pkg string, name TestReportOutput, report string, format TestReportFormat) error {
-	outputFunc, defined := reportOutputs[name]
-	if !defined {
-		return fmt.Errorf("unregistered test report output: %s", name)
-	}
-
-	return outputFunc(pkg, report, format)
 }
 
 func findTestFolderPaths(packageRootPath, dataStreamGlob, testTypeGlob string) ([]string, error) {
