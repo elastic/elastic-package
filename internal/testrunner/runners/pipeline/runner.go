@@ -48,6 +48,10 @@ func (r runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, er
 	return r.run()
 }
 
+// ShutDown shuts down the pipeline test runner.
+func (r runner) TearDown() {
+}
+
 func (r *runner) run() ([]testrunner.TestResult, error) {
 	testCaseFiles, err := r.listTestCaseFiles()
 	if err != nil {

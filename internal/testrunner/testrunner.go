@@ -13,6 +13,8 @@ import (
 
 	"github.com/elastic/go-elasticsearch/v7"
 	"github.com/pkg/errors"
+
+	"github.com/elastic/elastic-package/internal/logger"
 )
 
 // TestType represents the various supported test types
@@ -30,9 +32,11 @@ type TestOptions struct {
 
 // TestRunner is the interface all test runners must implement.
 type TestRunner interface {
-	Type() TestType
-	Run(options TestOptions) ([]TestResult, error)
 	fmt.Stringer
+	Type() TestType
+
+	Run(TestOptions) ([]TestResult, error)
+	TearDown()
 }
 
 var runners = map[TestType]TestRunner{}
@@ -141,7 +145,18 @@ func Run(testType TestType, options TestOptions) ([]TestResult, error) {
 	if !defined {
 		return nil, fmt.Errorf("unregistered runner test: %s", testType)
 	}
-	return runner.Run(options)
+
+	results, err := runner.Run(options)
+
+	defer func() {
+		if options.DeferCleanup > 0 {
+			logger.Debugf("waiting for %s before tearing down...", options.DeferCleanup)
+			time.Sleep(options.DeferCleanup)
+		}
+		runner.TearDown()
+	}()
+
+	return results, err
 }
 
 // TestRunners returns registered test runners.
