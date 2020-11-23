@@ -21,7 +21,7 @@ go get github.com/elastic/elastic-package
 ```
 
 _Please make sure that you've correctly [setup environment variables](https://golang.org/doc/gopath_code.html#GOPATH) -
-`$GOPATH` and `$PATH`, and the `elastic-package` is accessible from your `$PATH`._
+`$GOPATH` and `$PATH`, and `elastic-package` is accessible from your `$PATH`._
 
 Change directory to the package under development. Note: an integration is a specific type of a package.
 
