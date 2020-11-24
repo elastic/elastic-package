@@ -12,6 +12,8 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+
+	"github.com/elastic/elastic-package/internal/common"
 )
 
 type testCase struct {
@@ -21,22 +23,39 @@ type testCase struct {
 }
 
 type testCaseDefinition struct {
-	Events []json.RawMessage `json:"events"`
+	Events []common.MapStr `json:"events"`
 }
 
 type multiline struct {
 	FirstLinePattern string `json:"first_line_pattern"`
 }
 
-func createTestCaseForEvents(filename string, inputData []byte) (*testCase, error) {
+func createTestCaseForEvents(filename string, inputData []byte, config testConfig) (*testCase, error) {
 	var tcd testCaseDefinition
 	err := json.Unmarshal(inputData, &tcd)
 	if err != nil {
 		return nil, errors.Wrap(err, "unmarshalling input data failed")
 	}
+
+	var events []json.RawMessage
+	for _, event := range tcd.Events {
+		for k, v := range config.Fields {
+			_, err = event.Put(k, v)
+			if err != nil {
+				return nil, errors.Wrap(err, "can't set custom field")
+			}
+		}
+
+		m, err := json.Marshal(&event)
+		if err != nil {
+			return nil, errors.Wrap(err, "marshalling mocked event failed")
+		}
+		events = append(events, m)
+	}
 	return &testCase{
 		name:   filename,
-		events: tcd.Events,
+		config: &config,
+		events: events,
 	}, nil
 }
 

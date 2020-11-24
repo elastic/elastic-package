@@ -158,19 +158,20 @@ func (r *runner) loadTestCaseFile(testCaseFile string) (*testCase, error) {
 		return nil, errors.Wrapf(err, "reading input file failed (testCasePath: %s)", testCasePath)
 	}
 
+	config, err := readConfigForTestCase(testCasePath)
+	if err != nil {
+		return nil, errors.Wrapf(err, "reading config for test case failed (testCasePath: %s)", testCasePath)
+	}
+
 	var tc *testCase
 	ext := filepath.Ext(testCaseFile)
 	switch ext {
 	case ".json":
-		tc, err = createTestCaseForEvents(testCaseFile, testCaseData)
+		tc, err = createTestCaseForEvents(testCaseFile, testCaseData, config)
 		if err != nil {
 			return nil, errors.Wrapf(err, "creating test case for events failed (testCasePath: %s)", testCasePath)
 		}
 	case ".log":
-		config, err := readConfigForTestCase(testCasePath)
-		if err != nil {
-			return nil, errors.Wrapf(err, "reading config for test case failed (testCasePath: %s)", testCasePath)
-		}
 		tc, err = createTestCaseForRawInput(testCaseFile, testCaseData, config)
 		if err != nil {
 			return nil, errors.Wrapf(err, "creating test case for events failed (testCasePath: %s)", testCasePath)
