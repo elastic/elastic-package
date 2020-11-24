@@ -44,14 +44,14 @@ func setupTestCommand() *cobra.Command {
 	cmd.PersistentFlags().StringP(cobraext.ReportOutputFlagName, "", string(outputs.ReportOutputSTDOUT), cobraext.ReportOutputFlagDescription)
 	cmd.PersistentFlags().DurationP(cobraext.DeferCleanupFlagName, "", 0, cobraext.DeferCleanupFlagDescription)
 
-	for _, testType := range testrunner.TestTypes() {
-		action := testTypeCommandActionFactory(testType)
+	for testType, runner := range testrunner.TestRunners() {
+		action := testTypeCommandActionFactory(runner)
 		testTypeCmdActions = append(testTypeCmdActions, action)
 
 		testTypeCmd := &cobra.Command{
 			Use:   string(testType),
-			Short: fmt.Sprintf("Run %s tests", testType),
-			Long:  fmt.Sprintf("Run %s tests for the package.", testType),
+			Short: fmt.Sprintf("Run %s tests", runner.String()),
+			Long:  fmt.Sprintf("Run %s tests for the package.", runner.String()),
 			RunE:  action,
 		}
 
@@ -61,7 +61,8 @@ func setupTestCommand() *cobra.Command {
 	return cmd
 }
 
-func testTypeCommandActionFactory(testType testrunner.TestType) cobraext.CommandAction {
+func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.CommandAction {
+	testType := runner.Type()
 	return func(cmd *cobra.Command, args []string) error {
 		cmd.Printf("Run %s tests for the package\n", testType)
 

@@ -13,16 +13,13 @@ import (
 
 	"github.com/elastic/go-elasticsearch/v7"
 	"github.com/pkg/errors"
+
+	"github.com/elastic/elastic-package/internal/logger"
+	"github.com/elastic/elastic-package/internal/multierror"
 )
 
 // TestType represents the various supported test types
 type TestType string
-
-// TestReportFormat represents a test report format
-type TestReportFormat string
-
-// TestReportOutput represents an output for a test report
-type TestReportOutput string
 
 // TestOptions contains test runner options.
 type TestOptions struct {
@@ -34,10 +31,23 @@ type TestOptions struct {
 	DeferCleanup time.Duration
 }
 
-// RunFunc method defines main run function of a test runner.
-type RunFunc func(options TestOptions) ([]TestResult, error)
+// TestRunner is the interface all test runners must implement.
+type TestRunner interface {
+	// Type returns the test runner's type.
+	Type() TestType
 
-var runners = map[TestType]RunFunc{}
+	// String returns the human-friendly name of the test runner.
+	String() string
+
+	// Run executes the test runner.
+	Run(TestOptions) ([]TestResult, error)
+
+	// TearDown cleans up any test runner resources. It must be called
+	// after the test runner has finished executing.
+	TearDown() error
+}
+
+var runners = map[TestType]TestRunner{}
 
 // TestResult contains a single test's results
 type TestResult struct {
@@ -69,16 +79,6 @@ type TestResult struct {
 	// to an unexpected runtime error in the test execution.
 	ErrorMsg string
 }
-
-// ReportFormatFunc defines the report formatter function.
-type ReportFormatFunc func(results []TestResult) (string, error)
-
-var reportFormatters = map[TestReportFormat]ReportFormatFunc{}
-
-// ReportOutputFunc defines the report writer function.
-type ReportOutputFunc func(pkg, report string, format TestReportFormat) error
-
-var reportOutputs = map[TestReportOutput]ReportOutputFunc{}
 
 // TestFolder encapsulates the test folder path and names of the package + data stream
 // to which the test folder belongs.
@@ -143,56 +143,47 @@ func FindTestFolders(packageRootPath string, testType TestType, dataStreams []st
 }
 
 // RegisterRunner method registers the test runner.
-func RegisterRunner(testType TestType, runFunc RunFunc) {
-	runners[testType] = runFunc
+func RegisterRunner(runner TestRunner) {
+	runners[runner.Type()] = runner
 }
 
 // Run method delegates execution to the registered test runner, based on the test type.
 func Run(testType TestType, options TestOptions) ([]TestResult, error) {
-	runFunc, defined := runners[testType]
+	runner, defined := runners[testType]
 	if !defined {
 		return nil, fmt.Errorf("unregistered runner test: %s", testType)
 	}
-	return runFunc(options)
-}
 
-// TestTypes method returns registered test types.
-func TestTypes() []TestType {
-	var testTypes []TestType
-	for t := range runners {
-		testTypes = append(testTypes, t)
-	}
-	return testTypes
-}
-
-// RegisterReporterFormat registers a test report formatter.
-func RegisterReporterFormat(name TestReportFormat, formatFunc ReportFormatFunc) {
-	reportFormatters[name] = formatFunc
-}
-
-// FormatReport delegates formatting of test results to the registered test report formatter
-func FormatReport(name TestReportFormat, results []TestResult) (string, error) {
-	reportFunc, defined := reportFormatters[name]
-	if !defined {
-		return "", fmt.Errorf("unregistered test report format: %s", name)
+	tearDown := func() error {
+		if options.DeferCleanup > 0 {
+			logger.Debugf("waiting for %s before tearing down...", options.DeferCleanup)
+			time.Sleep(options.DeferCleanup)
+		}
+		return runner.TearDown()
 	}
 
-	return reportFunc(results)
-}
+	results, err := runner.Run(options)
+	if err != nil {
+		tdErr := tearDown()
+		if tdErr != nil {
+			var errs multierror.Error
+			errs = append(errs, err, tdErr)
+			return nil, errors.Wrap(err, "could not complete test run and teardown test runner")
+		}
 
-// RegisterReporterOutput registers a test report output.
-func RegisterReporterOutput(name TestReportOutput, outputFunc ReportOutputFunc) {
-	reportOutputs[name] = outputFunc
-}
-
-// WriteReport delegates writing of test results to the registered test report output
-func WriteReport(pkg string, name TestReportOutput, report string, format TestReportFormat) error {
-	outputFunc, defined := reportOutputs[name]
-	if !defined {
-		return fmt.Errorf("unregistered test report output: %s", name)
+		return nil, errors.Wrap(err, "could not complete test run")
 	}
 
-	return outputFunc(pkg, report, format)
+	if err := tearDown(); err != nil {
+		return results, errors.Wrap(err, "could not teardown test runner")
+	}
+
+	return results, nil
+}
+
+// TestRunners returns registered test runners.
+func TestRunners() map[TestType]TestRunner {
+	return runners
 }
 
 func findTestFolderPaths(packageRootPath, dataStreamGlob, testTypeGlob string) ([]string, error) {

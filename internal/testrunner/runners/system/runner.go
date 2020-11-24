@@ -27,7 +27,7 @@ import (
 )
 
 func init() {
-	testrunner.RegisterRunner(TestType, Run)
+	testrunner.RegisterRunner(&runner{})
 }
 
 const (
@@ -36,16 +36,14 @@ const (
 )
 
 type runner struct {
-	testFolder      testrunner.TestFolder
-	packageRootPath string
-	stackSettings   stackSettings
-	esClient        *es.Client
+	options       testrunner.TestOptions
+	stackSettings stackSettings
 
-	// Execution order of following handlers is defined in runner.tearDown() method.
-	deleteTestPolicyHandler func()
-	resetAgentPolicyHandler func()
-	shutdownServiceHandler  func()
-	wipeDataStreamHandler   func()
+	// Execution order of following handlers is defined in runner.TearDown() method.
+	deleteTestPolicyHandler func() error
+	resetAgentPolicyHandler func() error
+	shutdownServiceHandler  func() error
+	wipeDataStreamHandler   func() error
 }
 
 type stackSettings struct {
@@ -59,23 +57,57 @@ type stackSettings struct {
 	}
 }
 
+// Type returns the type of test that can be run by this test runner.
+func (r *runner) Type() testrunner.TestType {
+	return TestType
+}
+
+// String returns the human-friendly name of the test runner.
+func (r *runner) String() string {
+	return "system"
+}
+
 // Run runs the system tests defined under the given folder
-func Run(options testrunner.TestOptions) ([]testrunner.TestResult, error) {
-	r := runner{
-		testFolder:      options.TestFolder,
-		packageRootPath: options.PackageRootPath,
-		stackSettings:   getStackSettingsFromEnv(),
-		esClient:        options.ESClient,
-	}
-	defer r.tearDown(options)
+func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, error) {
+	r.options = options
+	r.stackSettings = getStackSettingsFromEnv()
+
 	return r.run()
+}
+
+func (r *runner) TearDown() error {
+	if r.resetAgentPolicyHandler != nil {
+		if err := r.resetAgentPolicyHandler(); err != nil {
+			return err
+		}
+	}
+
+	if r.deleteTestPolicyHandler != nil {
+		if err := r.deleteTestPolicyHandler(); err != nil {
+			return err
+		}
+	}
+
+	if r.shutdownServiceHandler != nil {
+		if err := r.shutdownServiceHandler(); err != nil {
+			return err
+		}
+	}
+
+	if r.wipeDataStreamHandler != nil {
+		if err := r.wipeDataStreamHandler(); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (r *runner) run() ([]testrunner.TestResult, error) {
 	result := testrunner.TestResult{
 		TestType:   TestType,
-		Package:    r.testFolder.Package,
-		DataStream: r.testFolder.DataStream,
+		Package:    r.options.TestFolder.Package,
+		DataStream: r.options.TestFolder.DataStream,
 	}
 	startTime := time.Now()
 	resultsWith := func(tr testrunner.TestResult, err error) ([]testrunner.TestResult, error) {
@@ -94,12 +126,12 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		return []testrunner.TestResult{tr}, err
 	}
 
-	pkgManifest, err := packages.ReadPackageManifestFromPackageRoot(r.packageRootPath)
+	pkgManifest, err := packages.ReadPackageManifestFromPackageRoot(r.options.PackageRootPath)
 	if err != nil {
 		return resultsWith(result, errors.Wrap(err, "reading package manifest failed"))
 	}
 
-	dataStreamPath, found, err := packages.FindDataStreamRootForPath(r.testFolder.Path)
+	dataStreamPath, found, err := packages.FindDataStreamRootForPath(r.options.TestFolder.Path)
 	if err != nil {
 		return resultsWith(result, errors.Wrap(err, "locating data stream root failed"))
 	}
@@ -120,13 +152,13 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 	// Step 1. Setup service.
 	// Step 1a. (Deferred) Tear down service.
 	logger.Debug("setting up service...")
-	serviceDeployer, err := servicedeployer.Factory(r.packageRootPath)
+	serviceDeployer, err := servicedeployer.Factory(r.options.PackageRootPath)
 	if err != nil {
 		return resultsWith(result, errors.Wrap(err, "could not create service runner"))
 	}
 
 	var ctxt servicedeployer.ServiceContext
-	ctxt.Name = r.testFolder.Package
+	ctxt.Name = r.options.TestFolder.Package
 	ctxt.Logs.Folder.Local = serviceLogsDir
 
 	service, err := serviceDeployer.SetUp(ctxt)
@@ -135,11 +167,13 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 	}
 	ctxt = service.Context()
 
-	r.shutdownServiceHandler = func() {
+	r.shutdownServiceHandler = func() error {
 		logger.Debug("tearing down service...")
 		if err := service.TearDown(); err != nil {
-			logger.Errorf("error tearing down service: %s", err)
+			return errors.Wrap(err, "error tearing down service")
 		}
+
+		return nil
 	}
 
 	// Step 2. Configure package (single data stream) via Ingest Manager APIs.
@@ -151,22 +185,23 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 	logger.Debug("creating test policy...")
 	testTime := time.Now().Format("20060102T15:04:05Z")
 	p := ingestmanager.Policy{
-		Name:        fmt.Sprintf("ep-test-system-%s-%s-%s", r.testFolder.Package, r.testFolder.DataStream, testTime),
-		Description: fmt.Sprintf("test policy created by elastic-package test system for data stream %s/%s", r.testFolder.Package, r.testFolder.DataStream),
+		Name:        fmt.Sprintf("ep-test-system-%s-%s-%s", r.options.TestFolder.Package, r.options.TestFolder.DataStream, testTime),
+		Description: fmt.Sprintf("test policy created by elastic-package test system for data stream %s/%s", r.options.TestFolder.Package, r.options.TestFolder.DataStream),
 		Namespace:   "ep",
 	}
 	policy, err := im.CreatePolicy(p)
 	if err != nil {
 		return resultsWith(result, errors.Wrap(err, "could not create test policy"))
 	}
-	r.deleteTestPolicyHandler = func() {
+	r.deleteTestPolicyHandler = func() error {
 		logger.Debug("deleting test policy...")
 		if err := im.DeletePolicy(*policy); err != nil {
-			logger.Errorf("error cleaning up test policy: %s", err)
+			return errors.Wrap(err, "error cleaning up test policy")
 		}
+		return nil
 	}
 
-	testConfig, err := newConfig(r.testFolder.Path, ctxt)
+	testConfig, err := newConfig(r.options.TestFolder.Path, ctxt)
 	if err != nil {
 		return resultsWith(result, errors.Wrap(err, "unable to load system test configuration"))
 	}
@@ -198,15 +233,16 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		ds.Namespace,
 	)
 
-	r.wipeDataStreamHandler = func() {
+	r.wipeDataStreamHandler = func() error {
 		logger.Debugf("deleting data in data stream...")
-		if err := deleteDataStreamDocs(r.esClient, dataStream); err != nil {
-			logger.Errorf("error deleting data in data stream", err)
+		if err := deleteDataStreamDocs(r.options.ESClient, dataStream); err != nil {
+			return errors.Wrap(err, "error deleting data in data stream")
 		}
+		return nil
 	}
 
 	logger.Debug("deleting old data in data stream...")
-	if err := deleteDataStreamDocs(r.esClient, dataStream); err != nil {
+	if err := deleteDataStreamDocs(r.options.ESClient, dataStream); err != nil {
 		return resultsWith(result, errors.Wrapf(err, "error deleting old data in data stream: %s", dataStream))
 	}
 
@@ -215,11 +251,12 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 	if err := im.AssignPolicyToAgent(agent, *policy); err != nil {
 		return resultsWith(result, errors.Wrap(err, "could not assign policy to agent"))
 	}
-	r.resetAgentPolicyHandler = func() {
+	r.resetAgentPolicyHandler = func() error {
 		logger.Debug("reassigning original policy back to agent...")
 		if err := im.AssignPolicyToAgent(agent, origPolicy); err != nil {
-			logger.Errorf("error reassigning original policy to agent: %s", err)
+			return errors.Wrap(err, "error reassigning original policy to agent")
 		}
+		return nil
 	}
 
 	fieldsValidator, err := fields.CreateValidatorForDataStream(dataStreamPath)
@@ -230,8 +267,8 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 	// Step 4. (TODO in future) Optionally exercise service to generate load.
 	logger.Debug("checking for expected data in data stream...")
 	passed, err := waitUntilTrue(func() (bool, error) {
-		resp, err := r.esClient.Search(
-			r.esClient.Search.WithIndex(dataStream),
+		resp, err := r.options.ESClient.Search(
+			r.options.ESClient.Search.WithIndex(dataStream),
 		)
 		if err != nil {
 			return false, errors.Wrap(err, "could not search data stream")
@@ -290,29 +327,6 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		result.FailureMsg = fmt.Sprintf("could not find hits in %s data stream", dataStream)
 	}
 	return resultsWith(result, nil)
-}
-
-func (r *runner) tearDown(options testrunner.TestOptions) {
-	if options.DeferCleanup > 0 {
-		logger.Debugf("waiting for %s before tearing down...", options.DeferCleanup)
-		time.Sleep(options.DeferCleanup)
-	}
-
-	if r.resetAgentPolicyHandler != nil {
-		r.resetAgentPolicyHandler()
-	}
-
-	if r.deleteTestPolicyHandler != nil {
-		r.deleteTestPolicyHandler()
-	}
-
-	if r.shutdownServiceHandler != nil {
-		r.shutdownServiceHandler()
-	}
-
-	if r.wipeDataStreamHandler != nil {
-		r.wipeDataStreamHandler()
-	}
 }
 
 func getStackSettingsFromEnv() stackSettings {
