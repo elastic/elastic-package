@@ -49,7 +49,8 @@ func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, e
 }
 
 // ShutDown shuts down the pipeline test runner.
-func (r *runner) TearDown() {
+func (r *runner) TearDown() error {
+	return nil
 }
 
 func (r *runner) run() ([]testrunner.TestResult, error) {

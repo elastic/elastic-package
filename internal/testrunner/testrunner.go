@@ -15,6 +15,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/logger"
+	"github.com/elastic/elastic-package/internal/multierror"
 )
 
 // TestType represents the various supported test types
@@ -43,7 +44,7 @@ type TestRunner interface {
 
 	// TearDown cleans up any test runner resources. It must be called
 	// after the test runner has finished executing.
-	TearDown()
+	TearDown() error
 }
 
 var runners = map[TestType]TestRunner{}
@@ -153,17 +154,31 @@ func Run(testType TestType, options TestOptions) ([]TestResult, error) {
 		return nil, fmt.Errorf("unregistered runner test: %s", testType)
 	}
 
-	results, err := runner.Run(options)
-
-	defer func() {
+	tearDown := func() error {
 		if options.DeferCleanup > 0 {
 			logger.Debugf("waiting for %s before tearing down...", options.DeferCleanup)
 			time.Sleep(options.DeferCleanup)
 		}
-		runner.TearDown()
-	}()
+		return runner.TearDown()
+	}
 
-	return results, err
+	results, err := runner.Run(options)
+	if err != nil {
+		tdErr := tearDown()
+		if tdErr != nil {
+			var errs multierror.Error
+			errs = append(errs, err, tdErr)
+			return nil, errors.Wrap(err, "could not complete test run and teardown test runner")
+		}
+
+		return nil, errors.Wrap(err, "could not complete test run")
+	}
+
+	if err := tearDown(); err != nil {
+		return results, errors.Wrap(err, "could not teardown test runner")
+	}
+
+	return results, nil
 }
 
 // TestRunners returns registered test runners.

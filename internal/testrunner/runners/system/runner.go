@@ -40,10 +40,10 @@ type runner struct {
 	stackSettings stackSettings
 
 	// Execution order of following handlers is defined in runner.TearDown() method.
-	deleteTestPolicyHandler func()
-	resetAgentPolicyHandler func()
-	shutdownServiceHandler  func()
-	wipeDataStreamHandler   func()
+	deleteTestPolicyHandler func() error
+	resetAgentPolicyHandler func() error
+	shutdownServiceHandler  func() error
+	wipeDataStreamHandler   func() error
 }
 
 type stackSettings struct {
@@ -75,22 +75,32 @@ func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, e
 	return r.run()
 }
 
-func (r *runner) TearDown() {
+func (r *runner) TearDown() error {
 	if r.resetAgentPolicyHandler != nil {
-		r.resetAgentPolicyHandler()
+		if err := r.resetAgentPolicyHandler(); err != nil {
+			return err
+		}
 	}
 
 	if r.deleteTestPolicyHandler != nil {
-		r.deleteTestPolicyHandler()
+		if err := r.deleteTestPolicyHandler(); err != nil {
+			return err
+		}
 	}
 
 	if r.shutdownServiceHandler != nil {
-		r.shutdownServiceHandler()
+		if err := r.shutdownServiceHandler(); err != nil {
+			return err
+		}
 	}
 
 	if r.wipeDataStreamHandler != nil {
-		r.wipeDataStreamHandler()
+		if err := r.wipeDataStreamHandler(); err != nil {
+			return err
+		}
 	}
+
+	return nil
 }
 
 func (r *runner) run() ([]testrunner.TestResult, error) {
@@ -157,11 +167,13 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 	}
 	ctxt = service.Context()
 
-	r.shutdownServiceHandler = func() {
+	r.shutdownServiceHandler = func() error {
 		logger.Debug("tearing down service...")
 		if err := service.TearDown(); err != nil {
-			logger.Errorf("error tearing down service: %s", err)
+			return errors.Wrap(err, "error tearing down service")
 		}
+
+		return nil
 	}
 
 	// Step 2. Configure package (single data stream) via Ingest Manager APIs.
@@ -181,11 +193,12 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 	if err != nil {
 		return resultsWith(result, errors.Wrap(err, "could not create test policy"))
 	}
-	r.deleteTestPolicyHandler = func() {
+	r.deleteTestPolicyHandler = func() error {
 		logger.Debug("deleting test policy...")
 		if err := im.DeletePolicy(*policy); err != nil {
-			logger.Errorf("error cleaning up test policy: %s", err)
+			return errors.Wrap(err, "error cleaning up test policy")
 		}
+		return nil
 	}
 
 	testConfig, err := newConfig(r.options.TestFolder.Path, ctxt)
@@ -220,11 +233,12 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		ds.Namespace,
 	)
 
-	r.wipeDataStreamHandler = func() {
+	r.wipeDataStreamHandler = func() error {
 		logger.Debugf("deleting data in data stream...")
 		if err := deleteDataStreamDocs(r.options.ESClient, dataStream); err != nil {
-			logger.Errorf("error deleting data in data stream", err)
+			return errors.Wrap(err, "error deleting data in data stream")
 		}
+		return nil
 	}
 
 	logger.Debug("deleting old data in data stream...")
@@ -237,11 +251,12 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 	if err := im.AssignPolicyToAgent(agent, *policy); err != nil {
 		return resultsWith(result, errors.Wrap(err, "could not assign policy to agent"))
 	}
-	r.resetAgentPolicyHandler = func() {
+	r.resetAgentPolicyHandler = func() error {
 		logger.Debug("reassigning original policy back to agent...")
 		if err := im.AssignPolicyToAgent(agent, origPolicy); err != nil {
-			logger.Errorf("error reassigning original policy to agent: %s", err)
+			return errors.Wrap(err, "error reassigning original policy to agent")
 		}
+		return nil
 	}
 
 	fieldsValidator, err := fields.CreateValidatorForDataStream(dataStreamPath)
