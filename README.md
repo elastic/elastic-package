@@ -75,6 +75,13 @@ _Context: package_
 Use this command to run the `format`, `lint`, and `build` commands all at once, in that order.
 
 
+### `elastic-package clean`
+
+_Context: package_
+
+Use this command to clean resources used for building the package.
+
+
 ### `elastic-package format`
 
 _Context: package_
