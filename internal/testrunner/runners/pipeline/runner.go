@@ -33,23 +33,23 @@ type runner struct {
 }
 
 // Type returns the type of test that can be run by this test runner.
-func (r runner) Type() testrunner.TestType {
+func (r *runner) Type() testrunner.TestType {
 	return TestType
 }
 
 // String returns the human-friendly name of the test runner.
-func (r runner) String() string {
+func (r *runner) String() string {
 	return "pipeline"
 }
 
 // Run runs the pipeline tests defined under the given folder
-func (r runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, error) {
+func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, error) {
 	r.options = options
 	return r.run()
 }
 
 // ShutDown shuts down the pipeline test runner.
-func (r runner) TearDown() {
+func (r *runner) TearDown() {
 }
 
 func (r *runner) run() ([]testrunner.TestResult, error) {
@@ -274,5 +274,5 @@ func verifyFieldsInTestResult(result *testResult, fieldsValidator *fields.Valida
 }
 
 func init() {
-	testrunner.RegisterRunner(runner{})
+	testrunner.RegisterRunner(&runner{})
 }

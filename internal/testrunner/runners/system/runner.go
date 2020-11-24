@@ -27,7 +27,7 @@ import (
 )
 
 func init() {
-	testrunner.RegisterRunner(runner{})
+	testrunner.RegisterRunner(&runner{})
 }
 
 const (
@@ -58,24 +58,24 @@ type stackSettings struct {
 }
 
 // Type returns the type of test that can be run by this test runner.
-func (r runner) Type() testrunner.TestType {
+func (r *runner) Type() testrunner.TestType {
 	return TestType
 }
 
 // String returns the human-friendly name of the test runner.
-func (r runner) String() string {
+func (r *runner) String() string {
 	return "system"
 }
 
 // Run runs the system tests defined under the given folder
-func (r runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, error) {
+func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, error) {
 	r.options = options
 	r.stackSettings = getStackSettingsFromEnv()
 
 	return r.run()
 }
 
-func (r runner) TearDown() {
+func (r *runner) TearDown() {
 	if r.resetAgentPolicyHandler != nil {
 		r.resetAgentPolicyHandler()
 	}
