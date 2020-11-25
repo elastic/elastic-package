@@ -5,6 +5,7 @@
 package servicedeployer
 
 import (
+	"bytes"
 	"fmt"
 	"os/exec"
 
@@ -77,8 +78,10 @@ func (r *DockerComposeServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedSer
 	stackNetwork := fmt.Sprintf("%s_default", stack.DockerComposeProjectName)
 	logger.Debugf("attaching service container %s to stack network %s", serviceContainer, stackNetwork)
 	cmd := exec.Command("docker", "network", "connect", stackNetwork, serviceContainer)
+	errOutput := new(bytes.Buffer)
+	cmd.Stderr = errOutput
 	if err := cmd.Run(); err != nil {
-		return nil, errors.Wrap(err, "could not attach service container to the stack network")
+		return nil, errors.Wrapf(err, "could not attach service container to the stack network (stderr=%q)", errOutput.String())
 	}
 
 	logger.Debugf("adding service container %s internal ports to context", serviceContainer)
