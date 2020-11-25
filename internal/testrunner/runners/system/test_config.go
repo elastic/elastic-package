@@ -22,6 +22,7 @@ import (
 const configFileName = "config.yml"
 
 type testConfig struct {
+	Input      string                       `config:"input"`
 	Vars       map[string]packages.VarValue `config:"vars"`
 	DataStream struct {
 		Vars map[string]packages.VarValue `config:"vars"`
