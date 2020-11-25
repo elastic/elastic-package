@@ -127,6 +127,8 @@ Use this command to spin up a Docker-based Elastic Stack consisting of Elasticse
 the Package Registry. By default the latest released version of the stack is spun up but it is possible
 to specify a different version, including SNAPSHOT versions.
 
+For details on how to connect the service with the Elastic stack, see the [HOWTO guide](docs/howto/connect_service_with_elastic_stack.md).
+
 
 ### `elastic-package test`
 
