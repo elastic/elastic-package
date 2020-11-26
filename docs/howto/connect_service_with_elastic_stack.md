@@ -10,6 +10,41 @@ The procedure assumes an existence of two Docker networks - stack network and se
 the stack network to the service container. The Elastic Agent will have an access to the service metrics endpoint and its
 logs (via mounted volume).
 
+## Prerequisites
+
+### Service Docker Compose definition
+
+The service can be defined using Docker files (YML format), which describe Docker images required for the service to be up.
+The running service produces metrics and logs, which later on can be collected by the Elastic Agent. Such instance is
+a good candidate for system tests or manual testing.
+
+#### Support for logs collection
+
+As the Elastic Agent is running in a separate container, there is shared volume for logs required. The volume is shared
+between the Elastic Agent and the service container.
+
+In the Elastic Agent container logs are exposed under `/tmp/service_logs`:
+
+```yaml
+volumes:
+- type: bind
+  source: ../tmp/service_logs/
+  target: /tmp/service_logs/
+```
+
+We need to define a similar volume in the service `docker-compose.yml` file:
+
+```yaml
+volumes:
+- ${SERVICE_LOGS_DIR}:/usr/local/apache2/logs
+```
+
+`SERVICE_LOGS_DIR` is a special environment variable, which points to the local Docker host directory, shared with
+the Elastic Agent container.
+
+Review the [docker-compose.yml](https://github.com/elastic/elastic-package/blob/master/test/packages/apache/_dev/deploy/docker/docker-compose.yml#L11)
+file for Apache to see a real example.
+
 ## User guide (based on the Apache integration)
 
 1. If you haven't done it already, please boot up the Elastic stack:
@@ -20,22 +55,10 @@ elastic-package stack up -d -v
 
 2. Boot up the Apache service (using Docker Compose definitions):
 
-
 ```bash
 cd packages/apache/_dev/deploy/docker
 SERVICE_LOGS_DIR=/Users/JohnDoe/.elastic-package/tmp/service_logs docker-compose -p elastic-package-service up -d
 ```
-
-If you haven't prepared the service definition yet, it's recommended to do it as it can be also used for service testing.
-If you plan to collect also application logs, please add a volume property to the Docker Compose definition:
-
-```yaml
-volumes:
-  - ${SERVICE_LOGS_DIR}:/usr/local/apache2/logs
-```
-
-`SERVICE_LOGS_DIR` is a special environment variable, which points to the local Docker host directory, shared with
-the Elastic Agent container.
 
 The command should bring up the Docker containers specified in the Docker Compose definitions.
 
@@ -71,3 +94,19 @@ Check presence of application log files:
 ls /tmp/service_logs
 access.log  error.log  httpd.pid
 ```
+
+5. Define the service endpoint in the Kibana Fleet UI.
+
+When you need to specify the service address, keep in mind that the Elastic stack and the service operate in Docker networks,
+so they don't communicate over the `localhost`, but use dedicated domains instead, e.g.: `elastic-package-service_apache_1:80`.
+
+## Advanced
+
+In general it's advised not to modify the Docker Compose files for the Elastic stack.
+
+In case of more advanced use cases or workaorounds, you can try to temporarily modify Docker Compose files.
+Files are available in: `~/.elastic-package/stack/`. The `snapshot.yml` file contains the main definition of the stack
+and its services (Elasticsearch, Kibana, Package Registry).
+
+Please keep in mind that the `~/.elastic-package` directory is cleaned on the builder tool update, so there is a risk to
+lose your modification.
