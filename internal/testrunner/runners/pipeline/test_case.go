@@ -26,10 +26,6 @@ type testCaseDefinition struct {
 	Events []common.MapStr `json:"events"`
 }
 
-type multiline struct {
-	FirstLinePattern string `json:"first_line_pattern"`
-}
-
 func createTestCaseForEvents(filename string, inputData []byte, config testConfig) (*testCase, error) {
 	var tcd testCaseDefinition
 	err := json.Unmarshal(inputData, &tcd)
