@@ -77,7 +77,7 @@ func FindBuildPackagesDirectory() (string, bool, error) {
 	return "", false, nil
 }
 
-func buildPackage(sourcePath string) (string, error) {
+func buildPackage(packageRoot string) (string, error) {
 	buildDir, found, err := FindBuildPackagesDirectory()
 	if err != nil {
 		return "", errors.Wrap(err, "locating build directory failed")
@@ -89,9 +89,9 @@ func buildPackage(sourcePath string) (string, error) {
 		}
 	}
 
-	m, err := packages.ReadPackageManifestFromPackageRoot(sourcePath)
+	m, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
 	if err != nil {
-		return "", errors.Wrapf(err, "reading package manifest failed (path: %s)", sourcePath)
+		return "", errors.Wrapf(err, "reading package manifest failed (path: %s)", packageRoot)
 	}
 
 	destinationDir := filepath.Join(buildDir, m.Name, m.Version)
@@ -103,8 +103,8 @@ func buildPackage(sourcePath string) (string, error) {
 		return "", errors.Wrap(err, "clearing package contents failed")
 	}
 
-	logger.Debugf("Copy package content (source: %s)", sourcePath)
-	err = files.CopyWithoutDev(sourcePath, destinationDir)
+	logger.Debugf("Copy package content (source: %s)", packageRoot)
+	err = files.CopyWithoutDev(packageRoot, destinationDir)
 	if err != nil {
 		return "", errors.Wrap(err, "copying package contents failed")
 	}
