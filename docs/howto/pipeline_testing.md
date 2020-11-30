@@ -102,7 +102,7 @@ Before sending log events to the ingest pipeline, a data transformation process 
 }
 ```
 
-The `multiline` section (raw files only) configures the log file reader to correctly detect multiline log entries using the `first_line_pattern`. Use this property if your logs may be split into multiple lines, e.g. Java stack traces.
+The `multiline` section ([raw files](https://github.com/elastic/elastic-package/blob/master/docs/howto/pipeline_testing.md#raw-files) only) configures the log file reader to correctly detect multiline log entries using the `first_line_pattern`. Use this property if your logs may be split into multiple lines, e.g. Java stack traces.
 
 The `fields` section allows for customizing extra fields to be added to every read log entry (e.g. `@timestamp`, `ecs`). Use this property to extend your logs with data that can't be extracted from log content, but it's fine to have same field values for every record (e.g. timezone, hostname).
 
