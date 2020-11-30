@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
-	"reflect"
 	"regexp"
 	"strings"
 
@@ -212,7 +211,17 @@ func parseElementValue(key string, definition FieldDefinition, val interface{}) 
 
 	var valid bool
 	switch definition.Type {
-	case "date", "ip", "constant_keyword", "keyword", "text":
+        case "constant_keyword", "keyword":
+                // Accept numeric fields as valid keywords.
+                if _, isStr := val.(string); !isStr {
+                    f64, ok := val.(float64)
+                    if !ok {
+                        break
+                    }
+                    val = fmt.Sprintf("%f", f64)
+                }
+                fallthrough
+	case "date", "ip", "text":
 		var valStr string
 		valStr, valid = val.(string)
 		if !valid || definition.Pattern == "" {
@@ -233,7 +242,7 @@ func parseElementValue(key string, definition FieldDefinition, val interface{}) 
 	}
 
 	if !valid {
-		return fmt.Errorf("field \"%s\"''s Go type, %s, does not match the expected field type: %s", key, reflect.TypeOf(val), definition.Type)
+		return fmt.Errorf("field \"%s\"'s Go type, %T, does not match the expected field type: %s (field value: %v)", key, val, definition.Type, val)
 	}
 	return nil
 }
