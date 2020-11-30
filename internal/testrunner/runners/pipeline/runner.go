@@ -163,21 +163,27 @@ func (r *runner) loadTestCaseFile(testCaseFile string) (*testCase, error) {
 		return nil, errors.Wrapf(err, "reading config for test case failed (testCasePath: %s)", testCasePath)
 	}
 
-	var tc *testCase
 	ext := filepath.Ext(testCaseFile)
+
+	var entries []json.RawMessage
 	switch ext {
 	case ".json":
-		tc, err = createTestCaseForEvents(testCaseFile, testCaseData, config)
+		entries, err = readTestCaseEntriesForEvents(testCaseData)
 		if err != nil {
-			return nil, errors.Wrapf(err, "creating test case for events failed (testCasePath: %s)", testCasePath)
+			return nil, errors.Wrapf(err, "reading test case entries for events failed (testCasePath: %s)", testCasePath)
 		}
 	case ".log":
-		tc, err = createTestCaseForRawInput(testCaseFile, testCaseData, config)
+		entries, err = readTestCaseEntriesForRawInput(testCaseData, config)
 		if err != nil {
-			return nil, errors.Wrapf(err, "creating test case for events failed (testCasePath: %s)", testCasePath)
+			return nil, errors.Wrapf(err, "creating test case entries for raw input failed (testCasePath: %s)", testCasePath)
 		}
 	default:
 		return nil, fmt.Errorf("unsupported extension for test case file (ext: %s)", ext)
+	}
+
+	tc, err := createTestCase(testCaseFile, entries, config)
+	if err != nil {
+		return nil, errors.Wrapf(err, "can't create test case (testCasePath: %s)", testCasePath)
 	}
 	return tc, nil
 }
