@@ -75,10 +75,11 @@ Next, we must define configuration for each data stream that we want to system t
             config.yml
 ```
 
-The `config.yml` file allows you define values for package and data stream-level variables. For example, the `apache/access` data stream's `config.yml` is shown below.
+The `config.yml` file allows you to define values for package and data stream-level variables. For example, the `apache/access` data stream's `config.yml` is shown below.
 
 ```
 vars: ~
+input: logfile
 data_stream:
   vars:
     paths:
@@ -90,6 +91,11 @@ The top-level `vars` field corresponds to package-level variables defined in the
 The `data_stream.vars` field corresponds to data stream-level variables for the current data stream (`apache/access` in the above example). In the above example we override the `paths` variable. All other variables are populated with their default values, as specified in the `apache/access` data stream's `manifest.yml` file.
 
 Notice the use of the `{{SERVICE_LOGS_DIR}}` placeholder. This corresponds to the `${SERVICE_LOGS_DIR}` variable we saw in the `docker-compose.yml` file earlier. In the above example, the net effect is as if the `/usr/local/apache2/logs/access.log*` files located inside the Apache integration service container become available at the same path from Elastic Agent's perspective.
+
+When a data stream's manifest declares multiple streams with different inputs
+you can use the `input` option to select the stream to test. The first stream
+whose input type matches the `input` value will be tested. By default, the first
+stream declared in the manifest will be tested. 
 
 #### Placeholders
 
