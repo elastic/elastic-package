@@ -354,7 +354,8 @@ func createPackageDatastream(
 	ds packages.DataStreamManifest,
 	c testConfig,
 ) ingestmanager.PackageDataStream {
-	streamInput := ds.Streams[0].Input
+	stream := ds.Streams[getDataStreamIndex(c.Input, ds)]
+	streamInput := stream.Input
 	r := ingestmanager.PackageDataStream{
 		Name:      fmt.Sprintf("%s-%s", pkg.Name, ds.Name),
 		Namespace: "ep",
@@ -386,7 +387,7 @@ func createPackageDatastream(
 
 	// Add dataStream-level vars
 	dsVars := ingestmanager.Vars{}
-	for _, dsVar := range ds.Streams[0].Vars {
+	for _, dsVar := range stream.Vars {
 		val := dsVar.Default
 
 		cfgVar, exists := c.DataStream.Vars[dsVar.Name]
@@ -425,6 +426,17 @@ func createPackageDatastream(
 	r.Inputs[0].Vars = pkgVars
 
 	return r
+}
+
+// getDataStreamIndex returns the index of the data stream whose input name
+// matches. Otherwise it returns the 0.
+func getDataStreamIndex(inputName string, ds packages.DataStreamManifest) int {
+	for i, s := range ds.Streams {
+		if s.Input == inputName {
+			return i
+		}
+	}
+	return 0
 }
 
 func deleteDataStreamDocs(esClient *es.Client, dataStream string) error {
