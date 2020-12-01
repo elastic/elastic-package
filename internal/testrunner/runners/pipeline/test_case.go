@@ -11,6 +11,8 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/elastic/elastic-package/internal/common"
+
 	"github.com/pkg/errors"
 )
 
@@ -24,23 +26,16 @@ type testCaseDefinition struct {
 	Events []json.RawMessage `json:"events"`
 }
 
-type multiline struct {
-	FirstLinePattern string `json:"first_line_pattern"`
-}
-
-func createTestCaseForEvents(filename string, inputData []byte) (*testCase, error) {
+func readTestCaseEntriesForEvents(inputData []byte) ([]json.RawMessage, error) {
 	var tcd testCaseDefinition
 	err := json.Unmarshal(inputData, &tcd)
 	if err != nil {
 		return nil, errors.Wrap(err, "unmarshalling input data failed")
 	}
-	return &testCase{
-		name:   filename,
-		events: tcd.Events,
-	}, nil
+	return tcd.Events, nil
 }
 
-func createTestCaseForRawInput(filename string, inputData []byte, config testConfig) (*testCase, error) {
+func readTestCaseEntriesForRawInput(inputData []byte, config testConfig) ([]json.RawMessage, error) {
 	entries, err := readRawInputEntries(inputData, config)
 	if err != nil {
 		return nil, errors.Wrap(err, "reading raw input entries failed")
@@ -51,15 +46,36 @@ func createTestCaseForRawInput(filename string, inputData []byte, config testCon
 		event := map[string]interface{}{}
 		event["message"] = entry
 
-		for k, v := range config.Fields {
-			event[k] = v
-		}
-
 		m, err := json.Marshal(&event)
 		if err != nil {
 			return nil, errors.Wrap(err, "marshalling mocked event failed")
 		}
 		events = append(events, m)
+	}
+	return events, nil
+}
+
+func createTestCase(filename string, entries []json.RawMessage, config testConfig) (*testCase, error) {
+	var events []json.RawMessage
+	for _, entry := range entries {
+		var m common.MapStr
+		err := json.Unmarshal(entry, &m)
+		if err != nil {
+			return nil, errors.Wrap(err, "can't unmarshal test case entry")
+		}
+
+		for k, v := range config.Fields {
+			_, err = m.Put(k, v)
+			if err != nil {
+				return nil, errors.Wrap(err, "can't set custom field")
+			}
+		}
+
+		event, err := json.Marshal(&m)
+		if err != nil {
+			return nil, errors.Wrap(err, "marshalling event failed")
+		}
+		events = append(events, event)
 	}
 	return &testCase{
 		name:   filename,

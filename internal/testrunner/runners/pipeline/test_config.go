@@ -22,6 +22,10 @@ type testConfig struct {
 	DynamicFields map[string]string      `json:"dynamic_fields"`
 }
 
+type multiline struct {
+	FirstLinePattern string `json:"first_line_pattern"`
+}
+
 func readConfigForTestCase(testCasePath string) (testConfig, error) {
 	testCaseDir := filepath.Dir(testCasePath)
 	testCaseFile := filepath.Base(testCasePath)

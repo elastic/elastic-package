@@ -59,7 +59,28 @@ The raw files simplify preparing test cases using real application `.log` files.
 127.0.0.1 - - [07/Dec/2016:11:04:59 +0100] "GET / HTTP/1.1" 304 0 "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:49.0) Gecko/20100101 Firefox/49.0"
 ```
 
-The pipeline test runner transforms log lines into file input events and sends to the ingest pipeline. The transformation process can be customized using an optional configuration stored as JSON file with the suffix `-config.json` (e.g. `test-access-sample.log-config.json`):
+#### Input events
+
+The input events contain mocked JSON events that are ready to be passed to the ingest pipeline as-is. Such events can be helpful in situations in which an input event can't be serialized to a standard log file, e.g. Redis input. A sample file with input events  (e.g. `test-access-event.json`) looks as following:
+
+```json
+{
+    "events": [
+        {
+            "@timestamp": "2016-10-25T12:49:34.000Z",
+            "message": "127.0.0.1 - - [07/Dec/2016:11:04:37 +0100] \"GET /test1 HTTP/1.1\" 404 571 \"-\" \"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.98 Safari/537.36\"\n"
+        },
+        {
+            "@timestamp": "2016-10-25T12:49:34.000Z",
+            "message": "127.0.0.1 - - [07/Dec/2016:11:05:07 +0100] \"GET /taga HTTP/1.1\" 404 169 \"-\" \"Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:49.0) Gecko/20100101 Firefox/49.0\"\n"
+        }
+    ]
+}
+```
+
+#### Test configuration
+
+Before sending log events to the ingest pipeline, a data transformation process is applied. The process can be customized using an optional configuration stored as JSON file with the suffix `-config.json` (e.g. `test-access-sample.log-config.json`):
 
 ```json
 {
@@ -81,30 +102,12 @@ The pipeline test runner transforms log lines into file input events and sends t
 }
 ```
 
-The `multiline` section configures the log file reader to correctly detect multiline log entries using the `first_line_pattern`. Use this property if your logs may be split into multiple lines, e.g. Java stack traces.
+The `multiline` section ([raw files](#raw-files) only) configures the log file reader to correctly detect multiline log entries using the `first_line_pattern`. Use this property if your logs may be split into multiple lines, e.g. Java stack traces.
 
 The `fields` section allows for customizing extra fields to be added to every read log entry (e.g. `@timestamp`, `ecs`). Use this property to extend your logs with data that can't be extracted from log content, but it's fine to have same field values for every record (e.g. timezone, hostname).
 
 The `dynamic_fields` section allows for marking fields as dynamic (every time they have different non-static values), so that pattern matching instead of strict value check is applied. 
 
-#### Input events
-
-The input events contain mocked JSON events that are ready to be passed to the ingest pipeline as-is. Such events can be helpful in situations in which an input event can't be serialized to a standard log file, e.g. Redis input. A sample file with input events  (e.g. `test-access-event.json`) looks as following:
-
-```json
-{
-    "events": [
-        {
-            "@timestamp": "2016-10-25T12:49:34.000Z",
-            "message": "127.0.0.1 - - [07/Dec/2016:11:04:37 +0100] \"GET /test1 HTTP/1.1\" 404 571 \"-\" \"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.98 Safari/537.36\"\n"
-        },
-        {
-            "@timestamp": "2016-10-25T12:49:34.000Z",
-            "message": "127.0.0.1 - - [07/Dec/2016:11:05:07 +0100] \"GET /taga HTTP/1.1\" 404 169 \"-\" \"Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:49.0) Gecko/20100101 Firefox/49.0\"\n"
-        }
-    ]
-}
-```
 
 #### Expected results
 
