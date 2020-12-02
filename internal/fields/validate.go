@@ -218,7 +218,7 @@ func parseElementValue(key string, definition FieldDefinition, val interface{}) 
 			if !ok {
 				break
 			}
-			val = fmt.Sprintf("%f", f64)
+			val = fmt.Sprintf("%g", f64)
 		}
 		fallthrough
 	case "date", "ip", "text":
@@ -233,7 +233,7 @@ func parseElementValue(key string, definition FieldDefinition, val interface{}) 
 			return errors.Wrap(err, "invalid pattern")
 		}
 		if !valid {
-			return fmt.Errorf("field \"%s\"''s value, %s, does not match the expected pattern: %s", key, valStr, definition.Pattern)
+			return fmt.Errorf("field \"%s\"'s value, %s, does not match the expected pattern: %s", key, valStr, definition.Pattern)
 		}
 	case "float", "long", "double":
 		_, valid = val.(float64)
