@@ -86,8 +86,8 @@ github.com/elastic/go-elasticsearch/v7 v7.9.0 h1:UEau+a1MiiE/F+UrDj60kqIHFWdzU1M
 github.com/elastic/go-elasticsearch/v7 v7.9.0/go.mod h1:OJ4wdbtDNk5g503kvlHLyErCgQwwzmDtaFC4XyOxXA4=
 github.com/elastic/go-ucfg v0.8.3 h1:leywnFjzr2QneZZWhE6uWd+QN/UpP0sdJRHYyuFvkeo=
 github.com/elastic/go-ucfg v0.8.3/go.mod h1:iaiY0NBIYeasNgycLyTvhJftQlQEUO2hpF+FX0JKxzo=
-github.com/elastic/package-spec/code/go v0.0.0-20201201075249-44ef38cf6c5b h1:cQZmD8u2ZmxMaDgBZJRywL70RTiUUJK5T6WUM/Z9yRM=
-github.com/elastic/package-spec/code/go v0.0.0-20201201075249-44ef38cf6c5b/go.mod h1:3W6uyBFCE4/NPcVPb+ZuoLJTMLu8BCTc+PRFDutSvfE=
+github.com/elastic/package-spec/code/go v0.0.0-20201202075901-3b4d8207554d h1:9GXCPO5Ahy12Qo+JKvdujuihSyqXyxeBQsxg+c13OaY=
+github.com/elastic/package-spec/code/go v0.0.0-20201202075901-3b4d8207554d/go.mod h1:3W6uyBFCE4/NPcVPb+ZuoLJTMLu8BCTc+PRFDutSvfE=
 github.com/emirpasic/gods v1.12.0 h1:QAUIPSaCu4G+POclxeqb3F+WPpdKqFGlw36+yOzGlrg=
 github.com/emirpasic/gods v1.12.0/go.mod h1:YfzfFFoVP/catgzJb4IKIqXjX78Ha8FMSDh3ymbK86o=
 github.com/envoyproxy/go-control-plane v0.9.0/go.mod h1:YTl/9mNaCwkRvm6d1a2C3ymFceY/DCBVvsKhRF0iEA4=
