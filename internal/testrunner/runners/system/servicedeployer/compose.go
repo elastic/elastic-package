@@ -63,7 +63,7 @@ func (r *DockerComposeServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedSer
 	// Boot up service
 	opts := compose.CommandOptions{
 		Env:       []string{fmt.Sprintf("%s=%s", serviceLogsDirEnv, outCtxt.Logs.Folder.Local)},
-		ExtraArgs: []string{"-d"},
+		ExtraArgs: []string{"--build", "-d"},
 	}
 	if err := p.Up(opts); err != nil {
 		return nil, errors.Wrap(err, "could not boot up service using docker compose")
