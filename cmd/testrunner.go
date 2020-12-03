@@ -111,6 +111,11 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 			return fmt.Errorf("no %s tests found", testType)
 		}
 
+		deferCleanup, err := cmd.Flags().GetDuration(cobraext.DeferCleanupFlagName)
+		if err != nil {
+			return cobraext.FlagParsingError(err, cobraext.DeferCleanupFlagName)
+		}
+
 		esClient, err := elasticsearch.Client()
 		if err != nil {
 			return errors.Wrap(err, "fetching Elasticsearch client instance failed")
@@ -123,6 +128,7 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 				PackageRootPath:    packageRootPath,
 				GenerateTestResult: generateTestResult,
 				ESClient:           esClient,
+				DeferCleanup:       deferCleanup,
 			})
 
 			results = append(results, r...)
