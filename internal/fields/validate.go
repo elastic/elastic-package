@@ -211,7 +211,7 @@ func parseElementValue(key string, definition FieldDefinition, val interface{}) 
 
 	var valid bool
 	switch definition.Type {
-	case "date", "ip", "text", "constant_keyword", "keyword":
+	case "date", "ip", "constant_keyword", "keyword", "text":
 		var valStr string
 		valStr, valid = val.(string)
 		if !valid || definition.Pattern == "" {
