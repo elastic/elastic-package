@@ -90,24 +90,6 @@ func Test_parseElementValue(t *testing.T) {
 			},
 			fail: true,
 		},
-		// keyword and constant_keyword (numeric)
-		{
-			key:   "numeric keyword works",
-			value: 1234.5,
-			definition: FieldDefinition{
-				Type:    "keyword",
-				Pattern: `^[0-9.]+$`,
-			},
-		},
-		{
-			key:   "numeric keyword applies pattern",
-			value: 1234.5,
-			definition: FieldDefinition{
-				Type:    "keyword",
-				Pattern: `0`,
-			},
-			fail: true,
-		},
 		// keyword and constant_keyword (other)
 		{
 			key:   "bad type for keyword",
