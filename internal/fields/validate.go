@@ -233,7 +233,7 @@ func parseElementValue(key string, definition FieldDefinition, val interface{}) 
 			return errors.Wrap(err, "invalid pattern")
 		}
 		if !valid {
-			return fmt.Errorf("field \"%s\"'s value, %s, does not match the expected pattern: %s", key, valStr, definition.Pattern)
+			return fmt.Errorf("field %q's value, %s, does not match the expected pattern: %s", key, valStr, definition.Pattern)
 		}
 	case "float", "long", "double":
 		_, valid = val.(float64)
@@ -242,7 +242,7 @@ func parseElementValue(key string, definition FieldDefinition, val interface{}) 
 	}
 
 	if !valid {
-		return fmt.Errorf("field \"%s\"'s Go type, %T, does not match the expected field type: %s (field value: %v)", key, val, definition.Type, val)
+		return fmt.Errorf("field %q's Go type, %T, does not match the expected field type: %s (field value: %v)", key, val, definition.Type, val)
 	}
 	return nil
 }
