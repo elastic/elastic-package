@@ -51,7 +51,7 @@ func (vv VarValue) MarshalJSON() ([]byte, error) {
 	} else if vv.list != nil {
 		return json.Marshal(vv.list)
 	}
-	return nil, nil
+	return []byte("null"), nil
 }
 
 // Variable is an instance of configuration variable (named, typed).
