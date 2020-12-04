@@ -206,6 +206,11 @@ func (r *runner) verifyResults(testCaseFile string, config *testConfig, result *
 		return errors.Wrap(err, "comparing test results failed")
 	}
 
+	err = convertNumericKeywordFields(result, config)
+	if err != nil {
+		return err
+	}
+
 	err = verifyDynamicFields(result, config)
 	if err != nil {
 		return err
@@ -257,6 +262,54 @@ func verifyDynamicFields(result *testResult, config *testConfig) error {
 	if len(multiErr) > 0 {
 		return testrunner.ErrTestCaseFailed{
 			Reason:  "one or more problems with dynamic fields found in documents",
+			Details: multiErr.Unique().Error(),
+		}
+	}
+	return nil
+}
+
+func convertNumericKeywordFields(result *testResult, config *testConfig) error {
+	if config == nil || len(config.NumericKeywordFields) == 0 {
+		return nil
+	}
+
+	var multiErr multierror.Error
+	for idx, event := range result.events {
+		var m common.MapStr
+		err := json.Unmarshal(event, &m)
+		if err != nil {
+			return errors.Wrap(err, "can't unmarshal event")
+		}
+
+		modified := false
+		for _, key := range config.NumericKeywordFields {
+			val, err := m.GetValue(key)
+			if err != nil && err != common.ErrKeyNotFound {
+				return errors.Wrap(err, "can't convert numeric field")
+			}
+
+			switch v := val.(type) {
+			case nil, string: // Nothing to do.
+			case float64: // Store the numeric value in string format, for further validation.
+				m.Put(key, fmt.Sprintf("%g", v))
+				modified = true
+			default:
+				multiErr = append(multiErr, fmt.Errorf("numeric keyword field %q's type %T should be a number or string",
+					key, val))
+			}
+		}
+		if modified {
+			if event, err = json.Marshal(m); err != nil {
+				multiErr = append(multiErr, errors.Wrap(err, "failed to serialize numeric keywords back into JSON"))
+				continue
+			}
+			result.events[idx] = event
+		}
+	}
+
+	if len(multiErr) > 0 {
+		return testrunner.ErrTestCaseFailed{
+			Reason:  "one or more problems with numeric keyword fields found in documents",
 			Details: multiErr.Unique().Error(),
 		}
 	}

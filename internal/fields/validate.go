@@ -211,17 +211,7 @@ func parseElementValue(key string, definition FieldDefinition, val interface{}) 
 
 	var valid bool
 	switch definition.Type {
-	case "constant_keyword", "keyword":
-		// Accept numeric fields as valid keywords.
-		if _, isStr := val.(string); !isStr {
-			f64, ok := val.(float64)
-			if !ok {
-				break
-			}
-			val = fmt.Sprintf("%g", f64)
-		}
-		fallthrough
-	case "date", "ip", "text":
+	case "date", "ip", "text", "constant_keyword", "keyword":
 		var valStr string
 		valStr, valid = val.(string)
 		if !valid || definition.Pattern == "" {
