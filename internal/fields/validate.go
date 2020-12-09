@@ -22,17 +22,23 @@ import (
 
 // Validator is responsible for fields validation.
 type Validator struct {
-	schema []FieldDefinition
+	schema               []FieldDefinition
+	numericKeywordFields map[string]struct{}
 }
 
 // CreateValidatorForDataStream function creates a validator for the data stream.
-func CreateValidatorForDataStream(dataStreamRootPath string) (*Validator, error) {
+func CreateValidatorForDataStream(dataStreamRootPath string, numericKeywordFields []string) (*Validator, error) {
 	fields, err := LoadFieldsForDataStream(dataStreamRootPath)
 	if err != nil {
 		return nil, errors.Wrapf(err, "can't load fields for data stream (path: %s)", dataStreamRootPath)
 	}
+	numericFields := make(map[string]struct{}, len(numericKeywordFields))
+	for _, fld := range numericKeywordFields {
+		numericFields[fld] = struct{}{}
+	}
 	return &Validator{
-		schema: fields,
+		schema:               fields,
+		numericKeywordFields: numericFields,
 	}, nil
 }
 
@@ -134,11 +140,21 @@ func (v *Validator) validateScalarElement(key string, val interface{}) error {
 		return fmt.Errorf(`field "%s" is undefined`, key)
 	}
 
+	// Convert numeric keyword fields to string for validation.
+	if _, found := v.numericKeywordFields[key]; found && isNumericKeyword(*definition, val) {
+		val = fmt.Sprintf("%q", val)
+	}
+
 	err := parseElementValue(key, *definition, val)
 	if err != nil {
 		return errors.Wrap(err, "parsing field value failed")
 	}
 	return nil
+}
+
+func isNumericKeyword(definition FieldDefinition, val interface{}) bool {
+	_, isNumber := val.(float64)
+	return isNumber && (definition.Type == "keyword" || definition.Type == "constant_keyword")
 }
 
 // skipValidationForField skips field validation (field presence) of special fields. The special fields are present

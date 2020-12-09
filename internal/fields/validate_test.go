@@ -17,7 +17,7 @@ type results struct {
 }
 
 func TestValidate_NoWildcardFields(t *testing.T) {
-	validator, err := CreateValidatorForDataStream("../../test/packages/aws/data_stream/elb_logs")
+	validator, err := CreateValidatorForDataStream("../../test/packages/aws/data_stream/elb_logs", nil)
 	require.NoError(t, err)
 	require.NotNil(t, validator)
 
@@ -29,7 +29,7 @@ func TestValidate_NoWildcardFields(t *testing.T) {
 }
 
 func TestValidate_WithWildcardFields(t *testing.T) {
-	validator, err := CreateValidatorForDataStream("../../test/packages/aws/data_stream/sns")
+	validator, err := CreateValidatorForDataStream("../../test/packages/aws/data_stream/sns", nil)
 	require.NoError(t, err)
 	require.NotNil(t, validator)
 
@@ -39,11 +39,21 @@ func TestValidate_WithWildcardFields(t *testing.T) {
 }
 
 func TestValidate_WithFlattenedFields(t *testing.T) {
-	validator, err := CreateValidatorForDataStream("testdata")
+	validator, err := CreateValidatorForDataStream("testdata", nil)
 	require.NoError(t, err)
 	require.NotNil(t, validator)
 
 	e := readSampleEvent(t, "testdata/flattened.json")
+	errs := validator.ValidateDocumentBody(e)
+	require.Empty(t, errs)
+}
+
+func TestValidate_WithNumericKeywordFields(t *testing.T) {
+	validator, err := CreateValidatorForDataStream("testdata", []string{"foo.code"})
+	require.NoError(t, err)
+	require.NotNil(t, validator)
+
+	e := readSampleEvent(t, "testdata/numeric.json")
 	errs := validator.ValidateDocumentBody(e)
 	require.Empty(t, errs)
 }

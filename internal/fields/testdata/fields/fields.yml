@@ -1,6 +1,8 @@
 - name: foo
   type: group
   fields:
+    - name: code
+      type: keyword
     - name: flattened
       type: group
       fields:

@@ -27,6 +27,10 @@ type testConfig struct {
 	DataStream struct {
 		Vars map[string]packages.VarValue `config:"vars"`
 	} `config:"data_stream"`
+
+	// NumericKeywordFields holds a list of fields that have keyword
+	// type but can be ingested as numeric type.
+	NumericKeywordFields []string `config:"numeric_keyword_fields"`
 }
 
 func newConfig(systemTestFolderPath string, ctxt servicedeployer.ServiceContext) (*testConfig, error) {

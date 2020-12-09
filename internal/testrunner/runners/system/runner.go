@@ -259,7 +259,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		return nil
 	}
 
-	fieldsValidator, err := fields.CreateValidatorForDataStream(dataStreamPath)
+	fieldsValidator, err := fields.CreateValidatorForDataStream(dataStreamPath, testConfig.NumericKeywordFields)
 	if err != nil {
 		return resultsWith(result, errors.Wrapf(err, "creating fields validator for data stream failed (path: %s)", dataStreamPath))
 	}
