@@ -26,20 +26,34 @@ type Validator struct {
 	numericKeywordFields map[string]struct{}
 }
 
+// ValidatorOption represents an optional flag that can be passed to  CreateValidatorForDataStream.
+type ValidatorOption func(*Validator) error
+
+// WithNumericKeywordFields configures the validator to accept specific fields to have numeric-type
+// while defined as keyword or constant_keyword.
+func WithNumericKeywordFields(fields []string) ValidatorOption {
+	return func(v *Validator) error {
+		v.numericKeywordFields = make(map[string]struct{}, len(fields))
+		for _, field := range fields {
+			v.numericKeywordFields[field] = struct{}{}
+		}
+		return nil
+	}
+}
+
 // CreateValidatorForDataStream function creates a validator for the data stream.
-func CreateValidatorForDataStream(dataStreamRootPath string, numericKeywordFields []string) (*Validator, error) {
-	fields, err := LoadFieldsForDataStream(dataStreamRootPath)
+func CreateValidatorForDataStream(dataStreamRootPath string, opts ...ValidatorOption) (v *Validator, err error) {
+	v = new(Validator)
+	for _, opt := range opts {
+		if err := opt(v); err != nil {
+			return nil, err
+		}
+	}
+	v.schema, err = LoadFieldsForDataStream(dataStreamRootPath)
 	if err != nil {
 		return nil, errors.Wrapf(err, "can't load fields for data stream (path: %s)", dataStreamRootPath)
 	}
-	numericFields := make(map[string]struct{}, len(numericKeywordFields))
-	for _, fld := range numericKeywordFields {
-		numericFields[fld] = struct{}{}
-	}
-	return &Validator{
-		schema:               fields,
-		numericKeywordFields: numericFields,
-	}, nil
+	return v, nil
 }
 
 // LoadFieldsForDataStream function loads fields defined for the given data stream.

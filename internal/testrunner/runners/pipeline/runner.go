@@ -110,7 +110,8 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		}
 
 		tr.TimeElapsed = time.Now().Sub(startTime)
-		fieldsValidator, err := fields.CreateValidatorForDataStream(dataStreamPath, tc.config.NumericKeywordFields)
+		fieldsValidator, err := fields.CreateValidatorForDataStream(dataStreamPath,
+			fields.WithNumericKeywordFields(tc.config.NumericKeywordFields))
 		if err != nil {
 			return nil, errors.Wrapf(err, "creating fields validator for data stream failed (path: %s, test case file: %s)", dataStreamPath, testCaseFile)
 		}
