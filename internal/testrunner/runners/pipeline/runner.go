@@ -83,11 +83,6 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		}
 	}()
 
-	fieldsValidator, err := fields.CreateValidatorForDataStream(dataStreamPath)
-	if err != nil {
-		return nil, errors.Wrapf(err, "creating fields validator for data stream failed (path: %s)", dataStreamPath)
-	}
-
 	results := make([]testrunner.TestResult, 0)
 	for _, testCaseFile := range testCaseFiles {
 		tr := testrunner.TestResult{
@@ -115,6 +110,12 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		}
 
 		tr.TimeElapsed = time.Now().Sub(startTime)
+		fieldsValidator, err := fields.CreateValidatorForDataStream(dataStreamPath,
+			fields.WithNumericKeywordFields(tc.config.NumericKeywordFields))
+		if err != nil {
+			return nil, errors.Wrapf(err, "creating fields validator for data stream failed (path: %s, test case file: %s)", dataStreamPath, testCaseFile)
+		}
+
 		err = r.verifyResults(testCaseFile, tc.config, result, fieldsValidator)
 		if e, ok := err.(testrunner.ErrTestCaseFailed); ok {
 			tr.FailureMsg = e.Error()
