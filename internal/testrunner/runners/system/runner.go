@@ -305,7 +305,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		var multiErr multierror.Error
 		for _, hit := range results.Hits.Hits {
 			if message, err := hit.Source.GetValue("error.message"); err != common.ErrKeyNotFound {
-				multiErr = append(multiErr, errors.New(message.(string)))
+				multiErr = append(multiErr, fmt.Errorf("found error.message in event: %v", message))
 				continue
 			}
 
