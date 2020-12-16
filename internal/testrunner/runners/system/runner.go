@@ -33,6 +33,9 @@ func init() {
 const (
 	// TestType defining system tests
 	TestType testrunner.TestType = "system"
+
+	// Maximum number of events to query.
+	elasticsearchQuerySize = 500
 )
 
 type runner struct {
@@ -270,6 +273,8 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 	passed, err := waitUntilTrue(func() (bool, error) {
 		resp, err := r.options.ESClient.Search(
 			r.options.ESClient.Search.WithIndex(dataStream),
+			r.options.ESClient.Search.WithSort("@timestamp:asc"),
+			r.options.ESClient.Search.WithSize(elasticsearchQuerySize),
 		)
 		if err != nil {
 			return false, errors.Wrap(err, "could not search data stream")

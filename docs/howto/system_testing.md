@@ -12,7 +12,12 @@ Conceptually, running a system test involves the following steps:
 1. Depending on the Elastic Package whose data stream is being tested, deploy an instance of the package's integration service.
 1. Create a test policy that configures a single data stream for a single package.
 1. Assign the test policy to the enrolled Agent.
-1. Wait a reasonable amount of time for the Agent to collect data from the integration service and index it into the correct Elasticsearch data stream.
+1. Wait a reasonable amount of time for the Agent to collect data from the 
+   integration service and index it into the correct Elasticsearch data stream.
+1. Query the first 500 documents based on `@timestamp` for validation.
+1. Validate mappings are defined for the fields contained in the indexed documents.
+1. Validate that the JSON data types contained `_source` are compatible with
+   mappings declared for the field. 
 1. Delete test artifacts and tear down the instance of the package's integration service.
 1. Once all desired data streams have been system tested, tear down the Elastic Stack.
 
@@ -20,7 +25,7 @@ Conceptually, running a system test involves the following steps:
 
 At the moment system tests have limitations. The salient ones are:
 * They can only test packages whose integration services can be deployed via Docker Compose. Eventually they will be able to test packages that can be deployed via other means, e.g. a Terraform configuration.
-* They can only check for the _existence_ of data in the correct Elasticsearch data stream. Eventually they will be able to test the shape and contents of the indexed data as well.
+* There isn't a way to do assert that the indexed data matches data from a file (e.g. golden file testing).
 
 ## Defining a system test
 
