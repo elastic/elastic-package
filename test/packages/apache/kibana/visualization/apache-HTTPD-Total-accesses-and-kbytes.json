@@ -16,7 +16,7 @@
                     "id": "1",
                     "params": {
                         "customLabel": "Total kbytes",
-                        "field": "apache.status.total_kbytes"
+                        "field": "apache.status.total_bytes"
                     },
                     "schema": "metric",
                     "type": "max"

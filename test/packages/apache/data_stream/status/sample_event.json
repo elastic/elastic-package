@@ -20,7 +20,7 @@
                     "closing": 0
                 }
             },
-            "total_kbytes": 128,
+            "total_bytes": 128,
             "cpu": {
                 "children_user": 0,
                 "children_system": 0,
