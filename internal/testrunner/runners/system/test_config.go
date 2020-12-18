@@ -23,6 +23,8 @@ const configFileName = "config.yml"
 
 type testConfig struct {
 	Input      string                       `config:"input"`
+	Name       string                       `config:"name"`
+	Service    string                       `config:"service"`
 	Vars       map[string]packages.VarValue `config:"vars"`
 	DataStream struct {
 		Vars map[string]packages.VarValue `config:"vars"`
@@ -33,7 +35,7 @@ type testConfig struct {
 	NumericKeywordFields []string `config:"numeric_keyword_fields"`
 }
 
-func newConfig(systemTestFolderPath string, ctxt servicedeployer.ServiceContext) (*testConfig, error) {
+func newConfig(systemTestFolderPath string, ctxt servicedeployer.ServiceContext) ([]testConfig, error) {
 	configFilePath := filepath.Join(systemTestFolderPath, configFileName)
 	data, err := ioutil.ReadFile(configFilePath)
 	if err != nil && os.IsNotExist(err) {
@@ -49,16 +51,24 @@ func newConfig(systemTestFolderPath string, ctxt servicedeployer.ServiceContext)
 		return nil, errors.Wrapf(err, "could not apply context to test configuration file: %s", configFilePath)
 	}
 
-	var c testConfig
+	var c []testConfig
 	cfg, err := yaml.NewConfig(data, ucfg.PathSep("."))
 	if err != nil {
 		return nil, errors.Wrapf(err, "unable to load system test configuration file: %s", configFilePath)
 	}
-
 	if err := cfg.Unpack(&c); err != nil {
 		return nil, errors.Wrapf(err, "unable to unpack system test configuration file: %s", configFilePath)
 	}
-	return &c, nil
+
+	// Handle the case were test config is not a list of cases but a single case
+	if len(c) == 0 {
+		var single testConfig
+		if err := cfg.Unpack(&single); err != nil {
+			return nil, errors.Wrapf(err, "unable to unpack system test configuration file: %s", configFilePath)
+		}
+		c = append(c, single)
+	}
+	return c, nil
 }
 
 // applyContext takes the given system test configuration (data) and replaces any placeholder variables in
