@@ -259,15 +259,7 @@ func (r *runner) runTest(config testConfig, ctxt servicedeployer.ServiceContext)
 		return result.withError(errors.Wrap(err, "reading data stream manifest failed"))
 	}
 
-	// Step 1. Setup service.
-	// Step 1a. (Deferred) Tear down service.
-	logger.Debug("setting up service...")
-	serviceDeployer, err := servicedeployer.Factory(r.options.PackageRootPath)
-	if err != nil {
-		return result.withError(errors.Wrap(err, "could not create service runner"))
-	}
-
-	// Step 2. Configure package (single data stream) via Ingest Manager APIs.
+	// Configure package (single data stream) via Ingest Manager APIs.
 	kib, err := kibana.NewClient()
 	if err != nil {
 		return result.withError(errors.Wrap(err, "could not create ingest manager client"))
@@ -340,6 +332,14 @@ func (r *runner) runTest(config testConfig, ctxt servicedeployer.ServiceContext)
 		}
 		return result.withError(err)
 	}
+
+	// Setup service.
+	logger.Debug("setting up service...")
+	serviceDeployer, err := servicedeployer.Factory(r.options.PackageRootPath)
+	if err != nil {
+		return result.withError(errors.Wrap(err, "could not create service runner"))
+	}
+
 	if config.Service != "" {
 		ctxt.Name = config.Service
 	}
@@ -378,7 +378,7 @@ func (r *runner) runTest(config testConfig, ctxt servicedeployer.ServiceContext)
 		return nil
 	}
 
-	// Step 4. (TODO in future) Optionally exercise service to generate load.
+	// (TODO in future) Optionally exercise service to generate load.
 	logger.Debug("checking for expected data in data stream...")
 	passed, err := waitUntilTrue(r.hasNumDocs(dataStream, fieldsValidator, func(n int) bool {
 		return n > 0
