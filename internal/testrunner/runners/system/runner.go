@@ -163,8 +163,8 @@ func (r *runner) run() (results []testrunner.TestResult, err error) {
 		return result.withError(errors.Wrap(err, "unable to load system test configuration"))
 	}
 	// Run each configured test
-	for _, testConfig := range testConfigs {
-		partial, err := r.runTest(testConfig, ctxt)
+	for idx, testConfig := range testConfigs {
+		partial, err := r.runTest(testConfig, idx, ctxt)
 		results = append(results, partial...)
 		if err != nil {
 			return results, err
@@ -237,7 +237,7 @@ func (r *runner) hasNumDocs(
 	}
 }
 
-func (r *runner) runTest(config testConfig, ctxt servicedeployer.ServiceContext) ([]testrunner.TestResult, error) {
+func (r *runner) runTest(config testConfig, cfgIdx int, ctxt servicedeployer.ServiceContext) ([]testrunner.TestResult, error) {
 	// Determine test name
 	name := config.Name
 	if name == "" {
@@ -262,6 +262,40 @@ func (r *runner) runTest(config testConfig, ctxt servicedeployer.ServiceContext)
 	if err != nil {
 		return result.withError(errors.Wrap(err, "reading data stream manifest failed"))
 	}
+
+	// Setup service.
+	logger.Debug("setting up service...")
+	serviceDeployer, err := servicedeployer.Factory(r.options.PackageRootPath)
+	if err != nil {
+		return result.withError(errors.Wrap(err, "could not create service runner"))
+	}
+
+	if config.Service != "" {
+		ctxt.Name = config.Service
+	}
+	service, err := serviceDeployer.SetUp(ctxt)
+	if err != nil {
+		return result.withError(errors.Wrap(err, "could not setup service"))
+	}
+	ctxt = service.Context()
+	r.shutdownServiceHandler = func() error {
+		logger.Debug("tearing down service...")
+		if err := service.TearDown(); err != nil {
+			return errors.Wrap(err, "error tearing down service")
+		}
+
+		return nil
+	}
+
+	// Reload test config with ctx variable substitution.
+	configs, err := newConfig(r.options.TestFolder.Path, ctxt)
+	if err != nil {
+		return result.withError(errors.Wrap(err, "unable to load system test configuration"))
+	}
+	if len(configs) <= cfgIdx {
+		return result.withError(errors.Wrapf(err, "could not reload test config %d", cfgIdx))
+	}
+	config = configs[cfgIdx]
 
 	// Configure package (single data stream) via Ingest Manager APIs.
 	kib, err := kibana.NewClient()
@@ -323,6 +357,15 @@ func (r *runner) runTest(config testConfig, ctxt servicedeployer.ServiceContext)
 		ds.Inputs[0].Streams[0].DataStream.Dataset,
 		ds.Namespace,
 	)
+
+	r.wipeDataStreamHandler = func() error {
+		logger.Debugf("deleting data in data stream...")
+		if err := deleteDataStreamDocs(r.options.ESClient, dataStream); err != nil {
+			return errors.Wrap(err, "error deleting data in data stream")
+		}
+		return nil
+	}
+
 	if err := deleteDataStreamDocs(r.options.ESClient, dataStream); err != nil {
 		return result.withError(errors.Wrapf(err, "error deleting old data in data stream: %s", dataStream))
 	}
@@ -335,38 +378,6 @@ func (r *runner) runTest(config testConfig, ctxt servicedeployer.ServiceContext)
 			err = errors.New("unable to clear previous data")
 		}
 		return result.withError(err)
-	}
-
-	// Setup service.
-	logger.Debug("setting up service...")
-	serviceDeployer, err := servicedeployer.Factory(r.options.PackageRootPath)
-	if err != nil {
-		return result.withError(errors.Wrap(err, "could not create service runner"))
-	}
-
-	if config.Service != "" {
-		ctxt.Name = config.Service
-	}
-	service, err := serviceDeployer.SetUp(ctxt)
-	if err != nil {
-		return result.withError(errors.Wrap(err, "could not setup service"))
-	}
-	ctxt = service.Context()
-	r.shutdownServiceHandler = func() error {
-		logger.Debug("tearing down service...")
-		if err := service.TearDown(); err != nil {
-			return errors.Wrap(err, "error tearing down service")
-		}
-
-		return nil
-	}
-
-	r.wipeDataStreamHandler = func() error {
-		logger.Debugf("deleting data in data stream...")
-		if err := deleteDataStreamDocs(r.options.ESClient, dataStream); err != nil {
-			return errors.Wrap(err, "error deleting data in data stream")
-		}
-		return nil
 	}
 
 	// Assign policy to agent
