@@ -92,7 +92,7 @@ func loadElasticsearchAssets(pkgRootPath string) ([]Asset, error) {
 		return nil, errors.Wrap(err, "could not read data stream manifest file paths")
 	}
 
-	assets := make([]Asset, 0)
+	var assets []Asset
 	for _, dsManifestPath := range dataStreamManifestPaths {
 		dsManifest, err := ReadDataStreamManifest(dsManifestPath)
 		if err != nil {
@@ -140,7 +140,7 @@ func loadFileBasedAssets(kibanaAssetsFolderPath string, assetType AssetType) ([]
 		return nil, errors.Wrapf(err, "could not read %s files", assetType)
 	}
 
-	assets := make([]Asset, 0)
+	var assets []Asset
 	for _, f := range files {
 		if f.IsDir() {
 			continue
