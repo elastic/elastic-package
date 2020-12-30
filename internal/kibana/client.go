@@ -10,9 +10,10 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/pkg/errors"
+
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/stack"
-	"github.com/pkg/errors"
 )
 
 // Client is responsible for exporting dashboards from Kibana.
