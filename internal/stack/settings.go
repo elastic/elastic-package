@@ -2,12 +2,12 @@
 // or more contributor license agreements. Licensed under the Elastic License;
 // you may not use this file except in compliance with the Elastic License.
 
-package testrunner
+package stack
 
 import "os"
 
-// StackSettings encapsulate the various settings required to connect to the Elastic Stack.
-type StackSettings struct {
+// Settings encapsulate the various settings required to connect to the Elastic Stack.
+type Settings struct {
 	Elasticsearch struct {
 		Host     string
 		Username string
@@ -18,20 +18,20 @@ type StackSettings struct {
 	}
 }
 
-// GetStackSettingsFromEnv loads Elastic stack connnection settings from
+// CurrentSettings loads Elastic stack connection settings from
 // environment variables and returns them.
-func GetStackSettingsFromEnv() StackSettings {
-	s := StackSettings{}
+func CurrentSettings() Settings {
+	s := Settings{}
 
-	s.Elasticsearch.Host = os.Getenv("ELASTIC_PACKAGE_ELASTICSEARCH_HOST")
+	s.Elasticsearch.Host = os.Getenv(ElasticsearchHostEnv)
 	if s.Elasticsearch.Host == "" {
 		s.Elasticsearch.Host = "http://localhost:9200"
 	}
 
-	s.Elasticsearch.Username = os.Getenv("ELASTIC_PACKAGE_ELASTICSEARCH_USERNAME")
-	s.Elasticsearch.Password = os.Getenv("ELASTIC_PACKAGE_ELASTICSEARCH_PASSWORD")
+	s.Elasticsearch.Username = os.Getenv(ElasticsearchUsernameEnv)
+	s.Elasticsearch.Password = os.Getenv(ElasticsearchPasswordEnv)
 
-	s.Kibana.Host = os.Getenv("ELASTIC_PACKAGE_KIBANA_HOST")
+	s.Kibana.Host = os.Getenv(KibanaHostEnv)
 	if s.Kibana.Host == "" {
 		s.Kibana.Host = "http://localhost:5601"
 	}
