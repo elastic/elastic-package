@@ -16,11 +16,16 @@ import (
 	"github.com/elastic/elastic-package/internal/kibana"
 )
 
+const exportLongDescription = `Use this command to export assets relevant for the package, e.g. Kibana dashboards.
+
+Context:
+  package`
+
 func setupExportCommand() *cobra.Command {
 	exportDashboardCmd := &cobra.Command{
 		Use:   "dashboards",
 		Short: "Export dashboards from Kibana",
-		Long:  "Use dashboards subcommand to export dashboards with referenced objects from the Kibana instance.",
+		Long:  exportLongDescription,
 		RunE:  exportDashboardsCmd,
 	}
 	exportDashboardCmd.Flags().StringSliceP(cobraext.DashboardIDsFlagName, "d", nil, cobraext.DashboardIDsFlagDescriptions)

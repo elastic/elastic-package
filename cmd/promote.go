@@ -17,11 +17,18 @@ import (
 	"github.com/elastic/elastic-package/internal/promote"
 )
 
+const promoteLongDescription = `Use promote command to move packages between stages in package-storage.
+
+This command is intended primarily for use by administrators.
+
+Context:
+  global`
+
 func setupPromoteCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:          "promote",
 		Short:        "Promote packages",
-		Long:         "Use promote command to move packages between stages in package-storage.",
+		Long:         promoteLongDescription,
 		RunE:         promoteCommandAction,
 		SilenceUsage: true,
 	}

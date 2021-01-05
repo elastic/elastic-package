@@ -21,6 +21,15 @@ var availableServices = map[string]struct{}{
 	"package-registry": {},
 }
 
+const stackLongDescription = `Use this command to spin up a Docker-based Elastic Stack consisting of Elasticsearch, Kibana, and the Package Registry.
+
+By default the latest released version of the stack is spun up but it is possible to specify a different version, including SNAPSHOT versions.
+
+For details on how to connect the service with the Elastic stack, review the HOWTO guide (see: https://github.com/elastic/elastic-package/blob/master/docs/howto/connect_service_with_elastic_stack.md).
+
+Context:
+  global`
+
 func setupStackCommand() *cobra.Command {
 	upCommand := &cobra.Command{
 		Use:   "up",
@@ -122,7 +131,7 @@ func setupStackCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "stack",
 		Short: "Manage the Elastic stack",
-		Long:  "Use stack command to boot up and take down the local Elastic stack.",
+		Long:  stackLongDescription,
 	}
 	cmd.AddCommand(
 		upCommand,

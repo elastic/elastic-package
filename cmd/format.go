@@ -13,11 +13,16 @@ import (
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
+const formatLongDescription = `Use format command to format the package files.
+
+Context:
+  package`
+
 func setupFormatCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "format",
 		Short: "Format the package",
-		Long:  "Use format command to format the package files.",
+		Long:  formatLongDescription,
 		RunE:  formatCommandAction,
 	}
 	cmd.Flags().BoolP(cobraext.FailFastFlagName, "f", false, cobraext.FailFastFlagDescription)

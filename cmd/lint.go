@@ -16,11 +16,16 @@ import (
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
+const lintLongDescription = `Use this command to validate the contents of a package using the package specification (see: https://github.com/elastic/package-spec).
+
+Context:
+  package`
+
 func setupLintCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "lint",
 		Short: "Lint the package",
-		Long:  "Use lint command to lint the package files.",
+		Long:  lintLongDescription,
 		RunE:  lintCommandAction,
 	}
 	return cmd
