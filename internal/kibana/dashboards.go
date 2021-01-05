@@ -32,7 +32,7 @@ func (c *Client) Export(dashboardIDs []string) ([]common.MapStr, error) {
 		query.WriteByte('&')
 	}
 
-	path := fmt.Sprintf("/api/kibana/dashboards/export" + query.String())
+	path := fmt.Sprintf("%s/dashboards/export%s", CoreAPI, query)
 	statusCode, respBody, err := c.get(path)
 	if err != nil {
 		return nil, errors.Wrapf(err, "could not export dashboards; API status code = %d; response body = %s", statusCode, string(respBody))

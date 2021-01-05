@@ -28,7 +28,7 @@ func (c *Client) CreatePolicy(p Policy) (*Policy, error) {
 		return nil, errors.Wrap(err, "could not convert policy (request) to JSON")
 	}
 
-	statusCode, respBody, err := c.post("/api/fleet/agent_policies", reqBody)
+	statusCode, respBody, err := c.post(fmt.Sprintf("%s/agent_policies", FleetAPI), reqBody)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create policy")
 	}
@@ -52,7 +52,7 @@ func (c *Client) CreatePolicy(p Policy) (*Policy, error) {
 func (c *Client) DeletePolicy(p Policy) error {
 	reqBody := `{ "agentPolicyId": "` + p.ID + `" }`
 
-	statusCode, respBody, err := c.post("/api/fleet/agent_policies/delete", []byte(reqBody))
+	statusCode, respBody, err := c.post(fmt.Sprintf("%s/agent_policies/delete", FleetAPI), []byte(reqBody))
 	if err != nil {
 		return errors.Wrap(err, "could not delete policy")
 	}
@@ -122,7 +122,7 @@ func (c *Client) AddPackageDataStreamToPolicy(r PackageDataStream) error {
 		return errors.Wrap(err, "could not convert policy-package (request) to JSON")
 	}
 
-	statusCode, respBody, err := c.post("/api/fleet/package_policies", reqBody)
+	statusCode, respBody, err := c.post(fmt.Sprintf("%s/package_policies", FleetAPI), reqBody)
 	if err != nil {
 		return errors.Wrap(err, "could not add package to policy")
 	}
