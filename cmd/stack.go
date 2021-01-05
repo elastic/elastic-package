@@ -6,9 +6,10 @@ package cmd
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"strings"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/stack"
