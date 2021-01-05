@@ -25,7 +25,7 @@ func setupExportCommand() *cobra.Command {
 	exportDashboardCmd := &cobra.Command{
 		Use:   "dashboards",
 		Short: "Export dashboards from Kibana",
-		Long:  exportLongDescription,
+		Long:  "Use dashboards subcommand to export dashboards with referenced objects from the Kibana instance.",
 		RunE:  exportDashboardsCmd,
 	}
 	exportDashboardCmd.Flags().StringSliceP(cobraext.DashboardIDsFlagName, "d", nil, cobraext.DashboardIDsFlagDescriptions)
@@ -33,7 +33,7 @@ func setupExportCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "export",
 		Short: "Export package assets",
-		Long:  "Use export command to export assets relevant for the package from the Elastic stack.",
+		Long:  exportLongDescription,
 	}
 	cmd.AddCommand(exportDashboardCmd)
 	return cmd
