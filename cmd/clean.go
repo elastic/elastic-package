@@ -13,6 +13,8 @@ import (
 
 const cleanLongDescription = `Use clean command to clean resources used for building the package.
 
+The command will remove package built files (in build/), package built files for development stack (in ~/.elastic-package/stack/development) and stack service logs (in ~/.elastic-package/tmp/service_logs).
+
 Context:
   package`
 

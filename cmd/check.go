@@ -13,7 +13,8 @@ import (
 
 const checkLongDescription = `Use this command to verify if the package is correct in terms of formatting, validation and building.
 
-It will execute the format, lint, and build commands all at once, in that order.
+It will execute the format, lint, and build commands all at once, in that order. The goal of this command is to perform
+exactly same actions as the CI job runner to verify package contents.
 
 Context:
   package`
