@@ -22,7 +22,7 @@ const (
 	FailOnMissingFlagDescription = "fail if tests are missing"
 
 	FailFastFlagName        = "fail-fast"
-	FailFastFlagDescription = "fail immediately if any file requires updates"
+	FailFastFlagDescription = "fail immediately if any file requires updates (do not overwrite)"
 
 	GenerateTestResultFlagName        = "generate"
 	GenerateTestResultFlagDescription = "generate test result file"
