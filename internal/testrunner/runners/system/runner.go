@@ -7,7 +7,6 @@ package system
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -39,8 +38,7 @@ const (
 )
 
 type runner struct {
-	options       testrunner.TestOptions
-	stackSettings stackSettings
+	options testrunner.TestOptions
 
 	// Execution order of following handlers is defined in runner.TearDown() method.
 	deleteTestPolicyHandler func() error
@@ -73,8 +71,6 @@ func (r *runner) String() string {
 // Run runs the system tests defined under the given folder
 func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, error) {
 	r.options = options
-	r.stackSettings = getStackSettingsFromEnv()
-
 	return r.run()
 }
 
@@ -333,25 +329,6 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		result.FailureMsg = fmt.Sprintf("could not find hits in %s data stream", dataStream)
 	}
 	return resultsWith(result, nil)
-}
-
-func getStackSettingsFromEnv() stackSettings {
-	s := stackSettings{}
-
-	s.elasticsearch.host = os.Getenv("ELASTIC_PACKAGE_ELASTICSEARCH_HOST")
-	if s.elasticsearch.host == "" {
-		s.elasticsearch.host = "http://localhost:9200"
-	}
-
-	s.elasticsearch.username = os.Getenv("ELASTIC_PACKAGE_ELASTICSEARCH_USERNAME")
-	s.elasticsearch.password = os.Getenv("ELASTIC_PACKAGE_ELASTICSEARCH_PASSWORD")
-
-	s.kibana.host = os.Getenv("ELASTIC_PACKAGE_KIBANA_HOST")
-	if s.kibana.host == "" {
-		s.kibana.host = "http://localhost:5601"
-	}
-
-	return s
 }
 
 func createPackageDatastream(
