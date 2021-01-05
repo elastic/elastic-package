@@ -154,17 +154,20 @@ func (r *runner) run() (results []testrunner.TestResult, err error) {
 		return result.withError(errors.Wrap(err, "reading service logs directory failed"))
 	}
 
-	var ctxt servicedeployer.ServiceContext
-	ctxt.Name = r.options.TestFolder.Package
-	ctxt.Logs.Folder.Local = serviceLogsDir
-	ctxt.Logs.Folder.Agent = serviceLogsAgentDir
-	testConfigs, err := newConfig(r.options.TestFolder.Path, ctxt)
+	files, err := listConfigFiles(r.options.TestFolder.Path)
 	if err != nil {
-		return result.withError(errors.Wrap(err, "unable to load system test configuration"))
+		return result.withError(errors.Wrap(err, "failed listing test case config files"))
 	}
-	// Run each configured test
-	for idx, testConfig := range testConfigs {
-		partial, err := r.runTest(testConfig, idx, ctxt)
+	for _, cfgFile := range files {
+		var ctxt servicedeployer.ServiceContext
+		ctxt.Name = r.options.TestFolder.Package
+		ctxt.Logs.Folder.Local = serviceLogsDir
+		ctxt.Logs.Folder.Agent = serviceLogsAgentDir
+		testConfig, err := newConfig(filepath.Join(r.options.TestFolder.Path, cfgFile), ctxt)
+		if err != nil {
+			return result.withError(errors.Wrapf(err, "unable to load system test case file '%s'", cfgFile))
+		}
+		partial, err := r.runTest(testConfig, ctxt)
 		results = append(results, partial...)
 		if err != nil {
 			return results, err
@@ -237,13 +240,8 @@ func (r *runner) hasNumDocs(
 	}
 }
 
-func (r *runner) runTest(config testConfig, cfgIdx int, ctxt servicedeployer.ServiceContext) ([]testrunner.TestResult, error) {
-	// Determine test name
-	name := config.Name
-	if name == "" {
-		name = config.Input
-	}
-	result := r.newResult(name)
+func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext) ([]testrunner.TestResult, error) {
+	result := r.newResult(config.Name())
 
 	pkgManifest, err := packages.ReadPackageManifestFromPackageRoot(r.options.PackageRootPath)
 	if err != nil {
@@ -288,14 +286,10 @@ func (r *runner) runTest(config testConfig, cfgIdx int, ctxt servicedeployer.Ser
 	}
 
 	// Reload test config with ctx variable substitution.
-	configs, err := newConfig(r.options.TestFolder.Path, ctxt)
+	config, err = newConfig(config.Path, ctxt)
 	if err != nil {
-		return result.withError(errors.Wrap(err, "unable to load system test configuration"))
+		return result.withError(errors.Wrap(err, "unable to reload system test case configuration"))
 	}
-	if len(configs) <= cfgIdx {
-		return result.withError(errors.Wrapf(err, "could not reload test config %d", cfgIdx))
-	}
-	config = configs[cfgIdx]
 
 	// Configure package (single data stream) via Ingest Manager APIs.
 	kib, err := kibana.NewClient()
@@ -324,7 +318,7 @@ func (r *runner) runTest(config testConfig, cfgIdx int, ctxt servicedeployer.Ser
 
 	logger.Debug("adding package data stream to test policy...")
 
-	ds := createPackageDatastream(*policy, *pkgManifest, *dataStreamManifest, config)
+	ds := createPackageDatastream(*policy, *pkgManifest, *dataStreamManifest, *config)
 	if err := kib.AddPackageDataStreamToPolicy(ds); err != nil {
 		return result.withError(errors.Wrap(err, "could not add data stream config to policy"))
 	}
