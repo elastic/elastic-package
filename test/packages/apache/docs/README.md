@@ -218,7 +218,6 @@ An example event for `status` looks as following:
 | apache.status.cpu.load | CPU Load. | scaled_float |
 | apache.status.cpu.system | System cpu. | scaled_float |
 | apache.status.cpu.user | CPU user load. | scaled_float |
-| apache.status.hostname | Apache hostname. | keyword |
 | apache.status.load.1 | Load average for the last minute. | scaled_float |
 | apache.status.load.15 | Load average for the last 15 minutes. | scaled_float |
 | apache.status.load.5 | Load average for the last 5 minutes. | scaled_float |
