@@ -40,6 +40,7 @@ func setupStackCommand() *cobra.Command {
 	upCommand := &cobra.Command{
 		Use:   "up",
 		Short: "Boot up the stack",
+		Long:  stackUpLongDescription,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.Println("Boot up the Elastic stack")
 
