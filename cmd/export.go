@@ -21,11 +21,18 @@ const exportLongDescription = `Use this command to export assets relevant for th
 Context:
   package`
 
+const exportDashboardsLongDescription = `Use dashboards subcommand to export dashboards with referenced objects from the Kibana instance.
+
+The subcommand communicates with the Kibana endpoints to download selected dashboards and adjusts them with package naming convention (prefixes, unique IDs). It results in writing saved objects locally divided into folders corresponding to saved object types (dashboard, visualization, map, etc.).
+
+Context:
+  package`
+
 func setupExportCommand() *cobra.Command {
 	exportDashboardCmd := &cobra.Command{
 		Use:   "dashboards",
 		Short: "Export dashboards from Kibana",
-		Long:  "Use dashboards subcommand to export dashboards with referenced objects from the Kibana instance.",
+		Long:  exportDashboardsLongDescription,
 		RunE:  exportDashboardsCmd,
 	}
 	exportDashboardCmd.Flags().StringSliceP(cobraext.DashboardIDsFlagName, "d", nil, cobraext.DashboardIDsFlagDescriptions)
