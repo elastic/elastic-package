@@ -21,4 +21,4 @@ elastic-package
 .idea
 
 # Build directory
-build
+/build
