@@ -12,7 +12,7 @@ import (
 	es "github.com/elastic/go-elasticsearch/v7"
 	"github.com/pkg/errors"
 
-	"github.com/elastic/elastic-package/internal/kibana/ingestmanager"
+	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/stack"
@@ -98,19 +98,19 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 	}
 
 	// Install package
-	im, err := ingestmanager.NewClient(r.stackSettings.Kibana.Host, r.stackSettings.Elasticsearch.Username, r.stackSettings.Elasticsearch.Password)
+	kib, err := kibana.NewClient()
 	if err != nil {
-		return resultsWith(result, errors.Wrap(err, "could not create ingest manager client"))
+		return resultsWith(result, errors.Wrap(err, "could not create kibana client"))
 	}
 
 	logger.Debug("installing package...")
-	actualAssets, err := im.InstallPackage(*pkgManifest)
+	actualAssets, err := kib.InstallPackage(*pkgManifest)
 	if err != nil {
 		return resultsWith(result, errors.Wrap(err, "could not install package"))
 	}
 	r.removePackageHandler = func() error {
 		logger.Debug("removing package...")
-		if _, err := im.RemovePackage(*pkgManifest); err != nil {
+		if _, err := kib.RemovePackage(*pkgManifest); err != nil {
 			return errors.Wrap(err, "error cleaning up package")
 		}
 		return nil

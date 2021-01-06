@@ -2,7 +2,7 @@
 // or more contributor license agreements. Licensed under the Elastic License;
 // you may not use this file except in compliance with the Elastic License.
 
-package ingestmanager
+package kibana
 
 import (
 	"encoding/json"
@@ -15,21 +15,27 @@ import (
 
 // InstallPackage installs the given package in Fleet.
 func (c *Client) InstallPackage(pkg packages.PackageManifest) ([]packages.Asset, error) {
-	return managePackage(pkg, "install", c.post)
+	path := fmt.Sprintf("epm/packages/%s-%s", pkg.Name, pkg.Version)
+	statusCode, respBody, err := c.post(path, nil)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not install package")
+	}
+
+	return processResults("install", statusCode, respBody)
 }
 
 // RemovePackage removes the given package from Fleet.
 func (c *Client) RemovePackage(pkg packages.PackageManifest) ([]packages.Asset, error) {
-	return managePackage(pkg, "remove", c.delete)
-}
-
-func managePackage(pkg packages.PackageManifest, action string, actionFunc func(string, []byte) (int, []byte, error)) ([]packages.Asset, error) {
 	path := fmt.Sprintf("epm/packages/%s-%s", pkg.Name, pkg.Version)
-	statusCode, respBody, err := actionFunc(path, nil)
+	statusCode, respBody, err := c.delete(path)
 	if err != nil {
-		return nil, errors.Wrapf(err, "could not %s package", action)
+		return nil, errors.Wrap(err, "could not delete package")
 	}
 
+	return processResults("remove", statusCode, respBody)
+}
+
+func processResults(action string, statusCode int, respBody []byte) ([]packages.Asset, error) {
 	if statusCode != 200 {
 		return nil, fmt.Errorf("could not %s package; API status code = %d; response body = %s", action, statusCode, respBody)
 	}
