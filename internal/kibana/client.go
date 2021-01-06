@@ -5,8 +5,15 @@
 package kibana
 
 import (
+	"bytes"
+	"io/ioutil"
+	"net/http"
+	"net/url"
 	"os"
 
+	"github.com/pkg/errors"
+
+	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/stack"
 )
 
@@ -32,4 +39,57 @@ func NewClient() (*Client, error) {
 		username: username,
 		password: password,
 	}, nil
+}
+
+func (c *Client) get(resourcePath string) (int, []byte, error) {
+	return c.sendRequest(http.MethodGet, resourcePath, nil)
+}
+
+func (c *Client) post(resourcePath string, body []byte) (int, []byte, error) {
+	return c.sendRequest(http.MethodPost, resourcePath, body)
+}
+
+func (c *Client) put(resourcePath string, body []byte) (int, []byte, error) {
+	return c.sendRequest(http.MethodPut, resourcePath, body)
+}
+
+func (c *Client) sendRequest(method, resourcePath string, body []byte) (int, []byte, error) {
+	reqBody := bytes.NewReader(body)
+	base, err := url.Parse(c.host)
+	if err != nil {
+		return 0, nil, errors.Wrapf(err, "could not create base URL from host: %v", c.host)
+	}
+
+	rel, err := url.Parse(resourcePath)
+	if err != nil {
+		return 0, nil, errors.Wrapf(err, "could not create relative URL from resource path: %v", resourcePath)
+	}
+
+	u := base.ResolveReference(rel)
+
+	logger.Debugf("%s %s", method, u)
+	logger.Debugf("%s", body)
+
+	req, err := http.NewRequest(method, u.String(), reqBody)
+	if err != nil {
+		return 0, nil, errors.Wrapf(err, "could not create %v request to Kibana API resource: %s", method, resourcePath)
+	}
+
+	req.SetBasicAuth(c.username, c.password)
+	req.Header.Add("content-type", "application/json")
+	req.Header.Add("kbn-xsrf", stack.DefaultVersion)
+
+	client := http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return 0, nil, errors.Wrap(err, "could not send request to Kibana API")
+	}
+
+	defer resp.Body.Close()
+	body, err = ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return resp.StatusCode, nil, errors.Wrap(err, "could not read response body")
+	}
+
+	return resp.StatusCode, body, nil
 }

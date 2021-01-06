@@ -2,7 +2,7 @@
 // or more contributor license agreements. Licensed under the Elastic License;
 // you may not use this file except in compliance with the Elastic License.
 
-package ingestmanager
+package kibana
 
 import (
 	"encoding/json"
@@ -23,7 +23,7 @@ type Agent struct {
 
 // ListAgents returns the list of agents enrolled with Fleet.
 func (c *Client) ListAgents() ([]Agent, error) {
-	statusCode, respBody, err := c.get("agents")
+	statusCode, respBody, err := c.get(fmt.Sprintf("%s/agents", FleetAPI))
 	if err != nil {
 		return nil, errors.Wrap(err, "could not list agents")
 	}
@@ -47,7 +47,7 @@ func (c *Client) ListAgents() ([]Agent, error) {
 func (c *Client) AssignPolicyToAgent(a Agent, p Policy) error {
 	reqBody := `{ "policy_id": "` + p.ID + `" }`
 
-	path := fmt.Sprintf("agents/%s/reassign", a.ID)
+	path := fmt.Sprintf("%s/agents/%s/reassign", FleetAPI, a.ID)
 	statusCode, respBody, err := c.put(path, []byte(reqBody))
 	if err != nil {
 		return errors.Wrap(err, "could not assign policy to agent")
@@ -66,7 +66,7 @@ func (c *Client) AssignPolicyToAgent(a Agent, p Policy) error {
 
 func (c *Client) getTotalAgentForPolicy(p Policy) (int, error) {
 	kuery := url.QueryEscape(fmt.Sprintf("fleet-agents.policy_id:\"%s\"", p.ID))
-	path := fmt.Sprintf("agents?kuery=%s", kuery)
+	path := fmt.Sprintf("%s/agents?kuery=%s", FleetAPI, kuery)
 	statusCode, respBody, err := c.get(path)
 	if err != nil {
 		return 0, errors.Wrapf(err, "could not check agent status; API status code = %d; policy ID = %s; response body = %s", statusCode, p.ID, string(respBody))
@@ -94,7 +94,7 @@ func (c *Client) waitUntilPolicyAssigned(p Policy) error {
 	var assigned bool
 	for !assigned {
 		kuery := url.QueryEscape(fmt.Sprintf("fleet-agents.policy_id:\"%s\" and fleet-agents.policy_revision:*", p.ID))
-		path := fmt.Sprintf("agents?kuery=%s", kuery)
+		path := fmt.Sprintf("%s/agents?kuery=%s", FleetAPI, kuery)
 		statusCode, respBody, err := c.get(path)
 		if err != nil {
 			return errors.Wrapf(err, "could not check agent status; API status code = %d; policy ID = %s; response body = %s", statusCode, p.ID, string(respBody))
