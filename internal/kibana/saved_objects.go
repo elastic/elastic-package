@@ -7,8 +7,6 @@ package kibana
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"net/http"
 	"sort"
 	"strings"
 
@@ -93,25 +91,14 @@ func (c *Client) FindDashboards() (DashboardSavedObjects, error) {
 }
 
 func (c *Client) findDashboardsNextPage(page int) (*savedObjectsResponse, error) {
-	request, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s%s%d", c.host, fmt.Sprintf("/api/saved_objects/_find?type=dashboard&fields=title&per_page=%d&page=", findDashboardsPerPage), page), nil)
+	path := fmt.Sprintf("%s/_find?type=dashboard&fields=title&per_page=%d&page=%d", SavedObjectsAPI, findDashboardsPerPage, page)
+	statusCode, respBody, err := c.get(path)
 	if err != nil {
-		return nil, errors.Wrap(err, "building HTTP request failed")
-	}
-	request.SetBasicAuth(c.username, c.password)
-
-	response, err := http.DefaultClient.Do(request)
-	if err != nil {
-		return nil, errors.Wrap(err, "sending HTTP request failed")
-	}
-	defer response.Body.Close()
-
-	body, err := ioutil.ReadAll(response.Body)
-	if err != nil {
-		return nil, errors.Wrap(err, "reading response body failed")
+		return nil, errors.Wrapf(err, "could not find dashboards; API status code = %d; response body = %s", statusCode, string(respBody))
 	}
 
 	var r savedObjectsResponse
-	err = json.Unmarshal(body, &r)
+	err = json.Unmarshal(respBody, &r)
 	if err != nil {
 		return nil, errors.Wrap(err, "unmarshalling response failed")
 	}

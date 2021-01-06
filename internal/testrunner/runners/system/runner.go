@@ -7,7 +7,6 @@ package system
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -18,7 +17,7 @@ import (
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/fields"
 	"github.com/elastic/elastic-package/internal/install"
-	"github.com/elastic/elastic-package/internal/kibana/ingestmanager"
+	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/multierror"
 	"github.com/elastic/elastic-package/internal/packages"
@@ -39,8 +38,7 @@ const (
 )
 
 type runner struct {
-	options       testrunner.TestOptions
-	stackSettings stackSettings
+	options testrunner.TestOptions
 
 	// Execution order of following handlers is defined in runner.TearDown() method.
 	deleteTestPolicyHandler func() error
@@ -73,8 +71,6 @@ func (r *runner) String() string {
 // Run runs the system tests defined under the given folder
 func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, error) {
 	r.options = options
-	r.stackSettings = getStackSettingsFromEnv()
-
 	return r.run()
 }
 
@@ -180,25 +176,25 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 	}
 
 	// Step 2. Configure package (single data stream) via Ingest Manager APIs.
-	im, err := ingestmanager.NewClient(r.stackSettings.kibana.host, r.stackSettings.elasticsearch.username, r.stackSettings.elasticsearch.password)
+	kib, err := kibana.NewClient()
 	if err != nil {
 		return resultsWith(result, errors.Wrap(err, "could not create ingest manager client"))
 	}
 
 	logger.Debug("creating test policy...")
 	testTime := time.Now().Format("20060102T15:04:05Z")
-	p := ingestmanager.Policy{
+	p := kibana.Policy{
 		Name:        fmt.Sprintf("ep-test-system-%s-%s-%s", r.options.TestFolder.Package, r.options.TestFolder.DataStream, testTime),
 		Description: fmt.Sprintf("test policy created by elastic-package test system for data stream %s/%s", r.options.TestFolder.Package, r.options.TestFolder.DataStream),
 		Namespace:   "ep",
 	}
-	policy, err := im.CreatePolicy(p)
+	policy, err := kib.CreatePolicy(p)
 	if err != nil {
 		return resultsWith(result, errors.Wrap(err, "could not create test policy"))
 	}
 	r.deleteTestPolicyHandler = func() error {
 		logger.Debug("deleting test policy...")
-		if err := im.DeletePolicy(*policy); err != nil {
+		if err := kib.DeletePolicy(*policy); err != nil {
 			return errors.Wrap(err, "error cleaning up test policy")
 		}
 		return nil
@@ -211,12 +207,12 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 
 	logger.Debug("adding package data stream to test policy...")
 	ds := createPackageDatastream(*policy, *pkgManifest, *dataStreamManifest, *testConfig)
-	if err := im.AddPackageDataStreamToPolicy(ds); err != nil {
+	if err := kib.AddPackageDataStreamToPolicy(ds); err != nil {
 		return resultsWith(result, errors.Wrap(err, "could not add data stream config to policy"))
 	}
 
 	// Get enrolled agent ID
-	agents, err := im.ListAgents()
+	agents, err := kib.ListAgents()
 	if err != nil {
 		return resultsWith(result, errors.Wrap(err, "could not list agents"))
 	}
@@ -224,7 +220,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		return resultsWith(result, errors.New("no agents found"))
 	}
 	agent := agents[0]
-	origPolicy := ingestmanager.Policy{
+	origPolicy := kibana.Policy{
 		ID: agent.PolicyID,
 	}
 
@@ -251,12 +247,12 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 
 	// Assign policy to agent
 	logger.Debug("assigning package data stream to agent...")
-	if err := im.AssignPolicyToAgent(agent, *policy); err != nil {
+	if err := kib.AssignPolicyToAgent(agent, *policy); err != nil {
 		return resultsWith(result, errors.Wrap(err, "could not assign policy to agent"))
 	}
 	r.resetAgentPolicyHandler = func() error {
 		logger.Debug("reassigning original policy back to agent...")
-		if err := im.AssignPolicyToAgent(agent, origPolicy); err != nil {
+		if err := kib.AssignPolicyToAgent(agent, origPolicy); err != nil {
 			return errors.Wrap(err, "error reassigning original policy to agent")
 		}
 		return nil
@@ -335,34 +331,15 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 	return resultsWith(result, nil)
 }
 
-func getStackSettingsFromEnv() stackSettings {
-	s := stackSettings{}
-
-	s.elasticsearch.host = os.Getenv("ELASTIC_PACKAGE_ELASTICSEARCH_HOST")
-	if s.elasticsearch.host == "" {
-		s.elasticsearch.host = "http://localhost:9200"
-	}
-
-	s.elasticsearch.username = os.Getenv("ELASTIC_PACKAGE_ELASTICSEARCH_USERNAME")
-	s.elasticsearch.password = os.Getenv("ELASTIC_PACKAGE_ELASTICSEARCH_PASSWORD")
-
-	s.kibana.host = os.Getenv("ELASTIC_PACKAGE_KIBANA_HOST")
-	if s.kibana.host == "" {
-		s.kibana.host = "http://localhost:5601"
-	}
-
-	return s
-}
-
 func createPackageDatastream(
-	p ingestmanager.Policy,
+	p kibana.Policy,
 	pkg packages.PackageManifest,
 	ds packages.DataStreamManifest,
 	c testConfig,
-) ingestmanager.PackageDataStream {
+) kibana.PackageDataStream {
 	stream := ds.Streams[getDataStreamIndex(c.Input, ds)]
 	streamInput := stream.Input
-	r := ingestmanager.PackageDataStream{
+	r := kibana.PackageDataStream{
 		Name:      fmt.Sprintf("%s-%s", pkg.Name, ds.Name),
 		Namespace: "ep",
 		PolicyID:  p.ID,
@@ -373,18 +350,18 @@ func createPackageDatastream(
 	r.Package.Title = pkg.Title
 	r.Package.Version = pkg.Version
 
-	r.Inputs = []ingestmanager.Input{
+	r.Inputs = []kibana.Input{
 		{
 			Type:    streamInput,
 			Enabled: true,
 		},
 	}
 
-	streams := []ingestmanager.Stream{
+	streams := []kibana.Stream{
 		{
 			ID:      fmt.Sprintf("%s-%s.%s", streamInput, pkg.Name, ds.Name),
 			Enabled: true,
-			DataStream: ingestmanager.DataStream{
+			DataStream: kibana.DataStream{
 				Type:    ds.Type,
 				Dataset: fmt.Sprintf("%s.%s", pkg.Name, ds.Name),
 			},
@@ -392,7 +369,7 @@ func createPackageDatastream(
 	}
 
 	// Add dataStream-level vars
-	dsVars := ingestmanager.Vars{}
+	dsVars := kibana.Vars{}
 	for _, dsVar := range stream.Vars {
 		val := dsVar.Default
 
@@ -402,7 +379,7 @@ func createPackageDatastream(
 			val = cfgVar
 		}
 
-		dsVars[dsVar.Name] = ingestmanager.Var{
+		dsVars[dsVar.Name] = kibana.Var{
 			Type:  dsVar.Type,
 			Value: val,
 		}
@@ -411,7 +388,7 @@ func createPackageDatastream(
 	r.Inputs[0].Streams = streams
 
 	// Add package-level vars
-	pkgVars := ingestmanager.Vars{}
+	pkgVars := kibana.Vars{}
 	input := pkg.PolicyTemplates[0].FindInputByType(streamInput)
 	if input != nil {
 		for _, pkgVar := range input.Vars {
@@ -423,7 +400,7 @@ func createPackageDatastream(
 				val = cfgVar
 			}
 
-			pkgVars[pkgVar.Name] = ingestmanager.Var{
+			pkgVars[pkgVar.Name] = kibana.Var{
 				Type:  pkgVar.Type,
 				Value: val,
 			}
