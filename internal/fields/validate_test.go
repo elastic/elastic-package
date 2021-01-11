@@ -184,9 +184,6 @@ func Test_parseElementValue(t *testing.T) {
 
 		t.Run(test.key, func(t *testing.T) {
 			err := parseElementValue(test.key, test.definition, test.value)
-			if err != nil {
-				t.Log(err)
-			}
 			if test.fail {
 				require.Error(t, err)
 			} else {
