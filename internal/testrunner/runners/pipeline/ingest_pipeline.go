@@ -20,6 +20,7 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 
+	es "github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
@@ -144,26 +145,57 @@ func convertPipelineToJSON(pipelines []pipelineResource) ([]pipelineResource, er
 
 func installPipelinesInElasticsearch(esClient *elasticsearch.Client, pipelines []pipelineResource) error {
 	for _, pipeline := range pipelines {
-		r, err := esClient.API.Ingest.PutPipeline(pipeline.name, bytes.NewReader(pipeline.content))
-		if err != nil {
-			return errors.Wrapf(err, "PutPipeline API call failed (pipelineName: %s)", pipeline.name)
+		if err := installPipeline(esClient, pipeline); err != nil {
+			return err
 		}
+	}
+	return nil
+}
 
-		if r.StatusCode != 200 {
-			return fmt.Errorf("unexpected response status for PutPipeline (%d): %s", r.StatusCode, r.Status())
-		}
+func installPipeline(esClient *elasticsearch.Client, pipeline pipelineResource) error {
+	if err := putIngestPipeline(esClient, pipeline); err != nil {
+		return err
+	}
+	// Just to be sure the pipeline has been uploaded.
+	return getIngestPipeline(esClient, pipeline.name)
+}
 
-		// Just to be sure the pipeline has been uploaded
-		r, err = esClient.API.Ingest.GetPipeline(func(request *esapi.IngestGetPipelineRequest) {
-			request.PipelineID = pipeline.name
-		})
-		if err != nil {
-			return errors.Wrapf(err, "GetPipeline API call failed (pipelineName: %s)", pipeline.name)
-		}
+func putIngestPipeline(esClient *elasticsearch.Client, pipeline pipelineResource) error {
+	r, err := esClient.API.Ingest.PutPipeline(pipeline.name, bytes.NewReader(pipeline.content))
+	if err != nil {
+		return errors.Wrapf(err, "PutPipeline API call failed (pipelineName: %s)", pipeline.name)
+	}
+	defer r.Body.Close()
 
-		if r.StatusCode != 200 {
-			return fmt.Errorf("unexpected response status for GetPipeline (%d): %s", r.StatusCode, r.Status())
-		}
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return errors.Wrapf(err, "failed to read PutPipeline API response body (pipelineName: %s)", pipeline.name)
+	}
+
+	if r.StatusCode != 200 {
+		return errors.Wrapf(es.NewError(body), "unexpected response status for PutPipeline (%d): %s (pipelineName: %s)",
+			r.StatusCode, r.Status(), pipeline.name)
+	}
+	return nil
+}
+
+func getIngestPipeline(esClient *elasticsearch.Client, pipelineName string) error {
+	r, err := esClient.API.Ingest.GetPipeline(func(request *esapi.IngestGetPipelineRequest) {
+		request.PipelineID = pipelineName
+	})
+	if err != nil {
+		return errors.Wrapf(err, "GetPipeline API call failed (pipelineName: %s)", pipelineName)
+	}
+	defer r.Body.Close()
+
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return errors.Wrapf(err, "failed to read GetPipeline API response body (pipelineName: %s)", pipelineName)
+	}
+
+	if r.StatusCode != 200 {
+		return errors.Wrapf(es.NewError(body), "unexpected response status for GetPipeline (%d): %s (pipelineName: %s)",
+			r.StatusCode, r.Status(), pipelineName)
 	}
 	return nil
 }
@@ -201,13 +233,16 @@ func simulatePipelineProcessing(esClient *elasticsearch.Client, pipelineName str
 	if err != nil {
 		return nil, errors.Wrapf(err, "Simulate API call failed (pipelineName: %s)", pipelineName)
 	}
-
-	if r.StatusCode != 200 {
-		return nil, fmt.Errorf("unexpected response status for Simulate (%d): %s", r.StatusCode, r.Status())
-	}
+	defer r.Body.Close()
 
 	body, err := ioutil.ReadAll(r.Body)
-	defer r.Body.Close()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to read Simulate API response body")
+	}
+
+	if r.StatusCode != 200 {
+		return nil, errors.Wrapf(es.NewError(body), "unexpected response status for Simulate (%d): %s", r.StatusCode, r.Status())
+	}
 
 	var response simulatePipelineResponse
 	err = json.Unmarshal(body, &response)
