@@ -19,7 +19,7 @@ import (
 	"github.com/elastic/elastic-package/internal/testrunner/runners/system/servicedeployer"
 )
 
-const configFileName = "config.yml"
+const configFileName = "test-test-config.yml"
 
 type testConfig struct {
 	Input      string                       `config:"input"`
