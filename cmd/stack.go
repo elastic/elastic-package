@@ -57,6 +57,7 @@ func setupStackCommand() *cobra.Command {
 				return errors.Wrap(err, "booting up the stack failed")
 			}
 
+			cmd.Println("Remember to load stack environment variables using 'eval \"$(elastic-package stack shellinit)\"'.")
 			cmd.Println("Done")
 			return nil
 		},
