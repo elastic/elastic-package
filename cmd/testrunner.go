@@ -118,7 +118,7 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 
 		esClient, err := elasticsearch.Client()
 		if err != nil {
-			return errors.Wrap(err, "fetching Elasticsearch client instance failed")
+			return errors.Wrap(err, "can't create Elasticsearch client")
 		}
 
 		var results []testrunner.TestResult

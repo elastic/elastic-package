@@ -178,7 +178,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 	// Step 2. Configure package (single data stream) via Ingest Manager APIs.
 	kib, err := kibana.NewClient()
 	if err != nil {
-		return resultsWith(result, errors.Wrap(err, "could not create ingest manager client"))
+		return resultsWith(result, errors.Wrap(err, "can't create Kibana client"))
 	}
 
 	logger.Debug("creating test policy...")

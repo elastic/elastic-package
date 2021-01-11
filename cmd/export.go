@@ -44,7 +44,7 @@ func exportDashboardsCmd(cmd *cobra.Command, args []string) error {
 
 	kibanaClient, err := kibana.NewClient()
 	if err != nil {
-		return errors.Wrap(err, "creating Kibana client failed")
+		return errors.Wrap(err, "can't create Kibana client")
 	}
 
 	if len(dashboardIDs) == 0 {
