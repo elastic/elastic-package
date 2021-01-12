@@ -17,8 +17,6 @@ import (
 	"github.com/elastic/elastic-package/internal/stack"
 )
 
-const serviceLogsAgentDir = "/tmp/service_logs"
-
 // DockerComposeServiceDeployer knows how to deploy a service defined via
 // a Docker Compose file.
 type DockerComposeServiceDeployer struct {
@@ -58,19 +56,18 @@ func (r *DockerComposeServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedSer
 	if err != nil {
 		return nil, errors.Wrap(err, "removing service logs failed")
 	}
-	outCtxt.Logs.Folder.Agent = serviceLogsAgentDir
 
 	// Boot up service
+	serviceName := inCtxt.Name
 	opts := compose.CommandOptions{
 		Env:       []string{fmt.Sprintf("%s=%s", serviceLogsDirEnv, outCtxt.Logs.Folder.Local)},
-		ExtraArgs: []string{"--build", "-d"},
+		ExtraArgs: []string{"--build", "-d", serviceName},
 	}
 	if err := p.Up(opts); err != nil {
 		return nil, errors.Wrap(err, "could not boot up service using docker compose")
 	}
 
 	// Build service container name
-	serviceName := inCtxt.Name
 	serviceContainer := fmt.Sprintf("%s_%s_1", service.project, serviceName)
 	outCtxt.Hostname = serviceContainer
 

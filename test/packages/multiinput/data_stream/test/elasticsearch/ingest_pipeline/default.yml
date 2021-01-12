@@ -1,0 +1,12 @@
+---
+description: Test Pipeline
+
+processors:
+  # ECS event.ingested
+  - set:
+        field: event.ingested
+        value: '{{_ingest.timestamp}}'
+on_failure:
+  - append:
+        field: error.message
+        value: "{{ _ingest.on_failure_message }}"
