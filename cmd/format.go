@@ -13,7 +13,7 @@ import (
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
-const formatLongDescription = `Use format command to format the package files.
+const formatLongDescription = `Use this command to format the package files.
 
 The formatter supports JSON and YAML format, and skips "ingest_pipeline" directories as it's hard to correctly format Handlebars template files. Formatted files are being overwritten.
 
