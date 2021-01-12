@@ -21,7 +21,7 @@ const exportLongDescription = `Use this command to export assets relevant for th
 Context:
   package`
 
-const exportDashboardsLongDescription = `Use dashboards subcommand to export dashboards with referenced objects from the Kibana instance.
+const exportDashboardsLongDescription = `Use this command to export dashboards with referenced objects from the Kibana instance.
 
 Use this command to download selected dashboards and other associated saved objects from Kibana. This command adjusts the downloaded saved objects according to package naming conventions (prefixes, unique IDs) and writes them locally into folders corresponding to saved object types (dashboard, visualization, map, etc.).
 
