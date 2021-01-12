@@ -47,7 +47,7 @@ func BootUp(options Options) error {
 	fmt.Println("- built-in packages (package-storage:snapshot Docker image)")
 
 	if found {
-		fmt.Printf("- %s (copy of: %s)\n", stackPackagesDir, buildPackagesPath)
+		fmt.Printf("- %s\n", buildPackagesPath)
 	}
 
 	err = dockerComposeBuild(options)
