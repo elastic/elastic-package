@@ -20,7 +20,7 @@ import (
 	_ "github.com/elastic/elastic-package/internal/testrunner/runners" // register all test runners
 )
 
-const testLongDescription = `Use this command to run tests on a package. Currently, there are following types of tests available:
+const testLongDescription = `Use this command to run tests on a package. Currently, the following types of tests are available:
 
 Pipeline Tests
 These tests allow you to exercise any Ingest Node Pipelines defined by your packages.
