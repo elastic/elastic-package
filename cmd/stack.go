@@ -21,7 +21,7 @@ var availableServices = map[string]struct{}{
 	"package-registry": {},
 }
 
-const stackLongDescription = `Use stack subcommands to manage a Docker-based Elastic Stack consisting of Elasticsearch, Kibana, and the Package Registry.
+const stackLongDescription = `Use stack subcommands to manage a Docker-based Elastic Stack consisting of Elasticsearch, Kibana, Elastic Agent and the Package Registry.
 
 Context:
   global`
