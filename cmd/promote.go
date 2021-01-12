@@ -17,7 +17,7 @@ import (
 	"github.com/elastic/elastic-package/internal/promote"
 )
 
-const promoteLongDescription = `Use promote command to move packages between stages in package-storage.
+const promoteLongDescription = `Use this command to move packages between the snapshot, staging, and production stages of the package registry.
 
 This command is intended primarily for use by administrators.
 
