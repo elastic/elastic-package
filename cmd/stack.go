@@ -81,7 +81,7 @@ func setupStackCommand() *cobra.Command {
 	upCommand.Flags().BoolP(cobraext.DaemonModeFlagName, "d", false, cobraext.DaemonModeFlagDescription)
 	upCommand.Flags().StringSliceP(cobraext.StackServicesFlagName, "s", nil,
 		fmt.Sprintf(cobraext.StackServicesFlagDescription, strings.Join(availableServicesAsList(), ", ")))
-	upCommand.Flags().StringP(cobraext.StackVersionFlagName, "", stack.DefaultVersion, cobraext.StackVersionDescription)
+	upCommand.Flags().StringP(cobraext.StackVersionFlagName, "", stack.DefaultVersion, cobraext.StackVersionFlagDescription)
 
 	downCommand := &cobra.Command{
 		Use:   "down",
@@ -121,7 +121,7 @@ func setupStackCommand() *cobra.Command {
 			return nil
 		},
 	}
-	updateCommand.Flags().StringP(cobraext.StackVersionFlagName, "", stack.DefaultVersion, cobraext.StackVersionDescription)
+	updateCommand.Flags().StringP(cobraext.StackVersionFlagName, "", stack.DefaultVersion, cobraext.StackVersionFlagDescription)
 
 	shellInitCommand := &cobra.Command{
 		Use:   "shellinit",
@@ -136,6 +136,28 @@ func setupStackCommand() *cobra.Command {
 		},
 	}
 
+	dumpCommand := &cobra.Command{
+		Use:   "dump",
+		Short: "Dump stack data for debug purposes",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			output, err := cmd.Flags().GetString(cobraext.StackDumpOutputFlagName)
+			if err != nil {
+				return cobraext.FlagParsingError(err, cobraext.StackDumpOutputFlagName)
+			}
+
+			err = stack.Dump(stack.DumpOptions{
+				Output: output,
+			})
+			if err != nil {
+				return errors.Wrap(err, "dump failed")
+			}
+
+			cmd.Println("Done")
+			return nil
+		},
+	}
+	dumpCommand.Flags().StringP(cobraext.StackDumpOutputFlagName, "", "elastic-stack-dump", cobraext.StackDumpOutputFlagDescription)
+
 	cmd := &cobra.Command{
 		Use:   "stack",
 		Short: "Manage the Elastic stack",
@@ -145,7 +167,8 @@ func setupStackCommand() *cobra.Command {
 		upCommand,
 		downCommand,
 		updateCommand,
-		shellInitCommand)
+		shellInitCommand,
+		dumpCommand)
 	return cmd
 }
 

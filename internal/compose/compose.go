@@ -217,6 +217,20 @@ func (p *Project) Pull(opts CommandOptions) error {
 	return nil
 }
 
+// Logs returns service logs for the selected service in the Docker Compose project.
+func (p *Project) Logs(opts CommandOptions) ([]byte, error) {
+	args := p.baseArgs()
+	args = append(args, "logs")
+	args = append(args, opts.ExtraArgs...)
+	args = append(args, opts.Services...)
+
+	var b bytes.Buffer
+	if err := p.runDockerComposeCmd(dockerComposeOptions{args: args, env: opts.Env, stdout: &b}); err != nil {
+		return nil, err
+	}
+	return b.Bytes(), nil
+}
+
 func (p *Project) baseArgs() []string {
 	var args []string
 	for _, path := range p.composeFilePaths {
