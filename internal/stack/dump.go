@@ -13,6 +13,7 @@ import (
 
 var observedServices = []string{"elasticsearch", "elastic-agent", "kibana", "package-registry"}
 
+// DumpOptions defines dumping options for Elatic stack data.
 type DumpOptions struct {
 	Output string
 }
