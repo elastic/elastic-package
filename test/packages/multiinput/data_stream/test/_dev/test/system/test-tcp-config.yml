@@ -1,0 +1,7 @@
+input: tcp
+service: test-tcp
+vars: ~
+data_stream:
+  vars:
+    tcp_host: 0.0.0.0
+    tcp_port: 9999

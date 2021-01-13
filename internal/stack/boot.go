@@ -43,6 +43,13 @@ func BootUp(options Options) error {
 		}
 	}
 
+	fmt.Println("Packages from the following directories will be loaded into the package-registry:")
+	fmt.Println("- built-in packages (package-storage:snapshot Docker image)")
+
+	if found {
+		fmt.Printf("- %s\n", buildPackagesPath)
+	}
+
 	err = dockerComposeBuild(options)
 	if err != nil {
 		return errors.Wrap(err, "building docker images failed")
