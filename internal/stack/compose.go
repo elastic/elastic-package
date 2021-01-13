@@ -125,7 +125,7 @@ func dockerComposeLogs(serviceName string) ([]byte, error) {
 	opts := compose.CommandOptions{
 		// We set the STACK_VERSION env var here to avoid showing a warning to the user about
 		// it not being set.
-		Env: []string{fmt.Sprintf("STACK_VERSION=%s", DefaultVersion)},
+		Env:      []string{fmt.Sprintf("STACK_VERSION=%s", DefaultVersion)},
 		Services: []string{serviceName},
 	}
 

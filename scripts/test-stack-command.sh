@@ -5,6 +5,9 @@ set -euxo pipefail
 cleanup() {
   r=$?
 
+  # Dump stack logs
+  elastic-package stack dump -v --output build/elastic-stack-dump
+
   # Take down the stack
   elastic-package stack down -v
 

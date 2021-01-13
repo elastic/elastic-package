@@ -1,10 +1,17 @@
 package stack
 
 import (
-	"github.com/elastic/elastic-package/internal/logger"
-	"github.com/pkg/errors"
+	"fmt"
+	"io/ioutil"
 	"os"
+	"path/filepath"
+
+	"github.com/pkg/errors"
+
+	"github.com/elastic/elastic-package/internal/logger"
 )
+
+var observedServices = []string{"elasticsearch", "elastic-agent", "kibana", "package-registry"}
 
 type DumpOptions struct {
 	Output string
@@ -30,10 +37,26 @@ func dumpStackLogs(options DumpOptions) error {
 		return errors.Wrap(err, "can't remove output location")
 	}
 
-	err = os.MkdirAll(options.Output, 0755)
+	logsPath := filepath.Join(options.Output, "logs")
+	err = os.MkdirAll(logsPath, 0755)
 	if err != nil {
 		return errors.Wrap(err, "can't create output location")
 	}
 
+	for _, serviceName := range observedServices {
+		logger.Debugf("Dump stack logs for %s", serviceName)
 
+		serviceLogs, err := dockerComposeLogs(serviceName)
+		if err != nil {
+			logger.Errorf("can't fetch service logs (service: %s): %v", serviceName, err)
+			continue
+		}
+
+		err = ioutil.WriteFile(filepath.Join(logsPath, fmt.Sprintf("%s.log", serviceName)), serviceLogs, 0644)
+		if err != nil {
+			logger.Errorf("can't write service logs (service: %s): %v", serviceName, err)
+			continue
+		}
+	}
+	return nil
 }
