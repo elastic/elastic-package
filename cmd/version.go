@@ -10,11 +10,16 @@ import (
 	"github.com/elastic/elastic-package/internal/version"
 )
 
+const versionLongDescription = `Use this command to print the version of elastic-package that you have installed. This is especially useful when reporting bugs.
+
+Context:
+  global`
+
 func setupVersionCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "version",
 		Short: "Show application version",
-		Long:  "Use version command to show the application version.",
+		Long:  versionLongDescription,
 		RunE:  versionCommandAction,
 	}
 	return cmd

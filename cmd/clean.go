@@ -11,11 +11,18 @@ import (
 	"github.com/elastic/elastic-package/internal/cleanup"
 )
 
+const cleanLongDescription = `Use this command to clean resources used for building the package.
+
+The command will remove built package files (in build/), files needed for managing the development stack (in ~/.elastic-package/stack/development) and stack service logs (in ~/.elastic-package/tmp/service_logs).
+
+Context:
+  package`
+
 func setupCleanCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "clean",
 		Short: "Clean used resources",
-		Long:  "Use clean command to clean resources used for building the package.",
+		Long:  cleanLongDescription,
 		RunE:  cleanCommandAction,
 	}
 	return cmd
