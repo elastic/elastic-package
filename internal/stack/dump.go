@@ -23,14 +23,14 @@ type DumpOptions struct {
 }
 
 // Dump function exports stack data and dumps them as local artifacts, which can be used for debug purposes.
-func Dump(options DumpOptions) error {
+func Dump(options DumpOptions) (string, error) {
 	logger.Debugf("Dump Elastic stack data")
 
 	err := dumpStackLogs(options)
 	if err != nil {
-		return errors.Wrap(err, "can't dump Elastic stack logs")
+		return "", errors.Wrap(err, "can't dump Elastic stack logs")
 	}
-	return nil
+	return options.Output, nil
 }
 
 func dumpStackLogs(options DumpOptions) error {

@@ -147,12 +147,14 @@ func setupStackCommand() *cobra.Command {
 				return cobraext.FlagParsingError(err, cobraext.StackDumpOutputFlagName)
 			}
 
-			err = stack.Dump(stack.DumpOptions{
+			target, err := stack.Dump(stack.DumpOptions{
 				Output: output,
 			})
 			if err != nil {
 				return errors.Wrap(err, "dump failed")
 			}
+
+			cmd.Printf("Path to stack dump: %s\n", target)
 
 			cmd.Println("Done")
 			return nil
