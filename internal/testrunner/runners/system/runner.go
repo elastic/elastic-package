@@ -67,11 +67,6 @@ func (r *runner) CanRunPerDataStream() bool {
 	return true
 }
 
-// IsConfigRequired returns whether this test runner needs configuration.
-func (r *runner) IsConfigRequired() bool {
-	return true
-}
-
 // Run runs the system tests defined under the given folder
 func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, error) {
 	r.options = options

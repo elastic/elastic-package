@@ -47,7 +47,6 @@ type TestRunner interface {
 	TearDown() error
 
 	CanRunPerDataStream() bool
-	IsConfigRequired() bool
 }
 
 var runners = map[TestType]TestRunner{}
@@ -183,44 +182,18 @@ func Run(testType TestType, options TestOptions) ([]TestResult, error) {
 	return results, nil
 }
 
-// NoConfigTestRunners returns test runners that don't need configuration.
-func NoConfigTestRunners() []TestRunner {
-	noConfigRunners := make([]TestRunner, 0)
-	for _, runner := range runners {
-		if !runner.IsConfigRequired() {
-			noConfigRunners = append(noConfigRunners, runner)
-		}
-	}
-
-	return noConfigRunners
-}
-
 // TestRunners returns registered test runners.
 func TestRunners() map[TestType]TestRunner {
 	return runners
 }
 
+// findTestFoldersPaths can only be called for test runners that require tests to be defined
+// at the data stream level.
 func findTestFolderPaths(packageRootPath, dataStreamGlob, testTypeGlob string) ([]string, error) {
 	testFoldersGlob := filepath.Join(packageRootPath, "data_stream", dataStreamGlob, "_dev", "test", testTypeGlob)
 	paths, err := filepath.Glob(testFoldersGlob)
 	if err != nil {
 		return nil, errors.Wrap(err, "error finding test folders")
 	}
-
-	// Handle test types that don't need configuration folders.
-	dataStreamFoldersGlob := filepath.Join(packageRootPath, "data_stream", dataStreamGlob)
-	dataStreamFolderPaths, err := filepath.Glob(dataStreamFoldersGlob)
-	if err != nil {
-		return nil, errors.Wrap(err, "error finding data stream folders")
-	}
-	for _, noConfigRunner := range NoConfigTestRunners() {
-		t := noConfigRunner.Type()
-		if testTypeGlob == "*" || testTypeGlob == string(t) {
-			for _, p := range dataStreamFolderPaths {
-				paths = append(paths, filepath.Join(p, string(t)))
-			}
-		}
-	}
-
 	return paths, err
 }

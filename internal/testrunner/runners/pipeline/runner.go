@@ -59,11 +59,6 @@ func (r *runner) CanRunPerDataStream() bool {
 	return true
 }
 
-// IsConfigRequired returns whether this test runner needs configuration.
-func (r *runner) IsConfigRequired() bool {
-	return true
-}
-
 func (r *runner) run() ([]testrunner.TestResult, error) {
 	testCaseFiles, err := r.listTestCaseFiles()
 	if err != nil {
