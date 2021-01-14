@@ -50,7 +50,7 @@ Navigate to the package's root folder (or any sub-folder under it) and run the f
 elastic-package test asset
 ```
 
-Finally, when you are done running all pipeline tests, bring down the Elastic Stack. This corresponds to step 4 as described in the [_Conceptual process_](#Conceptual-process) section.
+Finally, when you are done running all asset loading tests, bring down the Elastic Stack. This corresponds to step 4 as described in the [_Conceptual process_](#Conceptual-process) section.
 
 ```
 elastic-package stack down
