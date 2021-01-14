@@ -294,7 +294,7 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	// Configure package (single data stream) via Ingest Manager APIs.
 	kib, err := kibana.NewClient()
 	if err != nil {
-		return result.withError(errors.Wrap(err, "could not create ingest manager client"))
+		return result.withError(errors.Wrap(err, "can't create Kibana client"))
 	}
 
 	logger.Debug("creating test policy...")

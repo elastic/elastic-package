@@ -65,6 +65,8 @@ func setupStackCommand() *cobra.Command {
 				return cobraext.FlagParsingError(err, cobraext.StackVersionFlagName)
 			}
 
+			cmd.Println(`Remember to load stack environment variables using 'eval "$(elastic-package stack shellinit)"'.`)
+
 			err = stack.BootUp(stack.Options{
 				DaemonMode:   daemonMode,
 				StackVersion: stackVersion,
