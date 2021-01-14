@@ -12,6 +12,8 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+
+	"github.com/elastic/elastic-package/internal/multierror"
 )
 
 // AssetType represents the type of package asset.
@@ -54,30 +56,35 @@ func LoadPackageAssets(pkgRootPath string) ([]Asset, error) {
 func loadKibanaAssets(pkgRootPath string) ([]Asset, error) {
 	kibanaAssetsFolderPath := filepath.Join(pkgRootPath, "kibana")
 
+	var errs multierror.Error
+
 	assets, err := loadFileBasedAssets(kibanaAssetsFolderPath, AssetTypeKibanaDashboard)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not load kibana dashboard assets")
+		errs = append(errs, errors.Wrap(err, "could not load kibana dashboard assets"))
 	}
 
 	a, err := loadFileBasedAssets(kibanaAssetsFolderPath, AssetTypeKibanaVisualization)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not load kibana visualization assets")
+		errs = append(errs, errors.Wrap(err, "could not load kibana visualization assets"))
+	} else {
+		assets = append(assets, a...)
 	}
-	assets = append(assets, a...)
 
 	a, err = loadFileBasedAssets(kibanaAssetsFolderPath, AssetTypeKibanaSavedSearch)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not load kibana saved search assets")
+		errs = append(errs, errors.Wrap(err, "could not load kibana saved search assets"))
+	} else {
+		assets = append(assets, a...)
 	}
-	assets = append(assets, a...)
 
 	a, err = loadFileBasedAssets(kibanaAssetsFolderPath, AssetTypeKibanaMap)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not load kibana map assets")
+		errs = append(errs, errors.Wrap(err, "could not load kibana map assets"))
+	} else {
+		assets = append(assets, a...)
 	}
-	assets = append(assets, a...)
 
-	return assets, nil
+	return assets, errs
 }
 
 func loadElasticsearchAssets(pkgRootPath string) ([]Asset, error) {
