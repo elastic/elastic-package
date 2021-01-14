@@ -111,6 +111,31 @@ func dockerComposeDown() error {
 	return nil
 }
 
+func dockerComposeLogs(serviceName string) ([]byte, error) {
+	stackDir, err := install.StackDir()
+	if err != nil {
+		return nil, errors.Wrap(err, "locating stack directory failed")
+	}
+
+	c, err := compose.NewProject(DockerComposeProjectName, filepath.Join(stackDir, snapshotDefinitionFile))
+	if err != nil {
+		return nil, errors.Wrap(err, "could not create docker compose project")
+	}
+
+	opts := compose.CommandOptions{
+		// We set the STACK_VERSION env var here to avoid showing a warning to the user about
+		// it not being set.
+		Env:      []string{fmt.Sprintf("STACK_VERSION=%s", DefaultVersion)},
+		Services: []string{serviceName},
+	}
+
+	out, err := c.Logs(opts)
+	if err != nil {
+		return nil, errors.Wrap(err, "running command failed")
+	}
+	return out, nil
+}
+
 func withDependentServices(services []string) []string {
 	for _, aService := range services {
 		if aService == "elastic-agent" {

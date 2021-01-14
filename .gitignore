@@ -22,3 +22,6 @@ elastic-package
 
 # Build directory
 /build
+
+# stack dump
+elastic-stack-dump/

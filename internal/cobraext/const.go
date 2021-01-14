@@ -39,6 +39,9 @@ const (
 	StackServicesFlagName        = "services"
 	StackServicesFlagDescription = "component services (comma-separated values: %s)"
 
-	StackVersionFlagName    = "version"
-	StackVersionDescription = "stack version"
+	StackVersionFlagName        = "version"
+	StackVersionFlagDescription = "stack version"
+
+	StackDumpOutputFlagName        = "output"
+	StackDumpOutputFlagDescription = "output location for the stack dump"
 )

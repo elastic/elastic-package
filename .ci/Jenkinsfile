@@ -49,6 +49,7 @@ pipeline {
         always {
           dir("${BASE_DIR}") {
             archiveArtifacts(allowEmptyArchive: true, artifacts: 'build/test-results/*.xml')
+            archiveArtifacts(allowEmptyArchive: true, artifacts: 'build/elastic-stack-dump/logs/*.log')
             junit(allowEmptyResults: false,
                 keepLongStdio: true,
                 testResults: "build/test-results/*.xml")

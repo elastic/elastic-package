@@ -18,7 +18,7 @@ import (
 // Elastic Stack containers.
 const DockerComposeProjectName = "elastic-package-stack"
 
-// BootUp method boots up the testing stack.
+// BootUp function boots up the testing stack.
 func BootUp(options Options) error {
 	buildPackagesPath, found, err := builder.FindBuildPackagesDirectory()
 	if err != nil {
@@ -62,7 +62,7 @@ func BootUp(options Options) error {
 	return nil
 }
 
-// TearDown method takes down the testing stack.
+// TearDown function takes down the testing stack.
 func TearDown() error {
 	err := dockerComposeDown()
 	if err != nil {
