@@ -43,5 +43,5 @@ const (
 	StackVersionFlagDescription = "stack version"
 
 	StackDumpOutputFlagName        = "output"
-	StackDumpOutputFlagDescription = "output location for "
+	StackDumpOutputFlagDescription = "output location for the stack dump"
 )
