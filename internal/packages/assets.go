@@ -84,7 +84,11 @@ func loadKibanaAssets(pkgRootPath string) ([]Asset, error) {
 		assets = append(assets, a...)
 	}
 
-	return assets, errs
+	if len(errs) > 0 {
+		return nil, errs
+	}
+
+	return assets, nil
 }
 
 func loadElasticsearchAssets(pkgRootPath string) ([]Asset, error) {
