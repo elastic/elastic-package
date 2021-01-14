@@ -21,6 +21,7 @@ cleanup() {
 
 trap cleanup EXIT
 
+OLDPWD=$PWD
 # Build/check packages
 for d in test/packages/*/; do
   (
