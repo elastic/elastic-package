@@ -28,6 +28,7 @@ const (
 	AssetTypeKibanaVisualization AssetType = "visualization"
 	AssetTypeKibanaDashboard     AssetType = "dashboard"
 	AssetTypeKibanaMap           AssetType = "map"
+	AssetTypeKibanaLens          AssetType = "lens"
 )
 
 // Asset represents a package asset to be loaded into Kibana or Elasticsearch.
@@ -56,31 +57,27 @@ func LoadPackageAssets(pkgRootPath string) ([]Asset, error) {
 func loadKibanaAssets(pkgRootPath string) ([]Asset, error) {
 	kibanaAssetsFolderPath := filepath.Join(pkgRootPath, "kibana")
 
-	var errs multierror.Error
+	var (
+		errs multierror.Error
 
-	assets, err := loadFileBasedAssets(kibanaAssetsFolderPath, AssetTypeKibanaDashboard)
-	if err != nil {
-		errs = append(errs, errors.Wrap(err, "could not load kibana dashboard assets"))
-	}
+		assetTypes = []AssetType{
+			AssetTypeKibanaDashboard,
+			AssetTypeKibanaVisualization,
+			AssetTypeKibanaSavedSearch,
+			AssetTypeKibanaMap,
+			AssetTypeKibanaLens,
+		}
 
-	a, err := loadFileBasedAssets(kibanaAssetsFolderPath, AssetTypeKibanaVisualization)
-	if err != nil {
-		errs = append(errs, errors.Wrap(err, "could not load kibana visualization assets"))
-	} else {
-		assets = append(assets, a...)
-	}
+		assets []Asset
+	)
 
-	a, err = loadFileBasedAssets(kibanaAssetsFolderPath, AssetTypeKibanaSavedSearch)
-	if err != nil {
-		errs = append(errs, errors.Wrap(err, "could not load kibana saved search assets"))
-	} else {
-		assets = append(assets, a...)
-	}
+	for _, assetType := range assetTypes {
+		a, err := loadFileBasedAssets(kibanaAssetsFolderPath, assetType)
+		if err != nil {
+			errs = append(errs, errors.Wrapf(err, "could not load kibana %s assets", assetType))
+			continue
+		}
 
-	a, err = loadFileBasedAssets(kibanaAssetsFolderPath, AssetTypeKibanaMap)
-	if err != nil {
-		errs = append(errs, errors.Wrap(err, "could not load kibana map assets"))
-	} else {
 		assets = append(assets, a...)
 	}
 
