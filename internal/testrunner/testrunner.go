@@ -80,6 +80,9 @@ type TestResult struct {
 	// of the error. An error is when the test cannot complete execution due
 	// to an unexpected runtime error in the test execution.
 	ErrorMsg string
+
+	// Flag to indicate that test was skipped.
+	Skipped bool
 }
 
 // TestFolder encapsulates the test folder path and names of the package + data stream
