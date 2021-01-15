@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net/url"
 	"os"
 	"path/filepath"
 
@@ -17,6 +18,10 @@ import (
 const configTestSuffix = "-config.json"
 
 type testConfig struct {
+	Skip *struct {
+		Reason string  `config:"reason"`
+		Link   url.URL `config:"url"`
+	} `config:"skip"`
 	Multiline     *multiline             `json:"multiline"`
 	Fields        map[string]interface{} `json:"fields"`
 	DynamicFields map[string]string      `json:"dynamic_fields"`
