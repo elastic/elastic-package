@@ -114,6 +114,9 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 		var testFolders []testrunner.TestFolder
 		if runner.CanRunPerDataStream() {
 			var dataStreams []string
+			// We check for the existence of the data streams flag before trying to
+			// parse it because if the root test command is run instead of one of the
+			// subcommands of test, the data streams flag will not be defined.
 			if cmd.Flags().Lookup(cobraext.DataStreamsFlagName) != nil {
 				dataStreams, err = cmd.Flags().GetStringSlice(cobraext.DataStreamsFlagName)
 				if err != nil {
