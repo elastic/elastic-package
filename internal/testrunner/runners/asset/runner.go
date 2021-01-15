@@ -15,7 +15,6 @@ import (
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
-	"github.com/elastic/elastic-package/internal/stack"
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
 
@@ -31,7 +30,6 @@ const (
 type runner struct {
 	testFolder      testrunner.TestFolder
 	packageRootPath string
-	stackSettings   stack.Settings
 	esClient        *es.Client
 
 	// Execution order of following handlers is defined in runner.tearDown() method.
@@ -58,7 +56,6 @@ func (r runner) CanRunPerDataStream() bool {
 func (r runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, error) {
 	r.testFolder = options.TestFolder
 	r.packageRootPath = options.PackageRootPath
-	r.stackSettings = stack.CurrentSettings()
 	r.esClient = options.ESClient
 
 	return r.run()
