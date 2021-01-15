@@ -113,10 +113,14 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 
 		var testFolders []testrunner.TestFolder
 		if runner.CanRunPerDataStream() {
-			dataStreams, err := cmd.Flags().GetStringSlice(cobraext.DataStreamsFlagName)
-			if err != nil {
-				return cobraext.FlagParsingError(err, cobraext.DataStreamsFlagName)
+			var dataStreams []string
+			if cmd.Flags().Lookup(cobraext.DataStreamsFlagName) != nil {
+				dataStreams, err = cmd.Flags().GetStringSlice(cobraext.DataStreamsFlagName)
+				if err != nil {
+					return cobraext.FlagParsingError(err, cobraext.DataStreamsFlagName)
+				}
 			}
+
 			testFolders, err = testrunner.FindTestFolders(packageRootPath, dataStreams, testType)
 			if err != nil {
 				return errors.Wrap(err, "unable to determine test folder paths")
