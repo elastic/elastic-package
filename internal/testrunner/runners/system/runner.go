@@ -142,6 +142,11 @@ func (rc *resultComposer) withSuccess() ([]testrunner.TestResult, error) {
 	return rc.withError(nil)
 }
 
+func (rc *resultComposer) withSkip() ([]testrunner.TestResult, error) {
+	rc.TestResult.Skipped = true
+	return rc.withError(nil)
+}
+
 func (r *runner) run() (results []testrunner.TestResult, err error) {
 	result := r.newResult("(init)")
 	serviceLogsDir, err := install.ServiceLogsDir()
@@ -162,7 +167,15 @@ func (r *runner) run() (results []testrunner.TestResult, err error) {
 		if err != nil {
 			return result.withError(errors.Wrapf(err, "unable to load system test case file '%s'", cfgFile))
 		}
-		partial, err := r.runTest(testConfig, ctxt)
+
+		var partial []testrunner.TestResult
+		if testConfig.Skip == nil {
+			partial, err = r.runTest(testConfig, ctxt)
+		} else {
+			result := r.newResult(testConfig.Name())
+			partial, err = result.withSkip()
+		}
+
 		results = append(results, partial...)
 		if err != nil {
 			return results, err

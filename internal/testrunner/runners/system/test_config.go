@@ -6,6 +6,7 @@ package system
 
 import (
 	"io/ioutil"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -28,6 +29,10 @@ type testConfig struct {
 	ServiceNotifySignal string                       `config:"service_notify_signal"` // Signal to send when the agent policy is applied.
 	Vars                map[string]packages.VarValue `config:"vars"`
 	DataStream          struct {
+		Skip *struct {
+			Reason string  `config:"reason"`
+			Link   url.URL `config:"url"`
+		} `config:"skip"`
 		Vars map[string]packages.VarValue `config:"vars"`
 	} `config:"data_stream"`
 
