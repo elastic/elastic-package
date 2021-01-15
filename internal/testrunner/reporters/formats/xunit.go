@@ -33,6 +33,7 @@ type testSuite struct {
 	NumTests    int    `xml:"tests,attr,omitempty"`
 	NumFailures int    `xml:"failures,attr,omitempty"`
 	NumErrors   int    `xml:"errors,attr,omitempty"`
+	NumSkipped  int    `xml:"skipped,attr,omitempty"`
 
 	Suites []testSuite `xml:"testsuite,omitempty"`
 	Cases  []testCase  `xml:"testcase,omitempty"`
@@ -50,7 +51,7 @@ func reportXUnitFormat(results []testrunner.TestResult) (string, error) {
 	// test type => package => data stream => test cases
 	tests := map[string]map[string]map[string][]testCase{}
 
-	var numTests, numFailures, numErrors int
+	var numTests, numFailures, numErrors, numSkipped int
 	for _, r := range results {
 		testType := string(r.TestType)
 		if _, exists := tests[testType]; !exists {
@@ -77,6 +78,10 @@ func reportXUnitFormat(results []testrunner.TestResult) (string, error) {
 
 		if r.ErrorMsg != "" {
 			numErrors++
+		}
+
+		if r.Skipped {
+			numSkipped++
 		}
 
 		name := fmt.Sprintf("%s test", r.TestType)
@@ -107,6 +112,7 @@ func reportXUnitFormat(results []testrunner.TestResult) (string, error) {
 			NumTests:    numTests,
 			NumFailures: numFailures,
 			NumErrors:   numErrors,
+			NumSkipped:  numSkipped,
 
 			Cases: make([]testCase, 0),
 		}
