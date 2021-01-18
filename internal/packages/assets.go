@@ -5,11 +5,11 @@
 package packages
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/pkg/errors"
 
@@ -165,15 +165,39 @@ func loadFileBasedAssets(kibanaAssetsFolderPath string, assetType AssetType) ([]
 			continue
 		}
 
-		name := f.Name()
-		id := strings.TrimSuffix(name, ".json")
+		assetPath := filepath.Join(assetsFolderPath, f.Name())
+		assetID, err := readAssetID(assetPath)
+		if err != nil {
+			return nil, errors.Wrapf(err, "can't read asset ID (path: %s)", assetPath)
+		}
 
 		asset := Asset{
-			ID:   id,
+			ID:   assetID,
 			Type: assetType,
 		}
 		assets = append(assets, asset)
 	}
 
 	return assets, nil
+}
+
+func readAssetID(assetPath string) (string, error) {
+	content, err := ioutil.ReadFile(assetPath)
+	if err != nil {
+		return "", errors.Wrap(err, "can't read file body")
+	}
+
+	assetBody := struct {
+		ID string `json:"id"`
+	}{}
+
+	err = json.Unmarshal(content, &assetBody)
+	if err != nil {
+		return "", errors.Wrap(err, "can't unmarshal asset")
+	}
+
+	if assetBody.ID == "" {
+		return "", errors.New("empty asset ID")
+	}
+	return assetBody.ID, nil
 }
