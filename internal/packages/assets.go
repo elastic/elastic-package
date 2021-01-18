@@ -5,11 +5,11 @@
 package packages
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/pkg/errors"
 
@@ -36,6 +36,11 @@ type Asset struct {
 	ID         string    `json:"id"`
 	Type       AssetType `json:"type"`
 	DataStream string
+}
+
+// String method returns a string representation of the asset
+func (asset Asset) String() string {
+	return fmt.Sprintf("%s (type: %s)", asset.ID, asset.Type)
 }
 
 // LoadPackageAssets parses the package contents and returns a list of assets defined by the package.
@@ -116,6 +121,12 @@ func loadElasticsearchAssets(pkgRootPath string) ([]Asset, error) {
 		assets = append(assets, asset)
 
 		if dsManifest.Type == dataStreamTypeLogs {
+			elasticsearchDirPath := filepath.Join(filepath.Dir(dsManifestPath), "elasticsearch", "ingest_pipeline")
+			pipelineFiles, _ := ioutil.ReadDir(elasticsearchDirPath)
+			if pipelineFiles == nil || len(pipelineFiles) == 0 {
+				continue // ingest pipeline is not defined
+			}
+
 			ingestPipelineName := dsManifest.GetPipelineNameOrDefault()
 			if ingestPipelineName == defaultPipelineName {
 				ingestPipelineName = fmt.Sprintf("%s-%s.%s-%s", dsManifest.Type, pkgManifest.Name, dsManifest.Name, pkgManifest.Version)
@@ -154,15 +165,39 @@ func loadFileBasedAssets(kibanaAssetsFolderPath string, assetType AssetType) ([]
 			continue
 		}
 
-		name := f.Name()
-		id := strings.TrimSuffix(name, ".json")
+		assetPath := filepath.Join(assetsFolderPath, f.Name())
+		assetID, err := readAssetID(assetPath)
+		if err != nil {
+			return nil, errors.Wrapf(err, "can't read asset ID (path: %s)", assetPath)
+		}
 
 		asset := Asset{
-			ID:   id,
+			ID:   assetID,
 			Type: assetType,
 		}
 		assets = append(assets, asset)
 	}
 
 	return assets, nil
+}
+
+func readAssetID(assetPath string) (string, error) {
+	content, err := ioutil.ReadFile(assetPath)
+	if err != nil {
+		return "", errors.Wrap(err, "can't read file body")
+	}
+
+	assetBody := struct {
+		ID string `json:"id"`
+	}{}
+
+	err = json.Unmarshal(content, &assetBody)
+	if err != nil {
+		return "", errors.Wrap(err, "can't unmarshal asset")
+	}
+
+	if assetBody.ID == "" {
+		return "", errors.New("empty asset ID")
+	}
+	return assetBody.ID, nil
 }
