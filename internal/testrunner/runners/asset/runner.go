@@ -7,6 +7,7 @@ package asset
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 	"time"
 
 	es "github.com/elastic/go-elasticsearch/v7"
@@ -125,7 +126,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 
 		if !findActualAsset(actualAssets, e) {
 			result.FailureMsg = "could not find expected asset"
-			result.FailureDetails = fmt.Sprintf("could not find expected asset with ID = %s and type = %s. Assets loaded = %v", e.ID, e.Type, actualAssets)
+			result.FailureDetails = fmt.Sprintf("could not find %s asset \"%s\". Assets loaded:\n%s", e.Type, e.ID, formatAssetsAsString(actualAssets))
 		}
 
 		results = append(results, result)
@@ -153,4 +154,12 @@ func findActualAsset(actualAssets []packages.Asset, expectedAsset packages.Asset
 	}
 
 	return false
+}
+
+func formatAssetsAsString(assets []packages.Asset) string {
+	var sb strings.Builder
+	for _, asset := range assets {
+		sb.WriteString(fmt.Sprintf("- %s\n", asset.String()))
+	}
+	return sb.String()
 }
