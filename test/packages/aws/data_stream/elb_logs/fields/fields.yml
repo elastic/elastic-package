@@ -5,7 +5,6 @@
       type: keyword
       description: |
         The name of the load balancer.
-      pattern: '^[a-zA-Z0-9\/-]+$'
     - name: type
       type: keyword
       description: |
