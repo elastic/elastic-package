@@ -45,6 +45,8 @@ type TestRunner interface {
 	// TearDown cleans up any test runner resources. It must be called
 	// after the test runner has finished executing.
 	TearDown() error
+
+	CanRunPerDataStream() bool
 }
 
 var runners = map[TestType]TestRunner{}
@@ -89,7 +91,7 @@ type TestFolder struct {
 }
 
 // FindTestFolders finds test folders for the given package and, optionally, test type and data streams
-func FindTestFolders(packageRootPath string, testType TestType, dataStreams []string) ([]TestFolder, error) {
+func FindTestFolders(packageRootPath string, dataStreams []string, testType TestType) ([]TestFolder, error) {
 	// Expected folder structure:
 	// <packageRootPath>/
 	//   data_stream/
@@ -170,7 +172,6 @@ func Run(testType TestType, options TestOptions) ([]TestResult, error) {
 			errs = append(errs, err, tdErr)
 			return nil, errors.Wrap(err, "could not complete test run and teardown test runner")
 		}
-
 		return nil, errors.Wrap(err, "could not complete test run")
 	}
 
@@ -186,6 +187,8 @@ func TestRunners() map[TestType]TestRunner {
 	return runners
 }
 
+// findTestFoldersPaths can only be called for test runners that require tests to be defined
+// at the data stream level.
 func findTestFolderPaths(packageRootPath, dataStreamGlob, testTypeGlob string) ([]string, error) {
 	testFoldersGlob := filepath.Join(packageRootPath, "data_stream", dataStreamGlob, "_dev", "test", testTypeGlob)
 	paths, err := filepath.Glob(testFoldersGlob)

@@ -51,17 +51,6 @@ type runner struct {
 	wipeDataStreamHandler   func() error
 }
 
-type stackSettings struct {
-	elasticsearch struct {
-		host     string
-		username string
-		password string
-	}
-	kibana struct {
-		host string
-	}
-}
-
 // Type returns the type of test that can be run by this test runner.
 func (r *runner) Type() testrunner.TestType {
 	return TestType
@@ -70,6 +59,12 @@ func (r *runner) Type() testrunner.TestType {
 // String returns the human-friendly name of the test runner.
 func (r *runner) String() string {
 	return "system"
+}
+
+// CanRunPerDataStream returns whether this test runner can run on individual
+// data streams within the package.
+func (r *runner) CanRunPerDataStream() bool {
+	return true
 }
 
 // Run runs the system tests defined under the given folder

@@ -6,6 +6,7 @@ package cmd
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -52,7 +53,6 @@ func setupTestCommand() *cobra.Command {
 
 	cmd.PersistentFlags().BoolP(cobraext.FailOnMissingFlagName, "m", false, cobraext.FailOnMissingFlagDescription)
 	cmd.PersistentFlags().BoolP(cobraext.GenerateTestResultFlagName, "g", false, cobraext.GenerateTestResultFlagDescription)
-	cmd.PersistentFlags().StringSliceP(cobraext.DataStreamsFlagName, "d", nil, cobraext.DataStreamsFlagDescription)
 	cmd.PersistentFlags().StringP(cobraext.ReportFormatFlagName, "", string(formats.ReportFormatHuman), cobraext.ReportFormatFlagDescription)
 	cmd.PersistentFlags().StringP(cobraext.ReportOutputFlagName, "", string(outputs.ReportOutputSTDOUT), cobraext.ReportOutputFlagDescription)
 	cmd.PersistentFlags().DurationP(cobraext.DeferCleanupFlagName, "", 0, cobraext.DeferCleanupFlagDescription)
@@ -66,6 +66,10 @@ func setupTestCommand() *cobra.Command {
 			Short: fmt.Sprintf("Run %s tests", runner.String()),
 			Long:  fmt.Sprintf("Run %s tests for the package.", runner.String()),
 			RunE:  action,
+		}
+
+		if runner.CanRunPerDataStream() {
+			testTypeCmd.Flags().StringSliceP(cobraext.DataStreamsFlagName, "d", nil, cobraext.DataStreamsFlagDescription)
 		}
 
 		cmd.AddCommand(testTypeCmd)
@@ -82,11 +86,6 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 		failOnMissing, err := cmd.Flags().GetBool(cobraext.FailOnMissingFlagName)
 		if err != nil {
 			return cobraext.FlagParsingError(err, cobraext.FailOnMissingFlagName)
-		}
-
-		dataStreams, err := cmd.Flags().GetStringSlice(cobraext.DataStreamsFlagName)
-		if err != nil {
-			return cobraext.FlagParsingError(err, cobraext.DataStreamsFlagName)
 		}
 
 		generateTestResult, err := cmd.Flags().GetBool(cobraext.GenerateTestResultFlagName)
@@ -112,16 +111,37 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 			return errors.Wrap(err, "locating package root failed")
 		}
 
-		testFolders, err := testrunner.FindTestFolders(packageRootPath, testType, dataStreams)
-		if err != nil {
-			return errors.Wrap(err, "unable to determine test folder paths")
-		}
-
-		if failOnMissing && len(testFolders) == 0 {
-			if len(dataStreams) > 0 {
-				return fmt.Errorf("no %s tests found for %s data stream(s)", testType, strings.Join(dataStreams, ","))
+		var testFolders []testrunner.TestFolder
+		if runner.CanRunPerDataStream() {
+			var dataStreams []string
+			// We check for the existence of the data streams flag before trying to
+			// parse it because if the root test command is run instead of one of the
+			// subcommands of test, the data streams flag will not be defined.
+			if cmd.Flags().Lookup(cobraext.DataStreamsFlagName) != nil {
+				dataStreams, err = cmd.Flags().GetStringSlice(cobraext.DataStreamsFlagName)
+				if err != nil {
+					return cobraext.FlagParsingError(err, cobraext.DataStreamsFlagName)
+				}
 			}
-			return fmt.Errorf("no %s tests found", testType)
+
+			testFolders, err = testrunner.FindTestFolders(packageRootPath, dataStreams, testType)
+			if err != nil {
+				return errors.Wrap(err, "unable to determine test folder paths")
+			}
+
+			if failOnMissing && len(testFolders) == 0 {
+				if len(dataStreams) > 0 {
+					return fmt.Errorf("no %s tests found for %s data stream(s)", testType, strings.Join(dataStreams, ","))
+				}
+				return fmt.Errorf("no %s tests found", testType)
+			}
+		} else {
+			_, pkg := filepath.Split(packageRootPath)
+			testFolders = []testrunner.TestFolder{
+				{
+					Package: pkg,
+				},
+			}
 		}
 
 		deferCleanup, err := cmd.Flags().GetDuration(cobraext.DeferCleanupFlagName)

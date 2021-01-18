@@ -53,6 +53,10 @@ func (c *Client) put(resourcePath string, body []byte) (int, []byte, error) {
 	return c.sendRequest(http.MethodPut, resourcePath, body)
 }
 
+func (c *Client) delete(resourcePath string) (int, []byte, error) {
+	return c.sendRequest(http.MethodDelete, resourcePath, nil)
+}
+
 func (c *Client) sendRequest(method, resourcePath string, body []byte) (int, []byte, error) {
 	reqBody := bytes.NewReader(body)
 	base, err := url.Parse(c.host)

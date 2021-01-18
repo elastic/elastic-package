@@ -20,6 +20,11 @@ const (
 
 	// DataStreamManifestFile is the name of the data stream's manifest file.
 	DataStreamManifestFile = "manifest.yml"
+
+	defaultPipelineName = "default"
+
+	dataStreamTypeLogs    = "logs"
+	dataStreamTypeMetrics = "metrics"
 )
 
 // VarValue represents a variable value as defined in a package or data stream
@@ -200,6 +205,15 @@ func ReadDataStreamManifest(path string) (*DataStreamManifest, error) {
 	return &m, nil
 }
 
+// GetPipelineNameOrDefault returns the name of the data stream's pipeline, if one is explicitly defined in the
+// data stream manifest. If not, the default pipeline name is returned.
+func (dsm *DataStreamManifest) GetPipelineNameOrDefault() string {
+	if dsm.Elasticsearch != nil && dsm.Elasticsearch.IngestPipeline != nil && dsm.Elasticsearch.IngestPipeline.Name != "" {
+		return dsm.Elasticsearch.IngestPipeline.Name
+	}
+	return defaultPipelineName
+}
+
 // FindInputByType returns the input for the provided type.
 func (pt *PolicyTemplate) FindInputByType(inputType string) *Input {
 	for _, input := range pt.Inputs {
@@ -223,5 +237,5 @@ func isDataStreamManifest(path string) (bool, error) {
 	if err != nil {
 		return false, errors.Wrapf(err, "reading package manifest failed (path: %s)", path)
 	}
-	return m.Title != "" && (m.Type == "logs" || m.Type == "metrics"), nil
+	return m.Title != "" && (m.Type == dataStreamTypeLogs || m.Type == dataStreamTypeMetrics), nil
 }

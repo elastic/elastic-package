@@ -1,7 +1,10 @@
 format_version: 1.0.0
 name: aws
 title: AWS
-version: 0.3.9
+# version is set to something very large to so this test package can
+# be installed in the package registry regardless of the version of
+# the actual apache package in the registry at any given time.
+version: 999.999.999
 license: basic
 description: AWS Integration
 type: integration
