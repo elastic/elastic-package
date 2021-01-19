@@ -1,0 +1,6 @@
+version: '2.3'
+services:
+  aws_sns:
+    build: .
+    volumes:
+      - ${TF_DIR}:/workspace
