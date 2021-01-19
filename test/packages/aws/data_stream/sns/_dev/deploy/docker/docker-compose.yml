@@ -2,5 +2,11 @@ version: '2.3'
 services:
   aws_sns:
     build: .
+    tty: true
+    environment:
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_PROFILE=${AWS_PROFILE}
+      - AWS_REGION=${AWS_REGION:-us-east-1}
     volumes:
-      - ${TF_DIR}:/workspace
+      - ${TF_DIR}:/stage

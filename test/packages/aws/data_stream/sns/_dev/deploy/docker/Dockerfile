@@ -1,6 +1,10 @@
-ARG SERVICE_VERSION=${SERVICE_VERSION:-2.4.20}
-FROM httpd:$SERVICE_VERSION
-RUN sed -i "/jessie-updates/d" /etc/apt/sources.list
-RUN apt-get update && apt-get install -y curl
-HEALTHCHECK --interval=1s --retries=90 CMD curl -f http://localhost
-COPY ./httpd.conf /usr/local/apache2/conf/httpd.conf
+FROM hashicorp/terraform:light
+
+ENV TF_IN_AUTOMATION=true
+
+HEALTHCHECK --timeout=3s CMD sh -c "[ -f /tmp/tf-applied ]"
+
+ADD run.sh /
+
+WORKDIR /workspace
+ENTRYPOINT sh /run.sh
