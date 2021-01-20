@@ -1,6 +1,0 @@
-FROM hashicorp/terraform:light
-ENV TF_IN_AUTOMATION=true
-HEALTHCHECK --timeout=3s CMD sh -c "[ -f /tmp/tf-applied ]"
-ADD run.sh /
-WORKDIR /workspace
-ENTRYPOINT sh /run.sh
