@@ -27,7 +27,10 @@ require (
 	github.com/stretchr/testify v1.6.1
 	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
 	golang.org/x/crypto v0.0.0-20200820211705-5c72a883971a // indirect
+	golang.org/x/net v0.0.0-20201021035429-f5854403a974 // indirect
 	golang.org/x/oauth2 v0.0.0-20200902213428-5d25da1a8d43
 	golang.org/x/sys v0.0.0-20210119212857-b64e53b001e4 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20200615113413-eeeca48fe776
 )
+
+replace github.com/elastic/package-spec/code/go => github.com/mtojek/package-spec/code/go v0.0.0-20210120110240-1a9cec67766e
