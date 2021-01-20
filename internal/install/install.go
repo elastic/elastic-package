@@ -19,6 +19,8 @@ const (
 	packagesDir       = "development"
 	temporaryDir      = "tmp"
 	deployerDir       = "deployer"
+
+	terraformDeployerYmlFile = "terraform-deployer.yml"
 )
 
 var (
@@ -96,6 +98,20 @@ func ServiceLogsDir() (string, error) {
 	return filepath.Join(configurationDir, serviceLogsDir), nil
 }
 
+func ServiceDeployerComposeFile(deployerName string) (string, error) {
+	configurationDir, err := configurationDir()
+	if err != nil {
+		return "", errors.Wrap(err, "locating configuration directory failed")
+	}
+
+	switch deployerName {
+	case "terraform":
+		return filepath.Join(configurationDir, terraformDeployerDir, terraformDeployerYml), nil
+	default:
+		return "", errors.New("unsupported service deployer")
+	}
+}
+
 func configurationDir() (string, error) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -153,7 +169,7 @@ func writeDeployerResources(elasticPackagePath string) error {
 		return errors.Wrapf(err, "creating directory failed (path: %s)", terraformDeployer)
 	}
 
-	err = writeStaticResource(err, filepath.Join(terraformDeployer, "terraform-deployer.yml"), terraformDeployerYml)
+	err = writeStaticResource(err, filepath.Join(terraformDeployer, terraformDeployerYmlFile), terraformDeployerYml)
 	err = writeStaticResource(err, filepath.Join(terraformDeployer, "Dockerfile"), terraformDeployerDockerfile)
 	err = writeStaticResource(err, filepath.Join(terraformDeployer, "run.sh"), terraformDeployerRun)
 	if err != nil {

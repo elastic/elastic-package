@@ -43,6 +43,12 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 	if _, err := os.Stat(dockerComposeYMLPath); err == nil {
 		return NewDockerComposeServiceDeployer(dockerComposeYMLPath)
 	}
+
+	// Is the service defined using Terraform definition files?
+	terraformDirPath := filepath.Join(devDeployPath, "tf")
+	if _, err := os.Stat(terraformDirPath); err == nil {
+		return NewTerraformServiceDeployer(terraformDirPath)
+	}
 	return nil, ErrNotFound
 }
 
