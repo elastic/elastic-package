@@ -18,10 +18,12 @@ const (
 	stackDir          = "stack"
 	packagesDir       = "development"
 	temporaryDir      = "tmp"
+	deployerDir       = "deployer"
 )
 
 var (
-	serviceLogsDir = filepath.Join(temporaryDir, "service_logs")
+	serviceLogsDir       = filepath.Join(temporaryDir, "service_logs")
+	terraformDeployerDir = filepath.Join(deployerDir, "terraform")
 )
 
 const versionFilename = "version"
@@ -50,7 +52,12 @@ func EnsureInstalled() error {
 
 	err = writeStackResources(elasticPackagePath)
 	if err != nil {
-		return errors.Wrap(err, "writing static resources failed")
+		return errors.Wrap(err, "writing stack resources failed")
+	}
+
+	err = writeDeployerResources(elasticPackagePath)
+	if err != nil {
+		return errors.Wrap(err, "writing deployer resources failed")
 	}
 
 	if err := createServiceLogsDir(elasticPackagePath); err != nil {
@@ -126,13 +133,29 @@ func writeStackResources(elasticPackagePath string) error {
 	packagesPath := filepath.Join(stackPath, packagesDir)
 	err := os.MkdirAll(packagesPath, 0755)
 	if err != nil {
-		return errors.Wrapf(err, "creating directory failed (path: %s)", elasticPackagePath)
+		return errors.Wrapf(err, "creating directory failed (path: %s)", packagesPath)
 	}
 
 	err = writeStaticResource(err, filepath.Join(stackPath, "kibana.config.yml"), kibanaConfigYml)
 	err = writeStaticResource(err, filepath.Join(stackPath, "snapshot.yml"), snapshotYml)
 	err = writeStaticResource(err, filepath.Join(stackPath, "package-registry.config.yml"), packageRegistryConfigYml)
 	err = writeStaticResource(err, filepath.Join(stackPath, "Dockerfile.package-registry"), packageRegistryDockerfile)
+	if err != nil {
+		return errors.Wrap(err, "writing static resource failed")
+	}
+	return nil
+}
+
+func writeDeployerResources(elasticPackagePath string) error {
+	terraformDeployer := filepath.Join(elasticPackagePath, terraformDeployerDir)
+	err := os.MkdirAll(terraformDeployer, 0755)
+	if err != nil {
+		return errors.Wrapf(err, "creating directory failed (path: %s)", terraformDeployer)
+	}
+
+	err = writeStaticResource(err, filepath.Join(terraformDeployer, "terraform-deployer.yml"), terraformDeployerYml)
+	err = writeStaticResource(err, filepath.Join(terraformDeployer, "Dockerfile"), terraformDeployerDockerfile)
+	err = writeStaticResource(err, filepath.Join(terraformDeployer, "run.sh"), terraformDeployerRun)
 	if err != nil {
 		return errors.Wrap(err, "writing static resource failed")
 	}
