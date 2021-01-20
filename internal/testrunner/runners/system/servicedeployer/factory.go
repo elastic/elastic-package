@@ -5,6 +5,7 @@
 package servicedeployer
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -13,7 +14,7 @@ import (
 	"github.com/elastic/elastic-package/internal/logger"
 )
 
-const devDir = "_dev"
+const devDeployDir = "_dev/deploy"
 
 var (
 	// ErrNotFound is returned when the appropriate service runner for a package
@@ -30,36 +31,36 @@ type FactoryOptions struct {
 // Factory chooses the appropriate service runner for the given data stream, depending
 // on service configuration files defined in the package or data stream.
 func Factory(options FactoryOptions) (ServiceDeployer, error) {
-	devPath, err := findDevPath(options)
+	devDeployPath, err := findDevDeployPath(options)
 	if err != nil {
-		logger.Errorf("can't find _dev directory")
+		logger.Errorf("can't find _dev/deploy directory")
 		return nil, ErrNotFound
 	}
+	fmt.Println(devDeployPath)
 
 	// Is the service defined using a docker compose configuration file?
-	dockerComposeYMLPath := filepath.Join(devPath, "deploy", "docker", "docker-compose.yml")
+	dockerComposeYMLPath := filepath.Join(devDeployPath, "docker", "docker-compose.yml")
 	if _, err := os.Stat(dockerComposeYMLPath); err == nil {
 		return NewDockerComposeServiceDeployer(dockerComposeYMLPath)
 	}
-
 	return nil, ErrNotFound
 }
 
-func findDevPath(options FactoryOptions) (string, error) {
-	dataStreamDevPath := filepath.Join(options.DataStreamRootPath, devDir)
-	_, err := os.Stat(dataStreamDevPath)
+func findDevDeployPath(options FactoryOptions) (string, error) {
+	dataStreamDevDeployPath := filepath.Join(options.DataStreamRootPath, devDeployDir)
+	_, err := os.Stat(dataStreamDevDeployPath)
 	if err == nil {
-		return dataStreamDevPath, nil
+		return dataStreamDevDeployPath, nil
 	} else if !os.IsNotExist(err) {
-		return "", errors.Wrapf(err, "stat failed (path: %s)", dataStreamDevPath)
+		return "", errors.Wrapf(err, "stat failed (path: %s)", dataStreamDevDeployPath)
 	}
 
-	packageDevPath := filepath.Join(options.PackageRootPath, devDir)
-	_, err = os.Stat(packageDevPath)
+	packageDevDeployPath := filepath.Join(options.PackageRootPath, devDeployDir)
+	_, err = os.Stat(packageDevDeployPath)
 	if err == nil {
-		return packageDevPath, nil
+		return packageDevDeployPath, nil
 	} else if !os.IsNotExist(err) {
-		return "", errors.Wrapf(err, "stat failed (path: %s)", packageDevPath)
+		return "", errors.Wrapf(err, "stat failed (path: %s)", packageDevDeployPath)
 	}
 	return "", errors.New("_dev directory doesn't exist")
 }
