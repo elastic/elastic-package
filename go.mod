@@ -8,6 +8,7 @@ require (
 	github.com/aymerick/raymond v2.0.2+incompatible
 	github.com/cespare/xxhash/v2 v2.1.1
 	github.com/elastic/go-elasticsearch/v7 v7.9.0
+	github.com/elastic/go-licenser v0.3.1
 	github.com/elastic/go-ucfg v0.8.3
 	github.com/elastic/package-spec/code/go v0.0.0-20210111200056-23a4cfe4f518
 	github.com/go-git/go-billy/v5 v5.0.0
@@ -27,9 +28,9 @@ require (
 	github.com/stretchr/testify v1.6.1
 	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
 	golang.org/x/crypto v0.0.0-20200820211705-5c72a883971a // indirect
-	golang.org/x/net v0.0.0-20201021035429-f5854403a974 // indirect
+	golang.org/x/lint v0.0.0-20201208152925-83fdc39ff7b5
 	golang.org/x/oauth2 v0.0.0-20200902213428-5d25da1a8d43
-	golang.org/x/sys v0.0.0-20210119212857-b64e53b001e4 // indirect
+	golang.org/x/tools v0.1.0
 	gopkg.in/yaml.v3 v3.0.0-20200615113413-eeeca48fe776
 )
 
