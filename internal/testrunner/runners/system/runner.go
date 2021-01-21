@@ -389,7 +389,7 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	logger.Debug("checking for expected data in data stream...")
 	passed, err := waitUntilTrue(r.hasNumDocs(dataStream, fieldsValidator, func(n int) bool {
 		return n > 0
-	}), 2*time.Minute)
+	}), 10*time.Minute)
 
 	if err != nil {
 		return result.withError(err)
