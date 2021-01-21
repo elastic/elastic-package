@@ -4,7 +4,10 @@
 
 package servicedeployer
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+)
 
 const (
 	awsAccessKeyID     = "AWS_ACCESS_KEY_ID"
@@ -13,12 +16,23 @@ const (
 	awsRegion          = "AWS_REGION"
 )
 
-func buildTerraformEnvironmentVars(ctxt ServiceContext) ([]string, error) {
-	var vars []string
-	vars = append(vars, fmt.Sprintf("%s=%s", serviceLogsDirEnv, ctxt.Logs.Folder.Local))
+func buildTerraformExecutorEnvironment(ctxt ServiceContext) []string {
+	vars := map[string]string{}
+	vars[serviceLogsDirEnv] = ctxt.Logs.Folder.Local
+	if os.Getenv(awsAccessKeyID) != "" && os.Getenv(awsSecretAccessKey) != "" {
+		vars[awsAccessKeyID] = os.Getenv(awsAccessKeyID)
+		vars[awsSecretAccessKey] = os.Getenv(awsSecretAccessKey)
+	} else if os.Getenv(awsProfile) != "" {
+		vars[awsProfile] = os.Getenv(awsProfile)
+	}
 
-	// TODO load vars
-	// TODO safe cmd prints
+	if os.Getenv(awsRegion) != "" {
+		vars[awsRegion] = os.Getenv(awsRegion)
+	}
 
-	return vars, nil
+	var pairs []string
+	for k, v := range vars {
+		pairs = append(pairs, fmt.Sprintf("%s=%s", k, v))
+	}
+	return pairs
 }

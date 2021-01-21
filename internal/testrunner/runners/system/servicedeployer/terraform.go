@@ -53,14 +53,10 @@ func (t TerraformServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedService,
 	}
 
 	// Boot up service
-	environmentVars, err := buildTerraformEnvironmentVars(inCtxt)
-	if err != nil {
-		return nil, errors.Wrap(err, "can't build environment variables")
-	}
-
+	tfEnvironment := buildTerraformExecutorEnvironment(inCtxt)
 	serviceName := inCtxt.Name
 	opts := compose.CommandOptions{
-		Env:       environmentVars,
+		Env:       tfEnvironment,
 		ExtraArgs: []string{"--build", "-d"},
 	}
 	if err := p.Up(opts); err != nil {
