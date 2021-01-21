@@ -52,8 +52,9 @@ func (sc *ServiceContext) Aliases() map[string]interface{} {
 	}
 
 	for k, v := range sc.CustomProperties {
+		var that = v
 		m[k] = func() interface{} { // wrap as function
-			return v
+			return that
 		}
 	}
 	return m
