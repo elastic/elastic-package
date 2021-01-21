@@ -18,16 +18,19 @@ import (
 	"github.com/elastic/elastic-package/internal/stack"
 )
 
+// TerraformServiceDeployer is responsible for deploying infrastructure described with Terraform definitions.
 type TerraformServiceDeployer struct {
 	definitionsDir string
 }
 
+// NewTerraformServiceDeployer creates an instance of TerraformServiceDeployer.
 func NewTerraformServiceDeployer(definitionsDir string) (*TerraformServiceDeployer, error) {
 	return &TerraformServiceDeployer{
 		definitionsDir: definitionsDir,
 	}, nil
 }
 
+// SetUp method boots up the Docker Compose with Terraform executor and mounted .tf definitions.
 func (t TerraformServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedService, error) {
 	logger.Debug("setting up service using Terraform service deployer")
 	terraformDeployerYml, err := install.ServiceDeployerComposeFile("terraform")
@@ -53,7 +56,7 @@ func (t TerraformServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedService,
 	}
 
 	// Boot up service
-	tfEnvironment := buildTerraformExecutorEnvironment(inCtxt)
+	tfEnvironment := t.buildTerraformExecutorEnvironment(inCtxt)
 	serviceName := inCtxt.Name
 	opts := compose.CommandOptions{
 		Env:       tfEnvironment,

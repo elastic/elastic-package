@@ -14,11 +14,15 @@ const (
 	awsSecretAccessKey = "AWS_SECRET_ACCESS_KEY"
 	awsProfile         = "AWS_PROFILE"
 	awsRegion          = "AWS_REGION"
+
+	tfDir = "TF_DIR"
 )
 
-func buildTerraformExecutorEnvironment(ctxt ServiceContext) []string {
+func (tsd *TerraformServiceDeployer) buildTerraformExecutorEnvironment(ctxt ServiceContext) []string {
 	vars := map[string]string{}
 	vars[serviceLogsDirEnv] = ctxt.Logs.Folder.Local
+	vars[tfDir] = tsd.definitionsDir
+
 	if os.Getenv(awsAccessKeyID) != "" && os.Getenv(awsSecretAccessKey) != "" {
 		vars[awsAccessKeyID] = os.Getenv(awsAccessKeyID)
 		vars[awsSecretAccessKey] = os.Getenv(awsSecretAccessKey)
