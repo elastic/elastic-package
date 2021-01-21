@@ -99,6 +99,9 @@ func (t TerraformServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedService,
 		outCtxt.Port = outCtxt.Ports[0]
 	}
 
+	// Set custom aliases, which may be used in agent policies.
+	outCtxt.CustomProperties = buildTerraformAliases()
+
 	service.ctxt = outCtxt
 	return &service, nil
 }

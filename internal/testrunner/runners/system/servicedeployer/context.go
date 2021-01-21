@@ -38,13 +38,23 @@ type ServiceContext struct {
 			Agent string
 		}
 	}
+
+	// CustomProperties store additional data used to boot up the service, e.g. AWS credentials.
+	CustomProperties map[string]interface{}
 }
 
 // Aliases method returned aliases to properties of the service context.
 func (sc *ServiceContext) Aliases() map[string]interface{} {
-	return map[string]interface{}{
+	m := map[string]interface{}{
 		serviceLogsDirEnv: func() interface{} {
 			return sc.Logs.Folder.Agent
 		},
 	}
+
+	for k, v := range sc.CustomProperties {
+		m[k] = func() interface{} { // wrap as function
+			return v
+		}
+	}
+	return m
 }

@@ -40,3 +40,12 @@ func (tsd *TerraformServiceDeployer) buildTerraformExecutorEnvironment(ctxt Serv
 	}
 	return pairs
 }
+
+func buildTerraformAliases() map[string]interface{} {
+	return map[string]interface{}{
+		awsAccessKeyID:     os.Getenv(awsAccessKeyID),
+		awsSecretAccessKey: os.Getenv(awsSecretAccessKey),
+		awsProfile:         os.Getenv(awsProfile),
+		awsRegion:          os.Getenv(awsRegion),
+	}
+}
