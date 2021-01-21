@@ -107,7 +107,7 @@ func ServiceDeployerComposeFile(deployerName string) (string, error) {
 
 	switch deployerName {
 	case "terraform":
-		return filepath.Join(configurationDir, terraformDeployerDir, terraformDeployerYml), nil
+		return filepath.Join(configurationDir, terraformDeployerDir, terraformDeployerYmlFile), nil
 	default:
 		return "", errors.New("unsupported service deployer")
 	}
