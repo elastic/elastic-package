@@ -35,7 +35,7 @@ func Build() (string, error) {
 	}
 
 	if !found {
-		logger.Debugf("Build directory doesn't exist (missing path: %s)", buildDir)
+		logger.Debug("Build directory doesn't exist")
 		return "", nil
 	}
 
