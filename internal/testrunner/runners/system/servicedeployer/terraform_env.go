@@ -18,7 +18,7 @@ const (
 	tfDir = "TF_DIR"
 )
 
-func (tsd *TerraformServiceDeployer) buildTerraformExecutorEnvironment(ctxt ServiceContext) []string {
+func (tsd TerraformServiceDeployer) buildTerraformExecutorEnvironment(ctxt ServiceContext) []string {
 	vars := map[string]string{}
 	vars[serviceLogsDirEnv] = ctxt.Logs.Folder.Local
 	vars[tfDir] = tsd.definitionsDir
