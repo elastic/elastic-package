@@ -2,6 +2,8 @@
 // or more contributor license agreements. Licensed under the Elastic License;
 // you may not use this file except in compliance with the Elastic License.
 
+// +build darwin linux
+
 package main
 
 import (
@@ -12,25 +14,35 @@ import (
 	"log"
 	"net"
 	"os"
+	"os/signal"
 	"syscall"
 	"time"
 )
 
 var (
-	dest  string
-	proto string
-	delay time.Duration
+	dest       string
+	proto      string
+	delay      time.Duration
+	waitSIGHUP bool
 )
 
 func init() {
 	flag.StringVar(&dest, "dest", "localhost:514", "destination tcp address")
 	flag.StringVar(&proto, "proto", "tcp", "protocol to use (tcp or udp)")
 	flag.DurationVar(&delay, "delay", 0, "delay between messages")
+	flag.BoolVar(&waitSIGHUP, "wait-sighup", false, "wait for SIGHUP before streaming")
 }
 
 func main() {
 	log.SetFlags(0)
 	flag.Parse()
+
+	if waitSIGHUP {
+		start := make(chan os.Signal, 1)
+		signal.Notify(start, syscall.SIGHUP)
+		log.Println("Waiting for SIGHUP before streaming...")
+		<-start
+	}
 
 	var err error
 	fmt.Fprintf(os.Stderr, "Using proto=%s dest=%s\n", proto, dest)

@@ -183,6 +183,20 @@ func (p *Project) Build(opts CommandOptions) error {
 	return nil
 }
 
+// Kill sends a signal to a service container.
+func (p *Project) Kill(opts CommandOptions) error {
+	args := p.baseArgs()
+	args = append(args, "kill")
+	args = append(args, opts.ExtraArgs...)
+	args = append(args, opts.Services...)
+
+	if err := p.runDockerComposeCmd(dockerComposeOptions{args: args, env: opts.Env}); err != nil {
+		return errors.Wrap(err, "running Docker Compose kill command failed")
+	}
+
+	return nil
+}
+
 // Config returns the combined configuration for a Docker Compose project.
 func (p *Project) Config(opts CommandOptions) (*Config, error) {
 	args := p.baseArgs()
