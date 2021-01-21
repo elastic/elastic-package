@@ -6,7 +6,7 @@ package install
 
 const terraformDeployerYml = `version: '2.3'
 services:
-  aws_sns:
+  terraform:
     build: .
     tty: true
     environment:

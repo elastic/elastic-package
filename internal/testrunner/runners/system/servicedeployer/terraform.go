@@ -67,7 +67,7 @@ func (t TerraformServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedService,
 	}
 
 	// Build service container name
-	serviceContainer := fmt.Sprintf("%s_%s_1", service.project, serviceName)
+	serviceContainer := fmt.Sprintf("%s_terraform_1", service.project)
 	outCtxt.Hostname = serviceContainer
 
 	// Connect service network with stack network (for the purpose of metrics collection)
