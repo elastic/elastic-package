@@ -88,7 +88,7 @@ func StackPackagesDir() (string, error) {
 	return filepath.Join(stackDir, packagesDir), nil
 }
 
-// ServiceLogsDir method returns the location of the directory to store service logs on the
+// ServiceLogsDir function returns the location of the directory to store service logs on the
 // local filesystem, i.e. the same one where elastic-package is installed.
 func ServiceLogsDir() (string, error) {
 	configurationDir, err := configurationDir()
@@ -98,6 +98,7 @@ func ServiceLogsDir() (string, error) {
 	return filepath.Join(configurationDir, serviceLogsDir), nil
 }
 
+// ServiceDeployerComposeFile function returns the path to the selected service deployer's Docker Compose definition.
 func ServiceDeployerComposeFile(deployerName string) (string, error) {
 	configurationDir, err := configurationDir()
 	if err != nil {
