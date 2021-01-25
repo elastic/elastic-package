@@ -3,4 +3,7 @@ vars:
   secret_access_key: '{{AWS_SECRET_ACCESS_KEY}}'
 data_stream:
   vars:
-    period: 10s
+    period: 60s
+    tags_filter: |
+      - name: Name
+      - value: "elastic-package-test"
