@@ -1,4 +1,4 @@
-variable "test_run_id" {
+variable "TEST_RUN_ID" {
   default = "detached"
 }
 
@@ -8,7 +8,7 @@ resource "aws_instance" "i" {
   ami           = data.aws_ami.latest-amzn.id
   instance_type = "t1.micro"
   tags = {
-    Name = "elastic-package-test-${var.test_run_id}"
+    Name = "elastic-package-test-${var.TEST_RUN_ID}"
   }
 }
 
