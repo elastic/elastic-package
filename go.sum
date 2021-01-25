@@ -90,6 +90,8 @@ github.com/elastic/go-ucfg v0.8.3 h1:leywnFjzr2QneZZWhE6uWd+QN/UpP0sdJRHYyuFvkeo
 github.com/elastic/go-ucfg v0.8.3/go.mod h1:iaiY0NBIYeasNgycLyTvhJftQlQEUO2hpF+FX0JKxzo=
 github.com/elastic/package-spec/code/go v0.0.0-20210111200056-23a4cfe4f518 h1:zMaYyFfVNHmyjPE/iqjWr/EbfHPVxv+GCXAIEhkKKM4=
 github.com/elastic/package-spec/code/go v0.0.0-20210111200056-23a4cfe4f518/go.mod h1:wjN5+18SNfDKwMmrT80XbcD6wpwig3XYYBUctkNmZjI=
+github.com/elastic/package-spec/code/go v0.0.0-20210125131944-e98a6af2135e h1:yKE0ydG2iSNrC132l6SYY+79H+hmrV7/IhsCSHeHVFM=
+github.com/elastic/package-spec/code/go v0.0.0-20210125131944-e98a6af2135e/go.mod h1:3W6uyBFCE4/NPcVPb+ZuoLJTMLu8BCTc+PRFDutSvfE=
 github.com/emirpasic/gods v1.12.0 h1:QAUIPSaCu4G+POclxeqb3F+WPpdKqFGlw36+yOzGlrg=
 github.com/emirpasic/gods v1.12.0/go.mod h1:YfzfFFoVP/catgzJb4IKIqXjX78Ha8FMSDh3ymbK86o=
 github.com/envoyproxy/go-control-plane v0.9.0/go.mod h1:YTl/9mNaCwkRvm6d1a2C3ymFceY/DCBVvsKhRF0iEA4=
