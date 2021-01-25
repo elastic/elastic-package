@@ -4,6 +4,6 @@ vars:
 data_stream:
   vars:
     period: 60s
-    tags_filter: |
+    tags_filter: |-
       - name: Name
         value: "elastic-package-test-{{TEST_RUN_ID}}"
