@@ -15,12 +15,14 @@ const (
 	awsProfile         = "AWS_PROFILE"
 	awsRegion          = "AWS_REGION"
 
-	tfDir = "TF_DIR"
+	tfDir       = "TF_DIR"
+	tfTestRunID = "TF_VAR_TEST_RUN_ID"
 )
 
 func (tsd TerraformServiceDeployer) buildTerraformExecutorEnvironment(ctxt ServiceContext) []string {
 	vars := map[string]string{}
 	vars[serviceLogsDirEnv] = ctxt.Logs.Folder.Local
+	vars[tfTestRunID] = ctxt.Test.RunID
 	vars[tfDir] = tsd.definitionsDir
 
 	if os.Getenv(awsAccessKeyID) != "" && os.Getenv(awsSecretAccessKey) != "" {

@@ -14,6 +14,7 @@ services:
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
       - AWS_PROFILE=${AWS_PROFILE}
       - AWS_REGION=${AWS_REGION:-us-east-1}
+      - TF_VAR_TEST_RUN_ID=${TF_VAR_TEST_RUN_ID:-detached}
     volumes:
       - ${TF_DIR}:/stage
 `

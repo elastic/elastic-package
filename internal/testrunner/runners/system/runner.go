@@ -7,6 +7,7 @@ package system
 import (
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"path/filepath"
 	"strings"
 	"time"
@@ -158,6 +159,7 @@ func (r *runner) run() (results []testrunner.TestResult, err error) {
 		ctxt.Name = r.options.TestFolder.Package
 		ctxt.Logs.Folder.Local = serviceLogsDir
 		ctxt.Logs.Folder.Agent = serviceLogsAgentDir
+		ctxt.Test.RunID = createTestRunID()
 		testConfig, err := newConfig(filepath.Join(r.options.TestFolder.Path, cfgFile), ctxt)
 		if err != nil {
 			return result.withError(errors.Wrapf(err, "unable to load system test case file '%s'", cfgFile))
@@ -172,6 +174,10 @@ func (r *runner) run() (results []testrunner.TestResult, err error) {
 		}
 	}
 	return results, nil
+}
+
+func createTestRunID() string {
+	return fmt.Sprintf("%d", rand.Intn(99999-10000)+10000)
 }
 
 func (r *runner) hasNumDocs(
