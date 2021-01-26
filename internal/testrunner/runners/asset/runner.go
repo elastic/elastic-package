@@ -78,6 +78,9 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 	}
 
 	if testConfig != nil && testConfig.Skip != nil {
+		logger.Warnf("skipping %s test for %s: %s (details: %s)",
+			TestType, r.testFolder.Package,
+			testConfig.Skip.Reason, testConfig.Skip.Link)
 		return result.WithSkip()
 	}
 

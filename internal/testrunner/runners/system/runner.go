@@ -142,6 +142,9 @@ func (r *runner) run() (results []testrunner.TestResult, err error) {
 		if testConfig.Skip == nil {
 			partial, err = r.runTest(testConfig, ctxt)
 		} else {
+			logger.Warnf("skipping %s test for %s/%s: %s (details: %s)",
+				TestType, r.options.TestFolder.Package, r.options.TestFolder.DataStream,
+				testConfig.Skip.Reason, testConfig.Skip.Link)
 			result := r.newResult(testConfig.Name())
 			partial, err = result.WithSkip()
 		}
