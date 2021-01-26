@@ -8,21 +8,19 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"net/url"
 	"os"
 	"path/filepath"
 
 	"github.com/pkg/errors"
+
+	"github.com/elastic/elastic-package/internal/testrunner"
 )
 
 const configTestSuffix = "-config.json"
 
 type testConfig struct {
 	// Skip allows this test to be skipped.
-	Skip *struct {
-		Reason string  `config:"reason"`
-		Link   url.URL `config:"url"`
-	} `config:"skip"`
+	Skip *testrunner.SkipConfig `config:"skip"`
 
 	Multiline     *multiline             `json:"multiline"`
 	Fields        map[string]interface{} `json:"fields"`

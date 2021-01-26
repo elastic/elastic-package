@@ -6,7 +6,6 @@ package system
 
 import (
 	"io/ioutil"
-	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -18,6 +17,7 @@ import (
 	"github.com/elastic/go-ucfg/yaml"
 
 	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/internal/testrunner"
 	"github.com/elastic/elastic-package/internal/testrunner/runners/system/servicedeployer"
 )
 
@@ -34,10 +34,7 @@ type testConfig struct {
 	} `config:"data_stream"`
 
 	// Skip allows this test to be skipped.
-	Skip *struct {
-		Reason string  `config:"reason"`
-		Link   url.URL `config:"url"`
-	} `config:"skip"`
+	Skip *testrunner.SkipConfig `config:"skip"`
 
 	// NumericKeywordFields holds a list of fields that have keyword
 	// type but can be ingested as numeric type.

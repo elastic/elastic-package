@@ -6,21 +6,19 @@ package asset
 
 import (
 	"io/ioutil"
-	"net/url"
 	"os"
 	"path/filepath"
 
 	"github.com/elastic/go-ucfg"
 	"github.com/elastic/go-ucfg/yaml"
 	"github.com/pkg/errors"
+
+	"github.com/elastic/elastic-package/internal/testrunner"
 )
 
 type testConfig struct {
 	// Skip allows this test to be skipped.
-	Skip *struct {
-		Reason string  `config:"reason"`
-		Link   url.URL `config:"url"`
-	} `config:"skip"`
+	Skip *testrunner.SkipConfig `config:"skip"`
 }
 
 func newConfig(assetTestFolderPath string) (*testConfig, error) {
