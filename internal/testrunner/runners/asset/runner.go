@@ -63,53 +63,39 @@ func (r runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, er
 }
 
 func (r *runner) run() ([]testrunner.TestResult, error) {
-	result := testrunner.TestResult{
-		TestType: TestType,
-		Package:  r.testFolder.Package,
-	}
-
-	startTime := time.Now()
-	resultsWith := func(tr testrunner.TestResult, err error) ([]testrunner.TestResult, error) {
-		tr.TimeElapsed = time.Now().Sub(startTime)
-		if err == nil {
-			return []testrunner.TestResult{tr}, nil
-		}
-
-		if tcf, ok := err.(testrunner.ErrTestCaseFailed); ok {
-			tr.FailureMsg = tcf.Reason
-			tr.FailureDetails = tcf.Details
-			return []testrunner.TestResult{tr}, nil
-		}
-
-		tr.ErrorMsg = err.Error()
-		return []testrunner.TestResult{tr}, err
+	result := testrunner.ResultComposer{
+		TestResult: testrunner.TestResult{
+			TestType: TestType,
+			Package:  r.testFolder.Package,
+		},
+		StartTime: time.Now(),
 	}
 
 	testConfig, err := newConfig(r.testFolder.Path)
 	if err != nil {
-		return resultsWith(result, errors.Wrap(err, "unable to load asset loading test case file"))
+		return result.WithError(errors.Wrap(err, "unable to load asset loading test case file"))
 
 	}
 
 	if testConfig.Skip != nil {
-		// TODO: skip test
+		return result.WithSkip()
 	}
 
 	pkgManifest, err := packages.ReadPackageManifest(filepath.Join(r.packageRootPath, packages.PackageManifestFile))
 	if err != nil {
-		return resultsWith(result, errors.Wrap(err, "reading package manifest failed"))
+		return result.WithError(errors.Wrap(err, "reading package manifest failed"))
 	}
 
 	// Install package
 	kib, err := kibana.NewClient()
 	if err != nil {
-		return resultsWith(result, errors.Wrap(err, "could not create kibana client"))
+		return result.WithError(errors.Wrap(err, "could not create kibana client"))
 	}
 
 	logger.Debug("installing package...")
 	actualAssets, err := kib.InstallPackage(*pkgManifest)
 	if err != nil {
-		return resultsWith(result, errors.Wrap(err, "could not install package"))
+		return result.WithError(errors.Wrap(err, "could not install package"))
 	}
 	r.removePackageHandler = func() error {
 		logger.Debug("removing package...")
@@ -121,26 +107,32 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 
 	expectedAssets, err := packages.LoadPackageAssets(r.packageRootPath)
 	if err != nil {
-		return resultsWith(result, errors.Wrap(err, "could not load expected package assets"))
+		return result.WithError(errors.Wrap(err, "could not load expected package assets"))
 	}
 
 	results := make([]testrunner.TestResult, 0, len(expectedAssets))
 	for _, e := range expectedAssets {
-		result := testrunner.TestResult{
-			Name:        fmt.Sprintf("%s %s is loaded", e.Type, e.ID),
-			Package:     pkgManifest.Name,
-			DataStream:  e.DataStream,
-			TestType:    TestType,
-			TimeElapsed: time.Now().Sub(startTime),
+		rc := testrunner.ResultComposer{
+			TestResult: testrunner.TestResult{
+				Name:       fmt.Sprintf("%s %s is loaded", e.Type, e.ID),
+				Package:    pkgManifest.Name,
+				DataStream: e.DataStream,
+				TestType:   TestType,
+			},
+			StartTime: time.Now(),
 		}
 
+		var r []testrunner.TestResult
 		if !findActualAsset(actualAssets, e) {
-			result.FailureMsg = "could not find expected asset"
-			result.FailureDetails = fmt.Sprintf("could not find %s asset \"%s\". Assets loaded:\n%s", e.Type, e.ID, formatAssetsAsString(actualAssets))
+			r, _ = rc.WithError(testrunner.ErrTestCaseFailed{
+				Reason:  "could not find expected asset",
+				Details: fmt.Sprintf("could not find %s asset \"%s\". Assets loaded:\n%s", e.Type, e.ID, formatAssetsAsString(actualAssets)),
+			})
+		} else {
+			r, _ = rc.WithSuccess()
 		}
 
-		results = append(results, result)
-		startTime = time.Now()
+		results = append(results, r[0])
 	}
 
 	return results, nil
