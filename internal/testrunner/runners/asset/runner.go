@@ -77,7 +77,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 
 	}
 
-	if testConfig.Skip != nil {
+	if testConfig != nil && testConfig.Skip != nil {
 		return result.WithSkip()
 	}
 
