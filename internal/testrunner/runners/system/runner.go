@@ -385,6 +385,13 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 		return nil
 	}
 
+	// Signal to the service that the agent is ready (policy is assigned).
+	if config.ServiceNotifySignal != "" {
+		if err = service.Signal(config.ServiceNotifySignal); err != nil {
+			return result.withError(errors.Wrap(err, "failed to notify test service"))
+		}
+	}
+
 	// (TODO in future) Optionally exercise service to generate load.
 	logger.Debug("checking for expected data in data stream...")
 	passed, err := waitUntilTrue(r.hasNumDocs(dataStream, fieldsValidator, func(n int) bool {

@@ -104,6 +104,21 @@ func (r *DockerComposeServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedSer
 	return &service, nil
 }
 
+// Signal sends a signal to the service.
+func (s *dockerComposeDeployedService) Signal(signal string) error {
+	p, err := compose.NewProject(s.project, s.ymlPath)
+	if err != nil {
+		return errors.Wrap(err, "could not create docker compose project for service")
+	}
+
+	opts := compose.CommandOptions{ExtraArgs: []string{"-s", signal}}
+	if s.ctxt.Name != "" {
+		opts.Services = append(opts.Services, s.ctxt.Name)
+	}
+
+	return errors.Wrapf(p.Kill(opts), "could not send %q signal", signal)
+}
+
 // TearDown tears down the service.
 func (s *dockerComposeDeployedService) TearDown() error {
 	logger.Debugf("tearing down service using docker compose runner")

@@ -23,10 +23,11 @@ import (
 var systemTestConfigFilePattern = regexp.MustCompile(`^test-([a-z0-9_.-]+)-config.yml$`)
 
 type testConfig struct {
-	Input      string                       `config:"input"`
-	Service    string                       `config:"service"`
-	Vars       map[string]packages.VarValue `config:"vars"`
-	DataStream struct {
+	Input               string                       `config:"input"`
+	Service             string                       `config:"service"`
+	ServiceNotifySignal string                       `config:"service_notify_signal"` // Signal to send when the agent policy is applied.
+	Vars                map[string]packages.VarValue `config:"vars"`
+	DataStream          struct {
 		Vars map[string]packages.VarValue `config:"vars"`
 	} `config:"data_stream"`
 
