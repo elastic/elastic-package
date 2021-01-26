@@ -99,6 +99,7 @@ func reportXUnitFormat(results []testrunner.TestResult) (string, error) {
 
 		c := testCase{
 			Name:          name,
+			Result:        result,
 			ClassName:     fmt.Sprintf("%s.%s", r.Package, r.DataStream),
 			TimeInSeconds: r.TimeElapsed.Seconds(),
 			Error:         r.ErrorMsg,
