@@ -20,6 +20,10 @@ func init() {
 const (
 	// ReportFormatXUnit reports test results in the xUnit format
 	ReportFormatXUnit testrunner.TestReportFormat = "xUnit"
+
+	resultPass = "Pass"
+	resultFail = "Fail"
+	resultSkip = "Skip"
 )
 
 type testSuites struct {
@@ -40,6 +44,7 @@ type testSuite struct {
 }
 type testCase struct {
 	Name          string  `xml:"name,attr"`
+	Result        string  `xml:"result,attr"`
 	ClassName     string  `xml:"classname,attr"`
 	TimeInSeconds float64 `xml:"time,attr"`
 
@@ -66,8 +71,10 @@ func reportXUnitFormat(results []testrunner.TestResult) (string, error) {
 			tests[testType][r.Package][r.DataStream] = make([]testCase, 0)
 		}
 
+		result := resultPass
 		var failure string
 		if r.FailureMsg != "" {
+			result = resultFail
 			failure = r.FailureMsg
 			numFailures++
 		}
@@ -81,6 +88,7 @@ func reportXUnitFormat(results []testrunner.TestResult) (string, error) {
 		}
 
 		if r.Skipped {
+			result = resultSkip
 			numSkipped++
 		}
 
