@@ -85,6 +85,36 @@ type TestResult struct {
 	Skipped bool
 }
 
+type ResultComposer struct {
+	TestResult
+	StartTime time.Time
+}
+
+func (rc *ResultComposer) WithError(err error) ([]TestResult, error) {
+	rc.TimeElapsed = time.Now().Sub(rc.StartTime)
+	if err == nil {
+		return []TestResult{rc.TestResult}, nil
+	}
+
+	if tcf, ok := err.(ErrTestCaseFailed); ok {
+		rc.FailureMsg += tcf.Reason
+		rc.FailureDetails += tcf.Details
+		return []TestResult{rc.TestResult}, nil
+	}
+
+	rc.ErrorMsg += err.Error()
+	return []TestResult{rc.TestResult}, err
+}
+
+func (rc *ResultComposer) WithSuccess() ([]TestResult, error) {
+	return rc.WithError(nil)
+}
+
+func (rc *ResultComposer) WithSkip() ([]TestResult, error) {
+	rc.TestResult.Skipped = true
+	return rc.WithError(nil)
+}
+
 // TestFolder encapsulates the test folder path and names of the package + data stream
 // to which the test folder belongs.
 type TestFolder struct {
