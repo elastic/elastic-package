@@ -73,7 +73,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 
 	testConfig, err := newConfig(r.testFolder.Path)
 	if err != nil {
-		return result.WithError(errors.Wrap(err, "unable to load asset loading test case file"))
+		return result.WithError(errors.Wrap(err, "unable to load asset loading test config file"))
 
 	}
 
