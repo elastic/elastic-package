@@ -110,7 +110,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		if tc.config.Skip != nil {
 			logger.Warnf("skipping %s test for %s/%s: %s (details: %s)",
 				TestType, r.options.TestFolder.Package, r.options.TestFolder.DataStream,
-				tc.config.Skip.Reason, tc.config.Skip.Link)
+				tc.config.Skip.Reason, tc.config.Skip.Link.String())
 
 			tr.Skipped = true
 			results = append(results, tr)
