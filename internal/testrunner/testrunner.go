@@ -85,11 +85,14 @@ type TestResult struct {
 	Skipped bool
 }
 
+// ResultComposer wraps a TestResult and provides convenience methods for
+// manipulating this TestResult.
 type ResultComposer struct {
 	TestResult
 	StartTime time.Time
 }
 
+// WithError sets an error on the test result wrapped by ResultComposer.
 func (rc *ResultComposer) WithError(err error) ([]TestResult, error) {
 	rc.TimeElapsed = time.Now().Sub(rc.StartTime)
 	if err == nil {
@@ -106,10 +109,12 @@ func (rc *ResultComposer) WithError(err error) ([]TestResult, error) {
 	return []TestResult{rc.TestResult}, err
 }
 
+// WithSuccess marks the test result wrapped by ResultComposer as successful.
 func (rc *ResultComposer) WithSuccess() ([]TestResult, error) {
 	return rc.WithError(nil)
 }
 
+// WithSkip marks the test result wrapped by ResultComposer as skipped.
 func (rc *ResultComposer) WithSkip() ([]TestResult, error) {
 	rc.TestResult.Skipped = true
 	return rc.WithError(nil)
