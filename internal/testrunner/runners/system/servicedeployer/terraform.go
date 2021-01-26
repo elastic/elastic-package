@@ -89,6 +89,7 @@ func (tsd TerraformServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedServic
 	}
 
 	s := serviceComposeConfig.Services[serviceName]
+	// TODO remove ports
 	outCtxt.Ports = make([]int, len(s.Ports))
 	for idx, port := range s.Ports {
 		outCtxt.Ports[idx] = port.InternalPort

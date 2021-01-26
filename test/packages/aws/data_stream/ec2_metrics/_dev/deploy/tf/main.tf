@@ -6,6 +6,7 @@ provider "aws" {}
 
 resource "aws_instance" "i" {
   ami           = data.aws_ami.latest-amzn.id
+  monitoring = true
   instance_type = "t1.micro"
   tags = {
     Name = "elastic-package-test-${var.TEST_RUN_ID}"
