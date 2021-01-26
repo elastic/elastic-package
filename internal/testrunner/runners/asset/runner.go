@@ -85,6 +85,16 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		return []testrunner.TestResult{tr}, err
 	}
 
+	testConfig, err := newConfig(r.testFolder.Path)
+	if err != nil {
+		return resultsWith(result, errors.Wrap(err, "unable to load asset loading test case file"))
+
+	}
+
+	if testConfig.Skip != nil {
+		// TODO: skip test
+	}
+
 	pkgManifest, err := packages.ReadPackageManifest(filepath.Join(r.packageRootPath, packages.PackageManifestFile))
 	if err != nil {
 		return resultsWith(result, errors.Wrap(err, "reading package manifest failed"))

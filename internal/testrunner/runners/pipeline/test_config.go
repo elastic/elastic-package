@@ -18,10 +18,12 @@ import (
 const configTestSuffix = "-config.json"
 
 type testConfig struct {
+	// Skip allows this test to be skipped.
 	Skip *struct {
 		Reason string  `config:"reason"`
 		Link   url.URL `config:"url"`
 	} `config:"skip"`
+
 	Multiline     *multiline             `json:"multiline"`
 	Fields        map[string]interface{} `json:"fields"`
 	DynamicFields map[string]string      `json:"dynamic_fields"`
