@@ -43,11 +43,13 @@ type testCase struct {
 	ClassName     string  `xml:"classname,attr"`
 	TimeInSeconds float64 `xml:"time,attr"`
 
-	Error   string `xml:"error,omitempty"`
-	Failure string `xml:"failure,omitempty"`
-	Skipped struct {
-		Message string `xml:"message,attr"`
-	} `xml:"skipped,omitempty"`
+	Error   string   `xml:"error,omitempty"`
+	Failure string   `xml:"failure,omitempty"`
+	Skipped *skipped `xml:"skipped,omitempty"`
+}
+
+type skipped struct {
+	Message string `xml:"message,attr"`
 }
 
 func reportXUnitFormat(results []testrunner.TestResult) (string, error) {
@@ -101,7 +103,7 @@ func reportXUnitFormat(results []testrunner.TestResult) (string, error) {
 		}
 
 		if r.Skipped {
-			c.Skipped.Message = "test"
+			c.Skipped = &skipped{""} // TODO: include reason?
 		}
 
 		numTests++
