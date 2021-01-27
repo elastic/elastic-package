@@ -5,5 +5,5 @@ data_stream:
   vars:
     period: 60s
     tags_filter: |-
-      - name: Name
+      - key: Name
         value: "elastic-package-test-{{TEST_RUN_ID}}"
