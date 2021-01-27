@@ -20,10 +20,6 @@ func init() {
 const (
 	// ReportFormatXUnit reports test results in the xUnit format
 	ReportFormatXUnit testrunner.TestReportFormat = "xUnit"
-
-	resultPass = "Pass"
-	resultFail = "Fail"
-	resultSkip = "Skip"
 )
 
 type testSuites struct {
@@ -44,12 +40,14 @@ type testSuite struct {
 }
 type testCase struct {
 	Name          string  `xml:"name,attr"`
-	Result        string  `xml:"result,attr"`
 	ClassName     string  `xml:"classname,attr"`
 	TimeInSeconds float64 `xml:"time,attr"`
 
 	Error   string `xml:"error,omitempty"`
 	Failure string `xml:"failure,omitempty"`
+	Skipped struct {
+		Message string `xml:"message,attr"`
+	} `xml:"skipped,omitempty"`
 }
 
 func reportXUnitFormat(results []testrunner.TestResult) (string, error) {
@@ -71,10 +69,8 @@ func reportXUnitFormat(results []testrunner.TestResult) (string, error) {
 			tests[testType][r.Package][r.DataStream] = make([]testCase, 0)
 		}
 
-		result := resultPass
 		var failure string
 		if r.FailureMsg != "" {
-			result = resultFail
 			failure = r.FailureMsg
 			numFailures++
 		}
@@ -88,7 +84,6 @@ func reportXUnitFormat(results []testrunner.TestResult) (string, error) {
 		}
 
 		if r.Skipped {
-			result = resultSkip
 			numSkipped++
 		}
 
@@ -99,12 +94,16 @@ func reportXUnitFormat(results []testrunner.TestResult) (string, error) {
 
 		c := testCase{
 			Name:          name,
-			Result:        result,
 			ClassName:     fmt.Sprintf("%s.%s", r.Package, r.DataStream),
 			TimeInSeconds: r.TimeElapsed.Seconds(),
 			Error:         r.ErrorMsg,
 			Failure:       failure,
 		}
+
+		if r.Skipped {
+			c.Skipped.Message = "test"
+		}
+
 		numTests++
 
 		tests[testType][r.Package][r.DataStream] = append(tests[testType][r.Package][r.DataStream], c)
