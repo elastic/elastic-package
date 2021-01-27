@@ -87,8 +87,8 @@ github.com/elastic/go-licenser v0.3.1 h1:RmRukU/JUmts+rpexAw0Fvt2ly7VVu6mw8z4HrE
 github.com/elastic/go-licenser v0.3.1/go.mod h1:D8eNQk70FOCVBl3smCGQt/lv7meBeQno2eI1S5apiHQ=
 github.com/elastic/go-ucfg v0.8.3 h1:leywnFjzr2QneZZWhE6uWd+QN/UpP0sdJRHYyuFvkeo=
 github.com/elastic/go-ucfg v0.8.3/go.mod h1:iaiY0NBIYeasNgycLyTvhJftQlQEUO2hpF+FX0JKxzo=
-github.com/elastic/package-spec/code/go v0.0.0-20210126144901-46090e1310d3 h1:QeQvLQvDx1mRAOBzcJ7T7ebF02mJxcK5HYsYTTOrsik=
-github.com/elastic/package-spec/code/go v0.0.0-20210126144901-46090e1310d3/go.mod h1:3W6uyBFCE4/NPcVPb+ZuoLJTMLu8BCTc+PRFDutSvfE=
+github.com/elastic/package-spec/code/go v0.0.0-20210126151110-08a493a36954 h1:KTExarO1tJf91RNJPoBBeZqjC8IsYamBW0Krhw8dYfg=
+github.com/elastic/package-spec/code/go v0.0.0-20210126151110-08a493a36954/go.mod h1:3W6uyBFCE4/NPcVPb+ZuoLJTMLu8BCTc+PRFDutSvfE=
 github.com/emirpasic/gods v1.12.0 h1:QAUIPSaCu4G+POclxeqb3F+WPpdKqFGlw36+yOzGlrg=
 github.com/emirpasic/gods v1.12.0/go.mod h1:YfzfFFoVP/catgzJb4IKIqXjX78Ha8FMSDh3ymbK86o=
 github.com/envoyproxy/go-control-plane v0.9.0/go.mod h1:YTl/9mNaCwkRvm6d1a2C3ymFceY/DCBVvsKhRF0iEA4=
