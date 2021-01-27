@@ -41,8 +41,10 @@ pipeline {
       steps {
         cleanup()
         withMageEnv(){
-          dir("${BASE_DIR}"){
-            sh(label: 'Check',script: 'make check')
+          withCloudTestEnv() {
+            dir("${BASE_DIR}"){
+              sh(label: 'Check',script: 'make check')
+            }
           }
         }
       }
