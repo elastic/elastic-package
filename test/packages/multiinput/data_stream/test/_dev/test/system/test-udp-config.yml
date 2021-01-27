@@ -1,5 +1,6 @@
 input: udp
 service: test-udp
+service_notify_signal: SIGHUP
 vars: ~
 data_stream:
   vars:

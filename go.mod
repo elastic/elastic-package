@@ -10,7 +10,7 @@ require (
 	github.com/elastic/go-elasticsearch/v7 v7.9.0
 	github.com/elastic/go-licenser v0.3.1
 	github.com/elastic/go-ucfg v0.8.3
-	github.com/elastic/package-spec/code/go v0.0.0-20210111200056-23a4cfe4f518
+	github.com/elastic/package-spec/code/go v0.0.0-20210126144901-46090e1310d3
 	github.com/go-git/go-billy/v5 v5.0.0
 	github.com/go-git/go-git/v5 v5.1.0
 	github.com/go-openapi/strfmt v0.19.6 // indirect
@@ -33,5 +33,3 @@ require (
 	golang.org/x/tools v0.1.0
 	gopkg.in/yaml.v3 v3.0.0-20200615113413-eeeca48fe776
 )
-
-replace github.com/elastic/package-spec/code/go => github.com/mtojek/package-spec/code/go v0.0.0-20210120110240-1a9cec67766e

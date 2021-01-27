@@ -5,7 +5,6 @@
 package servicedeployer
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 
@@ -36,7 +35,6 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 		logger.Errorf("can't find _dev/deploy directory")
 		return nil, ErrNotFound
 	}
-	fmt.Println(devDeployPath)
 
 	// Is the service defined using a docker compose configuration file?
 	dockerComposeYMLPath := filepath.Join(devDeployPath, "docker", "docker-compose.yml")
@@ -58,7 +56,7 @@ func findDevDeployPath(options FactoryOptions) (string, error) {
 	if err == nil {
 		return dataStreamDevDeployPath, nil
 	} else if !os.IsNotExist(err) {
-		return "", errors.Wrapf(err, "stat failed (path: %s)", dataStreamDevDeployPath)
+		return "", errors.Wrapf(err, "stat failed for data stream (path: %s)", dataStreamDevDeployPath)
 	}
 
 	packageDevDeployPath := filepath.Join(options.PackageRootPath, devDeployDir)
@@ -66,7 +64,7 @@ func findDevDeployPath(options FactoryOptions) (string, error) {
 	if err == nil {
 		return packageDevDeployPath, nil
 	} else if !os.IsNotExist(err) {
-		return "", errors.Wrapf(err, "stat failed (path: %s)", packageDevDeployPath)
+		return "", errors.Wrapf(err, "stat failed for package (path: %s)", packageDevDeployPath)
 	}
 	return "", errors.New("_dev directory doesn't exist")
 }
