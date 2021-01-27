@@ -57,7 +57,6 @@ func (tsd TerraformServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedServic
 
 	// Boot up service
 	tfEnvironment := tsd.buildTerraformExecutorEnvironment(inCtxt)
-	serviceName := inCtxt.Name
 	opts := compose.CommandOptions{
 		Env:       tfEnvironment,
 		ExtraArgs: []string{"--build", "-d"},
@@ -78,26 +77,6 @@ func (tsd TerraformServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedServic
 	cmd.Stderr = errOutput
 	if err := cmd.Run(); err != nil {
 		return nil, errors.Wrapf(err, "could not attach service container to the stack network (stderr=%q)", errOutput.String())
-	}
-
-	logger.Debugf("adding service container %s internal ports to context", serviceContainer)
-	serviceComposeConfig, err := p.Config(compose.CommandOptions{
-		Env: []string{fmt.Sprintf("%s=%s", serviceLogsDirEnv, outCtxt.Logs.Folder.Local)},
-	})
-	if err != nil {
-		return nil, errors.Wrap(err, "could not get Docker Compose configuration for service")
-	}
-
-	s := serviceComposeConfig.Services[serviceName]
-	// TODO remove ports
-	outCtxt.Ports = make([]int, len(s.Ports))
-	for idx, port := range s.Ports {
-		outCtxt.Ports[idx] = port.InternalPort
-	}
-
-	// Shortcut to first port for convenience
-	if len(outCtxt.Ports) > 0 {
-		outCtxt.Port = outCtxt.Ports[0]
 	}
 
 	// Set custom aliases, which may be used in agent policies.
