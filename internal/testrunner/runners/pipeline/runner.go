@@ -112,7 +112,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 				TestType, r.options.TestFolder.Package, r.options.TestFolder.DataStream,
 				tc.config.Skip.Reason, tc.config.Skip.Link.String())
 
-			tr.Skipped = true
+			tr.Skipped = tc.config.Skip
 			results = append(results, tr)
 			continue
 		}

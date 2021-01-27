@@ -81,7 +81,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		logger.Warnf("skipping %s test for %s: %s (details: %s)",
 			TestType, r.testFolder.Package,
 			testConfig.Skip.Reason, testConfig.Skip.Link.String())
-		return result.WithSkip()
+		return result.WithSkip(testConfig.Skip)
 	}
 
 	pkgManifest, err := packages.ReadPackageManifest(filepath.Join(r.packageRootPath, packages.PackageManifestFile))

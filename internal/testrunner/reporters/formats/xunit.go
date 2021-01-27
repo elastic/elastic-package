@@ -85,7 +85,7 @@ func reportXUnitFormat(results []testrunner.TestResult) (string, error) {
 			numErrors++
 		}
 
-		if r.Skipped {
+		if r.Skipped != nil {
 			numSkipped++
 		}
 
@@ -102,8 +102,8 @@ func reportXUnitFormat(results []testrunner.TestResult) (string, error) {
 			Failure:       failure,
 		}
 
-		if r.Skipped {
-			c.Skipped = &skipped{""} // TODO: include reason?
+		if r.Skipped != nil {
+			c.Skipped = &skipped{r.Skipped.String()}
 		}
 
 		numTests++

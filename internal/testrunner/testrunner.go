@@ -81,8 +81,9 @@ type TestResult struct {
 	// to an unexpected runtime error in the test execution.
 	ErrorMsg string
 
-	// Flag to indicate that test was skipped.
-	Skipped bool
+	// If the test was skipped, the reason it was skipped and a link for more
+	// details.
+	Skipped *SkipConfig
 }
 
 // ResultComposer wraps a TestResult and provides convenience methods for
@@ -115,8 +116,8 @@ func (rc *ResultComposer) WithSuccess() ([]TestResult, error) {
 }
 
 // WithSkip marks the test result wrapped by ResultComposer as skipped.
-func (rc *ResultComposer) WithSkip() ([]TestResult, error) {
-	rc.TestResult.Skipped = true
+func (rc *ResultComposer) WithSkip(s *SkipConfig) ([]TestResult, error) {
+	rc.TestResult.Skipped = s
 	return rc.WithError(nil)
 }
 

@@ -146,7 +146,7 @@ func (r *runner) run() (results []testrunner.TestResult, err error) {
 				TestType, r.options.TestFolder.Package, r.options.TestFolder.DataStream,
 				testConfig.Skip.Reason, testConfig.Skip.Link.String())
 			result := r.newResult(testConfig.Name())
-			partial, err = result.WithSkip()
+			partial, err = result.WithSkip(testConfig.Skip)
 		}
 
 		results = append(results, partial...)
