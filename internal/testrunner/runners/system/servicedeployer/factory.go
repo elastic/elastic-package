@@ -5,6 +5,7 @@
 package servicedeployer
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -32,7 +33,7 @@ type FactoryOptions struct {
 func Factory(options FactoryOptions) (ServiceDeployer, error) {
 	devDeployPath, err := findDevDeployPath(options)
 	if err != nil {
-		logger.Errorf("can't find _dev/deploy directory")
+		logger.Errorf("can't find \"%s\" directory", devDeployDir)
 		return nil, ErrNotFound
 	}
 
@@ -66,5 +67,5 @@ func findDevDeployPath(options FactoryOptions) (string, error) {
 	} else if !os.IsNotExist(err) {
 		return "", errors.Wrapf(err, "stat failed for package (path: %s)", packageDevDeployPath)
 	}
-	return "", errors.New("_dev directory doesn't exist")
+	return "", fmt.Errorf("\"%s\" directory doesn't exist", devDeployDir)
 }

@@ -26,6 +26,11 @@ import (
 	"github.com/elastic/elastic-package/internal/testrunner/runners/system/servicedeployer"
 )
 
+const (
+	testRunMaxID = 99999
+	testRunMinID = 10000
+)
+
 func init() {
 	testrunner.RegisterRunner(&runner{})
 }
@@ -177,7 +182,7 @@ func (r *runner) run() (results []testrunner.TestResult, err error) {
 }
 
 func createTestRunID() string {
-	return fmt.Sprintf("%d", rand.Intn(99999-10000)+10000)
+	return fmt.Sprintf("%d", rand.Intn(testRunMaxID-testRunMinID)+testRunMinID)
 }
 
 func (r *runner) hasNumDocs(
