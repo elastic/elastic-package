@@ -10,7 +10,7 @@ services:
     build: .
     tty: true
     environment:
-      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID} # TODO Extract to the env-file
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID} # TODO Extract to the env-file (link: https://github.com/elastic/elastic-package/issues/235)
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
       - AWS_SESSION_TOKEN=${AWS_SESSION_TOKEN}
       - AWS_PROFILE=${AWS_PROFILE}
