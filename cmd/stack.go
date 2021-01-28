@@ -49,8 +49,10 @@ func setupStackCommand() *cobra.Command {
 			if err != nil {
 				return cobraext.FlagParsingError(err, cobraext.DaemonModeFlagName)
 			}
-
 			services, err := cmd.Flags().GetStringSlice(cobraext.StackServicesFlagName)
+
+			stripServicesWhitespace(services)
+
 			if err != nil {
 				return cobraext.FlagParsingError(err, cobraext.StackServicesFlagName)
 			}
@@ -82,7 +84,7 @@ func setupStackCommand() *cobra.Command {
 	}
 	upCommand.Flags().BoolP(cobraext.DaemonModeFlagName, "d", false, cobraext.DaemonModeFlagDescription)
 	upCommand.Flags().StringSliceP(cobraext.StackServicesFlagName, "s", nil,
-		fmt.Sprintf(cobraext.StackServicesFlagDescription, strings.Join(availableServicesAsList(), ",")))
+		fmt.Sprintf(cobraext.StackServicesFlagDescription, fmt.Sprintf("\"%s\"", strings.Join(availableServicesAsList(), ","))))
 	upCommand.Flags().StringP(cobraext.StackVersionFlagName, "", stack.DefaultVersion, cobraext.StackVersionFlagDescription)
 
 	downCommand := &cobra.Command{
@@ -201,4 +203,10 @@ func validateServicesFlag(services []string) error {
 		selected[aService] = struct{}{}
 	}
 	return nil
+}
+
+func stripServicesWhitespace(services []string) {
+	for it, service := range services {
+		services[it] = strings.TrimSpace(service)
+	}
 }
