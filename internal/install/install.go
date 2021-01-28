@@ -98,19 +98,13 @@ func ServiceLogsDir() (string, error) {
 	return filepath.Join(configurationDir, serviceLogsDir), nil
 }
 
-// ServiceDeployerComposeFile function returns the path to the selected service deployer's Docker Compose definition.
-func ServiceDeployerComposeFile(deployerName string) (string, error) {
+// TerraformDeployerComposeFile function returns the path to the Terraform service deployer's definitions.
+func TerraformDeployerComposeFile() (string, error) {
 	configurationDir, err := configurationDir()
 	if err != nil {
 		return "", errors.Wrap(err, "locating configuration directory failed")
 	}
-
-	switch deployerName {
-	case "terraform":
-		return filepath.Join(configurationDir, terraformDeployerDir, terraformDeployerYmlFile), nil
-	default:
-		return "", errors.New("unsupported service deployer")
-	}
+	return filepath.Join(configurationDir, terraformDeployerDir, terraformDeployerYmlFile), nil
 }
 
 func configurationDir() (string, error) {
