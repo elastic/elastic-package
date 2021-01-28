@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
+	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/stack"
 )
 
@@ -49,9 +50,9 @@ func setupStackCommand() *cobra.Command {
 			if err != nil {
 				return cobraext.FlagParsingError(err, cobraext.DaemonModeFlagName)
 			}
-			services, err := cmd.Flags().GetStringSlice(cobraext.StackServicesFlagName)
 
-			stripServicesWhitespace(services)
+			services, err := cmd.Flags().GetStringSlice(cobraext.StackServicesFlagName)
+			common.TrimStringSlice(services)
 
 			if err != nil {
 				return cobraext.FlagParsingError(err, cobraext.StackServicesFlagName)
@@ -84,7 +85,7 @@ func setupStackCommand() *cobra.Command {
 	}
 	upCommand.Flags().BoolP(cobraext.DaemonModeFlagName, "d", false, cobraext.DaemonModeFlagDescription)
 	upCommand.Flags().StringSliceP(cobraext.StackServicesFlagName, "s", nil,
-		fmt.Sprintf(cobraext.StackServicesFlagDescription, fmt.Sprintf("\"%s\"", strings.Join(availableServicesAsList(), ","))))
+		fmt.Sprintf(cobraext.StackServicesFlagDescription, `"`+strings.Join(availableServicesAsList(), ",")+`"`))
 	upCommand.Flags().StringP(cobraext.StackVersionFlagName, "", stack.DefaultVersion, cobraext.StackVersionFlagDescription)
 
 	downCommand := &cobra.Command{
@@ -203,10 +204,4 @@ func validateServicesFlag(services []string) error {
 		selected[aService] = struct{}{}
 	}
 	return nil
-}
-
-func stripServicesWhitespace(services []string) {
-	for it, service := range services {
-		services[it] = strings.TrimSpace(service)
-	}
 }
