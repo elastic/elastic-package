@@ -62,7 +62,7 @@ func (tsd TerraformServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedServic
 		return nil, errors.Wrap(err, "could not boot up service using docker compose")
 	}
 
-	// Build service container name
+	// Build Terraform executor container name
 	serviceContainer := fmt.Sprintf("%s_terraform_1", service.project)
 	outCtxt.Hostname = serviceContainer
 
