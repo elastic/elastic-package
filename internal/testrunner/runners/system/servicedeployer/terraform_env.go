@@ -10,6 +10,7 @@ import (
 )
 
 const (
+	// TODO: Replace with an env-file (link: https://github.com/elastic/elastic-package/issues/235)
 	awsAccessKeyID     = "AWS_ACCESS_KEY_ID"
 	awsSecretAccessKey = "AWS_SECRET_ACCESS_KEY"
 	awsSessionToken    = "AWS_SESSION_TOKEN"
