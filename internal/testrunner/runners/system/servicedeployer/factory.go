@@ -48,6 +48,7 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 	if _, err := os.Stat(terraformDirPath); err == nil {
 		return NewTerraformServiceDeployer(terraformDirPath)
 	}
+
 	return nil, ErrNotFound
 }
 
