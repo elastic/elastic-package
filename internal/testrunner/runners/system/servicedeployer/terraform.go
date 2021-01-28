@@ -5,9 +5,7 @@
 package servicedeployer
 
 import (
-	"bytes"
 	"fmt"
-	"os/exec"
 
 	"github.com/pkg/errors"
 
@@ -15,7 +13,6 @@ import (
 	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/logger"
-	"github.com/elastic/elastic-package/internal/stack"
 )
 
 // TerraformServiceDeployer is responsible for deploying infrastructure described with Terraform definitions.
@@ -68,16 +65,6 @@ func (tsd TerraformServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedServic
 	// Build service container name
 	serviceContainer := fmt.Sprintf("%s_terraform_1", service.project)
 	outCtxt.Hostname = serviceContainer
-
-	// Connect service network with stack network (for the purpose of metrics collection)
-	stackNetwork := fmt.Sprintf("%s_default", stack.DockerComposeProjectName)
-	logger.Debugf("attaching service container %s to stack network %s", serviceContainer, stackNetwork)
-	cmd := exec.Command("docker", "network", "connect", stackNetwork, serviceContainer)
-	errOutput := new(bytes.Buffer)
-	cmd.Stderr = errOutput
-	if err := cmd.Run(); err != nil {
-		return nil, errors.Wrapf(err, "could not attach service container to the stack network (stderr=%q)", errOutput.String())
-	}
 
 	// Set custom aliases, which may be used in agent policies.
 	outCtxt.CustomProperties = buildTerraformAliases()
