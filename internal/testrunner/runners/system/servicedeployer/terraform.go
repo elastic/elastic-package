@@ -32,10 +32,10 @@ func NewTerraformServiceDeployer(definitionsDir string) (*TerraformServiceDeploy
 
 // SetUp method boots up the Docker Compose with Terraform executor and mounted .tf definitions.
 func (tsd TerraformServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedService, error) {
-	logger.Debug("setting up service using Terraform service deployer")
+	logger.Debug("setting up service using Terraform deployer")
 	terraformDeployerYml, err := install.TerraformDeployerComposeFile()
 	if err != nil {
-		return nil, errors.Wrap(err, "can't locate docker compose file for service deployer")
+		return nil, errors.Wrap(err, "can't locate docker compose file for Terraform deployer")
 	}
 
 	service := dockerComposeDeployedService{
