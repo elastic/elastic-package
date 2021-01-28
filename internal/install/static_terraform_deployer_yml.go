@@ -12,6 +12,7 @@ services:
     environment:
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID} # TODO Extract to the env-file
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_SESSION_TOKEN=${AWS_SESSION_TOKEN}
       - AWS_PROFILE=${AWS_PROFILE}
       - AWS_REGION=${AWS_REGION:-us-east-1}
       - TF_VAR_TEST_RUN_ID=${TF_VAR_TEST_RUN_ID:-detached}

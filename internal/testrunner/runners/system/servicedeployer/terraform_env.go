@@ -12,6 +12,7 @@ import (
 const (
 	awsAccessKeyID     = "AWS_ACCESS_KEY_ID"
 	awsSecretAccessKey = "AWS_SECRET_ACCESS_KEY"
+	awsSessionToken    = "AWS_SESSION_TOKEN"
 	awsProfile         = "AWS_PROFILE"
 	awsRegion          = "AWS_REGION"
 
@@ -25,10 +26,19 @@ func (tsd TerraformServiceDeployer) buildTerraformExecutorEnvironment(ctxt Servi
 	vars[tfTestRunID] = ctxt.Test.RunID
 	vars[tfDir] = tsd.definitionsDir
 
-	if os.Getenv(awsAccessKeyID) != "" && os.Getenv(awsSecretAccessKey) != "" {
+	if os.Getenv(awsAccessKeyID) != "" {
 		vars[awsAccessKeyID] = os.Getenv(awsAccessKeyID)
+	}
+
+	if os.Getenv(awsSecretAccessKey) != "" {
 		vars[awsSecretAccessKey] = os.Getenv(awsSecretAccessKey)
-	} else if os.Getenv(awsProfile) != "" {
+	}
+
+	if os.Getenv(awsSessionToken) != "" {
+		vars[awsSessionToken] = os.Getenv(awsSessionToken)
+	}
+
+	if os.Getenv(awsProfile) != "" {
 		vars[awsProfile] = os.Getenv(awsProfile)
 	}
 
@@ -47,6 +57,7 @@ func buildTerraformAliases() map[string]interface{} {
 	return map[string]interface{}{
 		awsAccessKeyID:     os.Getenv(awsAccessKeyID),
 		awsSecretAccessKey: os.Getenv(awsSecretAccessKey),
+		awsSessionToken:    os.Getenv(awsSessionToken),
 		awsProfile:         os.Getenv(awsProfile),
 		awsRegion:          os.Getenv(awsRegion),
 	}
