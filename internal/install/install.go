@@ -57,9 +57,9 @@ func EnsureInstalled() error {
 		return errors.Wrap(err, "writing stack resources failed")
 	}
 
-	err = writeDeployerResources(elasticPackagePath)
+	err = writeTerraformDeployerResources(elasticPackagePath)
 	if err != nil {
-		return errors.Wrap(err, "writing deployer resources failed")
+		return errors.Wrap(err, "writing Terraform deployer resources failed")
 	}
 
 	if err := createServiceLogsDir(elasticPackagePath); err != nil {
@@ -157,7 +157,7 @@ func writeStackResources(elasticPackagePath string) error {
 	return nil
 }
 
-func writeDeployerResources(elasticPackagePath string) error {
+func writeTerraformDeployerResources(elasticPackagePath string) error {
 	terraformDeployer := filepath.Join(elasticPackagePath, terraformDeployerDir)
 	err := os.MkdirAll(terraformDeployer, 0755)
 	if err != nil {
