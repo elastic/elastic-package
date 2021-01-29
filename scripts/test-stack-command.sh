@@ -6,7 +6,7 @@ cleanup() {
   r=$?
 
   # Dump stack logs
-  elastic-package stack dump -v --output build/elastic-stack-dump
+  elastic-package stack dump -v --output build/elastic-stack-dump/stack
 
   # Take down the stack
   elastic-package stack down -v

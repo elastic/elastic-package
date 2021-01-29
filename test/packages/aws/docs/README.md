@@ -1311,10 +1311,14 @@ An example event for `ec2` looks as following:
 | aws.ec2.cpu.total.pct | The percentage of allocated EC2 compute units that are currently in use on the instance. | scaled_float |
 | aws.ec2.diskio.read.bytes | Bytes read from all instance store volumes available to the instance. | long |
 | aws.ec2.diskio.read.bytes_per_sec | Bytes read per second from all instance store volumes available to the instance. | long |
+| aws.ec2.diskio.read.count | The number of disk IO reads | long |
+| aws.ec2.diskio.read.count_per_sec | The number of disk IO reads per second | long |
 | aws.ec2.diskio.read.ops | Completed read operations from all instance store volumes available to the instance in a specified period of time. | long |
 | aws.ec2.diskio.read.ops_per_sec | Completed read operations per second from all instance store volumes available to the instance in a specified period of time. | long |
 | aws.ec2.diskio.write.bytes | Bytes written to all instance store volumes available to the instance. | long |
 | aws.ec2.diskio.write.bytes_per_sec | Bytes written per second to all instance store volumes available to the instance. | long |
+| aws.ec2.diskio.write.count | The number of disk IO writes | long |
+| aws.ec2.diskio.write.count_per_sec | The number of disk IO writes per second | long |
 | aws.ec2.diskio.write.ops | Completed write operations to all instance store volumes available to the instance in a specified period of time. | long |
 | aws.ec2.diskio.write.ops_per_sec | Completed write operations per second to all instance store volumes available to the instance in a specified period of time. | long |
 | aws.ec2.instance.core.count | The number of CPU cores for the instance. | integer |
@@ -1357,6 +1361,7 @@ An example event for `ec2` looks as following:
 | data_stream.dataset | Data stream dataset. | constant_keyword |
 | data_stream.namespace | Data stream namespace. | constant_keyword |
 | data_stream.type | Data stream type. | constant_keyword |
+| ecs.version |  | keyword |
 | host.architecture | Operating system architecture. | keyword |
 | host.containerized | If the host is a container. | boolean |
 | host.cpu.pct | Percent CPU used. This value is normalized by the number of CPU cores and it ranges from 0 to 1. | scaled_float |
@@ -1380,6 +1385,7 @@ An example event for `ec2` looks as following:
 | host.os.platform | Operating system platform (such centos, ubuntu, windows). | keyword |
 | host.os.version | Operating system version as a raw string. | keyword |
 | host.type | Type of host. For Cloud providers this can be the machine type like `t2.medium`. If vm, this could be the container, for example, or other information meaningful in your environment. | keyword |
+| service.type |  | keyword |
 
 
 ### elb
