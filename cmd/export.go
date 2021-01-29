@@ -51,11 +51,11 @@ func exportDashboardsCmd(cmd *cobra.Command, args []string) error {
 	cmd.Println("Export Kibana dashboards")
 
 	dashboardIDs, err := cmd.Flags().GetStringSlice(cobraext.DashboardIDsFlagName)
-	common.TrimStringSlice(dashboardIDs)
-
 	if err != nil {
 		return cobraext.FlagParsingError(err, cobraext.DashboardIDsFlagName)
 	}
+
+	common.TrimStringSlice(dashboardIDs)
 
 	kibanaClient, err := kibana.NewClient()
 	if err != nil {
