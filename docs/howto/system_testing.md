@@ -40,7 +40,7 @@ Packages have a specific folder structure (only relevant parts shown).
 
 To define a system test we must define configuration on at least one level: a package or a data stream's one.
 
-First, we must define the configuration for deploying a package's integration service. We can define it on either the package-level:
+First, we must define the configuration for deploying a package's integration service. We can define it on either the package level:
 
 ```
 <package root>/
