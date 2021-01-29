@@ -86,7 +86,7 @@ Here, `SERVICE_LOGS_DIR` is a special keyword. It is something that we will need
 
 When using the Terraform service deployer, the `<service deployer files>` must include at least one `*.tf` file.
 The `*.tf` files define the infrastructure using the Terraform syntax. The terraform based service can be handy to boot up
-resources on AWS and use them for testing (e.g. spawn EC2 instance and collect its metrics).
+resources using selected cloud provider and use them for testing (e.g. observe and collect metrics).
 
 Sample `main.tf` definition:
 
