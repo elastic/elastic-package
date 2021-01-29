@@ -1,6 +1,6 @@
-skip:
-  reason: testing skip
-  link: https://github.com/elastic/integrations/issues/123456789
+#skip:
+#  reason: testing skip
+#  link: https://github.com/elastic/integrations/issues/123456789
 vars: ~
 data_stream:
   vars:
