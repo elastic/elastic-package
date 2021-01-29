@@ -62,7 +62,7 @@ or the data stream's level:
             <service deployer files>
 ```
 
-`<service deployer>` - a name of the supported service deployer: `docker` or `tf` (terraform).
+`<service deployer>` - a name of the supported service deployer: `docker` (Docker Compose service deployer) or `tf` (Terraform service deployer).
 
 ### Docker Compose service deployer
 
