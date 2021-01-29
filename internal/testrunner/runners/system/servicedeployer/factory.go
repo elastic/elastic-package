@@ -55,16 +55,17 @@ func findServiceDeployer(devDeployPath string) (string, error) {
 		return "", errors.Wrapf(err, "can't read directory (path: %s)", devDeployDir)
 	}
 
-	if len(fis) != 1 {
+	var folders []os.FileInfo
+	for _, fi := range fis {
+		if fi.IsDir() {
+			folders = append(folders, fi)
+		}
+	}
+
+	if len(folders) != 1 {
 		return "", fmt.Errorf("expected to find only one service deployer in \"%s\"", devDeployPath)
 	}
-
-	deployerFileInfo := fis[0]
-	if !deployerFileInfo.IsDir() {
-		return "", fmt.Errorf("\"%s\" is expected to be a folder in \"%s\"", deployerFileInfo, devDeployPath)
-	}
-
-	return deployerFileInfo.Name(), nil
+	return folders[0].Name(), nil
 }
 
 func findDevDeployPath(options FactoryOptions) (string, error) {
