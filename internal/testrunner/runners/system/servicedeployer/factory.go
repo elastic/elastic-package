@@ -29,7 +29,7 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 		return nil, errors.Wrapf(err, "can't find \"%s\" directory", devDeployDir)
 	}
 
-	serviceDeployerName, err := findServiceDeployer(devDeployDir)
+	serviceDeployerName, err := findServiceDeployer(devDeployPath)
 	if err != nil {
 		return nil, errors.Wrap(err, "can't find any valid service deployer")
 	}
@@ -49,25 +49,6 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 	return nil, fmt.Errorf("unsupported service deployer (name: %s)", serviceDeployerName)
 }
 
-func findServiceDeployer(devDeployPath string) (string, error) {
-	fis, err := ioutil.ReadDir(devDeployPath)
-	if err != nil {
-		return "", errors.Wrapf(err, "can't read directory (path: %s)", devDeployDir)
-	}
-
-	var folders []os.FileInfo
-	for _, fi := range fis {
-		if fi.IsDir() {
-			folders = append(folders, fi)
-		}
-	}
-
-	if len(folders) != 1 {
-		return "", fmt.Errorf("expected to find only one service deployer in \"%s\"", devDeployPath)
-	}
-	return folders[0].Name(), nil
-}
-
 func findDevDeployPath(options FactoryOptions) (string, error) {
 	dataStreamDevDeployPath := filepath.Join(options.DataStreamRootPath, devDeployDir)
 	_, err := os.Stat(dataStreamDevDeployPath)
@@ -85,4 +66,23 @@ func findDevDeployPath(options FactoryOptions) (string, error) {
 		return "", errors.Wrapf(err, "stat failed for package (path: %s)", packageDevDeployPath)
 	}
 	return "", fmt.Errorf("\"%s\" directory doesn't exist", devDeployDir)
+}
+
+func findServiceDeployer(devDeployPath string) (string, error) {
+	fis, err := ioutil.ReadDir(devDeployPath)
+	if err != nil {
+		return "", errors.Wrapf(err, "can't read directory (path: %s)", devDeployDir)
+	}
+
+	var folders []os.FileInfo
+	for _, fi := range fis {
+		if fi.IsDir() {
+			folders = append(folders, fi)
+		}
+	}
+
+	if len(folders) != 1 {
+		return "", fmt.Errorf("expected to find only one service deployer in \"%s\"", devDeployPath)
+	}
+	return folders[0].Name(), nil
 }
