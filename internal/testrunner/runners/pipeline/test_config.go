@@ -19,8 +19,7 @@ import (
 const configTestSuffix = "-config.json"
 
 type testConfig struct {
-	// Skip allows this test to be skipped.
-	Skip *testrunner.SkipConfig `config:"skip"`
+	testrunner.SkippableConfig `config:",inline"`
 
 	Multiline     *multiline             `json:"multiline"`
 	Fields        map[string]interface{} `json:"fields"`

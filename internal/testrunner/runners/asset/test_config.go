@@ -17,8 +17,7 @@ import (
 )
 
 type testConfig struct {
-	// Skip allows this test to be skipped.
-	Skip *testrunner.SkipConfig `config:"skip"`
+	testrunner.SkippableConfig `config:",inline"`
 }
 
 func newConfig(assetTestFolderPath string) (*testConfig, error) {

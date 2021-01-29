@@ -24,6 +24,8 @@ import (
 var systemTestConfigFilePattern = regexp.MustCompile(`^test-([a-z0-9_.-]+)-config.yml$`)
 
 type testConfig struct {
+	testrunner.SkippableConfig `config:",inline"`
+
 	Input               string `config:"input"`
 	Service             string `config:"service"`
 	ServiceNotifySignal string `config:"service_notify_signal"` // Signal to send when the agent policy is applied.
@@ -32,9 +34,6 @@ type testConfig struct {
 	DataStream struct {
 		Vars map[string]packages.VarValue `config:"vars"`
 	} `config:"data_stream"`
-
-	// Skip allows this test to be skipped.
-	Skip *testrunner.SkipConfig `config:"skip"`
 
 	// NumericKeywordFields holds a list of fields that have keyword
 	// type but can be ingested as numeric type.
