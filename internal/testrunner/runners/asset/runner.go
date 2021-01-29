@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
-	"time"
 
 	es "github.com/elastic/go-elasticsearch/v7"
 	"github.com/pkg/errors"
@@ -63,13 +62,10 @@ func (r runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, er
 }
 
 func (r *runner) run() ([]testrunner.TestResult, error) {
-	result := testrunner.ResultComposer{
-		TestResult: testrunner.TestResult{
-			TestType: TestType,
-			Package:  r.testFolder.Package,
-		},
-		StartTime: time.Now(),
-	}
+	result := testrunner.NewResultComposer(testrunner.TestResult{
+		TestType: TestType,
+		Package:  r.testFolder.Package,
+	})
 
 	testConfig, err := newConfig(r.testFolder.Path)
 	if err != nil {
@@ -115,15 +111,12 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 
 	results := make([]testrunner.TestResult, 0, len(expectedAssets))
 	for _, e := range expectedAssets {
-		rc := testrunner.ResultComposer{
-			TestResult: testrunner.TestResult{
-				Name:       fmt.Sprintf("%s %s is loaded", e.Type, e.ID),
-				Package:    pkgManifest.Name,
-				DataStream: e.DataStream,
-				TestType:   TestType,
-			},
-			StartTime: time.Now(),
-		}
+		rc := testrunner.NewResultComposer(testrunner.TestResult{
+			Name:       fmt.Sprintf("%s %s is loaded", e.Type, e.ID),
+			Package:    pkgManifest.Name,
+			DataStream: e.DataStream,
+			TestType:   TestType,
+		})
 
 		var r []testrunner.TestResult
 		if !findActualAsset(actualAssets, e) {

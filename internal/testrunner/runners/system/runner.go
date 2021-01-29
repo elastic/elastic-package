@@ -105,16 +105,13 @@ func (r *runner) TearDown() error {
 	return nil
 }
 
-func (r *runner) newResult(name string) testrunner.ResultComposer {
-	return testrunner.ResultComposer{
-		TestResult: testrunner.TestResult{
-			TestType:   TestType,
-			Name:       name,
-			Package:    r.options.TestFolder.Package,
-			DataStream: r.options.TestFolder.DataStream,
-		},
-		StartTime: time.Now(),
-	}
+func (r *runner) newResult(name string) *testrunner.ResultComposer {
+	return testrunner.NewResultComposer(testrunner.TestResult{
+		TestType:   TestType,
+		Name:       name,
+		Package:    r.options.TestFolder.Package,
+		DataStream: r.options.TestFolder.DataStream,
+	})
 }
 
 func (r *runner) run() (results []testrunner.TestResult, err error) {

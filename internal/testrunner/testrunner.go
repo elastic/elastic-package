@@ -93,6 +93,15 @@ type ResultComposer struct {
 	StartTime time.Time
 }
 
+// NewResultComposer returns a new ResultComposer with the StartTime
+// initialized to now.
+func NewResultComposer(tr TestResult) *ResultComposer {
+	return &ResultComposer{
+		TestResult: tr,
+		StartTime:  time.Now(),
+	}
+}
+
 // WithError sets an error on the test result wrapped by ResultComposer.
 func (rc *ResultComposer) WithError(err error) ([]TestResult, error) {
 	rc.TimeElapsed = time.Now().Sub(rc.StartTime)
