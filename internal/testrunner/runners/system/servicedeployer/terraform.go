@@ -5,8 +5,6 @@
 package servicedeployer
 
 import (
-	"fmt"
-
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/compose"
@@ -61,10 +59,6 @@ func (tsd TerraformServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedServic
 	if err := p.Up(opts); err != nil {
 		return nil, errors.Wrap(err, "could not boot up service using docker compose")
 	}
-
-	// Build Terraform executor container name
-	serviceContainer := fmt.Sprintf("%s_terraform_1", service.project)
-	outCtxt.Hostname = serviceContainer
 
 	// Set custom aliases, which may be used in agent policies.
 	outCtxt.CustomProperties = buildTerraformAliases()
