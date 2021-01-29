@@ -6,21 +6,14 @@ package servicedeployer
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 
 	"github.com/pkg/errors"
-
-	"github.com/elastic/elastic-package/internal/logger"
 )
 
 const devDeployDir = "_dev/deploy"
-
-var (
-	// ErrNotFound is returned when the appropriate service runner for a package
-	// cannot be found.
-	ErrNotFound = errors.New("unable to find service runner")
-)
 
 // FactoryOptions defines options used to create an instance of a service deployer.
 type FactoryOptions struct {
@@ -33,23 +26,45 @@ type FactoryOptions struct {
 func Factory(options FactoryOptions) (ServiceDeployer, error) {
 	devDeployPath, err := findDevDeployPath(options)
 	if err != nil {
-		logger.Errorf("can't find \"%s\" directory", devDeployDir)
-		return nil, ErrNotFound
+		return nil, errors.Wrapf(err, "can't find \"%s\" directory", devDeployDir)
 	}
 
-	// Is the service defined using a docker compose configuration file?
-	dockerComposeYMLPath := filepath.Join(devDeployPath, "docker", "docker-compose.yml")
-	if _, err := os.Stat(dockerComposeYMLPath); err == nil {
-		return NewDockerComposeServiceDeployer(dockerComposeYMLPath)
+	serviceDeployerName, err := findServiceDeployer(devDeployDir)
+	if err != nil {
+		return nil, errors.Wrap(err, "can't find any valid service deployer")
 	}
 
-	// Is the service defined using Terraform definition files?
-	terraformDirPath := filepath.Join(devDeployPath, "tf")
-	if _, err := os.Stat(terraformDirPath); err == nil {
-		return NewTerraformServiceDeployer(terraformDirPath)
+	switch serviceDeployerName {
+	case "docker":
+		dockerComposeYMLPath := filepath.Join(devDeployPath, serviceDeployerName, "docker-compose.yml")
+		if _, err := os.Stat(dockerComposeYMLPath); err == nil {
+			return NewDockerComposeServiceDeployer(dockerComposeYMLPath)
+		}
+	case "tf":
+		terraformDirPath := filepath.Join(devDeployPath, serviceDeployerName)
+		if _, err := os.Stat(terraformDirPath); err == nil {
+			return NewTerraformServiceDeployer(terraformDirPath)
+		}
+	}
+	return nil, fmt.Errorf("unsupported service deployer (name: %s)", serviceDeployerName)
+}
+
+func findServiceDeployer(devDeployPath string) (string, error) {
+	fis, err := ioutil.ReadDir(devDeployPath)
+	if err != nil {
+		return "", errors.Wrapf(err, "can't read directory (path: %s)", devDeployDir)
 	}
 
-	return nil, ErrNotFound
+	if len(fis) != 1 {
+		return "", fmt.Errorf("expected to find only one service deployer in \"%s\"", devDeployPath)
+	}
+
+	deployerFileInfo := fis[0]
+	if !deployerFileInfo.IsDir() {
+		return "", fmt.Errorf("\"%s\" is expected to be a folder in \"%s\"", deployerFileInfo, devDeployPath)
+	}
+
+	return deployerFileInfo.Name(), nil
 }
 
 func findDevDeployPath(options FactoryOptions) (string, error) {
