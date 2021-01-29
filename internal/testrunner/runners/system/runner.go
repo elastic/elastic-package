@@ -258,7 +258,10 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 
 	// Setup service.
 	logger.Debug("setting up service...")
-	serviceDeployer, err := servicedeployer.Factory(r.options.PackageRootPath)
+	serviceDeployer, err := servicedeployer.Factory(servicedeployer.FactoryOptions{
+		PackageRootPath:    r.options.PackageRootPath,
+		DataStreamRootPath: dataStreamPath,
+	})
 	if err != nil {
 		return result.withError(errors.Wrap(err, "could not create service runner"))
 	}
