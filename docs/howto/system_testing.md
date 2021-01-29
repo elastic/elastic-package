@@ -66,7 +66,10 @@ or the data stream's level:
 
 ### Docker Compose service deployer
 
-The `docker-compose.yml` file defines the integration service(s) for the package. If your package has a logs data stream, the log files from your package's integration service must be written to a volume. For example, the `apache` package has the following definition in it's integration service's `docker-compose.yml` file.
+When using the Docker Compose service deployer, the `<service deployer files>` must include a `docker-compose.yml` file.
+The `docker-compose.yml` file defines the integration service(s) for the package. If your package has a logs data stream,
+the log files from your package's integration service must be written to a volume. For example, the `apache` package has
+the following definition in it's integration service's `docker-compose.yml` file.
 
 ```
 version: '2.3'
@@ -81,6 +84,7 @@ Here, `SERVICE_LOGS_DIR` is a special keyword. It is something that we will need
 
 ### Terraform service deployer
 
+When using the Terraform service deployer, the `<service deployer files>` must include at least one `*.tf` file.
 The `*.tf` files define the infrastructure using the Terraform syntax. The terraform based service can be handy to boot up
 resources on AWS and use them for testing (e.g. spawn EC2 instance and collect its metrics).
 
