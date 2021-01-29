@@ -5,4 +5,6 @@ vars: ~
 data_stream:
   vars:
     paths:
-      - "{{SERVICE_LOGS_DIR}}/error.log*"
+      # This path should cause the test to fail if the skip feature
+      # stops working as expected.
+      - "{{SERVICE_LOGS_DIR}}/non-existent.log*"
