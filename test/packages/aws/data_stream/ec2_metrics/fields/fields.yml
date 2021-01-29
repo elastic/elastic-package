@@ -78,6 +78,14 @@
           format: bytes
           description: |
             Bytes read from all instance store volumes available to the instance.
+        - name: diskio.read.count
+          type: long
+          format: bytes
+          description: The number of disk IO reads
+        - name: diskio.read.count_per_sec
+          type: long
+          format: bytes
+          description: The number of disk IO reads per second
         - name: diskio.read.bytes_per_sec
           type: long
           description: |
@@ -99,6 +107,14 @@
           type: long
           description: |
             Completed read operations per second from all instance store volumes available to the instance in a specified period of time.
+        - name: diskio.write.count
+          type: long
+          format: bytes
+          description: The number of disk IO writes
+        - name: diskio.write.count_per_sec
+          type: long
+          format: bytes
+          description: The number of disk IO writes per second
         - name: diskio.write.ops
           type: long
           description: |

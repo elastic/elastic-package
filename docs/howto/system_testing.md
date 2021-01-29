@@ -12,19 +12,18 @@ Conceptually, running a system test involves the following steps:
 1. Depending on the Elastic Package whose data stream is being tested, deploy an instance of the package's integration service.
 1. Create a test policy that configures a single data stream for a single package.
 1. Assign the test policy to the enrolled Agent.
-1. Wait a reasonable amount of time for the Agent to collect data from the 
+1. Wait a reasonable amount of time for the Agent to collect data from the
    integration service and index it into the correct Elasticsearch data stream.
 1. Query the first 500 documents based on `@timestamp` for validation.
 1. Validate mappings are defined for the fields contained in the indexed documents.
 1. Validate that the JSON data types contained `_source` are compatible with
-   mappings declared for the field. 
+   mappings declared for the field.
 1. Delete test artifacts and tear down the instance of the package's integration service.
 1. Once all desired data streams have been system tested, tear down the Elastic Stack.
 
 ## Limitations
 
 At the moment system tests have limitations. The salient ones are:
-* They can only test packages whose integration services can be deployed via Docker Compose. Eventually they will be able to test packages that can be deployed via other means, e.g. a Terraform configuration.
 * There isn't a way to do assert that the indexed data matches data from a file (e.g. golden file testing).
 
 ## Defining a system test
@@ -39,21 +38,38 @@ Packages have a specific folder structure (only relevant parts shown).
   manifest.yml
 ```
 
-To define a system test we must define configuration at two levels: the package level and each data stream's level.
+To define a system test we must define configuration on at least one level: a package or a data stream's one.
 
-### Package-level configuration
-
-First, we must define the configuration for deploying a package's integration service. As mentioned in the [_Limitations_](#Limitations) section above, only packages whose integration services can be deployed via Docker Compose are supported at the moment.
+First, we must define the configuration for deploying a package's integration service. We can define it on either the package level:
 
 ```
 <package root>/
   _dev/
     deploy/
-      docker/
-        docker-compose.yml
+      <service deployer>/
+        <service deployer files>
 ```
 
-The `docker-compose.yml` file defines the integration service(s) for the package. If your package has a logs data stream, the log files from your package's integration service must be written to a volume. For example, the `apache` package has the following definition in it's integration service's `docker-compose.yml` file.
+or the data stream's level:
+
+```
+<package root>/
+  data_stream/
+    <data stream>/
+      _dev/
+        deploy/
+          <service deployer>/
+            <service deployer files>
+```
+
+`<service deployer>` - a name of the supported service deployer: `docker` (Docker Compose service deployer) or `tf` (Terraform service deployer).
+
+### Docker Compose service deployer
+
+When using the Docker Compose service deployer, the `<service deployer files>` must include a `docker-compose.yml` file.
+The `docker-compose.yml` file defines the integration service(s) for the package. If your package has a logs data stream,
+the log files from your package's integration service must be written to a volume. For example, the `apache` package has
+the following definition in it's integration service's `docker-compose.yml` file.
 
 ```
 version: '2.3'
@@ -66,7 +82,43 @@ services:
 
 Here, `SERVICE_LOGS_DIR` is a special keyword. It is something that we will need later.
 
-### Data stream-level configuration
+### Terraform service deployer
+
+When using the Terraform service deployer, the `<service deployer files>` must include at least one `*.tf` file.
+The `*.tf` files define the infrastructure using the Terraform syntax. The terraform based service can be handy to boot up
+resources using selected cloud provider and use them for testing (e.g. observe and collect metrics).
+
+Sample `main.tf` definition:
+
+```
+variable "TEST_RUN_ID" {
+  default = "detached"
+}
+
+provider "aws" {}
+
+resource "aws_instance" "i" {
+  ami           = data.aws_ami.latest-amzn.id
+  monitoring = true
+  instance_type = "t1.micro"
+  tags = {
+    Name = "elastic-package-test-${var.TEST_RUN_ID}"
+  }
+}
+
+data "aws_ami" "latest-amzn" {
+  most_recent = true
+  owners = [ "amazon" ] # AWS
+  filter {
+    name   = "name"
+    values = ["amzn2-ami-hvm-*"]
+  }
+}
+```
+
+Notice the use of the `TEST_RUN_ID` variable. It contains a unique ID, which can help differentiate resources created in potential concurrent test runs.
+
+### Test case definition
 
 Next, we must define configuration for each data stream that we want to system test.
 
@@ -97,10 +149,8 @@ The `data_stream.vars` field corresponds to data stream-level variables for the 
 
 Notice the use of the `{{SERVICE_LOGS_DIR}}` placeholder. This corresponds to the `${SERVICE_LOGS_DIR}` variable we saw in the `docker-compose.yml` file earlier. In the above example, the net effect is as if the `/usr/local/apache2/logs/access.log*` files located inside the Apache integration service container become available at the same path from Elastic Agent's perspective.
 
-When a data stream's manifest declares multiple streams with different inputs
-you can use the `input` option to select the stream to test. The first stream
-whose input type matches the `input` value will be tested. By default, the first
-stream declared in the manifest will be tested. 
+When a data stream's manifest declares multiple streams with different inputs you can use the `input` option to select the stream to test. The first stream
+whose input type matches the `input` value will be tested. By default, the first stream declared in the manifest will be tested.
 
 #### Placeholders
 

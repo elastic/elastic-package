@@ -7,6 +7,7 @@ package system
 import (
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"path/filepath"
 	"strings"
 	"time"
@@ -23,6 +24,11 @@ import (
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/testrunner"
 	"github.com/elastic/elastic-package/internal/testrunner/runners/system/servicedeployer"
+)
+
+const (
+	testRunMaxID = 99999
+	testRunMinID = 10000
 )
 
 func init() {
@@ -158,6 +164,7 @@ func (r *runner) run() (results []testrunner.TestResult, err error) {
 		ctxt.Name = r.options.TestFolder.Package
 		ctxt.Logs.Folder.Local = serviceLogsDir
 		ctxt.Logs.Folder.Agent = serviceLogsAgentDir
+		ctxt.Test.RunID = createTestRunID()
 		testConfig, err := newConfig(filepath.Join(r.options.TestFolder.Path, cfgFile), ctxt)
 		if err != nil {
 			return result.withError(errors.Wrapf(err, "unable to load system test case file '%s'", cfgFile))
@@ -172,6 +179,10 @@ func (r *runner) run() (results []testrunner.TestResult, err error) {
 		}
 	}
 	return results, nil
+}
+
+func createTestRunID() string {
+	return fmt.Sprintf("%d", rand.Intn(testRunMaxID-testRunMinID)+testRunMinID)
 }
 
 func (r *runner) hasNumDocs(
@@ -396,7 +407,7 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	logger.Debug("checking for expected data in data stream...")
 	passed, err := waitUntilTrue(r.hasNumDocs(dataStream, fieldsValidator, func(n int) bool {
 		return n > 0
-	}), 2*time.Minute)
+	}), 10*time.Minute)
 
 	if err != nil {
 		return result.withError(err)
