@@ -50,7 +50,7 @@ First, we must define the configuration for deploying a package's integration se
         <service deployer files>
 ```
 
-or the data-stream's level:
+or the data stream's level:
 
 ```
 <package root>/
