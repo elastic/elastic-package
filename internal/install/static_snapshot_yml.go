@@ -21,6 +21,7 @@ services:
     - "xpack.license.self_generated.type=trial"
     - "xpack.security.enabled=true"
     - "xpack.security.authc.api_key.enabled=true"
+    - "xpack.security.authc.realms.file.file1.order=0"
     - "ELASTIC_PASSWORD=changeme"
     - "script.context.template.max_compilations_rate=unlimited"
     - "script.context.ingest.cache_max_size=2000"
