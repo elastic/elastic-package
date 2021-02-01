@@ -107,6 +107,16 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		}
 		tr.Name = tc.name
 
+		if tc.config.Skip != nil {
+			logger.Warnf("skipping %s test for %s/%s: %s (details: %s)",
+				TestType, r.options.TestFolder.Package, r.options.TestFolder.DataStream,
+				tc.config.Skip.Reason, tc.config.Skip.Link.String())
+
+			tr.Skipped = tc.config.Skip
+			results = append(results, tr)
+			continue
+		}
+
 		result, err := simulatePipelineProcessing(r.options.ESClient, entryPipeline, tc)
 		if err != nil {
 			err := errors.Wrap(err, "simulating pipeline processing failed")
@@ -168,6 +178,13 @@ func (r *runner) loadTestCaseFile(testCaseFile string) (*testCase, error) {
 	config, err := readConfigForTestCase(testCasePath)
 	if err != nil {
 		return nil, errors.Wrapf(err, "reading config for test case failed (testCasePath: %s)", testCasePath)
+	}
+
+	if config.Skip != nil {
+		return &testCase{
+			name:   testCaseFile,
+			config: &config,
+		}, nil
 	}
 
 	ext := filepath.Ext(testCaseFile)
