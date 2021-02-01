@@ -27,6 +27,7 @@ services:
     - "script.context.ingest.cache_max_size=2000"
     - "script.context.processor_conditional.cache_max_size=2000"
     - "script.context.template.cache_max_size=2000"
+    command: bash -c "bin/elasticsearch-users useradd elastic -r superuser -p changeme | /usr/local/bin/docker-entrypoint.sh eswrapper"
     ports:
       - "127.0.0.1:9200:9200"
 
