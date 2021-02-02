@@ -34,12 +34,12 @@ func (tsd TerraformServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedServic
 	}
 
 	service := dockerComposeDeployedService{
-		ymlPath: terraformDeployerYml,
+		ymlPaths: []string{terraformDeployerYml},
 		project: "elastic-package-service",
 	}
 	outCtxt := inCtxt
 
-	p, err := compose.NewProject(service.project, service.ymlPath)
+	p, err := compose.NewProject(service.project, service.ymlPaths...)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create docker compose project for service")
 	}
@@ -61,7 +61,7 @@ func (tsd TerraformServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedServic
 	}
 
 	// Set custom aliases, which may be used in agent policies.
-	outCtxt.CustomProperties = buildTerraformAliases()
+	outCtxt.CustomProperties = tsd.buildTerraformAliases()
 
 	service.ctxt = outCtxt
 	return &service, nil

@@ -28,7 +28,7 @@ func (tsd TerraformServiceDeployer) buildTerraformExecutorEnvironment(ctxt Servi
 	return pairs
 }
 
-func buildTerraformAliases() map[string]interface{} {
+func (tsd TerraformServiceDeployer) buildTerraformAliases() map[string]interface{} {
 	return map[string]interface{}{
 		//TODO awsAccessKeyID:     os.Getenv(awsAccessKeyID),
 	}
