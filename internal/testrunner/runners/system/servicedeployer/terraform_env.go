@@ -39,10 +39,10 @@ func buildTerraformAliases(serviceComposeConfig *compose.Config) (map[string]int
 	}
 
 	m := map[string]interface{}{}
-	for k, v := range terraformService.Environment {
+	for name, value := range terraformService.Environment {
 		// skip empty values and internal Terraform variables
-		if v != "" && !strings.HasPrefix(v, "TF_VAR_") {
-			m[k] = v
+		if value != "" && !strings.HasPrefix(name, "TF_VAR_") {
+			m[name] = value
 		}
 	}
 	return m, nil
