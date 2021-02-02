@@ -5,7 +5,10 @@
 package servicedeployer
 
 import (
+	"errors"
 	"fmt"
+
+	"github.com/elastic/elastic-package/internal/compose"
 )
 
 const (
@@ -28,8 +31,18 @@ func (tsd TerraformServiceDeployer) buildTerraformExecutorEnvironment(ctxt Servi
 	return pairs
 }
 
-func (tsd TerraformServiceDeployer) buildTerraformAliases() map[string]interface{} {
-	return map[string]interface{}{
-		//TODO awsAccessKeyID:     os.Getenv(awsAccessKeyID),
+func buildTerraformAliases(serviceComposeConfig *compose.Config) (map[string]interface{}, error) {
+	terraformService, found := serviceComposeConfig.Services["terraform"]
+	if !found {
+		return nil, errors.New("missing config section for terraform service")
 	}
+
+	m := map[string]interface{}{}
+	for k, v := range terraformService.Environment {
+		// skip empty variables and the internal alias for test run
+		if v != "" && v != tfTestRunID {
+			m[k] = v
+		}
+	}
+	return m, nil
 }
