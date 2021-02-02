@@ -80,6 +80,54 @@ type TestResult struct {
 	// of the error. An error is when the test cannot complete execution due
 	// to an unexpected runtime error in the test execution.
 	ErrorMsg string
+
+	// If the test was skipped, the reason it was skipped and a link for more
+	// details.
+	Skipped *SkipConfig
+}
+
+// ResultComposer wraps a TestResult and provides convenience methods for
+// manipulating this TestResult.
+type ResultComposer struct {
+	TestResult
+	StartTime time.Time
+}
+
+// NewResultComposer returns a new ResultComposer with the StartTime
+// initialized to now.
+func NewResultComposer(tr TestResult) *ResultComposer {
+	return &ResultComposer{
+		TestResult: tr,
+		StartTime:  time.Now(),
+	}
+}
+
+// WithError sets an error on the test result wrapped by ResultComposer.
+func (rc *ResultComposer) WithError(err error) ([]TestResult, error) {
+	rc.TimeElapsed = time.Now().Sub(rc.StartTime)
+	if err == nil {
+		return []TestResult{rc.TestResult}, nil
+	}
+
+	if tcf, ok := err.(ErrTestCaseFailed); ok {
+		rc.FailureMsg += tcf.Reason
+		rc.FailureDetails += tcf.Details
+		return []TestResult{rc.TestResult}, nil
+	}
+
+	rc.ErrorMsg += err.Error()
+	return []TestResult{rc.TestResult}, err
+}
+
+// WithSuccess marks the test result wrapped by ResultComposer as successful.
+func (rc *ResultComposer) WithSuccess() ([]TestResult, error) {
+	return rc.WithError(nil)
+}
+
+// WithSkip marks the test result wrapped by ResultComposer as skipped.
+func (rc *ResultComposer) WithSkip(s *SkipConfig) ([]TestResult, error) {
+	rc.TestResult.Skipped = s
+	return rc.WithError(nil)
 }
 
 // TestFolder encapsulates the test folder path and names of the package + data stream

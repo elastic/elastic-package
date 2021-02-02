@@ -12,11 +12,15 @@ import (
 	"path/filepath"
 
 	"github.com/pkg/errors"
+
+	"github.com/elastic/elastic-package/internal/testrunner"
 )
 
 const configTestSuffix = "-config.json"
 
 type testConfig struct {
+	testrunner.SkippableConfig `config:",inline"`
+
 	Multiline     *multiline             `json:"multiline"`
 	Fields        map[string]interface{} `json:"fields"`
 	DynamicFields map[string]string      `json:"dynamic_fields"`
