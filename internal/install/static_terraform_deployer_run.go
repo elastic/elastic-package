@@ -6,10 +6,6 @@ package install
 
 const terraformDeployerRun = `#!sh
 
-env
-
-exit
-
 set -euxo pipefail
 
 cp -r /stage/*.tf /workspace
