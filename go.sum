@@ -87,8 +87,6 @@ github.com/elastic/go-licenser v0.3.1 h1:RmRukU/JUmts+rpexAw0Fvt2ly7VVu6mw8z4HrE
 github.com/elastic/go-licenser v0.3.1/go.mod h1:D8eNQk70FOCVBl3smCGQt/lv7meBeQno2eI1S5apiHQ=
 github.com/elastic/go-ucfg v0.8.3 h1:leywnFjzr2QneZZWhE6uWd+QN/UpP0sdJRHYyuFvkeo=
 github.com/elastic/go-ucfg v0.8.3/go.mod h1:iaiY0NBIYeasNgycLyTvhJftQlQEUO2hpF+FX0JKxzo=
-github.com/elastic/package-spec/code/go v0.0.0-20210127201409-dd08da649371 h1:YjBuT9e9rP5vms2NWJVu6MAccgrSlOUlbykkjfa10aY=
-github.com/elastic/package-spec/code/go v0.0.0-20210127201409-dd08da649371/go.mod h1:dog1l3e8NoRYxuB8yIbbOWglE6GSQuU6ZL75wT9pKL8=
 github.com/emirpasic/gods v1.12.0 h1:QAUIPSaCu4G+POclxeqb3F+WPpdKqFGlw36+yOzGlrg=
 github.com/emirpasic/gods v1.12.0/go.mod h1:YfzfFFoVP/catgzJb4IKIqXjX78Ha8FMSDh3ymbK86o=
 github.com/envoyproxy/go-control-plane v0.9.0/go.mod h1:YTl/9mNaCwkRvm6d1a2C3ymFceY/DCBVvsKhRF0iEA4=
@@ -237,6 +235,8 @@ github.com/mitchellh/go-homedir v1.1.0 h1:lukF9ziXFxDFPkA1vsr5zpc1XuPDn/wFntq5mG
 github.com/mitchellh/go-homedir v1.1.0/go.mod h1:SfyaCUpYCn1Vlf4IUYiD9fPX4A5wJrkLzIz1N1q0pr0=
 github.com/mitchellh/mapstructure v1.1.2 h1:fmNYVwqnSfB9mZU6OS2O6GsXM+wcskZDuKQzvN1EDeE=
 github.com/mitchellh/mapstructure v1.1.2/go.mod h1:FVVH3fgwuzCH5S8UJGiWEs2h04kUh9fWfEaFds41c1Y=
+github.com/mtojek/package-spec/code/go v0.0.0-20210202123838-3f11f775afc0 h1:9ycClfg2N1FlH6sNONj3AhuPACufyxCVl1uQ5s3IB3A=
+github.com/mtojek/package-spec/code/go v0.0.0-20210202123838-3f11f775afc0/go.mod h1:dog1l3e8NoRYxuB8yIbbOWglE6GSQuU6ZL75wT9pKL8=
 github.com/mwitkow/go-conntrack v0.0.0-20161129095857-cc309e4a2223/go.mod h1:qRWi+5nqEBWmkhHvq77mSJWrCKwh8bxhgT7d/eI7P4U=
 github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e h1:fD57ERR4JtEqsWbfPhv4DMiApHyliiK5xCTNVSPiaAs=
 github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e/go.mod h1:zD1mROLANZcx1PVRCS0qkT7pwLkGfwJo4zjcN/Tysno=
