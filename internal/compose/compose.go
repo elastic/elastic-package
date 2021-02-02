@@ -30,7 +30,8 @@ type Config struct {
 	Services map[string]service
 }
 type service struct {
-	Ports []portMapping
+	Ports       []portMapping
+	Environment map[string]string
 }
 
 type portMapping struct {

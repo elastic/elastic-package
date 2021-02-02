@@ -5,20 +5,18 @@
 package servicedeployer
 
 import (
+	"errors"
 	"fmt"
-	"os"
+	"strings"
+
+	"github.com/elastic/elastic-package/internal/compose"
 )
 
 const (
-	// TODO: Replace with an env-file (link: https://github.com/elastic/elastic-package/issues/235)
-	awsAccessKeyID     = "AWS_ACCESS_KEY_ID"
-	awsSecretAccessKey = "AWS_SECRET_ACCESS_KEY"
-	awsSessionToken    = "AWS_SESSION_TOKEN"
-	awsProfile         = "AWS_PROFILE"
-	awsRegion          = "AWS_REGION"
-
 	tfDir       = "TF_DIR"
 	tfTestRunID = "TF_VAR_TEST_RUN_ID"
+
+	envYmlFile = "env.yml"
 )
 
 func (tsd TerraformServiceDeployer) buildTerraformExecutorEnvironment(ctxt ServiceContext) []string {
@@ -27,26 +25,6 @@ func (tsd TerraformServiceDeployer) buildTerraformExecutorEnvironment(ctxt Servi
 	vars[tfTestRunID] = ctxt.Test.RunID
 	vars[tfDir] = tsd.definitionsDir
 
-	if os.Getenv(awsAccessKeyID) != "" {
-		vars[awsAccessKeyID] = os.Getenv(awsAccessKeyID)
-	}
-
-	if os.Getenv(awsSecretAccessKey) != "" {
-		vars[awsSecretAccessKey] = os.Getenv(awsSecretAccessKey)
-	}
-
-	if os.Getenv(awsSessionToken) != "" {
-		vars[awsSessionToken] = os.Getenv(awsSessionToken)
-	}
-
-	if os.Getenv(awsProfile) != "" {
-		vars[awsProfile] = os.Getenv(awsProfile)
-	}
-
-	if os.Getenv(awsRegion) != "" {
-		vars[awsRegion] = os.Getenv(awsRegion)
-	}
-
 	var pairs []string
 	for k, v := range vars {
 		pairs = append(pairs, fmt.Sprintf("%s=%s", k, v))
@@ -54,12 +32,18 @@ func (tsd TerraformServiceDeployer) buildTerraformExecutorEnvironment(ctxt Servi
 	return pairs
 }
 
-func buildTerraformAliases() map[string]interface{} {
-	return map[string]interface{}{
-		awsAccessKeyID:     os.Getenv(awsAccessKeyID),
-		awsSecretAccessKey: os.Getenv(awsSecretAccessKey),
-		awsSessionToken:    os.Getenv(awsSessionToken),
-		awsProfile:         os.Getenv(awsProfile),
-		awsRegion:          os.Getenv(awsRegion),
+func buildTerraformAliases(serviceComposeConfig *compose.Config) (map[string]interface{}, error) {
+	terraformService, found := serviceComposeConfig.Services["terraform"]
+	if !found {
+		return nil, errors.New("missing config section for terraform service")
 	}
+
+	m := map[string]interface{}{}
+	for name, value := range terraformService.Environment {
+		// skip empty values and internal Terraform variables
+		if value != "" && !strings.HasPrefix(name, "TF_VAR_") {
+			m[name] = value
+		}
+	}
+	return m, nil
 }

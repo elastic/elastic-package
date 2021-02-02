@@ -38,7 +38,7 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 	case "docker":
 		dockerComposeYMLPath := filepath.Join(devDeployPath, serviceDeployerName, "docker-compose.yml")
 		if _, err := os.Stat(dockerComposeYMLPath); err == nil {
-			return NewDockerComposeServiceDeployer(dockerComposeYMLPath)
+			return NewDockerComposeServiceDeployer([]string{dockerComposeYMLPath})
 		}
 	case "tf":
 		terraformDirPath := filepath.Join(devDeployPath, serviceDeployerName)
