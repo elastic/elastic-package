@@ -7,6 +7,7 @@ package servicedeployer
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/elastic/elastic-package/internal/compose"
 )
@@ -39,8 +40,8 @@ func buildTerraformAliases(serviceComposeConfig *compose.Config) (map[string]int
 
 	m := map[string]interface{}{}
 	for k, v := range terraformService.Environment {
-		// skip empty variables and the internal alias for test run
-		if v != "" && v != tfTestRunID {
+		// skip empty values and internal Terraform variables
+		if v != "" && !strings.HasPrefix(v, "TF_VAR_") {
 			m[k] = v
 		}
 	}
