@@ -26,8 +26,8 @@ type DockerComposeServiceDeployer struct {
 type dockerComposeDeployedService struct {
 	ctxt ServiceContext
 
-	ymlPaths[] string
-	project string
+	ymlPaths []string
+	project  string
 }
 
 // NewDockerComposeServiceDeployer returns a new instance of a DockerComposeServiceDeployer.
@@ -42,7 +42,7 @@ func (r *DockerComposeServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedSer
 	logger.Debug("setting up service using Docker Compose service deployer")
 	service := dockerComposeDeployedService{
 		ymlPaths: r.ymlPaths,
-		project: "elastic-package-service",
+		project:  "elastic-package-service",
 	}
 	outCtxt := inCtxt
 

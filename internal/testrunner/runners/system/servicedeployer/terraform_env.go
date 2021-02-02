@@ -11,6 +11,8 @@ import (
 const (
 	tfDir       = "TF_DIR"
 	tfTestRunID = "TF_VAR_TEST_RUN_ID"
+
+	envYmlFile = "env.yml"
 )
 
 func (tsd TerraformServiceDeployer) buildTerraformExecutorEnvironment(ctxt ServiceContext) []string {
@@ -18,8 +20,6 @@ func (tsd TerraformServiceDeployer) buildTerraformExecutorEnvironment(ctxt Servi
 	vars[serviceLogsDirEnv] = ctxt.Logs.Folder.Local
 	vars[tfTestRunID] = ctxt.Test.RunID
 	vars[tfDir] = tsd.definitionsDir
-
-	// TODO vars[awsAccessKeyID] = os.Getenv(awsAccessKeyID)
 
 	var pairs []string
 	for k, v := range vars {

@@ -5,6 +5,9 @@
 package servicedeployer
 
 import (
+	"os"
+	"path/filepath"
+
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/compose"
@@ -28,14 +31,15 @@ func NewTerraformServiceDeployer(definitionsDir string) (*TerraformServiceDeploy
 // SetUp method boots up the Docker Compose with Terraform executor and mounted .tf definitions.
 func (tsd TerraformServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedService, error) {
 	logger.Debug("setting up service using Terraform deployer")
-	terraformDeployerYml, err := install.TerraformDeployerComposeFile()
+
+	ymlPaths, err := tsd.loadComposeDefinitions()
 	if err != nil {
-		return nil, errors.Wrap(err, "can't locate docker compose file for Terraform deployer")
+		return nil, errors.Wrap(err, "can't load docker compose definitions")
 	}
 
 	service := dockerComposeDeployedService{
-		ymlPaths: []string{terraformDeployerYml},
-		project: "elastic-package-service",
+		ymlPaths: ymlPaths,
+		project:  "elastic-package-service",
 	}
 	outCtxt := inCtxt
 
@@ -65,6 +69,27 @@ func (tsd TerraformServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedServic
 
 	service.ctxt = outCtxt
 	return &service, nil
+}
+
+func (tsd TerraformServiceDeployer) loadComposeDefinitions() ([]string, error) {
+	terraformDeployerYml, err := install.TerraformDeployerComposeFile()
+	if err != nil {
+		return nil, errors.Wrap(err, "can't locate docker compose file for Terraform deployer")
+	}
+
+	envYmlPath := filepath.Join(tsd.definitionsDir, envYmlFile)
+	_, err = os.Stat(envYmlPath)
+	if os.IsNotExist(err) {
+		return []string{
+			terraformDeployerYml,
+		}, nil
+	}
+	if err != nil {
+		return nil, errors.Wrapf(err, "stat failed (path: %s)", envYmlPath)
+	}
+	return []string{
+		terraformDeployerYml, envYmlPath,
+	}, nil
 }
 
 var _ ServiceDeployer = new(TerraformServiceDeployer)
