@@ -37,7 +37,7 @@ const (
 	VerboseFlagDescription = "verbose mode"
 
 	StackServicesFlagName        = "services"
-	StackServicesFlagDescription = "component services (comma-separated values: %s)"
+	StackServicesFlagDescription = "component services (comma-separated values: \"%s\")"
 
 	StackVersionFlagName        = "version"
 	StackVersionFlagDescription = "stack version"

@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
+	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/export"
 	"github.com/elastic/elastic-package/internal/kibana"
 )
@@ -53,6 +54,8 @@ func exportDashboardsCmd(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return cobraext.FlagParsingError(err, cobraext.DashboardIDsFlagName)
 	}
+
+	common.TrimStringSlice(dashboardIDs)
 
 	kibanaClient, err := kibana.NewClient()
 	if err != nil {

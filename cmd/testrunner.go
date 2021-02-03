@@ -13,6 +13,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
+	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/testrunner"
@@ -119,6 +120,7 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 			// subcommands of test, the data streams flag will not be defined.
 			if cmd.Flags().Lookup(cobraext.DataStreamsFlagName) != nil {
 				dataStreams, err = cmd.Flags().GetStringSlice(cobraext.DataStreamsFlagName)
+				common.TrimStringSlice(dataStreams)
 				if err != nil {
 					return cobraext.FlagParsingError(err, cobraext.DataStreamsFlagName)
 				}
