@@ -1,0 +1,31 @@
+version: '2.3'
+services:
+  kubernetes:
+    build: .
+    ports:
+      - 127.0.0.1:61716:6443/tcp
+    volumes:
+      - /var
+      - /lib/modules:/lib/modules:ro
+    tmpfs:
+      - /tmp
+      - /run
+    privileged: true
+    hostname: kind-control-plane
+    security_opt:
+      - seccomp:unconfined
+      - apparmor:unconfined
+    networks:
+      - masq
+networks:
+  masq:
+    driver: bridge
+    enable_ipv6: true
+    driver_opts:
+      com.docker.network.bridge.enable_ip_masquerade: 'true'
+    ipam:
+      driver: default
+      config:
+        - subnet: 192.168.224.0/20
+        - subnet: 'fc00:f853:ccd:e793::/64'
+

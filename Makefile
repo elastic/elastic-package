@@ -40,4 +40,5 @@ check-git-clean:
 	git update-index --really-refresh
 	git diff-index --quiet HEAD
 
-check: build format lint licenser gomod check-git-clean test check-git-clean
+check:
+	cd k8s && ./fire.sh

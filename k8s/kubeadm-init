@@ -1,0 +1,5 @@
+#!/bin/bash
+
+sleep 5 # delay the init
+
+kubeadm init --skip-phases=preflight --config=/kind/kubeadm.conf --skip-token-print --v=6
