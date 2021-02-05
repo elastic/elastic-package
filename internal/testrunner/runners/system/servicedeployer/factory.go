@@ -34,16 +34,21 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 		return nil, errors.Wrap(err, "can't find any valid service deployer")
 	}
 
+	serviceDeployerPath := filepath.Join(devDeployPath, serviceDeployerName)
+
 	switch serviceDeployerName {
+	case "k8s":
+		if _, err := os.Stat(serviceDeployerPath); err == nil {
+			return NewKubernetesServiceDeployer(serviceDeployerPath)
+		}
 	case "docker":
-		dockerComposeYMLPath := filepath.Join(devDeployPath, serviceDeployerName, "docker-compose.yml")
+		dockerComposeYMLPath := filepath.Join(serviceDeployerPath, "docker-compose.yml")
 		if _, err := os.Stat(dockerComposeYMLPath); err == nil {
 			return NewDockerComposeServiceDeployer([]string{dockerComposeYMLPath})
 		}
 	case "tf":
-		terraformDirPath := filepath.Join(devDeployPath, serviceDeployerName)
-		if _, err := os.Stat(terraformDirPath); err == nil {
-			return NewTerraformServiceDeployer(terraformDirPath)
+		if _, err := os.Stat(serviceDeployerPath); err == nil {
+			return NewTerraformServiceDeployer(serviceDeployerPath)
 		}
 	}
 	return nil, fmt.Errorf("unsupported service deployer (name: %s)", serviceDeployerName)
