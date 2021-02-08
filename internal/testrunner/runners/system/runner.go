@@ -316,15 +316,25 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	}
 
 	// Get enrolled agent ID
-	allAgents, err := kib.ListAgents()
-	if err != nil {
-		return result.WithError(errors.Wrap(err, "could not list agents"))
-	}
-	agents := filterAgents(allAgents, ctxt)
+	var agents []kibana.Agent
+	_, err = waitUntilTrue(func() (bool, error) {
+		allAgents, err := kib.ListAgents()
+		if err != nil {
+			return false, errors.Wrap(err, "could not list agents")
+		}
 
-	if agents == nil || len(agents) == 0 {
-		return result.WithError(errors.New("no agents found"))
+		agents = filterAgents(allAgents, ctxt)
+		logger.Debugf("found %d enrolled agents", len(agents))
+
+		if len(agents) == 0 {
+			return false, errors.New("selected agents are unavailable")
+		}
+		return true, nil
+	}, 5*time.Minute)
+	if err != nil {
+		return result.WithError(errors.Wrap(err, "no agent enrolled in time"))
 	}
+
 	agent := agents[0]
 	origPolicy := kibana.Policy{
 		ID: agent.PolicyID,
