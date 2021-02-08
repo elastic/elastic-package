@@ -49,6 +49,11 @@ func (s kubernetesDeployedService) TearDown() error {
 		logger.Debugf("no custom definitions found (directory: %s). Nothing will be uninstalled.", s.definitionsDir)
 		return nil
 	}
+
+	err = modifyKubernetesResources(false, definitionPaths...)
+	if err != nil {
+		return errors.Wrapf(err, "can't uninstall Kubernetes resources (path: %s)", s.definitionsDir)
+	}
 	return nil
 }
 
@@ -124,7 +129,7 @@ func (ksd KubernetesServiceDeployer) installCustomDefinitions() error {
 		return nil
 	}
 
-	err = installKubernetesDefinition(definitionPaths...)
+	err = modifyKubernetesResources(false, definitionPaths...)
 	if err != nil {
 		return errors.Wrap(err, "can't install custom definitions")
 	}
@@ -234,15 +239,21 @@ func installElasticAgentInCluster() error {
 		return errors.Wrap(err, "can't locate Kubernetes file for Elastic Agent in ")
 	}
 
-	err = installKubernetesDefinition(elasticAgentFile)
+	err = modifyKubernetesResources(true, elasticAgentFile)
 	if err != nil {
 		return errors.Wrap(err, "can't install Elastic-Agent in Kubernetes cluster")
 	}
 	return nil
 }
 
-func installKubernetesDefinition(definitionPaths ...string) error {
-	args := []string{"apply"}
+func modifyKubernetesResources(apply bool, definitionPaths ...string) error {
+	var args []string
+	if apply {
+		args = append(args, "apply")
+	} else {
+		args = append(args, "delete")
+	}
+
 	for _, definitionPath := range definitionPaths {
 		args = append(args, "-f")
 		args = append(args, definitionPath)
