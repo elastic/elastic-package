@@ -8,11 +8,11 @@ cleanup() {
   # Dump stack logs
   elastic-package stack dump -v --output build/elastic-stack-dump/check
 
-  # Take down the stack
-  elastic-package stack down -v
-
   # Take down the kind cluster
   kind delete cluster
+
+  # Take down the stack
+  elastic-package stack down -v
 
   # Clean used resources
   for d in test/packages/*/; do
