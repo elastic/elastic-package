@@ -52,7 +52,7 @@ func (ksd KubernetesServiceDeployer) SetUp(ctxt ServiceContext) (DeployedService
 		return nil, errors.Wrap(err, "can't connect control plane to Elastic stack network")
 	}
 
-	err = installElasticAgentUsingKubernetesDefinition()
+	err = installElasticAgentInCluster()
 	if err != nil {
 		return nil, errors.Wrap(err, "can't install Elastic-Agent in Kubernetes cluster")
 	}
@@ -114,13 +114,29 @@ func connectControlPlaneToElasticStackNetwork(controlPlaneContainerID string) er
 	return nil
 }
 
-func installElasticAgentUsingKubernetesDefinition() error {
+func installElasticAgentInCluster() error {
+	logger.Debug("install Elastic Agent in the Kubernetes cluster")
+
 	elasticAgentFile, err := install.KubernetesDeployerElasticAgentFile()
 	if err != nil {
 		return errors.Wrap(err, "can't locate Kubernetes file for Elastic Agent in ")
 	}
 
-	cmd := exec.Command("kubectl", "apply", "-f", elasticAgentFile)
+	err = installKubernetesDefinition(elasticAgentFile)
+	if err != nil {
+		return errors.Wrap(err, "can't install Elastic-Agent in Kubernetes cluster")
+	}
+	return nil
+}
+
+func installKubernetesDefinition(definitionPaths ...string) error {
+	args := []string{"apply"}
+	for _, definitionPath := range definitionPaths {
+		args = append(args, "-f")
+		args = append(args, definitionPath)
+	}
+
+	cmd := exec.Command("kubectl", args...)
 	errOutput := new(bytes.Buffer)
 	cmd.Stderr = errOutput
 	if err := cmd.Run(); err != nil {
