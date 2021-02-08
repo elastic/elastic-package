@@ -33,3 +33,5 @@ require (
 	golang.org/x/tools v0.1.0
 	gopkg.in/yaml.v3 v3.0.0-20200615113413-eeeca48fe776
 )
+
+replace github.com/elastic/package-spec/code/go => github.com/mtojek/package-spec/code/go v0.0.0-20210208141318-74d6d9613860
