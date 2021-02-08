@@ -102,6 +102,8 @@ func (ksd KubernetesServiceDeployer) SetUp(ctxt ServiceContext) (DeployedService
 		return nil, errors.Wrap(err, "can't install custom definitions in the Kubernetes cluster")
 	}
 
+	ctxt.Name = kindControlPlaneContainerName
+	ctxt.Hostname = kindControlPlaneContainerName
 	ctxt.Agent.Host.NamePrefix = "kind-fleet-agent-"
 	return &kubernetesDeployedService{
 		ctxt:           ctxt,
