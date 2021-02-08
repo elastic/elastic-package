@@ -7,7 +7,10 @@ package servicedeployer
 import (
 	"bytes"
 	"fmt"
+	"io/ioutil"
 	"os/exec"
+	"path/filepath"
+	"strings"
 
 	"github.com/pkg/errors"
 
@@ -54,14 +57,45 @@ func (ksd KubernetesServiceDeployer) SetUp(ctxt ServiceContext) (DeployedService
 
 	err = installElasticAgentInCluster()
 	if err != nil {
-		return nil, errors.Wrap(err, "can't install Elastic-Agent in Kubernetes cluster")
+		return nil, errors.Wrap(err, "can't install Elastic-Agent in the Kubernetes cluster")
 	}
 
-	// TODO install custom definitions
+	err = ksd.installCustomDefinitions()
+	if err != nil {
+		return nil, errors.Wrap(err, "can't install custom definitions in the Kubernetes cluster")
+	}
+
 	// TODO Test execution: List cluster agent only
 	// TODO uninstall custom definitions
 
 	panic("implement me")
+}
+
+func (ksd KubernetesServiceDeployer) installCustomDefinitions() error {
+	logger.Debugf("install custom Kubernetes definitions (directory: %s)", ksd.definitionsDir)
+
+	fileInfos, err := ioutil.ReadDir(ksd.definitionsDir)
+	if err != nil {
+		return errors.Wrapf(err, "can't read definitions directory (path: %s)", ksd.definitionsDir)
+	}
+
+	var definitionPaths []string
+	for _, fileInfo := range fileInfos {
+		if strings.HasSuffix(fileInfo.Name(), ".yaml") {
+			definitionPaths = append(definitionPaths, filepath.Join(ksd.definitionsDir, fileInfo.Name()))
+		}
+	}
+
+	if len(definitionPaths) == 0 {
+		logger.Debugf("no custom definitions found (directory: %s). Nothing will be installed.", ksd.definitionsDir)
+		return nil
+	}
+
+	err = installKubernetesDefinition(definitionPaths...)
+	if err != nil {
+		return errors.Wrap(err, "can't install custom definitions")
+	}
+	return nil
 }
 
 var _ ServiceDeployer = new(KubernetesServiceDeployer)
