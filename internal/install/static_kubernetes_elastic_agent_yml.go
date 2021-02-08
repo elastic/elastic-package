@@ -10,24 +10,24 @@ const kubernetesDeployerElasticAgentYml = `---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: agent-ingest-management-clusterscope
+  name: kind-fleet-agent-clusterscope
   namespace: kube-system
   labels:
-    app: agent-ingest-management-clusterscope
+    app: kind-fleet-agent-clusterscope
     group: ingest-management
 spec:
   selector:
     matchLabels:
-      app: agent-ingest-management-clusterscope
+      app: kind-fleet-agent-clusterscope
   template:
     metadata:
       labels:
-        app: agent-ingest-management-clusterscope
+        app: kind-fleet-agent-clusterscope
         group: ingest-management
     spec:
-      serviceAccountName: agent-ingest-management
+      serviceAccountName: kind-fleet-agent
       containers:
-        - name: agent-ingest-management-clusterscope
+        - name: kind-fleet-agent-clusterscope
           image: docker.elastic.co/beats/elastic-agent:` + kubernetesDeployerElasticAgentVersion + `
           env:
             - name: FLEET_ENROLL
@@ -52,7 +52,7 @@ spec:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: agent-ingest-management-clusterscope
+  name: kind-fleet-agent-clusterscope
   namespace: kube-system
   labels:
     group: ingest-management
@@ -69,22 +69,22 @@ data:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: agent-ingest-management
+  name: kind-fleet-agent
 subjects:
   - kind: ServiceAccount
-    name: agent-ingest-management
+    name: kind-fleet-agent
     namespace: kube-system
 roleRef:
   kind: ClusterRole
-  name: agent-ingest-management
+  name: kind-fleet-agent
   apiGroup: rbac.authorization.k8s.io
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: agent-ingest-management
+  name: kind-fleet-agent
   labels:
-    k8s-app: agent-ingest-management
+    k8s-app: kind-fleet-agent
 rules:
   - apiGroups: [""]
     resources:
@@ -119,9 +119,9 @@ rules:
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: agent-ingest-management
+  name: kind-fleet-agent
   namespace: kube-system
   labels:
-    k8s-app: agent-ingest-management
+    k8s-app: kind-fleet-agent
 ---
 `

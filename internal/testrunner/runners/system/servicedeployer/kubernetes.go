@@ -101,6 +101,7 @@ func (ksd KubernetesServiceDeployer) SetUp(ctxt ServiceContext) (DeployedService
 		return nil, errors.Wrap(err, "can't install custom definitions in the Kubernetes cluster")
 	}
 
+	ctxt.Agent.Host.NamePrefix = "kind-fleet-agent-"
 	return &kubernetesDeployedService{
 		ctxt:           ctxt,
 		definitionsDir: ksd.definitionsDir,
@@ -154,7 +155,7 @@ func verifyKindContext() error {
 	if err != nil {
 		return errors.Wrapf(err, "kubectl command failed")
 	}
-	currentContext := string(output)
+	currentContext := string(bytes.TrimSpace(output))
 
 	if currentContext != "kind-kind" {
 		return fmt.Errorf("unexpected kubectl context selected (actual: %s, expected: %s)", currentContext, kindContext)

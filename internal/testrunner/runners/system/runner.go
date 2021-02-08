@@ -316,10 +316,12 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	}
 
 	// Get enrolled agent ID
-	agents, err := kib.ListAgents()
+	allAgents, err := kib.ListAgents()
 	if err != nil {
 		return result.WithError(errors.Wrap(err, "could not list agents"))
 	}
+	agents := filterAgents(allAgents, ctxt)
+
 	if agents == nil || len(agents) == 0 {
 		return result.WithError(errors.New("no agents found"))
 	}
@@ -519,4 +521,19 @@ func waitUntilTrue(fn func() (bool, error), timeout time.Duration) (bool, error)
 	}
 
 	return false, nil
+}
+
+func filterAgents(allAgents []kibana.Agent, ctx servicedeployer.ServiceContext) []kibana.Agent {
+	if ctx.Agent.Host.NamePrefix != "" {
+		logger.Debugf("filter agents based on name criteria: NamePrefix=%s", ctx.Agent.Host.NamePrefix)
+	}
+
+	var filtered []kibana.Agent
+	for _, agent := range allAgents {
+		if ctx.Agent.Host.NamePrefix != "" && !strings.HasPrefix(agent.LocalMetadata.Host.Name, ctx.Agent.Host.NamePrefix) {
+			continue
+		}
+		filtered = append(filtered, agent)
+	}
+	return filtered
 }
