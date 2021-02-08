@@ -6,6 +6,7 @@ package servicedeployer
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os/exec"
@@ -182,10 +183,40 @@ func findKindControlPlane() (string, error) {
 
 func connectControlPlaneToElasticStackNetwork(controlPlaneContainerID string) error {
 	stackNetwork := fmt.Sprintf("%s_default", stack.DockerComposeProjectName)
-	logger.Debugf("attaching service container %s (ID: %s) to stack network %s", kindControlPlaneContainerName, controlPlaneContainerID, stackNetwork)
 
-	cmd := exec.Command("docker", "network", "connect", stackNetwork, controlPlaneContainerID)
+	logger.Debugf("check network connectivity between service container %s (ID: %s) and the stack network %s", kindControlPlaneContainerName, controlPlaneContainerID, stackNetwork)
+	cmd := exec.Command("docker", "network", "inspect", stackNetwork)
 	errOutput := new(bytes.Buffer)
+	cmd.Stderr = errOutput
+	output, err := cmd.Output()
+	if err != nil {
+		return errors.Wrapf(err, "could not inspect the stack network (stderr=%q)", errOutput.String())
+	}
+
+	var networkDescriptions []struct {
+		Containers map[string]struct {
+			Name string
+		}
+	}
+	err = json.Unmarshal(output, &networkDescriptions)
+	if err != nil {
+		return errors.Wrapf(err, "can't unmarshal network inspect for %s (stderr=%q)", stackNetwork, errOutput.String())
+	}
+
+	if len(networkDescriptions) != 1 {
+		return fmt.Errorf("expect single network inspect record, got %d entries", len(networkDescriptions))
+	}
+
+	for _, c := range networkDescriptions[0].Containers {
+		if c.Name == kindControlPlaneContainerName {
+			logger.Debugf("container %s is already attached to the %s network", kindControlPlaneContainerName, stackNetwork)
+			return nil
+		}
+	}
+
+	logger.Debugf("attach service container %s (ID: %s) to stack network %s", kindControlPlaneContainerName, controlPlaneContainerID, stackNetwork)
+	cmd = exec.Command("docker", "network", "connect", stackNetwork, controlPlaneContainerID)
+	errOutput = new(bytes.Buffer)
 	cmd.Stderr = errOutput
 	if err := cmd.Run(); err != nil {
 		return errors.Wrapf(err, "could not attach \"%s\" container to the stack network (stderr=%q)", kindControlPlaneContainerName, errOutput.String())
