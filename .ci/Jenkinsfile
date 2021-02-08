@@ -10,7 +10,7 @@ pipeline {
     PIPELINE_LOG_LEVEL='INFO'
     AWS_ACCOUNT_SECRET = 'secret/observability-team/ci/elastic-observability-aws-account-auth'
     HOME = "${env.WORKSPACE}"
-    KIND_VERSION = '0.10.0'
+    KIND_VERSION = 'v0.10.0'
   }
   options {
     timeout(time: 1, unit: 'HOURS')
@@ -81,7 +81,11 @@ def cleanup(){
 }
 
 def withKind(Closure body) {
-    sh(label: "Install kind", script: "mkdir -p ${HOME}/bin && curl -sSLo ${HOME}/bin/kind \"https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-linux-amd64\" && chmod +x ${HOME}/bin/kind")
+    sh(label: "Install kind", script: '''
+       mkdir -p ${HOME}/bin
+       curl -sSLo ${HOME}/bin/kind \"https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-linux-amd64\"
+       chmod +x ${HOME}/bin/kind
+       ''')
     sh(label: "Check kind version", script: "kind version")
     body()
 }
