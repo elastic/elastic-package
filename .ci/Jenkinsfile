@@ -11,6 +11,7 @@ pipeline {
     AWS_ACCOUNT_SECRET = 'secret/observability-team/ci/elastic-observability-aws-account-auth'
     HOME = "${env.WORKSPACE}"
     KIND_VERSION = 'v0.10.0'
+    K8S_VERSION = '1.20.2'
   }
   options {
     timeout(time: 1, unit: 'HOURS')
@@ -43,7 +44,7 @@ pipeline {
       steps {
         cleanup()
         withMageEnv(){
-          withKind() {
+          withKubernetes() {
             withCloudTestEnv() {
               dir("${BASE_DIR}"){
                 sh(label: 'Check',script: 'make check')
@@ -80,13 +81,19 @@ def cleanup(){
   unstash 'source'
 }
 
-def withKind(Closure body) {
+def withKubernetes(Closure body) {
+    sh(label: "Install kubectl", script: '''
+       mkdir -p ${HOME}/bin
+       curl -sSLo ${HOME}/bin/kubectl "https://storage.googleapis.com/kubernetes-release/release/${K8S_VERSION}/bin/linux/amd64/kubectl"
+       chmod +x ${HOME}/bin/kubectl
+       kubectl version
+       ''')
     sh(label: "Install kind", script: '''
        mkdir -p ${HOME}/bin
        curl -sSLo ${HOME}/bin/kind "https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-linux-amd64"
        chmod +x ${HOME}/bin/kind
+       kind version
        ''')
-    sh(label: "Check kind version", script: "kind version")
     body()
 }
 
