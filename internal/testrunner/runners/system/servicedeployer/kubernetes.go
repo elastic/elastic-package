@@ -120,7 +120,7 @@ func (ksd KubernetesServiceDeployer) installCustomDefinitions() error {
 	}
 
 	if len(definitionPaths) == 0 {
-		logger.Debugf("no custom definitions found (directory: %s). Nothing will be installed.", ksd.definitionsDir)
+		logger.Debugf("no custom definitions found (directory: %s). Nothing else will be installed.", ksd.definitionsDir)
 		return nil
 	}
 
