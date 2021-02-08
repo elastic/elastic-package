@@ -83,7 +83,7 @@ def cleanup(){
 def withKind(Closure body) {
     sh(label: "Install kind", script: '''
        mkdir -p ${HOME}/bin
-       curl -sSLo ${HOME}/bin/kind \"https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-linux-amd64\"
+       curl -sSLo ${HOME}/bin/kind "https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-linux-amd64"
        chmod +x ${HOME}/bin/kind
        ''')
     sh(label: "Check kind version", script: "kind version")
