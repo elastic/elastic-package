@@ -30,6 +30,42 @@ type KubernetesServiceDeployer struct {
 	definitionsDir string
 }
 
+type kubernetesDeployedService struct {
+	ctxt ServiceContext
+
+	definitionsDir string
+}
+
+func (s kubernetesDeployedService) TearDown() error {
+	logger.Debugf("uninstall custom Kubernetes definitions (directory: %s)", s.definitionsDir)
+
+	definitionPaths, err := findKubernetesDefinitions(s.definitionsDir)
+	if err != nil {
+		return errors.Wrapf(err, "can't find Kubernetes definitions in given directory (path: %s)", s.definitionsDir)
+	}
+
+	if len(definitionPaths) == 0 {
+		logger.Debugf("no custom definitions found (directory: %s). Nothing will be uninstalled.", s.definitionsDir)
+		return nil
+	}
+	return nil
+}
+
+func (s kubernetesDeployedService) Signal(signal string) error {
+	return errors.New("signal is not supported")
+}
+
+func (s kubernetesDeployedService) Context() ServiceContext {
+	return s.ctxt
+}
+
+func (s kubernetesDeployedService) SetContext(sc ServiceContext) error {
+	s.ctxt = sc
+	return nil
+}
+
+var _ DeployedService = new(kubernetesDeployedService)
+
 // NewKubernetesServiceDeployer function creates a new instance of KubernetesServiceDeployer.
 func NewKubernetesServiceDeployer(definitionsDir string) (*KubernetesServiceDeployer, error) {
 	return &KubernetesServiceDeployer{
@@ -65,25 +101,18 @@ func (ksd KubernetesServiceDeployer) SetUp(ctxt ServiceContext) (DeployedService
 		return nil, errors.Wrap(err, "can't install custom definitions in the Kubernetes cluster")
 	}
 
-	// TODO Test execution: List cluster agent only
-	// TODO uninstall custom definitions
-
-	panic("implement me")
+	return &kubernetesDeployedService{
+		ctxt:           ctxt,
+		definitionsDir: ksd.definitionsDir,
+	}, nil
 }
 
 func (ksd KubernetesServiceDeployer) installCustomDefinitions() error {
 	logger.Debugf("install custom Kubernetes definitions (directory: %s)", ksd.definitionsDir)
 
-	fileInfos, err := ioutil.ReadDir(ksd.definitionsDir)
+	definitionPaths, err := findKubernetesDefinitions(ksd.definitionsDir)
 	if err != nil {
-		return errors.Wrapf(err, "can't read definitions directory (path: %s)", ksd.definitionsDir)
-	}
-
-	var definitionPaths []string
-	for _, fileInfo := range fileInfos {
-		if strings.HasSuffix(fileInfo.Name(), ".yaml") {
-			definitionPaths = append(definitionPaths, filepath.Join(ksd.definitionsDir, fileInfo.Name()))
-		}
+		return errors.Wrapf(err, "can't find Kubernetes definitions in given directory (path: %s)", ksd.definitionsDir)
 	}
 
 	if len(definitionPaths) == 0 {
@@ -99,6 +128,21 @@ func (ksd KubernetesServiceDeployer) installCustomDefinitions() error {
 }
 
 var _ ServiceDeployer = new(KubernetesServiceDeployer)
+
+func findKubernetesDefinitions(definitionsDir string) ([]string, error) {
+	fileInfos, err := ioutil.ReadDir(definitionsDir)
+	if err != nil {
+		return nil, errors.Wrapf(err, "can't read definitions directory (path: %s)", definitionsDir)
+	}
+
+	var definitionPaths []string
+	for _, fileInfo := range fileInfos {
+		if strings.HasSuffix(fileInfo.Name(), ".yaml") {
+			definitionPaths = append(definitionPaths, filepath.Join(definitionsDir, fileInfo.Name()))
+		}
+	}
+	return definitionPaths, nil
+}
 
 func verifyKindContext() error {
 	logger.Debug("ensure that kind context is selected")
