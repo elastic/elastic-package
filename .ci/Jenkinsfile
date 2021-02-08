@@ -92,7 +92,7 @@ def withKubernetes(Closure body) {
        mkdir -p ${HOME}/bin
        curl -sSLo ${HOME}/bin/kubectl "https://storage.googleapis.com/kubernetes-release/release/${K8S_VERSION}/bin/linux/amd64/kubectl"
        chmod +x ${HOME}/bin/kubectl
-       kubectl version
+       kubectl version --client
        ''')
     body()
 }
