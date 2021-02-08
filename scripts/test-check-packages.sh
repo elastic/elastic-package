@@ -11,6 +11,9 @@ cleanup() {
   # Take down the stack
   elastic-package stack down -v
 
+  # Take down the kind cluster
+  kind delete cluster
+
   # Clean used resources
   for d in test/packages/*/; do
     (
@@ -36,6 +39,9 @@ cd -
 
 # Boot up the stack
 elastic-package stack up -d -v
+
+# Boot up the kind cluster
+kind create cluster
 
 # Run package tests
 eval "$(elastic-package stack shellinit)"
