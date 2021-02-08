@@ -153,7 +153,7 @@ func verifyKindContext() error {
 	cmd.Stderr = errOutput
 	output, err := cmd.Output()
 	if err != nil {
-		return errors.Wrapf(err, "kubectl command failed")
+		return errors.Wrapf(err, "kubectl command failed (stderr=%q)", errOutput.String())
 	}
 	currentContext := string(bytes.TrimSpace(output))
 
