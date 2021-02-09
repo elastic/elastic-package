@@ -57,6 +57,7 @@ pipeline {
         always {
           dir("${BASE_DIR}") {
             archiveArtifacts(allowEmptyArchive: true, artifacts: 'build/test-results/*.xml')
+            archiveArtifacts(allowEmptyArchive: true, artifacts: 'build/kubectl-dump.txt')
             archiveArtifacts(allowEmptyArchive: true, artifacts: 'build/elastic-stack-dump/stack/logs/*.log')
             archiveArtifacts(allowEmptyArchive: true, artifacts: 'build/elastic-stack-dump/check/logs/*.log')
             junit(allowEmptyResults: false,

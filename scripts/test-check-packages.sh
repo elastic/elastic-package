@@ -8,6 +8,9 @@ cleanup() {
   # Dump stack logs
   elastic-package stack dump -v --output build/elastic-stack-dump/check
 
+  # Dump kubectl details
+  kubectl describe pods --all-namespaces > build/kubectl-dump.txt
+
   # Take down the kind cluster
   kind delete cluster
 
