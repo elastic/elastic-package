@@ -544,7 +544,7 @@ func waitUntilTrue(fn func() (bool, error), timeout time.Duration) (bool, error)
 
 func filterAgents(allAgents []kibana.Agent, ctx servicedeployer.ServiceContext) []kibana.Agent {
 	if ctx.Agent.Host.NamePrefix != "" {
-		logger.Debugf("filter agents based on name criteria: NamePrefix=%s", ctx.Agent.Host.NamePrefix)
+		logger.Debugf("filter agents using criteria: NamePrefix=%s", ctx.Agent.Host.NamePrefix)
 	}
 
 	var filtered []kibana.Agent
