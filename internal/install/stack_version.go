@@ -2,9 +2,9 @@
 // or more contributor license agreements. Licensed under the Elastic License;
 // you may not use this file except in compliance with the Elastic License.
 
-package stack
+package install
 
 const (
-	// DefaultVersion is the default version of the stack
-	DefaultVersion = "7.11.0-SNAPSHOT"
+	// DefaultStackVersion is the default version of the stack
+	DefaultStackVersion = "7.11.0-SNAPSHOT"
 )

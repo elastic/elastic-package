@@ -4,8 +4,6 @@
 
 package install
 
-const kubernetesDeployerElasticAgentVersion = "7.10.0-SNAPSHOT"
-
 const kubernetesDeployerElasticAgentYml = `---
 apiVersion: apps/v1
 kind: Deployment
@@ -28,7 +26,7 @@ spec:
       serviceAccountName: kind-fleet-agent
       containers:
         - name: kind-fleet-agent-clusterscope
-          image: docker.elastic.co/beats/elastic-agent:` + kubernetesDeployerElasticAgentVersion + `
+          image: docker.elastic.co/beats/elastic-agent:{{ STACK_VERSION }}
           env:
             - name: FLEET_ENROLL
               value: "1"
