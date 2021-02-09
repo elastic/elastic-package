@@ -400,7 +400,7 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 
 func checkEnrolledAgents(client *kibana.Client, ctxt servicedeployer.ServiceContext) ([]kibana.Agent, error) {
 	var agents []kibana.Agent
-	_, err := waitUntilTrue(func() (bool, error) {
+	enrolled, err := waitUntilTrue(func() (bool, error) {
 		allAgents, err := client.ListAgents()
 		if err != nil {
 			return false, errors.Wrap(err, "could not list agents")
@@ -415,7 +415,10 @@ func checkEnrolledAgents(client *kibana.Client, ctxt servicedeployer.ServiceCont
 		return true, nil
 	}, 5*time.Minute)
 	if err != nil {
-		return nil, errors.Wrap(err, "no agent enrolled in time")
+		return nil, errors.Wrap(err, "agent enrollment failed")
+	}
+	if !enrolled {
+		return nil, errors.New("no agent enrolled in time")
 	}
 	return agents, nil
 }
