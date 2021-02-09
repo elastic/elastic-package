@@ -324,7 +324,7 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 		}
 
 		agents = filterAgents(allAgents, ctxt)
-		logger.Debugf("found %d enrolled agents", len(agents))
+		logger.Debugf("found %d enrolled agent(s)", len(agents))
 
 		if len(agents) == 0 {
 			return false, nil // selected agents are unavailable yet

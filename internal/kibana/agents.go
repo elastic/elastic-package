@@ -83,7 +83,6 @@ func (c *Client) getTotalAgentForPolicy(p Policy) (int, error) {
 	if err := json.Unmarshal(respBody, &resp); err != nil {
 		return 0, errors.Wrap(err, "could not convert agent list (response) to JSON")
 	}
-
 	return resp.Total, nil
 }
 
