@@ -83,18 +83,18 @@ def cleanup(){
 }
 
 def withKubernetes(Closure body) {
-    sh(label: "Install kind", script: '''
+    retryWithSleep(retries: 2, seconds: 5, backoff: true) { sh(label: "Install kind", script: '''
        mkdir -p ${HOME}/bin
        curl -sSLo ${HOME}/bin/kind "https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-linux-amd64"
        chmod +x ${HOME}/bin/kind
        kind version
-       ''')
-    sh(label: "Install kubectl", script: '''
+       ''') }
+    retryWithSleep(retries: 2, seconds: 5, backoff: true) { sh(label: "Install kubectl", script: '''
        mkdir -p ${HOME}/bin
        curl -sSLo ${HOME}/bin/kubectl "https://storage.googleapis.com/kubernetes-release/release/${K8S_VERSION}/bin/linux/amd64/kubectl"
        chmod +x ${HOME}/bin/kubectl
        kubectl version --client
-       ''')
+       ''') }
     body()
 }
 
