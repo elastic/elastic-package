@@ -12,7 +12,7 @@ metadata:
   namespace: kube-system
   labels:
     app: kind-fleet-agent-clusterscope
-    group: ingest-management
+    group: fleet
 spec:
   selector:
     matchLabels:
@@ -21,7 +21,7 @@ spec:
     metadata:
       labels:
         app: kind-fleet-agent-clusterscope
-        group: ingest-management
+        group: fleet
     spec:
       serviceAccountName: kind-fleet-agent
       containers:
@@ -53,7 +53,7 @@ metadata:
   name: kind-fleet-agent-clusterscope
   namespace: kube-system
   labels:
-    group: ingest-management
+    group: fleet
 data:
   elastic-agent.yml: |-
     management:
