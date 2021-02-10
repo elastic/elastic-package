@@ -221,7 +221,7 @@ func connectControlPlaneToElasticStackNetwork(controlPlaneContainerID string) er
 		}
 	}
 
-	logger.Debugf("attach service container %s (ID: %s) to stack network %s", kindControlPlaneContainerName, controlPlaneContainerID, stackNetwork)
+	logger.Debugf("attach %s container (ID: %s) to stack network %s", kindControlPlaneContainerName, controlPlaneContainerID, stackNetwork)
 	cmd = exec.Command("docker", "network", "connect", stackNetwork, controlPlaneContainerID)
 	errOutput = new(bytes.Buffer)
 	cmd.Stderr = errOutput
