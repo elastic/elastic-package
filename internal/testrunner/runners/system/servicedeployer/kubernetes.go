@@ -165,7 +165,7 @@ func verifyKindContext() error {
 	}
 	currentContext := string(bytes.TrimSpace(output))
 
-	if currentContext != "kind-kind" {
+	if currentContext != kindContext {
 		return fmt.Errorf("unexpected kubectl context selected (actual: %s, expected: %s)", currentContext, kindContext)
 	}
 	return nil
