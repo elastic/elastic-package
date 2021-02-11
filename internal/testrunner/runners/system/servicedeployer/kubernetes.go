@@ -5,25 +5,16 @@
 package servicedeployer
 
 import (
-	"bytes"
-	"encoding/json"
-	"fmt"
 	"io/ioutil"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/install"
+	"github.com/elastic/elastic-package/internal/kind"
+	"github.com/elastic/elastic-package/internal/kubectl"
 	"github.com/elastic/elastic-package/internal/logger"
-	"github.com/elastic/elastic-package/internal/stack"
-)
-
-const (
-	kindControlPlaneContainerName = "kind-control-plane"
-
-	kindContext = "kind-kind"
 )
 
 // KubernetesServiceDeployer is responsible for deploying resources in the Kubernetes cluster.
@@ -50,7 +41,7 @@ func (s kubernetesDeployedService) TearDown() error {
 		return nil
 	}
 
-	err = modifyKubernetesResources(false, definitionPaths...)
+	err = kubectl.Delete(definitionPaths...)
 	if err != nil {
 		return errors.Wrapf(err, "can't uninstall Kubernetes resources (path: %s)", s.definitionsDir)
 	}
@@ -82,17 +73,12 @@ func NewKubernetesServiceDeployer(definitionsDir string) (*KubernetesServiceDepl
 // SetUp function links the kind container with elastic-package-stack network, installs Elastic-Agent and optionally
 // custom YAML definitions.
 func (ksd KubernetesServiceDeployer) SetUp(ctxt ServiceContext) (DeployedService, error) {
-	err := verifyKindContext()
+	err := kind.VerifyContext()
 	if err != nil {
-		return nil, errors.Wrap(err, "kind context vefication failed")
+		return nil, errors.Wrap(err, "kind context verification failed")
 	}
 
-	kindControlPlaneContainerID, err := findKindControlPlane()
-	if err != nil {
-		return nil, errors.Wrap(err, "can't find kind-control plane node")
-	}
-
-	err = connectControlPlaneToElasticStackNetwork(kindControlPlaneContainerID)
+	err = kind.ConnectToElasticStackNetwork()
 	if err != nil {
 		return nil, errors.Wrap(err, "can't connect control plane to Elastic stack network")
 	}
@@ -107,8 +93,8 @@ func (ksd KubernetesServiceDeployer) SetUp(ctxt ServiceContext) (DeployedService
 		return nil, errors.Wrap(err, "can't install custom definitions in the Kubernetes cluster")
 	}
 
-	ctxt.Name = kindControlPlaneContainerName
-	ctxt.Hostname = kindControlPlaneContainerName
+	ctxt.Name = kind.ControlPlaneContainerName
+	ctxt.Hostname = kind.ControlPlaneContainerName
 	ctxt.Agent.Host.NamePrefix = "kind-fleet-agent-"
 	return &kubernetesDeployedService{
 		ctxt:           ctxt,
@@ -129,7 +115,7 @@ func (ksd KubernetesServiceDeployer) installCustomDefinitions() error {
 		return nil
 	}
 
-	err = modifyKubernetesResources(false, definitionPaths...)
+	err = kubectl.Delete(definitionPaths...)
 	if err != nil {
 		return errors.Wrap(err, "can't install custom definitions")
 	}
@@ -153,84 +139,6 @@ func findKubernetesDefinitions(definitionsDir string) ([]string, error) {
 	return definitionPaths, nil
 }
 
-func verifyKindContext() error {
-	logger.Debug("ensure that kind context is selected")
-
-	cmd := exec.Command("kubectl", "config", "current-context")
-	errOutput := new(bytes.Buffer)
-	cmd.Stderr = errOutput
-	output, err := cmd.Output()
-	if err != nil {
-		return errors.Wrapf(err, "kubectl command failed (stderr=%q)", errOutput.String())
-	}
-	currentContext := string(bytes.TrimSpace(output))
-
-	if currentContext != kindContext {
-		return fmt.Errorf("unexpected kubectl context selected (actual: %s, expected: %s)", currentContext, kindContext)
-	}
-	return nil
-}
-
-func findKindControlPlane() (string, error) {
-	logger.Debugf("find \"%s\" container", kindControlPlaneContainerName)
-
-	cmd := exec.Command("docker", "ps", "--filter", "name=kind-control-plane", "--format", "{{.ID}}")
-	errOutput := new(bytes.Buffer)
-	cmd.Stderr = errOutput
-	output, err := cmd.Output()
-	if err != nil {
-		return "", errors.Wrapf(err, "could not find \"%s\" container to the stack network (stderr=%q)", kindControlPlaneContainerName, errOutput.String())
-	}
-	containerIDs := bytes.Split(bytes.TrimSpace(output), []byte{'\n'})
-	if len(containerIDs) != 1 {
-		return "", fmt.Errorf("expected single %s container, make sure you have run \"kind create cluster\" and the %s container is present", kindControlPlaneContainerName, kindControlPlaneContainerName)
-	}
-	return string(containerIDs[0]), nil
-}
-
-func connectControlPlaneToElasticStackNetwork(controlPlaneContainerID string) error {
-	stackNetwork := fmt.Sprintf("%s_default", stack.DockerComposeProjectName)
-
-	logger.Debugf("check network connectivity between service container %s (ID: %s) and the stack network %s", kindControlPlaneContainerName, controlPlaneContainerID, stackNetwork)
-	cmd := exec.Command("docker", "network", "inspect", stackNetwork)
-	errOutput := new(bytes.Buffer)
-	cmd.Stderr = errOutput
-	output, err := cmd.Output()
-	if err != nil {
-		return errors.Wrapf(err, "could not inspect the stack network (stderr=%q)", errOutput.String())
-	}
-
-	var networkDescriptions []struct {
-		Containers map[string]struct {
-			Name string
-		}
-	}
-	err = json.Unmarshal(output, &networkDescriptions)
-	if err != nil {
-		return errors.Wrapf(err, "can't unmarshal network inspect for %s (stderr=%q)", stackNetwork, errOutput.String())
-	}
-
-	if len(networkDescriptions) != 1 {
-		return fmt.Errorf("expect single network inspect record, got %d entries", len(networkDescriptions))
-	}
-
-	for _, c := range networkDescriptions[0].Containers {
-		if c.Name == kindControlPlaneContainerName {
-			logger.Debugf("container %s is already attached to the %s network", kindControlPlaneContainerName, stackNetwork)
-			return nil
-		}
-	}
-
-	logger.Debugf("attach %s container (ID: %s) to stack network %s", kindControlPlaneContainerName, controlPlaneContainerID, stackNetwork)
-	cmd = exec.Command("docker", "network", "connect", stackNetwork, controlPlaneContainerID)
-	errOutput = new(bytes.Buffer)
-	cmd.Stderr = errOutput
-	if err := cmd.Run(); err != nil {
-		return errors.Wrapf(err, "could not attach \"%s\" container to the stack network (stderr=%q)", kindControlPlaneContainerName, errOutput.String())
-	}
-	return nil
-}
-
 func installElasticAgentInCluster() error {
 	logger.Debug("install Elastic Agent in the Kubernetes cluster")
 
@@ -239,31 +147,9 @@ func installElasticAgentInCluster() error {
 		return errors.Wrap(err, "can't locate Kubernetes file for Elastic Agent in ")
 	}
 
-	err = modifyKubernetesResources(true, elasticAgentFile)
+	err = kubectl.Apply(elasticAgentFile)
 	if err != nil {
 		return errors.Wrap(err, "can't install Elastic-Agent in Kubernetes cluster")
-	}
-	return nil
-}
-
-func modifyKubernetesResources(apply bool, definitionPaths ...string) error {
-	var args []string
-	if apply {
-		args = append(args, "apply")
-	} else {
-		args = append(args, "delete")
-	}
-
-	for _, definitionPath := range definitionPaths {
-		args = append(args, "-f")
-		args = append(args, definitionPath)
-	}
-
-	cmd := exec.Command("kubectl", args...)
-	errOutput := new(bytes.Buffer)
-	cmd.Stderr = errOutput
-	if err := cmd.Run(); err != nil {
-		return errors.Wrapf(err, "kubectl apply failed (stderr=%q)", errOutput.String())
 	}
 	return nil
 }
