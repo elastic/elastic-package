@@ -16,7 +16,9 @@ import (
 // InstallPackage installs the given package in Fleet.
 func (c *Client) InstallPackage(pkg packages.PackageManifest) ([]packages.Asset, error) {
 	path := fmt.Sprintf("%s/epm/packages/%s-%s", FleetAPI, pkg.Name, pkg.Version)
-	statusCode, respBody, err := c.post(path, nil)
+	reqBody := []byte(`{"force":true}`) // allows installing older versions of the package being tested
+
+	statusCode, respBody, err := c.post(path, reqBody)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not install package")
 	}
