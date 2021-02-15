@@ -8,13 +8,14 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
+	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/packages/installer"
 )
 
-const installLongDescription = `Use this command to install the package in Kibana.
+const installLongDescription = `Use this command to install/uninstall the package in Kibana.
 
-The command uses Kibana API to install the package in Kibana. The package must be exposed via the Package Registry.
+The command uses Kibana API to install/uninstall the package in Kibana. The package must be exposed via the Package Registry.
 
 Context:
   package`
@@ -26,6 +27,7 @@ func setupInstallCommand() *cobra.Command {
 		Long:  installLongDescription,
 		RunE:  installCommandAction,
 	}
+	cmd.Flags().BoolP(cobraext.UninstallPackageFlagName, "u", false, cobraext.UninstallPackageFlagDescription)
 	return cmd
 }
 

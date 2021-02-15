@@ -36,7 +36,7 @@ func setupExportCommand() *cobra.Command {
 		Long:  exportDashboardsLongDescription,
 		RunE:  exportDashboardsCmd,
 	}
-	exportDashboardCmd.Flags().StringSliceP(cobraext.DashboardIDsFlagName, "d", nil, cobraext.DashboardIDsFlagDescriptions)
+	exportDashboardCmd.Flags().StringSliceP(cobraext.DashboardIDsFlagName, "d", nil, cobraext.DashboardIDsFlagDescription)
 
 	cmd := &cobra.Command{
 		Use:   "export",

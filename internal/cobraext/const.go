@@ -9,8 +9,8 @@ const (
 	DaemonModeFlagName        = "daemon"
 	DaemonModeFlagDescription = "daemon mode"
 
-	DashboardIDsFlagName         = "id"
-	DashboardIDsFlagDescriptions = "Kibana dashboard IDs (comma-separated values)"
+	DashboardIDsFlagName        = "id"
+	DashboardIDsFlagDescription = "Kibana dashboard IDs (comma-separated values)"
 
 	DataStreamsFlagName        = "data-streams"
 	DataStreamsFlagDescription = "comma-separated data streams to test"
@@ -44,4 +44,7 @@ const (
 
 	StackDumpOutputFlagName        = "output"
 	StackDumpOutputFlagDescription = "output location for the stack dump"
+
+	UninstallPackageFlagName        = "uninstall"
+	UninstallPackageFlagDescription = "uninstall the package"
 )
