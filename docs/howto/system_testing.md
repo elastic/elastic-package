@@ -120,7 +120,7 @@ Notice the use of the `TEST_RUN_ID` variable. It contains a unique ID, which can
 
 ### Test case definition
 
-Next, we must define configuration for each data stream that we want to system test.
+Next, we must define at least one configuration for each data stream that we want to system test (there can be multiple test cases for the same data stream).
 
 ```
 <package root>/
@@ -129,10 +129,10 @@ Next, we must define configuration for each data stream that we want to system t
       _dev/
         test/
           system/
-            config.yml
+            test-<test_name>-config.yml
 ```
 
-The `config.yml` file allows you to define values for package and data stream-level variables. For example, the `apache/access` data stream's `config.yml` is shown below.
+The `test-<test_name>-config.yml` file allows you to define values for package and data stream-level variables. For example, the `apache/access` data stream's `test-access-log-config.yml` is shown below.
 
 ```
 vars: ~
@@ -154,7 +154,7 @@ whose input type matches the `input` value will be tested. By default, the first
 
 #### Placeholders
 
-The `SERVICE_LOGS_DIR` placeholder is not the only one available for use in a data stream's `config.yml` file. The complete list of available placeholders is shown below.
+The `SERVICE_LOGS_DIR` placeholder is not the only one available for use in a data stream's `test-<test_name>-config.yml` file. The complete list of available placeholders is shown below.
 
 | Placeholder name | Data type | Description |
 | --- | --- | --- |
@@ -164,7 +164,7 @@ The `SERVICE_LOGS_DIR` placeholder is not the only one available for use in a da
 | `Logs.Folder.Agent` | string | Path to integration service's logs folder, as addressable by the Agent. |
 | `SERVICE_LOGS_DIR` | string | Alias for `Logs.Folder.Agent`. Provided as a convenience. |
 
-Placeholders used in the `config.yml` must be enclosed in `{{` and `}}` delimiters, per Handlebars syntax.
+Placeholders used in the `test-<test_name>-config.yml` must be enclosed in `{{` and `}}` delimiters, per Handlebars syntax.
 
 ## Running a system test
 
