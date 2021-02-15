@@ -6,5 +6,5 @@ package install
 
 const (
 	// DefaultStackVersion is the default version of the stack
-	DefaultStackVersion = "7.11.0-SNAPSHOT"
+	DefaultStackVersion = "8.0.0-SNAPSHOT"
 )
