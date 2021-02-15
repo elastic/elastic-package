@@ -32,7 +32,12 @@ func setupInstallCommand() *cobra.Command {
 }
 
 func installCommandAction(cmd *cobra.Command, args []string) error {
-	cmd.Println("Install the package")
+	uninstallationMode, _ := cmd.Flags().GetBool(cobraext.UninstallPackageFlagName)
+	if uninstallationMode {
+		cmd.Println("Uninstall the package")
+	} else {
+		cmd.Println("Install the package")
+	}
 
 	packageRootPath, found, err := packages.FindPackageRoot()
 	if !found {
@@ -47,9 +52,22 @@ func installCommandAction(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "can't create the package installer")
 	}
 
-	_, err = packageInstaller.Install()
+	if uninstallationMode {
+		err = packageInstaller.Uninstall()
+		if err != nil {
+			return errors.Wrap(err, "can't uninstall the package")
+		}
+		return nil
+	}
+
+	installedPackage, err := packageInstaller.Install()
 	if err != nil {
 		return errors.Wrap(err, "can't install the package")
+	}
+
+	cmd.Println("Installed assets:")
+	for _, asset := range installedPackage.Assets {
+		cmd.Printf("- %s (type: %s)\n", asset.ID, asset.Type)
 	}
 	cmd.Println("Done")
 	return nil
