@@ -80,14 +80,18 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 	}
 
 	logger.Debug("installing package...")
-	installedPackage, err := installer.Install(r.packageRootPath)
+	packageInstaller, err := installer.CreateForPackage(r.packageRootPath)
+	if err != nil {
+		return result.WithError(errors.Wrap(err, "can't create the package installer"))
+	}
+	installedPackage, err := packageInstaller.Install()
 	if err != nil {
 		return result.WithError(errors.Wrap(err, "can't install the package"))
 	}
 
 	r.removePackageHandler = func() error {
 		logger.Debug("removing package...")
-		if err := installedPackage.Uninstall(); err != nil {
+		if err := packageInstaller.Uninstall(); err != nil {
 			return errors.Wrap(err, "error cleaning up package")
 		}
 		return nil

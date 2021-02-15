@@ -40,7 +40,12 @@ func installCommandAction(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "locating package root failed")
 	}
 
-	_, err = installer.Install(packageRootPath)
+	packageInstaller, err := installer.CreateForPackage(packageRootPath)
+	if err != nil {
+		return errors.Wrap(err, "can't create the package installer")
+	}
+
+	_, err = packageInstaller.Install()
 	if err != nil {
 		return errors.Wrap(err, "can't install the package")
 	}

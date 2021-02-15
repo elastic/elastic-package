@@ -13,38 +13,48 @@ import (
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
-type InstalledPackage struct {
-	Manifest packages.PackageManifest
-	Assets   []packages.Asset
+type Installer struct {
+	manifest packages.PackageManifest
 
 	kibanaClient *kibana.Client
 }
 
-func Install(packageRootPath string) (*InstalledPackage, error) {
-	pkgManifest, err := packages.ReadPackageManifest(filepath.Join(packageRootPath, packages.PackageManifestFile))
-	if err != nil {
-		return nil, errors.Wrap(err, "reading package manifest failed")
-	}
+type InstalledPackage struct {
+	Assets   []packages.Asset
+	Manifest packages.PackageManifest
+}
 
+func CreateForPackage(packageRootPath string) (*Installer, error) {
 	kibanaClient, err := kibana.NewClient()
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create kibana client")
 	}
 
-	assets, err := kibanaClient.InstallPackage(*pkgManifest)
+	pkgManifest, err := packages.ReadPackageManifest(filepath.Join(packageRootPath, packages.PackageManifestFile))
 	if err != nil {
-		return nil, errors.Wrap(err, "could not install package")
+		return nil, errors.Wrap(err, "reading package manifest failed")
 	}
 
-	return &InstalledPackage{
-		Assets:       assets,
-		Manifest:     *pkgManifest,
+	return &Installer{
+		manifest:     *pkgManifest,
 		kibanaClient: kibanaClient,
 	}, nil
 }
 
-func (p *InstalledPackage) Uninstall() error {
-	_, err := p.kibanaClient.RemovePackage(p.Manifest)
+func (i *Installer) Install() (*InstalledPackage, error) {
+	assets, err := i.kibanaClient.InstallPackage(i.manifest)
+	if err != nil {
+		return nil, errors.Wrap(err, "can't install the package")
+	}
+
+	return &InstalledPackage{
+		Manifest: i.manifest,
+		Assets:   assets,
+	}, nil
+}
+
+func (i *Installer) Uninstall() error {
+	_, err := i.kibanaClient.RemovePackage(i.manifest)
 	if err != nil {
 		return errors.Wrap(err, "can't remove the package")
 	}
