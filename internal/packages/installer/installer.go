@@ -13,17 +13,20 @@ import (
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
+// Installer is responsible for installation/uninstallation of the package.
 type Installer struct {
 	manifest packages.PackageManifest
 
 	kibanaClient *kibana.Client
 }
 
+// InstalledPackage represents the installed package (including assets).
 type InstalledPackage struct {
 	Assets   []packages.Asset
 	Manifest packages.PackageManifest
 }
 
+// CreateForPackage function creates a new instance of the installer.
 func CreateForPackage(packageRootPath string) (*Installer, error) {
 	kibanaClient, err := kibana.NewClient()
 	if err != nil {
@@ -41,6 +44,7 @@ func CreateForPackage(packageRootPath string) (*Installer, error) {
 	}, nil
 }
 
+// Install method installs the package using Kibana API.
 func (i *Installer) Install() (*InstalledPackage, error) {
 	assets, err := i.kibanaClient.InstallPackage(i.manifest)
 	if err != nil {
@@ -53,6 +57,7 @@ func (i *Installer) Install() (*InstalledPackage, error) {
 	}, nil
 }
 
+// Uninstall method uninstalls the package using Kibana API.
 func (i *Installer) Uninstall() error {
 	_, err := i.kibanaClient.RemovePackage(i.manifest)
 	if err != nil {
