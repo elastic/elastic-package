@@ -120,7 +120,9 @@ Notice the use of the `TEST_RUN_ID` variable. It contains a unique ID, which can
 
 ### Test case definition
 
-Next, we must define at least one configuration for each data stream that we want to system test (there can be multiple test cases for the same data stream).
+Next, we must define at least one configuration for each data stream that we want to system test. There can be multiple test cases defined for the same data stream.
+
+_Hint: if you plan to define only one test case, you can consider the filename `test-default-config.yml`._
 
 ```
 <package root>/
