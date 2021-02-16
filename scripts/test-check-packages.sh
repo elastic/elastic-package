@@ -8,6 +8,13 @@ cleanup() {
   # Dump stack logs
   elastic-package stack dump -v --output build/elastic-stack-dump/check
 
+  # Dump kubectl details
+  kubectl describe pods --all-namespaces > build/kubectl-dump.txt
+  kubectl logs -l app=kind-fleet-agent-clusterscope -n kube-system >> build/kubectl-dump.txt
+
+  # Take down the kind cluster
+  kind delete cluster
+
   # Take down the stack
   elastic-package stack down -v
 
@@ -36,6 +43,9 @@ cd -
 
 # Boot up the stack
 elastic-package stack up -d -v
+
+# Boot up the kind cluster
+kind create cluster
 
 # Run package tests
 eval "$(elastic-package stack shellinit)"

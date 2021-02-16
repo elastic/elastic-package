@@ -11,6 +11,8 @@ import (
 	"net/url"
 	"os"
 
+	"github.com/elastic/elastic-package/internal/install"
+
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/logger"
@@ -80,7 +82,7 @@ func (c *Client) sendRequest(method, resourcePath string, body []byte) (int, []b
 
 	req.SetBasicAuth(c.username, c.password)
 	req.Header.Add("content-type", "application/json")
-	req.Header.Add("kbn-xsrf", stack.DefaultVersion)
+	req.Header.Add("kbn-xsrf", install.DefaultStackVersion)
 
 	client := http.Client{}
 	resp, err := client.Do(req)

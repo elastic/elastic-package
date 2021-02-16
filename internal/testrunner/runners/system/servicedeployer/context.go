@@ -48,6 +48,15 @@ type ServiceContext struct {
 		RunID string
 	}
 
+	// Agent related properties.
+	Agent struct {
+		// Host describes the machine which is running the agent.
+		Host struct {
+			// Name prefix for the host's name
+			NamePrefix string
+		}
+	}
+
 	// CustomProperties store additional data used to boot up the service, e.g. AWS credentials.
 	CustomProperties map[string]interface{}
 }

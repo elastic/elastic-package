@@ -283,12 +283,21 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 		return result.WithError(errors.Wrap(err, "unable to reload system test case configuration"))
 	}
 
-	// Configure package (single data stream) via Ingest Manager APIs.
 	kib, err := kibana.NewClient()
 	if err != nil {
 		return result.WithError(errors.Wrap(err, "can't create Kibana client"))
 	}
 
+	agents, err := checkEnrolledAgents(kib, ctxt)
+	if err != nil {
+		return result.WithError(errors.Wrap(err, "can't check enrolled agents"))
+	}
+	agent := agents[0]
+	origPolicy := kibana.Policy{
+		ID: agent.PolicyID,
+	}
+
+	// Configure package (single data stream) via Ingest Manager APIs.
 	logger.Debug("creating test policy...")
 	testTime := time.Now().Format("20060102T15:04:05Z")
 	p := kibana.Policy{
@@ -313,19 +322,6 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	ds := createPackageDatastream(*policy, *pkgManifest, *dataStreamManifest, *config)
 	if err := kib.AddPackageDataStreamToPolicy(ds); err != nil {
 		return result.WithError(errors.Wrap(err, "could not add data stream config to policy"))
-	}
-
-	// Get enrolled agent ID
-	agents, err := kib.ListAgents()
-	if err != nil {
-		return result.WithError(errors.Wrap(err, "could not list agents"))
-	}
-	if agents == nil || len(agents) == 0 {
-		return result.WithError(errors.New("no agents found"))
-	}
-	agent := agents[0]
-	origPolicy := kibana.Policy{
-		ID: agent.PolicyID,
 	}
 
 	// Create field validator
@@ -400,6 +396,31 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 		result.FailureMsg = fmt.Sprintf("could not find hits in %s data stream", dataStream)
 	}
 	return result.WithSuccess()
+}
+
+func checkEnrolledAgents(client *kibana.Client, ctxt servicedeployer.ServiceContext) ([]kibana.Agent, error) {
+	var agents []kibana.Agent
+	enrolled, err := waitUntilTrue(func() (bool, error) {
+		allAgents, err := client.ListAgents()
+		if err != nil {
+			return false, errors.Wrap(err, "could not list agents")
+		}
+
+		agents = filterAgents(allAgents, ctxt)
+		logger.Debugf("found %d enrolled agent(s)", len(agents))
+
+		if len(agents) == 0 {
+			return false, nil // selected agents are unavailable yet
+		}
+		return true, nil
+	}, 5*time.Minute)
+	if err != nil {
+		return nil, errors.Wrap(err, "agent enrollment failed")
+	}
+	if !enrolled {
+		return nil, errors.New("no agent enrolled in time")
+	}
+	return agents, nil
 }
 
 func createPackageDatastream(
@@ -519,4 +540,19 @@ func waitUntilTrue(fn func() (bool, error), timeout time.Duration) (bool, error)
 	}
 
 	return false, nil
+}
+
+func filterAgents(allAgents []kibana.Agent, ctx servicedeployer.ServiceContext) []kibana.Agent {
+	if ctx.Agent.Host.NamePrefix != "" {
+		logger.Debugf("filter agents using criteria: NamePrefix=%s", ctx.Agent.Host.NamePrefix)
+	}
+
+	var filtered []kibana.Agent
+	for _, agent := range allAgents {
+		if ctx.Agent.Host.NamePrefix != "" && !strings.HasPrefix(agent.LocalMetadata.Host.Name, ctx.Agent.Host.NamePrefix) {
+			continue
+		}
+		filtered = append(filtered, agent)
+	}
+	return filtered
 }

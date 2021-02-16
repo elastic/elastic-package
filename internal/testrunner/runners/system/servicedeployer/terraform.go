@@ -74,6 +74,7 @@ func (tsd TerraformServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedServic
 		return nil, errors.Wrap(err, "could not boot up service using docker compose")
 	}
 
+	outCtxt.Agent.Host.NamePrefix = "docker-fleet-agent"
 	service.ctxt = outCtxt
 	return &service, nil
 }
