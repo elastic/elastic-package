@@ -72,6 +72,16 @@ type Input struct {
 	Vars []Variable `config:"vars" json:"vars" yaml:"vars"`
 }
 
+// KibanaConditions defines conditions for Kibana (e.g. required version).
+type KibanaConditions struct {
+	Version string `config:"version" json:"version" yaml:"version"`
+}
+
+// Conditions define requirements for different parts of the Elastic stack.
+type Conditions struct {
+	Kibana KibanaConditions `config:"kibana" json:"kibana" yaml:"kibana"`
+}
+
 // PolicyTemplate is a configuration of inputs responsible for collecting log or metric data.
 type PolicyTemplate struct {
 	Inputs []Input `config:"inputs" json:"inputs" yaml:"inputs"`
@@ -83,6 +93,7 @@ type PackageManifest struct {
 	Title           string           `config:"title" json:"title" yaml:"title"`
 	Type            string           `config:"type" json:"type" yaml:"type"`
 	Version         string           `config:"version" json:"version" yaml:"version"`
+	Conditions      Conditions       `config:"conditions" json:"conditions" yaml:"conditions"`
 	PolicyTemplates []PolicyTemplate `config:"policy_templates" json:"policy_templates" yaml:"policy_templates"`
 }
 

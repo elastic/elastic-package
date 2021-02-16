@@ -5,8 +5,6 @@
 package installer
 
 import (
-	"path/filepath"
-
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/kibana"
@@ -26,20 +24,15 @@ type InstalledPackage struct {
 	Manifest packages.PackageManifest
 }
 
-// CreateForPackage function creates a new instance of the installer.
-func CreateForPackage(packageRootPath string) (*Installer, error) {
+// CreateForManifest function creates a new instance of the installer.
+func CreateForManifest(manifest packages.PackageManifest) (*Installer, error) {
 	kibanaClient, err := kibana.NewClient()
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create kibana client")
 	}
 
-	pkgManifest, err := packages.ReadPackageManifest(filepath.Join(packageRootPath, packages.PackageManifestFile))
-	if err != nil {
-		return nil, errors.Wrap(err, "reading package manifest failed")
-	}
-
 	return &Installer{
-		manifest:     *pkgManifest,
+		manifest:     manifest,
 		kibanaClient: kibanaClient,
 	}, nil
 }

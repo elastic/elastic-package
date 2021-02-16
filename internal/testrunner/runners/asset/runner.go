@@ -80,7 +80,12 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 	}
 
 	logger.Debug("installing package...")
-	packageInstaller, err := installer.CreateForPackage(r.packageRootPath)
+	manifest, err := packages.ReadPackageManifestFromPackageRoot(r.packageRootPath)
+	if err != nil {
+		return result.WithError(errors.Wrapf(err, "reading package manifest failed (path: %s)", r.packageRootPath))
+	}
+
+	packageInstaller, err := installer.CreateForManifest(*manifest)
 	if err != nil {
 		return result.WithError(errors.Wrap(err, "can't create the package installer"))
 	}

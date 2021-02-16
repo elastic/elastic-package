@@ -28,17 +28,11 @@ func setupInstallCommand() *cobra.Command {
 		RunE:  installCommandAction,
 	}
 	cmd.Flags().BoolP(cobraext.UninstallPackageFlagName, "u", false, cobraext.UninstallPackageFlagDescription)
+	cmd.Flags().StringSliceP(cobraext.CheckConditionFlagName, "c", nil, cobraext.CheckConditionFlagDescription)
 	return cmd
 }
 
 func installCommandAction(cmd *cobra.Command, args []string) error {
-	uninstallationMode, _ := cmd.Flags().GetBool(cobraext.UninstallPackageFlagName)
-	if uninstallationMode {
-		cmd.Println("Uninstall the package")
-	} else {
-		cmd.Println("Install the package")
-	}
-
 	packageRootPath, found, err := packages.FindPackageRoot()
 	if !found {
 		return errors.New("package root not found")
@@ -47,19 +41,46 @@ func installCommandAction(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "locating package root failed")
 	}
 
-	packageInstaller, err := installer.CreateForPackage(packageRootPath)
+	m, err := packages.ReadPackageManifestFromPackageRoot(packageRootPath)
+	if err != nil {
+		return errors.Wrapf(err, "reading package manifest failed (path: %s)", packageRootPath)
+	}
+
+	// Check conditions
+	keyValuePairs, err := cmd.Flags().GetStringSlice(cobraext.CheckConditionFlagName)
+	if err != nil {
+		return errors.Wrap(err, "can't process check-condition flag")
+	}
+	if len(keyValuePairs) > 0 {
+		cmd.Println("Check conditions for package")
+		err = packages.CheckConditions(*m, keyValuePairs)
+		if err != nil {
+			return errors.Wrap(err, "checking conditions failed")
+		}
+		cmd.Println("Done")
+		return nil
+	}
+
+	packageInstaller, err := installer.CreateForManifest(*m)
 	if err != nil {
 		return errors.Wrap(err, "can't create the package installer")
 	}
 
+	// Uninstall the package
+	uninstallationMode, _ := cmd.Flags().GetBool(cobraext.UninstallPackageFlagName)
 	if uninstallationMode {
+		cmd.Println("Uninstall the package")
 		err = packageInstaller.Uninstall()
 		if err != nil {
 			return errors.Wrap(err, "can't uninstall the package")
 		}
+
+		cmd.Println("Done")
 		return nil
 	}
 
+	// Install the package
+	cmd.Println("Install the package")
 	installedPackage, err := packageInstaller.Install()
 	if err != nil {
 		return errors.Wrap(err, "can't install the package")
