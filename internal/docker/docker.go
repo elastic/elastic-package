@@ -5,6 +5,9 @@
 package docker
 
 import (
+	"bytes"
+	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 
@@ -12,6 +15,13 @@ import (
 
 	"github.com/elastic/elastic-package/internal/logger"
 )
+
+// NetworkDescription describes the Docker network and connected Docker containers.
+type NetworkDescription struct {
+	Containers map[string]struct {
+		Name string
+	}
+}
 
 // Pull downloads the latest available revision of the image.
 func Pull(image string) error {
@@ -26,6 +36,57 @@ func Pull(image string) error {
 	err := cmd.Run()
 	if err != nil {
 		return errors.Wrap(err, "running docker command failed")
+	}
+	return nil
+}
+
+// ContainerID function returns the container ID for a given container name.
+func ContainerID(containerName string) (string, error) {
+	cmd := exec.Command("docker", "ps", "--filter", "name="+containerName, "--format", "{{.ID}}")
+	errOutput := new(bytes.Buffer)
+	cmd.Stderr = errOutput
+
+	logger.Debugf("output command: %s", cmd)
+	output, err := cmd.Output()
+	if err != nil {
+		return "", errors.Wrapf(err, "could not find \"%s\" container (stderr=%q)", containerName, errOutput.String())
+	}
+	containerIDs := bytes.Split(bytes.TrimSpace(output), []byte{'\n'})
+	if len(containerIDs) != 1 {
+		return "", fmt.Errorf("expected single %s container", containerName)
+	}
+	return string(containerIDs[0]), nil
+}
+
+// InspectNetwork function returns the network description for the selected network.
+func InspectNetwork(network string) ([]NetworkDescription, error) {
+	cmd := exec.Command("docker", "network", "inspect", network)
+	errOutput := new(bytes.Buffer)
+	cmd.Stderr = errOutput
+
+	logger.Debugf("output command: %s", cmd)
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, errors.Wrapf(err, "could not inspect the network (stderr=%q)", errOutput.String())
+	}
+
+	var networkDescriptions []NetworkDescription
+	err = json.Unmarshal(output, &networkDescriptions)
+	if err != nil {
+		return nil, errors.Wrapf(err, "can't unmarshal network inspect for %s (stderr=%q)", network, errOutput.String())
+	}
+	return networkDescriptions, nil
+}
+
+// ConnectToNetwork function connects the container to the selected Docker network.
+func ConnectToNetwork(containerID, network string) error {
+	cmd := exec.Command("docker", "network", "connect", network, containerID)
+	errOutput := new(bytes.Buffer)
+	cmd.Stderr = errOutput
+
+	logger.Debugf("output command: %s", cmd)
+	if err := cmd.Run(); err != nil {
+		return errors.Wrapf(err, "could not attach container to the stack network (stderr=%q)", errOutput.String())
 	}
 	return nil
 }

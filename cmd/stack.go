@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/elastic/elastic-package/internal/install"
+
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
@@ -86,7 +88,7 @@ func setupStackCommand() *cobra.Command {
 	upCommand.Flags().BoolP(cobraext.DaemonModeFlagName, "d", false, cobraext.DaemonModeFlagDescription)
 	upCommand.Flags().StringSliceP(cobraext.StackServicesFlagName, "s", nil,
 		fmt.Sprintf(cobraext.StackServicesFlagDescription, strings.Join(availableServicesAsList(), ",")))
-	upCommand.Flags().StringP(cobraext.StackVersionFlagName, "", stack.DefaultVersion, cobraext.StackVersionFlagDescription)
+	upCommand.Flags().StringP(cobraext.StackVersionFlagName, "", install.DefaultStackVersion, cobraext.StackVersionFlagDescription)
 
 	downCommand := &cobra.Command{
 		Use:   "down",
@@ -126,7 +128,7 @@ func setupStackCommand() *cobra.Command {
 			return nil
 		},
 	}
-	updateCommand.Flags().StringP(cobraext.StackVersionFlagName, "", stack.DefaultVersion, cobraext.StackVersionFlagDescription)
+	updateCommand.Flags().StringP(cobraext.StackVersionFlagName, "", install.DefaultStackVersion, cobraext.StackVersionFlagDescription)
 
 	shellInitCommand := &cobra.Command{
 		Use:   "shellinit",

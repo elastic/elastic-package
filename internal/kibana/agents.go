@@ -17,8 +17,13 @@ import (
 
 // Agent represents an Elastic Agent enrolled with fleet.
 type Agent struct {
-	ID       string `json:"id"`
-	PolicyID string `json:"policy_id"`
+	ID            string `json:"id"`
+	PolicyID      string `json:"policy_id"`
+	LocalMetadata struct {
+		Host struct {
+			Name string `json:"name"`
+		} `json:"host"`
+	} `json:"local_metadata"`
 }
 
 // ListAgents returns the list of agents enrolled with Fleet.
@@ -78,7 +83,6 @@ func (c *Client) getTotalAgentForPolicy(p Policy) (int, error) {
 	if err := json.Unmarshal(respBody, &resp); err != nil {
 		return 0, errors.Wrap(err, "could not convert agent list (response) to JSON")
 	}
-
 	return resp.Total, nil
 }
 

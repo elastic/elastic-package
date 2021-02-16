@@ -100,6 +100,7 @@ func (r *DockerComposeServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedSer
 		outCtxt.Port = outCtxt.Ports[0]
 	}
 
+	outCtxt.Agent.Host.NamePrefix = "docker-fleet-agent"
 	service.ctxt = outCtxt
 	return &service, nil
 }

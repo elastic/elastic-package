@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/pkg/errors"
 )
@@ -20,12 +21,14 @@ const (
 	temporaryDir      = "tmp"
 	deployerDir       = "deployer"
 
-	terraformDeployerYmlFile = "terraform-deployer.yml"
+	kubernetesDeployerElasticAgentYmlFile = "elastic-agent.yml"
+	terraformDeployerYmlFile              = "terraform-deployer.yml"
 )
 
 var (
-	serviceLogsDir       = filepath.Join(temporaryDir, "service_logs")
-	terraformDeployerDir = filepath.Join(deployerDir, "terraform")
+	serviceLogsDir        = filepath.Join(temporaryDir, "service_logs")
+	kubernetesDeployerDir = filepath.Join(deployerDir, "kubernetes")
+	terraformDeployerDir  = filepath.Join(deployerDir, "terraform")
 )
 
 const versionFilename = "version"
@@ -55,6 +58,11 @@ func EnsureInstalled() error {
 	err = writeStackResources(elasticPackagePath)
 	if err != nil {
 		return errors.Wrap(err, "writing stack resources failed")
+	}
+
+	err = writeKubernetesDeployerResources(elasticPackagePath)
+	if err != nil {
+		return errors.Wrap(err, "writing Kubernetes deployer resources failed")
 	}
 
 	err = writeTerraformDeployerResources(elasticPackagePath)
@@ -107,6 +115,15 @@ func TerraformDeployerComposeFile() (string, error) {
 	return filepath.Join(configurationDir, terraformDeployerDir, terraformDeployerYmlFile), nil
 }
 
+// KubernetesDeployerElasticAgentFile function returns the path to the Elastic Agent YAML definition for the Kubernetes cluster.
+func KubernetesDeployerElasticAgentFile() (string, error) {
+	configurationDir, err := configurationDir()
+	if err != nil {
+		return "", errors.Wrap(err, "locating configuration directory failed")
+	}
+	return filepath.Join(configurationDir, kubernetesDeployerDir, kubernetesDeployerElasticAgentYmlFile), nil
+}
+
 func configurationDir() (string, error) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -151,6 +168,21 @@ func writeStackResources(elasticPackagePath string) error {
 	err = writeStaticResource(err, filepath.Join(stackPath, "snapshot.yml"), snapshotYml)
 	err = writeStaticResource(err, filepath.Join(stackPath, "package-registry.config.yml"), packageRegistryConfigYml)
 	err = writeStaticResource(err, filepath.Join(stackPath, "Dockerfile.package-registry"), packageRegistryDockerfile)
+	if err != nil {
+		return errors.Wrap(err, "writing static resource failed")
+	}
+	return nil
+}
+
+func writeKubernetesDeployerResources(elasticPackagePath string) error {
+	kubernetesDeployer := filepath.Join(elasticPackagePath, kubernetesDeployerDir)
+	err := os.MkdirAll(kubernetesDeployer, 0755)
+	if err != nil {
+		return errors.Wrapf(err, "creating directory failed (path: %s)", kubernetesDeployer)
+	}
+
+	err = writeStaticResource(err, filepath.Join(kubernetesDeployer, kubernetesDeployerElasticAgentYmlFile),
+		strings.ReplaceAll(kubernetesDeployerElasticAgentYml, "{{ STACK_VERSION }}", DefaultStackVersion))
 	if err != nil {
 		return errors.Wrap(err, "writing static resource failed")
 	}
