@@ -85,6 +85,7 @@ services:
       test: "sh -c 'grep \"Agent is starting\" /usr/share/elastic-agent/elastic-agent.log*'"
       retries: 30
       interval: 1s
+    hostname: docker-fleet-agent
     environment:
     - "FLEET_ENROLL=1"
     - "FLEET_ENROLL_INSECURE=1"
