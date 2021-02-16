@@ -67,7 +67,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 
 	dataStreamPath, found, err := packages.FindDataStreamRootForPath(r.options.TestFolder.Path)
 	if err != nil {
-		return nil, errors.Wrap(err, "locating data_stream root failed")
+		return nil, errors.Wrap(err, "locating data stream root failed")
 	}
 	if !found {
 		return nil, errors.New("data stream root not found")

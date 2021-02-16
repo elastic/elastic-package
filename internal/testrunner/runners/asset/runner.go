@@ -5,13 +5,17 @@
 package asset
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strings"
 
 	es "github.com/elastic/go-elasticsearch/v7"
 	"github.com/pkg/errors"
 
+	"github.com/elastic/elastic-package/internal/fields"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
@@ -25,6 +29,8 @@ func init() {
 const (
 	// TestType defining asset loading tests
 	TestType testrunner.TestType = "asset"
+
+	sampleEventFile = "sample_event.json"
 )
 
 type runner struct {
@@ -66,6 +72,11 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		TestType: TestType,
 		Package:  r.testFolder.Package,
 	})
+
+	err := r.validateSampleEvent()
+	if err != nil {
+		return result.WithError(errors.Wrap(err, "validation of sample event failed"))
+	}
 
 	testConfig, err := newConfig(r.testFolder.Path)
 	if err != nil {
@@ -130,7 +141,6 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 
 		results = append(results, r[0])
 	}
-
 	return results, nil
 }
 
@@ -140,8 +150,59 @@ func (r *runner) TearDown() error {
 			return err
 		}
 	}
-
 	return nil
+}
+
+func (r *runner) validateSampleEvent() error {
+	dataStreamPath, found, err := packages.FindDataStreamRootForPath(r.testFolder.Path)
+	if err != nil {
+		return errors.Wrap(err, "locating data stream root failed")
+	}
+	if !found {
+		return errors.New("data stream root not found")
+	}
+
+	fieldsValidator, err := fields.CreateValidatorForDataStream(dataStreamPath) // TODO WithKeywordToNumericTransformation
+	if err != nil {
+		return errors.Wrapf(err, "creating fields validator for data stream failed (path: %s)", dataStreamPath)
+	}
+
+	exists, err := sampleEventExists(dataStreamPath)
+	if !exists && err == nil{
+		return nil
+	}
+	if err != nil {
+		return errors.Wrap(err, "can't check if sample event exists")
+	}
+
+	sampleEvent, err := readSampleEvent(dataStreamPath)
+	if err != nil {
+		return errors.Wrap(err, "can't read sample event")
+	}
+
+	err = fieldsValidator.ValidateDocumentBody(sampleEvent)
+	if err != nil {
+		return errors.Wrap(err, "validation failed")
+	}
+	return nil
+}
+
+func sampleEventExists(dataStreamPath string) (bool, error) {
+	sampleEventPath := filepath.Join(dataStreamPath, sampleEventFile)
+	_, err := os.Stat(sampleEventPath)
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	if err != nil {
+		return false, errors.Wrapf(err, "can't stat file (path: %s)", sampleEventPath)
+	}
+	return true, nil
+}
+
+func readSampleEvent(dataStreamPath string) (json.RawMessage, error) {
+	sampleEventPath := filepath.Join(dataStreamPath, sampleEventFile)
+	body, err := ioutil.ReadFile(sampleEventPath)
+	return body, errors.Wrapf(err, "can't read file (path: %s)", sampleEventPath)
 }
 
 func findActualAsset(actualAssets []packages.Asset, expectedAsset packages.Asset) bool {
