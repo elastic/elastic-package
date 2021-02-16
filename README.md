@@ -89,6 +89,13 @@ _Context: package_
 Use this command to format the contents of a package.
 
 
+### `elastic-package install`
+
+_Context: package_
+
+Use this command to install/uninstall the package in Kibana.
+
+
 ### `elastic-package lint`
 
 _Context: package_
