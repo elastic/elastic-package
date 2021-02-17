@@ -56,6 +56,7 @@ func installCommandAction(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return errors.Wrap(err, "checking conditions failed")
 		}
+		cmd.Println("Requirements satisfied - the package can be installed.")
 		cmd.Println("Done")
 		return nil
 	}
