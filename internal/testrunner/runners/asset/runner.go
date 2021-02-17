@@ -6,15 +6,14 @@ package asset
 
 import (
 	"fmt"
-	"path/filepath"
 	"strings"
 
 	es "github.com/elastic/go-elasticsearch/v7"
 	"github.com/pkg/errors"
 
-	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/internal/packages/installer"
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
 
@@ -80,25 +79,24 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		return result.WithSkip(testConfig.Skip)
 	}
 
-	pkgManifest, err := packages.ReadPackageManifest(filepath.Join(r.packageRootPath, packages.PackageManifestFile))
-	if err != nil {
-		return result.WithError(errors.Wrap(err, "reading package manifest failed"))
-	}
-
-	// Install package
-	kib, err := kibana.NewClient()
-	if err != nil {
-		return result.WithError(errors.Wrap(err, "could not create kibana client"))
-	}
-
 	logger.Debug("installing package...")
-	actualAssets, err := kib.InstallPackage(*pkgManifest)
+	manifest, err := packages.ReadPackageManifestFromPackageRoot(r.packageRootPath)
 	if err != nil {
-		return result.WithError(errors.Wrap(err, "could not install package"))
+		return result.WithError(errors.Wrapf(err, "reading package manifest failed (path: %s)", r.packageRootPath))
 	}
+
+	packageInstaller, err := installer.CreateForManifest(*manifest)
+	if err != nil {
+		return result.WithError(errors.Wrap(err, "can't create the package installer"))
+	}
+	installedPackage, err := packageInstaller.Install()
+	if err != nil {
+		return result.WithError(errors.Wrap(err, "can't install the package"))
+	}
+
 	r.removePackageHandler = func() error {
 		logger.Debug("removing package...")
-		if _, err := kib.RemovePackage(*pkgManifest); err != nil {
+		if err := packageInstaller.Uninstall(); err != nil {
 			return errors.Wrap(err, "error cleaning up package")
 		}
 		return nil
@@ -113,16 +111,16 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 	for _, e := range expectedAssets {
 		rc := testrunner.NewResultComposer(testrunner.TestResult{
 			Name:       fmt.Sprintf("%s %s is loaded", e.Type, e.ID),
-			Package:    pkgManifest.Name,
+			Package:    installedPackage.Manifest.Name,
 			DataStream: e.DataStream,
 			TestType:   TestType,
 		})
 
 		var r []testrunner.TestResult
-		if !findActualAsset(actualAssets, e) {
+		if !findActualAsset(installedPackage.Assets, e) {
 			r, _ = rc.WithError(testrunner.ErrTestCaseFailed{
 				Reason:  "could not find expected asset",
-				Details: fmt.Sprintf("could not find %s asset \"%s\". Assets loaded:\n%s", e.Type, e.ID, formatAssetsAsString(actualAssets)),
+				Details: fmt.Sprintf("could not find %s asset \"%s\". Assets loaded:\n%s", e.Type, e.ID, formatAssetsAsString(installedPackage.Assets)),
 			})
 		} else {
 			r, _ = rc.WithSuccess()
