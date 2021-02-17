@@ -93,7 +93,7 @@ Use this command to format the contents of a package.
 
 _Context: package_
 
-Use this command to install/uninstall the package in Kibana.
+Use this command to install the package in Kibana.
 
 
 ### `elastic-package lint`

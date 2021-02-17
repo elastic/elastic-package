@@ -47,7 +47,4 @@ const (
 
 	StackDumpOutputFlagName        = "output"
 	StackDumpOutputFlagDescription = "output location for the stack dump"
-
-	UninstallPackageFlagName        = "uninstall"
-	UninstallPackageFlagDescription = "uninstall the package"
 )
