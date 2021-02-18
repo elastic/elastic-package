@@ -21,8 +21,8 @@ Context:
 
 func setupUninstallCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "install",
-		Short: "Install the package",
+		Use:   "uninstall",
+		Short: "Uninstall the package",
 		Long:  uninstallLongDescription,
 		RunE:  uninstallCommandAction,
 	}
