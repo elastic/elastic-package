@@ -62,7 +62,10 @@ or the data stream's level:
             <service deployer files>
 ```
 
-`<service deployer>` - a name of the supported service deployer: `docker` (Docker Compose service deployer) or `tf` (Terraform service deployer).
+`<service deployer>` - a name of the supported service deployer:
+* `docker` - Docker Compose
+* `k8s` - Kubernetes
+* `tf` - Terraform
 
 ### Docker Compose service deployer
 
@@ -117,6 +120,22 @@ data "aws_ami" "latest-amzn" {
 ```
 
 Notice the use of the `TEST_RUN_ID` variable. It contains a unique ID, which can help differentiate resources created in potential concurrent test runs.
+
+### Kubernetes service deployer
+
+The Kubernetes service deployer requires the `_dev/deploy/k8s` directory to be present. It can include additional `*.yaml` files to deploy
+custom applications in the Kubernetes cluster (e.g. Nginx deployment). If no resource definitions (`*.yaml` files ) are needed,
+the `_dev/deploy/k8s` directory must contain an `.empty` file (to preserve the `k8s` directory under version control).
+
+The Kubernetes service deployer needs the [kind](https://kind.sigs.k8s.io/) to be installed and the cluster to be up and running:
+
+```bash
+kind create cluster
+```
+
+Before executing system tests, the service deployer applies once the deployment of the Elastic Agent to the cluster and links
+the kind cluster with the Elastic stack network - applications running in the kind cluster can reach Elasticsearch and Kibana instances.
+To shorten the total test execution time the Elastic Agent's deployment is not deleted after tests, but it can be reused.
 
 ### Test case definition
 
