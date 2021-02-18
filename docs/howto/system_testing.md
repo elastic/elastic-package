@@ -137,6 +137,14 @@ Before executing system tests, the service deployer applies once the deployment 
 the kind cluster with the Elastic stack network - applications running in the kind cluster can reach Elasticsearch and Kibana instances.
 To shorten the total test execution time the Elastic Agent's deployment is not deleted after tests, but it can be reused.
 
+See how to execute system tests for the Kubernetes integration (`pod` data stream):
+
+```bash
+elastic-package stack up -d -v # start the Elastic stack
+kind create cluster # start the kind cluster
+elastic-package test system --data-streams pod -v # start system tests for the "pod" data stream
+```
+
 ### Test case definition
 
 Next, we must define at least one configuration for each data stream that we want to system test. There can be multiple test cases defined for the same data stream.
