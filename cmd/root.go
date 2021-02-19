@@ -32,6 +32,7 @@ func RootCmd() *cobra.Command {
 		setupLintCommand(),
 		setupPromoteCommand(),
 		setupTestCommand(),
+		setupUninstallCommand(),
 		setupVersionCommand())
 	return rootCmd
 }

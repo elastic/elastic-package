@@ -168,6 +168,14 @@ These tests ensure that all the Elasticsearch and Kibana assets defined by your 
 
 For details on how to run asset loading tests for a package, see the [HOWTO guide](docs/howto/asset_testing.md).
 
+
+### `elastic-package uninstall`
+
+_Context: package_
+
+Use this command to uninstall the package from Kibana.
+
+
 ### `elastic-package version`
 
 _Context: global_
