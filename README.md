@@ -173,7 +173,7 @@ For details on how to run asset loading tests for a package, see the [HOWTO guid
 
 _Context: package_
 
-Use this command to uninstall the package in Kibana.
+Use this command to uninstall the package from Kibana.
 
 
 ### `elastic-package version`
