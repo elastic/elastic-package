@@ -25,6 +25,7 @@ const (
 
 	dataStreamTypeLogs    = "logs"
 	dataStreamTypeMetrics = "metrics"
+	dataStreamTypeTraces  = "traces"
 )
 
 // VarValue represents a variable value as defined in a package or data stream
@@ -248,5 +249,7 @@ func isDataStreamManifest(path string) (bool, error) {
 	if err != nil {
 		return false, errors.Wrapf(err, "reading package manifest failed (path: %s)", path)
 	}
-	return m.Title != "" && (m.Type == dataStreamTypeLogs || m.Type == dataStreamTypeMetrics), nil
+	return m.Title != "" &&
+			(m.Type == dataStreamTypeLogs || m.Type == dataStreamTypeMetrics || m.Type == dataStreamTypeTraces),
+		nil
 }
