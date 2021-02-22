@@ -120,7 +120,7 @@ func loadElasticsearchAssets(pkgRootPath string) ([]Asset, error) {
 		}
 		assets = append(assets, asset)
 
-		if dsManifest.Type == dataStreamTypeLogs {
+		if dsManifest.Type == dataStreamTypeLogs || dsManifest.Type == dataStreamTypeTraces {
 			elasticsearchDirPath := filepath.Join(filepath.Dir(dsManifestPath), "elasticsearch", "ingest_pipeline")
 			pipelineFiles, _ := ioutil.ReadDir(elasticsearchDirPath)
 			if pipelineFiles == nil || len(pipelineFiles) == 0 {
