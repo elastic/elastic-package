@@ -73,6 +73,10 @@ func (r *runner) CanRunPerDataStream() bool {
 	return true
 }
 
+func (r *runner) TestFolderRequired() bool {
+	return true
+}
+
 // Run runs the system tests defined under the given folder
 func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, error) {
 	r.options = options

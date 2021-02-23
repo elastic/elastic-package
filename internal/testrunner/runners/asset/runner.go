@@ -142,6 +142,10 @@ func (r *runner) TearDown() error {
 	return nil
 }
 
+func (r *runner) TestFolderRequired() bool {
+	return false
+}
+
 func findActualAsset(actualAssets []packages.Asset, expectedAsset packages.Asset) bool {
 	for _, a := range actualAssets {
 		if a.Type == expectedAsset.Type && a.ID == expectedAsset.ID {

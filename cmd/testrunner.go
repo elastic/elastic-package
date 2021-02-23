@@ -126,9 +126,16 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 				}
 			}
 
-			testFolders, err = testrunner.FindTestFolders(packageRootPath, dataStreams, testType)
-			if err != nil {
-				return errors.Wrap(err, "unable to determine test folder paths")
+			if runner.TestFolderRequired() {
+				testFolders, err = testrunner.FindTestFolders(packageRootPath, dataStreams, testType)
+				if err != nil {
+					return errors.Wrap(err, "unable to determine test folder paths")
+				}
+			} else {
+				testFolders, err = testrunner.AssumeTestFolders(packageRootPath, dataStreams, testType)
+				if err != nil {
+					return errors.Wrap(err, "unable to assume test folder paths")
+				}
 			}
 
 			if failOnMissing && len(testFolders) == 0 {

@@ -6,6 +6,8 @@ package testrunner
 
 import (
 	"fmt"
+	"io/ioutil"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -47,6 +49,8 @@ type TestRunner interface {
 	TearDown() error
 
 	CanRunPerDataStream() bool
+
+	TestFolderRequired() bool
 }
 
 var runners = map[TestType]TestRunner{}
@@ -136,6 +140,43 @@ type TestFolder struct {
 	Path       string
 	Package    string
 	DataStream string
+}
+
+// AssumeTestFolders assumes potential test folders for the given package, data streams and test types.
+func AssumeTestFolders(packageRootPath string, dataStreams []string, testType TestType) ([]TestFolder, error) {
+	// Expected folder structure:
+	// <packageRootPath>/
+	//   data_stream/
+	//     <dataStream>/
+
+	dataStreamsPath := filepath.Join(packageRootPath, "data_stream")
+
+	if dataStreams == nil || len(dataStreams) == 0 {
+		fileInfos, err := ioutil.ReadDir(dataStreamsPath)
+		if os.IsNotExist(err) {
+			return []TestFolder{}, nil // data streams defined
+		}
+		if err != nil {
+			return nil, errors.Wrapf(err, "can't read directory (path: %s)", dataStreamsPath, err)
+		}
+
+		for _, fi := range fileInfos {
+			if !fi.IsDir() {
+				continue
+			}
+			dataStreams = append(dataStreams, fi.Name())
+		}
+	}
+
+	var folders []TestFolder
+	for _, dataStream := range dataStreams {
+		folders = append(folders, TestFolder{
+			Path:       filepath.Join(dataStreamsPath, dataStream, "_dev", "test", string(testType)),
+			Package:    filepath.Base(packageRootPath),
+			DataStream: dataStream,
+		})
+	}
+	return folders, nil
 }
 
 // FindTestFolders finds test folders for the given package and, optionally, test type and data streams
