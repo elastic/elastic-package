@@ -7,6 +7,7 @@ package pipeline
 import (
 	"encoding/json"
 	"fmt"
+	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -44,22 +45,32 @@ func readConfigForTestCase(testCasePath string) (testConfig, error) {
 	var c testConfig
 	configData, err := ioutil.ReadFile(filepath.Join(testCaseDir, expectedTestConfigFile(testCaseFile, configTestSuffixYAML)))
 	if err != nil && !os.IsNotExist(err) {
-		return c, errors.Wrapf(err, "reading JSON-formatted test config file failed (path: %s)", testCasePath)
+		return c, errors.Wrapf(err, "reading YAML-formatted test config file failed (path: %s)", testCasePath)
+	}
+
+	if configData != nil {
+		fmt.Println("here yaml")
+		if err := yaml.Unmarshal(configData, &c); err != nil {
+			return c, errors.Wrap(err, "unmarshalling YAML-formatted test config failed")
+		}
+
+		return c, nil
 	}
 
 	configData, err = ioutil.ReadFile(filepath.Join(testCaseDir, expectedTestConfigFile(testCaseFile, configTestSuffixJSON)))
 	if err != nil && !os.IsNotExist(err) {
-		return c, errors.Wrapf(err, "reading YAML-formatted test config file failed (path: %s)", testCasePath)
+		return c, errors.Wrapf(err, "reading JSON-formatted test config file failed (path: %s)", testCasePath)
 	}
 
-	if configData == nil {
+	if configData != nil {
+		fmt.Println("here json")
+		if err := json.Unmarshal(configData, &c); err != nil {
+			return c, errors.Wrap(err, "unmarshalling JSON-formatted test config failed")
+		}
+
 		return c, nil
 	}
 
-	err = json.Unmarshal(configData, &c)
-	if err != nil {
-		return c, errors.Wrap(err, "unmarshalling test config failed")
-	}
 	return c, nil
 }
 
