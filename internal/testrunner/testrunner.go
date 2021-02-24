@@ -157,7 +157,7 @@ func AssumeTestFolders(packageRootPath string, dataStreams []string, testType Te
 			return []TestFolder{}, nil // data streams defined
 		}
 		if err != nil {
-			return nil, errors.Wrapf(err, "can't read directory (path: %s)", dataStreamsPath, err)
+			return nil, errors.Wrapf(err, "can't read directory (path: %s)", dataStreamsPath)
 		}
 
 		for _, fi := range fileInfos {
