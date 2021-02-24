@@ -26,9 +26,9 @@ const (
 type testConfig struct {
 	testrunner.SkippableConfig `config:",inline"`
 
-	Multiline     *multiline             `json:"multiline"`
-	Fields        map[string]interface{} `json:"fields"`
-	DynamicFields map[string]string      `json:"dynamic_fields"`
+	Multiline     *multiline             `json:"multiline" yaml:"multiline"`
+	Fields        map[string]interface{} `json:"fields" yaml:"fields"`
+	DynamicFields map[string]string      `json:"dynamic_fields" yaml:"dynamic_fields"`
 
 	// NumericKeywordFields holds a list of fields that have keyword
 	// type but can be ingested as numeric type.
@@ -50,7 +50,6 @@ func readConfigForTestCase(testCasePath string) (testConfig, error) {
 	}
 
 	if configData != nil {
-		fmt.Println("here yaml")
 		if err := yaml.Unmarshal(configData, &c); err != nil {
 			return c, errors.Wrap(err, "unmarshalling YAML-formatted test config failed")
 		}
@@ -64,7 +63,6 @@ func readConfigForTestCase(testCasePath string) (testConfig, error) {
 	}
 
 	if configData != nil {
-		fmt.Println("here json")
 		if err := json.Unmarshal(configData, &c); err != nil {
 			return c, errors.Wrap(err, "unmarshalling JSON-formatted test config failed")
 		}
