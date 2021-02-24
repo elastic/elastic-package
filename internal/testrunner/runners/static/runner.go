@@ -46,10 +46,10 @@ func (r runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, er
 	return r.run()
 }
 
-func (r runner) run()  ([]testrunner.TestResult, error) {
+func (r runner) run() ([]testrunner.TestResult, error) {
 	result := testrunner.NewResultComposer(testrunner.TestResult{
-		TestType: TestType,
-		Package:  r.options.TestFolder.Package,
+		TestType:   TestType,
+		Package:    r.options.TestFolder.Package,
 		DataStream: r.options.TestFolder.DataStream,
 	})
 
@@ -79,9 +79,9 @@ func (r runner) verifySampleEvent() []testrunner.TestResult {
 	}
 
 	resultComposer := testrunner.NewResultComposer(testrunner.TestResult{
-		Name: "Verify " + sampleEventJSON,
-		TestType: TestType,
-		Package:  r.options.TestFolder.Package,
+		Name:       "Verify " + sampleEventJSON,
+		TestType:   TestType,
+		Package:    r.options.TestFolder.Package,
 		DataStream: r.options.TestFolder.DataStream,
 	})
 
@@ -90,13 +90,14 @@ func (r runner) verifySampleEvent() []testrunner.TestResult {
 		return results
 	}
 
-	fieldsValidator, err := fields.CreateValidatorForDataStream(dataStreamPath,
-		fields.WithNumericKeywordFields([]string{}))
+	fieldsValidator, err := fields.CreateValidatorForDataStream(
+		dataStreamPath,
+		fields.WithDefaultNumericConversion())
 	if err != nil {
 		results, _ := resultComposer.WithError(errors.Wrap(err, "creating fields validator for data stream failed"))
 		return results
 	}
-	
+
 	content, err := ioutil.ReadFile(sampleEventPath)
 	if err != nil {
 		results, _ := resultComposer.WithError(errors.Wrap(err, "can't read file"))
@@ -111,7 +112,7 @@ func (r runner) verifySampleEvent() []testrunner.TestResult {
 		})
 		return results
 	}
-	
+
 	results, _ := resultComposer.WithSuccess()
 	return results
 }

@@ -23,11 +23,21 @@ import (
 // Validator is responsible for fields validation.
 type Validator struct {
 	schema               []FieldDefinition
+
+	defaultNumericConvertion bool
 	numericKeywordFields map[string]struct{}
 }
 
 // ValidatorOption represents an optional flag that can be passed to  CreateValidatorForDataStream.
 type ValidatorOption func(*Validator) error
+
+// WithDefaultNumericConversion configures the validator to accept defined keyword (or constant_keyword) fields as numeric-type.
+func WithDefaultNumericConversion() ValidatorOption {
+	return func(v *Validator) error {
+		v.defaultNumericConvertion = true
+		return nil
+	}
+}
 
 // WithNumericKeywordFields configures the validator to accept specific fields to have numeric-type
 // while defined as keyword or constant_keyword.
@@ -155,7 +165,8 @@ func (v *Validator) validateScalarElement(key string, val interface{}) error {
 	}
 
 	// Convert numeric keyword fields to string for validation.
-	if _, found := v.numericKeywordFields[key]; found && isNumericKeyword(*definition, val) {
+	_, found := v.numericKeywordFields[key]
+	if (found || v.defaultNumericConvertion) && isNumericKeyword(*definition, val) {
 		val = fmt.Sprintf("%q", val)
 	}
 
