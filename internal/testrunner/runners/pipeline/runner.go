@@ -160,7 +160,9 @@ func (r *runner) listTestCaseFiles() ([]string, error) {
 
 	var files []string
 	for _, fi := range fis {
-		if strings.HasSuffix(fi.Name(), expectedTestResultSuffix) || strings.HasSuffix(fi.Name(), configTestSuffix) {
+		if strings.HasSuffix(fi.Name(), expectedTestResultSuffix) ||
+			strings.HasSuffix(fi.Name(), configTestSuffixJSON) ||
+			strings.HasSuffix(fi.Name(), configTestSuffixYAML){
 			continue
 		}
 		files = append(files, fi.Name())

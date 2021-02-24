@@ -16,7 +16,10 @@ import (
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
 
-const configTestSuffix = "-config.json"
+const (
+	configTestSuffixJSON = "-config.json"
+	configTestSuffixYAML = "-config.yml"
+)
 
 type testConfig struct {
 	testrunner.SkippableConfig `config:",inline"`
