@@ -36,7 +36,7 @@ type testConfig struct {
 }
 
 type multiline struct {
-	FirstLinePattern string `json:"first_line_pattern"`
+	FirstLinePattern string `json:"first_line_pattern" yaml:"first_line_pattern"`
 }
 
 func readConfigForTestCase(testCasePath string) (testConfig, error) {
