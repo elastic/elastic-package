@@ -75,7 +75,7 @@ services:
         condition: service_healthy
 
   elastic-agent:
-    image: docker.elastic.co/beats/elastic-agent:${STACK_VERSION}
+    image: docker.elastic.co/beats/elastic-agent@sha256:75c9fbf835a7d24166bceb82f28f4c6c5d00048ba9f0a25b945818e4cf2bba69
     depends_on:
       elasticsearch:
         condition: service_healthy
