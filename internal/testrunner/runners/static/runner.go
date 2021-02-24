@@ -5,11 +5,18 @@
 package static
 
 import (
+	"io/ioutil"
+	"os"
+	"path/filepath"
+
 	"github.com/pkg/errors"
 
+	"github.com/elastic/elastic-package/internal/fields"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
+
+const sampleEventJSON = "sample_event.json"
 
 type runner struct {
 	options testrunner.TestOptions
@@ -64,13 +71,49 @@ func (r runner) run()  ([]testrunner.TestResult, error) {
 }
 
 func (r runner) verifySampleEvent() []testrunner.TestResult {
-	result := testrunner.NewResultComposer(testrunner.TestResult{
+	dataStreamPath := filepath.Join(r.options.PackageRootPath, "data_stream", r.options.TestFolder.DataStream)
+	sampleEventPath := filepath.Join(dataStreamPath, sampleEventJSON)
+	_, err := os.Stat(sampleEventPath)
+	if os.IsNotExist(err) {
+		return []testrunner.TestResult{} // nothing to succeed, nothing to skip
+	}
+
+	resultComposer := testrunner.NewResultComposer(testrunner.TestResult{
+		Name: "Verify " + sampleEventJSON,
 		TestType: TestType,
 		Package:  r.options.TestFolder.Package,
 		DataStream: r.options.TestFolder.DataStream,
 	})
-	rErr, _ := result.WithError(errors.New("foobar"))
-	return rErr
+
+	if err != nil {
+		results, _ := resultComposer.WithError(errors.Wrap(err, "stat file failed"))
+		return results
+	}
+
+	fieldsValidator, err := fields.CreateValidatorForDataStream(dataStreamPath,
+		fields.WithNumericKeywordFields([]string{}))
+	if err != nil {
+		results, _ := resultComposer.WithError(errors.Wrap(err, "creating fields validator for data stream failed"))
+		return results
+	}
+	
+	content, err := ioutil.ReadFile(sampleEventPath)
+	if err != nil {
+		results, _ := resultComposer.WithError(errors.Wrap(err, "can't read file"))
+		return results
+	}
+
+	multiErr := fieldsValidator.ValidateDocumentBody(content)
+	if len(multiErr) > 0 {
+		results, _ := resultComposer.WithError(testrunner.ErrTestCaseFailed{
+			Reason:  "one or more errors found in document",
+			Details: multiErr.Error(),
+		})
+		return results
+	}
+	
+	results, _ := resultComposer.WithSuccess()
+	return results
 }
 
 func (r runner) TearDown() error {
