@@ -42,9 +42,14 @@ func readConfigForTestCase(testCasePath string) (testConfig, error) {
 	testCaseFile := filepath.Base(testCasePath)
 
 	var c testConfig
-	configData, err := ioutil.ReadFile(filepath.Join(testCaseDir, expectedTestConfigFile(testCaseFile)))
+	configData, err := ioutil.ReadFile(filepath.Join(testCaseDir, expectedTestConfigFile(testCaseFile, configTestSuffixYAML)))
 	if err != nil && !os.IsNotExist(err) {
-		return c, errors.Wrapf(err, "reading test config file failed (path: %s)", testCasePath)
+		return c, errors.Wrapf(err, "reading JSON-formatted test config file failed (path: %s)", testCasePath)
+	}
+
+	configData, err = ioutil.ReadFile(filepath.Join(testCaseDir, expectedTestConfigFile(testCaseFile, configTestSuffixJSON)))
+	if err != nil && !os.IsNotExist(err) {
+		return c, errors.Wrapf(err, "reading YAML-formatted test config file failed (path: %s)", testCasePath)
 	}
 
 	if configData == nil {
@@ -58,6 +63,6 @@ func readConfigForTestCase(testCasePath string) (testConfig, error) {
 	return c, nil
 }
 
-func expectedTestConfigFile(testFile string) string {
+func expectedTestConfigFile(testFile, configTestSuffix string) string {
 	return fmt.Sprintf("%s%s", testFile, configTestSuffix)
 }
