@@ -22,10 +22,10 @@ import (
 
 // Validator is responsible for fields validation.
 type Validator struct {
-	schema               []FieldDefinition
+	schema []FieldDefinition
 
 	defaultNumericConvertion bool
-	numericKeywordFields map[string]struct{}
+	numericKeywordFields     map[string]struct{}
 }
 
 // ValidatorOption represents an optional flag that can be passed to  CreateValidatorForDataStream.
