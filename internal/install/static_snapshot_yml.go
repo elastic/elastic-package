@@ -75,8 +75,7 @@ services:
         condition: service_healthy
 
   elastic-agent:
-    # FIXME Must remove this workaround once https://github.com/elastic/beats/issues/24198 is fixed
-    image: docker.elastic.co/beats/elastic-agent@sha256:75c9fbf835a7d24166bceb82f28f4c6c5d00048ba9f0a25b945818e4cf2bba69
+    image: docker.elastic.co/beats/elastic-agent:${STACK_VERSION}
     depends_on:
       elasticsearch:
         condition: service_healthy
