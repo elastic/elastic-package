@@ -26,7 +26,8 @@ spec:
       serviceAccountName: kind-fleet-agent
       containers:
         - name: kind-fleet-agent-clusterscope
-          image: docker.elastic.co/beats/elastic-agent:{{ STACK_VERSION }}
+          # FIXME Must remove this workaround once https://github.com/elastic/beats/issues/24198 is fixed
+          image: docker.elastic.co/beats/elastic-agent@sha256:75c9fbf835a7d24166bceb82f28f4c6c5d00048ba9f0a25b945818e4cf2bba69
           env:
             - name: FLEET_ENROLL
               value: "1"
