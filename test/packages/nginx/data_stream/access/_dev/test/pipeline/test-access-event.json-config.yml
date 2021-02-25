@@ -1,0 +1,4 @@
+fields:
+  event.custom_property: "foobar"
+dynamic_fields:
+  url.original: "^/.*$"
