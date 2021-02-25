@@ -24,7 +24,7 @@ import (
 type Validator struct {
 	schema []FieldDefinition
 
-	defaultNumericConvertion bool
+	defaultNumericConversion bool
 	numericKeywordFields     map[string]struct{}
 }
 
@@ -34,7 +34,7 @@ type ValidatorOption func(*Validator) error
 // WithDefaultNumericConversion configures the validator to accept defined keyword (or constant_keyword) fields as numeric-type.
 func WithDefaultNumericConversion() ValidatorOption {
 	return func(v *Validator) error {
-		v.defaultNumericConvertion = true
+		v.defaultNumericConversion = true
 		return nil
 	}
 }
@@ -166,7 +166,7 @@ func (v *Validator) validateScalarElement(key string, val interface{}) error {
 
 	// Convert numeric keyword fields to string for validation.
 	_, found := v.numericKeywordFields[key]
-	if (found || v.defaultNumericConvertion) && isNumericKeyword(*definition, val) {
+	if (found || v.defaultNumericConversion) && isNumericKeyword(*definition, val) {
 		val = fmt.Sprintf("%q", val)
 	}
 
