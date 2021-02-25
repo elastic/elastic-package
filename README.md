@@ -150,23 +150,29 @@ _Context: package_
 
 Use this command to run tests on a package. Currently, there are two types of tests available.
 
+#### Asset Loading Tests
+
+These tests ensure that all the Elasticsearch and Kibana assets defined by your package get loaded up as expected.
+
+For details on how to run asset loading tests for a package, see the [HOWTO guide](docs/howto/asset_testing.md).
+
 #### Pipeline Tests
 
 These tests allow you to exercise any Ingest Node Pipelines defined by your packages.
 
 For details on how to configure and run pipeline tests for a package, see the [HOWTO guide](docs/howto/pipeline_testing.md).
 
+#### Static Tests
+
+These tests allow you to verify if all static resources of the package are valid, e.g. are all fields of the `sample_event.json` documented.
+
+For details on how to run static tests for a package, see the [HOWTO guide](docs/howto/static_testing.md).
+
 #### System Tests
 
 These tests allow you to test a package's ability to ingest data end-to-end. 
 
 For details on how to configure and run system tests for a package, see the [HOWTO guide](docs/howto/system_testing.md).
-
-#### Asset Loading Tests
-
-These tests ensure that all the Elasticsearch and Kibana assets defined by your package get loaded up as expected.
-
-For details on how to run asset loading tests for a package, see the [HOWTO guide](docs/howto/asset_testing.md).
 
 
 ### `elastic-package uninstall`
