@@ -32,6 +32,10 @@ type runner struct {
 	options testrunner.TestOptions
 }
 
+func (r *runner) TestFolderRequired() bool {
+	return true
+}
+
 // Type returns the type of test that can be run by this test runner.
 func (r *runner) Type() testrunner.TestType {
 	return TestType

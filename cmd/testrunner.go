@@ -24,9 +24,15 @@ import (
 
 const testLongDescription = `Use this command to run tests on a package. Currently, the following types of tests are available:
 
+Asset Loading Tests
+These tests allow you to exercise installing a package to ensure that its assets are loaded into Elasticsearch and Kibana as expected.
+
 Pipeline Tests
 These tests allow you to exercise any Ingest Node Pipelines defined by your packages.
 For details on how to configure pipeline test for a package, review the HOWTO guide (see: https://github.com/elastic/elastic-package/blob/master/docs/howto/pipeline_testing.md).
+
+Static Tests
+These tests allow you to verify if all static resources of the package are valid, e.g. if all fields of the sample_event.json are documented.
 
 System Tests
 These tests allow you to test a package's ability to ingest data end-to-end.
@@ -126,9 +132,16 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 				}
 			}
 
-			testFolders, err = testrunner.FindTestFolders(packageRootPath, dataStreams, testType)
-			if err != nil {
-				return errors.Wrap(err, "unable to determine test folder paths")
+			if runner.TestFolderRequired() {
+				testFolders, err = testrunner.FindTestFolders(packageRootPath, dataStreams, testType)
+				if err != nil {
+					return errors.Wrap(err, "unable to determine test folder paths")
+				}
+			} else {
+				testFolders, err = testrunner.AssumeTestFolders(packageRootPath, dataStreams, testType)
+				if err != nil {
+					return errors.Wrap(err, "unable to assume test folder paths")
+				}
 			}
 
 			if failOnMissing && len(testFolders) == 0 {

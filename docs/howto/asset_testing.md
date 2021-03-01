@@ -1,4 +1,4 @@
-# HOWTO: Writing asset loading tests for a package
+# HOWTO: Running asset loading tests for a package
 
 ## Introduction
 

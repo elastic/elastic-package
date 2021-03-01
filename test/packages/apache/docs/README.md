@@ -108,12 +108,6 @@ An example event for `status` looks as following:
 ```$json
 {
     "@timestamp": "2020-06-24T10:19:48.005Z",
-    "@metadata": {
-        "beat": "metricbeat",
-        "type": "_doc",
-        "version": "8.0.0",
-        "raw_index": "metrics-apache.status-default"
-    },
     "metricset": {
         "name": "status",
         "period": 10000
@@ -155,7 +149,6 @@ An example event for `status` looks as following:
                 "idle": 74
             },
             "bytes_per_sec": 83.6986,
-            "hostname": "127.0.0.1:8088",
             "uptime": {
                 "server_uptime": 1566,
                 "uptime": 1566
@@ -178,16 +171,6 @@ An example event for `status` looks as following:
         "duration": 2381832,
         "dataset": "apache.status",
         "module": "apache"
-    },
-    "dataset": {
-        "type": "metrics",
-        "name": "apache.status",
-        "namespace": "default"
-    },
-    "stream": {
-        "dataset": "apache.status",
-        "namespace": "default",
-        "type": "metrics"
     },
     "ecs": {
         "version": "1.5.0"
