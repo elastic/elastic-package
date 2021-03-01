@@ -32,7 +32,7 @@ type testConfig struct {
 
 	// NumericKeywordFields holds a list of fields that have keyword
 	// type but can be ingested as numeric type.
-	NumericKeywordFields []string `json:"numeric_keyword_fields"`
+	NumericKeywordFields []string `json:"numeric_keyword_fields" yaml:"numeric_keyword_fields"`
 }
 
 type multiline struct {
