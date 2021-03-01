@@ -164,7 +164,7 @@ For details on how to configure and run pipeline tests for a package, see the [H
 
 #### Static Tests
 
-These tests allow you to verify if all static resources of the package are valid, e.g. are all fields of the `sample_event.json` documented.
+These tests allow you to verify if all static resources of the package are valid, e.g. if all fields of the `sample_event.json` are documented.
 
 For details on how to run static tests for a package, see the [HOWTO guide](docs/howto/static_testing.md).
 
