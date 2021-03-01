@@ -32,7 +32,7 @@ These tests allow you to exercise any Ingest Node Pipelines defined by your pack
 For details on how to configure pipeline test for a package, review the HOWTO guide (see: https://github.com/elastic/elastic-package/blob/master/docs/howto/pipeline_testing.md).
 
 Static Tests
-These tests allow you to verify if all static resources of the package are valid, e.g. are all fields of the sample_event.json documented.
+These tests allow you to verify if all static resources of the package are valid, e.g. if all fields of the sample_event.json are documented.
 
 System Tests
 These tests allow you to test a package's ability to ingest data end-to-end.
