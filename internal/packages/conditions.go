@@ -62,6 +62,10 @@ func parsePackageRequirements(keyValuePairs []string) (*packageRequirements, err
 			if err != nil {
 				return nil, errors.Wrap(err, "can't parse kibana.version as valid semver")
 			}
+
+			// Constraint validation doesn't handle prerelease tags. It fails with error:
+			// "1.2.3-SNAPSHOT a prerelease version and the constraint is only looking for release versions"
+			// In order to use the library's constraint validation, prerelease tags must be skipped.
 			withoutPrerelease, err := ver.SetPrerelease("") // clean prerelease tag
 			if err != nil {
 				return nil, errors.Wrap(err, "can't clean prerelease tag from semver")
