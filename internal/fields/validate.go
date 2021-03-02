@@ -10,14 +10,14 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
-
-	"github.com/elastic/elastic-package/internal/multierror"
 
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/common"
+	"github.com/elastic/elastic-package/internal/multierror"
 )
 
 // Validator is responsible for fields validation.
@@ -267,7 +267,13 @@ func parseElementValue(key string, definition FieldDefinition, val interface{}) 
 			return fmt.Errorf("field %q's value, %s, does not match the expected pattern: %s", key, valStr, definition.Pattern)
 		}
 	case "float", "long", "double":
-		_, valid = val.(float64)
+		switch val := val.(type) {
+		case float64, int:
+			valid = true
+		case string:
+			_, err := strconv.ParseFloat(val, 64)
+			valid = err == nil
+		}
 	default:
 		valid = true // all other types are considered valid not blocking validation
 	}

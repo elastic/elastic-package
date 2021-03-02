@@ -80,7 +80,6 @@ func Test_parseElementValue(t *testing.T) {
 			definition: FieldDefinition{
 				Type: "long",
 			},
-			fail: true,
 		},
 
 		// keyword and constant_keyword (string)
@@ -171,10 +170,38 @@ func Test_parseElementValue(t *testing.T) {
 				Type: "float",
 			},
 		},
+		{
+			key:   "float as long",
+			value: 65537,
+			definition: FieldDefinition{
+				Type: "float",
+			},
+		},
+		{
+			key:   "float as string",
+			value: "3.1416",
+			definition: FieldDefinition{
+				Type: "float",
+			},
+		},
 		// long
 		{
-			key:   "bad long",
+			key:   "long",
+			value: 65537,
+			definition: FieldDefinition{
+				Type: "long",
+			},
+		},
+		{
+			key:   "long as string",
 			value: "65537",
+			definition: FieldDefinition{
+				Type: "long",
+			},
+		},
+		{
+			key:   "bad long",
+			value: "0xCEBADA",
 			definition: FieldDefinition{
 				Type: "long",
 			},
