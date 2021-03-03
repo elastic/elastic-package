@@ -271,6 +271,7 @@ func parseElementValue(key string, definition FieldDefinition, val interface{}) 
 		case float64, int:
 			valid = true
 		case string:
+			// Elasticsearch can ingest numbers represented as strings in the JSON document.
 			_, err := strconv.ParseFloat(val, 64)
 			valid = err == nil
 		}
