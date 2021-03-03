@@ -49,7 +49,6 @@ func CheckConditions(manifest PackageManifest, keyValuePairs []string) error {
 
 func parsePackageRequirements(keyValuePairs []string) (*packageRequirements, error) {
 	var pr packageRequirements
-	var err error
 
 	for _, keyPair := range keyValuePairs {
 		s := strings.SplitN(keyPair, "=", 2)
@@ -59,10 +58,20 @@ func parsePackageRequirements(keyValuePairs []string) (*packageRequirements, err
 
 		switch s[0] {
 		case kibanaVersionRequirement:
-			pr.kibana.version, err = semver.NewVersion(s[1])
+			ver, err := semver.NewVersion(s[1])
 			if err != nil {
 				return nil, errors.Wrap(err, "can't parse kibana.version as valid semver")
 			}
+
+			// Constraint validation doesn't handle prerelease tags. It fails with error:
+			// "1.2.3-SNAPSHOT a prerelease version and the constraint is only looking for release versions"
+			// In order to use the library's constraint validation, prerelease tags must be skipped.
+			// Source code reference: https://github.com/Masterminds/semver/blob/7e314bd12e4aa8ea9742b1e4765f3fe65de38c2d/constraints.go#L89
+			withoutPrerelease, err := ver.SetPrerelease("") // clean prerelease tag
+			if err != nil {
+				return nil, errors.Wrap(err, "can't clean prerelease tag from semver")
+			}
+			pr.kibana.version = &withoutPrerelease
 		default:
 			return nil, fmt.Errorf("unknown package requirement: %s", s[0])
 		}
