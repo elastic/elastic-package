@@ -9,8 +9,11 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/pkg/errors"
+
+	"github.com/elastic/elastic-package/internal/configuration"
 )
 
 const (
@@ -185,7 +188,13 @@ func writeKubernetesDeployerResources(elasticPackagePath string) error {
 		return errors.Wrapf(err, "creating directory failed (path: %s)", kubernetesDeployer)
 	}
 
-	err = writeStaticResource(err, filepath.Join(kubernetesDeployer, kubernetesDeployerElasticAgentYmlFile), kubernetesDeployerElasticAgentYml)
+	imageRefs, err := configuration.StackImageRefs(DefaultStackVersion)
+	if err != nil {
+		return errors.Wrap(err, "could not read image refs")
+	}
+
+	err = writeStaticResource(err, filepath.Join(kubernetesDeployer, kubernetesDeployerElasticAgentYmlFile),
+		strings.ReplaceAll(kubernetesDeployerElasticAgentYml, "{{ ELASTIC_AGENT_IMAGE_REF }}", imageRefs.ElasticAgent))
 	if err != nil {
 		return errors.Wrap(err, "writing static resource failed")
 	}
@@ -208,6 +217,15 @@ func writeTerraformDeployerResources(elasticPackagePath string) error {
 	return nil
 }
 
+func writeConfigFile(elasticPackagePath string) error {
+	var err error
+	err = writeStaticResource(err, filepath.Join(elasticPackagePath, "config.yml"), applicationConfigYml)
+	if err != nil {
+		return errors.Wrap(err, "writing static resource failed")
+	}
+	return nil
+}
+
 func writeStaticResource(err error, path, content string) error {
 	if err != nil {
 		return err
@@ -216,15 +234,6 @@ func writeStaticResource(err error, path, content string) error {
 	err = ioutil.WriteFile(path, []byte(content), 0644)
 	if err != nil {
 		return errors.Wrapf(err, "writing file failed (path: %s)", path)
-	}
-	return nil
-}
-
-func writeConfigFile(elasticPackagePath string) error {
-	var err error
-	err = writeStaticResource(err, filepath.Join(elasticPackagePath, "config.yml"), applicationConfigYml)
-	if err != nil {
-		return errors.Wrap(err, "writing static resource failed")
 	}
 	return nil
 }
