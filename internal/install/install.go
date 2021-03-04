@@ -9,7 +9,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/pkg/errors"
 )
@@ -186,8 +185,7 @@ func writeKubernetesDeployerResources(elasticPackagePath string) error {
 		return errors.Wrapf(err, "creating directory failed (path: %s)", kubernetesDeployer)
 	}
 
-	err = writeStaticResource(err, filepath.Join(kubernetesDeployer, kubernetesDeployerElasticAgentYmlFile),
-		strings.ReplaceAll(kubernetesDeployerElasticAgentYml, "{{ STACK_VERSION }}", DefaultStackVersion))
+	err = writeStaticResource(err, filepath.Join(kubernetesDeployer, kubernetesDeployerElasticAgentYmlFile), kubernetesDeployerElasticAgentYml)
 	if err != nil {
 		return errors.Wrap(err, "writing static resource failed")
 	}

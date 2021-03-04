@@ -28,7 +28,6 @@ func dockerComposeBuild(options Options) error {
 	}
 
 	opts := compose.CommandOptions{
-		Env:      []string{fmt.Sprintf("STACK_VERSION=%s", options.StackVersion)},
 		Services: withIsReadyServices(withDependentServices(options.Services)),
 	}
 
@@ -99,13 +98,7 @@ func dockerComposeDown() error {
 		return errors.Wrap(err, "could not create docker compose project")
 	}
 
-	opts := compose.CommandOptions{
-		// We set the STACK_VERSION env var here to avoid showing a warning to the user about
-		// it not being set.
-		Env: []string{fmt.Sprintf("STACK_VERSION=%s", install.DefaultStackVersion)},
-	}
-
-	if err := c.Down(opts); err != nil {
+	if err := c.Down(compose.CommandOptions{}); err != nil {
 		return errors.Wrap(err, "running command failed")
 	}
 	return nil
@@ -123,9 +116,6 @@ func dockerComposeLogs(serviceName string) ([]byte, error) {
 	}
 
 	opts := compose.CommandOptions{
-		// We set the STACK_VERSION env var here to avoid showing a warning to the user about
-		// it not being set.
-		Env:      []string{fmt.Sprintf("STACK_VERSION=%s", install.DefaultStackVersion)},
 		Services: []string{serviceName},
 	}
 
