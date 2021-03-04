@@ -6,37 +6,31 @@ package install
 
 import (
 	"fmt"
+	"io/ioutil"
 	"path/filepath"
 
-	"github.com/elastic/go-ucfg"
-	"github.com/elastic/go-ucfg/yaml"
 	"github.com/pkg/errors"
-
-	"github.com/elastic/elastic-package/internal/common"
+	"gopkg.in/yaml.v3"
 )
 
 // ApplicationConfiguration represents the configuration of the elastic-package.
 type ApplicationConfiguration struct {
-	c common.MapStr
+	c configFile
 }
 
-// DefaultStackImageRefs function selects the appropriate set of Docker image references for the default stack version.
-func (ac *ApplicationConfiguration) DefaultStackImageRefs() ImageRefs {
-	return ac.StackImageRefs(DefaultStackVersion)
+type configFile struct {
+	Stack stack `yaml:"stack"`
 }
 
-// StackImageRefs function selects the appropriate set of Docker image references for the given stack version.
-func (ac *ApplicationConfiguration) StackImageRefs(version string) ImageRefs {
-	stackVersionRef := "stack.imageRefOverrides." + version
+type stack struct {
+	ImageRefOverrides map[string]ImageRefs `yaml:"imageRefOverrides"`
+}
 
-	var refs ImageRefs
-	elasticAgentRef, _ := ac.c.GetValue(stackVersionRef + ".elastic-agent")
-	elasticsearchRef, _ := ac.c.GetValue(stackVersionRef + ".elasticsearch")
-	kibanaRef, _ := ac.c.GetValue(stackVersionRef + ".kibana")
-	refs.ElasticAgent = stringOrDefault(elasticAgentRef, fmt.Sprintf("%s:%s", elasticAgentImageName, DefaultStackVersion))
-	refs.Elasticsearch = stringOrDefault(elasticsearchRef, fmt.Sprintf("%s:%s", elasticsearchImageName, DefaultStackVersion))
-	refs.Kibana = stringOrDefault(kibanaRef, fmt.Sprintf("%s:%s", kibanaImageName, DefaultStackVersion))
-
+func (s stack) ImageRefOverridesForVersion(version string) ImageRefs {
+	refs, ok := s.ImageRefOverrides[version]
+	if !ok {
+		return ImageRefs{}
+	}
 	return refs
 }
 
@@ -56,6 +50,20 @@ func (ir ImageRefs) AsEnv() []string {
 	return vars
 }
 
+// DefaultStackImageRefs function selects the appropriate set of Docker image references for the default stack version.
+func (ac *ApplicationConfiguration) DefaultStackImageRefs() ImageRefs {
+	return ac.StackImageRefs(DefaultStackVersion)
+}
+
+// StackImageRefs function selects the appropriate set of Docker image references for the given stack version.
+func (ac *ApplicationConfiguration) StackImageRefs(version string) ImageRefs {
+	refs := ac.c.Stack.ImageRefOverridesForVersion(version)
+	refs.ElasticAgent = stringOrDefault(refs.ElasticAgent, fmt.Sprintf("%s:%s", elasticAgentImageName, DefaultStackVersion))
+	refs.Elasticsearch = stringOrDefault(refs.Elasticsearch, fmt.Sprintf("%s:%s", elasticsearchImageName, DefaultStackVersion))
+	refs.Kibana = stringOrDefault(refs.Kibana, fmt.Sprintf("%s:%s", kibanaImageName, DefaultStackVersion))
+	return refs
+}
+
 // Configuration function returns the elastic-package configuration.
 func Configuration() (*ApplicationConfiguration, error) {
 	configPath, err := configurationDir()
@@ -63,15 +71,15 @@ func Configuration() (*ApplicationConfiguration, error) {
 		return nil, errors.Wrap(err, "can't read configuration directory")
 	}
 
-	cfg, err := yaml.NewConfigWithFile(filepath.Join(configPath, applicationConfigurationYmlFile), ucfg.PathSep("."))
+	cfg, err := ioutil.ReadFile(filepath.Join(configPath, applicationConfigurationYmlFile))
 	if err != nil {
-		return nil, errors.Wrap(err, "can't unmarshal application configuration")
+		return nil, errors.Wrap(err, "can't read configuration file")
 	}
 
-	var c common.MapStr
-	err = cfg.Unpack(&c)
+	var c configFile
+	err = yaml.Unmarshal(cfg, &c)
 	if err != nil {
-		return nil, errors.Wrap(err, "can't unpack application configuration")
+		return nil, errors.Wrap(err, "can't unmarshal configuration file")
 	}
 
 	return &ApplicationConfiguration{
@@ -79,6 +87,9 @@ func Configuration() (*ApplicationConfiguration, error) {
 	}, nil
 }
 
-func stringOrDefault(value interface{}, defaultValue string) string {
-	return ""
+func stringOrDefault(value string, defaultValue string) string {
+	if value == "" {
+		return defaultValue
+	}
+	return value
 }
