@@ -75,7 +75,8 @@ services:
         condition: service_healthy
 
   elastic-agent:
-    image: docker.elastic.co/beats/elastic-agent:${STACK_VERSION}
+    # Temporary workaround for: https://github.com/elastic/beats/issues/24310
+    image: docker.elastic.co/beats/elastic-agent@sha256:6182d3ebb975965c4501b551dfed2ddc6b7f47c05187884c62fe6192f7df4625
     depends_on:
       elasticsearch:
         condition: service_healthy
