@@ -10,7 +10,9 @@ const (
 	kibanaImageName        = "docker.elastic.co/kibana/kibana"
 )
 
-const applicationConfigYml = `stack:
+const applicationConfigurationYmlFile = "config.yml"
+
+const applicationConfigurationYml = `stack:
   imageRefOverrides:
     7.13.0-SNAPSHOT:
       elastic-agent: ` + elasticAgentImageName + `@sha256:6182d3ebb975965c4501b551dfed2ddc6b7f47c05187884c62fe6192f7df4625

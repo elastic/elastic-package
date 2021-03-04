@@ -12,8 +12,6 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
-
-	"github.com/elastic/elastic-package/internal/configuration"
 )
 
 const (
@@ -188,7 +186,12 @@ func writeKubernetesDeployerResources(elasticPackagePath string) error {
 		return errors.Wrapf(err, "creating directory failed (path: %s)", kubernetesDeployer)
 	}
 
-	imageRefs, err := configuration.StackImageRefs(DefaultStackVersion)
+	appConfig, err := Configuration()
+	if err != nil {
+		return errors.Wrap(err, "can't read application configuration")
+	}
+
+	imageRefs, err := appConfig.DefaultStackImageRefs()
 	if err != nil {
 		return errors.Wrap(err, "could not read image refs")
 	}
@@ -219,7 +222,7 @@ func writeTerraformDeployerResources(elasticPackagePath string) error {
 
 func writeConfigFile(elasticPackagePath string) error {
 	var err error
-	err = writeStaticResource(err, filepath.Join(elasticPackagePath, "config.yml"), applicationConfigYml)
+	err = writeStaticResource(err, filepath.Join(elasticPackagePath, applicationConfigurationYmlFile), applicationConfigurationYml)
 	if err != nil {
 		return errors.Wrap(err, "writing static resource failed")
 	}

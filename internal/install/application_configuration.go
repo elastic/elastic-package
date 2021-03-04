@@ -2,9 +2,21 @@
 // or more contributor license agreements. Licensed under the Elastic License;
 // you may not use this file except in compliance with the Elastic License.
 
-package configuration
+package install
 
-type config struct {
+type ApplicationConfiguration struct{}
+
+// StackImageRefs function selects the appropriate set of Docker image references for the default stack version.
+func (ac *ApplicationConfiguration) DefaultStackImageRefs() (*ImageRefs, error) {
+	return ac.StackImageRefs(DefaultStackVersion)
+}
+
+// StackImageRefs function selects the appropriate set of Docker image references for the given stack version.
+func (ac *ApplicationConfiguration) StackImageRefs(version string) (*ImageRefs, error) {
+	panic("TODO")
+}
+
+type configFile struct {
 	Stack stack `yaml:"stack"`
 }
 
@@ -28,7 +40,7 @@ func (ir *ImageRefs) AsEnv() []string {
 	return vars
 }
 
-// StackImageRefs function selects the appropriate set of Docker image references for the given stack version.
-func StackImageRefs(version string) (*ImageRefs, error) {
-	panic("TODO")
+// Configuration function returns the elastic-package configuration.
+func Configuration() (*ApplicationConfiguration, error) {
+	return &ApplicationConfiguration{}, nil
 }

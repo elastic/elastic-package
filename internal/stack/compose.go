@@ -11,7 +11,6 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/compose"
-	"github.com/elastic/elastic-package/internal/configuration"
 	"github.com/elastic/elastic-package/internal/install"
 )
 
@@ -49,7 +48,12 @@ func dockerComposePull(options Options) error {
 		return errors.Wrap(err, "could not create docker compose project")
 	}
 
-	imageRefs, err := configuration.StackImageRefs(options.StackVersion)
+	appConfig, err := install.Configuration()
+	if err != nil {
+		return errors.Wrap(err, "can't read application configuration")
+	}
+
+	imageRefs, err := appConfig.StackImageRefs(options.StackVersion)
 	if err != nil {
 		return errors.Wrap(err, "could not read image refs")
 	}
@@ -81,7 +85,12 @@ func dockerComposeUp(options Options) error {
 		args = append(args, "-d")
 	}
 
-	imageRefs, err := configuration.StackImageRefs(options.StackVersion)
+	appConfig, err := install.Configuration()
+	if err != nil {
+		return errors.Wrap(err, "can't read application configuration")
+	}
+
+	imageRefs, err := appConfig.StackImageRefs(options.StackVersion)
 	if err != nil {
 		return errors.Wrap(err, "could not read image refs")
 	}
