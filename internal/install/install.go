@@ -191,13 +191,9 @@ func writeKubernetesDeployerResources(elasticPackagePath string) error {
 		return errors.Wrap(err, "can't read application configuration")
 	}
 
-	imageRefs, err := appConfig.DefaultStackImageRefs()
-	if err != nil {
-		return errors.Wrap(err, "could not read image refs")
-	}
-
 	err = writeStaticResource(err, filepath.Join(kubernetesDeployer, kubernetesDeployerElasticAgentYmlFile),
-		strings.ReplaceAll(kubernetesDeployerElasticAgentYml, "{{ ELASTIC_AGENT_IMAGE_REF }}", imageRefs.ElasticAgent))
+		strings.ReplaceAll(kubernetesDeployerElasticAgentYml, "{{ ELASTIC_AGENT_IMAGE_REF }}",
+			appConfig.DefaultStackImageRefs().ElasticAgent))
 	if err != nil {
 		return errors.Wrap(err, "writing static resource failed")
 	}

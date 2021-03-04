@@ -53,13 +53,8 @@ func dockerComposePull(options Options) error {
 		return errors.Wrap(err, "can't read application configuration")
 	}
 
-	imageRefs, err := appConfig.StackImageRefs(options.StackVersion)
-	if err != nil {
-		return errors.Wrap(err, "could not read image refs")
-	}
-
 	opts := compose.CommandOptions{
-		Env:      imageRefs.AsEnv(),
+		Env:      appConfig.StackImageRefs(options.StackVersion).AsEnv(),
 		Services: withIsReadyServices(withDependentServices(options.Services)),
 	}
 
@@ -90,13 +85,8 @@ func dockerComposeUp(options Options) error {
 		return errors.Wrap(err, "can't read application configuration")
 	}
 
-	imageRefs, err := appConfig.StackImageRefs(options.StackVersion)
-	if err != nil {
-		return errors.Wrap(err, "could not read image refs")
-	}
-
 	opts := compose.CommandOptions{
-		Env:       imageRefs.AsEnv(),
+		Env:       appConfig.StackImageRefs(options.StackVersion).AsEnv(),
 		ExtraArgs: args,
 		Services:  withIsReadyServices(withDependentServices(options.Services)),
 	}
