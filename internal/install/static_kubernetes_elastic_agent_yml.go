@@ -26,7 +26,7 @@ spec:
       serviceAccountName: kind-fleet-agent
       containers:
         - name: kind-fleet-agent-clusterscope
-          image: docker.elastic.co/beats/elastic-agent:{{ STACK_VERSION }}
+          image: {{ ELASTIC_AGENT_IMAGE_REF }}
           env:
             - name: FLEET_ENROLL
               value: "1"

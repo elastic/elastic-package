@@ -50,6 +50,11 @@ func EnsureInstalled() error {
 		return errors.Wrap(err, "creating elastic package directory failed")
 	}
 
+	err = writeConfigFile(elasticPackagePath)
+	if err != nil {
+		return errors.Wrap(err, "writing configuration file failed")
+	}
+
 	err = writeVersionFile(elasticPackagePath)
 	if err != nil {
 		return errors.Wrap(err, "writing version file failed")
@@ -213,6 +218,15 @@ func writeStaticResource(err error, path, content string) error {
 	err = ioutil.WriteFile(path, []byte(content), 0644)
 	if err != nil {
 		return errors.Wrapf(err, "writing file failed (path: %s)", path)
+	}
+	return nil
+}
+
+func writeConfigFile(elasticPackagePath string) error {
+	var err error
+	err = writeStaticResource(err, filepath.Join(elasticPackagePath, "config.yml"), applicationConfigYml)
+	if err != nil {
+		return errors.Wrap(err, "writing static resource failed")
 	}
 	return nil
 }
