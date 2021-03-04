@@ -4,9 +4,10 @@
 
 package install
 
+// ApplicationConfiguration represents the configuration of the elastic-package.
 type ApplicationConfiguration struct{}
 
-// StackImageRefs function selects the appropriate set of Docker image references for the default stack version.
+// DefaultStackImageRefs function selects the appropriate set of Docker image references for the default stack version.
 func (ac *ApplicationConfiguration) DefaultStackImageRefs() (*ImageRefs, error) {
 	return ac.StackImageRefs(DefaultStackVersion)
 }
