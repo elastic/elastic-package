@@ -58,9 +58,9 @@ func (ac *ApplicationConfiguration) DefaultStackImageRefs() ImageRefs {
 // StackImageRefs function selects the appropriate set of Docker image references for the given stack version.
 func (ac *ApplicationConfiguration) StackImageRefs(version string) ImageRefs {
 	refs := ac.c.Stack.ImageRefOverridesForVersion(version)
-	refs.ElasticAgent = stringOrDefault(refs.ElasticAgent, fmt.Sprintf("%s:%s", elasticAgentImageName, DefaultStackVersion))
-	refs.Elasticsearch = stringOrDefault(refs.Elasticsearch, fmt.Sprintf("%s:%s", elasticsearchImageName, DefaultStackVersion))
-	refs.Kibana = stringOrDefault(refs.Kibana, fmt.Sprintf("%s:%s", kibanaImageName, DefaultStackVersion))
+	refs.ElasticAgent = stringOrDefault(refs.ElasticAgent, fmt.Sprintf("%s:%s", elasticAgentImageName, version))
+	refs.Elasticsearch = stringOrDefault(refs.Elasticsearch, fmt.Sprintf("%s:%s", elasticsearchImageName, version))
+	refs.Kibana = stringOrDefault(refs.Kibana, fmt.Sprintf("%s:%s", kibanaImageName, version))
 	return refs
 }
 
