@@ -12,6 +12,7 @@ elasticsearch.hosts: [ "http://elasticsearch:9200" ]
 elasticsearch.username: elastic
 elasticsearch.password: changeme
 xpack.monitoring.ui.container.elasticsearch.enabled: true
+xpack.fleet.agents.fleetServerEnabled: false
 
 xpack.fleet.enabled: true
 xpack.fleet.registryUrl: "http://package-registry:8080"
