@@ -93,6 +93,8 @@ fields:
     - "web"
 dynamic_fields:
   url.original: "^/.*$"
+numeric_keyword_fields:
+  - network.iana_number  
 ```
 
 The `multiline` section ([raw files](#raw-files) only) configures the log file reader to correctly detect multiline log entries using the `first_line_pattern`. Use this property if your logs may be split into multiple lines, e.g. Java stack traces.
@@ -101,6 +103,7 @@ The `fields` section allows for customizing extra fields to be added to every re
 
 The `dynamic_fields` section allows for marking fields as dynamic (every time they have different non-static values), so that pattern matching instead of strict value check is applied. 
 
+The `numeric_keyword_fields` section allows for identifying fields whose values are numbers but are expected to be stored in Elasticsearch as `keyword` fields.
 
 #### Expected results
 
