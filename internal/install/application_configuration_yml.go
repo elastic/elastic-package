@@ -17,4 +17,5 @@ const applicationConfigurationYml = `stack:
     7.13.0-SNAPSHOT:
       # Override is a workaround for: https://github.com/elastic/beats/issues/24310
       elastic-agent: ` + elasticAgentImageName + `@sha256:6182d3ebb975965c4501b551dfed2ddc6b7f47c05187884c62fe6192f7df4625
-`
+    8.0.0-SNAPSHOT:
+      elastic-agent: ` + elasticAgentImageName + `:8.0.0-85628f5e-SNAPSHOT`
