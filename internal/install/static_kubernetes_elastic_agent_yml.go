@@ -32,6 +32,8 @@ spec:
               value: "1"
             - name: FLEET_ENROLL_INSECURE
               value: "1"
+            - name: FLEET_INSECURE
+              value: "1"
             - name: KIBANA_HOST
               value: "http://kibana:5601"
             - name: NODE_NAME
