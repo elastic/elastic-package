@@ -26,12 +26,16 @@ spec:
       serviceAccountName: kind-fleet-agent
       containers:
         - name: kind-fleet-agent-clusterscope
-          image: {{ ELASTIC_AGENT_IMAGE_REF }}
+          image: docker.elastic.co/beats/elastic-agent:{{ STACK_VERSION }}
           env:
             - name: FLEET_ENROLL
               value: "1"
             - name: FLEET_ENROLL_INSECURE
               value: "1"
+            - name: FLEET_INSECURE
+              value: "1"
+            - name: FLEET_URL
+              value: "http://kibana:5601"
             - name: KIBANA_HOST
               value: "http://kibana:5601"
             - name: NODE_NAME
