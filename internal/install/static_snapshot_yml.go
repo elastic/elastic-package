@@ -90,6 +90,7 @@ services:
     - "FLEET_ENROLL=1"
     - "FLEET_ENROLL_INSECURE=1"
     - "FLEET_INSECURE=1"
+    - "FLEET_SERVER_ENABLE=1"
     - "FLEET_SETUP=1"
     - "FLEET_URL=http://kibana:5601"
     - "KIBANA_HOST=http://kibana:5601"
