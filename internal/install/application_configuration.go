@@ -23,7 +23,7 @@ type configFile struct {
 }
 
 type stack struct {
-	ImageRefOverrides map[string]ImageRefs `yaml:"imageRefOverrides"`
+	ImageRefOverrides map[string]ImageRefs `yaml:"image_ref_overrides"`
 }
 
 func (s stack) ImageRefOverridesForVersion(version string) ImageRefs {

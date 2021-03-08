@@ -13,7 +13,7 @@ const (
 const applicationConfigurationYmlFile = "config.yml"
 
 const applicationConfigurationYml = `stack:
-  imageRefOverrides:
+  image_ref_overrides:
     7.13.0-SNAPSHOT:
       # Use stable image versions for Agent and Kibana
       elastic-agent: ` + elasticAgentImageName + `@sha256:76c294cf55654bc28dde72ce936032f34ad5f40c345f3df964924778b249e581
