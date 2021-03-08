@@ -15,8 +15,6 @@ const applicationConfigurationYmlFile = "config.yml"
 const applicationConfigurationYml = `stack:
   imageRefOverrides:
     7.13.0-SNAPSHOT:
-      # Override is a workaround for: https://github.com/elastic/beats/issues/24310
-      elastic-agent: ` + elasticAgentImageName + `@sha256:6182d3ebb975965c4501b551dfed2ddc6b7f47c05187884c62fe6192f7df4625
-    8.0.0-SNAPSHOT:
-      # Override is a workaround for: https://github.com/elastic/beats/issues/24310
-      elastic-agent: ` + elasticAgentImageName + `:8.0.0-85628f5e-SNAPSHOT`
+      # Use stable image versions for Agent and Kibana
+      elastic-agent: ` + elasticAgentImageName + `@sha256:76c294cf55654bc28dde72ce936032f34ad5f40c345f3df964924778b249e581
+      kibana: ` + kibanaImageName + `@sha256:78ae3b1ca09efee242d2c77597dfab18670e984adb96c2407ec03fe07ceca4f6`
