@@ -62,50 +62,46 @@ func (c *Client) AssignPolicyToAgent(a Agent, p Policy) error {
 		return fmt.Errorf("could not assign policy to agent; API status code = %d; response body = %s", statusCode, string(respBody))
 	}
 
-	err = c.waitUntilPolicyAssigned(p)
+	err = c.waitUntilPolicyAssigned(a, p)
 	if err != nil {
 		return errors.Wrap(err, "error occurred while waiting for the policy to be assigned to all agents")
 	}
 	return nil
 }
 
-func (c *Client) waitUntilPolicyAssigned(p Policy) error {
+func (c *Client) waitUntilPolicyAssigned(a Agent, p Policy) error {
 	for {
-		agents, err := c.ListAgents()
+		agent, err := c.getAgent(a.ID)
 		if err != nil {
-			return errors.Wrap(err, "can't list available agents")
+			return errors.Wrap(err, "can't get the agent")
 		}
 
-		agentsWithPolicy := filterAgentsByPolicy(agents, p)
-		agentsWithPolicyAndRevision := filterAgentsByPolicyAndRevision(agents, p)
-		if len(agentsWithPolicy) != 0 && len(agentsWithPolicy) == len(agentsWithPolicyAndRevision) {
-			logger.Debugf("Policy revision assigned to all agents")
+		if agent.PolicyID == p.ID && agent.PolicyRevision == p.Revision {
+			logger.Debugf("Policy revision assigned to the agent (ID: %s)...", a.ID)
 			break
 		}
 
-		logger.Debugf("Wait until the policy (ID: %s, revision: %d) is assigned to all agents (%d/%d)...", p.ID, p.Revision,
-			len(agentsWithPolicyAndRevision), len(agentsWithPolicy))
+		logger.Debugf("Wait until the policy (ID: %s, revision: %d) is assigned to the agent (ID: %s)...", p.ID, p.Revision, a.ID)
 		time.Sleep(2 * time.Second)
 	}
 	return nil
 }
 
-func filterAgentsByPolicy(agents []Agent, policy Policy) []Agent {
-	var filtered []Agent
-	for _, agent := range agents {
-		if agent.PolicyID == policy.ID {
-			filtered = append(filtered, agent)
-		}
+func (c *Client) getAgent(agentID string) (*Agent, error) {
+	statusCode, respBody, err := c.get(fmt.Sprintf("%s/agents/%s", FleetAPI, agentID))
+	if err != nil {
+		return nil, errors.Wrap(err, "could not list agents")
 	}
-	return filtered
-}
 
-func filterAgentsByPolicyAndRevision(agents []Agent, policy Policy) []Agent {
-	var filtered []Agent
-	for _, agent := range agents {
-		if agent.PolicyID == policy.ID && agent.PolicyRevision == policy.Revision {
-			filtered = append(filtered, agent)
-		}
+	if statusCode != 200 {
+		return nil, fmt.Errorf("could not list agents; API status code = %d", statusCode)
 	}
-	return filtered
+
+	var resp struct {
+		Item Agent `json:"item"`
+	}
+	if err := json.Unmarshal(respBody, &resp); err != nil {
+		return nil, errors.Wrap(err, "could not convert list agents (response) to JSON")
+	}
+	return &resp.Item, nil
 }
