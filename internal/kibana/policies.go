@@ -19,6 +19,7 @@ type Policy struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
 	Namespace   string `json:"namespace"`
+	Revision    int    `json:"revision,omitempty"`
 }
 
 // CreatePolicy persists the given Policy in the Ingest Manager.
@@ -35,6 +36,28 @@ func (c *Client) CreatePolicy(p Policy) (*Policy, error) {
 
 	if statusCode != 200 {
 		return nil, fmt.Errorf("could not create policy; API status code = %d; response body = %s", statusCode, respBody)
+	}
+
+	var resp struct {
+		Item Policy `json:"item"`
+	}
+
+	if err := json.Unmarshal(respBody, &resp); err != nil {
+		return nil, errors.Wrap(err, "could not convert policy (response) to JSON")
+	}
+
+	return &resp.Item, nil
+}
+
+// GetPolicy fetches the given Policy in the Ingest Manager.
+func (c *Client) GetPolicy(policyID string) (*Policy, error) {
+	statusCode, respBody, err := c.get(fmt.Sprintf("%s/agent_policies/%s", FleetAPI, policyID))
+	if err != nil {
+		return nil, errors.Wrap(err, "could not get policy")
+	}
+
+	if statusCode != 200 {
+		return nil, fmt.Errorf("could not get policy; API status code = %d; response body = %s", statusCode, respBody)
 	}
 
 	var resp struct {
