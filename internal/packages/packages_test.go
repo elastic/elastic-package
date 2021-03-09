@@ -44,9 +44,9 @@ func TestVarValue_MarshalJSON(t *testing.T) {
 }
 
 func TestDataStreamManifest_IndexTemplateName(t *testing.T) {
-	cases := map[string]struct{
-		dsm DataStreamManifest
-		pkgName string
+	cases := map[string]struct {
+		dsm                       DataStreamManifest
+		pkgName                   string
 		expectedIndexTemplateName string
 	}{
 		"no_dataset": {
@@ -59,8 +59,8 @@ func TestDataStreamManifest_IndexTemplateName(t *testing.T) {
 		},
 		"with_dataset": {
 			DataStreamManifest{
-				Name: "foo",
-				Type: dataStreamTypeLogs,
+				Name:    "foo",
+				Type:    dataStreamTypeLogs,
 				Dataset: "custom",
 			},
 			"pkg",
