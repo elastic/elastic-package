@@ -298,7 +298,8 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	}
 	agent := agents[0]
 	origPolicy := kibana.Policy{
-		ID: agent.PolicyID,
+		ID:       agent.PolicyID,
+		Revision: agent.PolicyRevision,
 	}
 
 	// Configure package (single data stream) via Ingest Manager APIs.
@@ -367,16 +368,22 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	}
 
 	// Assign policy to agent
-	logger.Debug("assigning package data stream to agent...")
-	if err := kib.AssignPolicyToAgent(agent, *policy); err != nil {
-		return result.WithError(errors.Wrap(err, "could not assign policy to agent"))
-	}
 	r.resetAgentPolicyHandler = func() error {
 		logger.Debug("reassigning original policy back to agent...")
 		if err := kib.AssignPolicyToAgent(agent, origPolicy); err != nil {
 			return errors.Wrap(err, "error reassigning original policy to agent")
 		}
 		return nil
+	}
+
+	policyWithDataStream, err := kib.GetPolicy(policy.ID)
+	if err != nil {
+		return result.WithError(errors.Wrap(err, "could not read the policy with data stream"))
+	}
+
+	logger.Debug("assigning package data stream to agent...")
+	if err := kib.AssignPolicyToAgent(agent, *policyWithDataStream); err != nil {
+		return result.WithError(errors.Wrap(err, "could not assign policy to agent"))
 	}
 
 	// Signal to the service that the agent is ready (policy is assigned).
@@ -412,7 +419,6 @@ func checkEnrolledAgents(client *kibana.Client, ctxt servicedeployer.ServiceCont
 
 		agents = filterAgents(allAgents, ctxt)
 		logger.Debugf("found %d enrolled agent(s)", len(agents))
-
 		if len(agents) == 0 {
 			return false, nil // selected agents are unavailable yet
 		}
@@ -553,6 +559,10 @@ func filterAgents(allAgents []kibana.Agent, ctx servicedeployer.ServiceContext) 
 
 	var filtered []kibana.Agent
 	for _, agent := range allAgents {
+		if agent.PolicyRevision == 0 {
+			continue // For some reason Kibana doesn't always return a valid policy revision (eventually it will be present and valid)
+		}
+
 		if ctx.Agent.Host.NamePrefix != "" && !strings.HasPrefix(agent.LocalMetadata.Host.Name, ctx.Agent.Host.NamePrefix) {
 			continue
 		}
