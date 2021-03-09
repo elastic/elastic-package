@@ -6,6 +6,7 @@ package packages
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -225,6 +226,14 @@ func (dsm *DataStreamManifest) GetPipelineNameOrDefault() string {
 		return dsm.Elasticsearch.IngestPipeline.Name
 	}
 	return defaultPipelineName
+}
+
+func (dsm *DataStreamManifest) IndexTemplateName(pkgName string) string {
+	if dsm.Dataset == "" {
+		return fmt.Sprintf("%s-%s.%s", dsm.Type, pkgName, dsm.Name)
+	}
+
+	return fmt.Sprintf("%s-%s", dsm.Type, dsm.Dataset)
 }
 
 // FindInputByType returns the input for the provided type.
