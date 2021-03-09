@@ -19,7 +19,7 @@ type Policy struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
 	Namespace   string `json:"namespace"`
-	Revision    int `json:"revision,omitempty"`
+	Revision    int    `json:"revision,omitempty"`
 }
 
 // CreatePolicy persists the given Policy in the Ingest Manager.
@@ -48,7 +48,6 @@ func (c *Client) CreatePolicy(p Policy) (*Policy, error) {
 
 	return &resp.Item, nil
 }
-
 
 // GetPolicy fetches the given Policy in the Ingest Manager.
 func (c *Client) GetPolicy(policyID string) (*Policy, error) {

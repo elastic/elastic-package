@@ -298,7 +298,7 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	}
 	agent := agents[0]
 	origPolicy := kibana.Policy{
-		ID: agent.PolicyID,
+		ID:       agent.PolicyID,
 		Revision: agent.PolicyRevision,
 	}
 
