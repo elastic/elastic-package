@@ -419,7 +419,6 @@ func checkEnrolledAgents(client *kibana.Client, ctxt servicedeployer.ServiceCont
 
 		agents = filterAgents(allAgents, ctxt)
 		logger.Debugf("found %d enrolled agent(s)", len(agents))
-
 		if len(agents) == 0 {
 			return false, nil // selected agents are unavailable yet
 		}
@@ -560,6 +559,10 @@ func filterAgents(allAgents []kibana.Agent, ctx servicedeployer.ServiceContext) 
 
 	var filtered []kibana.Agent
 	for _, agent := range allAgents {
+		if agent.PolicyRevision == 0 {
+			continue // For some reason Kibana doesn't always return a valid policy revision (eventually it will be present and valid)
+		}
+
 		if ctx.Agent.Host.NamePrefix != "" && !strings.HasPrefix(agent.LocalMetadata.Host.Name, ctx.Agent.Host.NamePrefix) {
 			continue
 		}
