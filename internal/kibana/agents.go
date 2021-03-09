@@ -7,7 +7,6 @@ package kibana
 import (
 	"encoding/json"
 	"fmt"
-	"net/url"
 	"time"
 
 	"github.com/elastic/elastic-package/internal/logger"
@@ -17,9 +16,10 @@ import (
 
 // Agent represents an Elastic Agent enrolled with fleet.
 type Agent struct {
-	ID            string `json:"id"`
-	PolicyID      string `json:"policy_id"`
-	LocalMetadata struct {
+	ID             string `json:"id"`
+	PolicyID       string `json:"policy_id"`
+	PolicyRevision int    `json:"policy_revision,omitempty"`
+	LocalMetadata  struct {
 		Host struct {
 			Name string `json:"name"`
 		} `json:"host"`
@@ -69,55 +69,43 @@ func (c *Client) AssignPolicyToAgent(a Agent, p Policy) error {
 	return nil
 }
 
-func (c *Client) getTotalAgentForPolicy(p Policy) (int, error) {
-	kuery := url.QueryEscape(fmt.Sprintf("fleet-agents.policy_id:\"%s\"", p.ID))
-	path := fmt.Sprintf("%s/agents?kuery=%s", FleetAPI, kuery)
-	statusCode, respBody, err := c.get(path)
-	if err != nil {
-		return 0, errors.Wrapf(err, "could not check agent status; API status code = %d; policy ID = %s; response body = %s", statusCode, p.ID, string(respBody))
-	}
-	var resp struct {
-		Total int `json:"total"`
-	}
-
-	if err := json.Unmarshal(respBody, &resp); err != nil {
-		return 0, errors.Wrap(err, "could not convert agent list (response) to JSON")
-	}
-	return resp.Total, nil
-}
-
 func (c *Client) waitUntilPolicyAssigned(p Policy) error {
-	totalAgents, err := c.getTotalAgentForPolicy(p)
-	if err != nil {
-		return errors.Wrapf(err, "could not get number of agents for policy; policy ID = %s", p.ID)
-	}
-	if totalAgents == 0 {
-		return fmt.Errorf("no agent is available")
-	}
-
-	var assigned bool
-	for !assigned {
-		kuery := url.QueryEscape(fmt.Sprintf("fleet-agents.policy_id:\"%s\" and fleet-agents.policy_revision:*", p.ID))
-		path := fmt.Sprintf("%s/agents?kuery=%s", FleetAPI, kuery)
-		statusCode, respBody, err := c.get(path)
+	for {
+		agents, err := c.ListAgents()
 		if err != nil {
-			return errors.Wrapf(err, "could not check agent status; API status code = %d; policy ID = %s; response body = %s", statusCode, p.ID, string(respBody))
+			return errors.Wrap(err, "can't list available agents")
 		}
 
-		var resp struct {
-			Total int `json:"total"`
+		agentsWithPolicy := filterAgentsByPolicy(agents, p)
+		agentsWithPolicyAndRevision := filterAgentsByPolicyAndRevision(agents, p)
+		if len(agentsWithPolicy) != 0 && len(agentsWithPolicy) == len(agentsWithPolicyAndRevision) {
+			logger.Debugf("Policy revision assigned to all agents")
+			break
 		}
 
-		if err := json.Unmarshal(respBody, &resp); err != nil {
-			return errors.Wrap(err, "could not convert agent list (response) to JSON")
-		}
-
-		if resp.Total == totalAgents {
-			assigned = true
-		}
-
-		logger.Debugf("Wait until the policy (ID: %s) is assigned to all agents...", p.ID)
+		logger.Debugf("Wait until the policy (ID: %s, revision: %d) is assigned to all agents (%d/%d)...", p.ID, p.Revision,
+			len(agentsWithPolicyAndRevision), len(agentsWithPolicy))
 		time.Sleep(2 * time.Second)
 	}
 	return nil
+}
+
+func filterAgentsByPolicy(agents []Agent, policy Policy) []Agent {
+	var filtered []Agent
+	for _, agent := range agents {
+		if agent.PolicyID == policy.ID {
+			filtered = append(filtered, agent)
+		}
+	}
+	return filtered
+}
+
+func filterAgentsByPolicyAndRevision(agents []Agent, policy Policy) []Agent {
+	var filtered []Agent
+	for _, agent := range agents {
+		if agent.PolicyID == policy.ID && agent.PolicyRevision == policy.Revision {
+			filtered = append(filtered, agent)
+		}
+	}
+	return filtered
 }

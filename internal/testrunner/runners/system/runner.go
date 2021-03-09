@@ -299,6 +299,7 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	agent := agents[0]
 	origPolicy := kibana.Policy{
 		ID: agent.PolicyID,
+		Revision: agent.PolicyRevision,
 	}
 
 	// Configure package (single data stream) via Ingest Manager APIs.
@@ -375,8 +376,13 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 		return nil
 	}
 
+	policyWithDataStream, err := kib.GetPolicy(policy.ID)
+	if err != nil {
+		return result.WithError(errors.Wrap(err, "could not read the policy with data stream"))
+	}
+
 	logger.Debug("assigning package data stream to agent...")
-	if err := kib.AssignPolicyToAgent(agent, *policy); err != nil {
+	if err := kib.AssignPolicyToAgent(agent, *policyWithDataStream); err != nil {
 		return result.WithError(errors.Wrap(err, "could not assign policy to agent"))
 	}
 
