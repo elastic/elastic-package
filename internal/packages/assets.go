@@ -116,7 +116,7 @@ func loadElasticsearchAssets(pkgRootPath string) ([]Asset, error) {
 		if dsManifest.Dataset == "" {
 			indexTemplateName = fmt.Sprintf("%s-%s.%s", dsManifest.Type, pkgManifest.Name, dsManifest.Name)
 		} else {
-			indexTemplateName = fmt.Sprintf("%s-%s", dsManifest.Dataset)
+			indexTemplateName = fmt.Sprintf("%s-%s", dsManifest.Type, dsManifest.Dataset)
 		}
 
 		asset := Asset{
