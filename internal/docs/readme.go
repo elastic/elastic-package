@@ -17,19 +17,16 @@ import (
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
-// ReadmeFile for the Elastic package
-const ReadmeFile = "README.md"
-
 // IsReadmeUpToDate function checks if the README file is up-to-date.
-func IsReadmeUpToDate() (bool, error) {
-	logger.Debugf("Check if %s is up-to-date", ReadmeFile)
+func IsReadmeUpToDate(readmeFileName string) (bool, error) {
+	logger.Debugf("Check if %s is up-to-date", readmeFileName)
 
 	packageRoot, err := packages.MustFindPackageRoot()
 	if err != nil {
 		return false, errors.Wrap(err, "package root not found")
 	}
 
-	rendered, shouldBeRendered, err := generateReadme(packageRoot)
+	rendered, shouldBeRendered, err := generateReadme(packageRoot, readmeFileName)
 	if err != nil {
 		return false, err
 	}
@@ -37,7 +34,7 @@ func IsReadmeUpToDate() (bool, error) {
 		return true, nil // README file is static and doesn't use template.
 	}
 
-	existing, found, err := readReadme(packageRoot)
+	existing, found, err := readReadme(packageRoot, readmeFileName)
 	if err != nil {
 		return false, errors.Wrap(err, "reading README file failed")
 	}
@@ -49,15 +46,15 @@ func IsReadmeUpToDate() (bool, error) {
 
 // UpdateReadme function updates the README file using ą defined template file. The function doesn't perform any action
 // if the template file is not present.
-func UpdateReadme() (string, error) {
-	logger.Debugf("Update the %s file", ReadmeFile)
+func UpdateReadme(readmeFileName string) (string, error) {
+	logger.Debugf("Update the %s file", readmeFileName)
 
 	packageRoot, err := packages.MustFindPackageRoot()
 	if err != nil {
 		return "", errors.Wrap(err, "package root not found")
 	}
 
-	rendered, shouldBeRendered, err := generateReadme(packageRoot)
+	rendered, shouldBeRendered, err := generateReadme(packageRoot, readmeFileName)
 	if err != nil {
 		return "", err
 	}
@@ -65,48 +62,48 @@ func UpdateReadme() (string, error) {
 		return "", nil
 	}
 
-	target, err := writeReadme(packageRoot, rendered)
+	target, err := writeReadme(readmeFileName, packageRoot, rendered)
 	if err != nil {
-		return "", errors.Wrapf(err, "writing %s file failed", ReadmeFile)
+		return "", errors.Wrapf(err, "writing %s file failed", readmeFileName)
 	}
 	return target, nil
 }
 
-func generateReadme(packageRoot string) ([]byte, bool, error) {
-	logger.Debugf("Generate %s file (package: %s)", ReadmeFile, packageRoot)
-	templatePath, found, err := findReadmeTemplatePath(packageRoot)
+func generateReadme(packageRoot string, readmeFileName string) ([]byte, bool, error) {
+	logger.Debugf("Generate %s file (package: %s)", readmeFileName, packageRoot)
+	templatePath, found, err := findReadmeTemplatePath(packageRoot, readmeFileName)
 	if err != nil {
-		return nil, false, errors.Wrapf(err, "can't locate %s template file", ReadmeFile)
+		return nil, false, errors.Wrapf(err, "can't locate %s template file", readmeFileName)
 	}
 	if !found {
 		logger.Debug("README file is static, can't be generated from the template file")
 		return nil, false, nil
 	}
-	logger.Debugf("Template file for %s found: %s", ReadmeFile, templatePath)
+	logger.Debugf("Template file for %s found: %s", readmeFileName, templatePath)
 
-	rendered, err := renderReadme(packageRoot, templatePath)
+	rendered, err := renderReadme(readmeFileName, packageRoot, templatePath)
 	if err != nil {
 		return nil, true, errors.Wrap(err, "rendering Readme failed")
 	}
 	return rendered, true, nil
 }
 
-func findReadmeTemplatePath(packageRoot string) (string, bool, error) {
-	templatePath := filepath.Join(packageRoot, "_dev", "build", "docs", ReadmeFile)
+func findReadmeTemplatePath(packageRoot, readmeFileName string) (string, bool, error) {
+	templatePath := filepath.Join(packageRoot, "_dev", "build", "docs", readmeFileName)
 	_, err := os.Stat(templatePath)
 	if err != nil && os.IsNotExist(err) {
 		return "", false, nil // README.md file not found
 	}
 	if err != nil {
-		return "", false, errors.Wrapf(err, "can't located the %s file", ReadmeFile)
+		return "", false, errors.Wrapf(err, "can't located the %s file", readmeFileName)
 	}
 	return templatePath, true, nil
 }
 
-func renderReadme(packageRoot, templatePath string) ([]byte, error) {
-	logger.Debugf("Render %s file (package: %s, templatePath: %s)", ReadmeFile, packageRoot, templatePath)
+func renderReadme(readmeFileName, packageRoot, templatePath string) ([]byte, error) {
+	logger.Debugf("Render %s file (package: %s, templatePath: %s)", readmeFileName, packageRoot, templatePath)
 
-	t := template.New(ReadmeFile)
+	t := template.New(readmeFileName)
 	t, err := t.Funcs(template.FuncMap{
 		"event": func(dataStreamName string) (string, error) {
 			return renderSampleEvent(packageRoot, dataStreamName)
@@ -127,10 +124,10 @@ func renderReadme(packageRoot, templatePath string) ([]byte, error) {
 	return rendered.Bytes(), nil
 }
 
-func readReadme(packageRoot string) ([]byte, bool, error) {
-	logger.Debugf("Read existing %s file (package: %s)", ReadmeFile, packageRoot)
+func readReadme(packageRoot, readmeFileName string) ([]byte, bool, error) {
+	logger.Debugf("Read existing %s file (package: %s)", readmeFileName, packageRoot)
 
-	readmePath := filepath.Join(packageRoot, "docs", ReadmeFile)
+	readmePath := filepath.Join(packageRoot, "docs", readmeFileName)
 	b, err := ioutil.ReadFile(readmePath)
 	if err != nil && os.IsNotExist(err) {
 		return nil, false, nil
@@ -141,8 +138,8 @@ func readReadme(packageRoot string) ([]byte, bool, error) {
 	return b, true, err
 }
 
-func writeReadme(packageRoot string, content []byte) (string, error) {
-	logger.Debugf("Write %s file (package: %s)", ReadmeFile, packageRoot)
+func writeReadme(readmeFileName, packageRoot string, content []byte) (string, error) {
+	logger.Debugf("Write %s file (package: %s)", readmeFileName, packageRoot)
 
 	docsPath := docsPath(packageRoot)
 	logger.Debugf("Create directories: %s", docsPath)
@@ -151,8 +148,8 @@ func writeReadme(packageRoot string, content []byte) (string, error) {
 		return "", errors.Wrapf(err, "mkdir failed (path: %s)", docsPath)
 	}
 
-	aReadmePath := readmePath(packageRoot)
-	logger.Debugf("Write %s file to: %s", ReadmeFile, aReadmePath)
+	aReadmePath := readmePath(packageRoot, readmeFileName)
+	logger.Debugf("Write %s file to: %s", readmeFileName, aReadmePath)
 
 	err = ioutil.WriteFile(aReadmePath, content, 0644)
 	if err != nil {
@@ -161,8 +158,8 @@ func writeReadme(packageRoot string, content []byte) (string, error) {
 	return aReadmePath, nil
 }
 
-func readmePath(packageRoot string) string {
-	return filepath.Join(docsPath(packageRoot), ReadmeFile)
+func readmePath(packageRoot, readmeFileName string) string {
+	return filepath.Join(docsPath(packageRoot), readmeFileName)
 }
 
 func docsPath(packageRoot string) string {

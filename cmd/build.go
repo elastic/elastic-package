@@ -5,11 +5,15 @@
 package cmd
 
 import (
+	"io/ioutil"
+	"path/filepath"
+
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/builder"
 	"github.com/elastic/elastic-package/internal/docs"
+	"github.com/elastic/elastic-package/internal/packages"
 )
 
 const buildLongDescription = `Use this command to build a package. Currently it supports only the "integration" package type.
@@ -36,19 +40,35 @@ func setupBuildCommand() *cobra.Command {
 func buildCommandAction(cmd *cobra.Command, args []string) error {
 	cmd.Println("Build the package")
 
-	target, err := docs.UpdateReadme()
-	if err != nil {
-		return errors.Wrapf(err, "updating %s file failed", docs.ReadmeFile)
+	packageRootPath, found, err := packages.FindPackageRoot()
+	if !found {
+		return errors.New("package root not found")
 	}
-	if target != "" {
-		cmd.Printf("%s file rendered: %s\n", docs.ReadmeFile, target)
+	if err != nil {
+		return errors.Wrap(err, "locating package root failed")
 	}
 
-	target, err = builder.BuildPackage()
+	readmeFiles, err := ioutil.ReadDir(filepath.Join(packageRootPath, "_dev", "build", "docs"))
 	if err != nil {
-		return errors.Wrap(err, "building package failed")
+		return errors.Wrapf(err, "failed to return a list of directory entries from %s", packageRootPath)
 	}
-	cmd.Printf("Package built: %s\n", target)
+
+	for _, readme := range readmeFiles {
+		fileName := readme.Name()
+		target, err := docs.UpdateReadme(fileName)
+		if err != nil {
+			return errors.Wrapf(err, "updating %s file failed", fileName)
+		}
+		if target != "" {
+			cmd.Printf("%s file rendered: %s\n", fileName, target)
+		}
+
+		target, err = builder.BuildPackage()
+		if err != nil {
+			return errors.Wrap(err, "building package failed")
+		}
+		cmd.Printf("Package built: %s\n", target)
+	}
 
 	cmd.Println("Done")
 	return nil
