@@ -50,6 +50,11 @@ func EnsureInstalled() error {
 		return errors.Wrap(err, "creating elastic package directory failed")
 	}
 
+	err = writeConfigFile(elasticPackagePath)
+	if err != nil {
+		return errors.Wrap(err, "writing configuration file failed")
+	}
+
 	err = writeVersionFile(elasticPackagePath)
 	if err != nil {
 		return errors.Wrap(err, "writing version file failed")
@@ -181,8 +186,14 @@ func writeKubernetesDeployerResources(elasticPackagePath string) error {
 		return errors.Wrapf(err, "creating directory failed (path: %s)", kubernetesDeployer)
 	}
 
+	appConfig, err := Configuration()
+	if err != nil {
+		return errors.Wrap(err, "can't read application configuration")
+	}
+
 	err = writeStaticResource(err, filepath.Join(kubernetesDeployer, kubernetesDeployerElasticAgentYmlFile),
-		strings.ReplaceAll(kubernetesDeployerElasticAgentYml, "{{ STACK_VERSION }}", DefaultStackVersion))
+		strings.ReplaceAll(kubernetesDeployerElasticAgentYml, "{{ ELASTIC_AGENT_IMAGE_REF }}",
+			appConfig.DefaultStackImageRefs().ElasticAgent))
 	if err != nil {
 		return errors.Wrap(err, "writing static resource failed")
 	}
@@ -199,6 +210,15 @@ func writeTerraformDeployerResources(elasticPackagePath string) error {
 	err = writeStaticResource(err, filepath.Join(terraformDeployer, terraformDeployerYmlFile), terraformDeployerYml)
 	err = writeStaticResource(err, filepath.Join(terraformDeployer, "Dockerfile"), terraformDeployerDockerfile)
 	err = writeStaticResource(err, filepath.Join(terraformDeployer, "run.sh"), terraformDeployerRun)
+	if err != nil {
+		return errors.Wrap(err, "writing static resource failed")
+	}
+	return nil
+}
+
+func writeConfigFile(elasticPackagePath string) error {
+	var err error
+	err = writeStaticResource(err, filepath.Join(elasticPackagePath, applicationConfigurationYmlFile), applicationConfigurationYml)
 	if err != nil {
 		return errors.Wrap(err, "writing static resource failed")
 	}
