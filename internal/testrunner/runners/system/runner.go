@@ -367,16 +367,17 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	}
 
 	// Assign policy to agent
-	logger.Debug("assigning package data stream to agent...")
-	if err := kib.AssignPolicyToAgent(agent, *policy); err != nil {
-		return result.WithError(errors.Wrap(err, "could not assign policy to agent"))
-	}
 	r.resetAgentPolicyHandler = func() error {
 		logger.Debug("reassigning original policy back to agent...")
 		if err := kib.AssignPolicyToAgent(agent, origPolicy); err != nil {
 			return errors.Wrap(err, "error reassigning original policy to agent")
 		}
 		return nil
+	}
+
+	logger.Debug("assigning package data stream to agent...")
+	if err := kib.AssignPolicyToAgent(agent, *policy); err != nil {
+		return result.WithError(errors.Wrap(err, "could not assign policy to agent"))
 	}
 
 	// Signal to the service that the agent is ready (policy is assigned).

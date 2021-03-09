@@ -8,9 +8,11 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"sort"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/elastic/go-elasticsearch/v7"
@@ -252,6 +254,20 @@ func Run(testType TestType, options TestOptions) ([]TestResult, error) {
 		}
 		return runner.TearDown()
 	}
+
+	// Handle signals, incl. ctrl+c
+	ch := make(chan os.Signal)
+	signal.Notify(ch, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-ch
+		logger.Info("Signal caught!")
+
+		err := tearDown()
+		if err != nil {
+			logger.Errorf("can't tear down the test runner: %v", err)
+		}
+		os.Exit(1)
+	}()
 
 	results, err := runner.Run(options)
 	if err != nil {
