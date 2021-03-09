@@ -6,6 +6,7 @@ package packages
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -103,6 +104,7 @@ type DataStreamManifest struct {
 	Name          string `config:"name" json:"name" yaml:"name"`
 	Title         string `config:"title" json:"title" yaml:"title"`
 	Type          string `config:"type" json:"type" yaml:"type"`
+	Dataset       string `config:"dataset" json:"dataset" yaml:"dataset"`
 	Elasticsearch *struct {
 		IngestPipeline *struct {
 			Name string `config:"name" json:"name" yaml:"name"`
@@ -224,6 +226,16 @@ func (dsm *DataStreamManifest) GetPipelineNameOrDefault() string {
 		return dsm.Elasticsearch.IngestPipeline.Name
 	}
 	return defaultPipelineName
+}
+
+// IndexTemplateName returns the name of the Elasticsearch index template that would be installed
+// for this data stream.
+func (dsm *DataStreamManifest) IndexTemplateName(pkgName string) string {
+	if dsm.Dataset == "" {
+		return fmt.Sprintf("%s-%s.%s", dsm.Type, pkgName, dsm.Name)
+	}
+
+	return fmt.Sprintf("%s-%s", dsm.Type, dsm.Dataset)
 }
 
 // FindInputByType returns the input for the provided type.
