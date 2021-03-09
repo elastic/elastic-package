@@ -228,6 +228,8 @@ func (dsm *DataStreamManifest) GetPipelineNameOrDefault() string {
 	return defaultPipelineName
 }
 
+// IndexTemplateName returns the name of the Elasticsearch index template that would be installed
+// for this data stream.
 func (dsm *DataStreamManifest) IndexTemplateName(pkgName string) string {
 	if dsm.Dataset == "" {
 		return fmt.Sprintf("%s-%s.%s", dsm.Type, pkgName, dsm.Name)
