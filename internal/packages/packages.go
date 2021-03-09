@@ -103,6 +103,7 @@ type DataStreamManifest struct {
 	Name          string `config:"name" json:"name" yaml:"name"`
 	Title         string `config:"title" json:"title" yaml:"title"`
 	Type          string `config:"type" json:"type" yaml:"type"`
+	Dataset       string `config:"dataset" yaml:"dataset"`
 	Elasticsearch *struct {
 		IngestPipeline *struct {
 			Name string `config:"name" json:"name" yaml:"name"`

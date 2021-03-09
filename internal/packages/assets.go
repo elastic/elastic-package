@@ -112,7 +112,13 @@ func loadElasticsearchAssets(pkgRootPath string) ([]Asset, error) {
 			return nil, errors.Wrap(err, "reading data stream manifest failed")
 		}
 
-		indexTemplateName := fmt.Sprintf("%s-%s.%s", dsManifest.Type, pkgManifest.Name, dsManifest.Name)
+		var indexTemplateName string
+		if dsManifest.Dataset == "" {
+			indexTemplateName = fmt.Sprintf("%s-%s.%s", dsManifest.Type, pkgManifest.Name, dsManifest.Name)
+		} else {
+			indexTemplateName = fmt.Sprintf("%s-%s", dsManifest.Dataset)
+		}
+
 		asset := Asset{
 			ID:         indexTemplateName,
 			Type:       AssetTypeElasticsearchIndexTemplate,
