@@ -120,6 +120,7 @@ func adjustTestResult(result *testResult, config *testConfig) (*testResult, erro
 		if err != nil {
 			return nil, errors.Wrap(err, "can't marshal event")
 		}
+
 		stripped.events = append(stripped.events, b)
 	}
 	return &stripped, nil
