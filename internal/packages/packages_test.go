@@ -42,3 +42,36 @@ func TestVarValue_MarshalJSON(t *testing.T) {
 		assert.Equal(t, string(data), `["hello","world"]`)
 	})
 }
+
+func TestDataStreamManifest_IndexTemplateName(t *testing.T) {
+	cases := map[string]struct {
+		dsm                       DataStreamManifest
+		pkgName                   string
+		expectedIndexTemplateName string
+	}{
+		"no_dataset": {
+			DataStreamManifest{
+				Name: "foo",
+				Type: dataStreamTypeLogs,
+			},
+			"pkg",
+			dataStreamTypeLogs + "-pkg.foo",
+		},
+		"with_dataset": {
+			DataStreamManifest{
+				Name:    "foo",
+				Type:    dataStreamTypeLogs,
+				Dataset: "custom",
+			},
+			"pkg",
+			dataStreamTypeLogs + "-custom",
+		},
+	}
+
+	for name, test := range cases {
+		t.Run(name, func(t *testing.T) {
+			actualIndexTemplateName := test.dsm.IndexTemplateName(test.pkgName)
+			require.Equal(t, test.expectedIndexTemplateName, actualIndexTemplateName)
+		})
+	}
+}
