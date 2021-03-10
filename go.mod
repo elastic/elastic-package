@@ -10,7 +10,7 @@ require (
 	github.com/elastic/go-elasticsearch/v7 v7.9.0
 	github.com/elastic/go-licenser v0.3.1
 	github.com/elastic/go-ucfg v0.8.3
-	github.com/elastic/package-spec/code/go v0.0.0-20210302092944-28bc03fffa83
+	github.com/elastic/package-spec/code/go v0.0.0-20210310145052-baee4c3da9cc
 	github.com/go-git/go-billy/v5 v5.0.0
 	github.com/go-git/go-git/v5 v5.1.0
 	github.com/go-openapi/strfmt v0.19.6 // indirect
