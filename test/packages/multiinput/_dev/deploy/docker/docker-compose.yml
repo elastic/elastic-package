@@ -1,0 +1,14 @@
+version: '2.3'
+services:
+  test-tcp:
+    tty: true
+    build: .
+    volumes:
+      - ./logs:/logs/:ro
+    command: /stream -proto tcp -dest elastic-agent:9999 /logs/generated.log
+  test-udp:
+    tty: true
+    build: .
+    volumes:
+      - ./logs:/logs/:ro
+    command: /stream -proto udp -delay 100ms -dest elastic-agent:9999 /logs/generated.log

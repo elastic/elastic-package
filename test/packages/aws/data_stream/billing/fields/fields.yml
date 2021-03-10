@@ -1,0 +1,27 @@
+- name: aws
+  type: group
+  fields:
+    - name: dimensions
+      type: group
+      fields:
+        - name: ServiceName
+          type: keyword
+          description: AWS service name.
+        - name: Currency
+          type: keyword
+          description: Currency name.
+    - name: billing
+      type: group
+      fields:
+        - name: metrics
+          type: group
+          fields:
+            - name: EstimatedCharges.max
+              type: long
+              description: Maximum estimated charges for AWS acccount.
+    - name: cloudwatch
+      type: group
+      fields:
+        - name: namespace
+          type: keyword
+          description: The namespace specified when query cloudwatch api.

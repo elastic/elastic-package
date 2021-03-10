@@ -30,7 +30,7 @@ func Client() (*elasticsearch.Client, error) {
 		Password:  password,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "creating Elasticsearch client failed")
+		return nil, errors.Wrap(err, "can't create instance")
 	}
 	return client, nil
 }

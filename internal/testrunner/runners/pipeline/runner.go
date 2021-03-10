@@ -32,6 +32,10 @@ type runner struct {
 	options testrunner.TestOptions
 }
 
+func (r *runner) TestFolderRequired() bool {
+	return true
+}
+
 // Type returns the type of test that can be run by this test runner.
 func (r *runner) Type() testrunner.TestType {
 	return TestType
@@ -48,9 +52,15 @@ func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, e
 	return r.run()
 }
 
-// ShutDown shuts down the pipeline test runner.
+// TearDown shuts down the pipeline test runner.
 func (r *runner) TearDown() error {
 	return nil
+}
+
+// CanRunPerDataStream returns whether this test runner can run on individual
+// data streams within the package.
+func (r *runner) CanRunPerDataStream() bool {
+	return true
 }
 
 func (r *runner) run() ([]testrunner.TestResult, error) {
@@ -83,11 +93,6 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		}
 	}()
 
-	fieldsValidator, err := fields.CreateValidatorForDataStream(dataStreamPath)
-	if err != nil {
-		return nil, errors.Wrapf(err, "creating fields validator for data stream failed (path: %s)", dataStreamPath)
-	}
-
 	results := make([]testrunner.TestResult, 0)
 	for _, testCaseFile := range testCaseFiles {
 		tr := testrunner.TestResult{
@@ -106,6 +111,16 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		}
 		tr.Name = tc.name
 
+		if tc.config.Skip != nil {
+			logger.Warnf("skipping %s test for %s/%s: %s (details: %s)",
+				TestType, r.options.TestFolder.Package, r.options.TestFolder.DataStream,
+				tc.config.Skip.Reason, tc.config.Skip.Link.String())
+
+			tr.Skipped = tc.config.Skip
+			results = append(results, tr)
+			continue
+		}
+
 		result, err := simulatePipelineProcessing(r.options.ESClient, entryPipeline, tc)
 		if err != nil {
 			err := errors.Wrap(err, "simulating pipeline processing failed")
@@ -115,6 +130,12 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		}
 
 		tr.TimeElapsed = time.Now().Sub(startTime)
+		fieldsValidator, err := fields.CreateValidatorForDataStream(dataStreamPath,
+			fields.WithNumericKeywordFields(tc.config.NumericKeywordFields))
+		if err != nil {
+			return nil, errors.Wrapf(err, "creating fields validator for data stream failed (path: %s, test case file: %s)", dataStreamPath, testCaseFile)
+		}
+
 		err = r.verifyResults(testCaseFile, tc.config, result, fieldsValidator)
 		if e, ok := err.(testrunner.ErrTestCaseFailed); ok {
 			tr.FailureMsg = e.Error()
@@ -143,7 +164,9 @@ func (r *runner) listTestCaseFiles() ([]string, error) {
 
 	var files []string
 	for _, fi := range fis {
-		if strings.HasSuffix(fi.Name(), expectedTestResultSuffix) || strings.HasSuffix(fi.Name(), configTestSuffix) {
+		if strings.HasSuffix(fi.Name(), expectedTestResultSuffix) ||
+			strings.HasSuffix(fi.Name(), configTestSuffixJSON) ||
+			strings.HasSuffix(fi.Name(), configTestSuffixYAML) {
 			continue
 		}
 		files = append(files, fi.Name())
@@ -161,6 +184,13 @@ func (r *runner) loadTestCaseFile(testCaseFile string) (*testCase, error) {
 	config, err := readConfigForTestCase(testCasePath)
 	if err != nil {
 		return nil, errors.Wrapf(err, "reading config for test case failed (testCasePath: %s)", testCasePath)
+	}
+
+	if config.Skip != nil {
+		return &testCase{
+			name:   testCaseFile,
+			config: &config,
+		}, nil
 	}
 
 	ext := filepath.Ext(testCaseFile)
@@ -225,8 +255,12 @@ func verifyDynamicFields(result *testResult, config *testConfig) error {
 
 	var multiErr multierror.Error
 	for _, event := range result.events {
+		if event == nil {
+			continue
+		}
+
 		var m common.MapStr
-		err := json.Unmarshal(event, &m)
+		err := json.Unmarshal(*event, &m)
 		if err != nil {
 			return errors.Wrap(err, "can't unmarshal event")
 		}
@@ -266,7 +300,11 @@ func verifyDynamicFields(result *testResult, config *testConfig) error {
 func verifyFieldsInTestResult(result *testResult, fieldsValidator *fields.Validator) error {
 	var multiErr multierror.Error
 	for _, event := range result.events {
-		errs := fieldsValidator.ValidateDocumentBody(event)
+		if event == nil {
+			continue
+		}
+
+		errs := fieldsValidator.ValidateDocumentBody(*event)
 		if errs != nil {
 			multiErr = append(multiErr, errs...)
 		}

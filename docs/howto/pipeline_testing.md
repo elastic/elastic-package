@@ -80,26 +80,21 @@ The input events contain mocked JSON events that are ready to be passed to the i
 
 #### Test configuration
 
-Before sending log events to the ingest pipeline, a data transformation process is applied. The process can be customized using an optional configuration stored as JSON file with the suffix `-config.json` (e.g. `test-access-sample.log-config.json`):
+Before sending log events to the ingest pipeline, a data transformation process is applied. The process can be customized using an optional configuration stored as a YAML file with the suffix `-config.yml` (e.g. `test-access-sample.log-config.yml`):
 
-```json
-{
-    "multiline": {
-        "first_line_pattern": "^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}"
-    },
-    "fields": {
-        "@timestamp": "2020-04-28T11:07:58.223Z",
-        "ecs": {
-            "version": "1.5.0"
-        },
-        "event.category": [
-            "web"
-        ]
-    },
-    "dynamic_fields": {
-        "url.original": "^/.*$"
-    }
-}
+```yml
+multiline:
+  first_line_pattern: "^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}"
+fields:
+  "@timestamp": "2020-04-28T11:07:58.223Z"
+  ecs:
+    version: "1.5.0"
+  event.category:
+    - "web"
+dynamic_fields:
+  url.original: "^/.*$"
+numeric_keyword_fields:
+  - network.iana_number  
 ```
 
 The `multiline` section ([raw files](#raw-files) only) configures the log file reader to correctly detect multiline log entries using the `first_line_pattern`. Use this property if your logs may be split into multiple lines, e.g. Java stack traces.
@@ -108,6 +103,7 @@ The `fields` section allows for customizing extra fields to be added to every re
 
 The `dynamic_fields` section allows for marking fields as dynamic (every time they have different non-static values), so that pattern matching instead of strict value check is applied. 
 
+The `numeric_keyword_fields` section allows for identifying fields whose values are numbers but are expected to be stored in Elasticsearch as `keyword` fields.
 
 #### Expected results
 

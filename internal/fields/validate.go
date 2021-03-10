@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
-	"reflect"
 	"regexp"
 	"strings"
 
@@ -24,17 +23,47 @@ import (
 // Validator is responsible for fields validation.
 type Validator struct {
 	schema []FieldDefinition
+
+	defaultNumericConversion bool
+	numericKeywordFields     map[string]struct{}
+}
+
+// ValidatorOption represents an optional flag that can be passed to  CreateValidatorForDataStream.
+type ValidatorOption func(*Validator) error
+
+// WithDefaultNumericConversion configures the validator to accept defined keyword (or constant_keyword) fields as numeric-type.
+func WithDefaultNumericConversion() ValidatorOption {
+	return func(v *Validator) error {
+		v.defaultNumericConversion = true
+		return nil
+	}
+}
+
+// WithNumericKeywordFields configures the validator to accept specific fields to have numeric-type
+// while defined as keyword or constant_keyword.
+func WithNumericKeywordFields(fields []string) ValidatorOption {
+	return func(v *Validator) error {
+		v.numericKeywordFields = make(map[string]struct{}, len(fields))
+		for _, field := range fields {
+			v.numericKeywordFields[field] = struct{}{}
+		}
+		return nil
+	}
 }
 
 // CreateValidatorForDataStream function creates a validator for the data stream.
-func CreateValidatorForDataStream(dataStreamRootPath string) (*Validator, error) {
-	fields, err := LoadFieldsForDataStream(dataStreamRootPath)
+func CreateValidatorForDataStream(dataStreamRootPath string, opts ...ValidatorOption) (v *Validator, err error) {
+	v = new(Validator)
+	for _, opt := range opts {
+		if err := opt(v); err != nil {
+			return nil, err
+		}
+	}
+	v.schema, err = LoadFieldsForDataStream(dataStreamRootPath)
 	if err != nil {
 		return nil, errors.Wrapf(err, "can't load fields for data stream (path: %s)", dataStreamRootPath)
 	}
-	return &Validator{
-		schema: fields,
-	}, nil
+	return v, nil
 }
 
 // LoadFieldsForDataStream function loads fields defined for the given data stream.
@@ -135,11 +164,22 @@ func (v *Validator) validateScalarElement(key string, val interface{}) error {
 		return fmt.Errorf(`field "%s" is undefined`, key)
 	}
 
+	// Convert numeric keyword fields to string for validation.
+	_, found := v.numericKeywordFields[key]
+	if (found || v.defaultNumericConversion) && isNumericKeyword(*definition, val) {
+		val = fmt.Sprintf("%q", val)
+	}
+
 	err := parseElementValue(key, *definition, val)
 	if err != nil {
 		return errors.Wrap(err, "parsing field value failed")
 	}
 	return nil
+}
+
+func isNumericKeyword(definition FieldDefinition, val interface{}) bool {
+	_, isNumber := val.(float64)
+	return isNumber && (definition.Type == "keyword" || definition.Type == "constant_keyword")
 }
 
 // skipValidationForField skips field validation (field presence) of special fields. The special fields are present
@@ -224,7 +264,7 @@ func parseElementValue(key string, definition FieldDefinition, val interface{}) 
 			return errors.Wrap(err, "invalid pattern")
 		}
 		if !valid {
-			return fmt.Errorf("field \"%s\"''s value, %s, does not match the expected pattern: %s", key, valStr, definition.Pattern)
+			return fmt.Errorf("field %q's value, %s, does not match the expected pattern: %s", key, valStr, definition.Pattern)
 		}
 	case "float", "long", "double":
 		_, valid = val.(float64)
@@ -233,7 +273,7 @@ func parseElementValue(key string, definition FieldDefinition, val interface{}) 
 	}
 
 	if !valid {
-		return fmt.Errorf("field \"%s\"''s Go type, %s, does not match the expected field type: %s", key, reflect.TypeOf(val), definition.Type)
+		return fmt.Errorf("field %q's Go type, %T, does not match the expected field type: %s (field value: %v)", key, val, definition.Type, val)
 	}
 	return nil
 }

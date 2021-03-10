@@ -5,27 +5,89 @@
 package servicedeployer
 
 import (
-	"errors"
+	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
+
+	"github.com/pkg/errors"
 )
 
-var (
-	// ErrNotFound is returned when the appropriate service runner for a package
-	// cannot be found.
-	ErrNotFound = errors.New("unable to find service runner")
-)
+const devDeployDir = "_dev/deploy"
 
-// Factory chooses the appropriate service runner for the given package, depending
-// on service configuration files defined in the package.
-func Factory(packageRootPath string) (ServiceDeployer, error) {
-	packageDevPath := filepath.Join(packageRootPath, "_dev")
+// FactoryOptions defines options used to create an instance of a service deployer.
+type FactoryOptions struct {
+	PackageRootPath    string
+	DataStreamRootPath string
+}
 
-	// Is the service defined using a docker compose configuration file?
-	dockerComposeYMLPath := filepath.Join(packageDevPath, "deploy", "docker", "docker-compose.yml")
-	if _, err := os.Stat(dockerComposeYMLPath); err == nil {
-		return NewDockerComposeServiceDeployer(dockerComposeYMLPath)
+// Factory chooses the appropriate service runner for the given data stream, depending
+// on service configuration files defined in the package or data stream.
+func Factory(options FactoryOptions) (ServiceDeployer, error) {
+	devDeployPath, err := findDevDeployPath(options)
+	if err != nil {
+		return nil, errors.Wrapf(err, "can't find \"%s\" directory", devDeployDir)
 	}
 
-	return nil, ErrNotFound
+	serviceDeployerName, err := findServiceDeployer(devDeployPath)
+	if err != nil {
+		return nil, errors.Wrap(err, "can't find any valid service deployer")
+	}
+
+	serviceDeployerPath := filepath.Join(devDeployPath, serviceDeployerName)
+
+	switch serviceDeployerName {
+	case "k8s":
+		if _, err := os.Stat(serviceDeployerPath); err == nil {
+			return NewKubernetesServiceDeployer(serviceDeployerPath)
+		}
+	case "docker":
+		dockerComposeYMLPath := filepath.Join(serviceDeployerPath, "docker-compose.yml")
+		if _, err := os.Stat(dockerComposeYMLPath); err == nil {
+			return NewDockerComposeServiceDeployer([]string{dockerComposeYMLPath})
+		}
+	case "tf":
+		if _, err := os.Stat(serviceDeployerPath); err == nil {
+			return NewTerraformServiceDeployer(serviceDeployerPath)
+		}
+	}
+	return nil, fmt.Errorf("unsupported service deployer (name: %s)", serviceDeployerName)
+}
+
+func findDevDeployPath(options FactoryOptions) (string, error) {
+	dataStreamDevDeployPath := filepath.Join(options.DataStreamRootPath, devDeployDir)
+	_, err := os.Stat(dataStreamDevDeployPath)
+	if err == nil {
+		return dataStreamDevDeployPath, nil
+	} else if !os.IsNotExist(err) {
+		return "", errors.Wrapf(err, "stat failed for data stream (path: %s)", dataStreamDevDeployPath)
+	}
+
+	packageDevDeployPath := filepath.Join(options.PackageRootPath, devDeployDir)
+	_, err = os.Stat(packageDevDeployPath)
+	if err == nil {
+		return packageDevDeployPath, nil
+	} else if !os.IsNotExist(err) {
+		return "", errors.Wrapf(err, "stat failed for package (path: %s)", packageDevDeployPath)
+	}
+	return "", fmt.Errorf("\"%s\" directory doesn't exist", devDeployDir)
+}
+
+func findServiceDeployer(devDeployPath string) (string, error) {
+	fis, err := ioutil.ReadDir(devDeployPath)
+	if err != nil {
+		return "", errors.Wrapf(err, "can't read directory (path: %s)", devDeployDir)
+	}
+
+	var folders []os.FileInfo
+	for _, fi := range fis {
+		if fi.IsDir() {
+			folders = append(folders, fi)
+		}
+	}
+
+	if len(folders) != 1 {
+		return "", fmt.Errorf("expected to find only one service deployer in \"%s\"", devDeployPath)
+	}
+	return folders[0].Name(), nil
 }

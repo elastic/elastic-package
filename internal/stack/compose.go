@@ -28,7 +28,6 @@ func dockerComposeBuild(options Options) error {
 	}
 
 	opts := compose.CommandOptions{
-		Env:      []string{fmt.Sprintf("STACK_VERSION=%s", options.StackVersion)},
 		Services: withIsReadyServices(withDependentServices(options.Services)),
 	}
 
@@ -49,8 +48,13 @@ func dockerComposePull(options Options) error {
 		return errors.Wrap(err, "could not create docker compose project")
 	}
 
+	appConfig, err := install.Configuration()
+	if err != nil {
+		return errors.Wrap(err, "can't read application configuration")
+	}
+
 	opts := compose.CommandOptions{
-		Env:      []string{fmt.Sprintf("STACK_VERSION=%s", options.StackVersion)},
+		Env:      appConfig.StackImageRefs(options.StackVersion).AsEnv(),
 		Services: withIsReadyServices(withDependentServices(options.Services)),
 	}
 
@@ -76,8 +80,13 @@ func dockerComposeUp(options Options) error {
 		args = append(args, "-d")
 	}
 
+	appConfig, err := install.Configuration()
+	if err != nil {
+		return errors.Wrap(err, "can't read application configuration")
+	}
+
 	opts := compose.CommandOptions{
-		Env:       []string{fmt.Sprintf("STACK_VERSION=%s", options.StackVersion)},
+		Env:       appConfig.StackImageRefs(options.StackVersion).AsEnv(),
 		ExtraArgs: args,
 		Services:  withIsReadyServices(withDependentServices(options.Services)),
 	}
@@ -99,16 +108,32 @@ func dockerComposeDown() error {
 		return errors.Wrap(err, "could not create docker compose project")
 	}
 
-	opts := compose.CommandOptions{
-		// We set the STACK_VERSION env var here to avoid showing a warning to the user about
-		// it not being set.
-		Env: []string{fmt.Sprintf("STACK_VERSION=%s", DefaultVersion)},
-	}
-
-	if err := c.Down(opts); err != nil {
+	if err := c.Down(compose.CommandOptions{}); err != nil {
 		return errors.Wrap(err, "running command failed")
 	}
 	return nil
+}
+
+func dockerComposeLogs(serviceName string) ([]byte, error) {
+	stackDir, err := install.StackDir()
+	if err != nil {
+		return nil, errors.Wrap(err, "locating stack directory failed")
+	}
+
+	c, err := compose.NewProject(DockerComposeProjectName, filepath.Join(stackDir, snapshotDefinitionFile))
+	if err != nil {
+		return nil, errors.Wrap(err, "could not create docker compose project")
+	}
+
+	opts := compose.CommandOptions{
+		Services: []string{serviceName},
+	}
+
+	out, err := c.Logs(opts)
+	if err != nil {
+		return nil, errors.Wrap(err, "running command failed")
+	}
+	return out, nil
 }
 
 func withDependentServices(services []string) []string {

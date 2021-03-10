@@ -9,6 +9,9 @@ type DeployedService interface {
 	// TearDown implements the logic for tearing down a service.
 	TearDown() error
 
+	// Signal sends a signal to the service.
+	Signal(signal string) error
+
 	// Context returns the current context from the service.
 	Context() ServiceContext
 

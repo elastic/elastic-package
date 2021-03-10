@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"regexp"
 
 	"github.com/aymerick/raymond"
 	"github.com/pkg/errors"
@@ -16,21 +17,40 @@ import (
 	"github.com/elastic/go-ucfg/yaml"
 
 	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/internal/testrunner"
 	"github.com/elastic/elastic-package/internal/testrunner/runners/system/servicedeployer"
 )
 
-const configFileName = "config.yml"
+var systemTestConfigFilePattern = regexp.MustCompile(`^test-([a-z0-9_.-]+)-config.yml$`)
 
 type testConfig struct {
-	Input      string                       `config:"input"`
+	testrunner.SkippableConfig `config:",inline"`
+
+	Input               string `config:"input"`
+	Service             string `config:"service"`
+	ServiceNotifySignal string `config:"service_notify_signal"` // Signal to send when the agent policy is applied.
+
 	Vars       map[string]packages.VarValue `config:"vars"`
 	DataStream struct {
 		Vars map[string]packages.VarValue `config:"vars"`
 	} `config:"data_stream"`
+
+	// NumericKeywordFields holds a list of fields that have keyword
+	// type but can be ingested as numeric type.
+	NumericKeywordFields []string `config:"numeric_keyword_fields"`
+
+	Path string
 }
 
-func newConfig(systemTestFolderPath string, ctxt servicedeployer.ServiceContext) (*testConfig, error) {
-	configFilePath := filepath.Join(systemTestFolderPath, configFileName)
+func (t testConfig) Name() string {
+	name := filepath.Base(t.Path)
+	if matches := systemTestConfigFilePattern.FindStringSubmatch(name); len(matches) > 1 {
+		name = matches[1]
+	}
+	return name
+}
+
+func newConfig(configFilePath string, ctxt servicedeployer.ServiceContext) (*testConfig, error) {
 	data, err := ioutil.ReadFile(configFilePath)
 	if err != nil && os.IsNotExist(err) {
 		return nil, errors.Wrapf(err, "unable to find system test configuration file: %s", configFilePath)
@@ -50,11 +70,30 @@ func newConfig(systemTestFolderPath string, ctxt servicedeployer.ServiceContext)
 	if err != nil {
 		return nil, errors.Wrapf(err, "unable to load system test configuration file: %s", configFilePath)
 	}
-
 	if err := cfg.Unpack(&c); err != nil {
 		return nil, errors.Wrapf(err, "unable to unpack system test configuration file: %s", configFilePath)
 	}
+	// Save path
+	c.Path = configFilePath
 	return &c, nil
+}
+
+func listConfigFiles(systemTestFolderPath string) (files []string, err error) {
+	fHandle, err := os.Open(systemTestFolderPath)
+	if err != nil {
+		return nil, err
+	}
+	defer fHandle.Close()
+	dirEntries, err := fHandle.Readdir(0)
+	if err != nil {
+		return nil, err
+	}
+	for _, entry := range dirEntries {
+		if !entry.IsDir() && systemTestConfigFilePattern.MatchString(entry.Name()) {
+			files = append(files, entry.Name())
+		}
+	}
+	return files, nil
 }
 
 // applyContext takes the given system test configuration (data) and replaces any placeholder variables in

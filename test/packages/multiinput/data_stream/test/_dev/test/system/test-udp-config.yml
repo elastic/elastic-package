@@ -1,0 +1,8 @@
+input: udp
+service: test-udp
+service_notify_signal: SIGHUP
+vars: ~
+data_stream:
+  vars:
+    udp_host: 0.0.0.0
+    udp_port: 9999

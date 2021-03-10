@@ -7,7 +7,7 @@ package install
 const snapshotYml = `version: '2.3'
 services:
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:${STACK_VERSION}
+    image: ${ELASTICSEARCH_IMAGE_REF}
     healthcheck:
       test: ["CMD", "curl", "-f", "-u", "elastic:changeme", "http://127.0.0.1:9200/"]
       retries: 300
@@ -36,7 +36,7 @@ services:
         condition: service_healthy
 
   kibana:
-    image: docker.elastic.co/kibana/kibana:${STACK_VERSION}
+    image: ${KIBANA_IMAGE_REF}
     depends_on:
       elasticsearch:
         condition: service_healthy
@@ -75,7 +75,7 @@ services:
         condition: service_healthy
 
   elastic-agent:
-    image: docker.elastic.co/beats/elastic-agent:${STACK_VERSION}
+    image: ${ELASTIC_AGENT_IMAGE_REF}
     depends_on:
       elasticsearch:
         condition: service_healthy
@@ -85,10 +85,13 @@ services:
       test: "sh -c 'grep \"Agent is starting\" /usr/share/elastic-agent/elastic-agent.log*'"
       retries: 30
       interval: 1s
+    hostname: docker-fleet-agent
     environment:
     - "FLEET_ENROLL=1"
     - "FLEET_ENROLL_INSECURE=1"
+    - "FLEET_INSECURE=1"
     - "FLEET_SETUP=1"
+    - "FLEET_URL=http://kibana:5601"
     - "KIBANA_HOST=http://kibana:5601"
     volumes:
     - type: bind

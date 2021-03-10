@@ -21,4 +21,7 @@ elastic-package
 .idea
 
 # Build directory
-build
+/build
+
+# stack dump
+elastic-stack-dump/

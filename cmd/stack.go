@@ -8,10 +8,13 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/elastic/elastic-package/internal/install"
+
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
+	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/stack"
 )
 
@@ -21,10 +24,27 @@ var availableServices = map[string]struct{}{
 	"package-registry": {},
 }
 
+const stackLongDescription = `Use stack subcommands to manage a Docker-based Elastic Stack consisting of Elasticsearch, Kibana, Elastic Agent and the Package Registry.
+
+Context:
+  global`
+
+const stackUpLongDescription = `Use this command to boot up the stack locally.
+
+By default the latest released version of the stack is spun up but it is possible to specify a different version, including SNAPSHOT versions.
+
+To ęxpose local packages in the Package Registry, build them first and boot up the stack from inside of the Git repository containing the package (e.g. elastic/integrations). They will be copied to the development stack (~/.elastic-package/stack/development) and used to build a custom Docker image of the Package Registry.
+
+For details on how to connect the service with the Elastic stack, review the HOWTO guide (see: https://github.com/elastic/elastic-package/blob/master/docs/howto/connect_service_with_elastic_stack.md).
+
+Context:
+  global or Git repository (like elastic/integrations)`
+
 func setupStackCommand() *cobra.Command {
 	upCommand := &cobra.Command{
 		Use:   "up",
 		Short: "Boot up the stack",
+		Long:  stackUpLongDescription,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.Println("Boot up the Elastic stack")
 
@@ -38,6 +58,8 @@ func setupStackCommand() *cobra.Command {
 				return cobraext.FlagParsingError(err, cobraext.StackServicesFlagName)
 			}
 
+			common.TrimStringSlice(services)
+
 			err = validateServicesFlag(services)
 			if err != nil {
 				return errors.Wrap(err, "validating services failed")
@@ -47,6 +69,8 @@ func setupStackCommand() *cobra.Command {
 			if err != nil {
 				return cobraext.FlagParsingError(err, cobraext.StackVersionFlagName)
 			}
+
+			cmd.Println(`Remember to load stack environment variables using 'eval "$(elastic-package stack shellinit)"'.`)
 
 			err = stack.BootUp(stack.Options{
 				DaemonMode:   daemonMode,
@@ -63,8 +87,8 @@ func setupStackCommand() *cobra.Command {
 	}
 	upCommand.Flags().BoolP(cobraext.DaemonModeFlagName, "d", false, cobraext.DaemonModeFlagDescription)
 	upCommand.Flags().StringSliceP(cobraext.StackServicesFlagName, "s", nil,
-		fmt.Sprintf(cobraext.StackServicesFlagDescription, strings.Join(availableServicesAsList(), ", ")))
-	upCommand.Flags().StringP(cobraext.StackVersionFlagName, "", stack.DefaultVersion, cobraext.StackVersionDescription)
+		fmt.Sprintf(cobraext.StackServicesFlagDescription, strings.Join(availableServicesAsList(), ",")))
+	upCommand.Flags().StringP(cobraext.StackVersionFlagName, "", install.DefaultStackVersion, cobraext.StackVersionFlagDescription)
 
 	downCommand := &cobra.Command{
 		Use:   "down",
@@ -104,7 +128,7 @@ func setupStackCommand() *cobra.Command {
 			return nil
 		},
 	}
-	updateCommand.Flags().StringP(cobraext.StackVersionFlagName, "", stack.DefaultVersion, cobraext.StackVersionDescription)
+	updateCommand.Flags().StringP(cobraext.StackVersionFlagName, "", install.DefaultStackVersion, cobraext.StackVersionFlagDescription)
 
 	shellInitCommand := &cobra.Command{
 		Use:   "shellinit",
@@ -119,16 +143,41 @@ func setupStackCommand() *cobra.Command {
 		},
 	}
 
+	dumpCommand := &cobra.Command{
+		Use:   "dump",
+		Short: "Dump stack data for debug purposes",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			output, err := cmd.Flags().GetString(cobraext.StackDumpOutputFlagName)
+			if err != nil {
+				return cobraext.FlagParsingError(err, cobraext.StackDumpOutputFlagName)
+			}
+
+			target, err := stack.Dump(stack.DumpOptions{
+				Output: output,
+			})
+			if err != nil {
+				return errors.Wrap(err, "dump failed")
+			}
+
+			cmd.Printf("Path to stack dump: %s\n", target)
+
+			cmd.Println("Done")
+			return nil
+		},
+	}
+	dumpCommand.Flags().StringP(cobraext.StackDumpOutputFlagName, "", "elastic-stack-dump", cobraext.StackDumpOutputFlagDescription)
+
 	cmd := &cobra.Command{
 		Use:   "stack",
 		Short: "Manage the Elastic stack",
-		Long:  "Use stack command to boot up and take down the local Elastic stack.",
+		Long:  stackLongDescription,
 	}
 	cmd.AddCommand(
 		upCommand,
 		downCommand,
 		updateCommand,
-		shellInitCommand)
+		shellInitCommand,
+		dumpCommand)
 	return cmd
 }
 

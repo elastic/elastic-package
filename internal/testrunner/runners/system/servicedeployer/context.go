@@ -4,7 +4,10 @@
 
 package servicedeployer
 
-const serviceLogsDirEnv = "SERVICE_LOGS_DIR"
+const (
+	serviceLogsDirEnv = "SERVICE_LOGS_DIR"
+	testRunIDEnv      = "TEST_RUN_ID"
+)
 
 // ServiceContext encapsulates context that is both available to a ServiceDeployer and
 // populated by a DeployedService. The fields in ServiceContext may be used in handlebars
@@ -38,13 +41,42 @@ type ServiceContext struct {
 			Agent string
 		}
 	}
+
+	// Test related properties.
+	Test struct {
+		// RunID identifies the current test run.
+		RunID string
+	}
+
+	// Agent related properties.
+	Agent struct {
+		// Host describes the machine which is running the agent.
+		Host struct {
+			// Name prefix for the host's name
+			NamePrefix string
+		}
+	}
+
+	// CustomProperties store additional data used to boot up the service, e.g. AWS credentials.
+	CustomProperties map[string]interface{}
 }
 
 // Aliases method returned aliases to properties of the service context.
 func (sc *ServiceContext) Aliases() map[string]interface{} {
-	return map[string]interface{}{
+	m := map[string]interface{}{
 		serviceLogsDirEnv: func() interface{} {
 			return sc.Logs.Folder.Agent
 		},
+		testRunIDEnv: func() interface{} {
+			return sc.Test.RunID
+		},
 	}
+
+	for k, v := range sc.CustomProperties {
+		var that = v
+		m[k] = func() interface{} { // wrap as function
+			return that
+		}
+	}
+	return m
 }

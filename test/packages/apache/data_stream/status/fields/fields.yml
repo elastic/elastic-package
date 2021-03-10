@@ -1,18 +1,14 @@
 - name: apache.status
   type: group
   fields:
-    - name: hostname
-      type: keyword
-      description: |
-        Apache hostname.
     - name: total_accesses
       type: long
       description: |
         Total number of access requests.
-    - name: total_kbytes
+    - name: total_bytes
       type: long
       description: |
-        Total number of kilobytes served.
+        Total number of bytes served.
     - name: requests_per_sec
       type: scaled_float
       description: |

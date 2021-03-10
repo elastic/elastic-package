@@ -18,11 +18,6 @@
             "active": 1
         }
     },
-    "stream": {
-        "namespace": "default",
-        "type": "metrics",
-        "dataset": "nginx.stubstatus"
-    },
     "ecs": {
         "version": "1.5.0"
     },

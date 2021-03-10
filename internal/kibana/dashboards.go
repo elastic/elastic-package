@@ -6,8 +6,7 @@ package kibana
 
 import (
 	"encoding/json"
-	"io/ioutil"
-	"net/http"
+	"fmt"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -33,27 +32,16 @@ func (c *Client) Export(dashboardIDs []string) ([]common.MapStr, error) {
 		query.WriteByte('&')
 	}
 
-	request, err := http.NewRequest(http.MethodGet, c.host+"/api/kibana/dashboards/export"+query.String(), nil)
+	path := fmt.Sprintf("%s/dashboards/export%s", CoreAPI, query.String())
+	statusCode, respBody, err := c.get(path)
 	if err != nil {
-		return nil, errors.Wrap(err, "building HTTP request failed")
-	}
-	request.SetBasicAuth(c.username, c.password)
-
-	response, err := http.DefaultClient.Do(request)
-	if err != nil {
-		return nil, errors.Wrap(err, "sending HTTP request failed")
-	}
-	defer response.Body.Close()
-
-	body, err := ioutil.ReadAll(response.Body)
-	if err != nil {
-		return nil, errors.Wrap(err, "reading response body failed")
+		return nil, errors.Wrapf(err, "could not export dashboards; API status code = %d; response body = %s", statusCode, string(respBody))
 	}
 
 	var exported exportedType
-	err = json.Unmarshal(body, &exported)
+	err = json.Unmarshal(respBody, &exported)
 	if err != nil {
-		return nil, errors.Wrapf(err, "unmarshalling response failed (body: \n%s)", string(body))
+		return nil, errors.Wrapf(err, "unmarshalling response failed (body: \n%s)", string(respBody))
 	}
 
 	var multiErr multierror.Error

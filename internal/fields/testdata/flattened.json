@@ -1,5 +1,6 @@
 {
   "foo": {
+    "code": "42",
     "flattened": {
       "request_parameters": {
         "userName": "Bob",

@@ -108,12 +108,6 @@ An example event for `status` looks as following:
 ```$json
 {
     "@timestamp": "2020-06-24T10:19:48.005Z",
-    "@metadata": {
-        "beat": "metricbeat",
-        "type": "_doc",
-        "version": "8.0.0",
-        "raw_index": "metrics-apache.status-default"
-    },
     "metricset": {
         "name": "status",
         "period": 10000
@@ -128,7 +122,7 @@ An example event for `status` looks as following:
                     "closing": 0
                 }
             },
-            "total_kbytes": 128,
+            "total_bytes": 128,
             "cpu": {
                 "children_user": 0,
                 "children_system": 0,
@@ -155,7 +149,6 @@ An example event for `status` looks as following:
                 "idle": 74
             },
             "bytes_per_sec": 83.6986,
-            "hostname": "127.0.0.1:8088",
             "uptime": {
                 "server_uptime": 1566,
                 "uptime": 1566
@@ -178,16 +171,6 @@ An example event for `status` looks as following:
         "duration": 2381832,
         "dataset": "apache.status",
         "module": "apache"
-    },
-    "dataset": {
-        "type": "metrics",
-        "name": "apache.status",
-        "namespace": "default"
-    },
-    "stream": {
-        "dataset": "apache.status",
-        "namespace": "default",
-        "type": "metrics"
     },
     "ecs": {
         "version": "1.5.0"
@@ -218,7 +201,6 @@ An example event for `status` looks as following:
 | apache.status.cpu.load | CPU Load. | scaled_float |
 | apache.status.cpu.system | System cpu. | scaled_float |
 | apache.status.cpu.user | CPU user load. | scaled_float |
-| apache.status.hostname | Apache hostname. | keyword |
 | apache.status.load.1 | Load average for the last minute. | scaled_float |
 | apache.status.load.15 | Load average for the last 15 minutes. | scaled_float |
 | apache.status.load.5 | Load average for the last 5 minutes. | scaled_float |
@@ -236,7 +218,7 @@ An example event for `status` looks as following:
 | apache.status.scoreboard.total | Total. | long |
 | apache.status.scoreboard.waiting_for_connection | Waiting for connections. | long |
 | apache.status.total_accesses | Total number of access requests. | long |
-| apache.status.total_kbytes | Total number of kilobytes served. | long |
+| apache.status.total_bytes | Total number of bytes served. | long |
 | apache.status.uptime.server_uptime | Server uptime in seconds. | long |
 | apache.status.uptime.uptime | Server uptime. | long |
 | apache.status.workers.busy | Number of busy workers. | long |

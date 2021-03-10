@@ -30,7 +30,8 @@ type Config struct {
 	Services map[string]service
 }
 type service struct {
-	Ports []portMapping
+	Ports       []portMapping
+	Environment map[string]string
 }
 
 type portMapping struct {
@@ -183,6 +184,20 @@ func (p *Project) Build(opts CommandOptions) error {
 	return nil
 }
 
+// Kill sends a signal to a service container.
+func (p *Project) Kill(opts CommandOptions) error {
+	args := p.baseArgs()
+	args = append(args, "kill")
+	args = append(args, opts.ExtraArgs...)
+	args = append(args, opts.Services...)
+
+	if err := p.runDockerComposeCmd(dockerComposeOptions{args: args, env: opts.Env}); err != nil {
+		return errors.Wrap(err, "running Docker Compose kill command failed")
+	}
+
+	return nil
+}
+
 // Config returns the combined configuration for a Docker Compose project.
 func (p *Project) Config(opts CommandOptions) (*Config, error) {
 	args := p.baseArgs()
@@ -215,6 +230,20 @@ func (p *Project) Pull(opts CommandOptions) error {
 	}
 
 	return nil
+}
+
+// Logs returns service logs for the selected service in the Docker Compose project.
+func (p *Project) Logs(opts CommandOptions) ([]byte, error) {
+	args := p.baseArgs()
+	args = append(args, "logs")
+	args = append(args, opts.ExtraArgs...)
+	args = append(args, opts.Services...)
+
+	var b bytes.Buffer
+	if err := p.runDockerComposeCmd(dockerComposeOptions{args: args, env: opts.Env, stdout: &b}); err != nil {
+		return nil, err
+	}
+	return b.Bytes(), nil
 }
 
 func (p *Project) baseArgs() []string {

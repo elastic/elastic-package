@@ -6,12 +6,14 @@ package cmd
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
+	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/testrunner"
@@ -20,13 +22,32 @@ import (
 	_ "github.com/elastic/elastic-package/internal/testrunner/runners" // register all test runners
 )
 
+const testLongDescription = `Use this command to run tests on a package. Currently, the following types of tests are available:
+
+Asset Loading Tests
+These tests allow you to exercise installing a package to ensure that its assets are loaded into Elasticsearch and Kibana as expected.
+
+Pipeline Tests
+These tests allow you to exercise any Ingest Node Pipelines defined by your packages.
+For details on how to configure pipeline test for a package, review the HOWTO guide (see: https://github.com/elastic/elastic-package/blob/master/docs/howto/pipeline_testing.md).
+
+Static Tests
+These tests allow you to verify if all static resources of the package are valid, e.g. if all fields of the sample_event.json are documented.
+
+System Tests
+These tests allow you to test a package's ability to ingest data end-to-end.
+For details on how to configure amd run system tests, review the HOWTO guide (see: https://github.com/elastic/elastic-package/blob/master/docs/howto/system_testing.md).
+
+Context:
+  package`
+
 func setupTestCommand() *cobra.Command {
 	var testTypeCmdActions []cobraext.CommandAction
 
 	cmd := &cobra.Command{
 		Use:   "test",
 		Short: "Run test suite for the package",
-		Long:  "Use test runners to verify if the package collects logs and metrics properly.",
+		Long:  testLongDescription,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.Println("Run test suite for the package")
 
@@ -39,7 +60,6 @@ func setupTestCommand() *cobra.Command {
 
 	cmd.PersistentFlags().BoolP(cobraext.FailOnMissingFlagName, "m", false, cobraext.FailOnMissingFlagDescription)
 	cmd.PersistentFlags().BoolP(cobraext.GenerateTestResultFlagName, "g", false, cobraext.GenerateTestResultFlagDescription)
-	cmd.PersistentFlags().StringSliceP(cobraext.DataStreamsFlagName, "d", nil, cobraext.DataStreamsFlagDescription)
 	cmd.PersistentFlags().StringP(cobraext.ReportFormatFlagName, "", string(formats.ReportFormatHuman), cobraext.ReportFormatFlagDescription)
 	cmd.PersistentFlags().StringP(cobraext.ReportOutputFlagName, "", string(outputs.ReportOutputSTDOUT), cobraext.ReportOutputFlagDescription)
 	cmd.PersistentFlags().DurationP(cobraext.DeferCleanupFlagName, "", 0, cobraext.DeferCleanupFlagDescription)
@@ -53,6 +73,10 @@ func setupTestCommand() *cobra.Command {
 			Short: fmt.Sprintf("Run %s tests", runner.String()),
 			Long:  fmt.Sprintf("Run %s tests for the package.", runner.String()),
 			RunE:  action,
+		}
+
+		if runner.CanRunPerDataStream() {
+			testTypeCmd.Flags().StringSliceP(cobraext.DataStreamsFlagName, "d", nil, cobraext.DataStreamsFlagDescription)
 		}
 
 		cmd.AddCommand(testTypeCmd)
@@ -69,11 +93,6 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 		failOnMissing, err := cmd.Flags().GetBool(cobraext.FailOnMissingFlagName)
 		if err != nil {
 			return cobraext.FlagParsingError(err, cobraext.FailOnMissingFlagName)
-		}
-
-		dataStreams, err := cmd.Flags().GetStringSlice(cobraext.DataStreamsFlagName)
-		if err != nil {
-			return cobraext.FlagParsingError(err, cobraext.DataStreamsFlagName)
 		}
 
 		generateTestResult, err := cmd.Flags().GetBool(cobraext.GenerateTestResultFlagName)
@@ -99,21 +118,55 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 			return errors.Wrap(err, "locating package root failed")
 		}
 
-		testFolders, err := testrunner.FindTestFolders(packageRootPath, testType, dataStreams)
-		if err != nil {
-			return errors.Wrap(err, "unable to determine test folder paths")
+		var testFolders []testrunner.TestFolder
+		if runner.CanRunPerDataStream() {
+			var dataStreams []string
+			// We check for the existence of the data streams flag before trying to
+			// parse it because if the root test command is run instead of one of the
+			// subcommands of test, the data streams flag will not be defined.
+			if cmd.Flags().Lookup(cobraext.DataStreamsFlagName) != nil {
+				dataStreams, err = cmd.Flags().GetStringSlice(cobraext.DataStreamsFlagName)
+				common.TrimStringSlice(dataStreams)
+				if err != nil {
+					return cobraext.FlagParsingError(err, cobraext.DataStreamsFlagName)
+				}
+			}
+
+			if runner.TestFolderRequired() {
+				testFolders, err = testrunner.FindTestFolders(packageRootPath, dataStreams, testType)
+				if err != nil {
+					return errors.Wrap(err, "unable to determine test folder paths")
+				}
+			} else {
+				testFolders, err = testrunner.AssumeTestFolders(packageRootPath, dataStreams, testType)
+				if err != nil {
+					return errors.Wrap(err, "unable to assume test folder paths")
+				}
+			}
+
+			if failOnMissing && len(testFolders) == 0 {
+				if len(dataStreams) > 0 {
+					return fmt.Errorf("no %s tests found for %s data stream(s)", testType, strings.Join(dataStreams, ","))
+				}
+				return fmt.Errorf("no %s tests found", testType)
+			}
+		} else {
+			_, pkg := filepath.Split(packageRootPath)
+			testFolders = []testrunner.TestFolder{
+				{
+					Package: pkg,
+				},
+			}
 		}
 
-		if failOnMissing && len(testFolders) == 0 {
-			if len(dataStreams) > 0 {
-				return fmt.Errorf("no %s tests found for %s data stream(s)", testType, strings.Join(dataStreams, ","))
-			}
-			return fmt.Errorf("no %s tests found", testType)
+		deferCleanup, err := cmd.Flags().GetDuration(cobraext.DeferCleanupFlagName)
+		if err != nil {
+			return cobraext.FlagParsingError(err, cobraext.DeferCleanupFlagName)
 		}
 
 		esClient, err := elasticsearch.Client()
 		if err != nil {
-			return errors.Wrap(err, "fetching Elasticsearch client instance failed")
+			return errors.Wrap(err, "can't create Elasticsearch client")
 		}
 
 		var results []testrunner.TestResult
@@ -123,6 +176,7 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 				PackageRootPath:    packageRootPath,
 				GenerateTestResult: generateTestResult,
 				ESClient:           esClient,
+				DeferCleanup:       deferCleanup,
 			})
 
 			results = append(results, r...)
