@@ -8,9 +8,9 @@ import (
 )
 
 const (
-	firstTestResult = "first"
+	firstTestResult  = "first"
 	secondTestResult = "second"
-	thirdTestResult = "third"
+	thirdTestResult  = "third"
 
 	emptyTestResult = ""
 )
