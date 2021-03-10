@@ -250,7 +250,7 @@ func (r *runner) verifyResults(testCaseFile string, config *testConfig, result *
 	return nil
 }
 
-// stripEmptyTestResults function removes events which are nils. These strings can represent
+// stripEmptyTestResults function removes events which are nils. These nils can represent
 // documents processed by a pipeline which potentially used a "drop" processor (to drop the event at all).
 func stripEmptyTestResults(result *testResult) *testResult {
 	var tr testResult
