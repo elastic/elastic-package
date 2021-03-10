@@ -1,0 +1,25 @@
+---
+description: Pipeline for parsing Nginx access logs. Requires the geoip and user_agent
+  plugins.
+processors:
+  - grok:
+      field: message
+      patterns:
+        - (%{NGINX_HOST} )?"?(?:%{NGINX_ADDRESS_LIST:nginx.access.remote_ip_list}|%{NOTSPACE:source.address})
+          - (-|%{DATA:user.name}) \[%{HTTPDATE:nginx.access.time}\] "%{DATA:nginx.access.info}"
+          %{NUMBER:http.response.status_code:long} %{NUMBER:http.response.body.bytes:long}
+          "(-|%{DATA:http.request.referrer})" "(-|%{DATA:user_agent.original})"
+      pattern_definitions:
+        NGINX_HOST: (?:%{IP:destination.ip}|%{NGINX_NOTSEPARATOR:destination.domain})(:%{NUMBER:destination.port})?
+        NGINX_NOTSEPARATOR: "[^\t ,:]+"
+        NGINX_ADDRESS_LIST: (?:%{IP}|%{WORD})("?,?\s*(?:%{IP}|%{WORD}))*
+      ignore_missing: true
+  - user_agent:
+      field: user_agent.original
+      ignore_missing: true
+  - drop:
+      if: "ctx?.user_agent?.original?.startsWith('skip-this-one')"
+on_failure:
+  - set:
+      field: error.message
+      value: '{{ _ingest.on_failure_message }}'

@@ -236,6 +236,8 @@ func (r *runner) verifyResults(testCaseFile string, config *testConfig, result *
 		return errors.Wrap(err, "comparing test results failed")
 	}
 
+	result = stripEmptyTestResults(result)
+
 	err = verifyDynamicFields(result, config)
 	if err != nil {
 		return err
@@ -246,6 +248,19 @@ func (r *runner) verifyResults(testCaseFile string, config *testConfig, result *
 		return err
 	}
 	return nil
+}
+
+// stripEmptyTestResults function removes events which are nils. These nils can represent
+// documents processed by a pipeline which potentially used a "drop" processor (to drop the event at all).
+func stripEmptyTestResults(result *testResult) *testResult {
+	var tr testResult
+	for _, event := range result.events {
+		if event == nil {
+			continue
+		}
+		tr.events = append(tr.events, event)
+	}
+	return &tr
 }
 
 func verifyDynamicFields(result *testResult, config *testConfig) error {
