@@ -20,11 +20,11 @@ import (
 const expectedTestResultSuffix = "-expected.json"
 
 type testResult struct {
-	events []*json.RawMessage
+	events []json.RawMessage
 }
 
 type testResultDefinition struct {
-	Expected []*json.RawMessage `json:"expected"`
+	Expected []json.RawMessage `json:"expected"`
 }
 
 func writeTestResult(testCasePath string, result *testResult) error {
@@ -103,13 +103,8 @@ func adjustTestResult(result *testResult, config *testConfig) (*testResult, erro
 	// Strip dynamic fields from test result
 	var stripped testResult
 	for _, event := range result.events {
-		if event == nil {
-			stripped.events = append(stripped.events, nil)
-			continue
-		}
-
 		var m common.MapStr
-		err := json.Unmarshal(*event, &m)
+		err := json.Unmarshal(event, &m)
 		if err != nil {
 			return nil, errors.Wrap(err, "can't unmarshal event")
 		}
@@ -126,8 +121,7 @@ func adjustTestResult(result *testResult, config *testConfig) (*testResult, erro
 			return nil, errors.Wrap(err, "can't marshal event")
 		}
 
-		rmb := json.RawMessage(b)
-		stripped.events = append(stripped.events, &rmb)
+		stripped.events = append(stripped.events, b)
 	}
 	return &stripped, nil
 }

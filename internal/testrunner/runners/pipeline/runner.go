@@ -236,6 +236,8 @@ func (r *runner) verifyResults(testCaseFile string, config *testConfig, result *
 		return errors.Wrap(err, "comparing test results failed")
 	}
 
+	result = stripEmptyTestResults(result)
+
 	err = verifyDynamicFields(result, config)
 	if err != nil {
 		return err
@@ -248,6 +250,19 @@ func (r *runner) verifyResults(testCaseFile string, config *testConfig, result *
 	return nil
 }
 
+// stripEmptyTestResults function removes events which are empty strings. These strings can represent
+// documents processed by a pipeline which potentially used a "drop" processor (to drop the event at all).
+func stripEmptyTestResults(result *testResult) *testResult {
+	var tr testResult
+	for _, event := range result.events {
+		if len(event) == 0 {
+			continue
+		}
+		tr.events = append(tr.events, event)
+	}
+	return &tr
+}
+
 func verifyDynamicFields(result *testResult, config *testConfig) error {
 	if config == nil || config.DynamicFields == nil {
 		return nil
@@ -255,12 +270,8 @@ func verifyDynamicFields(result *testResult, config *testConfig) error {
 
 	var multiErr multierror.Error
 	for _, event := range result.events {
-		if event == nil {
-			continue
-		}
-
 		var m common.MapStr
-		err := json.Unmarshal(*event, &m)
+		err := json.Unmarshal(event, &m)
 		if err != nil {
 			return errors.Wrap(err, "can't unmarshal event")
 		}
@@ -300,11 +311,7 @@ func verifyDynamicFields(result *testResult, config *testConfig) error {
 func verifyFieldsInTestResult(result *testResult, fieldsValidator *fields.Validator) error {
 	var multiErr multierror.Error
 	for _, event := range result.events {
-		if event == nil {
-			continue
-		}
-
-		errs := fieldsValidator.ValidateDocumentBody(*event)
+		errs := fieldsValidator.ValidateDocumentBody(event)
 		if errs != nil {
 			multiErr = append(multiErr, errs...)
 		}

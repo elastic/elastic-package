@@ -37,7 +37,7 @@ type simulatePipelineRequest struct {
 }
 
 type pipelineDocument struct {
-	Source *json.RawMessage `json:"_source"`
+	Source json.RawMessage `json:"_source"`
 }
 
 type simulatePipelineResponse struct {
@@ -209,7 +209,7 @@ func simulatePipelineProcessing(esClient *elasticsearch.Client, pipelineName str
 	var request simulatePipelineRequest
 	for _, event := range tc.events {
 		request.Docs = append(request.Docs, pipelineDocument{
-			Source: &event,
+			Source: event,
 		})
 	}
 
