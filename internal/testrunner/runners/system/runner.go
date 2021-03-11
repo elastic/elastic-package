@@ -173,14 +173,14 @@ func createTestRunID() string {
 	return fmt.Sprintf("%d", rand.Intn(testRunMaxID-testRunMinID)+testRunMinID)
 }
 
-func (r *runner) checkNumDocs(dataStream string, checker func(int) bool) (bool, []common.MapStr, error) {
+func (r *runner) getDocs(dataStream string) ([]common.MapStr, error) {
 	resp, err := r.options.ESClient.Search(
 		r.options.ESClient.Search.WithIndex(dataStream),
 		r.options.ESClient.Search.WithSort("@timestamp:asc"),
 		r.options.ESClient.Search.WithSize(elasticsearchQuerySize),
 	)
 	if err != nil {
-		return false, nil, errors.Wrap(err, "could not search data stream")
+		return nil, errors.Wrap(err, "could not search data stream")
 	}
 	defer resp.Body.Close()
 
@@ -196,21 +196,18 @@ func (r *runner) checkNumDocs(dataStream string, checker func(int) bool) (bool, 
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&results); err != nil {
-		return false, nil, errors.Wrap(err, "could not decode search results response")
+		return nil, errors.Wrap(err, "could not decode search results response")
 	}
 
 	numHits := results.Hits.Total.Value
 	logger.Debugf("found %d hits in %s data stream", numHits, dataStream)
-	if !checker(numHits) {
-		return false, nil, nil
-	}
 
 	var docs []common.MapStr
 	for _, hit := range results.Hits.Hits {
 		docs = append(docs, hit.Source)
 	}
 
-	return true, docs, nil
+	return docs, nil
 }
 
 func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext) ([]testrunner.TestResult, error) {
@@ -331,8 +328,8 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	}
 
 	cleared, err := waitUntilTrue(func() (bool, error) {
-		status, _, err := r.checkNumDocs(dataStream, isZero)
-		return status, err
+		docs, err := r.getDocs(dataStream)
+		return len(docs) == 0, err
 	}, 2*time.Minute)
 	if err != nil || !cleared {
 		if err == nil {
@@ -371,9 +368,9 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	logger.Debug("checking for expected data in data stream...")
 	var docs []common.MapStr
 	passed, err := waitUntilTrue(func() (bool, error) {
-		status, d, err := r.checkNumDocs(dataStream, isGreaterThanZero)
-		docs = d
-		return status, err
+		var err error
+		docs, err = r.getDocs(dataStream)
+		return len(docs) > 0, err
 	}, 10*time.Minute)
 
 	if err != nil {
@@ -607,12 +604,4 @@ func validateFields(docs []common.MapStr, fieldsValidator *fields.Validator, dat
 	}
 
 	return nil
-}
-
-func isZero(n int) bool {
-	return n == 0
-}
-
-func isGreaterThanZero(n int) bool {
-	return n > 0
 }
