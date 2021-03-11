@@ -7,6 +7,7 @@ package system
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"math/rand"
 	"path/filepath"
 	"strings"
@@ -209,7 +210,7 @@ func (r *runner) hasNumDocs(
 		}
 
 		var multiErr multierror.Error
-		for _, hit := range results.Hits.Hits {
+		for idx, hit := range results.Hits.Hits {
 			if message, err := hit.Source.GetValue("error.message"); err != common.ErrKeyNotFound {
 				multiErr = append(multiErr, fmt.Errorf("found error.message in event: %v", message))
 				continue
@@ -219,6 +220,16 @@ func (r *runner) hasNumDocs(
 			if errs != nil {
 				multiErr = append(multiErr, errs...)
 				continue
+			}
+
+			// Generate sample event from first doc
+			if idx == 0 && r.options.GenerateTestResult {
+				ds := r.options.TestFolder.DataStream
+				dsPath := filepath.Join(r.options.PackageRootPath, "data_stream", ds)
+				if err := writeSampleEvent(dsPath, hit.Source); err != nil {
+					multiErr = append(multiErr, errs...)
+					continue
+				}
 			}
 		}
 
@@ -569,4 +580,18 @@ func filterAgents(allAgents []kibana.Agent, ctx servicedeployer.ServiceContext) 
 		filtered = append(filtered, agent)
 	}
 	return filtered
+}
+
+func writeSampleEvent(path string, doc common.MapStr) error {
+	body, err := json.MarshalIndent(doc, "", "    ")
+	if err != nil {
+		return errors.Wrap(err, "marshalling sample event failed")
+	}
+
+	err = ioutil.WriteFile(filepath.Join(path, "sample_event.json"), body, 0644)
+	if err != nil {
+		return errors.Wrap(err, "writing sample event failed")
+	}
+
+	return nil
 }
