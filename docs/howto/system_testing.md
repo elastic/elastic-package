@@ -232,3 +232,13 @@ Finally, when you are done running all system tests, bring down the Elastic Stac
 ```
 elastic-package stack down
 ```
+
+### Generating sample events
+
+As the system tests exercise an integration end-to-end from running the integration's service all the way
+to indexing generated data from the integration's data streams into Elasticsearch, it is possible to generate
+`sample_event.json` files for each of the integration's data streams while running these tests.
+
+```
+elastic-package test system --generate
+```
