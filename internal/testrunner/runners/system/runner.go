@@ -173,75 +173,44 @@ func createTestRunID() string {
 	return fmt.Sprintf("%d", rand.Intn(testRunMaxID-testRunMinID)+testRunMinID)
 }
 
-func (r *runner) hasNumDocs(
-	dataStream string,
-	fieldsValidator *fields.Validator,
-	checker func(int) bool) func() (bool, error) {
-	return func() (bool, error) {
-		resp, err := r.options.ESClient.Search(
-			r.options.ESClient.Search.WithIndex(dataStream),
-			r.options.ESClient.Search.WithSort("@timestamp:asc"),
-			r.options.ESClient.Search.WithSize(elasticsearchQuerySize),
-		)
-		if err != nil {
-			return false, errors.Wrap(err, "could not search data stream")
-		}
-		defer resp.Body.Close()
-
-		var results struct {
-			Hits struct {
-				Total struct {
-					Value int
-				}
-				Hits []struct {
-					Source common.MapStr `json:"_source"`
-				}
-			}
-		}
-
-		if err := json.NewDecoder(resp.Body).Decode(&results); err != nil {
-			return false, errors.Wrap(err, "could not decode search results response")
-		}
-
-		numHits := results.Hits.Total.Value
-		logger.Debugf("found %d hits in %s data stream", numHits, dataStream)
-		if !checker(numHits) {
-			return false, nil
-		}
-
-		var multiErr multierror.Error
-		for idx, hit := range results.Hits.Hits {
-			if message, err := hit.Source.GetValue("error.message"); err != common.ErrKeyNotFound {
-				multiErr = append(multiErr, fmt.Errorf("found error.message in event: %v", message))
-				continue
-			}
-
-			errs := fieldsValidator.ValidateDocumentMap(hit.Source)
-			if errs != nil {
-				multiErr = append(multiErr, errs...)
-				continue
-			}
-
-			// Generate sample event from first doc
-			if idx == 0 && r.options.GenerateTestResult {
-				ds := r.options.TestFolder.DataStream
-				dsPath := filepath.Join(r.options.PackageRootPath, "data_stream", ds)
-				if err := writeSampleEvent(dsPath, hit.Source); err != nil {
-					multiErr = append(multiErr, errs...)
-					continue
-				}
-			}
-		}
-
-		if len(multiErr) > 0 {
-			multiErr = multiErr.Unique()
-			return false, testrunner.ErrTestCaseFailed{
-				Reason:  fmt.Sprintf("one or more errors found in documents stored in %s data stream", dataStream),
-				Details: multiErr.Error(),
-			}
-		}
-		return true, nil
+func (r *runner) checkNumDocs(dataStream string, checker func(int) bool) (bool, []common.MapStr, error) {
+	resp, err := r.options.ESClient.Search(
+		r.options.ESClient.Search.WithIndex(dataStream),
+		r.options.ESClient.Search.WithSort("@timestamp:asc"),
+		r.options.ESClient.Search.WithSize(elasticsearchQuerySize),
+	)
+	if err != nil {
+		return false, nil, errors.Wrap(err, "could not search data stream")
 	}
+	defer resp.Body.Close()
+
+	var results struct {
+		Hits struct {
+			Total struct {
+				Value int
+			}
+			Hits []struct {
+				Source common.MapStr `json:"_source"`
+			}
+		}
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&results); err != nil {
+		return false, nil, errors.Wrap(err, "could not decode search results response")
+	}
+
+	numHits := results.Hits.Total.Value
+	logger.Debugf("found %d hits in %s data stream", numHits, dataStream)
+	if !checker(numHits) {
+		return false, nil, nil
+	}
+
+	var docs []common.MapStr
+	for _, hit := range results.Hits.Hits {
+		docs = append(docs, hit.Source)
+	}
+
+	return true, docs, nil
 }
 
 func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext) ([]testrunner.TestResult, error) {
@@ -340,13 +309,6 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 		return result.WithError(errors.Wrap(err, "could not add data stream config to policy"))
 	}
 
-	// Create field validator
-	fieldsValidator, err := fields.CreateValidatorForDataStream(dataStreamPath,
-		fields.WithNumericKeywordFields(config.NumericKeywordFields))
-	if err != nil {
-		return result.WithError(errors.Wrapf(err, "creating fields validator for data stream failed (path: %s)", dataStreamPath))
-	}
-
 	// Delete old data
 	logger.Debug("deleting old data in data stream...")
 	dataStream := fmt.Sprintf(
@@ -368,9 +330,10 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 		return result.WithError(errors.Wrapf(err, "error deleting old data in data stream: %s", dataStream))
 	}
 
-	cleared, err := waitUntilTrue(r.hasNumDocs(dataStream, fieldsValidator, func(n int) bool {
-		return n == 0
-	}), 2*time.Minute)
+	cleared, err := waitUntilTrue(func() (bool, error) {
+		status, _, err := r.checkNumDocs(dataStream, isZero)
+		return status, err
+	}, 2*time.Minute)
 	if err != nil || !cleared {
 		if err == nil {
 			err = errors.New("unable to clear previous data")
@@ -406,9 +369,12 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 
 	// (TODO in future) Optionally exercise service to generate load.
 	logger.Debug("checking for expected data in data stream...")
-	passed, err := waitUntilTrue(r.hasNumDocs(dataStream, fieldsValidator, func(n int) bool {
-		return n > 0
-	}), 10*time.Minute)
+	var docs []common.MapStr
+	passed, err := waitUntilTrue(func() (bool, error) {
+		status, d, err := r.checkNumDocs(dataStream, isGreaterThanZero)
+		docs = d
+		return status, err
+	}, 10*time.Minute)
 
 	if err != nil {
 		return result.WithError(err)
@@ -417,6 +383,27 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	if !passed {
 		result.FailureMsg = fmt.Sprintf("could not find hits in %s data stream", dataStream)
 	}
+
+	// Validate fields in docs
+	fieldsValidator, err := fields.CreateValidatorForDataStream(dataStreamPath,
+		fields.WithNumericKeywordFields(config.NumericKeywordFields))
+	if err != nil {
+		return result.WithError(errors.Wrapf(err, "creating fields validator for data stream failed (path: %s)", dataStreamPath))
+	}
+
+	if err := validateFields(docs, fieldsValidator, dataStream); err != nil {
+		return result.WithError(errors.Wrap(err, "failed to validate fields"))
+	}
+
+	// Write sample events file from first doc, if requested
+	if r.options.GenerateTestResult {
+		ds := r.options.TestFolder.DataStream
+		dsPath := filepath.Join(r.options.PackageRootPath, "data_stream", ds)
+		if err := writeSampleEvent(dsPath, docs[0]); err != nil {
+			return result.WithError(errors.Wrap(err, "failed to write sample event file"))
+		}
+	}
+
 	return result.WithSuccess()
 }
 
@@ -594,4 +581,38 @@ func writeSampleEvent(path string, doc common.MapStr) error {
 	}
 
 	return nil
+}
+
+func validateFields(docs []common.MapStr, fieldsValidator *fields.Validator, dataStream string) error {
+	var multiErr multierror.Error
+	for _, doc := range docs {
+		if message, err := doc.GetValue("error.message"); err != common.ErrKeyNotFound {
+			multiErr = append(multiErr, fmt.Errorf("found error.message in event: %v", message))
+			continue
+		}
+
+		errs := fieldsValidator.ValidateDocumentMap(doc)
+		if errs != nil {
+			multiErr = append(multiErr, errs...)
+			continue
+		}
+	}
+
+	if len(multiErr) > 0 {
+		multiErr = multiErr.Unique()
+		return testrunner.ErrTestCaseFailed{
+			Reason:  fmt.Sprintf("one or more errors found in documents stored in %s data stream", dataStream),
+			Details: multiErr.Error(),
+		}
+	}
+
+	return nil
+}
+
+func isZero(n int) bool {
+	return n == 0
+}
+
+func isGreaterThanZero(n int) bool {
+	return n > 0
 }
