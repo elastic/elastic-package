@@ -5,6 +5,8 @@
 package cmd
 
 import (
+	"strings"
+
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
@@ -41,9 +43,10 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "updating files failed")
 	}
 
-	for filename, target := range targets {
+	for _, target := range targets {
 		if target != "" {
-			cmd.Printf("%s file rendered: %s\n", filename, target)
+			splitTarget := strings.Split(target, "/")
+			cmd.Printf("%s file rendered: %s\n", splitTarget[len(splitTarget)-1], target)
 		}
 	}
 
