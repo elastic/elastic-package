@@ -6,7 +6,6 @@ package docs
 
 import (
 	"bytes"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -19,28 +18,30 @@ import (
 )
 
 // AreReadmesUpToDate function checks if all the .md readme file are up-to-date.
-func AreReadmesUpToDate() error {
+func AreReadmesUpToDate() (string, string, error) {
 	packageRoot, err := packages.MustFindPackageRoot()
 	if err != nil {
-		return errors.Wrap(err, "package root not found")
+		return "", "", errors.Wrap(err, "package root not found")
 	}
 
 	readmeFiles, err := ioutil.ReadDir(filepath.Join(packageRoot, "_dev", "build", "docs"))
 	if err != nil {
-		return errors.Wrapf(err, "failed to return a list of directory entries from %s", packageRoot)
+		return "", "", errors.Wrapf(err, "failed to return a list of directory entries from %s", packageRoot)
 	}
 
+	errNames := ""
+	notOKNames := ""
 	for _, readme := range readmeFiles {
 		filename := readme.Name()
 		ok, err := isReadmeUpToDate(filename, packageRoot)
 		if err != nil {
-			return errors.Wrapf(err, "can't check if %s file is up-to-date", filename)
+			errNames += filename + " "
 		}
 		if !ok {
-			return fmt.Errorf("%s file is outdated. Rebuild the package with 'elastic-package build'", filename)
+			notOKNames += filename + " "
 		}
 	}
-	return nil
+	return errNames, notOKNames, err
 }
 
 func isReadmeUpToDate(filename, packageRoot string) (bool, error) {
