@@ -26,7 +26,7 @@ func AreReadmesUpToDate() (string, string, error) {
 
 	readmeFiles, err := ioutil.ReadDir(filepath.Join(packageRoot, "_dev", "build", "docs"))
 	if err != nil {
-		return "", "", errors.Wrapf(err, "failed to return a list of directory entries from %s", packageRoot)
+		return "", "", nil
 	}
 
 	errNames := ""
@@ -41,7 +41,7 @@ func AreReadmesUpToDate() (string, string, error) {
 			notOKNames += filename + " "
 		}
 	}
-	return errNames, notOKNames, err
+	return errNames, notOKNames, nil
 }
 
 func isReadmeUpToDate(filename, packageRoot string) (bool, error) {
@@ -80,7 +80,7 @@ func UpdateReadmes() ([]string, error) {
 
 	readmeFiles, err := ioutil.ReadDir(filepath.Join(packageRoot, "_dev", "build", "docs"))
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to return a list of directory entries from %s", packageRoot)
+		return nil, nil
 	}
 
 	var targets []string
