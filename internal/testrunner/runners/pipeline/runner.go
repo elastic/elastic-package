@@ -314,6 +314,7 @@ func verifyFieldsInTestResult(result *testResult, fieldsValidator *fields.Valida
 		err := checkErrorMessage(event)
 		if err != nil {
 			multiErr = append(multiErr, err)
+			continue // all fields can be wrong, no need validate them
 		}
 
 		errs := fieldsValidator.ValidateDocumentBody(event)
