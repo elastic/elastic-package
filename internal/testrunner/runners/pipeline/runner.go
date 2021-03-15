@@ -311,6 +311,11 @@ func verifyDynamicFields(result *testResult, config *testConfig) error {
 func verifyFieldsInTestResult(result *testResult, fieldsValidator *fields.Validator) error {
 	var multiErr multierror.Error
 	for _, event := range result.events {
+		err := checkErrorMessage(event)
+		if err != nil {
+			multiErr = append(multiErr, err)
+		}
+
 		errs := fieldsValidator.ValidateDocumentBody(event)
 		if errs != nil {
 			multiErr = append(multiErr, errs...)
@@ -322,6 +327,23 @@ func verifyFieldsInTestResult(result *testResult, fieldsValidator *fields.Valida
 			Reason:  "one or more problems with fields found in documents",
 			Details: multiErr.Unique().Error(),
 		}
+	}
+	return nil
+}
+
+func checkErrorMessage(event json.RawMessage) error {
+	var pipelineError = struct {
+		Error struct {
+			Message string
+		}
+	}{}
+	err := json.Unmarshal(event, &pipelineError)
+	if err != nil {
+		return errors.Wrap(err, "can't unmarshal event to check pipeline error")
+	}
+
+	if pipelineError.Error.Message != "" {
+		return fmt.Errorf("unexpected pipeline error: %s", pipelineError.Error.Message)
 	}
 	return nil
 }
