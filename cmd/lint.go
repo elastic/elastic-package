@@ -7,9 +7,10 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/elastic/package-spec/code/go/pkg/validator"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+
+	"github.com/elastic/package-spec/code/go/pkg/validator"
 
 	"github.com/elastic/elastic-package/internal/docs"
 	"github.com/elastic/elastic-package/internal/packages"
@@ -43,17 +44,29 @@ func lintCommandAction(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "locating package root failed")
 	}
 
-	errNames, notOKNames, err := docs.AreReadmesUpToDate()
+	readmeFiles, err := docs.AreReadmesUpToDate()
 	if err != nil {
-		return errors.Wrap(err, "can't check if readme files are up-to-date")
+		return errors.Wrap(err, "checking readme files are up-to-date failed")
 	}
 
-	if errNames != "" {
-		return errors.Wrapf(err, "can't check if %sare up-to-date", errNames)
-	}
+	outdatedStr := ""
+	errStr := ""
+	for i, f := range readmeFiles {
+		if !f.UpToDate {
+			if i != len(readmeFiles)-1 {
+				outdatedStr += f.FileName + " "
+			} else {
+				return fmt.Errorf("%s are outdated. Rebuild the package with 'elastic-package build'", outdatedStr)
+			}
+		}
 
-	if notOKNames != "" {
-		return fmt.Errorf("%sare outdated. Rebuild the package with 'elastic-package build'", notOKNames)
+		if f.Error != nil {
+			if i != len(readmeFiles)-1 {
+				errStr += f.FileName + " "
+			} else {
+				return errors.Wrapf(err, "check if %s are up-to-date failed", errStr)
+			}
+		}
 	}
 
 	err = validator.ValidateFromPath(packageRootPath)
