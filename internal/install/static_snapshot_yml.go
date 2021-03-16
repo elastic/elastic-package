@@ -93,8 +93,8 @@ services:
     - "FLEET_INSECURE=1"
     - "FLEET_SERVER_ENABLE=1"
     - "FLEET_SETUP=1"
-    - "FLEET_URL=http://kibana:5601"
-    - "KIBANA_HOST=http://kibana:5601"
+    ports:
+      - "127.0.0.1:8220:8220"
     volumes:
     - type: bind
       source: ../tmp/service_logs/

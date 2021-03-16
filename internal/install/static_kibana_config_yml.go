@@ -18,7 +18,7 @@ xpack.fleet.registryUrl: "http://package-registry:8080"
 xpack.fleet.agents.enabled: true
 xpack.fleet.agents.elasticsearch.host: "http://elasticsearch:9200"
 xpack.fleet.agents.fleetServerEnabled: true
-xpack.fleet.agents.kibana.host: "http://kibana:5601"
+xpack.fleet.agents.kibana.host: "http://localhost:8220"
 xpack.fleet.agents.tlsCheckDisabled: true
 xpack.encryptedSavedObjects.encryptionKey: "12345678901234567890123456789012"
 `
