@@ -15,6 +15,7 @@ import (
 
 	"github.com/elastic/elastic-package/internal/github"
 	"github.com/elastic/elastic-package/internal/promote"
+	"github.com/elastic/elastic-package/internal/storage"
 )
 
 const promoteLongDescription = `Use this command to move packages between the snapshot, staging, and production stages of the package registry.
@@ -69,13 +70,13 @@ func promoteCommandAction(cmd *cobra.Command, args []string) error {
 	}
 
 	cmd.Println("Cloning repository...")
-	repository, err := promote.CloneRepository(githubUser, sourceStage)
+	repository, err := storage.CloneRepository(githubUser, sourceStage)
 	if err != nil {
 		return errors.Wrapf(err, "cloning source repository failed (branch: %s)", sourceStage)
 	}
 
 	cmd.Println("Creating list of packages...")
-	allPackages, err := promote.ListPackages(repository)
+	allPackages, err := storage.ListPackages(repository)
 	if err != nil {
 		return errors.Wrapf(err, "listing packages failed")
 	}
@@ -95,39 +96,42 @@ func promoteCommandAction(cmd *cobra.Command, args []string) error {
 
 	nonce := time.Now().UnixNano()
 	// Copy packages to destination
-	newDestinationStage, err := promote.CopyPackages(repository, sourceStage, destinationStage, promotedPackages, nonce)
+	fmt.Printf("Promote packages from %s to %s...\n", sourceStage, destinationStage)
+	newDestinationBranch := fmt.Sprintf("promote-from-%s-to-%s-%d", sourceStage, destinationStage, nonce)
+	err = storage.CopyPackages(repository, sourceStage, destinationStage, promotedPackages, newDestinationBranch)
 	if err != nil {
 		return errors.Wrapf(err, "copying packages failed (source: %s, destination: %s)", sourceStage, destinationStage)
 	}
 
 	// Remove packages from source
-	newSourceStage, err := promote.RemovePackages(repository, sourceStage, removedPackages, nonce)
+	newSourceBranch := fmt.Sprintf("delete-from-%s-%d", sourceStage, nonce)
+	err = storage.RemovePackages(repository, sourceStage, removedPackages, newSourceBranch)
 	if err != nil {
 		return errors.Wrapf(err, "removing packages failed (source: %s)", sourceStage)
 	}
 
 	// Push changes
-	err = promote.PushChanges(githubUser, repository, newSourceStage, newDestinationStage)
+	err = storage.PushChanges(githubUser, repository, newSourceBranch, newDestinationBranch)
 	if err != nil {
 		return errors.Wrapf(err, "pushing changes failed")
 	}
 
 	// Calculate package signatures
-	signedPackages, err := promote.CalculatePackageSignatures(repository, newDestinationStage, promotedPackages)
+	signedPackages, err := storage.CalculatePackageSignatures(repository, newDestinationBranch, promotedPackages)
 	if err != nil {
 		return errors.Wrap(err, "signing packages failed")
 	}
 
 	// Open PRs
-	url, err := promote.OpenPullRequestWithPromotedPackages(githubClient, githubUser, newDestinationStage, destinationStage, sourceStage, destinationStage, signedPackages)
+	url, err := promote.OpenPullRequestWithPromotedPackages(githubClient, githubUser, newDestinationBranch, destinationStage, sourceStage, destinationStage, signedPackages)
 	if err != nil {
-		return errors.Wrapf(err, "opening PR with promoted packages failed (head: %s, base: %s)", newDestinationStage, destinationStage)
+		return errors.Wrapf(err, "opening PR with promoted packages failed (head: %s, base: %s)", newDestinationBranch, destinationStage)
 	}
 	cmd.Println("Pull request with promoted packages:", url)
 
-	url, err = promote.OpenPullRequestWithRemovedPackages(githubClient, githubUser, newSourceStage, sourceStage, sourceStage, url, removedPackages)
+	url, err = promote.OpenPullRequestWithRemovedPackages(githubClient, githubUser, newSourceBranch, sourceStage, sourceStage, url, removedPackages)
 	if err != nil {
-		return errors.Wrapf(err, "opening PR with removed packages failed (head: %s, base: %s)", newDestinationStage, destinationStage)
+		return errors.Wrapf(err, "opening PR with removed packages failed (head: %s, base: %s)", newDestinationBranch, destinationStage)
 	}
 	cmd.Println("Pull request with removed packages:", url)
 
@@ -165,7 +169,7 @@ func promptPromoteNewestOnly() (bool, error) {
 	return newestOnly, nil
 }
 
-func promptPackages(packages promote.PackageVersions) (promote.PackageVersions, error) {
+func promptPackages(packages storage.PackageVersions) (storage.PackageVersions, error) {
 	packagesPrompt := &survey.MultiSelect{
 		Message:  "Which packages would you like to promote",
 		Options:  packages.Strings(),
@@ -178,7 +182,7 @@ func promptPackages(packages promote.PackageVersions) (promote.PackageVersions, 
 		return nil, err
 	}
 
-	var selected promote.PackageVersions
+	var selected storage.PackageVersions
 	for _, option := range selectedOptions {
 		for _, p := range packages {
 			if p.String() == option {
