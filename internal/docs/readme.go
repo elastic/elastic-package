@@ -52,9 +52,9 @@ func AreReadmesUpToDate() ([]ReadmeFile, error) {
 	}
 
 	if readmeFiles != nil {
-		return readmeFiles, fmt.Errorf("check readme files are up-to-date failed")
+		return readmeFiles, fmt.Errorf("checking readme files are up-to-date failed")
 	}
-	return nil, nil
+	return readmeFiles, nil
 }
 
 func isReadmeUpToDate(fileName, packageRoot string) (bool, error) {
@@ -67,7 +67,7 @@ func isReadmeUpToDate(fileName, packageRoot string) (bool, error) {
 
 	rendered, shouldBeRendered, err := generateReadme(fileName, packageRoot)
 	if err != nil {
-		return false, errors.Wrap(err, "generate readme file failed")
+		return false, errors.Wrap(err, "generating readme file failed")
 	}
 	if !shouldBeRendered {
 		return true, nil // README file is static and doesn't use template.
@@ -101,7 +101,7 @@ func UpdateReadmes() ([]string, error) {
 		fileName := readme.Name()
 		target, err := updateReadme(fileName, packageRoot)
 		if err != nil {
-			return nil, errors.Wrapf(err, "update readme file %s failed", fileName)
+			return nil, errors.Wrapf(err, "updating readme file %s failed", fileName)
 		}
 
 		if target != "" {
