@@ -6,6 +6,7 @@ package docs
 
 import (
 	"bytes"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -24,7 +25,7 @@ type ReadmeFile struct {
 	Error    error
 }
 
-// AreReadmesUpToDate function checks if all the .md readme file are up-to-date.
+// AreReadmesUpToDate function checks if all the .md readme files are up-to-date.
 func AreReadmesUpToDate() ([]ReadmeFile, error) {
 	packageRoot, err := packages.MustFindPackageRoot()
 	if err != nil {
@@ -40,14 +41,20 @@ func AreReadmesUpToDate() ([]ReadmeFile, error) {
 	for _, f := range files {
 		fileName := f.Name()
 		ok, err := isReadmeUpToDate(fileName, packageRoot)
-		readmeFile := ReadmeFile{
-			FileName: fileName,
-			UpToDate: ok,
-			Error:    err,
+		if !ok || err != nil {
+			readmeFile := ReadmeFile{
+				FileName: fileName,
+				UpToDate: ok,
+				Error:    err,
+			}
+			readmeFiles = append(readmeFiles, readmeFile)
 		}
-		readmeFiles = append(readmeFiles, readmeFile)
 	}
-	return readmeFiles, nil
+
+	if readmeFiles != nil {
+		return readmeFiles, fmt.Errorf("check readme files are up-to-date failed")
+	}
+	return nil, nil
 }
 
 func isReadmeUpToDate(fileName, packageRoot string) (bool, error) {
@@ -97,7 +104,9 @@ func UpdateReadmes() ([]string, error) {
 			return nil, errors.Wrapf(err, "update readme file %s failed", fileName)
 		}
 
-		targets = append(targets, target)
+		if target != "" {
+			targets = append(targets, target)
+		}
 	}
 	return targets, nil
 }
@@ -151,7 +160,7 @@ func findReadmeTemplatePath(fileName, packageRoot string) (string, bool, error) 
 		return "", false, nil // README.md file not found
 	}
 	if err != nil {
-		return "", false, errors.Wrapf(err, "can't located the %s file", fileName)
+		return "", false, errors.Wrapf(err, "can't stat the %s file", fileName)
 	}
 	return templatePath, true, nil
 }

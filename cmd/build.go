@@ -44,10 +44,8 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 	}
 
 	for _, target := range targets {
-		if target != "" {
-			splitTarget := strings.Split(target, "/")
-			cmd.Printf("%s file rendered: %s\n", splitTarget[len(splitTarget)-1], target)
-		}
+		splitTarget := strings.Split(target, "/")
+		cmd.Printf("%s file rendered: %s\n", splitTarget[len(splitTarget)-1], target)
 	}
 
 	target, err := builder.BuildPackage()

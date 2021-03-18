@@ -5,7 +5,6 @@
 package cmd
 
 import (
-	"fmt"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
@@ -45,26 +44,15 @@ func lintCommandAction(cmd *cobra.Command, args []string) error {
 
 	readmeFiles, err := docs.AreReadmesUpToDate()
 	if err != nil {
+		for _, f := range readmeFiles {
+			if !f.UpToDate {
+				cmd.Printf("%s is outdated. Rebuild the package with 'elastic-package build'\n", f.FileName)
+			}
+			if f.Error != nil {
+				cmd.Printf("check if %s is up-to-date failed: %s\n", f.FileName, f.Error)
+			}
+		}
 		return errors.Wrap(err, "checking readme files are up-to-date failed")
-	}
-
-	outdatedStr := ""
-	errStr := ""
-	for _, f := range readmeFiles {
-		if !f.UpToDate {
-			outdatedStr += f.FileName + " "
-		}
-		if f.Error != nil {
-			errStr += f.FileName + " "
-		}
-	}
-
-	if outdatedStr != "" {
-		return fmt.Errorf("%s are outdated. Rebuild the package with 'elastic-package build'", outdatedStr)
-	}
-
-	if errStr != "" {
-		return errors.Wrapf(err, "check if %s are up-to-date failed", errStr)
 	}
 
 	err = validator.ValidateFromPath(packageRootPath)
