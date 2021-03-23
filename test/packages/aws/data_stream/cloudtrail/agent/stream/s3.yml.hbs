@@ -27,9 +27,6 @@ session_token: {{session_token}}
 {{#if role_arn}}
 role_arn: {{role_arn}}
 {{/if}}
-{{#if aws_partition}}
-aws_partition: {{aws_partition}}
-{{/if}}
 {{#if fips_enabled}}
 fips_enabled: {{fips_enabled}}
 {{/if}}
@@ -37,4 +34,4 @@ processors:
   - add_fields:
       target: ''
       fields:
-        ecs.version: 1.5.0
+        ecs.version: 1.8.0

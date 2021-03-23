@@ -97,6 +97,7 @@ type PackageManifest struct {
 	Version         string           `config:"version" json:"version" yaml:"version"`
 	Conditions      Conditions       `config:"conditions" json:"conditions" yaml:"conditions"`
 	PolicyTemplates []PolicyTemplate `config:"policy_templates" json:"policy_templates" yaml:"policy_templates"`
+	Vars            []Variable       `config:"vars" json:"vars" yaml:"vars"`
 }
 
 // DataStreamManifest represents the structure of a data stream's manifest
