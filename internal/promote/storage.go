@@ -25,7 +25,7 @@ import (
 )
 
 const (
-	remoteName = "elastic"
+	upstream = "elastic"
 
 	snapshotPackage = "snapshot"
 	stagingPackage  = "staging"
@@ -115,10 +115,10 @@ func CloneRepository(user, stage string) (*git.Repository, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "creating user remote failed")
 	}
-	remote, err := r.CreateRemote(&config.RemoteConfig{
-		Name: remoteName,
+	upstreamRemote, err := r.CreateRemote(&config.RemoteConfig{
+		Name: upstream,
 		URLs: []string{
-			fmt.Sprintf(repositoryURL, "elastic"),
+			fmt.Sprintf(repositoryURL, upstream),
 		},
 	})
 	if err != nil {
@@ -141,7 +141,7 @@ func CloneRepository(user, stage string) (*git.Repository, error) {
 	}
 
 	// Fetch and checkout
-	err = remote.Fetch(&git.FetchOptions{
+	err = upstreamRemote.Fetch(&git.FetchOptions{
 		RefSpecs: []config.RefSpec{
 			"HEAD:refs/heads/HEAD",
 			"refs/heads/snapshot:refs/heads/snapshot",
