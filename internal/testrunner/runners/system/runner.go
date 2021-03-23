@@ -487,8 +487,9 @@ func createPackageDatastream(
 	// Add package-level vars
 	pkgVars := kibana.Vars{}
 	input := pkg.PolicyTemplates[0].FindInputByType(streamInput)
-	input.Vars = append(input.Vars, pkg.Vars...)
 	if input != nil {
+		// copy package-level vars into each input
+		input.Vars = append(input.Vars, pkg.Vars...)
 		for _, pkgVar := range input.Vars {
 			val := pkgVar.Default
 
