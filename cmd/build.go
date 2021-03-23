@@ -5,6 +5,8 @@
 package cmd
 
 import (
+	"strings"
+
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
@@ -36,15 +38,17 @@ func setupBuildCommand() *cobra.Command {
 func buildCommandAction(cmd *cobra.Command, args []string) error {
 	cmd.Println("Build the package")
 
-	target, err := docs.UpdateReadme()
+	targets, err := docs.UpdateReadmes()
 	if err != nil {
-		return errors.Wrapf(err, "updating %s file failed", docs.ReadmeFile)
-	}
-	if target != "" {
-		cmd.Printf("%s file rendered: %s\n", docs.ReadmeFile, target)
+		return errors.Wrap(err, "updating files failed")
 	}
 
-	target, err = builder.BuildPackage()
+	for _, target := range targets {
+		splitTarget := strings.Split(target, "/")
+		cmd.Printf("%s file rendered: %s\n", splitTarget[len(splitTarget)-1], target)
+	}
+
+	target, err := builder.BuildPackage()
 	if err != nil {
 		return errors.Wrap(err, "building package failed")
 	}
