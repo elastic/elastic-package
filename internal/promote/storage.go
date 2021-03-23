@@ -98,37 +98,72 @@ func (prs PackageVersions) Strings() []string {
 
 // CloneRepository method clones the repository and changes branch to stage.
 func CloneRepository(user, stage string) (*git.Repository, error) {
-	r, err := git.Clone(memory.NewStorage(), memfs.New(), &git.CloneOptions{
-		URL:           fmt.Sprintf(repositoryURL, "elastic"),
-		RemoteName:    remoteName,
-		ReferenceName: plumbing.NewBranchReferenceName(stage),
-	})
+	// Initialize repository
+	r, err := git.Init(memory.NewStorage(), memfs.New())
 	if err != nil {
-		return nil, errors.Wrap(err, "cloning package-storage repository failed")
+		return nil, errors.Wrap(err, "initializing repository")
 	}
 
-	err = r.Fetch(&git.FetchOptions{
-		RemoteName: remoteName,
+	// Add remotes
+	userRepositoryURL := fmt.Sprintf(repositoryURL, user)
+	userRemote, err := r.CreateRemote(&config.RemoteConfig{
+		Name: user,
+		URLs: []string{
+			userRepositoryURL,
+		},
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "creating user remote failed")
+	}
+	remote, err := r.CreateRemote(&config.RemoteConfig{
+		Name: remoteName,
+		URLs: []string{
+			fmt.Sprintf(repositoryURL, "elastic"),
+		},
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "creating remote failed")
+	}
+
+	// Check if user remote exists
+	authToken, err := github.AuthToken()
+	if err != nil {
+		return nil, errors.Wrap(err, "reading auth token failed")
+	}
+	_, err = userRemote.List(&git.ListOptions{
+		Auth: &http.BasicAuth{
+			Username: user,
+			Password: authToken,
+		},
+	})
+	if err != nil {
+		return nil, errors.Wrapf(err, "checking user remote (%s, url: %s)", user, userRepositoryURL)
+	}
+
+	// Fetch and checkout
+	err = remote.Fetch(&git.FetchOptions{
 		RefSpecs: []config.RefSpec{
 			"HEAD:refs/heads/HEAD",
 			"refs/heads/snapshot:refs/heads/snapshot",
 			"refs/heads/staging:refs/heads/staging",
 			"refs/heads/production:refs/heads/production",
 		},
+		Depth: 1,
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "fetch remote branches failed")
 	}
-
-	_, err = r.CreateRemote(&config.RemoteConfig{
-		Name: user,
-		URLs: []string{
-			fmt.Sprintf(repositoryURL, user),
-		},
+	wt, err := r.Worktree()
+	if err != nil {
+		return nil, errors.Wrap(err, "working copy initialization failed")
+	}
+	err = wt.Checkout(&git.CheckoutOptions{
+		Branch: plumbing.NewBranchReferenceName(stage),
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "creating remote failed")
+		return nil, errors.Wrap(err, "checkout failed")
 	}
+
 	return r, nil
 }
 
