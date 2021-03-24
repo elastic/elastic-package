@@ -42,17 +42,11 @@ type PackageVersion struct {
 	Name    string
 	Version string
 
-	root   string
 	semver semver.Version
 }
 
 // NewPackageVersion function creates an instance of PackageVersion.
 func NewPackageVersion(name, version string) (*PackageVersion, error) {
-	return NewPackageVersionWithRoot(name, version, packagesDir)
-}
-
-// NewPackageVersionWithRoot function creates an instance of PackageVersion and defines a custom root.
-func NewPackageVersionWithRoot(name, version, root string) (*PackageVersion, error) {
 	packageVersion, err := semver.NewVersion(version)
 	if err != nil {
 		return nil, errors.Wrapf(err, "reading package version failed (name: %s, version: %s)", name, version)
@@ -60,16 +54,12 @@ func NewPackageVersionWithRoot(name, version, root string) (*PackageVersion, err
 	return &PackageVersion{
 		Name:    name,
 		Version: version,
-		root:    root,
 		semver:  *packageVersion,
 	}, nil
 }
 
 func (pv *PackageVersion) path() string {
-	if pv.root != "" {
-		return filepath.Join(pv.root, pv.Name, pv.Version)
-	}
-	return filepath.Join(pv.Name, pv.Version)
+	return filepath.Join(packagesDir, pv.Name, pv.Version)
 }
 
 // Equal method can be used to compare two PackageVersions.
