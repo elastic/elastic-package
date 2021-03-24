@@ -399,7 +399,7 @@ func CopyOverLocalPackage(r *git.Repository, builtPackageDir string, manifest *p
 
 	err = writePackageContents(wt.Filesystem, contents)
 	if err != nil {
-		return errors.Wrap(err, "writing package contents failed")
+		return "", errors.Wrap(err, "writing package contents failed")
 	}
 
 	logger.Debugf("Add updated resources to index")
