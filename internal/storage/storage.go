@@ -359,7 +359,7 @@ func CopyPackagesWithTransform(r *git.Repository, sourceStage, destinationStage 
 // Principle of operation
 // 0. Git index is clean.
 // 1. All files need to be removed from the destination folder (in Git repository).
-// 2. Copy integration content to the destination folder.
+// 2. Copy package content to the destination folder.
 //
 // Result:
 // The destination folder contains new/updated files and doesn't contain removed ones.
