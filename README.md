@@ -81,6 +81,13 @@ _Context: package_
 Use this command to clean resources used for building the package.
 
 
+### `elastic-package export`
+
+_Context: package_
+
+Use this command to export assets relevant for the package, e.g. Kibana dashboards.
+
+
 ### `elastic-package format`
 
 _Context: package_
@@ -103,13 +110,6 @@ Use this command to validate the contents of a package using the
 [package specification](https://github.com/elastic/package-spec).
 
 
-### `elastic-package export`
-
-_Context: package_
-
-Use this command to export assets relevant for the package, e.g. Kibana dashboards.
-
-
 ### `elastic-package promote`
 
 _Context: global_
@@ -117,6 +117,7 @@ _Context: global_
 Use this command to promote packages from one stage of the Package Registry to another.
 
 :warning: This command is intended primarily for use by administrators. 
+
 
 #### GitHub authorization
 
