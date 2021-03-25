@@ -67,13 +67,13 @@ func Package(githubUser string, githubClient *github.Client, skipPullRequest boo
 	}
 
 	if latestRevision == nil {
-		fmt.Println("Package has not been published yet")
+		logger.Debugf("Package has not been published yet")
 	} else if latestRevision.Version == m.Version {
 		fmt.Println("Package has already been published")
 		return nil
 	} else {
-		fmt.Printf("Latest package revision: %s (stage: %s)\n", latestRevision.String(), stage)
-		fmt.Println("Copy sources of the latest package revision to index")
+		logger.Debugf("Latest package revision: %s (stage: %s)", latestRevision.String(), stage)
+		logger.Debugf("Copy sources of the latest package revision to index")
 	}
 
 	destination, err := copyLatestRevisionIfAvailable(r, latestRevision, stage, m)
