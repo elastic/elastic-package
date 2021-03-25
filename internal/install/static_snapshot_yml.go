@@ -89,9 +89,10 @@ services:
     environment:
     - "FLEET_ENROLL=1"
     - "FLEET_ENROLL_INSECURE=1"
-    - "FLEET_SERVER_INSECURE_HTTP=1"
     - "FLEET_INSECURE=1"
     - "FLEET_SERVER_ENABLE=1"
+    - "FLEET_SERVER_HOST=0.0.0.0"
+    - "FLEET_SERVER_INSECURE_HTTP=1"
     - "FLEET_SETUP=1"
     ports:
       - "127.0.0.1:8220:8220"
