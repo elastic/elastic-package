@@ -50,7 +50,7 @@ func Package(githubUser string, githubClient *github.Client, skipPullRequest boo
 	builtPackageDir := filepath.Join(buildDir, m.Name, m.Version)
 	fmt.Printf("Use build directory: %s\n", builtPackageDir)
 	_, err = os.Stat(builtPackageDir)
-	if os.IsNotExist(err) {
+	if errors.Is(err, os.ErrNotExist) {
 		return errors.Wrapf(err, "build directory '%s' is missing. Please run 'elastic-package build' first", builtPackageDir)
 	}
 	if err != nil {
