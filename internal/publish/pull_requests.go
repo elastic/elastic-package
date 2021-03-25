@@ -88,7 +88,7 @@ func openPullRequest(githubClient *github.Client, githubUser, destinationBranch 
 }
 
 func buildPullRequestTitle(manifest packages.PackageManifest) string {
-	return fmt.Sprintf(`[snapshot] Update "%s" integration to version %s`, manifest.Name, manifest.Version)
+	return fmt.Sprintf(`[snapshot] Update "%s" package to version %s`, manifest.Name, manifest.Version)
 }
 
 func buildPullRequestDiffURL(username, commitHash string) string {
