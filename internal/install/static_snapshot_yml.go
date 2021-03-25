@@ -87,8 +87,6 @@ services:
       interval: 1s
     hostname: docker-fleet-agent
     environment:
-    - "FLEET_ENROLL=1"
-    - "FLEET_ENROLL_INSECURE=1"
     - "FLEET_INSECURE=1"
     - "FLEET_SERVER_ENABLE=1"
     - "FLEET_SERVER_HOST=0.0.0.0"
