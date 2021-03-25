@@ -96,7 +96,7 @@ func buildPullRequestDiffURL(username, commitHash string) string {
 }
 
 func buildPullRequestDescription(manifest packages.PackageManifest, diffURL string) string {
-	return fmt.Sprintf("This PR updates `%s` integration to version %s.\n\nChanges: %s", manifest.Name,
+	return fmt.Sprintf("This PR updates `%s` package to version %s.\n\nChanges: %s", manifest.Name,
 		manifest.Version, diffURL)
 }
 
