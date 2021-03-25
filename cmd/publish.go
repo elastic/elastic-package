@@ -13,9 +13,9 @@ import (
 	"github.com/elastic/elastic-package/internal/publish"
 )
 
-const publishLongDescription = `Use this command to publish a new package revision to the Package Storage.
+const publishLongDescription = `Use this command to publish a new package revision.
 
-The command checks if the package hasn't been already published to the package-storage (whether it's present in snapshot/staging/production branch or open as pull request). If the package revision hasn't been published, it will open a new pull request.
+The command checks if the package hasn't been already published (whether it's present in snapshot/staging/production branch or open as pull request). If the package revision hasn't been published, it will open a new pull request.
 
 Context:
   package`
