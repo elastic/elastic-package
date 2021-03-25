@@ -222,7 +222,7 @@ func validateDataStreamsFlag(packageRootPath string, dataStreams []string) error
 		path := filepath.Join(packageRootPath, "data_stream", dataStream)
 		fileInfo, err := os.Stat(path)
 		if err != nil {
-			return errors.Wrap(err, "stat directory failed")
+			return errors.Wrapf(err, "stat directory failed (path: %s)", path)
 		}
 
 		if !fileInfo.IsDir() {
