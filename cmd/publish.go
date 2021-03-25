@@ -23,7 +23,7 @@ Context:
 func setupPublishCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "publish",
-		Short: "Publish the package to Package Storage",
+		Short: "Publish the package to the Package Registry",
 		Long:  publishLongDescription,
 		RunE:  publishCommandAction,
 	}
