@@ -40,6 +40,8 @@ const (
 
 type fileContents map[string][]byte
 
+type contentTransformer func(string, []byte) (string, []byte)
+
 // PackageVersion represents a package version stored in the package-storage.
 type PackageVersion struct {
 	Name    string
@@ -283,7 +285,7 @@ func CopyPackages(r *git.Repository, sourceStage, destinationStage string, packa
 // CopyPackagesWithTransform function copies packages between branches and modifies file content using transform function.
 // It creates a new branch with selected packages.
 func CopyPackagesWithTransform(r *git.Repository, sourceStage, destinationStage string, packages PackageVersions, destinationBranch string,
-	transform func(string, []byte) (string, []byte)) error {
+	transform contentTransformer) error {
 	wt, err := r.Worktree()
 	if err != nil {
 		return errors.Wrap(err, "fetching worktree reference failed")
@@ -468,7 +470,7 @@ func loadPackageContents(filesystem billy.Filesystem, resourcePaths []string) (f
 	return m, nil
 }
 
-func transformPackageContents(contents fileContents, transform func(string, []byte) (string, []byte)) fileContents {
+func transformPackageContents(contents fileContents, transform contentTransformer) fileContents {
 	transformed := fileContents{}
 	for r, c := range contents {
 		dr, dc := transform(r, c)
