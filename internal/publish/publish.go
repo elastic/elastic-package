@@ -69,7 +69,7 @@ func Package(githubUser string, githubClient *github.Client, skipPullRequest boo
 	if latestRevision == nil {
 		logger.Debugf("Package has not been published yet")
 	} else if latestRevision.Version == m.Version {
-		fmt.Println("Package has already been published")
+		fmt.Printf("Package has already been published (stage: %s, version: %s)\n", stage, latestRevision.Version)
 		return nil
 	} else {
 		logger.Debugf("Latest package revision: %s (stage: %s)", latestRevision.String(), stage)
