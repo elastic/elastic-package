@@ -43,7 +43,7 @@ func (cfg SimpleFile) WriteConfig() error {
 	return nil
 }
 
-// ReadConfig reads the config item, overwriting whever exists in the fileBody.
+// ReadConfig reads the config item, overwriting whatever exists in the fileBody.
 func (cfg *SimpleFile) ReadConfig() error {
 	body, err := ioutil.ReadFile(cfg.FilePath)
 	if err != nil {
