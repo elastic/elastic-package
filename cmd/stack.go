@@ -6,9 +6,12 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/elastic/elastic-package/internal/install"
+	"github.com/elastic/elastic-package/internal/locations"
+	"github.com/elastic/elastic-package/internal/profile"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -70,12 +73,30 @@ func setupStackCommand() *cobra.Command {
 				return cobraext.FlagParsingError(err, cobraext.StackVersionFlagName)
 			}
 
+			profileName, err := cmd.Flags().GetString(cobraext.ProfileFlagName)
+			if err != nil {
+				return cobraext.FlagParsingError(err, cobraext.ProfileFlagName)
+			}
+
+			usrProfile, err := profile.LoadProfileFromDefaultLocation(profileName)
+			if err == profile.ErrNotAProfile {
+				pList, err := availableProfilesAsAList()
+				if err != nil {
+					return errors.Wrap(err, "error listing known profiles")
+				}
+				return fmt.Errorf("%s is not a valid profile, known profiles are: %s", profileName, pList)
+			}
+			if err != nil {
+				return errors.Wrap(err, "error loading profile")
+			}
+			cmd.Printf("Using profile %s.\n", usrProfile.ProfilePath)
 			cmd.Println(`Remember to load stack environment variables using 'eval "$(elastic-package stack shellinit)"'.`)
 
 			err = stack.BootUp(stack.Options{
 				DaemonMode:   daemonMode,
 				StackVersion: stackVersion,
 				Services:     services,
+				Profile:      usrProfile,
 			})
 			if err != nil {
 				return errors.Wrap(err, "booting up the stack failed")
@@ -96,7 +117,27 @@ func setupStackCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.Println("Take down the Elastic stack")
 
-			err := stack.TearDown()
+			profileName, err := cmd.Flags().GetString(cobraext.ProfileFlagName)
+			if err != nil {
+				return cobraext.FlagParsingError(err, cobraext.ProfileFlagName)
+			}
+
+			usrProfile, err := profile.LoadProfileFromDefaultLocation(profileName)
+			if err == profile.ErrNotAProfile {
+				pList, err := availableProfilesAsAList()
+				if err != nil {
+					return errors.Wrap(err, "error listing known profiles")
+				}
+				return fmt.Errorf("%s is not a valid profile, known profiles are: %s", profileName, pList)
+			}
+
+			if err != nil {
+				return errors.Wrap(err, "error loading profile")
+			}
+
+			err = stack.TearDown(stack.Options{
+				Profile: usrProfile,
+			})
 			if err != nil {
 				return errors.Wrap(err, "tearing down the stack failed")
 			}
@@ -134,7 +175,17 @@ func setupStackCommand() *cobra.Command {
 		Use:   "shellinit",
 		Short: "Export environment variables",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			shell, err := stack.ShellInit()
+			profileName, err := cmd.Flags().GetString(cobraext.ProfileFlagName)
+			if err != nil {
+				return cobraext.FlagParsingError(err, cobraext.ProfileFlagName)
+			}
+
+			profile, err := profile.LoadProfileFromDefaultLocation(profileName)
+			if err != nil {
+				return errors.Wrap(err, "error loading profile")
+			}
+
+			shell, err := stack.ShellInit(profile)
 			if err != nil {
 				return errors.Wrap(err, "shellinit failed")
 			}
@@ -167,18 +218,117 @@ func setupStackCommand() *cobra.Command {
 	}
 	dumpCommand.Flags().StringP(cobraext.StackDumpOutputFlagName, "", "elastic-stack-dump", cobraext.StackDumpOutputFlagDescription)
 
+	profileCommand := &cobra.Command{
+		Use:   "profiles",
+		Short: "Manage stack config profiles",
+	}
+
+	// Profile subcommands
+
+	profileNewCommand := &cobra.Command{
+		Use:   "new",
+		Short: "Create a new profile",
+		RunE: func(cmd *cobra.Command, args []string) error {
+
+			if len(args) == 0 {
+				return errors.New("new requires an argument")
+			}
+			newProfileName := args[0]
+
+			fromName, err := cmd.Flags().GetString(cobraext.ProfileFromFlagName)
+			if err != nil {
+				return cobraext.FlagParsingError(err, cobraext.ProfileFromFlagName)
+			}
+
+			err = profile.CreateProfileFromDefaultLocation(newProfileName, fromName)
+			if err != nil {
+				return errors.Wrapf(err, "error creating profile %s from profile %s", newProfileName, fromName)
+			}
+
+			fmt.Printf("Created profile %s from %s.\n", newProfileName, fromName)
+
+			return nil
+		},
+	}
+	profileNewCommand.Flags().String(cobraext.ProfileFromFlagName, "default", cobraext.ProfileFromFlagDescription)
+
+	profileDeleteCommand := &cobra.Command{
+		Use:   "delete",
+		Short: "Delete a profile",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) == 0 {
+				return errors.New("delete requires an argument")
+			}
+			profileName := args[0]
+
+			err := profile.DeleteProfileFromDefaultLocation(profileName)
+			if err != nil {
+				return errors.Wrap(err, "error deleting profile")
+			}
+
+			fmt.Printf("Deleted profile %s\n", profileName)
+
+			return nil
+		},
+	}
+
+	profileListCommand := &cobra.Command{
+		Use:   "list",
+		Short: "List available profiles",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			err := profile.PrintProfilesFromDefaultLocation()
+			if err != nil {
+				return errors.Wrap(err, "error listing profiles")
+			}
+			return nil
+		},
+	}
+
+	profileCommand.AddCommand(profileNewCommand, profileDeleteCommand, profileListCommand)
+
 	cmd := &cobra.Command{
 		Use:   "stack",
 		Short: "Manage the Elastic stack",
 		Long:  stackLongDescription,
 	}
+	cmd.PersistentFlags().StringP(cobraext.ProfileFlagName, "p", lookupEnv(), cobraext.ProfileFlagDescription)
 	cmd.AddCommand(
 		upCommand,
 		downCommand,
 		updateCommand,
 		shellInitCommand,
-		dumpCommand)
+		dumpCommand,
+		profileCommand)
+
 	return cmd
+}
+
+func lookupEnv() string {
+	env := os.Getenv(cobraext.ProfileNameEnvVar)
+	if env == "" {
+		return profile.DefaultProfile
+	}
+	return env
+
+}
+
+func availableProfilesAsAList() ([]string, error) {
+
+	loc, err := locations.StackDir()
+	if err != nil {
+		return []string{}, errors.Wrap(err, "error fetching profile")
+	}
+
+	profileNames := []string{}
+	profileList, err := profile.FetchAllProfiles(loc)
+	if err != nil {
+		return profileNames, errors.Wrap(err, "")
+	}
+	for _, prof := range profileList {
+		profileNames = append(profileNames, prof.Name)
+	}
+
+	return profileNames, nil
 }
 
 func availableServicesAsList() []string {

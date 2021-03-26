@@ -18,8 +18,8 @@ import (
 
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/fields"
-	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/kibana"
+	"github.com/elastic/elastic-package/internal/locations"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/multierror"
 	"github.com/elastic/elastic-package/internal/packages"
@@ -127,7 +127,7 @@ func (r *runner) newResult(name string) *testrunner.ResultComposer {
 
 func (r *runner) run() (results []testrunner.TestResult, err error) {
 	result := r.newResult("(init)")
-	serviceLogsDir, err := install.ServiceLogsDir()
+	serviceLogsDir, err := locations.ServiceLogsDir()
 	if err != nil {
 		return result.WithError(errors.Wrap(err, "reading service logs directory failed"))
 	}

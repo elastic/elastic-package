@@ -2,7 +2,15 @@
 // or more contributor license agreements. Licensed under the Elastic License;
 // you may not use this file except in compliance with the Elastic License.
 
-package install
+package profile
+
+import (
+	"path/filepath"
+	"strings"
+)
+
+// SnapshotFile is the docker-compose snapshot.yml file name
+const SnapshotFile ConfigFile = "snapshot.yml"
 
 const snapshotYml = `version: '2.3'
 services:
@@ -59,8 +67,8 @@ services:
 
   package-registry:
     build:
-      context: .
-      dockerfile: Dockerfile.package-registry
+      context: ..
+      dockerfile: ${STACK_DIR}/Dockerfile.package-registry
     healthcheck:
       test: ["CMD", "curl", "-f", "http://127.0.0.1:8080"]
       retries: 300
@@ -95,7 +103,7 @@ services:
     - "KIBANA_HOST=http://kibana:5601"
     volumes:
     - type: bind
-      source: ../tmp/service_logs/
+      source: ../../tmp/service_logs/
       target: /tmp/service_logs/
 
   elastic-agent_is_ready:
@@ -104,3 +112,15 @@ services:
       elastic-agent:
         condition: service_healthy
 `
+
+// NewSnapshotFile returns a Managed Config
+func NewSnapshotFile(profileName string, profilePath string) (*SimpleFile, error) {
+
+	newCfg := strings.ReplaceAll(snapshotYml, "${STACK_DIR}", profileName)
+
+	return &SimpleFile{
+		FileName: string(SnapshotFile),
+		FilePath: filepath.Join(profilePath, string(SnapshotFile)),
+		FileBody: newCfg,
+	}, nil
+}

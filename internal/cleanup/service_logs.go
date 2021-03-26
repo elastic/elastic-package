@@ -8,7 +8,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/files"
-	"github.com/elastic/elastic-package/internal/install"
+	"github.com/elastic/elastic-package/internal/locations"
 	"github.com/elastic/elastic-package/internal/logger"
 )
 
@@ -16,7 +16,7 @@ import (
 func ServiceLogs() (string, error) {
 	logger.Debug("Clean all service logs")
 
-	serviceLogsDir, err := install.ServiceLogsDir()
+	serviceLogsDir, err := locations.ServiceLogsDir()
 	if err != nil {
 		return "", errors.Wrap(err, "can't find service logs dir")
 	}

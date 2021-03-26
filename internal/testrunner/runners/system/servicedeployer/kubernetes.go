@@ -11,9 +11,9 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/kind"
 	"github.com/elastic/elastic-package/internal/kubectl"
+	"github.com/elastic/elastic-package/internal/locations"
 	"github.com/elastic/elastic-package/internal/logger"
 )
 
@@ -142,7 +142,7 @@ func findKubernetesDefinitions(definitionsDir string) ([]string, error) {
 func installElasticAgentInCluster() error {
 	logger.Debug("install Elastic Agent in the Kubernetes cluster")
 
-	elasticAgentFile, err := install.KubernetesDeployerElasticAgentFile()
+	elasticAgentFile, err := locations.KubernetesDeployerElasticAgentFile()
 	if err != nil {
 		return errors.Wrap(err, "can't locate Kubernetes file for Elastic Agent in ")
 	}

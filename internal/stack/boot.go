@@ -11,7 +11,7 @@ import (
 
 	"github.com/elastic/elastic-package/internal/builder"
 	"github.com/elastic/elastic-package/internal/files"
-	"github.com/elastic/elastic-package/internal/install"
+	"github.com/elastic/elastic-package/internal/locations"
 )
 
 // DockerComposeProjectName is the name of the Docker Compose project used to boot up
@@ -25,7 +25,7 @@ func BootUp(options Options) error {
 		return errors.Wrap(err, "finding build packages directory failed")
 	}
 
-	stackPackagesDir, err := install.StackPackagesDir()
+	stackPackagesDir, err := locations.StackPackagesDir()
 	if err != nil {
 		return errors.Wrap(err, "locating stack packages directory failed")
 	}
@@ -63,8 +63,8 @@ func BootUp(options Options) error {
 }
 
 // TearDown function takes down the testing stack.
-func TearDown() error {
-	err := dockerComposeDown()
+func TearDown(options Options) error {
+	err := dockerComposeDown(options)
 	if err != nil {
 		return errors.Wrap(err, "stopping docker containers failed")
 	}

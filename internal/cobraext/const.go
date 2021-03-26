@@ -30,6 +30,17 @@ const (
 	GenerateTestResultFlagName        = "generate"
 	GenerateTestResultFlagDescription = "generate test result file"
 
+	ProfileFlagName        = "profile"
+	ProfileFlagDescription = "select a profile to use for the stack configuration. Can also be set with " + ProfileNameEnvVar
+
+	ProfileNameEnvVar = "ELASTIC_PACKAGE_PROFILE"
+
+	ProfileNewFlagName        = "new"
+	ProfileNewFlagDescription = "create a new profile"
+
+	ProfileFromFlagName        = "from"
+	ProfileFromFlagDescription = "copy profile from the specified existing profile"
+
 	ReportFormatFlagName        = "report-format"
 	ReportFormatFlagDescription = "format of test report"
 

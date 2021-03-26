@@ -10,9 +10,9 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/elastic/elastic-package/internal/locations"
 	"github.com/elastic/elastic-package/internal/packages"
 
-	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/logger"
 )
 
@@ -30,7 +30,7 @@ func Stack() (string, error) {
 		return "", errors.Wrapf(err, "reading package manifest failed (path: %s)", packageRoot)
 	}
 
-	stackPackagesDir, err := install.StackPackagesDir()
+	stackPackagesDir, err := locations.StackPackagesDir()
 	if err != nil {
 		return "", errors.Wrap(err, "can't find stack packages dir")
 	}

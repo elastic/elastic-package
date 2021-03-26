@@ -2,7 +2,9 @@
 // or more contributor license agreements. Licensed under the Elastic License;
 // you may not use this file except in compliance with the Elastic License.
 
-package install
+package profile
+
+import "path/filepath"
 
 const kibanaConfigYml = `  
 server.name: kibana
@@ -21,3 +23,16 @@ xpack.fleet.agents.kibana.host: "http://kibana:5601"
 xpack.fleet.agents.tlsCheckDisabled: true
 xpack.encryptedSavedObjects.encryptionKey: "12345678901234567890123456789012"
 `
+
+// KibanaConfigFile is the main kibana config file
+const KibanaConfigFile ConfigFile = "kibana.config.yml"
+
+// NewKibanaConfig returns a Managed Config
+func NewKibanaConfig(_ string, profilePath string) (*SimpleFile, error) {
+
+	return &SimpleFile{
+		FileName: string(KibanaConfigFile),
+		FilePath: filepath.Join(profilePath, string(KibanaConfigFile)),
+		FileBody: kibanaConfigYml,
+	}, nil
+}
