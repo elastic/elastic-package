@@ -37,10 +37,10 @@ func Stack() (string, error) {
 	destinationDir := filepath.Join(stackPackagesDir, m.Name)
 
 	_, err = os.Stat(destinationDir)
-	if err != nil && !os.IsNotExist(err) {
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return "", errors.Wrapf(err, "stat file failed: %s", destinationDir)
 	}
-	if os.IsNotExist(err) {
+	if errors.Is(err, os.ErrNotExist) {
 		logger.Debugf("Stack package is not part of the development stack (missing path: %s)", destinationDir)
 		return "", nil
 	}

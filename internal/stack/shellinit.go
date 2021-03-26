@@ -6,7 +6,7 @@ package stack
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 
 	"github.com/pkg/errors"
@@ -45,7 +45,7 @@ func ShellInit() (string, error) {
 
 	// Read Elasticsearch username and password from Kibana configuration file.
 	kibanaConfigurationPath := filepath.Join(stackDir, "kibana.config.yml")
-	body, err := ioutil.ReadFile(kibanaConfigurationPath)
+	body, err := os.ReadFile(kibanaConfigurationPath)
 	if err != nil {
 		return "", errors.Wrap(err, "reading Kibana configuration file failed")
 	}

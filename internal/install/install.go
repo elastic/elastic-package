@@ -6,7 +6,6 @@ package install
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -139,7 +138,7 @@ func configurationDir() (string, error) {
 
 func checkIfAlreadyInstalled(elasticPackagePath string) (bool, error) {
 	_, err := os.Stat(elasticPackagePath)
-	if os.IsNotExist(err) {
+	if errors.Is(err, os.ErrNotExist) {
 		return false, nil
 	}
 	if err != nil {
@@ -230,7 +229,7 @@ func writeStaticResource(err error, path, content string) error {
 		return err
 	}
 
-	err = ioutil.WriteFile(path, []byte(content), 0644)
+	err = os.WriteFile(path, []byte(content), 0644)
 	if err != nil {
 		return errors.Wrapf(err, "writing file failed (path: %s)", path)
 	}

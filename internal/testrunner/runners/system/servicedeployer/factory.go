@@ -6,7 +6,6 @@ package servicedeployer
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -59,7 +58,7 @@ func findDevDeployPath(options FactoryOptions) (string, error) {
 	_, err := os.Stat(dataStreamDevDeployPath)
 	if err == nil {
 		return dataStreamDevDeployPath, nil
-	} else if !os.IsNotExist(err) {
+	} else if !errors.Is(err, os.ErrNotExist) {
 		return "", errors.Wrapf(err, "stat failed for data stream (path: %s)", dataStreamDevDeployPath)
 	}
 
@@ -67,14 +66,14 @@ func findDevDeployPath(options FactoryOptions) (string, error) {
 	_, err = os.Stat(packageDevDeployPath)
 	if err == nil {
 		return packageDevDeployPath, nil
-	} else if !os.IsNotExist(err) {
+	} else if !errors.Is(err, os.ErrNotExist) {
 		return "", errors.Wrapf(err, "stat failed for package (path: %s)", packageDevDeployPath)
 	}
 	return "", fmt.Errorf("\"%s\" directory doesn't exist", devDeployDir)
 }
 
 func findServiceDeployer(devDeployPath string) (string, error) {
-	fis, err := ioutil.ReadDir(devDeployPath)
+	fis, err := os.ReadDir(devDeployPath)
 	if err != nil {
 		return "", errors.Wrapf(err, "can't read directory (path: %s)", devDeployDir)
 	}
@@ -82,7 +81,11 @@ func findServiceDeployer(devDeployPath string) (string, error) {
 	var folders []os.FileInfo
 	for _, fi := range fis {
 		if fi.IsDir() {
-			folders = append(folders, fi)
+			info, err := fi.Info()
+			if !errors.Is(err, os.ErrNotExist) {
+				return "", errors.Wrapf(err, "can't read directory (path: %s)", devDeployDir)
+			}
+			folders = append(folders, info)
 		}
 	}
 

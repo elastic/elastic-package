@@ -7,7 +7,6 @@ package pipeline
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -44,8 +43,8 @@ func readConfigForTestCase(testCasePath string) (testConfig, error) {
 	testCaseFile := filepath.Base(testCasePath)
 
 	var c testConfig
-	configData, err := ioutil.ReadFile(filepath.Join(testCaseDir, expectedTestConfigFile(testCaseFile, configTestSuffixYAML)))
-	if err != nil && !os.IsNotExist(err) {
+	configData, err := os.ReadFile(filepath.Join(testCaseDir, expectedTestConfigFile(testCaseFile, configTestSuffixYAML)))
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return c, errors.Wrapf(err, "reading YAML-formatted test config file failed (path: %s)", testCasePath)
 	}
 
@@ -57,8 +56,8 @@ func readConfigForTestCase(testCasePath string) (testConfig, error) {
 		return c, nil
 	}
 
-	configData, err = ioutil.ReadFile(filepath.Join(testCaseDir, expectedTestConfigFile(testCaseFile, configTestSuffixJSON)))
-	if err != nil && !os.IsNotExist(err) {
+	configData, err = os.ReadFile(filepath.Join(testCaseDir, expectedTestConfigFile(testCaseFile, configTestSuffixJSON)))
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return c, errors.Wrapf(err, "reading JSON-formatted test config file failed (path: %s)", testCasePath)
 	}
 

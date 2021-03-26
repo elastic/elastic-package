@@ -6,7 +6,7 @@ package storage
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"path/filepath"
 	"sort"
 
@@ -348,7 +348,7 @@ func loadPackageContents(filesystem billy.Filesystem, resourcePaths []string) (f
 			return nil, errors.Wrapf(err, "reading file failed (path: %s)", path)
 		}
 
-		c, err := ioutil.ReadAll(f)
+		c, err := io.ReadAll(f)
 		if err != nil {
 			return nil, errors.Wrapf(err, "reading file content failed (path: %s)", path)
 		}

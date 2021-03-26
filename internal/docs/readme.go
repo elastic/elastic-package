@@ -7,7 +7,6 @@ package docs
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"text/template"
@@ -32,8 +31,8 @@ func AreReadmesUpToDate() ([]ReadmeFile, error) {
 		return nil, errors.Wrap(err, "package root not found")
 	}
 
-	files, err := ioutil.ReadDir(filepath.Join(packageRoot, "_dev", "build", "docs"))
-	if err != nil && !os.IsNotExist(err) {
+	files, err := os.ReadDir(filepath.Join(packageRoot, "_dev", "build", "docs"))
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return nil, errors.Wrap(err, "reading directory entries failed")
 	}
 
@@ -91,8 +90,8 @@ func UpdateReadmes() ([]string, error) {
 		return nil, errors.Wrap(err, "package root not found")
 	}
 
-	readmeFiles, err := ioutil.ReadDir(filepath.Join(packageRoot, "_dev", "build", "docs"))
-	if err != nil && !os.IsNotExist(err) {
+	readmeFiles, err := os.ReadDir(filepath.Join(packageRoot, "_dev", "build", "docs"))
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return nil, errors.Wrap(err, "reading directory entries failed")
 	}
 
@@ -156,7 +155,7 @@ func generateReadme(fileName, packageRoot string) ([]byte, bool, error) {
 func findReadmeTemplatePath(fileName, packageRoot string) (string, bool, error) {
 	templatePath := filepath.Join(packageRoot, "_dev", "build", "docs", fileName)
 	_, err := os.Stat(templatePath)
-	if err != nil && os.IsNotExist(err) {
+	if err != nil && errors.Is(err, os.ErrNotExist) {
 		return "", false, nil // README.md file not found
 	}
 	if err != nil {
@@ -193,8 +192,8 @@ func readReadme(fileName, packageRoot string) ([]byte, bool, error) {
 	logger.Debugf("Read existing %s file (package: %s)", fileName, packageRoot)
 
 	readmePath := filepath.Join(packageRoot, "docs", fileName)
-	b, err := ioutil.ReadFile(readmePath)
-	if err != nil && os.IsNotExist(err) {
+	b, err := os.ReadFile(readmePath)
+	if err != nil && errors.Is(err, os.ErrNotExist) {
 		return nil, false, nil
 	}
 	if err != nil {
@@ -216,7 +215,7 @@ func writeReadme(fileName, packageRoot string, content []byte) (string, error) {
 	aReadmePath := readmePath(fileName, packageRoot)
 	logger.Debugf("Write %s file to: %s", fileName, aReadmePath)
 
-	err = ioutil.WriteFile(aReadmePath, content, 0644)
+	err = os.WriteFile(aReadmePath, content, 0644)
 	if err != nil {
 		return "", errors.Wrapf(err, "writing file failed (path: %s)", aReadmePath)
 	}
