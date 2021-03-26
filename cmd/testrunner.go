@@ -6,6 +6,7 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -130,6 +131,11 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 				if err != nil {
 					return cobraext.FlagParsingError(err, cobraext.DataStreamsFlagName)
 				}
+
+				err = validateDataStreamsFlag(packageRootPath, dataStreams)
+				if err != nil {
+					return cobraext.FlagParsingError(err, cobraext.DataStreamsFlagName)
+				}
 			}
 
 			if runner.TestFolderRequired() {
@@ -209,4 +215,19 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 		}
 		return nil
 	}
+}
+
+func validateDataStreamsFlag(packageRootPath string, dataStreams []string) error {
+	for _, dataStream := range dataStreams {
+		path := filepath.Join(packageRootPath, "data_stream", dataStream)
+		fileInfo, err := os.Stat(path)
+		if err != nil {
+			return errors.Wrapf(err, "stat directory failed (path: %s)", path)
+		}
+
+		if !fileInfo.IsDir() {
+			return fmt.Errorf("data stream must be a directory (path: %s)", path)
+		}
+	}
+	return nil
 }

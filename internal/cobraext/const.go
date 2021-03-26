@@ -36,6 +36,9 @@ const (
 	ReportOutputFlagName        = "report-output"
 	ReportOutputFlagDescription = "output location for test report"
 
+	SkipPullRequestFlagName        = "skip-pull-request"
+	SkipPullRequestFlagDescription = "skip opening a new pull request"
+
 	StackServicesFlagName        = "services"
 	StackServicesFlagDescription = "component services (comma-separated values: \"%s\")"
 
