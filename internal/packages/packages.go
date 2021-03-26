@@ -89,6 +89,11 @@ type PolicyTemplate struct {
 	Inputs []Input `config:"inputs" json:"inputs" yaml:"inputs"`
 }
 
+// Owner defines package owners, either a single person or a team.
+type Owner struct {
+	Github string `config:"github" json:"github" yaml:"github"`
+}
+
 // PackageManifest represents the basic structure of a package's manifest
 type PackageManifest struct {
 	Name            string           `config:"name" json:"name" yaml:"name"`
@@ -97,6 +102,8 @@ type PackageManifest struct {
 	Version         string           `config:"version" json:"version" yaml:"version"`
 	Conditions      Conditions       `config:"conditions" json:"conditions" yaml:"conditions"`
 	PolicyTemplates []PolicyTemplate `config:"policy_templates" json:"policy_templates" yaml:"policy_templates"`
+	Vars            []Variable       `config:"vars" json:"vars" yaml:"vars"`
+	Owner           Owner            `config:"owner" json:"owner" yaml:"owner"`
 }
 
 // DataStreamManifest represents the structure of a data stream's manifest
