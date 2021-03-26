@@ -102,7 +102,7 @@ services:
         condition: service_healthy
     healthcheck:
       test: "sh -c 'grep \"Agent is starting\" /usr/share/elastic-agent/elastic-agent.log*'"
-      retries: 30
+      retries: 90
       interval: 1s
     hostname: docker-fleet-agent
     environment:
