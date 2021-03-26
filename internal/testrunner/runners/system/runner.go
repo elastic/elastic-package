@@ -299,13 +299,6 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 		return nil
 	}
 
-	/*
-	logger.Debug("add fleet-server data stream to test policy...")
-	fleetServer := createPackageDatastream(*policy, *pkgManifest, *dataStreamManifest, *config)
-	if err := kib.AddPackageDataStreamToPolicy(fleetServer); err != nil {
-		return result.WithError(errors.Wrap(err, "could not add data stream config to policy"))
-	}*/
-
 	logger.Debug("adding package data stream to test policy...")
 	ds := createPackageDatastream(*policy, *pkgManifest, *dataStreamManifest, *config)
 	if err := kib.AddPackageDataStreamToPolicy(ds); err != nil {
