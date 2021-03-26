@@ -119,6 +119,15 @@ Use this command to promote packages from one stage of the Package Registry to a
 :warning: This command is intended primarily for use by administrators. 
 
 
+### `elastic-package publish`
+
+_Context: package_
+
+The command checks if the package hasn't been already published to the package-storage (whether it's present in
+snapshot/staging/production branch or open as pull request). If the package revision hasn't been published,
+it will open a new pull request.
+
+
 #### GitHub authorization
 
 The `promote` command requires access to the GitHub API to open pull requests or check authorized account data.

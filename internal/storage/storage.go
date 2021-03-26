@@ -7,12 +7,14 @@ package storage
 import (
 	"fmt"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"sort"
 
 	"github.com/Masterminds/semver"
 	"github.com/go-git/go-billy/v5"
 	"github.com/go-git/go-billy/v5/memfs"
+	"github.com/go-git/go-billy/v5/osfs"
 	"github.com/go-git/go-billy/v5/util"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
@@ -23,6 +25,7 @@ import (
 
 	"github.com/elastic/elastic-package/internal/github"
 	"github.com/elastic/elastic-package/internal/logger"
+	"github.com/elastic/elastic-package/internal/packages"
 )
 
 const (
@@ -37,16 +40,24 @@ const (
 
 type fileContents map[string][]byte
 
+type contentTransformer func(string, []byte) (string, []byte)
+
 // PackageVersion represents a package version stored in the package-storage.
 type PackageVersion struct {
 	Name    string
 	Version string
 
+	root   string
 	semver semver.Version
 }
 
 // NewPackageVersion function creates an instance of PackageVersion.
 func NewPackageVersion(name, version string) (*PackageVersion, error) {
+	return NewPackageVersionWithRoot(name, version, packagesDir)
+}
+
+// NewPackageVersionWithRoot function creates an instance of PackageVersion and defines a custom root.
+func NewPackageVersionWithRoot(name, version, root string) (*PackageVersion, error) {
 	packageVersion, err := semver.NewVersion(version)
 	if err != nil {
 		return nil, errors.Wrapf(err, "reading package version failed (name: %s, version: %s)", name, version)
@@ -54,12 +65,16 @@ func NewPackageVersion(name, version string) (*PackageVersion, error) {
 	return &PackageVersion{
 		Name:    name,
 		Version: version,
+		root:    root,
 		semver:  *packageVersion,
 	}, nil
 }
 
 func (pv *PackageVersion) path() string {
-	return filepath.Join(packagesDir, pv.Name, pv.Version)
+	if pv.root != "" {
+		return filepath.Join(pv.root, pv.Name, pv.Version)
+	}
+	return filepath.Join(pv.Name, pv.Version)
 }
 
 // Equal method can be used to compare two PackageVersions.
@@ -187,6 +202,29 @@ func CloneRepository(user, stage string) (*git.Repository, error) {
 	return r, nil
 }
 
+// ChangeStage function selects the stage in the package storage.
+func ChangeStage(r *git.Repository, stage string) error {
+	wt, err := r.Worktree()
+	if err != nil {
+		return errors.Wrap(err, "fetching worktree reference failed")
+	}
+
+	err = wt.Checkout(&git.CheckoutOptions{
+		Branch: plumbing.NewBranchReferenceName(stage),
+	})
+	if err != nil {
+		return errors.Wrapf(err, "changing branch failed (stage: %s)", stage)
+	}
+
+	err = wt.Clean(&git.CleanOptions{
+		Dir: true,
+	})
+	if err != nil {
+		return errors.Wrapf(err, "can't hard reset worktree (stage: %s)", stage)
+	}
+	return nil
+}
+
 // ListPackages function lists available packages in the package-storage.
 func ListPackages(r *git.Repository) (PackageVersions, error) {
 	return ListPackagesByName(r, "")
@@ -241,6 +279,13 @@ func ListPackagesByName(r *git.Repository, packageName string) (PackageVersions,
 
 // CopyPackages function copies packages between branches. It creates a new branch with selected packages.
 func CopyPackages(r *git.Repository, sourceStage, destinationStage string, packages PackageVersions, destinationBranch string) error {
+	return CopyPackagesWithTransform(r, sourceStage, destinationStage, packages, destinationBranch, nil)
+}
+
+// CopyPackagesWithTransform function copies packages between branches and modifies file content using transform function.
+// It creates a new branch with selected packages.
+func CopyPackagesWithTransform(r *git.Repository, sourceStage, destinationStage string, packages PackageVersions, destinationBranch string,
+	transform contentTransformer) error {
 	wt, err := r.Worktree()
 	if err != nil {
 		return errors.Wrap(err, "fetching worktree reference failed")
@@ -286,6 +331,10 @@ func CopyPackages(r *git.Repository, sourceStage, destinationStage string, packa
 		return nil
 	}
 
+	if transform != nil {
+		contents = transformPackageContents(contents, transform)
+	}
+
 	logger.Debugf("Write package resources to destination branch")
 	err = writePackageContents(wt.Filesystem, contents)
 	if err != nil {
@@ -304,6 +353,69 @@ func CopyPackages(r *git.Repository, sourceStage, destinationStage string, packa
 		return errors.Wrapf(err, "committing files failed (stage: %s)", destinationBranch)
 	}
 	return nil
+}
+
+// CopyOverLocalPackage function updates the local repository with the selected local package.
+// It returns the commit hash for the HEAD.
+//
+// Principle of operation
+// 0. Git index is clean.
+// 1. All files need to be removed from the destination folder (in Git repository).
+// 2. Copy package content to the destination folder.
+//
+// Result:
+// The destination folder contains new/updated files and doesn't contain removed ones.
+func CopyOverLocalPackage(r *git.Repository, builtPackageDir string, manifest *packages.PackageManifest) (string, error) {
+	wt, err := r.Worktree()
+	if err != nil {
+		return "", errors.Wrap(err, "fetching worktree reference failed")
+	}
+
+	logger.Debugf("Temporarily remove all files from index")
+	publishedPackageDir := filepath.Join(packagesDir, manifest.Name, manifest.Version)
+	_, err = wt.Remove(publishedPackageDir)
+	if err != nil && !os.IsNotExist(err) {
+		return "", errors.Wrapf(err, "can't remove files within path: %s", publishedPackageDir)
+	}
+
+	packageVersion, err := NewPackageVersionWithRoot(manifest.Name, manifest.Version, "")
+	if err != nil {
+		return "", errors.Wrap(err, "can't create instance of PackageVersion")
+	}
+
+	logger.Debugf("Evaluate all resource paths for the package (buildDir: %s)", builtPackageDir)
+	osFs := osfs.New(builtPackageDir)
+	resourcePaths, err := walkPackageVersions(osFs, *packageVersion)
+	if err != nil {
+		return "", errors.Wrap(err, "walking package versions failed")
+	}
+
+	contents, err := loadPackageContents(osFs, resourcePaths)
+	if err != nil {
+		return "", errors.Wrap(err, "loading package contents failed")
+	}
+
+	contents = transformPackageContents(contents, func(path string, body []byte) (string, []byte) {
+		return filepath.Join(packagesDir, path), body
+	})
+
+	err = writePackageContents(wt.Filesystem, contents)
+	if err != nil {
+		return "", errors.Wrap(err, "writing package contents failed")
+	}
+
+	logger.Debugf("Add updated resources to index")
+	_, err = wt.Add(packagesDir)
+	if err != nil {
+		return "", errors.Wrapf(err, "adding updated resource to index failed")
+	}
+
+	logger.Debugf("Commit changes to destination branch")
+	commitHash, err := wt.Commit("Copy over local package sources", new(git.CommitOptions))
+	if err != nil {
+		return "", errors.Wrap(err, "committing files failed")
+	}
+	return commitHash.String(), nil
 }
 
 func walkPackageVersions(filesystem billy.Filesystem, versions ...PackageVersion) ([]string, error) {
@@ -356,6 +468,15 @@ func loadPackageContents(filesystem billy.Filesystem, resourcePaths []string) (f
 		m[path] = c
 	}
 	return m, nil
+}
+
+func transformPackageContents(contents fileContents, transform contentTransformer) fileContents {
+	transformed := fileContents{}
+	for r, c := range contents {
+		dr, dc := transform(r, c)
+		transformed[dr] = dc
+	}
+	return transformed
 }
 
 func writePackageContents(filesystem billy.Filesystem, contents fileContents) error {
