@@ -27,6 +27,9 @@ func setupPublishCommand() *cobra.Command {
 		Long:  publishLongDescription,
 		RunE:  publishCommandAction,
 	}
+
+	// SkipPullRequest flag can used to verify if the "publish" command works properly (finds correct revisions),
+	// for which the operator doesn't want to immediately close just opened PRs (standard dry-run).
 	cmd.Flags().BoolP(cobraext.SkipPullRequestFlagName, "s", false, cobraext.SkipPullRequestFlagDescription)
 	return cmd
 }
