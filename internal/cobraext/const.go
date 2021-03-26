@@ -36,9 +36,6 @@ const (
 	ReportOutputFlagName        = "report-output"
 	ReportOutputFlagDescription = "output location for test report"
 
-	VerboseFlagName        = "verbose"
-	VerboseFlagDescription = "verbose mode"
-
 	StackServicesFlagName        = "services"
 	StackServicesFlagDescription = "component services (comma-separated values: \"%s\")"
 
@@ -47,4 +44,7 @@ const (
 
 	StackDumpOutputFlagName        = "output"
 	StackDumpOutputFlagDescription = "output location for the stack dump"
+
+	VerboseFlagName        = "verbose"
+	VerboseFlagDescription = "verbose mode"
 )

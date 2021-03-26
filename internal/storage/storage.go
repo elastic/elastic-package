@@ -2,7 +2,7 @@
 // or more contributor license agreements. Licensed under the Elastic License;
 // you may not use this file except in compliance with the Elastic License.
 
-package promote
+package storage
 
 import (
 	"fmt"
@@ -22,6 +22,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/github"
+	"github.com/elastic/elastic-package/internal/logger"
 )
 
 const (
@@ -30,6 +31,8 @@ const (
 	snapshotPackage = "snapshot"
 	stagingPackage  = "staging"
 	repositoryURL   = "https://github.com/%s/package-storage"
+
+	packagesDir = "packages"
 )
 
 type fileContents map[string][]byte
@@ -42,13 +45,31 @@ type PackageVersion struct {
 	semver semver.Version
 }
 
-func (pr *PackageVersion) path() string {
-	return filepath.Join("packages", pr.Name, pr.Version)
+// NewPackageVersion function creates an instance of PackageVersion.
+func NewPackageVersion(name, version string) (*PackageVersion, error) {
+	packageVersion, err := semver.NewVersion(version)
+	if err != nil {
+		return nil, errors.Wrapf(err, "reading package version failed (name: %s, version: %s)", name, version)
+	}
+	return &PackageVersion{
+		Name:    name,
+		Version: version,
+		semver:  *packageVersion,
+	}, nil
+}
+
+func (pv *PackageVersion) path() string {
+	return filepath.Join(packagesDir, pv.Name, pv.Version)
+}
+
+// Equal method can be used to compare two PackageVersions.
+func (pv *PackageVersion) Equal(other PackageVersion) bool {
+	return pv.semver.Equal(&other.semver)
 }
 
 // String method returns a string representation of the PackageVersion.
-func (pr *PackageVersion) String() string {
-	return fmt.Sprintf("%s-%s", pr.Name, pr.Version)
+func (pv *PackageVersion) String() string {
+	return fmt.Sprintf("%s-%s", pv.Name, pv.Version)
 }
 
 // PackageVersions is an array of PackageVersion.
@@ -96,7 +117,7 @@ func (prs PackageVersions) Strings() []string {
 	return entries
 }
 
-// CloneRepository method clones the repository and changes branch to stage.
+// CloneRepository function clones the repository and changes branch to stage.
 func CloneRepository(user, stage string) (*git.Repository, error) {
 	// Initialize repository
 	r, err := git.Init(memory.NewStorage(), memfs.New())
@@ -143,7 +164,6 @@ func CloneRepository(user, stage string) (*git.Repository, error) {
 	// Fetch and checkout
 	err = upstreamRemote.Fetch(&git.FetchOptions{
 		RefSpecs: []config.RefSpec{
-			"HEAD:refs/heads/HEAD",
 			"refs/heads/snapshot:refs/heads/snapshot",
 			"refs/heads/staging:refs/heads/staging",
 			"refs/heads/production:refs/heads/production",
@@ -167,15 +187,20 @@ func CloneRepository(user, stage string) (*git.Repository, error) {
 	return r, nil
 }
 
-// ListPackages method lists available packages in the package-storage.
-// It skips packages: snapshot, staging.
+// ListPackages function lists available packages in the package-storage.
 func ListPackages(r *git.Repository) (PackageVersions, error) {
+	return ListPackagesByName(r, "")
+}
+
+// ListPackagesByName function lists available packages in the package-storage.
+// It filters packages by name and skips packages: snapshot, staging.
+func ListPackagesByName(r *git.Repository, packageName string) (PackageVersions, error) {
 	wt, err := r.Worktree()
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching worktree reference failed")
 	}
 
-	packageDirs, err := wt.Filesystem.ReadDir("/packages")
+	packageDirs, err := wt.Filesystem.ReadDir("/" + packagesDir)
 	if err != nil {
 		return nil, errors.Wrap(err, "reading packages directory failed")
 	}
@@ -190,7 +215,11 @@ func ListPackages(r *git.Repository) (PackageVersions, error) {
 			continue
 		}
 
-		versionDirs, err := wt.Filesystem.ReadDir(filepath.Join("/packages", packageDir.Name()))
+		if packageName != "" && packageName != packageDir.Name() {
+			continue
+		}
+
+		versionDirs, err := wt.Filesystem.ReadDir(filepath.Join(packagesDir, packageDir.Name()))
 		if err != nil {
 			return nil, errors.Wrap(err, "reading packages directory failed")
 		}
@@ -200,113 +229,84 @@ func ListPackages(r *git.Repository) (PackageVersions, error) {
 				continue
 			}
 
-			packageVersion, err := semver.NewVersion(versionDir.Name())
+			packageVersion, err := NewPackageVersion(packageDir.Name(), versionDir.Name())
 			if err != nil {
-				return nil, errors.Wrapf(err, "reading package version failed (name: %s, version: %s)", packageDir.Name(), versionDir.Name())
+				return nil, errors.Wrap(err, "can't create instance of PackageVersion")
 			}
-
-			versions = append(versions, PackageVersion{
-				Name:    packageDir.Name(),
-				Version: versionDir.Name(),
-				semver:  *packageVersion,
-			})
+			versions = append(versions, *packageVersion)
 		}
 	}
 	return versions.sort(), nil
 }
 
-// DeterminePackagesToBeRemoved method lists packages supposed to be removed from the stage.
-func DeterminePackagesToBeRemoved(allPackages PackageVersions, promotedPackages PackageVersions, newestOnly bool) PackageVersions {
-	var removed PackageVersions
-
-	for _, p := range allPackages {
-		var toBeRemoved bool
-
-		for _, r := range promotedPackages {
-			if p.Name != r.Name {
-				continue
-			}
-
-			if newestOnly {
-				toBeRemoved = true
-				break
-			}
-
-			if p.semver.Equal(&r.semver) {
-				toBeRemoved = true
-			}
-		}
-
-		if toBeRemoved {
-			removed = append(removed, p)
-		}
-	}
-	return removed
-}
-
-// CopyPackages method copies packages between branches. It creates a new branch with selected packages.
-func CopyPackages(r *git.Repository, sourceStage, destinationStage string, packages PackageVersions, nonce int64) (string, error) {
-	fmt.Printf("Promote packages from %s to %s...\n", sourceStage, destinationStage)
-
+// CopyPackages function copies packages between branches. It creates a new branch with selected packages.
+func CopyPackages(r *git.Repository, sourceStage, destinationStage string, packages PackageVersions, destinationBranch string) error {
 	wt, err := r.Worktree()
 	if err != nil {
-		return "", errors.Wrap(err, "fetching worktree reference failed")
+		return errors.Wrap(err, "fetching worktree reference failed")
 	}
 
+	logger.Debugf("Checkout source stage: %s", sourceStage)
 	err = wt.Checkout(&git.CheckoutOptions{
 		Branch: plumbing.NewBranchReferenceName(sourceStage),
 	})
 	if err != nil {
-		return "", errors.Wrapf(err, "changing branch failed (path: %s)", sourceStage)
+		return errors.Wrapf(err, "changing branch failed (path: %s)", sourceStage)
 	}
 
-	// Load package resources from source stage
-	resourcePaths, err := walkPackageVersions(wt.Filesystem, packages)
+	logger.Debugf("Load package resources from source stage")
+	resourcePaths, err := walkPackageVersions(wt.Filesystem, packages...)
 	if err != nil {
-		return "", errors.Wrap(err, "walking package versions failed")
+		return errors.Wrap(err, "walking package versions failed")
 	}
 
 	contents, err := loadPackageContents(wt.Filesystem, resourcePaths)
 	if err != nil {
-		return "", errors.Wrap(err, "loading package contents failed")
+		return errors.Wrap(err, "loading package contents failed")
 	}
 
+	logger.Debugf("Checkout destination stage: %s", destinationStage)
 	err = wt.Checkout(&git.CheckoutOptions{
 		Branch: plumbing.NewBranchReferenceName(destinationStage),
 	})
 	if err != nil {
-		return "", errors.Wrapf(err, "changing branch failed (path: %s)", destinationStage)
+		return errors.Wrapf(err, "changing branch failed (path: %s)", destinationStage)
 	}
 
-	newDestinationStage := fmt.Sprintf("promote-from-%s-to-%s-%d", sourceStage, destinationStage, nonce)
+	logger.Debugf("Create new destination branch: %s", destinationBranch)
 	err = wt.Checkout(&git.CheckoutOptions{
-		Branch: plumbing.NewBranchReferenceName(newDestinationStage),
+		Branch: plumbing.NewBranchReferenceName(destinationBranch),
 		Create: true,
 	})
 	if err != nil {
-		return "", errors.Wrapf(err, "changing branch failed (path: %s)", newDestinationStage)
+		return errors.Wrapf(err, "changing branch failed (path: %s)", destinationBranch)
 	}
 
+	if len(contents) == 0 {
+		return nil
+	}
+
+	logger.Debugf("Write package resources to destination branch")
 	err = writePackageContents(wt.Filesystem, contents)
 	if err != nil {
-		return "", errors.Wrap(err, "writing package contents failed")
+		return errors.Wrap(err, "writing package contents failed")
 	}
 
-	for resourcePath := range contents {
-		_, err := wt.Add(resourcePath)
-		if err != nil {
-			return "", errors.Wrapf(err, "adding resource to index failed (path: %s)", resourcePath)
-		}
-	}
-
-	_, err = wt.Commit(fmt.Sprintf("Promote packages from %s to %s", sourceStage, destinationStage), new(git.CommitOptions))
+	logger.Debugf("Add package resources to index")
+	_, err = wt.Add(packagesDir)
 	if err != nil {
-		return "", errors.Wrapf(err, "committing files failed (stage: %s)", newDestinationStage)
+		return errors.Wrapf(err, "adding resource to index failed")
 	}
-	return newDestinationStage, nil
+
+	logger.Debugf("Commit changes to destination branch")
+	_, err = wt.Commit(fmt.Sprintf("Copy packages from %s to %s", sourceStage, destinationStage), new(git.CommitOptions))
+	if err != nil {
+		return errors.Wrapf(err, "committing files failed (stage: %s)", destinationBranch)
+	}
+	return nil
 }
 
-func walkPackageVersions(filesystem billy.Filesystem, versions PackageVersions) ([]string, error) {
+func walkPackageVersions(filesystem billy.Filesystem, versions ...PackageVersion) ([]string, error) {
 	var collected []string
 	for _, r := range versions {
 		paths, err := walkPackageResources(filesystem, r.path())
@@ -374,59 +374,63 @@ func writePackageContents(filesystem billy.Filesystem, contents fileContents) er
 	return nil
 }
 
-// RemovePackages method removes packages from "stage" branch. It creates a new branch with removed packages.
-func RemovePackages(r *git.Repository, sourceStage string, packages PackageVersions, nonce int64) (string, error) {
+// RemovePackages function removes packages from "stage" branch. It creates a new branch with removed packages.
+func RemovePackages(r *git.Repository, sourceStage string, packages PackageVersions, sourceBranch string) error {
 	fmt.Printf("Remove packages from %s...\n", sourceStage)
 
 	wt, err := r.Worktree()
 	if err != nil {
-		return "", errors.Wrap(err, "fetching worktree reference failed")
+		return errors.Wrap(err, "fetching worktree reference failed")
 	}
 
-	// Create branch for updated stage
+	logger.Debugf("Checkout source stage: %s", sourceStage)
 	err = wt.Checkout(&git.CheckoutOptions{
 		Branch: plumbing.NewBranchReferenceName(sourceStage),
 	})
 	if err != nil {
-		return "", errors.Wrapf(err, "changing branch failed (path: %s)", sourceStage)
+		return errors.Wrapf(err, "changing branch failed (path: %s)", sourceStage)
 	}
 
-	newSourceStage := fmt.Sprintf("delete-from-%s-%d", sourceStage, nonce)
+	logger.Debugf("Create new source branch: %s", sourceBranch)
 	err = wt.Checkout(&git.CheckoutOptions{
-		Branch: plumbing.NewBranchReferenceName(newSourceStage),
+		Branch: plumbing.NewBranchReferenceName(sourceBranch),
 		Create: true,
 	})
 	if err != nil {
-		return "", errors.Wrapf(err, "changing branch failed (path: %s)", newSourceStage)
+		return errors.Wrapf(err, "changing branch failed (path: %s)", sourceBranch)
 	}
 
+	logger.Debugf("Remove package resources from new source branch")
 	for _, p := range packages {
 		_, err := wt.Remove(p.path())
 		if err != nil {
-			return "", errors.Wrapf(err, "removing package from index failed (path: %s)", p.path())
+			return errors.Wrapf(err, "removing package from index failed (path: %s)", p.path())
 		}
 	}
 
+	logger.Debugf("Commit changes to new source branch")
 	_, err = wt.Commit(fmt.Sprintf("Delete packages from %s", sourceStage), new(git.CommitOptions))
 	if err != nil {
-		return "", errors.Wrapf(err, "committing files failed (stage: %s)", sourceStage)
+		return errors.Wrapf(err, "committing files failed (stage: %s)", sourceStage)
 	}
-	return newSourceStage, nil
+	return nil
 }
 
-// PushChanges method pushes branches to the remote repository.
-func PushChanges(user string, r *git.Repository, newSourceStage, newDestinationStage string) error {
+// PushChanges function pushes branches to the remote repository.
+func PushChanges(user string, r *git.Repository, stages ...string) error {
 	authToken, err := github.AuthToken()
 	if err != nil {
 		return errors.Wrap(err, "reading auth token failed")
 	}
 
+	var refSpecs []config.RefSpec
+	for _, stage := range stages {
+		refSpecs = append(refSpecs, config.RefSpec(fmt.Sprintf("refs/heads/%s:refs/heads/%s", stage, stage)))
+	}
+
 	err = r.Push(&git.PushOptions{
 		RemoteName: user,
-		RefSpecs: []config.RefSpec{
-			config.RefSpec(fmt.Sprintf("refs/heads/%s:refs/heads/%s", newSourceStage, newSourceStage)),
-			config.RefSpec(fmt.Sprintf("refs/heads/%s:refs/heads/%s", newDestinationStage, newDestinationStage)),
-		},
+		RefSpecs:   refSpecs,
 		Auth: &http.BasicAuth{
 			Username: user,
 			Password: authToken,
