@@ -74,7 +74,7 @@ services:
       package-registry:
         condition: service_healthy
 
-  elastic-agent:
+  fleet-server:
     image: ${ELASTIC_AGENT_IMAGE_REF}
     depends_on:
       elasticsearch:
@@ -87,13 +87,27 @@ services:
       interval: 1s
     hostname: docker-fleet-agent
     environment:
-    - "FLEET_INSECURE=1"
     - "FLEET_SERVER_ENABLE=1"
-    - "FLEET_SERVER_HOST=0.0.0.0"
     - "FLEET_SERVER_INSECURE_HTTP=1"
-    - "FLEET_SETUP=1"
+    - "KIBANA_FLEET_SETUP=1"
+    - "KIBANA_FLEET_HOST=http://kibana:5601"
     ports:
       - "127.0.0.1:8220:8220"
+
+  elastic-agent:
+    image: ${ELASTIC_AGENT_IMAGE_REF}
+    depends_on:
+      fleet-server:
+        condition: service_healthy
+    healthcheck:
+      test: "sh -c 'grep \"Agent is starting\" /usr/share/elastic-agent/elastic-agent.log*'"
+      retries: 30
+      interval: 1s
+    hostname: docker-fleet-agent
+    environment:
+    - "FLEET_ENROLL=1"
+    - "FLEET_INSECURE=1"
+    - "FLEET_URL=http://fleet-server:8220"
     volumes:
     - type: bind
       source: ../tmp/service_logs/
