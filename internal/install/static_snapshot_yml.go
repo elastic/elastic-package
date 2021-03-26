@@ -85,12 +85,13 @@ services:
       test: "sh -c 'grep \"Agent is starting\" /usr/share/elastic-agent/elastic-agent.log*'"
       retries: 30
       interval: 1s
-    hostname: docker-fleet-agent
+    hostname: docker-fleet-server
     environment:
     - "FLEET_SERVER_ENABLE=1"
     - "FLEET_SERVER_INSECURE_HTTP=1"
     - "KIBANA_FLEET_SETUP=1"
     - "KIBANA_FLEET_HOST=http://kibana:5601"
+    - "FLEET_SERVER_HOST=0.0.0.0"
     ports:
       - "127.0.0.1:8220:8220"
 
@@ -101,7 +102,7 @@ services:
         condition: service_healthy
     healthcheck:
       test: "sh -c 'grep \"Agent is starting\" /usr/share/elastic-agent/elastic-agent.log*'"
-      retries: 30
+      retries: 60
       interval: 1s
     hostname: docker-fleet-agent
     environment:
