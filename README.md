@@ -1,3 +1,7 @@
+<!--
+WARNING: This is a generated file. Do NOT edit it manually. To regenerate this file, run `make readme`.
+-->
+
 # elastic-package
 
 `elastic-package` is a command line tool, written in Go, used for developing Elastic packages. It can help you lint, format,
