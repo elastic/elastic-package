@@ -14,7 +14,7 @@ import (
 )
 
 func init() {
-	cobraext.CommandInfos[installCmd] = cobraext.CommandInfo{
+	cobraext.CommandInfos[publishCmd] = cobraext.CommandInfo{
 		Short:   "Publish the package to the Package Registry",
 		Long:    publishLongDescription,
 		Context: "package",
