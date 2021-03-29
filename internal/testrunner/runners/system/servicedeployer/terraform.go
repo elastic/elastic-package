@@ -12,7 +12,7 @@ import (
 
 	"github.com/elastic/elastic-package/internal/compose"
 	"github.com/elastic/elastic-package/internal/files"
-	"github.com/elastic/elastic-package/internal/install"
+	"github.com/elastic/elastic-package/internal/locations"
 	"github.com/elastic/elastic-package/internal/logger"
 )
 
@@ -80,7 +80,7 @@ func (tsd TerraformServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedServic
 }
 
 func (tsd TerraformServiceDeployer) loadComposeDefinitions() ([]string, error) {
-	terraformDeployerYml, err := install.TerraformDeployerComposeFile()
+	terraformDeployerYml, err := locations.TerraformDeployerComposeFile()
 	if err != nil {
 		return nil, errors.Wrap(err, "can't locate docker compose file for Terraform deployer")
 	}

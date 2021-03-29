@@ -11,6 +11,8 @@ import (
 
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
+
+	"github.com/elastic/elastic-package/internal/locations"
 )
 
 // ApplicationConfiguration represents the configuration of the elastic-package.
@@ -66,7 +68,7 @@ func (ac *ApplicationConfiguration) StackImageRefs(version string) ImageRefs {
 
 // Configuration function returns the elastic-package configuration.
 func Configuration() (*ApplicationConfiguration, error) {
-	configPath, err := configurationDir()
+	configPath, err := locations.ConfigurationDir()
 	if err != nil {
 		return nil, errors.Wrap(err, "can't read configuration directory")
 	}
