@@ -5,6 +5,7 @@
 package cmd
 
 import (
+	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
@@ -12,18 +13,24 @@ import (
 	"github.com/elastic/elastic-package/internal/packages/installer"
 )
 
+func init() {
+	cobraext.CommandInfos[uninstallCmd] = cobraext.CommandInfo{
+		Short:   "Uninstall the package",
+		Long:    uninstallLongDescription,
+		Context: "package",
+	}
+}
+
+const uninstallCmd = "uninstall"
 const uninstallLongDescription = `Use this command to uninstall the package in Kibana.
 
-The command uses Kibana API to uninstall the package in Kibana. The package must be exposed via the Package Registry.
-
-Context:
-  package`
+The command uses Kibana API to uninstall the package in Kibana. The package must be exposed via the Package Registry.`
 
 func setupUninstallCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "uninstall",
-		Short: "Uninstall the package",
-		Long:  uninstallLongDescription,
+		Use:   uninstallCmd,
+		Short: cobraext.CommandInfos[uninstallCmd].Short,
+		Long:  cobraext.CommandInfos[uninstallCmd].LongCLI(),
 		RunE:  uninstallCommandAction,
 	}
 	return cmd

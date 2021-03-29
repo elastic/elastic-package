@@ -13,18 +13,24 @@ import (
 	"github.com/elastic/elastic-package/internal/publish"
 )
 
+func init() {
+	cobraext.CommandInfos[installCmd] = cobraext.CommandInfo{
+		Short:   "Publish the package to the Package Registry",
+		Long:    publishLongDescription,
+		Context: "package",
+	}
+}
+
+const publishCmd = "publish"
 const publishLongDescription = `Use this command to publish a new package revision.
 
-The command checks if the package hasn't been already published (whether it's present in snapshot/staging/production branch or open as pull request). If the package revision hasn't been published, it will open a new pull request.
-
-Context:
-  package`
+The command checks if the package hasn't been already published (whether it's present in snapshot/staging/production branch or open as pull request). If the package revision hasn't been published, it will open a new pull request.`
 
 func setupPublishCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "publish",
-		Short: "Publish the package to the Package Registry",
-		Long:  publishLongDescription,
+		Use:   publishCmd,
+		Short: cobraext.CommandInfos[publishCmd].Short,
+		Long:  cobraext.CommandInfos[publishCmd].LongCLI(),
 		RunE:  publishCommandAction,
 	}
 

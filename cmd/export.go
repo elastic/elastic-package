@@ -17,6 +17,15 @@ import (
 	"github.com/elastic/elastic-package/internal/kibana"
 )
 
+func init() {
+	cobraext.CommandInfos[exportCmd] = cobraext.CommandInfo{
+		Short:   "Export package assets",
+		Long:    exportLongDescription,
+		Context: "package",
+	}
+}
+
+const exportCmd = "export"
 const exportLongDescription = `Use this command to export assets relevant for the package, e.g. Kibana dashboards.
 
 Context:
@@ -24,10 +33,7 @@ Context:
 
 const exportDashboardsLongDescription = `Use this command to export dashboards with referenced objects from the Kibana instance.
 
-Use this command to download selected dashboards and other associated saved objects from Kibana. This command adjusts the downloaded saved objects according to package naming conventions (prefixes, unique IDs) and writes them locally into folders corresponding to saved object types (dashboard, visualization, map, etc.).
-
-Context:
-  package`
+Use this command to download selected dashboards and other associated saved objects from Kibana. This command adjusts the downloaded saved objects according to package naming conventions (prefixes, unique IDs) and writes them locally into folders corresponding to saved object types (dashboard, visualization, map, etc.).`
 
 func setupExportCommand() *cobra.Command {
 	exportDashboardCmd := &cobra.Command{
@@ -39,9 +45,9 @@ func setupExportCommand() *cobra.Command {
 	exportDashboardCmd.Flags().StringSliceP(cobraext.DashboardIDsFlagName, "d", nil, cobraext.DashboardIDsFlagDescription)
 
 	cmd := &cobra.Command{
-		Use:   "export",
-		Short: "Export package assets",
-		Long:  exportLongDescription,
+		Use:   exportCmd,
+		Short: cobraext.CommandInfos[exportCmd].Short,
+		Long:  cobraext.CommandInfos[exportCmd].LongCLI(),
 	}
 	cmd.AddCommand(exportDashboardCmd)
 	return cmd

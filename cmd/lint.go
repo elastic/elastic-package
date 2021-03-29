@@ -5,6 +5,7 @@
 package cmd
 
 import (
+	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
@@ -14,18 +15,24 @@ import (
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
+func init() {
+	cobraext.CommandInfos[lintCmd] = cobraext.CommandInfo{
+		Short:   "Lint the package",
+		Long:    lintLongDescription,
+		Context: "package",
+	}
+}
+
+const lintCmd = "lint"
 const lintLongDescription = `Use this command to validate the contents of a package using the package specification (see: https://github.com/elastic/package-spec).
 
-The command ensures that the package is aligned with the package spec and the README file is up-to-date with its template (if present).
-
-Context:
-  package`
+The command ensures that the package is aligned with the package spec and the README file is up-to-date with its template (if present).`
 
 func setupLintCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "lint",
-		Short: "Lint the package",
-		Long:  lintLongDescription,
+		Use:   lintCmd,
+		Short: cobraext.CommandInfos[lintCmd].Short,
+		Long:  cobraext.CommandInfos[lintCmd].LongCLI(),
 		RunE:  lintCommandAction,
 	}
 	return cmd

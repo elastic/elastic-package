@@ -18,17 +18,22 @@ import (
 	"github.com/elastic/elastic-package/internal/stack"
 )
 
+func init() {
+	cobraext.CommandInfos[stackCmd] = cobraext.CommandInfo{
+		Short:   "Manage the Elastic stack",
+		Long:    stackLongDescription,
+		Context: "global",
+	}
+}
+
 var availableServices = map[string]struct{}{
 	"elasticsearch":    {},
 	"kibana":           {},
 	"package-registry": {},
 }
 
-const stackLongDescription = `Use stack subcommands to manage a Docker-based Elastic Stack consisting of Elasticsearch, Kibana, Elastic Agent and the Package Registry.
-
-Context:
-  global`
-
+const stackCmd = "stack"
+const stackLongDescription = `Use stack subcommands to manage a Docker-based Elastic Stack consisting of Elasticsearch, Kibana, Elastic Agent and the Package Registry.`
 const stackUpLongDescription = `Use this command to boot up the stack locally.
 
 By default the latest released version of the stack is spun up but it is possible to specify a different version, including SNAPSHOT versions.
@@ -168,9 +173,9 @@ func setupStackCommand() *cobra.Command {
 	dumpCommand.Flags().StringP(cobraext.StackDumpOutputFlagName, "", "elastic-stack-dump", cobraext.StackDumpOutputFlagDescription)
 
 	cmd := &cobra.Command{
-		Use:   "stack",
-		Short: "Manage the Elastic stack",
-		Long:  stackLongDescription,
+		Use:   stackCmd,
+		Short: cobraext.CommandInfos[stackCmd].Short,
+		Long:  cobraext.CommandInfos[stackCmd].LongCLI(),
 	}
 	cmd.AddCommand(
 		upCommand,

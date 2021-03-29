@@ -11,18 +11,24 @@ import (
 	"github.com/elastic/elastic-package/internal/cobraext"
 )
 
+func init() {
+	cobraext.CommandInfos[checkCmd] = cobraext.CommandInfo{
+		Short:   "Check the package",
+		Long:    checkLongDescription,
+		Context: "package",
+	}
+}
+
+const checkCmd = "check"
 const checkLongDescription = `Use this command to verify if the package is correct in terms of formatting, validation and building.
 
-It will execute the format, lint, and build commands all at once, in that order.
-
-Context:
-  package`
+It will execute the format, lint, and build commands all at once, in that order.`
 
 func setupCheckCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "check",
-		Short: "Check the package",
-		Long:  checkLongDescription,
+		Use:   checkCmd,
+		Short: cobraext.CommandInfos[checkCmd].Short,
+		Long:  cobraext.CommandInfos[checkCmd].LongCLI(),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			err := cobraext.ComposeCommandActions(cmd, args,
 				formatCommandAction,

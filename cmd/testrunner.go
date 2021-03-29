@@ -23,6 +23,15 @@ import (
 	_ "github.com/elastic/elastic-package/internal/testrunner/runners" // register all test runners
 )
 
+func init() {
+	cobraext.CommandInfos[testCmd] = cobraext.CommandInfo{
+		Short:   "Run test suite for the package",
+		Long:    testLongDescription,
+		Context: "package",
+	}
+}
+
+const testCmd = "test"
 const testLongDescription = `Use this command to run tests on a package. Currently, the following types of tests are available:
 
 Asset Loading Tests
@@ -30,25 +39,22 @@ These tests allow you to exercise installing a package to ensure that its assets
 
 Pipeline Tests
 These tests allow you to exercise any Ingest Node Pipelines defined by your packages.
-For details on how to configure pipeline test for a package, review the HOWTO guide (see: https://github.com/elastic/elastic-package/blob/master/docs/howto/pipeline_testing.md).
+For details on how to configure pipeline test for a package, review the [HOWTO guide](https://github.com/elastic/elastic-package/blob/master/docs/howto/pipeline_testing.md).
 
 Static Tests
 These tests allow you to verify if all static resources of the package are valid, e.g. if all fields of the sample_event.json are documented.
 
 System Tests
 These tests allow you to test a package's ability to ingest data end-to-end.
-For details on how to configure amd run system tests, review the HOWTO guide (see: https://github.com/elastic/elastic-package/blob/master/docs/howto/system_testing.md).
-
-Context:
-  package`
+For details on how to configure amd run system tests, review the [HOWTO guide](https://github.com/elastic/elastic-package/blob/master/docs/howto/system_testing.md).`
 
 func setupTestCommand() *cobra.Command {
 	var testTypeCmdActions []cobraext.CommandAction
 
 	cmd := &cobra.Command{
-		Use:   "test",
-		Short: "Run test suite for the package",
-		Long:  testLongDescription,
+		Use:   testCmd,
+		Short: cobraext.CommandInfos[testCmd].Short,
+		Long:  cobraext.CommandInfos[testCmd].LongCLI(),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.Println("Run test suite for the package")
 
