@@ -81,11 +81,11 @@ func findServiceDeployer(devDeployPath string) (string, error) {
 	var folders []os.FileInfo
 	for _, fi := range fis {
 		if fi.IsDir() {
-			f, err := fi.Info()
+			info, err := fi.Info()
 			if err != nil {
 				return "", errors.Wrapf(err, "can't read directory (path: %s)", devDeployDir)
 			}
-			folders = append(folders, f)
+			folders = append(folders, info)
 		}
 	}
 
