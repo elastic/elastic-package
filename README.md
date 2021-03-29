@@ -66,44 +66,58 @@ Built packages are stored in the "build/" folder located at the root folder of t
 
 Built packages are served up by the Elastic Package Registry running locally (see "elastic-package stack"). If you want a local package to be served up by the local Elastic Package Registry, make sure to build that package first using "elastic-package build".
 
-Built packages can also be published to the global package registry service.### `elastic-package check`
+Built packages can also be published to the global package registry service.
+
+### `elastic-package check`
 
 _Context: package_
 
 Use this command to verify if the package is correct in terms of formatting, validation and building.
 
-It will execute the format, lint, and build commands all at once, in that order.### `elastic-package clean`
+It will execute the format, lint, and build commands all at once, in that order.
+
+### `elastic-package clean`
 
 _Context: package_
 
 Use this command to clean resources used for building the package.
 
-The command will remove built package files (in build/), files needed for managing the development stack (in ~/.elastic-package/stack/development) and stack service logs (in ~/.elastic-package/tmp/service_logs).### `elastic-package export`
+The command will remove built package files (in build/), files needed for managing the development stack (in ~/.elastic-package/stack/development) and stack service logs (in ~/.elastic-package/tmp/service_logs).
+
+### `elastic-package export`
 
 _Context: package_
 
 Use this command to export assets relevant for the package, e.g. Kibana dashboards.
 
 Context:
-  package### `elastic-package format`
+  package
+
+### `elastic-package format`
 
 _Context: package_
 
 Use this command to format the package files.
 
-The formatter supports JSON and YAML format, and skips "ingest_pipeline" directories as it's hard to correctly format Handlebars template files. Formatted files are being overwritten.### `elastic-package install`
+The formatter supports JSON and YAML format, and skips "ingest_pipeline" directories as it's hard to correctly format Handlebars template files. Formatted files are being overwritten.
+
+### `elastic-package install`
 
 _Context: package_
 
 Use this command to publish a new package revision.
 
-The command checks if the package hasn't been already published (whether it's present in snapshot/staging/production branch or open as pull request). If the package revision hasn't been published, it will open a new pull request.### `elastic-package lint`
+The command checks if the package hasn't been already published (whether it's present in snapshot/staging/production branch or open as pull request). If the package revision hasn't been published, it will open a new pull request.
+
+### `elastic-package lint`
 
 _Context: package_
 
 Use this command to validate the contents of a package using the package specification (see: https://github.com/elastic/package-spec).
 
-The command ensures that the package is aligned with the package spec and the README file is up-to-date with its template (if present).### `elastic-package promote`
+The command ensures that the package is aligned with the package spec and the README file is up-to-date with its template (if present).
+
+### `elastic-package promote`
 
 _Context: global_
 
@@ -111,11 +125,15 @@ Use this command to move packages between the snapshot, staging, and production 
 
 This command is intended primarily for use by administrators.
 
-It allows for selecting packages for promotion and opens new pull requests to review changes. Please be aware that the tool checks out an in-memory Git repository and switches over branches (snapshot, staging and production), so it may take longer to promote a larger number of packages.### `elastic-package stack`
+It allows for selecting packages for promotion and opens new pull requests to review changes. Please be aware that the tool checks out an in-memory Git repository and switches over branches (snapshot, staging and production), so it may take longer to promote a larger number of packages.
+
+### `elastic-package stack`
 
 _Context: global_
 
-Use stack subcommands to manage a Docker-based Elastic Stack consisting of Elasticsearch, Kibana, Elastic Agent and the Package Registry.### `elastic-package test`
+Use stack subcommands to manage a Docker-based Elastic Stack consisting of Elasticsearch, Kibana, Elastic Agent and the Package Registry.
+
+### `elastic-package test`
 
 _Context: package_
 
@@ -133,17 +151,23 @@ These tests allow you to verify if all static resources of the package are valid
 
 System Tests
 These tests allow you to test a package's ability to ingest data end-to-end.
-For details on how to configure amd run system tests, review the [HOWTO guide](https://github.com/elastic/elastic-package/blob/master/docs/howto/system_testing.md).### `elastic-package uninstall`
+For details on how to configure amd run system tests, review the [HOWTO guide](https://github.com/elastic/elastic-package/blob/master/docs/howto/system_testing.md).
+
+### `elastic-package uninstall`
 
 _Context: package_
 
 Use this command to uninstall the package in Kibana.
 
-The command uses Kibana API to uninstall the package in Kibana. The package must be exposed via the Package Registry.### `elastic-package version`
+The command uses Kibana API to uninstall the package in Kibana. The package must be exposed via the Package Registry.
+
+### `elastic-package version`
 
 _Context: global_
 
 Use this command to print the version of elastic-package that you have installed. This is especially useful when reporting bugs.
+
+
 
 ## Development
 
