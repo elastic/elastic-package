@@ -33,14 +33,17 @@ var availableServices = map[string]struct{}{
 }
 
 const stackCmd = "stack"
-const stackLongDescription = `Use stack subcommands to manage a Docker-based Elastic Stack consisting of Elasticsearch, Kibana, Elastic Agent and the Package Registry.`
+const stackLongDescription = `Use this command to spin up a Docker-based Elastic Stack consisting of Elasticsearch, Kibana, and the Package Registry. By default the latest released version of the stack is spun up but it is possible to specify a different version, including SNAPSHOT versions.
+
+For details on how to connect the service with the Elastic stack, see the [HOWTO guide](https://github.com/elastic/elastic-package/blob/master/docs/howto/connect_service_with_elastic_stack.md).`
+
 const stackUpLongDescription = `Use this command to boot up the stack locally.
 
 By default the latest released version of the stack is spun up but it is possible to specify a different version, including SNAPSHOT versions.
 
 To ęxpose local packages in the Package Registry, build them first and boot up the stack from inside of the Git repository containing the package (e.g. elastic/integrations). They will be copied to the development stack (~/.elastic-package/stack/development) and used to build a custom Docker image of the Package Registry.
 
-For details on how to connect the service with the Elastic stack, review the HOWTO guide (see: https://github.com/elastic/elastic-package/blob/master/docs/howto/connect_service_with_elastic_stack.md).
+For details on how to connect the service with the Elastic stack, review the [HOWTO guide](https://github.com/elastic/elastic-package/blob/master/docs/howto/connect_service_with_elastic_stack.md).
 
 Context:
   global or Git repository (like elastic/integrations)`

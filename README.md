@@ -139,7 +139,9 @@ The command checks if the package hasn't been already published (whether it's pr
 
 _Context: global_
 
-Use stack subcommands to manage a Docker-based Elastic Stack consisting of Elasticsearch, Kibana, Elastic Agent and the Package Registry.
+Use this command to spin up a Docker-based Elastic Stack consisting of Elasticsearch, Kibana, and the Package Registry. By default the latest released version of the stack is spun up but it is possible to specify a different version, including SNAPSHOT versions.
+
+For details on how to connect the service with the Elastic stack, see the [HOWTO guide](https://github.com/elastic/elastic-package/blob/master/docs/howto/connect_service_with_elastic_stack.md).
 
 ### `elastic-package test`
 
