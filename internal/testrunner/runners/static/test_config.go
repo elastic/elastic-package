@@ -5,7 +5,6 @@
 package static
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -29,7 +28,7 @@ func newConfig(staticTestFolderPath string) (*testConfig, error) {
 		return nil, nil
 	}
 
-	data, err := ioutil.ReadFile(configFilePath)
+	data, err := os.ReadFile(configFilePath)
 	if err != nil {
 		return nil, errors.Wrapf(err, "could not load static loading test configuration file: %s", configFilePath)
 	}

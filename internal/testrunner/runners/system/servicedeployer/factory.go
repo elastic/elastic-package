@@ -6,7 +6,6 @@ package servicedeployer
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -74,7 +73,7 @@ func findDevDeployPath(options FactoryOptions) (string, error) {
 }
 
 func findServiceDeployer(devDeployPath string) (string, error) {
-	fis, err := ioutil.ReadDir(devDeployPath)
+	fis, err := os.ReadDir(devDeployPath)
 	if err != nil {
 		return "", errors.Wrapf(err, "can't read directory (path: %s)", devDeployDir)
 	}
@@ -82,7 +81,11 @@ func findServiceDeployer(devDeployPath string) (string, error) {
 	var folders []os.FileInfo
 	for _, fi := range fis {
 		if fi.IsDir() {
-			folders = append(folders, fi)
+			f, err := fi.Info()
+			if err != nil {
+				return "", errors.Wrapf(err, "can't read directory (path: %s)", devDeployDir)
+			}
+			folders = append(folders, f)
 		}
 	}
 

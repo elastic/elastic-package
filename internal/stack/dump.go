@@ -6,7 +6,6 @@ package stack
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -57,7 +56,7 @@ func dumpStackLogs(options DumpOptions) error {
 			continue
 		}
 
-		err = ioutil.WriteFile(filepath.Join(logsPath, fmt.Sprintf("%s.log", serviceName)), serviceLogs, 0644)
+		err = os.WriteFile(filepath.Join(logsPath, fmt.Sprintf("%s.log", serviceName)), serviceLogs, 0644)
 		if err != nil {
 			logger.Errorf("can't write service logs (service: %s): %v", serviceName, err)
 			continue

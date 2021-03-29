@@ -6,7 +6,7 @@ package builder
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 
 	"github.com/pkg/errors"
@@ -31,7 +31,7 @@ func encodeDashboards(destinationDir string) error {
 	}
 	for _, file := range savedObjects {
 
-		data, err := ioutil.ReadFile(file)
+		data, err := os.ReadFile(file)
 		if err != nil {
 			return err
 		}
@@ -41,7 +41,7 @@ func encodeDashboards(destinationDir string) error {
 		}
 
 		if changed {
-			err = ioutil.WriteFile(file, output, 0644)
+			err = os.WriteFile(file, output, 0644)
 			if err != nil {
 				return err
 			}
