@@ -105,9 +105,9 @@ The formatter supports JSON and YAML format, and skips "ingest_pipeline" directo
 
 _Context: package_
 
-Use this command to publish a new package revision.
+Use this command to install the package in Kibana.
 
-The command checks if the package hasn't been already published (whether it's present in snapshot/staging/production branch or open as pull request). If the package revision hasn't been published, it will open a new pull request.
+The command uses Kibana API to install the package in Kibana. The package must be exposed via the Package Registry.
 
 ### `elastic-package lint`
 
@@ -126,6 +126,14 @@ Use this command to move packages between the snapshot, staging, and production 
 This command is intended primarily for use by administrators.
 
 It allows for selecting packages for promotion and opens new pull requests to review changes. Please be aware that the tool checks out an in-memory Git repository and switches over branches (snapshot, staging and production), so it may take longer to promote a larger number of packages.
+
+### `elastic-package publish`
+
+_Context: package_
+
+Use this command to publish a new package revision.
+
+The command checks if the package hasn't been already published (whether it's present in snapshot/staging/production branch or open as pull request). If the package revision hasn't been published, it will open a new pull request.
 
 ### `elastic-package stack`
 
@@ -168,6 +176,19 @@ _Context: global_
 Use this command to print the version of elastic-package that you have installed. This is especially useful when reporting bugs.
 
 
+
+#### GitHub authorization
+
+The `promote` and `publish` commands require access to the GitHub API to open pull requests or check authorized account data.
+The tool uses the GitHub token to authorize user's call to API. The token can be stored in the `~/.elastic/github.token`
+file or passed via the `GITHUB_TOKEN` environment variable.
+
+Here are the instructions on how to create your own personal access token (PAT):
+https://docs.github.com/en/github/authenticating-to-github/creating-a-personal-access-token
+
+Make sure you have enabled the following scopes:
+* `public_repo` — to open pull requests on GitHub repositories.
+* `read:user` and `user:email` — to read your user profile information from GitHub in order to populate pull requests appropriately.
 
 ## Development
 
