@@ -83,8 +83,8 @@ services:
         condition: service_healthy
     healthcheck:
       test: "curl -f http://127.0.0.1:8220/api/status | grep HEALTHY 2>&1 >/dev/null"
-      retries: 60
-      interval: 1s
+      retries: 12
+      interval: 5s
     hostname: docker-fleet-server
     environment:
     - "FLEET_SERVER_ENABLE=1"
