@@ -25,6 +25,9 @@ func main() {
 		log.Fatal(errors.Wrap(err, "loading command template failed"))
 	}
 
+	// TODO: put help command at top
+	// TODO: sort remaining commands alphabetically
+
 	cmdsDoc := strings.Builder{}
 	for cmd, info := range cobraext.CommandInfos {
 		fmt.Printf("generating command doc for %s...\n", cmd)
