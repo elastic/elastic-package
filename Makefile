@@ -22,8 +22,10 @@ licenser:
 gomod:
 	go mod tidy
 
-readme:
+update-readme:
 	cd tools/readme; go run main.go
+
+update: update-readme
 
 test-go:
 	# -count=1 is included to invalidate the test cache. This way, if you run "make test-go" multiple times
@@ -43,4 +45,6 @@ check-git-clean:
 	git update-index --really-refresh
 	git diff-index --quiet HEAD
 
-check: build format lint licenser gomod check-git-clean test check-git-clean
+check-readme: update-readme
+
+check: build format lint licenser gomod check-readme check-git-clean test check-git-clean
