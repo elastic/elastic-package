@@ -12,7 +12,7 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 
-	"github.com/elastic/elastic-package/internal/locations"
+	"github.com/elastic/elastic-package/internal/configuration/locations"
 )
 
 // ApplicationConfiguration represents the configuration of the elastic-package.

@@ -11,9 +11,9 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/kind"
 	"github.com/elastic/elastic-package/internal/kubectl"
-	"github.com/elastic/elastic-package/internal/locations"
 	"github.com/elastic/elastic-package/internal/logger"
 )
 
