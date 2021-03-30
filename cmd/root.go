@@ -45,6 +45,7 @@ func RootCmd() *cobra.Command {
 	return rootCmd
 }
 
+// Commands returns the list of commands that have been setup for elastic-package.
 func Commands() []*cobraext.Command {
 	return commands
 }
