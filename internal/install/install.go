@@ -11,8 +11,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/pkg/errors"
+
+	"github.com/elastic/elastic-package/internal/configuration/locations"
 )
 
 const versionFilename = "version"
