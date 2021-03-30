@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 	"text/template"
 
@@ -59,14 +60,19 @@ func loadReadmeTemplate() *template.Template {
 }
 
 func generateReadme(readmeTmpl *template.Template, cmdsDoc string) {
-	readme, err := os.OpenFile("../../README.md", os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
+	readmePath, err := filepath.Abs("../../README.md")
 	if err != nil {
-		log.Fatal(errors.Wrap(err, "opening README file failed"))
+		log.Fatal(errors.Wrap(err, "creating README absolute file path failed"))
+	}
+
+	readme, err := os.OpenFile(readmePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
+	if err != nil {
+		log.Fatal(errors.Wrapf(err, "opening README file %s failed", readmePath))
 	}
 	defer readme.Close()
 
 	r := readmeVars{cmdsDoc}
 	if err := readmeTmpl.Execute(readme, r); err != nil {
-		log.Fatal(errors.Wrap(err, "writing README failed"))
+		log.Fatal(errors.Wrapf(err, "writing README file %s failed", readmePath))
 	}
 }
