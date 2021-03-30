@@ -23,15 +23,6 @@ import (
 	_ "github.com/elastic/elastic-package/internal/testrunner/runners" // register all test runners
 )
 
-func init() {
-	cobraext.CommandInfos[testCmd] = cobraext.CommandInfo{
-		Short:   "Run test suite for the package",
-		Long:    testLongDescription,
-		Context: "package",
-	}
-}
-
-const testCmd = "test"
 const testLongDescription = `Use this command to run tests on a package. Currently, the following types of tests are available:
 
 #### Asset Loading Tests
@@ -54,13 +45,13 @@ These tests allow you to test a package's ability to ingest data end-to-end.
 
 For details on how to configure amd run system tests, review the [HOWTO guide](https://github.com/elastic/elastic-package/blob/master/docs/howto/system_testing.md).`
 
-func setupTestCommand() *cobra.Command {
+func setupTestCommand() *cobraext.Command {
 	var testTypeCmdActions []cobraext.CommandAction
 
 	cmd := &cobra.Command{
-		Use:   testCmd,
-		Short: cobraext.CommandInfos[testCmd].Short,
-		Long:  cobraext.CommandInfos[testCmd].LongCLI(),
+		Use:   "test",
+		Short: "Run test suite for the package",
+		Long:  testLongDescription,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.Println("Run test suite for the package")
 
@@ -95,7 +86,7 @@ func setupTestCommand() *cobra.Command {
 		cmd.AddCommand(testTypeCmd)
 	}
 
-	return cmd
+	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
 }
 
 func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.CommandAction {

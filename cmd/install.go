@@ -13,28 +13,20 @@ import (
 	"github.com/elastic/elastic-package/internal/packages/installer"
 )
 
-func init() {
-	cobraext.CommandInfos[installCmd] = cobraext.CommandInfo{
-		Short:   "Install the package",
-		Long:    installLongDescription,
-		Context: "package",
-	}
-}
-
-const installCmd = "install"
 const installLongDescription = `Use this command to install the package in Kibana.
 
 The command uses Kibana API to install the package in Kibana. The package must be exposed via the Package Registry.`
 
-func setupInstallCommand() *cobra.Command {
+func setupInstallCommand() *cobraext.Command {
 	cmd := &cobra.Command{
-		Use:   installCmd,
-		Short: cobraext.CommandInfos[installCmd].Short,
-		Long:  cobraext.CommandInfos[installCmd].LongCLI(),
+		Use:   "install",
+		Short: "Install the package",
+		Long:  installLongDescription,
 		RunE:  installCommandAction,
 	}
 	cmd.Flags().StringSliceP(cobraext.CheckConditionFlagName, "c", nil, cobraext.CheckConditionFlagDescription)
-	return cmd
+
+	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
 }
 
 func installCommandAction(cmd *cobra.Command, args []string) error {

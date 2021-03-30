@@ -20,30 +20,22 @@ import (
 	"github.com/elastic/elastic-package/internal/storage"
 )
 
-func init() {
-	cobraext.CommandInfos[promoteCmd] = cobraext.CommandInfo{
-		Short:   "Promote packages",
-		Long:    promoteLongDescription,
-		Context: "global",
-	}
-}
-
-const promoteCmd = "promote"
 const promoteLongDescription = `Use this command to move packages between the snapshot, staging, and production stages of the package registry.
 
 This command is intended primarily for use by administrators.
 
 It allows for selecting packages for promotion and opens new pull requests to review changes. Please be aware that the tool checks out an in-memory Git repository and switches over branches (snapshot, staging and production), so it may take longer to promote a larger number of packages.`
 
-func setupPromoteCommand() *cobra.Command {
+func setupPromoteCommand() *cobraext.Command {
 	cmd := &cobra.Command{
-		Use:          promoteCmd,
-		Short:        cobraext.CommandInfos[promoteCmd].Short,
-		Long:         cobraext.CommandInfos[promoteCmd].LongCLI(),
+		Use:          "promote",
+		Short:        "Promote packages",
+		Long:         promoteLongDescription,
 		RunE:         promoteCommandAction,
 		SilenceUsage: true,
 	}
-	return cmd
+
+	return cobraext.NewCommand(cmd, cobraext.ContextGlobal)
 }
 
 func promoteCommandAction(cmd *cobra.Command, args []string) error {

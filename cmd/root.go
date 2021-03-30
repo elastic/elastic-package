@@ -11,6 +11,23 @@ import (
 	"github.com/elastic/elastic-package/internal/logger"
 )
 
+// Make sure to preserve alphabetical order!
+var commands = []*cobraext.Command{
+	setupBuildCommand(),
+	setupCheckCommand(),
+	setupCleanCommand(),
+	setupExportCommand(),
+	setupFormatCommand(),
+	setupInstallCommand(),
+	setupLintCommand(),
+	setupPromoteCommand(),
+	setupPublishCommand(),
+	setupStackCommand(),
+	setupTestCommand(),
+	setupUninstallCommand(),
+	setupVersionCommand(),
+}
+
 // RootCmd creates and returns root cmd for elastic-package
 func RootCmd() *cobra.Command {
 	rootCmd := &cobra.Command{
@@ -21,21 +38,15 @@ func RootCmd() *cobra.Command {
 	}
 	rootCmd.PersistentFlags().BoolP(cobraext.VerboseFlagName, "v", false, cobraext.VerboseFlagDescription)
 
-	rootCmd.AddCommand(
-		setupBuildCommand(),
-		setupCheckCommand(),
-		setupCleanCommand(),
-		setupExportCommand(),
-		setupInstallCommand(),
-		setupStackCommand(),
-		setupFormatCommand(),
-		setupLintCommand(),
-		setupPromoteCommand(),
-		setupPublishCommand(),
-		setupTestCommand(),
-		setupUninstallCommand(),
-		setupVersionCommand())
+	for _, cmd := range commands {
+		rootCmd.AddCommand(cmd.Command)
+	}
+
 	return rootCmd
+}
+
+func Commands() []*cobraext.Command {
+	return commands
 }
 
 func processPersistentFlags(cmd *cobra.Command, args []string) error {

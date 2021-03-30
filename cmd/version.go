@@ -12,25 +12,17 @@ import (
 	"github.com/elastic/elastic-package/internal/version"
 )
 
-func init() {
-	cobraext.CommandInfos[versionCmd] = cobraext.CommandInfo{
-		Short:   "Show application version",
-		Long:    versionLongDescription,
-		Context: "global",
-	}
-}
-
-const versionCmd = "version"
 const versionLongDescription = `Use this command to print the version of elastic-package that you have installed. This is especially useful when reporting bugs.`
 
-func setupVersionCommand() *cobra.Command {
+func setupVersionCommand() *cobraext.Command {
 	cmd := &cobra.Command{
-		Use:   versionCmd,
-		Short: cobraext.CommandInfos[versionCmd].Short,
-		Long:  cobraext.CommandInfos[versionCmd].LongCLI(),
+		Use:   "version",
+		Short: "Show application version",
+		Long:  versionLongDescription,
 		RunE:  versionCommandAction,
 	}
-	return cmd
+
+	return cobraext.NewCommand(cmd, cobraext.ContextGlobal)
 }
 
 func versionCommandAction(cmd *cobra.Command, args []string) error {

@@ -16,15 +16,6 @@ import (
 	"github.com/elastic/elastic-package/internal/docs"
 )
 
-func init() {
-	cobraext.CommandInfos[buildCmd] = cobraext.CommandInfo{
-		Short:   "Build the package",
-		Long:    buildLongDescription,
-		Context: "package",
-	}
-}
-
-const buildCmd = "build"
 const buildLongDescription = `Use this command to build a package. Currently it supports only the "integration" package type.
 
 Built packages are stored in the "build/" folder located at the root folder of the local Git repository checkout that contains your package folder. The command will also render the README file in your package folder if there is a corresponding template file present in "_dev/build/docs/README.md". All "_dev" directories under your package will be omitted.
@@ -33,14 +24,15 @@ Built packages are served up by the Elastic Package Registry running locally (se
 
 Built packages can also be published to the global package registry service.`
 
-func setupBuildCommand() *cobra.Command {
+func setupBuildCommand() *cobraext.Command {
 	cmd := &cobra.Command{
-		Use:   buildCmd,
-		Short: cobraext.CommandInfos[buildCmd].Short,
-		Long:  cobraext.CommandInfos[buildCmd].LongCLI(),
+		Use:   "build",
+		Short: "Build the package",
+		Long:  buildLongDescription,
 		RunE:  buildCommandAction,
 	}
-	return cmd
+
+	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
 }
 
 func buildCommandAction(cmd *cobra.Command, args []string) error {

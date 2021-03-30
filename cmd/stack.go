@@ -18,21 +18,12 @@ import (
 	"github.com/elastic/elastic-package/internal/stack"
 )
 
-func init() {
-	cobraext.CommandInfos[stackCmd] = cobraext.CommandInfo{
-		Short:   "Manage the Elastic stack",
-		Long:    stackLongDescription,
-		Context: "global",
-	}
-}
-
 var availableServices = map[string]struct{}{
 	"elasticsearch":    {},
 	"kibana":           {},
 	"package-registry": {},
 }
 
-const stackCmd = "stack"
 const stackLongDescription = `Use this command to spin up a Docker-based Elastic Stack consisting of Elasticsearch, Kibana, and the Package Registry. By default the latest released version of the stack is spun up but it is possible to specify a different version, including SNAPSHOT versions.
 
 For details on how to connect the service with the Elastic stack, see the [HOWTO guide](https://github.com/elastic/elastic-package/blob/master/docs/howto/connect_service_with_elastic_stack.md).`
@@ -43,12 +34,9 @@ By default the latest released version of the stack is spun up but it is possibl
 
 To ęxpose local packages in the Package Registry, build them first and boot up the stack from inside of the Git repository containing the package (e.g. elastic/integrations). They will be copied to the development stack (~/.elastic-package/stack/development) and used to build a custom Docker image of the Package Registry.
 
-For details on how to connect the service with the Elastic stack, review the [HOWTO guide](https://github.com/elastic/elastic-package/blob/master/docs/howto/connect_service_with_elastic_stack.md).
+For details on how to connect the service with the Elastic stack, review the [HOWTO guide](https://github.com/elastic/elastic-package/blob/master/docs/howto/connect_service_with_elastic_stack.md).`
 
-Context:
-  global or Git repository (like elastic/integrations)`
-
-func setupStackCommand() *cobra.Command {
+func setupStackCommand() *cobraext.Command {
 	upCommand := &cobra.Command{
 		Use:   "up",
 		Short: "Boot up the stack",
@@ -176,9 +164,9 @@ func setupStackCommand() *cobra.Command {
 	dumpCommand.Flags().StringP(cobraext.StackDumpOutputFlagName, "", "elastic-stack-dump", cobraext.StackDumpOutputFlagDescription)
 
 	cmd := &cobra.Command{
-		Use:   stackCmd,
-		Short: cobraext.CommandInfos[stackCmd].Short,
-		Long:  cobraext.CommandInfos[stackCmd].LongCLI(),
+		Use:   "stack",
+		Short: "Manage the Elastic stack",
+		Long:  stackLongDescription,
 	}
 	cmd.AddCommand(
 		upCommand,
@@ -186,7 +174,8 @@ func setupStackCommand() *cobra.Command {
 		updateCommand,
 		shellInitCommand,
 		dumpCommand)
-	return cmd
+
+	return cobraext.NewCommand(cmd, cobraext.ContextGlobal)
 }
 
 func availableServicesAsList() []string {

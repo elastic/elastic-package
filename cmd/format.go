@@ -13,28 +13,20 @@ import (
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
-func init() {
-	cobraext.CommandInfos[formatCmd] = cobraext.CommandInfo{
-		Short:   "Format the package",
-		Long:    formatLongDescription,
-		Context: "package",
-	}
-}
-
-const formatCmd = "format"
 const formatLongDescription = `Use this command to format the package files.
 
 The formatter supports JSON and YAML format, and skips "ingest_pipeline" directories as it's hard to correctly format Handlebars template files. Formatted files are being overwritten.`
 
-func setupFormatCommand() *cobra.Command {
+func setupFormatCommand() *cobraext.Command {
 	cmd := &cobra.Command{
-		Use:   formatCmd,
-		Short: cobraext.CommandInfos[formatCmd].Short,
-		Long:  cobraext.CommandInfos[formatCmd].LongCLI(),
+		Use:   "format",
+		Short: "Format the package",
+		Long:  formatLongDescription,
 		RunE:  formatCommandAction,
 	}
 	cmd.Flags().BoolP(cobraext.FailFastFlagName, "f", false, cobraext.FailFastFlagDescription)
-	return cmd
+
+	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
 }
 
 func formatCommandAction(cmd *cobra.Command, args []string) error {

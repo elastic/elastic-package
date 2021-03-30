@@ -8,14 +8,11 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"sort"
 	"strings"
 	"text/template"
 
+	"github.com/elastic/elastic-package/cmd"
 	"github.com/pkg/errors"
-
-	_ "github.com/elastic/elastic-package/cmd"
-	"github.com/elastic/elastic-package/internal/cobraext"
 )
 
 // Generate README
@@ -27,11 +24,6 @@ func main() {
 	generateReadme(readmeTemplate, commandsDoc.String())
 
 	fmt.Println("README.md successfully written")
-}
-
-type cmdVars struct {
-	cobraext.CommandInfo
-	Cmd string
 }
 
 type readmeVars struct {
@@ -48,12 +40,10 @@ func loadCommandTemplate() *template.Template {
 
 func generateCommandsDoc(cmdTmpl *template.Template) strings.Builder {
 	cmdsDoc := strings.Builder{}
-	for _, cmd := range getSortedCmds() {
-		info := cobraext.CommandInfos[cmd]
-		fmt.Printf("generating command doc for %s...\n", cmd)
-		c := cmdVars{info, cmd}
-		if err := cmdTmpl.Execute(&cmdsDoc, c); err != nil {
-			log.Fatal(errors.Wrapf(err, "writing documentation for command '%s' failed", cmd))
+	for _, cmd := range cmd.Commands() {
+		fmt.Printf("generating command doc for %s...\n", cmd.Name())
+		if err := cmdTmpl.Execute(&cmdsDoc, cmd); err != nil {
+			log.Fatal(errors.Wrapf(err, "writing documentation for command '%s' failed", cmd.Name()))
 		}
 	}
 	return cmdsDoc
@@ -78,13 +68,4 @@ func generateReadme(readmeTmpl *template.Template, cmdsDoc string) {
 	if err := readmeTmpl.Execute(readme, r); err != nil {
 		log.Fatal(errors.Wrap(err, "writing README failed"))
 	}
-}
-
-func getSortedCmds() []string {
-	cmds := make([]string, 0, len(cobraext.CommandInfos))
-	for cmd := range cobraext.CommandInfos {
-		cmds = append(cmds, cmd)
-	}
-	sort.Strings(cmds)
-	return cmds
 }

@@ -90,9 +90,6 @@ _Context: package_
 
 Use this command to export assets relevant for the package, e.g. Kibana dashboards.
 
-Context:
-  package
-
 ### `elastic-package format`
 
 _Context: package_
