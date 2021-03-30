@@ -31,7 +31,7 @@ func checkIfLatestVersionInstalled(elasticPackagePath string) (bool, error) {
 func writeVersionFile(elasticPackagePath *locations.LocationManager) error {
 	var err error
 	err = writeStaticResource(err,
-		filepath.Join(elasticPackagePath.StackDir(), versionFilename),
+		filepath.Join(elasticPackagePath.RootDir(), versionFilename),
 		buildVersionFile(version.CommitHash, version.BuildTime))
 	if err != nil {
 		return errors.Wrap(err, "writing static resource failed")
