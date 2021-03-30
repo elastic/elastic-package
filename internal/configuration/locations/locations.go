@@ -48,7 +48,7 @@ func NewLocationManager() (*LocationManager, error) {
 
 // RootDir returns the root elastic-package dir
 func (loc LocationManager) RootDir() string {
-	return filepath.Join(loc.stackPath, temporaryDir)
+	return filepath.Join(loc.stackPath)
 }
 
 // TempDir returns the temp directory location
