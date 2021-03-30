@@ -59,6 +59,9 @@ func Package(githubUser string, githubClient *github.Client, skipPullRequest boo
 
 	fmt.Println("Clone package-storage repository")
 	r, err := storage.CloneRepository(githubUser, productionStage)
+	if err != nil {
+		return errors.Wrap(err, "cloning source repository failed")
+	}
 
 	fmt.Printf("Find latest package revision of \"%s\" in package-storage\n", m.Name)
 	latestRevision, stage, err := findLatestPackageRevision(r, m.Name)
