@@ -36,14 +36,19 @@ type LocationManager struct {
 }
 
 // NewLocationManager returns a new manager to track the Configuration dir
-func NewLocationManager() (LocationManager, error) {
+func NewLocationManager() (*LocationManager, error) {
 	cfg, err := ConfigurationDir()
 	if err != nil {
-		return LocationManager{}, errors.Wrap(err, "error getting config dir")
+		return nil, errors.Wrap(err, "error getting config dir")
 	}
 
-	return LocationManager{stackPath: cfg}, nil
+	return &LocationManager{stackPath: cfg}, nil
 
+}
+
+// RootDir returns the root elastic-package dir
+func (loc LocationManager) RootDir() string {
+	return filepath.Join(loc.stackPath, temporaryDir)
 }
 
 // TempDir returns the temp directory location

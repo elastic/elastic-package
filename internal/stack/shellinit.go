@@ -13,7 +13,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/compose"
-	"github.com/elastic/elastic-package/internal/install"
+	"github.com/elastic/elastic-package/internal/configuration/locations"
 )
 
 const (
@@ -38,7 +38,7 @@ type kibanaConfiguration struct {
 
 // ShellInit method exposes environment variables that can be used for testing purposes.
 func ShellInit() (string, error) {
-	stackDir, err := install.StackDir()
+	stackDir, err := locations.StackDir()
 	if err != nil {
 		return "", errors.Wrap(err, "locating stack directory failed")
 	}
