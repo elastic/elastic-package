@@ -45,5 +45,9 @@
       ignore_above: 1024
 - name: ecs.version
   type: keyword
+  description: ECS version this event conforms to.
+  example: 1.0.0
+  ignore_above: 1024
 - name: service.type
   type: keyword
+  description: Service type
