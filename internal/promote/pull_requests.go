@@ -11,6 +11,8 @@ import (
 
 	"github.com/google/go-github/v32/github"
 	"github.com/pkg/errors"
+
+	"github.com/elastic/elastic-package/internal/storage"
 )
 
 const (
@@ -20,7 +22,7 @@ const (
 
 // OpenPullRequestWithRemovedPackages method opens a PR against "base" branch with removed packages.
 // Head is the branch containing the changes that will be added to the base branch.
-func OpenPullRequestWithRemovedPackages(client *github.Client, username, head, base, sourceStage, promotionURL string, promotedPackages PackageVersions) (string, error) {
+func OpenPullRequestWithRemovedPackages(client *github.Client, username, head, base, sourceStage, promotionURL string, promotedPackages storage.PackageVersions) (string, error) {
 	title := fmt.Sprintf("[%s] Remove packages from %s", sourceStage, sourceStage)
 	description := buildPullRequestRemoveDescription(sourceStage, promotionURL, promotedPackages)
 	return openPullRequestWithPackages(client, username, head, base, title, description)
@@ -28,7 +30,7 @@ func OpenPullRequestWithRemovedPackages(client *github.Client, username, head, b
 
 // OpenPullRequestWithPromotedPackages method opens a PR against "base" branch with promoted packages.
 // Head is the branch containing the changes that will be added to the base branch.
-func OpenPullRequestWithPromotedPackages(client *github.Client, username, head, base, sourceStage, destinationStage string, signedPackages SignedPackageVersions) (string, error) {
+func OpenPullRequestWithPromotedPackages(client *github.Client, username, head, base, sourceStage, destinationStage string, signedPackages storage.SignedPackageVersions) (string, error) {
 	title := fmt.Sprintf("[%s] Promote packages from %s to %s", destinationStage, sourceStage, destinationStage)
 	description := buildPullRequestPromoteDescription(sourceStage, destinationStage, signedPackages)
 	return openPullRequestWithPackages(client, username, head, base, title, description)
@@ -59,7 +61,7 @@ func openPullRequestWithPackages(client *github.Client, user, head, base, title,
 	return *pullRequest.HTMLURL, nil
 }
 
-func buildPullRequestRemoveDescription(sourceStage, promotionURL string, versions PackageVersions) string {
+func buildPullRequestRemoveDescription(sourceStage, promotionURL string, versions storage.PackageVersions) string {
 	var builder strings.Builder
 	builder.WriteString(fmt.Sprintf("This PR removes packages from `%s`.\n", sourceStage))
 	builder.WriteString("\n")
@@ -72,7 +74,7 @@ func buildPullRequestRemoveDescription(sourceStage, promotionURL string, version
 	return builder.String()
 }
 
-func buildPullRequestPromoteDescription(sourceStage, destinationStage string, signedPackages SignedPackageVersions) string {
+func buildPullRequestPromoteDescription(sourceStage, destinationStage string, signedPackages storage.SignedPackageVersions) string {
 	var builder strings.Builder
 	builder.WriteString(fmt.Sprintf("This PR promotes packages from `%s` to `%s`.\n", sourceStage, destinationStage))
 	builder.WriteString("\n")

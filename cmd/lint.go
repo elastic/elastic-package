@@ -5,8 +5,6 @@
 package cmd
 
 import (
-	"fmt"
-
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
@@ -44,12 +42,17 @@ func lintCommandAction(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "locating package root failed")
 	}
 
-	ok, err := docs.IsReadmeUpToDate()
+	readmeFiles, err := docs.AreReadmesUpToDate()
 	if err != nil {
-		return errors.Wrapf(err, "can't check if %s file is up-to-date", docs.ReadmeFile)
-	}
-	if !ok {
-		return fmt.Errorf("%s file is outdated. Rebuild the package with 'elastic-package build'", docs.ReadmeFile)
+		for _, f := range readmeFiles {
+			if !f.UpToDate {
+				cmd.Printf("%s is outdated. Rebuild the package with 'elastic-package build'\n", f.FileName)
+			}
+			if f.Error != nil {
+				cmd.Printf("check if %s is up-to-date failed: %s\n", f.FileName, f.Error)
+			}
+		}
+		return errors.Wrap(err, "checking readme files are up-to-date failed")
 	}
 
 	err = validator.ValidateFromPath(packageRootPath)
