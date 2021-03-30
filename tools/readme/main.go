@@ -43,7 +43,7 @@ func loadCommandTemplate() *template.Template {
 func generateCommandsDoc(cmdTmpl *template.Template) strings.Builder {
 	cmdsDoc := strings.Builder{}
 	for _, cmd := range cmd.Commands() {
-		fmt.Printf("generating command doc for %s...\n", cmd.Name())
+		log.Printf("generating command doc for %s...\n", cmd.Name())
 		if err := cmdTmpl.Execute(&cmdsDoc, cmd); err != nil {
 			log.Fatal(errors.Wrapf(err, "writing documentation for command '%s' failed", cmd.Name()))
 		}
