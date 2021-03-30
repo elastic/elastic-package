@@ -11,8 +11,9 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/elastic/elastic-package/cmd"
 	"github.com/pkg/errors"
+
+	"github.com/elastic/elastic-package/cmd"
 )
 
 // Generate README
