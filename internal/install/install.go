@@ -147,7 +147,7 @@ func writeTerraformDeployerResources(elasticPackagePath *locations.LocationManag
 
 func writeConfigFile(elasticPackagePath *locations.LocationManager) error {
 	var err error
-	err = writeStaticResource(err, filepath.Join(elasticPackagePath.StackDir(), applicationConfigurationYmlFile), applicationConfigurationYml)
+	err = writeStaticResource(err, filepath.Join(elasticPackagePath.RootDir(), applicationConfigurationYmlFile), applicationConfigurationYml)
 	if err != nil {
 		return errors.Wrap(err, "writing static resource failed")
 	}
