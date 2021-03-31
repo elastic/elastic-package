@@ -133,6 +133,7 @@ func (prs PackageVersions) Strings() []string {
 }
 
 // CloneRepository function clones the repository and changes branch to stage.
+// It assumes that user has already forked the storage repository.
 func CloneRepository(user, stage string) (*git.Repository, error) {
 	return CloneRepositoryWithFork(user, stage, true)
 }
@@ -555,6 +556,7 @@ func RemovePackages(r *git.Repository, sourceStage string, packages PackageVersi
 }
 
 // PushChanges function pushes branches to the remote repository.
+// It assumes that user has already forked the storage repository.
 func PushChanges(user string, r *git.Repository, stages ...string) error {
 	return PushChangesWithFork(user, r, true, stages...)
 }
