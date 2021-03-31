@@ -38,11 +38,18 @@ func setupPublishCommand() *cobraext.Command {
 func publishCommandAction(cmd *cobra.Command, args []string) error {
 	cmd.Println("Publish the package")
 
-	fork, _ := cmd.Flags().GetBool(cobraext.ForkFlagName)
-	skipPullRequest, _ := cmd.Flags().GetBool(cobraext.SkipPullRequestFlagName)
+	fork, err := cmd.Flags().GetBool(cobraext.ForkFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.ForkFlagName)
+	}
+
+	skipPullRequest, err := cmd.Flags().GetBool(cobraext.SkipPullRequestFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.SkipPullRequestFlagName)
+	}
 
 	// Setup GitHub
-	err := github.EnsureAuthConfigured()
+	err = github.EnsureAuthConfigured()
 	if err != nil {
 		return errors.Wrap(err, "GitHub auth configuration failed")
 	}
