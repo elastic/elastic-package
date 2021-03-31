@@ -15,12 +15,9 @@ import (
 
 const publishLongDescription = `Use this command to publish a new package revision.
 
-The command checks if the package hasn't been already published (whether it's present in snapshot/staging/production branch or open as pull request). If the package revision hasn't been published, it will open a new pull request.
+The command checks if the package hasn't been already published (whether it's present in snapshot/staging/production branch or open as pull request). If the package revision hasn't been published, it will open a new pull request.`
 
-Context:
-  package`
-
-func setupPublishCommand() *cobra.Command {
+func setupPublishCommand() *cobraext.Command {
 	cmd := &cobra.Command{
 		Use:   "publish",
 		Short: "Publish the package to the Package Registry",
@@ -28,19 +25,31 @@ func setupPublishCommand() *cobra.Command {
 		RunE:  publishCommandAction,
 	}
 
+	// Fork flag can be a workaround for users that don't own forks of the Package Storage.
+	cmd.Flags().BoolP(cobraext.ForkFlagName, "f", true, cobraext.ForkFlagDescription)
+
 	// SkipPullRequest flag can used to verify if the "publish" command works properly (finds correct revisions),
 	// for which the operator doesn't want to immediately close just opened PRs (standard dry-run).
 	cmd.Flags().BoolP(cobraext.SkipPullRequestFlagName, "s", false, cobraext.SkipPullRequestFlagDescription)
-	return cmd
+
+	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
 }
 
 func publishCommandAction(cmd *cobra.Command, args []string) error {
 	cmd.Println("Publish the package")
 
-	skipPullRequest, _ := cmd.Flags().GetBool(cobraext.SkipPullRequestFlagName)
+	fork, err := cmd.Flags().GetBool(cobraext.ForkFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.ForkFlagName)
+	}
+
+	skipPullRequest, err := cmd.Flags().GetBool(cobraext.SkipPullRequestFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.SkipPullRequestFlagName)
+	}
 
 	// Setup GitHub
-	err := github.EnsureAuthConfigured()
+	err = github.EnsureAuthConfigured()
 	if err != nil {
 		return errors.Wrap(err, "GitHub auth configuration failed")
 	}
@@ -58,7 +67,7 @@ func publishCommandAction(cmd *cobra.Command, args []string) error {
 	cmd.Printf("Current GitHub user: %s\n", githubUser)
 
 	// Publish the package
-	err = publish.Package(githubUser, githubClient, skipPullRequest)
+	err = publish.Package(githubUser, githubClient, fork, skipPullRequest)
 	if err != nil {
 		return errors.Wrap(err, "can't publish the package")
 	}

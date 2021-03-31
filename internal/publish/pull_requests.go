@@ -41,12 +41,18 @@ func checkIfPullRequestAlreadyOpen(githubClient *github.Client, manifest package
 	return false, nil
 }
 
-func openPullRequest(githubClient *github.Client, githubUser, destinationBranch string, manifest packages.PackageManifest, commitHash string) error {
+func openPullRequest(githubClient *github.Client, githubUser, destinationBranch string, manifest packages.PackageManifest, commitHash string, fork bool) error {
+	user := repositoryOwner
+	if fork {
+		user = githubUser
+	}
+	logger.Debugf("Current user: %s", user)
+
 	title := buildPullRequestTitle(manifest)
-	diffURL := buildPullRequestDiffURL(githubUser, commitHash)
+	diffURL := buildPullRequestDiffURL(user, commitHash)
 	description := buildPullRequestDescription(manifest, diffURL)
 
-	userHead := fmt.Sprintf("%s:%s", githubUser, destinationBranch)
+	userHead := fmt.Sprintf("%s:%s", user, destinationBranch)
 	maintainerCanModify := true
 	base := snapshotStage
 

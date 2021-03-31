@@ -10,25 +10,24 @@ import (
 
 	"github.com/elastic/package-spec/code/go/pkg/validator"
 
+	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/docs"
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
 const lintLongDescription = `Use this command to validate the contents of a package using the package specification (see: https://github.com/elastic/package-spec).
 
-The command ensures that the package is aligned with the package spec and the README file is up-to-date with its template (if present).
+The command ensures that the package is aligned with the package spec and the README file is up-to-date with its template (if present).`
 
-Context:
-  package`
-
-func setupLintCommand() *cobra.Command {
+func setupLintCommand() *cobraext.Command {
 	cmd := &cobra.Command{
 		Use:   "lint",
 		Short: "Lint the package",
 		Long:  lintLongDescription,
 		RunE:  lintCommandAction,
 	}
-	return cmd
+
+	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
 }
 
 func lintCommandAction(cmd *cobra.Command, args []string) error {
