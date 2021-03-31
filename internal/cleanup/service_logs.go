@@ -16,15 +16,15 @@ import (
 func ServiceLogs() (string, error) {
 	logger.Debug("Clean all service logs")
 
-	serviceLogsDir, err := locations.ServiceLogsDir()
+	locationManager, err := locations.NewLocationManager()
 	if err != nil {
 		return "", errors.Wrap(err, "can't find service logs dir")
 	}
 
-	logger.Debugf("Remove folder content (path: %s)", serviceLogsDir)
-	err = files.RemoveContent(serviceLogsDir)
+	logger.Debugf("Remove folder content (path: %s)", locationManager.ServiceLogDir())
+	err = files.RemoveContent(locationManager.ServiceLogDir())
 	if err != nil {
-		return "", errors.Wrapf(err, "can't remove content (path: %s)", serviceLogsDir)
+		return "", errors.Wrapf(err, "can't remove content (path: %s)", locationManager.ServiceLogDir())
 	}
-	return serviceLogsDir, nil
+	return locationManager.ServiceLogDir(), nil
 }

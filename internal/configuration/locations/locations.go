@@ -37,7 +37,7 @@ type LocationManager struct {
 
 // NewLocationManager returns a new manager to track the Configuration dir
 func NewLocationManager() (*LocationManager, error) {
-	cfg, err := ConfigurationDir()
+	cfg, err := configurationDir()
 	if err != nil {
 		return nil, errors.Wrap(err, "error getting config dir")
 	}
@@ -97,56 +97,10 @@ func (loc LocationManager) ServiceLogDir() string {
 }
 
 // ConfigurationDir returns the configuration directory location
-func ConfigurationDir() (string, error) {
+func configurationDir() (string, error) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		return "", errors.Wrap(err, "reading home dir failed")
 	}
 	return filepath.Join(homeDir, elasticPackageDir), nil
-}
-
-// StackDir method returns the stack directory (see: stackDir).
-func StackDir() (string, error) {
-	configurationDir, err := ConfigurationDir()
-	if err != nil {
-		return "", errors.Wrap(err, "locating configuration directory failed")
-	}
-	return filepath.Join(configurationDir, stackDir), nil
-}
-
-// StackPackagesDir method returns the stack packages directory used for package development.
-func StackPackagesDir() (string, error) {
-	stackDir, err := StackDir()
-	if err != nil {
-		return "", errors.Wrap(err, "locating stack directory failed")
-	}
-	return filepath.Join(stackDir, packagesDir), nil
-}
-
-// ServiceLogsDir function returns the location of the directory to store service logs on the
-// local filesystem, i.e. the same one where elastic-package is installed.
-func ServiceLogsDir() (string, error) {
-	configurationDir, err := ConfigurationDir()
-	if err != nil {
-		return "", errors.Wrap(err, "locating configuration directory failed")
-	}
-	return filepath.Join(configurationDir, serviceLogsDir), nil
-}
-
-// TerraformDeployerComposeFile function returns the path to the Terraform service deployer's definitions.
-func TerraformDeployerComposeFile() (string, error) {
-	configurationDir, err := ConfigurationDir()
-	if err != nil {
-		return "", errors.Wrap(err, "locating configuration directory failed")
-	}
-	return filepath.Join(configurationDir, terraformDeployerDir, terraformDeployerYmlFile), nil
-}
-
-// KubernetesDeployerElasticAgentFile function returns the path to the Elastic Agent YAML definition for the Kubernetes cluster.
-func KubernetesDeployerElasticAgentFile() (string, error) {
-	configurationDir, err := ConfigurationDir()
-	if err != nil {
-		return "", errors.Wrap(err, "locating configuration directory failed")
-	}
-	return filepath.Join(configurationDir, kubernetesDeployerDir, kubernetesDeployerElasticAgentYmlFile), nil
 }

@@ -18,12 +18,12 @@ import (
 const snapshotDefinitionFile = "snapshot.yml"
 
 func dockerComposeBuild(options Options) error {
-	stackDir, err := locations.StackDir()
+	locationManager, err := locations.NewLocationManager()
 	if err != nil {
 		return errors.Wrap(err, "locating stack directory failed")
 	}
 
-	c, err := compose.NewProject(DockerComposeProjectName, filepath.Join(stackDir, snapshotDefinitionFile))
+	c, err := compose.NewProject(DockerComposeProjectName, filepath.Join(locationManager.StackDir(), snapshotDefinitionFile))
 	if err != nil {
 		return errors.Wrap(err, "could not create docker compose project")
 	}
@@ -39,12 +39,12 @@ func dockerComposeBuild(options Options) error {
 }
 
 func dockerComposePull(options Options) error {
-	stackDir, err := locations.StackDir()
+	locationManager, err := locations.NewLocationManager()
 	if err != nil {
 		return errors.Wrap(err, "locating stack directory failed")
 	}
 
-	c, err := compose.NewProject(DockerComposeProjectName, filepath.Join(stackDir, snapshotDefinitionFile))
+	c, err := compose.NewProject(DockerComposeProjectName, filepath.Join(locationManager.StackDir(), snapshotDefinitionFile))
 	if err != nil {
 		return errors.Wrap(err, "could not create docker compose project")
 	}
@@ -66,12 +66,12 @@ func dockerComposePull(options Options) error {
 }
 
 func dockerComposeUp(options Options) error {
-	stackDir, err := locations.StackDir()
+	locationManager, err := locations.NewLocationManager()
 	if err != nil {
 		return errors.Wrap(err, "locating stack directory failed")
 	}
 
-	c, err := compose.NewProject(DockerComposeProjectName, filepath.Join(stackDir, snapshotDefinitionFile))
+	c, err := compose.NewProject(DockerComposeProjectName, filepath.Join(locationManager.StackDir(), snapshotDefinitionFile))
 	if err != nil {
 		return errors.Wrap(err, "could not create docker compose project")
 	}
@@ -99,12 +99,12 @@ func dockerComposeUp(options Options) error {
 }
 
 func dockerComposeDown() error {
-	stackDir, err := locations.StackDir()
+	locationManager, err := locations.NewLocationManager()
 	if err != nil {
 		return errors.Wrap(err, "locating stack directory failed")
 	}
 
-	c, err := compose.NewProject(DockerComposeProjectName, filepath.Join(stackDir, snapshotDefinitionFile))
+	c, err := compose.NewProject(DockerComposeProjectName, filepath.Join(locationManager.StackDir(), snapshotDefinitionFile))
 	if err != nil {
 		return errors.Wrap(err, "could not create docker compose project")
 	}
@@ -116,12 +116,12 @@ func dockerComposeDown() error {
 }
 
 func dockerComposeLogs(serviceName string) ([]byte, error) {
-	stackDir, err := locations.StackDir()
+	locationManager, err := locations.NewLocationManager()
 	if err != nil {
 		return nil, errors.Wrap(err, "locating stack directory failed")
 	}
 
-	c, err := compose.NewProject(DockerComposeProjectName, filepath.Join(stackDir, snapshotDefinitionFile))
+	c, err := compose.NewProject(DockerComposeProjectName, filepath.Join(locationManager.StackDir(), snapshotDefinitionFile))
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create docker compose project")
 	}
