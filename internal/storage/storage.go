@@ -134,6 +134,12 @@ func (prs PackageVersions) Strings() []string {
 
 // CloneRepository function clones the repository and changes branch to stage.
 func CloneRepository(user, stage string) (*git.Repository, error) {
+	return CloneRepositoryWithFork(user, stage, true)
+}
+
+// CloneRepositoryWithFork function clones the repository, changes branch to stage.
+// It respects the fork mode accordingly.
+func CloneRepositoryWithFork(user, stage string, fork bool) (*git.Repository, error) {
 	// Initialize repository
 	r, err := git.Init(memory.NewStorage(), memfs.New())
 	if err != nil {
@@ -142,15 +148,21 @@ func CloneRepository(user, stage string) (*git.Repository, error) {
 
 	// Add remotes
 	userRepositoryURL := fmt.Sprintf(repositoryURL, user)
-	userRemote, err := r.CreateRemote(&config.RemoteConfig{
-		Name: user,
-		URLs: []string{
-			userRepositoryURL,
-		},
-	})
-	if err != nil {
-		return nil, errors.Wrap(err, "creating user remote failed")
+	var userRemote *git.Remote
+	if !fork {
+		logger.Debugf("No-fork mode selected. The user's remote upstream won't be created.")
+	} else {
+		userRemote, err = r.CreateRemote(&config.RemoteConfig{
+			Name: user,
+			URLs: []string{
+				userRepositoryURL,
+			},
+		})
+		if err != nil {
+			return nil, errors.Wrap(err, "creating user remote failed")
+		}
 	}
+
 	upstreamRemote, err := r.CreateRemote(&config.RemoteConfig{
 		Name: upstream,
 		URLs: []string{
@@ -166,14 +178,19 @@ func CloneRepository(user, stage string) (*git.Repository, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "reading auth token failed")
 	}
-	_, err = userRemote.List(&git.ListOptions{
-		Auth: &http.BasicAuth{
-			Username: user,
-			Password: authToken,
-		},
-	})
-	if err != nil {
-		return nil, errors.Wrapf(err, "checking user remote (%s, url: %s)", user, userRepositoryURL)
+
+	if !fork {
+		logger.Debugf("No-fork mode selected. The user's remote upstream won't be listed.")
+	} else {
+		_, err = userRemote.List(&git.ListOptions{
+			Auth: &http.BasicAuth{
+				Username: user,
+				Password: authToken,
+			},
+		})
+		if err != nil {
+			return nil, errors.Wrapf(err, "checking user remote (%s, url: %s)", user, userRepositoryURL)
+		}
 	}
 
 	// Fetch and checkout
@@ -539,6 +556,12 @@ func RemovePackages(r *git.Repository, sourceStage string, packages PackageVersi
 
 // PushChanges function pushes branches to the remote repository.
 func PushChanges(user string, r *git.Repository, stages ...string) error {
+	return PushChangesWithFork(user, r, true, stages...)
+}
+
+// PushChangesWithFork function pushes branches to the remote repository.
+// It respects the fork mode accordingly.
+func PushChangesWithFork(user string, r *git.Repository, fork bool, stages ...string) error {
 	authToken, err := github.AuthToken()
 	if err != nil {
 		return errors.Wrap(err, "reading auth token failed")
@@ -549,8 +572,13 @@ func PushChanges(user string, r *git.Repository, stages ...string) error {
 		refSpecs = append(refSpecs, config.RefSpec(fmt.Sprintf("refs/heads/%s:refs/heads/%s", stage, stage)))
 	}
 
+	var remoteName = upstream
+	if !fork {
+		remoteName = user
+	}
+
 	err = r.Push(&git.PushOptions{
-		RemoteName: user,
+		RemoteName: remoteName,
 		RefSpecs:   refSpecs,
 		Auth: &http.BasicAuth{
 			Username: user,

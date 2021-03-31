@@ -28,6 +28,9 @@ func setupPublishCommand() *cobra.Command {
 		RunE:  publishCommandAction,
 	}
 
+	// Fork flag can be a workaround for users that don't own forks of the Package Storage.
+	cmd.Flags().BoolP(cobraext.ForkFlagName, "f", true, cobraext.ForkFlagDescription)
+
 	// SkipPullRequest flag can used to verify if the "publish" command works properly (finds correct revisions),
 	// for which the operator doesn't want to immediately close just opened PRs (standard dry-run).
 	cmd.Flags().BoolP(cobraext.SkipPullRequestFlagName, "s", false, cobraext.SkipPullRequestFlagDescription)
@@ -37,6 +40,7 @@ func setupPublishCommand() *cobra.Command {
 func publishCommandAction(cmd *cobra.Command, args []string) error {
 	cmd.Println("Publish the package")
 
+	fork, _ := cmd.Flags().GetBool(cobraext.ForkFlagName)
 	skipPullRequest, _ := cmd.Flags().GetBool(cobraext.SkipPullRequestFlagName)
 
 	// Setup GitHub
@@ -58,7 +62,7 @@ func publishCommandAction(cmd *cobra.Command, args []string) error {
 	cmd.Printf("Current GitHub user: %s\n", githubUser)
 
 	// Publish the package
-	err = publish.Package(githubUser, githubClient, skipPullRequest)
+	err = publish.Package(githubUser, githubClient, fork, skipPullRequest)
 	if err != nil {
 		return errors.Wrap(err, "can't publish the package")
 	}
