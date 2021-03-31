@@ -42,7 +42,7 @@ func checkIfPullRequestAlreadyOpen(githubClient *github.Client, manifest package
 }
 
 func openPullRequest(githubClient *github.Client, githubUser, destinationBranch string, manifest packages.PackageManifest, commitHash string, fork bool) error {
-	var user = repositoryOwner
+	user := repositoryOwner
 	if fork {
 		user = githubUser
 	}
