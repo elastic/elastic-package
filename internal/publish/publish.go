@@ -28,7 +28,7 @@ const (
 )
 
 // Package function publishes the current package to the package-storage.
-func Package(githubUser string, githubClient *github.Client, skipPullRequest bool) error {
+func Package(githubUser string, githubClient *github.Client, fork, skipPullRequest bool) error {
 	packageRoot, err := packages.MustFindPackageRoot()
 	if err != nil {
 		return errors.Wrap(err, "locating package root failed")
@@ -58,7 +58,7 @@ func Package(githubUser string, githubClient *github.Client, skipPullRequest boo
 	}
 
 	fmt.Println("Clone package-storage repository")
-	r, err := storage.CloneRepository(githubUser, productionStage)
+	r, err := storage.CloneRepositoryWithFork(githubUser, productionStage, fork)
 	if err != nil {
 		return errors.Wrap(err, "cloning source repository failed")
 	}
@@ -90,7 +90,7 @@ func Package(githubUser string, githubClient *github.Client, skipPullRequest boo
 	}
 
 	fmt.Println("Push new package revision to storage")
-	err = storage.PushChanges(githubUser, r, destination)
+	err = storage.PushChangesWithFork(githubUser, r, fork, destination)
 	if err != nil {
 		return errors.Wrapf(err, "pushing changes failed")
 	}
@@ -111,7 +111,7 @@ func Package(githubUser string, githubClient *github.Client, skipPullRequest boo
 	}
 
 	fmt.Println("Open new pull request")
-	err = openPullRequest(githubClient, githubUser, destination, *m, commitHash)
+	err = openPullRequest(githubClient, githubUser, destination, *m, commitHash, fork)
 	if err != nil {
 		return errors.Wrapf(err, "can't open a new pull request")
 	}
