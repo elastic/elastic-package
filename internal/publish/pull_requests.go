@@ -46,6 +46,7 @@ func openPullRequest(githubClient *github.Client, githubUser, destinationBranch 
 	if fork {
 		user = githubUser
 	}
+	logger.Debugf("Current user: %s", user)
 
 	title := buildPullRequestTitle(manifest)
 	diffURL := buildPullRequestDiffURL(user, commitHash)

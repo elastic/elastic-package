@@ -573,10 +573,11 @@ func PushChangesWithFork(user string, r *git.Repository, fork bool, stages ...st
 	}
 
 	var remoteName = upstream
-	if !fork {
+	if fork {
 		remoteName = user
 	}
 
+	logger.Debugf("Push to remote: %s", remoteName)
 	err = r.Push(&git.PushOptions{
 		RemoteName: remoteName,
 		RefSpecs:   refSpecs,
