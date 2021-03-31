@@ -572,7 +572,7 @@ func PushChangesWithFork(user string, r *git.Repository, fork bool, stages ...st
 		refSpecs = append(refSpecs, config.RefSpec(fmt.Sprintf("refs/heads/%s:refs/heads/%s", stage, stage)))
 	}
 
-	var remoteName = upstream
+	remoteName := upstream
 	if fork {
 		remoteName = user
 	}
