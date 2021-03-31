@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/builder"
+	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/docs"
 )
 
@@ -20,19 +21,17 @@ Built packages are stored in the "build/" folder located at the root folder of t
 
 Built packages are served up by the Elastic Package Registry running locally (see "elastic-package stack"). If you want a local package to be served up by the local Elastic Package Registry, make sure to build that package first using "elastic-package build".
 
-Built packages can also be published to the global package registry service.
+Built packages can also be published to the global package registry service.`
 
-Context:
-  package`
-
-func setupBuildCommand() *cobra.Command {
+func setupBuildCommand() *cobraext.Command {
 	cmd := &cobra.Command{
 		Use:   "build",
 		Short: "Build the package",
 		Long:  buildLongDescription,
 		RunE:  buildCommandAction,
 	}
-	return cmd
+
+	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
 }
 
 func buildCommandAction(cmd *cobra.Command, args []string) error {

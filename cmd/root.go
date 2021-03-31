@@ -5,11 +5,29 @@
 package cmd
 
 import (
+	"sort"
+
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/logger"
 )
+
+var commands = []*cobraext.Command{
+	setupBuildCommand(),
+	setupCheckCommand(),
+	setupCleanCommand(),
+	setupExportCommand(),
+	setupFormatCommand(),
+	setupInstallCommand(),
+	setupLintCommand(),
+	setupPromoteCommand(),
+	setupPublishCommand(),
+	setupStackCommand(),
+	setupTestCommand(),
+	setupUninstallCommand(),
+	setupVersionCommand(),
+}
 
 // RootCmd creates and returns root cmd for elastic-package
 func RootCmd() *cobra.Command {
@@ -21,21 +39,20 @@ func RootCmd() *cobra.Command {
 	}
 	rootCmd.PersistentFlags().BoolP(cobraext.VerboseFlagName, "v", false, cobraext.VerboseFlagDescription)
 
-	rootCmd.AddCommand(
-		setupBuildCommand(),
-		setupCheckCommand(),
-		setupCleanCommand(),
-		setupExportCommand(),
-		setupInstallCommand(),
-		setupStackCommand(),
-		setupFormatCommand(),
-		setupLintCommand(),
-		setupPromoteCommand(),
-		setupPublishCommand(),
-		setupTestCommand(),
-		setupUninstallCommand(),
-		setupVersionCommand())
+	for _, cmd := range commands {
+		rootCmd.AddCommand(cmd.Command)
+	}
+
 	return rootCmd
+}
+
+// Commands returns the list of commands that have been setup for elastic-package.
+func Commands() []*cobraext.Command {
+	sort.SliceStable(commands, func(i, j int) bool {
+		return commands[i].Name() < commands[j].Name()
+	})
+
+	return commands
 }
 
 func processPersistentFlags(cmd *cobra.Command, args []string) error {
