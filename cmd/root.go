@@ -5,13 +5,14 @@
 package cmd
 
 import (
+	"sort"
+
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/logger"
 )
 
-// Make sure to preserve alphabetical order!
 var commands = []*cobraext.Command{
 	setupBuildCommand(),
 	setupCheckCommand(),
@@ -47,6 +48,10 @@ func RootCmd() *cobra.Command {
 
 // Commands returns the list of commands that have been setup for elastic-package.
 func Commands() []*cobraext.Command {
+	sort.SliceStable(commands, func(i, j int) bool {
+		return commands[i].Name() < commands[j].Name()
+	})
+
 	return commands
 }
 
