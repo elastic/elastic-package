@@ -34,7 +34,7 @@ func checkIfPullRequestAlreadyOpen(githubClient *github.Client, manifest package
 
 	for _, item := range searchResults.Issues {
 		if *item.Title == expectedTitle {
-			logger.Debugf("Found pull request: ", *item.HTMLURL)
+			logger.Debugf("Found pull request: %s", *item.HTMLURL)
 			return true, nil
 		}
 	}
