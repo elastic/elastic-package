@@ -79,6 +79,16 @@ func Package(githubUser string, githubClient *github.Client, fork, skipPullReque
 		logger.Debugf("Copy sources of the latest package revision to index")
 	}
 
+	fmt.Println("Check if pull request is already open")
+	alreadyOpen, err := checkIfPullRequestAlreadyOpen(githubClient, *m)
+	if err != nil {
+		return errors.Wrapf(err, "can't check if pull request is already open")
+	}
+	if alreadyOpen {
+		fmt.Println("Pull request with package update is already open")
+		return nil
+	}
+
 	destination, err := copyLatestRevisionIfAvailable(r, latestRevision, stage, m)
 	if err != nil {
 		return errors.Wrap(err, "can't copy sources of latest package revision")
@@ -97,16 +107,6 @@ func Package(githubUser string, githubClient *github.Client, fork, skipPullReque
 
 	if skipPullRequest {
 		fmt.Println("Skip opening a new pull request")
-		return nil
-	}
-
-	fmt.Println("Check if pull request is already open")
-	alreadyOpen, err := checkIfPullRequestAlreadyOpen(githubClient, *m)
-	if err != nil {
-		return errors.Wrapf(err, "can't check if pull request is already open")
-	}
-	if alreadyOpen {
-		fmt.Println("Pull request with package update is already open")
 		return nil
 	}
 
