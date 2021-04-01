@@ -82,7 +82,7 @@ services:
       kibana:
         condition: service_healthy
     healthcheck:
-      test: "sh -c 'grep \"Agent is starting\" /usr/share/elastic-agent/elastic-agent.log*'"
+      test: "sh -c 'grep \"Agent is starting\" -r . --include=elastic-agent-json.log'"
       retries: 30
       interval: 1s
     hostname: docker-fleet-agent
