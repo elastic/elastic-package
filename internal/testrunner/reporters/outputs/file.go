@@ -6,7 +6,6 @@ package outputs
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"time"
@@ -49,7 +48,7 @@ func reportToFile(pkg, report string, format testrunner.TestReportFormat) error 
 	fileName := fmt.Sprintf("%s_%d.%s", pkg, time.Now().UnixNano(), ext)
 	filePath := filepath.Join(dest, fileName)
 
-	if err := ioutil.WriteFile(filePath, []byte(report+"\n"), 0644); err != nil {
+	if err := os.WriteFile(filePath, []byte(report+"\n"), 0644); err != nil {
 		return errors.Wrap(err, "could not write report file")
 	}
 

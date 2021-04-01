@@ -5,7 +5,6 @@
 package static
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -98,7 +97,7 @@ func (r runner) verifySampleEvent() []testrunner.TestResult {
 		return results
 	}
 
-	content, err := ioutil.ReadFile(sampleEventPath)
+	content, err := os.ReadFile(sampleEventPath)
 	if err != nil {
 		results, _ := resultComposer.WithError(errors.Wrap(err, "can't read file"))
 		return results

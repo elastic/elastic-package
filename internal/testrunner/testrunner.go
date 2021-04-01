@@ -6,7 +6,6 @@ package testrunner
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -154,7 +153,7 @@ func AssumeTestFolders(packageRootPath string, dataStreams []string, testType Te
 	dataStreamsPath := filepath.Join(packageRootPath, "data_stream")
 
 	if dataStreams == nil || len(dataStreams) == 0 {
-		fileInfos, err := ioutil.ReadDir(dataStreamsPath)
+		fileInfos, err := os.ReadDir(dataStreamsPath)
 		if os.IsNotExist(err) {
 			return []TestFolder{}, nil // data streams defined
 		}

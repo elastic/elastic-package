@@ -5,7 +5,6 @@
 package files
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -14,7 +13,7 @@ import (
 
 // RemoveContent method wipes out the directory content.
 func RemoveContent(dir string) error {
-	fis, err := ioutil.ReadDir(dir)
+	fis, err := os.ReadDir(dir)
 	if err != nil {
 		return errors.Wrapf(err, "readdir failed (path: %s)", dir)
 	}

@@ -6,7 +6,6 @@ package github
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -43,7 +42,7 @@ func AuthToken() (string, error) {
 	}
 
 	githubTokenPath := filepath.Join(homeDir, ".elastic/github.token")
-	token, err := ioutil.ReadFile(githubTokenPath)
+	token, err := os.ReadFile(githubTokenPath)
 	if err != nil {
 		return "", errors.Wrapf(err, "reading Github token file failed (path: %s)", githubTokenPath)
 	}

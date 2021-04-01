@@ -6,7 +6,7 @@ package export
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -15,7 +15,7 @@ import (
 )
 
 func TestTransform(t *testing.T) {
-	b, err := ioutil.ReadFile("./test/system-navigation.json")
+	b, err := os.ReadFile("./test/system-navigation.json")
 	require.NoError(t, err)
 
 	var given common.MapStr
@@ -33,7 +33,7 @@ func TestTransform(t *testing.T) {
 	result, err := json.MarshalIndent(&results[0], "", "  ")
 	require.NoError(t, err)
 
-	expected, err := ioutil.ReadFile("./test/system-navigation.json-expected.json")
+	expected, err := os.ReadFile("./test/system-navigation.json-expected.json")
 	require.NoError(t, err)
 
 	require.Equal(t, string(expected), string(result))

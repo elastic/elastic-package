@@ -6,7 +6,6 @@ package formatter
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -51,7 +50,7 @@ func formatFile(path string, failFast bool) error {
 	file := filepath.Base(path)
 	ext := filepath.Ext(file)
 
-	content, err := ioutil.ReadFile(path)
+	content, err := os.ReadFile(path)
 	if err != nil {
 		return errors.Wrap(err, "reading file content failed")
 	}
@@ -74,7 +73,7 @@ func formatFile(path string, failFast bool) error {
 		return fmt.Errorf("file is not formatted (path: %s)", path)
 	}
 
-	err = ioutil.WriteFile(path, newContent, 0755)
+	err = os.WriteFile(path, newContent, 0755)
 	if err != nil {
 		return errors.Wrapf(err, "rewriting file failed (path: %s)", path)
 	}

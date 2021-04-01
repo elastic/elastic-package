@@ -6,7 +6,7 @@ package docs
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -20,7 +20,7 @@ const sampleEventFile = "sample_event.json"
 func renderSampleEvent(packageRoot, dataStreamName string) (string, error) {
 	eventPath := filepath.Join(packageRoot, "data_stream", dataStreamName, sampleEventFile)
 
-	body, err := ioutil.ReadFile(eventPath)
+	body, err := os.ReadFile(eventPath)
 	if err != nil {
 		return "", errors.Wrapf(err, "reading sample event file failed (path: %s)", eventPath)
 	}
