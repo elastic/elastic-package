@@ -99,7 +99,7 @@ func (prs PackageVersions) FilterPackages(newestOnly bool) PackageVersions {
 	m := map[string]PackageVersion{}
 
 	for _, p := range prs {
-		if v, ok := m[p.Name]; ok {
+		if v, ok := m[p.Name]; !ok {
 			m[p.Name] = p
 		} else if v.semver.LessThan(&p.semver) {
 			m[p.Name] = p

@@ -123,14 +123,12 @@ func findLatestPackageRevision(r *git.Repository, packageName string) (*storage.
 
 	revisionStageMap := map[string]string{}
 	for _, currentStage := range []string{productionStage, stagingStage, snapshotStage} {
-		logger.Debugf("Change stage to %s", currentStage)
-
+		logger.Debugf("Find revisions of the \"%s\" package in %s", packageName, currentStage)
 		err := storage.ChangeStage(r, currentStage)
 		if err != nil {
 			return nil, "", errors.Wrapf(err, "can't change stage to %s", currentStage)
 		}
 
-		logger.Debugf("Find revisions of the \"%s\" package", packageName)
 		revs, err := storage.ListPackagesByName(r, packageName)
 		if err != nil {
 			return nil, "", errors.Wrapf(err, "can't list packages")
