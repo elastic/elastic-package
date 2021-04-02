@@ -76,7 +76,7 @@ func checkIfAlreadyInstalled(elasticPackagePath *locations.LocationManager) (boo
 	if err != nil {
 		return false, errors.Wrapf(err, "stat file failed (path: %s)", elasticPackagePath)
 	}
-	return checkIfLatestVersionInstalled(elasticPackagePath.StackDir())
+	return checkIfLatestVersionInstalled(elasticPackagePath.RootDir())
 }
 
 func createElasticPackageDirectory(elasticPackagePath *locations.LocationManager) error {
