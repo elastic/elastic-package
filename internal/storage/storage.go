@@ -7,7 +7,6 @@ package storage
 import (
 	"fmt"
 	"io/ioutil"
-	"os"
 	"path/filepath"
 	"sort"
 
@@ -19,6 +18,7 @@ import (
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/format/index"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/go-git/go-git/v5/storage/memory"
 	"github.com/pkg/errors"
@@ -302,6 +302,7 @@ func CopyPackages(r *git.Repository, sourceStage, destinationStage string, packa
 
 // CopyPackagesWithTransform function copies packages between branches and modifies file content using transform function.
 // It creates a new branch with selected packages.
+// The function doesn't fail if the source stage doesn't exist.
 func CopyPackagesWithTransform(r *git.Repository, sourceStage, destinationStage string, packages PackageVersions, destinationBranch string,
 	transform contentTransformer) error {
 	wt, err := r.Worktree()
@@ -309,23 +310,26 @@ func CopyPackagesWithTransform(r *git.Repository, sourceStage, destinationStage 
 		return errors.Wrap(err, "fetching worktree reference failed")
 	}
 
-	logger.Debugf("Checkout source stage: %s", sourceStage)
-	err = wt.Checkout(&git.CheckoutOptions{
-		Branch: plumbing.NewBranchReferenceName(sourceStage),
-	})
-	if err != nil {
-		return errors.Wrapf(err, "changing branch failed (path: %s)", sourceStage)
-	}
+	var contents fileContents
+	if sourceStage != "" {
+		logger.Debugf("Checkout source stage: %s", sourceStage)
+		err = wt.Checkout(&git.CheckoutOptions{
+			Branch: plumbing.NewBranchReferenceName(sourceStage),
+		})
+		if err != nil {
+			return errors.Wrapf(err, "changing branch failed (path: %s)", sourceStage)
+		}
 
-	logger.Debugf("Load package resources from source stage")
-	resourcePaths, err := walkPackageVersions(wt.Filesystem, packages...)
-	if err != nil {
-		return errors.Wrap(err, "walking package versions failed")
-	}
+		logger.Debugf("Load package resources from source stage")
+		resourcePaths, err := walkPackageVersions(wt.Filesystem, packages...)
+		if err != nil {
+			return errors.Wrap(err, "walking package versions failed")
+		}
 
-	contents, err := loadPackageContents(wt.Filesystem, resourcePaths)
-	if err != nil {
-		return errors.Wrap(err, "loading package contents failed")
+		contents, err = loadPackageContents(wt.Filesystem, resourcePaths)
+		if err != nil {
+			return errors.Wrap(err, "loading package contents failed")
+		}
 	}
 
 	logger.Debugf("Checkout destination stage: %s", destinationStage)
@@ -392,7 +396,7 @@ func CopyOverLocalPackage(r *git.Repository, builtPackageDir string, manifest *p
 	logger.Debugf("Temporarily remove all files from index")
 	publishedPackageDir := filepath.Join(packagesDir, manifest.Name, manifest.Version)
 	_, err = wt.Remove(publishedPackageDir)
-	if err != nil && !os.IsNotExist(err) {
+	if err != nil && err != index.ErrEntryNotFound {
 		return "", errors.Wrapf(err, "can't remove files within path: %s", publishedPackageDir)
 	}
 
