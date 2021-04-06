@@ -43,11 +43,12 @@ services:
       package-registry:
         condition: service_healthy
     healthcheck:
-      test: "curl -f http://127.0.0.1:5601/login | grep kbn-injected-metadata 2>&1 >/dev/null"
+      test: "sh /usr/share/kibana/healthcheck.sh"
       retries: 600
       interval: 1s
     volumes:
       - ./kibana.config.yml:/usr/share/kibana/config/kibana.yml
+      - ./healthcheck.sh:/usr/share/kibana/healthcheck.sh
     ports:
       - "127.0.0.1:5601:5601"
 
