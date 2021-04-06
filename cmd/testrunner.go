@@ -25,24 +25,27 @@ import (
 
 const testLongDescription = `Use this command to run tests on a package. Currently, the following types of tests are available:
 
-Asset Loading Tests
-These tests allow you to exercise installing a package to ensure that its assets are loaded into Elasticsearch and Kibana as expected.
+#### Asset Loading Tests
+These tests ensure that all the Elasticsearch and Kibana assets defined by your package get loaded up as expected.
 
-Pipeline Tests
+For details on how to run asset loading tests for a package, see the [HOWTO guide](https://github.com/elastic/elastic-package/blob/master/docs/howto/asset_testing.md).
+
+#### Pipeline Tests
 These tests allow you to exercise any Ingest Node Pipelines defined by your packages.
-For details on how to configure pipeline test for a package, review the HOWTO guide (see: https://github.com/elastic/elastic-package/blob/master/docs/howto/pipeline_testing.md).
 
-Static Tests
+For details on how to configure pipeline test for a package, review the [HOWTO guide](https://github.com/elastic/elastic-package/blob/master/docs/howto/pipeline_testing.md).
+
+#### Static Tests
 These tests allow you to verify if all static resources of the package are valid, e.g. if all fields of the sample_event.json are documented.
 
-System Tests
+For details on how to run static tests for a package, see the [HOWTO guide](https://github.com/elastic/elastic-package/blob/master/docs/howto/static_testing.md).
+
+#### System Tests
 These tests allow you to test a package's ability to ingest data end-to-end.
-For details on how to configure amd run system tests, review the HOWTO guide (see: https://github.com/elastic/elastic-package/blob/master/docs/howto/system_testing.md).
 
-Context:
-  package`
+For details on how to configure amd run system tests, review the [HOWTO guide](https://github.com/elastic/elastic-package/blob/master/docs/howto/system_testing.md).`
 
-func setupTestCommand() *cobra.Command {
+func setupTestCommand() *cobraext.Command {
 	var testTypeCmdActions []cobraext.CommandAction
 
 	cmd := &cobra.Command{
@@ -83,7 +86,7 @@ func setupTestCommand() *cobra.Command {
 		cmd.AddCommand(testTypeCmd)
 	}
 
-	return cmd
+	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
 }
 
 func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.CommandAction {

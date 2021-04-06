@@ -170,6 +170,7 @@ func writeStackResources(elasticPackagePath string) error {
 	}
 
 	err = writeStaticResource(err, filepath.Join(stackPath, "kibana.config.yml"), kibanaConfigYml)
+	err = writeStaticResource(err, filepath.Join(stackPath, "healthcheck.sh"), kibanaHealthcheckSh)
 	err = writeStaticResource(err, filepath.Join(stackPath, "snapshot.yml"), snapshotYml)
 	err = writeStaticResource(err, filepath.Join(stackPath, "package-registry.config.yml"), packageRegistryConfigYml)
 	err = writeStaticResource(err, filepath.Join(stackPath, "Dockerfile.package-registry"), packageRegistryDockerfile)

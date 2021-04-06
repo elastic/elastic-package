@@ -28,7 +28,7 @@ const (
 )
 
 // Package function publishes the current package to the package-storage.
-func Package(githubUser string, githubClient *github.Client, skipPullRequest bool) error {
+func Package(githubUser string, githubClient *github.Client, fork, skipPullRequest bool) error {
 	packageRoot, err := packages.MustFindPackageRoot()
 	if err != nil {
 		return errors.Wrap(err, "locating package root failed")
@@ -58,7 +58,7 @@ func Package(githubUser string, githubClient *github.Client, skipPullRequest boo
 	}
 
 	fmt.Println("Clone package-storage repository")
-	r, err := storage.CloneRepository(githubUser, productionStage)
+	r, err := storage.CloneRepositoryWithFork(githubUser, productionStage, fork)
 	if err != nil {
 		return errors.Wrap(err, "cloning source repository failed")
 	}
@@ -79,6 +79,16 @@ func Package(githubUser string, githubClient *github.Client, skipPullRequest boo
 		logger.Debugf("Copy sources of the latest package revision to index")
 	}
 
+	fmt.Println("Check if pull request is already open")
+	alreadyOpen, err := checkIfPullRequestAlreadyOpen(githubClient, *m)
+	if err != nil {
+		return errors.Wrapf(err, "can't check if pull request is already open")
+	}
+	if alreadyOpen {
+		fmt.Println("Pull request with package update is already open")
+		return nil
+	}
+
 	destination, err := copyLatestRevisionIfAvailable(r, latestRevision, stage, m)
 	if err != nil {
 		return errors.Wrap(err, "can't copy sources of latest package revision")
@@ -90,7 +100,7 @@ func Package(githubUser string, githubClient *github.Client, skipPullRequest boo
 	}
 
 	fmt.Println("Push new package revision to storage")
-	err = storage.PushChanges(githubUser, r, destination)
+	err = storage.PushChangesWithFork(githubUser, r, fork, destination)
 	if err != nil {
 		return errors.Wrapf(err, "pushing changes failed")
 	}
@@ -100,18 +110,8 @@ func Package(githubUser string, githubClient *github.Client, skipPullRequest boo
 		return nil
 	}
 
-	fmt.Println("Check if pull request is already open")
-	alreadyOpen, err := checkIfPullRequestAlreadyOpen(githubClient, *m)
-	if err != nil {
-		return errors.Wrapf(err, "can't check if pull request is already open")
-	}
-	if alreadyOpen {
-		fmt.Println("Pull request with package update is already open")
-		return nil
-	}
-
 	fmt.Println("Open new pull request")
-	err = openPullRequest(githubClient, githubUser, destination, *m, commitHash)
+	err = openPullRequest(githubClient, githubUser, destination, *m, commitHash, fork)
 	if err != nil {
 		return errors.Wrapf(err, "can't open a new pull request")
 	}
@@ -123,14 +123,12 @@ func findLatestPackageRevision(r *git.Repository, packageName string) (*storage.
 
 	revisionStageMap := map[string]string{}
 	for _, currentStage := range []string{productionStage, stagingStage, snapshotStage} {
-		logger.Debugf("Change stage to %s", currentStage)
-
+		logger.Debugf("Find revisions of the \"%s\" package in %s", packageName, currentStage)
 		err := storage.ChangeStage(r, currentStage)
 		if err != nil {
 			return nil, "", errors.Wrapf(err, "can't change stage to %s", currentStage)
 		}
 
-		logger.Debugf("Find revisions of the \"%s\" package", packageName)
 		revs, err := storage.ListPackagesByName(r, packageName)
 		if err != nil {
 			return nil, "", errors.Wrapf(err, "can't list packages")

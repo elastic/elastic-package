@@ -43,11 +43,12 @@ services:
       package-registry:
         condition: service_healthy
     healthcheck:
-      test: "curl -f http://127.0.0.1:5601/login | grep kbn-injected-metadata 2>&1 >/dev/null"
+      test: "sh /usr/share/kibana/healthcheck.sh"
       retries: 600
       interval: 1s
     volumes:
       - ./kibana.config.yml:/usr/share/kibana/config/kibana.yml
+      - ./healthcheck.sh:/usr/share/kibana/healthcheck.sh
     ports:
       - "127.0.0.1:5601:5601"
 
@@ -83,26 +84,7 @@ services:
         condition: service_healthy
     healthcheck:
       test: "curl -f http://127.0.0.1:8220/api/status | grep HEALTHY 2>&1 >/dev/null"
-      retries: 12
-      interval: 5s
-    hostname: docker-fleet-server
-    environment:
-    - "FLEET_SERVER_ENABLE=1"
-    - "FLEET_SERVER_INSECURE_HTTP=1"
-    - "KIBANA_FLEET_SETUP=1"
-    - "KIBANA_FLEET_HOST=http://kibana:5601"
-    - "FLEET_SERVER_HOST=0.0.0.0"
-    ports:
-      - "127.0.0.1:8220:8220"
-
-  elastic-agent:
-    image: ${ELASTIC_AGENT_IMAGE_REF}
-    depends_on:
-      fleet-server:
-        condition: service_healthy
-    healthcheck:
-      test: "sh -c 'grep \"Agent is starting\" /usr/share/elastic-agent/elastic-agent.log*'"
-      retries: 90
+      retries: 30
       interval: 1s
     hostname: docker-fleet-agent
     environment:
