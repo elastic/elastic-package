@@ -100,9 +100,11 @@ func writeStackResources(elasticPackagePath *locations.LocationManager) error {
 	}
 
 	err = writeStaticResource(err, filepath.Join(elasticPackagePath.StackDir(), "kibana.config.yml"), kibanaConfigYml)
+	err = writeStaticResource(err, filepath.Join(elasticPackagePath.StackDir(), "healthcheck.sh"), kibanaHealthcheckSh)
 	err = writeStaticResource(err, filepath.Join(elasticPackagePath.StackDir(), "snapshot.yml"), snapshotYml)
 	err = writeStaticResource(err, filepath.Join(elasticPackagePath.StackDir(), "package-registry.config.yml"), packageRegistryConfigYml)
 	err = writeStaticResource(err, filepath.Join(elasticPackagePath.StackDir(), "Dockerfile.package-registry"), packageRegistryDockerfile)
+
 	if err != nil {
 		return errors.Wrap(err, "writing static resource failed")
 	}
