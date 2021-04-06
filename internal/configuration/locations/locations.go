@@ -96,7 +96,7 @@ func (loc LocationManager) ServiceLogDir() string {
 	return filepath.Join(loc.stackPath, serviceLogsDir)
 }
 
-// ConfigurationDir returns the configuration directory location
+// configurationDir returns the configuration directory location
 func configurationDir() (string, error) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
