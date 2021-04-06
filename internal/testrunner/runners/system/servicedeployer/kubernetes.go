@@ -115,7 +115,7 @@ func (ksd KubernetesServiceDeployer) installCustomDefinitions() error {
 		return nil
 	}
 
-	err = kubectl.Delete(definitionPaths...)
+	err = kubectl.Apply(definitionPaths...)
 	if err != nil {
 		return errors.Wrap(err, "can't install custom definitions")
 	}
