@@ -17,8 +17,8 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/common"
+	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/fields"
-	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/multierror"
@@ -127,7 +127,7 @@ func (r *runner) newResult(name string) *testrunner.ResultComposer {
 
 func (r *runner) run() (results []testrunner.TestResult, err error) {
 	result := r.newResult("(init)")
-	serviceLogsDir, err := install.ServiceLogsDir()
+	locationManager, err := locations.NewLocationManager()
 	if err != nil {
 		return result.WithError(errors.Wrap(err, "reading service logs directory failed"))
 	}
@@ -139,7 +139,7 @@ func (r *runner) run() (results []testrunner.TestResult, err error) {
 	for _, cfgFile := range files {
 		var ctxt servicedeployer.ServiceContext
 		ctxt.Name = r.options.TestFolder.Package
-		ctxt.Logs.Folder.Local = serviceLogsDir
+		ctxt.Logs.Folder.Local = locationManager.ServiceLogDir()
 		ctxt.Logs.Folder.Agent = serviceLogsAgentDir
 		ctxt.Test.RunID = createTestRunID()
 		testConfig, err := newConfig(filepath.Join(r.options.TestFolder.Path, cfgFile), ctxt)
