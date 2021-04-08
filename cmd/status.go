@@ -176,6 +176,21 @@ func (p *packageStatus) print(w io.Writer) error {
 	bold.Fprint(w, "Package: ")
 	cyan.Fprintln(w, p.Name)
 
+	environmentTable := [][]string{}
+	if p.Local != nil {
+		bold.Fprint(w, "Owner: ")
+		owner := "-"
+		if p.Local.Owner.Github != "" {
+			owner = p.Local.Owner.Github
+		}
+		cyan.Fprintln(w, owner)
+
+		environmentTable = append(environmentTable, formatManifest("Local", *p.Local, nil))
+	}
+	environmentTable = append(environmentTable, formatManifests("Snapshot", p.Snapshot))
+	environmentTable = append(environmentTable, formatManifests("Staging", p.Staging))
+	environmentTable = append(environmentTable, formatManifests("Production", p.Production))
+
 	if changes != nil {
 		bold.Fprint(w, "Next Version: ")
 		red.Fprintln(w, changes.Version)
@@ -200,14 +215,8 @@ func (p *packageStatus) print(w io.Writer) error {
 		table.AppendBulk(changelogTable)
 		table.Render()
 	}
+
 	bold.Fprintln(w, "Package Versions:")
-	environmentTable := [][]string{}
-	if p.Local != nil {
-		environmentTable = append(environmentTable, formatManifest("Local", *p.Local, nil))
-	}
-	environmentTable = append(environmentTable, formatManifests("Snapshot", p.Snapshot))
-	environmentTable = append(environmentTable, formatManifests("Staging", p.Staging))
-	environmentTable = append(environmentTable, formatManifests("Production", p.Production))
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetHeader([]string{"Environment", "Version", "Release", "Title", "Description"})
 	table.SetHeaderColor(
