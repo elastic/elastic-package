@@ -260,7 +260,7 @@ func formatManifest(environment string, manifest packages.PackageManifest, extra
 }
 
 func getDeployedPackage(packageName, url string) ([]packages.PackageManifest, error) {
-	response, err := http.Get(url + "/search?package=" + packageName)
+	response, err := http.Get(url + "/search?internal=true&experimental=true&package=" + packageName)
 	if err != nil {
 		return nil, err
 	}
