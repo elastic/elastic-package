@@ -19,6 +19,9 @@ const (
 	// PackageManifestFile is the name of the package's main manifest file.
 	PackageManifestFile = "manifest.yml"
 
+	// PackageChangelogFile is the name of the package's changelog file.
+	PackageChangelogFile = "changelog.yml"
+
 	// DataStreamManifestFile is the name of the data stream's manifest file.
 	DataStreamManifestFile = "manifest.yml"
 
@@ -104,6 +107,21 @@ type PackageManifest struct {
 	PolicyTemplates []PolicyTemplate `config:"policy_templates" json:"policy_templates" yaml:"policy_templates"`
 	Vars            []Variable       `config:"vars" json:"vars" yaml:"vars"`
 	Owner           Owner            `config:"owner" json:"owner" yaml:"owner"`
+	Release         string           `config:"release" json:"release" yaml:"release"`
+	Description     string           `config:"description" json:"description" yaml:"description"`
+}
+
+// ChangeLogEntry represents an entry in a package changelog.yml file
+type ChangeLogEntry struct {
+	Description string `config:"description" json:"description" yaml:"description"`
+	Type        string `config:"type" json:"type" yaml:"type"`
+	Link        string `config:"link" json:"link" yaml:"link"`
+}
+
+// ChangeLogEntry represents an version in a package changelog.yml file
+type ChangeLogVersion struct {
+	Version string           `config:"version" json:"version" yaml:"version"`
+	Changes []ChangeLogEntry `config:"changes" json:"changes" yaml:"changes"`
 }
 
 // DataStreamManifest represents the structure of a data stream's manifest
@@ -187,6 +205,26 @@ func FindDataStreamRootForPath(workDir string) (string, bool, error) {
 		dir = filepath.Dir(dir)
 	}
 	return "", false, nil
+}
+
+// ReadChangelogFromPackageRoot reads and parses the package changelog file for the given package.
+func ReadChangelogFromPackageRoot(packageRoot string) ([]ChangeLogVersion, error) {
+	return ReadChangelog(filepath.Join(packageRoot, PackageChangelogFile))
+}
+
+// ReadChangelog reads and parses the given package changelog file.
+func ReadChangelog(path string) ([]ChangeLogVersion, error) {
+	cfg, err := yaml.NewConfigWithFile(path, ucfg.PathSep("."))
+	if err != nil {
+		return nil, errors.Wrapf(err, "reading file failed (path: %s)", path)
+	}
+
+	var c []ChangeLogVersion
+	err = cfg.Unpack(&c)
+	if err != nil {
+		return nil, errors.Wrapf(err, "unpacking package changelog failed (path: %s)", path)
+	}
+	return c, nil
 }
 
 // ReadPackageManifestFromPackageRoot reads and parses the package manifest file for the given package.

@@ -53,4 +53,7 @@ const (
 
 	VerboseFlagName        = "verbose"
 	VerboseFlagDescription = "verbose mode"
+
+	NoColorFlagName        = "no-color"
+	NoColorFlagDescription = "disable color output"
 )
