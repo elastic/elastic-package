@@ -176,7 +176,7 @@ func (p *packageStatus) print(w io.Writer) error {
 	bold.Fprint(w, "Package: ")
 	cyan.Fprintln(w, p.Name)
 
-	environmentTable := [][]string{}
+	var environmentTable [][]string
 	if p.Local != nil {
 		bold.Fprint(w, "Owner: ")
 		owner := "-"
@@ -195,7 +195,7 @@ func (p *packageStatus) print(w io.Writer) error {
 		bold.Fprint(w, "Next Version: ")
 		red.Fprintln(w, changes.Version)
 		bold.Fprintln(w, "Pending Changes:")
-		changelogTable := [][]string{}
+		var changelogTable [][]string
 		for _, change := range changes.Changes {
 			changelogTable = append(changelogTable, formatChangelogEntry(change))
 		}
@@ -256,7 +256,7 @@ func formatManifests(environment string, manifests []packages.PackageManifest) [
 	if len(manifests) == 0 {
 		return []string{environment, "-", "-", "-", "-"}
 	}
-	extraVersions := []string{}
+	var extraVersions []string
 	for i, m := range manifests {
 		if i != len(manifests)-1 {
 			extraVersions = append(extraVersions, m.Version)
@@ -287,7 +287,7 @@ func getDeployedPackage(packageName, url string, showAll bool) ([]packages.Packa
 	if err != nil {
 		return nil, err
 	}
-	deployedPackageManifests := []packages.PackageManifest{}
+	var deployedPackageManifests []packages.PackageManifest
 	if err := json.Unmarshal(body, &deployedPackageManifests); err != nil {
 		return nil, err
 	}
