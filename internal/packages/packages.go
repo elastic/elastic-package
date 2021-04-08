@@ -118,7 +118,7 @@ type ChangeLogEntry struct {
 	Link        string `config:"link" json:"link" yaml:"link"`
 }
 
-// ChangeLogEntry represents an version in a package changelog.yml file
+// ChangeLogVersion represents an version in a package changelog.yml file
 type ChangeLogVersion struct {
 	Version string           `config:"version" json:"version" yaml:"version"`
 	Changes []ChangeLogEntry `config:"changes" json:"changes" yaml:"changes"`
