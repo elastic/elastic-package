@@ -11,6 +11,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/Masterminds/semver"
@@ -291,5 +292,17 @@ func getDeployedPackage(packageName, url string, showAll bool) ([]packages.Packa
 	if err := json.Unmarshal(body, &deployedPackageManifests); err != nil {
 		return nil, err
 	}
+	sort.Slice(deployedPackageManifests, func(i, j int) bool {
+		firstVersion, err := semver.NewVersion(deployedPackageManifests[i].Version)
+		if err != nil {
+			return true
+		}
+		secondVersion, err := semver.NewVersion(deployedPackageManifests[j].Version)
+		if err != nil {
+			return false
+		}
+		return firstVersion.LessThan(secondVersion)
+	})
+
 	return deployedPackageManifests, nil
 }
