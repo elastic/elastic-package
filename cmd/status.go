@@ -50,6 +50,7 @@ func setupStatusCommand() *cobraext.Command {
 		RunE:  statusCommandAction,
 	}
 	cmd.Flags().BoolP(cobraext.NoColorFlagName, "c", false, cobraext.NoColorFlagDescription)
+	cmd.Flags().BoolP(cobraext.ShowAllFlagName, "a", false, cobraext.ShowAllFlagDescription)
 
 	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
 }
@@ -58,6 +59,10 @@ func statusCommandAction(cmd *cobra.Command, args []string) error {
 	var err error
 	var status *packageStatus
 
+	showAll, err := cmd.Flags().GetBool(cobraext.ShowAllFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.ShowAllFlagName)
+	}
 	nc, err := cmd.Flags().GetBool(cobraext.NoColorFlagName)
 	if err != nil {
 		return cobraext.FlagParsingError(err, cobraext.NoColorFlagName)
@@ -70,7 +75,7 @@ func statusCommandAction(cmd *cobra.Command, args []string) error {
 	}
 
 	if len(args) > 0 {
-		status, err = newRemotePackageStatus(args[0])
+		status, err = newRemotePackageStatus(args[0], showAll)
 		if err != nil {
 			return err
 		}
@@ -82,7 +87,7 @@ func statusCommandAction(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return errors.Wrap(err, "locating package root failed")
 		}
-		status, err = newLocalPackageStatus(packageRootPath)
+		status, err = newLocalPackageStatus(packageRootPath, showAll)
 		if err != nil {
 			return err
 		}
@@ -102,7 +107,7 @@ type packageStatus struct {
 	Snapshot   []packages.PackageManifest
 }
 
-func newLocalPackageStatus(packageRootPath string) (*packageStatus, error) {
+func newLocalPackageStatus(packageRootPath string, showAll bool) (*packageStatus, error) {
 	manifest, err := packages.ReadPackageManifestFromPackageRoot(packageRootPath)
 	if err != nil {
 		return nil, errors.Wrap(err, "reading package manifest failed")
@@ -111,7 +116,7 @@ func newLocalPackageStatus(packageRootPath string) (*packageStatus, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "reading package changelog failed")
 	}
-	status, err := newRemotePackageStatus(manifest.Name)
+	status, err := newRemotePackageStatus(manifest.Name, showAll)
 	if err != nil {
 		return nil, err
 	}
@@ -120,16 +125,16 @@ func newLocalPackageStatus(packageRootPath string) (*packageStatus, error) {
 	return status, nil
 }
 
-func newRemotePackageStatus(packageName string) (*packageStatus, error) {
-	snapshotManifests, err := getDeployedPackage(packageName, snapshotURL)
+func newRemotePackageStatus(packageName string, showAll bool) (*packageStatus, error) {
+	snapshotManifests, err := getDeployedPackage(packageName, snapshotURL, showAll)
 	if err != nil {
 		return nil, errors.Wrap(err, "retrieving snapshot deployment failed")
 	}
-	stagingManifests, err := getDeployedPackage(packageName, stagingURL)
+	stagingManifests, err := getDeployedPackage(packageName, stagingURL, showAll)
 	if err != nil {
 		return nil, errors.Wrap(err, "retrieving staging deployment failed")
 	}
-	productionManifests, err := getDeployedPackage(packageName, productionURL)
+	productionManifests, err := getDeployedPackage(packageName, productionURL, showAll)
 	if err != nil {
 		return nil, errors.Wrap(err, "retrieving production deployment failed")
 	}
@@ -244,11 +249,11 @@ func formatManifests(environment string, manifests []packages.PackageManifest) [
 	}
 	extraVersions := []string{}
 	for i, m := range manifests {
-		if i != 0 {
+		if i != len(manifests)-1 {
 			extraVersions = append(extraVersions, m.Version)
 		}
 	}
-	return formatManifest(environment, manifests[0], extraVersions)
+	return formatManifest(environment, manifests[len(manifests)-1], extraVersions)
 }
 
 func formatManifest(environment string, manifest packages.PackageManifest, extraVersions []string) []string {
@@ -259,8 +264,12 @@ func formatManifest(environment string, manifest packages.PackageManifest, extra
 	return []string{environment, version, manifest.Release, manifest.Title, manifest.Description}
 }
 
-func getDeployedPackage(packageName, url string) ([]packages.PackageManifest, error) {
-	response, err := http.Get(url + "/search?internal=true&experimental=true&package=" + packageName)
+func getDeployedPackage(packageName, url string, showAll bool) ([]packages.PackageManifest, error) {
+	requestURL := url + "/search?internal=true&experimental=true&package=" + packageName
+	if showAll {
+		requestURL += "&all=true"
+	}
+	response, err := http.Get(requestURL)
 	if err != nil {
 		return nil, err
 	}
