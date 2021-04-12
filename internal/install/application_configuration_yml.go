@@ -28,9 +28,4 @@ const applicationConfigurationYml = `stack:
 
 const applicationConfigurationYml = `stack:
   image_ref_overrides:
-    7.13.0-SNAPSHOT:
-      # Use stable image versions for Agent and Kibana
-      elasticsearch: ` + elasticsearchImageName + `@sha256:4103fceb802f73356092beff5502e87ec2faa97048d066135d69f04e42b5ca81
-      elastic-agent: ` + elasticAgentImageName + `@sha256:41e99398b69a9ce35a597839b084287f595aef0f3ed7d6c92dd035a3d75caf3a
-      kibana: ` + kibanaImageName + `@sha256:4c345ad24128a3e8084079b9c193bdc84ec338b34fe18be5d1c879cd66487e38
 `
