@@ -58,5 +58,5 @@ const (
 	NoColorFlagDescription = "disable color output"
 
 	ShowAllFlagName        = "all"
-	ShowAllFlagDescription = "show all deployed package versions"
+	ShowAllFlagDescription = "show all deployed package revisions"
 )

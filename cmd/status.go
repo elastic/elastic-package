@@ -5,37 +5,22 @@
 package cmd
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
-	"net/http"
 	"os"
-	"sort"
 	"strings"
 
-	"github.com/Masterminds/semver"
 	"github.com/fatih/color"
-	"github.com/mattn/go-isatty"
 	"github.com/olekukonko/tablewriter"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/internal/packages/changelog"
+	"github.com/elastic/elastic-package/internal/packages/status"
 )
 
-var (
-	// taken from https://github.com/fatih/color/blob/4d2835ff85a014514ee435d49f76dc8b25c9cee3/color.go#L20-L21
-	noColor = os.Getenv("TERM") == "dumb" ||
-		(!isatty.IsTerminal(os.Stdout.Fd()) && !isatty.IsCygwinTerminal(os.Stdout.Fd()))
-)
-
-const (
-	productionURL = "https://epr.elastic.co"
-	stagingURL    = "https://epr-staging.elastic.co"
-	snapshotURL   = "https://epr-snapshot.elastic.co"
-)
 const statusLongDescription = `Use this command to display the current deployment status of a package.
 
 If a package name is specified, then information about that package is
@@ -50,7 +35,6 @@ func setupStatusCommand() *cobraext.Command {
 		Long:  statusLongDescription,
 		RunE:  statusCommandAction,
 	}
-	cmd.Flags().BoolP(cobraext.NoColorFlagName, "c", false, cobraext.NoColorFlagDescription)
 	cmd.Flags().BoolP(cobraext.ShowAllFlagName, "a", false, cobraext.ShowAllFlagDescription)
 
 	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
@@ -58,25 +42,15 @@ func setupStatusCommand() *cobraext.Command {
 
 func statusCommandAction(cmd *cobra.Command, args []string) error {
 	var err error
-	var status *packageStatus
+	var packageStatus *status.PackageStatus
 
 	showAll, err := cmd.Flags().GetBool(cobraext.ShowAllFlagName)
 	if err != nil {
 		return cobraext.FlagParsingError(err, cobraext.ShowAllFlagName)
 	}
-	nc, err := cmd.Flags().GetBool(cobraext.NoColorFlagName)
-	if err != nil {
-		return cobraext.FlagParsingError(err, cobraext.NoColorFlagName)
-	}
-	if nc {
-		noColor = true
-	}
-	if noColor {
-		color.NoColor = true
-	}
 
 	if len(args) > 0 {
-		status, err = newRemotePackageStatus(args[0], showAll)
+		packageStatus, err = status.Package(args[0], showAll)
 		if err != nil {
 			return err
 		}
@@ -88,86 +62,21 @@ func statusCommandAction(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return errors.Wrap(err, "locating package root failed")
 		}
-		status, err = newLocalPackageStatus(packageRootPath, showAll)
+		packageStatus, err = status.LocalPackage(packageRootPath, showAll)
 		if err != nil {
 			return err
 		}
 	}
-	if err := status.print(os.Stdout); err != nil {
+	if err := print(packageStatus, os.Stdout); err != nil {
 		return err
 	}
 	return nil
 }
 
-type packageStatus struct {
-	Name       string
-	Changelog  []packages.ChangeLogVersion
-	Local      *packages.PackageManifest
-	Production []packages.PackageManifest
-	Staging    []packages.PackageManifest
-	Snapshot   []packages.PackageManifest
-}
+// data printing/formatters
 
-func newLocalPackageStatus(packageRootPath string, showAll bool) (*packageStatus, error) {
-	manifest, err := packages.ReadPackageManifestFromPackageRoot(packageRootPath)
-	if err != nil {
-		return nil, errors.Wrap(err, "reading package manifest failed")
-	}
-	changelog, err := packages.ReadChangelogFromPackageRoot(packageRootPath)
-	if err != nil {
-		return nil, errors.Wrap(err, "reading package changelog failed")
-	}
-	status, err := newRemotePackageStatus(manifest.Name, showAll)
-	if err != nil {
-		return nil, err
-	}
-	status.Changelog = changelog
-	status.Local = manifest
-	return status, nil
-}
-
-func newRemotePackageStatus(packageName string, showAll bool) (*packageStatus, error) {
-	snapshotManifests, err := getDeployedPackage(packageName, snapshotURL, showAll)
-	if err != nil {
-		return nil, errors.Wrap(err, "retrieving snapshot deployment failed")
-	}
-	stagingManifests, err := getDeployedPackage(packageName, stagingURL, showAll)
-	if err != nil {
-		return nil, errors.Wrap(err, "retrieving staging deployment failed")
-	}
-	productionManifests, err := getDeployedPackage(packageName, productionURL, showAll)
-	if err != nil {
-		return nil, errors.Wrap(err, "retrieving production deployment failed")
-	}
-	return &packageStatus{
-		Name:       packageName,
-		Snapshot:   snapshotManifests,
-		Staging:    stagingManifests,
-		Production: productionManifests,
-	}, nil
-}
-
-func (p *packageStatus) pendingChanges() (*packages.ChangeLogVersion, error) {
-	if len(p.Changelog) == 0 || p.Local == nil {
-		return nil, nil
-	}
-	lastChangelogEntry := p.Changelog[0]
-	pendingVersion, err := semver.NewVersion(lastChangelogEntry.Version)
-	if err != nil {
-		return nil, err
-	}
-	currentVersion, err := semver.NewVersion(p.Local.Version)
-	if err != nil {
-		return nil, err
-	}
-	if currentVersion.LessThan(pendingVersion) {
-		return &lastChangelogEntry, nil
-	}
-	return nil, nil
-}
-
-func (p *packageStatus) print(w io.Writer) error {
-	changes, err := p.pendingChanges()
+func print(p *status.PackageStatus, w io.Writer) error {
+	changes, err := p.PendingChanges()
 	if err != nil {
 		return errors.Wrap(err, "parsing pending changelog entries failed")
 	}
@@ -241,15 +150,7 @@ func (p *packageStatus) print(w io.Writer) error {
 	return nil
 }
 
-func twColor(colors tablewriter.Colors) tablewriter.Colors {
-	// this no-ops the color setting if we don't want to colorize the output
-	if noColor {
-		return tablewriter.Colors{}
-	}
-	return colors
-}
-
-func formatChangelogEntry(change packages.ChangeLogEntry) []string {
+func formatChangelogEntry(change changelog.Entry) []string {
 	return []string{change.Type, change.Description, change.Link}
 }
 
@@ -274,35 +175,10 @@ func formatManifest(environment string, manifest packages.PackageManifest, extra
 	return []string{environment, version, manifest.Release, manifest.Title, manifest.Description}
 }
 
-func getDeployedPackage(packageName, url string, showAll bool) ([]packages.PackageManifest, error) {
-	requestURL := url + "/search?internal=true&experimental=true&package=" + packageName
-	if showAll {
-		requestURL += "&all=true"
+func twColor(colors tablewriter.Colors) tablewriter.Colors {
+	// this no-ops the color setting if we don't want to colorize the output
+	if color.NoColor {
+		return tablewriter.Colors{}
 	}
-	response, err := http.Get(requestURL)
-	if err != nil {
-		return nil, err
-	}
-	defer response.Body.Close()
-	body, err := ioutil.ReadAll(response.Body)
-	if err != nil {
-		return nil, err
-	}
-	var deployedPackageManifests []packages.PackageManifest
-	if err := json.Unmarshal(body, &deployedPackageManifests); err != nil {
-		return nil, err
-	}
-	sort.Slice(deployedPackageManifests, func(i, j int) bool {
-		firstVersion, err := semver.NewVersion(deployedPackageManifests[i].Version)
-		if err != nil {
-			return true
-		}
-		secondVersion, err := semver.NewVersion(deployedPackageManifests[j].Version)
-		if err != nil {
-			return false
-		}
-		return firstVersion.LessThan(secondVersion)
-	})
-
-	return deployedPackageManifests, nil
+	return colors
 }
