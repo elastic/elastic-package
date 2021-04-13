@@ -17,18 +17,25 @@ import (
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
-// SearchOptions specify the query parameters for the search API
+// SearchOptions specify the query parameters without the package name for the search API
 type SearchOptions struct {
-	Internal     bool   `url:"internal"`
-	Experimental bool   `url:"experimental"`
-	All          bool   `url:"all"`
-	Package      string `url:"package"`
+	Internal     bool `url:"internal"`
+	Experimental bool `url:"experimental"`
+	All          bool `url:"all"`
+}
+
+// SearchQuery specify the package and query parameters for the search API
+type SearchQuery struct {
+	SearchOptions
+	Package string `url:"package"`
 }
 
 // Revisions returns the deployed package revisions for a given package sorted by semantic version
 func (c *Client) Revisions(packageName string, options SearchOptions) ([]packages.PackageManifest, error) {
-	options.Package = packageName
-	parameters, err := query.Values(options)
+	parameters, err := query.Values(SearchQuery{
+		SearchOptions: options,
+		Package:       packageName,
+	})
 	if err != nil {
 		return nil, errors.Wrap(err, "could not encode options as query parameters")
 	}
