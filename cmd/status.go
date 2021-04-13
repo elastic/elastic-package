@@ -19,6 +19,7 @@ import (
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/packages/changelog"
 	"github.com/elastic/elastic-package/internal/packages/status"
+	"github.com/elastic/elastic-package/internal/registry"
 )
 
 const statusLongDescription = `Use this command to display the current deployment status of a package.
@@ -59,7 +60,11 @@ func statusCommandAction(cmd *cobra.Command, args []string) error {
 
 func getPackageStatus(packageName string, showAll bool) (*status.PackageStatus, error) {
 	if packageName != "" {
-		return status.RemotePackage(packageName, showAll)
+		return status.RemotePackage(packageName, registry.SearchOptions{
+			All:          showAll,
+			Internal:     true,
+			Experimental: true,
+		})
 	}
 	packageRootPath, found, err := packages.FindPackageRoot()
 	if !found {
@@ -68,7 +73,11 @@ func getPackageStatus(packageName string, showAll bool) (*status.PackageStatus, 
 	if err != nil {
 		return nil, errors.Wrap(err, "locating package root failed")
 	}
-	return status.LocalPackage(packageRootPath, showAll)
+	return status.LocalPackage(packageRootPath, registry.SearchOptions{
+		All:          showAll,
+		Internal:     true,
+		Experimental: true,
+	})
 }
 
 // print formats and prints package information into a table

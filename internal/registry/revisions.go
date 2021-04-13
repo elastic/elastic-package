@@ -12,18 +12,25 @@ import (
 	"github.com/Masterminds/semver"
 	"github.com/pkg/errors"
 
-	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/google/go-querystring/query"
 )
 
-// Revisions returns the deployed package revisions for a given package sorted by semantic version
-func (c *Client) Revisions(packageName string, showAll bool) ([]packages.PackageManifest, error) {
-	logger.Debug("Export dashboards using the Kibana Export API")
+type SearchOptions struct {
+	Internal     bool   `url:"internal"`
+	Experimental bool   `url:"experimental"`
+	All          bool   `url:"all"`
+	Package      string `url:"package"`
+}
 
-	path := searchAPI + "?internal=true&experimental=true&package=" + packageName
-	if showAll {
-		path += "&all=true"
+// Revisions returns the deployed package revisions for a given package sorted by semantic version
+func (c *Client) Revisions(packageName string, options SearchOptions) ([]packages.PackageManifest, error) {
+	options.Package = packageName
+	parameters, err := query.Values(options)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not encode options as query parameters")
 	}
+	path := searchAPI + "?" + parameters.Encode()
 
 	statusCode, respBody, err := c.get(path)
 	if err != nil {

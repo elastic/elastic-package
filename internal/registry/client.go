@@ -29,20 +29,20 @@ var (
 
 // Client is responsible for exporting dashboards from Kibana.
 type Client struct {
-	host string
+	baseURL string
 }
 
 // NewClient creates a new instance of the client.
-func NewClient(host string) *Client {
+func NewClient(baseURL string) *Client {
 	return &Client{
-		host: host,
+		baseURL: baseURL,
 	}
 }
 
 func (c *Client) get(resourcePath string) (int, []byte, error) {
-	base, err := url.Parse(c.host)
+	base, err := url.Parse(c.baseURL)
 	if err != nil {
-		return 0, nil, errors.Wrapf(err, "could not create base URL from host: %v", c.host)
+		return 0, nil, errors.Wrapf(err, "could not parse base URL: %v", c.baseURL)
 	}
 
 	rel, err := url.Parse(resourcePath)

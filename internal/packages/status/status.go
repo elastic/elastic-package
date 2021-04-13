@@ -25,7 +25,7 @@ type PackageStatus struct {
 }
 
 // LocalPackage returns the status of a given package including local development information
-func LocalPackage(packageRootPath string, showAll bool) (*PackageStatus, error) {
+func LocalPackage(packageRootPath string, options registry.SearchOptions) (*PackageStatus, error) {
 	manifest, err := packages.ReadPackageManifestFromPackageRoot(packageRootPath)
 	if err != nil {
 		return nil, errors.Wrap(err, "reading package manifest failed")
@@ -34,7 +34,7 @@ func LocalPackage(packageRootPath string, showAll bool) (*PackageStatus, error) 
 	if err != nil {
 		return nil, errors.Wrap(err, "reading package changelog failed")
 	}
-	status, err := RemotePackage(manifest.Name, showAll)
+	status, err := RemotePackage(manifest.Name, options)
 	if err != nil {
 		return nil, err
 	}
@@ -60,16 +60,16 @@ func LocalPackage(packageRootPath string, showAll bool) (*PackageStatus, error) 
 }
 
 // RemotePackage returns the status of a given package
-func RemotePackage(packageName string, showAll bool) (*PackageStatus, error) {
-	snapshotManifests, err := registry.Snapshot.Revisions(packageName, showAll)
+func RemotePackage(packageName string, options registry.SearchOptions) (*PackageStatus, error) {
+	snapshotManifests, err := registry.Snapshot.Revisions(packageName, options)
 	if err != nil {
 		return nil, errors.Wrap(err, "retrieving snapshot deployment failed")
 	}
-	stagingManifests, err := registry.Staging.Revisions(packageName, showAll)
+	stagingManifests, err := registry.Staging.Revisions(packageName, options)
 	if err != nil {
 		return nil, errors.Wrap(err, "retrieving staging deployment failed")
 	}
-	productionManifests, err := registry.Production.Revisions(packageName, showAll)
+	productionManifests, err := registry.Production.Revisions(packageName, options)
 	if err != nil {
 		return nil, errors.Wrap(err, "retrieving production deployment failed")
 	}
