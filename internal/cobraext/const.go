@@ -33,9 +33,6 @@ const (
 	GenerateTestResultFlagName        = "generate"
 	GenerateTestResultFlagDescription = "generate test result file"
 
-	NoColorFlagName        = "no-color"
-	NoColorFlagDescription = "disable color output"
-
 	ReportFormatFlagName        = "report-format"
 	ReportFormatFlagDescription = "format of test report"
 
