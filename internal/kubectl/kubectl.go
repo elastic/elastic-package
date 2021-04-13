@@ -6,6 +6,7 @@ package kubectl
 
 import (
 	"bytes"
+	"fmt"
 	"os/exec"
 
 	"github.com/pkg/errors"
@@ -29,28 +30,48 @@ func CurrentContext() (string, error) {
 
 // Apply function adds resources to the Kubernetes cluster based on provided definitions.
 func Apply(definitionPaths ...string) error {
-	return modifyKubernetesResources("apply", definitionPaths...)
+	logger.Debugf("Apply Kubernetes definitions")
+	out, err := modifyKubernetesResources("apply", definitionPaths...)
+	if err != nil {
+		return errors.Wrap(err, "can't modify Kubernetes resources (apply)")
+	}
+
+	logger.Debugf("Unmarshal \"apply\" command output")
+	output, err := unmarshalApplyCommandOutput(out)
+	if err != nil {
+		return errors.Wrap(err, "can't unmarshal \"apply\" output")
+	}
+	fmt.Println(output)
+
+	return nil
 }
 
 // Delete function removes resources from the Kubernetes cluster based on provided definitions.
 func Delete(definitionPaths ...string) error {
-	return modifyKubernetesResources("delete", definitionPaths...)
+	_, err := modifyKubernetesResources("delete", definitionPaths...)
+	return err
 }
 
-func modifyKubernetesResources(action string, definitionPaths ...string) error {
+func modifyKubernetesResources(action string, definitionPaths ...string) ([]byte, error) {
 	args := []string{action}
 	for _, definitionPath := range definitionPaths {
 		args = append(args, "-f")
 		args = append(args, definitionPath)
 	}
+	args = append(args, "-o", "yaml")
 
 	cmd := exec.Command("kubectl", args...)
 	errOutput := new(bytes.Buffer)
 	cmd.Stderr = errOutput
 
 	logger.Debugf("run command: %s", cmd)
-	if err := cmd.Run(); err != nil {
-		return errors.Wrapf(err, "kubectl apply failed (stderr=%q)", errOutput.String())
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, errors.Wrapf(err, "kubectl apply failed (stderr=%q)", errOutput.String())
 	}
-	return nil
+	return output, nil
+}
+
+func unmarshalApplyCommandOutput(output []byte) (*resource, error) {
+
 }
