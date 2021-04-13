@@ -33,11 +33,17 @@ const (
 	GenerateTestResultFlagName        = "generate"
 	GenerateTestResultFlagDescription = "generate test result file"
 
+	NoColorFlagName        = "no-color"
+	NoColorFlagDescription = "disable color output"
+
 	ReportFormatFlagName        = "report-format"
 	ReportFormatFlagDescription = "format of test report"
 
 	ReportOutputFlagName        = "report-output"
 	ReportOutputFlagDescription = "output location for test report"
+
+	ShowAllFlagName        = "all"
+	ShowAllFlagDescription = "show all deployed package revisions"
 
 	SkipPullRequestFlagName        = "skip-pull-request"
 	SkipPullRequestFlagDescription = "skip opening a new pull request"
@@ -53,10 +59,4 @@ const (
 
 	VerboseFlagName        = "verbose"
 	VerboseFlagDescription = "verbose mode"
-
-	NoColorFlagName        = "no-color"
-	NoColorFlagDescription = "disable color output"
-
-	ShowAllFlagName        = "all"
-	ShowAllFlagDescription = "show all deployed package revisions"
 )

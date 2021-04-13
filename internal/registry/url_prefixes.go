@@ -5,6 +5,6 @@
 package registry
 
 const (
-	// SearchAPI is the endpoint for filtering package registry packages
-	SearchAPI = "/search"
+	// searchAPI is the endpoint for filtering package registry packages
+	searchAPI = "/search"
 )

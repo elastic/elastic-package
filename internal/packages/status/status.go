@@ -15,12 +15,13 @@ import (
 
 // PackageStatus holds version and deployment information about a package
 type PackageStatus struct {
-	Name       string
-	Changelog  []changelog.Revision
-	Local      *packages.PackageManifest
-	Production []packages.PackageManifest
-	Staging    []packages.PackageManifest
-	Snapshot   []packages.PackageManifest
+	Name           string
+	Changelog      []changelog.Revision
+	PendingChanges *changelog.Revision
+	Local          *packages.PackageManifest
+	Production     []packages.PackageManifest
+	Staging        []packages.PackageManifest
+	Snapshot       []packages.PackageManifest
 }
 
 // LocalPackage returns the status of a given package including local development information
@@ -33,17 +34,33 @@ func LocalPackage(packageRootPath string, showAll bool) (*PackageStatus, error) 
 	if err != nil {
 		return nil, errors.Wrap(err, "reading package changelog failed")
 	}
-	status, err := Package(manifest.Name, showAll)
+	status, err := RemotePackage(manifest.Name, showAll)
 	if err != nil {
 		return nil, err
 	}
 	status.Changelog = changelog
 	status.Local = manifest
+
+	if len(changelog) == 0 {
+		return status, nil
+	}
+	lastChangelogEntry := changelog[0]
+	pendingVersion, err := semver.NewVersion(lastChangelogEntry.Version)
+	if err != nil {
+		return nil, errors.Wrap(err, "reading changelog semver failed")
+	}
+	currentVersion, err := semver.NewVersion(manifest.Version)
+	if err != nil {
+		return nil, errors.Wrap(err, "reading manifest semver failed")
+	}
+	if currentVersion.LessThan(pendingVersion) {
+		status.PendingChanges = &lastChangelogEntry
+	}
 	return status, nil
 }
 
-// Package returns the status of a given package
-func Package(packageName string, showAll bool) (*PackageStatus, error) {
+// RemotePackage returns the status of a given package
+func RemotePackage(packageName string, showAll bool) (*PackageStatus, error) {
 	snapshotManifests, err := registry.Snapshot.Revisions(packageName, showAll)
 	if err != nil {
 		return nil, errors.Wrap(err, "retrieving snapshot deployment failed")
@@ -62,24 +79,4 @@ func Package(packageName string, showAll bool) (*PackageStatus, error) {
 		Staging:    stagingManifests,
 		Production: productionManifests,
 	}, nil
-}
-
-// PendingChanges returns pending changes in a local development package folder
-func (p *PackageStatus) PendingChanges() (*changelog.Revision, error) {
-	if len(p.Changelog) == 0 || p.Local == nil {
-		return nil, nil
-	}
-	lastChangelogEntry := p.Changelog[0]
-	pendingVersion, err := semver.NewVersion(lastChangelogEntry.Version)
-	if err != nil {
-		return nil, err
-	}
-	currentVersion, err := semver.NewVersion(p.Local.Version)
-	if err != nil {
-		return nil, err
-	}
-	if currentVersion.LessThan(pendingVersion) {
-		return &lastChangelogEntry, nil
-	}
-	return nil, nil
 }

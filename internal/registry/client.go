@@ -5,14 +5,11 @@
 package registry
 
 import (
-	"bytes"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 
 	"github.com/pkg/errors"
-
-	"github.com/elastic/elastic-package/internal/logger"
 )
 
 const (
@@ -43,23 +40,6 @@ func NewClient(host string) *Client {
 }
 
 func (c *Client) get(resourcePath string) (int, []byte, error) {
-	return c.sendRequest(http.MethodGet, resourcePath, nil)
-}
-
-func (c *Client) post(resourcePath string, body []byte) (int, []byte, error) {
-	return c.sendRequest(http.MethodPost, resourcePath, body)
-}
-
-func (c *Client) put(resourcePath string, body []byte) (int, []byte, error) {
-	return c.sendRequest(http.MethodPut, resourcePath, body)
-}
-
-func (c *Client) delete(resourcePath string) (int, []byte, error) {
-	return c.sendRequest(http.MethodDelete, resourcePath, nil)
-}
-
-func (c *Client) sendRequest(method, resourcePath string, body []byte) (int, []byte, error) {
-	reqBody := bytes.NewReader(body)
 	base, err := url.Parse(c.host)
 	if err != nil {
 		return 0, nil, errors.Wrapf(err, "could not create base URL from host: %v", c.host)
@@ -72,11 +52,9 @@ func (c *Client) sendRequest(method, resourcePath string, body []byte) (int, []b
 
 	u := base.ResolveReference(rel)
 
-	logger.Debugf("%s %s", method, u)
-
-	req, err := http.NewRequest(method, u.String(), reqBody)
+	req, err := http.NewRequest(http.MethodGet, u.String(), nil)
 	if err != nil {
-		return 0, nil, errors.Wrapf(err, "could not create %v request to Package Registry API resource: %s", method, resourcePath)
+		return 0, nil, errors.Wrapf(err, "could not create request to Package Registry API resource: %s", resourcePath)
 	}
 
 	client := http.Client{}
@@ -86,7 +64,7 @@ func (c *Client) sendRequest(method, resourcePath string, body []byte) (int, []b
 	}
 
 	defer resp.Body.Close()
-	body, err = ioutil.ReadAll(resp.Body)
+	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return resp.StatusCode, nil, errors.Wrap(err, "could not read response body")
 	}

@@ -20,7 +20,7 @@ import (
 func (c *Client) Revisions(packageName string, showAll bool) ([]packages.PackageManifest, error) {
 	logger.Debug("Export dashboards using the Kibana Export API")
 
-	path := SearchAPI + "?internal=true&experimental=true&package=" + packageName
+	path := searchAPI + "?internal=true&experimental=true&package=" + packageName
 	if showAll {
 		path += "&all=true"
 	}

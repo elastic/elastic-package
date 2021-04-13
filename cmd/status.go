@@ -41,45 +41,38 @@ func setupStatusCommand() *cobraext.Command {
 }
 
 func statusCommandAction(cmd *cobra.Command, args []string) error {
-	var err error
-	var packageStatus *status.PackageStatus
+	var packageName string
 
 	showAll, err := cmd.Flags().GetBool(cobraext.ShowAllFlagName)
 	if err != nil {
 		return cobraext.FlagParsingError(err, cobraext.ShowAllFlagName)
 	}
-
 	if len(args) > 0 {
-		packageStatus, err = status.Package(args[0], showAll)
-		if err != nil {
-			return err
-		}
-	} else {
-		packageRootPath, found, err := packages.FindPackageRoot()
-		if !found {
-			return errors.New("no package specified and package root not found")
-		}
-		if err != nil {
-			return errors.Wrap(err, "locating package root failed")
-		}
-		packageStatus, err = status.LocalPackage(packageRootPath, showAll)
-		if err != nil {
-			return err
-		}
+		packageName = args[0]
 	}
-	if err := print(packageStatus, os.Stdout); err != nil {
+	packageStatus, err := getPackageStatus(packageName, showAll)
+	if err != nil {
 		return err
 	}
-	return nil
+	return print(packageStatus, os.Stdout)
 }
 
-// data printing/formatters
-
-func print(p *status.PackageStatus, w io.Writer) error {
-	changes, err := p.PendingChanges()
-	if err != nil {
-		return errors.Wrap(err, "parsing pending changelog entries failed")
+func getPackageStatus(packageName string, showAll bool) (*status.PackageStatus, error) {
+	if packageName != "" {
+		return status.RemotePackage(packageName, showAll)
 	}
+	packageRootPath, found, err := packages.FindPackageRoot()
+	if !found {
+		return nil, errors.New("no package specified and package root not found")
+	}
+	if err != nil {
+		return nil, errors.Wrap(err, "locating package root failed")
+	}
+	return status.LocalPackage(packageRootPath, showAll)
+}
+
+// print formats and prints package information into a table
+func print(p *status.PackageStatus, w io.Writer) error {
 	bold := color.New(color.Bold)
 	red := color.New(color.FgRed, color.Bold)
 	cyan := color.New(color.FgCyan, color.Bold)
@@ -89,24 +82,19 @@ func print(p *status.PackageStatus, w io.Writer) error {
 	var environmentTable [][]string
 	if p.Local != nil {
 		bold.Fprint(w, "Owner: ")
-		owner := "-"
-		if p.Local.Owner.Github != "" {
-			owner = p.Local.Owner.Github
-		}
-		cyan.Fprintln(w, owner)
-
+		cyan.Fprintln(w, formatOwner(p))
 		environmentTable = append(environmentTable, formatManifest("Local", *p.Local, nil))
 	}
 	environmentTable = append(environmentTable, formatManifests("Snapshot", p.Snapshot))
 	environmentTable = append(environmentTable, formatManifests("Staging", p.Staging))
 	environmentTable = append(environmentTable, formatManifests("Production", p.Production))
 
-	if changes != nil {
+	if p.PendingChanges != nil {
 		bold.Fprint(w, "Next Version: ")
-		red.Fprintln(w, changes.Version)
+		red.Fprintln(w, p.PendingChanges.Version)
 		bold.Fprintln(w, "Pending Changes:")
 		var changelogTable [][]string
-		for _, change := range changes.Changes {
+		for _, change := range p.PendingChanges.Changes {
 			changelogTable = append(changelogTable, formatChangelogEntry(change))
 		}
 		table := tablewriter.NewWriter(os.Stdout)
@@ -150,10 +138,20 @@ func print(p *status.PackageStatus, w io.Writer) error {
 	return nil
 }
 
+// formatOwner returns the name of the package owner
+func formatOwner(p *status.PackageStatus) string {
+	if p.Local != nil && p.Local.Owner.Github != "" {
+		return p.Local.Owner.Github
+	}
+	return "-"
+}
+
+// formatChangelogEntry returns a row of changelog data
 func formatChangelogEntry(change changelog.Entry) []string {
 	return []string{change.Type, change.Description, change.Link}
 }
 
+// formatManifests returns a row of data ffor a set of versioned packaged manifests
 func formatManifests(environment string, manifests []packages.PackageManifest) []string {
 	if len(manifests) == 0 {
 		return []string{environment, "-", "-", "-", "-"}
@@ -167,6 +165,7 @@ func formatManifests(environment string, manifests []packages.PackageManifest) [
 	return formatManifest(environment, manifests[len(manifests)-1], extraVersions)
 }
 
+// formatManifest returns a row of data for a given package manifest
 func formatManifest(environment string, manifest packages.PackageManifest, extraVersions []string) []string {
 	version := manifest.Version
 	if len(extraVersions) > 0 {
@@ -175,8 +174,8 @@ func formatManifest(environment string, manifest packages.PackageManifest, extra
 	return []string{environment, version, manifest.Release, manifest.Title, manifest.Description}
 }
 
+// twColor no-ops the color setting if we don't want to colorize the output
 func twColor(colors tablewriter.Colors) tablewriter.Colors {
-	// this no-ops the color setting if we don't want to colorize the output
 	if color.NoColor {
 		return tablewriter.Colors{}
 	}
