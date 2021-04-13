@@ -24,9 +24,10 @@ const (
 
 	defaultPipelineName = "default"
 
-	dataStreamTypeLogs    = "logs"
-	dataStreamTypeMetrics = "metrics"
-	dataStreamTypeTraces  = "traces"
+	dataStreamTypeLogs       = "logs"
+	dataStreamTypeMetrics    = "metrics"
+	dataStreamTypeSynthetics = "synthetics"
+	dataStreamTypeTraces     = "traces"
 )
 
 // VarValue represents a variable value as defined in a package or data stream
@@ -271,6 +272,6 @@ func isDataStreamManifest(path string) (bool, error) {
 		return false, errors.Wrapf(err, "reading package manifest failed (path: %s)", path)
 	}
 	return m.Title != "" &&
-			(m.Type == dataStreamTypeLogs || m.Type == dataStreamTypeMetrics || m.Type == dataStreamTypeTraces),
+			(m.Type == dataStreamTypeLogs || m.Type == dataStreamTypeMetrics || m.Type == dataStreamTypeSynthetics || m.Type == dataStreamTypeTraces),
 		nil
 }
