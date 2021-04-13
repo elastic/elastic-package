@@ -12,8 +12,9 @@ import (
 	"github.com/Masterminds/semver"
 	"github.com/pkg/errors"
 
-	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/google/go-querystring/query"
+
+	"github.com/elastic/elastic-package/internal/packages"
 )
 
 // SearchOptions specify the query parameters for the search API
