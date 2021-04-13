@@ -10,9 +10,8 @@ import (
 	"sort"
 
 	"github.com/Masterminds/semver"
-	"github.com/pkg/errors"
-
 	"github.com/google/go-querystring/query"
+	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/packages"
 )
@@ -24,15 +23,15 @@ type SearchOptions struct {
 	All          bool `url:"all"`
 }
 
-// SearchQuery specify the package and query parameters for the search API
-type SearchQuery struct {
+// searchQuery specify the package and query parameters for the search API
+type searchQuery struct {
 	SearchOptions
 	Package string `url:"package"`
 }
 
 // Revisions returns the deployed package revisions for a given package sorted by semantic version
 func (c *Client) Revisions(packageName string, options SearchOptions) ([]packages.PackageManifest, error) {
-	parameters, err := query.Values(SearchQuery{
+	parameters, err := query.Values(searchQuery{
 		SearchOptions: options,
 		Package:       packageName,
 	})
