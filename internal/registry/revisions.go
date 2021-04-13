@@ -16,6 +16,7 @@ import (
 	"github.com/google/go-querystring/query"
 )
 
+// SearchOptions specify the query parameters for the search API
 type SearchOptions struct {
 	Internal     bool   `url:"internal"`
 	Experimental bool   `url:"experimental"`
