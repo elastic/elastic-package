@@ -141,7 +141,7 @@ See how to execute system tests for the Kubernetes integration (`pod` data strea
 
 ```bash
 elastic-package stack up -d -v # start the Elastic stack
-kind create cluster # start the kind cluster
+wget -qO-  https://raw.githubusercontent.com/elastic/elastic-package/master/scripts/kind-config.yaml | kind create cluster --config -
 elastic-package test system --data-streams pod -v # start system tests for the "pod" data stream
 ```
 
