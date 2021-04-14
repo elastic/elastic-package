@@ -140,6 +140,16 @@ Use this command to spin up a Docker-based Elastic Stack consisting of Elasticse
 
 For details on how to connect the service with the Elastic stack, see the [HOWTO guide](https://github.com/elastic/elastic-package/blob/master/docs/howto/connect_service_with_elastic_stack.md).
 
+### `elastic-package status [package]`
+
+_Context: package_
+
+Use this command to display the current deployment status of a package.
+
+If a package name is specified, then information about that package is
+returned, otherwise this command checks if the current directory is a
+package directory and reports its status.
+
 ### `elastic-package test`
 
 _Context: package_
