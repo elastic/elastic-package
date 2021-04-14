@@ -33,7 +33,10 @@ func modifyKubernetesResources(action string, definitionPaths ...string) ([]byte
 		args = append(args, "-f")
 		args = append(args, definitionPath)
 	}
-	args = append(args, "-o", "yaml")
+
+	if action != "delete" { // "delete" supports only '-o name'
+		args = append(args, "-o", "yaml")
+	}
 
 	cmd := exec.Command("kubectl", args...)
 	errOutput := new(bytes.Buffer)

@@ -34,11 +34,15 @@ type metadata struct {
 }
 
 type status struct {
-	Conditions []condition
+	Conditions *[]condition
 }
 
 func (s status) isReady() (*condition, bool) {
-	for _, c := range s.Conditions {
+	if s.Conditions == nil {
+		return nil, false // safe fallback
+	}
+
+	for _, c := range *s.Conditions {
 		if c.Type == "Ready" || c.Type == "Available" {
 			return &c, true
 		}
@@ -104,13 +108,14 @@ func waitForReadyResources(resources []resource) error {
 				return errors.Wrap(err, "can't extract Kubernetes resource")
 			}
 
-			if res.Status == nil {
+			if res.Status == nil || res.Status.Conditions == nil {
 				logger.Debugf("The resource doesn't define status conditions. Skipping verification.")
 				break
 			}
 
 			c, isReady := res.Status.isReady()
 			if isReady {
+				logger.Debugf("Conditions: %+q", *res.Status.Conditions)
 				logger.Debugf("Ready condition: %s", c.String())
 				break
 			}
