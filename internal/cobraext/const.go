@@ -39,6 +39,9 @@ const (
 	ReportOutputFlagName        = "report-output"
 	ReportOutputFlagDescription = "output location for test report"
 
+	ShowAllFlagName        = "all"
+	ShowAllFlagDescription = "show all deployed package revisions"
+
 	SkipPullRequestFlagName        = "skip-pull-request"
 	SkipPullRequestFlagDescription = "skip opening a new pull request"
 

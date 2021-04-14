@@ -30,14 +30,10 @@ spec:
           env:
             - name: FLEET_ENROLL
               value: "1"
-            - name: FLEET_ENROLL_INSECURE
-              value: "1"
             - name: FLEET_INSECURE
               value: "1"
             - name: FLEET_URL
-              value: "http://kibana:5601"
-            - name: KIBANA_HOST
-              value: "http://kibana:5601"
+              value: "http://fleet-server:8220"
             - name: NODE_NAME
               valueFrom:
                 fieldRef:
