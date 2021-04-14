@@ -37,18 +37,13 @@ type status struct {
 	Conditions []condition
 }
 
-func (s status) lastCondition() *condition {
-	var last *condition
-	t := time.Unix(0, 0)
+func (s status) isReady() (*condition, bool) {
 	for _, c := range s.Conditions {
-		if c.LastUpdateTime.After(t) {
-			t = c.LastUpdateTime
-			last = &c
-		} else if c.LastUpdateTime.After(t) && isReadyState(c.Type) {
-			last = &c
+		if c.Type == "Ready" || c.Type == "Available" {
+			return &c, true
 		}
 	}
-	return last
+	return nil, false
 }
 
 type condition struct {
@@ -114,23 +109,17 @@ func waitForReadyResources(resources []resource) error {
 				break
 			}
 
-			last := res.Status.lastCondition()
-			if last == nil {
-				logger.Debugf("No status condition available yet.")
-				goto wait
-			}
-
-			logger.Debugf("Status condition: %s", last.String())
-			if isReadyState(last.Type) {
+			c, isReady := res.Status.isReady()
+			if isReady {
+				logger.Debugf("Ready condition: %s", c.String())
 				break
 			}
+			logger.Debugf("Conditions: %+q", res.Status.Conditions)
 
-		wait:
 			now := time.Now()
 			if now.After(startTime.Add(readinessTimeout)) {
 				return fmt.Errorf("readiness timeout for resource: %s", r)
 			}
-
 			time.Sleep(time.Second)
 		}
 	}
@@ -156,8 +145,4 @@ func extractResource(output []byte) (*resource, error) {
 		return nil, errors.Wrap(err, "can't unmarshal command output")
 	}
 	return &r, nil
-}
-
-func isReadyState(conditionType string) bool {
-	return conditionType == "Ready" || conditionType == "Available"
 }
