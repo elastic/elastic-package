@@ -130,7 +130,16 @@ the `_dev/deploy/k8s` directory must contain an `.empty` file (to preserve the `
 The Kubernetes service deployer needs [kind](https://kind.sigs.k8s.io/) to be installed and the cluster to be up and running:
 
 ```bash
-kind create cluster
+kind create cluster --config - <<EOF
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+  - role: control-plane
+    kubeadmConfigPatches:
+      - |
+        kind: KubeProxyConfiguration
+        metricsBindAddress: "0.0.0.0"
+EOF
 ```
 
 Before executing system tests, the service deployer applies once the deployment of the Elastic Agent to the cluster and links
