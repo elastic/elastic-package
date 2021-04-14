@@ -1,13 +1,20 @@
+// Copyright Elasticsearch B.V. and/or licensed to Elasticsearch B.V. under one
+// or more contributor license agreements. Licensed under the Elastic License;
+// you may not use this file except in compliance with the Elastic License.
+
 package kubectl
 
 import (
 	"fmt"
 	"time"
 
-	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
+
+	"github.com/elastic/elastic-package/internal/logger"
 )
+
+const readinessTimeout = 10 * time.Minute
 
 type resource struct {
 	Kind     string   `yaml:"kind"`
@@ -31,7 +38,17 @@ type status struct {
 }
 
 func (s status) lastCondition() *condition {
-	panic("TODO")
+	var last *condition
+	t := time.Unix(0, 0)
+	for _, c := range s.Conditions {
+		if c.LastUpdateTime.After(t) {
+			t = c.LastUpdateTime
+			last = &c
+		} else if c.LastUpdateTime.After(t) && isReadyState(c.Type) {
+			last = &c
+		}
+	}
+	return last
 }
 
 type condition struct {
@@ -76,6 +93,8 @@ func handleApplyCommandOutput(out []byte) error {
 }
 
 func waitForReadyResources(resources []resource) error {
+	startTime := time.Now()
+
 	for _, r := range resources {
 		logger.Debugf("Wait for resource: %s", r.String())
 
@@ -102,11 +121,16 @@ func waitForReadyResources(resources []resource) error {
 			}
 
 			logger.Debugf("Status condition: %s", last.String())
-			if last.Type == "Ready" || last.Type == "Available" {
+			if isReadyState(last.Type) {
 				break
 			}
 
 		wait:
+			now := time.Now()
+			if now.After(startTime.Add(readinessTimeout)) {
+				return fmt.Errorf("readiness timeout for resource: %s", r)
+			}
+
 			time.Sleep(time.Second)
 		}
 	}
@@ -132,4 +156,8 @@ func extractResource(output []byte) (*resource, error) {
 		return nil, errors.Wrap(err, "can't unmarshal command output")
 	}
 	return &r, nil
+}
+
+func isReadyState(conditionType string) bool {
+	return conditionType == "Ready" || conditionType == "Available"
 }
