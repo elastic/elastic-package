@@ -46,6 +46,13 @@ spec:
             requests:
               cpu: 100m
               memory: 100Mi
+          startupProbe:
+            exec:
+              command:
+              - sh
+              - -c
+              - grep "Agent is starting" -r . --include=elastic-agent-json.log
+  
 ---
 apiVersion: v1
 kind: ConfigMap

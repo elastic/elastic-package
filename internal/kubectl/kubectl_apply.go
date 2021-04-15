@@ -126,7 +126,7 @@ func waitForReadyResources(resources []resource) error {
 			if now.After(startTime.Add(readinessTimeout)) {
 				return fmt.Errorf("readiness timeout for resource: %s", r)
 			}
-			time.Sleep(time.Second)
+			time.Sleep(5 * time.Second)
 		}
 	}
 	return nil
