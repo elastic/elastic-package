@@ -120,7 +120,7 @@ func waitForReadyResources(resources []resource) error {
 				logger.Debugf("Ready condition: %s", c.String())
 				break
 			}
-			logger.Debugf("Conditions: %+q", res.Status.Conditions)
+			logger.Debugf("Conditions: %+q", *res.Status.Conditions)
 
 			now := time.Now()
 			if now.After(startTime.Add(readinessTimeout)) {
