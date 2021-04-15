@@ -6,6 +6,7 @@ package kubectl
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -43,7 +44,7 @@ func (s status) isReady() (*condition, bool) {
 	}
 
 	for _, c := range *s.Conditions {
-		if c.Type == "Ready" || c.Type == "Available" {
+		if (c.Type == "Ready" || c.Type == "Available") && !strings.Contains(c.Message, "does not have minimum availability") {
 			return &c, true
 		}
 	}
