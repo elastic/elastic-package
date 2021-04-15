@@ -11,16 +11,24 @@ import (
 
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
+	"helm.sh/helm/v3/pkg/kube"
+	"k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/client-go/rest"
 
 	"github.com/elastic/elastic-package/internal/logger"
 )
 
+import kresource "k8s.io/cli-runtime/pkg/resource"
+
 const readinessTimeout = 10 * time.Minute
 
 type resource struct {
-	Kind     string   `yaml:"kind"`
-	Metadata metadata `yaml:"metadata"`
-	Status   *status  `yaml:"status"`
+	APIVersion string   `yaml:"apiVersion"`
+	Kind       string   `yaml:"kind"`
+	Metadata   metadata `yaml:"metadata"`
+	Status     *status  `yaml:"status"`
 
 	Items []resource `yaml:"items"`
 }
@@ -93,41 +101,41 @@ func handleApplyCommandOutput(out []byte) error {
 }
 
 func waitForReadyResources(resources []resource) error {
-	startTime := time.Now()
-
+	var resList kube.ResourceList
 	for _, r := range resources {
-		logger.Debugf("Wait for resource: %s", r.String())
+		logger.Debugf("%s %s", r.Metadata.Name, r.Kind)
 
-		for {
-			out, err := getKubernetesResource(r.Kind, r.Metadata.Name, r.Metadata.Namespace)
-			if err != nil {
-				return errors.Wrap(err, "can't get Kubernetes resource")
-			}
-
-			res, err := extractResource(out)
-			if err != nil {
-				return errors.Wrap(err, "can't extract Kubernetes resource")
-			}
-
-			if res.Status == nil || res.Status.Conditions == nil {
-				logger.Debugf("The resource doesn't define status conditions. Skipping verification.")
-				break
-			}
-
-			c, isReady := res.Status.isReady()
-			if isReady {
-				logger.Debugf("Conditions: %+q", *res.Status.Conditions)
-				logger.Debugf("Ready condition: %s", c.String())
-				break
-			}
-			logger.Debugf("Conditions: %+q", *res.Status.Conditions)
-
-			now := time.Now()
-			if now.After(startTime.Add(readinessTimeout)) {
-				return fmt.Errorf("readiness timeout for resource: %s", r)
-			}
-			time.Sleep(5 * time.Second)
+		restClient, err := createRESTClientForResource(r)
+		if err != nil {
+			return errors.Wrap(err, "can't create REST client for resource")
 		}
+
+		scope := meta.RESTScopeNamespace
+		if r.Metadata.Namespace == "" {
+			scope = meta.RESTScopeRoot
+		}
+
+		resInfo := &kresource.Info{
+			Name:      r.Metadata.Name,
+			Namespace: r.Metadata.Namespace,
+			Mapping: &meta.RESTMapping{
+				Resource: schema.GroupVersionResource{Group: "group", Version: "version", Resource: r.Kind + "s"},
+				Scope:    scope,
+			},
+			Client: restClient,
+		}
+
+		err = resInfo.Get()
+		if err != nil {
+			return errors.Wrap(err, "can't fetch resource info")
+		}
+		resList = append(resList, resInfo)
+	}
+
+	kubeClient := kube.New(nil)
+	err := kubeClient.Wait(resList, readinessTimeout)
+	if err != nil {
+		return errors.Wrap(err, "waiter failed")
 	}
 	return nil
 }
@@ -151,4 +159,25 @@ func extractResource(output []byte) (*resource, error) {
 		return nil, errors.Wrap(err, "can't unmarshal command output")
 	}
 	return &r, nil
+}
+
+func createRESTClientForResource(r resource) (*rest.RESTClient, error) {
+	restClientGetter := genericclioptions.NewConfigFlags(true)
+	restConfig, err := restClientGetter.ToRESTConfig()
+	if err != nil {
+		return nil, errors.Wrap(err, "can't convert to REST config")
+	}
+	restConfig.NegotiatedSerializer = kresource.UnstructuredPlusDefaultContentConfig().NegotiatedSerializer
+
+	if r.APIVersion == "v1" {
+		restConfig.APIPath = "/api/v1"
+	} else {
+		restConfig.APIPath = "/apis/" + r.APIVersion
+	}
+
+	restClient, err := rest.UnversionedRESTClientFor(restConfig)
+	if err != nil {
+		return nil, errors.Wrap(err, "can't create unversioned REST client")
+	}
+	return restClient, nil
 }
