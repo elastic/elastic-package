@@ -17,6 +17,12 @@ spec:
   selector:
     matchLabels:
       app: kind-fleet-agent-clusterscope
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
   template:
     metadata:
       labels:

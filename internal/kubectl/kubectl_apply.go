@@ -110,6 +110,9 @@ func waitForReadyResources(resources []resource) error {
 	}
 
 	kubeClient := kube.New(nil)
+	kubeClient.Log = func(s string, i ...interface{}) {
+		logger.Debugf(s, i...)
+	}
 	err := kubeClient.Wait(resList, readinessTimeout)
 	if err != nil {
 		return errors.Wrap(err, "waiter failed")
@@ -149,13 +152,29 @@ func createResourceInfo(r resource) (*kresource.Info, error) {
 		return nil, errors.Wrap(err, "can't create REST client for resource")
 	}
 
+	var group string
+	var version string
+
+	if !strings.Contains(r.APIVersion, "/") {
+		version = r.APIVersion
+	} else {
+		i := strings.Index(r.APIVersion, "/")
+		group = r.APIVersion[:i]
+		version = r.APIVersion[i+1:]
+	}
+
 	resInfo := &kresource.Info{
 		Name:      r.Metadata.Name,
 		Namespace: r.Metadata.Namespace,
 		Mapping: &meta.RESTMapping{
+			GroupVersionKind: schema.GroupVersionKind{
+				Group:   group,
+				Version: version,
+				Kind:    strings.ToLower(r.Kind),
+			},
 			Resource: schema.GroupVersionResource{
-				Group:    "group",
-				Version:  "version",
+				Group:    group,
+				Version:  version,
 				Resource: r.Kind + "s"}, // "s" is for plural
 			Scope: scope,
 		},
@@ -178,8 +197,8 @@ func createRESTClientForResource(r resource) (*rest.RESTClient, error) {
 	}
 	restConfig.NegotiatedSerializer = kresource.UnstructuredPlusDefaultContentConfig().NegotiatedSerializer
 
-	if r.APIVersion == "v1" {
-		restConfig.APIPath = "/api/v1"
+	if !strings.Contains(r.APIVersion, "/") {
+		restConfig.APIPath = "/api/" + r.APIVersion
 	} else {
 		restConfig.APIPath = "/apis/" + r.APIVersion
 	}
