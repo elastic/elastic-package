@@ -102,8 +102,6 @@ func handleApplyCommandOutput(out []byte) error {
 func waitForReadyResources(resources []resource) error {
 	var resList kube.ResourceList
 	for _, r := range resources {
-		logger.Debugf("Sync resource info: %s (kind: %s, namespace: %s)", r.Metadata.Name, r.Kind, r.Metadata.Namespace)
-
 		resInfo, err := createResourceInfo(r)
 		if err != nil {
 			return errors.Wrap(err, "can't fetch resource info")
@@ -162,6 +160,12 @@ func createResourceInfo(r resource) (*kresource.Info, error) {
 			Scope: scope,
 		},
 		Client: restClient,
+	}
+
+	logger.Debugf("Sync resource info: %s (kind: %s, namespace: %s)", r.Metadata.Name, r.Kind, r.Metadata.Namespace)
+	err = resInfo.Get()
+	if err != nil {
+		return nil, errors.Wrap(err, "can't sync resource info")
 	}
 	return resInfo, nil
 }
