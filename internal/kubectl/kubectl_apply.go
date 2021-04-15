@@ -15,12 +15,11 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	kresource "k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/rest"
 
 	"github.com/elastic/elastic-package/internal/logger"
 )
-
-import kresource "k8s.io/cli-runtime/pkg/resource"
 
 const readinessTimeout = 10 * time.Minute
 
@@ -103,29 +102,9 @@ func handleApplyCommandOutput(out []byte) error {
 func waitForReadyResources(resources []resource) error {
 	var resList kube.ResourceList
 	for _, r := range resources {
-		logger.Debugf("%s %s", r.Metadata.Name, r.Kind)
+		logger.Debugf("Sync resource info: %s (kind: %s, namespace: %s)", r.Metadata.Name, r.Kind, r.Metadata.Namespace)
 
-		restClient, err := createRESTClientForResource(r)
-		if err != nil {
-			return errors.Wrap(err, "can't create REST client for resource")
-		}
-
-		scope := meta.RESTScopeNamespace
-		if r.Metadata.Namespace == "" {
-			scope = meta.RESTScopeRoot
-		}
-
-		resInfo := &kresource.Info{
-			Name:      r.Metadata.Name,
-			Namespace: r.Metadata.Namespace,
-			Mapping: &meta.RESTMapping{
-				Resource: schema.GroupVersionResource{Group: "group", Version: "version", Resource: r.Kind + "s"},
-				Scope:    scope,
-			},
-			Client: restClient,
-		}
-
-		err = resInfo.Get()
+		resInfo, err := createResourceInfo(r)
 		if err != nil {
 			return errors.Wrap(err, "can't fetch resource info")
 		}
@@ -159,6 +138,32 @@ func extractResource(output []byte) (*resource, error) {
 		return nil, errors.Wrap(err, "can't unmarshal command output")
 	}
 	return &r, nil
+}
+
+func createResourceInfo(r resource) (*kresource.Info, error) {
+	scope := meta.RESTScopeNamespace
+	if r.Metadata.Namespace == "" {
+		scope = meta.RESTScopeRoot
+	}
+
+	restClient, err := createRESTClientForResource(r)
+	if err != nil {
+		return nil, errors.Wrap(err, "can't create REST client for resource")
+	}
+
+	resInfo := &kresource.Info{
+		Name:      r.Metadata.Name,
+		Namespace: r.Metadata.Namespace,
+		Mapping: &meta.RESTMapping{
+			Resource: schema.GroupVersionResource{
+				Group:    "group",
+				Version:  "version",
+				Resource: r.Kind + "s"}, // "s" is for plural
+			Scope: scope,
+		},
+		Client: restClient,
+	}
+	return resInfo, nil
 }
 
 func createRESTClientForResource(r resource) (*rest.RESTClient, error) {
