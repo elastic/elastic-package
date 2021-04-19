@@ -48,10 +48,10 @@ spec:
             runAsUser: 0
           resources:
             limits:
-              memory: 200Mi
+              memory: 400Mi
             requests:
-              cpu: 100m
-              memory: 100Mi
+              cpu: 200m
+              memory: 400Mi
           startupProbe:
             exec:
               command:
