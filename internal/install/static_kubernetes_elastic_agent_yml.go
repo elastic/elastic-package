@@ -17,6 +17,12 @@ spec:
   selector:
     matchLabels:
       app: kind-fleet-agent-clusterscope
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
   template:
     metadata:
       labels:
@@ -46,6 +52,13 @@ spec:
             requests:
               cpu: 100m
               memory: 100Mi
+          startupProbe:
+            exec:
+              command:
+              - sh
+              - -c
+              - grep "Agent is starting" -r . --include=elastic-agent-json.log
+  
 ---
 apiVersion: v1
 kind: ConfigMap
