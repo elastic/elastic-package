@@ -127,6 +127,34 @@ rules:
     verbs:
       - get
 ---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  namespace: kube-system
+  name: kind-fleet-agent
+subjects:
+  - kind: ServiceAccount
+    name: kind-fleet-agent
+    namespace: kube-system
+roleRef:
+  kind: Role
+  name: kind-fleet-agent
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: kind-fleet-agent
+  namespace: kube-system
+  labels:
+    k8s-app: kind-fleet-agent
+rules:
+  - apiGroups:
+      - coordination.k8s.io
+    resources:
+      - leases
+    verbs: ["get", "create", "update"]
+---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
