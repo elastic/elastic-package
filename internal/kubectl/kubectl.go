@@ -27,21 +27,15 @@ func CurrentContext() (string, error) {
 	return string(bytes.TrimSpace(output)), nil
 }
 
-// Apply function adds resources to the Kubernetes cluster based on provided definitions.
-func Apply(definitionPaths ...string) error {
-	return modifyKubernetesResources("apply", definitionPaths...)
-}
-
-// Delete function removes resources from the Kubernetes cluster based on provided definitions.
-func Delete(definitionPaths ...string) error {
-	return modifyKubernetesResources("delete", definitionPaths...)
-}
-
-func modifyKubernetesResources(action string, definitionPaths ...string) error {
+func modifyKubernetesResources(action string, definitionPaths ...string) ([]byte, error) {
 	args := []string{action}
 	for _, definitionPath := range definitionPaths {
 		args = append(args, "-f")
 		args = append(args, definitionPath)
+	}
+
+	if action != "delete" { // "delete" supports only '-o name'
+		args = append(args, "-o", "yaml")
 	}
 
 	cmd := exec.Command("kubectl", args...)
@@ -49,8 +43,29 @@ func modifyKubernetesResources(action string, definitionPaths ...string) error {
 	cmd.Stderr = errOutput
 
 	logger.Debugf("run command: %s", cmd)
-	if err := cmd.Run(); err != nil {
-		return errors.Wrapf(err, "kubectl apply failed (stderr=%q)", errOutput.String())
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, errors.Wrapf(err, "kubectl apply failed (stderr=%q)", errOutput.String())
 	}
-	return nil
+	return output, nil
+}
+
+func getKubernetesResource(kind, name, namespace string) ([]byte, error) {
+	args := []string{"get", kind, name}
+	if namespace != "" {
+		args = append(args, "-n", namespace)
+	}
+	args = append(args, "-o", "yaml")
+
+	cmd := exec.Command("kubectl", args...)
+	errOutput := new(bytes.Buffer)
+	cmd.Stderr = errOutput
+
+	logger.Debugf("run command: %s", cmd)
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, errors.Wrapf(err, "kubectl get failed (stderr=%q)", errOutput.String())
+	}
+	return output, nil
+
 }
