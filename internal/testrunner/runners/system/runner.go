@@ -388,7 +388,7 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	}
 
 	if err := validateFields(docs, fieldsValidator, dataStream); err != nil {
-		return result.WithError(errors.Wrap(err, "failed to validate fields"))
+		return result.WithError(err)
 	}
 
 	// Write sample events file from first doc, if requested
