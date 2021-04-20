@@ -95,7 +95,7 @@ func (ksd KubernetesServiceDeployer) SetUp(ctxt ServiceContext) (DeployedService
 
 	ctxt.Name = kind.ControlPlaneContainerName
 	ctxt.Hostname = kind.ControlPlaneContainerName
-	ctxt.Agent.Host.NamePrefix = "kind-fleet-agent-"
+	ctxt.Agent.Host.NamePrefix = "kind-control-plane"
 	return &kubernetesDeployedService{
 		ctxt:           ctxt,
 		definitionsDir: ksd.definitionsDir,
