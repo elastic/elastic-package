@@ -83,7 +83,7 @@ services:
       kibana:
         condition: service_healthy
     healthcheck:
-      test: "curl -f http://127.0.0.1:8220/api/status | grep HEALTHY 2>&1 >/dev/null"
+      test: "elastic-agent status"
       retries: 12
       interval: 5s
     hostname: docker-fleet-server
@@ -93,6 +93,7 @@ services:
     - "KIBANA_FLEET_SETUP=1"
     - "KIBANA_FLEET_HOST=http://kibana:5601"
     - "FLEET_SERVER_HOST=0.0.0.0"
+    - "STATE_PATH=/usr/share/elastic-agent"
     ports:
       - "127.0.0.1:8220:8220"
 
