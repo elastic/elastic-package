@@ -1,3 +1,7 @@
+// Copyright Elasticsearch B.V. and/or licensed to Elasticsearch B.V. under one
+// or more contributor license agreements. Licensed under the Elastic License;
+// you may not use this file except in compliance with the Elastic License.
+
 package archetype
 
 const packageManifestTemplate = `format_version: 1.0.0
@@ -14,14 +18,14 @@ categories:
 release: {{.Release}}
 conditions:
   kibana.version: "{{.Conditions.Kibana.Version}}"
-screenshots:
+screenshots: ~
   - src: /img/sample-screenshot.png
     title: Sample dashboard
     size: 1024x768
     type: image/png
-icons:
-  - src: /img/logo-elastic.svg
-    title: Elastic logo
+icons: ~
+  - src: /img/sample-logo.svg
+    title: Sample logo
     size: 32x32
     type: image/svg+xml
 policy_templates: ~

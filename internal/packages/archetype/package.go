@@ -6,7 +6,7 @@ package archetype
 
 import "github.com/elastic/elastic-package/internal/packages"
 
-type PackageDescriptor struct{
+type PackageDescriptor struct {
 	Manifest packages.PackageManifest
 }
 
