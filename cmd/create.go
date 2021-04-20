@@ -6,30 +6,23 @@ package cmd
 
 import (
 	"github.com/spf13/cobra"
+
+	"github.com/elastic/elastic-package/internal/cobraext"
 )
 
 const createLongDescription = `Use this command to create a new package or add more data streams.
 
-The command can help bootstrap the first draft of a package using embedded package template. It can be used to extend the package with more data streams.
-
-Context:
-  global, package`
+The command can help bootstrap the first draft of a package using embedded package template. It can be used to extend the package with more data streams.`
 
 const createPackageLongDescription = `Use this command to create a new package.
 
-The command can bootstrap the first draft of a package using embedded package template and wizard.
-
-Context:
-  global`
+The command can bootstrap the first draft of a package using embedded package template and wizard.`
 
 const createDataStreamLongDescription = `Use this command to add a new data stream to the existing package.
 
-The command can extend the package with a new data stream using a dedicated wizard.
+The command can extend the package with a new data stream using a dedicated wizard.`
 
-Context:
-  package`
-
-func setupCreateCommand() *cobra.Command {
+func setupCreateCommand() *cobraext.Command {
 	createPackageCmd := &cobra.Command{
 		Use:   "package",
 		Short: "Create new package",
@@ -51,7 +44,8 @@ func setupCreateCommand() *cobra.Command {
 	}
 	cmd.AddCommand(createPackageCmd)
 	cmd.AddCommand(createDataStreamCmd)
-	return cmd
+
+	return cobraext.NewCommand(cmd, cobraext.ContextGlobal)
 }
 
 func createPackageCommandAction(cmd *cobra.Command, args []string) error {
