@@ -55,10 +55,8 @@ spec:
           startupProbe:
             exec:
               command:
-              - sh
-              - -c
-              - grep "Agent is starting" -r . --include=elastic-agent-json.log
-  
+              - elastic-agent
+              - status
 ---
 apiVersion: v1
 kind: ConfigMap
