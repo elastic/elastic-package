@@ -12,6 +12,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/version"
 )
 
@@ -27,10 +28,10 @@ func checkIfLatestVersionInstalled(elasticPackagePath string) (bool, error) {
 	return buildVersionFile(version.CommitHash, version.BuildTime) == v, nil
 }
 
-func writeVersionFile(elasticPackagePath string) error {
+func writeVersionFile(elasticPackagePath *locations.LocationManager) error {
 	var err error
 	err = writeStaticResource(err,
-		filepath.Join(elasticPackagePath, versionFilename),
+		filepath.Join(elasticPackagePath.RootDir(), versionFilename),
 		buildVersionFile(version.CommitHash, version.BuildTime))
 	if err != nil {
 		return errors.Wrap(err, "writing static resource failed")

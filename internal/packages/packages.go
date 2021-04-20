@@ -24,9 +24,10 @@ const (
 
 	defaultPipelineName = "default"
 
-	dataStreamTypeLogs    = "logs"
-	dataStreamTypeMetrics = "metrics"
-	dataStreamTypeTraces  = "traces"
+	dataStreamTypeLogs       = "logs"
+	dataStreamTypeMetrics    = "metrics"
+	dataStreamTypeSynthetics = "synthetics"
+	dataStreamTypeTraces     = "traces"
 )
 
 // VarValue represents a variable value as defined in a package or data stream
@@ -89,6 +90,11 @@ type PolicyTemplate struct {
 	Inputs []Input `config:"inputs" json:"inputs" yaml:"inputs"`
 }
 
+// Owner defines package owners, either a single person or a team.
+type Owner struct {
+	Github string `config:"github" json:"github" yaml:"github"`
+}
+
 // PackageManifest represents the basic structure of a package's manifest
 type PackageManifest struct {
 	Name            string           `config:"name" json:"name" yaml:"name"`
@@ -98,6 +104,9 @@ type PackageManifest struct {
 	Conditions      Conditions       `config:"conditions" json:"conditions" yaml:"conditions"`
 	PolicyTemplates []PolicyTemplate `config:"policy_templates" json:"policy_templates" yaml:"policy_templates"`
 	Vars            []Variable       `config:"vars" json:"vars" yaml:"vars"`
+	Owner           Owner            `config:"owner" json:"owner" yaml:"owner"`
+	Release         string           `config:"release" json:"release" yaml:"release"`
+	Description     string           `config:"description" json:"description" yaml:"description"`
 }
 
 // DataStreamManifest represents the structure of a data stream's manifest
@@ -263,6 +272,6 @@ func isDataStreamManifest(path string) (bool, error) {
 		return false, errors.Wrapf(err, "reading package manifest failed (path: %s)", path)
 	}
 	return m.Title != "" &&
-			(m.Type == dataStreamTypeLogs || m.Type == dataStreamTypeMetrics || m.Type == dataStreamTypeTraces),
+			(m.Type == dataStreamTypeLogs || m.Type == dataStreamTypeMetrics || m.Type == dataStreamTypeSynthetics || m.Type == dataStreamTypeTraces),
 		nil
 }

@@ -27,6 +27,9 @@ const (
 	FailFastFlagName        = "fail-fast"
 	FailFastFlagDescription = "fail immediately if any file requires updates (do not overwrite)"
 
+	ForkFlagName        = "fork"
+	ForkFlagDescription = "use fork mode (set to \"false\" if user can't fork the storage repository)"
+
 	GenerateTestResultFlagName        = "generate"
 	GenerateTestResultFlagDescription = "generate test result file"
 
@@ -36,8 +39,11 @@ const (
 	ReportOutputFlagName        = "report-output"
 	ReportOutputFlagDescription = "output location for test report"
 
-	VerboseFlagName        = "verbose"
-	VerboseFlagDescription = "verbose mode"
+	ShowAllFlagName        = "all"
+	ShowAllFlagDescription = "show all deployed package revisions"
+
+	SkipPullRequestFlagName        = "skip-pull-request"
+	SkipPullRequestFlagDescription = "skip opening a new pull request"
 
 	StackServicesFlagName        = "services"
 	StackServicesFlagDescription = "component services (comma-separated values: \"%s\")"
@@ -47,4 +53,7 @@ const (
 
 	StackDumpOutputFlagName        = "output"
 	StackDumpOutputFlagDescription = "output location for the stack dump"
+
+	VerboseFlagName        = "verbose"
+	VerboseFlagDescription = "verbose mode"
 )

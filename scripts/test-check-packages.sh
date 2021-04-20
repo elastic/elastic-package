@@ -45,7 +45,7 @@ cd -
 elastic-package stack up -d -v
 
 # Boot up the kind cluster
-kind create cluster
+kind create cluster --config $PWD/scripts/kind-config.yaml
 
 # Run package tests
 eval "$(elastic-package stack shellinit)"

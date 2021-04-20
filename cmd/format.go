@@ -15,12 +15,9 @@ import (
 
 const formatLongDescription = `Use this command to format the package files.
 
-The formatter supports JSON and YAML format, and skips "ingest_pipeline" directories as it's hard to correctly format Handlebars template files. Formatted files are being overwritten.
+The formatter supports JSON and YAML format, and skips "ingest_pipeline" directories as it's hard to correctly format Handlebars template files. Formatted files are being overwritten.`
 
-Context:
-  package`
-
-func setupFormatCommand() *cobra.Command {
+func setupFormatCommand() *cobraext.Command {
 	cmd := &cobra.Command{
 		Use:   "format",
 		Short: "Format the package",
@@ -28,7 +25,8 @@ func setupFormatCommand() *cobra.Command {
 		RunE:  formatCommandAction,
 	}
 	cmd.Flags().BoolP(cobraext.FailFastFlagName, "f", false, cobraext.FailFastFlagDescription)
-	return cmd
+
+	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
 }
 
 func formatCommandAction(cmd *cobra.Command, args []string) error {

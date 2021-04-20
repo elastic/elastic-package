@@ -17,6 +17,12 @@ spec:
   selector:
     matchLabels:
       app: kind-fleet-agent-clusterscope
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
   template:
     metadata:
       labels:
@@ -30,14 +36,10 @@ spec:
           env:
             - name: FLEET_ENROLL
               value: "1"
-            - name: FLEET_ENROLL_INSECURE
-              value: "1"
             - name: FLEET_INSECURE
               value: "1"
             - name: FLEET_URL
-              value: "http://kibana:5601"
-            - name: KIBANA_HOST
-              value: "http://kibana:5601"
+              value: "http://fleet-server:8220"
             - name: NODE_NAME
               valueFrom:
                 fieldRef:
@@ -46,10 +48,17 @@ spec:
             runAsUser: 0
           resources:
             limits:
-              memory: 200Mi
+              memory: 400Mi
             requests:
-              cpu: 100m
-              memory: 100Mi
+              cpu: 200m
+              memory: 400Mi
+          startupProbe:
+            exec:
+              command:
+              - sh
+              - -c
+              - grep "Agent is starting" -r . --include=elastic-agent-json.log
+  
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -95,6 +104,7 @@ rules:
       - events
       - pods
       - secrets
+      - services
     verbs: ["get", "list", "watch"]
   - apiGroups: ["extensions"]
     resources:
@@ -117,6 +127,34 @@ rules:
       - "/metrics"
     verbs:
       - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  namespace: kube-system
+  name: kind-fleet-agent
+subjects:
+  - kind: ServiceAccount
+    name: kind-fleet-agent
+    namespace: kube-system
+roleRef:
+  kind: Role
+  name: kind-fleet-agent
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: kind-fleet-agent
+  namespace: kube-system
+  labels:
+    k8s-app: kind-fleet-agent
+rules:
+  - apiGroups:
+      - coordination.k8s.io
+    resources:
+      - leases
+    verbs: ["get", "create", "update"]
 ---
 apiVersion: v1
 kind: ServiceAccount
