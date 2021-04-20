@@ -40,6 +40,8 @@ spec:
               value: "1"
             - name: FLEET_URL
               value: "http://fleet-server:8220"
+            - name: STATE_PATH
+              value: /usr/share/elastic-agent
             - name: NODE_NAME
               valueFrom:
                 fieldRef:

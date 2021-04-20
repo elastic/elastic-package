@@ -110,6 +110,7 @@ services:
     - "FLEET_ENROLL=1"
     - "FLEET_INSECURE=1"
     - "FLEET_URL=http://fleet-server:8220"
+    - "STATE_PATH=/usr/share/elastic-agent"
     volumes:
     - type: bind
       source: ../tmp/service_logs/
