@@ -16,7 +16,7 @@ import (
 	"github.com/elastic/elastic-package/internal/profile"
 )
 
-var observedServices = []string{"elasticsearch", "elastic-agent", "kibana", "package-registry"}
+var observedServices = []string{"elasticsearch", "elastic-agent", "fleet-server", "kibana", "package-registry"}
 
 // DumpOptions defines dumping options for Elatic stack data.
 type DumpOptions struct {

@@ -10,6 +10,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/builder"
+	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/locations"
 )
@@ -25,19 +26,19 @@ func BootUp(options Options) error {
 		return errors.Wrap(err, "finding build packages directory failed")
 	}
 
-	stackPackagesDir, err := locations.StackPackagesDir()
+	stackPackagesDir, err := locations.NewLocationManager()
 	if err != nil {
 		return errors.Wrap(err, "locating stack packages directory failed")
 	}
 
-	err = files.ClearDir(stackPackagesDir)
+	err = files.ClearDir(stackPackagesDir.PackagesDir())
 	if err != nil {
 		return errors.Wrap(err, "clearing package contents failed")
 	}
 
 	if found {
 		fmt.Printf("Custom build packages directory found: %s\n", buildPackagesPath)
-		err = files.CopyAll(buildPackagesPath, stackPackagesDir)
+		err = files.CopyAll(buildPackagesPath, stackPackagesDir.PackagesDir())
 		if err != nil {
 			return errors.Wrap(err, "copying package contents failed")
 		}

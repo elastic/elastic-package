@@ -12,7 +12,7 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 
-	"github.com/elastic/elastic-package/internal/locations"
+	"github.com/elastic/elastic-package/internal/configuration/locations"
 )
 
 // ApplicationConfiguration represents the configuration of the elastic-package.
@@ -68,12 +68,12 @@ func (ac *ApplicationConfiguration) StackImageRefs(version string) ImageRefs {
 
 // Configuration function returns the elastic-package configuration.
 func Configuration() (*ApplicationConfiguration, error) {
-	configPath, err := locations.ConfigurationDir()
+	configPath, err := locations.NewLocationManager()
 	if err != nil {
 		return nil, errors.Wrap(err, "can't read configuration directory")
 	}
 
-	cfg, err := ioutil.ReadFile(filepath.Join(configPath, applicationConfigurationYmlFile))
+	cfg, err := ioutil.ReadFile(filepath.Join(configPath.RootDir(), applicationConfigurationYmlFile))
 	if err != nil {
 		return nil, errors.Wrap(err, "can't read configuration file")
 	}

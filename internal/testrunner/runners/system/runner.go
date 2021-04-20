@@ -17,6 +17,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/common"
+	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/fields"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/locations"
@@ -127,7 +128,7 @@ func (r *runner) newResult(name string) *testrunner.ResultComposer {
 
 func (r *runner) run() (results []testrunner.TestResult, err error) {
 	result := r.newResult("(init)")
-	serviceLogsDir, err := locations.ServiceLogsDir()
+	locationManager, err := locations.NewLocationManager()
 	if err != nil {
 		return result.WithError(errors.Wrap(err, "reading service logs directory failed"))
 	}
@@ -139,7 +140,7 @@ func (r *runner) run() (results []testrunner.TestResult, err error) {
 	for _, cfgFile := range files {
 		var ctxt servicedeployer.ServiceContext
 		ctxt.Name = r.options.TestFolder.Package
-		ctxt.Logs.Folder.Local = serviceLogsDir
+		ctxt.Logs.Folder.Local = locationManager.ServiceLogDir()
 		ctxt.Logs.Folder.Agent = serviceLogsAgentDir
 		ctxt.Test.RunID = createTestRunID()
 		testConfig, err := newConfig(filepath.Join(r.options.TestFolder.Path, cfgFile), ctxt)
@@ -300,7 +301,6 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	}
 
 	logger.Debug("adding package data stream to test policy...")
-
 	ds := createPackageDatastream(*policy, *pkgManifest, *dataStreamManifest, *config)
 	if err := kib.AddPackageDataStreamToPolicy(ds); err != nil {
 		return result.WithError(errors.Wrap(err, "could not add data stream config to policy"))
@@ -389,7 +389,7 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	}
 
 	if err := validateFields(docs, fieldsValidator, dataStream); err != nil {
-		return result.WithError(errors.Wrap(err, "failed to validate fields"))
+		return result.WithError(err)
 	}
 
 	// Write sample events file from first doc, if requested

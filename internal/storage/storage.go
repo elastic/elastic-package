@@ -7,7 +7,6 @@ package storage
 import (
 	"fmt"
 	"io/ioutil"
-	"os"
 	"path/filepath"
 	"sort"
 
@@ -19,6 +18,7 @@ import (
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/format/index"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/go-git/go-git/v5/storage/memory"
 	"github.com/pkg/errors"
@@ -99,7 +99,7 @@ func (prs PackageVersions) FilterPackages(newestOnly bool) PackageVersions {
 	m := map[string]PackageVersion{}
 
 	for _, p := range prs {
-		if v, ok := m[p.Name]; ok {
+		if v, ok := m[p.Name]; !ok {
 			m[p.Name] = p
 		} else if v.semver.LessThan(&p.semver) {
 			m[p.Name] = p
@@ -133,7 +133,14 @@ func (prs PackageVersions) Strings() []string {
 }
 
 // CloneRepository function clones the repository and changes branch to stage.
+// It assumes that user has already forked the storage repository.
 func CloneRepository(user, stage string) (*git.Repository, error) {
+	return CloneRepositoryWithFork(user, stage, true)
+}
+
+// CloneRepositoryWithFork function clones the repository, changes branch to stage.
+// It respects the fork mode accordingly.
+func CloneRepositoryWithFork(user, stage string, fork bool) (*git.Repository, error) {
 	// Initialize repository
 	r, err := git.Init(memory.NewStorage(), memfs.New())
 	if err != nil {
@@ -142,15 +149,21 @@ func CloneRepository(user, stage string) (*git.Repository, error) {
 
 	// Add remotes
 	userRepositoryURL := fmt.Sprintf(repositoryURL, user)
-	userRemote, err := r.CreateRemote(&config.RemoteConfig{
-		Name: user,
-		URLs: []string{
-			userRepositoryURL,
-		},
-	})
-	if err != nil {
-		return nil, errors.Wrap(err, "creating user remote failed")
+	var userRemote *git.Remote
+	if !fork {
+		logger.Debugf("No-fork mode selected. The user's remote upstream won't be created.")
+	} else {
+		userRemote, err = r.CreateRemote(&config.RemoteConfig{
+			Name: user,
+			URLs: []string{
+				userRepositoryURL,
+			},
+		})
+		if err != nil {
+			return nil, errors.Wrap(err, "creating user remote failed")
+		}
 	}
+
 	upstreamRemote, err := r.CreateRemote(&config.RemoteConfig{
 		Name: upstream,
 		URLs: []string{
@@ -166,14 +179,19 @@ func CloneRepository(user, stage string) (*git.Repository, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "reading auth token failed")
 	}
-	_, err = userRemote.List(&git.ListOptions{
-		Auth: &http.BasicAuth{
-			Username: user,
-			Password: authToken,
-		},
-	})
-	if err != nil {
-		return nil, errors.Wrapf(err, "checking user remote (%s, url: %s)", user, userRepositoryURL)
+
+	if !fork {
+		logger.Debugf("No-fork mode selected. The user's remote upstream won't be listed.")
+	} else {
+		_, err = userRemote.List(&git.ListOptions{
+			Auth: &http.BasicAuth{
+				Username: user,
+				Password: authToken,
+			},
+		})
+		if err != nil {
+			return nil, errors.Wrapf(err, "checking user remote (%s, url: %s)", user, userRepositoryURL)
+		}
 	}
 
 	// Fetch and checkout
@@ -284,6 +302,7 @@ func CopyPackages(r *git.Repository, sourceStage, destinationStage string, packa
 
 // CopyPackagesWithTransform function copies packages between branches and modifies file content using transform function.
 // It creates a new branch with selected packages.
+// The function doesn't fail if the source stage doesn't exist.
 func CopyPackagesWithTransform(r *git.Repository, sourceStage, destinationStage string, packages PackageVersions, destinationBranch string,
 	transform contentTransformer) error {
 	wt, err := r.Worktree()
@@ -291,23 +310,26 @@ func CopyPackagesWithTransform(r *git.Repository, sourceStage, destinationStage 
 		return errors.Wrap(err, "fetching worktree reference failed")
 	}
 
-	logger.Debugf("Checkout source stage: %s", sourceStage)
-	err = wt.Checkout(&git.CheckoutOptions{
-		Branch: plumbing.NewBranchReferenceName(sourceStage),
-	})
-	if err != nil {
-		return errors.Wrapf(err, "changing branch failed (path: %s)", sourceStage)
-	}
+	var contents fileContents
+	if sourceStage != "" {
+		logger.Debugf("Checkout source stage: %s", sourceStage)
+		err = wt.Checkout(&git.CheckoutOptions{
+			Branch: plumbing.NewBranchReferenceName(sourceStage),
+		})
+		if err != nil {
+			return errors.Wrapf(err, "changing branch failed (path: %s)", sourceStage)
+		}
 
-	logger.Debugf("Load package resources from source stage")
-	resourcePaths, err := walkPackageVersions(wt.Filesystem, packages...)
-	if err != nil {
-		return errors.Wrap(err, "walking package versions failed")
-	}
+		logger.Debugf("Load package resources from source stage")
+		resourcePaths, err := walkPackageVersions(wt.Filesystem, packages...)
+		if err != nil {
+			return errors.Wrap(err, "walking package versions failed")
+		}
 
-	contents, err := loadPackageContents(wt.Filesystem, resourcePaths)
-	if err != nil {
-		return errors.Wrap(err, "loading package contents failed")
+		contents, err = loadPackageContents(wt.Filesystem, resourcePaths)
+		if err != nil {
+			return errors.Wrap(err, "loading package contents failed")
+		}
 	}
 
 	logger.Debugf("Checkout destination stage: %s", destinationStage)
@@ -374,7 +396,7 @@ func CopyOverLocalPackage(r *git.Repository, builtPackageDir string, manifest *p
 	logger.Debugf("Temporarily remove all files from index")
 	publishedPackageDir := filepath.Join(packagesDir, manifest.Name, manifest.Version)
 	_, err = wt.Remove(publishedPackageDir)
-	if err != nil && !os.IsNotExist(err) {
+	if err != nil && err != index.ErrEntryNotFound {
 		return "", errors.Wrapf(err, "can't remove files within path: %s", publishedPackageDir)
 	}
 
@@ -538,7 +560,14 @@ func RemovePackages(r *git.Repository, sourceStage string, packages PackageVersi
 }
 
 // PushChanges function pushes branches to the remote repository.
+// It assumes that user has already forked the storage repository.
 func PushChanges(user string, r *git.Repository, stages ...string) error {
+	return PushChangesWithFork(user, r, true, stages...)
+}
+
+// PushChangesWithFork function pushes branches to the remote repository.
+// It respects the fork mode accordingly.
+func PushChangesWithFork(user string, r *git.Repository, fork bool, stages ...string) error {
 	authToken, err := github.AuthToken()
 	if err != nil {
 		return errors.Wrap(err, "reading auth token failed")
@@ -549,8 +578,14 @@ func PushChanges(user string, r *git.Repository, stages ...string) error {
 		refSpecs = append(refSpecs, config.RefSpec(fmt.Sprintf("refs/heads/%s:refs/heads/%s", stage, stage)))
 	}
 
+	remoteName := upstream
+	if fork {
+		remoteName = user
+	}
+
+	logger.Debugf("Push to remote: %s", remoteName)
 	err = r.Push(&git.PushOptions{
-		RemoteName: user,
+		RemoteName: remoteName,
 		RefSpecs:   refSpecs,
 		Auth: &http.BasicAuth{
 			Username: user,

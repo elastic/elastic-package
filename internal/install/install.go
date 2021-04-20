@@ -13,7 +13,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/elastic/elastic-package/internal/locations"
+	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/profile"
 )
 
@@ -72,18 +72,18 @@ func EnsureInstalled() error {
 	return nil
 }
 
-func checkIfAlreadyInstalled(elasticPackagePath locations.LocationManager) (bool, error) {
-	_, err := os.Stat(elasticPackagePath.StackPath)
+func checkIfAlreadyInstalled(elasticPackagePath *locations.LocationManager) (bool, error) {
+	_, err := os.Stat(elasticPackagePath.StackDir())
 	if os.IsNotExist(err) {
 		return false, nil
 	}
 	if err != nil {
 		return false, errors.Wrapf(err, "stat file failed (path: %s)", elasticPackagePath)
 	}
-	return checkIfLatestVersionInstalled(elasticPackagePath)
+	return checkIfLatestVersionInstalled(elasticPackagePath.RootDir())
 }
 
-func createElasticPackageDirectory(elasticPackagePath locations.LocationManager) error {
+func createElasticPackageDirectory(elasticPackagePath *locations.LocationManager) error {
 
 	//remove unmanaged subdirectories
 	err := os.RemoveAll(elasticPackagePath.TempDir()) // remove in case of potential upgrade
@@ -103,11 +103,11 @@ func createElasticPackageDirectory(elasticPackagePath locations.LocationManager)
 	return nil
 }
 
-func writeStackResources(elasticPackagePath locations.LocationManager) error {
-	packagesPath := elasticPackagePath.PackagesDir()
-	err := os.MkdirAll(packagesPath, 0755)
+func writeStackResources(elasticPackagePath *locations.LocationManager) error {
+
+	err := os.MkdirAll(elasticPackagePath.PackagesDir(), 0755)
 	if err != nil {
-		return errors.Wrapf(err, "creating directory failed (path: %s)", packagesPath)
+		return errors.Wrapf(err, "creating directory failed (path: %s)", elasticPackagePath.PackagesDir())
 	}
 
 	return profile.CreateProfile(elasticPackagePath.StackDir(), profile.DefaultProfile, false)
@@ -134,7 +134,7 @@ func writeKubernetesDeployerResources(elasticPackagePath locations.LocationManag
 	return nil
 }
 
-func writeTerraformDeployerResources(elasticPackagePath locations.LocationManager) error {
+func writeTerraformDeployerResources(elasticPackagePath *locations.LocationManager) error {
 	terraformDeployer := elasticPackagePath.TerraformDeployerDir()
 	err := os.MkdirAll(terraformDeployer, 0755)
 	if err != nil {
@@ -150,9 +150,9 @@ func writeTerraformDeployerResources(elasticPackagePath locations.LocationManage
 	return nil
 }
 
-func writeConfigFile(elasticPackagePath locations.LocationManager) error {
+func writeConfigFile(elasticPackagePath *locations.LocationManager) error {
 	var err error
-	err = writeStaticResource(err, filepath.Join(elasticPackagePath.StackPath, applicationConfigurationYmlFile), applicationConfigurationYml)
+	err = writeStaticResource(err, filepath.Join(elasticPackagePath.RootDir(), applicationConfigurationYmlFile), applicationConfigurationYml)
 	if err != nil {
 		return errors.Wrap(err, "writing static resource failed")
 	}
@@ -171,7 +171,7 @@ func writeStaticResource(err error, path, content string) error {
 	return nil
 }
 
-func createServiceLogsDir(elasticPackagePath locations.LocationManager) error {
+func createServiceLogsDir(elasticPackagePath *locations.LocationManager) error {
 	dirPath := elasticPackagePath.ServiceLogDir()
 	err := os.MkdirAll(dirPath, 0755)
 	if err != nil {

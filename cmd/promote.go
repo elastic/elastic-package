@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/elastic/elastic-package/internal/cobraext"
+
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -22,12 +24,9 @@ const promoteLongDescription = `Use this command to move packages between the sn
 
 This command is intended primarily for use by administrators.
 
-It allows for selecting packages for promotion and opens new pull requests to review changes. Please be aware that the tool checks out an in-memory Git repository and switches over branches (snapshot, staging and production), so it may take longer to promote a larger number of packages.
+It allows for selecting packages for promotion and opens new pull requests to review changes. Please be aware that the tool checks out an in-memory Git repository and switches over branches (snapshot, staging and production), so it may take longer to promote a larger number of packages.`
 
-Context:
-  global`
-
-func setupPromoteCommand() *cobra.Command {
+func setupPromoteCommand() *cobraext.Command {
 	cmd := &cobra.Command{
 		Use:          "promote",
 		Short:        "Promote packages",
@@ -35,7 +34,8 @@ func setupPromoteCommand() *cobra.Command {
 		RunE:         promoteCommandAction,
 		SilenceUsage: true,
 	}
-	return cmd
+
+	return cobraext.NewCommand(cmd, cobraext.ContextGlobal)
 }
 
 func promoteCommandAction(cmd *cobra.Command, args []string) error {

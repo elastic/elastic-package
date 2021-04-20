@@ -22,6 +22,11 @@ licenser:
 gomod:
 	go mod tidy
 
+update-readme:
+	cd tools/readme; go run main.go
+
+update: update-readme
+
 test-go:
 	# -count=1 is included to invalidate the test cache. This way, if you run "make test-go" multiple times
 	# you will get fresh test results each time. For instance, changing the source of mocked packages
@@ -40,4 +45,4 @@ check-git-clean:
 	git update-index --really-refresh
 	git diff-index --quiet HEAD
 
-check: build format lint licenser gomod check-git-clean test check-git-clean
+check: build format lint licenser gomod update check-git-clean test check-git-clean
