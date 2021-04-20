@@ -12,7 +12,6 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/compose"
-	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/profile"
 )
 
@@ -40,17 +39,6 @@ type kibanaConfiguration struct {
 func ShellInit(elasticStackProfile *profile.ConfigProfile) (string, error) {
 	// Read Elasticsearch username and password from Kibana configuration file.
 	body, err := ioutil.ReadFile(elasticStackProfile.Fetch(profile.KibanaConfigFile))
-	locationManager, err := locations.NewLocationManager()
-	if err != nil {
-		return "", errors.Wrap(err, "locating stack directory failed")
-	}
-
-	// Read Elasticsearch username and password from Kibana configuration file.
-	kibanaConfigurationPath := filepath.Join(locationManager.StackDir(), "kibana.config.yml")
-	body, err := ioutil.ReadFile(kibanaConfigurationPath)
-	if err != nil {
-		return "", errors.Wrap(err, "reading Kibana configuration file failed")
-	}
 
 	var kibanaCfg kibanaConfiguration
 	err = yaml.Unmarshal(body, &kibanaCfg)

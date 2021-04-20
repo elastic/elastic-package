@@ -20,7 +20,6 @@ import (
 	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/fields"
 	"github.com/elastic/elastic-package/internal/kibana"
-	"github.com/elastic/elastic-package/internal/locations"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/multierror"
 	"github.com/elastic/elastic-package/internal/packages"

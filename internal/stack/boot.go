@@ -12,7 +12,6 @@ import (
 	"github.com/elastic/elastic-package/internal/builder"
 	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/files"
-	"github.com/elastic/elastic-package/internal/locations"
 )
 
 // DockerComposeProjectName is the name of the Docker Compose project used to boot up

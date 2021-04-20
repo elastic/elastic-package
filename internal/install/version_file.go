@@ -17,8 +17,8 @@ import (
 	"github.com/elastic/elastic-package/internal/version"
 )
 
-func checkIfLatestVersionInstalled(elasticPackagePath locations.LocationManager) (bool, error) {
-	versionPath := filepath.Join(elasticPackagePath.StackPath, versionFilename)
+func checkIfLatestVersionInstalled(elasticPackagePath *locations.LocationManager) (bool, error) {
+	versionPath := filepath.Join(elasticPackagePath.RootDir(), versionFilename)
 	versionFile, err := ioutil.ReadFile(versionPath)
 	if os.IsExist(err) {
 		return false, nil // old version, no version file

@@ -80,7 +80,7 @@ func checkIfAlreadyInstalled(elasticPackagePath *locations.LocationManager) (boo
 	if err != nil {
 		return false, errors.Wrapf(err, "stat file failed (path: %s)", elasticPackagePath)
 	}
-	return checkIfLatestVersionInstalled(elasticPackagePath.RootDir())
+	return checkIfLatestVersionInstalled(elasticPackagePath)
 }
 
 func createElasticPackageDirectory(elasticPackagePath *locations.LocationManager) error {
@@ -96,7 +96,7 @@ func createElasticPackageDirectory(elasticPackagePath *locations.LocationManager
 		return errors.Wrapf(err, "removing directory failed (path: %s)", elasticPackagePath)
 	}
 
-	err = os.MkdirAll(elasticPackagePath.StackPath, 0755)
+	err = os.MkdirAll(elasticPackagePath.RootDir(), 0755)
 	if err != nil {
 		return errors.Wrapf(err, "creating directory failed (path: %s)", elasticPackagePath)
 	}
@@ -114,7 +114,7 @@ func writeStackResources(elasticPackagePath *locations.LocationManager) error {
 
 }
 
-func writeKubernetesDeployerResources(elasticPackagePath locations.LocationManager) error {
+func writeKubernetesDeployerResources(elasticPackagePath *locations.LocationManager) error {
 	err := os.MkdirAll(elasticPackagePath.KubernetesDeployerDir(), 0755)
 	if err != nil {
 		return errors.Wrapf(err, "creating directory failed (path: %s)", elasticPackagePath.KubernetesDeployerDir())
