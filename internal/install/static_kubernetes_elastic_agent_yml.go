@@ -104,6 +104,7 @@ rules:
       - events
       - pods
       - secrets
+      - services
     verbs: ["get", "list", "watch"]
   - apiGroups: ["extensions"]
     resources:
