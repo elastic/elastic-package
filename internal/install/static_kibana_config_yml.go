@@ -11,14 +11,14 @@ server.host: "0.0.0.0"
 elasticsearch.hosts: [ "http://elasticsearch:9200" ]
 elasticsearch.username: elastic
 elasticsearch.password: changeme
+
 xpack.monitoring.ui.container.elasticsearch.enabled: true
 
 xpack.fleet.enabled: true
 xpack.fleet.registryUrl: "http://package-registry:8080"
 xpack.fleet.agents.enabled: true
 xpack.fleet.agents.elasticsearch.host: "http://elasticsearch:9200"
-xpack.fleet.agents.fleetServerEnabled: true
-xpack.fleet.agents.kibana.host: "http://fleet-server:8220"
-xpack.fleet.agents.tlsCheckDisabled: true
+xpack.fleet.agents.fleet_server.hosts: ["http://fleet-server:8220"]
+
 xpack.encryptedSavedObjects.encryptionKey: "12345678901234567890123456789012"
 `
