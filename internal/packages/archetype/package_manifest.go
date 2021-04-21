@@ -19,11 +19,7 @@ release: {{.Release}}
 conditions:
   kibana.version: "{{.Conditions.Kibana.Version}}"
 screenshots: ~
-  - src: /img/sample-screenshot.png
-    title: Sample dashboard
-    size: 1024x768
-    type: image/png
-icons: ~
+icons:
   - src: /img/sample-logo.svg
     title: Sample logo
     size: 32x32
