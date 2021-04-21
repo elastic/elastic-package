@@ -95,6 +95,8 @@ func (ksd KubernetesServiceDeployer) SetUp(ctxt ServiceContext) (DeployedService
 
 	ctxt.Name = kind.ControlPlaneContainerName
 	ctxt.Hostname = kind.ControlPlaneContainerName
+	// kind-control-plane is the name of the kind host where Pod is running since we use hostNetwork setting
+	// to deploy Agent Pod. Because of this, hostname inside pod will be equal to the name of the k8s host.
 	ctxt.Agent.Host.NamePrefix = "kind-control-plane"
 	return &kubernetesDeployedService{
 		ctxt:           ctxt,
