@@ -84,8 +84,8 @@ services:
         condition: service_healthy
     healthcheck:
       test: "elastic-agent status"
-      retries: 12
-      interval: 5s
+      retries: 60
+      interval: 1s
     hostname: docker-fleet-server
     environment:
     - "FLEET_SERVER_ENABLE=1"
