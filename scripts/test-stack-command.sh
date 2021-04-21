@@ -24,6 +24,9 @@ cleanup() {
 
 trap cleanup EXIT
 
+# Update the stack
+elastic-package stack update -v
+
 # Boot up the stack
 elastic-package stack up -d -v
 
