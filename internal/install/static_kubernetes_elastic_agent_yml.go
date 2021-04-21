@@ -30,6 +30,8 @@ spec:
         group: fleet
     spec:
       serviceAccountName: kind-fleet-agent
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
       containers:
         - name: kind-fleet-agent-clusterscope
           image: {{ ELASTIC_AGENT_IMAGE_REF }}
