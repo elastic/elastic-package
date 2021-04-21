@@ -5,9 +5,12 @@
 package cmd
 
 import (
+	"github.com/AlecAivazis/survey/v2"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
+	"github.com/elastic/elastic-package/internal/install"
 )
 
 const createLongDescription = `Use this command to create a new package or add more data streams.
@@ -21,6 +24,19 @@ The command can bootstrap the first draft of a package using embedded package te
 const createDataStreamLongDescription = `Use this command to add a new data stream to the existing package.
 
 The command can extend the package with a new data stream using a dedicated wizard.`
+
+type newPackageAnswers struct {
+	Name          string
+	Type          string
+	Version       string
+	Title         string
+	Description   string
+	Categories    []string
+	License       string
+	Release       string
+	KibanaVersion string `survey:"kibana_version"`
+	GithubOwner   string `survey:"github_owner"`
+}
 
 func setupCreateCommand() *cobraext.Command {
 	createPackageCmd := &cobra.Command{
@@ -50,6 +66,100 @@ func setupCreateCommand() *cobraext.Command {
 
 func createPackageCommandAction(cmd *cobra.Command, args []string) error {
 	cmd.Println("Create a new package")
+
+	qs := []*survey.Question{
+		{
+			Name: "name",
+			Prompt: &survey.Input{
+				Message: "Package name:",
+				Default: "new-package",
+			},
+			Validate: survey.Required,
+		},
+		{
+			Name: "type",
+			Prompt: &survey.Select{
+				Message: "Package type:",
+				Options: []string{"integration"},
+				Default: "integration",
+			},
+			Validate: survey.Required,
+		},
+		{
+			Name: "version",
+			Prompt: &survey.Input{
+				Message: "Version:",
+				Default: "0.0.1",
+			},
+			Validate: survey.Required,
+		},
+		{
+			Name: "title",
+			Prompt: &survey.Input{
+				Message: "Package title:",
+				Default: "New Package",
+			},
+			Validate: survey.Required,
+		},
+		{
+			Name: "description",
+			Prompt: &survey.Input{
+				Message: "Description:",
+				Default: "This is a new package.",
+			},
+			Validate: survey.Required,
+		},
+		{
+			Name: "categories",
+			Prompt: &survey.MultiSelect{
+				Message:  "Categories:",
+				Options:  []string{"aws", "azure", "cloud", "config_management", "containers", "crm", "custom", "datastore", "elastic_stack", "google_cloud", "kubernetes", "languages", "message_queue", "monitoring", "network", "notification", "os_system", "productivity", "security", "support", "ticketing", "version_control", "web"},
+				Default:  []string{"custom"},
+				PageSize: 50,
+			},
+			Validate: survey.Required,
+		},
+		{
+			Name: "license",
+			Prompt: &survey.Select{
+				Message: "License:",
+				Options: []string{"basic"},
+				Default: "basic",
+			},
+			Validate: survey.Required,
+		},
+		{
+			Name: "release",
+			Prompt: &survey.Select{
+				Message: "Release:",
+				Options: []string{"experimental", "beta", "ga"},
+				Default: "experimental",
+			},
+			Validate: survey.Required,
+		},
+		{
+			Name: "kibana_version",
+			Prompt: &survey.Input{
+				Message: "Kibana version constraint:",
+				Default: "^" + install.DefaultStackVersion,
+			},
+			Validate: survey.Required,
+		},
+		{
+			Name: "github_owner",
+			Prompt: &survey.Input{
+				Message: "Github owner:",
+				Default: "elastic/integrations", // TODO read user from context
+			},
+			Validate: survey.Required,
+		},
+	}
+
+	var answers newPackageAnswers
+	err := survey.Ask(qs, &answers)
+	if err != nil {
+		return errors.Wrap(err, "prompt failed")
+	}
 
 	cmd.Println("Done")
 	return nil
