@@ -30,4 +30,4 @@ elastic-package
 elastic-stack-dump/
 
 # elastic-package create: default package
-new-package
+new_package

@@ -28,7 +28,14 @@ icons:
     title: Sample logo
     size: 32x32
     type: image/svg+xml
-policy_templates: []
+policy_templates:
+  - name: sample
+    title: Sample logs
+    description: Collect sample logs
+    inputs:
+      - type: logfile
+        title: Collect sample logs from instances
+        description: Collecting sample logs
 owner:
   github: {{.Manifest.Owner.Github}}
 `
