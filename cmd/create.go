@@ -6,6 +6,8 @@ package cmd
 
 import (
 	"github.com/AlecAivazis/survey/v2"
+	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/internal/packages/archetype"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
@@ -112,8 +114,11 @@ func createPackageCommandAction(cmd *cobra.Command, args []string) error {
 		{
 			Name: "categories",
 			Prompt: &survey.MultiSelect{
-				Message:  "Categories:",
-				Options:  []string{"aws", "azure", "cloud", "config_management", "containers", "crm", "custom", "datastore", "elastic_stack", "google_cloud", "kubernetes", "languages", "message_queue", "monitoring", "network", "notification", "os_system", "productivity", "security", "support", "ticketing", "version_control", "web"},
+				Message: "Categories:",
+				Options: []string{"aws", "azure", "cloud", "config_management", "containers", "crm", "custom",
+					"datastore", "elastic_stack", "google_cloud", "kubernetes", "languages", "message_queue",
+					"monitoring", "network", "notification", "os_system", "productivity", "security", "support",
+					"ticketing", "version_control", "web"},
 				Default:  []string{"custom"},
 				PageSize: 50,
 			},
@@ -161,8 +166,22 @@ func createPackageCommandAction(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "prompt failed")
 	}
 
+	descriptor := createPackageDescriptorFromAnswers(answers)
+	err = archetype.CreatePackage(descriptor)
+	if err != nil {
+		return errors.Wrap(err, "can't create new package")
+	}
+
 	cmd.Println("Done")
 	return nil
+}
+
+func createPackageDescriptorFromAnswers(answers newPackageAnswers) archetype.PackageDescriptor {
+	return archetype.PackageDescriptor{
+		Manifest: packages.PackageManifest{
+
+		},
+	}
 }
 
 func createDataStreamCommandAction(cmd *cobra.Command, args []string) error {
