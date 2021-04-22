@@ -210,8 +210,19 @@ func setupStackCommand() *cobraext.Command {
 				return cobraext.FlagParsingError(err, cobraext.StackDumpOutputFlagName)
 			}
 
+			profileName, err := cmd.Flags().GetString(cobraext.ProfileFlagName)
+			if err != nil {
+				return cobraext.FlagParsingError(err, cobraext.ProfileFlagName)
+			}
+
+			profile, err := profile.LoadProfileFromDefaultLocation(profileName)
+			if err != nil {
+				return errors.Wrap(err, "error loading profile")
+			}
+
 			target, err := stack.Dump(stack.DumpOptions{
-				Output: output,
+				Output:  output,
+				Profile: profile,
 			})
 			if err != nil {
 				return errors.Wrap(err, "dump failed")
