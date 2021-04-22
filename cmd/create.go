@@ -9,11 +9,11 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
-	"github.com/elastic/elastic-package/internal/packages"
-	"github.com/elastic/elastic-package/internal/packages/archetype"
-
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/install"
+	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/internal/packages/archetype"
+	"github.com/elastic/elastic-package/internal/surveyext"
 )
 
 const createLongDescription = `Use this command to create a new package or add more data streams.
@@ -77,7 +77,7 @@ func createPackageCommandAction(cmd *cobra.Command, args []string) error {
 				Message: "Package name:",
 				Default: "new_package",
 			},
-			Validate: survey.Required,
+			Validate: survey.ComposeValidators(survey.Required, surveyext.PackageAlreadyExists),
 		},
 		{
 			Name: "type",
