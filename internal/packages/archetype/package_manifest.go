@@ -5,26 +5,26 @@
 package archetype
 
 const packageManifestTemplate = `format_version: 1.0.0
-name: {{.Name}}
-title: "{{.Title}}"
-version: {{.Version}}
-license: {{.License}}
-description: "{{.Description}}"
-type: {{.Type}}
+name: {{.Manifest.Name}}
+title: "{{.Manifest.Title}}"
+version: {{.Manifest.Version}}
+license: {{.Manifest.License}}
+description: "{{.Manifest.Description}}"
+type: {{.Manifest.Type}}
 categories:
-{{range $category := .Categories -}}
+{{- range $category := .Manifest.Categories}}
   - {{$category}}
-{{end}}
-release: {{.Release}}
+{{end -}}
+release: {{.Manifest.Release}}
 conditions:
-  kibana.version: "{{.Conditions.Kibana.Version}}"
-screenshots: ~
+  kibana.version: "{{.Manifest.Conditions.Kibana.Version}}"
+screenshots: []
 icons:
   - src: /img/sample-logo.svg
     title: Sample logo
     size: 32x32
     type: image/svg+xml
-policy_templates: ~
+policy_templates: []
 owner:
-  github: {{.Owner.Github}}
+  github: {{.Manifest.Owner.Github}}
 `

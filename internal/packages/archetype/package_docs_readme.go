@@ -4,7 +4,7 @@
 
 package archetype
 
-const packageDocsReadme = `# {{.Title}}
+const packageDocsReadme = `# {{.Manifest.Title}}
 
 This is a new integration created using the [elastic-package](https://github.com/elastic/elastic-package) tool.
 

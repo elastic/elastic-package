@@ -6,10 +6,11 @@ package cmd
 
 import (
 	"github.com/AlecAivazis/survey/v2"
-	"github.com/elastic/elastic-package/internal/packages"
-	"github.com/elastic/elastic-package/internal/packages/archetype"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+
+	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/internal/packages/archetype"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/install"
@@ -74,7 +75,7 @@ func createPackageCommandAction(cmd *cobra.Command, args []string) error {
 			Name: "name",
 			Prompt: &survey.Input{
 				Message: "Package name:",
-				Default: "new-package",
+				Default: "new_package",
 			},
 			Validate: survey.Required,
 		},
@@ -179,7 +180,22 @@ func createPackageCommandAction(cmd *cobra.Command, args []string) error {
 func createPackageDescriptorFromAnswers(answers newPackageAnswers) archetype.PackageDescriptor {
 	return archetype.PackageDescriptor{
 		Manifest: packages.PackageManifest{
-
+			Name:    answers.Name,
+			Title:   answers.Title,
+			Type:    answers.Type,
+			Version: answers.Version,
+			Conditions: packages.Conditions{
+				Kibana: packages.KibanaConditions{
+					Version: answers.KibanaVersion,
+				},
+			},
+			Owner: packages.Owner{
+				Github: answers.GithubOwner,
+			},
+			Release:     answers.Release,
+			Description: answers.Description,
+			License:     answers.License,
+			Categories:  answers.Categories,
 		},
 	}
 }

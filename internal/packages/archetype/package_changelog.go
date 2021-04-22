@@ -5,7 +5,7 @@
 package archetype
 
 const packageChangelogTemplate = `# newer versions go on top
-- version: "{{.Version}}"
+- version: "{{.Manifest.Version}}"
   changes:
     - description: Initial draft of the package
       type: enhancement
