@@ -149,6 +149,16 @@ func setupStackCommand() *cobraext.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.Println("Update the Elastic stack")
 
+			profileName, err := cmd.Flags().GetString(cobraext.ProfileFlagName)
+			if err != nil {
+				return cobraext.FlagParsingError(err, cobraext.ProfileFlagName)
+			}
+
+			profile, err := profile.LoadProfileFromDefaultLocation(profileName)
+			if err != nil {
+				return errors.Wrap(err, "error loading profile")
+			}
+
 			stackVersion, err := cmd.Flags().GetString(cobraext.StackVersionFlagName)
 			if err != nil {
 				return cobraext.FlagParsingError(err, cobraext.StackVersionFlagName)
@@ -156,6 +166,7 @@ func setupStackCommand() *cobraext.Command {
 
 			err = stack.Update(stack.Options{
 				StackVersion: stackVersion,
+				Profile:      profile,
 			})
 			if err != nil {
 				return errors.Wrap(err, "failed updating the stack images")
