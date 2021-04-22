@@ -6,7 +6,6 @@ package profile
 
 import (
 	"io/ioutil"
-	"os"
 
 	"github.com/pkg/errors"
 )
@@ -24,7 +23,7 @@ type SimpleFile struct {
 
 // ConfigfilesDiffer checks to see if a local configItem differs from the one it knows.
 func (cfg SimpleFile) ConfigfilesDiffer() (bool, error) {
-	changes, err := os.ReadFile(cfg.FilePath)
+	changes, err := ioutil.ReadFile(cfg.FilePath)
 	if err != nil {
 		return false, errors.Wrapf(err, "error reading %s", KibanaConfigFile)
 	}

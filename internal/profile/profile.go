@@ -7,6 +7,7 @@ package profile
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -218,7 +219,7 @@ func (profile ConfigProfile) writeProfileResources() error {
 // metadata returns the metadata struct for the profile
 func (profile ConfigProfile) metadata() (Metadata, error) {
 	packageMetadata := profile.configFiles[PackageProfileMetaFile]
-	rawPackageMetadata, err := os.ReadFile(packageMetadata.FilePath)
+	rawPackageMetadata, err := ioutil.ReadFile(packageMetadata.FilePath)
 	if err != nil {
 		return Metadata{}, errors.Wrap(err, "error reading metadata file")
 	}
