@@ -4,6 +4,7 @@
 
 package archetype
 
+// DataStreamDescriptor defines configurable properties of the data stream archetype
 type DataStreamDescriptor struct{}
 
 // CreateDatastream function bootstraps the new data stream based on the provided descriptor.

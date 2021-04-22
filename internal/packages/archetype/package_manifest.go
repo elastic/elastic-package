@@ -18,7 +18,11 @@ categories:
 release: {{.Manifest.Release}}
 conditions:
   kibana.version: "{{.Manifest.Conditions.Kibana.Version}}"
-screenshots: []
+screenshots:
+  - src: /img/sample-screenshot.png
+    title: Sample screenshot
+    size: 600x600
+    type: image/png
 icons:
   - src: /img/sample-logo.svg
     title: Sample logo

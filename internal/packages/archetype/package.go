@@ -6,6 +6,7 @@ package archetype
 
 import (
 	"bytes"
+	"encoding/base64"
 	"fmt"
 	"html/template"
 	"io/ioutil"
@@ -17,6 +18,7 @@ import (
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
+// PackageDescriptor defines configurable properties of the package archetype
 type PackageDescriptor struct {
 	Manifest packages.PackageManifest
 }
@@ -48,9 +50,19 @@ func CreatePackage(packageDescriptor PackageDescriptor) error {
 	}
 
 	// Write sample icon
-	err = renderResourceFile(packageImgSampleIcon, &packageDescriptor, filepath.Join(baseDir, "img", "sample-logo.svg"))
+	err = writeRawResourceFile(packageImgSampleIcon, filepath.Join(baseDir, "img", "sample-logo.svg"))
 	if err != nil {
 		return errors.Wrap(err, "can't render sample icon")
+	}
+
+	// Write sample screenshot
+	decodedSampleScreenshot, err := decodeBase64Resource(packageImgSampleScreenshot)
+	if err != nil {
+		return errors.Wrap(err, "can't decode sample screenshot")
+	}
+	err = writeRawResourceFile(decodedSampleScreenshot, filepath.Join(baseDir, "img", "sample-screenshot.png"))
+	if err != nil {
+		return errors.Wrap(err, "can't render sample screenshot")
 	}
 
 	fmt.Printf("New package has been created: %s\n", baseDir)
@@ -72,6 +84,28 @@ func renderResourceFile(templateBody string, data interface{}, targetPath string
 
 	packageManifestPath := targetPath
 	err = ioutil.WriteFile(packageManifestPath, rendered.Bytes(), 0644)
+	if err != nil {
+		return errors.Wrapf(err, "can't write resource file (path: %s)", packageManifestPath)
+	}
+	return nil
+}
+
+func decodeBase64Resource(encoded string) ([]byte, error) {
+	decoded, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil {
+		return nil, errors.Wrap(err, "can't decode encoded resource")
+	}
+	return decoded, nil
+}
+
+func writeRawResourceFile(content []byte, targetPath string) error {
+	err := os.MkdirAll(filepath.Dir(targetPath), 0755)
+	if err != nil {
+		return errors.Wrap(err, "can't create base directory")
+	}
+
+	packageManifestPath := targetPath
+	err = ioutil.WriteFile(packageManifestPath, content, 0644)
 	if err != nil {
 		return errors.Wrapf(err, "can't write resource file (path: %s)", packageManifestPath)
 	}
