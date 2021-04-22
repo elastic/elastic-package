@@ -48,7 +48,7 @@ func (s kubernetesDeployedService) TearDown() error {
 	return nil
 }
 
-func (s kubernetesDeployedService) Signal(signal string) error {
+func (s kubernetesDeployedService) Signal(_ string) error {
 	return errors.New("signal is not supported")
 }
 

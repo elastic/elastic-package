@@ -33,6 +33,7 @@ var ManagedProfileFiles = map[ConfigFile]NewConfig{
 	PackageRegistryConfigFile:     NewPackageRegistryConfig,
 	SnapshotFile:                  NewSnapshotFile,
 	PackageProfileMetaFile:        CreateProfileMetadata,
+	KibanaHealthCheckFile:         NewKibanaHealthCheck,
 }
 
 // ConfigProfile manages a stack config
