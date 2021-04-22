@@ -9,8 +9,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/install"
-	"github.com/elastic/elastic-package/internal/locations"
 	"github.com/elastic/elastic-package/internal/profile"
 
 	"github.com/pkg/errors"
@@ -310,13 +310,13 @@ func lookupEnv() string {
 
 func availableProfilesAsAList() ([]string, error) {
 
-	loc, err := locations.StackDir()
+	loc, err := locations.NewLocationManager()
 	if err != nil {
 		return []string{}, errors.Wrap(err, "error fetching profile")
 	}
 
 	profileNames := []string{}
-	profileList, err := profile.FetchAllProfiles(loc)
+	profileList, err := profile.FetchAllProfiles(loc.StackDir())
 	if err != nil {
 		return profileNames, errors.Wrap(err, "")
 	}

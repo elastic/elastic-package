@@ -12,7 +12,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/elastic/elastic-package/internal/locations"
+	"github.com/elastic/elastic-package/internal/configuration/locations"
 )
 
 // CreateProfile installs a new profile at the given package path location.
@@ -60,12 +60,12 @@ func CreateProfile(elasticPackagePath string, profileName string, overwriteExist
 
 // CreateProfileFromDefaultLocation creates an existing profile from the default elastic-package config dir
 func CreateProfileFromDefaultLocation(profileName string, from string) error {
-	loc, err := locations.StackDir()
+	loc, err := locations.NewLocationManager()
 	if err != nil {
 		return errors.Wrap(err, "error finding stack dir location")
 	}
 
-	return CreateProfileFrom(loc, profileName, from)
+	return CreateProfileFrom(loc.StackDir(), profileName, from)
 }
 
 // CreateProfileFrom creates a new profile by copying over an existing profile
@@ -98,21 +98,21 @@ func CreateProfileFrom(elasticPackagePath string, newProfileName string, fromPro
 // LoadProfileFromDefaultLocation loads an existing profile from the default elastic-package config dir
 func LoadProfileFromDefaultLocation(profileName string) (*ConfigProfile, error) {
 
-	loc, err := locations.StackDir()
+	loc, err := locations.NewLocationManager()
 	if err != nil {
 		return nil, errors.Wrap(err, "error finding stack dir location")
 	}
 
-	return LoadProfile(loc, profileName)
+	return LoadProfile(loc.StackDir(), profileName)
 }
 
 // DeleteProfileFromDefaultLocation deletes a profile from the default elastic-package config dir
 func DeleteProfileFromDefaultLocation(profileName string) error {
-	loc, err := locations.StackDir()
+	loc, err := locations.NewLocationManager()
 	if err != nil {
 		return errors.Wrap(err, "error finding stack dir location")
 	}
-	return DeleteProfile(loc, profileName)
+	return DeleteProfile(loc.StackDir(), profileName)
 }
 
 // DeleteProfile deletes a given config profile.
@@ -130,11 +130,11 @@ func DeleteProfile(elasticPackagePath string, profileName string) error {
 
 // PrintProfilesFromDefaultLocation lists known packages in the default elastic-package install dir
 func PrintProfilesFromDefaultLocation() error {
-	loc, err := locations.StackDir()
+	loc, err := locations.NewLocationManager()
 	if err != nil {
 		return errors.Wrap(err, "error finding stack dir location")
 	}
-	return PrintProfiles(loc)
+	return PrintProfiles(loc.StackDir())
 }
 
 // PrintProfiles lists known profiles
