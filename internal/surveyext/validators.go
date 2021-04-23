@@ -7,11 +7,14 @@ package surveyext
 import (
 	"fmt"
 	"os"
+	"regexp"
 
 	"github.com/Masterminds/semver"
 	"github.com/pkg/errors"
+)
 
-	"github.com/elastic/elastic-package/internal/install"
+var (
+	githubOwnerRegexp = regexp.MustCompile("^(([a-zA-Z0-9-]+)|([a-zA-Z0-9-]+\\/[a-zA-Z0-9-]+))$")
 )
 
 // PackageDoesNotExistValidator function checks if the package hasn't been already created.
@@ -40,13 +43,6 @@ func SemverValidator(val interface{}) error {
 	return nil
 }
 
-// DefaultConstraintValue function returns a constraint
-func DefaultConstraintValue() string {
-	ver := semver.MustParse(install.DefaultStackVersion)
-	v, _ := ver.SetPrerelease("")
-	return "^" + v.String()
-}
-
 // ConstraintValidator function checks if the value is a correct version constraint.
 func ConstraintValidator(val interface{}) error {
 	c, ok := val.(string)
@@ -56,6 +52,19 @@ func ConstraintValidator(val interface{}) error {
 	_, err := semver.NewConstraint(c)
 	if err != nil {
 		return errors.Wrap(err, "can't parse value as proper constraint")
+	}
+	return nil
+}
+
+// GithubOwnerValidator function checks if the Github owner is valid (team or user)
+func GithubOwnerValidator(val interface{}) error {
+	githubOwner, ok := val.(string)
+	if !ok {
+		return errors.New("string type expected")
+	}
+
+	if !githubOwnerRegexp.MatchString(githubOwner) {
+		return fmt.Errorf("value doesn't match the regular expression (organization/group or username): %s", githubOwnerRegexp.String())
 	}
 	return nil
 }

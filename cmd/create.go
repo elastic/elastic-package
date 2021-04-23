@@ -142,9 +142,9 @@ func createPackageCommandAction(cmd *cobra.Command, args []string) error {
 			Name: "github_owner",
 			Prompt: &survey.Input{
 				Message: "Github owner:",
-				Default: "elastic/integrations", // TODO read user from context
+				Default: "elastic/integrations",
 			},
-			Validate: survey.Required,
+			Validate: survey.ComposeValidators(survey.Required, surveyext.GithubOwnerValidator),
 		},
 	}
 
