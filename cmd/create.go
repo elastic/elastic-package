@@ -10,7 +10,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
-	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/packages/archetype"
 	"github.com/elastic/elastic-package/internal/surveyext"
@@ -65,7 +64,7 @@ func createPackageCommandAction(cmd *cobra.Command, args []string) error {
 				Message: "Package name:",
 				Default: "new_package",
 			},
-			Validate: survey.ComposeValidators(survey.Required, surveyext.PackageAlreadyExists),
+			Validate: survey.ComposeValidators(survey.Required, surveyext.PackageDoesNotExistValidator),
 		},
 		{
 			Name: "type",
@@ -82,7 +81,7 @@ func createPackageCommandAction(cmd *cobra.Command, args []string) error {
 				Message: "Version:",
 				Default: "0.0.1",
 			},
-			Validate: survey.Required,
+			Validate: survey.ComposeValidators(survey.Required, surveyext.SemverValidator),
 		},
 		{
 			Name: "title",
@@ -135,9 +134,9 @@ func createPackageCommandAction(cmd *cobra.Command, args []string) error {
 			Name: "kibana_version",
 			Prompt: &survey.Input{
 				Message: "Kibana version constraint:",
-				Default: "^" + install.DefaultStackVersion,
+				Default: surveyext.DefaultConstraintValue(),
 			},
-			Validate: survey.Required,
+			Validate: survey.ComposeValidators(survey.Required, surveyext.ConstraintValidator),
 		},
 		{
 			Name: "github_owner",
