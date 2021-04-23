@@ -24,10 +24,6 @@ const createPackageLongDescription = `Use this command to create a new package.
 
 The command can bootstrap the first draft of a package using embedded package template and wizard.`
 
-const createDataStreamLongDescription = `Use this command to add a new data stream to the existing package.
-
-The command can extend the package with a new data stream using a dedicated wizard.`
-
 type newPackageAnswers struct {
 	Name          string
 	Type          string
@@ -49,20 +45,12 @@ func setupCreateCommand() *cobraext.Command {
 		RunE:  createPackageCommandAction,
 	}
 
-	createDataStreamCmd := &cobra.Command{
-		Use:   "data-stream",
-		Short: "Create new data stream",
-		Long:  createDataStreamLongDescription,
-		RunE:  createDataStreamCommandAction,
-	}
-
 	cmd := &cobra.Command{
 		Use:   "create",
 		Short: "Create package resources",
 		Long:  createLongDescription,
 	}
 	cmd.AddCommand(createPackageCmd)
-	cmd.AddCommand(createDataStreamCmd)
 
 	return cobraext.NewCommand(cmd, cobraext.ContextGlobal)
 }
@@ -198,11 +186,4 @@ func createPackageDescriptorFromAnswers(answers newPackageAnswers) archetype.Pac
 			Categories:  answers.Categories,
 		},
 	}
-}
-
-func createDataStreamCommandAction(cmd *cobra.Command, args []string) error {
-	cmd.Println("Create a new data stream")
-
-	cmd.Println("Done")
-	return nil
 }
