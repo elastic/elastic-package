@@ -15,6 +15,8 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/elastic/elastic-package/internal/formatter"
+	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
@@ -31,31 +33,31 @@ func CreatePackage(packageDescriptor PackageDescriptor) error {
 		return fmt.Errorf(`package "%s" already exists`, baseDir)
 	}
 
-	// Write package manifest
+	logger.Debugf("Write package manifest")
 	err = renderResourceFile(packageManifestTemplate, &packageDescriptor, filepath.Join(baseDir, "manifest.yml"))
 	if err != nil {
 		return errors.Wrap(err, "can't render package manifest")
 	}
 
-	// Write package changelog
+	logger.Debugf("Write package changelog")
 	err = renderResourceFile(packageChangelogTemplate, &packageDescriptor, filepath.Join(baseDir, "changelog.yml"))
 	if err != nil {
 		return errors.Wrap(err, "can't render package changelog")
 	}
 
-	// Write docs readme
+	logger.Debugf("Write docs readme")
 	err = renderResourceFile(packageDocsReadme, &packageDescriptor, filepath.Join(baseDir, "docs", "README.md"))
 	if err != nil {
 		return errors.Wrap(err, "can't render package README")
 	}
 
-	// Write sample icon
+	logger.Debugf("Write sample icon")
 	err = writeRawResourceFile(packageImgSampleIcon, filepath.Join(baseDir, "img", "sample-logo.svg"))
 	if err != nil {
 		return errors.Wrap(err, "can't render sample icon")
 	}
 
-	// Write sample screenshot
+	logger.Debugf("Write sample screenshot")
 	decodedSampleScreenshot, err := decodeBase64Resource(packageImgSampleScreenshot)
 	if err != nil {
 		return errors.Wrap(err, "can't decode sample screenshot")
@@ -63,6 +65,12 @@ func CreatePackage(packageDescriptor PackageDescriptor) error {
 	err = writeRawResourceFile(decodedSampleScreenshot, filepath.Join(baseDir, "img", "sample-screenshot.png"))
 	if err != nil {
 		return errors.Wrap(err, "can't render sample screenshot")
+	}
+
+	logger.Debugf("Format the entire package")
+	err = formatter.Format(baseDir, false)
+	if err != nil {
+		return errors.Wrap(err, "can't format the new package")
 	}
 
 	fmt.Printf("New package has been created: %s\n", baseDir)
