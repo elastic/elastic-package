@@ -161,7 +161,7 @@ func createPackageDescriptorFromAnswers(answers newPackageAnswers) archetype.Pac
 			},
 			Release:     answers.Release,
 			Description: answers.Description,
-			License:     "license",
+			License:     "basic",
 			Categories:  answers.Categories,
 		},
 	}

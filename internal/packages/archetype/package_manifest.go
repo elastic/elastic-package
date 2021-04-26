@@ -11,10 +11,9 @@ version: {{.Manifest.Version}}
 license: {{.Manifest.License}}
 description: "{{.Manifest.Description}}"
 type: {{.Manifest.Type}}
-categories:
-{{- range $category := .Manifest.Categories}}
+categories:{{range $category := .Manifest.Categories}}
   - {{$category}}
-{{end -}}
+{{- end}}
 release: {{.Manifest.Release}}
 conditions:
   kibana.version: "{{.Manifest.Conditions.Kibana.Version}}"
