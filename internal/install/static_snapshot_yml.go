@@ -26,6 +26,7 @@ services:
     - "script.context.ingest.cache_max_size=2000"
     - "script.context.processor_conditional.cache_max_size=2000"
     - "script.context.template.cache_max_size=2000"
+    - "ingest.geoip.downloader.enabled=false"
     ports:
       - "127.0.0.1:9200:9200"
 
