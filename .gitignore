@@ -25,3 +25,6 @@ elastic-package
 
 # stack dump
 elastic-stack-dump/
+
+# Bump automation
+*.bck
