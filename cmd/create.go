@@ -25,12 +25,10 @@ The command can bootstrap the first draft of a package using embedded package te
 
 type newPackageAnswers struct {
 	Name          string
-	Type          string
 	Version       string
 	Title         string
 	Description   string
 	Categories    []string
-	License       string
 	Release       string
 	KibanaVersion string `survey:"kibana_version"`
 	GithubOwner   string `survey:"github_owner"`
@@ -67,15 +65,6 @@ func createPackageCommandAction(cmd *cobra.Command, args []string) error {
 			Validate: survey.ComposeValidators(survey.Required, surveyext.PackageDoesNotExistValidator),
 		},
 		{
-			Name: "type",
-			Prompt: &survey.Select{
-				Message: "Package type:",
-				Options: []string{"integration"},
-				Default: "integration",
-			},
-			Validate: survey.Required,
-		},
-		{
 			Name: "version",
 			Prompt: &survey.Input{
 				Message: "Version:",
@@ -109,15 +98,6 @@ func createPackageCommandAction(cmd *cobra.Command, args []string) error {
 					"ticketing", "version_control", "web"},
 				Default:  []string{"custom"},
 				PageSize: 50,
-			},
-			Validate: survey.Required,
-		},
-		{
-			Name: "license",
-			Prompt: &survey.Select{
-				Message: "License:",
-				Options: []string{"basic"},
-				Default: "basic",
 			},
 			Validate: survey.Required,
 		},
@@ -169,7 +149,7 @@ func createPackageDescriptorFromAnswers(answers newPackageAnswers) archetype.Pac
 		Manifest: packages.PackageManifest{
 			Name:    answers.Name,
 			Title:   answers.Title,
-			Type:    answers.Type,
+			Type:    "integration",
 			Version: answers.Version,
 			Conditions: packages.Conditions{
 				Kibana: packages.KibanaConditions{
@@ -181,7 +161,7 @@ func createPackageDescriptorFromAnswers(answers newPackageAnswers) archetype.Pac
 			},
 			Release:     answers.Release,
 			Description: answers.Description,
-			License:     answers.License,
+			License:     "license",
 			Categories:  answers.Categories,
 		},
 	}
