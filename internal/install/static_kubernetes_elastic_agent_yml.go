@@ -42,6 +42,8 @@ spec:
               value: "1"
             - name: FLEET_URL
               value: "http://fleet-server:8220"
+            - name: STATE_PATH
+              value: /usr/share/elastic-agent
             - name: NODE_NAME
               valueFrom:
                 fieldRef:
@@ -57,10 +59,8 @@ spec:
           startupProbe:
             exec:
               command:
-              - sh
-              - -c
-              - grep "Agent is starting" -r . --include=elastic-agent-json.log
-  
+              - elastic-agent
+              - status
 ---
 apiVersion: v1
 kind: ConfigMap
