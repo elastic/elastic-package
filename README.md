@@ -84,6 +84,14 @@ Use this command to clean resources used for building the package.
 
 The command will remove built package files (in build/), files needed for managing the development stack (in ~/.elastic-package/stack/development) and stack service logs (in ~/.elastic-package/tmp/service_logs).
 
+### `elastic-package create`
+
+_Context: global_
+
+Use this command to create a new package or add more data streams.
+
+The command can help bootstrap the first draft of a package using embedded package template. It can be used to extend the package with more data streams.
+
 ### `elastic-package export`
 
 _Context: package_
