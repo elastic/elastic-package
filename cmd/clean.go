@@ -8,9 +8,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
-	"github.com/elastic/elastic-package/internal/cobraext"
-
 	"github.com/elastic/elastic-package/internal/cleanup"
+	"github.com/elastic/elastic-package/internal/cobraext"
 )
 
 const cleanLongDescription = `Use this command to clean resources used for building the package.
