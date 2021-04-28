@@ -28,6 +28,7 @@ var commands = []*cobraext.Command{
 	setupTestCommand(),
 	setupUninstallCommand(),
 	setupVersionCommand(),
+	setupProfilesCommand(),
 }
 
 // RootCmd creates and returns root cmd for elastic-package
