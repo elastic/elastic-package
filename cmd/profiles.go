@@ -8,11 +8,12 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
+
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/profile"
-	"github.com/pkg/errors"
-	"github.com/spf13/cobra"
 )
 
 func setupProfilesCommand() *cobraext.Command {

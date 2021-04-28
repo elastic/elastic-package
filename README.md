@@ -114,6 +114,12 @@ Use this command to validate the contents of a package using the package specifi
 
 The command ensures that the package is aligned with the package spec and the README file is up-to-date with its template (if present).
 
+### `elastic-package profiles`
+
+_Context: global_
+
+
+
 ### `elastic-package promote`
 
 _Context: global_
