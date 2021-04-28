@@ -25,7 +25,7 @@ The command can bootstrap the first draft of a package using embedded package te
 
 const createDataStreamLongDescription = `Use this command to create a new data stream.
 
-The command can bootstrap the first draft of a data stream using embedded data stream template and wizard.`
+The command can extend the package with a new data stream using embedded data stream template and wizard.`
 
 type newPackageAnswers struct {
 	Name          string
