@@ -34,8 +34,7 @@ xpack.fleet.agentPolicies:
   - name: Elastic Cloud agent policy
     description: Default agent policy for agents hosted on Elastic Cloud
     is_managed: true
-    #id: elastic-agent-on-cloud
-    id: 5a12d34e-0162-4c2b-9f57-841bf90ffb02
+    id: elastic-agent-on-cloud
     is_default_fleet_server: false
     monitoring_enabled: []
     package_policies:

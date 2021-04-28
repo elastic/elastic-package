@@ -95,7 +95,7 @@ services:
     - "KIBANA_FLEET_HOST=http://kibana:5601"
     - "FLEET_SERVER_HOST=0.0.0.0"
     - "STATE_PATH=/usr/share/elastic-agent"
-    - "FLEET_SERVER_POLICY_ID=5a12d34e-0162-4c2b-9f57-841bf90ffb02"
+    - "FLEET_SERVER_POLICY_ID=elastic-agent-on-cloud"
     ports:
       - "127.0.0.1:8220:8220"
 
