@@ -8,5 +8,6 @@ import "github.com/elastic/elastic-package/internal/packages"
 
 // DataStreamDescriptor defines configurable properties of the data stream archetype
 type DataStreamDescriptor struct {
-	Manifest packages.DataStreamManifest
+	Manifest    packages.DataStreamManifest
+	PackageRoot string
 }

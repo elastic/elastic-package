@@ -4,7 +4,7 @@
 
 package archetype
 
-const dataStreamAgentStreamTemplate = `{{if eq .ManifestType "logs"}}
+const dataStreamAgentStreamTemplate = `{{if eq .Manifest.Type "logs"}}
 paths:
 \{\{#each paths as |path i|\}\}
   - {{path}}

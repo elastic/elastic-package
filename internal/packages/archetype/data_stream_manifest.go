@@ -8,7 +8,7 @@ const dataStreamManifestTemplate = `title: "{{.Manifest.Title}}"
 release: {{.Manifest.Release}}
 type: {{.Manifest.Type}}
 streams:
-{{if eq .ManifestType "logs" }}
+{{if eq .Manifest.Type "logs" }}
   - input: logfile
     title: Sample logs
     description: Collect sample logs
