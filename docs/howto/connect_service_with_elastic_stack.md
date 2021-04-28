@@ -102,7 +102,7 @@ so they don't communicate over the `localhost`, but use dedicated domains instea
 
 6. Define the service's log path in the Kibana Fleet UI.
 
-When you need to specify the log path, use the path as it is mounted in Agent's container for example `/tmp/service_logs/access.log`.
+When you need to specify the log path, use the path as it is mounted in Agent's container, for example `/tmp/service_logs/access.log`.
 
 ## Advanced
 
