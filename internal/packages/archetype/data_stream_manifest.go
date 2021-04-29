@@ -5,7 +5,6 @@
 package archetype
 
 const dataStreamManifestTemplate = `title: "{{.Manifest.Title}}"
-release: {{.Manifest.Release}}
 type: {{.Manifest.Type}}
 streams:
 {{if eq .Manifest.Type "logs" }}

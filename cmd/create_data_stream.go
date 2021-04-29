@@ -5,10 +5,13 @@
 package cmd
 
 import (
+	"github.com/AlecAivazis/survey/v2"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/internal/packages/archetype"
+	"github.com/elastic/elastic-package/internal/surveyext"
 )
 
 const createDataStreamLongDescription = `Use this command to create a new data stream.
@@ -16,9 +19,9 @@ const createDataStreamLongDescription = `Use this command to create a new data s
 The command can extend the package with a new data stream using embedded data stream template and wizard.`
 
 type newDataStreamAnswers struct {
-	Name    string
-	Title   string
-	Release string
+	Name  string
+	Title string
+	Type  string
 }
 
 func createDataStreamCommandAction(cmd *cobra.Command, args []string) error {
@@ -32,6 +35,55 @@ func createDataStreamCommandAction(cmd *cobra.Command, args []string) error {
 		return errors.New("package root not found. You can only add new data stream in the package context")
 	}
 
+	qs := []*survey.Question{
+		{
+			Name: "name",
+			Prompt: &survey.Input{
+				Message: "Data stream name:",
+				Default: "new_data_stream",
+			},
+			Validate: survey.ComposeValidators(survey.Required, surveyext.DataStreamDoesNotExistValidator),
+		},
+		{
+			Name: "title",
+			Prompt: &survey.Input{
+				Message: "Data stream title:",
+				Default: "New Data Stream",
+			},
+			Validate: survey.Required,
+		},
+		{
+			Name: "type",
+			Prompt: &survey.Select{
+				Message: "Type:",
+				Options: []string{"logs", "metrics"},
+				Default: "logs",
+			},
+			Validate: survey.Required,
+		},
+	}
+	var answers newDataStreamAnswers
+	err = survey.Ask(qs, &answers)
+	if err != nil {
+		return errors.Wrap(err, "prompt failed")
+	}
+
+	descriptor := createDataStreamDescriptorFromAnswers(answers)
+	err = archetype.CreateDataStream(descriptor)
+	if err != nil {
+		return errors.Wrap(err, "can't create new data stream")
+	}
+
 	cmd.Println("Done")
 	return nil
+}
+
+func createDataStreamDescriptorFromAnswers(answers newDataStreamAnswers) archetype.DataStreamDescriptor {
+	return archetype.DataStreamDescriptor{
+		Manifest: packages.DataStreamManifest{
+			Name:  answers.Name,
+			Title: answers.Title,
+			Type:  answers.Type,
+		},
+	}
 }

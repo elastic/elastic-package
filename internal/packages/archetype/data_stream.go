@@ -11,3 +11,8 @@ type DataStreamDescriptor struct {
 	Manifest    packages.DataStreamManifest
 	PackageRoot string
 }
+
+// CreateDataStream function bootstraps the new data stream based on the provided descriptor.
+func CreateDataStream(dataStreamDescriptor DataStreamDescriptor) error {
+	return nil
+}
