@@ -12,6 +12,7 @@ require (
 	github.com/Masterminds/semver v1.5.0
 	github.com/aymerick/raymond v2.0.2+incompatible
 	github.com/cespare/xxhash/v2 v2.1.1
+	github.com/deislabs/oras v0.11.1 // indirect
 	github.com/elastic/go-elasticsearch/v7 v7.9.0
 	github.com/elastic/go-licenser v0.3.1
 	github.com/elastic/go-ucfg v0.8.3
@@ -28,7 +29,7 @@ require (
 	github.com/mgutz/ansi v0.0.0-20200706080929-d51e80ef957d // indirect
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/pkg/errors v0.9.1
-	github.com/spf13/cobra v1.1.1
+	github.com/spf13/cobra v1.1.3
 	github.com/stretchr/testify v1.7.0
 	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
 	golang.org/x/lint v0.0.0-20201208152925-83fdc39ff7b5
