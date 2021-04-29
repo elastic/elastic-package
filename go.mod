@@ -5,6 +5,7 @@ go 1.15
 replace (
 	github.com/docker/distribution => github.com/docker/distribution v0.0.0-20191216044856-a8371794149d
 	github.com/docker/docker => github.com/moby/moby v17.12.0-ce-rc1.0.20200618181300-9dc6525e6118+incompatible
+	github.com/deislabs/oras => github.com/deislabs/oras v0.11.1
 )
 
 require (
@@ -12,7 +13,6 @@ require (
 	github.com/Masterminds/semver v1.5.0
 	github.com/aymerick/raymond v2.0.2+incompatible
 	github.com/cespare/xxhash/v2 v2.1.1
-	github.com/deislabs/oras v0.11.1 // indirect
 	github.com/elastic/go-elasticsearch/v7 v7.9.0
 	github.com/elastic/go-licenser v0.3.1
 	github.com/elastic/go-ucfg v0.8.3
