@@ -38,8 +38,8 @@ func DataStreamDoesNotExistValidator(val interface{}) error {
 		return errors.New("string type expected")
 	}
 
-	dataStreamPath := filepath.Join("data_stream", name)
-	_, err := os.Stat(dataStreamPath)
+	dataStreamDir := filepath.Join("data_stream", name)
+	_, err := os.Stat(dataStreamDir)
 	if err == nil {
 		return fmt.Errorf(`data stream "%s" already exists`, name)
 	}
