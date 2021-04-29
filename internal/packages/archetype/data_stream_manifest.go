@@ -6,8 +6,7 @@ package archetype
 
 const dataStreamManifestTemplate = `title: "{{.Manifest.Title}}"
 type: {{.Manifest.Type}}
-streams:
-{{if eq .Manifest.Type "logs" }}
+streams:{{if eq .Manifest.Type "logs" }}
   - input: logfile
     title: Sample logs
     description: Collect sample logs
@@ -27,5 +26,5 @@ streams:
         type: text
         title: Period
         default: 10s
-{{end}}
+{{- end}}
 `

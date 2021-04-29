@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	
+
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/formatter"
