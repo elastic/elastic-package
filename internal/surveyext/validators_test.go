@@ -33,6 +33,28 @@ func TestPackageDoesNotExistValidator_NotExists(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestDataStreamDoesNotExistValidator_Exists(t *testing.T) {
+	wd, err := os.Getwd()
+	require.NoError(t, err)
+
+	os.Chdir("testdata/hello-world")
+	defer os.Chdir(wd)
+
+	err = DataStreamDoesNotExistValidator("magic")
+	require.Error(t, err)
+}
+
+func TestDataStreamDoesNotExistValidator_NotExists(t *testing.T) {
+	wd, err := os.Getwd()
+	require.NoError(t, err)
+
+	os.Chdir("testdata/hello-world")
+	defer os.Chdir(wd)
+
+	err = DataStreamDoesNotExistValidator("no-magic")
+	require.NoError(t, err)
+}
+
 func TestSemverValidator_Valid(t *testing.T) {
 	err := SemverValidator("1.2.3-FOOBAR")
 	require.NoError(t, err)
