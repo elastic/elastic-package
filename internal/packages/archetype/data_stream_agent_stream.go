@@ -7,7 +7,7 @@ package archetype
 const dataStreamAgentStreamTemplate = `{{if eq .Manifest.Type "logs"}}
 paths:
 \{\{#each paths as |path i|\}\}
-  - {{path}}
+  - \{\{path\}\}
 \{\{/each\}\}
 exclude_files: [".gz$"]
 processors:
@@ -16,7 +16,7 @@ processors:
 metricsets: ["status"]
 hosts:
 \{\{#each hosts\}\}
-  - {{this}}
+  - \{\{this\}\}
 \{\{/each\}\}
 period: \{\{period\}\}
 {{end}}`

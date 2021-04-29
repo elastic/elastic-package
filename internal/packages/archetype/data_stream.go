@@ -6,6 +6,7 @@ package archetype
 
 import (
 	"fmt"
+	"github.com/elastic/elastic-package/internal/formatter"
 	"os"
 	"path/filepath"
 
@@ -23,7 +24,7 @@ type DataStreamDescriptor struct {
 
 // CreateDataStream function bootstraps the new data stream based on the provided descriptor.
 func CreateDataStream(dataStreamDescriptor DataStreamDescriptor) error {
-	dataStreamDir := filepath.Join("data_stream", dataStreamDescriptor.Manifest.Name)
+	dataStreamDir := filepath.Join(dataStreamDescriptor.PackageRoot, "data_stream", dataStreamDescriptor.Manifest.Name)
 	_, err := os.Stat(dataStreamDir)
 	if err == nil {
 		return fmt.Errorf(`data stream "%s" already exists`, dataStreamDescriptor.Manifest.Name)
@@ -53,6 +54,12 @@ func CreateDataStream(dataStreamDescriptor DataStreamDescriptor) error {
 		if err != nil {
 			return errors.Wrap(err, "can't render ingest pipeline")
 		}
+	}
+
+	logger.Debugf("Format the entire package")
+	err = formatter.Format(dataStreamDescriptor.PackageRoot, false)
+	if err != nil {
+		return errors.Wrap(err, "can't format the new package")
 	}
 	return nil
 }

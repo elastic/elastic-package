@@ -27,7 +27,7 @@ type newDataStreamAnswers struct {
 func createDataStreamCommandAction(cmd *cobra.Command, args []string) error {
 	cmd.Println("Create a new data stream")
 
-	_, found, err := packages.FindPackageRoot()
+	packageRoot, found, err := packages.FindPackageRoot()
 	if err != nil {
 		return errors.Wrap(err, "locating package root failed")
 	}
@@ -68,7 +68,7 @@ func createDataStreamCommandAction(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "prompt failed")
 	}
 
-	descriptor := createDataStreamDescriptorFromAnswers(answers)
+	descriptor := createDataStreamDescriptorFromAnswers(answers, packageRoot)
 	err = archetype.CreateDataStream(descriptor)
 	if err != nil {
 		return errors.Wrap(err, "can't create new data stream")
@@ -78,12 +78,13 @@ func createDataStreamCommandAction(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func createDataStreamDescriptorFromAnswers(answers newDataStreamAnswers) archetype.DataStreamDescriptor {
+func createDataStreamDescriptorFromAnswers(answers newDataStreamAnswers, packageRoot string) archetype.DataStreamDescriptor {
 	return archetype.DataStreamDescriptor{
 		Manifest: packages.DataStreamManifest{
 			Name:  answers.Name,
 			Title: answers.Title,
 			Type:  answers.Type,
 		},
+		PackageRoot: packageRoot,
 	}
 }
