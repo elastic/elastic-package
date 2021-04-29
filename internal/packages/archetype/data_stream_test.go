@@ -16,12 +16,29 @@ import (
 )
 
 func TestDataStream(t *testing.T) {
-	t.Run("valid", func(t *testing.T) {
+	t.Run("valid-logs", func(t *testing.T) {
 		pd := createPackageDescriptorForTest()
 		dd := createDataStreamDescriptorForTest()
+		dd.Manifest.Type = "logs"
 
 		err := createAndCheckDataStream(t, pd, dd)
 		require.NoError(t, err)
+	})
+	t.Run("valid-metrics", func(t *testing.T) {
+		pd := createPackageDescriptorForTest()
+		dd := createDataStreamDescriptorForTest()
+		dd.Manifest.Type = "metrics"
+
+		err := createAndCheckDataStream(t, pd, dd)
+		require.NoError(t, err)
+	})
+	t.Run("missing-type", func(t *testing.T) {
+		pd := createPackageDescriptorForTest()
+		dd := createDataStreamDescriptorForTest()
+		dd.Manifest.Type = ""
+
+		err := createAndCheckDataStream(t, pd, dd)
+		require.Error(t, err)
 	})
 }
 
