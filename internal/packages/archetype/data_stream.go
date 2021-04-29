@@ -6,12 +6,12 @@ package archetype
 
 import (
 	"fmt"
-	"github.com/elastic/elastic-package/internal/formatter"
 	"os"
 	"path/filepath"
-
+	
 	"github.com/pkg/errors"
 
+	"github.com/elastic/elastic-package/internal/formatter"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 )
