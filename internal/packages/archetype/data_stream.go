@@ -61,5 +61,7 @@ func CreateDataStream(dataStreamDescriptor DataStreamDescriptor) error {
 	if err != nil {
 		return errors.Wrap(err, "can't format the new package")
 	}
+
+	fmt.Printf("New data stream has been created: %s\n", dataStreamDescriptor.Manifest.Name)
 	return nil
 }
