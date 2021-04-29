@@ -32,7 +32,7 @@ func createDataStreamCommandAction(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "locating package root failed")
 	}
 	if !found {
-		return errors.New("package root not found. You can only add new data stream in the package context")
+		return errors.New("package root not found, you can only create new data stream in the package context")
 	}
 
 	qs := []*survey.Question{
