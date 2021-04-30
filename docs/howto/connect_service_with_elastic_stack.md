@@ -100,6 +100,10 @@ access.log  error.log  httpd.pid
 When you need to specify the service address, keep in mind that the Elastic stack and the service operate in Docker networks,
 so they don't communicate over the `localhost`, but use dedicated domains instead, e.g.: `elastic-package-service_apache_1:80`.
 
+6. Define the service's log path in the Kibana Fleet UI.
+
+When you need to specify the log path, use the path as it is mounted in Agent's container, for example `/tmp/service_logs/access.log`.
+
 ## Advanced
 
 In general it's advised not to modify the Docker Compose files for the Elastic stack.

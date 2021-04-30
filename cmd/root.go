@@ -17,6 +17,7 @@ var commands = []*cobraext.Command{
 	setupBuildCommand(),
 	setupCheckCommand(),
 	setupCleanCommand(),
+	setupCreateCommand(),
 	setupExportCommand(),
 	setupFormatCommand(),
 	setupInstallCommand(),
@@ -44,7 +45,6 @@ func RootCmd() *cobra.Command {
 	for _, cmd := range commands {
 		rootCmd.AddCommand(cmd.Command)
 	}
-
 	return rootCmd
 }
 

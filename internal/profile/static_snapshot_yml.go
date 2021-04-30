@@ -34,6 +34,7 @@ services:
     - "script.context.ingest.cache_max_size=2000"
     - "script.context.processor_conditional.cache_max_size=2000"
     - "script.context.template.cache_max_size=2000"
+    - "ingest.geoip.downloader.enabled=false"
     ports:
       - "127.0.0.1:9200:9200"
 
@@ -101,6 +102,7 @@ services:
     - "KIBANA_FLEET_SETUP=1"
     - "KIBANA_FLEET_HOST=http://kibana:5601"
     - "FLEET_SERVER_HOST=0.0.0.0"
+    - "STATE_PATH=/usr/share/elastic-agent"
     ports:
       - "127.0.0.1:8220:8220"
 
@@ -110,7 +112,7 @@ services:
       fleet-server:
         condition: service_healthy
     healthcheck:
-      test: "sh -c 'grep \"Agent is starting\" -r . --include=elastic-agent-json.log'"
+      test: "elastic-agent status"
       retries: 90
       interval: 1s
     hostname: docker-fleet-agent
@@ -118,6 +120,7 @@ services:
     - "FLEET_ENROLL=1"
     - "FLEET_INSECURE=1"
     - "FLEET_URL=http://fleet-server:8220"
+    - "STATE_PATH=/usr/share/elastic-agent"
     volumes:
     - type: bind
       source: ../../tmp/service_logs/
