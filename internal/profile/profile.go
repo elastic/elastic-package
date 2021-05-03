@@ -159,12 +159,13 @@ func (profile ConfigProfile) profileAlreadyExists() (bool, error) {
 		return false, errors.Wrapf(err, "error checking metadata: %s", packageMetadata.FilePath)
 	}
 
-	// if it is, see if it has the same profile name
+	//if it is, see if it has the same profile name
 	profileInfo, err := profile.metadata()
 	if err != nil {
 		return false, errors.Wrap(err, "error reading metadata")
 	}
 
+	//TODO: this will break default_old, as we don't update the json
 	if profileInfo.Name != profile.profileName {
 		return false, nil
 	}
@@ -233,6 +234,21 @@ func (profile ConfigProfile) metadata() (Metadata, error) {
 
 	return profileInfo, nil
 
+}
+
+// updateMetadata updates the metadata json file
+func (profile *ConfigProfile) updateMetadata(meta Metadata) error {
+
+	packageMetadata := profile.configFiles[PackageProfileMetaFile]
+	metaString, err := json.Marshal(meta)
+	if err != nil {
+		return errors.Wrap(err, "error marshalling metadata json")
+	}
+	err = ioutil.WriteFile(packageMetadata.FilePath, metaString, 0664)
+	if err != nil {
+		return errors.Wrap(err, "error writing metadata file")
+	}
+	return nil
 }
 
 // isProfileDir checks to see if the given path points to a valid profile

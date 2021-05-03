@@ -37,14 +37,13 @@ func CreateProfile(elasticPackagePath string, profileName string, overwriteExist
 			return errors.Wrapf(err, "error checking for changes in %s", profile.ProfilePath)
 		}
 
-		if localChanges && profileName == DefaultProfile {
-			fmt.Printf("WARNING: default profile has been changed by user or updated by elastic-package. The current profile will be moved to default_old.\n")
-		}
-
 		// If there's changes and we've selected CreateNew, move the old path
 		// TODO: do we want this to pe appended with some kind of version string instead?
 		if localChanges && !overwriteExisting {
-			os.Rename(profile.ProfilePath, filepath.Join(profile.ProfilePath+"_old"))
+			if localChanges && profileName == DefaultProfile {
+				fmt.Printf("WARNING: default profile has been changed by user or updated by elastic-package. The current profile will be moved to default_old.\n")
+			}
+			updateExistingDefaultprofile(elasticPackagePath)
 			os.Mkdir(profile.ProfilePath, 0755)
 		}
 	} else {
@@ -57,6 +56,29 @@ func CreateProfile(elasticPackagePath string, profileName string, overwriteExist
 	//write the resources
 	return profile.writeProfileResources()
 
+}
+
+// updateExistingDefaultprofile migrates the old default profile to profile_old
+func updateExistingDefaultprofile(path string) error {
+	profile, err := NewConfigProfile(path, DefaultProfile)
+	if err != nil {
+		return errors.Wrap(err, "error creating profile")
+	}
+	meta, err := profile.metadata()
+	if err != nil {
+		return errors.Wrap(err, "error updating metadata")
+	}
+	meta.Name = "default_old"
+	err = profile.updateMetadata(meta)
+	if err != nil {
+		return errors.Wrap(err, "error updating metadata")
+	}
+	err = os.Rename(profile.ProfilePath, filepath.Join(profile.ProfilePath+"_old"))
+	if err != nil {
+		return errors.Wrap(err, "error moving default profile")
+	}
+
+	return nil
 }
 
 // CreateProfileFromDefaultLocation creates an existing profile from the default elastic-package config dir
