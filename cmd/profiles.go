@@ -20,9 +20,16 @@ func setupProfilesCommand() *cobraext.Command {
 
 	// Profile subcommands
 
+	profilesLongDescription := `Use this command to add, remove, and manage multiple config profiles.
+	
+Individual user profiles appear in ~/.elastic-package/stack, and contain all the config files needed by the "stack" subcommand. 
+Once a new profile is created, it can be specified with the -p flag, or the ELASTIC_PACKAGE_PROFILE environment variable.
+User profiles are not overwritten on upgrade of elastic-stack, and can be freely modified to allow for different stack configs.`
+
 	profileCommand := &cobra.Command{
 		Use:   "profiles",
 		Short: "Manage stack config profiles",
+		Long:  profilesLongDescription,
 	}
 
 	profileNewCommand := &cobra.Command{
