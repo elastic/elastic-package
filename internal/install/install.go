@@ -37,7 +37,7 @@ func EnsureInstalled() error {
 		return errors.Wrap(err, "creating elastic package directory failed")
 	}
 
-	//write the root config.yml file
+	// write the root config.yml file
 	err = writeConfigFile(elasticPackagePath)
 	if err != nil {
 		return errors.Wrap(err, "writing configuration file failed")
@@ -110,7 +110,12 @@ func writeStackResources(elasticPackagePath *locations.LocationManager) error {
 		return errors.Wrapf(err, "creating directory failed (path: %s)", elasticPackagePath.PackagesDir())
 	}
 
-	return profile.CreateProfile(elasticPackagePath.StackDir(), profile.DefaultProfile, false)
+	options := profile.Options{
+		PackagePath:       elasticPackagePath.StackDir(),
+		Name:              profile.DefaultProfile,
+		OverwriteExisting: false,
+	}
+	return profile.CreateProfile(options)
 
 }
 

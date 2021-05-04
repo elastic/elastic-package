@@ -21,11 +21,15 @@ func TestNewProfile(t *testing.T) {
 	}
 	t.Logf("writing to directory %s", elasticPackageDir)
 
-	err = CreateProfile(elasticPackageDir, profileName, false)
+	options := Options{
+		PackagePath:       elasticPackageDir,
+		Name:              profileName,
+		OverwriteExisting: false,
+	}
+	err = createProfile(options)
 	if err != nil {
 		t.Fatalf("error creating profile: %s", err)
 	}
-
 }
 
 func TestNewProfileFrom(t *testing.T) {
@@ -36,7 +40,12 @@ func TestNewProfileFrom(t *testing.T) {
 	}
 	t.Logf("writing to directory %s", elasticPackageDir)
 
-	err = CreateProfile(elasticPackageDir, profileName, false)
+	options := Options{
+		PackagePath:       elasticPackageDir,
+		Name:              profileName,
+		OverwriteExisting: false,
+	}
+	err = createProfile(options)
 	if err != nil {
 		t.Fatalf("error creating profile: %s", err)
 	}
@@ -47,9 +56,9 @@ func TestNewProfileFrom(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error creating profile %s", err)
 	}
-	pkgRegUpdated := &SimpleFile{
-		FilePath: filepath.Join(testProfile.ProfilePath, string(PackageRegistryConfigFile)),
-		FileBody: `package_paths:
+	pkgRegUpdated := &simpleFile{
+		Path: filepath.Join(testProfile.ProfilePath, string(PackageRegistryConfigFile)),
+		Body: `package_paths:
 		- /packages/testing
 		- /packages/development
 		- /packages/production
@@ -65,7 +74,12 @@ func TestNewProfileFrom(t *testing.T) {
 	}
 
 	// actually create & check the new profile
-	err = CreateProfileFrom(elasticPackageDir, "test_from", profileName)
+	option := Options{
+		PackagePath: elasticPackageDir,
+		Name:        "test_from",
+		FromProfile: profileName,
+	}
+	err = createProfileFrom(option)
 	if err != nil {
 		t.Fatalf("error copying profile: %s", err)
 	}

@@ -27,9 +27,8 @@ type Metadata struct {
 // PackageProfileMetaFile is the filename of the profile metadata file
 const PackageProfileMetaFile ConfigFile = "profile.json"
 
-// CreateProfileMetadata creates the body of the profile.json file
-func CreateProfileMetadata(profileName string, profilePath string) (*SimpleFile, error) {
-
+// createProfileMetadata creates the body of the profile.json file
+func createProfileMetadata(profileName string, profilePath string) (*simpleFile, error) {
 	currentUser, err := user.Current()
 	if err != nil {
 		return nil, errors.Wrap(err, "error fetching current user")
@@ -48,9 +47,9 @@ func CreateProfileMetadata(profileName string, profilePath string) (*SimpleFile,
 		return nil, errors.Wrap(err, "error marshalling json")
 	}
 
-	return &SimpleFile{
-		FileName: string(PackageProfileMetaFile),
-		FilePath: filepath.Join(profilePath, string(PackageProfileMetaFile)),
-		FileBody: string(jsonRaw),
+	return &simpleFile{
+		Name: string(PackageProfileMetaFile),
+		Path: filepath.Join(profilePath, string(PackageProfileMetaFile)),
+		Body: string(jsonRaw),
 	}, nil
 }

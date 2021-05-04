@@ -21,19 +21,14 @@ COPY ${PROFILE_NAME}/package-registry.config.yml /package-registry/config.yml
 COPY development/ /packages/development
 `
 
-type packageRegistryCfg struct {
-	filename string
-	filebody string
-}
-
-// NewPackageRegistryDockerfile returns a new config for the package-registry
-func NewPackageRegistryDockerfile(profileName string, profilePath string) (*SimpleFile, error) {
+// newPackageRegistryDockerfile returns a new config for the package-registry
+func newPackageRegistryDockerfile(profileName string, profilePath string) (*simpleFile, error) {
 	newCfg := strings.ReplaceAll(packageRegistryDockerfile, "${PROFILE_NAME}", profileName)
 
-	return &SimpleFile{
-		FileName: string(PackageRegistryDockerfileFile),
-		FilePath: filepath.Join(profilePath, string(PackageRegistryDockerfileFile)),
-		FileBody: newCfg,
+	return &simpleFile{
+		Name: string(PackageRegistryDockerfileFile),
+		Path: filepath.Join(profilePath, string(PackageRegistryDockerfileFile)),
+		Body: newCfg,
 	}, nil
 
 }

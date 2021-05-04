@@ -28,12 +28,11 @@ xpack.encryptedSavedObjects.encryptionKey: "12345678901234567890123456789012"
 // KibanaConfigFile is the main kibana config file
 const KibanaConfigFile ConfigFile = "kibana.config.yml"
 
-// NewKibanaConfig returns a Managed Config
-func NewKibanaConfig(_ string, profilePath string) (*SimpleFile, error) {
-
-	return &SimpleFile{
-		FileName: string(KibanaConfigFile),
-		FilePath: filepath.Join(profilePath, string(KibanaConfigFile)),
-		FileBody: kibanaConfigYml,
+// newKibanaConfig returns a Managed Config
+func newKibanaConfig(_ string, profilePath string) (*simpleFile, error) {
+	return &simpleFile{
+		Name: string(KibanaConfigFile),
+		Path: filepath.Join(profilePath, string(KibanaConfigFile)),
+		Body: kibanaConfigYml,
 	}, nil
 }

@@ -133,14 +133,14 @@ services:
         condition: service_healthy
 `
 
-// NewSnapshotFile returns a Managed Config
-func NewSnapshotFile(profileName string, profilePath string) (*SimpleFile, error) {
+// newSnapshotFile returns a Managed Config
+func newSnapshotFile(profileName string, profilePath string) (*simpleFile, error) {
 
 	newCfg := strings.ReplaceAll(snapshotYml, "${STACK_DIR}", profileName)
 
-	return &SimpleFile{
-		FileName: string(SnapshotFile),
-		FilePath: filepath.Join(profilePath, string(SnapshotFile)),
-		FileBody: newCfg,
+	return &simpleFile{
+		Name: string(SnapshotFile),
+		Path: filepath.Join(profilePath, string(SnapshotFile)),
+		Body: newCfg,
 	}, nil
 }

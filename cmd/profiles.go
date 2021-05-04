@@ -7,6 +7,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -17,9 +18,6 @@ import (
 )
 
 func setupProfilesCommand() *cobraext.Command {
-
-	// Profile subcommands
-
 	profilesLongDescription := `Use this command to add, remove, and manage multiple config profiles.
 	
 Individual user profiles appear in ~/.elastic-package/stack, and contain all the config files needed by the "stack" subcommand. 
@@ -46,8 +44,11 @@ User profiles are not overwritten on upgrade of elastic-stack, and can be freely
 			if err != nil {
 				return cobraext.FlagParsingError(err, cobraext.ProfileFromFlagName)
 			}
-
-			err = profile.CreateProfileFromDefaultLocation(newProfileName, fromName)
+			options := profile.Options{
+				Name:        newProfileName,
+				FromProfile: fromName,
+			}
+			err = profile.CreateProfile(options)
 			if err != nil {
 				return errors.Wrapf(err, "error creating profile %s from profile %s", newProfileName, fromName)
 			}
@@ -83,9 +84,22 @@ User profiles are not overwritten on upgrade of elastic-stack, and can be freely
 		Use:   "list",
 		Short: "List available profiles",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			err := profile.PrintProfilesFromDefaultLocation()
+			loc, err := locations.NewLocationManager()
 			if err != nil {
-				return errors.Wrap(err, "error listing profiles")
+				return errors.Wrap(err, "error fetching profile")
+			}
+			profileList, err := profile.FetchAllProfiles(loc.StackDir())
+			if err != nil {
+				return errors.Wrap(err, "error listing all profiles")
+			}
+
+			header := []string{"Name", "Date Created", "User", "elastic-package version", "Path"}
+			for _, headerVal := range header {
+				fmt.Printf("%-30s ", headerVal)
+			}
+			fmt.Printf("\n")
+			for _, iter := range profileList {
+				fmt.Printf("%-30s %-30s %-30s %-30s %-30s\n", iter.Name, iter.DateCreated.Format(time.RFC3339), iter.User, iter.Version, iter.From)
 			}
 			return nil
 		},
@@ -107,16 +121,15 @@ func lookupEnv() string {
 }
 
 func availableProfilesAsAList() ([]string, error) {
-
 	loc, err := locations.NewLocationManager()
 	if err != nil {
-		return []string{}, errors.Wrap(err, "error fetching profile")
+		return []string{}, errors.Wrap(err, "error fetching profile path")
 	}
 
 	profileNames := []string{}
 	profileList, err := profile.FetchAllProfiles(loc.StackDir())
 	if err != nil {
-		return profileNames, errors.Wrap(err, "")
+		return profileNames, errors.Wrap(err, "error fetching all profiles")
 	}
 	for _, prof := range profileList {
 		profileNames = append(profileNames, prof.Name)

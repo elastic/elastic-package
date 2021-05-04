@@ -36,9 +36,12 @@ type kibanaConfiguration struct {
 }
 
 // ShellInit method exposes environment variables that can be used for testing purposes.
-func ShellInit(elasticStackProfile *profile.ConfigProfile) (string, error) {
+func ShellInit(elasticStackProfile *profile.Profile) (string, error) {
 	// Read Elasticsearch username and password from Kibana configuration file.
-	body, err := ioutil.ReadFile(elasticStackProfile.Fetch(profile.KibanaConfigFile))
+	body, err := ioutil.ReadFile(elasticStackProfile.FetchPath(profile.KibanaConfigFile))
+	if err != nil {
+		return "", errors.Wrap(err, "error reading Kibana config file")
+	}
 
 	var kibanaCfg kibanaConfiguration
 	err = yaml.Unmarshal(body, &kibanaCfg)
@@ -47,7 +50,7 @@ func ShellInit(elasticStackProfile *profile.ConfigProfile) (string, error) {
 	}
 
 	// Read Elasticsearch and Kibana hostnames from Elastic Stack Docker Compose configuration file.
-	p, err := compose.NewProject(DockerComposeProjectName, elasticStackProfile.Fetch(profile.SnapshotFile))
+	p, err := compose.NewProject(DockerComposeProjectName, elasticStackProfile.FetchPath(profile.SnapshotFile))
 	if err != nil {
 		return "", errors.Wrap(err, "could not create docker compose project")
 	}

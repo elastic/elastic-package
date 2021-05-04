@@ -21,7 +21,7 @@ var observedServices = []string{"elasticsearch", "elastic-agent", "fleet-server"
 // DumpOptions defines dumping options for Elatic stack data.
 type DumpOptions struct {
 	Output  string
-	Profile *profile.ConfigProfile
+	Profile *profile.Profile
 }
 
 // Dump function exports stack data and dumps them as local artifacts, which can be used for debug purposes.
@@ -50,7 +50,7 @@ func dumpStackLogs(options DumpOptions) error {
 		return errors.Wrap(err, "can't create output location")
 	}
 
-	snapshotPath := options.Profile.Fetch(profile.SnapshotFile)
+	snapshotPath := options.Profile.FetchPath(profile.SnapshotFile)
 
 	for _, serviceName := range observedServices {
 		logger.Debugf("Dump stack logs for %s", serviceName)

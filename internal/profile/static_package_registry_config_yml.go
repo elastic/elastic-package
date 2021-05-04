@@ -16,12 +16,12 @@ const packageRegistryConfigYml = `package_paths:
 // PackageRegistryConfigFile is the config file for the Elastic Package registry
 const PackageRegistryConfigFile ConfigFile = "package-registry.config.yml"
 
-// NewPackageRegistryConfig returns a Managed Config
-func NewPackageRegistryConfig(_ string, profilePath string) (*SimpleFile, error) {
+// newPackageRegistryConfig returns a Managed Config
+func newPackageRegistryConfig(_ string, profilePath string) (*simpleFile, error) {
 
-	return &SimpleFile{
-		FileName: string(PackageRegistryConfigFile),
-		FilePath: filepath.Join(profilePath, string(PackageRegistryConfigFile)),
-		FileBody: packageRegistryConfigYml,
+	return &simpleFile{
+		Name: string(PackageRegistryConfigFile),
+		Path: filepath.Join(profilePath, string(PackageRegistryConfigFile)),
+		Body: packageRegistryConfigYml,
 	}, nil
 }

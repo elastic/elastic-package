@@ -26,32 +26,31 @@ var ErrNotAProfile = errors.New("Is is not a profile")
 // ConfigFile is a type for for the config file names in a managed profile config
 type ConfigFile string
 
-// ManagedProfileFiles is the list of all files managed in a profile
+// managedProfileFiles is the list of all files managed in a profile
 // If you create a new file that's managed by a profile, it needs to go in this list
-var ManagedProfileFiles = map[ConfigFile]NewConfig{
-	KibanaConfigFile:              NewKibanaConfig,
-	PackageRegistryDockerfileFile: NewPackageRegistryDockerfile,
-	PackageRegistryConfigFile:     NewPackageRegistryConfig,
-	SnapshotFile:                  NewSnapshotFile,
-	PackageProfileMetaFile:        CreateProfileMetadata,
-	KibanaHealthCheckFile:         NewKibanaHealthCheck,
+var managedProfileFiles = map[ConfigFile]NewConfig{
+	KibanaConfigFile:              newKibanaConfig,
+	PackageRegistryDockerfileFile: newPackageRegistryDockerfile,
+	PackageRegistryConfigFile:     newPackageRegistryConfig,
+	SnapshotFile:                  newSnapshotFile,
+	PackageProfileMetaFile:        createProfileMetadata,
+	KibanaHealthCheckFile:         newKibanaHealthCheck,
 }
 
-// ConfigProfile manages a stack config
-type ConfigProfile struct {
+// Profile manages a a given user config profile
+type Profile struct {
 	profileName string
 	// ProfilePath is the absolute path to the profile
 	ProfilePath string
-	configFiles map[ConfigFile]*SimpleFile
+	configFiles map[ConfigFile]*simpleFile
 }
 
 // NewConfigProfile creates a new config profile manager
-func NewConfigProfile(elasticPackagePath string, profileName string) (*ConfigProfile, error) {
-
+func NewConfigProfile(elasticPackagePath string, profileName string) (*Profile, error) {
 	profilePath := filepath.Join(elasticPackagePath, profileName)
 
-	var configMap = map[ConfigFile]*SimpleFile{}
-	for fileItem, configInit := range ManagedProfileFiles {
+	var configMap = map[ConfigFile]*simpleFile{}
+	for fileItem, configInit := range managedProfileFiles {
 		cfg, err := configInit(profileName, profilePath)
 		if err != nil {
 			return nil, errors.Wrapf(err, "error initializing config %s", cfg)
@@ -59,7 +58,7 @@ func NewConfigProfile(elasticPackagePath string, profileName string) (*ConfigPro
 		configMap[fileItem] = cfg
 	}
 
-	newProfile := &ConfigProfile{
+	newProfile := &Profile{
 		profileName: profileName,
 		ProfilePath: profilePath,
 		configFiles: configMap,
@@ -67,9 +66,8 @@ func NewConfigProfile(elasticPackagePath string, profileName string) (*ConfigPro
 	return newProfile, nil
 }
 
-// LoadProfile loads an existing profile
-func LoadProfile(elasticPackagePath string, profileName string) (*ConfigProfile, error) {
-
+// loadProfile loads an existing profile
+func loadProfile(elasticPackagePath string, profileName string) (*Profile, error) {
 	profilePath := filepath.Join(elasticPackagePath, profileName)
 
 	isValid, err := isProfileDir(profilePath)
@@ -81,8 +79,8 @@ func LoadProfile(elasticPackagePath string, profileName string) (*ConfigProfile,
 		return nil, ErrNotAProfile
 	}
 
-	var configMap = map[ConfigFile]*SimpleFile{}
-	for fileItem, configInit := range ManagedProfileFiles {
+	var configMap = map[ConfigFile]*simpleFile{}
+	for fileItem, configInit := range managedProfileFiles {
 		cfg, err := configInit(profileName, profilePath)
 		if err != nil {
 			return nil, errors.Wrapf(err, "error initializing config %s", cfg)
@@ -90,19 +88,19 @@ func LoadProfile(elasticPackagePath string, profileName string) (*ConfigProfile,
 		configMap[fileItem] = cfg
 	}
 
-	profile := &ConfigProfile{
+	profile := &Profile{
 		profileName: profileName,
 		ProfilePath: profilePath,
 		configFiles: configMap,
 	}
 
-	exists, err := profile.profileAlreadyExists()
+	exists, err := profile.alreadyExists()
 	if err != nil {
 		return nil, errors.Wrapf(err, "error checking if profile %s exists", profileName)
 	}
 
 	if !exists {
-		return nil, fmt.Errorf("Profile %s does not exist", profile.ProfilePath)
+		return nil, fmt.Errorf("profile %s does not exist", profile.ProfilePath)
 	}
 
 	err = profile.readProfileResources()
@@ -114,14 +112,13 @@ func LoadProfile(elasticPackagePath string, profileName string) (*ConfigProfile,
 
 }
 
-// Fetch returns an absolute path to the given file
-func (profile ConfigProfile) Fetch(file ConfigFile) string {
-	return profile.configFiles[file].FilePath
+// FetchPath returns an absolute path to the given file
+func (profile Profile) FetchPath(file ConfigFile) string {
+	return profile.configFiles[file].Path
 }
 
 // UpdateFileBodies updates the string contents of the config files
-func (profile *ConfigProfile) updateFileBodies(newBody map[ConfigFile]*SimpleFile) {
-
+func (profile *Profile) overwrite(newBody map[ConfigFile]*simpleFile) {
 	for key := range profile.configFiles {
 		// skip metadata
 		if key == PackageProfileMetaFile {
@@ -130,7 +127,7 @@ func (profile *ConfigProfile) updateFileBodies(newBody map[ConfigFile]*SimpleFil
 		toReplace, ok := newBody[key]
 		if ok {
 			updatedProfile := profile.configFiles[key]
-			updatedProfile.FileBody = toReplace.FileBody
+			updatedProfile.Body = toReplace.Body
 			profile.configFiles[key] = updatedProfile
 		}
 	}
@@ -138,8 +135,7 @@ func (profile *ConfigProfile) updateFileBodies(newBody map[ConfigFile]*SimpleFil
 }
 
 // ProfileAlreadyExists checks to see if a profile with this name already exists
-func (profile ConfigProfile) profileAlreadyExists() (bool, error) {
-
+func (profile Profile) alreadyExists() (bool, error) {
 	packageMetadata := profile.configFiles[PackageProfileMetaFile]
 	// We do this in stages to make sure we return the right error.
 	_, err := os.Stat(profile.ProfilePath)
@@ -147,16 +143,16 @@ func (profile ConfigProfile) profileAlreadyExists() (bool, error) {
 		return false, nil
 	}
 	if err != nil {
-		return false, errors.Wrapf(err, "error checking root directory: %s", packageMetadata.FilePath)
+		return false, errors.Wrapf(err, "error checking root directory: %s", packageMetadata.Path)
 	}
 
 	// If the folder exists, check to make sure it's a profile folder
-	_, err = os.Stat(packageMetadata.FilePath)
+	_, err = os.Stat(packageMetadata.Path)
 	if os.IsNotExist(err) {
 		return false, ErrNotAProfile
 	}
 	if err != nil {
-		return false, errors.Wrapf(err, "error checking metadata: %s", packageMetadata.FilePath)
+		return false, errors.Wrapf(err, "error checking metadata: %s", packageMetadata.Path)
 	}
 
 	//if it is, see if it has the same profile name
@@ -173,8 +169,7 @@ func (profile ConfigProfile) profileAlreadyExists() (bool, error) {
 	return true, nil
 }
 
-func (profile ConfigProfile) localFilesChanged() (bool, error) {
-
+func (profile Profile) localFilesChanged() (bool, error) {
 	for cfgName, cfgFile := range profile.configFiles {
 		// skip checking the metadata file
 		// TODO: in the future, we might want to check version to see if the default profile needs to be updated
@@ -193,21 +188,18 @@ func (profile ConfigProfile) localFilesChanged() (bool, error) {
 }
 
 // readProfileResources reads the associated files into the config, as opposed to writing them out.
-func (profile *ConfigProfile) readProfileResources() error {
-
+func (profile *Profile) readProfileResources() error {
 	for _, cfgFile := range profile.configFiles {
 		err := cfgFile.ReadConfig()
 		if err != nil {
 			return errors.Wrap(err, "error reading in profile")
 		}
 	}
-
 	return nil
 }
 
 // writeProfileResources writes the config files
-func (profile ConfigProfile) writeProfileResources() error {
-
+func (profile Profile) writeProfileResources() error {
 	for _, cfgFiles := range profile.configFiles {
 		err := cfgFiles.WriteConfig()
 		if err != nil {
@@ -218,9 +210,9 @@ func (profile ConfigProfile) writeProfileResources() error {
 }
 
 // metadata returns the metadata struct for the profile
-func (profile ConfigProfile) metadata() (Metadata, error) {
+func (profile Profile) metadata() (Metadata, error) {
 	packageMetadata := profile.configFiles[PackageProfileMetaFile]
-	rawPackageMetadata, err := ioutil.ReadFile(packageMetadata.FilePath)
+	rawPackageMetadata, err := ioutil.ReadFile(packageMetadata.Path)
 	if err != nil {
 		return Metadata{}, errors.Wrap(err, "error reading metadata file")
 	}
@@ -231,20 +223,17 @@ func (profile ConfigProfile) metadata() (Metadata, error) {
 	if err != nil {
 		return Metadata{}, errors.Wrap(err, "error unmarshalling JSON")
 	}
-
 	return profileInfo, nil
-
 }
 
 // updateMetadata updates the metadata json file
-func (profile *ConfigProfile) updateMetadata(meta Metadata) error {
-
+func (profile *Profile) updateMetadata(meta Metadata) error {
 	packageMetadata := profile.configFiles[PackageProfileMetaFile]
 	metaString, err := json.Marshal(meta)
 	if err != nil {
 		return errors.Wrap(err, "error marshalling metadata json")
 	}
-	err = ioutil.WriteFile(packageMetadata.FilePath, metaString, 0664)
+	err = ioutil.WriteFile(packageMetadata.Path, metaString, 0664)
 	if err != nil {
 		return errors.Wrap(err, "error writing metadata file")
 	}
