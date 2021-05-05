@@ -7,6 +7,7 @@ package surveyext
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 
 	"github.com/Masterminds/semver"
@@ -26,6 +27,21 @@ func PackageDoesNotExistValidator(val interface{}) error {
 	_, err := os.Stat(baseDir)
 	if err == nil {
 		return fmt.Errorf(`package "%s" already exists`, baseDir)
+	}
+	return nil
+}
+
+// DataStreamDoesNotExistValidator function checks if the package doesn't contain the data stream.
+func DataStreamDoesNotExistValidator(val interface{}) error {
+	name, ok := val.(string)
+	if !ok {
+		return errors.New("string type expected")
+	}
+
+	dataStreamDir := filepath.Join("data_stream", name)
+	_, err := os.Stat(dataStreamDir)
+	if err == nil {
+		return fmt.Errorf(`data stream "%s" already exists`, name)
 	}
 	return nil
 }
