@@ -15,7 +15,7 @@ _Pick the directory where you'd like to create a new package. For integrations, 
 #### Steps
 
 1. Bootstrap new package using the TUI wizard: `elastic-package create package`.
-2. Fine-tune the created package:
+2. Adjust the created package manually:
   * define policy templates and inputs
   * add icons and screenshots
   * update README files
@@ -31,7 +31,7 @@ _Enter the package directory. For nginx integration, it's: [packages/nginx/](htt
 #### Steps
 
 1. Bootstrap new data stream using the TUI wizard: `elastic-package create data-stream`.
-2. Fine-tune created data stream:
+2. Adjust the created data stream manually:
   * define streams and required vars
   * define used fields
   * define ingest pipeline definition (if necessary)
