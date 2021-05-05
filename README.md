@@ -92,6 +92,8 @@ Use this command to create a new package or add more data streams.
 
 The command can help bootstrap the first draft of a package using embedded package template. It can be used to extend the package with more data streams.
 
+For details on how to create a new package, review the [HOWTO guide](https://github.com/elastic/elastic-package/blob/master/docs/howto/create_new_package.md).
+
 ### `elastic-package export`
 
 _Context: package_
