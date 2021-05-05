@@ -8,11 +8,11 @@ This will ensure that you're following latest recommendations for the package fo
 
 ### Create new package
 
-Prerequisites:
+#### Prerequisites
 
 _Pick the directory where you'd like to create a new package. For integrations, it's: [packages/](https://github.com/elastic/integrations/tree/master/packages)._
 
-Steps:
+#### Steps
 
 1. Bootstrap new package using the TUI wizard: `elastic-package create package`.
 2. Fine-tune the created package:
@@ -24,11 +24,11 @@ Steps:
 
 ### Add data stream
 
-Prerequisites:
+#### Prerequisites
 
 _Enter the package directory. For nginx integration, it's: [packages/nginx/](https://github.com/elastic/integrations/tree/master/packages/nginx)._
 
-Steps:
+#### Steps
 
 1. Bootstrap new data stream using the TUI wizard: `elastic-package create data-stream`.
 2. Fine-tune created data stream:
