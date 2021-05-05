@@ -38,7 +38,6 @@ _Enter the package directory. For nginx integration, it's: [packages/nginx/](htt
     * define used fields
     * define ingest pipeline definition (if necessary)
     * update the agent's stream configuration
-3. Make sure that the data stream is inline with the package skeleton.
-4. Verify the package:
+3. Verify the package:
     1. Enter the package directory: `cd <new_package>`.
     2. Check package correctness: `elastic-package check`.
