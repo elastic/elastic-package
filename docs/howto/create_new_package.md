@@ -2,7 +2,7 @@
 
 ## Introduction
 
-Elastic Packages can be used to bootstrap a new package or add a data stream using an embedded archetype ([resource templates](https://github.com/elastic/elastic-package/tree/master/internal/packages/archetype)).
+The `elastic-package` tool can be used to bootstrap a new package or add a data stream using an embedded archetype ([resource templates](https://github.com/elastic/elastic-package/tree/master/internal/packages/archetype)).
 It's advised to use `elastic-package create` to build new package rather than copying sources of an existing package.
 With archetype you can be sure that you're following latest recommendations for the package format.
 
