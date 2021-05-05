@@ -1,4 +1,4 @@
-# HOWTO: Create new package/data stream
+# HOWTO: Create new packages and data streams
 
 ## Introduction
 
