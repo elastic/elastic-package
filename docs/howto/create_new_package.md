@@ -20,7 +20,9 @@ _Pick the directory where you'd like to create a new package. For integrations, 
   * add icons and screenshots
   * update README files
   * update `changelog.yml` file
-3. (Enter the package directory) Verify the package: `elastic-package check`.
+3. Verify the package:
+3.1 Enter the package directory: `cd <new_package>`.
+3.2 Check package correctness: `elastic-package check`.
 
 ### Add data stream
 
@@ -37,4 +39,6 @@ _Enter the package directory. For nginx integration, it's: [packages/nginx/](htt
   * define ingest pipeline definition (if necessary)
   * update the agent's stream configuration
 3. Make sure that the data stream is inline with the package skeleton.
-4. (Enter the package directory) Verify the package: `elastic-package check`.
+4. Verify the package:
+4.1 Enter the package directory: `cd <new_package>`.
+4.2 Check package correctness: `elastic-package check`.
