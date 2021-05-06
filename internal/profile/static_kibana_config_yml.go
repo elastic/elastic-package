@@ -31,8 +31,8 @@ const KibanaConfigFile ConfigFile = "kibana.config.yml"
 // newKibanaConfig returns a Managed Config
 func newKibanaConfig(_ string, profilePath string) (*simpleFile, error) {
 	return &simpleFile{
-		Name: string(KibanaConfigFile),
-		Path: filepath.Join(profilePath, string(KibanaConfigFile)),
-		Body: kibanaConfigYml,
+		name: string(KibanaConfigFile),
+		path: filepath.Join(profilePath, string(KibanaConfigFile)),
+		body: kibanaConfigYml,
 	}, nil
 }

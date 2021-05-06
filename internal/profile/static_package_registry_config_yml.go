@@ -20,8 +20,8 @@ const PackageRegistryConfigFile ConfigFile = "package-registry.config.yml"
 func newPackageRegistryConfig(_ string, profilePath string) (*simpleFile, error) {
 
 	return &simpleFile{
-		Name: string(PackageRegistryConfigFile),
-		Path: filepath.Join(profilePath, string(PackageRegistryConfigFile)),
-		Body: packageRegistryConfigYml,
+		name: string(PackageRegistryConfigFile),
+		path: filepath.Join(profilePath, string(PackageRegistryConfigFile)),
+		body: packageRegistryConfigYml,
 	}, nil
 }

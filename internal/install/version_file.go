@@ -14,6 +14,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/configuration/locations"
+	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/version"
 )
 
@@ -28,7 +29,7 @@ func checkIfLatestVersionInstalled(elasticPackagePath *locations.LocationManager
 	}
 	v := string(versionFile)
 	if version.CommitHash == "undefined" && strings.Contains(v, "undefined") {
-		fmt.Printf("WARNING: CommitHash is undefined, in both %s and the compiled binary, config may be out of date, and elastic-package was not properly built.\n", versionPath)
+		logger.Warn("CommitHash is undefined, in both %s and the compiled binary, config may be out of date.", versionPath)
 	}
 	return buildVersionFile(version.CommitHash, version.BuildTime) == v, nil
 }

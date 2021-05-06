@@ -46,8 +46,6 @@ func dockerComposePull(options Options) error {
 		Services: withIsReadyServices(withDependentServices(options.Services)),
 	}
 
-	fmt.Printf("Docker-compose opts: %#v\n", opts)
-
 	if err := c.Pull(opts); err != nil {
 		return errors.Wrap(err, "running command failed")
 	}

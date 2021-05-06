@@ -57,8 +57,8 @@ func TestNewProfileFrom(t *testing.T) {
 		t.Fatalf("error creating profile %s", err)
 	}
 	pkgRegUpdated := &simpleFile{
-		Path: filepath.Join(testProfile.ProfilePath, string(PackageRegistryConfigFile)),
-		Body: `package_paths:
+		path: filepath.Join(testProfile.ProfilePath, string(PackageRegistryConfigFile)),
+		body: `package_paths:
 		- /packages/testing
 		- /packages/development
 		- /packages/production

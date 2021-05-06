@@ -9,6 +9,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/olekukonko/tablewriter"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
@@ -16,6 +17,9 @@ import (
 	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/profile"
 )
+
+// profileNameEnvVar is the name of the environment variable to set the default profile
+const profileNameEnvVar = "ELASTIC_PACKAGE_PROFILE"
 
 func setupProfilesCommand() *cobraext.Command {
 	profilesLongDescription := `Use this command to add, remove, and manage multiple config profiles.
@@ -69,7 +73,7 @@ User profiles are not overwritten on upgrade of elastic-stack, and can be freely
 			}
 			profileName := args[0]
 
-			err := profile.DeleteProfileFromDefaultLocation(profileName)
+			err := profile.DeleteProfile(profileName)
 			if err != nil {
 				return errors.Wrap(err, "error deleting profile")
 			}
@@ -93,14 +97,30 @@ User profiles are not overwritten on upgrade of elastic-stack, and can be freely
 				return errors.Wrap(err, "error listing all profiles")
 			}
 
-			header := []string{"Name", "Date Created", "User", "elastic-package version", "Path"}
-			for _, headerVal := range header {
-				fmt.Printf("%-30s ", headerVal)
-			}
-			fmt.Printf("\n")
-			for _, iter := range profileList {
-				fmt.Printf("%-30s %-30s %-30s %-30s %-30s\n", iter.Name, iter.DateCreated.Format(time.RFC3339), iter.User, iter.Version, iter.From)
-			}
+			table := tablewriter.NewWriter(os.Stdout)
+			var profilestable = profileToList(profileList)
+
+			table.SetHeader([]string{"Name", "Date Created", "User", "version", "Path"})
+			table.SetHeaderColor(
+				twColor(tablewriter.Colors{tablewriter.Bold}),
+				twColor(tablewriter.Colors{tablewriter.Bold}),
+				twColor(tablewriter.Colors{tablewriter.Bold}),
+				twColor(tablewriter.Colors{tablewriter.Bold}),
+				twColor(tablewriter.Colors{tablewriter.Bold}),
+			)
+			table.SetColumnColor(
+				twColor(tablewriter.Colors{tablewriter.Bold, tablewriter.FgCyanColor}),
+				tablewriter.Colors{},
+				tablewriter.Colors{},
+				tablewriter.Colors{},
+				tablewriter.Colors{},
+			)
+
+			table.SetAutoMergeCells(true)
+			table.SetRowLine(true)
+			table.AppendBulk(profilestable)
+			table.Render()
+
 			return nil
 		},
 	}
@@ -111,8 +131,18 @@ User profiles are not overwritten on upgrade of elastic-stack, and can be freely
 
 }
 
+func profileToList(profiles []profile.Metadata) [][]string {
+
+	var profileList [][]string
+	for _, profile := range profiles {
+		profileList = append(profileList, []string{profile.Name, profile.DateCreated.Format(time.RFC3339), profile.User, profile.Version, profile.From})
+	}
+
+	return profileList
+}
+
 func lookupEnv() string {
-	env := os.Getenv(cobraext.ProfileNameEnvVar)
+	env := os.Getenv(profileNameEnvVar)
 	if env == "" {
 		return profile.DefaultProfile
 	}

@@ -72,8 +72,8 @@ func setupStackCommand() *cobraext.Command {
 				return cobraext.FlagParsingError(err, cobraext.ProfileFlagName)
 			}
 
-			usrProfile, err := profile.LoadProfileFromDefaultLocation(profileName)
-			if err == profile.ErrNotAProfile {
+			usrProfile, err := profile.LoadProfile(profileName)
+			if errors.Is(err, profile.ErrNotAProfile) {
 				pList, err := availableProfilesAsAList()
 				if err != nil {
 					return errors.Wrap(err, "error listing known profiles")
@@ -116,8 +116,8 @@ func setupStackCommand() *cobraext.Command {
 				return cobraext.FlagParsingError(err, cobraext.ProfileFlagName)
 			}
 
-			usrProfile, err := profile.LoadProfileFromDefaultLocation(profileName)
-			if err == profile.ErrNotAProfile {
+			usrProfile, err := profile.LoadProfile(profileName)
+			if errors.Is(err, profile.ErrNotAProfile) {
 				pList, err := availableProfilesAsAList()
 				if err != nil {
 					return errors.Wrap(err, "error listing known profiles")
@@ -152,7 +152,7 @@ func setupStackCommand() *cobraext.Command {
 				return cobraext.FlagParsingError(err, cobraext.ProfileFlagName)
 			}
 
-			profile, err := profile.LoadProfileFromDefaultLocation(profileName)
+			profile, err := profile.LoadProfile(profileName)
 			if err != nil {
 				return errors.Wrap(err, "error loading profile")
 			}
@@ -185,7 +185,7 @@ func setupStackCommand() *cobraext.Command {
 				return cobraext.FlagParsingError(err, cobraext.ProfileFlagName)
 			}
 
-			profile, err := profile.LoadProfileFromDefaultLocation(profileName)
+			profile, err := profile.LoadProfile(profileName)
 			if err != nil {
 				return errors.Wrap(err, "error loading profile")
 			}
@@ -213,7 +213,7 @@ func setupStackCommand() *cobraext.Command {
 				return cobraext.FlagParsingError(err, cobraext.ProfileFlagName)
 			}
 
-			profile, err := profile.LoadProfileFromDefaultLocation(profileName)
+			profile, err := profile.LoadProfile(profileName)
 			if err != nil {
 				return errors.Wrap(err, "error loading profile")
 			}
@@ -239,7 +239,7 @@ func setupStackCommand() *cobraext.Command {
 		Short: "Manage the Elastic stack",
 		Long:  stackLongDescription,
 	}
-	cmd.PersistentFlags().StringP(cobraext.ProfileFlagName, "p", lookupEnv(), cobraext.ProfileFlagDescription)
+	cmd.PersistentFlags().StringP(cobraext.ProfileFlagName, "p", lookupEnv(), fmt.Sprintf(cobraext.ProfileFlagDescription, profileNameEnvVar))
 	cmd.AddCommand(
 		upCommand,
 		downCommand,

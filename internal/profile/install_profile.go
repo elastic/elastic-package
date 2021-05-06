@@ -58,7 +58,7 @@ func createProfile(options Options) error {
 		// TODO: do we want this to pe appended with some kind of version string instead?
 		if localChanges && !options.OverwriteExisting {
 			if localChanges && options.Name == DefaultProfile {
-				logger.Warn("WARNING: default profile has been changed by user or updated by elastic-package. The current profile will be moved to default_old.")
+				logger.Warn("default profile has been changed by user or updated by elastic-package. The current profile will be moved to default_old.")
 			}
 			err = updateExistingDefaultProfile(options.PackagePath)
 			if err != nil {
@@ -133,8 +133,8 @@ func createProfileFrom(option Options) error {
 
 }
 
-// LoadProfileFromDefaultLocation loads an existing profile from the default elastic-package config dir
-func LoadProfileFromDefaultLocation(profileName string) (*Profile, error) {
+// LoadProfile loads an existing profile from the default elastic-package config dir
+func LoadProfile(profileName string) (*Profile, error) {
 	loc, err := locations.NewLocationManager()
 	if err != nil {
 		return nil, errors.Wrap(err, "error finding stack dir location")
@@ -143,8 +143,8 @@ func LoadProfileFromDefaultLocation(profileName string) (*Profile, error) {
 	return loadProfile(loc.StackDir(), profileName)
 }
 
-// DeleteProfileFromDefaultLocation deletes a profile from the default elastic-package config dir
-func DeleteProfileFromDefaultLocation(profileName string) error {
+// DeleteProfile deletes a profile from the default elastic-package config dir
+func DeleteProfile(profileName string) error {
 	loc, err := locations.NewLocationManager()
 	if err != nil {
 		return errors.Wrap(err, "error finding stack dir location")

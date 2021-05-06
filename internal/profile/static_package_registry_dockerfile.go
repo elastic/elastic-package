@@ -26,9 +26,9 @@ func newPackageRegistryDockerfile(profileName string, profilePath string) (*simp
 	newCfg := strings.ReplaceAll(packageRegistryDockerfile, "${PROFILE_NAME}", profileName)
 
 	return &simpleFile{
-		Name: string(PackageRegistryDockerfileFile),
-		Path: filepath.Join(profilePath, string(PackageRegistryDockerfileFile)),
-		Body: newCfg,
+		name: string(PackageRegistryDockerfileFile),
+		path: filepath.Join(profilePath, string(PackageRegistryDockerfileFile)),
+		body: newCfg,
 	}, nil
 
 }

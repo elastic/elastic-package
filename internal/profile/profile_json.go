@@ -48,8 +48,8 @@ func createProfileMetadata(profileName string, profilePath string) (*simpleFile,
 	}
 
 	return &simpleFile{
-		Name: string(PackageProfileMetaFile),
-		Path: filepath.Join(profilePath, string(PackageProfileMetaFile)),
-		Body: string(jsonRaw),
+		name: string(PackageProfileMetaFile),
+		path: filepath.Join(profilePath, string(PackageProfileMetaFile)),
+		body: string(jsonRaw),
 	}, nil
 }

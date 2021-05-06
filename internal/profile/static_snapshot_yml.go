@@ -139,8 +139,8 @@ func newSnapshotFile(profileName string, profilePath string) (*simpleFile, error
 	newCfg := strings.ReplaceAll(snapshotYml, "${STACK_DIR}", profileName)
 
 	return &simpleFile{
-		Name: string(SnapshotFile),
-		Path: filepath.Join(profilePath, string(SnapshotFile)),
-		Body: newCfg,
+		name: string(SnapshotFile),
+		path: filepath.Join(profilePath, string(SnapshotFile)),
+		body: newCfg,
 	}, nil
 }

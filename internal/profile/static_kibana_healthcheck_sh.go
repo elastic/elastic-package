@@ -20,8 +20,8 @@ const KibanaHealthCheckFile ConfigFile = "healthcheck.sh"
 // newKibanaHealthCheck returns a Managed Config
 func newKibanaHealthCheck(_ string, profilePath string) (*simpleFile, error) {
 	return &simpleFile{
-		Name: string(KibanaHealthCheckFile),
-		Path: filepath.Join(profilePath, string(KibanaHealthCheckFile)),
-		Body: kibanaHealthcheckSh,
+		name: string(KibanaHealthCheckFile),
+		path: filepath.Join(profilePath, string(KibanaHealthCheckFile)),
+		body: kibanaHealthcheckSh,
 	}, nil
 }

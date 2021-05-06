@@ -34,9 +34,7 @@ const (
 	GenerateTestResultFlagDescription = "generate test result file"
 
 	ProfileFlagName        = "profile"
-	ProfileFlagDescription = "select a profile to use for the stack configuration. Can also be set with " + ProfileNameEnvVar
-
-	ProfileNameEnvVar = "ELASTIC_PACKAGE_PROFILE"
+	ProfileFlagDescription = "select a profile to use for the stack configuration. Can also be set with %s"
 
 	ProfileNewFlagName        = "new"
 	ProfileNewFlagDescription = "create a new profile"
