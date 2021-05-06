@@ -10,10 +10,9 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/elastic/package-spec/code/go/pkg/validator"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
-
-	"github.com/elastic/package-spec/code/go/pkg/validator"
 
 	"github.com/elastic/elastic-package/internal/packages"
 )
