@@ -25,7 +25,7 @@ func newConfig(staticTestFolderPath string) (*testConfig, error) {
 
 	// Test configuration file is optional for static loading tests. If it
 	// doesn't exist, we can return early.
-	if _, err := os.Stat(configFilePath); os.IsNotExist(err) {
+	if _, err := os.Stat(configFilePath); errors.Is(err, os.ErrNotExist) {
 		return nil, nil
 	}
 

@@ -87,7 +87,7 @@ func (tsd TerraformServiceDeployer) loadComposeDefinitions() ([]string, error) {
 
 	envYmlPath := filepath.Join(tsd.definitionsDir, envYmlFile)
 	_, err = os.Stat(envYmlPath)
-	if os.IsNotExist(err) {
+	if errors.Is(err, os.ErrNotExist) {
 		return []string{
 			locationManager.TerraformDeployerYml(),
 		}, nil
