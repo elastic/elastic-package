@@ -34,6 +34,54 @@ func CreateProfile(options Options) error {
 	return createProfileFrom(options)
 }
 
+// LoadProfile loads an existing profile from the default elastic-package config dir
+func LoadProfile(profileName string) (*Profile, error) {
+	loc, err := locations.NewLocationManager()
+	if err != nil {
+		return nil, errors.Wrap(err, "error finding stack dir location")
+	}
+
+	return loadProfile(loc.StackDir(), profileName)
+}
+
+// DeleteProfile deletes a profile from the default elastic-package config dir
+func DeleteProfile(profileName string) error {
+	loc, err := locations.NewLocationManager()
+	if err != nil {
+		return errors.Wrap(err, "error finding stack dir location")
+	}
+	return deleteProfile(loc.StackDir(), profileName)
+}
+
+// FetchAllProfiles returns a list of profile values
+func FetchAllProfiles(elasticPackagePath string) ([]Metadata, error) {
+	dirList, err := ioutil.ReadDir(elasticPackagePath)
+	if err != nil {
+		return []Metadata{}, errors.Wrapf(err, "error reading from directory %s", elasticPackagePath)
+	}
+
+	var profiles []Metadata
+	// TODO: this should read a profile.json file or something like that
+	for _, item := range dirList {
+		if !item.IsDir() {
+			continue
+		}
+		profile, err := loadProfile(elasticPackagePath, item.Name())
+		if errors.Is(err, ErrNotAProfile) {
+			continue
+		}
+		if err != nil {
+			return profiles, errors.Wrapf(err, "error loading profile %s", item.Name())
+		}
+		metadata, err := profile.metadata()
+		if err != nil {
+			return profiles, errors.Wrap(err, "error reading profile metadata")
+		}
+		profiles = append(profiles, metadata)
+	}
+	return profiles, nil
+}
+
 // createProfile installs a new profile at the given package path location.
 // overwriteExisting determines the behavior if a profile with the given name already exists.
 // On true, it'll overwrite the profile, on false, it'll copy the existing profile over to profileName_old
@@ -43,7 +91,7 @@ func createProfile(options Options) error {
 		return errors.Wrap(err, "error creating profile")
 	}
 
-	//check to see if we have an existing profile at that location.
+	// check to see if we have an existing profile at that location.
 	exists, err := profile.alreadyExists()
 	if err != nil {
 		return errors.Wrap(err, "error checking for existing profile")
@@ -54,8 +102,8 @@ func createProfile(options Options) error {
 			return errors.Wrapf(err, "error checking for changes in %s", profile.ProfilePath)
 		}
 
-		// If there's changes and we've selected CreateNew, move the old path
-		// TODO: do we want this to pe appended with some kind of version string instead?
+		// If there are changes and we've selected CreateNew, move the old path
+		// TODO: do we want this to append with some kind of version string instead?
 		if localChanges && !options.OverwriteExisting {
 			if localChanges && options.Name == DefaultProfile {
 				logger.Warn("default profile has been changed by user or updated by elastic-package. The current profile will be moved to default_old.")
@@ -70,7 +118,7 @@ func createProfile(options Options) error {
 			}
 		}
 	} else {
-		os.Mkdir(profile.ProfilePath, 0755)
+		err = os.Mkdir(profile.ProfilePath, 0755)
 		if err != nil {
 			return errors.Wrapf(err, "error crating profile directory %s", profile.ProfilePath)
 		}
@@ -79,9 +127,12 @@ func createProfile(options Options) error {
 		return errors.Wrapf(err, "stat file failed (path: %s)", profile.ProfilePath)
 	}
 
-	//write the resources
-	return profile.writeProfileResources()
-
+	// write the resources
+	err = profile.writeProfileResources()
+	if err != nil {
+		return errors.Wrap(err, "error writing profile file")
+	}
+	return nil
 }
 
 // updateExistingDefaultProfile migrates the old default profile to profile_old
@@ -133,25 +184,6 @@ func createProfileFrom(option Options) error {
 
 }
 
-// LoadProfile loads an existing profile from the default elastic-package config dir
-func LoadProfile(profileName string) (*Profile, error) {
-	loc, err := locations.NewLocationManager()
-	if err != nil {
-		return nil, errors.Wrap(err, "error finding stack dir location")
-	}
-
-	return loadProfile(loc.StackDir(), profileName)
-}
-
-// DeleteProfile deletes a profile from the default elastic-package config dir
-func DeleteProfile(profileName string) error {
-	loc, err := locations.NewLocationManager()
-	if err != nil {
-		return errors.Wrap(err, "error finding stack dir location")
-	}
-	return deleteProfile(loc.StackDir(), profileName)
-}
-
 // deleteProfile deletes a given config profile.
 func deleteProfile(elasticPackagePath string, profileName string) error {
 	if profileName == DefaultProfile {
@@ -162,33 +194,4 @@ func deleteProfile(elasticPackagePath string, profileName string) error {
 
 	return os.RemoveAll(pathToDelete)
 
-}
-
-// FetchAllProfiles returns a list of profile values
-func FetchAllProfiles(elasticPackagePath string) ([]Metadata, error) {
-	dirList, err := ioutil.ReadDir(elasticPackagePath)
-	if err != nil {
-		return []Metadata{}, errors.Wrapf(err, "error reading from directory %s", elasticPackagePath)
-	}
-
-	var profiles []Metadata
-	// TODO: this should read a profile.json file or something like that
-	for _, item := range dirList {
-		if !item.IsDir() {
-			continue
-		}
-		profile, err := loadProfile(elasticPackagePath, item.Name())
-		if errors.Is(err, ErrNotAProfile) {
-			continue
-		}
-		if err != nil {
-			return profiles, errors.Wrapf(err, "error loading profile %s", item.Name())
-		}
-		metadata, err := profile.metadata()
-		if err != nil {
-			return profiles, errors.Wrap(err, "error reading profile metadata")
-		}
-		profiles = append(profiles, metadata)
-	}
-	return profiles, nil
 }

@@ -100,7 +100,7 @@ User profiles are not overwritten on upgrade of elastic-stack, and can be freely
 			table := tablewriter.NewWriter(os.Stdout)
 			var profilestable = profileToList(profileList)
 
-			table.SetHeader([]string{"Name", "Date Created", "User", "version", "Path"})
+			table.SetHeader([]string{"Name", "Date Created", "User", "Version", "Path"})
 			table.SetHeaderColor(
 				twColor(tablewriter.Colors{tablewriter.Bold}),
 				twColor(tablewriter.Colors{tablewriter.Bold}),

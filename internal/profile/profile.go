@@ -28,7 +28,7 @@ const (
 )
 
 // ErrNotAProfile is returned in cases where we don't have a valid profile directory
-var ErrNotAProfile = errors.New("Is is not a profile")
+var ErrNotAProfile = errors.New("not a profile")
 
 // ConfigFile is a type for for the config file names in a managed profile config
 type ConfigFile string
@@ -116,7 +116,7 @@ func (profile Profile) FetchPath(file ConfigFile) string {
 	return profile.configFiles[file].path
 }
 
-// UpdateFileBodies updates the string contents of the config files
+// overwrite updates the string contents of the config files
 func (profile *Profile) overwrite(newBody map[ConfigFile]*simpleFile) {
 	for key := range profile.configFiles {
 		// skip metadata
@@ -133,7 +133,7 @@ func (profile *Profile) overwrite(newBody map[ConfigFile]*simpleFile) {
 
 }
 
-// ProfileAlreadyExists checks to see if a profile with this name already exists
+// alreadyExists checks to see if a profile with this name already exists
 func (profile Profile) alreadyExists() (bool, error) {
 	packageMetadata := profile.configFiles[PackageProfileMetaFile]
 	// We do this in stages to make sure we return the right error.
@@ -175,7 +175,7 @@ func (profile Profile) localFilesChanged() (bool, error) {
 		if cfgName == PackageProfileMetaFile {
 			continue
 		}
-		changes, err := cfgFile.ConfigfilesDiffer()
+		changes, err := cfgFile.configfilesDiffer()
 		if err != nil {
 			return false, errors.Wrap(err, "error checking config file")
 		}
@@ -189,7 +189,7 @@ func (profile Profile) localFilesChanged() (bool, error) {
 // readProfileResources reads the associated files into the config, as opposed to writing them out.
 func (profile Profile) readProfileResources() error {
 	for _, cfgFile := range profile.configFiles {
-		err := cfgFile.ReadConfig()
+		err := cfgFile.readConfig()
 		if err != nil {
 			return errors.Wrap(err, "error reading in profile")
 		}
@@ -200,7 +200,7 @@ func (profile Profile) readProfileResources() error {
 // writeProfileResources writes the config files
 func (profile Profile) writeProfileResources() error {
 	for _, cfgFiles := range profile.configFiles {
-		err := cfgFiles.WriteConfig()
+		err := cfgFiles.writeConfig()
 		if err != nil {
 			return errors.Wrap(err, "error writing config file")
 		}

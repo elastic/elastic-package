@@ -21,8 +21,8 @@ type simpleFile struct {
 	body string
 }
 
-// ConfigfilesDiffer checks to see if a local configItem differs from the one it knows.
-func (cfg simpleFile) ConfigfilesDiffer() (bool, error) {
+// configfilesDiffer checks to see if a local configItem differs from the one it knows.
+func (cfg simpleFile) configfilesDiffer() (bool, error) {
 	changes, err := ioutil.ReadFile(cfg.path)
 	if err != nil {
 		return false, errors.Wrapf(err, "error reading %s", KibanaConfigFile)
@@ -33,8 +33,8 @@ func (cfg simpleFile) ConfigfilesDiffer() (bool, error) {
 	return false, nil
 }
 
-// WriteConfig writes the config item
-func (cfg simpleFile) WriteConfig() error {
+// writeConfig writes the config item
+func (cfg simpleFile) writeConfig() error {
 	err := ioutil.WriteFile(cfg.path, []byte(cfg.body), 0644)
 	if err != nil {
 		return errors.Wrapf(err, "writing file failed (path: %s)", cfg.path)
@@ -42,8 +42,8 @@ func (cfg simpleFile) WriteConfig() error {
 	return nil
 }
 
-// ReadConfig reads the config item, overwriting whatever exists in the fileBody.
-func (cfg *simpleFile) ReadConfig() error {
+// readConfig reads the config item, overwriting whatever exists in the fileBody.
+func (cfg *simpleFile) readConfig() error {
 	body, err := ioutil.ReadFile(cfg.path)
 	if err != nil {
 		return errors.Wrapf(err, "reading filed failed (path: %s)", cfg.path)
