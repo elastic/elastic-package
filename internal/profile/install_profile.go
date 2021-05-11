@@ -5,6 +5,7 @@
 package profile
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -103,14 +104,13 @@ func createProfile(options Options) error {
 		}
 
 		// If there are changes and we've selected CreateNew, move the old path
-		// TODO: do we want this to append with some kind of version string instead?
 		if localChanges && !options.OverwriteExisting {
 			if localChanges && options.Name == DefaultProfile {
-				logger.Warn("default profile has been changed by user or updated by elastic-package. The current profile will be moved to default_old.")
+				logger.Warn("default profile has been changed by user or updated by elastic-package. The current profile will be moved.")
 			}
 			err = updateExistingDefaultProfile(options.PackagePath)
 			if err != nil {
-				errors.Wrap(err, "error moving old profile")
+				return errors.Wrap(err, "error moving old profile")
 			}
 			err = os.Mkdir(profile.ProfilePath, 0755)
 			if err != nil {
@@ -145,12 +145,17 @@ func updateExistingDefaultProfile(path string) error {
 	if err != nil {
 		return errors.Wrap(err, "error updating metadata")
 	}
-	meta.Name = "default_old"
+	newName := fmt.Sprintf("default_%s_%d", meta.Version, meta.DateCreated.Unix())
+	newFilePath := filepath.Join(filepath.Dir(profile.ProfilePath), newName)
+	meta.Name = newName
+	meta.From = newFilePath
+
 	err = profile.updateMetadata(meta)
 	if err != nil {
 		return errors.Wrap(err, "error updating metadata")
 	}
-	err = os.Rename(profile.ProfilePath, filepath.Join(profile.ProfilePath+"_old"))
+
+	err = os.Rename(profile.ProfilePath, newFilePath)
 	if err != nil {
 		return errors.Wrap(err, "error moving default profile")
 	}
