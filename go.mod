@@ -10,7 +10,7 @@ require (
 	github.com/elastic/go-elasticsearch/v7 v7.9.0
 	github.com/elastic/go-licenser v0.3.1
 	github.com/elastic/go-ucfg v0.8.3
-	github.com/elastic/package-spec/code/go v0.0.0-20210409123213-0a25dbffb1b1
+	github.com/elastic/package-spec/code/go v0.0.0-20210513153303-8f9ce2a4b150
 	github.com/fatih/color v1.10.0
 	github.com/go-git/go-billy/v5 v5.0.0
 	github.com/go-git/go-git/v5 v5.1.0
@@ -28,7 +28,7 @@ require (
 	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
 	golang.org/x/lint v0.0.0-20210508222113-6edffad5e616
 	golang.org/x/oauth2 v0.0.0-20200902213428-5d25da1a8d43
-	golang.org/x/tools v0.1.0
+	golang.org/x/tools v0.1.1
 	gopkg.in/yaml.v3 v3.0.0-20200615113413-eeeca48fe776
 	helm.sh/helm/v3 v3.5.1
 	k8s.io/apimachinery v0.20.4
