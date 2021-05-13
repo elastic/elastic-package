@@ -10,7 +10,7 @@ import (
 )
 
 // SnapshotFile is the docker-compose snapshot.yml file name
-const SnapshotFile ConfigFile = "snapshot.yml"
+const SnapshotFile configFile = "snapshot.yml"
 
 const snapshotYml = `version: '2.3'
 services:

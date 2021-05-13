@@ -85,48 +85,12 @@ func FetchAllProfiles(elasticPackagePath string) ([]Metadata, error) {
 
 // createProfile installs a new profile at the given package path location.
 // overwriteExisting determines the behavior if a profile with the given name already exists.
-// On true, it'll overwrite the profile, on false, it'll copy the existing profile over to profileName_old
+// On true, it'll overwrite the profile, on false, it'll backup the existing profile to profilename_VERSION-DATE-CREATED
 func createProfile(options Options) error {
-	profile, err := NewConfigProfile(options.PackagePath, options.Name)
+	profile, err := createAndCheckProfile(options.PackagePath, options.Name, options.OverwriteExisting)
 	if err != nil {
-		return errors.Wrap(err, "error creating profile")
+		return errors.Wrap(err, "error creating new profile")
 	}
-
-	// check to see if we have an existing profile at that location.
-	exists, err := profile.alreadyExists()
-	if err != nil {
-		return errors.Wrap(err, "error checking for existing profile")
-	}
-	if exists {
-		localChanges, err := profile.localFilesChanged()
-		if err != nil {
-			return errors.Wrapf(err, "error checking for changes in %s", profile.ProfilePath)
-		}
-
-		// If there are changes and we've selected CreateNew, move the old path
-		if localChanges && !options.OverwriteExisting {
-			if localChanges && options.Name == DefaultProfile {
-				logger.Warn("default profile has been changed by user or updated by elastic-package. The current profile will be moved.")
-			}
-			err = updateExistingDefaultProfile(options.PackagePath)
-			if err != nil {
-				return errors.Wrap(err, "error moving old profile")
-			}
-			err = os.Mkdir(profile.ProfilePath, 0755)
-			if err != nil {
-				return errors.Wrapf(err, "error crating profile directory %s", profile.ProfilePath)
-			}
-		}
-	} else {
-		err = os.Mkdir(profile.ProfilePath, 0755)
-		if err != nil {
-			return errors.Wrapf(err, "error crating profile directory %s", profile.ProfilePath)
-		}
-	}
-	if err != nil {
-		return errors.Wrapf(err, "stat file failed (path: %s)", profile.ProfilePath)
-	}
-
 	// write the resources
 	err = profile.writeProfileResources()
 	if err != nil {
@@ -135,7 +99,70 @@ func createProfile(options Options) error {
 	return nil
 }
 
-// updateExistingDefaultProfile migrates the old default profile to profile_old
+// createProfileFrom creates a new profile by copying over an existing profile
+func createProfileFrom(options Options) error {
+	fromProfile, err := loadProfile(options.PackagePath, options.FromProfile)
+	if err != nil {
+		return errors.Wrapf(err, "error loading %s profile", options.FromProfile)
+	}
+
+	newProfile, err := createAndCheckProfile(options.PackagePath, options.Name, options.OverwriteExisting)
+	if err != nil {
+		return errors.Wrap(err, "error creating new profile")
+	}
+
+	newProfile.overwrite(fromProfile.configFiles)
+	err = newProfile.writeProfileResources()
+	if err != nil {
+		return errors.Wrap(err, "error writing new profile")
+	}
+	return nil
+}
+
+// createAndCheckProfile does most of the heavy lifting for initializing a new profile,
+// including dealing with profile overwrites
+func createAndCheckProfile(packagePath, packageName string, overwriteExisting bool) (*Profile, error) {
+	profile, err := NewConfigProfile(packagePath, packageName)
+	if err != nil {
+		return nil, errors.Wrap(err, "error creating profile")
+	}
+
+	// check to see if we have an existing profile at that location.
+	exists, err := profile.alreadyExists()
+	if err != nil {
+		return nil, errors.Wrap(err, "error checking for existing profile")
+	}
+	if exists {
+		localChanges, err := profile.localFilesChanged()
+		if err != nil {
+			return nil, errors.Wrapf(err, "error checking for changes in %s", profile.ProfilePath)
+		}
+		// If there are changes and we've selected CreateNew, move the old path
+		if localChanges && !overwriteExisting {
+			if localChanges && packageName == DefaultProfile {
+				logger.Warn("Default profile has been changed by user or updated by elastic-package. The current profile will be moved.")
+			}
+			// Migrate the existing profile
+			err = updateExistingDefaultProfile(packagePath)
+			if err != nil {
+				return nil, errors.Wrap(err, "error moving old profile")
+			}
+			err = os.Mkdir(profile.ProfilePath, 0755)
+			if err != nil {
+				return nil, errors.Wrapf(err, "error crating profile directory %s", profile.ProfilePath)
+			}
+		}
+	} else {
+		err = os.Mkdir(profile.ProfilePath, 0755)
+		if err != nil {
+			return nil, errors.Wrapf(err, "error crating profile directory %s", profile.ProfilePath)
+		}
+	}
+
+	return profile, nil
+}
+
+// updateExistingDefaultProfile migrates the old default profile to profile_VERSION_DATE-CREATED
 func updateExistingDefaultProfile(path string) error {
 	profile, err := NewConfigProfile(path, DefaultProfile)
 	if err != nil {
@@ -161,32 +188,6 @@ func updateExistingDefaultProfile(path string) error {
 	}
 
 	return nil
-}
-
-// createProfileFrom creates a new profile by copying over an existing profile
-func createProfileFrom(option Options) error {
-	fromProfile, err := loadProfile(option.PackagePath, option.FromProfile)
-	if err != nil {
-		return errors.Wrapf(err, "error loading %s profile", option.FromProfile)
-	}
-
-	newProfile, err := NewConfigProfile(option.PackagePath, option.Name)
-	if err != nil {
-		return errors.Wrapf(err, "error creating %s profile", option.Name)
-	}
-
-	newExists, err := newProfile.alreadyExists()
-	if err != nil {
-		return errors.Wrapf(err, "error checking profile %s", newProfile.ProfilePath)
-	}
-	if newExists {
-		return errors.Errorf("profile %s already exists", newProfile.profileName)
-	}
-	os.Mkdir(newProfile.ProfilePath, 0755)
-
-	newProfile.overwrite(fromProfile.configFiles)
-	return newProfile.writeProfileResources()
-
 }
 
 // deleteProfile deletes a given config profile.

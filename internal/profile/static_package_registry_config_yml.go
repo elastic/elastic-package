@@ -14,7 +14,7 @@ const packageRegistryConfigYml = `package_paths:
 `
 
 // PackageRegistryConfigFile is the config file for the Elastic Package registry
-const PackageRegistryConfigFile ConfigFile = "package-registry.config.yml"
+const PackageRegistryConfigFile configFile = "package-registry.config.yml"
 
 // newPackageRegistryConfig returns a Managed Config
 func newPackageRegistryConfig(_ string, profilePath string) (*simpleFile, error) {

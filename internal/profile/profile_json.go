@@ -25,7 +25,7 @@ type Metadata struct {
 }
 
 // PackageProfileMetaFile is the filename of the profile metadata file
-const PackageProfileMetaFile ConfigFile = "profile.json"
+const PackageProfileMetaFile configFile = "profile.json"
 
 // createProfileMetadata creates the body of the profile.json file
 func createProfileMetadata(profileName string, profilePath string) (*simpleFile, error) {

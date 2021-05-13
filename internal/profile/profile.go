@@ -19,7 +19,7 @@ type Profile struct {
 	profileName string
 	// ProfilePath is the absolute path to the profile
 	ProfilePath string
-	configFiles map[ConfigFile]*simpleFile
+	configFiles map[configFile]*simpleFile
 }
 
 const (
@@ -30,12 +30,12 @@ const (
 // ErrNotAProfile is returned in cases where we don't have a valid profile directory
 var ErrNotAProfile = errors.New("not a profile")
 
-// ConfigFile is a type for for the config file names in a managed profile config
-type ConfigFile string
+// configFile is a type for for the config file names in a managed profile config
+type configFile string
 
 // managedProfileFiles is the list of all files managed in a profile
 // If you create a new file that's managed by a profile, it needs to go in this list
-var managedProfileFiles = map[ConfigFile]NewConfig{
+var managedProfileFiles = map[configFile]NewConfig{
 	KibanaConfigFile:              newKibanaConfig,
 	PackageRegistryDockerfileFile: newPackageRegistryDockerfile,
 	PackageRegistryConfigFile:     newPackageRegistryConfig,
@@ -48,7 +48,7 @@ var managedProfileFiles = map[ConfigFile]NewConfig{
 func NewConfigProfile(elasticPackagePath string, profileName string) (*Profile, error) {
 	profilePath := filepath.Join(elasticPackagePath, profileName)
 
-	var configMap = map[ConfigFile]*simpleFile{}
+	var configMap = map[configFile]*simpleFile{}
 	for fileItem, configInit := range managedProfileFiles {
 		cfg, err := configInit(profileName, profilePath)
 		if err != nil {
@@ -78,7 +78,7 @@ func loadProfile(elasticPackagePath string, profileName string) (*Profile, error
 		return nil, ErrNotAProfile
 	}
 
-	var configMap = map[ConfigFile]*simpleFile{}
+	var configMap = map[configFile]*simpleFile{}
 	for fileItem, configInit := range managedProfileFiles {
 		cfg, err := configInit(profileName, profilePath)
 		if err != nil {
@@ -112,12 +112,12 @@ func loadProfile(elasticPackagePath string, profileName string) (*Profile, error
 }
 
 // FetchPath returns an absolute path to the given file
-func (profile Profile) FetchPath(file ConfigFile) string {
+func (profile Profile) FetchPath(file configFile) string {
 	return profile.configFiles[file].path
 }
 
 // overwrite updates the string contents of the config files
-func (profile *Profile) overwrite(newBody map[ConfigFile]*simpleFile) {
+func (profile *Profile) overwrite(newBody map[configFile]*simpleFile) {
 	for key := range profile.configFiles {
 		// skip metadata
 		if key == PackageProfileMetaFile {

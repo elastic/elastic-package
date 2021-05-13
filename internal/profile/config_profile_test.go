@@ -5,8 +5,11 @@ package profile
 
 import (
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 const (
@@ -16,9 +19,7 @@ const (
 func TestNewProfile(t *testing.T) {
 
 	elasticPackageDir, err := ioutil.TempDir("", "package")
-	if err != nil {
-		t.Fatalf("Error getting stack dir: %s", err)
-	}
+	assert.NoError(t, err, "error creating tempdir")
 	t.Logf("writing to directory %s", elasticPackageDir)
 
 	options := Options{
@@ -27,17 +28,15 @@ func TestNewProfile(t *testing.T) {
 		OverwriteExisting: false,
 	}
 	err = createProfile(options)
-	if err != nil {
-		t.Fatalf("error creating profile: %s", err)
-	}
+	assert.NoErrorf(t, err, "error creating profile %s", err)
+
+	cleanupProfile(t, elasticPackageDir)
 }
 
 func TestNewProfileFrom(t *testing.T) {
 
 	elasticPackageDir, err := ioutil.TempDir("", "package")
-	if err != nil {
-		t.Fatalf("Error getting stack dir: %s", err)
-	}
+	assert.NoError(t, err, "error creating tempdir")
 	t.Logf("writing to directory %s", elasticPackageDir)
 
 	options := Options{
@@ -46,16 +45,13 @@ func TestNewProfileFrom(t *testing.T) {
 		OverwriteExisting: false,
 	}
 	err = createProfile(options)
-	if err != nil {
-		t.Fatalf("error creating profile: %s", err)
-	}
+	assert.NoErrorf(t, err, "error creating profile %s", err)
 
 	//update the profile to make sure we're properly copying everything
 
 	testProfile, err := NewConfigProfile(elasticPackageDir, profileName)
-	if err != nil {
-		t.Fatalf("error creating profile %s", err)
-	}
+	assert.NoErrorf(t, err, "error creating profile %s", err)
+
 	pkgRegUpdated := &simpleFile{
 		path: filepath.Join(testProfile.ProfilePath, string(PackageRegistryConfigFile)),
 		body: `package_paths:
@@ -69,9 +65,7 @@ func TestNewProfileFrom(t *testing.T) {
 	t.Logf("updating profile %s", testProfile.ProfilePath)
 	testProfile.configFiles[PackageRegistryConfigFile] = pkgRegUpdated
 	err = testProfile.writeProfileResources()
-	if err != nil {
-		t.Fatalf("Error updated default profile: %s", err)
-	}
+	assert.NoErrorf(t, err, "error updating profile %s", err)
 
 	// actually create & check the new profile
 	option := Options{
@@ -80,8 +74,12 @@ func TestNewProfileFrom(t *testing.T) {
 		FromProfile: profileName,
 	}
 	err = createProfileFrom(option)
-	if err != nil {
-		t.Fatalf("error copying profile: %s", err)
-	}
+	assert.NoErrorf(t, err, "error copying updating profile %s", err)
 
+	cleanupProfile(t, elasticPackageDir)
+}
+
+func cleanupProfile(t *testing.T, dir string) {
+	err := os.RemoveAll(dir)
+	assert.NoErrorf(t, err, "Error cleaning up tempdir %s", dir)
 }

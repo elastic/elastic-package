@@ -26,7 +26,7 @@ xpack.encryptedSavedObjects.encryptionKey: "12345678901234567890123456789012"
 `
 
 // KibanaConfigFile is the main kibana config file
-const KibanaConfigFile ConfigFile = "kibana.config.yml"
+const KibanaConfigFile configFile = "kibana.config.yml"
 
 // newKibanaConfig returns a Managed Config
 func newKibanaConfig(_ string, profilePath string) (*simpleFile, error) {

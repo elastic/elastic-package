@@ -15,7 +15,7 @@ curl -s -f -u elastic:changeme "http://elasticsearch:9200/_cat/indices/.security
 `
 
 // KibanaHealthCheckFile is the config file for the Elastic Package registry
-const KibanaHealthCheckFile ConfigFile = "healthcheck.sh"
+const KibanaHealthCheckFile configFile = "healthcheck.sh"
 
 // newKibanaHealthCheck returns a Managed Config
 func newKibanaHealthCheck(_ string, profilePath string) (*simpleFile, error) {

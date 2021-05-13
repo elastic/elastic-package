@@ -13,7 +13,7 @@ import (
 const PackageRegistryBaseImage = "docker.elastic.co/package-registry/distribution:snapshot"
 
 // PackageRegistryDockerfileFile is the dockerfile for the Elastic package registry
-const PackageRegistryDockerfileFile ConfigFile = "Dockerfile.package-registry"
+const PackageRegistryDockerfileFile configFile = "Dockerfile.package-registry"
 
 const packageRegistryDockerfile = `FROM ` + PackageRegistryBaseImage + `
 
