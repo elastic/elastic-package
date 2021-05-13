@@ -65,6 +65,42 @@ func NewConfigProfile(elasticPackagePath string, profileName string) (*Profile, 
 	return newProfile, nil
 }
 
+// newProfileFromExistingFiles creates a profile from a list of absolute filepaths
+// This can be used when migrating a config from a non-profiles-managed config set
+// ignoreMissing will treat non-existant files as soft errors
+func newProfileFromExistingFiles(elasticPackagePath string, profileName string, files []string, ignoreMissing bool) (*Profile, error) {
+	profilePath := filepath.Join(elasticPackagePath, profileName)
+	var configMap = map[configFile]*simpleFile{}
+	for _, file := range files {
+		if ignoreMissing {
+			// if we're treating missing files as soft errors,
+			// just continue on IsNotExist
+			// If it's another kind of error, we'll pick it up in ReadFile
+			if _, err := os.Stat(file); os.IsNotExist(err) {
+				continue
+			}
+		}
+
+		byteFile, err := ioutil.ReadFile(file)
+		if err != nil {
+			return nil, errors.Wrapf(err, "error reading file %s", file)
+		}
+		//format this in the way configFile expects
+		name := filepath.Base(file)
+		configMap[configFile(name)] = &simpleFile{
+			name: name,
+			path: profilePath,
+			body: string(byteFile),
+		}
+	}
+	newProfile := &Profile{
+		profileName: profileName,
+		ProfilePath: profilePath,
+		configFiles: configMap,
+	}
+	return newProfile, nil
+}
+
 // loadProfile loads an existing profile
 func loadProfile(elasticPackagePath string, profileName string) (*Profile, error) {
 	profilePath := filepath.Join(elasticPackagePath, profileName)
@@ -114,6 +150,17 @@ func loadProfile(elasticPackagePath string, profileName string) (*Profile, error
 // FetchPath returns an absolute path to the given file
 func (profile Profile) FetchPath(file configFile) string {
 	return profile.configFiles[file].path
+}
+
+// writeProfileResources writes the config files
+func (profile Profile) writeProfileResources() error {
+	for _, cfgFiles := range profile.configFiles {
+		err := cfgFiles.writeConfig()
+		if err != nil {
+			return errors.Wrap(err, "error writing config file")
+		}
+	}
+	return nil
 }
 
 // overwrite updates the string contents of the config files
@@ -192,17 +239,6 @@ func (profile Profile) readProfileResources() error {
 		err := cfgFile.readConfig()
 		if err != nil {
 			return errors.Wrap(err, "error reading in profile")
-		}
-	}
-	return nil
-}
-
-// writeProfileResources writes the config files
-func (profile Profile) writeProfileResources() error {
-	for _, cfgFiles := range profile.configFiles {
-		err := cfgFiles.writeConfig()
-		if err != nil {
-			return errors.Wrap(err, "error writing config file")
 		}
 	}
 	return nil

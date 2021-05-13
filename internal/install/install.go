@@ -14,6 +14,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/configuration/locations"
+	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/profile"
 )
 
@@ -29,6 +30,11 @@ func EnsureInstalled() error {
 	installed, err := checkIfAlreadyInstalled(elasticPackagePath)
 	if installed {
 		return nil
+	}
+
+	err = migrateIfNeeded(elasticPackagePath)
+	if err != nil {
+		return errors.Wrap(err, "error migrating old install")
 	}
 
 	// Create the root .elastic-package path
@@ -81,6 +87,47 @@ func checkIfAlreadyInstalled(elasticPackagePath *locations.LocationManager) (boo
 		return false, errors.Wrapf(err, "stat file failed (path: %s)", elasticPackagePath)
 	}
 	return checkIfLatestVersionInstalled(elasticPackagePath)
+}
+
+// checkIfUnmigrated checks to see if we have a pre-profile config that needs to be migrated
+func migrateIfNeeded(elasticPackagePath *locations.LocationManager) error {
+	// use the snapshot.yml file as a canary to see if we have a pre-profile install
+	_, err := os.Stat(filepath.Join(elasticPackagePath.StackDir(), string(profile.SnapshotFile)))
+	if os.IsNotExist(err) {
+		return nil
+	}
+	if err != nil {
+		return errors.Wrapf(err, "stat file failed (path: %s)", elasticPackagePath)
+	}
+
+	logger.Warn("Pre-profiles elastic-package detected. Existing config will be moved to profile default_old.")
+	// Depending on how old the install is, not all the files will be available to migrate,
+	// So treat any errors from missing files as "soft"
+	oldFiles := []string{
+		filepath.Join(elasticPackagePath.StackDir(), string(profile.SnapshotFile)),
+		filepath.Join(elasticPackagePath.StackDir(), string(profile.PackageRegistryDockerfileFile)),
+		filepath.Join(elasticPackagePath.StackDir(), string(profile.KibanaHealthCheckFile)),
+		filepath.Join(elasticPackagePath.StackDir(), string(profile.KibanaConfigFile)),
+		filepath.Join(elasticPackagePath.StackDir(), string(profile.PackageRegistryConfigFile)),
+	}
+
+	opts := profile.Options{
+		PackagePath: elasticPackagePath.StackDir(),
+		Name:        "default_migrated",
+	}
+	err = profile.MigrateProfileFiles(opts, oldFiles)
+	if err != nil {
+		return errors.Wrap(err, "error migrating profile config")
+	}
+
+	// delete the old files
+	for _, file := range oldFiles {
+		err = os.Remove(file)
+		if err != nil {
+			return errors.Wrapf(err, "error removing config file %s", file)
+		}
+	}
+	return nil
 }
 
 func createElasticPackageDirectory(elasticPackagePath *locations.LocationManager) error {

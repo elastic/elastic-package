@@ -35,6 +35,24 @@ func CreateProfile(options Options) error {
 	return createProfileFrom(options)
 }
 
+// MigrateProfileFiles creates a new profile based on existing filepaths
+// that are stored elsewhere outside the profile system.
+func MigrateProfileFiles(options Options, files []string) error {
+	profile, err := newProfileFromExistingFiles(options.PackagePath, options.Name, files, true)
+	if err != nil {
+		return errors.Wrap(err, "error creating new profile from files")
+	}
+	err = os.Mkdir(profile.ProfilePath, 0755)
+	if err != nil {
+		return errors.Wrapf(err, "error crating profile directory %s", profile.ProfilePath)
+	}
+	err = profile.writeProfileResources()
+	if err != nil {
+		return errors.Wrap(err, "error writing out new profile config")
+	}
+	return nil
+}
+
 // LoadProfile loads an existing profile from the default elastic-package config dir
 func LoadProfile(profileName string) (*Profile, error) {
 	loc, err := locations.NewLocationManager()
@@ -186,7 +204,6 @@ func updateExistingDefaultProfile(path string) error {
 	if err != nil {
 		return errors.Wrap(err, "error moving default profile")
 	}
-
 	return nil
 }
 
