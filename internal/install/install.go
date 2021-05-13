@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 
@@ -100,7 +101,8 @@ func migrateIfNeeded(elasticPackagePath *locations.LocationManager) error {
 		return errors.Wrapf(err, "stat file failed (path: %s)", elasticPackagePath)
 	}
 
-	logger.Warn("Pre-profiles elastic-package detected. Existing config will be moved to profile default_old.")
+	profileName := fmt.Sprintf("default_migrated_%d", time.Now().Unix())
+	logger.Warnf("Pre-profiles elastic-package detected. Existing config will be migrated to %s", profileName)
 	// Depending on how old the install is, not all the files will be available to migrate,
 	// So treat any errors from missing files as "soft"
 	oldFiles := []string{
@@ -113,7 +115,7 @@ func migrateIfNeeded(elasticPackagePath *locations.LocationManager) error {
 
 	opts := profile.Options{
 		PackagePath: elasticPackagePath.StackDir(),
-		Name:        "default_migrated",
+		Name:        profileName,
 	}
 	err = profile.MigrateProfileFiles(opts, oldFiles)
 	if err != nil {

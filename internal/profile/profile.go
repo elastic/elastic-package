@@ -89,10 +89,18 @@ func newProfileFromExistingFiles(elasticPackagePath string, profileName string, 
 		name := filepath.Base(file)
 		configMap[configFile(name)] = &simpleFile{
 			name: name,
-			path: profilePath,
+			path: filepath.Join(profilePath, name),
 			body: string(byteFile),
 		}
 	}
+
+	//add metadata file
+	metadata, err := createProfileMetadata(profileName, profilePath)
+	if err != nil {
+		return nil, errors.Wrap(err, "error creating profile metadata")
+	}
+	configMap[PackageProfileMetaFile] = metadata
+
 	newProfile := &Profile{
 		profileName: profileName,
 		ProfilePath: profilePath,
