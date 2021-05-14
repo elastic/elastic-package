@@ -20,9 +20,9 @@ import (
 
 var availableServices = map[string]struct{}{
 	"elasticsearch":    {},
+	"fleet-server":     {},
 	"kibana":           {},
 	"package-registry": {},
-	"fleet-server":     {},
 }
 
 const stackLongDescription = `Use this command to spin up a Docker-based Elastic Stack consisting of Elasticsearch, Kibana, and the Package Registry. By default the latest released version of the stack is spun up but it is possible to specify a different version, including SNAPSHOT versions.
