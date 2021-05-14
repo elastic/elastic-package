@@ -98,6 +98,12 @@ services:
     ports:
       - "127.0.0.1:8220:8220"
 
+  fleet-server_is_ready:
+    image: tianon/true
+    depends_on:
+      fleet-server:
+        condition: service_healthy
+
   elastic-agent:
     image: ${ELASTIC_AGENT_IMAGE_REF}
     depends_on:
