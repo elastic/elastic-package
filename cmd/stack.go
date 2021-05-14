@@ -21,6 +21,7 @@ import (
 
 var availableServices = map[string]struct{}{
 	"elasticsearch":    {},
+	"fleet-server":     {},
 	"kibana":           {},
 	"package-registry": {},
 }
