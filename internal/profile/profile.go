@@ -16,9 +16,9 @@ import (
 
 // Profile manages a a given user config profile
 type Profile struct {
-	profileName string
 	// ProfilePath is the absolute path to the profile
 	ProfilePath string
+	profileName string
 	configFiles map[configFile]*simpleFile
 }
 

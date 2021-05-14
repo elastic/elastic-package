@@ -17,8 +17,8 @@ const (
 )
 
 func TestNewProfile(t *testing.T) {
-
 	elasticPackageDir, err := ioutil.TempDir("", "package")
+	defer cleanupProfile(t, elasticPackageDir)
 	assert.NoError(t, err, "error creating tempdir")
 	t.Logf("writing to directory %s", elasticPackageDir)
 
@@ -30,12 +30,11 @@ func TestNewProfile(t *testing.T) {
 	err = createProfile(options)
 	assert.NoErrorf(t, err, "error creating profile %s", err)
 
-	cleanupProfile(t, elasticPackageDir)
 }
 
 func TestNewProfileFrom(t *testing.T) {
-
 	elasticPackageDir, err := ioutil.TempDir("", "package")
+	defer cleanupProfile(t, elasticPackageDir)
 	assert.NoError(t, err, "error creating tempdir")
 	t.Logf("writing to directory %s", elasticPackageDir)
 
@@ -76,7 +75,6 @@ func TestNewProfileFrom(t *testing.T) {
 	err = createProfileFrom(option)
 	assert.NoErrorf(t, err, "error copying updating profile %s", err)
 
-	cleanupProfile(t, elasticPackageDir)
 }
 
 func cleanupProfile(t *testing.T, dir string) {

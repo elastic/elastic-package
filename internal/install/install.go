@@ -133,7 +133,6 @@ func migrateIfNeeded(elasticPackagePath *locations.LocationManager) error {
 }
 
 func createElasticPackageDirectory(elasticPackagePath *locations.LocationManager) error {
-
 	//remove unmanaged subdirectories
 	err := os.RemoveAll(elasticPackagePath.TempDir()) // remove in case of potential upgrade
 	if err != nil {

@@ -135,7 +135,6 @@ services:
 
 // newSnapshotFile returns a Managed Config
 func newSnapshotFile(profileName string, profilePath string) (*simpleFile, error) {
-
 	newCfg := strings.ReplaceAll(snapshotYml, "${STACK_DIR}", profileName)
 
 	return &simpleFile{

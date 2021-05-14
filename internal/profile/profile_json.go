@@ -17,11 +17,11 @@ import (
 
 // Metadata stores the data associated with a given profile
 type Metadata struct {
-	Name        string
+	Name        string    `json:"name"`
 	DateCreated time.Time `json:"date_created"`
-	User        string
-	Version     string `json:"elastic_package_version"`
-	From        string
+	User        string    `json:"user"`
+	Version     string    `json:"version"`
+	Path        string    `json:"path"`
 }
 
 // PackageProfileMetaFile is the filename of the profile metadata file

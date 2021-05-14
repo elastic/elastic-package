@@ -193,7 +193,7 @@ func updateExistingDefaultProfile(path string) error {
 	newName := fmt.Sprintf("default_%s_%d", meta.Version, meta.DateCreated.Unix())
 	newFilePath := filepath.Join(filepath.Dir(profile.ProfilePath), newName)
 	meta.Name = newName
-	meta.From = newFilePath
+	meta.Path = newFilePath
 
 	err = profile.updateMetadata(meta)
 	if err != nil {
