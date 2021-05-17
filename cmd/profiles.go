@@ -132,10 +132,9 @@ User profiles are not overwritten on upgrade of elastic-stack, and can be freely
 }
 
 func profileToList(profiles []profile.Metadata) [][]string {
-
 	var profileList [][]string
 	for _, profile := range profiles {
-		profileList = append(profileList, []string{profile.Name, profile.DateCreated.Format(time.RFC3339), profile.User, profile.Version, profile.From})
+		profileList = append(profileList, []string{profile.Name, profile.DateCreated.Format(time.RFC3339), profile.User, profile.Version, profile.Path})
 	}
 
 	return profileList
