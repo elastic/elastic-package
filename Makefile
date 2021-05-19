@@ -42,7 +42,7 @@ test-check-packages:
 test-profiles-command:
 	./scripts/test-profiles-command.sh
 
-test: test-go test-stack-command test-check-packages
+test: test-go test-stack-command test-check-packages test-profiles-command
 
 check-git-clean:
 	git update-index --really-refresh
