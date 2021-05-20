@@ -21,6 +21,7 @@ func dockerComposeBuild(options Options) error {
 	}
 
 	opts := compose.CommandOptions{
+		Env:      []string{options.Profile.NameAsEnv()},
 		Services: withIsReadyServices(withDependentServices(options.Services)),
 	}
 
@@ -42,7 +43,7 @@ func dockerComposePull(options Options) error {
 	}
 
 	opts := compose.CommandOptions{
-		Env:      appConfig.StackImageRefs(options.StackVersion).AsEnv(),
+		Env:      append(appConfig.StackImageRefs(options.StackVersion).AsEnv(), options.Profile.NameAsEnv()),
 		Services: withIsReadyServices(withDependentServices(options.Services)),
 	}
 
@@ -69,7 +70,7 @@ func dockerComposeUp(options Options) error {
 	}
 
 	opts := compose.CommandOptions{
-		Env:       appConfig.StackImageRefs(options.StackVersion).AsEnv(),
+		Env:       append(appConfig.StackImageRefs(options.StackVersion).AsEnv(), options.Profile.NameAsEnv()),
 		ExtraArgs: args,
 		Services:  withIsReadyServices(withDependentServices(options.Services)),
 	}

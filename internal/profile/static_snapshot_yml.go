@@ -6,7 +6,6 @@ package profile
 
 import (
 	"path/filepath"
-	"strings"
 )
 
 // SnapshotFile is the docker-compose snapshot.yml file name
@@ -71,6 +70,8 @@ services:
     build:
       context: ../..
       dockerfile: profiles/${PROFILE_NAME}/Dockerfile.package-registry
+      args:
+        PROFILE: ${PROFILE_NAME}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://127.0.0.1:8080"]
       retries: 300
@@ -140,12 +141,10 @@ services:
 `
 
 // newSnapshotFile returns a Managed Config
-func newSnapshotFile(profileName string, profilePath string) (*simpleFile, error) {
-	newCfg := strings.ReplaceAll(snapshotYml, "${PROFILE_NAME}", profileName)
-
+func newSnapshotFile(_ string, profilePath string) (*simpleFile, error) {
 	return &simpleFile{
 		name: string(SnapshotFile),
 		path: filepath.Join(profilePath, string(SnapshotFile)),
-		body: newCfg,
+		body: snapshotYml,
 	}, nil
 }

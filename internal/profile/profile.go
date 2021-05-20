@@ -160,6 +160,12 @@ func (profile Profile) FetchPath(file configFile) string {
 	return profile.configFiles[file].path
 }
 
+// NameAsEnv returns the profile name as an environment var with key PROFILE_NAME
+func (profile Profile) NameAsEnv() string {
+
+	return fmt.Sprintf("PROFILE_NAME=%s", profile.profileName)
+}
+
 // writeProfileResources writes the config files
 func (profile Profile) writeProfileResources() error {
 	for _, cfgFiles := range profile.configFiles {

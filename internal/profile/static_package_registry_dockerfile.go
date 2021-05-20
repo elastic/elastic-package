@@ -6,7 +6,6 @@ package profile
 
 import (
 	"path/filepath"
-	"strings"
 )
 
 // PackageRegistryBaseImage is the base Docker image of the Elastic Package Registry.
@@ -17,18 +16,17 @@ const PackageRegistryDockerfileFile configFile = "Dockerfile.package-registry"
 
 const packageRegistryDockerfile = `FROM ` + PackageRegistryBaseImage + `
 
-COPY profiles/${PROFILE_NAME}/package-registry.config.yml /package-registry/config.yml
+ARG PROFILE
+COPY profiles/${PROFILE}/package-registry.config.yml /package-registry/config.yml
 COPY stack/development/ /packages/development
 `
 
 // newPackageRegistryDockerfile returns a new config for the package-registry
-func newPackageRegistryDockerfile(profileName string, profilePath string) (*simpleFile, error) {
-	newCfg := strings.ReplaceAll(packageRegistryDockerfile, "${PROFILE_NAME}", profileName)
-
+func newPackageRegistryDockerfile(_ string, profilePath string) (*simpleFile, error) {
 	return &simpleFile{
 		name: string(PackageRegistryDockerfileFile),
 		path: filepath.Join(profilePath, string(PackageRegistryDockerfileFile)),
-		body: newCfg,
+		body: packageRegistryDockerfile,
 	}, nil
 
 }
