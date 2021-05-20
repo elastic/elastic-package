@@ -25,10 +25,12 @@ func CreateProfile(options Options) error {
 		if err != nil {
 			return errors.Wrap(err, "error finding stack dir location")
 		}
-		options.PackagePath = loc.StackDir()
+		options.PackagePath = loc.ProfileDir()
 	}
 
-	if options.FromProfile == "" {
+	// If they're creating from Default, assume they want the actual default, and
+	// not whatever is currently inside default.
+	if options.FromProfile == "" || options.FromProfile == DefaultProfile {
 		return createProfile(options)
 	}
 
@@ -60,7 +62,7 @@ func LoadProfile(profileName string) (*Profile, error) {
 		return nil, errors.Wrap(err, "error finding stack dir location")
 	}
 
-	return loadProfile(loc.StackDir(), profileName)
+	return loadProfile(loc.ProfileDir(), profileName)
 }
 
 // DeleteProfile deletes a profile from the default elastic-package config dir
@@ -69,7 +71,7 @@ func DeleteProfile(profileName string) error {
 	if err != nil {
 		return errors.Wrap(err, "error finding stack dir location")
 	}
-	return deleteProfile(loc.StackDir(), profileName)
+	return deleteProfile(loc.ProfileDir(), profileName)
 }
 
 // FetchAllProfiles returns a list of profile values

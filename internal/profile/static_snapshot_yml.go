@@ -69,8 +69,8 @@ services:
 
   package-registry:
     build:
-      context: ..
-      dockerfile: ${STACK_DIR}/Dockerfile.package-registry
+      context: ../..
+      dockerfile: profiles/${PROFILE_NAME}/Dockerfile.package-registry
     healthcheck:
       test: ["CMD", "curl", "-f", "http://127.0.0.1:8080"]
       retries: 300
@@ -141,7 +141,7 @@ services:
 
 // newSnapshotFile returns a Managed Config
 func newSnapshotFile(profileName string, profilePath string) (*simpleFile, error) {
-	newCfg := strings.ReplaceAll(snapshotYml, "${STACK_DIR}", profileName)
+	newCfg := strings.ReplaceAll(snapshotYml, "${PROFILE_NAME}", profileName)
 
 	return &simpleFile{
 		name: string(SnapshotFile),

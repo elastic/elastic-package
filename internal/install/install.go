@@ -158,8 +158,13 @@ func writeStackResources(elasticPackagePath *locations.LocationManager) error {
 		return errors.Wrapf(err, "creating directory failed (path: %s)", elasticPackagePath.PackagesDir())
 	}
 
+	err = os.MkdirAll(elasticPackagePath.ProfileDir(), 0755)
+	if err != nil {
+		return errors.Wrapf(err, "creating directory failed (path: %s)", elasticPackagePath.PackagesDir())
+	}
+
 	options := profile.Options{
-		PackagePath:       elasticPackagePath.StackDir(),
+		PackagePath:       elasticPackagePath.ProfileDir(),
 		Name:              profile.DefaultProfile,
 		OverwriteExisting: false,
 	}

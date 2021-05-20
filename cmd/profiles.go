@@ -92,7 +92,7 @@ User profiles are not overwritten on upgrade of elastic-stack, and can be freely
 			if err != nil {
 				return errors.Wrap(err, "error fetching profile")
 			}
-			profileList, err := profile.FetchAllProfiles(loc.StackDir())
+			profileList, err := profile.FetchAllProfiles(loc.ProfileDir())
 			if err != nil {
 				return errors.Wrap(err, "error listing all profiles")
 			}
@@ -156,7 +156,7 @@ func availableProfilesAsAList() ([]string, error) {
 	}
 
 	profileNames := []string{}
-	profileList, err := profile.FetchAllProfiles(loc.StackDir())
+	profileList, err := profile.FetchAllProfiles(loc.ProfileDir())
 	if err != nil {
 		return profileNames, errors.Wrap(err, "error fetching all profiles")
 	}

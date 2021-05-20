@@ -17,8 +17,8 @@ const PackageRegistryDockerfileFile configFile = "Dockerfile.package-registry"
 
 const packageRegistryDockerfile = `FROM ` + PackageRegistryBaseImage + `
 
-COPY ${PROFILE_NAME}/package-registry.config.yml /package-registry/config.yml
-COPY development/ /packages/development
+COPY profiles/${PROFILE_NAME}/package-registry.config.yml /package-registry/config.yml
+COPY stack/development/ /packages/development
 `
 
 // newPackageRegistryDockerfile returns a new config for the package-registry
