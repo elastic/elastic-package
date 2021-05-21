@@ -41,7 +41,6 @@ var managedProfileFiles = map[configFile]NewConfig{
 	PackageRegistryConfigFile:     newPackageRegistryConfig,
 	SnapshotFile:                  newSnapshotFile,
 	PackageProfileMetaFile:        createProfileMetadata,
-	KibanaHealthCheckFile:         newKibanaHealthCheck,
 }
 
 // NewConfigProfile creates a new config profile manager

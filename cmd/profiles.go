@@ -35,12 +35,12 @@ User profiles are not overwritten on upgrade of elastic-stack, and can be freely
 	}
 
 	profileNewCommand := &cobra.Command{
-		Use:   "new",
+		Use:   "create",
 		Short: "Create a new profile",
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			if len(args) == 0 {
-				return errors.New("new requires an argument")
+				return errors.New("create requires an argument")
 			}
 			newProfileName := args[0]
 
@@ -116,7 +116,7 @@ User profiles are not overwritten on upgrade of elastic-stack, and can be freely
 				tablewriter.Colors{},
 			)
 
-			table.SetAutoMergeCells(true)
+			table.SetAutoMergeCells(false)
 			table.SetRowLine(true)
 			table.AppendBulk(profilestable)
 			table.Render()

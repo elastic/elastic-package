@@ -108,7 +108,6 @@ func migrateIfNeeded(elasticPackagePath *locations.LocationManager) error {
 	oldFiles := []string{
 		filepath.Join(elasticPackagePath.StackDir(), string(profile.SnapshotFile)),
 		filepath.Join(elasticPackagePath.StackDir(), string(profile.PackageRegistryDockerfileFile)),
-		filepath.Join(elasticPackagePath.StackDir(), string(profile.KibanaHealthCheckFile)),
 		filepath.Join(elasticPackagePath.StackDir(), string(profile.KibanaConfigFile)),
 		filepath.Join(elasticPackagePath.StackDir(), string(profile.PackageRegistryConfigFile)),
 	}
@@ -162,6 +161,8 @@ func writeStackResources(elasticPackagePath *locations.LocationManager) error {
 	if err != nil {
 		return errors.Wrapf(err, "creating directory failed (path: %s)", elasticPackagePath.PackagesDir())
 	}
+
+	err = writeStaticResource(err, filepath.Join(elasticPackagePath.StackDir(), "healthcheck.sh"), kibanaHealthcheckSh)
 
 	options := profile.Options{
 		PackagePath:       elasticPackagePath.ProfileDir(),

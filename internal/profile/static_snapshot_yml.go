@@ -56,7 +56,7 @@ services:
       interval: 1s
     volumes:
       - ./kibana.config.yml:/usr/share/kibana/config/kibana.yml
-      - ./healthcheck.sh:/usr/share/kibana/healthcheck.sh
+      - ../../stack/healthcheck.sh:/usr/share/kibana/healthcheck.sh
     ports:
       - "127.0.0.1:5601:5601"
 

@@ -17,10 +17,10 @@ trap cleanup EXIT
 elastic-package profiles list
 
 # generate a new profile from default
-elastic-package profiles new test_default
+elastic-package profiles create test_default
 
 # generate from a non-default profile
-elastic-package profiles new --from test_default test_from
+elastic-package profiles create --from test_default test_from
 
 # delete a profile
 elastic-package profiles delete test_from
