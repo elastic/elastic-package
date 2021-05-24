@@ -41,14 +41,14 @@ func setupPromoteCommand() *cobraext.Command {
 		RunE:         promoteCommandAction,
 		SilenceUsage: true,
 	}
-	cmd.Flags().StringP(cobraext.DirectionFlagName, "d", "", cobraext.FailFastFlagDescription)
+	cmd.Flags().StringP(cobraext.DirectionFlagName, "d", "", cobraext.DirectionFlagDescription)
 	cmd.Flags().BoolP(cobraext.NewestOnlyFlagName, "n", true, cobraext.NewestOnlyFlagDescription)
 	cmd.Flags().StringSliceP(cobraext.PackagesFlagName, "p", nil, cobraext.PackagesFlagDescription)
 
 	return cobraext.NewCommand(cmd, cobraext.ContextGlobal)
 }
 
-func promoteCommandAction(cmd *cobra.Command, args []string) error {
+func promoteCommandAction(cmd *cobra.Command, _ []string) error {
 	cmd.Println("Promote packages")
 
 	// Setup GitHub
