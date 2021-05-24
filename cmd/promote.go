@@ -212,7 +212,11 @@ func promptPromoteNewestOnly(cmd *cobra.Command) (bool, error) {
 func promptPackages(cmd *cobra.Command, packages storage.PackageVersions) (storage.PackageVersions, error) {
 	revisions, _ := cmd.Flags().GetStringSlice(cobraext.PackagesFlagName)
 	if len(revisions) > 0 {
-		return selectPackageVersions(packages, revisions)
+		parsed, err := storage.ParsePackageVersions(revisions)
+		if err != nil {
+			return nil, errors.Wrap(err, "can't parse package versions")
+		}
+		return selectPackageVersions(packages, parsed)
 	}
 
 	packagesPrompt := &survey.MultiSelect{
@@ -238,12 +242,12 @@ func promptPackages(cmd *cobra.Command, packages storage.PackageVersions) (stora
 	return selected, nil
 }
 
-func selectPackageVersions(packages storage.PackageVersions, revisions []string) (storage.PackageVersions, error) {
+func selectPackageVersions(packages storage.PackageVersions, toBeSelected storage.PackageVersions) (storage.PackageVersions, error) {
 	var selected storage.PackageVersions
-	for _, r := range revisions {
+	for _, r := range toBeSelected {
 		var found bool
 		for _, pv := range packages {
-			if pv.String() == r {
+			if pv.Equal(r) {
 				selected = append(selected, pv)
 				found = true
 				break
@@ -251,7 +255,7 @@ func selectPackageVersions(packages storage.PackageVersions, revisions []string)
 		}
 
 		if !found {
-			return nil, fmt.Errorf("package revision is not present (%s) in the source stage, try to run the command without %s flag", r, cobraext.NewestOnlyFlagName)
+			return nil, fmt.Errorf("package revision is not present (%s) in the source stage, try to run the command without %s flag", r.String(), cobraext.NewestOnlyFlagName)
 		}
 	}
 	return selected, nil
