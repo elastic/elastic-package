@@ -97,7 +97,7 @@ func promoteCommandAction(cmd *cobra.Command, _ []string) error {
 		return nil
 	}
 
-	promotedPackages, err := promptPackages(packagesToBeSelected)
+	promotedPackages, err := promptPackages(cmd, packagesToBeSelected)
 	if err != nil {
 		return errors.Wrap(err, "prompt for package selection failed")
 	}
@@ -209,7 +209,12 @@ func promptPromoteNewestOnly(cmd *cobra.Command) (bool, error) {
 	return newestOnly, nil
 }
 
-func promptPackages(packages storage.PackageVersions) (storage.PackageVersions, error) {
+func promptPackages(cmd *cobra.Command, packages storage.PackageVersions) (storage.PackageVersions, error) {
+	revisions, _ := cmd.Flags().GetStringSlice(cobraext.PackagesFlagName)
+	if len(revisions) > 0 {
+		return selectPackageVersions(packages, revisions)
+	}
+
 	packagesPrompt := &survey.MultiSelect{
 		Message:  "Which packages would you like to promote",
 		Options:  packages.Strings(),
@@ -228,6 +233,25 @@ func promptPackages(packages storage.PackageVersions) (storage.PackageVersions, 
 			if p.String() == option {
 				selected = append(selected, p)
 			}
+		}
+	}
+	return selected, nil
+}
+
+func selectPackageVersions(packages storage.PackageVersions, revisions []string) (storage.PackageVersions, error) {
+	var selected storage.PackageVersions
+	for _, r := range revisions {
+		var found bool
+		for _, pv := range packages {
+			if pv.String() == r {
+				selected = append(selected, pv)
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			return nil, fmt.Errorf("package revision is not present (%s) in the source stage, try to run the command without %s flag", r, cobraext.NewestOnlyFlagName)
 		}
 	}
 	return selected, nil
