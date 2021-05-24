@@ -9,12 +9,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/elastic/elastic-package/internal/cobraext"
-
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
+	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/github"
 	"github.com/elastic/elastic-package/internal/promote"
 	"github.com/elastic/elastic-package/internal/storage"
