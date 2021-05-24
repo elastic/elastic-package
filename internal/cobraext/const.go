@@ -18,6 +18,9 @@ const (
 	DataStreamsFlagName        = "data-streams"
 	DataStreamsFlagDescription = "comma-separated data streams to test"
 
+	DirectionFlagName        = "direction"
+	DirectionFlagDescription = "promotion direction"
+
 	DeferCleanupFlagName        = "defer-cleanup"
 	DeferCleanupFlagDescription = "defer test cleanup for debugging purposes"
 
@@ -32,6 +35,12 @@ const (
 
 	GenerateTestResultFlagName        = "generate"
 	GenerateTestResultFlagDescription = "generate test result file"
+
+	NewestOnlyFlagName        = "newest-only"
+	NewestOnlyFlagDescription = "promote newest packages and remove old ones"
+
+	PackagesFlagName        = "packages"
+	PackagesFlagDescription = "packages to be promoted"
 
 	ReportFormatFlagName        = "report-format"
 	ReportFormatFlagDescription = "format of test report"

@@ -25,6 +25,14 @@ This command is intended primarily for use by administrators.
 
 It allows for selecting packages for promotion and opens new pull requests to review changes. Please be aware that the tool checks out an in-memory Git repository and switches over branches (snapshot, staging and production), so it may take longer to promote a larger number of packages.`
 
+const (
+	promoteDirectionSnapshotStaging    = "snapshot-staging"
+	promoteDirectionStagingProduction  = "staging-production"
+	promoteDirectionSnapshotProduction = "snapshot-production"
+)
+
+var promotionDirections = []string{promoteDirectionSnapshotStaging, promoteDirectionStagingProduction, promoteDirectionSnapshotProduction}
+
 func setupPromoteCommand() *cobraext.Command {
 	cmd := &cobra.Command{
 		Use:          "promote",
@@ -33,6 +41,9 @@ func setupPromoteCommand() *cobraext.Command {
 		RunE:         promoteCommandAction,
 		SilenceUsage: true,
 	}
+	cmd.Flags().StringP(cobraext.DirectionFlagName, "d", "", cobraext.FailFastFlagDescription)
+	cmd.Flags().BoolP(cobraext.NewestOnlyFlagName, "n", true, cobraext.NewestOnlyFlagDescription)
+	cmd.Flags().StringSliceP(cobraext.PackagesFlagName, "p", nil, cobraext.PackagesFlagDescription)
 
 	return cobraext.NewCommand(cmd, cobraext.ContextGlobal)
 }
@@ -58,12 +69,12 @@ func promoteCommandAction(cmd *cobra.Command, args []string) error {
 	cmd.Printf("Current GitHub user: %s\n", githubUser)
 
 	// Prompt for promotion options
-	sourceStage, destinationStage, err := promptPromotion()
+	sourceStage, destinationStage, err := promptPromotion(cmd)
 	if err != nil {
 		return errors.Wrap(err, "prompt for promotion failed")
 	}
 
-	newestOnly, err := promptPromoteNewestOnly()
+	newestOnly, err := promptPromoteNewestOnly(cmd)
 	if err != nil {
 		return errors.Wrap(err, "prompt for promoting newest versions only failed")
 	}
@@ -138,25 +149,55 @@ func promoteCommandAction(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func promptPromotion() (string, string, error) {
-	promotionPrompt := &survey.Select{
-		Message: "Which promotion would you like to run",
-		Options: []string{"snapshot - staging", "staging - production", "snapshot - production"},
-		Default: "snapshot - staging",
+func promptPromotion(cmd *cobra.Command) (string, string, error) {
+	direction, err := cmd.Flags().GetString(cobraext.DirectionFlagName)
+	if err != nil {
+		return "", "", errors.Wrapf(err, "can't read %s flag:", cobraext.DirectionFlagName)
 	}
 
-	var promotion string
-	err := survey.AskOne(promotionPrompt, &promotion)
+	if direction != "" {
+		if !isSupportedPromotionDirection(direction) {
+			return "", "", fmt.Errorf("unsupported promotion direction, use: %s",
+				strings.Join(promotionDirections, ", "))
+		}
+
+		s := strings.Split(direction, "-")
+		return s[0], s[1], nil
+	}
+
+	promotionPrompt := &survey.Select{
+		Message: "Which promotion would you like to run",
+		Options: promotionDirections,
+		Default: promoteDirectionSnapshotStaging,
+	}
+
+	err = survey.AskOne(promotionPrompt, &direction)
 	if err != nil {
 		return "", "", err
 	}
 
-	s := strings.Split(promotion, " - ")
+	s := strings.Split(direction, "-")
 	return s[0], s[1], nil
 }
 
-func promptPromoteNewestOnly() (bool, error) {
-	newestOnly := true
+func isSupportedPromotionDirection(direction string) bool {
+	for _, d := range promotionDirections {
+		if d == direction {
+			return true
+		}
+	}
+	return false
+}
+
+func promptPromoteNewestOnly(cmd *cobra.Command) (bool, error) {
+	newestOnly := false
+
+	newestOnlyFlag := cmd.Flags().Lookup(cobraext.NewestOnlyFlagName)
+	if newestOnlyFlag.Changed {
+		newestOnly, _ = cmd.Flags().GetBool(cobraext.NewestOnlyFlagName)
+		return newestOnly, nil
+	}
+
 	prompt := &survey.Confirm{
 		Message: "Would you like to promote newest versions only and remove older ones?",
 		Default: true,
