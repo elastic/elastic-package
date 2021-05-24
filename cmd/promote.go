@@ -42,7 +42,7 @@ func setupPromoteCommand() *cobraext.Command {
 		SilenceUsage: true,
 	}
 	cmd.Flags().StringP(cobraext.DirectionFlagName, "d", "", cobraext.DirectionFlagDescription)
-	cmd.Flags().BoolP(cobraext.NewestOnlyFlagName, "n", true, cobraext.NewestOnlyFlagDescription)
+	cmd.Flags().BoolP(cobraext.NewestOnlyFlagName, "n", false, cobraext.NewestOnlyFlagDescription)
 	cmd.Flags().StringSliceP(cobraext.PackagesFlagName, "p", nil, cobraext.PackagesFlagDescription)
 
 	return cobraext.NewCommand(cmd, cobraext.ContextGlobal)
