@@ -8,10 +8,9 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
+	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/service"
-
-	"github.com/elastic/elastic-package/internal/cobraext"
 )
 
 const serviceLongDescription = `Use this command to boot up the service stack that can be observed with the package.
@@ -48,7 +47,10 @@ func upCommandAction(cmd *cobra.Command, args []string) error {
 	}
 
 	var dataStreamPath string
-	// TODO handle data stream
+	dataStreamFlag, _ := cmd.Flags().GetString(cobraext.DataStreamFlagName)
+	if dataStreamFlag != "" {
+		// TODO handle data stream
+	}
 
 	err = service.BootUp(service.Options{
 		PackageRootPath:    packageRoot,
