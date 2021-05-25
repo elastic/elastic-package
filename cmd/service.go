@@ -5,7 +5,11 @@
 package cmd
 
 import (
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+
+	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/internal/service"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
 )
@@ -20,7 +24,7 @@ func setupServiceCommand() *cobraext.Command {
 		Short: "Boot up the stack",
 		RunE:  upCommandAction,
 	}
-	upCommand.Flags().BoolP(cobraext.DaemonModeFlagName, "d", false, cobraext.DaemonModeFlagDescription)
+	upCommand.Flags().StringP(cobraext.DataStreamFlagName, "d", "", cobraext.DataStreamFlagDescription)
 
 	cmd := &cobra.Command{
 		Use:   "service",
@@ -34,5 +38,24 @@ func setupServiceCommand() *cobraext.Command {
 
 func upCommandAction(cmd *cobra.Command, args []string) error {
 	cmd.Println("Boot up the service stack")
+
+	packageRoot, found, err := packages.FindPackageRoot()
+	if err != nil {
+		return errors.Wrap(err, "locating package root failed")
+	}
+	if !found {
+		return errors.New("package root not found")
+	}
+
+	var dataStreamPath string
+	// TODO handle data stream
+
+	err = service.BootUp(service.Options{
+		PackageRootPath:    packageRoot,
+		DataStreamRootPath: dataStreamPath,
+	})
+	if err != nil {
+		return errors.Wrap(err, "up command failed")
+	}
 	return nil
 }
