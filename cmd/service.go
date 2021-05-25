@@ -20,12 +20,7 @@ func setupServiceCommand() *cobraext.Command {
 		Short: "Boot up the stack",
 		RunE:  upCommandAction,
 	}
-
-	downCommand := &cobra.Command{
-		Use:   "down",
-		Short: "Take down the stack",
-		RunE:  downCommandAction,
-	}
+	upCommand.Flags().BoolP(cobraext.DaemonModeFlagName, "d", false, cobraext.DaemonModeFlagDescription)
 
 	cmd := &cobra.Command{
 		Use:   "service",
@@ -33,17 +28,11 @@ func setupServiceCommand() *cobraext.Command {
 		Long:  serviceLongDescription,
 	}
 	cmd.AddCommand(upCommand)
-	cmd.AddCommand(downCommand)
 
 	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
 }
 
 func upCommandAction(cmd *cobra.Command, args []string) error {
 	cmd.Println("Boot up the service stack")
-	return nil
-}
-
-func downCommandAction(cmd *cobra.Command, args []string) error {
-	cmd.Println("Take down the service stack")
 	return nil
 }
