@@ -77,7 +77,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		return nil, errors.New("data stream root not found")
 	}
 
-	entryPipeline, pipelineIDs, err := 	installIngestPipelines(r.options.ESClient, dataStreamPath)
+	entryPipeline, pipelineIDs, err := installIngestPipelines(r.options.ESClient, dataStreamPath)
 	if err != nil {
 		return nil, errors.Wrap(err, "installing ingest pipelines failed")
 	}

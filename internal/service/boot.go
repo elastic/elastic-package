@@ -5,12 +5,18 @@
 package service
 
 import (
+	"time"
+
 	"github.com/pkg/errors"
 
+	"github.com/elastic/elastic-package/internal/configuration/locations"
+	"github.com/elastic/elastic-package/internal/testrunner/runners/system"
 	"github.com/elastic/elastic-package/internal/testrunner/runners/system/servicedeployer"
 )
 
+// Options define the details of the service which should be booted up.
 type Options struct {
+	ServiceName        string
 	PackageRootPath    string
 	DataStreamRootPath string
 }
@@ -26,13 +32,22 @@ func BootUp(options Options) error {
 	}
 
 	// Boot up the service
-	// TODO Create ServiceContext
-	var serviceCtxt servicedeployer.ServiceContext
-	deployed, err := serviceDeployer.SetUp(serviceCtxt)
+	locationManager, err := locations.NewLocationManager()
+	if err != nil {
+		return errors.Wrap(err, "reading service logs directory failed")
+	}
 
-	// TODO try to connect to the Elastic stack network
+	var serviceCtxt servicedeployer.ServiceContext
+	serviceCtxt.Name = options.ServiceName
+	serviceCtxt.Logs.Folder.Agent = system.ServiceLogsAgentDir
+	serviceCtxt.Logs.Folder.Local = locationManager.ServiceLogDir()
+	deployed, err := serviceDeployer.SetUp(serviceCtxt)
+	if err != nil {
+		return errors.Wrap(err, "can't set up the service deployer")
+	}
 
 	// TODO Wait for ctrl+c
+	time.Sleep(15 * time.Second)
 
 	// Tear down the service
 	err = deployed.TearDown()

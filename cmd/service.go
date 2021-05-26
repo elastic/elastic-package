@@ -54,7 +54,9 @@ func upCommandAction(cmd *cobra.Command, args []string) error {
 		dataStreamPath = filepath.Join(packageRoot, "data_stream", dataStreamFlag)
 	}
 
+	_, serviceName := filepath.Split(packageRoot)
 	err = service.BootUp(service.Options{
+		ServiceName:        serviceName,
 		PackageRootPath:    packageRoot,
 		DataStreamRootPath: dataStreamPath,
 	})
