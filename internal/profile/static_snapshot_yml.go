@@ -56,7 +56,7 @@ services:
       interval: 1s
     volumes:
       - ./kibana.config.yml:/usr/share/kibana/config/kibana.yml
-      - ../../stack/healthcheck.sh:/usr/share/kibana/healthcheck.sh
+      - ../../../stack/healthcheck.sh:/usr/share/kibana/healthcheck.sh
     ports:
       - "127.0.0.1:5601:5601"
 
@@ -68,8 +68,8 @@ services:
 
   package-registry:
     build:
-      context: ../..
-      dockerfile: profiles/${PROFILE_NAME}/Dockerfile.package-registry
+      context: ../../../
+      dockerfile: ${STACK_PATH}/Dockerfile.package-registry
       args:
         PROFILE: ${PROFILE_NAME}
     healthcheck:
@@ -130,7 +130,7 @@ services:
     - "STATE_PATH=/usr/share/elastic-agent"
     volumes:
     - type: bind
-      source: ../../tmp/service_logs/
+      source: ../../../tmp/service_logs/
       target: /tmp/service_logs/
 
   elastic-agent_is_ready:
@@ -144,7 +144,7 @@ services:
 func newSnapshotFile(_ string, profilePath string) (*simpleFile, error) {
 	return &simpleFile{
 		name: string(SnapshotFile),
-		path: filepath.Join(profilePath, string(SnapshotFile)),
+		path: filepath.Join(profilePath, profileStackPath, string(SnapshotFile)),
 		body: snapshotYml,
 	}, nil
 }

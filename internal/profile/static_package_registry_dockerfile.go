@@ -17,7 +17,7 @@ const PackageRegistryDockerfileFile configFile = "Dockerfile.package-registry"
 const packageRegistryDockerfile = `FROM ` + PackageRegistryBaseImage + `
 
 ARG PROFILE
-COPY profiles/${PROFILE}/package-registry.config.yml /package-registry/config.yml
+COPY profiles/${PROFILE}/stack/package-registry.config.yml /package-registry/config.yml
 COPY stack/development/ /packages/development
 `
 
@@ -25,7 +25,7 @@ COPY stack/development/ /packages/development
 func newPackageRegistryDockerfile(_ string, profilePath string) (*simpleFile, error) {
 	return &simpleFile{
 		name: string(PackageRegistryDockerfileFile),
-		path: filepath.Join(profilePath, string(PackageRegistryDockerfileFile)),
+		path: filepath.Join(profilePath, profileStackPath, string(PackageRegistryDockerfileFile)),
 		body: packageRegistryDockerfile,
 	}, nil
 

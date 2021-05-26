@@ -32,7 +32,7 @@ const KibanaConfigFile configFile = "kibana.config.yml"
 func newKibanaConfig(_ string, profilePath string) (*simpleFile, error) {
 	return &simpleFile{
 		name: string(KibanaConfigFile),
-		path: filepath.Join(profilePath, string(KibanaConfigFile)),
+		path: filepath.Join(profilePath, profileStackPath, string(KibanaConfigFile)),
 		body: kibanaConfigYml,
 	}, nil
 }

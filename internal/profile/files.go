@@ -21,6 +21,8 @@ type simpleFile struct {
 	body string
 }
 
+const profileStackPath = "stack"
+
 // configfilesDiffer checks to see if a local configItem differs from the one it knows.
 func (cfg simpleFile) configfilesDiffer() (bool, error) {
 	changes, err := ioutil.ReadFile(cfg.path)

@@ -21,7 +21,7 @@ func newPackageRegistryConfig(_ string, profilePath string) (*simpleFile, error)
 
 	return &simpleFile{
 		name: string(PackageRegistryConfigFile),
-		path: filepath.Join(profilePath, string(PackageRegistryConfigFile)),
+		path: filepath.Join(profilePath, profileStackPath, string(PackageRegistryConfigFile)),
 		body: packageRegistryConfigYml,
 	}, nil
 }

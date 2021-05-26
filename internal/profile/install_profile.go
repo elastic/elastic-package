@@ -171,9 +171,17 @@ func createAndCheckProfile(packagePath, packageName string, overwriteExisting bo
 			if err != nil {
 				return nil, errors.Wrapf(err, "error crating profile directory %s", profile.ProfilePath)
 			}
+			err = os.Mkdir(profile.ProfileStackPath, 0755)
+			if err != nil {
+				return nil, errors.Wrapf(err, "error crating profile directory %s", profile.ProfilePath)
+			}
 		}
 	} else {
 		err = os.Mkdir(profile.ProfilePath, 0755)
+		if err != nil {
+			return nil, errors.Wrapf(err, "error crating profile directory %s", profile.ProfilePath)
+		}
+		err = os.Mkdir(profile.ProfileStackPath, 0755)
 		if err != nil {
 			return nil, errors.Wrapf(err, "error crating profile directory %s", profile.ProfilePath)
 		}

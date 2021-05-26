@@ -17,9 +17,10 @@ import (
 // Profile manages a a given user config profile
 type Profile struct {
 	// ProfilePath is the absolute path to the profile
-	ProfilePath string
-	profileName string
-	configFiles map[configFile]*simpleFile
+	ProfilePath      string
+	ProfileStackPath string
+	profileName      string
+	configFiles      map[configFile]*simpleFile
 }
 
 const (
@@ -57,9 +58,10 @@ func NewConfigProfile(elasticPackagePath string, profileName string) (*Profile, 
 	}
 
 	newProfile := &Profile{
-		profileName: profileName,
-		ProfilePath: profilePath,
-		configFiles: configMap,
+		profileName:      profileName,
+		ProfilePath:      profilePath,
+		ProfileStackPath: filepath.Join(profilePath, profileStackPath),
+		configFiles:      configMap,
 	}
 	return newProfile, nil
 }
@@ -131,9 +133,10 @@ func loadProfile(elasticPackagePath string, profileName string) (*Profile, error
 	}
 
 	profile := &Profile{
-		profileName: profileName,
-		ProfilePath: profilePath,
-		configFiles: configMap,
+		profileName:      profileName,
+		ProfilePath:      profilePath,
+		ProfileStackPath: filepath.Join(profilePath, profileStackPath),
+		configFiles:      configMap,
 	}
 
 	exists, err := profile.alreadyExists()
@@ -159,10 +162,13 @@ func (profile Profile) FetchPath(file configFile) string {
 	return profile.configFiles[file].path
 }
 
-// NameAsEnv returns the profile name as an environment var with key PROFILE_NAME
-func (profile Profile) NameAsEnv() string {
-
-	return fmt.Sprintf("PROFILE_NAME=%s", profile.profileName)
+// ComposeEnvVars returns a list of environment variables that can be passed
+// to docker-compose for the sake of filling out paths and names in the snapshot.yml file.
+func (profile Profile) ComposeEnvVars() []string {
+	return []string{
+		fmt.Sprintf("PROFILE_NAME=%s", profile.profileName),
+		fmt.Sprintf("STACK_PATH=%s", profile.ProfileStackPath),
+	}
 }
 
 // writeProfileResources writes the config files
