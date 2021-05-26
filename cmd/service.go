@@ -5,6 +5,8 @@
 package cmd
 
 import (
+	"path/filepath"
+
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
@@ -49,7 +51,7 @@ func upCommandAction(cmd *cobra.Command, args []string) error {
 	var dataStreamPath string
 	dataStreamFlag, _ := cmd.Flags().GetString(cobraext.DataStreamFlagName)
 	if dataStreamFlag != "" {
-		// TODO handle data stream
+		dataStreamPath = filepath.Join(packageRoot, "data_stream", dataStreamFlag)
 	}
 
 	err = service.BootUp(service.Options{
