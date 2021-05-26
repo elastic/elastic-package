@@ -5,7 +5,12 @@
 package service
 
 import (
-	"time"
+	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
+
+	"github.com/elastic/elastic-package/internal/logger"
 
 	"github.com/pkg/errors"
 
@@ -23,6 +28,7 @@ type Options struct {
 
 // BootUp function boots up the service stack.
 func BootUp(options Options) error {
+	logger.Debugf("Create new instance of the service deployer")
 	serviceDeployer, err := servicedeployer.Factory(servicedeployer.FactoryOptions{
 		PackageRootPath:    options.DataStreamRootPath,
 		DataStreamRootPath: options.DataStreamRootPath,
@@ -32,6 +38,7 @@ func BootUp(options Options) error {
 	}
 
 	// Boot up the service
+	logger.Debugf("Boot up the service instance")
 	locationManager, err := locations.NewLocationManager()
 	if err != nil {
 		return errors.Wrap(err, "reading service logs directory failed")
@@ -46,10 +53,13 @@ func BootUp(options Options) error {
 		return errors.Wrap(err, "can't set up the service deployer")
 	}
 
-	// TODO Wait for ctrl+c
-	time.Sleep(15 * time.Second)
+	fmt.Println("Service is up, please use ctrl+c to take it down")
+	ch := make(chan os.Signal)
+	signal.Notify(ch, os.Interrupt, syscall.SIGTERM)
+	<-ch
 
 	// Tear down the service
+	fmt.Println("Take down the service")
 	err = deployed.TearDown()
 	if err != nil {
 		return errors.Wrap(err, "can't tear down the service")
