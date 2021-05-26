@@ -18,6 +18,9 @@ const (
 	DataStreamsFlagName        = "data-streams"
 	DataStreamsFlagDescription = "comma-separated data streams to test"
 
+	DirectionFlagName        = "direction"
+	DirectionFlagDescription = "promotion direction"
+
 	DeferCleanupFlagName        = "defer-cleanup"
 	DeferCleanupFlagDescription = "defer test cleanup for debugging purposes"
 
@@ -41,6 +44,12 @@ const (
 
 	ProfileFromFlagName        = "from"
 	ProfileFromFlagDescription = "copy profile from the specified existing profile"
+
+	NewestOnlyFlagName        = "newest-only"
+	NewestOnlyFlagDescription = "promote newest packages and remove old ones"
+
+	PackagesFlagName        = "packages"
+	PackagesFlagDescription = "packages to be promoted (comma-separated values: apache-1.2.3,nginx-5.6.7)"
 
 	ReportFormatFlagName        = "report-format"
 	ReportFormatFlagDescription = "format of test report"
