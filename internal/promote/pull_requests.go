@@ -18,20 +18,22 @@ import (
 const (
 	repositoryOwner = "elastic"
 	repositoryName  = "package-storage"
+
+	githubTitleCharacterLimit = 256
 )
 
 // OpenPullRequestWithRemovedPackages method opens a PR against "base" branch with removed packages.
 // Head is the branch containing the changes that will be added to the base branch.
-func OpenPullRequestWithRemovedPackages(client *github.Client, username, head, base, sourceStage, promotionURL string, promotedPackages storage.PackageVersions) (string, error) {
-	title := fmt.Sprintf("[%s] Remove packages from %s", sourceStage, sourceStage)
-	description := buildPullRequestRemoveDescription(sourceStage, promotionURL, promotedPackages)
+func OpenPullRequestWithRemovedPackages(client *github.Client, username, head, base, sourceStage, promotionURL string, removedPackages storage.PackageVersions) (string, error) {
+	title := buildPullRequestRemoveTitle(sourceStage, removedPackages)
+	description := buildPullRequestRemoveDescription(sourceStage, promotionURL, removedPackages)
 	return openPullRequestWithPackages(client, username, head, base, title, description)
 }
 
 // OpenPullRequestWithPromotedPackages method opens a PR against "base" branch with promoted packages.
 // Head is the branch containing the changes that will be added to the base branch.
 func OpenPullRequestWithPromotedPackages(client *github.Client, username, head, base, sourceStage, destinationStage string, signedPackages storage.SignedPackageVersions) (string, error) {
-	title := fmt.Sprintf("[%s] Promote packages from %s to %s", destinationStage, sourceStage, destinationStage)
+	title := buildPullRequestPromoteTitle(sourceStage, destinationStage, signedPackages.ToPackageVersions())
 	description := buildPullRequestPromoteDescription(sourceStage, destinationStage, signedPackages)
 	return openPullRequestWithPackages(client, username, head, base, title, description)
 }
@@ -61,17 +63,13 @@ func openPullRequestWithPackages(client *github.Client, user, head, base, title,
 	return *pullRequest.HTMLURL, nil
 }
 
-func buildPullRequestRemoveDescription(sourceStage, promotionURL string, versions storage.PackageVersions) string {
-	var builder strings.Builder
-	builder.WriteString(fmt.Sprintf("This PR removes packages from `%s`.\n", sourceStage))
-	builder.WriteString("\n")
-	builder.WriteString("Removed packages:\n")
-	for _, str := range versions.Strings() {
-		builder.WriteString(fmt.Sprintf("* `%s`\n", str))
+func buildPullRequestPromoteTitle(sourceStage, destinationStage string, promotedPackages storage.PackageVersions) string {
+	details := strings.Join(promotedPackages.Strings(), ", ")
+	title := fmt.Sprintf("[%s] Promote packages from %s (%s)", destinationStage, sourceStage, details)
+	if len(title) > githubTitleCharacterLimit {
+		return fmt.Sprintf("[%s] Promote many packages from %s", destinationStage, sourceStage)
 	}
-	builder.WriteString("\n")
-	builder.WriteString(fmt.Sprintf("Please make sure that the promotion PR is merged first: %s", promotionURL))
-	return builder.String()
+	return title
 }
 
 func buildPullRequestPromoteDescription(sourceStage, destinationStage string, signedPackages storage.SignedPackageVersions) string {
@@ -82,5 +80,27 @@ func buildPullRequestPromoteDescription(sourceStage, destinationStage string, si
 	for _, str := range signedPackages.Strings() {
 		builder.WriteString(fmt.Sprintf("* `%s`\n", str))
 	}
+	return builder.String()
+}
+
+func buildPullRequestRemoveTitle(stage string, removedPackages storage.PackageVersions) string {
+	details := strings.Join(removedPackages.Strings(), ", ")
+	title := fmt.Sprintf("[%s] Remove promoted packages (%s)", stage, details)
+	if len(title) > githubTitleCharacterLimit {
+		return fmt.Sprintf("[%s] Remove many promoted packages", stage)
+	}
+	return title
+}
+
+func buildPullRequestRemoveDescription(sourceStage, promotionURL string, versions storage.PackageVersions) string {
+	var builder strings.Builder
+	builder.WriteString(fmt.Sprintf("This PR removes packages from `%s`.\n", sourceStage))
+	builder.WriteString("\n")
+	builder.WriteString("Removed packages:\n")
+	for _, str := range versions.Strings() {
+		builder.WriteString(fmt.Sprintf("* `%s`\n", str))
+	}
+	builder.WriteString("\n")
+	builder.WriteString(fmt.Sprintf("Please make sure that the promotion PR is merged first: %s", promotionURL))
 	return builder.String()
 }

@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/Masterminds/semver"
 	"github.com/go-git/go-billy/v5"
@@ -79,7 +80,7 @@ func (pv *PackageVersion) path() string {
 
 // Equal method can be used to compare two PackageVersions.
 func (pv *PackageVersion) Equal(other PackageVersion) bool {
-	return pv.semver.Equal(&other.semver)
+	return pv.semver.Equal(&other.semver) && pv.Name == other.Name
 }
 
 // String method returns a string representation of the PackageVersion.
@@ -130,6 +131,24 @@ func (prs PackageVersions) Strings() []string {
 		entries = append(entries, pr.String())
 	}
 	return entries
+}
+
+// ParsePackageVersions function parses string representation of revisions into structure.
+func ParsePackageVersions(packageVersions []string) (PackageVersions, error) {
+	var parsed PackageVersions
+	for _, pv := range packageVersions {
+		s := strings.Split(pv, "-")
+		if len(s) != 2 {
+			return nil, fmt.Errorf("invalid package revision format (expected: <package_name>-<version>): %s", pv)
+		}
+
+		revision, err := NewPackageVersion(s[0], s[1])
+		if err != nil {
+			return nil, errors.Wrapf(err, "can't create package version (%s)", s)
+		}
+		parsed = append(parsed, *revision)
+	}
+	return parsed, nil
 }
 
 // CloneRepository function clones the repository and changes branch to stage.

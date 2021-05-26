@@ -47,6 +47,15 @@ func (s SignedPackageVersions) Strings() []string {
 	return entries
 }
 
+// ToPackageVersions returns an array of PackageVersions without signature.
+func (s SignedPackageVersions) ToPackageVersions() PackageVersions {
+	var prs PackageVersions
+	for _, signed := range s {
+		prs = append(prs, signed.PackageVersion)
+	}
+	return prs
+}
+
 // CalculatePackageSignatures computes the combined sha1 hash for all the files in the package
 // this is equivalent to doing find <package> -type f -exec <hash tool> {} + | awk '{print $1}' | sort | <hash tool>
 // on the package version directory

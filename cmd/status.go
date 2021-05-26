@@ -140,7 +140,6 @@ func print(p *status.PackageStatus, w io.Writer) error {
 		tablewriter.Colors{},
 		tablewriter.Colors{},
 	)
-	table.SetAutoMergeCells(true)
 	table.SetRowLine(true)
 	table.AppendBulk(environmentTable)
 	table.Render()
