@@ -8,14 +8,13 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/elastic/elastic-package/internal/install"
-	"github.com/elastic/elastic-package/internal/profile"
-
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/common"
+	"github.com/elastic/elastic-package/internal/install"
+	"github.com/elastic/elastic-package/internal/profile"
 	"github.com/elastic/elastic-package/internal/stack"
 )
 
