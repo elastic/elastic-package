@@ -41,7 +41,7 @@ func ConnectToElasticStackNetwork() error {
 		return errors.Wrap(err, "can't find kind-control plane node")
 	}
 
-	stackNetwork := fmt.Sprintf("%s_default", stack.DockerComposeProjectName)
+	stackNetwork := stack.Network()
 	logger.Debugf("check network connectivity between service container %s (ID: %s) and the stack network %s", ControlPlaneContainerName, containerID, stackNetwork)
 
 	networkDescriptions, err := docker.InspectNetwork(stackNetwork)
