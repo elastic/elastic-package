@@ -152,13 +152,21 @@ Use this command to publish a new package revision.
 
 The command checks if the package hasn't been already published (whether it's present in snapshot/staging/production branch or open as pull request). If the package revision hasn't been published, it will open a new pull request.
 
+### `elastic-package service`
+
+_Context: package_
+
+Use this command to boot up the service stack that can be observed with the package.
+
+The command manages lifecycle of the service stack defined for the package ("_dev/deploy") for package development and testing purposes.
+
 ### `elastic-package stack`
 
 _Context: global_
 
 Use this command to spin up a Docker-based Elastic Stack consisting of Elasticsearch, Kibana, and the Package Registry. By default the latest released version of the stack is spun up but it is possible to specify a different version, including SNAPSHOT versions.
 
-For details on how to connect the service with the Elastic stack, see the [HOWTO guide](https://github.com/elastic/elastic-package/blob/master/docs/howto/connect_service_with_elastic_stack.md).
+For details on how to connect the service with the Elastic stack, see the [service command](https://github.com/elastic/elastic-package/blob/master/README.md#elastic-package-service).
 
 ### `elastic-package status [package]`
 

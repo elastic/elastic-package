@@ -5,13 +5,12 @@
 package servicedeployer
 
 import (
-	"bytes"
 	"fmt"
-	"os/exec"
 
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/compose"
+	"github.com/elastic/elastic-package/internal/docker"
 	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/stack"
@@ -51,6 +50,12 @@ func (r *DockerComposeServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedSer
 		return nil, errors.Wrap(err, "could not create docker compose project for service")
 	}
 
+	// Verify the Elastic stack network
+	err = stack.EnsureStackNetworkUp()
+	if err != nil {
+		return nil, errors.Wrap(err, "Elastic stack network is not ready")
+	}
+
 	// Clean service logs
 	err = files.RemoveContent(outCtxt.Logs.Folder.Local)
 	if err != nil {
@@ -72,13 +77,9 @@ func (r *DockerComposeServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedSer
 	outCtxt.Hostname = serviceContainer
 
 	// Connect service network with stack network (for the purpose of metrics collection)
-	stackNetwork := fmt.Sprintf("%s_default", stack.DockerComposeProjectName)
-	logger.Debugf("attaching service container %s to stack network %s", serviceContainer, stackNetwork)
-	cmd := exec.Command("docker", "network", "connect", stackNetwork, serviceContainer)
-	errOutput := new(bytes.Buffer)
-	cmd.Stderr = errOutput
-	if err := cmd.Run(); err != nil {
-		return nil, errors.Wrapf(err, "could not attach service container to the stack network (stderr=%q)", errOutput.String())
+	err = docker.ConnectToNetwork(serviceContainer, stack.Network())
+	if err != nil {
+		return nil, errors.Wrapf(err, "can't attach service container to the stack network")
 	}
 
 	logger.Debugf("adding service container %s internal ports to context", serviceContainer)

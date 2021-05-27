@@ -25,6 +25,7 @@ var commands = []*cobraext.Command{
 	setupProfilesCommand(),
 	setupPromoteCommand(),
 	setupPublishCommand(),
+	setupServiceCommand(),
 	setupStackCommand(),
 	setupStatusCommand(),
 	setupTestCommand(),
