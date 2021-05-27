@@ -15,6 +15,9 @@ const (
 	DashboardIDsFlagName        = "id"
 	DashboardIDsFlagDescription = "Kibana dashboard IDs (comma-separated values)"
 
+	DataStreamFlagName        = "data-stream"
+	DataStreamFlagDescription = "use service stack related to the data stream"
+
 	DataStreamsFlagName        = "data-streams"
 	DataStreamsFlagDescription = "comma-separated data streams to test"
 

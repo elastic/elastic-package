@@ -18,7 +18,7 @@ import (
 // Elastic Stack containers.
 const DockerComposeProjectName = "elastic-package-stack"
 
-// BootUp function boots up the testing stack.
+// BootUp function boots up the Elastic stack.
 func BootUp(options Options) error {
 	buildPackagesPath, found, err := builder.FindBuildPackagesDirectory()
 	if err != nil {

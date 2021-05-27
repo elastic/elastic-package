@@ -43,9 +43,9 @@ const (
 	// Maximum number of events to query.
 	elasticsearchQuerySize = 500
 
-	// Folder path where log files produced by the service
+	// ServiceLogsAgentDir is folder path where log files produced by the service
 	// are stored on the Agent container's filesystem.
-	serviceLogsAgentDir = "/tmp/service_logs"
+	ServiceLogsAgentDir = "/tmp/service_logs"
 )
 
 type runner struct {
@@ -140,7 +140,7 @@ func (r *runner) run() (results []testrunner.TestResult, err error) {
 		var ctxt servicedeployer.ServiceContext
 		ctxt.Name = r.options.TestFolder.Package
 		ctxt.Logs.Folder.Local = locationManager.ServiceLogDir()
-		ctxt.Logs.Folder.Agent = serviceLogsAgentDir
+		ctxt.Logs.Folder.Agent = ServiceLogsAgentDir
 		ctxt.Test.RunID = createTestRunID()
 		testConfig, err := newConfig(filepath.Join(r.options.TestFolder.Path, cfgFile), ctxt)
 		if err != nil {
