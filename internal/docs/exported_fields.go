@@ -82,11 +82,21 @@ func renderFieldsTable(builder *strings.Builder, collected []fieldsTableRecord) 
 }
 
 func areUnitsPresent(collected []fieldsTableRecord) bool {
-	return false // TODO
+	for _, c := range collected {
+		if c.unit != "" {
+			return true
+		}
+	}
+	return false
 }
 
 func areMetricTypesPresent(collected []fieldsTableRecord) bool {
-	return false // TODO
+	for _, c := range collected {
+		if c.metricType != "" {
+			return true
+		}
+	}
+	return false
 }
 
 func collectFieldsFromDefinitions(fieldDefinitions []fields.FieldDefinition) ([]fieldsTableRecord, error) {
