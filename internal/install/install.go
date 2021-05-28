@@ -10,10 +10,13 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/configuration/locations"
+	"github.com/elastic/elastic-package/internal/logger"
+	"github.com/elastic/elastic-package/internal/profile"
 )
 
 const versionFilename = "version"
@@ -30,16 +33,24 @@ func EnsureInstalled() error {
 		return nil
 	}
 
+	err = migrateIfNeeded(elasticPackagePath)
+	if err != nil {
+		return errors.Wrap(err, "error migrating old install")
+	}
+
+	// Create the root .elastic-package path
 	err = createElasticPackageDirectory(elasticPackagePath)
 	if err != nil {
 		return errors.Wrap(err, "creating elastic package directory failed")
 	}
 
+	// write the root config.yml file
 	err = writeConfigFile(elasticPackagePath)
 	if err != nil {
 		return errors.Wrap(err, "writing configuration file failed")
 	}
 
+	// write root version file
 	err = writeVersionFile(elasticPackagePath)
 	if err != nil {
 		return errors.Wrap(err, "writing version file failed")
@@ -76,11 +87,58 @@ func checkIfAlreadyInstalled(elasticPackagePath *locations.LocationManager) (boo
 	if err != nil {
 		return false, errors.Wrapf(err, "stat file failed (path: %s)", elasticPackagePath)
 	}
-	return checkIfLatestVersionInstalled(elasticPackagePath.RootDir())
+	return checkIfLatestVersionInstalled(elasticPackagePath)
+}
+
+// checkIfUnmigrated checks to see if we have a pre-profile config that needs to be migrated
+func migrateIfNeeded(elasticPackagePath *locations.LocationManager) error {
+	// use the snapshot.yml file as a canary to see if we have a pre-profile install
+	_, err := os.Stat(filepath.Join(elasticPackagePath.StackDir(), string(profile.SnapshotFile)))
+	if os.IsNotExist(err) {
+		return nil
+	}
+	if err != nil {
+		return errors.Wrapf(err, "stat file failed (path: %s)", elasticPackagePath)
+	}
+
+	profileName := fmt.Sprintf("default_migrated_%d", time.Now().Unix())
+	logger.Warnf("Pre-profiles elastic-package detected. Existing config will be migrated to %s", profileName)
+	// Depending on how old the install is, not all the files will be available to migrate,
+	// So treat any errors from missing files as "soft"
+	oldFiles := []string{
+		filepath.Join(elasticPackagePath.StackDir(), string(profile.SnapshotFile)),
+		filepath.Join(elasticPackagePath.StackDir(), string(profile.PackageRegistryDockerfileFile)),
+		filepath.Join(elasticPackagePath.StackDir(), string(profile.KibanaConfigFile)),
+		filepath.Join(elasticPackagePath.StackDir(), string(profile.PackageRegistryConfigFile)),
+	}
+
+	opts := profile.Options{
+		PackagePath: elasticPackagePath.StackDir(),
+		Name:        profileName,
+	}
+	err = profile.MigrateProfileFiles(opts, oldFiles)
+	if err != nil {
+		return errors.Wrap(err, "error migrating profile config")
+	}
+
+	// delete the old files
+	for _, file := range oldFiles {
+		err = os.Remove(file)
+		if err != nil {
+			return errors.Wrapf(err, "error removing config file %s", file)
+		}
+	}
+	return nil
 }
 
 func createElasticPackageDirectory(elasticPackagePath *locations.LocationManager) error {
-	err := os.RemoveAll(elasticPackagePath.RootDir()) // remove in case of potential upgrade
+	//remove unmanaged subdirectories
+	err := os.RemoveAll(elasticPackagePath.TempDir()) // remove in case of potential upgrade
+	if err != nil {
+		return errors.Wrapf(err, "removing directory failed (path: %s)", elasticPackagePath)
+	}
+
+	err = os.RemoveAll(elasticPackagePath.DeployerDir()) // remove in case of potential upgrade
 	if err != nil {
 		return errors.Wrapf(err, "removing directory failed (path: %s)", elasticPackagePath)
 	}
@@ -99,16 +157,20 @@ func writeStackResources(elasticPackagePath *locations.LocationManager) error {
 		return errors.Wrapf(err, "creating directory failed (path: %s)", elasticPackagePath.PackagesDir())
 	}
 
-	err = writeStaticResource(err, filepath.Join(elasticPackagePath.StackDir(), "kibana.config.yml"), kibanaConfigYml)
-	err = writeStaticResource(err, filepath.Join(elasticPackagePath.StackDir(), "healthcheck.sh"), kibanaHealthcheckSh)
-	err = writeStaticResource(err, filepath.Join(elasticPackagePath.StackDir(), "snapshot.yml"), snapshotYml)
-	err = writeStaticResource(err, filepath.Join(elasticPackagePath.StackDir(), "package-registry.config.yml"), packageRegistryConfigYml)
-	err = writeStaticResource(err, filepath.Join(elasticPackagePath.StackDir(), "Dockerfile.package-registry"), packageRegistryDockerfile)
-
+	err = os.MkdirAll(elasticPackagePath.ProfileDir(), 0755)
 	if err != nil {
-		return errors.Wrap(err, "writing static resource failed")
+		return errors.Wrapf(err, "creating directory failed (path: %s)", elasticPackagePath.PackagesDir())
 	}
-	return nil
+
+	err = writeStaticResource(err, filepath.Join(elasticPackagePath.StackDir(), "healthcheck.sh"), kibanaHealthcheckSh)
+
+	options := profile.Options{
+		PackagePath:       elasticPackagePath.ProfileDir(),
+		Name:              profile.DefaultProfile,
+		OverwriteExisting: false,
+	}
+	return profile.CreateProfile(options)
+
 }
 
 func writeKubernetesDeployerResources(elasticPackagePath *locations.LocationManager) error {

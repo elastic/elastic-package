@@ -63,8 +63,8 @@ func BootUp(options Options) error {
 }
 
 // TearDown function takes down the testing stack.
-func TearDown() error {
-	err := dockerComposeDown()
+func TearDown(options Options) error {
+	err := dockerComposeDown(options)
 	if err != nil {
 		return errors.Wrap(err, "stopping docker containers failed")
 	}

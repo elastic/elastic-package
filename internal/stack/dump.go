@@ -13,13 +13,15 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/logger"
+	"github.com/elastic/elastic-package/internal/profile"
 )
 
 var observedServices = []string{"elasticsearch", "elastic-agent", "fleet-server", "kibana", "package-registry"}
 
 // DumpOptions defines dumping options for Elatic stack data.
 type DumpOptions struct {
-	Output string
+	Output  string
+	Profile *profile.Profile
 }
 
 // Dump function exports stack data and dumps them as local artifacts, which can be used for debug purposes.
@@ -48,10 +50,12 @@ func dumpStackLogs(options DumpOptions) error {
 		return errors.Wrap(err, "can't create output location")
 	}
 
+	snapshotPath := options.Profile.FetchPath(profile.SnapshotFile)
+
 	for _, serviceName := range observedServices {
 		logger.Debugf("Dump stack logs for %s", serviceName)
 
-		serviceLogs, err := dockerComposeLogs(serviceName)
+		serviceLogs, err := dockerComposeLogs(serviceName, snapshotPath)
 		if err != nil {
 			logger.Errorf("can't fetch service logs (service: %s): %v", serviceName, err)
 			continue

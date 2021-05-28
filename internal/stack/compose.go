@@ -6,29 +6,22 @@ package stack
 
 import (
 	"fmt"
-	"path/filepath"
 
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/compose"
-	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/install"
+	"github.com/elastic/elastic-package/internal/profile"
 )
 
-const snapshotDefinitionFile = "snapshot.yml"
-
 func dockerComposeBuild(options Options) error {
-	locationManager, err := locations.NewLocationManager()
-	if err != nil {
-		return errors.Wrap(err, "locating stack directory failed")
-	}
-
-	c, err := compose.NewProject(DockerComposeProjectName, filepath.Join(locationManager.StackDir(), snapshotDefinitionFile))
+	c, err := compose.NewProject(DockerComposeProjectName, options.Profile.FetchPath(profile.SnapshotFile))
 	if err != nil {
 		return errors.Wrap(err, "could not create docker compose project")
 	}
 
 	opts := compose.CommandOptions{
+		Env:      options.Profile.ComposeEnvVars(),
 		Services: withIsReadyServices(withDependentServices(options.Services)),
 	}
 
@@ -39,12 +32,7 @@ func dockerComposeBuild(options Options) error {
 }
 
 func dockerComposePull(options Options) error {
-	locationManager, err := locations.NewLocationManager()
-	if err != nil {
-		return errors.Wrap(err, "locating stack directory failed")
-	}
-
-	c, err := compose.NewProject(DockerComposeProjectName, filepath.Join(locationManager.StackDir(), snapshotDefinitionFile))
+	c, err := compose.NewProject(DockerComposeProjectName, options.Profile.FetchPath(profile.SnapshotFile))
 	if err != nil {
 		return errors.Wrap(err, "could not create docker compose project")
 	}
@@ -55,7 +43,7 @@ func dockerComposePull(options Options) error {
 	}
 
 	opts := compose.CommandOptions{
-		Env:      appConfig.StackImageRefs(options.StackVersion).AsEnv(),
+		Env:      append(appConfig.StackImageRefs(options.StackVersion).AsEnv(), options.Profile.ComposeEnvVars()...),
 		Services: withIsReadyServices(withDependentServices(options.Services)),
 	}
 
@@ -66,12 +54,7 @@ func dockerComposePull(options Options) error {
 }
 
 func dockerComposeUp(options Options) error {
-	locationManager, err := locations.NewLocationManager()
-	if err != nil {
-		return errors.Wrap(err, "locating stack directory failed")
-	}
-
-	c, err := compose.NewProject(DockerComposeProjectName, filepath.Join(locationManager.StackDir(), snapshotDefinitionFile))
+	c, err := compose.NewProject(DockerComposeProjectName, options.Profile.FetchPath(profile.SnapshotFile))
 	if err != nil {
 		return errors.Wrap(err, "could not create docker compose project")
 	}
@@ -87,7 +70,7 @@ func dockerComposeUp(options Options) error {
 	}
 
 	opts := compose.CommandOptions{
-		Env:       appConfig.StackImageRefs(options.StackVersion).AsEnv(),
+		Env:       append(appConfig.StackImageRefs(options.StackVersion).AsEnv(), options.Profile.ComposeEnvVars()...),
 		ExtraArgs: args,
 		Services:  withIsReadyServices(withDependentServices(options.Services)),
 	}
@@ -98,13 +81,8 @@ func dockerComposeUp(options Options) error {
 	return nil
 }
 
-func dockerComposeDown() error {
-	locationManager, err := locations.NewLocationManager()
-	if err != nil {
-		return errors.Wrap(err, "locating stack directory failed")
-	}
-
-	c, err := compose.NewProject(DockerComposeProjectName, filepath.Join(locationManager.StackDir(), snapshotDefinitionFile))
+func dockerComposeDown(options Options) error {
+	c, err := compose.NewProject(DockerComposeProjectName, options.Profile.FetchPath(profile.SnapshotFile))
 	if err != nil {
 		return errors.Wrap(err, "could not create docker compose project")
 	}
@@ -115,13 +93,8 @@ func dockerComposeDown() error {
 	return nil
 }
 
-func dockerComposeLogs(serviceName string) ([]byte, error) {
-	locationManager, err := locations.NewLocationManager()
-	if err != nil {
-		return nil, errors.Wrap(err, "locating stack directory failed")
-	}
-
-	c, err := compose.NewProject(DockerComposeProjectName, filepath.Join(locationManager.StackDir(), snapshotDefinitionFile))
+func dockerComposeLogs(serviceName string, snapshotFile string) ([]byte, error) {
+	c, err := compose.NewProject(DockerComposeProjectName, snapshotFile)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create docker compose project")
 	}

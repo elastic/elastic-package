@@ -8,12 +8,12 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/docker"
-	"github.com/elastic/elastic-package/internal/install"
+	"github.com/elastic/elastic-package/internal/profile"
 )
 
 // Update pulls down the most recent versions of the Docker images.
 func Update(options Options) error {
-	err := docker.Pull(install.PackageRegistryBaseImage)
+	err := docker.Pull(profile.PackageRegistryBaseImage)
 	if err != nil {
 		return errors.Wrap(err, "pulling package-registry docker image failed")
 	}

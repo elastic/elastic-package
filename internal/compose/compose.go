@@ -124,6 +124,7 @@ type CommandOptions struct {
 
 // NewProject creates a new Docker Compose project given a sequence of Docker Compose configuration files.
 func NewProject(name string, paths ...string) (*Project, error) {
+	// TODO: a lot of the checks in NewProject don't need to happen any more, we might want to rethink how we do this.
 	for _, path := range paths {
 		info, err := os.Stat(path)
 		if err != nil {
