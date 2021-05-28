@@ -19,6 +19,8 @@ type fieldsTableRecord struct {
 	name        string
 	description string
 	aType       string
+	unit        string
+	metricType  string
 }
 
 func renderExportedFields(packageRoot, dataStreamName string) (string, error) {
@@ -40,13 +42,51 @@ func renderExportedFields(packageRoot, dataStreamName string) (string, error) {
 		builder.WriteString("(no fields available)\n")
 		return builder.String(), nil
 	}
-	builder.WriteString("| Field | Description | Type |\n")
-	builder.WriteString("|---|---|---|\n")
+	renderFieldsTable(&builder, collected)
+	return builder.String(), nil
+}
+
+func renderFieldsTable(builder *strings.Builder, collected []fieldsTableRecord) {
+	unitsPresent := areUnitsPresent(collected)
+	metricTypesPresent := areMetricTypesPresent(collected)
+
+	builder.WriteString("| Field | Description | Type |")
+	if unitsPresent {
+		builder.WriteString(" Unit |")
+	}
+	if metricTypesPresent {
+		builder.WriteString(" Metric Type |")
+	}
+
+	builder.WriteString("\n")
+	builder.WriteString("|---|---|---|")
+	if unitsPresent {
+		builder.WriteString("---|")
+	}
+	if metricTypesPresent {
+		builder.WriteString("---|")
+	}
+
+	builder.WriteString("\n")
 	for _, c := range collected {
 		description := strings.TrimSpace(strings.ReplaceAll(c.description, "\n", " "))
-		builder.WriteString(fmt.Sprintf("| %s | %s | %s |\n", c.name, description, c.aType))
+		builder.WriteString(fmt.Sprintf("| %s | %s | %s |", c.name, description, c.aType))
+		if unitsPresent {
+			builder.WriteString(fmt.Sprintf(" %s |", c.unit))
+		}
+		if metricTypesPresent {
+			builder.WriteString(fmt.Sprintf(" %s |", c.metricType))
+		}
+		builder.WriteString("\n")
 	}
-	return builder.String(), nil
+}
+
+func areUnitsPresent(collected []fieldsTableRecord) bool {
+	return false // TODO
+}
+
+func areMetricTypesPresent(collected []fieldsTableRecord) bool {
+	return false // TODO
 }
 
 func collectFieldsFromDefinitions(fieldDefinitions []fields.FieldDefinition) ([]fieldsTableRecord, error) {
@@ -75,6 +115,8 @@ func visitFields(namePrefix string, f fields.FieldDefinition, records []fieldsTa
 			name:        name,
 			description: f.Description,
 			aType:       f.Type,
+			unit:        f.Unit,
+			metricType:  f.MetricType,
 		})
 		return records, nil
 	}
