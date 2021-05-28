@@ -10,5 +10,7 @@ type FieldDefinition struct {
 	Description string            `yaml:"description"`
 	Type        string            `yaml:"type"`
 	Pattern     string            `yaml:"pattern"`
+	Unit        string            `yaml:"unit"`
+	MetricType  string            `yaml:"metric_type"`
 	Fields      []FieldDefinition `yaml:"fields"`
 }
