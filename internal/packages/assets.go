@@ -147,7 +147,7 @@ func loadElasticsearchAssets(pkgRootPath string) ([]Asset, error) {
 func loadFileBasedAssets(kibanaAssetsFolderPath string, assetType AssetType) ([]Asset, error) {
 	assetsFolderPath := filepath.Join(kibanaAssetsFolderPath, string(assetType))
 	_, err := os.Stat(assetsFolderPath)
-	if err != nil && os.IsNotExist(err) {
+	if err != nil && errors.Is(err, os.ErrNotExist) {
 		// No assets folder defined; nothing to load
 		return nil, nil
 	}

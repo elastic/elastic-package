@@ -81,7 +81,7 @@ func EnsureInstalled() error {
 
 func checkIfAlreadyInstalled(elasticPackagePath *locations.LocationManager) (bool, error) {
 	_, err := os.Stat(elasticPackagePath.StackDir())
-	if os.IsNotExist(err) {
+	if errors.Is(err, os.ErrNotExist) {
 		return false, nil
 	}
 	if err != nil {
