@@ -35,7 +35,7 @@ func readTestCaseEntriesForEvents(inputData []byte) ([]json.RawMessage, error) {
 	return tcd.Events, nil
 }
 
-func readTestCaseEntriesForRawInput(inputData []byte, config testConfig) ([]json.RawMessage, error) {
+func readTestCaseEntriesForRawInput(inputData []byte, config *testConfig) ([]json.RawMessage, error) {
 	entries, err := readRawInputEntries(inputData, config)
 	if err != nil {
 		return nil, errors.Wrap(err, "reading raw input entries failed")
@@ -55,7 +55,7 @@ func readTestCaseEntriesForRawInput(inputData []byte, config testConfig) ([]json
 	return events, nil
 }
 
-func createTestCase(filename string, entries []json.RawMessage, config testConfig) (*testCase, error) {
+func createTestCase(filename string, entries []json.RawMessage, config *testConfig) (*testCase, error) {
 	var events []json.RawMessage
 	for _, entry := range entries {
 		var m common.MapStr
@@ -79,12 +79,12 @@ func createTestCase(filename string, entries []json.RawMessage, config testConfi
 	}
 	return &testCase{
 		name:   filename,
-		config: &config,
+		config: config,
 		events: events,
 	}, nil
 }
 
-func readRawInputEntries(inputData []byte, c testConfig) ([]string, error) {
+func readRawInputEntries(inputData []byte, c *testConfig) ([]string, error) {
 	var inputDataEntries []string
 
 	var builder strings.Builder

@@ -188,7 +188,7 @@ func (r *runner) loadTestCaseFile(testCaseFile string) (*testCase, error) {
 	if config.Skip != nil {
 		return &testCase{
 			name:   testCaseFile,
-			config: &config,
+			config: config,
 		}, nil
 	}
 
