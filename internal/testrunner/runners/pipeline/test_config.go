@@ -55,12 +55,14 @@ func readConfigForTestCase(testCasePath string) (*testConfig, error) {
 
 	configPath := filepath.Join(testCaseDir, expectedTestConfigFile(testCaseFile, configTestSuffixYAML))
 	cfg, err = yaml.NewConfigWithFile(configPath)
-	if err != nil {
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return nil, errors.Wrapf(err, "can't load test configuration: %s", configPath)
 	}
 
-	if err := cfg.Unpack(&c); err != nil {
-		return nil, errors.Wrapf(err, "can't unpack test configuration: %s", configPath)
+	if err == nil {
+		if err := cfg.Unpack(&c); err != nil {
+			return nil, errors.Wrapf(err, "can't unpack test configuration: %s", configPath)
+		}
 	}
 	return &c, nil
 }
