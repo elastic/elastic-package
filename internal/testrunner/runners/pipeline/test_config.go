@@ -5,72 +5,66 @@
 package pipeline
 
 import (
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
-	"gopkg.in/yaml.v3"
-
+	"github.com/elastic/go-ucfg/yaml"
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
 
 const (
-	configTestSuffixJSON = "-config.json"
 	configTestSuffixYAML = "-config.yml"
+	commonTestConfigYAML = "test-common-config.yml"
 )
 
 type testConfig struct {
 	testrunner.SkippableConfig `config:",inline"`
 
-	Multiline     *multiline             `json:"multiline" yaml:"multiline"`
-	Fields        map[string]interface{} `json:"fields" yaml:"fields"`
-	DynamicFields map[string]string      `json:"dynamic_fields" yaml:"dynamic_fields"`
+	Multiline     *multiline             `config:"multiline"`
+	Fields        map[string]interface{} `config:"fields"`
+	DynamicFields map[string]string      `config:"dynamic_fields"`
 
 	// NumericKeywordFields holds a list of fields that have keyword
 	// type but can be ingested as numeric type.
-	NumericKeywordFields []string `json:"numeric_keyword_fields" yaml:"numeric_keyword_fields"`
+	NumericKeywordFields []string `config:"numeric_keyword_fields"`
 }
 
 type multiline struct {
-	FirstLinePattern string `json:"first_line_pattern" yaml:"first_line_pattern"`
+	FirstLinePattern string `config:"first_line_pattern"`
 }
 
-func readConfigForTestCase(testCasePath string) (testConfig, error) {
+func readConfigForTestCase(testCasePath string) (*testConfig, error) {
 	testCaseDir := filepath.Dir(testCasePath)
 	testCaseFile := filepath.Base(testCasePath)
 
+	commonConfigPath := filepath.Join(testCaseDir, commonTestConfigYAML)
 	var c testConfig
-	configData, err := ioutil.ReadFile(filepath.Join(testCaseDir, expectedTestConfigFile(testCaseFile, configTestSuffixYAML)))
-	if err != nil && !os.IsNotExist(err) {
-		return c, errors.Wrapf(err, "reading YAML-formatted test config file failed (path: %s)", testCasePath)
+	cfg, err := yaml.NewConfigWithFile(commonConfigPath)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return nil, errors.Wrapf(err, "can't load common configuration: %s", commonConfigPath)
 	}
 
-	if configData != nil {
-		if err := yaml.Unmarshal(configData, &c); err != nil {
-			return c, errors.Wrap(err, "unmarshalling YAML-formatted test config failed")
+	if err == nil {
+		if err := cfg.Unpack(&c); err != nil {
+			return nil, errors.Wrapf(err, "can't unpack test configuration: %s", commonConfigPath)
 		}
-
-		return c, nil
 	}
 
-	configData, err = ioutil.ReadFile(filepath.Join(testCaseDir, expectedTestConfigFile(testCaseFile, configTestSuffixJSON)))
-	if err != nil && !os.IsNotExist(err) {
-		return c, errors.Wrapf(err, "reading JSON-formatted test config file failed (path: %s)", testCasePath)
+	configPath := filepath.Join(testCaseDir, expectedTestConfigFile(testCaseFile, configTestSuffixYAML))
+	cfg, err = yaml.NewConfigWithFile(configPath)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return nil, errors.Wrapf(err, "can't load test configuration: %s", configPath)
 	}
 
-	if configData != nil {
-		if err := json.Unmarshal(configData, &c); err != nil {
-			return c, errors.Wrap(err, "unmarshalling JSON-formatted test config failed")
+	if err == nil {
+		if err := cfg.Unpack(&c); err != nil {
+			return nil, errors.Wrapf(err, "can't unpack test configuration: %s", configPath)
 		}
-
-		return c, nil
 	}
-
-	return c, nil
+	return &c, nil
 }
 
 func expectedTestConfigFile(testFile, configTestSuffix string) string {

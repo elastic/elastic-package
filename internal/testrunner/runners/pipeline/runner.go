@@ -165,7 +165,6 @@ func (r *runner) listTestCaseFiles() ([]string, error) {
 	var files []string
 	for _, fi := range fis {
 		if strings.HasSuffix(fi.Name(), expectedTestResultSuffix) ||
-			strings.HasSuffix(fi.Name(), configTestSuffixJSON) ||
 			strings.HasSuffix(fi.Name(), configTestSuffixYAML) {
 			continue
 		}
@@ -189,7 +188,7 @@ func (r *runner) loadTestCaseFile(testCaseFile string) (*testCase, error) {
 	if config.Skip != nil {
 		return &testCase{
 			name:   testCaseFile,
-			config: &config,
+			config: config,
 		}, nil
 	}
 

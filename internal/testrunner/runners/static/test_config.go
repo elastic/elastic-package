@@ -31,16 +31,17 @@ func newConfig(staticTestFolderPath string) (*testConfig, error) {
 
 	data, err := ioutil.ReadFile(configFilePath)
 	if err != nil {
-		return nil, errors.Wrapf(err, "could not load static loading test configuration file: %s", configFilePath)
+		return nil, errors.Wrapf(err, "could not load static test configuration file: %s", configFilePath)
+	}
+
+	cfg, err := yaml.NewConfig(data, ucfg.PathSep("."))
+	if err != nil {
+		return nil, errors.Wrapf(err, "unable to load static test configuration file: %s", configFilePath)
 	}
 
 	var c testConfig
-	cfg, err := yaml.NewConfig(data, ucfg.PathSep("."))
-	if err != nil {
-		return nil, errors.Wrapf(err, "unable to load static loading test configuration file: %s", configFilePath)
-	}
 	if err := cfg.Unpack(&c); err != nil {
-		return nil, errors.Wrapf(err, "unable to unpack static loading test configuration file: %s", configFilePath)
+		return nil, errors.Wrapf(err, "unable to unpack static test configuration file: %s", configFilePath)
 	}
 
 	return &c, nil
