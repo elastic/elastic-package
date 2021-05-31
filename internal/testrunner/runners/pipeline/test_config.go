@@ -5,7 +5,6 @@
 package pipeline
 
 import (
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -19,7 +18,6 @@ import (
 )
 
 const (
-	configTestSuffixJSON = "-config.json"
 	configTestSuffixYAML = "-config.yml"
 )
 
@@ -56,20 +54,6 @@ func readConfigForTestCase(testCasePath string) (testConfig, error) {
 
 		return c, nil
 	}
-
-	configData, err = ioutil.ReadFile(filepath.Join(testCaseDir, expectedTestConfigFile(testCaseFile, configTestSuffixJSON)))
-	if err != nil && !os.IsNotExist(err) {
-		return c, errors.Wrapf(err, "reading JSON-formatted test config file failed (path: %s)", testCasePath)
-	}
-
-	if configData != nil {
-		if err := json.Unmarshal(configData, &c); err != nil {
-			return c, errors.Wrap(err, "unmarshalling JSON-formatted test config failed")
-		}
-
-		return c, nil
-	}
-
 	return c, nil
 }
 
