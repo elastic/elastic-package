@@ -47,7 +47,7 @@ func readConfigForTestCase(testCasePath string) (*testConfig, error) {
 		return nil, errors.Wrapf(err, "can't load common configuration: %s", commonConfigPath)
 	}
 
-	if err != nil {
+	if err == nil {
 		if err := cfg.Unpack(&c); err != nil {
 			return nil, errors.Wrapf(err, "can't unpack test configuration: %s", commonConfigPath)
 		}
