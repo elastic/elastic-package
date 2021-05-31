@@ -16,43 +16,43 @@ Access logs collects the Apache access logs.
 
 **Exported fields**
 
-| Field | Description | Type |
-|---|---|---|
-| @timestamp | Event timestamp. | date |
-| apache.access.ssl.cipher | SSL cipher name. | keyword |
-| apache.access.ssl.protocol | SSL protocol version. | keyword |
-| data_stream.dataset | Data stream dataset. | constant_keyword |
-| data_stream.namespace | Data stream namespace. | constant_keyword |
-| data_stream.type | Data stream type. | constant_keyword |
-| ecs.version |  | keyword |
-| http.request.method | HTTP request method. Prior to ECS 1.6.0 the following guidance was provided: "The field value must be normalized to lowercase for querying." As of ECS 1.6.0, the guidance is deprecated because the original case of the method may be useful in anomaly detection.  Original case will be mandated in ECS 2.0.0 | keyword |
-| http.request.referrer | Referrer for this HTTP request. | keyword |
-| http.response.body.bytes | Size in bytes of the response body. | long |
-| http.response.status_code | HTTP response status code. | long |
-| http.version | HTTP version. | keyword |
-| input.type |  | keyword |
-| log.file.path |  | keyword |
-| log.level | Original log level of the log event. If the source of the event provides a log level or textual severity, this is the one that goes in `log.level`. If your source doesn't specify one, you may put your event transport's severity here (e.g. Syslog severity). Some examples are `warn`, `err`, `i`, `informational`. | keyword |
-| log.offset |  | long |
-| message | For log events the message field contains the log message, optimized for viewing in a log viewer. For structured logs without an original message field, other fields can be concatenated to form a human-readable summary of the event. If multiple messages exist, they can be combined into one message. | text |
-| process.pid | Process id. | long |
-| process.thread.id | Thread ID. | long |
-| source.address | Some event source addresses are defined ambiguously. The event will sometimes list an IP, a domain or a unix socket.  You should always store the raw address in the `.address` field. Then it should be duplicated to `.ip` or `.domain`, depending on which one it is. | keyword |
-| source.geo.city_name | City name. | keyword |
-| source.geo.continent_name | Name of the continent. | keyword |
-| source.geo.country_iso_code | Country ISO code. | keyword |
-| source.geo.location | Longitude and latitude. | geo_point |
-| source.geo.region_iso_code | Region ISO code. | keyword |
-| source.geo.region_name | Region name. | keyword |
-| source.ip |  | ip |
-| url.original | Unmodified original url as seen in the event source. Note that in network monitoring, the observed URL may be a full URL, whereas in access logs, the URL is often just represented as a path. This field is meant to represent the URL as it was observed, complete or not. | keyword |
-| user.name | Short name or login of the user. | keyword |
-| user_agent.device.name | Name of the device. | keyword |
-| user_agent.name | Name of the user agent. | keyword |
-| user_agent.original | Unparsed user_agent string. | keyword |
-| user_agent.os.name | Operating system name, without the version. | keyword |
-| user_agent.os.version | Operating system version as a raw string. | keyword |
-| user_agent.version | Version of the user agent. | keyword |
+| Field | Description | Type | Unit | Metric Type |
+|---|---|---|---|---|
+| @timestamp | Event timestamp. | date |  |  |
+| apache.access.ssl.cipher | SSL cipher name. | keyword |  |  |
+| apache.access.ssl.protocol | SSL protocol version. | keyword |  |  |
+| data_stream.dataset | Data stream dataset. | constant_keyword |  |  |
+| data_stream.namespace | Data stream namespace. | constant_keyword |  |  |
+| data_stream.type | Data stream type. | constant_keyword |  |  |
+| ecs.version |  | keyword |  |  |
+| http.request.method | HTTP request method. Prior to ECS 1.6.0 the following guidance was provided: "The field value must be normalized to lowercase for querying." As of ECS 1.6.0, the guidance is deprecated because the original case of the method may be useful in anomaly detection.  Original case will be mandated in ECS 2.0.0 | keyword |  |  |
+| http.request.referrer | Referrer for this HTTP request. | keyword |  |  |
+| http.response.body.bytes | Size in bytes of the response body. | long | byte | gauge |
+| http.response.status_code | HTTP response status code. | long |  |  |
+| http.version | HTTP version. | keyword |  |  |
+| input.type |  | keyword |  |  |
+| log.file.path |  | keyword |  |  |
+| log.level | Original log level of the log event. If the source of the event provides a log level or textual severity, this is the one that goes in `log.level`. If your source doesn't specify one, you may put your event transport's severity here (e.g. Syslog severity). Some examples are `warn`, `err`, `i`, `informational`. | keyword |  |  |
+| log.offset |  | long |  |  |
+| message | For log events the message field contains the log message, optimized for viewing in a log viewer. For structured logs without an original message field, other fields can be concatenated to form a human-readable summary of the event. If multiple messages exist, they can be combined into one message. | text |  |  |
+| process.pid | Process id. | long |  |  |
+| process.thread.id | Thread ID. | long |  |  |
+| source.address | Some event source addresses are defined ambiguously. The event will sometimes list an IP, a domain or a unix socket.  You should always store the raw address in the `.address` field. Then it should be duplicated to `.ip` or `.domain`, depending on which one it is. | keyword |  |  |
+| source.geo.city_name | City name. | keyword |  |  |
+| source.geo.continent_name | Name of the continent. | keyword |  |  |
+| source.geo.country_iso_code | Country ISO code. | keyword |  |  |
+| source.geo.location | Longitude and latitude. | geo_point |  |  |
+| source.geo.region_iso_code | Region ISO code. | keyword |  |  |
+| source.geo.region_name | Region name. | keyword |  |  |
+| source.ip |  | ip |  |  |
+| url.original | Unmodified original url as seen in the event source. Note that in network monitoring, the observed URL may be a full URL, whereas in access logs, the URL is often just represented as a path. This field is meant to represent the URL as it was observed, complete or not. | keyword |  |  |
+| user.name | Short name or login of the user. | keyword |  |  |
+| user_agent.device.name | Name of the device. | keyword |  |  |
+| user_agent.name | Name of the user agent. | keyword |  |  |
+| user_agent.original | Unparsed user_agent string. | keyword |  |  |
+| user_agent.os.name | Operating system name, without the version. | keyword |  |  |
+| user_agent.os.version | Operating system version as a raw string. | keyword |  |  |
+| user_agent.version | Version of the user agent. | keyword |  |  |
 
 
 ### Error Logs

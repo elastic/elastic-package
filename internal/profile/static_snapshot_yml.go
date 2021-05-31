@@ -2,7 +2,14 @@
 // or more contributor license agreements. Licensed under the Elastic License;
 // you may not use this file except in compliance with the Elastic License.
 
-package install
+package profile
+
+import (
+	"path/filepath"
+)
+
+// SnapshotFile is the docker-compose snapshot.yml file name
+const SnapshotFile configFile = "snapshot.yml"
 
 const snapshotYml = `version: '2.3'
 services:
@@ -49,7 +56,7 @@ services:
       interval: 1s
     volumes:
       - ./kibana.config.yml:/usr/share/kibana/config/kibana.yml
-      - ./healthcheck.sh:/usr/share/kibana/healthcheck.sh
+      - ../../../stack/healthcheck.sh:/usr/share/kibana/healthcheck.sh
     ports:
       - "127.0.0.1:5601:5601"
 
@@ -61,8 +68,10 @@ services:
 
   package-registry:
     build:
-      context: .
-      dockerfile: Dockerfile.package-registry
+      context: ../../../
+      dockerfile: ${STACK_PATH}/Dockerfile.package-registry
+      args:
+        PROFILE: ${PROFILE_NAME}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://127.0.0.1:8080"]
       retries: 300
@@ -121,7 +130,7 @@ services:
     - "STATE_PATH=/usr/share/elastic-agent"
     volumes:
     - type: bind
-      source: ../tmp/service_logs/
+      source: ../../../tmp/service_logs/
       target: /tmp/service_logs/
 
   elastic-agent_is_ready:
@@ -130,3 +139,12 @@ services:
       elastic-agent:
         condition: service_healthy
 `
+
+// newSnapshotFile returns a Managed Config
+func newSnapshotFile(_ string, profilePath string) (*simpleFile, error) {
+	return &simpleFile{
+		name: string(SnapshotFile),
+		path: filepath.Join(profilePath, profileStackPath, string(SnapshotFile)),
+		body: snapshotYml,
+	}, nil
+}

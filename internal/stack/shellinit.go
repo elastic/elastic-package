@@ -7,13 +7,12 @@ package stack
 import (
 	"fmt"
 	"io/ioutil"
-	"path/filepath"
 
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/compose"
-	"github.com/elastic/elastic-package/internal/configuration/locations"
+	"github.com/elastic/elastic-package/internal/profile"
 )
 
 const (
@@ -37,17 +36,11 @@ type kibanaConfiguration struct {
 }
 
 // ShellInit method exposes environment variables that can be used for testing purposes.
-func ShellInit() (string, error) {
-	locationManager, err := locations.NewLocationManager()
-	if err != nil {
-		return "", errors.Wrap(err, "locating stack directory failed")
-	}
-
+func ShellInit(elasticStackProfile *profile.Profile) (string, error) {
 	// Read Elasticsearch username and password from Kibana configuration file.
-	kibanaConfigurationPath := filepath.Join(locationManager.StackDir(), "kibana.config.yml")
-	body, err := ioutil.ReadFile(kibanaConfigurationPath)
+	body, err := ioutil.ReadFile(elasticStackProfile.FetchPath(profile.KibanaConfigFile))
 	if err != nil {
-		return "", errors.Wrap(err, "reading Kibana configuration file failed")
+		return "", errors.Wrap(err, "error reading Kibana config file")
 	}
 
 	var kibanaCfg kibanaConfiguration
@@ -57,7 +50,7 @@ func ShellInit() (string, error) {
 	}
 
 	// Read Elasticsearch and Kibana hostnames from Elastic Stack Docker Compose configuration file.
-	p, err := compose.NewProject(DockerComposeProjectName, filepath.Join(locationManager.StackDir(), "snapshot.yml"))
+	p, err := compose.NewProject(DockerComposeProjectName, elasticStackProfile.FetchPath(profile.SnapshotFile))
 	if err != nil {
 		return "", errors.Wrap(err, "could not create docker compose project")
 	}

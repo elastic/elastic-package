@@ -9,15 +9,18 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/configuration/locations"
+	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/version"
 )
 
-func checkIfLatestVersionInstalled(elasticPackagePath string) (bool, error) {
-	versionFile, err := ioutil.ReadFile(filepath.Join(elasticPackagePath, versionFilename))
+func checkIfLatestVersionInstalled(elasticPackagePath *locations.LocationManager) (bool, error) {
+	versionPath := filepath.Join(elasticPackagePath.RootDir(), versionFilename)
+	versionFile, err := ioutil.ReadFile(versionPath)
 	if os.IsExist(err) {
 		return false, nil // old version, no version file
 	}
@@ -25,6 +28,9 @@ func checkIfLatestVersionInstalled(elasticPackagePath string) (bool, error) {
 		return false, errors.Wrap(err, "reading version file failed")
 	}
 	v := string(versionFile)
+	if version.CommitHash == "undefined" && strings.Contains(v, "undefined") {
+		logger.Warn("CommitHash is undefined, in both %s and the compiled binary, config may be out of date.", versionPath)
+	}
 	return buildVersionFile(version.CommitHash, version.BuildTime) == v, nil
 }
 

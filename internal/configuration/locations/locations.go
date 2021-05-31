@@ -16,6 +16,7 @@ const (
 	elasticPackageDir = ".elastic-package"
 	stackDir          = "stack"
 	packagesDir       = "development"
+	profilesDir       = "profiles"
 
 	temporaryDir = "tmp"
 	deployerDir  = "deployer"
@@ -49,6 +50,11 @@ func NewLocationManager() (*LocationManager, error) {
 // RootDir returns the root elastic-package dir
 func (loc LocationManager) RootDir() string {
 	return loc.stackPath
+}
+
+// ProfileDir is the root profile management directory
+func (loc LocationManager) ProfileDir() string {
+	return filepath.Join(loc.stackPath, profilesDir)
 }
 
 // TempDir returns the temp directory location

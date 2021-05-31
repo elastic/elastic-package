@@ -4,10 +4,14 @@
 
 package stack
 
+import "github.com/elastic/elastic-package/internal/profile"
+
 // Options defines available image booting options.
 type Options struct {
 	DaemonMode   bool
 	StackVersion string
 
 	Services []string
+
+	Profile *profile.Profile
 }
