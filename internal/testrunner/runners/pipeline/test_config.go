@@ -6,7 +6,6 @@ package pipeline
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -42,36 +41,26 @@ func readConfigForTestCase(testCasePath string) (*testConfig, error) {
 	testCaseFile := filepath.Base(testCasePath)
 
 	commonConfigPath := filepath.Join(testCaseDir, commonTestConfigYAML)
-	commonConfigData, err := ioutil.ReadFile(commonConfigPath)
+	var c testConfig
+	cfg, err := yaml.NewConfigWithFile(commonConfigPath)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return nil, errors.Wrapf(err, "reading common test config file failed (path: %s)", commonConfigPath)
+		return nil, errors.Wrapf(err, "can't load common configuration: %s", commonConfigPath)
 	}
 
-	var c testConfig
-	if err == nil {
-		cfg, err := yaml.NewConfig(commonConfigData)
-		if err != nil {
-			return nil, errors.Wrapf(err, "unable to load common test configuration file: %s", commonConfigPath)
-		}
-
+	if err != nil {
 		if err := cfg.Unpack(&c); err != nil {
-			return nil, errors.Wrapf(err, "unable to unpack common test configuration file: %s", commonConfigPath)
+			return nil, errors.Wrapf(err, "can't unpack test configuration: %s", commonConfigPath)
 		}
 	}
 
 	configPath := filepath.Join(testCaseDir, expectedTestConfigFile(testCaseFile, configTestSuffixYAML))
-	data, err := ioutil.ReadFile(configPath)
-	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return nil, errors.Wrapf(err, "reading test config file failed (path: %s)", testCasePath)
-	}
-
-	cfg, err := yaml.NewConfig(data)
+	cfg, err = yaml.NewConfigWithFile(configPath)
 	if err != nil {
-		return nil, errors.Wrapf(err, "unable to load pipeline test configuration file: %s", configPath)
+		return nil, errors.Wrapf(err, "can't load test configuration: %s", configPath)
 	}
 
 	if err := cfg.Unpack(&c); err != nil {
-		return nil, errors.Wrapf(err, "unable to unpack pipeline test configuration file: %s", configPath)
+		return nil, errors.Wrapf(err, "can't unpack test configuration: %s", configPath)
 	}
 	return &c, nil
 }
