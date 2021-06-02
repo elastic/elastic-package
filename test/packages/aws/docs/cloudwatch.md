@@ -51,7 +51,7 @@ setup already.
 
 An example event for `cloudwatch` looks as following:
 
-```$json
+```json
 {
     "@timestamp": "2020-05-28T17:17:02.812Z",
     "event": {

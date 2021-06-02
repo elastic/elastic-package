@@ -110,7 +110,7 @@ For network load balancer, please follow [enable access log for network load bal
 
 An example event for `elb` looks as following:
 
-```$json
+```json
 {
     "@timestamp": "2020-05-28T17:58:30.211Z",
     "agent": {

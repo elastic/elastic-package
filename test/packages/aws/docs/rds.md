@@ -4,7 +4,7 @@
 
 An example event for `rds` looks as following:
 
-```$json
+```json
 {
     "@timestamp": "2020-05-28T17:58:34.537Z",
     "ecs": {

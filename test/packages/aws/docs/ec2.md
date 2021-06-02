@@ -52,7 +52,7 @@ and `process.name`. For logs from other services, please use `cloudwatch` datase
 
 An example event for `ec2` looks as following:
 
-```$json
+```json
 {
     "@timestamp": "2020-05-28T17:56:37.255Z",
     "aws": {
