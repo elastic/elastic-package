@@ -29,7 +29,7 @@ func checkIfLatestVersionInstalled(elasticPackagePath *locations.LocationManager
 	}
 	v := string(versionFile)
 	if version.CommitHash == "undefined" && strings.Contains(v, "undefined") {
-		logger.Warn("CommitHash is undefined, in both %s and the compiled binary, config may be out of date.", versionPath)
+		logger.Warnf("CommitHash is undefined, in both %s and the compiled binary, config may be out of date.", versionPath)
 	}
 	return buildVersionFile(version.CommitHash, version.BuildTime) == v, nil
 }
