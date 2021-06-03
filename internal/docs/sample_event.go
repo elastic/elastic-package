@@ -33,7 +33,7 @@ func renderSampleEvent(packageRoot, dataStreamName string) (string, error) {
 	var builder strings.Builder
 	builder.WriteString(fmt.Sprintf("An example event for `%s` looks as following:\n\n",
 		stripDataStreamFolderSuffix(dataStreamName)))
-	builder.WriteString("```$json\n")
+	builder.WriteString("```json\n")
 	builder.Write(formatted)
 	builder.WriteString("\n```")
 	return builder.String(), nil

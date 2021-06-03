@@ -131,7 +131,7 @@ This is a default stream. If the host datasource is unconfigured, this stream is
 
 An example event for `stubstatus` looks as following:
 
-```$json
+```json
 {
   "@timestamp": "2020-04-28T11:07:58.223Z",
   "agent": {
