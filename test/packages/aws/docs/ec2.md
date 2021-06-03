@@ -52,7 +52,7 @@ and `process.name`. For logs from other services, please use `cloudwatch` datase
 
 An example event for `ec2` looks as following:
 
-```$json
+```json
 {
     "@timestamp": "2020-05-28T17:56:37.255Z",
     "aws": {
@@ -171,6 +171,7 @@ An example event for `ec2` looks as following:
 |---|---|---|
 | @timestamp | Event timestamp. | date |
 | aws.*.metrics.*.* | Metrics that returned from Cloudwatch API query. | object |
+| aws.cloudwatch.namespace | The namespace specified when query cloudwatch api. | keyword |
 | aws.dimensions.* | Metric dimensions. | object |
 | aws.dimensions.AutoScalingGroupName | An Auto Scaling group is a collection of instances you define if you're using Auto Scaling. | keyword |
 | aws.dimensions.ImageId | This dimension filters the data you request for all instances running this Amazon EC2 Amazon Machine Image (AMI) | keyword |
