@@ -39,6 +39,9 @@ func resolveExternalFields(packageRoot, destinationDir string) error {
 	}
 
 	logger.Debugf("Package has external dependencies defined")
+
+	// TODO Initialize FieldManager with dependencies
+
 	fieldsFile, err := filepath.Glob(filepath.Join(destinationDir, "data_stream", "*", "fields", "*"))
 	if err != nil {
 		return err
@@ -49,10 +52,14 @@ func resolveExternalFields(packageRoot, destinationDir string) error {
 			return err
 		}
 
+		// TODO Load fields file into structure
+
 		var resolvable bool // TODO check if there are external definitions
 		var output []byte
 
 		if resolvable {
+			// TODO Resolve field dependencies
+
 			err = ioutil.WriteFile(file, output, 0644)
 			if err != nil {
 				return err

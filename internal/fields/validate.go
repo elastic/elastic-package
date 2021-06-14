@@ -22,7 +22,8 @@ import (
 
 // Validator is responsible for fields validation.
 type Validator struct {
-	schema []FieldDefinition
+	// Schema contains definition records.
+	Schema []FieldDefinition
 
 	defaultNumericConversion bool
 	numericKeywordFields     map[string]struct{}
@@ -59,15 +60,14 @@ func CreateValidatorForDataStream(dataStreamRootPath string, opts ...ValidatorOp
 			return nil, err
 		}
 	}
-	v.schema, err = LoadFieldsForDataStream(dataStreamRootPath)
+	v.Schema, err = loadFieldsForDataStream(dataStreamRootPath)
 	if err != nil {
 		return nil, errors.Wrapf(err, "can't load fields for data stream (path: %s)", dataStreamRootPath)
 	}
 	return v, nil
 }
 
-// LoadFieldsForDataStream function loads fields defined for the given data stream.
-func LoadFieldsForDataStream(dataStreamRootPath string) ([]FieldDefinition, error) {
+func loadFieldsForDataStream(dataStreamRootPath string) ([]FieldDefinition, error) {
 	fieldsDir := filepath.Join(dataStreamRootPath, "fields")
 	fileInfos, err := ioutil.ReadDir(fieldsDir)
 	if err != nil {
@@ -132,7 +132,7 @@ func (v *Validator) validateMapElement(root string, elem common.MapStr) multierr
 				}
 			}
 		case map[string]interface{}:
-			if isFieldTypeFlattened(key, v.schema) {
+			if isFieldTypeFlattened(key, v.Schema) {
 				// Do not traverse into objects with flattened data types
 				// because the entire object is mapped as a single field.
 				continue
@@ -156,7 +156,7 @@ func (v *Validator) validateScalarElement(key string, val interface{}) error {
 		return nil // root key is always valid
 	}
 
-	definition := findElementDefinition(key, v.schema)
+	definition := findElementDefinition(key, v.Schema)
 	if definition == nil && skipValidationForField(key) {
 		return nil // generic field, let's skip validation for now
 	}

@@ -25,12 +25,12 @@ type fieldsTableRecord struct {
 
 func renderExportedFields(packageRoot, dataStreamName string) (string, error) {
 	dataStreamPath := filepath.Join(packageRoot, "data_stream", dataStreamName)
-	definitions, err := fields.LoadFieldsForDataStream(dataStreamPath)
+	validator, err := fields.CreateValidatorForDataStream(dataStreamPath)
 	if err != nil {
-		return "", errors.Wrapf(err, "can't load fields for data stream (path: %s)", dataStreamPath)
+		return "", errors.Wrapf(err, "can't create fields validator instance (path: %s)", dataStreamPath)
 	}
 
-	collected, err := collectFieldsFromDefinitions(definitions)
+	collected, err := collectFieldsFromDefinitions(validator.Schema)
 	if err != nil {
 		return "", errors.Wrap(err, "collecting fields files failed")
 	}
