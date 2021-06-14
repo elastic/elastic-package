@@ -114,6 +114,12 @@ func buildPackage(packageRoot string) (string, error) {
 	if err != nil {
 		return "", errors.Wrap(err, "encoding dashboards failed")
 	}
+
+	logger.Debug("Resolve external fields")
+	err = resolveExternalFields(packageRoot, destinationDir)
+	if err != nil {
+		return "", errors.Wrap(err, "resolving external fields failed")
+	}
 	return destinationDir, nil
 }
 
