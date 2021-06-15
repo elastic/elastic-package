@@ -16,10 +16,7 @@
       description: Referrer for this HTTP request.
       ignore_above: 1024
     - name: response.body.bytes
-      level: extended
-      type: long
-      format: bytes
-      description: Size in bytes of the response body.
+      external: ecs
     - name: response.status_code
       level: extended
       type: long
@@ -163,6 +160,6 @@
 - name: source.geo.country_name
   type: keyword
 - name: source.as.number
-  type: long
+  external: ecs
 - name: source.as.organization.name
-  type: keyword
+  external: ecs

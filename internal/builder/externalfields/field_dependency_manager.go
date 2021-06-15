@@ -93,5 +93,6 @@ func asGitReference(reference string) (string, error) {
 }
 
 func (fdm *fieldDependencyManager) resolveFile(content []byte) ([]byte, bool, error) {
+
 	panic("not implemented")
 }
