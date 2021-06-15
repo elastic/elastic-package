@@ -5,10 +5,20 @@
 package externalfields
 
 import (
-	"github.com/elastic/elastic-package/internal/fields"
-	"github.com/elastic/elastic-package/internal/logger"
+	"fmt"
+	"io/ioutil"
+	"net/http"
+	"strings"
 
 	"github.com/pkg/errors"
+	
+	"github.com/elastic/elastic-package/internal/fields"
+	"github.com/elastic/elastic-package/internal/logger"
+)
+
+const (
+	gitReferencePrefix = "git@"
+	ecsSchemaURL = "https://raw.githubusercontent.com/elastic/ecs/%s/generated/beats/fields.ecs.yml"
 )
 
 type fieldDependencyManager struct {
@@ -43,8 +53,32 @@ func loadECSFieldsSchema(dep ecsDependency) ([]fields.FieldDefinition, error) {
 	}
 
 	logger.Debugf("Pulling ECS dependency using reference: %s", dep.Reference)
+	gitReference, err := asGitReference(dep.Reference)
+	if err != nil {
+		return nil, errors.Wrap(err, "can't process the value as Git reference")
+	}
 
+	url := fmt.Sprintf(ecsSchemaURL, gitReference)
+	logger.Debugf("Schema URL: %s", url)
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, errors.Wrapf(err, "can't download the online schema (URL: %s)", url)
+	}
+	defer resp.Body.Close()
+	content, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, errors.Wrapf(err, "can't read schema content (URL: %s)", url)
+	}
+
+	logger.Debugf("Read %d bytes", len(content))
 	return schema, nil
+}
+
+func asGitReference(reference string) (string, error) {
+	if !strings.HasPrefix(reference, gitReferencePrefix) {
+		return "", errors.New(`invalid Git reference ("git@" prefix expected)`)
+	}
+	return reference[len(gitReferencePrefix):], nil
 }
 
 func (fdm *fieldDependencyManager) resolveFile(content []byte) ([]byte, bool, error) {
