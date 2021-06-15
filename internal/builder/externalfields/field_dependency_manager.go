@@ -42,7 +42,7 @@ func loadECSFieldsSchema(dep ecsDependency) ([]fields.FieldDefinition, error) {
 		return schema, nil
 	}
 
-	logger.Debugf("Pulling ECS dependency, reference: %s", dep.Reference)
+	logger.Debugf("Pulling ECS dependency using reference: %s", dep.Reference)
 
 	return schema, nil
 }
