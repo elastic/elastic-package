@@ -11,7 +11,8 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
-	
+	"gopkg.in/yaml.v3"
+
 	"github.com/elastic/elastic-package/internal/fields"
 	"github.com/elastic/elastic-package/internal/logger"
 )
@@ -46,10 +47,9 @@ func buildFieldsSchema(deps dependencies) ([]fields.FieldDefinition, error) {
 }
 
 func loadECSFieldsSchema(dep ecsDependency) ([]fields.FieldDefinition, error) {
-	var schema []fields.FieldDefinition
 	if dep.Reference == "" {
 		logger.Debugf("ECS dependency isn't defined")
-		return schema, nil
+		return nil, nil
 	}
 
 	logger.Debugf("Pulling ECS dependency using reference: %s", dep.Reference)
@@ -65,13 +65,24 @@ func loadECSFieldsSchema(dep ecsDependency) ([]fields.FieldDefinition, error) {
 		return nil, errors.Wrapf(err, "can't download the online schema (URL: %s)", url)
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("unexpected HTTP status code: %d", resp.StatusCode)
+	}
+
 	content, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, errors.Wrapf(err, "can't read schema content (URL: %s)", url)
 	}
 
 	logger.Debugf("Read %d bytes", len(content))
-	return schema, nil
+	var f []struct {
+		Fields []fields.FieldDefinition
+	}
+	err = yaml.Unmarshal(content, &f)
+	if err != nil {
+		return nil, errors.Wrap(err, "unmarshalling field body failed")
+	}
+	return f[0].Fields, nil
 }
 
 func asGitReference(reference string) (string, error) {
