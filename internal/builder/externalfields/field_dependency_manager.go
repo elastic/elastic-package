@@ -19,7 +19,7 @@ import (
 
 const (
 	gitReferencePrefix = "git@"
-	ecsSchemaURL = "https://raw.githubusercontent.com/elastic/ecs/%s/generated/beats/fields.ecs.yml"
+	ecsSchemaURL       = "https://raw.githubusercontent.com/elastic/ecs/%s/generated/beats/fields.ecs.yml"
 )
 
 type fieldDependencyManager struct {
