@@ -18,9 +18,11 @@ type buildManifest struct {
 }
 
 type dependencies struct {
-	ECS struct {
-		Reference string `config:"reference"`
-	} `config:"ecs"`
+	ECS ecsDependency `config:"ecs"`
+}
+
+type ecsDependency struct {
+	Reference string `config:"reference"`
 }
 
 func (bm *buildManifest) hasDependencies() bool {
