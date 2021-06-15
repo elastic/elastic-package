@@ -18,12 +18,13 @@ import (
 )
 
 const (
+	ecsSchemaName      = "ecs"
 	gitReferencePrefix = "git@"
 	ecsSchemaURL       = "https://raw.githubusercontent.com/elastic/ecs/%s/generated/beats/fields.ecs.yml"
 )
 
 type fieldDependencyManager struct {
-	schema []fields.FieldDefinition
+	schema map[string][]fields.FieldDefinition
 }
 
 func createFieldDependencyManager(deps dependencies) (*fieldDependencyManager, error) {
@@ -36,13 +37,13 @@ func createFieldDependencyManager(deps dependencies) (*fieldDependencyManager, e
 	}, nil
 }
 
-func buildFieldsSchema(deps dependencies) ([]fields.FieldDefinition, error) {
-	var schema []fields.FieldDefinition
+func buildFieldsSchema(deps dependencies) (map[string][]fields.FieldDefinition, error) {
+	schema := map[string][]fields.FieldDefinition{}
 	ecsSchema, err := loadECSFieldsSchema(deps.ECS)
 	if err != nil {
 		return nil, errors.Wrap(err, "can't load fields")
 	}
-	schema = append(schema, ecsSchema...)
+	schema[ecsSchemaName] = ecsSchema
 	return schema, nil
 }
 
@@ -93,6 +94,10 @@ func asGitReference(reference string) (string, error) {
 }
 
 func (fdm *fieldDependencyManager) resolveFile(content []byte) ([]byte, bool, error) {
+	// TODO unmarshal content
 
+	// TODO visit content fields and resolve references
+
+	// TODO marshal content
 	panic("not implemented")
 }
