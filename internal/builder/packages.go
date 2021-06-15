@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/elastic/elastic-package/internal/builder/externalfields"
+
 	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
@@ -116,7 +118,7 @@ func buildPackage(packageRoot string) (string, error) {
 	}
 
 	logger.Debug("Resolve external fields")
-	err = resolveExternalFields(packageRoot, destinationDir)
+	err = externalfields.Resolve(packageRoot, destinationDir)
 	if err != nil {
 		return "", errors.Wrap(err, "resolving external fields failed")
 	}
