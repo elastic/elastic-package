@@ -115,5 +115,10 @@ func (fdm *fieldDependencyManager) resolve(content []byte) ([]byte, bool, error)
 }
 
 func (fdm *fieldDependencyManager) injectFields(defs []common.MapStr) ([]common.MapStr, bool, error) {
-	panic("not implemented")
+	var updated []common.MapStr
+	var changed bool
+	for _, def := range defs {
+
+	}
+	return updated, changed, nil
 }
