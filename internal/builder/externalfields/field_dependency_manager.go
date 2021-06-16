@@ -76,9 +76,7 @@ func loadECSFieldsSchema(dep ecsDependency) ([]fields.FieldDefinition, error) {
 	}
 
 	logger.Debugf("Read %d bytes", len(content))
-	var f []struct {
-		Fields []fields.FieldDefinition
-	}
+	var f []fields.FieldDefinition
 	err = yaml.Unmarshal(content, &f)
 	if err != nil {
 		return nil, errors.Wrap(err, "unmarshalling field body failed")
@@ -93,11 +91,28 @@ func asGitReference(reference string) (string, error) {
 	return reference[len(gitReferencePrefix):], nil
 }
 
-func (fdm *fieldDependencyManager) resolveFile(content []byte) ([]byte, bool, error) {
-	// TODO unmarshal content
+func (fdm *fieldDependencyManager) resolve(content []byte) ([]byte, bool, error) {
+	var f []fields.FieldDefinition
+	err := yaml.Unmarshal(content, &f)
+	if err != nil {
+		return nil, false, errors.Wrap(err, "can't unmarshal source file")
+	}
 
-	// TODO visit content fields and resolve references
+	f, changed, err := fdm.visitFields(f)
+	if err != nil {
+		return nil, false, errors.Wrap(err, "can't resolve fields")
+	}
+	if !changed {
+		return content, false, nil
+	}
 
-	// TODO marshal content
+	content, err = yaml.Marshal(&f)
+	if err != nil {
+		return nil, false, errors.Wrap(err, "can't marshal source file")
+	}
+	return content, true, nil
+}
+
+func (fdm *fieldDependencyManager) visitFields(f []fields.FieldDefinition) ([]fields.FieldDefinition, bool, error) {
 	panic("not implemented")
 }

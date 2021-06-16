@@ -44,12 +44,16 @@ func Resolve(packageRoot, destinationDir string) error {
 			return err
 		}
 
-		output, resolvable, err := fdm.resolveFile(data)
-		if resolvable {
+		output, injected, err := fdm.resolve(data)
+		if injected {
+			logger.Debugf("Source file has been changed")
+
 			err = ioutil.WriteFile(file, output, 0644)
 			if err != nil {
 				return err
 			}
+		} else {
+			logger.Debugf("Source file hasn't been changed")
 		}
 	}
 	return nil
