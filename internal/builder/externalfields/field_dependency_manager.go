@@ -13,6 +13,7 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 
+	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/fields"
 	"github.com/elastic/elastic-package/internal/logger"
 )
@@ -92,13 +93,13 @@ func asGitReference(reference string) (string, error) {
 }
 
 func (fdm *fieldDependencyManager) resolve(content []byte) ([]byte, bool, error) {
-	var f []fields.FieldDefinition
+	var f []common.MapStr
 	err := yaml.Unmarshal(content, &f)
 	if err != nil {
 		return nil, false, errors.Wrap(err, "can't unmarshal source file")
 	}
 
-	f, changed, err := fdm.visitFields(f)
+	f, changed, err := fdm.injectFields(f)
 	if err != nil {
 		return nil, false, errors.Wrap(err, "can't resolve fields")
 	}
@@ -113,6 +114,6 @@ func (fdm *fieldDependencyManager) resolve(content []byte) ([]byte, bool, error)
 	return content, true, nil
 }
 
-func (fdm *fieldDependencyManager) visitFields(f []fields.FieldDefinition) ([]fields.FieldDefinition, bool, error) {
+func (fdm *fieldDependencyManager) injectFields(defs []common.MapStr) ([]common.MapStr, bool, error) {
 	panic("not implemented")
 }
