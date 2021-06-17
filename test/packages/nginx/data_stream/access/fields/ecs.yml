@@ -33,41 +33,17 @@
       type: ip
       description: IP address of the source (IPv4 or IPv6).
 - name: url
-  title: URL
-  group: 2
   type: group
   fields:
     - name: original
-      level: extended
-      type: keyword
-      description: |-
-        Unmodified original url as seen in the event source.
-        Note that in network monitoring, the observed URL may be a full URL, whereas in access logs, the URL is often just represented as a path.
-        This field is meant to represent the URL as it was observed, complete or not.
-      ignore_above: 1024
-      multi_fields:
-        - name: text
-          type: text
-          norms: false
-          default_field: false
+      external: ecs
 - name: user
-  title: User
-  group: 2
   type: group
   fields:
     - name: name
-      level: core
-      type: keyword
-      description: Short name or login of the user.
-      ignore_above: 1024
-      multi_fields:
-        - name: text
-          type: text
-          norms: false
-          default_field: false
+      external: ecs
 - name: user_agent
   title: User agent
-  group: 2
   type: group
   fields:
     - name: device.name
