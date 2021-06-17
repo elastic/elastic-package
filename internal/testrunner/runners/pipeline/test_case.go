@@ -84,54 +84,144 @@ func createTestCase(filename string, entries []json.RawMessage, config *testConf
 	}, nil
 }
 
+type lineReader interface {
+	Scan() bool
+	Text() string
+	Err() error
+}
+
 func readRawInputEntries(inputData []byte, c *testConfig) ([]string, error) {
-	patterns, err := compilePatterns(c.ExcludeLines)
-	if err != nil {
-		return nil, errors.Wrap(err, "invalid expression in exclude_lines")
+	var err error
+	var scanner lineReader = bufio.NewScanner(bytes.NewReader(inputData))
+
+	// Setup multiline
+	if c.Multiline != nil && c.Multiline.FirstLinePattern != "" {
+		scanner, err = newMultilineReader(scanner, c.Multiline)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to read multiline")
+		}
+	}
+
+	// Setup exclude lines
+	if len(c.ExcludeLines) > 0 {
+		scanner, err = newExcludePatternsReader(scanner, c.ExcludeLines)
+		if err != nil {
+			return nil, errors.Wrap(err, "invalid expression in exclude_lines")
+		}
 	}
 
 	var inputDataEntries []string
-
-	var builder strings.Builder
-	scanner := bufio.NewScanner(bytes.NewReader(inputData))
 	for scanner.Scan() {
-		line := scanner.Text()
-		body := line
-		if c.Multiline != nil && c.Multiline.FirstLinePattern != "" {
-			matched, err := regexp.MatchString(c.Multiline.FirstLinePattern, line)
-			if err != nil {
-				return nil, errors.Wrapf(err, "regexp matching failed (pattern: %s)", c.Multiline.FirstLinePattern)
-			}
-
-			if matched {
-				body = builder.String()
-				builder.Reset()
-			}
-			if builder.Len() > 0 {
-				builder.WriteByte('\n')
-			}
-			builder.WriteString(line)
-			if !matched || body == "" {
-				continue
-			}
-		}
-
-		if anyPatternMatch(patterns, body) {
-			continue
-		}
-
-		inputDataEntries = append(inputDataEntries, body)
+		inputDataEntries = append(inputDataEntries, scanner.Text())
 	}
 	err = scanner.Err()
 	if err != nil {
 		return nil, errors.Wrap(err, "reading raw input test file failed")
 	}
 
-	lastEntry := builder.String()
-	if len(lastEntry) > 0 && !anyPatternMatch(patterns, lastEntry) {
-		inputDataEntries = append(inputDataEntries, lastEntry)
-	}
 	return inputDataEntries, nil
+}
+
+type multilineReader struct {
+	reader           lineReader
+	firstLinePattern *regexp.Regexp
+
+	current strings.Builder
+	next    strings.Builder
+}
+
+func newMultilineReader(reader lineReader, config *multiline) (*multilineReader, error) {
+	firstLinePattern, err := regexp.Compile(config.FirstLinePattern)
+	if err != nil {
+		return nil, err
+	}
+	return &multilineReader{
+		reader:           reader,
+		firstLinePattern: firstLinePattern,
+	}, nil
+}
+
+func (r *multilineReader) Scan() (scanned bool) {
+	r.current.Reset()
+	if r.next.Len() > 0 {
+		scanned = true
+		r.current.WriteString(r.next.String())
+		r.next.Reset()
+	}
+
+	for r.reader.Scan() {
+		scanned = true
+		text := r.reader.Text()
+		if r.firstLinePattern.MatchString(text) && r.current.Len() > 0 {
+			r.next.WriteString(text)
+			break
+		}
+
+		if r.current.Len() > 0 {
+			r.current.WriteByte('\n')
+		}
+
+		r.current.WriteString(text)
+	}
+
+	return
+}
+
+func (r *multilineReader) Text() (body string) {
+	return r.current.String()
+}
+
+func (r *multilineReader) Err() error {
+	return r.reader.Err()
+}
+
+type excludePatternsReader struct {
+	reader   lineReader
+	patterns []*regexp.Regexp
+
+	text string
+}
+
+func newExcludePatternsReader(reader lineReader, patterns []string) (*excludePatternsReader, error) {
+	compiled, err := compilePatterns(patterns)
+	if err != nil {
+		return nil, err
+	}
+	return &excludePatternsReader{
+		reader:   reader,
+		patterns: compiled,
+	}, nil
+}
+
+func (r *excludePatternsReader) Scan() (scanned bool) {
+	r.text = ""
+	for r.reader.Scan() {
+		text := r.reader.Text()
+		if anyPatternMatch(r.patterns, text) {
+			continue
+		}
+
+		r.text = text
+		return true
+	}
+	return false
+}
+
+func (r *excludePatternsReader) Text() (body string) {
+	return r.text
+}
+
+func (r *excludePatternsReader) Err() error {
+	return r.reader.Err()
+}
+
+func anyPatternMatch(patterns []*regexp.Regexp, text string) bool {
+	for _, pattern := range patterns {
+		if pattern.MatchString(text) {
+			return true
+		}
+	}
+	return false
 }
 
 func compilePatterns(patterns []string) (regexps []*regexp.Regexp, err error) {
@@ -143,13 +233,4 @@ func compilePatterns(patterns []string) (regexps []*regexp.Regexp, err error) {
 		regexps = append(regexps, r)
 	}
 	return
-}
-
-func anyPatternMatch(patterns []*regexp.Regexp, text string) bool {
-	for _, pattern := range patterns {
-		if pattern.MatchString(text) {
-			return true
-		}
-	}
-	return false
 }
