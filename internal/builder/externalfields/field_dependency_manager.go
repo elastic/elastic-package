@@ -122,13 +122,17 @@ func (fdm *fieldDependencyManager) injectFields(root string, defs []common.MapSt
 
 		external, _ := def.GetValue("external")
 		if external != nil {
-			_, ok := fdm.schema[external.(string)]
+			schema, ok := fdm.schema[external.(string)]
 			if !ok {
 				return nil, false, fmt.Errorf(`schema "%s" is not defined as package depedency`, external.(string))
 			}
 
-			// TODO import from schema
+			imported := fields.FindElementDefinition(fieldPath, schema)
+			if imported == nil {
+				return nil, false, fmt.Errorf("field definition not found in schema (name: %s)", fieldPath)
+			}
 
+			updated = append(updated, transformImportedField(*imported))
 			changed = true
 			continue
 		}
@@ -161,4 +165,22 @@ func buildFieldPath(root string, field common.MapStr) string {
 	fieldName, _ := field.GetValue("name")
 	path = path + fieldName.(string)
 	return path
+}
+
+func transformImportedField(fd fields.FieldDefinition) common.MapStr {
+	m := common.MapStr{
+		"name":        fd.Name,
+		"description": fd.Description,
+		"type":        fd.Type,
+	}
+
+	if len(fd.Fields) > 0 {
+		var t []common.MapStr
+		for _, f := range fd.Fields {
+			i := transformImportedField(f)
+			t = append(t, i)
+		}
+		m.Put("fields", t)
+	}
+	return m
 }

@@ -156,7 +156,7 @@ func (v *Validator) validateScalarElement(key string, val interface{}) error {
 		return nil // root key is always valid
 	}
 
-	definition := findElementDefinition(key, v.Schema)
+	definition := FindElementDefinition(key, v.Schema)
 	if definition == nil && skipValidationForField(key) {
 		return nil // generic field, let's skip validation for now
 	}
@@ -200,7 +200,7 @@ func isFieldFamilyMatching(family, key string) bool {
 }
 
 func isFieldTypeFlattened(key string, fieldDefinitions []FieldDefinition) bool {
-	definition := findElementDefinition(key, fieldDefinitions)
+	definition := FindElementDefinition(key, fieldDefinitions)
 	return definition != nil && "flattened" == definition.Type
 }
 
@@ -223,7 +223,8 @@ func findElementDefinitionForRoot(root, searchedKey string, FieldDefinitions []F
 	return nil
 }
 
-func findElementDefinition(searchedKey string, fieldDefinitions []FieldDefinition) *FieldDefinition {
+// FindElementDefinition is a helper function used to find the fields definition in the schema.
+func FindElementDefinition(searchedKey string, fieldDefinitions []FieldDefinition) *FieldDefinition {
 	return findElementDefinitionForRoot("", searchedKey, fieldDefinitions)
 }
 

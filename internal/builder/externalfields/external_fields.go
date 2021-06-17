@@ -44,16 +44,19 @@ func Resolve(packageRoot, destinationDir string) error {
 			return err
 		}
 
+		rel, _ := filepath.Rel(destinationDir, file)
 		output, injected, err := fdm.resolve(data)
-		if injected {
-			logger.Debugf("Source file has been changed")
+		if err != nil {
+			return err
+		} else if injected {
+			logger.Debugf("%s: source file has been changed", rel)
 
 			err = ioutil.WriteFile(file, output, 0644)
 			if err != nil {
 				return err
 			}
 		} else {
-			logger.Debugf("Source file hasn't been changed")
+			logger.Debugf("%s: source file hasn't been changed", rel)
 		}
 	}
 	return nil
