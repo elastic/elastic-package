@@ -12,10 +12,9 @@ import (
 	"path/filepath"
 	"text/template"
 
-	"github.com/elastic/elastic-package/internal/builder"
-
 	"github.com/pkg/errors"
 
+	"github.com/elastic/elastic-package/internal/builder"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 )
