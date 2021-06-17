@@ -54,7 +54,7 @@ func FindBuildDirectory() (string, bool, error) {
 	return "", false, nil
 }
 
-// FindBuildPackagesDirectory function locates the target build directory for packages.
+// MustFindBuildPackagesDirectory function locates the target build directory for packages.
 // If the directories path doesn't exist, it will create it.
 func MustFindBuildPackagesDirectory(packageRoot string) (string, error) {
 	buildDir, found, err := FindBuildPackagesDirectory()
