@@ -12,6 +12,8 @@ import (
 	"path/filepath"
 	"text/template"
 
+	"github.com/elastic/elastic-package/internal/builder"
+
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/logger"
@@ -119,6 +121,11 @@ func updateReadme(fileName, packageRoot string) (string, error) {
 		return "", errors.Wrap(err, "package root not found")
 	}
 
+	packageBuildRoot, err := builder.MustFindBuildPackagesDirectory(packageRoot)
+	if err != nil {
+		return "", errors.Wrap(err, "package build root not found")
+	}
+
 	rendered, shouldBeRendered, err := generateReadme(fileName, packageRoot)
 	if err != nil {
 		return "", err
@@ -128,6 +135,11 @@ func updateReadme(fileName, packageRoot string) (string, error) {
 	}
 
 	target, err := writeReadme(fileName, packageRoot, rendered)
+	if err != nil {
+		return "", errors.Wrapf(err, "writing %s file failed", fileName)
+	}
+
+	_, err = writeReadme(fileName, packageBuildRoot, rendered)
 	if err != nil {
 		return "", errors.Wrapf(err, "writing %s file failed", fileName)
 	}
