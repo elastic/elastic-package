@@ -85,6 +85,8 @@ Before sending log events to the ingest pipeline, a data transformation process 
 ```yml
 multiline:
   first_line_pattern: "^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}"
+exclude_lines:
+  - "^#.*"
 fields:
   "@timestamp": "2020-04-28T11:07:58.223Z"
   ecs:
@@ -98,6 +100,8 @@ numeric_keyword_fields:
 ```
 
 The `multiline` section ([raw files](#raw-files) only) configures the log file reader to correctly detect multiline log entries using the `first_line_pattern`. Use this property if your logs may be split into multiple lines, e.g. Java stack traces.
+
+The `exclude_lines` sections allows to filter out lines from the sample log files. If `multiline` is used, pattern is checked after merging lines.
 
 The `fields` section allows for customizing extra fields to be added to every read log entry (e.g. `@timestamp`, `ecs`). Use this property to extend your logs with data that can't be extracted from log content, but it's fine to have same field values for every record (e.g. timezone, hostname).
 

@@ -85,14 +85,18 @@ func createTestCase(filename string, entries []json.RawMessage, config *testConf
 }
 
 func readRawInputEntries(inputData []byte, c *testConfig) ([]string, error) {
+	patterns, err := compilePatterns(c.ExcludeLines)
+	if err != nil {
+		return nil, errors.Wrap(err, "invalid expression in exclude_lines")
+	}
+
 	var inputDataEntries []string
 
 	var builder strings.Builder
 	scanner := bufio.NewScanner(bytes.NewReader(inputData))
 	for scanner.Scan() {
 		line := scanner.Text()
-
-		var body string
+		body := line
 		if c.Multiline != nil && c.Multiline.FirstLinePattern != "" {
 			matched, err := regexp.MatchString(c.Multiline.FirstLinePattern, line)
 			if err != nil {
@@ -110,20 +114,42 @@ func readRawInputEntries(inputData []byte, c *testConfig) ([]string, error) {
 			if !matched || body == "" {
 				continue
 			}
-		} else {
-			body = line
+		}
+
+		if anyPatternMatch(patterns, body) {
+			continue
 		}
 
 		inputDataEntries = append(inputDataEntries, body)
 	}
-	err := scanner.Err()
+	err = scanner.Err()
 	if err != nil {
 		return nil, errors.Wrap(err, "reading raw input test file failed")
 	}
 
 	lastEntry := builder.String()
-	if len(lastEntry) > 0 {
+	if len(lastEntry) > 0 && !anyPatternMatch(patterns, lastEntry) {
 		inputDataEntries = append(inputDataEntries, lastEntry)
 	}
 	return inputDataEntries, nil
+}
+
+func compilePatterns(patterns []string) (regexps []*regexp.Regexp, err error) {
+	for _, pattern := range patterns {
+		r, err := regexp.Compile(pattern)
+		if err != nil {
+			return nil, err
+		}
+		regexps = append(regexps, r)
+	}
+	return
+}
+
+func anyPatternMatch(patterns []*regexp.Regexp, text string) bool {
+	for _, pattern := range patterns {
+		if pattern.MatchString(text) {
+			return true
+		}
+	}
+	return false
 }

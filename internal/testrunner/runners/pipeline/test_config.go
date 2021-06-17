@@ -27,9 +27,20 @@ type testConfig struct {
 	Fields        map[string]interface{} `config:"fields"`
 	DynamicFields map[string]string      `config:"dynamic_fields"`
 
+	// List of regular expressions to exclude lines from the test file.
+	ExcludeLines []string `config:"exclude_lines"`
+
 	// NumericKeywordFields holds a list of fields that have keyword
 	// type but can be ingested as numeric type.
 	NumericKeywordFields []string `config:"numeric_keyword_fields"`
+}
+
+func (c *testConfig) Validate() error {
+	if _, err := compilePatterns(c.ExcludeLines); err != nil {
+		return errors.Wrap(err, "invalid pattern in exclude_lines")
+	}
+
+	return nil
 }
 
 type multiline struct {
@@ -64,6 +75,7 @@ func readConfigForTestCase(testCasePath string) (*testConfig, error) {
 			return nil, errors.Wrapf(err, "can't unpack test configuration: %s", configPath)
 		}
 	}
+
 	return &c, nil
 }
 
