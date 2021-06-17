@@ -99,7 +99,7 @@ func (fdm *fieldDependencyManager) resolve(content []byte) ([]byte, bool, error)
 		return nil, false, errors.Wrap(err, "can't unmarshal source file")
 	}
 
-	f, changed, err := fdm.injectFields(f)
+	f, changed, err := fdm.injectFields("", f)
 	if err != nil {
 		return nil, false, errors.Wrap(err, "can't resolve fields")
 	}
@@ -114,11 +114,51 @@ func (fdm *fieldDependencyManager) resolve(content []byte) ([]byte, bool, error)
 	return content, true, nil
 }
 
-func (fdm *fieldDependencyManager) injectFields(defs []common.MapStr) ([]common.MapStr, bool, error) {
+func (fdm *fieldDependencyManager) injectFields(root string, defs []common.MapStr) ([]common.MapStr, bool, error) {
 	var updated []common.MapStr
 	var changed bool
 	for _, def := range defs {
+		fieldPath := buildFieldPath(root, def)
 
+		external, _ := def.GetValue("external")
+		if external != nil {
+			_, ok := fdm.schema[external.(string)]
+			if !ok {
+				return nil, false, fmt.Errorf(`schema "%s" is not defined as package depedency`, external.(string))
+			}
+
+			// TODO import from schema
+
+			changed = true
+			continue
+		}
+
+		fields, _ := def.GetValue("fields")
+		if fields != nil {
+			fieldsMs, err := common.ToMapStrSlice(fields)
+			updatedFields, fieldsChanged, err := fdm.injectFields(fieldPath, fieldsMs)
+			if err != nil {
+				return nil, false, err
+			}
+
+			if fieldsChanged {
+				changed = true
+			}
+
+			def.Put("fields", updatedFields)
+		}
+		updated = append(updated, def)
 	}
 	return updated, changed, nil
+}
+
+func buildFieldPath(root string, field common.MapStr) string {
+	path := root
+	if root != "" {
+		path += "."
+	}
+
+	fieldName, _ := field.GetValue("name")
+	path = path + fieldName.(string)
+	return path
 }
