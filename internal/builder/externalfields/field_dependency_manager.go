@@ -132,7 +132,10 @@ func (fdm *fieldDependencyManager) injectFields(root string, defs []common.MapSt
 				return nil, false, fmt.Errorf("field definition not found in schema (name: %s)", fieldPath)
 			}
 
-			updated = append(updated, transformImportedField(*imported))
+			transformed := transformImportedField(*imported)
+			originalName, _ := def.GetValue("name")
+			transformed.Put("name", originalName)
+			updated = append(updated, transformed)
 			changed = true
 			continue
 		}
