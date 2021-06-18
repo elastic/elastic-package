@@ -15,7 +15,7 @@ import (
 
 // BuildManifest defines the manifest defining the building procedure.
 type BuildManifest struct {
-	Dependencies Dependencies `config:"Dependencies"`
+	Dependencies Dependencies `config:"dependencies"`
 }
 
 // Dependencies define external package dependencies.
