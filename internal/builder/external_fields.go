@@ -2,20 +2,23 @@
 // or more contributor license agreements. Licensed under the Elastic License;
 // you may not use this file except in compliance with the Elastic License.
 
-package externalfields
+package builder
 
 import (
 	"io/ioutil"
 	"path/filepath"
 
 	"github.com/pkg/errors"
+	"gopkg.in/yaml.v3"
 
+	"github.com/elastic/elastic-package/internal/common"
+	"github.com/elastic/elastic-package/internal/fields"
 	"github.com/elastic/elastic-package/internal/logger"
+	"github.com/elastic/elastic-package/internal/packages/buildmanifest"
 )
 
-// Resolve function transforms all fields files into resolved form (no dependencies).
-func Resolve(packageRoot, destinationDir string) error {
-	bm, ok, err := readBuildManifest(packageRoot)
+func resolveExternalFields(packageRoot, destinationDir string) error {
+	bm, ok, err := buildmanifest.ReadBuildManifest(packageRoot)
 	if err != nil {
 		return errors.Wrap(err, "can't read build manifest")
 	}
@@ -23,13 +26,13 @@ func Resolve(packageRoot, destinationDir string) error {
 		logger.Debugf("Build manifest hasn't been defined for the package")
 		return nil
 	}
-	if !bm.hasDependencies() {
+	if !bm.HasDependencies() {
 		logger.Debugf("Package doesn't have any external dependencies defined")
 		return nil
 	}
 
 	logger.Debugf("Package has external dependencies defined")
-	fdm, err := createFieldDependencyManager(bm.Dependencies)
+	fdm, err := fields.CreateFieldDependencyManager(bm.Dependencies)
 	if err != nil {
 		return errors.Wrap(err, "can't create field dependency manager")
 	}
@@ -45,7 +48,7 @@ func Resolve(packageRoot, destinationDir string) error {
 		}
 
 		rel, _ := filepath.Rel(destinationDir, file)
-		output, injected, err := fdm.resolve(data)
+		output, injected, err := injectFields(fdm, data)
 		if err != nil {
 			return err
 		} else if injected {
@@ -60,4 +63,26 @@ func Resolve(packageRoot, destinationDir string) error {
 		}
 	}
 	return nil
+}
+
+func injectFields(fdm *fields.DependencyManager, content []byte) ([]byte, bool, error) {
+	var f []common.MapStr
+	err := yaml.Unmarshal(content, &f)
+	if err != nil {
+		return nil, false, errors.Wrap(err, "can't unmarshal source file")
+	}
+
+	f, changed, err := fdm.InjectFields(f)
+	if err != nil {
+		return nil, false, errors.Wrap(err, "can't resolve fields")
+	}
+	if !changed {
+		return content, false, nil
+	}
+
+	content, err = yaml.Marshal(&f)
+	if err != nil {
+		return nil, false, errors.Wrap(err, "can't marshal source file")
+	}
+	return content, true, nil
 }

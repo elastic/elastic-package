@@ -2,10 +2,11 @@
 // or more contributor license agreements. Licensed under the Elastic License;
 // you may not use this file except in compliance with the Elastic License.
 
-package externalfields
+package fields
 
 import (
 	"fmt"
+	"github.com/elastic/elastic-package/internal/packages/buildmanifest"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -18,7 +19,6 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/common"
-	"github.com/elastic/elastic-package/internal/fields"
 	"github.com/elastic/elastic-package/internal/logger"
 )
 
@@ -30,22 +30,24 @@ const (
 	ecsSchemaURL  = "https://raw.githubusercontent.com/elastic/ecs/%s/generated/beats/%s"
 )
 
-type fieldDependencyManager struct {
-	schema map[string][]fields.FieldDefinition
+// DependencyManager is responsible for resolving external field dependencies.
+type DependencyManager struct {
+	schema map[string][]FieldDefinition
 }
 
-func createFieldDependencyManager(deps dependencies) (*fieldDependencyManager, error) {
+// CreateFieldDependencyManager function creates a new instance of the DependencyManager.
+func CreateFieldDependencyManager(deps buildmanifest.Dependencies) (*DependencyManager, error) {
 	schema, err := buildFieldsSchema(deps)
 	if err != nil {
 		return nil, errors.Wrap(err, "can't build fields schema")
 	}
-	return &fieldDependencyManager{
+	return &DependencyManager{
 		schema: schema,
 	}, nil
 }
 
-func buildFieldsSchema(deps dependencies) (map[string][]fields.FieldDefinition, error) {
-	schema := map[string][]fields.FieldDefinition{}
+func buildFieldsSchema(deps buildmanifest.Dependencies) (map[string][]FieldDefinition, error) {
+	schema := map[string][]FieldDefinition{}
 	ecsSchema, err := loadECSFieldsSchema(deps.ECS)
 	if err != nil {
 		return nil, errors.Wrap(err, "can't load fields")
@@ -54,7 +56,7 @@ func buildFieldsSchema(deps dependencies) (map[string][]fields.FieldDefinition, 
 	return schema, nil
 }
 
-func loadECSFieldsSchema(dep ecsDependency) ([]fields.FieldDefinition, error) {
+func loadECSFieldsSchema(dep buildmanifest.ECSDependency) ([]FieldDefinition, error) {
 	if dep.Reference == "" {
 		logger.Debugf("ECS dependency isn't defined")
 		return nil, nil
@@ -108,7 +110,7 @@ func loadECSFieldsSchema(dep ecsDependency) ([]fields.FieldDefinition, error) {
 		}
 	}
 
-	var f []fields.FieldDefinition
+	var f []FieldDefinition
 	err = yaml.Unmarshal(content, &f)
 	if err != nil {
 		return nil, errors.Wrap(err, "unmarshalling field body failed")
@@ -123,29 +125,12 @@ func asGitReference(reference string) (string, error) {
 	return reference[len(gitReferencePrefix):], nil
 }
 
-func (fdm *fieldDependencyManager) resolve(content []byte) ([]byte, bool, error) {
-	var f []common.MapStr
-	err := yaml.Unmarshal(content, &f)
-	if err != nil {
-		return nil, false, errors.Wrap(err, "can't unmarshal source file")
-	}
-
-	f, changed, err := fdm.injectFields("", f)
-	if err != nil {
-		return nil, false, errors.Wrap(err, "can't resolve fields")
-	}
-	if !changed {
-		return content, false, nil
-	}
-
-	content, err = yaml.Marshal(&f)
-	if err != nil {
-		return nil, false, errors.Wrap(err, "can't marshal source file")
-	}
-	return content, true, nil
+// InjectFields function replaces external field references with target definitions.
+func (dm *DependencyManager) InjectFields(defs []common.MapStr) ([]common.MapStr, bool, error) {
+	return dm.injectFieldsWithRoot("", defs)
 }
 
-func (fdm *fieldDependencyManager) injectFields(root string, defs []common.MapStr) ([]common.MapStr, bool, error) {
+func (dm *DependencyManager) injectFieldsWithRoot(root string, defs []common.MapStr) ([]common.MapStr, bool, error) {
 	var updated []common.MapStr
 	var changed bool
 	for _, def := range defs {
@@ -153,12 +138,12 @@ func (fdm *fieldDependencyManager) injectFields(root string, defs []common.MapSt
 
 		external, _ := def.GetValue("external")
 		if external != nil {
-			schema, ok := fdm.schema[external.(string)]
+			schema, ok := dm.schema[external.(string)]
 			if !ok {
 				return nil, false, fmt.Errorf(`schema "%s" is not defined as package depedency`, external.(string))
 			}
 
-			imported := fields.FindElementDefinition(fieldPath, schema)
+			imported := FindElementDefinition(fieldPath, schema)
 			if imported == nil {
 				return nil, false, fmt.Errorf("field definition not found in schema (name: %s)", fieldPath)
 			}
@@ -174,7 +159,7 @@ func (fdm *fieldDependencyManager) injectFields(root string, defs []common.MapSt
 		fields, _ := def.GetValue("fields")
 		if fields != nil {
 			fieldsMs, err := common.ToMapStrSlice(fields)
-			updatedFields, fieldsChanged, err := fdm.injectFields(fieldPath, fieldsMs)
+			updatedFields, fieldsChanged, err := dm.injectFieldsWithRoot(fieldPath, fieldsMs)
 			if err != nil {
 				return nil, false, err
 			}
@@ -201,7 +186,7 @@ func buildFieldPath(root string, field common.MapStr) string {
 	return path
 }
 
-func transformImportedField(fd fields.FieldDefinition) common.MapStr {
+func transformImportedField(fd FieldDefinition) common.MapStr {
 	m := common.MapStr{
 		"name":        fd.Name,
 		"description": fd.Description,

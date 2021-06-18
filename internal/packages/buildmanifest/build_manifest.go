@@ -2,7 +2,7 @@
 // or more contributor license agreements. Licensed under the Elastic License;
 // you may not use this file except in compliance with the Elastic License.
 
-package externalfields
+package buildmanifest
 
 import (
 	"os"
@@ -13,23 +13,28 @@ import (
 	"github.com/pkg/errors"
 )
 
-type buildManifest struct {
-	Dependencies dependencies `config:"dependencies"`
+// BuildManifest defines the manifest defining the building procedure.
+type BuildManifest struct {
+	Dependencies Dependencies `config:"Dependencies"`
 }
 
-type dependencies struct {
-	ECS ecsDependency `config:"ecs"`
+// Dependencies define external package dependencies.
+type Dependencies struct {
+	ECS ECSDependency `config:"ecs"`
 }
 
-type ecsDependency struct {
+// ECSDependency defines a dependency on ECS fields.
+type ECSDependency struct {
 	Reference string `config:"reference"`
 }
 
-func (bm *buildManifest) hasDependencies() bool {
+// HasDependencies function checks if there are any dependencies defined.
+func (bm *BuildManifest) HasDependencies() bool {
 	return bm.Dependencies.ECS.Reference != ""
 }
 
-func readBuildManifest(packageRoot string) (*buildManifest, bool, error) {
+// ReadBuildManifest function reads the package build manifest.
+func ReadBuildManifest(packageRoot string) (*BuildManifest, bool, error) {
 	path := filepath.Join(packageRoot, "_dev", "build", "build.yml")
 	cfg, err := yaml.NewConfigWithFile(path, ucfg.PathSep("."))
 	if errors.Is(err, os.ErrNotExist) {
@@ -39,7 +44,7 @@ func readBuildManifest(packageRoot string) (*buildManifest, bool, error) {
 		return nil, false, errors.Wrapf(err, "reading file failed (path: %s)", path)
 	}
 
-	var bm buildManifest
+	var bm BuildManifest
 	err = cfg.Unpack(&bm)
 	if err != nil {
 		return nil, true, errors.Wrapf(err, "unpacking build manifest failed (path: %s)", path)
