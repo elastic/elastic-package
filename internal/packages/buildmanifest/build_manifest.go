@@ -79,7 +79,7 @@ func UpdateDependencies(packageRoot string) error {
 	}
 
 	if bm.Dependencies.ECS.Reference == ecsFreshRef {
-		logger.Debugf("Dependency on ECS is up-to-date")
+		logger.Debugf("Dependency on ECS repository is up-to-date")
 		return nil
 	}
 
