@@ -74,7 +74,7 @@ _Context: package_
 
 Use this command to verify if the package is correct in terms of formatting, validation and building.
 
-It will execute the format, build, and lint commands all at once, in that order.
+It will execute the format, lint and build commands all at once, in that order.
 
 ### `elastic-package clean`
 

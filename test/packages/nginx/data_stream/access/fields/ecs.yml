@@ -83,7 +83,7 @@
       type: ip
       description: All of the IPs seen on your event.
 - name: event.category
-  type: keyword
+  external: ecs
 - name: event.created
   external: ecs
 - name: user_agent.os.full
