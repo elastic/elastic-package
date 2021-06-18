@@ -5,12 +5,22 @@
 package buildmanifest
 
 import (
+	"encoding/json"
+	"io/ioutil"
+	"net/http"
 	"os"
 	"path/filepath"
 
 	"github.com/elastic/go-ucfg"
 	"github.com/elastic/go-ucfg/yaml"
 	"github.com/pkg/errors"
+	yamlv3 "gopkg.in/yaml.v3"
+
+	"github.com/elastic/elastic-package/internal/logger"
+)
+
+const (
+	ecsSchemaRefURL = "https://api.github.com/repos/elastic/ecs/commits/master"
 )
 
 // BuildManifest defines the manifest defining the building procedure.
@@ -54,7 +64,73 @@ func ReadBuildManifest(packageRoot string) (*BuildManifest, bool, error) {
 
 // UpdateDependencies function updates dependencies on external sources.
 func UpdateDependencies(packageRoot string) error {
-	panic("TODO")
+	bm, ok, err := ReadBuildManifest(packageRoot)
+	if err != nil {
+		return errors.Wrap(err, "can't update dependencies")
+	}
+	if !ok || !bm.HasDependencies() {
+		return errors.New("package doesn't use dependency management, please define the build manifest first")
+	}
+
+	logger.Debugf("Update dependency on ECS repository")
+	ecsFreshRef, err := updateReferenceToECS()
+	if err != nil {
+		return errors.Wrap(err, "can't update reference to ECS repository")
+	}
+
+	if bm.Dependencies.ECS.Reference == ecsFreshRef {
+		logger.Debugf("Dependency on ECS is up-to-date")
+		return nil
+	}
+
+	logger.Debugf("There is newer reference to ECS available (%s), the tool will update the build manifest", ecsFreshRef)
+	bm.Dependencies.ECS.Reference = ecsFreshRef
+
+	err = writeBuildManifest(packageRoot, *bm)
+	if err != nil {
+		return errors.Wrap(err, "can't write the build manifest")
+	}
+	return nil
+}
+
+func updateReferenceToECS() (string, error) {
+	resp, err := http.Get(ecsSchemaRefURL)
+	if err != nil {
+		return "", errors.Wrap(err, "can't download ECS schema refs")
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", errors.Wrap(err, "can't read ECS schema refs")
+	}
+
+	var latest struct {
+		SHA string `json:"sha"`
+	}
+
+	err = json.Unmarshal(body, &latest)
+	if err != nil {
+		return "", errors.Wrap(err, "can't unmarshal ECS schema refs failed")
+	}
+
+	if latest.SHA == "" {
+		return "", errors.New("missing commit SHA value")
+	}
+	return "git@" + latest.SHA, nil
+}
+
+func writeBuildManifest(packageRoot string, manifest BuildManifest) error {
+	content, err := yamlv3.Marshal(manifest)
+	if err != nil {
+		return errors.Wrap(err, "can't marshal build manifest")
+	}
+
+	path := buildManifestPath(packageRoot)
+	err = ioutil.WriteFile(path, content, 0644)
+	if err != nil {
+		return errors.Wrapf(err, "can't write build manifest (path: %s)", path)
+	}
 	return nil
 }
 
