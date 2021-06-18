@@ -35,7 +35,7 @@ func (bm *BuildManifest) HasDependencies() bool {
 
 // ReadBuildManifest function reads the package build manifest.
 func ReadBuildManifest(packageRoot string) (*BuildManifest, bool, error) {
-	path := filepath.Join(packageRoot, "_dev", "build", "build.yml")
+	path := buildManifestPath(packageRoot)
 	cfg, err := yaml.NewConfigWithFile(path, ucfg.PathSep("."))
 	if errors.Is(err, os.ErrNotExist) {
 		return nil, false, nil // ignore not found errors
@@ -50,4 +50,14 @@ func ReadBuildManifest(packageRoot string) (*BuildManifest, bool, error) {
 		return nil, true, errors.Wrapf(err, "unpacking build manifest failed (path: %s)", path)
 	}
 	return &bm, true, nil
+}
+
+// UpdateDependencies function updates dependencies on external sources.
+func UpdateDependencies(packageRoot string) error {
+	panic("TODO")
+	return nil
+}
+
+func buildManifestPath(packageRoot string) string {
+	return filepath.Join(packageRoot, "_dev", "build", "build.yml")
 }

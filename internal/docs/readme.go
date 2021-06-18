@@ -86,12 +86,7 @@ func isReadmeUpToDate(fileName, packageRoot string) (bool, error) {
 
 // UpdateReadmes function updates all .md readme files using a defined template
 // files. The function doesn't perform any action if the template file is not present.
-func UpdateReadmes() ([]string, error) {
-	packageRoot, err := packages.MustFindPackageRoot()
-	if err != nil {
-		return nil, errors.Wrap(err, "package root not found")
-	}
-
+func UpdateReadmes(packageRoot string) ([]string, error) {
 	readmeFiles, err := ioutil.ReadDir(filepath.Join(packageRoot, "_dev", "build", "docs"))
 	if err != nil && !os.IsNotExist(err) {
 		return nil, errors.Wrap(err, "reading directory entries failed")

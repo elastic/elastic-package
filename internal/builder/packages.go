@@ -15,20 +15,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-// BuildPackage function builds the package.
-func BuildPackage() (string, error) {
-	packageRoot, err := packages.MustFindPackageRoot()
-	if err != nil {
-		return "", errors.Wrap(err, "locating package root failed")
-	}
-
-	target, err := buildPackage(packageRoot)
-	if err != nil {
-		return "", errors.Wrapf(err, "building package failed (root: %s)", packageRoot)
-	}
-	return target, nil
-}
-
 // FindBuildDirectory locates the target build directory.
 func FindBuildDirectory() (string, bool, error) {
 	workDir, err := os.Getwd()
@@ -98,7 +84,8 @@ func FindBuildPackagesDirectory() (string, bool, error) {
 	return "", false, nil
 }
 
-func buildPackage(packageRoot string) (string, error) {
+// BuildPackage function builds the package.
+func BuildPackage(packageRoot string) (string, error) {
 	destinationDir, err := MustFindBuildPackagesDirectory(packageRoot)
 	if err != nil {
 		return "", errors.Wrap(err, "locating build directory for package failed")

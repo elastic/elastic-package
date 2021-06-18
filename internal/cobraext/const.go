@@ -75,6 +75,9 @@ const (
 	StackDumpOutputFlagName        = "output"
 	StackDumpOutputFlagDescription = "output location for the stack dump"
 
+	UpdateDependenciesFlagName        = "update"
+	UpdateDependenciesFlagDescription = "update package dependencies"
+
 	VerboseFlagName        = "verbose"
 	VerboseFlagDescription = "verbose mode"
 )
