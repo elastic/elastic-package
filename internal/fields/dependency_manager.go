@@ -6,12 +6,13 @@ package fields
 
 import (
 	"fmt"
-	"github.com/elastic/elastic-package/internal/packages/buildmanifest"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/elastic/elastic-package/internal/packages/buildmanifest"
 
 	"github.com/elastic/elastic-package/internal/configuration/locations"
 
@@ -138,17 +139,12 @@ func (dm *DependencyManager) injectFieldsWithRoot(root string, defs []common.Map
 
 		external, _ := def.GetValue("external")
 		if external != nil {
-			schema, ok := dm.schema[external.(string)]
-			if !ok {
-				return nil, false, fmt.Errorf(`schema "%s" is not defined as package depedency`, external.(string))
+			imported, err := dm.importField(external.(string), fieldPath)
+			if err != nil {
+				return nil, false, errors.Wrap(err, "can't import field")
 			}
 
-			imported := FindElementDefinition(fieldPath, schema)
-			if imported == nil {
-				return nil, false, fmt.Errorf("field definition not found in schema (name: %s)", fieldPath)
-			}
-
-			transformed := transformImportedField(*imported)
+			transformed := transformImportedField(imported)
 			originalName, _ := def.GetValue("name")
 			transformed.Put("name", originalName)
 			updated = append(updated, transformed)
@@ -173,6 +169,19 @@ func (dm *DependencyManager) injectFieldsWithRoot(root string, defs []common.Map
 		updated = append(updated, def)
 	}
 	return updated, changed, nil
+}
+
+func (dm *DependencyManager) importField(schemaName, fieldPath string) (FieldDefinition, error) {
+	schema, ok := dm.schema[schemaName]
+	if !ok {
+		return FieldDefinition{}, fmt.Errorf(`schema "%s" is not defined as package depedency`, schemaName)
+	}
+
+	imported := FindElementDefinition(fieldPath, schema)
+	if imported == nil {
+		return FieldDefinition{}, fmt.Errorf("field definition not found in schema (name: %s)", fieldPath)
+	}
+	return *imported, nil
 }
 
 func buildFieldPath(root string, field common.MapStr) string {

@@ -12,12 +12,12 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/elastic/elastic-package/internal/multierror"
-
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/common"
+	"github.com/elastic/elastic-package/internal/multierror"
+	"github.com/elastic/elastic-package/internal/packages/buildmanifest"
 )
 
 // Validator is responsible for fields validation.
@@ -25,9 +25,11 @@ type Validator struct {
 	// Schema contains definition records.
 	Schema []FieldDefinition
 
-	defaultNumericConversion     bool
-	numericKeywordFields         map[string]struct{}
+	defaultNumericConversion bool
+	numericKeywordFields     map[string]struct{}
+
 	disabledDependencyManagement bool
+	fieldDependencyManager       *DependencyManager
 }
 
 // ValidatorOption represents an optional flag that can be passed to  CreateValidatorForDataStream.
@@ -73,6 +75,26 @@ func CreateValidatorForDataStream(dataStreamRootPath string, opts ...ValidatorOp
 	if err != nil {
 		return nil, errors.Wrapf(err, "can't load fields for data stream (path: %s)", dataStreamRootPath)
 	}
+
+	if v.disabledDependencyManagement {
+		return v, nil
+	}
+
+	packageRoot := filepath.Dir(filepath.Dir(dataStreamRootPath))
+	bm, ok, err := buildmanifest.ReadBuildManifest(packageRoot)
+	if err != nil {
+		return nil, errors.Wrap(err, "can't read build manifest")
+	}
+	if !ok {
+		v.disabledDependencyManagement = true
+		return v, nil
+	}
+
+	fdm, err := CreateFieldDependencyManager(bm.Dependencies)
+	if err != nil {
+		return nil, errors.Wrap(err, "can't create field dependency manager")
+	}
+	v.fieldDependencyManager = fdm
 	return v, nil
 }
 
@@ -261,7 +283,11 @@ func (v *Validator) parseElementValue(key string, definition FieldDefinition, va
 	}
 
 	if !v.disabledDependencyManagement && definition.External != "" {
-		panic("TODO")
+		var err error
+		definition, err = v.fieldDependencyManager.importField(definition.External, key)
+		if err != nil {
+			return errors.Wrapf(err, "can't import field (field: %s)", key)
+		}
 	}
 
 	var valid bool
