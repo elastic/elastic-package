@@ -27,6 +27,26 @@ func reportHumanFormat(results []testrunner.TestResult) (string, error) {
 		return "No test results", nil
 	}
 
+	var report strings.Builder
+
+	headerPrinted := false
+	for _, r := range results {
+		if r.FailureMsg == "" {
+			continue
+		}
+
+		if !headerPrinted {
+			report.WriteString("FAILURE DETAILS:\n")
+			headerPrinted = true
+		}
+
+		detail := fmt.Sprintf("%s/%s %s:\n%s", r.Package, r.DataStream, r.Name, r.FailureDetails)
+		report.WriteString(detail)
+	}
+	if headerPrinted {
+		report.WriteString("\n\n")
+	}
+
 	t := table.NewWriter()
 	t.AppendHeader(table.Row{"Package", "Data stream", "Test type", "Test name", "Result", "Time elapsed"})
 
@@ -47,21 +67,7 @@ func reportHumanFormat(results []testrunner.TestResult) (string, error) {
 
 	t.SetStyle(table.StyleRounded)
 
-	s := t.Render()
+	report.WriteString(t.Render())
 
-	var details []string
-	for _, r := range results {
-		if r.FailureMsg == "" {
-			continue
-		}
-
-		detail := fmt.Sprintf("%s/%s %s:\n%s", r.Package, r.DataStream, r.Name, r.FailureDetails)
-		details = append(details, detail)
-	}
-
-	if len(details) > 0 {
-		s += "\n\nFAILURE DETAILS:\n\n" + strings.Join(details, "\n")
-	}
-
-	return s, nil
+	return report.String(), nil
 }
