@@ -37,11 +37,6 @@ func setupBuildCommand() *cobraext.Command {
 func buildCommandAction(cmd *cobra.Command, args []string) error {
 	cmd.Println("Build the package")
 
-	target, err := builder.BuildPackage()
-	if err != nil {
-		return errors.Wrap(err, "building package failed")
-	}
-
 	targets, err := docs.UpdateReadmes()
 	if err != nil {
 		return errors.Wrap(err, "updating files failed")
@@ -52,6 +47,10 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 		cmd.Printf("%s file rendered: %s\n", splitTarget[len(splitTarget)-1], target)
 	}
 
+	target, err := builder.BuildPackage()
+	if err != nil {
+		return errors.Wrap(err, "building package failed")
+	}
 	cmd.Printf("Package built: %s\n", target)
 
 	cmd.Println("Done")
