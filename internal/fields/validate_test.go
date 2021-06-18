@@ -183,9 +183,9 @@ func Test_parseElementValue(t *testing.T) {
 			fail: true,
 		},
 	} {
-
+		v := Validator{disabledDependencyManagement: true}
 		t.Run(test.key, func(t *testing.T) {
-			err := parseElementValue(test.key, test.definition, test.value)
+			err := v.parseElementValue(test.key, test.definition, test.value)
 			if test.fail {
 				require.Error(t, err)
 			} else {
