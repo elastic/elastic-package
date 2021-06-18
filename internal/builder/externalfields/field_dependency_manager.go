@@ -8,7 +8,11 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
+
+	"github.com/elastic/elastic-package/internal/configuration/locations"
 
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
@@ -21,7 +25,9 @@ import (
 const (
 	ecsSchemaName      = "ecs"
 	gitReferencePrefix = "git@"
-	ecsSchemaURL       = "https://raw.githubusercontent.com/elastic/ecs/%s/generated/beats/fields.ecs.yml"
+
+	ecsSchemaFile = "fields.ecs.yml"
+	ecsSchemaURL  = "https://raw.githubusercontent.com/elastic/ecs/%s/generated/beats/%s"
 )
 
 type fieldDependencyManager struct {
@@ -54,29 +60,54 @@ func loadECSFieldsSchema(dep ecsDependency) ([]fields.FieldDefinition, error) {
 		return nil, nil
 	}
 
-	logger.Debugf("Pulling ECS dependency using reference: %s", dep.Reference)
 	gitReference, err := asGitReference(dep.Reference)
 	if err != nil {
 		return nil, errors.Wrap(err, "can't process the value as Git reference")
 	}
 
-	url := fmt.Sprintf(ecsSchemaURL, gitReference)
-	logger.Debugf("Schema URL: %s", url)
-	resp, err := http.Get(url)
+	loc, err := locations.NewLocationManager()
 	if err != nil {
-		return nil, errors.Wrapf(err, "can't download the online schema (URL: %s)", url)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("unexpected HTTP status code: %d", resp.StatusCode)
+		return nil, errors.Wrap(err, "error fetching profile path")
 	}
 
-	content, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, errors.Wrapf(err, "can't read schema content (URL: %s)", url)
+	cachedSchemaPath := filepath.Join(loc.FieldsCacheDir(), ecsSchemaName, gitReference, ecsSchemaFile)
+	content, err := ioutil.ReadFile(cachedSchemaPath)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return nil, errors.Wrapf(err, "can't read cached schema (path: %s)", cachedSchemaPath)
+	}
+	if errors.Is(err, os.ErrNotExist) {
+		logger.Debugf("Pulling ECS dependency using reference: %s", dep.Reference)
+
+		url := fmt.Sprintf(ecsSchemaURL, gitReference, ecsSchemaFile)
+		logger.Debugf("Schema URL: %s", url)
+		resp, err := http.Get(url)
+		if err != nil {
+			return nil, errors.Wrapf(err, "can't download the online schema (URL: %s)", url)
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != 200 {
+			return nil, fmt.Errorf("unexpected HTTP status code: %d", resp.StatusCode)
+		}
+
+		content, err = ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return nil, errors.Wrapf(err, "can't read schema content (URL: %s)", url)
+		}
+		logger.Debugf("Downloaded %d bytes", len(content))
+
+		cachedSchemaDir := filepath.Dir(cachedSchemaPath)
+		err = os.MkdirAll(cachedSchemaDir, 0755)
+		if err != nil {
+			return nil, errors.Wrapf(err, "can't create cache directories for schema (path: %s)", cachedSchemaDir)
+		}
+
+		logger.Debugf("Cache downloaded schema: %s", cachedSchemaPath)
+		err = ioutil.WriteFile(cachedSchemaPath, content, 0644)
+		if err != nil {
+			return nil, errors.Wrapf(err, "can't write cached schema (path: %s)", cachedSchemaPath)
+		}
 	}
 
-	logger.Debugf("Read %d bytes", len(content))
 	var f []fields.FieldDefinition
 	err = yaml.Unmarshal(content, &f)
 	if err != nil {

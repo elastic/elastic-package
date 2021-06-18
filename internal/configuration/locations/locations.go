@@ -21,6 +21,8 @@ const (
 	temporaryDir = "tmp"
 	deployerDir  = "deployer"
 
+	fieldsCachedDir = "cache/fields"
+
 	kubernetesDeployerElasticAgentYmlFile = "elastic-agent.yml"
 	terraformDeployerYmlFile              = "terraform-deployer.yml"
 )
@@ -100,6 +102,11 @@ func (loc LocationManager) TerraformDeployerYml() string {
 // ServiceLogDir returns the log directory
 func (loc LocationManager) ServiceLogDir() string {
 	return filepath.Join(loc.stackPath, serviceLogsDir)
+}
+
+// FieldsCacheDir returns the directory with cached fields
+func (loc LocationManager) FieldsCacheDir() string {
+	return filepath.Join(loc.stackPath, fieldsCachedDir)
 }
 
 // configurationDir returns the configuration directory location
