@@ -25,8 +25,9 @@ type Validator struct {
 	// Schema contains definition records.
 	Schema []FieldDefinition
 
-	defaultNumericConversion bool
-	numericKeywordFields     map[string]struct{}
+	defaultNumericConversion     bool
+	numericKeywordFields         map[string]struct{}
+	disabledDependencyManagement bool
 }
 
 // ValidatorOption represents an optional flag that can be passed to  CreateValidatorForDataStream.
@@ -48,6 +49,14 @@ func WithNumericKeywordFields(fields []string) ValidatorOption {
 		for _, field := range fields {
 			v.numericKeywordFields[field] = struct{}{}
 		}
+		return nil
+	}
+}
+
+// WithDisabledDependencyManagement configures the validator to ignore external fields and won't follow dependencies.
+func WithDisabledDependencyManagement() ValidatorOption {
+	return func(v *Validator) error {
+		v.disabledDependencyManagement = true
 		return nil
 	}
 }
@@ -170,7 +179,7 @@ func (v *Validator) validateScalarElement(key string, val interface{}) error {
 		val = fmt.Sprintf("%q", val)
 	}
 
-	err := parseElementValue(key, *definition, val)
+	err := v.parseElementValue(key, *definition, val)
 	if err != nil {
 		return errors.Wrap(err, "parsing field value failed")
 	}
@@ -245,13 +254,13 @@ func compareKeys(key string, def FieldDefinition, searchedKey string) bool {
 	return matched
 }
 
-func parseElementValue(key string, definition FieldDefinition, val interface{}) error {
+func (v *Validator) parseElementValue(key string, definition FieldDefinition, val interface{}) error {
 	val, ok := ensureSingleElementValue(val)
 	if !ok {
 		return nil // it's an array, but it's not possible to extract the single value.
 	}
 
-	if definition.External != "" {
+	if !v.disabledDependencyManagement && definition.External != "" {
 		panic("TODO")
 	}
 
