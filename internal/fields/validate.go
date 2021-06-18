@@ -251,6 +251,10 @@ func parseElementValue(key string, definition FieldDefinition, val interface{}) 
 		return nil // it's an array, but it's not possible to extract the single value.
 	}
 
+	if definition.External != "" {
+		panic("TODO")
+	}
+
 	var valid bool
 	switch definition.Type {
 	case "date", "ip", "constant_keyword", "keyword", "text":

@@ -63,7 +63,7 @@
 | data_stream.dataset | Data stream dataset. | constant_keyword |
 | data_stream.namespace | Data stream namespace. | constant_keyword |
 | data_stream.type | Data stream type. | constant_keyword |
-| ecs.version |  | keyword |
+| ecs.version | ECS version this event conforms to. `ecs.version` is a required field and must exist in all events. When querying across multiple indices -- which may conform to slightly different ECS versions -- this field lets integrations adjust to the schema version of the events. | keyword |
 | nginx.stubstatus.accepts | The total number of accepted client connections. | long |
 | nginx.stubstatus.active | The current number of active client connections including Waiting connections. | long |
 | nginx.stubstatus.current | The current number of client requests. | long |
@@ -75,4 +75,4 @@
 | nginx.stubstatus.waiting | The current number of idle client connections waiting for a request. | long |
 | nginx.stubstatus.writing | The current number of connections where Nginx is writing the response back to the client. | long |
 | service.address |  | keyword |
-| service.type |  | keyword |
+| service.type | The type of the service data is collected from. The type can be used to group and correlate logs and metrics from one service type. Example: If logs or metrics are collected from Elasticsearch, `service.type` would be `elasticsearch`. | keyword |
