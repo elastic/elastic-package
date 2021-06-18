@@ -83,7 +83,7 @@ func UpdateDependencies(packageRoot string) error {
 		return nil
 	}
 
-	logger.Debugf("There is newer reference to ECS available (%s), the tool will update the build manifest", ecsFreshRef)
+	logger.Debugf("ECS repository has been changed (latest reference: %s), the tool will update the build manifest", ecsFreshRef)
 	bm.Dependencies.ECS.Reference = ecsFreshRef
 
 	err = writeBuildManifest(packageRoot, *bm)
