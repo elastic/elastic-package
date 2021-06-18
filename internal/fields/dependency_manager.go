@@ -139,7 +139,7 @@ func (dm *DependencyManager) injectFieldsWithRoot(root string, defs []common.Map
 
 		external, _ := def.GetValue("external")
 		if external != nil {
-			imported, err := dm.importField(external.(string), fieldPath)
+			imported, err := dm.ImportField(external.(string), fieldPath)
 			if err != nil {
 				return nil, false, errors.Wrap(err, "can't import field")
 			}
@@ -171,7 +171,8 @@ func (dm *DependencyManager) injectFieldsWithRoot(root string, defs []common.Map
 	return updated, changed, nil
 }
 
-func (dm *DependencyManager) importField(schemaName, fieldPath string) (FieldDefinition, error) {
+// ImportField method resolves dependency on a single external field using available schemas.
+func (dm *DependencyManager) ImportField(schemaName, fieldPath string) (FieldDefinition, error) {
 	schema, ok := dm.schema[schemaName]
 	if !ok {
 		return FieldDefinition{}, fmt.Errorf(`schema "%s" is not defined as package depedency`, schemaName)

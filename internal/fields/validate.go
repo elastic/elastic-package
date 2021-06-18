@@ -24,12 +24,13 @@ import (
 type Validator struct {
 	// Schema contains definition records.
 	Schema []FieldDefinition
+	// FieldDependencyManager resolves references to external fields
+	FieldDependencyManager *DependencyManager
 
 	defaultNumericConversion bool
 	numericKeywordFields     map[string]struct{}
 
 	disabledDependencyManagement bool
-	fieldDependencyManager       *DependencyManager
 }
 
 // ValidatorOption represents an optional flag that can be passed to  CreateValidatorForDataStream.
@@ -94,7 +95,7 @@ func CreateValidatorForDataStream(dataStreamRootPath string, opts ...ValidatorOp
 	if err != nil {
 		return nil, errors.Wrap(err, "can't create field dependency manager")
 	}
-	v.fieldDependencyManager = fdm
+	v.FieldDependencyManager = fdm
 	return v, nil
 }
 
@@ -284,7 +285,7 @@ func (v *Validator) parseElementValue(key string, definition FieldDefinition, va
 
 	if !v.disabledDependencyManagement && definition.External != "" {
 		var err error
-		definition, err = v.fieldDependencyManager.importField(definition.External, key)
+		definition, err = v.FieldDependencyManager.ImportField(definition.External, key)
 		if err != nil {
 			return errors.Wrapf(err, "can't import field (field: %s)", key)
 		}

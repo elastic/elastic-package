@@ -66,12 +66,7 @@ func isReadmeUpToDate(fileName, packageRoot string) (bool, error) {
 		return false, errors.Wrap(err, "package root not found")
 	}
 
-	packageBuildRoot, err := builder.MustFindBuildPackagesDirectory(packageRoot)
-	if err != nil {
-		return false, errors.Wrap(err, "package build root not found")
-	}
-
-	rendered, shouldBeRendered, err := generateReadme(fileName, packageRoot, packageBuildRoot)
+	rendered, shouldBeRendered, err := generateReadme(fileName, packageRoot)
 	if err != nil {
 		return false, errors.Wrap(err, "generating readme file failed")
 	}
@@ -125,12 +120,7 @@ func updateReadme(fileName, packageRoot string) (string, error) {
 		return "", errors.Wrap(err, "package root not found")
 	}
 
-	packageBuildRoot, err := builder.MustFindBuildPackagesDirectory(packageRoot)
-	if err != nil {
-		return "", errors.Wrap(err, "package build root not found")
-	}
-
-	rendered, shouldBeRendered, err := generateReadme(fileName, packageRoot, packageBuildRoot)
+	rendered, shouldBeRendered, err := generateReadme(fileName, packageRoot)
 	if err != nil {
 		return "", err
 	}
@@ -143,6 +133,11 @@ func updateReadme(fileName, packageRoot string) (string, error) {
 		return "", errors.Wrapf(err, "writing %s file failed", fileName)
 	}
 
+	packageBuildRoot, err := builder.MustFindBuildPackagesDirectory(packageRoot)
+	if err != nil {
+		return "", errors.Wrap(err, "package build root not found")
+	}
+
 	_, err = writeReadme(fileName, packageBuildRoot, rendered)
 	if err != nil {
 		return "", errors.Wrapf(err, "writing %s file failed", fileName)
@@ -150,7 +145,7 @@ func updateReadme(fileName, packageRoot string) (string, error) {
 	return target, nil
 }
 
-func generateReadme(fileName, packageRoot, packageBuildRoot string) ([]byte, bool, error) {
+func generateReadme(fileName, packageRoot string) ([]byte, bool, error) {
 	logger.Debugf("Generate %s file (package: %s)", fileName, packageRoot)
 	templatePath, found, err := findReadmeTemplatePath(fileName, packageRoot)
 	if err != nil {
@@ -162,7 +157,7 @@ func generateReadme(fileName, packageRoot, packageBuildRoot string) ([]byte, boo
 	}
 	logger.Debugf("Template file for %s found: %s", fileName, templatePath)
 
-	rendered, err := renderReadme(fileName, packageRoot, packageBuildRoot, templatePath)
+	rendered, err := renderReadme(fileName, packageRoot, templatePath)
 	if err != nil {
 		return nil, true, errors.Wrap(err, "rendering Readme failed")
 	}
@@ -181,7 +176,7 @@ func findReadmeTemplatePath(fileName, packageRoot string) (string, bool, error) 
 	return templatePath, true, nil
 }
 
-func renderReadme(fileName, packageRoot, packageBuildRoot, templatePath string) ([]byte, error) {
+func renderReadme(fileName, packageRoot, templatePath string) ([]byte, error) {
 	logger.Debugf("Render %s file (package: %s, templatePath: %s)", fileName, packageRoot, templatePath)
 
 	t := template.New(fileName)
@@ -190,7 +185,7 @@ func renderReadme(fileName, packageRoot, packageBuildRoot, templatePath string) 
 			return renderSampleEvent(packageRoot, dataStreamName)
 		},
 		"fields": func(dataStreamName string) (string, error) {
-			return renderExportedFields(packageBuildRoot, dataStreamName)
+			return renderExportedFields(packageRoot, dataStreamName)
 		},
 	}).ParseFiles(templatePath)
 	if err != nil {
