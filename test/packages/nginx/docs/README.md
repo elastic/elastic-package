@@ -33,7 +33,7 @@
 | user_agent.device.name | Name of the device. | keyword |
 | user_agent.name | Name of the user agent. | keyword |
 | user_agent.original | Unparsed user_agent string. | keyword |
-| user_agent.os.full |  | keyword |
+| user_agent.os.full | Operating system name, including the version or code name. | keyword |
 | user_agent.os.name | Operating system name, without the version. | keyword |
 | user_agent.os.version | Operating system version as a raw string. | keyword |
 | user_agent.version | Version of the user agent. | keyword |
