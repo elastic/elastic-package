@@ -42,8 +42,8 @@
       description: |
         The current number of idle client connections waiting for a request.
 - name: ecs.version
-  type: keyword
+  external: ecs
 - name: service.address
   type: keyword
 - name: service.type
-  type: keyword
+  external: ecs
