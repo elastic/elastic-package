@@ -8,16 +8,13 @@ clean:
 	rm -rf build
 
 format:
-	go get golang.org/x/tools/cmd/goimports
-	goimports -local github.com/elastic/elastic-package/ -w .
+	go run golang.org/x/tools/cmd/goimports -local github.com/elastic/elastic-package/ -w .
 
 lint:
-	go get golang.org/x/lint/golint
-	go list ./... | xargs -n 1 golint -set_exit_status
+	go list ./... | xargs -n 1 go run golang.org/x/lint/golint -set_exit_status
 
 licenser:
-	go get github.com/elastic/go-licenser
-	go-licenser -license Elastic
+	go run github.com/elastic/go-licenser -license Elastic
 
 gomod:
 	go mod tidy
