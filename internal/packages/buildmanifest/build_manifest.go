@@ -6,7 +6,6 @@ package buildmanifest
 
 import (
 	"encoding/json"
-	"github.com/elastic/elastic-package/internal/formatter"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -17,6 +16,7 @@ import (
 	"github.com/pkg/errors"
 	yamlv3 "gopkg.in/yaml.v3"
 
+	"github.com/elastic/elastic-package/internal/formatter"
 	"github.com/elastic/elastic-package/internal/logger"
 )
 
