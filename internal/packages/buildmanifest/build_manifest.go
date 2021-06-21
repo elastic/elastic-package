@@ -6,6 +6,7 @@ package buildmanifest
 
 import (
 	"encoding/json"
+	"github.com/elastic/elastic-package/internal/formatter"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -89,6 +90,12 @@ func UpdateDependencies(packageRoot string) error {
 	err = writeBuildManifest(packageRoot, *bm)
 	if err != nil {
 		return errors.Wrap(err, "can't write the build manifest")
+	}
+
+	logger.Debugf("Format the entire package")
+	err = formatter.Format(packageRoot, false)
+	if err != nil {
+		return errors.Wrap(err, "can't format the package")
 	}
 	return nil
 }
