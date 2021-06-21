@@ -13,6 +13,7 @@ import (
 	"github.com/elastic/elastic-package/internal/builder"
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/docs"
+	"github.com/elastic/elastic-package/internal/packages"
 )
 
 const buildLongDescription = `Use this command to build a package. Currently it supports only the "integration" package type.
@@ -37,7 +38,12 @@ func setupBuildCommand() *cobraext.Command {
 func buildCommandAction(cmd *cobra.Command, args []string) error {
 	cmd.Println("Build the package")
 
-	targets, err := docs.UpdateReadmes()
+	packageRoot, err := packages.MustFindPackageRoot()
+	if err != nil {
+		return errors.Wrap(err, "locating package root failed")
+	}
+
+	targets, err := docs.UpdateReadmes(packageRoot)
 	if err != nil {
 		return errors.Wrap(err, "updating files failed")
 	}
@@ -47,7 +53,7 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 		cmd.Printf("%s file rendered: %s\n", splitTarget[len(splitTarget)-1], target)
 	}
 
-	target, err := builder.BuildPackage()
+	target, err := builder.BuildPackage(packageRoot)
 	if err != nil {
 		return errors.Wrap(err, "building package failed")
 	}

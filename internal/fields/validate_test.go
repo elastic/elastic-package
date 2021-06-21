@@ -39,7 +39,8 @@ func TestValidate_WithWildcardFields(t *testing.T) {
 }
 
 func TestValidate_WithFlattenedFields(t *testing.T) {
-	validator, err := CreateValidatorForDataStream("testdata")
+	validator, err := CreateValidatorForDataStream("testdata",
+		WithDisabledDependencyManagement())
 	require.NoError(t, err)
 	require.NotNil(t, validator)
 
@@ -50,7 +51,8 @@ func TestValidate_WithFlattenedFields(t *testing.T) {
 
 func TestValidate_WithNumericKeywordFields(t *testing.T) {
 	validator, err := CreateValidatorForDataStream("testdata",
-		WithNumericKeywordFields([]string{"foo.code"}))
+		WithNumericKeywordFields([]string{"foo.code"}),
+		WithDisabledDependencyManagement())
 	require.NoError(t, err)
 	require.NotNil(t, validator)
 
@@ -181,9 +183,9 @@ func Test_parseElementValue(t *testing.T) {
 			fail: true,
 		},
 	} {
-
+		v := Validator{disabledDependencyManagement: true}
 		t.Run(test.key, func(t *testing.T) {
-			err := parseElementValue(test.key, test.definition, test.value)
+			err := v.parseElementValue(test.key, test.definition, test.value)
 			if test.fail {
 				require.Error(t, err)
 			} else {

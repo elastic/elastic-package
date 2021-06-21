@@ -12,5 +12,6 @@ type FieldDefinition struct {
 	Pattern     string            `yaml:"pattern"`
 	Unit        string            `yaml:"unit"`
 	MetricType  string            `yaml:"metric_type"`
+	External    string            `yaml:"external"`
 	Fields      []FieldDefinition `yaml:"fields"`
 }

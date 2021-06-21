@@ -15,20 +15,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-// BuildPackage function builds the package.
-func BuildPackage() (string, error) {
-	packageRoot, err := packages.MustFindPackageRoot()
-	if err != nil {
-		return "", errors.Wrap(err, "locating package root failed")
-	}
-
-	target, err := buildPackage(packageRoot)
-	if err != nil {
-		return "", errors.Wrapf(err, "building package failed (root: %s)", packageRoot)
-	}
-	return target, nil
-}
-
 // FindBuildDirectory locates the target build directory.
 func FindBuildDirectory() (string, bool, error) {
 	workDir, err := os.Getwd()
@@ -50,6 +36,27 @@ func FindBuildDirectory() (string, bool, error) {
 		dir = filepath.Dir(dir)
 	}
 	return "", false, nil
+}
+
+// MustFindBuildPackagesDirectory function locates the target build directory for packages.
+// If the directories path doesn't exist, it will create it.
+func MustFindBuildPackagesDirectory(packageRoot string) (string, error) {
+	buildDir, found, err := FindBuildPackagesDirectory()
+	if err != nil {
+		return "", errors.Wrap(err, "locating build directory failed")
+	}
+	if !found {
+		buildDir, err = createBuildPackagesDirectory()
+		if err != nil {
+			return "", errors.Wrap(err, "creating new build directory failed")
+		}
+	}
+
+	m, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
+	if err != nil {
+		return "", errors.Wrapf(err, "reading package manifest failed (path: %s)", packageRoot)
+	}
+	return filepath.Join(buildDir, m.Name, m.Version), nil
 }
 
 // FindBuildPackagesDirectory function locates the target build directory for packages.
@@ -77,24 +84,12 @@ func FindBuildPackagesDirectory() (string, bool, error) {
 	return "", false, nil
 }
 
-func buildPackage(packageRoot string) (string, error) {
-	buildDir, found, err := FindBuildPackagesDirectory()
+// BuildPackage function builds the package.
+func BuildPackage(packageRoot string) (string, error) {
+	destinationDir, err := MustFindBuildPackagesDirectory(packageRoot)
 	if err != nil {
-		return "", errors.Wrap(err, "locating build directory failed")
+		return "", errors.Wrap(err, "locating build directory for package failed")
 	}
-	if !found {
-		buildDir, err = createBuildPackagesDirectory()
-		if err != nil {
-			return "", errors.Wrap(err, "creating new build directory failed")
-		}
-	}
-
-	m, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
-	if err != nil {
-		return "", errors.Wrapf(err, "reading package manifest failed (path: %s)", packageRoot)
-	}
-
-	destinationDir := filepath.Join(buildDir, m.Name, m.Version)
 	logger.Debugf("Build directory: %s\n", destinationDir)
 
 	logger.Debugf("Clear target directory (path: %s)", destinationDir)
@@ -113,6 +108,12 @@ func buildPackage(packageRoot string) (string, error) {
 	err = encodeDashboards(destinationDir)
 	if err != nil {
 		return "", errors.Wrap(err, "encoding dashboards failed")
+	}
+
+	logger.Debug("Resolve external fields")
+	err = resolveExternalFields(packageRoot, destinationDir)
+	if err != nil {
+		return "", errors.Wrap(err, "resolving external fields failed")
 	}
 	return destinationDir, nil
 }

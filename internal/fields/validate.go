@@ -12,20 +12,25 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/elastic/elastic-package/internal/multierror"
-
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/common"
+	"github.com/elastic/elastic-package/internal/multierror"
+	"github.com/elastic/elastic-package/internal/packages/buildmanifest"
 )
 
 // Validator is responsible for fields validation.
 type Validator struct {
-	schema []FieldDefinition
+	// Schema contains definition records.
+	Schema []FieldDefinition
+	// FieldDependencyManager resolves references to external fields
+	FieldDependencyManager *DependencyManager
 
 	defaultNumericConversion bool
 	numericKeywordFields     map[string]struct{}
+
+	disabledDependencyManagement bool
 }
 
 // ValidatorOption represents an optional flag that can be passed to  CreateValidatorForDataStream.
@@ -51,6 +56,14 @@ func WithNumericKeywordFields(fields []string) ValidatorOption {
 	}
 }
 
+// WithDisabledDependencyManagement configures the validator to ignore external fields and won't follow dependencies.
+func WithDisabledDependencyManagement() ValidatorOption {
+	return func(v *Validator) error {
+		v.disabledDependencyManagement = true
+		return nil
+	}
+}
+
 // CreateValidatorForDataStream function creates a validator for the data stream.
 func CreateValidatorForDataStream(dataStreamRootPath string, opts ...ValidatorOption) (v *Validator, err error) {
 	v = new(Validator)
@@ -59,15 +72,34 @@ func CreateValidatorForDataStream(dataStreamRootPath string, opts ...ValidatorOp
 			return nil, err
 		}
 	}
-	v.schema, err = LoadFieldsForDataStream(dataStreamRootPath)
+	v.Schema, err = loadFieldsForDataStream(dataStreamRootPath)
 	if err != nil {
 		return nil, errors.Wrapf(err, "can't load fields for data stream (path: %s)", dataStreamRootPath)
 	}
+
+	if v.disabledDependencyManagement {
+		return v, nil
+	}
+
+	packageRoot := filepath.Dir(filepath.Dir(dataStreamRootPath))
+	bm, ok, err := buildmanifest.ReadBuildManifest(packageRoot)
+	if err != nil {
+		return nil, errors.Wrap(err, "can't read build manifest")
+	}
+	if !ok {
+		v.disabledDependencyManagement = true
+		return v, nil
+	}
+
+	fdm, err := CreateFieldDependencyManager(bm.Dependencies)
+	if err != nil {
+		return nil, errors.Wrap(err, "can't create field dependency manager")
+	}
+	v.FieldDependencyManager = fdm
 	return v, nil
 }
 
-// LoadFieldsForDataStream function loads fields defined for the given data stream.
-func LoadFieldsForDataStream(dataStreamRootPath string) ([]FieldDefinition, error) {
+func loadFieldsForDataStream(dataStreamRootPath string) ([]FieldDefinition, error) {
 	fieldsDir := filepath.Join(dataStreamRootPath, "fields")
 	fileInfos, err := ioutil.ReadDir(fieldsDir)
 	if err != nil {
@@ -132,7 +164,7 @@ func (v *Validator) validateMapElement(root string, elem common.MapStr) multierr
 				}
 			}
 		case map[string]interface{}:
-			if isFieldTypeFlattened(key, v.schema) {
+			if isFieldTypeFlattened(key, v.Schema) {
 				// Do not traverse into objects with flattened data types
 				// because the entire object is mapped as a single field.
 				continue
@@ -156,7 +188,7 @@ func (v *Validator) validateScalarElement(key string, val interface{}) error {
 		return nil // root key is always valid
 	}
 
-	definition := findElementDefinition(key, v.schema)
+	definition := FindElementDefinition(key, v.Schema)
 	if definition == nil && skipValidationForField(key) {
 		return nil // generic field, let's skip validation for now
 	}
@@ -170,7 +202,7 @@ func (v *Validator) validateScalarElement(key string, val interface{}) error {
 		val = fmt.Sprintf("%q", val)
 	}
 
-	err := parseElementValue(key, *definition, val)
+	err := v.parseElementValue(key, *definition, val)
 	if err != nil {
 		return errors.Wrap(err, "parsing field value failed")
 	}
@@ -200,7 +232,7 @@ func isFieldFamilyMatching(family, key string) bool {
 }
 
 func isFieldTypeFlattened(key string, fieldDefinitions []FieldDefinition) bool {
-	definition := findElementDefinition(key, fieldDefinitions)
+	definition := FindElementDefinition(key, fieldDefinitions)
 	return definition != nil && "flattened" == definition.Type
 }
 
@@ -223,7 +255,8 @@ func findElementDefinitionForRoot(root, searchedKey string, FieldDefinitions []F
 	return nil
 }
 
-func findElementDefinition(searchedKey string, fieldDefinitions []FieldDefinition) *FieldDefinition {
+// FindElementDefinition is a helper function used to find the fields definition in the schema.
+func FindElementDefinition(searchedKey string, fieldDefinitions []FieldDefinition) *FieldDefinition {
 	return findElementDefinitionForRoot("", searchedKey, fieldDefinitions)
 }
 
@@ -244,10 +277,18 @@ func compareKeys(key string, def FieldDefinition, searchedKey string) bool {
 	return matched
 }
 
-func parseElementValue(key string, definition FieldDefinition, val interface{}) error {
+func (v *Validator) parseElementValue(key string, definition FieldDefinition, val interface{}) error {
 	val, ok := ensureSingleElementValue(val)
 	if !ok {
 		return nil // it's an array, but it's not possible to extract the single value.
+	}
+
+	if !v.disabledDependencyManagement && definition.External != "" {
+		var err error
+		definition, err = v.FieldDependencyManager.ImportField(definition.External, key)
+		if err != nil {
+			return errors.Wrapf(err, "can't import field (field: %s)", key)
+		}
 	}
 
 	var valid bool
