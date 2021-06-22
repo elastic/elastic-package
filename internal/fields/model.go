@@ -9,6 +9,7 @@ type FieldDefinition struct {
 	Name        string            `yaml:"name"`
 	Description string            `yaml:"description"`
 	Type        string            `yaml:"type"`
+	Value       string            `yaml:"value"` // The value to associate with a constant_keyword field.
 	Pattern     string            `yaml:"pattern"`
 	Unit        string            `yaml:"unit"`
 	MetricType  string            `yaml:"metric_type"`
