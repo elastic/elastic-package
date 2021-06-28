@@ -10,8 +10,7 @@ require (
 	github.com/elastic/go-elasticsearch/v7 v7.9.0
 	github.com/elastic/go-licenser v0.3.1
 	github.com/elastic/go-ucfg v0.8.3
-	github.com/elastic/package-spec v0.0.0-20210623152222-b358e974b7f9 // indirect
-	github.com/elastic/package-spec/code/go v0.0.0-20210622082315-342d612eb2a9
+	github.com/elastic/package-spec/code/go v0.0.0-20210623152222-b358e974b7f9
 	github.com/fatih/color v1.10.0
 	github.com/go-git/go-billy/v5 v5.0.0
 	github.com/go-git/go-git/v5 v5.1.0
