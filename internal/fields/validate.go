@@ -293,19 +293,28 @@ func (v *Validator) parseElementValue(key string, definition FieldDefinition, va
 
 	var valid bool
 	switch definition.Type {
-	case "date", "ip", "constant_keyword", "keyword", "text":
+	case "constant_keyword":
 		var valStr string
 		valStr, valid = val.(string)
-		if !valid || definition.Pattern == "" {
+		if !valid {
 			break
 		}
 
-		valid, err := regexp.MatchString(definition.Pattern, valStr)
-		if err != nil {
-			return errors.Wrap(err, "invalid pattern")
+		if err := ensureConstantKeywordValueMatches(key, valStr, definition.Value); err != nil {
+			return err
 		}
+		if err := ensurePatternMatches(key, valStr, definition.Pattern); err != nil {
+			return err
+		}
+	case "date", "ip", "keyword", "text":
+		var valStr string
+		valStr, valid = val.(string)
 		if !valid {
-			return fmt.Errorf("field %q's value, %s, does not match the expected pattern: %s", key, valStr, definition.Pattern)
+			break
+		}
+
+		if err := ensurePatternMatches(key, valStr, definition.Pattern); err != nil {
+			return err
 		}
 	case "float", "long", "double":
 		_, valid = val.(float64)
@@ -330,4 +339,32 @@ func ensureSingleElementValue(val interface{}) (interface{}, bool) {
 		return arr[0], true
 	}
 	return nil, false // false: empty array, can't deduce single value type
+}
+
+// ensurePatternMatches validates the document's field value matches the field
+// definitions regular expression pattern.
+func ensurePatternMatches(key, value, pattern string) error {
+	if pattern == "" {
+		return nil
+	}
+	valid, err := regexp.MatchString(pattern, value)
+	if err != nil {
+		return errors.Wrap(err, "invalid pattern")
+	}
+	if !valid {
+		return fmt.Errorf("field %q's value, %s, does not match the expected pattern: %s", key, value, pattern)
+	}
+	return nil
+}
+
+// ensureConstantKeywordValueMatches validates the document's field value
+// matches the definition's constant_keyword value.
+func ensureConstantKeywordValueMatches(key, value, constantKeywordValue string) error {
+	if constantKeywordValue == "" {
+		return nil
+	}
+	if value != constantKeywordValue {
+		return fmt.Errorf("field %q's value %q does not match the declared constant_keyword value %q", key, value, constantKeywordValue)
+	}
+	return nil
 }

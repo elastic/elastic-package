@@ -61,6 +61,20 @@ func TestValidate_WithNumericKeywordFields(t *testing.T) {
 	require.Empty(t, errs)
 }
 
+func TestValidate_constant_keyword(t *testing.T) {
+	validator, err := CreateValidatorForDataStream("testdata")
+	require.NoError(t, err)
+	require.NotNil(t, validator)
+
+	e := readSampleEvent(t, "testdata/constant-keyword-invalid.json")
+	errs := validator.ValidateDocumentBody(e)
+	require.NotEmpty(t, errs)
+
+	e = readSampleEvent(t, "testdata/constant-keyword-valid.json")
+	errs = validator.ValidateDocumentBody(e)
+	require.Empty(t, errs)
+}
+
 func Test_parseElementValue(t *testing.T) {
 	for _, test := range []struct {
 		key        string
