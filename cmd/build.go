@@ -22,7 +22,9 @@ Built packages are stored in the "build/" folder located at the root folder of t
 
 Built packages are served up by the Elastic Package Registry running locally (see "elastic-package stack"). If you want a local package to be served up by the local Elastic Package Registry, make sure to build that package first using "elastic-package build".
 
-Built packages can also be published to the global package registry service.`
+Built packages can also be published to the global package registry service.
+
+For details on how to enable dependency management, see the [HOWTO guide](https://github.com/elastic/elastic-package/blob/master/docs/howto/dependency_management.md).`
 
 func setupBuildCommand() *cobraext.Command {
 	cmd := &cobra.Command{
