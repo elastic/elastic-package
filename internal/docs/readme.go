@@ -14,6 +14,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/elastic/elastic-package/internal/builder"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 )
@@ -85,12 +86,7 @@ func isReadmeUpToDate(fileName, packageRoot string) (bool, error) {
 
 // UpdateReadmes function updates all .md readme files using a defined template
 // files. The function doesn't perform any action if the template file is not present.
-func UpdateReadmes() ([]string, error) {
-	packageRoot, err := packages.MustFindPackageRoot()
-	if err != nil {
-		return nil, errors.Wrap(err, "package root not found")
-	}
-
+func UpdateReadmes(packageRoot string) ([]string, error) {
 	readmeFiles, err := ioutil.ReadDir(filepath.Join(packageRoot, "_dev", "build", "docs"))
 	if err != nil && !os.IsNotExist(err) {
 		return nil, errors.Wrap(err, "reading directory entries failed")
@@ -128,6 +124,16 @@ func updateReadme(fileName, packageRoot string) (string, error) {
 	}
 
 	target, err := writeReadme(fileName, packageRoot, rendered)
+	if err != nil {
+		return "", errors.Wrapf(err, "writing %s file failed", fileName)
+	}
+
+	packageBuildRoot, err := builder.MustFindBuildPackagesDirectory(packageRoot)
+	if err != nil {
+		return "", errors.Wrap(err, "package build root not found")
+	}
+
+	_, err = writeReadme(fileName, packageBuildRoot, rendered)
 	if err != nil {
 		return "", errors.Wrapf(err, "writing %s file failed", fileName)
 	}

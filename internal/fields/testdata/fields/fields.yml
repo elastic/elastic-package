@@ -8,3 +8,6 @@
       fields:
         - name: request_parameters
           type: flattened
+    - name: constant
+      type: constant_keyword
+      value: correct

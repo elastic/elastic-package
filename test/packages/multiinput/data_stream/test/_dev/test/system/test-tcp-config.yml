@@ -1,5 +1,6 @@
 input: tcp
 service: test-tcp
+service_notify_signal: SIGHUP
 vars: ~
 data_stream:
   vars:

@@ -1,14 +1,12 @@
 version: '2.3'
 services:
   test-tcp:
-    tty: true
-    build: .
+    image: akroh/stream:v0.0.1
     volumes:
-      - ./logs:/logs/:ro
-    command: /stream -proto tcp -dest elastic-agent:9999 /logs/generated.log
+      - ./logs:/logs:ro
+    command: log --start-signal=SIGHUP --delay=5s --addr elastic-agent:9999 -p=tcp /logs/generated.log
   test-udp:
-    tty: true
-    build: .
+    image: akroh/stream:v0.0.1
     volumes:
-      - ./logs:/logs/:ro
-    command: /stream -proto udp -delay 100ms -dest elastic-agent:9999 /logs/generated.log
+      - ./logs:/logs:ro
+    command: log --start-signal=SIGHUP --delay=5s --addr elastic-agent:9999 -p=udp /logs/generated.log

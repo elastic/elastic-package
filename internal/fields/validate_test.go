@@ -39,7 +39,8 @@ func TestValidate_WithWildcardFields(t *testing.T) {
 }
 
 func TestValidate_WithFlattenedFields(t *testing.T) {
-	validator, err := CreateValidatorForDataStream("testdata")
+	validator, err := CreateValidatorForDataStream("testdata",
+		WithDisabledDependencyManagement())
 	require.NoError(t, err)
 	require.NotNil(t, validator)
 
@@ -50,12 +51,27 @@ func TestValidate_WithFlattenedFields(t *testing.T) {
 
 func TestValidate_WithNumericKeywordFields(t *testing.T) {
 	validator, err := CreateValidatorForDataStream("testdata",
-		WithNumericKeywordFields([]string{"foo.code"}))
+		WithNumericKeywordFields([]string{"foo.code"}),
+		WithDisabledDependencyManagement())
 	require.NoError(t, err)
 	require.NotNil(t, validator)
 
 	e := readSampleEvent(t, "testdata/numeric.json")
 	errs := validator.ValidateDocumentBody(e)
+	require.Empty(t, errs)
+}
+
+func TestValidate_constant_keyword(t *testing.T) {
+	validator, err := CreateValidatorForDataStream("testdata")
+	require.NoError(t, err)
+	require.NotNil(t, validator)
+
+	e := readSampleEvent(t, "testdata/constant-keyword-invalid.json")
+	errs := validator.ValidateDocumentBody(e)
+	require.NotEmpty(t, errs)
+
+	e = readSampleEvent(t, "testdata/constant-keyword-valid.json")
+	errs = validator.ValidateDocumentBody(e)
 	require.Empty(t, errs)
 }
 
@@ -181,9 +197,9 @@ func Test_parseElementValue(t *testing.T) {
 			fail: true,
 		},
 	} {
-
+		v := Validator{disabledDependencyManagement: true}
 		t.Run(test.key, func(t *testing.T) {
-			err := parseElementValue(test.key, test.definition, test.value)
+			err := v.parseElementValue(test.key, test.definition, test.value)
 			if test.fail {
 				require.Error(t, err)
 			} else {
