@@ -79,7 +79,25 @@ func (m MapStr) StringToPrint() string {
 	return string(j)
 }
 
-// tomapStr performs a type assertion on v and returns a MapStr. v can be either
+// ToMapStrSlice function tries to convert the interface into the slice of MapStrs.
+func ToMapStrSlice(slice interface{}) ([]MapStr, error) {
+	sliceI, ok := slice.([]interface{})
+	if !ok {
+		return nil, fmt.Errorf("expected slice of interfaces but type is %T", slice)
+	}
+
+	var mapStrs []MapStr
+	for _, v := range sliceI {
+		m, err := toMapStr(v)
+		if err != nil {
+			return nil, errors.Wrap(err, "can't convert element to MapStr")
+		}
+		mapStrs = append(mapStrs, m)
+	}
+	return mapStrs, nil
+}
+
+// toMapStr performs a type assertion on v and returns a MapStr. v can be either
 // a MapStr or a map[string]interface{}. If it's any other type or nil then
 // an error is returned.
 func toMapStr(v interface{}) (MapStr, error) {

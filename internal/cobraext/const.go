@@ -42,9 +42,6 @@ const (
 	ProfileFlagName        = "profile"
 	ProfileFlagDescription = "select a profile to use for the stack configuration. Can also be set with %s"
 
-	ProfileNewFlagName        = "new"
-	ProfileNewFlagDescription = "create a new profile"
-
 	ProfileFromFlagName        = "from"
 	ProfileFromFlagDescription = "copy profile from the specified existing profile"
 

@@ -25,12 +25,12 @@ type fieldsTableRecord struct {
 
 func renderExportedFields(packageRoot, dataStreamName string) (string, error) {
 	dataStreamPath := filepath.Join(packageRoot, "data_stream", dataStreamName)
-	definitions, err := fields.LoadFieldsForDataStream(dataStreamPath)
+	validator, err := fields.CreateValidatorForDataStream(dataStreamPath)
 	if err != nil {
-		return "", errors.Wrapf(err, "can't load fields for data stream (path: %s)", dataStreamPath)
+		return "", errors.Wrapf(err, "can't create fields validator instance (path: %s)", dataStreamPath)
 	}
 
-	collected, err := collectFieldsFromDefinitions(definitions)
+	collected, err := collectFieldsFromDefinitions(validator)
 	if err != nil {
 		return "", errors.Wrap(err, "collecting fields files failed")
 	}
@@ -99,13 +99,13 @@ func areMetricTypesPresent(collected []fieldsTableRecord) bool {
 	return false
 }
 
-func collectFieldsFromDefinitions(fieldDefinitions []fields.FieldDefinition) ([]fieldsTableRecord, error) {
+func collectFieldsFromDefinitions(validator *fields.Validator) ([]fieldsTableRecord, error) {
 	var records []fieldsTableRecord
 
-	root := fieldDefinitions
+	root := validator.Schema
 	var err error
 	for _, f := range root {
-		records, err = visitFields("", f, records)
+		records, err = visitFields("", f, records, validator.FieldDependencyManager)
 		if err != nil {
 			return nil, errors.Wrapf(err, "visiting fields failed")
 		}
@@ -113,7 +113,7 @@ func collectFieldsFromDefinitions(fieldDefinitions []fields.FieldDefinition) ([]
 	return uniqueTableRecords(records), nil
 }
 
-func visitFields(namePrefix string, f fields.FieldDefinition, records []fieldsTableRecord) ([]fieldsTableRecord, error) {
+func visitFields(namePrefix string, f fields.FieldDefinition, records []fieldsTableRecord, fdm *fields.DependencyManager) ([]fieldsTableRecord, error) {
 	var name = namePrefix
 	if namePrefix != "" {
 		name += "."
@@ -121,6 +121,13 @@ func visitFields(namePrefix string, f fields.FieldDefinition, records []fieldsTa
 	name += f.Name
 
 	if len(f.Fields) == 0 && f.Type != "group" {
+		if f.External != "" {
+			var err error
+			f, err = fdm.ImportField(f.External, name)
+			if err != nil {
+				return nil, errors.Wrap(err, "can't import field")
+			}
+		}
 		records = append(records, fieldsTableRecord{
 			name:        name,
 			description: f.Description,
@@ -133,7 +140,7 @@ func visitFields(namePrefix string, f fields.FieldDefinition, records []fieldsTa
 
 	var err error
 	for _, fieldEntry := range f.Fields {
-		records, err = visitFields(name, fieldEntry, records)
+		records, err = visitFields(name, fieldEntry, records, fdm)
 		if err != nil {
 			return nil, errors.Wrapf(err, "recursive visiting fields failed (namePrefix: %s)", namePrefix)
 		}
