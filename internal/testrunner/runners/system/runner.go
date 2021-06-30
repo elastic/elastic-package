@@ -149,6 +149,7 @@ func (r *runner) run() (results []testrunner.TestResult, err error) {
 
 		var partial []testrunner.TestResult
 		if testConfig.Skip == nil {
+			logger.Debugf("running test with configuration '%s'", testConfig.Name())
 			partial, err = r.runTest(testConfig, ctxt)
 		} else {
 			logger.Warnf("skipping %s test for %s/%s: %s (details: %s)",
