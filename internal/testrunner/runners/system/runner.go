@@ -163,6 +163,9 @@ func (r *runner) run() (results []testrunner.TestResult, err error) {
 		if err != nil {
 			return results, err
 		}
+		if err = r.TearDown(); err != nil {
+			return results, errors.Wrap(err, "failed to teardown runner")
+		}
 	}
 	return results, nil
 }
