@@ -136,9 +136,15 @@ func (s *dockerComposeDeployedService) TearDown() error {
 		return errors.Wrap(err, "could not create docker compose project for service")
 	}
 
-	if err := p.Down(compose.CommandOptions{
-		Env: []string{fmt.Sprintf("%s=%s", serviceLogsDirEnv, s.ctxt.Logs.Folder.Local)},
-	}); err != nil {
+	downOptions := compose.CommandOptions{
+		Env: []string{
+			fmt.Sprintf("%s=%s", serviceLogsDirEnv, s.ctxt.Logs.Folder.Local),
+		},
+
+		// Remove associated volumes.
+		ExtraArgs: []string{"--volumes"},
+	}
+	if err := p.Down(downOptions); err != nil {
 		return errors.Wrap(err, "could not shut down service using docker compose")
 	}
 	return nil
