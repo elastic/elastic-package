@@ -85,6 +85,28 @@ services:
 
 Here, `SERVICE_LOGS_DIR` is a special keyword. It is something that we will need later.
 
+`elastic-package` will remove orphan volumes associated to the started services
+when they are stopped. Docker compose may not be able to find volumes defined in
+the Dockerfile for this cleanup. In these cases, override the volume definition.
+
+For example docker images for MySQL include a volume for the data directory
+`/var/lib/mysql`. In order for `elastic-package` to clean up these volumes after
+tests are executed, a volume can be added to the `docker-compose.yml`:
+
+```
+version: '2.3'
+services:
+  mysql:
+    # Other properties such as build, ports, etc.
+    volumes:
+      # Other volumes.
+      - mysqldata:/var/lib/mysql
+
+volumes:
+  mysqldata:
+```
+
+
 ### Terraform service deployer
 
 When using the Terraform service deployer, the `<service deployer files>` must include at least one `*.tf` file.
