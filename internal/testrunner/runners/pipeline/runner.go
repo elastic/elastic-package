@@ -29,7 +29,8 @@ const (
 )
 
 type runner struct {
-	options testrunner.TestOptions
+	options   testrunner.TestOptions
+	pipelines []pipelineResource
 }
 
 func (r *runner) TestFolderRequired() bool {
@@ -54,6 +55,15 @@ func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, e
 
 // TearDown shuts down the pipeline test runner.
 func (r *runner) TearDown() error {
+	if r.options.DeferCleanup > 0 {
+		logger.Debugf("Waiting for %s before cleanup...", r.options.DeferCleanup)
+		time.Sleep(r.options.DeferCleanup)
+	}
+
+	err := uninstallIngestPipelines(r.options.ESClient, r.pipelines)
+	if err != nil {
+		return errors.Wrap(err, "uninstalling ingest pipelines failed")
+	}
 	return nil
 }
 
@@ -77,21 +87,11 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		return nil, errors.New("data stream root not found")
 	}
 
-	entryPipeline, pipelineIDs, err := installIngestPipelines(r.options.ESClient, dataStreamPath)
+	var entryPipeline string
+	entryPipeline, r.pipelines, err = installIngestPipelines(r.options.ESClient, dataStreamPath)
 	if err != nil {
 		return nil, errors.Wrap(err, "installing ingest pipelines failed")
 	}
-	defer func() {
-		if r.options.DeferCleanup > 0 {
-			logger.Debugf("Waiting for %s before cleanup...", r.options.DeferCleanup)
-			time.Sleep(r.options.DeferCleanup)
-		}
-
-		err := uninstallIngestPipelines(r.options.ESClient, pipelineIDs)
-		if err != nil {
-			logger.Warnf("Uninstalling ingest pipelines failed: %v", err)
-		}
-	}()
 
 	results := make([]testrunner.TestResult, 0)
 	for _, testCaseFile := range testCaseFiles {

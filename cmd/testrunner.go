@@ -17,6 +17,7 @@ import (
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/internal/signal"
 	"github.com/elastic/elastic-package/internal/testrunner"
 	"github.com/elastic/elastic-package/internal/testrunner/reporters/formats"
 	"github.com/elastic/elastic-package/internal/testrunner/reporters/outputs"
@@ -121,6 +122,8 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 		if err != nil {
 			return errors.Wrap(err, "locating package root failed")
 		}
+
+		signal.Enable()
 
 		var testFolders []testrunner.TestFolder
 		if runner.CanRunPerDataStream() {
