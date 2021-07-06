@@ -340,6 +340,10 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	}
 
 	cleared, err := waitUntilTrue(func() (bool, error) {
+		if signal.SIGINT() {
+			return true, errors.New("SIGINT: cancel clearing data")
+		}
+
 		docs, err := r.getDocs(dataStream)
 		return len(docs) == 0, err
 	}, 2*time.Minute)
@@ -381,7 +385,7 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	var docs []common.MapStr
 	passed, err := waitUntilTrue(func() (bool, error) {
 		if signal.SIGINT() {
-			return false, errors.New("SIGINT: cancel waiting for policy assigned")
+			return true, errors.New("SIGINT: cancel waiting for policy assigned")
 		}
 
 		var err error
