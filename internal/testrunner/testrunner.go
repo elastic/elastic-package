@@ -55,6 +55,42 @@ type TestRunner interface {
 	TestFolderRequired() bool
 }
 
+type testRunnerWrapper struct {
+	r       TestRunner
+	options TestOptions
+}
+
+func (w testRunnerWrapper) Type() TestType {
+	return w.Type()
+}
+
+func (w testRunnerWrapper) String() string {
+	return w.String()
+}
+
+func (w *testRunnerWrapper) Run(options TestOptions) ([]TestResult, error) {
+	w.options = options
+	return w.Run(options)
+}
+
+func (w testRunnerWrapper) TearDown() error {
+	if w.options.DeferCleanup > 0 {
+		logger.Debugf("waiting for %s before tearing down...", w.options.DeferCleanup)
+		time.Sleep(w.options.DeferCleanup)
+	}
+	return w.r.TearDown()
+}
+
+func (w testRunnerWrapper) CanRunPerDataStream() bool {
+	return w.CanRunPerDataStream()
+}
+
+func (w testRunnerWrapper) TestFolderRequired() bool {
+	return w.TestFolderRequired()
+}
+
+var _ TestRunner = new(testRunnerWrapper)
+
 var runners = map[TestType]TestRunner{}
 
 // TestResult contains a single test's results
@@ -237,7 +273,7 @@ func FindTestFolders(packageRootPath string, dataStreams []string, testType Test
 
 // RegisterRunner method registers the test runner.
 func RegisterRunner(runner TestRunner) {
-	runners[runner.Type()] = runner
+	runners[runner.Type()] = &testRunnerWrapper{r: runner}
 }
 
 // Run method delegates execution to the registered test runner, based on the test type.
@@ -247,14 +283,6 @@ func Run(testType TestType, options TestOptions) ([]TestResult, error) {
 		return nil, fmt.Errorf("unregistered runner test: %s", testType)
 	}
 
-	tearDown := func() error {
-		if options.DeferCleanup > 0 {
-			logger.Debugf("waiting for %s before tearing down...", options.DeferCleanup)
-			time.Sleep(options.DeferCleanup)
-		}
-		return runner.TearDown()
-	}
-
 	// Handle signals, incl. ctrl+c
 	ch := make(chan os.Signal)
 	signal.Notify(ch, os.Interrupt, syscall.SIGTERM)
@@ -262,7 +290,7 @@ func Run(testType TestType, options TestOptions) ([]TestResult, error) {
 		<-ch
 		logger.Info("Signal caught!")
 
-		err := tearDown()
+		err := runner.TearDown()
 		if err != nil {
 			logger.Errorf("can't tear down the test runner: %v", err)
 		}
@@ -271,7 +299,7 @@ func Run(testType TestType, options TestOptions) ([]TestResult, error) {
 
 	results, err := runner.Run(options)
 	if err != nil {
-		tdErr := tearDown()
+		tdErr := runner.TearDown()
 		if tdErr != nil {
 			var errs multierror.Error
 			errs = append(errs, err, tdErr)
@@ -280,7 +308,7 @@ func Run(testType TestType, options TestOptions) ([]TestResult, error) {
 		return nil, errors.Wrap(err, "could not complete test run")
 	}
 
-	if err := tearDown(); err != nil {
+	if err := runner.TearDown(); err != nil {
 		return results, errors.Wrap(err, "could not teardown test runner")
 	}
 
