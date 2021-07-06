@@ -85,6 +85,11 @@ func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, e
 }
 
 func (r *runner) TearDown() error {
+	if r.options.DeferCleanup > 0 {
+		logger.Debugf("waiting for %s before tearing down...", r.options.DeferCleanup)
+		time.Sleep(r.options.DeferCleanup)
+	}
+
 	if r.resetAgentPolicyHandler != nil {
 		if err := r.resetAgentPolicyHandler(); err != nil {
 			return err

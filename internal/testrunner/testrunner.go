@@ -55,42 +55,6 @@ type TestRunner interface {
 	TestFolderRequired() bool
 }
 
-type testRunnerWrapper struct {
-	r       TestRunner
-	options TestOptions
-}
-
-func (w testRunnerWrapper) Type() TestType {
-	return w.r.Type()
-}
-
-func (w testRunnerWrapper) String() string {
-	return w.r.String()
-}
-
-func (w *testRunnerWrapper) Run(options TestOptions) ([]TestResult, error) {
-	w.options = options
-	return w.r.Run(options)
-}
-
-func (w testRunnerWrapper) TearDown() error {
-	if w.options.DeferCleanup > 0 {
-		logger.Debugf("waiting for %s before tearing down...", w.options.DeferCleanup)
-		time.Sleep(w.options.DeferCleanup)
-	}
-	return w.r.TearDown()
-}
-
-func (w testRunnerWrapper) CanRunPerDataStream() bool {
-	return w.r.CanRunPerDataStream()
-}
-
-func (w testRunnerWrapper) TestFolderRequired() bool {
-	return w.r.TestFolderRequired()
-}
-
-var _ TestRunner = new(testRunnerWrapper)
-
 var runners = map[TestType]TestRunner{}
 
 // TestResult contains a single test's results
@@ -273,7 +237,7 @@ func FindTestFolders(packageRootPath string, dataStreams []string, testType Test
 
 // RegisterRunner method registers the test runner.
 func RegisterRunner(runner TestRunner) {
-	runners[runner.Type()] = &testRunnerWrapper{r: runner}
+	runners[runner.Type()] = runner
 }
 
 // Run method delegates execution to the registered test runner, based on the test type.
