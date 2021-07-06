@@ -252,6 +252,8 @@ func Run(testType TestType, options TestOptions) ([]TestResult, error) {
 	signal.Notify(ch, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		<-ch
+		signal.Stop(ch)
+
 		logger.Info("Signal caught!")
 
 		err := runner.TearDown()
