@@ -61,16 +61,16 @@ type testRunnerWrapper struct {
 }
 
 func (w testRunnerWrapper) Type() TestType {
-	return w.Type()
+	return w.r.Type()
 }
 
 func (w testRunnerWrapper) String() string {
-	return w.String()
+	return w.r.String()
 }
 
 func (w *testRunnerWrapper) Run(options TestOptions) ([]TestResult, error) {
 	w.options = options
-	return w.Run(options)
+	return w.r.Run(options)
 }
 
 func (w testRunnerWrapper) TearDown() error {
@@ -82,11 +82,11 @@ func (w testRunnerWrapper) TearDown() error {
 }
 
 func (w testRunnerWrapper) CanRunPerDataStream() bool {
-	return w.CanRunPerDataStream()
+	return w.r.CanRunPerDataStream()
 }
 
 func (w testRunnerWrapper) TestFolderRequired() bool {
-	return w.TestFolderRequired()
+	return w.r.TestFolderRequired()
 }
 
 var _ TestRunner = new(testRunnerWrapper)
