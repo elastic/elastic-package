@@ -26,7 +26,7 @@ func setupServiceCommand() *cobraext.Command {
 		RunE:  upCommandAction,
 	}
 	upCommand.Flags().StringP(cobraext.DataStreamFlagName, "d", "", cobraext.DataStreamFlagDescription)
-	upCommand.Flags().StringP(cobraext.VariantFlagDescription, "s", "", cobraext.VariantFlagDescription)
+	upCommand.Flags().StringP(cobraext.VariantFlagName, "s", "", cobraext.VariantFlagDescription)
 
 	cmd := &cobra.Command{
 		Use:   "service",
