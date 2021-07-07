@@ -68,7 +68,7 @@ func (d *DockerComposeServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedSer
 
 	// Boot up service
 	if d.sv.active() {
-		logger.Info("Using service variant: %s", d.sv.String())
+		logger.Infof("Using service variant: %s", d.sv.String())
 	}
 
 	serviceName := inCtxt.Name

@@ -1,4 +1,6 @@
 variants:
-  v2:
+  v2420:
     SERVICE_VERSION: 2.4.20
-default: v2
+  v2443:
+    SERVICE_VERSION: 2.4.43
+default: v2420
