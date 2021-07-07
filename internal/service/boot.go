@@ -24,6 +24,8 @@ type Options struct {
 	ServiceName        string
 	PackageRootPath    string
 	DataStreamRootPath string
+
+	Variant string
 }
 
 // BootUp function boots up the service stack.
