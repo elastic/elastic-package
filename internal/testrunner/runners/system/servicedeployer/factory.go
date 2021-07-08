@@ -19,6 +19,8 @@ const devDeployDir = "_dev/deploy"
 type FactoryOptions struct {
 	PackageRootPath    string
 	DataStreamRootPath string
+
+	Variant string
 }
 
 // Factory chooses the appropriate service runner for the given data stream, depending
@@ -44,7 +46,11 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 	case "docker":
 		dockerComposeYMLPath := filepath.Join(serviceDeployerPath, "docker-compose.yml")
 		if _, err := os.Stat(dockerComposeYMLPath); err == nil {
-			return NewDockerComposeServiceDeployer([]string{dockerComposeYMLPath})
+			sv, err := useServiceVariant(devDeployPath, options.Variant)
+			if err != nil {
+				return nil, errors.Wrap(err, "can't use service variant")
+			}
+			return NewDockerComposeServiceDeployer([]string{dockerComposeYMLPath}, sv)
 		}
 	case "tf":
 		if _, err := os.Stat(serviceDeployerPath); err == nil {
