@@ -118,6 +118,10 @@ rules:
       - deployments
       - replicasets
     verbs: ["get", "list", "watch"]
+  - apiGroups: [ "batch" ]
+    resources:
+      - jobs
+    verbs: [ "get", "list", "watch" ]
   - apiGroups:
       - ""
     resources:
