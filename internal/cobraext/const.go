@@ -72,6 +72,9 @@ const (
 	StackDumpOutputFlagName        = "output"
 	StackDumpOutputFlagDescription = "output location for the stack dump"
 
+	VariantFlagName        = "variant"
+	VariantFlagDescription = "service variant"
+
 	VerboseFlagName        = "verbose"
 	VerboseFlagDescription = "verbose mode"
 )

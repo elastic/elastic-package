@@ -24,6 +24,8 @@ type Options struct {
 	ServiceName        string
 	PackageRootPath    string
 	DataStreamRootPath string
+
+	Variant string
 }
 
 // BootUp function boots up the service stack.
@@ -32,6 +34,7 @@ func BootUp(options Options) error {
 	serviceDeployer, err := servicedeployer.Factory(servicedeployer.FactoryOptions{
 		PackageRootPath:    options.DataStreamRootPath,
 		DataStreamRootPath: options.DataStreamRootPath,
+		Variant:            options.Variant,
 	})
 	if err != nil {
 		return errors.Wrap(err, "can't create the service deployer instance")
