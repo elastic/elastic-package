@@ -40,7 +40,7 @@ func reportHumanFormat(results []testrunner.TestResult) (string, error) {
 			headerPrinted = true
 		}
 
-		detail := fmt.Sprintf("%s/%s %s:\n%s", r.Package, r.DataStream, r.Name, r.FailureDetails)
+		detail := fmt.Sprintf("%s/%s %s:\n%s\n", r.Package, r.DataStream, r.Name, r.FailureDetails)
 		report.WriteString(detail)
 	}
 	if headerPrinted {

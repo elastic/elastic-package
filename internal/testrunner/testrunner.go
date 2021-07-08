@@ -8,18 +8,13 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"os/signal"
 	"path/filepath"
 	"sort"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/elastic/go-elasticsearch/v7"
 	"github.com/pkg/errors"
-
-	"github.com/elastic/elastic-package/internal/logger"
-	"github.com/elastic/elastic-package/internal/multierror"
 )
 
 // TestType represents the various supported test types
@@ -247,43 +242,14 @@ func Run(testType TestType, options TestOptions) ([]TestResult, error) {
 		return nil, fmt.Errorf("unregistered runner test: %s", testType)
 	}
 
-	tearDown := func() error {
-		if options.DeferCleanup > 0 {
-			logger.Debugf("waiting for %s before tearing down...", options.DeferCleanup)
-			time.Sleep(options.DeferCleanup)
-		}
-		return runner.TearDown()
-	}
-
-	// Handle signals, incl. ctrl+c
-	ch := make(chan os.Signal)
-	signal.Notify(ch, os.Interrupt, syscall.SIGTERM)
-	go func() {
-		<-ch
-		logger.Info("Signal caught!")
-
-		err := tearDown()
-		if err != nil {
-			logger.Errorf("can't tear down the test runner: %v", err)
-		}
-		os.Exit(1)
-	}()
-
 	results, err := runner.Run(options)
+	tdErr := runner.TearDown()
 	if err != nil {
-		tdErr := tearDown()
-		if tdErr != nil {
-			var errs multierror.Error
-			errs = append(errs, err, tdErr)
-			return nil, errors.Wrap(err, "could not complete test run and teardown test runner")
-		}
 		return nil, errors.Wrap(err, "could not complete test run")
 	}
-
-	if err := tearDown(); err != nil {
+	if tdErr != nil {
 		return results, errors.Wrap(err, "could not teardown test runner")
 	}
-
 	return results, nil
 }
 

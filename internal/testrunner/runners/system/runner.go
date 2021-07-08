@@ -23,6 +23,7 @@ import (
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/multierror"
 	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/internal/signal"
 	"github.com/elastic/elastic-package/internal/testrunner"
 	"github.com/elastic/elastic-package/internal/testrunner/runners/system/servicedeployer"
 )
@@ -84,7 +85,17 @@ func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, e
 	return r.run()
 }
 
+// TearDown method doesn't perform any global action as the "tear down" is executed per test case.
 func (r *runner) TearDown() error {
+	return nil
+}
+
+func (r *runner) tearDownTest() error {
+	if r.options.DeferCleanup > 0 {
+		logger.Debugf("waiting for %s before tearing down...", r.options.DeferCleanup)
+		time.Sleep(r.options.DeferCleanup)
+	}
+
 	if r.resetAgentPolicyHandler != nil {
 		if err := r.resetAgentPolicyHandler(); err != nil {
 			return err
@@ -160,11 +171,12 @@ func (r *runner) run() (results []testrunner.TestResult, err error) {
 		}
 
 		results = append(results, partial...)
+		tdErr := r.tearDownTest()
 		if err != nil {
 			return results, err
 		}
-		if err = r.TearDown(); err != nil {
-			return results, errors.Wrap(err, "failed to teardown runner")
+		if tdErr != nil {
+			return results, errors.Wrap(tdErr, "failed to tear down runner")
 		}
 	}
 	return results, nil
@@ -328,6 +340,10 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	}
 
 	cleared, err := waitUntilTrue(func() (bool, error) {
+		if signal.SIGINT() {
+			return true, errors.New("SIGINT: cancel clearing data")
+		}
+
 		docs, err := r.getDocs(dataStream)
 		return len(docs) == 0, err
 	}, 2*time.Minute)
@@ -368,6 +384,10 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	logger.Debug("checking for expected data in data stream...")
 	var docs []common.MapStr
 	passed, err := waitUntilTrue(func() (bool, error) {
+		if signal.SIGINT() {
+			return true, errors.New("SIGINT: cancel waiting for policy assigned")
+		}
+
 		var err error
 		docs, err = r.getDocs(dataStream)
 		return len(docs) > 0, err
@@ -407,6 +427,10 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 func checkEnrolledAgents(client *kibana.Client, ctxt servicedeployer.ServiceContext) ([]kibana.Agent, error) {
 	var agents []kibana.Agent
 	enrolled, err := waitUntilTrue(func() (bool, error) {
+		if signal.SIGINT() {
+			return false, errors.New("SIGINT: cancel checking enrolled agents")
+		}
+
 		allAgents, err := client.ListAgents()
 		if err != nil {
 			return false, errors.Wrap(err, "could not list agents")

@@ -87,7 +87,11 @@ func dockerComposeDown(options Options) error {
 		return errors.Wrap(err, "could not create docker compose project")
 	}
 
-	if err := c.Down(compose.CommandOptions{}); err != nil {
+	downOptions := compose.CommandOptions{
+		// Remove associated volumes.
+		ExtraArgs: []string{"--volumes"},
+	}
+	if err := c.Down(downOptions); err != nil {
 		return errors.Wrap(err, "running command failed")
 	}
 	return nil

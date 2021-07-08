@@ -9,9 +9,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/elastic/elastic-package/internal/logger"
-
 	"github.com/pkg/errors"
+
+	"github.com/elastic/elastic-package/internal/logger"
+	"github.com/elastic/elastic-package/internal/signal"
 )
 
 // Agent represents an Elastic Agent enrolled with fleet.
@@ -71,6 +72,10 @@ func (c *Client) AssignPolicyToAgent(a Agent, p Policy) error {
 
 func (c *Client) waitUntilPolicyAssigned(a Agent, p Policy) error {
 	for {
+		if signal.SIGINT() {
+			return errors.New("SIGINT: cancel waiting for policy assigned")
+		}
+
 		agent, err := c.getAgent(a.ID)
 		if err != nil {
 			return errors.Wrap(err, "can't get the agent")
