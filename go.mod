@@ -12,8 +12,8 @@ require (
 	github.com/elastic/go-ucfg v0.8.3
 	github.com/elastic/package-spec/code/go v0.0.0-20210623152222-b358e974b7f9
 	github.com/fatih/color v1.10.0
-	github.com/go-git/go-billy/v5 v5.0.0
-	github.com/go-git/go-git/v5 v5.1.0
+	github.com/go-git/go-billy/v5 v5.3.1
+	github.com/go-git/go-git/v5 v5.4.2
 	github.com/go-openapi/strfmt v0.19.6 // indirect
 	github.com/google/go-github/v32 v32.1.0
 	github.com/google/go-querystring v1.0.0
