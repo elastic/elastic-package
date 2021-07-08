@@ -26,6 +26,7 @@ func setupServiceCommand() *cobraext.Command {
 		RunE:  upCommandAction,
 	}
 	upCommand.Flags().StringP(cobraext.DataStreamFlagName, "d", "", cobraext.DataStreamFlagDescription)
+	upCommand.Flags().String(cobraext.VariantFlagName, "", cobraext.VariantFlagDescription)
 
 	cmd := &cobra.Command{
 		Use:   "service",
@@ -54,11 +55,14 @@ func upCommandAction(cmd *cobra.Command, args []string) error {
 		dataStreamPath = filepath.Join(packageRoot, "data_stream", dataStreamFlag)
 	}
 
+	variantFlag, _ := cmd.Flags().GetString(cobraext.VariantFlagName)
+
 	_, serviceName := filepath.Split(packageRoot)
 	err = service.BootUp(service.Options{
 		ServiceName:        serviceName,
 		PackageRootPath:    packageRoot,
 		DataStreamRootPath: dataStreamPath,
+		Variant:            variantFlag,
 	})
 	if err != nil {
 		return errors.Wrap(err, "up command failed")
