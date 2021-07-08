@@ -20,6 +20,7 @@ import (
 // a Docker Compose file.
 type DockerComposeServiceDeployer struct {
 	ymlPaths []string
+	sv       serviceVariant
 }
 
 type dockerComposeDeployedService struct {
@@ -27,21 +28,24 @@ type dockerComposeDeployedService struct {
 
 	ymlPaths []string
 	project  string
+	sv       serviceVariant
 }
 
 // NewDockerComposeServiceDeployer returns a new instance of a DockerComposeServiceDeployer.
-func NewDockerComposeServiceDeployer(ymlPaths []string) (*DockerComposeServiceDeployer, error) {
+func NewDockerComposeServiceDeployer(ymlPaths []string, sv serviceVariant) (*DockerComposeServiceDeployer, error) {
 	return &DockerComposeServiceDeployer{
 		ymlPaths: ymlPaths,
+		sv:       sv,
 	}, nil
 }
 
 // SetUp sets up the service and returns any relevant information.
-func (r *DockerComposeServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedService, error) {
+func (d *DockerComposeServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedService, error) {
 	logger.Debug("setting up service using Docker Compose service deployer")
 	service := dockerComposeDeployedService{
-		ymlPaths: r.ymlPaths,
+		ymlPaths: d.ymlPaths,
 		project:  "elastic-package-service",
+		sv:       d.sv,
 	}
 	outCtxt := inCtxt
 
@@ -63,9 +67,15 @@ func (r *DockerComposeServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedSer
 	}
 
 	// Boot up service
+	if d.sv.active() {
+		logger.Infof("Using service variant: %s", d.sv.String())
+	}
+
 	serviceName := inCtxt.Name
 	opts := compose.CommandOptions{
-		Env:       []string{fmt.Sprintf("%s=%s", serviceLogsDirEnv, outCtxt.Logs.Folder.Local)},
+		Env: append(
+			[]string{fmt.Sprintf("%s=%s", serviceLogsDirEnv, outCtxt.Logs.Folder.Local)},
+			d.sv.env...),
 		ExtraArgs: []string{"--build", "-d"},
 	}
 	if err := p.Up(opts); err != nil {
@@ -137,9 +147,9 @@ func (s *dockerComposeDeployedService) TearDown() error {
 	}
 
 	downOptions := compose.CommandOptions{
-		Env: []string{
-			fmt.Sprintf("%s=%s", serviceLogsDirEnv, s.ctxt.Logs.Folder.Local),
-		},
+		Env: append(
+			[]string{fmt.Sprintf("%s=%s", serviceLogsDirEnv, s.ctxt.Logs.Folder.Local)},
+			s.sv.env...),
 
 		// Remove associated volumes.
 		ExtraArgs: []string{"--volumes"},
