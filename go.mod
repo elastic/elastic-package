@@ -16,7 +16,7 @@ require (
 	github.com/go-git/go-git/v5 v5.4.2
 	github.com/go-openapi/strfmt v0.19.6 // indirect
 	github.com/google/go-github/v32 v32.1.0
-	github.com/google/go-querystring v1.0.0
+	github.com/google/go-querystring v1.1.0
 	github.com/jedib0t/go-pretty v4.3.0+incompatible
 	github.com/kylelemons/godebug v1.1.0
 	github.com/magefile/mage v1.11.0
