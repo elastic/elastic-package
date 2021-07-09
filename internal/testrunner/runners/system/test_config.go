@@ -41,7 +41,6 @@ type testConfig struct {
 	NumericKeywordFields []string `config:"numeric_keyword_fields"`
 
 	Path string
-
 	ServiceVariantName string
 }
 
