@@ -68,6 +68,7 @@ func setupTestCommand() *cobraext.Command {
 	cmd.PersistentFlags().StringP(cobraext.ReportFormatFlagName, "", string(formats.ReportFormatHuman), cobraext.ReportFormatFlagDescription)
 	cmd.PersistentFlags().StringP(cobraext.ReportOutputFlagName, "", string(outputs.ReportOutputSTDOUT), cobraext.ReportOutputFlagDescription)
 	cmd.PersistentFlags().DurationP(cobraext.DeferCleanupFlagName, "", 0, cobraext.DeferCleanupFlagDescription)
+	cmd.PersistentFlags().String(cobraext.VariantFlagName, "", cobraext.VariantFlagDescription)
 
 	for testType, runner := range testrunner.TestRunners() {
 		action := testTypeCommandActionFactory(runner)
@@ -176,6 +177,8 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 			return cobraext.FlagParsingError(err, cobraext.DeferCleanupFlagName)
 		}
 
+		variantFlag, _ := cmd.Flags().GetString(cobraext.VariantFlagName)
+
 		esClient, err := elasticsearch.Client()
 		if err != nil {
 			return errors.Wrap(err, "can't create Elasticsearch client")
@@ -189,6 +192,7 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 				GenerateTestResult: generateTestResult,
 				ESClient:           esClient,
 				DeferCleanup:       deferCleanup,
+				ServiceVariant:     variantFlag,
 			})
 
 			results = append(results, r...)

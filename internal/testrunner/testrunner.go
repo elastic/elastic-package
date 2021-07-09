@@ -27,7 +27,8 @@ type TestOptions struct {
 	GenerateTestResult bool
 	ESClient           *elasticsearch.Client
 
-	DeferCleanup time.Duration
+	DeferCleanup   time.Duration
+	ServiceVariant string
 }
 
 // TestRunner is the interface all test runners must implement.

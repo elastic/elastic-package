@@ -171,7 +171,7 @@ func (r *runner) run() (results []testrunner.TestResult, err error) {
 	}
 
 	for _, cfgFile := range cfgFiles {
-		for _, variantName := range anyVariants(variantsFile) {
+		for _, variantName := range r.selectVariants(variantsFile) {
 			partial, err := r.runTestPerVariant(result, locationManager, cfgFile, dataStreamPath, variantName)
 			results = append(results, partial...)
 			if err != nil {
@@ -660,13 +660,16 @@ func validateFields(docs []common.MapStr, fieldsValidator *fields.Validator, dat
 	return nil
 }
 
-func anyVariants(variantsFile *servicedeployer.VariantsFile) []string {
+func (r *runner) selectVariants(variantsFile *servicedeployer.VariantsFile) []string {
 	if variantsFile == nil || variantsFile.Variants == nil {
 		return []string{""} // empty variants file switches to no-variant mode
 	}
 
 	var variantNames []string
 	for k := range variantsFile.Variants {
+		if r.options.ServiceVariant != "" && r.options.ServiceVariant != k {
+			continue
+		}
 		variantNames = append(variantNames, k)
 	}
 	return variantNames
