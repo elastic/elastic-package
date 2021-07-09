@@ -15,45 +15,60 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-type variantsFile struct {
+// VariantsFile describes different variants of the service under test.
+type VariantsFile struct {
 	Default  string `yaml:"default"`
-	Variants map[string]environment
+	Variants map[string]Environment
 }
 
-type environment map[string]string
+// Environment is a key-value map storing environment variables.
+type Environment map[string]string
 
-type serviceVariant struct {
-	name string
-	env  []string // Environment variables in format of pairs: key=value
+// ServiceVariant describes a variant of the service using Environment variables.
+type ServiceVariant struct {
+	Name string
+	Env  []string // Environment variables in format of pairs: key=value
 }
 
-func (sv *serviceVariant) active() bool {
-	return sv.name != ""
+// String method returns a string representation of the service variant.
+func (sv *ServiceVariant) String() string {
+	return fmt.Sprintf("ServiceVariant{Name: %s, Env: %s}", sv.Name, strings.Join(sv.Env, ","))
 }
 
-func (sv *serviceVariant) String() string {
-	return fmt.Sprintf("ServiceVariant{name: %s, env: %s}", sv.name, strings.Join(sv.env, ","))
+func (sv *ServiceVariant) active() bool {
+	return sv.Name != ""
 }
 
-func useServiceVariant(devDeployPath, selected string) (serviceVariant, error) {
+// ReadVariantsFile function reads available service variants.
+func ReadVariantsFile(devDeployPath string) (*VariantsFile, error) {
 	variantsYmlPath := filepath.Join(devDeployPath, "variants.yml")
 	_, err := os.Stat(variantsYmlPath)
 	if errors.Is(err, os.ErrNotExist) {
-		return serviceVariant{}, nil // no "variants.yml" present
+		return nil, os.ErrNotExist
 	}
 	if err != nil {
-		return serviceVariant{}, errors.Wrap(err, "can't stat variants file")
+		return nil, errors.Wrap(err, "can't stat variants file")
 	}
 
 	content, err := ioutil.ReadFile(variantsYmlPath)
 	if err != nil {
-		return serviceVariant{}, errors.Wrap(err, "can't read variants file")
+		return nil, errors.Wrap(err, "can't read variants file")
 	}
 
-	var f variantsFile
+	var f VariantsFile
 	err = yaml.Unmarshal(content, &f)
 	if err != nil {
-		return serviceVariant{}, errors.Wrap(err, "can't unmarshal variants file")
+		return nil, errors.Wrap(err, "can't unmarshal variants file")
+	}
+	return &f, nil
+}
+
+func useServiceVariant(devDeployPath, selected string) (ServiceVariant, error) {
+	f, err := ReadVariantsFile(devDeployPath)
+	if errors.Is(err, os.ErrNotExist) {
+		return ServiceVariant{}, nil // no "variants.yml" present
+	} else if err != nil {
+		return ServiceVariant{}, err
 	}
 
 	if selected == "" {
@@ -61,21 +76,21 @@ func useServiceVariant(devDeployPath, selected string) (serviceVariant, error) {
 	}
 
 	if f.Default == "" {
-		return serviceVariant{}, errors.New("default variant is undefined")
+		return ServiceVariant{}, errors.New("default variant is undefined")
 	}
 
 	env, ok := f.Variants[selected]
 	if !ok {
-		return serviceVariant{}, fmt.Errorf(`variant "%s" is missing`, selected)
+		return ServiceVariant{}, fmt.Errorf(`variant "%s" is missing`, selected)
 	}
 
-	return serviceVariant{
-		name: selected,
-		env:  asEnvVarPairs(env),
+	return ServiceVariant{
+		Name: selected,
+		Env:  asEnvVarPairs(env),
 	}, nil
 }
 
-func asEnvVarPairs(env environment) []string {
+func asEnvVarPairs(env Environment) []string {
 	var pairs []string
 	for k, v := range env {
 		pairs = append(pairs, fmt.Sprintf("%s=%s", k, v))
