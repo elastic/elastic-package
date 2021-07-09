@@ -57,7 +57,7 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 			return NewTerraformServiceDeployer(serviceDeployerPath)
 		}
 	}
-	return nil, fmt.Errorf("unsupported service deployer (Name: %s)", serviceDeployerName)
+	return nil, fmt.Errorf("unsupported service deployer (name: %s)", serviceDeployerName)
 }
 
 // FindDevDeployPath function returns a path reference to the "_dev/deploy" directory.

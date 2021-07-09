@@ -13,10 +13,10 @@ const (
 // populated by a DeployedService. The fields in ServiceContext may be used in handlebars
 // templates in system test configuration files, for example: {{ Hostname }}.
 type ServiceContext struct {
-	// Name is the Name of the service.
+	// Name is the name of the service.
 	Name string
 
-	// Hostname is the host Name of the service, as addressable from
+	// Hostname is the host name of the service, as addressable from
 	// the Agent container.
 	Hostname string
 
@@ -52,7 +52,7 @@ type ServiceContext struct {
 	Agent struct {
 		// Host describes the machine which is running the agent.
 		Host struct {
-			// Name prefix for the host's Name
+			// Name prefix for the host's name
 			NamePrefix string
 		}
 	}

@@ -82,7 +82,7 @@ func (d *DockerComposeServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedSer
 		return nil, errors.Wrap(err, "could not boot up service using docker compose")
 	}
 
-	// Build service container Name
+	// Build service container name
 	serviceContainer := fmt.Sprintf("%s_%s_1", service.project, serviceName)
 	outCtxt.Hostname = serviceContainer
 
