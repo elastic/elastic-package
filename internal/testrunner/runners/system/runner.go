@@ -172,45 +172,53 @@ func (r *runner) run() (results []testrunner.TestResult, err error) {
 
 	for _, cfgFile := range cfgFiles {
 		for _, variantName := range anyVariants(variantsFile) {
-			serviceOptions := servicedeployer.FactoryOptions{
-				PackageRootPath:    r.options.PackageRootPath,
-				DataStreamRootPath: dataStreamPath,
-				Variant:            variantName,
-			}
-
-			var ctxt servicedeployer.ServiceContext
-			ctxt.Name = r.options.TestFolder.Package
-			ctxt.Logs.Folder.Local = locationManager.ServiceLogDir()
-			ctxt.Logs.Folder.Agent = ServiceLogsAgentDir
-			ctxt.Test.RunID = createTestRunID()
-			testConfig, err := newConfig(filepath.Join(r.options.TestFolder.Path, cfgFile), ctxt, variantName)
-			if err != nil {
-				return result.WithError(errors.Wrapf(err, "unable to load system test case file '%s'", cfgFile))
-			}
-
-			var partial []testrunner.TestResult
-			if testConfig.Skip == nil {
-				logger.Debugf("running test with configuration '%s'", testConfig.Name())
-				partial, err = r.runTest(testConfig, ctxt, serviceOptions)
-			} else {
-				logger.Warnf("skipping %s test for %s/%s: %s (details: %s)",
-					TestType, r.options.TestFolder.Package, r.options.TestFolder.DataStream,
-					testConfig.Skip.Reason, testConfig.Skip.Link.String())
-				result := r.newResult(testConfig.Name())
-				partial, err = result.WithSkip(testConfig.Skip)
-			}
-
+			partial, err := r.runTestPerVariant(result, locationManager, cfgFile, dataStreamPath, variantName)
 			results = append(results, partial...)
-			tdErr := r.tearDownTest()
 			if err != nil {
 				return results, err
-			}
-			if tdErr != nil {
-				return results, errors.Wrap(tdErr, "failed to tear down runner")
 			}
 		}
 	}
 	return results, nil
+}
+
+func (r *runner) runTestPerVariant(result *testrunner.ResultComposer, locationManager *locations.LocationManager, cfgFile, dataStreamPath, variantName string) ([]testrunner.TestResult, error) {
+	serviceOptions := servicedeployer.FactoryOptions{
+		PackageRootPath:    r.options.PackageRootPath,
+		DataStreamRootPath: dataStreamPath,
+		Variant:            variantName,
+	}
+
+	var ctxt servicedeployer.ServiceContext
+	ctxt.Name = r.options.TestFolder.Package
+	ctxt.Logs.Folder.Local = locationManager.ServiceLogDir()
+	ctxt.Logs.Folder.Agent = ServiceLogsAgentDir
+	ctxt.Test.RunID = createTestRunID()
+	testConfig, err := newConfig(filepath.Join(r.options.TestFolder.Path, cfgFile), ctxt, variantName)
+	if err != nil {
+		return result.WithError(errors.Wrapf(err, "unable to load system test case file '%s'", cfgFile))
+	}
+
+	var partial []testrunner.TestResult
+	if testConfig.Skip == nil {
+		logger.Debugf("running test with configuration '%s'", testConfig.Name())
+		partial, err = r.runTest(testConfig, ctxt, serviceOptions)
+	} else {
+		logger.Warnf("skipping %s test for %s/%s: %s (details: %s)",
+			TestType, r.options.TestFolder.Package, r.options.TestFolder.DataStream,
+			testConfig.Skip.Reason, testConfig.Skip.Link.String())
+		result := r.newResult(testConfig.Name())
+		partial, err = result.WithSkip(testConfig.Skip)
+	}
+
+	tdErr := r.tearDownTest()
+	if err != nil {
+		return partial, err
+	}
+	if tdErr != nil {
+		return partial, errors.Wrap(tdErr, "failed to tear down runner")
+	}
+	return partial, nil
 }
 
 func createTestRunID() string {
