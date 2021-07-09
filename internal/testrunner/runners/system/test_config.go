@@ -54,9 +54,9 @@ func (t testConfig) Name() string {
 	sb.WriteString(name)
 
 	if t.ServiceVariantName != "" {
-		sb.WriteString(" [variant: ")
+		sb.WriteString(" (variant: ")
 		sb.WriteString(t.ServiceVariantName)
-		sb.WriteString("]")
+		sb.WriteString(")")
 	}
 	return sb.String()
 }
