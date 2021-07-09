@@ -52,12 +52,13 @@ func (t testConfig) Name() string {
 	}
 
 	var sb strings.Builder
-	if t.ServiceVariantName != "" {
-		sb.WriteString("[variant: ")
-		sb.WriteString(t.ServiceVariantName)
-		sb.WriteString("] ")
-	}
 	sb.WriteString(name)
+
+	if t.ServiceVariantName != "" {
+		sb.WriteString(" [variant: ")
+		sb.WriteString(t.ServiceVariantName)
+		sb.WriteString("]")
+	}
 	return sb.String()
 }
 
