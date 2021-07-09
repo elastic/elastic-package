@@ -40,7 +40,7 @@ type testConfig struct {
 	// type but can be ingested as numeric type.
 	NumericKeywordFields []string `config:"numeric_keyword_fields"`
 
-	Path string
+	Path               string
 	ServiceVariantName string
 }
 
