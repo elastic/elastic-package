@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"math/rand"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -143,43 +144,81 @@ func (r *runner) run() (results []testrunner.TestResult, err error) {
 		return result.WithError(errors.Wrap(err, "reading service logs directory failed"))
 	}
 
-	files, err := listConfigFiles(r.options.TestFolder.Path)
+	dataStreamPath, found, err := packages.FindDataStreamRootForPath(r.options.TestFolder.Path)
 	if err != nil {
-		return result.WithError(errors.Wrap(err, "failed listing test case config files"))
+		return result.WithError(errors.Wrap(err, "locating data stream root failed"))
 	}
-	for _, cfgFile := range files {
-		var ctxt servicedeployer.ServiceContext
-		ctxt.Name = r.options.TestFolder.Package
-		ctxt.Logs.Folder.Local = locationManager.ServiceLogDir()
-		ctxt.Logs.Folder.Agent = ServiceLogsAgentDir
-		ctxt.Test.RunID = createTestRunID()
-		testConfig, err := newConfig(filepath.Join(r.options.TestFolder.Path, cfgFile), ctxt)
-		if err != nil {
-			return result.WithError(errors.Wrapf(err, "unable to load system test case file '%s'", cfgFile))
-		}
+	if !found {
+		return result.WithError(errors.New("data stream root not found"))
+	}
 
-		var partial []testrunner.TestResult
-		if testConfig.Skip == nil {
-			logger.Debugf("running test with configuration '%s'", testConfig.Name())
-			partial, err = r.runTest(testConfig, ctxt)
-		} else {
-			logger.Warnf("skipping %s test for %s/%s: %s (details: %s)",
-				TestType, r.options.TestFolder.Package, r.options.TestFolder.DataStream,
-				testConfig.Skip.Reason, testConfig.Skip.Link.String())
-			result := r.newResult(testConfig.Name())
-			partial, err = result.WithSkip(testConfig.Skip)
-		}
+	cfgFiles, err := listConfigFiles(r.options.TestFolder.Path)
+	if err != nil {
+		return result.WithError(errors.Wrap(err, "failed listing test case config cfgFiles"))
+	}
 
-		results = append(results, partial...)
-		tdErr := r.tearDownTest()
-		if err != nil {
-			return results, err
-		}
-		if tdErr != nil {
-			return results, errors.Wrap(tdErr, "failed to tear down runner")
+	devDeployPath, err := servicedeployer.FindDevDeployPath(servicedeployer.FactoryOptions{
+		PackageRootPath:    r.options.PackageRootPath,
+		DataStreamRootPath: dataStreamPath,
+	})
+	if err != nil {
+		return result.WithError(errors.Wrap(err, "_dev/deploy directory not found"))
+	}
+
+	variantsFile, err := servicedeployer.ReadVariantsFile(devDeployPath)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return result.WithError(errors.Wrap(err, "can't read service variant"))
+	}
+
+	for _, cfgFile := range cfgFiles {
+		for _, variantName := range r.selectVariants(variantsFile) {
+			partial, err := r.runTestPerVariant(result, locationManager, cfgFile, dataStreamPath, variantName)
+			results = append(results, partial...)
+			if err != nil {
+				return results, err
+			}
 		}
 	}
 	return results, nil
+}
+
+func (r *runner) runTestPerVariant(result *testrunner.ResultComposer, locationManager *locations.LocationManager, cfgFile, dataStreamPath, variantName string) ([]testrunner.TestResult, error) {
+	serviceOptions := servicedeployer.FactoryOptions{
+		PackageRootPath:    r.options.PackageRootPath,
+		DataStreamRootPath: dataStreamPath,
+		Variant:            variantName,
+	}
+
+	var ctxt servicedeployer.ServiceContext
+	ctxt.Name = r.options.TestFolder.Package
+	ctxt.Logs.Folder.Local = locationManager.ServiceLogDir()
+	ctxt.Logs.Folder.Agent = ServiceLogsAgentDir
+	ctxt.Test.RunID = createTestRunID()
+	testConfig, err := newConfig(filepath.Join(r.options.TestFolder.Path, cfgFile), ctxt, variantName)
+	if err != nil {
+		return result.WithError(errors.Wrapf(err, "unable to load system test case file '%s'", cfgFile))
+	}
+
+	var partial []testrunner.TestResult
+	if testConfig.Skip == nil {
+		logger.Debugf("running test with configuration '%s'", testConfig.Name())
+		partial, err = r.runTest(testConfig, ctxt, serviceOptions)
+	} else {
+		logger.Warnf("skipping %s test for %s/%s: %s (details: %s)",
+			TestType, r.options.TestFolder.Package, r.options.TestFolder.DataStream,
+			testConfig.Skip.Reason, testConfig.Skip.Link.String())
+		result := r.newResult(testConfig.Name())
+		partial, err = result.WithSkip(testConfig.Skip)
+	}
+
+	tdErr := r.tearDownTest()
+	if err != nil {
+		return partial, err
+	}
+	if tdErr != nil {
+		return partial, errors.Wrap(tdErr, "failed to tear down runner")
+	}
+	return partial, nil
 }
 
 func createTestRunID() string {
@@ -223,7 +262,7 @@ func (r *runner) getDocs(dataStream string) ([]common.MapStr, error) {
 	return docs, nil
 }
 
-func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext) ([]testrunner.TestResult, error) {
+func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext, serviceOptions servicedeployer.FactoryOptions) ([]testrunner.TestResult, error) {
 	result := r.newResult(config.Name())
 
 	pkgManifest, err := packages.ReadPackageManifestFromPackageRoot(r.options.PackageRootPath)
@@ -231,25 +270,14 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 		return result.WithError(errors.Wrap(err, "reading package manifest failed"))
 	}
 
-	dataStreamPath, found, err := packages.FindDataStreamRootForPath(r.options.TestFolder.Path)
-	if err != nil {
-		return result.WithError(errors.Wrap(err, "locating data stream root failed"))
-	}
-	if !found {
-		return result.WithError(errors.New("data stream root not found"))
-	}
-
-	dataStreamManifest, err := packages.ReadDataStreamManifest(filepath.Join(dataStreamPath, packages.DataStreamManifestFile))
+	dataStreamManifest, err := packages.ReadDataStreamManifest(filepath.Join(serviceOptions.DataStreamRootPath, packages.DataStreamManifestFile))
 	if err != nil {
 		return result.WithError(errors.Wrap(err, "reading data stream manifest failed"))
 	}
 
 	// Setup service.
 	logger.Debug("setting up service...")
-	serviceDeployer, err := servicedeployer.Factory(servicedeployer.FactoryOptions{
-		PackageRootPath:    r.options.PackageRootPath,
-		DataStreamRootPath: dataStreamPath,
-	})
+	serviceDeployer, err := servicedeployer.Factory(serviceOptions)
 	if err != nil {
 		return result.WithError(errors.Wrap(err, "could not create service runner"))
 	}
@@ -272,7 +300,7 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	}
 
 	// Reload test config with ctx variable substitution.
-	config, err = newConfig(config.Path, ctxt)
+	config, err = newConfig(config.Path, ctxt, serviceOptions.Variant)
 	if err != nil {
 		return result.WithError(errors.Wrap(err, "unable to reload system test case configuration"))
 	}
@@ -402,10 +430,10 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	}
 
 	// Validate fields in docs
-	fieldsValidator, err := fields.CreateValidatorForDataStream(dataStreamPath,
+	fieldsValidator, err := fields.CreateValidatorForDataStream(serviceOptions.DataStreamRootPath,
 		fields.WithNumericKeywordFields(config.NumericKeywordFields))
 	if err != nil {
-		return result.WithError(errors.Wrapf(err, "creating fields validator for data stream failed (path: %s)", dataStreamPath))
+		return result.WithError(errors.Wrapf(err, "creating fields validator for data stream failed (path: %s)", serviceOptions.DataStreamRootPath))
 	}
 
 	if err := validateFields(docs, fieldsValidator, dataStream); err != nil {
@@ -630,4 +658,19 @@ func validateFields(docs []common.MapStr, fieldsValidator *fields.Validator, dat
 	}
 
 	return nil
+}
+
+func (r *runner) selectVariants(variantsFile *servicedeployer.VariantsFile) []string {
+	if variantsFile == nil || variantsFile.Variants == nil {
+		return []string{""} // empty variants file switches to no-variant mode
+	}
+
+	var variantNames []string
+	for k := range variantsFile.Variants {
+		if r.options.ServiceVariant != "" && r.options.ServiceVariant != k {
+			continue
+		}
+		variantNames = append(variantNames, k)
+	}
+	return variantNames
 }

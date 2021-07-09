@@ -20,7 +20,7 @@ import (
 // a Docker Compose file.
 type DockerComposeServiceDeployer struct {
 	ymlPaths []string
-	sv       serviceVariant
+	sv       ServiceVariant
 }
 
 type dockerComposeDeployedService struct {
@@ -28,11 +28,11 @@ type dockerComposeDeployedService struct {
 
 	ymlPaths []string
 	project  string
-	sv       serviceVariant
+	sv       ServiceVariant
 }
 
 // NewDockerComposeServiceDeployer returns a new instance of a DockerComposeServiceDeployer.
-func NewDockerComposeServiceDeployer(ymlPaths []string, sv serviceVariant) (*DockerComposeServiceDeployer, error) {
+func NewDockerComposeServiceDeployer(ymlPaths []string, sv ServiceVariant) (*DockerComposeServiceDeployer, error) {
 	return &DockerComposeServiceDeployer{
 		ymlPaths: ymlPaths,
 		sv:       sv,
@@ -75,7 +75,7 @@ func (d *DockerComposeServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedSer
 	opts := compose.CommandOptions{
 		Env: append(
 			[]string{fmt.Sprintf("%s=%s", serviceLogsDirEnv, outCtxt.Logs.Folder.Local)},
-			d.sv.env...),
+			d.sv.Env...),
 		ExtraArgs: []string{"--build", "-d"},
 	}
 	if err := p.Up(opts); err != nil {
@@ -149,7 +149,7 @@ func (s *dockerComposeDeployedService) TearDown() error {
 	downOptions := compose.CommandOptions{
 		Env: append(
 			[]string{fmt.Sprintf("%s=%s", serviceLogsDirEnv, s.ctxt.Logs.Folder.Local)},
-			s.sv.env...),
+			s.sv.Env...),
 
 		// Remove associated volumes.
 		ExtraArgs: []string{"--volumes"},

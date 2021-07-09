@@ -26,7 +26,7 @@ type FactoryOptions struct {
 // Factory chooses the appropriate service runner for the given data stream, depending
 // on service configuration files defined in the package or data stream.
 func Factory(options FactoryOptions) (ServiceDeployer, error) {
-	devDeployPath, err := findDevDeployPath(options)
+	devDeployPath, err := FindDevDeployPath(options)
 	if err != nil {
 		return nil, errors.Wrapf(err, "can't find \"%s\" directory", devDeployDir)
 	}
@@ -60,7 +60,8 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 	return nil, fmt.Errorf("unsupported service deployer (name: %s)", serviceDeployerName)
 }
 
-func findDevDeployPath(options FactoryOptions) (string, error) {
+// FindDevDeployPath function returns a path reference to the "_dev/deploy" directory.
+func FindDevDeployPath(options FactoryOptions) (string, error) {
 	dataStreamDevDeployPath := filepath.Join(options.DataStreamRootPath, devDeployDir)
 	_, err := os.Stat(dataStreamDevDeployPath)
 	if err == nil {
