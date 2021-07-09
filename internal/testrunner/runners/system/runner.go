@@ -172,8 +172,6 @@ func (r *runner) run() (results []testrunner.TestResult, err error) {
 
 	for _, cfgFile := range cfgFiles {
 		for _, variantName := range anyVariants(variantsFile) {
-			logger.Debugf("Use service variant: %s", variantName)
-
 			serviceOptions := servicedeployer.FactoryOptions{
 				PackageRootPath:    r.options.PackageRootPath,
 				DataStreamRootPath: dataStreamPath,
@@ -185,7 +183,7 @@ func (r *runner) run() (results []testrunner.TestResult, err error) {
 			ctxt.Logs.Folder.Local = locationManager.ServiceLogDir()
 			ctxt.Logs.Folder.Agent = ServiceLogsAgentDir
 			ctxt.Test.RunID = createTestRunID()
-			testConfig, err := newConfig(filepath.Join(r.options.TestFolder.Path, cfgFile), ctxt)
+			testConfig, err := newConfig(filepath.Join(r.options.TestFolder.Path, cfgFile), ctxt, variantName)
 			if err != nil {
 				return result.WithError(errors.Wrapf(err, "unable to load system test case file '%s'", cfgFile))
 			}
@@ -294,7 +292,7 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	}
 
 	// Reload test config with ctx variable substitution.
-	config, err = newConfig(config.Path, ctxt)
+	config, err = newConfig(config.Path, ctxt, serviceOptions.Variant)
 	if err != nil {
 		return result.WithError(errors.Wrap(err, "unable to reload system test case configuration"))
 	}
