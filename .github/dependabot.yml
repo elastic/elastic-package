@@ -6,6 +6,7 @@ updates:
     schedule:
       interval: "daily"
     labels:
-      - dependencies
-      - go
+      - automation
+    reviewers:
+      - "elastic/integrations-developer-experience"
     open-pull-requests-limit: 10
