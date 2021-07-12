@@ -8,6 +8,5 @@ updates:
     labels:
       - automation
     reviewers:
-      - "mtojek"
-      - "jsoriano"
+      - "elastic/integrations-developer-experience"
     open-pull-requests-limit: 10
