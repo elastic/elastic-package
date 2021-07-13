@@ -12,11 +12,14 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 
+	"github.com/elastic/elastic-package/internal/docker"
 	"github.com/elastic/elastic-package/internal/logger"
+	"github.com/elastic/elastic-package/internal/signal"
 )
 
 // Project represents a Docker Compose project.
@@ -245,6 +248,58 @@ func (p *Project) Logs(opts CommandOptions) ([]byte, error) {
 		return nil, err
 	}
 	return b.Bytes(), nil
+}
+
+// WaitForHealthy method waits until all containers are healthy.
+func (p *Project) WaitForHealthy(opts CommandOptions) error {
+	// Read container IDs
+	args := p.baseArgs()
+	args = append(args, "ps")
+	args = append(args, "-q")
+
+	var b bytes.Buffer
+	if err := p.runDockerComposeCmd(dockerComposeOptions{args: args, env: opts.Env, stdout: &b}); err != nil {
+		return err
+	}
+
+	containerIDs := strings.Split(strings.TrimSpace(b.String()), "\n")
+	for {
+		if signal.SIGINT() {
+			return errors.New("SIGINT: cancel waiting for policy assigned")
+		}
+
+		healthy := true
+
+		logger.Debugf("Wait for healthy containers: %s", strings.Join(containerIDs, ","))
+		descriptions, err := docker.InspectContainers(containerIDs...)
+		if err != nil {
+			return err
+		}
+
+		for _, containerDescription := range descriptions {
+			logger.Debugf("Container status: %s", containerDescription.String())
+
+			// Service is up and running and it's healthy
+			if containerDescription.State.Status == "running" && containerDescription.State.Health.Status == "healthy" {
+				continue
+			}
+
+			// Container started and finished with exit code 0
+			if containerDescription.State.Status == "exited" && containerDescription.State.ExitCode == 0 {
+				continue
+			}
+
+			// Any different status is considered unhealthy
+			healthy = false
+		}
+
+		if healthy {
+			break
+		}
+
+		time.Sleep(time.Second)
+	}
+	return nil
 }
 
 func (p *Project) baseArgs() []string {
