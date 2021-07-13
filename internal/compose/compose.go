@@ -279,6 +279,11 @@ func (p *Project) WaitForHealthy(opts CommandOptions) error {
 		for _, containerDescription := range descriptions {
 			logger.Debugf("Container status: %s", containerDescription.String())
 
+			// No healthcheck defined for service
+			if containerDescription.State.Status == "running" && containerDescription.State.Health == nil {
+				continue
+			}
+
 			// Service is up and running and it's healthy
 			if containerDescription.State.Status == "running" && containerDescription.State.Health.Status == "healthy" {
 				continue

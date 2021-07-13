@@ -31,7 +31,7 @@ type ContainerDescription struct {
 	State struct {
 		Status   string
 		ExitCode int
-		Health   struct {
+		Health   *struct {
 			Status string
 			Log    []struct {
 				Start    time.Time
