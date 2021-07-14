@@ -222,7 +222,7 @@ Use this command to print the version of elastic-package that you have installed
 
 
 
-#### GitHub authorization
+### GitHub authorization
 
 The `promote` and `publish` commands require access to the GitHub API to open pull requests or check authorized account data.
 The tool uses the GitHub token to authorize user's call to API. The token can be stored in the `~/.elastic/github.token`
