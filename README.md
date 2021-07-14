@@ -235,6 +235,9 @@ Make sure you have enabled the following scopes:
 * `public_repo` — to open pull requests on GitHub repositories.
 * `read:user` and `user:email` — to read your user profile information from GitHub in order to populate pull requests appropriately.
 
+After creating or modifying your personal access token, authorize the token for
+use of the Elastic organization: https://docs.github.com/en/github/authenticating-to-github/authenticating-with-saml-single-sign-on/authorizing-a-personal-access-token-for-use-with-saml-single-sign-on
+
 ## Development
 
 Even though the project is "go-gettable", there is the `Makefile` present, which can be used to build, format or vendor
