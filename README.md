@@ -56,6 +56,16 @@ _Context: global_
 Use this command to get a listing of all commands available under `elastic-package` and a brief
 description of what each command does.
 
+### `elastic-package completion`
+
+_Context: global_
+
+Use this command to output shell completion information.
+
+The command output shell completions information (for `bash`, `zsh`, `fish` and `powershell`). The output can be sourced in the shell to enable command completion.
+
+Run `elastic-package completion` and follow the instruction for your shell.
+
 ### `elastic-package build`
 
 _Context: package_
@@ -85,16 +95,6 @@ _Context: package_
 Use this command to clean resources used for building the package.
 
 The command will remove built package files (in build/), files needed for managing the development stack (in ~/.elastic-package/stack/development) and stack service logs (in ~/.elastic-package/tmp/service_logs).
-
-### `elastic-package completion`
-
-_Context: global_
-
-Use this command to output shell completion information.
-
-The command output shell completions information (for `bash`, `zsh`, `fish` and `powershell`). The output can be sourced in the shell to enable command completion.
-
-Run `elastic-package completion` and follow the instruction for your shell.
 
 ### `elastic-package create`
 
