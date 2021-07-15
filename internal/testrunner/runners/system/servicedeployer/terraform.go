@@ -34,7 +34,7 @@ func (tsd TerraformServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedServic
 
 	ymlPaths, err := tsd.loadComposeDefinitions()
 	if err != nil {
-		return nil, errors.Wrap(err, "can't load docker compose definitions")
+		return nil, errors.Wrap(err, "can't load Docker Compose definitions")
 	}
 
 	service := dockerComposeDeployedService{
@@ -45,7 +45,7 @@ func (tsd TerraformServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedServic
 
 	p, err := compose.NewProject(service.project, service.ymlPaths...)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not create docker compose project for service")
+		return nil, errors.Wrap(err, "could not create Docker Compose project for service")
 	}
 
 	// Clean service logs
@@ -61,7 +61,7 @@ func (tsd TerraformServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedServic
 	}
 	outCtxt.CustomProperties, err = buildTerraformAliases(serviceComposeConfig)
 	if err != nil {
-		return nil, errors.Wrap(err, "can't build terraform aliases")
+		return nil, errors.Wrap(err, "can't build Terraform aliases")
 	}
 
 	// Boot up service
@@ -70,8 +70,15 @@ func (tsd TerraformServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedServic
 		Env:       tfEnvironment,
 		ExtraArgs: []string{"--build", "-d"},
 	}
-	if err := p.Up(opts); err != nil {
-		return nil, errors.Wrap(err, "could not boot up service using docker compose")
+
+	err = p.Up(opts)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not boot up service using Docker Compose")
+	}
+
+	err = p.WaitForHealthy(opts)
+	if err != nil {
+		return nil, errors.Wrap(err, "Terraform deployer is unhealthy")
 	}
 
 	outCtxt.Agent.Host.NamePrefix = "docker-fleet-agent"
@@ -82,7 +89,7 @@ func (tsd TerraformServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedServic
 func (tsd TerraformServiceDeployer) loadComposeDefinitions() ([]string, error) {
 	locationManager, err := locations.NewLocationManager()
 	if err != nil {
-		return nil, errors.Wrap(err, "can't locate docker compose file for Terraform deployer")
+		return nil, errors.Wrap(err, "can't locate Docker Compose file for Terraform deployer")
 	}
 
 	envYmlPath := filepath.Join(tsd.definitionsDir, envYmlFile)

@@ -51,7 +51,7 @@ func (d *DockerComposeServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedSer
 
 	p, err := compose.NewProject(service.project, service.ymlPaths...)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not create docker compose project for service")
+		return nil, errors.Wrap(err, "could not create Docker Compose project for service")
 	}
 
 	// Verify the Elastic stack network
@@ -78,8 +78,14 @@ func (d *DockerComposeServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedSer
 			d.sv.Env...),
 		ExtraArgs: []string{"--build", "-d"},
 	}
-	if err := p.Up(opts); err != nil {
-		return nil, errors.Wrap(err, "could not boot up service using docker compose")
+	err = p.Up(opts)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not boot up service using Docker Compose")
+	}
+
+	err = p.WaitForHealthy(opts)
+	if err != nil {
+		return nil, errors.Wrap(err, "service is unhealthy")
 	}
 
 	// Build service container name
@@ -120,7 +126,7 @@ func (d *DockerComposeServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedSer
 func (s *dockerComposeDeployedService) Signal(signal string) error {
 	p, err := compose.NewProject(s.project, s.ymlPaths...)
 	if err != nil {
-		return errors.Wrap(err, "could not create docker compose project for service")
+		return errors.Wrap(err, "could not create Docker Compose project for service")
 	}
 
 	opts := compose.CommandOptions{ExtraArgs: []string{"-s", signal}}
@@ -133,7 +139,7 @@ func (s *dockerComposeDeployedService) Signal(signal string) error {
 
 // TearDown tears down the service.
 func (s *dockerComposeDeployedService) TearDown() error {
-	logger.Debugf("tearing down service using docker compose runner")
+	logger.Debugf("tearing down service using Docker Compose runner")
 	defer func() {
 		err := files.RemoveContent(s.ctxt.Logs.Folder.Local)
 		if err != nil {
@@ -143,7 +149,7 @@ func (s *dockerComposeDeployedService) TearDown() error {
 
 	p, err := compose.NewProject(s.project, s.ymlPaths...)
 	if err != nil {
-		return errors.Wrap(err, "could not create docker compose project for service")
+		return errors.Wrap(err, "could not create Docker Compose project for service")
 	}
 
 	downOptions := compose.CommandOptions{
@@ -155,7 +161,7 @@ func (s *dockerComposeDeployedService) TearDown() error {
 		ExtraArgs: []string{"--volumes"},
 	}
 	if err := p.Down(downOptions); err != nil {
-		return errors.Wrap(err, "could not shut down service using docker compose")
+		return errors.Wrap(err, "could not shut down service using Docker Compose")
 	}
 	return nil
 }
