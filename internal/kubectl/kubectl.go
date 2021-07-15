@@ -49,23 +49,3 @@ func modifyKubernetesResources(action string, definitionPaths ...string) ([]byte
 	}
 	return output, nil
 }
-
-func getKubernetesResource(kind, name, namespace string) ([]byte, error) {
-	args := []string{"get", kind, name}
-	if namespace != "" {
-		args = append(args, "-n", namespace)
-	}
-	args = append(args, "-o", "yaml")
-
-	cmd := exec.Command("kubectl", args...)
-	errOutput := new(bytes.Buffer)
-	cmd.Stderr = errOutput
-
-	logger.Debugf("run command: %s", cmd)
-	output, err := cmd.Output()
-	if err != nil {
-		return nil, errors.Wrapf(err, "kubectl get failed (stderr=%q)", errOutput.String())
-	}
-	return output, nil
-
-}

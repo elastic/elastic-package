@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 
@@ -21,6 +23,32 @@ type NetworkDescription struct {
 	Containers map[string]struct {
 		Name string
 	}
+}
+
+// ContainerDescription describes the Docker container.
+type ContainerDescription struct {
+	ID    string
+	State struct {
+		Status   string
+		ExitCode int
+		Health   *struct {
+			Status string
+			Log    []struct {
+				Start    time.Time
+				ExitCode int
+				Output   string
+			}
+		}
+	}
+}
+
+// String function dumps string representation of the container description.
+func (c *ContainerDescription) String() string {
+	b, err := json.Marshal(c)
+	if err != nil {
+		return "error: can't marshal container description"
+	}
+	return string(b)
 }
 
 // Pull downloads the latest available revision of the image.
@@ -89,4 +117,27 @@ func ConnectToNetwork(containerID, network string) error {
 		return errors.Wrapf(err, "could not attach container to the stack network (stderr=%q)", errOutput.String())
 	}
 	return nil
+}
+
+// InspectContainers function inspects selected Docker containers.
+func InspectContainers(containerIDs ...string) ([]ContainerDescription, error) {
+	args := []string{"inspect"}
+	args = append(args, containerIDs...)
+	cmd := exec.Command("docker", args...)
+
+	errOutput := new(bytes.Buffer)
+	cmd.Stderr = errOutput
+
+	logger.Debugf("output command: %s", cmd)
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, errors.Wrapf(err, "could not inspect containers (stderr=%q)", errOutput.String())
+	}
+
+	var containerDescriptions []ContainerDescription
+	err = json.Unmarshal(output, &containerDescriptions)
+	if err != nil {
+		return nil, errors.Wrapf(err, "can't unmarshal container inspect for %s (stderr=%q)", strings.Join(containerIDs, ","), errOutput.String())
+	}
+	return containerDescriptions, nil
 }
