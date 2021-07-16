@@ -70,7 +70,7 @@ pipeline {
     }
     stage('Release') {
       when {
-        buildingTag()
+        tag pattern: '(v)?\\d+\\.\\d+\\.\\d+', comparator: 'REGEXP'
       }
       steps {
         withCredentials([string(credentialsId: "${GITHUB_TOKEN_CREDENTIALS}", variable: 'GITHUB_TOKEN')]) {
