@@ -74,7 +74,9 @@ pipeline {
       }
       steps {
         withCredentials([string(credentialsId: "${GITHUB_TOKEN_CREDENTIALS}", variable: 'GITHUB_TOKEN')]) {
-          sh 'curl -sL https://git.io/goreleaser | bash'
+          dir("${BASE_DIR}") {
+            sh 'curl -sL https://git.io/goreleaser | bash'
+          }
         }
       }
     }
