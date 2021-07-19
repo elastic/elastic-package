@@ -11,14 +11,9 @@ Currently, `elastic-package` only supports packages of type [Elastic Integration
 
 ## Getting started
 
-Download and build the latest master of `elastic-package` binary:
+Download latest release from the [Releases](https://github.com/elastic/elastic-package/releases/latest) page.
 
-```bash
-git clone https://github.com/elastic/elastic-package.git
-make build
-```
-
-Alternatively, you may use `go get` but you will not be able to use the `elastic-package version` command.
+Alternatively, you may use `go get` but you will not be able to use the `elastic-package version` command or check updates.
 
 ```bash
 go get github.com/elastic/elastic-package
@@ -37,6 +32,15 @@ Run the `help` command and see available commands:
 
 ```bash
 elastic-package help
+```
+
+## Development
+
+Download and build the latest master of `elastic-package` binary:
+
+```bash
+git clone https://github.com/elastic/elastic-package.git
+make build
 ```
 
 ## Commands
