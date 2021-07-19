@@ -6,6 +6,7 @@ package github
 
 import (
 	"context"
+	"net/http"
 
 	"github.com/pkg/errors"
 
@@ -13,7 +14,7 @@ import (
 	"golang.org/x/oauth2"
 )
 
-// Client method creates new instance of the GitHub API client.
+// Client function creates new instance of the GitHub API client.
 func Client() (*github.Client, error) {
 	authToken, err := AuthToken()
 	if err != nil {
@@ -22,6 +23,11 @@ func Client() (*github.Client, error) {
 	return github.NewClient(oauth2.NewClient(context.Background(), oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: authToken},
 	))), nil
+}
+
+// UnauthorizedClient function returns unauthorized instance of Github API client.
+func UnauthorizedClient() *github.Client {
+	return github.NewClient(new(http.Client))
 }
 
 // User method returns the GitHub authenticated user.
