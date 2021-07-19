@@ -15,6 +15,9 @@ var (
 
 	// CommitHash is the Git hash of the branch, used for version purposes (set externally with ldflags).
 	CommitHash = "undefined"
+
+	// Tag describes the semver version of the application (set externally with ldflags).
+	Tag string
 )
 
 // BuildTimeFormatted method returns the build time preserving the RFC3339 format.

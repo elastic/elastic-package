@@ -1,4 +1,5 @@
 builds:
   - ldflags:
+      - -X github.com/elastic/elastic-package/internal/version.Tag={{.Tag}}
       - -X github.com/elastic/elastic-package/internal/version.CommitHash={{.ShortCommit}}
       - -X github.com/elastic/elastic-package/internal/version.BuildTime={{.Timestamp}}
