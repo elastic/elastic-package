@@ -16,15 +16,20 @@
                         </method>
                         <method name="test-access-raw" signature="" line-rate="1" branch-rate="0" complexity="0">
                             <lines>
-                                <line number="1" hits="1"></line>
+                                <line number="2" hits="1"></line>
                             </lines>
                         </method>
                         <method name="test-access-single" signature="" line-rate="1" branch-rate="0" complexity="0">
                             <lines>
-                                <line number="1" hits="1"></line>
+                                <line number="3" hits="1"></line>
                             </lines>
                         </method>
                     </methods>
+                    <lines>
+                        <line number="1" hits="1"></line>
+                        <line number="2" hits="1"></line>
+                        <line number="3" hits="1"></line>
+                    </lines>
                 </class>
                 <class name="system" filename="apache/access" line-rate="0" branch-rate="0" complexity="0">
                     <methods>
@@ -34,6 +39,9 @@
                             </lines>
                         </method>
                     </methods>
+                    <lines>
+                        <line number="1" hits="0"></line>
+                    </lines>
                 </class>
                 <class name="pipeline" filename="apache/status" line-rate="0" branch-rate="0" complexity="0">
                     <methods>
@@ -43,6 +51,9 @@
                             </lines>
                         </method>
                     </methods>
+                    <lines>
+                        <line number="1" hits="0"></line>
+                    </lines>
                 </class>
                 <class name="system" filename="apache/status" line-rate="1" branch-rate="0" complexity="0">
                     <methods>
@@ -52,6 +63,9 @@
                             </lines>
                         </method>
                     </methods>
+                    <lines>
+                        <line number="1" hits="1"></line>
+                    </lines>
                 </class>
             </classes>
         </package>
@@ -66,15 +80,20 @@
                         </method>
                         <method name="test-access-raw" signature="" line-rate="1" branch-rate="0" complexity="0">
                             <lines>
-                                <line number="1" hits="1"></line>
+                                <line number="2" hits="1"></line>
                             </lines>
                         </method>
                         <method name="test-access-single" signature="" line-rate="1" branch-rate="0" complexity="0">
                             <lines>
-                                <line number="1" hits="1"></line>
+                                <line number="3" hits="1"></line>
                             </lines>
                         </method>
                     </methods>
+                    <lines>
+                        <line number="1" hits="1"></line>
+                        <line number="2" hits="1"></line>
+                        <line number="3" hits="1"></line>
+                    </lines>
                 </class>
                 <class name="system" filename="kubernetes/pod" line-rate="0" branch-rate="0" complexity="0">
                     <methods>
@@ -83,6 +102,9 @@
                                 <line number="1" hits="0"></line>
                             </lines>
                         </method>
+                        <lines>
+                            <line number="1" hits="0"></line>
+                        </lines>
                     </methods>
                 </class>
             </classes>
@@ -97,6 +119,9 @@
                             </lines>
                         </method>
                     </methods>
+                    <lines>
+                        <line number="1" hits="0"></line>
+                    </lines>
                 </class>
                 <class name="system" filename="multiinput/test" line-rate="0" branch-rate="0" complexity="0">
                     <methods>
@@ -106,6 +131,9 @@
                             </lines>
                         </method>
                     </methods>
+                    <lines>
+                        <line number="1" hits="0"></line>
+                    </lines>
                 </class>
             </classes>
         </package>
