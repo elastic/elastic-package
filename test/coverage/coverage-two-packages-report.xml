@@ -9,17 +9,17 @@
             <classes>
                 <class name="pipeline" filename="access" line-rate="1" branch-rate="0" complexity="0">
                     <methods>
-                        <method name="test-access-event" line-rate="1" branch-rate="0" complexity="0">
+                        <method name="test-access-event" signature="" line-rate="1" branch-rate="0" complexity="0">
                             <lines>
                                 <line number="1" hits="1"></line>
                             </lines>
                         </method>
-                        <method name="test-access-raw" line-rate="1" branch-rate="0" complexity="0">
+                        <method name="test-access-raw" signature="" line-rate="1" branch-rate="0" complexity="0">
                             <lines>
                                 <line number="1" hits="1"></line>
                             </lines>
                         </method>
-                        <method name="test-access-single" line-rate="1" branch-rate="0" complexity="0">
+                        <method name="test-access-single" signature="" line-rate="1" branch-rate="0" complexity="0">
                             <lines>
                                 <line number="1" hits="1"></line>
                             </lines>
@@ -28,7 +28,7 @@
                 </class>
                 <class name="system" filename="access" line-rate="0" branch-rate="0" complexity="0">
                     <methods>
-                        <method name="no-test" line-rate="0" branch-rate="0" complexity="0">
+                        <method name="no-test" signature="" line-rate="0" branch-rate="0" complexity="0">
                             <lines>
                                 <line number="1" hits="0"></line>
                             </lines>
@@ -37,7 +37,7 @@
                 </class>
                 <class name="pipeline" filename="status" line-rate="0" branch-rate="0" complexity="0">
                     <methods>
-                        <method name="no-test" line-rate="0" branch-rate="0" complexity="0">
+                        <method name="no-test" signature="" line-rate="0" branch-rate="0" complexity="0">
                             <lines>
                                 <line number="1" hits="0"></line>
                             </lines>
@@ -46,7 +46,7 @@
                 </class>
                 <class name="system" filename="status" line-rate="1" branch-rate="0" complexity="0">
                     <methods>
-                        <method name="test-default-config" line-rate="1" branch-rate="0" complexity="0">
+                        <method name="test-default-config" signature="" line-rate="1" branch-rate="0" complexity="0">
                             <lines>
                                 <line number="1" hits="1"></line>
                             </lines>
@@ -59,17 +59,17 @@
             <classes>
                 <class name="pipeline" filename="pod" line-rate="1" branch-rate="0" complexity="0">
                     <methods>
-                        <method name="test-access-event" line-rate="1" branch-rate="0" complexity="0">
+                        <method name="test-access-event" signature="" line-rate="1" branch-rate="0" complexity="0">
                             <lines>
                                 <line number="1" hits="1"></line>
                             </lines>
                         </method>
-                        <method name="test-access-raw" line-rate="1" branch-rate="0" complexity="0">
+                        <method name="test-access-raw" signature="" line-rate="1" branch-rate="0" complexity="0">
                             <lines>
                                 <line number="1" hits="1"></line>
                             </lines>
                         </method>
-                        <method name="test-access-single" line-rate="1" branch-rate="0" complexity="0">
+                        <method name="test-access-single" signature="" line-rate="1" branch-rate="0" complexity="0">
                             <lines>
                                 <line number="1" hits="1"></line>
                             </lines>
@@ -78,7 +78,7 @@
                 </class>
                 <class name="system" filename="pod" line-rate="0" branch-rate="0" complexity="0">
                     <methods>
-                        <method name="no-test" line-rate="0" branch-rate="0" complexity="0">
+                        <method name="no-test" signature="" line-rate="0" branch-rate="0" complexity="0">
                             <lines>
                                 <line number="1" hits="0"></line>
                             </lines>
@@ -91,7 +91,7 @@
             <classes>
                 <class name="pipeline" filename="test" line-rate="0" branch-rate="0" complexity="0">
                     <methods>
-                        <method name="no-test" line-rate="0" branch-rate="0" complexity="0">
+                        <method name="no-test" signature="" line-rate="0" branch-rate="0" complexity="0">
                             <lines>
                                 <line number="1" hits="0"></line>
                             </lines>
@@ -100,7 +100,7 @@
                 </class>
                 <class name="system" filename="test" line-rate="0" branch-rate="0" complexity="0">
                     <methods>
-                        <method name="no-test" line-rate="0" branch-rate="0" complexity="0">
+                        <method name="no-test" signature="" line-rate="0" branch-rate="0" complexity="0">
                             <lines>
                                 <line number="1" hits="0"></line>
                             </lines>
