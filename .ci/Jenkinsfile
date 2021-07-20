@@ -48,7 +48,7 @@ pipeline {
           withKubernetes() {
             withCloudTestEnv() {
               dir("${BASE_DIR}"){
-                sh(label: 'Check',script: 'make check')
+                sh(label: 'Check', script: 'make build') // just for tests
               }
             }
           }
@@ -61,9 +61,10 @@ pipeline {
             archiveArtifacts(allowEmptyArchive: true, artifacts: 'build/kubectl-dump.txt')
             archiveArtifacts(allowEmptyArchive: true, artifacts: 'build/elastic-stack-dump/stack/logs/*.log')
             archiveArtifacts(allowEmptyArchive: true, artifacts: 'build/elastic-stack-dump/check/logs/*.log')
-            junit(allowEmptyResults: false,
+            junit(allowEmptyResults: true, // just for tests
                 keepLongStdio: true,
                 testResults: "build/test-results/*.xml")
+            coverageReport('test/coverage')
           }
         }
       }
