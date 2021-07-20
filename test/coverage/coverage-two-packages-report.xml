@@ -7,7 +7,7 @@
     <packages>
         <package name="apache" line-rate="0.6123456" branch-rate="0" complexity="0">
             <classes>
-                <class name="pipeline" filename="access" line-rate="1" branch-rate="0" complexity="0">
+                <class name="pipeline" filename="apache/access" line-rate="1" branch-rate="0" complexity="0">
                     <methods>
                         <method name="test-access-event" signature="" line-rate="1" branch-rate="0" complexity="0">
                             <lines>
@@ -26,7 +26,7 @@
                         </method>
                     </methods>
                 </class>
-                <class name="system" filename="access" line-rate="0" branch-rate="0" complexity="0">
+                <class name="system" filename="apache/access" line-rate="0" branch-rate="0" complexity="0">
                     <methods>
                         <method name="no-test" signature="" line-rate="0" branch-rate="0" complexity="0">
                             <lines>
@@ -35,7 +35,7 @@
                         </method>
                     </methods>
                 </class>
-                <class name="pipeline" filename="status" line-rate="0" branch-rate="0" complexity="0">
+                <class name="pipeline" filename="apache/status" line-rate="0" branch-rate="0" complexity="0">
                     <methods>
                         <method name="no-test" signature="" line-rate="0" branch-rate="0" complexity="0">
                             <lines>
@@ -44,7 +44,7 @@
                         </method>
                     </methods>
                 </class>
-                <class name="system" filename="status" line-rate="1" branch-rate="0" complexity="0">
+                <class name="system" filename="apache/status" line-rate="1" branch-rate="0" complexity="0">
                     <methods>
                         <method name="test-default-config" signature="" line-rate="1" branch-rate="0" complexity="0">
                             <lines>
@@ -57,7 +57,7 @@
         </package>
         <package name="kubernetes" line-rate="0.5123456" branch-rate="0" complexity="0">
             <classes>
-                <class name="pipeline" filename="pod" line-rate="1" branch-rate="0" complexity="0">
+                <class name="pipeline" filename="kubernetes/pod" line-rate="1" branch-rate="0" complexity="0">
                     <methods>
                         <method name="test-access-event" signature="" line-rate="1" branch-rate="0" complexity="0">
                             <lines>
@@ -76,7 +76,7 @@
                         </method>
                     </methods>
                 </class>
-                <class name="system" filename="pod" line-rate="0" branch-rate="0" complexity="0">
+                <class name="system" filename="kubernetes/pod" line-rate="0" branch-rate="0" complexity="0">
                     <methods>
                         <method name="no-test" signature="" line-rate="0" branch-rate="0" complexity="0">
                             <lines>
@@ -89,7 +89,7 @@
         </package>
         <package name="multiinput" line-rate="0.0" branch-rate="0" complexity="0">
             <classes>
-                <class name="pipeline" filename="test" line-rate="0" branch-rate="0" complexity="0">
+                <class name="pipeline" filename="multiinput/test" line-rate="0" branch-rate="0" complexity="0">
                     <methods>
                         <method name="no-test" signature="" line-rate="0" branch-rate="0" complexity="0">
                             <lines>
@@ -98,7 +98,7 @@
                         </method>
                     </methods>
                 </class>
-                <class name="system" filename="test" line-rate="0" branch-rate="0" complexity="0">
+                <class name="system" filename="multiinput/test" line-rate="0" branch-rate="0" complexity="0">
                     <methods>
                         <method name="no-test" signature="" line-rate="0" branch-rate="0" complexity="0">
                             <lines>
