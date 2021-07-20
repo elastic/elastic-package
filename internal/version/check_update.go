@@ -27,7 +27,7 @@ func CheckUpdate() {
 	}
 
 	githubClient := github.UnauthorizedClient()
-	release, _, err := githubClient.Repositories.GetLatestRelease(context.Background(), repositoryOwner, repositoryName)
+	release, _, err := githubClient.Repositories.GetLatestRelease(context.TODO(), repositoryOwner, repositoryName)
 	if err != nil {
 		logger.Debugf("Error: cant't check latest release, %v", err)
 		return
