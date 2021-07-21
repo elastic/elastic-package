@@ -11,6 +11,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/pkg/errors"
 
@@ -21,11 +22,12 @@ const coverageDtd = `<!DOCTYPE coverage SYSTEM "http://cobertura.sourceforge.net
 
 type testCoverageDetails struct {
 	packageName string
+	testType    TestType
 	dataStreams map[string][]string // <data_stream> : <test case 1, test case 2, ...>
 }
 
-func newTestCoverageDetails(packageName string) *testCoverageDetails {
-	return &testCoverageDetails{packageName: packageName, dataStreams: map[string][]string{}}
+func newTestCoverageDetails(packageName string, testType TestType) *testCoverageDetails {
+	return &testCoverageDetails{packageName: packageName, testType: testType, dataStreams: map[string][]string{}}
 }
 
 func (tcd *testCoverageDetails) withUncoveredDataStreams(dataStreams []string) *testCoverageDetails {
@@ -45,61 +47,61 @@ func (tcd *testCoverageDetails) withTestResults(results []TestResult) *testCover
 	return tcd
 }
 
-type coberturaReport struct {
-	XMLName         xml.Name    `xml:"coverage"`
-	LineRate        float32     `xml:"line-rate,attr"`
-	BranchRate      float32     `xml:"branch-rate,attr"`
-	Version         string      `xml:"version,attr"`
-	Timestamp       int64       `xml:"timestamp,attr"`
-	LinesCovered    int64       `xml:"lines-covered,attr"`
-	LinesValid      int64       `xml:"lines-valid,attr"`
-	BranchesCovered int64       `xml:"branches-covered,attr"`
-	BranchesValid   int64       `xml:"branches-valid,attr"`
-	Complexity      float32     `xml:"complexity,attr"`
-	Sources         []*source   `xml:"sources>source"`
-	Packages        []*aPackage `xml:"packages>package"`
+type coberturaCoverage struct {
+	XMLName         xml.Name            `xml:"coverage"`
+	LineRate        float32             `xml:"line-rate,attr"`
+	BranchRate      float32             `xml:"branch-rate,attr"`
+	Version         string              `xml:"version,attr"`
+	Timestamp       int64               `xml:"timestamp,attr"`
+	LinesCovered    int64               `xml:"lines-covered,attr"`
+	LinesValid      int64               `xml:"lines-valid,attr"`
+	BranchesCovered int64               `xml:"branches-covered,attr"`
+	BranchesValid   int64               `xml:"branches-valid,attr"`
+	Complexity      float32             `xml:"complexity,attr"`
+	Sources         []*coberturaSource  `xml:"sources>source"`
+	Packages        []*coberturaPackage `xml:"packages>package"`
 }
 
-type source struct {
+type coberturaSource struct {
 	Path string `xml:",chardata"`
 }
 
-type aPackage struct {
-	Name       string   `xml:"name,attr"`
-	LineRate   float32  `xml:"line-rate,attr"`
-	BranchRate float32  `xml:"branch-rate,attr"`
-	Complexity float32  `xml:"complexity,attr"`
-	Classes    []*class `xml:"classes>class"`
+type coberturaPackage struct {
+	Name       string            `xml:"name,attr"`
+	LineRate   float32           `xml:"line-rate,attr"`
+	BranchRate float32           `xml:"branch-rate,attr"`
+	Complexity float32           `xml:"complexity,attr"`
+	Classes    []*coberturaClass `xml:"classes>class"`
 }
 
-type class struct {
-	Name       string    `xml:"name,attr"`
-	Filename   string    `xml:"filename,attr"`
-	LineRate   float32   `xml:"line-rate,attr"`
-	BranchRate float32   `xml:"branch-rate,attr"`
-	Complexity float32   `xml:"complexity,attr"`
-	Methods    []*method `xml:"methods>method"`
-	Lines      lines     `xml:"lines>line"`
+type coberturaClass struct {
+	Name       string             `xml:"name,attr"`
+	Filename   string             `xml:"filename,attr"`
+	LineRate   float32            `xml:"line-rate,attr"`
+	BranchRate float32            `xml:"branch-rate,attr"`
+	Complexity float32            `xml:"complexity,attr"`
+	Methods    []*coberturaMethod `xml:"methods>method"`
+	Lines      coberturaLines     `xml:"lines>line"`
 }
 
-type method struct {
-	Name       string  `xml:"name,attr"`
-	Signature  string  `xml:"signature,attr"`
-	LineRate   float32 `xml:"line-rate,attr"`
-	BranchRate float32 `xml:"branch-rate,attr"`
-	Complexity float32 `xml:"complexity,attr"`
-	Lines      lines   `xml:"lines>line"`
+type coberturaMethod struct {
+	Name       string         `xml:"name,attr"`
+	Signature  string         `xml:"signature,attr"`
+	LineRate   float32        `xml:"line-rate,attr"`
+	BranchRate float32        `xml:"branch-rate,attr"`
+	Complexity float32        `xml:"complexity,attr"`
+	Lines      coberturaLines `xml:"lines>line"`
 }
 
-type line struct {
+type coberturaLine struct {
 	Number int   `xml:"number,attr"`
 	Hits   int64 `xml:"hits,attr"`
 }
 
-type lines []*line
+type coberturaLines []*coberturaLine
 
-func (r *coberturaReport) bytes() ([]byte, error) {
-	out, err := xml.MarshalIndent(&r, "", "  ")
+func (c *coberturaCoverage) bytes() ([]byte, error) {
+	out, err := xml.MarshalIndent(&c, "", "  ")
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to format test results as xUnit")
 	}
@@ -137,7 +139,7 @@ func collectTestCoverageDetails(packageRootPath, packageName string, testType Te
 		return nil, errors.Wrap(err, "can't find data streams without tests")
 	}
 
-	details := newTestCoverageDetails(packageName).
+	details := newTestCoverageDetails(packageName, testType).
 		withUncoveredDataStreams(withoutTests).
 		withTestResults(results)
 	return details, nil
@@ -168,11 +170,45 @@ func findDataStreamsWithoutTests(packageRootPath string, testType TestType) ([]s
 	return noTests, nil
 }
 
-func transformToCoberturaReport(details *testCoverageDetails) *coberturaReport {
-	panic("TODO")
+func transformToCoberturaReport(details *testCoverageDetails) *coberturaCoverage {
+	var classes []*coberturaClass
+	for dataStream, testCases := range details.dataStreams {
+		var methods []*coberturaMethod
+
+		if len(testCases) == 0 {
+			methods = append(methods, &coberturaMethod{
+				Name:  "no-test",
+				Lines: []*coberturaLine{{Number: 1, Hits: 0}},
+			})
+		} else {
+			for i, tc := range testCases {
+				methods = append(methods, &coberturaMethod{
+					Name:  tc,
+					Lines: []*coberturaLine{{Number: i + 1, Hits: 1}},
+				})
+			}
+		}
+
+		aClass := &coberturaClass{
+			Name:     string(details.testType),
+			Filename: details.packageName + "/" + dataStream,
+			Methods:  methods,
+		}
+		classes = append(classes, aClass)
+	}
+
+	return &coberturaCoverage{
+		Timestamp: time.Now().UnixNano(),
+		Packages: []*coberturaPackage{
+			{
+				Name:    details.packageName,
+				Classes: classes,
+			},
+		},
+	}
 }
 
-func writeCoverageReportFile(report *coberturaReport, packageName string) error {
+func writeCoverageReportFile(report *coberturaCoverage, packageName string) error {
 	dest, err := testCoverageReportsDir()
 	if err != nil {
 		return errors.Wrap(err, "could not determine test coverage reports folder")
