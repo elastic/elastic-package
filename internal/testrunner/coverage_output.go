@@ -237,10 +237,7 @@ func writeCoverageReportFile(report *coberturaCoverage, packageName string) erro
 }
 
 func testCoverageReportsDir() (string, error) {
-	buildDir, found, err := builder.FindBuildDirectory()
-	if !found {
-		return "", errors.New("package must be built first")
-	}
+	buildDir, err := builder.MustFindBuildDirectory()
 	if err != nil {
 		return "", errors.Wrap(err, "locating build directory failed")
 	}

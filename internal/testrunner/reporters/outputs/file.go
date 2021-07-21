@@ -58,10 +58,7 @@ func reportToFile(pkg, report string, format testrunner.TestReportFormat) error 
 
 // testReportsDir returns the location of the directory to store test reports.
 func testReportsDir() (string, error) {
-	buildDir, found, err := builder.FindBuildDirectory()
-	if !found {
-		return "", errors.New("package must be built first")
-	}
+	buildDir, err := builder.MustFindBuildDirectory()
 	if err != nil {
 		return "", errors.Wrap(err, "locating build directory failed")
 	}
