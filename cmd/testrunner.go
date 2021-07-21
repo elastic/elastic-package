@@ -67,6 +67,7 @@ func setupTestCommand() *cobraext.Command {
 	cmd.PersistentFlags().BoolP(cobraext.GenerateTestResultFlagName, "g", false, cobraext.GenerateTestResultFlagDescription)
 	cmd.PersistentFlags().StringP(cobraext.ReportFormatFlagName, "", string(formats.ReportFormatHuman), cobraext.ReportFormatFlagDescription)
 	cmd.PersistentFlags().StringP(cobraext.ReportOutputFlagName, "", string(outputs.ReportOutputSTDOUT), cobraext.ReportOutputFlagDescription)
+	cmd.PersistentFlags().BoolP(cobraext.TestCoverageFlagName, "", false, cobraext.TestCoverageFlagDescription)
 	cmd.PersistentFlags().DurationP(cobraext.DeferCleanupFlagName, "", 0, cobraext.DeferCleanupFlagDescription)
 	cmd.PersistentFlags().String(cobraext.VariantFlagName, "", cobraext.VariantFlagDescription)
 
@@ -116,6 +117,11 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 			return cobraext.FlagParsingError(err, cobraext.ReportOutputFlagName)
 		}
 
+		testCoverage, err := cmd.Flags().GetBool(cobraext.TestCoverageFlagName)
+		if err != nil {
+			return cobraext.FlagParsingError(err, cobraext.TestCoverageFlagName)
+		}
+
 		packageRootPath, found, err := packages.FindPackageRoot()
 		if !found {
 			return errors.New("package root not found")
@@ -142,6 +148,10 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 				err = validateDataStreamsFlag(packageRootPath, dataStreams)
 				if err != nil {
 					return cobraext.FlagParsingError(err, cobraext.DataStreamsFlagName)
+				}
+
+				if testCoverage {
+					return cobraext.FlagParsingError(errors.New("test coverage can be calculated only if all data streams are selected"), cobraext.DataStreamsFlagName)
 				}
 			}
 
@@ -215,6 +225,13 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 
 		if err := testrunner.WriteReport(m.Name, testrunner.TestReportOutput(reportOutput), report, format); err != nil {
 			return errors.Wrap(err, "error writing test report")
+		}
+
+		if testCoverage {
+			err := testrunner.WriteCoverage(m.Name, results)
+			if err != nil {
+				return errors.Wrap(err, "error writing test coverage")
+			}
 		}
 
 		// Check if there is any error or failure reported

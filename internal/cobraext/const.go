@@ -72,6 +72,9 @@ const (
 	StackDumpOutputFlagName        = "output"
 	StackDumpOutputFlagDescription = "output location for the stack dump"
 
+	TestCoverageFlagName        = "test-coverage"
+	TestCoverageFlagDescription = "generate Cobertura test coverage reports"
+
 	VariantFlagName        = "variant"
 	VariantFlagDescription = "service variant"
 
