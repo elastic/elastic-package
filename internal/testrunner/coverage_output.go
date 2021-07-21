@@ -79,7 +79,6 @@ func WriteCoverage(packageRootPath, packageName string, testType TestType, resul
 	if err != nil {
 		return errors.Wrap(err, "can't write test coverage report file")
 	}
-
 	return nil
 }
 
