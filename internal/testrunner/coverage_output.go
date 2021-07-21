@@ -188,6 +188,10 @@ func transformToCoberturaReport(details *testCoverageDetails) *coberturaCoverage
 			}
 		}
 
+		if dataStream == "" {
+			dataStream = "-" // workaround for Cobertura to properly analyze tests running in the package context (not data stream)
+		}
+
 		aClass := &coberturaClass{
 			Name:     string(details.testType),
 			Filename: details.packageName + "/" + dataStream,
