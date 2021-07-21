@@ -81,7 +81,6 @@ type coberturaClass struct {
 	BranchRate float32            `xml:"branch-rate,attr"`
 	Complexity float32            `xml:"complexity,attr"`
 	Methods    []*coberturaMethod `xml:"methods>method"`
-	Lines      coberturaLines     `xml:"lines>line"`
 }
 
 type coberturaMethod struct {
@@ -126,7 +125,7 @@ func WriteCoverage(packageRootPath, packageName string, testType TestType, resul
 
 	report := transformToCoberturaReport(details)
 
-	err = writeCoverageReportFile(report, packageRootPath)
+	err = writeCoverageReportFile(report, packageName)
 	if err != nil {
 		return errors.Wrap(err, "can't write test coverage report file")
 	}
@@ -162,6 +161,7 @@ func findDataStreamsWithoutTests(packageRootPath string, testType TestType) ([]s
 		_, err := os.Stat(dataStreamTestPath)
 		if errors.Is(err, os.ErrNotExist) {
 			noTests = append(noTests, dataStream.Name())
+			continue
 		}
 		if err != nil {
 			return nil, errors.Wrapf(err, "can't stat path: %s", dataStreamTestPath)
@@ -237,7 +237,10 @@ func writeCoverageReportFile(report *coberturaCoverage, packageName string) erro
 }
 
 func testCoverageReportsDir() (string, error) {
-	buildDir, _, err := builder.FindBuildDirectory()
+	buildDir, found, err := builder.FindBuildDirectory()
+	if !found {
+		return "", errors.New("package must be built first")
+	}
 	if err != nil {
 		return "", errors.Wrap(err, "locating build directory failed")
 	}
