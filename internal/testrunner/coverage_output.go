@@ -11,7 +11,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/pkg/errors"
 
@@ -47,7 +46,57 @@ func (tcd *testCoverageDetails) withTestResults(results []TestResult) *testCover
 }
 
 type coberturaReport struct {
+	XMLName         xml.Name    `xml:"coverage"`
+	LineRate        float32     `xml:"line-rate,attr"`
+	BranchRate      float32     `xml:"branch-rate,attr"`
+	Version         string      `xml:"version,attr"`
+	Timestamp       int64       `xml:"timestamp,attr"`
+	LinesCovered    int64       `xml:"lines-covered,attr"`
+	LinesValid      int64       `xml:"lines-valid,attr"`
+	BranchesCovered int64       `xml:"branches-covered,attr"`
+	BranchesValid   int64       `xml:"branches-valid,attr"`
+	Complexity      float32     `xml:"complexity,attr"`
+	Sources         []*source   `xml:"sources>source"`
+	Packages        []*aPackage `xml:"packages>package"`
 }
+
+type source struct {
+	Path string `xml:",chardata"`
+}
+
+type aPackage struct {
+	Name       string   `xml:"name,attr"`
+	LineRate   float32  `xml:"line-rate,attr"`
+	BranchRate float32  `xml:"branch-rate,attr"`
+	Complexity float32  `xml:"complexity,attr"`
+	Classes    []*class `xml:"classes>class"`
+}
+
+type class struct {
+	Name       string    `xml:"name,attr"`
+	Filename   string    `xml:"filename,attr"`
+	LineRate   float32   `xml:"line-rate,attr"`
+	BranchRate float32   `xml:"branch-rate,attr"`
+	Complexity float32   `xml:"complexity,attr"`
+	Methods    []*method `xml:"methods>method"`
+	Lines      lines     `xml:"lines>line"`
+}
+
+type method struct {
+	Name       string  `xml:"name,attr"`
+	Signature  string  `xml:"signature,attr"`
+	LineRate   float32 `xml:"line-rate,attr"`
+	BranchRate float32 `xml:"branch-rate,attr"`
+	Complexity float32 `xml:"complexity,attr"`
+	Lines      lines   `xml:"lines>line"`
+}
+
+type line struct {
+	Number int   `xml:"number,attr"`
+	Hits   int64 `xml:"hits,attr"`
+}
+
+type lines []*line
 
 func (r *coberturaReport) bytes() ([]byte, error) {
 	out, err := xml.MarshalIndent(&r, "", "  ")
@@ -137,7 +186,7 @@ func writeCoverageReportFile(report *coberturaReport, packageName string) error 
 		}
 	}
 
-	fileName := fmt.Sprintf("coverage-%s-%d-report.xml", packageName, time.Now().UnixNano())
+	fileName := fmt.Sprintf("coverage-%s-%d-report.xml", packageName, report.Timestamp)
 	filePath := filepath.Join(dest, fileName)
 
 	b, err := report.bytes()
