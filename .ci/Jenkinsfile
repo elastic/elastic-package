@@ -64,6 +64,7 @@ pipeline {
             junit(allowEmptyResults: false,
                 keepLongStdio: true,
                 testResults: "build/test-results/*.xml")
+            coverageReport('build/test-coverage')
           }
         }
       }
