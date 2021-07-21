@@ -116,7 +116,6 @@ func (c *coberturaCoverage) bytes() ([]byte, error) {
 
 // WriteCoverage function calculates test coverage for the given package.
 // It requires to execute tests for all data streams (same test type), so the coverage can be calculated properly.
-// The function includes following test types in the coverage report - pipeline and system.
 func WriteCoverage(packageRootPath, packageName string, testType TestType, results []TestResult) error {
 	details, err := collectTestCoverageDetails(packageRootPath, packageName, testType, results)
 	if err != nil {
