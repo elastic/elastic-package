@@ -59,7 +59,7 @@ for d in test/packages/*/; do
     elastic-package install -v
 
     # defer-cleanup is set to a short period to verify that the option is available
-    elastic-package test -v --report-format xUnit --report-output file --defer-cleanup 1s
+    elastic-package test -v --report-format xUnit --report-output file --defer-cleanup 1s --test-coverage
   )
 cd -
 done
