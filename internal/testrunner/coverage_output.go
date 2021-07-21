@@ -18,6 +18,8 @@ import (
 	"github.com/elastic/elastic-package/internal/builder"
 )
 
+const coverageDtd = `<!DOCTYPE coverage SYSTEM "http://cobertura.sourceforge.net/xml/coverage-04.dtd">`
+
 type testCoverageDetails struct {
 	packageName string
 	dataStreams map[string][]string // <data_stream> : <test case 1, test case 2, ...>
@@ -55,6 +57,8 @@ func (r *coberturaReport) bytes() ([]byte, error) {
 
 	var buffer bytes.Buffer
 	buffer.WriteString(xml.Header)
+	buffer.WriteString("\n")
+	buffer.WriteString(coverageDtd)
 	buffer.WriteString("\n")
 	buffer.Write(out)
 	return buffer.Bytes(), nil
