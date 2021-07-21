@@ -228,7 +228,7 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 		}
 
 		if testCoverage {
-			err := testrunner.WriteCoverage(m.Name, runner.Type(), results)
+			err := testrunner.WriteCoverage(packageRootPath, m.Name, runner.Type(), results)
 			if err != nil {
 				return errors.Wrap(err, "error writing test coverage")
 			}
