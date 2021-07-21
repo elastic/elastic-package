@@ -42,7 +42,7 @@ func (tcd *testCoverageDetails) withTestResults(results []TestResult) *testCover
 		if _, ok := tcd.dataStreams[result.DataStream]; !ok {
 			tcd.dataStreams[result.DataStream] = []string{}
 		}
-		tcd.dataStreams[result.DataStream] = append(tcd.dataStreams[result.DataStream], result.DataStream)
+		tcd.dataStreams[result.DataStream] = append(tcd.dataStreams[result.DataStream], result.Name)
 	}
 	return tcd
 }
