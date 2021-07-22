@@ -144,13 +144,16 @@ func collectTestCoverageDetails(packageRootPath, packageName string, testType Te
 }
 
 func findDataStreamsWithoutTests(packageRootPath string, testType TestType) ([]string, error) {
+	var noTests []string
+
 	dataStreamDir := filepath.Join(packageRootPath, "data_stream")
 	dataStreams, err := ioutil.ReadDir(dataStreamDir)
-	if err != nil {
+	if errors.Is(err, os.ErrNotExist) {
+		return noTests, nil // there are packages that don't have any data streams (fleet_server, security_detection_engine)
+	} else if err != nil {
 		return nil, errors.Wrap(err, "can't list data streams directory")
 	}
 
-	var noTests []string
 	for _, dataStream := range dataStreams {
 		if !dataStream.IsDir() {
 			continue
