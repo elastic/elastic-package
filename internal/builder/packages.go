@@ -15,8 +15,8 @@ import (
 	"github.com/pkg/errors"
 )
 
-// MustFindBuildDirectory function locates the target build directory. If the directory doesn't exist, it will create it.
-func MustFindBuildDirectory() (string, error) {
+// BuildDirectory function locates the target build directory. If the directory doesn't exist, it will create it.
+func BuildDirectory() (string, error) {
 	buildDir, found, err := findBuildDirectory()
 	if err != nil {
 		return "", errors.Wrap(err, "locating build directory failed")
@@ -52,9 +52,9 @@ func findBuildDirectory() (string, bool, error) {
 	return "", false, nil
 }
 
-// MustFindBuildPackagesDirectory function locates the target build directory for packages.
+// BuildPackagesDirectory function locates the target build directory for packages.
 // If the directories path doesn't exist, it will create it.
-func MustFindBuildPackagesDirectory(packageRoot string) (string, error) {
+func BuildPackagesDirectory(packageRoot string) (string, error) {
 	buildDir, found, err := FindBuildPackagesDirectory()
 	if err != nil {
 		return "", errors.Wrap(err, "locating build directory failed")
@@ -100,7 +100,7 @@ func FindBuildPackagesDirectory() (string, bool, error) {
 
 // BuildPackage function builds the package.
 func BuildPackage(packageRoot string) (string, error) {
-	destinationDir, err := MustFindBuildPackagesDirectory(packageRoot)
+	destinationDir, err := BuildPackagesDirectory(packageRoot)
 	if err != nil {
 		return "", errors.Wrap(err, "locating build directory for package failed")
 	}
