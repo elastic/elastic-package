@@ -15,8 +15,22 @@ import (
 	"github.com/pkg/errors"
 )
 
-// FindBuildDirectory locates the target build directory.
-func FindBuildDirectory() (string, bool, error) {
+// BuildDirectory function locates the target build directory. If the directory doesn't exist, it will create it.
+func BuildDirectory() (string, error) {
+	buildDir, found, err := findBuildDirectory()
+	if err != nil {
+		return "", errors.Wrap(err, "locating build directory failed")
+	}
+	if !found {
+		buildDir, err = createBuildDirectory()
+		if err != nil {
+			return "", errors.Wrap(err, "creating new build directory failed")
+		}
+	}
+	return buildDir, nil
+}
+
+func findBuildDirectory() (string, bool, error) {
 	workDir, err := os.Getwd()
 	if err != nil {
 		return "", false, errors.Wrap(err, "locating working directory failed")
@@ -38,15 +52,15 @@ func FindBuildDirectory() (string, bool, error) {
 	return "", false, nil
 }
 
-// MustFindBuildPackagesDirectory function locates the target build directory for packages.
+// BuildPackagesDirectory function locates the target build directory for packages.
 // If the directories path doesn't exist, it will create it.
-func MustFindBuildPackagesDirectory(packageRoot string) (string, error) {
+func BuildPackagesDirectory(packageRoot string) (string, error) {
 	buildDir, found, err := FindBuildPackagesDirectory()
 	if err != nil {
 		return "", errors.Wrap(err, "locating build directory failed")
 	}
 	if !found {
-		buildDir, err = createBuildPackagesDirectory()
+		buildDir, err = createBuildDirectory("integrations") // TODO add support for other package types
 		if err != nil {
 			return "", errors.Wrap(err, "creating new build directory failed")
 		}
@@ -61,7 +75,7 @@ func MustFindBuildPackagesDirectory(packageRoot string) (string, error) {
 
 // FindBuildPackagesDirectory function locates the target build directory for packages.
 func FindBuildPackagesDirectory() (string, bool, error) {
-	buildDir, found, err := FindBuildDirectory()
+	buildDir, found, err := findBuildDirectory()
 	if err != nil {
 		return "", false, err
 	}
@@ -86,7 +100,7 @@ func FindBuildPackagesDirectory() (string, bool, error) {
 
 // BuildPackage function builds the package.
 func BuildPackage(packageRoot string) (string, error) {
-	destinationDir, err := MustFindBuildPackagesDirectory(packageRoot)
+	destinationDir, err := BuildPackagesDirectory(packageRoot)
 	if err != nil {
 		return "", errors.Wrap(err, "locating build directory for package failed")
 	}
@@ -118,7 +132,7 @@ func BuildPackage(packageRoot string) (string, error) {
 	return destinationDir, nil
 }
 
-func createBuildPackagesDirectory() (string, error) {
+func createBuildDirectory(dirs ...string) (string, error) {
 	workDir, err := os.Getwd()
 	if err != nil {
 		return "", errors.Wrap(err, "locating working directory failed")
@@ -129,7 +143,11 @@ func createBuildPackagesDirectory() (string, error) {
 		path := filepath.Join(dir, ".git")
 		fileInfo, err := os.Stat(path)
 		if err == nil && fileInfo.IsDir() {
-			buildDir := filepath.Join(dir, "build", "integrations") // TODO add support for other package types
+			p := []string{dir, "build"}
+			if len(dirs) > 0 {
+				p = append(p, dirs...)
+			}
+			buildDir := filepath.Join(p...)
 			err = os.MkdirAll(buildDir, 0755)
 			if err != nil {
 				return "", errors.Wrapf(err, "mkdir failed (path: %s)", buildDir)
