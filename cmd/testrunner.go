@@ -150,7 +150,7 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 					return cobraext.FlagParsingError(err, cobraext.DataStreamsFlagName)
 				}
 
-				if len(dataStreams) > 0 {
+				if testCoverage && len(dataStreams) > 0 {
 					return cobraext.FlagParsingError(errors.New("test coverage can be calculated only if all data streams are selected"), cobraext.DataStreamsFlagName)
 				}
 			}
