@@ -175,6 +175,10 @@ func findDataStreamsWithoutTests(packageRootPath string, testType TestType) ([]s
 func transformToCoberturaReport(details *testCoverageDetails) *coberturaCoverage {
 	var classes []*coberturaClass
 	for dataStream, testCases := range details.dataStreams {
+		if dataStream == "" {
+			continue // ignore tests running in the package context (not data stream), mostly referring to installed assets
+		}
+
 		var methods []*coberturaMethod
 
 		if len(testCases) == 0 {
@@ -187,10 +191,6 @@ func transformToCoberturaReport(details *testCoverageDetails) *coberturaCoverage
 				Name:  "OK",
 				Lines: []*coberturaLine{{Number: 1, Hits: 1}},
 			})
-		}
-
-		if dataStream == "" {
-			dataStream = "-" // workaround for Cobertura to properly analyze tests running in the package context (not data stream)
 		}
 
 		aClass := &coberturaClass{
