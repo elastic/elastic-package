@@ -179,16 +179,14 @@ func transformToCoberturaReport(details *testCoverageDetails) *coberturaCoverage
 
 		if len(testCases) == 0 {
 			methods = append(methods, &coberturaMethod{
-				Name:  "no-test",
+				Name:  "missing",
 				Lines: []*coberturaLine{{Number: 1, Hits: 0}},
 			})
 		} else {
-			for i, tc := range testCases {
-				methods = append(methods, &coberturaMethod{
-					Name:  tc,
-					Lines: []*coberturaLine{{Number: i + 1, Hits: 1}},
-				})
-			}
+			methods = append(methods, &coberturaMethod{
+				Name:  "OK",
+				Lines: []*coberturaLine{{Number: 1, Hits: 1}},
+			})
 		}
 
 		if dataStream == "" {
