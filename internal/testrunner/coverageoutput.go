@@ -159,8 +159,16 @@ func findDataStreamsWithoutTests(packageRootPath string, testType TestType) ([]s
 			continue
 		}
 
+		expected, err := verifyTestExpected(packageRootPath, dataStream.Name(), testType)
+		if err != nil {
+			return nil, errors.Wrap(err, "can't verify if test is expected")
+		}
+		if !expected {
+			continue
+		}
+
 		dataStreamTestPath := filepath.Join(packageRootPath, "data_stream", dataStream.Name(), "_dev", "test", string(testType))
-		_, err := os.Stat(dataStreamTestPath)
+		_, err = os.Stat(dataStreamTestPath)
 		if errors.Is(err, os.ErrNotExist) {
 			noTests = append(noTests, dataStream.Name())
 			continue
@@ -172,27 +180,43 @@ func findDataStreamsWithoutTests(packageRootPath string, testType TestType) ([]s
 	return noTests, nil
 }
 
+// verifyTestExpected function checks if tests are actually expected.
+// Pipeline tests require an ingest pipeline to be defined in the data stream.
+func verifyTestExpected(packageRootPath string, dataStreamName string, testType TestType) (bool, error) {
+	if testType != "pipeline" {
+		return true, nil
+	}
+
+	ingestPipelinePath := filepath.Join(packageRootPath, "data_stream", dataStreamName, "elasticsearch", "ingest_pipeline")
+	_, err := os.Stat(ingestPipelinePath)
+	if errors.Is(err, os.ErrNotExist) {
+		return false, nil
+	}
+	if err != nil {
+		return false, errors.Wrapf(err, "can't stat path: %s", ingestPipelinePath)
+	}
+	return true, nil
+}
+
 func transformToCoberturaReport(details *testCoverageDetails) *coberturaCoverage {
 	var classes []*coberturaClass
 	for dataStream, testCases := range details.dataStreams {
+		if dataStream == "" {
+			continue // ignore tests running in the package context (not data stream), mostly referring to installed assets
+		}
+
 		var methods []*coberturaMethod
 
 		if len(testCases) == 0 {
 			methods = append(methods, &coberturaMethod{
-				Name:  "no-test",
+				Name:  "Missing",
 				Lines: []*coberturaLine{{Number: 1, Hits: 0}},
 			})
 		} else {
-			for i, tc := range testCases {
-				methods = append(methods, &coberturaMethod{
-					Name:  tc,
-					Lines: []*coberturaLine{{Number: i + 1, Hits: 1}},
-				})
-			}
-		}
-
-		if dataStream == "" {
-			dataStream = "-" // workaround for Cobertura to properly analyze tests running in the package context (not data stream)
+			methods = append(methods, &coberturaMethod{
+				Name:  "OK",
+				Lines: []*coberturaLine{{Number: 1, Hits: 1}},
+			})
 		}
 
 		aClass := &coberturaClass{
