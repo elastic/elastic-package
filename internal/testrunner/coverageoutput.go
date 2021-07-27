@@ -183,7 +183,7 @@ func transformToCoberturaReport(details *testCoverageDetails) *coberturaCoverage
 
 		if len(testCases) == 0 {
 			methods = append(methods, &coberturaMethod{
-				Name:  "missing",
+				Name:  "Missing",
 				Lines: []*coberturaLine{{Number: 1, Hits: 0}},
 			})
 		} else {
