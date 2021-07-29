@@ -23,7 +23,7 @@ import (
 )
 
 const versionFilename = "version"
-const elasticAgentManagedYamlUrl = "https://raw.githubusercontent.com/elastic/beats/7.x/deploy/kubernetes/elastic-agent-managed-kubernetes.yaml"
+const elasticAgentManagedYamlURL = "https://raw.githubusercontent.com/elastic/beats/7.x/deploy/kubernetes/elastic-agent-managed-kubernetes.yaml"
 
 // EnsureInstalled method installs once static resources for the testing Docker stack.
 func EnsureInstalled() error {
@@ -188,9 +188,9 @@ func writeKubernetesDeployerResources(elasticPackagePath *locations.LocationMana
 		return errors.Wrap(err, "can't read application configuration")
 	}
 
-	elasticAgentManagedYaml, err := downloadElasticAgentManagedYAML(elasticAgentManagedYamlUrl)
+	elasticAgentManagedYaml, err := downloadElasticAgentManagedYAML(elasticAgentManagedYamlURL)
 	if err != nil {
-		return errors.Wrapf(err, "downloading failed for file from source  %s", elasticAgentManagedYamlUrl)
+		return errors.Wrapf(err, "downloading failed for file from source  %s", elasticAgentManagedYamlURL)
 	}
 	// Replace fleet url
 	elasticAgentManagedYaml = strings.ReplaceAll(elasticAgentManagedYaml,
