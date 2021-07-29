@@ -187,9 +187,9 @@ func writeKubernetesDeployerResources(elasticPackagePath *locations.LocationMana
 		return errors.Wrap(err, "can't read application configuration")
 	}
 
-	elasticAgentManagedYaml, err := DownloadFile("elastic-agent-managed-kubernetes.yaml", elasticAgentManagedYamlUrl)
+	elasticAgentManagedYaml, err := downloadElasticAgentManagedYAML(elasticAgentManagedYamlUrl)
 	if err != nil {
-		return errors.Wrap(err, "downloading elastic-agent-managed-kubernetes.yaml failed")
+		return errors.Wrapf(err, "downloading failed for file from source  %s", elasticAgentManagedYamlUrl)
 	}
 	// Set regex to match image name from yaml file
 	m := regexp.MustCompile("docker.elastic.co/beats/elastic-agent:\\d.+")
@@ -247,19 +247,19 @@ func createServiceLogsDir(elasticPackagePath *locations.LocationManager) error {
 	return nil
 }
 
-// DownloadFile will download a url from a path and return the response body as a string.
-func DownloadFile(filepath string, url string) (string, error) {
+// downloadElasticAgentManagedYAML will download a url from a path and return the response body as a string.
+func downloadElasticAgentManagedYAML(url string) (string, error) {
 	// Get the data
 	resp, err := http.Get(url)
 	if err != nil {
-		return "", err
+		return "", errors.Wrapf(err, "failed to get file from url %s", url)
 	}
 	defer resp.Body.Close()
 
 	// Convert to string
 	b, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", err
+		return "", errors.Wrap(err, "failed to read response body")
 	}
 	return string(b), nil
 }
