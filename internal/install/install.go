@@ -6,10 +6,12 @@ package install
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
+	"regexp"
 	"time"
 
 	"github.com/pkg/errors"
@@ -20,6 +22,7 @@ import (
 )
 
 const versionFilename = "version"
+const elasticAgentManagedYamlUrl = "https://raw.githubusercontent.com/elastic/beats/7.x/deploy/kubernetes/elastic-agent-managed-kubernetes.yaml"
 
 // EnsureInstalled method installs once static resources for the testing Docker stack.
 func EnsureInstalled() error {
@@ -184,9 +187,14 @@ func writeKubernetesDeployerResources(elasticPackagePath *locations.LocationMana
 		return errors.Wrap(err, "can't read application configuration")
 	}
 
+	elasticAgentManagedYaml, err := DownloadFile("elastic-agent-managed-kubernetes.yaml", elasticAgentManagedYamlUrl)
+	if err != nil {
+		return errors.Wrap(err, "downloading elastic-agent-managed-kubernetes.yaml failed")
+	}
+	// Set regex to match image name from yaml file
+	m := regexp.MustCompile("docker.elastic.co/beats/elastic-agent:\\d.+")
 	err = writeStaticResource(err, elasticPackagePath.KubernetesDeployerAgentYml(),
-		strings.ReplaceAll(kubernetesDeployerElasticAgentYml, "{{ ELASTIC_AGENT_IMAGE_REF }}",
-			appConfig.DefaultStackImageRefs().ElasticAgent))
+		m.ReplaceAllString(elasticAgentManagedYaml, appConfig.DefaultStackImageRefs().ElasticAgent))
 	if err != nil {
 		return errors.Wrap(err, "writing static resource failed")
 	}
@@ -237,4 +245,21 @@ func createServiceLogsDir(elasticPackagePath *locations.LocationManager) error {
 		return errors.Wrapf(err, "mkdir failed (path: %s)", dirPath)
 	}
 	return nil
+}
+
+// DownloadFile will download a url from a path and return the response body as a string.
+func DownloadFile(filepath string, url string) (string, error) {
+	// Get the data
+	resp, err := http.Get(url)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	// Convert to string
+	b, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
 }
