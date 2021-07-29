@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -191,6 +192,10 @@ func writeKubernetesDeployerResources(elasticPackagePath *locations.LocationMana
 	if err != nil {
 		return errors.Wrapf(err, "downloading failed for file from source  %s", elasticAgentManagedYamlUrl)
 	}
+	// Replace fleet url
+	elasticAgentManagedYaml = strings.ReplaceAll(elasticAgentManagedYaml,
+		"https://fleet-server:8220",
+		"http://fleet-server:8220")
 	// Set regex to match image name from yaml file
 	m := regexp.MustCompile("docker.elastic.co/beats/elastic-agent:\\d.+")
 	err = writeStaticResource(err, elasticPackagePath.KubernetesDeployerAgentYml(),
