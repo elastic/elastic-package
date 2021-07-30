@@ -6,13 +6,9 @@ package install
 
 import (
 	"fmt"
-	"io"
 	"io/ioutil"
-	"net/http"
 	"os"
 	"path/filepath"
-	"regexp"
-	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -23,7 +19,6 @@ import (
 )
 
 const versionFilename = "version"
-const elasticAgentManagedYamlURL = "https://raw.githubusercontent.com/elastic/beats/7.x/deploy/kubernetes/elastic-agent-managed-kubernetes.yaml"
 
 // EnsureInstalled method installs once static resources for the testing Docker stack.
 func EnsureInstalled() error {
@@ -63,11 +58,6 @@ func EnsureInstalled() error {
 	err = writeStackResources(elasticPackagePath)
 	if err != nil {
 		return errors.Wrap(err, "writing stack resources failed")
-	}
-
-	err = writeKubernetesDeployerResources(elasticPackagePath)
-	if err != nil {
-		return errors.Wrap(err, "writing Kubernetes deployer resources failed")
 	}
 
 	err = writeTerraformDeployerResources(elasticPackagePath)
@@ -177,35 +167,6 @@ func writeStackResources(elasticPackagePath *locations.LocationManager) error {
 
 }
 
-func writeKubernetesDeployerResources(elasticPackagePath *locations.LocationManager) error {
-	err := os.MkdirAll(elasticPackagePath.KubernetesDeployerDir(), 0755)
-	if err != nil {
-		return errors.Wrapf(err, "creating directory failed (path: %s)", elasticPackagePath.KubernetesDeployerDir())
-	}
-
-	appConfig, err := Configuration()
-	if err != nil {
-		return errors.Wrap(err, "can't read application configuration")
-	}
-
-	elasticAgentManagedYaml, err := downloadElasticAgentManagedYAML(elasticAgentManagedYamlURL)
-	if err != nil {
-		return errors.Wrapf(err, "downloading failed for file from source  %s", elasticAgentManagedYamlURL)
-	}
-	// Replace fleet url
-	elasticAgentManagedYaml = strings.ReplaceAll(elasticAgentManagedYaml,
-		"https://fleet-server:8220",
-		"http://fleet-server:8220")
-	// Set regex to match image name from yaml file
-	m := regexp.MustCompile("docker.elastic.co/beats/elastic-agent:\\d.+")
-	err = writeStaticResource(err, elasticPackagePath.KubernetesDeployerAgentYml(),
-		m.ReplaceAllString(elasticAgentManagedYaml, appConfig.DefaultStackImageRefs().ElasticAgent))
-	if err != nil {
-		return errors.Wrap(err, "writing static resource failed")
-	}
-	return nil
-}
-
 func writeTerraformDeployerResources(elasticPackagePath *locations.LocationManager) error {
 	terraformDeployer := elasticPackagePath.TerraformDeployerDir()
 	err := os.MkdirAll(terraformDeployer, 0755)
@@ -250,21 +211,4 @@ func createServiceLogsDir(elasticPackagePath *locations.LocationManager) error {
 		return errors.Wrapf(err, "mkdir failed (path: %s)", dirPath)
 	}
 	return nil
-}
-
-// downloadElasticAgentManagedYAML will download a url from a path and return the response body as a string.
-func downloadElasticAgentManagedYAML(url string) (string, error) {
-	// Get the data
-	resp, err := http.Get(url)
-	if err != nil {
-		return "", errors.Wrapf(err, "failed to get file from url %s", url)
-	}
-	defer resp.Body.Close()
-
-	// Convert to string
-	b, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", errors.Wrap(err, "failed to read response body")
-	}
-	return string(b), nil
 }

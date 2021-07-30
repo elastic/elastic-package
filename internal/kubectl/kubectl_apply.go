@@ -84,6 +84,22 @@ func Apply(definitionPaths ...string) error {
 	return nil
 }
 
+// ApplyStdin function adds resources to the Kubernetes cluster based on provided stdin.
+func ApplyStdin(input string) error {
+	logger.Debugf("Apply Kubernetes definitions")
+	out, err := applyKubernetesResourcesStdin(input)
+	if err != nil {
+		return errors.Wrap(err, "can't modify Kubernetes resources (apply)")
+	}
+
+	logger.Debugf("Handle \"apply\" command output")
+	err = handleApplyCommandOutput(out)
+	if err != nil {
+		return errors.Wrap(err, "can't handle command output")
+	}
+	return nil
+}
+
 func handleApplyCommandOutput(out []byte) error {
 	logger.Debugf("Extract resources from command output")
 	resources, err := extractResources(out)

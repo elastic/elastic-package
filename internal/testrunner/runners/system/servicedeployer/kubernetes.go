@@ -5,17 +5,23 @@
 package servicedeployer
 
 import (
+	"io"
 	"io/ioutil"
+	"net/http"
 	"path/filepath"
+	"regexp"
 	"strings"
+
+	"github.com/elastic/elastic-package/internal/install"
 
 	"github.com/pkg/errors"
 
-	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/kind"
 	"github.com/elastic/elastic-package/internal/kubectl"
 	"github.com/elastic/elastic-package/internal/logger"
 )
+
+const elasticAgentManagedYamlURL = "https://raw.githubusercontent.com/elastic/beats/7.x/deploy/kubernetes/elastic-agent-managed-kubernetes.yaml"
 
 // KubernetesServiceDeployer is responsible for deploying resources in the Kubernetes cluster.
 type KubernetesServiceDeployer struct {
@@ -144,14 +150,54 @@ func findKubernetesDefinitions(definitionsDir string) ([]string, error) {
 func installElasticAgentInCluster() error {
 	logger.Debug("install Elastic Agent in the Kubernetes cluster")
 
-	locationManager, err := locations.NewLocationManager()
+	elasticAgentManagedYaml, err := getElasticAgentYaml()
 	if err != nil {
-		return errors.Wrap(err, "can't locate Kubernetes file for Elastic Agent in ")
+		return errors.Wrap(err, "can't retrieve Kubernetes file for Elastic Agent")
 	}
 
-	err = kubectl.Apply(locationManager.KubernetesDeployerAgentYml())
+	err = kubectl.ApplyStdin(elasticAgentManagedYaml)
 	if err != nil {
 		return errors.Wrap(err, "can't install Elastic-Agent in Kubernetes cluster")
 	}
 	return nil
+}
+
+// downloadElasticAgentManagedYAML will download a url from a path and return the response body as a string.
+func downloadElasticAgentManagedYAML(url string) (string, error) {
+	// Get the data
+	resp, err := http.Get(url)
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to get file from url %s", url)
+	}
+	defer resp.Body.Close()
+
+	// Convert to string
+	b, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to read response body")
+	}
+	return string(b), nil
+}
+
+// getElasticAgentYaml retrieves elastic-agent-managed.yaml from upstream and modifies the file as needed
+// to run locally.
+func getElasticAgentYaml() (string, error) {
+	appConfig, err := install.Configuration()
+	if err != nil {
+		return "", errors.Wrap(err, "can't read application configuration")
+	}
+	elasticAgentManagedYaml, err := downloadElasticAgentManagedYAML(elasticAgentManagedYamlURL)
+	if err != nil {
+		return "", errors.Wrapf(err, "downloading failed for file from source  %s", elasticAgentManagedYamlURL)
+	}
+	// Replace fleet url
+	elasticAgentManagedYaml = strings.ReplaceAll(elasticAgentManagedYaml,
+		"https://fleet-server:8220",
+		"http://fleet-server:8220")
+
+	// Set regex to match image name from yaml file
+	m := regexp.MustCompile("docker.elastic.co/beats/elastic-agent:\\d.+")
+	elasticAgentManagedYaml = m.ReplaceAllString(elasticAgentManagedYaml, appConfig.DefaultStackImageRefs().ElasticAgent)
+
+	return elasticAgentManagedYaml, nil
 }
