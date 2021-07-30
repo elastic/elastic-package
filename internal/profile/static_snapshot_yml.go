@@ -14,7 +14,7 @@ const SnapshotFile configFile = "snapshot.yml"
 const snapshotYml = `version: '2.3'
 services:
   elasticsearch:
-    image: ${ELASTICSEARCH_IMAGE_REF}
+    image: "${ELASTICSEARCH_IMAGE_REF}"
     healthcheck:
       test: ["CMD", "curl", "-f", "-u", "elastic:changeme", "http://127.0.0.1:9200/"]
       retries: 300
@@ -44,7 +44,7 @@ services:
         condition: service_healthy
 
   kibana:
-    image: ${KIBANA_IMAGE_REF}
+    image: "${KIBANA_IMAGE_REF}"
     depends_on:
       elasticsearch:
         condition: service_healthy
@@ -69,9 +69,9 @@ services:
   package-registry:
     build:
       context: ../../../
-      dockerfile: ${STACK_PATH}/Dockerfile.package-registry
+      dockerfile: "${STACK_PATH}/Dockerfile.package-registry"
       args:
-        PROFILE: ${PROFILE_NAME}
+        PROFILE: "${PROFILE_NAME}"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://127.0.0.1:8080"]
       retries: 300
@@ -86,7 +86,7 @@ services:
         condition: service_healthy
 
   fleet-server:
-    image: ${ELASTIC_AGENT_IMAGE_REF}
+    image: "${ELASTIC_AGENT_IMAGE_REF}"
     depends_on:
       elasticsearch:
         condition: service_healthy
@@ -114,7 +114,7 @@ services:
         condition: service_healthy
 
   elastic-agent:
-    image: ${ELASTIC_AGENT_IMAGE_REF}
+    image: "${ELASTIC_AGENT_IMAGE_REF}"
     depends_on:
       fleet-server:
         condition: service_healthy
