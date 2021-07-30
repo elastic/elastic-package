@@ -23,7 +23,7 @@ type fieldsTableRecord struct {
 	metricType  string
 }
 
-var escaper = strings.NewReplacer("*", "\\*")
+var escaper = strings.NewReplacer("*", "\\*", "{", "\\{", "}", "\\}", "<", "\\<", ">", "\\>")
 
 func renderExportedFields(packageRoot, dataStreamName string) (string, error) {
 	dataStreamPath := filepath.Join(packageRoot, "data_stream", dataStreamName)
