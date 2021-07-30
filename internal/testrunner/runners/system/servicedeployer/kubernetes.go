@@ -12,10 +12,9 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/elastic/elastic-package/internal/install"
-
 	"github.com/pkg/errors"
 
+	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/kind"
 	"github.com/elastic/elastic-package/internal/kubectl"
 	"github.com/elastic/elastic-package/internal/logger"
@@ -190,14 +189,16 @@ func getElasticAgentYaml() (string, error) {
 	if err != nil {
 		return "", errors.Wrapf(err, "downloading failed for file from source  %s", elasticAgentManagedYamlURL)
 	}
+
+	// Set regex to match fleet url from yaml file
+	fleetURLRegex := regexp.MustCompile("http(s){0,1}:\\/\\/fleet-server:(\\d+)")
 	// Replace fleet url
-	elasticAgentManagedYaml = strings.ReplaceAll(elasticAgentManagedYaml,
-		"https://fleet-server:8220",
-		"http://fleet-server:8220")
+	elasticAgentManagedYaml = fleetURLRegex.ReplaceAllString(elasticAgentManagedYaml, "http://fleet-server:8220")
 
 	// Set regex to match image name from yaml file
-	m := regexp.MustCompile("docker.elastic.co/beats/elastic-agent:\\d.+")
-	elasticAgentManagedYaml = m.ReplaceAllString(elasticAgentManagedYaml, appConfig.DefaultStackImageRefs().ElasticAgent)
+	imageRegex := regexp.MustCompile("docker.elastic.co/beats/elastic-agent:\\d.+")
+	// Replace image name
+	elasticAgentManagedYaml = imageRegex.ReplaceAllString(elasticAgentManagedYaml, appConfig.DefaultStackImageRefs().ElasticAgent)
 
 	return elasticAgentManagedYaml, nil
 }
