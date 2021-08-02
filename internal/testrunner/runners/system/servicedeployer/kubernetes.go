@@ -149,7 +149,7 @@ func findKubernetesDefinitions(definitionsDir string) ([]string, error) {
 func installElasticAgentInCluster() error {
 	logger.Debug("install Elastic Agent in the Kubernetes cluster")
 
-	elasticAgentManagedYaml, err := getElasticAgentYaml()
+	elasticAgentManagedYaml, err := getElasticAgentYAML()
 	logger.Debugf("downloaded %d bytes", len(elasticAgentManagedYaml))
 	if err != nil {
 		return errors.Wrap(err, "can't retrieve Kubernetes file for Elastic Agent")
@@ -162,7 +162,7 @@ func installElasticAgentInCluster() error {
 	return nil
 }
 
-// downloadElasticAgentManagedYAML will download a url from a path and return the response body as a string.
+// downloadElasticAgentManagedYAML will download a url from a path and return the response body.
 func downloadElasticAgentManagedYAML(url string) ([]byte, error) {
 	// Get the data
 	resp, err := http.Get(url)
@@ -178,9 +178,9 @@ func downloadElasticAgentManagedYAML(url string) ([]byte, error) {
 	return b, nil
 }
 
-// getElasticAgentYaml retrieves elastic-agent-managed.yaml from upstream and modifies the file as needed
+// getElasticAgentYAML retrieves elastic-agent-managed.yaml from upstream and modifies the file as needed
 // to run locally.
-func getElasticAgentYaml() ([]byte, error) {
+func getElasticAgentYAML() ([]byte, error) {
 	appConfig, err := install.Configuration()
 	if err != nil {
 		return nil, errors.Wrap(err, "can't read application configuration")
