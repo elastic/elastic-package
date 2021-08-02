@@ -74,9 +74,11 @@ pipeline {
         tag pattern: '(v)?\\d+\\.\\d+\\.\\d+', comparator: 'REGEXP'
       }
       steps {
-        withCredentials([string(credentialsId: "${GITHUB_TOKEN_CREDENTIALS}", variable: 'GITHUB_TOKEN')]) {
-          dir("${BASE_DIR}") {
-            sh 'curl -sL https://git.io/goreleaser | bash'
+        withMageEnv(){
+          withCredentials([string(credentialsId: "${GITHUB_TOKEN_CREDENTIALS}", variable: 'GITHUB_TOKEN')]) {
+            dir("${BASE_DIR}") {
+              sh 'curl -sL https://git.io/goreleaser | bash'
+            }
           }
         }
       }
