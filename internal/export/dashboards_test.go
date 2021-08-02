@@ -6,7 +6,7 @@ package export
 
 import (
 	"encoding/json"
-	"io"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"

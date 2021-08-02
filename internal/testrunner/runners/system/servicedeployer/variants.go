@@ -6,7 +6,6 @@ package servicedeployer
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"

@@ -6,6 +6,7 @@ package fields
 
 import (
 	"encoding/json"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"

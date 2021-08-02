@@ -7,6 +7,7 @@ package servicedeployer
 import (
 	"io"
 	"net/http"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"

@@ -5,7 +5,6 @@
 package system
 
 import (
-	"io"
 	"os"
 	"path/filepath"
 	"regexp"

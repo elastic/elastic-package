@@ -6,7 +6,6 @@ package export
 
 import (
 	"encoding/json"
-	"io"
 	"os"
 	"path/filepath"
 

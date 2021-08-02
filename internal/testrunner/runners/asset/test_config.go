@@ -5,7 +5,6 @@
 package asset
 
 import (
-	"io"
 	"os"
 	"path/filepath"
 

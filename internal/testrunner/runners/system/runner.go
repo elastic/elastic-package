@@ -7,7 +7,6 @@ package system
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"math/rand"
 	"os"
 	"path/filepath"
