@@ -62,7 +62,7 @@ func ShellInit(elasticStackProfile *profile.Profile) (string, error) {
 	}
 
 	serviceComposeConfig, err := p.Config(compose.CommandOptions{
-		Env:       append(appConfig.StackImageRefs(install.DefaultStackVersion).AsEnv(), elasticStackProfile.ComposeEnvVars()...),
+		Env: append(appConfig.StackImageRefs(install.DefaultStackVersion).AsEnv(), elasticStackProfile.ComposeEnvVars()...),
 	})
 	if err != nil {
 		return "", errors.Wrap(err, "could not get Docker Compose configuration for service")
