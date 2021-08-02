@@ -5,7 +5,7 @@
 package registry
 
 import (
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 
@@ -64,7 +64,7 @@ func (c *Client) get(resourcePath string) (int, []byte, error) {
 	}
 
 	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return resp.StatusCode, nil, errors.Wrap(err, "could not read response body")
 	}

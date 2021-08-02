@@ -5,8 +5,9 @@
 package servicedeployer
 
 import (
-	"io/ioutil"
+	"io"
 	"net/http"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -131,7 +132,7 @@ func (ksd KubernetesServiceDeployer) installCustomDefinitions() error {
 var _ ServiceDeployer = new(KubernetesServiceDeployer)
 
 func findKubernetesDefinitions(definitionsDir string) ([]string, error) {
-	fileInfos, err := ioutil.ReadDir(definitionsDir)
+	fileInfos, err := os.ReadDir(definitionsDir)
 	if err != nil {
 		return nil, errors.Wrapf(err, "can't read definitions directory (path: %s)", definitionsDir)
 	}
@@ -170,7 +171,7 @@ func downloadElasticAgentManagedYAML(url string) ([]byte, error) {
 	}
 	defer resp.Body.Close()
 
-	b, err := ioutil.ReadAll(resp.Body)
+	b, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to read response body")
 	}

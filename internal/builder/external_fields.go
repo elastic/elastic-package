@@ -5,7 +5,7 @@
 package builder
 
 import (
-	"io/ioutil"
+	"os"
 	"path/filepath"
 
 	"github.com/pkg/errors"
@@ -42,7 +42,7 @@ func resolveExternalFields(packageRoot, destinationDir string) error {
 		return err
 	}
 	for _, file := range fieldsFile {
-		data, err := ioutil.ReadFile(file)
+		data, err := os.ReadFile(file)
 		if err != nil {
 			return err
 		}
@@ -54,7 +54,7 @@ func resolveExternalFields(packageRoot, destinationDir string) error {
 		} else if injected {
 			logger.Debugf("%s: source file has been changed", rel)
 
-			err = ioutil.WriteFile(file, output, 0644)
+			err = os.WriteFile(file, output, 0644)
 			if err != nil {
 				return err
 			}

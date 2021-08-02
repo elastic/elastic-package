@@ -6,7 +6,6 @@ package install
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -20,7 +19,7 @@ import (
 
 func checkIfLatestVersionInstalled(elasticPackagePath *locations.LocationManager) (bool, error) {
 	versionPath := filepath.Join(elasticPackagePath.RootDir(), versionFilename)
-	versionFile, err := ioutil.ReadFile(versionPath)
+	versionFile, err := os.ReadFile(versionPath)
 	if os.IsExist(err) {
 		return false, nil // old version, no version file
 	}

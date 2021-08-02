@@ -5,7 +5,6 @@
 package system
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -62,7 +61,7 @@ func (t testConfig) Name() string {
 }
 
 func newConfig(configFilePath string, ctxt servicedeployer.ServiceContext, serviceVariantName string) (*testConfig, error) {
-	data, err := ioutil.ReadFile(configFilePath)
+	data, err := os.ReadFile(configFilePath)
 	if err != nil && os.IsNotExist(err) {
 		return nil, errors.Wrapf(err, "unable to find system test configuration file: %s", configFilePath)
 	}

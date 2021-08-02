@@ -5,7 +5,7 @@
 package profile
 
 import (
-	"io/ioutil"
+	"os"
 
 	"github.com/pkg/errors"
 )
@@ -25,7 +25,7 @@ const profileStackPath = "stack"
 
 // configfilesDiffer checks to see if a local configItem differs from the one it knows.
 func (cfg simpleFile) configfilesDiffer() (bool, error) {
-	changes, err := ioutil.ReadFile(cfg.path)
+	changes, err := os.ReadFile(cfg.path)
 	if err != nil {
 		return false, errors.Wrapf(err, "error reading %s", KibanaConfigFile)
 	}
@@ -37,7 +37,7 @@ func (cfg simpleFile) configfilesDiffer() (bool, error) {
 
 // writeConfig writes the config item
 func (cfg simpleFile) writeConfig() error {
-	err := ioutil.WriteFile(cfg.path, []byte(cfg.body), 0644)
+	err := os.WriteFile(cfg.path, []byte(cfg.body), 0644)
 	if err != nil {
 		return errors.Wrapf(err, "writing file failed (path: %s)", cfg.path)
 	}
@@ -46,7 +46,7 @@ func (cfg simpleFile) writeConfig() error {
 
 // readConfig reads the config item, overwriting whatever exists in the fileBody.
 func (cfg *simpleFile) readConfig() error {
-	body, err := ioutil.ReadFile(cfg.path)
+	body, err := os.ReadFile(cfg.path)
 	if err != nil {
 		return errors.Wrapf(err, "reading filed failed (path: %s)", cfg.path)
 	}

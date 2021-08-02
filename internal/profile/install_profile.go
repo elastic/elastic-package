@@ -6,7 +6,6 @@ package profile
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -76,7 +75,7 @@ func DeleteProfile(profileName string) error {
 
 // FetchAllProfiles returns a list of profile values
 func FetchAllProfiles(elasticPackagePath string) ([]Metadata, error) {
-	dirList, err := ioutil.ReadDir(elasticPackagePath)
+	dirList, err := os.ReadDir(elasticPackagePath)
 	if err != nil {
 		return []Metadata{}, errors.Wrapf(err, "error reading from directory %s", elasticPackagePath)
 	}

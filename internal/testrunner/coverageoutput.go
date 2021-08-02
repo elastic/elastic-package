@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"encoding/xml"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"time"
@@ -147,7 +146,7 @@ func findDataStreamsWithoutTests(packageRootPath string, testType TestType) ([]s
 	var noTests []string
 
 	dataStreamDir := filepath.Join(packageRootPath, "data_stream")
-	dataStreams, err := ioutil.ReadDir(dataStreamDir)
+	dataStreams, err := os.ReadDir(dataStreamDir)
 	if errors.Is(err, os.ErrNotExist) {
 		return noTests, nil // there are packages that don't have any data streams (fleet_server, security_detection_engine)
 	} else if err != nil {
@@ -260,7 +259,7 @@ func writeCoverageReportFile(report *coberturaCoverage, packageName string) erro
 		return errors.Wrap(err, "can't marshal test coverage report")
 	}
 
-	if err := ioutil.WriteFile(filePath, b, 0644); err != nil {
+	if err := os.WriteFile(filePath, b, 0644); err != nil {
 		return errors.Wrap(err, "could not write test coverage report file")
 	}
 	return nil

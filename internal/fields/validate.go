@@ -7,7 +7,7 @@ package fields
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -101,7 +101,7 @@ func CreateValidatorForDataStream(dataStreamRootPath string, opts ...ValidatorOp
 
 func loadFieldsForDataStream(dataStreamRootPath string) ([]FieldDefinition, error) {
 	fieldsDir := filepath.Join(dataStreamRootPath, "fields")
-	fileInfos, err := ioutil.ReadDir(fieldsDir)
+	fileInfos, err := os.ReadDir(fieldsDir)
 	if err != nil {
 		return nil, errors.Wrapf(err, "reading directory with fields failed (path: %s)", fieldsDir)
 	}
@@ -109,7 +109,7 @@ func loadFieldsForDataStream(dataStreamRootPath string) ([]FieldDefinition, erro
 	var fields []FieldDefinition
 	for _, fileInfo := range fileInfos {
 		f := filepath.Join(fieldsDir, fileInfo.Name())
-		body, err := ioutil.ReadFile(f)
+		body, err := os.ReadFile(f)
 		if err != nil {
 			return nil, errors.Wrap(err, "reading fields file failed")
 		}

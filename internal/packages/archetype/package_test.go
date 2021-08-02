@@ -5,7 +5,6 @@
 package archetype
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -44,7 +43,7 @@ func createAndCheckPackage(t require.TestingT, pd PackageDescriptor) error {
 	wd, err := os.Getwd()
 	require.NoError(t, err)
 
-	tempDir, err := ioutil.TempDir("", "archetype-create-package-")
+	tempDir, err := os.MkdirTemp("", "archetype-create-package-")
 	require.NoError(t, err)
 
 	os.Chdir(tempDir)

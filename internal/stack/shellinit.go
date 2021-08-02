@@ -6,7 +6,7 @@ package stack
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
@@ -39,7 +39,7 @@ type kibanaConfiguration struct {
 // ShellInit method exposes environment variables that can be used for testing purposes.
 func ShellInit(elasticStackProfile *profile.Profile) (string, error) {
 	// Read Elasticsearch username and password from Kibana configuration file.
-	body, err := ioutil.ReadFile(elasticStackProfile.FetchPath(profile.KibanaConfigFile))
+	body, err := os.ReadFile(elasticStackProfile.FetchPath(profile.KibanaConfigFile))
 	if err != nil {
 		return "", errors.Wrap(err, "error reading Kibana config file")
 	}
