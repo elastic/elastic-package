@@ -12,6 +12,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/compose"
+	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/profile"
 )
 
@@ -55,7 +56,14 @@ func ShellInit(elasticStackProfile *profile.Profile) (string, error) {
 		return "", errors.Wrap(err, "could not create docker compose project")
 	}
 
-	serviceComposeConfig, err := p.Config(compose.CommandOptions{})
+	appConfig, err := install.Configuration()
+	if err != nil {
+		return "", errors.Wrap(err, "can't read application configuration")
+	}
+
+	serviceComposeConfig, err := p.Config(compose.CommandOptions{
+		Env: append(appConfig.StackImageRefs(install.DefaultStackVersion).AsEnv(), elasticStackProfile.ComposeEnvVars()...),
+	})
 	if err != nil {
 		return "", errors.Wrap(err, "could not get Docker Compose configuration for service")
 	}

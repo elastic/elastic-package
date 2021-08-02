@@ -20,8 +20,13 @@ func dockerComposeBuild(options Options) error {
 		return errors.Wrap(err, "could not create docker compose project")
 	}
 
+	appConfig, err := install.Configuration()
+	if err != nil {
+		return errors.Wrap(err, "can't read application configuration")
+	}
+
 	opts := compose.CommandOptions{
-		Env:      options.Profile.ComposeEnvVars(),
+		Env:      append(appConfig.StackImageRefs(options.StackVersion).AsEnv(), options.Profile.ComposeEnvVars()...),
 		Services: withIsReadyServices(withDependentServices(options.Services)),
 	}
 
@@ -87,7 +92,13 @@ func dockerComposeDown(options Options) error {
 		return errors.Wrap(err, "could not create docker compose project")
 	}
 
+	appConfig, err := install.Configuration()
+	if err != nil {
+		return errors.Wrap(err, "can't read application configuration")
+	}
+
 	downOptions := compose.CommandOptions{
+		Env: append(appConfig.StackImageRefs(options.StackVersion).AsEnv(), options.Profile.ComposeEnvVars()...),
 		// Remove associated volumes.
 		ExtraArgs: []string{"--volumes"},
 	}
