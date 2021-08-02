@@ -5,7 +5,6 @@
 package servicedeployer
 
 import (
-	"io"
 	"io/ioutil"
 	"net/http"
 	"path/filepath"
@@ -171,7 +170,7 @@ func downloadElasticAgentManagedYAML(url string) ([]byte, error) {
 	}
 	defer resp.Body.Close()
 
-	b, err := io.ReadAll(resp.Body)
+	b, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to read response body")
 	}
