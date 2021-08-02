@@ -7,7 +7,6 @@ package kubectl
 import (
 	"bytes"
 	"os/exec"
-	"strings"
 
 	"github.com/pkg/errors"
 
@@ -51,13 +50,13 @@ func modifyKubernetesResources(action string, definitionPaths ...string) ([]byte
 	return output, nil
 }
 
-// applyKubernetesResourcesStdin applies a kubernetes manifest provided as stdin.
+// applyKubernetesResourcesStdin applies a Kubernetes manifest provided as stdin.
 // It returns the resources created as output and an error
-func applyKubernetesResourcesStdin(input string) ([]byte, error) {
+func applyKubernetesResourcesStdin(input []byte) ([]byte, error) {
 	// create kubectl apply command
 	kubectlCmd := exec.Command("kubectl", "apply", "-f", "-", "-o", "yaml")
 	//Stdin of kubectl command is the manifest provided
-	kubectlCmd.Stdin = strings.NewReader(input)
+	kubectlCmd.Stdin = bytes.NewReader(input)
 	errOutput := new(bytes.Buffer)
 	kubectlCmd.Stderr = errOutput
 

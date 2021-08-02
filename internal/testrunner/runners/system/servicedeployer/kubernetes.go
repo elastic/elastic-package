@@ -150,6 +150,7 @@ func installElasticAgentInCluster() error {
 	logger.Debug("install Elastic Agent in the Kubernetes cluster")
 
 	elasticAgentManagedYaml, err := getElasticAgentYaml()
+	logger.Debugf("downloaded %d bytes", len(elasticAgentManagedYaml))
 	if err != nil {
 		return errors.Wrap(err, "can't retrieve Kubernetes file for Elastic Agent")
 	}
@@ -162,43 +163,44 @@ func installElasticAgentInCluster() error {
 }
 
 // downloadElasticAgentManagedYAML will download a url from a path and return the response body as a string.
-func downloadElasticAgentManagedYAML(url string) (string, error) {
+func downloadElasticAgentManagedYAML(url string) ([]byte, error) {
 	// Get the data
 	resp, err := http.Get(url)
 	if err != nil {
-		return "", errors.Wrapf(err, "failed to get file from url %s", url)
+		return nil, errors.Wrapf(err, "failed to get file from URL %s", url)
 	}
 	defer resp.Body.Close()
 
-	// Convert to string
 	b, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", errors.Wrap(err, "failed to read response body")
+		return nil, errors.Wrap(err, "failed to read response body")
 	}
-	return string(b), nil
+	return b, nil
 }
 
 // getElasticAgentYaml retrieves elastic-agent-managed.yaml from upstream and modifies the file as needed
 // to run locally.
-func getElasticAgentYaml() (string, error) {
+func getElasticAgentYaml() ([]byte, error) {
 	appConfig, err := install.Configuration()
 	if err != nil {
-		return "", errors.Wrap(err, "can't read application configuration")
+		return nil, errors.Wrap(err, "can't read application configuration")
 	}
+
+	logger.Debugf("downloading elastic-agent-managed-kubernetes.yaml from %s", elasticAgentManagedYamlURL)
 	elasticAgentManagedYaml, err := downloadElasticAgentManagedYAML(elasticAgentManagedYamlURL)
 	if err != nil {
-		return "", errors.Wrapf(err, "downloading failed for file from source  %s", elasticAgentManagedYamlURL)
+		return nil, errors.Wrapf(err, "downloading failed for file from source  %s", elasticAgentManagedYamlURL)
 	}
 
 	// Set regex to match fleet url from yaml file
 	fleetURLRegex := regexp.MustCompile("http(s){0,1}:\\/\\/fleet-server:(\\d+)")
 	// Replace fleet url
-	elasticAgentManagedYaml = fleetURLRegex.ReplaceAllString(elasticAgentManagedYaml, "http://fleet-server:8220")
+	elasticAgentManagedYaml = fleetURLRegex.ReplaceAll(elasticAgentManagedYaml, []byte("http://fleet-server:8220"))
 
 	// Set regex to match image name from yaml file
 	imageRegex := regexp.MustCompile("docker.elastic.co/beats/elastic-agent:\\d.+")
 	// Replace image name
-	elasticAgentManagedYaml = imageRegex.ReplaceAllString(elasticAgentManagedYaml, appConfig.DefaultStackImageRefs().ElasticAgent)
+	elasticAgentManagedYaml = imageRegex.ReplaceAll(elasticAgentManagedYaml, []byte(appConfig.DefaultStackImageRefs().ElasticAgent))
 
 	return elasticAgentManagedYaml, nil
 }
