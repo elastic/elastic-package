@@ -5,7 +5,7 @@
 package archetype
 
 import (
-	"io/ioutil"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -56,7 +56,7 @@ func createAndCheckDataStream(t require.TestingT, pd PackageDescriptor, dd DataS
 	wd, err := os.Getwd()
 	require.NoError(t, err)
 
-	tempDir, err := ioutil.TempDir("", "archetype-create-data-stream-")
+	tempDir, err := io.TempDir("", "archetype-create-data-stream-")
 	require.NoError(t, err)
 
 	os.Chdir(tempDir)

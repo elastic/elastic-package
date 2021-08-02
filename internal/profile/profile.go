@@ -7,7 +7,6 @@ package profile
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -82,7 +81,7 @@ func newProfileFromExistingFiles(elasticPackagePath string, profileName string, 
 			}
 		}
 
-		byteFile, err := ioutil.ReadFile(file)
+		byteFile, err := os.ReadFile(file)
 		if err != nil {
 			return nil, errors.Wrapf(err, "error reading file %s", file)
 		}
@@ -266,7 +265,7 @@ func (profile Profile) readProfileResources() error {
 // metadata returns the metadata struct for the profile
 func (profile Profile) metadata() (Metadata, error) {
 	packageMetadata := profile.configFiles[PackageProfileMetaFile]
-	rawPackageMetadata, err := ioutil.ReadFile(packageMetadata.path)
+	rawPackageMetadata, err := os.ReadFile(packageMetadata.path)
 	if err != nil {
 		return Metadata{}, errors.Wrap(err, "error reading metadata file")
 	}
@@ -287,7 +286,7 @@ func (profile *Profile) updateMetadata(meta Metadata) error {
 	if err != nil {
 		return errors.Wrap(err, "error marshalling metadata json")
 	}
-	err = ioutil.WriteFile(packageMetadata.path, metaString, 0664)
+	err = os.WriteFile(packageMetadata.path, metaString, 0664)
 	if err != nil {
 		return errors.Wrap(err, "error writing metadata file")
 	}

@@ -7,7 +7,7 @@ package system
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -626,7 +626,7 @@ func writeSampleEvent(path string, doc common.MapStr) error {
 		return errors.Wrap(err, "marshalling sample event failed")
 	}
 
-	err = ioutil.WriteFile(filepath.Join(path, "sample_event.json"), body, 0644)
+	err = os.WriteFile(filepath.Join(path, "sample_event.json"), body, 0644)
 	if err != nil {
 		return errors.Wrap(err, "writing sample event failed")
 	}

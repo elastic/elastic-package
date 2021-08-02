@@ -5,7 +5,7 @@
 package asset
 
 import (
-	"io/ioutil"
+	"io"
 	"os"
 	"path/filepath"
 
@@ -29,7 +29,7 @@ func newConfig(assetTestFolderPath string) (*testConfig, error) {
 		return nil, nil
 	}
 
-	data, err := ioutil.ReadFile(configFilePath)
+	data, err := os.ReadFile(configFilePath)
 	if err != nil {
 		return nil, errors.Wrapf(err, "could not load asset loading test configuration file: %s", configFilePath)
 	}

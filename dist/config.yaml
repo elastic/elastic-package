@@ -1,0 +1,78 @@
+project_name: elastic-package
+release:
+  github:
+    owner: mtojek
+    name: elastic-package
+  name_template: '{{.Tag}}'
+milestones:
+- repo:
+    owner: mtojek
+    name: elastic-package
+  name_template: '{{ .Tag }}'
+scoop:
+  name: elastic-package
+  commit_author:
+    name: goreleaserbot
+    email: goreleaser@carlosbecker.com
+  commit_msg_template: Scoop update for {{ .ProjectName }} version {{ .Tag }}
+builds:
+- id: elastic-package
+  goos:
+  - darwin
+  goarch:
+  - amd64
+  goarm:
+  - "6"
+  gomips:
+  - hardfloat
+  targets:
+  - darwin_amd64
+  dir: .
+  main: .
+  ldflags:
+  - -X github.com/elastic/elastic-package/internal/version.Tag={{.Tag}}
+  - -X github.com/elastic/elastic-package/internal/version.CommitHash={{.ShortCommit}}
+  - -X github.com/elastic/elastic-package/internal/version.BuildTime={{.Timestamp}}
+  binary: elastic-package
+  lang: go
+  gobinary: go
+archives:
+- id: default
+  builds:
+  - elastic-package
+  name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm
+    }}v{{ .Arm }}{{ end }}{{ if .Mips }}_{{ .Mips }}{{ end }}'
+  format: tar.gz
+  files:
+  - licence*
+  - LICENCE*
+  - license*
+  - LICENSE*
+  - readme*
+  - README*
+  - changelog*
+  - CHANGELOG*
+  allow_different_binary_count: false
+snapshot:
+  name_template: '{{ .Tag }}-SNAPSHOT-{{ .ShortCommit }}'
+checksum:
+  name_template: '{{ .ProjectName }}_{{ .Version }}_checksums.txt'
+  algorithm: sha256
+dist: dist
+env_files:
+  github_token: ~/.config/goreleaser/github_token
+  gitlab_token: ~/.config/goreleaser/gitlab_token
+  gitea_token: ~/.config/goreleaser/gitea_token
+source:
+  name_template: '{{ .ProjectName }}-{{ .Version }}'
+  format: tar.gz
+gomod:
+  gobinary: go
+announce:
+  twitter:
+    message_template: '{{ .ProjectName }} {{ .Tag }} is out! Check it out at {{ .GitURL
+      }}/releases/tag/{{ .Tag }}'
+github_urls:
+  download: https://github.com
+gitlab_urls:
+  download: https://gitlab.com

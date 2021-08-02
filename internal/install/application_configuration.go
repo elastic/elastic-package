@@ -6,7 +6,7 @@ package install
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 
 	"github.com/pkg/errors"
@@ -73,7 +73,7 @@ func Configuration() (*ApplicationConfiguration, error) {
 		return nil, errors.Wrap(err, "can't read configuration directory")
 	}
 
-	cfg, err := ioutil.ReadFile(filepath.Join(configPath.RootDir(), applicationConfigurationYmlFile))
+	cfg, err := os.ReadFile(filepath.Join(configPath.RootDir(), applicationConfigurationYmlFile))
 	if err != nil {
 		return nil, errors.Wrap(err, "can't read configuration file")
 	}

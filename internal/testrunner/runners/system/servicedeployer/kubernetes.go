@@ -6,7 +6,6 @@ package servicedeployer
 
 import (
 	"io"
-	"io/ioutil"
 	"net/http"
 	"path/filepath"
 	"regexp"
@@ -132,7 +131,7 @@ func (ksd KubernetesServiceDeployer) installCustomDefinitions() error {
 var _ ServiceDeployer = new(KubernetesServiceDeployer)
 
 func findKubernetesDefinitions(definitionsDir string) ([]string, error) {
-	fileInfos, err := ioutil.ReadDir(definitionsDir)
+	fileInfos, err := os.ReadDir(definitionsDir)
 	if err != nil {
 		return nil, errors.Wrapf(err, "can't read definitions directory (path: %s)", definitionsDir)
 	}

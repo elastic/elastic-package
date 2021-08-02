@@ -6,7 +6,7 @@ package servicedeployer
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -50,7 +50,7 @@ func ReadVariantsFile(devDeployPath string) (*VariantsFile, error) {
 		return nil, errors.Wrap(err, "can't stat variants file")
 	}
 
-	content, err := ioutil.ReadFile(variantsYmlPath)
+	content, err := os.ReadFile(variantsYmlPath)
 	if err != nil {
 		return nil, errors.Wrap(err, "can't read variants file")
 	}

@@ -6,7 +6,7 @@ package export
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"os"
 	"path/filepath"
 
@@ -86,7 +86,7 @@ func saveObjectsToFiles(packageRoot string, objects []common.MapStr) error {
 
 		// Save object to file
 		objectPath := filepath.Join(targetDir, id.(string)+".json")
-		err = ioutil.WriteFile(objectPath, b, 0644)
+		err = os.WriteFile(objectPath, b, 0644)
 		if err != nil {
 			return errors.Wrap(err, "writing to file failed")
 		}

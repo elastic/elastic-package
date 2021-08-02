@@ -4,7 +4,6 @@
 package profile
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -17,7 +16,7 @@ const (
 )
 
 func TestNewProfile(t *testing.T) {
-	elasticPackageDir, err := ioutil.TempDir("", "package")
+	elasticPackageDir, err := os.MkdirTemp("", "package")
 	defer cleanupProfile(t, elasticPackageDir)
 	assert.NoError(t, err, "error creating tempdir")
 	t.Logf("writing to directory %s", elasticPackageDir)
@@ -33,7 +32,7 @@ func TestNewProfile(t *testing.T) {
 }
 
 func TestNewProfileFrom(t *testing.T) {
-	elasticPackageDir, err := ioutil.TempDir("", "package")
+	elasticPackageDir, err := os.MkdirTemp("", "package")
 	defer cleanupProfile(t, elasticPackageDir)
 	assert.NoError(t, err, "error creating tempdir")
 	t.Logf("writing to directory %s", elasticPackageDir)

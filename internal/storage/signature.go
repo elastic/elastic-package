@@ -7,7 +7,7 @@ package storage
 import (
 	"encoding/hex"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"sort"
 	"strings"
 
@@ -107,7 +107,7 @@ func calculateFilesSignature(filesystem billy.Filesystem, files []string) (strin
 			return "", errors.Wrapf(err, "reading file failed (path: %s)", file)
 		}
 
-		c, err := ioutil.ReadAll(f)
+		c, err := io.ReadAll(f)
 		if err != nil {
 			return "", errors.Wrapf(err, "reading file content failed (path: %s)", file)
 		}
