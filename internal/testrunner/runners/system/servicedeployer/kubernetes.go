@@ -172,6 +172,9 @@ func downloadElasticAgentManagedYAML(url string) ([]byte, error) {
 	}
 	defer resp.Body.Close()
 	logger.Debugf("Status code when downloading elastic-agent-managed-kubernetes.yaml is %d", resp.StatusCode)
+	if resp.StatusCode != 200 {
+		return nil, errors.Wrapf(err, "downloading fail due to status code %d", resp.StatusCode)
+	}
 	b, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to read response body")
@@ -206,24 +209,25 @@ func getElasticAgentYAML() ([]byte, error) {
 	return elasticAgentManagedYaml, nil
 }
 
+// retryDownloadElasticAgentManagedYAML retries downloading elastic agent managed manifest for x attempts
+// until there is no error and bytes of the file are more than 2000
 func retryDownloadElasticAgentManagedYAML(url string, attempts int, sleep time.Duration, f func(string) ([]byte, error)) ([]byte, error) {
 	var err error
 	for i := 0; i < attempts; i++ {
 		if i > 0 {
-			logger.Debugf("retrying after error: %s", err)
+			logger.Debugf("retrying download after error: %s", err)
 			time.Sleep(sleep)
-			sleep *= 2
 		}
 		elasticAgentManagedYaml, err := f(url)
 		if err == nil {
 			logger.Debugf("downloaded %d bytes", len(elasticAgentManagedYaml))
-			if len(elasticAgentManagedYaml) > 1000 {
+			if len(elasticAgentManagedYaml) > 2000 {
 				return elasticAgentManagedYaml, nil
 			}
 			err = fmt.Errorf("bytes downloaded are too low: %d", len(elasticAgentManagedYaml))
 			logger.Debugf("Failed because of %s", err)
-			logger.Debugf("manifest downloaded is %s", string(elasticAgentManagedYaml))
+			logger.Debugf("File downloaded is %s", string(elasticAgentManagedYaml))
 		}
 	}
-	return nil, fmt.Errorf("after %d attempts, last error: %s", attempts, err)
+	return nil, errors.Wrapf(err, "after %d attempts of downloading elastic-agent-managed-kubernetes.yaml", attempts)
 }
