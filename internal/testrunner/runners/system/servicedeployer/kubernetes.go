@@ -221,6 +221,8 @@ func retryDownloadElasticAgentManagedYAML(url string, attempts int, sleep time.D
 				return elasticAgentManagedYaml, nil
 			}
 			err = fmt.Errorf("bytes downloaded are too low: %d", len(elasticAgentManagedYaml))
+			logger.Debugf("Failed because of %s", err)
+			logger.Debugf("manifest downloaded is %s", string(elasticAgentManagedYaml))
 		}
 	}
 	return nil, fmt.Errorf("after %d attempts, last error: %s", attempts, err)
