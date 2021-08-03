@@ -57,7 +57,7 @@ func (p *portMapping) UnmarshalYAML(node *yaml.Node) error {
 		}
 
 		var s struct {
-			HostIP string `yaml:"host_ip"`
+			HostIP    string `yaml:"host_ip"`
 			Target    int
 			Published int
 			Protocol  string
