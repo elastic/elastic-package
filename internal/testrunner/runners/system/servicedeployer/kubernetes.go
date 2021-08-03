@@ -5,12 +5,14 @@
 package servicedeployer
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 
@@ -150,7 +152,6 @@ func installElasticAgentInCluster() error {
 	logger.Debug("install Elastic Agent in the Kubernetes cluster")
 
 	elasticAgentManagedYaml, err := getElasticAgentYAML()
-	logger.Debugf("downloaded %d bytes", len(elasticAgentManagedYaml))
 	if err != nil {
 		return errors.Wrap(err, "can't retrieve Kubernetes file for Elastic Agent")
 	}
@@ -170,7 +171,7 @@ func downloadElasticAgentManagedYAML(url string) ([]byte, error) {
 		return nil, errors.Wrapf(err, "failed to get file from URL %s", url)
 	}
 	defer resp.Body.Close()
-
+	logger.Debugf("Status code when downloading elastic-agent-managed-kubernetes.yaml is %d", resp.StatusCode)
 	b, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to read response body")
@@ -187,10 +188,11 @@ func getElasticAgentYAML() ([]byte, error) {
 	}
 
 	logger.Debugf("downloading elastic-agent-managed-kubernetes.yaml from %s", elasticAgentManagedYamlURL)
-	elasticAgentManagedYaml, err := downloadElasticAgentManagedYAML(elasticAgentManagedYamlURL)
+	elasticAgentManagedYaml, err := retryDownloadElasticAgentManagedYAML(elasticAgentManagedYamlURL, 5, 10, downloadElasticAgentManagedYAML)
 	if err != nil {
 		return nil, errors.Wrapf(err, "downloading failed for file from source  %s", elasticAgentManagedYamlURL)
 	}
+	logger.Debugf("downloaded %d bytes", len(elasticAgentManagedYaml))
 
 	// Set regex to match fleet url from yaml file
 	fleetURLRegex := regexp.MustCompile("http(s){0,1}:\\/\\/fleet-server:(\\d+)")
@@ -203,4 +205,24 @@ func getElasticAgentYAML() ([]byte, error) {
 	elasticAgentManagedYaml = imageRegex.ReplaceAll(elasticAgentManagedYaml, []byte(appConfig.DefaultStackImageRefs().ElasticAgent))
 
 	return elasticAgentManagedYaml, nil
+}
+
+func retryDownloadElasticAgentManagedYAML(url string, attempts int, sleep time.Duration, f func(string) ([]byte, error)) ([]byte, error) {
+	var err error
+	for i := 0; i < attempts; i++ {
+		if i > 0 {
+			logger.Debugf("retrying after error: %s", err)
+			time.Sleep(sleep)
+			sleep *= 2
+		}
+		elasticAgentManagedYaml, err := f(url)
+		if err == nil {
+			logger.Debugf("downloaded %d bytes", len(elasticAgentManagedYaml))
+			if len(elasticAgentManagedYaml) > 1000 {
+				return elasticAgentManagedYaml, nil
+			}
+			err = fmt.Errorf("bytes downloaded are too low: %d", len(elasticAgentManagedYaml))
+		}
+	}
+	return nil, fmt.Errorf("after %d attempts, last error: %s", attempts, err)
 }
