@@ -191,6 +191,7 @@ func getElasticAgentYAML() ([]byte, error) {
 	}
 
 	logger.Debugf("downloading elastic-agent-managed-kubernetes.yaml from %s", elasticAgentManagedYamlURL)
+	// retry downloading elastic agent manifest for 5 times (sleep 10 seconds between each try) in case of error
 	elasticAgentManagedYaml, err := retryDownloadElasticAgentManagedYAML(elasticAgentManagedYamlURL, 5, 10, downloadElasticAgentManagedYAML)
 	if err != nil {
 		return nil, errors.Wrapf(err, "downloading failed for file from source  %s", elasticAgentManagedYamlURL)
