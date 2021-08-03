@@ -211,7 +211,7 @@ func getElasticAgentYAML() ([]byte, error) {
 }
 
 // retryDownloadElasticAgentManagedYAML retries downloading elastic agent managed manifest for x attempts
-// until there is no error and bytes of the file are more than 2000
+// until there is no error and bytes of the file are more than 2000.
 func retryDownloadElasticAgentManagedYAML(url string, attempts int, sleep time.Duration, f func(string) ([]byte, error)) ([]byte, error) {
 	var err error
 	for i := 0; i < attempts; i++ {
