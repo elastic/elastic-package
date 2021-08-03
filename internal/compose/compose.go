@@ -57,6 +57,7 @@ func (p *portMapping) UnmarshalYAML(node *yaml.Node) error {
 		}
 
 		var s struct {
+			HostIP string `yaml:"host_ip"`
 			Target    int
 			Published int
 			Protocol  string
@@ -69,7 +70,7 @@ func (p *portMapping) UnmarshalYAML(node *yaml.Node) error {
 		p.InternalPort = s.Target
 		p.ExternalPort = s.Published
 		p.Protocol = s.Protocol
-
+		p.ExternalIP = s.HostIP
 		return nil
 	}
 
