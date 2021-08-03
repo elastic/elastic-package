@@ -192,7 +192,6 @@ func getElasticAgentYAML() ([]byte, error) {
 	if err != nil {
 		return nil, errors.Wrapf(err, "downloading failed for file from source  %s", elasticAgentManagedYamlURL)
 	}
-	logger.Debugf("downloaded %d bytes", len(elasticAgentManagedYaml))
 
 	// Set regex to match fleet url from yaml file
 	fleetURLRegex := regexp.MustCompile("http(s){0,1}:\\/\\/fleet-server:(\\d+)")
