@@ -1,0 +1,10 @@
+- name: ecs.version
+  type: keyword
+  description: ECS version
+- name: service.type
+  type: keyword
+  description: Service type
+- name: orchestrator.cluster.name
+  external: ecs
+- name: orchestrator.cluster.url
+  external: ecs
