@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -58,11 +57,6 @@ func EnsureInstalled() error {
 	err = writeStackResources(elasticPackagePath)
 	if err != nil {
 		return errors.Wrap(err, "writing stack resources failed")
-	}
-
-	err = writeKubernetesDeployerResources(elasticPackagePath)
-	if err != nil {
-		return errors.Wrap(err, "writing Kubernetes deployer resources failed")
 	}
 
 	err = writeTerraformDeployerResources(elasticPackagePath)
@@ -170,26 +164,6 @@ func writeStackResources(elasticPackagePath *locations.LocationManager) error {
 	}
 	return profile.CreateProfile(options)
 
-}
-
-func writeKubernetesDeployerResources(elasticPackagePath *locations.LocationManager) error {
-	err := os.MkdirAll(elasticPackagePath.KubernetesDeployerDir(), 0755)
-	if err != nil {
-		return errors.Wrapf(err, "creating directory failed (path: %s)", elasticPackagePath.KubernetesDeployerDir())
-	}
-
-	appConfig, err := Configuration()
-	if err != nil {
-		return errors.Wrap(err, "can't read application configuration")
-	}
-
-	err = writeStaticResource(err, elasticPackagePath.KubernetesDeployerAgentYml(),
-		strings.ReplaceAll(kubernetesDeployerElasticAgentYml, "{{ ELASTIC_AGENT_IMAGE_REF }}",
-			appConfig.DefaultStackImageRefs().ElasticAgent))
-	if err != nil {
-		return errors.Wrap(err, "writing static resource failed")
-	}
-	return nil
 }
 
 func writeTerraformDeployerResources(elasticPackagePath *locations.LocationManager) error {
