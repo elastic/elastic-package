@@ -15,6 +15,8 @@ import (
 	"github.com/elastic/elastic-package/internal/signal"
 )
 
+var waitForPolicyAssignedTimeout = 10 * time.Minute
+
 // Agent represents an Elastic Agent enrolled with fleet.
 type Agent struct {
 	ID             string `json:"id"`
@@ -25,6 +27,15 @@ type Agent struct {
 			Name string `json:"name"`
 		} `json:"host"`
 	} `json:"local_metadata"`
+}
+
+// String method returns string representation of an agent.
+func (a *Agent) String() string {
+	b, err := json.Marshal(a)
+	if err != nil {
+		return err.Error()
+	}
+	return string(b)
 }
 
 // ListAgents returns the list of agents enrolled with Fleet.
@@ -71,7 +82,12 @@ func (c *Client) AssignPolicyToAgent(a Agent, p Policy) error {
 }
 
 func (c *Client) waitUntilPolicyAssigned(a Agent, p Policy) error {
+	startTime := time.Now()
 	for {
+		if startTime.Add(waitForPolicyAssignedTimeout).After(time.Now()) {
+			return errors.New("timeout: policy hasn't been assigned in time")
+		}
+
 		if signal.SIGINT() {
 			return errors.New("SIGINT: cancel waiting for policy assigned")
 		}
@@ -80,6 +96,7 @@ func (c *Client) waitUntilPolicyAssigned(a Agent, p Policy) error {
 		if err != nil {
 			return errors.Wrap(err, "can't get the agent")
 		}
+		logger.Debugf("Agent data: %s", agent.String())
 
 		if agent.PolicyID == p.ID && agent.PolicyRevision == p.Revision {
 			logger.Debugf("Policy revision assigned to the agent (ID: %s)...", a.ID)
