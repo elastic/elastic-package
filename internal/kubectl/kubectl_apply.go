@@ -129,6 +129,11 @@ func waitForReadyResources(resources []resource) error {
 	kubeClient.Log = func(s string, i ...interface{}) {
 		logger.Debugf(s, i...)
 	}
+	// In case of elastic-agent daemonset Wait will not work as expected
+	// because in single node clusters one pod of the daemonset can always
+	// be unavailable (DaemonSet.spec.updateStrategy.rollingUpdate.maxUnavailable defaults to 1).
+	// daemonSetReady will return true regardless of the pod not being ready yet.
+	// Can be solved with multi-node clusters.
 	err := kubeClient.Wait(resList, readinessTimeout)
 	if err != nil {
 		return errors.Wrap(err, "waiter failed")
