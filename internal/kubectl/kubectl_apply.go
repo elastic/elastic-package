@@ -84,6 +84,22 @@ func Apply(definitionPaths ...string) error {
 	return nil
 }
 
+// ApplyStdin function adds resources to the Kubernetes cluster based on provided stdin.
+func ApplyStdin(input []byte) error {
+	logger.Debugf("Apply Kubernetes stdin")
+	out, err := applyKubernetesResourcesStdin(input)
+	if err != nil {
+		return errors.Wrap(err, "can't modify Kubernetes resources (apply stdin)")
+	}
+
+	logger.Debugf("Handle \"apply\" command output")
+	err = handleApplyCommandOutput(out)
+	if err != nil {
+		return errors.Wrap(err, "can't handle command output")
+	}
+	return nil
+}
+
 func handleApplyCommandOutput(out []byte) error {
 	logger.Debugf("Extract resources from command output")
 	resources, err := extractResources(out)
@@ -113,6 +129,11 @@ func waitForReadyResources(resources []resource) error {
 	kubeClient.Log = func(s string, i ...interface{}) {
 		logger.Debugf(s, i...)
 	}
+	// In case of elastic-agent daemonset Wait will not work as expected
+	// because in single node clusters one pod of the daemonset can always
+	// be unavailable (DaemonSet.spec.updateStrategy.rollingUpdate.maxUnavailable defaults to 1).
+	// daemonSetReady will return true regardless of the pod not being ready yet.
+	// Can be solved with multi-node clusters.
 	err := kubeClient.Wait(resList, readinessTimeout)
 	if err != nil {
 		return errors.Wrap(err, "waiter failed")
