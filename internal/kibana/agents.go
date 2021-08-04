@@ -82,9 +82,9 @@ func (c *Client) AssignPolicyToAgent(a Agent, p Policy) error {
 }
 
 func (c *Client) waitUntilPolicyAssigned(a Agent, p Policy) error {
-	startTime := time.Now()
+	timeout := time.Now().Add(waitForPolicyAssignedTimeout)
 	for {
-		if startTime.Add(waitForPolicyAssignedTimeout).After(time.Now()) {
+		if time.Now().After(timeout) {
 			return errors.New("timeout: policy hasn't been assigned in time")
 		}
 
