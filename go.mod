@@ -3,7 +3,7 @@ module github.com/elastic/elastic-package
 go 1.16
 
 require (
-	github.com/AlecAivazis/survey/v2 v2.2.15
+	github.com/AlecAivazis/survey/v2 v2.2.16
 	github.com/Masterminds/semver v1.5.0
 	github.com/aymerick/raymond v2.0.2+incompatible
 	github.com/cespare/xxhash/v2 v2.1.1
