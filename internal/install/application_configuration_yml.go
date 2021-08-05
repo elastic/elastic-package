@@ -5,9 +5,9 @@
 package install
 
 const (
-	elasticAgentImageName  = "docker.elastic.co/beats/elastic-agent"
-	elasticsearchImageName = "docker.elastic.co/elasticsearch/elasticsearch"
-	kibanaImageName        = "docker.elastic.co/kibana/kibana"
+	elasticAgentImageName  = "docker.elastic.co/staging/elastic-agent"
+	elasticsearchImageName = "docker.elastic.co/staging/elasticsearch"
+	kibanaImageName        = "docker.elastic.co/staging/kibana"
 )
 
 const applicationConfigurationYmlFile = "config.yml"
