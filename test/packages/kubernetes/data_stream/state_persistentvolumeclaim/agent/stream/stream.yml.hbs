@@ -1,0 +1,10 @@
+metricsets: ["state_persistentvolumeclaim"]
+add_metadata: {{add_metadata}}
+hosts:
+{{#each hosts}}
+  - {{this}}
+{{/each}}
+period: {{period}}
+{{#if leaderelection}}
+condition: ${kubernetes_leaderelection.leader} == true
+{{/if}}

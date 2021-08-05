@@ -10,7 +10,7 @@ cleanup() {
 
   # Dump kubectl details
   kubectl describe pods --all-namespaces > build/kubectl-dump.txt
-  kubectl logs -l app=kind-fleet-agent-clusterscope -n kube-system >> build/kubectl-dump.txt
+  kubectl logs -l app=elastic-agent -n kube-system >> build/kubectl-dump.txt
 
   # Take down the kind cluster
   kind delete cluster
