@@ -25,7 +25,7 @@ type Client struct {
 	username string
 	password string
 
-	skipTLSVerify bool
+	tlSkipVerify bool
 }
 
 // ClientOption is functional option modifying Kibana client.
@@ -53,10 +53,10 @@ func NewClient(opts ...ClientOption) (*Client, error) {
 	return c, nil
 }
 
-// SkipTLSVerify option disables TLS verification.
-func SkipTLSVerify() ClientOption {
+// TLSSkipVerify option disables TLS verification.
+func TLSSkipVerify() ClientOption {
 	return func(c *Client) {
-		c.skipTLSVerify = true
+		c.tlSkipVerify = true
 	}
 }
 
@@ -102,7 +102,7 @@ func (c *Client) sendRequest(method, resourcePath string, body []byte) (int, []b
 	req.Header.Add("kbn-xsrf", install.DefaultStackVersion)
 
 	client := http.Client{}
-	if c.skipTLSVerify {
+	if c.tlSkipVerify {
 		client.Transport = &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		}

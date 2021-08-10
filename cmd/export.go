@@ -31,7 +31,7 @@ func setupExportCommand() *cobraext.Command {
 		RunE:  exportDashboardsCmd,
 	}
 	exportDashboardCmd.Flags().StringSliceP(cobraext.DashboardIDsFlagName, "d", nil, cobraext.DashboardIDsFlagDescription)
-	exportDashboardCmd.Flags().Bool(cobraext.SkipTLSVerifyFlagName, false, cobraext.SkipTLSVerifyFlagDescription)
+	exportDashboardCmd.Flags().Bool(cobraext.TLSSkipVerifyFlagName, false, cobraext.TLSSkipVerifyFlagDescription)
 
 	cmd := &cobra.Command{
 		Use:   "export",
@@ -54,9 +54,9 @@ func exportDashboardsCmd(cmd *cobra.Command, args []string) error {
 	common.TrimStringSlice(dashboardIDs)
 
 	var opts []kibana.ClientOption
-	skipTLSVerify, _ := cmd.Flags().GetBool(cobraext.SkipTLSVerifyFlagName)
+	skipTLSVerify, _ := cmd.Flags().GetBool(cobraext.TLSSkipVerifyFlagName)
 	if skipTLSVerify {
-		opts = append(opts, kibana.SkipTLSVerify())
+		opts = append(opts, kibana.TLSSkipVerify())
 	}
 
 	kibanaClient, err := kibana.NewClient(opts...)
