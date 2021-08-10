@@ -54,8 +54,8 @@ func exportDashboardsCmd(cmd *cobra.Command, args []string) error {
 	common.TrimStringSlice(dashboardIDs)
 
 	var opts []kibana.ClientOption
-	skipTLSVerify, _ := cmd.Flags().GetBool(cobraext.TLSSkipVerifyFlagName)
-	if skipTLSVerify {
+	tlsSkipVerify, _ := cmd.Flags().GetBool(cobraext.TLSSkipVerifyFlagName)
+	if tlsSkipVerify {
 		opts = append(opts, kibana.TLSSkipVerify())
 	}
 
