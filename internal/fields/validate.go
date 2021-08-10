@@ -266,7 +266,7 @@ func compareKeys(key string, def FieldDefinition, searchedKey string) bool {
 
 	// Workaround for potential geo_point, as "lon" and "lat" fields are not present in field definitions.
 	if def.Type == "geo_point" {
-		k += "\\.(lon|lat)"
+		k += "(\\.lon|\\.lat|)"
 	}
 
 	k = fmt.Sprintf("^%s$", k)
