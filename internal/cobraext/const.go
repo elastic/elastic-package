@@ -63,6 +63,9 @@ const (
 	SkipPullRequestFlagName        = "skip-pull-request"
 	SkipPullRequestFlagDescription = "skip opening a new pull request"
 
+	TLSSkipVerifyFlagName        = "tls-skip-verify"
+	TLSSkipVerifyFlagDescription = "skip TLS verify"
+
 	StackServicesFlagName        = "services"
 	StackServicesFlagDescription = "component services (comma-separated values: \"%s\")"
 
