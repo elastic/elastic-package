@@ -265,7 +265,8 @@ func compareKeys(key string, def FieldDefinition, searchedKey string) bool {
 	k = strings.ReplaceAll(k, "*", "[^.]+")
 
 	// Workaround for potential geo_point, as "lon" and "lat" fields are not present in field definitions.
-	if def.Type == "geo_point" {
+	// Unfortunately we have to assume that imported field could be a geo_point (nasty workaround).
+	if def.Type == "geo_point" || def.External != "" {
 		k += "(\\.lon|\\.lat|)"
 	}
 
