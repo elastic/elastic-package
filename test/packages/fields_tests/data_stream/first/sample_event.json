@@ -1,0 +1,8 @@
+{
+    "source.geo.location": {
+        "lat": 1.0,
+        "lon": "2.0"
+    },
+    "geo.location.lat": 3.0,
+    "geo.location.lon": 4.0
+}
