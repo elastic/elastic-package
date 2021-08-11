@@ -264,3 +264,33 @@ source code:
 `make vendor` - vendor code of dependencies
 
 `make check` - one-liner, used by CI to verify if source code is ready to be pushed to the repository
+
+## Release process
+
+This project uses [GoReleaser](https://goreleaser.com/) to release a new version of the application (semver). Release publishing
+is automatically managed by the Jenkins CI ([Jenkinsfile](https://github.com/elastic/elastic-package/blob/master/.ci/Jenkinsfile))
+and it's triggered by Git tags. Release artifacts are available in the [Releases](https://github.com/elastic/elastic-package/releases) section.
+
+### Steps to create a new release
+
+1. Fetch latest master from upstream (remember to rebase the branch):
+
+```bash
+git fetch upstream
+git rebase upstream/master
+```
+
+2. Create Git tag with release candidate:
+
+```bash
+git tag v0.15.0 # let's release v0.15.0!
+```
+
+3. Push new tag to the upstream.
+
+```bash
+git push upstream v0.15.0
+```
+
+The CI will run a new job for the just pushed tag and publish released artifacts. Please expect an automated follow-up PR
+in the [Integrations](https://github.com/elastic/integrations) repository to bump up the version ([sample PR](https://github.com/elastic/integrations/pull/1516)).
