@@ -74,7 +74,7 @@ func EnsureInstalled() error {
 
 func checkIfAlreadyInstalled(elasticPackagePath *locations.LocationManager) (bool, error) {
 	_, err := os.Stat(elasticPackagePath.StackDir())
-	if os.IsNotExist(err) {
+	if errors.Is(err, os.ErrNotExist) {
 		return false, nil
 	}
 	if err != nil {
@@ -87,7 +87,7 @@ func checkIfAlreadyInstalled(elasticPackagePath *locations.LocationManager) (boo
 func migrateIfNeeded(elasticPackagePath *locations.LocationManager) error {
 	// use the snapshot.yml file as a canary to see if we have a pre-profile install
 	_, err := os.Stat(filepath.Join(elasticPackagePath.StackDir(), string(profile.SnapshotFile)))
-	if os.IsNotExist(err) {
+	if errors.Is(err, os.ErrNotExist) {
 		return nil
 	}
 	if err != nil {

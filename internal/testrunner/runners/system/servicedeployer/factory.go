@@ -65,7 +65,7 @@ func FindDevDeployPath(options FactoryOptions) (string, error) {
 	_, err := os.Stat(dataStreamDevDeployPath)
 	if err == nil {
 		return dataStreamDevDeployPath, nil
-	} else if !os.IsNotExist(err) {
+	} else if !errors.Is(err, os.ErrNotExist) {
 		return "", errors.Wrapf(err, "stat failed for data stream (path: %s)", dataStreamDevDeployPath)
 	}
 
@@ -73,7 +73,7 @@ func FindDevDeployPath(options FactoryOptions) (string, error) {
 	_, err = os.Stat(packageDevDeployPath)
 	if err == nil {
 		return packageDevDeployPath, nil
-	} else if !os.IsNotExist(err) {
+	} else if !errors.Is(err, os.ErrNotExist) {
 		return "", errors.Wrapf(err, "stat failed for package (path: %s)", packageDevDeployPath)
 	}
 	return "", fmt.Errorf("\"%s\" directory doesn't exist", devDeployDir)

@@ -76,7 +76,7 @@ func newProfileFromExistingFiles(elasticPackagePath string, profileName string, 
 			// if we're treating missing files as soft errors,
 			// just continue on IsNotExist
 			// If it's another kind of error, we'll pick it up in ReadFile
-			if _, err := os.Stat(file); os.IsNotExist(err) {
+			if _, err := os.Stat(file); errors.Is(err, os.ErrNotExist) {
 				continue
 			}
 		}
@@ -203,7 +203,7 @@ func (profile Profile) alreadyExists() (bool, error) {
 	packageMetadata := profile.configFiles[PackageProfileMetaFile]
 	// We do this in stages to make sure we return the right error.
 	_, err := os.Stat(profile.ProfilePath)
-	if os.IsNotExist(err) {
+	if errors.Is(err, os.ErrNotExist) {
 		return false, nil
 	}
 	if err != nil {
@@ -212,7 +212,7 @@ func (profile Profile) alreadyExists() (bool, error) {
 
 	// If the folder exists, check to make sure it's a profile folder
 	_, err = os.Stat(packageMetadata.path)
-	if os.IsNotExist(err) {
+	if errors.Is(err, os.ErrNotExist) {
 		return false, ErrNotAProfile
 	}
 	if err != nil {
@@ -297,7 +297,7 @@ func (profile *Profile) updateMetadata(meta Metadata) error {
 func isProfileDir(path string) (bool, error) {
 	metaPath := filepath.Join(path, string(PackageProfileMetaFile))
 	_, err := os.Stat(metaPath)
-	if os.IsNotExist(err) {
+	if errors.Is(err, os.ErrNotExist) {
 		return false, nil
 	}
 	if err != nil {

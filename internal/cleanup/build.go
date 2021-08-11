@@ -43,10 +43,10 @@ func Build() (string, error) {
 	logger.Debugf("Build directory for integration: %s\n", destinationDir)
 
 	_, err = os.Stat(destinationDir)
-	if err != nil && !os.IsNotExist(err) {
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return "", errors.Wrapf(err, "stat file failed: %s", destinationDir)
 	}
-	if os.IsNotExist(err) {
+	if errors.Is(err, os.ErrNotExist) {
 		logger.Debugf("Package hasn't been built (missing path: %s)", destinationDir)
 		return "", nil
 	}
