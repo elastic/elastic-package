@@ -223,3 +223,14 @@ func readSampleEvent(t *testing.T, path string) json.RawMessage {
 	require.NoError(t, err)
 	return c
 }
+
+func TestValidate_geo_point(t *testing.T) {
+	validator, err := CreateValidatorForDataStream("../../test/packages/fields_tests/data_stream/first")
+
+	require.NoError(t, err)
+	require.NotNil(t, validator)
+
+	e := readSampleEvent(t, "../../test/packages/fields_tests/data_stream/first/sample_event.json")
+	errs := validator.ValidateDocumentBody(e)
+	require.Empty(t, errs)
+}
