@@ -73,7 +73,7 @@ func (r runner) verifySampleEvent() []testrunner.TestResult {
 	dataStreamPath := filepath.Join(r.options.PackageRootPath, "data_stream", r.options.TestFolder.DataStream)
 	sampleEventPath := filepath.Join(dataStreamPath, sampleEventJSON)
 	_, err := os.Stat(sampleEventPath)
-	if os.IsNotExist(err) {
+	if errors.Is(err, os.ErrNotExist) {
 		return []testrunner.TestResult{} // nothing to succeed, nothing to skip
 	}
 

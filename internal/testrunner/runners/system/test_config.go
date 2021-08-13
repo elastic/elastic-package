@@ -62,7 +62,7 @@ func (t testConfig) Name() string {
 
 func newConfig(configFilePath string, ctxt servicedeployer.ServiceContext, serviceVariantName string) (*testConfig, error) {
 	data, err := os.ReadFile(configFilePath)
-	if err != nil && os.IsNotExist(err) {
+	if err != nil && errors.Is(err, os.ErrNotExist) {
 		return nil, errors.Wrapf(err, "unable to find system test configuration file: %s", configFilePath)
 	}
 

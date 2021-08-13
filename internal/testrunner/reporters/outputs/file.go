@@ -34,7 +34,7 @@ func reportToFile(pkg, report string, format testrunner.TestReportFormat) error 
 
 	// Create test reports folder if it doesn't exist
 	_, err = os.Stat(dest)
-	if err != nil && os.IsNotExist(err) {
+	if err != nil && errors.Is(err, os.ErrNotExist) {
 		if err := os.MkdirAll(dest, 0755); err != nil {
 			return errors.Wrap(err, "could not create test reports folder")
 		}

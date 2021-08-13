@@ -150,7 +150,7 @@ func AssumeTestFolders(packageRootPath string, dataStreams []string, testType Te
 
 	if dataStreams == nil || len(dataStreams) == 0 {
 		fileInfos, err := os.ReadDir(dataStreamsPath)
-		if os.IsNotExist(err) {
+		if errors.Is(err, os.ErrNotExist) {
 			return []TestFolder{}, nil // data streams defined
 		}
 		if err != nil {

@@ -33,7 +33,7 @@ func AreReadmesUpToDate() ([]ReadmeFile, error) {
 	}
 
 	files, err := os.ReadDir(filepath.Join(packageRoot, "_dev", "build", "docs"))
-	if err != nil && !os.IsNotExist(err) {
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return nil, errors.Wrap(err, "reading directory entries failed")
 	}
 
@@ -87,7 +87,7 @@ func isReadmeUpToDate(fileName, packageRoot string) (bool, error) {
 // files. The function doesn't perform any action if the template file is not present.
 func UpdateReadmes(packageRoot string) ([]string, error) {
 	readmeFiles, err := os.ReadDir(filepath.Join(packageRoot, "_dev", "build", "docs"))
-	if err != nil && !os.IsNotExist(err) {
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return nil, errors.Wrap(err, "reading directory entries failed")
 	}
 
@@ -161,7 +161,7 @@ func generateReadme(fileName, packageRoot string) ([]byte, bool, error) {
 func findReadmeTemplatePath(fileName, packageRoot string) (string, bool, error) {
 	templatePath := filepath.Join(packageRoot, "_dev", "build", "docs", fileName)
 	_, err := os.Stat(templatePath)
-	if err != nil && os.IsNotExist(err) {
+	if err != nil && errors.Is(err, os.ErrNotExist) {
 		return "", false, nil // README.md file not found
 	}
 	if err != nil {
@@ -199,7 +199,7 @@ func readReadme(fileName, packageRoot string) ([]byte, bool, error) {
 
 	readmePath := filepath.Join(packageRoot, "docs", fileName)
 	b, err := os.ReadFile(readmePath)
-	if err != nil && os.IsNotExist(err) {
+	if err != nil && errors.Is(err, os.ErrNotExist) {
 		return nil, false, nil
 	}
 	if err != nil {
