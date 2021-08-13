@@ -74,7 +74,7 @@ func newProfileFromExistingFiles(elasticPackagePath string, profileName string, 
 	for _, file := range files {
 		if ignoreMissing {
 			// if we're treating missing files as soft errors,
-			// just continue on IsNotExist
+			// just continue on ErrNotExist
 			// If it's another kind of error, we'll pick it up in ReadFile
 			if _, err := os.Stat(file); errors.Is(err, os.ErrNotExist) {
 				continue
