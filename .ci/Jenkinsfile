@@ -88,7 +88,7 @@ pipeline {
               def parallelTasks = [:]
 
               testCommands.each { testCommand ->
-                parallelTasks["${testCommand}"] = generateTestCommandStage(command: "${testComand}")
+                parallelTasks["${testCommand}"] = generateTestCommandStage(command: "${testCommand}")
               }
 
               parallel(parallelTasks)
