@@ -28,84 +28,89 @@ pipeline {
     issueCommentTrigger('(?i)(.*(?:jenkins\\W+)?run\\W+(?:the\\W+)?tests(?:\\W+please)?.*|^\\/test$)')
   }
   stages {
-    /**
-     Checkout the code and stash it, to use it on other stages.
-     */
-    stage('Checkout') {
-      steps {
-        pipelineManager([ cancelPreviousRunningBuilds: [ when: 'PR' ] ])
-        deleteDir()
-        gitCheckout(basedir: "${BASE_DIR}")
-        stash allowEmpty: true, name: 'source', useDefaultExcludes: false
-      }
-    }
-    /**
-     Check the source code.
-     */
-    stage('Check') {
-      steps {
-        cleanup()
-        withMageEnv(){
-          dir("${BASE_DIR}"){
-            sh(label: 'Check',script: 'make check-static')
-          }
-        }
-      }
-    }
-    /**
-     Run the unit tests suite
-     */
-    stage('Unit tests') {
-      steps {
-        cleanup()
-        withMageEnv(){
-          dir("${BASE_DIR}"){
-            sh(label: 'Check',script: 'make test-go-ci')
-          }
-        }
-      }
-      post {
-        always {
-          dir("${BASE_DIR}") {
-            archiveArtifacts(allowEmptyArchive: true, artifacts: 'build/test-results/*.xml')
-            junit(allowEmptyResults: false,
-                keepLongStdio: true,
-                testResults: "build/test-results/*.xml")
-            coverageReport('build/test-coverage')
-          }
-        }
-      }
-    }
-    stage('Integration Tests') {
-      failFast true
+    stage('Initializing'){
       options { skipDefaultCheckout() }
-      steps {
-        withGithubNotify(context: 'Integration Tests', tab: 'tests') {
-          cleanup()
-          dir("${BASE_DIR}") {
-            script {
-              def testCommands = ['test-stack-command', 'test-check-packages', 'test-profiles-command']
-              def parallelTasks = [:]
-
-              testCommands.each { testCommand ->
-                parallelTasks["${testCommand}"] = generateTestCommandStage(command: "${testCommand}")
+      stages {
+        /**
+        Checkout the code and stash it, to use it on other stages.
+        */
+        stage('Checkout') {
+          steps {
+            pipelineManager([ cancelPreviousRunningBuilds: [ when: 'PR' ] ])
+            deleteDir()
+            gitCheckout(basedir: "${BASE_DIR}")
+            stash allowEmpty: true, name: 'source', useDefaultExcludes: false
+          }
+        }
+        /**
+        Check the source code.
+        */
+        stage('Check') {
+          steps {
+            cleanup()
+            withMageEnv(){
+              dir("${BASE_DIR}"){
+                sh(label: 'Check',script: 'make check-static')
               }
-
-              parallel(parallelTasks)
             }
           }
         }
-      }
-    }
-    stage('Release') {
-      when {
-        tag pattern: '(v)?\\d+\\.\\d+\\.\\d+', comparator: 'REGEXP'
-      }
-      steps {
-        withMageEnv(){
-          withCredentials([string(credentialsId: "${GITHUB_TOKEN_CREDENTIALS}", variable: 'GITHUB_TOKEN')]) {
-            dir("${BASE_DIR}") {
-              sh 'curl -sL https://git.io/goreleaser | bash'
+        /**
+        Run the unit tests suite
+        */
+        stage('Unit tests') {
+          steps {
+            cleanup()
+            withMageEnv(){
+              dir("${BASE_DIR}"){
+                sh(label: 'Check',script: 'make test-go-ci')
+              }
+            }
+          }
+          post {
+            always {
+              dir("${BASE_DIR}") {
+                archiveArtifacts(allowEmptyArchive: true, artifacts: 'build/test-results/*.xml')
+                junit(allowEmptyResults: false,
+                    keepLongStdio: true,
+                    testResults: "build/test-results/*.xml")
+                coverageReport('build/test-coverage')
+              }
+            }
+          }
+        }
+        stage('Integration Tests') {
+          failFast true
+          options { skipDefaultCheckout() }
+          steps {
+            withGithubNotify(context: 'Integration Tests', tab: 'tests') {
+              cleanup()
+              dir("${BASE_DIR}") {
+                script {
+                  def testCommands = ['test-stack-command', 'test-check-packages', 'test-profiles-command']
+                  def parallelTasks = [:]
+
+                  testCommands.each { testCommand ->
+                    parallelTasks["${testCommand}"] = generateTestCommandStage(command: "${testCommand}")
+                  }
+
+                  parallel(parallelTasks)
+                }
+              }
+            }
+          }
+        }
+        stage('Release') {
+          when {
+            tag pattern: '(v)?\\d+\\.\\d+\\.\\d+', comparator: 'REGEXP'
+          }
+          steps {
+            withMageEnv(){
+              withCredentials([string(credentialsId: "${GITHUB_TOKEN_CREDENTIALS}", variable: 'GITHUB_TOKEN')]) {
+                dir("${BASE_DIR}") {
+                  sh 'curl -sL https://git.io/goreleaser | bash'
+                }
+              }
             }
           }
         }
