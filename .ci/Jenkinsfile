@@ -45,10 +45,23 @@ pipeline {
       steps {
         cleanup()
         withMageEnv(){
+          dir("${BASE_DIR}"){
+            sh(label: 'Check',script: 'make check-static')
+          }
+        }
+      }
+    }
+    /**
+     Check the source code.
+     */
+    stage('Tests') {
+      steps {
+        cleanup()
+        withMageEnv(){
           withKubernetes() {
             withCloudTestEnv() {
               dir("${BASE_DIR}"){
-                sh(label: 'Check',script: 'make check')
+                sh(label: 'Check',script: 'make test')
               }
             }
           }

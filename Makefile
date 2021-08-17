@@ -45,4 +45,6 @@ check-git-clean:
 	git update-index --really-refresh
 	git diff-index --quiet HEAD
 
-check: build format lint licenser gomod update check-git-clean test check-git-clean
+check: check-static test check-git-clean
+
+check-static: build format lint licenser gomod update check-git-clean
