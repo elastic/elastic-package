@@ -82,9 +82,6 @@ pipeline {
     stage('Stack Command Tests') {
       agent { label 'ubuntu-18 && immutable' }
       options { skipDefaultCheckout() }
-      when {
-        beforeAgent true
-      }
       steps {
         cleanup()
         withMageEnv(){
@@ -118,9 +115,6 @@ pipeline {
     stage('Check Packages Tests') {
       agent { label 'ubuntu-18 && immutable' }
       options { skipDefaultCheckout() }
-      when {
-        beforeAgent true
-      }
       steps {
         cleanup()
         withMageEnv(){
@@ -154,9 +148,6 @@ pipeline {
     stage('Profile Commands Tests') {
       agent { label 'ubuntu-18 && immutable' }
       options { skipDefaultCheckout() }
-      when {
-        beforeAgent true
-      }
       steps {
         cleanup()
         withMageEnv(){
