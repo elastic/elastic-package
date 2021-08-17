@@ -87,11 +87,21 @@ pipeline {
               cleanup()
               dir("${BASE_DIR}") {
                 script {
+                  def artifacts = [:]
                   def testCommands = ['test-stack-command', 'test-check-packages', 'test-profiles-command']
+
+                  artifacts['test-stack-command'] = [
+                    'build/elastic-stack-dump/**/*.log'
+                  ]
+                  artifacts['test-check-packages'] = [
+                    'build/test-results/*.xml', 'build/kubectl-dump.txt', 'build/elastic-stack-dump/**/*.log'
+                  ]
+                  artifacts['test-profiles-command'] = []
+
                   def parallelTasks = [:]
 
                   testCommands.each { testCommand ->
-                    parallelTasks["${testCommand}"] = generateTestCommandStage(command: "${testCommand}")
+                    parallelTasks["${testCommand}"] = generateTestCommandStage(command: "${testCommand}", artifacts: artifacts[testCommand])
                   }
 
                   parallel(parallelTasks)
@@ -133,6 +143,7 @@ def cleanup(){
 
 def generateTestCommandStage(Map args = [:]){
   def command = args.get('command')
+  def artifacts = args.get('artifacts')?.trim() ? args.get('artifacts') : []
 
   return {
     withNode(labels: "ubuntu-18 && immutable", sleepMax: 20, forceWorkspace: true) {
@@ -149,9 +160,10 @@ def generateTestCommandStage(Map args = [:]){
         }
       } finally {
         dir("${BASE_DIR}") {
-          archiveArtifacts(allowEmptyArchive: true, artifacts: 'build/test-results/*.xml')
-          archiveArtifacts(allowEmptyArchive: true, artifacts: 'build/kubectl-dump.txt')
-          archiveArtifacts(allowEmptyArchive: true, artifacts: 'build/elastic-stack-dump/**/*.log')
+          artifacts.each { artifact ->
+            archiveArtifacts(allowEmptyArchive: true, artifacts: "${artifact}")
+          }
+
           junit(allowEmptyResults: true,
               keepLongStdio: true,
               testResults: "build/test-results/*.xml")
