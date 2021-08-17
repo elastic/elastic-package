@@ -84,10 +84,6 @@ pipeline {
       options { skipDefaultCheckout() }
       when {
         beforeAgent true
-        anyOf {
-          expression { return env.FORCE_SKIP_GIT_CHECKS == "true" }
-          expression { return env.SKIP_TESTS == "false" }
-        }
       }
       steps {
         cleanup()
@@ -124,10 +120,6 @@ pipeline {
       options { skipDefaultCheckout() }
       when {
         beforeAgent true
-        anyOf {
-          expression { return env.FORCE_SKIP_GIT_CHECKS == "true" }
-          expression { return env.SKIP_TESTS == "false" }
-        }
       }
       steps {
         cleanup()
@@ -164,10 +156,6 @@ pipeline {
       options { skipDefaultCheckout() }
       when {
         beforeAgent true
-        anyOf {
-          expression { return env.FORCE_SKIP_GIT_CHECKS == "true" }
-          expression { return env.SKIP_TESTS == "false" }
-        }
       }
       steps {
         cleanup()
