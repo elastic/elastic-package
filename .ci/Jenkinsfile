@@ -88,7 +88,7 @@ pipeline {
           withKubernetes() {
             withCloudTestEnv() {
               dir("${BASE_DIR}"){
-                sh(label: 'Check',script: 'make test-stack-command check-git-clean')
+                sh(label: 'Check',script: 'make build test-stack-command check-git-clean')
               }
             }
           }
@@ -121,7 +121,7 @@ pipeline {
           withKubernetes() {
             withCloudTestEnv() {
               dir("${BASE_DIR}"){
-                sh(label: 'Check',script: 'make test-check-packages check-git-clean')
+                sh(label: 'Check',script: 'make build test-check-packages check-git-clean')
               }
             }
           }
@@ -154,7 +154,7 @@ pipeline {
           withKubernetes() {
             withCloudTestEnv() {
               dir("${BASE_DIR}"){
-                sh(label: 'Check',script: 'make test-profiles-command check-git-clean')
+                sh(label: 'Check',script: 'make build test-profiles-command check-git-clean')
               }
             }
           }
