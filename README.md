@@ -1,5 +1,5 @@
 <!--
-WARNING: This is a generated file. Do NOT edit it manually. To regenerate this file, run `make readme`.
+WARNING: This is a generated file. Do NOT edit it manually. To regenerate this file, run `make update-readme`.
 -->
 
 # elastic-package
