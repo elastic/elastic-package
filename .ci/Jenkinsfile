@@ -53,7 +53,7 @@ pipeline {
       }
     }
     /**
-     Check the source code.
+     Run the test suite.
      */
     stage('Tests') {
       steps {
