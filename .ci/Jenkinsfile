@@ -53,16 +53,129 @@ pipeline {
       }
     }
     /**
-     Run the test suite.
+     Run the unit tests suite
      */
-    stage('Tests') {
+    stage('Unit tests') {
+      steps {
+        cleanup()
+        withMageEnv(){
+          dir("${BASE_DIR}"){
+            sh(label: 'Check',script: 'make test-go-ci')
+          }
+        }
+      }
+      post {
+        always {
+          dir("${BASE_DIR}") {
+            archiveArtifacts(allowEmptyArchive: true, artifacts: 'build/test-results/*.xml')
+            junit(allowEmptyResults: false,
+                keepLongStdio: true,
+                testResults: "build/test-results/*.xml")
+            coverageReport('build/test-coverage')
+          }
+        }
+      }
+    }
+    /**
+     Run the test suite for stack commands.
+     */
+    stage('Stack Command Tests') {
+      agent { label 'ubuntu-18 && immutable' }
+      options { skipDefaultCheckout() }
+      when {
+        beforeAgent true
+        anyOf {
+          expression { return env.FORCE_SKIP_GIT_CHECKS == "true" }
+          expression { return env.SKIP_TESTS == "false" }
+        }
+      }
       steps {
         cleanup()
         withMageEnv(){
           withKubernetes() {
             withCloudTestEnv() {
               dir("${BASE_DIR}"){
-                sh(label: 'Check',script: 'make test check-git-clean')
+                sh(label: 'Check',script: 'make test-stack-command check-git-clean')
+              }
+            }
+          }
+        }
+      }
+      post {
+        always {
+          dir("${BASE_DIR}") {
+            archiveArtifacts(allowEmptyArchive: true, artifacts: 'build/test-results/*.xml')
+            archiveArtifacts(allowEmptyArchive: true, artifacts: 'build/kubectl-dump.txt')
+            archiveArtifacts(allowEmptyArchive: true, artifacts: 'build/elastic-stack-dump/stack/logs/*.log')
+            archiveArtifacts(allowEmptyArchive: true, artifacts: 'build/elastic-stack-dump/check/logs/*.log')
+            junit(allowEmptyResults: false,
+                keepLongStdio: true,
+                testResults: "build/test-results/*.xml")
+            coverageReport('build/test-coverage')
+          }
+        }
+      }
+    }
+    /**
+     Run the test suite for packages.
+     */
+    stage('Check Packages Tests') {
+      agent { label 'ubuntu-18 && immutable' }
+      options { skipDefaultCheckout() }
+      when {
+        beforeAgent true
+        anyOf {
+          expression { return env.FORCE_SKIP_GIT_CHECKS == "true" }
+          expression { return env.SKIP_TESTS == "false" }
+        }
+      }
+      steps {
+        cleanup()
+        withMageEnv(){
+          withKubernetes() {
+            withCloudTestEnv() {
+              dir("${BASE_DIR}"){
+                sh(label: 'Check',script: 'make test-check-packages check-git-clean')
+              }
+            }
+          }
+        }
+      }
+      post {
+        always {
+          dir("${BASE_DIR}") {
+            archiveArtifacts(allowEmptyArchive: true, artifacts: 'build/test-results/*.xml')
+            archiveArtifacts(allowEmptyArchive: true, artifacts: 'build/kubectl-dump.txt')
+            archiveArtifacts(allowEmptyArchive: true, artifacts: 'build/elastic-stack-dump/stack/logs/*.log')
+            archiveArtifacts(allowEmptyArchive: true, artifacts: 'build/elastic-stack-dump/check/logs/*.log')
+            junit(allowEmptyResults: false,
+                keepLongStdio: true,
+                testResults: "build/test-results/*.xml")
+            coverageReport('build/test-coverage')
+          }
+        }
+      }
+    }
+    /**
+     Run the test suite for profile commands.
+     */
+    stage('Profile Commands Tests') {
+      agent { label 'ubuntu-18 && immutable' }
+      options { skipDefaultCheckout() }
+      when {
+        beforeAgent true
+        anyOf {
+          expression { return env.FORCE_SKIP_GIT_CHECKS == "true" }
+          expression { return env.SKIP_TESTS == "false" }
+        }
+      }
+      steps {
+        cleanup()
+        withMageEnv(){
+          withKubernetes() {
+            withCloudTestEnv() {
+              dir("${BASE_DIR}"){
+                sh(label: 'Check',script: 'make test-profiles-command check-git-clean')
               }
             }
           }
