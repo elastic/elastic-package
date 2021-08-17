@@ -61,7 +61,7 @@ pipeline {
           withKubernetes() {
             withCloudTestEnv() {
               dir("${BASE_DIR}"){
-                sh(label: 'Check',script: 'make test')
+                sh(label: 'Check',script: 'make test check-git-clean')
               }
             }
           }
