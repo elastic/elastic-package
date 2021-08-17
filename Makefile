@@ -28,20 +28,17 @@ test-go:
 	# -count=1 is included to invalidate the test cache. This way, if you run "make test-go" multiple times
 	# you will get fresh test results each time. For instance, changing the source of mocked packages
 	# does not invalidate the cache so having the -count=1 to invalidate the test cache is useful.
-	go test -v -count 1 ./...
+	go test -v -count 1 -coverprofile=$(PWD)/build/test-coverage/unit.out ./...
 
 # Prepare junit build context
 test-go-ci-pre:
 	mkdir -p $(PWD)/build/test-results
 	mkdir -p $(PWD)/build/test-coverage
-	GO111MODULE=off go get gotest.tools/gotestsum
+	GO111MODULE=off go get github.com/tebeka/go2xunit
 	GO111MODULE=off go get github.com/boumenot/gocover-cobertura
 
 test-go-ci: test-go-ci-pre
-	# -count=1 is included to invalidate the test cache. This way, if you run "make test-go" multiple times
-	# you will get fresh test results each time. For instance, changing the source of mocked packages
-	# does not invalidate the cache so having the -count=1 to invalidate the test cache is useful.
-	gotestsum --junitfile "$(PWD)/build/test-results/TEST-unit-$*.xml" --format testname -- -coverprofile=$(PWD)/build/test-coverage/unit.out -count=1 ./...
+	$(MAKE) test-go | go2xunit > "$(PWD)/build/test-results/TEST-unit.xml"
 	gocover-cobertura < $(PWD)/build/test-coverage/unit.out > $(PWD)/build/test-coverage/unit.xml
 
 test-stack-command:
