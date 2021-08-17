@@ -76,78 +76,22 @@ pipeline {
         }
       }
     }
-    /**
-     Run the test suite for stack commands.
-     */
-    stage('Stack Command Tests') {
-      agent { label 'ubuntu-18 && immutable' }
+    stage('Integration Tests') {
+      failFast true
       options { skipDefaultCheckout() }
       steps {
-        cleanup()
-        withMageEnv(){
-          withKubernetes() {
-            withCloudTestEnv() {
-              dir("${BASE_DIR}"){
-                sh(label: 'Check',script: 'make build test-stack-command check-git-clean')
-              }
-            }
-          }
-        }
-      }
-      post {
-        always {
+        withGithubNotify(context: 'Integration Tests', tab: 'tests') {
+          cleanup()
           dir("${BASE_DIR}") {
-            archiveArtifacts(allowEmptyArchive: true, artifacts: 'build/elastic-stack-dump/stack/logs/*.log')
-          }
-        }
-      }
-    }
-    /**
-     Run the test suite for packages.
-     */
-    stage('Check Packages Tests') {
-      agent { label 'ubuntu-18 && immutable' }
-      options { skipDefaultCheckout() }
-      steps {
-        cleanup()
-        withMageEnv(){
-          withKubernetes() {
-            withCloudTestEnv() {
-              dir("${BASE_DIR}"){
-                sh(label: 'Check',script: 'make build test-check-packages check-git-clean')
+            script {
+              def testCommands = ['test-stack-command', 'test-check-packages', 'test-profiles-command']
+              def parallelTasks = [:]
+
+              testCommands.each { testCommand ->
+                parallelTasks["${testCommand}"] = generateTestCommandStage(command: "${testComand}")
               }
-            }
-          }
-        }
-      }
-      post {
-        always {
-          dir("${BASE_DIR}") {
-            archiveArtifacts(allowEmptyArchive: true, artifacts: 'build/test-results/*.xml')
-            archiveArtifacts(allowEmptyArchive: true, artifacts: 'build/kubectl-dump.txt')
-            archiveArtifacts(allowEmptyArchive: true, artifacts: 'build/elastic-stack-dump/check/logs/*.log')
-            junit(allowEmptyResults: false,
-                keepLongStdio: true,
-                testResults: "build/test-results/*.xml")
-            coverageReport('build/test-coverage')
-          }
-        }
-      }
-    }
-    /**
-     Run the test suite for profile commands.
-     */
-    stage('Profile Commands Tests') {
-      agent { label 'ubuntu-18 && immutable' }
-      options { skipDefaultCheckout() }
-      steps {
-        cleanup()
-        withMageEnv(){
-          withKubernetes() {
-            withCloudTestEnv() {
-              dir("${BASE_DIR}"){
-                sh(label: 'Check',script: 'make build test-profiles-command')
-              }
+
+              parallel(parallelTasks)
             }
           }
         }
@@ -180,6 +124,37 @@ def cleanup(){
     deleteDir()
   }
   unstash 'source'
+}
+
+def generateTestCommandStage(Map args = [:]){
+  def command = args.get('command')
+
+  return {
+    withNode(labels: "ubuntu-18 && immutable", sleepMax: 20, forceWorkspace: true) {
+      cleanup()
+      try {
+        withMageEnv(){
+          withKubernetes() {
+            withCloudTestEnv() {
+              dir("${BASE_DIR}"){
+                sh(label: 'Check',script: "make build ${command} check-git-clean")
+              }
+            }
+          }
+        }
+      } finally {
+        dir("${BASE_DIR}") {
+          archiveArtifacts(allowEmptyArchive: true, artifacts: 'build/test-results/*.xml')
+          archiveArtifacts(allowEmptyArchive: true, artifacts: 'build/kubectl-dump.txt')
+          archiveArtifacts(allowEmptyArchive: true, artifacts: 'build/elastic-stack-dump/**/*.log')
+          junit(allowEmptyResults: false,
+              keepLongStdio: true,
+              testResults: "build/test-results/*.xml")
+          coverageReport('build/test-coverage')
+        }
+      }
+    }
+  }
 }
 
 def withKubernetes(Closure body) {
