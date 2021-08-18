@@ -102,11 +102,14 @@ pipeline {
 
                   testCommands.each { testCommand ->
                     def junitArtifacts = false
+                    def publishCoverage = false
+
                     if (testCommand == 'test-check-packages') {
                       junitArtifacts = true
+                      publishCoverage = true
                     }
 
-                    parallelTasks["${testCommand}"] = generateTestCommandStage(command: "${testCommand}", artifacts: artifacts[testCommand], junitArtifacts: junitArtifacts)
+                    parallelTasks["${testCommand}"] = generateTestCommandStage(command: "${testCommand}", artifacts: artifacts[testCommand], junitArtifacts: junitArtifacts, publishCoverage: publishCoverage)
                   }
 
                   parallel(parallelTasks)
@@ -150,6 +153,7 @@ def generateTestCommandStage(Map args = [:]){
   def command = args.get('command')
   def artifacts = args.get('artifacts') ? args.get('artifacts') : []
   def junitArtifacts = args.get('junitArtifacts') ? args.get('junitArtifacts') : false
+  def publishCoverage = args.get('publishCoverage') ? args.get('publishCoverage') : false
 
   return {
     withNode(labels: "ubuntu-18 && immutable", sleepMax: 20, forceWorkspace: true) {
@@ -176,7 +180,9 @@ def generateTestCommandStage(Map args = [:]){
                 testResults: "build/test-results/*.xml")
           }
 
-          coverageReport('build/test-coverage')
+          if (publishCoverage) {
+            coverageReport('build/test-coverage')
+          }
         }
       }
     }
