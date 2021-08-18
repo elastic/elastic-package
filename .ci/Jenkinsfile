@@ -87,32 +87,11 @@ pipeline {
               cleanup()
               dir("${BASE_DIR}") {
                 script {
-                  def artifacts = [:]
-                  def testCommands = ['test-stack-command', 'test-check-packages', 'test-profiles-command']
-
-                  artifacts['test-stack-command'] = [
-                    'build/elastic-stack-dump/**/*.log'
-                  ]
-                  artifacts['test-check-packages'] = [
-                    'build/test-results/*.xml', 'build/kubectl-dump.txt', 'build/elastic-stack-dump/**/*.log'
-                  ]
-                  artifacts['test-profiles-command'] = []
-
-                  def parallelTasks = [:]
-
-                  testCommands.each { testCommand ->
-                    def junitArtifacts = false
-                    def publishCoverage = false
-
-                    if (testCommand == 'test-check-packages') {
-                      junitArtifacts = true
-                      publishCoverage = true
-                    }
-
-                    parallelTasks["${testCommand}"] = generateTestCommandStage(command: "${testCommand}", artifacts: artifacts[testCommand], junitArtifacts: junitArtifacts, publishCoverage: publishCoverage)
-                  }
-
-                  parallel(parallelTasks)
+                  parallel([
+                    'stack-command': generateTestCommandStage(command: 'test-stack-command', artifacts: ['build/elastic-stack-dump/**/*.log']),
+                    'check-packages': generateTestCommandStage(command: 'test-check-packages', artifacts: ['build/test-results/*.xml', 'build/kubectl-dump.txt', 'build/elastic-stack-dump/**/*.log'], junitArtifacts: true, publishCoverage: true),
+                    'profiles-command': generateTestCommandStage(command: 'test-profiles-command'),
+                  ])
                 }
               }
             }
