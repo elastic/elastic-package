@@ -1,3 +1,5 @@
+CODE_COVERAGE_REPORT_NAME_UNIT = $(PWD)/build/test-coverage/coverage-unit-report
+
 .PHONY: build
 
 build:
@@ -28,7 +30,7 @@ test-go:
 	# -count=1 is included to invalidate the test cache. This way, if you run "make test-go" multiple times
 	# you will get fresh test results each time. For instance, changing the source of mocked packages
 	# does not invalidate the cache so having the -count=1 to invalidate the test cache is useful.
-	go test -v -count 1 -coverprofile=$(PWD)/build/test-coverage/coverage-unit-report.out ./...
+	go test -v -count 1 -coverprofile=$(CODE_COVERAGE_REPORT_NAME_UNIT).out ./...
 
 # Prepare junit build context
 test-go-ci-pre:
@@ -39,7 +41,7 @@ test-go-ci-pre:
 
 test-go-ci: test-go-ci-pre
 	$(MAKE) test-go | go2xunit > "$(PWD)/build/test-results/TEST-unit.xml"
-	gocover-cobertura < $(PWD)/build/test-coverage/coverage-unit-report.out > $(PWD)/build/test-coverage/coverage-unit-report.xml
+	gocover-cobertura < $(CODE_COVERAGE_REPORT_NAME_UNIT).out > $(CODE_COVERAGE_REPORT_NAME_UNIT).xml
 
 test-stack-command:
 	./scripts/test-stack-command.sh
