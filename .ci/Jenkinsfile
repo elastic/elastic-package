@@ -101,7 +101,12 @@ pipeline {
                   def parallelTasks = [:]
 
                   testCommands.each { testCommand ->
-                    parallelTasks["${testCommand}"] = generateTestCommandStage(command: "${testCommand}", artifacts: artifacts[testCommand])
+                    def junitArtifacts = false
+                    if (testCommand == 'test-check-packages') {
+                      junitArtifacts = true
+                    }
+
+                    parallelTasks["${testCommand}"] = generateTestCommandStage(command: "${testCommand}", artifacts: artifacts[testCommand], junitArtifacts: junitArtifacts)
                   }
 
                   parallel(parallelTasks)
@@ -144,6 +149,7 @@ def cleanup(){
 def generateTestCommandStage(Map args = [:]){
   def command = args.get('command')
   def artifacts = args.get('artifacts') ? args.get('artifacts') : []
+  def junitArtifacts = args.get('junitArtifacts') ? args.get('junitArtifacts') : false
 
   return {
     withNode(labels: "ubuntu-18 && immutable", sleepMax: 20, forceWorkspace: true) {
@@ -164,9 +170,12 @@ def generateTestCommandStage(Map args = [:]){
             archiveArtifacts(allowEmptyArchive: true, artifacts: "${artifact}")
           }
 
-          junit(allowEmptyResults: true,
-              keepLongStdio: true,
-              testResults: "build/test-results/*.xml")
+          if (junitArtifacts) {
+            junit(allowEmptyResults: true,
+                keepLongStdio: true,
+                testResults: "build/test-results/*.xml")
+          }
+
           coverageReport('build/test-coverage')
         }
       }
