@@ -32,16 +32,11 @@ test-go:
 	# does not invalidate the cache so having the -count=1 to invalidate the test cache is useful.
 	go test -v -count 1 -coverprofile=$(CODE_COVERAGE_REPORT_NAME_UNIT).out ./...
 
-# Prepare junit build context
-test-go-ci-pre:
+test-go-ci:
 	mkdir -p $(PWD)/build/test-results
 	mkdir -p $(PWD)/build/test-coverage
-	GO111MODULE=off go get github.com/tebeka/go2xunit
-	GO111MODULE=off go get github.com/boumenot/gocover-cobertura
-
-test-go-ci: test-go-ci-pre
-	$(MAKE) test-go | go2xunit > "$(PWD)/build/test-results/TEST-unit.xml"
-	gocover-cobertura < $(CODE_COVERAGE_REPORT_NAME_UNIT).out > $(CODE_COVERAGE_REPORT_NAME_UNIT).xml
+	$(MAKE) test-go | go run github.com/tebeka/go2xunit > "$(PWD)/build/test-results/TEST-unit.xml"
+	go run github.com/boumenot/gocover-cobertura < $(CODE_COVERAGE_REPORT_NAME_UNIT).out > $(CODE_COVERAGE_REPORT_NAME_UNIT).xml
 
 test-stack-command:
 	./scripts/test-stack-command.sh
