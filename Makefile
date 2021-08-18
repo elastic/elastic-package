@@ -39,7 +39,7 @@ test-go-ci-pre:
 
 test-go-ci: test-go-ci-pre
 	$(MAKE) test-go | go2xunit > "$(PWD)/build/test-results/TEST-unit.xml"
-	gocover-cobertura < $(PWD)/build/test-coverage/unit.out > $(PWD)/build/test-coverage/unit.xml
+	gocover-cobertura < $(PWD)/build/test-coverage/coverage-unit-report.out > $(PWD)/build/test-coverage/coverage-unit-report.xml
 
 test-stack-command:
 	./scripts/test-stack-command.sh
