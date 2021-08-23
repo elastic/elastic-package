@@ -14,17 +14,17 @@ import (
 func TestValidateServicesFlag(t *testing.T) {
 	t.Run("a non available service returns error", func(t *testing.T) {
 		err := validateServicesFlag([]string{"non-existing-service"})
-		require.NotNil(t, err)
+		require.Error(t, err)
 	})
 
 	t.Run("a non available service in a valid stack returns error", func(t *testing.T) {
 		err := validateServicesFlag([]string{"elasticsearch", "non-existing-service"})
-		require.NotNil(t, err)
+		require.Error(t, err)
 	})
 
 	t.Run("not possible to start a service twice", func(t *testing.T) {
 		err := validateServicesFlag([]string{"elasticsearch", "elasticsearch"})
-		require.NotNil(t, err)
+		require.Error(t, err)
 	})
 
 	availableStackServicesTest := []struct {
