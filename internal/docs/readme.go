@@ -43,7 +43,7 @@ func AreReadmesUpToDate() ([]ReadmeFile, error) {
 		ok, err := isReadmeUpToDate(fileName, packageRoot)
 		if !ok || err != nil {
 			readmeFile := ReadmeFile{
-				FileName: filepath.Base(fileName),
+				FileName: fileName,
 				UpToDate: ok,
 				Error:    err,
 			}
