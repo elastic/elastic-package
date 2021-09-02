@@ -13,7 +13,7 @@ import (
 // SnapshotFile is the docker-compose snapshot.yml file name
 const SnapshotFile configFile = "snapshot.yml"
 
-//go:embed _static/docker-compose-snapshot.yml
+//go:embed _static/docker-compose-stack.yml
 var snapshotYml string
 
 // newSnapshotFile returns a Managed Config
