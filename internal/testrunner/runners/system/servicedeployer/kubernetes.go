@@ -8,10 +8,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"path/filepath"
 	"regexp"
-	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -134,16 +132,14 @@ func (ksd KubernetesServiceDeployer) installCustomDefinitions() error {
 var _ ServiceDeployer = new(KubernetesServiceDeployer)
 
 func findKubernetesDefinitions(definitionsDir string) ([]string, error) {
-	fileInfos, err := os.ReadDir(definitionsDir)
+	files, err := filepath.Glob(filepath.Join(definitionsDir, "*.yaml"))
 	if err != nil {
 		return nil, errors.Wrapf(err, "can't read definitions directory (path: %s)", definitionsDir)
 	}
 
 	var definitionPaths []string
-	for _, fileInfo := range fileInfos {
-		if strings.HasSuffix(fileInfo.Name(), ".yaml") {
-			definitionPaths = append(definitionPaths, filepath.Join(definitionsDir, fileInfo.Name()))
-		}
+	for _, file := range files {
+		definitionPaths = append(definitionPaths, file)
 	}
 	return definitionPaths, nil
 }
