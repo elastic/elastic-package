@@ -101,15 +101,14 @@ func CreateValidatorForDataStream(dataStreamRootPath string, opts ...ValidatorOp
 
 func loadFieldsForDataStream(dataStreamRootPath string) ([]FieldDefinition, error) {
 	fieldsDir := filepath.Join(dataStreamRootPath, "fields")
-	fileInfos, err := os.ReadDir(fieldsDir)
+	files, err := filepath.Glob(filepath.Join(fieldsDir, "*.yml"))
 	if err != nil {
 		return nil, errors.Wrapf(err, "reading directory with fields failed (path: %s)", fieldsDir)
 	}
 
 	var fields []FieldDefinition
-	for _, fileInfo := range fileInfos {
-		f := filepath.Join(fieldsDir, fileInfo.Name())
-		body, err := os.ReadFile(f)
+	for _, file := range files {
+		body, err := os.ReadFile(file)
 		if err != nil {
 			return nil, errors.Wrap(err, "reading fields file failed")
 		}
