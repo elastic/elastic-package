@@ -125,4 +125,3 @@ services:
     depends_on:
       elastic-agent:
         condition: service_healthy
-`

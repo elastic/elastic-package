@@ -22,4 +22,3 @@ echo "Terraform definitions applied."
 
 set +x
 while true; do sleep 1; done # wait for ctrl-c
-`

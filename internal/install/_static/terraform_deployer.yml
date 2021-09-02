@@ -7,4 +7,3 @@ services:
       - TF_VAR_TEST_RUN_ID=${TF_VAR_TEST_RUN_ID:-detached}
     volumes:
       - ${TF_DIR}:/stage
-`
