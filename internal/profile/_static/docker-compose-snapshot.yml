@@ -1,17 +1,4 @@
-// Copyright Elasticsearch B.V. and/or licensed to Elasticsearch B.V. under one
-// or more contributor license agreements. Licensed under the Elastic License;
-// you may not use this file except in compliance with the Elastic License.
-
-package profile
-
-import (
-	"path/filepath"
-)
-
-// SnapshotFile is the docker-compose snapshot.yml file name
-const SnapshotFile configFile = "snapshot.yml"
-
-const snapshotYml = `version: '2.3'
+version: '2.3'
 services:
   elasticsearch:
     image: "${ELASTICSEARCH_IMAGE_REF}"
@@ -139,12 +126,3 @@ services:
       elastic-agent:
         condition: service_healthy
 `
-
-// newSnapshotFile returns a Managed Config
-func newSnapshotFile(_ string, profilePath string) (*simpleFile, error) {
-	return &simpleFile{
-		name: string(SnapshotFile),
-		path: filepath.Join(profilePath, profileStackPath, string(SnapshotFile)),
-		body: snapshotYml,
-	}, nil
-}
