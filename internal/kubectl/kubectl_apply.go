@@ -45,6 +45,7 @@ type status struct {
 	Conditions *[]condition
 }
 
+//lint:ignore U1000 unused, but let's keep it by now.
 func (s status) isReady() (*condition, bool) {
 	if s.Conditions == nil {
 		return nil, false // safe fallback

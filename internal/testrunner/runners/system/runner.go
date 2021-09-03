@@ -583,21 +583,28 @@ func deleteDataStreamDocs(esClient *es.Client, dataStream string) error {
 }
 
 func waitUntilTrue(fn func() (bool, error), timeout time.Duration) (bool, error) {
-	startTime := time.Now()
-	for time.Now().Sub(startTime) < timeout {
+	timeoutTicker := time.NewTicker(timeout)
+	defer timeoutTicker.Stop()
+
+	retryTicker := time.NewTicker(1 * time.Second)
+	defer retryTicker.Stop()
+
+	for {
 		result, err := fn()
 		if err != nil {
 			return false, err
 		}
-
 		if result {
 			return true, nil
 		}
 
-		time.Sleep(1 * time.Second)
+		select {
+		case <-retryTicker.C:
+			continue
+		case <-timeoutTicker.C:
+			return false, nil
+		}
 	}
-
-	return false, nil
 }
 
 func filterAgents(allAgents []kibana.Agent, ctx servicedeployer.ServiceContext) []kibana.Agent {

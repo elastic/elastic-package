@@ -79,15 +79,15 @@ func standardizeObjectProperties(ctx *transformationContext, object common.MapSt
 		var err error
 		var updated bool
 
-		switch value.(type) {
+		switch value := value.(type) {
 		case map[string]interface{}:
-			target, err = standardizeObjectProperties(ctx, value.(map[string]interface{}))
+			target, err = standardizeObjectProperties(ctx, value)
 			if err != nil {
 				return nil, errors.Wrapf(err, "can't standardize object (key: %s)", key)
 			}
 			updated = true
 		case []map[string]interface{}:
-			arr := value.([]map[string]interface{})
+			arr := value
 			for i, obj := range arr {
 				newValue, err := standardizeObjectProperties(ctx, obj)
 				if err != nil {
@@ -137,8 +137,6 @@ func adjustObjectID(ctx *transformationContext, id string) string {
 	newID = prefix + newID
 
 	// If object ID ends with "-ecs", trim it off.
-	if strings.HasSuffix(newID, "-ecs") {
-		newID = strings.TrimSuffix(newID, "-ecs")
-	}
+	newID = strings.TrimSuffix(newID, "-ecs")
 	return newID
 }
