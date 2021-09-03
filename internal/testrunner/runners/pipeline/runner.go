@@ -129,7 +129,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 			continue
 		}
 
-		tr.TimeElapsed = time.Now().Sub(startTime)
+		tr.TimeElapsed = time.Since(startTime)
 		fieldsValidator, err := fields.CreateValidatorForDataStream(dataStreamPath,
 			fields.WithNumericKeywordFields(tc.config.NumericKeywordFields))
 		if err != nil {

@@ -57,7 +57,7 @@ func (s kubernetesDeployedService) Context() ServiceContext {
 	return s.ctxt
 }
 
-func (s kubernetesDeployedService) SetContext(sc ServiceContext) error {
+func (s *kubernetesDeployedService) SetContext(sc ServiceContext) error {
 	s.ctxt = sc
 	return nil
 }
@@ -134,9 +134,7 @@ func findKubernetesDefinitions(definitionsDir string) ([]string, error) {
 	}
 
 	var definitionPaths []string
-	for _, file := range files {
-		definitionPaths = append(definitionPaths, file)
-	}
+	definitionPaths = append(definitionPaths, files...)
 	return definitionPaths, nil
 }
 

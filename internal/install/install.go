@@ -27,6 +27,9 @@ func EnsureInstalled() error {
 	}
 
 	installed, err := checkIfAlreadyInstalled(elasticPackagePath)
+	if err != nil {
+		return errors.Wrap(err, "failed to check if there is an elastic-package installation")
+	}
 	if installed {
 		return nil
 	}
@@ -155,7 +158,11 @@ func writeStackResources(elasticPackagePath *locations.LocationManager) error {
 		return errors.Wrapf(err, "creating directory failed (path: %s)", elasticPackagePath.PackagesDir())
 	}
 
-	err = writeStaticResource(err, filepath.Join(elasticPackagePath.StackDir(), "healthcheck.sh"), kibanaHealthcheckSh)
+	resourcePath := filepath.Join(elasticPackagePath.StackDir(), "healthcheck.sh")
+	err = writeStaticResource(err, resourcePath, kibanaHealthcheckSh)
+	if err != nil {
+		return errors.Wrapf(err, "copying healthcheck script failed (%s)", resourcePath)
+	}
 
 	options := profile.Options{
 		PackagePath:       elasticPackagePath.ProfileDir(),
