@@ -155,6 +155,9 @@ func (dm *DependencyManager) injectFieldsWithRoot(root string, defs []common.Map
 		fields, _ := def.GetValue("fields")
 		if fields != nil {
 			fieldsMs, err := common.ToMapStrSlice(fields)
+			if err != nil {
+				return nil, false, errors.Wrap(err, "can't convert fields")
+			}
 			updatedFields, fieldsChanged, err := dm.injectFieldsWithRoot(fieldPath, fieldsMs)
 			if err != nil {
 				return nil, false, err

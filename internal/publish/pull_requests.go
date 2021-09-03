@@ -85,7 +85,7 @@ func openPullRequest(githubClient *github.Client, githubUser, destinationBranch 
 
 	// Fallback reviewers to default package owner
 	logger.Debugf("Update reviewers with default owner (pull request ID: %d)", *pullRequest.Number)
-	pullRequest, _, err = githubClient.PullRequests.RequestReviewers(context.Background(), repositoryOwner, repositoryName, *pullRequest.Number,
+	_, _, err = githubClient.PullRequests.RequestReviewers(context.Background(), repositoryOwner, repositoryName, *pullRequest.Number,
 		buildDefaultReviewersRequest())
 	if err != nil {
 		return errors.Wrap(err, "can't request reviewers with default owner")

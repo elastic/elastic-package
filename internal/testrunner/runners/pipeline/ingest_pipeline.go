@@ -25,7 +25,7 @@ import (
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
-var ingestPipelineTag = regexp.MustCompile("{{\\s*IngestPipeline.+}}")
+var ingestPipelineTag = regexp.MustCompile(`{{\s*IngestPipeline.+}}`)
 
 type pipelineResource struct {
 	name    string

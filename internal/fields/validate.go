@@ -154,9 +154,9 @@ func (v *Validator) validateMapElement(root string, elem common.MapStr) multierr
 	for name, val := range elem {
 		key := strings.TrimLeft(root+"."+name, ".")
 
-		switch val.(type) {
+		switch val := val.(type) {
 		case []map[string]interface{}:
-			for _, m := range val.([]map[string]interface{}) {
+			for _, m := range val {
 				err := v.validateMapElement(key, m)
 				if err != nil {
 					errs = append(errs, err...)
@@ -168,7 +168,7 @@ func (v *Validator) validateMapElement(root string, elem common.MapStr) multierr
 				// because the entire object is mapped as a single field.
 				continue
 			}
-			err := v.validateMapElement(key, val.(map[string]interface{}))
+			err := v.validateMapElement(key, val)
 			if err != nil {
 				errs = append(errs, err...)
 			}
@@ -232,7 +232,7 @@ func isFieldFamilyMatching(family, key string) bool {
 
 func isFieldTypeFlattened(key string, fieldDefinitions []FieldDefinition) bool {
 	definition := FindElementDefinition(key, fieldDefinitions)
-	return definition != nil && "flattened" == definition.Type
+	return definition != nil && definition.Type == "flattened"
 }
 
 func findElementDefinitionForRoot(root, searchedKey string, FieldDefinitions []FieldDefinition) *FieldDefinition {
