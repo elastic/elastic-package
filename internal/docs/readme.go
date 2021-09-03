@@ -32,14 +32,14 @@ func AreReadmesUpToDate() ([]ReadmeFile, error) {
 		return nil, errors.Wrap(err, "package root not found")
 	}
 
-	files, err := os.ReadDir(filepath.Join(packageRoot, "_dev", "build", "docs"))
+	files, err := filepath.Glob(filepath.Join(packageRoot, "_dev", "build", "docs", "*.md"))
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return nil, errors.Wrap(err, "reading directory entries failed")
 	}
 
 	var readmeFiles []ReadmeFile
-	for _, f := range files {
-		fileName := f.Name()
+	for _, filePath := range files {
+		fileName := filepath.Base(filePath)
 		ok, err := isReadmeUpToDate(fileName, packageRoot)
 		if !ok || err != nil {
 			readmeFile := ReadmeFile{
@@ -86,14 +86,14 @@ func isReadmeUpToDate(fileName, packageRoot string) (bool, error) {
 // UpdateReadmes function updates all .md readme files using a defined template
 // files. The function doesn't perform any action if the template file is not present.
 func UpdateReadmes(packageRoot string) ([]string, error) {
-	readmeFiles, err := os.ReadDir(filepath.Join(packageRoot, "_dev", "build", "docs"))
-	if err != nil && !errors.Is(err, os.ErrNotExist) {
+	readmeFiles, err := filepath.Glob(filepath.Join(packageRoot, "_dev", "build", "docs", "*.md"))
+	if err != nil {
 		return nil, errors.Wrap(err, "reading directory entries failed")
 	}
 
 	var targets []string
-	for _, readme := range readmeFiles {
-		fileName := readme.Name()
+	for _, filePath := range readmeFiles {
+		fileName := filepath.Base(filePath)
 		target, err := updateReadme(fileName, packageRoot)
 		if err != nil {
 			return nil, errors.Wrapf(err, "updating readme file %s failed", fileName)
