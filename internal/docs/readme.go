@@ -60,11 +60,6 @@ func AreReadmesUpToDate() ([]ReadmeFile, error) {
 func isReadmeUpToDate(fileName, packageRoot string) (bool, error) {
 	logger.Debugf("Check if %s is up-to-date", fileName)
 
-	packageRoot, err := packages.MustFindPackageRoot()
-	if err != nil {
-		return false, errors.Wrap(err, "package root not found")
-	}
-
 	rendered, shouldBeRendered, err := generateReadme(fileName, packageRoot)
 	if err != nil {
 		return false, errors.Wrap(err, "generating readme file failed")
@@ -108,11 +103,6 @@ func UpdateReadmes(packageRoot string) ([]string, error) {
 
 func updateReadme(fileName, packageRoot string) (string, error) {
 	logger.Debugf("Update the %s file", fileName)
-
-	packageRoot, err := packages.MustFindPackageRoot()
-	if err != nil {
-		return "", errors.Wrap(err, "package root not found")
-	}
 
 	rendered, shouldBeRendered, err := generateReadme(fileName, packageRoot)
 	if err != nil {

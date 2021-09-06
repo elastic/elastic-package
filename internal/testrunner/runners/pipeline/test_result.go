@@ -139,9 +139,7 @@ func unmarshalTestResult(body []byte) (*testResult, error) {
 	}
 
 	var tr testResult
-	for _, doc := range trd.Expected {
-		tr.events = append(tr.events, doc)
-	}
+	tr.events = append(tr.events, trd.Expected...)
 	return &tr, nil
 }
 
