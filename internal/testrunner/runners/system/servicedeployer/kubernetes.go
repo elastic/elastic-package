@@ -8,10 +8,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"path/filepath"
 	"regexp"
-	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -63,7 +61,7 @@ func (s kubernetesDeployedService) Context() ServiceContext {
 	return s.ctxt
 }
 
-func (s kubernetesDeployedService) SetContext(sc ServiceContext) error {
+func (s *kubernetesDeployedService) SetContext(sc ServiceContext) error {
 	s.ctxt = sc
 	return nil
 }
@@ -134,17 +132,13 @@ func (ksd KubernetesServiceDeployer) installCustomDefinitions() error {
 var _ ServiceDeployer = new(KubernetesServiceDeployer)
 
 func findKubernetesDefinitions(definitionsDir string) ([]string, error) {
-	fileInfos, err := os.ReadDir(definitionsDir)
+	files, err := filepath.Glob(filepath.Join(definitionsDir, "*.yaml"))
 	if err != nil {
 		return nil, errors.Wrapf(err, "can't read definitions directory (path: %s)", definitionsDir)
 	}
 
 	var definitionPaths []string
-	for _, fileInfo := range fileInfos {
-		if strings.HasSuffix(fileInfo.Name(), ".yaml") {
-			definitionPaths = append(definitionPaths, filepath.Join(definitionsDir, fileInfo.Name()))
-		}
-	}
+	definitionPaths = append(definitionPaths, files...)
 	return definitionPaths, nil
 }
 
@@ -201,12 +195,12 @@ func getElasticAgentYAML() ([]byte, error) {
 	}
 
 	// Set regex to match fleet url from yaml file
-	fleetURLRegex := regexp.MustCompile("http(s){0,1}:\\/\\/fleet-server:(\\d+)")
+	fleetURLRegex := regexp.MustCompile(`http(s){0,1}:\/\/fleet-server:(\d+)`)
 	// Replace fleet url
 	elasticAgentManagedYaml = fleetURLRegex.ReplaceAll(elasticAgentManagedYaml, []byte("http://fleet-server:8220"))
 
 	// Set regex to match image name from yaml file
-	imageRegex := regexp.MustCompile("docker.elastic.co/beats/elastic-agent:\\d.+")
+	imageRegex := regexp.MustCompile(`docker.elastic.co/beats/elastic-agent:\d.+`)
 	// Replace image name
 	elasticAgentManagedYaml = imageRegex.ReplaceAll(elasticAgentManagedYaml, []byte(appConfig.DefaultStackImageRefs().ElasticAgent))
 

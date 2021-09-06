@@ -13,7 +13,7 @@ format:
 	go run golang.org/x/tools/cmd/goimports -local github.com/elastic/elastic-package/ -w .
 
 lint:
-	go list ./... | xargs -n 1 go run golang.org/x/lint/golint -set_exit_status
+	go run honnef.co/go/tools/cmd/staticcheck ./...
 
 licenser:
 	go run github.com/elastic/go-licenser -license Elastic
