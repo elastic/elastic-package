@@ -1,0 +1,5 @@
+FROM __BASE_IMAGE__
+
+ARG PROFILE
+COPY profiles/${PROFILE}/stack/package-registry.config.yml /package-registry/config.yml
+COPY stack/development/ /packages/development
