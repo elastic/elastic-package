@@ -1,3 +1,7 @@
+// Copyright Elasticsearch B.V. and/or licensed to Elasticsearch B.V. under one
+// or more contributor license agreements. Licensed under the Elastic License;
+// you may not use this file except in compliance with the Elastic License.
+
 package stack
 
 import (
@@ -35,7 +39,7 @@ func dockerInternalLogs(serviceName string) ([]byte, bool, error) {
 	}
 
 	serviceContainer := p.ContainerName(serviceName)
-	out, err := docker.Exec(serviceContainer, "sh", "-c", `find data/logs/default/fleet-server-json* -printf '%p\\n' -exec cat {} \\;`)
+	out, err := docker.Exec(serviceContainer, "sh", "-c", `find data/logs/default/fleet-server-json* -printf '%p\n' -exec cat {} \;`)
 	if err != nil {
 		return nil, false, errors.Wrap(err, "docker exec failed")
 	}

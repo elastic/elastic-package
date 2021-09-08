@@ -1,0 +1,27 @@
+elastic-agent_1  | Policy selected for enrollment:  3fd5c190-10ae-11ec-9070-3d71d60a4e81
+elastic-agent_1  | 2021-09-08T14:08:54.334Z	WARN	[tls]	tlscommon/tls_config.go:98	SSL/TLS verifications disabled.
+elastic-agent_1  | 2021-09-08T14:08:54.442Z	INFO	cmd/enroll_cmd.go:432	Starting enrollment to URL: http://fleet-server:8220/
+elastic-agent_1  | Successfully enrolled the Elastic Agent.
+elastic-agent_1  | 2021-09-08T14:08:55.207Z	INFO	cmd/enroll_cmd.go:245	Elastic Agent might not be running; unable to trigger restart
+elastic-agent_1  | 2021-09-08T14:08:55.319Z	INFO	application/application.go:66	Detecting execution mode
+elastic-agent_1  | 2021-09-08T14:08:55.321Z	INFO	application/application.go:91	Agent is managed by Fleet
+elastic-agent_1  | 2021-09-08T14:08:55.321Z	INFO	capabilities/capabilities.go:59	capabilities file not found in /usr/share/elastic-agent/capabilities.yml
+elastic-agent_1  | 2021-09-08T14:08:55.321Z	WARN	[tls]	tlscommon/tls_config.go:98	SSL/TLS verifications disabled.
+elastic-agent_1  | 2021-09-08T14:08:56.185Z	INFO	[composable.providers.docker]	docker/docker.go:43	Docker provider skipped, unable to connect: Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running?
+elastic-agent_1  | 2021-09-08T14:08:56.186Z	INFO	[api]	api/server.go:62	Starting stats endpoint
+elastic-agent_1  | 2021-09-08T14:08:56.186Z	INFO	application/managed_mode.go:291	Agent is starting
+elastic-agent_1  | 2021-09-08T14:08:56.187Z	INFO	[api]	api/server.go:64	Metrics endpoint listening on: /usr/share/elastic-agent/data/tmp/elastic-agent.sock (configured: unix:///usr/share/elastic-agent/data/tmp/elastic-agent.sock)
+elastic-agent_1  | 2021-09-08T14:08:58.207Z	WARN	[tls]	tlscommon/tls_config.go:98	SSL/TLS verifications disabled.
+elastic-agent_1  | 2021-09-08T14:08:59.346Z	INFO	stateresolver/stateresolver.go:48	New State ID is 3FjZKw5u
+elastic-agent_1  | 2021-09-08T14:08:59.346Z	INFO	stateresolver/stateresolver.go:49	Converging state requires execution of 3 step(s)
+elastic-agent_1  | 2021-09-08T14:09:04.212Z	INFO	log/reporter.go:40	2021-09-08T14:09:04Z - message: Application: filebeat--7.15.0-SNAPSHOT[2c41237e-7f50-467a-a024-d37c8053c86e]: State changed to STARTING: Starting - type: 'STATE' - sub_type: 'STARTING'
+elastic-agent_1  | 2021-09-08T14:09:05.449Z	INFO	log/reporter.go:40	2021-09-08T14:09:05Z - message: Application: filebeat--7.15.0-SNAPSHOT[2c41237e-7f50-467a-a024-d37c8053c86e]: State changed to RUNNING: Running - type: 'STATE' - sub_type: 'RUNNING'
+elastic-agent_1  | 2021-09-08T14:09:08.810Z	INFO	log/reporter.go:40	2021-09-08T14:09:08Z - message: Application: metricbeat--7.15.0-SNAPSHOT[2c41237e-7f50-467a-a024-d37c8053c86e]: State changed to STARTING: Starting - type: 'STATE' - sub_type: 'STARTING'
+elastic-agent_1  | 2021-09-08T14:09:09.055Z	INFO	operation/operator.go:269	operation 'operation-install' skipped for filebeat.7.15.0-SNAPSHOT
+elastic-agent_1  | 2021-09-08T14:09:09.460Z	INFO	log/reporter.go:40	2021-09-08T14:09:09Z - message: Application: filebeat--7.15.0-SNAPSHOT--36643631373035623733363936343635[2c41237e-7f50-467a-a024-d37c8053c86e]: State changed to STARTING: Starting - type: 'STATE' - sub_type: 'STARTING'
+elastic-agent_1  | 2021-09-08T14:09:09.757Z	INFO	operation/operator.go:269	operation 'operation-install' skipped for metricbeat.7.15.0-SNAPSHOT
+elastic-agent_1  | 2021-09-08T14:09:10.034Z	INFO	log/reporter.go:40	2021-09-08T14:09:10Z - message: Application: metricbeat--7.15.0-SNAPSHOT--36643631373035623733363936343635[2c41237e-7f50-467a-a024-d37c8053c86e]: State changed to STARTING: Starting - type: 'STATE' - sub_type: 'STARTING'
+elastic-agent_1  | 2021-09-08T14:09:10.047Z	INFO	stateresolver/stateresolver.go:66	Updating internal state
+elastic-agent_1  | 2021-09-08T14:09:10.245Z	INFO	log/reporter.go:40	2021-09-08T14:09:10Z - message: Application: metricbeat--7.15.0-SNAPSHOT[2c41237e-7f50-467a-a024-d37c8053c86e]: State changed to RUNNING: Running - type: 'STATE' - sub_type: 'RUNNING'
+elastic-agent_1  | 2021-09-08T14:09:10.739Z	INFO	log/reporter.go:40	2021-09-08T14:09:10Z - message: Application: filebeat--7.15.0-SNAPSHOT--36643631373035623733363936343635[2c41237e-7f50-467a-a024-d37c8053c86e]: State changed to RUNNING: Running - type: 'STATE' - sub_type: 'RUNNING'
+elastic-agent_1  | 2021-09-08T14:09:11.449Z	INFO	log/reporter.go:40	2021-09-08T14:09:11Z - message: Application: metricbeat--7.15.0-SNAPSHOT--36643631373035623733363936343635[2c41237e-7f50-467a-a024-d37c8053c86e]: State changed to RUNNING: Running - type: 'STATE' - sub_type: 'RUNNING'

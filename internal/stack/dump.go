@@ -65,7 +65,7 @@ func dumpStackLogs(options DumpOptions) error {
 		if err != nil {
 			logger.Errorf("can't fetch internal logs (service: %s): %v", serviceName, err)
 		} else if ok {
-			writeLogFiles(logsPath, serviceName, content)
+			writeLogFiles(logsPath, serviceName+"-internal", content)
 		}
 	}
 	return nil

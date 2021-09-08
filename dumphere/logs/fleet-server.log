@@ -1,0 +1,66 @@
+fleet-server_1  | Performing setup of Fleet in Kibana
+fleet-server_1  | 
+fleet-server_1  | Policy selected for enrollment:  
+fleet-server_1  | 2021-09-08T14:08:40.378Z	INFO	cmd/enroll_cmd.go:543	Spawning Elastic Agent daemon as a subprocess to complete bootstrap process.
+fleet-server_1  | 2021-09-08T14:08:40.546Z	INFO	application/application.go:66	Detecting execution mode
+fleet-server_1  | 2021-09-08T14:08:40.550Z	INFO	application/application.go:87	Agent is in Fleet Server bootstrap mode
+fleet-server_1  | 2021-09-08T14:08:40.745Z	INFO	[api]	api/server.go:62	Starting stats endpoint
+fleet-server_1  | 2021-09-08T14:08:40.747Z	INFO	[api]	api/server.go:64	Metrics endpoint listening on: /usr/share/elastic-agent/data/tmp/elastic-agent.sock (configured: unix:///usr/share/elastic-agent/data/tmp/elastic-agent.sock)
+fleet-server_1  | 2021-09-08T14:08:40.747Z	INFO	application/fleet_server_bootstrap.go:130	Agent is starting
+fleet-server_1  | 2021-09-08T14:08:40.750Z	INFO	application/fleet_server_bootstrap.go:140	Agent is stopped
+fleet-server_1  | 2021-09-08T14:08:41.386Z	INFO	cmd/enroll_cmd.go:691	Waiting for Elastic Agent to start Fleet Server
+fleet-server_1  | 2021-09-08T14:08:41.856Z	INFO	stateresolver/stateresolver.go:48	New State ID is s47Nde8p
+fleet-server_1  | 2021-09-08T14:08:41.857Z	INFO	stateresolver/stateresolver.go:49	Converging state requires execution of 1 step(s)
+fleet-server_1  | 2021-09-08T14:08:42.575Z	INFO	log/reporter.go:40	2021-09-08T14:08:42Z - message: Application: fleet-server--7.15.0-SNAPSHOT[]: State changed to STARTING: Starting - type: 'STATE' - sub_type: 'STARTING'
+fleet-server_1  | 2021-09-08T14:08:42.576Z	INFO	stateresolver/stateresolver.go:66	Updating internal state
+fleet-server_1  | 2021-09-08T14:08:43.391Z	INFO	cmd/enroll_cmd.go:724	Fleet Server - Starting
+fleet-server_1  | 2021-09-08T14:08:44.124Z	INFO	log/reporter.go:40	2021-09-08T14:08:44Z - message: Application: fleet-server--7.15.0-SNAPSHOT[]: State changed to DEGRADED: Running on default policy with Fleet Server integration; missing config fleet.agent.id (expected during bootstrap process) - type: 'STATE' - sub_type: 'RUNNING'
+fleet-server_1  | 2021-09-08T14:08:44.124Z	WARN	status/reporter.go:236	Elastic Agent status changed to: 'degraded'
+fleet-server_1  | 2021-09-08T14:08:44.393Z	INFO	cmd/enroll_cmd.go:705	Fleet Server - Running on default policy with Fleet Server integration; missing config fleet.agent.id (expected during bootstrap process)
+fleet-server_1  | 2021-09-08T14:08:44.393Z	WARN	[tls]	tlscommon/tls_config.go:98	SSL/TLS verifications disabled.
+fleet-server_1  | 2021-09-08T14:08:44.960Z	INFO	cmd/enroll_cmd.go:432	Starting enrollment to URL: http://0.0.0.0:8220/
+fleet-server_1  | 2021-09-08T14:08:45.921Z	INFO	cmd/enroll_cmd.go:251	Elastic Agent has been enrolled; start Elastic Agent
+fleet-server_1  | Successfully enrolled the Elastic Agent.
+fleet-server_1  | 2021-09-08T14:08:45.922Z	INFO	cmd/run.go:178	Shutting down Elastic Agent and sending last events...
+fleet-server_1  | 2021-09-08T14:08:45.922Z	INFO	operation/operator.go:201	waiting for installer of pipeline 'default' to finish
+fleet-server_1  | 2021-09-08T14:08:45.922Z	INFO	process/app.go:176	Signaling application to stop because of shutdown: fleet-server--7.15.0-SNAPSHOT
+fleet-server_1  | 2021-09-08T14:08:47.425Z	INFO	status/reporter.go:236	Elastic Agent status changed to: 'online'
+fleet-server_1  | 2021-09-08T14:08:47.425Z	INFO	log/reporter.go:40	2021-09-08T14:08:47Z - message: Application: fleet-server--7.15.0-SNAPSHOT[]: State changed to STOPPED: Stopped - type: 'STATE' - sub_type: 'STOPPED'
+fleet-server_1  | 2021-09-08T14:08:47.425Z	INFO	cmd/run.go:186	Shutting down completed.
+fleet-server_1  | 2021-09-08T14:08:47.426Z	INFO	[api]	api/server.go:66	Stats endpoint (/usr/share/elastic-agent/data/tmp/elastic-agent.sock) finished: accept unix /usr/share/elastic-agent/data/tmp/elastic-agent.sock: use of closed network connection
+fleet-server_1  | 2021-09-08T14:08:47.546Z	INFO	application/application.go:66	Detecting execution mode
+fleet-server_1  | 2021-09-08T14:08:47.548Z	INFO	application/application.go:91	Agent is managed by Fleet
+fleet-server_1  | 2021-09-08T14:08:47.548Z	INFO	capabilities/capabilities.go:59	capabilities file not found in /usr/share/elastic-agent/capabilities.yml
+fleet-server_1  | 2021-09-08T14:08:47.548Z	WARN	[tls]	tlscommon/tls_config.go:98	SSL/TLS verifications disabled.
+fleet-server_1  | 2021-09-08T14:08:47.882Z	INFO	[composable.providers.docker]	docker/docker.go:43	Docker provider skipped, unable to connect: Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running?
+fleet-server_1  | 2021-09-08T14:08:47.883Z	INFO	[api]	api/server.go:62	Starting stats endpoint
+fleet-server_1  | 2021-09-08T14:08:47.883Z	INFO	application/managed_mode.go:291	Agent is starting
+fleet-server_1  | 2021-09-08T14:08:47.883Z	INFO	[api]	api/server.go:64	Metrics endpoint listening on: /usr/share/elastic-agent/data/tmp/elastic-agent.sock (configured: unix:///usr/share/elastic-agent/data/tmp/elastic-agent.sock)
+fleet-server_1  | 2021-09-08T14:08:49.021Z	INFO	stateresolver/stateresolver.go:48	New State ID is o8szzWOi
+fleet-server_1  | 2021-09-08T14:08:49.021Z	INFO	stateresolver/stateresolver.go:49	Converging state requires execution of 2 step(s)
+fleet-server_1  | 2021-09-08T14:08:49.079Z	INFO	operation/operator.go:269	operation 'operation-install' skipped for fleet-server.7.15.0-SNAPSHOT
+fleet-server_1  | 2021-09-08T14:08:49.602Z	INFO	log/reporter.go:40	2021-09-08T14:08:49Z - message: Application: fleet-server--7.15.0-SNAPSHOT[feb4af78-aecb-40d3-9db0-bd0ca7b902c4]: State changed to STARTING: Starting - type: 'STATE' - sub_type: 'STARTING'
+fleet-server_1  | 2021-09-08T14:08:50.641Z	INFO	log/reporter.go:40	2021-09-08T14:08:50Z - message: Application: fleet-server--7.15.0-SNAPSHOT[feb4af78-aecb-40d3-9db0-bd0ca7b902c4]: State changed to RUNNING: Running on default policy with Fleet Server integration - type: 'STATE' - sub_type: 'RUNNING'
+fleet-server_1  | 2021-09-08T14:08:54.765Z	INFO	log/reporter.go:40	2021-09-08T14:08:54Z - message: Application: filebeat--7.15.0-SNAPSHOT--36643631373035623733363936343635[feb4af78-aecb-40d3-9db0-bd0ca7b902c4]: State changed to STARTING: Starting - type: 'STATE' - sub_type: 'STARTING'
+fleet-server_1  | 2021-09-08T14:08:56.007Z	INFO	log/reporter.go:40	2021-09-08T14:08:56Z - message: Application: filebeat--7.15.0-SNAPSHOT--36643631373035623733363936343635[feb4af78-aecb-40d3-9db0-bd0ca7b902c4]: State changed to RUNNING: Running - type: 'STATE' - sub_type: 'RUNNING'
+fleet-server_1  | 2021-09-08T14:08:59.164Z	INFO	log/reporter.go:40	2021-09-08T14:08:59Z - message: Application: metricbeat--7.15.0-SNAPSHOT--36643631373035623733363936343635[feb4af78-aecb-40d3-9db0-bd0ca7b902c4]: State changed to STARTING: Starting - type: 'STATE' - sub_type: 'STARTING'
+fleet-server_1  | 2021-09-08T14:08:59.167Z	INFO	stateresolver/stateresolver.go:66	Updating internal state
+fleet-server_1  | 2021-09-08T14:09:00.594Z	INFO	log/reporter.go:40	2021-09-08T14:09:00Z - message: Application: metricbeat--7.15.0-SNAPSHOT--36643631373035623733363936343635[feb4af78-aecb-40d3-9db0-bd0ca7b902c4]: State changed to RUNNING: Running - type: 'STATE' - sub_type: 'RUNNING'
+fleet-server_1  | 2021-09-08T14:09:02.420Z	INFO	stateresolver/stateresolver.go:48	New State ID is sv4M2Whh
+fleet-server_1  | 2021-09-08T14:09:02.420Z	INFO	stateresolver/stateresolver.go:49	Converging state requires execution of 2 step(s)
+fleet-server_1  | 2021-09-08T14:09:02.476Z	INFO	operation/operator.go:269	operation 'operation-install' skipped for fleet-server.7.15.0-SNAPSHOT
+fleet-server_1  | 2021-09-08T14:09:02.476Z	INFO	operation/operator.go:269	operation 'operation-start' skipped for fleet-server.7.15.0-SNAPSHOT
+fleet-server_1  | 2021-09-08T14:09:02.638Z	INFO	log/reporter.go:40	2021-09-08T14:09:02Z - message: Application: fleet-server--7.15.0-SNAPSHOT[feb4af78-aecb-40d3-9db0-bd0ca7b902c4]: State changed to CONFIG: Re-configuring - type: 'STATE' - sub_type: 'CONFIG'
+fleet-server_1  | 2021-09-08T14:09:02.708Z	INFO	operation/operator.go:269	operation 'operation-install' skipped for filebeat.7.15.0-SNAPSHOT
+fleet-server_1  | 2021-09-08T14:09:02.708Z	INFO	operation/operator.go:269	operation 'operation-start' skipped for filebeat.7.15.0-SNAPSHOT
+fleet-server_1  | 2021-09-08T14:09:02.712Z	INFO	process/configure.go:50	initiating restart of 'filebeat' due to config change
+fleet-server_1  | 2021-09-08T14:09:04.233Z	INFO	log/reporter.go:40	2021-09-08T14:09:04Z - message: Application: filebeat--7.15.0-SNAPSHOT--36643631373035623733363936343635[feb4af78-aecb-40d3-9db0-bd0ca7b902c4]: State changed to STOPPED: Stopped - type: 'STATE' - sub_type: 'STOPPED'
+fleet-server_1  | 2021-09-08T14:09:04.491Z	INFO	log/reporter.go:40	2021-09-08T14:09:04Z - message: Application: filebeat--7.15.0-SNAPSHOT--36643631373035623733363936343635[feb4af78-aecb-40d3-9db0-bd0ca7b902c4]: State changed to STARTING: Starting - type: 'STATE' - sub_type: 'STARTING'
+fleet-server_1  | 2021-09-08T14:09:04.773Z	INFO	operation/operator.go:269	operation 'operation-install' skipped for metricbeat.7.15.0-SNAPSHOT
+fleet-server_1  | 2021-09-08T14:09:04.773Z	INFO	operation/operator.go:269	operation 'operation-start' skipped for metricbeat.7.15.0-SNAPSHOT
+fleet-server_1  | 2021-09-08T14:09:04.775Z	INFO	process/configure.go:50	initiating restart of 'metricbeat' due to config change
+fleet-server_1  | 2021-09-08T14:09:05.300Z	INFO	log/reporter.go:40	2021-09-08T14:09:05Z - message: Application: metricbeat--7.15.0-SNAPSHOT--36643631373035623733363936343635[feb4af78-aecb-40d3-9db0-bd0ca7b902c4]: State changed to STOPPED: Stopped - type: 'STATE' - sub_type: 'STOPPED'
+fleet-server_1  | 2021-09-08T14:09:05.700Z	INFO	log/reporter.go:40	2021-09-08T14:09:05Z - message: Application: filebeat--7.15.0-SNAPSHOT--36643631373035623733363936343635[feb4af78-aecb-40d3-9db0-bd0ca7b902c4]: State changed to RUNNING: Running - type: 'STATE' - sub_type: 'RUNNING'
+fleet-server_1  | 2021-09-08T14:09:06.124Z	INFO	log/reporter.go:40	2021-09-08T14:09:06Z - message: Application: metricbeat--7.15.0-SNAPSHOT--36643631373035623733363936343635[feb4af78-aecb-40d3-9db0-bd0ca7b902c4]: State changed to STARTING: Starting - type: 'STATE' - sub_type: 'STARTING'
+fleet-server_1  | 2021-09-08T14:09:06.124Z	INFO	stateresolver/stateresolver.go:66	Updating internal state
+fleet-server_1  | 2021-09-08T14:09:07.491Z	INFO	log/reporter.go:40	2021-09-08T14:09:07Z - message: Application: metricbeat--7.15.0-SNAPSHOT--36643631373035623733363936343635[feb4af78-aecb-40d3-9db0-bd0ca7b902c4]: State changed to RUNNING: Running - type: 'STATE' - sub_type: 'RUNNING'
