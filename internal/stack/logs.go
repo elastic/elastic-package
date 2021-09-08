@@ -4,10 +4,11 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/compose"
+	"github.com/elastic/elastic-package/internal/docker"
 )
 
 func dockerComposeLogs(serviceName string, snapshotFile string) ([]byte, error) {
-	c, err := compose.NewProject(DockerComposeProjectName, snapshotFile)
+	p, err := compose.NewProject(DockerComposeProjectName, snapshotFile)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create docker compose project")
 	}
@@ -16,7 +17,7 @@ func dockerComposeLogs(serviceName string, snapshotFile string) ([]byte, error) 
 		Services: []string{serviceName},
 	}
 
-	out, err := c.Logs(opts)
+	out, err := p.Logs(opts)
 	if err != nil {
 		return nil, errors.Wrap(err, "running command failed")
 	}
@@ -24,5 +25,19 @@ func dockerComposeLogs(serviceName string, snapshotFile string) ([]byte, error) 
 }
 
 func dockerInternalLogs(serviceName string) ([]byte, bool, error) {
-	return nil, false, nil // TODO
+	if serviceName != fleetServerService {
+		return nil, false, nil // we need to pull internal logs only from the Fleet Server container
+	}
+
+	p, err := compose.NewProject(DockerComposeProjectName)
+	if err != nil {
+		return nil, false, errors.Wrap(err, "could not create docker compose project")
+	}
+
+	serviceContainer := p.ContainerName(serviceName)
+	out, err := docker.Exec(serviceContainer, "sh", "-c", `find data/logs/default/fleet-server-json* -printf '%p\\n' -exec cat {} \\;`)
+	if err != nil {
+		return nil, false, errors.Wrap(err, "docker exec failed")
+	}
+	return out, true, nil
 }

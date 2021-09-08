@@ -141,3 +141,8 @@ func InspectContainers(containerIDs ...string) ([]ContainerDescription, error) {
 	}
 	return containerDescriptions, nil
 }
+
+// Exec function executes command inside of the container
+func Exec(containerName string, cmd ...string) ([]byte, error) {
+	return nil, nil // TODO
+}
