@@ -339,3 +339,8 @@ func (p *Project) runDockerComposeCmd(opts dockerComposeOptions) error {
 	logger.Debugf("running command: %s", cmd)
 	return cmd.Run()
 }
+
+// ContainerName method the container name for the service.
+func (p *Project) ContainerName(serviceName string) string {
+	return fmt.Sprintf("%s_%s_1", p.name, serviceName)
+}

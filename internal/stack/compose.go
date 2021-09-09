@@ -108,23 +108,6 @@ func dockerComposeDown(options Options) error {
 	return nil
 }
 
-func dockerComposeLogs(serviceName string, snapshotFile string) ([]byte, error) {
-	c, err := compose.NewProject(DockerComposeProjectName, snapshotFile)
-	if err != nil {
-		return nil, errors.Wrap(err, "could not create docker compose project")
-	}
-
-	opts := compose.CommandOptions{
-		Services: []string{serviceName},
-	}
-
-	out, err := c.Logs(opts)
-	if err != nil {
-		return nil, errors.Wrap(err, "running command failed")
-	}
-	return out, nil
-}
-
 func withDependentServices(services []string) []string {
 	for _, aService := range services {
 		if aService == "elastic-agent" {
