@@ -42,7 +42,7 @@ func copyDockerInternalLogs(serviceName, outputPath string) error {
 		return errors.Wrap(err, "could not create docker compose project")
 	}
 
-	outputPath = filepath.Join(outputPath, serviceName + "-internal")
+	outputPath = filepath.Join(outputPath, serviceName+"-internal")
 	serviceContainer := p.ContainerName(serviceName)
 	err = docker.Copy(serviceContainer, "/usr/share/elastic-agent/data/logs/default", outputPath)
 	if err != nil {
