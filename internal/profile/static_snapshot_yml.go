@@ -133,10 +133,36 @@ services:
       source: ../../../tmp/service_logs/
       target: /tmp/service_logs/
 
+  elastic-agent-complete:
+    image: ${ELASTIC_AGENT_COMPLETE_IMAGE_REF}
+    depends_on:
+      fleet-server:
+        condition: service_healthy
+    healthcheck:
+      test: "elastic-agent status"
+      retries: 90
+      interval: 1s
+    hostname: docker-fleet-agent-complete
+    environment:
+    - "FLEET_ENROLL=1"
+    - "FLEET_INSECURE=1"
+    - "FLEET_URL=http://fleet-server:8220"
+    - "STATE_PATH=/usr/share/elastic-agent"
+    volumes:
+    - type: bind
+      source: ../../../tmp/service_logs/
+      target: /tmp/service_logs/
+
   elastic-agent_is_ready:
     image: tianon/true
     depends_on:
       elastic-agent:
+        condition: service_healthy
+  
+  elastic-agent_complete_is_ready:
+    image: tianon/true
+    depends_on:
+      elastic-agent-complete:
         condition: service_healthy
 `
 

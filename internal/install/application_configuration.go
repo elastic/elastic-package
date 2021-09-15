@@ -39,6 +39,7 @@ func (s stack) ImageRefOverridesForVersion(version string) ImageRefs {
 // ImageRefs stores Docker image references used to create the Elastic stack containers.
 type ImageRefs struct {
 	ElasticAgent  string `yaml:"elastic-agent"`
+	ElasticAgentComplete  string `yaml:"elastic-agent-complete"`
 	Elasticsearch string `yaml:"elasticsearch"`
 	Kibana        string `yaml:"kibana"`
 }
@@ -47,6 +48,7 @@ type ImageRefs struct {
 func (ir ImageRefs) AsEnv() []string {
 	var vars []string
 	vars = append(vars, "ELASTIC_AGENT_IMAGE_REF="+ir.ElasticAgent)
+	vars = append(vars, "ELASTIC_AGENT_COMPLETE_IMAGE_REF="+ir.ElasticAgentComplete)
 	vars = append(vars, "ELASTICSEARCH_IMAGE_REF="+ir.Elasticsearch)
 	vars = append(vars, "KIBANA_IMAGE_REF="+ir.Kibana)
 	return vars
@@ -61,6 +63,7 @@ func (ac *ApplicationConfiguration) DefaultStackImageRefs() ImageRefs {
 func (ac *ApplicationConfiguration) StackImageRefs(version string) ImageRefs {
 	refs := ac.c.Stack.ImageRefOverridesForVersion(version)
 	refs.ElasticAgent = stringOrDefault(refs.ElasticAgent, fmt.Sprintf("%s:%s", elasticAgentImageName, version))
+	refs.ElasticAgentComplete = stringOrDefault(refs.ElasticAgentComplete, fmt.Sprintf("%s:%s", elasticAgentCompleteImageName, version))
 	refs.Elasticsearch = stringOrDefault(refs.Elasticsearch, fmt.Sprintf("%s:%s", elasticsearchImageName, version))
 	refs.Kibana = stringOrDefault(refs.Kibana, fmt.Sprintf("%s:%s", kibanaImageName, version))
 	return refs
