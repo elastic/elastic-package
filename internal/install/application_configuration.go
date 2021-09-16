@@ -38,10 +38,10 @@ func (s stack) ImageRefOverridesForVersion(version string) ImageRefs {
 
 // ImageRefs stores Docker image references used to create the Elastic stack containers.
 type ImageRefs struct {
-	ElasticAgent  string `yaml:"elastic-agent"`
-	ElasticAgentComplete  string `yaml:"elastic-agent-complete"`
-	Elasticsearch string `yaml:"elasticsearch"`
-	Kibana        string `yaml:"kibana"`
+	ElasticAgent         string `yaml:"elastic-agent"`
+	ElasticAgentComplete string `yaml:"elastic-agent-complete"`
+	Elasticsearch        string `yaml:"elasticsearch"`
+	Kibana               string `yaml:"kibana"`
 }
 
 // AsEnv method returns key=value representation of image refs.
