@@ -60,7 +60,7 @@ func Pull(image string) error {
 		cmd.Stderr = os.Stderr
 	}
 
-	logger.Debugf("running command: %s", cmd)
+	logger.Debugf("run command: %s", cmd)
 	err := cmd.Run()
 	if err != nil {
 		return errors.Wrap(err, "running docker command failed")
@@ -112,7 +112,7 @@ func ConnectToNetwork(containerID, network string) error {
 	errOutput := new(bytes.Buffer)
 	cmd.Stderr = errOutput
 
-	logger.Debugf("output command: %s", cmd)
+	logger.Debugf("run command: %s", cmd)
 	if err := cmd.Run(); err != nil {
 		return errors.Wrapf(err, "could not attach container to the stack network (stderr=%q)", errOutput.String())
 	}
@@ -142,19 +142,15 @@ func InspectContainers(containerIDs ...string) ([]ContainerDescription, error) {
 	return containerDescriptions, nil
 }
 
-// Exec function executes command inside of the container
-func Exec(containerName string, args ...string) ([]byte, error) {
-	cmdArgs := []string{"exec", "-t", containerName}
-	cmdArgs = append(cmdArgs, args...)
-
-	cmd := exec.Command("docker", cmdArgs...)
+// Copy function copies resources from the container to the local destination.
+func Copy(containerName, containerPath, localPath string) error {
+	cmd := exec.Command("docker", "cp", containerName+":"+containerPath, localPath)
 	errOutput := new(bytes.Buffer)
 	cmd.Stderr = errOutput
 
-	logger.Debugf("output command: %s", cmd)
-	output, err := cmd.Output()
-	if err != nil {
-		return nil, errors.Wrapf(err, "exec failed (stderr=%q)", errOutput.String())
+	logger.Debugf("run command: %s", cmd)
+	if err := cmd.Run(); err != nil {
+		return errors.Wrapf(err, "could not copy files from the container (stderr=%q)", errOutput.String())
 	}
-	return output, nil
+	return nil
 }

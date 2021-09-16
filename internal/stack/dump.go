@@ -15,9 +15,12 @@ import (
 	"github.com/elastic/elastic-package/internal/profile"
 )
 
-const fleetServerService = "fleet-server"
+const (
+	elasticAgentService = "elastic-agent"
+	fleetServerService  = "fleet-server"
+)
 
-var observedServices = []string{"elasticsearch", "elastic-agent", fleetServerService, "kibana", "package-registry"}
+var observedServices = []string{"elasticsearch", elasticAgentService, fleetServerService, "kibana", "package-registry"}
 
 // DumpOptions defines dumping options for Elatic stack data.
 type DumpOptions struct {
@@ -46,7 +49,7 @@ func dumpStackLogs(options DumpOptions) error {
 	logsPath := filepath.Join(options.Output, "logs")
 	err = os.MkdirAll(logsPath, 0755)
 	if err != nil {
-		return errors.Wrap(err, "can't create output location")
+		return errors.Wrapf(err, "can't create output location (path: %s)", logsPath)
 	}
 
 	snapshotPath := options.Profile.FetchPath(profile.SnapshotFile)
@@ -61,11 +64,9 @@ func dumpStackLogs(options DumpOptions) error {
 			writeLogFiles(logsPath, serviceName, content)
 		}
 
-		content, ok, err := dockerInternalLogs(serviceName)
+		err = copyDockerInternalLogs(serviceName, logsPath)
 		if err != nil {
-			logger.Errorf("can't fetch internal logs (service: %s): %v", serviceName, err)
-		} else if ok {
-			writeLogFiles(logsPath, serviceName+"-internal", content)
+			logger.Errorf("can't copy internal logs (service: %s): %v", serviceName, err)
 		}
 	}
 	return nil

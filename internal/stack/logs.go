@@ -5,6 +5,8 @@
 package stack
 
 import (
+	"path/filepath"
+
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/compose"
@@ -28,20 +30,23 @@ func dockerComposeLogs(serviceName string, snapshotFile string) ([]byte, error) 
 	return out, nil
 }
 
-func dockerInternalLogs(serviceName string) ([]byte, bool, error) {
-	if serviceName != fleetServerService {
-		return nil, false, nil // we need to pull internal logs only from the Fleet Server container
+func copyDockerInternalLogs(serviceName, outputPath string) error {
+	switch serviceName {
+	case elasticAgentService, fleetServerService:
+	default:
+		return nil // we need to pull internal logs only from Elastic-Agent and Fleets Server container
 	}
 
 	p, err := compose.NewProject(DockerComposeProjectName)
 	if err != nil {
-		return nil, false, errors.Wrap(err, "could not create docker compose project")
+		return errors.Wrap(err, "could not create docker compose project")
 	}
 
+	outputPath = filepath.Join(outputPath, serviceName+"-internal")
 	serviceContainer := p.ContainerName(serviceName)
-	out, err := docker.Exec(serviceContainer, "sh", "-c", `find data/logs/default/fleet-server-json* -printf '%p\n' -exec cat {} \;`)
+	err = docker.Copy(serviceContainer, "/usr/share/elastic-agent/data/logs/default", outputPath)
 	if err != nil {
-		return nil, false, errors.Wrap(err, "docker exec failed")
+		return errors.Wrap(err, "docker copy failed")
 	}
-	return out, true, nil
+	return nil
 }
