@@ -6,7 +6,6 @@ package stack
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -16,7 +15,9 @@ import (
 	"github.com/elastic/elastic-package/internal/profile"
 )
 
-var observedServices = []string{"elasticsearch", "elastic-agent", "elastic-agent-complete", "fleet-server", "kibana", "package-registry"}
+const fleetServerService = "fleet-server"
+
+var observedServices = []string{"elasticsearch", "elastic-agent", "elastic-agent-complete", fleetServerService, "kibana", "package-registry"}
 
 // DumpOptions defines dumping options for Elatic stack data.
 type DumpOptions struct {
@@ -36,9 +37,7 @@ func Dump(options DumpOptions) (string, error) {
 }
 
 func dumpStackLogs(options DumpOptions) error {
-	logger.Debugf("Dump stack logs")
-
-	logger.Debugf("Recreate the output location (path: %s)", options.Output)
+	logger.Debugf("Dump stack logs (location: %s)", options.Output)
 	err := os.RemoveAll(options.Output)
 	if err != nil {
 		return errors.Wrap(err, "can't remove output location")
@@ -55,17 +54,26 @@ func dumpStackLogs(options DumpOptions) error {
 	for _, serviceName := range observedServices {
 		logger.Debugf("Dump stack logs for %s", serviceName)
 
-		serviceLogs, err := dockerComposeLogs(serviceName, snapshotPath)
+		content, err := dockerComposeLogs(serviceName, snapshotPath)
 		if err != nil {
 			logger.Errorf("can't fetch service logs (service: %s): %v", serviceName, err)
-			continue
+		} else {
+			writeLogFiles(logsPath, serviceName, content)
 		}
 
-		err = ioutil.WriteFile(filepath.Join(logsPath, fmt.Sprintf("%s.log", serviceName)), serviceLogs, 0644)
+		content, ok, err := dockerInternalLogs(serviceName)
 		if err != nil {
-			logger.Errorf("can't write service logs (service: %s): %v", serviceName, err)
-			continue
+			logger.Errorf("can't fetch internal logs (service: %s): %v", serviceName, err)
+		} else if ok {
+			writeLogFiles(logsPath, serviceName+"-internal", content)
 		}
 	}
 	return nil
+}
+
+func writeLogFiles(logsPath, serviceName string, content []byte) {
+	err := os.WriteFile(filepath.Join(logsPath, fmt.Sprintf("%s.log", serviceName)), content, 0644)
+	if err != nil {
+		logger.Errorf("can't write service logs (service: %s): %v", serviceName, err)
+	}
 }

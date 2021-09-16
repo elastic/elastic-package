@@ -31,6 +31,7 @@ func setupExportCommand() *cobraext.Command {
 		RunE:  exportDashboardsCmd,
 	}
 	exportDashboardCmd.Flags().StringSliceP(cobraext.DashboardIDsFlagName, "d", nil, cobraext.DashboardIDsFlagDescription)
+	exportDashboardCmd.Flags().Bool(cobraext.TLSSkipVerifyFlagName, false, cobraext.TLSSkipVerifyFlagDescription)
 
 	cmd := &cobra.Command{
 		Use:   "export",
@@ -52,7 +53,13 @@ func exportDashboardsCmd(cmd *cobra.Command, args []string) error {
 
 	common.TrimStringSlice(dashboardIDs)
 
-	kibanaClient, err := kibana.NewClient()
+	var opts []kibana.ClientOption
+	tlsSkipVerify, _ := cmd.Flags().GetBool(cobraext.TLSSkipVerifyFlagName)
+	if tlsSkipVerify {
+		opts = append(opts, kibana.TLSSkipVerify())
+	}
+
+	kibanaClient, err := kibana.NewClient(opts...)
 	if err != nil {
 		return errors.Wrap(err, "can't create Kibana client")
 	}

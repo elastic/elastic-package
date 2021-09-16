@@ -7,7 +7,6 @@ package profile
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -75,14 +74,14 @@ func newProfileFromExistingFiles(elasticPackagePath string, profileName string, 
 	for _, file := range files {
 		if ignoreMissing {
 			// if we're treating missing files as soft errors,
-			// just continue on IsNotExist
+			// just continue on ErrNotExist
 			// If it's another kind of error, we'll pick it up in ReadFile
-			if _, err := os.Stat(file); os.IsNotExist(err) {
+			if _, err := os.Stat(file); errors.Is(err, os.ErrNotExist) {
 				continue
 			}
 		}
 
-		byteFile, err := ioutil.ReadFile(file)
+		byteFile, err := os.ReadFile(file)
 		if err != nil {
 			return nil, errors.Wrapf(err, "error reading file %s", file)
 		}
@@ -204,7 +203,7 @@ func (profile Profile) alreadyExists() (bool, error) {
 	packageMetadata := profile.configFiles[PackageProfileMetaFile]
 	// We do this in stages to make sure we return the right error.
 	_, err := os.Stat(profile.ProfilePath)
-	if os.IsNotExist(err) {
+	if errors.Is(err, os.ErrNotExist) {
 		return false, nil
 	}
 	if err != nil {
@@ -213,7 +212,7 @@ func (profile Profile) alreadyExists() (bool, error) {
 
 	// If the folder exists, check to make sure it's a profile folder
 	_, err = os.Stat(packageMetadata.path)
-	if os.IsNotExist(err) {
+	if errors.Is(err, os.ErrNotExist) {
 		return false, ErrNotAProfile
 	}
 	if err != nil {
@@ -266,7 +265,7 @@ func (profile Profile) readProfileResources() error {
 // metadata returns the metadata struct for the profile
 func (profile Profile) metadata() (Metadata, error) {
 	packageMetadata := profile.configFiles[PackageProfileMetaFile]
-	rawPackageMetadata, err := ioutil.ReadFile(packageMetadata.path)
+	rawPackageMetadata, err := os.ReadFile(packageMetadata.path)
 	if err != nil {
 		return Metadata{}, errors.Wrap(err, "error reading metadata file")
 	}
@@ -287,7 +286,7 @@ func (profile *Profile) updateMetadata(meta Metadata) error {
 	if err != nil {
 		return errors.Wrap(err, "error marshalling metadata json")
 	}
-	err = ioutil.WriteFile(packageMetadata.path, metaString, 0664)
+	err = os.WriteFile(packageMetadata.path, metaString, 0664)
 	if err != nil {
 		return errors.Wrap(err, "error writing metadata file")
 	}
@@ -298,7 +297,7 @@ func (profile *Profile) updateMetadata(meta Metadata) error {
 func isProfileDir(path string) (bool, error) {
 	metaPath := filepath.Join(path, string(PackageProfileMetaFile))
 	_, err := os.Stat(metaPath)
-	if os.IsNotExist(err) {
+	if errors.Is(err, os.ErrNotExist) {
 		return false, nil
 	}
 	if err != nil {

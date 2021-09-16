@@ -6,7 +6,7 @@ package fields
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -210,7 +210,7 @@ func Test_parseElementValue(t *testing.T) {
 }
 
 func readTestResults(t *testing.T, path string) (f results) {
-	c, err := ioutil.ReadFile(path)
+	c, err := os.ReadFile(path)
 	require.NoError(t, err)
 
 	err = json.Unmarshal(c, &f)
@@ -219,7 +219,18 @@ func readTestResults(t *testing.T, path string) (f results) {
 }
 
 func readSampleEvent(t *testing.T, path string) json.RawMessage {
-	c, err := ioutil.ReadFile(path)
+	c, err := os.ReadFile(path)
 	require.NoError(t, err)
 	return c
+}
+
+func TestValidate_geo_point(t *testing.T) {
+	validator, err := CreateValidatorForDataStream("../../test/packages/fields_tests/data_stream/first")
+
+	require.NoError(t, err)
+	require.NotNil(t, validator)
+
+	e := readSampleEvent(t, "../../test/packages/fields_tests/data_stream/first/sample_event.json")
+	errs := validator.ValidateDocumentBody(e)
+	require.Empty(t, errs)
 }

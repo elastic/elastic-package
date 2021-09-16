@@ -5,11 +5,18 @@
 package kubectl
 
 import (
+	_ "embed"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+//go:embed kube-state-metrics-single.yaml
+var singleDefinitionFile string
+
+//go:embed kube-state-metrics-multiple.yaml
+var multipleDefinitionFiles string
 
 func TestExtractResources_singleDefinition(t *testing.T) {
 	r, err := extractResources([]byte(singleDefinitionFile))

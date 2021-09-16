@@ -15,7 +15,7 @@ import (
 )
 
 var (
-	githubOwnerRegexp = regexp.MustCompile("^(([a-zA-Z0-9-]+)|([a-zA-Z0-9-]+\\/[a-zA-Z0-9-]+))$")
+	githubOwnerRegexp = regexp.MustCompile(`^(([a-zA-Z0-9-]+)|([a-zA-Z0-9-]+\/[a-zA-Z0-9-]+))$`)
 )
 
 // PackageDoesNotExistValidator function checks if the package hasn't been already created.

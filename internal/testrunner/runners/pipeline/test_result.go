@@ -7,7 +7,7 @@ package pipeline
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 
 	"github.com/kylelemons/godebug/diff"
@@ -35,7 +35,7 @@ func writeTestResult(testCasePath string, result *testResult) error {
 	if err != nil {
 		return errors.Wrap(err, "marshalling test result failed")
 	}
-	err = ioutil.WriteFile(filepath.Join(testCaseDir, expectedTestResultFile(testCaseFile)), data, 0644)
+	err = os.WriteFile(filepath.Join(testCaseDir, expectedTestResultFile(testCaseFile)), data, 0644)
 	if err != nil {
 		return errors.Wrap(err, "writing test result failed")
 	}
@@ -78,7 +78,7 @@ func readExpectedTestResult(testCasePath string, config *testConfig) (*testResul
 	testCaseFile := filepath.Base(testCasePath)
 
 	path := filepath.Join(testCaseDir, expectedTestResultFile(testCaseFile))
-	data, err := ioutil.ReadFile(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, errors.Wrap(err, "reading test result file failed")
 	}
@@ -139,9 +139,7 @@ func unmarshalTestResult(body []byte) (*testResult, error) {
 	}
 
 	var tr testResult
-	for _, doc := range trd.Expected {
-		tr.events = append(tr.events, doc)
-	}
+	tr.events = append(tr.events, trd.Expected...)
 	return &tr, nil
 }
 

@@ -23,6 +23,8 @@ type fieldsTableRecord struct {
 	metricType  string
 }
 
+var escaper = strings.NewReplacer("*", "\\*", "{", "\\{", "}", "\\}", "<", "\\<", ">", "\\>")
+
 func renderExportedFields(packageRoot, dataStreamName string) (string, error) {
 	dataStreamPath := filepath.Join(packageRoot, "data_stream", dataStreamName)
 	validator, err := fields.CreateValidatorForDataStream(dataStreamPath)
@@ -70,7 +72,10 @@ func renderFieldsTable(builder *strings.Builder, collected []fieldsTableRecord) 
 	builder.WriteString("\n")
 	for _, c := range collected {
 		description := strings.TrimSpace(strings.ReplaceAll(c.description, "\n", " "))
-		builder.WriteString(fmt.Sprintf("| %s | %s | %s |", c.name, description, c.aType))
+		builder.WriteString(fmt.Sprintf("| %s | %s | %s |",
+			escaper.Replace(c.name),
+			escaper.Replace(description),
+			c.aType))
 		if unitsPresent {
 			builder.WriteString(fmt.Sprintf(" %s |", c.unit))
 		}

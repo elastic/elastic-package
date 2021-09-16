@@ -7,7 +7,7 @@ package fields
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -101,15 +101,14 @@ func CreateValidatorForDataStream(dataStreamRootPath string, opts ...ValidatorOp
 
 func loadFieldsForDataStream(dataStreamRootPath string) ([]FieldDefinition, error) {
 	fieldsDir := filepath.Join(dataStreamRootPath, "fields")
-	fileInfos, err := ioutil.ReadDir(fieldsDir)
+	files, err := filepath.Glob(filepath.Join(fieldsDir, "*.yml"))
 	if err != nil {
 		return nil, errors.Wrapf(err, "reading directory with fields failed (path: %s)", fieldsDir)
 	}
 
 	var fields []FieldDefinition
-	for _, fileInfo := range fileInfos {
-		f := filepath.Join(fieldsDir, fileInfo.Name())
-		body, err := ioutil.ReadFile(f)
+	for _, file := range files {
+		body, err := os.ReadFile(file)
 		if err != nil {
 			return nil, errors.Wrap(err, "reading fields file failed")
 		}
@@ -155,9 +154,9 @@ func (v *Validator) validateMapElement(root string, elem common.MapStr) multierr
 	for name, val := range elem {
 		key := strings.TrimLeft(root+"."+name, ".")
 
-		switch val.(type) {
+		switch val := val.(type) {
 		case []map[string]interface{}:
-			for _, m := range val.([]map[string]interface{}) {
+			for _, m := range val {
 				err := v.validateMapElement(key, m)
 				if err != nil {
 					errs = append(errs, err...)
@@ -169,7 +168,7 @@ func (v *Validator) validateMapElement(root string, elem common.MapStr) multierr
 				// because the entire object is mapped as a single field.
 				continue
 			}
-			err := v.validateMapElement(key, val.(map[string]interface{}))
+			err := v.validateMapElement(key, val)
 			if err != nil {
 				errs = append(errs, err...)
 			}
@@ -233,7 +232,7 @@ func isFieldFamilyMatching(family, key string) bool {
 
 func isFieldTypeFlattened(key string, fieldDefinitions []FieldDefinition) bool {
 	definition := FindElementDefinition(key, fieldDefinitions)
-	return definition != nil && "flattened" == definition.Type
+	return definition != nil && definition.Type == "flattened"
 }
 
 func findElementDefinitionForRoot(root, searchedKey string, FieldDefinitions []FieldDefinition) *FieldDefinition {
@@ -265,8 +264,9 @@ func compareKeys(key string, def FieldDefinition, searchedKey string) bool {
 	k = strings.ReplaceAll(k, "*", "[^.]+")
 
 	// Workaround for potential geo_point, as "lon" and "lat" fields are not present in field definitions.
-	if def.Type == "geo_point" {
-		k += "\\.(lon|lat)"
+	// Unfortunately we have to assume that imported field could be a geo_point (nasty workaround).
+	if def.Type == "geo_point" || def.External != "" {
+		k += "(\\.lon|\\.lat|)"
 	}
 
 	k = fmt.Sprintf("^%s$", k)

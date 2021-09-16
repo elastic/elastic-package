@@ -49,3 +49,21 @@ func modifyKubernetesResources(action string, definitionPaths ...string) ([]byte
 	}
 	return output, nil
 }
+
+// applyKubernetesResourcesStdin applies a Kubernetes manifest provided as stdin.
+// It returns the resources created as output and an error
+func applyKubernetesResourcesStdin(input []byte) ([]byte, error) {
+	// create kubectl apply command
+	kubectlCmd := exec.Command("kubectl", "apply", "-f", "-", "-o", "yaml")
+	//Stdin of kubectl command is the manifest provided
+	kubectlCmd.Stdin = bytes.NewReader(input)
+	errOutput := new(bytes.Buffer)
+	kubectlCmd.Stderr = errOutput
+
+	logger.Debugf("run command: %s", kubectlCmd)
+	output, err := kubectlCmd.Output()
+	if err != nil {
+		return nil, errors.Wrapf(err, "kubectl apply failed (stderr=%q)", errOutput.String())
+	}
+	return output, nil
+}

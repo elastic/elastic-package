@@ -5,13 +5,14 @@
 package servicedeployer
 
 import (
-	"io/ioutil"
+	"bytes"
+	_ "embed"
 	"path/filepath"
-	"strings"
+	"text/template"
 
 	"github.com/pkg/errors"
 
-	"github.com/elastic/elastic-package/internal/configuration/locations"
+	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/kind"
 	"github.com/elastic/elastic-package/internal/kubectl"
 	"github.com/elastic/elastic-package/internal/logger"
@@ -56,7 +57,7 @@ func (s kubernetesDeployedService) Context() ServiceContext {
 	return s.ctxt
 }
 
-func (s kubernetesDeployedService) SetContext(sc ServiceContext) error {
+func (s *kubernetesDeployedService) SetContext(sc ServiceContext) error {
 	s.ctxt = sc
 	return nil
 }
@@ -127,31 +128,50 @@ func (ksd KubernetesServiceDeployer) installCustomDefinitions() error {
 var _ ServiceDeployer = new(KubernetesServiceDeployer)
 
 func findKubernetesDefinitions(definitionsDir string) ([]string, error) {
-	fileInfos, err := ioutil.ReadDir(definitionsDir)
+	files, err := filepath.Glob(filepath.Join(definitionsDir, "*.yaml"))
 	if err != nil {
 		return nil, errors.Wrapf(err, "can't read definitions directory (path: %s)", definitionsDir)
 	}
 
 	var definitionPaths []string
-	for _, fileInfo := range fileInfos {
-		if strings.HasSuffix(fileInfo.Name(), ".yaml") {
-			definitionPaths = append(definitionPaths, filepath.Join(definitionsDir, fileInfo.Name()))
-		}
-	}
+	definitionPaths = append(definitionPaths, files...)
 	return definitionPaths, nil
 }
 
 func installElasticAgentInCluster() error {
 	logger.Debug("install Elastic Agent in the Kubernetes cluster")
 
-	locationManager, err := locations.NewLocationManager()
+	elasticAgentManagedYaml, err := getElasticAgentYAML()
 	if err != nil {
-		return errors.Wrap(err, "can't locate Kubernetes file for Elastic Agent in ")
+		return errors.Wrap(err, "can't retrieve Kubernetes file for Elastic Agent")
 	}
 
-	err = kubectl.Apply(locationManager.KubernetesDeployerAgentYml())
+	err = kubectl.ApplyStdin(elasticAgentManagedYaml)
 	if err != nil {
 		return errors.Wrap(err, "can't install Elastic-Agent in Kubernetes cluster")
 	}
 	return nil
+}
+
+//go:embed elastic-agent-managed.yaml.tmpl
+var elasticAgentManagedYamlTmpl string
+
+func getElasticAgentYAML() ([]byte, error) {
+	appConfig, err := install.Configuration()
+	if err != nil {
+		return nil, errors.Wrap(err, "can't read application configuration")
+	}
+
+	tmpl := template.Must(template.New("elastic-agent.yml").Parse(elasticAgentManagedYamlTmpl))
+
+	var elasticAgentYaml bytes.Buffer
+	err = tmpl.Execute(&elasticAgentYaml, map[string]string{
+		"fleetURL":          "http://fleet-server:8220",
+		"elasticAgentImage": appConfig.DefaultStackImageRefs().ElasticAgent,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "can't generate elastic agent manifest")
+	}
+
+	return elasticAgentYaml.Bytes(), nil
 }

@@ -141,3 +141,20 @@ func InspectContainers(containerIDs ...string) ([]ContainerDescription, error) {
 	}
 	return containerDescriptions, nil
 }
+
+// Exec function executes command inside of the container
+func Exec(containerName string, args ...string) ([]byte, error) {
+	cmdArgs := []string{"exec", "-t", containerName}
+	cmdArgs = append(cmdArgs, args...)
+
+	cmd := exec.Command("docker", cmdArgs...)
+	errOutput := new(bytes.Buffer)
+	cmd.Stderr = errOutput
+
+	logger.Debugf("output command: %s", cmd)
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, errors.Wrapf(err, "exec failed (stderr=%q)", errOutput.String())
+	}
+	return output, nil
+}

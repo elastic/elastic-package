@@ -7,7 +7,6 @@ package system
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -584,21 +583,28 @@ func deleteDataStreamDocs(esClient *es.Client, dataStream string) error {
 }
 
 func waitUntilTrue(fn func() (bool, error), timeout time.Duration) (bool, error) {
-	startTime := time.Now()
-	for time.Now().Sub(startTime) < timeout {
+	timeoutTicker := time.NewTicker(timeout)
+	defer timeoutTicker.Stop()
+
+	retryTicker := time.NewTicker(1 * time.Second)
+	defer retryTicker.Stop()
+
+	for {
 		result, err := fn()
 		if err != nil {
 			return false, err
 		}
-
 		if result {
 			return true, nil
 		}
 
-		time.Sleep(1 * time.Second)
+		select {
+		case <-retryTicker.C:
+			continue
+		case <-timeoutTicker.C:
+			return false, nil
+		}
 	}
-
-	return false, nil
 }
 
 func filterAgents(allAgents []kibana.Agent, ctx servicedeployer.ServiceContext) []kibana.Agent {
@@ -626,7 +632,7 @@ func writeSampleEvent(path string, doc common.MapStr) error {
 		return errors.Wrap(err, "marshalling sample event failed")
 	}
 
-	err = ioutil.WriteFile(filepath.Join(path, "sample_event.json"), body, 0644)
+	err = os.WriteFile(filepath.Join(path, "sample_event.json"), body, 0644)
 	if err != nil {
 		return errors.Wrap(err, "writing sample event failed")
 	}

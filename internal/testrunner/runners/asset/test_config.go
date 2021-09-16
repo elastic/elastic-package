@@ -5,7 +5,6 @@
 package asset
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -25,11 +24,11 @@ func newConfig(assetTestFolderPath string) (*testConfig, error) {
 
 	// Test configuration file is optional for asset loading tests. If it
 	// doesn't exist, we can return early.
-	if _, err := os.Stat(configFilePath); os.IsNotExist(err) {
+	if _, err := os.Stat(configFilePath); errors.Is(err, os.ErrNotExist) {
 		return nil, nil
 	}
 
-	data, err := ioutil.ReadFile(configFilePath)
+	data, err := os.ReadFile(configFilePath)
 	if err != nil {
 		return nil, errors.Wrapf(err, "could not load asset loading test configuration file: %s", configFilePath)
 	}

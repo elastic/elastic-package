@@ -6,7 +6,7 @@ package fields
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -72,7 +72,7 @@ func loadECSFieldsSchema(dep buildmanifest.ECSDependency) ([]FieldDefinition, er
 	}
 
 	cachedSchemaPath := filepath.Join(loc.FieldsCacheDir(), ecsSchemaName, gitReference, ecsSchemaFile)
-	content, err := ioutil.ReadFile(cachedSchemaPath)
+	content, err := os.ReadFile(cachedSchemaPath)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return nil, errors.Wrapf(err, "can't read cached schema (path: %s)", cachedSchemaPath)
 	}
@@ -92,7 +92,7 @@ func loadECSFieldsSchema(dep buildmanifest.ECSDependency) ([]FieldDefinition, er
 			return nil, fmt.Errorf("unexpected HTTP status code: %d", resp.StatusCode)
 		}
 
-		content, err = ioutil.ReadAll(resp.Body)
+		content, err = io.ReadAll(resp.Body)
 		if err != nil {
 			return nil, errors.Wrapf(err, "can't read schema content (URL: %s)", url)
 		}
@@ -105,7 +105,7 @@ func loadECSFieldsSchema(dep buildmanifest.ECSDependency) ([]FieldDefinition, er
 		}
 
 		logger.Debugf("Cache downloaded schema: %s", cachedSchemaPath)
-		err = ioutil.WriteFile(cachedSchemaPath, content, 0644)
+		err = os.WriteFile(cachedSchemaPath, content, 0644)
 		if err != nil {
 			return nil, errors.Wrapf(err, "can't write cached schema (path: %s)", cachedSchemaPath)
 		}
@@ -155,6 +155,9 @@ func (dm *DependencyManager) injectFieldsWithRoot(root string, defs []common.Map
 		fields, _ := def.GetValue("fields")
 		if fields != nil {
 			fieldsMs, err := common.ToMapStrSlice(fields)
+			if err != nil {
+				return nil, false, errors.Wrap(err, "can't convert fields")
+			}
 			updatedFields, fieldsChanged, err := dm.injectFieldsWithRoot(fieldPath, fieldsMs)
 			if err != nil {
 				return nil, false, err
@@ -173,6 +176,9 @@ func (dm *DependencyManager) injectFieldsWithRoot(root string, defs []common.Map
 
 // ImportField method resolves dependency on a single external field using available schemas.
 func (dm *DependencyManager) ImportField(schemaName, fieldPath string) (FieldDefinition, error) {
+	if dm == nil {
+		return FieldDefinition{}, fmt.Errorf(`importing external field "%s": external fields not allowed because dependencies file "_dev/build/build.yml" is missing`, fieldPath)
+	}
 	schema, ok := dm.schema[schemaName]
 	if !ok {
 		return FieldDefinition{}, fmt.Errorf(`schema "%s" is not defined as package depedency`, schemaName)

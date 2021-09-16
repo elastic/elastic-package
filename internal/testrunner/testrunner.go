@@ -6,7 +6,6 @@ package testrunner
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
@@ -106,7 +105,7 @@ func NewResultComposer(tr TestResult) *ResultComposer {
 
 // WithError sets an error on the test result wrapped by ResultComposer.
 func (rc *ResultComposer) WithError(err error) ([]TestResult, error) {
-	rc.TimeElapsed = time.Now().Sub(rc.StartTime)
+	rc.TimeElapsed = time.Since(rc.StartTime)
 	if err == nil {
 		return []TestResult{rc.TestResult}, nil
 	}
@@ -149,9 +148,9 @@ func AssumeTestFolders(packageRootPath string, dataStreams []string, testType Te
 
 	dataStreamsPath := filepath.Join(packageRootPath, "data_stream")
 
-	if dataStreams == nil || len(dataStreams) == 0 {
-		fileInfos, err := ioutil.ReadDir(dataStreamsPath)
-		if os.IsNotExist(err) {
+	if len(dataStreams) == 0 {
+		fileInfos, err := os.ReadDir(dataStreamsPath)
+		if errors.Is(err, os.ErrNotExist) {
 			return []TestFolder{}, nil // data streams defined
 		}
 		if err != nil {
@@ -193,7 +192,7 @@ func FindTestFolders(packageRootPath string, dataStreams []string, testType Test
 	}
 
 	var paths []string
-	if dataStreams != nil && len(dataStreams) > 0 {
+	if len(dataStreams) > 0 {
 		sort.Strings(dataStreams)
 		for _, dataStream := range dataStreams {
 			p, err := findTestFolderPaths(packageRootPath, dataStream, testTypeGlob)

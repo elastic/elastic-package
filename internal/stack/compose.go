@@ -20,8 +20,13 @@ func dockerComposeBuild(options Options) error {
 		return errors.Wrap(err, "could not create docker compose project")
 	}
 
+	appConfig, err := install.Configuration()
+	if err != nil {
+		return errors.Wrap(err, "can't read application configuration")
+	}
+
 	opts := compose.CommandOptions{
-		Env:      options.Profile.ComposeEnvVars(),
+		Env:      append(appConfig.StackImageRefs(options.StackVersion).AsEnv(), options.Profile.ComposeEnvVars()...),
 		Services: withIsReadyServices(withDependentServices(options.Services)),
 	}
 
@@ -87,7 +92,13 @@ func dockerComposeDown(options Options) error {
 		return errors.Wrap(err, "could not create docker compose project")
 	}
 
+	appConfig, err := install.Configuration()
+	if err != nil {
+		return errors.Wrap(err, "can't read application configuration")
+	}
+
 	downOptions := compose.CommandOptions{
+		Env: append(appConfig.StackImageRefs(options.StackVersion).AsEnv(), options.Profile.ComposeEnvVars()...),
 		// Remove associated volumes.
 		ExtraArgs: []string{"--volumes"},
 	}
@@ -95,23 +106,6 @@ func dockerComposeDown(options Options) error {
 		return errors.Wrap(err, "running command failed")
 	}
 	return nil
-}
-
-func dockerComposeLogs(serviceName string, snapshotFile string) ([]byte, error) {
-	c, err := compose.NewProject(DockerComposeProjectName, snapshotFile)
-	if err != nil {
-		return nil, errors.Wrap(err, "could not create docker compose project")
-	}
-
-	opts := compose.CommandOptions{
-		Services: []string{serviceName},
-	}
-
-	out, err := c.Logs(opts)
-	if err != nil {
-		return nil, errors.Wrap(err, "running command failed")
-	}
-	return out, nil
 }
 
 func withDependentServices(services []string) []string {

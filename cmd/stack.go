@@ -19,6 +19,7 @@ import (
 )
 
 var availableServices = map[string]struct{}{
+	"elastic-agent":    {},
 	"elasticsearch":    {},
 	"fleet-server":     {},
 	"kibana":           {},

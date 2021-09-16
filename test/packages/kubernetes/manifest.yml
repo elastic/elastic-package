@@ -3,21 +3,44 @@ name: kubernetes
 title: Kubernetes
 version: 999.999.999
 license: basic
-description: Kubernetes Integration
+description: This Elastic integration collects metrics from Kubernetes clusters
 type: integration
 categories:
   - containers
   - kubernetes
 release: experimental
 conditions:
-  kibana.version: '^7.9.0'
+  kibana.version: "^7.15.0"
+screenshots:
+  - src: /img/metricbeat_kubernetes_overview.png
+    title: Metricbeat Kubernetes Overview
+    size: 1896x961
+    type: image/png
+icons:
+  - src: /img/logo_kubernetes.svg
+    title: Logo Kubernetes
+    size: 32x32
+    type: image/svg+xml
 policy_templates:
-  - name: kubernetes
-    title: Kubernetes metrics
-    description: Collect metrics from Kubernetes
+  - name: kube-state-metrics
+    title: kube-state-metrics
+    description: Collect metrics from kube-state-metrics
+    data_streams:
+      - state_pod
     inputs:
       - type: kubernetes/metrics
-        title: Collect Kubernetes metrics
-        description: Collecting API Server, Controller Manager, Scheduler, Proxy and Event metrics as well as Node, Pod, Container, Volume and System metrics from Kubelet and metrics from kube_state_metrics (container, cronjob, deployment, daemonset, node, persistentvolume, persistentvolumeclaim, pod, replicaset, resourcequota, service, statefulset, storageclass).
+        title: Collect Kubernetes metrics from kube-state-metrics
+        description: Collecting metrics from kube-state-metrics (container, cronjob, deployment, daemonset, node, persistentvolume, persistentvolumeclaim, pod, replicaset, resourcequota, service, statefulset, storageclass)
+        input_group: metrics
+    icons:
+      - src: /img/logo_kubernetes.svg
+        title: Logo Kubernetes
+        size: 32x32
+        type: image/svg+xml
+    screenshots:
+      - src: /img/metricbeat_kubernetes_overview.png
+        title: Metricbeat Kubernetes Overview
+        size: 1896x961
+        type: image/png
 owner:
-  github: elastic/integrations-platforms
+  github: elastic/integrations

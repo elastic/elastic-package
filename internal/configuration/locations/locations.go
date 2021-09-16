@@ -23,9 +23,7 @@ const (
 
 	fieldsCachedDir = "cache/fields"
 
-	kubernetesDeployerElasticAgentYmlFile = "elastic-agent.yml"
-	kubernetesDeployerElasticAgentCompleteYmlFile = "elastic-agent-complete.yml"
-	terraformDeployerYmlFile              = "terraform-deployer.yml"
+	terraformDeployerYmlFile = "terraform-deployer.yml"
 )
 
 var (
@@ -83,16 +81,6 @@ func (loc LocationManager) PackagesDir() string {
 // KubernetesDeployerDir returns the Kubernetes Deployer directory location
 func (loc LocationManager) KubernetesDeployerDir() string {
 	return filepath.Join(loc.stackPath, kubernetesDeployerDir)
-}
-
-// KubernetesDeployerAgentYml returns the Kubernetes Deployer Elastic Agent yml
-func (loc LocationManager) KubernetesDeployerAgentYml() string {
-	return filepath.Join(loc.stackPath, kubernetesDeployerDir, kubernetesDeployerElasticAgentYmlFile)
-}
-
-// KubernetesDeployerAgentYml returns the Kubernetes Deployer Elastic Agent yml
-func (loc LocationManager) KubernetesDeployerAgentCompleteYml() string {
-	return filepath.Join(loc.stackPath, kubernetesDeployerDir, kubernetesDeployerElasticAgentCompleteYmlFile)
 }
 
 // TerraformDeployerDir returns the Terraform Directory

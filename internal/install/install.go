@@ -6,10 +6,8 @@ package install
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -29,6 +27,9 @@ func EnsureInstalled() error {
 	}
 
 	installed, err := checkIfAlreadyInstalled(elasticPackagePath)
+	if err != nil {
+		return errors.Wrap(err, "failed to check if there is an elastic-package installation")
+	}
 	if installed {
 		return nil
 	}
@@ -61,11 +62,6 @@ func EnsureInstalled() error {
 		return errors.Wrap(err, "writing stack resources failed")
 	}
 
-	err = writeKubernetesDeployerResources(elasticPackagePath)
-	if err != nil {
-		return errors.Wrap(err, "writing Kubernetes deployer resources failed")
-	}
-
 	err = writeTerraformDeployerResources(elasticPackagePath)
 	if err != nil {
 		return errors.Wrap(err, "writing Terraform deployer resources failed")
@@ -81,7 +77,7 @@ func EnsureInstalled() error {
 
 func checkIfAlreadyInstalled(elasticPackagePath *locations.LocationManager) (bool, error) {
 	_, err := os.Stat(elasticPackagePath.StackDir())
-	if os.IsNotExist(err) {
+	if errors.Is(err, os.ErrNotExist) {
 		return false, nil
 	}
 	if err != nil {
@@ -94,7 +90,7 @@ func checkIfAlreadyInstalled(elasticPackagePath *locations.LocationManager) (boo
 func migrateIfNeeded(elasticPackagePath *locations.LocationManager) error {
 	// use the snapshot.yml file as a canary to see if we have a pre-profile install
 	_, err := os.Stat(filepath.Join(elasticPackagePath.StackDir(), string(profile.SnapshotFile)))
-	if os.IsNotExist(err) {
+	if errors.Is(err, os.ErrNotExist) {
 		return nil
 	}
 	if err != nil {
@@ -162,7 +158,11 @@ func writeStackResources(elasticPackagePath *locations.LocationManager) error {
 		return errors.Wrapf(err, "creating directory failed (path: %s)", elasticPackagePath.PackagesDir())
 	}
 
-	err = writeStaticResource(err, filepath.Join(elasticPackagePath.StackDir(), "healthcheck.sh"), kibanaHealthcheckSh)
+	resourcePath := filepath.Join(elasticPackagePath.StackDir(), "healthcheck.sh")
+	err = writeStaticResource(err, resourcePath, kibanaHealthcheckSh)
+	if err != nil {
+		return errors.Wrapf(err, "copying healthcheck script failed (%s)", resourcePath)
+	}
 
 	options := profile.Options{
 		PackagePath:       elasticPackagePath.ProfileDir(),
@@ -171,26 +171,6 @@ func writeStackResources(elasticPackagePath *locations.LocationManager) error {
 	}
 	return profile.CreateProfile(options)
 
-}
-
-func writeKubernetesDeployerResources(elasticPackagePath *locations.LocationManager) error {
-	err := os.MkdirAll(elasticPackagePath.KubernetesDeployerDir(), 0755)
-	if err != nil {
-		return errors.Wrapf(err, "creating directory failed (path: %s)", elasticPackagePath.KubernetesDeployerDir())
-	}
-
-	appConfig, err := Configuration()
-	if err != nil {
-		return errors.Wrap(err, "can't read application configuration")
-	}
-
-	err = writeStaticResource(err, elasticPackagePath.KubernetesDeployerAgentYml(),
-		strings.ReplaceAll(kubernetesDeployerElasticAgentYml, "{{ ELASTIC_AGENT_IMAGE_REF }}",
-			appConfig.DefaultStackImageRefs().ElasticAgent))
-	if err != nil {
-		return errors.Wrap(err, "writing static resource failed")
-	}
-	return nil
 }
 
 func writeTerraformDeployerResources(elasticPackagePath *locations.LocationManager) error {
@@ -223,7 +203,7 @@ func writeStaticResource(err error, path, content string) error {
 		return err
 	}
 
-	err = ioutil.WriteFile(path, []byte(content), 0644)
+	err = os.WriteFile(path, []byte(content), 0644)
 	if err != nil {
 		return errors.Wrapf(err, "writing file failed (path: %s)", path)
 	}

@@ -7,7 +7,7 @@ package pipeline
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -129,7 +129,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 			continue
 		}
 
-		tr.TimeElapsed = time.Now().Sub(startTime)
+		tr.TimeElapsed = time.Since(startTime)
 		fieldsValidator, err := fields.CreateValidatorForDataStream(dataStreamPath,
 			fields.WithNumericKeywordFields(tc.config.NumericKeywordFields))
 		if err != nil {
@@ -157,7 +157,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 }
 
 func (r *runner) listTestCaseFiles() ([]string, error) {
-	fis, err := ioutil.ReadDir(r.options.TestFolder.Path)
+	fis, err := os.ReadDir(r.options.TestFolder.Path)
 	if err != nil {
 		return nil, errors.Wrapf(err, "reading pipeline tests failed (path: %s)", r.options.TestFolder.Path)
 	}
@@ -175,7 +175,7 @@ func (r *runner) listTestCaseFiles() ([]string, error) {
 
 func (r *runner) loadTestCaseFile(testCaseFile string) (*testCase, error) {
 	testCasePath := filepath.Join(r.options.TestFolder.Path, testCaseFile)
-	testCaseData, err := ioutil.ReadFile(testCasePath)
+	testCaseData, err := os.ReadFile(testCasePath)
 	if err != nil {
 		return nil, errors.Wrapf(err, "reading input file failed (testCasePath: %s)", testCasePath)
 	}
