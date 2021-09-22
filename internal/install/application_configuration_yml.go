@@ -5,7 +5,7 @@
 package install
 
 const (
-	elasticAgentImageName  = "docker.elastic.co/beats/elastic-agent"
+	elasticAgentImageName  = "docker.elastic.co/beats/elastic-agent-complete"
 	elasticsearchImageName = "docker.elastic.co/elasticsearch/elasticsearch"
 	kibanaImageName        = "docker.elastic.co/kibana/kibana"
 )
