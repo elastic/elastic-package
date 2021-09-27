@@ -182,7 +182,7 @@ _Context: global_
 
 Use this command to spin up a Docker-based Elastic Stack consisting of Elasticsearch, Kibana, and the Package Registry. By default the latest released version of the stack is spun up but it is possible to specify a different version, including SNAPSHOT versions.
 
-Please note that you docker memory settings y can also cause some issues if threshold are too low.
+Please note that your docker memory settings can also cause some issues if thresholds are too low.
 
 For details on how to connect the service with the Elastic stack, see the [service command](https://github.com/elastic/elastic-package/blob/master/README.md#elastic-package-service).
 
@@ -235,8 +235,6 @@ The command uses Kibana API to uninstall the package in Kibana. The package must
 _Context: global_
 
 Use this command to print the version of elastic-package that you have installed. This is especially useful when reporting bugs.
-
-
 
 ### GitHub authorization
 
