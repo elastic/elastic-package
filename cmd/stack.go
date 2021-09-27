@@ -36,7 +36,7 @@ const stackUpLongDescription = `Use this command to boot up the stack locally.
 
 By default the latest released version of the stack is spun up but it is possible to specify a different version, including SNAPSHOT versions.
 
-Be aware that a common issue while trying to boot up the stack is that your docker environments settings are too low in terms of memory threshold.
+Be aware that a common issue while trying to boot up the stack is that your Docker environments settings are too low in terms of memory threshold.
 
 To ęxpose local packages in the Package Registry, build them first and boot up the stack from inside of the Git repository containing the package (e.g. elastic/integrations). They will be copied to the development stack (~/.elastic-package/stack/development) and used to build a custom Docker image of the Package Registry.
 
