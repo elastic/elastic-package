@@ -73,6 +73,10 @@ func (ac *ApplicationConfiguration) StackImageRefs(version string) ImageRefs {
 // selectElasticAgentImageName function returns the appropriate image name for Elastic-Agent depending on the stack version.
 // This is mandatory as "elastic-agent-complete" is available since 7.15.0-SNAPSHOT.
 func selectElasticAgentImageName(version string) string {
+	if version == "" { // as version is optional and can be empty
+		return elasticAgentImageName
+	}
+
 	v, err := semver.NewVersion(version)
 	if err != nil {
 		logger.Errorf("stack version not in semver format (value: %s): %v", v, err)
