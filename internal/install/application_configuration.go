@@ -17,7 +17,9 @@ import (
 	"github.com/elastic/elastic-package/internal/logger"
 )
 
-var elasticAgentCompleteFirstSupportedVersion = semver.MustParse("7.15.0-SNAPSHOT")
+const stackVersion715 = "7.15.0-SNAPSHOT"
+
+var elasticAgentCompleteFirstSupportedVersion = semver.MustParse(stackVersion715)
 
 // ApplicationConfiguration represents the configuration of the elastic-package.
 type ApplicationConfiguration struct {
