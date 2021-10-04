@@ -5,6 +5,7 @@
 package builder
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -37,6 +38,8 @@ func findBuildDirectory() (string, bool, error) {
 	}
 
 	dir := workDir
+	// required for multi platform support
+	root := fmt.Sprintf("%s%c", filepath.VolumeName(dir), os.PathSeparator)
 	for dir != "." {
 		path := filepath.Join(dir, "build")
 		fileInfo, err := os.Stat(path)
@@ -44,7 +47,7 @@ func findBuildDirectory() (string, bool, error) {
 			return path, true, nil
 		}
 
-		if dir == "/" {
+		if dir == root {
 			break
 		}
 		dir = filepath.Dir(dir)
