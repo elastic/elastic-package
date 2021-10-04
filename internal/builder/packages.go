@@ -19,12 +19,12 @@ import (
 func BuildDirectory() (string, error) {
 	buildDir, found, err := findBuildDirectory()
 	if err != nil {
-		return "", errors.Wrap(err, "locating build directory failed")
+		return "", errors.Wrap(err, "can't locate build directory")
 	}
 	if !found {
 		buildDir, err = createBuildDirectory()
 		if err != nil {
-			return "", errors.Wrap(err, "creating new build directory failed")
+			return "", errors.Wrap(err, "can't create new build directory")
 		}
 	}
 	return buildDir, nil
@@ -33,7 +33,7 @@ func BuildDirectory() (string, error) {
 func findBuildDirectory() (string, bool, error) {
 	workDir, err := os.Getwd()
 	if err != nil {
-		return "", false, errors.Wrap(err, "locating working directory failed")
+		return "", false, errors.Wrap(err, "can't locate build directory")
 	}
 
 	dir := workDir
@@ -57,12 +57,12 @@ func findBuildDirectory() (string, bool, error) {
 func BuildPackagesDirectory(packageRoot string) (string, error) {
 	buildDir, found, err := FindBuildPackagesDirectory()
 	if err != nil {
-		return "", errors.Wrap(err, "locating build directory failed")
+		return "", errors.Wrap(err, "can't locate build directory")
 	}
 	if !found {
 		buildDir, err = createBuildDirectory("integrations") // TODO add support for other package types
 		if err != nil {
-			return "", errors.Wrap(err, "creating new build directory failed")
+			return "", errors.Wrap(err, "can't create new build directory")
 		}
 	}
 
@@ -102,7 +102,7 @@ func FindBuildPackagesDirectory() (string, bool, error) {
 func BuildPackage(packageRoot string) (string, error) {
 	destinationDir, err := BuildPackagesDirectory(packageRoot)
 	if err != nil {
-		return "", errors.Wrap(err, "locating build directory for package failed")
+		return "", errors.Wrap(err, "can't locate build directory")
 	}
 	logger.Debugf("Build directory: %s\n", destinationDir)
 
@@ -160,5 +160,5 @@ func createBuildDirectory(dirs ...string) (string, error) {
 		}
 		dir = filepath.Dir(dir)
 	}
-	return "", errors.New("locating place for build directory failed")
+	return "", errors.New("package can be only built inside of a Git repository (.git folder is used as reference point)")
 }

@@ -13,6 +13,7 @@ import (
 	"github.com/elastic/elastic-package/internal/builder"
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/docs"
+	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
@@ -44,6 +45,12 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return errors.Wrap(err, "locating package root failed")
 	}
+
+	buildDir, err := builder.BuildDirectory()
+	if err != nil {
+		return errors.Wrap(err, "can't prepare build directory")
+	}
+	logger.Debugf("Use build directory: %s", buildDir)
 
 	targets, err := docs.UpdateReadmes(packageRoot)
 	if err != nil {
