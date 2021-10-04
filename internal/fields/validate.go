@@ -195,6 +195,14 @@ func (v *Validator) validateScalarElement(key string, val interface{}) error {
 		return fmt.Errorf(`field "%s" is undefined`, key)
 	}
 
+	if !v.disabledDependencyManagement && definition.External != "" {
+		def, err := v.FieldDependencyManager.ImportField(definition.External, key)
+		if err != nil {
+			return errors.Wrapf(err, "can't import field (field: %s)", key)
+		}
+		definition = &def
+	}
+
 	// Convert numeric keyword fields to string for validation.
 	_, found := v.numericKeywordFields[key]
 	if (found || v.defaultNumericConversion) && isNumericKeyword(*definition, val) {
@@ -281,14 +289,6 @@ func (v *Validator) parseElementValue(key string, definition FieldDefinition, va
 	val, ok := ensureSingleElementValue(val)
 	if !ok {
 		return nil // it's an array, but it's not possible to extract the single value.
-	}
-
-	if !v.disabledDependencyManagement && definition.External != "" {
-		var err error
-		definition, err = v.FieldDependencyManager.ImportField(definition.External, key)
-		if err != nil {
-			return errors.Wrapf(err, "can't import field (field: %s)", key)
-		}
 	}
 
 	var valid bool
