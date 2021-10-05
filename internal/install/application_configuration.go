@@ -92,15 +92,6 @@ func (ac *ApplicationConfiguration) StackImageRefs(version string) ImageRefs {
 	return refs
 }
 
-// StackImageOverrideRefs function selects the appropriate set of Docker image references for the given stack version, including overriden versions.
-func (ac *ApplicationConfiguration) StackImageOverrideRefs(version string, kibanaRef string) ImageRefs {
-	refs := ac.c.Stack.ImageRefOverridesForVersion(version)
-	refs.ElasticAgent = stringOrDefault(refs.ElasticAgent, fmt.Sprintf("%s:%s", selectElasticAgentImageName(version), version))
-	refs.Elasticsearch = stringOrDefault(refs.Elasticsearch, fmt.Sprintf("%s:%s", elasticsearchImageName, version))
-	refs.Kibana = stringOrDefault(refs.Kibana, kibanaRef)
-	return refs
-}
-
 // selectElasticAgentImageName function returns the appropriate image name for Elastic-Agent depending on the stack version.
 // This is mandatory as "elastic-agent-complete" is available since 7.15.0-SNAPSHOT.
 func selectElasticAgentImageName(version string) string {
