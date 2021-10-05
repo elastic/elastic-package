@@ -35,13 +35,10 @@ type stack struct {
 }
 
 func checkImageRefOverride(envVar string, fallback string) string {
-	logger.Infof("Checking %s, fallback: %s", envVar, fallback)
 	refOverride := os.Getenv(envVar)
 	if refOverride == "" {
 		return fallback
 	}
-
-	logger.Infof("Setting %s %s", envVar, refOverride)
 
 	return refOverride
 }
