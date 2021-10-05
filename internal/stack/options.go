@@ -11,9 +11,6 @@ type Options struct {
 	DaemonMode   bool
 	StackVersion string
 
-	// ref overrides
-	KibanaRefOverride string
-
 	Services []string
 
 	Profile *profile.Profile

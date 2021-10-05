@@ -6,6 +6,7 @@ package stack
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/pkg/errors"
 
@@ -117,11 +118,12 @@ func dockerComposeDown(options Options) error {
 }
 
 func configureImageRefsFromOverride(appConfig *install.ApplicationConfiguration, options Options) install.ImageRefs {
-	if options.KibanaRefOverride == "" {
+	kibanaRefOverride := os.Getenv("KIBANA_IMAGE_REF_OVERRIDE")
+	if kibanaRefOverride == "" {
 		return appConfig.StackImageRefs(options.StackVersion)
 	}
 
-	return appConfig.StackImageOverrideRefs(options.StackVersion, options.KibanaRefOverride)
+	return appConfig.StackImageOverrideRefs(options.StackVersion, kibanaRefOverride)
 }
 
 func withDependentServices(services []string) []string {
