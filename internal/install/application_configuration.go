@@ -49,7 +49,7 @@ func checkImageRefOverride(envVar string, fallback string) string {
 func (s stack) ImageRefOverridesForVersion(version string) ImageRefs {
 	refs, ok := s.ImageRefOverrides[version]
 
-	kibanaRefOverride := checkImageRefOverride("KIBANA_IMAGE_REF_OVERRIDE", refs.Kibana)
+	kibanaRefOverride := checkImageRefOverride("KIBANA_IMAGE_REF_OVERRIDE", DefaultKibanaRef)
 
 	if !ok {
 		return ImageRefs{
