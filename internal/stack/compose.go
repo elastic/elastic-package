@@ -6,7 +6,6 @@ package stack
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/pkg/errors"
 
@@ -26,10 +25,8 @@ func dockerComposeBuild(options Options) error {
 		return errors.Wrap(err, "can't read application configuration")
 	}
 
-	stackImageRefs := configureImageRefsFromOverride(appConfig, options)
-
 	opts := compose.CommandOptions{
-		Env:      append(stackImageRefs.AsEnv(), options.Profile.ComposeEnvVars()...),
+		Env:      append(appConfig.StackImageRefs(options.StackVersion).AsEnv(), options.Profile.ComposeEnvVars()...),
 		Services: withIsReadyServices(withDependentServices(options.Services)),
 	}
 
@@ -50,10 +47,8 @@ func dockerComposePull(options Options) error {
 		return errors.Wrap(err, "can't read application configuration")
 	}
 
-	stackImageRefs := configureImageRefsFromOverride(appConfig, options)
-
 	opts := compose.CommandOptions{
-		Env:      append(stackImageRefs.AsEnv(), options.Profile.ComposeEnvVars()...),
+		Env:      append(appConfig.StackImageRefs(options.StackVersion).AsEnv(), options.Profile.ComposeEnvVars()...),
 		Services: withIsReadyServices(withDependentServices(options.Services)),
 	}
 
@@ -79,10 +74,8 @@ func dockerComposeUp(options Options) error {
 		return errors.Wrap(err, "can't read application configuration")
 	}
 
-	stackImageRefs := configureImageRefsFromOverride(appConfig, options)
-
 	opts := compose.CommandOptions{
-		Env:       append(stackImageRefs.AsEnv(), options.Profile.ComposeEnvVars()...),
+		Env:       append(appConfig.StackImageRefs(options.StackVersion).AsEnv(), options.Profile.ComposeEnvVars()...),
 		ExtraArgs: args,
 		Services:  withIsReadyServices(withDependentServices(options.Services)),
 	}
@@ -104,10 +97,8 @@ func dockerComposeDown(options Options) error {
 		return errors.Wrap(err, "can't read application configuration")
 	}
 
-	stackImageRefs := configureImageRefsFromOverride(appConfig, options)
-
 	downOptions := compose.CommandOptions{
-		Env: append(stackImageRefs.AsEnv(), options.Profile.ComposeEnvVars()...),
+		Env: append(appConfig.StackImageRefs(options.StackVersion).AsEnv(), options.Profile.ComposeEnvVars()...),
 		// Remove associated volumes.
 		ExtraArgs: []string{"--volumes"},
 	}
@@ -115,15 +106,6 @@ func dockerComposeDown(options Options) error {
 		return errors.Wrap(err, "running command failed")
 	}
 	return nil
-}
-
-func configureImageRefsFromOverride(appConfig *install.ApplicationConfiguration, options Options) install.ImageRefs {
-	kibanaRefOverride := os.Getenv("KIBANA_IMAGE_REF_OVERRIDE")
-	if kibanaRefOverride == "" {
-		return appConfig.StackImageRefs(options.StackVersion)
-	}
-
-	return appConfig.StackImageOverrideRefs(options.StackVersion, kibanaRefOverride)
 }
 
 func withDependentServices(services []string) []string {

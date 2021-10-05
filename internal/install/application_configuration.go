@@ -34,11 +34,31 @@ type stack struct {
 	ImageRefOverrides map[string]ImageRefs `yaml:"image_ref_overrides"`
 }
 
+func checkImageRefOverride(envVar string, fallback string) string {
+	logger.Infof("Checking %s, fallback: %s", envVar, fallback)
+	refOverride := os.Getenv(envVar)
+	if refOverride == "" {
+		return fallback
+	}
+
+	logger.Infof("Setting %s %s", envVar, refOverride)
+
+	return refOverride
+}
+
 func (s stack) ImageRefOverridesForVersion(version string) ImageRefs {
 	refs, ok := s.ImageRefOverrides[version]
+
+	kibanaRefOverride := checkImageRefOverride("KIBANA_IMAGE_REF_OVERRIDE", refs.Kibana)
+
 	if !ok {
-		return ImageRefs{}
+		return ImageRefs{
+			Kibana: kibanaRefOverride,
+		}
 	}
+
+	refs.Kibana = kibanaRefOverride
+
 	return refs
 }
 
