@@ -72,6 +72,11 @@ func setupStackCommand() *cobraext.Command {
 				return cobraext.FlagParsingError(err, cobraext.StackVersionFlagName)
 			}
 
+			kibanaRefOverride, err := cmd.Flags().GetString(cobraext.KibanaRefFlagName)
+			if err != nil {
+				return cobraext.FlagParsingError(err, cobraext.KibanaRefFlagName)
+			}
+
 			profileName, err := cmd.Flags().GetString(cobraext.ProfileFlagName)
 			if err != nil {
 				return cobraext.FlagParsingError(err, cobraext.ProfileFlagName)
@@ -92,10 +97,11 @@ func setupStackCommand() *cobraext.Command {
 			cmd.Println(`Remember to load stack environment variables using 'eval "$(elastic-package stack shellinit)"'.`)
 
 			err = stack.BootUp(stack.Options{
-				DaemonMode:   daemonMode,
-				StackVersion: stackVersion,
-				Services:     services,
-				Profile:      usrProfile,
+				DaemonMode:        daemonMode,
+				StackVersion:      stackVersion,
+				KibanaRefOverride: kibanaRefOverride,
+				Services:          services,
+				Profile:           usrProfile,
 			})
 			if err != nil {
 				return errors.Wrap(err, "booting up the stack failed")
@@ -109,6 +115,7 @@ func setupStackCommand() *cobraext.Command {
 	upCommand.Flags().StringSliceP(cobraext.StackServicesFlagName, "s", nil,
 		fmt.Sprintf(cobraext.StackServicesFlagDescription, strings.Join(availableServicesAsList(), ",")))
 	upCommand.Flags().StringP(cobraext.StackVersionFlagName, "", install.DefaultStackVersion, cobraext.StackVersionFlagDescription)
+	upCommand.Flags().StringP(cobraext.KibanaRefFlagName, "k", install.DefaultKibanaRef, cobraext.KibanaRefFlagDescription)
 
 	downCommand := &cobra.Command{
 		Use:   "down",
@@ -167,9 +174,15 @@ func setupStackCommand() *cobraext.Command {
 				return cobraext.FlagParsingError(err, cobraext.StackVersionFlagName)
 			}
 
+			kibanaRefOverride, err := cmd.Flags().GetString(cobraext.KibanaRefFlagName)
+			if err != nil {
+				return cobraext.FlagParsingError(err, cobraext.KibanaRefFlagName)
+			}
+
 			err = stack.Update(stack.Options{
-				StackVersion: stackVersion,
-				Profile:      profile,
+				StackVersion:      stackVersion,
+				KibanaRefOverride: kibanaRefOverride,
+				Profile:           profile,
 			})
 			if err != nil {
 				return errors.Wrap(err, "failed updating the stack images")
@@ -180,6 +193,7 @@ func setupStackCommand() *cobraext.Command {
 		},
 	}
 	updateCommand.Flags().StringP(cobraext.StackVersionFlagName, "", install.DefaultStackVersion, cobraext.StackVersionFlagDescription)
+	updateCommand.Flags().StringP(cobraext.KibanaRefFlagName, "k", install.DefaultKibanaRef, cobraext.KibanaRefFlagDescription)
 
 	shellInitCommand := &cobra.Command{
 		Use:   "shellinit",
