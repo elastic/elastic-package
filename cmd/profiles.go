@@ -97,33 +97,46 @@ User profiles are not overwritten on upgrade of elastic-stack, and can be freely
 				return errors.Wrap(err, "error listing all profiles")
 			}
 
-			table := tablewriter.NewWriter(os.Stdout)
-			var profilestable = profileToList(profileList)
+			format, err := cmd.Flags().GetString(cobraext.ProfileFormatFlagName)
+			if err != nil {
+				return cobraext.FlagParsingError(err, cobraext.ProfileFromFlagName)
+			}
 
-			table.SetHeader([]string{"Name", "Date Created", "User", "Version", "Path"})
-			table.SetHeaderColor(
-				twColor(tablewriter.Colors{tablewriter.Bold}),
-				twColor(tablewriter.Colors{tablewriter.Bold}),
-				twColor(tablewriter.Colors{tablewriter.Bold}),
-				twColor(tablewriter.Colors{tablewriter.Bold}),
-				twColor(tablewriter.Colors{tablewriter.Bold}),
-			)
-			table.SetColumnColor(
-				twColor(tablewriter.Colors{tablewriter.Bold, tablewriter.FgCyanColor}),
-				tablewriter.Colors{},
-				tablewriter.Colors{},
-				tablewriter.Colors{},
-				tablewriter.Colors{},
-			)
+			switch format {
+			case "table":
+				table := tablewriter.NewWriter(os.Stdout)
+				var profilestable = profileToList(profileList)
 
-			table.SetAutoMergeCells(false)
-			table.SetRowLine(true)
-			table.AppendBulk(profilestable)
-			table.Render()
+				table.SetHeader([]string{"Name", "Date Created", "User", "Version", "Path"})
+				table.SetHeaderColor(
+					twColor(tablewriter.Colors{tablewriter.Bold}),
+					twColor(tablewriter.Colors{tablewriter.Bold}),
+					twColor(tablewriter.Colors{tablewriter.Bold}),
+					twColor(tablewriter.Colors{tablewriter.Bold}),
+					twColor(tablewriter.Colors{tablewriter.Bold}),
+				)
+				table.SetColumnColor(
+					twColor(tablewriter.Colors{tablewriter.Bold, tablewriter.FgCyanColor}),
+					tablewriter.Colors{},
+					tablewriter.Colors{},
+					tablewriter.Colors{},
+					tablewriter.Colors{},
+				)
 
-			return nil
+				table.SetAutoMergeCells(false)
+				table.SetRowLine(true)
+				table.AppendBulk(profilestable)
+				table.Render()
+
+				return nil
+			case "json":
+				return errors.New("json not implemented yet")
+			}
+
+			return errors.New("format " + format + " not supported")
 		},
 	}
+	profileListCommand.Flags().String(cobraext.ProfileFormatFlagName, "table", cobraext.ProfileFormatFlagDescription)
 
 	profileCommand.AddCommand(profileNewCommand, profileDeleteCommand, profileListCommand)
 

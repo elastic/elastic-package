@@ -45,6 +45,9 @@ const (
 	ProfileFromFlagName        = "from"
 	ProfileFromFlagDescription = "copy profile from the specified existing profile"
 
+	ProfileFormatFlagName        = "format"
+	ProfileFormatFlagDescription = "format of the profiles list (table | json)"
+
 	NewestOnlyFlagName        = "newest-only"
 	NewestOnlyFlagDescription = "promote newest packages and remove old ones"
 
