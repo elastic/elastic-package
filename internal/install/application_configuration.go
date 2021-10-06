@@ -48,7 +48,7 @@ func (s stack) ImageRefOverridesForVersion(version string) ImageRefs {
 
 	elasticAgentRefOverride := checkImageRefOverride("ELASTIC_AGENT_IMAGE_REF_OVERRIDE", DefaultStackVersion)
 	elasticsearchRefOverride := checkImageRefOverride("ELASTICSEARCH_IMAGE_REF_OVERRIDE", DefaultStackVersion)
-	kibanaRefOverride := checkImageRefOverride("KIBANA_IMAGE_REF_OVERRIDE", DefaultKibanaRef)
+	kibanaRefOverride := checkImageRefOverride("KIBANA_IMAGE_REF_OVERRIDE", fmt.Sprintf("%s:%s", kibanaImageName, DefaultStackVersion))
 
 	if !ok {
 		return ImageRefs{

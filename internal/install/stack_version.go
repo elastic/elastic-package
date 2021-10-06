@@ -7,7 +7,4 @@ package install
 const (
 	// DefaultStackVersion is the default version of the stack
 	DefaultStackVersion = "7.15.0-SNAPSHOT"
-
-	// DefaultKibanaRef is the default ref of kibana
-	DefaultKibanaRef = "docker.elastic.co/kibana/kibana:" + DefaultStackVersion
 )
