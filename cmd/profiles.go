@@ -119,7 +119,7 @@ User profiles are not overwritten on upgrade of elastic-stack, and can be freely
 			}
 		},
 	}
-	profileListCommand.Flags().String(cobraext.ProfileFormatFlagName, "table", cobraext.ProfileFormatFlagDescription)
+	profileListCommand.Flags().String(cobraext.ProfileFormatFlagName, tableFormat, cobraext.ProfileFormatFlagDescription)
 
 	profileCommand.AddCommand(profileNewCommand, profileDeleteCommand, profileListCommand)
 
