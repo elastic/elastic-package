@@ -111,38 +111,9 @@ User profiles are not overwritten on upgrade of elastic-stack, and can be freely
 
 			switch format {
 			case tableFormat:
-				table := tablewriter.NewWriter(os.Stdout)
-				var profilestable = profileToList(profileList)
-
-				table.SetHeader([]string{"Name", "Date Created", "User", "Version", "Path"})
-				table.SetHeaderColor(
-					twColor(tablewriter.Colors{tablewriter.Bold}),
-					twColor(tablewriter.Colors{tablewriter.Bold}),
-					twColor(tablewriter.Colors{tablewriter.Bold}),
-					twColor(tablewriter.Colors{tablewriter.Bold}),
-					twColor(tablewriter.Colors{tablewriter.Bold}),
-				)
-				table.SetColumnColor(
-					twColor(tablewriter.Colors{tablewriter.Bold, tablewriter.FgCyanColor}),
-					tablewriter.Colors{},
-					tablewriter.Colors{},
-					tablewriter.Colors{},
-					tablewriter.Colors{},
-				)
-
-				table.SetAutoMergeCells(false)
-				table.SetRowLine(true)
-				table.AppendBulk(profilestable)
-				table.Render()
-
-				return nil
+				return formatTable(profileList)
 			case jsonFormat:
-				data, err := json.Marshal(profileList)
-				if err != nil {
-					return errors.Wrap(err, "error listing all profiles in JSON format")
-				}
-				fmt.Print(string(data))
-				return nil
+				return formatJSON(profileList)
 			default:
 				return fmt.Errorf("format %s not supported", format)
 			}
@@ -154,6 +125,45 @@ User profiles are not overwritten on upgrade of elastic-stack, and can be freely
 
 	return cobraext.NewCommand(profileCommand, cobraext.ContextGlobal)
 
+}
+
+func formatJSON(profileList []profile.Metadata) error {
+	data, err := json.Marshal(profileList)
+	if err != nil {
+		return errors.Wrap(err, "error listing all profiles in JSON format")
+	}
+
+	fmt.Print(string(data))
+
+	return nil
+}
+
+func formatTable(profileList []profile.Metadata) error {
+	table := tablewriter.NewWriter(os.Stdout)
+	var profilestable = profileToList(profileList)
+
+	table.SetHeader([]string{"Name", "Date Created", "User", "Version", "Path"})
+	table.SetHeaderColor(
+		twColor(tablewriter.Colors{tablewriter.Bold}),
+		twColor(tablewriter.Colors{tablewriter.Bold}),
+		twColor(tablewriter.Colors{tablewriter.Bold}),
+		twColor(tablewriter.Colors{tablewriter.Bold}),
+		twColor(tablewriter.Colors{tablewriter.Bold}),
+	)
+	table.SetColumnColor(
+		twColor(tablewriter.Colors{tablewriter.Bold, tablewriter.FgCyanColor}),
+		tablewriter.Colors{},
+		tablewriter.Colors{},
+		tablewriter.Colors{},
+		tablewriter.Colors{},
+	)
+
+	table.SetAutoMergeCells(false)
+	table.SetRowLine(true)
+	table.AppendBulk(profilestable)
+	table.Render()
+
+	return nil
 }
 
 func profileToList(profiles []profile.Metadata) [][]string {
