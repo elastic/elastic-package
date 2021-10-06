@@ -5,6 +5,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"time"
@@ -130,7 +131,12 @@ User profiles are not overwritten on upgrade of elastic-stack, and can be freely
 
 				return nil
 			case "json":
-				return errors.New("json not implemented yet")
+				data, err := json.Marshal(profileList)
+				if err != nil {
+					return errors.Wrap(err, "error listing all profiles in JSON format")
+				}
+				fmt.Print(string(data))
+				return nil
 			}
 
 			return errors.New("format " + format + " not supported")
