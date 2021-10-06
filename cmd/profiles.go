@@ -140,7 +140,7 @@ func formatJSON(profileList []profile.Metadata) error {
 
 func formatTable(profileList []profile.Metadata) error {
 	table := tablewriter.NewWriter(os.Stdout)
-	var profilestable = profileToList(profileList)
+	var profilesTable = profileToList(profileList)
 
 	table.SetHeader([]string{"Name", "Date Created", "User", "Version", "Path"})
 	table.SetHeaderColor(
@@ -160,7 +160,7 @@ func formatTable(profileList []profile.Metadata) error {
 
 	table.SetAutoMergeCells(false)
 	table.SetRowLine(true)
-	table.AppendBulk(profilestable)
+	table.AppendBulk(profilesTable)
 	table.Render()
 
 	return nil
