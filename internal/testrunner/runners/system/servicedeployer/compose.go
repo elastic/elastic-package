@@ -156,6 +156,13 @@ func (s *dockerComposeDeployedService) TearDown() error {
 		return errors.Wrap(err, "could not create Docker Compose project for service")
 	}
 
+	containerLogs, err := p.Logs(compose.CommandOptions{
+		Env: append(
+			[]string{fmt.Sprintf("%s=%s", serviceLogsDirEnv, s.ctxt.Logs.Folder.Local)},
+			s.sv.Env...),
+	})
+	s.processServiceContainerLogs(containerLogs, err)
+
 	if err := p.Down(compose.CommandOptions{
 		Env: append(
 			[]string{fmt.Sprintf("%s=%s", serviceLogsDirEnv, s.ctxt.Logs.Folder.Local)},
@@ -164,13 +171,6 @@ func (s *dockerComposeDeployedService) TearDown() error {
 	}); err != nil {
 		return errors.Wrap(err, "could not shut down service using Docker Compose")
 	}
-
-	containerLogs, err := p.Logs(compose.CommandOptions{
-		Env: append(
-			[]string{fmt.Sprintf("%s=%s", serviceLogsDirEnv, s.ctxt.Logs.Folder.Local)},
-			s.sv.Env...),
-	})
-	s.processServiceContainerLogs(containerLogs, err)
 	return nil
 }
 
@@ -192,7 +192,7 @@ func (s *dockerComposeDeployedService) processServiceContainerLogs(content []byt
 	}
 
 	if len(content) == 0 {
-		logger.Debugf("service container hasn't written anything logs.")
+		logger.Info("service container hasn't written anything logs.")
 		return
 	}
 
