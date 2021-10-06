@@ -34,11 +34,34 @@ type stack struct {
 	ImageRefOverrides map[string]ImageRefs `yaml:"image_ref_overrides"`
 }
 
+func checkImageRefOverride(envVar string, fallback string) string {
+	refOverride := os.Getenv(envVar)
+	if refOverride == "" {
+		return fallback
+	}
+
+	return refOverride
+}
+
 func (s stack) ImageRefOverridesForVersion(version string) ImageRefs {
 	refs, ok := s.ImageRefOverrides[version]
+
+	elasticAgentRefOverride := checkImageRefOverride("ELASTIC_AGENT_IMAGE_REF_OVERRIDE", fmt.Sprintf("%s:%s", elasticAgentImageName, DefaultStackVersion))
+	elasticsearchRefOverride := checkImageRefOverride("ELASTICSEARCH_IMAGE_REF_OVERRIDE", fmt.Sprintf("%s:%s", elasticsearchImageName, DefaultStackVersion))
+	kibanaRefOverride := checkImageRefOverride("KIBANA_IMAGE_REF_OVERRIDE", fmt.Sprintf("%s:%s", kibanaImageName, DefaultStackVersion))
+
 	if !ok {
-		return ImageRefs{}
+		return ImageRefs{
+			ElasticAgent:  elasticAgentRefOverride,
+			Elasticsearch: elasticsearchRefOverride,
+			Kibana:        kibanaRefOverride,
+		}
 	}
+
+	refs.ElasticAgent = elasticAgentRefOverride
+	refs.Elasticsearch = elasticsearchRefOverride
+	refs.Kibana = kibanaRefOverride
+
 	return refs
 }
 
