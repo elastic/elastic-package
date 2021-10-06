@@ -46,8 +46,8 @@ func checkImageRefOverride(envVar string, fallback string) string {
 func (s stack) ImageRefOverridesForVersion(version string) ImageRefs {
 	refs, ok := s.ImageRefOverrides[version]
 
-	elasticAgentRefOverride := checkImageRefOverride("ELASTIC_AGENT_IMAGE_REF_OVERRIDE", DefaultStackVersion)
-	elasticsearchRefOverride := checkImageRefOverride("ELASTICSEARCH_IMAGE_REF_OVERRIDE", DefaultStackVersion)
+	elasticAgentRefOverride := checkImageRefOverride("ELASTIC_AGENT_IMAGE_REF_OVERRIDE", fmt.Sprintf("%s:%s", elasticAgentImageName, DefaultStackVersion))
+	elasticsearchRefOverride := checkImageRefOverride("ELASTICSEARCH_IMAGE_REF_OVERRIDE", fmt.Sprintf("%s:%s", elasticsearchImageName, DefaultStackVersion))
 	kibanaRefOverride := checkImageRefOverride("KIBANA_IMAGE_REF_OVERRIDE", fmt.Sprintf("%s:%s", kibanaImageName, DefaultStackVersion))
 
 	if !ok {
