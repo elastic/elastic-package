@@ -124,7 +124,6 @@ User profiles are not overwritten on upgrade of elastic-stack, and can be freely
 	profileCommand.AddCommand(profileNewCommand, profileDeleteCommand, profileListCommand)
 
 	return cobraext.NewCommand(profileCommand, cobraext.ContextGlobal)
-
 }
 
 func formatJSON(profileList []profile.Metadata) error {
