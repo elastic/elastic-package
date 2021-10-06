@@ -143,9 +143,9 @@ User profiles are not overwritten on upgrade of elastic-stack, and can be freely
 				}
 				fmt.Print(string(data))
 				return nil
+			default:
+				return fmt.Errorf("format %s not supported", format)
 			}
-
-			return fmt.Errorf("format %s not supported", format)
 		},
 	}
 	profileListCommand.Flags().String(cobraext.ProfileFormatFlagName, "table", cobraext.ProfileFormatFlagDescription)
