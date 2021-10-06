@@ -19,6 +19,12 @@ import (
 	"github.com/elastic/elastic-package/internal/profile"
 )
 
+// jsonFormat is the format for JSON output
+const jsonFormat = "json"
+
+// tableFormat is the format for table output
+const tableFormat = "table"
+
 // profileNameEnvVar is the name of the environment variable to set the default profile
 const profileNameEnvVar = "ELASTIC_PACKAGE_PROFILE"
 
@@ -104,7 +110,7 @@ User profiles are not overwritten on upgrade of elastic-stack, and can be freely
 			}
 
 			switch format {
-			case "table":
+			case tableFormat:
 				table := tablewriter.NewWriter(os.Stdout)
 				var profilestable = profileToList(profileList)
 
@@ -130,7 +136,7 @@ User profiles are not overwritten on upgrade of elastic-stack, and can be freely
 				table.Render()
 
 				return nil
-			case "json":
+			case jsonFormat:
 				data, err := json.Marshal(profileList)
 				if err != nil {
 					return errors.Wrap(err, "error listing all profiles in JSON format")
