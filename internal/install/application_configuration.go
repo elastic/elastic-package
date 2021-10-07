@@ -34,35 +34,18 @@ type stack struct {
 	ImageRefOverrides map[string]ImageRefs `yaml:"image_ref_overrides"`
 }
 
-func checkImageRefOverride(envVar string, fallback string) string {
+func checkImageRefOverride(envVar, fallback string) string {
 	refOverride := os.Getenv(envVar)
-	if refOverride == "" {
-		return fallback
-	}
-
-	return refOverride
+	return stringOrDefault(refOverride, fallback)
 }
 
 func (s stack) ImageRefOverridesForVersion(version string) ImageRefs {
-	refs, ok := s.ImageRefOverrides[version]
-
-	elasticAgentRefOverride := checkImageRefOverride("ELASTIC_AGENT_IMAGE_REF_OVERRIDE", fmt.Sprintf("%s:%s", elasticAgentImageName, DefaultStackVersion))
-	elasticsearchRefOverride := checkImageRefOverride("ELASTICSEARCH_IMAGE_REF_OVERRIDE", fmt.Sprintf("%s:%s", elasticsearchImageName, DefaultStackVersion))
-	kibanaRefOverride := checkImageRefOverride("KIBANA_IMAGE_REF_OVERRIDE", fmt.Sprintf("%s:%s", kibanaImageName, DefaultStackVersion))
-
-	if !ok {
-		return ImageRefs{
-			ElasticAgent:  elasticAgentRefOverride,
-			Elasticsearch: elasticsearchRefOverride,
-			Kibana:        kibanaRefOverride,
-		}
+	appConfigImageRefs := s.ImageRefOverrides[version]
+	return ImageRefs{
+		ElasticAgent:  checkImageRefOverride("ELASTIC_AGENT_IMAGE_REF_OVERRIDE", stringOrDefault(appConfigImageRefs.ElasticAgent, "")),
+		Elasticsearch: checkImageRefOverride("ELASTICSEARCH_IMAGE_REF_OVERRIDE", stringOrDefault(appConfigImageRefs.Elasticsearch, "")),
+		Kibana:        checkImageRefOverride("KIBANA_IMAGE_REF_OVERRIDE", stringOrDefault(appConfigImageRefs.Kibana, "")),
 	}
-
-	refs.ElasticAgent = elasticAgentRefOverride
-	refs.Elasticsearch = elasticsearchRefOverride
-	refs.Kibana = kibanaRefOverride
-
-	return refs
 }
 
 // ImageRefs stores Docker image references used to create the Elastic stack containers.
