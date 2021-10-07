@@ -6,9 +6,14 @@ package servicedeployer
 
 import (
 	"fmt"
+	"io/ioutil"
+	"os"
+	"path/filepath"
+	"time"
 
 	"github.com/pkg/errors"
 
+	"github.com/elastic/elastic-package/internal/builder"
 	"github.com/elastic/elastic-package/internal/compose"
 	"github.com/elastic/elastic-package/internal/docker"
 	"github.com/elastic/elastic-package/internal/files"
@@ -151,15 +156,19 @@ func (s *dockerComposeDeployedService) TearDown() error {
 		return errors.Wrap(err, "could not create Docker Compose project for service")
 	}
 
-	downOptions := compose.CommandOptions{
+	containerLogs, err := p.Logs(compose.CommandOptions{
 		Env: append(
 			[]string{fmt.Sprintf("%s=%s", serviceLogsDirEnv, s.ctxt.Logs.Folder.Local)},
 			s.sv.Env...),
+	})
+	s.processServiceContainerLogs(containerLogs, err)
 
-		// Remove associated volumes.
-		ExtraArgs: []string{"--volumes"},
-	}
-	if err := p.Down(downOptions); err != nil {
+	if err := p.Down(compose.CommandOptions{
+		Env: append(
+			[]string{fmt.Sprintf("%s=%s", serviceLogsDirEnv, s.ctxt.Logs.Folder.Local)},
+			s.sv.Env...),
+		ExtraArgs: []string{"--volumes"}, // Remove associated volumes.
+	}); err != nil {
 		return errors.Wrap(err, "could not shut down service using Docker Compose")
 	}
 	return nil
@@ -173,5 +182,43 @@ func (s *dockerComposeDeployedService) Context() ServiceContext {
 // SetContext sets the current context for the service.
 func (s *dockerComposeDeployedService) SetContext(ctxt ServiceContext) error {
 	s.ctxt = ctxt
+	return nil
+}
+
+func (s *dockerComposeDeployedService) processServiceContainerLogs(content []byte, err error) {
+	if err != nil {
+		logger.Errorf("can't export service container logs: %v", err)
+		return
+	}
+
+	if len(content) == 0 {
+		logger.Info("service container hasn't written anything logs.")
+		return
+	}
+
+	err = s.writeServiceContainerLogs(content)
+	if err != nil {
+		logger.Errorf("can't write service container logs: %v", err)
+	}
+}
+
+func (s *dockerComposeDeployedService) writeServiceContainerLogs(content []byte) error {
+	buildDir, err := builder.BuildDirectory()
+	if err != nil {
+		return errors.Wrap(err, "locating build directory failed")
+	}
+
+	containerLogsDir := filepath.Join(buildDir, "container-logs")
+	err = os.MkdirAll(containerLogsDir, 0755)
+	if err != nil {
+		return errors.Wrapf(err, "can't create directory for service container logs (path: %s)", containerLogsDir)
+	}
+
+	containerLogsFilepath := filepath.Join(containerLogsDir, fmt.Sprintf("%s-%d.log", s.ctxt.Name, time.Now().UnixNano()))
+	logger.Infof("Write container logs to file: %s", containerLogsFilepath)
+	err = ioutil.WriteFile(containerLogsFilepath, content, 0644)
+	if err != nil {
+		return errors.Wrapf(err, "can't write container logs to file (path: %s)", containerLogsFilepath)
+	}
 	return nil
 }
