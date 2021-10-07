@@ -36,26 +36,15 @@ type stack struct {
 
 func checkImageRefOverride(envVar, fallback string) string {
 	refOverride := os.Getenv(envVar)
-	if refOverride == "" {
-		return fallback
-	}
-	return refOverride
+	return stringOrDefault(refOverride, fallback)
 }
 
 func (s stack) ImageRefOverridesForVersion(version string) ImageRefs {
-	appConfigImageRefs, ok := s.ImageRefOverrides[version]
-	if ok {
-		return ImageRefs{
-			ElasticAgent:  checkImageRefOverride("ELASTIC_AGENT_IMAGE_REF_OVERRIDE", appConfigImageRefs.ElasticAgent),
-			Elasticsearch: checkImageRefOverride("ELASTICSEARCH_IMAGE_REF_OVERRIDE", appConfigImageRefs.Elasticsearch),
-			Kibana:        checkImageRefOverride("KIBANA_IMAGE_REF_OVERRIDE", appConfigImageRefs.Kibana),
-		}
-	}
-
+	appConfigImageRefs := s.ImageRefOverrides[version]
 	return ImageRefs{
-		ElasticAgent:  checkImageRefOverride("ELASTIC_AGENT_IMAGE_REF_OVERRIDE", ""),
-		Elasticsearch: checkImageRefOverride("ELASTICSEARCH_IMAGE_REF_OVERRIDE", ""),
-		Kibana:        checkImageRefOverride("KIBANA_IMAGE_REF_OVERRIDE", ""),
+		ElasticAgent:  checkImageRefOverride("ELASTIC_AGENT_IMAGE_REF_OVERRIDE", stringOrDefault(appConfigImageRefs.ElasticAgent, "")),
+		Elasticsearch: checkImageRefOverride("ELASTICSEARCH_IMAGE_REF_OVERRIDE", stringOrDefault(appConfigImageRefs.Elasticsearch, "")),
+		Kibana:        checkImageRefOverride("KIBANA_IMAGE_REF_OVERRIDE", stringOrDefault(appConfigImageRefs.Kibana, "")),
 	}
 }
 
