@@ -100,7 +100,7 @@ func dockerComposeDown(options Options) error {
 	downOptions := compose.CommandOptions{
 		Env: append(appConfig.StackImageRefs(options.StackVersion).AsEnv(), options.Profile.ComposeEnvVars()...),
 		// Remove associated volumes.
-		ExtraArgs: []string{"--volumes"},
+		ExtraArgs: []string{"--volumes", "--remove-orphans"},
 	}
 	if err := c.Down(downOptions); err != nil {
 		return errors.Wrap(err, "running command failed")
