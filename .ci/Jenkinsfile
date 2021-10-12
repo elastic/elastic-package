@@ -215,7 +215,9 @@ def withKubernetes(Closure body) {
        chmod +x ${HOME}/bin/kubectl
        kubectl version --client
        ''') }
-    body()
+    withEnv(["PATH+TOOLS=${HOME}/bin"]) {
+      body()
+    }
 }
 
 def withCloudTestEnv(Closure body) {
