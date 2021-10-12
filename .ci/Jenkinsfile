@@ -51,8 +51,8 @@ pipeline {
         stage('Check') {
           steps {
             cleanup()
-            withMageEnv(){
-              dir("${BASE_DIR}"){
+            dir("${BASE_DIR}"){
+              withMageEnv(){
                 sh(label: 'Check',script: 'make check-static')
               }
             }
@@ -64,8 +64,8 @@ pipeline {
         stage('Unit tests') {
           steps {
             cleanup()
-            withMageEnv(){
-              dir("${BASE_DIR}"){
+            dir("${BASE_DIR}"){
+              withMageEnv(){
                 sh(label: 'Check',script: 'make test-go-ci')
               }
             }
@@ -105,9 +105,9 @@ pipeline {
             tag pattern: '(v)?\\d+\\.\\d+\\.\\d+', comparator: 'REGEXP'
           }
           steps {
-            withMageEnv(){
-              withCredentials([string(credentialsId: "${GITHUB_TOKEN_CREDENTIALS}", variable: 'GITHUB_TOKEN')]) {
-                dir("${BASE_DIR}") {
+            dir("${BASE_DIR}"){
+              withMageEnv(){
+                withCredentials([string(credentialsId: "${GITHUB_TOKEN_CREDENTIALS}", variable: 'GITHUB_TOKEN')]) {
                   sh 'curl -sL https://git.io/goreleaser | bash'
                 }
               }
@@ -144,10 +144,10 @@ def generateTestCommandStage(Map args = [:]){
     withNode(labels: "ubuntu-18 && immutable", sleepMax: 20, forceWorkspace: true) {
       cleanup()
       try {
-        withMageEnv(){
-          withKubernetes() {
-            withCloudTestEnv() {
-              dir("${BASE_DIR}"){
+        dir("${BASE_DIR}"){
+          withMageEnv(){
+            withKubernetes() {
+              withCloudTestEnv() {
                 sh(label: 'Check',script: "make build ${command} check-git-clean")
               }
             }
@@ -215,7 +215,9 @@ def withKubernetes(Closure body) {
        chmod +x ${HOME}/bin/kubectl
        kubectl version --client
        ''') }
-    body()
+    withEnv(["PATH+TOOLS=${HOME}/bin"]) {
+      body()
+    }
 }
 
 def withCloudTestEnv(Closure body) {
