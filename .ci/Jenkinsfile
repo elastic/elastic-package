@@ -145,9 +145,9 @@ def generateTestCommandStage(Map args = [:]){
       cleanup()
       try {
         dir("${BASE_DIR}"){
-          withKubernetes() {
-            withCloudTestEnv() {
-              withMageEnv(){
+          withMageEnv(){
+            withKubernetes() {
+              withCloudTestEnv() {
                 sh(label: 'Check',script: "make build ${command} check-git-clean")
               }
             }
