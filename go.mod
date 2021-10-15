@@ -32,7 +32,7 @@ require (
 	golang.org/x/oauth2 v0.0.0-20210402161424-2e8d93401602
 	golang.org/x/tools v0.1.7
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
-	helm.sh/helm/v3 v3.7.0
+	helm.sh/helm/v3 v3.7.1
 	honnef.co/go/tools v0.2.1
 	k8s.io/apimachinery v0.22.2
 	k8s.io/cli-runtime v0.22.2
