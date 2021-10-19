@@ -6,6 +6,7 @@ vars:
 data_stream:
   vars:
     period: 60s
+    latency: 10m
     tags_filter: |-
       - key: Name
         value: "elastic-package-test-{{TEST_RUN_ID}}"
