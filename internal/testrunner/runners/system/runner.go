@@ -47,6 +47,8 @@ const (
 	// ServiceLogsAgentDir is folder path where log files produced by the service
 	// are stored on the Agent container's filesystem.
 	ServiceLogsAgentDir = "/tmp/service_logs"
+
+	waitForDataDefaultTimeout = 10 * time.Minute
 )
 
 type runner struct {
@@ -407,6 +409,12 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 		}
 	}
 
+	// Use custom timeout if the service can't collect data immediately.
+	waitForDataTimeout := waitForDataDefaultTimeout
+	if config.WaitForDataTimeout > 0 {
+		waitForDataTimeout = config.WaitForDataTimeout
+	}
+
 	// (TODO in future) Optionally exercise service to generate load.
 	logger.Debug("checking for expected data in data stream...")
 	var docs []common.MapStr
@@ -418,7 +426,7 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 		var err error
 		docs, err = r.getDocs(dataStream)
 		return len(docs) > 0, err
-	}, 10*time.Minute)
+	}, waitForDataTimeout)
 
 	if err != nil {
 		return result.WithError(err)

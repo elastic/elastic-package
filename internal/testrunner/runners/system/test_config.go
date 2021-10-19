@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/aymerick/raymond"
 	"github.com/pkg/errors"
@@ -26,9 +27,10 @@ var systemTestConfigFilePattern = regexp.MustCompile(`^test-([a-z0-9_.-]+)-confi
 type testConfig struct {
 	testrunner.SkippableConfig `config:",inline"`
 
-	Input               string `config:"input"`
-	Service             string `config:"service"`
-	ServiceNotifySignal string `config:"service_notify_signal"` // Signal to send when the agent policy is applied.
+	Input               string        `config:"input"`
+	Service             string        `config:"service"`
+	ServiceNotifySignal string        `config:"service_notify_signal"` // Signal to send when the agent policy is applied.
+	WaitForDataTimeout  time.Duration `config:"wait_for_data_timeout"`
 
 	Vars       map[string]packages.VarValue `config:"vars"`
 	DataStream struct {
