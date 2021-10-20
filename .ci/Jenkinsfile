@@ -54,6 +54,7 @@ pipeline {
             dir("${BASE_DIR}"){
               withMageEnv(){
                 sh(label: 'Check',script: 'make check-static')
+                preCommit(commit: "${GIT_BASE_COMMIT}", junit: true)
               }
             }
           }
