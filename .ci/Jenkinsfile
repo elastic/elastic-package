@@ -54,6 +54,8 @@ pipeline {
             dir("${BASE_DIR}"){
               withMageEnv(){
                 sh(label: 'Check',script: 'make check-static')
+              }
+              withMageEnv(pkgs: ["golang.org/x/lint/golint", "github.com/golangci/golangci-lint/cmd/golangci-lint"]){
                 preCommit(commit: "${GIT_BASE_COMMIT}", junit: true)
               }
             }
