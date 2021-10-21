@@ -7,6 +7,7 @@ package files
 import (
 	"compress/flate"
 	"os"
+	"path/filepath"
 
 	"github.com/elastic/elastic-package/internal/logger"
 
@@ -18,23 +19,38 @@ import (
 func Zip(sourcePath, destinationFile string) error {
 	logger.Debugf("Compress using archiver.Zip (destination: %s)", destinationFile)
 
-	logger.Debugf("Remove old .zip artifact first (destination: %s)", destinationFile)
-	err := os.Remove(destinationFile)
-	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return errors.Wrap(err, "can't remove old .zip artifact")
-	}
-
 	z := archiver.Zip{
 		CompressionLevel:       flate.DefaultCompression,
-		MkdirAll:               true,
+		MkdirAll:               false,
 		SelectiveCompression:   true,
 		ContinueOnError:        false,
-		OverwriteExisting:      false,
+		OverwriteExisting:      true,
 		ImplicitTopLevelFolder: false,
 	}
-	err = z.Archive([]string{sourcePath}, destinationFile)
+
+	// It's impossible to select the root directory with archiver's options, so to prevent creating a common
+	// root directory ("1.0.1" for "build/integrations/aws/1.0.1"), we need to list all items in the package root.
+	listed, err := listFilesInRoot(sourcePath)
+	if err != nil {
+		return errors.Wrapf(err, "can't list files in root (path: %s)", sourcePath)
+	}
+
+	err = z.Archive(listed, destinationFile)
 	if err != nil {
 		return errors.Wrapf(err, "can't archive source directory (source path: %s)", sourcePath)
 	}
 	return nil
+}
+
+func listFilesInRoot(sourcePath string) ([]string, error) {
+	dirEntries, err := os.ReadDir(sourcePath)
+	if err != nil {
+		return nil, errors.Wrap(err, "can't list source path")
+	}
+
+	var paths []string
+	for _, de := range dirEntries {
+		paths = append(paths, filepath.Join(sourcePath, de.Name()))
+	}
+	return paths, nil
 }
