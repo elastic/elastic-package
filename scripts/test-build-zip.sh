@@ -34,6 +34,9 @@ for d in test/packages/*/; do
 done
 cd -
 
+# Remove unzipped built packages, leave .zip files
+rm -r build/integrations/*/
+
 # Boot up the stack
 elastic-package stack up -d -v --services package-registry
 
