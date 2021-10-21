@@ -80,7 +80,12 @@ func buildPackagesZipPath(packageRoot string) (string, error) {
 	if err != nil {
 		return "", errors.Wrapf(err, "reading package manifest failed (path: %s)", packageRoot)
 	}
-	return filepath.Join(buildDir, fmt.Sprintf("%s-%s.zip", m.Name, m.Version)), nil
+	return ZippedBuiltPackagePath(buildDir, *m), nil
+}
+
+// ZippedBuiltPackagePath function returns the path to zipped built package.
+func ZippedBuiltPackagePath(buildDir string, m packages.PackageManifest) string {
+	return filepath.Join(buildDir, fmt.Sprintf("%s-%s.zip", m.Name, m.Version))
 }
 
 func buildPackagesRootDirectory() (string, error) {
