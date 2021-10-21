@@ -66,6 +66,9 @@ func findBuildDirectory() (string, bool, error) {
 // BuildPackagesDirectory function locates the target build directory for the package.
 func BuildPackagesDirectory(packageRoot string) (string, error) {
 	buildDir, err := buildPackagesRootDirectory()
+	if err != nil {
+		return "", errors.Wrap(err, "can't locate build packages root directory")
+	}
 	m, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
 	if err != nil {
 		return "", errors.Wrapf(err, "reading package manifest failed (path: %s)", packageRoot)
@@ -76,6 +79,9 @@ func BuildPackagesDirectory(packageRoot string) (string, error) {
 // buildPackagesZipPath function locates the target zipped package path.
 func buildPackagesZipPath(packageRoot string) (string, error) {
 	buildDir, err := buildPackagesRootDirectory()
+	if err != nil {
+		return "", errors.Wrap(err, "can't locate build packages root directory")
+	}
 	m, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
 	if err != nil {
 		return "", errors.Wrapf(err, "reading package manifest failed (path: %s)", packageRoot)
