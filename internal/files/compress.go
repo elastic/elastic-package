@@ -4,6 +4,6 @@
 
 package files
 
-func Zip(sourcePath string, destinationFile string) error {
+func Zip(sourcePath, destinationFile string) error {
 	return nil
 }
