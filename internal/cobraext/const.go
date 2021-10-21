@@ -6,6 +6,9 @@ package cobraext
 
 // Flag names and descriptions used by CLI commands.
 const (
+	BuildZipFlagName        = "zip"
+	BuildZipFlagDescription = "archive the built package"
+
 	CheckConditionFlagName        = "check-condition"
 	CheckConditionFlagDescription = "check if the condition is met for the package, but don't install the package (e.g. kibana.version=7.10.0)"
 
