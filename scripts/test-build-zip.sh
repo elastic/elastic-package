@@ -34,9 +34,6 @@ for d in test/packages/*/; do
 done
 cd -
 
-# Update the stack
-elastic-package stack update -v --services package-registry
-
 # Boot up the stack
 elastic-package stack up -d -v --services package-registry
 
