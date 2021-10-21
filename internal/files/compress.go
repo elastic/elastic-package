@@ -7,6 +7,8 @@ package files
 import (
 	"compress/flate"
 
+	"github.com/elastic/elastic-package/internal/logger"
+
 	"github.com/mholt/archiver/v3"
 	"github.com/pkg/errors"
 )
@@ -22,6 +24,7 @@ func Zip(sourcePath, destinationFile string) error {
 		ImplicitTopLevelFolder: false,
 	}
 
+	logger.Debug("Compress using archiver.Zip (destination: %s)", destinationFile)
 	err := z.Archive([]string{sourcePath}, destinationFile)
 	if err != nil {
 		return errors.Wrapf(err, "can't archive source directory (source path: %s)", sourcePath)

@@ -158,6 +158,7 @@ func BuildPackage(options BuildOptions) (string, error) {
 		return destinationDir, nil
 	}
 
+	logger.Debug("Build zipped package")
 	zippedPackagePath, err := buildPackagesZipPath(options.PackageRoot)
 	if err != nil {
 		return "", errors.Wrap(err, "can't evaluate path for the zipped package")
