@@ -40,5 +40,11 @@ rm -r build/integrations/*/
 # Boot up the stack
 elastic-package stack up -d -v --services package-registry
 
+# Install zipped packages
+for d in test/packages/*/; do
+  (
+    cd $d
+    elastic-package install -v
+  )
 cd -
 done
