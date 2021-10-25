@@ -8,6 +8,7 @@ import (
 	"compress/flate"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/elastic/elastic-package/internal/logger"
 
@@ -25,32 +26,34 @@ func Zip(sourcePath, destinationFile string) error {
 		SelectiveCompression:   true,
 		ContinueOnError:        false,
 		OverwriteExisting:      true,
-		ImplicitTopLevelFolder: true,
+		ImplicitTopLevelFolder: false,
 	}
 
-	// It's impossible to select the root directory with archiver's options, so to prevent creating a common
-	// root directory ("1.0.1" for "build/integrations/aws/1.0.1"), we need to list all items in the package root.
-	listed, err := listFilesInRoot(sourcePath)
+	// Create a temporary work directory to properly name the root directory in the archive, e.g. aws-1.0.1
+	tempDir := filepath.Join(os.TempDir(), folderNameFromFileName(destinationFile))
+	os.MkdirAll(tempDir, 0755)
+	defer os.RemoveAll(tempDir)
+
+	logger.Debugf("Create temporary directory for archiving: %s", tempDir)
+	err := CopyAll(sourcePath, tempDir)
 	if err != nil {
-		return errors.Wrapf(err, "can't list files in root (path: %s)", sourcePath)
+		return errors.Wrapf(err, "can't create a temporary work directory (path: %s)", tempDir)
 	}
 
-	err = z.Archive(listed, destinationFile)
+	err = z.Archive([]string{tempDir}, destinationFile)
 	if err != nil {
 		return errors.Wrapf(err, "can't archive source directory (source path: %s)", sourcePath)
 	}
 	return nil
 }
 
-func listFilesInRoot(sourcePath string) ([]string, error) {
-	dirEntries, err := os.ReadDir(sourcePath)
-	if err != nil {
-		return nil, errors.Wrap(err, "can't list source path")
+// folderNameFromFileName returns the folder name from the destination file.
+// Based on mholt/archiver: https://github.com/mholt/archiver/blob/d35d4ce7c5b2411973fb7bd96ca1741eb011011b/archiver.go#L397
+func folderNameFromFileName(filename string) string {
+	base := filepath.Base(filename)
+	firstDot := strings.LastIndex(base, ".")
+	if firstDot > -1 {
+		return base[:firstDot]
 	}
-
-	var paths []string
-	for _, de := range dirEntries {
-		paths = append(paths, filepath.Join(sourcePath, de.Name()))
-	}
-	return paths, nil
+	return base
 }
