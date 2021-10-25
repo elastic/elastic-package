@@ -39,7 +39,7 @@ rm -r build/integrations/*/
 
 # Boot up the stack
 eval "$(elastic-package stack shellinit)"
-elastic-package stack up -d -v --services package-registry
+elastic-package stack up -d -v
 
 # Install zipped packages
 for d in test/packages/*/; do
