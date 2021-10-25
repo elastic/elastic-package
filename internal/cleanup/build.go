@@ -56,5 +56,12 @@ func Build() (string, error) {
 	if err != nil {
 		return "", errors.Wrapf(err, "can't remove directory (path: %s)", destinationDir)
 	}
+
+	zippedBuildPackagePath := builder.ZippedBuiltPackagePath(buildDir, *m)
+	logger.Debugf("Remove zipped built package (path: %s)", zippedBuildPackagePath)
+	err = os.RemoveAll(zippedBuildPackagePath)
+	if err != nil {
+		return "", errors.Wrapf(err, "can't remove zipped built package (path: %s)", zippedBuildPackagePath)
+	}
 	return destinationDir, nil
 }

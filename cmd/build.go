@@ -34,6 +34,7 @@ func setupBuildCommand() *cobraext.Command {
 		Long:  buildLongDescription,
 		RunE:  buildCommandAction,
 	}
+	cmd.Flags().Bool(cobraext.BuildZipFlagName, false, cobraext.BuildZipFlagDescription)
 
 	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
 }
@@ -62,7 +63,11 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 		cmd.Printf("%s file rendered: %s\n", splitTarget[len(splitTarget)-1], target)
 	}
 
-	target, err := builder.BuildPackage(packageRoot)
+	createZip, _ := cmd.Flags().GetBool(cobraext.BuildZipFlagName)
+	target, err := builder.BuildPackage(builder.BuildOptions{
+		PackageRoot: packageRoot,
+		CreateZip:   createZip,
+	})
 	if err != nil {
 		return errors.Wrap(err, "building package failed")
 	}

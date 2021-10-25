@@ -44,10 +44,13 @@ test-stack-command:
 test-check-packages:
 	./scripts/test-check-packages.sh
 
+test-build-zip:
+	./scripts/test-build-zip.sh
+
 test-profiles-command:
 	./scripts/test-profiles-command.sh
 
-test: test-go test-stack-command test-check-packages test-profiles-command
+test: test-go test-stack-command test-check-packages test-profiles-command test-build-zip
 
 check-git-clean:
 	git update-index --really-refresh

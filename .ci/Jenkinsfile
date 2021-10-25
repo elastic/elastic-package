@@ -93,6 +93,7 @@ pipeline {
                   parallel([
                     'stack-command': generateTestCommandStage(command: 'test-stack-command', artifacts: ['build/elastic-stack-dump/stack/logs/*.log', 'build/elastic-stack-dump/stack/logs/fleet-server-internal/*']),
                     'check-packages': generateTestCommandStage(command: 'test-check-packages', artifacts: ['build/test-results/*.xml', 'build/kubectl-dump.txt', 'build/elastic-stack-dump/check/logs/*.log', 'build/elastic-stack-dump/check/logs/fleet-server-internal/*'], junitArtifacts: true, publishCoverage: true),
+                    'build-zip': generateTestCommandStage(command: 'test-build-zip', artifacts: ['build/elastic-stack-dump/build-zip/logs/*.log']),
                     'profiles-command': generateTestCommandStage(command: 'test-profiles-command'),
                   ])
                 }
