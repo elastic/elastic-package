@@ -38,6 +38,7 @@ cd -
 rm -r build/integrations/*/
 
 # Boot up the stack
+eval "$(elastic-package stack shellinit)"
 elastic-package stack up -d -v --services package-registry
 
 # Install zipped packages
