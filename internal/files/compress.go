@@ -25,7 +25,7 @@ func Zip(sourcePath, destinationFile string) error {
 		SelectiveCompression:   true,
 		ContinueOnError:        false,
 		OverwriteExisting:      true,
-		ImplicitTopLevelFolder: false,
+		ImplicitTopLevelFolder: true,
 	}
 
 	// It's impossible to select the root directory with archiver's options, so to prevent creating a common
