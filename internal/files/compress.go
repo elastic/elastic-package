@@ -34,9 +34,9 @@ func Zip(sourcePath, destinationFile string) error {
 	if err != nil {
 		return errors.Wrap(err, "can't prepare a temporary directory")
 	}
+	defer os.RemoveAll(tempDir)
 	workDir := filepath.Join(tempDir, folderNameFromFileName(destinationFile))
 	os.MkdirAll(workDir, 0755)
-	defer os.RemoveAll(tempDir)
 
 	logger.Debugf("Create work directory for archiving: %s", workDir)
 	err = CopyAll(sourcePath, workDir)
