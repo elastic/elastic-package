@@ -30,17 +30,21 @@ func Zip(sourcePath, destinationFile string) error {
 	}
 
 	// Create a temporary work directory to properly name the root directory in the archive, e.g. aws-1.0.1
-	tempDir := filepath.Join(os.TempDir(), folderNameFromFileName(destinationFile))
-	os.MkdirAll(tempDir, 0755)
+	tempDir, err := os.MkdirTemp("", "elastic-package-")
+	if err != nil {
+		return errors.Wrap(err, "can't prepare a temporary directory")
+	}
+	workDir := filepath.Join(tempDir, folderNameFromFileName(destinationFile))
+	os.MkdirAll(workDir, 0755)
 	defer os.RemoveAll(tempDir)
 
-	logger.Debugf("Create temporary directory for archiving: %s", tempDir)
-	err := CopyAll(sourcePath, tempDir)
+	logger.Debugf("Create work directory for archiving: %s", workDir)
+	err = CopyAll(sourcePath, workDir)
 	if err != nil {
-		return errors.Wrapf(err, "can't create a temporary work directory (path: %s)", tempDir)
+		return errors.Wrapf(err, "can't create a work directory (path: %s)", workDir)
 	}
 
-	err = z.Archive([]string{tempDir}, destinationFile)
+	err = z.Archive([]string{workDir}, destinationFile)
 	if err != nil {
 		return errors.Wrapf(err, "can't archive source directory (source path: %s)", sourcePath)
 	}
