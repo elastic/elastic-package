@@ -77,7 +77,7 @@ func newElasticsearchConfig8x(_ string, profilePath string) (*simpleFile, error)
 	return &simpleFile{
 		name: string(ElasticsearchConfig8xFile),
 		path: filepath.Join(profilePath, profileStackPath, string(ElasticsearchConfig8xFile)),
-		body: elasticsearchConfigDefaultYml,
+		body: elasticsearchConfig8xYml,
 	}, nil
 }
 
