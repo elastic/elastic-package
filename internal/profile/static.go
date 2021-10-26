@@ -25,18 +25,31 @@ func newSnapshotFile(_ string, profilePath string) (*simpleFile, error) {
 	}, nil
 }
 
-// KibanaConfigFile is the main kibana config file
-const KibanaConfigFile configFile = "kibana.config.yml"
+// KibanaConfigDefaultFile is the default kibana config file
+const KibanaConfigDefaultFile configFile = "kibana.config.default.yml"
 
-//go:embed _static/kibana_config.yml
-var kibanaConfigYml string
+//go:embed _static/kibana_config_default.yml
+var kibanaConfigDefaultYml string
 
-// newKibanaConfig returns a Managed Config
-func newKibanaConfig(_ string, profilePath string) (*simpleFile, error) {
+func newKibanaConfigDefault(_ string, profilePath string) (*simpleFile, error) {
 	return &simpleFile{
-		name: string(KibanaConfigFile),
-		path: filepath.Join(profilePath, profileStackPath, string(KibanaConfigFile)),
-		body: kibanaConfigYml,
+		name: string(KibanaConfigDefaultFile),
+		path: filepath.Join(profilePath, profileStackPath, string(KibanaConfigDefaultFile)),
+		body: kibanaConfigDefaultYml,
+	}, nil
+}
+
+// KibanaConfig8xFile is the Kibana config file for 8.x stack family
+const KibanaConfig8xFile configFile = "kibana.config.8x.yml"
+
+//go:embed _static/kibana_config_8x.yml
+var kibanaConfig8xYml string
+
+func newKibanaConfig8x(_ string, profilePath string) (*simpleFile, error) {
+	return &simpleFile{
+		name: string(KibanaConfig8xFile),
+		path: filepath.Join(profilePath, profileStackPath, string(KibanaConfig8xFile)),
+		body: kibanaConfig8xYml,
 	}, nil
 }
 

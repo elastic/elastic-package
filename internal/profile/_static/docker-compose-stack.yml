@@ -43,8 +43,8 @@ services:
       retries: 600
       interval: 1s
     volumes:
-      - ./kibana.config.yml:/usr/share/kibana/config/kibana.yml
-      - ../../../stack/healthcheck.sh:/usr/share/kibana/healthcheck.sh
+      - "./kibana.config.${STACK_VERSION_VARIANT}.yml:/usr/share/kibana/config/kibana.yml"
+      - "../../../stack/healthcheck.sh:/usr/share/kibana/healthcheck.sh"
     ports:
       - "127.0.0.1:5601:5601"
 

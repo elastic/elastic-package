@@ -104,7 +104,7 @@ func migrateIfNeeded(elasticPackagePath *locations.LocationManager) error {
 	oldFiles := []string{
 		filepath.Join(elasticPackagePath.StackDir(), string(profile.SnapshotFile)),
 		filepath.Join(elasticPackagePath.StackDir(), string(profile.PackageRegistryDockerfileFile)),
-		filepath.Join(elasticPackagePath.StackDir(), string(profile.KibanaConfigFile)),
+		filepath.Join(elasticPackagePath.StackDir(), string(profile.KibanaConfigDefaultFile)),
 		filepath.Join(elasticPackagePath.StackDir(), string(profile.PackageRegistryConfigFile)),
 	}
 
