@@ -241,7 +241,7 @@ func (profile Profile) localFilesChanged() (bool, error) {
 		if cfgName == PackageProfileMetaFile {
 			continue
 		}
-		changes, err := cfgFile.configfilesDiffer()
+		changes, err := cfgFile.configFilesDiffer()
 		if err != nil {
 			return false, errors.Wrap(err, "error checking config file")
 		}
