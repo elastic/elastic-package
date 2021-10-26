@@ -26,6 +26,9 @@ const profileStackPath = "stack"
 // configFilesDiffer checks to see if a local configItem differs from the one it knows.
 func (cfg simpleFile) configFilesDiffer() (bool, error) {
 	changes, err := os.ReadFile(cfg.path)
+	if err != nil && errors.Is(err, os.ErrNotExist) {
+		return false, nil
+	}
 	if err != nil {
 		return false, errors.Wrapf(err, "error reading %s", cfg.path)
 	}
