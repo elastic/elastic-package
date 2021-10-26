@@ -28,7 +28,7 @@ func newSnapshotFile(_ string, profilePath string) (*simpleFile, error) {
 // KibanaConfigFile is the main kibana config file
 const KibanaConfigFile configFile = "kibana.config.yml"
 
-//go:embed _static/kibana_config.yml
+//go:embed _static/kibana_config_default.yml
 var kibanaConfigYml string
 
 // newKibanaConfig returns a Managed Config

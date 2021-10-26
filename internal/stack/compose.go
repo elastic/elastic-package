@@ -14,6 +14,28 @@ import (
 	"github.com/elastic/elastic-package/internal/profile"
 )
 
+type envBuilder struct {
+	vars []string
+}
+
+func newEnvBuilder() *envBuilder {
+	return new(envBuilder)
+}
+
+func (eb *envBuilder) withEnvs(envs []string) *envBuilder {
+	eb.vars = append(eb.vars, envs...)
+	return eb
+}
+
+func (eb *envBuilder) withEnv(env string) *envBuilder {
+	eb.vars = append(eb.vars, env)
+	return eb
+}
+
+func (eb *envBuilder) build() []string {
+	return eb.vars
+}
+
 func dockerComposeBuild(options Options) error {
 	c, err := compose.NewProject(DockerComposeProjectName, options.Profile.FetchPath(profile.SnapshotFile))
 	if err != nil {
@@ -26,7 +48,11 @@ func dockerComposeBuild(options Options) error {
 	}
 
 	opts := compose.CommandOptions{
-		Env:      append(appConfig.StackImageRefs(options.StackVersion).AsEnv(), options.Profile.ComposeEnvVars()...),
+		Env: newEnvBuilder().
+			withEnvs(appConfig.StackImageRefs(options.StackVersion).AsEnv()).
+			withEnv(selectStackVersion(options.StackVersion)).
+			withEnvs(options.Profile.ComposeEnvVars()).
+			build(),
 		Services: withIsReadyServices(withDependentServices(options.Services)),
 	}
 
@@ -48,7 +74,11 @@ func dockerComposePull(options Options) error {
 	}
 
 	opts := compose.CommandOptions{
-		Env:      append(appConfig.StackImageRefs(options.StackVersion).AsEnv(), options.Profile.ComposeEnvVars()...),
+		Env: newEnvBuilder().
+			withEnvs(appConfig.StackImageRefs(options.StackVersion).AsEnv()).
+			withEnv(selectStackVersion(options.StackVersion)).
+			withEnvs(options.Profile.ComposeEnvVars()).
+			build(),
 		Services: withIsReadyServices(withDependentServices(options.Services)),
 	}
 
@@ -75,7 +105,11 @@ func dockerComposeUp(options Options) error {
 	}
 
 	opts := compose.CommandOptions{
-		Env:       append(appConfig.StackImageRefs(options.StackVersion).AsEnv(), options.Profile.ComposeEnvVars()...),
+		Env: newEnvBuilder().
+			withEnvs(appConfig.StackImageRefs(options.StackVersion).AsEnv()).
+			withEnv(selectStackVersion(options.StackVersion)).
+			withEnvs(options.Profile.ComposeEnvVars()).
+			build(),
 		ExtraArgs: args,
 		Services:  withIsReadyServices(withDependentServices(options.Services)),
 	}
@@ -98,7 +132,11 @@ func dockerComposeDown(options Options) error {
 	}
 
 	downOptions := compose.CommandOptions{
-		Env: append(appConfig.StackImageRefs(options.StackVersion).AsEnv(), options.Profile.ComposeEnvVars()...),
+		Env: newEnvBuilder().
+			withEnvs(appConfig.StackImageRefs(options.StackVersion).AsEnv()).
+			withEnv(selectStackVersion(options.StackVersion)).
+			withEnvs(options.Profile.ComposeEnvVars()).
+			build(),
 		// Remove associated volumes.
 		ExtraArgs: []string{"--volumes", "--remove-orphans"},
 	}
