@@ -41,13 +41,13 @@ test-go-ci:
 test-stack-command-default:
 	./scripts/test-stack-command.sh
 
-test-stack-command-lts:
+test-stack-command-7x:
 	./scripts/test-stack-command.sh 7.16.0-SNAPSHOT
 
 test-stack-command-8x:
 	./scripts/test-stack-command.sh 8.0.0-SNAPSHOT
 
-test-stack-command: test-stack-command-default test-stack-command-lts test-stack-command-8x
+test-stack-command: test-stack-command-default test-stack-command-7x test-stack-command-8x
 
 test-check-packages:
 	./scripts/test-check-packages.sh
