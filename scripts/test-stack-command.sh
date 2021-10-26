@@ -2,11 +2,7 @@
 
 set -euxo pipefail
 
-VERSION=${1}
-
-if [ "${VERSION}" == "" ]; then
-  echo "stack version required" && exit 1
-fi
+VERSION=${1:-default}
 
 cleanup() {
   r=$?
@@ -30,11 +26,16 @@ cleanup() {
 
 trap cleanup EXIT
 
+ARG_VERSION=""
+if [ "${VERSION}" != "default" ]; then
+  ARG_VERSION="--version ${VERSION}"
+fi
+
 # Update the stack
-elastic-package stack update --version ${VERSION} -v
+elastic-package stack update -v ${ARG_VERSION}
 
 # Boot up the stack
-elastic-package stack up -d --version ${VERSION} -v
+elastic-package stack up -d -v ${ARG_VERSION}
 
 # Verify it's accessible
 eval "$(elastic-package stack shellinit)"

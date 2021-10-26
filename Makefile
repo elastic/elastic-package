@@ -38,10 +38,10 @@ test-go-ci:
 	$(MAKE) test-go | go run github.com/tebeka/go2xunit > "$(PWD)/build/test-results/TEST-unit.xml"
 	go run github.com/boumenot/gocover-cobertura < $(CODE_COVERAGE_REPORT_NAME_UNIT).out > $(CODE_COVERAGE_REPORT_NAME_UNIT).xml
 
-test-stack-command-715x:
-	./scripts/test-stack-command.sh 7.15.1
+test-stack-command-default:
+	./scripts/test-stack-command.sh
 
-test-stack-command-716x:
+test-stack-command-lts:
 	./scripts/test-stack-command.sh 7.16.0-SNAPSHOT
 
 test-stack-command-8x:
