@@ -50,7 +50,7 @@ func dockerComposeBuild(options Options) error {
 	opts := compose.CommandOptions{
 		Env: newEnvBuilder().
 			withEnvs(appConfig.StackImageRefs(options.StackVersion).AsEnv()).
-			withEnv(selectStackVersion(options.StackVersion)).
+			withEnv(stackVariantAsEnv(options.StackVersion)).
 			withEnvs(options.Profile.ComposeEnvVars()).
 			build(),
 		Services: withIsReadyServices(withDependentServices(options.Services)),
@@ -76,7 +76,7 @@ func dockerComposePull(options Options) error {
 	opts := compose.CommandOptions{
 		Env: newEnvBuilder().
 			withEnvs(appConfig.StackImageRefs(options.StackVersion).AsEnv()).
-			withEnv(selectStackVersion(options.StackVersion)).
+			withEnv(stackVariantAsEnv(options.StackVersion)).
 			withEnvs(options.Profile.ComposeEnvVars()).
 			build(),
 		Services: withIsReadyServices(withDependentServices(options.Services)),
@@ -107,7 +107,7 @@ func dockerComposeUp(options Options) error {
 	opts := compose.CommandOptions{
 		Env: newEnvBuilder().
 			withEnvs(appConfig.StackImageRefs(options.StackVersion).AsEnv()).
-			withEnv(selectStackVersion(options.StackVersion)).
+			withEnv(stackVariantAsEnv(options.StackVersion)).
 			withEnvs(options.Profile.ComposeEnvVars()).
 			build(),
 		ExtraArgs: args,
@@ -134,7 +134,7 @@ func dockerComposeDown(options Options) error {
 	downOptions := compose.CommandOptions{
 		Env: newEnvBuilder().
 			withEnvs(appConfig.StackImageRefs(options.StackVersion).AsEnv()).
-			withEnv(selectStackVersion(options.StackVersion)).
+			withEnv(stackVariantAsEnv(options.StackVersion)).
 			withEnvs(options.Profile.ComposeEnvVars()).
 			build(),
 		// Remove associated volumes.
