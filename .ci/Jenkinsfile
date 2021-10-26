@@ -91,7 +91,9 @@ pipeline {
               dir("${BASE_DIR}") {
                 script {
                   parallel([
-                    'stack-command': generateTestCommandStage(command: 'test-stack-command', artifacts: ['build/elastic-stack-dump/stack/logs/*.log', 'build/elastic-stack-dump/stack/logs/fleet-server-internal/*']),
+                    'stack-command-715x': generateTestCommandStage(command: 'test-stack-command-715x', artifacts: ['build/elastic-stack-dump/stack/*/logs/*.log', 'build/elastic-stack-dump/stack/*/logs/fleet-server-internal/*']),
+                    'stack-command-716x': generateTestCommandStage(command: 'test-stack-command-716x', artifacts: ['build/elastic-stack-dump/stack/*/logs/*.log', 'build/elastic-stack-dump/stack/*/logs/fleet-server-internal/*']),
+                    'stack-command-8x': generateTestCommandStage(command: 'test-stack-command-8x', artifacts: ['build/elastic-stack-dump/stack/*/logs/*.log', 'build/elastic-stack-dump/stack/*/logs/fleet-server-internal/*']),
                     'check-packages': generateTestCommandStage(command: 'test-check-packages', artifacts: ['build/test-results/*.xml', 'build/kubectl-dump.txt', 'build/elastic-stack-dump/check/logs/*.log', 'build/elastic-stack-dump/check/logs/fleet-server-internal/*'], junitArtifacts: true, publishCoverage: true),
                     'build-zip': generateTestCommandStage(command: 'test-build-zip', artifacts: ['build/elastic-stack-dump/build-zip/logs/*.log']),
                     'profiles-command': generateTestCommandStage(command: 'test-profiles-command'),
