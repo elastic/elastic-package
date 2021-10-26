@@ -47,7 +47,7 @@ test-stack-command-lts:
 test-stack-command-8x:
 	./scripts/test-stack-command.sh 8.0.0-SNAPSHOT
 
-test-stack-command: test-stack-command-715x test-stack-command-716x test-stack-command-8x
+test-stack-command: test-stack-command-default test-stack-command-lts test-stack-command-8x
 
 test-check-packages:
 	./scripts/test-check-packages.sh
