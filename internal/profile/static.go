@@ -53,6 +53,34 @@ func newKibanaConfig8x(_ string, profilePath string) (*simpleFile, error) {
 	}, nil
 }
 
+// ElasticsearchConfigDefaultFile is the default Elasticsearch config file
+const ElasticsearchConfigDefaultFile configFile = "elasticsearch.config.default.yml"
+
+//go:embed _static/elasticsearch_config_default.yml
+var elasticsearchConfigDefaultYml string
+
+func newElasticsearchConfigDefault(_ string, profilePath string) (*simpleFile, error) {
+	return &simpleFile{
+		name: string(ElasticsearchConfigDefaultFile),
+		path: filepath.Join(profilePath, profileStackPath, string(ElasticsearchConfigDefaultFile)),
+		body: elasticsearchConfigDefaultYml,
+	}, nil
+}
+
+// ElasticsearchConfig8xFile is the Elasticsearch config file for 8.x stack family
+const ElasticsearchConfig8xFile configFile = "elasticsearch.config.8x.yml"
+
+//go:embed _static/elasticsearch_config_8x.yml
+var elasticsearchConfig8xYml string
+
+func newElasticsearchConfig8x(_ string, profilePath string) (*simpleFile, error) {
+	return &simpleFile{
+		name: string(ElasticsearchConfig8xFile),
+		path: filepath.Join(profilePath, profileStackPath, string(ElasticsearchConfig8xFile)),
+		body: elasticsearchConfig8xYml,
+	}, nil
+}
+
 // PackageRegistryConfigFile is the config file for the Elastic Package registry
 const PackageRegistryConfigFile configFile = "package-registry.config.yml"
 
