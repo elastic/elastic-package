@@ -11,6 +11,7 @@ services:
       - "ELASTIC_PASSWORD=changeme"
     volumes:
       - "./elasticsearch.config.${STACK_VERSION_VARIANT}.yml:/usr/share/elasticsearch/config/elasticsearch.yml"
+      - "../../../stack/ingest-geoip:/usr/share/elasticsearch/config/ingest-geoip"
     ports:
       - "127.0.0.1:9200:9200"
 
