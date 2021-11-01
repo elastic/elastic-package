@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -169,7 +170,7 @@ func putIngestPipeline(esClient *elasticsearch.Client, pipeline pipelineResource
 		return errors.Wrapf(err, "failed to read PutPipeline API response body (pipelineName: %s)", pipeline.name)
 	}
 
-	if r.StatusCode != 200 {
+	if r.StatusCode != http.StatusOK {
 		return errors.Wrapf(es.NewError(body), "unexpected response status for PutPipeline (%d): %s (pipelineName: %s)",
 			r.StatusCode, r.Status(), pipeline.name)
 	}
@@ -190,7 +191,7 @@ func getIngestPipeline(esClient *elasticsearch.Client, pipelineName string) erro
 		return errors.Wrapf(err, "failed to read GetPipeline API response body (pipelineName: %s)", pipelineName)
 	}
 
-	if r.StatusCode != 200 {
+	if r.StatusCode != http.StatusOK {
 		return errors.Wrapf(es.NewError(body), "unexpected response status for GetPipeline (%d): %s (pipelineName: %s)",
 			r.StatusCode, r.Status(), pipelineName)
 	}
@@ -237,7 +238,7 @@ func simulatePipelineProcessing(esClient *elasticsearch.Client, pipelineName str
 		return nil, errors.Wrap(err, "failed to read Simulate API response body")
 	}
 
-	if r.StatusCode != 200 {
+	if r.StatusCode != http.StatusOK {
 		return nil, errors.Wrapf(es.NewError(body), "unexpected response status for Simulate (%d): %s", r.StatusCode, r.Status())
 	}
 

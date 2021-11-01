@@ -60,7 +60,7 @@ func (c *Client) FindDashboards() (DashboardSavedObjects, error) {
 	logger.Debug("Find dashboards using the Saved Objects API")
 
 	var foundObjects DashboardSavedObjects
-	var page = 1
+	page := 1
 
 	for {
 		r, err := c.findDashboardsNextPage(page)
@@ -94,7 +94,7 @@ func (c *Client) findDashboardsNextPage(page int) (*savedObjectsResponse, error)
 	path := fmt.Sprintf("%s/_find?type=dashboard&fields=title&per_page=%d&page=%d", SavedObjectsAPI, findDashboardsPerPage, page)
 	statusCode, respBody, err := c.get(path)
 	if err != nil {
-		return nil, errors.Wrapf(err, "could not find dashboards; API status code = %d; response body = %s", statusCode, string(respBody))
+		return nil, errors.Wrapf(err, "could not find dashboards; API status code = %d; response body = %s", statusCode, respBody)
 	}
 
 	var r savedObjectsResponse

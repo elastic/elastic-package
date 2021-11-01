@@ -36,7 +36,10 @@ func Zip(sourcePath, destinationFile string) error {
 	}
 	defer os.RemoveAll(tempDir)
 	workDir := filepath.Join(tempDir, folderNameFromFileName(destinationFile))
-	os.MkdirAll(workDir, 0755)
+	err = os.MkdirAll(workDir, 0755)
+	if err != nil {
+		return errors.Wrap(err, "can't prepare work directory")
+	}
 
 	logger.Debugf("Create work directory for archiving: %s", workDir)
 	err = CopyAll(sourcePath, workDir)

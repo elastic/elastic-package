@@ -86,9 +86,9 @@ func loadECSFieldsSchema(dep buildmanifest.ECSDependency) ([]FieldDefinition, er
 			return nil, errors.Wrapf(err, "can't download the online schema (URL: %s)", url)
 		}
 		defer resp.Body.Close()
-		if resp.StatusCode == 404 {
-			return nil, fmt.Errorf("unsatisfied ECS dependency, reference defined in build manifest doesn't exist (HTTP 404, URL: %s)", url)
-		} else if resp.StatusCode != 200 {
+		if resp.StatusCode == http.StatusNotFound {
+			return nil, fmt.Errorf("unsatisfied ECS dependency, reference defined in build manifest doesn't exist (HTTP StatusNotFound, URL: %s)", url)
+		} else if resp.StatusCode != http.StatusOK {
 			return nil, fmt.Errorf("unexpected HTTP status code: %d", resp.StatusCode)
 		}
 
