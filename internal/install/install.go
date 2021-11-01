@@ -147,7 +147,6 @@ func createElasticPackageDirectory(elasticPackagePath *locations.LocationManager
 }
 
 func writeStackResources(elasticPackagePath *locations.LocationManager) error {
-
 	err := os.MkdirAll(elasticPackagePath.PackagesDir(), 0755)
 	if err != nil {
 		return errors.Wrapf(err, "creating directory failed (path: %s)", elasticPackagePath.PackagesDir())
@@ -158,10 +157,44 @@ func writeStackResources(elasticPackagePath *locations.LocationManager) error {
 		return errors.Wrapf(err, "creating directory failed (path: %s)", elasticPackagePath.PackagesDir())
 	}
 
-	resourcePath := filepath.Join(elasticPackagePath.StackDir(), "healthcheck.sh")
-	err = writeStaticResource(err, resourcePath, kibanaHealthcheckSh)
+	kibanaHealthcheckPath := filepath.Join(elasticPackagePath.StackDir(), "healthcheck.sh")
+	err = writeStaticResource(err, kibanaHealthcheckPath, kibanaHealthcheckSh)
 	if err != nil {
-		return errors.Wrapf(err, "copying healthcheck script failed (%s)", resourcePath)
+		return errors.Wrapf(err, "copying healthcheck script failed (%s)", kibanaHealthcheckPath)
+	}
+
+	// Install GeoIP database
+	ingestGeoIPDir := filepath.Join(elasticPackagePath.StackDir(), "ingest-geoip")
+
+	// This directory is intended to be empty as we include GeoIP databases only in the 8x stack family.
+	ingestGeoIPDefaultDir := filepath.Join(ingestGeoIPDir, "default")
+	err = os.MkdirAll(ingestGeoIPDefaultDir, 0755)
+	if err != nil {
+		return errors.Wrapf(err, "creating directory failed (path: %s)", ingestGeoIPDefaultDir)
+	}
+
+	ingestGeoIP8xDir := filepath.Join(ingestGeoIPDir, "8x")
+	err = os.MkdirAll(ingestGeoIP8xDir, 0755)
+	if err != nil {
+		return errors.Wrapf(err, "creating directory failed (path: %s)", ingestGeoIP8xDir)
+	}
+
+	geoIpAsnMmdbPath := filepath.Join(ingestGeoIP8xDir, "GeoLite2-ASN.mmdb")
+	err = writeStaticResource(err, geoIpAsnMmdbPath, geoIpAsnMmdb)
+	if err != nil {
+		return errors.Wrapf(err, "copying GeoIP ASN database failed (%s)", geoIpAsnMmdbPath)
+	}
+
+	geoIpCityMmdbPath := filepath.Join(ingestGeoIP8xDir, "GeoLite2-City.mmdb")
+	err = writeStaticResource(err, geoIpCityMmdbPath, geoIpCityMmdb)
+	if err != nil {
+		return errors.Wrapf(err, "copying GeoIP city database failed (%s)", geoIpCityMmdbPath)
+	}
+
+	geoIpCountryMmdbPath := filepath.Join(ingestGeoIP8xDir, "GeoLite2-Country.mmdb")
+	err = writeStaticResource(err, geoIpCountryMmdbPath, geoIpCountryMmdb)
+	if err != nil {
+		return errors.Wrapf(err, "copying GeoIP country database failed (%s)", geoIpCountryMmdbPath)
 	}
 
 	options := profile.Options{
@@ -170,7 +203,6 @@ func writeStackResources(elasticPackagePath *locations.LocationManager) error {
 		OverwriteExisting: false,
 	}
 	return profile.CreateProfile(options)
-
 }
 
 func writeTerraformDeployerResources(elasticPackagePath *locations.LocationManager) error {
