@@ -66,6 +66,9 @@ const (
 	ShowAllFlagName        = "all"
 	ShowAllFlagDescription = "show all deployed package revisions"
 
+	SignPackageFlagName        = "sign"
+	SignPackageFlagDescription = "sign package"
+
 	SkipPullRequestFlagName        = "skip-pull-request"
 	SkipPullRequestFlagDescription = "skip opening a new pull request"
 
