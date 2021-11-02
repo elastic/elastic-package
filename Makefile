@@ -1,5 +1,4 @@
-CODE_COVERAGE_REPORT_FOLDER = $(PWD)/build/test-coverage
-CODE_COVERAGE_REPORT_NAME_UNIT = $(CODE_COVERAGE_REPORT_FOLDER)/coverage-unit-report
+CODE_COVERAGE_REPORT_NAME_UNIT = $(PWD)/build/test-coverage/coverage-unit-report
 
 .PHONY: build
 
@@ -27,16 +26,13 @@ update-readme:
 
 update: update-readme
 
-$(CODE_COVERAGE_REPORT_NAME_UNIT):
-	mkdir -p $@
-
-test-go: $(CODE_COVERAGE_REPORT_NAME_UNIT)
+test-go:
 	# -count=1 is included to invalidate the test cache. This way, if you run "make test-go" multiple times
 	# you will get fresh test results each time. For instance, changing the source of mocked packages
 	# does not invalidate the cache so having the -count=1 to invalidate the test cache is useful.
 	go test -v -count 1 -coverprofile=$(CODE_COVERAGE_REPORT_NAME_UNIT).out ./...
 
-test-go-ci: $(CODE_COVERAGE_REPORT_NAME_UNIT)
+test-go-ci:
 	mkdir -p $(PWD)/build/test-results
 	mkdir -p $(PWD)/build/test-coverage
 	$(MAKE) test-go | go run github.com/tebeka/go2xunit > "$(PWD)/build/test-results/TEST-unit.xml"
