@@ -7,6 +7,7 @@ package registry
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"sort"
 
 	"github.com/Masterminds/semver"
@@ -44,7 +45,7 @@ func (c *Client) Revisions(packageName string, options SearchOptions) ([]package
 	if err != nil {
 		return nil, errors.Wrap(err, "could not retrieve package")
 	}
-	if statusCode != 200 {
+	if statusCode != http.StatusOK {
 		return nil, fmt.Errorf("could not retrieve package; API status code = %d; response body = %s", statusCode, respBody)
 	}
 

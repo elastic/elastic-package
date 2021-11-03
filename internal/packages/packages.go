@@ -43,12 +43,10 @@ func (vv *VarValue) Unpack(value interface{}) error {
 	switch u := value.(type) {
 	case []interface{}:
 		vv.list = u
-		return nil
 	default:
 		vv.scalar = u
-		return nil
 	}
-	return errors.New("unknown variable value")
+	return nil
 }
 
 // MarshalJSON knows how to serialize a VarValue into the appropriate
