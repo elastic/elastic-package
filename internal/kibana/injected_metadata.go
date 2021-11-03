@@ -7,10 +7,14 @@ package kibana
 import (
 	"encoding/json"
 	"fmt"
+	"html"
 	"net/http"
+	"regexp"
 
 	"github.com/pkg/errors"
 )
+
+var kbnInjectedMetadataRegexp = regexp.MustCompile(`<kbn-injected-metadata data="(.+)"></kbn-injected-metadata>`)
 
 // InjectedMetadata represents the Kibana metadata structure exposed in the web UI.
 type InjectedMetadata struct {
@@ -51,5 +55,9 @@ func extractInjectedMetadata(body []byte) (*InjectedMetadata, error) {
 }
 
 func extractRawInjectedMetadata(body []byte) ([]byte, error) {
-	return nil, nil // TODO
+	matches := kbnInjectedMetadataRegexp.FindSubmatch(body)
+	if len(matches) < 2 { // index:0 - matched regexp, index:1 - matched data
+		return nil, errors.New("expected to find at least one <kbn-injected-metadata> tag")
+	}
+	return []byte(html.UnescapeString(string(matches[1]))), nil
 }
