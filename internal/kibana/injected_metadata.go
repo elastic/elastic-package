@@ -55,9 +55,9 @@ func extractInjectedMetadata(body []byte) (*InjectedMetadata, error) {
 }
 
 func extractRawInjectedMetadata(body []byte) ([]byte, error) {
-	matches := kbnInjectedMetadataRegexp.FindStringSubmatch(body)
+	matches := kbnInjectedMetadataRegexp.FindSubmatch(body)
 	if len(matches) < 2 { // index:0 - matched regexp, index:1 - matched data
 		return nil, errors.New("expected to find at least one <kbn-injected-metadata> tag")
 	}
-	return []byte(html.UnescapeString(matches[1])), nil
+	return []byte(html.UnescapeString(string(matches[1]))), nil
 }
