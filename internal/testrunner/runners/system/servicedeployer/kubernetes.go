@@ -147,12 +147,12 @@ func installElasticAgentInCluster() error {
 		return errors.Wrap(err, "can't create Kibana client")
 	}
 
-	metadata, err := kibanaClient.InjectedMetadata()
+	stackVersion, err := kibanaClient.Version()
 	if err != nil {
 		return errors.Wrap(err, "can't read Kibana injected metadata")
 	}
 
-	elasticAgentManagedYaml, err := getElasticAgentYAML(metadata.Version)
+	elasticAgentManagedYaml, err := getElasticAgentYAML(stackVersion)
 	if err != nil {
 		return errors.Wrap(err, "can't retrieve Kubernetes file for Elastic Agent")
 	}

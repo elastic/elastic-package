@@ -16,37 +16,36 @@ import (
 
 var kbnInjectedMetadataRegexp = regexp.MustCompile(`<kbn-injected-metadata data="(.+)"></kbn-injected-metadata>`)
 
-// InjectedMetadata represents the Kibana metadata structure exposed in the web UI.
-type InjectedMetadata struct {
+// injectedMetadata represents the Kibana metadata structure exposed in the web UI.
+type injectedMetadata struct {
 	// Stack version
 	Version string `json:"version"`
 }
 
-// InjectedMetadata method returns the Kibana metadata. The metadata is always present, even if the client is
-// unauthorized.
-func (c *Client) InjectedMetadata() (*InjectedMetadata, error) {
+// Version method returns the Kibana version.
+func (c *Client) Version() (string, error) {
 	statusCode, respBody, err := c.get("/login")
 	if err != nil {
-		return nil, errors.Wrap(err, "could not reach login endpoint")
+		return "", errors.Wrap(err, "could not reach login endpoint")
 	}
 	if statusCode != http.StatusOK {
-		return nil, fmt.Errorf("could not reach login endpoint; API status code = %d; response body = %s", statusCode, string(respBody))
+		return "", fmt.Errorf("could not reach login endpoint; API status code = %d; response body = %s", statusCode, string(respBody))
 	}
 
 	im, err := extractInjectedMetadata(respBody)
 	if err != nil {
-		return nil, errors.Wrap(err, "can't extract injected metadata")
+		return "", errors.Wrap(err, "can't extract injected metadata")
 	}
-	return im, nil
+	return im.Version, nil
 }
 
-func extractInjectedMetadata(body []byte) (*InjectedMetadata, error) {
+func extractInjectedMetadata(body []byte) (*injectedMetadata, error) {
 	rawInjectedMetadata, err := extractRawInjectedMetadata(body)
 	if err != nil {
 		return nil, errors.Wrap(err, "can't extract raw metadata")
 	}
 
-	var im InjectedMetadata
+	var im injectedMetadata
 	err = json.Unmarshal(rawInjectedMetadata, &im)
 	if err != nil {
 		return nil, errors.Wrap(err, "can't unmarshal raw injected metadata")
