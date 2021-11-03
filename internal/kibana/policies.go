@@ -7,6 +7,7 @@ package kibana
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 
 	"github.com/pkg/errors"
 
@@ -34,7 +35,7 @@ func (c *Client) CreatePolicy(p Policy) (*Policy, error) {
 		return nil, errors.Wrap(err, "could not create policy")
 	}
 
-	if statusCode != 200 {
+	if statusCode != http.StatusOK {
 		return nil, fmt.Errorf("could not create policy; API status code = %d; response body = %s", statusCode, respBody)
 	}
 
@@ -56,7 +57,7 @@ func (c *Client) GetPolicy(policyID string) (*Policy, error) {
 		return nil, errors.Wrap(err, "could not get policy")
 	}
 
-	if statusCode != 200 {
+	if statusCode != http.StatusOK {
 		return nil, fmt.Errorf("could not get policy; API status code = %d; response body = %s", statusCode, respBody)
 	}
 
@@ -80,7 +81,7 @@ func (c *Client) DeletePolicy(p Policy) error {
 		return errors.Wrap(err, "could not delete policy")
 	}
 
-	if statusCode != 200 {
+	if statusCode != http.StatusOK {
 		return fmt.Errorf("could not delete policy; API status code = %d; response body = %s", statusCode, respBody)
 	}
 
@@ -150,7 +151,7 @@ func (c *Client) AddPackageDataStreamToPolicy(r PackageDataStream) error {
 		return errors.Wrap(err, "could not add package to policy")
 	}
 
-	if statusCode != 200 {
+	if statusCode != http.StatusOK {
 		return fmt.Errorf("could not add package to policy; API status code = %d; response body = %s", statusCode, respBody)
 	}
 

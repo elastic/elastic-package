@@ -7,6 +7,7 @@ package kibana
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/pkg/errors"
@@ -45,8 +46,8 @@ func (c *Client) ListAgents() ([]Agent, error) {
 		return nil, errors.Wrap(err, "could not list agents")
 	}
 
-	if statusCode != 200 {
-		return nil, fmt.Errorf("could not list agents; API status code = %d", statusCode)
+	if statusCode != http.StatusOK {
+		return nil, fmt.Errorf("could not list agents; API status code = %d; response body = %s", statusCode, respBody)
 	}
 
 	var resp struct {
@@ -70,8 +71,8 @@ func (c *Client) AssignPolicyToAgent(a Agent, p Policy) error {
 		return errors.Wrap(err, "could not assign policy to agent")
 	}
 
-	if statusCode != 200 {
-		return fmt.Errorf("could not assign policy to agent; API status code = %d; response body = %s", statusCode, string(respBody))
+	if statusCode != http.StatusOK {
+		return fmt.Errorf("could not assign policy to agent; API status code = %d; response body = %s", statusCode, respBody)
 	}
 
 	err = c.waitUntilPolicyAssigned(a, p)
@@ -115,8 +116,8 @@ func (c *Client) getAgent(agentID string) (*Agent, error) {
 		return nil, errors.Wrap(err, "could not list agents")
 	}
 
-	if statusCode != 200 {
-		return nil, fmt.Errorf("could not list agents; API status code = %d", statusCode)
+	if statusCode != http.StatusOK {
+		return nil, fmt.Errorf("could not list agents; API status code = %d; response body = %s", statusCode, respBody)
 	}
 
 	var resp struct {
