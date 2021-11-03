@@ -13,6 +13,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/install"
+	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/kind"
 	"github.com/elastic/elastic-package/internal/kubectl"
 	"github.com/elastic/elastic-package/internal/logger"
@@ -141,7 +142,17 @@ func findKubernetesDefinitions(definitionsDir string) ([]string, error) {
 func installElasticAgentInCluster() error {
 	logger.Debug("install Elastic Agent in the Kubernetes cluster")
 
-	elasticAgentManagedYaml, err := getElasticAgentYAML()
+	kibanaClient, err := kibana.NewClient()
+	if err != nil {
+		return errors.Wrap(err, "can't create Kibana client")
+	}
+
+	stackVersion, err := kibanaClient.Version()
+	if err != nil {
+		return errors.Wrap(err, "can't read Kibana injected metadata")
+	}
+
+	elasticAgentManagedYaml, err := getElasticAgentYAML(stackVersion)
 	if err != nil {
 		return errors.Wrap(err, "can't retrieve Kubernetes file for Elastic Agent")
 	}
@@ -156,7 +167,9 @@ func installElasticAgentInCluster() error {
 //go:embed elastic-agent-managed.yaml.tmpl
 var elasticAgentManagedYamlTmpl string
 
-func getElasticAgentYAML() ([]byte, error) {
+func getElasticAgentYAML(stackVersion string) ([]byte, error) {
+	logger.Debugf("Prepare YAML definition for Elastic Agent running in stack v%s", stackVersion)
+
 	appConfig, err := install.Configuration()
 	if err != nil {
 		return nil, errors.Wrap(err, "can't read application configuration")
@@ -167,7 +180,7 @@ func getElasticAgentYAML() ([]byte, error) {
 	var elasticAgentYaml bytes.Buffer
 	err = tmpl.Execute(&elasticAgentYaml, map[string]string{
 		"fleetURL":          "http://fleet-server:8220",
-		"elasticAgentImage": appConfig.DefaultStackImageRefs().ElasticAgent,
+		"elasticAgentImage": appConfig.StackImageRefs(stackVersion).ElasticAgent,
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "can't generate elastic agent manifest")

@@ -64,11 +64,6 @@ func (ir ImageRefs) AsEnv() []string {
 	return vars
 }
 
-// DefaultStackImageRefs function selects the appropriate set of Docker image references for the default stack version.
-func (ac *ApplicationConfiguration) DefaultStackImageRefs() ImageRefs {
-	return ac.StackImageRefs(DefaultStackVersion)
-}
-
 // StackImageRefs function selects the appropriate set of Docker image references for the given stack version.
 func (ac *ApplicationConfiguration) StackImageRefs(version string) ImageRefs {
 	refs := ac.c.Stack.ImageRefOverridesForVersion(version)
