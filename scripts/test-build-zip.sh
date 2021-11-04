@@ -29,7 +29,7 @@ OLDPWD=$PWD
 for d in test/packages/*/; do
   (
     cd $d
-    elastic-package build --zip -v
+    elastic-package build --zip --sign -v
   )
 done
 cd -
