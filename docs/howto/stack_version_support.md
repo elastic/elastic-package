@@ -42,6 +42,31 @@ Cons:
 Recommendation: Good for simple packages monitoring services that don't need
 many special features, and have low coupling with specific versions of the stack.
 
+Support for last minors of previous major and first minors of the next
+----
+Examples: `^7.16.0 || ~8.0.0`, `>=7.16.0, <8.3.0`
+
+With this approach, the released package can be used in some of the last minors
+of previous majors, and some of the first minors of the next major.
+
+Pros:
+* Delays the need of keeping multiple development branches.
+* Delays the decision of supporting the whole new major.
+* Less disruptive for users.
+* There are differences between major versions that have influence on test
+  results (for example: different GeoIP databases).
+
+Cons:
+* Testing should be done with multiple majors.
+* May require compatibility code.
+* New releases are needed on new minors, even if the package doesn't change.
+* There are differences between major versions that have influence on test
+  results (for example: different GeoIP databases).
+
+Recommendation: Good for cases where package developers need or want to take
+a defensive stand on the supported versions and have the capacity to follow
+the release train of the stack.
+
 Support for current major
 ----
 Examples: `^8.0.0`, `^8.2.0`
