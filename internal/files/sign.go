@@ -67,5 +67,7 @@ func Sign(targetFile string) error {
 	if err != nil {
 		return errors.Wrap(err, "can't write the signature file")
 	}
+
+	logger.Infof("Signature file written: %s", targetSigFile)
 	return nil
 }
