@@ -186,7 +186,10 @@ func BuildPackage(options BuildOptions) (string, error) {
 	}
 
 	logger.Debug("Sign the package")
-
+	err = files.Sign(zippedPackagePath)
+	if err != nil {
+		return "", errors.Wrapf(err, "can't sign the zipped package (path: %s)", zippedPackagePath)
+	}
 	return zippedPackagePath, nil
 }
 
