@@ -22,6 +22,7 @@ type BuildOptions struct {
 	PackageRoot string
 
 	CreateZip bool
+	SignPackage bool
 }
 
 // BuildDirectory function locates the target build directory. If the directory doesn't exist, it will create it.

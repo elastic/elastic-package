@@ -64,9 +64,16 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 	}
 
 	createZip, _ := cmd.Flags().GetBool(cobraext.BuildZipFlagName)
+	signPackage, _ := cmd.Flags().GetBool(cobraext.SignPackageFlagName)
+
+	if signPackage && !createZip {
+		return errors.New("can't sign the unzipped package, please use also the --zip switch")
+	}
+
 	target, err := builder.BuildPackage(builder.BuildOptions{
 		PackageRoot: packageRoot,
 		CreateZip:   createZip,
+		SignPackage: signPackage,
 	})
 	if err != nil {
 		return errors.Wrap(err, "building package failed")
