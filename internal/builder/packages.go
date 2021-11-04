@@ -21,7 +21,7 @@ const buildIntegrationsFolder = "integrations"
 type BuildOptions struct {
 	PackageRoot string
 
-	CreateZip bool
+	CreateZip   bool
 	SignPackage bool
 }
 
@@ -180,6 +180,13 @@ func BuildPackage(options BuildOptions) (string, error) {
 	if err != nil {
 		return "", errors.Wrapf(err, "can't compress the built package (compressed file path: %s)", zippedPackagePath)
 	}
+
+	if !options.SignPackage {
+		return zippedPackagePath, nil
+	}
+
+	logger.Debug("Sign the package")
+
 	return zippedPackagePath, nil
 }
 
