@@ -16,15 +16,20 @@ import (
 )
 
 const (
-	signerPrivateKeyEnv = "ELASTIC_PACKAGE_SIGNER_PRIVATE_KEY"
-	signerPassphraseEnv = "ELASTIC_PACKAGE_SIGNER_PASSPHRASE"
+	signerPrivateKeyfileEnv = "ELASTIC_PACKAGE_SIGNER_PRIVATE_KEYFILE"
+	signerPassphraseEnv     = "ELASTIC_PACKAGE_SIGNER_PASSPHRASE"
 )
 
 // VerifySignerConfiguration function verifies if the signer configuration is complete.
 func VerifySignerConfiguration() error {
-	signerPrivateKey := os.Getenv(signerPrivateKeyEnv)
-	if signerPrivateKey == "" {
-		return fmt.Errorf("signer private key is required. Please define it with environment variable %s", signerPrivateKeyEnv)
+	signerPrivateKeyfile := os.Getenv(signerPrivateKeyfileEnv)
+	if signerPrivateKeyfile == "" {
+		return fmt.Errorf("signer private keyfile is required. Please define it with environment variable %s", signerPrivateKeyfileEnv)
+	}
+
+	_, err := os.Stat(signerPrivateKeyfile)
+	if err != nil {
+		return errors.Wrap(err, "can't access the signer private keyfile")
 	}
 
 	signerPassphrase := os.Getenv(signerPassphraseEnv)
@@ -37,7 +42,13 @@ func VerifySignerConfiguration() error {
 // Sign function signs the target file using provided private ket. It creates the {targetFile}.sig file for the given
 // {targetFile}.
 func Sign(targetFile string) error {
-	signerPrivateKey := os.Getenv(signerPrivateKeyEnv)
+	signerPrivateKeyfile := os.Getenv(signerPrivateKeyfileEnv)
+	logger.Debugf("Read signer private keyfile: %s", signerPrivateKeyfile)
+	signerPrivateKey, err := ioutil.ReadFile(signerPrivateKeyfile)
+	if err != nil {
+		return errors.Wrapf(err, "can't read the signer private keyfile (path: %s)", signerPrivateKeyfile)
+	}
+
 	signerPassphrase := []byte(os.Getenv(signerPassphraseEnv))
 
 	data, err := ioutil.ReadFile(targetFile)
@@ -46,7 +57,7 @@ func Sign(targetFile string) error {
 	}
 
 	logger.Debug("Start the signing routine")
-	signingKey, err := crypto.NewKeyFromArmored(signerPrivateKey)
+	signingKey, err := crypto.NewKeyFromArmored(string(signerPrivateKey))
 	if err != nil {
 		return errors.Wrap(err, "crypto.NewKeyFromArmored failed")
 	}
