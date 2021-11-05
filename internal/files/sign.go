@@ -5,7 +5,9 @@
 package files
 
 import (
+	"fmt"
 	"io/ioutil"
+	"os"
 
 	"github.com/ProtonMail/gopenpgp/v2/crypto"
 	"github.com/pkg/errors"
@@ -13,16 +15,30 @@ import (
 	"github.com/elastic/elastic-package/internal/logger"
 )
 
+const (
+	signerPrivateKeyEnv = "ELASTIC_PACKAGE_SIGNER_PRIVATE_KEY"
+	signerPassphraseEnv = "ELASTIC_PACKAGE_SIGNER_PASSPHRASE"
+)
+
 // VerifySignerConfiguration function verifies if the signer configuration is complete.
 func VerifySignerConfiguration() error {
-	return nil // TODO
+	signerPrivateKey := os.Getenv(signerPrivateKeyEnv)
+	if signerPrivateKey == "" {
+		return fmt.Errorf("signer private key is required. Please define it with environment variable %s", signerPrivateKeyEnv)
+	}
+
+	signerPassphrase := os.Getenv(signerPassphraseEnv)
+	if signerPassphrase == "" {
+		return fmt.Errorf("signer passphrase is required. Please define it with environment variable %s", signerPassphraseEnv)
+	}
+	return nil
 }
 
 // Sign function signs the target file using provided private ket. It creates the {targetFile}.sig file for the given
 // {targetFile}.
 func Sign(targetFile string) error {
-	privateKey := "TODO" // TODO
-	passphrase := []byte("TODO")
+	signerPrivateKey := os.Getenv(signerPrivateKeyEnv)
+	signerPassphrase := []byte(os.Getenv(signerPassphraseEnv))
 
 	data, err := ioutil.ReadFile(targetFile)
 	if err != nil {
@@ -30,12 +46,12 @@ func Sign(targetFile string) error {
 	}
 
 	logger.Debug("Start the signing routine")
-	signingKey, err := crypto.NewKeyFromArmored(privateKey)
+	signingKey, err := crypto.NewKeyFromArmored(signerPrivateKey)
 	if err != nil {
 		return errors.Wrap(err, "crypto.NewKeyFromArmored failed")
 	}
 
-	unlockedKey, err := signingKey.Unlock(passphrase)
+	unlockedKey, err := signingKey.Unlock(signerPassphrase)
 	if err != nil {
 		return errors.Wrap(err, "signingKey.Unlock failed")
 	}
