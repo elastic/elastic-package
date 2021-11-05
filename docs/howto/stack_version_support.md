@@ -3,8 +3,8 @@ Intro...
 TBD: When to reconsider the version constraint.
 
 
-Support for multiple majors
-----
+## Support for multiple majors
+
 Examples: `^7.14.0 || ^8.0.0`, `^7.14.0 || ^8.0.0 || ^9.0.0`
 
 With this approach, the released package can be used in any tested major version
@@ -26,8 +26,8 @@ Recommendation: Good for simple packages monitoring services that don't need
 many special features, and have low coupling with specific versions of the stack.
 
 
-Support for current major
-----
+## Support for current major
+
 Examples: `^8.0.0`, `^8.2.0`
 
 With this approach, the released package can be used only in the specified
@@ -51,8 +51,8 @@ majors, or that introduce breaking changes. Also recommended if the maintainer
 decides to don't provide bugfixes for previous major.
 
 
-Support for last minors of previous major and first minors of the next
-----
+## Support for last minors of previous major and first minors of the next
+
 Examples: `^7.16.0 || ~8.0.0`, `>=7.16.0, <8.3.0`
 
 With this approach, the released package can be used in some of the last minors
@@ -77,8 +77,8 @@ a defensive stand on the supported versions and have the capacity to follow
 the release train of the stack.
 
 
-Support for current minor, or to specific versions
-----
+## Support for current minor, or to specific versions
+
 Example: `~8.1.0` or `8.1.0`
 
 With this approach, the released package can be used only in the specified
@@ -101,8 +101,8 @@ for packages that are not going to be maintained in future versions, as PoCs,
 experiments, or packages that use experimental features of the stack.
 
 
-Support for all versions since the release of the package
-----
+## Support for all versions since the release of the package
+
 Example: `>=7.16.0`.
 
 With this approach, the released package can be used in any version since the
