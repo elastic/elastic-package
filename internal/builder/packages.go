@@ -186,7 +186,15 @@ func BuildPackage(options BuildOptions) (string, error) {
 	}
 
 	logger.Debug("Sign the package")
-	err = files.Sign(zippedPackagePath)
+	m, err := packages.ReadPackageManifestFromPackageRoot(options.PackageRoot)
+	if err != nil {
+		return "", errors.Wrapf(err, "reading package manifest failed (path: %s)", options.PackageRoot)
+	}
+
+	err = files.Sign(zippedPackagePath, files.SignOptions{
+		PackageName:    m.Name,
+		PackageVersion: m.Version,
+	})
 	if err != nil {
 		return "", errors.Wrapf(err, "can't sign the zipped package (path: %s)", zippedPackagePath)
 	}

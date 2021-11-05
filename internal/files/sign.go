@@ -9,6 +9,8 @@ import (
 	"io/ioutil"
 	"os"
 
+	"github.com/ProtonMail/gopenpgp/v2/armor"
+	"github.com/ProtonMail/gopenpgp/v2/constants"
 	"github.com/ProtonMail/gopenpgp/v2/crypto"
 	"github.com/pkg/errors"
 
@@ -18,7 +20,14 @@ import (
 const (
 	signerPrivateKeyfileEnv = "ELASTIC_PACKAGE_SIGNER_PRIVATE_KEYFILE"
 	signerPassphraseEnv     = "ELASTIC_PACKAGE_SIGNER_PASSPHRASE"
+
+	signatureComment = "Signed with elastic-package (using GopenPGP: https://gopenpgp.org)"
 )
+
+type SignOptions struct {
+	PackageName    string
+	PackageVersion string
+}
 
 // VerifySignerConfiguration function verifies if the signer configuration is complete.
 func VerifySignerConfiguration() error {
@@ -41,7 +50,7 @@ func VerifySignerConfiguration() error {
 
 // Sign function signs the target file using provided private ket. It creates the {targetFile}.sig file for the given
 // {targetFile}.
-func Sign(targetFile string) error {
+func Sign(targetFile string, options SignOptions) error {
 	signerPrivateKeyfile := os.Getenv(signerPrivateKeyfileEnv)
 	logger.Debugf("Read signer private keyfile: %s", signerPrivateKeyfile)
 	signerPrivateKey, err := ioutil.ReadFile(signerPrivateKeyfile)
@@ -83,7 +92,8 @@ func Sign(targetFile string) error {
 		return errors.Wrap(err, "keyRing.SignDetached failed")
 	}
 
-	armoredSignature, err := signature.GetArmored()
+	armoredSignature, err := armor.ArmorWithTypeAndCustomHeaders(signature.Data, constants.PGPSignatureHeader,
+		fmt.Sprintf("%s-%s", options.PackageName, options.PackageVersion), signatureComment)
 	if err != nil {
 		return errors.Wrap(err, "signature.GetArmored failed")
 	}
