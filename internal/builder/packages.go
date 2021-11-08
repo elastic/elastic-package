@@ -21,7 +21,8 @@ const buildIntegrationsFolder = "integrations"
 type BuildOptions struct {
 	PackageRoot string
 
-	CreateZip bool
+	CreateZip   bool
+	SignPackage bool
 }
 
 // BuildDirectory function locates the target build directory. If the directory doesn't exist, it will create it.
@@ -178,6 +179,24 @@ func BuildPackage(options BuildOptions) (string, error) {
 	err = files.Zip(destinationDir, zippedPackagePath)
 	if err != nil {
 		return "", errors.Wrapf(err, "can't compress the built package (compressed file path: %s)", zippedPackagePath)
+	}
+
+	if !options.SignPackage {
+		return zippedPackagePath, nil
+	}
+
+	logger.Debug("Sign the package")
+	m, err := packages.ReadPackageManifestFromPackageRoot(options.PackageRoot)
+	if err != nil {
+		return "", errors.Wrapf(err, "reading package manifest failed (path: %s)", options.PackageRoot)
+	}
+
+	err = files.Sign(zippedPackagePath, files.SignOptions{
+		PackageName:    m.Name,
+		PackageVersion: m.Version,
+	})
+	if err != nil {
+		return "", errors.Wrapf(err, "can't sign the zipped package (path: %s)", zippedPackagePath)
 	}
 	return zippedPackagePath, nil
 }

@@ -13,6 +13,7 @@ import (
 	"github.com/elastic/elastic-package/internal/builder"
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/docs"
+	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 )
@@ -35,12 +36,26 @@ func setupBuildCommand() *cobraext.Command {
 		RunE:  buildCommandAction,
 	}
 	cmd.Flags().Bool(cobraext.BuildZipFlagName, false, cobraext.BuildZipFlagDescription)
-
+	cmd.Flags().Bool(cobraext.SignPackageFlagName, false, cobraext.SignPackageFlagDescription)
 	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
 }
 
 func buildCommandAction(cmd *cobra.Command, args []string) error {
 	cmd.Println("Build the package")
+
+	createZip, _ := cmd.Flags().GetBool(cobraext.BuildZipFlagName)
+	signPackage, _ := cmd.Flags().GetBool(cobraext.SignPackageFlagName)
+
+	if signPackage && !createZip {
+		return errors.New("can't sign the unzipped package, please use also the --zip switch")
+	}
+
+	if signPackage {
+		err := files.VerifySignerConfiguration()
+		if err != nil {
+			return errors.Wrap(err, "can't verify signer configuration")
+		}
+	}
 
 	packageRoot, err := packages.MustFindPackageRoot()
 	if err != nil {
@@ -63,10 +78,10 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 		cmd.Printf("%s file rendered: %s\n", splitTarget[len(splitTarget)-1], target)
 	}
 
-	createZip, _ := cmd.Flags().GetBool(cobraext.BuildZipFlagName)
 	target, err := builder.BuildPackage(builder.BuildOptions{
 		PackageRoot: packageRoot,
 		CreateZip:   createZip,
+		SignPackage: signPackage,
 	})
 	if err != nil {
 		return errors.Wrap(err, "building package failed")
