@@ -127,10 +127,19 @@ func visitFields(namePrefix string, f fields.FieldDefinition, records []fieldsTa
 
 	if len(f.Fields) == 0 && f.Type != "group" {
 		if f.External != "" {
-			var err error
-			f, err = fdm.ImportField(f.External, name)
+			imported, err := fdm.ImportField(f.External, name)
 			if err != nil {
 				return nil, errors.Wrap(err, "can't import field")
+			}
+			f.Type = imported.Type
+			if f.Description == "" {
+				f.Description = imported.Description
+			}
+			if f.Unit == "" {
+				f.Unit = imported.Unit
+			}
+			if f.MetricType == "" {
+				f.MetricType = imported.MetricType
 			}
 		}
 		records = append(records, fieldsTableRecord{

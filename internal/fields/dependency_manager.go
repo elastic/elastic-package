@@ -145,8 +145,11 @@ func (dm *DependencyManager) injectFieldsWithRoot(root string, defs []common.Map
 			}
 
 			transformed := transformImportedField(imported)
-			originalName, _ := def.GetValue("name")
-			transformed.Put("name", originalName)
+
+			// Allow overrides of everything, except the imported type, for consistency.
+			transformed.DeepUpdate(def)
+			transformed["type"] = imported.Type
+
 			updated = append(updated, transformed)
 			changed = true
 			continue
