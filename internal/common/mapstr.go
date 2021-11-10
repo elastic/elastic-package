@@ -56,6 +56,64 @@ func (m MapStr) Put(key string, value interface{}) (interface{}, error) {
 	return old, nil
 }
 
+// DeepUpdate recursively copies the key-value pairs from d to this map.
+// If the key is present and a map as well, the sub-map will be updated recursively
+// via DeepUpdate.
+// DeepUpdateNoOverwrite is a version of this function that does not
+// overwrite existing values.
+func (m MapStr) DeepUpdate(d MapStr) {
+	m.deepUpdateMap(d, true)
+}
+
+// DeepUpdateNoOverwrite recursively copies the key-value pairs from d to this map.
+// If a key is already present it will not be overwritten.
+// DeepUpdate is a version of this function that overwrites existing values.
+func (m MapStr) DeepUpdateNoOverwrite(d MapStr) {
+	m.deepUpdateMap(d, false)
+}
+
+func (m MapStr) deepUpdateMap(d MapStr, overwrite bool) {
+	for k, v := range d {
+		switch val := v.(type) {
+		case map[string]interface{}:
+			m[k] = deepUpdateValue(m[k], MapStr(val), overwrite)
+		case MapStr:
+			m[k] = deepUpdateValue(m[k], val, overwrite)
+		default:
+			if overwrite {
+				m[k] = v
+			} else if _, exists := m[k]; !exists {
+				m[k] = v
+			}
+		}
+	}
+}
+
+func deepUpdateValue(old interface{}, val MapStr, overwrite bool) interface{} {
+	switch sub := old.(type) {
+	case MapStr:
+		if sub == nil {
+			return val
+		}
+
+		sub.deepUpdateMap(val, overwrite)
+		return sub
+	case map[string]interface{}:
+		if sub == nil {
+			return val
+		}
+
+		tmp := MapStr(sub)
+		tmp.deepUpdateMap(val, overwrite)
+		return tmp
+	default:
+		// We reach the default branch if old is no map or if old == nil.
+		// In either case we return `val`, such that the old value is completely
+		// replaced when merging.
+		return val
+	}
+}
+
 // Delete deletes the given key from the map.
 func (m MapStr) Delete(key string) error {
 	k, d, _, found, err := mapFind(key, m, false)

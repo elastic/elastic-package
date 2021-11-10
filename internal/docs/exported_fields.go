@@ -127,11 +127,18 @@ func visitFields(namePrefix string, f fields.FieldDefinition, records []fieldsTa
 
 	if len(f.Fields) == 0 && f.Type != "group" {
 		if f.External != "" {
-			var err error
-			f, err = fdm.ImportField(f.External, name)
+			imported, err := fdm.ImportField(f.External, name)
 			if err != nil {
 				return nil, errors.Wrap(err, "can't import field")
 			}
+
+			// Override imported fields with the definition, except for the type and external.
+			var updated fields.FieldDefinition
+			updated.Update(imported)
+			updated.Update(f)
+			updated.Type = imported.Type
+			updated.External = ""
+			f = updated
 		}
 		records = append(records, fieldsTableRecord{
 			name:        name,
