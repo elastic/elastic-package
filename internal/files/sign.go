@@ -60,11 +60,6 @@ func Sign(targetFile string, options SignOptions) error {
 
 	signerPassphrase := []byte(os.Getenv(signerPassphraseEnv))
 
-	data, err := ioutil.ReadFile(targetFile)
-	if err != nil {
-		return errors.Wrap(err, "can't read the file candidate for signing")
-	}
-
 	logger.Debug("Start the signing routine")
 	signingKey, err := crypto.NewKeyFromArmored(string(signerPrivateKey))
 	if err != nil {
@@ -82,12 +77,13 @@ func Sign(targetFile string, options SignOptions) error {
 		return errors.Wrap(err, "crypto.NewKeyRing failed")
 	}
 
-	message := crypto.NewPlainMessage(data)
+	messageReader, err := os.Open(targetFile)
 	if err != nil {
-		return errors.Wrap(err, "crypto.NewPlainMessageFromString failed")
+		return errors.Wrapf(err, "os.Open failed (targetFile: %s)", targetFile)
 	}
+	defer messageReader.Close()
 
-	signature, err := keyRing.SignDetached(message)
+	signature, err := keyRing.SignDetachedStream(messageReader)
 	if err != nil {
 		return errors.Wrap(err, "keyRing.SignDetached failed")
 	}
