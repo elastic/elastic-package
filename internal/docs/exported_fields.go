@@ -131,16 +131,14 @@ func visitFields(namePrefix string, f fields.FieldDefinition, records []fieldsTa
 			if err != nil {
 				return nil, errors.Wrap(err, "can't import field")
 			}
-			f.Type = imported.Type
-			if f.Description == "" {
-				f.Description = imported.Description
-			}
-			if f.Unit == "" {
-				f.Unit = imported.Unit
-			}
-			if f.MetricType == "" {
-				f.MetricType = imported.MetricType
-			}
+
+			// Override imported fields with the definition, except for the type and external.
+			var updated fields.FieldDefinition
+			updated.Update(imported)
+			updated.Update(f)
+			updated.Type = imported.Type
+			updated.External = ""
+			f = updated
 		}
 		records = append(records, fieldsTableRecord{
 			name:        name,
