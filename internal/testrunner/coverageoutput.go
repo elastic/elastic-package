@@ -23,6 +23,7 @@ type testCoverageDetails struct {
 	packageName string
 	testType    TestType
 	dataStreams map[string][]string // <data_stream> : <test case 1, test case 2, ...>
+	cobertura   *CoberturaCoverage  // For tests to provide custom Cobertura results.
 }
 
 func newTestCoverageDetails(packageName string, testType TestType) *testCoverageDetails {
@@ -42,11 +43,17 @@ func (tcd *testCoverageDetails) withTestResults(results []TestResult) *testCover
 			tcd.dataStreams[result.DataStream] = []string{}
 		}
 		tcd.dataStreams[result.DataStream] = append(tcd.dataStreams[result.DataStream], result.Name)
+		if tcd.cobertura != nil && result.Coverage != nil {
+			tcd.cobertura.Merge(result.Coverage)
+		} else {
+			tcd.cobertura = result.Coverage
+		}
 	}
 	return tcd
 }
 
-type coberturaCoverage struct {
+// CoberturaCoverage is the root element for a Cobertura XML report.
+type CoberturaCoverage struct {
 	XMLName         xml.Name            `xml:"coverage"`
 	LineRate        float32             `xml:"line-rate,attr"`
 	BranchRate      float32             `xml:"branch-rate,attr"`
@@ -57,48 +64,53 @@ type coberturaCoverage struct {
 	BranchesCovered int64               `xml:"branches-covered,attr"`
 	BranchesValid   int64               `xml:"branches-valid,attr"`
 	Complexity      float32             `xml:"complexity,attr"`
-	Sources         []*coberturaSource  `xml:"sources>source"`
-	Packages        []*coberturaPackage `xml:"packages>package"`
+	Sources         []*CoberturaSource  `xml:"sources>source"`
+	Packages        []*CoberturaPackage `xml:"packages>package"`
 }
 
-type coberturaSource struct {
+// CoberturaSource represents a base path to the covered source code.
+type CoberturaSource struct {
 	Path string `xml:",chardata"`
 }
 
-type coberturaPackage struct {
+// CoberturaPackage represents a package in a Cobertura XML report.
+type CoberturaPackage struct {
 	Name       string            `xml:"name,attr"`
 	LineRate   float32           `xml:"line-rate,attr"`
 	BranchRate float32           `xml:"branch-rate,attr"`
 	Complexity float32           `xml:"complexity,attr"`
-	Classes    []*coberturaClass `xml:"classes>class"`
+	Classes    []*CoberturaClass `xml:"classes>class"`
 }
 
-type coberturaClass struct {
+// CoberturaClass represents a class in a Cobertura XML report.
+type CoberturaClass struct {
 	Name       string             `xml:"name,attr"`
 	Filename   string             `xml:"filename,attr"`
 	LineRate   float32            `xml:"line-rate,attr"`
 	BranchRate float32            `xml:"branch-rate,attr"`
 	Complexity float32            `xml:"complexity,attr"`
-	Methods    []*coberturaMethod `xml:"methods>method"`
+	Methods    []*CoberturaMethod `xml:"methods>method"`
+	Lines      []*CoberturaLine   `xml:"lines>line"`
 }
 
-type coberturaMethod struct {
-	Name       string         `xml:"name,attr"`
-	Signature  string         `xml:"signature,attr"`
-	LineRate   float32        `xml:"line-rate,attr"`
-	BranchRate float32        `xml:"branch-rate,attr"`
-	Complexity float32        `xml:"complexity,attr"`
-	Lines      coberturaLines `xml:"lines>line"`
+// CoberturaMethod represents a method in a Cobertura XML report.
+type CoberturaMethod struct {
+	Name       string           `xml:"name,attr"`
+	Signature  string           `xml:"signature,attr"`
+	LineRate   float32          `xml:"line-rate,attr"`
+	BranchRate float32          `xml:"branch-rate,attr"`
+	Complexity float32          `xml:"complexity,attr"`
+	Hits       int64            `xml:"hits,attr"`
+	Lines      []*CoberturaLine `xml:"lines>line"`
 }
 
-type coberturaLine struct {
+// CoberturaLine represents a source line in a Cobertura XML report.
+type CoberturaLine struct {
 	Number int   `xml:"number,attr"`
 	Hits   int64 `xml:"hits,attr"`
 }
 
-type coberturaLines []*coberturaLine
-
-func (c *coberturaCoverage) bytes() ([]byte, error) {
+func (c *CoberturaCoverage) bytes() ([]byte, error) {
 	out, err := xml.MarshalIndent(&c, "", "  ")
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to format test results as xUnit")
@@ -113,6 +125,101 @@ func (c *coberturaCoverage) bytes() ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
+// Merge merges two coverage reports for a given class.
+func (c *CoberturaClass) Merge(b *CoberturaClass) {
+	// Invariants
+	equal := c.Name == b.Name &&
+		c.Filename == b.Filename &&
+		len(c.Lines) == len(b.Lines) &&
+		len(c.Methods) == len(b.Methods) &&
+		len(c.Lines) == len(c.Methods)
+	for idx := range c.Lines {
+		equal = equal && c.Lines[idx].Number == b.Lines[idx].Number &&
+			c.Methods[idx].Name == b.Methods[idx].Name &&
+			len(c.Methods[idx].Lines) == 1 &&
+			len(b.Methods[idx].Lines) == 1 &&
+			c.Methods[idx].Lines[0].Number == b.Methods[idx].Lines[0].Number
+	}
+	if !equal {
+		panic(fmt.Sprintf("differing classes at Merge: %+v != %+v", *c, *b))
+	}
+	// Update methods
+	for idx := range b.Methods {
+		c.Methods[idx].Hits += b.Methods[idx].Hits
+		c.Methods[idx].Lines[0].Hits += b.Methods[idx].Lines[0].Hits
+	}
+	// Rebuild lines
+	c.Lines = nil
+	for _, m := range c.Methods {
+		c.Lines = append(c.Lines, m.Lines...)
+	}
+}
+
+// Merge merges two coverage reports for a given package.
+func (p *CoberturaPackage) Merge(b *CoberturaPackage) {
+	// Merge classes
+	for _, class := range b.Classes {
+		var target *CoberturaClass
+		for _, existing := range p.Classes {
+			if existing.Name == class.Name {
+				target = existing
+				break
+			}
+		}
+		if target != nil {
+			target.Merge(class)
+		} else {
+			p.Classes = append(p.Classes, class)
+		}
+	}
+}
+
+// Merge merges two coverage reports.
+func (c *CoberturaCoverage) Merge(b *CoberturaCoverage) {
+	// Merge source paths
+	for _, path := range b.Sources {
+		found := false
+		for _, existing := range c.Sources {
+			if found = existing.Path == path.Path; found {
+				break
+			}
+		}
+		if !found {
+			c.Sources = append(c.Sources, path)
+		}
+	}
+
+	// Merge packages
+	for _, pkg := range b.Packages {
+		var target *CoberturaPackage
+		for _, existing := range c.Packages {
+			if existing.Name == pkg.Name {
+				target = existing
+				break
+			}
+		}
+		if target != nil {
+			target.Merge(pkg)
+		} else {
+			c.Packages = append(c.Packages, pkg)
+		}
+	}
+
+	// Recalculate global line coverage count
+	c.LinesValid = 0
+	c.LinesCovered = 0
+	for _, pkg := range c.Packages {
+		for _, cls := range pkg.Classes {
+			for _, line := range cls.Lines {
+				c.LinesValid++
+				if line.Hits > 0 {
+					c.LinesCovered++
+				}
+			}
+		}
+	}
+}
+
 // WriteCoverage function calculates test coverage for the given package.
 // It requires to execute tests for all data streams (same test type), so the coverage can be calculated properly.
 func WriteCoverage(packageRootPath, packageName string, testType TestType, results []TestResult) error {
@@ -121,7 +228,11 @@ func WriteCoverage(packageRootPath, packageName string, testType TestType, resul
 		return errors.Wrap(err, "can't collect test coverage details")
 	}
 
-	report := transformToCoberturaReport(details)
+	// Use provided cobertura report, or generate a custom report if not available.
+	report := details.cobertura
+	if report == nil {
+		report = transformToCoberturaReport(details)
+	}
 
 	err = writeCoverageReportFile(report, packageName)
 	if err != nil {
@@ -197,28 +308,28 @@ func verifyTestExpected(packageRootPath string, dataStreamName string, testType 
 	return true, nil
 }
 
-func transformToCoberturaReport(details *testCoverageDetails) *coberturaCoverage {
-	var classes []*coberturaClass
+func transformToCoberturaReport(details *testCoverageDetails) *CoberturaCoverage {
+	var classes []*CoberturaClass
 	for dataStream, testCases := range details.dataStreams {
 		if dataStream == "" {
 			continue // ignore tests running in the package context (not data stream), mostly referring to installed assets
 		}
 
-		var methods []*coberturaMethod
+		var methods []*CoberturaMethod
 
 		if len(testCases) == 0 {
-			methods = append(methods, &coberturaMethod{
+			methods = append(methods, &CoberturaMethod{
 				Name:  "Missing",
-				Lines: []*coberturaLine{{Number: 1, Hits: 0}},
+				Lines: []*CoberturaLine{{Number: 1, Hits: 0}},
 			})
 		} else {
-			methods = append(methods, &coberturaMethod{
+			methods = append(methods, &CoberturaMethod{
 				Name:  "OK",
-				Lines: []*coberturaLine{{Number: 1, Hits: 1}},
+				Lines: []*CoberturaLine{{Number: 1, Hits: 1}},
 			})
 		}
 
-		aClass := &coberturaClass{
+		aClass := &CoberturaClass{
 			Name:     string(details.testType),
 			Filename: details.packageName + "/" + dataStream,
 			Methods:  methods,
@@ -226,9 +337,9 @@ func transformToCoberturaReport(details *testCoverageDetails) *coberturaCoverage
 		classes = append(classes, aClass)
 	}
 
-	return &coberturaCoverage{
+	return &CoberturaCoverage{
 		Timestamp: time.Now().UnixNano(),
-		Packages: []*coberturaPackage{
+		Packages: []*CoberturaPackage{
 			{
 				Name:    details.packageName,
 				Classes: classes,
@@ -237,7 +348,7 @@ func transformToCoberturaReport(details *testCoverageDetails) *coberturaCoverage
 	}
 }
 
-func writeCoverageReportFile(report *coberturaCoverage, packageName string) error {
+func writeCoverageReportFile(report *CoberturaCoverage, packageName string) error {
 	dest, err := testCoverageReportsDir()
 	if err != nil {
 		return errors.Wrap(err, "could not determine test coverage reports folder")

@@ -16,6 +16,8 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/common"
+	"github.com/elastic/elastic-package/internal/elasticsearch/pipeline"
+	"github.com/elastic/elastic-package/internal/elasticsearch/pipeline/coverage"
 	"github.com/elastic/elastic-package/internal/fields"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/multierror"
@@ -30,7 +32,7 @@ const (
 
 type runner struct {
 	options   testrunner.TestOptions
-	pipelines []pipelineResource
+	pipelines []pipeline.Resource
 }
 
 func (r *runner) TestFolderRequired() bool {
@@ -155,6 +157,12 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 			continue
 		}
 
+		if r.options.WithCoverage {
+			tr.Coverage, err = coverage.Get(r.options, r.pipelines)
+			if err != nil {
+				return nil, errors.Wrap(err, "error calculating pipeline coverage")
+			}
+		}
 		results = append(results, tr)
 	}
 	return results, nil
