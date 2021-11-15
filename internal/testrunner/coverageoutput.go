@@ -15,6 +15,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/builder"
+	"github.com/elastic/elastic-package/internal/multierror"
 )
 
 const coverageDtd = `<!DOCTYPE coverage SYSTEM "http://cobertura.sourceforge.net/xml/coverage-04.dtd">`
@@ -24,6 +25,7 @@ type testCoverageDetails struct {
 	testType    TestType
 	dataStreams map[string][]string // <data_stream> : <test case 1, test case 2, ...>
 	cobertura   *CoberturaCoverage  // For tests to provide custom Cobertura results.
+	errors      multierror.Error
 }
 
 func newTestCoverageDetails(packageName string, testType TestType) *testCoverageDetails {
@@ -44,7 +46,9 @@ func (tcd *testCoverageDetails) withTestResults(results []TestResult) *testCover
 		}
 		tcd.dataStreams[result.DataStream] = append(tcd.dataStreams[result.DataStream], result.Name)
 		if tcd.cobertura != nil && result.Coverage != nil {
-			tcd.cobertura.Merge(result.Coverage)
+			if err := tcd.cobertura.Merge(result.Coverage); err != nil {
+				tcd.errors = append(tcd.errors, errors.Wrapf(err, "can't merge Cobertura coverage for test `%s`", result.Name))
+			}
 		} else {
 			tcd.cobertura = result.Coverage
 		}
@@ -126,8 +130,8 @@ func (c *CoberturaCoverage) bytes() ([]byte, error) {
 }
 
 // Merge merges two coverage reports for a given class.
-func (c *CoberturaClass) Merge(b *CoberturaClass) {
-	// Invariants
+func (c *CoberturaClass) Merge(b *CoberturaClass) error {
+	// Check preconditions: classes should be the same.
 	equal := c.Name == b.Name &&
 		c.Filename == b.Filename &&
 		len(c.Lines) == len(b.Lines) &&
@@ -141,7 +145,7 @@ func (c *CoberturaClass) Merge(b *CoberturaClass) {
 			c.Methods[idx].Lines[0].Number == b.Methods[idx].Lines[0].Number
 	}
 	if !equal {
-		panic(fmt.Sprintf("differing classes at Merge: %+v != %+v", *c, *b))
+		return errors.Errorf("merging incompatible classes: %+v != %+v", *c, *b)
 	}
 	// Update methods
 	for idx := range b.Methods {
@@ -153,10 +157,11 @@ func (c *CoberturaClass) Merge(b *CoberturaClass) {
 	for _, m := range c.Methods {
 		c.Lines = append(c.Lines, m.Lines...)
 	}
+	return nil
 }
 
 // Merge merges two coverage reports for a given package.
-func (p *CoberturaPackage) Merge(b *CoberturaPackage) {
+func (p *CoberturaPackage) Merge(b *CoberturaPackage) error {
 	// Merge classes
 	for _, class := range b.Classes {
 		var target *CoberturaClass
@@ -167,15 +172,18 @@ func (p *CoberturaPackage) Merge(b *CoberturaPackage) {
 			}
 		}
 		if target != nil {
-			target.Merge(class)
+			if err := target.Merge(class); err != nil {
+				return err
+			}
 		} else {
 			p.Classes = append(p.Classes, class)
 		}
 	}
+	return nil
 }
 
 // Merge merges two coverage reports.
-func (c *CoberturaCoverage) Merge(b *CoberturaCoverage) {
+func (c *CoberturaCoverage) Merge(b *CoberturaCoverage) error {
 	// Merge source paths
 	for _, path := range b.Sources {
 		found := false
@@ -199,7 +207,9 @@ func (c *CoberturaCoverage) Merge(b *CoberturaCoverage) {
 			}
 		}
 		if target != nil {
-			target.Merge(pkg)
+			if err := target.Merge(pkg); err != nil {
+				return err
+			}
 		} else {
 			c.Packages = append(c.Packages, pkg)
 		}
@@ -218,6 +228,7 @@ func (c *CoberturaCoverage) Merge(b *CoberturaCoverage) {
 			}
 		}
 	}
+	return nil
 }
 
 // WriteCoverage function calculates test coverage for the given package.
@@ -250,6 +261,9 @@ func collectTestCoverageDetails(packageRootPath, packageName string, testType Te
 	details := newTestCoverageDetails(packageName, testType).
 		withUncoveredDataStreams(withoutTests).
 		withTestResults(results)
+	if len(details.errors) > 0 {
+		return nil, details.errors
+	}
 	return details, nil
 }
 
