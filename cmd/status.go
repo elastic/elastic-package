@@ -60,6 +60,7 @@ func statusCommandAction(cmd *cobra.Command, args []string) error {
 	options := registry.SearchOptions{
 		All:           showAll,
 		KibanaVersion: kibanaVersion,
+		Experimental:  true,
 	}
 	packageStatus, err := getPackageStatus(packageName, options)
 	if err != nil {
@@ -69,8 +70,6 @@ func statusCommandAction(cmd *cobra.Command, args []string) error {
 }
 
 func getPackageStatus(packageName string, options registry.SearchOptions) (*status.PackageStatus, error) {
-	options.Internal = true
-	options.Experimental = true
 	if packageName != "" {
 		return status.RemotePackage(packageName, options)
 	}
