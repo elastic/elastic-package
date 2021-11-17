@@ -49,7 +49,7 @@ func (tcd *testCoverageDetails) withTestResults(results []TestResult) *testCover
 			if err := tcd.cobertura.Merge(result.Coverage); err != nil {
 				tcd.errors = append(tcd.errors, errors.Wrapf(err, "can't merge Cobertura coverage for test `%s`", result.Name))
 			}
-		} else {
+		} else if tcd.cobertura == nil {
 			tcd.cobertura = result.Coverage
 		}
 	}
