@@ -62,7 +62,6 @@ func getPackageStatus(packageName string, showAll bool) (*status.PackageStatus, 
 	if packageName != "" {
 		return status.RemotePackage(packageName, registry.SearchOptions{
 			All:          showAll,
-			Internal:     true,
 			Experimental: true,
 		})
 	}
@@ -75,7 +74,6 @@ func getPackageStatus(packageName string, showAll bool) (*status.PackageStatus, 
 	}
 	return status.LocalPackage(packageRootPath, registry.SearchOptions{
 		All:          showAll,
-		Internal:     true,
 		Experimental: true,
 	})
 }
