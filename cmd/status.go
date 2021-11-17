@@ -37,6 +37,7 @@ func setupStatusCommand() *cobraext.Command {
 		RunE:  statusCommandAction,
 	}
 	cmd.Flags().BoolP(cobraext.ShowAllFlagName, "a", false, cobraext.ShowAllFlagDescription)
+	cmd.Flags().String(cobraext.StackVersionFlagName, "", cobraext.StackVersionFlagDescription)
 
 	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
 }
@@ -51,20 +52,27 @@ func statusCommandAction(cmd *cobra.Command, args []string) error {
 	if len(args) > 0 {
 		packageName = args[0]
 	}
-	packageStatus, err := getPackageStatus(packageName, showAll)
+
+	kibanaVersion, err := cmd.Flags().GetString(cobraext.StackVersionFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.StackVersionFlagName)
+	}
+	options := registry.SearchOptions{
+		All:           showAll,
+		KibanaVersion: kibanaVersion,
+	}
+	packageStatus, err := getPackageStatus(packageName, options)
 	if err != nil {
 		return err
 	}
 	return print(packageStatus, os.Stdout)
 }
 
-func getPackageStatus(packageName string, showAll bool) (*status.PackageStatus, error) {
+func getPackageStatus(packageName string, options registry.SearchOptions) (*status.PackageStatus, error) {
+	options.Internal = true
+	options.Experimental = true
 	if packageName != "" {
-		return status.RemotePackage(packageName, registry.SearchOptions{
-			All:          showAll,
-			Internal:     true,
-			Experimental: true,
-		})
+		return status.RemotePackage(packageName, options)
 	}
 	packageRootPath, found, err := packages.FindPackageRoot()
 	if !found {
@@ -73,11 +81,7 @@ func getPackageStatus(packageName string, showAll bool) (*status.PackageStatus, 
 	if err != nil {
 		return nil, errors.Wrap(err, "locating package root failed")
 	}
-	return status.LocalPackage(packageRootPath, registry.SearchOptions{
-		All:          showAll,
-		Internal:     true,
-		Experimental: true,
-	})
+	return status.LocalPackage(packageRootPath, options)
 }
 
 // print formats and prints package information into a table
