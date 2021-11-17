@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
+	"sort"
 
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
@@ -116,10 +117,13 @@ func ProcessorsFromJSONPipeline(content []byte) (procs []Processor, err error) {
 	var stack tokenStack
 
 	for {
-		off := int(decoder.InputOffset())
 		tk, err := decoder.Token()
-		if err == io.EOF {
-			break
+		off := int(decoder.InputOffset())
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return nil, err
 		}
 		delim, isDelim := tk.(json.Delim)
 		if isDelim && (delim == '}' || delim == ']') {
@@ -144,28 +148,32 @@ func ProcessorsFromJSONPipeline(content []byte) (procs []Processor, err error) {
 		return nil, err
 	}
 
-	procs = make([]Processor, len(processors))
 	for idx, proc := range processors {
-		procs[idx] = Processor{
+		procs = append(procs, Processor{
 			Type: proc,
 			Line: lines[idx],
-		}
+		})
 	}
 	return procs, nil
 }
 
 func offsetsToLineNumbers(offsets []int, content []byte) (lines []int, err error) {
+	if !sort.SliceIsSorted(offsets, func(i, j int) bool {
+		return offsets[i] < offsets[j]
+	}) {
+		return nil, errors.New("input offsets must be sorted")
+	}
 	nextNewline := func(r []byte, offset int) int {
 		n := len(r)
 		if offset >= n {
 			return n
 		}
-		if delta := bytes.IndexByte(r[offset+1:], '\n'); delta > -1 {
+		if delta := bytes.IndexByte(r[offset:], '\n'); delta > -1 {
 			return offset + delta + 1
 		}
 		return n
 	}
-	lineEnd := nextNewline(content, -1)
+	lineEnd := nextNewline(content, 0)
 	line := 1
 	lines = make([]int, len(offsets))
 	for i := 0; i < len(offsets); {

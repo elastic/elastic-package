@@ -21,6 +21,9 @@ type Resource struct {
 
 func (p *Resource) FileName() string {
 	pos := strings.LastIndexByte(p.Name, '-')
+	if pos == -1 {
+		pos = len(p.Name)
+	}
 	return p.Name[:pos] + "." + p.Format
 }
 
