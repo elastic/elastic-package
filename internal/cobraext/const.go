@@ -84,6 +84,9 @@ const (
 	StackDumpOutputFlagName        = "output"
 	StackDumpOutputFlagDescription = "output location for the stack dump"
 
+	StatusKibanaVersionFlagName        = "kibana-version"
+	StatusKibanaVersionFlagDescription = "show packages for the given kibana version"
+
 	TestCoverageFlagName        = "test-coverage"
 	TestCoverageFlagDescription = "generate Cobertura test coverage reports"
 

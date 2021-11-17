@@ -37,7 +37,7 @@ func setupStatusCommand() *cobraext.Command {
 		RunE:  statusCommandAction,
 	}
 	cmd.Flags().BoolP(cobraext.ShowAllFlagName, "a", false, cobraext.ShowAllFlagDescription)
-	cmd.Flags().String(cobraext.StackVersionFlagName, "", cobraext.StackVersionFlagDescription)
+	cmd.Flags().String(cobraext.StatusKibanaVersionFlagName, "", cobraext.StatusKibanaVersionFlagDescription)
 
 	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
 }
@@ -53,9 +53,9 @@ func statusCommandAction(cmd *cobra.Command, args []string) error {
 		packageName = args[0]
 	}
 
-	kibanaVersion, err := cmd.Flags().GetString(cobraext.StackVersionFlagName)
+	kibanaVersion, err := cmd.Flags().GetString(cobraext.StatusKibanaVersionFlagName)
 	if err != nil {
-		return cobraext.FlagParsingError(err, cobraext.StackVersionFlagName)
+		return cobraext.FlagParsingError(err, cobraext.StatusKibanaVersionFlagName)
 	}
 	options := registry.SearchOptions{
 		All:           showAll,
