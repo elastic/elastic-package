@@ -19,8 +19,9 @@ import (
 
 // SearchOptions specify the query parameters without the package name for the search API
 type SearchOptions struct {
-	Experimental bool `url:"experimental"`
-	All          bool `url:"all"`
+	Experimental  bool   `url:"experimental"`
+	All           bool   `url:"all"`
+	KibanaVersion string `url:"kibana.version,omitempty"`
 }
 
 // searchQuery specify the package and query parameters for the search API
