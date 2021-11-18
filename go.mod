@@ -33,7 +33,7 @@ require (
 	helm.sh/helm/v3 v3.7.1
 	honnef.co/go/tools v0.2.2
 	k8s.io/apimachinery v0.22.4
-	k8s.io/cli-runtime v0.22.3
+	k8s.io/cli-runtime v0.22.4
 	k8s.io/client-go v0.22.4
 )
 
