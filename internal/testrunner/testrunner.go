@@ -12,8 +12,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/elastic/go-elasticsearch/v7"
 	"github.com/pkg/errors"
+
+	"github.com/elastic/elastic-package/internal/elasticsearch"
 )
 
 // TestType represents the various supported test types
@@ -24,7 +25,7 @@ type TestOptions struct {
 	TestFolder         TestFolder
 	PackageRootPath    string
 	GenerateTestResult bool
-	ESClient           *elasticsearch.Client
+	API                *elasticsearch.API
 
 	DeferCleanup   time.Duration
 	ServiceVariant string

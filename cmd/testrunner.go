@@ -200,7 +200,7 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 				TestFolder:         folder,
 				PackageRootPath:    packageRootPath,
 				GenerateTestResult: generateTestResult,
-				ESClient:           esClient,
+				API:                esClient.API,
 				DeferCleanup:       deferCleanup,
 				ServiceVariant:     variantFlag,
 			})
