@@ -41,6 +41,8 @@ func BootUp(options Options) error {
 		if err != nil {
 			return errors.Wrap(err, "copying package contents failed")
 		}
+	} else {
+		fmt.Println("WARNING: no custom build packages directory found. Any locally built integrations will not be installed.")
 	}
 
 	fmt.Println("Packages from the following directories will be loaded into the package-registry:")
