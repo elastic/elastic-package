@@ -2,7 +2,7 @@
 
 set -euxo pipefail
 
-cp -r /stage/*.tf /workspace
+cp -r /stage/* /workspace
 
 cleanup() {
   r=$?
