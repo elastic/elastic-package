@@ -7,6 +7,7 @@ package fields
 import (
 	"encoding/json"
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -306,7 +307,7 @@ func (v *Validator) parseElementValue(key string, definition FieldDefinition, va
 		if err := ensurePatternMatches(key, valStr, definition.Pattern); err != nil {
 			return err
 		}
-	case "date", "ip", "keyword", "text":
+	case "date", "keyword", "text":
 		var valStr string
 		valStr, valid = val.(string)
 		if !valid {
@@ -315,6 +316,20 @@ func (v *Validator) parseElementValue(key string, definition FieldDefinition, va
 
 		if err := ensurePatternMatches(key, valStr, definition.Pattern); err != nil {
 			return err
+		}
+	case "ip":
+		var valStr string
+		valStr, valid = val.(string)
+		if !valid {
+			break
+		}
+
+		if err := ensurePatternMatches(key, valStr, definition.Pattern); err != nil {
+			return err
+		}
+
+		if !isAllowedIPValue(valStr) {
+			return fmt.Errorf("the IP %q is not one of the allowed test IPs", valStr)
 		}
 	case "float", "long", "double":
 		_, valid = val.(float64)
@@ -326,6 +341,52 @@ func (v *Validator) parseElementValue(key string, definition FieldDefinition, va
 		return fmt.Errorf("field %q's Go type, %T, does not match the expected field type: %s (field value: %v)", key, val, definition.Type, val)
 	}
 	return nil
+}
+
+// isAllowedIPValue checks if the provided IP is allowed for testing
+// The set of allowed IPs are:
+// - private IPs as described in RFC 1918 & RFC 4193
+// - public IPs allowed by MaxMind for testing
+// - 0.0.0.0 and 255.255.255.255
+func isAllowedIPValue(v string) bool {
+	allowedIPs := map[string]struct{}{
+		"0.0.0.0":         {},
+		"255.255.255.255": {},
+
+		// maxmind allowed set found at:
+		// https://github.com/elastic/elastic-package/blob/master/docs/howto/ingest_geoip.md
+		"1.128.3.4":                              {},
+		"175.16.199.1":                           {},
+		"216.160.83.57":                          {},
+		"216.160.83.61":                          {},
+		"81.2.69.143":                            {},
+		"81.2.69.144":                            {},
+		"81.2.69.145":                            {},
+		"81.2.69.193":                            {},
+		"89.160.20.112":                          {},
+		"89.160.20.156":                          {},
+		"67.43.156.12":                           {},
+		"67.43.156.13":                           {},
+		"67.43.156.14":                           {},
+		"67.43.156.15":                           {},
+		"2a02:cf40:add:4002:91f2:a9b2:e09a:6fc6": {},
+	}
+
+	if _, found := allowedIPs[v]; found {
+		return true
+	}
+
+	ip := net.ParseIP(v)
+	if ip == nil {
+		return false
+	}
+
+	if ip.IsPrivate() || ip.IsLoopback() ||
+		ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
+		return true
+	}
+
+	return false
 }
 
 // ensureSingleElementValue extracts single entity from a potential array, which is a valid field representation
