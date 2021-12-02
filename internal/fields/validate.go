@@ -69,7 +69,7 @@ func WithDisabledDependencyManagement() ValidatorOption {
 	}
 }
 
-// WithEnabledAllowedIPCheck configures the validator to ignore external fields and won't follow dependencies.
+// WithEnabledAllowedIPCheck configures the validator to perform check on the IP values against an allowed list.
 func WithEnabledAllowedIPCheck() ValidatorOption {
 	return func(v *Validator) error {
 		v.enabledAllowedIPCheck = true
