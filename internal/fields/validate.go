@@ -32,6 +32,7 @@ type Validator struct {
 	numericKeywordFields     map[string]struct{}
 
 	disabledDependencyManagement bool
+	disabledAllowedIPCheck       bool
 }
 
 // ValidatorOption represents an optional flag that can be passed to  CreateValidatorForDataStream.
@@ -61,6 +62,14 @@ func WithNumericKeywordFields(fields []string) ValidatorOption {
 func WithDisabledDependencyManagement() ValidatorOption {
 	return func(v *Validator) error {
 		v.disabledDependencyManagement = true
+		return nil
+	}
+}
+
+// WithDisabledAllowedIPCheck configures the validator to ignore external fields and won't follow dependencies.
+func WithDisabledAllowedIPCheck() ValidatorOption {
+	return func(v *Validator) error {
+		v.disabledAllowedIPCheck = true
 		return nil
 	}
 }
@@ -326,6 +335,10 @@ func (v *Validator) parseElementValue(key string, definition FieldDefinition, va
 
 		if err := ensurePatternMatches(key, valStr, definition.Pattern); err != nil {
 			return err
+		}
+
+		if v.disabledAllowedIPCheck {
+			break
 		}
 
 		if !isAllowedIPValue(valStr) {
