@@ -131,7 +131,11 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 
 		tr.TimeElapsed = time.Since(startTime)
 		fieldsValidator, err := fields.CreateValidatorForDataStream(dataStreamPath,
-			fields.WithNumericKeywordFields(tc.config.NumericKeywordFields))
+			fields.WithNumericKeywordFields(tc.config.NumericKeywordFields),
+			// explicitly enabled for pipeline tests only
+			// since system tests can have dynamic public IPs
+			fields.WithEnabledAllowedIPCheck(),
+		)
 		if err != nil {
 			return nil, errors.Wrapf(err, "creating fields validator for data stream failed (path: %s, test case file: %s)", dataStreamPath, testCaseFile)
 		}
