@@ -121,6 +121,7 @@ var allowedGeoIPs string
 func initializeAllowedIPsList() map[string]struct{} {
 	m := map[string]struct{}{
 		"0.0.0.0": {}, "255.255.255.255": {},
+		"0:0:0:0:0:0:0:0": {}, "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff": {},
 	}
 	for _, ip := range strings.Split(allowedGeoIPs, "\n") {
 		m[ip] = struct{}{}
@@ -376,7 +377,8 @@ func (v *Validator) parseElementValue(key string, definition FieldDefinition, va
 // The set of allowed IPs are:
 // - private IPs as described in RFC 1918 & RFC 4193
 // - public IPs allowed by MaxMind for testing
-// - 0.0.0.0 and 255.255.255.255
+// - 0.0.0.0 and 255.255.255.255 for IPv4
+// - 0:0:0:0:0:0:0:0 and ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff for IPv6
 func (v *Validator) isAllowedIPValue(s string) bool {
 	if _, found := v.allowedIPs[s]; found {
 		return true
