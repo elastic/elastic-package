@@ -47,11 +47,11 @@ func Test_configurationDirError(t *testing.T) {
 
 func Test_configurationDirOverride(t *testing.T) {
 	expected := "/tmp/foobar"
-	os.Setenv(elasticDataHomeEnv, expected)
+	os.Setenv(elasticPackageDataHome, expected)
 
 	actual, err := configurationDir()
 	assert.Nil(t, err)
 
 	assert.Equal(t, expected, actual)
-	os.Setenv(elasticDataHomeEnv, "")
+	os.Setenv(elasticPackageDataHome, "")
 }
