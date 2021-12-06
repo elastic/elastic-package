@@ -13,6 +13,9 @@ import (
 )
 
 const (
+	// elasticPackageDataHome is the name of the environment variable used to override data folder for elastic-package
+	elasticPackageDataHome = "ELASTIC_PACKAGE_DATA_HOME"
+
 	elasticPackageDir = ".elastic-package"
 	stackDir          = "stack"
 	packagesDir       = "development"
@@ -104,7 +107,14 @@ func (loc LocationManager) FieldsCacheDir() string {
 }
 
 // configurationDir returns the configuration directory location
+// If a environment variable named as in elasticPackageDataHome is present,
+// the value is used as is, overriding the value of this function.
 func configurationDir() (string, error) {
+	customHome := os.Getenv(elasticPackageDataHome)
+	if customHome != "" {
+		return customHome, nil
+	}
+
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		return "", errors.Wrap(err, "reading home dir failed")
