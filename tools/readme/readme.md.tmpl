@@ -13,6 +13,8 @@ Currently, `elastic-package` only supports packages of type [Elastic Integration
 
 Download latest release from the [Releases](https://github.com/elastic/elastic-package/releases/latest) page.
 
+On macOS, use `xattr -r -d com.apple.quarantine elastic-package` after downloading to allow the binary to run.
+
 Alternatively, you may use `go get` but you will not be able to use the `elastic-package version` command or check updates.
 
 ```bash
