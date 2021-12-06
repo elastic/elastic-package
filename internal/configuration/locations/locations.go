@@ -14,7 +14,7 @@ import (
 
 const (
 	// elasticDataHomeEnv is the name of the environment variable used to override data folder for elastic-package
-	elasticDataHomeEnv = "ELASTIC_PACKAGE_DATA_HOME"
+	elasticPackageDataHome = "ELASTIC_PACKAGE_DATA_HOME"
 
 	elasticPackageDir = ".elastic-package"
 	stackDir          = "stack"
