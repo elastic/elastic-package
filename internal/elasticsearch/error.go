@@ -18,45 +18,45 @@ type ErrorBody struct {
 		RootCause []struct {
 			Type          string   `json:"type"`
 			Reason        string   `json:"reason"`
-			ProcessorType string   `json:"processor_type"`
-			ScriptStack   []string `json:"script_stack"`
-			Script        string   `json:"script"`
-			Lang          string   `json:"lang"`
+			ProcessorType string   `json:"processor_type,omitempty"`
+			ScriptStack   []string `json:"script_stack,omitempty"`
+			Script        string   `json:"script,omitempty"`
+			Lang          string   `json:"lang,omitempty"`
 			Position      struct {
 				Offset int `json:"offset"`
 				Start  int `json:"start"`
 				End    int `json:"end"`
-			} `json:"position"`
+			} `json:"position,omitempty"`
 			Suppressed []struct {
 				Type          string `json:"type"`
 				Reason        string `json:"reason"`
 				ProcessorType string `json:"processor_type"`
-			} `json:"suppressed"`
-		} `json:"root_cause"`
+			} `json:"suppressed,omitempty"`
+		} `json:"root_cause,omitempty"`
 		Type          string   `json:"type"`
 		Reason        string   `json:"reason"`
-		ProcessorType string   `json:"processor_type"`
-		ScriptStack   []string `json:"script_stack"`
-		Script        string   `json:"script"`
-		Lang          string   `json:"lang"`
+		ProcessorType string   `json:"processor_type,omitempty"`
+		ScriptStack   []string `json:"script_stack,omitempty"`
+		Script        string   `json:"script,omitempty"`
+		Lang          string   `json:"lang,omitempty"`
 		Position      struct {
 			Offset int `json:"offset"`
 			Start  int `json:"start"`
 			End    int `json:"end"`
-		} `json:"position"`
+		} `json:"position,omitempty"`
 		CausedBy struct {
 			Type     string `json:"type"`
 			Reason   string `json:"reason"`
 			CausedBy struct {
 				Type   string      `json:"type"`
 				Reason interface{} `json:"reason"`
-			} `json:"caused_by"`
-		} `json:"caused_by"`
+			} `json:"caused_by,omitempty"`
+		} `json:"caused_by,omitempty"`
 		Suppressed []struct {
 			Type          string `json:"type"`
 			Reason        string `json:"reason"`
 			ProcessorType string `json:"processor_type"`
-		} `json:"suppressed"`
+		} `json:"suppressed,omitempty"`
 	} `json:"error"`
 	Status int `json:"status"`
 }

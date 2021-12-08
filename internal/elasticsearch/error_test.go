@@ -29,6 +29,20 @@ func TestNewError(t *testing.T) {
   "status" : 400
 }`
 
+	const expected = `elasticsearch error (type=parse_exception): processor [set] doesn't support one or more provided configuration parameters [fail]
+Root cause:
+[
+  {
+    "type": "parse_exception",
+    "reason": "processor [set] doesn't support one or more provided configuration parameters [fail]",
+    "processor_type": "set",
+    "position": {
+      "offset": 0,
+      "start": 0,
+      "end": 0
+    }
+  }
+]`
 	err := elasticsearch.NewError([]byte(resp))
-	assert.Equal(t, err.Error(), "elasticsearch error (type=parse_exception): processor [set] doesn't support one or more provided configuration parameters [fail]")
+	assert.Equal(t, err.Error(), expected)
 }
