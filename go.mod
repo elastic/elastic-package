@@ -9,7 +9,7 @@ require (
 	github.com/aymerick/raymond v2.0.2+incompatible
 	github.com/boumenot/gocover-cobertura v1.2.0
 	github.com/cespare/xxhash/v2 v2.1.2
-	github.com/elastic/go-elasticsearch/v7 v7.15.1
+	github.com/elastic/go-elasticsearch/v7 v7.16.0
 	github.com/elastic/go-licenser v0.4.0
 	github.com/elastic/go-ucfg v0.8.4
 	github.com/elastic/package-spec v1.3.0
