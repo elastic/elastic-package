@@ -60,7 +60,7 @@ func (r *runner) TearDown() error {
 		time.Sleep(r.options.DeferCleanup)
 	}
 
-	err := uninstallIngestPipelines(r.options.ESClient, r.pipelines)
+	err := uninstallIngestPipelines(r.options.API, r.pipelines)
 	if err != nil {
 		return errors.Wrap(err, "uninstalling ingest pipelines failed")
 	}
@@ -88,7 +88,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 	}
 
 	var entryPipeline string
-	entryPipeline, r.pipelines, err = installIngestPipelines(r.options.ESClient, dataStreamPath)
+	entryPipeline, r.pipelines, err = installIngestPipelines(r.options.API, dataStreamPath)
 	if err != nil {
 		return nil, errors.Wrap(err, "installing ingest pipelines failed")
 	}
@@ -121,7 +121,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 			continue
 		}
 
-		result, err := simulatePipelineProcessing(r.options.ESClient, entryPipeline, tc)
+		result, err := simulatePipelineProcessing(r.options.API, entryPipeline, tc)
 		if err != nil {
 			err := errors.Wrap(err, "simulating pipeline processing failed")
 			tr.ErrorMsg = err.Error()

@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"strings"
 
-	es "github.com/elastic/go-elasticsearch/v7"
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/logger"
@@ -29,7 +28,6 @@ const (
 type runner struct {
 	testFolder      testrunner.TestFolder
 	packageRootPath string
-	esClient        *es.Client
 
 	// Execution order of following handlers is defined in runner.tearDown() method.
 	removePackageHandler func() error
@@ -55,7 +53,6 @@ func (r runner) CanRunPerDataStream() bool {
 func (r runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, error) {
 	r.testFolder = options.TestFolder
 	r.packageRootPath = options.PackageRootPath
-	r.esClient = options.ESClient
 
 	return r.run()
 }
