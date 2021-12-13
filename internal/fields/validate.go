@@ -124,6 +124,10 @@ func initializeAllowedIPsList() map[string]struct{} {
 		"0:0:0:0:0:0:0:0": {}, "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff": {},
 	}
 	for _, ip := range strings.Split(allowedGeoIPs, "\n") {
+		ip = strings.Trim(ip, " \n\t")
+		if ip == "" {
+			continue
+		}
 		m[ip] = struct{}{}
 	}
 
