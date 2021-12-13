@@ -10,9 +10,19 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/elastic/go-elasticsearch/v7"
+	"github.com/elastic/go-elasticsearch/v7/esapi"
 
 	"github.com/elastic/elastic-package/internal/stack"
 )
+
+// API contains the elasticsearch APIs
+type API = esapi.API
+
+// IngestSimulateRequest configures the Ingest Simulate API request.
+type IngestSimulateRequest = esapi.IngestSimulateRequest
+
+// IngestGetPipelineRequest configures the Ingest Get Pipeline API request.
+type IngestGetPipelineRequest = esapi.IngestGetPipelineRequest
 
 // Client method creates new instance of the Elasticsearch client.
 func Client() (*elasticsearch.Client, error) {

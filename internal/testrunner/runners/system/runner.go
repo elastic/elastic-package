@@ -13,11 +13,11 @@ import (
 	"strings"
 	"time"
 
-	es "github.com/elastic/go-elasticsearch/v7"
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/configuration/locations"
+	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/fields"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
@@ -227,10 +227,10 @@ func createTestRunID() string {
 }
 
 func (r *runner) getDocs(dataStream string) ([]common.MapStr, error) {
-	resp, err := r.options.ESClient.Search(
-		r.options.ESClient.Search.WithIndex(dataStream),
-		r.options.ESClient.Search.WithSort("@timestamp:asc"),
-		r.options.ESClient.Search.WithSize(elasticsearchQuerySize),
+	resp, err := r.options.API.Search(
+		r.options.API.Search.WithIndex(dataStream),
+		r.options.API.Search.WithSort("@timestamp:asc"),
+		r.options.API.Search.WithSize(elasticsearchQuerySize),
 	)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not search data stream")
@@ -358,13 +358,13 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 
 	r.wipeDataStreamHandler = func() error {
 		logger.Debugf("deleting data in data stream...")
-		if err := deleteDataStreamDocs(r.options.ESClient, dataStream); err != nil {
+		if err := deleteDataStreamDocs(r.options.API, dataStream); err != nil {
 			return errors.Wrap(err, "error deleting data in data stream")
 		}
 		return nil
 	}
 
-	if err := deleteDataStreamDocs(r.options.ESClient, dataStream); err != nil {
+	if err := deleteDataStreamDocs(r.options.API, dataStream); err != nil {
 		return result.WithError(errors.Wrapf(err, "error deleting old data in data stream: %s", dataStream))
 	}
 
@@ -580,9 +580,9 @@ func getDataStreamIndex(inputName string, ds packages.DataStreamManifest) int {
 	return 0
 }
 
-func deleteDataStreamDocs(esClient *es.Client, dataStream string) error {
+func deleteDataStreamDocs(api *elasticsearch.API, dataStream string) error {
 	body := strings.NewReader(`{ "query": { "match_all": {} } }`)
-	_, err := esClient.DeleteByQuery([]string{dataStream}, body)
+	_, err := api.DeleteByQuery([]string{dataStream}, body)
 	if err != nil {
 		return err
 	}
