@@ -81,7 +81,6 @@ services:
     - "KIBANA_FLEET_SETUP=1"
     - "KIBANA_FLEET_HOST=http://kibana:5601"
     - "FLEET_SERVER_HOST=0.0.0.0"
-    - "STATE_PATH=/usr/share/elastic-agent"
     ports:
       - "127.0.0.1:8220:8220"
 
@@ -105,7 +104,6 @@ services:
     - "FLEET_ENROLL=1"
     - "FLEET_INSECURE=1"
     - "FLEET_URL=http://fleet-server:8220"
-    - "STATE_PATH=/usr/share/elastic-agent"
     volumes:
     - type: bind
       source: ../../../tmp/service_logs/
