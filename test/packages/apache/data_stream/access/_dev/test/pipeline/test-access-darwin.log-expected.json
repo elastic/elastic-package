@@ -1,0 +1,306 @@
+{
+    "expected": [
+        {
+            "apache": {
+                "access": {}
+            },
+            "@timestamp": "2016-12-26T14:16:28.000Z",
+            "ecs": {
+                "version": "1.12.0"
+            },
+            "http": {
+                "request": {
+                    "method": "GET"
+                },
+                "version": "1.1",
+                "response": {
+                    "body": {
+                        "bytes": 45
+                    },
+                    "status_code": 200
+                }
+            },
+            "source": {
+                "address": "::1",
+                "ip": "::1"
+            },
+            "event": {
+                "ingested": "2021-12-09T13:30:30.879403900Z",
+                "original": "::1 - - [26/Dec/2016:16:16:28 +0200] \"GET / HTTP/1.1\" 200 45",
+                "category": "web",
+                "kind": "event",
+                "created": "2020-04-28T11:07:58.223Z",
+                "outcome": "success"
+            },
+            "user": {
+                "name": "-"
+            },
+            "url": {
+                "path": "/",
+                "original": "/"
+            },
+            "tags": [
+                "preserve_original_event"
+            ]
+        },
+        {
+            "apache": {
+                "access": {}
+            },
+            "@timestamp": "2016-12-26T14:16:29.000Z",
+            "ecs": {
+                "version": "1.12.0"
+            },
+            "http": {
+                "request": {
+                    "method": "GET"
+                },
+                "version": "1.1",
+                "response": {
+                    "body": {
+                        "bytes": 209
+                    },
+                    "status_code": 404
+                }
+            },
+            "source": {
+                "address": "::1",
+                "ip": "::1"
+            },
+            "event": {
+                "ingested": "2021-12-09T13:30:30.879409400Z",
+                "original": "::1 - - [26/Dec/2016:16:16:29 +0200] \"GET /favicon.ico HTTP/1.1\" 404 209",
+                "category": "web",
+                "kind": "event",
+                "created": "2020-04-28T11:07:58.223Z",
+                "outcome": "failure"
+            },
+            "user": {
+                "name": "-"
+            },
+            "url": {
+                "path": "/favicon.ico",
+                "extension": "ico",
+                "original": "/favicon.ico"
+            },
+            "tags": [
+                "preserve_original_event"
+            ]
+        },
+        {
+            "apache": {
+                "access": {}
+            },
+            "@timestamp": "2016-12-26T14:16:48.000Z",
+            "ecs": {
+                "version": "1.12.0"
+            },
+            "http": {
+                "response": {
+                    "status_code": 408
+                }
+            },
+            "source": {
+                "address": "::1",
+                "ip": "::1"
+            },
+            "event": {
+                "ingested": "2021-12-09T13:30:30.879413800Z",
+                "original": "::1 - - [26/Dec/2016:16:16:48 +0200] \"-\" 408 -",
+                "category": "web",
+                "kind": "event",
+                "created": "2020-04-28T11:07:58.223Z",
+                "outcome": "failure"
+            },
+            "user": {
+                "name": "-"
+            },
+            "tags": [
+                "preserve_original_event"
+            ]
+        },
+        {
+            "apache": {
+                "access": {}
+            },
+            "@timestamp": "2016-12-26T16:23:35.000Z",
+            "ecs": {
+                "version": "1.12.0"
+            },
+            "http": {
+                "request": {
+                    "method": "GET"
+                },
+                "version": "1.1",
+                "response": {
+                    "body": {
+                        "bytes": 45
+                    },
+                    "status_code": 200
+                }
+            },
+            "source": {
+                "geo": {
+                    "continent_name": "Europe",
+                    "region_iso_code": "SE-AB",
+                    "city_name": "Tumba",
+                    "country_iso_code": "SE",
+                    "country_name": "Sweden",
+                    "region_name": "Stockholm",
+                    "location": {
+                        "lon": 17.8167,
+                        "lat": 59.2
+                    }
+                },
+                "as": {
+                    "number": 29518,
+                    "organization": {
+                        "name": "Bredband2 AB"
+                    }
+                },
+                "address": "89.160.20.156",
+                "ip": "89.160.20.156"
+            },
+            "event": {
+                "ingested": "2021-12-09T13:30:30.879418Z",
+                "original": "89.160.20.156 - - [26/Dec/2016:18:23:35 +0200] \"GET / HTTP/1.1\" 200 45",
+                "category": "web",
+                "kind": "event",
+                "created": "2020-04-28T11:07:58.223Z",
+                "outcome": "success"
+            },
+            "user": {
+                "name": "-"
+            },
+            "url": {
+                "path": "/",
+                "original": "/"
+            },
+            "tags": [
+                "preserve_original_event"
+            ]
+        },
+        {
+            "apache": {
+                "access": {}
+            },
+            "@timestamp": "2016-12-26T16:23:41.000Z",
+            "ecs": {
+                "version": "1.12.0"
+            },
+            "http": {
+                "request": {
+                    "method": "GET"
+                },
+                "version": "1.1",
+                "response": {
+                    "body": {
+                        "bytes": 206
+                    },
+                    "status_code": 404
+                }
+            },
+            "source": {
+                "geo": {
+                    "continent_name": "Europe",
+                    "region_iso_code": "SE-AB",
+                    "city_name": "Tumba",
+                    "country_iso_code": "SE",
+                    "country_name": "Sweden",
+                    "region_name": "Stockholm",
+                    "location": {
+                        "lon": 17.8167,
+                        "lat": 59.2
+                    }
+                },
+                "as": {
+                    "number": 29518,
+                    "organization": {
+                        "name": "Bredband2 AB"
+                    }
+                },
+                "address": "89.160.20.156",
+                "ip": "89.160.20.156"
+            },
+            "event": {
+                "ingested": "2021-12-09T13:30:30.879422100Z",
+                "original": "89.160.20.156 - - [26/Dec/2016:18:23:41 +0200] \"GET /notfound HTTP/1.1\" 404 206",
+                "category": "web",
+                "kind": "event",
+                "created": "2020-04-28T11:07:58.223Z",
+                "outcome": "failure"
+            },
+            "user": {
+                "name": "-"
+            },
+            "url": {
+                "path": "/notfound",
+                "original": "/notfound"
+            },
+            "tags": [
+                "preserve_original_event"
+            ]
+        },
+        {
+            "apache": {
+                "access": {}
+            },
+            "@timestamp": "2016-12-26T16:23:45.000Z",
+            "ecs": {
+                "version": "1.12.0"
+            },
+            "http": {
+                "request": {
+                    "method": "GET"
+                },
+                "version": "1.1",
+                "response": {
+                    "body": {
+                        "bytes": 201
+                    },
+                    "status_code": 404
+                }
+            },
+            "source": {
+                "geo": {
+                    "continent_name": "Europe",
+                    "region_iso_code": "SE-AB",
+                    "city_name": "Tumba",
+                    "country_iso_code": "SE",
+                    "country_name": "Sweden",
+                    "region_name": "Stockholm",
+                    "location": {
+                        "lon": 17.8167,
+                        "lat": 59.2
+                    }
+                },
+                "as": {
+                    "number": 29518,
+                    "organization": {
+                        "name": "Bredband2 AB"
+                    }
+                },
+                "address": "89.160.20.156",
+                "ip": "89.160.20.156"
+            },
+            "event": {
+                "ingested": "2021-12-09T13:30:30.879427100Z",
+                "original": "89.160.20.156 - - [26/Dec/2016:18:23:45 +0200] \"GET /hmm HTTP/1.1\" 404 201",
+                "category": "web",
+                "kind": "event",
+                "created": "2020-04-28T11:07:58.223Z",
+                "outcome": "failure"
+            },
+            "user": {
+                "name": "-"
+            },
+            "url": {
+                "path": "/hmm",
+                "original": "/hmm"
+            },
+            "tags": [
+                "preserve_original_event"
+            ]
+        }
+    ]
+}

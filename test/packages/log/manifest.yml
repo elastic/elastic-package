@@ -1,11 +1,10 @@
 format_version: 1.0.0
 name: log
-title: Custom logs
-description: >
-  Collect your custom logs.
-
+title: Custom Logs
+description: >-
+  Collect custom logs with Elastic Agent.
 type: integration
-version: 0.4.6
+version: 999.999.999
 release: experimental
 license: basic
 categories:
@@ -22,4 +21,4 @@ icons:
   - src: "/img/icon.svg"
     type: "image/svg+xml"
 owner:
-  github: elastic/integrations-services
+  github: elastic/integrations
