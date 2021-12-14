@@ -157,6 +157,7 @@ def generateTestSignWithElasticStage() {
     withNode(labels: "ubuntu-20 && immutable", sleepMax: 20, forceWorkspace: true) {
       cleanup()
       dir("${BASE_DIR}"){
+        sh(label: 'Build elastic-package',script: "make build")
         sh(label: 'Prepare for tests (build zipped packages)',script: "make build-unsigned-zip-for-tests")
         googleStorageUpload(bucket: env.INFRA_SIGNING_BUCKET_NAME,
           credentialsId: env.INFRA_SIGNING_BUCKET_CREDENTIALS,
