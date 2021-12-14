@@ -156,20 +156,22 @@ def generateTestSignWithElasticStage() {
 
     withNode(labels: "ubuntu-20 && immutable", sleepMax: 20, forceWorkspace: true) {
       cleanup()
-      sh(label: 'Prepare for tests (build zipped packages)',script: "make build-unsigned-zip-for-tests")
-      googleStorageUpload(bucket: env.INFRA_SIGNING_BUCKET_NAME,
-        credentialsId: env.INFRA_SIGNING_BUCKET_CREDENTIALS,
-        pathPrefix: 'build/integrations/',
-        pattern: 'build/integrations/*.zip',
-        sharedPublicly: false,
-        showInline: true)
-      build(wait: true, propagate: true, job: 'elastic+unified-release+master+sign-artifacts-with-gpg',
-        parameters: [string(name: 'gcs_input_path', value: "${env.BUCKET_PATH}")])
-      googleStorageDownload(bucketUri: "${env.INFRA_SIGNING_BUCKET_SIGNED_ARTIFACTS_PATH}/*",
-        credentialsId: env.INFRA_SIGNING_BUCKET_CREDENTIALS,
-        localDirectory: 'build/integrations/',
-        pathPrefix: "${env.INFRA_SIGNING_BUCKET_SUBFOLDER_SIGNED_ARTIFACTS}")
-      archiveArtifacts(allowEmptyArchive: true, artifacts: "build/integrations/*.sig")
+      dir("${BASE_DIR}"){
+        sh(label: 'Prepare for tests (build zipped packages)',script: "make build-unsigned-zip-for-tests")
+        googleStorageUpload(bucket: env.INFRA_SIGNING_BUCKET_NAME,
+          credentialsId: env.INFRA_SIGNING_BUCKET_CREDENTIALS,
+          pathPrefix: 'build/integrations/',
+          pattern: 'build/integrations/*.zip',
+          sharedPublicly: false,
+          showInline: true)
+        build(wait: true, propagate: true, job: 'elastic+unified-release+master+sign-artifacts-with-gpg',
+          parameters: [string(name: 'gcs_input_path', value: "${env.BUCKET_PATH}")])
+        googleStorageDownload(bucketUri: "${env.INFRA_SIGNING_BUCKET_SIGNED_ARTIFACTS_PATH}/*",
+          credentialsId: env.INFRA_SIGNING_BUCKET_CREDENTIALS,
+          localDirectory: 'build/integrations/',
+          pathPrefix: "${env.INFRA_SIGNING_BUCKET_SUBFOLDER_SIGNED_ARTIFACTS}")
+        archiveArtifacts(allowEmptyArchive: true, artifacts: "build/integrations/*.sig")
+      }
     }
   }
 }
@@ -188,7 +190,7 @@ def generateTestCommandStage(Map args = [:]){
           withMageEnv(){
             withKubernetes() {
               withCloudTestEnv() {
-                sh(label: 'Check',script: "make ${command} check-git-clean")
+                sh(label: 'Check',script: "make build ${command} check-git-clean")
               }
             }
           }
