@@ -19,11 +19,10 @@ pipeline {
 
     INFRA_SIGNING_BUCKET_NAME = 'internal-ci-artifacts'
     INFRA_SIGNING_BUCKET_CREDENTIALS = 'internal-ci-gcs-plugin'
-    INFRA_SIGNING_BUCKET_SUBFOLDER = "${env.REPO_NAME}/${env.TAG_NAME}"
-    INFRA_SIGNING_BUCKET_PATH = "gs://${env.BUILD_TAG}/${env.INFRA_SIGNING_BUCKET_SUBFOLDER}"
+    INFRA_SIGNING_BUCKET_SUBFOLDER = "${env.REPO_NAME}/${env.BUILD_TAG}"
+    INFRA_SIGNING_BUCKET_PATH = "gs://${env.INFRA_SIGNING_BUCKET_NAME}/${env.INFRA_SIGNING_BUCKET_SUBFOLDER}"
     INFRA_SIGNING_SIGNED_ARTIFACTS = 'signed-artifacts'
-    INFRA_SIGNING_BUCKET_SUBFOLDER_SIGNED_ARTIFACTS = "${env.BUCKET_SUBFOLDER}/${env.SIGNED_ARTIFACTS}"
-    BUCKET_SIGNED_ARTIFACTS_PATH = "gs://${env.INFRA_SIGNING_BUCKET_NAME}/${env.BUCKET_SUBFOLDER_SIGNED_ARTIFACTS}"
+    INFRA_SIGNING_BUCKET_SIGNED_ARTIFACTS_PATH = "${env.INFRA_SIGNING_BUCKET_PATH}/${env.INFRA_SIGNING_SIGNED_ARTIFACTS}"
   }
   options {
     timeout(time: 1, unit: 'HOURS')
@@ -148,22 +147,29 @@ def cleanup(){
 
 def generateTestSignWithElasticStage() {
   return {
+      INFRA_SIGNING_BUCKET_NAME = 'internal-ci-artifacts'
+      INFRA_SIGNING_BUCKET_CREDENTIALS = 'internal-ci-gcs-plugin'
+      INFRA_SIGNING_BUCKET_SUBFOLDER = "${env.REPO_NAME}/${env.BUILD_TAG}"
+      INFRA_SIGNING_BUCKET_PATH = "gs://${env.INFRA_SIGNING_BUCKET_NAME}/${env.INFRA_SIGNING_BUCKET_SUBFOLDER}"
+      INFRA_SIGNING_BUCKET_SUBFOLDER_SIGNED_ARTIFACTS = "${env.INFRA_SIGNING_BUCKET_SUBFOLDER}/signed-artifacts"
+      INFRA_SIGNING_BUCKET_SIGNED_ARTIFACTS_PATH = "gs://${env.INFRA_SIGNING_BUCKET_NAME}/${env.INFRA_SIGNING_BUCKET_SUBFOLDER_SIGNED_ARTIFACTS}"
+
     withNode(labels: "ubuntu-20 && immutable", sleepMax: 20, forceWorkspace: true) {
       cleanup()
       sh(label: 'Prepare for tests (build zipped packages)',script: "make build-unsigned-zip-for-tests")
-      googleStorageUpload(bucket: env.BUCKET_PATH,
-        credentialsId: env.BUCKET_CREDENTIALS,
+      googleStorageUpload(bucket: env.INFRA_SIGNING_BUCKET_NAME,
+        credentialsId: env.INFRA_SIGNING_BUCKET_CREDENTIALS,
         pathPrefix: 'build/integrations/',
         pattern: 'build/integrations/*.zip',
         sharedPublicly: false,
         showInline: true)
       build(wait: true, propagate: true, job: 'elastic+unified-release+master+sign-artifacts-with-gpg',
         parameters: [string(name: 'gcs_input_path', value: "${env.BUCKET_PATH}")])
-      googleStorageDownload(bucketUri: "${env.BUCKET_SIGNED_ARTIFACTS_PATH}/*",
-        credentialsId: env.BUCKET_CREDENTIALS,
+      googleStorageDownload(bucketUri: "${env.INFRA_SIGNING_BUCKET_SIGNED_ARTIFACTS_PATH}/*",
+        credentialsId: env.INFRA_SIGNING_BUCKET_CREDENTIALS,
         localDirectory: 'build/integrations/',
-        pathPrefix: "${env.BUCKET_SUBFOLDER_SIGNED_ARTIFACTS}")
-      archiveArtifacts(allowEmptyArchive: true, artifacts: "${SIGNED_ARTIFACTS}/**/*")
+        pathPrefix: "${env.INFRA_SIGNING_BUCKET_SUBFOLDER_SIGNED_ARTIFACTS}")
+      archiveArtifacts(allowEmptyArchive: true, artifacts: "build/integrations/*.sig")
     }
   }
 }
