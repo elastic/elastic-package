@@ -12,7 +12,7 @@
                 "level": "notice"
             },
             "event": {
-                "ingested": "2021-12-09T13:30:34.283841100Z",
+                "ingested": "2021-12-14T10:30:23.471847700Z",
                 "original": "[Mon Dec 26 16:17:53 2016] [notice] Apache/2.2.22 (Ubuntu) configured -- resuming normal operations",
                 "category": "web",
                 "type": "info",
@@ -25,17 +25,6 @@
             ]
         },
         {
-            "log": {
-                "level": "error"
-            },
-            "source": {
-                "address": "192.168.33.1",
-                "ip": "192.168.33.1"
-            },
-            "message": "File does not exist: /var/www/favicon.ico, referer: http://192.168.33.72/",
-            "tags": [
-                "preserve_original_event"
-            ],
             "apache": {
                 "error": {}
             },
@@ -46,19 +35,30 @@
             "ecs": {
                 "version": "1.12.0"
             },
+            "log": {
+                "level": "error"
+            },
             "http": {
                 "request": {
                     "referrer": "http://192.168.33.72/"
                 }
             },
+            "source": {
+                "address": "192.168.33.1",
+                "ip": "192.168.33.1"
+            },
             "event": {
-                "ingested": "2021-12-09T13:30:34.283849400Z",
+                "ingested": "2021-12-14T10:30:23.471861500Z",
                 "original": "[Mon Dec 26 16:22:00 2016] [error] [client 192.168.33.1] File does not exist: /var/www/favicon.ico, referer: http://192.168.33.72/",
                 "category": "web",
                 "type": "error",
                 "timezone": "GMT+2",
                 "kind": "event"
-            }
+            },
+            "message": "File does not exist: /var/www/favicon.ico, referer: http://192.168.33.72/",
+            "tags": [
+                "preserve_original_event"
+            ]
         },
         {
             "apache": {
@@ -79,7 +79,7 @@
                 "ip": "192.168.33.1"
             },
             "event": {
-                "ingested": "2021-12-09T13:30:34.283853Z",
+                "ingested": "2021-12-14T10:30:23.471870100Z",
                 "original": "[Mon Dec 26 16:22:08 2016] [error] [client 192.168.33.1] File does not exist: /var/www/favicon.ico",
                 "category": "web",
                 "type": "error",
@@ -110,7 +110,7 @@
                 "ip": "192.168.33.1"
             },
             "event": {
-                "ingested": "2021-12-09T13:30:34.283857200Z",
+                "ingested": "2021-12-14T10:30:23.471878Z",
                 "original": "[Mon Dec 26 16:22:08 2016] [error] [client 192.168.33.1] File does not exist: /var/www/favicon.ico",
                 "category": "web",
                 "type": "error",
@@ -141,7 +141,7 @@
                 "ip": "192.168.33.1"
             },
             "event": {
-                "ingested": "2021-12-09T13:30:34.283862600Z",
+                "ingested": "2021-12-14T10:30:23.471885700Z",
                 "original": "[Mon Dec 26 16:22:10 2016] [error] [client 192.168.33.1] File does not exist: /var/www/test",
                 "category": "web",
                 "type": "error",
@@ -172,7 +172,7 @@
                 "ip": "192.168.33.1"
             },
             "event": {
-                "ingested": "2021-12-09T13:30:34.283867900Z",
+                "ingested": "2021-12-14T10:30:23.471889200Z",
                 "original": "[Mon Dec 26 16:22:13 2016] [error] [client 192.168.33.1] File does not exist: /var/www/hello",
                 "category": "web",
                 "type": "error",
@@ -203,7 +203,7 @@
                 "ip": "192.168.33.1"
             },
             "event": {
-                "ingested": "2021-12-09T13:30:34.283873300Z",
+                "ingested": "2021-12-14T10:30:23.471894500Z",
                 "original": "[Mon Dec 26 16:22:17 2016] [error] [client 192.168.33.1] File does not exist: /var/www/crap",
                 "category": "web",
                 "type": "error",
