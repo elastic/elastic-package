@@ -5,8 +5,10 @@
 package fields
 
 import (
+	_ "embed"
 	"encoding/json"
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -31,6 +33,9 @@ type Validator struct {
 	numericKeywordFields     map[string]struct{}
 
 	disabledDependencyManagement bool
+
+	enabledAllowedIPCheck bool
+	allowedIPs            map[string]struct{}
 }
 
 // ValidatorOption represents an optional flag that can be passed to  CreateValidatorForDataStream.
@@ -64,6 +69,14 @@ func WithDisabledDependencyManagement() ValidatorOption {
 	}
 }
 
+// WithEnabledAllowedIPCheck configures the validator to perform check on the IP values against an allowed list.
+func WithEnabledAllowedIPCheck() ValidatorOption {
+	return func(v *Validator) error {
+		v.enabledAllowedIPCheck = true
+		return nil
+	}
+}
+
 // CreateValidatorForDataStream function creates a validator for the data stream.
 func CreateValidatorForDataStream(dataStreamRootPath string, opts ...ValidatorOption) (v *Validator, err error) {
 	v = new(Validator)
@@ -72,6 +85,9 @@ func CreateValidatorForDataStream(dataStreamRootPath string, opts ...ValidatorOp
 			return nil, err
 		}
 	}
+
+	v.allowedIPs = initializeAllowedIPsList()
+
 	v.Schema, err = loadFieldsForDataStream(dataStreamRootPath)
 	if err != nil {
 		return nil, errors.Wrapf(err, "can't load fields for data stream (path: %s)", dataStreamRootPath)
@@ -97,6 +113,25 @@ func CreateValidatorForDataStream(dataStreamRootPath string, opts ...ValidatorOp
 	}
 	v.FieldDependencyManager = fdm
 	return v, nil
+}
+
+//go:embed _static/allowed_geo_ips.txt
+var allowedGeoIPs string
+
+func initializeAllowedIPsList() map[string]struct{} {
+	m := map[string]struct{}{
+		"0.0.0.0": {}, "255.255.255.255": {},
+		"0:0:0:0:0:0:0:0": {}, "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff": {},
+	}
+	for _, ip := range strings.Split(allowedGeoIPs, "\n") {
+		ip = strings.Trim(ip, " \n\t")
+		if ip == "" {
+			continue
+		}
+		m[ip] = struct{}{}
+	}
+
+	return m
 }
 
 func loadFieldsForDataStream(dataStreamRootPath string) ([]FieldDefinition, error) {
@@ -306,7 +341,7 @@ func (v *Validator) parseElementValue(key string, definition FieldDefinition, va
 		if err := ensurePatternMatches(key, valStr, definition.Pattern); err != nil {
 			return err
 		}
-	case "date", "ip", "keyword", "text":
+	case "date", "keyword", "text":
 		var valStr string
 		valStr, valid = val.(string)
 		if !valid {
@@ -315,6 +350,20 @@ func (v *Validator) parseElementValue(key string, definition FieldDefinition, va
 
 		if err := ensurePatternMatches(key, valStr, definition.Pattern); err != nil {
 			return err
+		}
+	case "ip":
+		var valStr string
+		valStr, valid = val.(string)
+		if !valid {
+			break
+		}
+
+		if err := ensurePatternMatches(key, valStr, definition.Pattern); err != nil {
+			return err
+		}
+
+		if v.enabledAllowedIPCheck && !v.isAllowedIPValue(valStr) {
+			return fmt.Errorf("the IP %q is not one of the allowed test IPs", valStr)
 		}
 	case "float", "long", "double":
 		_, valid = val.(float64)
@@ -326,6 +375,30 @@ func (v *Validator) parseElementValue(key string, definition FieldDefinition, va
 		return fmt.Errorf("field %q's Go type, %T, does not match the expected field type: %s (field value: %v)", key, val, definition.Type, val)
 	}
 	return nil
+}
+
+// isAllowedIPValue checks if the provided IP is allowed for testing
+// The set of allowed IPs are:
+// - private IPs as described in RFC 1918 & RFC 4193
+// - public IPs allowed by MaxMind for testing
+// - 0.0.0.0 and 255.255.255.255 for IPv4
+// - 0:0:0:0:0:0:0:0 and ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff for IPv6
+func (v *Validator) isAllowedIPValue(s string) bool {
+	if _, found := v.allowedIPs[s]; found {
+		return true
+	}
+
+	ip := net.ParseIP(s)
+	if ip == nil {
+		return false
+	}
+
+	if ip.IsPrivate() || ip.IsLoopback() ||
+		ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
+		return true
+	}
+
+	return false
 }
 
 // ensureSingleElementValue extracts single entity from a potential array, which is a valid field representation
