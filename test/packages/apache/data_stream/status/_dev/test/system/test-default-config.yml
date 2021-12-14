@@ -1,6 +1,3 @@
-skip:
-  reason: test is failing and needs further investigation but is blocking other PRs.
-  link: https://github.com/elastic/elastic-package/issues/374
 vars:
   hosts:
     - http://{{Hostname}}:{{Port}}

@@ -65,9 +65,13 @@ For network load balancer, please follow [enable access log for network load bal
 | data_stream.type | Data stream type. | constant_keyword |
 | destination.bytes | Bytes sent from the destination to the source. | long |
 | destination.domain | Destination domain. | keyword |
+| ecs.version | ECS version this event conforms to. `ecs.version` is a required field and must exist in all events. When querying across multiple indices -- which may conform to slightly different ECS versions -- this field lets integrations adjust to the schema version of the events. | keyword |
+| error.message | Error message. | match_only_text |
 | event.category | Event category (e.g. database) | keyword |
+| event.dataset | Event dataset | constant_keyword |
 | event.end | event.end contains the date when the event ended or when the activity was last observed. | date |
 | event.kind | Event kind (e.g. event, alert, metric, state, pipeline_error, sig | keyword |
+| event.module | Event module | constant_keyword |
 | event.outcome | This is one of four ECS Categorization Fields, and indicates the lowest level in the ECS category hierarchy. | keyword |
 | event.start | event.start contains the date when the event started or when the activity was first observed. | date |
 | host.architecture | Operating system architecture. | keyword |
@@ -102,9 +106,128 @@ For network load balancer, please follow [enable access log for network load bal
 | source.geo.region_name | Region name. | keyword |
 | source.ip | IP address of the source. | ip |
 | source.port | Port of the source. | keyword |
+| tags | List of keywords used to tag each event. | keyword |
 | tracing.trace.id | Unique identifier of the trace. | keyword |
+| url.domain | Domain of the url, such as "www.elastic.co". In some cases a URL may refer to an IP and/or port directly, without a domain name. In this case, the IP address would go to the `domain` field. If the URL contains a literal IPv6 address enclosed by `[` and `]` (IETF RFC 2732), the `[` and `]` characters should also be captured in the `domain` field. | keyword |
+| url.original | Unmodified original url as seen in the event source. Note that in network monitoring, the observed URL may be a full URL, whereas in access logs, the URL is often just represented as a path. This field is meant to represent the URL as it was observed, complete or not. | wildcard |
+| url.path | Path of the request, such as "/search". | wildcard |
+| url.port | Port of the request, such as 443. | long |
+| url.scheme | Scheme of the request, such as "https". Note: The `:` is not part of the scheme. | keyword |
+| user_agent.device.name | Name of the device. | keyword |
+| user_agent.name | Name of the user agent. | keyword |
 | user_agent.original | Unparsed user_agent string. | keyword |
+| user_agent.version | Version of the user agent. | keyword |
 
+
+An example event for `elb` looks as following:
+
+```json
+{
+    "data_stream": {
+        "namespace": "default",
+        "type": "logs",
+        "dataset": "aws.elb_logs"
+    },
+    "tracing": {
+        "trace": {
+            "id": "Root=1-58337262-36d228ad5d99923122bbe354"
+        }
+    },
+    "source": {
+        "port": "2817",
+        "ip": "192.168.131.39"
+    },
+    "url": {
+        "path": "/",
+        "original": "http://www.example.com:80/",
+        "scheme": "http",
+        "port": 80,
+        "domain": "www.example.com"
+    },
+    "tags": [
+        "preserve_original_event"
+    ],
+    "cloud": {
+        "provider": "aws"
+    },
+    "@timestamp": "2018-07-02T22:23:00.186Z",
+    "ecs": {
+        "version": "1.12.0"
+    },
+    "http": {
+        "request": {
+            "method": "get",
+            "body": {
+                "bytes": 34
+            }
+        },
+        "version": "1.1",
+        "response": {
+            "body": {
+                "bytes": 366
+            },
+            "status_code": 200
+        }
+    },
+    "event": {
+        "ingested": "2021-07-19T21:47:05.084930900Z",
+        "original": "http 2018-07-02T22:23:00.186641Z app/my-loadbalancer/50dc6c495c0c9188 192.168.131.39:2817 10.0.0.1:80 0.000 0.001 0.000 200 200 34 366 \"GET http://www.example.com:80/ HTTP/1.1\" \"curl/7.46.0\" - - arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/my-targets/73e2d6bc24d8a067 \"Root=1-58337262-36d228ad5d99923122bbe354\" \"-\" \"-\" 0 2018-07-02T22:22:48.364000Z \"forward,redirect\" \"-\" \"-\" \"10.0.0.1:80\" \"200\" \"-\" \"-\"",
+        "kind": "event",
+        "start": "2018-07-02T22:22:48.364000Z",
+        "end": "2018-07-02T22:23:00.186Z",
+        "category": "web",
+        "outcome": "success"
+    },
+    "aws": {
+        "elb": {
+            "trace_id": "Root=1-58337262-36d228ad5d99923122bbe354",
+            "matched_rule_priority": "0",
+            "type": "http",
+            "request_processing_time": {
+                "sec": 0.0
+            },
+            "response_processing_time": {
+                "sec": 0.0
+            },
+            "target_port": [
+                "10.0.0.1:80"
+            ],
+            "protocol": "http",
+            "target_status_code": [
+                "200"
+            ],
+            "name": "app/my-loadbalancer/50dc6c495c0c9188",
+            "backend": {
+                "port": "80",
+                "http": {
+                    "response": {
+                        "status_code": 200
+                    }
+                },
+                "ip": "10.0.0.1"
+            },
+            "target_group": {
+                "arn": "arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/my-targets/73e2d6bc24d8a067"
+            },
+            "backend_processing_time": {
+                "sec": 0.001
+            },
+            "action_executed": [
+                "forward",
+                "redirect"
+            ]
+        }
+    },
+    "user_agent": {
+        "name": "curl",
+        "original": "curl/7.46.0",
+        "device": {
+            "name": "Other"
+        },
+        "version": "7.46.0"
+    }
+}
+``` 
 
 ## Metrics
 
@@ -166,7 +289,7 @@ An example event for `elb` looks as following:
         "period": 60000
     },
     "event": {
-        "dataset": "aws.elb",
+        "dataset": "aws.elb_metrics",
         "module": "aws",
         "duration": 15044430616
     },
@@ -243,9 +366,10 @@ An example event for `elb` looks as following:
 | aws.networkelb.metrics.UnHealthyHostCount.max | The number of targets that are considered unhealthy. | long |
 | aws.s3.bucket.name | Name of a S3 bucket. | keyword |
 | aws.tags.\* | Tag key value pairs from aws resources. | object |
+| cloud | Fields related to the cloud or infrastructure the events are coming from. | group |
 | cloud.account.id | The cloud account or organization id used to identify different entities in a multi-tenant environment. Examples: AWS account id, Google Cloud ORG Id, or other unique identifier. | keyword |
 | cloud.account.name | The cloud account name or alias used to identify different entities in a multi-tenant environment. Examples: AWS account name, Google Cloud ORG display name. | keyword |
-| cloud.availability_zone | Availability zone in which this host is running. | keyword |
+| cloud.availability_zone | Availability zone in which this host, resource, or service is located. | keyword |
 | cloud.image.id | Image ID for the cloud instance. | keyword |
 | cloud.instance.id | Instance ID of the host machine. | keyword |
 | cloud.instance.name | Instance name of the host machine. | keyword |
@@ -260,7 +384,11 @@ An example event for `elb` looks as following:
 | data_stream.dataset | Data stream dataset. | constant_keyword |
 | data_stream.namespace | Data stream namespace. | constant_keyword |
 | data_stream.type | Data stream type. | constant_keyword |
-| ecs.version | ECS version this event conforms to. | keyword |
+| ecs.version | ECS version this event conforms to. `ecs.version` is a required field and must exist in all events. When querying across multiple indices -- which may conform to slightly different ECS versions -- this field lets integrations adjust to the schema version of the events. | keyword |
+| error | These fields can represent errors of any kind. Use them for errors that happen while fetching events or in cases where the event itself contains an error. | group |
+| error.message | Error message. | match_only_text |
+| event.dataset | Event dataset | constant_keyword |
+| event.module | Event module | constant_keyword |
 | host.architecture | Operating system architecture. | keyword |
 | host.containerized | If the host is a container. | boolean |
 | host.domain | Name of the domain of which the host is a member. For example, on Windows this could be the host's Active Directory domain or NetBIOS domain name. For Linux this could be the domain of the host's LDAP provider. | keyword |
@@ -277,5 +405,5 @@ An example event for `elb` looks as following:
 | host.os.platform | Operating system platform (such centos, ubuntu, windows). | keyword |
 | host.os.version | Operating system version as a raw string. | keyword |
 | host.type | Type of host. For Cloud providers this can be the machine type like `t2.medium`. If vm, this could be the container, for example, or other information meaningful in your environment. | keyword |
-| service.type | Service type | keyword |
+| service.type | The type of the service data is collected from. The type can be used to group and correlate logs and metrics from one service type. Example: If logs or metrics are collected from Elasticsearch, `service.type` would be `elasticsearch`. | keyword |
 
