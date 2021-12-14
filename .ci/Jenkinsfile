@@ -16,6 +16,14 @@ pipeline {
     JOB_GCS_BUCKET = 'beats-ci-temp'
     JOB_GCS_CREDENTIALS = 'beats-ci-gcs-plugin'
     JOB_GCS_EXT_CREDENTIALS = 'beats-ci-gcs-plugin-file-credentials'
+
+    INFRA_SIGNING_BUCKET_NAME = 'internal-ci-artifacts'
+    INFRA_SIGNING_BUCKET_CREDENTIALS = 'internal-ci-gcs-plugin'
+    INFRA_SIGNING_BUCKET_SUBFOLDER = "${env.REPO_NAME}/${env.TAG_NAME}"
+    INFRA_SIGNING_BUCKET_PATH = "gs://${env.BUILD_TAG}/${env.INFRA_SIGNING_BUCKET_SUBFOLDER}"
+    INFRA_SIGNING_SIGNED_ARTIFACTS = 'signed-artifacts'
+    INFRA_SIGNING_BUCKET_SUBFOLDER_SIGNED_ARTIFACTS = "${env.BUCKET_SUBFOLDER}/${env.SIGNED_ARTIFACTS}"
+    BUCKET_SIGNED_ARTIFACTS_PATH = "gs://${env.INFRA_SIGNING_BUCKET_NAME}/${env.BUCKET_SUBFOLDER_SIGNED_ARTIFACTS}"
   }
   options {
     timeout(time: 1, unit: 'HOURS')
@@ -96,8 +104,8 @@ pipeline {
                     'stack-command-8x': generateTestCommandStage(command: 'test-stack-command-8x', artifacts: ['build/elastic-stack-dump/stack/*/logs/*.log', 'build/elastic-stack-dump/stack/*/logs/fleet-server-internal/*']),
                     'check-packages': generateTestCommandStage(command: 'test-check-packages', artifacts: ['build/test-results/*.xml', 'build/kubectl-dump.txt', 'build/elastic-stack-dump/check/logs/*.log', 'build/elastic-stack-dump/check/logs/fleet-server-internal/*'], junitArtifacts: true, publishCoverage: true),
                     'build-zip': generateTestCommandStage(command: 'test-build-zip', artifacts: ['build/elastic-stack-dump/build-zip/logs/*.log', 'build/integrations/*.sig']),
-                    'sign-with-elastic': generateTestCommandStage(command: 'test-sign-with-elastic', artifacts: []),
                     'profiles-command': generateTestCommandStage(command: 'test-profiles-command'),
+                    'sign-with-elastic': generateTestSignWithElasticStage(),
                   ])
                 }
               }
@@ -138,6 +146,28 @@ def cleanup(){
   unstash 'source'
 }
 
+def generateTestSignWithElasticStage() {
+  return {
+    withNode(labels: "ubuntu-20 && immutable", sleepMax: 20, forceWorkspace: true) {
+      cleanup()
+      sh(label: 'Prepare for tests (build zipped packages)',script: "make build-unsigned-zip-for-tests")
+      googleStorageUpload(bucket: env.BUCKET_PATH,
+        credentialsId: env.BUCKET_CREDENTIALS,
+        pathPrefix: 'build/integrations/',
+        pattern: 'build/integrations/*.zip',
+        sharedPublicly: false,
+        showInline: true)
+      build(wait: true, propagate: true, job: 'elastic+unified-release+master+sign-artifacts-with-gpg',
+        parameters: [string(name: 'gcs_input_path', value: "${env.BUCKET_PATH}")])
+      googleStorageDownload(bucketUri: "${env.BUCKET_SIGNED_ARTIFACTS_PATH}/*",
+        credentialsId: env.BUCKET_CREDENTIALS,
+        localDirectory: 'build/integrations/',
+        pathPrefix: "${env.BUCKET_SUBFOLDER_SIGNED_ARTIFACTS}")
+      archiveArtifacts(allowEmptyArchive: true, artifacts: "${SIGNED_ARTIFACTS}/**/*")
+    }
+  }
+}
+
 def generateTestCommandStage(Map args = [:]){
   def command = args.get('command')
   def artifacts = args.get('artifacts') ? args.get('artifacts') : []
@@ -145,14 +175,14 @@ def generateTestCommandStage(Map args = [:]){
   def publishCoverage = args.get('publishCoverage') ? args.get('publishCoverage') : false
 
   return {
-    withNode(labels: "ubuntu-18 && immutable", sleepMax: 20, forceWorkspace: true) {
+    withNode(labels: "ubuntu-20 && immutable", sleepMax: 20, forceWorkspace: true) {
       cleanup()
       try {
         dir("${BASE_DIR}"){
           withMageEnv(){
             withKubernetes() {
               withCloudTestEnv() {
-                sh(label: 'Check',script: "make build ${command} check-git-clean")
+                sh(label: 'Check',script: "make ${command} check-git-clean")
               }
             }
           }

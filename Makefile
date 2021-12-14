@@ -59,13 +59,13 @@ test-check-packages:
 test-build-zip:
 	./scripts/test-build-zip.sh
 
-test-sign-with-elastic:
-	./scripts/test-sign-with-elastic.sh
-
 test-profiles-command:
 	./scripts/test-profiles-command.sh
 
 test: test-go test-stack-command test-check-packages test-profiles-command test-build-zip
+
+build-unsigned-zip-for-tests:
+	./scripts/build-unsigned-zip.sh
 
 check-git-clean:
 	git update-index --really-refresh
