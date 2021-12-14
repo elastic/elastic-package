@@ -59,6 +59,9 @@ test-check-packages:
 test-build-zip:
 	./scripts/test-build-zip.sh
 
+test-sign-with-elastic:
+	./scripts/test-sign-with-elastic.sh
+
 test-profiles-command:
 	./scripts/test-profiles-command.sh
 
