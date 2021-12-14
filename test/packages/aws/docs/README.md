@@ -15,6 +15,20 @@ AWS credentials are required for running AWS integration.
 * *endpoint*: URL of the entry point for an AWS web service.
 * *role_arn*: AWS IAM Role to assume.
 
+#### Data stream specific configuration parameters
+* *latency*: Some AWS services send monitoring metrics to CloudWatch with a
+latency to process larger than Metricbeat collection period. This will cause
+data points missing or none get collected by Metricbeat. In this case, please
+specify a latency parameter so collection start time and end time will be
+shifted by the given latency amount.
+* *period*: How often the data stream is executed.
+* *regions*: Specify which AWS regions to query metrics from. If the `regions`
+is not set in the config, then by default, the integration will query metrics
+from all available AWS regions. If `endpoint` is specified, `regions` becomes a 
+required config parameter.
+* *tags_filter*: Tag key value pairs from aws resources. A tag is a label that 
+user assigns to an AWS resource.
+
 ### Credential Types
 There are three types of AWS credentials can be used: access keys, temporary
 security credentials and IAM role ARN.
@@ -61,10 +75,14 @@ temporary credentials. Please see
 for more details.
 
 ### Supported Formats
-1. Use `access_key_id`, `secret_access_key` and/or `session_token` directly
-2. Use `role_arn`: If `access_key_id` and `secret_access_key` are not given, 
-then the package will check for `role_arn`. `role_arn` is used to specify which
- AWS IAM role to assume for generating temporary credentials.
+1. Use access keys: Access keys include `access_key_id`, `secret_access_key` 
+and/or `session_token`.
+2. Use `role_arn`: `role_arn` is used to specify which AWS IAM role to assume 
+for generating temporary credentials. If `role_arn` is given, the package will 
+check if access keys are given. If not, the package will check for credential 
+profile name. If neither is given, default credential profile will be used. 
+Please make sure credentials are given under either a credential profile or 
+access keys.
 3. Use `credential_profile_name` and/or `shared_credential_file`: 
 If `access_key_id`, `secret_access_key` and `role_arn` are all not given, then
 the package will check for `credential_profile_name`. If you use different 
