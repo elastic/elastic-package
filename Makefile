@@ -62,7 +62,7 @@ test-check-packages-with-other:
 	PACKAGE_TEST_TYPE=other ./scripts/test-check-packages.sh
 
 test-check-packages-with-parallel:
-	PACKAGE_TEST_TYPE=other ./scripts/test-check-packages.sh
+	PACKAGE_TEST_TYPE=parallel ./scripts/test-check-packages.sh
 
 test-build-zip:
 	./scripts/test-build-zip.sh
