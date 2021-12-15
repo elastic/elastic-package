@@ -6,7 +6,7 @@ cleanup() {
   r=$?
 
   # Dump stack logs
-  elastic-package stack dump -v --output build/elastic-stack-dump/check
+  elastic-package stack dump -v --output "build/elastic-stack-dump/check-${PACKAGE_UNDER_TEST:-any}"
 
   if [ "${PACKAGE_TEST_TYPE:-other}" == "with-kind" ]; then
     # Dump kubectl details
