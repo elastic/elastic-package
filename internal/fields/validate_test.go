@@ -61,7 +61,7 @@ func TestValidate_WithNumericKeywordFields(t *testing.T) {
 	require.Empty(t, errs)
 }
 
-func TestValidate_constant_keyword(t *testing.T) {
+func TestValidate_constantKeyword(t *testing.T) {
 	validator, err := CreateValidatorForDataStream("testdata")
 	require.NoError(t, err)
 	require.NotNil(t, validator)
@@ -71,6 +71,21 @@ func TestValidate_constant_keyword(t *testing.T) {
 	require.NotEmpty(t, errs)
 
 	e = readSampleEvent(t, "testdata/constant-keyword-valid.json")
+	errs = validator.ValidateDocumentBody(e)
+	require.Empty(t, errs)
+}
+
+func TestValidate_ipAddress(t *testing.T) {
+	validator, err := CreateValidatorForDataStream("testdata", WithEnabledAllowedIPCheck())
+	require.NoError(t, err)
+	require.NotNil(t, validator)
+
+	e := readSampleEvent(t, "testdata/ip-address-forbidden.json")
+	errs := validator.ValidateDocumentBody(e)
+	require.Len(t, errs, 1)
+	require.Contains(t, errs[0].Error(), `the IP "98.76.54.32" is not one of the allowed test IPs`)
+
+	e = readSampleEvent(t, "testdata/ip-address-allowed.json")
 	errs = validator.ValidateDocumentBody(e)
 	require.Empty(t, errs)
 }

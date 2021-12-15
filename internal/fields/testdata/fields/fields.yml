@@ -11,3 +11,5 @@
     - name: constant
       type: constant_keyword
       value: correct
+    - name: ip_address
+      type: ip
