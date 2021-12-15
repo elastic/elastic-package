@@ -48,7 +48,7 @@ pipeline {
         /**
         Check the source code.
         */
-        stage('Check') {
+        stage('Check static') {
           steps {
             cleanup()
             dir("${BASE_DIR}"){
@@ -194,7 +194,7 @@ def generateTestCommandStage(Map args = [:]){
   def publishCoverage = args.get('publishCoverage') ? args.get('publishCoverage') : false
 
   return {
-    withNode(labels: "ubuntu-18 && immutable", sleepMax: 20, forceWorkspace: true) {
+    withNode(labels: "ubuntu-20 && immutable", sleepMax: 20, forceWorkspace: true) {
       cleanup()
       try {
         dir("${BASE_DIR}"){
