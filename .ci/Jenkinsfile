@@ -148,7 +148,7 @@ def generateTestCheckSinglePackageStage(Map args = [:]) {
   def publishCoverage = args.get('publishCoverage') ? args.get('publishCoverage') : false
 
   def integrations = [:]
-  dir("${BASE_DIR}/test/packages/parallel") {
+  dir("test/packages/parallel") {
       // Include hack to skip temporary files with "@tmp" suffix.
       // For reference: https://issues.jenkins.io/browse/JENKINS-52750
       findFiles()?.findAll{ !it.name.endsWith('@tmp') }?.collect{ it.name }?.sort()?.each {
