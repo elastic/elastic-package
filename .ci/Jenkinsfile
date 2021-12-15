@@ -90,16 +90,19 @@ pipeline {
               cleanup()
               dir("${BASE_DIR}") {
                 script {
-                  parallel([
+                  def basicTasks = [
                     'stack-command-default': generateTestCommandStage(command: 'test-stack-command-default', artifacts: ['build/elastic-stack-dump/stack/*/logs/*.log', 'build/elastic-stack-dump/stack/*/logs/fleet-server-internal/*']),
                     'stack-command-7x': generateTestCommandStage(command: 'test-stack-command-7x', artifacts: ['build/elastic-stack-dump/stack/*/logs/*.log', 'build/elastic-stack-dump/stack/*/logs/fleet-server-internal/*']),
                     'stack-command-8x': generateTestCommandStage(command: 'test-stack-command-8x', artifacts: ['build/elastic-stack-dump/stack/*/logs/*.log', 'build/elastic-stack-dump/stack/*/logs/fleet-server-internal/*']),
                     'check-packages-with-kind': generateTestCommandStage(command: 'test-check-packages-with-kind', artifacts: ['build/test-results/*.xml', 'build/kubectl-dump.txt', 'build/elastic-stack-dump/check/logs/*.log', 'build/elastic-stack-dump/check/logs/fleet-server-internal/*'], junitArtifacts: true, publishCoverage: true),
                     'check-packages-other': generateTestCommandStage(command: 'test-check-packages-other', artifacts: ['build/test-results/*.xml', 'build/elastic-stack-dump/check/logs/*.log', 'build/elastic-stack-dump/check/logs/fleet-server-internal/*'], junitArtifacts: true, publishCoverage: true),
-                    'check-packages-parallel': generateTestCheckPackagesParallelStage(artifacts: ['build/test-results/*.xml', 'build/elastic-stack-dump/check/logs/*.log', 'build/elastic-stack-dump/check/logs/fleet-server-internal/*'], junitArtifacts: true, publishCoverage: true),
                     'build-zip': generateTestCommandStage(command: 'test-build-zip', artifacts: ['build/elastic-stack-dump/build-zip/logs/*.log', 'build/integrations/*.sig']),
                     'profiles-command': generateTestCommandStage(command: 'test-profiles-command'),
                   ])
+
+                  def checkSinglePackageTasks = generateTestCheckSinglePackageStage(artifacts: ['build/test-results/*.xml', 'build/elastic-stack-dump/check/logs/*.log', 'build/elastic-stack-dump/check/logs/fleet-server-internal/*'], junitArtifacts: true, publishCoverage: true)
+                  def tasks = basicTasks + checkSinglePackageTasks
+                  parallel tasks
                 }
               }
             }
@@ -139,14 +142,13 @@ def cleanup(){
   unstash 'source'
 }
 
-def generateTestCheckPackagesParallelStage(Map args = [:]) {
+def generateTestCheckSinglePackageStage(Map args = [:]) {
   def artifacts = args.get('artifacts') ? args.get('artifacts') : []
   def junitArtifacts = args.get('junitArtifacts') ? args.get('junitArtifacts') : false
   def publishCoverage = args.get('publishCoverage') ? args.get('publishCoverage') : false
 
-  return {
-    dir("${BASE_DIR}/test/packages/parallel") {
-      def integrations = [:]
+  def integrations = [:]
+  dir("${BASE_DIR}/test/packages/parallel") {
       // Include hack to skip temporary files with "@tmp" suffix.
       // For reference: https://issues.jenkins.io/browse/JENKINS-52750
       findFiles()?.findAll{ !it.name.endsWith('@tmp') }?.collect{ it.name }?.sort()?.each {
@@ -182,9 +184,8 @@ def generateTestCheckPackagesParallelStage(Map args = [:]) {
          }
         }
       }
-      parallel integrations
-    }
   }
+  return integrations
 }
 
 def generateTestCommandStage(Map args = [:]){
