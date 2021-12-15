@@ -121,7 +121,7 @@ var allowedGeoIPs string
 func initializeAllowedIPsList() map[string]struct{} {
 	m := map[string]struct{}{
 		"0.0.0.0": {}, "255.255.255.255": {},
-		"0:0:0:0:0:0:0:0": {}, "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff": {},
+		"0:0:0:0:0:0:0:0": {}, "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff": {}, "::": {},
 	}
 	for _, ip := range strings.Split(allowedGeoIPs, "\n") {
 		ip = strings.Trim(ip, " \n\t")
@@ -363,7 +363,7 @@ func (v *Validator) parseElementValue(key string, definition FieldDefinition, va
 		}
 
 		if v.enabledAllowedIPCheck && !v.isAllowedIPValue(valStr) {
-			return fmt.Errorf("the IP %q is not one of the allowed test IPs", valStr)
+			return fmt.Errorf("the IP %q is not one of the allowed test IPs (see: https://github.com/elastic/elastic-package/blob/master/internal/fields/_static/allowed_geo_ips.txt)", valStr)
 		}
 	case "float", "long", "double":
 		_, valid = val.(float64)
