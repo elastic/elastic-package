@@ -58,7 +58,7 @@ test-check-packages: test-check-packages-with-kind test-check-packages-with-othe
 test-check-packages-with-kind:
 	PACKAGE_TEST_TYPE=with-kind ./scripts/test-check-packages.sh
 
-test-check-packages-with-other:
+test-check-packages-other:
 	PACKAGE_TEST_TYPE=other ./scripts/test-check-packages.sh
 
 test-check-packages-with-parallel:

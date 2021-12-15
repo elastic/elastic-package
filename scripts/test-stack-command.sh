@@ -13,14 +13,6 @@ cleanup() {
   # Take down the stack
   elastic-package stack down -v
 
-  # Clean used resources
-  for d in test/packages/*/; do
-    (
-      cd $d
-      elastic-package clean -v
-    )
-  done
-
   exit $r
 }
 

@@ -82,11 +82,11 @@ pipeline {
             }
           }
         }
-        stage('Integration Tests') {
+        stage('Integration tests') {
           failFast true
           options { skipDefaultCheckout() }
           steps {
-            withGithubNotify(context: 'Integration Tests', tab: 'tests') {
+            withGithubNotify(context: 'Integration tests', tab: 'tests') {
               cleanup()
               dir("${BASE_DIR}") {
                 script {

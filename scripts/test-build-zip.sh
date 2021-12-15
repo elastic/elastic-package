@@ -12,7 +12,7 @@ cleanup() {
   elastic-package stack down -v
 
   # Clean used resources
-  for d in test/packages/*/; do
+  for d in test/packages/*/*/; do
     (
       cd $d
       elastic-package clean -v
@@ -29,7 +29,7 @@ OLDPWD=$PWD
 export ELASTIC_PACKAGE_SIGNER_PRIVATE_KEYFILE="$OLDPWD/scripts/gpg-private.asc"
 export ELASTIC_PACKAGE_SIGNER_PASSPHRASE=$(cat "$OLDPWD/scripts/gpg-pass.txt")
 
-for d in test/packages/*/; do
+for d in test/packages/*/*/; do
   (
     cd $d
     elastic-package build --zip --sign -v
@@ -45,7 +45,7 @@ eval "$(elastic-package stack shellinit)"
 elastic-package stack up -d -v
 
 # Install zipped packages
-for d in test/packages/*/; do
+for d in test/packages/*/*/; do
   (
     cd $d
     elastic-package install -v
