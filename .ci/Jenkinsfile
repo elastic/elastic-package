@@ -96,8 +96,7 @@ pipeline {
                     'stack-command-8x': generateTestCommandStage(command: 'test-stack-command-8x', artifacts: ['build/elastic-stack-dump/stack/*/logs/*.log', 'build/elastic-stack-dump/stack/*/logs/fleet-server-internal/*']),
                     'check-packages-with-kind': generateTestCommandStage(command: 'test-check-packages-with-kind', artifacts: ['build/test-results/*.xml', 'build/kubectl-dump.txt', 'build/elastic-stack-dump/check/logs/*.log', 'build/elastic-stack-dump/check/logs/fleet-server-internal/*'], junitArtifacts: true, publishCoverage: true),
                     'check-packages-other': generateTestCommandStage(command: 'test-check-packages-other', artifacts: ['build/test-results/*.xml', 'build/elastic-stack-dump/check/logs/*.log', 'build/elastic-stack-dump/check/logs/fleet-server-internal/*'], junitArtifacts: true, publishCoverage: true),
-                    'check-packages-parallel': generateTestCommandStage(command: 'test-check-packages-with-kind', artifacts: ['build/test-results/*.xml', 'build/kubectl-dump.txt', 'build/elastic-stack-dump/check/logs/*.log', 'build/elastic-stack-dump/check/logs/fleet-server-internal/*'], junitArtifacts: true, publishCoverage: true),
-
+                    'check-packages-parallel': generateTestCheckPackagesParallelStage(artifacts: ['build/test-results/*.xml', 'build/elastic-stack-dump/check/logs/*.log', 'build/elastic-stack-dump/check/logs/fleet-server-internal/*'], junitArtifacts: true, publishCoverage: true),
                     'build-zip': generateTestCommandStage(command: 'test-build-zip', artifacts: ['build/elastic-stack-dump/build-zip/logs/*.log', 'build/integrations/*.sig']),
                     'profiles-command': generateTestCommandStage(command: 'test-profiles-command'),
                   ])
@@ -138,6 +137,54 @@ def cleanup(){
     deleteDir()
   }
   unstash 'source'
+}
+
+def generateTestCheckPackagesParallelStage(Map args = [:]) {
+  def artifacts = args.get('artifacts') ? args.get('artifacts') : []
+  def junitArtifacts = args.get('junitArtifacts') ? args.get('junitArtifacts') : false
+  def publishCoverage = args.get('publishCoverage') ? args.get('publishCoverage') : false
+
+  return {
+    dir("${BASE_DIR}/test/packages/parallel") {
+      def integrations = [:]
+      // Include hack to skip temporary files with "@tmp" suffix.
+      // For reference: https://issues.jenkins.io/browse/JENKINS-52750
+      findFiles()?.findAll{ !it.name.endsWith('@tmp') }?.collect{ it.name }?.sort()?.each {
+        integrations[it] = {
+         withNode(labels: "ubuntu-20 && immutable", sleepMax: 20, forceWorkspace: true) {
+           cleanup()
+           try {
+             dir("${BASE_DIR}"){
+               withMageEnv(){
+                 withCloudTestEnv() {
+                   sh(label: 'Build elastic-package',script: "make build")
+                   sh(label: 'Build elastic-package',script: "make PACKAGE_UNDER_TEST=${it} test-check-packages-with-parallel")
+                 }
+               }
+             }
+           } finally {
+             dir("${BASE_DIR}") {
+               artifacts.each { artifact ->
+                 archiveArtifacts(allowEmptyArchive: true, artifacts: "${artifact}")
+               }
+
+               if (junitArtifacts) {
+                 junit(allowEmptyResults: true,
+                  keepLongStdio: true,
+                  testResults: "build/test-results/*.xml")
+               }
+
+               if (publishCoverage) {
+                 stashCoverageReport()
+               }
+             }
+           }
+         }
+        }
+      }
+      parallel integrations
+    }
+  }
 }
 
 def generateTestCommandStage(Map args = [:]){
