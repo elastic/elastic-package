@@ -17,11 +17,11 @@ type results struct {
 }
 
 func TestValidate_NoWildcardFields(t *testing.T) {
-	validator, err := CreateValidatorForDataStream("../../test/packages/aws/data_stream/elb_logs")
+	validator, err := CreateValidatorForDataStream("../../test/packages/parallel/aws/data_stream/elb_logs")
 	require.NoError(t, err)
 	require.NotNil(t, validator)
 
-	f := readTestResults(t, "../../test/packages/aws/data_stream/elb_logs/_dev/test/pipeline/test-alb.log-expected.json")
+	f := readTestResults(t, "../../test/packages/parallel/aws/data_stream/elb_logs/_dev/test/pipeline/test-alb.log-expected.json")
 	for _, e := range f.Expected {
 		errs := validator.ValidateDocumentBody(e)
 		require.Empty(t, errs)
@@ -29,11 +29,11 @@ func TestValidate_NoWildcardFields(t *testing.T) {
 }
 
 func TestValidate_WithWildcardFields(t *testing.T) {
-	validator, err := CreateValidatorForDataStream("../../test/packages/aws/data_stream/sns")
+	validator, err := CreateValidatorForDataStream("../../test/packages/parallel/aws/data_stream/sns")
 	require.NoError(t, err)
 	require.NotNil(t, validator)
 
-	e := readSampleEvent(t, "../../test/packages/aws/data_stream/sns/sample_event.json")
+	e := readSampleEvent(t, "../../test/packages/parallel/aws/data_stream/sns/sample_event.json")
 	errs := validator.ValidateDocumentBody(e)
 	require.Empty(t, errs)
 }
@@ -240,12 +240,12 @@ func readSampleEvent(t *testing.T, path string) json.RawMessage {
 }
 
 func TestValidate_geo_point(t *testing.T) {
-	validator, err := CreateValidatorForDataStream("../../test/packages/fields_tests/data_stream/first")
+	validator, err := CreateValidatorForDataStream("../../test/packages/other/fields_tests/data_stream/first")
 
 	require.NoError(t, err)
 	require.NotNil(t, validator)
 
-	e := readSampleEvent(t, "../../test/packages/fields_tests/data_stream/first/sample_event.json")
+	e := readSampleEvent(t, "../../test/packages/other/fields_tests/data_stream/first/sample_event.json")
 	errs := validator.ValidateDocumentBody(e)
 	require.Empty(t, errs)
 }
