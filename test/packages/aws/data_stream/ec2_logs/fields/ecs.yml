@@ -1,8 +1,0 @@
-- external: ecs
-  name: ecs.version
-- external: ecs
-  name: error.message
-- external: ecs
-  name: message
-- external: ecs
-  name: tags

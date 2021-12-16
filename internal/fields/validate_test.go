@@ -17,11 +17,11 @@ type results struct {
 }
 
 func TestValidate_NoWildcardFields(t *testing.T) {
-	validator, err := CreateValidatorForDataStream("../../test/packages/aws/data_stream/elb_logs")
+	validator, err := CreateValidatorForDataStream("../../test/packages/parallel/aws/data_stream/elb_logs")
 	require.NoError(t, err)
 	require.NotNil(t, validator)
 
-	f := readTestResults(t, "../../test/packages/aws/data_stream/elb_logs/_dev/test/pipeline/test-alb.log-expected.json")
+	f := readTestResults(t, "../../test/packages/parallel/aws/data_stream/elb_logs/_dev/test/pipeline/test-alb.log-expected.json")
 	for _, e := range f.Expected {
 		errs := validator.ValidateDocumentBody(e)
 		require.Empty(t, errs)
@@ -29,11 +29,11 @@ func TestValidate_NoWildcardFields(t *testing.T) {
 }
 
 func TestValidate_WithWildcardFields(t *testing.T) {
-	validator, err := CreateValidatorForDataStream("../../test/packages/aws/data_stream/sns")
+	validator, err := CreateValidatorForDataStream("../../test/packages/parallel/aws/data_stream/sns")
 	require.NoError(t, err)
 	require.NotNil(t, validator)
 
-	e := readSampleEvent(t, "../../test/packages/aws/data_stream/sns/sample_event.json")
+	e := readSampleEvent(t, "../../test/packages/parallel/aws/data_stream/sns/sample_event.json")
 	errs := validator.ValidateDocumentBody(e)
 	require.Empty(t, errs)
 }
@@ -61,7 +61,7 @@ func TestValidate_WithNumericKeywordFields(t *testing.T) {
 	require.Empty(t, errs)
 }
 
-func TestValidate_constant_keyword(t *testing.T) {
+func TestValidate_constantKeyword(t *testing.T) {
 	validator, err := CreateValidatorForDataStream("testdata")
 	require.NoError(t, err)
 	require.NotNil(t, validator)
@@ -71,6 +71,21 @@ func TestValidate_constant_keyword(t *testing.T) {
 	require.NotEmpty(t, errs)
 
 	e = readSampleEvent(t, "testdata/constant-keyword-valid.json")
+	errs = validator.ValidateDocumentBody(e)
+	require.Empty(t, errs)
+}
+
+func TestValidate_ipAddress(t *testing.T) {
+	validator, err := CreateValidatorForDataStream("testdata", WithEnabledAllowedIPCheck())
+	require.NoError(t, err)
+	require.NotNil(t, validator)
+
+	e := readSampleEvent(t, "testdata/ip-address-forbidden.json")
+	errs := validator.ValidateDocumentBody(e)
+	require.Len(t, errs, 1)
+	require.Contains(t, errs[0].Error(), `the IP "98.76.54.32" is not one of the allowed test IPs`)
+
+	e = readSampleEvent(t, "testdata/ip-address-allowed.json")
 	errs = validator.ValidateDocumentBody(e)
 	require.Empty(t, errs)
 }
@@ -225,12 +240,12 @@ func readSampleEvent(t *testing.T, path string) json.RawMessage {
 }
 
 func TestValidate_geo_point(t *testing.T) {
-	validator, err := CreateValidatorForDataStream("../../test/packages/fields_tests/data_stream/first")
+	validator, err := CreateValidatorForDataStream("../../test/packages/other/fields_tests/data_stream/first")
 
 	require.NoError(t, err)
 	require.NotNil(t, validator)
 
-	e := readSampleEvent(t, "../../test/packages/fields_tests/data_stream/first/sample_event.json")
+	e := readSampleEvent(t, "../../test/packages/other/fields_tests/data_stream/first/sample_event.json")
 	errs := validator.ValidateDocumentBody(e)
 	require.Empty(t, errs)
 }

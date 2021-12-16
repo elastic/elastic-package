@@ -1,0 +1,46 @@
+format_version: 1.0.0
+name: kubernetes
+title: Kubernetes
+version: 999.999.999
+license: basic
+description: Collect logs and metrics from Kubernetes clusters with Elastic Agent.
+type: integration
+categories:
+  - containers
+  - kubernetes
+release: ga
+conditions:
+  kibana.version: "^7.16.0 || ^8.0.0"
+screenshots:
+  - src: /img/metricbeat_kubernetes_overview.png
+    title: Metricbeat Kubernetes Overview
+    size: 1896x961
+    type: image/png
+icons:
+  - src: /img/logo_kubernetes.svg
+    title: Logo Kubernetes
+    size: 32x32
+    type: image/svg+xml
+policy_templates:
+  - name: kubelet
+    title: Kubelet Metrics
+    description: Collect metrics from Kubernetes Kubelet API with Elastic Agent.
+    data_streams:
+      - pod
+    inputs:
+      - type: kubernetes/metrics
+        title: Collect Kubernetes metrics from Kubelet API
+        description: Collecting Node, Pod, Container, Volume and System metrics from Kubelet
+        input_group: metrics
+    icons:
+      - src: /img/logo_kubernetes.svg
+        title: Logo Kubernetes
+        size: 32x32
+        type: image/svg+xml
+    screenshots:
+      - src: /img/metricbeat_kubernetes_overview.png
+        title: Metricbeat Kubernetes Overview
+        size: 1896x961
+        type: image/png
+owner:
+  github: elastic/integrations
