@@ -98,5 +98,15 @@ policy_templates:
         title: metricbeat aws ec2 overview
         size: 2640x2240
         type: image/png
+  - name: elb
+    title: AWS ELB
+    description: Collect logs and metrics from Amazon Elastic Load Balancing service with Elastic Agent
+    data_streams:
+      - elb_logs
+  - name: sns
+    title: AWS SNS Metrics
+    description: Collect metrics from Amazon Simple Notification Service with Elastic Agent
+    data_streams:
+      - sns
 owner:
   github: elastic/integrations
