@@ -81,9 +81,7 @@ pipeline {
             always {
               dir("${BASE_DIR}") {
                 archiveArtifacts(allowEmptyArchive: true, artifacts: 'build/test-results/*.xml')
-                junit(allowEmptyResults: false,
-                    keepLongStdio: true,
-                    testResults: "build/test-results/*.xml")
+                junit(allowEmptyResults: false, keepLongStdio: true, testResults: "build/test-results/*.xml")
                 stashCoverageReport()
               }
             }
