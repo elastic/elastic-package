@@ -53,8 +53,16 @@ test-stack-command-8x:
 
 test-stack-command: test-stack-command-default test-stack-command-7x test-stack-command-8x
 
-test-check-packages:
-	./scripts/test-check-packages.sh
+test-check-packages: test-check-packages-with-kind test-check-packages-with-other test-check-packages-with-parallel
+
+test-check-packages-with-kind:
+	PACKAGE_TEST_TYPE=with-kind ./scripts/test-check-packages.sh
+
+test-check-packages-other:
+	PACKAGE_TEST_TYPE=other ./scripts/test-check-packages.sh
+
+test-check-packages-with-parallel:
+	PACKAGE_TEST_TYPE=parallel ./scripts/test-check-packages.sh
 
 test-build-zip:
 	./scripts/test-build-zip.sh
