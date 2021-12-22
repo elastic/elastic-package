@@ -104,16 +104,19 @@ func Get(options testrunner.TestOptions, pipelines []pipeline.Resource) (*testru
 			if pstats.Processors[idx].Stats.Count > 0 {
 				covered++
 			}
-			line := &testrunner.CoberturaLine{
-				Number: srcProc.Line,
-				Hits:   pstats.Processors[idx].Stats.Count,
+			method := testrunner.CoberturaMethod{
+				Name: srcProc.Type,
+				Hits: pstats.Processors[idx].Stats.Count,
 			}
-			classCov.Methods = append(classCov.Methods, &testrunner.CoberturaMethod{
-				Name:  srcProc.Type,
-				Lines: []*testrunner.CoberturaLine{line},
-				Hits:  pstats.Processors[idx].Stats.Count,
-			})
-			classCov.Lines = append(classCov.Lines, line)
+			for num := srcProc.FirstLine; num <= srcProc.LastLine; num++ {
+				line := &testrunner.CoberturaLine{
+					Number: num,
+					Hits:   pstats.Processors[idx].Stats.Count,
+				}
+				classCov.Lines = append(classCov.Lines, line)
+				method.Lines = append(method.Lines, line)
+			}
+			classCov.Methods = append(classCov.Methods, &method)
 		}
 		pkg.Classes = append(pkg.Classes, &classCov)
 		coverage.LinesValid += int64(len(src))

@@ -117,6 +117,10 @@ func TestCoberturaCoverage_Merge(t *testing.T) {
 												Number: 13,
 												Hits:   2,
 											},
+											{
+												Number: 14,
+												Hits:   2,
+											},
 										},
 									},
 									{
@@ -133,6 +137,10 @@ func TestCoberturaCoverage_Merge(t *testing.T) {
 								Lines: []*CoberturaLine{
 									{
 										Number: 13,
+										Hits:   2,
+									},
+									{
+										Number: 14,
 										Hits:   2,
 									},
 									{
@@ -155,10 +163,14 @@ func TestCoberturaCoverage_Merge(t *testing.T) {
 								Methods: []*CoberturaMethod{
 									{
 										Name: "foo",
-										Hits: 3,
+										Hits: 1,
 										Lines: []*CoberturaLine{
 											{
 												Number: 13,
+												Hits:   1,
+											},
+											{
+												Number: 14,
 												Hits:   1,
 											},
 										},
@@ -180,8 +192,12 @@ func TestCoberturaCoverage_Merge(t *testing.T) {
 										Hits:   1,
 									},
 									{
+										Number: 14,
+										Hits:   1,
+									},
+									{
 										Number: 24,
-										Hits:   2,
+										Hits:   1,
 									},
 								},
 							},
@@ -190,8 +206,8 @@ func TestCoberturaCoverage_Merge(t *testing.T) {
 				},
 			},
 			expected: CoberturaCoverage{
-				LinesCovered: 2,
-				LinesValid:   2,
+				LinesCovered: 3,
+				LinesValid:   3,
 				Packages: []*CoberturaPackage{
 					{
 						Name: "a",
@@ -201,10 +217,14 @@ func TestCoberturaCoverage_Merge(t *testing.T) {
 								Methods: []*CoberturaMethod{
 									{
 										Name: "foo",
-										Hits: 5,
+										Hits: 3,
 										Lines: []*CoberturaLine{
 											{
 												Number: 13,
+												Hits:   3,
+											},
+											{
+												Number: 14,
 												Hits:   3,
 											},
 										},
@@ -223,6 +243,10 @@ func TestCoberturaCoverage_Merge(t *testing.T) {
 								Lines: []*CoberturaLine{
 									{
 										Number: 13,
+										Hits:   3,
+									},
+									{
+										Number: 14,
 										Hits:   3,
 									},
 									{

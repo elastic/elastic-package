@@ -135,14 +135,13 @@ func (c *CoberturaClass) Merge(b *CoberturaClass) error {
 	equal := c.Name == b.Name &&
 		c.Filename == b.Filename &&
 		len(c.Lines) == len(b.Lines) &&
-		len(c.Methods) == len(b.Methods) &&
-		len(c.Lines) == len(c.Methods)
+		len(c.Methods) == len(b.Methods)
 	for idx := range c.Lines {
-		equal = equal && c.Lines[idx].Number == b.Lines[idx].Number &&
-			c.Methods[idx].Name == b.Methods[idx].Name &&
-			len(c.Methods[idx].Lines) == 1 &&
-			len(b.Methods[idx].Lines) == 1 &&
-			c.Methods[idx].Lines[0].Number == b.Methods[idx].Lines[0].Number
+		equal = equal && c.Lines[idx].Number == b.Lines[idx].Number
+	}
+	for idx := range c.Methods {
+		equal = equal && c.Methods[idx].Name == b.Methods[idx].Name &&
+			len(c.Methods[idx].Lines) == len(b.Methods[idx].Lines)
 	}
 	if !equal {
 		return errors.Errorf("merging incompatible classes: %+v != %+v", *c, *b)
@@ -150,7 +149,9 @@ func (c *CoberturaClass) Merge(b *CoberturaClass) error {
 	// Update methods
 	for idx := range b.Methods {
 		c.Methods[idx].Hits += b.Methods[idx].Hits
-		c.Methods[idx].Lines[0].Hits += b.Methods[idx].Lines[0].Hits
+		for l := range b.Methods[idx].Lines {
+			c.Methods[idx].Lines[l].Hits += b.Methods[idx].Lines[l].Hits
+		}
 	}
 	// Rebuild lines
 	c.Lines = nil

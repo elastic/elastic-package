@@ -73,12 +73,12 @@ on_failure:
     value: '{{ _ingest.on_failure_message }}'
 `),
 			expected: []Processor{
-				{Type: "grok", Line: 5, Tag: "Extract header"},
-				{Type: "date", Line: 18},
-				{Type: "set", Line: 28, Description: "Set event category"},
-				{Type: "script", Line: 33},
-				{Type: "grok", Line: 38},
-				{Type: "rename", Line: 43},
+				{Type: "grok", FirstLine: 5, LastLine: 16, Tag: "Extract header"},
+				{Type: "date", FirstLine: 18, LastLine: 27},
+				{Type: "set", FirstLine: 28, LastLine: 31, Description: "Set event category"},
+				{Type: "script", FirstLine: 33, LastLine: 35},
+				{Type: "grok", FirstLine: 38, LastLine: 42},
+				{Type: "rename", FirstLine: 43, LastLine: 46},
 			},
 		},
 		{
@@ -108,11 +108,11 @@ on_failure:
 }
 `),
 			expected: []Processor{
-				{Type: "drop", Line: 3},
-				{Type: "set", Line: 5},
-				{Type: "remove", Line: 9},
-				{Type: "set", Line: 9},
-				{Type: "set", Line: 11},
+				{Type: "drop", FirstLine: 3, LastLine: 3},
+				{Type: "set", FirstLine: 5, LastLine: 8},
+				{Type: "remove", FirstLine: 9, LastLine: 9},
+				{Type: "set", FirstLine: 9, LastLine: 9},
+				{Type: "set", FirstLine: 11, LastLine: 14},
 			},
 		},
 		{
@@ -132,7 +132,7 @@ on_failure:
 			format:  "json",
 			content: []byte(`{"processors": [{"drop": {}}]}`),
 			expected: []Processor{
-				{Type: "drop", Line: 1},
+				{Type: "drop", FirstLine: 1, LastLine: 1},
 			},
 		},
 		{

@@ -18,7 +18,8 @@ type Processor struct {
 	Type        string `yaml:"-"`
 	Tag         string
 	Description string
-	Line        int `yaml:"-"`
+	FirstLine   int `yaml:"-"`
+	LastLine    int `yaml:"-"`
 }
 
 func (p Resource) Processors() (procs []Processor, err error) {
@@ -31,6 +32,19 @@ func (p Resource) Processors() (procs []Processor, err error) {
 		return nil, errors.Errorf("unsupported pipeline Format: %s", p.Format)
 	}
 	return procs, errors.Wrapf(err, "failure processing %s pipeline '%s'", p.Format, p.FileName())
+}
+
+func latestLine(node *yaml.Node) int {
+	if node == nil {
+		return 0
+	}
+	last := node.Line
+	for _, inner := range node.Content {
+		if line := latestLine(inner); line > last {
+			last = line
+		}
+	}
+	return last
 }
 
 func ProcessorsFromYAMLPipeline(content []byte) (procs []Processor, err error) {
@@ -52,7 +66,8 @@ func ProcessorsFromYAMLPipeline(content []byte) (procs []Processor, err error) {
 		if err := entry.Content[0].Decode(&proc.Type); err != nil {
 			return nil, errors.Wrapf(err, "error decoding processor#%d type", idx)
 		}
-		proc.Line = entry.Line
+		proc.FirstLine = entry.Line
+		proc.LastLine = latestLine(&entry)
 		procs = append(procs, proc)
 	}
 	return procs, nil
@@ -85,7 +100,7 @@ func (s *tokenStack) Top() json.Token {
 	if n := len(*s); n > 0 {
 		return (*s)[n-1]
 	}
-	return io.EOF // ???
+	return io.EOF
 }
 
 func (s *tokenStack) TopIsString() bool {
@@ -112,7 +127,7 @@ var processorJSONPath = tokenStack{json.Delim('{'), "processors", json.Delim('['
 
 func ProcessorsFromJSONPipeline(content []byte) (procs []Processor, err error) {
 	var processors []string
-	var offsets []int
+	var startOff, endOff []int
 	decoder := json.NewDecoder(bytes.NewReader(content))
 	var stack tokenStack
 
@@ -131,6 +146,9 @@ func ProcessorsFromJSONPipeline(content []byte) (procs []Processor, err error) {
 			if stack.TopIsString() {
 				stack.Pop()
 			}
+			if stack.Equals(processorJSONPath) {
+				endOff = append(endOff, off)
+			}
 			continue
 		}
 		if !isDelim && stack.TopIsString() {
@@ -139,19 +157,27 @@ func ProcessorsFromJSONPipeline(content []byte) (procs []Processor, err error) {
 		}
 		if str, ok := tk.(string); ok && stack.Equals(processorJSONPath) {
 			processors = append(processors, str)
-			offsets = append(offsets, off)
+			startOff = append(startOff, off)
 		}
 		stack.Push(tk)
 	}
-	lines, err := offsetsToLineNumbers(offsets, content)
+	if len(processors) != len(endOff) || len(processors) != len(startOff) {
+		return nil, errors.New("malformed JSON")
+	}
+	startLines, err := offsetsToLineNumbers(startOff, content)
+	if err != nil {
+		return nil, err
+	}
+	endLines, err := offsetsToLineNumbers(endOff, content)
 	if err != nil {
 		return nil, err
 	}
 
 	for idx, proc := range processors {
 		procs = append(procs, Processor{
-			Type: proc,
-			Line: lines[idx],
+			Type:      proc,
+			FirstLine: startLines[idx],
+			LastLine:  endLines[idx],
 		})
 	}
 	return procs, nil
