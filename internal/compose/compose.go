@@ -22,6 +22,11 @@ import (
 	"github.com/elastic/elastic-package/internal/signal"
 )
 
+const (
+	DockerComposeV1 = "v1"
+	DockerComposeV2 = "v2"
+)
+
 // Project represents a Docker Compose project.
 type Project struct {
 	name             string
@@ -340,7 +345,29 @@ func (p *Project) runDockerComposeCmd(opts dockerComposeOptions) error {
 	return cmd.Run()
 }
 
+func (p *Project) DockerComposeVersion() (string, error) {
+
+	const (
+		v1marker = "docker-compose version 1"
+	)
+	var b bytes.Buffer
+
+	args := []string{"version"}
+	if err := p.runDockerComposeCmd(dockerComposeOptions{args: args, stdout: &b}); err != nil {
+		return "", errors.Wrap(err, "running Docker Compose version command failed")
+	}
+	versionStr := string(b.Bytes())
+	if strings.Contains(versionStr, v1marker) {
+		return DockerComposeV1, nil
+	}
+	// v2marker: Docker Compose version v2.x.y
+	return DockerComposeV2, nil
+}
+
 // ContainerName method the container name for the service.
-func (p *Project) ContainerName(serviceName string) string {
-	return fmt.Sprintf("%s_%s_1", p.name, serviceName)
+func (p *Project) ContainerName(dcver, serviceName string) string {
+	if dcver == DockerComposeV1 {
+		return fmt.Sprintf("%s_%s_1", p.name, serviceName)
+	}
+	return fmt.Sprintf("%s-%s-1", p.name, serviceName)
 }

@@ -43,7 +43,11 @@ func copyDockerInternalLogs(serviceName, outputPath string) error {
 	}
 
 	outputPath = filepath.Join(outputPath, serviceName+"-internal")
-	serviceContainer := p.ContainerName(serviceName)
+	dcver, err := p.DockerComposeVersion()
+	if err != nil {
+		return errors.Wrap(err, "failed to copy docker internal logs")
+	}
+	serviceContainer := p.ContainerName(dcver, serviceName)
 	err = docker.Copy(serviceContainer, "/usr/share/elastic-agent/state/data/logs/default", outputPath)
 	if err != nil {
 		return errors.Wrap(err, "docker copy failed")
