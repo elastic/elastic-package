@@ -93,20 +93,16 @@ func (d *DockerComposeServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedSer
 		return nil, errors.Wrap(err, "service is unhealthy")
 	}
 
-	dcver, err := p.DockerComposeVersion()
-	if err != nil {
-		return nil, errors.Wrap(err, "unable to determine version")
-	}
 	// Build service container name
-	outCtxt.Hostname = p.ContainerName(dcver, serviceName)
+	outCtxt.Hostname = p.ContainerName(serviceName)
 
 	// Connect service network with stack network (for the purpose of metrics collection)
-	err = docker.ConnectToNetwork(p.ContainerName(dcver, serviceName), stack.Network())
+	err = docker.ConnectToNetwork(p.ContainerName(serviceName), stack.Network())
 	if err != nil {
 		return nil, errors.Wrapf(err, "can't attach service container to the stack network")
 	}
 
-	logger.Debugf("adding service container %s internal ports to context", p.ContainerName(dcver, serviceName))
+	logger.Debugf("adding service container %s internal ports to context", p.ContainerName(serviceName))
 	serviceComposeConfig, err := p.Config(compose.CommandOptions{
 		Env: []string{fmt.Sprintf("%s=%s", serviceLogsDirEnv, outCtxt.Logs.Folder.Local)},
 	})

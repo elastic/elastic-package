@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Masterminds/semver"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 
@@ -22,14 +23,10 @@ import (
 	"github.com/elastic/elastic-package/internal/signal"
 )
 
-const (
-	DockerComposeV1 = "v1"
-	DockerComposeV2 = "v2"
-)
-
 // Project represents a Docker Compose project.
 type Project struct {
 	name             string
+	dcMajorVersion   string
 	composeFilePaths []string
 }
 
@@ -146,8 +143,9 @@ func NewProject(name string, paths ...string) (*Project, error) {
 	}
 
 	c := Project{
-		name,
-		paths,
+		name:             name,
+		dcMajorVersion:   "",
+		composeFilePaths: paths,
 	}
 
 	return &c, nil
@@ -345,28 +343,37 @@ func (p *Project) runDockerComposeCmd(opts dockerComposeOptions) error {
 	return cmd.Run()
 }
 
-func (p *Project) DockerComposeVersion() (string, error) {
+func (p *Project) dockerComposeVersion() (*semver.Version, error) {
 
-	const (
-		v1marker = "docker-compose version 1"
-	)
 	var b bytes.Buffer
 
-	args := []string{"version"}
+	args := []string{
+		"version",
+		"--short",
+	}
 	if err := p.runDockerComposeCmd(dockerComposeOptions{args: args, stdout: &b}); err != nil {
-		return "", errors.Wrap(err, "running Docker Compose version command failed")
+		return nil, errors.Wrap(err, "running Docker Compose version command failed")
 	}
-	versionStr := string(b.Bytes())
-	if strings.Contains(versionStr, v1marker) {
-		return DockerComposeV1, nil
+	dcVersion := b.String()
+	ver, err := semver.NewVersion(dcVersion)
+	if err != nil {
+		return nil, errors.Wrapf(err, "docker compose version not a valid semver %s", dcVersion)
 	}
-	// v2marker: Docker Compose version v2.x.y
-	return DockerComposeV2, nil
+	return ver, nil
 }
 
 // ContainerName method the container name for the service.
-func (p *Project) ContainerName(dcver, serviceName string) string {
-	if dcver == DockerComposeV1 {
+func (p *Project) ContainerName(serviceName string) string {
+	if p.dcMajorVersion == "" {
+		ver, err := p.dockerComposeVersion()
+		if err != nil {
+			logger.Errorf("Unable to determine docker-compose version: %v. Defaulting to 1.x", err)
+			p.dcMajorVersion = "1"
+		} else {
+			p.dcMajorVersion = strconv.FormatInt(ver.Major(), 10)
+		}
+	}
+	if p.dcMajorVersion == "1" {
 		return fmt.Sprintf("%s_%s_1", p.name, serviceName)
 	}
 	return fmt.Sprintf("%s-%s-1", p.name, serviceName)
