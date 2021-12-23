@@ -26,7 +26,7 @@ import (
 // Project represents a Docker Compose project.
 type Project struct {
 	name             string
-	dcMajorVersion   string
+	dockerComposeV1  bool
 	composeFilePaths []string
 }
 
@@ -144,10 +144,17 @@ func NewProject(name string, paths ...string) (*Project, error) {
 
 	c := Project{
 		name:             name,
-		dcMajorVersion:   "",
+		dockerComposeV1:  true,
 		composeFilePaths: paths,
 	}
-
+	ver, err := c.dockerComposeVersion()
+	if err != nil {
+		logger.Errorf("Unable to determine docker-compose version: %v. Defaulting to 1.x", err)
+		return &c, nil
+	}
+	if ver.Major() > 1 {
+		c.dockerComposeV1 = false
+	}
 	return &c, nil
 }
 
@@ -355,7 +362,7 @@ func (p *Project) dockerComposeVersion() (*semver.Version, error) {
 		return nil, errors.Wrap(err, "running Docker Compose version command failed")
 	}
 	dcVersion := b.String()
-	ver, err := semver.NewVersion(dcVersion)
+	ver, err := semver.NewVersion(strings.Trim(dcVersion, "\n"))
 	if err != nil {
 		return nil, errors.Wrapf(err, "docker compose version not a valid semver %s", dcVersion)
 	}
@@ -364,16 +371,7 @@ func (p *Project) dockerComposeVersion() (*semver.Version, error) {
 
 // ContainerName method the container name for the service.
 func (p *Project) ContainerName(serviceName string) string {
-	if p.dcMajorVersion == "" {
-		ver, err := p.dockerComposeVersion()
-		if err != nil {
-			logger.Errorf("Unable to determine docker-compose version: %v. Defaulting to 1.x", err)
-			p.dcMajorVersion = "1"
-		} else {
-			p.dcMajorVersion = strconv.FormatInt(ver.Major(), 10)
-		}
-	}
-	if p.dcMajorVersion == "1" {
+	if p.dockerComposeV1 {
 		return fmt.Sprintf("%s_%s_1", p.name, serviceName)
 	}
 	return fmt.Sprintf("%s-%s-1", p.name, serviceName)
