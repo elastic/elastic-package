@@ -142,18 +142,18 @@ func NewProject(name string, paths ...string) (*Project, error) {
 		}
 	}
 
-	c := Project{
-		name:             name,
-		composeFilePaths: paths,
-	}
+	var c Project
+	c.name = name
+	c.composeFilePaths = paths
+
 	ver, err := c.dockerComposeVersion()
 	if err != nil {
-		logger.Errorf("Unable to determine docker-compose version: %v. Defaulting to 1.x", err)
+		logger.Errorf("Unable to determine Docker Compose version: %v. Defaulting to 1.x", err)
 		c.dockerComposeV1 = true
 		return &c, nil
 	}
 	if ver.Major() == 1 {
-		logger.Debugf("Determined docker-compose version: %v, the tool will use Compose V1", err)
+		logger.Debugf("Determined Docker Compose version: %v, the tool will use Compose V1", err)
 		c.dockerComposeV1 = true
 	}
 	return &c, nil
