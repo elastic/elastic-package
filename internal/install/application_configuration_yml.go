@@ -31,6 +31,6 @@ const applicationConfigurationYml = `stack:
 const applicationConfigurationYml = `stack:
   image_ref_overrides:
     8.0.0-SNAPSHOT:
-      # Use stable image versions for Agent and Kibana
+      # Use stable image versions for Agent/Fleet Server
       elastic-agent: ` + elasticAgentCompleteImageName + `:8.0.0-52f8db06-SNAPSHOT
 `
