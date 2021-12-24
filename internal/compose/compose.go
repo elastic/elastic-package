@@ -28,7 +28,7 @@ type Project struct {
 	name             string
 	composeFilePaths []string
 
-	dockerComposeV1  bool
+	dockerComposeV1 bool
 }
 
 // Config represents a Docker Compose configuration file.
