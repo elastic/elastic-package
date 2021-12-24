@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Masterminds/semver"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 
@@ -26,6 +27,8 @@ import (
 type Project struct {
 	name             string
 	composeFilePaths []string
+
+	dockerComposeV1 bool
 }
 
 // Config represents a Docker Compose configuration file.
@@ -140,11 +143,20 @@ func NewProject(name string, paths ...string) (*Project, error) {
 		}
 	}
 
-	c := Project{
-		name,
-		paths,
-	}
+	var c Project
+	c.name = name
+	c.composeFilePaths = paths
 
+	ver, err := c.dockerComposeVersion()
+	if err != nil {
+		logger.Errorf("Unable to determine Docker Compose version: %v. Defaulting to 1.x", err)
+		c.dockerComposeV1 = true
+		return &c, nil
+	}
+	if ver.Major() == 1 {
+		logger.Debugf("Determined Docker Compose version: %v, the tool will use Compose V1", err)
+		c.dockerComposeV1 = true
+	}
 	return &c, nil
 }
 
@@ -340,7 +352,28 @@ func (p *Project) runDockerComposeCmd(opts dockerComposeOptions) error {
 	return cmd.Run()
 }
 
+func (p *Project) dockerComposeVersion() (*semver.Version, error) {
+	var b bytes.Buffer
+
+	args := []string{
+		"version",
+		"--short",
+	}
+	if err := p.runDockerComposeCmd(dockerComposeOptions{args: args, stdout: &b}); err != nil {
+		return nil, errors.Wrap(err, "running Docker Compose version command failed")
+	}
+	dcVersion := b.String()
+	ver, err := semver.NewVersion(strings.Trim(dcVersion, "\n"))
+	if err != nil {
+		return nil, errors.Wrapf(err, "docker compose version is not a valid semver (value: %s)", dcVersion)
+	}
+	return ver, nil
+}
+
 // ContainerName method the container name for the service.
 func (p *Project) ContainerName(serviceName string) string {
-	return fmt.Sprintf("%s_%s_1", p.name, serviceName)
+	if p.dockerComposeV1 {
+		return fmt.Sprintf("%s_%s_1", p.name, serviceName)
+	}
+	return fmt.Sprintf("%s-%s-1", p.name, serviceName)
 }
