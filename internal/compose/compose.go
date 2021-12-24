@@ -351,7 +351,6 @@ func (p *Project) runDockerComposeCmd(opts dockerComposeOptions) error {
 }
 
 func (p *Project) dockerComposeVersion() (*semver.Version, error) {
-
 	var b bytes.Buffer
 
 	args := []string{
