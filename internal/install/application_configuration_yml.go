@@ -27,6 +27,10 @@ const applicationConfigurationYml = `stack:
       kibana: ` + kibanaImageName + `@sha256:78ae3b1ca09efee242d2c77597dfab18670e984adb96c2407ec03fe07ceca4f6`
 */
 
+// Emergency fix for: https://github.com/elastic/beats/issues/29603
 const applicationConfigurationYml = `stack:
   image_ref_overrides:
+    8.0.0-SNAPSHOT:
+      # Use stable image versions for Agent/Fleet Server
+      elastic-agent: ` + elasticAgentCompleteImageName + `:8.0.0-52f8db06-SNAPSHOT
 `
