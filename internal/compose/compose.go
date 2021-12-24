@@ -26,8 +26,9 @@ import (
 // Project represents a Docker Compose project.
 type Project struct {
 	name             string
-	dockerComposeV1  bool
 	composeFilePaths []string
+
+	dockerComposeV1  bool
 }
 
 // Config represents a Docker Compose configuration file.
