@@ -38,7 +38,7 @@ func TestResourceFileName(t *testing.T) {
 		},
 	} {
 		t.Run(tt.title, func(t *testing.T) {
-			assert.Equal(t, tt.expected, tt.resource.FileName())
+			assert.Equal(t, tt.expected, tt.resource.Filename())
 		})
 	}
 }

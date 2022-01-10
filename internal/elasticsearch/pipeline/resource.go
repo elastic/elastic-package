@@ -19,8 +19,8 @@ type Resource struct {
 	Content []byte // Content is the original file contents.
 }
 
-// FileName returns the original filename associated with the pipeline.
-func (p *Resource) FileName() string {
+// Filename returns the original filename associated with the pipeline.
+func (p *Resource) Filename() string {
 	pos := strings.LastIndexByte(p.Name, '-')
 	if pos == -1 {
 		pos = len(p.Name)
