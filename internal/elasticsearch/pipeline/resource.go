@@ -28,8 +28,8 @@ func (p *Resource) FileName() string {
 	return p.Name[:pos] + "." + p.Format
 }
 
-// ToJSON returns the pipeline contents in JSON format.
-func (p *Resource) ToJSON() (asJSON []byte, err error) {
+// MarshalJSON returns the pipeline contents in JSON format.
+func (p *Resource) MarshalJSON() (asJSON []byte, err error) {
 	switch p.Format {
 	case "json":
 		asJSON = p.Content

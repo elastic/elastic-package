@@ -119,7 +119,7 @@ func installPipeline(api *elasticsearch.API, pipeline pipeline.Resource) error {
 }
 
 func putIngestPipeline(api *elasticsearch.API, pipeline pipeline.Resource) error {
-	source, err := pipeline.ToJSON()
+	source, err := pipeline.MarshalJSON()
 	if err != nil {
 		return err
 	}

@@ -43,7 +43,7 @@ func TestResourceFileName(t *testing.T) {
 	}
 }
 
-func TestResourceToJSON(t *testing.T) {
+func TestResourceMarshalJSON(t *testing.T) {
 	for _, tt := range []struct {
 		title    string
 		resource Resource
@@ -76,7 +76,7 @@ func TestResourceToJSON(t *testing.T) {
 		},
 	} {
 		t.Run(tt.title, func(t *testing.T) {
-			got, err := tt.resource.ToJSON()
+			got, err := tt.resource.MarshalJSON()
 			if tt.isErr {
 				assert.Error(t, err)
 			} else {
