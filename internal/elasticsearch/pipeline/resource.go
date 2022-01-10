@@ -39,7 +39,7 @@ func (p *Resource) MarshalJSON() (asJSON []byte, err error) {
 		if err != nil {
 			return nil, errors.Wrapf(err, "unmarshalling pipeline content failed (pipeline: %s)", p.Name)
 		}
-		if asJSON, err = json.Marshal(&node); err != nil {
+		if asJSON, err = json.Marshal(node); err != nil {
 			return nil, errors.Wrapf(err, "marshalling pipeline content failed (pipeline: %s)", p.Name)
 		}
 	default:
