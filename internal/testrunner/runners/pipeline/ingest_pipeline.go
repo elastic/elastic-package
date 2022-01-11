@@ -20,7 +20,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/elasticsearch"
-	"github.com/elastic/elastic-package/internal/elasticsearch/pipeline"
+	"github.com/elastic/elastic-package/internal/elasticsearch/ingest"
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
@@ -42,7 +42,7 @@ type pipelineIngestedDocument struct {
 	Doc pipelineDocument `json:"doc"`
 }
 
-func installIngestPipelines(api *elasticsearch.API, dataStreamPath string) (string, []pipeline.Resource, error) {
+func installIngestPipelines(api *elasticsearch.API, dataStreamPath string) (string, []ingest.Pipeline, error) {
 	dataStreamManifest, err := packages.ReadDataStreamManifest(filepath.Join(dataStreamPath, packages.DataStreamManifestFile))
 	if err != nil {
 		return "", nil, errors.Wrap(err, "reading data stream manifest failed")
@@ -64,7 +64,7 @@ func installIngestPipelines(api *elasticsearch.API, dataStreamPath string) (stri
 	return mainPipeline, pipelines, nil
 }
 
-func loadIngestPipelineFiles(dataStreamPath string, nonce int64) ([]pipeline.Resource, error) {
+func loadIngestPipelineFiles(dataStreamPath string, nonce int64) ([]ingest.Pipeline, error) {
 	elasticsearchPath := filepath.Join(dataStreamPath, "elasticsearch", "ingest_pipeline")
 
 	var pipelineFiles []string
@@ -76,7 +76,7 @@ func loadIngestPipelineFiles(dataStreamPath string, nonce int64) ([]pipeline.Res
 		pipelineFiles = append(pipelineFiles, files...)
 	}
 
-	var pipelines []pipeline.Resource
+	var pipelines []ingest.Pipeline
 	for _, path := range pipelineFiles {
 		c, err := os.ReadFile(path)
 		if err != nil {
@@ -92,7 +92,7 @@ func loadIngestPipelineFiles(dataStreamPath string, nonce int64) ([]pipeline.Res
 			return []byte(getWithPipelineNameWithNonce(pipelineTag, nonce))
 		})
 		name := filepath.Base(path)
-		pipelines = append(pipelines, pipeline.Resource{
+		pipelines = append(pipelines, ingest.Pipeline{
 			Name:    getWithPipelineNameWithNonce(name[:strings.Index(name, ".")], nonce),
 			Format:  filepath.Ext(path)[1:],
 			Content: c,
@@ -101,7 +101,7 @@ func loadIngestPipelineFiles(dataStreamPath string, nonce int64) ([]pipeline.Res
 	return pipelines, nil
 }
 
-func installPipelinesInElasticsearch(api *elasticsearch.API, pipelines []pipeline.Resource) error {
+func installPipelinesInElasticsearch(api *elasticsearch.API, pipelines []ingest.Pipeline) error {
 	for _, p := range pipelines {
 		if err := installPipeline(api, p); err != nil {
 			return err
@@ -110,7 +110,7 @@ func installPipelinesInElasticsearch(api *elasticsearch.API, pipelines []pipelin
 	return nil
 }
 
-func installPipeline(api *elasticsearch.API, pipeline pipeline.Resource) error {
+func installPipeline(api *elasticsearch.API, pipeline ingest.Pipeline) error {
 	if err := putIngestPipeline(api, pipeline); err != nil {
 		return err
 	}
@@ -118,7 +118,7 @@ func installPipeline(api *elasticsearch.API, pipeline pipeline.Resource) error {
 	return getIngestPipeline(api, pipeline.Name)
 }
 
-func putIngestPipeline(api *elasticsearch.API, pipeline pipeline.Resource) error {
+func putIngestPipeline(api *elasticsearch.API, pipeline ingest.Pipeline) error {
 	source, err := pipeline.MarshalJSON()
 	if err != nil {
 		return err
@@ -163,7 +163,7 @@ func getIngestPipeline(api *elasticsearch.API, pipelineName string) error {
 	return nil
 }
 
-func uninstallIngestPipelines(api *elasticsearch.API, pipelines []pipeline.Resource) error {
+func uninstallIngestPipelines(api *elasticsearch.API, pipelines []ingest.Pipeline) error {
 	for _, pipeline := range pipelines {
 		resp, err := api.Ingest.DeletePipeline(pipeline.Name)
 		if err != nil {

@@ -2,7 +2,7 @@
 // or more contributor license agreements. Licensed under the Elastic License;
 // you may not use this file except in compliance with the Elastic License.
 
-package pipeline
+package ingest
 
 import (
 	"testing"
@@ -10,15 +10,15 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestResourceFileName(t *testing.T) {
+func TestPipelineFileName(t *testing.T) {
 	for _, tt := range []struct {
 		title    string
-		resource Resource
+		pipeline Pipeline
 		expected string
 	}{
 		{
 			title: "name with nonce",
-			resource: Resource{
+			pipeline: Pipeline{
 				Name:   "default-1234",
 				Format: "yml",
 			},
@@ -26,7 +26,7 @@ func TestResourceFileName(t *testing.T) {
 		},
 		{
 			title: "name without nonce",
-			resource: Resource{
+			pipeline: Pipeline{
 				Name:   "mypipeline",
 				Format: "json",
 			},
@@ -38,21 +38,21 @@ func TestResourceFileName(t *testing.T) {
 		},
 	} {
 		t.Run(tt.title, func(t *testing.T) {
-			assert.Equal(t, tt.expected, tt.resource.Filename())
+			assert.Equal(t, tt.expected, tt.pipeline.Filename())
 		})
 	}
 }
 
-func TestResourceMarshalJSON(t *testing.T) {
+func TestPipelineMarshalJSON(t *testing.T) {
 	for _, tt := range []struct {
 		title    string
-		resource Resource
+		pipeline Pipeline
 		expected string
 		isErr    bool
 	}{
 		{
 			title: "JSON source",
-			resource: Resource{
+			pipeline: Pipeline{
 				Format:  "json",
 				Content: []byte(`{"foo":["bar"]}`),
 			},
@@ -60,7 +60,7 @@ func TestResourceMarshalJSON(t *testing.T) {
 		},
 		{
 			title: "Yaml source",
-			resource: Resource{
+			pipeline: Pipeline{
 				Format:  "yaml",
 				Content: []byte(`foo: ["bar"]`),
 			},
@@ -68,7 +68,7 @@ func TestResourceMarshalJSON(t *testing.T) {
 		},
 		{
 			title: "bad Yaml",
-			resource: Resource{
+			pipeline: Pipeline{
 				Format:  "yaml",
 				Content: []byte(`broken"`),
 			},
@@ -76,7 +76,7 @@ func TestResourceMarshalJSON(t *testing.T) {
 		},
 	} {
 		t.Run(tt.title, func(t *testing.T) {
-			got, err := tt.resource.MarshalJSON()
+			got, err := tt.pipeline.MarshalJSON()
 			if tt.isErr {
 				assert.Error(t, err)
 			} else {
