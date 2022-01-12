@@ -16,6 +16,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/common"
+	"github.com/elastic/elastic-package/internal/elasticsearch/ingest"
 	"github.com/elastic/elastic-package/internal/fields"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/multierror"
@@ -30,7 +31,7 @@ const (
 
 type runner struct {
 	options   testrunner.TestOptions
-	pipelines []pipelineResource
+	pipelines []ingest.Pipeline
 }
 
 func (r *runner) TestFolderRequired() bool {
