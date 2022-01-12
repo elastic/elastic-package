@@ -16,6 +16,7 @@ pipeline {
     JOB_GCS_BUCKET = 'beats-ci-temp'
     JOB_GCS_CREDENTIALS = 'beats-ci-gcs-plugin'
     JOB_GCS_EXT_CREDENTIALS = 'beats-ci-gcs-plugin-file-credentials'
+    JOB_SIGNING_CREDENTIALS = 'sign-artifacts-with-gpg-job'
 
     INFRA_SIGNING_BUCKET_NAME = 'internal-ci-artifacts'
     INFRA_SIGNING_BUCKET_CREDENTIALS = 'internal-ci-gcs-plugin'
@@ -169,8 +170,12 @@ def generateTestSignWithElasticStage() {
             pattern: 'build/integrations/*.zip',
             sharedPublicly: false,
             showInline: true)
-          build(wait: true, propagate: true, job: 'elastic+unified-release+master+sign-artifacts-with-gpg',
+          buildTokenTrigger(credentialsId: env.JOB_SIGNING_CREDENTIALS,
+            delay: 30,
+            jenkinsUrl: 'https://internal-ci.elastic.co',
+            job: 'elastic+unified-release+master+sign-artifacts-with-gpg',
             parameters: [string(name: 'gcs_input_path', value: "${env.BUCKET_PATH}")])
+          // TODO wait for the signing job to finish
           googleStorageDownload(bucketUri: "${env.INFRA_SIGNING_BUCKET_SIGNED_ARTIFACTS_PATH}/*",
             credentialsId: env.INFRA_SIGNING_BUCKET_CREDENTIALS,
             localDirectory: 'build/integrations/',
