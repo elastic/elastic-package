@@ -17,6 +17,7 @@ pipeline {
     JOB_GCS_CREDENTIALS = 'beats-ci-gcs-plugin'
     JOB_GCS_EXT_CREDENTIALS = 'beats-ci-gcs-plugin-file-credentials'
     JOB_SIGNING_CREDENTIALS = 'sign-artifacts-with-gpg-job'
+    INTERNAL_CI_JOB_GCS_CREDENTIALS = 'internal-ci-gcs-plugin'
 
     INFRA_SIGNING_BUCKET_NAME = 'internal-ci-artifacts'
     INFRA_SIGNING_BUCKET_ARTIFACTS_SUBFOLDER = "${env.REPO}/${env.BUILD_TAG}"
@@ -157,7 +158,7 @@ def generateTestSignWithElasticStage() {
           sh(label: 'Build elastic-package',script: "make build")
           sh(label: 'Prepare for tests (build zipped packages)',script: "make build-unsigned-zip-for-tests")
           googleStorageUpload(bucket: env.INFRA_SIGNING_BUCKET_ARTIFACTS_PATH,
-            credentialsId: env.JOB_GCS_CREDENTIALS,
+            credentialsId: env.INTERNAL_CI_JOB_GCS_CREDENTIALS,
             pathPrefix: 'build/integrations/',
             pattern: 'build/integrations/*.zip',
             sharedPublicly: false,
@@ -169,7 +170,7 @@ def generateTestSignWithElasticStage() {
             parameters: [string(name: 'gcs_input_path', value: "${env.BUCKET_PATH}")])
           // TODO wait for the signing job to finish
           googleStorageDownload(bucketUri: "${env.INFRA_SIGNING_BUCKET_SIGNED_ARTIFACTS_PATH}/*",
-            credentialsId: env.JOB_GCS_CREDENTIALS,
+            credentialsId: env.INTERNAL_CI_JOB_GCS_CREDENTIALS,
             localDirectory: 'build/integrations/',
             pathPrefix: "${env.INFRA_SIGNING_BUCKET_SIGNED_ARTIFACTS_SUBFOLDER}")
           archiveArtifacts(allowEmptyArchive: true, artifacts: "build/integrations/*.sig")
