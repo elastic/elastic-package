@@ -163,11 +163,12 @@ def generateTestSignWithElasticStage() {
             pattern: 'build/integrations/*.zip',
             sharedPublicly: false,
             showInline: true)
-          buildTokenTrigger(credentialsId: env.JOB_SIGNING_CREDENTIALS,
+          def signingJobURL = buildTokenTrigger(credentialsId: env.JOB_SIGNING_CREDENTIALS,
             delay: 30,
             jenkinsUrl: 'https://internal-ci.elastic.co',
             job: 'elastic+unified-release+master+sign-artifacts-with-gpg',
             parameters: [gcs_input_path: "${env.INFRA_SIGNING_BUCKET_ARTIFACTS_PATH}"])
+          echo "${signingJobURL}/api/json"
           // TODO wait for the signing job to finish
           googleStorageDownload(bucketUri: "${env.INFRA_SIGNING_BUCKET_SIGNED_ARTIFACTS_PATH}/*",
             credentialsId: env.INTERNAL_CI_JOB_GCS_CREDENTIALS,
