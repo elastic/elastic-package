@@ -146,11 +146,27 @@ func unmarshalTestResult(body []byte) (*testResult, error) {
 func marshalTestResultDefinition(result *testResult) ([]byte, error) {
 	var trd testResultDefinition
 	trd.Expected = result.events
-	body, err := json.MarshalIndent(&trd, "", "    ")
+	body, err := marshalNormalizedJSON(trd)
 	if err != nil {
 		return nil, errors.Wrap(err, "marshalling test result definition failed")
 	}
 	return body, nil
+}
+
+// marshalNormalizedJSON marshals test results ensuring that field
+// order remains consistent independent of field order returned by
+// ES to minimize diff noise during changes.
+func marshalNormalizedJSON(v testResultDefinition) ([]byte, error) {
+	msg, err := json.Marshal(v)
+	if err != nil {
+		return msg, err
+	}
+	var obj interface{}
+	err = json.Unmarshal(msg, &obj)
+	if err != nil {
+		return msg, err
+	}
+	return json.MarshalIndent(obj, "", "    ")
 }
 
 func expectedTestResultFile(testFile string) string {
