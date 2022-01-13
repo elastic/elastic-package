@@ -157,7 +157,7 @@ def generateTestSignWithElasticStage() {
           sh(label: 'Build elastic-package',script: "make build")
           sh(label: 'Prepare for tests (build zipped packages)',script: "make build-unsigned-zip-for-tests")
           googleStorageUpload(bucket: env.INFRA_SIGNING_BUCKET_NAME,
-            credentialsId: env.JOB_SIGNING_CREDENTIALS,
+            credentialsId: env.JOB_GCS_CREDENTIALS,
             pathPrefix: 'build/integrations/',
             pattern: 'build/integrations/*.zip',
             sharedPublicly: false,
@@ -169,7 +169,7 @@ def generateTestSignWithElasticStage() {
             parameters: [string(name: 'gcs_input_path', value: "${env.BUCKET_PATH}")])
           // TODO wait for the signing job to finish
           googleStorageDownload(bucketUri: "${env.INFRA_SIGNING_BUCKET_SIGNED_ARTIFACTS_PATH}/*",
-            credentialsId: env.JOB_SIGNING_CREDENTIALS,
+            credentialsId: env.JOB_GCS_CREDENTIALS,
             localDirectory: 'build/integrations/',
             pathPrefix: "${env.INFRA_SIGNING_BUCKET_SUBFOLDER_SIGNED_ARTIFACTS}")
           archiveArtifacts(allowEmptyArchive: true, artifacts: "build/integrations/*.sig")
