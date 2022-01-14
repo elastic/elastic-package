@@ -145,3 +145,5 @@ require (
 	sigs.k8s.io/structured-merge-diff/v4 v4.1.2 // indirect
 	sigs.k8s.io/yaml v1.2.0 // indirect
 )
+
+replace github.com/elastic/package-spec v1.3.0 => github.com/jsoriano/package-spec v0.0.0-20220112095620-98e0d531845d

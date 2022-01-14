@@ -103,7 +103,6 @@ type PackageManifest struct {
 	PolicyTemplates []PolicyTemplate `config:"policy_templates" json:"policy_templates" yaml:"policy_templates"`
 	Vars            []Variable       `config:"vars" json:"vars" yaml:"vars"`
 	Owner           Owner            `config:"owner" json:"owner" yaml:"owner"`
-	Release         string           `config:"release" json:"release" yaml:"release"`
 	Description     string           `config:"description" json:"description" yaml:"description"`
 	License         string           `config:"license" json:"license" yaml:"license"`
 	Categories      []string         `config:"categories" json:"categories" yaml:"categories"`
@@ -115,7 +114,6 @@ type DataStreamManifest struct {
 	Title         string `config:"title" json:"title" yaml:"title"`
 	Type          string `config:"type" json:"type" yaml:"type"`
 	Dataset       string `config:"dataset" json:"dataset" yaml:"dataset"`
-	Release       string `config:"release" json:"release" yaml:"release"`
 	Elasticsearch *struct {
 		IngestPipeline *struct {
 			Name string `config:"name" json:"name" yaml:"name"`

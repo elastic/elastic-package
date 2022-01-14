@@ -14,7 +14,6 @@ type: {{.Manifest.Type}}
 categories:{{range $category := .Manifest.Categories}}
   - {{$category}}
 {{- end}}
-release: {{.Manifest.Release}}
 conditions:
   kibana.version: "{{.Manifest.Conditions.Kibana.Version}}"
 screenshots:

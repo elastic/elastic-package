@@ -128,9 +128,8 @@ func print(p *status.PackageStatus, w io.Writer) error {
 
 	bold.Fprintln(w, "Package Versions:")
 	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader([]string{"Environment", "Version", "Release", "Title", "Description"})
+	table.SetHeader([]string{"Environment", "Version", "Title", "Description"})
 	table.SetHeaderColor(
-		twColor(tablewriter.Colors{tablewriter.Bold}),
 		twColor(tablewriter.Colors{tablewriter.Bold}),
 		twColor(tablewriter.Colors{tablewriter.Bold}),
 		twColor(tablewriter.Colors{tablewriter.Bold}),
@@ -139,7 +138,6 @@ func print(p *status.PackageStatus, w io.Writer) error {
 	table.SetColumnColor(
 		twColor(tablewriter.Colors{tablewriter.Bold, tablewriter.FgCyanColor}),
 		twColor(tablewriter.Colors{tablewriter.Bold, tablewriter.FgRedColor}),
-		tablewriter.Colors{},
 		tablewriter.Colors{},
 		tablewriter.Colors{},
 	)
@@ -165,7 +163,7 @@ func formatChangelogEntry(change changelog.Entry) []string {
 // formatManifests returns a row of data ffor a set of versioned packaged manifests
 func formatManifests(environment string, manifests []packages.PackageManifest) []string {
 	if len(manifests) == 0 {
-		return []string{environment, "-", "-", "-", "-"}
+		return []string{environment, "-", "-", "-"}
 	}
 	var extraVersions []string
 	for i, m := range manifests {
@@ -182,7 +180,7 @@ func formatManifest(environment string, manifest packages.PackageManifest, extra
 	if len(extraVersions) > 0 {
 		version = fmt.Sprintf("%s (%s)", version, strings.Join(extraVersions, ", "))
 	}
-	return []string{environment, version, manifest.Release, manifest.Title, manifest.Description}
+	return []string{environment, version, manifest.Title, manifest.Description}
 }
 
 // twColor no-ops the color setting if we don't want to colorize the output
