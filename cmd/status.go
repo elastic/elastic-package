@@ -60,7 +60,10 @@ func statusCommandAction(cmd *cobra.Command, args []string) error {
 	options := registry.SearchOptions{
 		All:           showAll,
 		KibanaVersion: kibanaVersion,
-		Experimental:  true,
+		Prerelease:    true,
+
+		// Deprecated
+		Experimental: true,
 	}
 	packageStatus, err := getPackageStatus(packageName, options)
 	if err != nil {
