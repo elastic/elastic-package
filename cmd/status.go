@@ -127,7 +127,7 @@ func print(p *status.PackageStatus, w io.Writer) error {
 	}
 
 	bold.Fprintln(w, "Package Versions:")
-	table := tablewriter.NewWriter(os.Stdout)
+	table := tablewriter.NewWriter(w)
 	table.SetHeader([]string{"Environment", "Version", "Title", "Description"})
 	table.SetHeaderColor(
 		twColor(tablewriter.Colors{tablewriter.Bold}),
