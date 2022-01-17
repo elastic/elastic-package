@@ -160,7 +160,7 @@ func writeStackResources(elasticPackagePath *locations.LocationManager) error {
 	kibanaHealthcheckPath := filepath.Join(elasticPackagePath.StackDir(), "healthcheck.sh")
 	err = writeStaticResource(err, kibanaHealthcheckPath, kibanaHealthcheckSh)
 	if err != nil {
-		return errors.Wrapf(err, "copying healthcheck script failed (%s)", kibanaHealthcheckPath)
+		return errors.Wrapf(err, "copying Kibana healthcheck script failed (%s)", kibanaHealthcheckPath)
 	}
 
 	// Install GeoIP database
@@ -186,6 +186,12 @@ func writeStackResources(elasticPackagePath *locations.LocationManager) error {
 	err = writeStaticResource(err, geoIpCountryMmdbPath, geoIpCountryMmdb)
 	if err != nil {
 		return errors.Wrapf(err, "copying GeoIP country database failed (%s)", geoIpCountryMmdbPath)
+	}
+
+	elasticsearchHealthcheckPath := filepath.Join(elasticPackagePath.StackDir(), "elasticsearch_healthcheck.sh")
+	err = writeStaticResource(err, elasticsearchHealthcheckPath, serviceTokens)
+	if err != nil {
+		return errors.Wrapf(err, "copying Elasticsearch healthcheck script failed (%s)", elasticsearchHealthcheckPath)
 	}
 
 	serviceTokensPath := filepath.Join(elasticPackagePath.StackDir(), "service_tokens")
