@@ -18,9 +18,6 @@ var terraformDeployerYml string
 //go:embed _static/terraform_deployer_run.sh
 var terraformDeployerRun string
 
-//go:embed _static/elasticsearch_healthcheck.sh
-var elasticsearchHealthcheckSh string
-
 //go:embed _static/GeoLite2-ASN.mmdb
 var geoIpAsnMmdb string
 
