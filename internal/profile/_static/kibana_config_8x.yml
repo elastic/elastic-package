@@ -2,8 +2,7 @@ server.name: kibana
 server.host: "0.0.0.0"
 
 elasticsearch.hosts: [ "http://elasticsearch:9200" ]
-elasticsearch.username: kibana_system
-elasticsearch.password: kibanapassword
+elasticsearch.serviceAccountToken: "AAEAAWVsYXN0aWMva2liYW5hL2VsYXN0aWMtcGFja2FnZS1raWJhbmEtdG9rZW46b2x4b051SWNRa0tYMHdXazdLWmFBdw"
 
 monitoring.ui.container.elasticsearch.enabled: true
 

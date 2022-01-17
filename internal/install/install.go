@@ -188,6 +188,12 @@ func writeStackResources(elasticPackagePath *locations.LocationManager) error {
 		return errors.Wrapf(err, "copying GeoIP country database failed (%s)", geoIpCountryMmdbPath)
 	}
 
+	serviceTokensPath := filepath.Join(elasticPackagePath.StackDir(), "service_tokens")
+	err = writeStaticResource(err, serviceTokensPath, serviceTokens)
+	if err != nil {
+		return errors.Wrapf(err, "copying service_tokens failed (%s)", serviceTokensPath)
+	}
+
 	options := profile.Options{
 		PackagePath:       elasticPackagePath.ProfileDir(),
 		Name:              profile.DefaultProfile,
