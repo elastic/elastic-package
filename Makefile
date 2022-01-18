@@ -1,10 +1,12 @@
 CODE_COVERAGE_REPORT_FOLDER = $(PWD)/build/test-coverage
 CODE_COVERAGE_REPORT_NAME_UNIT = $(CODE_COVERAGE_REPORT_FOLDER)/coverage-unit-report
+VERSION_IMPORT_PATH = github.com/elastic/elastic-package/internal/version
 
 .PHONY: build
 
 build:
-	go get -ldflags "-X github.com/elastic/elastic-package/internal/version.CommitHash=`git describe --always --long --dirty` -X github.com/elastic/elastic-package/internal/version.BuildTime=`date +%s`" \
+	go install -ldflags \
+	    "-X $(VERSION_IMPORT_PATH).CommitHash=`git describe --always --long --dirty` -X $(VERSION_IMPORT_PATH).BuildTime=`date +%s` -X $(VERSION_IMPORT_PATH).Tag=`(git describe --exact-match --tags 2>/dev/null || echo '') | tr -d '\n'`" \
 	    github.com/elastic/elastic-package
 
 clean:
