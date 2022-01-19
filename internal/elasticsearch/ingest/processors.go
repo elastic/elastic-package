@@ -17,13 +17,13 @@ import (
 // Processor represents an ingest processor.
 type Processor struct {
 	// Type of processor ("set", "script", etc.)
-	Type        string `yaml:"-"`
+	Type string `yaml:"-"`
 	// FirstLine is the line number where this processor definition starts
 	// in the pipeline source code.
-	FirstLine   int `yaml:"-"`
+	FirstLine int `yaml:"-"`
 	// LastLine is the line number where this processor definitions end
 	// in the pipeline source code.
-	LastLine    int `yaml:"-"`
+	LastLine int `yaml:"-"`
 }
 
 // Processors return the list of processors in an ingest pipeline.
