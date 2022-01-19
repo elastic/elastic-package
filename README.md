@@ -38,7 +38,7 @@ elastic-package help
 
 ## Development
 
-Download and build the latest master of `elastic-package` binary:
+Download and build the latest main of `elastic-package` binary:
 
 ```bash
 git clone https://github.com/elastic/elastic-package.git
@@ -84,7 +84,7 @@ Built packages are served up by the Elastic Package Registry running locally (se
 
 Built packages can also be published to the global package registry service.
 
-For details on how to enable dependency management, see the [HOWTO guide](https://github.com/elastic/elastic-package/blob/master/docs/howto/dependency_management.md).
+For details on how to enable dependency management, see the [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/dependency_management.md).
 
 ### `elastic-package check`
 
@@ -110,7 +110,7 @@ Use this command to create a new package or add more data streams.
 
 The command can help bootstrap the first draft of a package using embedded package template. It can be used to extend the package with more data streams.
 
-For details on how to create a new package, review the [HOWTO guide](https://github.com/elastic/elastic-package/blob/master/docs/howto/create_new_package.md).
+For details on how to create a new package, review the [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/create_new_package.md).
 
 ### `elastic-package export`
 
@@ -147,8 +147,8 @@ The command ensures that the package is aligned with the package spec and the RE
 _Context: global_
 
 Use this command to add, remove, and manage multiple config profiles.
-	
-Individual user profiles appear in ~/.elastic-package/stack, and contain all the config files needed by the "stack" subcommand. 
+
+Individual user profiles appear in ~/.elastic-package/stack, and contain all the config files needed by the "stack" subcommand.
 Once a new profile is created, it can be specified with the -p flag, or the ELASTIC_PACKAGE_PROFILE environment variable.
 User profiles are not overwritten on upgrade of elastic-stack, and can be freely modified to allow for different stack configs.
 
@@ -186,7 +186,7 @@ Use this command to spin up a Docker-based Elastic Stack consisting of Elasticse
 
 Be aware that a common issue while trying to boot up the stack is that your Docker environments settings are too low in terms of memory threshold.
 
-For details on how to connect the service with the Elastic stack, see the [service command](https://github.com/elastic/elastic-package/blob/master/README.md#elastic-package-service).
+For details on how to connect the service with the Elastic stack, see the [service command](https://github.com/elastic/elastic-package/blob/main/README.md#elastic-package-service).
 
 ### `elastic-package status [package]`
 
@@ -207,22 +207,22 @@ Use this command to run tests on a package. Currently, the following types of te
 #### Asset Loading Tests
 These tests ensure that all the Elasticsearch and Kibana assets defined by your package get loaded up as expected.
 
-For details on how to run asset loading tests for a package, see the [HOWTO guide](https://github.com/elastic/elastic-package/blob/master/docs/howto/asset_testing.md).
+For details on how to run asset loading tests for a package, see the [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/asset_testing.md).
 
 #### Pipeline Tests
 These tests allow you to exercise any Ingest Node Pipelines defined by your packages.
 
-For details on how to configure pipeline test for a package, review the [HOWTO guide](https://github.com/elastic/elastic-package/blob/master/docs/howto/pipeline_testing.md).
+For details on how to configure pipeline test for a package, review the [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/pipeline_testing.md).
 
 #### Static Tests
 These tests allow you to verify if all static resources of the package are valid, e.g. if all fields of the sample_event.json are documented.
 
-For details on how to run static tests for a package, see the [HOWTO guide](https://github.com/elastic/elastic-package/blob/master/docs/howto/static_testing.md).
+For details on how to run static tests for a package, see the [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/static_testing.md).
 
 #### System Tests
 These tests allow you to test a package's ability to ingest data end-to-end.
 
-For details on how to configure amd run system tests, review the [HOWTO guide](https://github.com/elastic/elastic-package/blob/master/docs/howto/system_testing.md).
+For details on how to configure amd run system tests, review the [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/system_testing.md).
 
 ### `elastic-package uninstall`
 
@@ -272,16 +272,16 @@ source code:
 ## Release process
 
 This project uses [GoReleaser](https://goreleaser.com/) to release a new version of the application (semver). Release publishing
-is automatically managed by the Jenkins CI ([Jenkinsfile](https://github.com/elastic/elastic-package/blob/master/.ci/Jenkinsfile))
+is automatically managed by the Jenkins CI ([Jenkinsfile](https://github.com/elastic/elastic-package/blob/main/.ci/Jenkinsfile))
 and it's triggered by Git tags. Release artifacts are available in the [Releases](https://github.com/elastic/elastic-package/releases) section.
 
 ### Steps to create a new release
 
-1. Fetch latest master from upstream (remember to rebase the branch):
+1. Fetch latest main from upstream (remember to rebase the branch):
 
 ```bash
 git fetch upstream
-git rebase upstream/master
+git rebase upstream/main
 ```
 
 2. Create Git tag with release candidate:
