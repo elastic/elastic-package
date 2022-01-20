@@ -97,7 +97,7 @@ func (s *tokenStack) Pop() json.Token {
 func (s *tokenStack) PopUntil(d json.Delim) {
 	for {
 		switch s.Pop() {
-		case d, io.EOF:
+		case d, nil:
 			return
 		}
 	}
@@ -107,7 +107,7 @@ func (s *tokenStack) Top() json.Token {
 	if n := len(*s); n > 0 {
 		return (*s)[n-1]
 	}
-	return io.EOF
+	return nil
 }
 
 func (s *tokenStack) TopIsString() bool {
@@ -143,13 +143,13 @@ func processorsFromJSON(content []byte) (processors []Processor, err error) {
 	for {
 		// Read the next token and it's offset.
 		tk, err := decoder.Token()
-		off := int(decoder.InputOffset())
 		if err != nil {
 			if err == io.EOF {
 				break
 			}
 			return nil, err
 		}
+		off := int(decoder.InputOffset())
 		delim, isDelim := tk.(json.Delim)
 
 		// If the token terminates an array or object
