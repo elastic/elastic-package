@@ -32,9 +32,9 @@ require (
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
 	helm.sh/helm/v3 v3.7.2
 	honnef.co/go/tools v0.2.2
-	k8s.io/apimachinery v0.23.1
-	k8s.io/cli-runtime v0.23.1
-	k8s.io/client-go v0.23.1
+	k8s.io/apimachinery v0.23.2
+	k8s.io/cli-runtime v0.23.2
+	k8s.io/client-go v0.23.2
 )
 
 require (
@@ -132,7 +132,7 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	k8s.io/api v0.23.1 // indirect
+	k8s.io/api v0.23.2 // indirect
 	k8s.io/apiextensions-apiserver v0.22.4 // indirect
 	k8s.io/component-base v0.22.4 // indirect
 	k8s.io/klog/v2 v2.30.0 // indirect
@@ -142,6 +142,6 @@ require (
 	sigs.k8s.io/json v0.0.0-20211020170558-c049b76a60c6 // indirect
 	sigs.k8s.io/kustomize/api v0.10.1 // indirect
 	sigs.k8s.io/kustomize/kyaml v0.13.0 // indirect
-	sigs.k8s.io/structured-merge-diff/v4 v4.1.2 // indirect
+	sigs.k8s.io/structured-merge-diff/v4 v4.2.1 // indirect
 	sigs.k8s.io/yaml v1.2.0 // indirect
 )
