@@ -1,6 +1,24 @@
-FROM hashicorp/terraform:light
-ENV TF_IN_AUTOMATION=true
+FROM hashicorp/terraform:light as terraform
+
+FROM python:3-alpine
+
+# required by gcloud SDK
+RUN apk add --no-cache git openssh curl
+
+ENV GCLOUD_SDK_VERSION 367.0.0
+ENV PATH $PATH:/usr/local/gcloud/google-cloud-sdk/bin
+RUN curl "https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-$GCLOUD_SDK_VERSION-linux-x86_64.tar.gz" > /tmp/google-cloud-sdk.tar.gz \
+  && mkdir -p /usr/local/gcloud \
+  && tar -C /usr/local/gcloud -xvf /tmp/google-cloud-sdk.tar.gz \
+  && /usr/local/gcloud/google-cloud-sdk/install.sh -q --override-components="bq" \
+  && rm /tmp/google-cloud-sdk.tar.gz
+
 HEALTHCHECK --timeout=3s CMD sh -c "[ -f /tmp/tf-applied ]"
+
+COPY --from=terraform /bin/terraform /usr/bin/terraform
+
+ENV TF_IN_AUTOMATION=true
 ADD run.sh /
 WORKDIR /workspace
+
 ENTRYPOINT sh /run.sh
