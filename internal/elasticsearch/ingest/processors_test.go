@@ -109,10 +109,10 @@ on_failure:
 `),
 			expected: []Processor{
 				{Type: "drop", FirstLine: 3, LastLine: 3},
-				{Type: "set", FirstLine: 5, LastLine: 8},
+				{Type: "set", FirstLine: 4, LastLine: 7},
 				{Type: "remove", FirstLine: 9, LastLine: 9},
 				{Type: "set", FirstLine: 9, LastLine: 9},
-				{Type: "set", FirstLine: 11, LastLine: 14},
+				{Type: "set", FirstLine: 10, LastLine: 13},
 			},
 		},
 		{
@@ -139,7 +139,7 @@ on_failure:
 			name:     "Malformed Json pipeline",
 			format:   "json",
 			content:  []byte(`{"processors": {"drop": {}}}`),
-			expected: nil,
+			wantErr:  true,
 		},
 		{
 			name:    "Broken Json",
@@ -183,73 +183,6 @@ processors:
 			if !assert.Equal(t, tt.expected, procs) {
 				t.Errorf("Processors() gotProcs = %v, want %v", procs, tt.expected)
 			}
-		})
-	}
-}
-
-func Test_offsetsToLineNumbers(t *testing.T) {
-	raw := []byte(`1111
-2
-3333
-
-555`)
-	tests := []struct {
-		name     string
-		content  []byte
-		offsets  []int
-		expected []int
-		wantErr  bool
-	}{
-		{
-			name:     "valid",
-			content:  raw,
-			offsets:  []int{0, 3, 5, 8, 14},
-			expected: []int{1, 1, 2, 3, 5},
-		},
-		{
-			name:     "first char",
-			content:  raw,
-			offsets:  []int{0, 5, 7, 12, 13},
-			expected: []int{1, 2, 3, 4, 5},
-		},
-		{
-			name:     "newline belongs to current line",
-			content:  raw,
-			offsets:  []int{4, 6, 11, 12},
-			expected: []int{1, 2, 3, 4},
-		},
-		{
-			name:    "out of range offset",
-			content: raw,
-			offsets: []int{0, 1, 2, 3, 9000},
-			wantErr: true,
-		},
-		{
-			name:    "unordered",
-			content: raw,
-			offsets: []int{3, 0, 14, 8, 12},
-			wantErr: true,
-		},
-		{
-			name:     "empty",
-			content:  raw,
-			offsets:  []int{},
-			expected: []int{},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			lines, err := offsetsToLineNumbers(tt.offsets, tt.content)
-			if !tt.wantErr {
-				if !assert.NoError(t, err) {
-					t.Fatal(err)
-				}
-			} else {
-				if !assert.Error(t, err) {
-					t.Fatal("error expected")
-				}
-			}
-			assert.Equal(t, tt.expected, lines)
 		})
 	}
 }
