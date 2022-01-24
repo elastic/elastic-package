@@ -363,7 +363,7 @@ func (v *Validator) parseElementValue(key string, definition FieldDefinition, va
 		}
 
 		if v.enabledAllowedIPCheck && !v.isAllowedIPValue(valStr) {
-			return fmt.Errorf("the IP %q is not one of the allowed test IPs (see: https://github.com/elastic/elastic-package/blob/master/internal/fields/_static/allowed_geo_ips.txt)", valStr)
+			return fmt.Errorf("the IP %q is not one of the allowed test IPs (see: https://github.com/elastic/elastic-package/blob/main/internal/fields/_static/allowed_geo_ips.txt)", valStr)
 		}
 	case "float", "long", "double":
 		_, valid = val.(float64)
