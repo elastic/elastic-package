@@ -15,6 +15,11 @@ clean:
 format:
 	go run golang.org/x/tools/cmd/goimports -local github.com/elastic/elastic-package/ -w .
 
+install:
+	go install -ldflags \
+	    "-X $(VERSION_IMPORT_PATH).CommitHash=`git describe --always --long --dirty` -X $(VERSION_IMPORT_PATH).BuildTime=`date +%s` -X $(VERSION_IMPORT_PATH).Tag=`(git describe --exact-match --tags 2>/dev/null || echo '') | tr -d '\n'`" \
+	    github.com/elastic/elastic-package
+
 lint:
 	go run honnef.co/go/tools/cmd/staticcheck ./...
 
