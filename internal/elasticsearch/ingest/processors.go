@@ -42,7 +42,7 @@ func processorsFromYAML(content []byte) (procs []Processor, err error) {
 	}
 	for idx, entry := range p.Processors {
 		if entry.Kind != yaml.MappingNode || len(entry.Content) != 2 {
-			return nil, errors.Errorf("processor#%d is not a single-key map (kind:%v Content:%d)", idx, entry.Kind, len(entry.Content))
+			return nil, errors.Errorf("processor#%d is not a single-key map (kind:%v content:%d)", idx, entry.Kind, len(entry.Content))
 		}
 		var proc Processor
 		if err := entry.Content[1].Decode(&proc); err != nil {
