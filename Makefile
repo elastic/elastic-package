@@ -5,9 +5,9 @@ VERSION_IMPORT_PATH = github.com/elastic/elastic-package/internal/version
 .PHONY: build
 
 build:
-	go install -ldflags \
+	go build -ldflags \
 	    "-X $(VERSION_IMPORT_PATH).CommitHash=`git describe --always --long --dirty` -X $(VERSION_IMPORT_PATH).BuildTime=`date +%s` -X $(VERSION_IMPORT_PATH).Tag=`(git describe --exact-match --tags 2>/dev/null || echo '') | tr -d '\n'`" \
-	    github.com/elastic/elastic-package
+	    -o elastic-package
 
 clean:
 	rm -rf build
