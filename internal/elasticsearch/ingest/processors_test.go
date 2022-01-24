@@ -136,10 +136,10 @@ on_failure:
 			},
 		},
 		{
-			name:     "Malformed Json pipeline",
-			format:   "json",
-			content:  []byte(`{"processors": {"drop": {}}}`),
-			wantErr:  true,
+			name:    "Malformed Json pipeline",
+			format:  "json",
+			content: []byte(`{"processors": {"drop": {}}}`),
+			wantErr: true,
 		},
 		{
 			name:    "Broken Json",
