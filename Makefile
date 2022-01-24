@@ -47,6 +47,10 @@ test-go-ci: $(CODE_COVERAGE_REPORT_NAME_UNIT)
 test-stack-command-default:
 	./scripts/test-stack-command.sh
 
+# Oldest minor where fleet is GA.
+test-stack-command-oldest:
+	./scripts/test-stack-command.sh 7.14.2
+
 test-stack-command-7x:
 	./scripts/test-stack-command.sh 7.16.3-SNAPSHOT
 
