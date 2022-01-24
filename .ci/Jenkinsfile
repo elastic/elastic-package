@@ -204,7 +204,7 @@ def generateTestCommandStage(Map args = [:]){
           withMageEnv(){
             withKubernetes() {
               withCloudTestEnv() {
-                sh(label: 'Check',script: "make build ${command} check-git-clean")
+                sh(label: 'Check',script: "make install ${command} check-git-clean")
               }
             }
           }
