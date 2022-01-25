@@ -1,12 +1,16 @@
 CODE_COVERAGE_REPORT_FOLDER = $(PWD)/build/test-coverage
 CODE_COVERAGE_REPORT_NAME_UNIT = $(CODE_COVERAGE_REPORT_FOLDER)/coverage-unit-report
 VERSION_IMPORT_PATH = github.com/elastic/elastic-package/internal/version
+VERSION_COMMIT_HASH = `git describe --always --long --dirty`
+VERSION_BUILD_TIME = `date +%s`
+VERSION_TAG = `(git describe --exact-match --tags 2>/dev/null || echo '') | tr -d '\n'`
+VERSION_LDFLAGS = -X $(VERSION_IMPORT_PATH).CommitHash=$(VERSION_COMMIT_HASH) -X $(VERSION_IMPORT_PATH).BuildTime=$(VERSION_BUILD_TIME) -X $(VERSION_IMPORT_PATH).Tag=$(VERSION_TAG)
 
 .PHONY: build
 
 build:
-	go build -ldflags \
-	    "-X $(VERSION_IMPORT_PATH).CommitHash=`git describe --always --long --dirty` -X $(VERSION_IMPORT_PATH).BuildTime=`date +%s` -X $(VERSION_IMPORT_PATH).Tag=`(git describe --exact-match --tags 2>/dev/null || echo '') | tr -d '\n'`" \
+	go build \
+			-ldflags "$(VERSION_LDFLAGS)" \
 	    -o elastic-package
 
 clean:
@@ -16,8 +20,8 @@ format:
 	go run golang.org/x/tools/cmd/goimports -local github.com/elastic/elastic-package/ -w .
 
 install:
-	go install -ldflags \
-	    "-X $(VERSION_IMPORT_PATH).CommitHash=`git describe --always --long --dirty` -X $(VERSION_IMPORT_PATH).BuildTime=`date +%s` -X $(VERSION_IMPORT_PATH).Tag=`(git describe --exact-match --tags 2>/dev/null || echo '') | tr -d '\n'`" \
+	go install \
+			-ldflags "$(VERSION_LDFLAGS)" \
 	    github.com/elastic/elastic-package
 
 lint:
