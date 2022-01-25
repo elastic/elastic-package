@@ -33,6 +33,9 @@ const (
 	ExportOutputFlagName        = "output"
 	ExportOutputFlagDescription = "path to directory where exported assets will be stored"
 
+	ExportPackageFlagName        = "package"
+	ExportPackageFlagDescription = "package whose assets will be exported"
+
 	FailOnMissingFlagName        = "fail-on-missing"
 	FailOnMissingFlagDescription = "fail if tests are missing"
 

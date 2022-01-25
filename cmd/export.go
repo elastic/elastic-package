@@ -13,6 +13,7 @@ import (
 
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/common"
+	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/export"
 	"github.com/elastic/elastic-package/internal/kibana"
 )
@@ -23,9 +24,9 @@ const exportDashboardsLongDescription = `Use this command to export dashboards w
 
 Use this command to download selected dashboards and other associated saved objects from Kibana. This command adjusts the downloaded saved objects according to package naming conventions (prefixes, unique IDs) and writes them locally into folders corresponding to saved object types (dashboard, visualization, map, etc.).`
 
-const exportInstalledAssetsLongDescription = `Use this command to export assets installed by Fleet as part of a package.
+const exportInstalledObjectsLongDescription = `Use this command to export objects installed by Fleet as part of a package.
 
-Use this command as a exploratory tool to export assets as they are installed by Fleet when installing a package. Exported objects are stored in files as they are in Elasticsearch or Kibana, without any processing.`
+Use this command as a exploratory tool to export objects as they are installed by Fleet when installing a package. Exported objects are stored in files as they are in Elasticsearch or Kibana, without any processing.`
 
 func setupExportCommand() *cobraext.Command {
 	exportDashboardCmd := &cobra.Command{
@@ -37,23 +38,24 @@ func setupExportCommand() *cobraext.Command {
 	exportDashboardCmd.Flags().Bool(cobraext.TLSSkipVerifyFlagName, false, cobraext.TLSSkipVerifyFlagDescription)
 	exportDashboardCmd.Flags().StringSliceP(cobraext.DashboardIDsFlagName, "d", nil, cobraext.DashboardIDsFlagDescription)
 
-	exportInstalledAssetsCmd := &cobra.Command{
-		Use:   "installed-assets",
-		Short: "Export installed assets from Kibana",
-		Long:  exportInstalledAssetsLongDescription,
-		RunE:  exportInstalledAssetsCmd,
+	exportInstalledObjectsCmd := &cobra.Command{
+		Use:   "installed-objects",
+		Short: "Export installed Elasticsearch objects",
+		Long:  exportInstalledObjectsLongDescription,
+		RunE:  exportInstalledObjectsCmd,
 	}
-	exportInstalledAssetsCmd.Flags().Bool(cobraext.TLSSkipVerifyFlagName, false, cobraext.TLSSkipVerifyFlagDescription)
-	exportInstalledAssetsCmd.Flags().StringSliceP(cobraext.ExportOutputFlagDescription, "o", nil, cobraext.ExportOutputFlagDescription)
+	exportInstalledObjectsCmd.Flags().Bool(cobraext.TLSSkipVerifyFlagName, false, cobraext.TLSSkipVerifyFlagDescription)
+	exportInstalledObjectsCmd.Flags().StringP(cobraext.ExportPackageFlagName, "p", "", cobraext.ExportPackageFlagDescription)
+	exportInstalledObjectsCmd.Flags().StringP(cobraext.ExportOutputFlagName, "o", "", cobraext.ExportOutputFlagDescription)
 
 	cmd := &cobra.Command{
 		Use:   "export",
-		Short: "Export package assets",
+		Short: "Export package objects",
 		Long:  exportLongDescription,
 	}
 
 	cmd.AddCommand(exportDashboardCmd)
-	cmd.AddCommand(exportInstalledAssetsCmd)
+	cmd.AddCommand(exportInstalledObjectsCmd)
 
 	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
 }
@@ -133,11 +135,41 @@ func promptDashboardIDs(kibanaClient *kibana.Client) ([]string, error) {
 	return selected, nil
 }
 
-func exportInstalledAssetsCmd(cmd *cobra.Command, args []string) error {
+func exportInstalledObjectsCmd(cmd *cobra.Command, args []string) error {
+	cmd.Println("Export Installed objects")
+
+	packageName, err := cmd.Flags().GetString(cobraext.ExportPackageFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.ExportPackageFlagName)
+	}
+
+	outputPath, err := cmd.Flags().GetString(cobraext.ExportOutputFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.ExportOutputFlagName)
+	}
+
+	client, err := elasticsearch.Client()
+	if err != nil {
+		return errors.Wrap(err, "failed to initialize Elasticsearch client")
+	}
+
+	dataStreams, err := export.DataStreamsForPackage(cmd.Context(), client.API, packageName)
+	if err != nil {
+		return errors.Wrapf(err, "failed to obtain data streams for package %s", packageName)
+	}
+	if len(dataStreams) == 0 {
+		cmd.Printf("No data streams found for package %s, is it installed?\n", packageName)
+		return nil
+	}
+
+	cmd.Printf("export dir: %s\n", outputPath)
+	cmd.Printf("%d data streams to export\n", len(dataStreams))
+
 	// ILM Policies
 	// Composable Templates
 	// Index Templates
 	// Ingest Pipelines
 	// Transforms
+	cmd.Println("Done")
 	return nil
 }
