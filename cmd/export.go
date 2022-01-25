@@ -23,6 +23,10 @@ const exportDashboardsLongDescription = `Use this command to export dashboards w
 
 Use this command to download selected dashboards and other associated saved objects from Kibana. This command adjusts the downloaded saved objects according to package naming conventions (prefixes, unique IDs) and writes them locally into folders corresponding to saved object types (dashboard, visualization, map, etc.).`
 
+const exportInstalledAssetsLongDescription = `Use this command to export assets installed by Fleet as part of a package.
+
+Use this command as a exploratory tool to export assets as they are installed by Fleet when installing a package. Exported objects are stored in files as they are in Elasticsearch or Kibana, without any processing.`
+
 func setupExportCommand() *cobraext.Command {
 	exportDashboardCmd := &cobra.Command{
 		Use:   "dashboards",
@@ -30,15 +34,26 @@ func setupExportCommand() *cobraext.Command {
 		Long:  exportDashboardsLongDescription,
 		RunE:  exportDashboardsCmd,
 	}
-	exportDashboardCmd.Flags().StringSliceP(cobraext.DashboardIDsFlagName, "d", nil, cobraext.DashboardIDsFlagDescription)
 	exportDashboardCmd.Flags().Bool(cobraext.TLSSkipVerifyFlagName, false, cobraext.TLSSkipVerifyFlagDescription)
+	exportDashboardCmd.Flags().StringSliceP(cobraext.DashboardIDsFlagName, "d", nil, cobraext.DashboardIDsFlagDescription)
+
+	exportInstalledAssetsCmd := &cobra.Command{
+		Use:   "installed-assets",
+		Short: "Export installed assets from Kibana",
+		Long:  exportInstalledAssetsLongDescription,
+		RunE:  exportInstalledAssetsCmd,
+	}
+	exportInstalledAssetsCmd.Flags().Bool(cobraext.TLSSkipVerifyFlagName, false, cobraext.TLSSkipVerifyFlagDescription)
+	exportInstalledAssetsCmd.Flags().StringSliceP(cobraext.ExportOutputFlagDescription, "o", nil, cobraext.ExportOutputFlagDescription)
 
 	cmd := &cobra.Command{
 		Use:   "export",
 		Short: "Export package assets",
 		Long:  exportLongDescription,
 	}
+
 	cmd.AddCommand(exportDashboardCmd)
+	cmd.AddCommand(exportInstalledAssetsCmd)
 
 	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
 }
@@ -116,4 +131,13 @@ func promptDashboardIDs(kibanaClient *kibana.Client) ([]string, error) {
 		}
 	}
 	return selected, nil
+}
+
+func exportInstalledAssetsCmd(cmd *cobra.Command, args []string) error {
+	// ILM Policies
+	// Composable Templates
+	// Index Templates
+	// Ingest Pipelines
+	// Transforms
+	return nil
 }
