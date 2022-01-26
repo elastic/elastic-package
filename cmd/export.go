@@ -136,8 +136,6 @@ func promptDashboardIDs(kibanaClient *kibana.Client) ([]string, error) {
 }
 
 func exportInstalledObjectsCmd(cmd *cobra.Command, args []string) error {
-	cmd.Println("Export Installed objects")
-
 	packageName, err := cmd.Flags().GetString(cobraext.ExportPackageFlagName)
 	if err != nil {
 		return cobraext.FlagParsingError(err, cobraext.ExportPackageFlagName)
@@ -147,6 +145,8 @@ func exportInstalledObjectsCmd(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return cobraext.FlagParsingError(err, cobraext.ExportOutputFlagName)
 	}
+
+	cmd.Printf("Exporting installed objects for package %s to %s\n", packageName, outputPath)
 
 	client, err := elasticsearch.Client()
 	if err != nil {
@@ -169,6 +169,7 @@ func exportInstalledObjectsCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	indexTemplateNames := getIndexTemplatesFromDataStreams(dataStreams)
+	indexTemplateNames = append(indexTemplateNames, fmt.Sprintf("logs-%s.*", packageName))
 	indexTemplates, err := export.IndexTemplates(cmd.Context(), client.API, outputPath, indexTemplateNames...)
 	if err != nil {
 		return errors.Wrapf(err, "failed to export index templates for package %s", packageName)
@@ -180,8 +181,9 @@ func exportInstalledObjectsCmd(cmd *cobra.Command, args []string) error {
 		return errors.Wrapf(err, "failed to export component templates for package %s", packageName)
 	}
 
+	ingestPipelines := getIngestPipelinesFromIndexTemplates(indexTemplates)
+	cmd.Println(ingestPipelines)
 	/*
-		ingestPipelines := getIngestPipelinesFromIndexTemplates(indexTemplates)
 		err = export.IngestPipelines(cmd.Context(), client.API, outputPath, ingestPipelines...)
 		if err != nil {
 			return errors.Wrapf(err, "failed to export ingest pipelines for package %s", packageName)
@@ -226,6 +228,21 @@ func getComponentTemplatesFromIndexTemplates(indexTemplates []export.IndexTempla
 		}
 	}
 	return templates
+}
+
+func getIngestPipelinesFromIndexTemplates(indexTemplates []export.IndexTemplate) []string {
+	var pipelines []string
+	for _, it := range indexTemplates {
+		pipeline := it.IndexTemplate.Template.Settings.Index.DefaultPipeline
+		if pipeline == "" {
+			continue
+		}
+		if stringSliceContains(pipelines, pipeline) {
+			continue
+		}
+		pipelines = append(pipelines, pipeline)
+	}
+	return pipelines
 }
 
 func stringSliceContains(ss []string, s string) bool {
