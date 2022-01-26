@@ -21,7 +21,7 @@ func IngestPipelines(ctx context.Context, api *elasticsearch.API, output string,
 		return nil
 	}
 
-	pipelinesDir := filepath.Join(output, ILMPoliciesExportDir)
+	pipelinesDir := filepath.Join(output, IngestPipelinesExportDir)
 	err := os.MkdirAll(pipelinesDir, 0755)
 	if err != nil {
 		return fmt.Errorf("failed to create ingest pipelines directory: %w", err)
