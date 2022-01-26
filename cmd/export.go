@@ -168,19 +168,19 @@ func exportInstalledObjectsCmd(cmd *cobra.Command, args []string) error {
 		return errors.Wrapf(err, "failed to export ILM policies for package %s", packageName)
 	}
 
+	indexTemplateNames := getIndexTemplatesFromDataStreams(dataStreams)
+	indexTemplates, err := export.IndexTemplates(cmd.Context(), client.API, outputPath, indexTemplateNames...)
+	if err != nil {
+		return errors.Wrapf(err, "failed to export index templates for package %s", packageName)
+	}
+
+	componentTemplates := getComponentTemplatesFromIndexTemplates(indexTemplates)
+	err = export.ComponentTemplates(cmd.Context(), client.API, outputPath, componentTemplates...)
+	if err != nil {
+		return errors.Wrapf(err, "failed to export component templates for package %s", packageName)
+	}
+
 	/*
-		indexTemplates := getIndexTemplagesFromDataStreams(dataStreams)
-		err = export.IndexTemplates(cmd.Context(), client.API, outputPath, indexTemplates...)
-		if err != nil {
-			return errors.Wrapf(err, "failed to export index templates for package %s", packageName)
-		}
-
-		composableTemplates := getComposableTemplatesFromIndexTemplates(indexTemplates)
-		err = export.ComposableTemplates(cmd.Context(), client.API, outputPath, composableTemplates...)
-		if err != nil {
-			return errors.Wrapf(err, "failed to export composable templates for package %s", packageName)
-		}
-
 		ingestPipelines := getIngestPipelinesFromIndexTemplates(indexTemplates)
 		err = export.IngestPipelines(cmd.Context(), client.API, outputPath, ingestPipelines...)
 		if err != nil {
@@ -195,7 +195,9 @@ func exportInstalledObjectsCmd(cmd *cobra.Command, args []string) error {
 func getILMPoliciesFromDataStreams(dataStreams []export.DataStream) []string {
 	var policies []string
 	for _, ds := range dataStreams {
-		policies = append(policies, ds.ILMPolicy)
+		if name := ds.ILMPolicy; !stringSliceContains(policies, name) {
+			policies = append(policies, name)
+		}
 	}
 	return policies
 }
@@ -203,8 +205,24 @@ func getILMPoliciesFromDataStreams(dataStreams []export.DataStream) []string {
 func getIndexTemplatesFromDataStreams(dataStreams []export.DataStream) []string {
 	var templates []string
 	for _, ds := range dataStreams {
-		if !stringSliceContains(templates, ds.Template) {
-			templates = append(templates, ds.Template)
+		if name := ds.Template; !stringSliceContains(templates, name) {
+			templates = append(templates, name)
+		}
+	}
+	return templates
+}
+
+func getComponentTemplatesFromIndexTemplates(indexTemplates []export.IndexTemplate) []string {
+	var templates []string
+	for _, it := range indexTemplates {
+		composedOf := it.IndexTemplate.ComposedOf
+		if len(composedOf) == 0 {
+			continue
+		}
+		for _, ct := range composedOf {
+			if !stringSliceContains(templates, ct) {
+				templates = append(templates, ct)
+			}
 		}
 	}
 	return templates
