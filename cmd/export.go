@@ -182,13 +182,10 @@ func exportInstalledObjectsCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	ingestPipelines := getIngestPipelinesFromIndexTemplates(indexTemplates)
-	cmd.Println(ingestPipelines)
-	/*
-		err = export.IngestPipelines(cmd.Context(), client.API, outputPath, ingestPipelines...)
-		if err != nil {
-			return errors.Wrapf(err, "failed to export ingest pipelines for package %s", packageName)
-		}
-	*/
+	err = export.IngestPipelines(cmd.Context(), client.API, outputPath, ingestPipelines...)
+	if err != nil {
+		return errors.Wrapf(err, "failed to export ingest pipelines for package %s", packageName)
+	}
 
 	cmd.Println("Done")
 	return nil
