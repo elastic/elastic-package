@@ -10,7 +10,7 @@ ENV PATH $PATH:/usr/local/gcloud/google-cloud-sdk/bin
 RUN curl --silent "https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-$GCLOUD_SDK_VERSION-linux-x86_64.tar.gz" > /tmp/google-cloud-sdk.tar.gz \
   && mkdir -p /usr/local/gcloud \
   && tar -C /usr/local/gcloud -xf /tmp/google-cloud-sdk.tar.gz \
-  && /usr/local/gcloud/google-cloud-sdk/install.sh -q --override-components="bq" --disable-prompts \
+  && /usr/local/gcloud/google-cloud-sdk/install.sh -q --override-components="bq" &>/dev/null \
   && rm /tmp/google-cloud-sdk.tar.gz
 
 HEALTHCHECK --timeout=3s CMD sh -c "[ -f /tmp/tf-applied ]"
