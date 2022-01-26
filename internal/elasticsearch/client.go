@@ -5,6 +5,8 @@
 package elasticsearch
 
 import (
+	"crypto/tls"
+	"net/http"
 	"os"
 
 	"github.com/pkg/errors"
@@ -24,8 +26,17 @@ type IngestSimulateRequest = esapi.IngestSimulateRequest
 // IngestGetPipelineRequest configures the Ingest Get Pipeline API request.
 type IngestGetPipelineRequest = esapi.IngestGetPipelineRequest
 
+type ClientOptions struct {
+	SkipTLSVerify bool
+}
+
 // Client method creates new instance of the Elasticsearch client.
 func Client() (*elasticsearch.Client, error) {
+	return ClientWithOptions(ClientOptions{})
+}
+
+// ClientWithOptions creates new instance of the Elasticsearch client with custom options.
+func ClientWithOptions(options ClientOptions) (*elasticsearch.Client, error) {
 	host := os.Getenv(stack.ElasticsearchHostEnv)
 	if host == "" {
 		return nil, stack.UndefinedEnvError(stack.ElasticsearchHostEnv)
@@ -34,11 +45,18 @@ func Client() (*elasticsearch.Client, error) {
 	username := os.Getenv(stack.ElasticsearchUsernameEnv)
 	password := os.Getenv(stack.ElasticsearchPasswordEnv)
 
-	client, err := elasticsearch.NewClient(elasticsearch.Config{
+	config := elasticsearch.Config{
 		Addresses: []string{host},
 		Username:  username,
 		Password:  password,
-	})
+	}
+	if options.SkipTLSVerify {
+		config.Transport = &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
+	}
+
+	client, err := elasticsearch.NewClient(config)
 	if err != nil {
 		return nil, errors.Wrap(err, "can't create instance")
 	}

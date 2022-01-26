@@ -146,9 +146,11 @@ func exportInstalledObjectsCmd(cmd *cobra.Command, args []string) error {
 		return cobraext.FlagParsingError(err, cobraext.ExportOutputFlagName)
 	}
 
-	cmd.Printf("Exporting installed objects for package %s to %s\n", packageName, outputPath)
-
-	client, err := elasticsearch.Client()
+	tlsSkipVerify, _ := cmd.Flags().GetBool(cobraext.TLSSkipVerifyFlagName)
+	clientOptions := elasticsearch.ClientOptions{
+		SkipTLSVerify: tlsSkipVerify,
+	}
+	client, err := elasticsearch.ClientWithOptions(clientOptions)
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize Elasticsearch client")
 	}
@@ -161,6 +163,8 @@ func exportInstalledObjectsCmd(cmd *cobra.Command, args []string) error {
 		cmd.Printf("No index templates found for package %s, is it installed?\n", packageName)
 		return nil
 	}
+
+	cmd.Printf("Exporting installed objects for package %s to %s\n", packageName, outputPath)
 
 	componentTemplateNames := getComponentTemplatesFromIndexTemplates(indexTemplates)
 	componentTemplates, err := export.ComponentTemplates(cmd.Context(), client.API, outputPath, componentTemplateNames...)
