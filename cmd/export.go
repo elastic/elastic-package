@@ -46,7 +46,7 @@ func setupExportCommand() *cobraext.Command {
 	}
 	exportInstalledObjectsCmd.Flags().Bool(cobraext.TLSSkipVerifyFlagName, false, cobraext.TLSSkipVerifyFlagDescription)
 	exportInstalledObjectsCmd.Flags().StringP(cobraext.ExportPackageFlagName, "p", "", cobraext.ExportPackageFlagDescription)
-	exportInstalledObjectsCmd.Flags().StringP(cobraext.ExportOutputFlagName, "o", "", cobraext.ExportOutputFlagDescription)
+	exportInstalledObjectsCmd.Flags().StringP(cobraext.ExportOutputFlagName, "o", "output", cobraext.ExportOutputFlagDescription)
 
 	cmd := &cobra.Command{
 		Use:   "export",
@@ -162,14 +162,59 @@ func exportInstalledObjectsCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	cmd.Printf("export dir: %s\n", outputPath)
-	cmd.Printf("%d data streams to export\n", len(dataStreams))
+	ilmPolicies := getILMPoliciesFromDataStreams(dataStreams)
+	err = export.ILMPolicies(cmd.Context(), client.API, outputPath, ilmPolicies...)
+	if err != nil {
+		return errors.Wrapf(err, "failed to export ILM policies for package %s", packageName)
+	}
 
-	// ILM Policies
-	// Composable Templates
-	// Index Templates
-	// Ingest Pipelines
-	// Transforms
+	/*
+		indexTemplates := getIndexTemplagesFromDataStreams(dataStreams)
+		err = export.IndexTemplates(cmd.Context(), client.API, outputPath, indexTemplates...)
+		if err != nil {
+			return errors.Wrapf(err, "failed to export index templates for package %s", packageName)
+		}
+
+		composableTemplates := getComposableTemplatesFromIndexTemplates(indexTemplates)
+		err = export.ComposableTemplates(cmd.Context(), client.API, outputPath, composableTemplates...)
+		if err != nil {
+			return errors.Wrapf(err, "failed to export composable templates for package %s", packageName)
+		}
+
+		ingestPipelines := getIngestPipelinesFromIndexTemplates(indexTemplates)
+		err = export.IngestPipelines(cmd.Context(), client.API, outputPath, ingestPipelines...)
+		if err != nil {
+			return errors.Wrapf(err, "failed to export ingest pipelines for package %s", packageName)
+		}
+	*/
+
 	cmd.Println("Done")
 	return nil
+}
+
+func getILMPoliciesFromDataStreams(dataStreams []export.DataStream) []string {
+	var policies []string
+	for _, ds := range dataStreams {
+		policies = append(policies, ds.ILMPolicy)
+	}
+	return policies
+}
+
+func getIndexTemplatesFromDataStreams(dataStreams []export.DataStream) []string {
+	var templates []string
+	for _, ds := range dataStreams {
+		if !stringSliceContains(templates, ds.Template) {
+			templates = append(templates, ds.Template)
+		}
+	}
+	return templates
+}
+
+func stringSliceContains(ss []string, s string) bool {
+	for i := range ss {
+		if ss[i] == s {
+			return true
+		}
+	}
+	return false
 }
