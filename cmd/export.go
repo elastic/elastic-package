@@ -153,32 +153,25 @@ func exportInstalledObjectsCmd(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "failed to initialize Elasticsearch client")
 	}
 
-	dataStreams, err := export.DataStreamsForPackage(cmd.Context(), client.API, packageName)
-	if err != nil {
-		return errors.Wrapf(err, "failed to obtain data streams for package %s", packageName)
-	}
-	if len(dataStreams) == 0 {
-		cmd.Printf("No data streams found for package %s, is it installed?\n", packageName)
-		return nil
-	}
-
-	ilmPolicies := getILMPoliciesFromDataStreams(dataStreams)
-	err = export.ILMPolicies(cmd.Context(), client.API, outputPath, ilmPolicies...)
-	if err != nil {
-		return errors.Wrapf(err, "failed to export ILM policies for package %s", packageName)
-	}
-
-	indexTemplateNames := getIndexTemplatesFromDataStreams(dataStreams)
-	indexTemplateNames = append(indexTemplateNames, fmt.Sprintf("logs-%s.*", packageName))
-	indexTemplates, err := export.IndexTemplates(cmd.Context(), client.API, outputPath, indexTemplateNames...)
+	indexTemplates, err := export.IndexTemplatesForPackage(cmd.Context(), client.API, outputPath, packageName)
 	if err != nil {
 		return errors.Wrapf(err, "failed to export index templates for package %s", packageName)
 	}
+	if len(indexTemplates) == 0 {
+		cmd.Printf("No index templates found for package %s, is it installed?\n", packageName)
+		return nil
+	}
 
-	componentTemplates := getComponentTemplatesFromIndexTemplates(indexTemplates)
-	err = export.ComponentTemplates(cmd.Context(), client.API, outputPath, componentTemplates...)
+	componentTemplateNames := getComponentTemplatesFromIndexTemplates(indexTemplates)
+	componentTemplates, err := export.ComponentTemplates(cmd.Context(), client.API, outputPath, componentTemplateNames...)
 	if err != nil {
 		return errors.Wrapf(err, "failed to export component templates for package %s", packageName)
+	}
+
+	ilmPolicies := getILMPoliciesFromComponentTemplates(componentTemplates)
+	err = export.ILMPolicies(cmd.Context(), client.API, outputPath, ilmPolicies...)
+	if err != nil {
+		return errors.Wrapf(err, "failed to export ILM policies for package %s", packageName)
 	}
 
 	ingestPipelines := getIngestPipelinesFromIndexTemplates(indexTemplates)
@@ -191,24 +184,15 @@ func exportInstalledObjectsCmd(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func getILMPoliciesFromDataStreams(dataStreams []export.DataStream) []string {
+func getILMPoliciesFromComponentTemplates(componentTemplates []export.ComponentTemplate) []string {
 	var policies []string
-	for _, ds := range dataStreams {
-		if name := ds.ILMPolicy; !stringSliceContains(policies, name) {
+	for _, ct := range componentTemplates {
+		name := ct.ComponentTemplate.Template.Settings.Index.Lifecycle.Name
+		if name != "" && !stringSliceContains(policies, name) {
 			policies = append(policies, name)
 		}
 	}
 	return policies
-}
-
-func getIndexTemplatesFromDataStreams(dataStreams []export.DataStream) []string {
-	var templates []string
-	for _, ds := range dataStreams {
-		if name := ds.Template; !stringSliceContains(templates, name) {
-			templates = append(templates, name)
-		}
-	}
-	return templates
 }
 
 func getComponentTemplatesFromIndexTemplates(indexTemplates []export.IndexTemplate) []string {
