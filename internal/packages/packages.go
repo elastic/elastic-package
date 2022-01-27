@@ -115,6 +115,7 @@ type DataStreamManifest struct {
 	Title         string `config:"title" json:"title" yaml:"title"`
 	Type          string `config:"type" json:"type" yaml:"type"`
 	Dataset       string `config:"dataset" json:"dataset" yaml:"dataset"`
+	Hidden        bool   `config:"hidden" json:"hidden" yaml:"hidden"`
 	Release       string `config:"release" json:"release" yaml:"release"`
 	Elasticsearch *struct {
 		IngestPipeline *struct {
@@ -243,10 +244,17 @@ func (dsm *DataStreamManifest) GetPipelineNameOrDefault() string {
 // for this data stream.
 func (dsm *DataStreamManifest) IndexTemplateName(pkgName string) string {
 	if dsm.Dataset == "" {
-		return fmt.Sprintf("%s-%s.%s", dsm.Type, pkgName, dsm.Name)
+		return dsm.IndexTemplateNamePrefix() + fmt.Sprintf("%s-%s.%s", dsm.Type, pkgName, dsm.Name)
 	}
 
-	return fmt.Sprintf("%s-%s", dsm.Type, dsm.Dataset)
+	return dsm.IndexTemplateNamePrefix() + fmt.Sprintf("%s-%s", dsm.Type, dsm.Dataset)
+}
+
+func (dsm *DataStreamManifest) IndexTemplateNamePrefix() string {
+	if dsm.Hidden {
+		return "."
+	}
+	return ""
 }
 
 // FindInputByType returns the input for the provided type.
