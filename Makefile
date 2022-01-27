@@ -9,9 +9,7 @@ VERSION_LDFLAGS = -X $(VERSION_IMPORT_PATH).CommitHash=$(VERSION_COMMIT_HASH) -X
 .PHONY: build
 
 build:
-	go build \
-			-ldflags "$(VERSION_LDFLAGS)" \
-	    -o elastic-package
+	go build -ldflags "$(VERSION_LDFLAGS)" -o elastic-package
 
 clean:
 	rm -rf build
@@ -20,9 +18,7 @@ format:
 	go run golang.org/x/tools/cmd/goimports -local github.com/elastic/elastic-package/ -w .
 
 install:
-	go install \
-			-ldflags "$(VERSION_LDFLAGS)" \
-	    github.com/elastic/elastic-package
+	go install -ldflags "$(VERSION_LDFLAGS)" github.com/elastic/elastic-package
 
 lint:
 	go run honnef.co/go/tools/cmd/staticcheck ./...
