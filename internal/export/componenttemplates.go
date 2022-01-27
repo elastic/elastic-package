@@ -9,18 +9,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"os"
-	"path/filepath"
 
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 )
 
-type GetComponentTemplateResponse struct {
-	ComponentTemplates []json.RawMessage `json:"component_templates"`
-}
-
 type ComponentTemplate struct {
-	Name              string `json:"name"`
+	TemplateName      string `json:"name"`
 	ComponentTemplate struct {
 		Template struct {
 			Settings struct {
@@ -32,24 +26,30 @@ type ComponentTemplate struct {
 			} `json:"settings"`
 		} `json:"template"`
 	} `json:"component_template"`
+
+	raw json.RawMessage
 }
 
-const ComponentTemplatesExportDir = "component_templates"
+func (t ComponentTemplate) Name() string {
+	return t.TemplateName
+}
 
-func ComponentTemplates(ctx context.Context, api *elasticsearch.API, output string, names ...string) ([]ComponentTemplate, error) {
+func (t ComponentTemplate) JSON() []byte {
+	return []byte(t.raw)
+}
+
+type getComponentTemplateResponse struct {
+	ComponentTemplates []json.RawMessage `json:"component_templates"`
+}
+
+func getComponentTemplates(ctx context.Context, api *elasticsearch.API, names ...string) ([]ComponentTemplate, error) {
 	if len(names) == 0 {
 		return nil, nil
 	}
 
-	templatesDir := filepath.Join(output, ComponentTemplatesExportDir)
-	err := os.MkdirAll(templatesDir, 0755)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create policies directory: %w", err)
-	}
-
 	var templates []ComponentTemplate
 	for _, name := range names {
-		componentTemplates, err := exportComponentTemplates(ctx, api, templatesDir, name)
+		componentTemplates, err := getComponentTemplatesByName(ctx, api, name)
 		if err != nil {
 			return nil, err
 		}
@@ -58,7 +58,7 @@ func ComponentTemplates(ctx context.Context, api *elasticsearch.API, output stri
 	return templates, nil
 }
 
-func exportComponentTemplates(ctx context.Context, api *elasticsearch.API, output string, name string) ([]ComponentTemplate, error) {
+func getComponentTemplatesByName(ctx context.Context, api *elasticsearch.API, name string) ([]ComponentTemplate, error) {
 	resp, err := api.Cluster.GetComponentTemplate(
 		api.Cluster.GetComponentTemplate.WithContext(ctx),
 		api.Cluster.GetComponentTemplate.WithName(name),
@@ -74,7 +74,7 @@ func exportComponentTemplates(ctx context.Context, api *elasticsearch.API, outpu
 		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
 
-	var templateResponse GetComponentTemplateResponse
+	var templateResponse getComponentTemplateResponse
 	err = json.Unmarshal(d, &templateResponse)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode response: %w", err)
@@ -87,13 +87,8 @@ func exportComponentTemplates(ctx context.Context, api *elasticsearch.API, outpu
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse component template: %w", err)
 		}
+		componentTemplate.raw = componentTemplateRaw
 		componentTemplates = append(componentTemplates, componentTemplate)
-
-		path := filepath.Join(output, componentTemplate.Name+".json")
-		err = ioutil.WriteFile(path, templateResponse.ComponentTemplates[0], 0644)
-		if err != nil {
-			return nil, fmt.Errorf("failed to export to file: %w", err)
-		}
 	}
 
 	return componentTemplates, nil

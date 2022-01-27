@@ -7,57 +7,57 @@ package export
 import (
 	"context"
 	"fmt"
-	"io"
-	"os"
-	"path/filepath"
+	"io/ioutil"
 
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 )
 
-const IngestPipelinesExportDir = "ingest_pipelines"
-
-func IngestPipelines(ctx context.Context, api *elasticsearch.API, output string, ids ...string) error {
-	if len(ids) == 0 {
-		return nil
-	}
-
-	pipelinesDir := filepath.Join(output, IngestPipelinesExportDir)
-	err := os.MkdirAll(pipelinesDir, 0755)
-	if err != nil {
-		return fmt.Errorf("failed to create ingest pipelines directory: %w", err)
-	}
-
-	for _, id := range ids {
-		err := exportIngestPipeline(ctx, api, pipelinesDir, id)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+type IngestPipeline struct {
+	id  string
+	raw []byte
 }
 
-func exportIngestPipeline(ctx context.Context, api *elasticsearch.API, output string, id string) error {
+func (p IngestPipeline) Name() string {
+	return p.id
+}
+
+func (p IngestPipeline) JSON() []byte {
+	return p.raw
+}
+
+func getIngestPipelines(ctx context.Context, api *elasticsearch.API, ids ...string) ([]IngestPipeline, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+
+	var pipelines []IngestPipeline
+	for _, id := range ids {
+		pipeline, err := getIngestPipelineByID(ctx, api, id)
+		if err != nil {
+			return nil, err
+		}
+		pipelines = append(pipelines, pipeline)
+	}
+	return pipelines, nil
+}
+
+func getIngestPipelineByID(ctx context.Context, api *elasticsearch.API, id string) (IngestPipeline, error) {
 	resp, err := api.Ingest.GetPipeline(
 		api.Ingest.GetPipeline.WithContext(ctx),
 		api.Ingest.GetPipeline.WithPipelineID(id),
 		api.Ingest.GetPipeline.WithPretty(),
 	)
 	if err != nil {
-		return fmt.Errorf("failed to get ingest pipeline %s: %w", id, err)
+		return IngestPipeline{}, fmt.Errorf("failed to get ingest pipeline %s: %w", id, err)
 	}
 	defer resp.Body.Close()
 
-	path := filepath.Join(output, id+".json")
-
-	w, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0644)
+	// TODO: Handle the case of a response with multiple pipelines (no pipeline, or with wildcard).
+	// TODO: Get the actual pipeline from the object in the response body.
+	d, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Errorf("failed to open file (%s) to export ingest pipeline: %w", path, err)
+		return IngestPipeline{}, fmt.Errorf("failed to read response body: %w", err)
 	}
-	defer w.Close()
 
-	_, err = io.Copy(w, resp.Body)
-	if err != nil {
-		return fmt.Errorf("failed to export to file: %w", err)
-	}
-	return nil
+	return IngestPipeline{id: id, raw: d}, nil
 }

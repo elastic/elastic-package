@@ -9,20 +9,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"os"
-	"path/filepath"
 
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 )
 
-const IndexTemplatesExportDir = "index_templates"
-
-type GetIndexTemplateResponse struct {
-	IndexTemplates []json.RawMessage `json:"index_templates"`
-}
-
 type IndexTemplate struct {
-	Name          string
+	TemplateName  string `json:"name"`
 	IndexTemplate struct {
 		Meta struct {
 			ManagedBy string `json:"managed_by"`
@@ -40,15 +32,23 @@ type IndexTemplate struct {
 			} `json:"settings"`
 		} `json:"template"`
 	} `json:"index_template"`
+
+	raw json.RawMessage
 }
 
-func IndexTemplatesForPackage(ctx context.Context, api *elasticsearch.API, output string, packageName string) ([]IndexTemplate, error) {
-	templatesDir := filepath.Join(output, IndexTemplatesExportDir)
-	err := os.MkdirAll(templatesDir, 0755)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create index templates directory: %w", err)
-	}
+func (t IndexTemplate) Name() string {
+	return t.TemplateName
+}
 
+func (t IndexTemplate) JSON() []byte {
+	return []byte(t.raw)
+}
+
+type getIndexTemplateResponse struct {
+	IndexTemplates []json.RawMessage `json:"index_templates"`
+}
+
+func getIndexTemplatesForPackage(ctx context.Context, api *elasticsearch.API, packageName string) ([]IndexTemplate, error) {
 	resp, err := api.Indices.GetIndexTemplate(
 		api.Indices.GetIndexTemplate.WithContext(ctx),
 		api.Indices.GetIndexTemplate.WithPretty(),
@@ -66,7 +66,7 @@ func IndexTemplatesForPackage(ctx context.Context, api *elasticsearch.API, outpu
 		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
 
-	var templateResponse GetIndexTemplateResponse
+	var templateResponse getIndexTemplateResponse
 	err = json.Unmarshal(d, &templateResponse)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode response: %w", err)
@@ -79,6 +79,7 @@ func IndexTemplatesForPackage(ctx context.Context, api *elasticsearch.API, outpu
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse index template: %w", err)
 		}
+		indexTemplate.raw = indexTemplateRaw
 
 		meta := indexTemplate.IndexTemplate.Meta
 		if meta.Package.Name != packageName || meta.ManagedBy != "ingest-manager" {
@@ -87,12 +88,6 @@ func IndexTemplatesForPackage(ctx context.Context, api *elasticsearch.API, outpu
 		}
 
 		indexTemplates = append(indexTemplates, indexTemplate)
-
-		path := filepath.Join(templatesDir, indexTemplate.Name+".json")
-		err = ioutil.WriteFile(path, templateResponse.IndexTemplates[0], 0644)
-		if err != nil {
-			return nil, fmt.Errorf("failed to export to file: %w", err)
-		}
 	}
 
 	return indexTemplates, nil

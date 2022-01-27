@@ -7,57 +7,57 @@ package export
 import (
 	"context"
 	"fmt"
-	"io"
-	"os"
-	"path/filepath"
+	"io/ioutil"
 
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 )
 
-const ILMPoliciesExportDir = "ilm_policies"
-
-func ILMPolicies(ctx context.Context, api *elasticsearch.API, output string, policies ...string) error {
-	if len(policies) == 0 {
-		return nil
-	}
-
-	policiesDir := filepath.Join(output, ILMPoliciesExportDir)
-	err := os.MkdirAll(policiesDir, 0755)
-	if err != nil {
-		return fmt.Errorf("failed to create policies directory: %w", err)
-	}
-
-	for _, policy := range policies {
-		err := exportILMPolicy(ctx, api, policiesDir, policy)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+type ILMPolicy struct {
+	name string
+	raw  []byte
 }
 
-func exportILMPolicy(ctx context.Context, api *elasticsearch.API, output string, policy string) error {
+func (p ILMPolicy) Name() string {
+	return p.name
+}
+
+func (p ILMPolicy) JSON() []byte {
+	return p.raw
+}
+
+func getILMPolicies(ctx context.Context, api *elasticsearch.API, policies ...string) ([]ILMPolicy, error) {
+	if len(policies) == 0 {
+		return nil, nil
+	}
+
+	var ilmPolicies []ILMPolicy
+	for _, policy := range policies {
+		ilmPolicy, err := getILMPolicyByName(ctx, api, policy)
+		if err != nil {
+			return nil, err
+		}
+		ilmPolicies = append(ilmPolicies, ilmPolicy)
+	}
+	return ilmPolicies, nil
+}
+
+func getILMPolicyByName(ctx context.Context, api *elasticsearch.API, policy string) (ILMPolicy, error) {
 	resp, err := api.ILM.GetLifecycle(
 		api.ILM.GetLifecycle.WithContext(ctx),
 		api.ILM.GetLifecycle.WithPolicy(policy),
 		api.ILM.GetLifecycle.WithPretty(),
 	)
 	if err != nil {
-		return fmt.Errorf("failed to get policy %s: %w", policy, err)
+		return ILMPolicy{}, fmt.Errorf("failed to get policy %s: %w", policy, err)
 	}
 	defer resp.Body.Close()
 
-	path := filepath.Join(output, policy+".json")
-
-	w, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0644)
+	// TODO: Handle the case of a response with multiple policies (no policy, or with wildcard).
+	// TODO: Get the actual policy from the returned object.
+	d, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Errorf("failed to open file (%s) to export policy: %w", path, err)
+		return ILMPolicy{}, fmt.Errorf("failed to read response body: %w", err)
 	}
-	defer w.Close()
 
-	_, err = io.Copy(w, resp.Body)
-	if err != nil {
-		return fmt.Errorf("failed to export to file: %w", err)
-	}
-	return nil
+	return ILMPolicy{name: policy, raw: d}, nil
 }

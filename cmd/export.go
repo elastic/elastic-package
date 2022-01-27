@@ -26,7 +26,7 @@ Use this command to download selected dashboards and other associated saved obje
 
 const exportInstalledObjectsLongDescription = `Use this command to export objects installed by Fleet as part of a package.
 
-Use this command as a exploratory tool to export objects as they are installed by Fleet when installing a package. Exported objects are stored in files as they are in Elasticsearch or Kibana, without any processing.`
+Use this command as a exploratory tool to export objects as they are installed by Fleet when installing a package. Exported objects are stored in files as they are returned by Elasticsearch APIs, without any processing.`
 
 func setupExportCommand() *cobraext.Command {
 	exportDashboardCmd := &cobra.Command{
@@ -35,8 +35,8 @@ func setupExportCommand() *cobraext.Command {
 		Long:  exportDashboardsLongDescription,
 		RunE:  exportDashboardsCmd,
 	}
-	exportDashboardCmd.Flags().Bool(cobraext.TLSSkipVerifyFlagName, false, cobraext.TLSSkipVerifyFlagDescription)
 	exportDashboardCmd.Flags().StringSliceP(cobraext.DashboardIDsFlagName, "d", nil, cobraext.DashboardIDsFlagDescription)
+	exportDashboardCmd.Flags().Bool(cobraext.TLSSkipVerifyFlagName, false, cobraext.TLSSkipVerifyFlagDescription)
 
 	exportInstalledObjectsCmd := &cobra.Command{
 		Use:   "installed-objects",
@@ -44,13 +44,14 @@ func setupExportCommand() *cobraext.Command {
 		Long:  exportInstalledObjectsLongDescription,
 		RunE:  exportInstalledObjectsCmd,
 	}
-	exportInstalledObjectsCmd.Flags().Bool(cobraext.TLSSkipVerifyFlagName, false, cobraext.TLSSkipVerifyFlagDescription)
 	exportInstalledObjectsCmd.Flags().StringP(cobraext.ExportPackageFlagName, "p", "", cobraext.ExportPackageFlagDescription)
+	exportInstalledObjectsCmd.MarkFlagRequired(cobraext.ExportPackageFlagName)
 	exportInstalledObjectsCmd.Flags().StringP(cobraext.ExportOutputFlagName, "o", "output", cobraext.ExportOutputFlagDescription)
+	exportInstalledObjectsCmd.Flags().Bool(cobraext.TLSSkipVerifyFlagName, false, cobraext.TLSSkipVerifyFlagDescription)
 
 	cmd := &cobra.Command{
 		Use:   "export",
-		Short: "Export package objects",
+		Short: "Export package assets",
 		Long:  exportLongDescription,
 	}
 
@@ -155,86 +156,15 @@ func exportInstalledObjectsCmd(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "failed to initialize Elasticsearch client")
 	}
 
-	indexTemplates, err := export.IndexTemplatesForPackage(cmd.Context(), client.API, outputPath, packageName)
+	exporter := export.NewInstalledObjectsExporter(client.API, packageName)
+	n, err := exporter.ExportAll(cmd.Context(), outputPath)
 	if err != nil {
-		return errors.Wrapf(err, "failed to export index templates for package %s", packageName)
+		return errors.Wrap(err, "export failed")
 	}
-	if len(indexTemplates) == 0 {
-		cmd.Printf("No index templates found for package %s, is it installed?\n", packageName)
+	if n == 0 {
+		cmd.Printf("No objects were exported for package %s, is it installed?", packageName)
 		return nil
 	}
-
-	cmd.Printf("Exporting installed objects for package %s to %s\n", packageName, outputPath)
-
-	componentTemplateNames := getComponentTemplatesFromIndexTemplates(indexTemplates)
-	componentTemplates, err := export.ComponentTemplates(cmd.Context(), client.API, outputPath, componentTemplateNames...)
-	if err != nil {
-		return errors.Wrapf(err, "failed to export component templates for package %s", packageName)
-	}
-
-	ilmPolicies := getILMPoliciesFromComponentTemplates(componentTemplates)
-	err = export.ILMPolicies(cmd.Context(), client.API, outputPath, ilmPolicies...)
-	if err != nil {
-		return errors.Wrapf(err, "failed to export ILM policies for package %s", packageName)
-	}
-
-	ingestPipelines := getIngestPipelinesFromIndexTemplates(indexTemplates)
-	err = export.IngestPipelines(cmd.Context(), client.API, outputPath, ingestPipelines...)
-	if err != nil {
-		return errors.Wrapf(err, "failed to export ingest pipelines for package %s", packageName)
-	}
-
-	cmd.Println("Done")
+	cmd.Printf("Exported %d installed objects for package %s to %s\n", n, packageName, outputPath)
 	return nil
-}
-
-func getILMPoliciesFromComponentTemplates(componentTemplates []export.ComponentTemplate) []string {
-	var policies []string
-	for _, ct := range componentTemplates {
-		name := ct.ComponentTemplate.Template.Settings.Index.Lifecycle.Name
-		if name != "" && !stringSliceContains(policies, name) {
-			policies = append(policies, name)
-		}
-	}
-	return policies
-}
-
-func getComponentTemplatesFromIndexTemplates(indexTemplates []export.IndexTemplate) []string {
-	var templates []string
-	for _, it := range indexTemplates {
-		composedOf := it.IndexTemplate.ComposedOf
-		if len(composedOf) == 0 {
-			continue
-		}
-		for _, ct := range composedOf {
-			if !stringSliceContains(templates, ct) {
-				templates = append(templates, ct)
-			}
-		}
-	}
-	return templates
-}
-
-func getIngestPipelinesFromIndexTemplates(indexTemplates []export.IndexTemplate) []string {
-	var pipelines []string
-	for _, it := range indexTemplates {
-		pipeline := it.IndexTemplate.Template.Settings.Index.DefaultPipeline
-		if pipeline == "" {
-			continue
-		}
-		if stringSliceContains(pipelines, pipeline) {
-			continue
-		}
-		pipelines = append(pipelines, pipeline)
-	}
-	return pipelines
-}
-
-func stringSliceContains(ss []string, s string) bool {
-	for i := range ss {
-		if ss[i] == s {
-			return true
-		}
-	}
-	return false
 }
