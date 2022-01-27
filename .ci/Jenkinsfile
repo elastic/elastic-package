@@ -161,7 +161,7 @@ def generateTestCheckSinglePackageStage(Map args = [:]) {
              dir("${BASE_DIR}"){
                withMageEnv(){
                  withCloudTestEnv() {
-                   sh(label: 'Build elastic-package',script: "make build")
+                   sh(label: 'Install elastic-package',script: "make install")
                    sh(label: 'Build elastic-package',script: "make PACKAGE_UNDER_TEST=${it} test-check-packages-parallel")
                  }
                }
@@ -204,7 +204,7 @@ def generateTestCommandStage(Map args = [:]){
           withMageEnv(){
             withKubernetes() {
               withCloudTestEnv() {
-                sh(label: 'Check',script: "make build ${command} check-git-clean")
+                sh(label: 'Check',script: "make install ${command} check-git-clean")
               }
             }
           }
