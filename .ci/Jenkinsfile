@@ -181,7 +181,7 @@ def generateTestSignWithElasticStage() {
             credentialsId: env.INTERNAL_CI_JOB_GCS_CREDENTIALS,
             localDirectory: "${env.INTEGRATIONS_SIGNATURES_PATH}/",
             pathPrefix: "${env.INFRA_SIGNING_BUCKET_SIGNED_ARTIFACTS_SUBFOLDER}")
-          sh(label: 'Rename .asc to .sig', script: "for f in ${env.INTEGRATIONS_SIGNATURES_PATH}/*.asc; do mv \"$f\" \"${f%.asc}.sig\"; done")
+          sh(label: 'Rename .asc to .sig', script: 'for f in ' + "${env.INTEGRATIONS_SIGNATURES_PATH}" + '/*.asc; do mv "$f" "${f%.asc}.sig"; done')
           archiveArtifacts(artifacts: "${env.INTEGRATIONS_SIGNATURES_PATH}/*.sig")
         }
       }
