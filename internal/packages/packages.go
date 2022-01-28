@@ -242,6 +242,8 @@ func (dsm *DataStreamManifest) GetPipelineNameOrDefault() string {
 
 // IndexTemplateName returns the name of the Elasticsearch index template that would be installed
 // for this data stream.
+// The template name starts with dot "." if the datastream is hidden which is consistent with kibana implementation
+// https://github.com/elastic/kibana/blob/3955d0dc819fec03f68cd1d931f64da8472e34b2/x-pack/plugins/fleet/server/services/epm/elasticsearch/index.ts#L14
 func (dsm *DataStreamManifest) IndexTemplateName(pkgName string) string {
 	if dsm.Dataset == "" {
 		return dsm.IndexTemplateNamePrefix() + fmt.Sprintf("%s-%s.%s", dsm.Type, pkgName, dsm.Name)
