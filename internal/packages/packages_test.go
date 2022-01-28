@@ -57,6 +57,15 @@ func TestDataStreamManifest_IndexTemplateName(t *testing.T) {
 			"pkg",
 			dataStreamTypeLogs + "-pkg.foo",
 		},
+		"no_dataset_hidden": {
+			DataStreamManifest{
+				Name:   "foo",
+				Type:   dataStreamTypeLogs,
+				Hidden: true,
+			},
+			"pkg",
+			"." + dataStreamTypeLogs + "-pkg.foo",
+		},
 		"with_dataset": {
 			DataStreamManifest{
 				Name:    "foo",
@@ -65,6 +74,16 @@ func TestDataStreamManifest_IndexTemplateName(t *testing.T) {
 			},
 			"pkg",
 			dataStreamTypeLogs + "-custom",
+		},
+		"with_dataset_hidden": {
+			DataStreamManifest{
+				Name:    "foo",
+				Type:    dataStreamTypeLogs,
+				Dataset: "custom",
+				Hidden:  true,
+			},
+			"pkg",
+			"." + dataStreamTypeLogs + "-custom",
 		},
 	}
 
