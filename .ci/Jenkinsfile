@@ -179,7 +179,8 @@ def generateTestSignWithElasticStage() {
             credentialsId: env.INTERNAL_CI_JOB_GCS_CREDENTIALS,
             localDirectory: 'build/integrations/',
             pathPrefix: "${env.INFRA_SIGNING_BUCKET_SIGNED_ARTIFACTS_SUBFOLDER}")
-          archiveArtifacts(allowEmptyArchive: true, artifacts: "build/integrations/*.sig")
+          sh(label: 'Rename .asc to .sig', script: 'for f in build/integrations/*.asc; do mv "$f" "${f%.asc}.sig"; done')
+          archiveArtifacts(artifacts: "build/integrations/*.sig")
         }
       }
     }
