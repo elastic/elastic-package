@@ -6,6 +6,7 @@ package export
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 
@@ -14,7 +15,7 @@ import (
 
 type ILMPolicy struct {
 	name string
-	raw  []byte
+	raw  json.RawMessage
 }
 
 func (p ILMPolicy) Name() string {
@@ -32,32 +33,43 @@ func getILMPolicies(ctx context.Context, api *elasticsearch.API, policies ...str
 
 	var ilmPolicies []ILMPolicy
 	for _, policy := range policies {
-		ilmPolicy, err := getILMPolicyByName(ctx, api, policy)
+		resultPolicies, err := getILMPolicyByName(ctx, api, policy)
 		if err != nil {
 			return nil, err
 		}
-		ilmPolicies = append(ilmPolicies, ilmPolicy)
+		ilmPolicies = append(ilmPolicies, resultPolicies...)
 	}
 	return ilmPolicies, nil
 }
 
-func getILMPolicyByName(ctx context.Context, api *elasticsearch.API, policy string) (ILMPolicy, error) {
+type getILMLifecycleResponse map[string]json.RawMessage
+
+func getILMPolicyByName(ctx context.Context, api *elasticsearch.API, policy string) ([]ILMPolicy, error) {
 	resp, err := api.ILM.GetLifecycle(
 		api.ILM.GetLifecycle.WithContext(ctx),
 		api.ILM.GetLifecycle.WithPolicy(policy),
 		api.ILM.GetLifecycle.WithPretty(),
 	)
 	if err != nil {
-		return ILMPolicy{}, fmt.Errorf("failed to get policy %s: %w", policy, err)
+		return nil, fmt.Errorf("failed to get policy %s: %w", policy, err)
 	}
 	defer resp.Body.Close()
 
-	// TODO: Handle the case of a response with multiple policies (no policy, or with wildcard).
-	// TODO: Get the actual policy from the returned object.
 	d, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return ILMPolicy{}, fmt.Errorf("failed to read response body: %w", err)
+		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
 
-	return ILMPolicy{name: policy, raw: d}, nil
+	var policiesResponse getILMLifecycleResponse
+	err = json.Unmarshal(d, &policiesResponse)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	var policies []ILMPolicy
+	for name, raw := range policiesResponse {
+		policies = append(policies, ILMPolicy{name: name, raw: raw})
+	}
+
+	return policies, nil
 }

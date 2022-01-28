@@ -6,6 +6,7 @@ package export
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 
@@ -32,32 +33,43 @@ func getIngestPipelines(ctx context.Context, api *elasticsearch.API, ids ...stri
 
 	var pipelines []IngestPipeline
 	for _, id := range ids {
-		pipeline, err := getIngestPipelineByID(ctx, api, id)
+		resultPipelines, err := getIngestPipelineByID(ctx, api, id)
 		if err != nil {
 			return nil, err
 		}
-		pipelines = append(pipelines, pipeline)
+		pipelines = append(pipelines, resultPipelines...)
 	}
 	return pipelines, nil
 }
 
-func getIngestPipelineByID(ctx context.Context, api *elasticsearch.API, id string) (IngestPipeline, error) {
+type getIngestPipelineResponse map[string]json.RawMessage
+
+func getIngestPipelineByID(ctx context.Context, api *elasticsearch.API, id string) ([]IngestPipeline, error) {
 	resp, err := api.Ingest.GetPipeline(
 		api.Ingest.GetPipeline.WithContext(ctx),
 		api.Ingest.GetPipeline.WithPipelineID(id),
 		api.Ingest.GetPipeline.WithPretty(),
 	)
 	if err != nil {
-		return IngestPipeline{}, fmt.Errorf("failed to get ingest pipeline %s: %w", id, err)
+		return nil, fmt.Errorf("failed to get ingest pipeline %s: %w", id, err)
 	}
 	defer resp.Body.Close()
 
-	// TODO: Handle the case of a response with multiple pipelines (no pipeline, or with wildcard).
-	// TODO: Get the actual pipeline from the object in the response body.
 	d, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return IngestPipeline{}, fmt.Errorf("failed to read response body: %w", err)
+		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
 
-	return IngestPipeline{id: id, raw: d}, nil
+	var pipelinesResponse getIngestPipelineResponse
+	err = json.Unmarshal(d, &pipelinesResponse)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	var pipelines []IngestPipeline
+	for id, raw := range pipelinesResponse {
+		pipelines = append(pipelines, IngestPipeline{id: id, raw: raw})
+	}
+
+	return pipelines, nil
 }
