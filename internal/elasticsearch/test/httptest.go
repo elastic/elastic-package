@@ -55,7 +55,7 @@ func pathForURL(url string) string {
 
 func recordRequest(t *testing.T, r *http.Request, path string) {
 	options := elasticsearch.DefaultClientOptionsFromEnv()
-	t.Log(options.Address + r.URL.Path)
+	t.Logf("Recording %s in %s", options.Address+r.URL.Path, path)
 	req, err := http.NewRequest(r.Method, options.Address+r.URL.Path, nil)
 	require.NoError(t, err)
 
