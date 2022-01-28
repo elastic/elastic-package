@@ -100,7 +100,9 @@ pipeline {
                 script {
                   def basicTasks = [
                     'stack-command-default': generateTestCommandStage(command: 'test-stack-command-default', artifacts: ['build/elastic-stack-dump/stack/*/logs/*.log', 'build/elastic-stack-dump/stack/*/logs/fleet-server-internal/*']),
+                    'stack-command-oldest': generateTestCommandStage(command: 'test-stack-command-oldest', artifacts: ['build/elastic-stack-dump/stack/*/logs/*.log', 'build/elastic-stack-dump/stack/*/logs/fleet-server-internal/*']),
                     'stack-command-7x': generateTestCommandStage(command: 'test-stack-command-7x', artifacts: ['build/elastic-stack-dump/stack/*/logs/*.log', 'build/elastic-stack-dump/stack/*/logs/fleet-server-internal/*']),
+                    'stack-command-800': generateTestCommandStage(command: 'test-stack-command-800', artifacts: ['build/elastic-stack-dump/stack/*/logs/*.log', 'build/elastic-stack-dump/stack/*/logs/fleet-server-internal/*']),
                     'stack-command-8x': generateTestCommandStage(command: 'test-stack-command-8x', artifacts: ['build/elastic-stack-dump/stack/*/logs/*.log', 'build/elastic-stack-dump/stack/*/logs/fleet-server-internal/*']),
                     'check-packages-with-kind': generateTestCommandStage(command: 'test-check-packages-with-kind', artifacts: ['build/test-results/*.xml', 'build/kubectl-dump.txt', 'build/elastic-stack-dump/check-*/logs/*.log', 'build/elastic-stack-dump/check-*/logs/fleet-server-internal/*'], junitArtifacts: true, publishCoverage: true),
                     'check-packages-other': generateTestCommandStage(command: 'test-check-packages-other', artifacts: ['build/test-results/*.xml', 'build/elastic-stack-dump/check-*/logs/*.log', 'build/elastic-stack-dump/check-*/logs/fleet-server-internal/*'], junitArtifacts: true, publishCoverage: true),
@@ -201,8 +203,8 @@ def generateTestCheckSinglePackageStage(Map args = [:]) {
              dir("${BASE_DIR}"){
                withMageEnv(){
                  withCloudTestEnv() {
-                   sh(label: 'Build elastic-package',script: "make build")
-                   sh(label: 'Build elastic-package',script: "make PACKAGE_UNDER_TEST=${it} test-check-packages-with-parallel")
+                   sh(label: 'Install elastic-package',script: "make install")
+                   sh(label: 'Build elastic-package',script: "make PACKAGE_UNDER_TEST=${it} test-check-packages-parallel")
                  }
                }
              }
@@ -244,7 +246,7 @@ def generateTestCommandStage(Map args = [:]){
           withMageEnv(){
             withKubernetes() {
               withCloudTestEnv() {
-                sh(label: 'Check',script: "make build ${command} check-git-clean")
+                sh(label: 'Check',script: "make install ${command} check-git-clean")
               }
             }
           }

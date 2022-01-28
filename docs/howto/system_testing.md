@@ -152,7 +152,7 @@ the `_dev/deploy/k8s` directory must contain an `.empty` file (to preserve the `
 The Kubernetes service deployer needs [kind](https://kind.sigs.k8s.io/) to be installed and the cluster to be up and running:
 
 ```bash
-wget -qO-  https://raw.githubusercontent.com/elastic/elastic-package/master/scripts/kind-config.yaml | kind create cluster --config -
+wget -qO-  https://raw.githubusercontent.com/elastic/elastic-package/main/scripts/kind-config.yaml | kind create cluster --config -
 ```
 
 Before executing system tests, the service deployer applies once the deployment of the Elastic Agent to the cluster and links
@@ -163,7 +163,7 @@ See how to execute system tests for the Kubernetes integration (`pod` data strea
 
 ```bash
 elastic-package stack up -d -v # start the Elastic stack
-wget -qO-  https://raw.githubusercontent.com/elastic/elastic-package/master/scripts/kind-config.yaml | kind create cluster --config -
+wget -qO-  https://raw.githubusercontent.com/elastic/elastic-package/main/scripts/kind-config.yaml | kind create cluster --config -
 elastic-package test system --data-streams pod -v # start system tests for the "pod" data stream
 ```
 

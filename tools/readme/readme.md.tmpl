@@ -38,7 +38,7 @@ elastic-package help
 
 ## Development
 
-Download and build the latest master of `elastic-package` binary:
+Download and build the latest main of `elastic-package` binary:
 
 ```bash
 git clone https://github.com/elastic/elastic-package.git
@@ -99,6 +99,8 @@ source code:
 
 `make format` - format the Go code
 
+`make install` - build the tool source and move binary to `$GOBIN`
+
 `make vendor` - vendor code of dependencies
 
 `make check` - one-liner, used by CI to verify if source code is ready to be pushed to the repository
@@ -106,16 +108,16 @@ source code:
 ## Release process
 
 This project uses [GoReleaser](https://goreleaser.com/) to release a new version of the application (semver). Release publishing
-is automatically managed by the Jenkins CI ([Jenkinsfile](https://github.com/elastic/elastic-package/blob/master/.ci/Jenkinsfile))
+is automatically managed by the Jenkins CI ([Jenkinsfile](https://github.com/elastic/elastic-package/blob/main/.ci/Jenkinsfile))
 and it's triggered by Git tags. Release artifacts are available in the [Releases](https://github.com/elastic/elastic-package/releases) section.
 
 ### Steps to create a new release
 
-1. Fetch latest master from upstream (remember to rebase the branch):
+1. Fetch latest main from upstream (remember to rebase the branch):
 
 ```bash
 git fetch upstream
-git rebase upstream/master
+git rebase upstream/main
 ```
 
 2. Create Git tag with release candidate:

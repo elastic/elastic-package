@@ -5,6 +5,7 @@
 package version
 
 import (
+	"runtime/debug"
 	"strconv"
 	"time"
 )
@@ -19,6 +20,17 @@ var (
 	// Tag describes the semver version of the application (set externally with ldflags).
 	Tag string
 )
+
+// Set Tag to version stored in modinfo if it is not available from the builder.
+func init() {
+	if Tag != "" {
+		return
+	}
+	info, ok := debug.ReadBuildInfo()
+	if ok && info.Main.Version != "(devel)" {
+		Tag = info.Main.Version
+	}
+}
 
 // BuildTimeFormatted method returns the build time preserving the RFC3339 format.
 func BuildTimeFormatted() string {
