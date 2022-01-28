@@ -171,7 +171,7 @@ def generateTestSignWithElasticStage() {
             triggerRemoteJob(auth: CredentialsAuth(credentials: 'local-readonly-api-token'),
               job: 'https://internal-ci.elastic.co/job/elastic+unified-release+master+sign-artifacts-with-gpg',
               token: TOKEN,
-              parameters: [gcs_input_path: "${env.INFRA_SIGNING_BUCKET_ARTIFACTS_PATH}"],
+              parameters: "gcs_input_path=${env.INFRA_SIGNING_BUCKET_ARTIFACTS_PATH}",
               useCrumbCache: true,
               useJobInfoCache: true)
           }
