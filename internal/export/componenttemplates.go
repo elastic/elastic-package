@@ -13,6 +13,8 @@ import (
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 )
 
+// ComponentTemplate contains information related to a component template for exporting purpouses.
+// It  contains a partially parsed component template and the original JSON from the response.
 type ComponentTemplate struct {
 	TemplateName      string `json:"name"`
 	ComponentTemplate struct {
@@ -30,10 +32,12 @@ type ComponentTemplate struct {
 	raw json.RawMessage
 }
 
+// Name returns the name of the component template.
 func (t ComponentTemplate) Name() string {
 	return t.TemplateName
 }
 
+// JSON returns the JSON representation of the component template.
 func (t ComponentTemplate) JSON() []byte {
 	return []byte(t.raw)
 }

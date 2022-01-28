@@ -13,6 +13,8 @@ import (
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 )
 
+// IndexTemplate contains information related to an index template for exporting purpouses.
+// It  contains a partially parsed index template and the original JSON from the response.
 type IndexTemplate struct {
 	TemplateName  string `json:"name"`
 	IndexTemplate struct {
@@ -36,10 +38,12 @@ type IndexTemplate struct {
 	raw json.RawMessage
 }
 
+// Name returns the name of the index template.
 func (t IndexTemplate) Name() string {
 	return t.TemplateName
 }
 
+// JSON returns the JSON representation of the index template.
 func (t IndexTemplate) JSON() []byte {
 	return []byte(t.raw)
 }

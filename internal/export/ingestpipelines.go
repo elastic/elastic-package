@@ -13,15 +13,18 @@ import (
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 )
 
+// IngestPipeline contains the information needed to export an ingest pipeline.
 type IngestPipeline struct {
 	id  string
 	raw []byte
 }
 
+// Name returns the name of the ingest pipeline.
 func (p IngestPipeline) Name() string {
 	return p.id
 }
 
+// JSON returns the JSON representation of the ingest pipeline.
 func (p IngestPipeline) JSON() []byte {
 	return p.raw
 }

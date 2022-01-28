@@ -23,7 +23,7 @@ const (
 	IngestPipelinesExportDir    = "ingest_pipelines"
 )
 
-// InstalledObjectsExporter export objects installed in Elasticsearch for a given package.
+// InstalledObjectsExporter discovers and exports objects installed in Elasticsearch for a given package.
 type InstalledObjectsExporter struct {
 	packageName string
 	client      *elasticsearch.API
@@ -42,7 +42,7 @@ func NewInstalledObjectsExporter(client *elasticsearch.API, packageName string) 
 	}
 }
 
-// ExportAll exports all known resources as files in the given directory.
+// ExportAll discovers and exports all known resources as files in the given directory.
 func (e *InstalledObjectsExporter) ExportAll(ctx context.Context, dir string) (count int, err error) {
 	n, err := e.exportIndexTemplates(ctx, dir)
 	if err != nil {

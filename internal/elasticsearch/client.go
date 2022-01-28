@@ -26,7 +26,9 @@ type IngestSimulateRequest = esapi.IngestSimulateRequest
 // IngestGetPipelineRequest configures the Ingest Get Pipeline API request.
 type IngestGetPipelineRequest = esapi.IngestGetPipelineRequest
 
+// ClientOptions are used to configure a client.
 type ClientOptions struct {
+	// SkipTLSVerify disables TLS validation.
 	SkipTLSVerify bool
 }
 

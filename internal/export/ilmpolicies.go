@@ -13,15 +13,18 @@ import (
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 )
 
+// ILMPolicy contains the information needed to export an ILM policy.
 type ILMPolicy struct {
 	name string
 	raw  json.RawMessage
 }
 
+// Name returns the name of the ILM policy.
 func (p ILMPolicy) Name() string {
 	return p.name
 }
 
+// JSON returns the JSON representation of the ILM policy.
 func (p ILMPolicy) JSON() []byte {
 	return p.raw
 }
