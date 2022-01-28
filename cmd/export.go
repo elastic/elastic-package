@@ -148,9 +148,9 @@ func exportInstalledObjectsCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	tlsSkipVerify, _ := cmd.Flags().GetBool(cobraext.TLSSkipVerifyFlagName)
-	clientOptions := elasticsearch.ClientOptions{
-		SkipTLSVerify: tlsSkipVerify,
-	}
+
+	clientOptions := elasticsearch.DefaultClientOptionsFromEnv()
+	clientOptions.SkipTLSVerify = tlsSkipVerify
 	client, err := elasticsearch.ClientWithOptions(clientOptions)
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize Elasticsearch client")

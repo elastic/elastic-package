@@ -28,29 +28,38 @@ type IngestGetPipelineRequest = esapi.IngestGetPipelineRequest
 
 // ClientOptions are used to configure a client.
 type ClientOptions struct {
+	Address  string
+	Username string
+	Password string
+
 	// SkipTLSVerify disables TLS validation.
 	SkipTLSVerify bool
 }
 
+// DefaultClientOptionsFromEnv obtains default client options from environment variables.
+func DefaultClientOptionsFromEnv() ClientOptions {
+	return ClientOptions{
+		Address:  os.Getenv(stack.ElasticsearchHostEnv),
+		Username: os.Getenv(stack.ElasticsearchUsernameEnv),
+		Password: os.Getenv(stack.ElasticsearchPasswordEnv),
+	}
+}
+
 // Client method creates new instance of the Elasticsearch client.
 func Client() (*elasticsearch.Client, error) {
-	return ClientWithOptions(ClientOptions{})
+	return ClientWithOptions(DefaultClientOptionsFromEnv())
 }
 
 // ClientWithOptions creates new instance of the Elasticsearch client with custom options.
 func ClientWithOptions(options ClientOptions) (*elasticsearch.Client, error) {
-	host := os.Getenv(stack.ElasticsearchHostEnv)
-	if host == "" {
+	if options.Address == "" {
 		return nil, stack.UndefinedEnvError(stack.ElasticsearchHostEnv)
 	}
 
-	username := os.Getenv(stack.ElasticsearchUsernameEnv)
-	password := os.Getenv(stack.ElasticsearchPasswordEnv)
-
 	config := elasticsearch.Config{
-		Addresses: []string{host},
-		Username:  username,
-		Password:  password,
+		Addresses: []string{options.Address},
+		Username:  options.Username,
+		Password:  options.Password,
 	}
 	if options.SkipTLSVerify {
 		config.Transport = &http.Transport{

@@ -15,7 +15,7 @@ import (
 )
 
 func TestTransform(t *testing.T) {
-	b, err := os.ReadFile("./test/system-navigation.json")
+	b, err := os.ReadFile("./testdata/system-navigation.json")
 	require.NoError(t, err)
 
 	var given common.MapStr
