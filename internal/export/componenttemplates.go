@@ -62,7 +62,6 @@ func getComponentTemplatesByName(ctx context.Context, api *elasticsearch.API, na
 	resp, err := api.Cluster.GetComponentTemplate(
 		api.Cluster.GetComponentTemplate.WithContext(ctx),
 		api.Cluster.GetComponentTemplate.WithName(name),
-		api.Cluster.GetComponentTemplate.WithPretty(),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get component template %s: %w", name, err)

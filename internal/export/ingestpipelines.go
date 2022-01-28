@@ -48,7 +48,6 @@ func getIngestPipelineByID(ctx context.Context, api *elasticsearch.API, id strin
 	resp, err := api.Ingest.GetPipeline(
 		api.Ingest.GetPipeline.WithContext(ctx),
 		api.Ingest.GetPipeline.WithPipelineID(id),
-		api.Ingest.GetPipeline.WithPretty(),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get ingest pipeline %s: %w", id, err)

@@ -51,7 +51,6 @@ type getIndexTemplateResponse struct {
 func getIndexTemplatesForPackage(ctx context.Context, api *elasticsearch.API, packageName string) ([]IndexTemplate, error) {
 	resp, err := api.Indices.GetIndexTemplate(
 		api.Indices.GetIndexTemplate.WithContext(ctx),
-		api.Indices.GetIndexTemplate.WithPretty(),
 
 		// Wildcard may be too wide, we will double check below if it is a managed template.
 		api.Indices.GetIndexTemplate.WithName(fmt.Sprintf("*-%s.*", packageName)),
