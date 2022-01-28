@@ -246,13 +246,13 @@ func (dsm *DataStreamManifest) GetPipelineNameOrDefault() string {
 // https://github.com/elastic/kibana/blob/3955d0dc819fec03f68cd1d931f64da8472e34b2/x-pack/plugins/fleet/server/services/epm/elasticsearch/index.ts#L14
 func (dsm *DataStreamManifest) IndexTemplateName(pkgName string) string {
 	if dsm.Dataset == "" {
-		return dsm.IndexTemplateNamePrefix() + fmt.Sprintf("%s-%s.%s", dsm.Type, pkgName, dsm.Name)
+		return fmt.Sprintf("%s%s-%s.%s", dsm.indexTemplateNamePrefix(), dsm.Type, pkgName, dsm.Name)
 	}
 
-	return dsm.IndexTemplateNamePrefix() + fmt.Sprintf("%s-%s", dsm.Type, dsm.Dataset)
+	return fmt.Sprintf("%s%s-%s", dsm.indexTemplateNamePrefix(), dsm.Type, dsm.Dataset)
 }
 
-func (dsm *DataStreamManifest) IndexTemplateNamePrefix() string {
+func (dsm *DataStreamManifest) indexTemplateNamePrefix() string {
 	if dsm.Hidden {
 		return "."
 	}
