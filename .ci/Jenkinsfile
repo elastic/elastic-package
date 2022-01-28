@@ -26,6 +26,8 @@ pipeline {
     INFRA_SIGNING_BUCKET_SIGNED_ARTIFACTS_SUBFOLDER = "${env.INFRA_SIGNING_BUCKET_ARTIFACTS_SUBFOLDER}/signed-artifacts"
     INFRA_SIGNING_BUCKET_ARTIFACTS_PATH = "gs://${env.INFRA_SIGNING_BUCKET_NAME}/${env.INFRA_SIGNING_BUCKET_ARTIFACTS_SUBFOLDER}"
     INFRA_SIGNING_BUCKET_SIGNED_ARTIFACTS_PATH = "gs://${env.INFRA_SIGNING_BUCKET_NAME}/${env.INFRA_SIGNING_BUCKET_SIGNED_ARTIFACTS_SUBFOLDER}"
+
+    INTEGRATIONS_SIGNATURES_PATH = 'build/integrations-elastic-signatures' // different path not to override signatures archived in the "build-zip" step
   }
   options {
     timeout(time: 1, unit: 'HOURS')
@@ -177,10 +179,10 @@ def generateTestSignWithElasticStage() {
           }
           googleStorageDownload(bucketUri: "${env.INFRA_SIGNING_BUCKET_SIGNED_ARTIFACTS_PATH}/*",
             credentialsId: env.INTERNAL_CI_JOB_GCS_CREDENTIALS,
-            localDirectory: 'build/integrations/',
+            localDirectory: "${env.INTEGRATIONS_SIGNATURES_PATH}/",
             pathPrefix: "${env.INFRA_SIGNING_BUCKET_SIGNED_ARTIFACTS_SUBFOLDER}")
-          sh(label: 'Rename .asc to .sig', script: 'for f in build/integrations/*.asc; do mv "$f" "${f%.asc}.sig"; done')
-          archiveArtifacts(artifacts: "build/integrations/*.sig")
+          sh(label: 'Rename .asc to .sig', script: "for f in ${env.INTEGRATIONS_SIGNATURES_PATH}/*.asc; do mv \"$f\" \"${f%.asc}.sig\"; done")
+          archiveArtifacts(artifacts: "${env.INTEGRATIONS_SIGNATURES_PATH}/*.sig")
         }
       }
     }
