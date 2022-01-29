@@ -13,8 +13,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/stretchr/testify/require"
+
+	"github.com/elastic/elastic-package/internal/elasticsearch"
 )
 
 // ElasticsearchClient returns a client for a testing http server that uses prerecorded
