@@ -78,6 +78,7 @@ services:
     hostname: docker-fleet-server
     environment:
     - "FLEET_SERVER_ENABLE=1"
+    - "FLEET_SERVER_POLICY_ID=fleet-server-managed-ep"
     - "FLEET_SERVER_INSECURE_HTTP=1"
     - "KIBANA_FLEET_SETUP=1"
     - "KIBANA_FLEET_HOST=http://kibana:5601"
