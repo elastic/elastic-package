@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"io/fs"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -16,6 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	estest "github.com/elastic/elastic-package/internal/elasticsearch/test"
+	"github.com/elastic/elastic-package/internal/files"
 )
 
 func TestInstalledObjectsExportAll(t *testing.T) {
@@ -34,7 +36,38 @@ func TestInstalledObjectsExportAll(t *testing.T) {
 	assertEqualExports(t, "./testdata/apache-export-all", outputDir)
 }
 
+func TestInstalledObjectsExportSome(t *testing.T) {
+	client := estest.ElasticsearchClient(t, "./testdata/elasticsearch-mock-export-apache")
+	exporter := NewInstalledObjectsExporter(client, "apache")
+
+	// In a map so order of execution is randomized.
+	exporters := map[string]func(ctx context.Context, outputDir string) (int, error){
+		ComponentTemplatesExportDir: exporter.exportComponentTemplates,
+		ILMPoliciesExportDir:        exporter.exportILMPolicies,
+		IndexTemplatesExportDir:     exporter.exportIndexTemplates,
+		IngestPipelinesExportDir:    exporter.exportIngestPipelines,
+	}
+
+	for dir, exportFunction := range exporters {
+		t.Run(dir, func(t *testing.T) {
+			outputDir := t.TempDir()
+			n, err := exportFunction(context.Background(), outputDir)
+			require.NoError(t, err)
+
+			expectedDir := subDir(t, "./testdata/apache-export-all", dir)
+			filesExpected := countFiles(t, expectedDir)
+			assert.Equal(t, filesExpected, n)
+
+			filesFound := countFiles(t, outputDir)
+			assert.Equal(t, filesExpected, filesFound)
+
+			assertEqualExports(t, expectedDir, outputDir)
+		})
+	}
+}
+
 func countFiles(t *testing.T, dir string) (count int) {
+	t.Helper()
 	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -50,6 +83,7 @@ func countFiles(t *testing.T, dir string) (count int) {
 }
 
 func assertEqualExports(t *testing.T, expectedDir, resultDir string) {
+	t.Helper()
 	err := filepath.WalkDir(expectedDir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -70,6 +104,7 @@ func assertEqualExports(t *testing.T, expectedDir, resultDir string) {
 }
 
 func assertEquivalentJSON(t *testing.T, expectedPath, foundPath string) {
+	t.Helper()
 	readJSON := func(p string) map[string]interface{} {
 		d, err := ioutil.ReadFile(p)
 		require.NoError(t, err)
@@ -82,4 +117,20 @@ func assertEquivalentJSON(t *testing.T, expectedPath, foundPath string) {
 	expected := readJSON(expectedPath)
 	found := readJSON(foundPath)
 	assert.EqualValues(t, expected, found)
+}
+
+// subDir creates a temporary directory that contains a copy of a directory of the given directory. It returns
+// the path of the temporary directory.
+func subDir(t *testing.T, dir, name string) string {
+	t.Helper()
+	tmpDir := t.TempDir()
+
+	dest := filepath.Join(tmpDir, name)
+	src := filepath.Join(dir, name)
+
+	os.MkdirAll(dest, 0755)
+	err := files.CopyAll(src, dest)
+	require.NoError(t, err)
+
+	return tmpDir
 }
