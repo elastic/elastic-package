@@ -86,6 +86,9 @@ test-profiles-command:
 
 test: test-go test-stack-command test-check-packages test-profiles-command test-build-zip
 
+build-unsigned-zip-for-tests:
+	./scripts/build-unsigned-zip.sh
+
 check-git-clean:
 	git update-index --really-refresh
 	git diff-index --quiet HEAD

@@ -15,10 +15,10 @@ Download latest release from the [Releases](https://github.com/elastic/elastic-p
 
 On macOS, use `xattr -r -d com.apple.quarantine elastic-package` after downloading to allow the binary to run.
 
-Alternatively, you may use `go get` but you will not be able to use the `elastic-package version` command or check updates.
+Alternatively, you may use `go install` but you will not be able to use the `elastic-package version` command or check updates.
 
 ```bash
-go get github.com/elastic/elastic-package
+go install github.com/elastic/elastic-package@latest
 ```
 
 _Please make sure that you've correctly [setup environment variables](https://golang.org/doc/gopath_code.html#GOPATH) -
