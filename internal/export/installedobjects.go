@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 )
 
@@ -170,7 +171,7 @@ func getComponentTemplatesFromIndexTemplates(indexTemplates []IndexTemplate) []s
 			continue
 		}
 		for _, ct := range composedOf {
-			if !stringSliceContains(templates, ct) {
+			if !common.StringSliceContains(templates, ct) {
 				templates = append(templates, ct)
 			}
 		}
@@ -215,7 +216,7 @@ func getILMPoliciesFromComponentTemplates(componentTemplates []ComponentTemplate
 	var policies []string
 	for _, ct := range componentTemplates {
 		name := ct.ComponentTemplate.Template.Settings.Index.Lifecycle.Name
-		if name != "" && !stringSliceContains(policies, name) {
+		if name != "" && !common.StringSliceContains(policies, name) {
 			policies = append(policies, name)
 		}
 	}
@@ -262,19 +263,10 @@ func getIngestPipelinesFromIndexTemplates(indexTemplates []IndexTemplate) []stri
 		if pipeline == "" {
 			continue
 		}
-		if stringSliceContains(pipelines, pipeline) {
+		if common.StringSliceContains(pipelines, pipeline) {
 			continue
 		}
 		pipelines = append(pipelines, pipeline)
 	}
 	return pipelines
-}
-
-func stringSliceContains(ss []string, s string) bool {
-	for i := range ss {
-		if ss[i] == s {
-			return true
-		}
-	}
-	return false
 }
