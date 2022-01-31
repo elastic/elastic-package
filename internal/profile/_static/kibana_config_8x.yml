@@ -23,6 +23,7 @@ xpack.fleet.packages:
 xpack.fleet.agentPolicies:
   - name: Elastic-Agent (elastic-package)
     id: elastic-agent-managed-ep
+    is_default: true
     is_managed: false
     namespace: default
     monitoring_enabled:
