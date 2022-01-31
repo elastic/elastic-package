@@ -13,7 +13,7 @@ import (
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 )
 
-const dumpLongDescription = `Use this command to dump assets relevant for the package.`
+const dumpLongDescription = `Use this command as a exploratory tool to dump assets relevant for the package.`
 
 const dumpInstalledObjectsLongDescription = `Use this command to dump objects installed by Fleet as part of a package.
 
