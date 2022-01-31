@@ -23,7 +23,7 @@ import (
 // elastic-package stack, and records the response.
 // Responses are recorded in the directory indicated by serverDataDir.
 func ElasticsearchClient(t *testing.T, serverDataDir string) *elasticsearch.API {
-	server := testElasticsearchServerForExport(t, serverDataDir)
+	server := testElasticsearchServer(t, serverDataDir)
 	t.Cleanup(func() { server.Close() })
 
 	client, err := elasticsearch.Client(
@@ -34,7 +34,7 @@ func ElasticsearchClient(t *testing.T, serverDataDir string) *elasticsearch.API 
 	return client.API
 }
 
-func testElasticsearchServerForExport(t *testing.T, mockServerDir string) *httptest.Server {
+func testElasticsearchServer(t *testing.T, mockServerDir string) *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Log(r.Method, r.URL.String())
 		f := filepath.Join(mockServerDir, pathForURL(r.URL.String()))

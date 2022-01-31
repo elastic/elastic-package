@@ -32,5 +32,5 @@ elastic-stack-dump/
 # elastic-package create: default package
 new_package
 
-# default output directory for export commands
+# default output directory for dump commands
 output

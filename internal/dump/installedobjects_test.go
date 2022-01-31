@@ -2,7 +2,7 @@
 // or more contributor license agreements. Licensed under the Elastic License;
 // you may not use this file except in compliance with the Elastic License.
 
-package export
+package dump
 
 import (
 	"context"
@@ -20,48 +20,48 @@ import (
 	"github.com/elastic/elastic-package/internal/files"
 )
 
-func TestInstalledObjectsExportAll(t *testing.T) {
-	client := estest.ElasticsearchClient(t, "./testdata/elasticsearch-mock-export-apache")
+func TestInstalledObjectsDumpAll(t *testing.T) {
+	client := estest.ElasticsearchClient(t, "./testdata/elasticsearch-mock-dump-apache")
 	outputDir := t.TempDir()
-	exporter := NewInstalledObjectsExporter(client, "apache")
-	n, err := exporter.ExportAll(context.Background(), outputDir)
+	dumper := NewInstalledObjectsDumper(client, "apache")
+	n, err := dumper.DumpAll(context.Background(), outputDir)
 	require.NoError(t, err)
 
-	filesExpected := countFiles(t, "./testdata/apache-export-all")
+	filesExpected := countFiles(t, "./testdata/apache-dump-all")
 	assert.Equal(t, filesExpected, n)
 
 	filesFound := countFiles(t, outputDir)
 	assert.Equal(t, filesExpected, filesFound)
 
-	assertEqualExports(t, "./testdata/apache-export-all", outputDir)
+	assertEqualDumps(t, "./testdata/apache-dump-all", outputDir)
 }
 
-func TestInstalledObjectsExportSome(t *testing.T) {
-	client := estest.ElasticsearchClient(t, "./testdata/elasticsearch-mock-export-apache")
-	exporter := NewInstalledObjectsExporter(client, "apache")
+func TestInstalledObjectsDumpSome(t *testing.T) {
+	client := estest.ElasticsearchClient(t, "./testdata/elasticsearch-mock-dump-apache")
+	dumper := NewInstalledObjectsDumper(client, "apache")
 
 	// In a map so order of execution is randomized.
-	exporters := map[string]func(ctx context.Context, outputDir string) (int, error){
-		ComponentTemplatesExportDir: exporter.exportComponentTemplates,
-		ILMPoliciesExportDir:        exporter.exportILMPolicies,
-		IndexTemplatesExportDir:     exporter.exportIndexTemplates,
-		IngestPipelinesExportDir:    exporter.exportIngestPipelines,
+	dumpers := map[string]func(ctx context.Context, outputDir string) (int, error){
+		ComponentTemplatesDumpDir: dumper.dumpComponentTemplates,
+		ILMPoliciesDumpDir:        dumper.dumpILMPolicies,
+		IndexTemplatesDumpDir:     dumper.dumpIndexTemplates,
+		IngestPipelinesDumpDir:    dumper.dumpIngestPipelines,
 	}
 
-	for dir, exportFunction := range exporters {
+	for dir, dumpFunction := range dumpers {
 		t.Run(dir, func(t *testing.T) {
 			outputDir := t.TempDir()
-			n, err := exportFunction(context.Background(), outputDir)
+			n, err := dumpFunction(context.Background(), outputDir)
 			require.NoError(t, err)
 
-			expectedDir := subDir(t, "./testdata/apache-export-all", dir)
+			expectedDir := subDir(t, "./testdata/apache-dump-all", dir)
 			filesExpected := countFiles(t, expectedDir)
 			assert.Equal(t, filesExpected, n)
 
 			filesFound := countFiles(t, outputDir)
 			assert.Equal(t, filesExpected, filesFound)
 
-			assertEqualExports(t, expectedDir, outputDir)
+			assertEqualDumps(t, expectedDir, outputDir)
 		})
 	}
 }
@@ -82,7 +82,7 @@ func countFiles(t *testing.T, dir string) (count int) {
 	return count
 }
 
-func assertEqualExports(t *testing.T, expectedDir, resultDir string) {
+func assertEqualDumps(t *testing.T, expectedDir, resultDir string) {
 	t.Helper()
 	err := filepath.WalkDir(expectedDir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {

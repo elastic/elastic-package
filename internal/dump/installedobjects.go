@@ -2,7 +2,7 @@
 // or more contributor license agreements. Licensed under the Elastic License;
 // you may not use this file except in compliance with the Elastic License.
 
-package export
+package dump
 
 import (
 	"bytes"
@@ -18,14 +18,14 @@ import (
 )
 
 const (
-	ComponentTemplatesExportDir = "component_templates"
-	ILMPoliciesExportDir        = "ilm_policies"
-	IndexTemplatesExportDir     = "index_templates"
-	IngestPipelinesExportDir    = "ingest_pipelines"
+	ComponentTemplatesDumpDir = "component_templates"
+	ILMPoliciesDumpDir        = "ilm_policies"
+	IndexTemplatesDumpDir     = "index_templates"
+	IngestPipelinesDumpDir    = "ingest_pipelines"
 )
 
-// InstalledObjectsExporter discovers and exports objects installed in Elasticsearch for a given package.
-type InstalledObjectsExporter struct {
+// InstalledObjectsDumper discovers and dumps objects installed in Elasticsearch for a given package.
+type InstalledObjectsDumper struct {
 	packageName string
 	client      *elasticsearch.API
 
@@ -35,51 +35,51 @@ type InstalledObjectsExporter struct {
 	ingestPipelines    []IngestPipeline
 }
 
-// NewInstalledObjectsExporter creates an InstalledObjectsExporter for a given package.
-func NewInstalledObjectsExporter(client *elasticsearch.API, packageName string) *InstalledObjectsExporter {
-	return &InstalledObjectsExporter{
+// NewInstalledObjectsDumper creates an InstalledObjectsDumper for a given package.
+func NewInstalledObjectsDumper(client *elasticsearch.API, packageName string) *InstalledObjectsDumper {
+	return &InstalledObjectsDumper{
 		packageName: packageName,
 		client:      client,
 	}
 }
 
-// ExportAll discovers and exports all known resources as files in the given directory.
-func (e *InstalledObjectsExporter) ExportAll(ctx context.Context, dir string) (count int, err error) {
-	n, err := e.exportIndexTemplates(ctx, dir)
+// DumpAll discovers and dumps all known resources as files in the given directory.
+func (e *InstalledObjectsDumper) DumpAll(ctx context.Context, dir string) (count int, err error) {
+	n, err := e.dumpIndexTemplates(ctx, dir)
 	if err != nil {
-		return count, fmt.Errorf("failed to export index templates: %w", err)
+		return count, fmt.Errorf("failed to dump index templates: %w", err)
 	}
 	count += n
 
-	n, err = e.exportComponentTemplates(ctx, dir)
+	n, err = e.dumpComponentTemplates(ctx, dir)
 	if err != nil {
-		return count, fmt.Errorf("failed to export component templates: %w", err)
+		return count, fmt.Errorf("failed to dump component templates: %w", err)
 	}
 	count += n
 
-	n, err = e.exportILMPolicies(ctx, dir)
+	n, err = e.dumpILMPolicies(ctx, dir)
 	if err != nil {
-		return count, fmt.Errorf("failed to export ILM policies: %w", err)
+		return count, fmt.Errorf("failed to dump ILM policies: %w", err)
 	}
 	count += n
 
-	n, err = e.exportIngestPipelines(ctx, dir)
+	n, err = e.dumpIngestPipelines(ctx, dir)
 	if err != nil {
-		return count, fmt.Errorf("failed to export ingest pipelines: %w", err)
+		return count, fmt.Errorf("failed to dump ingest pipelines: %w", err)
 	}
 	count += n
 
 	return count, nil
 }
 
-type ExportableInstalledObject interface {
+type DumpableInstalledObject interface {
 	Name() string
 	JSON() []byte
 }
 
-func exportInstalledObject(dir string, object ExportableInstalledObject) error {
+func dumpInstalledObject(dir string, object DumpableInstalledObject) error {
 	if err := os.MkdirAll(dir, 0755); err != nil {
-		return fmt.Errorf("failed to create export directory: %w", err)
+		return fmt.Errorf("failed to create dump directory: %w", err)
 	}
 	formatted, err := formatJSON(object.JSON())
 	if err != nil {
@@ -88,7 +88,7 @@ func exportInstalledObject(dir string, object ExportableInstalledObject) error {
 	path := filepath.Join(dir, object.Name()+".json")
 	err = ioutil.WriteFile(path, formatted, 0644)
 	if err != nil {
-		return fmt.Errorf("failed to export object to file: %w", err)
+		return fmt.Errorf("failed to dump object to file: %w", err)
 	}
 	return nil
 }
@@ -102,23 +102,23 @@ func formatJSON(in []byte) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func (e *InstalledObjectsExporter) exportIndexTemplates(ctx context.Context, dir string) (count int, err error) {
+func (e *InstalledObjectsDumper) dumpIndexTemplates(ctx context.Context, dir string) (count int, err error) {
 	indexTemplates, err := e.getIndexTemplates(ctx)
 	if err != nil {
 		return count, err
 	}
 
-	dir = filepath.Join(dir, IndexTemplatesExportDir)
+	dir = filepath.Join(dir, IndexTemplatesDumpDir)
 	for i, t := range indexTemplates {
-		err := exportInstalledObject(dir, t)
+		err := dumpInstalledObject(dir, t)
 		if err != nil {
-			return i, fmt.Errorf("failed to export index template %s: %w", t.Name(), err)
+			return i, fmt.Errorf("failed to dump index template %s: %w", t.Name(), err)
 		}
 	}
 	return len(indexTemplates), nil
 }
 
-func (e *InstalledObjectsExporter) getIndexTemplates(ctx context.Context) ([]IndexTemplate, error) {
+func (e *InstalledObjectsDumper) getIndexTemplates(ctx context.Context) ([]IndexTemplate, error) {
 	if len(e.indexTemplates) == 0 {
 		indexTemplates, err := getIndexTemplatesForPackage(ctx, e.client, e.packageName)
 		if err != nil {
@@ -130,23 +130,23 @@ func (e *InstalledObjectsExporter) getIndexTemplates(ctx context.Context) ([]Ind
 	return e.indexTemplates, nil
 }
 
-func (e *InstalledObjectsExporter) exportComponentTemplates(ctx context.Context, dir string) (count int, err error) {
+func (e *InstalledObjectsDumper) dumpComponentTemplates(ctx context.Context, dir string) (count int, err error) {
 	componentTemplates, err := e.getComponentTemplates(ctx)
 	if err != nil {
 		return count, fmt.Errorf("failed to get component templates: %w", err)
 	}
 
-	dir = filepath.Join(dir, ComponentTemplatesExportDir)
+	dir = filepath.Join(dir, ComponentTemplatesDumpDir)
 	for i, t := range componentTemplates {
-		err := exportInstalledObject(dir, t)
+		err := dumpInstalledObject(dir, t)
 		if err != nil {
-			return i, fmt.Errorf("failed to export component template %s: %w", t.Name(), err)
+			return i, fmt.Errorf("failed to dump component template %s: %w", t.Name(), err)
 		}
 	}
 	return len(componentTemplates), nil
 }
 
-func (e *InstalledObjectsExporter) getComponentTemplates(ctx context.Context) ([]ComponentTemplate, error) {
+func (e *InstalledObjectsDumper) getComponentTemplates(ctx context.Context) ([]ComponentTemplate, error) {
 	if len(e.componentTemplates) == 0 {
 		indexTemplates, err := e.getIndexTemplates(ctx)
 		if err != nil {
@@ -179,23 +179,23 @@ func getComponentTemplatesFromIndexTemplates(indexTemplates []IndexTemplate) []s
 	return templates
 }
 
-func (e *InstalledObjectsExporter) exportILMPolicies(ctx context.Context, dir string) (count int, err error) {
+func (e *InstalledObjectsDumper) dumpILMPolicies(ctx context.Context, dir string) (count int, err error) {
 	ilmPolicies, err := e.getILMPolicies(ctx)
 	if err != nil {
 		return count, fmt.Errorf("failed to get index templates: %w", err)
 	}
 
-	dir = filepath.Join(dir, ILMPoliciesExportDir)
+	dir = filepath.Join(dir, ILMPoliciesDumpDir)
 	for i, t := range ilmPolicies {
-		err := exportInstalledObject(dir, t)
+		err := dumpInstalledObject(dir, t)
 		if err != nil {
-			return i, fmt.Errorf("failed to export ILM policy %s: %w", t.Name(), err)
+			return i, fmt.Errorf("failed to dump ILM policy %s: %w", t.Name(), err)
 		}
 	}
 	return len(ilmPolicies), nil
 }
 
-func (e *InstalledObjectsExporter) getILMPolicies(ctx context.Context) ([]ILMPolicy, error) {
+func (e *InstalledObjectsDumper) getILMPolicies(ctx context.Context) ([]ILMPolicy, error) {
 	if len(e.ilmPolicies) == 0 {
 		componentTemplates, err := e.getComponentTemplates(ctx)
 		if err != nil {
@@ -223,23 +223,23 @@ func getILMPoliciesFromComponentTemplates(componentTemplates []ComponentTemplate
 	return policies
 }
 
-func (e *InstalledObjectsExporter) exportIngestPipelines(ctx context.Context, dir string) (count int, err error) {
+func (e *InstalledObjectsDumper) dumpIngestPipelines(ctx context.Context, dir string) (count int, err error) {
 	ingestPipelines, err := e.getIngestPipelines(ctx)
 	if err != nil {
 		return count, fmt.Errorf("failed to get ingest pipelines: %w", err)
 	}
 
-	dir = filepath.Join(dir, IngestPipelinesExportDir)
+	dir = filepath.Join(dir, IngestPipelinesDumpDir)
 	for i, t := range ingestPipelines {
-		err := exportInstalledObject(dir, t)
+		err := dumpInstalledObject(dir, t)
 		if err != nil {
-			return i, fmt.Errorf("failed to export ingest pipeline %s: %w", t.Name(), err)
+			return i, fmt.Errorf("failed to dump ingest pipeline %s: %w", t.Name(), err)
 		}
 	}
 	return len(ingestPipelines), nil
 }
 
-func (e *InstalledObjectsExporter) getIngestPipelines(ctx context.Context) ([]IngestPipeline, error) {
+func (e *InstalledObjectsDumper) getIngestPipelines(ctx context.Context) ([]IngestPipeline, error) {
 	if len(e.ingestPipelines) == 0 {
 		indexTemplates, err := e.getIndexTemplates(ctx)
 		if err != nil {

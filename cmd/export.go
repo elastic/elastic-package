@@ -13,7 +13,6 @@ import (
 
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/common"
-	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/export"
 	"github.com/elastic/elastic-package/internal/kibana"
 )
@@ -23,10 +22,6 @@ const exportLongDescription = `Use this command to export assets relevant for th
 const exportDashboardsLongDescription = `Use this command to export dashboards with referenced objects from the Kibana instance.
 
 Use this command to download selected dashboards and other associated saved objects from Kibana. This command adjusts the downloaded saved objects according to package naming conventions (prefixes, unique IDs) and writes them locally into folders corresponding to saved object types (dashboard, visualization, map, etc.).`
-
-const exportInstalledObjectsLongDescription = `Use this command to export objects installed by Fleet as part of a package.
-
-Use this command as a exploratory tool to export objects as they are installed by Fleet when installing a package. Exported objects are stored in files as they are returned by Elasticsearch APIs, without any processing.`
 
 func setupExportCommand() *cobraext.Command {
 	exportDashboardCmd := &cobra.Command{
@@ -38,25 +33,12 @@ func setupExportCommand() *cobraext.Command {
 	exportDashboardCmd.Flags().StringSliceP(cobraext.DashboardIDsFlagName, "d", nil, cobraext.DashboardIDsFlagDescription)
 	exportDashboardCmd.Flags().Bool(cobraext.TLSSkipVerifyFlagName, false, cobraext.TLSSkipVerifyFlagDescription)
 
-	exportInstalledObjectsCmd := &cobra.Command{
-		Use:   "installed-objects",
-		Short: "Export installed Elasticsearch objects",
-		Long:  exportInstalledObjectsLongDescription,
-		RunE:  exportInstalledObjectsCmd,
-	}
-	exportInstalledObjectsCmd.Flags().StringP(cobraext.ExportPackageFlagName, "p", "", cobraext.ExportPackageFlagDescription)
-	exportInstalledObjectsCmd.MarkFlagRequired(cobraext.ExportPackageFlagName)
-	exportInstalledObjectsCmd.Flags().StringP(cobraext.ExportOutputFlagName, "o", "output", cobraext.ExportOutputFlagDescription)
-	exportInstalledObjectsCmd.Flags().Bool(cobraext.TLSSkipVerifyFlagName, false, cobraext.TLSSkipVerifyFlagDescription)
-
 	cmd := &cobra.Command{
 		Use:   "export",
 		Short: "Export package assets",
 		Long:  exportLongDescription,
 	}
-
 	cmd.AddCommand(exportDashboardCmd)
-	cmd.AddCommand(exportInstalledObjectsCmd)
 
 	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
 }
@@ -134,39 +116,4 @@ func promptDashboardIDs(kibanaClient *kibana.Client) ([]string, error) {
 		}
 	}
 	return selected, nil
-}
-
-func exportInstalledObjectsCmd(cmd *cobra.Command, args []string) error {
-	packageName, err := cmd.Flags().GetString(cobraext.ExportPackageFlagName)
-	if err != nil {
-		return cobraext.FlagParsingError(err, cobraext.ExportPackageFlagName)
-	}
-
-	outputPath, err := cmd.Flags().GetString(cobraext.ExportOutputFlagName)
-	if err != nil {
-		return cobraext.FlagParsingError(err, cobraext.ExportOutputFlagName)
-	}
-
-	tlsSkipVerify, _ := cmd.Flags().GetBool(cobraext.TLSSkipVerifyFlagName)
-
-	var clientOptions []elasticsearch.ClientOption
-	if tlsSkipVerify {
-		clientOptions = append(clientOptions, elasticsearch.OptionWithSkipTLSVerify())
-	}
-	client, err := elasticsearch.Client(clientOptions...)
-	if err != nil {
-		return errors.Wrap(err, "failed to initialize Elasticsearch client")
-	}
-
-	exporter := export.NewInstalledObjectsExporter(client.API, packageName)
-	n, err := exporter.ExportAll(cmd.Context(), outputPath)
-	if err != nil {
-		return errors.Wrap(err, "export failed")
-	}
-	if n == 0 {
-		cmd.Printf("No objects were exported for package %s, is it installed?", packageName)
-		return nil
-	}
-	cmd.Printf("Exported %d installed objects for package %s to %s\n", n, packageName, outputPath)
-	return nil
 }
