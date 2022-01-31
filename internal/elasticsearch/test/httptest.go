@@ -26,9 +26,9 @@ func ElasticsearchClient(t *testing.T, serverDataDir string) *elasticsearch.API 
 	server := testElasticsearchServerForExport(t, serverDataDir)
 	t.Cleanup(func() { server.Close() })
 
-	clientOptions := elasticsearch.DefaultClientOptionsFromEnv()
-	clientOptions.Address = server.URL
-	client, err := elasticsearch.ClientWithOptions(clientOptions)
+	client, err := elasticsearch.Client(
+		elasticsearch.OptionWithAddress(server.URL),
+	)
 	require.NoError(t, err)
 
 	return client.API
@@ -55,16 +55,14 @@ func pathForURL(url string) string {
 }
 
 func recordRequest(t *testing.T, r *http.Request, path string) {
-	options := elasticsearch.DefaultClientOptionsFromEnv()
-	t.Logf("Recording %s in %s", options.Address+r.URL.Path, path)
-	req, err := http.NewRequest(r.Method, options.Address+r.URL.Path, nil)
+	client, err := elasticsearch.Client()
 	require.NoError(t, err)
 
-	if options.Username != "" && options.Password != "" {
-		req.SetBasicAuth(options.Username, options.Password)
-	}
-	req.Host = options.Address
-	resp, err := http.DefaultClient.Do(req)
+	t.Logf("Recording %s in %s", r.URL.Path, path)
+	req, err := http.NewRequest(r.Method, r.URL.Path, nil)
+	require.NoError(t, err)
+
+	resp, err := client.Perform(req)
 	require.NoError(t, err)
 	defer resp.Body.Close()
 

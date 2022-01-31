@@ -26,42 +26,58 @@ type IngestSimulateRequest = esapi.IngestSimulateRequest
 // IngestGetPipelineRequest configures the Ingest Get Pipeline API request.
 type IngestGetPipelineRequest = esapi.IngestGetPipelineRequest
 
-// ClientOptions are used to configure a client.
-type ClientOptions struct {
-	Address  string
-	Username string
-	Password string
+// clientOptions are used to configure a client.
+type clientOptions struct {
+	address  string
+	username string
+	password string
 
-	// SkipTLSVerify disables TLS validation.
-	SkipTLSVerify bool
+	// skipTLSVerify disables TLS validation.
+	skipTLSVerify bool
 }
 
-// DefaultClientOptionsFromEnv obtains default client options from environment variables.
-func DefaultClientOptionsFromEnv() ClientOptions {
-	return ClientOptions{
-		Address:  os.Getenv(stack.ElasticsearchHostEnv),
-		Username: os.Getenv(stack.ElasticsearchUsernameEnv),
-		Password: os.Getenv(stack.ElasticsearchPasswordEnv),
+// defaultOptionsFromEnv returns clientOptions initialized with values from environmet variables.
+func defaultOptionsFromEnv() clientOptions {
+	return clientOptions{
+		address:  os.Getenv(stack.ElasticsearchHostEnv),
+		username: os.Getenv(stack.ElasticsearchUsernameEnv),
+		password: os.Getenv(stack.ElasticsearchPasswordEnv),
+	}
+}
+
+type ClientOption func(*clientOptions)
+
+// OptionWithAddress sets the address to be used by the client.
+func OptionWithAddress(address string) ClientOption {
+	return func(opts *clientOptions) {
+		opts.address = address
+	}
+}
+
+// OptionWithSkipTLSVerify disables TLS validation.
+func OptionWithSkipTLSVerify() ClientOption {
+	return func(opts *clientOptions) {
+		opts.skipTLSVerify = true
 	}
 }
 
 // Client method creates new instance of the Elasticsearch client.
-func Client() (*elasticsearch.Client, error) {
-	return ClientWithOptions(DefaultClientOptionsFromEnv())
-}
+func Client(customOptions ...ClientOption) (*elasticsearch.Client, error) {
+	options := defaultOptionsFromEnv()
+	for _, option := range customOptions {
+		option(&options)
+	}
 
-// ClientWithOptions creates new instance of the Elasticsearch client with custom options.
-func ClientWithOptions(options ClientOptions) (*elasticsearch.Client, error) {
-	if options.Address == "" {
+	if options.address == "" {
 		return nil, stack.UndefinedEnvError(stack.ElasticsearchHostEnv)
 	}
 
 	config := elasticsearch.Config{
-		Addresses: []string{options.Address},
-		Username:  options.Username,
-		Password:  options.Password,
+		Addresses: []string{options.address},
+		Username:  options.username,
+		Password:  options.password,
 	}
-	if options.SkipTLSVerify {
+	if options.skipTLSVerify {
 		config.Transport = &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		}
