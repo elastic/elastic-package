@@ -21,13 +21,16 @@ pipeline {
     JOB_SIGNING_CREDENTIALS = 'sign-artifacts-with-gpg-job'
     INTERNAL_CI_JOB_GCS_CREDENTIALS = 'internal-ci-gcs-plugin'
 
+    REPO_BUILD_TAG = "${env.REPO}/${env.BUILD_TAG}"
     INFRA_SIGNING_BUCKET_NAME = 'internal-ci-artifacts'
-    INFRA_SIGNING_BUCKET_ARTIFACTS_SUBFOLDER = "${env.REPO}/${env.BUILD_TAG}"
-    INFRA_SIGNING_BUCKET_SIGNED_ARTIFACTS_SUBFOLDER = "${env.INFRA_SIGNING_BUCKET_ARTIFACTS_SUBFOLDER}/signed-artifacts"
-    INFRA_SIGNING_BUCKET_ARTIFACTS_PATH = "gs://${env.INFRA_SIGNING_BUCKET_NAME}/${env.INFRA_SIGNING_BUCKET_ARTIFACTS_SUBFOLDER}"
+    INFRA_SIGNING_BUCKET_SIGNED_ARTIFACTS_SUBFOLDER = "${env.REPO_BUILD_TAG}/signed-artifacts"
+    INFRA_SIGNING_BUCKET_ARTIFACTS_PATH = "gs://${env.INFRA_SIGNING_BUCKET_NAME}/${env.REPO_BUILD_TAG}"
     INFRA_SIGNING_BUCKET_SIGNED_ARTIFACTS_PATH = "gs://${env.INFRA_SIGNING_BUCKET_NAME}/${env.INFRA_SIGNING_BUCKET_SIGNED_ARTIFACTS_SUBFOLDER}"
 
     INTEGRATIONS_SIGNATURES_PATH = 'build/integrations-elastic-signatures' // different path not to override signatures archived in the "build-zip" step
+
+    PACKAGE_STORAGE_UPLOADER_GCP_SERVICE_ACCOUNT = 'package-storage-uploader'
+    PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH = "gs://elastic-bekitzur-package-storage-internal/queue-publishing/${env.REPO_BUILD_TAG}"
   }
   options {
     timeout(time: 1, unit: 'HOURS')
@@ -165,6 +168,7 @@ def generateTestSignWithElasticStage() {
           sh(label: 'Install elastic-package',script: "make install")
           sh(label: 'Prepare for tests (build zipped packages)',script: "make build-unsigned-zip-for-tests")
           signArtifactsWithElastic('build/integrations', env.INTEGRATIONS_SIGNATURES_PATH)
+          archiveArtifacts(artifacts: env.INTEGRATIONS_SIGNATURES_PATH + '/*.sig')
         }
       }
     }
@@ -182,6 +186,31 @@ def generateTestPublishToPackageStorageStage() {
             sh(label: 'Check package',script: "elastic-package check")
           }
           signArtifactsWithElastic('build/integrations', env.INTEGRATIONS_SIGNATURES_PATH)
+
+          // Add the package candidate to the "queue-publishing"
+          googleStorageUpload(bucket: env.PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH,
+            credentialsId: env.PACKAGE_STORAGE_UPLOADER_GCP_SERVICE_ACCOUNT,
+            pathPrefix: 'build/integrations/',
+            pattern: "build/integrations/package_storage_candidate-0.0.1.zip",
+            sharedPublicly: false,
+            showInline: true)
+          googleStorageUpload(bucket: env.PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH,
+            credentialsId: env.PACKAGE_STORAGE_UPLOADER_GCP_SERVICE_ACCOUNT,
+            pathPrefix: 'build/integrations/',
+            pattern: "build/integrations/package_storage_candidate-0.0.1.sig",
+            sharedPublicly: false,
+            showInline: true)
+
+          // Call the publishing job
+          triggerRemoteJob(auth: CredentialsAuth(credentials: 'local-readonly-api-token'),
+            job: 'https://internal-ci.elastic.co/view/All/job/package_storage/job/publishing-job/job/main',
+            token: TOKEN,
+            parameters: """
+              S3PackageBuildZipPath=${env.PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH}/package_storage_candidate-0.0.1.zip
+              S3PackageSignaturePath=${env.PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH}/package_storage_candidate-0.0.1.sig
+              """,
+            useCrumbCache: true,
+            useJobInfoCache: true)
         }
       }
     }
@@ -208,7 +237,6 @@ def signArtifactsWithElastic(artifactsSourcePath, signaturesDestinationPath) {
     localDirectory: signaturesDestinationPath + '/',
     pathPrefix: "${env.INFRA_SIGNING_BUCKET_SIGNED_ARTIFACTS_SUBFOLDER}")
     sh(label: 'Rename .asc to .sig', script: 'for f in ' + signaturesDestinationPath + '/*.asc; do mv "$f" "${f%.asc}.sig"; done')
-    archiveArtifacts(artifacts: signaturesDestinationPath + '/*.sig')
 }
 
 def generateTestCheckSinglePackageStage(Map args = [:]) {
