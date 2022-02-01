@@ -191,7 +191,7 @@ def generateTestPublishToPackageStorageStage() {
           // Add the package candidate to the "queue-publishing"
           withGCPEnv(secret: env.PACKAGE_STORAGE_UPLOADER_GCP_SERVICE_ACCOUNT) {
             sh(label: 'Upload package .zip file', script: "gsutil cp ${env.INTEGRATIONS_SIGNATURES_PATH}/package_storage_candidate-0.0.1.zip ${env.PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH}/")
-            sh(label: 'Upload package .sig file', script: "gsutil cp ${env.INTEGRATIONS_SIGNATURES_PATH}/package_storage_candidate-0.0.1.sig ${env.PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH}/")
+            sh(label: 'Upload package .sig file', script: "gsutil cp ${env.INTEGRATIONS_SIGNATURES_PATH}/package_storage_candidate-0.0.1.zip.sig ${env.PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH}/")
           }
 
           // Call the publishing job
@@ -200,7 +200,7 @@ def generateTestPublishToPackageStorageStage() {
             token: TOKEN,
             parameters: """
               S3PackageBuildZipPath=${env.PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH}/package_storage_candidate-0.0.1.zip
-              S3PackageSignaturePath=${env.PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH}/package_storage_candidate-0.0.1.sig
+              S3PackageSignaturePath=${env.PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH}/package_storage_candidate-0.0.1.zip.sig
               """,
             useCrumbCache: true,
             useJobInfoCache: true)
