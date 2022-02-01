@@ -197,11 +197,11 @@ func (e *InstalledObjectsDumper) dumpILMPolicies(ctx context.Context, dir string
 
 func (e *InstalledObjectsDumper) getILMPolicies(ctx context.Context) ([]ILMPolicy, error) {
 	if len(e.ilmPolicies) == 0 {
-		componentTemplates, err := e.getComponentTemplates(ctx)
+		templates, err := e.getTemplatesWithSettings(ctx)
 		if err != nil {
 			return nil, err
 		}
-		names := getILMPoliciesFromComponentTemplates(componentTemplates)
+		names := getILMPoliciesFromTemplates(templates)
 		ilmPolicies, err := getILMPolicies(ctx, e.client, names...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get ILM policies: %w", err)
@@ -212,10 +212,10 @@ func (e *InstalledObjectsDumper) getILMPolicies(ctx context.Context) ([]ILMPolic
 	return e.ilmPolicies, nil
 }
 
-func getILMPoliciesFromComponentTemplates(componentTemplates []ComponentTemplate) []string {
+func getILMPoliciesFromTemplates(templates []TemplateWithSettings) []string {
 	var policies []string
-	for _, ct := range componentTemplates {
-		name := ct.ComponentTemplate.Template.Settings.Index.Lifecycle.Name
+	for _, template := range templates {
+		name := template.TemplateSettings().Index.Lifecycle.Name
 		if name != "" && !common.StringSliceContains(policies, name) {
 			policies = append(policies, name)
 		}
@@ -241,21 +241,9 @@ func (e *InstalledObjectsDumper) dumpIngestPipelines(ctx context.Context, dir st
 
 func (e *InstalledObjectsDumper) getIngestPipelines(ctx context.Context) ([]IngestPipeline, error) {
 	if len(e.ingestPipelines) == 0 {
-		var templates []TemplateWithSettings
-		indexTemplates, err := e.getIndexTemplates(ctx)
+		templates, err := e.getTemplatesWithSettings(ctx)
 		if err != nil {
 			return nil, err
-		}
-		for _, template := range indexTemplates {
-			templates = append(templates, template)
-		}
-
-		componentTemplates, err := e.getComponentTemplates(ctx)
-		if err != nil {
-			return nil, err
-		}
-		for _, template := range componentTemplates {
-			templates = append(templates, template)
 		}
 
 		names := getIngestPipelinesFromTemplates(templates)
@@ -267,6 +255,27 @@ func (e *InstalledObjectsDumper) getIngestPipelines(ctx context.Context) ([]Inge
 	}
 
 	return e.ingestPipelines, nil
+}
+
+func (e *InstalledObjectsDumper) getTemplatesWithSettings(ctx context.Context) ([]TemplateWithSettings, error) {
+	var templates []TemplateWithSettings
+	indexTemplates, err := e.getIndexTemplates(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, template := range indexTemplates {
+		templates = append(templates, template)
+	}
+
+	componentTemplates, err := e.getComponentTemplates(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, template := range componentTemplates {
+		templates = append(templates, template)
+	}
+
+	return templates, nil
 }
 
 type TemplateWithSettings interface {
