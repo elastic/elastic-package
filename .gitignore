@@ -33,4 +33,4 @@ elastic-stack-dump/
 new_package
 
 # default output directory for dump commands
-output
+package-dump

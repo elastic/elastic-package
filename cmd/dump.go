@@ -26,9 +26,6 @@ func setupDumpCommand() *cobraext.Command {
 		Long:  dumpInstalledObjectsLongDescription,
 		RunE:  dumpInstalledObjectsCmd,
 	}
-	dumpInstalledObjectsCmd.Flags().StringP(cobraext.DumpPackageFlagName, "p", "", cobraext.DumpPackageFlagDescription)
-	dumpInstalledObjectsCmd.MarkFlagRequired(cobraext.DumpPackageFlagName)
-	dumpInstalledObjectsCmd.Flags().StringP(cobraext.DumpOutputFlagName, "o", "output", cobraext.DumpOutputFlagDescription)
 	dumpInstalledObjectsCmd.Flags().Bool(cobraext.TLSSkipVerifyFlagName, false, cobraext.TLSSkipVerifyFlagDescription)
 
 	cmd := &cobra.Command{
@@ -36,6 +33,9 @@ func setupDumpCommand() *cobraext.Command {
 		Short: "Dump package assets",
 		Long:  dumpLongDescription,
 	}
+	cmd.PersistentFlags().StringP(cobraext.DumpPackageFlagName, "p", "", cobraext.DumpPackageFlagDescription)
+	cmd.MarkFlagRequired(cobraext.DumpPackageFlagName)
+	cmd.PersistentFlags().StringP(cobraext.DumpOutputFlagName, "o", "package-dump", cobraext.DumpOutputFlagDescription)
 
 	cmd.AddCommand(dumpInstalledObjectsCmd)
 
