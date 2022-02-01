@@ -163,30 +163,34 @@ def generateTestSignWithElasticStage() {
         withMageEnv(){
           sh(label: 'Install elastic-package',script: "make install")
           sh(label: 'Prepare for tests (build zipped packages)',script: "make build-unsigned-zip-for-tests")
-          googleStorageUpload(bucket: env.INFRA_SIGNING_BUCKET_ARTIFACTS_PATH,
-            credentialsId: env.INTERNAL_CI_JOB_GCS_CREDENTIALS,
-            pathPrefix: 'build/integrations/',
-            pattern: 'build/integrations/*.zip',
-            sharedPublicly: false,
-            showInline: true)
-          withCredentials([string(credentialsId: env.JOB_SIGNING_CREDENTIALS, variable: 'TOKEN')]) {
-            triggerRemoteJob(auth: CredentialsAuth(credentials: 'local-readonly-api-token'),
-              job: 'https://internal-ci.elastic.co/job/elastic+unified-release+master+sign-artifacts-with-gpg',
-              token: TOKEN,
-              parameters: "gcs_input_path=${env.INFRA_SIGNING_BUCKET_ARTIFACTS_PATH}",
-              useCrumbCache: true,
-              useJobInfoCache: true)
-          }
-          googleStorageDownload(bucketUri: "${env.INFRA_SIGNING_BUCKET_SIGNED_ARTIFACTS_PATH}/*",
-            credentialsId: env.INTERNAL_CI_JOB_GCS_CREDENTIALS,
-            localDirectory: "${env.INTEGRATIONS_SIGNATURES_PATH}/",
-            pathPrefix: "${env.INFRA_SIGNING_BUCKET_SIGNED_ARTIFACTS_SUBFOLDER}")
-          sh(label: 'Rename .asc to .sig', script: 'for f in ' + "${env.INTEGRATIONS_SIGNATURES_PATH}" + '/*.asc; do mv "$f" "${f%.asc}.sig"; done')
-          archiveArtifacts(artifacts: "${env.INTEGRATIONS_SIGNATURES_PATH}/*.sig")
+          signArtifactsWithElastic('build/integrations', env.INTEGRATIONS_SIGNATURES_PATH)
         }
       }
     }
   }
+}
+
+def signArtifactsWithElastic(artifactsSourcePath, signaturesDestinationPath) {
+  googleStorageUpload(bucket: env.INFRA_SIGNING_BUCKET_ARTIFACTS_PATH,
+    credentialsId: env.INTERNAL_CI_JOB_GCS_CREDENTIALS,
+    pathPrefix: artifactsSourcePath + '/',
+    pattern: artifactsSourcePath + '/*.zip',
+    sharedPublicly: false,
+    showInline: true)
+  withCredentials([string(credentialsId: env.JOB_SIGNING_CREDENTIALS, variable: 'TOKEN')]) {
+    triggerRemoteJob(auth: CredentialsAuth(credentials: 'local-readonly-api-token'),
+      job: 'https://internal-ci.elastic.co/job/elastic+unified-release+master+sign-artifacts-with-gpg',
+      token: TOKEN,
+      parameters: "gcs_input_path=${env.INFRA_SIGNING_BUCKET_ARTIFACTS_PATH}",
+      useCrumbCache: true,
+      useJobInfoCache: true)
+  }
+  googleStorageDownload(bucketUri: "${env.INFRA_SIGNING_BUCKET_SIGNED_ARTIFACTS_PATH}/*",
+    credentialsId: env.INTERNAL_CI_JOB_GCS_CREDENTIALS,
+    localDirectory: signaturesDestinationPath + '/',
+    pathPrefix: "${env.INFRA_SIGNING_BUCKET_SIGNED_ARTIFACTS_SUBFOLDER}")
+    sh(label: 'Rename .asc to .sig', script: 'for f in ' + signaturesDestinationPath + '/*.asc; do mv "$f" "${f%.asc}.sig"; done')
+    archiveArtifacts(artifacts: signaturesDestinationPath + '/*.sig')
 }
 
 def generateTestCheckSinglePackageStage(Map args = [:]) {
