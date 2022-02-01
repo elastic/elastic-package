@@ -110,7 +110,8 @@ pipeline {
                     'check-packages-other': generateTestCommandStage(command: 'test-check-packages-other', artifacts: ['build/test-results/*.xml', 'build/elastic-stack-dump/check-*/logs/*.log', 'build/elastic-stack-dump/check-*/logs/fleet-server-internal/*'], junitArtifacts: true, publishCoverage: true),
                     'build-zip': generateTestCommandStage(command: 'test-build-zip', artifacts: ['build/elastic-stack-dump/build-zip/logs/*.log', 'build/integrations/*.sig']),
                     'profiles-command': generateTestCommandStage(command: 'test-profiles-command'),
-                    'sign-with-elastic': generateTestSignWithElasticStage()
+                    'sign-with-elastic': generateTestSignWithElasticStage(),
+                    'publish-to-package-storage': generateTestPublishToPackageStorageStage()
                   ]
 
                   def checkSinglePackageTasks = generateTestCheckSinglePackageStage(artifacts: ['build/test-results/*.xml', 'build/elastic-stack-dump/check-*/logs/*.log', 'build/elastic-stack-dump/check-*/logs/fleet-server-internal/*'], junitArtifacts: true, publishCoverage: true)
@@ -163,6 +164,23 @@ def generateTestSignWithElasticStage() {
         withMageEnv(){
           sh(label: 'Install elastic-package',script: "make install")
           sh(label: 'Prepare for tests (build zipped packages)',script: "make build-unsigned-zip-for-tests")
+          signArtifactsWithElastic('build/integrations', env.INTEGRATIONS_SIGNATURES_PATH)
+        }
+      }
+    }
+  }
+}
+
+def generateTestPublishToPackageStorageStage() {
+  return {
+    withNode(labels: "ubuntu-20 && immutable", sleepMax: 20, forceWorkspace: true) {
+      cleanup()
+      dir("${BASE_DIR}"){
+        withMageEnv(){
+          sh(label: 'Install elastic-package',script: "make install")
+          dir("${test/packages/package-storage}") {
+            sh(label: 'Check package',script: "elastic-package check")
+          }
           signArtifactsWithElastic('build/integrations', env.INTEGRATIONS_SIGNATURES_PATH)
         }
       }
