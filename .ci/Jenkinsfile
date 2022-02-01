@@ -29,7 +29,7 @@ pipeline {
 
     INTEGRATIONS_SIGNATURES_PATH = 'build/integrations-elastic-signatures' // different path not to override signatures archived in the "build-zip" step
 
-    PACKAGE_STORAGE_UPLOADER_GCP_SERVICE_ACCOUNT = 'package-storage-uploader'
+    PACKAGE_STORAGE_UPLOADER_GCP_SERVICE_ACCOUNT = 'secret/gce/elastic-bekitzur/service-account/package-storage-uploader'
     PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH = "gs://elastic-bekitzur-package-storage-internal/queue-publishing/${env.REPO_BUILD_TAG}"
   }
   options {
