@@ -188,18 +188,10 @@ def generateTestPublishToPackageStorageStage() {
           signArtifactsWithElastic('build/integrations', env.INTEGRATIONS_SIGNATURES_PATH)
 
           // Add the package candidate to the "queue-publishing"
-          googleStorageUpload(bucket: env.PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH,
-            credentialsId: env.PACKAGE_STORAGE_UPLOADER_GCP_SERVICE_ACCOUNT,
-            pathPrefix: env.INTEGRATIONS_SIGNATURES_PATH + '/',
-            pattern: env.INTEGRATIONS_SIGNATURES_PATH + '/package_storage_candidate-0.0.1.zip',
-            sharedPublicly: false,
-            showInline: true)
-          googleStorageUpload(bucket: env.PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH,
-            credentialsId: env.PACKAGE_STORAGE_UPLOADER_GCP_SERVICE_ACCOUNT,
-            pathPrefix: env.INTEGRATIONS_SIGNATURES_PATH + '/',
-            pattern: env.INTEGRATIONS_SIGNATURES_PATH + '/package_storage_candidate-0.0.1.sig',
-            sharedPublicly: false,
-            showInline: true)
+          withGCPEnv(secret: env.PACKAGE_STORAGE_UPLOADER_GCP_SERVICE_ACCOUNT) {
+            sh(label: 'Upload package .zip file', script: "gsutil cp ${env.INTEGRATIONS_SIGNATURES_PATH}/package_storage_candidate-0.0.1.zip ${env.PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH}/")
+            sh(label: 'Upload package .sig file', script: "gsutil cp ${env.INTEGRATIONS_SIGNATURES_PATH}/package_storage_candidate-0.0.1.sig ${env.PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH}/")
+          }
 
           // Call the publishing job
           triggerRemoteJob(auth: CredentialsAuth(credentials: 'local-readonly-api-token'),
