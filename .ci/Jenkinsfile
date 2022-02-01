@@ -178,7 +178,7 @@ def generateTestPublishToPackageStorageStage() {
       dir("${BASE_DIR}"){
         withMageEnv(){
           sh(label: 'Install elastic-package',script: "make install")
-          dir("test/packages/package-storage") {
+          dir("test/packages/package-storage/package_storage_candidate") {
             sh(label: 'Check package',script: "elastic-package check")
           }
           signArtifactsWithElastic('build/integrations', env.INTEGRATIONS_SIGNATURES_PATH)
