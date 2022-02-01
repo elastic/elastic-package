@@ -183,7 +183,8 @@ def generateTestPublishToPackageStorageStage() {
         withMageEnv(){
           sh(label: 'Install elastic-package',script: "make install")
           dir("test/packages/package-storage/package_storage_candidate") {
-            sh(label: 'Check package',script: "elastic-package check")
+            sh(label: 'Lint package',script: "elastic-package lint")
+            sh(label: 'Build zipped package',script: "elastic-package build --zip")
           }
           signArtifactsWithElastic('build/integrations', env.INTEGRATIONS_SIGNATURES_PATH)
 
