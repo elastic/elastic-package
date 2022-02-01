@@ -10,11 +10,18 @@ import (
 	"fmt"
 	"io/ioutil"
 
+	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 )
 
 // IngestPipeline contains the information needed to export an ingest pipeline.
 type IngestPipeline struct {
+	Processors []struct {
+		Pipeline *struct {
+			Name string `json:"name"`
+		} `json:"pipeline,omitempty"`
+	} `json:"processors"`
+
 	id  string
 	raw []byte
 }
@@ -35,13 +42,20 @@ func getIngestPipelines(ctx context.Context, api *elasticsearch.API, ids ...stri
 	}
 
 	var pipelines []IngestPipeline
-	for _, id := range ids {
-		resultPipelines, err := getIngestPipelineByID(ctx, api, id)
-		if err != nil {
-			return nil, err
+	var collected []string
+	pending := ids
+	for len(pending) > 0 {
+		for _, id := range pending {
+			resultPipelines, err := getIngestPipelineByID(ctx, api, id)
+			if err != nil {
+				return nil, err
+			}
+			pipelines = append(pipelines, resultPipelines...)
 		}
-		pipelines = append(pipelines, resultPipelines...)
+		collected = append(collected, pending...)
+		pending = pendingNestedPipelines(pipelines, collected)
 	}
+
 	return pipelines, nil
 }
 
@@ -70,8 +84,35 @@ func getIngestPipelineByID(ctx context.Context, api *elasticsearch.API, id strin
 
 	var pipelines []IngestPipeline
 	for id, raw := range pipelinesResponse {
-		pipelines = append(pipelines, IngestPipeline{id: id, raw: raw})
+		var pipeline IngestPipeline
+		err := json.Unmarshal(raw, &pipeline)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode pipeline %s: %w", id, err)
+		}
+		pipeline.id = id
+		pipeline.raw = raw
+		pipelines = append(pipelines, pipeline)
 	}
 
 	return pipelines, nil
+}
+
+func pendingNestedPipelines(pipelines []IngestPipeline, collected []string) []string {
+	var names []string
+	for _, p := range pipelines {
+		for _, processor := range p.Processors {
+			if processor.Pipeline == nil {
+				continue
+			}
+			name := processor.Pipeline.Name
+			if common.StringSliceContains(collected, name) {
+				continue
+			}
+			if common.StringSliceContains(names, name) {
+				continue
+			}
+			names = append(names, name)
+		}
+	}
+	return names
 }
