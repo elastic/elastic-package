@@ -55,7 +55,7 @@ func (t IndexTemplate) JSON() []byte {
 	return []byte(t.raw)
 }
 
-// Settings returns the template settings of this template.
+// TemplateSettings returns the template settings of this template.
 func (t IndexTemplate) TemplateSettings() TemplateSettings {
 	return t.IndexTemplate.Template.Settings
 }

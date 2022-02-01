@@ -36,7 +36,7 @@ func (t ComponentTemplate) JSON() []byte {
 	return []byte(t.raw)
 }
 
-// Settings returns the template settings of this template.
+// TemplateSettings returns the template settings of this template.
 func (t ComponentTemplate) TemplateSettings() TemplateSettings {
 	return t.ComponentTemplate.Template.Settings
 }
