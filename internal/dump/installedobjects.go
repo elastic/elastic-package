@@ -241,11 +241,24 @@ func (e *InstalledObjectsDumper) dumpIngestPipelines(ctx context.Context, dir st
 
 func (e *InstalledObjectsDumper) getIngestPipelines(ctx context.Context) ([]IngestPipeline, error) {
 	if len(e.ingestPipelines) == 0 {
+		var templates []TemplateWithSettings
 		indexTemplates, err := e.getIndexTemplates(ctx)
 		if err != nil {
 			return nil, err
 		}
-		names := getIngestPipelinesFromIndexTemplates(indexTemplates)
+		for _, template := range indexTemplates {
+			templates = append(templates, template)
+		}
+
+		componentTemplates, err := e.getComponentTemplates(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, template := range componentTemplates {
+			templates = append(templates, template)
+		}
+
+		names := getIngestPipelinesFromTemplates(templates)
 		ingestPipelines, err := getIngestPipelines(ctx, e.client, names...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get ingest pipelines: %w", err)
@@ -256,17 +269,27 @@ func (e *InstalledObjectsDumper) getIngestPipelines(ctx context.Context) ([]Inge
 	return e.ingestPipelines, nil
 }
 
-func getIngestPipelinesFromIndexTemplates(indexTemplates []IndexTemplate) []string {
+type TemplateWithSettings interface {
+	TemplateSettings() TemplateSettings
+}
+
+func getIngestPipelinesFromTemplates(templates []TemplateWithSettings) []string {
 	var pipelines []string
-	for _, it := range indexTemplates {
-		pipeline := it.IndexTemplate.Template.Settings.Index.DefaultPipeline
-		if pipeline == "" {
-			continue
+	for _, template := range templates {
+		settings := template.TemplateSettings()
+		settingsPipelines := []string{
+			settings.Index.DefaultPipeline,
+			settings.Index.FinalPipeline,
 		}
-		if common.StringSliceContains(pipelines, pipeline) {
-			continue
+		for _, pipeline := range settingsPipelines {
+			if pipeline == "" {
+				continue
+			}
+			if common.StringSliceContains(pipelines, pipeline) {
+				continue
+			}
+			pipelines = append(pipelines, pipeline)
 		}
-		pipelines = append(pipelines, pipeline)
 	}
 	return pipelines
 }

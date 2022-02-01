@@ -27,15 +27,22 @@ type IndexTemplate struct {
 		} `json:"_meta"`
 		ComposedOf []string `json:"composed_of"`
 		Template   struct {
-			Settings struct {
-				Index struct {
-					DefaultPipeline string `json:"default_pipeline"`
-				} `json:"index"`
-			} `json:"settings"`
+			Settings TemplateSettings `json:"settings"`
 		} `json:"template"`
 	} `json:"index_template"`
 
 	raw json.RawMessage
+}
+
+// TemplateSettings are common settings to all kinds of templates.
+type TemplateSettings struct {
+	Index struct {
+		DefaultPipeline string `json:"default_pipeline"`
+		FinalPipeline   string `json:"final_pipeline"`
+		Lifecycle       struct {
+			Name string `json:"name"`
+		} `json:"lifecycle"`
+	} `json:"index"`
 }
 
 // Name returns the name of the index template.
@@ -46,6 +53,11 @@ func (t IndexTemplate) Name() string {
 // JSON returns the JSON representation of the index template.
 func (t IndexTemplate) JSON() []byte {
 	return []byte(t.raw)
+}
+
+// Settings returns the template settings of this template.
+func (t IndexTemplate) TemplateSettings() TemplateSettings {
+	return t.IndexTemplate.Template.Settings
 }
 
 type getIndexTemplateResponse struct {

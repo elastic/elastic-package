@@ -19,13 +19,7 @@ type ComponentTemplate struct {
 	TemplateName      string `json:"name"`
 	ComponentTemplate struct {
 		Template struct {
-			Settings struct {
-				Index struct {
-					Lifecycle struct {
-						Name string `json:"name"`
-					} `json:"lifecycle"`
-				} `json:"index"`
-			} `json:"settings"`
+			Settings TemplateSettings `json:"settings"`
 		} `json:"template"`
 	} `json:"component_template"`
 
@@ -40,6 +34,11 @@ func (t ComponentTemplate) Name() string {
 // JSON returns the JSON representation of the component template.
 func (t ComponentTemplate) JSON() []byte {
 	return []byte(t.raw)
+}
+
+// Settings returns the template settings of this template.
+func (t ComponentTemplate) TemplateSettings() TemplateSettings {
+	return t.ComponentTemplate.Template.Settings
 }
 
 type getComponentTemplateResponse struct {
