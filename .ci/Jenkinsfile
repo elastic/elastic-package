@@ -113,7 +113,7 @@ pipeline {
                     'sign-with-elastic': generateTestSignWithElasticStage()
                   ]
 
-                  def checkSinglePackageTasks = generateTestCheckSinglePackageStage(artifacts: ['build/test-results/*.xml', 'build/elastic-stack-dump/check-*/logs/*.log', 'build/elastic-stack-dump/check-*/logs/fleet-server-internal/*'], junitArtifacts: true, publishCoverage: true)
+                  def checkSinglePackageTasks = generateTestCheckSinglePackageStage()
                   def tasks = basicTasks + checkSinglePackageTasks
                   parallel tasks
                 }
@@ -190,9 +190,7 @@ def generateTestSignWithElasticStage() {
 }
 
 def generateTestCheckSinglePackageStage(Map args = [:]) {
-  def artifacts = args.get('artifacts') ? args.get('artifacts') : []
-  def junitArtifacts = args.get('junitArtifacts') ? args.get('junitArtifacts') : false
-  def publishCoverage = args.get('publishCoverage') ? args.get('publishCoverage') : false
+  def artifacts = ['build/test-results/*.xml', 'build/elastic-stack-dump/check-*/logs/*.log', 'build/elastic-stack-dump/check-*/logs/fleet-server-internal/*']
 
   def integrations = [:]
   dir("test/packages/parallel") {
@@ -216,16 +214,11 @@ def generateTestCheckSinglePackageStage(Map args = [:]) {
                artifacts.each { artifact ->
                  archiveArtifacts(allowEmptyArchive: true, artifacts: "${artifact}")
                }
+               archiveArtifactsSafe("insecure-logs/${it}", "build/elastic-stack-dump/check-${it}/logs/elastic-agent-internal/*")
+               archiveArtifactsSafe("insecure-logs/${it}/container-logs", "build/container-logs/*.log")
 
-               if (junitArtifacts) {
-                 junit(allowEmptyResults: true,
-                  keepLongStdio: true,
-                  testResults: "build/test-results/*.xml")
-               }
-
-               if (publishCoverage) {
-                 stashCoverageReport()
-               }
+               junit(allowEmptyResults: true, keepLongStdio: true, testResults: "build/test-results/*.xml")
+               stashCoverageReport()
              }
            }
          }
@@ -338,4 +331,17 @@ def withCloudTestEnv(Closure body) {
   withEnvMask(vars: maskedVars) {
     body()
   }
+}
+
+def archiveArtifactsSafe(remotePath, artifacts) {
+  r = sh(label: "areArtifactsPresent", script: "ls ${artifacts}", returnStatus: true)
+  if (r != 0) {
+    echo "areArtifactsPresent: artifacts files not found, nothing will be archived"
+    return
+  }
+
+  googleStorageUploadExt(
+    bucket: "gs://${JOB_GCS_BUCKET_INTERNAL}/${env.JOB_NAME}-${env.BUILD_ID}/${remotePath}",
+    credentialsId: "${JOB_GCS_EXT_CREDENTIALS}",
+    pattern: artifacts)
 }
