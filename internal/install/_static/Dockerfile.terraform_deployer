@@ -18,6 +18,7 @@ RUN echo "deb [arch=amd64] https://apt.releases.hashicorp.com focal main" | tee 
 HEALTHCHECK --timeout=3s CMD sh -c "[ -f /tmp/tf-applied ]"
 
 ENV TF_IN_AUTOMATION=true
+ENV TF_CLI_ARGS="-no-color"
 ADD run.sh /
 WORKDIR /workspace
 
