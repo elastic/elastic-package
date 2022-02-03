@@ -26,3 +26,6 @@ var geoIpCityMmdb string
 
 //go:embed _static/GeoLite2-Country.mmdb
 var geoIpCountryMmdb string
+
+//go:embed _static/service_tokens
+var serviceTokens string

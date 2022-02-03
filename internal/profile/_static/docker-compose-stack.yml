@@ -12,6 +12,7 @@ services:
     volumes:
       - "./elasticsearch.config.${STACK_VERSION_VARIANT}.yml:/usr/share/elasticsearch/config/elasticsearch.yml"
       - "../../../stack/ingest-geoip:/usr/share/elasticsearch/config/ingest-geoip"
+      - "../../../stack/service_tokens:/usr/share/elasticsearch/config/service_tokens"
     ports:
       - "127.0.0.1:9200:9200"
 
@@ -81,6 +82,8 @@ services:
     - "KIBANA_FLEET_SETUP=1"
     - "KIBANA_FLEET_HOST=http://kibana:5601"
     - "FLEET_SERVER_HOST=0.0.0.0"
+    - "FLEET_SERVER_SERVICE_TOKEN=AAEAAWVsYXN0aWMvZmxlZXQtc2VydmVyL2VsYXN0aWMtcGFja2FnZS1mbGVldC1zZXJ2ZXItdG9rZW46bmgtcFhoQzRRQ2FXbms2U0JySGlWQQ"
+    - "KIBANA_FLEET_SERVICE_TOKEN=AAEAAWVsYXN0aWMvZmxlZXQtc2VydmVyL2VsYXN0aWMtcGFja2FnZS1mbGVldC1zZXJ2ZXItdG9rZW46bmgtcFhoQzRRQ2FXbms2U0JySGlWQQ"
     ports:
       - "127.0.0.1:8220:8220"
 

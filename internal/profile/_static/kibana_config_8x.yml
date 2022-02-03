@@ -2,8 +2,7 @@ server.name: kibana
 server.host: "0.0.0.0"
 
 elasticsearch.hosts: [ "http://elasticsearch:9200" ]
-elasticsearch.username: elastic
-elasticsearch.password: changeme
+elasticsearch.serviceAccountToken: "AAEAAWVsYXN0aWMva2liYW5hL2VsYXN0aWMtcGFja2FnZS1raWJhbmEtdG9rZW46b2x4b051SWNRa0tYMHdXazdLWmFBdw"
 
 monitoring.ui.container.elasticsearch.enabled: true
 
@@ -13,3 +12,35 @@ xpack.fleet.agents.elasticsearch.hosts: ["http://elasticsearch:9200"]
 xpack.fleet.agents.fleet_server.hosts: ["http://fleet-server:8220"]
 
 xpack.encryptedSavedObjects.encryptionKey: "12345678901234567890123456789012"
+
+xpack.fleet.packages:
+  - name: system
+    version: latest
+  - name: elastic_agent
+    version: latest
+  - name: fleet_server
+    version: latest
+xpack.fleet.agentPolicies:
+  - name: Elastic-Agent (elastic-package)
+    id: elastic-agent-managed-ep
+    is_default: true
+    is_managed: false
+    namespace: default
+    monitoring_enabled:
+      - logs
+      - metrics
+    package_policies:
+      - name: system-1
+        id: default-system
+        package:
+          name: system
+  - name: Fleet Server (elastic-package)
+    id: fleet-server-managed-ep
+    is_default_fleet_server: true
+    is_managed: false
+    namespace: default
+    package_policies:
+      - name: fleet_server-1
+        id: default-fleet-server
+        package:
+          name: fleet_server

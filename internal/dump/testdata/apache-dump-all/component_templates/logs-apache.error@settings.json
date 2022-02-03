@@ -1,0 +1,86 @@
+{
+  "name": "logs-apache.error@settings",
+  "component_template": {
+    "template": {
+      "settings": {
+        "index": {
+          "lifecycle": {
+            "name": "logs"
+          },
+          "codec": "best_compression",
+          "mapping": {
+            "total_fields": {
+              "limit": "10000"
+            }
+          },
+          "query": {
+            "default_field": [
+              "cloud.account.id",
+              "cloud.availability_zone",
+              "cloud.instance.id",
+              "cloud.instance.name",
+              "cloud.machine.type",
+              "cloud.provider",
+              "cloud.region",
+              "cloud.project.id",
+              "cloud.image.id",
+              "container.id",
+              "container.image.name",
+              "container.name",
+              "host.architecture",
+              "host.domain",
+              "host.hostname",
+              "host.id",
+              "host.mac",
+              "host.name",
+              "host.os.family",
+              "host.os.kernel",
+              "host.os.name",
+              "host.os.platform",
+              "host.os.version",
+              "host.type",
+              "host.os.build",
+              "host.os.codename",
+              "input.type",
+              "tags",
+              "ecs.version",
+              "event.category",
+              "event.kind",
+              "event.timezone",
+              "event.type",
+              "file.path",
+              "http.request.method",
+              "http.request.referrer",
+              "http.version",
+              "log.file.path",
+              "log.level",
+              "source.address",
+              "source.as.organization.name",
+              "source.geo.city_name",
+              "source.geo.continent_name",
+              "source.geo.country_iso_code",
+              "source.geo.country_name",
+              "source.geo.region_iso_code",
+              "source.geo.region_name",
+              "tags",
+              "url.domain",
+              "url.extension",
+              "url.query",
+              "user.name",
+              "user_agent.device.name",
+              "user_agent.name",
+              "user_agent.original",
+              "user_agent.os.name",
+              "apache.error.module"
+            ]
+          }
+        }
+      }
+    },
+    "_meta": {
+      "package": {
+        "name": "apache"
+      }
+    }
+  }
+}

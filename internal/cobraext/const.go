@@ -30,6 +30,12 @@ const (
 	DeferCleanupFlagName        = "defer-cleanup"
 	DeferCleanupFlagDescription = "defer test cleanup for debugging purposes"
 
+	DumpOutputFlagName        = "output"
+	DumpOutputFlagDescription = "path to directory where exported assets will be stored"
+
+	DumpPackageFlagName        = "package"
+	DumpPackageFlagDescription = "package whose assets will be collected"
+
 	FailOnMissingFlagName        = "fail-on-missing"
 	FailOnMissingFlagDescription = "fail if tests are missing"
 

@@ -1,17 +1,24 @@
 CODE_COVERAGE_REPORT_FOLDER = $(PWD)/build/test-coverage
 CODE_COVERAGE_REPORT_NAME_UNIT = $(CODE_COVERAGE_REPORT_FOLDER)/coverage-unit-report
+VERSION_IMPORT_PATH = github.com/elastic/elastic-package/internal/version
+VERSION_COMMIT_HASH = `git describe --always --long --dirty`
+VERSION_BUILD_TIME = `date +%s`
+VERSION_TAG = `(git describe --exact-match --tags 2>/dev/null || echo '') | tr -d '\n'`
+VERSION_LDFLAGS = -X $(VERSION_IMPORT_PATH).CommitHash=$(VERSION_COMMIT_HASH) -X $(VERSION_IMPORT_PATH).BuildTime=$(VERSION_BUILD_TIME) -X $(VERSION_IMPORT_PATH).Tag=$(VERSION_TAG)
 
 .PHONY: build
 
 build:
-	go get -ldflags "-X github.com/elastic/elastic-package/internal/version.CommitHash=`git describe --always --long --dirty` -X github.com/elastic/elastic-package/internal/version.BuildTime=`date +%s`" \
-	    github.com/elastic/elastic-package
+	go build -ldflags "$(VERSION_LDFLAGS)" -o elastic-package
 
 clean:
 	rm -rf build
 
 format:
 	go run golang.org/x/tools/cmd/goimports -local github.com/elastic/elastic-package/ -w .
+
+install:
+	go install -ldflags "$(VERSION_LDFLAGS)" github.com/elastic/elastic-package
 
 lint:
 	go run honnef.co/go/tools/cmd/staticcheck ./...
@@ -45,15 +52,22 @@ test-go-ci: $(CODE_COVERAGE_REPORT_NAME_UNIT)
 test-stack-command-default:
 	./scripts/test-stack-command.sh
 
-test-stack-command-7x:
-	./scripts/test-stack-command.sh 7.16.0-SNAPSHOT
+# Oldest minor where fleet is GA.
+test-stack-command-oldest:
+	./scripts/test-stack-command.sh 7.14.2
 
-test-stack-command-8x:
+test-stack-command-7x:
+	./scripts/test-stack-command.sh 7.17.1-SNAPSHOT
+
+test-stack-command-800:
 	./scripts/test-stack-command.sh 8.0.0-SNAPSHOT
 
-test-stack-command: test-stack-command-default test-stack-command-7x test-stack-command-8x
+test-stack-command-8x:
+	./scripts/test-stack-command.sh 8.1.0-SNAPSHOT
 
-test-check-packages: test-check-packages-with-kind test-check-packages-with-other test-check-packages-with-parallel
+test-stack-command: test-stack-command-default test-stack-command-7x test-stack-command-800 test-stack-command-8x
+
+test-check-packages: test-check-packages-with-kind test-check-packages-other test-check-packages-parallel
 
 test-check-packages-with-kind:
 	PACKAGE_TEST_TYPE=with-kind ./scripts/test-check-packages.sh
@@ -61,7 +75,7 @@ test-check-packages-with-kind:
 test-check-packages-other:
 	PACKAGE_TEST_TYPE=other ./scripts/test-check-packages.sh
 
-test-check-packages-with-parallel:
+test-check-packages-parallel:
 	PACKAGE_TEST_TYPE=parallel ./scripts/test-check-packages.sh
 
 test-build-zip:
@@ -71,6 +85,9 @@ test-profiles-command:
 	./scripts/test-profiles-command.sh
 
 test: test-go test-stack-command test-check-packages test-profiles-command test-build-zip
+
+build-unsigned-zip-for-tests:
+	./scripts/build-unsigned-zip.sh
 
 check-git-clean:
 	git update-index --really-refresh
