@@ -31,4 +31,4 @@ const applicationConfigurationYml = `stack:
   image_ref_overrides:
     8.1.0-SNAPSHOT:
       # Use stable image versions for Kibana
-      kibana: ` + kibanaImageName + `@sha256:93d2b504a6d59206cfe727fbfd540394506fe39f92d44d26ab4d551461616809`
+      elastic-agent-complete: ` + elasticAgentImageName + `@sha256:a5c580573376d65ed2eba92d359b411cdae4bf52745af8e3bb8c0c91f8ce53a5`
