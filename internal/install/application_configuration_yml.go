@@ -29,4 +29,6 @@ const applicationConfigurationYml = `stack:
 
 const applicationConfigurationYml = `stack:
   image_ref_overrides:
-`
+    8.1.0-SNAPSHOT:
+      # Use stable image versions for Kibana
+      kibana: ` + kibanaImageName + `@sha256:93d2b504a6d59206cfe727fbfd540394506fe39f92d44d26ab4d551461616809`
