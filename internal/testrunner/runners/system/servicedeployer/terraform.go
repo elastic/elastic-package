@@ -78,7 +78,9 @@ func (tsd TerraformServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedServic
 
 	err = p.WaitForHealthy(opts)
 	if err != nil {
-		processServiceContainerLogs(p, opts, outCtxt.Name)
+		processServiceContainerLogs(p, compose.CommandOptions{
+			Env: opts.Env,
+		}, outCtxt.Name)
 		return nil, errors.Wrap(err, "Terraform deployer is unhealthy")
 	}
 

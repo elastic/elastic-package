@@ -90,7 +90,9 @@ func (d *DockerComposeServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedSer
 
 	err = p.WaitForHealthy(opts)
 	if err != nil {
-		processServiceContainerLogs(p, opts, outCtxt.Name)
+		processServiceContainerLogs(p, compose.CommandOptions{
+			Env: opts.Env,
+		}, outCtxt.Name)
 		return nil, errors.Wrap(err, "service is unhealthy")
 	}
 
