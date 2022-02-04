@@ -90,6 +90,7 @@ func (d *DockerComposeServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedSer
 
 	err = p.WaitForHealthy(opts)
 	if err != nil {
+		processServiceContainerLogs(p, opts, outCtxt.Name)
 		return nil, errors.Wrap(err, "service is unhealthy")
 	}
 
@@ -156,12 +157,12 @@ func (s *dockerComposeDeployedService) TearDown() error {
 		return errors.Wrap(err, "could not create Docker Compose project for service")
 	}
 
-	containerLogs, err := p.Logs(compose.CommandOptions{
+	opts := compose.CommandOptions{
 		Env: append(
 			[]string{fmt.Sprintf("%s=%s", serviceLogsDirEnv, s.ctxt.Logs.Folder.Local)},
 			s.sv.Env...),
-	})
-	s.processServiceContainerLogs(containerLogs, err)
+	}
+	processServiceContainerLogs(p, opts, s.ctxt.Name)
 
 	if err := p.Down(compose.CommandOptions{
 		Env: append(
@@ -185,9 +186,10 @@ func (s *dockerComposeDeployedService) SetContext(ctxt ServiceContext) error {
 	return nil
 }
 
-func (s *dockerComposeDeployedService) processServiceContainerLogs(content []byte, err error) {
+func processServiceContainerLogs(p *compose.Project, opts compose.CommandOptions, serviceName string) {
+	content, err := p.Logs(opts)
 	if err != nil {
-		logger.Errorf("can't export service container logs: %v", err)
+		logger.Errorf("can't export service logs: %v", err)
 		return
 	}
 
@@ -196,13 +198,13 @@ func (s *dockerComposeDeployedService) processServiceContainerLogs(content []byt
 		return
 	}
 
-	err = s.writeServiceContainerLogs(content)
+	err = writeServiceContainerLogs(serviceName, content)
 	if err != nil {
 		logger.Errorf("can't write service container logs: %v", err)
 	}
 }
 
-func (s *dockerComposeDeployedService) writeServiceContainerLogs(content []byte) error {
+func writeServiceContainerLogs(serviceName string, content []byte) error {
 	buildDir, err := builder.BuildDirectory()
 	if err != nil {
 		return errors.Wrap(err, "locating build directory failed")
@@ -214,7 +216,7 @@ func (s *dockerComposeDeployedService) writeServiceContainerLogs(content []byte)
 		return errors.Wrapf(err, "can't create directory for service container logs (path: %s)", containerLogsDir)
 	}
 
-	containerLogsFilepath := filepath.Join(containerLogsDir, fmt.Sprintf("%s-%d.log", s.ctxt.Name, time.Now().UnixNano()))
+	containerLogsFilepath := filepath.Join(containerLogsDir, fmt.Sprintf("%s-%d.log", serviceName, time.Now().UnixNano()))
 	logger.Infof("Write container logs to file: %s", containerLogsFilepath)
 	err = ioutil.WriteFile(containerLogsFilepath, content, 0644)
 	if err != nil {
