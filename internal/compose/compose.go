@@ -307,6 +307,11 @@ func (p *Project) WaitForHealthy(opts CommandOptions) error {
 				continue
 			}
 
+			// Container exited with code > 0
+			if containerDescription.State.Status == "exited" && containerDescription.State.ExitCode > 0 {
+				return fmt.Errorf("container (ID: %s) exited with code %d", containerDescription.ID, containerDescription.State.ExitCode)
+			}
+
 			// Any different status is considered unhealthy
 			healthy = false
 		}
