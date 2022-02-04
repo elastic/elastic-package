@@ -13,6 +13,7 @@ build:
 
 clean:
 	rm -rf build
+	rm -f elastic-package
 
 format:
 	go run golang.org/x/tools/cmd/goimports -local github.com/elastic/elastic-package/ -w .
