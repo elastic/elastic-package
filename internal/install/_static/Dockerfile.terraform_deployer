@@ -22,4 +22,4 @@ ENV TF_CLI_ARGS="-no-color"
 ADD run.sh /
 WORKDIR /workspace
 
-ENTRYPOINT sh /run.sh
+ENTRYPOINT bash /run.sh
