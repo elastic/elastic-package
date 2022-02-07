@@ -136,22 +136,17 @@ func getPipelineStats(body []byte, pipelines []ingest.Pipeline) (stats PipelineS
 		nodePipelines = node.Ingest.Pipelines
 	}
 	stats = make(PipelineStatsMap, len(pipelines))
+	var missing []string
 	for _, requested := range pipelines {
-		for pName, pStats := range nodePipelines {
-			if requested.Name == pName {
-				if stats[pName], err = pStats.extract(); err != nil {
-					return stats, errors.Wrapf(err, "converting pipeline %s", pName)
-				}
+		if pStats, found := nodePipelines[requested.Name]; found {
+			if stats[requested.Name], err = pStats.extract(); err != nil {
+				return stats, errors.Wrapf(err, "converting pipeline %s", requested.Name)
 			}
+		} else {
+			missing = append(missing, requested.Name)
 		}
 	}
-	if len(stats) != len(pipelines) {
-		var missing []string
-		for _, requested := range pipelines {
-			if _, found := stats[requested.Name]; !found {
-				missing = append(missing, requested.Name)
-			}
-		}
+	if len(missing) != 0 {
 		return stats, errors.Errorf("Node Stats response is missing some expected pipelines: %v", missing)
 	}
 
