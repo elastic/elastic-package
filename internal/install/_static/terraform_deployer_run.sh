@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-set -euxo pipefail
+set -euo pipefail
 
 # Terraform code may rely on content from other files than .tf files (es json, zip, html, text), so we copy all the content over
 # See more: https://github.com/elastic/elastic-package/pull/603
