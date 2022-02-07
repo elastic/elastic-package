@@ -23,6 +23,8 @@ import (
 	"github.com/elastic/elastic-package/internal/signal"
 )
 
+const waitForHealthyTimeout = 10 * time.Minute
+
 // Project represents a Docker Compose project.
 type Project struct {
 	name             string
@@ -275,58 +277,64 @@ func (p *Project) WaitForHealthy(opts CommandOptions) error {
 		return err
 	}
 
-	timeout := time.After(10 * time.Minute)
-	ticker := time.NewTicker(1 * time.Second)
+	timeout := time.Duration(waitForHealthyTimeout)
+	startTime := time.Now()
+	timeoutTime := startTime.Add(timeout)
+	interval := time.Duration(1 * time.Second)
+	healthy := true
 
 	containerIDs := strings.Split(strings.TrimSpace(b.String()), "\n")
-	for {
+	for time.Now().Before(timeoutTime) {
 		if signal.SIGINT() {
 			return errors.New("SIGINT: cancel waiting for policy assigned")
 		}
 
-		select {
-		case <-timeout:
-			return errors.New("time out waiting for healthy container")
-		case <-ticker.C:
-			healthy := true
-
-			logger.Debugf("Wait for healthy containers: %s", strings.Join(containerIDs, ","))
-			descriptions, err := docker.InspectContainers(containerIDs...)
-			if err != nil {
-				return err
-			}
-			for _, containerDescription := range descriptions {
-				logger.Debugf("Container status: %s", containerDescription.String())
-
-				// No healthcheck defined for service
-				if containerDescription.State.Status == "running" && containerDescription.State.Health == nil {
-					continue
-				}
-
-				// Service is up and running and it's healthy
-				if containerDescription.State.Status == "running" && containerDescription.State.Health.Status == "healthy" {
-					continue
-				}
-
-				// Container started and finished with exit code 0
-				if containerDescription.State.Status == "exited" && containerDescription.State.ExitCode == 0 {
-					continue
-				}
-
-				// Container exited with code > 0
-				if containerDescription.State.Status == "exited" && containerDescription.State.ExitCode > 0 {
-					return fmt.Errorf("container (ID: %s) exited with code %d", containerDescription.ID, containerDescription.State.ExitCode)
-				}
-
-				// Any different status is considered unhealthy
-				healthy = false
-			}
-
-			if healthy {
-				return nil
-			}
+		logger.Debugf("Wait for healthy containers: %s", strings.Join(containerIDs, ","))
+		descriptions, err := docker.InspectContainers(containerIDs...)
+		if err != nil {
+			return err
 		}
+		for _, containerDescription := range descriptions {
+			logger.Debugf("Container status: %s", containerDescription.String())
+
+			// No healthcheck defined for service
+			if containerDescription.State.Status == "running" && containerDescription.State.Health == nil {
+				continue
+			}
+
+			// Service is up and running and it's healthy
+			if containerDescription.State.Status == "running" && containerDescription.State.Health.Status == "healthy" {
+				continue
+			}
+
+			// Container started and finished with exit code 0
+			if containerDescription.State.Status == "exited" && containerDescription.State.ExitCode == 0 {
+				continue
+			}
+
+			// Container exited with code > 0
+			if containerDescription.State.Status == "exited" && containerDescription.State.ExitCode > 0 {
+				return fmt.Errorf("container (ID: %s) exited with code %d", containerDescription.ID, containerDescription.State.ExitCode)
+			}
+
+			// Any different status is considered unhealthy
+			healthy = false
+		}
+
+		// end loop before timeout if healthy
+		if healthy {
+			break
+		}
+
+		// NOTE: using sleep does not guarantee interval but it's ok for this use case
+		time.Sleep(interval)
 	}
+
+	if !healthy {
+		return errors.New("timeout waiting for healthy container")
+	}
+
+	return nil
 }
 
 func (p *Project) baseArgs() []string {
