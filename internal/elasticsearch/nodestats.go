@@ -2,7 +2,7 @@
 // or more contributor license agreements. Licensed under the Elastic License;
 // you may not use this file except in compliance with the Elastic License.
 
-package testrunner
+package elasticsearch
 
 import (
 	"encoding/json"
@@ -11,7 +11,6 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/elasticsearch/ingest"
 )
 
@@ -103,7 +102,7 @@ type pipelinesStatsResponse struct {
 	Nodes map[string]pipelinesStatsNode
 }
 
-func GetPipelineStats(esClient *elasticsearch.API, pipelines []ingest.Pipeline) (stats PipelineStatsMap, err error) {
+func GetPipelineStats(esClient *API, pipelines []ingest.Pipeline) (stats PipelineStatsMap, err error) {
 	statsReq := esClient.Nodes.Stats.WithFilterPath("nodes.*.ingest.pipelines")
 	resp, err := esClient.Nodes.Stats(statsReq)
 	if err != nil {
@@ -117,7 +116,7 @@ func GetPipelineStats(esClient *elasticsearch.API, pipelines []ingest.Pipeline) 
 	}
 
 	if resp.StatusCode != 200 {
-		return nil, errors.Wrapf(elasticsearch.NewError(body), "unexpected response status for Node Stats (%d): %s", resp.StatusCode, resp.Status())
+		return nil, errors.Wrapf(NewError(body), "unexpected response status for Node Stats (%d): %s", resp.StatusCode, resp.Status())
 	}
 	return getPipelineStats(body, pipelines)
 }
