@@ -147,7 +147,7 @@ func getPipelineStats(body []byte, pipelines []ingest.Pipeline) (stats PipelineS
 		}
 	}
 	if len(missing) != 0 {
-		return stats, errors.Errorf("Node Stats response is missing some expected pipelines: %v", missing)
+		return stats, errors.Errorf("Node Stats response is missing expected pipelines: %s", strings.Join(missing, ", "))
 	}
 
 	return stats, nil
