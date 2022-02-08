@@ -26,6 +26,9 @@ import (
 // waitForHealthyTimeout is the maximum duration for WaitForHealthy().
 var waitForHealthyTimeout = time.Duration(10 * time.Minute)
 
+// waitForHealthyInterval is the check interval for WaitForHealthy().
+const waitForHealthyInterval = time.Duration(1 * time.Second)
+
 // Project represents a Docker Compose project.
 type Project struct {
 	name             string
@@ -280,7 +283,6 @@ func (p *Project) WaitForHealthy(opts CommandOptions) error {
 
 	startTime := time.Now()
 	timeout := startTime.Add(waitForHealthyTimeout)
-	interval := time.Duration(1 * time.Second)
 
 	containerIDs := strings.Split(strings.TrimSpace(b.String()), "\n")
 	for time.Now().Before(timeout) {
@@ -329,7 +331,7 @@ func (p *Project) WaitForHealthy(opts CommandOptions) error {
 		}
 
 		// NOTE: using sleep does not guarantee interval but it's ok for this use case
-		time.Sleep(interval)
+		time.Sleep(waitForHealthyInterval)
 	}
 
 	if time.Now().After(timeout) {
