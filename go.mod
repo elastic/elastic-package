@@ -37,6 +37,8 @@ require (
 	k8s.io/client-go v0.23.3
 )
 
+replace github.com/elastic/package-spec => github.com/alvarezmelissa87/package-spec v0.0.0-20220207212851-39e369106dc4
+
 require (
 	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 // indirect
 	github.com/BurntSushi/toml v0.4.1 // indirect
