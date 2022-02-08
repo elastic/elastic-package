@@ -201,8 +201,9 @@ def generateTestPublishToPackageStorageStage() {
               job: 'https://internal-ci.elastic.co/view/All/job/package_storage/job/publishing-job/job/main',
               token: TOKEN,
               parameters: """
-                S3PackageBuildZipPath=${env.PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH}/package_storage_candidate-0.0.1.zip
-                S3PackageSignaturePath=${env.PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH}/package_storage_candidate-0.0.1.zip.sig
+                dry_run=true
+                gs_package_build_zip_path=${env.PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH}/package_storage_candidate-0.0.1.zip
+                gs_package_signature_path=${env.PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH}/package_storage_candidate-0.0.1.zip.sig
                 """,
               useCrumbCache: true,
               useJobInfoCache: true)
