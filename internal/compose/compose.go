@@ -23,7 +23,8 @@ import (
 	"github.com/elastic/elastic-package/internal/signal"
 )
 
-const waitForHealthyTimeout = 10 * time.Minute
+// waitForHealthyTimeout is the maximum duration for WaitForHealthy().
+var waitForHealthyTimeout = time.Duration(10 * time.Minute)
 
 // Project represents a Docker Compose project.
 type Project struct {
@@ -277,14 +278,13 @@ func (p *Project) WaitForHealthy(opts CommandOptions) error {
 		return err
 	}
 
-	timeout := time.Duration(waitForHealthyTimeout)
 	startTime := time.Now()
-	timeoutTime := startTime.Add(timeout)
+	timeout := startTime.Add(waitForHealthyTimeout)
 	interval := time.Duration(1 * time.Second)
 	healthy := true
 
 	containerIDs := strings.Split(strings.TrimSpace(b.String()), "\n")
-	for time.Now().Before(timeoutTime) {
+	for time.Now().Before(timeout) {
 		if signal.SIGINT() {
 			return errors.New("SIGINT: cancel waiting for policy assigned")
 		}
