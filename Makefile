@@ -13,6 +13,7 @@ build:
 
 clean:
 	rm -rf build
+	rm -f elastic-package
 
 format:
 	go run golang.org/x/tools/cmd/goimports -local github.com/elastic/elastic-package/ -w .
@@ -57,7 +58,7 @@ test-stack-command-oldest:
 	./scripts/test-stack-command.sh 7.14.2
 
 test-stack-command-7x:
-	./scripts/test-stack-command.sh 7.16.3-SNAPSHOT
+	./scripts/test-stack-command.sh 7.17.1-SNAPSHOT
 
 test-stack-command-800:
 	./scripts/test-stack-command.sh 8.0.0-SNAPSHOT

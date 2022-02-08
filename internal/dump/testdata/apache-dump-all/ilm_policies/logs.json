@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "modified_date": "2022-01-25T18:01:46.058Z",
+  "policy": {
+    "phases": {
+      "hot": {
+        "min_age": "0ms",
+        "actions": {
+          "rollover": {
+            "max_primary_shard_size": "50gb",
+            "max_age": "30d"
+          }
+        }
+      }
+    },
+    "_meta": {
+      "managed": true,
+      "description": "default policy for the logs index template installed by x-pack"
+    }
+  },
+  "in_use_by": {
+    "indices": [
+      ".ds-logs-elastic_agent-default-2022.01.25-000001",
+      ".ds-logs-elastic_agent.metricbeat-default-2022.01.25-000001",
+      ".ds-logs-elastic_agent.filebeat-default-2022.01.25-000001",
+      ".ds-logs-elastic_agent.fleet_server-default-2022.01.25-000001"
+    ],
+    "data_streams": [
+      "logs-elastic_agent-default",
+      "logs-elastic_agent.metricbeat-default",
+      "logs-elastic_agent.filebeat-default",
+      "logs-elastic_agent.fleet_server-default"
+    ],
+    "composable_templates": [
+      "logs-apache.access",
+      "logs-elastic_agent.apm_server",
+      "logs-system.security",
+      "logs-system.auth",
+      "logs-elastic_agent.metricbeat",
+      "logs-elastic_agent.filebeat",
+      "logs-elastic_agent.packetbeat",
+      "logs-elastic_agent.endpoint_security",
+      "logs-elastic_agent.fleet_server",
+      "logs-apache.error",
+      "logs-system.system",
+      "logs-system.application",
+      "logs-elastic_agent.osquerybeat",
+      "logs-elastic_agent.heartbeat",
+      "logs-system.syslog",
+      "logs-elastic_agent.auditbeat",
+      "logs",
+      "logs-elastic_agent"
+    ]
+  }
+}

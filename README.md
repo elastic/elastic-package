@@ -112,6 +112,12 @@ The command can help bootstrap the first draft of a package using embedded packa
 
 For details on how to create a new package, review the [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/create_new_package.md).
 
+### `elastic-package dump`
+
+_Context: global_
+
+Use this command as a exploratory tool to dump assets relevant for the package.
+
 ### `elastic-package export`
 
 _Context: package_
