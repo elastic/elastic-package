@@ -2,10 +2,6 @@
 
 set -euo pipefail
 
-# Terraform code may rely on content from other files than .tf files (es json, zip, html, text), so we copy all the content over
-# See more: https://github.com/elastic/elastic-package/pull/603
-cp -r /stage/* /workspace
-
 cleanup() {
   r=$?
 
@@ -13,7 +9,6 @@ cleanup() {
 
   exit $r
 }
-trap cleanup EXIT INT TERM
 
 gcp_auth() {
   if test -n "$(printenv "GOOGLE_CREDENTIALS")"; then
@@ -28,10 +23,20 @@ gcp_auth() {
   fi
 }
 
-terraform init
-terraform plan
-terraform apply -auto-approve && touch /tmp/tf-applied
+if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
+  trap cleanup EXIT INT TERM
 
-echo "Terraform definitions applied."
+  # Terraform code may rely on content from other files than .tf files (es json, zip, html, text), so we copy all the content over
+  # See more: https://github.com/elastic/elastic-package/pull/603
+  cp -r /stage/* /workspace
 
-while true; do sleep 1; done # wait for ctrl-c
+  gcp_auth
+
+  terraform init
+  terraform plan
+  terraform apply -auto-approve && touch /tmp/tf-applied
+
+  echo "Terraform definitions applied."
+
+  while true; do sleep 1; done # wait for ctrl-c
+fi
