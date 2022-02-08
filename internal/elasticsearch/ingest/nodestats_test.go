@@ -2,20 +2,18 @@
 // or more contributor license agreements. Licensed under the Elastic License;
 // you may not use this file except in compliance with the Elastic License.
 
-package elasticsearch
+package ingest
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-
-	"github.com/elastic/elastic-package/internal/elasticsearch/ingest"
 )
 
 func TestGetPipelineStats(t *testing.T) {
 	for _, testcase := range []struct {
 		title     string
-		pipelines []ingest.Pipeline
+		pipelines []Pipeline
 		body      string
 		expected  PipelineStatsMap
 		isErr     bool
@@ -59,7 +57,7 @@ func TestGetPipelineStats(t *testing.T) {
 						"node1": {}
 					}
 				}`,
-			pipelines: []ingest.Pipeline{
+			pipelines: []Pipeline{
 				{Name: "p"},
 			},
 			isErr: true,
@@ -80,14 +78,14 @@ func TestGetPipelineStats(t *testing.T) {
 						}
 					}
 				}`,
-			pipelines: []ingest.Pipeline{
+			pipelines: []Pipeline{
 				{Name: "p1"},
 			},
 			isErr: true,
 		},
 		{
 			title: "valid result",
-			pipelines: []ingest.Pipeline{
+			pipelines: []Pipeline{
 				{Name: "p2"},
 			},
 			body: `
