@@ -9,7 +9,6 @@ cp -r /stage/* /workspace
 cleanup() {
   r=$?
 
-  set -x
   terraform destroy -auto-approve
 
   exit $r
@@ -31,5 +30,4 @@ terraform apply -auto-approve && touch /tmp/tf-applied
 
 echo "Terraform definitions applied."
 
-set +x
 while true; do sleep 1; done # wait for ctrl-c
