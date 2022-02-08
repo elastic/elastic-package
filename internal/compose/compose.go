@@ -281,13 +281,15 @@ func (p *Project) WaitForHealthy(opts CommandOptions) error {
 	startTime := time.Now()
 	timeout := startTime.Add(waitForHealthyTimeout)
 	interval := time.Duration(1 * time.Second)
-	healthy := true
 
 	containerIDs := strings.Split(strings.TrimSpace(b.String()), "\n")
 	for time.Now().Before(timeout) {
 		if signal.SIGINT() {
 			return errors.New("SIGINT: cancel waiting for policy assigned")
 		}
+
+		// NOTE: healthy must be reinitialized at each iteration
+		healthy := true
 
 		logger.Debugf("Wait for healthy containers: %s", strings.Join(containerIDs, ","))
 		descriptions, err := docker.InspectContainers(containerIDs...)
@@ -330,7 +332,7 @@ func (p *Project) WaitForHealthy(opts CommandOptions) error {
 		time.Sleep(interval)
 	}
 
-	if !healthy {
+	if time.Now().After(timeout) {
 		return errors.New("timeout waiting for healthy container")
 	}
 
