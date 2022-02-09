@@ -23,11 +23,12 @@ import (
 	"github.com/elastic/elastic-package/internal/signal"
 )
 
-// waitForHealthyTimeout is the maximum duration for WaitForHealthy().
-var waitForHealthyTimeout = time.Duration(10 * time.Minute)
-
-// waitForHealthyInterval is the check interval for WaitForHealthy().
-const waitForHealthyInterval = time.Duration(1 * time.Second)
+const (
+	// waitForHealthyTimeout is the maximum duration for WaitForHealthy().
+	waitForHealthyTimeout = 10 * time.Minute
+	// waitForHealthyInterval is the check interval for WaitForHealthy().
+	waitForHealthyInterval = 1 * time.Second
+)
 
 // Project represents a Docker Compose project.
 type Project struct {
@@ -285,7 +286,11 @@ func (p *Project) WaitForHealthy(opts CommandOptions) error {
 	timeout := startTime.Add(waitForHealthyTimeout)
 
 	containerIDs := strings.Split(strings.TrimSpace(b.String()), "\n")
-	for time.Now().Before(timeout) {
+	for {
+		if time.Now().After(timeout) {
+			return errors.New("timeout waiting for healthy container")
+		}
+
 		if signal.SIGINT() {
 			return errors.New("SIGINT: cancel waiting for policy assigned")
 		}
@@ -298,6 +303,7 @@ func (p *Project) WaitForHealthy(opts CommandOptions) error {
 		if err != nil {
 			return err
 		}
+
 		for _, containerDescription := range descriptions {
 			logger.Debugf("Container status: %s", containerDescription.String())
 
@@ -332,10 +338,6 @@ func (p *Project) WaitForHealthy(opts CommandOptions) error {
 
 		// NOTE: using sleep does not guarantee interval but it's ok for this use case
 		time.Sleep(waitForHealthyInterval)
-	}
-
-	if time.Now().After(timeout) {
-		return errors.New("timeout waiting for healthy container")
 	}
 
 	return nil
