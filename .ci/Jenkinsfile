@@ -30,6 +30,7 @@ pipeline {
 
     INTEGRATIONS_SIGNATURES_PATH = 'build/integrations-elastic-signatures' // different path not to override signatures archived in the "build-zip" step
 
+    PACKAGE_STORAGE_UPLOADER_CREDENTIALS = 'upload-package-to-package-storage'
     PACKAGE_STORAGE_UPLOADER_GCP_SERVICE_ACCOUNT = 'secret/gce/elastic-bekitzur/service-account/package-storage-uploader'
     PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH = "gs://elastic-bekitzur-package-storage-internal/queue-publishing/${env.REPO_BUILD_TAG}"
   }
@@ -196,7 +197,7 @@ def generateTestPublishToPackageStorageStage() {
           }
 
           // Call the publishing job
-          withCredentials([string(credentialsId: env.JOB_SIGNING_CREDENTIALS, variable: 'TOKEN')]) {
+          withCredentials([string(credentialsId: env.PACKAGE_STORAGE_UPLOADER_CREDENTIALS, variable: 'TOKEN')]) {
             triggerRemoteJob(auth: CredentialsAuth(credentials: 'local-readonly-api-token'),
               job: 'https://internal-ci.elastic.co/view/All/job/package_storage/job/publishing-job/job/main',
               token: TOKEN,
