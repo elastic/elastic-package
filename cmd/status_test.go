@@ -66,6 +66,22 @@ func TestStatusFormatAndPrint(t *testing.T) {
 			expected: "./testdata/status-some-versions",
 		},
 		{
+			title: "preview versions",
+			pkgStatus: &status.PackageStatus{
+				Name: "foo",
+				Production: []packages.PackageManifest{
+					fooPackage("0.9.0"),
+				},
+				Staging: []packages.PackageManifest{
+					fooPackage("1.0.0-preview1"),
+				},
+				Snapshot: []packages.PackageManifest{
+					fooPackage("1.0.0-preview5"),
+				},
+			},
+			expected: "./testdata/status-some-versions",
+		},
+		{
 			title: "multiple versions in stage",
 			pkgStatus: &status.PackageStatus{
 				Name: "foo",

@@ -10,6 +10,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/Masterminds/semver"
 	"github.com/fatih/color"
 	"github.com/olekukonko/tablewriter"
 	"github.com/pkg/errors"
@@ -131,8 +132,9 @@ func print(p *status.PackageStatus, w io.Writer) error {
 
 	bold.Fprintln(w, "Package Versions:")
 	table := tablewriter.NewWriter(w)
-	table.SetHeader([]string{"Environment", "Version", "Title", "Description"})
+	table.SetHeader([]string{"Environment", "Version", "Release", "Title", "Description"})
 	table.SetHeaderColor(
+		twColor(tablewriter.Colors{tablewriter.Bold}),
 		twColor(tablewriter.Colors{tablewriter.Bold}),
 		twColor(tablewriter.Colors{tablewriter.Bold}),
 		twColor(tablewriter.Colors{tablewriter.Bold}),
@@ -141,6 +143,7 @@ func print(p *status.PackageStatus, w io.Writer) error {
 	table.SetColumnColor(
 		twColor(tablewriter.Colors{tablewriter.Bold, tablewriter.FgCyanColor}),
 		twColor(tablewriter.Colors{tablewriter.Bold, tablewriter.FgRedColor}),
+		tablewriter.Colors{},
 		tablewriter.Colors{},
 		tablewriter.Colors{},
 	)
@@ -166,7 +169,7 @@ func formatChangelogEntry(change changelog.Entry) []string {
 // formatManifests returns a row of data ffor a set of versioned packaged manifests
 func formatManifests(environment string, manifests []packages.PackageManifest) []string {
 	if len(manifests) == 0 {
-		return []string{environment, "-", "-", "-"}
+		return []string{environment, "-", "-", "-", "-"}
 	}
 	var extraVersions []string
 	for i, m := range manifests {
@@ -183,7 +186,7 @@ func formatManifest(environment string, manifest packages.PackageManifest, extra
 	if len(extraVersions) > 0 {
 		version = fmt.Sprintf("%s (%s)", version, strings.Join(extraVersions, ", "))
 	}
-	return []string{environment, version, manifest.Title, manifest.Description}
+	return []string{environment, version, releaseFromVersion(manifest.Version), manifest.Title, manifest.Description}
 }
 
 // twColor no-ops the color setting if we don't want to colorize the output
@@ -192,4 +195,49 @@ func twColor(colors tablewriter.Colors) tablewriter.Colors {
 		return tablewriter.Colors{}
 	}
 	return colors
+}
+
+// releaseFromVersion returns the human-friendly release level based on semantic versioning conventions.
+// It does a best-effort mapping, it doesn't do validation.
+func releaseFromVersion(version string) string {
+	const (
+		previewVersionText   = "Technical Preview"
+		betaVersionText      = "Beta"
+		releaseCandidateText = "Release Candidate"
+		gaVersion            = "GA"
+		defaultText          = betaVersionText
+	)
+
+	conventionPrereleasePrefixes := []struct {
+		prefix string
+		text   string
+	}{
+		{"beta", betaVersionText},
+		{"rc", releaseCandidateText},
+		{"preview", previewVersionText},
+	}
+
+	sv, err := semver.NewVersion(version)
+	if err != nil {
+		// Ignoring errors on version parsing here, use best-effort defaults.
+		if strings.HasPrefix(version, "0.") {
+			return previewVersionText
+		}
+		return defaultText
+	}
+
+	if sv.Major() == 0 {
+		return previewVersionText
+	}
+	if sv.Prerelease() == "" {
+		return gaVersion
+	}
+
+	for _, convention := range conventionPrereleasePrefixes {
+		if strings.HasPrefix(sv.Prerelease(), convention.prefix) {
+			return convention.text
+		}
+	}
+
+	return defaultText
 }
