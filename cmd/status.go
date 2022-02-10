@@ -63,7 +63,7 @@ func statusCommandAction(cmd *cobra.Command, args []string) error {
 		KibanaVersion: kibanaVersion,
 		Prerelease:    true,
 
-		// Deprecated
+		// Deprecated, keeping for compatibility with older versions of the registry.
 		Experimental: true,
 	}
 	packageStatus, err := getPackageStatus(packageName, options)
