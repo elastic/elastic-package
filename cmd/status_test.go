@@ -79,7 +79,7 @@ func TestStatusFormatAndPrint(t *testing.T) {
 					fooPackage("1.0.0-preview5"),
 				},
 			},
-			expected: "./testdata/status-some-versions",
+			expected: "./testdata/status-preview-versions",
 		},
 		{
 			title: "multiple versions in stage",
