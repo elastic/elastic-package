@@ -199,7 +199,7 @@ def generateTestPublishToPackageStorageStage() {
           // Call the publishing job
           withCredentials([string(credentialsId: env.PACKAGE_STORAGE_UPLOADER_CREDENTIALS, variable: 'TOKEN')]) {
             triggerRemoteJob(auth: CredentialsAuth(credentials: 'local-readonly-api-token'),
-              job: 'https://internal-ci.elastic.co/view/All/job/package_storage/job/publishing-job-remote/job/',
+              job: 'https://internal-ci.elastic.co/job/package_storage/job/publishing-job-remote',
               token: TOKEN,
               parameters: """
                 dry_run=true
