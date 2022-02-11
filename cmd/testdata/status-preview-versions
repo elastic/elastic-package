@@ -1,0 +1,11 @@
+Package: foo
+Package Versions:
++-------------+----------------+-------------------+-------+-----------------+
+| ENVIRONMENT |    VERSION     |      RELEASE      | TITLE |   DESCRIPTION   |
++-------------+----------------+-------------------+-------+-----------------+
+| Snapshot    | 1.0.0-preview5 | Technical Preview | Foo   | Foo integration |
++-------------+----------------+-------------------+-------+-----------------+
+| Staging     | 1.0.0-preview1 | Technical Preview | Foo   | Foo integration |
++-------------+----------------+-------------------+-------+-----------------+
+| Production  | 0.9.0          | Technical Preview | Foo   | Foo integration |
++-------------+----------------+-------------------+-------+-----------------+

@@ -24,7 +24,6 @@ type newPackageAnswers struct {
 	Title         string
 	Description   string
 	Categories    []string
-	Release       string
 	KibanaVersion string `survey:"kibana_version"`
 	GithubOwner   string `survey:"github_owner"`
 }
@@ -79,15 +78,6 @@ func createPackageCommandAction(cmd *cobra.Command, args []string) error {
 			Validate: survey.Required,
 		},
 		{
-			Name: "release",
-			Prompt: &survey.Select{
-				Message: "Release:",
-				Options: []string{"experimental", "beta", "ga"},
-				Default: "experimental",
-			},
-			Validate: survey.Required,
-		},
-		{
 			Name: "kibana_version",
 			Prompt: &survey.Input{
 				Message: "Kibana version constraint:",
@@ -136,7 +126,6 @@ func createPackageDescriptorFromAnswers(answers newPackageAnswers) archetype.Pac
 			Owner: packages.Owner{
 				Github: answers.GithubOwner,
 			},
-			Release:     answers.Release,
 			Description: answers.Description,
 			License:     "basic",
 			Categories:  answers.Categories,
