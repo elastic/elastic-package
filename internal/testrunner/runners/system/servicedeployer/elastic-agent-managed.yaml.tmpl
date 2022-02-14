@@ -35,6 +35,8 @@ spec:
               # If left empty KIBANA_HOST, KIBANA_FLEET_USERNAME, KIBANA_FLEET_PASSWORD are needed
             - name: FLEET_ENROLLMENT_TOKEN
               value: ""
+            - name: FLEET_TOKEN_POLICY_NAME
+              value: "{{ .elasticAgentTokenPolicyName }}"
             - name: KIBANA_HOST
               value: "http://kibana:5601"
             - name: KIBANA_FLEET_USERNAME

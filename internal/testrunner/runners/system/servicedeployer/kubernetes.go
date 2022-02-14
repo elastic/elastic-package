@@ -8,6 +8,7 @@ import (
 	"bytes"
 	_ "embed"
 	"path/filepath"
+	"strings"
 	"text/template"
 
 	"github.com/pkg/errors"
@@ -179,12 +180,22 @@ func getElasticAgentYAML(stackVersion string) ([]byte, error) {
 
 	var elasticAgentYaml bytes.Buffer
 	err = tmpl.Execute(&elasticAgentYaml, map[string]string{
-		"fleetURL":          "http://fleet-server:8220",
-		"elasticAgentImage": appConfig.StackImageRefs(stackVersion).ElasticAgent,
+		"fleetURL":                    "http://fleet-server:8220",
+		"elasticAgentImage":           appConfig.StackImageRefs(stackVersion).ElasticAgent,
+		"elasticAgentTokenPolicyName": getTokenPolicyName(stackVersion),
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "can't generate elastic agent manifest")
 	}
 
 	return elasticAgentYaml.Bytes(), nil
+}
+
+// getTokenPolicyName function returns the preconfigured policy name for the 8.x Elastic stack.
+// The logic is not present in older stacks.
+func getTokenPolicyName(stackVersion string) string {
+	if strings.HasPrefix(stackVersion, "8.") {
+		return "Elastic-Agent (elastic-package)"
+	}
+	return ""
 }
