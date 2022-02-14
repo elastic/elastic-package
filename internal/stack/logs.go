@@ -11,6 +11,7 @@ import (
 
 	"github.com/elastic/elastic-package/internal/compose"
 	"github.com/elastic/elastic-package/internal/docker"
+	"github.com/elastic/elastic-package/internal/install"
 )
 
 func dockerComposeLogs(serviceName string, snapshotFile string) ([]byte, error) {
@@ -20,6 +21,9 @@ func dockerComposeLogs(serviceName string, snapshotFile string) ([]byte, error) 
 	}
 
 	opts := compose.CommandOptions{
+		Env: newEnvBuilder().
+			withEnv(stackVariantAsEnv(install.DefaultStackVersion)).
+			build(),
 		Services: []string{serviceName},
 	}
 

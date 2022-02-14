@@ -118,7 +118,7 @@ func newPackageRegistryDockerfile(_ string, profilePath string) (*simpleFile, er
 }
 
 // ElasticAgent8xEnvFile is the .env for the 8x stack.
-const ElasticAgent8xEnvFile configFile = "elastic-agent_8x.env"
+const ElasticAgent8xEnvFile configFile = "elastic-agent.8x.env"
 
 //go:embed _static/elastic-agent_8x.env
 var elasticAgent8xEnv string
@@ -132,7 +132,7 @@ func newElasticAgent8xEnv(_ string, profilePath string) (*simpleFile, error) {
 }
 
 // ElasticAgentDefaultEnvFile is the default .env file.
-const ElasticAgentDefaultEnvFile configFile = "elastic-agent_default.env"
+const ElasticAgentDefaultEnvFile configFile = "elastic-agent.default.env"
 
 //go:embed _static/elastic-agent_default.env
 var elasticAgentDefaultEnv string
