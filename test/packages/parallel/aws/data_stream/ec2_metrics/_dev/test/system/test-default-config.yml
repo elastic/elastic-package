@@ -1,4 +1,7 @@
 wait_for_data_timeout: 20m # AWS CloudWatch may delay metrics delivery for more than 10 minutes.
+skip:
+  reason: "EC2 module fails initialization (access_key_id undefined)"
+  link: "https://github.com/elastic/integrations/issues/2692"
 vars:
   access_key_id: '{{AWS_ACCESS_KEY_ID}}'
   secret_access_key: '{{AWS_SECRET_ACCESS_KEY}}'
