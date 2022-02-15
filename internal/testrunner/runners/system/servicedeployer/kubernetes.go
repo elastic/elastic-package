@@ -191,8 +191,8 @@ func getElasticAgentYAML(stackVersion string) ([]byte, error) {
 	return elasticAgentYaml.Bytes(), nil
 }
 
-// getTokenPolicyName function returns the preconfigured policy name for the 8.x Elastic stack.
-// The logic is not present in older stacks.
+// getTokenPolicyName function returns the policy name for the 8.x Elastic stack. The agent's policy
+// is predefined in the Kibana configuration file. The logic is not present in older stacks.
 func getTokenPolicyName(stackVersion string) string {
 	if strings.HasPrefix(stackVersion, "8.") {
 		return "Elastic-Agent (elastic-package)"
