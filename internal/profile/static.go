@@ -115,5 +115,32 @@ func newPackageRegistryDockerfile(_ string, profilePath string) (*simpleFile, er
 		path: filepath.Join(profilePath, profileStackPath, string(PackageRegistryDockerfileFile)),
 		body: packageRegistryDockerfile,
 	}, nil
+}
 
+// ElasticAgent8xEnvFile is the .env for the 8x stack.
+const ElasticAgent8xEnvFile configFile = "elastic-agent.8x.env"
+
+//go:embed _static/elastic-agent_8x.env
+var elasticAgent8xEnv string
+
+func newElasticAgent8xEnv(_ string, profilePath string) (*simpleFile, error) {
+	return &simpleFile{
+		name: string(ElasticAgent8xEnvFile),
+		path: filepath.Join(profilePath, profileStackPath, string(ElasticAgent8xEnvFile)),
+		body: elasticAgent8xEnv,
+	}, nil
+}
+
+// ElasticAgentDefaultEnvFile is the default .env file.
+const ElasticAgentDefaultEnvFile configFile = "elastic-agent.default.env"
+
+//go:embed _static/elastic-agent_default.env
+var elasticAgentDefaultEnv string
+
+func newElasticAgentDefaultEnv(_ string, profilePath string) (*simpleFile, error) {
+	return &simpleFile{
+		name: string(ElasticAgentDefaultEnvFile),
+		path: filepath.Join(profilePath, profileStackPath, string(ElasticAgentDefaultEnvFile)),
+		body: elasticAgentDefaultEnv,
+	}, nil
 }

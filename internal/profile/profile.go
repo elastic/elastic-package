@@ -36,6 +36,8 @@ type configFile string
 // managedProfileFiles is the list of all files managed in a profile
 // If you create a new file that's managed by a profile, it needs to go in this list
 var managedProfileFiles = map[configFile]NewConfig{
+	ElasticAgentDefaultEnvFile:     newElasticAgentDefaultEnv,
+	ElasticAgent8xEnvFile:          newElasticAgent8xEnv,
 	ElasticsearchConfigDefaultFile: newElasticsearchConfigDefault,
 	ElasticsearchConfig8xFile:      newElasticsearchConfig8x,
 	KibanaConfigDefaultFile:        newKibanaConfigDefault,

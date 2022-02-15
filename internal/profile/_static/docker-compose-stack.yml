@@ -103,10 +103,7 @@ services:
       retries: 180
       interval: 1s
     hostname: docker-fleet-agent
-    environment:
-    - "FLEET_ENROLL=1"
-    - "FLEET_INSECURE=1"
-    - "FLEET_URL=http://fleet-server:8220"
+    env_file: "./elastic-agent.${STACK_VERSION_VARIANT}.env"
     volumes:
     - type: bind
       source: ../../../tmp/service_logs/
