@@ -49,7 +49,7 @@ func (tcd *testCoverageDetails) withTestResults(results []TestResult) *testCover
 		}
 		tcd.dataStreams[result.DataStream] = append(tcd.dataStreams[result.DataStream], result.Name)
 		if tcd.cobertura != nil && result.Coverage != nil {
-			if err := tcd.cobertura.Merge(result.Coverage); err != nil {
+			if err := tcd.cobertura.merge(result.Coverage); err != nil {
 				tcd.errors = append(tcd.errors, errors.Wrapf(err, "can't merge Cobertura coverage for test `%s`", result.Name))
 			}
 		} else if tcd.cobertura == nil {
@@ -132,8 +132,8 @@ func (c *CoberturaCoverage) bytes() ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
-// Merge merges two coverage reports for a given class.
-func (c *CoberturaClass) Merge(b *CoberturaClass) error {
+// merge merges two coverage reports for a given class.
+func (c *CoberturaClass) merge(b *CoberturaClass) error {
 	// Check preconditions: classes should be the same.
 	equal := c.Name == b.Name &&
 		c.Filename == b.Filename &&
@@ -164,8 +164,8 @@ func (c *CoberturaClass) Merge(b *CoberturaClass) error {
 	return nil
 }
 
-// Merge merges two coverage reports for a given package.
-func (p *CoberturaPackage) Merge(b *CoberturaPackage) error {
+// merge merges two coverage reports for a given package.
+func (p *CoberturaPackage) merge(b *CoberturaPackage) error {
 	// Merge classes
 	for _, class := range b.Classes {
 		var target *CoberturaClass
@@ -176,7 +176,7 @@ func (p *CoberturaPackage) Merge(b *CoberturaPackage) error {
 			}
 		}
 		if target != nil {
-			if err := target.Merge(class); err != nil {
+			if err := target.merge(class); err != nil {
 				return err
 			}
 		} else {
@@ -186,8 +186,8 @@ func (p *CoberturaPackage) Merge(b *CoberturaPackage) error {
 	return nil
 }
 
-// Merge merges two coverage reports.
-func (c *CoberturaCoverage) Merge(b *CoberturaCoverage) error {
+// merge merges two coverage reports.
+func (c *CoberturaCoverage) merge(b *CoberturaCoverage) error {
 	// Merge source paths
 	for _, path := range b.Sources {
 		found := false
@@ -211,7 +211,7 @@ func (c *CoberturaCoverage) Merge(b *CoberturaCoverage) error {
 			}
 		}
 		if target != nil {
-			if err := target.Merge(pkg); err != nil {
+			if err := target.merge(pkg); err != nil {
 				return err
 			}
 		} else {
