@@ -10,15 +10,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/builder"
-	"github.com/elastic/elastic-package/internal/elasticsearch/ingest"
 	"github.com/elastic/elastic-package/internal/multierror"
-	"github.com/elastic/elastic-package/internal/packages"
 )
 
 const coverageDtd = `<!DOCTYPE coverage SYSTEM "http://cobertura.sourceforge.net/xml/coverage-04.dtd">`
@@ -400,122 +397,4 @@ func testCoverageReportsDir() (string, error) {
 		return "", errors.Wrap(err, "locating build directory failed")
 	}
 	return filepath.Join(buildDir, "test-coverage"), nil
-}
-
-// GetPipelineCoverage returns a coverage report for the provided set of ingest pipelines.
-func GetPipelineCoverage(options TestOptions, pipelines []ingest.Pipeline) (*CoberturaCoverage, error) {
-	packagePath, err := packages.MustFindPackageRoot()
-	if err != nil {
-		return nil, errors.Wrap(err, "error finding package root")
-	}
-
-	dataStreamPath, found, err := packages.FindDataStreamRootForPath(options.TestFolder.Path)
-	if err != nil {
-		return nil, errors.Wrap(err, "locating data_stream root failed")
-	}
-	if !found {
-		return nil, errors.New("data stream root not found")
-	}
-
-	// Use the Node Stats API to get stats for all installed pipelines.
-	// These stats contain hit counts for all main processors in a pipeline.
-	stats, err := ingest.GetPipelineStats(options.API, pipelines)
-	if err != nil {
-		return nil, errors.Wrap(err, "error fetching pipeline stats for code coverage calculations")
-	}
-
-	// Construct the Cobertura report.
-	pkg := &CoberturaPackage{
-		Name: options.TestFolder.Package + "." + options.TestFolder.DataStream,
-	}
-
-	coverage := &CoberturaCoverage{
-		Sources: []*CoberturaSource{
-			{
-				Path: packagePath,
-			},
-		},
-		Packages:  []*CoberturaPackage{pkg},
-		Timestamp: time.Now().UnixNano(),
-	}
-
-	// Calculate coverage for each pipeline
-	for _, pipeline := range pipelines {
-		covered, class, err := coverageForSinglePipeline(pipeline, stats, packagePath, dataStreamPath)
-		if err != nil {
-			return nil, errors.Wrapf(err, "error calculating coverage for pipeline '%s'", pipeline.Filename())
-		}
-		pkg.Classes = append(pkg.Classes, class)
-		coverage.LinesValid += int64(len(class.Methods))
-		coverage.LinesCovered += covered
-	}
-	return coverage, nil
-}
-
-func coverageForSinglePipeline(pipeline ingest.Pipeline, stats ingest.PipelineStatsMap, packagePath, dataStreamPath string) (linesCovered int64, class *CoberturaClass, err error) {
-	// Load the list of main processors from the pipeline source code, annotated with line numbers.
-	src, err := pipeline.Processors()
-	if err != nil {
-		return 0, nil, err
-	}
-
-	pstats, found := stats[pipeline.Name]
-	if !found {
-		return 0, nil, errors.Errorf("pipeline '%s' not installed in Elasticsearch", pipeline.Name)
-	}
-
-	// Ensure there is no inconsistency in the list of processors in stats vs obtained from source.
-	if len(src) != len(pstats.Processors) {
-		return 0, nil, errors.Errorf("processor count mismatch for %s (src:%d stats:%d)", pipeline.Filename(), len(src), len(pstats.Processors))
-	}
-	for idx, st := range pstats.Processors {
-		// Check that we have the expected type of processor, except for `compound` processors.
-		// Elasticsearch will return a `compound` processor in the case of `foreach` and
-		// any processor that defines `on_failure` processors.
-		if st.Type != "compound" && st.Type != src[idx].Type {
-			return 0, nil, errors.Errorf("processor type mismatch for %s processor %d (src:%s stats:%s)", pipeline.Filename(), idx, src[idx].Type, st.Type)
-		}
-	}
-
-	// Tests install pipelines as `filename-<nonce>` (without original extension).
-	// Use the filename part for the report.
-	pipelineName := pipeline.Name
-	if nameEnd := strings.LastIndexByte(pipelineName, '-'); nameEnd != -1 {
-		pipelineName = pipelineName[:nameEnd]
-	}
-
-	// File path has to be relative to the packagePath added to the cobertura Sources list
-	// so that the source is reachable by the report tool.
-	pipelinePath := filepath.Join(dataStreamPath, "elasticsearch", "ingest_pipeline", pipeline.Filename())
-	pipelineRelPath, err := filepath.Rel(packagePath, pipelinePath)
-	if err != nil {
-		return 0, nil, errors.Wrapf(err, "cannot create relative path to pipeline file. Package root: '%s', pipeline path: '%s'", packagePath, pipelinePath)
-	}
-
-	// Report every pipeline as a "class".
-	class = &CoberturaClass{
-		Name:     pipelineName,
-		Filename: pipelineRelPath,
-	}
-
-	// Calculate covered and total processors (reported as both lines and methods).
-	for idx, srcProc := range src {
-		if pstats.Processors[idx].Stats.Count > 0 {
-			linesCovered++
-		}
-		method := CoberturaMethod{
-			Name: srcProc.Type,
-			Hits: pstats.Processors[idx].Stats.Count,
-		}
-		for num := srcProc.FirstLine; num <= srcProc.LastLine; num++ {
-			line := &CoberturaLine{
-				Number: num,
-				Hits:   pstats.Processors[idx].Stats.Count,
-			}
-			class.Lines = append(class.Lines, line)
-			method.Lines = append(method.Lines, line)
-		}
-		class.Methods = append(class.Methods, &method)
-	}
-	return linesCovered, class, nil
 }

@@ -157,7 +157,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		}
 
 		if r.options.WithCoverage {
-			tr.Coverage, err = testrunner.GetPipelineCoverage(r.options, r.pipelines)
+			tr.Coverage, err = GetPipelineCoverage(r.options, r.pipelines)
 			if err != nil {
 				return nil, errors.Wrap(err, "error calculating pipeline coverage")
 			}
