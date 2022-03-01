@@ -73,10 +73,6 @@ pipeline {
                 sh(label: 'Check',script: 'make check-static')
               }
             }
-            // IMPORTANT: notify a build status in order to avoid GitHub checks with a wrong status.
-            whenTrue(matchesPrLabel(label: 'skip-ci')) {
-              error 'Pull Request has been configured to be disabled when there is a skip-ci label match'
-            }
           }
         }
         /**
@@ -157,6 +153,10 @@ pipeline {
   }
   post {
     always {
+      // IMPORTANT: notify a build status in order to avoid GitHub checks with a wrong status.
+      whenTrue(matchesPrLabel(label: 'skip-ci')) {
+        error 'Pull Request has been configured to be disabled when there is a skip-ci label match'
+      }
       publishCoverageReports()
     }
     cleanup {
