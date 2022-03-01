@@ -73,12 +73,20 @@ pipeline {
                 sh(label: 'Check',script: 'make check-static')
               }
             }
+            // IMPORTANT: notify a build status in order to avoid GitHub checks with a wrong status.
+            whenTrue(matchesPrLabel(label: 'skip-ci')) {
+              error 'Pull Request has been configured to be disabled when there is a skip-ci label match'
+            }
           }
         }
         /**
         Run the unit tests suite
         */
         stage('Unit tests') {
+          when {
+            beforeAgent true
+            not { expression { matchesPrLabel(label: 'skip-ci') } }
+          }
           steps {
             cleanup()
             dir("${BASE_DIR}"){
@@ -98,6 +106,10 @@ pipeline {
           }
         }
         stage('Integration tests') {
+          when {
+            beforeAgent true
+            not { expression { matchesPrLabel(label: 'skip-ci') } }
+          }
           failFast true
           options { skipDefaultCheckout() }
           steps {
