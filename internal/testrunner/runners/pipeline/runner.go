@@ -337,20 +337,24 @@ func verifyFieldsInTestResult(result *testResult, fieldsValidator *fields.Valida
 }
 
 func checkErrorMessage(event json.RawMessage) error {
-	var pipelineError = struct {
+	var pipelineError struct {
 		Error struct {
-			Message string
+			Message interface{}
 		}
-	}{}
+	}
 	err := json.Unmarshal(event, &pipelineError)
 	if err != nil {
-		return errors.Wrap(err, "can't unmarshal event to check pipeline error")
+		return errors.Wrapf(err, "can't unmarshal event to check pipeline error: %#q", event)
 	}
 
-	if pipelineError.Error.Message != "" {
-		return fmt.Errorf("unexpected pipeline error: %s", pipelineError.Error.Message)
+	switch m := pipelineError.Error.Message.(type) {
+	case nil:
+		return nil
+	case string, []string:
+		return fmt.Errorf("unexpected pipeline error: %s", m)
+	default:
+		return fmt.Errorf("unexpected pipeline error (unexpected error.message type %T): %[1]v", m)
 	}
-	return nil
 }
 
 func init() {
