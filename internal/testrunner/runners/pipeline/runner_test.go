@@ -6,6 +6,8 @@ package pipeline
 
 import (
 	"encoding/json"
+	"fmt"
+	"reflect"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -314,6 +316,62 @@ func TestDiffUlite(t *testing.T) {
 			got := diffUlite(test.a, test.b, test.u)
 			if got != test.want {
 				t.Errorf("unexpected result\n%s", cmp.Diff(got, test.want))
+			}
+		})
+	}
+}
+
+var jsonUnmarshalUsingNumberTests = []struct {
+	name string
+	msg  string
+	want interface{}
+}{
+	{
+		name: "empty",
+		msg:  "", // Will error "unexpected end of JSON input".
+	},
+	{
+		name: "string",
+		msg:  `"message"`,
+		want: "message",
+	},
+	{
+		name: "long",
+		msg:  "9223372036854773807",
+		want: json.Number("9223372036854773807"),
+	},
+	{
+		name: "array",
+		msg:  "[1,2,3,4,5]",
+		want: []interface{}{json.Number("1"), json.Number("2"), json.Number("3"), json.Number("4"), json.Number("5")},
+	},
+	{
+		name: "object",
+		msg:  `{"key":42}`,
+		want: map[string]interface{}{"key": json.Number("42")},
+	},
+	{
+		name: "object",
+		msg:  `{"key":42}answer`, // Will error "invalid character 'a' after top-level value".
+	},
+}
+
+func TestJsonUnmarshalUsingNumberTests(t *testing.T) {
+	for _, test := range jsonUnmarshalUsingNumberTests {
+		t.Run(test.name, func(t *testing.T) {
+			var got interface{}
+			err := jsonUnmarshalUsingNumber([]byte(test.msg), &got)
+			jerr := json.Unmarshal([]byte(test.msg), new(interface{}))
+
+			// String comparison because we are not returning a real json.SyntaxError.
+			if fmt.Sprint(err) != fmt.Sprint(jerr) {
+				t.Errorf("unexpected error: got:%#v want:%#v", err, jerr)
+			}
+			if err != nil {
+				return
+			}
+			if !reflect.DeepEqual(got, test.want) {
+				t.Errorf("unexpected result: got:%v want:%v", got, test.want)
 			}
 		})
 	}

@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -188,7 +189,7 @@ func adjustTestResult(result *testResult, config *testConfig) (*testResult, erro
 		}
 
 		var m common.MapStr
-		err := json.Unmarshal(event, &m)
+		err := jsonUnmarshalUsingNumber(event, &m)
 		if err != nil {
 			return nil, errors.Wrapf(err, "can't unmarshal event: %s", string(event))
 		}
@@ -212,7 +213,7 @@ func adjustTestResult(result *testResult, config *testConfig) (*testResult, erro
 
 func unmarshalTestResult(body []byte) (*testResult, error) {
 	var trd testResultDefinition
-	err := json.Unmarshal(body, &trd)
+	err := jsonUnmarshalUsingNumber(body, &trd)
 	if err != nil {
 		return nil, errors.Wrap(err, "unmarshalling test result failed")
 	}
@@ -220,6 +221,33 @@ func unmarshalTestResult(body []byte) (*testResult, error) {
 	var tr testResult
 	tr.events = append(tr.events, trd.Expected...)
 	return &tr, nil
+}
+
+// jsonUnmarshalUsingNumber is a drop-in replacement for json.Unmarshal that
+// does not default to unmarshaling numeric values to float64.
+func jsonUnmarshalUsingNumber(data []byte, v interface{}) error {
+	dec := json.NewDecoder(bytes.NewReader(data))
+	dec.UseNumber()
+	err := dec.Decode(v)
+	if err != nil {
+		if err == io.EOF {
+			return errors.New("unexpected end of JSON input")
+		}
+		return err
+	}
+	// Make sure there is no invalid syntax after the message
+	// to match json.Unmarshal's behaviour.
+	remains, err := io.ReadAll(dec.Buffered())
+	if err != nil {
+		return err
+	}
+	for _, b := range remains {
+		if b > ' ' || (b != ' ' && b != '\t' && b != '\r' && b != '\n') {
+			// Mimic encoding/json error for this case, but without rigmarole.
+			return fmt.Errorf("invalid character %q after top-level value", b)
+		}
+	}
+	return nil
 }
 
 func marshalTestResultDefinition(result *testResult) ([]byte, error) {
@@ -241,7 +269,7 @@ func marshalNormalizedJSON(v testResultDefinition) ([]byte, error) {
 		return msg, err
 	}
 	var obj interface{}
-	err = json.Unmarshal(msg, &obj)
+	err = jsonUnmarshalUsingNumber(msg, &obj)
 	if err != nil {
 		return msg, err
 	}

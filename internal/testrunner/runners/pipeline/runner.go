@@ -103,6 +103,8 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		}
 		startTime := time.Now()
 
+		// TODO: Add tests to cover regressive use of json.Unmarshal in loadTestCaseFile.
+		// See https://github.com/elastic/elastic-package/pull/717.
 		tc, err := r.loadTestCaseFile(testCaseFile)
 		if err != nil {
 			err := errors.Wrap(err, "loading test case failed")
@@ -141,6 +143,8 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 			return nil, errors.Wrapf(err, "creating fields validator for data stream failed (path: %s, test case file: %s)", dataStreamPath, testCaseFile)
 		}
 
+		// TODO: Add tests to cover regressive use of json.Unmarshal in verifyResults.
+		// See https://github.com/elastic/elastic-package/pull/717.
 		err = r.verifyResults(testCaseFile, tc.config, result, fieldsValidator)
 		if e, ok := err.(testrunner.ErrTestCaseFailed); ok {
 			tr.FailureMsg = e.Error()
@@ -226,6 +230,8 @@ func (r *runner) verifyResults(testCaseFile string, config *testConfig, result *
 	testCasePath := filepath.Join(r.options.TestFolder.Path, testCaseFile)
 
 	if r.options.GenerateTestResult {
+		// TODO: Add tests to cover regressive use of json.Unmarshal in writeTestResult.
+		// See https://github.com/elastic/elastic-package/pull/717.
 		err := writeTestResult(testCasePath, result)
 		if err != nil {
 			return errors.Wrap(err, "writing test result failed")
@@ -275,7 +281,7 @@ func verifyDynamicFields(result *testResult, config *testConfig) error {
 	var multiErr multierror.Error
 	for _, event := range result.events {
 		var m common.MapStr
-		err := json.Unmarshal(event, &m)
+		err := jsonUnmarshalUsingNumber(event, &m)
 		if err != nil {
 			return errors.Wrap(err, "can't unmarshal event")
 		}
@@ -342,7 +348,7 @@ func checkErrorMessage(event json.RawMessage) error {
 			Message interface{}
 		}
 	}
-	err := json.Unmarshal(event, &pipelineError)
+	err := jsonUnmarshalUsingNumber(event, &pipelineError)
 	if err != nil {
 		return errors.Wrapf(err, "can't unmarshal event to check pipeline error: %#q", event)
 	}
