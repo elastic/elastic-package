@@ -206,7 +206,7 @@ def generateTestPublishToPackageStorageStage() {
                 gs_package_signature_path=${env.PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH}/package_storage_candidate-0.0.1.zip.sig
                 """,
               useCrumbCache: false,
-              useJobInfoCache: true)
+              useJobInfoCache: false)
           }
         }
       }
@@ -227,7 +227,7 @@ def signArtifactsWithElastic(artifactsSourcePath, signaturesDestinationPath) {
       token: TOKEN,
       parameters: "gcs_input_path=${env.INFRA_SIGNING_BUCKET_ARTIFACTS_PATH}",
       useCrumbCache: false,
-      useJobInfoCache: true)
+      useJobInfoCache: false)
   }
   googleStorageDownload(bucketUri: "${env.INFRA_SIGNING_BUCKET_SIGNED_ARTIFACTS_PATH}/*",
     credentialsId: env.INTERNAL_CI_JOB_GCS_CREDENTIALS,
