@@ -114,7 +114,6 @@ pipeline {
                     'check-packages-other': generateTestCommandStage(command: 'test-check-packages-other', artifacts: ['build/test-results/*.xml', 'build/elastic-stack-dump/check-*/logs/*.log', 'build/elastic-stack-dump/check-*/logs/fleet-server-internal/*'], junitArtifacts: true, publishCoverage: true),
                     'build-zip': generateTestCommandStage(command: 'test-build-zip', artifacts: ['build/elastic-stack-dump/build-zip/logs/*.log', 'build/integrations/*.sig']),
                     'profiles-command': generateTestCommandStage(command: 'test-profiles-command'),
-                    'sign-with-elastic': generateTestSignWithElasticStage(),
                     'publish-to-package-storage': generateTestPublishToPackageStorageStage()
                   ]
 
@@ -160,22 +159,6 @@ def cleanup(){
   unstash 'source'
 }
 
-def generateTestSignWithElasticStage() {
-  return {
-    withNode(labels: "ubuntu-20 && immutable", sleepMax: 20, forceWorkspace: true) {
-      cleanup()
-      dir("${BASE_DIR}"){
-        withMageEnv(){
-          sh(label: 'Install elastic-package',script: "make install")
-          sh(label: 'Prepare for tests (build zipped packages)',script: "make build-unsigned-zip-for-tests")
-          signArtifactsWithElastic('build/integrations', env.INTEGRATIONS_SIGNATURES_PATH)
-          archiveArtifacts(artifacts: env.INTEGRATIONS_SIGNATURES_PATH + '/*.sig')
-        }
-      }
-    }
-  }
-}
-
 def generateTestPublishToPackageStorageStage() {
   return {
     withNode(labels: "ubuntu-20 && immutable", sleepMax: 20, forceWorkspace: true) {
@@ -205,8 +188,8 @@ def generateTestPublishToPackageStorageStage() {
                 gs_package_build_zip_path=${env.PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH}/package_storage_candidate-0.0.1.zip
                 gs_package_signature_path=${env.PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH}/package_storage_candidate-0.0.1.zip.sig
                 """,
-              useCrumbCache: true,
-              useJobInfoCache: true)
+              useCrumbCache: false,
+              useJobInfoCache: false)
           }
         }
       }
@@ -226,8 +209,8 @@ def signArtifactsWithElastic(artifactsSourcePath, signaturesDestinationPath) {
       job: 'https://internal-ci.elastic.co/job/elastic+unified-release+master+sign-artifacts-with-gpg',
       token: TOKEN,
       parameters: "gcs_input_path=${env.INFRA_SIGNING_BUCKET_ARTIFACTS_PATH}",
-      useCrumbCache: true,
-      useJobInfoCache: true)
+      useCrumbCache: false,
+      useJobInfoCache: false)
   }
   googleStorageDownload(bucketUri: "${env.INFRA_SIGNING_BUCKET_SIGNED_ARTIFACTS_PATH}/*",
     credentialsId: env.INTERNAL_CI_JOB_GCS_CREDENTIALS,
