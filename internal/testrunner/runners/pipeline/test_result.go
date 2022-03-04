@@ -21,6 +21,10 @@ import (
 
 const expectedTestResultSuffix = "-expected.json"
 
+// diffContext is the number of context lines to show for diffs in test case
+// mismatches. It is the equivalent of -U in a unified diff.
+const diffContext = 3
+
 type testResult struct {
 	events []json.RawMessage
 }
@@ -65,7 +69,7 @@ func compareResults(testCasePath string, config *testConfig, result *testResult)
 		return errors.Wrap(err, "marshalling expected test results failed")
 	}
 
-	report := diffUlite(string(expected), string(actual), 3)
+	report := diffUlite(string(expected), string(actual), diffContext)
 	if report != "" {
 		return testrunner.ErrTestCaseFailed{
 			Reason:  "Expected results are different from actual ones",
