@@ -5,10 +5,12 @@
 package pipeline
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/kylelemons/godebug/diff"
 	"github.com/pkg/errors"
@@ -18,6 +20,10 @@ import (
 )
 
 const expectedTestResultSuffix = "-expected.json"
+
+// diffContext is the number of context lines to show for diffs in test case
+// mismatches. It is the equivalent of -U in a unified diff.
+const diffContext = 3
 
 type testResult struct {
 	events []json.RawMessage
@@ -63,7 +69,7 @@ func compareResults(testCasePath string, config *testConfig, result *testResult)
 		return errors.Wrap(err, "marshalling expected test results failed")
 	}
 
-	report := diff.Diff(string(expected), string(actual))
+	report := diffUlite(string(expected), string(actual), diffContext)
 	if report != "" {
 		return testrunner.ErrTestCaseFailed{
 			Reason:  "Expected results are different from actual ones",
@@ -71,6 +77,79 @@ func compareResults(testCasePath string, config *testConfig, result *testResult)
 		}
 	}
 	return nil
+}
+
+// diffUlite implements a unified diff-like rendering with u lines of context.
+// It differs from a complete unified diff in that it does not provide the length
+// of the chunk, so it cannot be used to generate patches, but can be used for
+// human inspection.
+func diffUlite(a, b string, u int) string {
+	chunks := diff.DiffChunks(strings.Split(a, "\n"), strings.Split(b, "\n"))
+	if len(chunks) == 0 {
+		return ""
+	}
+
+	buf := new(bytes.Buffer)
+	fmt.Fprintf(buf, "--- want\n+++ got\n")
+	gotLine := 1
+	wantLine := 1
+
+	for i, c := range chunks {
+		if i == 0 && (len(c.Added) != 0 || len(c.Deleted) != 0) {
+			fmt.Fprintf(buf, "@@ -%d +%d @@\n", wantLine, gotLine)
+		}
+		var change bool
+		for _, line := range c.Added {
+			change = true
+			fmt.Fprintf(buf, "+ %s\n", line)
+		}
+		gotLine += len(c.Added)
+
+		for _, line := range c.Deleted {
+			change = true
+			fmt.Fprintf(buf, "- %s\n", line)
+		}
+		wantLine += len(c.Deleted)
+
+		var used int
+		if change {
+			used = min(len(c.Equal), u)
+			for _, line := range c.Equal[:used] {
+				fmt.Fprintf(buf, "  %s\n", line)
+			}
+		}
+		if i < len(chunks)-1 {
+			next := chunks[i+1]
+			if len(next.Added) != 0 || len(next.Deleted) != 0 {
+				off := max(used, len(c.Equal)-u)
+				if off < len(c.Equal) {
+					if i == 0 || 2*u < len(c.Equal) {
+						fmt.Fprintf(buf, "@@ -%d +%d @@\n", wantLine+off, gotLine+off)
+					}
+					for _, line := range c.Equal[off:] {
+						fmt.Fprintf(buf, "  %s\n", line)
+					}
+				}
+			}
+		}
+		gotLine += len(c.Equal)
+		wantLine += len(c.Equal)
+	}
+	return strings.TrimRight(buf.String(), "\n")
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }
 
 func readExpectedTestResult(testCasePath string, config *testConfig) (*testResult, error) {
