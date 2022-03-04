@@ -114,10 +114,8 @@ func diffUlite(a, b string, u int) string {
 		var used int
 		if change {
 			used = min(len(c.Equal), u)
-			for j, line := range c.Equal[:used] {
-				if j < used-1 || line != "" {
-					fmt.Fprintf(buf, "  %s\n", line)
-				}
+			for _, line := range c.Equal[:used] {
+				fmt.Fprintf(buf, "  %s\n", line)
 			}
 		}
 		if i < len(chunks)-1 {

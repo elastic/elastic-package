@@ -109,7 +109,8 @@ e
   c
   d
 - e change
-+ e`,
++ e
+  `,
 	},
 	{
 		name: "middle",
@@ -240,7 +241,8 @@ m
   k
 - l
 + l change
-  m`,
+  m
+  `,
 	},
 	{
 		name: "far pair addition",
@@ -301,7 +303,8 @@ m
   k
 - l
 + l change
-  m`,
+  m
+  `,
 	},
 }
 
@@ -310,7 +313,7 @@ func TestDiffUlite(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			got := diffUlite(test.a, test.b, test.u)
 			if got != test.want {
-				t.Errorf("unexpected result for\n%s", cmp.Diff(got, test.want))
+				t.Errorf("unexpected result\n%s", cmp.Diff(got, test.want))
 			}
 		})
 	}
