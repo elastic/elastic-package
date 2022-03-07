@@ -62,8 +62,6 @@ func TestMain(m *testing.M) {
 }
 
 func TestScripts(t *testing.T) {
-	t.Parallel()
-
 	p := testscript.Params{
 		Dir:           filepath.Join("testdata"),
 		UpdateScripts: *update,
