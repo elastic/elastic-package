@@ -4,7 +4,7 @@
 # Irrespective of the marshalling approach, this will succeed, since all
 # the values are being unmarshaled through the same process. Bad things
 # have happened if this is not the case.
-runValidation config.json datastream golden.json obtained.json true
+! runValidation config.json datastream golden.json obtained.json true
 ! stdout .
 ! stderr .
 

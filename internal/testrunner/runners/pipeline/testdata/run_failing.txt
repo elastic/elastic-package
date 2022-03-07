@@ -3,7 +3,7 @@
 
 ! runValidation config.json datastream golden.json obtained.json false
 ! stdout .
-stderr 'failed to verify: test case failed: Expected results are different from actual ones'
+! stderr 'failed to verify: test case failed: Expected results are different from actual ones'
 
 -- config.json --
 {"numeric_keyword_fields":"testfield"}
