@@ -162,7 +162,8 @@ func jsonUnmarshalUsingNumber(data []byte, v interface{}) error {
 	}
 	for _, b := range remains {
 		if b > ' ' || (b != ' ' && b != '\t' && b != '\r' && b != '\n') {
-			return fmt.Errorf("invalid character after message: %c", b)
+			// Mimic encoding/json error for this case, but without rigmarole.
+			return fmt.Errorf("invalid character %q after top-level value", b)
 		}
 	}
 	return nil

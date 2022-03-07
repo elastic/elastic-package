@@ -1,0 +1,38 @@
+# Demonstrate that long numerical fields mis-match when the low bits are set
+# differently in values greater than 53 bits wide.
+
+! runValidation config.json datastream golden.json obtained.json false
+! stdout .
+stderr 'failed to verify: test case failed: Expected results are different from actual ones'
+
+-- config.json --
+{"numeric_keyword_fields":"testfield"}
+-- golden.json --
+{
+    "expected": [
+        {
+            "testfield": 9223372036854774000
+        }
+    ]
+}
+-- golden.json-expected.json --
+{
+    "expected": [
+        {
+            "testfield": 9223372036854774000
+        }
+    ]
+}
+-- obtained.json --
+{
+    "events": [
+        {
+            "testfield": 9223372036854773807
+        }
+    ]
+}
+-- datastream/fields/fields.yml --
+- name: testfield
+  type: long
+  description: |
+    Contains long values.

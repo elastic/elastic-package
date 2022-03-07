@@ -1,0 +1,49 @@
+# Demonstrate that long numerical fields are properly regenerated when the
+# low bits are set in values greater than 53 bits wide.
+
+# Irrespective of the marshalling approach, this will succeed, since all
+# the values are being unmarshaled through the same process. Bad things
+# have happened if this is not the case.
+runValidation config.json datastream golden.json obtained.json true
+! stdout .
+! stderr .
+
+# txtar cannot express files without a trailing newline, and generates
+# golden files have no trailing newline, so normalise them.
+trimspace golden.json golden.json-expected.json
+
+# This will fail if the generated file is altered, which would happen
+# if the numerical field is bit-truncated into a float64 by json.Unmarshal.
+cmp golden.json golden.json-expected.json
+
+-- config.json --
+{"numeric_keyword_fields":"testfield"}
+-- golden.json --
+{
+    "expected": [
+        {
+            "testfield": 9223372036854773807
+        }
+    ]
+}
+-- golden.json-expected.json --
+{
+    "expected": [
+        {
+            "testfield": 9223372036854773807
+        }
+    ]
+}
+-- obtained.json --
+{
+    "events": [
+        {
+            "testfield": 9223372036854773807
+        }
+    ]
+}
+-- datastream/fields/fields.yml --
+- name: testfield
+  type: long
+  description: |
+    Contains long values.

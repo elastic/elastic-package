@@ -24,6 +24,7 @@ require (
 	github.com/mholt/archiver/v3 v3.5.1
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/pkg/errors v0.9.1
+	github.com/rogpeppe/go-internal v1.8.1
 	github.com/spf13/cobra v1.3.0
 	github.com/stretchr/testify v1.7.0
 	github.com/tebeka/go2xunit v1.4.10
@@ -106,6 +107,7 @@ require (
 	github.com/oklog/ulid v1.3.1 // indirect
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
 	github.com/pierrec/lz4/v4 v4.1.2 // indirect
+	github.com/pkg/diff v0.0.0-20210226163009-20ebb0f2a09e // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/russross/blackfriday v1.5.2 // indirect
 	github.com/sergi/go-diff v1.1.0 // indirect
@@ -130,6 +132,7 @@ require (
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/protobuf v1.27.1 // indirect
+	gopkg.in/errgo.v2 v2.1.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
