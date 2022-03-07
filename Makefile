@@ -47,7 +47,7 @@ test-go: $(CODE_COVERAGE_REPORT_NAME_UNIT)
 test-go-ci: $(CODE_COVERAGE_REPORT_NAME_UNIT)
 	mkdir -p $(PWD)/build/test-results
 	mkdir -p $(PWD)/build/test-coverage
-	$(MAKE) test-go | go run github.com/tebeka/go2xunit > "$(PWD)/build/test-results/TEST-unit.xml"
+	go test -json -count 1 -coverprofile=$(CODE_COVERAGE_REPORT_NAME_UNIT).out ./... | go run j2xunit.go > "$(PWD)/build/test-results/TEST-unit.xml"
 	go run github.com/boumenot/gocover-cobertura < $(CODE_COVERAGE_REPORT_NAME_UNIT).out > $(CODE_COVERAGE_REPORT_NAME_UNIT).xml
 
 test-stack-command-default:
