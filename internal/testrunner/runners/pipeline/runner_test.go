@@ -15,11 +15,12 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/elastic/elastic-package/internal/fields"
-	"github.com/elastic/elastic-package/internal/testrunner"
 	"github.com/google/go-cmp/cmp"
 	"github.com/rogpeppe/go-internal/testscript"
 	"github.com/stretchr/testify/require"
+
+	"github.com/elastic/elastic-package/internal/fields"
+	"github.com/elastic/elastic-package/internal/testrunner"
 )
 
 const (
@@ -73,9 +74,9 @@ func TestScripts(t *testing.T) {
 	testscript.Run(t, p)
 }
 
-// runValidation is a command abstraction of (*runner).runValidation working in
-// the current directory  with no ingest pipelines and obtaining results from a
-// golden file rather than a call to elasticsearch.
+// runValidation is a command abstraction of (*runner).run working in the current
+// directory with no ingest pipelines and obtaining results from a golden file
+// rather than a call to elasticsearch.
 func runValidation() int {
 	args := os.Args[1:]
 	if len(args) != 5 {
@@ -91,11 +92,10 @@ func runValidation() int {
 		GenerateTestResult: generate,
 	}}
 
-	wd, _ := os.Getwd()
 	// Read config.
 	b, err := os.ReadFile(args[0])
 	if err != nil {
-		log.Fatalf("failed to read config: %v %v", err, wd)
+		log.Fatalf("failed to read config: %v", err)
 	}
 	var config testConfig
 	err = json.Unmarshal(b, &config)
