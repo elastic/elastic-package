@@ -18,11 +18,6 @@ import (
 
 // GetPipelineCoverage returns a coverage report for the provided set of ingest pipelines.
 func GetPipelineCoverage(options testrunner.TestOptions, pipelines []ingest.Pipeline) (*testrunner.CoberturaCoverage, error) {
-	packagePath, err := packages.MustFindPackageRoot()
-	if err != nil {
-		return nil, errors.Wrap(err, "error finding package root")
-	}
-
 	dataStreamPath, found, err := packages.FindDataStreamRootForPath(options.TestFolder.Path)
 	if err != nil {
 		return nil, errors.Wrap(err, "locating data_stream root failed")
@@ -46,7 +41,7 @@ func GetPipelineCoverage(options testrunner.TestOptions, pipelines []ingest.Pipe
 	coverage := &testrunner.CoberturaCoverage{
 		Sources: []*testrunner.CoberturaSource{
 			{
-				Path: packagePath,
+				Path: options.PackageRootPath,
 			},
 		},
 		Packages:  []*testrunner.CoberturaPackage{pkg},
@@ -55,7 +50,7 @@ func GetPipelineCoverage(options testrunner.TestOptions, pipelines []ingest.Pipe
 
 	// Calculate coverage for each pipeline
 	for _, pipeline := range pipelines {
-		covered, class, err := coverageForSinglePipeline(pipeline, stats, packagePath, dataStreamPath)
+		covered, class, err := coverageForSinglePipeline(pipeline, stats, options.PackageRootPath, dataStreamPath)
 		if err != nil {
 			return nil, errors.Wrapf(err, "error calculating coverage for pipeline '%s'", pipeline.Filename())
 		}
