@@ -354,6 +354,27 @@ var jsonUnmarshalUsingNumberTests = []struct {
 		name: "object",
 		msg:  `{"key":42}answer`, // Will error "invalid character 'a' after top-level value".
 	},
+	// Test whitespace parity with json.Unmarshal.
+	{
+		name: "object",
+		msg:  `{"key":42} `,
+		want: map[string]interface{}{"key": json.Number("42")},
+	},
+	{
+		name: "object",
+		msg:  `{"key":42}` + "\t",
+		want: map[string]interface{}{"key": json.Number("42")},
+	},
+	{
+		name: "object",
+		msg:  `{"key":42}` + "\r",
+		want: map[string]interface{}{"key": json.Number("42")},
+	},
+	{
+		name: "object",
+		msg:  `{"key":42}` + "\n",
+		want: map[string]interface{}{"key": json.Number("42")},
+	},
 }
 
 func TestJsonUnmarshalUsingNumberTests(t *testing.T) {

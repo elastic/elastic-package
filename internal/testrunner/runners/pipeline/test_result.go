@@ -224,7 +224,9 @@ func unmarshalTestResult(body []byte) (*testResult, error) {
 }
 
 // jsonUnmarshalUsingNumber is a drop-in replacement for json.Unmarshal that
-// does not default to unmarshaling numeric values to float64.
+// does not default to unmarshaling numeric values to float64 in order to
+// prevent low bit truncation of values greater than 1<<53.
+// See https://golang.org/cl/6202068 for details.
 func jsonUnmarshalUsingNumber(data []byte, v interface{}) error {
 	dec := json.NewDecoder(bytes.NewReader(data))
 	dec.UseNumber()
