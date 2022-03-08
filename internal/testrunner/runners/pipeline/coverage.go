@@ -38,10 +38,16 @@ func GetPipelineCoverage(options testrunner.TestOptions, pipelines []ingest.Pipe
 		Name: options.TestFolder.Package + "." + options.TestFolder.DataStream,
 	}
 
+	// Use the package's parent directory as base path, so that the relative paths
+	// for each class (pipeline) include the package name. This prevents paths for
+	// different packages colliding (i.e. a lot of packages have a "log" datastream
+	// and a default.yml pipeline).
+	basePath := filepath.Dir(options.PackageRootPath)
+
 	coverage := &testrunner.CoberturaCoverage{
 		Sources: []*testrunner.CoberturaSource{
 			{
-				Path: options.PackageRootPath,
+				Path: basePath,
 			},
 		},
 		Packages:  []*testrunner.CoberturaPackage{pkg},
@@ -50,7 +56,7 @@ func GetPipelineCoverage(options testrunner.TestOptions, pipelines []ingest.Pipe
 
 	// Calculate coverage for each pipeline
 	for _, pipeline := range pipelines {
-		covered, class, err := coverageForSinglePipeline(pipeline, stats, options.PackageRootPath, dataStreamPath)
+		covered, class, err := coverageForSinglePipeline(pipeline, stats, basePath, dataStreamPath)
 		if err != nil {
 			return nil, errors.Wrapf(err, "error calculating coverage for pipeline '%s'", pipeline.Filename())
 		}
@@ -61,7 +67,7 @@ func GetPipelineCoverage(options testrunner.TestOptions, pipelines []ingest.Pipe
 	return coverage, nil
 }
 
-func coverageForSinglePipeline(pipeline ingest.Pipeline, stats ingest.PipelineStatsMap, packagePath, dataStreamPath string) (linesCovered int64, class *testrunner.CoberturaClass, err error) {
+func coverageForSinglePipeline(pipeline ingest.Pipeline, stats ingest.PipelineStatsMap, basePath, dataStreamPath string) (linesCovered int64, class *testrunner.CoberturaClass, err error) {
 	// Load the list of main processors from the pipeline source code, annotated with line numbers.
 	src, err := pipeline.Processors()
 	if err != nil {
@@ -96,9 +102,9 @@ func coverageForSinglePipeline(pipeline ingest.Pipeline, stats ingest.PipelineSt
 	// File path has to be relative to the packagePath added to the cobertura Sources list
 	// so that the source is reachable by the report tool.
 	pipelinePath := filepath.Join(dataStreamPath, "elasticsearch", "ingest_pipeline", pipeline.Filename())
-	pipelineRelPath, err := filepath.Rel(packagePath, pipelinePath)
+	pipelineRelPath, err := filepath.Rel(basePath, pipelinePath)
 	if err != nil {
-		return 0, nil, errors.Wrapf(err, "cannot create relative path to pipeline file. Package root: '%s', pipeline path: '%s'", packagePath, pipelinePath)
+		return 0, nil, errors.Wrapf(err, "cannot create relative path to pipeline file. Package root: '%s', pipeline path: '%s'", basePath, pipelinePath)
 	}
 
 	// Report every pipeline as a "class".
