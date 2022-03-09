@@ -35,7 +35,7 @@ func TestSelectElasticAgentImageName_NextStackWithAgentComplete(t *testing.T) {
 }
 
 func TestSelectElasticAgentImageName_OwnNamespace(t *testing.T) {
-	version := "8.3.0-SNAPSHOT"
+	version := "8.2.0-SNAPSHOT"
 	selected := selectElasticAgentImageName(version)
 	assert.Equal(t, selected, elasticAgentCompleteImageName)
 }

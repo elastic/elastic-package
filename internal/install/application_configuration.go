@@ -19,12 +19,12 @@ import (
 
 const (
 	stackVersion715 = "7.15.0-SNAPSHOT"
-	stackVersion830 = "8.3.0-SNAPSHOT"
+	stackVersion820 = "8.2.0-SNAPSHOT"
 )
 
 var (
 	elasticAgentCompleteFirstSupportedVersion = semver.MustParse(stackVersion715)
-	elasticAgentCompleteOwnNamespaceVersion   = semver.MustParse(stackVersion830)
+	elasticAgentCompleteOwnNamespaceVersion   = semver.MustParse(stackVersion820)
 )
 
 // ApplicationConfiguration represents the configuration of the elastic-package.
