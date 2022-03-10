@@ -1,6 +1,6 @@
 # wait_for_data_timeout: 10m
 vars:
-  project_id: "{{TF_VAR_gcp_project_id}}"
+  project_id: "{{GCP_PROJECT_ID}}"
   credentials_json: '{{{GOOGLE_CREDENTIALS}}}'
 data_streams:
   vars: ~
