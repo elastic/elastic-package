@@ -9,9 +9,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/pkg/errors"
-
 	"github.com/elastic/package-spec/code/go/pkg/validator"
+	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/logger"
