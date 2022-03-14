@@ -27,7 +27,7 @@ We identified a few issues in v1 design, we couldn't easily overcome or patch:
 4. Enable validation for incoming packages (spec and signatures).
 5. Support package signatures. It wasn't possible to calculate the signature for unarchived package directories.
 
-## What should I do to automatically publish packages we own?
+## What should a package owner do to automatically publish their packages?
 
 ### Existing packages
 
