@@ -21,10 +21,11 @@ We recommend to use proper versioning instead and follow these rules:
 We identified a few issues in v1 design, we couldn't easily overcome or patch:
 1. Automatically release new Docker images of the Package Storage without missing packages due to a race condition
    between CI jobs.
-2. Docker image size is constantly increasing (as of today, >1GB).
-3. Promotion between stages caused a lot of frustration for customers and most of them didn't follow the recommended promotion path
+2. Controle the Docker image size, which is constantly growing (as of today, >1GB). Packages with size >1GB must be served through the Package Registry too.
+3. Deprecate promotion between stages. It caused a lot of frustration for customers and most of them didn't follow the recommended promotion path
    `snapshot -> staging -> production`.
-4. 
+4. Enable validation for incoming packages (spec and signatures).
+5. Support package signatures. It wasn't possible to calculate the signature for unarchived package directories.
 
 ## What should I do to automatically publish packages we own?
 
