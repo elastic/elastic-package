@@ -31,7 +31,16 @@ We identified a few issues in v1 design, we couldn't easily overcome or patch:
 
 ### Existing packages
 
+Package revisions already deployed in the production Package Storage (present in the `production` branch of the [package-storage](https://github.com/elastic/package-storage))
+are automatically synced with the new storage. In this case we disable the validation as some older packages will not be able
+to pass current spec requirements.
+
+Sync between v1 and v2 will be enabled until we officially deprecate the v1 storage (no more PRs or promotions).
+
 ### Next revisions
+
+Before we deprecate the v1 storage, package owners will have to adjust their releasing pipelines to submit packages
+to the new destination.
 
 #### Requirements
 
