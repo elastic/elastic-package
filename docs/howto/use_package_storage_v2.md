@@ -63,7 +63,7 @@ and publish it using the Package Storage publishing job.
 
 ##### Sign the package candidate
 
-See the Jenkins [code sample](https://github.com/elastic/elastic-package/blob/a7d48cd06b2e7c052ff58b07123ffabefb87dc9c/.ci/Jenkinsfile#L200-L220) in the elastic-package repository.
+See the Jenkins [code sample](https://github.com/elastic/package-storage/blob/d6abdd5864bbf049b2c11d296f77b21aa780cf3e/.ci/Jenkinsfile#L238-L258) in the package-storage repository.
 
 1. Upload the package candidate to the signing bucket.
 2. Call the Elastic signing pipeline to create matching signatures. The pipeline signs them using the Elastic private key.
@@ -71,7 +71,7 @@ See the Jenkins [code sample](https://github.com/elastic/elastic-package/blob/a7
 
 ##### Publish the package candidate
 
-See the Jenkins [code sample](https://github.com/elastic/elastic-package/blob/a7d48cd06b2e7c052ff58b07123ffabefb87dc9c/.ci/Jenkinsfile#L175-L193) in the elastic-package repository.
+See the Jenkins [code sample](https://github.com/elastic/package-storage/blob/d6abdd5864bbf049b2c11d296f77b21aa780cf3e/.ci/Jenkinsfile#L260-L284) in the package-storage repository.
 
 1. Upload the package candidate to the special "queue" bucket - `elastic-bekitzur-package-storage-internal`.
 2. Call the [publishing job](https://internal-ci.elastic.co/job/package_storage/job/publishing-job-remote/). The publishing jobs verifies
