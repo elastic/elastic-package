@@ -237,17 +237,10 @@ func jsonUnmarshalUsingNumber(data []byte, v interface{}) error {
 		}
 		return err
 	}
-	// Make sure there is no invalid syntax after the message
-	// to match json.Unmarshal's behaviour.
-	remains, err := io.ReadAll(dec.Buffered())
-	if err != nil {
-		return err
-	}
-	for _, b := range remains {
-		if b > ' ' || (b != ' ' && b != '\t' && b != '\r' && b != '\n') {
-			// Mimic encoding/json error for this case, but without rigmarole.
-			return fmt.Errorf("invalid character %q after top-level value", b)
-		}
+	// Make sure there is no more data after the message
+	// to approximate json.Unmarshal's behaviour.
+	if dec.More() {
+		return fmt.Errorf("more data after top-level value")
 	}
 	return nil
 }

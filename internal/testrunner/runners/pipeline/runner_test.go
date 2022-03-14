@@ -402,8 +402,7 @@ func TestJsonUnmarshalUsingNumberRoundTrip(t *testing.T) {
 			// Confirm that we get the same errors with jsonUnmarshalUsingNumber
 			// as are returned by json.Unmarshal.
 			jerr := json.Unmarshal([]byte(test.msg), new(interface{}))
-			// String comparison because we are not returning a real json.SyntaxError.
-			if fmt.Sprint(err) != fmt.Sprint(jerr) {
+			if (err == nil) != (jerr == nil) {
 				t.Errorf("unexpected error: got:%#v want:%#v", err, jerr)
 			}
 			if err != nil {
