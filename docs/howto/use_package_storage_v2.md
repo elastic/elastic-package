@@ -18,6 +18,14 @@ We recommend to use proper versioning instead and follow these rules:
 
 ## What is the goal of storage migration from v1 to v2?
 
+We identified a few issues in v1 design, we couldn't easily overcome or patch:
+1. Automatically release new Docker images of the Package Storage without missing packages due to a race condition
+   between CI jobs.
+2. Docker image size is constantly increasing (as of today, >1GB).
+3. Promotion between stages caused a lot of frustration for customers and most of them didn't follow the recommended promotion path
+   `snapshot -> staging -> production`.
+4. 
+
 ## What should I do to automatically publish packages we own?
 
 ### Existing packages
