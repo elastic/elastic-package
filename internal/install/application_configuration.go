@@ -89,10 +89,13 @@ func selectElasticAgentImageName(version string) string {
 	v, err := semver.NewVersion(version)
 	if err != nil {
 		logger.Errorf("stack version not in semver format (value: %s): %v", v, err)
-	} else if !v.LessThan(elasticAgentCompleteFirstSupportedVersion) && v.LessThan(elasticAgentCompleteOwnNamespaceVersion) {
-		return elasticAgentCompleteLegacyImageName
-	} else if !v.LessThan(elasticAgentCompleteOwnNamespaceVersion) {
+		return elasticAgentImageName
+	}
+	if !v.LessThan(elasticAgentCompleteOwnNamespaceVersion) {
 		return elasticAgentCompleteImageName
+	}
+	if !v.LessThan(elasticAgentCompleteFirstSupportedVersion) {
+		return elasticAgentCompleteLegacyImageName
 	}
 	return elasticAgentImageName
 }
