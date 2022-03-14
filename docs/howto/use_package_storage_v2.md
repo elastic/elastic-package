@@ -40,8 +40,40 @@ Sync between v1 and v2 will be enabled until we officially deprecate the v1 stor
 ### Next revisions
 
 Before we deprecate the v1 storage, package owners will have to adjust their releasing pipelines to submit packages
-to the new destination.
+to the new destination. Every package candidate should be submitted together with a corresponding signature, generated
+using the [Elastic signing pipeline](https://internal-ci.elastic.co/job/elastic+unified-release+master+sign-artifacts-with-gpg/).
+
+Here is the list of requirements and code modifications based on the `beats-ci`.
 
 #### Requirements
 
+1. CI job signing credentials (`sign-artifacts-with-gpg-job`) - use them to call the signing pipeline on
+   the `internal-ci` Jenkins instance. The pipeline will sign artifacts uploaded to the signing bucket and upload there their signatures.
+2. Signing bucket credentials (`internal-ci-gcs-plugin`) - use them to upload zipped packages to be signed
+   and download matching signatures.
+3. Package Storage GCP uploader credentials (`upload-package-to-package-storage`) - use them to upload a package candidate to the "queue" bucket.
+   The candidates will be picked by the publishing job and removed after processing.
+4. Package Storage uploader secret (`secret/gce/elastic-bekitzur/service-account/package-storage-uploader`) - use it to kick off
+   the publishing job to process the uploaded candidate.
+
 #### Code modifications
+
+These code modifications refer to the Jenkinsfile/groovy files, which will orchestrate the Jenkins worker to sign the package
+and publish it using the Package Storage publishing job.
+
+##### Sign the package candidate
+
+See the Jenkins [code sample](https://github.com/elastic/elastic-package/blob/a7d48cd06b2e7c052ff58b07123ffabefb87dc9c/.ci/Jenkinsfile#L200-L220) in the elastic-package repository.
+
+1. Upload the package candidate to the signing bucket.
+2. Call the Elastic signing pipeline to create matching signatures. The pipeline signs them using the Elastic private key.
+3. Once the job succeeded, download package signatures.
+
+##### Publish the package candidate
+
+See the Jenkins [code sample](https://github.com/elastic/elastic-package/blob/a7d48cd06b2e7c052ff58b07123ffabefb87dc9c/.ci/Jenkinsfile#L175-L193) in the elastic-package repository.
+
+1. Upload the package candidate to the special "queue" bucket - `elastic-bekitzur-package-storage-internal`.
+2. Call the [publishing job](https://internal-ci.elastic.co/job/package_storage/job/publishing-job-remote/). The publishing jobs verifies
+   correctness of the package format and corresponding signature. Next, the job extracts static resources, uploads the zipped package
+   to the public bucket, and schedules indexing in background.
