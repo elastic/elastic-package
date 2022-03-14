@@ -40,6 +40,12 @@ func TestSelectElasticAgentImageName_OwnNamespace(t *testing.T) {
 	assert.Equal(t, selected, elasticAgentCompleteImageName)
 }
 
+func TestSelectElasticAgentImageName_OwnNamespace_Release(t *testing.T) {
+	version := "8.2.0"
+	selected := selectElasticAgentImageName(version)
+	assert.Equal(t, selected, elasticAgentCompleteImageName)
+}
+
 func TestSelectElasticAgentImageName_NextStackInOwnNamespace(t *testing.T) {
 	version := "8.4.0-SNAPSHOT"
 	selected := selectElasticAgentImageName(version)
