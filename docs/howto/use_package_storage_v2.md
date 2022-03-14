@@ -7,9 +7,9 @@ and it is composed of Google Cloud buckets, service accounts and jobs responsibl
 
 The Package Storage v2 is available publicly behind the endpoint: [package-storage.elastic.co](https://package-storage.elastic.co/)
 and exposes different package resources:
-* zipped packages (e.g. [barracuda-0.2.2.zip](https://storage.googleapis.com/elastic-bekitzur-package-storage/artifacts/packages/barracuda-0.2.2.zip))
-* package signatures (e.g. [barracuda-0.2.2.zip.sig](https://storage.googleapis.com/elastic-bekitzur-package-storage/artifacts/packages/barracuda-0.2.2.zip.sig))
-* extracted static resources (e.g. [cisco-0.11.5, screenshot](https://storage.googleapis.com/elastic-bekitzur-package-storage/artifacts/static/cisco-0.11.5/img/kibana-cisco-asa.png))
+* zipped packages (e.g. [barracuda-0.2.2.zip](https://package-storage.elastic.co/artifacts/packages/barracuda-0.2.2.zip))
+* package signatures (e.g. [barracuda-0.2.2.zip.sig](https://package-storage.elastic.co/artifacts/packages/barracuda-0.2.2.zip.sig))
+* extracted static resources (e.g. [cisco-0.11.5, screenshot](https://package-storage.elastic.co/artifacts/static/cisco-0.11.5/img/kibana-cisco-asa.png))
 
 The Package Storage v2 has flat structure. It does not introduce any logic to divide packages into stages or a control panel to promote them.
 We recommend to use proper versioning instead and follow these rules:
