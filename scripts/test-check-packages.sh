@@ -62,15 +62,8 @@ for d in test/packages/${PACKAGE_TEST_TYPE:-other}/${PACKAGE_UNDER_TEST:-*}/; do
     cd $d
     elastic-package install -v
 
-    if [ "$(basename $d)" == "long_integers" ]; then
-      # Ensure that any change in unmarshaling behaviour is noticed; this will result in a dirty
-      # git state on exit if an inappropriate use of encoding/json.Unmarshal has been made.
-      elastic-package test -v -g --report-format xUnit --report-output file --defer-cleanup 1s --test-coverage
-      ([ -z "$(git status --short)" ] || exit 1)
-    else
-      # defer-cleanup is set to a short period to verify that the option is available
-      elastic-package test -v --report-format xUnit --report-output file --defer-cleanup 1s --test-coverage
-    fi
+    # defer-cleanup is set to a short period to verify that the option is available
+    elastic-package test -v --report-format xUnit --report-output file --defer-cleanup 1s --test-coverage
   )
 cd -
 done
