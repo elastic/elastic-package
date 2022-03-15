@@ -13,8 +13,8 @@ and exposes different package resources:
 
 The Package Storage v2 has flat structure. It does not introduce any logic to divide packages into stages or a control panel to promote them.
 We recommend to use proper versioning instead and follow these rules:
-* a package with `version < 1.0.0` is experimental
-* a package with version containing a prerelease tag (beta1, SNAPSHOT, next) is experimental
+* a package with `version < 1.0.0` is a technical preview.
+* a package with `version >= 1.0.0` can contain prerelease tags (beta1, SNAPSHOT, next) on its version to indicate its prerelease state.
 
 ## What is the goal of storage migration from v1 to v2?
 
