@@ -96,8 +96,7 @@ def signUnpublishedArtifactsWithElastic(builtPackagesPath) {
       unpublished = true
       googleStorageUpload(bucket: env.INFRA_SIGNING_BUCKET_ARTIFACTS_PATH,
         credentialsId: env.INTERNAL_CI_JOB_GCS_CREDENTIALS,
-        pathPrefix: '/',
-        pattern: '/*.zip',
+        pattern: '*.zip',
         sharedPublicly: false,
         showInline: true)
     }
