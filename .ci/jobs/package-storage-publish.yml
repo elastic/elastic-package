@@ -1,7 +1,7 @@
 ---
 - job:
-    name: Ingest-manager/elastic-package/package-storage-publish
-    display-name: Publish a package to Package Storage v2
+    name: Ingest-manager/elastic-package-package-storage-publish
+    display-name: Publish a package to Package Storage v2 (for testing only)
     description: Minimal Jenkins pipeline to exercise publishing a package to Package Storage
     view: Beats
     project-type: multibranch
