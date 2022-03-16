@@ -63,17 +63,12 @@ pipeline {
         stash(allowEmpty: true, name: 'build-package', includes: "${BASE_DIR}/build/integrations/*.zip", useDefaultExcludes: false)
       }
     }
-    stage('Sign package') {
+    stage('Sign and publish package') {
       steps {
         cleanup(source: 'build-package')
-        signArtifactsWithElastic('build/integrations')
-        stash(allowEmpty: true, name: 'sign-package', includes: "${BASE_DIR}/build/integrations/**", useDefaultExcludes: false)
-      }
-    }
-    stage('Publish package') {
-      steps {
-        cleanup(source: 'sign-package')
-        publishToPackageStorage('build/integrations')
+        dir("${BASE_DIR}") {
+          packageStoragePublish('build/integrations')
+        }
       }
     }
   }
@@ -84,36 +79,50 @@ pipeline {
   }
 }
 
-def signArtifactsWithElastic(artifactsPath) {
-  dir("${BASE_DIR}") {
-    googleStorageUpload(bucket: env.INFRA_SIGNING_BUCKET_ARTIFACTS_PATH,
-      credentialsId: env.INTERNAL_CI_JOB_GCS_CREDENTIALS,
-      pathPrefix: artifactsPath + '/',
-      pattern: artifactsPath + '/*.zip',
-      sharedPublicly: false,
-      showInline: true)
-    withCredentials([string(credentialsId: env.JOB_SIGNING_CREDENTIALS, variable: 'TOKEN')]) {
-      triggerRemoteJob(auth: CredentialsAuth(credentials: 'local-readonly-api-token'),
-        job: 'https://internal-ci.elastic.co/job/elastic+unified-release+master+sign-artifacts-with-gpg',
-        token: TOKEN,
-        parameters: "gcs_input_path=${env.INFRA_SIGNING_BUCKET_ARTIFACTS_PATH}",
-        useCrumbCache: false,
-        useJobInfoCache: false)
-    }
-    googleStorageDownload(bucketUri: "${env.INFRA_SIGNING_BUCKET_SIGNED_ARTIFACTS_PATH}/*",
-      credentialsId: env.INTERNAL_CI_JOB_GCS_CREDENTIALS,
-      localDirectory: artifactsPath + '/',
-      pathPrefix: "${env.INFRA_SIGNING_BUCKET_SIGNED_ARTIFACTS_SUBFOLDER}")
-      sh(label: 'Rename .asc to .sig', script: 'for f in ' + artifactsPath + '/*.asc; do mv "$f" "${f%.asc}.sig"; done')
-  }
+def packageStoragePublish(builtPackagesPath) {
+  signUnpublishedArtifactsWithElastic(builtPackagesPath)
+  uploadUnpublishedToPackageStorage(builtPackagesPath)
 }
 
-def publishToPackageStorage(artifactsPath) {
-  dir("${BASE_DIR}/${artifactsPath}") {
+def signUnpublishedArtifactsWithElastic(builtPackagesPath) {
+  findFiles()?.findAll{ it.name.endsWith('.zip') }?.collect{ it.name }?.sort()?.each {
+    def packageZip = it
+    if (isAlreadyPublished(packageZip)) {
+      return
+    }
+
+    googleStorageUpload(bucket: env.INFRA_SIGNING_BUCKET_ARTIFACTS_PATH,
+      credentialsId: env.INTERNAL_CI_JOB_GCS_CREDENTIALS,
+      pathPrefix: builtPackagesPath + '/',
+      pattern: builtPackagesPath + '/*.zip',
+      sharedPublicly: false,
+      showInline: true)
+  }
+  withCredentials([string(credentialsId: env.JOB_SIGNING_CREDENTIALS, variable: 'TOKEN')]) {
+    triggerRemoteJob(auth: CredentialsAuth(credentials: 'local-readonly-api-token'),
+      job: 'https://internal-ci.elastic.co/job/elastic+unified-release+master+sign-artifacts-with-gpg',
+      token: TOKEN,
+      parameters: "gcs_input_path=${env.INFRA_SIGNING_BUCKET_ARTIFACTS_PATH}",
+      useCrumbCache: false,
+      useJobInfoCache: false)
+  }
+  googleStorageDownload(bucketUri: "${env.INFRA_SIGNING_BUCKET_SIGNED_ARTIFACTS_PATH}/*",
+    credentialsId: env.INTERNAL_CI_JOB_GCS_CREDENTIALS,
+    localDirectory: builtPackagesPath + '/',
+    pathPrefix: "${env.INFRA_SIGNING_BUCKET_SIGNED_ARTIFACTS_SUBFOLDER}")
+    sh(label: 'Rename .asc to .sig', script: 'for f in ' + builtPackagesPath + '/*.asc; do mv "$f" "${f%.asc}.sig"; done')
+}
+
+def uploadUnpublishedToPackageStorage(builtPackagesPath) {
+  dir("${BASE_DIR}/${builtPackagesPath}") {
     withGCPEnv(secret: env.PACKAGE_STORAGE_UPLOADER_GCP_SERVICE_ACCOUNT) {
       withCredentials([string(credentialsId: env.PACKAGE_STORAGE_UPLOADER_CREDENTIALS, variable: 'TOKEN')]) {
         findFiles()?.findAll{ it.name.endsWith('.zip') }?.collect{ it.name }?.sort()?.each {
           def packageZip = it
+          if (isAlreadyPublished(packageZip)) {
+            return
+          }
+
           sh(label: 'Upload package .zip file', script: "gsutil cp ${packageZip} ${env.PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH}/")
           sh(label: 'Upload package .sig file', script: "gsutil cp ${packageZip}.sig ${env.PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH}/")
 
@@ -131,6 +140,13 @@ def publishToPackageStorage(artifactsPath) {
       }
     }
   }
+}
+
+def isAlreadyPublished(packageZip) {
+  def responseCode = httpRequest(method: "HEAD",
+    url: "https://package-storage.elastic.co/artifacts/packages/${it}",
+    response_code_only: true)
+  return responseCode == 200
 }
 
 def cleanup(Map args = [:]) {
