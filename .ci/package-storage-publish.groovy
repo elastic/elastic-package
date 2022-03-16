@@ -56,18 +56,18 @@ pipeline {
             sh(label: 'Install elastic-package',script: "make install")
             // sh(label: 'Install elastic-package', script: 'go build github.com/elastic/elastic-package')
             dir("test/packages/package-storage/package_storage_candidate") {
-              sh(label: 'Build package',script: "elastic-package build")
+              sh(label: 'Build package', script: "elastic-package build")
             }
           }
         }
-        stash(allowEmpty: true, name: 'build-package', useDefaultExcludes: false)
+        stash(allowEmpty: true, name: 'build-package', includes: 'build/integrations', useDefaultExcludes: false)
       }
     }
     stage('Sign package') {
       steps {
         cleanup(source: 'build-package')
         signArtifactsWithElastic('build/integrations')
-        stash(allowEmpty: true, name: 'sign-package', useDefaultExcludes: false)
+        stash(allowEmpty: true, name: 'sign-package', includes: 'build/integrations', useDefaultExcludes: false)
       }
     }
     stage('Publish package') {
