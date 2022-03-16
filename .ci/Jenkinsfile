@@ -102,8 +102,7 @@ pipeline {
                     'check-packages-with-kind': generateTestCommandStage(command: 'test-check-packages-with-kind', artifacts: ['build/test-results/*.xml', 'build/kubectl-dump.txt', 'build/elastic-stack-dump/check-*/logs/*.log', 'build/elastic-stack-dump/check-*/logs/fleet-server-internal/*'], junitArtifacts: true, publishCoverage: true),
                     'check-packages-other': generateTestCommandStage(command: 'test-check-packages-other', artifacts: ['build/test-results/*.xml', 'build/elastic-stack-dump/check-*/logs/*.log', 'build/elastic-stack-dump/check-*/logs/fleet-server-internal/*'], junitArtifacts: true, publishCoverage: true),
                     'build-zip': generateTestCommandStage(command: 'test-build-zip', artifacts: ['build/elastic-stack-dump/build-zip/logs/*.log', 'build/integrations/*.sig']),
-                    'profiles-command': generateTestCommandStage(command: 'test-profiles-command'),
-                    'publish-to-package-storage': generateTestPublishToPackageStorageStage()
+                    'profiles-command': generateTestCommandStage(command: 'test-profiles-command')
                   ]
 
                   def checkSinglePackageTasks = generateTestCheckSinglePackageStage()
@@ -146,14 +145,6 @@ def cleanup(){
     deleteDir()
   }
   unstash 'source'
-}
-
-def generateTestPublishToPackageStorageStage() {
-  return {
-    withNode(sleepMax: 20, forceWorkspace: true) {
-      build(wait: true, propagate: true, job: "/Ingest-manager/elastic-package-package-storage-publish/${BRANCH_NAME}")
-    }
-  }
 }
 
 def generateTestCheckSinglePackageStage(Map args = [:]) {
