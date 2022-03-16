@@ -102,7 +102,7 @@ def signArtifactsWithElastic(artifactsPath) {
     }
     googleStorageDownload(bucketUri: "${env.INFRA_SIGNING_BUCKET_SIGNED_ARTIFACTS_PATH}/*",
       credentialsId: env.INTERNAL_CI_JOB_GCS_CREDENTIALS,
-      localDirectory: signaturesDestinationPath + '/',
+      localDirectory: artifactsPath + '/',
       pathPrefix: "${env.INFRA_SIGNING_BUCKET_SIGNED_ARTIFACTS_SUBFOLDER}")
       sh(label: 'Rename .asc to .sig', script: 'for f in ' + artifactsPath + '/*.asc; do mv "$f" "${f%.asc}.sig"; done')
   }
