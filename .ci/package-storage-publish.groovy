@@ -85,19 +85,28 @@ def packageStoragePublish(builtPackagesPath) {
 }
 
 def signUnpublishedArtifactsWithElastic(builtPackagesPath) {
-  findFiles()?.findAll{ it.name.endsWith('.zip') }?.collect{ it.name }?.sort()?.each {
-    def packageZip = it
-    if (isAlreadyPublished(packageZip)) {
-      return
-    }
+  def unpublished = false
+  dir(builtPackagesPath) {
+    findFiles()?.findAll{ it.name.endsWith('.zip') }?.collect{ it.name }?.sort()?.each {
+      def packageZip = it
+      if (isAlreadyPublished(packageZip)) {
+        return
+      }
 
-    googleStorageUpload(bucket: env.INFRA_SIGNING_BUCKET_ARTIFACTS_PATH,
-      credentialsId: env.INTERNAL_CI_JOB_GCS_CREDENTIALS,
-      pathPrefix: builtPackagesPath + '/',
-      pattern: builtPackagesPath + '/*.zip',
-      sharedPublicly: false,
-      showInline: true)
+      unpublished = true
+      googleStorageUpload(bucket: env.INFRA_SIGNING_BUCKET_ARTIFACTS_PATH,
+        credentialsId: env.INTERNAL_CI_JOB_GCS_CREDENTIALS,
+        pathPrefix: '/',
+        pattern: '/*.zip',
+        sharedPublicly: false,
+        showInline: true)
+    }
   }
+
+  if (!unpublished) {
+    return
+  }
+
   withCredentials([string(credentialsId: env.JOB_SIGNING_CREDENTIALS, variable: 'TOKEN')]) {
     triggerRemoteJob(auth: CredentialsAuth(credentials: 'local-readonly-api-token'),
       job: 'https://internal-ci.elastic.co/job/elastic+unified-release+master+sign-artifacts-with-gpg',
@@ -114,7 +123,7 @@ def signUnpublishedArtifactsWithElastic(builtPackagesPath) {
 }
 
 def uploadUnpublishedToPackageStorage(builtPackagesPath) {
-  dir("${BASE_DIR}/${builtPackagesPath}") {
+  dir(builtPackagesPath) {
     withGCPEnv(secret: env.PACKAGE_STORAGE_UPLOADER_GCP_SERVICE_ACCOUNT) {
       withCredentials([string(credentialsId: env.PACKAGE_STORAGE_UPLOADER_CREDENTIALS, variable: 'TOKEN')]) {
         findFiles()?.findAll{ it.name.endsWith('.zip') }?.collect{ it.name }?.sort()?.each {
