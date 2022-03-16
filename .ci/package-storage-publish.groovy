@@ -53,7 +53,7 @@ pipeline {
         cleanup()
         useElasticPackage()
         dir("${BASE_DIR}/test/packages/package_storage_candidate") {
-          sh(label: 'Build package',script: "elastic-package build")
+          sh(label: 'Build package',script: "../../../elastic-package build")
         }
         stash(allowEmpty: true, name: 'build-package', useDefaultExcludes: false)
       }
