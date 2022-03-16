@@ -51,9 +51,14 @@ pipeline {
     stage('Build package') {
       steps {
         cleanup()
-        useElasticPackage()
-        dir("${BASE_DIR}/test/packages/package_storage_candidate") {
-          sh(label: 'Build package',script: "../../../elastic-package build")
+        withGoEnv() {
+          dir("${BASE_DIR}") {
+            sh(label: 'Install elastic-package',script: "make install")
+            // sh(label: 'Install elastic-package', script: 'go build github.com/elastic/elastic-package')
+            dir("test/packages/package_storage_candidate") {
+              sh(label: 'Build package',script: "elastic-package build")
+            }
+          }
         }
         stash(allowEmpty: true, name: 'build-package', useDefaultExcludes: false)
       }
@@ -75,15 +80,6 @@ pipeline {
   post {
     cleanup {
       notifyBuildResult(prComment: true)
-    }
-  }
-}
-
-def useElasticPackage() {
-  withGoEnv() {
-    dir("${BASE_DIR}") {
-      sh(label: 'Install elastic-package',script: "make install")
-      // sh(label: 'Install elastic-package', script: 'go build github.com/elastic/elastic-package')
     }
   }
 }
