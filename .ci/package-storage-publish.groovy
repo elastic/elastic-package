@@ -60,14 +60,14 @@ pipeline {
             }
           }
         }
-        stash(allowEmpty: true, name: 'build-package', includes: "${BASE_DIR}/build/integrations", useDefaultExcludes: false)
+        stash(allowEmpty: true, name: 'build-package', includes: "${BASE_DIR}/build/integrations/**", useDefaultExcludes: false)
       }
     }
     stage('Sign package') {
       steps {
         cleanup(source: 'build-package')
         signArtifactsWithElastic('build/integrations')
-        stash(allowEmpty: true, name: 'sign-package', includes: "${BASE_DIR}/build/integrations", useDefaultExcludes: false)
+        stash(allowEmpty: true, name: 'sign-package', includes: "${BASE_DIR}/build/integrations/**", useDefaultExcludes: false)
       }
     }
     stage('Publish package') {
