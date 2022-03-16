@@ -56,11 +56,11 @@ pipeline {
             sh(label: 'Install elastic-package',script: "make install")
             // sh(label: 'Install elastic-package', script: 'go build github.com/elastic/elastic-package')
             dir("test/packages/package-storage/package_storage_candidate") {
-              sh(label: 'Build package', script: "elastic-package build")
+              sh(label: 'Build package', script: "elastic-package build -v --zip")
             }
           }
         }
-        stash(allowEmpty: true, name: 'build-package', includes: "${BASE_DIR}/build/integrations/**", useDefaultExcludes: false)
+        stash(allowEmpty: true, name: 'build-package', includes: "${BASE_DIR}/build/integrations/*.zip", useDefaultExcludes: false)
       }
     }
     stage('Sign package') {
