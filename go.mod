@@ -12,7 +12,7 @@ require (
 	github.com/elastic/go-elasticsearch/v7 v7.17.1
 	github.com/elastic/go-licenser v0.4.0
 	github.com/elastic/go-ucfg v0.8.4
-	github.com/elastic/package-spec v1.5.0
+	github.com/elastic/package-spec v1.6.0
 	github.com/fatih/color v1.13.0
 	github.com/go-git/go-billy/v5 v5.3.1
 	github.com/go-git/go-git/v5 v5.4.2
@@ -21,7 +21,7 @@ require (
 	github.com/google/go-querystring v1.1.0
 	github.com/jedib0t/go-pretty v4.3.0+incompatible
 	github.com/kylelemons/godebug v1.1.0
-	github.com/magefile/mage v1.11.0
+	github.com/magefile/mage v1.13.0
 	github.com/mholt/archiver/v3 v3.5.1
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/pkg/errors v0.9.1
