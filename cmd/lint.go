@@ -24,7 +24,17 @@ func setupLintCommand() *cobraext.Command {
 		Use:   "lint",
 		Short: "Lint the package",
 		Long:  lintLongDescription,
-		RunE:  lintCommandAction,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			err := cobraext.ComposeCommandActions(cmd, args,
+				lintCommandAction,
+				validateSourceCommandAction,
+			)
+			if err != nil {
+				return err
+			}
+			cmd.Println("Done")
+			return nil
+		},
 	}
 
 	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
@@ -32,14 +42,6 @@ func setupLintCommand() *cobraext.Command {
 
 func lintCommandAction(cmd *cobra.Command, args []string) error {
 	cmd.Println("Lint the package")
-
-	packageRootPath, found, err := packages.FindPackageRoot()
-	if !found {
-		return errors.New("package root not found")
-	}
-	if err != nil {
-		return errors.Wrap(err, "locating package root failed")
-	}
 
 	readmeFiles, err := docs.AreReadmesUpToDate()
 	if err != nil {
@@ -53,12 +55,21 @@ func lintCommandAction(cmd *cobra.Command, args []string) error {
 		}
 		return errors.Wrap(err, "checking readme files are up-to-date failed")
 	}
+	return nil
+}
 
+func validateSourceCommandAction(cmd *cobra.Command, args []string) error {
+	packageRootPath, found, err := packages.FindPackageRoot()
+	if !found {
+		return errors.New("package root not found")
+	}
+	if err != nil {
+		return errors.Wrap(err, "locating package root failed")
+	}
 	err = validator.ValidateFromPath(packageRootPath)
 	if err != nil {
 		return errors.Wrap(err, "linting package failed")
 	}
 
-	cmd.Println("Done")
 	return nil
 }
