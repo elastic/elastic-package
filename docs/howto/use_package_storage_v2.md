@@ -61,19 +61,23 @@ Here is the list of requirements and code modifications based on the `beats-ci`.
 These code modifications refer to the Jenkinsfile/groovy files, which will orchestrate the Jenkins worker to sign the package
 and publish it using the Package Storage publishing job.
 
+Function [packageStoragePublish(...)](https://github.com/elastic/elastic-package/blob/f8f678d20b9b60d438188e8dfd2fb4e7519b5a69/.ci/package-storage-publish.groovy#L70)
+
 ##### Sign the package candidate
 
-See the Jenkins [code sample](https://github.com/elastic/package-storage/blob/d6abdd5864bbf049b2c11d296f77b21aa780cf3e/.ci/Jenkinsfile#L238-L258) in the package-storage repository.
+Function [signUnpublishedArtifactsWithElastic(...)](https://github.com/elastic/elastic-package/blob/f8f678d20b9b60d438188e8dfd2fb4e7519b5a69/.ci/package-storage-publish.groovy#L87-L122).
 
-1. Upload the package candidate to the signing bucket.
-2. Call the Elastic signing pipeline to create matching signatures. The pipeline signs them using the Elastic private key.
-3. Once the job succeeded, download package signatures.
+1. Check if the package has been already published (HTTP request to EPR).
+2. Upload the package candidate to the signing bucket.
+3. Call the Elastic signing pipeline to create matching signatures. The pipeline signs them using the Elastic private key.
+4. Once the job succeeded, download package signatures.
 
 ##### Publish the package candidate
 
-See the Jenkins [code sample](https://github.com/elastic/package-storage/blob/d6abdd5864bbf049b2c11d296f77b21aa780cf3e/.ci/Jenkinsfile#L260-L284) in the package-storage repository.
+Function [uploadUnpublishedToPackageStorage(...)](https://github.com/elastic/elastic-package/blob/f8f678d20b9b60d438188e8dfd2fb4e7519b5a69/.ci/package-storage-publish.groovy#L124-L151).
 
-1. Upload the package candidate to the special "queue" bucket - `elastic-bekitzur-package-storage-internal`.
-2. Call the [publishing job](https://internal-ci.elastic.co/job/package_storage/job/publishing-job-remote/). The publishing jobs verifies
+1. Check if the package has been already published (HTTP request to EPR).
+2. Upload the package candidate to the special "queue" bucket - `elastic-bekitzur-package-storage-internal`.
+3. Call the [publishing job](https://internal-ci.elastic.co/job/package_storage/job/publishing-job-remote/). The publishing jobs verifies
    correctness of the package format and corresponding signature. Next, the job extracts static resources, uploads the zipped package
    to the public bucket, and schedules indexing in background.
