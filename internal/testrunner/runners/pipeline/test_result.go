@@ -21,10 +21,6 @@ import (
 
 const expectedTestResultSuffix = "-expected.json"
 
-// diffContext is the number of context lines to show for diffs in test case
-// mismatches. It is the equivalent of -U in a unified diff.
-const diffContext = 3
-
 type testResult struct {
 	events []json.RawMessage
 }
