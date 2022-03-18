@@ -11,7 +11,7 @@ package tools
 import (
 	_ "github.com/boumenot/gocover-cobertura"
 	_ "github.com/elastic/go-licenser"
-	_ "github.com/tebeka/go2xunit"
 	_ "golang.org/x/tools/cmd/goimports"
+	_ "gotest.tools/gotestsum"
 	_ "honnef.co/go/tools/cmd/staticcheck"
 )
