@@ -6,8 +6,10 @@ package cmd
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
+	"runtime/pprof"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -95,6 +97,14 @@ func setupTestCommand() *cobraext.Command {
 func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.CommandAction {
 	testType := runner.Type()
 	return func(cmd *cobra.Command, args []string) error {
+		f, err := os.Create("cpu.profile")
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer f.Close()
+		pprof.StartCPUProfile(f)
+		defer pprof.StopCPUProfile()
+
 		cmd.Printf("Run %s tests for the package\n", testType)
 
 		failOnMissing, err := cmd.Flags().GetBool(cobraext.FailOnMissingFlagName)

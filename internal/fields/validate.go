@@ -302,6 +302,21 @@ func FindElementDefinition(searchedKey string, fieldDefinitions []FieldDefinitio
 	return findElementDefinitionForRoot("", searchedKey, fieldDefinitions)
 }
 
+var compileCache map[string]*regexp.Regexp
+
+func init() {
+	compileCache = make(map[string]*regexp.Regexp)
+}
+
+func mustCompile(str string) *regexp.Regexp {
+	if r, found := compileCache[str]; found {
+		return r
+	}
+	r := regexp.MustCompile(str)
+	compileCache[str] = r
+	return r
+}
+
 func compareKeys(key string, def FieldDefinition, searchedKey string) bool {
 	k := strings.ReplaceAll(key, ".", "\\.")
 	k = strings.ReplaceAll(k, "*", "[^.]+")
@@ -313,10 +328,8 @@ func compareKeys(key string, def FieldDefinition, searchedKey string) bool {
 	}
 
 	k = fmt.Sprintf("^%s$", k)
-	matched, err := regexp.MatchString(k, searchedKey)
-	if err != nil {
-		panic(errors.Wrapf(err, "regexp built using the given field/key (%s) is invalid", k))
-	}
+	r := mustCompile(k)
+	matched := r.MatchString(searchedKey)
 	return matched
 }
 
