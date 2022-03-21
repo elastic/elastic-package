@@ -302,35 +302,41 @@ func FindElementDefinition(searchedKey string, fieldDefinitions []FieldDefinitio
 	return findElementDefinitionForRoot("", searchedKey, fieldDefinitions)
 }
 
-var compileCache map[string]*regexp.Regexp
-
-func init() {
-	compileCache = make(map[string]*regexp.Regexp)
-}
-
-func mustCompile(str string) *regexp.Regexp {
-	if r, found := compileCache[str]; found {
-		return r
-	}
-	r := regexp.MustCompile(str)
-	compileCache[str] = r
-	return r
-}
-
 func compareKeys(key string, def FieldDefinition, searchedKey string) bool {
-	k := strings.ReplaceAll(key, ".", "\\.")
-	k = strings.ReplaceAll(k, "*", "[^.]+")
+	if key == searchedKey {
+		return true
+	}
+
+	keyParts := strings.Split(key, ".")
+	searchedParts := strings.Split(searchedKey, ".")
+	if len(searchedParts) < len(keyParts) {
+		return false
+	}
+	for i, part := range keyParts {
+		if part == "*" {
+			continue
+		}
+		if part == searchedParts[i] {
+			continue
+		}
+		return false
+	}
+	if len(keyParts) == len(searchedParts) {
+		return true
+	}
 
 	// Workaround for potential geo_point, as "lon" and "lat" fields are not present in field definitions.
 	// Unfortunately we have to assume that imported field could be a geo_point (nasty workaround).
-	if def.Type == "geo_point" || def.External != "" {
-		k += "(\\.lon|\\.lat|)"
+	if len(keyParts)+1 == len(searchedParts) {
+		if def.Type == "geo_point" || def.External != "" {
+			extraPart := searchedParts[len(searchedParts)-1]
+			if extraPart == "lon" || extraPart == "lat" {
+				return true
+			}
+		}
 	}
 
-	k = fmt.Sprintf("^%s$", k)
-	r := mustCompile(k)
-	matched := r.MatchString(searchedKey)
-	return matched
+	return false
 }
 
 func (v *Validator) parseElementValue(key string, definition FieldDefinition, val interface{}) error {
