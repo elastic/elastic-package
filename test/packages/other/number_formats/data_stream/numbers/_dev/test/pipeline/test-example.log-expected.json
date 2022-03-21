@@ -5,7 +5,7 @@
                 "float": 0,
                 "float_as_long": 0,
                 "long": 0,
-                "long_as_float": 2
+                "long_as_float": 0
             },
             "message": "0"
         },
@@ -14,7 +14,7 @@
                 "float": 0,
                 "float_as_long": 0
             },
-            "message": "0.45"
+            "message": "0.0"
         },
         {
             "example": {
