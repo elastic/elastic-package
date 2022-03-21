@@ -1,21 +1,21 @@
 - name: example
   type: group
   fields:
-  - name: long
-    type: long
-    description: Store any number as long.
-  - name: float
-    type: double
-    description: Store any number as double.
-  - name: string_as_long
-    type: long
-    description: Store string representations of numbers as longs.
-  - name: string_as_float
-    type: double
-    description: Store string representations of numbers as float.
-  - name: float_as_long
-    type: long
-    description: Store float as long.
-  - name: long_as_float
-    type: float
-    description: Store long as float.
+    - name: long
+      type: long
+      description: Store any number as long.
+    - name: float
+      type: double
+      description: Store any number as double.
+    - name: string_as_long
+      type: long
+      description: Store string representations of numbers as longs.
+    - name: string_as_float
+      type: double
+      description: Store string representations of numbers as float.
+    - name: float_as_long
+      type: long
+      description: Store float as long.
+    - name: long_as_float
+      type: float
+      description: Store long as float.
