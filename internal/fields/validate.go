@@ -303,34 +303,36 @@ func FindElementDefinition(searchedKey string, fieldDefinitions []FieldDefinitio
 }
 
 func compareKeys(key string, def FieldDefinition, searchedKey string) bool {
-	if key == searchedKey {
-		return true
-	}
-
-	keyParts := strings.Split(key, ".")
-	searchedParts := strings.Split(searchedKey, ".")
-	if len(searchedParts) < len(keyParts) {
-		return false
-	}
-	for i, part := range keyParts {
-		if part == "*" {
+	var i int
+	var j int
+	for i = 0; i < len(key); i++ {
+		if j >= len(searchedKey) {
+			return false
+		}
+		if key[i] == searchedKey[j] {
+			j++
 			continue
 		}
-		if part == searchedParts[i] {
+		if key[i] == '*' {
+			for ; j < len(searchedKey); j++ {
+				if searchedKey[j] == '.' {
+					j--
+					break
+				}
+			}
 			continue
 		}
 		return false
 	}
-	if len(keyParts) == len(searchedParts) {
+	if len(searchedKey) == j {
 		return true
 	}
-
 	// Workaround for potential geo_point, as "lon" and "lat" fields are not present in field definitions.
 	// Unfortunately we have to assume that imported field could be a geo_point (nasty workaround).
-	if len(keyParts)+1 == len(searchedParts) {
+	if len(searchedKey) > j {
 		if def.Type == "geo_point" || def.External != "" {
-			extraPart := searchedParts[len(searchedParts)-1]
-			if extraPart == "lon" || extraPart == "lat" {
+			extraPart := searchedKey[j:]
+			if extraPart == ".lon" || extraPart == ".lat" {
 				return true
 			}
 		}
