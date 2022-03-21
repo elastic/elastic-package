@@ -1,0 +1,75 @@
+{
+    "expected": [
+        {
+            "example": {
+                "float": 0,
+                "float_as_long": 0,
+                "long": 0,
+                "long_as_float": 0
+            },
+            "message": "0"
+        },
+        {
+            "example": {
+                "float": 0,
+                "float_as_long": 0
+            },
+            "message": "0.0"
+        },
+        {
+            "example": {
+                "float": 42,
+                "float_as_long": 42,
+                "long": 42,
+                "long_as_float": 42
+            },
+            "message": "42"
+        },
+        {
+            "example": {
+                "float": 42,
+                "float_as_long": 42
+            },
+            "message": "42.0"
+        },
+        {
+            "example": {
+                "float": 0.42,
+                "float_as_long": 0.42
+            },
+            "message": "0.42"
+        },
+        {
+            "example": {
+                "float": -10,
+                "float_as_long": -10,
+                "long": -10,
+                "long_as_float": -10
+            },
+            "message": "-10"
+        },
+        {
+            "example": {
+                "float": -10.42,
+                "float_as_long": -10.42
+            },
+            "message": "-10.42"
+        },
+        {
+            "example": {
+                "float": 6.9200717685635164E18,
+                "float_as_long": 6.9200716E18,
+                "long": 6920071768563516847,
+                "long_as_float": 6920071768563516847
+            },
+            "message": "6920071768563516847"
+        },
+        {
+            "example": {
+                "float": 1.624617166182E9,
+                "float_as_long": 1.62461722E9
+            },
+            "message": "1624617166.182"
+        }
+    ]
+}
