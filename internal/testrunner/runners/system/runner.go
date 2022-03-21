@@ -650,6 +650,14 @@ func writeSampleEvent(path string, doc common.MapStr) error {
 
 func validateFields(docs []common.MapStr, fieldsValidator *fields.Validator, dataStream string) error {
 	var multiErr multierror.Error
+
+	// prevents panic and performs cleanup/teardown for cases where
+	// no hits were found for a data stream
+	if docs == nil || len(docs) == 0 {
+		multiErr = append(multiErr, fmt.Errorf("no documents found in %s data stream", dataStream))
+		return multiErr
+	}
+
 	for _, doc := range docs {
 		if message, err := doc.GetValue("error.message"); err != common.ErrKeyNotFound {
 			multiErr = append(multiErr, fmt.Errorf("found error.message in event: %v", message))
