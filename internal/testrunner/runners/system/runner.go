@@ -653,7 +653,7 @@ func validateFields(docs []common.MapStr, fieldsValidator *fields.Validator, dat
 
 	// prevents panic and performs cleanup/teardown for cases where
 	// no hits were found for a data stream
-	if docs == nil || len(docs) == 0 {
+	if len(docs) == 0 {
 		multiErr = append(multiErr, fmt.Errorf("no documents found in %s data stream", dataStream))
 		return multiErr
 	}
