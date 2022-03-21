@@ -104,17 +104,8 @@ func compareJsonNumbers(a, b json.Number) bool {
 
 func diffJson(want, got []byte) (string, error) {
 	opts := jsondiff.DefaultConsoleOptions()
-
-	// Remove colored output.
-	opts.Added = jsondiff.Tag{}
-	opts.Removed = jsondiff.Tag{}
-	opts.Changed = jsondiff.Tag{}
-	opts.Skipped = jsondiff.Tag{}
-
-	// Configure diff.
 	opts.SkipMatches = true
 	opts.CompareNumbers = compareJsonNumbers
-
 	result, diff := jsondiff.Compare(want, got, &opts)
 	switch result {
 	case jsondiff.FirstArgIsInvalidJson, jsondiff.SecondArgIsInvalidJson, jsondiff.BothArgsAreInvalidJson:
