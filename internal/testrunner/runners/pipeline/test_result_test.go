@@ -8,7 +8,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"gotest.tools/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestCompareJsonNumber(t *testing.T) {
