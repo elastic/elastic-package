@@ -302,31 +302,37 @@ func FindElementDefinition(searchedKey string, fieldDefinitions []FieldDefinitio
 	return findElementDefinitionForRoot("", searchedKey, fieldDefinitions)
 }
 
+// compareKeys checks if `searchedKey` matches with the given `key`. `key` can contain
+// wildcards (`*`), that match any sequence of characters in `searchedKey` different to dots.
 func compareKeys(key string, def FieldDefinition, searchedKey string) bool {
-	var i int
+	// Loop over every byte in `key` to find if there is a matching byte in `searchedKey`.
 	var j int
-	for i = 0; i < len(key); i++ {
+	for _, k := range []byte(key) {
 		if j >= len(searchedKey) {
 			return false
 		}
-		if key[i] == searchedKey[j] {
+		switch k {
+		case searchedKey[j]:
+			// Match, continue.
 			j++
-			continue
-		}
-		if key[i] == '*' {
-			for ; j < len(searchedKey); j++ {
-				if searchedKey[j] == '.' {
-					j--
-					break
-				}
+		case '*':
+			// Wildcard, match everything till next dot.
+			if idx := strings.Index(searchedKey[j:], "."); idx != -1 {
+				j += idx - 1
+			} else {
+				// If there is no dot, everything has matched.
+				j = len(searchedKey)
 			}
-			continue
+		default:
+			// No match.
+			return false
 		}
-		return false
 	}
+	// If everything matched, searched key has been found.
 	if len(searchedKey) == j {
 		return true
 	}
+
 	// Workaround for potential geo_point, as "lon" and "lat" fields are not present in field definitions.
 	// Unfortunately we have to assume that imported field could be a geo_point (nasty workaround).
 	if len(searchedKey) > j {
