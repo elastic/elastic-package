@@ -298,13 +298,13 @@ elastic-package test system --generate
 
 `elastic-package` runs a set of system tests on some [dummy packages](https://github.com/elastic/elastic-package/tree/main/test/packages) to ensure it's functionalities work as expected. This allows to test changes affecting package testing within `elastic-package` before merging and releasing the changes.
 
-Tests uses a set of environment variables that are set at the beginning of the `Jenkinsfile`.
+Tests use set of environment variables that are set at the beginning of the `Jenkinsfile`.
 
-The exposed environment variables are passed to the test runners through service deployer specific configurations (refer to the service deployer section for further details).
+The exposed environment variables are passed to the test runners through service deployer specific configuration (refer to the service deployer section for further details).
 
 ### Stack version
 
 The tests use the [default version](https://github.com/elastic/elastic-package/blob/main/internal/install/stack_version.go#L9) `elastic-package` provides.
 
-You can override this value by changing it in your PR if needed. To update the default version always created a dedicated PR.
+You can override this value by changing it in your PR if needed. To update the default version always create a dedicated PR.
 
