@@ -309,6 +309,7 @@ func compareKeys(key string, def FieldDefinition, searchedKey string) bool {
 	var j int
 	for _, k := range []byte(key) {
 		if j >= len(searchedKey) {
+			// End of searched key reached before maching all characters in the key.
 			return false
 		}
 		switch k {
@@ -317,11 +318,16 @@ func compareKeys(key string, def FieldDefinition, searchedKey string) bool {
 			j++
 		case '*':
 			// Wildcard, match everything till next dot.
-			if idx := strings.Index(searchedKey[j:], "."); idx != -1 {
-				j += idx - 1
-			} else {
-				// If there is no dot, everything has matched.
+			switch idx := strings.IndexByte(searchedKey[j:], '.'); idx {
+			default:
+				// Jump till next dot.
+				j += idx
+			case -1:
+				// No dots, wildcard matches with the rest of the searched key.
 				j = len(searchedKey)
+			case 0:
+				// Empty name on wildcard, this is not permitted (e.g. `example..foo`).
+				return false
 			}
 		default:
 			// No match.
