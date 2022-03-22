@@ -3,7 +3,7 @@ module github.com/elastic/elastic-package
 go 1.17
 
 require (
-	github.com/AlecAivazis/survey/v2 v2.3.2
+	github.com/AlecAivazis/survey/v2 v2.3.3
 	github.com/Masterminds/semver v1.5.0
 	github.com/ProtonMail/gopenpgp/v2 v2.4.5
 	github.com/aymerick/raymond v2.0.2+incompatible
@@ -12,7 +12,7 @@ require (
 	github.com/elastic/go-elasticsearch/v7 v7.17.1
 	github.com/elastic/go-licenser v0.4.0
 	github.com/elastic/go-ucfg v0.8.4
-	github.com/elastic/package-spec v1.6.0
+	github.com/elastic/package-spec v1.7.0
 	github.com/fatih/color v1.13.0
 	github.com/go-git/go-billy/v5 v5.3.1
 	github.com/go-git/go-git/v5 v5.4.2
@@ -34,7 +34,7 @@ require (
 	helm.sh/helm/v3 v3.8.1
 	honnef.co/go/tools v0.2.2
 	k8s.io/apimachinery v0.23.5
-	k8s.io/cli-runtime v0.23.4
+	k8s.io/cli-runtime v0.23.5
 	k8s.io/client-go v0.23.5
 )
 
