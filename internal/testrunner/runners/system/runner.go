@@ -655,19 +655,18 @@ func validateFields(docs []common.MapStr, fieldsValidator *fields.Validator, dat
 	// no hits were found for a data stream
 	if len(docs) == 0 {
 		multiErr = append(multiErr, fmt.Errorf("no documents found in %s data stream", dataStream))
-		return multiErr
-	}
+	} else {
+		for _, doc := range docs {
+			if message, err := doc.GetValue("error.message"); err != common.ErrKeyNotFound {
+				multiErr = append(multiErr, fmt.Errorf("found error.message in event: %v", message))
+				continue
+			}
 
-	for _, doc := range docs {
-		if message, err := doc.GetValue("error.message"); err != common.ErrKeyNotFound {
-			multiErr = append(multiErr, fmt.Errorf("found error.message in event: %v", message))
-			continue
-		}
-
-		errs := fieldsValidator.ValidateDocumentMap(doc)
-		if errs != nil {
-			multiErr = append(multiErr, errs...)
-			continue
+			errs := fieldsValidator.ValidateDocumentMap(doc)
+			if errs != nil {
+				multiErr = append(multiErr, errs...)
+				continue
+			}
 		}
 	}
 
