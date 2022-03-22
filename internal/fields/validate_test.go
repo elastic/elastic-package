@@ -9,6 +9,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -220,6 +221,126 @@ func Test_parseElementValue(t *testing.T) {
 			} else {
 				require.NoError(t, err)
 			}
+		})
+	}
+}
+
+func TestCompareKeys(t *testing.T) {
+	cases := []struct {
+		key         string
+		def         FieldDefinition
+		searchedKey string
+		expected    bool
+	}{
+		{
+			key:         "example.foo",
+			searchedKey: "example.foo",
+			expected:    true,
+		},
+		{
+			key:         "example.bar",
+			searchedKey: "example.foo",
+			expected:    false,
+		},
+		{
+			key:         "example.foo",
+			searchedKey: "example.foos",
+			expected:    false,
+		},
+		{
+			key:         "example.foo",
+			searchedKey: "example.fo",
+			expected:    false,
+		},
+		{
+			key:         "example.*",
+			searchedKey: "example.foo",
+			expected:    true,
+		},
+		{
+			key:         "example.foo",
+			searchedKey: "example.*",
+			expected:    false,
+		},
+		{
+			key:         "example.*",
+			searchedKey: "example.",
+			expected:    false,
+		},
+		{
+			key:         "example.*.foo",
+			searchedKey: "example.group.foo",
+			expected:    true,
+		},
+		{
+			key:         "example.*.*",
+			searchedKey: "example.group.foo",
+			expected:    true,
+		},
+		{
+			key:         "example.*.*",
+			searchedKey: "example..foo",
+			expected:    false,
+		},
+		{
+			key:         "example.*",
+			searchedKey: "example.group.foo",
+			expected:    false,
+		},
+		{
+			key:         "example.geo",
+			def:         FieldDefinition{Type: "geo_point"},
+			searchedKey: "example.geo.lat",
+			expected:    true,
+		},
+		{
+			key:         "example.geo",
+			def:         FieldDefinition{Type: "geo_point"},
+			searchedKey: "example.geo.lon",
+			expected:    true,
+		},
+		{
+			key:         "example.geo",
+			def:         FieldDefinition{Type: "geo_point"},
+			searchedKey: "example.geo.foo",
+			expected:    false,
+		},
+		{
+			key:         "example.ecs.geo",
+			def:         FieldDefinition{External: "ecs"},
+			searchedKey: "example.ecs.geo.lat",
+			expected:    true,
+		},
+		{
+			key:         "example.ecs.geo",
+			def:         FieldDefinition{External: "ecs"},
+			searchedKey: "example.ecs.geo.lon",
+			expected:    true,
+		},
+		{
+			key:         "example.*",
+			def:         FieldDefinition{Type: "geo_point"},
+			searchedKey: "example.geo.lon",
+			expected:    true,
+		},
+		{
+			key:         "example.*",
+			def:         FieldDefinition{External: "ecs"},
+			searchedKey: "example.geo.lat",
+			expected:    true,
+		},
+		{
+			key:         "example.*",
+			def:         FieldDefinition{Type: "geo_point"},
+			searchedKey: "example.geo.foo",
+			expected:    false,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.key+" matches "+c.searchedKey, func(t *testing.T) {
+			found := compareKeys(c.key, c.def, c.searchedKey)
+			assert.Equal(t, c.expected, found)
 		})
 	}
 }
