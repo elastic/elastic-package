@@ -26,6 +26,12 @@ Conceptually, running a system test involves the following steps:
 At the moment system tests have limitations. The salient ones are:
 * There isn't a way to do assert that the indexed data matches data from a file (e.g. golden file testing).
 
+## Stack version
+
+The tests use the [default version](https://github.com/elastic/elastic-package/blob/main/internal/install/stack_version.go#L9) `elastic-package` provides.
+
+You can override this value by changing it in your PR if needed. To update the default version always created a dedicated PR.
+
 ## Defining a system test
 
 Packages have a specific folder structure (only relevant parts shown).
@@ -143,6 +149,32 @@ data "aws_ami" "latest-amzn" {
 
 Notice the use of the `TEST_RUN_ID` variable. It contains a unique ID, which can help differentiate resources created in potential concurrent test runs.
 
+#### Environment variables
+
+To use environment variables within the Terraform service deployer a `env.yml` file is required.
+
+The file should be structured like this:
+
+```yaml
+version: '2.3'
+services:
+  terraform:
+    environment:
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+```
+
+It's purpose is to inject environment variables in the Terraform service deployer environment.
+
+To specify a default use this syntax: `AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-default}`, replacing `default` with the desired default value.
+
+**NOTE**: Terraform variables passed as environment variables require to be prefixed with `TF_VAR_`. These variables are not available in test case definitions because they are [not injected](https://github.com/elastic/elastic-package/blob/f5312b6022e3527684e591f99e73992a73baafcf/internal/testrunner/runners/system/servicedeployer/terraform_env.go#L43) in the test environment.
+
+#### Cloud Provider access
+
+Terraform is often used to interact with Cloud Providers. This require Cloud Provider credentials.
+
+Injecting credentials can be achieved with functions from the [`apm-pipeline-library`](https://github.com/elastic/apm-pipeline-library/tree/main/vars) Jenkins library. For example look for `withAzureCredentials`, `withAWSEnv` or `withGCPEnv`.
+
 ### Kubernetes service deployer
 
 The Kubernetes service deployer requires the `_dev/deploy/k8s` directory to be present. It can include additional `*.yaml` files to deploy
@@ -217,6 +249,9 @@ The `SERVICE_LOGS_DIR` placeholder is not the only one available for use in a da
 
 Placeholders used in the `test-<test_name>-config.yml` must be enclosed in `{{` and `}}` delimiters, per Handlebars syntax.
 
+
+**NOTE**: Terraform variable environment variable form (prefixed with `TF_VAR_`) is not injected and cannot be used as placeholders (their value would always be empty).
+
 ## Running a system test
 
 Once the two levels of configurations are defined as described in the previous section, you are ready to run system tests for a package's data streams.
@@ -264,3 +299,11 @@ to indexing generated data from the integration's data streams into Elasticsearc
 ```
 elastic-package test system --generate
 ```
+
+## Continuous Integration
+
+`elastic-package` runs a set of system tests on some dummy packages to ensure it's functionalities work as expected. This allows to test changes affecting package testing within `elastic-package` before merging and releasing the changes.
+
+Tests uses a set of environment variables that are set at the beginning of the `Jenkinsfile`.
+
+The exposed environment variables are passed to the test runners through service deployer specific configurations (refer to the service deployer section for further details).
