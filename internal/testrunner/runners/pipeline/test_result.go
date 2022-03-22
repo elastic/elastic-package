@@ -11,9 +11,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 
-	"github.com/kylelemons/godebug/diff"
+	"github.com/nsf/jsondiff"
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/common"
@@ -21,10 +20,6 @@ import (
 )
 
 const expectedTestResultSuffix = "-expected.json"
-
-// diffContext is the number of context lines to show for diffs in test case
-// mismatches. It is the equivalent of -U in a unified diff.
-const diffContext = 3
 
 type testResult struct {
 	events []json.RawMessage
@@ -70,87 +65,62 @@ func compareResults(testCasePath string, config *testConfig, result *testResult)
 		return errors.Wrap(err, "marshalling expected test results failed")
 	}
 
-	report := diffUlite(string(expected), string(actual), diffContext)
+	report, err := diffJson(expected, actual)
+	if err != nil {
+		return errors.Wrap(err, "comparing expected test result")
+	}
 	if report != "" {
 		return testrunner.ErrTestCaseFailed{
 			Reason:  "Expected results are different from actual ones",
 			Details: report,
 		}
 	}
+
 	return nil
 }
 
-// diffUlite implements a unified diff-like rendering with u lines of context.
-// It differs from a complete unified diff in that it does not provide the length
-// of the chunk, so it cannot be used to generate patches, but can be used for
-// human inspection.
-func diffUlite(a, b string, u int) string {
-	chunks := diff.DiffChunks(strings.Split(a, "\n"), strings.Split(b, "\n"))
-	if len(chunks) == 0 {
-		return ""
+func compareJsonNumbers(a, b json.Number) bool {
+	if a == b {
+		// Equal literals, so they are the same.
+		return true
 	}
-
-	buf := new(bytes.Buffer)
-	fmt.Fprintf(buf, "--- want\n+++ got\n")
-	gotLine := 1
-	wantLine := 1
-
-	for i, c := range chunks {
-		if i == 0 && (len(c.Added) != 0 || len(c.Deleted) != 0) {
-			fmt.Fprintf(buf, "@@ -%d +%d @@\n", wantLine, gotLine)
+	if inta, err := a.Int64(); err == nil {
+		if intb, err := b.Int64(); err == nil {
+			return inta == intb
 		}
-		var change bool
-		for _, line := range c.Added {
-			change = true
-			fmt.Fprintf(buf, "+ %s\n", line)
+		if floatb, err := b.Float64(); err == nil {
+			return float64(inta) == floatb
 		}
-		gotLine += len(c.Added)
-
-		for _, line := range c.Deleted {
-			change = true
-			fmt.Fprintf(buf, "- %s\n", line)
+	} else if floata, err := a.Float64(); err == nil {
+		if intb, err := b.Int64(); err == nil {
+			return floata == float64(intb)
 		}
-		wantLine += len(c.Deleted)
-
-		var used int
-		if change {
-			used = min(len(c.Equal), u)
-			for _, line := range c.Equal[:used] {
-				fmt.Fprintf(buf, "  %s\n", line)
-			}
+		if floatb, err := b.Float64(); err == nil {
+			return floata == floatb
 		}
-		if i < len(chunks)-1 {
-			next := chunks[i+1]
-			if len(next.Added) != 0 || len(next.Deleted) != 0 {
-				off := max(used, len(c.Equal)-u)
-				if off < len(c.Equal) {
-					if i == 0 || 2*u < len(c.Equal) {
-						fmt.Fprintf(buf, "@@ -%d +%d @@\n", wantLine+off, gotLine+off)
-					}
-					for _, line := range c.Equal[off:] {
-						fmt.Fprintf(buf, "  %s\n", line)
-					}
-				}
-			}
-		}
-		gotLine += len(c.Equal)
-		wantLine += len(c.Equal)
 	}
-	return strings.TrimRight(buf.String(), "\n")
+	return false
 }
 
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
+func diffJson(want, got []byte) (string, error) {
+	opts := jsondiff.DefaultConsoleOptions()
 
-func max(a, b int) int {
-	if a > b {
-		return a
+	// Remove colored output.
+	opts.Added = jsondiff.Tag{}
+	opts.Removed = jsondiff.Tag{}
+	opts.Changed = jsondiff.Tag{}
+	opts.Skipped = jsondiff.Tag{}
+
+	// Configure diff.
+	opts.SkipMatches = true
+	opts.CompareNumbers = compareJsonNumbers
+
+	result, diff := jsondiff.Compare(want, got, &opts)
+	switch result {
+	case jsondiff.FirstArgIsInvalidJson, jsondiff.SecondArgIsInvalidJson, jsondiff.BothArgsAreInvalidJson:
+		return "", errors.New("invalid json")
 	}
-	return b
+	return diff, nil
 }
 
 func readExpectedTestResult(testCasePath string, config *testConfig) (*testResult, error) {

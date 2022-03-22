@@ -302,22 +302,55 @@ func FindElementDefinition(searchedKey string, fieldDefinitions []FieldDefinitio
 	return findElementDefinitionForRoot("", searchedKey, fieldDefinitions)
 }
 
+// compareKeys checks if `searchedKey` matches with the given `key`. `key` can contain
+// wildcards (`*`), that match any sequence of characters in `searchedKey` different to dots.
 func compareKeys(key string, def FieldDefinition, searchedKey string) bool {
-	k := strings.ReplaceAll(key, ".", "\\.")
-	k = strings.ReplaceAll(k, "*", "[^.]+")
+	// Loop over every byte in `key` to find if there is a matching byte in `searchedKey`.
+	var j int
+	for _, k := range []byte(key) {
+		if j >= len(searchedKey) {
+			// End of searched key reached before maching all characters in the key.
+			return false
+		}
+		switch k {
+		case searchedKey[j]:
+			// Match, continue.
+			j++
+		case '*':
+			// Wildcard, match everything till next dot.
+			switch idx := strings.IndexByte(searchedKey[j:], '.'); idx {
+			default:
+				// Jump till next dot.
+				j += idx
+			case -1:
+				// No dots, wildcard matches with the rest of the searched key.
+				j = len(searchedKey)
+			case 0:
+				// Empty name on wildcard, this is not permitted (e.g. `example..foo`).
+				return false
+			}
+		default:
+			// No match.
+			return false
+		}
+	}
+	// If everything matched, searched key has been found.
+	if len(searchedKey) == j {
+		return true
+	}
 
 	// Workaround for potential geo_point, as "lon" and "lat" fields are not present in field definitions.
 	// Unfortunately we have to assume that imported field could be a geo_point (nasty workaround).
-	if def.Type == "geo_point" || def.External != "" {
-		k += "(\\.lon|\\.lat|)"
+	if len(searchedKey) > j {
+		if def.Type == "geo_point" || def.External != "" {
+			extraPart := searchedKey[j:]
+			if extraPart == ".lon" || extraPart == ".lat" {
+				return true
+			}
+		}
 	}
 
-	k = fmt.Sprintf("^%s$", k)
-	matched, err := regexp.MatchString(k, searchedKey)
-	if err != nil {
-		panic(errors.Wrapf(err, "regexp built using the given field/key (%s) is invalid", k))
-	}
-	return matched
+	return false
 }
 
 func (v *Validator) parseElementValue(key string, definition FieldDefinition, val interface{}) error {
