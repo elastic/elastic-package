@@ -54,6 +54,20 @@ type portMapping struct {
 	Protocol     string
 }
 
+type intOrStringYaml int
+
+func (p *intOrStringYaml) UnmarshalYAML(node *yaml.Node) error {
+	var s string
+	err := node.Decode(&s)
+	if err == nil {
+		i, err := strconv.Atoi(s)
+		*p = intOrStringYaml(i)
+		return err
+	}
+
+	return node.Decode(p)
+}
+
 // UnmarshalYAML unmarshals a Docker Compose port mapping in YAML to
 // a portMapping.
 func (p *portMapping) UnmarshalYAML(node *yaml.Node) error {
@@ -68,8 +82,8 @@ func (p *portMapping) UnmarshalYAML(node *yaml.Node) error {
 
 		var s struct {
 			HostIP    string `yaml:"host_ip"`
-			Target    int
-			Published int
+			Target    intOrStringYaml
+			Published intOrStringYaml
 			Protocol  string
 		}
 
@@ -77,8 +91,8 @@ func (p *portMapping) UnmarshalYAML(node *yaml.Node) error {
 			return errors.Wrap(err, "could not unmarshal YAML map node")
 		}
 
-		p.InternalPort = s.Target
-		p.ExternalPort = s.Published
+		p.InternalPort = int(s.Target)
+		p.ExternalPort = int(s.Published)
 		p.Protocol = s.Protocol
 		p.ExternalIP = s.HostIP
 		return nil
