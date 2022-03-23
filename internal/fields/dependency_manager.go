@@ -221,5 +221,21 @@ func transformImportedField(fd FieldDefinition) common.MapStr {
 		}
 		m.Put("fields", t)
 	}
+
+	if len(fd.MultiFields) > 0 {
+		var t []common.MapStr
+		for _, f := range fd.MultiFields {
+			i := transformImportedMultiField(f)
+			t = append(t, i)
+		}
+		m.Put("multi_fields", t)
+	}
 	return m
+}
+
+func transformImportedMultiField(fd MultiFieldDefinition) common.MapStr {
+	return common.MapStr{
+		"name": fd.Name,
+		"type": fd.Type,
+	}
 }

@@ -6,15 +6,16 @@ package fields
 
 // FieldDefinition describes a single field with its properties.
 type FieldDefinition struct {
-	Name        string            `yaml:"name"`
-	Description string            `yaml:"description"`
-	Type        string            `yaml:"type"`
-	Value       string            `yaml:"value"` // The value to associate with a constant_keyword field.
-	Pattern     string            `yaml:"pattern"`
-	Unit        string            `yaml:"unit"`
-	MetricType  string            `yaml:"metric_type"`
-	External    string            `yaml:"external"`
-	Fields      []FieldDefinition `yaml:"fields"`
+	Name        string                 `yaml:"name"`
+	Description string                 `yaml:"description"`
+	Type        string                 `yaml:"type"`
+	Value       string                 `yaml:"value"` // The value to associate with a constant_keyword field.
+	Pattern     string                 `yaml:"pattern"`
+	Unit        string                 `yaml:"unit"`
+	MetricType  string                 `yaml:"metric_type"`
+	External    string                 `yaml:"external"`
+	Fields      []FieldDefinition      `yaml:"fields,omitempty"`
+	MultiFields []MultiFieldDefinition `yaml:"multi_fields,omitempty"`
 }
 
 func (orig *FieldDefinition) Update(fd FieldDefinition) {
@@ -63,5 +64,41 @@ func (orig *FieldDefinition) Update(fd FieldDefinition) {
 			}
 		}
 		orig.Fields = updatedFields
+	}
+
+	if len(fd.MultiFields) > 0 {
+		updatedFields := make([]MultiFieldDefinition, len(orig.MultiFields))
+		copy(updatedFields, orig.MultiFields)
+		for _, newField := range fd.MultiFields {
+			found := false
+			for i, origField := range orig.MultiFields {
+				if origField.Name != newField.Name {
+					continue
+				}
+
+				found = true
+				updatedFields[i].Update(newField)
+				break
+			}
+			if !found {
+				updatedFields = append(updatedFields, newField)
+			}
+		}
+		orig.MultiFields = updatedFields
+	}
+}
+
+// MultiFieldDefinition describes a multi field with its properties.
+type MultiFieldDefinition struct {
+	Name string `yaml:"name"`
+	Type string `yaml:"type"`
+}
+
+func (orig *MultiFieldDefinition) Update(fd MultiFieldDefinition) {
+	if fd.Name != "" {
+		orig.Name = fd.Name
+	}
+	if fd.Type != "" {
+		orig.Type = fd.Type
 	}
 }

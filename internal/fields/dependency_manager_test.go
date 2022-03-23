@@ -117,6 +117,30 @@ func TestDependencyManagerInjectExternalFields(t *testing.T) {
 			valid:   true,
 		},
 		{
+			title: "multi fields",
+			defs: []common.MapStr{
+				{
+					"name":     "process.command_line",
+					"external": "test",
+				},
+			},
+			result: []common.MapStr{
+				{
+					"name":        "process.command_line",
+					"type":        "wildcard",
+					"description": "Full command line that started the process.",
+					"multi_fields": []common.MapStr{
+						{
+							"name": "text",
+							"type": "match_only_text",
+						},
+					},
+				},
+			},
+			changed: true,
+			valid:   true,
+		},
+		{
 			title: "unknown field",
 			defs: []common.MapStr{
 				{
@@ -143,6 +167,17 @@ func TestDependencyManagerInjectExternalFields(t *testing.T) {
 			Name:        "data_stream.dataset",
 			Description: "Data stream dataset.",
 			Type:        "constant_keyword",
+		},
+		{
+			Name:        "process.command_line",
+			Description: "Full command line that started the process.",
+			Type:        "wildcard",
+			MultiFields: []MultiFieldDefinition{
+				{
+					Name: "text",
+					Type: "match_only_text",
+				},
+			},
 		},
 	}}
 	dm := &DependencyManager{schema: schema}
