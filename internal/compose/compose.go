@@ -386,7 +386,7 @@ func (p *Project) dockerComposeVersion() (*semver.Version, error) {
 		return nil, errors.Wrap(err, "running Docker Compose version command failed")
 	}
 	dcVersion := b.String()
-	ver, err := semver.NewVersion(strings.Trim(dcVersion, "\n"))
+	ver, err := semver.NewVersion(strings.TrimSpace(dcVersion))
 	if err != nil {
 		return nil, errors.Wrapf(err, "docker compose version is not a valid semver (value: %s)", dcVersion)
 	}
