@@ -213,6 +213,14 @@ func transformImportedField(fd FieldDefinition) common.MapStr {
 		"type":        fd.Type,
 	}
 
+	if fd.Index != nil {
+		m["index"] = *fd.Index
+	}
+
+	if fd.DocValues != nil {
+		m["doc_values"] = *fd.DocValues
+	}
+
 	if len(fd.Fields) > 0 {
 		var t []common.MapStr
 		for _, f := range fd.Fields {

@@ -14,6 +14,8 @@ type FieldDefinition struct {
 	Unit        string                 `yaml:"unit"`
 	MetricType  string                 `yaml:"metric_type"`
 	External    string                 `yaml:"external"`
+	Index       *bool                  `yaml:"index"`
+	DocValues   *bool                  `yaml:"doc_values"`
 	Fields      []FieldDefinition      `yaml:"fields,omitempty"`
 	MultiFields []MultiFieldDefinition `yaml:"multi_fields,omitempty"`
 }
@@ -42,6 +44,14 @@ func (orig *FieldDefinition) Update(fd FieldDefinition) {
 	}
 	if fd.External != "" {
 		orig.External = fd.External
+	}
+	if fd.Index != nil {
+		v := *fd.Index
+		orig.Index = &v
+	}
+	if fd.DocValues != nil {
+		v := *fd.DocValues
+		orig.DocValues = &v
 	}
 
 	if len(fd.Fields) > 0 {

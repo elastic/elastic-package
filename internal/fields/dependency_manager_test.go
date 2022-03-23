@@ -141,6 +141,47 @@ func TestDependencyManagerInjectExternalFields(t *testing.T) {
 			valid:   true,
 		},
 		{
+			title: "not indexed external",
+			defs: []common.MapStr{
+				{
+					"name":     "event.original",
+					"external": "test",
+				},
+			},
+			result: []common.MapStr{
+				{
+					"name":        "event.original",
+					"type":        "text",
+					"description": "Original event.",
+					"index":       false,
+					"doc_values":  false,
+				},
+			},
+			changed: true,
+			valid:   true,
+		},
+		{
+			title: "override not indexed external",
+			defs: []common.MapStr{
+				{
+					"name":     "event.original",
+					"index":    true,
+					"external": "test",
+				},
+			},
+			result: []common.MapStr{
+				{
+					"name":        "event.original",
+					"type":        "text",
+					"description": "Original event.",
+					"index":       true,
+					"doc_values":  false,
+				},
+			},
+			changed: true,
+			valid:   true,
+		},
+		{
 			title: "unknown field",
 			defs: []common.MapStr{
 				{
@@ -152,6 +193,7 @@ func TestDependencyManagerInjectExternalFields(t *testing.T) {
 		},
 	}
 
+	indexFalse := false
 	schema := map[string][]FieldDefinition{"test": []FieldDefinition{
 		{
 			Name:        "container.id",
@@ -178,6 +220,13 @@ func TestDependencyManagerInjectExternalFields(t *testing.T) {
 					Type: "match_only_text",
 				},
 			},
+		},
+		{
+			Name:        "event.original",
+			Description: "Original event.",
+			Type:        "text",
+			Index:       &indexFalse,
+			DocValues:   &indexFalse,
 		},
 	}}
 	dm := &DependencyManager{schema: schema}
