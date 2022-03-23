@@ -81,9 +81,9 @@ func (p *portMapping) UnmarshalYAML(node *yaml.Node) error {
 		}
 
 		var s struct {
-			HostIP    string `yaml:"host_ip"`
-			Target    intOrStringYaml
-			Published intOrStringYaml
+			HostIP    string          `yaml:"host_ip"`
+			Target    intOrStringYaml // Docker compose v2 can define ports as strings.
+			Published intOrStringYaml // Docker compose v2 can define ports as strings.
 			Protocol  string
 		}
 
