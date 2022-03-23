@@ -285,7 +285,7 @@ func (p *Project) WaitForHealthy(opts CommandOptions) error {
 	startTime := time.Now()
 	timeout := startTime.Add(waitForHealthyTimeout)
 
-	containerIDs := strings.Split(strings.TrimSpace(b.String()), "\n")
+	containerIDs := docker.SplitDockerContainerIDs(b.Bytes())
 	for {
 		if time.Now().After(timeout) {
 			return errors.New("timeout waiting for healthy container")

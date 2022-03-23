@@ -79,11 +79,11 @@ func ContainerID(containerName string) (string, error) {
 	if err != nil {
 		return "", errors.Wrapf(err, "could not find \"%s\" container (stderr=%q)", containerName, errOutput.String())
 	}
-	containerIDs := bytes.Split(bytes.TrimSpace(output), []byte{'\n'})
+	containerIDs := SplitDockerContainerIDs(output)
 	if len(containerIDs) != 1 {
 		return "", fmt.Errorf("expected single %s container", containerName)
 	}
-	return string(containerIDs[0]), nil
+	return containerIDs[0], nil
 }
 
 // InspectNetwork function returns the network description for the selected network.
@@ -153,4 +153,11 @@ func Copy(containerName, containerPath, localPath string) error {
 		return errors.Wrapf(err, "could not copy files from the container (stderr=%q)", errOutput.String())
 	}
 	return nil
+}
+
+// SplitDockerContainerIDs is a helper function to properly extract container IDs based on the operating system.
+func SplitDockerContainerIDs(buffer []byte) []string {
+	t := string(buffer)
+	t = strings.ReplaceAll(t, "\r\n", "\n") // Windows OS uses a different separator
+	return strings.Split(strings.TrimSpace(t), "\n")
 }
