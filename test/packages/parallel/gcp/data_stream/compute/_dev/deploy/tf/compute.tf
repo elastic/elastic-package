@@ -13,8 +13,8 @@ resource "google_compute_instance" "default" {
   zone         = var.zone
 
   labels = {
-    team   = "integrations"
     run_id = var.TEST_RUN_ID
+    repo_build_tag = var.REPO_BUILD_TAG
   }
 
   boot_disk {
