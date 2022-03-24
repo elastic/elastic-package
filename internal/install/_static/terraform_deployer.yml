@@ -3,6 +3,7 @@ services:
   terraform:
     build: .
     tty: true
+    stop_grace_period: 5m
     environment:
       - TF_VAR_TEST_RUN_ID=${TF_VAR_TEST_RUN_ID:-detached}
       - TF_VAR_BUILD_TAG=${REPO_NAME:-unknown}-pr-${CHANGE_ID:-unknown}-${BUILD_NUMBER:-unknown}
