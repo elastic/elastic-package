@@ -5,6 +5,6 @@ services:
     tty: true
     environment:
       - TF_VAR_TEST_RUN_ID=${TF_VAR_TEST_RUN_ID:-detached}
-      - TF_VAR_BUILD_TAG="${REPO_NAME:-unknown}-${JOB_BASE_NAME:-unknown}-${BUILD_NUMBER:-unknown}"
+      - TF_VAR_BUILD_TAG=${REPO_NAME:-unknown}-${JOB_BASE_NAME:-unknown}-${BUILD_NUMBER:-unknown}
     volumes:
       - ${TF_DIR}:/stage
