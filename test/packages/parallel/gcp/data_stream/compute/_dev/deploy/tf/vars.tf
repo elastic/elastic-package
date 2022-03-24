@@ -2,8 +2,8 @@ variable "TEST_RUN_ID" {
   default = "detached"
 }
 
-variable "REPO_BUILD_TAG" {
-  default = "unknown"
+variable "BUILD_TAG" {
+  default = "unknown-tag"
 }
 
 variable "gcp_project_id" {
