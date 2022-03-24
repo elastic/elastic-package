@@ -299,7 +299,7 @@ func (p *Project) WaitForHealthy(opts CommandOptions) error {
 	startTime := time.Now()
 	timeout := startTime.Add(waitForHealthyTimeout)
 
-	containerIDs := strings.Split(strings.TrimSpace(b.String()), "\n")
+	containerIDs := strings.Fields(b.String())
 	for {
 		if time.Now().After(timeout) {
 			return errors.New("timeout waiting for healthy container")
@@ -400,7 +400,7 @@ func (p *Project) dockerComposeVersion() (*semver.Version, error) {
 		return nil, errors.Wrap(err, "running Docker Compose version command failed")
 	}
 	dcVersion := b.String()
-	ver, err := semver.NewVersion(strings.Trim(dcVersion, "\n"))
+	ver, err := semver.NewVersion(strings.TrimSpace(dcVersion))
 	if err != nil {
 		return nil, errors.Wrapf(err, "docker compose version is not a valid semver (value: %s)", dcVersion)
 	}

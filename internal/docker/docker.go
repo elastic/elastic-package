@@ -79,11 +79,11 @@ func ContainerID(containerName string) (string, error) {
 	if err != nil {
 		return "", errors.Wrapf(err, "could not find \"%s\" container (stderr=%q)", containerName, errOutput.String())
 	}
-	containerIDs := bytes.Split(bytes.TrimSpace(output), []byte{'\n'})
+	containerIDs := strings.Fields(string(output))
 	if len(containerIDs) != 1 {
 		return "", fmt.Errorf("expected single %s container", containerName)
 	}
-	return string(containerIDs[0]), nil
+	return containerIDs[0], nil
 }
 
 // InspectNetwork function returns the network description for the selected network.
