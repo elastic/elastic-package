@@ -434,6 +434,7 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 
 	if !passed {
 		result.FailureMsg = fmt.Sprintf("could not find hits in %s data stream", dataStream)
+		return result.WithError(fmt.Errorf("%s", result.FailureMsg))
 	}
 
 	// Validate fields in docs
@@ -651,22 +652,16 @@ func writeSampleEvent(path string, doc common.MapStr) error {
 func validateFields(docs []common.MapStr, fieldsValidator *fields.Validator, dataStream string) error {
 	var multiErr multierror.Error
 
-	// prevents panic and performs cleanup/teardown for cases where
-	// no hits were found for a data stream
-	if len(docs) == 0 {
-		multiErr = append(multiErr, fmt.Errorf("no documents found in %s data stream", dataStream))
-	} else {
-		for _, doc := range docs {
-			if message, err := doc.GetValue("error.message"); err != common.ErrKeyNotFound {
-				multiErr = append(multiErr, fmt.Errorf("found error.message in event: %v", message))
-				continue
-			}
+	for _, doc := range docs {
+		if message, err := doc.GetValue("error.message"); err != common.ErrKeyNotFound {
+			multiErr = append(multiErr, fmt.Errorf("found error.message in event: %v", message))
+			continue
+		}
 
-			errs := fieldsValidator.ValidateDocumentMap(doc)
-			if errs != nil {
-				multiErr = append(multiErr, errs...)
-				continue
-			}
+		errs := fieldsValidator.ValidateDocumentMap(doc)
+		if errs != nil {
+			multiErr = append(multiErr, errs...)
+			continue
 		}
 	}
 
