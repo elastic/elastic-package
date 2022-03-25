@@ -651,7 +651,6 @@ func writeSampleEvent(path string, doc common.MapStr) error {
 
 func validateFields(docs []common.MapStr, fieldsValidator *fields.Validator, dataStream string) error {
 	var multiErr multierror.Error
-
 	for _, doc := range docs {
 		if message, err := doc.GetValue("error.message"); err != common.ErrKeyNotFound {
 			multiErr = append(multiErr, fmt.Errorf("found error.message in event: %v", message))
