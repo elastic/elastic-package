@@ -20,6 +20,7 @@ HEALTHCHECK --timeout=3s CMD sh -c "[ -f /tmp/tf-applied ]"
 ENV TF_IN_AUTOMATION=true
 ENV TF_CLI_ARGS="-no-color"
 ADD run.sh /
+RUN chmod +x /run.sh
 WORKDIR /workspace
 
-ENTRYPOINT bash /run.sh
+ENTRYPOINT exec /run.sh
