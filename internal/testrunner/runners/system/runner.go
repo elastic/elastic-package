@@ -434,6 +434,7 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 
 	if !passed {
 		result.FailureMsg = fmt.Sprintf("could not find hits in %s data stream", dataStream)
+		return result.WithError(fmt.Errorf("%s", result.FailureMsg))
 	}
 
 	// Validate fields in docs
