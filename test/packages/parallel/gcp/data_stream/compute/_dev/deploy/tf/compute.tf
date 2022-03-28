@@ -14,7 +14,9 @@ resource "google_compute_instance" "default" {
 
   labels = {
     run_id = var.TEST_RUN_ID
-    build_tag = var.BUILD_TAG
+    repo_name = var.REPO_NAME
+    pull_request = var.PULL_REQUEST
+    ci_build_number = var.CI_BUILD_NUMBER
   }
 
   boot_disk {

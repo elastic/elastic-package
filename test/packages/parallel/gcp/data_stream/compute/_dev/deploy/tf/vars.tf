@@ -2,8 +2,16 @@ variable "TEST_RUN_ID" {
   default = "detached"
 }
 
-variable "BUILD_TAG" {
-  default = "unknown-tag"
+variable "REPO_NAME" {
+  default = "unknown-repo"
+}
+
+variable "PULL_REQUEST" {
+  default = "unknown-pr"
+}
+
+variable "CI_BUILD_NUMBER" {
+  default = "unknown-build"
 }
 
 variable "gcp_project_id" {
