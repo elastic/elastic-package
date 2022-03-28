@@ -339,26 +339,12 @@ func compareKeys(key string, def FieldDefinition, searchedKey string) bool {
 		return true
 	}
 
-	// Only a dot can be accepted now.
-	if searchedKey[j] != '.' {
-		return false
-	}
-	j++
-
+	// Workaround for potential geo_point, as "lon" and "lat" fields are not present in field definitions.
+	// Unfortunately we have to assume that imported field could be a geo_point (nasty workaround).
 	if len(searchedKey) > j {
-		extraPart := searchedKey[j:]
-
-		// Check if this is a multi field.
-		for _, multiField := range def.MultiFields {
-			if extraPart == multiField.Name {
-				return true
-			}
-		}
-
-		// Workaround for potential geo_point, as "lon" and "lat" fields are not present in field definitions.
-		// Unfortunately we have to assume that imported field could be a geo_point (nasty workaround).
 		if def.Type == "geo_point" || def.External != "" {
-			if extraPart == "lon" || extraPart == "lat" {
+			extraPart := searchedKey[j:]
+			if extraPart == ".lon" || extraPart == ".lat" {
 				return true
 			}
 		}

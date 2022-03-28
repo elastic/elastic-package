@@ -335,18 +335,6 @@ func TestCompareKeys(t *testing.T) {
 			searchedKey: "example.geo.foo",
 			expected:    false,
 		},
-		{
-			key: "example.command_line",
-			def: FieldDefinition{
-				MultiFields: []MultiFieldDefinition{
-					{
-						Name: "text",
-					},
-				},
-			},
-			searchedKey: "example.command_line.text",
-			expected:    true,
-		},
 	}
 
 	for _, c := range cases {
