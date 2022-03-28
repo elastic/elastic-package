@@ -53,47 +53,56 @@ func (orig *FieldDefinition) Update(fd FieldDefinition) {
 	}
 
 	if len(fd.Fields) > 0 {
-		// When a subfield the same name exists, update it. When not, append it.
-		updatedFields := make([]FieldDefinition, len(orig.Fields))
-		copy(updatedFields, orig.Fields)
-		for _, newField := range fd.Fields {
-			found := false
-			for i, origField := range orig.Fields {
-				if origField.Name != newField.Name {
-					continue
-				}
-
-				found = true
-				updatedFields[i].Update(newField)
-				break
-			}
-			if !found {
-				updatedFields = append(updatedFields, newField)
-			}
-		}
-		orig.Fields = updatedFields
+		orig.updateFields(fd.Fields)
 	}
 
 	if len(fd.MultiFields) > 0 {
-		updatedFields := make([]MultiFieldDefinition, len(orig.MultiFields))
-		copy(updatedFields, orig.MultiFields)
-		for _, newField := range fd.MultiFields {
-			found := false
-			for i, origField := range orig.MultiFields {
-				if origField.Name != newField.Name {
-					continue
-				}
-
-				found = true
-				updatedFields[i].Update(newField)
-				break
-			}
-			if !found {
-				updatedFields = append(updatedFields, newField)
-			}
-		}
-		orig.MultiFields = updatedFields
+		orig.updateMultiFields(fd.MultiFields)
 	}
+}
+
+func (orig *FieldDefinition) updateFields(fields []FieldDefinition) {
+	// When a subfield the same name exists, update it. When not, append it.
+	updatedFields := make([]FieldDefinition, len(orig.Fields))
+	copy(updatedFields, orig.Fields)
+	for _, newField := range fields {
+		found := false
+		for i, origField := range orig.Fields {
+			if origField.Name != newField.Name {
+				continue
+			}
+
+			found = true
+			updatedFields[i].Update(newField)
+			break
+		}
+		if !found {
+			updatedFields = append(updatedFields, newField)
+		}
+	}
+	orig.Fields = updatedFields
+}
+
+func (orig *FieldDefinition) updateMultiFields(fields []MultiFieldDefinition) {
+	// When a subfield the same name exists, update it. When not, append it.
+	updatedFields := make([]MultiFieldDefinition, len(orig.MultiFields))
+	copy(updatedFields, orig.MultiFields)
+	for _, newField := range fields {
+		found := false
+		for i, origField := range orig.MultiFields {
+			if origField.Name != newField.Name {
+				continue
+			}
+
+			found = true
+			updatedFields[i].Update(newField)
+			break
+		}
+		if !found {
+			updatedFields = append(updatedFields, newField)
+		}
+	}
+	orig.MultiFields = updatedFields
 }
 
 // MultiFieldDefinition describes a multi field with its properties.
