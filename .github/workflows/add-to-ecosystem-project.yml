@@ -27,19 +27,13 @@ jobs:
       - uses: octokit/graphql-action@v2.x
         id: label_team
         with:
-          headers: '{"GraphQL-Features": "projects_next_graphql"}'
           query: |
-            mutation label_team($projectid:ID!,$itemid:ID!,$fieldid:ID!,$value:String!) {
-              updateProjectNextItemField(input: { projectId:$projectid itemId:$itemid fieldId:$fieldid value:$value }) {
-                projectNextItem {
-                  id
-                }
+            mutation add_label($issueid:ID!, $labelids:[String!]!) {
+              addLabelsToLabelable(input: {labelableId: $issueid, labelIds: $labelids}) {
+                 clientMutationId
               }
             }
-          projectid: ${{ env.PROJECT_ID }}
-          itemid: ${{ fromJSON(steps.add_to_project.outputs.data).addProjectNextItem.projectNextItem.id }}
-          fieldid: "MDE2OlByb2plY3ROZXh0RmllbGQyNjU3MDg5"
-          value: "LA_kwDOEBH20c7PrEba"
+          issueid: ${{ github.event.issue.node_id }}
+          labelids: "LA_kwDOEBH20c7PrEba"
         env:
-          PROJECT_ID: "PN_kwDOAGc3Zs4ABFUO"
           GITHUB_TOKEN: ${{ secrets.ECOSYSTEM_USER_TOKEN }}
