@@ -46,12 +46,10 @@ func (orig *FieldDefinition) Update(fd FieldDefinition) {
 		orig.External = fd.External
 	}
 	if fd.Index != nil {
-		v := *fd.Index
-		orig.Index = &v
+		orig.Index = fd.Index
 	}
 	if fd.DocValues != nil {
-		v := *fd.DocValues
-		orig.DocValues = &v
+		orig.DocValues = fd.DocValues
 	}
 
 	if len(fd.Fields) > 0 {
