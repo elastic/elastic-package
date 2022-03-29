@@ -28,7 +28,7 @@ jobs:
         id: label_team
         with:
           query: |
-            mutation add_label($issueid:ID!, $labelids:[String!]!) {
+            mutation add_label($issueid:ID!, $labelids:[ID!]!) {
               addLabelsToLabelable(input: {labelableId: $issueid, labelIds: $labelids}) {
                  clientMutationId
               }
