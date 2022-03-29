@@ -25,8 +25,8 @@ const (
 	ecsSchemaName      = "ecs"
 	gitReferencePrefix = "git@"
 
-	ecsSchemaFile = "fields.ecs.yml"
-	ecsSchemaURL  = "https://raw.githubusercontent.com/elastic/ecs/%s/generated/beats/%s"
+	ecsSchemaFile = "ecs_flat.yml"
+	ecsSchemaURL  = "https://raw.githubusercontent.com/elastic/ecs/%s/generated/ecs/%s"
 )
 
 // DependencyManager is responsible for resolving external field dependencies.
@@ -111,12 +111,18 @@ func loadECSFieldsSchema(dep buildmanifest.ECSDependency) ([]FieldDefinition, er
 		}
 	}
 
-	var f []FieldDefinition
+	var f map[string]FieldDefinition
 	err = yaml.Unmarshal(content, &f)
 	if err != nil {
 		return nil, errors.Wrap(err, "unmarshalling field body failed")
 	}
-	return f[0].Fields, nil
+
+	fields := make([]FieldDefinition, 0, len(f))
+	for name, field := range f {
+		field.Name = name
+		fields = append(fields, field)
+	}
+	return fields, nil
 }
 
 func asGitReference(reference string) (string, error) {
