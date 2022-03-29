@@ -212,6 +212,7 @@ func transformImportedField(fd FieldDefinition) common.MapStr {
 		"type": fd.Type,
 	}
 
+	// Multi-fields don't have descriptions.
 	if fd.Description != "" {
 		m["description"] = fd.Description
 	}
