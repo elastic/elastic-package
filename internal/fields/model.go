@@ -14,7 +14,10 @@ type FieldDefinition struct {
 	Unit        string            `yaml:"unit"`
 	MetricType  string            `yaml:"metric_type"`
 	External    string            `yaml:"external"`
-	Fields      []FieldDefinition `yaml:"fields"`
+	Index       *bool             `yaml:"index"`
+	DocValues   *bool             `yaml:"doc_values"`
+	Fields      []FieldDefinition `yaml:"fields,omitempty"`
+	MultiFields []FieldDefinition `yaml:"multi_fields,omitempty"`
 }
 
 func (orig *FieldDefinition) Update(fd FieldDefinition) {
@@ -42,26 +45,40 @@ func (orig *FieldDefinition) Update(fd FieldDefinition) {
 	if fd.External != "" {
 		orig.External = fd.External
 	}
+	if fd.Index != nil {
+		orig.Index = fd.Index
+	}
+	if fd.DocValues != nil {
+		orig.DocValues = fd.DocValues
+	}
 
 	if len(fd.Fields) > 0 {
-		// When a subfield the same name exists, update it. When not, append it.
-		updatedFields := make([]FieldDefinition, len(orig.Fields))
-		copy(updatedFields, orig.Fields)
-		for _, newField := range fd.Fields {
-			found := false
-			for i, origField := range orig.Fields {
-				if origField.Name != newField.Name {
-					continue
-				}
-
-				found = true
-				updatedFields[i].Update(newField)
-				break
-			}
-			if !found {
-				updatedFields = append(updatedFields, newField)
-			}
-		}
-		orig.Fields = updatedFields
+		orig.Fields = updateFields(orig.Fields, fd.Fields)
 	}
+
+	if len(fd.MultiFields) > 0 {
+		orig.MultiFields = updateFields(orig.MultiFields, fd.MultiFields)
+	}
+}
+
+func updateFields(origFields, fields []FieldDefinition) []FieldDefinition {
+	// When a subfield the same name exists, update it. When not, append it.
+	updatedFields := make([]FieldDefinition, len(origFields))
+	copy(updatedFields, origFields)
+	for _, newField := range fields {
+		found := false
+		for i, origField := range origFields {
+			if origField.Name != newField.Name {
+				continue
+			}
+
+			found = true
+			updatedFields[i].Update(newField)
+			break
+		}
+		if !found {
+			updatedFields = append(updatedFields, newField)
+		}
+	}
+	return updatedFields
 }

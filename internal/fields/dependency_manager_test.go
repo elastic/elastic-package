@@ -117,6 +117,71 @@ func TestDependencyManagerInjectExternalFields(t *testing.T) {
 			valid:   true,
 		},
 		{
+			title: "multi fields",
+			defs: []common.MapStr{
+				{
+					"name":     "process.command_line",
+					"external": "test",
+				},
+			},
+			result: []common.MapStr{
+				{
+					"name":        "process.command_line",
+					"type":        "wildcard",
+					"description": "Full command line that started the process.",
+					"multi_fields": []common.MapStr{
+						{
+							"name": "text",
+							"type": "match_only_text",
+						},
+					},
+				},
+			},
+			changed: true,
+			valid:   true,
+		},
+		{
+			title: "not indexed external",
+			defs: []common.MapStr{
+				{
+					"name":     "event.original",
+					"external": "test",
+				},
+			},
+			result: []common.MapStr{
+				{
+					"name":        "event.original",
+					"type":        "text",
+					"description": "Original event.",
+					"index":       false,
+					"doc_values":  false,
+				},
+			},
+			changed: true,
+			valid:   true,
+		},
+		{
+			title: "override not indexed external",
+			defs: []common.MapStr{
+				{
+					"name":     "event.original",
+					"index":    true,
+					"external": "test",
+				},
+			},
+			result: []common.MapStr{
+				{
+					"name":        "event.original",
+					"type":        "text",
+					"description": "Original event.",
+					"index":       true,
+					"doc_values":  false,
+				},
+			},
+			changed: true,
+			valid:   true,
+		},
+		{
 			title: "unknown field",
 			defs: []common.MapStr{
 				{
@@ -128,6 +193,7 @@ func TestDependencyManagerInjectExternalFields(t *testing.T) {
 		},
 	}
 
+	indexFalse := false
 	schema := map[string][]FieldDefinition{"test": []FieldDefinition{
 		{
 			Name:        "container.id",
@@ -143,6 +209,24 @@ func TestDependencyManagerInjectExternalFields(t *testing.T) {
 			Name:        "data_stream.dataset",
 			Description: "Data stream dataset.",
 			Type:        "constant_keyword",
+		},
+		{
+			Name:        "process.command_line",
+			Description: "Full command line that started the process.",
+			Type:        "wildcard",
+			MultiFields: []FieldDefinition{
+				{
+					Name: "text",
+					Type: "match_only_text",
+				},
+			},
+		},
+		{
+			Name:        "event.original",
+			Description: "Original event.",
+			Type:        "text",
+			Index:       &indexFalse,
+			DocValues:   &indexFalse,
 		},
 	}}
 	dm := &DependencyManager{schema: schema}

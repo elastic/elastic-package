@@ -208,9 +208,21 @@ func buildFieldPath(root string, field common.MapStr) string {
 
 func transformImportedField(fd FieldDefinition) common.MapStr {
 	m := common.MapStr{
-		"name":        fd.Name,
-		"description": fd.Description,
-		"type":        fd.Type,
+		"name": fd.Name,
+		"type": fd.Type,
+	}
+
+	// Multi-fields don't have descriptions.
+	if fd.Description != "" {
+		m["description"] = fd.Description
+	}
+
+	if fd.Index != nil {
+		m["index"] = *fd.Index
+	}
+
+	if fd.DocValues != nil {
+		m["doc_values"] = *fd.DocValues
 	}
 
 	if len(fd.Fields) > 0 {
@@ -220,6 +232,15 @@ func transformImportedField(fd FieldDefinition) common.MapStr {
 			t = append(t, i)
 		}
 		m.Put("fields", t)
+	}
+
+	if len(fd.MultiFields) > 0 {
+		var t []common.MapStr
+		for _, f := range fd.MultiFields {
+			i := transformImportedField(f)
+			t = append(t, i)
+		}
+		m.Put("multi_fields", t)
 	}
 	return m
 }

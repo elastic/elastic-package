@@ -147,6 +147,14 @@ func visitFields(namePrefix string, f fields.FieldDefinition, records []fieldsTa
 			unit:        f.Unit,
 			metricType:  f.MetricType,
 		})
+
+		for _, multiField := range f.MultiFields {
+			records = append(records, fieldsTableRecord{
+				name:        name + "." + multiField.Name,
+				description: fmt.Sprintf("Multi-field of %#q.", name),
+				aType:       multiField.Type,
+			})
+		}
 		return records, nil
 	}
 
