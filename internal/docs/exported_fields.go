@@ -152,7 +152,7 @@ func visitFields(namePrefix string, f fields.FieldDefinition, records []fieldsTa
 			records = append(records, fieldsTableRecord{
 				name:        name + "." + multiField.Name,
 				description: fmt.Sprintf("Multi-field of %#q.", name),
-				aType:       f.Type,
+				aType:       multiField.Type,
 			})
 		}
 		return records, nil
