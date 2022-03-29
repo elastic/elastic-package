@@ -214,7 +214,7 @@ func TestDependencyManagerInjectExternalFields(t *testing.T) {
 			Name:        "process.command_line",
 			Description: "Full command line that started the process.",
 			Type:        "wildcard",
-			MultiFields: []MultiFieldDefinition{
+			MultiFields: []FieldDefinition{
 				{
 					Name: "text",
 					Type: "match_only_text",
