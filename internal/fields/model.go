@@ -4,6 +4,8 @@
 
 package fields
 
+import "github.com/elastic/elastic-package/internal/common"
+
 // FieldDefinition describes a single field with its properties.
 type FieldDefinition struct {
 	Name        string            `yaml:"name"`
@@ -16,6 +18,7 @@ type FieldDefinition struct {
 	External    string            `yaml:"external"`
 	Index       *bool             `yaml:"index"`
 	DocValues   *bool             `yaml:"doc_values"`
+	Normalize   []string          `yaml:"normalize,omitempty"`
 	Fields      []FieldDefinition `yaml:"fields,omitempty"`
 	MultiFields []FieldDefinition `yaml:"multi_fields,omitempty"`
 }
@@ -50,6 +53,10 @@ func (orig *FieldDefinition) Update(fd FieldDefinition) {
 	}
 	if fd.DocValues != nil {
 		orig.DocValues = fd.DocValues
+	}
+
+	if len(fd.Normalize) > 0 {
+		orig.Normalize = common.StringSlicesUnion(orig.Normalize, fd.Normalize)
 	}
 
 	if len(fd.Fields) > 0 {

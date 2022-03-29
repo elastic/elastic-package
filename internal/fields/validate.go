@@ -244,7 +244,12 @@ func (v *Validator) validateScalarElement(key string, val interface{}) error {
 		val = fmt.Sprintf("%q", val)
 	}
 
-	err := v.parseElementValue(key, *definition, val)
+	err := v.validateExpectedNormalization(*definition, val)
+	if err != nil {
+		return errors.Wrapf(err, "field %q is not normalized as expected", key)
+	}
+
+	err = v.parseElementValue(key, *definition, val)
 	if err != nil {
 		return errors.Wrap(err, "parsing field value failed")
 	}
@@ -351,6 +356,18 @@ func compareKeys(key string, def FieldDefinition, searchedKey string) bool {
 	}
 
 	return false
+}
+
+func (v *Validator) validateExpectedNormalization(definition FieldDefinition, val interface{}) error {
+	for _, normalize := range definition.Normalize {
+		switch normalize {
+		case "array":
+			if _, isArray := val.([]interface{}); val != nil && !isArray {
+				return fmt.Errorf("expected array, found %q (%T)", val, val)
+			}
+		}
+	}
+	return nil
 }
 
 func (v *Validator) parseElementValue(key string, definition FieldDefinition, val interface{}) error {

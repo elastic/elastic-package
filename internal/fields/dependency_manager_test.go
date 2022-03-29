@@ -182,6 +182,51 @@ func TestDependencyManagerInjectExternalFields(t *testing.T) {
 			valid:   true,
 		},
 		{
+			title: "array field",
+			defs: []common.MapStr{
+				{
+					"name":     "host.ip",
+					"external": "test",
+				},
+			},
+			result: []common.MapStr{
+				{
+					"name":        "host.ip",
+					"type":        "ip",
+					"description": "Host ip addresses.",
+					"normalize": []string{
+						"array",
+					},
+				},
+			},
+			changed: true,
+			valid:   true,
+		},
+		{
+			title: "array field override",
+			defs: []common.MapStr{
+				{
+					"name":     "container.id",
+					"external": "test",
+					"normalize": []string{
+						"array",
+					},
+				},
+			},
+			result: []common.MapStr{
+				{
+					"name":        "container.id",
+					"type":        "keyword",
+					"description": "Container identifier.",
+					"normalize": []string{
+						"array",
+					},
+				},
+			},
+			changed: true,
+			valid:   true,
+		},
+		{
 			title: "unknown field",
 			defs: []common.MapStr{
 				{
@@ -227,6 +272,14 @@ func TestDependencyManagerInjectExternalFields(t *testing.T) {
 			Type:        "text",
 			Index:       &indexFalse,
 			DocValues:   &indexFalse,
+		},
+		{
+			Name:        "host.ip",
+			Description: "Host ip addresses.",
+			Type:        "ip",
+			Normalize: []string{
+				"array",
+			},
 		},
 	}}
 	dm := &DependencyManager{schema: schema}

@@ -225,6 +225,10 @@ func transformImportedField(fd FieldDefinition) common.MapStr {
 		m["doc_values"] = *fd.DocValues
 	}
 
+	if len(fd.Normalize) > 0 {
+		m["normalize"] = fd.Normalize
+	}
+
 	if len(fd.Fields) > 0 {
 		var t []common.MapStr
 		for _, f := range fd.Fields {

@@ -22,3 +22,17 @@ func StringSliceContains(slice []string, s string) bool {
 	}
 	return false
 }
+
+// StringSlicesUnion joins multiple slices and returns an slice with the distinct
+// elements of all of them.
+func StringSlicesUnion(slices ...[]string) (result []string) {
+	for _, slice := range slices {
+		for _, elem := range slice {
+			if StringSliceContains(result, elem) {
+				continue
+			}
+			result = append(result, elem)
+		}
+	}
+	return
+}

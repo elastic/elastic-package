@@ -106,3 +106,5 @@
   name: user_agent.os.version
 - external: ecs
   name: user_agent.version
+- external: ecs
+  name: host.ip
