@@ -9,6 +9,21 @@ const (
 	BuildZipFlagName        = "zip"
 	BuildZipFlagDescription = "archive the built package"
 
+	ChangelogAddNextFlagName        = "next"
+	ChangelogAddNextFlagDescription = "changelog entry is added in the next `major`, `minor` or `patch` version"
+
+	ChangelogAddVersionFlagName        = "version"
+	ChangelogAddVersionFlagDescription = "changelog entry is added in the given version"
+
+	ChangelogAddDescriptionFlagName        = "description"
+	ChangelogAddDescriptionFlagDescription = "description for the changelog entry"
+
+	ChangelogAddTypeFlagName        = "type"
+	ChangelogAddTypeFlagDescription = "type of change (bugfix, enhancement or breaking-change) for the changelog entry"
+
+	ChangelogAddLinkFlagName        = "link"
+	ChangelogAddLinkFlagDescription = "link to the pull request or issue with more information about the changelog entry"
+
 	CheckConditionFlagName        = "check-condition"
 	CheckConditionFlagDescription = "check if the condition is met for the package, but don't install the package (e.g. kibana.version=7.10.0)"
 
