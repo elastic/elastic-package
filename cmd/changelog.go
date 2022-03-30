@@ -5,14 +5,12 @@
 package cmd
 
 import (
-	"fmt"
 	"io/ioutil"
 	"path/filepath"
 
 	"github.com/Masterminds/semver"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/packages"
@@ -90,7 +88,7 @@ func changelogAddCmd(cmd *cobra.Command, args []string) error {
 		},
 	}
 
-	return patchChangelog(packageRoot, entry)
+	return patchChangelogFile(packageRoot, entry)
 }
 
 func changelogCmdVersion(nextMode, packageRoot string) (*semver.Version, error) {
@@ -127,84 +125,18 @@ func changelogCmdVersion(nextMode, packageRoot string) (*semver.Version, error) 
 	return version, nil
 }
 
-// patchChangelog looks for the proper place to add the new revision in the changelog,
+// patchChangelogFile looks for the proper place to add the new revision in the changelog,
 // trying to conserve original format and comments.
-func patchChangelog(packageRoot string, patch changelog.Revision) error {
+func patchChangelogFile(packageRoot string, patch changelog.Revision) error {
 	changelogPath := filepath.Join(packageRoot, changelog.PackageChangelogFile)
 	d, err := ioutil.ReadFile(changelogPath)
 	if err != nil {
 		return err
 	}
 
-	var nodes []yaml.Node
-	err = yaml.Unmarshal(d, &nodes)
+	d, err = changelog.PatchYAML(d, patch)
 	if err != nil {
 		return err
-	}
-
-	patchVersion, err := semver.NewVersion(patch.Version)
-	if err != nil {
-		return err
-	}
-
-	patched := false
-	var result []yaml.Node
-	for _, node := range nodes {
-		if patched {
-			result = append(result, node)
-			continue
-		}
-
-		var entry changelog.Revision
-		err := node.Decode(&entry)
-		if err != nil {
-			result = append(result, node)
-			continue
-		}
-
-		foundVersion, err := semver.NewVersion(entry.Version)
-		if err != nil {
-			return err
-		}
-
-		var newNode yaml.Node
-		if patchVersion.Equal(foundVersion) {
-			// Add the change to current entry.
-			fmt.Println("Adding changelog entry in version", foundVersion)
-			entry.Changes = append(patch.Changes, entry.Changes...)
-			err := newNode.Encode(entry)
-			if err != nil {
-				return err
-			}
-			fmt.Printf("%+v\n", newNode)
-			result = append(result, newNode)
-			patched = true
-			continue
-		}
-
-		// Add the change before first entry
-		fmt.Println("Adding changelog entry before version", foundVersion)
-		err = newNode.Encode(patch)
-		if err != nil {
-			return err
-		}
-		fmt.Printf("%+v\n", newNode)
-		// If there is a comment on top, leave it there.
-		if node.HeadComment != "" {
-			newNode.HeadComment = node.HeadComment
-			node.HeadComment = ""
-		}
-		result = append(result, newNode, node)
-		patched = true
-	}
-
-	if !patched {
-		return errors.New("patch was not applied, this is probably a bug")
-	}
-
-	d, err = yaml.Marshal(result)
-	if err != nil {
-		return errors.Wrap(err, "failed to encode resulting changelog")
 	}
 
 	return ioutil.WriteFile(changelogPath, d, 0644)
