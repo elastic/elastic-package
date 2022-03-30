@@ -25,7 +25,7 @@ const (
 	ecsSchemaName      = "ecs"
 	gitReferencePrefix = "git@"
 
-	ecsSchemaFile = "ecs_flat.yml"
+	ecsSchemaFile = "ecs_nested.yml"
 	ecsSchemaURL  = "https://raw.githubusercontent.com/elastic/ecs/%s/generated/ecs/%s"
 )
 
@@ -122,17 +122,12 @@ func readECSFieldsSchemaFile(dep buildmanifest.ECSDependency) ([]byte, error) {
 }
 
 func parseECSFieldsSchema(content []byte) ([]FieldDefinition, error) {
-	var f map[string]FieldDefinition
-	err := yaml.Unmarshal(content, &f)
+	var fields FieldDefinitions
+	err := yaml.Unmarshal(content, &fields)
 	if err != nil {
 		return nil, errors.Wrap(err, "unmarshalling field body failed")
 	}
 
-	fields := make([]FieldDefinition, 0, len(f))
-	for name, field := range f {
-		field.Name = name
-		fields = append(fields, field)
-	}
 	return fields, nil
 }
 
