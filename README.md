@@ -86,6 +86,12 @@ Built packages can also be published to the global package registry service.
 
 For details on how to enable dependency management, see the [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/dependency_management.md).
 
+### `elastic-package changelog`
+
+_Context: package_
+
+Use this command to work with the changelog of the package.
+
 ### `elastic-package check`
 
 _Context: package_
