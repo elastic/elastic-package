@@ -61,6 +61,15 @@ func loadECSFieldsSchema(dep buildmanifest.ECSDependency) ([]FieldDefinition, er
 		return nil, nil
 	}
 
+	content, err := readECSFieldsSchemaFile(dep)
+	if err != nil {
+		return nil, errors.Wrap(err, "error reading ECS fields schema file")
+	}
+
+	return parseECSFieldsSchema(content)
+}
+
+func readECSFieldsSchemaFile(dep buildmanifest.ECSDependency) ([]byte, error) {
 	gitReference, err := asGitReference(dep.Reference)
 	if err != nil {
 		return nil, errors.Wrap(err, "can't process the value as Git reference")
@@ -70,12 +79,8 @@ func loadECSFieldsSchema(dep buildmanifest.ECSDependency) ([]FieldDefinition, er
 	if err != nil {
 		return nil, errors.Wrap(err, "error fetching profile path")
 	}
-
 	cachedSchemaPath := filepath.Join(loc.FieldsCacheDir(), ecsSchemaName, gitReference, ecsSchemaFile)
 	content, err := os.ReadFile(cachedSchemaPath)
-	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return nil, errors.Wrapf(err, "can't read cached schema (path: %s)", cachedSchemaPath)
-	}
 	if errors.Is(err, os.ErrNotExist) {
 		logger.Debugf("Pulling ECS dependency using reference: %s", dep.Reference)
 
@@ -109,10 +114,16 @@ func loadECSFieldsSchema(dep buildmanifest.ECSDependency) ([]FieldDefinition, er
 		if err != nil {
 			return nil, errors.Wrapf(err, "can't write cached schema (path: %s)", cachedSchemaPath)
 		}
+	} else if err != nil {
+		return nil, errors.Wrapf(err, "can't read cached schema (path: %s)", cachedSchemaPath)
 	}
 
+	return content, nil
+}
+
+func parseECSFieldsSchema(content []byte) ([]FieldDefinition, error) {
 	var f map[string]FieldDefinition
-	err = yaml.Unmarshal(content, &f)
+	err := yaml.Unmarshal(content, &f)
 	if err != nil {
 		return nil, errors.Wrap(err, "unmarshalling field body failed")
 	}
