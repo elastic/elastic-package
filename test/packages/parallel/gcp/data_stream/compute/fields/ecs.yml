@@ -1,4 +1,6 @@
 - external: ecs
+  name: cloud
+- external: ecs
   name: cloud.account.id
 - external: ecs
   name: cloud.account.name
@@ -14,6 +16,8 @@
   name: cloud.region
 - external: ecs
   name: ecs.version
+- external: ecs
+  name: error
 - external: ecs
   name: error.message
 - external: ecs
