@@ -5,6 +5,8 @@
 package changelog
 
 import (
+	"bytes"
+
 	"github.com/Masterminds/semver"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
@@ -44,6 +46,10 @@ func PatchYAML(d []byte, patch Revision) ([]byte, error) {
 			return nil, err
 		}
 
+		if foundVersion.GreaterThan(patchVersion) {
+			return nil, errors.New("cannot add change to old version")
+		}
+
 		var newNode yaml.Node
 		if patchVersion.Equal(foundVersion) {
 			// Add the change to current entry.
@@ -57,7 +63,7 @@ func PatchYAML(d []byte, patch Revision) ([]byte, error) {
 			newNode.LineComment = node.LineComment
 			newNode.FootComment = node.FootComment
 			// Quote version to keep common style.
-			setYamlMapValueVersionStyle(&newNode, "version", yaml.DoubleQuotedStyle)
+			setYamlMapValueStyle(&newNode, "version", yaml.DoubleQuotedStyle)
 			result = append(result, newNode)
 			patched = true
 			continue
@@ -74,7 +80,7 @@ func PatchYAML(d []byte, patch Revision) ([]byte, error) {
 			node.HeadComment = ""
 		}
 		// Quote version to keep common style.
-		setYamlMapValueVersionStyle(&newNode, "version", yaml.DoubleQuotedStyle)
+		setYamlMapValueStyle(&newNode, "version", yaml.DoubleQuotedStyle)
 		result = append(result, newNode, node)
 		patched = true
 	}
@@ -91,9 +97,30 @@ func PatchYAML(d []byte, patch Revision) ([]byte, error) {
 	return d, nil
 }
 
-// setYamlMapValueVersionStyle changes the style of one value in a YAML map. If the key
+func SetManifestVersion(d []byte, version string) ([]byte, error) {
+	var node yaml.Node
+	err := yaml.Unmarshal(d, &node)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to decode manifest")
+	}
+
+	// Manifest is a document, with a single element, that should be a map.
+	if len(node.Content) == 0 || node.Content[0].Kind != yaml.MappingNode {
+		return nil, errors.Wrap(err, "unexpected manifest content")
+	}
+
+	setYamlMapValue(node.Content[0], "version", version)
+
+	var buf bytes.Buffer
+	encoder := yaml.NewEncoder(&buf)
+	encoder.SetIndent(2)
+	err = encoder.Encode(&node)
+	return buf.Bytes(), err
+}
+
+// setYamlMapValueStyle changes the style of one value in a YAML map. If the key
 // is not found, it does nothing.
-func setYamlMapValueVersionStyle(node *yaml.Node, key string, style yaml.Style) {
+func setYamlMapValueStyle(node *yaml.Node, key string, style yaml.Style) {
 	// Check first if this is a map.
 	if node == nil || node.Kind != yaml.MappingNode {
 		return
@@ -109,5 +136,25 @@ func setYamlMapValueVersionStyle(node *yaml.Node, key string, style yaml.Style) 
 	valueIdx := keyIdx + 1
 	if valueIdx < len(node.Content) {
 		node.Content[valueIdx].Style = style
+	}
+}
+
+// setYamlMapValue sets a value in a map.
+func setYamlMapValue(node *yaml.Node, key string, value string) {
+	// Check first if this is a map.
+	if node == nil || node.Kind != yaml.MappingNode {
+		return
+	}
+	// Look for the key, the value will be the next one.
+	var keyIdx int
+	for keyIdx = range node.Content {
+		child := node.Content[keyIdx]
+		if child.Kind == yaml.ScalarNode && child.Value == key {
+			break
+		}
+	}
+	valueIdx := keyIdx + 1
+	if valueIdx < len(node.Content) {
+		node.Content[valueIdx].Value = value
 	}
 }

@@ -10,6 +10,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -87,7 +88,18 @@ func TestPatchYAML(t *testing.T) {
 				t.Skip("file generated, run again")
 			}
 			require.NoError(t, err)
-			require.Equal(t, string(expected), string(result))
+
+			assert.Equal(t, string(expected), string(result))
 		})
 	}
+}
+
+func TestManifestVersion(t *testing.T) {
+	manifest := "name: test\nversion: 1.0.0\n"
+	expected := "name: test\nversion: 1.1.0\n"
+
+	result, err := SetManifestVersion([]byte(manifest), "1.1.0")
+	require.NoError(t, err)
+
+	assert.Equal(t, string(expected), string(result))
 }

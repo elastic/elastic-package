@@ -88,7 +88,17 @@ func changelogAddCmd(cmd *cobra.Command, args []string) error {
 		},
 	}
 
-	return patchChangelogFile(packageRoot, entry)
+	err = patchChangelogFile(packageRoot, entry)
+	if err != nil {
+		return err
+	}
+
+	err = setManifestVersion(packageRoot, version)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func changelogCmdVersion(nextMode, packageRoot string) (*semver.Version, error) {
@@ -140,4 +150,19 @@ func patchChangelogFile(packageRoot string, patch changelog.Revision) error {
 	}
 
 	return ioutil.WriteFile(changelogPath, d, 0644)
+}
+
+func setManifestVersion(packageRoot string, version string) error {
+	manifestPath := filepath.Join(packageRoot, packages.PackageManifestFile)
+	d, err := ioutil.ReadFile(manifestPath)
+	if err != nil {
+		return err
+	}
+
+	d, err = changelog.SetManifestVersion(d, version)
+	if err != nil {
+		return err
+	}
+
+	return ioutil.WriteFile(manifestPath, d, 0644)
 }
