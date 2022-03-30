@@ -5,8 +5,6 @@
 package changelog
 
 import (
-	"fmt"
-
 	"github.com/Masterminds/semver"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
@@ -49,7 +47,6 @@ func PatchYAML(d []byte, patch Revision) ([]byte, error) {
 		var newNode yaml.Node
 		if patchVersion.Equal(foundVersion) {
 			// Add the change to current entry.
-			fmt.Println("Adding changelog entry in version", foundVersion)
 			entry.Changes = append(patch.Changes, entry.Changes...)
 			err := newNode.Encode(entry)
 			if err != nil {
@@ -67,7 +64,6 @@ func PatchYAML(d []byte, patch Revision) ([]byte, error) {
 		}
 
 		// Add the change before first entry
-		fmt.Println("Adding changelog entry before version", foundVersion)
 		err = newNode.Encode(patch)
 		if err != nil {
 			return nil, err
