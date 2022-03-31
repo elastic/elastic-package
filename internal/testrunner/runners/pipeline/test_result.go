@@ -106,8 +106,8 @@ func diffJson(want, got []byte) (string, error) {
 	opts := jsondiff.DefaultConsoleOptions()
 
 	// Remove colored output.
-	opts.Added = jsondiff.Tag{}
-	opts.Removed = jsondiff.Tag{}
+	opts.Added = jsondiff.Tag{Begin: "+ "}
+	opts.Removed = jsondiff.Tag{Begin: "- "}
 	opts.Changed = jsondiff.Tag{}
 	opts.Skipped = jsondiff.Tag{}
 
