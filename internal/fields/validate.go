@@ -448,8 +448,8 @@ func (v *Validator) isAllowedIPValue(s string) bool {
 	return false
 }
 
-// ensureSingleElementValue extracts single entity from a potential array, which is a valid field representation
-// in Elasticsearch. For type assertion we need a single value.
+// forEachElementValue visits a function for each element in the given value if
+// it is an array. If it is not an array, it calls the function with it.
 func forEachElementValue(val interface{}, fn func(interface{}) error) error {
 	arr, isArray := val.([]interface{})
 	if !isArray {
