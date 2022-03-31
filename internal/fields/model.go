@@ -108,8 +108,11 @@ func (fds *FieldDefinitions) UnmarshalYAML(value *yaml.Node) error {
 		return nil
 	case yaml.MappingNode:
 		// Fields are defined as a map, this happens in ecs fields files.
+		if len(value.Content)%2 != 0 {
+			return fmt.Errorf("pairs of key-values expected in map")
+		}
 		var fields []FieldDefinition
-		for i := 0; i < len(value.Content); i += 2 {
+		for i := 0; i+1 < len(value.Content); i += 2 {
 			key := value.Content[i]
 			value := value.Content[i+1]
 
