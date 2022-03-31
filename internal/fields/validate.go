@@ -354,60 +354,74 @@ func compareKeys(key string, def FieldDefinition, searchedKey string) bool {
 }
 
 func (v *Validator) parseElementValue(key string, definition FieldDefinition, val interface{}) error {
-	val, ok := ensureSingleElementValue(val)
-	if !ok {
-		return nil // it's an array, but it's not possible to extract the single value.
-	}
+	return forEachElementValue(val, func(val interface{}) error {
+		var valid bool
+		switch definition.Type {
+		case "constant_keyword":
+			var valStr string
+			valStr, valid = val.(string)
+			if !valid {
+				break
+			}
 
-	var valid bool
-	switch definition.Type {
-	case "constant_keyword":
-		var valStr string
-		valStr, valid = val.(string)
+			if err := ensureConstantKeywordValueMatches(key, valStr, definition.Value); err != nil {
+				return err
+			}
+			if err := ensurePatternMatches(key, valStr, definition.Pattern); err != nil {
+				return err
+			}
+			if err := ensureAllowedValues(key, valStr, definition.AllowedValues); err != nil {
+				return err
+			}
+		case "keyword", "text":
+			var valStr string
+			valStr, valid = val.(string)
+			if !valid {
+				break
+			}
+
+			if err := ensurePatternMatches(key, valStr, definition.Pattern); err != nil {
+				return err
+			}
+			if err := ensureAllowedValues(key, valStr, definition.AllowedValues); err != nil {
+				return err
+			}
+		case "date":
+			var valStr string
+			valStr, valid = val.(string)
+			if !valid {
+				break
+			}
+
+			if err := ensurePatternMatches(key, valStr, definition.Pattern); err != nil {
+				return err
+			}
+		case "ip":
+			var valStr string
+			valStr, valid = val.(string)
+			if !valid {
+				break
+			}
+
+			if err := ensurePatternMatches(key, valStr, definition.Pattern); err != nil {
+				return err
+			}
+
+			if v.enabledAllowedIPCheck && !v.isAllowedIPValue(valStr) {
+				return fmt.Errorf("the IP %q is not one of the allowed test IPs (see: https://github.com/elastic/elastic-package/blob/main/internal/fields/_static/allowed_geo_ips.txt)", valStr)
+			}
+		case "float", "long", "double":
+			_, valid = val.(float64)
+		default:
+			valid = true // all other types are considered valid not blocking validation
+		}
+
 		if !valid {
-			break
+			return fmt.Errorf("field %q's Go type, %T, does not match the expected field type: %s (field value: %v)", key, val, definition.Type, val)
 		}
 
-		if err := ensureConstantKeywordValueMatches(key, valStr, definition.Value); err != nil {
-			return err
-		}
-		if err := ensurePatternMatches(key, valStr, definition.Pattern); err != nil {
-			return err
-		}
-	case "date", "keyword", "text":
-		var valStr string
-		valStr, valid = val.(string)
-		if !valid {
-			break
-		}
-
-		if err := ensurePatternMatches(key, valStr, definition.Pattern); err != nil {
-			return err
-		}
-	case "ip":
-		var valStr string
-		valStr, valid = val.(string)
-		if !valid {
-			break
-		}
-
-		if err := ensurePatternMatches(key, valStr, definition.Pattern); err != nil {
-			return err
-		}
-
-		if v.enabledAllowedIPCheck && !v.isAllowedIPValue(valStr) {
-			return fmt.Errorf("the IP %q is not one of the allowed test IPs (see: https://github.com/elastic/elastic-package/blob/main/internal/fields/_static/allowed_geo_ips.txt)", valStr)
-		}
-	case "float", "long", "double":
-		_, valid = val.(float64)
-	default:
-		valid = true // all other types are considered valid not blocking validation
-	}
-
-	if !valid {
-		return fmt.Errorf("field %q's Go type, %T, does not match the expected field type: %s (field value: %v)", key, val, definition.Type, val)
-	}
-	return nil
+		return nil
+	})
 }
 
 // isAllowedIPValue checks if the provided IP is allowed for testing
@@ -436,15 +450,18 @@ func (v *Validator) isAllowedIPValue(s string) bool {
 
 // ensureSingleElementValue extracts single entity from a potential array, which is a valid field representation
 // in Elasticsearch. For type assertion we need a single value.
-func ensureSingleElementValue(val interface{}) (interface{}, bool) {
+func forEachElementValue(val interface{}, fn func(interface{}) error) error {
 	arr, isArray := val.([]interface{})
 	if !isArray {
-		return val, true
+		return fn(val)
 	}
-	if len(arr) > 0 {
-		return arr[0], true
+	for _, element := range arr {
+		err := fn(element)
+		if err != nil {
+			return err
+		}
 	}
-	return nil, false // false: empty array, can't deduce single value type
+	return nil
 }
 
 // ensurePatternMatches validates the document's field value matches the field
@@ -471,6 +488,15 @@ func ensureConstantKeywordValueMatches(key, value, constantKeywordValue string) 
 	}
 	if value != constantKeywordValue {
 		return fmt.Errorf("field %q's value %q does not match the declared constant_keyword value %q", key, value, constantKeywordValue)
+	}
+	return nil
+}
+
+// ensureAllowedValues validates that the document's field value
+// is one of the allowed values.
+func ensureAllowedValues(key, value string, allowedValues AllowedValues) error {
+	if !allowedValues.IsAllowed(value) {
+		return fmt.Errorf("field %q's value %q is not one of the allowed values (%s)", key, value, strings.Join(allowedValues.Values(), ", "))
 	}
 	return nil
 }

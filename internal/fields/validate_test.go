@@ -98,7 +98,7 @@ func Test_parseElementValue(t *testing.T) {
 		definition FieldDefinition
 		fail       bool
 	}{
-		// Arrays (only first value checked)
+		// Arrays
 		{
 			key:   "string array to keyword",
 			value: []interface{}{"hello", "world"},
@@ -109,6 +109,14 @@ func Test_parseElementValue(t *testing.T) {
 		{
 			key:   "numeric string array to long",
 			value: []interface{}{"123", "42"},
+			definition: FieldDefinition{
+				Type: "long",
+			},
+			fail: true,
+		},
+		{
+			key:   "mixed numbers and strings in number array",
+			value: []interface{}{123, "hi"},
 			definition: FieldDefinition{
 				Type: "long",
 			},
@@ -209,6 +217,38 @@ func Test_parseElementValue(t *testing.T) {
 			value: "65537",
 			definition: FieldDefinition{
 				Type: "long",
+			},
+			fail: true,
+		},
+		// allowed values
+		{
+			key:   "allowed values",
+			value: "configuration",
+			definition: FieldDefinition{
+				Type: "keyword",
+				AllowedValues: AllowedValues{
+					{
+						Name: "configuration",
+					},
+					{
+						Name: "network",
+					},
+				},
+			},
+		},
+		{
+			key:   "not allowed value",
+			value: "display",
+			definition: FieldDefinition{
+				Type: "keyword",
+				AllowedValues: AllowedValues{
+					{
+						Name: "configuration",
+					},
+					{
+						Name: "network",
+					},
+				},
 			},
 			fail: true,
 		},

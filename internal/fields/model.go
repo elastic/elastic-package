@@ -9,22 +9,25 @@ import (
 	"strings"
 
 	"gopkg.in/yaml.v3"
+
+	"github.com/elastic/elastic-package/internal/common"
 )
 
 // FieldDefinition describes a single field with its properties.
 type FieldDefinition struct {
-	Name        string            `yaml:"name"`
-	Description string            `yaml:"description"`
-	Type        string            `yaml:"type"`
-	Value       string            `yaml:"value"` // The value to associate with a constant_keyword field.
-	Pattern     string            `yaml:"pattern"`
-	Unit        string            `yaml:"unit"`
-	MetricType  string            `yaml:"metric_type"`
-	External    string            `yaml:"external"`
-	Index       *bool             `yaml:"index"`
-	DocValues   *bool             `yaml:"doc_values"`
-	Fields      FieldDefinitions  `yaml:"fields,omitempty"`
-	MultiFields []FieldDefinition `yaml:"multi_fields,omitempty"`
+	Name          string            `yaml:"name"`
+	Description   string            `yaml:"description"`
+	Type          string            `yaml:"type"`
+	Value         string            `yaml:"value"` // The value to associate with a constant_keyword field.
+	AllowedValues AllowedValues     `yaml:"allowed_values"`
+	Pattern       string            `yaml:"pattern"`
+	Unit          string            `yaml:"unit"`
+	MetricType    string            `yaml:"metric_type"`
+	External      string            `yaml:"external"`
+	Index         *bool             `yaml:"index"`
+	DocValues     *bool             `yaml:"doc_values"`
+	Fields        FieldDefinitions  `yaml:"fields,omitempty"`
+	MultiFields   []FieldDefinition `yaml:"multi_fields,omitempty"`
 }
 
 func (orig *FieldDefinition) Update(fd FieldDefinition) {
@@ -39,6 +42,9 @@ func (orig *FieldDefinition) Update(fd FieldDefinition) {
 	}
 	if fd.Value != "" {
 		orig.Value = fd.Value
+	}
+	if len(fd.AllowedValues) > 0 {
+		orig.AllowedValues = fd.AllowedValues
 	}
 	if fd.Pattern != "" {
 		orig.Pattern = fd.Pattern
@@ -155,4 +161,32 @@ func cleanNestedNames(parent string, fields []FieldDefinition) {
 			fields[i].Name = fields[i].Name[len(parent)+1:]
 		}
 	}
+}
+
+// AllowedValues is the list of allowed values for a field.
+type AllowedValues []AllowedValue
+
+// Allowed returns true if a given value is allowed.
+func (avs AllowedValues) IsAllowed(value string) bool {
+	if len(avs) == 0 {
+		// No configured allowed values, any value is allowed.
+		return true
+	}
+	return common.StringSliceContains(avs.Values(), value)
+}
+
+// Values returns the list of allowed values.
+func (avs AllowedValues) Values() []string {
+	var values []string
+	for _, v := range avs {
+		values = append(values, v.Name)
+	}
+	return values
+}
+
+// AllowedValue is one of the allowed values for a field.
+type AllowedValue struct {
+	Name               string   `yaml:"name"`
+	Description        string   `yaml:"description"`
+	ExpectedEventTypes []string `yaml:"expected_event_types"`
 }
