@@ -95,8 +95,8 @@ func TestPatchYAML(t *testing.T) {
 }
 
 func TestManifestVersion(t *testing.T) {
-	manifest := "name: test\nversion: 1.0.0\n"
-	expected := "name: test\nversion: 1.1.0\n"
+	manifest := "name: test\nversion: 1.0.0\ncategories:\n  - custom\n"
+	expected := "name: test\nversion: 1.1.0\ncategories:\n  - custom\n"
 
 	result, err := SetManifestVersion([]byte(manifest), "1.1.0")
 	require.NoError(t, err)

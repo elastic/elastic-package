@@ -5,11 +5,11 @@
 package changelog
 
 import (
-	"bytes"
-
 	"github.com/Masterminds/semver"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
+
+	"github.com/elastic/elastic-package/internal/formatter"
 )
 
 // PatchYAML looks for the proper place to add the new revision in the changelog,
@@ -89,11 +89,10 @@ func PatchYAML(d []byte, patch Revision) ([]byte, error) {
 		return nil, errors.New("changelog entry was not added, this is probably a bug")
 	}
 
-	d, err = yaml.Marshal(result)
+	d, err = formatResult(result)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to encode resulting changelog")
+		return nil, errors.Wrap(err, "failed to format manifest")
 	}
-
 	return d, nil
 }
 
@@ -111,11 +110,23 @@ func SetManifestVersion(d []byte, version string) ([]byte, error) {
 
 	setYamlMapValue(node.Content[0], "version", version)
 
-	var buf bytes.Buffer
-	encoder := yaml.NewEncoder(&buf)
-	encoder.SetIndent(2)
-	err = encoder.Encode(&node)
-	return buf.Bytes(), err
+	d, err = formatResult(&node)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to format manifest")
+	}
+	return d, nil
+}
+
+func formatResult(result interface{}) ([]byte, error) {
+	d, err := yaml.Marshal(result)
+	if err != nil {
+		return nil, errors.New("failed to encode")
+	}
+	d, _, err = formatter.YAMLFormatter(d)
+	if err != nil {
+		return nil, errors.New("failed to format")
+	}
+	return d, nil
 }
 
 // setYamlMapValueStyle changes the style of one value in a YAML map. If the key

@@ -41,7 +41,6 @@ func setupChangelogCommand() *cobraext.Command {
 	}
 	addChangelogCmd.Flags().String(cobraext.ChangelogAddNextFlagName, "", cobraext.ChangelogAddNextFlagDescription)
 	addChangelogCmd.Flags().String(cobraext.ChangelogAddVersionFlagName, "", cobraext.ChangelogAddVersionFlagDescription)
-
 	addChangelogCmd.Flags().String(cobraext.ChangelogAddDescriptionFlagName, "", cobraext.ChangelogAddDescriptionFlagDescription)
 	addChangelogCmd.MarkFlagRequired(cobraext.ChangelogAddDescriptionFlagName)
 	addChangelogCmd.Flags().String(cobraext.ChangelogAddTypeFlagName, "", cobraext.ChangelogAddTypeFlagDescription)
@@ -54,7 +53,6 @@ func setupChangelogCommand() *cobraext.Command {
 		Short: "Utilities to work with the changelog of the package",
 		Long:  changelogLongDescription,
 	}
-
 	cmd.AddCommand(addChangelogCmd)
 
 	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
