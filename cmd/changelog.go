@@ -17,12 +17,20 @@ import (
 	"github.com/elastic/elastic-package/internal/packages/changelog"
 )
 
-const changelogLongDescription = `Use this command to work with the changelog of the package.`
+const changelogLongDescription = `Use this command to work with the changelog of the package.
+
+You can use this command to modify the changelog following the expected format and good practices.
+This can be useful when introducing changelog entries for changes done by automated processes.
+`
 
 const changelogAddLongDescription = `Use this command to add an entry to the changelog file.
 
-The entry is added on top of the last entry in the current version. Or optionally in the next
-major, minor or patch version, or as a new given version.`
+The entry added will include the given description, type and link. It is added on top of the
+last entry in the current version
+
+Alternatively, you can start a new version indicating the specific version, or if it should
+be the next major, minor or patch version.
+`
 
 func setupChangelogCommand() *cobraext.Command {
 	addChangelogCmd := &cobra.Command{

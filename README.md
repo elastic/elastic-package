@@ -92,6 +92,10 @@ _Context: package_
 
 Use this command to work with the changelog of the package.
 
+You can use this command to modify the changelog following the expected format and good practices.
+This can be useful when introducing changelog entries for changes done by automated processes.
+
+
 ### `elastic-package check`
 
 _Context: package_
