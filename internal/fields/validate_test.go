@@ -252,6 +252,22 @@ func Test_parseElementValue(t *testing.T) {
 			},
 			fail: true,
 		},
+		{
+			key:   "not allowed value in array",
+			value: []string{"configuration", "display"},
+			definition: FieldDefinition{
+				Type: "keyword",
+				AllowedValues: AllowedValues{
+					{
+						Name: "configuration",
+					},
+					{
+						Name: "network",
+					},
+				},
+			},
+			fail: true,
+		},
 	} {
 		v := Validator{disabledDependencyManagement: true}
 		t.Run(test.key, func(t *testing.T) {
