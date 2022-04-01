@@ -8,8 +8,8 @@ An example event for `first` looks as following:
         "lat": 1.0,
         "lon": "2.0"
     },
-    "destination.geo.location.lat": 3.0,
-    "destination.geo.location.lon": 4.0
+    "geo.location.lat": 3.0,
+    "geo.location.lon": 4.0
 }
 ```
 
@@ -22,4 +22,5 @@ An example event for `first` looks as following:
 | data_stream.namespace | Data stream namespace. | constant_keyword |
 | data_stream.type | Data stream type. | constant_keyword |
 | destination.geo.location | Longitude and latitude. | geo_point |
+| geo.location | Longitude and latitude. | geo_point |
 | source.geo.location | Longitude and latitude. | geo_point |

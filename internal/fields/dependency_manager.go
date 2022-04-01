@@ -25,8 +25,8 @@ const (
 	ecsSchemaName      = "ecs"
 	gitReferencePrefix = "git@"
 
-	ecsSchemaFile = "ecs_nested.yml"
-	ecsSchemaURL  = "https://raw.githubusercontent.com/elastic/ecs/%s/generated/ecs/%s"
+	ecsSchemaFile = "fields.ecs.yml"
+	ecsSchemaURL  = "https://raw.githubusercontent.com/elastic/ecs/%s/generated/beats/%s"
 )
 
 // DependencyManager is responsible for resolving external field dependencies.
@@ -61,15 +61,6 @@ func loadECSFieldsSchema(dep buildmanifest.ECSDependency) ([]FieldDefinition, er
 		return nil, nil
 	}
 
-	content, err := readECSFieldsSchemaFile(dep)
-	if err != nil {
-		return nil, errors.Wrap(err, "error reading ECS fields schema file")
-	}
-
-	return parseECSFieldsSchema(content)
-}
-
-func readECSFieldsSchemaFile(dep buildmanifest.ECSDependency) ([]byte, error) {
 	gitReference, err := asGitReference(dep.Reference)
 	if err != nil {
 		return nil, errors.Wrap(err, "can't process the value as Git reference")
@@ -79,8 +70,12 @@ func readECSFieldsSchemaFile(dep buildmanifest.ECSDependency) ([]byte, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "error fetching profile path")
 	}
+
 	cachedSchemaPath := filepath.Join(loc.FieldsCacheDir(), ecsSchemaName, gitReference, ecsSchemaFile)
 	content, err := os.ReadFile(cachedSchemaPath)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return nil, errors.Wrapf(err, "can't read cached schema (path: %s)", cachedSchemaPath)
+	}
 	if errors.Is(err, os.ErrNotExist) {
 		logger.Debugf("Pulling ECS dependency using reference: %s", dep.Reference)
 
@@ -114,21 +109,14 @@ func readECSFieldsSchemaFile(dep buildmanifest.ECSDependency) ([]byte, error) {
 		if err != nil {
 			return nil, errors.Wrapf(err, "can't write cached schema (path: %s)", cachedSchemaPath)
 		}
-	} else if err != nil {
-		return nil, errors.Wrapf(err, "can't read cached schema (path: %s)", cachedSchemaPath)
 	}
 
-	return content, nil
-}
-
-func parseECSFieldsSchema(content []byte) ([]FieldDefinition, error) {
-	var fields FieldDefinitions
-	err := yaml.Unmarshal(content, &fields)
+	var f []FieldDefinition
+	err = yaml.Unmarshal(content, &f)
 	if err != nil {
 		return nil, errors.Wrap(err, "unmarshalling field body failed")
 	}
-
-	return fields, nil
+	return f[0].Fields, nil
 }
 
 func asGitReference(reference string) (string, error) {
