@@ -128,10 +128,11 @@ func (fds *FieldDefinitions) UnmarshalYAML(value *yaml.Node) error {
 				return err
 			}
 
-			// "base" group is used by convention in ECS to include
+			// Some groups are used by convention in ECS to include
 			// fields that can appear in the root level of the document.
-			// Append its child fields directly instead.
-			if name == "base" {
+			// Append their child fields directly instead.
+			// TODO: Make this generic looking for groups whose children don't match.
+			if name == "base" || name == "tracing" {
 				fields = append(fields, field.Fields...)
 			} else {
 				field.Name = name
