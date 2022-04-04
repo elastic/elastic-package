@@ -37,7 +37,7 @@ xpack.fleet.agentPolicies:
         package:
           name: system
   - name: Fleet Server (elastic-package)
-    id: fleet-server-managed-ep
+    id: fleet-server-policy
     is_default_fleet_server: true
     is_managed: false
     namespace: default

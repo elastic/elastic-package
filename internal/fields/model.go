@@ -4,6 +4,13 @@
 
 package fields
 
+import (
+	"fmt"
+	"strings"
+
+	"gopkg.in/yaml.v3"
+)
+
 // FieldDefinition describes a single field with its properties.
 type FieldDefinition struct {
 	Name        string            `yaml:"name"`
@@ -16,7 +23,7 @@ type FieldDefinition struct {
 	External    string            `yaml:"external"`
 	Index       *bool             `yaml:"index"`
 	DocValues   *bool             `yaml:"doc_values"`
-	Fields      []FieldDefinition `yaml:"fields,omitempty"`
+	Fields      FieldDefinitions  `yaml:"fields,omitempty"`
 	MultiFields []FieldDefinition `yaml:"multi_fields,omitempty"`
 }
 
@@ -81,4 +88,72 @@ func updateFields(origFields, fields []FieldDefinition) []FieldDefinition {
 		}
 	}
 	return updatedFields
+}
+
+// FieldDefinitions is an array of FieldDefinition, this can be unmarshalled from
+// a yaml list or a yaml map.
+type FieldDefinitions []FieldDefinition
+
+func (fds *FieldDefinitions) UnmarshalYAML(value *yaml.Node) error {
+	nilNode := yaml.Kind(0)
+	switch value.Kind {
+	case yaml.SequenceNode:
+		// Fields are defined as a list, this happens in Beats fields files.
+		var fields []FieldDefinition
+		err := value.Decode(&fields)
+		if err != nil {
+			return err
+		}
+		*fds = fields
+		return nil
+	case yaml.MappingNode:
+		// Fields are defined as a map, this happens in ecs fields files.
+		if len(value.Content)%2 != 0 {
+			return fmt.Errorf("pairs of key-values expected in map")
+		}
+		var fields []FieldDefinition
+		for i := 0; i+1 < len(value.Content); i += 2 {
+			key := value.Content[i]
+			value := value.Content[i+1]
+
+			var name string
+			err := key.Decode(&name)
+			if err != nil {
+				return err
+			}
+
+			var field FieldDefinition
+			err = value.Decode(&field)
+			if err != nil {
+				return err
+			}
+
+			// Some groups are used by convention in ECS to include
+			// fields that can appear in the root level of the document.
+			// Append their child fields directly instead.
+			// TODO: Make this generic looking for groups whose children don't match.
+			if name == "base" || name == "tracing" {
+				fields = append(fields, field.Fields...)
+			} else {
+				field.Name = name
+				cleanNestedNames(field.Name, field.Fields)
+				fields = append(fields, field)
+			}
+		}
+		*fds = fields
+		return nil
+	case nilNode:
+		*fds = nil
+		return nil
+	default:
+		return fmt.Errorf("expected map or sequence")
+	}
+}
+
+func cleanNestedNames(parent string, fields []FieldDefinition) {
+	for i := range fields {
+		if strings.HasPrefix(fields[i].Name, parent+".") {
+			fields[i].Name = fields[i].Name[len(parent)+1:]
+		}
+	}
 }

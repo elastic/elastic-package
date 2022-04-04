@@ -1,0 +1,174 @@
+// Copyright Elasticsearch B.V. and/or licensed to Elasticsearch B.V. under one
+// or more contributor license agreements. Licensed under the Elastic License;
+// you may not use this file except in compliance with the Elastic License.
+
+package cmd
+
+import (
+	"io/ioutil"
+	"path/filepath"
+
+	"github.com/Masterminds/semver"
+	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
+
+	"github.com/elastic/elastic-package/internal/cobraext"
+	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/internal/packages/changelog"
+)
+
+const changelogLongDescription = `Use this command to work with the changelog of the package.
+
+You can use this command to modify the changelog following the expected format and good practices.
+This can be useful when introducing changelog entries for changes done by automated processes.
+`
+
+const changelogAddLongDescription = `Use this command to add an entry to the changelog file.
+
+The entry added will include the given description, type and link. It is added on top of the
+last entry in the current version
+
+Alternatively, you can start a new version indicating the specific version, or if it should
+be the next major, minor or patch version.
+`
+
+func setupChangelogCommand() *cobraext.Command {
+	addChangelogCmd := &cobra.Command{
+		Use:   "add",
+		Short: "Add an entry to the changelog file",
+		Long:  changelogAddLongDescription,
+		RunE:  changelogAddCmd,
+	}
+	addChangelogCmd.Flags().String(cobraext.ChangelogAddNextFlagName, "", cobraext.ChangelogAddNextFlagDescription)
+	addChangelogCmd.Flags().String(cobraext.ChangelogAddVersionFlagName, "", cobraext.ChangelogAddVersionFlagDescription)
+	addChangelogCmd.Flags().String(cobraext.ChangelogAddDescriptionFlagName, "", cobraext.ChangelogAddDescriptionFlagDescription)
+	addChangelogCmd.MarkFlagRequired(cobraext.ChangelogAddDescriptionFlagName)
+	addChangelogCmd.Flags().String(cobraext.ChangelogAddTypeFlagName, "", cobraext.ChangelogAddTypeFlagDescription)
+	addChangelogCmd.MarkFlagRequired(cobraext.ChangelogAddTypeFlagName)
+	addChangelogCmd.Flags().String(cobraext.ChangelogAddLinkFlagName, "", cobraext.ChangelogAddLinkFlagDescription)
+	addChangelogCmd.MarkFlagRequired(cobraext.ChangelogAddLinkFlagName)
+
+	cmd := &cobra.Command{
+		Use:   "changelog",
+		Short: "Utilities to work with the changelog of the package",
+		Long:  changelogLongDescription,
+	}
+	cmd.AddCommand(addChangelogCmd)
+
+	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
+}
+
+func changelogAddCmd(cmd *cobra.Command, args []string) error {
+	packageRoot, err := packages.MustFindPackageRoot()
+	if err != nil {
+		return errors.Wrap(err, "locating package root failed")
+	}
+
+	version, _ := cmd.Flags().GetString(cobraext.ChangelogAddVersionFlagName)
+	nextMode, _ := cmd.Flags().GetString(cobraext.ChangelogAddNextFlagName)
+	if version != "" && nextMode != "" {
+		return errors.Errorf("flags %q and %q cannot be used at the same time",
+			cobraext.ChangelogAddVersionFlagName,
+			cobraext.ChangelogAddNextFlagName)
+	}
+	if version == "" {
+		v, err := changelogCmdVersion(nextMode, packageRoot)
+		if err != nil {
+			return err
+		}
+		version = v.String()
+	}
+
+	description, _ := cmd.Flags().GetString(cobraext.ChangelogAddDescriptionFlagName)
+	changeType, _ := cmd.Flags().GetString(cobraext.ChangelogAddTypeFlagName)
+	link, _ := cmd.Flags().GetString(cobraext.ChangelogAddLinkFlagName)
+
+	entry := changelog.Revision{
+		Version: version,
+		Changes: []changelog.Entry{
+			{
+				Description: description,
+				Type:        changeType,
+				Link:        link,
+			},
+		},
+	}
+
+	err = patchChangelogFile(packageRoot, entry)
+	if err != nil {
+		return err
+	}
+
+	err = setManifestVersion(packageRoot, version)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func changelogCmdVersion(nextMode, packageRoot string) (*semver.Version, error) {
+	revisions, err := changelog.ReadChangelogFromPackageRoot(packageRoot)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to read current changelog")
+	}
+	if len(revisions) == 0 {
+		return semver.MustParse("0.0.0"), nil
+	}
+
+	version, err := semver.NewVersion(revisions[0].Version)
+	if err != nil {
+		return nil, errors.Wrapf(err, "invalid version in changelog %q", revisions[0].Version)
+	}
+
+	switch nextMode {
+	case "":
+		break
+	case "major":
+		v := version.IncMajor()
+		version = &v
+	case "minor":
+		v := version.IncMinor()
+		version = &v
+	case "patch":
+		v := version.IncPatch()
+		version = &v
+	default:
+		return nil, errors.Errorf("invalid value for %q: %s",
+			cobraext.ChangelogAddNextFlagName, nextMode)
+	}
+
+	return version, nil
+}
+
+// patchChangelogFile looks for the proper place to add the new revision in the changelog,
+// trying to conserve original format and comments.
+func patchChangelogFile(packageRoot string, patch changelog.Revision) error {
+	changelogPath := filepath.Join(packageRoot, changelog.PackageChangelogFile)
+	d, err := ioutil.ReadFile(changelogPath)
+	if err != nil {
+		return err
+	}
+
+	d, err = changelog.PatchYAML(d, patch)
+	if err != nil {
+		return err
+	}
+
+	return ioutil.WriteFile(changelogPath, d, 0644)
+}
+
+func setManifestVersion(packageRoot string, version string) error {
+	manifestPath := filepath.Join(packageRoot, packages.PackageManifestFile)
+	d, err := ioutil.ReadFile(manifestPath)
+	if err != nil {
+		return err
+	}
+
+	d, err = changelog.SetManifestVersion(d, version)
+	if err != nil {
+		return err
+	}
+
+	return ioutil.WriteFile(manifestPath, d, 0644)
+}
