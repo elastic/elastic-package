@@ -36,19 +36,19 @@ type configFile string
 // managedProfileFiles is the list of all files managed in a profile
 // If you create a new file that's managed by a profile, it needs to go in this list
 var managedProfileFiles = map[configFile]NewConfig{
-	ElasticAgentDefaultEnvFile:     newElasticAgentDefaultEnv,
-	ElasticAgent80EnvFile:          newElasticAgent80Env,
-	ElasticAgent8xEnvFile:          newElasticAgent8xEnv,
-	ElasticsearchConfigDefaultFile: newElasticsearchConfigDefault,
-	ElasticsearchConfig80File:      newElasticsearchConfig80,
-	ElasticsearchConfig8xFile:      newElasticsearchConfig8x,
-	KibanaConfigDefaultFile:        newKibanaConfigDefault,
-	KibanaConfig80File:             newKibanaConfig80,
-	KibanaConfig8xFile:             newKibanaConfig8x,
-	PackageRegistryDockerfileFile:  newPackageRegistryDockerfile,
-	PackageRegistryConfigFile:      newPackageRegistryConfig,
-	SnapshotFile:                   newSnapshotFile,
-	PackageProfileMetaFile:         createProfileMetadata,
+	ElasticAgentDefaultEnvFile:       newElasticAgentDefaultEnv,
+	ElasticAgent80VirtualEnvFile:     newElasticAgent8xEnv,
+	ElasticAgent8xEnvFile:            newElasticAgent8xEnv,
+	ElasticsearchConfigDefaultFile:   newElasticsearchConfigDefault,
+	ElasticsearchConfig80VirtualFile: newElasticsearchConfig8x,
+	ElasticsearchConfig8xFile:        newElasticsearchConfig8x,
+	KibanaConfigDefaultFile:          newKibanaConfigDefault,
+	KibanaConfig80File:               newKibanaConfig80,
+	KibanaConfig8xFile:               newKibanaConfig8x,
+	PackageRegistryDockerfileFile:    newPackageRegistryDockerfile,
+	PackageRegistryConfigFile:        newPackageRegistryConfig,
+	SnapshotFile:                     newSnapshotFile,
+	PackageProfileMetaFile:           createProfileMetadata,
 }
 
 // NewConfigProfile creates a new config profile manager
