@@ -81,9 +81,19 @@ func newElasticsearchConfigDefault(_ string, profilePath string) (*simpleFile, e
 	}, nil
 }
 
-// ElasticsearchConfig80VirtualFile is the Elasticsearch virtual config file name for 8.0 stack family.
-// This file does not exist, since it's identical to the 8x config file.
-const ElasticsearchConfig80VirtualFile configFile = "elasticsearch.config.80.yml"
+// ElasticsearchConfig80File is the Elasticsearch config file for 8.0 stack family
+const ElasticsearchConfig80File configFile = "elasticsearch.config.80.yml"
+
+//go:embed _static/elasticsearch_config_80.yml
+var elasticsearchConfig80Yml string
+
+func newElasticsearchConfig80(_ string, profilePath string) (*simpleFile, error) {
+	return &simpleFile{
+		name: string(ElasticsearchConfig80File),
+		path: filepath.Join(profilePath, profileStackPath, string(ElasticsearchConfig80File)),
+		body: elasticsearchConfig80Yml,
+	}, nil
+}
 
 // ElasticsearchConfig8xFile is the Elasticsearch config file for 8.x stack family
 const ElasticsearchConfig8xFile configFile = "elasticsearch.config.8x.yml"
@@ -135,9 +145,19 @@ func newPackageRegistryDockerfile(_ string, profilePath string) (*simpleFile, er
 	}, nil
 }
 
-// ElasticAgent80VirtualEnvFile is the .env for the 80 stack.
-// This file does not exist, since it's identical to the 8x env file.
-const ElasticAgent80VirtualEnvFile configFile = "elastic-agent.80.env"
+// ElasticAgent80EnvFile is the .env for the 80 stack.
+const ElasticAgent80EnvFile configFile = "elastic-agent.80.env"
+
+//go:embed _static/elastic-agent_80.env
+var elasticAgent80Env string
+
+func newElasticAgent80Env(_ string, profilePath string) (*simpleFile, error) {
+	return &simpleFile{
+		name: string(ElasticAgent80EnvFile),
+		path: filepath.Join(profilePath, profileStackPath, string(ElasticAgent80EnvFile)),
+		body: elasticAgent80Env,
+	}, nil
+}
 
 // ElasticAgent8xEnvFile is the .env for the 8x stack.
 const ElasticAgent8xEnvFile configFile = "elastic-agent.8x.env"
