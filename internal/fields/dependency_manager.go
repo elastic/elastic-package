@@ -229,6 +229,10 @@ func transformImportedField(fd FieldDefinition) common.MapStr {
 		m["description"] = fd.Description
 	}
 
+	if fd.Pattern != "" {
+		m["pattern"] = fd.Pattern
+	}
+
 	if fd.Index != nil {
 		m["index"] = *fd.Index
 	}
