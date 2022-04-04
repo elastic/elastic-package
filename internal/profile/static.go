@@ -39,6 +39,20 @@ func newKibanaConfigDefault(_ string, profilePath string) (*simpleFile, error) {
 	}, nil
 }
 
+// KibanaConfig80File is the Kibana config file for 8.0 stack family
+const KibanaConfig80File configFile = "kibana.config.80.yml"
+
+//go:embed _static/kibana_config_80.yml
+var kibanaConfig80Yml string
+
+func newKibanaConfig80(_ string, profilePath string) (*simpleFile, error) {
+	return &simpleFile{
+		name: string(KibanaConfig80File),
+		path: filepath.Join(profilePath, profileStackPath, string(KibanaConfig80File)),
+		body: kibanaConfig80Yml,
+	}, nil
+}
+
 // KibanaConfig8xFile is the Kibana config file for 8.x stack family
 const KibanaConfig8xFile configFile = "kibana.config.8x.yml"
 
@@ -66,6 +80,10 @@ func newElasticsearchConfigDefault(_ string, profilePath string) (*simpleFile, e
 		body: elasticsearchConfigDefaultYml,
 	}, nil
 }
+
+// ElasticsearchConfig80VirtualFile is the Elasticsearch virtual config file name for 8.0 stack family.
+// This file does not exist, since it's identical to the 8x config file.
+const ElasticsearchConfig80VirtualFile configFile = "elasticsearch.config.80.yml"
 
 // ElasticsearchConfig8xFile is the Elasticsearch config file for 8.x stack family
 const ElasticsearchConfig8xFile configFile = "elasticsearch.config.8x.yml"
@@ -116,6 +134,10 @@ func newPackageRegistryDockerfile(_ string, profilePath string) (*simpleFile, er
 		body: packageRegistryDockerfile,
 	}, nil
 }
+
+// ElasticAgent80VirtualEnvFile is the .env for the 80 stack.
+// This file does not exist, since it's identical to the 8x env file.
+const ElasticAgent80VirtualEnvFile configFile = "elastic-agent.80.env"
 
 // ElasticAgent8xEnvFile is the .env for the 8x stack.
 const ElasticAgent8xEnvFile configFile = "elastic-agent.8x.env"

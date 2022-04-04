@@ -10,15 +10,19 @@ import (
 )
 
 // stackVariantAsEnv function returns a stack variant based on the given stack version.
-// We identified two variants:
+// We identified three variants:
 // * default, covers all of 7.x branches
-// * 8x, supports different configuration options in Kibana
+// * 80, covers stack versions 8.0.0 to 8.1.x
+// * 8x, supports different configuration options in Kibana, covers stack versions 8.2.0+
 func stackVariantAsEnv(version string) string {
 	return fmt.Sprintf("STACK_VERSION_VARIANT=%s", selectStackVersion(version))
 }
 
 func selectStackVersion(version string) string {
 	if strings.HasPrefix(version, "8.") {
+		if len(version) > 2 && (int(version[2])-'0') < 2 {
+			return "80"
+		}
 		return "8x"
 	}
 	return "default"
