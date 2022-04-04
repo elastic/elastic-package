@@ -6,6 +6,7 @@ package stack
 
 import (
 	"fmt"
+
 	"github.com/Masterminds/semver/v3"
 )
 
