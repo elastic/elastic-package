@@ -6,7 +6,7 @@ package stack
 
 import (
 	"fmt"
-	"strings"
+	"github.com/Masterminds/semver/v3"
 )
 
 // stackVariantAsEnv function returns a stack variant based on the given stack version.
@@ -19,11 +19,20 @@ func stackVariantAsEnv(version string) string {
 }
 
 func selectStackVersion(version string) string {
-	if strings.HasPrefix(version, "8.") {
-		if len(version) > 2 && (int(version[2])-'0') < 2 {
+	if v, err := semver.NewVersion(version); err == nil {
+		if checkVersion(v, "8.0-0 - 8.1-0") {
 			return "80"
 		}
-		return "8x"
+		if checkVersion(v, "^8.2-0") {
+			return "8x"
+		}
 	}
 	return "default"
+}
+
+func checkVersion(v *semver.Version, constraint string) bool {
+	if constraint, err := semver.NewConstraint(constraint); err == nil {
+		return constraint.Check(v)
+	}
+	return false
 }

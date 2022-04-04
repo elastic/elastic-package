@@ -10,50 +10,41 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestSelectStackVersion_NoVersion(t *testing.T) {
-	var version string
-	selected := selectStackVersion(version)
-	assert.Equal(t, selected, "default")
+var tests = []struct {
+	version string
+	variant string
+}{
+	{"", "default"},
+	{"7", "default"},
+	{"7.0.0", "default"},
+	{"7.14.99-SNAPSHOT", "default"},
+	{"8", "80"},
+	{"8.0.0-alpha", "80"},
+	{"8.0.0", "80"},
+	{"8.0.33", "80"},
+	{"8.0.33-beta", "80"},
+	{"8.1", "80"},
+	{"8.1-alpha", "80"},
+	{"8.1.0-alpha", "80"},
+	{"8.1.0", "80"},
+	{"8.1.58", "80"},
+	{"8.1.99-beta", "80"},
+	{"8.1.999-SNAPSHOT", "80"},
+	{"8.2", "8x"},
+	{"8.2.0-alpha", "8x"},
+	{"8.2.0", "8x"},
+	{"8.2.58", "8x"},
+	{"8.2.99-gamma", "8x"},
+	{"8.2.777-SNAPSHOT+arm64", "8x"},
+	{"8.5", "8x"},
+	{"9", "default"},
 }
 
-func TestSelectStackVersion_OlderStack(t *testing.T) {
-	version := "7.14.99-SNAPSHOT"
-	selected := selectStackVersion(version)
-	assert.Equal(t, selected, "default")
-}
-
-func TestSelectStackVersion_80(t *testing.T) {
-	version := "8.0.33"
-	selected := selectStackVersion(version)
-	assert.Equal(t, selected, "80")
-}
-
-func TestSelectStackVersion_81(t *testing.T) {
-	version := "8.1.99-SNAPSHOT"
-	selected := selectStackVersion(version)
-	assert.Equal(t, selected, "80")
-}
-
-func TestSelectStackVersion_82(t *testing.T) {
-	version := "8.2.3"
-	selected := selectStackVersion(version)
-	assert.Equal(t, selected, "8x")
-}
-
-func TestSelectStackVersion_82plus(t *testing.T) {
-	version := "8.5.0-SNAPSHOT"
-	selected := selectStackVersion(version)
-	assert.Equal(t, selected, "8x")
-}
-
-func TestSelectStackVersion_8dot(t *testing.T) {
-	version := "8."
-	selected := selectStackVersion(version)
-	assert.Equal(t, selected, "8x")
-}
-
-func TestSelectStackVersion_8(t *testing.T) {
-	version := "8"
-	selected := selectStackVersion(version)
-	assert.Equal(t, selected, "default")
+func TestSelectStackVersion(t *testing.T) {
+	for _, tt := range tests {
+		t.Run(tt.version, func(t *testing.T) {
+			selected := selectStackVersion(tt.version)
+			assert.Equal(t, selected, tt.variant)
+		})
+	}
 }
