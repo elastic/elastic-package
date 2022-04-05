@@ -7,14 +7,14 @@ package stack
 import (
 	"fmt"
 
-	"github.com/Masterminds/semver/v3"
+	"github.com/Masterminds/semver"
 )
 
 // configurationVariantMap is a map of version constraints and their matching configuration variant.
 // This map is used to deploy different versions of the Elastic stack with matching configurations.
 var configurationVariantMap = map[string]string{
-	"8.0-0 - 8.1-0": "80",
-	"^8.2-0":        "8x",
+	"8.0-0 - 8.1.x-x": "80",
+	"^8.2-0":          "8x",
 }
 
 // stackVariantAsEnv function returns a stack variant based on the given stack version.
