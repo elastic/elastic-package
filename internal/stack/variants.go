@@ -10,6 +10,13 @@ import (
 	"github.com/Masterminds/semver/v3"
 )
 
+// configurationVariantMap is a map of version constraints and their matching configuration variant.
+// This map is used to deploy different versions of the Elastic stack with matching configurations.
+var configurationVariantMap = map[string]string{
+	"8.0-0 - 8.1-0": "80",
+	"^8.2-0":        "8x",
+}
+
 // stackVariantAsEnv function returns a stack variant based on the given stack version.
 // We identified three variants:
 // * default, covers all of 7.x branches
@@ -21,11 +28,10 @@ func stackVariantAsEnv(version string) string {
 
 func selectStackVersion(version string) string {
 	if v, err := semver.NewVersion(version); err == nil {
-		if checkVersion(v, "8.0-0 - 8.1-0") {
-			return "80"
-		}
-		if checkVersion(v, "^8.2-0") {
-			return "8x"
+		for constraint, variant := range configurationVariantMap {
+			if checkVersion(v, constraint) {
+				return variant
+			}
 		}
 	}
 	return "default"

@@ -44,7 +44,7 @@ func TestSelectStackVersion(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.version, func(t *testing.T) {
 			selected := selectStackVersion(tt.version)
-			assert.Equal(t, selected, tt.variant)
+			assert.Equal(t, tt.variant, selected)
 		})
 	}
 }
