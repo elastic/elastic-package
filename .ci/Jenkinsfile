@@ -121,6 +121,8 @@ pipeline {
             dir("${BASE_DIR}"){
               withMageEnv(){
                 withCredentials([string(credentialsId: "${GITHUB_TOKEN_CREDENTIALS}", variable: 'GITHUB_TOKEN')]) {
+                  // Ensure that tags are present so goreleaser can build the changelog from the last release.
+                  gitCmd(cmd: 'fetch', args: '--tags')
                   sh 'curl -sL https://git.io/goreleaser | bash'
                 }
               }
