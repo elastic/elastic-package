@@ -6,20 +6,40 @@ package stack
 
 import (
 	"fmt"
-	"strings"
+
+	"github.com/Masterminds/semver"
 )
 
+// configurationVariantMap is a map of version constraints and their matching configuration variant.
+// This map is used to deploy different versions of the Elastic stack with matching configurations.
+var configurationVariantMap = map[string]string{
+	"8.0-0 - 8.1.x-x": "80",
+	"^8.2-0":          "8x",
+}
+
 // stackVariantAsEnv function returns a stack variant based on the given stack version.
-// We identified two variants:
+// We identified three variants:
 // * default, covers all of 7.x branches
-// * 8x, supports different configuration options in Kibana
+// * 80, covers stack versions 8.0.0 to 8.1.x
+// * 8x, supports different configuration options in Kibana, covers stack versions 8.2.0+
 func stackVariantAsEnv(version string) string {
 	return fmt.Sprintf("STACK_VERSION_VARIANT=%s", selectStackVersion(version))
 }
 
 func selectStackVersion(version string) string {
-	if strings.HasPrefix(version, "8.") {
-		return "8x"
+	if v, err := semver.NewVersion(version); err == nil {
+		for constraint, variant := range configurationVariantMap {
+			if checkVersion(v, constraint) {
+				return variant
+			}
+		}
 	}
 	return "default"
+}
+
+func checkVersion(v *semver.Version, constraint string) bool {
+	if constraint, err := semver.NewConstraint(constraint); err == nil {
+		return constraint.Check(v)
+	}
+	return false
 }

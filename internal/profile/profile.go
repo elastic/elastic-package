@@ -38,10 +38,13 @@ type configFile string
 var managedProfileFiles = map[configFile]NewConfig{
 	ElasticAgentDefaultEnvFile:     newElasticAgentDefaultEnv,
 	ElasticAgent8xEnvFile:          newElasticAgent8xEnv,
+	ElasticAgent80EnvFile:          newElasticAgent80Env,
 	ElasticsearchConfigDefaultFile: newElasticsearchConfigDefault,
 	ElasticsearchConfig8xFile:      newElasticsearchConfig8x,
+	ElasticsearchConfig80File:      newElasticsearchConfig80,
 	KibanaConfigDefaultFile:        newKibanaConfigDefault,
 	KibanaConfig8xFile:             newKibanaConfig8x,
+	KibanaConfig80File:             newKibanaConfig80,
 	PackageRegistryDockerfileFile:  newPackageRegistryDockerfile,
 	PackageRegistryConfigFile:      newPackageRegistryConfig,
 	SnapshotFile:                   newSnapshotFile,

@@ -161,6 +161,25 @@ func TestDependencyManagerInjectExternalFields(t *testing.T) {
 			valid:   true,
 		},
 		{
+			title: "external with pattern",
+			defs: []common.MapStr{
+				{
+					"name":     "source.mac",
+					"external": "test",
+				},
+			},
+			result: []common.MapStr{
+				{
+					"name":        "source.mac",
+					"type":        "keyword",
+					"description": "MAC address of the source.",
+					"pattern":     "^[A-F0-9]{2}(-[A-F0-9]{2}){5,}$",
+				},
+			},
+			changed: true,
+			valid:   true,
+		},
+		{
 			title: "override not indexed external",
 			defs: []common.MapStr{
 				{
@@ -227,6 +246,12 @@ func TestDependencyManagerInjectExternalFields(t *testing.T) {
 			Type:        "text",
 			Index:       &indexFalse,
 			DocValues:   &indexFalse,
+		},
+		{
+			Name:        "source.mac",
+			Description: "MAC address of the source.",
+			Pattern:     "^[A-F0-9]{2}(-[A-F0-9]{2}){5,}$",
+			Type:        "keyword",
 		},
 	}}
 	dm := &DependencyManager{schema: schema}

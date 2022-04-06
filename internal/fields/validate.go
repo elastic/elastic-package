@@ -387,14 +387,20 @@ func (v *Validator) parseElementValue(key string, definition FieldDefinition, va
 				return err
 			}
 		case "date":
-			var valStr string
-			valStr, valid = val.(string)
-			if !valid {
-				break
-			}
-
-			if err := ensurePatternMatches(key, valStr, definition.Pattern); err != nil {
-				return err
+			switch val := val.(type) {
+			case string:
+				if err := ensurePatternMatches(key, val, definition.Pattern); err != nil {
+					return err
+				}
+				valid = true
+			case float64:
+				// date as seconds or milliseconds since epoch
+				if definition.Pattern != "" {
+					return fmt.Errorf("numeric date in field %q, but pattern defined", key)
+				}
+				valid = true
+			default:
+				valid = false
 			}
 		case "ip":
 			var valStr string
