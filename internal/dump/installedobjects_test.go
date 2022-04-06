@@ -7,6 +7,7 @@ package dump
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io/fs"
 	"io/ioutil"
 	"os"
@@ -15,46 +16,87 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 
+	"github.com/elastic/elastic-package/internal/elasticsearch"
 	estest "github.com/elastic/elastic-package/internal/elasticsearch/test"
 	"github.com/elastic/elastic-package/internal/files"
 )
 
-func TestInstalledObjectsDumpAll_7(t *testing.T) {
-	client := estest.ElasticsearchClient(t, "./testdata/elasticsearch-7-mock-dump-apache")
-	outputDir := t.TempDir()
-	dumper := NewInstalledObjectsDumper(client, "apache")
-	n, err := dumper.DumpAll(context.Background(), outputDir)
-	require.NoError(t, err)
+func TestDumpInstalledObjects(t *testing.T) {
+	// Files for each suite are recorded automatically on first test run.
+	// To add a new suite:
+	// - Configure it here.
+	// - Install the package in a running stack.
+	// - Configure environment variables for this stack (eval "$(elastic-package stack shellinit)").
+	// - Run tests.
+	// - Check that recorded files make sense and commit them.
+	suites := []*InstalledObjectsDumpSuite{
+		&InstalledObjectsDumpSuite{
+			PackageName: "apache",
+			RecordDir:   "./testdata/elasticsearch-7-mock-dump-apache",
+			DumpDir:     "./testdata/elasticsearch-7-apache-dump-all",
+		},
+		&InstalledObjectsDumpSuite{
+			PackageName: "apache",
+			RecordDir:   "./testdata/elasticsearch-8-mock-dump-apache",
+			DumpDir:     "./testdata/elasticsearch-8-apache-dump-all",
+		},
+	}
 
-	filesExpected := countFiles(t, "./testdata/elasticsearch-7-apache-dump-all")
-	assert.Equal(t, filesExpected, n)
-
-	filesFound := countFiles(t, outputDir)
-	assert.Equal(t, filesExpected, filesFound)
-
-	assertEqualDumps(t, "./testdata/elasticsearch-7-apache-dump-all", outputDir)
+	for _, s := range suites {
+		suite.Run(t, s)
+	}
 }
 
-func TestInstalledObjectsDumpAll_8(t *testing.T) {
-	client := estest.ElasticsearchClient(t, "./testdata/elasticsearch-8-mock-dump-apache")
-	outputDir := t.TempDir()
-	dumper := NewInstalledObjectsDumper(client, "apache")
-	n, err := dumper.DumpAll(context.Background(), outputDir)
-	require.NoError(t, err)
+type InstalledObjectsDumpSuite struct {
+	suite.Suite
 
-	filesExpected := countFiles(t, "./testdata/elasticsearch-8-apache-dump-all")
-	assert.Equal(t, filesExpected, n)
+	// PackageName is the name of the package.
+	PackageName string
 
-	filesFound := countFiles(t, outputDir)
-	assert.Equal(t, filesExpected, filesFound)
+	// RecordDir is where responses from Elasticsearch are recorded.
+	RecordDir string
 
-	assertEqualDumps(t, "./testdata/elasticsearch-8-apache-dump-all", outputDir)
+	// DumpDir is where the expected dumped files are stored.
+	DumpDir string
 }
 
-func TestInstalledObjectsDumpSome(t *testing.T) {
-	client := estest.ElasticsearchClient(t, "./testdata/elasticsearch-7-mock-dump-apache")
-	dumper := NewInstalledObjectsDumper(client, "apache")
+func (s *InstalledObjectsDumpSuite) SetupTest() {
+	_, err := os.Stat(s.DumpDir)
+	if errors.Is(err, os.ErrNotExist) {
+		client, err := elasticsearch.Client()
+		s.Require().NoError(err)
+
+		dumper := NewInstalledObjectsDumper(client.API, s.PackageName)
+		n, err := dumper.DumpAll(context.Background(), s.DumpDir)
+		s.Require().NoError(err)
+		s.Require().Greater(n, 0)
+	} else {
+		s.Require().NoError(err)
+	}
+}
+
+func (s *InstalledObjectsDumpSuite) TestDumpAll() {
+	client := estest.ElasticsearchClient(s.T(), s.RecordDir)
+
+	outputDir := s.T().TempDir()
+	dumper := NewInstalledObjectsDumper(client, s.PackageName)
+	n, err := dumper.DumpAll(context.Background(), outputDir)
+	s.Require().NoError(err)
+
+	filesExpected := countFiles(s.T(), s.DumpDir)
+	s.Assert().Equal(filesExpected, n)
+
+	filesFound := countFiles(s.T(), outputDir)
+	s.Assert().Equal(filesExpected, filesFound)
+
+	assertEqualDumps(s.T(), s.DumpDir, outputDir)
+}
+
+func (s *InstalledObjectsDumpSuite) TestDumpSome() {
+	client := estest.ElasticsearchClient(s.T(), s.RecordDir)
+	dumper := NewInstalledObjectsDumper(client, s.PackageName)
 
 	// In a map so order of execution is randomized.
 	dumpers := map[string]func(ctx context.Context, outputDir string) (int, error){
@@ -65,19 +107,19 @@ func TestInstalledObjectsDumpSome(t *testing.T) {
 	}
 
 	for dir, dumpFunction := range dumpers {
-		t.Run(dir, func(t *testing.T) {
-			outputDir := t.TempDir()
+		s.Run(dir, func() {
+			outputDir := s.T().TempDir()
 			n, err := dumpFunction(context.Background(), outputDir)
-			require.NoError(t, err)
+			s.Require().NoError(err)
 
-			expectedDir := subDir(t, "./testdata/elasticsearch-7-apache-dump-all", dir)
-			filesExpected := countFiles(t, expectedDir)
-			assert.Equal(t, filesExpected, n)
+			expectedDir := subDir(s.T(), s.DumpDir, dir)
+			filesExpected := countFiles(s.T(), expectedDir)
+			s.Assert().Equal(filesExpected, n)
 
-			filesFound := countFiles(t, outputDir)
-			assert.Equal(t, filesExpected, filesFound)
+			filesFound := countFiles(s.T(), outputDir)
+			s.Assert().Equal(filesExpected, filesFound)
 
-			assertEqualDumps(t, expectedDir, outputDir)
+			assertEqualDumps(s.T(), expectedDir, outputDir)
 		})
 	}
 }
