@@ -70,7 +70,7 @@ func dumpInstalledObjectsCmd(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "dump failed")
 	}
 	if n == 0 {
-		cmd.Printf("No objects were dumped for package %s, is it installed?", packageName)
+		cmd.Printf("No objects were dumped for package %s, is it installed?\n", packageName)
 		return nil
 	}
 	cmd.Printf("Dumped %d installed objects for package %s to %s\n", n, packageName, outputPath)

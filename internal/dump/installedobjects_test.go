@@ -20,24 +20,40 @@ import (
 	"github.com/elastic/elastic-package/internal/files"
 )
 
-func TestInstalledObjectsDumpAll(t *testing.T) {
-	client := estest.ElasticsearchClient(t, "./testdata/elasticsearch-mock-dump-apache")
+func TestInstalledObjectsDumpAll_7(t *testing.T) {
+	client := estest.ElasticsearchClient(t, "./testdata/elasticsearch-7-mock-dump-apache")
 	outputDir := t.TempDir()
 	dumper := NewInstalledObjectsDumper(client, "apache")
 	n, err := dumper.DumpAll(context.Background(), outputDir)
 	require.NoError(t, err)
 
-	filesExpected := countFiles(t, "./testdata/apache-dump-all")
+	filesExpected := countFiles(t, "./testdata/elasticsearch-7-apache-dump-all")
 	assert.Equal(t, filesExpected, n)
 
 	filesFound := countFiles(t, outputDir)
 	assert.Equal(t, filesExpected, filesFound)
 
-	assertEqualDumps(t, "./testdata/apache-dump-all", outputDir)
+	assertEqualDumps(t, "./testdata/elasticsearch-7-apache-dump-all", outputDir)
+}
+
+func TestInstalledObjectsDumpAll_8(t *testing.T) {
+	client := estest.ElasticsearchClient(t, "./testdata/elasticsearch-8-mock-dump-apache")
+	outputDir := t.TempDir()
+	dumper := NewInstalledObjectsDumper(client, "apache")
+	n, err := dumper.DumpAll(context.Background(), outputDir)
+	require.NoError(t, err)
+
+	filesExpected := countFiles(t, "./testdata/elasticsearch-8-apache-dump-all")
+	assert.Equal(t, filesExpected, n)
+
+	filesFound := countFiles(t, outputDir)
+	assert.Equal(t, filesExpected, filesFound)
+
+	assertEqualDumps(t, "./testdata/elasticsearch-8-apache-dump-all", outputDir)
 }
 
 func TestInstalledObjectsDumpSome(t *testing.T) {
-	client := estest.ElasticsearchClient(t, "./testdata/elasticsearch-mock-dump-apache")
+	client := estest.ElasticsearchClient(t, "./testdata/elasticsearch-7-mock-dump-apache")
 	dumper := NewInstalledObjectsDumper(client, "apache")
 
 	// In a map so order of execution is randomized.
@@ -54,7 +70,7 @@ func TestInstalledObjectsDumpSome(t *testing.T) {
 			n, err := dumpFunction(context.Background(), outputDir)
 			require.NoError(t, err)
 
-			expectedDir := subDir(t, "./testdata/apache-dump-all", dir)
+			expectedDir := subDir(t, "./testdata/elasticsearch-7-apache-dump-all", dir)
 			filesExpected := countFiles(t, expectedDir)
 			assert.Equal(t, filesExpected, n)
 
