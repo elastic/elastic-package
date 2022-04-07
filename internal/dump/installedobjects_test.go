@@ -31,13 +31,13 @@ func TestDumpInstalledObjects(t *testing.T) {
 	// - Configure environment variables for this stack (eval "$(elastic-package stack shellinit)").
 	// - Run tests.
 	// - Check that recorded files make sense and commit them.
-	suites := []*InstalledObjectsDumpSuite{
-		&InstalledObjectsDumpSuite{
+	suites := []*installedObjectsDumpSuite{
+		&installedObjectsDumpSuite{
 			PackageName: "apache",
 			RecordDir:   "./testdata/elasticsearch-7-mock-dump-apache",
 			DumpDir:     "./testdata/elasticsearch-7-apache-dump-all",
 		},
-		&InstalledObjectsDumpSuite{
+		&installedObjectsDumpSuite{
 			PackageName: "apache",
 			RecordDir:   "./testdata/elasticsearch-8-mock-dump-apache",
 			DumpDir:     "./testdata/elasticsearch-8-apache-dump-all",
@@ -49,7 +49,7 @@ func TestDumpInstalledObjects(t *testing.T) {
 	}
 }
 
-type InstalledObjectsDumpSuite struct {
+type installedObjectsDumpSuite struct {
 	suite.Suite
 
 	// PackageName is the name of the package.
@@ -62,7 +62,7 @@ type InstalledObjectsDumpSuite struct {
 	DumpDir string
 }
 
-func (s *InstalledObjectsDumpSuite) SetupTest() {
+func (s *installedObjectsDumpSuite) SetupTest() {
 	_, err := os.Stat(s.DumpDir)
 	if errors.Is(err, os.ErrNotExist) {
 		client, err := elasticsearch.Client()
@@ -77,7 +77,7 @@ func (s *InstalledObjectsDumpSuite) SetupTest() {
 	}
 }
 
-func (s *InstalledObjectsDumpSuite) TestDumpAll() {
+func (s *installedObjectsDumpSuite) TestDumpAll() {
 	client := estest.ElasticsearchClient(s.T(), s.RecordDir)
 
 	outputDir := s.T().TempDir()
@@ -94,7 +94,7 @@ func (s *InstalledObjectsDumpSuite) TestDumpAll() {
 	assertEqualDumps(s.T(), s.DumpDir, outputDir)
 }
 
-func (s *InstalledObjectsDumpSuite) TestDumpSome() {
+func (s *installedObjectsDumpSuite) TestDumpSome() {
 	client := estest.ElasticsearchClient(s.T(), s.RecordDir)
 	dumper := NewInstalledObjectsDumper(client, s.PackageName)
 
