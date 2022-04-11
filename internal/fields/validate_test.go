@@ -152,6 +152,22 @@ func Test_parseElementValue(t *testing.T) {
 			},
 		},
 		{
+			key:   "date as milliseconds",
+			value: float64(1420070400001),
+			definition: FieldDefinition{
+				Type: "date",
+			},
+		},
+		{
+			key:   "date as milisecond with pattern",
+			value: float64(1420070400001),
+			definition: FieldDefinition{
+				Type:    "date",
+				Pattern: "^[0-9]{4}(-[0-9]{2}){2}[T ][0-9]{2}(:[0-9]{2}){2}Z$",
+			},
+			fail: true,
+		},
+		{
 			key:   "bad date",
 			value: "10 Oct 2020 3:42PM",
 			definition: FieldDefinition{

@@ -16,6 +16,7 @@ import (
 
 var commands = []*cobraext.Command{
 	setupBuildCommand(),
+	setupChangelogCommand(),
 	setupCheckCommand(),
 	setupCleanCommand(),
 	setupCreateCommand(),

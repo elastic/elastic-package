@@ -80,5 +80,5 @@ func logMessagef(level string, format string, a ...interface{}) {
 	var all []interface{}
 	all = append(all, level)
 	all = append(all, a...)
-	log.Print(fmt.Sprintf("%5s "+format, all...))
+	log.Printf("%5s "+format, all...)
 }
