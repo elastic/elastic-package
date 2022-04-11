@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/configuration/locations"
@@ -286,6 +287,7 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	if config.Service != "" {
 		ctxt.Name = config.Service
 	}
+	ctxt.AgentService = config.AgentService
 	service, err := serviceDeployer.SetUp(ctxt)
 	if err != nil {
 		return result.WithError(errors.Wrap(err, "could not setup service"))
@@ -309,16 +311,6 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	kib, err := kibana.NewClient()
 	if err != nil {
 		return result.WithError(errors.Wrap(err, "can't create Kibana client"))
-	}
-
-	agents, err := checkEnrolledAgents(kib, ctxt)
-	if err != nil {
-		return result.WithError(errors.Wrap(err, "can't check enrolled agents"))
-	}
-	agent := agents[0]
-	origPolicy := kibana.Policy{
-		ID:       agent.PolicyID,
-		Revision: agent.PolicyRevision,
 	}
 
 	// Configure package (single data stream) via Ingest Manager APIs.
@@ -383,23 +375,44 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 		return result.WithError(err)
 	}
 
-	// Assign policy to agent
-	r.resetAgentPolicyHandler = func() error {
-		logger.Debug("reassigning original policy back to agent...")
-		if err := kib.AssignPolicyToAgent(agent, origPolicy); err != nil {
-			return errors.Wrap(err, "error reassigning original policy to agent")
-		}
-		return nil
+	agents, err := checkEnrolledAgents(kib, ctxt)
+	if err != nil {
+		return result.WithError(errors.Wrap(err, "can't check enrolled agents"))
 	}
+
+	origPolicies := make([]kibana.Policy, len(agents))
 
 	policyWithDataStream, err := kib.GetPolicy(policy.ID)
 	if err != nil {
 		return result.WithError(errors.Wrap(err, "could not read the policy with data stream"))
 	}
 
-	logger.Debug("assigning package data stream to agent...")
-	if err := kib.AssignPolicyToAgent(agent, *policyWithDataStream); err != nil {
-		return result.WithError(errors.Wrap(err, "could not assign policy to agent"))
+	for i, agent := range agents {
+		origPolicies[i] = kibana.Policy{
+			ID:       agent.PolicyID,
+			Revision: agent.PolicyRevision,
+		}
+
+		logger.Debug("assigning package data stream to agent...")
+		if err := kib.AssignPolicyToAgent(agent, *policyWithDataStream); err != nil {
+			return result.WithError(errors.Wrap(err, "could not assign policy to agent"))
+		}
+	}
+
+	// Assign policy to agent
+	r.resetAgentPolicyHandler = func() error {
+		logger.Debug("reassigning original policy back to agent...")
+		var g errgroup.Group
+		for i, agent := range agents {
+			i, agent := i, agent
+			g.Go(func() error {
+				if err := kib.AssignPolicyToAgent(agent, origPolicies[i]); err != nil {
+					return errors.Wrap(err, "error reassigning original policy to agent")
+				}
+				return nil
+			})
+		}
+		return g.Wait()
 	}
 
 	// Signal to the service that the agent is ready (policy is assigned).
@@ -617,7 +630,9 @@ func waitUntilTrue(fn func() (bool, error), timeout time.Duration) (bool, error)
 }
 
 func filterAgents(allAgents []kibana.Agent, ctx servicedeployer.ServiceContext) []kibana.Agent {
-	if ctx.Agent.Host.NamePrefix != "" {
+	if ctx.AgentService {
+		logger.Debugf("filter agents using criteria: NamePrefix=%s", ctx.Name)
+	} else if !ctx.AgentService && ctx.Agent.Host.NamePrefix != "" {
 		logger.Debugf("filter agents using criteria: NamePrefix=%s", ctx.Agent.Host.NamePrefix)
 	}
 
@@ -627,11 +642,17 @@ func filterAgents(allAgents []kibana.Agent, ctx servicedeployer.ServiceContext) 
 			continue // For some reason Kibana doesn't always return a valid policy revision (eventually it will be present and valid)
 		}
 
-		if ctx.Agent.Host.NamePrefix != "" && !strings.HasPrefix(agent.LocalMetadata.Host.Name, ctx.Agent.Host.NamePrefix) {
+		if ctx.AgentService && !strings.HasPrefix(agent.LocalMetadata.Host.Name, ctx.Name) {
 			continue
 		}
+
+		if !ctx.AgentService && ctx.Agent.Host.NamePrefix != "" && !strings.HasPrefix(agent.LocalMetadata.Host.Name, ctx.Agent.Host.NamePrefix) {
+			continue
+		}
+
 		filtered = append(filtered, agent)
 	}
+	logger.Debugf("filtered agents list: %v", filtered)
 	return filtered
 }
 

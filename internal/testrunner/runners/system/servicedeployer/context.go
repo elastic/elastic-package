@@ -16,6 +16,9 @@ type ServiceContext struct {
 	// Name is the name of the service.
 	Name string
 
+	// AgentService indicates that the service to deploy is a custom elastic-agent.
+	AgentService bool
+
 	// Hostname is the host name of the service, as addressable from
 	// the Agent container.
 	Hostname string
