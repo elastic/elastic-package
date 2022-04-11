@@ -29,7 +29,7 @@ require (
 	golang.org/x/oauth2 v0.0.0-20211104180415-d3ed0bb246c8
 	golang.org/x/tools v0.1.11-0.20220316014157-77aa08bb151a
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
-	gotest.tools/gotestsum v1.7.0
+	gotest.tools/gotestsum v1.8.0
 	helm.sh/helm/v3 v3.8.1
 	honnef.co/go/tools v0.3.0
 	k8s.io/apimachinery v0.23.5
