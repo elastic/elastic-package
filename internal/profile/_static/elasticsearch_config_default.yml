@@ -8,10 +8,9 @@ xpack.license.self_generated.type: "trial"
 xpack.security.enabled: true
 xpack.security.authc.api_key.enabled: true
 
-xpack.security.transport.ssl.enabled: true
-xpack.security.transport.ssl.verification_mode: certificate
-xpack.security.transport.ssl.keystore.path: certs/elastic-certificates.p12
-xpack.security.transport.ssl.truststore.path: certs/elastic-certificates.p12
+xpack.security.http.ssl.enabled: true
+xpack.security.http.ssl.key: "certs/key.pem"
+xpack.security.http.ssl.certificate: "certs/cert.pem"
 
 script.max_compilations_rate: "use-context"
 script.context.template.max_compilations_rate: "unlimited"
