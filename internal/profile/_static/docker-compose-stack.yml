@@ -3,7 +3,7 @@ services:
   elasticsearch:
     image: "${ELASTICSEARCH_IMAGE_REF}"
     healthcheck:
-      test: ["CMD", "curl", "-f", "-u", "elastic:changeme", "http://127.0.0.1:9200/"]
+      test: ["CMD", "curl", "-f", "-u", "elastic:changeme", "https://127.0.0.1:9200/"]
       retries: 300
       interval: 1s
     environment:
@@ -11,6 +11,7 @@ services:
       - "ELASTIC_PASSWORD=changeme"
     volumes:
       - "./elasticsearch.config.${STACK_VERSION_VARIANT}.yml:/usr/share/elasticsearch/config/elasticsearch.yml"
+      - "../../../certs:/usr/share/elasticsearch/certs"
       - "../../../stack/ingest-geoip:/usr/share/elasticsearch/config/ingest-geoip"
       - "../../../stack/service_tokens:/usr/share/elasticsearch/config/service_tokens"
     ports:

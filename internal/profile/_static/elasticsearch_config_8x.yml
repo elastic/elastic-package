@@ -8,4 +8,10 @@ xpack.license.self_generated.type: "trial"
 xpack.security.enabled: true
 xpack.security.authc.api_key.enabled: true
 
+xpack.security.transport.ssl.enabled: true
+xpack.security.transport.ssl.verification_mode: certificate
+xpack.security.http.ssl.key: "certs/cert.pem"
+xpack.security.http.ssl.certificate: "certs/cert.pem"
+
+
 ingest.geoip.downloader.enabled: false
