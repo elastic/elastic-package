@@ -150,7 +150,10 @@ func createPrivateKey() (crypto.Signer, error) {
 func createCertificate(key crypto.Signer) ([]byte, error) {
 	const about100Years = 100 * 24 * 365 * time.Hour
 	template := x509.Certificate{
-		Subject:   pkix.Name{CommonName: "elastic-package self-signed"},
+		Subject: pkix.Name{
+			// TODO: Parameterize this.
+			CommonName: "elasticsearch",
+		},
 		NotBefore: time.Now(),
 		NotAfter:  time.Now().Add(about100Years),
 
