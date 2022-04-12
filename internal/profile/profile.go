@@ -186,6 +186,13 @@ func (profile Profile) writeProfileResources() error {
 			return errors.Wrap(err, "error writing config file")
 		}
 	}
+
+	// TODO: To decide where this should be done.
+	err := initTLSCertificates(profile.ProfilePath)
+	if err != nil {
+		return errors.Wrap(err, "error initializing TLS certificates")
+	}
+
 	return nil
 }
 
