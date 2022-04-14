@@ -18,18 +18,41 @@ func TestSelfSignedCertificate(t *testing.T) {
 	cert, err := NewSelfSignedCert()
 	require.NoError(t, err)
 
+	testServerWithCertificate(t, cert, cert)
+}
+
+func TestCA(t *testing.T) {
+	ca, err := NewCA()
+	require.NoError(t, err)
+
+	intermediate, err := ca.IssueIntermediate()
+	require.NoError(t, err)
+
+	cert, err := intermediate.Issue()
+	require.NoError(t, err)
+
+	t.Run("validate server with root CA", func(t *testing.T) {
+		testServerWithCertificate(t, ca.Certificate, cert)
+	})
+
+	t.Run("validate server with intermediate CA", func(t *testing.T) {
+		testServerWithCertificate(t, intermediate.Certificate, cert)
+	})
+}
+
+func testServerWithCertificate(t *testing.T, root *Certificate, cert *Certificate) {
 	tmpDir := t.TempDir()
 	keyFile := filepath.Join(tmpDir, "cert.key")
 	certFile := filepath.Join(tmpDir, "cert.pem")
 
-	err = cert.WriteKeyFile(keyFile)
+	err := cert.WriteKeyFile(keyFile)
 	require.NoError(t, err)
 
 	err = cert.WriteCertFile(certFile)
 	require.NoError(t, err)
 
 	serverAddr := testTLSServer(t, certFile, keyFile)
-	client := testHttpClient()
+	client := testHttpClient(root)
 
 	resp, err := client.Get(serverAddr)
 	require.NoError(t, err)

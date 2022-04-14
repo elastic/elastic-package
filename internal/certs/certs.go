@@ -19,35 +19,68 @@ import (
 	"github.com/github/smimesign/fakeca"
 )
 
-// SelfSignedCert is a self-signed certificate.
-type SelfSignedCert struct {
-	key  crypto.Signer
-	cert []byte
+// Certificate is a self-signed certificate.
+type Certificate struct {
+	identity *fakeca.Identity
 }
 
-func NewSelfSignedCert() (*SelfSignedCert, error) {
+// Issuer is a certificate that can issue other certificates.
+type Issuer struct {
+	*Certificate
+}
+
+// NewCA creates a new self-signed root CA.
+func NewCA() (*Issuer, error) {
+	return newCA(nil)
+}
+
+func newCA(parent *Issuer) (*Issuer, error) {
+	cert, err := New(true, parent)
+	if err != nil {
+		return nil, err
+	}
+	return &Issuer{Certificate: cert}, nil
+}
+
+func (i *Issuer) IssueIntermediate() (*Issuer, error) {
+	return newCA(i)
+}
+
+func (i *Issuer) Issue() (*Certificate, error) {
+	return New(false, i)
+}
+
+func NewSelfSignedCert() (*Certificate, error) {
+	return New(false, nil)
+}
+
+func New(isCA bool, issuer *Issuer) (*Certificate, error) {
 	const longTime = 100 * 24 * 365 * time.Hour
-	identity := fakeca.New(
+	options := []fakeca.Option{
 		fakeca.Subject(pkix.Name{
 			// TODO: Parameterize this.
 			CommonName: "elasticsearch",
 		}),
 		fakeca.NotBefore(time.Now()),
 		fakeca.NotAfter(time.Now().Add(longTime)),
-		fakeca.KeyUsage(x509.KeyUsageKeyEncipherment|x509.KeyUsageDigitalSignature),
-	)
-	key := identity.PrivateKey
-	cert := identity.Certificate.Raw
+		fakeca.KeyUsage(x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature),
+	}
+	if isCA {
+		options = append(options, fakeca.IsCA)
+	}
+	if issuer != nil {
+		options = append(options, fakeca.Issuer(issuer.identity))
+	}
+	identity := fakeca.New(options...)
 
-	return &SelfSignedCert{
-		key:  key,
-		cert: cert,
+	return &Certificate{
+		identity: identity,
 	}, nil
 }
 
 // WriteKey writes the PEM-encoded key in the given writer.
-func (c *SelfSignedCert) WriteKey(w io.Writer) error {
-	keyPem, err := keyPemBlock(c.key)
+func (c *Certificate) WriteKey(w io.Writer) error {
+	keyPem, err := keyPemBlock(c.identity.PrivateKey)
 	if err != nil {
 		return fmt.Errorf("failed to encode key PEM block: %w", err)
 	}
@@ -56,7 +89,7 @@ func (c *SelfSignedCert) WriteKey(w io.Writer) error {
 }
 
 // WriteKeyFile writes the PEM-encoded key in the given file.
-func (c *SelfSignedCert) WriteKeyFile(path string) error {
+func (c *Certificate) WriteKeyFile(path string) error {
 	f, err := os.Create(path)
 	if err != nil {
 		return fmt.Errorf("failed to create key file %q: %w", path, err)
@@ -67,13 +100,13 @@ func (c *SelfSignedCert) WriteKeyFile(path string) error {
 }
 
 // WriteCert writes the PEM-encoded certificate in the given writer.
-func (c *SelfSignedCert) WriteCert(w io.Writer) error {
-	certPem := certPemBlock(c.cert)
+func (c *Certificate) WriteCert(w io.Writer) error {
+	certPem := certPemBlock(c.identity.Certificate.Raw)
 	return encodePem(w, certPem)
 }
 
 // WriteCertFile writes the PEM-encoded certifiacte in the given file.
-func (c *SelfSignedCert) WriteCertFile(path string) error {
+func (c *Certificate) WriteCertFile(path string) error {
 	f, err := os.Create(path)
 	if err != nil {
 		return fmt.Errorf("failed to create cert file %q: %w", path, err)
