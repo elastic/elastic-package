@@ -5,12 +5,18 @@
 package certs
 
 import (
+	"context"
 	"crypto/tls"
+	"crypto/x509"
+	"fmt"
+	"io/ioutil"
 	"net"
 	"net/http"
+	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -45,40 +51,55 @@ func testServerWithCertificate(t *testing.T, root *Certificate, cert *Certificat
 	keyFile := filepath.Join(tmpDir, "cert.key")
 	certFile := filepath.Join(tmpDir, "cert.pem")
 
+	cert.WriteCert(os.Stdout)
+
 	err := cert.WriteKeyFile(keyFile)
 	require.NoError(t, err)
 
 	err = cert.WriteCertFile(certFile)
 	require.NoError(t, err)
 
-	serverAddr := testTLSServer(t, certFile, keyFile)
-	client := testHttpClient(root)
+	client := testTLSServer(t, root, certFile, keyFile)
 
-	resp, err := client.Get(serverAddr)
+	resp, err := client.Get("https://elasticsearch")
 	require.NoError(t, err)
-	resp.Body.Close()
+	defer resp.Body.Close()
+	d, _ := ioutil.ReadAll(resp.Body)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	assert.Equal(t, "ok", string(d))
 }
 
-func testTLSServer(t *testing.T, certFile, keyFile string) string {
+func testTLSServer(t *testing.T, root *Certificate, certFile, keyFile string) *http.Client {
 	listener, err := net.Listen("tcp", "localhost:0")
 	require.NoError(t, err)
 	t.Cleanup(func() { listener.Close() })
 
 	go func() {
 		server := &http.Server{
-			Handler: http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}),
+			Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				fmt.Fprint(w, "ok")
+			}),
 		}
 		server.ServeTLS(listener, certFile, keyFile)
 	}()
 
-	return "https://" + listener.Addr().String()
-}
-
-func testHttpClient() *http.Client {
+	caPool := x509.NewCertPool()
+	caPool.AddCert(root.cert)
 	return &http.Client{
 		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: true,
+			// Send all requests to the listener address.
+			DialContext: func(ctx context.Context, network, address string) (net.Conn, error) {
+				var d net.Dialer
+				return d.DialContext(ctx, network, listener.Addr().String())
+			},
+			DialTLSContext: func(ctx context.Context, network, address string) (net.Conn, error) {
+				var d tls.Dialer
+				host, _, _ := net.SplitHostPort(address)
+				d.Config = &tls.Config{
+					ServerName: host,
+					RootCAs:    caPool,
+				}
+				return d.DialContext(ctx, network, listener.Addr().String())
 			},
 		},
 	}

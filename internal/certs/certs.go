@@ -7,21 +7,24 @@ package certs
 import (
 	"crypto"
 	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"fmt"
 	"io"
+	"math/big"
 	"os"
 	"time"
-
-	"github.com/github/smimesign/fakeca"
 )
 
-// Certificate is a self-signed certificate.
+// Certificate contains the key and certificate for an issued certificate.
 type Certificate struct {
-	identity *fakeca.Identity
+	key    crypto.Signer
+	cert   *x509.Certificate
+	issuer *Certificate
 }
 
 // Issuer is a certificate that can issue other certificates.
@@ -55,32 +58,70 @@ func NewSelfSignedCert() (*Certificate, error) {
 }
 
 func New(isCA bool, issuer *Issuer) (*Certificate, error) {
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate key: %w", err)
+	}
+
 	const longTime = 100 * 24 * 365 * time.Hour
-	options := []fakeca.Option{
-		fakeca.Subject(pkix.Name{
-			// TODO: Parameterize this.
+	template := x509.Certificate{
+		Subject: pkix.Name{
+			// TODO: Parameterize common names.
 			CommonName: "elasticsearch",
-		}),
-		fakeca.NotBefore(time.Now()),
-		fakeca.NotAfter(time.Now().Add(longTime)),
-		fakeca.KeyUsage(x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature),
+		},
+		NotBefore: time.Now(),
+		NotAfter:  time.Now().Add(longTime),
+
+		// TODO: Generate different serials?
+		SerialNumber:          big.NewInt(1),
+		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		BasicConstraintsValid: true,
+
+		// TODO: Parameterize this.
+		DNSNames: []string{"elasticsearch"},
 	}
+
 	if isCA {
-		options = append(options, fakeca.IsCA)
+		template.IsCA = true
+		template.KeyUsage |= x509.KeyUsageCRLSign | x509.KeyUsageCertSign
+
+		if issuer == nil {
+			template.Subject.CommonName = "elastic-package CA"
+		} else {
+			template.Subject.CommonName = "intermediate elastic-package CA"
+		}
 	}
+
+	// Self-signed unless an issuer has been received.
+	var parent *x509.Certificate = &template
+	var signer crypto.Signer = key
+	var issuerCert *Certificate
 	if issuer != nil {
-		options = append(options, fakeca.Issuer(issuer.identity))
+		parent = issuer.cert
+		signer = issuer.key
+		issuerCert = issuer.Certificate
+		template.Issuer = issuer.cert.Subject
 	}
-	identity := fakeca.New(options...)
+
+	der, err := x509.CreateCertificate(rand.Reader, &template, parent, key.Public(), signer)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate certificate: %w", err)
+	}
+	cert, err := x509.ParseCertificate(der)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse certificate: %w", err)
+	}
 
 	return &Certificate{
-		identity: identity,
+		key:    key,
+		cert:   cert,
+		issuer: issuerCert,
 	}, nil
 }
 
 // WriteKey writes the PEM-encoded key in the given writer.
 func (c *Certificate) WriteKey(w io.Writer) error {
-	keyPem, err := keyPemBlock(c.identity.PrivateKey)
+	keyPem, err := keyPemBlock(c.key)
 	if err != nil {
 		return fmt.Errorf("failed to encode key PEM block: %w", err)
 	}
@@ -101,8 +142,14 @@ func (c *Certificate) WriteKeyFile(path string) error {
 
 // WriteCert writes the PEM-encoded certificate in the given writer.
 func (c *Certificate) WriteCert(w io.Writer) error {
-	certPem := certPemBlock(c.identity.Certificate.Raw)
-	return encodePem(w, certPem)
+	for cert := c; cert != nil; cert = cert.issuer {
+		err := encodePem(w, certPemBlock(cert.cert.Raw))
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // WriteCertFile writes the PEM-encoded certifiacte in the given file.

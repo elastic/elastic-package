@@ -14,7 +14,6 @@ require (
 	github.com/elastic/go-ucfg v0.8.4
 	github.com/elastic/package-spec v1.7.0
 	github.com/fatih/color v1.13.0
-	github.com/github/smimesign v0.2.0
 	github.com/go-git/go-billy/v5 v5.3.1
 	github.com/go-git/go-git/v5 v5.4.2
 	github.com/google/go-github/v32 v32.1.0
