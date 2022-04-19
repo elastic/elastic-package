@@ -14,6 +14,20 @@ variable "CI_BUILD_NUMBER" {
   default = "unknown-build"
 }
 
+variable "BRANCH_NAME" {
+  description = "Branch name for tagging purposes"
+  default = "unknown-branch"
+}
+
+variable "BUILD_ID" {
+  description = "Build ID in the CI for tagging purposes"
+  default = "unknown-build"
+}
+
+variable "CREATED_DATE" {
+  description = "Creation date for tagging purposes"
+  default = "unknown-date"
+}
 variable "gcp_project_id" {
   type = string
 }

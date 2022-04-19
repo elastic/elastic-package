@@ -6,7 +6,7 @@ data "google_compute_image" "default" {
 
 resource "google_compute_instance" "default" {
   name = "elastic-package-system-test-${var.TEST_RUN_ID}"
-  // NOTE: e2 instance type is required to collect instance/memory/balloon/* 
+  // NOTE: e2 instance type is required to collect instance/memory/balloon/*
   // metrics, available only on those instances.
   // https://cloud.google.com/monitoring/api/metrics_gcp
   machine_type = "e2-micro"
@@ -14,9 +14,11 @@ resource "google_compute_instance" "default" {
 
   labels = {
     run_id = var.TEST_RUN_ID
-    repo_name = var.REPO_NAME
-    pull_request = var.PULL_REQUEST
-    ci_build_number = var.CI_BUILD_NUMBER
+    Environment = "CI"
+    Owner       = "elastic-package"
+    Branch      = var.BRANCH_NAME
+    Build       = var.BUILD_ID
+    CreatedDate = var.CREATED_DATE
   }
 
   boot_disk {
