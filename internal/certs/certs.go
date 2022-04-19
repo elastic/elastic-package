@@ -10,6 +10,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
@@ -17,6 +18,7 @@ import (
 	"io"
 	"math/big"
 	"os"
+	"path/filepath"
 	"time"
 )
 
@@ -35,6 +37,54 @@ type Issuer struct {
 // NewCA creates a new self-signed root CA.
 func NewCA() (*Issuer, error) {
 	return newCA(nil)
+}
+
+// LoadCA loads a CA certificate and key from disk.
+func LoadCA(certFile, keyFile string) (*Issuer, error) {
+	pair, err := tls.LoadX509KeyPair(certFile, keyFile)
+	if err != nil {
+		return nil, err
+	}
+	if len(pair.Certificate) == 0 {
+		return nil, fmt.Errorf("no certificates in %q?", certFile)
+	}
+	chain := make([]*x509.Certificate, len(pair.Certificate))
+	for i := range pair.Certificate {
+		cert, err := x509.ParseCertificate(pair.Certificate[i])
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse #%d certificate loaded from %q", i, certFile)
+		}
+		chain[i] = cert
+	}
+
+	var key crypto.Signer
+	switch privKey := pair.PrivateKey.(type) {
+	case crypto.Signer:
+		key = privKey
+	default:
+		return nil, fmt.Errorf("key of type %T cannot be used as CA", privKey)
+	}
+
+	ca := &Issuer{
+		&Certificate{
+			key:  key,
+			cert: chain[0],
+		},
+	}
+
+	if len(chain) > 1 {
+		// This is an intermediate certificate, rebuild the full chain.
+		c := ca.Certificate
+		for _, cert := range chain[1:] {
+			c.issuer = &Certificate{
+				// Parent keys are not known here, but that's ok
+				// as these certs are only used for the cert chain.
+				cert: cert,
+			}
+			c = c.issuer
+		}
+	}
+	return ca, nil
 }
 
 func newCA(parent *Issuer) (*Issuer, error) {
@@ -131,6 +181,10 @@ func (c *Certificate) WriteKey(w io.Writer) error {
 
 // WriteKeyFile writes the PEM-encoded key in the given file.
 func (c *Certificate) WriteKeyFile(path string) error {
+	err := os.MkdirAll(filepath.Dir(path), 0755)
+	if err != nil {
+		return fmt.Errorf("error creating directory for key file: %w", err)
+	}
 	f, err := os.Create(path)
 	if err != nil {
 		return fmt.Errorf("failed to create key file %q: %w", path, err)
@@ -154,6 +208,10 @@ func (c *Certificate) WriteCert(w io.Writer) error {
 
 // WriteCertFile writes the PEM-encoded certifiacte in the given file.
 func (c *Certificate) WriteCertFile(path string) error {
+	err := os.MkdirAll(filepath.Dir(path), 0755)
+	if err != nil {
+		return fmt.Errorf("error creating directory for certificate file: %w", err)
+	}
 	f, err := os.Create(path)
 	if err != nil {
 		return fmt.Errorf("failed to create cert file %q: %w", path, err)

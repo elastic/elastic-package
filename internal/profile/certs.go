@@ -10,7 +10,6 @@ import (
 	"encoding/pem"
 	"fmt"
 	"io/ioutil"
-	"os"
 	"path/filepath"
 
 	"github.com/pkg/errors"
@@ -26,53 +25,73 @@ var tlsServices = []string{
 	"fleet-server",
 }
 
+// initTLSCertificates initializes all the certificates needed to run the services
+// managed by elastic-package stack. It includes a CA, and a pair of keys and
+// certificates for each service.
 func initTLSCertificates(profilePath string) error {
 	certsDir := filepath.Join(profilePath, "certs")
 	caCertFile := filepath.Join(certsDir, "ca-cert.pem")
 	caKeyFile := filepath.Join(certsDir, "ca-key.pem")
-	if err := verifyTLSCertificates(caCertFile, caCertFile, caKeyFile); err == nil {
-		// Valid certificates are already present, nothing to do.
-		// TODO: Check also service certificates, and recreate individually.
-		return nil
-	}
 
-	err := os.MkdirAll(certsDir, 0755)
-	if err != nil {
-		return fmt.Errorf("error creating directory for TSL certificates: %w", err)
-	}
-	ca, err := certs.NewCA()
-	if err != nil {
-		return fmt.Errorf("error initializing self-signed certificates")
-	}
-	err = ca.WriteCertFile(caCertFile)
-	if err != nil {
-		return err
-	}
-	err = ca.WriteKeyFile(caKeyFile)
+	ca, err := initCA(caCertFile, caKeyFile)
 	if err != nil {
 		return err
 	}
 
 	for _, service := range tlsServices {
-		certsDir := filepath.Join(certsDir, service)
-		certFile := filepath.Join(certsDir, "cert.pem")
-		keyFile := filepath.Join(certsDir, "key.pem")
-		err := os.MkdirAll(certsDir, 0755)
-		if err != nil {
-			return fmt.Errorf("error creating directory for TSL certificates: %w", err)
-		}
-		cert, err := ca.Issue()
-		if err != nil {
-			return fmt.Errorf("error initializing self-signed certificates")
-		}
-		err = cert.WriteCertFile(certFile)
+		err := initServiceTLSCertificates(ca, caCertFile, certsDir, service)
 		if err != nil {
 			return err
 		}
-		err = cert.WriteKeyFile(keyFile)
+	}
+
+	return nil
+}
+
+func initCA(certFile, keyFile string) (*certs.Issuer, error) {
+	if err := verifyTLSCertificates(certFile, certFile, keyFile); err == nil {
+		// Valid CA is already present, load it to check service certificates.
+		ca, err := certs.LoadCA(certFile, keyFile)
 		if err != nil {
-			return err
+			return nil, fmt.Errorf("error loading CA: %w", err)
 		}
+		return ca, nil
+	}
+	ca, err := certs.NewCA()
+	if err != nil {
+		return nil, fmt.Errorf("error initializing self-signed CA")
+	}
+	err = ca.WriteCertFile(certFile)
+	if err != nil {
+		return nil, err
+	}
+	err = ca.WriteKeyFile(keyFile)
+	if err != nil {
+		return nil, err
+	}
+	return ca, nil
+}
+
+func initServiceTLSCertificates(ca *certs.Issuer, caCertFile string, certsDir, service string) error {
+	certsDir = filepath.Join(certsDir, service)
+	certFile := filepath.Join(certsDir, "cert.pem")
+	keyFile := filepath.Join(certsDir, "key.pem")
+	if err := verifyTLSCertificates(caCertFile, certFile, keyFile); err == nil {
+		// Certificate already present and valid, nothing to do.
+		return nil
+	}
+
+	cert, err := ca.Issue()
+	if err != nil {
+		return fmt.Errorf("error initializing certificate for %q", service)
+	}
+	err = cert.WriteCertFile(certFile)
+	if err != nil {
+		return err
+	}
+	err = cert.WriteKeyFile(keyFile)
+	if err != nil {
+		return err
 	}
 
 	return nil

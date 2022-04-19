@@ -39,13 +39,14 @@ func TestTLSCertsInitialization(t *testing.T) {
 		serviceKeyFile := filepath.Join(profilePath, "certs", service, "key.pem")
 		assert.NoError(t, verifyTLSCertificates(caCertFile, serviceCertFile, serviceKeyFile))
 
+		// Remove the certificate.
 		os.Remove(serviceCertFile)
 		os.Remove(serviceKeyFile)
 		assert.Error(t, verifyTLSCertificates(caCertFile, serviceCertFile, serviceKeyFile))
 
+		// Check it is created again and is validated by the same CA.
 		err := initTLSCertificates(profilePath)
 		require.NoError(t, err)
-		t.Skip("TODO: recreate missing individual certificates")
 		assert.NoError(t, verifyTLSCertificates(caCertFile, serviceCertFile, serviceKeyFile))
 	})
 }
