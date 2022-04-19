@@ -12,7 +12,6 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
-	"os"
 	"path/filepath"
 	"testing"
 
@@ -46,12 +45,48 @@ func TestCA(t *testing.T) {
 	})
 }
 
+func TestIsSelfSigned(t *testing.T) {
+	t.Run("self-signed", func(t *testing.T) {
+		c, err := NewSelfSignedCert()
+		require.NoError(t, err)
+		assert.True(t, isSelfSigned(c.cert))
+	})
+
+	t.Run("self-signed CA", func(t *testing.T) {
+		c, err := NewCA()
+		require.NoError(t, err)
+		assert.True(t, isSelfSigned(c.cert))
+	})
+
+	t.Run("certificate signed by CA", func(t *testing.T) {
+		ca, err := NewCA()
+		require.NoError(t, err)
+		c, err := ca.Issue()
+		require.NoError(t, err)
+		assert.False(t, isSelfSigned(c.cert))
+	})
+
+	t.Run("intermediate CA", func(t *testing.T) {
+		ca, err := NewCA()
+		require.NoError(t, err)
+		c, err := ca.IssueIntermediate()
+		assert.False(t, isSelfSigned(c.cert))
+	})
+
+	t.Run("certificate signed by intermediary CA", func(t *testing.T) {
+		ca, err := NewCA()
+		require.NoError(t, err)
+		intermediate, err := ca.IssueIntermediate()
+		c, err := intermediate.Issue()
+		require.NoError(t, err)
+		assert.False(t, isSelfSigned(c.cert))
+	})
+}
+
 func testServerWithCertificate(t *testing.T, root *Certificate, cert *Certificate) {
 	tmpDir := t.TempDir()
 	keyFile := filepath.Join(tmpDir, "cert.key")
 	certFile := filepath.Join(tmpDir, "cert.pem")
-
-	cert.WriteCert(os.Stdout)
 
 	err := cert.WriteKeyFile(keyFile)
 	require.NoError(t, err)

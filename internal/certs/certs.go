@@ -196,14 +196,27 @@ func (c *Certificate) WriteKeyFile(path string) error {
 
 // WriteCert writes the PEM-encoded certificate in the given writer.
 func (c *Certificate) WriteCert(w io.Writer) error {
-	for cert := c; cert != nil; cert = cert.issuer {
-		err := encodePem(w, certPemBlock(cert.cert.Raw))
+	err := encodePem(w, certPemBlock(c.cert.Raw))
+	if err != nil {
+		return err
+	}
+
+	// Include issuer in the chain, if it is not self-signed.
+	// Self-signed certificates shouldn't be included in chain, they are rejected
+	// by some clients as curl.
+	if c.issuer != nil && !isSelfSigned(c.issuer.cert) {
+		err := encodePem(w, certPemBlock(c.issuer.cert.Raw))
 		if err != nil {
 			return err
 		}
 	}
 
 	return nil
+}
+
+func isSelfSigned(cert *x509.Certificate) bool {
+	// Not completely reliable way to check if it is self-signed, but enough here.
+	return cert.Issuer.String() == cert.Subject.String()
 }
 
 // WriteCertFile writes the PEM-encoded certifiacte in the given file.
