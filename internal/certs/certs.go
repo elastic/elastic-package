@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"io"
 	"math/big"
+	"net"
 	"os"
 	"path/filepath"
 	"time"
@@ -128,7 +129,8 @@ func New(isCA bool, issuer *Issuer) (*Certificate, error) {
 		BasicConstraintsValid: true,
 
 		// TODO: Parameterize this.
-		DNSNames: []string{"elasticsearch"},
+		DNSNames:    []string{"elasticsearch", "localhost"},
+		IPAddresses: []net.IP{net.ParseIP("127.0.0.1"), net.ParseIP("::1")},
 	}
 
 	if isCA {

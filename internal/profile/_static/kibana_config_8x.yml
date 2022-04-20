@@ -2,7 +2,7 @@ server.name: kibana
 server.host: "0.0.0.0"
 
 elasticsearch.hosts: [ "https://elasticsearch:9200" ]
-elasticsearch.ssl.certificateAuthorities: "/usr/share/kibana/config/certs/cert.pem"
+elasticsearch.ssl.certificateAuthorities: "/usr/share/kibana/config/certs/ca-cert.pem"
 elasticsearch.serviceAccountToken: "AAEAAWVsYXN0aWMva2liYW5hL2VsYXN0aWMtcGFja2FnZS1raWJhbmEtdG9rZW46b2x4b051SWNRa0tYMHdXazdLWmFBdw"
 
 monitoring.ui.container.elasticsearch.enabled: true
