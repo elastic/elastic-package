@@ -5,12 +5,12 @@ variable "TEST_RUN_ID" {
 provider "aws" {
   default_tags {
     tags = {
-      RunId       = var.TEST_RUN_ID
-      Environment = var.ENVIRONMENT
-      Owner       = var.OWNER
-      Branch      = var.BRANCH_NAME
-      Build       = var.BUILD_ID
-      CreatedDate = var.CREATED_DATE
+      run_id       = var.TEST_RUN_ID
+      environment  = var.ENVIRONMENT
+      owner        = var.OWNER
+      branch       = var.BRANCH_NAME
+      build        = var.BUILD_ID
+      created_date = var.CREATED_DATE
     }
   }
 }

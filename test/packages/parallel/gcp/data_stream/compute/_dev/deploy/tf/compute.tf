@@ -13,12 +13,12 @@ resource "google_compute_instance" "default" {
   zone         = var.zone
 
   labels = {
-    RunId       = var.TEST_RUN_ID
-    Environment = var.ENVIRONMENT
-    Owner       = var.OWNER
-    Branch      = var.BRANCH_NAME
-    Build       = var.BUILD_ID
-    CreatedDate = var.CREATED_DATE
+    run_id       = var.TEST_RUN_ID
+    environment  = var.ENVIRONMENT
+    owner        = var.OWNER
+    branch       = var.BRANCH_NAME
+    build        = var.BUILD_ID
+    created_date = var.CREATED_DATE
   }
 
   boot_disk {
