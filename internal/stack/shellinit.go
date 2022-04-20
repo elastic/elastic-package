@@ -7,6 +7,7 @@ package stack
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
@@ -26,10 +27,14 @@ var (
 	ElasticsearchUsernameEnv = elasticPackageEnvPrefix + "ELASTICSEARCH_USERNAME"
 	ElasticsearchPasswordEnv = elasticPackageEnvPrefix + "ELASTICSEARCH_PASSWORD"
 	KibanaHostEnv            = elasticPackageEnvPrefix + "KIBANA_HOST"
+	CACertificateEnv         = elasticPackageEnvPrefix + "CACERT"
 )
 
-var shellInitFormat = "export " + ElasticsearchHostEnv + "=%s\nexport " + ElasticsearchUsernameEnv + "=%s\nexport " +
-	ElasticsearchPasswordEnv + "=%s\nexport " + KibanaHostEnv + "=%s"
+var shellInitFormat = "export " + ElasticsearchHostEnv + "=%s\n" +
+	"export " + ElasticsearchUsernameEnv + "=%s\n" +
+	"export " + ElasticsearchPasswordEnv + "=%s\n" +
+	"export " + KibanaHostEnv + "=%s\n" +
+	"export " + CACertificateEnv + "=%s"
 
 type kibanaConfiguration struct {
 	ElasticsearchUsername string `yaml:"elasticsearch.username"`
@@ -74,14 +79,19 @@ func ShellInit(elasticStackProfile *profile.Profile) (string, error) {
 	}
 
 	kib := serviceComposeConfig.Services["kibana"]
-	kibHostPort := fmt.Sprintf("http://%s:%d", kib.Ports[0].ExternalIP, kib.Ports[0].ExternalPort)
+	kibHostPort := fmt.Sprintf("https://%s:%d", kib.Ports[0].ExternalIP, kib.Ports[0].ExternalPort)
 
 	es := serviceComposeConfig.Services["elasticsearch"]
-	esHostPort := fmt.Sprintf("http://%s:%d", es.Ports[0].ExternalIP, es.Ports[0].ExternalPort)
+	esHostPort := fmt.Sprintf("https://%s:%d", es.Ports[0].ExternalIP, es.Ports[0].ExternalPort)
+
+	// TODO: Get the certs path directly from the profile.
+	caCert := filepath.Join(elasticStackProfile.ProfilePath, "certs/ca-cert.pem")
 
 	return fmt.Sprintf(shellInitFormat,
 		esHostPort,
 		kibanaCfg.ElasticsearchUsername,
 		kibanaCfg.ElasticsearchPassword,
-		kibHostPort), nil
+		kibHostPort,
+		caCert,
+	), nil
 }
