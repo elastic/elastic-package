@@ -2,18 +2,6 @@ variable "TEST_RUN_ID" {
   default = "detached"
 }
 
-variable "REPO_NAME" {
-  default = "unknown-repo"
-}
-
-variable "PULL_REQUEST" {
-  default = "unknown-pr"
-}
-
-variable "CI_BUILD_NUMBER" {
-  default = "unknown-build"
-}
-
 variable "BRANCH_NAME" {
   description = "Branch name for tagging purposes"
   default = "unknown-branch"
@@ -28,6 +16,14 @@ variable "CREATED_DATE" {
   description = "Creation date for tagging purposes"
   default = "unknown-date"
 }
+variable "ENVIRONMENT" {
+  default = "CI"
+}
+
+variable "OWNER" {
+  default = "elastic-package"
+}
+
 variable "gcp_project_id" {
   type = string
 }

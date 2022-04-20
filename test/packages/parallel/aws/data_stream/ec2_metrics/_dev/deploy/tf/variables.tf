@@ -12,3 +12,11 @@ variable "CREATED_DATE" {
   description = "Creation date for tagging purposes"
   default = "unknown-date"
 }
+
+variable "ENVIRONMENT" {
+  default = "CI"
+}
+
+variable "OWNER" {
+  default = "elastic-package"
+}

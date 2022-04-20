@@ -14,8 +14,8 @@ resource "google_compute_instance" "default" {
 
   labels = {
     run_id = var.TEST_RUN_ID
-    Environment = "CI"
-    Owner       = "elastic-package"
+    Environment = var.ENVIRONMENT
+    Owner       = var.OWNER
     Branch      = var.BRANCH_NAME
     Build       = var.BUILD_ID
     CreatedDate = var.CREATED_DATE

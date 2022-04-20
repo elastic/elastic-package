@@ -5,8 +5,8 @@ variable "TEST_RUN_ID" {
 provider "aws" {
   default_tags {
     tags = {
-      Environment = "CI"
-      Owner       = "elastic-package"
+      Environment = var.ENVIRONMENT
+      Owner       = var.OWNER
       Branch      = var.BRANCH_NAME
       Build       = var.BUILD_ID
       CreatedDate = var.CREATED_DATE
