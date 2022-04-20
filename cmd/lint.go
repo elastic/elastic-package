@@ -5,6 +5,10 @@
 package cmd
 
 import (
+	"net/url"
+	"path"
+	"strconv"
+
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
@@ -13,6 +17,7 @@ import (
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/docs"
 	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/internal/packages/changelog"
 )
 
 const lintLongDescription = `Use this command to validate the contents of a package using the package specification (see: https://github.com/elastic/package-spec).
@@ -54,6 +59,34 @@ func lintCommandAction(cmd *cobra.Command, args []string) error {
 			}
 		}
 		return errors.Wrap(err, "checking readme files are up-to-date failed")
+	}
+	err = checkPRLink()
+	if err != nil {
+		return errors.Wrap(err, "invalid changelog entry")
+	}
+	return nil
+}
+
+func checkPRLink() error {
+	packageRootPath, found, err := packages.FindPackageRoot()
+	if !found {
+		return errors.New("package root not found")
+	}
+	if err != nil {
+		return errors.Wrap(err, "locating package root failed")
+	}
+	revisions, err := changelog.ReadChangelogFromPackageRoot(packageRootPath)
+	if err != nil {
+		return errors.Wrap(err, "changelog not found")
+	}
+	for i, change := range revisions[0].Changes {
+		prUrl, err := url.Parse(change.Link)
+		if err != nil {
+			return errors.Wrapf(err, "invalid link at entry position: %d", i)
+		}
+		if _, err = strconv.Atoi(path.Base(prUrl.Path)); err != nil {
+			return errors.Wrapf(err, "incorrect PR Number ID at position: %d", i)
+		}
 	}
 	return nil
 }
