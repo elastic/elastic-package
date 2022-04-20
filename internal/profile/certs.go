@@ -74,6 +74,7 @@ func initCA(certFile, keyFile string) (*certs.Issuer, error) {
 
 func initServiceTLSCertificates(ca *certs.Issuer, caCertFile string, certsDir, service string) error {
 	certsDir = filepath.Join(certsDir, service)
+	caFile := filepath.Join(certsDir, "ca-cert.pem")
 	certFile := filepath.Join(certsDir, "cert.pem")
 	keyFile := filepath.Join(certsDir, "key.pem")
 	if err := verifyTLSCertificates(caCertFile, certFile, keyFile); err == nil {
@@ -90,6 +91,13 @@ func initServiceTLSCertificates(ca *certs.Issuer, caCertFile string, certsDir, s
 		return err
 	}
 	err = cert.WriteKeyFile(keyFile)
+	if err != nil {
+		return err
+	}
+
+	// Write the CA also in the service directory, so only a directory needs to be mounted
+	// for services that need to configure the CA to validate other services certificates.
+	err = ca.WriteCertFile(caFile)
 	if err != nil {
 		return err
 	}

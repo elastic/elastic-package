@@ -12,7 +12,6 @@ services:
     volumes:
       - "./elasticsearch.config.${STACK_VERSION_VARIANT}.yml:/usr/share/elasticsearch/config/elasticsearch.yml"
       - "../certs/elasticsearch:/usr/share/elasticsearch/config/certs"
-      - "../certs/ca-cert.pem:/usr/share/elasticsearch/config/certs/ca-cert.pem"
       - "../../../stack/ingest-geoip:/usr/share/elasticsearch/config/ingest-geoip"
       - "../../../stack/service_tokens:/usr/share/elasticsearch/config/service_tokens"
     ports:
@@ -37,7 +36,7 @@ services:
       interval: 1s
     volumes:
       - "./kibana.config.${STACK_VERSION_VARIANT}.yml:/usr/share/kibana/config/kibana.yml"
-      - "../certs/ca-cert.pem:/usr/share/kibana/config/certs/ca-cert.pem"
+      - "../certs/kibana:/usr/share/kibana/config/certs"
       - "../../../stack/healthcheck.sh:/usr/share/kibana/healthcheck.sh"
     ports:
       - "127.0.0.1:5601:5601"
