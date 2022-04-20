@@ -34,6 +34,9 @@ services:
       test: "sh /usr/share/kibana/healthcheck.sh"
       retries: 600
       interval: 1s
+    environment:
+      # Is there a better way to add certificates to Kibana/Fleet?
+      - "NODE_EXTRA_CA_CERTS=/usr/share/kibana/config/certs/ca-cert.pem"
     volumes:
       - "./kibana.config.${STACK_VERSION_VARIANT}.yml:/usr/share/kibana/config/kibana.yml"
       - "../certs/kibana:/usr/share/kibana/config/certs"
@@ -54,11 +57,17 @@ services:
       args:
         PROFILE: "${PROFILE_NAME}"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://127.0.0.1:8080"]
+      test: ["CMD", "curl", "--cacert", "/etc/ssl/package-registry/ca-cert.pem", "-f", "https://localhost"]
       retries: 300
       interval: 1s
+    environment:
+      - "EPR_ADDRESS=0.0.0.0:443"
+      - "EPR_TLS_KEY=/etc/ssl/package-registry/key.pem"
+      - "EPR_TLS_CERT=/etc/ssl/package-registry/cert.pem"
+    volumes:
+      - "../certs/package-registry:/etc/ssl/package-registry"
     ports:
-      - "127.0.0.1:8080:8080"
+      - "127.0.0.1:443:8443"
 
   package-registry_is_ready:
     image: tianon/true
