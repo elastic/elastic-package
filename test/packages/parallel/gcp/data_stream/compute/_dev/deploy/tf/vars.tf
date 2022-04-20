@@ -17,11 +17,11 @@ variable "CREATED_DATE" {
   default = "unknown-date"
 }
 variable "ENVIRONMENT" {
-  default = "CI"
+  default = "unknown-environment"
 }
 
 variable "OWNER" {
-  default = "elastic-package"
+  default = "unknown-owner"
 }
 
 variable "gcp_project_id" {

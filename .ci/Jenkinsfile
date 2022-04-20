@@ -295,7 +295,8 @@ def withCloudTestEnv(Closure body) {
   }
   // Masking
   withEnvMask(vars: maskedVars) {
-    withEnv(["CREATED_DATE=${getCurrentBuildTime()}"]) {
+    // Env variables to be populated as tag/labels for the cloud resources
+    withEnv(["TF_VAR_CREATED_DATE=${getCurrentBuildTime()}", "TF_VAR_ENVIRONMENT=CI", "TF_VAR_OWNER=${env.REPO}"]) {
       body()
     }
   }
