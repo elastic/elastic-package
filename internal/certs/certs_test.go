@@ -13,7 +13,6 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"testing"
@@ -26,7 +25,7 @@ func TestSelfSignedCertificate(t *testing.T) {
 	cert, err := NewSelfSignedCert()
 	require.NoError(t, err)
 
-	address := testTLSServer(t, cert, cert)
+	address := testTLSServer(t, cert)
 	testTLSClient(t, cert, address)
 }
 
@@ -41,7 +40,7 @@ func TestCA(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("validate server with root CA", func(t *testing.T) {
-		address := testTLSServer(t, ca.Certificate, cert)
+		address := testTLSServer(t, cert)
 		t.Run("go-http client", func(t *testing.T) {
 			testTLSClient(t, ca.Certificate, address)
 		})
@@ -51,7 +50,7 @@ func TestCA(t *testing.T) {
 	})
 
 	t.Run("validate server with intermediate CA", func(t *testing.T) {
-		address := testTLSServer(t, ca.Certificate, cert)
+		address := testTLSServer(t, cert)
 		t.Run("go-http client", func(t *testing.T) {
 			testTLSClient(t, intermediate.Certificate, address)
 		})
@@ -61,45 +60,7 @@ func TestCA(t *testing.T) {
 	})
 }
 
-func TestIsSelfSigned(t *testing.T) {
-	t.Run("self-signed", func(t *testing.T) {
-		c, err := NewSelfSignedCert()
-		require.NoError(t, err)
-		assert.True(t, isSelfSigned(c.cert))
-	})
-
-	t.Run("self-signed CA", func(t *testing.T) {
-		c, err := NewCA()
-		require.NoError(t, err)
-		assert.True(t, isSelfSigned(c.cert))
-	})
-
-	t.Run("certificate signed by CA", func(t *testing.T) {
-		ca, err := NewCA()
-		require.NoError(t, err)
-		c, err := ca.Issue()
-		require.NoError(t, err)
-		assert.False(t, isSelfSigned(c.cert))
-	})
-
-	t.Run("intermediate CA", func(t *testing.T) {
-		ca, err := NewCA()
-		require.NoError(t, err)
-		c, err := ca.IssueIntermediate()
-		assert.False(t, isSelfSigned(c.cert))
-	})
-
-	t.Run("certificate signed by intermediary CA", func(t *testing.T) {
-		ca, err := NewCA()
-		require.NoError(t, err)
-		intermediate, err := ca.IssueIntermediate()
-		c, err := intermediate.Issue()
-		require.NoError(t, err)
-		assert.False(t, isSelfSigned(c.cert))
-	})
-}
-
-func testTLSServer(t *testing.T, root *Certificate, cert *Certificate) string {
+func testTLSServer(t *testing.T, cert *Certificate) string {
 	tmpDir := t.TempDir()
 	keyFile := filepath.Join(tmpDir, "cert.key")
 	certFile := filepath.Join(tmpDir, "cert.pem")
@@ -163,18 +124,9 @@ func testCurl(t *testing.T, root *Certificate, address string) {
 		t.Skip("curl not available")
 	}
 
-	// Write full chain to the CA cert.
 	caCert := filepath.Join(t.TempDir(), "ca-cert.pem")
-	func() {
-		f, err := os.Create(caCert)
-		require.NoError(t, err)
-		defer f.Close()
-
-		for c := root; c != nil; c = c.issuer {
-			err = c.WriteCert(f)
-			require.NoError(t, err)
-		}
-	}()
+	err = root.WriteCertFile(caCert)
+	require.NoError(t, err)
 
 	serverHost, port, err := net.SplitHostPort(address)
 	require.NoError(t, err)
