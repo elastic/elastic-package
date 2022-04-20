@@ -14,9 +14,9 @@ variable "CREATED_DATE" {
 }
 
 variable "ENVIRONMENT" {
-  default = "CI"
+  default = "unknown-environment"
 }
 
 variable "OWNER" {
-  default = "elastic-package"
+  default = "unknown-owner"
 }
