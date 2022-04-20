@@ -5,6 +5,7 @@ variable "TEST_RUN_ID" {
 provider "aws" {
   default_tags {
     tags = {
+      RunId       = var.TEST_RUN_ID
       Environment = var.ENVIRONMENT
       Owner       = var.OWNER
       Branch      = var.BRANCH_NAME
