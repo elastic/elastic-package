@@ -5,6 +5,7 @@
 package certs
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
@@ -12,6 +13,8 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
+	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -23,7 +26,8 @@ func TestSelfSignedCertificate(t *testing.T) {
 	cert, err := NewSelfSignedCert()
 	require.NoError(t, err)
 
-	testServerWithCertificate(t, cert, cert)
+	address := testTLSServer(t, cert, cert)
+	testTLSClient(t, cert, address)
 }
 
 func TestCA(t *testing.T) {
@@ -37,11 +41,23 @@ func TestCA(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("validate server with root CA", func(t *testing.T) {
-		testServerWithCertificate(t, ca.Certificate, cert)
+		address := testTLSServer(t, ca.Certificate, cert)
+		t.Run("go-http client", func(t *testing.T) {
+			testTLSClient(t, ca.Certificate, address)
+		})
+		t.Run("curl", func(t *testing.T) {
+			testCurl(t, ca.Certificate, address)
+		})
 	})
 
 	t.Run("validate server with intermediate CA", func(t *testing.T) {
-		testServerWithCertificate(t, intermediate.Certificate, cert)
+		address := testTLSServer(t, ca.Certificate, cert)
+		t.Run("go-http client", func(t *testing.T) {
+			testTLSClient(t, intermediate.Certificate, address)
+		})
+		t.Run("curl", func(t *testing.T) {
+			testCurl(t, intermediate.Certificate, address)
+		})
 	})
 }
 
@@ -83,7 +99,7 @@ func TestIsSelfSigned(t *testing.T) {
 	})
 }
 
-func testServerWithCertificate(t *testing.T, root *Certificate, cert *Certificate) {
+func testTLSServer(t *testing.T, root *Certificate, cert *Certificate) string {
 	tmpDir := t.TempDir()
 	keyFile := filepath.Join(tmpDir, "cert.key")
 	certFile := filepath.Join(tmpDir, "cert.pem")
@@ -94,17 +110,6 @@ func testServerWithCertificate(t *testing.T, root *Certificate, cert *Certificat
 	err = cert.WriteCertFile(certFile)
 	require.NoError(t, err)
 
-	client := testTLSServer(t, root, certFile, keyFile)
-
-	resp, err := client.Get("https://elasticsearch")
-	require.NoError(t, err)
-	defer resp.Body.Close()
-	d, _ := ioutil.ReadAll(resp.Body)
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
-	assert.Equal(t, "ok", string(d))
-}
-
-func testTLSServer(t *testing.T, root *Certificate, certFile, keyFile string) *http.Client {
 	listener, err := net.Listen("tcp", "localhost:0")
 	require.NoError(t, err)
 	t.Cleanup(func() { listener.Close() })
@@ -118,24 +123,81 @@ func testTLSServer(t *testing.T, root *Certificate, certFile, keyFile string) *h
 		server.ServeTLS(listener, certFile, keyFile)
 	}()
 
+	return listener.Addr().String()
+}
+
+func testTLSClient(t *testing.T, root *Certificate, address string) {
 	caPool := x509.NewCertPool()
 	caPool.AddCert(root.cert)
-	return &http.Client{
+	client := &http.Client{
 		Transport: &http.Transport{
 			// Send all requests to the listener address.
-			DialContext: func(ctx context.Context, network, address string) (net.Conn, error) {
+			DialContext: func(ctx context.Context, network, _ string) (net.Conn, error) {
 				var d net.Dialer
-				return d.DialContext(ctx, network, listener.Addr().String())
+				return d.DialContext(ctx, network, address)
 			},
-			DialTLSContext: func(ctx context.Context, network, address string) (net.Conn, error) {
+			DialTLSContext: func(ctx context.Context, network, reqAddress string) (net.Conn, error) {
 				var d tls.Dialer
-				host, _, _ := net.SplitHostPort(address)
+				host, _, _ := net.SplitHostPort(reqAddress)
 				d.Config = &tls.Config{
 					ServerName: host,
 					RootCAs:    caPool,
 				}
-				return d.DialContext(ctx, network, listener.Addr().String())
+				return d.DialContext(ctx, network, address)
 			},
 		},
+	}
+
+	resp, err := client.Get("https://elasticsearch")
+	require.NoError(t, err)
+	defer resp.Body.Close()
+	d, _ := ioutil.ReadAll(resp.Body)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	assert.Equal(t, "ok", string(d))
+
+}
+
+func testCurl(t *testing.T, root *Certificate, address string) {
+	_, err := exec.LookPath("curl")
+	if err != nil {
+		t.Skip("curl not available")
+	}
+
+	// Write full chain to the CA cert.
+	caCert := filepath.Join(t.TempDir(), "ca-cert.pem")
+	func() {
+		f, err := os.Create(caCert)
+		require.NoError(t, err)
+		defer f.Close()
+
+		for c := root; c != nil; c = c.issuer {
+			err = c.WriteCert(f)
+			require.NoError(t, err)
+		}
+	}()
+
+	serverHost, port, err := net.SplitHostPort(address)
+	require.NoError(t, err)
+	require.NotNilf(t, net.ParseIP(serverHost), "%s expected to be an ip", serverHost)
+
+	// Address to use in the request, hostname here must match name in certificate.
+	reqAddress := net.JoinHostPort("elasticsearch", port)
+
+	args := []string{
+		"-v",
+		"--cacert", caCert,
+		// Send requests to the listener address.
+		"--resolve", reqAddress + ":" + serverHost,
+		"https://" + reqAddress,
+	}
+
+	var buf bytes.Buffer
+	cmd := exec.Command("curl", args...)
+	cmd.Stderr = &buf
+	cmd.Stdout = &buf
+
+	err = cmd.Run()
+	if !assert.NoError(t, err) {
+		t.Log(buf.String())
 	}
 }
