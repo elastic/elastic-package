@@ -18,18 +18,18 @@ func TestTLSCertsInitialization(t *testing.T) {
 	caCertFile := filepath.Join(profilePath, "certs", "ca-cert.pem")
 	caKeyFile := filepath.Join(profilePath, "certs", "ca-key.pem")
 
-	assert.Error(t, verifyTLSCertificates(caCertFile, caCertFile, caKeyFile))
+	assert.Error(t, verifyTLSCertificates(caCertFile, caCertFile, caKeyFile, ""))
 
 	err := initTLSCertificates(profilePath)
 	require.NoError(t, err)
 
-	assert.NoError(t, verifyTLSCertificates(caCertFile, caCertFile, caKeyFile))
+	assert.NoError(t, verifyTLSCertificates(caCertFile, caCertFile, caKeyFile, ""))
 
 	for _, service := range tlsServices {
 		t.Run(service, func(t *testing.T) {
 			serviceCertFile := filepath.Join(profilePath, "certs", service, "cert.pem")
 			serviceKeyFile := filepath.Join(profilePath, "certs", service, "key.pem")
-			assert.NoError(t, verifyTLSCertificates(caCertFile, serviceCertFile, serviceKeyFile))
+			assert.NoError(t, verifyTLSCertificates(caCertFile, serviceCertFile, serviceKeyFile, service))
 		})
 	}
 
@@ -37,16 +37,16 @@ func TestTLSCertsInitialization(t *testing.T) {
 		service := tlsServices[0]
 		serviceCertFile := filepath.Join(profilePath, "certs", service, "cert.pem")
 		serviceKeyFile := filepath.Join(profilePath, "certs", service, "key.pem")
-		assert.NoError(t, verifyTLSCertificates(caCertFile, serviceCertFile, serviceKeyFile))
+		assert.NoError(t, verifyTLSCertificates(caCertFile, serviceCertFile, serviceKeyFile, service))
 
 		// Remove the certificate.
 		os.Remove(serviceCertFile)
 		os.Remove(serviceKeyFile)
-		assert.Error(t, verifyTLSCertificates(caCertFile, serviceCertFile, serviceKeyFile))
+		assert.Error(t, verifyTLSCertificates(caCertFile, serviceCertFile, serviceKeyFile, service))
 
 		// Check it is created again and is validated by the same CA.
 		err := initTLSCertificates(profilePath)
 		require.NoError(t, err)
-		assert.NoError(t, verifyTLSCertificates(caCertFile, serviceCertFile, serviceKeyFile))
+		assert.NoError(t, verifyTLSCertificates(caCertFile, serviceCertFile, serviceKeyFile, service))
 	})
 }

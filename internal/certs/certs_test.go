@@ -22,7 +22,7 @@ import (
 )
 
 func TestSelfSignedCertificate(t *testing.T) {
-	cert, err := NewSelfSignedCert()
+	cert, err := NewSelfSignedCert(WithName("elasticsearch"))
 	require.NoError(t, err)
 
 	address := testTLSServer(t, cert)
@@ -36,7 +36,7 @@ func TestCA(t *testing.T) {
 	intermediate, err := ca.IssueIntermediate()
 	require.NoError(t, err)
 
-	cert, err := intermediate.Issue()
+	cert, err := intermediate.Issue(WithName("elasticsearch"))
 	require.NoError(t, err)
 
 	t.Run("validate server with root CA", func(t *testing.T) {

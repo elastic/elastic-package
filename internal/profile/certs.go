@@ -49,7 +49,7 @@ func initTLSCertificates(profilePath string) error {
 }
 
 func initCA(certFile, keyFile string) (*certs.Issuer, error) {
-	if err := verifyTLSCertificates(certFile, certFile, keyFile); err == nil {
+	if err := verifyTLSCertificates(certFile, certFile, keyFile, ""); err == nil {
 		// Valid CA is already present, load it to check service certificates.
 		ca, err := certs.LoadCA(certFile, keyFile)
 		if err != nil {
@@ -77,12 +77,12 @@ func initServiceTLSCertificates(ca *certs.Issuer, caCertFile string, certsDir, s
 	caFile := filepath.Join(certsDir, "ca-cert.pem")
 	certFile := filepath.Join(certsDir, "cert.pem")
 	keyFile := filepath.Join(certsDir, "key.pem")
-	if err := verifyTLSCertificates(caCertFile, certFile, keyFile); err == nil {
+	if err := verifyTLSCertificates(caCertFile, certFile, keyFile, service); err == nil {
 		// Certificate already present and valid, nothing to do.
 		return nil
 	}
 
-	cert, err := ca.Issue()
+	cert, err := ca.Issue(certs.WithName(service))
 	if err != nil {
 		return fmt.Errorf("error initializing certificate for %q", service)
 	}
@@ -105,7 +105,7 @@ func initServiceTLSCertificates(ca *certs.Issuer, caCertFile string, certsDir, s
 	return nil
 }
 
-func verifyTLSCertificates(caFile, certFile, keyFile string) error {
+func verifyTLSCertificates(caFile, certFile, keyFile, name string) error {
 	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
 	if err != nil {
 		return err
@@ -125,9 +125,13 @@ func verifyTLSCertificates(caFile, certFile, keyFile string) error {
 	if err != nil {
 		return err
 	}
-	_, err = parsed.Verify(x509.VerifyOptions{
+	options := x509.VerifyOptions{
 		Roots: certPool,
-	})
+	}
+	if name != "" {
+		options.DNSName = name
+	}
+	_, err = parsed.Verify(options)
 	if err != nil {
 		return err
 	}

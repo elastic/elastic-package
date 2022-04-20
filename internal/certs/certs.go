@@ -12,7 +12,6 @@ import (
 	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
-	"crypto/x509/pkix"
 	"encoding/pem"
 	"fmt"
 	"io"
@@ -21,6 +20,8 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/elastic/elastic-package/internal/common"
 )
 
 // Certificate contains the key and certificate for an issued certificate.
@@ -100,37 +101,44 @@ func (i *Issuer) IssueIntermediate() (*Issuer, error) {
 	return newCA(i)
 }
 
-func (i *Issuer) Issue() (*Certificate, error) {
-	return New(false, i)
+func (i *Issuer) Issue(opts ...Option) (*Certificate, error) {
+	return New(false, i, opts...)
 }
 
-func NewSelfSignedCert() (*Certificate, error) {
-	return New(false, nil)
+func NewSelfSignedCert(opts ...Option) (*Certificate, error) {
+	return New(false, nil, opts...)
 }
 
-func New(isCA bool, issuer *Issuer) (*Certificate, error) {
+type Option func(template *x509.Certificate)
+
+func WithName(name string) Option {
+	return func(template *x509.Certificate) {
+		template.Subject.CommonName = name
+		if !common.StringSliceContains(template.DNSNames, name) {
+			template.DNSNames = append(template.DNSNames, name)
+		}
+	}
+}
+
+func New(isCA bool, issuer *Issuer, opts ...Option) (*Certificate, error) {
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate key: %w", err)
 	}
 
+	sn, err := newSerialNumber()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get a unique serial number: %w", err)
+	}
+
 	const longTime = 100 * 24 * 365 * time.Hour
 	template := x509.Certificate{
-		Subject: pkix.Name{
-			// TODO: Parameterize common names.
-			CommonName: "elasticsearch",
-		},
 		NotBefore: time.Now(),
 		NotAfter:  time.Now().Add(longTime),
 
-		// TODO: Generate different serials?
-		SerialNumber:          big.NewInt(1),
+		SerialNumber:          sn,
 		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
 		BasicConstraintsValid: true,
-
-		// TODO: Parameterize this.
-		DNSNames:    []string{"elasticsearch", "localhost"},
-		IPAddresses: []net.IP{net.ParseIP("127.0.0.1"), net.ParseIP("::1")},
 	}
 
 	if isCA {
@@ -142,6 +150,14 @@ func New(isCA bool, issuer *Issuer) (*Certificate, error) {
 		} else {
 			template.Subject.CommonName = "intermediate elastic-package CA"
 		}
+	} else {
+		// Include local hostname and ips as alternates in service certificates.
+		template.DNSNames = []string{"localhost"}
+		template.IPAddresses = []net.IP{net.ParseIP("127.0.0.1"), net.ParseIP("::1")}
+	}
+
+	for _, opt := range opts {
+		opt(&template)
 	}
 
 	// Self-signed unless an issuer has been received.
@@ -169,6 +185,13 @@ func New(isCA bool, issuer *Issuer) (*Certificate, error) {
 		cert:   cert,
 		issuer: issuerCert,
 	}, nil
+}
+
+func newSerialNumber() (*big.Int, error) {
+	// This implementation attempts to get unique serial numbers
+	// by getting random ones between 0 and 2^128.
+	max := new(big.Int).Exp(big.NewInt(2), big.NewInt(128), nil)
+	return rand.Int(rand.Reader, max)
 }
 
 // WriteKey writes the PEM-encoded key in the given writer.
