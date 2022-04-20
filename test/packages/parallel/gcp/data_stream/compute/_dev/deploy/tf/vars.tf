@@ -16,6 +16,12 @@ variable "CREATED_DATE" {
   description = "Creation date for tagging purposes"
   default = "unknown-date"
 }
+
+variable "CREATED_DATE_TIME" {
+  description = "Creation date and time for tagging purposes"
+  default = "unknown-date-time"
+}
+
 variable "ENVIRONMENT" {
   default = "unknown-environment"
 }

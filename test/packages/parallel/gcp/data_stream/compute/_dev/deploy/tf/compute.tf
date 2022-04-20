@@ -19,6 +19,7 @@ resource "google_compute_instance" "default" {
     branch       = var.BRANCH_NAME
     build        = var.BUILD_ID
     created_date = var.CREATED_DATE
+    created_date_time = var.CREATED_DATE_TIME
   }
 
   boot_disk {
