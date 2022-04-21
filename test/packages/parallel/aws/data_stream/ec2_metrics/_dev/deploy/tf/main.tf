@@ -8,7 +8,7 @@ provider "aws" {
       run_id       = var.TEST_RUN_ID
       environment  = var.ENVIRONMENT
       repo_name    = var.REPO_NAME
-      branch       = var.BRANCH_NAME
+      branch       = var.BRANCH
       build        = var.BUILD_ID
       created_date = var.CREATED_DATE
     }

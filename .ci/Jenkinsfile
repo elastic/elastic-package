@@ -22,10 +22,10 @@ pipeline {
     JOB_GCS_EXT_CREDENTIALS = 'beats-ci-gcs-plugin-file-credentials'
     ELASTIC_PACKAGE_GCP_SECRET = 'secret/observability-team/ci/service-account/elastic-package-gcp'
     ELASTIC_OBSERVABILITY_PROJECT_ID = 'elastic-observability'
-    TF_VAR_BRANCH_NAME = "${env.BRANCH_NAME.toLowerCase()}"
-    TF_VAR_CREATED_DATE = "${new Date().getTime()}"
-    TF_VAR_ENVIRONMENT = "ci"
-    TF_VAR_REPO_NAME = "${env.REPO.toLowerCase()}"
+    BRANCH = "${env.BRANCH_NAME.toLowerCase()}"
+    CREATED_DATE = "${new Date().getTime()}"
+    ENVIRONMENT = "ci"
+    REPO_NAME = "${env.REPO.toLowerCase()}"
   }
   options {
     timeout(time: 1, unit: 'HOURS')

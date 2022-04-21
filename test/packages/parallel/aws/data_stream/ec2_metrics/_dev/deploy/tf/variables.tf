@@ -1,4 +1,4 @@
-variable "BRANCH_NAME" {
+variable "BRANCH" {
   description = "Branch name for tagging purposes"
   default = "unknown-branch"
 }
