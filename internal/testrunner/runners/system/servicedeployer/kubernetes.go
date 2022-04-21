@@ -180,7 +180,7 @@ func getElasticAgentYAML(stackVersion string) ([]byte, error) {
 
 	var elasticAgentYaml bytes.Buffer
 	err = tmpl.Execute(&elasticAgentYaml, map[string]string{
-		"fleetURL":                    "http://fleet-server:8220",
+		"fleetURL":                    "https://fleet-server:8220",
 		"elasticAgentImage":           appConfig.StackImageRefs(stackVersion).ElasticAgent,
 		"elasticAgentTokenPolicyName": getTokenPolicyName(stackVersion),
 	})
