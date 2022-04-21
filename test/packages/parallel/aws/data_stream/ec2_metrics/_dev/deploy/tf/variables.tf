@@ -17,6 +17,6 @@ variable "ENVIRONMENT" {
   default = "unknown-environment"
 }
 
-variable "REPO_NAME" {
+variable "REPO" {
   default = "unknown-repo-name"
 }

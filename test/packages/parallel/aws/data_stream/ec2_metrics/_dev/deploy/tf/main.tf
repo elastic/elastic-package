@@ -7,7 +7,7 @@ provider "aws" {
     tags = {
       run_id       = var.TEST_RUN_ID
       environment  = var.ENVIRONMENT
-      repo_name    = var.REPO_NAME
+      repo         = var.REPO
       branch       = var.BRANCH
       build        = var.BUILD_ID
       created_date = var.CREATED_DATE

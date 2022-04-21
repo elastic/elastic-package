@@ -21,8 +21,8 @@ variable "ENVIRONMENT" {
   default = "unknown-environment"
 }
 
-variable "REPO_NAME" {
-  default = "unknown-repo-name"
+variable "REPO" {
+  default = "unknown-repo"
 }
 
 variable "gcp_project_id" {
