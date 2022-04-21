@@ -1,5 +1,9 @@
 server.name: kibana
 server.host: "0.0.0.0"
+server.ssl.enabled: true
+server.ssl.certificate: "/usr/share/kibana/config/certs/cert.pem"
+server.ssl.key: "/usr/share/kibana/config/certs/key.pem"
+server.ssl.certificateAuthorities: ["/usr/share/kibana/config/certs/ca-cert.pem"]
 
 elasticsearch.hosts: [ "https://elasticsearch:9200" ]
 elasticsearch.ssl.certificateAuthorities: "/usr/share/kibana/config/certs/ca-cert.pem"
