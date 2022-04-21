@@ -175,8 +175,7 @@ Leveraging Terraform to create cloud resources is useful but risks creating left
 
 There are some specific environment variables that should be leveraged to overcome this issue; these variables are already injected to be used by Terraform (through `TF_VAR_`):
 - `TF_VAR_TEST_RUN_ID`: a unique identifier for the test run, allows to distinguish each run
-- `CREATED_DATE_TIME`: the creation date and time when the resource was created
-- `CREATED_DATE`: the creation date when the resource was created
+- `CREATED_DATE`: the creation date in epoch time, milliseconds, when the resource was created
 - `BRANCH_NAME`: the branch name or PR number the CI run is linked to
 - `BUILD_ID`: incremental number providing the current CI run number
 - `ENVIRONMENT`: what environment created the resource (`ci`)

@@ -6,7 +6,6 @@ services:
     stop_grace_period: 5m
     environment:
       - TF_VAR_TEST_RUN_ID=${TF_VAR_TEST_RUN_ID:-detached}
-      - TF_VAR_CREATED_DATE_TIME=${TF_VAR_CREATED_DATE_TIME:-unknown}
       - TF_VAR_CREATED_DATE=${TF_VAR_CREATED_DATE:-unknown}
       - TF_VAR_BRANCH_NAME=${TF_VAR_BRANCH_NAME:-unknown}
       - TF_VAR_BUILD_ID=${BUILD_ID:-unknown}
