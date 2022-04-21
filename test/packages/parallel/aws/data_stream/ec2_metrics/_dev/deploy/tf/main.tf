@@ -5,7 +5,6 @@ variable "TEST_RUN_ID" {
 provider "aws" {
   default_tags {
     tags = {
-      run_id       = var.TEST_RUN_ID
       environment  = var.ENVIRONMENT
       repo         = var.REPO
       branch       = var.BRANCH
