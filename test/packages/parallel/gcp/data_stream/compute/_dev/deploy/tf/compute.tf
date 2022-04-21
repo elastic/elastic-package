@@ -13,7 +13,6 @@ resource "google_compute_instance" "default" {
   zone         = var.zone
 
   labels = {
-    run_id       = var.TEST_RUN_ID
     environment  = var.ENVIRONMENT
     repo         = var.REPO
     branch       = var.BRANCH
