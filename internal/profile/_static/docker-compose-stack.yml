@@ -127,6 +127,7 @@ services:
     hostname: docker-fleet-agent
     env_file: "./elastic-agent.${STACK_VERSION_VARIANT}.env"
     volumes:
+    - "../certs/ca-cert.pem:/etc/ssl/elastic-package/ca-cert.pem"
     - type: bind
       source: ../../../tmp/service_logs/
       target: /tmp/service_logs/
