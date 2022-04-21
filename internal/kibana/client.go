@@ -7,6 +7,7 @@ package kibana
 import (
 	"bytes"
 	"crypto/tls"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/elastic/elastic-package/internal/certs"
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/stack"
@@ -25,7 +27,8 @@ type Client struct {
 	username string
 	password string
 
-	tlSkipVerify bool
+	certificateAuthority string
+	tlSkipVerify         bool
 }
 
 // ClientOption is functional option modifying Kibana client.
@@ -40,11 +43,13 @@ func NewClient(opts ...ClientOption) (*Client, error) {
 
 	username := os.Getenv(stack.ElasticsearchUsernameEnv)
 	password := os.Getenv(stack.ElasticsearchPasswordEnv)
+	certificateAuthority := os.Getenv(stack.CACertificateEnv)
 
 	c := &Client{
-		host:     host,
-		username: username,
-		password: password,
+		host:                 host,
+		username:             username,
+		password:             password,
+		certificateAuthority: certificateAuthority,
 	}
 
 	for _, opt := range opts {
@@ -57,6 +62,13 @@ func NewClient(opts ...ClientOption) (*Client, error) {
 func TLSSkipVerify() ClientOption {
 	return func(c *Client) {
 		c.tlSkipVerify = true
+	}
+}
+
+// CertificateAuthority sets the certificate authority to be used by the client.
+func CertificateAuthority(certificateAuthority string) ClientOption {
+	return func(c *Client) {
+		c.certificateAuthority = certificateAuthority
 	}
 }
 
@@ -105,6 +117,14 @@ func (c *Client) sendRequest(method, resourcePath string, body []byte) (int, []b
 	if c.tlSkipVerify {
 		client.Transport = &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
+	} else if c.certificateAuthority != "" {
+		rootCAs, err := certs.SystemPoolWithCACertificate(c.certificateAuthority)
+		if err != nil {
+			return 0, nil, fmt.Errorf("reading CA certificate: %w", err)
+		}
+		client.Transport = &http.Transport{
+			TLSClientConfig: &tls.Config{RootCAs: rootCAs},
 		}
 	}
 
