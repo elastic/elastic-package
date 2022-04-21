@@ -15,7 +15,7 @@ resource "google_compute_instance" "default" {
   labels = {
     run_id       = var.TEST_RUN_ID
     environment  = var.ENVIRONMENT
-    owner        = var.OWNER
+    repo_name    = var.REPO_NAME
     branch       = var.BRANCH_NAME
     build        = var.BUILD_ID
     created_date = var.CREATED_DATE

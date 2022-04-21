@@ -300,7 +300,7 @@ def withCloudTestEnv(Closure body) {
     withEnv(["TF_VAR_CREATED_DATE_TIME=${getCurrentBuildTime().toLowerCase().replaceAll(':', '_')}",
              "TF_VAR_CREATED_DATE=${new Date().format('yyyy-MM-dd')}",
              "TF_VAR_BRANCH_NAME=${env.BRANCH_NAME.toLowerCase()}",
-             "TF_VAR_ENVIRONMENT=ci", "TF_VAR_OWNER=${env.REPO}"]) {
+             "TF_VAR_ENVIRONMENT=ci", "TF_VAR_REPO=${env.REPO.toLowerCase()}"]) {
       body()
     }
   }

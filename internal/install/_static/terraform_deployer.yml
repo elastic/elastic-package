@@ -11,6 +11,6 @@ services:
       - TF_VAR_BRANCH_NAME=${TF_VAR_BRANCH_NAME:-unknown}
       - TF_VAR_BUILD_ID=${BUILD_ID:-unknown}
       - TF_VAR_ENVIRONMENT=${TF_VAR_ENVIRONMENT:-unknown}
-      - TF_VAR_OWNER=${TF_VAR_OWNER:-unknown}
+      - TF_VAR_REPO_NAME=${TF_VAR_REPO_NAME:-unknown}
     volumes:
       - ${TF_DIR}:/stage

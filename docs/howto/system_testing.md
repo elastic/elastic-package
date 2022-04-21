@@ -180,7 +180,7 @@ There are some specific environment variables that should be leveraged to overco
 - `BRANCH_NAME`: the branch name or PR number the CI run is linked to
 - `BUILD_ID`: incremental number providing the current CI run number
 - `ENVIRONMENT`: what environment created the resource (`ci`)
-- `OWNER`: the GitHub repository name (`elastic-package`)
+- `REPO_NAME`: the GitHub repository name (`elastic-package`)
 
 ### Kubernetes service deployer
 

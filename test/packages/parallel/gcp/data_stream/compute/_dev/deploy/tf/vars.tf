@@ -26,8 +26,8 @@ variable "ENVIRONMENT" {
   default = "unknown-environment"
 }
 
-variable "OWNER" {
-  default = "unknown-owner"
+variable "REPO_NAME" {
+  default = "unknown-repo-name"
 }
 
 variable "gcp_project_id" {
