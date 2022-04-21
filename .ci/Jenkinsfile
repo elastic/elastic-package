@@ -5,8 +5,10 @@
 pipeline {
   agent { label 'ubuntu-20 && immutable' }
   environment {
+    BRANCH_NAME_LOWER_CASE = "${env.BRANCH_NAME.toLowerCase()}"
+    CREATED_DATE = "${new Date().getTime()}"
+    ENVIRONMENT = "ci"
     REPO = "elastic-package"
-
     BASE_DIR="src/github.com/elastic/elastic-package"
     JOB_GIT_CREDENTIALS = "f6c7695a-671e-4f4f-a331-acdce44ff9ba"
     GITHUB_TOKEN_CREDENTIALS = "2a9602aa-ab9f-4e52-baf3-b71ca88469c7"
@@ -22,10 +24,6 @@ pipeline {
     JOB_GCS_EXT_CREDENTIALS = 'beats-ci-gcs-plugin-file-credentials'
     ELASTIC_PACKAGE_GCP_SECRET = 'secret/observability-team/ci/service-account/elastic-package-gcp'
     ELASTIC_OBSERVABILITY_PROJECT_ID = 'elastic-observability'
-    BRANCH = "${env.BRANCH_NAME.toLowerCase()}"
-    CREATED_DATE = "${new Date().getTime()}"
-    ENVIRONMENT = "ci"
-    REPO_NAME = "${env.REPO.toLowerCase()}"
   }
   options {
     timeout(time: 1, unit: 'HOURS')

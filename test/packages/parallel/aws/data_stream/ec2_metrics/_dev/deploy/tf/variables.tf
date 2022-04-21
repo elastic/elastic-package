@@ -1,5 +1,5 @@
 variable "BRANCH" {
-  description = "Branch name for tagging purposes"
+  description = "Branch name or pull request for tagging purposes"
   default = "unknown-branch"
 }
 
