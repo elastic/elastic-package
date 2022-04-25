@@ -173,11 +173,13 @@ Injecting credentials can be achieved with functions from the [`apm-pipeline-lib
 
 Leveraging Terraform to create cloud resources is useful but risks creating leftover resources that are difficult to remove.
 
-There are 4 environment variables that should be leveraged to overcome this issue; these variables are already injected to be used by Terraform (through `TF_VAR_`):
+There are some specific environment variables that should be leveraged to overcome this issue; these variables are already injected to be used by Terraform (through `TF_VAR_`):
 - `TF_VAR_TEST_RUN_ID`: a unique identifier for the test run, allows to distinguish each run
-- `REPO_NAME`: the repository name the CI run is linked to
-- `CHANGE_ID`: the PR number the CI run is linked to
-- `BUILD_NUMBER`: incremental number providing the current CI run number
+- `BRANCH_NAME_LOWER_CASE`: the branch name or PR number the CI run is linked to
+- `BUILD_ID`: incremental number providing the current CI run number
+- `CREATED_DATE`: the creation date in epoch time, milliseconds, when the resource was created
+- `ENVIRONMENT`: what environment created the resource (`ci`)
+- `REPO`: the GitHub repository name (`elastic-package`)
 
 ### Kubernetes service deployer
 
