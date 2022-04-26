@@ -14,6 +14,7 @@ monitoring.ui.container.elasticsearch.enabled: true
 xpack.fleet.registryUrl: "https://package-registry"
 xpack.fleet.agents.enabled: true
 xpack.fleet.agents.elasticsearch.hosts: ["https://elasticsearch:9200"]
+xpack.fleet.agents.elasticsearch.ca_sha256: "${ELASTIC_PACKAGE_CA_SHA256}"
 xpack.fleet.agents.fleet_server.hosts: ["https://fleet-server:8220"]
 
 xpack.encryptedSavedObjects.encryptionKey: "12345678901234567890123456789012"
