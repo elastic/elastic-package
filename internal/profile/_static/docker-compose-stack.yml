@@ -34,8 +34,6 @@ services:
       test: "sh /usr/share/kibana/healthcheck.sh"
       retries: 600
       interval: 1s
-    env_file:
-      - "../certs/kibana/ca.env"
     environment:
       # Is there a better way to add certificates to Kibana/Fleet?
       - "NODE_EXTRA_CA_CERTS=/usr/share/kibana/config/certs/ca-cert.pem"
@@ -90,23 +88,20 @@ services:
       interval: 5s
     hostname: docker-fleet-server
     environment:
-    - "ELASTICSEARCH_CA=/etc/ssl/elastic-agent/ca-cert.pem"
     - "ELASTICSEARCH_HOST=https://elasticsearch:9200"
     - "FLEET_SERVER_CERT=/etc/ssl/elastic-agent/cert.pem"
     - "FLEET_SERVER_CERT_KEY=/etc/ssl/elastic-agent/key.pem"
-    - "FLEET_SERVER_ELASTICSEARCH_CA=/etc/ssl/elastic-agent/ca-cert.pem"
     - "FLEET_SERVER_ELASTICSEARCH_HOST=https://elasticsearch:9200"
     - "FLEET_SERVER_ENABLE=1"
     - "FLEET_SERVER_HOST=0.0.0.0"
     - "FLEET_SERVER_SERVICE_TOKEN=AAEAAWVsYXN0aWMvZmxlZXQtc2VydmVyL2VsYXN0aWMtcGFja2FnZS1mbGVldC1zZXJ2ZXItdG9rZW46bmgtcFhoQzRRQ2FXbms2U0JySGlWQQ"
     - "FLEET_URL=https://fleet-server:8220"
-    - "KIBANA_CA=/etc/ssl/elastic-agent/ca-cert.pem"
-    - "KIBANA_FLEET_CA=/etc/ssl/elastic-agent/ca-cert.pem"
     - "KIBANA_FLEET_HOST=https://kibana:5601"
     - "KIBANA_FLEET_SERVICE_TOKEN=AAEAAWVsYXN0aWMvZmxlZXQtc2VydmVyL2VsYXN0aWMtcGFja2FnZS1mbGVldC1zZXJ2ZXItdG9rZW46bmgtcFhoQzRRQ2FXbms2U0JySGlWQQ"
     - "KIBANA_FLEET_SETUP=1"
     - "KIBANA_HOST=https://kibana:5601"
     volumes:
+      - "../certs/ca-cert.pem:/etc/ssl/certs/elastic-package.pem"
       - "../certs/fleet-server:/etc/ssl/elastic-agent"
     ports:
       - "127.0.0.1:8220:8220"
@@ -129,7 +124,7 @@ services:
     hostname: docker-fleet-agent
     env_file: "./elastic-agent.${STACK_VERSION_VARIANT}.env"
     volumes:
-    - "../certs/ca-cert.pem:/etc/ssl/elastic-agent/ca-cert.pem"
+    - "../certs/ca-cert.pem:/etc/ssl/certs/elastic-package.pem"
     - type: bind
       source: ../../../tmp/service_logs/
       target: /tmp/service_logs/

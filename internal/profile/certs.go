@@ -7,13 +7,10 @@ package profile
 import (
 	"crypto/tls"
 	"crypto/x509"
-	"encoding/hex"
 	"encoding/pem"
 	"fmt"
 	"io/ioutil"
-	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/pkg/errors"
 
@@ -80,7 +77,6 @@ func initServiceTLSCertificates(ca *certs.Issuer, caCertFile string, certsDir, s
 	caFile := filepath.Join(certsDir, "ca-cert.pem")
 	certFile := filepath.Join(certsDir, "cert.pem")
 	keyFile := filepath.Join(certsDir, "key.pem")
-	envFile := filepath.Join(certsDir, "ca.env")
 	if err := verifyTLSCertificates(caCertFile, certFile, keyFile, service); err == nil {
 		// Certificate already present and valid, nothing to do.
 		return nil
@@ -102,10 +98,6 @@ func initServiceTLSCertificates(ca *certs.Issuer, caCertFile string, certsDir, s
 	// Write the CA also in the service directory, so only a directory needs to be mounted
 	// for services that need to configure the CA to validate other services certificates.
 	err = ca.WriteCertFile(caFile)
-	if err != nil {
-		return err
-	}
-	err = writeEnvFile(ca, envFile)
 	if err != nil {
 		return err
 	}
@@ -163,22 +155,4 @@ func certPoolWithCA(caFile string) (*x509.CertPool, error) {
 	pool := x509.NewCertPool()
 	pool.AddCert(ca)
 	return pool, nil
-}
-
-func writeEnvFile(ca *certs.Issuer, envFile string) error {
-	fingerprint := ca.Fingerprint()
-
-	f, err := os.Create(envFile)
-	if err != nil {
-		return fmt.Errorf("failed to open env file: %w", err)
-	}
-	defer f.Close()
-
-	// TODO: env variable name to constant.
-	_, err = fmt.Fprintf(f, "%s=%s\n", "ELASTIC_PACKAGE_CA_SHA256", strings.ToUpper(hex.EncodeToString(fingerprint)))
-	if err != nil {
-		return err
-	}
-
-	return nil
 }

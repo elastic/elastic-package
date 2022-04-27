@@ -10,7 +10,6 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
-	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
@@ -230,13 +229,6 @@ func (c *Certificate) WriteCert(w io.Writer) error {
 	}
 
 	return nil
-}
-
-// Fingerprint returns the fingerprint of the certificate. The fingerprint
-// of a CA can be used to verify certificates.
-func (c *Certificate) Fingerprint() []byte {
-	f := sha256.Sum256(c.cert.Raw)
-	return f[:]
 }
 
 // WriteCertFile writes the PEM-encoded certifiacte in the given file.
