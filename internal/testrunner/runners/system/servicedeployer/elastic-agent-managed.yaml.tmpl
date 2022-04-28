@@ -1,3 +1,11 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: elastic-package-certs
+  namespace: kube-system
+data:
+  ca-cert.pem: {{ .caCertPem }}
+---
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
@@ -26,23 +34,22 @@ spec:
           env:
             - name: FLEET_ENROLL
               value: "1"
-            # Set to true in case of insecure or unverified HTTP
-            - name: FLEET_INSECURE
-              value: "true"
-              # The ip:port pair of fleet server
+            # The ip:port pair of fleet server
             - name: FLEET_URL
               value: {{ .fleetURL }}
-              # If left empty KIBANA_HOST, KIBANA_FLEET_USERNAME, KIBANA_FLEET_PASSWORD are needed
+            # If left empty KIBANA_HOST, KIBANA_FLEET_USERNAME, KIBANA_FLEET_PASSWORD are needed
             - name: FLEET_ENROLLMENT_TOKEN
               value: ""
             - name: FLEET_TOKEN_POLICY_NAME
               value: "{{ .elasticAgentTokenPolicyName }}"
             - name: KIBANA_HOST
-              value: "https://kibana:5601"
+              value: {{ .kibanaURL }}
             - name: KIBANA_FLEET_USERNAME
               value: "elastic"
             - name: KIBANA_FLEET_PASSWORD
               value: "changeme"
+            - name: SSL_CERT_DIR
+              value: "/etc/ssl/certs:/etc/ssl/elastic-package"
             - name: NODE_NAME
               valueFrom:
                 fieldRef:
@@ -60,6 +67,9 @@ spec:
               cpu: 100m
               memory: 200Mi
           volumeMounts:
+            - name: elastic-package-ca
+              mountPath: /etc/ssl/elastic-package
+              readOnly: true
             - name: proc
               mountPath: /hostfs/proc
               readOnly: true
@@ -87,6 +97,9 @@ spec:
               mountPath: /hostfs/etc/systemd
               readOnly: true
       volumes:
+        - name: elastic-package-ca
+          secret:
+            secretName: elastic-package-certs
         - name: proc
           hostPath:
             path: /proc

@@ -7,6 +7,9 @@ package servicedeployer
 import (
 	"bytes"
 	_ "embed"
+	"encoding/base64"
+	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strings"
 	"text/template"
@@ -18,6 +21,7 @@ import (
 	"github.com/elastic/elastic-package/internal/kind"
 	"github.com/elastic/elastic-package/internal/kubectl"
 	"github.com/elastic/elastic-package/internal/logger"
+	"github.com/elastic/elastic-package/internal/stack"
 )
 
 // KubernetesServiceDeployer is responsible for deploying resources in the Kubernetes cluster.
@@ -176,11 +180,18 @@ func getElasticAgentYAML(stackVersion string) ([]byte, error) {
 		return nil, errors.Wrap(err, "can't read application configuration")
 	}
 
+	caCert, err := readCACertBase64()
+	if err != nil {
+		return nil, errors.Wrap(err, "can't read certificate authority file")
+	}
+
 	tmpl := template.Must(template.New("elastic-agent.yml").Parse(elasticAgentManagedYamlTmpl))
 
 	var elasticAgentYaml bytes.Buffer
 	err = tmpl.Execute(&elasticAgentYaml, map[string]string{
 		"fleetURL":                    "https://fleet-server:8220",
+		"kibanaURL":                   "https://kibana:5601",
+		"caCertPem":                   caCert,
 		"elasticAgentImage":           appConfig.StackImageRefs(stackVersion).ElasticAgent,
 		"elasticAgentTokenPolicyName": getTokenPolicyName(stackVersion),
 	})
@@ -189,6 +200,20 @@ func getElasticAgentYAML(stackVersion string) ([]byte, error) {
 	}
 
 	return elasticAgentYaml.Bytes(), nil
+}
+
+func readCACertBase64() (string, error) {
+	caCertPath, ok := os.LookupEnv(stack.CACertificateEnv)
+	if !ok {
+		return "", errors.Errorf("%s not defined", stack.CACertificateEnv)
+	}
+
+	d, err := ioutil.ReadFile(caCertPath)
+	if err != nil {
+		return "", err
+	}
+
+	return base64.StdEncoding.EncodeToString(d), nil
 }
 
 // getTokenPolicyName function returns the policy name for the 8.x Elastic stack. The agent's policy
