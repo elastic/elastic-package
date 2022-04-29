@@ -12,5 +12,4 @@ xpack.security.http.ssl.enabled: true
 xpack.security.http.ssl.key: "certs/key.pem"
 xpack.security.http.ssl.certificate: "certs/cert.pem"
 
-
 ingest.geoip.downloader.enabled: false

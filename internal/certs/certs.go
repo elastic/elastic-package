@@ -97,20 +97,28 @@ func newCA(parent *Issuer) (*Issuer, error) {
 	return &Issuer{Certificate: cert}, nil
 }
 
+// IssueIntermediate issues an intermediate CA signed by the issuer.
 func (i *Issuer) IssueIntermediate() (*Issuer, error) {
 	return newCA(i)
 }
 
+// Issue issues a certificate with the given options. This certificate
+// can be used to configure a TLS server.
 func (i *Issuer) Issue(opts ...Option) (*Certificate, error) {
 	return New(false, i, opts...)
 }
 
+// NewSelfSignedCert issues a self-signed certificate with the given options.
+// This certificate can be used to configure a TLS server.
 func NewSelfSignedCert(opts ...Option) (*Certificate, error) {
 	return New(false, nil, opts...)
 }
 
+// Option is a function that can modify a certificate template. To be used
+// when issuing certificates.
 type Option func(template *x509.Certificate)
 
+// WithName is an option to configure the common and alternate DNS names of a certificate.
 func WithName(name string) Option {
 	return func(template *x509.Certificate) {
 		template.Subject.CommonName = name
@@ -120,6 +128,8 @@ func WithName(name string) Option {
 	}
 }
 
+// New is the main helper to create a certificate, it is recommended to
+// use the more specific ones for specific use cases.
 func New(isCA bool, issuer *Issuer, opts ...Option) (*Certificate, error) {
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
