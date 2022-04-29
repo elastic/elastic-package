@@ -231,7 +231,7 @@ func (c *Certificate) WriteCert(w io.Writer) error {
 	return nil
 }
 
-// WriteCertFile writes the PEM-encoded certifiacte in the given file.
+// WriteCertFile writes the PEM-encoded certificate in the given file.
 func (c *Certificate) WriteCertFile(path string) error {
 	err := os.MkdirAll(filepath.Dir(path), 0755)
 	if err != nil {
