@@ -7,7 +7,10 @@ import (
 )
 
 func TestCreateProfile(t *testing.T) {
-	err := CreateProfile(t.TempDir())
+	options := Options{
+		PackagePath: t.TempDir(),
+	}
+	err := CreateProfile(options)
 	require.NoError(t, err)
 
 }

@@ -38,9 +38,7 @@ type kibanaConfiguration struct {
 
 // ShellInit method exposes environment variables that can be used for testing purposes.
 func ShellInit(elasticStackProfile *profile.Profile) (string, error) {
-	// Read Elasticsearch username and password from Kibana configuration file.
-	// FIXME read credentials from correct Kibana config file, not default
-	body, err := os.ReadFile(elasticStackProfile.FetchPath(profile.KibanaConfigDefaultFile))
+	body, err := os.ReadFile(elasticStackProfile.FetchPath(profile.KibanaConfigFile))
 	if err != nil {
 		return "", errors.Wrap(err, "error reading Kibana config file")
 	}
