@@ -169,6 +169,18 @@ Terraform is often used to interact with Cloud Providers. This require Cloud Pro
 
 Injecting credentials can be achieved with functions from the [`apm-pipeline-library`](https://github.com/elastic/apm-pipeline-library/tree/main/vars) Jenkins library. For example look for `withAzureCredentials`, `withAWSEnv` or `withGCPEnv`.
 
+#### Tagging/labelling created Cloud Provider resources
+
+Leveraging Terraform to create cloud resources is useful but risks creating leftover resources that are difficult to remove.
+
+There are some specific environment variables that should be leveraged to overcome this issue; these variables are already injected to be used by Terraform (through `TF_VAR_`):
+- `TF_VAR_TEST_RUN_ID`: a unique identifier for the test run, allows to distinguish each run
+- `BRANCH_NAME_LOWER_CASE`: the branch name or PR number the CI run is linked to
+- `BUILD_ID`: incremental number providing the current CI run number
+- `CREATED_DATE`: the creation date in epoch time, milliseconds, when the resource was created
+- `ENVIRONMENT`: what environment created the resource (`ci`)
+- `REPO`: the GitHub repository name (`elastic-package`)
+
 ### Kubernetes service deployer
 
 The Kubernetes service deployer requires the `_dev/deploy/k8s` directory to be present. It can include additional `*.yaml` files to deploy
