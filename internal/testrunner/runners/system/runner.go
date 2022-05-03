@@ -286,7 +286,6 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	if config.Service != "" {
 		ctxt.Name = config.Service
 	}
-	ctxt.CustomAgent = config.CustomAgent
 	service, err := serviceDeployer.SetUp(ctxt)
 	if err != nil {
 		return result.WithError(errors.Wrap(err, "could not setup service"))
@@ -631,7 +630,6 @@ func filterAgents(allAgents []kibana.Agent, ctx servicedeployer.ServiceContext) 
 		if ctx.Agent.Host.NamePrefix != "" && !strings.HasPrefix(agent.LocalMetadata.Host.Name, ctx.Agent.Host.NamePrefix) {
 			continue
 		}
-
 		filtered = append(filtered, agent)
 	}
 	return filtered

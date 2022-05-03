@@ -51,6 +51,11 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 			}
 			return NewDockerComposeServiceDeployer([]string{dockerComposeYMLPath}, sv)
 		}
+	case "agent":
+		dockerComposeYMLPath := filepath.Join(serviceDeployerPath, "docker-compose.yml")
+		if _, err := os.Stat(dockerComposeYMLPath); err == nil {
+			return NewCustomAgentDeployer([]string{dockerComposeYMLPath})
+		}
 	case "tf":
 		if _, err := os.Stat(serviceDeployerPath); err == nil {
 			return NewTerraformServiceDeployer(serviceDeployerPath)

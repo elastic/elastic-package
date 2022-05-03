@@ -6,14 +6,9 @@ package servicedeployer
 
 import (
 	"fmt"
-	"io/ioutil"
-	"os"
-	"path/filepath"
-	"time"
 
 	"github.com/pkg/errors"
 
-	"github.com/elastic/elastic-package/internal/builder"
 	"github.com/elastic/elastic-package/internal/compose"
 	"github.com/elastic/elastic-package/internal/docker"
 	"github.com/elastic/elastic-package/internal/files"
@@ -21,36 +16,32 @@ import (
 	"github.com/elastic/elastic-package/internal/stack"
 )
 
-// DockerComposeServiceDeployer knows how to deploy a service defined via
+// CustomAgentDeployer knows how to deploy a custom elastic-agent defined via
 // a Docker Compose file.
-type DockerComposeServiceDeployer struct {
+type CustomAgentDeployer struct {
 	ymlPaths []string
-	sv       ServiceVariant
 }
 
-type dockerComposeDeployedService struct {
+type deployedCustomAgent struct {
 	ctxt ServiceContext
 
 	ymlPaths []string
 	project  string
-	sv       ServiceVariant
 }
 
-// NewDockerComposeServiceDeployer returns a new instance of a DockerComposeServiceDeployer.
-func NewDockerComposeServiceDeployer(ymlPaths []string, sv ServiceVariant) (*DockerComposeServiceDeployer, error) {
-	return &DockerComposeServiceDeployer{
+// NewCustomAgentDeployer returns a new instance of a deployedCustomAgent.
+func NewCustomAgentDeployer(ymlPaths []string) (*CustomAgentDeployer, error) {
+	return &CustomAgentDeployer{
 		ymlPaths: ymlPaths,
-		sv:       sv,
 	}, nil
 }
 
 // SetUp sets up the service and returns any relevant information.
-func (d *DockerComposeServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedService, error) {
+func (d *CustomAgentDeployer) SetUp(inCtxt ServiceContext) (DeployedService, error) {
 	logger.Debug("setting up service using Docker Compose service deployer")
-	service := dockerComposeDeployedService{
+	service := deployedCustomAgent{
 		ymlPaths: d.ymlPaths,
 		project:  "elastic-package-service",
-		sv:       d.sv,
 	}
 	outCtxt := inCtxt
 
@@ -72,20 +63,21 @@ func (d *DockerComposeServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedSer
 	}
 
 	// Boot up service
-	if d.sv.active() {
-		logger.Infof("Using service variant: %s", d.sv.String())
-	}
 
 	serviceName := inCtxt.Name
 	opts := compose.CommandOptions{
-		Env: append(
-			[]string{fmt.Sprintf("%s=%s", serviceLogsDirEnv, outCtxt.Logs.Folder.Local)},
-			d.sv.Env...),
+		Env:       []string{fmt.Sprintf("%s=%s", serviceLogsDirEnv, outCtxt.Logs.Folder.Local)},
 		ExtraArgs: []string{"--build", "-d"},
 	}
 	err = p.Up(opts)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not boot up service using Docker Compose")
+	}
+
+	// Connect service network with stack network (for the purpose of metrics collection)
+	err = docker.ConnectToNetwork(p.ContainerName(serviceName), stack.Network())
+	if err != nil {
+		return nil, errors.Wrapf(err, "can't attach service container to the stack network")
 	}
 
 	err = p.WaitForHealthy(opts)
@@ -98,12 +90,6 @@ func (d *DockerComposeServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedSer
 
 	// Build service container name
 	outCtxt.Hostname = p.ContainerName(serviceName)
-
-	// Connect service network with stack network (for the purpose of metrics collection)
-	err = docker.ConnectToNetwork(p.ContainerName(serviceName), stack.Network())
-	if err != nil {
-		return nil, errors.Wrapf(err, "can't attach service container to the stack network")
-	}
 
 	logger.Debugf("adding service container %s internal ports to context", p.ContainerName(serviceName))
 	serviceComposeConfig, err := p.Config(compose.CommandOptions{
@@ -124,13 +110,14 @@ func (d *DockerComposeServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedSer
 		outCtxt.Port = outCtxt.Ports[0]
 	}
 
-	outCtxt.Agent.Host.NamePrefix = "docker-fleet-agent"
+	outCtxt.Agent.Host.NamePrefix = serviceName
+
 	service.ctxt = outCtxt
 	return &service, nil
 }
 
 // Signal sends a signal to the service.
-func (s *dockerComposeDeployedService) Signal(signal string) error {
+func (s *deployedCustomAgent) Signal(signal string) error {
 	p, err := compose.NewProject(s.project, s.ymlPaths...)
 	if err != nil {
 		return errors.Wrap(err, "could not create Docker Compose project for service")
@@ -145,7 +132,7 @@ func (s *dockerComposeDeployedService) Signal(signal string) error {
 }
 
 // TearDown tears down the service.
-func (s *dockerComposeDeployedService) TearDown() error {
+func (s *deployedCustomAgent) TearDown() error {
 	logger.Debugf("tearing down service using Docker Compose runner")
 	defer func() {
 		err := files.RemoveContent(s.ctxt.Logs.Folder.Local)
@@ -160,16 +147,12 @@ func (s *dockerComposeDeployedService) TearDown() error {
 	}
 
 	opts := compose.CommandOptions{
-		Env: append(
-			[]string{fmt.Sprintf("%s=%s", serviceLogsDirEnv, s.ctxt.Logs.Folder.Local)},
-			s.sv.Env...),
+		Env: []string{fmt.Sprintf("%s=%s", serviceLogsDirEnv, s.ctxt.Logs.Folder.Local)},
 	}
 	processServiceContainerLogs(p, opts, s.ctxt.Name)
 
 	if err := p.Down(compose.CommandOptions{
-		Env: append(
-			[]string{fmt.Sprintf("%s=%s", serviceLogsDirEnv, s.ctxt.Logs.Folder.Local)},
-			s.sv.Env...),
+		Env:       []string{fmt.Sprintf("%s=%s", serviceLogsDirEnv, s.ctxt.Logs.Folder.Local)},
 		ExtraArgs: []string{"--volumes"}, // Remove associated volumes.
 	}); err != nil {
 		return errors.Wrap(err, "could not shut down service using Docker Compose")
@@ -178,51 +161,12 @@ func (s *dockerComposeDeployedService) TearDown() error {
 }
 
 // Context returns the current context for the service.
-func (s *dockerComposeDeployedService) Context() ServiceContext {
+func (s *deployedCustomAgent) Context() ServiceContext {
 	return s.ctxt
 }
 
 // SetContext sets the current context for the service.
-func (s *dockerComposeDeployedService) SetContext(ctxt ServiceContext) error {
+func (s *deployedCustomAgent) SetContext(ctxt ServiceContext) error {
 	s.ctxt = ctxt
-	return nil
-}
-
-func processServiceContainerLogs(p *compose.Project, opts compose.CommandOptions, serviceName string) {
-	content, err := p.Logs(opts)
-	if err != nil {
-		logger.Errorf("can't export service logs: %v", err)
-		return
-	}
-
-	if len(content) == 0 {
-		logger.Info("service container hasn't written anything logs.")
-		return
-	}
-
-	err = writeServiceContainerLogs(serviceName, content)
-	if err != nil {
-		logger.Errorf("can't write service container logs: %v", err)
-	}
-}
-
-func writeServiceContainerLogs(serviceName string, content []byte) error {
-	buildDir, err := builder.BuildDirectory()
-	if err != nil {
-		return errors.Wrap(err, "locating build directory failed")
-	}
-
-	containerLogsDir := filepath.Join(buildDir, "container-logs")
-	err = os.MkdirAll(containerLogsDir, 0755)
-	if err != nil {
-		return errors.Wrapf(err, "can't create directory for service container logs (path: %s)", containerLogsDir)
-	}
-
-	containerLogsFilepath := filepath.Join(containerLogsDir, fmt.Sprintf("%s-%d.log", serviceName, time.Now().UnixNano()))
-	logger.Infof("Write container logs to file: %s", containerLogsFilepath)
-	err = ioutil.WriteFile(containerLogsFilepath, content, 0644)
-	if err != nil {
-		return errors.Wrapf(err, "can't write container logs to file (path: %s)", containerLogsFilepath)
-	}
 	return nil
 }
