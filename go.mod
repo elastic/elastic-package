@@ -11,6 +11,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.1.2
 	github.com/elastic/go-elasticsearch/v7 v7.17.1
 	github.com/elastic/go-licenser v0.4.0
+	github.com/elastic/go-resource v0.0.0-00010101000000-000000000000
 	github.com/elastic/go-ucfg v0.8.4
 	github.com/elastic/package-spec v1.7.0
 	github.com/fatih/color v1.13.0
@@ -151,3 +152,5 @@ require (
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.1 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
+
+replace github.com/elastic/go-resource => /home/jaime/gocode/src/github.com/elastic/go-resource

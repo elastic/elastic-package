@@ -1,4 +1,4 @@
-FROM __BASE_IMAGE__
+FROM {{ fact "registry_base_image" }}
 
 ARG PROFILE
 COPY profiles/${PROFILE}/stack/package-registry.config.yml /package-registry/config.yml

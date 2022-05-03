@@ -1,20 +1,33 @@
+{{ $version := fact "kibana_version" }}
 server.name: kibana
 server.host: "0.0.0.0"
 
 elasticsearch.hosts: [ "http://elasticsearch:9200" ]
+{{ if semverLessThan $version "8.0.0" }}
+elasticsearch.username: elastic
+elasticsearch.password: changeme
+
+xpack.monitoring.ui.container.elasticsearch.enabled: true
+xpack.fleet.enabled: true
+xpack.fleet.agents.elasticsearch.host: "http://elasticsearch:9200"
+{{ else }}
 elasticsearch.serviceAccountToken: "AAEAAWVsYXN0aWMva2liYW5hL2VsYXN0aWMtcGFja2FnZS1raWJhbmEtdG9rZW46b2x4b051SWNRa0tYMHdXazdLWmFBdw"
 
 monitoring.ui.container.elasticsearch.enabled: true
 
+xpack.fleet.agents.elasticsearch.hosts: ["http://elasticsearch:9200"]
+{{ end }}
 xpack.fleet.registryUrl: "http://package-registry:8080"
 xpack.fleet.agents.enabled: true
-xpack.fleet.agents.elasticsearch.hosts: ["http://elasticsearch:9200"]
 xpack.fleet.agents.fleet_server.hosts: ["http://fleet-server:8220"]
 
 xpack.encryptedSavedObjects.encryptionKey: "12345678901234567890123456789012"
 
+{{ if not (semverLessThan $version "8.1.0") }}
 xpack.cloudSecurityPosture.enabled: true
+{{ end }}
 
+{{ if not (semverLessThan $version "8.0.0") }}
 xpack.fleet.packages:
   - name: system
     version: latest
@@ -46,3 +59,4 @@ xpack.fleet.agentPolicies:
         id: default-fleet-server
         package:
           name: fleet_server
+{{ end }}
