@@ -124,7 +124,11 @@ func (d *DockerComposeServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedSer
 		outCtxt.Port = outCtxt.Ports[0]
 	}
 
-	outCtxt.Agent.Host.NamePrefix = "docker-fleet-agent"
+	if inCtxt.CustomAgent {
+		outCtxt.Agent.Host.NamePrefix = serviceName
+	} else {
+		outCtxt.Agent.Host.NamePrefix = "docker-fleet-agent"
+	}
 	service.ctxt = outCtxt
 	return &service, nil
 }

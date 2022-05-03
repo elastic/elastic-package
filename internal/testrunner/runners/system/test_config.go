@@ -29,7 +29,7 @@ type testConfig struct {
 
 	Input               string        `config:"input"`
 	Service             string        `config:"service"`
-	AgentService        bool          `config:"agent_service"`
+	CustomAgent         bool          `config:"custom_agent"`
 	ServiceNotifySignal string        `config:"service_notify_signal"` // Signal to send when the agent policy is applied.
 	WaitForDataTimeout  time.Duration `config:"wait_for_data_timeout"`
 
