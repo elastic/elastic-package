@@ -88,6 +88,12 @@ func (d *DockerComposeServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedSer
 		return nil, errors.Wrap(err, "could not boot up service using Docker Compose")
 	}
 
+	// Connect service network with stack network (for the purpose of metrics collection)
+	err = docker.ConnectToNetwork(p.ContainerName(serviceName), stack.Network())
+	if err != nil {
+		return nil, errors.Wrapf(err, "can't attach service container to the stack network")
+	}
+
 	err = p.WaitForHealthy(opts)
 	if err != nil {
 		processServiceContainerLogs(p, compose.CommandOptions{
@@ -98,12 +104,6 @@ func (d *DockerComposeServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedSer
 
 	// Build service container name
 	outCtxt.Hostname = p.ContainerName(serviceName)
-
-	// Connect service network with stack network (for the purpose of metrics collection)
-	err = docker.ConnectToNetwork(p.ContainerName(serviceName), stack.Network())
-	if err != nil {
-		return nil, errors.Wrapf(err, "can't attach service container to the stack network")
-	}
 
 	logger.Debugf("adding service container %s internal ports to context", p.ContainerName(serviceName))
 	serviceComposeConfig, err := p.Config(compose.CommandOptions{
