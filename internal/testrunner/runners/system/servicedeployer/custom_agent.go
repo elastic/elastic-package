@@ -11,8 +11,8 @@ type CustomAgentDeployer struct {
 }
 
 // NewCustomAgentDeployer returns a new instance of a deployedCustomAgent.
-func NewCustomAgentDeployer(ymlPaths []string) (*CustomAgentDeployer, error) {
-	cd, _ := NewDockerComposeServiceDeployer(ymlPaths, ServiceVariant{})
+func NewCustomAgentDeployer(ymlPaths []string, sv ServiceVariant) (*CustomAgentDeployer, error) {
+	cd, _ := NewDockerComposeServiceDeployer(ymlPaths, sv)
 	return &CustomAgentDeployer{
 		cd: cd,
 	}, nil

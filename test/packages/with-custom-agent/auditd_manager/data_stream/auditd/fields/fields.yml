@@ -1,0 +1,5 @@
+- name: auditd
+  type: flattened
+  default_field: false
+- name: user
+  type: flattened
