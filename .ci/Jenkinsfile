@@ -103,6 +103,7 @@ pipeline {
                     'stack-command-8x': generateTestCommandStage(command: 'test-stack-command-8x', artifacts: ['build/elastic-stack-dump/stack/*/logs/*.log', 'build/elastic-stack-dump/stack/*/logs/fleet-server-internal/*']),
                     'check-packages-with-kind': generateTestCommandStage(command: 'test-check-packages-with-kind', artifacts: ['build/test-results/*.xml', 'build/kubectl-dump.txt', 'build/elastic-stack-dump/check-*/logs/*.log', 'build/elastic-stack-dump/check-*/logs/fleet-server-internal/*'], junitArtifacts: true, publishCoverage: true),
                     'check-packages-other': generateTestCommandStage(command: 'test-check-packages-other', artifacts: ['build/test-results/*.xml', 'build/elastic-stack-dump/check-*/logs/*.log', 'build/elastic-stack-dump/check-*/logs/fleet-server-internal/*'], junitArtifacts: true, publishCoverage: true),
+                    'check-packages-with-custom-agent': generateTestCommandStage(command: 'test-check-packages-with-custom-agent', artifacts: ['build/test-results/*.xml', 'build/elastic-stack-dump/check-*/logs/*.log', 'build/elastic-stack-dump/check-*/logs/fleet-server-internal/*'], junitArtifacts: true, publishCoverage: true),
                     'build-zip': generateTestCommandStage(command: 'test-build-zip', artifacts: ['build/elastic-stack-dump/build-zip/logs/*.log', 'build/integrations/*.sig']),
                     'profiles-command': generateTestCommandStage(command: 'test-profiles-command')
                   ]
