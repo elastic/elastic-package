@@ -11,10 +11,11 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/elastic/package-spec/code/go/pkg/validator"
+
 	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
-	"github.com/elastic/package-spec/code/go/pkg/validator"
 )
 
 const builtPackagesFolder = "packages"
