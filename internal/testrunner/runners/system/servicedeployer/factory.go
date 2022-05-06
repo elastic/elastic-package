@@ -53,13 +53,15 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 		}
 	case "agent":
 		dockerComposeYMLPath := filepath.Join(serviceDeployerPath, "docker-compose.yml")
-		if _, err := os.Stat(dockerComposeYMLPath); err == nil {
-			sv, err := useServiceVariant(devDeployPath, options.Variant)
-			if err != nil {
-				return nil, errors.Wrap(err, "can't use service variant")
-			}
-			return NewCustomAgentDeployer([]string{dockerComposeYMLPath}, sv)
+		if _, err := os.Stat(dockerComposeYMLPath); err != nil {
+			return nil, errors.Wrap(err, "can't find expected file docker-compose.yml")
 		}
+		sv, err := useServiceVariant(devDeployPath, options.Variant)
+		if err != nil {
+			return nil, errors.Wrap(err, "can't use service variant")
+		}
+		return NewCustomAgentDeployer([]string{dockerComposeYMLPath}, sv)
+
 	case "tf":
 		if _, err := os.Stat(serviceDeployerPath); err == nil {
 			return NewTerraformServiceDeployer(serviceDeployerPath)
