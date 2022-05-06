@@ -85,7 +85,12 @@ type Conditions struct {
 
 // PolicyTemplate is a configuration of inputs responsible for collecting log or metric data.
 type PolicyTemplate struct {
-	Inputs []Input `config:"inputs" json:"inputs" yaml:"inputs"`
+	Inputs []Input `config:"inputs,omitempty" json:"inputs,omitempty" yaml:"inputs,omitempty"`
+
+	// For purposes of "input packages"
+	Input        string `config:"input,omitempty" json:"input,omitempty" yaml:"input,omitempty"`
+	Type         string `config:"type,omitempty" json:"type,omitempty" yaml:"type,omitempty"`
+	TemplatePath string `config:"template_path,omitempty" json:"template_path,omitempty" yaml:"template_path,omitempty"`
 }
 
 // Owner defines package owners, either a single person or a team.
@@ -273,7 +278,7 @@ func isPackageManifest(path string) (bool, error) {
 	if err != nil {
 		return false, errors.Wrapf(err, "reading package manifest failed (path: %s)", path)
 	}
-	return m.Type == "integration" && m.Version != "", nil // TODO add support for other package types
+	return (m.Type == "integration" || m.Type == "input") && m.Version != "", nil
 }
 
 func isDataStreamManifest(path string) (bool, error) {
