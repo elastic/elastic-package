@@ -1,0 +1,6 @@
+service: custom-agent
+vars: ~
+data_stream:
+  vars:
+    paths:
+      - "/tmp/service_logs/access.log*"

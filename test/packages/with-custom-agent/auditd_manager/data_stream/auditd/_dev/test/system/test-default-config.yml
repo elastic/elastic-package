@@ -1,6 +1,0 @@
-service: custom-agent
-data_stream:
-  vars:
-    audit_rules:
-      - "-w /var/log/faillog -p wa -k logins"
-    preserve_original_event: true
