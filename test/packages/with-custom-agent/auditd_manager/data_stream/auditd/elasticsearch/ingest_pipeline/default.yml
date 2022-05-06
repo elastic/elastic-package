@@ -12,7 +12,7 @@ processors:
       field: auditd.event.original
       separator: "\n"
       target_field: event.original
-      ignore_failure: false
+      ignore_failure: true
 on_failure:
   - set:
       field: error.message
