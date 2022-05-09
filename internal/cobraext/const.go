@@ -63,6 +63,9 @@ const (
 	GenerateTestResultFlagName        = "generate"
 	GenerateTestResultFlagDescription = "generate test result file"
 
+	InstallPackageRootFlagName        = "package-root"
+	InstallPackageRootFlagDescription = "name of the package to be installed"
+
 	ProfileFlagName        = "profile"
 	ProfileFlagDescription = "select a profile to use for the stack configuration. Can also be set with %s"
 
