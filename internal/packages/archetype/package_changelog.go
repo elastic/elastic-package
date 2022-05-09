@@ -9,5 +9,5 @@ const packageChangelogTemplate = `# newer versions go on top
   changes:
     - description: Initial draft of the package
       type: enhancement
-      link: https://github.com/elastic/integrations/pull/0 # FIXME Replace with the real PR link
+      link: https://github.com/elastic/integrations/pull/1 # FIXME Replace with the real PR link
 `
