@@ -137,7 +137,6 @@ func visitFields(namePrefix string, f fields.FieldDefinition, records []fieldsTa
 		updated.Update(f)
 		updated.Type = imported.Type
 		updated.External = ""
-		updated.Fields = imported.Fields
 		f = updated
 	}
 
