@@ -13,11 +13,11 @@ const (
 // Primary flags reused by multiple commands
 const (
 	PackageRootFlagName        = "root"
-	PackageRootFlagShortName   = "-R"
+	PackageRootFlagShorthand   = "R"
 	PackageRootFlagDescription = "root directory of the package"
 
 	PackageFlagName        = "package"
-	PackageFlagShortName   = "-P"
+	PackageFlagShorthand   = "P"
 	PackageFlagDescription = "name of the package"
 )
 

@@ -33,7 +33,7 @@ func setupDumpCommand() *cobraext.Command {
 		Short: "Dump package assets",
 		Long:  dumpLongDescription,
 	}
-	cmd.PersistentFlags().StringP(cobraext.PackageFlagName, cobraext.PackageFlagShortName, "", cobraext.PackageFlagDescription)
+	cmd.PersistentFlags().StringP(cobraext.PackageFlagName, cobraext.PackageFlagShorthand, "", cobraext.PackageFlagDescription)
 	cmd.MarkFlagRequired(cobraext.PackageFlagName)
 	cmd.PersistentFlags().StringP(cobraext.DumpOutputFlagName, "o", "package-dump", cobraext.DumpOutputFlagDescription)
 

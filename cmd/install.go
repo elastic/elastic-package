@@ -25,7 +25,7 @@ func setupInstallCommand() *cobraext.Command {
 		RunE:  installCommandAction,
 	}
 	cmd.Flags().StringSliceP(cobraext.CheckConditionFlagName, "c", nil, cobraext.CheckConditionFlagDescription)
-	cmd.Flags().StringP(cobraext.PackageRootFlagName, cobraext.PackageRootFlagShortName, "", cobraext.PackageRootFlagDescription)
+	cmd.Flags().StringP(cobraext.PackageRootFlagName, cobraext.PackageRootFlagShorthand, "", cobraext.PackageRootFlagDescription)
 
 	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
 }
