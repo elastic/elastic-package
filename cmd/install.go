@@ -25,15 +25,15 @@ func setupInstallCommand() *cobraext.Command {
 		RunE:  installCommandAction,
 	}
 	cmd.Flags().StringSliceP(cobraext.CheckConditionFlagName, "c", nil, cobraext.CheckConditionFlagDescription)
-	cmd.Flags().StringP(cobraext.InstallPackageRootFlagName, "p", "", cobraext.InstallPackageRootFlagDescription)
+	cmd.Flags().StringP(cobraext.PackageRootFlagName, cobraext.PackageRootFlagShortName, "", cobraext.PackageRootFlagDescription)
 
 	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
 }
 
 func installCommandAction(cmd *cobra.Command, _ []string) error {
-	packageRootPath, err := cmd.Flags().GetString(cobraext.InstallPackageRootFlagName)
+	packageRootPath, err := cmd.Flags().GetString(cobraext.PackageRootFlagName)
 	if err != nil {
-		return cobraext.FlagParsingError(err, cobraext.InstallPackageRootFlagName)
+		return cobraext.FlagParsingError(err, cobraext.PackageRootFlagName)
 	}
 	if packageRootPath == "" {
 		var found bool

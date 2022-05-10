@@ -4,7 +4,24 @@
 
 package cobraext
 
-// Flag names and descriptions used by CLI commands.
+// Global flags
+const (
+	VerboseFlagName        = "verbose"
+	VerboseFlagDescription = "verbose mode"
+)
+
+// Primary flags reused by multiple commands
+const (
+	PackageRootFlagName        = "root"
+	PackageRootFlagShortName   = "-R"
+	PackageRootFlagDescription = "root directory of the package"
+
+	PackageFlagName        = "package"
+	PackageFlagShortName   = "-P"
+	PackageFlagDescription = "name of the package"
+)
+
+// Flag names and descriptions used by CLI commands
 const (
 	BuildZipFlagName        = "zip"
 	BuildZipFlagDescription = "archive the built package"
@@ -48,9 +65,6 @@ const (
 	DumpOutputFlagName        = "output"
 	DumpOutputFlagDescription = "path to directory where exported assets will be stored"
 
-	DumpPackageFlagName        = "package"
-	DumpPackageFlagDescription = "package whose assets will be collected"
-
 	FailOnMissingFlagName        = "fail-on-missing"
 	FailOnMissingFlagDescription = "fail if tests are missing"
 
@@ -62,9 +76,6 @@ const (
 
 	GenerateTestResultFlagName        = "generate"
 	GenerateTestResultFlagDescription = "generate test result file"
-
-	InstallPackageRootFlagName        = "package-root"
-	InstallPackageRootFlagDescription = "name of the package to be installed"
 
 	ProfileFlagName        = "profile"
 	ProfileFlagDescription = "select a profile to use for the stack configuration. Can also be set with %s"
@@ -78,8 +89,8 @@ const (
 	NewestOnlyFlagName        = "newest-only"
 	NewestOnlyFlagDescription = "promote newest packages and remove old ones"
 
-	PackagesFlagName        = "packages"
-	PackagesFlagDescription = "packages to be promoted (comma-separated values: apache-1.2.3,nginx-5.6.7)"
+	PromotedPackagesFlagName        = "packages"
+	PromotedPackagesFlagDescription = "packages to be promoted (comma-separated values: apache-1.2.3,nginx-5.6.7)"
 
 	ReportFormatFlagName        = "report-format"
 	ReportFormatFlagDescription = "format of test report"
@@ -116,7 +127,4 @@ const (
 
 	VariantFlagName        = "variant"
 	VariantFlagDescription = "service variant"
-
-	VerboseFlagName        = "verbose"
-	VerboseFlagDescription = "verbose mode"
 )
