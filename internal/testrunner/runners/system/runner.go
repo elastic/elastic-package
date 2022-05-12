@@ -246,6 +246,11 @@ func (r *runner) getDocs(dataStream string) ([]common.MapStr, error) {
 				Source common.MapStr `json:"_source"`
 			}
 		}
+		Error *struct {
+			Type   string
+			Reason string
+		}
+		Status int
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&results); err != nil {
@@ -253,7 +258,12 @@ func (r *runner) getDocs(dataStream string) ([]common.MapStr, error) {
 	}
 
 	numHits := results.Hits.Total.Value
-	logger.Debugf("found %d hits in %s data stream", numHits, dataStream)
+	if results.Error != nil {
+		logger.Debugf("found %d hits in %s data stream: %s: %s Status=%d",
+			numHits, dataStream, results.Error.Type, results.Error.Reason, results.Status)
+	} else {
+		logger.Debugf("found %d hits in %s data stream", numHits, dataStream)
+	}
 
 	var docs []common.MapStr
 	for _, hit := range results.Hits.Hits {

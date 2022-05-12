@@ -228,6 +228,15 @@ func Test_parseElementValue(t *testing.T) {
 			},
 			fail: true,
 		},
+		// fields shouldn't be stored in groups
+		{
+			key:   "host",
+			value: "42",
+			definition: FieldDefinition{
+				Type: "group",
+			},
+			fail: true,
+		},
 	} {
 		v := Validator{disabledDependencyManagement: true}
 		t.Run(test.key, func(t *testing.T) {

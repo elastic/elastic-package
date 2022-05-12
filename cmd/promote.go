@@ -43,7 +43,7 @@ func setupPromoteCommand() *cobraext.Command {
 	}
 	cmd.Flags().StringP(cobraext.DirectionFlagName, "d", "", cobraext.DirectionFlagDescription)
 	cmd.Flags().BoolP(cobraext.NewestOnlyFlagName, "n", false, cobraext.NewestOnlyFlagDescription)
-	cmd.Flags().StringSliceP(cobraext.PackagesFlagName, "p", nil, cobraext.PackagesFlagDescription)
+	cmd.Flags().StringSliceP(cobraext.PromotedPackagesFlagName, "p", nil, cobraext.PromotedPackagesFlagDescription)
 
 	return cobraext.NewCommand(cmd, cobraext.ContextGlobal)
 }
@@ -210,7 +210,7 @@ func promptPromoteNewestOnly(cmd *cobra.Command) (bool, error) {
 }
 
 func promptPackages(cmd *cobra.Command, packages storage.PackageVersions) (storage.PackageVersions, error) {
-	revisions, _ := cmd.Flags().GetStringSlice(cobraext.PackagesFlagName)
+	revisions, _ := cmd.Flags().GetStringSlice(cobraext.PromotedPackagesFlagName)
 	if len(revisions) > 0 {
 		parsed, err := storage.ParsePackageVersions(revisions)
 		if err != nil {
