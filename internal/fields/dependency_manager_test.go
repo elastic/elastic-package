@@ -210,6 +210,99 @@ func TestDependencyManagerInjectExternalFields(t *testing.T) {
 			},
 			valid: false,
 		},
+		{
+			title: "import nested fields",
+			defs: []common.MapStr{
+				{
+					"name":     "host.id",
+					"external": "test",
+				},
+				{
+					"name":     "host.hostname",
+					"external": "test",
+				},
+			},
+			result: []common.MapStr{
+				{
+					"name":        "host.id",
+					"description": "Unique host id",
+					"type":        "keyword",
+				},
+				{
+					"name":        "host.hostname",
+					"description": "Hostname of the host",
+					"type":        "keyword",
+				},
+			},
+			valid:   true,
+			changed: true,
+		},
+		{
+			title: "import nested definitions",
+			defs: []common.MapStr{
+				{
+					"name": "host",
+					"type": "group",
+					"fields": []interface{}{
+						common.MapStr{
+							"name":     "id",
+							"external": "test",
+						},
+						common.MapStr{
+							"name":     "hostname",
+							"external": "test",
+						},
+					},
+				},
+			},
+			result: []common.MapStr{
+				{
+					"name": "host",
+					"type": "group",
+					"fields": []common.MapStr{
+						{
+							"name":        "id",
+							"description": "Unique host id",
+							"type":        "keyword",
+						},
+						{
+							"name":        "hostname",
+							"description": "Hostname of the host",
+							"type":        "keyword",
+						},
+					},
+				},
+			},
+			valid:   true,
+			changed: true,
+		},
+		{
+			title: "import group but not subfields",
+			defs: []common.MapStr{
+				{
+					"name":     "host",
+					"external": "test",
+				},
+				{
+					"name":     "host.hostname",
+					"external": "test",
+				},
+			},
+			result: []common.MapStr{
+				{
+					"name":        "host",
+					"description": "A general computing instance",
+					"type":        "group",
+				},
+				{
+					"name":        "host.hostname",
+					"description": "Hostname of the host",
+					"type":        "keyword",
+				},
+			},
+			valid:   true,
+			changed: true,
+		},
 	}
 
 	indexFalse := false
@@ -252,6 +345,23 @@ func TestDependencyManagerInjectExternalFields(t *testing.T) {
 			Description: "MAC address of the source.",
 			Pattern:     "^[A-F0-9]{2}(-[A-F0-9]{2}){5,}$",
 			Type:        "keyword",
+		},
+		{
+			Name:        "host",
+			Description: "A general computing instance",
+			Type:        "group",
+			Fields: []FieldDefinition{
+				{
+					Name:        "id",
+					Description: "Unique host id",
+					Type:        "keyword",
+				},
+				{
+					Name:        "hostname",
+					Description: "Hostname of the host",
+					Type:        "keyword",
+				},
+			},
 		},
 	}}
 	dm := &DependencyManager{schema: schema}

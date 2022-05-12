@@ -241,15 +241,6 @@ func transformImportedField(fd FieldDefinition) common.MapStr {
 		m["doc_values"] = *fd.DocValues
 	}
 
-	if len(fd.Fields) > 0 {
-		var t []common.MapStr
-		for _, f := range fd.Fields {
-			i := transformImportedField(f)
-			t = append(t, i)
-		}
-		m.Put("fields", t)
-	}
-
 	if len(fd.MultiFields) > 0 {
 		var t []common.MapStr
 		for _, f := range fd.MultiFields {
