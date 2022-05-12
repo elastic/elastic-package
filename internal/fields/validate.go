@@ -416,6 +416,8 @@ func (v *Validator) parseElementValue(key string, definition FieldDefinition, va
 		}
 	case "float", "long", "double":
 		_, valid = val.(float64)
+	case "group":
+		return fmt.Errorf("field %q is a group of fields, it cannot store values", key)
 	default:
 		valid = true // all other types are considered valid not blocking validation
 	}
