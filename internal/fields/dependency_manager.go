@@ -163,31 +163,52 @@ func (dm *DependencyManager) injectFieldsWithRoot(root string, defs []common.Map
 			transformed["type"] = imported.Type
 			transformed.Delete("external")
 
-			updated = append(updated, transformed)
+			def = transformed
 			changed = true
-			continue
+		} else {
+			fields, _ := def.GetValue("fields")
+			if fields != nil {
+				fieldsMs, err := common.ToMapStrSlice(fields)
+				if err != nil {
+					return nil, false, errors.Wrap(err, "can't convert fields")
+				}
+				updatedFields, fieldsChanged, err := dm.injectFieldsWithRoot(fieldPath, fieldsMs)
+				if err != nil {
+					return nil, false, err
+				}
+
+				if fieldsChanged {
+					changed = true
+				}
+
+				def.Put("fields", updatedFields)
+			}
 		}
 
-		fields, _ := def.GetValue("fields")
-		if fields != nil {
-			fieldsMs, err := common.ToMapStrSlice(fields)
-			if err != nil {
-				return nil, false, errors.Wrap(err, "can't convert fields")
-			}
-			updatedFields, fieldsChanged, err := dm.injectFieldsWithRoot(fieldPath, fieldsMs)
-			if err != nil {
-				return nil, false, err
-			}
-
-			if fieldsChanged {
-				changed = true
-			}
-
-			def.Put("fields", updatedFields)
+		if skipField(def) {
+			continue
 		}
 		updated = append(updated, def)
 	}
 	return updated, changed, nil
+}
+
+// skipField decides if a field should be skipped and not injected in the built fields.
+func skipField(def common.MapStr) bool {
+	t, _ := def.GetValue("type")
+	if t == "group" {
+		fields, _ := def.GetValue("fields")
+		switch fields := fields.(type) {
+		case nil:
+			return true
+		case []interface{}:
+			return len(fields) == 0
+		case []common.MapStr:
+			return len(fields) == 0
+		}
+	}
+
+	return false
 }
 
 // ImportField method resolves dependency on a single external field using available schemas.

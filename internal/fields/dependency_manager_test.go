@@ -277,7 +277,7 @@ func TestDependencyManagerInjectExternalFields(t *testing.T) {
 			changed: true,
 		},
 		{
-			title: "import group but not subfields",
+			title: "keep group for docs but not for fields",
 			defs: []common.MapStr{
 				{
 					"name":     "host",
@@ -289,11 +289,6 @@ func TestDependencyManagerInjectExternalFields(t *testing.T) {
 				},
 			},
 			result: []common.MapStr{
-				{
-					"name":        "host",
-					"description": "A general computing instance",
-					"type":        "group",
-				},
 				{
 					"name":        "host.hostname",
 					"description": "Hostname of the host",
