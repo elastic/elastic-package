@@ -52,15 +52,19 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 			return NewDockerComposeServiceDeployer([]string{dockerComposeYMLPath}, sv)
 		}
 	case "agent":
+		customAgentCfgYMLPath := filepath.Join(serviceDeployerPath, "custom-agent.yml")
+		if _, err := os.Stat(customAgentCfgYMLPath); err != nil {
+			return nil, errors.Wrap(err, "can't find expected file custom-agent.yml")
+		}
+
+		var ymlPaths []string
 		dockerComposeYMLPath := filepath.Join(serviceDeployerPath, "docker-compose.yml")
-		if _, err := os.Stat(dockerComposeYMLPath); err != nil {
-			return nil, errors.Wrap(err, "can't find expected file docker-compose.yml")
+		if _, err := os.Stat(dockerComposeYMLPath); err == nil {
+			// is not mandatory to set other services up aside of the custom agent.
+			ymlPaths = append(ymlPaths, dockerComposeYMLPath)
 		}
-		sv, err := useServiceVariant(devDeployPath, options.Variant)
-		if err != nil {
-			return nil, errors.Wrap(err, "can't use service variant")
-		}
-		return NewCustomAgentDeployer([]string{dockerComposeYMLPath}, sv)
+
+		return NewCustomAgentDeployer(customAgentCfgYMLPath, ymlPaths)
 
 	case "tf":
 		if _, err := os.Stat(serviceDeployerPath); err == nil {
