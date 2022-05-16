@@ -1,4 +1,3 @@
-service: docker-custom-agent
 data_stream:
   vars:
     audit_rules:

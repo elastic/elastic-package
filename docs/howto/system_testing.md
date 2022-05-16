@@ -109,13 +109,10 @@ volumes:
 
 ### Agent service deployer
 
-When using the Agent service deployer, everything works as a Docker Compose service 
-deployer. The only difference is that in this case the `elastic-agent` provided by the stack
-will not be used and is expected that the service referenced in the test config is a custom
-`elastic-agent`. This agent will be deployed as a Docker compose service named `custom-agent`
+When using the Agent service deployer, the `elastic-agent` provided by the stack
+will not be used. An agent will be deployed as a Docker compose service named `docker-custom-agent`
 which base configuration is provided [here](../../internal/testrunner/runners/system/servicedeployer/custom-agent-base-config.yml).
 This configuration will be merged with the one provided in the `custom-agent.yml` file.
-Optionally, other services can be defined in a separate `docker-compose.yml` file.
 This is useful if you need different capabilities than the provided by the
 `elastic-agent` used by the `elastic-package stack` command. 
 
@@ -133,8 +130,8 @@ This will result in an agent configuration such as:
 ```
 version: '2.3'
 services:
-  custom-agent:
-    hostname: custom-agent
+  docker-custom-agent:
+    hostname: docker-custom-agent
     image: "docker.elastic.co/beats/elastic-agent-complete:8.2.0"
     pid: host
     cap_add:
@@ -154,7 +151,6 @@ services:
 And in the test config:
 
 ```
-service: custom-agent
 data_stream:
   vars:
   # ...
