@@ -64,7 +64,12 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 			ymlPaths = append(ymlPaths, dockerComposeYMLPath)
 		}
 
-		return NewCustomAgentDeployer(customAgentCfgYMLPath, ymlPaths)
+		sv, err := useServiceVariant(devDeployPath, options.Variant)
+		if err != nil {
+			return nil, errors.Wrap(err, "can't use service variant")
+		}
+
+		return NewCustomAgentDeployer(customAgentCfgYMLPath, ymlPaths, sv)
 
 	case "tf":
 		if _, err := os.Stat(serviceDeployerPath); err == nil {
