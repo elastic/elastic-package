@@ -66,7 +66,12 @@ func (d *CustomAgentDeployer) SetUp(inCtxt ServiceContext) (DeployedService, err
 	service := dockerComposeDeployedService{
 		ymlPaths: []string{d.cfg},
 		project:  "elastic-package-service",
+		sv: ServiceVariant{
+			Name: dockerCustomAgentName,
+			Env:  env,
+		},
 	}
+
 	outCtxt := inCtxt
 
 	p, err := compose.NewProject(service.project, service.ymlPaths...)
@@ -142,33 +147,12 @@ func (d *CustomAgentDeployer) SetUp(inCtxt ServiceContext) (DeployedService, err
 
 // TearDown tears down the service.
 func (s *deployedCustomAgent) TearDown() error {
-	logger.Debugf("tearing down service using Docker Compose runner")
 	defer func() {
-		err := files.RemoveContent(s.ctxt.Logs.Folder.Local)
-		if err != nil {
-			logger.Errorf("could not remove the service logs (path: %s)", s.ctxt.Logs.Folder.Local)
-		}
-
 		if err := os.Remove(s.cfg); err != nil {
 			logger.Errorf("cleaning up tmp file (path: %s): %v", s.cfg, err)
 		}
 	}()
-
-	p, err := compose.NewProject(s.project, s.ymlPaths...)
-	if err != nil {
-		return errors.Wrap(err, "could not create Docker Compose project for service")
-	}
-
-	opts := compose.CommandOptions{Env: s.env}
-	processServiceContainerLogs(p, opts, s.ctxt.Name)
-
-	if err := p.Down(compose.CommandOptions{
-		Env:       s.env,
-		ExtraArgs: []string{"--volumes"}, // Remove associated volumes.
-	}); err != nil {
-		return errors.Wrap(err, "could not shut down service using Docker Compose")
-	}
-	return nil
+	return s.dockerComposeDeployedService.TearDown()
 }
 
 func createCustomAgentYaml(cfgPath string) (string, error) {
