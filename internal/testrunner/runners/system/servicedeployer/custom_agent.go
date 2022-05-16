@@ -8,10 +8,11 @@ import (
 	_ "embed"
 	"os"
 
-	"github.com/elastic/elastic-package/internal/install"
-	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
+
+	"github.com/elastic/elastic-package/internal/install"
+	"github.com/elastic/elastic-package/internal/logger"
 )
 
 //go:embed custom-agent-base-config.yml
