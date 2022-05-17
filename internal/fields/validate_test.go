@@ -237,6 +237,34 @@ func Test_parseElementValue(t *testing.T) {
 			},
 			fail: true,
 		},
+		// arrays of objects can be stored in groups, even if not recommended
+		{
+			key: "host",
+			value: []interface{}{
+				map[string]interface{}{
+					"id":       "somehost-id",
+					"hostname": "somehost",
+				},
+				map[string]interface{}{
+					"id":       "otherhost-id",
+					"hostname": "otherhost",
+				},
+			},
+			definition: FieldDefinition{
+				Name: "host",
+				Type: "group",
+				Fields: []FieldDefinition{
+					{
+						Name: "id",
+						Type: "keyword",
+					},
+					{
+						Name: "hostname",
+						Type: "keyword",
+					},
+				},
+			},
+		},
 	} {
 		v := Validator{disabledDependencyManagement: true}
 		t.Run(test.key, func(t *testing.T) {
