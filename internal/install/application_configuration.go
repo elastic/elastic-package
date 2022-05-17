@@ -17,9 +17,15 @@ import (
 	"github.com/elastic/elastic-package/internal/logger"
 )
 
-const stackVersion715 = "7.15.0-SNAPSHOT"
+const (
+	stackVersion715 = "7.15.0-SNAPSHOT"
+	stackVersion820 = "8.2.0-SNAPSHOT"
+)
 
-var elasticAgentCompleteFirstSupportedVersion = semver.MustParse(stackVersion715)
+var (
+	elasticAgentCompleteFirstSupportedVersion = semver.MustParse(stackVersion715)
+	elasticAgentCompleteOwnNamespaceVersion   = semver.MustParse(stackVersion820)
+)
 
 // ApplicationConfiguration represents the configuration of the elastic-package.
 type ApplicationConfiguration struct {
@@ -83,8 +89,13 @@ func selectElasticAgentImageName(version string) string {
 	v, err := semver.NewVersion(version)
 	if err != nil {
 		logger.Errorf("stack version not in semver format (value: %s): %v", v, err)
-	} else if !v.LessThan(elasticAgentCompleteFirstSupportedVersion) {
+		return elasticAgentImageName
+	}
+	if !v.LessThan(elasticAgentCompleteOwnNamespaceVersion) {
 		return elasticAgentCompleteImageName
+	}
+	if !v.LessThan(elasticAgentCompleteFirstSupportedVersion) {
+		return elasticAgentCompleteLegacyImageName
 	}
 	return elasticAgentImageName
 }
