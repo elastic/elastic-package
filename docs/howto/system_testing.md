@@ -111,18 +111,21 @@ volumes:
 
 When using the Agent service deployer, the `elastic-agent` provided by the stack
 will not be used. An agent will be deployed as a Docker compose service named `docker-custom-agent`
-which base configuration is provided [here](../../internal/testrunner/runners/system/servicedeployer/custom-agent-base-config.yml).
+which base configuration is provided [here](../../internal/install/_static/docker-custom-agent-base.yml).
 This configuration will be merged with the one provided in the `custom-agent.yml` file.
 This is useful if you need different capabilities than the provided by the
 `elastic-agent` used by the `elastic-package stack` command. 
 
 `custom-agent.yml`
 ```
-pid: host
-cap_add:
-  - AUDIT_CONTROL
-  - AUDIT_READ
-user: root
+version: '2.3'
+services:
+  docker-custom-agent:
+    pid: host
+    cap_add:
+      - AUDIT_CONTROL
+      - AUDIT_READ
+    user: root
 ```
 
 This will result in an agent configuration such as:

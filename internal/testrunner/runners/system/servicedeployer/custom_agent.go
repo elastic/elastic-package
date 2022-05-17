@@ -7,21 +7,18 @@ package servicedeployer
 import (
 	_ "embed"
 	"fmt"
-	"os"
 
 	"github.com/pkg/errors"
-	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/compose"
+	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/docker"
 	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/install"
+	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/stack"
 )
-
-//go:embed docker-agent-base-config.yml
-var customAgentYml string
 
 const dockerCustomAgentName = "docker-custom-agent"
 
@@ -31,21 +28,10 @@ type CustomAgentDeployer struct {
 	cfg string
 }
 
-type deployedCustomAgent struct {
-	cfg string
-	env []string
-	*dockerComposeDeployedService
-}
-
 // NewCustomAgentDeployer returns a new instance of a deployedCustomAgent.
 func NewCustomAgentDeployer(cfgPath string) (*CustomAgentDeployer, error) {
-	path, err := createCustomAgentYaml(cfgPath)
-	if err != nil {
-		return nil, err
-	}
-
 	return &CustomAgentDeployer{
-		cfg: path,
+		cfg: cfgPath,
 	}, nil
 }
 
@@ -58,13 +44,28 @@ func (d *CustomAgentDeployer) SetUp(inCtxt ServiceContext) (DeployedService, err
 		return nil, errors.Wrap(err, "can't read application configuration")
 	}
 
+	kibanaClient, err := kibana.NewClient()
+	if err != nil {
+		return nil, errors.Wrap(err, "can't create Kibana client")
+	}
+
+	stackVersion, err := kibanaClient.Version()
+	if err != nil {
+		return nil, errors.Wrap(err, "can't read Kibana injected metadata")
+	}
+
 	env := append(
-		appConfig.StackImageRefs(install.DefaultStackVersion).AsEnv(),
+		appConfig.StackImageRefs(stackVersion).AsEnv(),
 		fmt.Sprintf("%s=%s", serviceLogsDirEnv, inCtxt.Logs.Folder.Local),
 	)
 
+	ymlPaths, err := d.loadComposeDefinitions()
+	if err != nil {
+		return nil, err
+	}
+
 	service := dockerComposeDeployedService{
-		ymlPaths: []string{d.cfg},
+		ymlPaths: ymlPaths,
 		project:  "elastic-package-service",
 		sv: ServiceVariant{
 			Name: dockerCustomAgentName,
@@ -138,61 +139,13 @@ func (d *CustomAgentDeployer) SetUp(inCtxt ServiceContext) (DeployedService, err
 
 	outCtxt.Agent.Host.NamePrefix = inCtxt.Name
 	service.ctxt = outCtxt
-	return &deployedCustomAgent{
-		dockerComposeDeployedService: &service,
-		cfg:                          d.cfg,
-		env:                          env,
-	}, nil
+	return &service, nil
 }
 
-// TearDown tears down the service.
-func (s *deployedCustomAgent) TearDown() error {
-	defer func() {
-		if err := os.Remove(s.cfg); err != nil {
-			logger.Errorf("cleaning up tmp file (path: %s): %v", s.cfg, err)
-		}
-	}()
-	return s.dockerComposeDeployedService.TearDown()
-}
-
-func createCustomAgentYaml(cfgPath string) (string, error) {
-	bc := struct {
-		Version  string                            `yaml:"version"`
-		Services map[string]map[string]interface{} `yaml:"services"`
-	}{}
-	if err := yaml.Unmarshal([]byte(customAgentYml), &bc); err != nil {
-		return "", errors.Wrap(err, "unmarshal base custom-agent config")
-	}
-
-	cb, err := os.ReadFile(cfgPath)
+func (d *CustomAgentDeployer) loadComposeDefinitions() ([]string, error) {
+	locationManager, err := locations.NewLocationManager()
 	if err != nil {
-		return "", errors.Wrap(err, "open custom-agent config")
+		return nil, errors.Wrap(err, "can't locate Docker Compose file for Custom Agent deployer")
 	}
-
-	cv := map[string]interface{}{}
-	if err := yaml.Unmarshal(cb, &cv); err != nil {
-		return "", errors.Wrap(err, "unmarshal custom-agent config")
-	}
-
-	for k, v := range cv {
-		bc.Services[dockerCustomAgentName][k] = v
-	}
-	bc.Services[dockerCustomAgentName]["hostname"] = dockerCustomAgentName
-
-	b, err := yaml.Marshal(bc)
-	if err != nil {
-		return "", errors.Wrap(err, "marshal custom-agent config")
-	}
-
-	tf, err := os.CreateTemp("", dockerCustomAgentName)
-	if err != nil {
-		return "", errors.Wrap(err, "create tmp file")
-	}
-	defer tf.Close()
-
-	if _, err := tf.Write(b); err != nil {
-		return "", errors.Wrap(err, "write custom-agent config")
-	}
-
-	return tf.Name(), nil
+	return []string{locationManager.DockerCustomAgentDeployerYml(), d.cfg}, nil
 }
