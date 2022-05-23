@@ -230,15 +230,6 @@ func Test_parseElementValue(t *testing.T) {
 			},
 			fail: true,
 		},
-		{
-			key:   "bad ip",
-			value: "localhost",
-			definition: FieldDefinition{
-				Type:    "ip",
-				Pattern: "^[0-9.]+$",
-			},
-			fail: true,
-		},
 		// text
 		{
 			key:   "text",
