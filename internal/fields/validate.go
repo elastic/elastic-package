@@ -416,6 +416,15 @@ func (v *Validator) parseElementValue(key string, definition FieldDefinition, va
 			if v.enabledAllowedIPCheck && !v.isAllowedIPValue(valStr) {
 				return fmt.Errorf("the IP %q is not one of the allowed test IPs (see: https://github.com/elastic/elastic-package/blob/main/internal/fields/_static/allowed_geo_ips.txt)", valStr)
 			}
+		case "group":
+			switch val.(type) {
+			case map[string]interface{}:
+				// TODO: This is probably an element from an array of objects,
+				// even if not recommended, it should be validated.
+				valid = true
+			default:
+				return fmt.Errorf("field %q is a group of fields, it cannot store values", key)
+			}
 		case "float", "long", "double":
 			_, valid = val.(float64)
 		default:

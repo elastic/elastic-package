@@ -25,11 +25,29 @@ func TestSelectElasticAgentImageName_OlderStack(t *testing.T) {
 func TestSelectElasticAgentImageName_FirstStackWithCompleteAgent(t *testing.T) {
 	version := stackVersion715
 	selected := selectElasticAgentImageName(version)
-	assert.Equal(t, selected, elasticAgentCompleteImageName)
+	assert.Equal(t, selected, elasticAgentCompleteLegacyImageName)
 }
 
 func TestSelectElasticAgentImageName_NextStackWithAgentComplete(t *testing.T) {
 	version := "7.16.0-SNAPSHOT"
+	selected := selectElasticAgentImageName(version)
+	assert.Equal(t, selected, elasticAgentCompleteLegacyImageName)
+}
+
+func TestSelectElasticAgentImageName_OwnNamespace(t *testing.T) {
+	version := "8.2.0-SNAPSHOT"
+	selected := selectElasticAgentImageName(version)
+	assert.Equal(t, selected, elasticAgentCompleteImageName)
+}
+
+func TestSelectElasticAgentImageName_OwnNamespace_Release(t *testing.T) {
+	version := "8.2.0"
+	selected := selectElasticAgentImageName(version)
+	assert.Equal(t, selected, elasticAgentCompleteImageName)
+}
+
+func TestSelectElasticAgentImageName_NextStackInOwnNamespace(t *testing.T) {
+	version := "8.4.0-SNAPSHOT"
 	selected := selectElasticAgentImageName(version)
 	assert.Equal(t, selected, elasticAgentCompleteImageName)
 }
