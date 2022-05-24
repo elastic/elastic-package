@@ -202,6 +202,42 @@ func Test_parseElementValue(t *testing.T) {
 			},
 			fail: true,
 		},
+		{
+			key:   "ip in allowed list",
+			value: "1.128.3.4",
+			definition: FieldDefinition{
+				Type: "ip",
+			},
+		},
+		{
+			key:   "ipv6 in allowed list",
+			value: "2a02:cf40:add:4002:91f2:a9b2:e09a:6fc6",
+			definition: FieldDefinition{
+				Type: "ip",
+			},
+		},
+		{
+			key:   "unspecified ipv6",
+			value: "::",
+			definition: FieldDefinition{
+				Type: "ip",
+			},
+		},
+		{
+			key:   "abbreviated ipv6 in allowed list with leading 0",
+			value: "2a02:cf40:0add:0::1",
+			definition: FieldDefinition{
+				Type: "ip",
+			},
+		},
+		{
+			key:   "ip not in geoip database",
+			value: "8.8.8.8",
+			definition: FieldDefinition{
+				Type: "ip",
+			},
+			fail: true,
+		},
 		// text
 		{
 			key:   "text",
@@ -322,7 +358,12 @@ func Test_parseElementValue(t *testing.T) {
 			},
 		},
 	} {
-		v := Validator{disabledDependencyManagement: true}
+		v := Validator{
+			disabledDependencyManagement: true,
+			enabledAllowedIPCheck:        true,
+			allowedCIDRs:                 initializeAllowedCIDRsList(),
+		}
+
 		t.Run(test.key, func(t *testing.T) {
 			err := v.parseElementValue(test.key, test.definition, test.value)
 			if test.fail {
