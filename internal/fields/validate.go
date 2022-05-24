@@ -5,6 +5,7 @@
 package fields
 
 import (
+	"bufio"
 	_ "embed"
 	"encoding/json"
 	"fmt"
@@ -35,7 +36,7 @@ type Validator struct {
 	disabledDependencyManagement bool
 
 	enabledAllowedIPCheck bool
-	allowedIPs            map[string]struct{}
+	allowedCIDRs          []*net.IPNet
 }
 
 // ValidatorOption represents an optional flag that can be passed to  CreateValidatorForDataStream.
@@ -86,7 +87,7 @@ func CreateValidatorForDataStream(dataStreamRootPath string, opts ...ValidatorOp
 		}
 	}
 
-	v.allowedIPs = initializeAllowedIPsList()
+	v.allowedCIDRs = initializeAllowedCIDRsList()
 
 	v.Schema, err = loadFieldsForDataStream(dataStreamRootPath)
 	if err != nil {
@@ -118,20 +119,17 @@ func CreateValidatorForDataStream(dataStreamRootPath string, opts ...ValidatorOp
 //go:embed _static/allowed_geo_ips.txt
 var allowedGeoIPs string
 
-func initializeAllowedIPsList() map[string]struct{} {
-	m := map[string]struct{}{
-		"0.0.0.0": {}, "255.255.255.255": {},
-		"0:0:0:0:0:0:0:0": {}, "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff": {}, "::": {},
-	}
-	for _, ip := range strings.Split(allowedGeoIPs, "\n") {
-		ip = strings.Trim(ip, " \n\t")
-		if ip == "" {
-			continue
+func initializeAllowedCIDRsList() (cidrs []*net.IPNet) {
+	s := bufio.NewScanner(strings.NewReader(allowedGeoIPs))
+	for s.Scan() {
+		_, cidr, err := net.ParseCIDR(s.Text())
+		if err != nil {
+			panic("invalid ip in _static/allowed_geo_ips.txt: " + s.Text())
 		}
-		m[ip] = struct{}{}
+		cidrs = append(cidrs, cidr)
 	}
 
-	return m
+	return cidrs
 }
 
 func loadFieldsForDataStream(dataStreamRootPath string) ([]FieldDefinition, error) {
@@ -442,17 +440,18 @@ func (v *Validator) parseElementValue(key string, definition FieldDefinition, va
 // - 0.0.0.0 and 255.255.255.255 for IPv4
 // - 0:0:0:0:0:0:0:0 and ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff for IPv6
 func (v *Validator) isAllowedIPValue(s string) bool {
-	if _, found := v.allowedIPs[s]; found {
-		return true
-	}
-
 	ip := net.ParseIP(s)
 	if ip == nil {
 		return false
 	}
 
-	if ip.IsPrivate() || ip.IsLoopback() ||
-		ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
+	for _, allowedCIDR := range v.allowedCIDRs {
+		if allowedCIDR.Contains(ip) {
+			return true
+		}
+	}
+
+	if ip.IsUnspecified() || ip.IsPrivate() || ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
 		return true
 	}
 
