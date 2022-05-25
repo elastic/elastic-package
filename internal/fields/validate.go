@@ -455,7 +455,13 @@ func (v *Validator) isAllowedIPValue(s string) bool {
 		}
 	}
 
-	if ip.IsUnspecified() || ip.IsPrivate() || ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
+	if ip.IsUnspecified() ||
+		ip.IsPrivate() ||
+		ip.IsLoopback() ||
+		ip.IsLinkLocalUnicast() ||
+		ip.IsLinkLocalMulticast() ||
+		ip.IsMulticast() ||
+		ip.Equal(net.IPv4bcast) {
 		return true
 	}
 

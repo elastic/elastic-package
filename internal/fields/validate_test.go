@@ -224,6 +224,34 @@ func Test_parseElementValue(t *testing.T) {
 			},
 		},
 		{
+			key:   "unspecified ipv4",
+			value: "0.0.0.0",
+			definition: FieldDefinition{
+				Type: "ip",
+			},
+		},
+		{
+			key:   "ipv4 broadcast address",
+			value: "255.255.255.255",
+			definition: FieldDefinition{
+				Type: "ip",
+			},
+		},
+		{
+			key:   "ipv6 min multicast",
+			value: "ff00::",
+			definition: FieldDefinition{
+				Type: "ip",
+			},
+		},
+		{
+			key:   "ipv6 max multicast",
+			value: "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff",
+			definition: FieldDefinition{
+				Type: "ip",
+			},
+		},
+		{
 			key:   "abbreviated ipv6 in allowed list with leading 0",
 			value: "2a02:cf40:0add:0::1",
 			definition: FieldDefinition{
