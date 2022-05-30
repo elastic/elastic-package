@@ -7,6 +7,7 @@ package servicedeployer
 import (
 	_ "embed"
 	"fmt"
+	"os"
 
 	"github.com/pkg/errors"
 
@@ -54,9 +55,15 @@ func (d *CustomAgentDeployer) SetUp(inCtxt ServiceContext) (DeployedService, err
 		return nil, errors.Wrap(err, "can't read Kibana injected metadata")
 	}
 
+	caCertPath, ok := os.LookupEnv(stack.CACertificateEnv)
+	if !ok {
+		return nil, errors.Wrapf(err, "can't locate CA certificate: %s environment variable not set", stack.CACertificateEnv)
+	}
+
 	env := append(
 		appConfig.StackImageRefs(stackVersion).AsEnv(),
 		fmt.Sprintf("%s=%s", serviceLogsDirEnv, inCtxt.Logs.Folder.Local),
+		fmt.Sprintf("%s=%s", localCACertEnv, caCertPath),
 	)
 
 	ymlPaths, err := d.loadComposeDefinitions()
