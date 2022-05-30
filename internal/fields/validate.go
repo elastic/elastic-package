@@ -351,19 +351,25 @@ func compareKeys(key string, def FieldDefinition, searchedKey string) bool {
 	return false
 }
 
+// parseElementValue checks that the value stored in a field matches the field definition. For
+// arrays it checks it for each Element.
 func (v *Validator) parseElementValue(key string, definition FieldDefinition, val interface{}) error {
-	val, ok := ensureSingleElementValue(val)
-	if !ok {
-		return nil // it's an array, but it's not possible to extract the single value.
+	return forEachElementValue(key, definition, val, v.parseSingleElementValue)
+}
+
+func (v *Validator) parseSingleElementValue(key string, definition FieldDefinition, val interface{}) error {
+	invalidTypeError := func() error {
+		return fmt.Errorf("field %q's Go type, %T, does not match the expected field type: %s (field value: %v)", key, val, definition.Type, val)
 	}
 
-	var valid bool
 	switch definition.Type {
+	// Constant keywords can define a value in the definition, if they do, all
+	// values stored in this field should be this one.
+	// If a pattern is provided, it checks if the value matches.
 	case "constant_keyword":
-		var valStr string
-		valStr, valid = val.(string)
+		valStr, valid := val.(string)
 		if !valid {
-			break
+			return invalidTypeError()
 		}
 
 		if err := ensureConstantKeywordValueMatches(key, valStr, definition.Value); err != nil {
@@ -372,37 +378,41 @@ func (v *Validator) parseElementValue(key string, definition FieldDefinition, va
 		if err := ensurePatternMatches(key, valStr, definition.Pattern); err != nil {
 			return err
 		}
+	// Normal text fields should be of type string.
+	// If a pattern is provided, it checks if the value matches.
 	case "keyword", "text":
-		var valStr string
-		valStr, valid = val.(string)
+		valStr, valid := val.(string)
 		if !valid {
-			break
+			return invalidTypeError()
 		}
 
 		if err := ensurePatternMatches(key, valStr, definition.Pattern); err != nil {
 			return err
 		}
+	// Dates are expected to be formatted as strings or as seconds or milliseconds
+	// since epoch.
+	// If it is a string and a pattern is provided, it checks if the value matches.
 	case "date":
 		switch val := val.(type) {
 		case string:
 			if err := ensurePatternMatches(key, val, definition.Pattern); err != nil {
 				return err
 			}
-			valid = true
 		case float64:
 			// date as seconds or milliseconds since epoch
 			if definition.Pattern != "" {
 				return fmt.Errorf("numeric date in field %q, but pattern defined", key)
 			}
-			valid = true
 		default:
-			valid = false
+			return invalidTypeError()
 		}
+	// IP values should be actual IPs, included in the ranges of IPs available
+	// in the geoip test database.
+	// If a pattern is provided, it checks if the value matches.
 	case "ip":
-		var valStr string
-		valStr, valid = val.(string)
+		valStr, valid := val.(string)
 		if !valid {
-			break
+			return invalidTypeError()
 		}
 
 		if err := ensurePatternMatches(key, valStr, definition.Pattern); err != nil {
@@ -412,24 +422,25 @@ func (v *Validator) parseElementValue(key string, definition FieldDefinition, va
 		if v.enabledAllowedIPCheck && !v.isAllowedIPValue(valStr) {
 			return fmt.Errorf("the IP %q is not one of the allowed test IPs (see: https://github.com/elastic/elastic-package/blob/main/internal/fields/_static/allowed_geo_ips.txt)", valStr)
 		}
-	case "float", "long", "double":
-		_, valid = val.(float64)
+	// Groups should only contain nested fields, not single values.
 	case "group":
 		switch val.(type) {
 		case map[string]interface{}:
 			// TODO: This is probably an element from an array of objects,
 			// even if not recommended, it should be validated.
-			valid = true
 		default:
 			return fmt.Errorf("field %q is a group of fields, it cannot store values", key)
 		}
+	// Numbers should have been parsed as float64, otherwise they are not numbers.
+	case "float", "long", "double":
+		if _, valid := val.(float64); !valid {
+			return invalidTypeError()
+		}
+	// All other types are considered valid not blocking validation.
 	default:
-		valid = true // all other types are considered valid not blocking validation
+		return nil
 	}
 
-	if !valid {
-		return fmt.Errorf("field %q's Go type, %T, does not match the expected field type: %s (field value: %v)", key, val, definition.Type, val)
-	}
 	return nil
 }
 
@@ -464,17 +475,20 @@ func (v *Validator) isAllowedIPValue(s string) bool {
 	return false
 }
 
-// ensureSingleElementValue extracts single entity from a potential array, which is a valid field representation
-// in Elasticsearch. For type assertion we need a single value.
-func ensureSingleElementValue(val interface{}) (interface{}, bool) {
+// forEachElementValue visits a function for each element in the given value if
+// it is an array. If it is not an array, it calls the function with it.
+func forEachElementValue(key string, definition FieldDefinition, val interface{}, fn func(string, FieldDefinition, interface{}) error) error {
 	arr, isArray := val.([]interface{})
 	if !isArray {
-		return val, true
+		return fn(key, definition, val)
 	}
-	if len(arr) > 0 {
-		return arr[0], true
+	for _, element := range arr {
+		err := fn(key, definition, element)
+		if err != nil {
+			return err
+		}
 	}
-	return nil, false // false: empty array, can't deduce single value type
+	return nil
 }
 
 // ensurePatternMatches validates the document's field value matches the field
