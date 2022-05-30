@@ -64,6 +64,7 @@ or the data stream's level:
 
 `<service deployer>` - a name of the supported service deployer:
 * `docker` - Docker Compose
+* `agent` - Custom `elastic-agent` with Docker Compose
 * `k8s` - Kubernetes
 * `tf` - Terraform
 
@@ -104,6 +105,58 @@ services:
 
 volumes:
   mysqldata:
+```
+
+### Agent service deployer
+
+When using the Agent service deployer, the `elastic-agent` provided by the stack
+will not be used. An agent will be deployed as a Docker compose service named `docker-custom-agent`
+which base configuration is provided [here](../../internal/install/_static/docker-custom-agent-base.yml).
+This configuration will be merged with the one provided in the `custom-agent.yml` file.
+This is useful if you need different capabilities than the provided by the
+`elastic-agent` used by the `elastic-package stack` command. 
+
+`custom-agent.yml`
+```
+version: '2.3'
+services:
+  docker-custom-agent:
+    pid: host
+    cap_add:
+      - AUDIT_CONTROL
+      - AUDIT_READ
+    user: root
+```
+
+This will result in an agent configuration such as:
+
+```
+version: '2.3'
+services:
+  docker-custom-agent:
+    hostname: docker-custom-agent
+    image: "docker.elastic.co/beats/elastic-agent-complete:8.2.0"
+    pid: host
+    cap_add:
+      - AUDIT_CONTROL
+      - AUDIT_READ
+    user: root
+    healthcheck:
+      test: "elastic-agent status"
+      retries: 180
+      interval: 1s
+    environment:
+      FLEET_ENROLL: "1"
+      FLEET_INSECURE: "1"
+      FLEET_URL: "http://fleet-server:8220"
+```
+
+And in the test config:
+
+```
+data_stream:
+  vars:
+  # ...
 ```
 
 
