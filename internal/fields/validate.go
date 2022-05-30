@@ -351,84 +351,97 @@ func compareKeys(key string, def FieldDefinition, searchedKey string) bool {
 	return false
 }
 
+// parseElementValue checks that the value stored in a field matches the field definition. For
+// arrays it checks it for each Element.
 func (v *Validator) parseElementValue(key string, definition FieldDefinition, val interface{}) error {
-	return forEachElementValue(val, func(val interface{}) error {
-		var valid bool
-		switch definition.Type {
-		case "constant_keyword":
-			var valStr string
-			valStr, valid = val.(string)
-			if !valid {
-				break
-			}
+	return forEachElementValue(key, definition, val, v.parseSingleElementValue)
+}
 
-			if err := ensureConstantKeywordValueMatches(key, valStr, definition.Value); err != nil {
-				return err
-			}
-			if err := ensurePatternMatches(key, valStr, definition.Pattern); err != nil {
-				return err
-			}
-		case "keyword", "text":
-			var valStr string
-			valStr, valid = val.(string)
-			if !valid {
-				break
-			}
+func (v *Validator) parseSingleElementValue(key string, definition FieldDefinition, val interface{}) error {
+	invalidTypeError := func() error {
+		return fmt.Errorf("field %q's Go type, %T, does not match the expected field type: %s (field value: %v)", key, val, definition.Type, val)
+	}
 
-			if err := ensurePatternMatches(key, valStr, definition.Pattern); err != nil {
-				return err
-			}
-		case "date":
-			switch val := val.(type) {
-			case string:
-				if err := ensurePatternMatches(key, val, definition.Pattern); err != nil {
-					return err
-				}
-				valid = true
-			case float64:
-				// date as seconds or milliseconds since epoch
-				if definition.Pattern != "" {
-					return fmt.Errorf("numeric date in field %q, but pattern defined", key)
-				}
-				valid = true
-			default:
-				valid = false
-			}
-		case "ip":
-			var valStr string
-			valStr, valid = val.(string)
-			if !valid {
-				break
-			}
-
-			if err := ensurePatternMatches(key, valStr, definition.Pattern); err != nil {
-				return err
-			}
-
-			if v.enabledAllowedIPCheck && !v.isAllowedIPValue(valStr) {
-				return fmt.Errorf("the IP %q is not one of the allowed test IPs (see: https://github.com/elastic/elastic-package/blob/main/internal/fields/_static/allowed_geo_ips.txt)", valStr)
-			}
-		case "group":
-			switch val.(type) {
-			case map[string]interface{}:
-				// TODO: This is probably an element from an array of objects,
-				// even if not recommended, it should be validated.
-				valid = true
-			default:
-				return fmt.Errorf("field %q is a group of fields, it cannot store values", key)
-			}
-		case "float", "long", "double":
-			_, valid = val.(float64)
-		default:
-			valid = true // all other types are considered valid not blocking validation
-		}
-
+	switch definition.Type {
+	// Constant keywords can define a value in the definition, if they do, all
+	// values stored in this field should be this one.
+	// If a pattern is provided, it checks if the value matches.
+	case "constant_keyword":
+		valStr, valid := val.(string)
 		if !valid {
-			return fmt.Errorf("field %q's Go type, %T, does not match the expected field type: %s (field value: %v)", key, val, definition.Type, val)
+			return invalidTypeError()
 		}
 
+		if err := ensureConstantKeywordValueMatches(key, valStr, definition.Value); err != nil {
+			return err
+		}
+		if err := ensurePatternMatches(key, valStr, definition.Pattern); err != nil {
+			return err
+		}
+	// Normal text fields should be of type string.
+	// If a pattern is provided, it checks if the value matches.
+	case "keyword", "text":
+		valStr, valid := val.(string)
+		if !valid {
+			return invalidTypeError()
+		}
+
+		if err := ensurePatternMatches(key, valStr, definition.Pattern); err != nil {
+			return err
+		}
+	// Dates are expected to be formatted as strings or as seconds or milliseconds
+	// since epoch.
+	// If it is a string and a pattern is provided, it checks if the value matches.
+	case "date":
+		switch val := val.(type) {
+		case string:
+			if err := ensurePatternMatches(key, val, definition.Pattern); err != nil {
+				return err
+			}
+		case float64:
+			// date as seconds or milliseconds since epoch
+			if definition.Pattern != "" {
+				return fmt.Errorf("numeric date in field %q, but pattern defined", key)
+			}
+		default:
+			return invalidTypeError()
+		}
+	// IP values should be actual IPs, included in the ranges of IPs available
+	// in the geoip test database.
+	// If a pattern is provided, it checks if the value matches.
+	case "ip":
+		valStr, valid := val.(string)
+		if !valid {
+			return invalidTypeError()
+		}
+
+		if err := ensurePatternMatches(key, valStr, definition.Pattern); err != nil {
+			return err
+		}
+
+		if v.enabledAllowedIPCheck && !v.isAllowedIPValue(valStr) {
+			return fmt.Errorf("the IP %q is not one of the allowed test IPs (see: https://github.com/elastic/elastic-package/blob/main/internal/fields/_static/allowed_geo_ips.txt)", valStr)
+		}
+	// Groups should only contain nested fields, not single values.
+	case "group":
+		switch val.(type) {
+		case map[string]interface{}:
+			// TODO: This is probably an element from an array of objects,
+			// even if not recommended, it should be validated.
+		default:
+			return fmt.Errorf("field %q is a group of fields, it cannot store values", key)
+		}
+	// Numbers should have been parsed as float64, otherwise they are not numbers.
+	case "float", "long", "double":
+		if _, valid := val.(float64); !valid {
+			return invalidTypeError()
+		}
+	// All other types are considered valid not blocking validation.
+	default:
 		return nil
-	})
+	}
+
+	return nil
 }
 
 // isAllowedIPValue checks if the provided IP is allowed for testing
@@ -464,13 +477,13 @@ func (v *Validator) isAllowedIPValue(s string) bool {
 
 // forEachElementValue visits a function for each element in the given value if
 // it is an array. If it is not an array, it calls the function with it.
-func forEachElementValue(val interface{}, fn func(interface{}) error) error {
+func forEachElementValue(key string, definition FieldDefinition, val interface{}, fn func(string, FieldDefinition, interface{}) error) error {
 	arr, isArray := val.([]interface{})
 	if !isArray {
-		return fn(val)
+		return fn(key, definition, val)
 	}
 	for _, element := range arr {
-		err := fn(element)
+		err := fn(key, definition, element)
 		if err != nil {
 			return err
 		}
