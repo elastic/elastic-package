@@ -33,8 +33,8 @@ func setupDumpCommand() *cobraext.Command {
 		Short: "Dump package assets",
 		Long:  dumpLongDescription,
 	}
-	cmd.PersistentFlags().StringP(cobraext.DumpPackageFlagName, "p", "", cobraext.DumpPackageFlagDescription)
-	cmd.MarkFlagRequired(cobraext.DumpPackageFlagName)
+	cmd.PersistentFlags().StringP(cobraext.PackageFlagName, cobraext.PackageFlagShorthand, "", cobraext.PackageFlagDescription)
+	cmd.MarkFlagRequired(cobraext.PackageFlagName)
 	cmd.PersistentFlags().StringP(cobraext.DumpOutputFlagName, "o", "package-dump", cobraext.DumpOutputFlagDescription)
 
 	cmd.AddCommand(dumpInstalledObjectsCmd)
@@ -43,9 +43,9 @@ func setupDumpCommand() *cobraext.Command {
 }
 
 func dumpInstalledObjectsCmd(cmd *cobra.Command, args []string) error {
-	packageName, err := cmd.Flags().GetString(cobraext.DumpPackageFlagName)
+	packageName, err := cmd.Flags().GetString(cobraext.PackageFlagName)
 	if err != nil {
-		return cobraext.FlagParsingError(err, cobraext.DumpPackageFlagName)
+		return cobraext.FlagParsingError(err, cobraext.PackageFlagName)
 	}
 
 	outputPath, err := cmd.Flags().GetString(cobraext.DumpOutputFlagName)

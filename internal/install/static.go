@@ -29,3 +29,6 @@ var geoIpCountryMmdb string
 
 //go:embed _static/service_tokens
 var serviceTokens string
+
+//go:embed _static/docker-custom-agent-base.yml
+var dockerCustomAgentBaseYml string
