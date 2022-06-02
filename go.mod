@@ -2,9 +2,6 @@ module github.com/elastic/elastic-package
 
 go 1.17
 
-// Temporary replacement to use package-spec
-replace github.com/elastic/package-spec => github.com/mtojek/package-spec v0.0.0-20220505082209-9ff9d18ae1c3
-
 require (
 	github.com/AlecAivazis/survey/v2 v2.3.4
 	github.com/Masterminds/semver v1.5.0
