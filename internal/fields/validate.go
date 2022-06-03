@@ -9,6 +9,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"github.com/elastic/elastic-package/internal/packages"
 	"net"
 	"os"
 	"path/filepath"
@@ -78,8 +79,18 @@ func WithEnabledAllowedIPCheck() ValidatorOption {
 	}
 }
 
+// CreateValidatorForPackage function creates a validator for the package.
+func CreateValidatorForPackage(packageRootPath string, opts ...ValidatorOption) (v *Validator, err error) {
+	return createValidatorForDirectory(packageRootPath, opts...)
+}
+
 // CreateValidatorForDataStream function creates a validator for the data stream.
 func CreateValidatorForDataStream(dataStreamRootPath string, opts ...ValidatorOption) (v *Validator, err error) {
+	return createValidatorForDirectory(dataStreamRootPath, opts...)
+}
+
+// CreateValidatorForDirectory function creates a validator for the directory.
+func createValidatorForDirectory(fieldsParentDir string, opts ...ValidatorOption) (v *Validator, err error) {
 	v = new(Validator)
 	for _, opt := range opts {
 		if err := opt(v); err != nil {
@@ -89,16 +100,25 @@ func CreateValidatorForDataStream(dataStreamRootPath string, opts ...ValidatorOp
 
 	v.allowedCIDRs = initializeAllowedCIDRsList()
 
-	v.Schema, err = loadFieldsForDataStream(dataStreamRootPath)
+	fieldsDir := filepath.Join(fieldsParentDir, "fields")
+	v.Schema, err = loadFieldsFromDir(fieldsDir)
 	if err != nil {
-		return nil, errors.Wrapf(err, "can't load fields for data stream (path: %s)", dataStreamRootPath)
+		return nil, errors.Wrapf(err, "can't load fields for data stream (path: %s)", fieldsParentDir)
 	}
 
 	if v.disabledDependencyManagement {
 		return v, nil
 	}
 
-	packageRoot := filepath.Dir(filepath.Dir(dataStreamRootPath))
+	packageRoot, found, err := packages.FindPackageRoot()
+	if err != nil {
+		return nil, errors.Wrap(err, "can't find package root")
+	}
+	if !found {
+		v.disabledDependencyManagement = true
+		return v, nil
+	}
+
 	bm, ok, err := buildmanifest.ReadBuildManifest(packageRoot)
 	if err != nil {
 		return nil, errors.Wrap(err, "can't read build manifest")
@@ -132,8 +152,7 @@ func initializeAllowedCIDRsList() (cidrs []*net.IPNet) {
 	return cidrs
 }
 
-func loadFieldsForDataStream(dataStreamRootPath string) ([]FieldDefinition, error) {
-	fieldsDir := filepath.Join(dataStreamRootPath, "fields")
+func loadFieldsFromDir(fieldsDir string) ([]FieldDefinition, error) {
 	files, err := filepath.Glob(filepath.Join(fieldsDir, "*.yml"))
 	if err != nil {
 		return nil, errors.Wrapf(err, "reading directory with fields failed (path: %s)", fieldsDir)
