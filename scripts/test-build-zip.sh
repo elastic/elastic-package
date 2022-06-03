@@ -38,7 +38,7 @@ done
 cd -
 
 # Remove unzipped built packages, leave .zip files
-rm -r build/integrations/*/
+rm -r build/packages/*/
 
 # Boot up the stack
 eval "$(elastic-package stack shellinit)"

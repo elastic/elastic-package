@@ -60,14 +60,14 @@ pipeline {
             }
           }
         }
-        stash(allowEmpty: true, name: 'build-package', includes: "${BASE_DIR}/build/integrations/*.zip", useDefaultExcludes: false)
+        stash(allowEmpty: true, name: 'build-package', includes: "${BASE_DIR}/build/packages/*.zip", useDefaultExcludes: false)
       }
     }
     stage('Sign and publish package') {
       steps {
         cleanup(source: 'build-package')
         dir("${BASE_DIR}") {
-          packageStoragePublish('build/integrations')
+          packageStoragePublish('build/packages')
         }
       }
     }
