@@ -89,7 +89,7 @@ func (r runner) verifySampleEvent() []testrunner.TestResult {
 		return results
 	}
 
-	fieldsValidator, err := fields.CreateValidatorForDataStream(
+	fieldsValidator, err := fields.CreateValidatorForDirectory(
 		dataStreamPath,
 		fields.WithDefaultNumericConversion())
 	if err != nil {

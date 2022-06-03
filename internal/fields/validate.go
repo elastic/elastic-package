@@ -9,7 +9,6 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
-	"github.com/elastic/elastic-package/internal/packages"
 	"net"
 	"os"
 	"path/filepath"
@@ -21,6 +20,7 @@ import (
 
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/multierror"
+	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/packages/buildmanifest"
 )
 
@@ -40,7 +40,7 @@ type Validator struct {
 	allowedCIDRs          []*net.IPNet
 }
 
-// ValidatorOption represents an optional flag that can be passed to  CreateValidatorForDataStream.
+// ValidatorOption represents an optional flag that can be passed to  CreateValidatorForDirectory.
 type ValidatorOption func(*Validator) error
 
 // WithDefaultNumericConversion configures the validator to accept defined keyword (or constant_keyword) fields as numeric-type.
@@ -79,18 +79,8 @@ func WithEnabledAllowedIPCheck() ValidatorOption {
 	}
 }
 
-// CreateValidatorForPackage function creates a validator for the package.
-func CreateValidatorForPackage(packageRootPath string, opts ...ValidatorOption) (v *Validator, err error) {
-	return createValidatorForDirectory(packageRootPath, opts...)
-}
-
-// CreateValidatorForDataStream function creates a validator for the data stream.
-func CreateValidatorForDataStream(dataStreamRootPath string, opts ...ValidatorOption) (v *Validator, err error) {
-	return createValidatorForDirectory(dataStreamRootPath, opts...)
-}
-
 // CreateValidatorForDirectory function creates a validator for the directory.
-func createValidatorForDirectory(fieldsParentDir string, opts ...ValidatorOption) (v *Validator, err error) {
+func CreateValidatorForDirectory(fieldsParentDir string, opts ...ValidatorOption) (v *Validator, err error) {
 	v = new(Validator)
 	for _, opt := range opts {
 		if err := opt(v); err != nil {

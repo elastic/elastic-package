@@ -170,9 +170,10 @@ func renderReadme(fileName, packageRoot, templatePath string) ([]byte, error) {
 		},
 		"fields": func(args ...string) (string, error) {
 			if len(args) > 0 {
-				return renderExportedFields(packageRoot, args[0])
+				dataStreamPath := filepath.Join(packageRoot, "data_stream", args[0])
+				return renderExportedFields(dataStreamPath)
 			}
-			return renderExportedFields(packageRoot, "")
+			return renderExportedFields(packageRoot)
 		},
 	}).ParseFiles(templatePath)
 	if err != nil {
