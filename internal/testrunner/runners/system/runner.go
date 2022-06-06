@@ -95,7 +95,7 @@ func (r *runner) TearDown() error {
 func (r *runner) tearDownTest() error {
 	if r.options.DeferCleanup > 0 {
 		logger.Debugf("waiting for %s before tearing down...", r.options.DeferCleanup)
-		time.Sleep(r.options.DeferCleanup)
+		signal.Sleep(r.options.DeferCleanup)
 	}
 
 	if r.resetAgentPolicyHandler != nil {
@@ -437,7 +437,6 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 		docs, err = r.getDocs(dataStream)
 		return len(docs) > 0, err
 	}, waitForDataTimeout)
-
 	if err != nil {
 		return result.WithError(err)
 	}
