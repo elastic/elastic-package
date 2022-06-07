@@ -21,6 +21,7 @@ import (
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/multierror"
 	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/internal/signal"
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
 
@@ -58,7 +59,7 @@ func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, e
 func (r *runner) TearDown() error {
 	if r.options.DeferCleanup > 0 {
 		logger.Debugf("Waiting for %s before cleanup...", r.options.DeferCleanup)
-		time.Sleep(r.options.DeferCleanup)
+		signal.Sleep(r.options.DeferCleanup)
 	}
 
 	err := uninstallIngestPipelines(r.options.API, r.pipelines)
