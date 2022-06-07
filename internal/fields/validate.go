@@ -19,6 +19,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/common"
+	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/multierror"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/packages/buildmanifest"
@@ -107,6 +108,7 @@ func CreateValidatorForDirectory(fieldsParentDir string, opts ...ValidatorOption
 	// As every command starts with approximating where is the package root, it isn't required to return an error in case the root is missing.
 	// This is also useful for testing purposes, where we don't have a real package, but just "fields" directory. The package root is always absent.
 	if !found {
+		logger.Debug("Package root not found, dependency management will be disabled.")
 		v.disabledDependencyManagement = true
 		return v, nil
 	}
