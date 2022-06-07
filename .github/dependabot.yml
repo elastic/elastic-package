@@ -8,5 +8,5 @@ updates:
     labels:
       - automation
     reviewers:
-      - "elastic/integrations-developer-experience"
+      - "elastic/ecosystem"
     open-pull-requests-limit: 10

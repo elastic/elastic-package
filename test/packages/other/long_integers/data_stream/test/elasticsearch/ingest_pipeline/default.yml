@@ -1,0 +1,16 @@
+---
+description: Pipeline for processing sample logs
+processors:
+- split:
+    field: message
+    separator: ","
+    target_field: sequence_number
+    ignore_missing: true
+- convert:
+    field: sequence_number
+    type: long
+
+on_failure:
+- set:
+    field: error.message
+    value: '{{ _ingest.on_failure_message }}'

@@ -3,36 +3,27 @@
 @Library('apm@current') _
 
 pipeline {
-  agent { label 'ubuntu-18 && immutable' }
+  agent { label 'ubuntu-20 && immutable' }
   environment {
+    BRANCH_NAME_LOWER_CASE = "${env.BRANCH_NAME.toLowerCase().replaceAll('[^a-z0-9-]', '-')}"
+    CREATED_DATE = "${new Date().getTime()}"
+    ENVIRONMENT = "ci"
     REPO = "elastic-package"
-
     BASE_DIR="src/github.com/elastic/elastic-package"
     JOB_GIT_CREDENTIALS = "f6c7695a-671e-4f4f-a331-acdce44ff9ba"
     GITHUB_TOKEN_CREDENTIALS = "2a9602aa-ab9f-4e52-baf3-b71ca88469c7"
     PIPELINE_LOG_LEVEL='INFO'
     AWS_ACCOUNT_SECRET = 'secret/observability-team/ci/elastic-observability-aws-account-auth'
     HOME = "${env.WORKSPACE}"
-    KIND_VERSION = 'v0.11.1'
-    K8S_VERSION = 'v1.23.0'
+    KIND_VERSION = 'v0.14.0'
+    K8S_VERSION = 'v1.24.0'
+
     JOB_GCS_BUCKET = 'beats-ci-temp'
     JOB_GCS_BUCKET_INTERNAL = 'beats-ci-temp-internal'
     JOB_GCS_CREDENTIALS = 'beats-ci-gcs-plugin'
     JOB_GCS_EXT_CREDENTIALS = 'beats-ci-gcs-plugin-file-credentials'
-    JOB_SIGNING_CREDENTIALS = 'sign-artifacts-with-gpg-job'
-    INTERNAL_CI_JOB_GCS_CREDENTIALS = 'internal-ci-gcs-plugin'
-
-    REPO_BUILD_TAG = "${env.REPO}/${env.BUILD_TAG}"
-    INFRA_SIGNING_BUCKET_NAME = 'internal-ci-artifacts'
-    INFRA_SIGNING_BUCKET_SIGNED_ARTIFACTS_SUBFOLDER = "${env.REPO_BUILD_TAG}/signed-artifacts"
-    INFRA_SIGNING_BUCKET_ARTIFACTS_PATH = "gs://${env.INFRA_SIGNING_BUCKET_NAME}/${env.REPO_BUILD_TAG}"
-    INFRA_SIGNING_BUCKET_SIGNED_ARTIFACTS_PATH = "gs://${env.INFRA_SIGNING_BUCKET_NAME}/${env.INFRA_SIGNING_BUCKET_SIGNED_ARTIFACTS_SUBFOLDER}"
-
-    INTEGRATIONS_SIGNATURES_PATH = 'build/integrations-elastic-signatures' // different path not to override signatures archived in the "build-zip" step
-
-    PACKAGE_STORAGE_UPLOADER_CREDENTIALS = 'upload-package-to-package-storage'
-    PACKAGE_STORAGE_UPLOADER_GCP_SERVICE_ACCOUNT = 'secret/gce/elastic-bekitzur/service-account/package-storage-uploader'
-    PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH = "gs://elastic-bekitzur-package-storage-internal/queue-publishing/${env.REPO_BUILD_TAG}"
+    ELASTIC_PACKAGE_GCP_SECRET = 'secret/observability-team/ci/service-account/elastic-package-gcp'
+    ELASTIC_OBSERVABILITY_PROJECT_ID = 'elastic-observability'
   }
   options {
     timeout(time: 1, unit: 'HOURS')
@@ -112,9 +103,9 @@ pipeline {
                     'stack-command-8x': generateTestCommandStage(command: 'test-stack-command-8x', artifacts: ['build/elastic-stack-dump/stack/*/logs/*.log', 'build/elastic-stack-dump/stack/*/logs/fleet-server-internal/*']),
                     'check-packages-with-kind': generateTestCommandStage(command: 'test-check-packages-with-kind', artifacts: ['build/test-results/*.xml', 'build/kubectl-dump.txt', 'build/elastic-stack-dump/check-*/logs/*.log', 'build/elastic-stack-dump/check-*/logs/fleet-server-internal/*'], junitArtifacts: true, publishCoverage: true),
                     'check-packages-other': generateTestCommandStage(command: 'test-check-packages-other', artifacts: ['build/test-results/*.xml', 'build/elastic-stack-dump/check-*/logs/*.log', 'build/elastic-stack-dump/check-*/logs/fleet-server-internal/*'], junitArtifacts: true, publishCoverage: true),
-                    'build-zip': generateTestCommandStage(command: 'test-build-zip', artifacts: ['build/elastic-stack-dump/build-zip/logs/*.log', 'build/integrations/*.sig']),
-                    'profiles-command': generateTestCommandStage(command: 'test-profiles-command'),
-                    'publish-to-package-storage': generateTestPublishToPackageStorageStage()
+                    'check-packages-with-custom-agent': generateTestCommandStage(command: 'test-check-packages-with-custom-agent', artifacts: ['build/test-results/*.xml', 'build/elastic-stack-dump/check-*/logs/*.log', 'build/elastic-stack-dump/check-*/logs/fleet-server-internal/*'], junitArtifacts: true, publishCoverage: true),
+                    'build-zip': generateTestCommandStage(command: 'test-build-zip', artifacts: ['build/elastic-stack-dump/build-zip/logs/*.log', 'build/packages/*.sig']),
+                    'profiles-command': generateTestCommandStage(command: 'test-profiles-command')
                   ]
 
                   def checkSinglePackageTasks = generateTestCheckSinglePackageStage()
@@ -133,6 +124,8 @@ pipeline {
             dir("${BASE_DIR}"){
               withMageEnv(){
                 withCredentials([string(credentialsId: "${GITHUB_TOKEN_CREDENTIALS}", variable: 'GITHUB_TOKEN')]) {
+                  // Ensure that tags are present so goreleaser can build the changelog from the last release.
+                  gitCmd(cmd: 'fetch', args: '--unshallow --tags')
                   sh 'curl -sL https://git.io/goreleaser | bash'
                 }
               }
@@ -157,66 +150,6 @@ def cleanup(){
     deleteDir()
   }
   unstash 'source'
-}
-
-def generateTestPublishToPackageStorageStage() {
-  return {
-    withNode(labels: "ubuntu-20 && immutable", sleepMax: 20, forceWorkspace: true) {
-      cleanup()
-      dir("${BASE_DIR}"){
-        withMageEnv(){
-          sh(label: 'Install elastic-package',script: "make install")
-          dir("test/packages/package-storage/package_storage_candidate") {
-            sh(label: 'Lint package',script: "elastic-package lint")
-            sh(label: 'Build zipped package',script: "elastic-package build --zip")
-          }
-          signArtifactsWithElastic('build/integrations', env.INTEGRATIONS_SIGNATURES_PATH)
-
-          // Add the package candidate to the "queue-publishing"
-          withGCPEnv(secret: env.PACKAGE_STORAGE_UPLOADER_GCP_SERVICE_ACCOUNT) {
-            sh(label: 'Upload package .zip file', script: "gsutil cp ${env.INTEGRATIONS_SIGNATURES_PATH}/package_storage_candidate-0.0.1.zip ${env.PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH}/")
-            sh(label: 'Upload package .sig file', script: "gsutil cp ${env.INTEGRATIONS_SIGNATURES_PATH}/package_storage_candidate-0.0.1.zip.sig ${env.PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH}/")
-          }
-
-          // Call the publishing job
-          withCredentials([string(credentialsId: env.PACKAGE_STORAGE_UPLOADER_CREDENTIALS, variable: 'TOKEN')]) {
-            triggerRemoteJob(auth: CredentialsAuth(credentials: 'local-readonly-api-token'),
-              job: 'https://internal-ci.elastic.co/job/package_storage/job/publishing-job-remote',
-              token: TOKEN,
-              parameters: """
-                dry_run=true
-                gs_package_build_zip_path=${env.PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH}/package_storage_candidate-0.0.1.zip
-                gs_package_signature_path=${env.PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH}/package_storage_candidate-0.0.1.zip.sig
-                """,
-              useCrumbCache: false,
-              useJobInfoCache: false)
-          }
-        }
-      }
-    }
-  }
-}
-
-def signArtifactsWithElastic(artifactsSourcePath, signaturesDestinationPath) {
-  googleStorageUpload(bucket: env.INFRA_SIGNING_BUCKET_ARTIFACTS_PATH,
-    credentialsId: env.INTERNAL_CI_JOB_GCS_CREDENTIALS,
-    pathPrefix: artifactsSourcePath + '/',
-    pattern: artifactsSourcePath + '/*.zip',
-    sharedPublicly: false,
-    showInline: true)
-  withCredentials([string(credentialsId: env.JOB_SIGNING_CREDENTIALS, variable: 'TOKEN')]) {
-    triggerRemoteJob(auth: CredentialsAuth(credentials: 'local-readonly-api-token'),
-      job: 'https://internal-ci.elastic.co/job/elastic+unified-release+master+sign-artifacts-with-gpg',
-      token: TOKEN,
-      parameters: "gcs_input_path=${env.INFRA_SIGNING_BUCKET_ARTIFACTS_PATH}",
-      useCrumbCache: false,
-      useJobInfoCache: false)
-  }
-  googleStorageDownload(bucketUri: "${env.INFRA_SIGNING_BUCKET_SIGNED_ARTIFACTS_PATH}/*",
-    credentialsId: env.INTERNAL_CI_JOB_GCS_CREDENTIALS,
-    localDirectory: signaturesDestinationPath + '/',
-    pathPrefix: "${env.INFRA_SIGNING_BUCKET_SIGNED_ARTIFACTS_SUBFOLDER}")
-    sh(label: 'Rename .asc to .sig', script: 'for f in ' + signaturesDestinationPath + '/*.asc; do mv "$f" "${f%.asc}.sig"; done')
 }
 
 def generateTestCheckSinglePackageStage(Map args = [:]) {
@@ -346,20 +279,17 @@ def withKubernetes(Closure body) {
 
 def withCloudTestEnv(Closure body) {
   def maskedVars = []
-  // AWS
-  def aws = getVaultSecret(secret: "${AWS_ACCOUNT_SECRET}").data
-  if (!aws.containsKey('access_key')) {
-    error("${AWS_ACCOUNT_SECRET} doesn't contain 'access_key'")
+  // GCP
+  withGCPEnv(secret: env.ELASTIC_PACKAGE_GCP_SECRET) {
+    maskedVars.add([var: 'GOOGLE_CREDENTIALS', password: readFile(file: env.GOOGLE_APPLICATION_CREDENTIALS)]);
+    maskedVars.add([var: 'GCP_PROJECT_ID', password: env.ELASTIC_OBSERVABILITY_PROJECT_ID])
   }
-  if (!aws.containsKey('secret_key')) {
-    error("${AWS_ACCOUNT_SECRET} doesn't contain 'secret_key'")
-  }
-  maskedVars.addAll([
-    [var: "AWS_ACCESS_KEY_ID", password: aws.access_key],
-    [var: "AWS_SECRET_ACCESS_KEY", password: aws.secret_key],
-  ])
+  // Masking
   withEnvMask(vars: maskedVars) {
-    body()
+    withSecretVault(secret: "${AWS_ACCOUNT_SECRET}",
+                    data: ['access_key': 'AWS_ACCESS_KEY_ID', 'secret_key': 'AWS_SECRET_ACCESS_KEY']) {
+      body()
+    }
   }
 }
 

@@ -9,14 +9,16 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/pkg/errors"
+
+	"github.com/elastic/package-spec/code/go/pkg/validator"
+
 	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
-
-	"github.com/pkg/errors"
 )
 
-const buildIntegrationsFolder = "integrations"
+const builtPackagesFolder = "packages"
 
 type BuildOptions struct {
 	PackageRoot string
@@ -101,7 +103,7 @@ func buildPackagesRootDirectory() (string, error) {
 		return "", errors.Wrap(err, "can't locate build directory")
 	}
 	if !found {
-		buildDir, err = createBuildDirectory(buildIntegrationsFolder) // TODO add support for other package types
+		buildDir, err = createBuildDirectory(builtPackagesFolder)
 		if err != nil {
 			return "", errors.Wrap(err, "can't create new build directory")
 		}
@@ -117,7 +119,7 @@ func FindBuildPackagesDirectory() (string, bool, error) {
 	}
 
 	if found {
-		path := filepath.Join(buildDir, buildIntegrationsFolder) // TODO add support for other package types
+		path := filepath.Join(buildDir, builtPackagesFolder)
 		fileInfo, err := os.Stat(path)
 		if errors.Is(err, os.ErrNotExist) {
 			return "", false, nil
@@ -166,10 +168,18 @@ func BuildPackage(options BuildOptions) (string, error) {
 		return "", errors.Wrap(err, "resolving external fields failed")
 	}
 
-	if !options.CreateZip {
-		return destinationDir, nil
+	if options.CreateZip {
+		return buildZippedPackage(options, destinationDir)
 	}
 
+	err = validator.ValidateFromPath(destinationDir)
+	if err != nil {
+		return "", errors.Wrap(err, "invalid content found in built package")
+	}
+	return destinationDir, nil
+}
+
+func buildZippedPackage(options BuildOptions, destinationDir string) (string, error) {
 	logger.Debug("Build zipped package")
 	zippedPackagePath, err := buildPackagesZipPath(options.PackageRoot)
 	if err != nil {
@@ -181,14 +191,26 @@ func BuildPackage(options BuildOptions) (string, error) {
 		return "", errors.Wrapf(err, "can't compress the built package (compressed file path: %s)", zippedPackagePath)
 	}
 
-	if !options.SignPackage {
-		return zippedPackagePath, nil
+	err = validator.ValidateFromZip(zippedPackagePath)
+	if err != nil {
+		return "", errors.Wrapf(err, "invalid content found in built zip package")
 	}
 
+	if options.SignPackage {
+		err := signZippedPackage(options, zippedPackagePath)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	return zippedPackagePath, nil
+}
+
+func signZippedPackage(options BuildOptions, zippedPackagePath string) error {
 	logger.Debug("Sign the package")
 	m, err := packages.ReadPackageManifestFromPackageRoot(options.PackageRoot)
 	if err != nil {
-		return "", errors.Wrapf(err, "reading package manifest failed (path: %s)", options.PackageRoot)
+		return errors.Wrapf(err, "reading package manifest failed (path: %s)", options.PackageRoot)
 	}
 
 	err = files.Sign(zippedPackagePath, files.SignOptions{
@@ -196,9 +218,9 @@ func BuildPackage(options BuildOptions) (string, error) {
 		PackageVersion: m.Version,
 	})
 	if err != nil {
-		return "", errors.Wrapf(err, "can't sign the zipped package (path: %s)", zippedPackagePath)
+		return errors.Wrapf(err, "can't sign the zipped package (path: %s)", zippedPackagePath)
 	}
-	return zippedPackagePath, nil
+	return nil
 }
 
 func createBuildDirectory(dirs ...string) (string, error) {

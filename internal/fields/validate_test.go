@@ -9,6 +9,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -97,7 +98,7 @@ func Test_parseElementValue(t *testing.T) {
 		definition FieldDefinition
 		fail       bool
 	}{
-		// Arrays (only first value checked)
+		// Arrays
 		{
 			key:   "string array to keyword",
 			value: []interface{}{"hello", "world"},
@@ -108,6 +109,14 @@ func Test_parseElementValue(t *testing.T) {
 		{
 			key:   "numeric string array to long",
 			value: []interface{}{"123", "42"},
+			definition: FieldDefinition{
+				Type: "long",
+			},
+			fail: true,
+		},
+		{
+			key:   "mixed numbers and strings in number array",
+			value: []interface{}{123, "hi"},
 			definition: FieldDefinition{
 				Type: "long",
 			},
@@ -151,6 +160,22 @@ func Test_parseElementValue(t *testing.T) {
 			},
 		},
 		{
+			key:   "date as milliseconds",
+			value: float64(1420070400001),
+			definition: FieldDefinition{
+				Type: "date",
+			},
+		},
+		{
+			key:   "date as milisecond with pattern",
+			value: float64(1420070400001),
+			definition: FieldDefinition{
+				Type:    "date",
+				Pattern: "^[0-9]{4}(-[0-9]{2}){2}[T ][0-9]{2}(:[0-9]{2}){2}Z$",
+			},
+			fail: true,
+		},
+		{
 			key:   "bad date",
 			value: "10 Oct 2020 3:42PM",
 			definition: FieldDefinition{
@@ -174,6 +199,70 @@ func Test_parseElementValue(t *testing.T) {
 			definition: FieldDefinition{
 				Type:    "ip",
 				Pattern: "^[0-9.]+$",
+			},
+			fail: true,
+		},
+		{
+			key:   "ip in allowed list",
+			value: "1.128.3.4",
+			definition: FieldDefinition{
+				Type: "ip",
+			},
+		},
+		{
+			key:   "ipv6 in allowed list",
+			value: "2a02:cf40:add:4002:91f2:a9b2:e09a:6fc6",
+			definition: FieldDefinition{
+				Type: "ip",
+			},
+		},
+		{
+			key:   "unspecified ipv6",
+			value: "::",
+			definition: FieldDefinition{
+				Type: "ip",
+			},
+		},
+		{
+			key:   "unspecified ipv4",
+			value: "0.0.0.0",
+			definition: FieldDefinition{
+				Type: "ip",
+			},
+		},
+		{
+			key:   "ipv4 broadcast address",
+			value: "255.255.255.255",
+			definition: FieldDefinition{
+				Type: "ip",
+			},
+		},
+		{
+			key:   "ipv6 min multicast",
+			value: "ff00::",
+			definition: FieldDefinition{
+				Type: "ip",
+			},
+		},
+		{
+			key:   "ipv6 max multicast",
+			value: "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff",
+			definition: FieldDefinition{
+				Type: "ip",
+			},
+		},
+		{
+			key:   "abbreviated ipv6 in allowed list with leading 0",
+			value: "2a02:cf40:0add:0::1",
+			definition: FieldDefinition{
+				Type: "ip",
+			},
+		},
+		{
+			key:   "ip not in geoip database",
+			value: "8.8.8.8",
+			definition: FieldDefinition{
+				Type: "ip",
 			},
 			fail: true,
 		},
@@ -211,8 +300,50 @@ func Test_parseElementValue(t *testing.T) {
 			},
 			fail: true,
 		},
+		// fields shouldn't be stored in groups
+		{
+			key:   "host",
+			value: "42",
+			definition: FieldDefinition{
+				Type: "group",
+			},
+			fail: true,
+		},
+		// arrays of objects can be stored in groups, even if not recommended
+		{
+			key: "host",
+			value: []interface{}{
+				map[string]interface{}{
+					"id":       "somehost-id",
+					"hostname": "somehost",
+				},
+				map[string]interface{}{
+					"id":       "otherhost-id",
+					"hostname": "otherhost",
+				},
+			},
+			definition: FieldDefinition{
+				Name: "host",
+				Type: "group",
+				Fields: []FieldDefinition{
+					{
+						Name: "id",
+						Type: "keyword",
+					},
+					{
+						Name: "hostname",
+						Type: "keyword",
+					},
+				},
+			},
+		},
 	} {
-		v := Validator{disabledDependencyManagement: true}
+		v := Validator{
+			disabledDependencyManagement: true,
+			enabledAllowedIPCheck:        true,
+			allowedCIDRs:                 initializeAllowedCIDRsList(),
+		}
+
 		t.Run(test.key, func(t *testing.T) {
 			err := v.parseElementValue(test.key, test.definition, test.value)
 			if test.fail {
@@ -220,6 +351,126 @@ func Test_parseElementValue(t *testing.T) {
 			} else {
 				require.NoError(t, err)
 			}
+		})
+	}
+}
+
+func TestCompareKeys(t *testing.T) {
+	cases := []struct {
+		key         string
+		def         FieldDefinition
+		searchedKey string
+		expected    bool
+	}{
+		{
+			key:         "example.foo",
+			searchedKey: "example.foo",
+			expected:    true,
+		},
+		{
+			key:         "example.bar",
+			searchedKey: "example.foo",
+			expected:    false,
+		},
+		{
+			key:         "example.foo",
+			searchedKey: "example.foos",
+			expected:    false,
+		},
+		{
+			key:         "example.foo",
+			searchedKey: "example.fo",
+			expected:    false,
+		},
+		{
+			key:         "example.*",
+			searchedKey: "example.foo",
+			expected:    true,
+		},
+		{
+			key:         "example.foo",
+			searchedKey: "example.*",
+			expected:    false,
+		},
+		{
+			key:         "example.*",
+			searchedKey: "example.",
+			expected:    false,
+		},
+		{
+			key:         "example.*.foo",
+			searchedKey: "example.group.foo",
+			expected:    true,
+		},
+		{
+			key:         "example.*.*",
+			searchedKey: "example.group.foo",
+			expected:    true,
+		},
+		{
+			key:         "example.*.*",
+			searchedKey: "example..foo",
+			expected:    false,
+		},
+		{
+			key:         "example.*",
+			searchedKey: "example.group.foo",
+			expected:    false,
+		},
+		{
+			key:         "example.geo",
+			def:         FieldDefinition{Type: "geo_point"},
+			searchedKey: "example.geo.lat",
+			expected:    true,
+		},
+		{
+			key:         "example.geo",
+			def:         FieldDefinition{Type: "geo_point"},
+			searchedKey: "example.geo.lon",
+			expected:    true,
+		},
+		{
+			key:         "example.geo",
+			def:         FieldDefinition{Type: "geo_point"},
+			searchedKey: "example.geo.foo",
+			expected:    false,
+		},
+		{
+			key:         "example.ecs.geo",
+			def:         FieldDefinition{External: "ecs"},
+			searchedKey: "example.ecs.geo.lat",
+			expected:    true,
+		},
+		{
+			key:         "example.ecs.geo",
+			def:         FieldDefinition{External: "ecs"},
+			searchedKey: "example.ecs.geo.lon",
+			expected:    true,
+		},
+		{
+			key:         "example.*",
+			def:         FieldDefinition{Type: "geo_point"},
+			searchedKey: "example.geo.lon",
+			expected:    true,
+		},
+		{
+			key:         "example.*",
+			def:         FieldDefinition{External: "ecs"},
+			searchedKey: "example.geo.lat",
+			expected:    true,
+		},
+		{
+			key:         "example.*",
+			def:         FieldDefinition{Type: "geo_point"},
+			searchedKey: "example.geo.foo",
+			expected:    false,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.key+" matches "+c.searchedKey, func(t *testing.T) {
+			found := compareKeys(c.key, c.def, c.searchedKey)
+			assert.Equal(t, c.expected, found)
 		})
 	}
 }

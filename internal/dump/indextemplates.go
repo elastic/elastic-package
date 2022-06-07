@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io/ioutil"
 
+	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 )
 
@@ -97,7 +98,7 @@ func getIndexTemplatesForPackage(ctx context.Context, api *elasticsearch.API, pa
 		indexTemplate.raw = indexTemplateRaw
 
 		meta := indexTemplate.IndexTemplate.Meta
-		if meta.Package.Name != packageName || meta.ManagedBy != "ingest-manager" {
+		if meta.Package.Name != packageName || !managedByFleet(meta.ManagedBy) {
 			// This is not the droid you are looking for.
 			continue
 		}
@@ -106,4 +107,9 @@ func getIndexTemplatesForPackage(ctx context.Context, api *elasticsearch.API, pa
 	}
 
 	return indexTemplates, nil
+}
+
+func managedByFleet(managedBy string) bool {
+	var managers = []string{"ingest-manager", "fleet"}
+	return common.StringSliceContains(managers, managedBy)
 }

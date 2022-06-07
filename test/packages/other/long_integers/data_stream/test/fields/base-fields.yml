@@ -1,0 +1,22 @@
+- name: data_stream.type
+  type: constant_keyword
+  description: Data stream type.
+- name: data_stream.dataset
+  type: constant_keyword
+  description: Data stream dataset.
+- name: data_stream.namespace
+  type: constant_keyword
+  description: Data stream namespace.
+- name: '@timestamp'
+  type: date
+  description: Event timestamp.
+- name: '@warning'
+  type: keyword
+  description: Warning for devs.
+- name: message
+  type: keyword
+  description: Original input.
+- name: sequence_number
+  type: long
+  description: |
+    Log entry identifier that is incremented sequentially. Unique for each log type.

@@ -54,6 +54,20 @@ type portMapping struct {
 	Protocol     string
 }
 
+type intOrStringYaml int
+
+func (p *intOrStringYaml) UnmarshalYAML(node *yaml.Node) error {
+	var s string
+	err := node.Decode(&s)
+	if err == nil {
+		i, err := strconv.Atoi(s)
+		*p = intOrStringYaml(i)
+		return err
+	}
+
+	return node.Decode(p)
+}
+
 // UnmarshalYAML unmarshals a Docker Compose port mapping in YAML to
 // a portMapping.
 func (p *portMapping) UnmarshalYAML(node *yaml.Node) error {
@@ -67,9 +81,9 @@ func (p *portMapping) UnmarshalYAML(node *yaml.Node) error {
 		}
 
 		var s struct {
-			HostIP    string `yaml:"host_ip"`
-			Target    int
-			Published int
+			HostIP    string          `yaml:"host_ip"`
+			Target    intOrStringYaml // Docker compose v2 can define ports as strings.
+			Published intOrStringYaml // Docker compose v2 can define ports as strings.
 			Protocol  string
 		}
 
@@ -77,8 +91,8 @@ func (p *portMapping) UnmarshalYAML(node *yaml.Node) error {
 			return errors.Wrap(err, "could not unmarshal YAML map node")
 		}
 
-		p.InternalPort = s.Target
-		p.ExternalPort = s.Published
+		p.InternalPort = int(s.Target)
+		p.ExternalPort = int(s.Published)
 		p.Protocol = s.Protocol
 		p.ExternalIP = s.HostIP
 		return nil
@@ -285,7 +299,7 @@ func (p *Project) WaitForHealthy(opts CommandOptions) error {
 	startTime := time.Now()
 	timeout := startTime.Add(waitForHealthyTimeout)
 
-	containerIDs := strings.Split(strings.TrimSpace(b.String()), "\n")
+	containerIDs := strings.Fields(b.String())
 	for {
 		if time.Now().After(timeout) {
 			return errors.New("timeout waiting for healthy container")
@@ -386,7 +400,7 @@ func (p *Project) dockerComposeVersion() (*semver.Version, error) {
 		return nil, errors.Wrap(err, "running Docker Compose version command failed")
 	}
 	dcVersion := b.String()
-	ver, err := semver.NewVersion(strings.Trim(dcVersion, "\n"))
+	ver, err := semver.NewVersion(strings.TrimSpace(dcVersion))
 	if err != nil {
 		return nil, errors.Wrapf(err, "docker compose version is not a valid semver (value: %s)", dcVersion)
 	}
