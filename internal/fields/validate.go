@@ -93,7 +93,7 @@ func CreateValidatorForDirectory(fieldsParentDir string, opts ...ValidatorOption
 	fieldsDir := filepath.Join(fieldsParentDir, "fields")
 	v.Schema, err = loadFieldsFromDir(fieldsDir)
 	if err != nil {
-		return nil, errors.Wrapf(err, "can't load fields for data stream (path: %s)", fieldsParentDir)
+		return nil, errors.Wrapf(err, "can't load fields from directory (path: %s)", fieldsDir)
 	}
 
 	if v.disabledDependencyManagement {
@@ -104,6 +104,8 @@ func CreateValidatorForDirectory(fieldsParentDir string, opts ...ValidatorOption
 	if err != nil {
 		return nil, errors.Wrap(err, "can't find package root")
 	}
+	// As every command starts with approximating where is the package root, it isn't required to return an error in case the root is missing.
+	// This is also useful for testing purposes, where we don't have a real package, but just "fields" directory. The package root is always absent.
 	if !found {
 		v.disabledDependencyManagement = true
 		return v, nil
