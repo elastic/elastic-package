@@ -134,7 +134,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		}
 
 		tr.TimeElapsed = time.Since(startTime)
-		fieldsValidator, err := fields.CreateValidatorForDataStream(dataStreamPath,
+		fieldsValidator, err := fields.CreateValidatorForDirectory(dataStreamPath,
 			fields.WithNumericKeywordFields(tc.config.NumericKeywordFields),
 			// explicitly enabled for pipeline tests only
 			// since system tests can have dynamic public IPs

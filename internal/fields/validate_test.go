@@ -18,7 +18,7 @@ type results struct {
 }
 
 func TestValidate_NoWildcardFields(t *testing.T) {
-	validator, err := CreateValidatorForDataStream("../../test/packages/parallel/aws/data_stream/elb_logs")
+	validator, err := CreateValidatorForDirectory("../../test/packages/parallel/aws/data_stream/elb_logs")
 	require.NoError(t, err)
 	require.NotNil(t, validator)
 
@@ -30,7 +30,7 @@ func TestValidate_NoWildcardFields(t *testing.T) {
 }
 
 func TestValidate_WithWildcardFields(t *testing.T) {
-	validator, err := CreateValidatorForDataStream("../../test/packages/parallel/aws/data_stream/sns")
+	validator, err := CreateValidatorForDirectory("../../test/packages/parallel/aws/data_stream/sns")
 	require.NoError(t, err)
 	require.NotNil(t, validator)
 
@@ -40,7 +40,7 @@ func TestValidate_WithWildcardFields(t *testing.T) {
 }
 
 func TestValidate_WithFlattenedFields(t *testing.T) {
-	validator, err := CreateValidatorForDataStream("testdata",
+	validator, err := CreateValidatorForDirectory("testdata",
 		WithDisabledDependencyManagement())
 	require.NoError(t, err)
 	require.NotNil(t, validator)
@@ -51,7 +51,7 @@ func TestValidate_WithFlattenedFields(t *testing.T) {
 }
 
 func TestValidate_WithNumericKeywordFields(t *testing.T) {
-	validator, err := CreateValidatorForDataStream("testdata",
+	validator, err := CreateValidatorForDirectory("testdata",
 		WithNumericKeywordFields([]string{"foo.code"}),
 		WithDisabledDependencyManagement())
 	require.NoError(t, err)
@@ -63,7 +63,7 @@ func TestValidate_WithNumericKeywordFields(t *testing.T) {
 }
 
 func TestValidate_constantKeyword(t *testing.T) {
-	validator, err := CreateValidatorForDataStream("testdata")
+	validator, err := CreateValidatorForDirectory("testdata")
 	require.NoError(t, err)
 	require.NotNil(t, validator)
 
@@ -77,7 +77,7 @@ func TestValidate_constantKeyword(t *testing.T) {
 }
 
 func TestValidate_ipAddress(t *testing.T) {
-	validator, err := CreateValidatorForDataStream("testdata", WithEnabledAllowedIPCheck())
+	validator, err := CreateValidatorForDirectory("testdata", WithEnabledAllowedIPCheck())
 	require.NoError(t, err)
 	require.NotNil(t, validator)
 
@@ -491,7 +491,7 @@ func readSampleEvent(t *testing.T, path string) json.RawMessage {
 }
 
 func TestValidate_geo_point(t *testing.T) {
-	validator, err := CreateValidatorForDataStream("../../test/packages/other/fields_tests/data_stream/first")
+	validator, err := CreateValidatorForDirectory("../../test/packages/other/fields_tests/data_stream/first")
 
 	require.NoError(t, err)
 	require.NotNil(t, validator)

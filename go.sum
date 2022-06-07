@@ -411,8 +411,8 @@ github.com/elastic/go-licenser v0.4.0 h1:jLq6A5SilDS/Iz1ABRkO6BHy91B9jBora8FwGRs
 github.com/elastic/go-licenser v0.4.0/go.mod h1:V56wHMpmdURfibNBggaSBfqgPxyT1Tldns1i87iTEvU=
 github.com/elastic/go-ucfg v0.8.5 h1:4GB/rMpuh7qTcSFaxJUk97a/JyvFzhi6t+kaskTTLdM=
 github.com/elastic/go-ucfg v0.8.5/go.mod h1:4E8mPOLSUV9hQ7sgLEJ4bvt0KhMuDJa8joDT2QGAEKA=
-github.com/elastic/package-spec v1.10.0 h1:fkCZRmxN4jesLuylGOEX5g31iITCXZFMbkgX6qvzkZI=
-github.com/elastic/package-spec v1.10.0/go.mod h1:KzGTSDqCkdhmL1IFpOH2ZQNSSE9JEhNtndxU3ZrQilA=
+github.com/elastic/package-spec v1.11.0 h1:atrhfGqCDVOnVO83Qh+doAjWnk/3Cs+d4C0U1YhvhgI=
+github.com/elastic/package-spec v1.11.0/go.mod h1:KzGTSDqCkdhmL1IFpOH2ZQNSSE9JEhNtndxU3ZrQilA=
 github.com/elazarl/goproxy v0.0.0-20180725130230-947c36da3153 h1:yUdfgN0XgIJw7foRItutHYUIhlcKzcSf5vDpdhQAKTc=
 github.com/elazarl/goproxy v0.0.0-20180725130230-947c36da3153/go.mod h1:/Zj4wYkgs4iZTTu3o/KG3Itv/qCCa8VVMlb3i9OVuzc=
 github.com/emicklei/go-restful v0.0.0-20170410110728-ff4f55a20633/go.mod h1:otzb+WCGbkyDHkqmQmT5YD2WR4BBwUdeQoFo8l/7tVs=

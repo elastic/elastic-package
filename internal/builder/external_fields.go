@@ -37,11 +37,18 @@ func resolveExternalFields(packageRoot, destinationDir string) error {
 		return errors.Wrap(err, "can't create field dependency manager")
 	}
 
-	fieldsFile, err := filepath.Glob(filepath.Join(destinationDir, "data_stream", "*", "fields", "*.yml"))
+	dataStreamFieldsFiles, err := filepath.Glob(filepath.Join(destinationDir, "data_stream", "*", "fields", "*.yml"))
 	if err != nil {
 		return err
 	}
-	for _, file := range fieldsFile {
+
+	packageFieldsFiles, err := filepath.Glob(filepath.Join(destinationDir, "fields", "*.yml"))
+	if err != nil {
+		return err
+	}
+
+	var fieldsFiles = append(packageFieldsFiles, dataStreamFieldsFiles...)
+	for _, file := range fieldsFiles {
 		data, err := os.ReadFile(file)
 		if err != nil {
 			return err
