@@ -42,7 +42,7 @@ The tool will try to download and cache locally referenced schemas (e.g. `git@0b
 Cached files are stored in a dedicated directory - `~/.elastic-package/cache/fields/`. It's assumed that schema (versioned) files
 do not change.
 
-To verify if building process went well, you can open `build` directory and compare fields (e.g. `./build/integrations/nginx/1.2.3/access/fields/ecs.yml`):
+To verify if building process went well, you can open `build` directory and compare fields (e.g. `./build/packages/nginx/1.2.3/access/fields/ecs.yml`):
 
 ```yaml
 - description: |-

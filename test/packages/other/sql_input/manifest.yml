@@ -1,0 +1,67 @@
+format_version: 1.0.0
+name: sql_input
+title: SQL Input
+description: >-
+  Execute custom queries against an SQL database and store the results in Elasticsearch.
+type: input
+version: 0.2.0
+license: basic
+categories:
+  - custom
+  - datastore
+policy_templates:
+  - name: sql_query
+    type: metrics
+    title: SQL Query
+    description: Query the database to capture metrics.
+    input: sql
+    template_path: input.yml.hbs
+    vars:
+      - name: hosts
+        type: text
+        title: Hosts
+        multi: true
+        required: true
+        show_user: true
+        default:
+          - http://127.0.0.1
+      - name: period
+        type: text
+        title: Period
+        multi: false
+        required: true
+        show_user: true
+        default: 10s
+      - name: driver
+        type: text
+        title: Driver
+        description: "Supported database drivers: mssql, mysql, oracle, postgres"
+        multi: false
+        required: true
+        show_user: true
+        default: "mysql"
+      - name: sql_query
+        type: text
+        title: Query
+        multi: false
+        required: true
+        show_user: true
+        default: "SHOW GLOBAL STATUS LIKE 'Innodb_system%'"
+      - name: sql_response_format
+        type: text
+        title: Response format
+        description: "Supported response formats: variables, table"
+        multi: false
+        required: true
+        show_user: false
+        default: "variables"
+icons:
+  - src: "/img/sample-logo.svg"
+    type: "image/svg+xml"
+screenshots:
+  - src: "/img/sample-screenshot.png"
+    title: "Sample screenshot"
+    size: "600x600"
+    type: "image/png"
+owner:
+  github: elastic/integrations
