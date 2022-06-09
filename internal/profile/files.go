@@ -6,6 +6,7 @@ package profile
 
 import (
 	"os"
+	"path/filepath"
 
 	"github.com/pkg/errors"
 )
@@ -32,15 +33,19 @@ func (cfg simpleFile) configFilesDiffer() (bool, error) {
 	if err != nil {
 		return false, errors.Wrapf(err, "error reading %s", cfg.path)
 	}
-	if string(changes) != cfg.body {
-		return true, nil
+	if string(changes) == cfg.body {
+		return false, nil
 	}
-	return false, nil
+	return true, nil
 }
 
 // writeConfig writes the config item
 func (cfg simpleFile) writeConfig() error {
-	err := os.WriteFile(cfg.path, []byte(cfg.body), 0644)
+	err := os.MkdirAll(filepath.Dir(cfg.path), 0755)
+	if err != nil {
+		return errors.Wrapf(err, "creating parent directories for file failed (path: %s)", cfg.path)
+	}
+	err = os.WriteFile(cfg.path, []byte(cfg.body), 0644)
 	if err != nil {
 		return errors.Wrapf(err, "writing file failed (path: %s)", cfg.path)
 	}

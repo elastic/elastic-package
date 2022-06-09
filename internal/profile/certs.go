@@ -5,14 +5,13 @@
 package profile
 
 import (
-	"crypto/tls"
+	"bytes"
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"path/filepath"
-
-	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/certs"
 )
@@ -29,7 +28,7 @@ var tlsServices = []string{
 // initTLSCertificates initializes all the certificates needed to run the services
 // managed by elastic-package stack. It includes a CA, and a pair of keys and
 // certificates for each service.
-func initTLSCertificates(profilePath string) error {
+func initTLSCertificates(profilePath string, configMap map[configFile]*simpleFile) error {
 	certsDir := filepath.Join(profilePath, "certs")
 	caCertFile := filepath.Join(certsDir, "ca-cert.pem")
 	caKeyFile := filepath.Join(certsDir, "ca-key.pem")
@@ -38,14 +37,62 @@ func initTLSCertificates(profilePath string) error {
 	if err != nil {
 		return err
 	}
+	err = certWriterToSimpleFile(configMap, profilePath, caCertFile, ca.WriteCert)
+	if err != nil {
+		return err
+	}
+	err = certWriterToSimpleFile(configMap, profilePath, caKeyFile, ca.WriteKey)
+	if err != nil {
+		return err
+	}
 
 	for _, service := range tlsServices {
-		err := initServiceTLSCertificates(ca, caCertFile, certsDir, service)
+		certsDir := filepath.Join(certsDir, service)
+		caFile := filepath.Join(certsDir, "ca-cert.pem")
+		certFile := filepath.Join(certsDir, "cert.pem")
+		keyFile := filepath.Join(certsDir, "key.pem")
+		cert, err := initServiceTLSCertificates(ca, caCertFile, certFile, keyFile, service)
+		if err != nil {
+			return err
+		}
+
+		err = certWriterToSimpleFile(configMap, profilePath, certFile, cert.WriteCert)
+		if err != nil {
+			return err
+		}
+		err = certWriterToSimpleFile(configMap, profilePath, keyFile, cert.WriteKey)
+		if err != nil {
+			return err
+		}
+
+		// Write the CA also in the service directory, so only a directory needs to be mounted
+		// for services that need to configure the CA to validate other services certificates.
+		err = certWriterToSimpleFile(configMap, profilePath, caFile, ca.WriteCert)
 		if err != nil {
 			return err
 		}
 	}
 
+	return nil
+}
+
+func certWriterToSimpleFile(configMap map[configFile]*simpleFile, profilePath string, absPath string, writeFile func(w io.Writer) error) error {
+	path, err := filepath.Rel(profilePath, absPath)
+	if err != nil {
+		return err
+	}
+
+	var buf bytes.Buffer
+	err = writeFile(&buf)
+	if err != nil {
+		return err
+	}
+
+	configMap[configFile(path)] = &simpleFile{
+		name: path,
+		path: absPath,
+		body: buf.String(),
+	}
 	return nil
 }
 
@@ -62,63 +109,26 @@ func initCA(certFile, keyFile string) (*certs.Issuer, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error initializing self-signed CA")
 	}
-	err = ca.WriteCertFile(certFile)
-	if err != nil {
-		return nil, err
-	}
-	err = ca.WriteKeyFile(keyFile)
-	if err != nil {
-		return nil, err
-	}
 	return ca, nil
 }
 
-func initServiceTLSCertificates(ca *certs.Issuer, caCertFile string, certsDir, service string) error {
-	certsDir = filepath.Join(certsDir, service)
-	caFile := filepath.Join(certsDir, "ca-cert.pem")
-	certFile := filepath.Join(certsDir, "cert.pem")
-	keyFile := filepath.Join(certsDir, "key.pem")
+func initServiceTLSCertificates(ca *certs.Issuer, caCertFile string, certFile, keyFile, service string) (*certs.Certificate, error) {
 	if err := verifyTLSCertificates(caCertFile, certFile, keyFile, service); err == nil {
-		// Certificate already present and valid, nothing to do.
-		return nil
+		// Certificate already present and valid, load it.
+		return certs.LoadCertificate(certFile, keyFile)
 	}
 
 	cert, err := ca.Issue(certs.WithName(service))
 	if err != nil {
-		return fmt.Errorf("error initializing certificate for %q", service)
-	}
-	err = cert.WriteCertFile(certFile)
-	if err != nil {
-		return err
-	}
-	err = cert.WriteKeyFile(keyFile)
-	if err != nil {
-		return err
+		return nil, fmt.Errorf("error initializing certificate for %q", service)
 	}
 
-	// Write the CA also in the service directory, so only a directory needs to be mounted
-	// for services that need to configure the CA to validate other services certificates.
-	err = ca.WriteCertFile(caFile)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return cert, nil
 }
 
 func verifyTLSCertificates(caFile, certFile, keyFile, name string) error {
-	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
+	cert, err := certs.LoadCertificate(certFile, keyFile)
 	if err != nil {
-		return err
-	}
-	if len(cert.Certificate) == 0 {
-		return errors.New("certificate chain is empty")
-	}
-
-	leaf := cert.Certificate[0]
-	parsed, err := x509.ParseCertificate(leaf)
-	if err != nil {
-		// This shouldn't happen because we have already loaded the certificate before.
 		return err
 	}
 
@@ -132,7 +142,7 @@ func verifyTLSCertificates(caFile, certFile, keyFile, name string) error {
 	if name != "" {
 		options.DNSName = name
 	}
-	_, err = parsed.Verify(options)
+	err = cert.Verify(options)
 	if err != nil {
 		return err
 	}

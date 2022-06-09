@@ -20,7 +20,11 @@ func TestTLSCertsInitialization(t *testing.T) {
 
 	assert.Error(t, verifyTLSCertificates(caCertFile, caCertFile, caKeyFile, ""))
 
-	err := initTLSCertificates(profilePath)
+	configMap := make(map[configFile]*simpleFile)
+	err := initTLSCertificates(profilePath, configMap)
+	require.NoError(t, err)
+
+	err = writeConfigFiles(configMap)
 	require.NoError(t, err)
 
 	assert.NoError(t, verifyTLSCertificates(caCertFile, caCertFile, caKeyFile, ""))
@@ -45,7 +49,11 @@ func TestTLSCertsInitialization(t *testing.T) {
 		assert.Error(t, verifyTLSCertificates(caCertFile, serviceCertFile, serviceKeyFile, service))
 
 		// Check it is created again and is validated by the same CA.
-		err := initTLSCertificates(profilePath)
+		configMap := make(map[configFile]*simpleFile)
+		err := initTLSCertificates(profilePath, configMap)
+		require.NoError(t, err)
+
+		err = writeConfigFiles(configMap)
 		require.NoError(t, err)
 		assert.NoError(t, verifyTLSCertificates(caCertFile, serviceCertFile, serviceKeyFile, service))
 	})

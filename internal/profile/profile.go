@@ -64,6 +64,11 @@ func NewConfigProfile(elasticPackagePath string, profileName string) (*Profile, 
 		configMap[fileItem] = cfg
 	}
 
+	err := initTLSCertificates(profilePath, configMap)
+	if err != nil {
+		return nil, errors.Wrap(err, "error initializing TLS certificates")
+	}
+
 	newProfile := &Profile{
 		profileName:      profileName,
 		ProfilePath:      profilePath,
@@ -139,6 +144,11 @@ func loadProfile(elasticPackagePath string, profileName string) (*Profile, error
 		configMap[fileItem] = cfg
 	}
 
+	err = initTLSCertificates(profilePath, configMap)
+	if err != nil {
+		return nil, errors.Wrap(err, "error initializing TLS certificates")
+	}
+
 	profile := &Profile{
 		profileName:      profileName,
 		ProfilePath:      profilePath,
@@ -180,17 +190,15 @@ func (profile Profile) ComposeEnvVars() []string {
 
 // writeProfileResources writes the config files
 func (profile Profile) writeProfileResources() error {
-	for _, cfgFiles := range profile.configFiles {
+	return writeConfigFiles(profile.configFiles)
+}
+
+func writeConfigFiles(configFiles map[configFile]*simpleFile) error {
+	for _, cfgFiles := range configFiles {
 		err := cfgFiles.writeConfig()
 		if err != nil {
 			return errors.Wrap(err, "error writing config file")
 		}
-	}
-
-	// TODO: To decide where this should be done.
-	err := initTLSCertificates(profile.ProfilePath)
-	if err != nil {
-		return errors.Wrap(err, "error initializing TLS certificates")
 	}
 
 	return nil

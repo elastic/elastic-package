@@ -31,18 +31,8 @@ type Certificate struct {
 	issuer *Certificate
 }
 
-// Issuer is a certificate that can issue other certificates.
-type Issuer struct {
-	*Certificate
-}
-
-// NewCA creates a new self-signed root CA.
-func NewCA() (*Issuer, error) {
-	return newCA(nil)
-}
-
-// LoadCA loads a CA certificate and key from disk.
-func LoadCA(certFile, keyFile string) (*Issuer, error) {
+// LoadCertificate loads a certificate and key from disk.
+func LoadCertificate(certFile, keyFile string) (*Certificate, error) {
 	pair, err := tls.LoadX509KeyPair(certFile, keyFile)
 	if err != nil {
 		return nil, err
@@ -64,19 +54,17 @@ func LoadCA(certFile, keyFile string) (*Issuer, error) {
 	case crypto.Signer:
 		key = privKey
 	default:
-		return nil, fmt.Errorf("key of type %T cannot be used as CA", privKey)
+		return nil, fmt.Errorf("key of type %T cannot be used", privKey)
 	}
 
-	ca := &Issuer{
-		&Certificate{
-			key:  key,
-			cert: chain[0],
-		},
+	cert := &Certificate{
+		key:  key,
+		cert: chain[0],
 	}
 
 	if len(chain) > 1 {
 		// This is an intermediate certificate, rebuild the full chain.
-		c := ca.Certificate
+		c := cert
 		for _, cert := range chain[1:] {
 			c.issuer = &Certificate{
 				// Parent keys are not known here, but that's ok
@@ -86,7 +74,27 @@ func LoadCA(certFile, keyFile string) (*Issuer, error) {
 			c = c.issuer
 		}
 	}
-	return ca, nil
+	return cert, nil
+}
+
+// Issuer is a certificate that can issue other certificates.
+type Issuer struct {
+	*Certificate
+}
+
+// NewCA creates a new self-signed root CA.
+func NewCA() (*Issuer, error) {
+	return newCA(nil)
+}
+
+// LoadCA loads a CA certificate and key from disk.
+func LoadCA(certFile, keyFile string) (*Issuer, error) {
+	cert, err := LoadCertificate(certFile, keyFile)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Issuer{cert}, nil
 }
 
 func newCA(parent *Issuer) (*Issuer, error) {
@@ -254,6 +262,12 @@ func (c *Certificate) WriteCertFile(path string) error {
 	defer f.Close()
 
 	return c.WriteCert(f)
+}
+
+// Verify verifies a certificate with the given verification options.
+func (c *Certificate) Verify(options x509.VerifyOptions) error {
+	_, err := c.cert.Verify(options)
+	return err
 }
 
 func certPemBlock(cert []byte) *pem.Block {
