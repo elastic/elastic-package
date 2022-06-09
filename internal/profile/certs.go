@@ -17,7 +17,8 @@ import (
 	"github.com/elastic/elastic-package/internal/certs"
 )
 
-// TODO: Get this list from somewhere else?
+// tlsServices is the list of server TLS certificates that will be
+// created in the given path.
 var tlsServices = []string{
 	"elasticsearch",
 	"kibana",
