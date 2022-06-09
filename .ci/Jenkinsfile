@@ -15,8 +15,8 @@ pipeline {
     PIPELINE_LOG_LEVEL='INFO'
     AWS_ACCOUNT_SECRET = 'secret/observability-team/ci/elastic-observability-aws-account-auth'
     HOME = "${env.WORKSPACE}"
-    KIND_VERSION = 'v0.11.1'
-    K8S_VERSION = 'v1.23.0'
+    KIND_VERSION = 'v0.14.0'
+    K8S_VERSION = 'v1.24.0'
 
     JOB_GCS_BUCKET = 'beats-ci-temp'
     JOB_GCS_BUCKET_INTERNAL = 'beats-ci-temp-internal'
@@ -104,7 +104,7 @@ pipeline {
                     'check-packages-with-kind': generateTestCommandStage(command: 'test-check-packages-with-kind', artifacts: ['build/test-results/*.xml', 'build/kubectl-dump.txt', 'build/elastic-stack-dump/check-*/logs/*.log', 'build/elastic-stack-dump/check-*/logs/fleet-server-internal/*'], junitArtifacts: true, publishCoverage: true),
                     'check-packages-other': generateTestCommandStage(command: 'test-check-packages-other', artifacts: ['build/test-results/*.xml', 'build/elastic-stack-dump/check-*/logs/*.log', 'build/elastic-stack-dump/check-*/logs/fleet-server-internal/*'], junitArtifacts: true, publishCoverage: true),
                     'check-packages-with-custom-agent': generateTestCommandStage(command: 'test-check-packages-with-custom-agent', artifacts: ['build/test-results/*.xml', 'build/elastic-stack-dump/check-*/logs/*.log', 'build/elastic-stack-dump/check-*/logs/fleet-server-internal/*'], junitArtifacts: true, publishCoverage: true),
-                    'build-zip': generateTestCommandStage(command: 'test-build-zip', artifacts: ['build/elastic-stack-dump/build-zip/logs/*.log', 'build/integrations/*.sig']),
+                    'build-zip': generateTestCommandStage(command: 'test-build-zip', artifacts: ['build/elastic-stack-dump/build-zip/logs/*.log', 'build/packages/*.sig']),
                     'profiles-command': generateTestCommandStage(command: 'test-profiles-command')
                   ]
 

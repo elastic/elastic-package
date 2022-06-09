@@ -9,15 +9,16 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/elastic/package-spec/code/go/pkg/validator"
 	"github.com/pkg/errors"
+
+	"github.com/elastic/package-spec/code/go/pkg/validator"
 
 	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
-const buildIntegrationsFolder = "integrations"
+const builtPackagesFolder = "packages"
 
 type BuildOptions struct {
 	PackageRoot string
@@ -102,7 +103,7 @@ func buildPackagesRootDirectory() (string, error) {
 		return "", errors.Wrap(err, "can't locate build directory")
 	}
 	if !found {
-		buildDir, err = createBuildDirectory(buildIntegrationsFolder) // TODO add support for other package types
+		buildDir, err = createBuildDirectory(builtPackagesFolder)
 		if err != nil {
 			return "", errors.Wrap(err, "can't create new build directory")
 		}
@@ -118,7 +119,7 @@ func FindBuildPackagesDirectory() (string, bool, error) {
 	}
 
 	if found {
-		path := filepath.Join(buildDir, buildIntegrationsFolder) // TODO add support for other package types
+		path := filepath.Join(buildDir, builtPackagesFolder)
 		fileInfo, err := os.Stat(path)
 		if errors.Is(err, os.ErrNotExist) {
 			return "", false, nil

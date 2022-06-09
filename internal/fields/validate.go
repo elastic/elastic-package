@@ -19,7 +19,9 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/common"
+	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/multierror"
+	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/packages/buildmanifest"
 )
 
@@ -39,7 +41,7 @@ type Validator struct {
 	allowedCIDRs          []*net.IPNet
 }
 
-// ValidatorOption represents an optional flag that can be passed to  CreateValidatorForDataStream.
+// ValidatorOption represents an optional flag that can be passed to  CreateValidatorForDirectory.
 type ValidatorOption func(*Validator) error
 
 // WithDefaultNumericConversion configures the validator to accept defined keyword (or constant_keyword) fields as numeric-type.
@@ -78,8 +80,8 @@ func WithEnabledAllowedIPCheck() ValidatorOption {
 	}
 }
 
-// CreateValidatorForDataStream function creates a validator for the data stream.
-func CreateValidatorForDataStream(dataStreamRootPath string, opts ...ValidatorOption) (v *Validator, err error) {
+// CreateValidatorForDirectory function creates a validator for the directory.
+func CreateValidatorForDirectory(fieldsParentDir string, opts ...ValidatorOption) (v *Validator, err error) {
 	v = new(Validator)
 	for _, opt := range opts {
 		if err := opt(v); err != nil {
@@ -89,16 +91,28 @@ func CreateValidatorForDataStream(dataStreamRootPath string, opts ...ValidatorOp
 
 	v.allowedCIDRs = initializeAllowedCIDRsList()
 
-	v.Schema, err = loadFieldsForDataStream(dataStreamRootPath)
+	fieldsDir := filepath.Join(fieldsParentDir, "fields")
+	v.Schema, err = loadFieldsFromDir(fieldsDir)
 	if err != nil {
-		return nil, errors.Wrapf(err, "can't load fields for data stream (path: %s)", dataStreamRootPath)
+		return nil, errors.Wrapf(err, "can't load fields from directory (path: %s)", fieldsDir)
 	}
 
 	if v.disabledDependencyManagement {
 		return v, nil
 	}
 
-	packageRoot := filepath.Dir(filepath.Dir(dataStreamRootPath))
+	packageRoot, found, err := packages.FindPackageRoot()
+	if err != nil {
+		return nil, errors.Wrap(err, "can't find package root")
+	}
+	// As every command starts with approximating where is the package root, it isn't required to return an error in case the root is missing.
+	// This is also useful for testing purposes, where we don't have a real package, but just "fields" directory. The package root is always absent.
+	if !found {
+		logger.Debug("Package root not found, dependency management will be disabled.")
+		v.disabledDependencyManagement = true
+		return v, nil
+	}
+
 	bm, ok, err := buildmanifest.ReadBuildManifest(packageRoot)
 	if err != nil {
 		return nil, errors.Wrap(err, "can't read build manifest")
@@ -132,8 +146,7 @@ func initializeAllowedCIDRsList() (cidrs []*net.IPNet) {
 	return cidrs
 }
 
-func loadFieldsForDataStream(dataStreamRootPath string) ([]FieldDefinition, error) {
-	fieldsDir := filepath.Join(dataStreamRootPath, "fields")
+func loadFieldsFromDir(fieldsDir string) ([]FieldDefinition, error) {
 	files, err := filepath.Glob(filepath.Join(fieldsDir, "*.yml"))
 	if err != nil {
 		return nil, errors.Wrapf(err, "reading directory with fields failed (path: %s)", fieldsDir)
@@ -378,6 +391,9 @@ func (v *Validator) parseSingleElementValue(key string, definition FieldDefiniti
 		if err := ensurePatternMatches(key, valStr, definition.Pattern); err != nil {
 			return err
 		}
+		if err := ensureAllowedValues(key, valStr, definition.AllowedValues); err != nil {
+			return err
+		}
 	// Normal text fields should be of type string.
 	// If a pattern is provided, it checks if the value matches.
 	case "keyword", "text":
@@ -387,6 +403,9 @@ func (v *Validator) parseSingleElementValue(key string, definition FieldDefiniti
 		}
 
 		if err := ensurePatternMatches(key, valStr, definition.Pattern); err != nil {
+			return err
+		}
+		if err := ensureAllowedValues(key, valStr, definition.AllowedValues); err != nil {
 			return err
 		}
 	// Dates are expected to be formatted as strings or as seconds or milliseconds
@@ -515,6 +534,15 @@ func ensureConstantKeywordValueMatches(key, value, constantKeywordValue string) 
 	}
 	if value != constantKeywordValue {
 		return fmt.Errorf("field %q's value %q does not match the declared constant_keyword value %q", key, value, constantKeywordValue)
+	}
+	return nil
+}
+
+// ensureAllowedValues validates that the document's field value
+// is one of the allowed values.
+func ensureAllowedValues(key, value string, allowedValues AllowedValues) error {
+	if !allowedValues.IsAllowed(value) {
+		return fmt.Errorf("field %q's value %q is not one of the allowed values (%s)", key, value, strings.Join(allowedValues.Values(), ", "))
 	}
 	return nil
 }

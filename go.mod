@@ -3,7 +3,7 @@ module github.com/elastic/elastic-package
 go 1.17
 
 require (
-	github.com/AlecAivazis/survey/v2 v2.3.4
+	github.com/AlecAivazis/survey/v2 v2.3.5
 	github.com/Masterminds/semver v1.5.0
 	github.com/ProtonMail/gopenpgp/v2 v2.4.7
 	github.com/aymerick/raymond v2.0.2+incompatible
@@ -12,7 +12,7 @@ require (
 	github.com/elastic/go-elasticsearch/v7 v7.17.1
 	github.com/elastic/go-licenser v0.4.0
 	github.com/elastic/go-ucfg v0.8.5
-	github.com/elastic/package-spec v1.10.0
+	github.com/elastic/package-spec v1.11.0
 	github.com/fatih/color v1.13.0
 	github.com/go-git/go-billy/v5 v5.3.1
 	github.com/go-git/go-git/v5 v5.4.2
@@ -25,10 +25,10 @@ require (
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/cobra v1.4.0
-	github.com/stretchr/testify v1.7.1
+	github.com/stretchr/testify v1.7.2
 	golang.org/x/oauth2 v0.0.0-20211104180415-d3ed0bb246c8
 	golang.org/x/tools v0.1.11-0.20220513221640-090b14e8501f
-	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
+	gopkg.in/yaml.v3 v3.0.1
 	gotest.tools/gotestsum v1.8.1
 	helm.sh/helm/v3 v3.9.0
 	honnef.co/go/tools v0.3.2
@@ -131,7 +131,7 @@ require (
 	golang.org/x/mod v0.6.0-dev.0.20220419223038-86c51ed26bb4 // indirect
 	golang.org/x/net v0.0.0-20220127200216-cd36cc0744dd // indirect
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c // indirect
-	golang.org/x/sys v0.0.0-20220209214540-3681064d5158 // indirect
+	golang.org/x/sys v0.0.0-20220422013727-9388b58f7150 // indirect
 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 // indirect
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/time v0.0.0-20220210224613-90d013bbcef8 // indirect
