@@ -391,6 +391,9 @@ func (v *Validator) parseSingleElementValue(key string, definition FieldDefiniti
 		if err := ensurePatternMatches(key, valStr, definition.Pattern); err != nil {
 			return err
 		}
+		if err := ensureAllowedValues(key, valStr, definition.AllowedValues); err != nil {
+			return err
+		}
 	// Normal text fields should be of type string.
 	// If a pattern is provided, it checks if the value matches.
 	case "keyword", "text":
@@ -400,6 +403,9 @@ func (v *Validator) parseSingleElementValue(key string, definition FieldDefiniti
 		}
 
 		if err := ensurePatternMatches(key, valStr, definition.Pattern); err != nil {
+			return err
+		}
+		if err := ensureAllowedValues(key, valStr, definition.AllowedValues); err != nil {
 			return err
 		}
 	// Dates are expected to be formatted as strings or as seconds or milliseconds
@@ -528,6 +534,15 @@ func ensureConstantKeywordValueMatches(key, value, constantKeywordValue string) 
 	}
 	if value != constantKeywordValue {
 		return fmt.Errorf("field %q's value %q does not match the declared constant_keyword value %q", key, value, constantKeywordValue)
+	}
+	return nil
+}
+
+// ensureAllowedValues validates that the document's field value
+// is one of the allowed values.
+func ensureAllowedValues(key, value string, allowedValues AllowedValues) error {
+	if !allowedValues.IsAllowed(value) {
+		return fmt.Errorf("field %q's value %q is not one of the allowed values (%s)", key, value, strings.Join(allowedValues.Values(), ", "))
 	}
 	return nil
 }

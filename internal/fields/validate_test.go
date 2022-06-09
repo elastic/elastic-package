@@ -300,6 +300,54 @@ func Test_parseElementValue(t *testing.T) {
 			},
 			fail: true,
 		},
+		// allowed values
+		{
+			key:   "allowed values",
+			value: "configuration",
+			definition: FieldDefinition{
+				Type: "keyword",
+				AllowedValues: AllowedValues{
+					{
+						Name: "configuration",
+					},
+					{
+						Name: "network",
+					},
+				},
+			},
+		},
+		{
+			key:   "not allowed value",
+			value: "display",
+			definition: FieldDefinition{
+				Type: "keyword",
+				AllowedValues: AllowedValues{
+					{
+						Name: "configuration",
+					},
+					{
+						Name: "network",
+					},
+				},
+			},
+			fail: true,
+		},
+		{
+			key:   "not allowed value in array",
+			value: []string{"configuration", "display"},
+			definition: FieldDefinition{
+				Type: "keyword",
+				AllowedValues: AllowedValues{
+					{
+						Name: "configuration",
+					},
+					{
+						Name: "network",
+					},
+				},
+			},
+			fail: true,
+		},
 		// fields shouldn't be stored in groups
 		{
 			key:   "host",
