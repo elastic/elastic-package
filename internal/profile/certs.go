@@ -7,10 +7,8 @@ package profile
 import (
 	"bytes"
 	"crypto/x509"
-	"encoding/pem"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"path/filepath"
 
 	"github.com/elastic/elastic-package/internal/certs"
@@ -132,7 +130,7 @@ func verifyTLSCertificates(caFile, certFile, keyFile, name string) error {
 		return err
 	}
 
-	certPool, err := certPoolWithCA(caFile)
+	certPool, err := certs.PoolWithCACertificate(caFile)
 	if err != nil {
 		return err
 	}
@@ -148,22 +146,4 @@ func verifyTLSCertificates(caFile, certFile, keyFile, name string) error {
 	}
 
 	return nil
-}
-
-func certPoolWithCA(caFile string) (*x509.CertPool, error) {
-	d, err := ioutil.ReadFile(caFile)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read CA certificate: %w", err)
-	}
-	pem, _ := pem.Decode(d)
-	if pem == nil || pem.Type != "CERTIFICATE" {
-		return nil, fmt.Errorf("no CA found in %s", caFile)
-	}
-	ca, err := x509.ParseCertificate(pem.Bytes)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse CA certificate: %w", err)
-	}
-	pool := x509.NewCertPool()
-	pool.AddCert(ca)
-	return pool, nil
 }
