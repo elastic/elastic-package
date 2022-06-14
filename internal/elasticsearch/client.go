@@ -6,6 +6,7 @@ package elasticsearch
 
 import (
 	"crypto/tls"
+	"fmt"
 	"net/http"
 	"os"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/elastic/go-elasticsearch/v7"
 	"github.com/elastic/go-elasticsearch/v7/esapi"
 
+	"github.com/elastic/elastic-package/internal/certs"
 	"github.com/elastic/elastic-package/internal/stack"
 )
 
@@ -32,6 +34,9 @@ type clientOptions struct {
 	username string
 	password string
 
+	// certificateAuthority is the certificate to validate the server certificate.
+	certificateAuthority string
+
 	// skipTLSVerify disables TLS validation.
 	skipTLSVerify bool
 }
@@ -39,9 +44,10 @@ type clientOptions struct {
 // defaultOptionsFromEnv returns clientOptions initialized with values from environmet variables.
 func defaultOptionsFromEnv() clientOptions {
 	return clientOptions{
-		address:  os.Getenv(stack.ElasticsearchHostEnv),
-		username: os.Getenv(stack.ElasticsearchUsernameEnv),
-		password: os.Getenv(stack.ElasticsearchPasswordEnv),
+		address:              os.Getenv(stack.ElasticsearchHostEnv),
+		username:             os.Getenv(stack.ElasticsearchUsernameEnv),
+		password:             os.Getenv(stack.ElasticsearchPasswordEnv),
+		certificateAuthority: os.Getenv(stack.CACertificateEnv),
 	}
 }
 
@@ -51,6 +57,13 @@ type ClientOption func(*clientOptions)
 func OptionWithAddress(address string) ClientOption {
 	return func(opts *clientOptions) {
 		opts.address = address
+	}
+}
+
+// OptionWithCertificateAuthority sets the certificate authority to be used by the client.
+func OptionWithCertificateAuthority(certificateAuthority string) ClientOption {
+	return func(opts *clientOptions) {
+		opts.certificateAuthority = certificateAuthority
 	}
 }
 
@@ -80,6 +93,14 @@ func Client(customOptions ...ClientOption) (*elasticsearch.Client, error) {
 	if options.skipTLSVerify {
 		config.Transport = &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
+	} else if options.certificateAuthority != "" {
+		rootCAs, err := certs.SystemPoolWithCACertificate(options.certificateAuthority)
+		if err != nil {
+			return nil, fmt.Errorf("reading CA certificate: %w", err)
+		}
+		config.Transport = &http.Transport{
+			TLSClientConfig: &tls.Config{RootCAs: rootCAs},
 		}
 	}
 

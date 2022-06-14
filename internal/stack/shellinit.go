@@ -26,6 +26,7 @@ var (
 	ElasticsearchUsernameEnv = elasticPackageEnvPrefix + "ELASTICSEARCH_USERNAME"
 	ElasticsearchPasswordEnv = elasticPackageEnvPrefix + "ELASTICSEARCH_PASSWORD"
 	KibanaHostEnv            = elasticPackageEnvPrefix + "KIBANA_HOST"
+	CACertificateEnv         = elasticPackageEnvPrefix + "CACERT"
 )
 
 var shellInitFormat = "export " + ElasticsearchHostEnv + "=%s\nexport " + ElasticsearchUsernameEnv + "=%s\nexport " +
