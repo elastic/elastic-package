@@ -39,7 +39,7 @@ func SystemPoolWithCACertificate(path string) (*x509.CertPool, error) {
 func addCACertificateToPool(pool *x509.CertPool, path string) error {
 	d, err := ioutil.ReadFile(path)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to read certificate in %q: %w", path, err)
 	}
 
 	cert, _ := pem.Decode(d)

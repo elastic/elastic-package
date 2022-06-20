@@ -22,11 +22,12 @@ import (
 )
 
 func TestSelfSignedCertificate(t *testing.T) {
-	cert, err := NewSelfSignedCert(WithName("elasticsearch"))
+	const commonName = "someserver"
+	cert, err := NewSelfSignedCert(WithName(commonName))
 	require.NoError(t, err)
 
 	address := testTLSServer(t, cert)
-	testTLSClient(t, cert, address)
+	testTLSClient(t, cert, commonName, address)
 }
 
 func TestCA(t *testing.T) {
@@ -36,26 +37,27 @@ func TestCA(t *testing.T) {
 	intermediate, err := ca.IssueIntermediate()
 	require.NoError(t, err)
 
-	cert, err := intermediate.Issue(WithName("elasticsearch"))
+	const commonName = "elasticsearch"
+	cert, err := intermediate.Issue(WithName(commonName))
 	require.NoError(t, err)
 
 	t.Run("validate server with root CA", func(t *testing.T) {
 		address := testTLSServer(t, cert)
 		t.Run("go-http client", func(t *testing.T) {
-			testTLSClient(t, ca.Certificate, address)
+			testTLSClient(t, ca.Certificate, commonName, address)
 		})
 		t.Run("curl", func(t *testing.T) {
-			testCurl(t, ca.Certificate, address)
+			testCurl(t, ca.Certificate, commonName, address)
 		})
 	})
 
 	t.Run("validate server with intermediate CA", func(t *testing.T) {
 		address := testTLSServer(t, cert)
 		t.Run("go-http client", func(t *testing.T) {
-			testTLSClient(t, intermediate.Certificate, address)
+			testTLSClient(t, intermediate.Certificate, commonName, address)
 		})
 		t.Run("curl", func(t *testing.T) {
-			testCurl(t, intermediate.Certificate, address)
+			testCurl(t, intermediate.Certificate, commonName, address)
 		})
 	})
 }
@@ -87,7 +89,7 @@ func testTLSServer(t *testing.T, cert *Certificate) string {
 	return listener.Addr().String()
 }
 
-func testTLSClient(t *testing.T, root *Certificate, address string) {
+func testTLSClient(t *testing.T, root *Certificate, commonName, address string) {
 	caPool := x509.NewCertPool()
 	caPool.AddCert(root.cert)
 	client := &http.Client{
@@ -109,7 +111,7 @@ func testTLSClient(t *testing.T, root *Certificate, address string) {
 		},
 	}
 
-	resp, err := client.Get("https://elasticsearch")
+	resp, err := client.Get("https://" + commonName)
 	require.NoError(t, err)
 	defer resp.Body.Close()
 	d, _ := ioutil.ReadAll(resp.Body)
@@ -118,7 +120,7 @@ func testTLSClient(t *testing.T, root *Certificate, address string) {
 
 }
 
-func testCurl(t *testing.T, root *Certificate, address string) {
+func testCurl(t *testing.T, root *Certificate, commonName, address string) {
 	_, err := exec.LookPath("curl")
 	if err != nil {
 		t.Skip("curl not available")
@@ -133,7 +135,7 @@ func testCurl(t *testing.T, root *Certificate, address string) {
 	require.NotNilf(t, net.ParseIP(serverHost), "%s expected to be an ip", serverHost)
 
 	// Address to use in the request, hostname here must match name in certificate.
-	reqAddress := net.JoinHostPort("elasticsearch", port)
+	reqAddress := net.JoinHostPort(commonName, port)
 
 	args := []string{
 		"-v",

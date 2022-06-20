@@ -37,10 +37,6 @@ type ClientOption func(*Client)
 // NewClient creates a new instance of the client.
 func NewClient(opts ...ClientOption) (*Client, error) {
 	host := os.Getenv(stack.KibanaHostEnv)
-	if host == "" {
-		return nil, stack.UndefinedEnvError(stack.KibanaHostEnv)
-	}
-
 	username := os.Getenv(stack.ElasticsearchUsernameEnv)
 	password := os.Getenv(stack.ElasticsearchPasswordEnv)
 	certificateAuthority := os.Getenv(stack.CACertificateEnv)
@@ -55,7 +51,19 @@ func NewClient(opts ...ClientOption) (*Client, error) {
 	for _, opt := range opts {
 		opt(c)
 	}
+
+	if c.host == "" {
+		return nil, stack.UndefinedEnvError(stack.KibanaHostEnv)
+	}
+
 	return c, nil
+}
+
+// Address option sets the host to use to connect to Kibana.
+func Address(address string) ClientOption {
+	return func(c *Client) {
+		c.host = address
+	}
 }
 
 // TLSSkipVerify option disables TLS verification.
