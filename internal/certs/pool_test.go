@@ -14,15 +14,17 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestPoolWithCACertificate(t *testing.T) {
-	pool, err := PoolWithCACertificate("testdata/ca-cert.pem")
-	require.NoError(t, err)
-
-	verifyTestCertWithPool(t, pool)
-}
+const (
+	// caCertPath is the path to a self-signed CA certificate used to sign
+	// the server key and certificates also found here.
+	// They were created with the code in https://github.com/elastic/elastic-package/pull/789.
+	caCertPath     = "testdata/ca-cert.pem"
+	serverCertPath = "testdata/server-cert.pem"
+	serverKeyPath  = "testdata/server-key.pem"
+)
 
 func TestSystemPoolWithCACertificate(t *testing.T) {
-	pool, err := SystemPoolWithCACertificate("testdata/ca-cert.pem")
+	pool, err := SystemPoolWithCACertificate(caCertPath)
 	require.NoError(t, err)
 
 	verifyTestCertWithPool(t, pool)
@@ -31,7 +33,7 @@ func TestSystemPoolWithCACertificate(t *testing.T) {
 func verifyTestCertWithPool(t *testing.T, pool *x509.CertPool) {
 	t.Helper()
 
-	p, err := tls.LoadX509KeyPair("testdata/server-cert.pem", "testdata/server-key.pem")
+	p, err := tls.LoadX509KeyPair(serverCertPath, serverKeyPath)
 	require.NoError(t, err)
 	require.NotEmpty(t, p.Certificate)
 
