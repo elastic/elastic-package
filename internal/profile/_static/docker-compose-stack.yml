@@ -57,17 +57,17 @@ services:
       args:
         PROFILE: "${PROFILE_NAME}"
     healthcheck:
-      test: ["CMD", "curl", "--cacert", "/etc/ssl/package-registry/ca-cert.pem", "-f", "https://localhost"]
+      test: ["CMD", "curl", "--cacert", "/etc/ssl/package-registry/ca-cert.pem", "-f", "https://localhost:8080"]
       retries: 300
       interval: 1s
     environment:
-      - "EPR_ADDRESS=0.0.0.0:443"
+      - "EPR_ADDRESS=0.0.0.0:8080"
       - "EPR_TLS_KEY=/etc/ssl/package-registry/key.pem"
       - "EPR_TLS_CERT=/etc/ssl/package-registry/cert.pem"
     volumes:
       - "../certs/package-registry:/etc/ssl/package-registry"
     ports:
-      - "127.0.0.1:443:8443"
+      - "127.0.0.1:8080:8080"
 
   package-registry_is_ready:
     image: tianon/true

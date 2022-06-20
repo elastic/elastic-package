@@ -13,7 +13,7 @@ elasticsearch.password: changeme
 xpack.monitoring.ui.container.elasticsearch.enabled: true
 
 xpack.fleet.enabled: true
-xpack.fleet.registryUrl: "https://package-registry"
+xpack.fleet.registryUrl: "https://package-registry:8080"
 xpack.fleet.agents.enabled: true
 xpack.fleet.agents.elasticsearch.host: "https://elasticsearch:9200"
 xpack.fleet.agents.fleet_server.hosts: ["https://fleet-server:8220"]

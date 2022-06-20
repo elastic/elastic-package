@@ -11,7 +11,7 @@ elasticsearch.serviceAccountToken: "AAEAAWVsYXN0aWMva2liYW5hL2VsYXN0aWMtcGFja2Fn
 
 monitoring.ui.container.elasticsearch.enabled: true
 
-xpack.fleet.registryUrl: "https://package-registry"
+xpack.fleet.registryUrl: "https://package-registry:8080"
 xpack.fleet.agents.enabled: true
 xpack.fleet.agents.elasticsearch.hosts: ["https://elasticsearch:9200"]
 xpack.fleet.agents.fleet_server.hosts: ["https://fleet-server:8220"]
