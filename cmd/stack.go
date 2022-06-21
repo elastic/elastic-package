@@ -77,7 +77,7 @@ func setupStackCommand() *cobraext.Command {
 				return cobraext.FlagParsingError(err, cobraext.ProfileFlagName)
 			}
 
-			usrProfile, err := profile.LoadProfile(profileName)
+			userProfile, err := profile.LoadProfile(profileName)
 			if errors.Is(err, profile.ErrNotAProfile) {
 				pList, err := availableProfilesAsAList()
 				if err != nil {
@@ -88,14 +88,21 @@ func setupStackCommand() *cobraext.Command {
 			if err != nil {
 				return errors.Wrap(err, "error loading profile")
 			}
-			cmd.Printf("Using profile %s.\n", usrProfile.ProfilePath)
+
+			// Print information before starting the stack, for cases where
+			// this is executed in the foreground, without daemon mode.
+			cmd.Printf("Using profile %s.\n", userProfile.ProfilePath)
 			cmd.Println(`Remember to load stack environment variables using 'eval "$(elastic-package stack shellinit)"'.`)
+			err = printInitConfig(cmd, userProfile)
+			if err != nil {
+				return err
+			}
 
 			err = stack.BootUp(stack.Options{
 				DaemonMode:   daemonMode,
 				StackVersion: stackVersion,
 				Services:     services,
-				Profile:      usrProfile,
+				Profile:      userProfile,
 			})
 			if err != nil {
 				return errors.Wrap(err, "booting up the stack failed")
@@ -121,7 +128,7 @@ func setupStackCommand() *cobraext.Command {
 				return cobraext.FlagParsingError(err, cobraext.ProfileFlagName)
 			}
 
-			usrProfile, err := profile.LoadProfile(profileName)
+			userProfile, err := profile.LoadProfile(profileName)
 			if errors.Is(err, profile.ErrNotAProfile) {
 				pList, err := availableProfilesAsAList()
 				if err != nil {
@@ -135,7 +142,7 @@ func setupStackCommand() *cobraext.Command {
 			}
 
 			err = stack.TearDown(stack.Options{
-				Profile: usrProfile,
+				Profile: userProfile,
 			})
 			if err != nil {
 				return errors.Wrap(err, "tearing down the stack failed")
@@ -279,5 +286,17 @@ func validateServicesFlag(services []string) error {
 
 		selected[aService] = struct{}{}
 	}
+	return nil
+}
+
+func printInitConfig(cmd *cobra.Command, profile *profile.Profile) error {
+	initConfig, err := stack.StackInitConfig(profile)
+	if err != nil {
+		return nil
+	}
+	cmd.Printf("Elasticsearch host: %s\n", initConfig.ElasticsearchHostPort)
+	cmd.Printf("Kibana host: %s\n", initConfig.KibanaHostPort)
+	cmd.Printf("Username: %s\n", initConfig.ElasticsearchUsername)
+	cmd.Printf("Password: %s\n", initConfig.ElasticsearchPassword)
 	return nil
 }
