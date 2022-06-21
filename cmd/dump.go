@@ -24,7 +24,7 @@ func setupDumpCommand() *cobraext.Command {
 		Use:   "installed-objects",
 		Short: "Dump objects installed in the stack",
 		Long:  dumpInstalledObjectsLongDescription,
-		RunE:  dumpInstalledObjectsCmd,
+		RunE:  dumpInstalledObjectsCmdAction,
 	}
 	dumpInstalledObjectsCmd.Flags().Bool(cobraext.TLSSkipVerifyFlagName, false, cobraext.TLSSkipVerifyFlagDescription)
 
@@ -42,7 +42,7 @@ func setupDumpCommand() *cobraext.Command {
 	return cobraext.NewCommand(cmd, cobraext.ContextGlobal)
 }
 
-func dumpInstalledObjectsCmd(cmd *cobra.Command, args []string) error {
+func dumpInstalledObjectsCmdAction(cmd *cobra.Command, args []string) error {
 	packageName, err := cmd.Flags().GetString(cobraext.PackageFlagName)
 	if err != nil {
 		return cobraext.FlagParsingError(err, cobraext.PackageFlagName)
