@@ -23,13 +23,24 @@ var tlsServices = []string{
 	"fleet-server",
 }
 
+var (
+	// CertificatesDirectory is the path to the certificates directory inside a profile.
+	CertificatesDirectory = "certs"
+
+	// CACertificateFile is the path to the CA certificate file inside a profile.
+	CACertificateFile = configFile(filepath.Join(CertificatesDirectory, "ca-cert.pem"))
+
+	// CAKeyFile is the path to the CA key file inside a profile.
+	CAKeyFile = configFile(filepath.Join(CertificatesDirectory, "ca-key.pem"))
+)
+
 // initTLSCertificates initializes all the certificates needed to run the services
 // managed by elastic-package stack. It includes a CA, and a pair of keys and
 // certificates for each service.
 func initTLSCertificates(profilePath string, configMap map[configFile]*simpleFile) error {
-	certsDir := filepath.Join(profilePath, "certs")
-	caCertFile := filepath.Join(certsDir, "ca-cert.pem")
-	caKeyFile := filepath.Join(certsDir, "ca-key.pem")
+	certsDir := filepath.Join(profilePath, CertificatesDirectory)
+	caCertFile := filepath.Join(profilePath, string(CACertificateFile))
+	caKeyFile := filepath.Join(profilePath, string(CAKeyFile))
 
 	ca, err := initCA(caCertFile, caKeyFile)
 	if err != nil {

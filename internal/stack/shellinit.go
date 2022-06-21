@@ -7,7 +7,6 @@ package stack
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
@@ -84,8 +83,7 @@ func ShellInit(elasticStackProfile *profile.Profile) (string, error) {
 	es := serviceComposeConfig.Services["elasticsearch"]
 	esHostPort := fmt.Sprintf("https://%s:%d", es.Ports[0].ExternalIP, es.Ports[0].ExternalPort)
 
-	// TODO: Get the certs path directly from the profile.
-	caCert := filepath.Join(elasticStackProfile.ProfilePath, "certs/ca-cert.pem")
+	caCert := elasticStackProfile.FetchPath(profile.CACertificateFile)
 
 	return fmt.Sprintf(shellInitFormat,
 		esHostPort,
