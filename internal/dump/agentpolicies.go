@@ -143,9 +143,6 @@ func (d *AgentPoliciesDumper) getAgentPoliciesFilteredByPackage(ctx context.Cont
 				return nil, fmt.Errorf("failed to get Agent Policy ID: %w", err)
 			}
 			packageNames := getPackagesUsingAgentPolicy(policyPackages.PackagePolicies)
-			fmt.Printf("package Name %s\n", packageName)
-			fmt.Printf("packageNames %s\n", packageNames)
-			fmt.Printf("Struct package policies %+v\n", policyPackages.PackagePolicies)
 			if !common.StringSliceContains(packageNames, packageName) {
 				continue
 			}
