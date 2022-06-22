@@ -72,6 +72,50 @@ func (c *Client) GetPolicy(policyID string) (*Policy, error) {
 	return &resp.Item, nil
 }
 
+// GetRawPolicy fetches the given Policy with all the fields in the Ingest Manager.
+func (c *Client) GetRawPolicy(policyID string) (json.RawMessage, error) {
+	statusCode, respBody, err := c.get(fmt.Sprintf("%s/agent_policies/%s", FleetAPI, policyID))
+	if err != nil {
+		return nil, errors.Wrap(err, "could not get policy")
+	}
+
+	if statusCode != http.StatusOK {
+		return nil, fmt.Errorf("could not get policy; API status code = %d; response body = %s", statusCode, respBody)
+	}
+
+	var resp struct {
+		Item json.RawMessage `json:"item"`
+	}
+
+	if err := json.Unmarshal(respBody, &resp); err != nil {
+		return nil, errors.Wrap(err, "could not convert policy (response) to JSON")
+	}
+
+	return resp.Item, nil
+}
+
+// ListRawPolicy fetches all the Policies in the Ingest Manager.
+func (c *Client) ListRawPolicy() ([]json.RawMessage, error) {
+	statusCode, respBody, err := c.get(fmt.Sprintf("%s/agent_policies?full=true", FleetAPI))
+	if err != nil {
+		return nil, errors.Wrap(err, "could not get policy")
+	}
+
+	if statusCode != http.StatusOK {
+		return nil, fmt.Errorf("could not get policy; API status code = %d; response body = %s", statusCode, respBody)
+	}
+
+	var resp struct {
+		Items []json.RawMessage `json:"items"`
+	}
+
+	if err := json.Unmarshal(respBody, &resp); err != nil {
+		return nil, errors.Wrap(err, "could not convert policy (response) to JSON")
+	}
+
+	return resp.Items, nil
+}
+
 // DeletePolicy removes the given Policy from the Ingest Manager.
 func (c *Client) DeletePolicy(p Policy) error {
 	reqBody := `{ "agentPolicyId": "` + p.ID + `" }`
