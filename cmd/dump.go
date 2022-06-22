@@ -93,6 +93,11 @@ func dumpInstalledObjectsCmdAction(cmd *cobra.Command, args []string) error {
 }
 
 func dumpAgentPoliciesCmdAction(cmd *cobra.Command, args []string) error {
+	packageName, err := cmd.Flags().GetString(cobraext.PackageFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.PackageFlagName)
+	}
+
 	agentPolicy, err := cmd.Flags().GetString(cobraext.AgentPolicyFlagName)
 	if err != nil {
 		return cobraext.FlagParsingError(err, cobraext.AgentPolicyFlagName)
@@ -122,13 +127,20 @@ func dumpAgentPoliciesCmdAction(cmd *cobra.Command, args []string) error {
 			return errors.Wrap(err, "dump failed")
 		}
 		cmd.Printf("Dumped agent policy %s to %s\n", agentPolicy, outputPath)
+	case packageName != "":
+		dumper := dump.NewAgentPoliciesDumper(kibanaClient)
+		count, err := dumper.DumpAgentPoliciesFileteredByPackage(cmd.Context(), packageName, outputPath)
+		if err != nil {
+			return errors.Wrap(err, "dump failed")
+		}
+		cmd.Printf("Dumped %d agent policies filtering by package name %s to %s\n", count, packageName, outputPath)
 	default:
 		dumper := dump.NewAgentPoliciesDumper(kibanaClient)
 		count, err := dumper.DumpAll(cmd.Context(), outputPath)
 		if err != nil {
 			return errors.Wrap(err, "dump failed")
 		}
-		cmd.Printf("Dumped %s agent policies to %s\n", count, outputPath)
+		cmd.Printf("Dumped %d agent policies to %s\n", count, outputPath)
 	}
 	return nil
 }
