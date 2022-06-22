@@ -20,9 +20,9 @@ const dumpInstalledObjectsLongDescription = `Use this command to dump objects in
 
 Use this command as a exploratory tool to dump objects as they are installed by Fleet when installing a package. Dumped objects are stored in files as they are returned by APIs of the stack, without any processing.`
 
-const dumpAgentPoliciesLongDescription = `Use this command to dump agent policies installed by Fleet as part of a package.
+const dumpAgentPoliciesLongDescription = `Use this command to dump agent policies created by Fleet as part of a package installation.
 
-Use this command as a exploratory tool to dump objects as they are installed by Fleet when installing a package. Dumped objects are stored in files as they are returned by APIs of the stack, without any processing.`
+Use this command as a exploratory tool to dump agent policies as they are created by Fleet when installing a package. Dumped agent policies are stored in files as they are returned by APIs of the stack, without any processing.`
 
 func setupDumpCommand() *cobraext.Command {
 	dumpInstalledObjectsCmd := &cobra.Command{
@@ -32,7 +32,6 @@ func setupDumpCommand() *cobraext.Command {
 		RunE:  dumpInstalledObjectsCmdAction,
 	}
 	dumpInstalledObjectsCmd.Flags().Bool(cobraext.TLSSkipVerifyFlagName, false, cobraext.TLSSkipVerifyFlagDescription)
-	// dumpInstalledObjectsCmd.MarkFlagRequired(cobraext.PackageFlagName) // TODO: required for dumping agent policies?
 
 	dumpAgentPoliciesCmd := &cobra.Command{
 		Use:   "agent-policies",
