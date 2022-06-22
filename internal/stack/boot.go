@@ -59,6 +59,7 @@ func BootUp(options Options) error {
 	if err != nil {
 		return errors.Wrap(err, "running docker-compose failed")
 	}
+
 	return nil
 }
 
