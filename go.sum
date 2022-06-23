@@ -129,8 +129,8 @@ github.com/ProtonMail/go-crypto v0.0.0-20220113124808-70ae35bab23f h1:J2FzIrXN82
 github.com/ProtonMail/go-crypto v0.0.0-20220113124808-70ae35bab23f/go.mod h1:z4/9nQmJSSwwds7ejkxaJwO37dru3geImFUdJlaLzQo=
 github.com/ProtonMail/go-mime v0.0.0-20220302105931-303f85f7fe0f h1:CGq7OieOz3wyQJ1fO8S0eO9TCW1JyvLrf8fhzz1i8ko=
 github.com/ProtonMail/go-mime v0.0.0-20220302105931-303f85f7fe0f/go.mod h1:NYt+V3/4rEeDuaev/zw1zCq8uqVEuPHzDPo3OZrlGJ4=
-github.com/ProtonMail/gopenpgp/v2 v2.4.7 h1:V3xeelvXgJiZXZuPtSSE+uYbtPw4RmbmyPqXDAESPhg=
-github.com/ProtonMail/gopenpgp/v2 v2.4.7/go.mod h1:ZW1KxHNG6q5LMgFKf9Ap/d2eVYeyGf5+fAUEAjJWtmo=
+github.com/ProtonMail/gopenpgp/v2 v2.4.8 h1:udtI0QsLn6EOBM2zwmmTvAWaUP+3GNatkfiITvTMm4U=
+github.com/ProtonMail/gopenpgp/v2 v2.4.8/go.mod h1:ZW1KxHNG6q5LMgFKf9Ap/d2eVYeyGf5+fAUEAjJWtmo=
 github.com/PuerkitoBio/purell v1.0.0/go.mod h1:c11w/QuzBsJSee3cPx9rAFu61PvFxuPbtSwDGJws/X0=
 github.com/PuerkitoBio/purell v1.1.1 h1:WEQqlqaGbrPkxLJWfBwQmfEAE1Z7ONdDLqrN38tNFfI=
 github.com/PuerkitoBio/purell v1.1.1/go.mod h1:c11w/QuzBsJSee3cPx9rAFu61PvFxuPbtSwDGJws/X0=
