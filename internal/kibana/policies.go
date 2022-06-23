@@ -96,24 +96,37 @@ func (c *Client) GetRawPolicy(policyID string) (json.RawMessage, error) {
 
 // ListRawPolicy fetches all the Policies in the Ingest Manager.
 func (c *Client) ListRawPolicy() ([]json.RawMessage, error) {
-	statusCode, respBody, err := c.get(fmt.Sprintf("%s/agent_policies?full=true", FleetAPI))
-	if err != nil {
-		return nil, errors.Wrap(err, "could not get policy")
-	}
-
-	if statusCode != http.StatusOK {
-		return nil, fmt.Errorf("could not get policy; API status code = %d; response body = %s", statusCode, respBody)
-	}
-
+	itemsRetrieved := 0
+	currentPage := 1
+	var items []json.RawMessage
 	var resp struct {
-		Items []json.RawMessage `json:"items"`
+		Items   []json.RawMessage `json:"items"`
+		Total   int               `json:"total"`
+		Page    int               `json:"page"`
+		PerPage int               `json:"perPage"`
 	}
 
-	if err := json.Unmarshal(respBody, &resp); err != nil {
-		return nil, errors.Wrap(err, "could not convert policy (response) to JSON")
+	for finished := false; !finished; finished = itemsRetrieved == resp.Total {
+		statusCode, respBody, err := c.get(fmt.Sprintf("%s/agent_policies?full=true&page=%d&perPage=1", FleetAPI, currentPage))
+		fmt.Printf("Querying currentPage %d\n", currentPage)
+		if err != nil {
+			return nil, errors.Wrap(err, "could not get policies")
+		}
+
+		if statusCode != http.StatusOK {
+			return nil, fmt.Errorf("could not get policies; API status code = %d; response body = %s", statusCode, respBody)
+		}
+
+		if err := json.Unmarshal(respBody, &resp); err != nil {
+			return nil, errors.Wrap(err, "could not convert policies (response) to JSON")
+		}
+
+		itemsRetrieved += len(resp.Items)
+		currentPage += 1
+		items = append(items, resp.Items...)
 	}
 
-	return resp.Items, nil
+	return items, nil
 }
 
 // DeletePolicy removes the given Policy from the Ingest Manager.
