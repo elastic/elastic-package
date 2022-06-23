@@ -70,24 +70,11 @@ func (d *AgentPoliciesDumper) DumpByName(ctx context.Context, dir, name string) 
 
 func (d *AgentPoliciesDumper) getAllAgentPolicies(ctx context.Context) ([]AgentPolicy, error) {
 	if len(d.policies) == 0 {
-		policies, err := d.client.ListRawPolicy()
-
+		policies, err := d.getAgentPoliciesFilteredByPackage(ctx, "")
 		if err != nil {
 			return nil, err
 		}
-
-		var policyName struct {
-			ID string `json:"id"`
-		}
-
-		for _, policy := range policies {
-			err = json.Unmarshal(policy, &policyName)
-			if err != nil {
-				return nil, fmt.Errorf("failed to get Agent Policy ID: %w", err)
-			}
-			agentPolicy := AgentPolicy{name: policyName.ID, raw: policy}
-			d.policies = append(d.policies, agentPolicy)
-		}
+		d.policies = policies
 	}
 	return d.policies, nil
 }
@@ -128,9 +115,11 @@ func (d *AgentPoliciesDumper) getAgentPoliciesFilteredByPackage(ctx context.Cont
 			if err != nil {
 				return nil, fmt.Errorf("failed to get Agent Policy ID: %w", err)
 			}
-			packageNames := getPackagesUsingAgentPolicy(policyPackages.PackagePolicies)
-			if !common.StringSliceContains(packageNames, packageName) {
-				continue
+			if packageName != "" {
+				packageNames := getPackagesUsingAgentPolicy(policyPackages.PackagePolicies)
+				if !common.StringSliceContains(packageNames, packageName) {
+					continue
+				}
 			}
 
 			agentPolicy := AgentPolicy{name: policyPackages.ID, raw: policy}
