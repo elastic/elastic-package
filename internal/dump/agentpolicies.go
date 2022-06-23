@@ -16,14 +16,8 @@ import (
 
 const AgentPoliciesDumpDir = "agent_policies"
 
-type AgentPolicyDumper struct {
-	name   string
-	client *kibana.Client
-
-	policy *AgentPolicy
-}
-
 type AgentPoliciesDumper struct {
+	name   *string
 	client *kibana.Client
 
 	policies []AgentPolicy
@@ -42,33 +36,32 @@ func (p AgentPolicy) JSON() []byte {
 	return p.raw
 }
 
-func NewAgentPolicyDumper(client *kibana.Client, agentPolicy string) *AgentPolicyDumper {
-	return &AgentPolicyDumper{
-		name:   agentPolicy,
-		client: client,
+func NewAgentPoliciesDumper(client *kibana.Client, agentPolicy *string) *AgentPoliciesDumper {
+	if agentPolicy != nil {
+		return &AgentPoliciesDumper{
+			name:   agentPolicy,
+			client: client,
+		}
 	}
-}
-
-func NewAgentPoliciesDumper(client *kibana.Client) *AgentPoliciesDumper {
 	return &AgentPoliciesDumper{
 		client: client,
 	}
 }
 
-func (d *AgentPolicyDumper) getAgentPolicy(ctx context.Context) (*AgentPolicy, error) {
-	if d.policy == nil {
-		policy, err := d.client.GetRawPolicy(d.name)
+func (d *AgentPoliciesDumper) getAgentPolicy(ctx context.Context) (*AgentPolicy, error) {
+	if len(d.policies) == 0 {
+		policy, err := d.client.GetRawPolicy(*d.name)
 
 		if err != nil {
 			return nil, err
 		}
-		agentPolicy := AgentPolicy{name: d.name, raw: policy}
-		d.policy = &agentPolicy
+		d.policies = append(d.policies, AgentPolicy{name: *d.name, raw: policy})
 	}
-	return d.policy, nil
+	return &d.policies[0], nil
 }
 
-func (d *AgentPolicyDumper) DumpAgentPolicy(ctx context.Context, dir string) error {
+func (d *AgentPoliciesDumper) DumpAgentPolicy(ctx context.Context, dir string) error {
+	d.policies = nil
 	agentPolicy, err := d.getAgentPolicy(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get agent policy: %w", err)
@@ -155,6 +148,7 @@ func (d *AgentPoliciesDumper) getAgentPoliciesFilteredByPackage(ctx context.Cont
 }
 
 func (d *AgentPoliciesDumper) DumpAll(ctx context.Context, dir string) (count int, err error) {
+	d.policies = nil
 	agentPolicies, err := d.getAllAgentPolicies(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("failed to get agent policy: %w", err)
@@ -171,6 +165,7 @@ func (d *AgentPoliciesDumper) DumpAll(ctx context.Context, dir string) (count in
 }
 
 func (d *AgentPoliciesDumper) DumpAgentPoliciesFileteredByPackage(ctx context.Context, packageName, dir string) (count int, err error) {
+	d.policies = nil
 	agentPolicies, err := d.getAgentPoliciesFilteredByPackage(ctx, packageName)
 	if err != nil {
 		return 0, fmt.Errorf("failed to get agent policy: %w", err)

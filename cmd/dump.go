@@ -22,7 +22,11 @@ Use this command as a exploratory tool to dump objects as they are installed by 
 
 const dumpAgentPoliciesLongDescription = `Use this command to dump agent policies created by Fleet as part of a package installation.
 
-Use this command as a exploratory tool to dump agent policies as they are created by Fleet when installing a package. Dumped agent policies are stored in files as they are returned by APIs of the stack, without any processing.`
+Use this command as a exploratory tool to dump agent policies as they are created by Fleet when installing a package. Dumped agent policies are stored in files as they are returned by APIs of the stack, without any processing.
+
+If no flag is provided, by default this command dumps all agent policies created by Fleet.
+
+If --package flag is provided, this command dumps all agent policies that the given package has been assigned to it.`
 
 func setupDumpCommand() *cobraext.Command {
 	dumpInstalledObjectsCmd := &cobra.Command{
@@ -120,26 +124,34 @@ func dumpAgentPoliciesCmdAction(cmd *cobra.Command, args []string) error {
 
 	switch {
 	case agentPolicy != "":
-		dumper := dump.NewAgentPolicyDumper(kibanaClient, agentPolicy)
+		dumper := dump.NewAgentPoliciesDumper(kibanaClient, &agentPolicy)
 		err = dumper.DumpAgentPolicy(cmd.Context(), outputPath)
 		if err != nil {
 			return errors.Wrap(err, "dump failed")
 		}
 		cmd.Printf("Dumped agent policy %s to %s\n", agentPolicy, outputPath)
 	case packageName != "":
-		dumper := dump.NewAgentPoliciesDumper(kibanaClient)
+		dumper := dump.NewAgentPoliciesDumper(kibanaClient, nil)
 		count, err := dumper.DumpAgentPoliciesFileteredByPackage(cmd.Context(), packageName, outputPath)
 		if err != nil {
 			return errors.Wrap(err, "dump failed")
 		}
-		cmd.Printf("Dumped %d agent policies filtering by package name %s to %s\n", count, packageName, outputPath)
+		if count != 0 {
+			cmd.Printf("Dumped %d agent policies filtering by package name %s to %s\n", count, packageName, outputPath)
+		} else {
+			cmd.Printf("No agent policies were found filtering by package name %s\n", packageName)
+		}
 	default:
-		dumper := dump.NewAgentPoliciesDumper(kibanaClient)
+		dumper := dump.NewAgentPoliciesDumper(kibanaClient, nil)
 		count, err := dumper.DumpAll(cmd.Context(), outputPath)
 		if err != nil {
 			return errors.Wrap(err, "dump failed")
 		}
-		cmd.Printf("Dumped %d agent policies to %s\n", count, outputPath)
+		if count != 0 {
+			cmd.Printf("Dumped %d agent policies to %s\n", count, outputPath)
+		} else {
+			cmd.Printf("No agent policies were found\n")
+		}
 	}
 	return nil
 }
