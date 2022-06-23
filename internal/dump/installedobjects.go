@@ -77,7 +77,7 @@ type DumpableInstalledObject interface {
 	JSON() []byte
 }
 
-func dumpInstalledObject(dir string, object DumpableInstalledObject) error {
+func dumpJSONResource(dir string, object DumpableInstalledObject) error {
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return fmt.Errorf("failed to create dump directory: %w", err)
 	}
@@ -110,7 +110,7 @@ func (e *InstalledObjectsDumper) dumpIndexTemplates(ctx context.Context, dir str
 
 	dir = filepath.Join(dir, IndexTemplatesDumpDir)
 	for i, t := range indexTemplates {
-		err := dumpInstalledObject(dir, t)
+		err := dumpJSONResource(dir, t)
 		if err != nil {
 			return i, fmt.Errorf("failed to dump index template %s: %w", t.Name(), err)
 		}
@@ -138,7 +138,7 @@ func (e *InstalledObjectsDumper) dumpComponentTemplates(ctx context.Context, dir
 
 	dir = filepath.Join(dir, ComponentTemplatesDumpDir)
 	for i, t := range componentTemplates {
-		err := dumpInstalledObject(dir, t)
+		err := dumpJSONResource(dir, t)
 		if err != nil {
 			return i, fmt.Errorf("failed to dump component template %s: %w", t.Name(), err)
 		}
@@ -187,7 +187,7 @@ func (e *InstalledObjectsDumper) dumpILMPolicies(ctx context.Context, dir string
 
 	dir = filepath.Join(dir, ILMPoliciesDumpDir)
 	for i, t := range ilmPolicies {
-		err := dumpInstalledObject(dir, t)
+		err := dumpJSONResource(dir, t)
 		if err != nil {
 			return i, fmt.Errorf("failed to dump ILM policy %s: %w", t.Name(), err)
 		}
@@ -231,7 +231,7 @@ func (e *InstalledObjectsDumper) dumpIngestPipelines(ctx context.Context, dir st
 
 	dir = filepath.Join(dir, IngestPipelinesDumpDir)
 	for i, t := range ingestPipelines {
-		err := dumpInstalledObject(dir, t)
+		err := dumpJSONResource(dir, t)
 		if err != nil {
 			return i, fmt.Errorf("failed to dump ingest pipeline %s: %w", t.Name(), err)
 		}

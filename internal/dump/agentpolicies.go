@@ -61,7 +61,7 @@ func (d *AgentPoliciesDumper) DumpByName(ctx context.Context, dir, name string) 
 	}
 
 	dir = filepath.Join(dir, AgentPoliciesDumpDir)
-	err = dumpInstalledObject(dir, agentPolicy)
+	err = dumpJSONResource(dir, agentPolicy)
 	if err != nil {
 		return fmt.Errorf("failed to dump agent policy %s: %w", agentPolicy.Name(), err)
 	}
@@ -149,7 +149,7 @@ func (d *AgentPoliciesDumper) DumpAll(ctx context.Context, dir string) (count in
 
 	dir = filepath.Join(dir, AgentPoliciesDumpDir)
 	for _, agentPolicy := range agentPolicies {
-		err := dumpInstalledObject(dir, agentPolicy)
+		err := dumpJSONResource(dir, agentPolicy)
 		if err != nil {
 			return 0, fmt.Errorf("failed to dump agent policy %s: %w", agentPolicy.Name(), err)
 		}
@@ -166,7 +166,7 @@ func (d *AgentPoliciesDumper) DumpByPackage(ctx context.Context, dir, packageNam
 
 	dir = filepath.Join(dir, AgentPoliciesDumpDir)
 	for _, agentPolicy := range agentPolicies {
-		err := dumpInstalledObject(dir, agentPolicy)
+		err := dumpJSONResource(dir, agentPolicy)
 		if err != nil {
 			return 0, fmt.Errorf("failed to dump agent policy %s: %w", agentPolicy.Name(), err)
 		}
