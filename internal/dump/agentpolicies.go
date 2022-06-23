@@ -18,8 +18,6 @@ const AgentPoliciesDumpDir = "agent_policies"
 
 type AgentPoliciesDumper struct {
 	client *kibana.Client
-
-	policies []AgentPolicy
 }
 
 type AgentPolicy struct {
@@ -42,19 +40,14 @@ func NewAgentPoliciesDumper(client *kibana.Client) *AgentPoliciesDumper {
 }
 
 func (d *AgentPoliciesDumper) getAgentPolicy(ctx context.Context, name string) (*AgentPolicy, error) {
-	if len(d.policies) == 0 {
-		policy, err := d.client.GetRawPolicy(name)
-
-		if err != nil {
-			return nil, err
-		}
-		d.policies = append(d.policies, AgentPolicy{name: name, raw: policy})
+	policy, err := d.client.GetRawPolicy(name)
+	if err != nil {
+		return nil, err
 	}
-	return &d.policies[0], nil
+	return &AgentPolicy{name: name, raw: policy}, nil
 }
 
 func (d *AgentPoliciesDumper) DumpByName(ctx context.Context, dir, name string) error {
-	d.policies = nil
 	agentPolicy, err := d.getAgentPolicy(ctx, name)
 	if err != nil {
 		return fmt.Errorf("failed to get agent policy: %w", err)
@@ -69,14 +62,7 @@ func (d *AgentPoliciesDumper) DumpByName(ctx context.Context, dir, name string) 
 }
 
 func (d *AgentPoliciesDumper) getAllAgentPolicies(ctx context.Context) ([]AgentPolicy, error) {
-	if len(d.policies) == 0 {
-		policies, err := d.getAgentPoliciesFilteredByPackage(ctx, "")
-		if err != nil {
-			return nil, err
-		}
-		d.policies = policies
-	}
-	return d.policies, nil
+	return d.getAgentPoliciesFilteredByPackage(ctx, "")
 }
 
 type packagePolicy struct {
@@ -98,39 +84,38 @@ func getPackagesUsingAgentPolicy(packagePolicies []packagePolicy) []string {
 }
 
 func (d *AgentPoliciesDumper) getAgentPoliciesFilteredByPackage(ctx context.Context, packageName string) ([]AgentPolicy, error) {
-	if len(d.policies) == 0 {
-		policies, err := d.client.ListRawPolicy()
+	rawPolicies, err := d.client.ListRawPolicy()
 
-		if err != nil {
-			return nil, err
-		}
-
-		var policyPackages struct {
-			ID              string          `json:"id"`
-			PackagePolicies []packagePolicy `json:"package_policies"`
-		}
-
-		for _, policy := range policies {
-			err = json.Unmarshal(policy, &policyPackages)
-			if err != nil {
-				return nil, fmt.Errorf("failed to get Agent Policy ID: %w", err)
-			}
-			if packageName != "" {
-				packageNames := getPackagesUsingAgentPolicy(policyPackages.PackagePolicies)
-				if !common.StringSliceContains(packageNames, packageName) {
-					continue
-				}
-			}
-
-			agentPolicy := AgentPolicy{name: policyPackages.ID, raw: policy}
-			d.policies = append(d.policies, agentPolicy)
-		}
+	if err != nil {
+		return nil, err
 	}
-	return d.policies, nil
+
+	var policyPackages struct {
+		ID              string          `json:"id"`
+		PackagePolicies []packagePolicy `json:"package_policies"`
+	}
+
+	var policies []AgentPolicy
+
+	for _, policy := range rawPolicies {
+		err = json.Unmarshal(policy, &policyPackages)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get Agent Policy ID: %w", err)
+		}
+		if packageName != "" {
+			packageNames := getPackagesUsingAgentPolicy(policyPackages.PackagePolicies)
+			if !common.StringSliceContains(packageNames, packageName) {
+				continue
+			}
+		}
+
+		agentPolicy := AgentPolicy{name: policyPackages.ID, raw: policy}
+		policies = append(policies, agentPolicy)
+	}
+	return policies, nil
 }
 
 func (d *AgentPoliciesDumper) DumpAll(ctx context.Context, dir string) (count int, err error) {
-	d.policies = nil
 	agentPolicies, err := d.getAllAgentPolicies(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("failed to get agent policy: %w", err)
@@ -147,7 +132,6 @@ func (d *AgentPoliciesDumper) DumpAll(ctx context.Context, dir string) (count in
 }
 
 func (d *AgentPoliciesDumper) DumpByPackage(ctx context.Context, dir, packageName string) (count int, err error) {
-	d.policies = nil
 	agentPolicies, err := d.getAgentPoliciesFilteredByPackage(ctx, packageName)
 	if err != nil {
 		return 0, fmt.Errorf("failed to get agent policy: %w", err)
