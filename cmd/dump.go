@@ -5,6 +5,8 @@
 package cmd
 
 import (
+	"fmt"
+
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
@@ -124,16 +126,18 @@ func dumpAgentPoliciesCmdAction(cmd *cobra.Command, args []string) error {
 	}
 
 	switch {
+	case agentPolicy != "" && packageName != "":
+		return fmt.Errorf("agent-policy and package parameters cannot be set at the same time")
 	case agentPolicy != "":
-		dumper := dump.NewAgentPoliciesDumper(kibanaClient, &agentPolicy)
-		err = dumper.DumpAgentPolicy(cmd.Context(), outputPath)
+		dumper := dump.NewAgentPoliciesDumper(kibanaClient)
+		err = dumper.DumpByName(cmd.Context(), outputPath, agentPolicy)
 		if err != nil {
 			return errors.Wrap(err, "dump failed")
 		}
 		cmd.Printf("Dumped agent policy %s to %s\n", agentPolicy, outputPath)
 	case packageName != "":
-		dumper := dump.NewAgentPoliciesDumper(kibanaClient, nil)
-		count, err := dumper.DumpAgentPoliciesFileteredByPackage(cmd.Context(), packageName, outputPath)
+		dumper := dump.NewAgentPoliciesDumper(kibanaClient)
+		count, err := dumper.DumpByPackage(cmd.Context(), outputPath, packageName)
 		if err != nil {
 			return errors.Wrap(err, "dump failed")
 		}
@@ -143,7 +147,7 @@ func dumpAgentPoliciesCmdAction(cmd *cobra.Command, args []string) error {
 			cmd.Printf("No agent policies were found filtering by package name %s\n", packageName)
 		}
 	default:
-		dumper := dump.NewAgentPoliciesDumper(kibanaClient, nil)
+		dumper := dump.NewAgentPoliciesDumper(kibanaClient)
 		count, err := dumper.DumpAll(cmd.Context(), outputPath)
 		if err != nil {
 			return errors.Wrap(err, "dump failed")
