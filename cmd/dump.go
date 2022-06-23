@@ -36,6 +36,8 @@ func setupDumpCommand() *cobraext.Command {
 		RunE:  dumpInstalledObjectsCmdAction,
 	}
 	dumpInstalledObjectsCmd.Flags().Bool(cobraext.TLSSkipVerifyFlagName, false, cobraext.TLSSkipVerifyFlagDescription)
+	dumpInstalledObjectsCmd.Flags().StringP(cobraext.PackageFlagName, cobraext.PackageFlagShorthand, "", cobraext.PackageFlagDescription)
+	dumpInstalledObjectsCmd.MarkFlagRequired(cobraext.PackageFlagName)
 
 	dumpAgentPoliciesCmd := &cobra.Command{
 		Use:   "agent-policies",
@@ -44,14 +46,14 @@ func setupDumpCommand() *cobraext.Command {
 		RunE:  dumpAgentPoliciesCmdAction,
 	}
 	dumpAgentPoliciesCmd.Flags().StringP(cobraext.AgentPolicyFlagName, "", "", cobraext.AgentPolicyDescription)
+	dumpAgentPoliciesCmd.Flags().StringP(cobraext.PackageFlagName, cobraext.PackageFlagShorthand, "", cobraext.PackageFlagDescription)
 
 	cmd := &cobra.Command{
 		Use:   "dump",
 		Short: "Dump package assets",
 		Long:  dumpLongDescription,
 	}
-	cmd.PersistentFlags().StringP(cobraext.PackageFlagName, cobraext.PackageFlagShorthand, "", cobraext.PackageFlagDescription)
-	cmd.MarkFlagRequired(cobraext.PackageFlagName) // TODO: required for dumping agent policies?
+	// cmd.PersistentFlags().StringP(cobraext.PackageFlagName, cobraext.PackageFlagShorthand, "", cobraext.PackageFlagDescription)
 	cmd.PersistentFlags().StringP(cobraext.DumpOutputFlagName, "o", "package-dump", cobraext.DumpOutputFlagDescription)
 
 	cmd.AddCommand(dumpInstalledObjectsCmd)
