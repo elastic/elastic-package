@@ -108,7 +108,6 @@ func (c *Client) ListRawPolicy() ([]json.RawMessage, error) {
 
 	for finished := false; !finished; finished = itemsRetrieved == resp.Total {
 		statusCode, respBody, err := c.get(fmt.Sprintf("%s/agent_policies?full=true&page=%d&perPage=1", FleetAPI, currentPage))
-		fmt.Printf("Querying currentPage %d\n", currentPage)
 		if err != nil {
 			return nil, errors.Wrap(err, "could not get policies")
 		}
