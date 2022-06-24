@@ -15,19 +15,20 @@ import (
 
 // FieldDefinition describes a single field with its properties.
 type FieldDefinition struct {
-	Name          string            `yaml:"name"`
-	Description   string            `yaml:"description"`
-	Type          string            `yaml:"type"`
-	Value         string            `yaml:"value"` // The value to associate with a constant_keyword field.
-	AllowedValues AllowedValues     `yaml:"allowed_values"`
-	Pattern       string            `yaml:"pattern"`
-	Unit          string            `yaml:"unit"`
-	MetricType    string            `yaml:"metric_type"`
-	External      string            `yaml:"external"`
-	Index         *bool             `yaml:"index"`
-	DocValues     *bool             `yaml:"doc_values"`
-	Fields        FieldDefinitions  `yaml:"fields,omitempty"`
-	MultiFields   []FieldDefinition `yaml:"multi_fields,omitempty"`
+	Name           string            `yaml:"name"`
+	Description    string            `yaml:"description"`
+	Type           string            `yaml:"type"`
+	Value          string            `yaml:"value"` // The value to associate with a constant_keyword field.
+	AllowedValues  AllowedValues     `yaml:"allowed_values"`
+	ExpectedValues []string          `yaml:"expected_values"`
+	Pattern        string            `yaml:"pattern"`
+	Unit           string            `yaml:"unit"`
+	MetricType     string            `yaml:"metric_type"`
+	External       string            `yaml:"external"`
+	Index          *bool             `yaml:"index"`
+	DocValues      *bool             `yaml:"doc_values"`
+	Fields         FieldDefinitions  `yaml:"fields,omitempty"`
+	MultiFields    []FieldDefinition `yaml:"multi_fields,omitempty"`
 }
 
 func (orig *FieldDefinition) Update(fd FieldDefinition) {
@@ -45,6 +46,9 @@ func (orig *FieldDefinition) Update(fd FieldDefinition) {
 	}
 	if len(fd.AllowedValues) > 0 {
 		orig.AllowedValues = fd.AllowedValues
+	}
+	if len(fd.ExpectedValues) > 0 {
+		orig.ExpectedValues = fd.ExpectedValues
 	}
 	if fd.Pattern != "" {
 		orig.Pattern = fd.Pattern
