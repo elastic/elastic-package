@@ -84,15 +84,15 @@ func (c *Client) Get(resourcePath string) (int, []byte, error) {
 	return c.sendRequest(http.MethodGet, resourcePath, nil)
 }
 
-func (c *Client) post(resourcePath string, body []byte) (int, []byte, error) {
+func (c *Client) Post(resourcePath string, body []byte) (int, []byte, error) {
 	return c.sendRequest(http.MethodPost, resourcePath, body)
 }
 
-func (c *Client) put(resourcePath string, body []byte) (int, []byte, error) {
+func (c *Client) Put(resourcePath string, body []byte) (int, []byte, error) {
 	return c.sendRequest(http.MethodPut, resourcePath, body)
 }
 
-func (c *Client) delete(resourcePath string) (int, []byte, error) {
+func (c *Client) Delete(resourcePath string) (int, []byte, error) {
 	return c.sendRequest(http.MethodDelete, resourcePath, nil)
 }
 

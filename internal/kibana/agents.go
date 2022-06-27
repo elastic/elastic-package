@@ -66,7 +66,7 @@ func (c *Client) AssignPolicyToAgent(a Agent, p Policy) error {
 	reqBody := `{ "policy_id": "` + p.ID + `" }`
 
 	path := fmt.Sprintf("%s/agents/%s/reassign", FleetAPI, a.ID)
-	statusCode, respBody, err := c.put(path, []byte(reqBody))
+	statusCode, respBody, err := c.Put(path, []byte(reqBody))
 	if err != nil {
 		return errors.Wrap(err, "could not assign policy to agent")
 	}
