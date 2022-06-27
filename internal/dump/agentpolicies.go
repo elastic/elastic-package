@@ -86,7 +86,7 @@ func getPackagesUsingAgentPolicy(packagePolicies []packagePolicy) []string {
 }
 
 func (d *AgentPoliciesDumper) getAgentPoliciesFilteredByPackage(ctx context.Context, packageName string) ([]AgentPolicy, error) {
-	rawPolicies, err := d.client.ListRawPolicy()
+	rawPolicies, err := d.client.ListRawPolicies()
 
 	if err != nil {
 		return nil, err

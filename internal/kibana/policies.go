@@ -94,8 +94,8 @@ func (c *Client) GetRawPolicy(policyID string) (json.RawMessage, error) {
 	return resp.Item, nil
 }
 
-// ListRawPolicy fetches all the Policies in Fleet.
-func (c *Client) ListRawPolicy() ([]json.RawMessage, error) {
+// ListRawPolicies fetches all the Policies in Fleet.
+func (c *Client) ListRawPolicies() ([]json.RawMessage, error) {
 	itemsRetrieved := 0
 	currentPage := 1
 	var items []json.RawMessage
