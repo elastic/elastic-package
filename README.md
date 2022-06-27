@@ -46,7 +46,7 @@ cd elastic-package
 make build
 ```
 
-When developing on Windows, please use the `core.autocrlf=input` option to avoid issues with CRLF line endings:
+When developing on Windows, please use the `core.autocrlf=input` or `core.autocrlf=false` option to avoid issues with CRLF line endings:
 ```bash
 git clone --config core.autocrlf=input https://github.com/elastic/elastic-package.git
 cd elastic-package
