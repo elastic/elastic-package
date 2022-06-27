@@ -126,7 +126,7 @@ For details on how to create a new package, review the [HOWTO guide](https://git
 
 _Context: global_
 
-Use this command as a exploratory tool to dump assets relevant for the package.
+Use this command as an exploratory tool to dump resources from Elastic Stack (objects installed as part of package and agent policies).
 
 ### `elastic-package export`
 
