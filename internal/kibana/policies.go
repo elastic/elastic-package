@@ -52,7 +52,7 @@ func (c *Client) CreatePolicy(p Policy) (*Policy, error) {
 
 // GetPolicy fetches the given Policy in Fleet.
 func (c *Client) GetPolicy(policyID string) (*Policy, error) {
-	statusCode, respBody, err := c.get(fmt.Sprintf("%s/agent_policies/%s", FleetAPI, policyID))
+	statusCode, respBody, err := c.Get(fmt.Sprintf("%s/agent_policies/%s", FleetAPI, policyID))
 	if err != nil {
 		return nil, errors.Wrap(err, "could not get policy")
 	}
@@ -74,7 +74,7 @@ func (c *Client) GetPolicy(policyID string) (*Policy, error) {
 
 // GetRawPolicy fetches the given Policy with all the fields in Fleet.
 func (c *Client) GetRawPolicy(policyID string) (json.RawMessage, error) {
-	statusCode, respBody, err := c.get(fmt.Sprintf("%s/agent_policies/%s", FleetAPI, policyID))
+	statusCode, respBody, err := c.Get(fmt.Sprintf("%s/agent_policies/%s", FleetAPI, policyID))
 	if err != nil {
 		return nil, errors.Wrap(err, "could not get policy")
 	}
@@ -107,7 +107,7 @@ func (c *Client) ListRawPolicy() ([]json.RawMessage, error) {
 	}
 
 	for finished := false; !finished; finished = itemsRetrieved == resp.Total {
-		statusCode, respBody, err := c.get(fmt.Sprintf("%s/agent_policies?full=true&page=%d", FleetAPI, currentPage))
+		statusCode, respBody, err := c.Get(fmt.Sprintf("%s/agent_policies?full=true&page=%d", FleetAPI, currentPage))
 		if err != nil {
 			return nil, errors.Wrap(err, "could not get policies")
 		}

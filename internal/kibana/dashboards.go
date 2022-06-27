@@ -33,7 +33,7 @@ func (c *Client) Export(dashboardIDs []string) ([]common.MapStr, error) {
 	}
 
 	path := fmt.Sprintf("%s/dashboards/export%s", CoreAPI, query.String())
-	statusCode, respBody, err := c.get(path)
+	statusCode, respBody, err := c.Get(path)
 	if err != nil {
 		return nil, errors.Wrapf(err, "could not export dashboards; API status code = %d; response body = %s", statusCode, respBody)
 	}

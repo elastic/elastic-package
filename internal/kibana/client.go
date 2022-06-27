@@ -80,7 +80,7 @@ func CertificateAuthority(certificateAuthority string) ClientOption {
 	}
 }
 
-func (c *Client) get(resourcePath string) (int, []byte, error) {
+func (c *Client) Get(resourcePath string) (int, []byte, error) {
 	return c.sendRequest(http.MethodGet, resourcePath, nil)
 }
 

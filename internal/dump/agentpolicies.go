@@ -16,6 +16,7 @@ import (
 
 const AgentPoliciesDumpDir = "agent_policies"
 
+// AgentPoliciesDumper discovers and dumps agent policies in Fleet
 type AgentPoliciesDumper struct {
 	client *kibana.Client
 }
@@ -33,6 +34,7 @@ func (p AgentPolicy) JSON() []byte {
 	return p.raw
 }
 
+// NewAgentPoliciesDumper creates an AgentPoliciesDumper
 func NewAgentPoliciesDumper(client *kibana.Client) *AgentPoliciesDumper {
 	return &AgentPoliciesDumper{
 		client: client,
