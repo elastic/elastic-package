@@ -348,6 +348,24 @@ func Test_parseElementValue(t *testing.T) {
 			},
 			fail: true,
 		},
+		// expected values
+		{
+			key:   "expected values",
+			value: "linux",
+			definition: FieldDefinition{
+				Type:           "keyword",
+				ExpectedValues: []string{"linux", "windows"},
+			},
+		},
+		{
+			key:   "not expected values",
+			value: "bsd",
+			definition: FieldDefinition{
+				Type:           "keyword",
+				ExpectedValues: []string{"linux", "windows"},
+			},
+			fail: true,
+		},
 		// fields shouldn't be stored in groups
 		{
 			key:   "host",

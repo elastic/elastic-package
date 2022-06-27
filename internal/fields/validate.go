@@ -391,7 +391,7 @@ func (v *Validator) parseSingleElementValue(key string, definition FieldDefiniti
 		if err := ensurePatternMatches(key, valStr, definition.Pattern); err != nil {
 			return err
 		}
-		if err := ensureAllowedValues(key, valStr, definition.AllowedValues); err != nil {
+		if err := ensureAllowedValues(key, valStr, definition); err != nil {
 			return err
 		}
 	// Normal text fields should be of type string.
@@ -405,7 +405,7 @@ func (v *Validator) parseSingleElementValue(key string, definition FieldDefiniti
 		if err := ensurePatternMatches(key, valStr, definition.Pattern); err != nil {
 			return err
 		}
-		if err := ensureAllowedValues(key, valStr, definition.AllowedValues); err != nil {
+		if err := ensureAllowedValues(key, valStr, definition); err != nil {
 			return err
 		}
 	// Dates are expected to be formatted as strings or as seconds or milliseconds
@@ -540,9 +540,12 @@ func ensureConstantKeywordValueMatches(key, value, constantKeywordValue string) 
 
 // ensureAllowedValues validates that the document's field value
 // is one of the allowed values.
-func ensureAllowedValues(key, value string, allowedValues AllowedValues) error {
-	if !allowedValues.IsAllowed(value) {
-		return fmt.Errorf("field %q's value %q is not one of the allowed values (%s)", key, value, strings.Join(allowedValues.Values(), ", "))
+func ensureAllowedValues(key, value string, definition FieldDefinition) error {
+	if !definition.AllowedValues.IsAllowed(value) {
+		return fmt.Errorf("field %q's value %q is not one of the allowed values (%s)", key, value, strings.Join(definition.AllowedValues.Values(), ", "))
+	}
+	if e := definition.ExpectedValues; len(e) > 0 && !common.StringSliceContains(e, value) {
+		return fmt.Errorf("field %q's value %q is not one of the expected values (%s)", key, value, strings.Join(e, ", "))
 	}
 	return nil
 }
