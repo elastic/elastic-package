@@ -14,7 +14,7 @@ import (
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
-// Policy represents an Ingest Manager policy.
+// Policy represents an Agent Policy in Fleet.
 type Policy struct {
 	ID          string `json:"id,omitempty"`
 	Name        string `json:"name"`
@@ -23,7 +23,7 @@ type Policy struct {
 	Revision    int    `json:"revision,omitempty"`
 }
 
-// CreatePolicy persists the given Policy in the Ingest Manager.
+// CreatePolicy persists the given Policy in Fleet.
 func (c *Client) CreatePolicy(p Policy) (*Policy, error) {
 	reqBody, err := json.Marshal(p)
 	if err != nil {
@@ -50,7 +50,7 @@ func (c *Client) CreatePolicy(p Policy) (*Policy, error) {
 	return &resp.Item, nil
 }
 
-// GetPolicy fetches the given Policy in the Ingest Manager.
+// GetPolicy fetches the given Policy in Fleet.
 func (c *Client) GetPolicy(policyID string) (*Policy, error) {
 	statusCode, respBody, err := c.get(fmt.Sprintf("%s/agent_policies/%s", FleetAPI, policyID))
 	if err != nil {
@@ -72,7 +72,7 @@ func (c *Client) GetPolicy(policyID string) (*Policy, error) {
 	return &resp.Item, nil
 }
 
-// GetRawPolicy fetches the given Policy with all the fields in the Ingest Manager.
+// GetRawPolicy fetches the given Policy with all the fields in Fleet.
 func (c *Client) GetRawPolicy(policyID string) (json.RawMessage, error) {
 	statusCode, respBody, err := c.get(fmt.Sprintf("%s/agent_policies/%s", FleetAPI, policyID))
 	if err != nil {
@@ -94,7 +94,7 @@ func (c *Client) GetRawPolicy(policyID string) (json.RawMessage, error) {
 	return resp.Item, nil
 }
 
-// ListRawPolicy fetches all the Policies in the Ingest Manager.
+// ListRawPolicy fetches all the Policies in Fleet.
 func (c *Client) ListRawPolicy() ([]json.RawMessage, error) {
 	itemsRetrieved := 0
 	currentPage := 1
@@ -128,7 +128,7 @@ func (c *Client) ListRawPolicy() ([]json.RawMessage, error) {
 	return items, nil
 }
 
-// DeletePolicy removes the given Policy from the Ingest Manager.
+// DeletePolicy removes the given Policy from Fleet.
 func (c *Client) DeletePolicy(p Policy) error {
 	reqBody := `{ "agentPolicyId": "` + p.ID + `" }`
 
@@ -179,7 +179,7 @@ type Input struct {
 }
 
 // PackageDataStream represents a request to add a single package's single data stream to a
-// Policy in Ingest Manager.
+// Policy in Fleet.
 type PackageDataStream struct {
 	Name        string  `json:"name"`
 	Description string  `json:"description"`
@@ -195,7 +195,7 @@ type PackageDataStream struct {
 	} `json:"package"`
 }
 
-// AddPackageDataStreamToPolicy adds a PackageDataStream to a Policy in Ingest Manager.
+// AddPackageDataStreamToPolicy adds a PackageDataStream to a Policy in Fleet.
 func (c *Client) AddPackageDataStreamToPolicy(r PackageDataStream) error {
 	reqBody, err := json.Marshal(r)
 	if err != nil {
