@@ -16,15 +16,15 @@ import (
 	"github.com/elastic/elastic-package/internal/kibana"
 )
 
-const dumpLongDescription = `Use this command as a exploratory tool to dump assets relevant for the package.`
+const dumpLongDescription = `Use this command as an exploratory tool to dump resources from Elastic Stack (objects installed as part of package and agent policies).`
 
 const dumpInstalledObjectsLongDescription = `Use this command to dump objects installed by Fleet as part of a package.
 
-Use this command as a exploratory tool to dump objects as they are installed by Fleet when installing a package. Dumped objects are stored in files as they are returned by APIs of the stack, without any processing.`
+Use this command as an exploratory tool to dump objects as they are installed by Fleet when installing a package. Dumped objects are stored in files as they are returned by APIs of the stack, without any processing.`
 
 const dumpAgentPoliciesLongDescription = `Use this command to dump agent policies created by Fleet as part of a package installation.
 
-Use this command as a exploratory tool to dump agent policies as they are created by Fleet when installing a package. Dumped agent policies are stored in files as they are returned by APIs of the stack, without any processing.
+Use this command as an exploratory tool to dump agent policies as they are created by Fleet when installing a package. Dumped agent policies are stored in files as they are returned by APIs of the stack, without any processing.
 
 If no flag is provided, by default this command dumps all agent policies created by Fleet.
 
