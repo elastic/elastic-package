@@ -11,7 +11,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.1.2
 	github.com/elastic/go-elasticsearch/v7 v7.17.1
 	github.com/elastic/go-licenser v0.4.0
-	github.com/elastic/go-ucfg v0.8.5
+	github.com/elastic/go-ucfg v0.8.6
 	github.com/elastic/package-spec v1.12.1
 	github.com/fatih/color v1.13.0
 	github.com/go-git/go-billy/v5 v5.3.1
