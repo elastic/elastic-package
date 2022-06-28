@@ -1,931 +1,931 @@
 {
-  "id": "8c913da0-f62e-11ec-9a9f-c3fb2ce46e7f",
-  "name": "Load Balancers Servers",
-  "description": "",
-  "namespace": "default",
-  "monitoring_enabled": [
-    "logs",
-    "metrics"
-  ],
-  "status": "active",
-  "is_managed": false,
-  "revision": 2,
-  "updated_at": "2022-06-27T15:33:59.587Z",
-  "updated_by": "elastic",
-  "package_policies": [
-    {
-      "id": "a09f2609-9e8b-4b48-998f-ce99340da027",
-      "version": "WzEzMjAsMV0=",
-      "name": "system-3",
-      "namespace": "default",
-      "package": {
-        "name": "system",
-        "title": "System",
-        "version": "1.16.2"
-      },
-      "enabled": true,
-      "policy_id": "8c913da0-f62e-11ec-9a9f-c3fb2ce46e7f",
-      "output_id": "fleet-default-output",
-      "inputs": [
+    "id": "8c913da0-f62e-11ec-9a9f-c3fb2ce46e7f",
+    "name": "Load Balancers Servers",
+    "description": "",
+    "namespace": "default",
+    "monitoring_enabled": [
+        "logs",
+        "metrics"
+    ],
+    "status": "active",
+    "is_managed": false,
+    "revision": 2,
+    "updated_at": "2022-06-27T15:33:59.587Z",
+    "updated_by": "elastic",
+    "package_policies": [
         {
-          "type": "logfile",
-          "policy_template": "system",
-          "enabled": true,
-          "streams": [
-            {
-              "enabled": true,
-              "data_stream": {
-                "type": "logs",
-                "dataset": "system.auth"
-              },
-              "vars": {
-                "paths": {
-                  "value": [
-                    "/var/log/auth.log*",
-                    "/var/log/secure*"
-                  ],
-                  "type": "text"
-                }
-              },
-              "id": "logfile-system.auth-a09f2609-9e8b-4b48-998f-ce99340da027",
-              "compiled_stream": {
-                "paths": [
-                  "/var/log/auth.log*",
-                  "/var/log/secure*"
-                ],
-                "exclude_files": [
-                  ".gz$"
-                ],
-                "multiline": {
-                  "pattern": "^\\s",
-                  "match": "after"
-                },
-                "processors": [
-                  {
-                    "add_locale": null
-                  }
-                ]
-              }
+            "id": "a09f2609-9e8b-4b48-998f-ce99340da027",
+            "version": "WzEzMjAsMV0=",
+            "name": "system-3",
+            "namespace": "default",
+            "package": {
+                "name": "system",
+                "title": "System",
+                "version": "1.16.2"
             },
-            {
-              "enabled": true,
-              "data_stream": {
-                "type": "logs",
-                "dataset": "system.syslog"
-              },
-              "vars": {
-                "paths": {
-                  "value": [
-                    "/var/log/messages*",
-                    "/var/log/syslog*"
-                  ],
-                  "type": "text"
-                }
-              },
-              "id": "logfile-system.syslog-a09f2609-9e8b-4b48-998f-ce99340da027",
-              "compiled_stream": {
-                "paths": [
-                  "/var/log/messages*",
-                  "/var/log/syslog*"
-                ],
-                "exclude_files": [
-                  ".gz$"
-                ],
-                "multiline": {
-                  "pattern": "^\\s",
-                  "match": "after"
+            "enabled": true,
+            "policy_id": "8c913da0-f62e-11ec-9a9f-c3fb2ce46e7f",
+            "output_id": "fleet-default-output",
+            "inputs": [
+                {
+                    "type": "logfile",
+                    "policy_template": "system",
+                    "enabled": true,
+                    "streams": [
+                        {
+                            "enabled": true,
+                            "data_stream": {
+                                "type": "logs",
+                                "dataset": "system.auth"
+                            },
+                            "vars": {
+                                "paths": {
+                                    "value": [
+                                        "/var/log/auth.log*",
+                                        "/var/log/secure*"
+                                    ],
+                                    "type": "text"
+                                }
+                            },
+                            "id": "logfile-system.auth-a09f2609-9e8b-4b48-998f-ce99340da027",
+                            "compiled_stream": {
+                                "paths": [
+                                    "/var/log/auth.log*",
+                                    "/var/log/secure*"
+                                ],
+                                "exclude_files": [
+                                    ".gz$"
+                                ],
+                                "multiline": {
+                                    "pattern": "^\\s",
+                                    "match": "after"
+                                },
+                                "processors": [
+                                    {
+                                        "add_locale": null
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "enabled": true,
+                            "data_stream": {
+                                "type": "logs",
+                                "dataset": "system.syslog"
+                            },
+                            "vars": {
+                                "paths": {
+                                    "value": [
+                                        "/var/log/messages*",
+                                        "/var/log/syslog*"
+                                    ],
+                                    "type": "text"
+                                }
+                            },
+                            "id": "logfile-system.syslog-a09f2609-9e8b-4b48-998f-ce99340da027",
+                            "compiled_stream": {
+                                "paths": [
+                                    "/var/log/messages*",
+                                    "/var/log/syslog*"
+                                ],
+                                "exclude_files": [
+                                    ".gz$"
+                                ],
+                                "multiline": {
+                                    "pattern": "^\\s",
+                                    "match": "after"
+                                },
+                                "processors": [
+                                    {
+                                        "add_locale": null
+                                    }
+                                ]
+                            }
+                        }
+                    ]
                 },
-                "processors": [
-                  {
-                    "add_locale": null
-                  }
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "type": "winlog",
-          "policy_template": "system",
-          "enabled": true,
-          "streams": [
-            {
-              "enabled": true,
-              "data_stream": {
-                "type": "logs",
-                "dataset": "system.application"
-              },
-              "vars": {
-                "preserve_original_event": {
-                  "value": false,
-                  "type": "bool"
+                {
+                    "type": "winlog",
+                    "policy_template": "system",
+                    "enabled": true,
+                    "streams": [
+                        {
+                            "enabled": true,
+                            "data_stream": {
+                                "type": "logs",
+                                "dataset": "system.application"
+                            },
+                            "vars": {
+                                "preserve_original_event": {
+                                    "value": false,
+                                    "type": "bool"
+                                },
+                                "event_id": {
+                                    "type": "text"
+                                },
+                                "ignore_older": {
+                                    "value": "72h",
+                                    "type": "text"
+                                },
+                                "language": {
+                                    "value": 0,
+                                    "type": "text"
+                                },
+                                "tags": {
+                                    "value": [],
+                                    "type": "text"
+                                },
+                                "processors": {
+                                    "type": "yaml"
+                                }
+                            },
+                            "id": "winlog-system.application-a09f2609-9e8b-4b48-998f-ce99340da027",
+                            "compiled_stream": {
+                                "name": "Application",
+                                "condition": "${host.platform} == 'windows'",
+                                "ignore_older": "72h"
+                            }
+                        },
+                        {
+                            "enabled": true,
+                            "data_stream": {
+                                "type": "logs",
+                                "dataset": "system.security"
+                            },
+                            "vars": {
+                                "preserve_original_event": {
+                                    "value": false,
+                                    "type": "bool"
+                                },
+                                "event_id": {
+                                    "type": "text"
+                                },
+                                "ignore_older": {
+                                    "value": "72h",
+                                    "type": "text"
+                                },
+                                "language": {
+                                    "value": 0,
+                                    "type": "text"
+                                },
+                                "tags": {
+                                    "value": [],
+                                    "type": "text"
+                                },
+                                "processors": {
+                                    "type": "yaml"
+                                }
+                            },
+                            "id": "winlog-system.security-a09f2609-9e8b-4b48-998f-ce99340da027",
+                            "compiled_stream": {
+                                "name": "Security",
+                                "condition": "${host.platform} == 'windows'",
+                                "ignore_older": "72h"
+                            }
+                        },
+                        {
+                            "enabled": true,
+                            "data_stream": {
+                                "type": "logs",
+                                "dataset": "system.system"
+                            },
+                            "vars": {
+                                "preserve_original_event": {
+                                    "value": false,
+                                    "type": "bool"
+                                },
+                                "event_id": {
+                                    "type": "text"
+                                },
+                                "ignore_older": {
+                                    "value": "72h",
+                                    "type": "text"
+                                },
+                                "language": {
+                                    "value": 0,
+                                    "type": "text"
+                                },
+                                "tags": {
+                                    "value": [],
+                                    "type": "text"
+                                },
+                                "processors": {
+                                    "type": "yaml"
+                                }
+                            },
+                            "id": "winlog-system.system-a09f2609-9e8b-4b48-998f-ce99340da027",
+                            "compiled_stream": {
+                                "name": "System",
+                                "condition": "${host.platform} == 'windows'",
+                                "ignore_older": "72h"
+                            }
+                        }
+                    ]
                 },
-                "event_id": {
-                  "type": "text"
-                },
-                "ignore_older": {
-                  "value": "72h",
-                  "type": "text"
-                },
-                "language": {
-                  "value": 0,
-                  "type": "text"
-                },
-                "tags": {
-                  "value": [],
-                  "type": "text"
-                },
-                "processors": {
-                  "type": "yaml"
-                }
-              },
-              "id": "winlog-system.application-a09f2609-9e8b-4b48-998f-ce99340da027",
-              "compiled_stream": {
-                "name": "Application",
-                "condition": "${host.platform} == 'windows'",
-                "ignore_older": "72h"
-              }
-            },
-            {
-              "enabled": true,
-              "data_stream": {
-                "type": "logs",
-                "dataset": "system.security"
-              },
-              "vars": {
-                "preserve_original_event": {
-                  "value": false,
-                  "type": "bool"
-                },
-                "event_id": {
-                  "type": "text"
-                },
-                "ignore_older": {
-                  "value": "72h",
-                  "type": "text"
-                },
-                "language": {
-                  "value": 0,
-                  "type": "text"
-                },
-                "tags": {
-                  "value": [],
-                  "type": "text"
-                },
-                "processors": {
-                  "type": "yaml"
-                }
-              },
-              "id": "winlog-system.security-a09f2609-9e8b-4b48-998f-ce99340da027",
-              "compiled_stream": {
-                "name": "Security",
-                "condition": "${host.platform} == 'windows'",
-                "ignore_older": "72h"
-              }
-            },
-            {
-              "enabled": true,
-              "data_stream": {
-                "type": "logs",
-                "dataset": "system.system"
-              },
-              "vars": {
-                "preserve_original_event": {
-                  "value": false,
-                  "type": "bool"
-                },
-                "event_id": {
-                  "type": "text"
-                },
-                "ignore_older": {
-                  "value": "72h",
-                  "type": "text"
-                },
-                "language": {
-                  "value": 0,
-                  "type": "text"
-                },
-                "tags": {
-                  "value": [],
-                  "type": "text"
-                },
-                "processors": {
-                  "type": "yaml"
-                }
-              },
-              "id": "winlog-system.system-a09f2609-9e8b-4b48-998f-ce99340da027",
-              "compiled_stream": {
-                "name": "System",
-                "condition": "${host.platform} == 'windows'",
-                "ignore_older": "72h"
-              }
-            }
-          ]
-        },
-        {
-          "type": "system/metrics",
-          "policy_template": "system",
-          "enabled": true,
-          "streams": [
-            {
-              "enabled": false,
-              "data_stream": {
-                "type": "metrics",
-                "dataset": "system.core"
-              },
-              "vars": {
-                "period": {
-                  "value": "10s",
-                  "type": "text"
-                },
-                "core.metrics": {
-                  "value": [
-                    "percentages"
-                  ],
-                  "type": "text"
-                }
-              },
-              "id": "system/metrics-system.core-a09f2609-9e8b-4b48-998f-ce99340da027"
-            },
-            {
-              "enabled": true,
-              "data_stream": {
-                "type": "metrics",
-                "dataset": "system.cpu"
-              },
-              "vars": {
-                "period": {
-                  "value": "10s",
-                  "type": "text"
-                },
-                "cpu.metrics": {
-                  "value": [
-                    "percentages",
-                    "normalized_percentages"
-                  ],
-                  "type": "text"
-                }
-              },
-              "id": "system/metrics-system.cpu-a09f2609-9e8b-4b48-998f-ce99340da027",
-              "compiled_stream": {
-                "metricsets": [
-                  "cpu"
-                ],
-                "cpu.metrics": [
-                  "percentages",
-                  "normalized_percentages"
-                ],
-                "period": "10s"
-              }
-            },
-            {
-              "enabled": true,
-              "data_stream": {
-                "type": "metrics",
-                "dataset": "system.diskio"
-              },
-              "vars": {
-                "period": {
-                  "value": "10s",
-                  "type": "text"
-                },
-                "diskio.include_devices": {
-                  "value": [],
-                  "type": "text"
-                }
-              },
-              "id": "system/metrics-system.diskio-a09f2609-9e8b-4b48-998f-ce99340da027",
-              "compiled_stream": {
-                "metricsets": [
-                  "diskio"
-                ],
-                "diskio.include_devices": null,
-                "period": "10s"
-              }
-            },
-            {
-              "enabled": true,
-              "data_stream": {
-                "type": "metrics",
-                "dataset": "system.filesystem"
-              },
-              "vars": {
-                "period": {
-                  "value": "1m",
-                  "type": "text"
-                },
-                "processors": {
-                  "value": "- drop_event.when.regexp:\n    system.filesystem.mount_point: ^/(sys|cgroup|proc|dev|etc|host|lib|snap)($|/)\n",
-                  "type": "yaml"
-                },
-                "filesystem.ignore_types": {
-                  "value": [],
-                  "type": "text"
-                }
-              },
-              "id": "system/metrics-system.filesystem-a09f2609-9e8b-4b48-998f-ce99340da027",
-              "compiled_stream": {
-                "metricsets": [
-                  "filesystem"
-                ],
-                "period": "1m",
-                "processors": [
-                  {
-                    "drop_event.when.regexp": {
-                      "system.filesystem.mount_point": "^/(sys|cgroup|proc|dev|etc|host|lib|snap)($|/)"
+                {
+                    "type": "system/metrics",
+                    "policy_template": "system",
+                    "enabled": true,
+                    "streams": [
+                        {
+                            "enabled": false,
+                            "data_stream": {
+                                "type": "metrics",
+                                "dataset": "system.core"
+                            },
+                            "vars": {
+                                "period": {
+                                    "value": "10s",
+                                    "type": "text"
+                                },
+                                "core.metrics": {
+                                    "value": [
+                                        "percentages"
+                                    ],
+                                    "type": "text"
+                                }
+                            },
+                            "id": "system/metrics-system.core-a09f2609-9e8b-4b48-998f-ce99340da027"
+                        },
+                        {
+                            "enabled": true,
+                            "data_stream": {
+                                "type": "metrics",
+                                "dataset": "system.cpu"
+                            },
+                            "vars": {
+                                "period": {
+                                    "value": "10s",
+                                    "type": "text"
+                                },
+                                "cpu.metrics": {
+                                    "value": [
+                                        "percentages",
+                                        "normalized_percentages"
+                                    ],
+                                    "type": "text"
+                                }
+                            },
+                            "id": "system/metrics-system.cpu-a09f2609-9e8b-4b48-998f-ce99340da027",
+                            "compiled_stream": {
+                                "metricsets": [
+                                    "cpu"
+                                ],
+                                "cpu.metrics": [
+                                    "percentages",
+                                    "normalized_percentages"
+                                ],
+                                "period": "10s"
+                            }
+                        },
+                        {
+                            "enabled": true,
+                            "data_stream": {
+                                "type": "metrics",
+                                "dataset": "system.diskio"
+                            },
+                            "vars": {
+                                "period": {
+                                    "value": "10s",
+                                    "type": "text"
+                                },
+                                "diskio.include_devices": {
+                                    "value": [],
+                                    "type": "text"
+                                }
+                            },
+                            "id": "system/metrics-system.diskio-a09f2609-9e8b-4b48-998f-ce99340da027",
+                            "compiled_stream": {
+                                "metricsets": [
+                                    "diskio"
+                                ],
+                                "diskio.include_devices": null,
+                                "period": "10s"
+                            }
+                        },
+                        {
+                            "enabled": true,
+                            "data_stream": {
+                                "type": "metrics",
+                                "dataset": "system.filesystem"
+                            },
+                            "vars": {
+                                "period": {
+                                    "value": "1m",
+                                    "type": "text"
+                                },
+                                "processors": {
+                                    "value": "- drop_event.when.regexp:\n    system.filesystem.mount_point: ^/(sys|cgroup|proc|dev|etc|host|lib|snap)($|/)\n",
+                                    "type": "yaml"
+                                },
+                                "filesystem.ignore_types": {
+                                    "value": [],
+                                    "type": "text"
+                                }
+                            },
+                            "id": "system/metrics-system.filesystem-a09f2609-9e8b-4b48-998f-ce99340da027",
+                            "compiled_stream": {
+                                "metricsets": [
+                                    "filesystem"
+                                ],
+                                "period": "1m",
+                                "processors": [
+                                    {
+                                        "drop_event.when.regexp": {
+                                            "system.filesystem.mount_point": "^/(sys|cgroup|proc|dev|etc|host|lib|snap)($|/)"
+                                        }
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "enabled": true,
+                            "data_stream": {
+                                "type": "metrics",
+                                "dataset": "system.fsstat"
+                            },
+                            "vars": {
+                                "period": {
+                                    "value": "1m",
+                                    "type": "text"
+                                },
+                                "processors": {
+                                    "value": "- drop_event.when.regexp:\n    system.fsstat.mount_point: ^/(sys|cgroup|proc|dev|etc|host|lib|snap)($|/)\n",
+                                    "type": "yaml"
+                                }
+                            },
+                            "id": "system/metrics-system.fsstat-a09f2609-9e8b-4b48-998f-ce99340da027",
+                            "compiled_stream": {
+                                "metricsets": [
+                                    "fsstat"
+                                ],
+                                "period": "1m",
+                                "processors": [
+                                    {
+                                        "drop_event.when.regexp": {
+                                            "system.fsstat.mount_point": "^/(sys|cgroup|proc|dev|etc|host|lib|snap)($|/)"
+                                        }
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "enabled": true,
+                            "data_stream": {
+                                "type": "metrics",
+                                "dataset": "system.load"
+                            },
+                            "vars": {
+                                "period": {
+                                    "value": "10s",
+                                    "type": "text"
+                                }
+                            },
+                            "id": "system/metrics-system.load-a09f2609-9e8b-4b48-998f-ce99340da027",
+                            "compiled_stream": {
+                                "metricsets": [
+                                    "load"
+                                ],
+                                "condition": "${host.platform} != 'windows'",
+                                "period": "10s"
+                            }
+                        },
+                        {
+                            "enabled": true,
+                            "data_stream": {
+                                "type": "metrics",
+                                "dataset": "system.memory"
+                            },
+                            "vars": {
+                                "period": {
+                                    "value": "10s",
+                                    "type": "text"
+                                }
+                            },
+                            "id": "system/metrics-system.memory-a09f2609-9e8b-4b48-998f-ce99340da027",
+                            "compiled_stream": {
+                                "metricsets": [
+                                    "memory"
+                                ],
+                                "period": "10s"
+                            }
+                        },
+                        {
+                            "enabled": true,
+                            "data_stream": {
+                                "type": "metrics",
+                                "dataset": "system.network"
+                            },
+                            "vars": {
+                                "period": {
+                                    "value": "10s",
+                                    "type": "text"
+                                },
+                                "network.interfaces": {
+                                    "value": [],
+                                    "type": "text"
+                                }
+                            },
+                            "id": "system/metrics-system.network-a09f2609-9e8b-4b48-998f-ce99340da027",
+                            "compiled_stream": {
+                                "metricsets": [
+                                    "network"
+                                ],
+                                "period": "10s",
+                                "network.interfaces": null
+                            }
+                        },
+                        {
+                            "enabled": true,
+                            "data_stream": {
+                                "type": "metrics",
+                                "dataset": "system.process"
+                            },
+                            "vars": {
+                                "period": {
+                                    "value": "10s",
+                                    "type": "text"
+                                },
+                                "process.include_top_n.by_cpu": {
+                                    "value": 5,
+                                    "type": "integer"
+                                },
+                                "process.include_top_n.by_memory": {
+                                    "value": 5,
+                                    "type": "integer"
+                                },
+                                "process.cmdline.cache.enabled": {
+                                    "value": true,
+                                    "type": "bool"
+                                },
+                                "process.cgroups.enabled": {
+                                    "value": false,
+                                    "type": "bool"
+                                },
+                                "process.env.whitelist": {
+                                    "value": [],
+                                    "type": "text"
+                                },
+                                "process.include_cpu_ticks": {
+                                    "value": false,
+                                    "type": "bool"
+                                },
+                                "processes": {
+                                    "value": [
+                                        ".*"
+                                    ],
+                                    "type": "text"
+                                }
+                            },
+                            "id": "system/metrics-system.process-a09f2609-9e8b-4b48-998f-ce99340da027",
+                            "compiled_stream": {
+                                "metricsets": [
+                                    "process"
+                                ],
+                                "period": "10s",
+                                "process.include_top_n.by_cpu": 5,
+                                "process.include_top_n.by_memory": 5,
+                                "process.cmdline.cache.enabled": true,
+                                "process.cgroups.enabled": false,
+                                "process.include_cpu_ticks": false,
+                                "processes": [
+                                    ".*"
+                                ]
+                            }
+                        },
+                        {
+                            "enabled": true,
+                            "data_stream": {
+                                "type": "metrics",
+                                "dataset": "system.process.summary"
+                            },
+                            "vars": {
+                                "period": {
+                                    "value": "10s",
+                                    "type": "text"
+                                }
+                            },
+                            "id": "system/metrics-system.process.summary-a09f2609-9e8b-4b48-998f-ce99340da027",
+                            "compiled_stream": {
+                                "metricsets": [
+                                    "process_summary"
+                                ],
+                                "period": "10s"
+                            }
+                        },
+                        {
+                            "enabled": true,
+                            "data_stream": {
+                                "type": "metrics",
+                                "dataset": "system.socket_summary"
+                            },
+                            "vars": {
+                                "period": {
+                                    "value": "10s",
+                                    "type": "text"
+                                }
+                            },
+                            "id": "system/metrics-system.socket_summary-a09f2609-9e8b-4b48-998f-ce99340da027",
+                            "compiled_stream": {
+                                "metricsets": [
+                                    "socket_summary"
+                                ],
+                                "period": "10s"
+                            }
+                        },
+                        {
+                            "enabled": true,
+                            "data_stream": {
+                                "type": "metrics",
+                                "dataset": "system.uptime"
+                            },
+                            "vars": {
+                                "period": {
+                                    "value": "10s",
+                                    "type": "text"
+                                }
+                            },
+                            "id": "system/metrics-system.uptime-a09f2609-9e8b-4b48-998f-ce99340da027",
+                            "compiled_stream": {
+                                "metricsets": [
+                                    "uptime"
+                                ],
+                                "period": "10s"
+                            }
+                        }
+                    ],
+                    "vars": {
+                        "system.hostfs": {
+                            "type": "text"
+                        }
                     }
-                  }
-                ]
-              }
-            },
-            {
-              "enabled": true,
-              "data_stream": {
-                "type": "metrics",
-                "dataset": "system.fsstat"
-              },
-              "vars": {
-                "period": {
-                  "value": "1m",
-                  "type": "text"
                 },
-                "processors": {
-                  "value": "- drop_event.when.regexp:\n    system.fsstat.mount_point: ^/(sys|cgroup|proc|dev|etc|host|lib|snap)($|/)\n",
-                  "type": "yaml"
-                }
-              },
-              "id": "system/metrics-system.fsstat-a09f2609-9e8b-4b48-998f-ce99340da027",
-              "compiled_stream": {
-                "metricsets": [
-                  "fsstat"
-                ],
-                "period": "1m",
-                "processors": [
-                  {
-                    "drop_event.when.regexp": {
-                      "system.fsstat.mount_point": "^/(sys|cgroup|proc|dev|etc|host|lib|snap)($|/)"
+                {
+                    "type": "httpjson",
+                    "policy_template": "system",
+                    "enabled": false,
+                    "streams": [
+                        {
+                            "enabled": false,
+                            "data_stream": {
+                                "type": "logs",
+                                "dataset": "system.application"
+                            },
+                            "vars": {
+                                "interval": {
+                                    "value": "10s",
+                                    "type": "text"
+                                },
+                                "search": {
+                                    "value": "search sourcetype=\"XmlWinEventLog:Application\"",
+                                    "type": "text"
+                                },
+                                "tags": {
+                                    "value": [
+                                        "forwarded"
+                                    ],
+                                    "type": "text"
+                                }
+                            },
+                            "id": "httpjson-system.application-a09f2609-9e8b-4b48-998f-ce99340da027"
+                        },
+                        {
+                            "enabled": false,
+                            "data_stream": {
+                                "type": "logs",
+                                "dataset": "system.security"
+                            },
+                            "vars": {
+                                "interval": {
+                                    "value": "10s",
+                                    "type": "text"
+                                },
+                                "search": {
+                                    "value": "search sourcetype=\"XmlWinEventLog:Security\"",
+                                    "type": "text"
+                                },
+                                "tags": {
+                                    "value": [
+                                        "forwarded"
+                                    ],
+                                    "type": "text"
+                                }
+                            },
+                            "id": "httpjson-system.security-a09f2609-9e8b-4b48-998f-ce99340da027"
+                        },
+                        {
+                            "enabled": false,
+                            "data_stream": {
+                                "type": "logs",
+                                "dataset": "system.system"
+                            },
+                            "vars": {
+                                "interval": {
+                                    "value": "10s",
+                                    "type": "text"
+                                },
+                                "search": {
+                                    "value": "search sourcetype=\"XmlWinEventLog:System\"",
+                                    "type": "text"
+                                },
+                                "tags": {
+                                    "value": [
+                                        "forwarded"
+                                    ],
+                                    "type": "text"
+                                }
+                            },
+                            "id": "httpjson-system.system-a09f2609-9e8b-4b48-998f-ce99340da027"
+                        }
+                    ],
+                    "vars": {
+                        "url": {
+                            "value": "https://server.example.com:8089",
+                            "type": "text"
+                        },
+                        "username": {
+                            "type": "text"
+                        },
+                        "password": {
+                            "type": "password"
+                        },
+                        "token": {
+                            "type": "password"
+                        },
+                        "preserve_original_event": {
+                            "value": false,
+                            "type": "bool"
+                        },
+                        "ssl": {
+                            "value": "#certificate_authorities:\n#  - |\n#    -----BEGIN CERTIFICATE-----\n#    MIIDCjCCAfKgAwIBAgITJ706Mu2wJlKckpIvkWxEHvEyijANBgkqhkiG9w0BAQsF\n#    ADAUMRIwEAYDVQQDDAlsb2NhbGhvc3QwIBcNMTkwNzIyMTkyOTA0WhgPMjExOTA2\n#    MjgxOTI5MDRaMBQxEjAQBgNVBAMMCWxvY2FsaG9zdDCCASIwDQYJKoZIhvcNAQEB\n#    BQADggEPADCCAQoCggEBANce58Y/JykI58iyOXpxGfw0/gMvF0hUQAcUrSMxEO6n\n#    fZRA49b4OV4SwWmA3395uL2eB2NB8y8qdQ9muXUdPBWE4l9rMZ6gmfu90N5B5uEl\n#    94NcfBfYOKi1fJQ9i7WKhTjlRkMCgBkWPkUokvBZFRt8RtF7zI77BSEorHGQCk9t\n#    /D7BS0GJyfVEhftbWcFEAG3VRcoMhF7kUzYwp+qESoriFRYLeDWv68ZOvG7eoWnP\n#    PsvZStEVEimjvK5NSESEQa9xWyJOmlOKXhkdymtcUd/nXnx6UTCFgnkgzSdTWV41\n#    CI6B6aJ9svCTI2QuoIq2HxX/ix7OvW1huVmcyHVxyUECAwEAAaNTMFEwHQYDVR0O\n#    BBYEFPwN1OceFGm9v6ux8G+DZ3TUDYxqMB8GA1UdIwQYMBaAFPwN1OceFGm9v6ux\n#    8G+DZ3TUDYxqMA8GA1UdEwEB/wQFMAMBAf8wDQYJKoZIhvcNAQELBQADggEBAG5D\n#    874A4YI7YUwOVsVAdbWtgp1d0zKcPRR+r2OdSbTAV5/gcS3jgBJ3i1BN34JuDVFw\n#    3DeJSYT3nxy2Y56lLnxDeF8CUTUtVQx3CuGkRg1ouGAHpO/6OqOhwLLorEmxi7tA\n#    H2O8mtT0poX5AnOAhzVy7QW0D/k4WaoLyckM5hUa6RtvgvLxOwA0U+VGurCDoctu\n#    8F4QOgTAWyh8EZIwaKCliFRSynDpv3JTUwtfZkxo6K6nce1RhCWFAsMvDZL8Dgc0\n#    yvgJ38BRsFOtkRuAGSf6ZUwTO8JJRRIFnpUzXflAnGivK9M13D5GEQMmIl6U9Pvk\n#    sxSmbIUfc2SGJGCJD4I=\n#    -----END CERTIFICATE-----\n",
+                            "type": "yaml"
+                        }
                     }
-                  }
-                ]
-              }
-            },
-            {
-              "enabled": true,
-              "data_stream": {
-                "type": "metrics",
-                "dataset": "system.load"
-              },
-              "vars": {
-                "period": {
-                  "value": "10s",
-                  "type": "text"
                 }
-              },
-              "id": "system/metrics-system.load-a09f2609-9e8b-4b48-998f-ce99340da027",
-              "compiled_stream": {
-                "metricsets": [
-                  "load"
-                ],
-                "condition": "${host.platform} != 'windows'",
-                "period": "10s"
-              }
-            },
-            {
-              "enabled": true,
-              "data_stream": {
-                "type": "metrics",
-                "dataset": "system.memory"
-              },
-              "vars": {
-                "period": {
-                  "value": "10s",
-                  "type": "text"
-                }
-              },
-              "id": "system/metrics-system.memory-a09f2609-9e8b-4b48-998f-ce99340da027",
-              "compiled_stream": {
-                "metricsets": [
-                  "memory"
-                ],
-                "period": "10s"
-              }
-            },
-            {
-              "enabled": true,
-              "data_stream": {
-                "type": "metrics",
-                "dataset": "system.network"
-              },
-              "vars": {
-                "period": {
-                  "value": "10s",
-                  "type": "text"
-                },
-                "network.interfaces": {
-                  "value": [],
-                  "type": "text"
-                }
-              },
-              "id": "system/metrics-system.network-a09f2609-9e8b-4b48-998f-ce99340da027",
-              "compiled_stream": {
-                "metricsets": [
-                  "network"
-                ],
-                "period": "10s",
-                "network.interfaces": null
-              }
-            },
-            {
-              "enabled": true,
-              "data_stream": {
-                "type": "metrics",
-                "dataset": "system.process"
-              },
-              "vars": {
-                "period": {
-                  "value": "10s",
-                  "type": "text"
-                },
-                "process.include_top_n.by_cpu": {
-                  "value": 5,
-                  "type": "integer"
-                },
-                "process.include_top_n.by_memory": {
-                  "value": 5,
-                  "type": "integer"
-                },
-                "process.cmdline.cache.enabled": {
-                  "value": true,
-                  "type": "bool"
-                },
-                "process.cgroups.enabled": {
-                  "value": false,
-                  "type": "bool"
-                },
-                "process.env.whitelist": {
-                  "value": [],
-                  "type": "text"
-                },
-                "process.include_cpu_ticks": {
-                  "value": false,
-                  "type": "bool"
-                },
-                "processes": {
-                  "value": [
-                    ".*"
-                  ],
-                  "type": "text"
-                }
-              },
-              "id": "system/metrics-system.process-a09f2609-9e8b-4b48-998f-ce99340da027",
-              "compiled_stream": {
-                "metricsets": [
-                  "process"
-                ],
-                "period": "10s",
-                "process.include_top_n.by_cpu": 5,
-                "process.include_top_n.by_memory": 5,
-                "process.cmdline.cache.enabled": true,
-                "process.cgroups.enabled": false,
-                "process.include_cpu_ticks": false,
-                "processes": [
-                  ".*"
-                ]
-              }
-            },
-            {
-              "enabled": true,
-              "data_stream": {
-                "type": "metrics",
-                "dataset": "system.process.summary"
-              },
-              "vars": {
-                "period": {
-                  "value": "10s",
-                  "type": "text"
-                }
-              },
-              "id": "system/metrics-system.process.summary-a09f2609-9e8b-4b48-998f-ce99340da027",
-              "compiled_stream": {
-                "metricsets": [
-                  "process_summary"
-                ],
-                "period": "10s"
-              }
-            },
-            {
-              "enabled": true,
-              "data_stream": {
-                "type": "metrics",
-                "dataset": "system.socket_summary"
-              },
-              "vars": {
-                "period": {
-                  "value": "10s",
-                  "type": "text"
-                }
-              },
-              "id": "system/metrics-system.socket_summary-a09f2609-9e8b-4b48-998f-ce99340da027",
-              "compiled_stream": {
-                "metricsets": [
-                  "socket_summary"
-                ],
-                "period": "10s"
-              }
-            },
-            {
-              "enabled": true,
-              "data_stream": {
-                "type": "metrics",
-                "dataset": "system.uptime"
-              },
-              "vars": {
-                "period": {
-                  "value": "10s",
-                  "type": "text"
-                }
-              },
-              "id": "system/metrics-system.uptime-a09f2609-9e8b-4b48-998f-ce99340da027",
-              "compiled_stream": {
-                "metricsets": [
-                  "uptime"
-                ],
-                "period": "10s"
-              }
-            }
-          ],
-          "vars": {
-            "system.hostfs": {
-              "type": "text"
-            }
-          }
+            ],
+            "revision": 1,
+            "created_at": "2022-06-27T15:33:55.519Z",
+            "created_by": "elastic",
+            "updated_at": "2022-06-27T15:33:55.519Z",
+            "updated_by": "elastic"
         },
         {
-          "type": "httpjson",
-          "policy_template": "system",
-          "enabled": false,
-          "streams": [
-            {
-              "enabled": false,
-              "data_stream": {
-                "type": "logs",
-                "dataset": "system.application"
-              },
-              "vars": {
-                "interval": {
-                  "value": "10s",
-                  "type": "text"
+            "id": "46331ee9-90a9-4b1f-b568-98641e9bafc9",
+            "version": "WzEzMjIsMV0=",
+            "name": "nginx-load-balancers-test",
+            "namespace": "default",
+            "description": "",
+            "package": {
+                "name": "nginx",
+                "title": "Nginx",
+                "version": "1.4.0"
+            },
+            "enabled": true,
+            "policy_id": "8c913da0-f62e-11ec-9a9f-c3fb2ce46e7f",
+            "output_id": "",
+            "inputs": [
+                {
+                    "type": "logfile",
+                    "policy_template": "nginx",
+                    "enabled": true,
+                    "streams": [
+                        {
+                            "enabled": true,
+                            "data_stream": {
+                                "type": "logs",
+                                "dataset": "nginx.access"
+                            },
+                            "vars": {
+                                "paths": {
+                                    "value": [
+                                        "/var/log/nginx/access.log*"
+                                    ],
+                                    "type": "text"
+                                },
+                                "tags": {
+                                    "value": [
+                                        "nginx-access"
+                                    ],
+                                    "type": "text"
+                                },
+                                "preserve_original_event": {
+                                    "value": false,
+                                    "type": "bool"
+                                },
+                                "processors": {
+                                    "type": "yaml"
+                                }
+                            },
+                            "id": "logfile-nginx.access-46331ee9-90a9-4b1f-b568-98641e9bafc9",
+                            "compiled_stream": {
+                                "paths": [
+                                    "/var/log/nginx/access.log*"
+                                ],
+                                "tags": [
+                                    "nginx-access"
+                                ],
+                                "exclude_files": [
+                                    ".gz$"
+                                ],
+                                "processors": [
+                                    {
+                                        "add_locale": null
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "enabled": true,
+                            "data_stream": {
+                                "type": "logs",
+                                "dataset": "nginx.error"
+                            },
+                            "vars": {
+                                "paths": {
+                                    "value": [
+                                        "/var/log/nginx/error.log*"
+                                    ],
+                                    "type": "text"
+                                },
+                                "tags": {
+                                    "value": [
+                                        "nginx-error"
+                                    ],
+                                    "type": "text"
+                                },
+                                "preserve_original_event": {
+                                    "value": false,
+                                    "type": "bool"
+                                },
+                                "processors": {
+                                    "type": "yaml"
+                                }
+                            },
+                            "id": "logfile-nginx.error-46331ee9-90a9-4b1f-b568-98641e9bafc9",
+                            "compiled_stream": {
+                                "paths": [
+                                    "/var/log/nginx/error.log*"
+                                ],
+                                "tags": [
+                                    "nginx-error"
+                                ],
+                                "exclude_files": [
+                                    ".gz$"
+                                ],
+                                "multiline": {
+                                    "pattern": "^\\d{4}\\/\\d{2}\\/\\d{2} ",
+                                    "negate": true,
+                                    "match": "after"
+                                },
+                                "processors": [
+                                    {
+                                        "add_locale": null
+                                    }
+                                ]
+                            }
+                        }
+                    ]
                 },
-                "search": {
-                  "value": "search sourcetype=\"XmlWinEventLog:Application\"",
-                  "type": "text"
+                {
+                    "type": "httpjson",
+                    "policy_template": "nginx",
+                    "enabled": false,
+                    "streams": [
+                        {
+                            "enabled": false,
+                            "data_stream": {
+                                "type": "logs",
+                                "dataset": "nginx.access"
+                            },
+                            "vars": {
+                                "interval": {
+                                    "value": "10s",
+                                    "type": "text"
+                                },
+                                "search": {
+                                    "value": "search sourcetype=nginx:plus:access",
+                                    "type": "text"
+                                },
+                                "tags": {
+                                    "value": [
+                                        "forwarded",
+                                        "nginx-access"
+                                    ],
+                                    "type": "text"
+                                },
+                                "preserve_original_event": {
+                                    "value": false,
+                                    "type": "bool"
+                                },
+                                "processors": {
+                                    "type": "yaml"
+                                }
+                            },
+                            "id": "httpjson-nginx.access-46331ee9-90a9-4b1f-b568-98641e9bafc9"
+                        },
+                        {
+                            "enabled": false,
+                            "data_stream": {
+                                "type": "logs",
+                                "dataset": "nginx.error"
+                            },
+                            "vars": {
+                                "interval": {
+                                    "value": "10s",
+                                    "type": "text"
+                                },
+                                "search": {
+                                    "value": "search sourcetype=nginx:plus:error",
+                                    "type": "text"
+                                },
+                                "tags": {
+                                    "value": [
+                                        "forwarded",
+                                        "nginx-error"
+                                    ],
+                                    "type": "text"
+                                },
+                                "preserve_original_event": {
+                                    "value": false,
+                                    "type": "bool"
+                                },
+                                "processors": {
+                                    "type": "yaml"
+                                }
+                            },
+                            "id": "httpjson-nginx.error-46331ee9-90a9-4b1f-b568-98641e9bafc9"
+                        }
+                    ],
+                    "vars": {
+                        "url": {
+                            "value": "https://server.example.com:8089",
+                            "type": "text"
+                        },
+                        "username": {
+                            "type": "text"
+                        },
+                        "password": {
+                            "type": "password"
+                        },
+                        "token": {
+                            "type": "password"
+                        },
+                        "ssl": {
+                            "value": "#certificate_authorities:\n#  - |\n#    -----BEGIN CERTIFICATE-----\n#    MIIDCjCCAfKgAwIBAgITJ706Mu2wJlKckpIvkWxEHvEyijANBgkqhkiG9w0BAQsF\n#    ADAUMRIwEAYDVQQDDAlsb2NhbGhvc3QwIBcNMTkwNzIyMTkyOTA0WhgPMjExOTA2\n#    MjgxOTI5MDRaMBQxEjAQBgNVBAMMCWxvY2FsaG9zdDCCASIwDQYJKoZIhvcNAQEB\n#    BQADggEPADCCAQoCggEBANce58Y/JykI58iyOXpxGfw0/gMvF0hUQAcUrSMxEO6n\n#    fZRA49b4OV4SwWmA3395uL2eB2NB8y8qdQ9muXUdPBWE4l9rMZ6gmfu90N5B5uEl\n#    94NcfBfYOKi1fJQ9i7WKhTjlRkMCgBkWPkUokvBZFRt8RtF7zI77BSEorHGQCk9t\n#    /D7BS0GJyfVEhftbWcFEAG3VRcoMhF7kUzYwp+qESoriFRYLeDWv68ZOvG7eoWnP\n#    PsvZStEVEimjvK5NSESEQa9xWyJOmlOKXhkdymtcUd/nXnx6UTCFgnkgzSdTWV41\n#    CI6B6aJ9svCTI2QuoIq2HxX/ix7OvW1huVmcyHVxyUECAwEAAaNTMFEwHQYDVR0O\n#    BBYEFPwN1OceFGm9v6ux8G+DZ3TUDYxqMB8GA1UdIwQYMBaAFPwN1OceFGm9v6ux\n#    8G+DZ3TUDYxqMA8GA1UdEwEB/wQFMAMBAf8wDQYJKoZIhvcNAQELBQADggEBAG5D\n#    874A4YI7YUwOVsVAdbWtgp1d0zKcPRR+r2OdSbTAV5/gcS3jgBJ3i1BN34JuDVFw\n#    3DeJSYT3nxy2Y56lLnxDeF8CUTUtVQx3CuGkRg1ouGAHpO/6OqOhwLLorEmxi7tA\n#    H2O8mtT0poX5AnOAhzVy7QW0D/k4WaoLyckM5hUa6RtvgvLxOwA0U+VGurCDoctu\n#    8F4QOgTAWyh8EZIwaKCliFRSynDpv3JTUwtfZkxo6K6nce1RhCWFAsMvDZL8Dgc0\n#    yvgJ38BRsFOtkRuAGSf6ZUwTO8JJRRIFnpUzXflAnGivK9M13D5GEQMmIl6U9Pvk\n#    sxSmbIUfc2SGJGCJD4I=\n#    -----END CERTIFICATE-----\n",
+                            "type": "yaml"
+                        }
+                    }
                 },
-                "tags": {
-                  "value": [
-                    "forwarded"
-                  ],
-                  "type": "text"
+                {
+                    "type": "nginx/metrics",
+                    "policy_template": "nginx",
+                    "enabled": true,
+                    "streams": [
+                        {
+                            "enabled": true,
+                            "data_stream": {
+                                "type": "metrics",
+                                "dataset": "nginx.stubstatus"
+                            },
+                            "vars": {
+                                "period": {
+                                    "value": "10s",
+                                    "type": "text"
+                                },
+                                "server_status_path": {
+                                    "value": "/nginx_status",
+                                    "type": "text"
+                                }
+                            },
+                            "id": "nginx/metrics-nginx.stubstatus-46331ee9-90a9-4b1f-b568-98641e9bafc9",
+                            "compiled_stream": {
+                                "metricsets": [
+                                    "stubstatus"
+                                ],
+                                "hosts": [
+                                    "http://127.0.0.1:80"
+                                ],
+                                "period": "10s",
+                                "server_status_path": "/nginx_status"
+                            }
+                        }
+                    ],
+                    "vars": {
+                        "hosts": {
+                            "value": [
+                                "http://127.0.0.1:80"
+                            ],
+                            "type": "text"
+                        }
+                    }
                 }
-              },
-              "id": "httpjson-system.application-a09f2609-9e8b-4b48-998f-ce99340da027"
-            },
-            {
-              "enabled": false,
-              "data_stream": {
-                "type": "logs",
-                "dataset": "system.security"
-              },
-              "vars": {
-                "interval": {
-                  "value": "10s",
-                  "type": "text"
-                },
-                "search": {
-                  "value": "search sourcetype=\"XmlWinEventLog:Security\"",
-                  "type": "text"
-                },
-                "tags": {
-                  "value": [
-                    "forwarded"
-                  ],
-                  "type": "text"
-                }
-              },
-              "id": "httpjson-system.security-a09f2609-9e8b-4b48-998f-ce99340da027"
-            },
-            {
-              "enabled": false,
-              "data_stream": {
-                "type": "logs",
-                "dataset": "system.system"
-              },
-              "vars": {
-                "interval": {
-                  "value": "10s",
-                  "type": "text"
-                },
-                "search": {
-                  "value": "search sourcetype=\"XmlWinEventLog:System\"",
-                  "type": "text"
-                },
-                "tags": {
-                  "value": [
-                    "forwarded"
-                  ],
-                  "type": "text"
-                }
-              },
-              "id": "httpjson-system.system-a09f2609-9e8b-4b48-998f-ce99340da027"
-            }
-          ],
-          "vars": {
-            "url": {
-              "value": "https://server.example.com:8089",
-              "type": "text"
-            },
-            "username": {
-              "type": "text"
-            },
-            "password": {
-              "type": "password"
-            },
-            "token": {
-              "type": "password"
-            },
-            "preserve_original_event": {
-              "value": false,
-              "type": "bool"
-            },
-            "ssl": {
-              "value": "#certificate_authorities:\n#  - |\n#    -----BEGIN CERTIFICATE-----\n#    MIIDCjCCAfKgAwIBAgITJ706Mu2wJlKckpIvkWxEHvEyijANBgkqhkiG9w0BAQsF\n#    ADAUMRIwEAYDVQQDDAlsb2NhbGhvc3QwIBcNMTkwNzIyMTkyOTA0WhgPMjExOTA2\n#    MjgxOTI5MDRaMBQxEjAQBgNVBAMMCWxvY2FsaG9zdDCCASIwDQYJKoZIhvcNAQEB\n#    BQADggEPADCCAQoCggEBANce58Y/JykI58iyOXpxGfw0/gMvF0hUQAcUrSMxEO6n\n#    fZRA49b4OV4SwWmA3395uL2eB2NB8y8qdQ9muXUdPBWE4l9rMZ6gmfu90N5B5uEl\n#    94NcfBfYOKi1fJQ9i7WKhTjlRkMCgBkWPkUokvBZFRt8RtF7zI77BSEorHGQCk9t\n#    /D7BS0GJyfVEhftbWcFEAG3VRcoMhF7kUzYwp+qESoriFRYLeDWv68ZOvG7eoWnP\n#    PsvZStEVEimjvK5NSESEQa9xWyJOmlOKXhkdymtcUd/nXnx6UTCFgnkgzSdTWV41\n#    CI6B6aJ9svCTI2QuoIq2HxX/ix7OvW1huVmcyHVxyUECAwEAAaNTMFEwHQYDVR0O\n#    BBYEFPwN1OceFGm9v6ux8G+DZ3TUDYxqMB8GA1UdIwQYMBaAFPwN1OceFGm9v6ux\n#    8G+DZ3TUDYxqMA8GA1UdEwEB/wQFMAMBAf8wDQYJKoZIhvcNAQELBQADggEBAG5D\n#    874A4YI7YUwOVsVAdbWtgp1d0zKcPRR+r2OdSbTAV5/gcS3jgBJ3i1BN34JuDVFw\n#    3DeJSYT3nxy2Y56lLnxDeF8CUTUtVQx3CuGkRg1ouGAHpO/6OqOhwLLorEmxi7tA\n#    H2O8mtT0poX5AnOAhzVy7QW0D/k4WaoLyckM5hUa6RtvgvLxOwA0U+VGurCDoctu\n#    8F4QOgTAWyh8EZIwaKCliFRSynDpv3JTUwtfZkxo6K6nce1RhCWFAsMvDZL8Dgc0\n#    yvgJ38BRsFOtkRuAGSf6ZUwTO8JJRRIFnpUzXflAnGivK9M13D5GEQMmIl6U9Pvk\n#    sxSmbIUfc2SGJGCJD4I=\n#    -----END CERTIFICATE-----\n",
-              "type": "yaml"
-            }
-          }
+            ],
+            "revision": 1,
+            "created_at": "2022-06-27T15:33:58.606Z",
+            "created_by": "elastic",
+            "updated_at": "2022-06-27T15:33:58.606Z",
+            "updated_by": "elastic"
         }
-      ],
-      "revision": 1,
-      "created_at": "2022-06-27T15:33:55.519Z",
-      "created_by": "elastic",
-      "updated_at": "2022-06-27T15:33:55.519Z",
-      "updated_by": "elastic"
-    },
-    {
-      "id": "46331ee9-90a9-4b1f-b568-98641e9bafc9",
-      "version": "WzEzMjIsMV0=",
-      "name": "nginx-load-balancers-test",
-      "namespace": "default",
-      "description": "",
-      "package": {
-        "name": "nginx",
-        "title": "Nginx",
-        "version": "1.4.0"
-      },
-      "enabled": true,
-      "policy_id": "8c913da0-f62e-11ec-9a9f-c3fb2ce46e7f",
-      "output_id": "",
-      "inputs": [
-        {
-          "type": "logfile",
-          "policy_template": "nginx",
-          "enabled": true,
-          "streams": [
-            {
-              "enabled": true,
-              "data_stream": {
-                "type": "logs",
-                "dataset": "nginx.access"
-              },
-              "vars": {
-                "paths": {
-                  "value": [
-                    "/var/log/nginx/access.log*"
-                  ],
-                  "type": "text"
-                },
-                "tags": {
-                  "value": [
-                    "nginx-access"
-                  ],
-                  "type": "text"
-                },
-                "preserve_original_event": {
-                  "value": false,
-                  "type": "bool"
-                },
-                "processors": {
-                  "type": "yaml"
-                }
-              },
-              "id": "logfile-nginx.access-46331ee9-90a9-4b1f-b568-98641e9bafc9",
-              "compiled_stream": {
-                "paths": [
-                  "/var/log/nginx/access.log*"
-                ],
-                "tags": [
-                  "nginx-access"
-                ],
-                "exclude_files": [
-                  ".gz$"
-                ],
-                "processors": [
-                  {
-                    "add_locale": null
-                  }
-                ]
-              }
-            },
-            {
-              "enabled": true,
-              "data_stream": {
-                "type": "logs",
-                "dataset": "nginx.error"
-              },
-              "vars": {
-                "paths": {
-                  "value": [
-                    "/var/log/nginx/error.log*"
-                  ],
-                  "type": "text"
-                },
-                "tags": {
-                  "value": [
-                    "nginx-error"
-                  ],
-                  "type": "text"
-                },
-                "preserve_original_event": {
-                  "value": false,
-                  "type": "bool"
-                },
-                "processors": {
-                  "type": "yaml"
-                }
-              },
-              "id": "logfile-nginx.error-46331ee9-90a9-4b1f-b568-98641e9bafc9",
-              "compiled_stream": {
-                "paths": [
-                  "/var/log/nginx/error.log*"
-                ],
-                "tags": [
-                  "nginx-error"
-                ],
-                "exclude_files": [
-                  ".gz$"
-                ],
-                "multiline": {
-                  "pattern": "^\\d{4}\\/\\d{2}\\/\\d{2} ",
-                  "negate": true,
-                  "match": "after"
-                },
-                "processors": [
-                  {
-                    "add_locale": null
-                  }
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "type": "httpjson",
-          "policy_template": "nginx",
-          "enabled": false,
-          "streams": [
-            {
-              "enabled": false,
-              "data_stream": {
-                "type": "logs",
-                "dataset": "nginx.access"
-              },
-              "vars": {
-                "interval": {
-                  "value": "10s",
-                  "type": "text"
-                },
-                "search": {
-                  "value": "search sourcetype=nginx:plus:access",
-                  "type": "text"
-                },
-                "tags": {
-                  "value": [
-                    "forwarded",
-                    "nginx-access"
-                  ],
-                  "type": "text"
-                },
-                "preserve_original_event": {
-                  "value": false,
-                  "type": "bool"
-                },
-                "processors": {
-                  "type": "yaml"
-                }
-              },
-              "id": "httpjson-nginx.access-46331ee9-90a9-4b1f-b568-98641e9bafc9"
-            },
-            {
-              "enabled": false,
-              "data_stream": {
-                "type": "logs",
-                "dataset": "nginx.error"
-              },
-              "vars": {
-                "interval": {
-                  "value": "10s",
-                  "type": "text"
-                },
-                "search": {
-                  "value": "search sourcetype=nginx:plus:error",
-                  "type": "text"
-                },
-                "tags": {
-                  "value": [
-                    "forwarded",
-                    "nginx-error"
-                  ],
-                  "type": "text"
-                },
-                "preserve_original_event": {
-                  "value": false,
-                  "type": "bool"
-                },
-                "processors": {
-                  "type": "yaml"
-                }
-              },
-              "id": "httpjson-nginx.error-46331ee9-90a9-4b1f-b568-98641e9bafc9"
-            }
-          ],
-          "vars": {
-            "url": {
-              "value": "https://server.example.com:8089",
-              "type": "text"
-            },
-            "username": {
-              "type": "text"
-            },
-            "password": {
-              "type": "password"
-            },
-            "token": {
-              "type": "password"
-            },
-            "ssl": {
-              "value": "#certificate_authorities:\n#  - |\n#    -----BEGIN CERTIFICATE-----\n#    MIIDCjCCAfKgAwIBAgITJ706Mu2wJlKckpIvkWxEHvEyijANBgkqhkiG9w0BAQsF\n#    ADAUMRIwEAYDVQQDDAlsb2NhbGhvc3QwIBcNMTkwNzIyMTkyOTA0WhgPMjExOTA2\n#    MjgxOTI5MDRaMBQxEjAQBgNVBAMMCWxvY2FsaG9zdDCCASIwDQYJKoZIhvcNAQEB\n#    BQADggEPADCCAQoCggEBANce58Y/JykI58iyOXpxGfw0/gMvF0hUQAcUrSMxEO6n\n#    fZRA49b4OV4SwWmA3395uL2eB2NB8y8qdQ9muXUdPBWE4l9rMZ6gmfu90N5B5uEl\n#    94NcfBfYOKi1fJQ9i7WKhTjlRkMCgBkWPkUokvBZFRt8RtF7zI77BSEorHGQCk9t\n#    /D7BS0GJyfVEhftbWcFEAG3VRcoMhF7kUzYwp+qESoriFRYLeDWv68ZOvG7eoWnP\n#    PsvZStEVEimjvK5NSESEQa9xWyJOmlOKXhkdymtcUd/nXnx6UTCFgnkgzSdTWV41\n#    CI6B6aJ9svCTI2QuoIq2HxX/ix7OvW1huVmcyHVxyUECAwEAAaNTMFEwHQYDVR0O\n#    BBYEFPwN1OceFGm9v6ux8G+DZ3TUDYxqMB8GA1UdIwQYMBaAFPwN1OceFGm9v6ux\n#    8G+DZ3TUDYxqMA8GA1UdEwEB/wQFMAMBAf8wDQYJKoZIhvcNAQELBQADggEBAG5D\n#    874A4YI7YUwOVsVAdbWtgp1d0zKcPRR+r2OdSbTAV5/gcS3jgBJ3i1BN34JuDVFw\n#    3DeJSYT3nxy2Y56lLnxDeF8CUTUtVQx3CuGkRg1ouGAHpO/6OqOhwLLorEmxi7tA\n#    H2O8mtT0poX5AnOAhzVy7QW0D/k4WaoLyckM5hUa6RtvgvLxOwA0U+VGurCDoctu\n#    8F4QOgTAWyh8EZIwaKCliFRSynDpv3JTUwtfZkxo6K6nce1RhCWFAsMvDZL8Dgc0\n#    yvgJ38BRsFOtkRuAGSf6ZUwTO8JJRRIFnpUzXflAnGivK9M13D5GEQMmIl6U9Pvk\n#    sxSmbIUfc2SGJGCJD4I=\n#    -----END CERTIFICATE-----\n",
-              "type": "yaml"
-            }
-          }
-        },
-        {
-          "type": "nginx/metrics",
-          "policy_template": "nginx",
-          "enabled": true,
-          "streams": [
-            {
-              "enabled": true,
-              "data_stream": {
-                "type": "metrics",
-                "dataset": "nginx.stubstatus"
-              },
-              "vars": {
-                "period": {
-                  "value": "10s",
-                  "type": "text"
-                },
-                "server_status_path": {
-                  "value": "/nginx_status",
-                  "type": "text"
-                }
-              },
-              "id": "nginx/metrics-nginx.stubstatus-46331ee9-90a9-4b1f-b568-98641e9bafc9",
-              "compiled_stream": {
-                "metricsets": [
-                  "stubstatus"
-                ],
-                "hosts": [
-                  "http://127.0.0.1:80"
-                ],
-                "period": "10s",
-                "server_status_path": "/nginx_status"
-              }
-            }
-          ],
-          "vars": {
-            "hosts": {
-              "value": [
-                "http://127.0.0.1:80"
-              ],
-              "type": "text"
-            }
-          }
-        }
-      ],
-      "revision": 1,
-      "created_at": "2022-06-27T15:33:58.606Z",
-      "created_by": "elastic",
-      "updated_at": "2022-06-27T15:33:58.606Z",
-      "updated_by": "elastic"
-    }
-  ],
-  "agents": 0
+    ],
+    "agents": 0
 }
