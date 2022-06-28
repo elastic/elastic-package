@@ -5,12 +5,8 @@
 package dump
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"os"
 	"path/filepath"
 
 	"github.com/elastic/elastic-package/internal/common"
@@ -70,36 +66,6 @@ func (e *InstalledObjectsDumper) DumpAll(ctx context.Context, dir string) (count
 	count += n
 
 	return count, nil
-}
-
-type DumpableInstalledObject interface {
-	Name() string
-	JSON() []byte
-}
-
-func dumpJSONResource(dir string, object DumpableInstalledObject) error {
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return fmt.Errorf("failed to create dump directory: %w", err)
-	}
-	formatted, err := formatJSON(object.JSON())
-	if err != nil {
-		return fmt.Errorf("failed to format JSON object: %w", err)
-	}
-	path := filepath.Join(dir, object.Name()+".json")
-	err = ioutil.WriteFile(path, formatted, 0644)
-	if err != nil {
-		return fmt.Errorf("failed to dump object to file: %w", err)
-	}
-	return nil
-}
-
-func formatJSON(in []byte) ([]byte, error) {
-	var buf bytes.Buffer
-	err := json.Indent(&buf, in, "", "  ")
-	if err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
 }
 
 func (e *InstalledObjectsDumper) dumpIndexTemplates(ctx context.Context, dir string) (count int, err error) {
