@@ -12,8 +12,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/nsf/jsondiff"
+	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
+	"github.com/pmezard/go-difflib/difflib"
 
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/testrunner"
@@ -103,24 +104,37 @@ func compareJsonNumbers(a, b json.Number) bool {
 }
 
 func diffJson(want, got []byte) (string, error) {
-	opts := jsondiff.DefaultConsoleOptions()
-
-	// Remove colored output.
-	opts.Added = jsondiff.Tag{Begin: "+ "}
-	opts.Removed = jsondiff.Tag{Begin: "- "}
-	opts.Changed = jsondiff.Tag{}
-	opts.Skipped = jsondiff.Tag{}
-
-	// Configure diff.
-	opts.SkipMatches = true
-	opts.CompareNumbers = compareJsonNumbers
-
-	result, diff := jsondiff.Compare(want, got, &opts)
-	switch result {
-	case jsondiff.FirstArgIsInvalidJson, jsondiff.SecondArgIsInvalidJson, jsondiff.BothArgsAreInvalidJson:
-		return "", errors.New("invalid json")
+	var gotVal, wantVal interface{}
+	err := jsonUnmarshalUsingNumber(want, &wantVal)
+	if err != nil {
+		return "", fmt.Errorf("invalid want value: %w", err)
 	}
-	return diff, nil
+	err = jsonUnmarshalUsingNumber(got, &gotVal)
+	if err != nil {
+		return "", fmt.Errorf("invalid got value: %w", err)
+	}
+	if cmp.Equal(gotVal, wantVal, cmp.Comparer(compareJsonNumbers)) {
+		return "", nil
+	}
+
+	got, err = marshalNormalizedJSON(gotVal)
+	if err != nil {
+		return "", err
+	}
+	want, err = marshalNormalizedJSON(wantVal)
+	if err != nil {
+		return "", err
+	}
+
+	var buf bytes.Buffer
+	err = difflib.WriteUnifiedDiff(&buf, difflib.UnifiedDiff{
+		A:        difflib.SplitLines(string(want)),
+		B:        difflib.SplitLines(string(got)),
+		FromFile: "want",
+		ToFile:   "got",
+		Context:  3,
+	})
+	return buf.String(), err
 }
 
 func readExpectedTestResult(testCasePath string, config *testConfig) (*testResult, error) {
@@ -228,7 +242,7 @@ func marshalTestResultDefinition(result *testResult) ([]byte, error) {
 // marshalNormalizedJSON marshals test results ensuring that field
 // order remains consistent independent of field order returned by
 // ES to minimize diff noise during changes.
-func marshalNormalizedJSON(v testResultDefinition) ([]byte, error) {
+func marshalNormalizedJSON(v interface{}) ([]byte, error) {
 	msg, err := json.Marshal(v)
 	if err != nil {
 		return msg, err
