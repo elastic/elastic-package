@@ -5,12 +5,12 @@
 package dump
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
-
-	"github.com/elastic/elastic-package/internal/formatter"
 )
 
 type DumpableJSONResource interface {
@@ -22,7 +22,7 @@ func dumpJSONResource(dir string, object DumpableJSONResource) error {
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return fmt.Errorf("failed to create dump directory: %w", err)
 	}
-	formatted, _, err := formatter.JSONFormatter(object.JSON())
+	formatted, err := formatJSON(object.JSON())
 	if err != nil {
 		return fmt.Errorf("failed to format JSON object: %w", err)
 	}
@@ -32,4 +32,13 @@ func dumpJSONResource(dir string, object DumpableJSONResource) error {
 		return fmt.Errorf("failed to dump object to file: %w", err)
 	}
 	return nil
+}
+
+func formatJSON(in []byte) ([]byte, error) {
+	var buf bytes.Buffer
+	err := json.Indent(&buf, in, "", "  ")
+	if err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }
