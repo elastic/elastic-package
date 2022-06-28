@@ -50,7 +50,7 @@ var pathReplacer = strings.NewReplacer("/", "-", "*", "_", "?", ".", "&", ".")
 func pathForURL(url string) string {
 	clean := strings.Trim(url, "/")
 	if len(clean) == 0 {
-		return "root.jsn"
+		return "root.json"
 	}
 	return pathReplacer.Replace(clean) + ".json"
 }
