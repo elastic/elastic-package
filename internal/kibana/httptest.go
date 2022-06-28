@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// KibanaClient returns a client for a testing http server that uses prerecorded
+// NewTestClient returns a client for a testing http server that uses prerecorded
 // responses. If responses are not found, it forwards the query to the server started by
 // elastic-package stack, and records the response.
 // Responses are recorded in the directory indicated by serverDataDir.

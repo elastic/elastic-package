@@ -30,7 +30,7 @@ func TestClientWithTLS(t *testing.T) {
 		client, err := NewClient(Address(server.URL))
 		require.NoError(t, err)
 
-		_, _, err = client.Get("/")
+		_, _, err = client.get("/")
 		assert.Error(t, err)
 	})
 
@@ -38,7 +38,7 @@ func TestClientWithTLS(t *testing.T) {
 		client, err := NewClient(Address(server.URL), CertificateAuthority(caCertFile))
 		require.NoError(t, err)
 
-		_, _, err = client.Get("/")
+		_, _, err = client.get("/")
 		assert.NoError(t, err)
 	})
 
@@ -46,7 +46,7 @@ func TestClientWithTLS(t *testing.T) {
 		client, err := NewClient(Address(server.URL), TLSSkipVerify())
 		require.NoError(t, err)
 
-		_, _, err = client.Get("/")
+		_, _, err = client.get("/")
 		assert.NoError(t, err)
 	})
 }
