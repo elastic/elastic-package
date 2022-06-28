@@ -44,7 +44,7 @@ func testKibanaServer(t *testing.T, mockServerDir string) *httptest.Server {
 	}))
 }
 
-var pathReplacer = strings.NewReplacer("/", "-", "*", "_", "&", ".")
+var pathReplacer = strings.NewReplacer("/", "-", "*", "_", "?", ".", "&", ".")
 
 // FIXME duplicated in internal/elasticsearch/test/http_test.go
 func pathForURL(url string) string {
