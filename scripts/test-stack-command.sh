@@ -31,4 +31,4 @@ elastic-package stack up -d -v ${ARG_VERSION}
 
 # Verify it's accessible
 eval "$(elastic-package stack shellinit)"
-curl -f ${ELASTIC_PACKAGE_KIBANA_HOST}/login | grep kbn-injected-metadata >/dev/null # healthcheck
+curl --cacert ${ELASTIC_PACKAGE_CA_CERT} -f ${ELASTIC_PACKAGE_KIBANA_HOST}/login | grep kbn-injected-metadata >/dev/null # healthcheck

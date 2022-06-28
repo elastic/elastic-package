@@ -23,8 +23,11 @@ var (
 	CACertificateEnv         = elasticPackageEnvPrefix + "CA_CERT"
 )
 
-var shellInitFormat = "export " + ElasticsearchHostEnv + "=%s\nexport " + ElasticsearchUsernameEnv + "=%s\nexport " +
-	ElasticsearchPasswordEnv + "=%s\nexport " + KibanaHostEnv + "=%s"
+var shellInitFormat = "export " + ElasticsearchHostEnv + "=%s\n" +
+	"export " + ElasticsearchUsernameEnv + "=%s\n" +
+	"export " + ElasticsearchPasswordEnv + "=%s\n" +
+	"export " + KibanaHostEnv + "=%s\n" +
+	"export " + CACertificateEnv + "=%s"
 
 // ShellInit method exposes environment variables that can be used for testing purposes.
 func ShellInit(elasticStackProfile *profile.Profile) (string, error) {
@@ -37,5 +40,7 @@ func ShellInit(elasticStackProfile *profile.Profile) (string, error) {
 		config.ElasticsearchHostPort,
 		config.ElasticsearchUsername,
 		config.ElasticsearchPassword,
-		config.KibanaHostPort), nil
+		config.KibanaHostPort,
+		config.CACertificatePath,
+	), nil
 }

@@ -21,6 +21,7 @@ type InitConfig struct {
 	ElasticsearchUsername string
 	ElasticsearchPassword string
 	KibanaHostPort        string
+	CACertificatePath     string
 }
 
 func StackInitConfig(elasticStackProfile *profile.Profile) (*InitConfig, error) {
@@ -63,15 +64,18 @@ func StackInitConfig(elasticStackProfile *profile.Profile) (*InitConfig, error) 
 	}
 
 	kib := serviceComposeConfig.Services["kibana"]
-	kibHostPort := fmt.Sprintf("http://%s:%d", kib.Ports[0].ExternalIP, kib.Ports[0].ExternalPort)
+	kibHostPort := fmt.Sprintf("https://%s:%d", kib.Ports[0].ExternalIP, kib.Ports[0].ExternalPort)
 
 	es := serviceComposeConfig.Services["elasticsearch"]
-	esHostPort := fmt.Sprintf("http://%s:%d", es.Ports[0].ExternalIP, es.Ports[0].ExternalPort)
+	esHostPort := fmt.Sprintf("https://%s:%d", es.Ports[0].ExternalIP, es.Ports[0].ExternalPort)
+
+	caCert := elasticStackProfile.FetchPath(profile.CACertificateFile)
 
 	return &InitConfig{
 		ElasticsearchHostPort: esHostPort,
 		ElasticsearchUsername: kibanaCfg.ElasticsearchUsername,
 		ElasticsearchPassword: kibanaCfg.ElasticsearchPassword,
 		KibanaHostPort:        kibHostPort,
+		CACertificatePath:     caCert,
 	}, nil
 }

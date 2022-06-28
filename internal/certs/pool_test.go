@@ -23,6 +23,13 @@ const (
 	serverKeyPath  = "testdata/server-key.pem"
 )
 
+func TestPoolWithCACertificate(t *testing.T) {
+	pool, err := PoolWithCACertificate(caCertPath)
+	require.NoError(t, err)
+
+	verifyTestCertWithPool(t, pool)
+}
+
 func TestSystemPoolWithCACertificate(t *testing.T) {
 	pool, err := SystemPoolWithCACertificate(caCertPath)
 	require.NoError(t, err)

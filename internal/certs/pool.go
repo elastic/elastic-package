@@ -11,6 +11,17 @@ import (
 	"io/ioutil"
 )
 
+// PoolWithCACertificate returns a new pool that includes the CA certificate
+// in the given path.
+func PoolWithCACertificate(path string) (*x509.CertPool, error) {
+	pool := x509.NewCertPool()
+	err := addCACertificateToPool(pool, path)
+	if err != nil {
+		return nil, err
+	}
+	return pool, nil
+}
+
 // SystemPoolWithCACertificate returns a copy of the system pool, including the CA certificate
 // in the given path.
 func SystemPoolWithCACertificate(path string) (*x509.CertPool, error) {
