@@ -23,6 +23,9 @@ const (
 
 // Flag names and descriptions used by CLI commands
 const (
+	AgentPolicyFlagName    = "agent-policy"
+	AgentPolicyDescription = "name of the agent policy"
+
 	BuildZipFlagName        = "zip"
 	BuildZipFlagDescription = "archive the built package"
 
