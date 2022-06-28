@@ -42,7 +42,23 @@ Download and build the latest main of `elastic-package` binary:
 
 ```bash
 git clone https://github.com/elastic/elastic-package.git
+cd elastic-package
 make build
+```
+
+When developing on Windows, please use the `core.autocrlf=input` or `core.autocrlf=false` option to avoid issues with CRLF line endings:
+```bash
+git clone --config core.autocrlf=input https://github.com/elastic/elastic-package.git
+cd elastic-package
+make build
+```
+
+This option can be also configured on existing clones with the following commands. Be aware that these commands
+will remove uncommited changes.
+```bash
+git config core.autocrlf input
+git rm --cached -r .
+git reset --hard
 ```
 
 ## Commands
