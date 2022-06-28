@@ -13,7 +13,6 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/elastic/elastic-package/internal/kibana"
-	kibtest "github.com/elastic/elastic-package/internal/kibana/test"
 )
 
 func TestDumpAgentPolicies(t *testing.T) {
@@ -111,7 +110,7 @@ func (s *agentPoliciesDumpSuite) SetupTest() {
 }
 
 func (s *agentPoliciesDumpSuite) TestDumpAll() {
-	client := kibtest.KibanaClient(s.T(), s.RecordDir)
+	client := kibana.NewTestClient(s.T(), s.RecordDir)
 
 	outputDir := s.T().TempDir()
 	dumper := NewAgentPoliciesDumper(client)
@@ -128,7 +127,7 @@ func (s *agentPoliciesDumpSuite) TestDumpAll() {
 }
 
 func (s *agentPoliciesDumpSuite) TestDumpByPackage() {
-	client := kibtest.KibanaClient(s.T(), s.RecordDir)
+	client := kibana.NewTestClient(s.T(), s.RecordDir)
 
 	outputDir := s.T().TempDir()
 	dumper := NewAgentPoliciesDumper(client)
@@ -145,7 +144,7 @@ func (s *agentPoliciesDumpSuite) TestDumpByPackage() {
 }
 
 func (s *agentPoliciesDumpSuite) TestDumpByName() {
-	client := kibtest.KibanaClient(s.T(), s.RecordDir)
+	client := kibana.NewTestClient(s.T(), s.RecordDir)
 
 	outputDir := s.T().TempDir()
 	dumper := NewAgentPoliciesDumper(client)

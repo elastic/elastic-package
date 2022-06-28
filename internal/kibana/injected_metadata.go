@@ -24,7 +24,7 @@ type injectedMetadata struct {
 
 // Version method returns the Kibana version.
 func (c *Client) Version() (string, error) {
-	statusCode, respBody, err := c.Get("/login")
+	statusCode, respBody, err := c.get("/login")
 	if err != nil {
 		return "", errors.Wrap(err, "could not reach login endpoint")
 	}

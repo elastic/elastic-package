@@ -2,7 +2,7 @@
 // or more contributor license agreements. Licensed under the Elastic License;
 // you may not use this file except in compliance with the Elastic License.
 
-package test
+package kibana
 
 import (
 	"net/http"
@@ -13,20 +13,18 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-
-	"github.com/elastic/elastic-package/internal/kibana"
 )
 
 // KibanaClient returns a client for a testing http server that uses prerecorded
 // responses. If responses are not found, it forwards the query to the server started by
 // elastic-package stack, and records the response.
 // Responses are recorded in the directory indicated by serverDataDir.
-func KibanaClient(t *testing.T, serverDataDir string) *kibana.Client {
+func NewTestClient(t *testing.T, serverDataDir string) *Client {
 	server := testKibanaServer(t, serverDataDir)
 	t.Cleanup(func() { server.Close() })
 
-	client, err := kibana.NewClient(
-		kibana.Address(server.URL),
+	client, err := NewClient(
+		Address(server.URL),
 	)
 	require.NoError(t, err)
 
@@ -56,11 +54,11 @@ func pathForURL(url string) string {
 }
 
 func recordRequest(t *testing.T, r *http.Request, path string) {
-	client, err := kibana.NewClient()
+	client, err := NewClient()
 	require.NoError(t, err)
 
 	t.Logf("Recording %s in %s", r.URL.RequestURI(), path)
-	status, respBody, err := client.Get(r.URL.RequestURI())
+	status, respBody, err := client.get(r.URL.RequestURI())
 	require.Equal(t, 200, status)
 	require.NoError(t, err)
 

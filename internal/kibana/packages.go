@@ -19,7 +19,7 @@ func (c *Client) InstallPackage(pkg packages.PackageManifest) ([]packages.Asset,
 	path := fmt.Sprintf("%s/epm/packages/%s-%s", FleetAPI, pkg.Name, pkg.Version)
 	reqBody := []byte(`{"force":true}`) // allows installing older versions of the package being tested
 
-	statusCode, respBody, err := c.Post(path, reqBody)
+	statusCode, respBody, err := c.post(path, reqBody)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not install package")
 	}
@@ -30,7 +30,7 @@ func (c *Client) InstallPackage(pkg packages.PackageManifest) ([]packages.Asset,
 // RemovePackage removes the given package from Fleet.
 func (c *Client) RemovePackage(pkg packages.PackageManifest) ([]packages.Asset, error) {
 	path := fmt.Sprintf("%s/epm/packages/%s-%s", FleetAPI, pkg.Name, pkg.Version)
-	statusCode, respBody, err := c.Delete(path)
+	statusCode, respBody, err := c.delete(path)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not delete package")
 	}

@@ -41,7 +41,7 @@ func (a *Agent) String() string {
 
 // ListAgents returns the list of agents enrolled with Fleet.
 func (c *Client) ListAgents() ([]Agent, error) {
-	statusCode, respBody, err := c.Get(fmt.Sprintf("%s/agents", FleetAPI))
+	statusCode, respBody, err := c.get(fmt.Sprintf("%s/agents", FleetAPI))
 	if err != nil {
 		return nil, errors.Wrap(err, "could not list agents")
 	}
@@ -66,7 +66,7 @@ func (c *Client) AssignPolicyToAgent(a Agent, p Policy) error {
 	reqBody := `{ "policy_id": "` + p.ID + `" }`
 
 	path := fmt.Sprintf("%s/agents/%s/reassign", FleetAPI, a.ID)
-	statusCode, respBody, err := c.Put(path, []byte(reqBody))
+	statusCode, respBody, err := c.put(path, []byte(reqBody))
 	if err != nil {
 		return errors.Wrap(err, "could not assign policy to agent")
 	}
@@ -111,7 +111,7 @@ func (c *Client) waitUntilPolicyAssigned(a Agent, p Policy) error {
 }
 
 func (c *Client) getAgent(agentID string) (*Agent, error) {
-	statusCode, respBody, err := c.Get(fmt.Sprintf("%s/agents/%s", FleetAPI, agentID))
+	statusCode, respBody, err := c.get(fmt.Sprintf("%s/agents/%s", FleetAPI, agentID))
 	if err != nil {
 		return nil, errors.Wrap(err, "could not list agents")
 	}
