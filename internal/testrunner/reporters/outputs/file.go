@@ -26,8 +26,8 @@ const (
 	ReportOutputFile testrunner.TestReportOutput = "file"
 )
 
-func reportToFile(pkg, report string, format testrunner.TestReportFormat) error {
-	dest, err := testReportsDir()
+func reportToFile(pkg, report string, format testrunner.TestReportFormat, ttype testrunner.TestReportType) error {
+	dest, err := reportsDir(ttype)
 	if err != nil {
 		return errors.Wrap(err, "could not determine test reports folder")
 	}
@@ -36,7 +36,7 @@ func reportToFile(pkg, report string, format testrunner.TestReportFormat) error 
 	_, err = os.Stat(dest)
 	if err != nil && errors.Is(err, os.ErrNotExist) {
 		if err := os.MkdirAll(dest, 0755); err != nil {
-			return errors.Wrap(err, "could not create test reports folder")
+			return errors.Wrapf(err, "could not create %s reports folder", ttype)
 		}
 	}
 
@@ -44,22 +44,30 @@ func reportToFile(pkg, report string, format testrunner.TestReportFormat) error 
 	if format == formats.ReportFormatXUnit {
 		ext = "xml"
 	}
-
 	fileName := fmt.Sprintf("%s_%d.%s", pkg, time.Now().UnixNano(), ext)
 	filePath := filepath.Join(dest, fileName)
 
 	if err := os.WriteFile(filePath, []byte(report+"\n"), 0644); err != nil {
-		return errors.Wrap(err, "could not write report file")
+		return errors.Wrapf(err, "could not write %s report file", ttype)
 	}
 
 	return nil
 }
 
-// testReportsDir returns the location of the directory to store test reports.
-func testReportsDir() (string, error) {
+// reportsDir returns the location of the directory to store reports.
+func reportsDir(ttype testrunner.TestReportType) (string, error) {
 	buildDir, err := builder.BuildDirectory()
 	if err != nil {
 		return "", errors.Wrap(err, "locating build directory failed")
 	}
-	return filepath.Join(buildDir, "test-results"), nil
+	var folder string
+	switch ttype {
+	case testrunner.ReportTypeTest:
+		folder = "test-results"
+	case testrunner.ReportTypeBench:
+		folder = "benchmark-results"
+	default:
+		return "", fmt.Errorf("unsupported report type: %s", ttype)
+	}
+	return filepath.Join(buildDir, folder), nil
 }

@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -68,6 +69,9 @@ func setupTestCommand() *cobraext.Command {
 	cmd.PersistentFlags().StringP(cobraext.ReportFormatFlagName, "", string(formats.ReportFormatHuman), cobraext.ReportFormatFlagDescription)
 	cmd.PersistentFlags().StringP(cobraext.ReportOutputFlagName, "", string(outputs.ReportOutputSTDOUT), cobraext.ReportOutputFlagDescription)
 	cmd.PersistentFlags().BoolP(cobraext.TestCoverageFlagName, "", false, cobraext.TestCoverageFlagDescription)
+	cmd.PersistentFlags().BoolP(cobraext.TestPerfFlagName, "", false, cobraext.TestPerfFlagDescription)
+	cmd.PersistentFlags().IntP(cobraext.TestPerfCountFlagName, "", 1000, cobraext.TestPerfCountFlagDescription)
+	cmd.PersistentFlags().DurationP(cobraext.TestPerfDurationFlagName, "", time.Duration(0), cobraext.TestPerfDurationFlagDescription)
 	cmd.PersistentFlags().DurationP(cobraext.DeferCleanupFlagName, "", 0, cobraext.DeferCleanupFlagDescription)
 	cmd.PersistentFlags().String(cobraext.VariantFlagName, "", cobraext.VariantFlagDescription)
 
@@ -120,6 +124,21 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 		testCoverage, err := cmd.Flags().GetBool(cobraext.TestCoverageFlagName)
 		if err != nil {
 			return cobraext.FlagParsingError(err, cobraext.TestCoverageFlagName)
+		}
+
+		testPerf, err := cmd.Flags().GetBool(cobraext.TestPerfFlagName)
+		if err != nil {
+			return cobraext.FlagParsingError(err, cobraext.TestPerfFlagName)
+		}
+
+		testPerfCount, err := cmd.Flags().GetInt(cobraext.TestPerfCountFlagName)
+		if err != nil {
+			return cobraext.FlagParsingError(err, cobraext.TestPerfCountFlagName)
+		}
+
+		testPerfDur, err := cmd.Flags().GetDuration(cobraext.TestPerfDurationFlagName)
+		if err != nil {
+			return cobraext.FlagParsingError(err, cobraext.TestPerfCountFlagDescription)
 		}
 
 		packageRootPath, found, err := packages.FindPackageRoot()
@@ -200,6 +219,11 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 				DeferCleanup:       deferCleanup,
 				ServiceVariant:     variantFlag,
 				WithCoverage:       testCoverage,
+				Benchmark: testrunner.BenchmarkConfig{
+					Enabled:  testPerf,
+					NumDocs:  testPerfCount,
+					Duration: testPerfDur,
+				},
 			})
 
 			results = append(results, r...)
@@ -210,7 +234,7 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 		}
 
 		format := testrunner.TestReportFormat(reportFormat)
-		report, err := testrunner.FormatReport(format, results)
+		testReport, benchReport, err := testrunner.FormatReport(format, results)
 		if err != nil {
 			return errors.Wrap(err, "error formatting test report")
 		}
@@ -220,10 +244,15 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 			return errors.Wrapf(err, "reading package manifest failed (path: %s)", packageRootPath)
 		}
 
-		if err := testrunner.WriteReport(m.Name, testrunner.TestReportOutput(reportOutput), report, format); err != nil {
+		if err := testrunner.WriteReport(m.Name, testrunner.TestReportOutput(reportOutput), testReport, format, testrunner.ReportTypeTest); err != nil {
 			return errors.Wrap(err, "error writing test report")
 		}
 
+		if benchReport != "" {
+			if err := testrunner.WriteReport(m.Name, testrunner.TestReportOutput(reportOutput), benchReport, format, testrunner.ReportTypeBench); err != nil {
+				return errors.Wrap(err, "error writing benchmark report")
+			}
+		}
 		if testCoverage {
 			err := testrunner.WriteCoverage(packageRootPath, m.Name, runner.Type(), results)
 			if err != nil {

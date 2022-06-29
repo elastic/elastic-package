@@ -169,13 +169,32 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		}
 		results = append(results, tr)
 	}
+
+	if r.options.Benchmark.Enabled {
+		start := time.Now()
+		tr := testrunner.TestResult{
+			TestType:   TestType + " benchmark",
+			Package:    r.options.TestFolder.Package,
+			DataStream: r.options.TestFolder.DataStream,
+		}
+		if tr.Benchmark, err = BenchmarkPipeline(r.options); err != nil {
+			tr.ErrorMsg = err.Error()
+		}
+		tr.TimeElapsed = time.Since(start)
+		results = append(results, tr)
+	}
+
 	return results, nil
 }
 
 func (r *runner) listTestCaseFiles() ([]string, error) {
-	fis, err := os.ReadDir(r.options.TestFolder.Path)
+	return listTestCaseFiles(r.options.TestFolder.Path)
+}
+
+func listTestCaseFiles(path string) ([]string, error) {
+	fis, err := os.ReadDir(path)
 	if err != nil {
-		return nil, errors.Wrapf(err, "reading pipeline tests failed (path: %s)", r.options.TestFolder.Path)
+		return nil, errors.Wrapf(err, "reading pipeline tests failed (path: %s)", path)
 	}
 
 	var files []string
@@ -190,7 +209,10 @@ func (r *runner) listTestCaseFiles() ([]string, error) {
 }
 
 func (r *runner) loadTestCaseFile(testCaseFile string) (*testCase, error) {
-	testCasePath := filepath.Join(r.options.TestFolder.Path, testCaseFile)
+	return loadTestCaseFile(filepath.Join(r.options.TestFolder.Path, testCaseFile))
+}
+
+func loadTestCaseFile(testCasePath string) (*testCase, error) {
 	testCaseData, err := os.ReadFile(testCasePath)
 	if err != nil {
 		return nil, errors.Wrapf(err, "reading input file failed (testCasePath: %s)", testCasePath)
@@ -201,6 +223,7 @@ func (r *runner) loadTestCaseFile(testCaseFile string) (*testCase, error) {
 		return nil, errors.Wrapf(err, "reading config for test case failed (testCasePath: %s)", testCasePath)
 	}
 
+	testCaseFile := filepath.Base(testCasePath)
 	if config.Skip != nil {
 		return &testCase{
 			name:   testCaseFile,

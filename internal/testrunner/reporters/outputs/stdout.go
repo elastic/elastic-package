@@ -19,10 +19,14 @@ const (
 	ReportOutputSTDOUT testrunner.TestReportOutput = "stdout"
 )
 
-func reportToSTDOUT(pkg, report string, _ testrunner.TestReportFormat) error {
-	fmt.Printf("--- Test results for package: %s - START ---\n", pkg)
+func reportToSTDOUT(pkg, report string, _ testrunner.TestReportFormat, ttype testrunner.TestReportType) error {
+	reportType := "Test"
+	if ttype == testrunner.ReportTypeBench {
+		reportType = "Benchmark"
+	}
+	fmt.Printf("--- %s results for package: %s - START ---\n", reportType, pkg)
 	fmt.Println(report)
-	fmt.Printf("--- Test results for package: %s - END   ---\n", pkg)
+	fmt.Printf("--- %s results for package: %s - END   ---\n", reportType, pkg)
 	fmt.Println("Done")
 
 	return nil
