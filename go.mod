@@ -10,7 +10,7 @@ require (
 	github.com/boumenot/gocover-cobertura v1.2.0
 	github.com/cespare/xxhash/v2 v2.1.2
 	github.com/elastic/go-elasticsearch/v7 v7.17.1
-	github.com/elastic/go-licenser v0.4.0
+	github.com/elastic/go-licenser v0.4.1
 	github.com/elastic/go-ucfg v0.8.6
 	github.com/elastic/package-spec v1.12.1
 	github.com/fatih/color v1.13.0
