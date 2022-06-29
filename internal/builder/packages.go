@@ -14,6 +14,7 @@ import (
 	"github.com/elastic/package-spec/code/go/pkg/validator"
 
 	"github.com/elastic/elastic-package/internal/files"
+	"github.com/elastic/elastic-package/internal/licenses"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 )
@@ -148,6 +149,18 @@ func BuildPackage(options BuildOptions) (string, error) {
 	err = files.ClearDir(destinationDir)
 	if err != nil {
 		return "", errors.Wrap(err, "clearing package contents failed")
+	}
+
+	m, err := packages.ReadPackageManifestFromPackageRoot(options.PackageRoot)
+	if err != nil {
+		return "", errors.Wrapf(err, "reading package manifest failed (path: %s)", options.PackageRoot)
+	}
+	if license := m.Source.License; license != "" {
+		logger.Debugf("Write license text for %q", license)
+		err := licenses.WriteTextToFile(license, filepath.Join(destinationDir, "LICENSE.txt"))
+		if err != nil {
+			return "", errors.Wrap(err, "writing license text failed")
+		}
 	}
 
 	logger.Debugf("Copy package content (source: %s)", options.PackageRoot)

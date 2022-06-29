@@ -5,7 +5,8 @@ title: Apache HTTP Server
 # be installed in the package registry regardless of the version of
 # the actual apache package in the registry at any given time.
 version: 999.999.999
-license: basic
+source:
+  license: Apache-2.0
 description: Collect logs and metrics from Apache servers with Elastic Agent.
 type: integration
 categories:
@@ -13,6 +14,7 @@ categories:
 release: ga
 conditions:
   kibana.version: "^7.14.0 || ^8.0.0"
+  elastic.subscription: basic
 screenshots:
   - src: /img/apache-metrics-overview.png
     title: Apache metrics overview

@@ -2,13 +2,15 @@ format_version: 1.0.0
 name: number_formats
 title: "Number formats"
 version: 0.1.0
-license: basic
-description: "Package to tes pipelines with documents with different formats of numbers"
+source:
+  license: Apache-2.0
+description: "Package to test pipelines with documents with different formats of numbers"
 type: integration
 categories:
   - custom
 conditions:
   kibana.version: "^8.1.0"
+  elastic.subscription: "basic"
 screenshots:
   - src: /img/sample-screenshot.png
     title: Sample screenshot

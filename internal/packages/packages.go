@@ -110,7 +110,10 @@ type PackageManifest struct {
 	Owner           Owner            `config:"owner" json:"owner" yaml:"owner"`
 	Description     string           `config:"description" json:"description" yaml:"description"`
 	License         string           `config:"license" json:"license" yaml:"license"`
-	Categories      []string         `config:"categories" json:"categories" yaml:"categories"`
+	Source          struct {
+		License string `config:"license" json:"license" yaml:"license"`
+	} `config:"source" json:"source" yaml: "source`
+	Categories []string `config:"categories" json:"categories" yaml:"categories"`
 }
 
 // DataStreamManifest represents the structure of a data stream's manifest

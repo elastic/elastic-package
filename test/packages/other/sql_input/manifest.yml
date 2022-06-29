@@ -5,7 +5,10 @@ description: >-
   Execute custom queries against an SQL database and store the results in Elasticsearch.
 type: input
 version: 0.2.0
-license: basic
+source:
+  license: Elastic-2.0
+conditions:
+  elastic.subscription: basic
 categories:
   - custom
   - datastore
