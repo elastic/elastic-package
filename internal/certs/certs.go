@@ -169,6 +169,12 @@ func New(isCA bool, issuer *Issuer, opts ...Option) (*Certificate, error) {
 			template.Subject.CommonName = "intermediate elastic-package CA"
 		}
 	} else {
+		template.ExtKeyUsage = []x509.ExtKeyUsage{
+			// Required for Chrome in OSX to show the "Proceed anyway" link.
+			// https://stackoverflow.com/a/64309893/28855
+			x509.ExtKeyUsageServerAuth,
+		}
+
 		// Include local hostname and ips as alternates in service certificates.
 		template.DNSNames = []string{"localhost"}
 		template.IPAddresses = []net.IP{net.ParseIP("127.0.0.1"), net.ParseIP("::1")}
@@ -266,8 +272,42 @@ func (c *Certificate) WriteCertFile(path string) error {
 
 // Verify verifies a certificate with the given verification options.
 func (c *Certificate) Verify(options x509.VerifyOptions) error {
-	_, err := c.cert.Verify(options)
+	err := checkExpectedCertUsage(c.cert)
+	if err != nil {
+		return err
+	}
+	_, err = c.cert.Verify(options)
 	return err
+}
+
+func checkExpectedCertUsage(cert *x509.Certificate) error {
+	expectedKeyUsage := x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature
+	if cert.IsCA {
+		expectedKeyUsage |= x509.KeyUsageCRLSign | x509.KeyUsageCertSign
+	}
+
+	if cert.KeyUsage&expectedKeyUsage != expectedKeyUsage {
+		return fmt.Errorf("missing expected usage flags in certificate")
+	}
+
+	if !cert.IsCA {
+		// Required for Chrome in OSX to show the "Proceed anyway" link.
+		// https://stackoverflow.com/a/64309893/28855
+		if !containsExtKeyUsage(cert.ExtKeyUsage, x509.ExtKeyUsageServerAuth) {
+			return fmt.Errorf("missing server auth key usage in certificate")
+		}
+	}
+
+	return nil
+}
+
+func containsExtKeyUsage(us []x509.ExtKeyUsage, u x509.ExtKeyUsage) bool {
+	for _, candidate := range us {
+		if u == candidate {
+			return true
+		}
+	}
+	return false
 }
 
 func certPemBlock(cert []byte) *pem.Block {
