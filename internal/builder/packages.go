@@ -71,18 +71,14 @@ func findBuildDirectory() (string, bool, error) {
 }
 
 // BuildPackagesDirectory function locates the target build directory for the package.
-func BuildPackagesDirectory(packageRoot string) (string, error) {
-	buildDir, err := buildPackagesRootDirectory()
-	if err != nil {
-		return "", errors.Wrap(err, "can't locate build packages root directory")
+func BuildPackagesDirectory(buildDir, packageRoot string) (string, error) {
+	var err error
+	if buildDir == "" {
+		buildDir, err = buildPackagesRootDirectory()
+		if err != nil {
+			return "", errors.Wrap(err, "can't locate build packages root directory")
+		}
 	}
-
-	return buildPackagesDirectory(buildDir, packageRoot)
-}
-
-// buildPackagesDirectory is used internaly to locate the target build directory for a package
-// inside a given build directory.
-func buildPackagesDirectory(buildDir, packageRoot string) (string, error) {
 	m, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
 	if err != nil {
 		return "", errors.Wrapf(err, "reading package manifest failed (path: %s)", packageRoot)
@@ -152,18 +148,9 @@ func FindBuildPackagesDirectory() (string, bool, error) {
 
 // BuildPackage function builds the package.
 func BuildPackage(options BuildOptions) (string, error) {
-	var err error
-	var destinationDir string
-	if options.buildDir == "" {
-		destinationDir, err = BuildPackagesDirectory(options.PackageRoot)
-		if err != nil {
-			return "", errors.Wrap(err, "can't locate build directory")
-		}
-	} else {
-		destinationDir, err = buildPackagesDirectory(options.buildDir, options.PackageRoot)
-		if err != nil {
-			return "", errors.Wrap(err, "can't locate build directory")
-		}
+	destinationDir, err := BuildPackagesDirectory(options.buildDir, options.PackageRoot)
+	if err != nil {
+		return "", errors.Wrap(err, "can't locate build directory")
 	}
 	logger.Debugf("Build directory: %s\n", destinationDir)
 

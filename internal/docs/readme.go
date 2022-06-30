@@ -117,7 +117,7 @@ func updateReadme(fileName, packageRoot string) (string, error) {
 		return "", errors.Wrapf(err, "writing %s file failed", fileName)
 	}
 
-	packageBuildRoot, err := builder.BuildPackagesDirectory(packageRoot)
+	packageBuildRoot, err := builder.BuildPackagesDirectory("", packageRoot)
 	if err != nil {
 		return "", errors.Wrap(err, "package build root not found")
 	}
