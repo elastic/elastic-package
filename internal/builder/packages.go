@@ -26,9 +26,6 @@ type BuildOptions struct {
 
 	CreateZip   bool
 	SignPackage bool
-
-	// buildDir is the base build directory to use. Used for testing now.
-	buildDir string
 }
 
 // BuildDirectory function locates the target build directory. If the directory doesn't exist, it will create it.
@@ -71,14 +68,15 @@ func findBuildDirectory() (string, bool, error) {
 }
 
 // BuildPackagesDirectory function locates the target build directory for the package.
-func BuildPackagesDirectory(buildDir, packageRoot string) (string, error) {
-	var err error
-	if buildDir == "" {
-		buildDir, err = buildPackagesRootDirectory()
-		if err != nil {
-			return "", errors.Wrap(err, "can't locate build packages root directory")
-		}
+func BuildPackagesDirectory(packageRoot string) (string, error) {
+	buildDir, err := buildPackagesRootDirectory()
+	if err != nil {
+		return "", errors.Wrap(err, "can't locate build packages root directory")
 	}
+	return buildPackagesDirectoryWithBuildDir(packageRoot, buildDir)
+}
+
+func buildPackagesDirectoryWithBuildDir(packageRoot, buildDir string) (string, error) {
 	m, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
 	if err != nil {
 		return "", errors.Wrapf(err, "reading package manifest failed (path: %s)", packageRoot)
@@ -148,7 +146,16 @@ func FindBuildPackagesDirectory() (string, bool, error) {
 
 // BuildPackage function builds the package.
 func BuildPackage(options BuildOptions) (string, error) {
-	destinationDir, err := BuildPackagesDirectory(options.buildDir, options.PackageRoot)
+	buildDir, err := buildPackagesRootDirectory()
+	if err != nil {
+		return "", err
+	}
+
+	return buildPackageWithBuildDir(options, buildDir)
+}
+
+func buildPackageWithBuildDir(options BuildOptions, buildDir string) (string, error) {
+	destinationDir, err := buildPackagesDirectoryWithBuildDir(options.PackageRoot, buildDir)
 	if err != nil {
 		return "", errors.Wrap(err, "can't locate build directory")
 	}
@@ -191,7 +198,7 @@ func BuildPackage(options BuildOptions) (string, error) {
 	}
 
 	if options.CreateZip {
-		return buildZippedPackage(options, destinationDir)
+		return buildZippedPackage(options, buildDir, destinationDir)
 	}
 
 	err = validator.ValidateFromPath(destinationDir)
@@ -201,9 +208,9 @@ func BuildPackage(options BuildOptions) (string, error) {
 	return destinationDir, nil
 }
 
-func buildZippedPackage(options BuildOptions, destinationDir string) (string, error) {
+func buildZippedPackage(options BuildOptions, buildDir, destinationDir string) (string, error) {
 	logger.Debug("Build zipped package")
-	zippedPackagePath, err := buildPackagesZipPath(options.buildDir, options.PackageRoot)
+	zippedPackagePath, err := buildPackagesZipPath(buildDir, options.PackageRoot)
 	if err != nil {
 		return "", errors.Wrap(err, "can't evaluate path for the zipped package")
 	}

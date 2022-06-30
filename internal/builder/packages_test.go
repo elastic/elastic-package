@@ -25,11 +25,11 @@ func TestLicensesOnBuiltPackage(t *testing.T) {
 		t.Run(path.Base(packageRoot), func(t *testing.T) {
 			options := BuildOptions{
 				PackageRoot: packageRoot,
-				buildDir:    t.TempDir(),
 			}
-			buildPath, err := BuildPackage(options)
+			buildDir := t.TempDir()
+			buildPath, err := buildPackageWithBuildDir(options, buildDir)
 			require.NoError(t, err)
-			assertRelativePath(t, options.buildDir, buildPath)
+			assertRelativePath(t, buildDir, buildPath)
 			assert.FileExists(t, filepath.Join(buildPath, "LICENSE.txt"))
 		})
 
@@ -37,11 +37,11 @@ func TestLicensesOnBuiltPackage(t *testing.T) {
 			options := BuildOptions{
 				PackageRoot: packageRoot,
 				CreateZip:   true,
-				buildDir:    t.TempDir(),
 			}
-			buildPath, err := BuildPackage(options)
+			buildDir := t.TempDir()
+			buildPath, err := buildPackageWithBuildDir(options, buildDir)
 			require.NoError(t, err)
-			assertRelativePath(t, options.buildDir, buildPath)
+			assertRelativePath(t, buildDir, buildPath)
 
 			r, err := zip.OpenReader(buildPath)
 			require.NoError(t, err)
