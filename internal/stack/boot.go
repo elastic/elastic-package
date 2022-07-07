@@ -6,6 +6,9 @@ package stack
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/pkg/errors"
 
@@ -37,7 +40,7 @@ func BootUp(options Options) error {
 
 	if found {
 		fmt.Printf("Custom build packages directory found: %s\n", buildPackagesPath)
-		err = files.CopyAll(buildPackagesPath, stackPackagesDir.PackagesDir())
+		err = copyUniquePackages(buildPackagesPath, stackPackagesDir.PackagesDir())
 		if err != nil {
 			return errors.Wrap(err, "copying package contents failed")
 		}
@@ -70,4 +73,33 @@ func TearDown(options Options) error {
 		return errors.Wrap(err, "stopping docker containers failed")
 	}
 	return nil
+}
+
+func copyUniquePackages(sourcePath, destinationPath string) error {
+	var skippedDirs []string
+
+	dirEntries, err := os.ReadDir(sourcePath)
+	if err != nil {
+		return errors.Wrapf(err, "can't read source dir (sourcePath: %s)", sourcePath)
+	}
+	for _, entry := range dirEntries {
+		if entry.IsDir() {
+			continue
+		}
+
+		if !strings.HasSuffix(entry.Name(), ".zip") {
+			continue
+		}
+
+		name, versionZip, found := strings.Cut(entry.Name(), "-")
+		if !found {
+			continue
+		}
+		version, _, found := strings.Cut(versionZip, ".zip")
+		if !found {
+			continue
+		}
+		skippedDirs = append(skippedDirs, filepath.Join(name, version))
+	}
+	return files.CopyWithSkipped(sourcePath, destinationPath, skippedDirs)
 }
