@@ -91,15 +91,25 @@ func copyUniquePackages(sourcePath, destinationPath string) error {
 			continue
 		}
 
-		name, versionZip, found := strings.Cut(entry.Name(), "-")
+		name, versionZip, found := stringsCut(entry.Name(), "-")
 		if !found {
 			continue
 		}
-		version, _, found := strings.Cut(versionZip, ".zip")
+		version, _, found := stringsCut(versionZip, ".zip")
 		if !found {
 			continue
 		}
 		skippedDirs = append(skippedDirs, filepath.Join(name, version))
 	}
 	return files.CopyWithSkipped(sourcePath, destinationPath, skippedDirs)
+}
+
+// stringsCut has been imported from Go source code.
+// Link: https://github.com/golang/go/blob/master/src/strings/strings.go#L1187
+// Once we bump up Go dependency, this will be replaced with runtime function.
+func stringsCut(s, sep string) (before, after string, found bool) {
+	if i := strings.Index(s, sep); i >= 0 {
+		return s[:i], s[i+len(sep):], true
+	}
+	return s, "", false
 }
