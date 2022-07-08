@@ -57,7 +57,7 @@ services:
       args:
         PROFILE: "${PROFILE_NAME}"
     healthcheck:
-      test: ["CMD", "curl", "--cacert", "/etc/ssl/package-registry/ca-cert.pem", "-f", "https://localhost:8080/health"]
+      test: ["CMD", "curl", "--cacert", "/etc/ssl/package-registry/ca-cert.pem", "-f", "https://localhost:8080"]
       retries: 300
       interval: 1s
     environment:
