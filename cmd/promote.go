@@ -50,6 +50,7 @@ func setupPromoteCommand() *cobraext.Command {
 
 func promoteCommandAction(cmd *cobra.Command, _ []string) error {
 	cmd.Println("Promote packages")
+	cmd.Println("DEPRECATED: Packages stored in the Package Storage v2 won't require to be promoted. This command will be removed soon. README: https://github.com/elastic/elastic-package/blob/main/docs/howto/use_package_storage_v2.md")
 
 	// Setup GitHub
 	err := github.EnsureAuthConfigured()
