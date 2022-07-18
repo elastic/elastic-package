@@ -8,6 +8,10 @@ const packageManifestTemplate = `format_version: 1.0.0
 name: {{.Manifest.Name}}
 title: "{{.Manifest.Title}}"
 version: {{.Manifest.Version}}
+{{ if ne .Manifest.Source.License "" }}
+source:
+  license: "{{.Manifest.Source.License}}"
+{{ end }}
 license: {{.Manifest.License}}
 description: "{{.Manifest.Description}}"
 type: {{.Manifest.Type}}

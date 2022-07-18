@@ -73,6 +73,11 @@ type Input struct {
 	Vars []Variable `config:"vars" json:"vars" yaml:"vars"`
 }
 
+// Source contains metadata about the source code of the package.
+type Source struct {
+	License string `config:"license" json:"license" yaml:"license"`
+}
+
 // KibanaConditions defines conditions for Kibana (e.g. required version).
 type KibanaConditions struct {
 	Version string `config:"version" json:"version" yaml:"version"`
@@ -104,6 +109,7 @@ type PackageManifest struct {
 	Title           string           `config:"title" json:"title" yaml:"title"`
 	Type            string           `config:"type" json:"type" yaml:"type"`
 	Version         string           `config:"version" json:"version" yaml:"version"`
+	Source          Source           `config:"source" json:"source" yaml:"source"`
 	Conditions      Conditions       `config:"conditions" json:"conditions" yaml:"conditions"`
 	PolicyTemplates []PolicyTemplate `config:"policy_templates" json:"policy_templates" yaml:"policy_templates"`
 	Vars            []Variable       `config:"vars" json:"vars" yaml:"vars"`
