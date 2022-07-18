@@ -19,13 +19,14 @@ const createPackageLongDescription = `Use this command to create a new package.
 The command can bootstrap the first draft of a package using embedded package template and wizard.`
 
 type newPackageAnswers struct {
-	Name          string
-	Version       string
-	Title         string
-	Description   string
-	Categories    []string
-	KibanaVersion string `survey:"kibana_version"`
-	GithubOwner   string `survey:"github_owner"`
+	Name                string
+	Version             string
+	Title               string
+	Description         string
+	Categories          []string
+	KibanaVersion       string `survey:"kibana_version"`
+	ElasticSubscription string `survey:"elastic_subscription"`
+	GithubOwner         string `survey:"github_owner"`
 }
 
 func createPackageCommandAction(cmd *cobra.Command, args []string) error {
@@ -81,9 +82,18 @@ func createPackageCommandAction(cmd *cobra.Command, args []string) error {
 			Name: "kibana_version",
 			Prompt: &survey.Input{
 				Message: "Kibana version constraint:",
-				Default: surveyext.DefaultConstraintValue(),
+				Default: surveyext.DefaultKibanaVersionConditionValue(),
 			},
 			Validate: survey.ComposeValidators(survey.Required, surveyext.ConstraintValidator),
+		},
+		{
+			Name: "elastic_subscription",
+			Prompt: &survey.Select{
+				Message: "Required Elastic subscription:",
+				Options: []string{"basic", "gold", "platinum", "enterprise"},
+				Default: "basic",
+			},
+			Validate: survey.Required,
 		},
 		{
 			Name: "github_owner",
@@ -122,12 +132,15 @@ func createPackageDescriptorFromAnswers(answers newPackageAnswers) archetype.Pac
 				Kibana: packages.KibanaConditions{
 					Version: answers.KibanaVersion,
 				},
+				Elastic: packages.ElasticConditions{
+					Subscription: answers.ElasticSubscription,
+				},
 			},
 			Owner: packages.Owner{
 				Github: answers.GithubOwner,
 			},
+			License:     answers.ElasticSubscription,
 			Description: answers.Description,
-			License:     "basic",
 			Categories:  answers.Categories,
 		},
 	}

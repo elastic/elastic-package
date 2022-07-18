@@ -78,9 +78,15 @@ type KibanaConditions struct {
 	Version string `config:"version" json:"version" yaml:"version"`
 }
 
+// ElasticConditions defines conditions related to Elastic subscriptions or partnerships.
+type ElasticConditions struct {
+	Subscription string `config:"subscription" json:"subscription" yaml:"subscription"`
+}
+
 // Conditions define requirements for different parts of the Elastic stack.
 type Conditions struct {
-	Kibana KibanaConditions `config:"kibana" json:"kibana" yaml:"kibana"`
+	Kibana  KibanaConditions  `config:"kibana" json:"kibana" yaml:"kibana"`
+	Elastic ElasticConditions `config:"elastic" json:"elastic" yaml:"elastic"`
 }
 
 // PolicyTemplate is a configuration of inputs responsible for collecting log or metric data.
