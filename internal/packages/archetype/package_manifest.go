@@ -20,6 +20,7 @@ categories:{{range $category := .Manifest.Categories}}
 {{- end}}
 conditions:
   kibana.version: "{{.Manifest.Conditions.Kibana.Version}}"
+  elastic.subscription: "{{.Manifest.Conditions.Elastic.Subscription}}"
 screenshots:
   - src: /img/sample-screenshot.png
     title: Sample screenshot

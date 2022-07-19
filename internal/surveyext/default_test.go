@@ -13,7 +13,7 @@ import (
 )
 
 func TestDefaultConstraintValue(t *testing.T) {
-	val := DefaultConstraintValue()
+	val := DefaultKibanaVersionConditionValue()
 
 	_, err := semver.NewConstraint(val)
 	require.NoError(t, err)
