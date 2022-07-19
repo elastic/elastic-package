@@ -12,6 +12,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/formatter"
+	"github.com/elastic/elastic-package/internal/licenses"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 )
@@ -45,6 +46,14 @@ func CreatePackage(packageDescriptor PackageDescriptor) error {
 	err = renderResourceFile(packageDocsReadme, &packageDescriptor, filepath.Join(baseDir, "docs", "README.md"))
 	if err != nil {
 		return errors.Wrap(err, "can't render package README")
+	}
+
+	if license := packageDescriptor.Manifest.Source.License; license != "" {
+		logger.Debugf("Write license file")
+		err = licenses.WriteTextToFile(license, filepath.Join(baseDir, "LICENSE.txt"))
+		if err != nil {
+			return errors.Wrap(err, "can't write license file")
+		}
 	}
 
 	logger.Debugf("Write sample icon")
