@@ -286,6 +286,14 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 		return result.WithError(errors.Wrap(err, "reading data stream manifest failed"))
 	}
 
+	policyTemplateName := config.PolicyTemplate
+	if policyTemplateName == "" {
+		policyTemplateName, err = findPolicyTemplateForInput(*pkgManifest, *dataStreamManifest, config.Input)
+		if err != nil {
+			return result.WithError(errors.Wrap(err, "failed to determine the associated policy_template"))
+		}
+	}
+
 	// Setup service.
 	logger.Debug("setting up service...")
 	serviceDeployer, err := servicedeployer.Factory(serviceOptions)
@@ -352,7 +360,7 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	}
 
 	logger.Debug("adding package data stream to test policy...")
-	ds := createPackageDatastream(*policy, *pkgManifest, *dataStreamManifest, *config)
+	ds := createPackageDatastream(*policy, *pkgManifest, policyTemplateName, *dataStreamManifest, *config)
 	if err := kib.AddPackageDataStreamToPolicy(ds); err != nil {
 		return result.WithError(errors.Wrap(err, "could not add data stream config to policy"))
 	}
@@ -500,6 +508,7 @@ func checkEnrolledAgents(client *kibana.Client, ctxt servicedeployer.ServiceCont
 func createPackageDatastream(
 	p kibana.Policy,
 	pkg packages.PackageManifest,
+	policyTemplate string,
 	ds packages.DataStreamManifest,
 	c testConfig,
 ) kibana.PackageDataStream {
@@ -518,8 +527,9 @@ func createPackageDatastream(
 
 	r.Inputs = []kibana.Input{
 		{
-			Type:    streamInput,
-			Enabled: true,
+			PolicyTemplate: policyTemplate,
+			Type:           streamInput,
+			Enabled:        true,
 		},
 	}
 
@@ -588,6 +598,48 @@ func getDataStreamIndex(inputName string, ds packages.DataStreamManifest) int {
 		}
 	}
 	return 0
+}
+
+// findPolicyTemplateForInput returns the name of the policy_template that
+// applies to the input under test. An error is returned if no policy template
+// matches or if multiple policy templates match and the response is ambiguous.
+func findPolicyTemplateForInput(pkg packages.PackageManifest, ds packages.DataStreamManifest, inputName string) (string, error) {
+	if inputName == "" {
+		if len(ds.Streams) == 0 {
+			return "", errors.New("no streams declared in data stream manifest")
+		}
+		inputName = ds.Streams[getDataStreamIndex(inputName, ds)].Input
+	}
+
+	var matchedPolicyTemplates []string
+
+	for _, policyTemplate := range pkg.PolicyTemplates {
+		// Does this policy_template include this input type?
+		if policyTemplate.FindInputByType(inputName) == nil {
+			continue
+		}
+
+		// Does the policy_template apply to this data stream (when data streams are specified)?
+		if len(policyTemplate.DataStreams) > 0 && !common.StringSliceContains(policyTemplate.DataStreams, ds.Name) {
+			continue
+		}
+
+		matchedPolicyTemplates = append(matchedPolicyTemplates, policyTemplate.Name)
+	}
+
+	switch len(matchedPolicyTemplates) {
+	case 1:
+		return matchedPolicyTemplates[0], nil
+	case 0:
+		return "", fmt.Errorf("no policy template was found for data stream %q "+
+			"with input type %q: verify that you have included the data stream "+
+			"and input in the package's policy_template list", ds.Name, inputName)
+	default:
+		return "", fmt.Errorf("ambiguous result: multiple policy templates ([%s]) "+
+			"were found that apply to data stream %q with input type %q: please "+
+			"specify the 'policy_template' in the system test config",
+			strings.Join(matchedPolicyTemplates, ", "), ds.Name, inputName)
+	}
 }
 
 func deleteDataStreamDocs(api *elasticsearch.API, dataStream string) error {
