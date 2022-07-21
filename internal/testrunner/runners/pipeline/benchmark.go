@@ -201,11 +201,13 @@ type aggregation struct {
 	err    error
 }
 
-type keyFn func(ingest.Pipeline, ingest.Processor) string
-type valueFn func(record ingest.StatsRecord) int64
-type mapFn func(processorPerformance) testrunner.BenchmarkValue
-type compareFn func(a, b processorPerformance) bool
-type filterFn func(processorPerformance) bool
+type (
+	keyFn     func(ingest.Pipeline, ingest.Processor) string
+	valueFn   func(record ingest.StatsRecord) int64
+	mapFn     func(processorPerformance) testrunner.BenchmarkValue
+	compareFn func(a, b processorPerformance) bool
+	filterFn  func(processorPerformance) bool
+)
 
 func (ir ingestResult) aggregate(key keyFn, value valueFn) (agg aggregation) {
 	pipelines := make(map[string]ingest.Pipeline, len(ir.pipelines))
