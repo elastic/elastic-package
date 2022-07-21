@@ -37,6 +37,7 @@ func setupBuildCommand() *cobraext.Command {
 	}
 	cmd.Flags().Bool(cobraext.BuildZipFlagName, true, cobraext.BuildZipFlagDescription)
 	cmd.Flags().Bool(cobraext.SignPackageFlagName, false, cobraext.SignPackageFlagDescription)
+	cmd.Flags().Bool(cobraext.BuildSkipValidationFlagName, false, cobraext.BuildSkipValidationFlagDescription)
 	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
 }
 

@@ -23,8 +23,9 @@ const builtPackagesFolder = "packages"
 type BuildOptions struct {
 	PackageRoot string
 
-	CreateZip   bool
-	SignPackage bool
+	CreateZip      bool
+	SignPackage    bool
+	SkipValidation bool
 }
 
 // BuildDirectory function locates the target build directory. If the directory doesn't exist, it will create it.
@@ -172,6 +173,11 @@ func BuildPackage(options BuildOptions) (string, error) {
 		return buildZippedPackage(options, destinationDir)
 	}
 
+	if options.SkipValidation {
+		logger.Debug("Skip validation of the built package")
+		return destinationDir, nil
+	}
+
 	err = validator.ValidateFromPath(destinationDir)
 	if err != nil {
 		return "", errors.Wrap(err, "invalid content found in built package")
@@ -191,9 +197,13 @@ func buildZippedPackage(options BuildOptions, destinationDir string) (string, er
 		return "", errors.Wrapf(err, "can't compress the built package (compressed file path: %s)", zippedPackagePath)
 	}
 
-	err = validator.ValidateFromZip(zippedPackagePath)
-	if err != nil {
-		return "", errors.Wrapf(err, "invalid content found in built zip package")
+	if options.SkipValidation {
+		logger.Debug("Skip validation of the built .zip package")
+	} else {
+		err = validator.ValidateFromZip(zippedPackagePath)
+		if err != nil {
+			return "", errors.Wrapf(err, "invalid content found in built zip package")
+		}
 	}
 
 	if options.SignPackage {
