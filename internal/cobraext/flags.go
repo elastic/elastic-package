@@ -26,8 +26,10 @@ const (
 	AgentPolicyFlagName    = "agent-policy"
 	AgentPolicyDescription = "name of the agent policy"
 
-	BuildZipFlagName        = "zip"
-	BuildZipFlagDescription = "archive the built package"
+	BuildZipFlagName                   = "zip"
+	BuildZipFlagDescription            = "archive the built package"
+	BuildSkipValidationFlagName        = "skip-validation"
+	BuildSkipValidationFlagDescription = "skip validation of the built package, use only if all validation issues have been acknowledged"
 
 	ChangelogAddNextFlagName        = "next"
 	ChangelogAddNextFlagDescription = "changelog entry is added in the next `major`, `minor` or `patch` version"
