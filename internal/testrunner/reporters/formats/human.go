@@ -23,9 +23,9 @@ const (
 	ReportFormatHuman testrunner.TestReportFormat = "human"
 )
 
-func reportHumanFormat(results []testrunner.TestResult) (string, string, error) {
+func reportHumanFormat(results []testrunner.TestResult) (string, []string, error) {
 	if len(results) == 0 {
-		return "No test results", "", nil
+		return "No test results", nil, nil
 	}
 
 	var benchmarks []testrunner.BenchmarkResult
@@ -37,11 +37,11 @@ func reportHumanFormat(results []testrunner.TestResult) (string, string, error) 
 
 	testFmtd, err := reportHumanFormatTest(results)
 	if err != nil {
-		return "", "", err
+		return "", nil, err
 	}
 	benchFmtd, err := reportHumanFormatBenchmark(benchmarks)
 	if err != nil {
-		return "", "", err
+		return "", nil, err
 	}
 	return testFmtd, benchFmtd, nil
 }
@@ -91,19 +91,19 @@ func reportHumanFormatTest(results []testrunner.TestResult) (string, error) {
 	return report.String(), nil
 }
 
-func reportHumanFormatBenchmark(benchmarks []testrunner.BenchmarkResult) (string, error) {
-	var report strings.Builder
-	for idx, b := range benchmarks {
-		report.WriteString(fmt.Sprintf("\n\nBenchmark results %d/%d:\n\n", idx+1, len(benchmarks)))
-
+func reportHumanFormatBenchmark(benchmarks []testrunner.BenchmarkResult) ([]string, error) {
+	var textReports []string
+	for _, b := range benchmarks {
+		var report strings.Builder
 		if len(b.Parameters) > 0 {
 			report.WriteString(renderBenchmarkTable("parameters", b.Parameters) + "\n")
 		}
 		for _, test := range b.Tests {
 			report.WriteString(renderBenchmarkTable(test.Name, test.Results) + "\n")
 		}
+		textReports = append(textReports, report.String())
 	}
-	return report.String(), nil
+	return textReports, nil
 }
 
 func renderBenchmarkTable(title string, values []testrunner.BenchmarkValue) string {

@@ -52,7 +52,7 @@ type skipped struct {
 	Message string `xml:"message,attr"`
 }
 
-func reportXUnitFormat(results []testrunner.TestResult) (string, string, error) {
+func reportXUnitFormat(results []testrunner.TestResult) (string, []string, error) {
 	var benchmarks []testrunner.BenchmarkResult
 	for _, r := range results {
 		if r.Benchmark != nil {
@@ -61,11 +61,11 @@ func reportXUnitFormat(results []testrunner.TestResult) (string, string, error) 
 	}
 	testFmtd, err := reportXUnitFormatTest(results)
 	if err != nil {
-		return "", "", err
+		return "", nil, err
 	}
 	benchFmtd, err := reportXUnitFormatBenchmark(benchmarks)
 	if err != nil {
-		return "", "", err
+		return "", nil, err
 	}
 	return testFmtd, benchFmtd, nil
 }
@@ -162,11 +162,16 @@ func reportXUnitFormatTest(results []testrunner.TestResult) (string, error) {
 	return xml.Header + string(out), nil
 }
 
-func reportXUnitFormatBenchmark(benchmarks []testrunner.BenchmarkResult) (string, error) {
-	out, err := xml.MarshalIndent(benchmarks, "", "  ")
-	if err != nil {
-		return "", errors.Wrap(err, "unable to format benchmark results as xUnit")
+func reportXUnitFormatBenchmark(benchmarks []testrunner.BenchmarkResult) ([]string, error) {
+	var reports []string
+	for _, b := range benchmarks {
+		// Remove detailed by-processor tables from xUnit report
+		b.Tests = b.Tests[:2]
+		out, err := xml.MarshalIndent(b, "", "  ")
+		if err != nil {
+			return nil, errors.Wrap(err, "unable to format benchmark results as xUnit")
+		}
+		reports = append(reports, xml.Header+string(out))
 	}
-
-	return xml.Header + string(out), nil
+	return reports, nil
 }

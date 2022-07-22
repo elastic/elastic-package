@@ -10,7 +10,7 @@ import "fmt"
 type TestReportFormat string
 
 // ReportFormatFunc defines the report formatter function.
-type ReportFormatFunc func(results []TestResult) (string, string, error)
+type ReportFormatFunc func(results []TestResult) (string, []string, error)
 
 var reportFormatters = map[TestReportFormat]ReportFormatFunc{}
 
@@ -20,10 +20,10 @@ func RegisterReporterFormat(name TestReportFormat, formatFunc ReportFormatFunc) 
 }
 
 // FormatReport delegates formatting of test results to the registered test report formatter.
-func FormatReport(name TestReportFormat, results []TestResult) (testReport string, benchmarkReport string, err error) {
+func FormatReport(name TestReportFormat, results []TestResult) (testReport string, benchmarkReports []string, err error) {
 	reportFunc, defined := reportFormatters[name]
 	if !defined {
-		return "", "", fmt.Errorf("unregistered test report format: %s", name)
+		return "", nil, fmt.Errorf("unregistered test report format: %s", name)
 	}
 
 	return reportFunc(results)

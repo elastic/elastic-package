@@ -234,7 +234,7 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 		}
 
 		format := testrunner.TestReportFormat(reportFormat)
-		testReport, benchReport, err := testrunner.FormatReport(format, results)
+		testReport, benchReports, err := testrunner.FormatReport(format, results)
 		if err != nil {
 			return errors.Wrap(err, "error formatting test report")
 		}
@@ -248,8 +248,8 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 			return errors.Wrap(err, "error writing test report")
 		}
 
-		if benchReport != "" {
-			if err := testrunner.WriteReport(m.Name, testrunner.TestReportOutput(reportOutput), benchReport, format, testrunner.ReportTypeBench); err != nil {
+		for idx, report := range benchReports {
+			if err := testrunner.WriteReport(fmt.Sprintf("%s(%d)", m.Name, idx+1), testrunner.TestReportOutput(reportOutput), report, format, testrunner.ReportTypeBench); err != nil {
 				return errors.Wrap(err, "error writing benchmark report")
 			}
 		}
