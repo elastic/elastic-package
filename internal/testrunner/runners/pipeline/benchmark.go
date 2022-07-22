@@ -68,7 +68,7 @@ func BenchmarkPipeline(options testrunner.TestOptions) (*testrunner.BenchmarkRes
 		}
 		return record.TimeInMillis * int64(time.Millisecond) / record.Count
 	}
-	asPercentageOfTotalDuration := func(perf processorPerformance) testrunner.BenchmarkValue {
+	asPercentageOfTotalTime := func(perf processorPerformance) testrunner.BenchmarkValue {
 		return testrunner.BenchmarkValue{
 			Name:        perf.key,
 			Description: perf.key,
@@ -93,7 +93,7 @@ func BenchmarkPipeline(options testrunner.TestOptions) (*testrunner.BenchmarkRes
 		filter(nonZero).
 		sort(descending).
 		top(numTopProcs).
-		collect(asPercentageOfTotalDuration)
+		collect(asPercentageOfTotalTime)
 	if err != nil {
 		return nil, err
 	}
