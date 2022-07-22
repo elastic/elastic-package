@@ -165,8 +165,15 @@ func reportXUnitFormatTest(results []testrunner.TestResult) (string, error) {
 func reportXUnitFormatBenchmark(benchmarks []testrunner.BenchmarkResult) ([]string, error) {
 	var reports []string
 	for _, b := range benchmarks {
-		// Remove detailed by-processor tables from xUnit report
-		b.Tests = b.Tests[:2]
+		// Filter out detailed tests. These add too much information for the
+		// aggregated nature of xUnit reports, creating a lot of noise in Jenkins.
+		var tests []testrunner.BenchmarkTest
+		for _, t := range b.Tests {
+			if !t.Detailed {
+				tests = append(tests, t)
+			}
+		}
+		b.Tests = tests
 		out, err := xml.MarshalIndent(b, "", "  ")
 		if err != nil {
 			return nil, errors.Wrap(err, "unable to format benchmark results as xUnit")

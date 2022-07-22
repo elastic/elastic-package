@@ -249,7 +249,7 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 		}
 
 		for idx, report := range benchReports {
-			if err := testrunner.WriteReport(fmt.Sprintf("%s(%d)", m.Name, idx+1), testrunner.TestReportOutput(reportOutput), report, format, testrunner.ReportTypeBench); err != nil {
+			if err := testrunner.WriteReport(fmt.Sprintf("%s-%d", m.Name, idx+1), testrunner.TestReportOutput(reportOutput), report, format, testrunner.ReportTypeBench); err != nil {
 				return errors.Wrap(err, "error writing benchmark report")
 			}
 		}

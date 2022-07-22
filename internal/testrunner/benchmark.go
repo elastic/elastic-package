@@ -45,6 +45,9 @@ type BenchmarkResult struct {
 type BenchmarkTest struct {
 	// Name of this test.
 	Name string `xml:"name,attr"`
+	// Detailed benchmark tests will be printed to the output but not
+	// included in xUnit reports.
+	Detailed bool `xml:"-"`
 	// Description of this test.
 	Description string `xml:"description,omitempty"`
 	// Parameters for this test.

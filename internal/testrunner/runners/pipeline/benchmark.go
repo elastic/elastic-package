@@ -148,11 +148,13 @@ func BenchmarkPipeline(options testrunner.TestOptions) (*testrunner.BenchmarkRes
 			},
 			{
 				Name:        "processors by total time",
+				Detailed:    true,
 				Description: fmt.Sprintf("top %d processors by time spent", numTopProcs),
 				Results:     topAbsProc,
 			},
 			{
 				Name:        "processors by average time per doc",
+				Detailed:    true,
 				Description: fmt.Sprintf("top %d processors by average time per document", numTopProcs),
 				Results:     topRelProcs,
 			},
