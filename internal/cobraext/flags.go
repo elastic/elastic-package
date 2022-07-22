@@ -131,14 +131,14 @@ const (
 	TestCoverageFlagName        = "test-coverage"
 	TestCoverageFlagDescription = "generate Cobertura test coverage reports"
 
-	TestPerfFlagName        = "bench"
-	TestPerfFlagDescription = "run benchmarks"
+	TestBenchFlagName        = "bench"
+	TestBenchFlagDescription = "run benchmarks"
 
-	TestPerfCountFlagName        = "bench-count"
-	TestPerfCountFlagDescription = "number of docs to use for benchmark"
+	TestBenchCountFlagName        = "bench-count"
+	TestBenchCountFlagDescription = "fixed number of docs to use for benchmark"
 
 	TestPerfDurationFlagName        = "bench-duration"
-	TestPerfDurationFlagDescription = "TODO"
+	TestPerfDurationFlagDescription = "adjust the number of docs so that the benchmark runs for this duration"
 
 	VariantFlagName        = "variant"
 	VariantFlagDescription = "service variant"

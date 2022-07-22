@@ -69,8 +69,8 @@ func setupTestCommand() *cobraext.Command {
 	cmd.PersistentFlags().StringP(cobraext.ReportFormatFlagName, "", string(formats.ReportFormatHuman), cobraext.ReportFormatFlagDescription)
 	cmd.PersistentFlags().StringP(cobraext.ReportOutputFlagName, "", string(outputs.ReportOutputSTDOUT), cobraext.ReportOutputFlagDescription)
 	cmd.PersistentFlags().BoolP(cobraext.TestCoverageFlagName, "", false, cobraext.TestCoverageFlagDescription)
-	cmd.PersistentFlags().BoolP(cobraext.TestPerfFlagName, "", false, cobraext.TestPerfFlagDescription)
-	cmd.PersistentFlags().IntP(cobraext.TestPerfCountFlagName, "", 1000, cobraext.TestPerfCountFlagDescription)
+	cmd.PersistentFlags().BoolP(cobraext.TestBenchFlagName, "", false, cobraext.TestBenchFlagDescription)
+	cmd.PersistentFlags().IntP(cobraext.TestBenchCountFlagName, "", 1000, cobraext.TestBenchCountFlagDescription)
 	cmd.PersistentFlags().DurationP(cobraext.TestPerfDurationFlagName, "", time.Duration(0), cobraext.TestPerfDurationFlagDescription)
 	cmd.PersistentFlags().DurationP(cobraext.DeferCleanupFlagName, "", 0, cobraext.DeferCleanupFlagDescription)
 	cmd.PersistentFlags().String(cobraext.VariantFlagName, "", cobraext.VariantFlagDescription)
@@ -126,19 +126,19 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 			return cobraext.FlagParsingError(err, cobraext.TestCoverageFlagName)
 		}
 
-		testPerf, err := cmd.Flags().GetBool(cobraext.TestPerfFlagName)
+		testBench, err := cmd.Flags().GetBool(cobraext.TestBenchFlagName)
 		if err != nil {
-			return cobraext.FlagParsingError(err, cobraext.TestPerfFlagName)
+			return cobraext.FlagParsingError(err, cobraext.TestBenchFlagName)
 		}
 
-		testPerfCount, err := cmd.Flags().GetInt(cobraext.TestPerfCountFlagName)
+		testBenchCount, err := cmd.Flags().GetInt(cobraext.TestBenchCountFlagName)
 		if err != nil {
-			return cobraext.FlagParsingError(err, cobraext.TestPerfCountFlagName)
+			return cobraext.FlagParsingError(err, cobraext.TestBenchCountFlagName)
 		}
 
-		testPerfDur, err := cmd.Flags().GetDuration(cobraext.TestPerfDurationFlagName)
+		testBenchDur, err := cmd.Flags().GetDuration(cobraext.TestPerfDurationFlagName)
 		if err != nil {
-			return cobraext.FlagParsingError(err, cobraext.TestPerfCountFlagDescription)
+			return cobraext.FlagParsingError(err, cobraext.TestBenchCountFlagDescription)
 		}
 
 		packageRootPath, found, err := packages.FindPackageRoot()
@@ -220,9 +220,9 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 				ServiceVariant:     variantFlag,
 				WithCoverage:       testCoverage,
 				Benchmark: testrunner.BenchmarkConfig{
-					Enabled:  testPerf,
-					NumDocs:  testPerfCount,
-					Duration: testPerfDur,
+					Enabled:  testBench,
+					NumDocs:  testBenchCount,
+					Duration: testBenchDur,
 				},
 			})
 
