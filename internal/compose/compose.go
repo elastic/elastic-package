@@ -175,7 +175,7 @@ func NewProject(name string, paths ...string) (*Project, error) {
 		return &c, nil
 	}
 	if ver.Major() == 1 {
-		logger.Debugf("Determined Docker Compose version: %v, the tool will use Compose V1", err)
+		logger.Debugf("Determined Docker Compose version: %v, the tool will use Compose V1", ver)
 		c.dockerComposeV1 = true
 	}
 	return &c, nil
