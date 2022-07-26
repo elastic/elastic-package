@@ -1,0 +1,26 @@
+FROM --platform=linux/amd64 ubuntu:20.04
+ENV GCLOUD_SDK_VERSION 370.0.0-0
+ENV TERRAFORM_VERSION 1.1.4
+
+RUN apt-get -qq update \
+  && apt-get install -yq curl apt-transport-https ca-certificates gnupg
+
+RUN echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] http://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list \
+  && curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key --keyring /usr/share/keyrings/cloud.google.gpg  add - \
+  && apt-get update -qq \
+  && apt-get install google-cloud-sdk=${GCLOUD_SDK_VERSION} -yq
+
+RUN echo "deb [arch=amd64] https://apt.releases.hashicorp.com focal main" | tee -a /etc/apt/sources.list.d/hashicorp.list \
+  && curl -fsSL https://apt.releases.hashicorp.com/gpg | apt-key add - \
+  && apt-get -qq update \
+  && apt-get install -yq terraform=${TERRAFORM_VERSION}
+
+HEALTHCHECK --timeout=3s CMD sh -c "[ -f /tmp/tf-applied ]"
+
+ENV TF_IN_AUTOMATION=true
+ENV TF_CLI_ARGS="-no-color"
+ADD run.sh /
+RUN chmod +x /run.sh
+WORKDIR /workspace
+
+ENTRYPOINT exec /run.sh

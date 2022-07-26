@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 
@@ -23,6 +25,32 @@ type NetworkDescription struct {
 	}
 }
 
+// ContainerDescription describes the Docker container.
+type ContainerDescription struct {
+	ID    string
+	State struct {
+		Status   string
+		ExitCode int
+		Health   *struct {
+			Status string
+			Log    []struct {
+				Start    time.Time
+				ExitCode int
+				Output   string
+			}
+		}
+	}
+}
+
+// String function dumps string representation of the container description.
+func (c *ContainerDescription) String() string {
+	b, err := json.Marshal(c)
+	if err != nil {
+		return "error: can't marshal container description"
+	}
+	return string(b)
+}
+
 // Pull downloads the latest available revision of the image.
 func Pull(image string) error {
 	cmd := exec.Command("docker", "pull", image)
@@ -32,7 +60,7 @@ func Pull(image string) error {
 		cmd.Stderr = os.Stderr
 	}
 
-	logger.Debugf("running command: %s", cmd)
+	logger.Debugf("run command: %s", cmd)
 	err := cmd.Run()
 	if err != nil {
 		return errors.Wrap(err, "running docker command failed")
@@ -51,11 +79,11 @@ func ContainerID(containerName string) (string, error) {
 	if err != nil {
 		return "", errors.Wrapf(err, "could not find \"%s\" container (stderr=%q)", containerName, errOutput.String())
 	}
-	containerIDs := bytes.Split(bytes.TrimSpace(output), []byte{'\n'})
+	containerIDs := strings.Fields(string(output))
 	if len(containerIDs) != 1 {
 		return "", fmt.Errorf("expected single %s container", containerName)
 	}
-	return string(containerIDs[0]), nil
+	return containerIDs[0], nil
 }
 
 // InspectNetwork function returns the network description for the selected network.
@@ -84,9 +112,45 @@ func ConnectToNetwork(containerID, network string) error {
 	errOutput := new(bytes.Buffer)
 	cmd.Stderr = errOutput
 
-	logger.Debugf("output command: %s", cmd)
+	logger.Debugf("run command: %s", cmd)
 	if err := cmd.Run(); err != nil {
 		return errors.Wrapf(err, "could not attach container to the stack network (stderr=%q)", errOutput.String())
+	}
+	return nil
+}
+
+// InspectContainers function inspects selected Docker containers.
+func InspectContainers(containerIDs ...string) ([]ContainerDescription, error) {
+	args := []string{"inspect"}
+	args = append(args, containerIDs...)
+	cmd := exec.Command("docker", args...)
+
+	errOutput := new(bytes.Buffer)
+	cmd.Stderr = errOutput
+
+	logger.Debugf("output command: %s", cmd)
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, errors.Wrapf(err, "could not inspect containers (stderr=%q)", errOutput.String())
+	}
+
+	var containerDescriptions []ContainerDescription
+	err = json.Unmarshal(output, &containerDescriptions)
+	if err != nil {
+		return nil, errors.Wrapf(err, "can't unmarshal container inspect for %s (stderr=%q)", strings.Join(containerIDs, ","), errOutput.String())
+	}
+	return containerDescriptions, nil
+}
+
+// Copy function copies resources from the container to the local destination.
+func Copy(containerName, containerPath, localPath string) error {
+	cmd := exec.Command("docker", "cp", containerName+":"+containerPath, localPath)
+	errOutput := new(bytes.Buffer)
+	cmd.Stderr = errOutput
+
+	logger.Debugf("run command: %s", cmd)
+	if err := cmd.Run(); err != nil {
+		return errors.Wrapf(err, "could not copy files from the container (stderr=%q)", errOutput.String())
 	}
 	return nil
 }

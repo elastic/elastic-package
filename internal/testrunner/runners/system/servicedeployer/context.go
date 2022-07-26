@@ -5,6 +5,7 @@
 package servicedeployer
 
 const (
+	localCACertEnv    = "LOCAL_CA_CERT"
 	serviceLogsDirEnv = "SERVICE_LOGS_DIR"
 	testRunIDEnv      = "TEST_RUN_ID"
 )

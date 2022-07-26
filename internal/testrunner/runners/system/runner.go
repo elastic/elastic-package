@@ -7,18 +7,17 @@ package system
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"math/rand"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
-	es "github.com/elastic/go-elasticsearch/v7"
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/configuration/locations"
+	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/fields"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
@@ -48,6 +47,8 @@ const (
 	// ServiceLogsAgentDir is folder path where log files produced by the service
 	// are stored on the Agent container's filesystem.
 	ServiceLogsAgentDir = "/tmp/service_logs"
+
+	waitForDataDefaultTimeout = 10 * time.Minute
 )
 
 type runner struct {
@@ -94,7 +95,7 @@ func (r *runner) TearDown() error {
 func (r *runner) tearDownTest() error {
 	if r.options.DeferCleanup > 0 {
 		logger.Debugf("waiting for %s before tearing down...", r.options.DeferCleanup)
-		time.Sleep(r.options.DeferCleanup)
+		signal.Sleep(r.options.DeferCleanup)
 	}
 
 	if r.resetAgentPolicyHandler != nil {
@@ -226,10 +227,10 @@ func createTestRunID() string {
 }
 
 func (r *runner) getDocs(dataStream string) ([]common.MapStr, error) {
-	resp, err := r.options.ESClient.Search(
-		r.options.ESClient.Search.WithIndex(dataStream),
-		r.options.ESClient.Search.WithSort("@timestamp:asc"),
-		r.options.ESClient.Search.WithSize(elasticsearchQuerySize),
+	resp, err := r.options.API.Search(
+		r.options.API.Search.WithIndex(dataStream),
+		r.options.API.Search.WithSort("@timestamp:asc"),
+		r.options.API.Search.WithSize(elasticsearchQuerySize),
 	)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not search data stream")
@@ -245,6 +246,11 @@ func (r *runner) getDocs(dataStream string) ([]common.MapStr, error) {
 				Source common.MapStr `json:"_source"`
 			}
 		}
+		Error *struct {
+			Type   string
+			Reason string
+		}
+		Status int
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&results); err != nil {
@@ -252,7 +258,12 @@ func (r *runner) getDocs(dataStream string) ([]common.MapStr, error) {
 	}
 
 	numHits := results.Hits.Total.Value
-	logger.Debugf("found %d hits in %s data stream", numHits, dataStream)
+	if results.Error != nil {
+		logger.Debugf("found %d hits in %s data stream: %s: %s Status=%d",
+			numHits, dataStream, results.Error.Type, results.Error.Reason, results.Status)
+	} else {
+		logger.Debugf("found %d hits in %s data stream", numHits, dataStream)
+	}
 
 	var docs []common.MapStr
 	for _, hit := range results.Hits.Hits {
@@ -357,13 +368,13 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 
 	r.wipeDataStreamHandler = func() error {
 		logger.Debugf("deleting data in data stream...")
-		if err := deleteDataStreamDocs(r.options.ESClient, dataStream); err != nil {
+		if err := deleteDataStreamDocs(r.options.API, dataStream); err != nil {
 			return errors.Wrap(err, "error deleting data in data stream")
 		}
 		return nil
 	}
 
-	if err := deleteDataStreamDocs(r.options.ESClient, dataStream); err != nil {
+	if err := deleteDataStreamDocs(r.options.API, dataStream); err != nil {
 		return result.WithError(errors.Wrapf(err, "error deleting old data in data stream: %s", dataStream))
 	}
 
@@ -408,6 +419,12 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 		}
 	}
 
+	// Use custom timeout if the service can't collect data immediately.
+	waitForDataTimeout := waitForDataDefaultTimeout
+	if config.WaitForDataTimeout > 0 {
+		waitForDataTimeout = config.WaitForDataTimeout
+	}
+
 	// (TODO in future) Optionally exercise service to generate load.
 	logger.Debug("checking for expected data in data stream...")
 	var docs []common.MapStr
@@ -419,18 +436,18 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 		var err error
 		docs, err = r.getDocs(dataStream)
 		return len(docs) > 0, err
-	}, 10*time.Minute)
-
+	}, waitForDataTimeout)
 	if err != nil {
 		return result.WithError(err)
 	}
 
 	if !passed {
 		result.FailureMsg = fmt.Sprintf("could not find hits in %s data stream", dataStream)
+		return result.WithError(fmt.Errorf("%s", result.FailureMsg))
 	}
 
 	// Validate fields in docs
-	fieldsValidator, err := fields.CreateValidatorForDataStream(serviceOptions.DataStreamRootPath,
+	fieldsValidator, err := fields.CreateValidatorForDirectory(serviceOptions.DataStreamRootPath,
 		fields.WithNumericKeywordFields(config.NumericKeywordFields))
 	if err != nil {
 		return result.WithError(errors.Wrapf(err, "creating fields validator for data stream failed (path: %s)", serviceOptions.DataStreamRootPath))
@@ -573,9 +590,9 @@ func getDataStreamIndex(inputName string, ds packages.DataStreamManifest) int {
 	return 0
 }
 
-func deleteDataStreamDocs(esClient *es.Client, dataStream string) error {
+func deleteDataStreamDocs(api *elasticsearch.API, dataStream string) error {
 	body := strings.NewReader(`{ "query": { "match_all": {} } }`)
-	_, err := esClient.DeleteByQuery([]string{dataStream}, body)
+	_, err := api.DeleteByQuery([]string{dataStream}, body)
 	if err != nil {
 		return err
 	}
@@ -584,21 +601,28 @@ func deleteDataStreamDocs(esClient *es.Client, dataStream string) error {
 }
 
 func waitUntilTrue(fn func() (bool, error), timeout time.Duration) (bool, error) {
-	startTime := time.Now()
-	for time.Now().Sub(startTime) < timeout {
+	timeoutTicker := time.NewTicker(timeout)
+	defer timeoutTicker.Stop()
+
+	retryTicker := time.NewTicker(1 * time.Second)
+	defer retryTicker.Stop()
+
+	for {
 		result, err := fn()
 		if err != nil {
 			return false, err
 		}
-
 		if result {
 			return true, nil
 		}
 
-		time.Sleep(1 * time.Second)
+		select {
+		case <-retryTicker.C:
+			continue
+		case <-timeoutTicker.C:
+			return false, nil
+		}
 	}
-
-	return false, nil
 }
 
 func filterAgents(allAgents []kibana.Agent, ctx servicedeployer.ServiceContext) []kibana.Agent {
@@ -626,7 +650,7 @@ func writeSampleEvent(path string, doc common.MapStr) error {
 		return errors.Wrap(err, "marshalling sample event failed")
 	}
 
-	err = ioutil.WriteFile(filepath.Join(path, "sample_event.json"), body, 0644)
+	err = os.WriteFile(filepath.Join(path, "sample_event.json"), body, 0644)
 	if err != nil {
 		return errors.Wrap(err, "writing sample event failed")
 	}

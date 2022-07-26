@@ -25,17 +25,25 @@ func setupInstallCommand() *cobraext.Command {
 		RunE:  installCommandAction,
 	}
 	cmd.Flags().StringSliceP(cobraext.CheckConditionFlagName, "c", nil, cobraext.CheckConditionFlagDescription)
+	cmd.Flags().StringP(cobraext.PackageRootFlagName, cobraext.PackageRootFlagShorthand, "", cobraext.PackageRootFlagDescription)
 
 	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
 }
 
-func installCommandAction(cmd *cobra.Command, args []string) error {
-	packageRootPath, found, err := packages.FindPackageRoot()
-	if !found {
-		return errors.New("package root not found")
-	}
+func installCommandAction(cmd *cobra.Command, _ []string) error {
+	packageRootPath, err := cmd.Flags().GetString(cobraext.PackageRootFlagName)
 	if err != nil {
-		return errors.Wrap(err, "locating package root failed")
+		return cobraext.FlagParsingError(err, cobraext.PackageRootFlagName)
+	}
+	if packageRootPath == "" {
+		var found bool
+		packageRootPath, found, err = packages.FindPackageRoot()
+		if !found {
+			return errors.New("package root not found")
+		}
+		if err != nil {
+			return errors.Wrap(err, "locating package root failed")
+		}
 	}
 
 	m, err := packages.ReadPackageManifestFromPackageRoot(packageRootPath)

@@ -10,6 +10,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/Masterminds/semver"
 	"github.com/fatih/color"
 	"github.com/olekukonko/tablewriter"
 	"github.com/pkg/errors"
@@ -37,6 +38,7 @@ func setupStatusCommand() *cobraext.Command {
 		RunE:  statusCommandAction,
 	}
 	cmd.Flags().BoolP(cobraext.ShowAllFlagName, "a", false, cobraext.ShowAllFlagDescription)
+	cmd.Flags().String(cobraext.StatusKibanaVersionFlagName, "", cobraext.StatusKibanaVersionFlagDescription)
 
 	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
 }
@@ -51,20 +53,29 @@ func statusCommandAction(cmd *cobra.Command, args []string) error {
 	if len(args) > 0 {
 		packageName = args[0]
 	}
-	packageStatus, err := getPackageStatus(packageName, showAll)
+
+	kibanaVersion, err := cmd.Flags().GetString(cobraext.StatusKibanaVersionFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.StatusKibanaVersionFlagName)
+	}
+	options := registry.SearchOptions{
+		All:           showAll,
+		KibanaVersion: kibanaVersion,
+		Prerelease:    true,
+
+		// Deprecated, keeping for compatibility with older versions of the registry.
+		Experimental: true,
+	}
+	packageStatus, err := getPackageStatus(packageName, options)
 	if err != nil {
 		return err
 	}
 	return print(packageStatus, os.Stdout)
 }
 
-func getPackageStatus(packageName string, showAll bool) (*status.PackageStatus, error) {
+func getPackageStatus(packageName string, options registry.SearchOptions) (*status.PackageStatus, error) {
 	if packageName != "" {
-		return status.RemotePackage(packageName, registry.SearchOptions{
-			All:          showAll,
-			Internal:     true,
-			Experimental: true,
-		})
+		return status.RemotePackage(packageName, options)
 	}
 	packageRootPath, found, err := packages.FindPackageRoot()
 	if !found {
@@ -73,11 +84,7 @@ func getPackageStatus(packageName string, showAll bool) (*status.PackageStatus, 
 	if err != nil {
 		return nil, errors.Wrap(err, "locating package root failed")
 	}
-	return status.LocalPackage(packageRootPath, registry.SearchOptions{
-		All:          showAll,
-		Internal:     true,
-		Experimental: true,
-	})
+	return status.LocalPackage(packageRootPath, options)
 }
 
 // print formats and prints package information into a table
@@ -124,7 +131,7 @@ func print(p *status.PackageStatus, w io.Writer) error {
 	}
 
 	bold.Fprintln(w, "Package Versions:")
-	table := tablewriter.NewWriter(os.Stdout)
+	table := tablewriter.NewWriter(w)
 	table.SetHeader([]string{"Environment", "Version", "Release", "Title", "Description"})
 	table.SetHeaderColor(
 		twColor(tablewriter.Colors{tablewriter.Bold}),
@@ -179,7 +186,7 @@ func formatManifest(environment string, manifest packages.PackageManifest, extra
 	if len(extraVersions) > 0 {
 		version = fmt.Sprintf("%s (%s)", version, strings.Join(extraVersions, ", "))
 	}
-	return []string{environment, version, manifest.Release, manifest.Title, manifest.Description}
+	return []string{environment, version, releaseFromVersion(manifest.Version), manifest.Title, manifest.Description}
 }
 
 // twColor no-ops the color setting if we don't want to colorize the output
@@ -188,4 +195,49 @@ func twColor(colors tablewriter.Colors) tablewriter.Colors {
 		return tablewriter.Colors{}
 	}
 	return colors
+}
+
+// releaseFromVersion returns the human-friendly release level based on semantic versioning conventions.
+// It does a best-effort mapping, it doesn't do validation.
+func releaseFromVersion(version string) string {
+	const (
+		previewVersionText   = "Technical Preview"
+		betaVersionText      = "Beta"
+		releaseCandidateText = "Release Candidate"
+		gaVersion            = "GA"
+		defaultText          = betaVersionText
+	)
+
+	conventionPrereleasePrefixes := []struct {
+		prefix string
+		text   string
+	}{
+		{"beta", betaVersionText},
+		{"rc", releaseCandidateText},
+		{"preview", previewVersionText},
+	}
+
+	sv, err := semver.NewVersion(version)
+	if err != nil {
+		// Ignoring errors on version parsing here, use best-effort defaults.
+		if strings.HasPrefix(version, "0.") {
+			return previewVersionText
+		}
+		return defaultText
+	}
+
+	if sv.Major() == 0 {
+		return previewVersionText
+	}
+	if sv.Prerelease() == "" {
+		return gaVersion
+	}
+
+	for _, convention := range conventionPrereleasePrefixes {
+		if strings.HasPrefix(sv.Prerelease(), convention.prefix) {
+			return convention.text
+		}
+	}
+
+	return defaultText
 }

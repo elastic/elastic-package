@@ -5,7 +5,7 @@
 package builder
 
 import (
-	"io/ioutil"
+	"os"
 	"path/filepath"
 
 	"github.com/pkg/errors"
@@ -37,12 +37,19 @@ func resolveExternalFields(packageRoot, destinationDir string) error {
 		return errors.Wrap(err, "can't create field dependency manager")
 	}
 
-	fieldsFile, err := filepath.Glob(filepath.Join(destinationDir, "data_stream", "*", "fields", "*"))
+	dataStreamFieldsFiles, err := filepath.Glob(filepath.Join(destinationDir, "data_stream", "*", "fields", "*.yml"))
 	if err != nil {
 		return err
 	}
-	for _, file := range fieldsFile {
-		data, err := ioutil.ReadFile(file)
+
+	packageFieldsFiles, err := filepath.Glob(filepath.Join(destinationDir, "fields", "*.yml"))
+	if err != nil {
+		return err
+	}
+
+	var fieldsFiles = append(packageFieldsFiles, dataStreamFieldsFiles...)
+	for _, file := range fieldsFiles {
+		data, err := os.ReadFile(file)
 		if err != nil {
 			return err
 		}
@@ -54,7 +61,7 @@ func resolveExternalFields(packageRoot, destinationDir string) error {
 		} else if injected {
 			logger.Debugf("%s: source file has been changed", rel)
 
-			err = ioutil.WriteFile(file, output, 0644)
+			err = os.WriteFile(file, output, 0644)
 			if err != nil {
 				return err
 			}

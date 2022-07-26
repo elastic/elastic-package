@@ -13,6 +13,8 @@ import (
 	"github.com/elastic/elastic-package/internal/builder"
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/docs"
+	"github.com/elastic/elastic-package/internal/files"
+	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
@@ -24,7 +26,7 @@ Built packages are served up by the Elastic Package Registry running locally (se
 
 Built packages can also be published to the global package registry service.
 
-For details on how to enable dependency management, see the [HOWTO guide](https://github.com/elastic/elastic-package/blob/master/docs/howto/dependency_management.md).`
+For details on how to enable dependency management, see the [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/dependency_management.md).`
 
 func setupBuildCommand() *cobraext.Command {
 	cmd := &cobra.Command{
@@ -33,17 +35,40 @@ func setupBuildCommand() *cobraext.Command {
 		Long:  buildLongDescription,
 		RunE:  buildCommandAction,
 	}
-
+	cmd.Flags().Bool(cobraext.BuildZipFlagName, true, cobraext.BuildZipFlagDescription)
+	cmd.Flags().Bool(cobraext.SignPackageFlagName, false, cobraext.SignPackageFlagDescription)
+	cmd.Flags().Bool(cobraext.BuildSkipValidationFlagName, false, cobraext.BuildSkipValidationFlagDescription)
 	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
 }
 
 func buildCommandAction(cmd *cobra.Command, args []string) error {
 	cmd.Println("Build the package")
 
+	createZip, _ := cmd.Flags().GetBool(cobraext.BuildZipFlagName)
+	signPackage, _ := cmd.Flags().GetBool(cobraext.SignPackageFlagName)
+	skipValidation, _ := cmd.Flags().GetBool(cobraext.BuildSkipValidationFlagName)
+
+	if signPackage && !createZip {
+		return errors.New("can't sign the unzipped package, please use also the --zip switch")
+	}
+
+	if signPackage {
+		err := files.VerifySignerConfiguration()
+		if err != nil {
+			return errors.Wrap(err, "can't verify signer configuration")
+		}
+	}
+
 	packageRoot, err := packages.MustFindPackageRoot()
 	if err != nil {
 		return errors.Wrap(err, "locating package root failed")
 	}
+
+	buildDir, err := builder.BuildDirectory()
+	if err != nil {
+		return errors.Wrap(err, "can't prepare build directory")
+	}
+	logger.Debugf("Use build directory: %s", buildDir)
 
 	targets, err := docs.UpdateReadmes(packageRoot)
 	if err != nil {
@@ -55,7 +80,12 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 		cmd.Printf("%s file rendered: %s\n", splitTarget[len(splitTarget)-1], target)
 	}
 
-	target, err := builder.BuildPackage(packageRoot)
+	target, err := builder.BuildPackage(builder.BuildOptions{
+		PackageRoot:    packageRoot,
+		CreateZip:      createZip,
+		SignPackage:    signPackage,
+		SkipValidation: skipValidation,
+	})
 	if err != nil {
 		return errors.Wrap(err, "building package failed")
 	}

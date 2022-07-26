@@ -1,6 +1,0 @@
-variants:
-  v2420:
-    SERVICE_VERSION: 2.4.20
-  v2423:
-    SERVICE_VERSION: 2.4.23
-default: v2420

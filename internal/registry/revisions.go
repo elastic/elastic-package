@@ -7,6 +7,7 @@ package registry
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"sort"
 
 	"github.com/Masterminds/semver"
@@ -18,9 +19,12 @@ import (
 
 // SearchOptions specify the query parameters without the package name for the search API
 type SearchOptions struct {
-	Internal     bool `url:"internal"`
+	Prerelease    bool   `url:"prerelease"`
+	All           bool   `url:"all"`
+	KibanaVersion string `url:"kibana.version,omitempty"`
+
+	// Deprecated
 	Experimental bool `url:"experimental"`
-	All          bool `url:"all"`
 }
 
 // searchQuery specify the package and query parameters for the search API
@@ -44,7 +48,7 @@ func (c *Client) Revisions(packageName string, options SearchOptions) ([]package
 	if err != nil {
 		return nil, errors.Wrap(err, "could not retrieve package")
 	}
-	if statusCode != 200 {
+	if statusCode != http.StatusOK {
 		return nil, fmt.Errorf("could not retrieve package; API status code = %d; response body = %s", statusCode, respBody)
 	}
 

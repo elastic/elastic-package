@@ -7,7 +7,6 @@ package packages
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -123,8 +122,17 @@ func loadElasticsearchAssets(pkgRootPath string) ([]Asset, error) {
 
 		if dsManifest.Type == dataStreamTypeLogs || dsManifest.Type == dataStreamTypeTraces {
 			elasticsearchDirPath := filepath.Join(filepath.Dir(dsManifestPath), "elasticsearch", "ingest_pipeline")
-			pipelineFiles, _ := ioutil.ReadDir(elasticsearchDirPath)
-			if pipelineFiles == nil || len(pipelineFiles) == 0 {
+
+			var pipelineFiles []string
+			for _, pattern := range []string{"*.json", "*.yml"} {
+				files, err := filepath.Glob(filepath.Join(elasticsearchDirPath, pattern))
+				if err != nil {
+					return nil, errors.Wrapf(err, "listing '%s' in '%s'", pattern, elasticsearchDirPath)
+				}
+				pipelineFiles = append(pipelineFiles, files...)
+			}
+
+			if len(pipelineFiles) == 0 {
 				continue // ingest pipeline is not defined
 			}
 
@@ -147,7 +155,7 @@ func loadElasticsearchAssets(pkgRootPath string) ([]Asset, error) {
 func loadFileBasedAssets(kibanaAssetsFolderPath string, assetType AssetType) ([]Asset, error) {
 	assetsFolderPath := filepath.Join(kibanaAssetsFolderPath, string(assetType))
 	_, err := os.Stat(assetsFolderPath)
-	if err != nil && os.IsNotExist(err) {
+	if err != nil && errors.Is(err, os.ErrNotExist) {
 		// No assets folder defined; nothing to load
 		return nil, nil
 	}
@@ -155,18 +163,13 @@ func loadFileBasedAssets(kibanaAssetsFolderPath string, assetType AssetType) ([]
 		return nil, errors.Wrapf(err, "error finding kibana %s assets folder", assetType)
 	}
 
-	files, err := ioutil.ReadDir(assetsFolderPath)
+	paths, err := filepath.Glob(filepath.Join(assetsFolderPath, "*.json"))
 	if err != nil {
 		return nil, errors.Wrapf(err, "could not read %s files", assetType)
 	}
 
 	var assets []Asset
-	for _, f := range files {
-		if f.IsDir() {
-			continue
-		}
-
-		assetPath := filepath.Join(assetsFolderPath, f.Name())
+	for _, assetPath := range paths {
 		assetID, err := readAssetID(assetPath)
 		if err != nil {
 			return nil, errors.Wrapf(err, "can't read asset ID (path: %s)", assetPath)
@@ -183,7 +186,7 @@ func loadFileBasedAssets(kibanaAssetsFolderPath string, assetType AssetType) ([]
 }
 
 func readAssetID(assetPath string) (string, error) {
-	content, err := ioutil.ReadFile(assetPath)
+	content, err := os.ReadFile(assetPath)
 	if err != nil {
 		return "", errors.Wrap(err, "can't read file body")
 	}

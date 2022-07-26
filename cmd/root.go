@@ -11,13 +11,16 @@ import (
 
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/logger"
+	"github.com/elastic/elastic-package/internal/version"
 )
 
 var commands = []*cobraext.Command{
 	setupBuildCommand(),
+	setupChangelogCommand(),
 	setupCheckCommand(),
 	setupCleanCommand(),
 	setupCreateCommand(),
+	setupDumpCommand(),
 	setupExportCommand(),
 	setupFormatCommand(),
 	setupInstallCommand(),
@@ -36,10 +39,15 @@ var commands = []*cobraext.Command{
 // RootCmd creates and returns root cmd for elastic-package
 func RootCmd() *cobra.Command {
 	rootCmd := &cobra.Command{
-		Use:               "elastic-package",
-		Short:             "elastic-package - Command line tool for developing Elastic Integrations",
-		SilenceUsage:      true,
-		PersistentPreRunE: processPersistentFlags,
+		Use:          "elastic-package",
+		Short:        "elastic-package - Command line tool for developing Elastic Integrations",
+		SilenceUsage: true,
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			return cobraext.ComposeCommandActions(cmd, args,
+				processPersistentFlags,
+				checkVersionUpdate,
+			)
+		},
 	}
 	rootCmd.PersistentFlags().BoolP(cobraext.VerboseFlagName, "v", false, cobraext.VerboseFlagDescription)
 
@@ -67,5 +75,10 @@ func processPersistentFlags(cmd *cobra.Command, args []string) error {
 	if verbose {
 		logger.EnableDebugMode()
 	}
+	return nil
+}
+
+func checkVersionUpdate(cmd *cobra.Command, args []string) error {
+	version.CheckUpdate()
 	return nil
 }

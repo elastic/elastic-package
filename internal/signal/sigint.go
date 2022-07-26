@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/elastic/elastic-package/internal/logger"
 )
@@ -28,5 +29,17 @@ func SIGINT() bool {
 		return true
 	default:
 		return false
+	}
+}
+
+// Sleep is the equivalent of time.Sleep with the exception
+// that is will end the sleep if ctrl+c is pressed.
+func Sleep(d time.Duration) {
+	timer := time.NewTimer(d)
+	select {
+	case <-ch:
+		logger.Info("Signal caught!")
+		timer.Stop()
+	case <-timer.C:
 	}
 }

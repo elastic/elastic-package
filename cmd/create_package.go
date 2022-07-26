@@ -9,6 +9,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
+	"github.com/elastic/elastic-package/internal/licenses"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/packages/archetype"
 	"github.com/elastic/elastic-package/internal/surveyext"
@@ -18,15 +19,21 @@ const createPackageLongDescription = `Use this command to create a new package.
 
 The command can bootstrap the first draft of a package using embedded package template and wizard.`
 
+const (
+	noLicenseValue             = "None"
+	noLicenseOnCreationMessage = "I will add a license later."
+)
+
 type newPackageAnswers struct {
-	Name          string
-	Version       string
-	Title         string
-	Description   string
-	Categories    []string
-	Release       string
-	KibanaVersion string `survey:"kibana_version"`
-	GithubOwner   string `survey:"github_owner"`
+	Name                string
+	Version             string
+	SourceLicense       string `survey:"source_license"`
+	Title               string
+	Description         string
+	Categories          []string
+	KibanaVersion       string `survey:"kibana_version"`
+	ElasticSubscription string `survey:"elastic_subscription"`
+	GithubOwner         string `survey:"github_owner"`
 }
 
 func createPackageCommandAction(cmd *cobra.Command, args []string) error {
@@ -48,6 +55,24 @@ func createPackageCommandAction(cmd *cobra.Command, args []string) error {
 				Default: "0.0.1",
 			},
 			Validate: survey.ComposeValidators(survey.Required, surveyext.SemverValidator),
+		},
+		{
+			Name: "source_license",
+			Prompt: &survey.Select{
+				Message: "License:",
+				Options: []string{
+					licenses.Elastic20,
+					licenses.Apache20,
+					noLicenseValue,
+				},
+				Description: func(value string, _ int) string {
+					if value == noLicenseValue {
+						return noLicenseOnCreationMessage
+					}
+					return ""
+				},
+				Default: licenses.Elastic20,
+			},
 		},
 		{
 			Name: "title",
@@ -79,21 +104,21 @@ func createPackageCommandAction(cmd *cobra.Command, args []string) error {
 			Validate: survey.Required,
 		},
 		{
-			Name: "release",
-			Prompt: &survey.Select{
-				Message: "Release:",
-				Options: []string{"experimental", "beta", "ga"},
-				Default: "experimental",
-			},
-			Validate: survey.Required,
-		},
-		{
 			Name: "kibana_version",
 			Prompt: &survey.Input{
 				Message: "Kibana version constraint:",
-				Default: surveyext.DefaultConstraintValue(),
+				Default: surveyext.DefaultKibanaVersionConditionValue(),
 			},
 			Validate: survey.ComposeValidators(survey.Required, surveyext.ConstraintValidator),
+		},
+		{
+			Name: "elastic_subscription",
+			Prompt: &survey.Select{
+				Message: "Required Elastic subscription:",
+				Options: []string{"basic", "gold", "platinum", "enterprise"},
+				Default: "basic",
+			},
+			Validate: survey.Required,
 		},
 		{
 			Name: "github_owner",
@@ -122,23 +147,32 @@ func createPackageCommandAction(cmd *cobra.Command, args []string) error {
 }
 
 func createPackageDescriptorFromAnswers(answers newPackageAnswers) archetype.PackageDescriptor {
+	sourceLicense := ""
+	if answers.SourceLicense != noLicenseValue {
+		sourceLicense = answers.SourceLicense
+	}
 	return archetype.PackageDescriptor{
 		Manifest: packages.PackageManifest{
 			Name:    answers.Name,
 			Title:   answers.Title,
 			Type:    "integration",
 			Version: answers.Version,
+			Source: packages.Source{
+				License: sourceLicense,
+			},
 			Conditions: packages.Conditions{
 				Kibana: packages.KibanaConditions{
 					Version: answers.KibanaVersion,
+				},
+				Elastic: packages.ElasticConditions{
+					Subscription: answers.ElasticSubscription,
 				},
 			},
 			Owner: packages.Owner{
 				Github: answers.GithubOwner,
 			},
-			Release:     answers.Release,
+			License:     answers.ElasticSubscription,
 			Description: answers.Description,
-			License:     "basic",
 			Categories:  answers.Categories,
 		},
 	}

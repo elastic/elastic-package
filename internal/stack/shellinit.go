@@ -6,12 +6,7 @@ package stack
 
 import (
 	"fmt"
-	"io/ioutil"
 
-	"github.com/pkg/errors"
-	"gopkg.in/yaml.v3"
-
-	"github.com/elastic/elastic-package/internal/compose"
 	"github.com/elastic/elastic-package/internal/profile"
 )
 
@@ -25,50 +20,27 @@ var (
 	ElasticsearchUsernameEnv = elasticPackageEnvPrefix + "ELASTICSEARCH_USERNAME"
 	ElasticsearchPasswordEnv = elasticPackageEnvPrefix + "ELASTICSEARCH_PASSWORD"
 	KibanaHostEnv            = elasticPackageEnvPrefix + "KIBANA_HOST"
+	CACertificateEnv         = elasticPackageEnvPrefix + "CA_CERT"
 )
 
-var shellInitFormat = "export " + ElasticsearchHostEnv + "=%s\nexport " + ElasticsearchUsernameEnv + "=%s\nexport " +
-	ElasticsearchPasswordEnv + "=%s\nexport " + KibanaHostEnv + "=%s"
-
-type kibanaConfiguration struct {
-	ElasticsearchUsername string `yaml:"elasticsearch.username"`
-	ElasticsearchPassword string `yaml:"elasticsearch.password"`
-}
+var shellInitFormat = "export " + ElasticsearchHostEnv + "=%s\n" +
+	"export " + ElasticsearchUsernameEnv + "=%s\n" +
+	"export " + ElasticsearchPasswordEnv + "=%s\n" +
+	"export " + KibanaHostEnv + "=%s\n" +
+	"export " + CACertificateEnv + "=%s"
 
 // ShellInit method exposes environment variables that can be used for testing purposes.
 func ShellInit(elasticStackProfile *profile.Profile) (string, error) {
-	// Read Elasticsearch username and password from Kibana configuration file.
-	body, err := ioutil.ReadFile(elasticStackProfile.FetchPath(profile.KibanaConfigFile))
+	config, err := StackInitConfig(elasticStackProfile)
 	if err != nil {
-		return "", errors.Wrap(err, "error reading Kibana config file")
+		return "", nil
 	}
-
-	var kibanaCfg kibanaConfiguration
-	err = yaml.Unmarshal(body, &kibanaCfg)
-	if err != nil {
-		return "", errors.Wrap(err, "unmarshalling Kibana configuration failed")
-	}
-
-	// Read Elasticsearch and Kibana hostnames from Elastic Stack Docker Compose configuration file.
-	p, err := compose.NewProject(DockerComposeProjectName, elasticStackProfile.FetchPath(profile.SnapshotFile))
-	if err != nil {
-		return "", errors.Wrap(err, "could not create docker compose project")
-	}
-
-	serviceComposeConfig, err := p.Config(compose.CommandOptions{})
-	if err != nil {
-		return "", errors.Wrap(err, "could not get Docker Compose configuration for service")
-	}
-
-	kib := serviceComposeConfig.Services["kibana"]
-	kibHostPort := fmt.Sprintf("http://%s:%d", kib.Ports[0].ExternalIP, kib.Ports[0].ExternalPort)
-
-	es := serviceComposeConfig.Services["elasticsearch"]
-	esHostPort := fmt.Sprintf("http://%s:%d", es.Ports[0].ExternalIP, es.Ports[0].ExternalPort)
 
 	return fmt.Sprintf(shellInitFormat,
-		esHostPort,
-		kibanaCfg.ElasticsearchUsername,
-		kibanaCfg.ElasticsearchPassword,
-		kibHostPort), nil
+		config.ElasticsearchHostPort,
+		config.ElasticsearchUsername,
+		config.ElasticsearchPassword,
+		config.KibanaHostPort,
+		config.CACertificatePath,
+	), nil
 }

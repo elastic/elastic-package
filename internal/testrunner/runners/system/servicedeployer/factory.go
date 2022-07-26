@@ -6,7 +6,6 @@ package servicedeployer
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -52,6 +51,13 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 			}
 			return NewDockerComposeServiceDeployer([]string{dockerComposeYMLPath}, sv)
 		}
+	case "agent":
+		customAgentCfgYMLPath := filepath.Join(serviceDeployerPath, "custom-agent.yml")
+		if _, err := os.Stat(customAgentCfgYMLPath); err != nil {
+			return nil, errors.Wrap(err, "can't find expected file custom-agent.yml")
+		}
+		return NewCustomAgentDeployer(customAgentCfgYMLPath)
+
 	case "tf":
 		if _, err := os.Stat(serviceDeployerPath); err == nil {
 			return NewTerraformServiceDeployer(serviceDeployerPath)
@@ -66,7 +72,7 @@ func FindDevDeployPath(options FactoryOptions) (string, error) {
 	_, err := os.Stat(dataStreamDevDeployPath)
 	if err == nil {
 		return dataStreamDevDeployPath, nil
-	} else if !os.IsNotExist(err) {
+	} else if !errors.Is(err, os.ErrNotExist) {
 		return "", errors.Wrapf(err, "stat failed for data stream (path: %s)", dataStreamDevDeployPath)
 	}
 
@@ -74,19 +80,19 @@ func FindDevDeployPath(options FactoryOptions) (string, error) {
 	_, err = os.Stat(packageDevDeployPath)
 	if err == nil {
 		return packageDevDeployPath, nil
-	} else if !os.IsNotExist(err) {
+	} else if !errors.Is(err, os.ErrNotExist) {
 		return "", errors.Wrapf(err, "stat failed for package (path: %s)", packageDevDeployPath)
 	}
 	return "", fmt.Errorf("\"%s\" directory doesn't exist", devDeployDir)
 }
 
 func findServiceDeployer(devDeployPath string) (string, error) {
-	fis, err := ioutil.ReadDir(devDeployPath)
+	fis, err := os.ReadDir(devDeployPath)
 	if err != nil {
 		return "", errors.Wrapf(err, "can't read directory (path: %s)", devDeployDir)
 	}
 
-	var folders []os.FileInfo
+	var folders []os.DirEntry
 	for _, fi := range fis {
 		if fi.IsDir() {
 			folders = append(folders, fi)

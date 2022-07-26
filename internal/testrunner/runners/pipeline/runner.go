@@ -7,7 +7,7 @@ package pipeline
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -16,10 +16,12 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/common"
+	"github.com/elastic/elastic-package/internal/elasticsearch/ingest"
 	"github.com/elastic/elastic-package/internal/fields"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/multierror"
 	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/internal/signal"
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
 
@@ -30,7 +32,7 @@ const (
 
 type runner struct {
 	options   testrunner.TestOptions
-	pipelines []pipelineResource
+	pipelines []ingest.Pipeline
 }
 
 func (r *runner) TestFolderRequired() bool {
@@ -57,10 +59,10 @@ func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, e
 func (r *runner) TearDown() error {
 	if r.options.DeferCleanup > 0 {
 		logger.Debugf("Waiting for %s before cleanup...", r.options.DeferCleanup)
-		time.Sleep(r.options.DeferCleanup)
+		signal.Sleep(r.options.DeferCleanup)
 	}
 
-	err := uninstallIngestPipelines(r.options.ESClient, r.pipelines)
+	err := uninstallIngestPipelines(r.options.API, r.pipelines)
 	if err != nil {
 		return errors.Wrap(err, "uninstalling ingest pipelines failed")
 	}
@@ -88,7 +90,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 	}
 
 	var entryPipeline string
-	entryPipeline, r.pipelines, err = installIngestPipelines(r.options.ESClient, dataStreamPath)
+	entryPipeline, r.pipelines, err = installIngestPipelines(r.options.API, dataStreamPath)
 	if err != nil {
 		return nil, errors.Wrap(err, "installing ingest pipelines failed")
 	}
@@ -102,6 +104,8 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		}
 		startTime := time.Now()
 
+		// TODO: Add tests to cover regressive use of json.Unmarshal in loadTestCaseFile.
+		// See https://github.com/elastic/elastic-package/pull/717.
 		tc, err := r.loadTestCaseFile(testCaseFile)
 		if err != nil {
 			err := errors.Wrap(err, "loading test case failed")
@@ -121,7 +125,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 			continue
 		}
 
-		result, err := simulatePipelineProcessing(r.options.ESClient, entryPipeline, tc)
+		result, err := simulatePipelineProcessing(r.options.API, entryPipeline, tc)
 		if err != nil {
 			err := errors.Wrap(err, "simulating pipeline processing failed")
 			tr.ErrorMsg = err.Error()
@@ -129,13 +133,19 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 			continue
 		}
 
-		tr.TimeElapsed = time.Now().Sub(startTime)
-		fieldsValidator, err := fields.CreateValidatorForDataStream(dataStreamPath,
-			fields.WithNumericKeywordFields(tc.config.NumericKeywordFields))
+		tr.TimeElapsed = time.Since(startTime)
+		fieldsValidator, err := fields.CreateValidatorForDirectory(dataStreamPath,
+			fields.WithNumericKeywordFields(tc.config.NumericKeywordFields),
+			// explicitly enabled for pipeline tests only
+			// since system tests can have dynamic public IPs
+			fields.WithEnabledAllowedIPCheck(),
+		)
 		if err != nil {
 			return nil, errors.Wrapf(err, "creating fields validator for data stream failed (path: %s, test case file: %s)", dataStreamPath, testCaseFile)
 		}
 
+		// TODO: Add tests to cover regressive use of json.Unmarshal in verifyResults.
+		// See https://github.com/elastic/elastic-package/pull/717.
 		err = r.verifyResults(testCaseFile, tc.config, result, fieldsValidator)
 		if e, ok := err.(testrunner.ErrTestCaseFailed); ok {
 			tr.FailureMsg = e.Error()
@@ -151,13 +161,19 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 			continue
 		}
 
+		if r.options.WithCoverage {
+			tr.Coverage, err = GetPipelineCoverage(r.options, r.pipelines)
+			if err != nil {
+				return nil, errors.Wrap(err, "error calculating pipeline coverage")
+			}
+		}
 		results = append(results, tr)
 	}
 	return results, nil
 }
 
 func (r *runner) listTestCaseFiles() ([]string, error) {
-	fis, err := ioutil.ReadDir(r.options.TestFolder.Path)
+	fis, err := os.ReadDir(r.options.TestFolder.Path)
 	if err != nil {
 		return nil, errors.Wrapf(err, "reading pipeline tests failed (path: %s)", r.options.TestFolder.Path)
 	}
@@ -175,7 +191,7 @@ func (r *runner) listTestCaseFiles() ([]string, error) {
 
 func (r *runner) loadTestCaseFile(testCaseFile string) (*testCase, error) {
 	testCasePath := filepath.Join(r.options.TestFolder.Path, testCaseFile)
-	testCaseData, err := ioutil.ReadFile(testCasePath)
+	testCaseData, err := os.ReadFile(testCasePath)
 	if err != nil {
 		return nil, errors.Wrapf(err, "reading input file failed (testCasePath: %s)", testCasePath)
 	}
@@ -221,6 +237,8 @@ func (r *runner) verifyResults(testCaseFile string, config *testConfig, result *
 	testCasePath := filepath.Join(r.options.TestFolder.Path, testCaseFile)
 
 	if r.options.GenerateTestResult {
+		// TODO: Add tests to cover regressive use of json.Unmarshal in writeTestResult.
+		// See https://github.com/elastic/elastic-package/pull/717.
 		err := writeTestResult(testCasePath, result)
 		if err != nil {
 			return errors.Wrap(err, "writing test result failed")
@@ -270,7 +288,7 @@ func verifyDynamicFields(result *testResult, config *testConfig) error {
 	var multiErr multierror.Error
 	for _, event := range result.events {
 		var m common.MapStr
-		err := json.Unmarshal(event, &m)
+		err := jsonUnmarshalUsingNumber(event, &m)
 		if err != nil {
 			return errors.Wrap(err, "can't unmarshal event")
 		}
@@ -332,20 +350,24 @@ func verifyFieldsInTestResult(result *testResult, fieldsValidator *fields.Valida
 }
 
 func checkErrorMessage(event json.RawMessage) error {
-	var pipelineError = struct {
+	var pipelineError struct {
 		Error struct {
-			Message string
+			Message interface{}
 		}
-	}{}
-	err := json.Unmarshal(event, &pipelineError)
+	}
+	err := jsonUnmarshalUsingNumber(event, &pipelineError)
 	if err != nil {
-		return errors.Wrap(err, "can't unmarshal event to check pipeline error")
+		return errors.Wrapf(err, "can't unmarshal event to check pipeline error: %#q", event)
 	}
 
-	if pipelineError.Error.Message != "" {
-		return fmt.Errorf("unexpected pipeline error: %s", pipelineError.Error.Message)
+	switch m := pipelineError.Error.Message.(type) {
+	case nil:
+		return nil
+	case string, []string:
+		return fmt.Errorf("unexpected pipeline error: %s", m)
+	default:
+		return fmt.Errorf("unexpected pipeline error (unexpected error.message type %T): %[1]v", m)
 	}
-	return nil
 }
 
 func init() {

@@ -14,7 +14,7 @@ const createLongDescription = `Use this command to create a new package or add m
 
 The command can help bootstrap the first draft of a package using embedded package template. It can be used to extend the package with more data streams.
 
-For details on how to create a new package, review the [HOWTO guide](https://github.com/elastic/elastic-package/blob/master/docs/howto/create_new_package.md).`
+For details on how to create a new package, review the [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/create_new_package.md).`
 
 func setupCreateCommand() *cobraext.Command {
 	createPackageCmd := &cobra.Command{

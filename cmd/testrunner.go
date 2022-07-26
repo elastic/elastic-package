@@ -29,22 +29,22 @@ const testLongDescription = `Use this command to run tests on a package. Current
 #### Asset Loading Tests
 These tests ensure that all the Elasticsearch and Kibana assets defined by your package get loaded up as expected.
 
-For details on how to run asset loading tests for a package, see the [HOWTO guide](https://github.com/elastic/elastic-package/blob/master/docs/howto/asset_testing.md).
+For details on how to run asset loading tests for a package, see the [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/asset_testing.md).
 
 #### Pipeline Tests
 These tests allow you to exercise any Ingest Node Pipelines defined by your packages.
 
-For details on how to configure pipeline test for a package, review the [HOWTO guide](https://github.com/elastic/elastic-package/blob/master/docs/howto/pipeline_testing.md).
+For details on how to configure pipeline test for a package, review the [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/pipeline_testing.md).
 
 #### Static Tests
 These tests allow you to verify if all static resources of the package are valid, e.g. if all fields of the sample_event.json are documented.
 
-For details on how to run static tests for a package, see the [HOWTO guide](https://github.com/elastic/elastic-package/blob/master/docs/howto/static_testing.md).
+For details on how to run static tests for a package, see the [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/static_testing.md).
 
 #### System Tests
 These tests allow you to test a package's ability to ingest data end-to-end.
 
-For details on how to configure amd run system tests, review the [HOWTO guide](https://github.com/elastic/elastic-package/blob/master/docs/howto/system_testing.md).`
+For details on how to configure amd run system tests, review the [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/system_testing.md).`
 
 func setupTestCommand() *cobraext.Command {
 	var testTypeCmdActions []cobraext.CommandAction
@@ -67,6 +67,7 @@ func setupTestCommand() *cobraext.Command {
 	cmd.PersistentFlags().BoolP(cobraext.GenerateTestResultFlagName, "g", false, cobraext.GenerateTestResultFlagDescription)
 	cmd.PersistentFlags().StringP(cobraext.ReportFormatFlagName, "", string(formats.ReportFormatHuman), cobraext.ReportFormatFlagDescription)
 	cmd.PersistentFlags().StringP(cobraext.ReportOutputFlagName, "", string(outputs.ReportOutputSTDOUT), cobraext.ReportOutputFlagDescription)
+	cmd.PersistentFlags().BoolP(cobraext.TestCoverageFlagName, "", false, cobraext.TestCoverageFlagDescription)
 	cmd.PersistentFlags().DurationP(cobraext.DeferCleanupFlagName, "", 0, cobraext.DeferCleanupFlagDescription)
 	cmd.PersistentFlags().String(cobraext.VariantFlagName, "", cobraext.VariantFlagDescription)
 
@@ -114,6 +115,11 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 		reportOutput, err := cmd.Flags().GetString(cobraext.ReportOutputFlagName)
 		if err != nil {
 			return cobraext.FlagParsingError(err, cobraext.ReportOutputFlagName)
+		}
+
+		testCoverage, err := cmd.Flags().GetBool(cobraext.TestCoverageFlagName)
+		if err != nil {
+			return cobraext.FlagParsingError(err, cobraext.TestCoverageFlagName)
 		}
 
 		packageRootPath, found, err := packages.FindPackageRoot()
@@ -190,9 +196,10 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 				TestFolder:         folder,
 				PackageRootPath:    packageRootPath,
 				GenerateTestResult: generateTestResult,
-				ESClient:           esClient,
+				API:                esClient.API,
 				DeferCleanup:       deferCleanup,
 				ServiceVariant:     variantFlag,
+				WithCoverage:       testCoverage,
 			})
 
 			results = append(results, r...)
@@ -215,6 +222,13 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 
 		if err := testrunner.WriteReport(m.Name, testrunner.TestReportOutput(reportOutput), report, format); err != nil {
 			return errors.Wrap(err, "error writing test report")
+		}
+
+		if testCoverage {
+			err := testrunner.WriteCoverage(packageRootPath, m.Name, runner.Type(), results)
+			if err != nil {
+				return errors.Wrap(err, "error writing test coverage")
+			}
 		}
 
 		// Check if there is any error or failure reported

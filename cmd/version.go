@@ -5,6 +5,9 @@
 package cmd
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
@@ -25,6 +28,13 @@ func setupVersionCommand() *cobraext.Command {
 }
 
 func versionCommandAction(cmd *cobra.Command, args []string) error {
-	cmd.Printf("elastic-package version-hash %s (build time: %s)\n", version.CommitHash, version.BuildTimeFormatted())
+	var sb strings.Builder
+	sb.WriteString("elastic-package ")
+	if version.Tag != "" {
+		sb.WriteString(version.Tag)
+		sb.WriteString(" ")
+	}
+	sb.WriteString(fmt.Sprintf("version-hash %s (build time: %s)", version.CommitHash, version.BuildTimeFormatted()))
+	fmt.Println(sb.String())
 	return nil
 }

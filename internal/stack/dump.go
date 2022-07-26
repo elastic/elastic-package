@@ -6,7 +6,6 @@ package stack
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -16,7 +15,12 @@ import (
 	"github.com/elastic/elastic-package/internal/profile"
 )
 
-var observedServices = []string{"elasticsearch", "elastic-agent", "fleet-server", "kibana", "package-registry"}
+const (
+	elasticAgentService = "elastic-agent"
+	fleetServerService  = "fleet-server"
+)
+
+var observedServices = []string{"elasticsearch", elasticAgentService, fleetServerService, "kibana", "package-registry"}
 
 // DumpOptions defines dumping options for Elatic stack data.
 type DumpOptions struct {
@@ -36,9 +40,7 @@ func Dump(options DumpOptions) (string, error) {
 }
 
 func dumpStackLogs(options DumpOptions) error {
-	logger.Debugf("Dump stack logs")
-
-	logger.Debugf("Recreate the output location (path: %s)", options.Output)
+	logger.Debugf("Dump stack logs (location: %s)", options.Output)
 	err := os.RemoveAll(options.Output)
 	if err != nil {
 		return errors.Wrap(err, "can't remove output location")
@@ -47,7 +49,7 @@ func dumpStackLogs(options DumpOptions) error {
 	logsPath := filepath.Join(options.Output, "logs")
 	err = os.MkdirAll(logsPath, 0755)
 	if err != nil {
-		return errors.Wrap(err, "can't create output location")
+		return errors.Wrapf(err, "can't create output location (path: %s)", logsPath)
 	}
 
 	snapshotPath := options.Profile.FetchPath(profile.SnapshotFile)
@@ -55,17 +57,24 @@ func dumpStackLogs(options DumpOptions) error {
 	for _, serviceName := range observedServices {
 		logger.Debugf("Dump stack logs for %s", serviceName)
 
-		serviceLogs, err := dockerComposeLogs(serviceName, snapshotPath)
+		content, err := dockerComposeLogs(serviceName, snapshotPath)
 		if err != nil {
 			logger.Errorf("can't fetch service logs (service: %s): %v", serviceName, err)
-			continue
+		} else {
+			writeLogFiles(logsPath, serviceName, content)
 		}
 
-		err = ioutil.WriteFile(filepath.Join(logsPath, fmt.Sprintf("%s.log", serviceName)), serviceLogs, 0644)
+		err = copyDockerInternalLogs(serviceName, logsPath)
 		if err != nil {
-			logger.Errorf("can't write service logs (service: %s): %v", serviceName, err)
-			continue
+			logger.Errorf("can't copy internal logs (service: %s): %v", serviceName, err)
 		}
 	}
 	return nil
+}
+
+func writeLogFiles(logsPath, serviceName string, content []byte) {
+	err := os.WriteFile(filepath.Join(logsPath, fmt.Sprintf("%s.log", serviceName)), content, 0644)
+	if err != nil {
+		logger.Errorf("can't write service logs (service: %s): %v", serviceName, err)
+	}
 }

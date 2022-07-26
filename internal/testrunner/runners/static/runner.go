@@ -5,7 +5,6 @@
 package static
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -74,7 +73,7 @@ func (r runner) verifySampleEvent() []testrunner.TestResult {
 	dataStreamPath := filepath.Join(r.options.PackageRootPath, "data_stream", r.options.TestFolder.DataStream)
 	sampleEventPath := filepath.Join(dataStreamPath, sampleEventJSON)
 	_, err := os.Stat(sampleEventPath)
-	if os.IsNotExist(err) {
+	if errors.Is(err, os.ErrNotExist) {
 		return []testrunner.TestResult{} // nothing to succeed, nothing to skip
 	}
 
@@ -90,7 +89,7 @@ func (r runner) verifySampleEvent() []testrunner.TestResult {
 		return results
 	}
 
-	fieldsValidator, err := fields.CreateValidatorForDataStream(
+	fieldsValidator, err := fields.CreateValidatorForDirectory(
 		dataStreamPath,
 		fields.WithDefaultNumericConversion())
 	if err != nil {
@@ -98,7 +97,7 @@ func (r runner) verifySampleEvent() []testrunner.TestResult {
 		return results
 	}
 
-	content, err := ioutil.ReadFile(sampleEventPath)
+	content, err := os.ReadFile(sampleEventPath)
 	if err != nil {
 		results, _ := resultComposer.WithError(errors.Wrap(err, "can't read file"))
 		return results

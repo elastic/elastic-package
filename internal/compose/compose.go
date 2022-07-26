@@ -12,17 +12,30 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"time"
 
+	"github.com/Masterminds/semver"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 
+	"github.com/elastic/elastic-package/internal/docker"
 	"github.com/elastic/elastic-package/internal/logger"
+	"github.com/elastic/elastic-package/internal/signal"
+)
+
+const (
+	// waitForHealthyTimeout is the maximum duration for WaitForHealthy().
+	waitForHealthyTimeout = 10 * time.Minute
+	// waitForHealthyInterval is the check interval for WaitForHealthy().
+	waitForHealthyInterval = 1 * time.Second
 )
 
 // Project represents a Docker Compose project.
 type Project struct {
 	name             string
 	composeFilePaths []string
+
+	dockerComposeV1 bool
 }
 
 // Config represents a Docker Compose configuration file.
@@ -41,6 +54,20 @@ type portMapping struct {
 	Protocol     string
 }
 
+type intOrStringYaml int
+
+func (p *intOrStringYaml) UnmarshalYAML(node *yaml.Node) error {
+	var s string
+	err := node.Decode(&s)
+	if err == nil {
+		i, err := strconv.Atoi(s)
+		*p = intOrStringYaml(i)
+		return err
+	}
+
+	return node.Decode(p)
+}
+
 // UnmarshalYAML unmarshals a Docker Compose port mapping in YAML to
 // a portMapping.
 func (p *portMapping) UnmarshalYAML(node *yaml.Node) error {
@@ -54,8 +81,9 @@ func (p *portMapping) UnmarshalYAML(node *yaml.Node) error {
 		}
 
 		var s struct {
-			Target    int
-			Published int
+			HostIP    string          `yaml:"host_ip"`
+			Target    intOrStringYaml // Docker compose v2 can define ports as strings.
+			Published intOrStringYaml // Docker compose v2 can define ports as strings.
 			Protocol  string
 		}
 
@@ -63,10 +91,10 @@ func (p *portMapping) UnmarshalYAML(node *yaml.Node) error {
 			return errors.Wrap(err, "could not unmarshal YAML map node")
 		}
 
-		p.InternalPort = s.Target
-		p.ExternalPort = s.Published
+		p.InternalPort = int(s.Target)
+		p.ExternalPort = int(s.Published)
 		p.Protocol = s.Protocol
-
+		p.ExternalIP = s.HostIP
 		return nil
 	}
 
@@ -136,11 +164,20 @@ func NewProject(name string, paths ...string) (*Project, error) {
 		}
 	}
 
-	c := Project{
-		name,
-		paths,
-	}
+	var c Project
+	c.name = name
+	c.composeFilePaths = paths
 
+	ver, err := c.dockerComposeVersion()
+	if err != nil {
+		logger.Errorf("Unable to determine Docker Compose version: %v. Defaulting to 1.x", err)
+		c.dockerComposeV1 = true
+		return &c, nil
+	}
+	if ver.Major() == 1 {
+		logger.Debugf("Determined Docker Compose version: %v, the tool will use Compose V1", ver)
+		c.dockerComposeV1 = true
+	}
 	return &c, nil
 }
 
@@ -247,6 +284,79 @@ func (p *Project) Logs(opts CommandOptions) ([]byte, error) {
 	return b.Bytes(), nil
 }
 
+// WaitForHealthy method waits until all containers are healthy.
+func (p *Project) WaitForHealthy(opts CommandOptions) error {
+	// Read container IDs
+	args := p.baseArgs()
+	args = append(args, "ps")
+	args = append(args, "-q")
+
+	var b bytes.Buffer
+	if err := p.runDockerComposeCmd(dockerComposeOptions{args: args, env: opts.Env, stdout: &b}); err != nil {
+		return err
+	}
+
+	startTime := time.Now()
+	timeout := startTime.Add(waitForHealthyTimeout)
+
+	containerIDs := strings.Fields(b.String())
+	for {
+		if time.Now().After(timeout) {
+			return errors.New("timeout waiting for healthy container")
+		}
+
+		if signal.SIGINT() {
+			return errors.New("SIGINT: cancel waiting for policy assigned")
+		}
+
+		// NOTE: healthy must be reinitialized at each iteration
+		healthy := true
+
+		logger.Debugf("Wait for healthy containers: %s", strings.Join(containerIDs, ","))
+		descriptions, err := docker.InspectContainers(containerIDs...)
+		if err != nil {
+			return err
+		}
+
+		for _, containerDescription := range descriptions {
+			logger.Debugf("Container status: %s", containerDescription.String())
+
+			// No healthcheck defined for service
+			if containerDescription.State.Status == "running" && containerDescription.State.Health == nil {
+				continue
+			}
+
+			// Service is up and running and it's healthy
+			if containerDescription.State.Status == "running" && containerDescription.State.Health.Status == "healthy" {
+				continue
+			}
+
+			// Container started and finished with exit code 0
+			if containerDescription.State.Status == "exited" && containerDescription.State.ExitCode == 0 {
+				continue
+			}
+
+			// Container exited with code > 0
+			if containerDescription.State.Status == "exited" && containerDescription.State.ExitCode > 0 {
+				return fmt.Errorf("container (ID: %s) exited with code %d", containerDescription.ID, containerDescription.State.ExitCode)
+			}
+
+			// Any different status is considered unhealthy
+			healthy = false
+		}
+
+		// end loop before timeout if healthy
+		if healthy {
+			break
+		}
+
+		// NOTE: using sleep does not guarantee interval but it's ok for this use case
+		time.Sleep(waitForHealthyInterval)
+	}
+
+	return nil
+}
+
 func (p *Project) baseArgs() []string {
 	var args []string
 	for _, path := range p.composeFilePaths {
@@ -277,4 +387,30 @@ func (p *Project) runDockerComposeCmd(opts dockerComposeOptions) error {
 
 	logger.Debugf("running command: %s", cmd)
 	return cmd.Run()
+}
+
+func (p *Project) dockerComposeVersion() (*semver.Version, error) {
+	var b bytes.Buffer
+
+	args := []string{
+		"version",
+		"--short",
+	}
+	if err := p.runDockerComposeCmd(dockerComposeOptions{args: args, stdout: &b}); err != nil {
+		return nil, errors.Wrap(err, "running Docker Compose version command failed")
+	}
+	dcVersion := b.String()
+	ver, err := semver.NewVersion(strings.TrimSpace(dcVersion))
+	if err != nil {
+		return nil, errors.Wrapf(err, "docker compose version is not a valid semver (value: %s)", dcVersion)
+	}
+	return ver, nil
+}
+
+// ContainerName method the container name for the service.
+func (p *Project) ContainerName(serviceName string) string {
+	if p.dockerComposeV1 {
+		return fmt.Sprintf("%s_%s_1", p.name, serviceName)
+	}
+	return fmt.Sprintf("%s-%s-1", p.name, serviceName)
 }

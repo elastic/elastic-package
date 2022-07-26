@@ -43,12 +43,10 @@ func (vv *VarValue) Unpack(value interface{}) error {
 	switch u := value.(type) {
 	case []interface{}:
 		vv.list = u
-		return nil
 	default:
 		vv.scalar = u
-		return nil
 	}
-	return errors.New("unknown variable value")
+	return nil
 }
 
 // MarshalJSON knows how to serialize a VarValue into the appropriate
@@ -75,19 +73,35 @@ type Input struct {
 	Vars []Variable `config:"vars" json:"vars" yaml:"vars"`
 }
 
+// Source contains metadata about the source code of the package.
+type Source struct {
+	License string `config:"license" json:"license" yaml:"license"`
+}
+
 // KibanaConditions defines conditions for Kibana (e.g. required version).
 type KibanaConditions struct {
 	Version string `config:"version" json:"version" yaml:"version"`
 }
 
+// ElasticConditions defines conditions related to Elastic subscriptions or partnerships.
+type ElasticConditions struct {
+	Subscription string `config:"subscription" json:"subscription" yaml:"subscription"`
+}
+
 // Conditions define requirements for different parts of the Elastic stack.
 type Conditions struct {
-	Kibana KibanaConditions `config:"kibana" json:"kibana" yaml:"kibana"`
+	Kibana  KibanaConditions  `config:"kibana" json:"kibana" yaml:"kibana"`
+	Elastic ElasticConditions `config:"elastic" json:"elastic" yaml:"elastic"`
 }
 
 // PolicyTemplate is a configuration of inputs responsible for collecting log or metric data.
 type PolicyTemplate struct {
-	Inputs []Input `config:"inputs" json:"inputs" yaml:"inputs"`
+	Inputs []Input `config:"inputs,omitempty" json:"inputs,omitempty" yaml:"inputs,omitempty"`
+
+	// For purposes of "input packages"
+	Input        string `config:"input,omitempty" json:"input,omitempty" yaml:"input,omitempty"`
+	Type         string `config:"type,omitempty" json:"type,omitempty" yaml:"type,omitempty"`
+	TemplatePath string `config:"template_path,omitempty" json:"template_path,omitempty" yaml:"template_path,omitempty"`
 }
 
 // Owner defines package owners, either a single person or a team.
@@ -101,11 +115,11 @@ type PackageManifest struct {
 	Title           string           `config:"title" json:"title" yaml:"title"`
 	Type            string           `config:"type" json:"type" yaml:"type"`
 	Version         string           `config:"version" json:"version" yaml:"version"`
+	Source          Source           `config:"source" json:"source" yaml:"source"`
 	Conditions      Conditions       `config:"conditions" json:"conditions" yaml:"conditions"`
 	PolicyTemplates []PolicyTemplate `config:"policy_templates" json:"policy_templates" yaml:"policy_templates"`
 	Vars            []Variable       `config:"vars" json:"vars" yaml:"vars"`
 	Owner           Owner            `config:"owner" json:"owner" yaml:"owner"`
-	Release         string           `config:"release" json:"release" yaml:"release"`
 	Description     string           `config:"description" json:"description" yaml:"description"`
 	License         string           `config:"license" json:"license" yaml:"license"`
 	Categories      []string         `config:"categories" json:"categories" yaml:"categories"`
@@ -117,6 +131,7 @@ type DataStreamManifest struct {
 	Title         string `config:"title" json:"title" yaml:"title"`
 	Type          string `config:"type" json:"type" yaml:"type"`
 	Dataset       string `config:"dataset" json:"dataset" yaml:"dataset"`
+	Hidden        bool   `config:"hidden" json:"hidden" yaml:"hidden"`
 	Release       string `config:"release" json:"release" yaml:"release"`
 	Elasticsearch *struct {
 		IngestPipeline *struct {
@@ -243,12 +258,21 @@ func (dsm *DataStreamManifest) GetPipelineNameOrDefault() string {
 
 // IndexTemplateName returns the name of the Elasticsearch index template that would be installed
 // for this data stream.
+// The template name starts with dot "." if the datastream is hidden which is consistent with kibana implementation
+// https://github.com/elastic/kibana/blob/3955d0dc819fec03f68cd1d931f64da8472e34b2/x-pack/plugins/fleet/server/services/epm/elasticsearch/index.ts#L14
 func (dsm *DataStreamManifest) IndexTemplateName(pkgName string) string {
 	if dsm.Dataset == "" {
-		return fmt.Sprintf("%s-%s.%s", dsm.Type, pkgName, dsm.Name)
+		return fmt.Sprintf("%s%s-%s.%s", dsm.indexTemplateNamePrefix(), dsm.Type, pkgName, dsm.Name)
 	}
 
-	return fmt.Sprintf("%s-%s", dsm.Type, dsm.Dataset)
+	return fmt.Sprintf("%s%s-%s", dsm.indexTemplateNamePrefix(), dsm.Type, dsm.Dataset)
+}
+
+func (dsm *DataStreamManifest) indexTemplateNamePrefix() string {
+	if dsm.Hidden {
+		return "."
+	}
+	return ""
 }
 
 // FindInputByType returns the input for the provided type.
@@ -266,7 +290,7 @@ func isPackageManifest(path string) (bool, error) {
 	if err != nil {
 		return false, errors.Wrapf(err, "reading package manifest failed (path: %s)", path)
 	}
-	return m.Type == "integration" && m.Version != "", nil // TODO add support for other package types
+	return (m.Type == "integration" || m.Type == "input") && m.Version != "", nil
 }
 
 func isDataStreamManifest(path string) (bool, error) {

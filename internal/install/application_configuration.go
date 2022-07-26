@@ -6,13 +6,25 @@ package install
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 
+	"github.com/Masterminds/semver"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/configuration/locations"
+	"github.com/elastic/elastic-package/internal/logger"
+)
+
+const (
+	stackVersion715 = "7.15.0-SNAPSHOT"
+	stackVersion820 = "8.2.0-SNAPSHOT"
+)
+
+var (
+	elasticAgentCompleteFirstSupportedVersion = semver.MustParse(stackVersion715)
+	elasticAgentCompleteOwnNamespaceVersion   = semver.MustParse(stackVersion820)
 )
 
 // ApplicationConfiguration represents the configuration of the elastic-package.
@@ -28,12 +40,18 @@ type stack struct {
 	ImageRefOverrides map[string]ImageRefs `yaml:"image_ref_overrides"`
 }
 
+func checkImageRefOverride(envVar, fallback string) string {
+	refOverride := os.Getenv(envVar)
+	return stringOrDefault(refOverride, fallback)
+}
+
 func (s stack) ImageRefOverridesForVersion(version string) ImageRefs {
-	refs, ok := s.ImageRefOverrides[version]
-	if !ok {
-		return ImageRefs{}
+	appConfigImageRefs := s.ImageRefOverrides[version]
+	return ImageRefs{
+		ElasticAgent:  checkImageRefOverride("ELASTIC_AGENT_IMAGE_REF_OVERRIDE", stringOrDefault(appConfigImageRefs.ElasticAgent, "")),
+		Elasticsearch: checkImageRefOverride("ELASTICSEARCH_IMAGE_REF_OVERRIDE", stringOrDefault(appConfigImageRefs.Elasticsearch, "")),
+		Kibana:        checkImageRefOverride("KIBANA_IMAGE_REF_OVERRIDE", stringOrDefault(appConfigImageRefs.Kibana, "")),
 	}
-	return refs
 }
 
 // ImageRefs stores Docker image references used to create the Elastic stack containers.
@@ -52,18 +70,34 @@ func (ir ImageRefs) AsEnv() []string {
 	return vars
 }
 
-// DefaultStackImageRefs function selects the appropriate set of Docker image references for the default stack version.
-func (ac *ApplicationConfiguration) DefaultStackImageRefs() ImageRefs {
-	return ac.StackImageRefs(DefaultStackVersion)
-}
-
 // StackImageRefs function selects the appropriate set of Docker image references for the given stack version.
 func (ac *ApplicationConfiguration) StackImageRefs(version string) ImageRefs {
 	refs := ac.c.Stack.ImageRefOverridesForVersion(version)
-	refs.ElasticAgent = stringOrDefault(refs.ElasticAgent, fmt.Sprintf("%s:%s", elasticAgentImageName, version))
+	refs.ElasticAgent = stringOrDefault(refs.ElasticAgent, fmt.Sprintf("%s:%s", selectElasticAgentImageName(version), version))
 	refs.Elasticsearch = stringOrDefault(refs.Elasticsearch, fmt.Sprintf("%s:%s", elasticsearchImageName, version))
 	refs.Kibana = stringOrDefault(refs.Kibana, fmt.Sprintf("%s:%s", kibanaImageName, version))
 	return refs
+}
+
+// selectElasticAgentImageName function returns the appropriate image name for Elastic-Agent depending on the stack version.
+// This is mandatory as "elastic-agent-complete" is available since 7.15.0-SNAPSHOT.
+func selectElasticAgentImageName(version string) string {
+	if version == "" { // as version is optional and can be empty
+		return elasticAgentImageName
+	}
+
+	v, err := semver.NewVersion(version)
+	if err != nil {
+		logger.Errorf("stack version not in semver format (value: %s): %v", v, err)
+		return elasticAgentImageName
+	}
+	if !v.LessThan(elasticAgentCompleteOwnNamespaceVersion) {
+		return elasticAgentCompleteImageName
+	}
+	if !v.LessThan(elasticAgentCompleteFirstSupportedVersion) {
+		return elasticAgentCompleteLegacyImageName
+	}
+	return elasticAgentImageName
 }
 
 // Configuration function returns the elastic-package configuration.
@@ -73,7 +107,7 @@ func Configuration() (*ApplicationConfiguration, error) {
 		return nil, errors.Wrap(err, "can't read configuration directory")
 	}
 
-	cfg, err := ioutil.ReadFile(filepath.Join(configPath.RootDir(), applicationConfigurationYmlFile))
+	cfg, err := os.ReadFile(filepath.Join(configPath.RootDir(), applicationConfigurationYmlFile))
 	if err != nil {
 		return nil, errors.Wrap(err, "can't read configuration file")
 	}

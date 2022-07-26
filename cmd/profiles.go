@@ -5,6 +5,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"time"
@@ -17,6 +18,12 @@ import (
 	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/profile"
 )
+
+// jsonFormat is the format for JSON output
+const jsonFormat = "json"
+
+// tableFormat is the format for table output
+const tableFormat = "table"
 
 // profileNameEnvVar is the name of the environment variable to set the default profile
 const profileNameEnvVar = "ELASTIC_PACKAGE_PROFILE"
@@ -97,38 +104,65 @@ User profiles are not overwritten on upgrade of elastic-stack, and can be freely
 				return errors.Wrap(err, "error listing all profiles")
 			}
 
-			table := tablewriter.NewWriter(os.Stdout)
-			var profilestable = profileToList(profileList)
+			format, err := cmd.Flags().GetString(cobraext.ProfileFormatFlagName)
+			if err != nil {
+				return cobraext.FlagParsingError(err, cobraext.ProfileFromFlagName)
+			}
 
-			table.SetHeader([]string{"Name", "Date Created", "User", "Version", "Path"})
-			table.SetHeaderColor(
-				twColor(tablewriter.Colors{tablewriter.Bold}),
-				twColor(tablewriter.Colors{tablewriter.Bold}),
-				twColor(tablewriter.Colors{tablewriter.Bold}),
-				twColor(tablewriter.Colors{tablewriter.Bold}),
-				twColor(tablewriter.Colors{tablewriter.Bold}),
-			)
-			table.SetColumnColor(
-				twColor(tablewriter.Colors{tablewriter.Bold, tablewriter.FgCyanColor}),
-				tablewriter.Colors{},
-				tablewriter.Colors{},
-				tablewriter.Colors{},
-				tablewriter.Colors{},
-			)
-
-			table.SetAutoMergeCells(false)
-			table.SetRowLine(true)
-			table.AppendBulk(profilestable)
-			table.Render()
-
-			return nil
+			switch format {
+			case tableFormat:
+				return formatTable(profileList)
+			case jsonFormat:
+				return formatJSON(profileList)
+			default:
+				return fmt.Errorf("format %s not supported", format)
+			}
 		},
 	}
+	profileListCommand.Flags().String(cobraext.ProfileFormatFlagName, tableFormat, cobraext.ProfileFormatFlagDescription)
 
 	profileCommand.AddCommand(profileNewCommand, profileDeleteCommand, profileListCommand)
 
 	return cobraext.NewCommand(profileCommand, cobraext.ContextGlobal)
+}
 
+func formatJSON(profileList []profile.Metadata) error {
+	data, err := json.Marshal(profileList)
+	if err != nil {
+		return errors.Wrap(err, "error listing all profiles in JSON format")
+	}
+
+	fmt.Print(string(data))
+
+	return nil
+}
+
+func formatTable(profileList []profile.Metadata) error {
+	table := tablewriter.NewWriter(os.Stdout)
+	var profilesTable = profileToList(profileList)
+
+	table.SetHeader([]string{"Name", "Date Created", "User", "Version", "Path"})
+	table.SetHeaderColor(
+		twColor(tablewriter.Colors{tablewriter.Bold}),
+		twColor(tablewriter.Colors{tablewriter.Bold}),
+		twColor(tablewriter.Colors{tablewriter.Bold}),
+		twColor(tablewriter.Colors{tablewriter.Bold}),
+		twColor(tablewriter.Colors{tablewriter.Bold}),
+	)
+	table.SetColumnColor(
+		twColor(tablewriter.Colors{tablewriter.Bold, tablewriter.FgCyanColor}),
+		tablewriter.Colors{},
+		tablewriter.Colors{},
+		tablewriter.Colors{},
+		tablewriter.Colors{},
+	)
+
+	table.SetAutoMergeCells(false)
+	table.SetRowLine(true)
+	table.AppendBulk(profilesTable)
+	table.Render()
+
+	return nil
 }
 
 func profileToList(profiles []profile.Metadata) [][]string {

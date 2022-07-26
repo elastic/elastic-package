@@ -6,15 +6,15 @@ package testrunner
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 	"time"
 
-	"github.com/elastic/go-elasticsearch/v7"
 	"github.com/pkg/errors"
+
+	"github.com/elastic/elastic-package/internal/elasticsearch"
 )
 
 // TestType represents the various supported test types
@@ -25,10 +25,11 @@ type TestOptions struct {
 	TestFolder         TestFolder
 	PackageRootPath    string
 	GenerateTestResult bool
-	ESClient           *elasticsearch.Client
+	API                *elasticsearch.API
 
 	DeferCleanup   time.Duration
 	ServiceVariant string
+	WithCoverage   bool
 }
 
 // TestRunner is the interface all test runners must implement.
@@ -86,6 +87,9 @@ type TestResult struct {
 	// If the test was skipped, the reason it was skipped and a link for more
 	// details.
 	Skipped *SkipConfig
+
+	// Coverage details in Cobertura format (optional).
+	Coverage *CoberturaCoverage
 }
 
 // ResultComposer wraps a TestResult and provides convenience methods for
@@ -106,7 +110,7 @@ func NewResultComposer(tr TestResult) *ResultComposer {
 
 // WithError sets an error on the test result wrapped by ResultComposer.
 func (rc *ResultComposer) WithError(err error) ([]TestResult, error) {
-	rc.TimeElapsed = time.Now().Sub(rc.StartTime)
+	rc.TimeElapsed = time.Since(rc.StartTime)
 	if err == nil {
 		return []TestResult{rc.TestResult}, nil
 	}
@@ -149,9 +153,9 @@ func AssumeTestFolders(packageRootPath string, dataStreams []string, testType Te
 
 	dataStreamsPath := filepath.Join(packageRootPath, "data_stream")
 
-	if dataStreams == nil || len(dataStreams) == 0 {
-		fileInfos, err := ioutil.ReadDir(dataStreamsPath)
-		if os.IsNotExist(err) {
+	if len(dataStreams) == 0 {
+		fileInfos, err := os.ReadDir(dataStreamsPath)
+		if errors.Is(err, os.ErrNotExist) {
 			return []TestFolder{}, nil // data streams defined
 		}
 		if err != nil {
@@ -193,7 +197,7 @@ func FindTestFolders(packageRootPath string, dataStreams []string, testType Test
 	}
 
 	var paths []string
-	if dataStreams != nil && len(dataStreams) > 0 {
+	if len(dataStreams) > 0 {
 		sort.Strings(dataStreams)
 		for _, dataStream := range dataStreams {
 			p, err := findTestFolderPaths(packageRootPath, dataStream, testTypeGlob)

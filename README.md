@@ -1,5 +1,5 @@
 <!--
-WARNING: This is a generated file. Do NOT edit it manually. To regenerate this file, run `make readme`.
+WARNING: This is a generated file. Do NOT edit it manually. To regenerate this file, run `make update-readme`.
 -->
 
 # elastic-package
@@ -11,17 +11,14 @@ Currently, `elastic-package` only supports packages of type [Elastic Integration
 
 ## Getting started
 
-Download and build the latest master of `elastic-package` binary:
+Download latest release from the [Releases](https://github.com/elastic/elastic-package/releases/latest) page.
+
+On macOS, use `xattr -r -d com.apple.quarantine elastic-package` after downloading to allow the binary to run.
+
+Alternatively, you may use `go install` but you will not be able to use the `elastic-package version` command or check updates.
 
 ```bash
-git clone https://github.com/elastic/elastic-package.git
-make build
-```
-
-Alternatively, you may use `go get` but you will not be able to use the `elastic-package version` command.
-
-```bash
-go get github.com/elastic/elastic-package
+go install github.com/elastic/elastic-package@latest
 ```
 
 _Please make sure that you've correctly [setup environment variables](https://golang.org/doc/gopath_code.html#GOPATH) -
@@ -37,6 +34,31 @@ Run the `help` command and see available commands:
 
 ```bash
 elastic-package help
+```
+
+## Development
+
+Download and build the latest main of `elastic-package` binary:
+
+```bash
+git clone https://github.com/elastic/elastic-package.git
+cd elastic-package
+make build
+```
+
+When developing on Windows, please use the `core.autocrlf=input` or `core.autocrlf=false` option to avoid issues with CRLF line endings:
+```bash
+git clone --config core.autocrlf=input https://github.com/elastic/elastic-package.git
+cd elastic-package
+make build
+```
+
+This option can be also configured on existing clones with the following commands. Be aware that these commands
+will remove uncommited changes.
+```bash
+git config core.autocrlf input
+git rm --cached -r .
+git reset --hard
 ```
 
 ## Commands
@@ -56,6 +78,16 @@ _Context: global_
 Use this command to get a listing of all commands available under `elastic-package` and a brief
 description of what each command does.
 
+### `elastic-package completion`
+
+_Context: global_
+
+Use this command to output shell completion information.
+
+The command output shell completions information (for `bash`, `zsh`, `fish` and `powershell`). The output can be sourced in the shell to enable command completion.
+
+Run `elastic-package completion` and follow the instruction for your shell.
+
 ### `elastic-package build`
 
 _Context: package_
@@ -68,7 +100,17 @@ Built packages are served up by the Elastic Package Registry running locally (se
 
 Built packages can also be published to the global package registry service.
 
-For details on how to enable dependency management, see the [HOWTO guide](https://github.com/elastic/elastic-package/blob/master/docs/howto/dependency_management.md).
+For details on how to enable dependency management, see the [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/dependency_management.md).
+
+### `elastic-package changelog`
+
+_Context: package_
+
+Use this command to work with the changelog of the package.
+
+You can use this command to modify the changelog following the expected format and good practices.
+This can be useful when introducing changelog entries for changes done by automated processes.
+
 
 ### `elastic-package check`
 
@@ -94,7 +136,13 @@ Use this command to create a new package or add more data streams.
 
 The command can help bootstrap the first draft of a package using embedded package template. It can be used to extend the package with more data streams.
 
-For details on how to create a new package, review the [HOWTO guide](https://github.com/elastic/elastic-package/blob/master/docs/howto/create_new_package.md).
+For details on how to create a new package, review the [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/create_new_package.md).
+
+### `elastic-package dump`
+
+_Context: global_
+
+Use this command as an exploratory tool to dump resources from Elastic Stack (objects installed as part of package and agent policies).
 
 ### `elastic-package export`
 
@@ -168,7 +216,9 @@ _Context: global_
 
 Use this command to spin up a Docker-based Elastic Stack consisting of Elasticsearch, Kibana, and the Package Registry. By default the latest released version of the stack is spun up but it is possible to specify a different version, including SNAPSHOT versions.
 
-For details on how to connect the service with the Elastic stack, see the [service command](https://github.com/elastic/elastic-package/blob/master/README.md#elastic-package-service).
+Be aware that a common issue while trying to boot up the stack is that your Docker environments settings are too low in terms of memory threshold.
+
+For details on how to connect the service with the Elastic stack, see the [service command](https://github.com/elastic/elastic-package/blob/main/README.md#elastic-package-service).
 
 ### `elastic-package status [package]`
 
@@ -189,22 +239,22 @@ Use this command to run tests on a package. Currently, the following types of te
 #### Asset Loading Tests
 These tests ensure that all the Elasticsearch and Kibana assets defined by your package get loaded up as expected.
 
-For details on how to run asset loading tests for a package, see the [HOWTO guide](https://github.com/elastic/elastic-package/blob/master/docs/howto/asset_testing.md).
+For details on how to run asset loading tests for a package, see the [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/asset_testing.md).
 
 #### Pipeline Tests
 These tests allow you to exercise any Ingest Node Pipelines defined by your packages.
 
-For details on how to configure pipeline test for a package, review the [HOWTO guide](https://github.com/elastic/elastic-package/blob/master/docs/howto/pipeline_testing.md).
+For details on how to configure pipeline test for a package, review the [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/pipeline_testing.md).
 
 #### Static Tests
 These tests allow you to verify if all static resources of the package are valid, e.g. if all fields of the sample_event.json are documented.
 
-For details on how to run static tests for a package, see the [HOWTO guide](https://github.com/elastic/elastic-package/blob/master/docs/howto/static_testing.md).
+For details on how to run static tests for a package, see the [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/static_testing.md).
 
 #### System Tests
 These tests allow you to test a package's ability to ingest data end-to-end.
 
-For details on how to configure amd run system tests, review the [HOWTO guide](https://github.com/elastic/elastic-package/blob/master/docs/howto/system_testing.md).
+For details on how to configure amd run system tests, review the [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/system_testing.md).
 
 ### `elastic-package uninstall`
 
@@ -222,7 +272,7 @@ Use this command to print the version of elastic-package that you have installed
 
 
 
-#### GitHub authorization
+### GitHub authorization
 
 The `promote` and `publish` commands require access to the GitHub API to open pull requests or check authorized account data.
 The tool uses the GitHub token to authorize user's call to API. The token can be stored in the `~/.elastic/github.token`
@@ -235,6 +285,9 @@ Make sure you have enabled the following scopes:
 * `public_repo` — to open pull requests on GitHub repositories.
 * `read:user` and `user:email` — to read your user profile information from GitHub in order to populate pull requests appropriately.
 
+After creating or modifying your personal access token, authorize the token for
+use of the Elastic organization: https://docs.github.com/en/github/authenticating-to-github/authenticating-with-saml-single-sign-on/authorizing-a-personal-access-token-for-use-with-saml-single-sign-on
+
 ## Development
 
 Even though the project is "go-gettable", there is the `Makefile` present, which can be used to build, format or vendor
@@ -244,6 +297,38 @@ source code:
 
 `make format` - format the Go code
 
+`make install` - build the tool source and move binary to `$GOBIN`
+
 `make vendor` - vendor code of dependencies
 
 `make check` - one-liner, used by CI to verify if source code is ready to be pushed to the repository
+
+## Release process
+
+This project uses [GoReleaser](https://goreleaser.com/) to release a new version of the application (semver). Release publishing
+is automatically managed by the Jenkins CI ([Jenkinsfile](https://github.com/elastic/elastic-package/blob/main/.ci/Jenkinsfile))
+and it's triggered by Git tags. Release artifacts are available in the [Releases](https://github.com/elastic/elastic-package/releases) section.
+
+### Steps to create a new release
+
+1. Fetch latest main from upstream (remember to rebase the branch):
+
+```bash
+git fetch upstream
+git rebase upstream/main
+```
+
+2. Create Git tag with release candidate:
+
+```bash
+git tag v0.15.0 # let's release v0.15.0!
+```
+
+3. Push new tag to the upstream.
+
+```bash
+git push upstream v0.15.0
+```
+
+The CI will run a new job for the just pushed tag and publish released artifacts. Please expect an automated follow-up PR
+in the [Integrations](https://github.com/elastic/integrations) repository to bump up the version ([sample PR](https://github.com/elastic/integrations/pull/1516)).

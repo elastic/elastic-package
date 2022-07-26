@@ -13,6 +13,9 @@ import (
 )
 
 const (
+	// elasticPackageDataHome is the name of the environment variable used to override data folder for elastic-package
+	elasticPackageDataHome = "ELASTIC_PACKAGE_DATA_HOME"
+
 	elasticPackageDir = ".elastic-package"
 	stackDir          = "stack"
 	packagesDir       = "development"
@@ -23,14 +26,16 @@ const (
 
 	fieldsCachedDir = "cache/fields"
 
-	kubernetesDeployerElasticAgentYmlFile = "elastic-agent.yml"
-	terraformDeployerYmlFile              = "terraform-deployer.yml"
+	terraformDeployerYmlFile = "terraform-deployer.yml"
+
+	dockerCustomAgentDeployerYmlFile = "docker-custom-agent-base.yml"
 )
 
 var (
-	serviceLogsDir        = filepath.Join(temporaryDir, "service_logs")
-	kubernetesDeployerDir = filepath.Join(deployerDir, "kubernetes")
-	terraformDeployerDir  = filepath.Join(deployerDir, "terraform")
+	serviceLogsDir               = filepath.Join(temporaryDir, "service_logs")
+	kubernetesDeployerDir        = filepath.Join(deployerDir, "kubernetes")
+	terraformDeployerDir         = filepath.Join(deployerDir, "terraform")
+	dockerCustomAgentDeployerDir = filepath.Join(deployerDir, "docker_custom_agent")
 )
 
 //LocationManager maintains an instance of a config path location
@@ -84,11 +89,6 @@ func (loc LocationManager) KubernetesDeployerDir() string {
 	return filepath.Join(loc.stackPath, kubernetesDeployerDir)
 }
 
-// KubernetesDeployerAgentYml returns the Kubernetes Deployer Elastic Agent yml
-func (loc LocationManager) KubernetesDeployerAgentYml() string {
-	return filepath.Join(loc.stackPath, kubernetesDeployerDir, kubernetesDeployerElasticAgentYmlFile)
-}
-
 // TerraformDeployerDir returns the Terraform Directory
 func (loc LocationManager) TerraformDeployerDir() string {
 	return filepath.Join(loc.stackPath, terraformDeployerDir)
@@ -97,6 +97,16 @@ func (loc LocationManager) TerraformDeployerDir() string {
 // TerraformDeployerYml returns the Terraform deployer yml file
 func (loc LocationManager) TerraformDeployerYml() string {
 	return filepath.Join(loc.stackPath, terraformDeployerDir, terraformDeployerYmlFile)
+}
+
+// DockerCustomAgentDeployerDir returns the DockerCustomAgent Directory
+func (loc LocationManager) DockerCustomAgentDeployerDir() string {
+	return filepath.Join(loc.stackPath, dockerCustomAgentDeployerDir)
+}
+
+// DockerCustomAgentDeployerYml returns the DockerCustomAgent deployer yml file
+func (loc LocationManager) DockerCustomAgentDeployerYml() string {
+	return filepath.Join(loc.stackPath, dockerCustomAgentDeployerDir, dockerCustomAgentDeployerYmlFile)
 }
 
 // ServiceLogDir returns the log directory
@@ -110,7 +120,14 @@ func (loc LocationManager) FieldsCacheDir() string {
 }
 
 // configurationDir returns the configuration directory location
+// If a environment variable named as in elasticPackageDataHome is present,
+// the value is used as is, overriding the value of this function.
 func configurationDir() (string, error) {
+	customHome := os.Getenv(elasticPackageDataHome)
+	if customHome != "" {
+		return customHome, nil
+	}
+
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		return "", errors.Wrap(err, "reading home dir failed")

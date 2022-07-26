@@ -6,10 +6,8 @@ package install
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -29,6 +27,9 @@ func EnsureInstalled() error {
 	}
 
 	installed, err := checkIfAlreadyInstalled(elasticPackagePath)
+	if err != nil {
+		return errors.Wrap(err, "failed to check if there is an elastic-package installation")
+	}
 	if installed {
 		return nil
 	}
@@ -61,12 +62,12 @@ func EnsureInstalled() error {
 		return errors.Wrap(err, "writing stack resources failed")
 	}
 
-	err = writeKubernetesDeployerResources(elasticPackagePath)
+	err = writeTerraformDeployerResources(elasticPackagePath)
 	if err != nil {
-		return errors.Wrap(err, "writing Kubernetes deployer resources failed")
+		return errors.Wrap(err, "writing Terraform deployer resources failed")
 	}
 
-	err = writeTerraformDeployerResources(elasticPackagePath)
+	err = writeDockerCustomAgentResources(elasticPackagePath)
 	if err != nil {
 		return errors.Wrap(err, "writing Terraform deployer resources failed")
 	}
@@ -81,7 +82,7 @@ func EnsureInstalled() error {
 
 func checkIfAlreadyInstalled(elasticPackagePath *locations.LocationManager) (bool, error) {
 	_, err := os.Stat(elasticPackagePath.StackDir())
-	if os.IsNotExist(err) {
+	if errors.Is(err, os.ErrNotExist) {
 		return false, nil
 	}
 	if err != nil {
@@ -94,7 +95,7 @@ func checkIfAlreadyInstalled(elasticPackagePath *locations.LocationManager) (boo
 func migrateIfNeeded(elasticPackagePath *locations.LocationManager) error {
 	// use the snapshot.yml file as a canary to see if we have a pre-profile install
 	_, err := os.Stat(filepath.Join(elasticPackagePath.StackDir(), string(profile.SnapshotFile)))
-	if os.IsNotExist(err) {
+	if errors.Is(err, os.ErrNotExist) {
 		return nil
 	}
 	if err != nil {
@@ -108,7 +109,7 @@ func migrateIfNeeded(elasticPackagePath *locations.LocationManager) error {
 	oldFiles := []string{
 		filepath.Join(elasticPackagePath.StackDir(), string(profile.SnapshotFile)),
 		filepath.Join(elasticPackagePath.StackDir(), string(profile.PackageRegistryDockerfileFile)),
-		filepath.Join(elasticPackagePath.StackDir(), string(profile.KibanaConfigFile)),
+		filepath.Join(elasticPackagePath.StackDir(), string(profile.KibanaConfigDefaultFile)),
 		filepath.Join(elasticPackagePath.StackDir(), string(profile.PackageRegistryConfigFile)),
 	}
 
@@ -151,7 +152,6 @@ func createElasticPackageDirectory(elasticPackagePath *locations.LocationManager
 }
 
 func writeStackResources(elasticPackagePath *locations.LocationManager) error {
-
 	err := os.MkdirAll(elasticPackagePath.PackagesDir(), 0755)
 	if err != nil {
 		return errors.Wrapf(err, "creating directory failed (path: %s)", elasticPackagePath.PackagesDir())
@@ -162,7 +162,42 @@ func writeStackResources(elasticPackagePath *locations.LocationManager) error {
 		return errors.Wrapf(err, "creating directory failed (path: %s)", elasticPackagePath.PackagesDir())
 	}
 
-	err = writeStaticResource(err, filepath.Join(elasticPackagePath.StackDir(), "healthcheck.sh"), kibanaHealthcheckSh)
+	kibanaHealthcheckPath := filepath.Join(elasticPackagePath.StackDir(), "healthcheck.sh")
+	err = writeStaticResource(err, kibanaHealthcheckPath, kibanaHealthcheckSh)
+	if err != nil {
+		return errors.Wrapf(err, "copying healthcheck script failed (%s)", kibanaHealthcheckPath)
+	}
+
+	// Install GeoIP database
+	ingestGeoIPDir := filepath.Join(elasticPackagePath.StackDir(), "ingest-geoip")
+	err = os.MkdirAll(ingestGeoIPDir, 0755)
+	if err != nil {
+		return errors.Wrapf(err, "creating directory failed (path: %s)", ingestGeoIPDir)
+	}
+
+	geoIpAsnMmdbPath := filepath.Join(ingestGeoIPDir, "GeoLite2-ASN.mmdb")
+	err = writeStaticResource(err, geoIpAsnMmdbPath, geoIpAsnMmdb)
+	if err != nil {
+		return errors.Wrapf(err, "copying GeoIP ASN database failed (%s)", geoIpAsnMmdbPath)
+	}
+
+	geoIpCityMmdbPath := filepath.Join(ingestGeoIPDir, "GeoLite2-City.mmdb")
+	err = writeStaticResource(err, geoIpCityMmdbPath, geoIpCityMmdb)
+	if err != nil {
+		return errors.Wrapf(err, "copying GeoIP city database failed (%s)", geoIpCityMmdbPath)
+	}
+
+	geoIpCountryMmdbPath := filepath.Join(ingestGeoIPDir, "GeoLite2-Country.mmdb")
+	err = writeStaticResource(err, geoIpCountryMmdbPath, geoIpCountryMmdb)
+	if err != nil {
+		return errors.Wrapf(err, "copying GeoIP country database failed (%s)", geoIpCountryMmdbPath)
+	}
+
+	serviceTokensPath := filepath.Join(elasticPackagePath.StackDir(), "service_tokens")
+	err = writeStaticResource(err, serviceTokensPath, serviceTokens)
+	if err != nil {
+		return errors.Wrapf(err, "copying service_tokens failed (%s)", serviceTokensPath)
+	}
 
 	options := profile.Options{
 		PackagePath:       elasticPackagePath.ProfileDir(),
@@ -170,27 +205,6 @@ func writeStackResources(elasticPackagePath *locations.LocationManager) error {
 		OverwriteExisting: false,
 	}
 	return profile.CreateProfile(options)
-
-}
-
-func writeKubernetesDeployerResources(elasticPackagePath *locations.LocationManager) error {
-	err := os.MkdirAll(elasticPackagePath.KubernetesDeployerDir(), 0755)
-	if err != nil {
-		return errors.Wrapf(err, "creating directory failed (path: %s)", elasticPackagePath.KubernetesDeployerDir())
-	}
-
-	appConfig, err := Configuration()
-	if err != nil {
-		return errors.Wrap(err, "can't read application configuration")
-	}
-
-	err = writeStaticResource(err, elasticPackagePath.KubernetesDeployerAgentYml(),
-		strings.ReplaceAll(kubernetesDeployerElasticAgentYml, "{{ ELASTIC_AGENT_IMAGE_REF }}",
-			appConfig.DefaultStackImageRefs().ElasticAgent))
-	if err != nil {
-		return errors.Wrap(err, "writing static resource failed")
-	}
-	return nil
 }
 
 func writeTerraformDeployerResources(elasticPackagePath *locations.LocationManager) error {
@@ -204,6 +218,17 @@ func writeTerraformDeployerResources(elasticPackagePath *locations.LocationManag
 	err = writeStaticResource(err, filepath.Join(terraformDeployer, "Dockerfile"), terraformDeployerDockerfile)
 	err = writeStaticResource(err, filepath.Join(terraformDeployer, "run.sh"), terraformDeployerRun)
 	if err != nil {
+		return errors.Wrap(err, "writing static resource failed")
+	}
+	return nil
+}
+
+func writeDockerCustomAgentResources(elasticPackagePath *locations.LocationManager) error {
+	dir := elasticPackagePath.DockerCustomAgentDeployerDir()
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return errors.Wrapf(err, "creating directory failed (path: %s)", dir)
+	}
+	if err := writeStaticResource(nil, elasticPackagePath.DockerCustomAgentDeployerYml(), dockerCustomAgentBaseYml); err != nil {
 		return errors.Wrap(err, "writing static resource failed")
 	}
 	return nil
@@ -223,7 +248,7 @@ func writeStaticResource(err error, path, content string) error {
 		return err
 	}
 
-	err = ioutil.WriteFile(path, []byte(content), 0644)
+	err = os.WriteFile(path, []byte(content), 0644)
 	if err != nil {
 		return errors.Wrapf(err, "writing file failed (path: %s)", path)
 	}

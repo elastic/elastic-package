@@ -5,30 +5,106 @@
 package elasticsearch
 
 import (
+	"crypto/tls"
+	"fmt"
+	"net/http"
 	"os"
 
 	"github.com/pkg/errors"
 
 	"github.com/elastic/go-elasticsearch/v7"
+	"github.com/elastic/go-elasticsearch/v7/esapi"
 
+	"github.com/elastic/elastic-package/internal/certs"
 	"github.com/elastic/elastic-package/internal/stack"
 )
 
+// API contains the elasticsearch APIs
+type API = esapi.API
+
+// IngestSimulateRequest configures the Ingest Simulate API request.
+type IngestSimulateRequest = esapi.IngestSimulateRequest
+
+// IngestGetPipelineRequest configures the Ingest Get Pipeline API request.
+type IngestGetPipelineRequest = esapi.IngestGetPipelineRequest
+
+// clientOptions are used to configure a client.
+type clientOptions struct {
+	address  string
+	username string
+	password string
+
+	// certificateAuthority is the certificate to validate the server certificate.
+	certificateAuthority string
+
+	// skipTLSVerify disables TLS validation.
+	skipTLSVerify bool
+}
+
+// defaultOptionsFromEnv returns clientOptions initialized with values from environmet variables.
+func defaultOptionsFromEnv() clientOptions {
+	return clientOptions{
+		address:              os.Getenv(stack.ElasticsearchHostEnv),
+		username:             os.Getenv(stack.ElasticsearchUsernameEnv),
+		password:             os.Getenv(stack.ElasticsearchPasswordEnv),
+		certificateAuthority: os.Getenv(stack.CACertificateEnv),
+	}
+}
+
+type ClientOption func(*clientOptions)
+
+// OptionWithAddress sets the address to be used by the client.
+func OptionWithAddress(address string) ClientOption {
+	return func(opts *clientOptions) {
+		opts.address = address
+	}
+}
+
+// OptionWithCertificateAuthority sets the certificate authority to be used by the client.
+func OptionWithCertificateAuthority(certificateAuthority string) ClientOption {
+	return func(opts *clientOptions) {
+		opts.certificateAuthority = certificateAuthority
+	}
+}
+
+// OptionWithSkipTLSVerify disables TLS validation.
+func OptionWithSkipTLSVerify() ClientOption {
+	return func(opts *clientOptions) {
+		opts.skipTLSVerify = true
+	}
+}
+
 // Client method creates new instance of the Elasticsearch client.
-func Client() (*elasticsearch.Client, error) {
-	host := os.Getenv(stack.ElasticsearchHostEnv)
-	if host == "" {
+func Client(customOptions ...ClientOption) (*elasticsearch.Client, error) {
+	options := defaultOptionsFromEnv()
+	for _, option := range customOptions {
+		option(&options)
+	}
+
+	if options.address == "" {
 		return nil, stack.UndefinedEnvError(stack.ElasticsearchHostEnv)
 	}
 
-	username := os.Getenv(stack.ElasticsearchUsernameEnv)
-	password := os.Getenv(stack.ElasticsearchPasswordEnv)
+	config := elasticsearch.Config{
+		Addresses: []string{options.address},
+		Username:  options.username,
+		Password:  options.password,
+	}
+	if options.skipTLSVerify {
+		config.Transport = &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
+	} else if options.certificateAuthority != "" {
+		rootCAs, err := certs.SystemPoolWithCACertificate(options.certificateAuthority)
+		if err != nil {
+			return nil, fmt.Errorf("reading CA certificate: %w", err)
+		}
+		config.Transport = &http.Transport{
+			TLSClientConfig: &tls.Config{RootCAs: rootCAs},
+		}
+	}
 
-	client, err := elasticsearch.NewClient(elasticsearch.Config{
-		Addresses: []string{host},
-		Username:  username,
-		Password:  password,
-	})
+	client, err := elasticsearch.NewClient(config)
 	if err != nil {
 		return nil, errors.Wrap(err, "can't create instance")
 	}

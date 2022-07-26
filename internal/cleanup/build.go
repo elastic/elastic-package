@@ -43,10 +43,10 @@ func Build() (string, error) {
 	logger.Debugf("Build directory for integration: %s\n", destinationDir)
 
 	_, err = os.Stat(destinationDir)
-	if err != nil && !os.IsNotExist(err) {
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return "", errors.Wrapf(err, "stat file failed: %s", destinationDir)
 	}
-	if os.IsNotExist(err) {
+	if errors.Is(err, os.ErrNotExist) {
 		logger.Debugf("Package hasn't been built (missing path: %s)", destinationDir)
 		return "", nil
 	}
@@ -55,6 +55,13 @@ func Build() (string, error) {
 	err = os.RemoveAll(destinationDir)
 	if err != nil {
 		return "", errors.Wrapf(err, "can't remove directory (path: %s)", destinationDir)
+	}
+
+	zippedBuildPackagePath := builder.ZippedBuiltPackagePath(buildDir, *m)
+	logger.Debugf("Remove zipped built package (path: %s)", zippedBuildPackagePath)
+	err = os.RemoveAll(zippedBuildPackagePath)
+	if err != nil {
+		return "", errors.Wrapf(err, "can't remove zipped built package (path: %s)", zippedBuildPackagePath)
 	}
 	return destinationDir, nil
 }

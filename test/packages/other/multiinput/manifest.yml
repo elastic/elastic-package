@@ -1,0 +1,30 @@
+format_version: 1.0.0
+name: multiinput
+title: Multi-input test
+# version is set to something very large to so this test package can
+# be installed in the package registry regardless of the version of
+# the actual apache package in the registry at any given time.
+version: 999.999.999
+description: Test for multiple input tests
+categories: ["network"]
+release: experimental
+license: basic
+type: integration
+conditions:
+  kibana.version: '^8.0.0'
+policy_templates:
+  - name: test
+    title: Test
+    description: Description
+    inputs:
+      - type: udp
+        title: Collect udp logs.
+        description: Collecting logs via UDP.
+      - type: tcp
+        title: Collect tcp logs.
+        description: Collecting logs via TCP.
+      - type: file
+        title: Collect logs via file.
+        description: Collecting logs via file.
+owner:
+  github: elastic/security-external-integrations

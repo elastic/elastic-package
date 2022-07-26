@@ -1,0 +1,16 @@
+queue_rules:
+  - name: default
+    conditions:
+      - check-success=elastic-package/pr-merge
+
+pull_request_rules:
+  - name: automatic merge of bot 🤖
+    conditions:
+      - check-success=elastic-package/pr-merge
+      - check-success=CLA
+      - base=main
+      - author~=^dependabot(|-preview)\[bot\]$
+    actions:
+      queue:
+        method: squash
+        name: default

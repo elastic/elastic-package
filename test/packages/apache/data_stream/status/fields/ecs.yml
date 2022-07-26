@@ -1,6 +1,0 @@
-- name: ecs.version
-  type: keyword
-- name: service.type
-  type: keyword
-- name: service.address
-  type: keyword

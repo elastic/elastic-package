@@ -14,14 +14,45 @@ import (
 	"github.com/elastic/elastic-package/internal/profile"
 )
 
+type envBuilder struct {
+	vars []string
+}
+
+func newEnvBuilder() *envBuilder {
+	return new(envBuilder)
+}
+
+func (eb *envBuilder) withEnvs(envs []string) *envBuilder {
+	eb.vars = append(eb.vars, envs...)
+	return eb
+}
+
+func (eb *envBuilder) withEnv(env string) *envBuilder {
+	eb.vars = append(eb.vars, env)
+	return eb
+}
+
+func (eb *envBuilder) build() []string {
+	return eb.vars
+}
+
 func dockerComposeBuild(options Options) error {
 	c, err := compose.NewProject(DockerComposeProjectName, options.Profile.FetchPath(profile.SnapshotFile))
 	if err != nil {
 		return errors.Wrap(err, "could not create docker compose project")
 	}
 
+	appConfig, err := install.Configuration()
+	if err != nil {
+		return errors.Wrap(err, "can't read application configuration")
+	}
+
 	opts := compose.CommandOptions{
-		Env:      options.Profile.ComposeEnvVars(),
+		Env: newEnvBuilder().
+			withEnvs(appConfig.StackImageRefs(options.StackVersion).AsEnv()).
+			withEnv(stackVariantAsEnv(options.StackVersion)).
+			withEnvs(options.Profile.ComposeEnvVars()).
+			build(),
 		Services: withIsReadyServices(withDependentServices(options.Services)),
 	}
 
@@ -43,7 +74,11 @@ func dockerComposePull(options Options) error {
 	}
 
 	opts := compose.CommandOptions{
-		Env:      append(appConfig.StackImageRefs(options.StackVersion).AsEnv(), options.Profile.ComposeEnvVars()...),
+		Env: newEnvBuilder().
+			withEnvs(appConfig.StackImageRefs(options.StackVersion).AsEnv()).
+			withEnv(stackVariantAsEnv(options.StackVersion)).
+			withEnvs(options.Profile.ComposeEnvVars()).
+			build(),
 		Services: withIsReadyServices(withDependentServices(options.Services)),
 	}
 
@@ -70,7 +105,11 @@ func dockerComposeUp(options Options) error {
 	}
 
 	opts := compose.CommandOptions{
-		Env:       append(appConfig.StackImageRefs(options.StackVersion).AsEnv(), options.Profile.ComposeEnvVars()...),
+		Env: newEnvBuilder().
+			withEnvs(appConfig.StackImageRefs(options.StackVersion).AsEnv()).
+			withEnv(stackVariantAsEnv(options.StackVersion)).
+			withEnvs(options.Profile.ComposeEnvVars()).
+			build(),
 		ExtraArgs: args,
 		Services:  withIsReadyServices(withDependentServices(options.Services)),
 	}
@@ -87,31 +126,24 @@ func dockerComposeDown(options Options) error {
 		return errors.Wrap(err, "could not create docker compose project")
 	}
 
+	appConfig, err := install.Configuration()
+	if err != nil {
+		return errors.Wrap(err, "can't read application configuration")
+	}
+
 	downOptions := compose.CommandOptions{
+		Env: newEnvBuilder().
+			withEnvs(appConfig.StackImageRefs(options.StackVersion).AsEnv()).
+			withEnv(stackVariantAsEnv(options.StackVersion)).
+			withEnvs(options.Profile.ComposeEnvVars()).
+			build(),
 		// Remove associated volumes.
-		ExtraArgs: []string{"--volumes"},
+		ExtraArgs: []string{"--volumes", "--remove-orphans"},
 	}
 	if err := c.Down(downOptions); err != nil {
 		return errors.Wrap(err, "running command failed")
 	}
 	return nil
-}
-
-func dockerComposeLogs(serviceName string, snapshotFile string) ([]byte, error) {
-	c, err := compose.NewProject(DockerComposeProjectName, snapshotFile)
-	if err != nil {
-		return nil, errors.Wrap(err, "could not create docker compose project")
-	}
-
-	opts := compose.CommandOptions{
-		Services: []string{serviceName},
-	}
-
-	out, err := c.Logs(opts)
-	if err != nil {
-		return nil, errors.Wrap(err, "running command failed")
-	}
-	return out, nil
 }
 
 func withDependentServices(services []string) []string {

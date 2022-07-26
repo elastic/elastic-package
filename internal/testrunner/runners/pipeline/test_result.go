@@ -5,13 +5,16 @@
 package pipeline
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
+	"os"
 	"path/filepath"
 
-	"github.com/kylelemons/godebug/diff"
+	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
+	"github.com/pmezard/go-difflib/difflib"
 
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/testrunner"
@@ -35,7 +38,7 @@ func writeTestResult(testCasePath string, result *testResult) error {
 	if err != nil {
 		return errors.Wrap(err, "marshalling test result failed")
 	}
-	err = ioutil.WriteFile(filepath.Join(testCaseDir, expectedTestResultFile(testCaseFile)), data, 0644)
+	err = os.WriteFile(filepath.Join(testCaseDir, expectedTestResultFile(testCaseFile)), data, 0644)
 	if err != nil {
 		return errors.Wrap(err, "writing test result failed")
 	}
@@ -63,14 +66,75 @@ func compareResults(testCasePath string, config *testConfig, result *testResult)
 		return errors.Wrap(err, "marshalling expected test results failed")
 	}
 
-	report := diff.Diff(string(expected), string(actual))
+	report, err := diffJson(expected, actual)
+	if err != nil {
+		return errors.Wrap(err, "comparing expected test result")
+	}
 	if report != "" {
 		return testrunner.ErrTestCaseFailed{
 			Reason:  "Expected results are different from actual ones",
 			Details: report,
 		}
 	}
+
 	return nil
+}
+
+func compareJsonNumbers(a, b json.Number) bool {
+	if a == b {
+		// Equal literals, so they are the same.
+		return true
+	}
+	if inta, err := a.Int64(); err == nil {
+		if intb, err := b.Int64(); err == nil {
+			return inta == intb
+		}
+		if floatb, err := b.Float64(); err == nil {
+			return float64(inta) == floatb
+		}
+	} else if floata, err := a.Float64(); err == nil {
+		if intb, err := b.Int64(); err == nil {
+			return floata == float64(intb)
+		}
+		if floatb, err := b.Float64(); err == nil {
+			return floata == floatb
+		}
+	}
+	return false
+}
+
+func diffJson(want, got []byte) (string, error) {
+	var gotVal, wantVal interface{}
+	err := jsonUnmarshalUsingNumber(want, &wantVal)
+	if err != nil {
+		return "", fmt.Errorf("invalid want value: %w", err)
+	}
+	err = jsonUnmarshalUsingNumber(got, &gotVal)
+	if err != nil {
+		return "", fmt.Errorf("invalid got value: %w", err)
+	}
+	if cmp.Equal(gotVal, wantVal, cmp.Comparer(compareJsonNumbers)) {
+		return "", nil
+	}
+
+	got, err = marshalNormalizedJSON(gotVal)
+	if err != nil {
+		return "", err
+	}
+	want, err = marshalNormalizedJSON(wantVal)
+	if err != nil {
+		return "", err
+	}
+
+	var buf bytes.Buffer
+	err = difflib.WriteUnifiedDiff(&buf, difflib.UnifiedDiff{
+		A:        difflib.SplitLines(string(want)),
+		B:        difflib.SplitLines(string(got)),
+		FromFile: "want",
+		ToFile:   "got",
+		Context:  3,
+	})
+	return buf.String(), err
 }
 
 func readExpectedTestResult(testCasePath string, config *testConfig) (*testResult, error) {
@@ -78,7 +142,7 @@ func readExpectedTestResult(testCasePath string, config *testConfig) (*testResul
 	testCaseFile := filepath.Base(testCasePath)
 
 	path := filepath.Join(testCaseDir, expectedTestResultFile(testCaseFile))
-	data, err := ioutil.ReadFile(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, errors.Wrap(err, "reading test result file failed")
 	}
@@ -109,7 +173,7 @@ func adjustTestResult(result *testResult, config *testConfig) (*testResult, erro
 		}
 
 		var m common.MapStr
-		err := json.Unmarshal(event, &m)
+		err := jsonUnmarshalUsingNumber(event, &m)
 		if err != nil {
 			return nil, errors.Wrapf(err, "can't unmarshal event: %s", string(event))
 		}
@@ -133,26 +197,62 @@ func adjustTestResult(result *testResult, config *testConfig) (*testResult, erro
 
 func unmarshalTestResult(body []byte) (*testResult, error) {
 	var trd testResultDefinition
-	err := json.Unmarshal(body, &trd)
+	err := jsonUnmarshalUsingNumber(body, &trd)
 	if err != nil {
 		return nil, errors.Wrap(err, "unmarshalling test result failed")
 	}
 
 	var tr testResult
-	for _, doc := range trd.Expected {
-		tr.events = append(tr.events, doc)
-	}
+	tr.events = append(tr.events, trd.Expected...)
 	return &tr, nil
+}
+
+// jsonUnmarshalUsingNumber is a drop-in replacement for json.Unmarshal that
+// does not default to unmarshaling numeric values to float64 in order to
+// prevent low bit truncation of values greater than 1<<53.
+// See https://golang.org/cl/6202068 for details.
+func jsonUnmarshalUsingNumber(data []byte, v interface{}) error {
+	dec := json.NewDecoder(bytes.NewReader(data))
+	dec.UseNumber()
+	err := dec.Decode(v)
+	if err != nil {
+		if err == io.EOF {
+			return errors.New("unexpected end of JSON input")
+		}
+		return err
+	}
+	// Make sure there is no more data after the message
+	// to approximate json.Unmarshal's behaviour.
+	if dec.More() {
+		return fmt.Errorf("more data after top-level value")
+	}
+	return nil
 }
 
 func marshalTestResultDefinition(result *testResult) ([]byte, error) {
 	var trd testResultDefinition
 	trd.Expected = result.events
-	body, err := json.MarshalIndent(&trd, "", "    ")
+	body, err := marshalNormalizedJSON(trd)
 	if err != nil {
 		return nil, errors.Wrap(err, "marshalling test result definition failed")
 	}
 	return body, nil
+}
+
+// marshalNormalizedJSON marshals test results ensuring that field
+// order remains consistent independent of field order returned by
+// ES to minimize diff noise during changes.
+func marshalNormalizedJSON(v interface{}) ([]byte, error) {
+	msg, err := json.Marshal(v)
+	if err != nil {
+		return msg, err
+	}
+	var obj interface{}
+	err = jsonUnmarshalUsingNumber(msg, &obj)
+	if err != nil {
+		return msg, err
+	}
+	return json.MarshalIndent(obj, "", "    ")
 }
 
 func expectedTestResultFile(testFile string) string {

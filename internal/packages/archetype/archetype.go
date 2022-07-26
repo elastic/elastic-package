@@ -7,7 +7,6 @@ package archetype
 import (
 	"bytes"
 	"encoding/base64"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"text/template"
@@ -29,7 +28,7 @@ func renderResourceFile(templateBody string, data interface{}, targetPath string
 	}
 
 	packageManifestPath := targetPath
-	err = ioutil.WriteFile(packageManifestPath, rendered.Bytes(), 0644)
+	err = os.WriteFile(packageManifestPath, rendered.Bytes(), 0644)
 	if err != nil {
 		return errors.Wrapf(err, "can't write resource file (path: %s)", packageManifestPath)
 	}
@@ -51,7 +50,7 @@ func writeRawResourceFile(content []byte, targetPath string) error {
 	}
 
 	packageManifestPath := targetPath
-	err = ioutil.WriteFile(packageManifestPath, content, 0644)
+	err = os.WriteFile(packageManifestPath, content, 0644)
 	if err != nil {
 		return errors.Wrapf(err, "can't write resource file (path: %s)", packageManifestPath)
 	}

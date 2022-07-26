@@ -1,5 +1,0 @@
-# vpcflow
-
-## Logs
-
-{{fields "vpcflow"}}

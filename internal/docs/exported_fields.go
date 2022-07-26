@@ -6,7 +6,6 @@ package docs
 
 import (
 	"fmt"
-	"path/filepath"
 	"sort"
 	"strings"
 
@@ -23,11 +22,12 @@ type fieldsTableRecord struct {
 	metricType  string
 }
 
-func renderExportedFields(packageRoot, dataStreamName string) (string, error) {
-	dataStreamPath := filepath.Join(packageRoot, "data_stream", dataStreamName)
-	validator, err := fields.CreateValidatorForDataStream(dataStreamPath)
+var escaper = strings.NewReplacer("*", "\\*", "{", "\\{", "}", "\\}", "<", "\\<", ">", "\\>")
+
+func renderExportedFields(fieldsParentDir string) (string, error) {
+	validator, err := fields.CreateValidatorForDirectory(fieldsParentDir)
 	if err != nil {
-		return "", errors.Wrapf(err, "can't create fields validator instance (path: %s)", dataStreamPath)
+		return "", errors.Wrapf(err, "can't create fields validator instance (path: %s)", fieldsParentDir)
 	}
 
 	collected, err := collectFieldsFromDefinitions(validator)
@@ -70,7 +70,10 @@ func renderFieldsTable(builder *strings.Builder, collected []fieldsTableRecord) 
 	builder.WriteString("\n")
 	for _, c := range collected {
 		description := strings.TrimSpace(strings.ReplaceAll(c.description, "\n", " "))
-		builder.WriteString(fmt.Sprintf("| %s | %s | %s |", c.name, description, c.aType))
+		builder.WriteString(fmt.Sprintf("| %s | %s | %s |",
+			escaper.Replace(c.name),
+			escaper.Replace(description),
+			c.aType))
 		if unitsPresent {
 			builder.WriteString(fmt.Sprintf(" %s |", c.unit))
 		}
@@ -122,11 +125,18 @@ func visitFields(namePrefix string, f fields.FieldDefinition, records []fieldsTa
 
 	if len(f.Fields) == 0 && f.Type != "group" {
 		if f.External != "" {
-			var err error
-			f, err = fdm.ImportField(f.External, name)
+			imported, err := fdm.ImportField(f.External, name)
 			if err != nil {
 				return nil, errors.Wrap(err, "can't import field")
 			}
+
+			// Override imported fields with the definition, except for the type and external.
+			var updated fields.FieldDefinition
+			updated.Update(imported)
+			updated.Update(f)
+			updated.Type = imported.Type
+			updated.External = ""
+			f = updated
 		}
 		records = append(records, fieldsTableRecord{
 			name:        name,
@@ -135,6 +145,14 @@ func visitFields(namePrefix string, f fields.FieldDefinition, records []fieldsTa
 			unit:        f.Unit,
 			metricType:  f.MetricType,
 		})
+
+		for _, multiField := range f.MultiFields {
+			records = append(records, fieldsTableRecord{
+				name:        name + "." + multiField.Name,
+				description: fmt.Sprintf("Multi-field of %#q.", name),
+				aType:       multiField.Type,
+			})
+		}
 		return records, nil
 	}
 

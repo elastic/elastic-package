@@ -7,6 +7,7 @@ package kibana
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 
 	"github.com/pkg/errors"
 
@@ -38,7 +39,7 @@ func (c *Client) RemovePackage(pkg packages.PackageManifest) ([]packages.Asset, 
 }
 
 func processResults(action string, statusCode int, respBody []byte) ([]packages.Asset, error) {
-	if statusCode != 200 {
+	if statusCode != http.StatusOK {
 		return nil, fmt.Errorf("could not %s package; API status code = %d; response body = %s", action, statusCode, respBody)
 	}
 

@@ -6,7 +6,6 @@ package outputs
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"time"
@@ -35,7 +34,7 @@ func reportToFile(pkg, report string, format testrunner.TestReportFormat) error 
 
 	// Create test reports folder if it doesn't exist
 	_, err = os.Stat(dest)
-	if err != nil && os.IsNotExist(err) {
+	if err != nil && errors.Is(err, os.ErrNotExist) {
 		if err := os.MkdirAll(dest, 0755); err != nil {
 			return errors.Wrap(err, "could not create test reports folder")
 		}
@@ -49,7 +48,7 @@ func reportToFile(pkg, report string, format testrunner.TestReportFormat) error 
 	fileName := fmt.Sprintf("%s_%d.%s", pkg, time.Now().UnixNano(), ext)
 	filePath := filepath.Join(dest, fileName)
 
-	if err := ioutil.WriteFile(filePath, []byte(report+"\n"), 0644); err != nil {
+	if err := os.WriteFile(filePath, []byte(report+"\n"), 0644); err != nil {
 		return errors.Wrap(err, "could not write report file")
 	}
 
@@ -58,7 +57,7 @@ func reportToFile(pkg, report string, format testrunner.TestReportFormat) error 
 
 // testReportsDir returns the location of the directory to store test reports.
 func testReportsDir() (string, error) {
-	buildDir, _, err := builder.FindBuildDirectory()
+	buildDir, err := builder.BuildDirectory()
 	if err != nil {
 		return "", errors.Wrap(err, "locating build directory failed")
 	}

@@ -12,3 +12,13 @@ func TrimStringSlice(slice []string) {
 		slice[iterator] = strings.TrimSpace(item)
 	}
 }
+
+// StringSliceContains checks if the slice contains the given string.
+func StringSliceContains(slice []string, s string) bool {
+	for i := range slice {
+		if slice[i] == s {
+			return true
+		}
+	}
+	return false
+}

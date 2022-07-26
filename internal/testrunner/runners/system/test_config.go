@@ -5,11 +5,11 @@
 package system
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/aymerick/raymond"
 	"github.com/pkg/errors"
@@ -27,9 +27,10 @@ var systemTestConfigFilePattern = regexp.MustCompile(`^test-([a-z0-9_.-]+)-confi
 type testConfig struct {
 	testrunner.SkippableConfig `config:",inline"`
 
-	Input               string `config:"input"`
-	Service             string `config:"service"`
-	ServiceNotifySignal string `config:"service_notify_signal"` // Signal to send when the agent policy is applied.
+	Input               string        `config:"input"`
+	Service             string        `config:"service"`
+	ServiceNotifySignal string        `config:"service_notify_signal"` // Signal to send when the agent policy is applied.
+	WaitForDataTimeout  time.Duration `config:"wait_for_data_timeout"`
 
 	Vars       map[string]packages.VarValue `config:"vars"`
 	DataStream struct {
@@ -62,8 +63,8 @@ func (t testConfig) Name() string {
 }
 
 func newConfig(configFilePath string, ctxt servicedeployer.ServiceContext, serviceVariantName string) (*testConfig, error) {
-	data, err := ioutil.ReadFile(configFilePath)
-	if err != nil && os.IsNotExist(err) {
+	data, err := os.ReadFile(configFilePath)
+	if err != nil && errors.Is(err, os.ErrNotExist) {
 		return nil, errors.Wrapf(err, "unable to find system test configuration file: %s", configFilePath)
 	}
 

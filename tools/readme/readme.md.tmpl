@@ -1,5 +1,5 @@
 <!--
-WARNING: This is a generated file. Do NOT edit it manually. To regenerate this file, run `make readme`.
+WARNING: This is a generated file. Do NOT edit it manually. To regenerate this file, run `make update-readme`.
 -->
 
 # elastic-package
@@ -11,17 +11,14 @@ Currently, `elastic-package` only supports packages of type [Elastic Integration
 
 ## Getting started
 
-Download and build the latest master of `elastic-package` binary:
+Download latest release from the [Releases](https://github.com/elastic/elastic-package/releases/latest) page.
+
+On macOS, use `xattr -r -d com.apple.quarantine elastic-package` after downloading to allow the binary to run.
+
+Alternatively, you may use `go install` but you will not be able to use the `elastic-package version` command or check updates.
 
 ```bash
-git clone https://github.com/elastic/elastic-package.git
-make build
-```
-
-Alternatively, you may use `go get` but you will not be able to use the `elastic-package version` command.
-
-```bash
-go get github.com/elastic/elastic-package
+go install github.com/elastic/elastic-package@latest
 ```
 
 _Please make sure that you've correctly [setup environment variables](https://golang.org/doc/gopath_code.html#GOPATH) -
@@ -37,6 +34,31 @@ Run the `help` command and see available commands:
 
 ```bash
 elastic-package help
+```
+
+## Development
+
+Download and build the latest main of `elastic-package` binary:
+
+```bash
+git clone https://github.com/elastic/elastic-package.git
+cd elastic-package
+make build
+```
+
+When developing on Windows, please use the `core.autocrlf=input` or `core.autocrlf=false` option to avoid issues with CRLF line endings:
+```bash
+git clone --config core.autocrlf=input https://github.com/elastic/elastic-package.git
+cd elastic-package
+make build
+```
+
+This option can be also configured on existing clones with the following commands. Be aware that these commands
+will remove uncommited changes.
+```bash
+git config core.autocrlf input
+git rm --cached -r .
+git reset --hard
 ```
 
 ## Commands
@@ -56,9 +78,19 @@ _Context: global_
 Use this command to get a listing of all commands available under `elastic-package` and a brief
 description of what each command does.
 
+### `elastic-package completion`
+
+_Context: global_
+
+Use this command to output shell completion information.
+
+The command output shell completions information (for `bash`, `zsh`, `fish` and `powershell`). The output can be sourced in the shell to enable command completion.
+
+Run `elastic-package completion` and follow the instruction for your shell.
+
 {{ .Cmds }}
 
-#### GitHub authorization
+### GitHub authorization
 
 The `promote` and `publish` commands require access to the GitHub API to open pull requests or check authorized account data.
 The tool uses the GitHub token to authorize user's call to API. The token can be stored in the `~/.elastic/github.token`
@@ -71,6 +103,9 @@ Make sure you have enabled the following scopes:
 * `public_repo` — to open pull requests on GitHub repositories.
 * `read:user` and `user:email` — to read your user profile information from GitHub in order to populate pull requests appropriately.
 
+After creating or modifying your personal access token, authorize the token for
+use of the Elastic organization: https://docs.github.com/en/github/authenticating-to-github/authenticating-with-saml-single-sign-on/authorizing-a-personal-access-token-for-use-with-saml-single-sign-on
+
 ## Development
 
 Even though the project is "go-gettable", there is the `Makefile` present, which can be used to build, format or vendor
@@ -80,6 +115,38 @@ source code:
 
 `make format` - format the Go code
 
+`make install` - build the tool source and move binary to `$GOBIN`
+
 `make vendor` - vendor code of dependencies
 
 `make check` - one-liner, used by CI to verify if source code is ready to be pushed to the repository
+
+## Release process
+
+This project uses [GoReleaser](https://goreleaser.com/) to release a new version of the application (semver). Release publishing
+is automatically managed by the Jenkins CI ([Jenkinsfile](https://github.com/elastic/elastic-package/blob/main/.ci/Jenkinsfile))
+and it's triggered by Git tags. Release artifacts are available in the [Releases](https://github.com/elastic/elastic-package/releases) section.
+
+### Steps to create a new release
+
+1. Fetch latest main from upstream (remember to rebase the branch):
+
+```bash
+git fetch upstream
+git rebase upstream/main
+```
+
+2. Create Git tag with release candidate:
+
+```bash
+git tag v0.15.0 # let's release v0.15.0!
+```
+
+3. Push new tag to the upstream.
+
+```bash
+git push upstream v0.15.0
+```
+
+The CI will run a new job for the just pushed tag and publish released artifacts. Please expect an automated follow-up PR
+in the [Integrations](https://github.com/elastic/integrations) repository to bump up the version ([sample PR](https://github.com/elastic/integrations/pull/1516)).

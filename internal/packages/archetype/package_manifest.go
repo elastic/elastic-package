@@ -8,15 +8,19 @@ const packageManifestTemplate = `format_version: 1.0.0
 name: {{.Manifest.Name}}
 title: "{{.Manifest.Title}}"
 version: {{.Manifest.Version}}
+{{ if ne .Manifest.Source.License "" }}
+source:
+  license: "{{.Manifest.Source.License}}"
+{{ end }}
 license: {{.Manifest.License}}
 description: "{{.Manifest.Description}}"
 type: {{.Manifest.Type}}
 categories:{{range $category := .Manifest.Categories}}
   - {{$category}}
 {{- end}}
-release: {{.Manifest.Release}}
 conditions:
   kibana.version: "{{.Manifest.Conditions.Kibana.Version}}"
+  elastic.subscription: "{{.Manifest.Conditions.Elastic.Subscription}}"
 screenshots:
   - src: /img/sample-screenshot.png
     title: Sample screenshot

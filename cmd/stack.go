@@ -19,6 +19,7 @@ import (
 )
 
 var availableServices = map[string]struct{}{
+	"elastic-agent":    {},
 	"elasticsearch":    {},
 	"fleet-server":     {},
 	"kibana":           {},
@@ -27,15 +28,19 @@ var availableServices = map[string]struct{}{
 
 const stackLongDescription = `Use this command to spin up a Docker-based Elastic Stack consisting of Elasticsearch, Kibana, and the Package Registry. By default the latest released version of the stack is spun up but it is possible to specify a different version, including SNAPSHOT versions.
 
-For details on how to connect the service with the Elastic stack, see the [service command](https://github.com/elastic/elastic-package/blob/master/README.md#elastic-package-service).`
+Be aware that a common issue while trying to boot up the stack is that your Docker environments settings are too low in terms of memory threshold.
+
+For details on how to connect the service with the Elastic stack, see the [service command](https://github.com/elastic/elastic-package/blob/main/README.md#elastic-package-service).`
 
 const stackUpLongDescription = `Use this command to boot up the stack locally.
 
 By default the latest released version of the stack is spun up but it is possible to specify a different version, including SNAPSHOT versions by appending --version <version>.
 
+Be aware that a common issue while trying to boot up the stack is that your Docker environments settings are too low in terms of memory threshold.
+
 To ęxpose local packages in the Package Registry, build them first and boot up the stack from inside of the Git repository containing the package (e.g. elastic/integrations). They will be copied to the development stack (~/.elastic-package/stack/development) and used to build a custom Docker image of the Package Registry.
 
-For details on how to connect the service with the Elastic stack, see the [service command](https://github.com/elastic/elastic-package/blob/master/README.md#elastic-package-service).`
+For details on how to connect the service with the Elastic stack, see the [service command](https://github.com/elastic/elastic-package/blob/main/README.md#elastic-package-service).`
 
 func setupStackCommand() *cobraext.Command {
 	upCommand := &cobra.Command{
@@ -72,7 +77,7 @@ func setupStackCommand() *cobraext.Command {
 				return cobraext.FlagParsingError(err, cobraext.ProfileFlagName)
 			}
 
-			usrProfile, err := profile.LoadProfile(profileName)
+			userProfile, err := profile.LoadProfile(profileName)
 			if errors.Is(err, profile.ErrNotAProfile) {
 				pList, err := availableProfilesAsAList()
 				if err != nil {
@@ -83,14 +88,21 @@ func setupStackCommand() *cobraext.Command {
 			if err != nil {
 				return errors.Wrap(err, "error loading profile")
 			}
-			cmd.Printf("Using profile %s.\n", usrProfile.ProfilePath)
+
+			// Print information before starting the stack, for cases where
+			// this is executed in the foreground, without daemon mode.
+			cmd.Printf("Using profile %s.\n", userProfile.ProfilePath)
 			cmd.Println(`Remember to load stack environment variables using 'eval "$(elastic-package stack shellinit)"'.`)
+			err = printInitConfig(cmd, userProfile)
+			if err != nil {
+				return err
+			}
 
 			err = stack.BootUp(stack.Options{
 				DaemonMode:   daemonMode,
 				StackVersion: stackVersion,
 				Services:     services,
-				Profile:      usrProfile,
+				Profile:      userProfile,
 			})
 			if err != nil {
 				return errors.Wrap(err, "booting up the stack failed")
@@ -116,7 +128,7 @@ func setupStackCommand() *cobraext.Command {
 				return cobraext.FlagParsingError(err, cobraext.ProfileFlagName)
 			}
 
-			usrProfile, err := profile.LoadProfile(profileName)
+			userProfile, err := profile.LoadProfile(profileName)
 			if errors.Is(err, profile.ErrNotAProfile) {
 				pList, err := availableProfilesAsAList()
 				if err != nil {
@@ -130,7 +142,7 @@ func setupStackCommand() *cobraext.Command {
 			}
 
 			err = stack.TearDown(stack.Options{
-				Profile: usrProfile,
+				Profile: userProfile,
 			})
 			if err != nil {
 				return errors.Wrap(err, "tearing down the stack failed")
@@ -274,5 +286,17 @@ func validateServicesFlag(services []string) error {
 
 		selected[aService] = struct{}{}
 	}
+	return nil
+}
+
+func printInitConfig(cmd *cobra.Command, profile *profile.Profile) error {
+	initConfig, err := stack.StackInitConfig(profile)
+	if err != nil {
+		return nil
+	}
+	cmd.Printf("Elasticsearch host: %s\n", initConfig.ElasticsearchHostPort)
+	cmd.Printf("Kibana host: %s\n", initConfig.KibanaHostPort)
+	cmd.Printf("Username: %s\n", initConfig.ElasticsearchUsername)
+	cmd.Printf("Password: %s\n", initConfig.ElasticsearchPassword)
 	return nil
 }

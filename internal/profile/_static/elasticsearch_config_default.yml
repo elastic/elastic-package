@@ -1,0 +1,21 @@
+network.host: ""
+transport.host: "127.0.0.1"
+http.host: "0.0.0.0"
+
+indices.id_field_data.enabled: true
+
+xpack.license.self_generated.type: "trial"
+xpack.security.enabled: true
+xpack.security.authc.api_key.enabled: true
+
+xpack.security.http.ssl.enabled: true
+xpack.security.http.ssl.key: "certs/key.pem"
+xpack.security.http.ssl.certificate: "certs/cert.pem"
+
+script.max_compilations_rate: "use-context"
+script.context.template.max_compilations_rate: "unlimited"
+script.context.ingest.cache_max_size: 2000
+script.context.processor_conditional.cache_max_size: 2000
+script.context.template.cache_max_size: 2000
+
+ingest.geoip.downloader.enabled: false

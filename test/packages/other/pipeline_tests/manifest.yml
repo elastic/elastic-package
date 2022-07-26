@@ -1,0 +1,24 @@
+format_version: 1.0.0
+name: pipeline_tests
+title: Pipeline tests
+# version is set to something very large to so this test package can
+# be installed in the package registry regardless of the version of
+# the actual apache package in the registry at any given time.
+version: 999.999.999
+description: Test for pipeline test runner
+categories: ["network"]
+release: experimental
+license: basic
+type: integration
+conditions:
+  kibana.version: '^8.0.0'
+policy_templates:
+  - name: test
+    title: Test
+    description: Description
+    inputs:
+      - type: file
+        title: Foo bar
+        description: Foo bar
+owner:
+  github: elastic/integrations

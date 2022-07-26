@@ -1,0 +1,22 @@
+format_version: 1.0.0
+name: fields_tests
+title: "Fields Tests"
+version: 0.0.1
+license: basic
+description: "These are tests of field validation."
+type: integration
+categories:
+  - custom
+release: experimental
+conditions:
+  kibana.version: "^8.0.0"
+policy_templates:
+  - name: sample
+    title: Sample logs
+    description: Collect sample logs
+    inputs:
+      - type: logfile
+        title: Collect sample logs from instances
+        description: Collecting sample logs
+owner:
+  github: elastic/integrations

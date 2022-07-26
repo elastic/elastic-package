@@ -7,6 +7,7 @@ package kibana
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/pkg/errors"
@@ -14,6 +15,8 @@ import (
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/signal"
 )
+
+var waitForPolicyAssignedTimeout = 10 * time.Minute
 
 // Agent represents an Elastic Agent enrolled with fleet.
 type Agent struct {
@@ -27,6 +30,15 @@ type Agent struct {
 	} `json:"local_metadata"`
 }
 
+// String method returns string representation of an agent.
+func (a *Agent) String() string {
+	b, err := json.Marshal(a)
+	if err != nil {
+		return err.Error()
+	}
+	return string(b)
+}
+
 // ListAgents returns the list of agents enrolled with Fleet.
 func (c *Client) ListAgents() ([]Agent, error) {
 	statusCode, respBody, err := c.get(fmt.Sprintf("%s/agents", FleetAPI))
@@ -34,8 +46,8 @@ func (c *Client) ListAgents() ([]Agent, error) {
 		return nil, errors.Wrap(err, "could not list agents")
 	}
 
-	if statusCode != 200 {
-		return nil, fmt.Errorf("could not list agents; API status code = %d", statusCode)
+	if statusCode != http.StatusOK {
+		return nil, fmt.Errorf("could not list agents; API status code = %d; response body = %s", statusCode, respBody)
 	}
 
 	var resp struct {
@@ -59,8 +71,8 @@ func (c *Client) AssignPolicyToAgent(a Agent, p Policy) error {
 		return errors.Wrap(err, "could not assign policy to agent")
 	}
 
-	if statusCode != 200 {
-		return fmt.Errorf("could not assign policy to agent; API status code = %d; response body = %s", statusCode, string(respBody))
+	if statusCode != http.StatusOK {
+		return fmt.Errorf("could not assign policy to agent; API status code = %d; response body = %s", statusCode, respBody)
 	}
 
 	err = c.waitUntilPolicyAssigned(a, p)
@@ -71,7 +83,12 @@ func (c *Client) AssignPolicyToAgent(a Agent, p Policy) error {
 }
 
 func (c *Client) waitUntilPolicyAssigned(a Agent, p Policy) error {
+	timeout := time.Now().Add(waitForPolicyAssignedTimeout)
 	for {
+		if time.Now().After(timeout) {
+			return errors.New("timeout: policy hasn't been assigned in time")
+		}
+
 		if signal.SIGINT() {
 			return errors.New("SIGINT: cancel waiting for policy assigned")
 		}
@@ -80,6 +97,7 @@ func (c *Client) waitUntilPolicyAssigned(a Agent, p Policy) error {
 		if err != nil {
 			return errors.Wrap(err, "can't get the agent")
 		}
+		logger.Debugf("Agent data: %s", agent.String())
 
 		if agent.PolicyID == p.ID && agent.PolicyRevision == p.Revision {
 			logger.Debugf("Policy revision assigned to the agent (ID: %s)...", a.ID)
@@ -98,8 +116,8 @@ func (c *Client) getAgent(agentID string) (*Agent, error) {
 		return nil, errors.Wrap(err, "could not list agents")
 	}
 
-	if statusCode != 200 {
-		return nil, fmt.Errorf("could not list agents; API status code = %d", statusCode)
+	if statusCode != http.StatusOK {
+		return nil, fmt.Errorf("could not list agents; API status code = %d; response body = %s", statusCode, respBody)
 	}
 
 	var resp struct {

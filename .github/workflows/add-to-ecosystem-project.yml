@@ -1,0 +1,39 @@
+name: Add to Project
+on:
+  issues:
+    types:
+      - opened
+jobs:
+  add_to_project:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: octokit/graphql-action@v2.x
+        id: add_to_project
+        with:
+          headers: '{"GraphQL-Features": "projects_next_graphql"}'
+          query: |
+            mutation add_to_project($projectid:ID!,$contentid:ID!) {
+              addProjectNextItem(input:{projectId:$projectid contentId:$contentid}) {
+                projectNextItem {
+                  id
+                }
+              }
+            }
+          projectid: ${{ env.PROJECT_ID }}
+          contentid: ${{ github.event.issue.node_id }}
+        env:
+          PROJECT_ID: "PN_kwDOAGc3Zs4ABFUO"
+          GITHUB_TOKEN: ${{ secrets.ECOSYSTEM_USER_TOKEN }}
+      - uses: octokit/graphql-action@v2.x
+        id: label_team
+        with:
+          query: |
+            mutation add_label($issueid:ID!, $labelids:[ID!]!) {
+              addLabelsToLabelable(input: {labelableId: $issueid, labelIds: $labelids}) {
+                 clientMutationId
+              }
+            }
+          issueid: ${{ github.event.issue.node_id }}
+          labelids: "LA_kwDOEBH20c7PrEba"
+        env:
+          GITHUB_TOKEN: ${{ secrets.ECOSYSTEM_USER_TOKEN }}

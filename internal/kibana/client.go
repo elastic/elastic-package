@@ -6,15 +6,17 @@ package kibana
 
 import (
 	"bytes"
-	"io/ioutil"
+	"crypto/tls"
+	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
 
-	"github.com/elastic/elastic-package/internal/install"
-
 	"github.com/pkg/errors"
 
+	"github.com/elastic/elastic-package/internal/certs"
+	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/stack"
 )
@@ -24,23 +26,58 @@ type Client struct {
 	host     string
 	username string
 	password string
+
+	certificateAuthority string
+	tlSkipVerify         bool
 }
 
+// ClientOption is functional option modifying Kibana client.
+type ClientOption func(*Client)
+
 // NewClient creates a new instance of the client.
-func NewClient() (*Client, error) {
+func NewClient(opts ...ClientOption) (*Client, error) {
 	host := os.Getenv(stack.KibanaHostEnv)
-	if host == "" {
+	username := os.Getenv(stack.ElasticsearchUsernameEnv)
+	password := os.Getenv(stack.ElasticsearchPasswordEnv)
+	certificateAuthority := os.Getenv(stack.CACertificateEnv)
+
+	c := &Client{
+		host:                 host,
+		username:             username,
+		password:             password,
+		certificateAuthority: certificateAuthority,
+	}
+
+	for _, opt := range opts {
+		opt(c)
+	}
+
+	if c.host == "" {
 		return nil, stack.UndefinedEnvError(stack.KibanaHostEnv)
 	}
 
-	username := os.Getenv(stack.ElasticsearchUsernameEnv)
-	password := os.Getenv(stack.ElasticsearchPasswordEnv)
+	return c, nil
+}
 
-	return &Client{
-		host:     host,
-		username: username,
-		password: password,
-	}, nil
+// Address option sets the host to use to connect to Kibana.
+func Address(address string) ClientOption {
+	return func(c *Client) {
+		c.host = address
+	}
+}
+
+// TLSSkipVerify option disables TLS verification.
+func TLSSkipVerify() ClientOption {
+	return func(c *Client) {
+		c.tlSkipVerify = true
+	}
+}
+
+// CertificateAuthority sets the certificate authority to be used by the client.
+func CertificateAuthority(certificateAuthority string) ClientOption {
+	return func(c *Client) {
+		c.certificateAuthority = certificateAuthority
+	}
 }
 
 func (c *Client) get(resourcePath string) (int, []byte, error) {
@@ -85,13 +122,27 @@ func (c *Client) sendRequest(method, resourcePath string, body []byte) (int, []b
 	req.Header.Add("kbn-xsrf", install.DefaultStackVersion)
 
 	client := http.Client{}
+	if c.tlSkipVerify {
+		client.Transport = &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
+	} else if c.certificateAuthority != "" {
+		rootCAs, err := certs.SystemPoolWithCACertificate(c.certificateAuthority)
+		if err != nil {
+			return 0, nil, fmt.Errorf("reading CA certificate: %w", err)
+		}
+		client.Transport = &http.Transport{
+			TLSClientConfig: &tls.Config{RootCAs: rootCAs},
+		}
+	}
+
 	resp, err := client.Do(req)
 	if err != nil {
 		return 0, nil, errors.Wrap(err, "could not send request to Kibana API")
 	}
 
 	defer resp.Body.Close()
-	body, err = ioutil.ReadAll(resp.Body)
+	body, err = io.ReadAll(resp.Body)
 	if err != nil {
 		return resp.StatusCode, nil, errors.Wrap(err, "could not read response body")
 	}

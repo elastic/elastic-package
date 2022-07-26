@@ -5,7 +5,8 @@
 package profile
 
 import (
-	"io/ioutil"
+	"os"
+	"path/filepath"
 
 	"github.com/pkg/errors"
 )
@@ -23,21 +24,28 @@ type simpleFile struct {
 
 const profileStackPath = "stack"
 
-// configfilesDiffer checks to see if a local configItem differs from the one it knows.
-func (cfg simpleFile) configfilesDiffer() (bool, error) {
-	changes, err := ioutil.ReadFile(cfg.path)
+// configFilesDiffer checks to see if a local configItem differs from the one it knows.
+func (cfg simpleFile) configFilesDiffer() (bool, error) {
+	changes, err := os.ReadFile(cfg.path)
+	if err != nil && errors.Is(err, os.ErrNotExist) {
+		return false, nil
+	}
 	if err != nil {
-		return false, errors.Wrapf(err, "error reading %s", KibanaConfigFile)
+		return false, errors.Wrapf(err, "error reading %s", cfg.path)
 	}
-	if string(changes) != cfg.body {
-		return true, nil
+	if string(changes) == cfg.body {
+		return false, nil
 	}
-	return false, nil
+	return true, nil
 }
 
 // writeConfig writes the config item
 func (cfg simpleFile) writeConfig() error {
-	err := ioutil.WriteFile(cfg.path, []byte(cfg.body), 0644)
+	err := os.MkdirAll(filepath.Dir(cfg.path), 0755)
+	if err != nil {
+		return errors.Wrapf(err, "creating parent directories for file failed (path: %s)", cfg.path)
+	}
+	err = os.WriteFile(cfg.path, []byte(cfg.body), 0644)
 	if err != nil {
 		return errors.Wrapf(err, "writing file failed (path: %s)", cfg.path)
 	}
@@ -46,7 +54,7 @@ func (cfg simpleFile) writeConfig() error {
 
 // readConfig reads the config item, overwriting whatever exists in the fileBody.
 func (cfg *simpleFile) readConfig() error {
-	body, err := ioutil.ReadFile(cfg.path)
+	body, err := os.ReadFile(cfg.path)
 	if err != nil {
 		return errors.Wrapf(err, "reading filed failed (path: %s)", cfg.path)
 	}
