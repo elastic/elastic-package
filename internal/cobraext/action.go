@@ -21,3 +21,14 @@ func ComposeCommandActions(cmd *cobra.Command, args []string, actions ...Command
 	}
 	return nil
 }
+
+// ComposeCommands runs given commands in order
+func ComposeCommands(args []string, composed ...*Command) error {
+	for _, cmd := range composed {
+		err := cmd.RunE(cmd.Command, args)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
