@@ -7,10 +7,8 @@ require (
 	github.com/Masterminds/semver v1.5.0
 	github.com/ProtonMail/gopenpgp/v2 v2.4.8
 	github.com/aymerick/raymond v2.0.2+incompatible
-	github.com/boumenot/gocover-cobertura v1.2.0
 	github.com/cespare/xxhash/v2 v2.1.2
 	github.com/elastic/go-elasticsearch/v7 v7.17.1
-	github.com/elastic/go-licenser v0.4.1
 	github.com/elastic/go-ucfg v0.8.6
 	github.com/elastic/package-spec v1.14.0
 	github.com/fatih/color v1.13.0
@@ -28,11 +26,8 @@ require (
 	github.com/spf13/cobra v1.5.0
 	github.com/stretchr/testify v1.8.0
 	golang.org/x/oauth2 v0.0.0-20211104180415-d3ed0bb246c8
-	golang.org/x/tools v0.1.11-0.20220513221640-090b14e8501f
 	gopkg.in/yaml.v3 v3.0.1
-	gotest.tools/gotestsum v1.8.1
 	helm.sh/helm/v3 v3.9.2
-	honnef.co/go/tools v0.3.2
 	k8s.io/apimachinery v0.24.3
 	k8s.io/cli-runtime v0.24.3
 	k8s.io/client-go v0.24.3
@@ -40,7 +35,6 @@ require (
 
 require (
 	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 // indirect
-	github.com/BurntSushi/toml v1.0.0 // indirect
 	github.com/MakeNowJust/heredoc v0.0.0-20170808103936-bb23615498cd // indirect
 	github.com/Masterminds/semver/v3 v3.1.1 // indirect
 	github.com/Microsoft/go-winio v0.5.1 // indirect
@@ -56,7 +50,6 @@ require (
 	github.com/chai2010/gettext-go v0.0.0-20160711120539-c6fed771bfd5 // indirect
 	github.com/creasty/defaults v1.5.2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/dnephin/pflag v1.0.7 // indirect
 	github.com/dsnet/compress v0.0.2-0.20210315054119-f66993602bf5 // indirect
 	github.com/elastic/gojsonschema v1.2.1 // indirect
 	github.com/emicklei/go-restful v2.9.5+incompatible // indirect
@@ -86,7 +79,6 @@ require (
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect
 	github.com/joeshaw/multierror v0.0.0-20140124173710-69b34d4ec901 // indirect
-	github.com/jonboulle/clockwork v0.2.2 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51 // indirect
@@ -126,10 +118,7 @@ require (
 	go.mongodb.org/mongo-driver v1.7.3 // indirect
 	go.starlark.net v0.0.0-20200306205701-8dd3e2ee1dd5 // indirect
 	golang.org/x/crypto v0.0.0-20220525230936-793ad666bf5e // indirect
-	golang.org/x/exp/typeparams v0.0.0-20220218215828-6cf2b201936e // indirect
-	golang.org/x/mod v0.6.0-dev.0.20220419223038-86c51ed26bb4 // indirect
 	golang.org/x/net v0.0.0-20220127200216-cd36cc0744dd // indirect
-	golang.org/x/sync v0.0.0-20220601150217-0de741cfad7f // indirect
 	golang.org/x/sys v0.0.0-20220422013727-9388b58f7150 // indirect
 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 // indirect
 	golang.org/x/text v0.3.7 // indirect

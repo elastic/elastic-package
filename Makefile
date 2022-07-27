@@ -16,16 +16,16 @@ clean:
 	rm -f elastic-package
 
 format:
-	go run golang.org/x/tools/cmd/goimports -local github.com/elastic/elastic-package/ -w .
+	go run golang.org/x/tools/cmd/goimports@v0.1.11 -local github.com/elastic/elastic-package/ -w .
 
 install:
 	go install -ldflags "$(VERSION_LDFLAGS)" github.com/elastic/elastic-package
 
 lint:
-	go run honnef.co/go/tools/cmd/staticcheck ./...
+	go run honnef.co/go/tools/cmd/staticcheck@v0.3.2 ./...
 
 licenser:
-	go run github.com/elastic/go-licenser -license Elastic
+	go run github.com/elastic/go-licenser@v0.4.1 -license Elastic
 
 gomod:
 	go mod tidy -go=1.16 && go mod tidy -go=1.17
@@ -42,13 +42,13 @@ test-go: $(CODE_COVERAGE_REPORT_FOLDER)
 	# -count=1 is included to invalidate the test cache. This way, if you run "make test-go" multiple times
 	# you will get fresh test results each time. For instance, changing the source of mocked packages
 	# does not invalidate the cache so having the -count=1 to invalidate the test cache is useful.
-	go run gotest.tools/gotestsum --format standard-verbose -- -count 1 -coverprofile=$(CODE_COVERAGE_REPORT_NAME_UNIT).out ./...
+	go run gotest.tools/gotestsum@v1.8.1 --format standard-verbose -- -count 1 -coverprofile=$(CODE_COVERAGE_REPORT_NAME_UNIT).out ./...
 
 test-go-ci: $(CODE_COVERAGE_REPORT_FOLDER)
 	mkdir -p $(PWD)/build/test-results
 	mkdir -p $(PWD)/build/test-coverage
-	go run gotest.tools/gotestsum --junitfile "$(PWD)/build/test-results/TEST-unit.xml" -- -count=1 -coverprofile=$(CODE_COVERAGE_REPORT_NAME_UNIT).out ./...
-	go run github.com/boumenot/gocover-cobertura < $(CODE_COVERAGE_REPORT_NAME_UNIT).out > $(CODE_COVERAGE_REPORT_NAME_UNIT).xml
+	go run gotest.tools/gotestsum@v1.8.1 --junitfile "$(PWD)/build/test-results/TEST-unit.xml" -- -count=1 -coverprofile=$(CODE_COVERAGE_REPORT_NAME_UNIT).out ./...
+	go run github.com/boumenot/gocover-cobertura@1.2.0 < $(CODE_COVERAGE_REPORT_NAME_UNIT).out > $(CODE_COVERAGE_REPORT_NAME_UNIT).xml
 
 test-stack-command-default:
 	./scripts/test-stack-command.sh
