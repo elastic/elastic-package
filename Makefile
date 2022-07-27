@@ -48,7 +48,7 @@ test-go-ci: $(CODE_COVERAGE_REPORT_FOLDER)
 	mkdir -p $(PWD)/build/test-results
 	mkdir -p $(PWD)/build/test-coverage
 	go run gotest.tools/gotestsum@v1.8.1 --junitfile "$(PWD)/build/test-results/TEST-unit.xml" -- -count=1 -coverprofile=$(CODE_COVERAGE_REPORT_NAME_UNIT).out ./...
-	go run github.com/boumenot/gocover-cobertura@1.2.0 < $(CODE_COVERAGE_REPORT_NAME_UNIT).out > $(CODE_COVERAGE_REPORT_NAME_UNIT).xml
+	go run github.com/boumenot/gocover-cobertura@v1.2.0 < $(CODE_COVERAGE_REPORT_NAME_UNIT).out > $(CODE_COVERAGE_REPORT_NAME_UNIT).xml
 
 test-stack-command-default:
 	./scripts/test-stack-command.sh
