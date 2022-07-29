@@ -50,13 +50,11 @@ type service struct {
 }
 
 type ServiceStatus struct {
-	ExitCode int
-	Health   string
-	ID       string
-	Name     string
-	Running  bool
-	Status   string
-	Version  string
+	ID      string
+	Name    string
+	Running bool
+	Status  string
+	Version string
 }
 
 type portMapping struct {
@@ -301,18 +299,16 @@ func (p *Project) Status(opts CommandOptions) ([]ServiceStatus, error) {
 	args := p.baseArgs()
 	args = append(args, "ps")
 	args = append(args, "-q")
+	args = append(args, opts.Services...)
 
 	logger.Debugf("Services to check: %v", opts.Services)
 	var services []ServiceStatus
 	var b bytes.Buffer
 
-	args = append(args, opts.Services...)
-
 	if err := p.runDockerComposeCmd(dockerComposeOptions{args: args, env: opts.Env, stdout: &b}); err != nil {
 		return nil, err
 	}
 
-	logger.Debugf("%v\n", b.String())
 	containerIDs := strings.Fields(b.String())
 
 	containerDescriptions, err := docker.InspectContainers(containerIDs...)
@@ -322,60 +318,35 @@ func (p *Project) Status(opts CommandOptions) ([]ServiceStatus, error) {
 
 	var serviceNameRegex = regexp.MustCompile(fmt.Sprintf("^/%v_(.*)_\\d+$", p.name))
 	for _, containerDescription := range containerDescriptions {
-		logger.Debugf("Image container: \"%v\"", containerDescription.Config.Image)
-		matches := serviceNameRegex.FindStringSubmatch(containerDescription.Name)
-		if matches == nil || len(matches) == 0 {
-			return nil, fmt.Errorf("Unknown container %v", containerDescription.Name)
+		service, err := newServiceStatus(&containerDescription, serviceNameRegex)
+		if err != nil {
+			return nil, err
 		}
-		logger.Debugf("Matches: %v", matches)
-		service := ServiceStatus{
-			ID:      containerDescription.ID,
-			Name:    matches[1],
-			Running: containerDescription.State.Status == "running",
-			Status:  containerDescription.State.Status,
-			Version: getVersionFromDockerImage(containerDescription.Config.Image),
-		}
-		if containerDescription.State.Status != "running" {
-			service.ExitCode = containerDescription.State.ExitCode
-		}
-		if containerDescription.State.Health != nil {
-			service.Health = containerDescription.State.Health.Status
-		}
-		services = append(services, service)
+		services = append(services, *service)
 	}
 
 	return services, nil
+}
 
-	// for _, serviceName := range opts.Services {
-	// 	var b bytes.Buffer
-	// 	logger.Debugf("Getting status for %v\n", serviceName)
-	// 	commandArgs := append(args, serviceName)
+func newServiceStatus(description *docker.ContainerDescription, regex *regexp.Regexp) (*ServiceStatus, error) {
+	logger.Debugf("Image container: \"%v\"", description.Config.Image)
+	matches := regex.FindStringSubmatch(description.Name)
+	if matches == nil || len(matches) == 0 {
+		return nil, fmt.Errorf("Unknown container %v", description.Name)
+	}
 
-	// 	if err := p.runDockerComposeCmd(dockerComposeOptions{args: commandArgs, env: opts.Env, stdout: &b}); err != nil {
-	// 		return nil, err
-	// 	}
-	// 	containerID := strings.TrimSpace(b.String())
-	// 	logger.Debugf("Checking containerID \"%s\" for %v", containerID, serviceName)
-	// 	containerDescriptions, err := docker.InspectContainers(containerID)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
+	logger.Debugf("Matches: %v", matches)
+	service := ServiceStatus{
+		ID:      description.ID,
+		Name:    matches[1],
+		Status:  description.State.Status,
+		Version: getVersionFromDockerImage(description.Config.Image),
+	}
+	if description.State.Health != nil {
+		service.Status = fmt.Sprintf("%v (%v)", service.Status, description.State.Health.Status)
+	}
 
-	// 	containerDescription := containerDescriptions[0]
-
-	// 	service := ServiceStatus{
-	// 		ID:       containerDescription.ID,
-	// 		Status:   containerDescription.State.Status,
-	// 		ExitCode: containerDescription.State.ExitCode,
-	// 		Name:     serviceName,
-	// 	}
-	// 	if containerDescription.State.Health != nil {
-	// 		service.Health = containerDescription.State.Health.Status
-	// 	}
-	// 	services = append(services, service)
-	// }
-
-	// return services, nil
+	return &service, nil
 }
 
 func getVersionFromDockerImage(dockerImage string) string {
@@ -384,7 +355,6 @@ func getVersionFromDockerImage(dockerImage string) string {
 		return fields[1]
 	}
 	return "latest"
-
 }
 
 // WaitForHealthy method waits until all containers are healthy.

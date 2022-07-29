@@ -6,7 +6,6 @@ package cmd
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/jedib0t/go-pretty/table"
@@ -333,14 +332,10 @@ func printInitConfig(cmd *cobra.Command, profile *profile.Profile) error {
 
 func printStatus(cmd *cobra.Command, servicesStatus []compose.ServiceStatus) {
 	t := table.NewWriter()
-	t.AppendHeader(table.Row{"Service", "Version", "Status", "Health", "Exit Code (if any)"})
+	t.AppendHeader(table.Row{"Service", "Version", "Status"})
 
 	for _, service := range servicesStatus {
-		exitCode := strconv.Itoa(service.ExitCode)
-		if service.ExitCode == 0 {
-			exitCode = ""
-		}
-		t.AppendRow(table.Row{service.Name, service.Version, service.Status, service.Health, exitCode})
+		t.AppendRow(table.Row{service.Name, service.Version, service.Status})
 	}
 	t.SetStyle(table.StyleRounded)
 	cmd.Println(t.Render())
