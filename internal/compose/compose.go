@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -42,9 +43,20 @@ type Project struct {
 type Config struct {
 	Services map[string]service
 }
+
 type service struct {
 	Ports       []portMapping
 	Environment map[string]string
+}
+
+type ServiceStatus struct {
+	ExitCode int
+	Health   string
+	ID       string
+	Name     string
+	Running  bool
+	Status   string
+	Version  string
 }
 
 type portMapping struct {
@@ -284,6 +296,97 @@ func (p *Project) Logs(opts CommandOptions) ([]byte, error) {
 	return b.Bytes(), nil
 }
 
+// Status returns status services for the selected service in the Docker Compose project.
+func (p *Project) Status(opts CommandOptions) ([]ServiceStatus, error) {
+	args := p.baseArgs()
+	args = append(args, "ps")
+	args = append(args, "-q")
+
+	logger.Debugf("Services to check: %v", opts.Services)
+	var services []ServiceStatus
+	var b bytes.Buffer
+
+	args = append(args, opts.Services...)
+
+	if err := p.runDockerComposeCmd(dockerComposeOptions{args: args, env: opts.Env, stdout: &b}); err != nil {
+		return nil, err
+	}
+
+	logger.Debugf("%v\n", b.String())
+	containerIDs := strings.Fields(b.String())
+
+	containerDescriptions, err := docker.InspectContainers(containerIDs...)
+	if err != nil {
+		return nil, err
+	}
+
+	var serviceNameRegex = regexp.MustCompile(fmt.Sprintf("^/%v_(.*)_\\d+$", p.name))
+	for _, containerDescription := range containerDescriptions {
+		logger.Debugf("Image container: \"%v\"", containerDescription.Config.Image)
+		matches := serviceNameRegex.FindStringSubmatch(containerDescription.Name)
+		if matches == nil || len(matches) == 0 {
+			return nil, fmt.Errorf("Unknown container %v", containerDescription.Name)
+		}
+		logger.Debugf("Matches: %v", matches)
+		service := ServiceStatus{
+			ID:      containerDescription.ID,
+			Name:    matches[1],
+			Running: containerDescription.State.Status == "running",
+			Status:  containerDescription.State.Status,
+			Version: getVersionFromDockerImage(containerDescription.Config.Image),
+		}
+		if containerDescription.State.Status != "running" {
+			service.ExitCode = containerDescription.State.ExitCode
+		}
+		if containerDescription.State.Health != nil {
+			service.Health = containerDescription.State.Health.Status
+		}
+		services = append(services, service)
+	}
+
+	return services, nil
+
+	// for _, serviceName := range opts.Services {
+	// 	var b bytes.Buffer
+	// 	logger.Debugf("Getting status for %v\n", serviceName)
+	// 	commandArgs := append(args, serviceName)
+
+	// 	if err := p.runDockerComposeCmd(dockerComposeOptions{args: commandArgs, env: opts.Env, stdout: &b}); err != nil {
+	// 		return nil, err
+	// 	}
+	// 	containerID := strings.TrimSpace(b.String())
+	// 	logger.Debugf("Checking containerID \"%s\" for %v", containerID, serviceName)
+	// 	containerDescriptions, err := docker.InspectContainers(containerID)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+
+	// 	containerDescription := containerDescriptions[0]
+
+	// 	service := ServiceStatus{
+	// 		ID:       containerDescription.ID,
+	// 		Status:   containerDescription.State.Status,
+	// 		ExitCode: containerDescription.State.ExitCode,
+	// 		Name:     serviceName,
+	// 	}
+	// 	if containerDescription.State.Health != nil {
+	// 		service.Health = containerDescription.State.Health.Status
+	// 	}
+	// 	services = append(services, service)
+	// }
+
+	// return services, nil
+}
+
+func getVersionFromDockerImage(dockerImage string) string {
+	fields := strings.Split(dockerImage, ":")
+	if len(fields) == 2 {
+		return fields[1]
+	}
+	return "latest"
+
+}
+
 // WaitForHealthy method waits until all containers are healthy.
 func (p *Project) WaitForHealthy(opts CommandOptions) error {
 	// Read container IDs
@@ -409,6 +512,14 @@ func (p *Project) dockerComposeVersion() (*semver.Version, error) {
 
 // ContainerName method the container name for the service.
 func (p *Project) ContainerName(serviceName string) string {
+	if p.dockerComposeV1 {
+		return fmt.Sprintf("%s_%s_1", p.name, serviceName)
+	}
+	return fmt.Sprintf("%s-%s-1", p.name, serviceName)
+}
+
+// ContainerStatus method returns the status for the given service.
+func (p *Project) ContainerStatus(serviceName string) string {
 	if p.dockerComposeV1 {
 		return fmt.Sprintf("%s_%s_1", p.name, serviceName)
 	}

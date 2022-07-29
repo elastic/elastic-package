@@ -6,13 +6,16 @@ package cmd
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
+	"github.com/jedib0t/go-pretty/table"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/common"
+	"github.com/elastic/elastic-package/internal/compose"
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/profile"
 	"github.com/elastic/elastic-package/internal/stack"
@@ -246,6 +249,32 @@ func setupStackCommand() *cobraext.Command {
 	}
 	dumpCommand.Flags().StringP(cobraext.StackDumpOutputFlagName, "", "elastic-stack-dump", cobraext.StackDumpOutputFlagDescription)
 
+	statusCommand := &cobra.Command{
+		Use:   "status",
+		Short: "Show status of the stack services",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			profileName, err := cmd.Flags().GetString(cobraext.ProfileFlagName)
+			if err != nil {
+				return cobraext.FlagParsingError(err, cobraext.ProfileFlagName)
+			}
+			profile, err := profile.LoadProfile(profileName)
+			if err != nil {
+				return errors.Wrap(err, "error loading profile")
+			}
+
+			servicesStatus, err := stack.Status(stack.Options{
+				Profile: profile,
+			})
+			if err != nil {
+				return errors.Wrap(err, "failed updating the stack images")
+			}
+
+			cmd.Println("Status of Elastic stack services:")
+			printStatus(cmd, servicesStatus)
+			return nil
+		},
+	}
+
 	cmd := &cobra.Command{
 		Use:   "stack",
 		Short: "Manage the Elastic stack",
@@ -257,7 +286,8 @@ func setupStackCommand() *cobraext.Command {
 		downCommand,
 		updateCommand,
 		shellInitCommand,
-		dumpCommand)
+		dumpCommand,
+		statusCommand)
 
 	return cobraext.NewCommand(cmd, cobraext.ContextGlobal)
 }
@@ -299,4 +329,19 @@ func printInitConfig(cmd *cobra.Command, profile *profile.Profile) error {
 	cmd.Printf("Username: %s\n", initConfig.ElasticsearchUsername)
 	cmd.Printf("Password: %s\n", initConfig.ElasticsearchPassword)
 	return nil
+}
+
+func printStatus(cmd *cobra.Command, servicesStatus []compose.ServiceStatus) {
+	t := table.NewWriter()
+	t.AppendHeader(table.Row{"Service", "Version", "Status", "Health", "Exit Code (if any)"})
+
+	for _, service := range servicesStatus {
+		exitCode := strconv.Itoa(service.ExitCode)
+		if service.ExitCode == 0 {
+			exitCode = ""
+		}
+		t.AppendRow(table.Row{service.Name, service.Version, service.Status, service.Health, exitCode})
+	}
+	t.SetStyle(table.StyleRounded)
+	cmd.Println(t.Render())
 }

@@ -146,6 +146,27 @@ func dockerComposeDown(options Options) error {
 	return nil
 }
 
+func dockerComposeStatus(options Options) ([]compose.ServiceStatus, error) {
+	p, err := compose.NewProject(DockerComposeProjectName, options.Profile.FetchPath(profile.SnapshotFile))
+	if err != nil {
+		return nil, errors.Wrap(err, "could not create docker compose project")
+	}
+
+	statusOptions := compose.CommandOptions{
+		Env: newEnvBuilder().
+			withEnv(stackVariantAsEnv(options.StackVersion)).
+			withEnvs(options.Profile.ComposeEnvVars()).
+			build(),
+		Services: options.Services,
+	}
+
+	statusServices, err := p.Status(statusOptions)
+	if err != nil {
+		return nil, errors.Wrap(err, "running command failed")
+	}
+	return statusServices, nil
+}
+
 func withDependentServices(services []string) []string {
 	for _, aService := range services {
 		if aService == "elastic-agent" {
