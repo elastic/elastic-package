@@ -331,8 +331,8 @@ func (p *Project) Status(opts CommandOptions) ([]ServiceStatus, error) {
 func newServiceStatus(description *docker.ContainerDescription, regex *regexp.Regexp) (*ServiceStatus, error) {
 	logger.Debugf("Image container: \"%v\"", description.Config.Image)
 	matches := regex.FindStringSubmatch(description.Name)
-	if matches == nil || len(matches) == 0 {
-		return nil, fmt.Errorf("Unknown container %v", description.Name)
+	if len(matches) == 0 {
+		return nil, fmt.Errorf("container not recognised: %v", description.Name)
 	}
 
 	logger.Debugf("Matches: %v", matches)
