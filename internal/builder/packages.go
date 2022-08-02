@@ -159,6 +159,7 @@ func BuildPackage(options BuildOptions) (string, error) {
 		return "", errors.Wrap(err, "copying package contents failed")
 	}
 
+	logger.Debug("Copy license file if needed")
 	err = copyLicenseTextFile(filepath.Join(destinationDir, licenseTextFileName))
 	if err != nil {
 		return "", errors.Wrap(err, "copying license text file")
@@ -243,20 +244,20 @@ func signZippedPackage(options BuildOptions, zippedPackagePath string) error {
 func copyLicenseTextFile(licensePath string) error {
 	_, err := os.Stat(licensePath)
 	if err == nil {
-		// License is already there, nothing to do.
+		logger.Debug("License file in the package will be used")
 		return nil
 	}
 
 	sourceLicensePath, err := findRepositoryLicense()
 	if errors.Is(err, os.ErrNotExist) {
-		logger.Debug("No license text file is included in package.")
+		logger.Debug("No license text file is included in package")
 		return nil
 	}
 	if err != nil {
 		return errors.Wrap(err, "failure while looking for license in repository")
 	}
 
-	logger.Debugf("License text found in %q will be included in package", sourceLicensePath)
+	logger.Infof("License text found in %q will be included in package", sourceLicensePath)
 	err = sh.Copy(licensePath, sourceLicensePath)
 	if err != nil {
 		return errors.Wrap(err, "can't copy license from repository")
