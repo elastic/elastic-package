@@ -35,7 +35,7 @@ func TestIntOrStringYaml(t *testing.T) {
 func TestGetVersionFromDockerImage(t *testing.T) {
 	cases := []struct {
 		dockerImage string
-		expected    int
+		expected    string
 	}{
 		{"docker.test/test:1.42.0", "1.42.0"},
 		{"docker.test/test", "latest"},
