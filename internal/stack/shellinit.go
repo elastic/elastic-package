@@ -9,6 +9,7 @@ import (
 
 	"github.com/elastic/elastic-package/internal/environment"
 	"github.com/elastic/elastic-package/internal/profile"
+	"github.com/elastic/elastic-package/internal/stack/shellinit/shell"
 )
 
 // Environment variables describing the stack.
@@ -20,24 +21,19 @@ var (
 	CACertificateEnv         = environment.WithElasticPackagePrefix("CA_CERT")
 )
 
-var shellInitFormat = "export " + ElasticsearchHostEnv + "=%s\n" +
-	"export " + ElasticsearchUsernameEnv + "=%s\n" +
-	"export " + ElasticsearchPasswordEnv + "=%s\n" +
-	"export " + KibanaHostEnv + "=%s\n" +
-	"export " + CACertificateEnv + "=%s"
-
 // ShellInit method exposes environment variables that can be used for testing purposes.
-func ShellInit(elasticStackProfile *profile.Profile) (string, error) {
+func ShellInit(elasticStackProfile *profile.Profile, st shell.Type) (string, error) {
 	config, err := StackInitConfig(elasticStackProfile)
 	if err != nil {
 		return "", nil
 	}
 
-	return fmt.Sprintf(shellInitFormat,
-		config.ElasticsearchHostPort,
-		config.ElasticsearchUsername,
-		config.ElasticsearchPassword,
-		config.KibanaHostPort,
-		config.CACertificatePath,
+	// NOTE: to add new env vars, the template need to be adjusted
+	return fmt.Sprintf(shell.InitTemplate(st),
+		ElasticsearchHostEnv, config.ElasticsearchHostPort,
+		ElasticsearchUsernameEnv, config.ElasticsearchUsername,
+		ElasticsearchPasswordEnv, config.ElasticsearchPassword,
+		KibanaHostEnv, config.KibanaHostPort,
+		CACertificateEnv, config.CACertificatePath,
 	), nil
 }

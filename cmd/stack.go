@@ -17,6 +17,7 @@ import (
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/profile"
 	"github.com/elastic/elastic-package/internal/stack"
+	"github.com/elastic/elastic-package/internal/stack/shellinit/shell"
 )
 
 var availableServices = map[string]struct{}{
@@ -198,12 +199,17 @@ func setupStackCommand() *cobraext.Command {
 				return cobraext.FlagParsingError(err, cobraext.ProfileFlagName)
 			}
 
+			s, err := cmd.Flags().GetString("shell")
+			if err != nil {
+				return cobraext.FlagParsingError(err, "shell")
+			}
+
 			profile, err := profile.LoadProfile(profileName)
 			if err != nil {
 				return errors.Wrap(err, "error loading profile")
 			}
 
-			shell, err := stack.ShellInit(profile)
+			shell, err := stack.ShellInit(profile, shell.FromString(s))
 			if err != nil {
 				return errors.Wrap(err, "shellinit failed")
 			}
@@ -211,6 +217,7 @@ func setupStackCommand() *cobraext.Command {
 			return nil
 		},
 	}
+	shellInitCommand.Flags().StringP("shell", "s", "bash", "change shell code compatibility; available values: "+strings.Join(shell.AvailableShellTypes(), ", "))
 
 	dumpCommand := &cobra.Command{
 		Use:   "dump",
