@@ -31,3 +31,21 @@ func TestIntOrStringYaml(t *testing.T) {
 		})
 	}
 }
+
+func TestGetVersionFromDockerImage(t *testing.T) {
+	cases := []struct {
+		dockerImage string
+		expected    int
+	}{
+		{"docker.test/test:1.42.0", "1.42.0"},
+		{"docker.test/test", "latest"},
+	}
+
+	for _, c := range cases {
+		t.Run(c.dockerImage, func(t *testing.T) {
+			version := getVersionFromDockerImage(c.dockerImage)
+			require.NoError(t, err)
+			assert.Equal(t, c.expected, version)
+		})
+	}
+}
