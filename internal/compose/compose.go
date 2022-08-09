@@ -51,7 +51,6 @@ type service struct {
 type ServiceStatus struct {
 	ID      string
 	Name    string
-	Running bool
 	Status  string
 	Version string
 }
@@ -338,7 +337,7 @@ func newServiceStatus(description *docker.ContainerDescription) (*ServiceStatus,
 		Status:  description.State.Status,
 		Version: getVersionFromDockerImage(description.Config.Image),
 	}
-	if description.State.Health != nil {
+	if description.State.Health != nil && description.State.Status == "running" {
 		service.Status = fmt.Sprintf("%v (%v)", service.Status, description.State.Health.Status)
 	}
 
