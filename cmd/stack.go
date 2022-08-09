@@ -331,6 +331,10 @@ func printInitConfig(cmd *cobra.Command, profile *profile.Profile) error {
 }
 
 func printStatus(cmd *cobra.Command, servicesStatus []compose.ServiceStatus) {
+	if len(servicesStatus) == 0 {
+		cmd.Printf(" - No service running\n")
+		return
+	}
 	t := table.NewWriter()
 	t.AppendHeader(table.Row{"Service", "Version", "Status"})
 

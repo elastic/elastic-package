@@ -310,6 +310,9 @@ func (p *Project) Status(opts CommandOptions) ([]ServiceStatus, error) {
 	}
 
 	containerIDs := strings.Fields(b.String())
+	if len(containerIDs) == 0 {
+		return services, nil
+	}
 
 	containerDescriptions, err := docker.InspectContainers(containerIDs...)
 	if err != nil {
