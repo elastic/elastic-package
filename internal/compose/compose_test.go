@@ -44,7 +44,6 @@ func TestGetVersionFromDockerImage(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.dockerImage, func(t *testing.T) {
 			version := getVersionFromDockerImage(c.dockerImage)
-			require.NoError(t, err)
 			assert.Equal(t, c.expected, version)
 		})
 	}
