@@ -10,7 +10,6 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -319,9 +318,8 @@ func (p *Project) Status(opts CommandOptions) ([]ServiceStatus, error) {
 		return nil, err
 	}
 
-	var serviceNameRegex = regexp.MustCompile(fmt.Sprintf("^/%v_(.*)_\\d+$", p.name))
 	for _, containerDescription := range containerDescriptions {
-		service, err := newServiceStatus(&containerDescription, serviceNameRegex)
+		service, err := newServiceStatus(&containerDescription)
 		if err != nil {
 			return nil, err
 		}
@@ -331,17 +329,12 @@ func (p *Project) Status(opts CommandOptions) ([]ServiceStatus, error) {
 	return services, nil
 }
 
-func newServiceStatus(description *docker.ContainerDescription, regex *regexp.Regexp) (*ServiceStatus, error) {
+func newServiceStatus(description *docker.ContainerDescription) (*ServiceStatus, error) {
 	logger.Debugf("Image container: \"%v\"", description.Config.Image)
-	matches := regex.FindStringSubmatch(description.Name)
-	if len(matches) == 0 {
-		return nil, fmt.Errorf("container not recognised: %v", description.Name)
-	}
-
-	logger.Debugf("Matches: %v", matches)
+	logger.Debugf("Service: \"%v\"", description.Config.Labels["com.docker.compose.service"])
 	service := ServiceStatus{
 		ID:      description.ID,
-		Name:    matches[1],
+		Name:    description.Config.Labels["com.docker.compose.service"],
 		Status:  description.State.Status,
 		Version: getVersionFromDockerImage(description.Config.Image),
 	}

@@ -28,7 +28,8 @@ type NetworkDescription struct {
 // ContainerDescription describes the Docker container.
 type ContainerDescription struct {
 	Config struct {
-		Image string
+		Image  string
+		Labels map[string]string
 	}
 	ID    string
 	Name  string
