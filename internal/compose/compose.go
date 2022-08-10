@@ -338,8 +338,11 @@ func newServiceStatus(description *docker.ContainerDescription) (*ServiceStatus,
 		Status:  description.State.Status,
 		Version: getVersionFromDockerImage(description.Config.Image),
 	}
-	if description.State.Health != nil && description.State.Status == "running" {
+	if description.State.Status == "running" {
 		service.Status = fmt.Sprintf("%v (%v)", service.Status, description.State.Health.Status)
+	}
+	if description.State.Status == "exited" {
+		service.Status = fmt.Sprintf("%v (%v)", service.Status, description.State.ExitCode)
 	}
 
 	return &service, nil
