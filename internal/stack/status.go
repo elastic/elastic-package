@@ -5,8 +5,6 @@
 package stack
 
 import (
-	"github.com/pkg/errors"
-
 	"github.com/elastic/elastic-package/internal/compose"
 )
 
@@ -17,7 +15,7 @@ func Status(options Options) ([]compose.ServiceStatus, error) {
 
 	statusServices, err := dockerComposeStatus(opts)
 	if err != nil {
-		return nil, errors.Wrap(err, "stack status failed")
+		return nil, err
 	}
 
 	return statusServices, nil

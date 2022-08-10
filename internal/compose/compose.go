@@ -304,6 +304,7 @@ func (p *Project) Status(opts CommandOptions) ([]ServiceStatus, error) {
 	var b bytes.Buffer
 
 	if err := p.runDockerComposeCmd(dockerComposeOptions{args: args, env: opts.Env, stdout: &b}); err != nil {
+		logger.Errorf("is Elastic stack created/running?")
 		return nil, err
 	}
 
@@ -477,14 +478,6 @@ func (p *Project) dockerComposeVersion() (*semver.Version, error) {
 
 // ContainerName method the container name for the service.
 func (p *Project) ContainerName(serviceName string) string {
-	if p.dockerComposeV1 {
-		return fmt.Sprintf("%s_%s_1", p.name, serviceName)
-	}
-	return fmt.Sprintf("%s-%s-1", p.name, serviceName)
-}
-
-// ContainerStatus method returns the status for the given service.
-func (p *Project) ContainerStatus(serviceName string) string {
 	if p.dockerComposeV1 {
 		return fmt.Sprintf("%s_%s_1", p.name, serviceName)
 	}

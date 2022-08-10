@@ -265,7 +265,7 @@ func setupStackCommand() *cobraext.Command {
 				Profile: profile,
 			})
 			if err != nil {
-				return errors.Wrap(err, "failed updating the stack images")
+				return errors.Wrap(err, "failed getting stack status")
 			}
 
 			cmd.Println("Status of Elastic stack services:")
