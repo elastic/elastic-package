@@ -320,9 +320,6 @@ func (p *Project) Status(opts CommandOptions) ([]ServiceStatus, error) {
 	}
 
 	for _, containerDescription := range containerDescriptions {
-		if strings.Contains(containerDescription.Config.Labels[serviceLabelDockerCompose], "is_ready") {
-			continue
-		}
 		service, err := newServiceStatus(&containerDescription)
 		if err != nil {
 			return nil, err

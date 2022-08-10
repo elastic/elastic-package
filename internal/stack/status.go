@@ -5,7 +5,10 @@
 package stack
 
 import (
+	"strings"
+
 	"github.com/elastic/elastic-package/internal/compose"
+	"github.com/elastic/elastic-package/internal/logger"
 )
 
 // Status shows the status for each service
@@ -15,5 +18,15 @@ func Status(options Options) ([]compose.ServiceStatus, error) {
 		return nil, err
 	}
 
-	return servicesStatus, nil
+	var services []compose.ServiceStatus
+	for _, status := range servicesStatus {
+		// filter the is_ready services
+		if strings.Contains(status.Name, readyServicesSuffix) {
+			logger.Debugf("Filtering out service: %s (%s)", status.Name, status.ID)
+			continue
+		}
+		services = append(services, status)
+	}
+
+	return services, nil
 }

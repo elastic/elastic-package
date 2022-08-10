@@ -14,6 +14,8 @@ import (
 	"github.com/elastic/elastic-package/internal/profile"
 )
 
+const readyServicesSuffix = "is_ready"
+
 type envBuilder struct {
 	vars []string
 }
@@ -182,7 +184,7 @@ func withIsReadyServices(services []string) []string {
 
 	var allServices []string
 	for _, aService := range services {
-		allServices = append(allServices, aService, fmt.Sprintf("%s_is_ready", aService))
+		allServices = append(allServices, aService, fmt.Sprintf("%s_%s", aService, readyServicesSuffix))
 	}
 	return allServices
 }
