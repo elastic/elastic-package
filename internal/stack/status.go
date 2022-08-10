@@ -10,13 +10,10 @@ import (
 
 // Status shows the status for each service
 func Status(options Options) ([]compose.ServiceStatus, error) {
-	opts := options
-	opts.Services = observedServices
-
-	statusServices, err := dockerComposeStatus(opts)
+	servicesStatus, err := dockerComposeStatus(options)
 	if err != nil {
 		return nil, err
 	}
 
-	return statusServices, nil
+	return servicesStatus, nil
 }

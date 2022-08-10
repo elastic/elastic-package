@@ -157,14 +157,13 @@ func dockerComposeStatus(options Options) ([]compose.ServiceStatus, error) {
 			withEnv(stackVariantAsEnv(options.StackVersion)).
 			withEnvs(options.Profile.ComposeEnvVars()).
 			build(),
-		Services: options.Services,
 	}
 
-	statusServices, err := p.Status(statusOptions)
+	servicesStatus, err := p.Status(statusOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "running command failed")
 	}
-	return statusServices, nil
+	return servicesStatus, nil
 }
 
 func withDependentServices(services []string) []string {

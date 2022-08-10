@@ -30,6 +30,9 @@ const (
 	waitForHealthyInterval = 1 * time.Second
 )
 
+// serviceLabelDockerCompose is the label with the service name created by docker-compose
+const serviceLabelDockerCompose = "com.docker.compose.service"
+
 // Project represents a Docker Compose project.
 type Project struct {
 	name             string
@@ -297,9 +300,7 @@ func (p *Project) Status(opts CommandOptions) ([]ServiceStatus, error) {
 	args := p.baseArgs()
 	args = append(args, "ps")
 	args = append(args, "-q")
-	args = append(args, opts.Services...)
 
-	logger.Debugf("Services to check: %v", opts.Services)
 	var services []ServiceStatus
 	var b bytes.Buffer
 
@@ -319,6 +320,9 @@ func (p *Project) Status(opts CommandOptions) ([]ServiceStatus, error) {
 	}
 
 	for _, containerDescription := range containerDescriptions {
+		if strings.Contains(containerDescription.Config.Labels[serviceLabelDockerCompose], "is_ready") {
+			continue
+		}
 		service, err := newServiceStatus(&containerDescription)
 		if err != nil {
 			return nil, err
@@ -331,10 +335,10 @@ func (p *Project) Status(opts CommandOptions) ([]ServiceStatus, error) {
 
 func newServiceStatus(description *docker.ContainerDescription) (*ServiceStatus, error) {
 	logger.Debugf("Image container: \"%v\"", description.Config.Image)
-	logger.Debugf("Service: \"%v\"", description.Config.Labels["com.docker.compose.service"])
+	logger.Debugf("Service: \"%v\"", description.Config.Labels[serviceLabelDockerCompose])
 	service := ServiceStatus{
 		ID:      description.ID,
-		Name:    description.Config.Labels["com.docker.compose.service"],
+		Name:    description.Config.Labels[serviceLabelDockerCompose],
 		Status:  description.State.Status,
 		Version: getVersionFromDockerImage(description.Config.Image),
 	}
