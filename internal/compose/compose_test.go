@@ -135,7 +135,7 @@ func TestNewServiceStatus(t *testing.T) {
 			expected: ServiceStatus{
 				ID:      "123456789ab",
 				Name:    "myservice",
-				Status:  "exited",
+				Status:  "exited (128)",
 				Version: "1.42.0",
 			},
 		},
