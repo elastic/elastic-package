@@ -52,7 +52,6 @@ type service struct {
 }
 
 type ServiceStatus struct {
-	ID      string
 	Name    string
 	Status  string
 	Version string
@@ -333,7 +332,6 @@ func (p *Project) Status(opts CommandOptions) ([]ServiceStatus, error) {
 
 func newServiceStatus(description *docker.ContainerDescription) (*ServiceStatus, error) {
 	service := ServiceStatus{
-		ID:      description.ID,
 		Name:    description.Config.Labels[serviceLabelDockerCompose],
 		Status:  description.State.Status,
 		Version: getVersionFromDockerImage(description.Config.Image),

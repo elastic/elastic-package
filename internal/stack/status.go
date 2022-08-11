@@ -20,9 +20,8 @@ func Status(options Options) ([]compose.ServiceStatus, error) {
 
 	var services []compose.ServiceStatus
 	for _, status := range servicesStatus {
-		// filter the is_ready services
 		if strings.Contains(status.Name, readyServicesSuffix) {
-			logger.Debugf("Filtering out service: %s (%s)", status.Name, status.ID)
+			logger.Debugf("Filtering out service: %s", status.Name)
 			continue
 		}
 		services = append(services, status)
