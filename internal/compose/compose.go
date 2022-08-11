@@ -324,6 +324,7 @@ func (p *Project) Status(opts CommandOptions) ([]ServiceStatus, error) {
 		if err != nil {
 			return nil, err
 		}
+		logger.Debugf("Adding Service: \"%v\"", service.Name)
 		services = append(services, *service)
 	}
 
@@ -331,8 +332,6 @@ func (p *Project) Status(opts CommandOptions) ([]ServiceStatus, error) {
 }
 
 func newServiceStatus(description *docker.ContainerDescription) (*ServiceStatus, error) {
-	logger.Debugf("Image container: \"%v\"", description.Config.Image)
-	logger.Debugf("Service: \"%v\"", description.Config.Labels[serviceLabelDockerCompose])
 	service := ServiceStatus{
 		ID:      description.ID,
 		Name:    description.Config.Labels[serviceLabelDockerCompose],
