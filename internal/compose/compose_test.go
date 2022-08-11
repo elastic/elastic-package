@@ -68,8 +68,7 @@ func TestNewServiceStatus(t *testing.T) {
 					Image:  "docker.test:1.42.0",
 					Labels: map[string]string{"com.docker.compose.service": "myservice", "foo": "bar"},
 				},
-				ID:   "123456789ab",
-				Name: "project-my-service",
+				ID: "123456789ab",
 				State: struct {
 					Status   string
 					ExitCode int
@@ -113,8 +112,7 @@ func TestNewServiceStatus(t *testing.T) {
 					Image:  "docker.test:1.42.0",
 					Labels: map[string]string{"com.docker.compose.service": "myservice", "foo": "bar"},
 				},
-				ID:   "123456789ab",
-				Name: "project-my-service",
+				ID: "123456789ab",
 				State: struct {
 					Status   string
 					ExitCode int
@@ -149,8 +147,7 @@ func TestNewServiceStatus(t *testing.T) {
 					Image:  "docker.test:1.42.0",
 					Labels: map[string]string{"com.docker.compose.service": "myservice", "foo": "bar"},
 				},
-				ID:   "123456789ab",
-				Name: "project-my-service",
+				ID: "123456789ab",
 				State: struct {
 					Status   string
 					ExitCode int

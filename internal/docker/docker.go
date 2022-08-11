@@ -32,7 +32,6 @@ type ContainerDescription struct {
 		Labels map[string]string
 	}
 	ID    string
-	Name  string
 	State struct {
 		Status   string
 		ExitCode int
