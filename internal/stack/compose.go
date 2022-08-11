@@ -156,7 +156,6 @@ func dockerComposeStatus(options Options) ([]compose.ServiceStatus, error) {
 
 	statusOptions := compose.CommandOptions{
 		Env: newEnvBuilder().
-			withEnv(stackVariantAsEnv(options.StackVersion)).
 			withEnvs(options.Profile.ComposeEnvVars()).
 			build(),
 	}
