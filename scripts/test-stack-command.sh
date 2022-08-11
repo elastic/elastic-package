@@ -38,7 +38,7 @@ OUTPUT_PATH_STATUS="build/elastic-stack-status"
 mkdir -p ${OUTPUT_PATH_STATUS}
 
 # Initial status empty
-elastic-package stack status 2> ${OUTPUT_PATH_STATUS}/initial.txt
+elastic-package stack status -v 2> ${OUTPUT_PATH_STATUS}/initial.txt
 grep "\- No service running" ${OUTPUT_PATH_STATUS}/initial.txt
 
 # Update the stack
@@ -66,7 +66,7 @@ Status of Elastic stack services:
 ╰──────────────────┴─────────┴───────────────────╯
 EOF
 
-elastic-package stack status 2> ${OUTPUT_PATH_STATUS}/running.txt
+elastic-package stack status -v 2> ${OUTPUT_PATH_STATUS}/running.txt
 
 # Remove spaces to avoid issues with spaces between columns
 clean_status_output "${OUTPUT_PATH_STATUS}/expected_running.txt" > ${OUTPUT_PATH_STATUS}/expected_no_spaces.txt
