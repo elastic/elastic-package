@@ -5,6 +5,7 @@
 package stack
 
 import (
+	"sort"
 	"strings"
 
 	"github.com/elastic/elastic-package/internal/logger"
@@ -25,6 +26,8 @@ func Status() ([]ServiceStatus, error) {
 		}
 		services = append(services, status)
 	}
+
+	sort.Slice(services, func(i, j int) bool { return services[i].Name < services[j].Name })
 
 	return services, nil
 }
