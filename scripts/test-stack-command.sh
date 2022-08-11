@@ -34,7 +34,7 @@ if [ "${VERSION}" != "default" ]; then
   EXPECTED_VERSION=${VERSION}
 fi
 
-OUTPUT_PATH_STATUS="build/elastic-stack-status"
+OUTPUT_PATH_STATUS="build/elastic-stack-status/${VERSION}"
 mkdir -p ${OUTPUT_PATH_STATUS}
 
 # Initial status empty
@@ -52,7 +52,6 @@ eval "$(elastic-package stack shellinit)"
 curl --cacert ${ELASTIC_PACKAGE_CA_CERT} -f ${ELASTIC_PACKAGE_KIBANA_HOST}/login | grep kbn-injected-metadata >/dev/null # healthcheck
 
 # Check status with running services
-echo "Expected version : ${EXPECTED_VERSION}"
 cat <<EOF > ${OUTPUT_PATH_STATUS}/expected_running.txt
 Status of Elastic stack services:
 ╭──────────────────┬─────────┬───────────────────╮
