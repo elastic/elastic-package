@@ -6,15 +6,31 @@ package stack
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/compose"
+	"github.com/elastic/elastic-package/internal/docker"
 	"github.com/elastic/elastic-package/internal/install"
+	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/profile"
 )
 
+type ServiceStatus struct {
+	Name    string
+	Status  string
+	Version string
+}
+
 const readyServicesSuffix = "is_ready"
+
+const (
+	// serviceLabelDockerCompose is the label with the service name created by docker-compose
+	serviceLabelDockerCompose = "com.docker.compose.service"
+	// projectLabelDockerCompose is the label with the project name created by docker-compose
+	projectLabelDockerCompose = "com.docker.compose.project"
+)
 
 type envBuilder struct {
 	vars []string
@@ -148,26 +164,6 @@ func dockerComposeDown(options Options) error {
 	return nil
 }
 
-func dockerComposeStatus(options Options) ([]compose.ServiceStatus, error) {
-	p, err := compose.NewProject(DockerComposeProjectName, options.Profile.FetchPath(profile.SnapshotFile))
-	if err != nil {
-		return nil, errors.Wrap(err, "could not create docker compose project")
-	}
-
-	statusOptions := compose.CommandOptions{
-		Env: newEnvBuilder().
-			withEnv(stackVariantAsEnv(options.StackVersion)).
-			withEnvs(options.Profile.ComposeEnvVars()).
-			build(),
-	}
-
-	servicesStatus, err := p.Status(statusOptions)
-	if err != nil {
-		return nil, errors.Wrap(err, "running command failed")
-	}
-	return servicesStatus, nil
-}
-
 func withDependentServices(services []string) []string {
 	for _, aService := range services {
 		if aService == "elastic-agent" {
@@ -187,4 +183,57 @@ func withIsReadyServices(services []string) []string {
 		allServices = append(allServices, aService, fmt.Sprintf("%s_%s", aService, readyServicesSuffix))
 	}
 	return allServices
+}
+
+func dockerComposeStatus() ([]ServiceStatus, error) {
+	var services []ServiceStatus
+	// query directly to docker to avoid load environment variables (e.g. STACK_VERSION_VARIANT) and profiles
+	containerIDs, err := docker.ContainerIDsWithLabel(fmt.Sprintf("%s=%s", projectLabelDockerCompose, DockerComposeProjectName))
+	if err != nil {
+		return nil, err
+	}
+
+	if len(containerIDs) == 0 {
+		return services, nil
+	}
+
+	containerDescriptions, err := docker.InspectContainers(containerIDs...)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, containerDescription := range containerDescriptions {
+		service, err := newServiceStatus(&containerDescription)
+		if err != nil {
+			return nil, err
+		}
+		logger.Debugf("Adding Service: \"%v\"", service.Name)
+		services = append(services, *service)
+	}
+
+	return services, nil
+}
+
+func newServiceStatus(description *docker.ContainerDescription) (*ServiceStatus, error) {
+	service := ServiceStatus{
+		Name:    description.Config.Labels[serviceLabelDockerCompose],
+		Status:  description.State.Status,
+		Version: getVersionFromDockerImage(description.Config.Image),
+	}
+	if description.State.Status == "running" {
+		service.Status = fmt.Sprintf("%v (%v)", service.Status, description.State.Health.Status)
+	}
+	if description.State.Status == "exited" {
+		service.Status = fmt.Sprintf("%v (%v)", service.Status, description.State.ExitCode)
+	}
+
+	return &service, nil
+}
+
+func getVersionFromDockerImage(dockerImage string) string {
+	fields := strings.Split(dockerImage, ":")
+	if len(fields) == 2 {
+		return fields[1]
+	}
+	return "latest"
 }

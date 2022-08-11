@@ -14,7 +14,6 @@ import (
 
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/common"
-	"github.com/elastic/elastic-package/internal/compose"
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/profile"
 	"github.com/elastic/elastic-package/internal/stack"
@@ -252,24 +251,7 @@ func setupStackCommand() *cobraext.Command {
 		Use:   "status",
 		Short: "Show status of the stack services",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			profileName, err := cmd.Flags().GetString(cobraext.ProfileFlagName)
-			if err != nil {
-				return cobraext.FlagParsingError(err, cobraext.ProfileFlagName)
-			}
-			profile, err := profile.LoadProfile(profileName)
-			if err != nil {
-				return errors.Wrap(err, "error loading profile")
-			}
-
-			stackVersion, err := cmd.Flags().GetString(cobraext.StackVersionFlagName)
-			if err != nil {
-				return cobraext.FlagParsingError(err, cobraext.StackVersionFlagName)
-			}
-
-			servicesStatus, err := stack.Status(stack.Options{
-				StackVersion: stackVersion,
-				Profile:      profile,
-			})
+			servicesStatus, err := stack.Status()
 			if err != nil {
 				return errors.Wrap(err, "failed getting stack status")
 			}
@@ -279,7 +261,6 @@ func setupStackCommand() *cobraext.Command {
 			return nil
 		},
 	}
-	statusCommand.Flags().StringP(cobraext.StackVersionFlagName, "", install.DefaultStackVersion, cobraext.StackVersionFlagDescription)
 
 	cmd := &cobra.Command{
 		Use:   "stack",
@@ -337,7 +318,7 @@ func printInitConfig(cmd *cobra.Command, profile *profile.Profile) error {
 	return nil
 }
 
-func printStatus(cmd *cobra.Command, servicesStatus []compose.ServiceStatus) {
+func printStatus(cmd *cobra.Command, servicesStatus []stack.ServiceStatus) {
 	if len(servicesStatus) == 0 {
 		cmd.Printf(" - No service running\n")
 		return

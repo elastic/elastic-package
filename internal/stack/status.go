@@ -7,18 +7,17 @@ package stack
 import (
 	"strings"
 
-	"github.com/elastic/elastic-package/internal/compose"
 	"github.com/elastic/elastic-package/internal/logger"
 )
 
 // Status shows the status for each service
-func Status(options Options) ([]compose.ServiceStatus, error) {
-	servicesStatus, err := dockerComposeStatus(options)
+func Status() ([]ServiceStatus, error) {
+	servicesStatus, err := dockerComposeStatus()
 	if err != nil {
 		return nil, err
 	}
 
-	var services []compose.ServiceStatus
+	var services []ServiceStatus
 	for _, status := range servicesStatus {
 		if strings.Contains(status.Name, readyServicesSuffix) {
 			logger.Debugf("Filtering out service: %s", status.Name)

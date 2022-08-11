@@ -90,6 +90,21 @@ func ContainerID(containerName string) (string, error) {
 	return containerIDs[0], nil
 }
 
+// ContainerIDsWithLabel function returns all the container IDs filtering per label.
+func ContainerIDsWithLabel(label string) ([]string, error) {
+	cmd := exec.Command("docker", "ps", "-a", "--filter", "label="+label, "--format", "{{.ID}}")
+	errOutput := new(bytes.Buffer)
+	cmd.Stderr = errOutput
+
+	logger.Debugf("output command: %s", cmd)
+	output, err := cmd.Output()
+	if err != nil {
+		return []string{}, errors.Wrapf(err, "error getting containers with label \"%s\" (stderr=%q)", label, errOutput.String())
+	}
+	containerIDs := strings.Fields(string(output))
+	return containerIDs, nil
+}
+
 // InspectNetwork function returns the network description for the selected network.
 func InspectNetwork(network string) ([]NetworkDescription, error) {
 	cmd := exec.Command("docker", "network", "inspect", network)

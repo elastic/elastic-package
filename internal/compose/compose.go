@@ -30,9 +30,6 @@ const (
 	waitForHealthyInterval = 1 * time.Second
 )
 
-// serviceLabelDockerCompose is the label with the service name created by docker-compose
-const serviceLabelDockerCompose = "com.docker.compose.service"
-
 // Project represents a Docker Compose project.
 type Project struct {
 	name             string
@@ -49,12 +46,6 @@ type Config struct {
 type service struct {
 	Ports       []portMapping
 	Environment map[string]string
-}
-
-type ServiceStatus struct {
-	Name    string
-	Status  string
-	Version string
 }
 
 type portMapping struct {
@@ -292,66 +283,6 @@ func (p *Project) Logs(opts CommandOptions) ([]byte, error) {
 		return nil, err
 	}
 	return b.Bytes(), nil
-}
-
-// Status returns status services for the selected service in the Docker Compose project.
-func (p *Project) Status(opts CommandOptions) ([]ServiceStatus, error) {
-	args := p.baseArgs()
-	args = append(args, "ps")
-	args = append(args, "-q")
-
-	var services []ServiceStatus
-	var b bytes.Buffer
-
-	if err := p.runDockerComposeCmd(dockerComposeOptions{args: args, env: opts.Env, stdout: &b}); err != nil {
-		logger.Errorf("is Elastic stack created/running?")
-		return nil, err
-	}
-
-	containerIDs := strings.Fields(b.String())
-	if len(containerIDs) == 0 {
-		return services, nil
-	}
-
-	containerDescriptions, err := docker.InspectContainers(containerIDs...)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, containerDescription := range containerDescriptions {
-		service, err := newServiceStatus(&containerDescription)
-		if err != nil {
-			return nil, err
-		}
-		logger.Debugf("Adding Service: \"%v\"", service.Name)
-		services = append(services, *service)
-	}
-
-	return services, nil
-}
-
-func newServiceStatus(description *docker.ContainerDescription) (*ServiceStatus, error) {
-	service := ServiceStatus{
-		Name:    description.Config.Labels[serviceLabelDockerCompose],
-		Status:  description.State.Status,
-		Version: getVersionFromDockerImage(description.Config.Image),
-	}
-	if description.State.Status == "running" {
-		service.Status = fmt.Sprintf("%v (%v)", service.Status, description.State.Health.Status)
-	}
-	if description.State.Status == "exited" {
-		service.Status = fmt.Sprintf("%v (%v)", service.Status, description.State.ExitCode)
-	}
-
-	return &service, nil
-}
-
-func getVersionFromDockerImage(dockerImage string) string {
-	fields := strings.Split(dockerImage, ":")
-	if len(fields) == 2 {
-		return fields[1]
-	}
-	return "latest"
 }
 
 // WaitForHealthy method waits until all containers are healthy.
