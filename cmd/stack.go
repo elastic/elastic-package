@@ -261,8 +261,14 @@ func setupStackCommand() *cobraext.Command {
 				return errors.Wrap(err, "error loading profile")
 			}
 
+			stackVersion, err := cmd.Flags().GetString(cobraext.StackVersionFlagName)
+			if err != nil {
+				return cobraext.FlagParsingError(err, cobraext.StackVersionFlagName)
+			}
+
 			servicesStatus, err := stack.Status(stack.Options{
-				Profile: profile,
+				StackVersion: stackVersion,
+				Profile:      profile,
 			})
 			if err != nil {
 				return errors.Wrap(err, "failed getting stack status")
@@ -273,6 +279,7 @@ func setupStackCommand() *cobraext.Command {
 			return nil
 		},
 	}
+	statusCommand.Flags().StringP(cobraext.StackVersionFlagName, "", install.DefaultStackVersion, cobraext.StackVersionFlagDescription)
 
 	cmd := &cobra.Command{
 		Use:   "stack",
