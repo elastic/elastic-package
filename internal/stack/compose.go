@@ -188,7 +188,7 @@ func withIsReadyServices(services []string) []string {
 func dockerComposeStatus() ([]ServiceStatus, error) {
 	var services []ServiceStatus
 	// query directly to docker to avoid load environment variables (e.g. STACK_VERSION_VARIANT) and profiles
-	containerIDs, err := docker.ContainerIDsWithLabel(fmt.Sprintf("%s=%s", projectLabelDockerCompose, DockerComposeProjectName))
+	containerIDs, err := docker.ContainerIDsWithLabel(projectLabelDockerCompose, DockerComposeProjectName)
 	if err != nil {
 		return nil, err
 	}

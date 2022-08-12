@@ -91,7 +91,8 @@ func ContainerID(containerName string) (string, error) {
 }
 
 // ContainerIDsWithLabel function returns all the container IDs filtering per label.
-func ContainerIDsWithLabel(label string) ([]string, error) {
+func ContainerIDsWithLabel(key, value string) ([]string, error) {
+	label := fmt.Sprintf("%s=%s", key, value)
 	cmd := exec.Command("docker", "ps", "-a", "--filter", "label="+label, "--format", "{{.ID}}")
 	errOutput := new(bytes.Buffer)
 	cmd.Stderr = errOutput
