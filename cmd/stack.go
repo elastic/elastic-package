@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/jedib0t/go-pretty/table"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
@@ -246,6 +247,21 @@ func setupStackCommand() *cobraext.Command {
 	}
 	dumpCommand.Flags().StringP(cobraext.StackDumpOutputFlagName, "", "elastic-stack-dump", cobraext.StackDumpOutputFlagDescription)
 
+	statusCommand := &cobra.Command{
+		Use:   "status",
+		Short: "Show status of the stack services",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			servicesStatus, err := stack.Status()
+			if err != nil {
+				return errors.Wrap(err, "failed getting stack status")
+			}
+
+			cmd.Println("Status of Elastic stack services:")
+			printStatus(cmd, servicesStatus)
+			return nil
+		},
+	}
+
 	cmd := &cobra.Command{
 		Use:   "stack",
 		Short: "Manage the Elastic stack",
@@ -257,7 +273,8 @@ func setupStackCommand() *cobraext.Command {
 		downCommand,
 		updateCommand,
 		shellInitCommand,
-		dumpCommand)
+		dumpCommand,
+		statusCommand)
 
 	return cobraext.NewCommand(cmd, cobraext.ContextGlobal)
 }
@@ -299,4 +316,19 @@ func printInitConfig(cmd *cobra.Command, profile *profile.Profile) error {
 	cmd.Printf("Username: %s\n", initConfig.ElasticsearchUsername)
 	cmd.Printf("Password: %s\n", initConfig.ElasticsearchPassword)
 	return nil
+}
+
+func printStatus(cmd *cobra.Command, servicesStatus []stack.ServiceStatus) {
+	if len(servicesStatus) == 0 {
+		cmd.Printf(" - No service running\n")
+		return
+	}
+	t := table.NewWriter()
+	t.AppendHeader(table.Row{"Service", "Version", "Status"})
+
+	for _, service := range servicesStatus {
+		t.AppendRow(table.Row{service.Name, service.Version, service.Status})
+	}
+	t.SetStyle(table.StyleRounded)
+	cmd.Println(t.Render())
 }
