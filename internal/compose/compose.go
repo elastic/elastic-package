@@ -42,6 +42,7 @@ type Project struct {
 type Config struct {
 	Services map[string]service
 }
+
 type service struct {
 	Ports       []portMapping
 	Environment map[string]string
