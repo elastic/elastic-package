@@ -12,10 +12,11 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// Pipeline represents a pipeline resource loaded from a file
+// Pipeline represents a pipeline resource loaded from a file.
 type Pipeline struct {
-	Name    string // Name of the pipeline
-	Format  string // Format (extension) of the pipeline
+	Path    string // Path of the file with the pipeline definition.
+	Name    string // Name of the pipeline.
+	Format  string // Format (extension) of the pipeline.
 	Content []byte // Content is the original file contents.
 }
 
