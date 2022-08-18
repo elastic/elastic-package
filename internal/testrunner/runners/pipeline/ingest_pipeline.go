@@ -57,9 +57,8 @@ func installIngestPipelines(api *elasticsearch.API, dataStreamPath string) (stri
 	}
 
 	err = installPipelinesInElasticsearch(api, pipelines)
-
 	if err != nil {
-		return "", nil, errors.Wrap(err, "installing pipelines failed")
+		return "", nil, err
 	}
 	return mainPipeline, pipelines, nil
 }
@@ -93,6 +92,7 @@ func loadIngestPipelineFiles(dataStreamPath string, nonce int64) ([]ingest.Pipel
 		})
 		name := filepath.Base(path)
 		pipelines = append(pipelines, ingest.Pipeline{
+			Path:    path,
 			Name:    getWithPipelineNameWithNonce(name[:strings.Index(name, ".")], nonce),
 			Format:  filepath.Ext(path)[1:],
 			Content: c,
@@ -110,12 +110,21 @@ func installPipelinesInElasticsearch(api *elasticsearch.API, pipelines []ingest.
 	return nil
 }
 
+func pipelineError(err error, pipeline ingest.Pipeline, format string, args ...interface{}) error {
+	context := "pipelineName: " + pipeline.Name
+	if pipeline.Path != "" {
+		context += ", path: " + pipeline.Path
+	}
+
+	return errors.Wrapf(err, format+" ("+context+")", args...)
+}
+
 func installPipeline(api *elasticsearch.API, pipeline ingest.Pipeline) error {
 	if err := putIngestPipeline(api, pipeline); err != nil {
 		return err
 	}
 	// Just to be sure the pipeline has been uploaded.
-	return getIngestPipeline(api, pipeline.Name)
+	return getIngestPipeline(api, pipeline)
 }
 
 func putIngestPipeline(api *elasticsearch.API, pipeline ingest.Pipeline) error {
@@ -125,40 +134,41 @@ func putIngestPipeline(api *elasticsearch.API, pipeline ingest.Pipeline) error {
 	}
 	r, err := api.Ingest.PutPipeline(pipeline.Name, bytes.NewReader(source))
 	if err != nil {
-		return errors.Wrapf(err, "PutPipeline API call failed (pipelineName: %s)", pipeline.Name)
+		return pipelineError(err, pipeline, "PutPipeline API call failed")
 	}
 	defer r.Body.Close()
 
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		return errors.Wrapf(err, "failed to read PutPipeline API response body (pipelineName: %s)", pipeline.Name)
+		return pipelineError(err, pipeline, "failed to read PutPipeline API response body")
 	}
 
 	if r.StatusCode != http.StatusOK {
-
-		return errors.Wrapf(elasticsearch.NewError(body), "unexpected response status for PutPipeline (%d): %s (pipelineName: %s)",
-			r.StatusCode, r.Status(), pipeline.Name)
+		return pipelineError(elasticsearch.NewError(body), pipeline,
+			"unexpected response status for PutPipeline (%d): %s",
+			r.StatusCode, r.Status())
 	}
 	return nil
 }
 
-func getIngestPipeline(api *elasticsearch.API, pipelineName string) error {
+func getIngestPipeline(api *elasticsearch.API, pipeline ingest.Pipeline) error {
 	r, err := api.Ingest.GetPipeline(func(request *elasticsearch.IngestGetPipelineRequest) {
-		request.PipelineID = pipelineName
+		request.PipelineID = pipeline.Name
 	})
 	if err != nil {
-		return errors.Wrapf(err, "GetPipeline API call failed (pipelineName: %s)", pipelineName)
+		return pipelineError(err, pipeline, "GetPipeline API call failed")
 	}
 	defer r.Body.Close()
 
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		return errors.Wrapf(err, "failed to read GetPipeline API response body (pipelineName: %s)", pipelineName)
+		return pipelineError(err, pipeline, "failed to read GetPipeline API response body")
 	}
 
 	if r.StatusCode != http.StatusOK {
-		return errors.Wrapf(elasticsearch.NewError(body), "unexpected response status for GetPipeline (%d): %s (pipelineName: %s)",
-			r.StatusCode, r.Status(), pipelineName)
+		return pipelineError(elasticsearch.NewError(body), pipeline,
+			"unexpected response status for GetPipeline (%d): %s",
+			r.StatusCode, r.Status())
 	}
 	return nil
 }
@@ -167,7 +177,7 @@ func uninstallIngestPipelines(api *elasticsearch.API, pipelines []ingest.Pipelin
 	for _, pipeline := range pipelines {
 		resp, err := api.Ingest.DeletePipeline(pipeline.Name)
 		if err != nil {
-			return errors.Wrapf(err, "DeletePipeline API call failed (pipelineName: %s)", pipeline.Name)
+			return pipelineError(err, pipeline, "DeletePipeline API call failed")
 		}
 		resp.Body.Close()
 	}
