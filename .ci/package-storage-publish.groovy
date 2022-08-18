@@ -110,7 +110,7 @@ def signUnpublishedArtifactsWithElastic(builtPackagesPath) {
     triggerRemoteJob(auth: CredentialsAuth(credentials: 'local-readonly-api-token'),
       job: 'https://internal-ci.elastic.co/job/elastic+unified-release+master+sign-artifacts-with-gpg',
       token: TOKEN,
-      parameters2: [
+      parameters: [
         gcs_input_path: env.INFRA_SIGNING_BUCKET_ARTIFACTS_PATH,
       ],
       useCrumbCache: false,
@@ -139,7 +139,7 @@ def uploadUnpublishedToPackageStorage(builtPackagesPath) {
           triggerRemoteJob(auth: CredentialsAuth(credentials: 'local-readonly-api-token'),
             job: 'https://internal-ci.elastic.co/job/package_storage/job/publishing-job-remote',
             token: TOKEN,
-            parameters2: [
+            parameters: [
               dry_run: true,
               gs_package_build_zip_path: "${env.PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH}/${packageZip}",
               gs_package_signature_path: "${env.PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH}/${packageZip}.sig",
