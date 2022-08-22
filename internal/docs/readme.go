@@ -6,6 +6,7 @@ package docs
 
 import (
 	"bytes"
+	"encoding/csv"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -14,9 +15,12 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/builder"
+	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 )
+
+const linksMapFileName = "links_table.csv"
 
 // ReadmeFile contains file name and status of each readme file.
 type ReadmeFile struct {
@@ -25,11 +29,25 @@ type ReadmeFile struct {
 	Error    error
 }
 
+type linkMap map[string]string
+
+func (l linkMap) Get(key string) (string, error) {
+	if url, ok := l[key]; ok {
+		return url, nil
+	}
+	return "", errors.Errorf("Link key %s not found", key)
+}
+
 // AreReadmesUpToDate function checks if all the .md readme files are up-to-date.
 func AreReadmesUpToDate() ([]ReadmeFile, error) {
 	packageRoot, err := packages.MustFindPackageRoot()
 	if err != nil {
 		return nil, errors.Wrap(err, "package root not found")
+	}
+
+	linksMap, err := readLinksMap()
+	if err != nil {
+		return nil, err
 	}
 
 	files, err := filepath.Glob(filepath.Join(packageRoot, "_dev", "build", "docs", "*.md"))
@@ -40,7 +58,7 @@ func AreReadmesUpToDate() ([]ReadmeFile, error) {
 	var readmeFiles []ReadmeFile
 	for _, filePath := range files {
 		fileName := filepath.Base(filePath)
-		ok, err := isReadmeUpToDate(fileName, packageRoot)
+		ok, err := isReadmeUpToDate(fileName, packageRoot, linksMap)
 		if !ok || err != nil {
 			readmeFile := ReadmeFile{
 				FileName: fileName,
@@ -57,10 +75,38 @@ func AreReadmesUpToDate() ([]ReadmeFile, error) {
 	return readmeFiles, nil
 }
 
-func isReadmeUpToDate(fileName, packageRoot string) (bool, error) {
+func readLinksMap() (linkMap, error) {
+	links := make(linkMap)
+	linksMapPath, err := common.FindFileRootDirectory(linksMapFileName)
+	if err != nil && errors.Is(err, os.ErrNotExist) {
+		return links, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	f, err := os.Open(linksMapPath)
+	if err != nil && errors.Is(err, os.ErrNotExist) {
+		return links, nil
+	}
+	if err != nil {
+		return nil, errors.Wrapf(err, "readfile failed (path: %s)", linksMapPath)
+	}
+	lines, err := csv.NewReader(f).ReadAll()
+	if err != nil {
+		return links, err
+	}
+
+	for _, line := range lines {
+		links[line[0]] = line[1]
+	}
+	return links, nil
+}
+
+func isReadmeUpToDate(fileName, packageRoot string, linksMap linkMap) (bool, error) {
 	logger.Debugf("Check if %s is up-to-date", fileName)
 
-	rendered, shouldBeRendered, err := generateReadme(fileName, packageRoot)
+	rendered, shouldBeRendered, err := generateReadme(fileName, packageRoot, linksMap)
 	if err != nil {
 		return false, errors.Wrap(err, "generating readme file failed")
 	}
@@ -86,10 +132,15 @@ func UpdateReadmes(packageRoot string) ([]string, error) {
 		return nil, errors.Wrap(err, "reading directory entries failed")
 	}
 
+	linksMap, err := readLinksMap()
+	if err != nil {
+		return nil, err
+	}
+
 	var targets []string
 	for _, filePath := range readmeFiles {
 		fileName := filepath.Base(filePath)
-		target, err := updateReadme(fileName, packageRoot)
+		target, err := updateReadme(fileName, packageRoot, linksMap)
 		if err != nil {
 			return nil, errors.Wrapf(err, "updating readme file %s failed", fileName)
 		}
@@ -101,10 +152,10 @@ func UpdateReadmes(packageRoot string) ([]string, error) {
 	return targets, nil
 }
 
-func updateReadme(fileName, packageRoot string) (string, error) {
+func updateReadme(fileName, packageRoot string, linksMap linkMap) (string, error) {
 	logger.Debugf("Update the %s file", fileName)
 
-	rendered, shouldBeRendered, err := generateReadme(fileName, packageRoot)
+	rendered, shouldBeRendered, err := generateReadme(fileName, packageRoot, linksMap)
 	if err != nil {
 		return "", err
 	}
@@ -129,7 +180,7 @@ func updateReadme(fileName, packageRoot string) (string, error) {
 	return target, nil
 }
 
-func generateReadme(fileName, packageRoot string) ([]byte, bool, error) {
+func generateReadme(fileName, packageRoot string, linksMap linkMap) ([]byte, bool, error) {
 	logger.Debugf("Generate %s file (package: %s)", fileName, packageRoot)
 	templatePath, found, err := findReadmeTemplatePath(fileName, packageRoot)
 	if err != nil {
@@ -141,7 +192,7 @@ func generateReadme(fileName, packageRoot string) ([]byte, bool, error) {
 	}
 	logger.Debugf("Template file for %s found: %s", fileName, templatePath)
 
-	rendered, err := renderReadme(fileName, packageRoot, templatePath)
+	rendered, err := renderReadme(fileName, packageRoot, templatePath, linksMap)
 	if err != nil {
 		return nil, true, errors.Wrap(err, "rendering Readme failed")
 	}
@@ -160,7 +211,7 @@ func findReadmeTemplatePath(fileName, packageRoot string) (string, bool, error) 
 	return templatePath, true, nil
 }
 
-func renderReadme(fileName, packageRoot, templatePath string) ([]byte, error) {
+func renderReadme(fileName, packageRoot, templatePath string, linksMap linkMap) ([]byte, error) {
 	logger.Debugf("Render %s file (package: %s, templatePath: %s)", fileName, packageRoot, templatePath)
 
 	t := template.New(fileName)
@@ -174,6 +225,9 @@ func renderReadme(fileName, packageRoot, templatePath string) ([]byte, error) {
 				return renderExportedFields(dataStreamPath)
 			}
 			return renderExportedFields(packageRoot)
+		},
+		"url": func(key string) (string, error) {
+			return linksMap.Get(key)
 		},
 	}).ParseFiles(templatePath)
 	if err != nil {
