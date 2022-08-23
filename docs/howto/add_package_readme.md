@@ -81,3 +81,32 @@ List of placeholders that can be used in the Markdown templates:
       | data_stream.type | Data stream type. | constant_keyword |  |  |
       ...
       ```
+- `url <link_key>`: this placeholder is replaced by the URL defined in the `links_table.csv` file.
+    - Example of usage:
+      ```
+      Check {{ url "foo" }}
+      ```
+    - Let's assume that there exists a file `links_table.csv` with these contents:
+      ```
+      foo,http://url.com.test
+      help,http://other.url.com/help
+      ```
+    - Rendered output:
+      ```
+      Check http://url.com.test
+      ```
+- `url <link_key> <link_text>`: this placeholder is replaced by the URL defined in the `links_table.csv` file and it creates a
+  markdown link as `[link_text](url)`
+    - Example of usage:
+      ```
+      Check {{ url "help" "help guide" }}
+      ```
+    - Let's assume that there exists a file `links_table.csv` with these contents:
+      ```
+      foo,http://url.com.test
+      help,http://other.url.com/help
+      ```
+    - Rendered output:
+      ```
+      Check [help guide](http://other.url.com/help)
+      ```
