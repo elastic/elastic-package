@@ -6,7 +6,6 @@ package docs
 
 import (
 	"bytes"
-	"encoding/csv"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -15,39 +14,15 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/builder"
-	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 )
-
-const linksMapFileName = "links_table.csv"
 
 // ReadmeFile contains file name and status of each readme file.
 type ReadmeFile struct {
 	FileName string
 	UpToDate bool
 	Error    error
-}
-
-type linkMap map[string]string
-
-func NewLinkMap() linkMap {
-	return make(linkMap)
-}
-
-func (l linkMap) Get(key string) (string, error) {
-	if url, ok := l[key]; ok {
-		return url, nil
-	}
-	return "", errors.Errorf("Link key %s not found", key)
-}
-
-func (l linkMap) Add(key, value string) error {
-	if _, ok := l[key]; ok {
-		return errors.Errorf("Link key %s already present", key)
-	}
-	l[key] = value
-	return nil
 }
 
 // AreReadmesUpToDate function checks if all the .md readme files are up-to-date.
@@ -85,31 +60,6 @@ func AreReadmesUpToDate() ([]ReadmeFile, error) {
 		return readmeFiles, fmt.Errorf("checking readme files are up-to-date failed")
 	}
 	return readmeFiles, nil
-}
-
-func readLinksMap() (linkMap, error) {
-	links := NewLinkMap()
-	linksMapPath, err := common.FindFileRootDirectory(linksMapFileName)
-	if err != nil && errors.Is(err, os.ErrNotExist) {
-		return links, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-
-	f, err := os.Open(linksMapPath)
-	if err != nil {
-		return nil, errors.Wrapf(err, "readfile failed (path: %s)", linksMapPath)
-	}
-	lines, err := csv.NewReader(f).ReadAll()
-	if err != nil {
-		return links, err
-	}
-
-	for _, line := range lines {
-		links.Add(line[0], line[1])
-	}
-	return links, nil
 }
 
 func isReadmeUpToDate(fileName, packageRoot string, linksMap linkMap) (bool, error) {
@@ -235,8 +185,11 @@ func renderReadme(fileName, packageRoot, templatePath string, linksMap linkMap) 
 			}
 			return renderExportedFields(packageRoot)
 		},
-		"url": func(key string) (string, error) {
-			return linksMap.Get(key)
+		"url": func(args ...string) (string, error) {
+			if len(args) == 1 {
+				return linksMap.renderUrl(args[0])
+			}
+			return linksMap.renderLink(args[0], args[1])
 		},
 	}).ParseFiles(templatePath)
 	if err != nil {
