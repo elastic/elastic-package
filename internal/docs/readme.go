@@ -31,11 +31,23 @@ type ReadmeFile struct {
 
 type linkMap map[string]string
 
+func NewLinkMap() linkMap {
+	return make(linkMap)
+}
+
 func (l linkMap) Get(key string) (string, error) {
 	if url, ok := l[key]; ok {
 		return url, nil
 	}
 	return "", errors.Errorf("Link key %s not found", key)
+}
+
+func (l linkMap) Add(key, value string) error {
+	if _, ok := l[key]; ok {
+		return errors.Errorf("Link key %s already present", key)
+	}
+	l[key] = value
+	return nil
 }
 
 // AreReadmesUpToDate function checks if all the .md readme files are up-to-date.
@@ -76,7 +88,7 @@ func AreReadmesUpToDate() ([]ReadmeFile, error) {
 }
 
 func readLinksMap() (linkMap, error) {
-	links := make(linkMap)
+	links := NewLinkMap()
 	linksMapPath, err := common.FindFileRootDirectory(linksMapFileName)
 	if err != nil && errors.Is(err, os.ErrNotExist) {
 		return links, nil
@@ -86,9 +98,6 @@ func readLinksMap() (linkMap, error) {
 	}
 
 	f, err := os.Open(linksMapPath)
-	if err != nil && errors.Is(err, os.ErrNotExist) {
-		return links, nil
-	}
 	if err != nil {
 		return nil, errors.Wrapf(err, "readfile failed (path: %s)", linksMapPath)
 	}
@@ -98,7 +107,7 @@ func readLinksMap() (linkMap, error) {
 	}
 
 	for _, line := range lines {
-		links[line[0]] = line[1]
+		links.Add(line[0], line[1])
 	}
 	return links, nil
 }
