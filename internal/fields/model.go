@@ -18,6 +18,7 @@ type FieldDefinition struct {
 	Name           string            `yaml:"name"`
 	Description    string            `yaml:"description"`
 	Type           string            `yaml:"type"`
+	ObjectType     string            `yaml:"object_type"`
 	Value          string            `yaml:"value"` // The value to associate with a constant_keyword field.
 	AllowedValues  AllowedValues     `yaml:"allowed_values"`
 	ExpectedValues []string          `yaml:"expected_values"`
@@ -40,6 +41,9 @@ func (orig *FieldDefinition) Update(fd FieldDefinition) {
 	}
 	if fd.Type != "" {
 		orig.Type = fd.Type
+	}
+	if fd.ObjectType != "" {
+		orig.ObjectType = fd.ObjectType
 	}
 	if fd.Value != "" {
 		orig.Value = fd.Value
