@@ -26,12 +26,12 @@ func (l linkMap) Get(key string) (string, error) {
 	if url, ok := l[key]; ok {
 		return url, nil
 	}
-	return "", errors.Errorf("Link key %s not found", key)
+	return "", errors.Errorf("link key %s not found", key)
 }
 
 func (l linkMap) Add(key, value string) error {
 	if _, ok := l[key]; ok {
-		return errors.Errorf("Link key %s already present", key)
+		return errors.Errorf("link key %s already present", key)
 	}
 	l[key] = value
 	return nil
