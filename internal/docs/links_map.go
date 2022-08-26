@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	linksMapFileNameDefault = "links_table.csv"
+	linksMapFileNameDefault = "links_table.yml"
 	linksMapFilePathEnvVar  = common.ElasticPackageEnvPrefix + "LINKS_FILE_PATH"
 )
 
