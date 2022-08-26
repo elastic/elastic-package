@@ -32,7 +32,12 @@ func AreReadmesUpToDate() ([]ReadmeFile, error) {
 		return nil, errors.Wrap(err, "package root not found")
 	}
 
-	linksMap, err := readLinksMap()
+	linksFilePath, err := LinksFilePath()
+	if err != nil {
+		return nil, errors.Wrap(err, "locating links file failed")
+	}
+
+	linksMap, err := readLinksMap(linksFilePath)
 	if err != nil {
 		return nil, err
 	}
@@ -85,13 +90,13 @@ func isReadmeUpToDate(fileName, packageRoot string, linksMap linkMap) (bool, err
 
 // UpdateReadmes function updates all .md readme files using a defined template
 // files. The function doesn't perform any action if the template file is not present.
-func UpdateReadmes(packageRoot string) ([]string, error) {
+func UpdateReadmes(packageRoot, linksFileName string) ([]string, error) {
 	readmeFiles, err := filepath.Glob(filepath.Join(packageRoot, "_dev", "build", "docs", "*.md"))
 	if err != nil {
 		return nil, errors.Wrap(err, "reading directory entries failed")
 	}
 
-	linksMap, err := readLinksMap()
+	linksMap, err := readLinksMap(linksFileName)
 	if err != nil {
 		return nil, err
 	}
@@ -187,9 +192,9 @@ func renderReadme(fileName, packageRoot, templatePath string, linksMap linkMap) 
 		},
 		"url": func(args ...string) (string, error) {
 			if len(args) == 1 {
-				return linksMap.renderUrl(args[0])
+				return linksMap.RenderUrl(args[0])
 			}
-			return linksMap.renderLink(args[0], args[1])
+			return linksMap.RenderLink(args[0], args[1])
 		},
 	}).ParseFiles(templatePath)
 	if err != nil {

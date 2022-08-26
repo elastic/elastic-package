@@ -14,7 +14,10 @@ import (
 	"github.com/elastic/elastic-package/internal/common"
 )
 
-const linksMapFileName = "links_table.csv"
+const (
+	linksMapFileNameDefault = "links_table.csv"
+	envLinksMapFilePath     = common.ElasticPackageEnvPrefix + "LINKS_FILE_PATH"
+)
 
 type linkMap map[string]string
 
@@ -37,19 +40,11 @@ func (l linkMap) Add(key, value string) error {
 	return nil
 }
 
-func readLinksMap() (linkMap, error) {
+func readLinksMap(linksFilePath string) (linkMap, error) {
 	links := newLinkMap()
-	linksMapPath, err := common.FindFileRootDirectory(linksMapFileName)
-	if err != nil && errors.Is(err, os.ErrNotExist) {
-		return links, nil
-	}
+	f, err := os.Open(linksFilePath)
 	if err != nil {
-		return nil, err
-	}
-
-	f, err := os.Open(linksMapPath)
-	if err != nil {
-		return nil, errors.Wrapf(err, "readfile failed (path: %s)", linksMapPath)
+		return nil, errors.Wrapf(err, "readfile failed (path: %s)", linksFilePath)
 	}
 	lines, err := csv.NewReader(f).ReadAll()
 	if err != nil {
@@ -62,7 +57,7 @@ func readLinksMap() (linkMap, error) {
 	return links, nil
 }
 
-func (l linkMap) renderUrl(key string) (string, error) {
+func (l linkMap) RenderUrl(key string) (string, error) {
 	url, err := l.Get(key)
 	if err != nil {
 		return "", err
@@ -70,10 +65,25 @@ func (l linkMap) renderUrl(key string) (string, error) {
 	return url, nil
 }
 
-func (l linkMap) renderLink(key, link string) (string, error) {
+func (l linkMap) RenderLink(key, link string) (string, error) {
 	url, err := l.Get(key)
 	if err != nil {
 		return "", err
 	}
 	return fmt.Sprintf("[%s](%s)", link, url), nil
+}
+
+// LinksFilePath returns the path where links definitions are located.
+// If ELASTIC_PACKAGE_LINKS_FILE_PATH env. variable is defined, it returns that value.
+// If not defined, it returns the default location that is located at the root of the repository
+func LinksFilePath() (string, error) {
+	filepath, ok := os.LookupEnv(envLinksMapFilePath)
+	if !ok {
+		return common.FindFileRootDirectory(linksMapFileNameDefault)
+	}
+
+	if _, err := os.Stat(filepath); err != nil {
+		return "", err
+	}
+	return filepath, nil
 }
