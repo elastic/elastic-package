@@ -6,7 +6,6 @@ package common
 
 import (
 	"os"
-	"path"
 	"path/filepath"
 
 	"github.com/pkg/errors"
@@ -41,7 +40,7 @@ func FindFileRootDirectory(fileName string) (string, error) {
 		return "", err
 	}
 
-	sourceFileName := path.Join(dir, fileName)
+	sourceFileName := filepath.Join(dir, fileName)
 	_, err = os.Stat(sourceFileName)
 	if err != nil {
 		return "", err
