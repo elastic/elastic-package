@@ -17,6 +17,7 @@ Files in `_dev/build/docs/*.md` follow Markdown syntax and they are rendered usi
 In addition to Markdown syntax, there are some additional placeholders that can be used in order to help
 to complete the information shown to the user.
 
+
 ## Placeholders
 
 List of placeholders that can be used in the Markdown templates:
@@ -95,6 +96,8 @@ List of placeholders that can be used in the Markdown templates:
       ```
       Check http://url.com.test
       ```
+    - Requirements:
+        - It is needed to define a file with the links definitions. More information [in this section](#requirements)
 - `url <link_key> <link_text>`: this placeholder is replaced by the URL defined in the `links_table.csv` file and it creates a
   markdown link as `[link_text](url)`
     - Example of usage:
@@ -110,3 +113,22 @@ List of placeholders that can be used in the Markdown templates:
       ```
       Check [help guide](http://other.url.com/help)
       ```
+    - Requirements:
+        - It is needed to define a file with the links definitions. More information [in this section](#requirements)
+
+## Requirements
+
+### Links definitions file
+
+In order to be able to use `url` placeholder, links must be defined in a file.
+
+This file by default is located at the root of the repository with the name `links_table.csv`.
+It can be overwritten by setting the environment variable `ELASTIC_PACKAGE_LINKS_FILE_PATH` with
+the path to another file.
+
+The format of this file must be:
+```
+<key_1>,<url_1>
+<key_2>,<url_2>
+<key_3>,<url_3>
+```
