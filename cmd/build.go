@@ -74,6 +74,7 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return errors.Wrap(err, "locating links file failed")
 	}
+	logger.Debugf("Using links definitions file: %s", linksFilePath)
 
 	targets, err := docs.UpdateReadmes(packageRoot, linksFilePath)
 	if err != nil {
