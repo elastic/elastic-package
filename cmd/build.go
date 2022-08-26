@@ -70,13 +70,7 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 	}
 	logger.Debugf("Use build directory: %s", buildDir)
 
-	linksFilePath, err := docs.LinksFilePath()
-	if err != nil {
-		return errors.Wrap(err, "locating links file failed")
-	}
-	logger.Debugf("Using links definitions file: %s", linksFilePath)
-
-	targets, err := docs.UpdateReadmes(packageRoot, linksFilePath)
+	targets, err := docs.UpdateReadmes(packageRoot)
 	if err != nil {
 		return errors.Wrap(err, "updating files failed")
 	}

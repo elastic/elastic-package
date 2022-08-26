@@ -8,10 +8,12 @@ import (
 	"encoding/csv"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/common"
+	"github.com/elastic/elastic-package/internal/logger"
 )
 
 const (
@@ -40,8 +42,18 @@ func (l linkMap) Add(key, value string) error {
 	return nil
 }
 
-func readLinksMap(linksFilePath string) (linkMap, error) {
+func readLinksMap() (linkMap, error) {
+	linksFilePath, err := linksDefinitionsFilePath()
+	if err != nil {
+		return nil, errors.Wrap(err, "locating links file failed")
+	}
+
 	links := newLinkMap()
+	if linksFilePath == "" {
+		return links, nil
+	}
+
+	logger.Debugf("Using links definitions file: %s", linksFilePath)
 	f, err := os.Open(linksFilePath)
 	if err != nil {
 		return nil, errors.Wrapf(err, "readfile failed (path: %s)", linksFilePath)
@@ -73,17 +85,25 @@ func (l linkMap) RenderLink(key, link string) (string, error) {
 	return fmt.Sprintf("[%s](%s)", link, url), nil
 }
 
-// LinksFilePath returns the path where links definitions are located.
+// linksDefinitionsFilePath returns the path where links definitions are located or empty string if the file does not exist.
 // If linksMapFilePathEnvVar is defined, it returns the value of that env. var.
-// If not defined, it returns the default location that is located at the root of the repository
-func LinksFilePath() (string, error) {
-	filepath, ok := os.LookupEnv(linksMapFilePathEnvVar)
+// If not defined, it returns the default location for that file (at the root of the repository)
+func linksDefinitionsFilePath() (string, error) {
+	var err error
+	linksFilePath, ok := os.LookupEnv(linksMapFilePathEnvVar)
 	if !ok {
-		return common.FindFileRootDirectory(linksMapFileNameDefault)
+		dir, err := common.FindRepositoryRootDirectory()
+		if err != nil {
+			return "", err
+		}
+
+		linksFilePath = filepath.Join(dir, linksMapFileNameDefault)
 	}
 
-	if _, err := os.Stat(filepath); err != nil {
-		return "", err
+	_, err = os.Stat(linksFilePath)
+	if err != nil {
+		return "", nil
 	}
-	return filepath, nil
+	return linksFilePath, nil
+
 }
