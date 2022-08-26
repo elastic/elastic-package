@@ -289,5 +289,16 @@ func createBuildDirectory(dirs ...string) (string, error) {
 }
 
 func findRepositoryLicense() (string, error) {
-	return common.FindFileRootDirectory(licenseTextFileName)
+	dir, err := common.FindRepositoryRootDirectory()
+	if err != nil {
+		return "", err
+	}
+
+	sourceFileName := filepath.Join(dir, licenseTextFileName)
+	_, err = os.Stat(sourceFileName)
+	if err != nil {
+		return "", err
+	}
+
+	return sourceFileName, nil
 }

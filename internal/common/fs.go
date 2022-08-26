@@ -33,18 +33,3 @@ func FindRepositoryRootDirectory() (string, error) {
 
 	return "", os.ErrNotExist
 }
-
-func FindFileRootDirectory(fileName string) (string, error) {
-	dir, err := FindRepositoryRootDirectory()
-	if err != nil {
-		return "", err
-	}
-
-	sourceFileName := filepath.Join(dir, fileName)
-	_, err = os.Stat(sourceFileName)
-	if err != nil {
-		return "", err
-	}
-
-	return sourceFileName, nil
-}
