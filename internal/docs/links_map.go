@@ -5,12 +5,12 @@
 package docs
 
 import (
-	"encoding/csv"
 	"fmt"
 	"os"
 	"path/filepath"
 
 	"github.com/pkg/errors"
+	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/logger"
@@ -21,31 +21,35 @@ const (
 	linksMapFilePathEnvVar  = common.ElasticPackageEnvPrefix + "LINKS_FILE_PATH"
 )
 
-type linkMap map[string]string
+type linkMap struct {
+	Links map[string]string `yaml:"links"`
+}
 
 func newLinkMap() linkMap {
-	return make(linkMap)
+	var links linkMap
+	links.Links = make(map[string]string)
+	return links
 }
 
 func (l linkMap) Get(key string) (string, error) {
-	if url, ok := l[key]; ok {
+	if url, ok := l.Links[key]; ok {
 		return url, nil
 	}
 	return "", errors.Errorf("link key %s not found", key)
 }
 
 func (l linkMap) Add(key, value string) error {
-	if _, ok := l[key]; ok {
+	if _, ok := l.Links[key]; ok {
 		return errors.Errorf("link key %s already present", key)
 	}
-	l[key] = value
+	l.Links[key] = value
 	return nil
 }
 
 func readLinksMap() (linkMap, error) {
 	linksFilePath, err := linksDefinitionsFilePath()
 	if err != nil {
-		return nil, errors.Wrap(err, "locating links file failed")
+		return linkMap{}, errors.Wrap(err, "locating links file failed")
 	}
 
 	links := newLinkMap()
@@ -54,18 +58,16 @@ func readLinksMap() (linkMap, error) {
 	}
 
 	logger.Debugf("Using links definitions file: %s", linksFilePath)
-	f, err := os.Open(linksFilePath)
+	contents, err := os.ReadFile(linksFilePath)
 	if err != nil {
-		return nil, errors.Wrapf(err, "readfile failed (path: %s)", linksFilePath)
-	}
-	lines, err := csv.NewReader(f).ReadAll()
-	if err != nil {
-		return links, err
+		return linkMap{}, errors.Wrapf(err, "readfile failed (path: %s)", linksFilePath)
 	}
 
-	for _, line := range lines {
-		links.Add(line[0], line[1])
+	err = yaml.Unmarshal(contents, &links)
+	if err != nil {
+		return linkMap{}, err
 	}
+
 	return links, nil
 }
 
