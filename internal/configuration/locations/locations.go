@@ -10,11 +10,13 @@ import (
 	"path/filepath"
 
 	"github.com/pkg/errors"
+
+	"github.com/elastic/elastic-package/internal/common"
 )
 
 const (
 	// elasticPackageDataHome is the name of the environment variable used to override data folder for elastic-package
-	elasticPackageDataHome = "ELASTIC_PACKAGE_DATA_HOME"
+	elasticPackageDataHome = common.ElasticPackageEnvPrefix + "DATA_HOME"
 
 	elasticPackageDir = ".elastic-package"
 	stackDir          = "stack"

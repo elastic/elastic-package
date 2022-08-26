@@ -15,6 +15,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
+	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/profile"
 )
@@ -26,7 +27,7 @@ const jsonFormat = "json"
 const tableFormat = "table"
 
 // profileNameEnvVar is the name of the environment variable to set the default profile
-const profileNameEnvVar = "ELASTIC_PACKAGE_PROFILE"
+const profileNameEnvVar = common.ElasticPackageEnvPrefix + "PROFILE"
 
 func setupProfilesCommand() *cobraext.Command {
 	profilesLongDescription := `Use this command to add, remove, and manage multiple config profiles.
