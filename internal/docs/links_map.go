@@ -16,7 +16,7 @@ import (
 
 const (
 	linksMapFileNameDefault = "links_table.csv"
-	envLinksMapFilePath     = common.ElasticPackageEnvPrefix + "LINKS_FILE_PATH"
+	linksMapFilePathEnvVar  = common.ElasticPackageEnvPrefix + "LINKS_FILE_PATH"
 )
 
 type linkMap map[string]string
@@ -74,10 +74,10 @@ func (l linkMap) RenderLink(key, link string) (string, error) {
 }
 
 // LinksFilePath returns the path where links definitions are located.
-// If ELASTIC_PACKAGE_LINKS_FILE_PATH env. variable is defined, it returns that value.
+// If linksMapFilePathEnvVar is defined, it returns the value of that env. var.
 // If not defined, it returns the default location that is located at the root of the repository
 func LinksFilePath() (string, error) {
-	filepath, ok := os.LookupEnv(envLinksMapFilePath)
+	filepath, ok := os.LookupEnv(linksMapFilePathEnvVar)
 	if !ok {
 		return common.FindFileRootDirectory(linksMapFileNameDefault)
 	}
