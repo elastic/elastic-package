@@ -22,8 +22,10 @@ func TestRenderUrl(t *testing.T) {
 		{
 			"URLs",
 			linkMap{
-				"intro": "http://package-spec.test/intro",
-				"docs":  "http://package-spec.test/docs",
+				map[string]string{
+					"intro": "http://package-spec.test/intro",
+					"docs":  "http://package-spec.test/docs",
+				},
 			},
 			"intro",
 			false,
@@ -32,8 +34,10 @@ func TestRenderUrl(t *testing.T) {
 		{
 			"key not exist",
 			linkMap{
-				"intro": "http://package-spec.test/intro",
-				"docs":  "http://package-spec.test/docs",
+				map[string]string{
+					"intro": "http://package-spec.test/intro",
+					"docs":  "http://package-spec.test/docs",
+				},
 			},
 			"notexist",
 			true,
@@ -66,8 +70,10 @@ func TestRenderLInk(t *testing.T) {
 		{
 			"URLs",
 			linkMap{
-				"intro": "http://package-spec.test/intro",
-				"docs":  "http://package-spec.test/docs",
+				map[string]string{
+					"intro": "http://package-spec.test/intro",
+					"docs":  "http://package-spec.test/docs",
+				},
 			},
 			"intro",
 			"Introduction",
@@ -77,8 +83,10 @@ func TestRenderLInk(t *testing.T) {
 		{
 			"key not exist",
 			linkMap{
-				"intro": "http://package-spec.test/intro",
-				"docs":  "http://package-spec.test/docs",
+				map[string]string{
+					"intro": "http://package-spec.test/intro",
+					"docs":  "http://package-spec.test/docs",
+				},
 			},
 			"notexist",
 			"Not Exist",
