@@ -43,7 +43,7 @@ func TestRenderUrl(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.title, func(t *testing.T) {
-			output, err := c.defs.renderUrl(c.key)
+			output, err := c.defs.RenderUrl(c.key)
 			if c.errors {
 				require.Error(t, err)
 				return
@@ -89,7 +89,7 @@ func TestRenderLInk(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.title, func(t *testing.T) {
-			output, err := c.defs.renderLink(c.key, c.link)
+			output, err := c.defs.RenderLink(c.key, c.link)
 			if c.errors {
 				require.Error(t, err)
 				return
