@@ -13,12 +13,13 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/common"
+	"github.com/elastic/elastic-package/internal/environment"
 	"github.com/elastic/elastic-package/internal/logger"
 )
 
 const (
 	linksMapFileNameDefault = "links_table.yml"
-	linksMapFilePathEnvVar  = common.ElasticPackageEnvPrefix + "LINKS_FILE_PATH"
+	linksMapFilePathEnvVar  = environment.WithElasticPackagePrefix("LINKS_FILE_PATH")
 )
 
 type linkMap struct {

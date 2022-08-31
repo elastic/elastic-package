@@ -14,13 +14,13 @@ import (
 	"github.com/ProtonMail/gopenpgp/v2/crypto"
 	"github.com/pkg/errors"
 
-	"github.com/elastic/elastic-package/internal/common"
+	"github.com/elastic/elastic-package/internal/environment"
 	"github.com/elastic/elastic-package/internal/logger"
 )
 
 const (
-	signerPrivateKeyfileEnv = common.ElasticPackageEnvPrefix + "SIGNER_PRIVATE_KEYFILE"
-	signerPassphraseEnv     = common.ElasticPackageEnvPrefix + "SIGNER_PASSPHRASE"
+	signerPrivateKeyfileEnv = environment.WithElasticPackagePrefix("SIGNER_PRIVATE_KEYFILE")
+	signerPassphraseEnv     = environment.WithElasticPackagePrefix("SIGNER_PASSPHRASE")
 
 	signatureComment = "Signed with elastic-package (using GopenPGP: https://gopenpgp.org)"
 )

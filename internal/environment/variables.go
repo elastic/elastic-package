@@ -2,8 +2,12 @@
 // or more contributor license agreements. Licensed under the Elastic License;
 // you may not use this file except in compliance with the Elastic License.
 
-package common
+package environment
 
 const (
-	ElasticPackageEnvPrefix = "ELASTIC_PACKAGE_"
+	elasticPackageEnvPrefix = "ELASTIC_PACKAGE_"
 )
+
+func WithElasticPackagePrefix(variable string) {
+	return elasticPackageEnvPrefix + variable
+}

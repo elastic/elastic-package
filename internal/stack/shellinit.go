@@ -7,17 +7,17 @@ package stack
 import (
 	"fmt"
 
-	"github.com/elastic/elastic-package/internal/common"
+	"github.com/elastic/elastic-package/internal/environment"
 	"github.com/elastic/elastic-package/internal/profile"
 )
 
 // Environment variables describing the stack.
 var (
-	ElasticsearchHostEnv     = common.ElasticPackageEnvPrefix + "ELASTICSEARCH_HOST"
-	ElasticsearchUsernameEnv = common.ElasticPackageEnvPrefix + "ELASTICSEARCH_USERNAME"
-	ElasticsearchPasswordEnv = common.ElasticPackageEnvPrefix + "ELASTICSEARCH_PASSWORD"
-	KibanaHostEnv            = common.ElasticPackageEnvPrefix + "KIBANA_HOST"
-	CACertificateEnv         = common.ElasticPackageEnvPrefix + "CA_CERT"
+	ElasticsearchHostEnv     = environment.WithElasticPackagePrefix("ELASTICSEARCH_HOST")
+	ElasticsearchUsernameEnv = environment.WithElasticPackagePrefix("ELASTICSEARCH_USERNAME")
+	ElasticsearchPasswordEnv = environment.WithElasticPackagePrefix("ELASTICSEARCH_PASSWORD")
+	KibanaHostEnv            = environment.WithElasticPackagePrefix("KIBANA_HOST")
+	CACertificateEnv         = environment.WithElasticPackagePrefix("CA_CERT")
 )
 
 var shellInitFormat = "export " + ElasticsearchHostEnv + "=%s\n" +
