@@ -13,9 +13,9 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/elastic/elastic-package/internal/benchrunner"
 	"github.com/elastic/elastic-package/internal/elasticsearch/ingest"
 	"github.com/elastic/elastic-package/internal/packages"
-	"github.com/elastic/elastic-package/internal/testrunner"
 )
 
 const (
@@ -37,7 +37,7 @@ const (
 	numTopProcs = 10
 )
 
-func BenchmarkPipeline(options testrunner.TestOptions) (*testrunner.BenchmarkResult, error) {
+func BenchmarkPipeline(options benchrunner.TestOptions) (*benchrunner.BenchmarkResult, error) {
 	// Load all test documents
 	docs, err := loadAllTestDocs(options.TestFolder.Path)
 	if err != nil {
@@ -68,16 +68,16 @@ func BenchmarkPipeline(options testrunner.TestOptions) (*testrunner.BenchmarkRes
 		}
 		return record.TimeInMillis * int64(time.Millisecond) / record.Count
 	}
-	asPercentageOfTotalTime := func(perf processorPerformance) testrunner.BenchmarkValue {
-		return testrunner.BenchmarkValue{
+	asPercentageOfTotalTime := func(perf processorPerformance) benchrunner.BenchmarkValue {
+		return benchrunner.BenchmarkValue{
 			Name:        perf.key,
 			Description: perf.key,
 			Unit:        "%",
 			Value:       time.Duration(perf.value).Seconds() * 100 / bench.elapsed.Seconds(),
 		}
 	}
-	asDuration := func(perf processorPerformance) testrunner.BenchmarkValue {
-		return testrunner.BenchmarkValue{
+	asDuration := func(perf processorPerformance) benchrunner.BenchmarkValue {
+		return benchrunner.BenchmarkValue{
 			Name:        perf.key,
 			Description: perf.key,
 			Value:       time.Duration(perf.value),
@@ -109,9 +109,9 @@ func BenchmarkPipeline(options testrunner.TestOptions) (*testrunner.BenchmarkRes
 	}
 
 	// Build result
-	result := &testrunner.BenchmarkResult{
+	result := &benchrunner.BenchmarkResult{
 		Name: fmt.Sprintf("pipeline benchmark for %s/%s", options.TestFolder.Package, options.TestFolder.DataStream),
-		Parameters: []testrunner.BenchmarkValue{
+		Parameters: []benchrunner.BenchmarkValue{
 			{
 				Name:  "package",
 				Value: options.TestFolder.Package,
@@ -129,10 +129,10 @@ func BenchmarkPipeline(options testrunner.TestOptions) (*testrunner.BenchmarkRes
 				Value: bench.numDocs,
 			},
 		},
-		Tests: []testrunner.BenchmarkTest{
+		Tests: []benchrunner.BenchmarkTest{
 			{
 				Name: "ingest performance",
-				Results: []testrunner.BenchmarkValue{
+				Results: []benchrunner.BenchmarkValue{
 					{
 						Name:        "ingest time",
 						Description: "time elapsed in ingest processors",
@@ -171,7 +171,7 @@ type ingestResult struct {
 	numDocs   int
 }
 
-func benchmarkIngest(options testrunner.TestOptions, baseDocs []json.RawMessage) (ingestResult, error) {
+func benchmarkIngest(options benchrunner.TestOptions, baseDocs []json.RawMessage) (ingestResult, error) {
 	if options.Benchmark.Duration == time.Duration(0) {
 		// Run with a fixed doc count
 		return runSingleBenchmark(options, resizeDocs(baseDocs, options.Benchmark.NumDocs))
@@ -206,7 +206,7 @@ type aggregation struct {
 type (
 	keyFn     func(ingest.Pipeline, ingest.Processor) string
 	valueFn   func(record ingest.StatsRecord) int64
-	mapFn     func(processorPerformance) testrunner.BenchmarkValue
+	mapFn     func(processorPerformance) benchrunner.BenchmarkValue
 	compareFn func(a, b processorPerformance) bool
 	filterFn  func(processorPerformance) bool
 )
@@ -279,18 +279,18 @@ func (agg aggregation) filter(keep filterFn) aggregation {
 	return agg
 }
 
-func (agg aggregation) collect(fn mapFn) ([]testrunner.BenchmarkValue, error) {
+func (agg aggregation) collect(fn mapFn) ([]benchrunner.BenchmarkValue, error) {
 	if agg.err != nil {
 		return nil, agg.err
 	}
-	r := make([]testrunner.BenchmarkValue, len(agg.result))
+	r := make([]benchrunner.BenchmarkValue, len(agg.result))
 	for idx := range r {
 		r[idx] = fn(agg.result[idx])
 	}
 	return r, nil
 }
 
-func runSingleBenchmark(options testrunner.TestOptions, docs []json.RawMessage) (ingestResult, error) {
+func runSingleBenchmark(options benchrunner.TestOptions, docs []json.RawMessage) (ingestResult, error) {
 	if len(docs) == 0 {
 		return ingestResult{}, errors.New("no docs supplied for benchmark")
 	}

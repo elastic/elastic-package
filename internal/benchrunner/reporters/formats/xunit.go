@@ -10,16 +10,16 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/elastic/elastic-package/internal/testrunner"
+	"github.com/elastic/elastic-package/internal/benchrunner"
 )
 
 func init() {
-	testrunner.RegisterReporterFormat(ReportFormatXUnit, reportXUnitFormat)
+	benchrunner.RegisterReporterFormat(ReportFormatXUnit, reportXUnitFormat)
 }
 
 const (
 	// ReportFormatXUnit reports test results in the xUnit format
-	ReportFormatXUnit testrunner.TestReportFormat = "xUnit"
+	ReportFormatXUnit benchrunner.TestReportFormat = "xUnit"
 )
 
 type testSuites struct {
@@ -52,7 +52,25 @@ type skipped struct {
 	Message string `xml:"message,attr"`
 }
 
-func reportXUnitFormat(results []testrunner.TestResult) (string, error) {
+func reportXUnitFormat(results []benchrunner.TestResult) (string, []string, error) {
+	var benchmarks []benchrunner.BenchmarkResult
+	for _, r := range results {
+		if r.Benchmark != nil {
+			benchmarks = append(benchmarks, *r.Benchmark)
+		}
+	}
+	testFmtd, err := reportXUnitFormatTest(results)
+	if err != nil {
+		return "", nil, err
+	}
+	benchFmtd, err := reportXUnitFormatBenchmark(benchmarks)
+	if err != nil {
+		return "", nil, err
+	}
+	return testFmtd, benchFmtd, nil
+}
+
+func reportXUnitFormatTest(results []benchrunner.TestResult) (string, error) {
 	// test type => package => data stream => test cases
 	tests := map[string]map[string]map[string][]testCase{}
 
@@ -142,4 +160,25 @@ func reportXUnitFormat(results []testrunner.TestResult) (string, error) {
 	}
 
 	return xml.Header + string(out), nil
+}
+
+func reportXUnitFormatBenchmark(benchmarks []benchrunner.BenchmarkResult) ([]string, error) {
+	var reports []string
+	for _, b := range benchmarks {
+		// Filter out detailed tests. These add too much information for the
+		// aggregated nature of xUnit reports, creating a lot of noise in Jenkins.
+		var tests []benchrunner.BenchmarkTest
+		for _, t := range b.Tests {
+			if !t.Detailed {
+				tests = append(tests, t)
+			}
+		}
+		b.Tests = tests
+		out, err := xml.MarshalIndent(b, "", "  ")
+		if err != nil {
+			return nil, errors.Wrap(err, "unable to format benchmark results as xUnit")
+		}
+		reports = append(reports, xml.Header+string(out))
+	}
+	return reports, nil
 }

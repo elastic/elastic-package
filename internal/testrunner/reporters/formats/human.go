@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/jedib0t/go-pretty/table"
-	"github.com/jedib0t/go-pretty/text"
 
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
@@ -23,30 +22,11 @@ const (
 	ReportFormatHuman testrunner.TestReportFormat = "human"
 )
 
-func reportHumanFormat(results []testrunner.TestResult) (string, []string, error) {
+func reportHumanFormat(results []testrunner.TestResult) (string, error) {
 	if len(results) == 0 {
-		return "No test results", nil, nil
+		return "No test results", nil
 	}
 
-	var benchmarks []testrunner.BenchmarkResult
-	for _, r := range results {
-		if r.Benchmark != nil {
-			benchmarks = append(benchmarks, *r.Benchmark)
-		}
-	}
-
-	testFmtd, err := reportHumanFormatTest(results)
-	if err != nil {
-		return "", nil, err
-	}
-	benchFmtd, err := reportHumanFormatBenchmark(benchmarks)
-	if err != nil {
-		return "", nil, err
-	}
-	return testFmtd, benchFmtd, nil
-}
-
-func reportHumanFormatTest(results []testrunner.TestResult) (string, error) {
 	var report strings.Builder
 
 	headerPrinted := false
@@ -89,35 +69,4 @@ func reportHumanFormatTest(results []testrunner.TestResult) (string, error) {
 
 	report.WriteString(t.Render())
 	return report.String(), nil
-}
-
-func reportHumanFormatBenchmark(benchmarks []testrunner.BenchmarkResult) ([]string, error) {
-	var textReports []string
-	for _, b := range benchmarks {
-		var report strings.Builder
-		if len(b.Parameters) > 0 {
-			report.WriteString(renderBenchmarkTable("parameters", b.Parameters) + "\n")
-		}
-		for _, test := range b.Tests {
-			report.WriteString(renderBenchmarkTable(test.Name, test.Results) + "\n")
-		}
-		textReports = append(textReports, report.String())
-	}
-	return textReports, nil
-}
-
-func renderBenchmarkTable(title string, values []testrunner.BenchmarkValue) string {
-	t := table.NewWriter()
-	t.SetStyle(table.StyleRounded)
-	t.SetTitle(title)
-	t.SetColumnConfigs([]table.ColumnConfig{
-		{
-			Number: 2,
-			Align:  text.AlignRight,
-		},
-	})
-	for _, r := range values {
-		t.AppendRow(table.Row{r.Name, r.PrettyValue()})
-	}
-	return t.Render()
 }

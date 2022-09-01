@@ -2,7 +2,7 @@
 // or more contributor license agreements. Licensed under the Elastic License;
 // you may not use this file except in compliance with the Elastic License.
 
-package testrunner
+package benchrunner
 
 import (
 	"fmt"
@@ -30,6 +30,7 @@ type TestOptions struct {
 	DeferCleanup   time.Duration
 	ServiceVariant string
 	WithCoverage   bool
+	Benchmark      BenchmarkConfig
 }
 
 // TestRunner is the interface all test runners must implement.
@@ -90,6 +91,9 @@ type TestResult struct {
 
 	// Coverage details in Cobertura format (optional).
 	Coverage *CoberturaCoverage
+
+	// Benchmark results (optional).
+	Benchmark *BenchmarkResult
 }
 
 // ResultComposer wraps a TestResult and provides convenience methods for

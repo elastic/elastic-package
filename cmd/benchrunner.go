@@ -6,61 +6,46 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
+	"github.com/elastic/elastic-package/internal/benchrunner"
+	"github.com/elastic/elastic-package/internal/benchrunner/reporters/formats"
+	"github.com/elastic/elastic-package/internal/benchrunner/reporters/outputs"
+	_ "github.com/elastic/elastic-package/internal/benchrunner/runners" // register all test runners
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/signal"
-	"github.com/elastic/elastic-package/internal/testrunner"
-	"github.com/elastic/elastic-package/internal/testrunner/reporters/formats"
-	"github.com/elastic/elastic-package/internal/testrunner/reporters/outputs"
-	_ "github.com/elastic/elastic-package/internal/testrunner/runners" // register all test runners
 )
 
-const testLongDescription = `Use this command to run tests on a package. Currently, the following types of tests are available:
+const benchLongDescription = `Use this command to run benchmarks on a package. Currently, the following types of benchmarks are available:
 
-#### Asset Loading Tests
-These tests ensure that all the Elasticsearch and Kibana assets defined by your package get loaded up as expected.
+#### Pipeline Benchmarks
+These benchmarks allow you to benchmark any Ingest Node Pipelines defined by your packages.
 
-For details on how to run asset loading tests for a package, see the [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/asset_testing.md).
+For details on how to configure pipeline test for a package, review the [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/pipeline_benchmarks.md).`
 
-#### Pipeline Tests
-These tests allow you to exercise any Ingest Node Pipelines defined by your packages.
-
-For details on how to configure pipeline test for a package, review the [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/pipeline_testing.md).
-
-#### Static Tests
-These tests allow you to verify if all static resources of the package are valid, e.g. if all fields of the sample_event.json are documented.
-
-For details on how to run static tests for a package, see the [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/static_testing.md).
-
-#### System Tests
-These tests allow you to test a package's ability to ingest data end-to-end.
-
-For details on how to configure amd run system tests, review the [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/system_testing.md).`
-
-func setupTestCommand() *cobraext.Command {
-	var testTypeCmdActions []cobraext.CommandAction
+func setupBenchmarkCommand() *cobraext.Command {
+	var benchTypeCmdActions []cobraext.CommandAction
 
 	cmd := &cobra.Command{
-		Use:   "test",
-		Short: "Run test suite for the package",
-		Long:  testLongDescription,
+		Use:   "benchmark",
+		Short: "Run benchmarks for the package",
+		Long:  benchLongDescription,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cmd.Println("Run test suite for the package")
+			cmd.Println("Run benchmarks for the package")
 
 			if len(args) > 0 {
-				return fmt.Errorf("unsupported test type: %s", args[0])
+				return fmt.Errorf("unsupported benchmark type: %s", args[0])
 			}
 
-			return cobraext.ComposeCommandActions(cmd, args, testTypeCmdActions...)
+			return cobraext.ComposeCommandActions(cmd, args, benchTypeCmdActions...)
 		}}
 
 	cmd.PersistentFlags().BoolP(cobraext.FailOnMissingFlagName, "m", false, cobraext.FailOnMissingFlagDescription)
@@ -68,34 +53,36 @@ func setupTestCommand() *cobraext.Command {
 	cmd.PersistentFlags().StringP(cobraext.ReportFormatFlagName, "", string(formats.ReportFormatHuman), cobraext.ReportFormatFlagDescription)
 	cmd.PersistentFlags().StringP(cobraext.ReportOutputFlagName, "", string(outputs.ReportOutputSTDOUT), cobraext.ReportOutputFlagDescription)
 	cmd.PersistentFlags().BoolP(cobraext.TestCoverageFlagName, "", false, cobraext.TestCoverageFlagDescription)
+	cmd.PersistentFlags().IntP(cobraext.TestBenchCountFlagName, "", 1000, cobraext.TestBenchCountFlagDescription)
+	cmd.PersistentFlags().DurationP(cobraext.TestPerfDurationFlagName, "", time.Duration(0), cobraext.TestPerfDurationFlagDescription)
 	cmd.PersistentFlags().DurationP(cobraext.DeferCleanupFlagName, "", 0, cobraext.DeferCleanupFlagDescription)
 	cmd.PersistentFlags().String(cobraext.VariantFlagName, "", cobraext.VariantFlagDescription)
 
-	for testType, runner := range testrunner.TestRunners() {
-		action := testTypeCommandActionFactory(runner)
-		testTypeCmdActions = append(testTypeCmdActions, action)
+	for benchType, runner := range benchrunner.TestRunners() {
+		action := benchTypeCommandActionFactory(runner)
+		benchTypeCmdActions = append(benchTypeCmdActions, action)
 
-		testTypeCmd := &cobra.Command{
-			Use:   string(testType),
-			Short: fmt.Sprintf("Run %s tests", runner.String()),
-			Long:  fmt.Sprintf("Run %s tests for the package.", runner.String()),
+		benchTypeCmd := &cobra.Command{
+			Use:   string(benchType),
+			Short: fmt.Sprintf("Run %s benchmarks", runner.String()),
+			Long:  fmt.Sprintf("Run %s benchmarks for the package.", runner.String()),
 			RunE:  action,
 		}
 
 		if runner.CanRunPerDataStream() {
-			testTypeCmd.Flags().StringSliceP(cobraext.DataStreamsFlagName, "d", nil, cobraext.DataStreamsFlagDescription)
+			benchTypeCmd.Flags().StringSliceP(cobraext.DataStreamsFlagName, "d", nil, cobraext.DataStreamsFlagDescription)
 		}
 
-		cmd.AddCommand(testTypeCmd)
+		cmd.AddCommand(benchTypeCmd)
 	}
 
 	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
 }
 
-func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.CommandAction {
-	testType := runner.Type()
+func benchTypeCommandActionFactory(runner benchrunner.TestRunner) cobraext.CommandAction {
+	benchType := runner.Type()
 	return func(cmd *cobra.Command, args []string) error {
-		cmd.Printf("Run %s tests for the package\n", testType)
+		cmd.Printf("Run %s tests for the package\n", benchType)
 
 		failOnMissing, err := cmd.Flags().GetBool(cobraext.FailOnMissingFlagName)
 		if err != nil {
@@ -122,6 +109,16 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 			return cobraext.FlagParsingError(err, cobraext.TestCoverageFlagName)
 		}
 
+		testBenchCount, err := cmd.Flags().GetInt(cobraext.TestBenchCountFlagName)
+		if err != nil {
+			return cobraext.FlagParsingError(err, cobraext.TestBenchCountFlagName)
+		}
+
+		testBenchDur, err := cmd.Flags().GetDuration(cobraext.TestPerfDurationFlagName)
+		if err != nil {
+			return cobraext.FlagParsingError(err, cobraext.TestBenchCountFlagDescription)
+		}
+
 		packageRootPath, found, err := packages.FindPackageRoot()
 		if !found {
 			return errors.New("package root not found")
@@ -132,7 +129,7 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 
 		signal.Enable()
 
-		var testFolders []testrunner.TestFolder
+		var testFolders []benchrunner.TestFolder
 		if runner.CanRunPerDataStream() {
 			var dataStreams []string
 			// We check for the existence of the data streams flag before trying to
@@ -152,12 +149,12 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 			}
 
 			if runner.TestFolderRequired() {
-				testFolders, err = testrunner.FindTestFolders(packageRootPath, dataStreams, testType)
+				testFolders, err = benchrunner.FindTestFolders(packageRootPath, dataStreams, benchType)
 				if err != nil {
 					return errors.Wrap(err, "unable to determine test folder paths")
 				}
 			} else {
-				testFolders, err = testrunner.AssumeTestFolders(packageRootPath, dataStreams, testType)
+				testFolders, err = benchrunner.AssumeTestFolders(packageRootPath, dataStreams, benchType)
 				if err != nil {
 					return errors.Wrap(err, "unable to assume test folder paths")
 				}
@@ -165,13 +162,13 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 
 			if failOnMissing && len(testFolders) == 0 {
 				if len(dataStreams) > 0 {
-					return fmt.Errorf("no %s tests found for %s data stream(s)", testType, strings.Join(dataStreams, ","))
+					return fmt.Errorf("no %s tests found for %s data stream(s)", benchType, strings.Join(dataStreams, ","))
 				}
-				return fmt.Errorf("no %s tests found", testType)
+				return fmt.Errorf("no %s tests found", benchType)
 			}
 		} else {
 			_, pkg := filepath.Split(packageRootPath)
-			testFolders = []testrunner.TestFolder{
+			testFolders = []benchrunner.TestFolder{
 				{
 					Package: pkg,
 				},
@@ -190,9 +187,9 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 			return errors.Wrap(err, "can't create Elasticsearch client")
 		}
 
-		var results []testrunner.TestResult
+		var results []benchrunner.TestResult
 		for _, folder := range testFolders {
-			r, err := testrunner.Run(testType, testrunner.TestOptions{
+			r, err := benchrunner.Run(benchType, benchrunner.TestOptions{
 				TestFolder:         folder,
 				PackageRootPath:    packageRootPath,
 				GenerateTestResult: generateTestResult,
@@ -200,17 +197,21 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 				DeferCleanup:       deferCleanup,
 				ServiceVariant:     variantFlag,
 				WithCoverage:       testCoverage,
+				Benchmark: benchrunner.BenchmarkConfig{
+					NumDocs:  testBenchCount,
+					Duration: testBenchDur,
+				},
 			})
 
 			results = append(results, r...)
 
 			if err != nil {
-				return errors.Wrapf(err, "error running package %s tests", testType)
+				return errors.Wrapf(err, "error running package %s tests", benchType)
 			}
 		}
 
-		format := testrunner.TestReportFormat(reportFormat)
-		report, err := testrunner.FormatReport(format, results)
+		format := benchrunner.TestReportFormat(reportFormat)
+		testReport, benchReports, err := benchrunner.FormatReport(format, results)
 		if err != nil {
 			return errors.Wrap(err, "error formatting test report")
 		}
@@ -220,12 +221,17 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 			return errors.Wrapf(err, "reading package manifest failed (path: %s)", packageRootPath)
 		}
 
-		if err := testrunner.WriteReport(m.Name, testrunner.TestReportOutput(reportOutput), report, format); err != nil {
+		if err := benchrunner.WriteReport(m.Name, benchrunner.TestReportOutput(reportOutput), testReport, format, benchrunner.ReportTypeTest); err != nil {
 			return errors.Wrap(err, "error writing test report")
 		}
 
+		for idx, report := range benchReports {
+			if err := benchrunner.WriteReport(fmt.Sprintf("%s-%d", m.Name, idx+1), benchrunner.TestReportOutput(reportOutput), report, format, benchrunner.ReportTypeBench); err != nil {
+				return errors.Wrap(err, "error writing benchmark report")
+			}
+		}
 		if testCoverage {
-			err := testrunner.WriteCoverage(packageRootPath, m.Name, runner.Type(), results)
+			err := benchrunner.WriteCoverage(packageRootPath, m.Name, runner.Type(), results)
 			if err != nil {
 				return errors.Wrap(err, "error writing test coverage")
 			}
@@ -239,19 +245,4 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 		}
 		return nil
 	}
-}
-
-func validateDataStreamsFlag(packageRootPath string, dataStreams []string) error {
-	for _, dataStream := range dataStreams {
-		path := filepath.Join(packageRootPath, "data_stream", dataStream)
-		fileInfo, err := os.Stat(path)
-		if err != nil {
-			return errors.Wrapf(err, "stat directory failed (path: %s)", path)
-		}
-
-		if !fileInfo.IsDir() {
-			return fmt.Errorf("data stream must be a directory (path: %s)", path)
-		}
-	}
-	return nil
 }

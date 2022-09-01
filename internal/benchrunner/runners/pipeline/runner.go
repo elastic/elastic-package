@@ -15,6 +15,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/elastic/elastic-package/internal/benchrunner"
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/elasticsearch/ingest"
 	"github.com/elastic/elastic-package/internal/fields"
@@ -22,16 +23,15 @@ import (
 	"github.com/elastic/elastic-package/internal/multierror"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/signal"
-	"github.com/elastic/elastic-package/internal/testrunner"
 )
 
 const (
 	// TestType defining pipeline tests
-	TestType testrunner.TestType = "pipeline"
+	TestType benchrunner.TestType = "pipeline"
 )
 
 type runner struct {
-	options   testrunner.TestOptions
+	options   benchrunner.TestOptions
 	pipelines []ingest.Pipeline
 }
 
@@ -40,7 +40,7 @@ func (r *runner) TestFolderRequired() bool {
 }
 
 // Type returns the type of test that can be run by this test runner.
-func (r *runner) Type() testrunner.TestType {
+func (r *runner) Type() benchrunner.TestType {
 	return TestType
 }
 
@@ -50,7 +50,7 @@ func (r *runner) String() string {
 }
 
 // Run runs the pipeline tests defined under the given folder
-func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, error) {
+func (r *runner) Run(options benchrunner.TestOptions) ([]benchrunner.TestResult, error) {
 	r.options = options
 	return r.run()
 }
@@ -75,7 +75,7 @@ func (r *runner) CanRunPerDataStream() bool {
 	return true
 }
 
-func (r *runner) run() ([]testrunner.TestResult, error) {
+func (r *runner) run() ([]benchrunner.TestResult, error) {
 	testCaseFiles, err := r.listTestCaseFiles()
 	if err != nil {
 		return nil, errors.Wrap(err, "listing test case definitions failed")
@@ -95,9 +95,9 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		return nil, errors.Wrap(err, "installing ingest pipelines failed")
 	}
 
-	results := make([]testrunner.TestResult, 0)
+	results := make([]benchrunner.TestResult, 0)
 	for _, testCaseFile := range testCaseFiles {
-		tr := testrunner.TestResult{
+		tr := benchrunner.TestResult{
 			TestType:   TestType,
 			Package:    r.options.TestFolder.Package,
 			DataStream: r.options.TestFolder.DataStream,
@@ -147,7 +147,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		// TODO: Add tests to cover regressive use of json.Unmarshal in verifyResults.
 		// See https://github.com/elastic/elastic-package/pull/717.
 		err = r.verifyResults(testCaseFile, tc.config, result, fieldsValidator)
-		if e, ok := err.(testrunner.ErrTestCaseFailed); ok {
+		if e, ok := err.(benchrunner.ErrTestCaseFailed); ok {
 			tr.FailureMsg = e.Error()
 			tr.FailureDetails = e.Details
 
@@ -170,13 +170,31 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		results = append(results, tr)
 	}
 
+	if r.options.Benchmark.Enabled {
+		start := time.Now()
+		tr := benchrunner.TestResult{
+			TestType:   TestType + " benchmark",
+			Package:    r.options.TestFolder.Package,
+			DataStream: r.options.TestFolder.DataStream,
+		}
+		if tr.Benchmark, err = BenchmarkPipeline(r.options); err != nil {
+			tr.ErrorMsg = err.Error()
+		}
+		tr.TimeElapsed = time.Since(start)
+		results = append(results, tr)
+	}
+
 	return results, nil
 }
 
 func (r *runner) listTestCaseFiles() ([]string, error) {
-	fis, err := os.ReadDir(r.options.TestFolder.Path)
+	return listTestCaseFiles(r.options.TestFolder.Path)
+}
+
+func listTestCaseFiles(path string) ([]string, error) {
+	fis, err := os.ReadDir(path)
 	if err != nil {
-		return nil, errors.Wrapf(err, "reading pipeline tests failed (path: %s)", r.options.TestFolder.Path)
+		return nil, errors.Wrapf(err, "reading pipeline tests failed (path: %s)", path)
 	}
 
 	var files []string
@@ -191,7 +209,10 @@ func (r *runner) listTestCaseFiles() ([]string, error) {
 }
 
 func (r *runner) loadTestCaseFile(testCaseFile string) (*testCase, error) {
-	testCasePath := filepath.Join(r.options.TestFolder.Path, testCaseFile)
+	return loadTestCaseFile(filepath.Join(r.options.TestFolder.Path, testCaseFile))
+}
+
+func loadTestCaseFile(testCasePath string) (*testCase, error) {
 	testCaseData, err := os.ReadFile(testCasePath)
 	if err != nil {
 		return nil, errors.Wrapf(err, "reading input file failed (testCasePath: %s)", testCasePath)
@@ -202,6 +223,7 @@ func (r *runner) loadTestCaseFile(testCaseFile string) (*testCase, error) {
 		return nil, errors.Wrapf(err, "reading config for test case failed (testCasePath: %s)", testCasePath)
 	}
 
+	testCaseFile := filepath.Base(testCasePath)
 	if config.Skip != nil {
 		return &testCase{
 			name:   testCaseFile,
@@ -247,7 +269,7 @@ func (r *runner) verifyResults(testCaseFile string, config *testConfig, result *
 	}
 
 	err := compareResults(testCasePath, config, result)
-	if _, ok := err.(testrunner.ErrTestCaseFailed); ok {
+	if _, ok := err.(benchrunner.ErrTestCaseFailed); ok {
 		return err
 	}
 	if err != nil {
@@ -318,7 +340,7 @@ func verifyDynamicFields(result *testResult, config *testConfig) error {
 	}
 
 	if len(multiErr) > 0 {
-		return testrunner.ErrTestCaseFailed{
+		return benchrunner.ErrTestCaseFailed{
 			Reason:  "one or more problems with dynamic fields found in documents",
 			Details: multiErr.Unique().Error(),
 		}
@@ -342,7 +364,7 @@ func verifyFieldsInTestResult(result *testResult, fieldsValidator *fields.Valida
 	}
 
 	if len(multiErr) > 0 {
-		return testrunner.ErrTestCaseFailed{
+		return benchrunner.ErrTestCaseFailed{
 			Reason:  "one or more problems with fields found in documents",
 			Details: multiErr.Unique().Error(),
 		}
@@ -372,5 +394,5 @@ func checkErrorMessage(event json.RawMessage) error {
 }
 
 func init() {
-	testrunner.RegisterRunner(&runner{})
+	benchrunner.RegisterRunner(&runner{})
 }
