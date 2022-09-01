@@ -12,8 +12,8 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 
-	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/environment"
+	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/logger"
 )
 
@@ -101,7 +101,7 @@ func linksDefinitionsFilePath() (string, error) {
 		return linksFilePath, nil
 	}
 
-	dir, err := common.FindRepositoryRootDirectory()
+	dir, err := files.FindRepositoryRootDirectory()
 	if err != nil {
 		return "", err
 	}

@@ -14,7 +14,6 @@ import (
 
 	"github.com/elastic/package-spec/code/go/pkg/validator"
 
-	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
@@ -268,7 +267,7 @@ func copyLicenseTextFile(licensePath string) error {
 }
 
 func createBuildDirectory(dirs ...string) (string, error) {
-	dir, err := common.FindRepositoryRootDirectory()
+	dir, err := files.FindRepositoryRootDirectory()
 	if errors.Is(err, os.ErrNotExist) {
 		return "", errors.New("package can be only built inside of a Git repository (.git folder is used as reference point)")
 	}
@@ -289,7 +288,7 @@ func createBuildDirectory(dirs ...string) (string, error) {
 }
 
 func findRepositoryLicense() (string, error) {
-	dir, err := common.FindRepositoryRootDirectory()
+	dir, err := files.FindRepositoryRootDirectory()
 	if err != nil {
 		return "", err
 	}
