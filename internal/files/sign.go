@@ -18,11 +18,11 @@ import (
 	"github.com/elastic/elastic-package/internal/logger"
 )
 
-const (
+const signatureComment = "Signed with elastic-package (using GopenPGP: https://gopenpgp.org)"
+
+var (
 	signerPrivateKeyfileEnv = environment.WithElasticPackagePrefix("SIGNER_PRIVATE_KEYFILE")
 	signerPassphraseEnv     = environment.WithElasticPackagePrefix("SIGNER_PASSPHRASE")
-
-	signatureComment = "Signed with elastic-package (using GopenPGP: https://gopenpgp.org)"
 )
 
 type SignOptions struct {

@@ -17,10 +17,9 @@ import (
 	"github.com/elastic/elastic-package/internal/logger"
 )
 
-const (
-	linksMapFileNameDefault = "links_table.yml"
-	linksMapFilePathEnvVar  = environment.WithElasticPackagePrefix("LINKS_FILE_PATH")
-)
+const linksMapFileNameDefault = "links_table.yml"
+
+var linksMapFilePathEnvVar = environment.WithElasticPackagePrefix("LINKS_FILE_PATH")
 
 type linkMap struct {
 	Links map[string]string `yaml:"links"`

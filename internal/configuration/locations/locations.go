@@ -15,9 +15,6 @@ import (
 )
 
 const (
-	// elasticPackageDataHome is the name of the environment variable used to override data folder for elastic-package
-	elasticPackageDataHome = environment.WithElasticPackagePrefix("DATA_HOME")
-
 	elasticPackageDir = ".elastic-package"
 	stackDir          = "stack"
 	packagesDir       = "development"
@@ -34,6 +31,9 @@ const (
 )
 
 var (
+	// elasticPackageDataHome is the name of the environment variable used to override data folder for elastic-package
+	elasticPackageDataHome = environment.WithElasticPackagePrefix("DATA_HOME")
+
 	serviceLogsDir               = filepath.Join(temporaryDir, "service_logs")
 	kubernetesDeployerDir        = filepath.Join(deployerDir, "kubernetes")
 	terraformDeployerDir         = filepath.Join(deployerDir, "terraform")

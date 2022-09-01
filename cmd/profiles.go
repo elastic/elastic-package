@@ -27,7 +27,7 @@ const jsonFormat = "json"
 const tableFormat = "table"
 
 // profileNameEnvVar is the name of the environment variable to set the default profile
-const profileNameEnvVar = environment.WithElasticPackagePrefix("PROFILE")
+var profileNameEnvVar = environment.WithElasticPackagePrefix("PROFILE")
 
 func setupProfilesCommand() *cobraext.Command {
 	profilesLongDescription := `Use this command to add, remove, and manage multiple config profiles.

@@ -8,6 +8,6 @@ const (
 	elasticPackageEnvPrefix = "ELASTIC_PACKAGE_"
 )
 
-func WithElasticPackagePrefix(variable string) {
+func WithElasticPackagePrefix(variable string) string {
 	return elasticPackageEnvPrefix + variable
 }
