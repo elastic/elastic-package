@@ -5,6 +5,8 @@
 package docs
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -106,4 +108,103 @@ func TestRenderLInk(t *testing.T) {
 			assert.Equal(t, c.expected, output)
 		})
 	}
+}
+
+func TestLinksDefinitionsFilePath(t *testing.T) {
+	currentDirectory, _ := os.Getwd()
+	temporalDirecotry := t.TempDir()
+
+	cases := []struct {
+		title                string
+		createFileFromEnvVar bool
+		createDefaultFile    bool
+		linksFilePath        string
+		expectedErrors       bool
+		expected             string
+	}{
+		{
+			title:                "No env var and no default file",
+			createFileFromEnvVar: false,
+			createDefaultFile:    false,
+			linksFilePath:        "",
+			expectedErrors:       false,
+			expected:             "",
+		},
+		{
+			title:                "No env var - default file",
+			createFileFromEnvVar: false,
+			createDefaultFile:    true,
+			linksFilePath:        "",
+			expectedErrors:       false,
+			expected:             filepath.Join(currentDirectory, "links_table.yml"),
+		},
+		{
+			title:                "Env var defined",
+			createFileFromEnvVar: true,
+			createDefaultFile:    false,
+			linksFilePath:        filepath.Join(temporalDirecotry, "links_table.yml"),
+			expectedErrors:       false,
+			expected:             filepath.Join(temporalDirecotry, "links_table.yml"),
+		},
+		{
+			title:                "Env var defined but just default file exists",
+			createFileFromEnvVar: false,
+			createDefaultFile:    true,
+			linksFilePath:        filepath.Join(temporalDirecotry, "links_table_2.yml"),
+			expectedErrors:       true,
+			expected:             "",
+		},
+	}
+
+	createGitFolder()
+	defer removeGitFolder()
+
+	for _, c := range cases {
+		t.Run(c.title, func(t *testing.T) {
+			var err error
+			if c.linksFilePath != "" {
+				err = os.Setenv(linksMapFilePathEnvVar, c.linksFilePath)
+				require.NoError(t, err)
+			}
+
+			if c.createFileFromEnvVar {
+				err = createLinksFile(c.linksFilePath)
+				defer removeLinksFile(c.linksFilePath)
+				require.NoError(t, err)
+			}
+
+			if c.createDefaultFile {
+				err = createLinksFile(linksMapFileNameDefault)
+				require.NoError(t, err)
+				defer removeLinksFile(linksMapFileNameDefault)
+			}
+
+			path, err := linksDefinitionsFilePath()
+
+			if c.expectedErrors {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, c.expected, path)
+			}
+		})
+	}
+}
+
+func createGitFolder() error {
+	return os.MkdirAll(".git", os.ModePerm)
+}
+
+func removeGitFolder() error {
+	return os.RemoveAll(".git")
+}
+
+func createLinksFile(filepath string) error {
+	file, err := os.Create(filepath)
+	defer file.Close()
+	return err
+}
+
+func removeLinksFile(filepath string) error {
+	return os.Remove(filepath)
 }
