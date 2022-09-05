@@ -6,7 +6,6 @@ package docs
 
 import (
 	"fmt"
-	"path/filepath"
 	"sort"
 	"strings"
 
@@ -25,11 +24,10 @@ type fieldsTableRecord struct {
 
 var escaper = strings.NewReplacer("*", "\\*", "{", "\\{", "}", "\\}", "<", "\\<", ">", "\\>")
 
-func renderExportedFields(packageRoot, dataStreamName string) (string, error) {
-	dataStreamPath := filepath.Join(packageRoot, "data_stream", dataStreamName)
-	validator, err := fields.CreateValidatorForDataStream(dataStreamPath)
+func renderExportedFields(fieldsParentDir string) (string, error) {
+	validator, err := fields.CreateValidatorForDirectory(fieldsParentDir)
 	if err != nil {
-		return "", errors.Wrapf(err, "can't create fields validator instance (path: %s)", dataStreamPath)
+		return "", errors.Wrapf(err, "can't create fields validator instance (path: %s)", fieldsParentDir)
 	}
 
 	collected, err := collectFieldsFromDefinitions(validator)
@@ -147,6 +145,14 @@ func visitFields(namePrefix string, f fields.FieldDefinition, records []fieldsTa
 			unit:        f.Unit,
 			metricType:  f.MetricType,
 		})
+
+		for _, multiField := range f.MultiFields {
+			records = append(records, fieldsTableRecord{
+				name:        name + "." + multiField.Name,
+				description: fmt.Sprintf("Multi-field of %#q.", name),
+				aType:       multiField.Type,
+			})
+		}
 		return records, nil
 	}
 

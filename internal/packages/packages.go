@@ -73,19 +73,35 @@ type Input struct {
 	Vars []Variable `config:"vars" json:"vars" yaml:"vars"`
 }
 
+// Source contains metadata about the source code of the package.
+type Source struct {
+	License string `config:"license" json:"license" yaml:"license"`
+}
+
 // KibanaConditions defines conditions for Kibana (e.g. required version).
 type KibanaConditions struct {
 	Version string `config:"version" json:"version" yaml:"version"`
 }
 
+// ElasticConditions defines conditions related to Elastic subscriptions or partnerships.
+type ElasticConditions struct {
+	Subscription string `config:"subscription" json:"subscription" yaml:"subscription"`
+}
+
 // Conditions define requirements for different parts of the Elastic stack.
 type Conditions struct {
-	Kibana KibanaConditions `config:"kibana" json:"kibana" yaml:"kibana"`
+	Kibana  KibanaConditions  `config:"kibana" json:"kibana" yaml:"kibana"`
+	Elastic ElasticConditions `config:"elastic" json:"elastic" yaml:"elastic"`
 }
 
 // PolicyTemplate is a configuration of inputs responsible for collecting log or metric data.
 type PolicyTemplate struct {
-	Inputs []Input `config:"inputs" json:"inputs" yaml:"inputs"`
+	Inputs []Input `config:"inputs,omitempty" json:"inputs,omitempty" yaml:"inputs,omitempty"`
+
+	// For purposes of "input packages"
+	Input        string `config:"input,omitempty" json:"input,omitempty" yaml:"input,omitempty"`
+	Type         string `config:"type,omitempty" json:"type,omitempty" yaml:"type,omitempty"`
+	TemplatePath string `config:"template_path,omitempty" json:"template_path,omitempty" yaml:"template_path,omitempty"`
 }
 
 // Owner defines package owners, either a single person or a team.
@@ -99,6 +115,7 @@ type PackageManifest struct {
 	Title           string           `config:"title" json:"title" yaml:"title"`
 	Type            string           `config:"type" json:"type" yaml:"type"`
 	Version         string           `config:"version" json:"version" yaml:"version"`
+	Source          Source           `config:"source" json:"source" yaml:"source"`
 	Conditions      Conditions       `config:"conditions" json:"conditions" yaml:"conditions"`
 	PolicyTemplates []PolicyTemplate `config:"policy_templates" json:"policy_templates" yaml:"policy_templates"`
 	Vars            []Variable       `config:"vars" json:"vars" yaml:"vars"`
@@ -273,7 +290,7 @@ func isPackageManifest(path string) (bool, error) {
 	if err != nil {
 		return false, errors.Wrapf(err, "reading package manifest failed (path: %s)", path)
 	}
-	return m.Type == "integration" && m.Version != "", nil // TODO add support for other package types
+	return (m.Type == "integration" || m.Type == "input") && m.Version != "", nil
 }
 
 func isDataStreamManifest(path string) (bool, error) {

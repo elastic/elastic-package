@@ -1,6 +1,4 @@
 - name: destination.geo.location
   external: ecs
-- name: geo.location
-  external: ecs
 - name: source.geo.location
   external: ecs

@@ -42,7 +42,23 @@ Download and build the latest main of `elastic-package` binary:
 
 ```bash
 git clone https://github.com/elastic/elastic-package.git
+cd elastic-package
 make build
+```
+
+When developing on Windows, please use the `core.autocrlf=input` or `core.autocrlf=false` option to avoid issues with CRLF line endings:
+```bash
+git clone --config core.autocrlf=input https://github.com/elastic/elastic-package.git
+cd elastic-package
+make build
+```
+
+This option can be also configured on existing clones with the following commands. Be aware that these commands
+will remove uncommited changes.
+```bash
+git config core.autocrlf input
+git rm --cached -r .
+git reset --hard
 ```
 
 ## Commands
@@ -78,13 +94,23 @@ _Context: package_
 
 Use this command to build a package. Currently it supports only the "integration" package type.
 
-Built packages are stored in the "build/" folder located at the root folder of the local Git repository checkout that contains your package folder. The command will also render the README file in your package folder if there is a corresponding template file present in "_dev/build/docs/README.md". All "_dev" directories under your package will be omitted.
+Built packages are stored in the "build/" folder located at the root folder of the local Git repository checkout that contains your package folder. The command will also render the README file in your package folder if there is a corresponding template file present in "_dev/build/docs/README.md". All "_dev" directories under your package will be omitted. For details on how to generate and syntax of this README, see the [HOWTO guide](./docs/howto/add_package_readme.md).
 
 Built packages are served up by the Elastic Package Registry running locally (see "elastic-package stack"). If you want a local package to be served up by the local Elastic Package Registry, make sure to build that package first using "elastic-package build".
 
 Built packages can also be published to the global package registry service.
 
 For details on how to enable dependency management, see the [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/dependency_management.md).
+
+### `elastic-package changelog`
+
+_Context: package_
+
+Use this command to work with the changelog of the package.
+
+You can use this command to modify the changelog following the expected format and good practices.
+This can be useful when introducing changelog entries for changes done by automated processes.
+
 
 ### `elastic-package check`
 
@@ -116,7 +142,7 @@ For details on how to create a new package, review the [HOWTO guide](https://git
 
 _Context: global_
 
-Use this command as a exploratory tool to dump assets relevant for the package.
+Use this command as an exploratory tool to dump resources from Elastic Stack (objects installed as part of package and agent policies).
 
 ### `elastic-package export`
 
@@ -188,7 +214,7 @@ The command manages lifecycle of the service stack defined for the package ("_de
 
 _Context: global_
 
-Use this command to spin up a Docker-based Elastic Stack consisting of Elasticsearch, Kibana, and the Package Registry. By default the latest released version of the stack is spun up but it is possible to specify a different version, including SNAPSHOT versions.
+Use this command to spin up a Docker-based Elastic Stack consisting of Elasticsearch, Kibana, and the Package Registry. By default the latest released version of the stack is spun up but it is possible to specify a different version, including SNAPSHOT versions by appending --version <version>.
 
 Be aware that a common issue while trying to boot up the stack is that your Docker environments settings are too low in terms of memory threshold.
 

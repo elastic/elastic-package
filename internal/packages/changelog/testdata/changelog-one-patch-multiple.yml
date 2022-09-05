@@ -1,0 +1,12 @@
+# newer versions go on top
+- version: "1.0.0"
+  changes:
+    - description: One change
+      type: enhancement
+      link: http://github.com/elastic/elastic-package
+    - description: Other change
+      type: enhancement
+      link: http://github.com/elastic/elastic-package
+    - description: Initial version
+      type: enhancement
+      link: http://github.com/elastic/elastic-package

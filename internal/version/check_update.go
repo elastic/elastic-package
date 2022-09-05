@@ -29,7 +29,7 @@ func CheckUpdate() {
 	githubClient := github.UnauthorizedClient()
 	release, _, err := githubClient.Repositories.GetLatestRelease(context.TODO(), repositoryOwner, repositoryName)
 	if err != nil {
-		logger.Debugf("Error: cant't check latest release, %v", err)
+		logger.Debugf("Error: can't check latest release, %v", err)
 		return
 	}
 
@@ -40,13 +40,13 @@ func CheckUpdate() {
 
 	currentVersion, err := semver.NewVersion(Tag[1:]) // strip "v" prefix
 	if err != nil {
-		logger.Debugf("Error: cant't parse current version tage, %v", err)
+		logger.Debugf("Error: can't parse current version tag, %v", err)
 		return
 	}
 
 	releaseVersion, err := semver.NewVersion((*release.TagName)[1:]) // strip "v" prefix
 	if err != nil {
-		logger.Debugf("Error: cant't parse current version tage, %v", err)
+		logger.Debugf("Error: can't parse current version tag, %v", err)
 		return
 	}
 

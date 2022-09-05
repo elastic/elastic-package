@@ -53,6 +53,20 @@ func newKibanaConfig8x(_ string, profilePath string) (*simpleFile, error) {
 	}, nil
 }
 
+// KibanaConfig80File is the Kibana config file for 8.0 stack family (8.0 to 8.1)
+const KibanaConfig80File configFile = "kibana.config.80.yml"
+
+//go:embed _static/kibana_config_80.yml
+var kibanaConfig80Yml string
+
+func newKibanaConfig80(_ string, profilePath string) (*simpleFile, error) {
+	return &simpleFile{
+		name: string(KibanaConfig80File),
+		path: filepath.Join(profilePath, profileStackPath, string(KibanaConfig80File)),
+		body: kibanaConfig80Yml,
+	}, nil
+}
+
 // ElasticsearchConfigDefaultFile is the default Elasticsearch config file
 const ElasticsearchConfigDefaultFile configFile = "elasticsearch.config.default.yml"
 
@@ -77,6 +91,18 @@ func newElasticsearchConfig8x(_ string, profilePath string) (*simpleFile, error)
 	return &simpleFile{
 		name: string(ElasticsearchConfig8xFile),
 		path: filepath.Join(profilePath, profileStackPath, string(ElasticsearchConfig8xFile)),
+		body: elasticsearchConfig8xYml,
+	}, nil
+}
+
+// ElasticsearchConfig80File is the Elasticsearch virtual config file name for 8.0 stack family (8.0 to 8.1)
+// This file does not exist in the source code, since it's identical to the 8x config file.
+const ElasticsearchConfig80File configFile = "elasticsearch.config.80.yml"
+
+func newElasticsearchConfig80(_ string, profilePath string) (*simpleFile, error) {
+	return &simpleFile{
+		name: string(ElasticsearchConfig80File),
+		path: filepath.Join(profilePath, profileStackPath, string(ElasticsearchConfig80File)),
 		body: elasticsearchConfig8xYml,
 	}, nil
 }
@@ -114,6 +140,18 @@ func newPackageRegistryDockerfile(_ string, profilePath string) (*simpleFile, er
 		name: string(PackageRegistryDockerfileFile),
 		path: filepath.Join(profilePath, profileStackPath, string(PackageRegistryDockerfileFile)),
 		body: packageRegistryDockerfile,
+	}, nil
+}
+
+// ElasticAgent80EnvFile is the .env for the 8.0 stack.
+// This file does not exist in the source code, since it's identical to the 8x env file.
+const ElasticAgent80EnvFile configFile = "elastic-agent.80.env"
+
+func newElasticAgent80Env(_ string, profilePath string) (*simpleFile, error) {
+	return &simpleFile{
+		name: string(ElasticAgent80EnvFile),
+		path: filepath.Join(profilePath, profileStackPath, string(ElasticAgent80EnvFile)),
+		body: elasticAgent8xEnv,
 	}, nil
 }
 

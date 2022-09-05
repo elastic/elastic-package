@@ -1,0 +1,25 @@
+---
+description: Pipeline for processing sample logs
+processors:
+- convert:
+    field: message
+    target_field: example.long
+    type: long
+    ignore_failure: true # Not every number can be converted to long.
+- convert:
+    field: message
+    target_field: example.float
+    type: double
+- convert:
+    field: message
+    target_field: example.float_as_long
+    type: float
+- convert:
+    field: message
+    target_field: example.long_as_float
+    type: long
+    ignore_failure: true # Not every number can be converted to long.
+on_failure:
+- set:
+    field: error.message
+    value: '{{ _ingest.on_failure_message }}'
