@@ -6,24 +6,24 @@ package benchrunner
 
 import "fmt"
 
-// TestReportFormat represents a test report format
-type TestReportFormat string
+// BenchReportFormat represents a test report format
+type BenchReportFormat string
 
 // ReportFormatFunc defines the report formatter function.
-type ReportFormatFunc func(results []TestResult) (string, []string, error)
+type ReportFormatFunc func(results []BenchResult) ([]string, error)
 
-var reportFormatters = map[TestReportFormat]ReportFormatFunc{}
+var reportFormatters = map[BenchReportFormat]ReportFormatFunc{}
 
 // RegisterReporterFormat registers a test report formatter.
-func RegisterReporterFormat(name TestReportFormat, formatFunc ReportFormatFunc) {
+func RegisterReporterFormat(name BenchReportFormat, formatFunc ReportFormatFunc) {
 	reportFormatters[name] = formatFunc
 }
 
 // FormatReport delegates formatting of test results to the registered test report formatter.
-func FormatReport(name TestReportFormat, results []TestResult) (testReport string, benchmarkReports []string, err error) {
+func FormatReport(name BenchReportFormat, results []BenchResult) (benchmarkReports []string, err error) {
 	reportFunc, defined := reportFormatters[name]
 	if !defined {
-		return "", nil, fmt.Errorf("unregistered test report format: %s", name)
+		return nil, fmt.Errorf("unregistered test report format: %s", name)
 	}
 
 	return reportFunc(results)

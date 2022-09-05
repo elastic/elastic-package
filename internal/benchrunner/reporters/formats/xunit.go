@@ -6,7 +6,6 @@ package formats
 
 import (
 	"encoding/xml"
-	"fmt"
 
 	"github.com/pkg/errors"
 
@@ -19,147 +18,22 @@ func init() {
 
 const (
 	// ReportFormatXUnit reports test results in the xUnit format
-	ReportFormatXUnit benchrunner.TestReportFormat = "xUnit"
+	ReportFormatXUnit benchrunner.BenchReportFormat = "xUnit"
 )
 
-type testSuites struct {
-	XMLName xml.Name    `xml:"testsuites"`
-	Suites  []testSuite `xml:"testsuite"`
-}
-type testSuite struct {
-	Comment string `xml:",comment"`
-
-	Name        string `xml:"name,attr"`
-	NumTests    int    `xml:"tests,attr,omitempty"`
-	NumFailures int    `xml:"failures,attr,omitempty"`
-	NumErrors   int    `xml:"errors,attr,omitempty"`
-	NumSkipped  int    `xml:"skipped,attr,omitempty"`
-
-	Suites []testSuite `xml:"testsuite,omitempty"`
-	Cases  []testCase  `xml:"testcase,omitempty"`
-}
-type testCase struct {
-	Name          string  `xml:"name,attr"`
-	ClassName     string  `xml:"classname,attr"`
-	TimeInSeconds float64 `xml:"time,attr"`
-
-	Error   string   `xml:"error,omitempty"`
-	Failure string   `xml:"failure,omitempty"`
-	Skipped *skipped `xml:"skipped,omitempty"`
-}
-
-type skipped struct {
-	Message string `xml:"message,attr"`
-}
-
-func reportXUnitFormat(results []benchrunner.TestResult) (string, []string, error) {
+func reportXUnitFormat(results []benchrunner.BenchResult) ([]string, error) {
 	var benchmarks []benchrunner.BenchmarkResult
 	for _, r := range results {
 		if r.Benchmark != nil {
 			benchmarks = append(benchmarks, *r.Benchmark)
 		}
 	}
-	testFmtd, err := reportXUnitFormatTest(results)
-	if err != nil {
-		return "", nil, err
-	}
+
 	benchFmtd, err := reportXUnitFormatBenchmark(benchmarks)
 	if err != nil {
-		return "", nil, err
+		return nil, err
 	}
-	return testFmtd, benchFmtd, nil
-}
-
-func reportXUnitFormatTest(results []benchrunner.TestResult) (string, error) {
-	// test type => package => data stream => test cases
-	tests := map[string]map[string]map[string][]testCase{}
-
-	var numTests, numFailures, numErrors, numSkipped int
-	for _, r := range results {
-		testType := string(r.TestType)
-		if _, exists := tests[testType]; !exists {
-			tests[testType] = map[string]map[string][]testCase{}
-		}
-
-		if _, exists := tests[testType][r.Package]; !exists {
-			tests[testType][r.Package] = map[string][]testCase{}
-		}
-
-		if _, exists := tests[testType][r.Package][r.DataStream]; !exists {
-			tests[testType][r.Package][r.DataStream] = make([]testCase, 0)
-		}
-
-		var failure string
-		if r.FailureMsg != "" {
-			failure = r.FailureMsg
-			numFailures++
-		}
-
-		if r.FailureDetails != "" {
-			failure += ": " + r.FailureDetails
-		}
-
-		if r.ErrorMsg != "" {
-			numErrors++
-		}
-
-		if r.Skipped != nil {
-			numSkipped++
-		}
-
-		name := fmt.Sprintf("%s test", r.TestType)
-		if r.Name != "" {
-			name += ": " + r.Name
-		}
-
-		c := testCase{
-			Name:          name,
-			ClassName:     fmt.Sprintf("%s.%s", r.Package, r.DataStream),
-			TimeInSeconds: r.TimeElapsed.Seconds(),
-			Error:         r.ErrorMsg,
-			Failure:       failure,
-		}
-
-		if r.Skipped != nil {
-			c.Skipped = &skipped{r.Skipped.String()}
-		}
-
-		numTests++
-
-		tests[testType][r.Package][r.DataStream] = append(tests[testType][r.Package][r.DataStream], c)
-	}
-
-	var ts testSuites
-	ts.Suites = make([]testSuite, 0)
-
-	for testType, packages := range tests {
-		testTypeSuite := testSuite{
-			Comment: fmt.Sprintf("test suite for %s tests", testType),
-			Name:    testType,
-
-			NumTests:    numTests,
-			NumFailures: numFailures,
-			NumErrors:   numErrors,
-			NumSkipped:  numSkipped,
-
-			Cases: make([]testCase, 0),
-		}
-
-		for _, pkg := range packages {
-			for _, ds := range pkg {
-				testTypeSuite.Cases = append(testTypeSuite.Cases, ds...)
-			}
-		}
-
-		ts.Suites = append(ts.Suites, testTypeSuite)
-	}
-
-	out, err := xml.MarshalIndent(&ts, "", "  ")
-	if err != nil {
-		return "", errors.Wrap(err, "unable to format test results as xUnit")
-	}
-
-	return xml.Header + string(out), nil
+	return benchFmtd, nil
 }
 
 func reportXUnitFormatBenchmark(benchmarks []benchrunner.BenchmarkResult) ([]string, error) {

@@ -16,18 +16,13 @@ func init() {
 
 const (
 	// ReportOutputSTDOUT reports test results to STDOUT
-	ReportOutputSTDOUT benchrunner.TestReportOutput = "stdout"
+	ReportOutputSTDOUT benchrunner.BenchReportOutput = "stdout"
 )
 
-func reportToSTDOUT(pkg, report string, _ benchrunner.TestReportFormat, ttype benchrunner.TestReportType) error {
-	reportType := "Test"
-	if ttype == benchrunner.ReportTypeBench {
-		reportType = "Benchmark"
-	}
-	fmt.Printf("--- %s results for package: %s - START ---\n", reportType, pkg)
+func reportToSTDOUT(pkg, report string, _ benchrunner.BenchReportFormat) error {
+	fmt.Printf("--- Benchmark results for package: %s - START ---\n", pkg)
 	fmt.Println(report)
-	fmt.Printf("--- %s results for package: %s - END   ---\n", reportType, pkg)
+	fmt.Printf("--- Benchmark results for package: %s - END   ---\n", pkg)
 	fmt.Println("Done")
-
 	return nil
 }

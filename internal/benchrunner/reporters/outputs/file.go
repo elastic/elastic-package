@@ -23,11 +23,11 @@ func init() {
 
 const (
 	// ReportOutputFile reports test results to files in a folder
-	ReportOutputFile benchrunner.TestReportOutput = "file"
+	ReportOutputFile benchrunner.BenchReportOutput = "file"
 )
 
-func reportToFile(pkg, report string, format benchrunner.TestReportFormat, ttype benchrunner.TestReportType) error {
-	dest, err := reportsDir(ttype)
+func reportToFile(pkg, report string, format benchrunner.BenchReportFormat) error {
+	dest, err := reportsDir()
 	if err != nil {
 		return errors.Wrap(err, "could not determine test reports folder")
 	}
@@ -36,7 +36,7 @@ func reportToFile(pkg, report string, format benchrunner.TestReportFormat, ttype
 	_, err = os.Stat(dest)
 	if err != nil && errors.Is(err, os.ErrNotExist) {
 		if err := os.MkdirAll(dest, 0755); err != nil {
-			return errors.Wrapf(err, "could not create %s reports folder", ttype)
+			return errors.Wrapf(err, "could not create benchmark reports folder")
 		}
 	}
 
@@ -48,26 +48,18 @@ func reportToFile(pkg, report string, format benchrunner.TestReportFormat, ttype
 	filePath := filepath.Join(dest, fileName)
 
 	if err := os.WriteFile(filePath, []byte(report+"\n"), 0644); err != nil {
-		return errors.Wrapf(err, "could not write %s report file", ttype)
+		return errors.Wrapf(err, "could not write benchmark report file")
 	}
 
 	return nil
 }
 
 // reportsDir returns the location of the directory to store reports.
-func reportsDir(ttype benchrunner.TestReportType) (string, error) {
+func reportsDir() (string, error) {
 	buildDir, err := builder.BuildDirectory()
 	if err != nil {
 		return "", errors.Wrap(err, "locating build directory failed")
 	}
-	var folder string
-	switch ttype {
-	case benchrunner.ReportTypeTest:
-		folder = "test-results"
-	case benchrunner.ReportTypeBench:
-		folder = "benchmark-results"
-	default:
-		return "", fmt.Errorf("unsupported report type: %s", ttype)
-	}
+	const folder = "benchmark-results"
 	return filepath.Join(buildDir, folder), nil
 }

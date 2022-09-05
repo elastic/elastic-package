@@ -5,7 +5,6 @@
 package formats
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/jedib0t/go-pretty/table"
@@ -20,12 +19,12 @@ func init() {
 
 const (
 	// ReportFormatHuman reports test results in a human-readable format
-	ReportFormatHuman benchrunner.TestReportFormat = "human"
+	ReportFormatHuman benchrunner.BenchReportFormat = "human"
 )
 
-func reportHumanFormat(results []benchrunner.TestResult) (string, []string, error) {
+func reportHumanFormat(results []benchrunner.BenchResult) ([]string, error) {
 	if len(results) == 0 {
-		return "No test results", nil, nil
+		return nil, nil
 	}
 
 	var benchmarks []benchrunner.BenchmarkResult
@@ -35,60 +34,11 @@ func reportHumanFormat(results []benchrunner.TestResult) (string, []string, erro
 		}
 	}
 
-	testFmtd, err := reportHumanFormatTest(results)
-	if err != nil {
-		return "", nil, err
-	}
 	benchFmtd, err := reportHumanFormatBenchmark(benchmarks)
 	if err != nil {
-		return "", nil, err
+		return nil, err
 	}
-	return testFmtd, benchFmtd, nil
-}
-
-func reportHumanFormatTest(results []benchrunner.TestResult) (string, error) {
-	var report strings.Builder
-
-	headerPrinted := false
-	for _, r := range results {
-		if r.FailureMsg == "" {
-			continue
-		}
-
-		if !headerPrinted {
-			report.WriteString("FAILURE DETAILS:\n")
-			headerPrinted = true
-		}
-
-		detail := fmt.Sprintf("%s/%s %s:\n%s\n", r.Package, r.DataStream, r.Name, r.FailureDetails)
-		report.WriteString(detail)
-	}
-	if headerPrinted {
-		report.WriteString("\n\n")
-	}
-
-	t := table.NewWriter()
-	t.AppendHeader(table.Row{"Package", "Data stream", "Test type", "Test name", "Result", "Time elapsed"})
-
-	for _, r := range results {
-		var result string
-		if r.ErrorMsg != "" {
-			result = fmt.Sprintf("ERROR: %s", r.ErrorMsg)
-		} else if r.FailureMsg != "" {
-			result = fmt.Sprintf("FAIL: %s", r.FailureMsg)
-		} else if r.Skipped != nil {
-			result = r.Skipped.String()
-		} else {
-			result = "PASS"
-		}
-
-		t.AppendRow(table.Row{r.Package, r.DataStream, r.TestType, r.Name, result, r.TimeElapsed})
-	}
-
-	t.SetStyle(table.StyleRounded)
-
-	report.WriteString(t.Render())
-	return report.String(), nil
+	return benchFmtd, nil
 }
 
 func reportHumanFormatBenchmark(benchmarks []benchrunner.BenchmarkResult) ([]string, error) {

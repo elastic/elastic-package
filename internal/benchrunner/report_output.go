@@ -8,33 +8,24 @@ import (
 	"fmt"
 )
 
-// TestReportOutput represents an output for a test report
-type TestReportOutput string
-
-// TestReportType represents a test report type (test, benchmark)
-type TestReportType string
-
-const (
-	ReportTypeTest  TestReportType = "test"
-	ReportTypeBench TestReportType = "bench"
-)
+// BenchReportOutput represents an output for a test report
+type BenchReportOutput string
 
 // ReportOutputFunc defines the report writer function.
-type ReportOutputFunc func(pkg, report string, format TestReportFormat, ttype TestReportType) error
+type ReportOutputFunc func(pkg, report string, format BenchReportFormat) error
 
-var reportOutputs = map[TestReportOutput]ReportOutputFunc{}
+var reportOutputs = map[BenchReportOutput]ReportOutputFunc{}
 
 // RegisterReporterOutput registers a test report output.
-func RegisterReporterOutput(name TestReportOutput, outputFunc ReportOutputFunc) {
+func RegisterReporterOutput(name BenchReportOutput, outputFunc ReportOutputFunc) {
 	reportOutputs[name] = outputFunc
 }
 
 // WriteReport delegates writing of test results to the registered test report output
-func WriteReport(pkg string, name TestReportOutput, report string, format TestReportFormat, ttype TestReportType) error {
+func WriteReport(pkg string, name BenchReportOutput, report string, format BenchReportFormat) error {
 	outputFunc, defined := reportOutputs[name]
 	if !defined {
 		return fmt.Errorf("unregistered test report output: %s", name)
 	}
-
-	return outputFunc(pkg, report, format, ttype)
+	return outputFunc(pkg, report, format)
 }
