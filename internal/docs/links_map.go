@@ -88,7 +88,7 @@ func (l linkMap) RenderLink(key, link string) (string, error) {
 }
 
 // linksDefinitionsFilePath returns the path where links definitions are located or empty string if the file does not exist.
-// If linksMapFilePathEnvVar is defined, it returns the value of that env. var.
+// If linksMapFilePathEnvVar is defined, it returns the value of that env var.
 func linksDefinitionsFilePath() (string, error) {
 	var err error
 	linksFilePath, ok := os.LookupEnv(linksMapFilePathEnvVar)
@@ -96,7 +96,7 @@ func linksDefinitionsFilePath() (string, error) {
 		_, err = os.Stat(linksFilePath)
 		if err != nil {
 			// if env var is defined, file must exist
-			return "", fmt.Errorf("not found links definitions file (%s) defined by %s", linksFilePath, linksMapFilePathEnvVar)
+			return "", fmt.Errorf("links definitions file set with %s doesn't exist: %s", linksFilePath, linksMapFilePathEnvVar)
 		}
 		return linksFilePath, nil
 	}
@@ -109,7 +109,7 @@ func linksDefinitionsFilePath() (string, error) {
 	linksFilePath = filepath.Join(dir, linksMapFileNameDefault)
 	_, err = os.Stat(linksFilePath)
 	if err != nil {
-		logger.Debugf("Not found links definitions file at the default location (%s), skipping", linksFilePath)
+		logger.Debugf("links definitions file set with %s doesn't exist: %s", linksFilePath, linksMapFilePathEnvVar)
 		return "", nil
 	}
 
