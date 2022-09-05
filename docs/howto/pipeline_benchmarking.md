@@ -109,19 +109,19 @@ $(elastic-package stack shellinit)
 
 Next, you must invoke the pipeline benchmark runner. This corresponds to steps 2 through 4 as described in the [_Conceptual process_](#Conceptual-process) section.
 
-If you want to run pipeline tests for **all data streams** in a package, navigate to the package's root folder (or any sub-folder under it) and run the following command.
+If you want to run pipeline benchmarks for **all data streams** in a package, navigate to the package's root folder (or any sub-folder under it) and run the following command.
 
 ```
-elastic-package test pipeline
+elastic-package benchmark pipeline
 ```
 
-If you want to run pipeline tests for **specific data streams** in a package, navigate to the package's root folder (or any sub-folder under it) and run the following command.
+If you want to run pipeline benchmarks for **specific data streams** in a package, navigate to the package's root folder (or any sub-folder under it) and run the following command.
 
 ```
-elastic-package test pipeline --data-streams <data stream 1>[,<data stream 2>,...]
+elastic-package benchmark pipeline --data-streams <data stream 1>[,<data stream 2>,...]
 ```
 
-Finally, when you are done running all pipeline tests, bring down the Elastic Stack. This corresponds to step 4 as described in the [_Conceptual process_](#Conceptual-process) section.
+Finally, when you are done running all benchmarks, bring down the Elastic Stack. This corresponds to step 4 as described in the [_Conceptual process_](#Conceptual-process) section.
 
 ```
 elastic-package stack down
