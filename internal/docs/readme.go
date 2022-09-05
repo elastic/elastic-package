@@ -186,10 +186,11 @@ func renderReadme(fileName, packageRoot, templatePath string, linksMap linkMap) 
 			return renderExportedFields(packageRoot)
 		},
 		"url": func(args ...string) (string, error) {
-			if len(args) == 1 {
-				return linksMap.RenderUrl(args[0])
+			options := linkOptions{}
+			if len(args) > 1 {
+				options.caption = args[1]
 			}
-			return linksMap.RenderLink(args[0], args[1])
+			return linksMap.RenderLink(args[0], options)
 		},
 	}).ParseFiles(templatePath)
 	if err != nil {

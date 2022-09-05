@@ -25,6 +25,10 @@ type linkMap struct {
 	Links map[string]string `yaml:"links"`
 }
 
+type linkOptions struct {
+	caption string
+}
+
 func newLinkMap() linkMap {
 	var links linkMap
 	links.Links = make(map[string]string)
@@ -71,20 +75,15 @@ func readLinksMap() (linkMap, error) {
 	return links, nil
 }
 
-func (l linkMap) RenderUrl(key string) (string, error) {
+func (l linkMap) RenderLink(key string, options linkOptions) (string, error) {
 	url, err := l.Get(key)
 	if err != nil {
 		return "", err
+	}
+	if options.caption != "" {
+		url = fmt.Sprintf("[%s](%s)", options.caption, url)
 	}
 	return url, nil
-}
-
-func (l linkMap) RenderLink(key, link string) (string, error) {
-	url, err := l.Get(key)
-	if err != nil {
-		return "", err
-	}
-	return fmt.Sprintf("[%s](%s)", link, url), nil
 }
 
 // linksDefinitionsFilePath returns the path where links definitions are located or empty string if the file does not exist.
