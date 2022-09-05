@@ -27,7 +27,8 @@ as snapshots or technical previews using semantic versioning (prerelease tags).
 
 Notice: if you prefer Fleet users not to pick up and install prereleases, it's recommended to be cautious with exposing new features
 until [kibana#122973](https://github.com/elastic/kibana/issues/122973) is implemented. With this feature, users can decide
-whether they can pick up prerelease package revisions.
+whether they can pick up prerelease package revisions. If you can't expose new features for any reason, you should stick
+to a local development environment instead.
 
 ## What is the goal of storage migration from v1 to v2?
 
