@@ -38,7 +38,7 @@ var (
 	dockerCustomAgentDeployerDir = filepath.Join(deployerDir, "docker_custom_agent")
 )
 
-//LocationManager maintains an instance of a config path location
+// LocationManager maintains an instance of a config path location
 type LocationManager struct {
 	stackPath string
 }

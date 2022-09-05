@@ -155,17 +155,6 @@ func getIngestPipeline(api *elasticsearch.API, pipeline Pipeline) error {
 	return nil
 }
 
-func uninstallIngestPipelines(api *elasticsearch.API, pipelines []Pipeline) error {
-	for _, pipeline := range pipelines {
-		resp, err := api.Ingest.DeletePipeline(pipeline.Name)
-		if err != nil {
-			return pipelineError(err, pipeline, "DeletePipeline API call failed")
-		}
-		resp.Body.Close()
-	}
-	return nil
-}
-
 func getPipelineNameWithNonce(pipelineName string, nonce int64) string {
 	return fmt.Sprintf("%s-%d", pipelineName, nonce)
 }
