@@ -91,6 +91,28 @@ func TestValidate_ipAddress(t *testing.T) {
 	require.Empty(t, errs)
 }
 
+func TestValidate_WithSpecVersion(t *testing.T) {
+	validator, err := CreateValidatorForDirectory("testdata", WithSpecVersion("2.0.0"))
+	require.NoError(t, err)
+
+	e := readSampleEvent(t, "testdata/invalid-array-normalization.json")
+	errs := validator.ValidateDocumentBody(e)
+	require.Len(t, errs, 1)
+	require.Contains(t, errs[0].Error(), `field "container.image.tag" is not normalized as expected`)
+
+	e = readSampleEvent(t, "testdata/valid-array-normalization.json")
+	errs = validator.ValidateDocumentBody(e)
+	require.Empty(t, errs)
+
+	// Check now that this validation was only enabled for 2.0.0.
+	validator, err = CreateValidatorForDirectory("testdata", WithSpecVersion("1.99.99"))
+	require.NoError(t, err)
+
+	e = readSampleEvent(t, "testdata/invalid-array-normalization.json")
+	errs = validator.ValidateDocumentBody(e)
+	require.Empty(t, errs)
+}
+
 func Test_parseElementValue(t *testing.T) {
 	for _, test := range []struct {
 		key        string

@@ -15,6 +15,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 
@@ -32,6 +33,9 @@ type Validator struct {
 	// FieldDependencyManager resolves references to external fields
 	FieldDependencyManager *DependencyManager
 
+	// SpecVersion contains the version of the spec used by the package.
+	specVersion semver.Version
+
 	defaultNumericConversion bool
 	numericKeywordFields     map[string]struct{}
 
@@ -43,6 +47,18 @@ type Validator struct {
 
 // ValidatorOption represents an optional flag that can be passed to  CreateValidatorForDirectory.
 type ValidatorOption func(*Validator) error
+
+// WithSpecVersion enables validation dependant of the spec version used by the package.
+func WithSpecVersion(version string) ValidatorOption {
+	return func(v *Validator) error {
+		sv, err := semver.NewVersion(version)
+		if err != nil {
+			return fmt.Errorf("invalid version %q: %v", version, err)
+		}
+		v.specVersion = *sv
+		return nil
+	}
+}
 
 // WithDefaultNumericConversion configures the validator to accept defined keyword (or constant_keyword) fields as numeric-type.
 func WithDefaultNumericConversion() ValidatorOption {
@@ -367,6 +383,10 @@ func compareKeys(key string, def FieldDefinition, searchedKey string) bool {
 }
 
 func (v *Validator) validateExpectedNormalization(definition FieldDefinition, val interface{}) error {
+	// Validate expected normalization starting with packages following spec v2 format.
+	if v.specVersion.LessThan(semver.MustParse("2.0.0")) {
+		return nil
+	}
 	for _, normalize := range definition.Normalize {
 		switch normalize {
 		case "array":

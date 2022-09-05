@@ -448,6 +448,7 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 
 	// Validate fields in docs
 	fieldsValidator, err := fields.CreateValidatorForDirectory(serviceOptions.DataStreamRootPath,
+		fields.WithSpecVersion(pkgManifest.SpecVersion),
 		fields.WithNumericKeywordFields(config.NumericKeywordFields))
 	if err != nil {
 		return result.WithError(errors.Wrapf(err, "creating fields validator for data stream failed (path: %s)", serviceOptions.DataStreamRootPath))
