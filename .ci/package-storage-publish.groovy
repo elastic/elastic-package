@@ -60,21 +60,21 @@ pipeline {
             }
           }
         }
-        stash(allowEmpty: true, name: 'build-package', includes: "${BASE_DIR}/build/integrations/*.zip", useDefaultExcludes: false)
+        stash(allowEmpty: true, name: 'build-package', includes: "${BASE_DIR}/build/packages/*.zip", useDefaultExcludes: false)
       }
     }
     stage('Sign and publish package') {
       steps {
         cleanup(source: 'build-package')
         dir("${BASE_DIR}") {
-          packageStoragePublish('build/integrations')
+          packageStoragePublish('build/packages')
         }
       }
     }
   }
   post {
     cleanup {
-      notifyBuildResult(prComment: true)
+      notifyBuildResult(prComment: false)
     }
   }
 }
@@ -110,7 +110,9 @@ def signUnpublishedArtifactsWithElastic(builtPackagesPath) {
     triggerRemoteJob(auth: CredentialsAuth(credentials: 'local-readonly-api-token'),
       job: 'https://internal-ci.elastic.co/job/elastic+unified-release+master+sign-artifacts-with-gpg',
       token: TOKEN,
-      parameters: "gcs_input_path=${env.INFRA_SIGNING_BUCKET_ARTIFACTS_PATH}",
+      parameters: [
+        gcs_input_path: env.INFRA_SIGNING_BUCKET_ARTIFACTS_PATH,
+      ],
       useCrumbCache: false,
       useJobInfoCache: false)
   }
@@ -137,13 +139,13 @@ def uploadUnpublishedToPackageStorage(builtPackagesPath) {
           triggerRemoteJob(auth: CredentialsAuth(credentials: 'local-readonly-api-token'),
             job: 'https://internal-ci.elastic.co/job/package_storage/job/publishing-job-remote',
             token: TOKEN,
-            parameters: """
-              dry_run=true
-              gs_package_build_zip_path=${env.PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH}/${packageZip}
-              gs_package_signature_path=${env.PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH}/${packageZip}.sig
-              """,
-              useCrumbCache: true,
-              useJobInfoCache: true)
+            parameters: [
+              dry_run: true,
+              gs_package_build_zip_path: "${env.PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH}/${packageZip}",
+              gs_package_signature_path: "${env.PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH}/${packageZip}.sig",
+            ],
+            useCrumbCache: true,
+            useJobInfoCache: true)
         }
       }
     }

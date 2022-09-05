@@ -27,6 +27,10 @@ type NetworkDescription struct {
 
 // ContainerDescription describes the Docker container.
 type ContainerDescription struct {
+	Config struct {
+		Image  string
+		Labels map[string]string
+	}
 	ID    string
 	State struct {
 		Status   string
@@ -84,6 +88,22 @@ func ContainerID(containerName string) (string, error) {
 		return "", fmt.Errorf("expected single %s container", containerName)
 	}
 	return containerIDs[0], nil
+}
+
+// ContainerIDsWithLabel function returns all the container IDs filtering per label.
+func ContainerIDsWithLabel(key, value string) ([]string, error) {
+	label := fmt.Sprintf("%s=%s", key, value)
+	cmd := exec.Command("docker", "ps", "-a", "--filter", "label="+label, "--format", "{{.ID}}")
+	errOutput := new(bytes.Buffer)
+	cmd.Stderr = errOutput
+
+	logger.Debugf("output command: %s", cmd)
+	output, err := cmd.Output()
+	if err != nil {
+		return []string{}, errors.Wrapf(err, "error getting containers with label \"%s\" (stderr=%q)", label, errOutput.String())
+	}
+	containerIDs := strings.Fields(string(output))
+	return containerIDs, nil
 }
 
 // InspectNetwork function returns the network description for the selected network.

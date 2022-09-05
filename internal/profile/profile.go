@@ -38,10 +38,13 @@ type configFile string
 var managedProfileFiles = map[configFile]NewConfig{
 	ElasticAgentDefaultEnvFile:     newElasticAgentDefaultEnv,
 	ElasticAgent8xEnvFile:          newElasticAgent8xEnv,
+	ElasticAgent80EnvFile:          newElasticAgent80Env,
 	ElasticsearchConfigDefaultFile: newElasticsearchConfigDefault,
 	ElasticsearchConfig8xFile:      newElasticsearchConfig8x,
+	ElasticsearchConfig80File:      newElasticsearchConfig80,
 	KibanaConfigDefaultFile:        newKibanaConfigDefault,
 	KibanaConfig8xFile:             newKibanaConfig8x,
+	KibanaConfig80File:             newKibanaConfig80,
 	PackageRegistryDockerfileFile:  newPackageRegistryDockerfile,
 	PackageRegistryConfigFile:      newPackageRegistryConfig,
 	SnapshotFile:                   newSnapshotFile,
@@ -59,6 +62,11 @@ func NewConfigProfile(elasticPackagePath string, profileName string) (*Profile, 
 			return nil, errors.Wrapf(err, "error initializing config %s", cfg)
 		}
 		configMap[fileItem] = cfg
+	}
+
+	err := initTLSCertificates(profilePath, configMap)
+	if err != nil {
+		return nil, errors.Wrap(err, "error initializing TLS certificates")
 	}
 
 	newProfile := &Profile{
@@ -136,6 +144,11 @@ func loadProfile(elasticPackagePath string, profileName string) (*Profile, error
 		configMap[fileItem] = cfg
 	}
 
+	err = initTLSCertificates(profilePath, configMap)
+	if err != nil {
+		return nil, errors.Wrap(err, "error initializing TLS certificates")
+	}
+
 	profile := &Profile{
 		profileName:      profileName,
 		ProfilePath:      profilePath,
@@ -177,12 +190,17 @@ func (profile Profile) ComposeEnvVars() []string {
 
 // writeProfileResources writes the config files
 func (profile Profile) writeProfileResources() error {
-	for _, cfgFiles := range profile.configFiles {
+	return writeConfigFiles(profile.configFiles)
+}
+
+func writeConfigFiles(configFiles map[configFile]*simpleFile) error {
+	for _, cfgFiles := range configFiles {
 		err := cfgFiles.writeConfig()
 		if err != nil {
 			return errors.Wrap(err, "error writing config file")
 		}
 	}
+
 	return nil
 }
 

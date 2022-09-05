@@ -4,10 +4,48 @@
 
 package cobraext
 
-// Flag names and descriptions used by CLI commands.
+// Global flags
 const (
+	VerboseFlagName        = "verbose"
+	VerboseFlagDescription = "verbose mode"
+)
+
+// Primary flags reused by multiple commands
+const (
+	PackageRootFlagName        = "root"
+	PackageRootFlagShorthand   = "R"
+	PackageRootFlagDescription = "root directory of the package"
+
+	PackageFlagName        = "package"
+	PackageFlagShorthand   = "P"
+	PackageFlagDescription = "name of the package"
+)
+
+// Flag names and descriptions used by CLI commands
+const (
+	AgentPolicyFlagName    = "agent-policy"
+	AgentPolicyDescription = "name of the agent policy"
+
+	BuildSkipValidationFlagName        = "skip-validation"
+	BuildSkipValidationFlagDescription = "skip validation of the built package, use only if all validation issues have been acknowledged"
+
 	BuildZipFlagName        = "zip"
 	BuildZipFlagDescription = "archive the built package"
+
+	ChangelogAddNextFlagName        = "next"
+	ChangelogAddNextFlagDescription = "changelog entry is added in the next `major`, `minor` or `patch` version"
+
+	ChangelogAddVersionFlagName        = "version"
+	ChangelogAddVersionFlagDescription = "changelog entry is added in the given version"
+
+	ChangelogAddDescriptionFlagName        = "description"
+	ChangelogAddDescriptionFlagDescription = "description for the changelog entry"
+
+	ChangelogAddTypeFlagName        = "type"
+	ChangelogAddTypeFlagDescription = "type of change (bugfix, enhancement or breaking-change) for the changelog entry"
+
+	ChangelogAddLinkFlagName        = "link"
+	ChangelogAddLinkFlagDescription = "link to the pull request or issue with more information about the changelog entry"
 
 	CheckConditionFlagName        = "check-condition"
 	CheckConditionFlagDescription = "check if the condition is met for the package, but don't install the package (e.g. kibana.version=7.10.0)"
@@ -33,9 +71,6 @@ const (
 	DumpOutputFlagName        = "output"
 	DumpOutputFlagDescription = "path to directory where exported assets will be stored"
 
-	DumpPackageFlagName        = "package"
-	DumpPackageFlagDescription = "package whose assets will be collected"
-
 	FailOnMissingFlagName        = "fail-on-missing"
 	FailOnMissingFlagDescription = "fail if tests are missing"
 
@@ -60,8 +95,8 @@ const (
 	NewestOnlyFlagName        = "newest-only"
 	NewestOnlyFlagDescription = "promote newest packages and remove old ones"
 
-	PackagesFlagName        = "packages"
-	PackagesFlagDescription = "packages to be promoted (comma-separated values: apache-1.2.3,nginx-5.6.7)"
+	PromotedPackagesFlagName        = "packages"
+	PromotedPackagesFlagDescription = "packages to be promoted (comma-separated values: apache-1.2.3,nginx-5.6.7)"
 
 	ReportFormatFlagName        = "report-format"
 	ReportFormatFlagDescription = "format of test report"
@@ -98,7 +133,4 @@ const (
 
 	VariantFlagName        = "variant"
 	VariantFlagDescription = "service variant"
-
-	VerboseFlagName        = "verbose"
-	VerboseFlagDescription = "verbose mode"
 )

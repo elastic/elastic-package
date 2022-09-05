@@ -15,19 +15,22 @@ import (
 
 // FieldDefinition describes a single field with its properties.
 type FieldDefinition struct {
-	Name        string            `yaml:"name"`
-	Description string            `yaml:"description"`
-	Type        string            `yaml:"type"`
-	Value       string            `yaml:"value"` // The value to associate with a constant_keyword field.
-	Pattern     string            `yaml:"pattern"`
-	Unit        string            `yaml:"unit"`
-	MetricType  string            `yaml:"metric_type"`
-	External    string            `yaml:"external"`
-	Index       *bool             `yaml:"index"`
-	DocValues   *bool             `yaml:"doc_values"`
-	Normalize   []string          `yaml:"normalize,omitempty"`
-	Fields      FieldDefinitions  `yaml:"fields,omitempty"`
-	MultiFields []FieldDefinition `yaml:"multi_fields,omitempty"`
+	Name           string            `yaml:"name"`
+	Description    string            `yaml:"description"`
+	Type           string            `yaml:"type"`
+	ObjectType     string            `yaml:"object_type"`
+	Value          string            `yaml:"value"` // The value to associate with a constant_keyword field.
+	AllowedValues  AllowedValues     `yaml:"allowed_values"`
+	ExpectedValues []string          `yaml:"expected_values"`
+	Pattern        string            `yaml:"pattern"`
+	Unit           string            `yaml:"unit"`
+	MetricType     string            `yaml:"metric_type"`
+	External       string            `yaml:"external"`
+	Index          *bool             `yaml:"index"`
+	DocValues      *bool             `yaml:"doc_values"`
+	Normalize      []string          `yaml:"normalize,omitempty"`
+	Fields         FieldDefinitions  `yaml:"fields,omitempty"`
+	MultiFields    []FieldDefinition `yaml:"multi_fields,omitempty"`
 }
 
 func (orig *FieldDefinition) Update(fd FieldDefinition) {
@@ -40,8 +43,17 @@ func (orig *FieldDefinition) Update(fd FieldDefinition) {
 	if fd.Type != "" {
 		orig.Type = fd.Type
 	}
+	if fd.ObjectType != "" {
+		orig.ObjectType = fd.ObjectType
+	}
 	if fd.Value != "" {
 		orig.Value = fd.Value
+	}
+	if len(fd.AllowedValues) > 0 {
+		orig.AllowedValues = fd.AllowedValues
+	}
+	if len(fd.ExpectedValues) > 0 {
+		orig.ExpectedValues = fd.ExpectedValues
 	}
 	if fd.Pattern != "" {
 		orig.Pattern = fd.Pattern
@@ -135,16 +147,22 @@ func (fds *FieldDefinitions) UnmarshalYAML(value *yaml.Node) error {
 				return err
 			}
 
-			// "base" group is used by convention in ECS to include
-			// fields that can appear in the root level of the document.
-			// Append its child fields directly instead.
-			if name == "base" {
-				fields = append(fields, field.Fields...)
-			} else {
-				field.Name = name
-				cleanNestedNames(field.Name, field.Fields)
-				fields = append(fields, field)
+			field.Name = name
+			baseFields := cleanNested(&field)
+			if len(baseFields) > 0 {
+				// Some groups are used by convention in ECS to include
+				// fields that can appear in the root level of the document.
+				// Append their child fields directly instead.
+				// Examples of such groups are `base` or `tracing`.
+				fields = append(fields, baseFields...)
+				if len(field.Fields) == 0 {
+					// If it had base fields, and doesn't have any other
+					// field, don't add it.
+					continue
+				}
 			}
+
+			fields = append(fields, field)
 		}
 		*fds = fields
 		return nil
@@ -156,10 +174,58 @@ func (fds *FieldDefinitions) UnmarshalYAML(value *yaml.Node) error {
 	}
 }
 
-func cleanNestedNames(parent string, fields []FieldDefinition) {
-	for i := range fields {
-		if strings.HasPrefix(fields[i].Name, parent+".") {
-			fields[i].Name = fields[i].Name[len(parent)+1:]
+// cleanNested processes fields nested inside another field, and returns
+// defined base fields.
+// If a field name is prefixed by the parent field, this part is removed,
+// so the full path, taking into account the parent name, matches.
+// If a field name is not prefixed by the parent field, this is considered
+// a base field, that should appear at the top-level. It is removed from
+// the list of nested fields and returned as base field.
+func cleanNested(parent *FieldDefinition) (base []FieldDefinition) {
+	var nested []FieldDefinition
+	for _, field := range parent.Fields {
+		// If the field name is prefixed by the name of its parent,
+		// this is a normal nested field. If not, it is a base field.
+		if strings.HasPrefix(field.Name, parent.Name+".") {
+			field.Name = field.Name[len(parent.Name)+1:]
+			nested = append(nested, field)
+		} else {
+			base = append(base, field)
 		}
 	}
+
+	// At the moment of writing this code, a group field has base fields
+	// (`base` and `tracing` groups), or nested fields, but not both.
+	// This code handles the case of having groups with both kinds of fields,
+	// just in case this happens.
+	parent.Fields = nested
+	return base
+}
+
+// AllowedValues is the list of allowed values for a field.
+type AllowedValues []AllowedValue
+
+// Allowed returns true if a given value is allowed.
+func (avs AllowedValues) IsAllowed(value string) bool {
+	if len(avs) == 0 {
+		// No configured allowed values, any value is allowed.
+		return true
+	}
+	return common.StringSliceContains(avs.Values(), value)
+}
+
+// Values returns the list of allowed values.
+func (avs AllowedValues) Values() []string {
+	var values []string
+	for _, v := range avs {
+		values = append(values, v.Name)
+	}
+	return values
+}
+
+// AllowedValue is one of the allowed values for a field.
+type AllowedValue struct {
+	Name               string   `yaml:"name"`
+	Description        string   `yaml:"description"`
+	ExpectedEventTypes []string `yaml:"expected_event_types"`
 }

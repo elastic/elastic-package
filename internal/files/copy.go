@@ -11,17 +11,18 @@ import (
 	"github.com/magefile/mage/sh"
 )
 
-// CopyAll method copies files from the source to the destination.
+// CopyAll method copies files from the source to the destination skipping empty directories.
 func CopyAll(sourcePath, destinationPath string) error {
-	return copy(sourcePath, destinationPath, []string{})
+	return CopyWithSkipped(sourcePath, destinationPath, []string{})
 }
 
-// CopyWithoutDev method copies files from the source to the destination, but skips _dev directories.
+// CopyWithoutDev method copies files from the source to the destination, but skips _dev directories and empty folders.
 func CopyWithoutDev(sourcePath, destinationPath string) error {
-	return copy(sourcePath, destinationPath, []string{"_dev"})
+	return CopyWithSkipped(sourcePath, destinationPath, []string{"_dev"})
 }
 
-func copy(sourcePath, destinationPath string, skippedDirs []string) error {
+// CopyWithSkipped method copies files from the source to the destination, but skips selected directories and empty folders.
+func CopyWithSkipped(sourcePath, destinationPath string, skippedDirs []string) error {
 	return filepath.Walk(sourcePath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -36,12 +37,17 @@ func copy(sourcePath, destinationPath string, skippedDirs []string) error {
 			return nil
 		}
 
-		if info.IsDir() && shouldDirectoryBeSkipped(info.Name(), skippedDirs) {
+		if info.IsDir() && shouldDirectoryBeSkipped(relativePath, skippedDirs) {
 			return filepath.SkipDir
 		}
 
 		if info.IsDir() {
-			return os.MkdirAll(filepath.Join(destinationPath, relativePath), 0755)
+			return nil // don't create empty directories inside packages, if the directory is empty, skip it.
+		}
+
+		err = os.MkdirAll(filepath.Join(destinationPath, filepath.Dir(relativePath)), 0755)
+		if err != nil {
+			return err
 		}
 
 		return sh.Copy(
@@ -50,9 +56,10 @@ func copy(sourcePath, destinationPath string, skippedDirs []string) error {
 	})
 }
 
-func shouldDirectoryBeSkipped(name string, skippedDirs []string) bool {
+// shouldDirectoryBeSkipped function checks if absolute path or last element should be skipped.
+func shouldDirectoryBeSkipped(path string, skippedDirs []string) bool {
 	for _, d := range skippedDirs {
-		if name == d {
+		if path == d || filepath.Base(path) == d {
 			return true
 		}
 	}

@@ -64,6 +64,7 @@ or the data stream's level:
 
 `<service deployer>` - a name of the supported service deployer:
 * `docker` - Docker Compose
+* `agent` - Custom `elastic-agent` with Docker Compose
 * `k8s` - Kubernetes
 * `tf` - Terraform
 
@@ -104,6 +105,58 @@ services:
 
 volumes:
   mysqldata:
+```
+
+### Agent service deployer
+
+When using the Agent service deployer, the `elastic-agent` provided by the stack
+will not be used. An agent will be deployed as a Docker compose service named `docker-custom-agent`
+which base configuration is provided [here](../../internal/install/_static/docker-custom-agent-base.yml).
+This configuration will be merged with the one provided in the `custom-agent.yml` file.
+This is useful if you need different capabilities than the provided by the
+`elastic-agent` used by the `elastic-package stack` command. 
+
+`custom-agent.yml`
+```
+version: '2.3'
+services:
+  docker-custom-agent:
+    pid: host
+    cap_add:
+      - AUDIT_CONTROL
+      - AUDIT_READ
+    user: root
+```
+
+This will result in an agent configuration such as:
+
+```
+version: '2.3'
+services:
+  docker-custom-agent:
+    hostname: docker-custom-agent
+    image: "docker.elastic.co/beats/elastic-agent-complete:8.2.0"
+    pid: host
+    cap_add:
+      - AUDIT_CONTROL
+      - AUDIT_READ
+    user: root
+    healthcheck:
+      test: "elastic-agent status"
+      retries: 180
+      interval: 1s
+    environment:
+      FLEET_ENROLL: "1"
+      FLEET_INSECURE: "1"
+      FLEET_URL: "http://fleet-server:8220"
+```
+
+And in the test config:
+
+```
+data_stream:
+  vars:
+  # ...
 ```
 
 
@@ -168,6 +221,18 @@ To specify a default use this syntax: `AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-de
 Terraform is often used to interact with Cloud Providers. This require Cloud Provider credentials.
 
 Injecting credentials can be achieved with functions from the [`apm-pipeline-library`](https://github.com/elastic/apm-pipeline-library/tree/main/vars) Jenkins library. For example look for `withAzureCredentials`, `withAWSEnv` or `withGCPEnv`.
+
+#### Tagging/labelling created Cloud Provider resources
+
+Leveraging Terraform to create cloud resources is useful but risks creating leftover resources that are difficult to remove.
+
+There are some specific environment variables that should be leveraged to overcome this issue; these variables are already injected to be used by Terraform (through `TF_VAR_`):
+- `TF_VAR_TEST_RUN_ID`: a unique identifier for the test run, allows to distinguish each run
+- `BRANCH_NAME_LOWER_CASE`: the branch name or PR number the CI run is linked to
+- `BUILD_ID`: incremental number providing the current CI run number
+- `CREATED_DATE`: the creation date in epoch time, milliseconds, when the resource was created
+- `ENVIRONMENT`: what environment created the resource (`ci`)
+- `REPO`: the GitHub repository name (`elastic-package`)
 
 ### Kubernetes service deployer
 

@@ -67,6 +67,11 @@ func EnsureInstalled() error {
 		return errors.Wrap(err, "writing Terraform deployer resources failed")
 	}
 
+	err = writeDockerCustomAgentResources(elasticPackagePath)
+	if err != nil {
+		return errors.Wrap(err, "writing Terraform deployer resources failed")
+	}
+
 	if err := createServiceLogsDir(elasticPackagePath); err != nil {
 		return errors.Wrap(err, "creating service logs directory failed")
 	}
@@ -213,6 +218,17 @@ func writeTerraformDeployerResources(elasticPackagePath *locations.LocationManag
 	err = writeStaticResource(err, filepath.Join(terraformDeployer, "Dockerfile"), terraformDeployerDockerfile)
 	err = writeStaticResource(err, filepath.Join(terraformDeployer, "run.sh"), terraformDeployerRun)
 	if err != nil {
+		return errors.Wrap(err, "writing static resource failed")
+	}
+	return nil
+}
+
+func writeDockerCustomAgentResources(elasticPackagePath *locations.LocationManager) error {
+	dir := elasticPackagePath.DockerCustomAgentDeployerDir()
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return errors.Wrapf(err, "creating directory failed (path: %s)", dir)
+	}
+	if err := writeStaticResource(nil, elasticPackagePath.DockerCustomAgentDeployerYml(), dockerCustomAgentBaseYml); err != nil {
 		return errors.Wrap(err, "writing static resource failed")
 	}
 	return nil

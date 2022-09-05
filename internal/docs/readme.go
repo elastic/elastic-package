@@ -168,8 +168,12 @@ func renderReadme(fileName, packageRoot, templatePath string) ([]byte, error) {
 		"event": func(dataStreamName string) (string, error) {
 			return renderSampleEvent(packageRoot, dataStreamName)
 		},
-		"fields": func(dataStreamName string) (string, error) {
-			return renderExportedFields(packageRoot, dataStreamName)
+		"fields": func(args ...string) (string, error) {
+			if len(args) > 0 {
+				dataStreamPath := filepath.Join(packageRoot, "data_stream", args[0])
+				return renderExportedFields(dataStreamPath)
+			}
+			return renderExportedFields(packageRoot)
 		},
 	}).ParseFiles(templatePath)
 	if err != nil {

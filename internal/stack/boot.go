@@ -6,6 +6,9 @@ package stack
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/pkg/errors"
 
@@ -37,7 +40,7 @@ func BootUp(options Options) error {
 
 	if found {
 		fmt.Printf("Custom build packages directory found: %s\n", buildPackagesPath)
-		err = files.CopyAll(buildPackagesPath, stackPackagesDir.PackagesDir())
+		err = copyUniquePackages(buildPackagesPath, stackPackagesDir.PackagesDir())
 		if err != nil {
 			return errors.Wrap(err, "copying package contents failed")
 		}
@@ -59,6 +62,7 @@ func BootUp(options Options) error {
 	if err != nil {
 		return errors.Wrap(err, "running docker-compose failed")
 	}
+
 	return nil
 }
 
@@ -69,4 +73,43 @@ func TearDown(options Options) error {
 		return errors.Wrap(err, "stopping docker containers failed")
 	}
 	return nil
+}
+
+func copyUniquePackages(sourcePath, destinationPath string) error {
+	var skippedDirs []string
+
+	dirEntries, err := os.ReadDir(sourcePath)
+	if err != nil {
+		return errors.Wrapf(err, "can't read source dir (sourcePath: %s)", sourcePath)
+	}
+	for _, entry := range dirEntries {
+		if entry.IsDir() {
+			continue
+		}
+
+		if !strings.HasSuffix(entry.Name(), ".zip") {
+			continue
+		}
+
+		name, versionZip, found := stringsCut(entry.Name(), "-")
+		if !found {
+			continue
+		}
+		version, _, found := stringsCut(versionZip, ".zip")
+		if !found {
+			continue
+		}
+		skippedDirs = append(skippedDirs, filepath.Join(name, version))
+	}
+	return files.CopyWithSkipped(sourcePath, destinationPath, skippedDirs)
+}
+
+// stringsCut has been imported from Go source code.
+// Link: https://github.com/golang/go/blob/master/src/strings/strings.go#L1187
+// Once we bump up Go dependency, this will be replaced with runtime function.
+func stringsCut(s, sep string) (before, after string, found bool) {
+	if i := strings.Index(s, sep); i >= 0 {
+		return s[:i], s[i+len(sep):], true
+	}
+	return s, "", false
 }

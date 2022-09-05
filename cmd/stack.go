@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/jedib0t/go-pretty/table"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
@@ -26,7 +27,7 @@ var availableServices = map[string]struct{}{
 	"package-registry": {},
 }
 
-const stackLongDescription = `Use this command to spin up a Docker-based Elastic Stack consisting of Elasticsearch, Kibana, and the Package Registry. By default the latest released version of the stack is spun up but it is possible to specify a different version, including SNAPSHOT versions.
+const stackLongDescription = `Use this command to spin up a Docker-based Elastic Stack consisting of Elasticsearch, Kibana, and the Package Registry. By default the latest released version of the stack is spun up but it is possible to specify a different version, including SNAPSHOT versions by appending --version <version>.
 
 Be aware that a common issue while trying to boot up the stack is that your Docker environments settings are too low in terms of memory threshold.
 
@@ -34,7 +35,7 @@ For details on how to connect the service with the Elastic stack, see the [servi
 
 const stackUpLongDescription = `Use this command to boot up the stack locally.
 
-By default the latest released version of the stack is spun up but it is possible to specify a different version, including SNAPSHOT versions.
+By default the latest released version of the stack is spun up but it is possible to specify a different version, including SNAPSHOT versions by appending --version <version>.
 
 Be aware that a common issue while trying to boot up the stack is that your Docker environments settings are too low in terms of memory threshold.
 
@@ -77,7 +78,7 @@ func setupStackCommand() *cobraext.Command {
 				return cobraext.FlagParsingError(err, cobraext.ProfileFlagName)
 			}
 
-			usrProfile, err := profile.LoadProfile(profileName)
+			userProfile, err := profile.LoadProfile(profileName)
 			if errors.Is(err, profile.ErrNotAProfile) {
 				pList, err := availableProfilesAsAList()
 				if err != nil {
@@ -88,14 +89,21 @@ func setupStackCommand() *cobraext.Command {
 			if err != nil {
 				return errors.Wrap(err, "error loading profile")
 			}
-			cmd.Printf("Using profile %s.\n", usrProfile.ProfilePath)
+
+			// Print information before starting the stack, for cases where
+			// this is executed in the foreground, without daemon mode.
+			cmd.Printf("Using profile %s.\n", userProfile.ProfilePath)
 			cmd.Println(`Remember to load stack environment variables using 'eval "$(elastic-package stack shellinit)"'.`)
+			err = printInitConfig(cmd, userProfile)
+			if err != nil {
+				return err
+			}
 
 			err = stack.BootUp(stack.Options{
 				DaemonMode:   daemonMode,
 				StackVersion: stackVersion,
 				Services:     services,
-				Profile:      usrProfile,
+				Profile:      userProfile,
 			})
 			if err != nil {
 				return errors.Wrap(err, "booting up the stack failed")
@@ -121,7 +129,7 @@ func setupStackCommand() *cobraext.Command {
 				return cobraext.FlagParsingError(err, cobraext.ProfileFlagName)
 			}
 
-			usrProfile, err := profile.LoadProfile(profileName)
+			userProfile, err := profile.LoadProfile(profileName)
 			if errors.Is(err, profile.ErrNotAProfile) {
 				pList, err := availableProfilesAsAList()
 				if err != nil {
@@ -135,7 +143,7 @@ func setupStackCommand() *cobraext.Command {
 			}
 
 			err = stack.TearDown(stack.Options{
-				Profile: usrProfile,
+				Profile: userProfile,
 			})
 			if err != nil {
 				return errors.Wrap(err, "tearing down the stack failed")
@@ -239,6 +247,21 @@ func setupStackCommand() *cobraext.Command {
 	}
 	dumpCommand.Flags().StringP(cobraext.StackDumpOutputFlagName, "", "elastic-stack-dump", cobraext.StackDumpOutputFlagDescription)
 
+	statusCommand := &cobra.Command{
+		Use:   "status",
+		Short: "Show status of the stack services",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			servicesStatus, err := stack.Status()
+			if err != nil {
+				return errors.Wrap(err, "failed getting stack status")
+			}
+
+			cmd.Println("Status of Elastic stack services:")
+			printStatus(cmd, servicesStatus)
+			return nil
+		},
+	}
+
 	cmd := &cobra.Command{
 		Use:   "stack",
 		Short: "Manage the Elastic stack",
@@ -250,7 +273,8 @@ func setupStackCommand() *cobraext.Command {
 		downCommand,
 		updateCommand,
 		shellInitCommand,
-		dumpCommand)
+		dumpCommand,
+		statusCommand)
 
 	return cobraext.NewCommand(cmd, cobraext.ContextGlobal)
 }
@@ -280,4 +304,31 @@ func validateServicesFlag(services []string) error {
 		selected[aService] = struct{}{}
 	}
 	return nil
+}
+
+func printInitConfig(cmd *cobra.Command, profile *profile.Profile) error {
+	initConfig, err := stack.StackInitConfig(profile)
+	if err != nil {
+		return nil
+	}
+	cmd.Printf("Elasticsearch host: %s\n", initConfig.ElasticsearchHostPort)
+	cmd.Printf("Kibana host: %s\n", initConfig.KibanaHostPort)
+	cmd.Printf("Username: %s\n", initConfig.ElasticsearchUsername)
+	cmd.Printf("Password: %s\n", initConfig.ElasticsearchPassword)
+	return nil
+}
+
+func printStatus(cmd *cobra.Command, servicesStatus []stack.ServiceStatus) {
+	if len(servicesStatus) == 0 {
+		cmd.Printf(" - No service running\n")
+		return
+	}
+	t := table.NewWriter()
+	t.AppendHeader(table.Row{"Service", "Version", "Status"})
+
+	for _, service := range servicesStatus {
+		t.AppendRow(table.Row{service.Name, service.Version, service.Status})
+	}
+	t.SetStyle(table.StyleRounded)
+	cmd.Println(t.Render())
 }

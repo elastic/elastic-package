@@ -9,21 +9,25 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/elastic/package-spec/code/go/pkg/validator"
+	"github.com/magefile/mage/sh"
 	"github.com/pkg/errors"
+
+	"github.com/elastic/package-spec/code/go/pkg/validator"
 
 	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
-const buildIntegrationsFolder = "integrations"
+const builtPackagesFolder = "packages"
+const licenseTextFileName = "LICENSE.txt"
 
 type BuildOptions struct {
 	PackageRoot string
 
-	CreateZip   bool
-	SignPackage bool
+	CreateZip      bool
+	SignPackage    bool
+	SkipValidation bool
 }
 
 // BuildDirectory function locates the target build directory. If the directory doesn't exist, it will create it.
@@ -102,7 +106,7 @@ func buildPackagesRootDirectory() (string, error) {
 		return "", errors.Wrap(err, "can't locate build directory")
 	}
 	if !found {
-		buildDir, err = createBuildDirectory(buildIntegrationsFolder) // TODO add support for other package types
+		buildDir, err = createBuildDirectory(builtPackagesFolder)
 		if err != nil {
 			return "", errors.Wrap(err, "can't create new build directory")
 		}
@@ -118,7 +122,7 @@ func FindBuildPackagesDirectory() (string, bool, error) {
 	}
 
 	if found {
-		path := filepath.Join(buildDir, buildIntegrationsFolder) // TODO add support for other package types
+		path := filepath.Join(buildDir, builtPackagesFolder)
 		fileInfo, err := os.Stat(path)
 		if errors.Is(err, os.ErrNotExist) {
 			return "", false, nil
@@ -155,6 +159,12 @@ func BuildPackage(options BuildOptions) (string, error) {
 		return "", errors.Wrap(err, "copying package contents failed")
 	}
 
+	logger.Debug("Copy license file if needed")
+	err = copyLicenseTextFile(filepath.Join(destinationDir, licenseTextFileName))
+	if err != nil {
+		return "", errors.Wrap(err, "copying license text file")
+	}
+
 	logger.Debug("Encode dashboards")
 	err = encodeDashboards(destinationDir)
 	if err != nil {
@@ -169,6 +179,11 @@ func BuildPackage(options BuildOptions) (string, error) {
 
 	if options.CreateZip {
 		return buildZippedPackage(options, destinationDir)
+	}
+
+	if options.SkipValidation {
+		logger.Debug("Skip validation of the built package")
+		return destinationDir, nil
 	}
 
 	err = validator.ValidateFromPath(destinationDir)
@@ -190,9 +205,13 @@ func buildZippedPackage(options BuildOptions, destinationDir string) (string, er
 		return "", errors.Wrapf(err, "can't compress the built package (compressed file path: %s)", zippedPackagePath)
 	}
 
-	err = validator.ValidateFromZip(zippedPackagePath)
-	if err != nil {
-		return "", errors.Wrapf(err, "invalid content found in built zip package")
+	if options.SkipValidation {
+		logger.Debug("Skip validation of the built .zip package")
+	} else {
+		err = validator.ValidateFromZip(zippedPackagePath)
+		if err != nil {
+			return "", errors.Wrapf(err, "invalid content found in built zip package")
+		}
 	}
 
 	if options.SignPackage {
@@ -222,7 +241,53 @@ func signZippedPackage(options BuildOptions, zippedPackagePath string) error {
 	return nil
 }
 
+func copyLicenseTextFile(licensePath string) error {
+	_, err := os.Stat(licensePath)
+	if err == nil {
+		logger.Debug("License file in the package will be used")
+		return nil
+	}
+
+	sourceLicensePath, err := findRepositoryLicense()
+	if errors.Is(err, os.ErrNotExist) {
+		logger.Debug("No license text file is included in package")
+		return nil
+	}
+	if err != nil {
+		return errors.Wrap(err, "failure while looking for license in repository")
+	}
+
+	logger.Infof("License text found in %q will be included in package", sourceLicensePath)
+	err = sh.Copy(licensePath, sourceLicensePath)
+	if err != nil {
+		return errors.Wrap(err, "can't copy license from repository")
+	}
+
+	return nil
+}
+
 func createBuildDirectory(dirs ...string) (string, error) {
+	dir, err := findRepositoryRootDirectory()
+	if errors.Is(err, os.ErrNotExist) {
+		return "", errors.New("package can be only built inside of a Git repository (.git folder is used as reference point)")
+	}
+	if err != nil {
+		return "", err
+	}
+
+	p := []string{dir, "build"}
+	if len(dirs) > 0 {
+		p = append(p, dirs...)
+	}
+	buildDir := filepath.Join(p...)
+	err = os.MkdirAll(buildDir, 0755)
+	if err != nil {
+		return "", errors.Wrapf(err, "mkdir failed (path: %s)", buildDir)
+	}
+	return buildDir, nil
+}
+
+func findRepositoryRootDirectory() (string, error) {
 	workDir, err := os.Getwd()
 	if err != nil {
 		return "", errors.Wrap(err, "locating working directory failed")
@@ -233,16 +298,7 @@ func createBuildDirectory(dirs ...string) (string, error) {
 		path := filepath.Join(dir, ".git")
 		fileInfo, err := os.Stat(path)
 		if err == nil && fileInfo.IsDir() {
-			p := []string{dir, "build"}
-			if len(dirs) > 0 {
-				p = append(p, dirs...)
-			}
-			buildDir := filepath.Join(p...)
-			err = os.MkdirAll(buildDir, 0755)
-			if err != nil {
-				return "", errors.Wrapf(err, "mkdir failed (path: %s)", buildDir)
-			}
-			return buildDir, nil
+			return dir, nil
 		}
 
 		if dir == "/" {
@@ -250,5 +306,21 @@ func createBuildDirectory(dirs ...string) (string, error) {
 		}
 		dir = filepath.Dir(dir)
 	}
-	return "", errors.New("package can be only built inside of a Git repository (.git folder is used as reference point)")
+
+	return "", os.ErrNotExist
+}
+
+func findRepositoryLicense() (string, error) {
+	dir, err := findRepositoryRootDirectory()
+	if err != nil {
+		return "", err
+	}
+
+	sourceLicensePath := filepath.Join(dir, licenseTextFileName)
+	_, err = os.Stat(sourceLicensePath)
+	if err != nil {
+		return "", err
+	}
+
+	return sourceLicensePath, nil
 }

@@ -20,7 +20,7 @@ import (
 
 const buildLongDescription = `Use this command to build a package. Currently it supports only the "integration" package type.
 
-Built packages are stored in the "build/" folder located at the root folder of the local Git repository checkout that contains your package folder. The command will also render the README file in your package folder if there is a corresponding template file present in "_dev/build/docs/README.md". All "_dev" directories under your package will be omitted.
+Built packages are stored in the "build/" folder located at the root folder of the local Git repository checkout that contains your package folder. The command will also render the README file in your package folder if there is a corresponding template file present in "_dev/build/docs/README.md". All "_dev" directories under your package will be omitted. For details on how to generate and syntax of this README, see the [HOWTO guide](./docs/howto/add_package_readme.md).
 
 Built packages are served up by the Elastic Package Registry running locally (see "elastic-package stack"). If you want a local package to be served up by the local Elastic Package Registry, make sure to build that package first using "elastic-package build".
 
@@ -35,8 +35,9 @@ func setupBuildCommand() *cobraext.Command {
 		Long:  buildLongDescription,
 		RunE:  buildCommandAction,
 	}
-	cmd.Flags().Bool(cobraext.BuildZipFlagName, false, cobraext.BuildZipFlagDescription)
+	cmd.Flags().Bool(cobraext.BuildZipFlagName, true, cobraext.BuildZipFlagDescription)
 	cmd.Flags().Bool(cobraext.SignPackageFlagName, false, cobraext.SignPackageFlagDescription)
+	cmd.Flags().Bool(cobraext.BuildSkipValidationFlagName, false, cobraext.BuildSkipValidationFlagDescription)
 	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
 }
 
@@ -45,6 +46,7 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 
 	createZip, _ := cmd.Flags().GetBool(cobraext.BuildZipFlagName)
 	signPackage, _ := cmd.Flags().GetBool(cobraext.SignPackageFlagName)
+	skipValidation, _ := cmd.Flags().GetBool(cobraext.BuildSkipValidationFlagName)
 
 	if signPackage && !createZip {
 		return errors.New("can't sign the unzipped package, please use also the --zip switch")
@@ -79,9 +81,10 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 	}
 
 	target, err := builder.BuildPackage(builder.BuildOptions{
-		PackageRoot: packageRoot,
-		CreateZip:   createZip,
-		SignPackage: signPackage,
+		PackageRoot:    packageRoot,
+		CreateZip:      createZip,
+		SignPackage:    signPackage,
+		SkipValidation: skipValidation,
 	})
 	if err != nil {
 		return errors.Wrap(err, "building package failed")

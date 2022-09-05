@@ -63,6 +63,9 @@ func createPackageDescriptorForTest() PackageDescriptor {
 				Kibana: packages.KibanaConditions{
 					Version: "^7.13.0",
 				},
+				Elastic: packages.ElasticConditions{
+					Subscription: "basic",
+				},
 			},
 			Owner: packages.Owner{
 				Github: "mtojek",
