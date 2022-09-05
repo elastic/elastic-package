@@ -27,7 +27,7 @@ const benchLongDescription = `Use this command to run benchmarks on a package. C
 #### Pipeline Benchmarks
 These benchmarks allow you to benchmark any Ingest Node Pipelines defined by your packages.
 
-For details on how to configure pipeline benchmarks for a package, review the [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/pipeline_benchmarks.md).`
+For details on how to configure pipeline benchmarks for a package, review the [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/pipeline_benchmarking.md).`
 
 func setupBenchmarkCommand() *cobraext.Command {
 	var benchTypeCmdActions []cobraext.CommandAction
