@@ -201,8 +201,11 @@ func removeGitFolder() error {
 
 func createLinksFile(filepath string) error {
 	file, err := os.Create(filepath)
+	if err != nil {
+		return err
+	}
 	defer file.Close()
-	return err
+	return nil
 }
 
 func removeLinksFile(filepath string) error {
