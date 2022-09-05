@@ -15,7 +15,7 @@ func init() {
 }
 
 const (
-	// ReportOutputSTDOUT reports test results to STDOUT
+	// ReportOutputSTDOUT reports benchmark results to STDOUT
 	ReportOutputSTDOUT benchrunner.BenchReportOutput = "stdout"
 )
 

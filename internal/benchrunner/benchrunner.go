@@ -6,7 +6,6 @@ package benchrunner
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -17,217 +16,135 @@ import (
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 )
 
-// TestType represents the various supported test types
-type TestType string
+// BenchType represents the various supported benchmark types
+type BenchType string
 
-// TestOptions contains test runner options.
-type TestOptions struct {
-	TestFolder         TestFolder
-	PackageRootPath    string
-	GenerateTestResult bool
-	API                *elasticsearch.API
-
-	DeferCleanup   time.Duration
-	ServiceVariant string
-	WithCoverage   bool
-	Benchmark      BenchmarkConfig
+// BenchOptions contains benchmark runner options.
+type BenchOptions struct {
+	BenchmarkFolder BenchmarkFolder
+	PackageRootPath string
+	API             *elasticsearch.API
 }
 
-// TestRunner is the interface all test runners must implement.
-type TestRunner interface {
-	// Type returns the test runner's type.
-	Type() TestType
+// BenchRunner is the interface all benchmark runners must implement.
+type BenchRunner interface {
+	// Type returns the benchmark runner's type.
+	Type() BenchType
 
-	// String returns the human-friendly name of the test runner.
+	// String returns the human-friendly name of the benchmark runner.
 	String() string
 
-	// Run executes the test runner.
-	Run(TestOptions) ([]TestResult, error)
+	// Run executes the benchmark runner.
+	Run(BenchOptions) (*Result, error)
 
-	// TearDown cleans up any test runner resources. It must be called
-	// after the test runner has finished executing.
+	// TearDown cleans up any benchmark runner resources. It must be called
+	// after the benchmark runner has finished executing.
 	TearDown() error
-
-	CanRunPerDataStream() bool
-
-	TestFolderRequired() bool
 }
 
-var runners = map[TestType]TestRunner{}
+var runners = map[BenchType]BenchRunner{}
 
-// TestResult contains a single test's results
-type TestResult struct {
-	// Name of test result. Optional.
-	Name string
-
-	// Package to which this test result belongs.
+// Result contains a single benchmark's results
+type Result struct {
+	// Package to which this benchmark result belongs.
 	Package string
 
-	// TestType indicates the type of test.
-	TestType TestType
+	// BenchType indicates the type of benchmark.
+	BenchType BenchType
 
-	// Data stream to which this test result belongs.
+	// Data stream to which this benchmark result belongs.
 	DataStream string
 
-	// Time elapsed from running a test case to arriving at its result.
+	// Time elapsed from running a benchmark case to arriving at its result.
 	TimeElapsed time.Duration
 
-	// If test case failed, short description of the failure. A failure is
-	// when the test completes execution but the actual results of the test
-	// don't match the expected results.
-	FailureMsg string
-
-	// If test case failed, longer description of the failure.
-	FailureDetails string
-
-	// If there was an error while running the test case, description
-	// of the error. An error is when the test cannot complete execution due
-	// to an unexpected runtime error in the test execution.
+	// If there was an error while running the benchmark case, description
+	// of the error. An error is when the benchmark cannot complete execution due
+	// to an unexpected runtime error in the benchmark execution.
 	ErrorMsg string
 
-	// If the test was skipped, the reason it was skipped and a link for more
-	// details.
-	Skipped *SkipConfig
-
-	// Coverage details in Cobertura format (optional).
-	Coverage *CoberturaCoverage
-
-	// Benchmark results (optional).
+	// Benchmark results.
 	Benchmark *BenchmarkResult
 }
 
-// ResultComposer wraps a TestResult and provides convenience methods for
-// manipulating this TestResult.
+// ResultComposer wraps a Result and provides convenience methods for
+// manipulating this Result.
 type ResultComposer struct {
-	TestResult
+	Result
 	StartTime time.Time
 }
 
 // NewResultComposer returns a new ResultComposer with the StartTime
 // initialized to now.
-func NewResultComposer(tr TestResult) *ResultComposer {
+func NewResultComposer(tr Result) *ResultComposer {
 	return &ResultComposer{
-		TestResult: tr,
-		StartTime:  time.Now(),
+		Result:    tr,
+		StartTime: time.Now(),
 	}
 }
 
-// WithError sets an error on the test result wrapped by ResultComposer.
-func (rc *ResultComposer) WithError(err error) ([]TestResult, error) {
+// WithError sets an error on the benchmark result wrapped by ResultComposer.
+func (rc *ResultComposer) WithError(err error) ([]Result, error) {
 	rc.TimeElapsed = time.Since(rc.StartTime)
 	if err == nil {
-		return []TestResult{rc.TestResult}, nil
-	}
-
-	if tcf, ok := err.(ErrTestCaseFailed); ok {
-		rc.FailureMsg += tcf.Reason
-		rc.FailureDetails += tcf.Details
-		return []TestResult{rc.TestResult}, nil
+		return []Result{rc.Result}, nil
 	}
 
 	rc.ErrorMsg += err.Error()
-	return []TestResult{rc.TestResult}, err
+	return []Result{rc.Result}, err
 }
 
-// WithSuccess marks the test result wrapped by ResultComposer as successful.
-func (rc *ResultComposer) WithSuccess() ([]TestResult, error) {
+// WithSuccess marks the benchmark result wrapped by ResultComposer as successful.
+func (rc *ResultComposer) WithSuccess() ([]Result, error) {
 	return rc.WithError(nil)
 }
 
-// WithSkip marks the test result wrapped by ResultComposer as skipped.
-func (rc *ResultComposer) WithSkip(s *SkipConfig) ([]TestResult, error) {
-	rc.TestResult.Skipped = s
-	return rc.WithError(nil)
-}
-
-// TestFolder encapsulates the test folder path and names of the package + data stream
-// to which the test folder belongs.
-type TestFolder struct {
+// BenchmarkFolder encapsulates the benchmark folder path and names of the package + data stream
+// to which the benchmark folder belongs.
+type BenchmarkFolder struct {
 	Path       string
 	Package    string
 	DataStream string
 }
 
-// AssumeTestFolders assumes potential test folders for the given package, data streams and test types.
-func AssumeTestFolders(packageRootPath string, dataStreams []string, testType TestType) ([]TestFolder, error) {
-	// Expected folder structure:
-	// <packageRootPath>/
-	//   data_stream/
-	//     <dataStream>/
-
-	dataStreamsPath := filepath.Join(packageRootPath, "data_stream")
-
-	if len(dataStreams) == 0 {
-		fileInfos, err := os.ReadDir(dataStreamsPath)
-		if errors.Is(err, os.ErrNotExist) {
-			return []TestFolder{}, nil // data streams defined
-		}
-		if err != nil {
-			return nil, errors.Wrapf(err, "can't read directory (path: %s)", dataStreamsPath)
-		}
-
-		for _, fi := range fileInfos {
-			if !fi.IsDir() {
-				continue
-			}
-			dataStreams = append(dataStreams, fi.Name())
-		}
-	}
-
-	var folders []TestFolder
-	for _, dataStream := range dataStreams {
-		folders = append(folders, TestFolder{
-			Path:       filepath.Join(dataStreamsPath, dataStream, "_dev", "test", string(testType)),
-			Package:    filepath.Base(packageRootPath),
-			DataStream: dataStream,
-		})
-	}
-	return folders, nil
-}
-
-// FindTestFolders finds test folders for the given package and, optionally, test type and data streams
-func FindTestFolders(packageRootPath string, dataStreams []string, testType TestType) ([]TestFolder, error) {
+// FindBenchmarkFolders finds benchmark folders for the given package and, optionally, benchmark type and data streams
+func FindBenchmarkFolders(packageRootPath string, dataStreams []string, benchType BenchType) ([]BenchmarkFolder, error) {
 	// Expected folder structure:
 	// <packageRootPath>/
 	//   data_stream/
 	//     <dataStream>/
 	//       _dev/
-	//         test/
-	//           <testType>/
+	//         benchmark/
+	//           <benchType>/
 
-	testTypeGlob := "*"
-	if testType != "" {
-		testTypeGlob = string(testType)
+	benchTypeGlob := "*"
+	if benchType != "" {
+		benchTypeGlob = string(benchType)
 	}
 
 	var paths []string
-	if len(dataStreams) > 0 {
-		sort.Strings(dataStreams)
-		for _, dataStream := range dataStreams {
-			p, err := findTestFolderPaths(packageRootPath, dataStream, testTypeGlob)
-			if err != nil {
-				return nil, err
-			}
+	if len(dataStreams) == 0 {
+		return nil, errors.New("benchmarks can only be defined at the data_stream level")
+	}
 
-			paths = append(paths, p...)
-		}
-	} else {
-		p, err := findTestFolderPaths(packageRootPath, "*", testTypeGlob)
+	sort.Strings(dataStreams)
+	for _, dataStream := range dataStreams {
+		p, err := findBenchFolderPaths(packageRootPath, dataStream, benchTypeGlob)
 		if err != nil {
 			return nil, err
 		}
 
-		paths = p
+		paths = append(paths, p...)
 	}
 
-	folders := make([]TestFolder, len(paths))
+	folders := make([]BenchmarkFolder, len(paths))
 	_, pkg := filepath.Split(packageRootPath)
 	for idx, p := range paths {
 		relP := strings.TrimPrefix(p, packageRootPath)
 		parts := strings.Split(relP, string(filepath.Separator))
 		dataStream := parts[2]
 
-		folder := TestFolder{
+		folder := BenchmarkFolder{
 			p,
 			pkg,
 			dataStream,
@@ -239,41 +156,41 @@ func FindTestFolders(packageRootPath string, dataStreams []string, testType Test
 	return folders, nil
 }
 
-// RegisterRunner method registers the test runner.
-func RegisterRunner(runner TestRunner) {
+// RegisterRunner method registers the benchmark runner.
+func RegisterRunner(runner BenchRunner) {
 	runners[runner.Type()] = runner
 }
 
-// Run method delegates execution to the registered test runner, based on the test type.
-func Run(testType TestType, options TestOptions) ([]TestResult, error) {
-	runner, defined := runners[testType]
+// Run method delegates execution to the registered benchmark runner, based on the benchmark type.
+func Run(benchType BenchType, options BenchOptions) (*Result, error) {
+	runner, defined := runners[benchType]
 	if !defined {
-		return nil, fmt.Errorf("unregistered runner test: %s", testType)
+		return nil, fmt.Errorf("unregistered runner benchmark: %s", benchType)
 	}
 
-	results, err := runner.Run(options)
+	result, err := runner.Run(options)
 	tdErr := runner.TearDown()
 	if err != nil {
-		return nil, errors.Wrap(err, "could not complete test run")
+		return nil, errors.Wrap(err, "could not complete benchmark run")
 	}
 	if tdErr != nil {
-		return results, errors.Wrap(err, "could not teardown test runner")
+		return result, errors.Wrap(err, "could not teardown benchmark runner")
 	}
-	return results, nil
+	return result, nil
 }
 
-// TestRunners returns registered test runners.
-func TestRunners() map[TestType]TestRunner {
+// BenchRunners returns registered benchmark runners.
+func BenchRunners() map[BenchType]BenchRunner {
 	return runners
 }
 
-// findTestFoldersPaths can only be called for test runners that require tests to be defined
+// findBenchFoldersPaths can only be called for benchmark runners that require benchmarks to be defined
 // at the data stream level.
-func findTestFolderPaths(packageRootPath, dataStreamGlob, testTypeGlob string) ([]string, error) {
-	testFoldersGlob := filepath.Join(packageRootPath, "data_stream", dataStreamGlob, "_dev", "test", testTypeGlob)
-	paths, err := filepath.Glob(testFoldersGlob)
+func findBenchFolderPaths(packageRootPath, dataStreamGlob, benchTypeGlob string) ([]string, error) {
+	benchFoldersGlob := filepath.Join(packageRootPath, "data_stream", dataStreamGlob, "_dev", "benchmark", benchTypeGlob)
+	paths, err := filepath.Glob(benchFoldersGlob)
 	if err != nil {
-		return nil, errors.Wrap(err, "error finding test folders")
+		return nil, errors.Wrap(err, "error finding benchmark folders")
 	}
 	return paths, err
 }

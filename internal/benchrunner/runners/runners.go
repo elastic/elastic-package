@@ -5,9 +5,6 @@
 package runners
 
 import (
-	// Registered test runners
-	_ "github.com/elastic/elastic-package/internal/benchrunner/runners/asset"
+	// Registered benchmark runners
 	_ "github.com/elastic/elastic-package/internal/benchrunner/runners/pipeline"
-	_ "github.com/elastic/elastic-package/internal/benchrunner/runners/static"
-	_ "github.com/elastic/elastic-package/internal/benchrunner/runners/system"
 )

@@ -17,15 +17,15 @@ func init() {
 }
 
 const (
-	// ReportFormatXUnit reports test results in the xUnit format
+	// ReportFormatXUnit reports benchmark results in the xUnit format
 	ReportFormatXUnit benchrunner.BenchReportFormat = "xUnit"
 )
 
-func reportXUnitFormat(results []benchrunner.BenchResult) ([]string, error) {
-	var benchmarks []benchrunner.BenchmarkResult
+func reportXUnitFormat(results []*benchrunner.Result) ([]string, error) {
+	var benchmarks []*benchrunner.BenchmarkResult
 	for _, r := range results {
 		if r.Benchmark != nil {
-			benchmarks = append(benchmarks, *r.Benchmark)
+			benchmarks = append(benchmarks, r.Benchmark)
 		}
 	}
 
@@ -36,18 +36,18 @@ func reportXUnitFormat(results []benchrunner.BenchResult) ([]string, error) {
 	return benchFmtd, nil
 }
 
-func reportXUnitFormatBenchmark(benchmarks []benchrunner.BenchmarkResult) ([]string, error) {
+func reportXUnitFormatBenchmark(benchmarks []*benchrunner.BenchmarkResult) ([]string, error) {
 	var reports []string
 	for _, b := range benchmarks {
-		// Filter out detailed tests. These add too much information for the
+		// Filter out detailed benchmarks. These add too much information for the
 		// aggregated nature of xUnit reports, creating a lot of noise in Jenkins.
-		var tests []benchrunner.BenchmarkTest
+		var benchmarks []benchrunner.BenchmarkTest
 		for _, t := range b.Tests {
 			if !t.Detailed {
-				tests = append(tests, t)
+				benchmarks = append(benchmarks, t)
 			}
 		}
-		b.Tests = tests
+		b.Tests = benchmarks
 		out, err := xml.MarshalIndent(b, "", "  ")
 		if err != nil {
 			return nil, errors.Wrap(err, "unable to format benchmark results as xUnit")

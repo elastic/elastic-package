@@ -6,20 +6,7 @@ package benchrunner
 
 import (
 	"fmt"
-	"time"
 )
-
-// BenchmarkConfig is the configuration used for benchmarks.
-type BenchmarkConfig struct {
-	// Enabled controls if benchmarks are run.
-	Enabled bool
-
-	// NumDocs is the number of documents to be used during benchmark.
-	NumDocs int
-
-	// Duration is the optional benchmark duration.
-	Duration time.Duration
-}
 
 // BenchmarkResult represents the result of a benchmark run.
 // This is modeled after the xUnit benchmark schema.

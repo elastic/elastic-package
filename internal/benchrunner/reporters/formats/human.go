@@ -18,11 +18,11 @@ func init() {
 }
 
 const (
-	// ReportFormatHuman reports test results in a human-readable format
+	// ReportFormatHuman reports benchmark results in a human-readable format
 	ReportFormatHuman benchrunner.BenchReportFormat = "human"
 )
 
-func reportHumanFormat(results []benchrunner.BenchResult) ([]string, error) {
+func reportHumanFormat(results []*benchrunner.Result) ([]string, error) {
 	if len(results) == 0 {
 		return nil, nil
 	}
@@ -48,8 +48,8 @@ func reportHumanFormatBenchmark(benchmarks []benchrunner.BenchmarkResult) ([]str
 		if len(b.Parameters) > 0 {
 			report.WriteString(renderBenchmarkTable("parameters", b.Parameters) + "\n")
 		}
-		for _, test := range b.Tests {
-			report.WriteString(renderBenchmarkTable(test.Name, test.Results) + "\n")
+		for _, t := range b.Tests {
+			report.WriteString(renderBenchmarkTable(t.Name, t.Results) + "\n")
 		}
 		textReports = append(textReports, report.String())
 	}

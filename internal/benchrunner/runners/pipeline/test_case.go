@@ -8,7 +8,8 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
-	"regexp"
+	"fmt"
+	"io"
 	"strings"
 
 	"github.com/elastic/elastic-package/internal/common"
@@ -16,18 +17,17 @@ import (
 	"github.com/pkg/errors"
 )
 
-type testCase struct {
-	name   string
-	config *testConfig
+type benchmark struct {
 	events []json.RawMessage
+	config *config
 }
 
-type testCaseDefinition struct {
+type benchmarkDefinition struct {
 	Events []json.RawMessage `json:"events"`
 }
 
-func readTestCaseEntriesForEvents(inputData []byte) ([]json.RawMessage, error) {
-	var tcd testCaseDefinition
+func readBenchmarkEntriesForEvents(inputData []byte) ([]json.RawMessage, error) {
+	var tcd benchmarkDefinition
 	err := jsonUnmarshalUsingNumber(inputData, &tcd)
 	if err != nil {
 		return nil, errors.Wrap(err, "unmarshalling input data failed")
@@ -35,8 +35,8 @@ func readTestCaseEntriesForEvents(inputData []byte) ([]json.RawMessage, error) {
 	return tcd.Events, nil
 }
 
-func readTestCaseEntriesForRawInput(inputData []byte, config *testConfig) ([]json.RawMessage, error) {
-	entries, err := readRawInputEntries(inputData, config)
+func readBenchmarkEntriesForRawInput(inputData []byte) ([]json.RawMessage, error) {
+	entries, err := readRawInputEntries(inputData)
 	if err != nil {
 		return nil, errors.Wrap(err, "reading raw input entries failed")
 	}
@@ -55,20 +55,13 @@ func readTestCaseEntriesForRawInput(inputData []byte, config *testConfig) ([]jso
 	return events, nil
 }
 
-func createTestCase(filename string, entries []json.RawMessage, config *testConfig) (*testCase, error) {
+func createBenchmark(entries []json.RawMessage, config *config) (*benchmark, error) {
 	var events []json.RawMessage
 	for _, entry := range entries {
 		var m common.MapStr
 		err := jsonUnmarshalUsingNumber(entry, &m)
 		if err != nil {
-			return nil, errors.Wrap(err, "can't unmarshal test case entry")
-		}
-
-		for k, v := range config.Fields {
-			_, err = m.Put(k, v)
-			if err != nil {
-				return nil, errors.Wrap(err, "can't set custom field")
-			}
+			return nil, errors.Wrap(err, "can't unmarshal benchmark entry")
 		}
 
 		event, err := json.Marshal(&m)
@@ -77,48 +70,24 @@ func createTestCase(filename string, entries []json.RawMessage, config *testConf
 		}
 		events = append(events, event)
 	}
-	return &testCase{
-		name:   filename,
-		config: config,
+	return &benchmark{
 		events: events,
+		config: config,
 	}, nil
 }
 
-func readRawInputEntries(inputData []byte, c *testConfig) ([]string, error) {
+func readRawInputEntries(inputData []byte) ([]string, error) {
 	var inputDataEntries []string
 
 	var builder strings.Builder
 	scanner := bufio.NewScanner(bytes.NewReader(inputData))
 	for scanner.Scan() {
 		line := scanner.Text()
-
-		var body string
-		if c.Multiline != nil && c.Multiline.FirstLinePattern != "" {
-			matched, err := regexp.MatchString(c.Multiline.FirstLinePattern, line)
-			if err != nil {
-				return nil, errors.Wrapf(err, "regexp matching failed (pattern: %s)", c.Multiline.FirstLinePattern)
-			}
-
-			if matched {
-				body = builder.String()
-				builder.Reset()
-			}
-			if builder.Len() > 0 {
-				builder.WriteByte('\n')
-			}
-			builder.WriteString(line)
-			if !matched || body == "" {
-				continue
-			}
-		} else {
-			body = line
-		}
-
-		inputDataEntries = append(inputDataEntries, body)
+		inputDataEntries = append(inputDataEntries, line)
 	}
 	err := scanner.Err()
 	if err != nil {
-		return nil, errors.Wrap(err, "reading raw input test file failed")
+		return nil, errors.Wrap(err, "reading raw input benchmark file failed")
 	}
 
 	lastEntry := builder.String()
@@ -126,4 +95,26 @@ func readRawInputEntries(inputData []byte, c *testConfig) ([]string, error) {
 		inputDataEntries = append(inputDataEntries, lastEntry)
 	}
 	return inputDataEntries, nil
+}
+
+// jsonUnmarshalUsingNumber is a drop-in replacement for json.Unmarshal that
+// does not default to unmarshaling numeric values to float64 in order to
+// prevent low bit truncation of values greater than 1<<53.
+// See https://golang.org/cl/6202068 for details.
+func jsonUnmarshalUsingNumber(data []byte, v interface{}) error {
+	dec := json.NewDecoder(bytes.NewReader(data))
+	dec.UseNumber()
+	err := dec.Decode(v)
+	if err != nil {
+		if err == io.EOF {
+			return errors.New("unexpected end of JSON input")
+		}
+		return err
+	}
+	// Make sure there is no more data after the message
+	// to approximate json.Unmarshal's behaviour.
+	if dec.More() {
+		return fmt.Errorf("more data after top-level value")
+	}
+	return nil
 }

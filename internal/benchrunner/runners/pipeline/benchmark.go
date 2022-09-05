@@ -7,7 +7,6 @@ package pipeline
 import (
 	"encoding/json"
 	"fmt"
-	"path/filepath"
 	"sort"
 	"time"
 
@@ -15,37 +14,16 @@ import (
 
 	"github.com/elastic/elastic-package/internal/benchrunner"
 	"github.com/elastic/elastic-package/internal/elasticsearch/ingest"
-	"github.com/elastic/elastic-package/internal/packages"
 )
 
 const (
-	// How many attempts to make while approximating
-	// benchmark duration by adjusting document count.
-	durationAdjustMaxTries = 3
-
-	// How close to the target duration for a benchmark
-	// to be is accepted.
-	durationToleranceSeconds = 0.5
-
-	// Same, but as a percentage of the target duration.
-	durationTolerancePercent = 0.9
-
-	// Minimum acceptable length for a benchmark result.
-	minDurationSeconds = 0.001 // 1ms
-
 	// How many top processors to return.
 	numTopProcs = 10
 )
 
-func BenchmarkPipeline(options benchrunner.TestOptions) (*benchrunner.BenchmarkResult, error) {
-	// Load all test documents
-	docs, err := loadAllTestDocs(options.TestFolder.Path)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed loading test documents")
-	}
-
+func (r *runner) benchmarkPipeline(b *benchmark, entryPipeline string) (*benchrunner.BenchmarkResult, error) {
 	// Run benchmark
-	bench, err := benchmarkIngest(options, docs)
+	bench, err := r.benchmarkIngest(b, entryPipeline)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed running benchmark")
 	}
@@ -110,19 +88,19 @@ func BenchmarkPipeline(options benchrunner.TestOptions) (*benchrunner.BenchmarkR
 
 	// Build result
 	result := &benchrunner.BenchmarkResult{
-		Name: fmt.Sprintf("pipeline benchmark for %s/%s", options.TestFolder.Package, options.TestFolder.DataStream),
+		Name: fmt.Sprintf("pipeline benchmark for %s/%s", r.options.BenchmarkFolder.Package, r.options.BenchmarkFolder.DataStream),
 		Parameters: []benchrunner.BenchmarkValue{
 			{
 				Name:  "package",
-				Value: options.TestFolder.Package,
+				Value: r.options.BenchmarkFolder.Package,
 			},
 			{
 				Name:  "data_stream",
-				Value: options.TestFolder.DataStream,
+				Value: r.options.BenchmarkFolder.DataStream,
 			},
 			{
 				Name:  "source doc count",
-				Value: len(docs),
+				Value: len(b.events),
 			},
 			{
 				Name:  "doc count",
@@ -171,26 +149,9 @@ type ingestResult struct {
 	numDocs   int
 }
 
-func benchmarkIngest(options benchrunner.TestOptions, baseDocs []json.RawMessage) (ingestResult, error) {
-	if options.Benchmark.Duration == time.Duration(0) {
-		// Run with a fixed doc count
-		return runSingleBenchmark(options, resizeDocs(baseDocs, options.Benchmark.NumDocs))
-	}
-
-	// Approximate doc count to target duration
-	step, err := runSingleBenchmark(options, baseDocs)
-	if err != nil {
-		return step, err
-	}
-
-	for i, n := 0, len(baseDocs); i < durationAdjustMaxTries && compareFuzzy(step.elapsed, options.Benchmark.Duration) == -1; i++ {
-		n = int(seconds(options.Benchmark.Duration) * float64(n) / seconds(step.elapsed))
-		baseDocs = resizeDocs(baseDocs, n)
-		if step, err = runSingleBenchmark(options, baseDocs); err != nil {
-			return step, err
-		}
-	}
-	return step, nil
+func (r *runner) benchmarkIngest(b *benchmark, entryPipeline string) (ingestResult, error) {
+	baseDocs := resizeDocs(b.events, b.config.NumDocs)
+	return r.runSingleBenchmark(entryPipeline, baseDocs)
 }
 
 type processorPerformance struct {
@@ -290,32 +251,16 @@ func (agg aggregation) collect(fn mapFn) ([]benchrunner.BenchmarkValue, error) {
 	return r, nil
 }
 
-func runSingleBenchmark(options benchrunner.TestOptions, docs []json.RawMessage) (ingestResult, error) {
+func (r *runner) runSingleBenchmark(entryPipeline string, docs []json.RawMessage) (ingestResult, error) {
 	if len(docs) == 0 {
 		return ingestResult{}, errors.New("no docs supplied for benchmark")
 	}
-	dataStreamPath, found, err := packages.FindDataStreamRootForPath(options.TestFolder.Path)
-	if err != nil {
-		return ingestResult{}, errors.Wrap(err, "locating data_stream root failed")
-	}
-	if !found {
-		return ingestResult{}, errors.New("data stream root not found")
-	}
 
-	testCase := testCase{
-		events: docs,
-	}
-	entryPipeline, pipelines, err := installIngestPipelines(options.API, dataStreamPath)
-	if err != nil {
-		return ingestResult{}, errors.Wrap(err, "installing ingest pipelines failed")
-	}
-	defer uninstallIngestPipelines(options.API, pipelines)
-
-	if _, err = simulatePipelineProcessing(options.API, entryPipeline, &testCase); err != nil {
+	if _, err := ingest.SimulatePipeline(r.options.API, entryPipeline, docs); err != nil {
 		return ingestResult{}, errors.Wrap(err, "simulate failed")
 	}
 
-	stats, err := ingest.GetPipelineStats(options.API, pipelines)
+	stats, err := ingest.GetPipelineStats(r.options.API, r.pipelines)
 	if err != nil {
 		return ingestResult{}, errors.Wrap(err, "error fetching pipeline stats")
 	}
@@ -324,7 +269,7 @@ func runSingleBenchmark(options benchrunner.TestOptions, docs []json.RawMessage)
 		took += time.Millisecond * time.Duration(pSt.TimeInMillis)
 	}
 	return ingestResult{
-		pipelines: pipelines,
+		pipelines: r.pipelines,
 		stats:     stats,
 		elapsed:   took,
 		numDocs:   len(docs),
@@ -344,45 +289,4 @@ func resizeDocs(inputDocs []json.RawMessage, want int) []json.RawMessage {
 		result[i] = inputDocs[i%n]
 	}
 	return result
-}
-
-func seconds(d time.Duration) float64 {
-	s := d.Seconds()
-	// Don't return durations less than the safe value.
-	if s < minDurationSeconds {
-		return minDurationSeconds
-	}
-	return s
-}
-
-func compareFuzzy(a, b time.Duration) int {
-	sa, sb := seconds(a), seconds(b)
-	if sa > sb {
-		sa, sb = sb, sa
-	}
-	if sb-sa <= durationToleranceSeconds || sa/sb >= durationTolerancePercent {
-		return 0
-	}
-	if a < b {
-		return -1
-	}
-	return 1
-}
-
-func loadAllTestDocs(testFolderPath string) ([]json.RawMessage, error) {
-	testCaseFiles, err := listTestCaseFiles(testFolderPath)
-	if err != nil {
-		return nil, err
-	}
-
-	var docs []json.RawMessage
-	for _, file := range testCaseFiles {
-		path := filepath.Join(testFolderPath, file)
-		tc, err := loadTestCaseFile(path)
-		if err != nil {
-			return nil, err
-		}
-		docs = append(docs, tc.events...)
-	}
-	return docs, err
 }

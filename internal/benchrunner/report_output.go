@@ -8,7 +8,7 @@ import (
 	"fmt"
 )
 
-// BenchReportOutput represents an output for a test report
+// BenchReportOutput represents an output for a benchmark report
 type BenchReportOutput string
 
 // ReportOutputFunc defines the report writer function.
@@ -16,16 +16,16 @@ type ReportOutputFunc func(pkg, report string, format BenchReportFormat) error
 
 var reportOutputs = map[BenchReportOutput]ReportOutputFunc{}
 
-// RegisterReporterOutput registers a test report output.
+// RegisterReporterOutput registers a benchmark report output.
 func RegisterReporterOutput(name BenchReportOutput, outputFunc ReportOutputFunc) {
 	reportOutputs[name] = outputFunc
 }
 
-// WriteReport delegates writing of test results to the registered test report output
+// WriteReport delegates writing of benchmark results to the registered benchmark report output
 func WriteReport(pkg string, name BenchReportOutput, report string, format BenchReportFormat) error {
 	outputFunc, defined := reportOutputs[name]
 	if !defined {
-		return fmt.Errorf("unregistered test report output: %s", name)
+		return fmt.Errorf("unregistered benchmark report output: %s", name)
 	}
 	return outputFunc(pkg, report, format)
 }

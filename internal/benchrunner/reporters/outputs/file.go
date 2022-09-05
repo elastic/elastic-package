@@ -22,17 +22,17 @@ func init() {
 }
 
 const (
-	// ReportOutputFile reports test results to files in a folder
+	// ReportOutputFile reports benchmark results to files in a folder
 	ReportOutputFile benchrunner.BenchReportOutput = "file"
 )
 
 func reportToFile(pkg, report string, format benchrunner.BenchReportFormat) error {
 	dest, err := reportsDir()
 	if err != nil {
-		return errors.Wrap(err, "could not determine test reports folder")
+		return errors.Wrap(err, "could not determine benchmark reports folder")
 	}
 
-	// Create test reports folder if it doesn't exist
+	// Create benchmark reports folder if it doesn't exist
 	_, err = os.Stat(dest)
 	if err != nil && errors.Is(err, os.ErrNotExist) {
 		if err := os.MkdirAll(dest, 0755); err != nil {
