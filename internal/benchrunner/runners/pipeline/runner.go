@@ -62,8 +62,7 @@ func (r *runner) TearDown() error {
 		signal.Sleep(r.options.DeferCleanup)
 	}
 
-	err := uninstallIngestPipelines(r.options.API, r.pipelines)
-	if err != nil {
+	if err := ingest.UninstallPipelines(r.options.API, r.pipelines); err != nil {
 		return errors.Wrap(err, "uninstalling ingest pipelines failed")
 	}
 	return nil

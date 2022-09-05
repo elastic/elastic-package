@@ -2,11 +2,10 @@
 // or more contributor license agreements. Licensed under the Elastic License;
 // you may not use this file except in compliance with the Elastic License.
 
-package pipeline
+package ingest
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -20,29 +19,12 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/elasticsearch"
-	"github.com/elastic/elastic-package/internal/elasticsearch/ingest"
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
 var ingestPipelineTag = regexp.MustCompile(`{{\s*IngestPipeline.+}}`)
 
-type simulatePipelineRequest struct {
-	Docs []pipelineDocument `json:"docs"`
-}
-
-type pipelineDocument struct {
-	Source json.RawMessage `json:"_source"`
-}
-
-type simulatePipelineResponse struct {
-	Docs []pipelineIngestedDocument `json:"docs"`
-}
-
-type pipelineIngestedDocument struct {
-	Doc pipelineDocument `json:"doc"`
-}
-
-func installIngestPipelines(api *elasticsearch.API, dataStreamPath string) (string, []ingest.Pipeline, error) {
+func InstallDataStreamPipelines(api *elasticsearch.API, dataStreamPath string) (string, []Pipeline, error) {
 	dataStreamManifest, err := packages.ReadDataStreamManifest(filepath.Join(dataStreamPath, packages.DataStreamManifestFile))
 	if err != nil {
 		return "", nil, errors.Wrap(err, "reading data stream manifest failed")
@@ -50,7 +32,7 @@ func installIngestPipelines(api *elasticsearch.API, dataStreamPath string) (stri
 
 	nonce := time.Now().UnixNano()
 
-	mainPipeline := getWithPipelineNameWithNonce(dataStreamManifest.GetPipelineNameOrDefault(), nonce)
+	mainPipeline := getPipelineNameWithNonce(dataStreamManifest.GetPipelineNameOrDefault(), nonce)
 	pipelines, err := loadIngestPipelineFiles(dataStreamPath, nonce)
 	if err != nil {
 		return "", nil, errors.Wrap(err, "loading ingest pipeline files failed")
@@ -64,7 +46,7 @@ func installIngestPipelines(api *elasticsearch.API, dataStreamPath string) (stri
 	return mainPipeline, pipelines, nil
 }
 
-func loadIngestPipelineFiles(dataStreamPath string, nonce int64) ([]ingest.Pipeline, error) {
+func loadIngestPipelineFiles(dataStreamPath string, nonce int64) ([]Pipeline, error) {
 	elasticsearchPath := filepath.Join(dataStreamPath, "elasticsearch", "ingest_pipeline")
 
 	var pipelineFiles []string
@@ -76,7 +58,7 @@ func loadIngestPipelineFiles(dataStreamPath string, nonce int64) ([]ingest.Pipel
 		pipelineFiles = append(pipelineFiles, files...)
 	}
 
-	var pipelines []ingest.Pipeline
+	var pipelines []Pipeline
 	for _, path := range pipelineFiles {
 		c, err := os.ReadFile(path)
 		if err != nil {
@@ -89,11 +71,11 @@ func loadIngestPipelineFiles(dataStreamPath string, nonce int64) ([]ingest.Pipel
 				log.Fatalf("invalid IngestPipeline tag in template (path: %s)", path)
 			}
 			pipelineTag := s[1]
-			return []byte(getWithPipelineNameWithNonce(pipelineTag, nonce))
+			return []byte(getPipelineNameWithNonce(pipelineTag, nonce))
 		})
 		name := filepath.Base(path)
-		pipelines = append(pipelines, ingest.Pipeline{
-			Name:    getWithPipelineNameWithNonce(name[:strings.Index(name, ".")], nonce),
+		pipelines = append(pipelines, Pipeline{
+			Name:    getPipelineNameWithNonce(name[:strings.Index(name, ".")], nonce),
 			Format:  filepath.Ext(path)[1:],
 			Content: c,
 		})
@@ -101,7 +83,7 @@ func loadIngestPipelineFiles(dataStreamPath string, nonce int64) ([]ingest.Pipel
 	return pipelines, nil
 }
 
-func installPipelinesInElasticsearch(api *elasticsearch.API, pipelines []ingest.Pipeline) error {
+func installPipelinesInElasticsearch(api *elasticsearch.API, pipelines []Pipeline) error {
 	for _, p := range pipelines {
 		if err := installPipeline(api, p); err != nil {
 			return err
@@ -110,7 +92,7 @@ func installPipelinesInElasticsearch(api *elasticsearch.API, pipelines []ingest.
 	return nil
 }
 
-func installPipeline(api *elasticsearch.API, pipeline ingest.Pipeline) error {
+func installPipeline(api *elasticsearch.API, pipeline Pipeline) error {
 	if err := putIngestPipeline(api, pipeline); err != nil {
 		return err
 	}
@@ -118,7 +100,7 @@ func installPipeline(api *elasticsearch.API, pipeline ingest.Pipeline) error {
 	return getIngestPipeline(api, pipeline.Name)
 }
 
-func putIngestPipeline(api *elasticsearch.API, pipeline ingest.Pipeline) error {
+func putIngestPipeline(api *elasticsearch.API, pipeline Pipeline) error {
 	source, err := pipeline.MarshalJSON()
 	if err != nil {
 		return err
@@ -163,60 +145,6 @@ func getIngestPipeline(api *elasticsearch.API, pipelineName string) error {
 	return nil
 }
 
-func uninstallIngestPipelines(api *elasticsearch.API, pipelines []ingest.Pipeline) error {
-	for _, pipeline := range pipelines {
-		resp, err := api.Ingest.DeletePipeline(pipeline.Name)
-		if err != nil {
-			return errors.Wrapf(err, "DeletePipeline API call failed (pipelineName: %s)", pipeline.Name)
-		}
-		resp.Body.Close()
-	}
-	return nil
-}
-
-func getWithPipelineNameWithNonce(pipelineName string, nonce int64) string {
+func getPipelineNameWithNonce(pipelineName string, nonce int64) string {
 	return fmt.Sprintf("%s-%d", pipelineName, nonce)
-}
-
-func simulatePipelineProcessing(api *elasticsearch.API, pipelineName string, tc *testCase) (*testResult, error) {
-	var request simulatePipelineRequest
-	for _, event := range tc.events {
-		request.Docs = append(request.Docs, pipelineDocument{
-			Source: event,
-		})
-	}
-
-	requestBody, err := json.Marshal(&request)
-	if err != nil {
-		return nil, errors.Wrap(err, "marshalling simulate request failed")
-	}
-
-	r, err := api.Ingest.Simulate(bytes.NewReader(requestBody), func(request *elasticsearch.IngestSimulateRequest) {
-		request.PipelineID = pipelineName
-	})
-	if err != nil {
-		return nil, errors.Wrapf(err, "Simulate API call failed (pipelineName: %s)", pipelineName)
-	}
-	defer r.Body.Close()
-
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to read Simulate API response body")
-	}
-
-	if r.StatusCode != http.StatusOK {
-		return nil, errors.Wrapf(elasticsearch.NewError(body), "unexpected response status for Simulate (%d): %s", r.StatusCode, r.Status())
-	}
-
-	var response simulatePipelineResponse
-	err = json.Unmarshal(body, &response)
-	if err != nil {
-		return nil, errors.Wrap(err, "unmarshalling simulate request failed")
-	}
-
-	var tr testResult
-	for _, doc := range response.Docs {
-		tr.events = append(tr.events, doc.Doc.Source)
-	}
-	return &tr, nil
 }
