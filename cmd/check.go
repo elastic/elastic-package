@@ -21,10 +21,10 @@ func setupCheckCommand() *cobraext.Command {
 		Short: "Check the package",
 		Long:  checkLongDescription,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			err := cobraext.ComposeCommandActions(cmd, args,
-				formatCommandAction,
-				lintCommandAction,
-				buildCommandAction,
+			err := cobraext.ComposeCommands(args,
+				setupFormatCommand(),
+				setupLintCommand(),
+				setupBuildCommand(),
 			)
 			if err != nil {
 				return errors.Wrap(err, "checking package failed")

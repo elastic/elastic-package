@@ -16,12 +16,11 @@ pipeline {
     AWS_ACCOUNT_SECRET = 'secret/observability-team/ci/elastic-observability-aws-account-auth'
     HOME = "${env.WORKSPACE}"
     KIND_VERSION = 'v0.14.0'
-    K8S_VERSION = 'v1.24.0'
-
-    JOB_GCS_BUCKET = 'beats-ci-temp'
-    JOB_GCS_BUCKET_INTERNAL = 'beats-ci-temp-internal'
-    JOB_GCS_CREDENTIALS = 'beats-ci-gcs-plugin'
-    JOB_GCS_EXT_CREDENTIALS = 'beats-ci-gcs-plugin-file-credentials'
+    K8S_VERSION = 'v1.25.0'
+    JOB_GCS_BUCKET = 'fleet-ci-temp'
+    JOB_GCS_BUCKET_INTERNAL = 'fleet-ci-temp-internal'
+    JOB_GCS_CREDENTIALS = 'fleet-ci-gcs-plugin'
+    JOB_GCS_EXT_CREDENTIALS = 'fleet-ci-gcs-plugin-file-credentials'
     ELASTIC_PACKAGE_GCP_SECRET = 'secret/observability-team/ci/service-account/elastic-package-gcp'
     ELASTIC_OBSERVABILITY_PROJECT_ID = 'elastic-observability'
   }
@@ -97,10 +96,10 @@ pipeline {
               dir("${BASE_DIR}") {
                 script {
                   def basicTasks = [
-                    'stack-command-default': generateTestCommandStage(command: 'test-stack-command-default', artifacts: ['build/elastic-stack-dump/stack/*/logs/*.log', 'build/elastic-stack-dump/stack/*/logs/fleet-server-internal/*']),
-                    'stack-command-oldest': generateTestCommandStage(command: 'test-stack-command-oldest', artifacts: ['build/elastic-stack-dump/stack/*/logs/*.log', 'build/elastic-stack-dump/stack/*/logs/fleet-server-internal/*']),
-                    'stack-command-7x': generateTestCommandStage(command: 'test-stack-command-7x', artifacts: ['build/elastic-stack-dump/stack/*/logs/*.log', 'build/elastic-stack-dump/stack/*/logs/fleet-server-internal/*']),
-                    'stack-command-8x': generateTestCommandStage(command: 'test-stack-command-8x', artifacts: ['build/elastic-stack-dump/stack/*/logs/*.log', 'build/elastic-stack-dump/stack/*/logs/fleet-server-internal/*']),
+                    'stack-command-default': generateTestCommandStage(command: 'test-stack-command-default', artifacts: ['build/elastic-stack-dump/stack/*/logs/*.log', 'build/elastic-stack-dump/stack/*/logs/fleet-server-internal/*', 'build/elastic-stack-status/*/*']),
+                    'stack-command-oldest': generateTestCommandStage(command: 'test-stack-command-oldest', artifacts: ['build/elastic-stack-dump/stack/*/logs/*.log', 'build/elastic-stack-dump/stack/*/logs/fleet-server-internal/*', 'build/elastic-stack-status/*/*']),
+                    'stack-command-7x': generateTestCommandStage(command: 'test-stack-command-7x', artifacts: ['build/elastic-stack-dump/stack/*/logs/*.log', 'build/elastic-stack-dump/stack/*/logs/fleet-server-internal/*', 'build/elastic-stack-status/*/*']),
+                    'stack-command-8x': generateTestCommandStage(command: 'test-stack-command-8x', artifacts: ['build/elastic-stack-dump/stack/*/logs/*.log', 'build/elastic-stack-dump/stack/*/logs/fleet-server-internal/*', 'build/elastic-stack-status/*/*']),
                     'check-packages-with-kind': generateTestCommandStage(command: 'test-check-packages-with-kind', artifacts: ['build/test-results/*.xml', 'build/kubectl-dump.txt', 'build/elastic-stack-dump/check-*/logs/*.log', 'build/elastic-stack-dump/check-*/logs/fleet-server-internal/*'], junitArtifacts: true, publishCoverage: true),
                     'check-packages-other': generateTestCommandStage(command: 'test-check-packages-other', artifacts: ['build/test-results/*.xml', 'build/elastic-stack-dump/check-*/logs/*.log', 'build/elastic-stack-dump/check-*/logs/fleet-server-internal/*'], junitArtifacts: true, publishCoverage: true),
                     'check-packages-with-custom-agent': generateTestCommandStage(command: 'test-check-packages-with-custom-agent', artifacts: ['build/test-results/*.xml', 'build/elastic-stack-dump/check-*/logs/*.log', 'build/elastic-stack-dump/check-*/logs/fleet-server-internal/*'], junitArtifacts: true, publishCoverage: true),

@@ -28,7 +28,7 @@ licenser:
 	go run github.com/elastic/go-licenser -license Elastic
 
 gomod:
-	go mod tidy
+	go mod tidy -go=1.16 && go mod tidy -go=1.17
 
 update-readme:
 	cd tools/readme; go run main.go

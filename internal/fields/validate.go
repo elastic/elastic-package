@@ -350,14 +350,44 @@ func compareKeys(key string, def FieldDefinition, searchedKey string) bool {
 		return true
 	}
 
-	// Workaround for potential geo_point, as "lon" and "lat" fields are not present in field definitions.
-	// Unfortunately we have to assume that imported field could be a geo_point (nasty workaround).
+	// Workaround for potential subfields of certain types as geo_point or histogram.
 	if len(searchedKey) > j {
-		if def.Type == "geo_point" || def.External != "" {
-			extraPart := searchedKey[j:]
-			if extraPart == ".lon" || extraPart == ".lat" {
-				return true
-			}
+		extraPart := searchedKey[j:]
+		if validSubField(def, extraPart) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// validSubField checks if the extra part that didn't match with any field definition,
+// matches with the possible sub field of complex fields like geo_point or histogram.
+func validSubField(def FieldDefinition, extraPart string) bool {
+	fieldType := def.Type
+	if def.Type == "object" && def.ObjectType != "" {
+		fieldType = def.ObjectType
+	}
+
+	subFields := []string{".lat", ".lon", ".values", ".counts"}
+	perType := map[string][]string{
+		"geo_point": subFields[0:2],
+		"histogram": subFields[2:4],
+	}
+
+	allowed, found := perType[fieldType]
+	if !found {
+		if def.External != "" {
+			// An unresolved external field could be anything.
+			allowed = subFields
+		} else {
+			return false
+		}
+	}
+
+	for _, a := range allowed {
+		if a == extraPart {
+			return true
 		}
 	}
 
