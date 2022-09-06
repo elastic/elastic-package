@@ -1,4 +1,5 @@
 # Readme Links
 
-{{url "elastic-main" }}
-{{url "elastic-main" "Elastic Guide"}}
+Examples of links:
+- {{url "elastic-main" }}
+- {{url "elastic-main" "Elastic Guide"}}
