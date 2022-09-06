@@ -31,7 +31,7 @@ cleanup() {
   exit $r
 }
 
-# trap cleanup EXIT
+trap cleanup EXIT
 
 export ELASTIC_PACKAGE_LINKS_FILE_PATH="$(pwd)/scripts/links_table.yml"
 
@@ -45,7 +45,6 @@ for d in test/packages/${PACKAGE_TEST_TYPE:-other}/${PACKAGE_UNDER_TEST:-*}/; do
 done
 cd -
 
-exit 0
 # Update the stack
 elastic-package stack update -v
 
