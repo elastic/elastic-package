@@ -223,104 +223,113 @@ An example event for `status` looks as following:
 
 ```json
 {
-    "@timestamp": "2020-12-03T16:31:04.445Z",
+    "@timestamp": "2022-09-06T07:49:38.359Z",
+    "agent": {
+        "ephemeral_id": "8d98054a-3077-4bb5-81b8-89c4da73f566",
+        "id": "9a83e2ce-8ade-4cc3-ba6a-6305c90b3022",
+        "name": "docker-fleet-agent",
+        "type": "metricbeat",
+        "version": "8.3.3"
+    },
+    "apache": {
+        "status": {
+            "bytes_per_request": 0,
+            "bytes_per_sec": 0,
+            "connections": {
+                "async": {
+                    "closing": 0,
+                    "keep_alive": 0,
+                    "writing": 0
+                },
+                "total": 0
+            },
+            "cpu": {
+                "children_system": 0,
+                "children_user": 0,
+                "load": 0.230769,
+                "system": 0.02,
+                "user": 0.01
+            },
+            "load": {
+                "1": 2.68,
+                "15": 2.79,
+                "5": 3.48
+            },
+            "requests_per_sec": 0.923077,
+            "scoreboard": {
+                "closing_connection": 0,
+                "dns_lookup": 0,
+                "gracefully_finishing": 0,
+                "idle_cleanup": 0,
+                "keepalive": 0,
+                "logging": 0,
+                "open_slot": 325,
+                "reading_request": 0,
+                "sending_reply": 1,
+                "starting_up": 0,
+                "total": 400,
+                "waiting_for_connection": 74
+            },
+            "total_accesses": 12,
+            "total_bytes": 0,
+            "uptime": {
+                "server_uptime": 13,
+                "uptime": 13
+            },
+            "workers": {
+                "busy": 1,
+                "idle": 74
+            }
+        }
+    },
     "data_stream": {
-        "type": "metrics",
         "dataset": "apache.status",
-        "namespace": "ep"
+        "namespace": "ep",
+        "type": "metrics"
+    },
+    "ecs": {
+        "version": "8.0.0"
     },
     "elastic_agent": {
-        "version": "7.11.0",
-        "id": "6c69e2bc-7bb3-4bac-b7e9-41f22558321c",
-        "snapshot": true
+        "id": "9a83e2ce-8ade-4cc3-ba6a-6305c90b3022",
+        "snapshot": false,
+        "version": "8.3.3"
+    },
+    "event": {
+        "agent_id_status": "verified",
+        "dataset": "apache.status",
+        "duration": 1049700,
+        "ingested": "2022-09-06T07:49:38Z",
+        "module": "apache"
     },
     "host": {
-        "os": {
-            "platform": "centos",
-            "version": "7 (Core)",
-            "family": "redhat",
-            "name": "CentOS Linux",
-            "kernel": "4.9.184-linuxkit",
-            "codename": "Core"
-        },
-        "id": "06c26569966fd125c15acac5d7feffb6",
-        "name": "4942ef7a8cfc",
-        "containerized": true,
+        "architecture": "x86_64",
+        "containerized": false,
+        "hostname": "docker-fleet-agent",
         "ip": [
-            "192.168.0.4"
+            "172.21.0.7"
         ],
         "mac": [
-            "02:42:c0:a8:00:04"
+            "02:42:ac:15:00:07"
         ],
-        "hostname": "4942ef7a8cfc",
-        "architecture": "x86_64"
-    },
-    "agent": {
-        "hostname": "4942ef7a8cfc",
-        "ephemeral_id": "8371d3a3-5321-4436-9fd5-cafcabfe4c57",
-        "id": "af6f66ef-d7d0-4784-b9bb-3fddbcc151b5",
-        "name": "4942ef7a8cfc",
-        "type": "metricbeat",
-        "version": "7.11.0"
+        "name": "docker-fleet-agent",
+        "os": {
+            "codename": "focal",
+            "family": "debian",
+            "kernel": "5.15.0-43-generic",
+            "name": "Ubuntu",
+            "platform": "ubuntu",
+            "type": "linux",
+            "version": "20.04.4 LTS (Focal Fossa)"
+        }
     },
     "metricset": {
         "name": "status",
         "period": 30000
     },
     "service": {
-        "address": "http://elastic-package-service_apache_1:80/server-status?auto=",
+        "address": "http://elastic-package-service-apache-1:80/server-status?auto=",
         "type": "apache"
-    },
-    "apache": {
-        "status": {
-            "load": {
-                "5": 1.89,
-                "15": 1.07,
-                "1": 1.53
-            },
-            "total_accesses": 11,
-            "connections": {
-                "total": 0,
-                "async": {
-                    "closing": 0,
-                    "writing": 0,
-                    "keep_alive": 0
-                }
-            },
-            "requests_per_sec": 0.916667,
-            "scoreboard": {
-                "starting_up": 0,
-                "keepalive": 0,
-                "sending_reply": 1,
-                "logging": 0,
-                "gracefully_finishing": 0,
-                "dns_lookup": 0,
-                "closing_connection": 0,
-                "open_slot": 325,
-                "total": 400,
-                "idle_cleanup": 0,
-                "waiting_for_connection": 74,
-                "reading_request": 0
-            },
-            "bytes_per_sec": 0,
-            "bytes_per_request": 0,
-            "uptime": {
-                "server_uptime": 12,
-                "uptime": 12
-            },
-            "total_bytes": 0,
-            "workers": {
-                "busy": 1,
-                "idle": 74
-            },
-            "cpu": {
-                "load": 0.583333,
-                "user": 0.03,
-                "system": 0.04,
-                "children_user": 0,
-                "children_system": 0
-            }
-        }
     }
 }
 ```
