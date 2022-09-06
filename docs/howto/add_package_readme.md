@@ -89,8 +89,9 @@ List of placeholders that can be used in the Markdown templates:
       ```
     - Let's assume that there exists a file `links_table.yml` with these contents:
       ```
-      foo,http://url.com.test
-      help,http://other.url.com/help
+      links:
+        foo: http://url.com.test
+        help: http://other.url.com/help
       ```
     - Rendered output:
       ```
@@ -106,8 +107,9 @@ List of placeholders that can be used in the Markdown templates:
       ```
     - Let's assume that there exists a file `links_table.yml` with these contents:
       ```
-      foo,http://url.com.test
-      help,http://other.url.com/help
+      links:
+        foo: http://url.com.test
+        help: http://other.url.com/help
       ```
     - Rendered output:
       ```
