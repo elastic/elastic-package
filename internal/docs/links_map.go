@@ -95,7 +95,7 @@ func linksDefinitionsFilePath() (string, error) {
 		_, err = os.Stat(linksFilePath)
 		if err != nil {
 			// if env var is defined, file must exist
-			return "", fmt.Errorf("links definitions file set with %s doesn't exist: %s", linksFilePath, linksMapFilePathEnvVar)
+			return "", fmt.Errorf("links definitions file set with %s doesn't exist: %s", linksMapFilePathEnvVar, linksFilePath)
 		}
 		return linksFilePath, nil
 	}
@@ -108,7 +108,7 @@ func linksDefinitionsFilePath() (string, error) {
 	linksFilePath = filepath.Join(dir, linksMapFileNameDefault)
 	_, err = os.Stat(linksFilePath)
 	if err != nil {
-		logger.Debugf("links definitions file set with %s doesn't exist: %s", linksFilePath, linksMapFilePathEnvVar)
+		logger.Debugf("links definitions default file doesn't exist: %s", linksFilePath)
 		return "", nil
 	}
 
