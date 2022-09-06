@@ -7,4 +7,4 @@ ENV EPR_DISABLE_PACKAGE_VALIDATION=true
 COPY profiles/${PROFILE}/stack/package-registry.config.yml /package-registry/config.yml
 COPY stack/development/ /packages/development
 
-ENTRYPOINT ["./package-registry", "--feature-proxy-mode", "--log-level", "debug"]
+ENTRYPOINT ["./package-registry", "-feature-proxy-mode"]
