@@ -116,8 +116,23 @@ func FindBenchmarkFolders(packageRootPath string, dataStreams []string, benchTyp
 	}
 
 	var paths []string
-	if len(dataStreams) == 0 {
-		return nil, errors.New("benchmarks can only be defined at the data_stream level")
+	if len(dataStreams) > 0 {
+		sort.Strings(dataStreams)
+		for _, dataStream := range dataStreams {
+			p, err := findBenchFolderPaths(packageRootPath, dataStream, benchTypeGlob)
+			if err != nil {
+				return nil, err
+			}
+
+			paths = append(paths, p...)
+		}
+	} else {
+		p, err := findBenchFolderPaths(packageRootPath, "*", benchTypeGlob)
+		if err != nil {
+			return nil, err
+		}
+
+		paths = p
 	}
 
 	sort.Strings(dataStreams)

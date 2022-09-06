@@ -65,13 +65,16 @@ test-stack-command-8x:
 
 test-stack-command: test-stack-command-default test-stack-command-7x test-stack-command-800 test-stack-command-8x
 
-test-check-packages: test-check-packages-with-kind test-check-packages-other test-check-packages-parallel test-check-packages-with-custom-agent
+test-check-packages: test-check-packages-with-kind test-check-packages-other test-check-packages-parallel test-check-packages-with-custom-agent test-check-packages-benchmarks
 
 test-check-packages-with-kind:
 	PACKAGE_TEST_TYPE=with-kind ./scripts/test-check-packages.sh
 
 test-check-packages-other:
 	PACKAGE_TEST_TYPE=other ./scripts/test-check-packages.sh
+
+test-check-packages-benchmarks:
+	PACKAGE_TEST_TYPE=benchmarks ./scripts/test-check-packages.sh
 
 test-check-packages-parallel:
 	PACKAGE_TEST_TYPE=parallel ./scripts/test-check-packages.sh
