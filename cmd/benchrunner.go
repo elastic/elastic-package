@@ -20,6 +20,7 @@ import (
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/signal"
+	"github.com/elastic/elastic-package/internal/testrunner"
 )
 
 const benchLongDescription = `Use this command to run benchmarks on a package. Currently, the following types of benchmarks are available:
@@ -49,6 +50,7 @@ func setupBenchmarkCommand() *cobraext.Command {
 	cmd.PersistentFlags().BoolP(cobraext.FailOnMissingFlagName, "m", false, cobraext.FailOnMissingFlagDescription)
 	cmd.PersistentFlags().StringP(cobraext.ReportFormatFlagName, "", string(formats.ReportFormatHuman), cobraext.ReportFormatFlagDescription)
 	cmd.PersistentFlags().StringP(cobraext.ReportOutputFlagName, "", string(outputs.ReportOutputSTDOUT), cobraext.ReportOutputFlagDescription)
+	cmd.PersistentFlags().BoolP(cobraext.BenchWithTestSamplesFlagName, "", true, cobraext.BenchWithTestSamplesFlagDescription)
 
 	for benchType, runner := range benchrunner.BenchRunners() {
 		action := benchTypeCommandActionFactory(runner)
@@ -89,6 +91,11 @@ func benchTypeCommandActionFactory(runner benchrunner.BenchRunner) cobraext.Comm
 			return cobraext.FlagParsingError(err, cobraext.ReportOutputFlagName)
 		}
 
+		useTestSamples, err := cmd.Flags().GetBool(cobraext.BenchWithTestSamplesFlagName)
+		if err != nil {
+			return cobraext.FlagParsingError(err, cobraext.BenchWithTestSamplesFlagName)
+		}
+
 		packageRootPath, found, err := packages.FindPackageRoot()
 		if !found {
 			return errors.New("package root not found")
@@ -99,8 +106,10 @@ func benchTypeCommandActionFactory(runner benchrunner.BenchRunner) cobraext.Comm
 
 		signal.Enable()
 
-		var benchFolders []benchrunner.BenchmarkFolder
-		var dataStreams []string
+		var (
+			benchFolders []testrunner.TestFolder
+			dataStreams  []string
+		)
 		// We check for the existence of the data streams flag before trying to
 		// parse it because if the root benchmark command is run instead of one of the
 		// subcommands of benchmark, the data streams flag will not be defined.
@@ -122,6 +131,14 @@ func benchTypeCommandActionFactory(runner benchrunner.BenchRunner) cobraext.Comm
 			return errors.Wrap(err, "unable to determine benchmark folder paths")
 		}
 
+		if useTestSamples {
+			testFolders, err := testrunner.FindTestFolders(packageRootPath, dataStreams, testrunner.TestType(benchType))
+			if err != nil {
+				return errors.Wrap(err, "unable to determine test folder paths")
+			}
+			benchFolders = append(benchFolders, testFolders...)
+		}
+
 		if failOnMissing && len(benchFolders) == 0 {
 			if len(dataStreams) > 0 {
 				return fmt.Errorf("no %s benchmarks found for %s data stream(s)", benchType, strings.Join(dataStreams, ","))
@@ -137,7 +154,7 @@ func benchTypeCommandActionFactory(runner benchrunner.BenchRunner) cobraext.Comm
 		var results []*benchrunner.Result
 		for _, folder := range benchFolders {
 			r, err := benchrunner.Run(benchType, benchrunner.BenchOptions{
-				BenchmarkFolder: folder,
+				Folder:          folder,
 				PackageRootPath: packageRootPath,
 				API:             esClient.API,
 			})

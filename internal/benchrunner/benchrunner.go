@@ -14,6 +14,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/elasticsearch"
+	"github.com/elastic/elastic-package/internal/testrunner"
 )
 
 // BenchType represents the various supported benchmark types
@@ -21,7 +22,7 @@ type BenchType string
 
 // BenchOptions contains benchmark runner options.
 type BenchOptions struct {
-	BenchmarkFolder BenchmarkFolder
+	Folder          testrunner.TestFolder
 	PackageRootPath string
 	API             *elasticsearch.API
 }
@@ -99,16 +100,8 @@ func (rc *ResultComposer) WithSuccess() ([]Result, error) {
 	return rc.WithError(nil)
 }
 
-// BenchmarkFolder encapsulates the benchmark folder path and names of the package + data stream
-// to which the benchmark folder belongs.
-type BenchmarkFolder struct {
-	Path       string
-	Package    string
-	DataStream string
-}
-
 // FindBenchmarkFolders finds benchmark folders for the given package and, optionally, benchmark type and data streams
-func FindBenchmarkFolders(packageRootPath string, dataStreams []string, benchType BenchType) ([]BenchmarkFolder, error) {
+func FindBenchmarkFolders(packageRootPath string, dataStreams []string, benchType BenchType) ([]testrunner.TestFolder, error) {
 	// Expected folder structure:
 	// <packageRootPath>/
 	//   data_stream/
@@ -137,17 +130,17 @@ func FindBenchmarkFolders(packageRootPath string, dataStreams []string, benchTyp
 		paths = append(paths, p...)
 	}
 
-	folders := make([]BenchmarkFolder, len(paths))
+	folders := make([]testrunner.TestFolder, len(paths))
 	_, pkg := filepath.Split(packageRootPath)
 	for idx, p := range paths {
 		relP := strings.TrimPrefix(p, packageRootPath)
 		parts := strings.Split(relP, string(filepath.Separator))
 		dataStream := parts[2]
 
-		folder := BenchmarkFolder{
-			p,
-			pkg,
-			dataStream,
+		folder := testrunner.TestFolder{
+			Path:       p,
+			Package:    pkg,
+			DataStream: dataStream,
 		}
 
 		folders[idx] = folder

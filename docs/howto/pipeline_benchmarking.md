@@ -86,7 +86,7 @@ The benchmark execution can be customized to some extent using an optional confi
 num_docs: 1000
 ```
 
-The `num_docs` option tells the benchmarks how many events should be sent with the simulation request. If not enough samples are provided, the events will be reused to generate a sufficient number of them.
+The `num_docs` option tells the benchmarks how many events should be sent with the simulation request. If not enough samples are provided, the events will be reused to generate a sufficient number of them. If not present it defaults to `1000`.
 
 
 ## Running a pipeline benchmark
@@ -119,6 +119,12 @@ If you want to run pipeline benchmarks for **specific data streams** in a packag
 
 ```
 elastic-package benchmark pipeline --data-streams <data stream 1>[,<data stream 2>,...]
+```
+
+By default, if the benchmark configuration is not present, it will run using any samples found in the data stream. You can disable this behavior disabling the `--use-test-samples` flag.
+
+```
+elastic-package benchmark pipeline -v --use-test-samples=false
 ```
 
 Finally, when you are done running all benchmarks, bring down the Elastic Stack. This corresponds to step 4 as described in the [_Conceptual process_](#Conceptual-process) section.

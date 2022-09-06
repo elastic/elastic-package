@@ -20,19 +20,25 @@ type config struct {
 	NumDocs int `config:"num_docs"`
 }
 
+func defaultConfig() *config {
+	return &config{
+		NumDocs: 1000,
+	}
+}
+
 func readConfig(path string) (*config, error) {
 	configPath := filepath.Join(path, configYAML)
-	var c config
+	c := defaultConfig()
 	cfg, err := yaml.NewConfigWithFile(configPath)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return nil, errors.Wrapf(err, "can't load common configuration: %s", configPath)
 	}
 
 	if err == nil {
-		if err := cfg.Unpack(&c); err != nil {
+		if err := cfg.Unpack(c); err != nil {
 			return nil, errors.Wrapf(err, "can't unpack benchmark configuration: %s", configPath)
 		}
 	}
 
-	return &c, nil
+	return c, nil
 }

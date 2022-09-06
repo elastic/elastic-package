@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -53,7 +54,7 @@ func (r *runner) TearDown() error {
 }
 
 func (r *runner) run() (*benchrunner.Result, error) {
-	dataStreamPath, found, err := packages.FindDataStreamRootForPath(r.options.BenchmarkFolder.Path)
+	dataStreamPath, found, err := packages.FindDataStreamRootForPath(r.options.Folder.Path)
 	if err != nil {
 		return nil, errors.Wrap(err, "locating data_stream root failed")
 	}
@@ -70,8 +71,8 @@ func (r *runner) run() (*benchrunner.Result, error) {
 	start := time.Now()
 	result := &benchrunner.Result{
 		BenchType:  BenchType + " benchmark",
-		Package:    r.options.BenchmarkFolder.Package,
-		DataStream: r.options.BenchmarkFolder.DataStream,
+		Package:    r.options.Folder.Package,
+		DataStream: r.options.Folder.DataStream,
 	}
 
 	b, err := r.loadBenchmark()
@@ -89,14 +90,23 @@ func (r *runner) run() (*benchrunner.Result, error) {
 }
 
 func (r *runner) listBenchmarkFiles() ([]string, error) {
-	fis, err := os.ReadDir(r.options.BenchmarkFolder.Path)
+	const (
+		expectedTestResultSuffix = "-expected.json"
+		configTestSuffixYAML     = "-config.yml"
+	)
+
+	fis, err := os.ReadDir(r.options.Folder.Path)
 	if err != nil {
-		return nil, errors.Wrapf(err, "reading pipeline benchmarks failed (path: %s)", r.options.BenchmarkFolder.Path)
+		return nil, errors.Wrapf(err, "reading pipeline benchmarks failed (path: %s)", r.options.Folder.Path)
 	}
 
 	var files []string
 	for _, fi := range fis {
-		if fi.Name() == configYAML {
+		if fi.Name() == configYAML ||
+			// since pipeline tests might be included we need to
+			// exclude the expected and config files for them
+			strings.HasSuffix(fi.Name(), expectedTestResultSuffix) ||
+			strings.HasSuffix(fi.Name(), configTestSuffixYAML) {
 			continue
 		}
 		files = append(files, fi.Name())
@@ -112,7 +122,7 @@ func (r *runner) loadBenchmark() (*benchmark, error) {
 
 	var allEntries []json.RawMessage
 	for _, benchFile := range benchFiles {
-		benchPath := filepath.Join(r.options.BenchmarkFolder.Path, benchFile)
+		benchPath := filepath.Join(r.options.Folder.Path, benchFile)
 		benchData, err := os.ReadFile(benchPath)
 		if err != nil {
 			return nil, errors.Wrapf(err, "reading input file failed (benchPath: %s)", benchPath)
@@ -137,14 +147,14 @@ func (r *runner) loadBenchmark() (*benchmark, error) {
 		allEntries = append(allEntries, entries...)
 	}
 
-	config, err := readConfig(r.options.BenchmarkFolder.Path)
+	config, err := readConfig(r.options.Folder.Path)
 	if err != nil {
-		return nil, errors.Wrapf(err, "reading config for benchmark failed (benchPath: %s)", r.options.BenchmarkFolder.Path)
+		return nil, errors.Wrapf(err, "reading config for benchmark failed (benchPath: %s)", r.options.Folder.Path)
 	}
 
 	tc, err := createBenchmark(allEntries, config)
 	if err != nil {
-		return nil, errors.Wrapf(err, "can't create benchmark case (benchmarkPath: %s)", r.options.BenchmarkFolder.Path)
+		return nil, errors.Wrapf(err, "can't create benchmark case (benchmarkPath: %s)", r.options.Folder.Path)
 	}
 	return tc, nil
 }

@@ -88,15 +88,15 @@ func (r *runner) benchmarkPipeline(b *benchmark, entryPipeline string) (*benchru
 
 	// Build result
 	result := &benchrunner.BenchmarkResult{
-		Name: fmt.Sprintf("pipeline benchmark for %s/%s", r.options.BenchmarkFolder.Package, r.options.BenchmarkFolder.DataStream),
+		Name: fmt.Sprintf("pipeline benchmark for %s/%s", r.options.Folder.Package, r.options.Folder.DataStream),
 		Parameters: []benchrunner.BenchmarkValue{
 			{
 				Name:  "package",
-				Value: r.options.BenchmarkFolder.Package,
+				Value: r.options.Folder.Package,
 			},
 			{
 				Name:  "data_stream",
-				Value: r.options.BenchmarkFolder.DataStream,
+				Value: r.options.Folder.DataStream,
 			},
 			{
 				Name:  "source doc count",
