@@ -141,7 +141,12 @@ func generateReadme(fileName, packageRoot string) ([]byte, bool, error) {
 	}
 	logger.Debugf("Template file for %s found: %s", fileName, templatePath)
 
-	rendered, err := renderReadme(fileName, packageRoot, templatePath)
+	linksMap, err := readLinksMap()
+	if err != nil {
+		return nil, false, err
+	}
+
+	rendered, err := renderReadme(fileName, packageRoot, templatePath, linksMap)
 	if err != nil {
 		return nil, true, errors.Wrap(err, "rendering Readme failed")
 	}
@@ -160,16 +165,11 @@ func findReadmeTemplatePath(fileName, packageRoot string) (string, bool, error) 
 	return templatePath, true, nil
 }
 
-func renderReadme(fileName, packageRoot, templatePath string) ([]byte, error) {
+func renderReadme(fileName, packageRoot, templatePath string, linksMap linkMap) ([]byte, error) {
 	logger.Debugf("Render %s file (package: %s, templatePath: %s)", fileName, packageRoot, templatePath)
 
-	linksMap, err := readLinksMap()
-	if err != nil {
-		return nil, err
-	}
-
 	t := template.New(fileName)
-	t, err = t.Funcs(template.FuncMap{
+	t, err := t.Funcs(template.FuncMap{
 		"event": func(dataStreamName string) (string, error) {
 			return renderSampleEvent(packageRoot, dataStreamName)
 		},

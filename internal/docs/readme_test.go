@@ -5,7 +5,6 @@
 package docs
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -18,12 +17,14 @@ func TestGenerateReadme(t *testing.T) {
 	cases := []struct {
 		title                  string
 		packageRoot            string
+		filename               string
 		readmeTemplateContents string
 		expected               string
 	}{
 		{
 			title:       "Pure markdown",
 			packageRoot: t.TempDir(),
+			filename:    "README.md",
 			readmeTemplateContents: `
 # README
 Introduction to the package`,
@@ -34,19 +35,17 @@ Introduction to the package`,
 		{
 			title:                  "Static README",
 			packageRoot:            t.TempDir(),
+			filename:               "README.md",
 			readmeTemplateContents: "",
 			expected:               "",
 		},
 	}
-	linksMap := newLinkMap()
 	for _, c := range cases {
 		t.Run(c.title, func(t *testing.T) {
-			fmt.Printf("Temporal folder %s\n", c.packageRoot)
-
 			err := createReadmeFile(c.packageRoot, c.readmeTemplateContents)
 			require.NoError(t, err)
 
-			rendered, isTemplate, err := generateReadme("README.md", c.packageRoot, linksMap)
+			rendered, isTemplate, err := generateReadme(c.filename, c.packageRoot)
 			require.NoError(t, err)
 
 			if c.readmeTemplateContents != "" {
@@ -61,20 +60,22 @@ Introduction to the package`,
 	}
 }
 
-func TestGenerateReadmeWithLinks(t *testing.T) {
+func TestRenderReadmeWithLinks(t *testing.T) {
 	minimumLinksMap := newLinkMap()
 	minimumLinksMap.Add("foo", "http://www.example.com/bar")
 
 	cases := []struct {
 		title                  string
 		packageRoot            string
+		templatePath           string
 		readmeTemplateContents string
 		linksMap               linkMap
 		expected               string
 	}{
 		{
-			title:       "Readme with url function",
-			packageRoot: t.TempDir(),
+			title:        "Readme with url function",
+			packageRoot:  t.TempDir(),
+			templatePath: "_dev/build/docs/README.md",
 			readmeTemplateContents: `
 # README
 Introduction to the package
@@ -91,33 +92,35 @@ http://www.example.com/bar
 
 	for _, c := range cases {
 		t.Run(c.title, func(t *testing.T) {
-			fmt.Printf("Temporal folder %s\n", c.packageRoot)
+			filename := filepath.Base(c.templatePath)
+			templatePath := filepath.Join(c.packageRoot, c.templatePath)
 
 			err := createReadmeFile(c.packageRoot, c.readmeTemplateContents)
 			require.NoError(t, err)
 
-			rendered, isTemplate, err := generateReadme("README.md", c.packageRoot, c.linksMap)
+			rendered, err := renderReadme(filename, c.packageRoot, templatePath, c.linksMap)
 			require.NoError(t, err)
 
 			renderedString := string(rendered)
-			assert.True(t, isTemplate)
 			assert.Equal(t, c.expected, renderedString)
 		})
 	}
 }
 
-func TestGenerateReadmeWithSampleEvent(t *testing.T) {
+func TestRenderReadmeWithSampleEvent(t *testing.T) {
 	cases := []struct {
 		title                   string
 		packageRoot             string
+		templatePath            string
 		dataStreamName          string
 		readmeTemplateContents  string
 		sampleEventJsonContents string
 		expected                string
 	}{
 		{
-			title:       "README with sample event",
-			packageRoot: t.TempDir(),
+			title:        "README with sample event",
+			packageRoot:  t.TempDir(),
+			templatePath: "_dev/build/docs/README.md",
 			readmeTemplateContents: `
 # README
 Introduction to the package
@@ -140,7 +143,8 @@ An example event for ` + "`example`" + ` looks as following:
 	linksMap := newLinkMap()
 	for _, c := range cases {
 		t.Run(c.title, func(t *testing.T) {
-			fmt.Printf("Temporal folder %s\n", c.packageRoot)
+			filename := filepath.Base(c.templatePath)
+			templatePath := filepath.Join(c.packageRoot, c.templatePath)
 
 			err := createReadmeFile(c.packageRoot, c.readmeTemplateContents)
 			require.NoError(t, err)
@@ -148,28 +152,29 @@ An example event for ` + "`example`" + ` looks as following:
 			err = createSampleEventFile(c.packageRoot, c.dataStreamName, c.sampleEventJsonContents)
 			require.NoError(t, err)
 
-			rendered, isTemplate, err := generateReadme("README.md", c.packageRoot, linksMap)
+			rendered, err := renderReadme(filename, c.packageRoot, templatePath, linksMap)
 			require.NoError(t, err)
 
 			renderedString := string(rendered)
-			assert.True(t, isTemplate)
 			assert.Equal(t, c.expected, renderedString)
 		})
 	}
 }
 
-func TestGenerateReadmeWithFields(t *testing.T) {
+func TesRenderReadmeWithFields(t *testing.T) {
 	cases := []struct {
 		title                  string
 		packageRoot            string
+		templatePath           string
 		dataStreamName         string
 		readmeTemplateContents string
 		fieldsContents         string
 		expected               string
 	}{
 		{
-			title:       "README fields from package",
-			packageRoot: t.TempDir(),
+			title:        "README fields from package",
+			packageRoot:  t.TempDir(),
+			templatePath: "_dev/build/docs/README.md",
 			readmeTemplateContents: `
 # README
 Introduction to the package
@@ -190,8 +195,9 @@ Introduction to the package
   description: Data stream type package.`,
 		},
 		{
-			title:       "README with one field",
-			packageRoot: t.TempDir(),
+			title:        "README with one field",
+			packageRoot:  t.TempDir(),
+			templatePath: "_dev/build/docs/README.md",
 			readmeTemplateContents: `
 # README
 Introduction to the package
@@ -212,8 +218,9 @@ Introduction to the package
   description: Data stream type.`,
 		},
 		{
-			title:       "README no fields",
-			packageRoot: t.TempDir(),
+			title:        "README no fields",
+			packageRoot:  t.TempDir(),
+			templatePath: "_dev/build/docs/README.md",
 			readmeTemplateContents: `
 # README
 Introduction to the package
@@ -233,7 +240,8 @@ Introduction to the package
 	linksMap := newLinkMap()
 	for _, c := range cases {
 		t.Run(c.title, func(t *testing.T) {
-			fmt.Printf("Temporal folder %s\n", c.packageRoot)
+			filename := filepath.Base(c.templatePath)
+			templatePath := filepath.Join(c.packageRoot, c.templatePath)
 
 			err := createReadmeFile(c.packageRoot, c.readmeTemplateContents)
 			require.NoError(t, err)
@@ -241,11 +249,10 @@ Introduction to the package
 			err = createFieldsFile(c.packageRoot, c.dataStreamName, c.fieldsContents)
 			require.NoError(t, err)
 
-			rendered, isTemplate, err := generateReadme("README.md", c.packageRoot, linksMap)
+			rendered, err := renderReadme(filename, c.packageRoot, templatePath, linksMap)
 			require.NoError(t, err)
 
 			renderedString := string(rendered)
-			assert.True(t, isTemplate)
 			assert.Equal(t, c.expected, renderedString)
 		})
 	}
@@ -260,7 +267,6 @@ func createReadmeFile(packageRoot, contents string) error {
 	if contents != "" {
 		readmeFile := filepath.Join(docsFolder, "README.md")
 		os.WriteFile(readmeFile, []byte(contents), 0644)
-		fmt.Printf("Written file %s with contents:\n%s\n", readmeFile, contents)
 	}
 	return nil
 }
@@ -271,7 +277,6 @@ func createDocsFolder(packageRoot string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	fmt.Println("Created _dev/build/docs folder")
 	return docsFolder, nil
 }
 
@@ -285,7 +290,6 @@ func createSampleEventFile(packageRoot, dataStreamName, contents string) error {
 	if err := os.WriteFile(sampleEventFile, []byte(contents), 0644); err != nil {
 		return err
 	}
-	fmt.Printf("Written file %s with contents:\n%s\n", sampleEventFile, contents)
 	return nil
 }
 
@@ -298,8 +302,6 @@ func createDataStreamFolder(packageRoot, dataStreamName string) (string, error) 
 	if err := os.MkdirAll(dataStreamFolder, os.ModePerm); err != nil {
 		return "", err
 	}
-	fmt.Printf("Created data_stream/%s folder\n", dataStreamName)
-
 	return dataStreamFolder, nil
 }
 
@@ -312,7 +314,6 @@ func createFieldsFile(packageRoot, dataStreamName, contents string) error {
 	if err := os.WriteFile(fieldsFile, []byte(contents), 0644); err != nil {
 		return err
 	}
-	fmt.Printf("Written file %s with contents:\n%s\n", fieldsFile, contents)
 	return nil
 }
 
@@ -326,7 +327,5 @@ func createFieldsFolder(packageRoot, dataStreamName string) (string, error) {
 	if err := os.MkdirAll(fieldsFolder, os.ModePerm); err != nil {
 		return "", err
 	}
-	fmt.Printf("Created %s folder\n", fieldsFolder)
-
 	return fieldsFolder, nil
 }

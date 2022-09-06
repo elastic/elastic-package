@@ -165,6 +165,7 @@ func TestLinksDefinitionsFilePath(t *testing.T) {
 			if c.linksFilePath != "" {
 				err = os.Setenv(linksMapFilePathEnvVar, c.linksFilePath)
 				require.NoError(t, err)
+				defer os.Unsetenv(linksMapFilePathEnvVar)
 			}
 
 			if c.createFileFromEnvVar {
