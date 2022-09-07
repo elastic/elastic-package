@@ -10,12 +10,11 @@ import (
 	"path/filepath"
 
 	"github.com/pkg/errors"
+
+	"github.com/elastic/elastic-package/internal/environment"
 )
 
 const (
-	// elasticPackageDataHome is the name of the environment variable used to override data folder for elastic-package
-	elasticPackageDataHome = "ELASTIC_PACKAGE_DATA_HOME"
-
 	elasticPackageDir = ".elastic-package"
 	stackDir          = "stack"
 	packagesDir       = "development"
@@ -32,6 +31,9 @@ const (
 )
 
 var (
+	// elasticPackageDataHome is the name of the environment variable used to override data folder for elastic-package
+	elasticPackageDataHome = environment.WithElasticPackagePrefix("DATA_HOME")
+
 	serviceLogsDir               = filepath.Join(temporaryDir, "service_logs")
 	kubernetesDeployerDir        = filepath.Join(deployerDir, "kubernetes")
 	terraformDeployerDir         = filepath.Join(deployerDir, "terraform")
