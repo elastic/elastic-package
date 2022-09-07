@@ -17,7 +17,6 @@ import (
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/profile"
 	"github.com/elastic/elastic-package/internal/stack"
-	"github.com/elastic/elastic-package/internal/stack/shellinit/shell"
 )
 
 var availableServices = map[string]struct{}{
@@ -209,7 +208,7 @@ func setupStackCommand() *cobraext.Command {
 				return errors.Wrap(err, "error loading profile")
 			}
 
-			shell, err := stack.ShellInit(profile, shell.FromString(s))
+			shell, err := stack.ShellInit(profile, s)
 			if err != nil {
 				return errors.Wrap(err, "shellinit failed")
 			}
