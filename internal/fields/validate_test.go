@@ -115,7 +115,7 @@ func TestValidate_WithSpecVersion(t *testing.T) {
 }
 
 func TestValidate_ExpectedEventType(t *testing.T) {
-	validator, err := CreateValidatorForDirectory("testdata")
+	validator, err := CreateValidatorForDirectory("testdata", WithSpecVersion("2.0.0"))
 	require.NoError(t, err)
 	require.NotNil(t, validator)
 
@@ -149,7 +149,7 @@ func TestValidate_ExpectedEventType(t *testing.T) {
 				assert.Empty(t, errs)
 			} else {
 				if assert.Len(t, errs, 1) {
-					assert.Contains(t, errs[0].Error(), "unexpected value for event.type")
+					assert.Contains(t, errs[0].Error(), "is not one of the expected values")
 				}
 			}
 		})
@@ -476,7 +476,7 @@ func Test_parseElementValue(t *testing.T) {
 		}
 
 		t.Run(test.key, func(t *testing.T) {
-			err := v.parseElementValue(test.key, test.definition, test.value)
+			err := v.parseElementValue(test.key, test.definition, test.value, common.MapStr{})
 			if test.fail {
 				require.Error(t, err)
 			} else {
