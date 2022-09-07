@@ -38,7 +38,7 @@ OLDPWD=$PWD
 for d in test/packages/${PACKAGE_TEST_TYPE:-other}/${PACKAGE_UNDER_TEST:-*}/; do
   (
     cd $d
-    elastic-package build -v
+    elastic-package check -v
   )
 done
 cd -

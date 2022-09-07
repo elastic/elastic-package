@@ -113,6 +113,54 @@ If you want to run pipeline benchmarks for **all data streams** in a package, na
 
 ```
 elastic-package benchmark pipeline
+
+--- Benchmark results for package: windows-1 - START ---
+╭───────────────────────────────╮
+│ parameters                    │
+├──────────────────┬────────────┤
+│ package          │    windows │
+│ data_stream      │ powershell │
+│ source doc count │          6 │
+│ doc count        │       1000 │
+╰──────────────────┴────────────╯
+╭───────────────────────╮
+│ ingest performance    │
+├─────────────┬─────────┤
+│ ingest time │   0.23s │
+│ eps         │ 4291.85 │
+╰─────────────┴─────────╯
+╭───────────────────────────────────╮
+│ processors by total time          │
+├──────────────────────────┬────────┤
+│ kv @ default.yml:4       │ 12.02% │
+│ script @ default.yml:240 │  7.73% │
+│ kv @ default.yml:13      │  6.87% │
+│ set @ default.yml:44     │  6.01% │
+│ script @ default.yml:318 │  5.58% │
+│ date @ default.yml:34    │  3.43% │
+│ script @ default.yml:397 │  2.15% │
+│ remove @ default.yml:425 │  2.15% │
+│ set @ default.yml:102    │  1.72% │
+│ set @ default.yml:108    │  1.29% │
+╰──────────────────────────┴────────╯
+╭─────────────────────────────────────╮
+│ processors by average time per doc  │
+├──────────────────────────┬──────────┤
+│ kv @ default.yml:4       │ 56.112µs │
+│ script @ default.yml:240 │ 36.072µs │
+│ kv @ default.yml:13      │ 31.936µs │
+│ script @ default.yml:397 │  29.94µs │
+│ set @ default.yml:44     │     14µs │
+│ script @ default.yml:318 │     13µs │
+│ date @ default.yml:34    │ 11.976µs │
+│ set @ default.yml:102    │  8.016µs │
+│ append @ default.yml:114 │  6.012µs │
+│ set @ default.yml:108    │  6.012µs │
+╰──────────────────────────┴──────────╯
+
+--- Benchmark results for package: windows-1 - END   ---
+Done
+
 ```
 
 If you want to run pipeline benchmarks for **specific data streams** in a package, navigate to the package's root folder (or any sub-folder under it) and run the following command.
