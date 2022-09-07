@@ -13,10 +13,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestRenderUrl(t *testing.T) {
+func TestRenderLink(t *testing.T) {
 	cases := []struct {
 		title    string
 		defs     linkMap
+		caption  string
 		key      string
 		errors   bool
 		expected string
@@ -29,77 +30,55 @@ func TestRenderUrl(t *testing.T) {
 					"docs":  "http://package-spec.test/docs",
 				},
 			},
+			"",
 			"intro",
 			false,
 			"http://package-spec.test/intro",
 		},
 		{
-			"key not exist",
+			"Key not exist",
 			linkMap{
 				map[string]string{
 					"intro": "http://package-spec.test/intro",
 					"docs":  "http://package-spec.test/docs",
 				},
 			},
+			"",
 			"notexist",
 			true,
 			"",
 		},
-	}
-
-	for _, c := range cases {
-		t.Run(c.title, func(t *testing.T) {
-			output, err := c.defs.RenderLink(c.key, linkOptions{})
-			if c.errors {
-				require.Error(t, err)
-				return
-			}
-			require.NoError(t, err)
-			assert.Equal(t, c.expected, output)
-		})
-	}
-}
-
-func TestRenderLInk(t *testing.T) {
-	cases := []struct {
-		title    string
-		defs     linkMap
-		key      string
-		link     string
-		errors   bool
-		expected string
-	}{
 		{
-			"URLs",
+			"Markdown links",
 			linkMap{
 				map[string]string{
 					"intro": "http://package-spec.test/intro",
 					"docs":  "http://package-spec.test/docs",
 				},
 			},
-			"intro",
 			"Introduction",
+			"intro",
 			false,
 			"[Introduction](http://package-spec.test/intro)",
 		},
 		{
-			"key not exist",
+			"Markdown links with code block",
 			linkMap{
 				map[string]string{
 					"intro": "http://package-spec.test/intro",
 					"docs":  "http://package-spec.test/docs",
 				},
 			},
-			"notexist",
-			"Not Exist",
-			true,
-			"",
+			"`code`",
+			"intro",
+			false,
+			"[`code`](http://package-spec.test/intro)",
 		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.title, func(t *testing.T) {
-			output, err := c.defs.RenderLink(c.key, linkOptions{caption: c.link})
+			output, err := c.defs.RenderLink(c.key, linkOptions{caption: c.caption})
 			if c.errors {
 				require.Error(t, err)
 				return
