@@ -294,6 +294,8 @@ Notice the use of the `{{SERVICE_LOGS_DIR}}` placeholder. This corresponds to th
 When a data stream's manifest declares multiple streams with different inputs you can use the `input` option to select the stream to test. The first stream
 whose input type matches the `input` value will be tested. By default, the first stream declared in the manifest will be tested.
 
+WIP - add detail for assert expected events
+
 #### Placeholders
 
 The `SERVICE_LOGS_DIR` placeholder is not the only one available for use in a data stream's `test-<test_name>-config.yml` file. The complete list of available placeholders is shown below.
