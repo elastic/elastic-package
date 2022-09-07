@@ -46,7 +46,7 @@ processors:
       value: event
   - set:
       field: event.category
-      value: web
+      value: ["web"]
   - set:
       field: event.outcome
       value: success

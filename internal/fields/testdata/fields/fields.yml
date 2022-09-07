@@ -13,3 +13,7 @@
       value: correct
     - name: ip_address
       type: ip
+- name: container.image.tag
+  type: keyword
+  normalize:
+  - array

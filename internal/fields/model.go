@@ -28,6 +28,7 @@ type FieldDefinition struct {
 	External       string            `yaml:"external"`
 	Index          *bool             `yaml:"index"`
 	DocValues      *bool             `yaml:"doc_values"`
+	Normalize      []string          `yaml:"normalize,omitempty"`
 	Fields         FieldDefinitions  `yaml:"fields,omitempty"`
 	MultiFields    []FieldDefinition `yaml:"multi_fields,omitempty"`
 }
@@ -71,6 +72,10 @@ func (orig *FieldDefinition) Update(fd FieldDefinition) {
 	}
 	if fd.DocValues != nil {
 		orig.DocValues = fd.DocValues
+	}
+
+	if len(fd.Normalize) > 0 {
+		orig.Normalize = common.StringSlicesUnion(orig.Normalize, fd.Normalize)
 	}
 
 	if len(fd.Fields) > 0 {

@@ -95,6 +95,11 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		return nil, errors.Wrap(err, "installing ingest pipelines failed")
 	}
 
+	pkgManifest, err := packages.ReadPackageManifestFromPackageRoot(r.options.PackageRootPath)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to read manifest")
+	}
+
 	results := make([]testrunner.TestResult, 0)
 	for _, testCaseFile := range testCaseFiles {
 		tr := testrunner.TestResult{
@@ -135,6 +140,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 
 		tr.TimeElapsed = time.Since(startTime)
 		fieldsValidator, err := fields.CreateValidatorForDirectory(dataStreamPath,
+			fields.WithSpecVersion(pkgManifest.SpecVersion),
 			fields.WithNumericKeywordFields(tc.config.NumericKeywordFields),
 			// explicitly enabled for pipeline tests only
 			// since system tests can have dynamic public IPs
