@@ -17,3 +17,20 @@
   type: keyword
   normalize:
   - array
+- name: event.category
+  type: keyword
+  allowed_values:
+  - name: authentication
+    expected_event_types:
+    - start
+    - end
+    - info
+  - name: configuration
+    expected_event_types:
+    - access
+    - change
+    - creation
+    - deletion
+    - info
+- name: event.type
+  type: keyword

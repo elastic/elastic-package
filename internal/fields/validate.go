@@ -195,11 +195,7 @@ func (v *Validator) ValidateDocumentBody(body json.RawMessage) multierror.Error 
 		return errs
 	}
 
-	errs := v.validateMapElement("", c)
-	if len(errs) == 0 {
-		return nil
-	}
-	return errs
+	return v.ValidateDocumentMap(c)
 }
 
 // ValidateDocumentMap validates the provided document as common.MapStr.
