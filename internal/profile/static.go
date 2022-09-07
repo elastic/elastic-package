@@ -115,7 +115,6 @@ var packageRegistryConfigYml string
 
 // newPackageRegistryConfig returns a Managed Config
 func newPackageRegistryConfig(_ string, profilePath string) (*simpleFile, error) {
-
 	return &simpleFile{
 		name: string(PackageRegistryConfigFile),
 		path: filepath.Join(profilePath, profileStackPath, string(PackageRegistryConfigFile)),
@@ -124,7 +123,8 @@ func newPackageRegistryConfig(_ string, profilePath string) (*simpleFile, error)
 }
 
 // PackageRegistryBaseImage is the base Docker image of the Elastic Package Registry.
-const PackageRegistryBaseImage = "docker.elastic.co/package-registry/distribution:snapshot"
+// commit SHA of enabled proxy mode (technical preview feature)
+const PackageRegistryBaseImage = "docker.elastic.co/package-registry/package-registry:14455fcb7e415d6b4aed48e00d2289718f056162"
 
 // PackageRegistryDockerfileFile is the dockerfile for the Elastic package registry
 const PackageRegistryDockerfileFile configFile = "Dockerfile.package-registry"

@@ -527,8 +527,38 @@ func TestCompareKeys(t *testing.T) {
 		},
 		{
 			key:         "example.*",
+			def:         FieldDefinition{Type: "object", ObjectType: "geo_point"},
+			searchedKey: "example.geo.lon",
+			expected:    true,
+		},
+		{
+			key:         "example.*",
 			def:         FieldDefinition{Type: "geo_point"},
 			searchedKey: "example.geo.foo",
+			expected:    false,
+		},
+		{
+			key:         "example.histogram",
+			def:         FieldDefinition{Type: "histogram"},
+			searchedKey: "example.histogram.counts",
+			expected:    true,
+		},
+		{
+			key:         "example.*",
+			def:         FieldDefinition{Type: "histogram"},
+			searchedKey: "example.histogram.counts",
+			expected:    true,
+		},
+		{
+			key:         "example.*",
+			def:         FieldDefinition{Type: "histogram"},
+			searchedKey: "example.histogram.values",
+			expected:    true,
+		},
+		{
+			key:         "example.*",
+			def:         FieldDefinition{Type: "histogram"},
+			searchedKey: "example.histogram.foo",
 			expected:    false,
 		},
 	}
