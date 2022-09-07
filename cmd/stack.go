@@ -198,9 +198,9 @@ func setupStackCommand() *cobraext.Command {
 				return cobraext.FlagParsingError(err, cobraext.ProfileFlagName)
 			}
 
-			s, err := cmd.Flags().GetString("shell")
+			s, err := cmd.Flags().GetString(cobraext.ShellInitShellFlagName)
 			if err != nil {
-				return cobraext.FlagParsingError(err, "shell")
+				return cobraext.FlagParsingError(err, cobraext.ShellInitShellFlagName)
 			}
 
 			profile, err := profile.LoadProfile(profileName)
@@ -216,7 +216,7 @@ func setupStackCommand() *cobraext.Command {
 			return nil
 		},
 	}
-	shellInitCommand.Flags().StringP("shell", "s", "bash", "change shell code compatibility; available values: "+strings.Join(shell.AvailableShellTypes(), ", "))
+	shellInitCommand.Flags().StringP(cobraext.ShellInitShellFlagName, "", "bash", cobraext.ShellInitShellDescription)
 
 	dumpCommand := &cobra.Command{
 		Use:   "dump",

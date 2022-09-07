@@ -116,6 +116,9 @@ const (
 	ShowAllFlagName        = "all"
 	ShowAllFlagDescription = "show all deployed package revisions"
 
+	ShellInitShellFlagName    = "shell"
+	ShellInitShellDescription = "change output shell code compatibility"
+
 	SignPackageFlagName        = "sign"
 	SignPackageFlagDescription = "sign package"
 
