@@ -160,8 +160,13 @@ func (dm *DependencyManager) injectFieldsWithRoot(root string, defs []common.Map
 
 			// Allow overrides of everything, except the imported type, for consistency.
 			transformed.DeepUpdate(def)
-			transformed["type"] = imported.Type
 			transformed.Delete("external")
+
+			// Allow to override the type only from keyword to constant_keyword,
+			// to support the case of setting the value already in the mappings.
+			if ttype, _ := transformed["type"].(string); ttype != "constant_keyword" || imported.Type != "keyword" {
+				transformed["type"] = imported.Type
+			}
 
 			def = transformed
 			changed = true
