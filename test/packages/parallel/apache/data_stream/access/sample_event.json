@@ -1,8 +1,8 @@
 {
-    "@timestamp": "2022-09-06T07:48:09.000Z",
+    "@timestamp": "2022-09-08T10:05:46.000Z",
     "agent": {
-        "ephemeral_id": "357ad51a-c816-46b4-a094-8da1fe2b47af",
-        "id": "9a83e2ce-8ade-4cc3-ba6a-6305c90b3022",
+        "ephemeral_id": "62fff331-1942-4ca6-b1f4-7b09d72e4e6b",
+        "id": "488aa68b-25f3-4a6c-aeaf-bbdacf341968",
         "name": "docker-fleet-agent",
         "type": "filebeat",
         "version": "8.3.3"
@@ -19,7 +19,7 @@
         "version": "1.12.0"
     },
     "elastic_agent": {
-        "id": "9a83e2ce-8ade-4cc3-ba6a-6305c90b3022",
+        "id": "488aa68b-25f3-4a6c-aeaf-bbdacf341968",
         "snapshot": false,
         "version": "8.3.3"
     },
@@ -28,21 +28,24 @@
         "category": [
             "web"
         ],
-        "created": "2022-09-06T07:48:30.073Z",
+        "created": "2022-09-08T10:06:04.881Z",
         "dataset": "apache.access",
-        "ingested": "2022-09-06T07:48:31Z",
+        "ingested": "2022-09-08T10:06:05Z",
         "kind": "event",
-        "outcome": "success"
+        "outcome": "success",
+        "type": [
+            "access"
+        ]
     },
     "host": {
         "architecture": "x86_64",
         "containerized": false,
         "hostname": "docker-fleet-agent",
         "ip": [
-            "172.21.0.7"
+            "192.168.128.4"
         ],
         "mac": [
-            "02:42:ac:15:00:07"
+            "02:42:c0:a8:80:04"
         ],
         "name": "docker-fleet-agent",
         "os": {

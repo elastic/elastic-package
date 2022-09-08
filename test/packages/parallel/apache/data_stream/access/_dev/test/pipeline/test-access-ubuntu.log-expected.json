@@ -13,10 +13,13 @@
                     "web"
                 ],
                 "created": "2020-04-28T11:07:58.223Z",
-                "ingested": "2022-09-06T07:11:46.762449415Z",
+                "ingested": "2022-09-08T10:05:06.078187403Z",
                 "kind": "event",
                 "original": "127.0.0.1 - - [26/Dec/2016:16:18:09 +0000] \"GET / HTTP/1.1\" 200 491 \"-\" \"Wget/1.13.4 (linux-gnu)\"",
-                "outcome": "success"
+                "outcome": "success",
+                "type": [
+                    "access"
+                ]
             },
             "http": {
                 "request": {
@@ -70,10 +73,13 @@
                     "web"
                 ],
                 "created": "2020-04-28T11:07:58.223Z",
-                "ingested": "2022-09-06T07:11:46.762453903Z",
+                "ingested": "2022-09-08T10:05:06.078193659Z",
                 "kind": "event",
                 "original": "192.168.33.1 - - [26/Dec/2016:16:22:00 +0000] \"GET / HTTP/1.1\" 200 484 \"-\" \"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.98 Safari/537.36\"",
-                "outcome": "success"
+                "outcome": "success",
+                "type": [
+                    "access"
+                ]
             },
             "http": {
                 "request": {
@@ -129,10 +135,13 @@
                     "web"
                 ],
                 "created": "2020-04-28T11:07:58.223Z",
-                "ingested": "2022-09-06T07:11:46.762455848Z",
+                "ingested": "2022-09-08T10:05:06.078195340Z",
                 "kind": "event",
                 "original": "192.168.33.1 - - [26/Dec/2016:16:22:00 +0000] \"GET /favicon.ico HTTP/1.1\" 404 504 \"http://192.168.33.72/\" \"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.98 Safari/537.36\"",
-                "outcome": "failure"
+                "outcome": "failure",
+                "type": [
+                    "access"
+                ]
             },
             "http": {
                 "request": {
@@ -189,10 +198,13 @@
                     "web"
                 ],
                 "created": "2020-04-28T11:07:58.223Z",
-                "ingested": "2022-09-06T07:11:46.762457571Z",
+                "ingested": "2022-09-08T10:05:06.078196730Z",
                 "kind": "event",
                 "original": "192.168.33.1 - - [26/Dec/2016:16:22:08 +0000] \"GET / HTTP/1.1\" 200 484 \"-\" \"Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:50.0) Gecko/20100101 Firefox/50.0\"",
-                "outcome": "success"
+                "outcome": "success",
+                "type": [
+                    "access"
+                ]
             },
             "http": {
                 "request": {
@@ -248,10 +260,13 @@
                     "web"
                 ],
                 "created": "2020-04-28T11:07:58.223Z",
-                "ingested": "2022-09-06T07:11:46.762459219Z",
+                "ingested": "2022-09-08T10:05:06.078198115Z",
                 "kind": "event",
                 "original": "192.168.33.1 - - [26/Dec/2016:16:22:08 +0000] \"GET /favicon.ico HTTP/1.1\" 404 504 \"-\" \"Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:50.0) Gecko/20100101 Firefox/50.0\"",
-                "outcome": "failure"
+                "outcome": "failure",
+                "type": [
+                    "access"
+                ]
             },
             "http": {
                 "request": {
@@ -308,10 +323,13 @@
                     "web"
                 ],
                 "created": "2020-04-28T11:07:58.223Z",
-                "ingested": "2022-09-06T07:11:46.762460903Z",
+                "ingested": "2022-09-08T10:05:06.078199480Z",
                 "kind": "event",
                 "original": "192.168.33.1 - - [26/Dec/2016:16:22:08 +0000] \"GET /favicon.ico HTTP/1.1\" 404 504 \"-\" \"Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:50.0) Gecko/20100101 Firefox/50.0\"",
-                "outcome": "failure"
+                "outcome": "failure",
+                "type": [
+                    "access"
+                ]
             },
             "http": {
                 "request": {
@@ -368,10 +386,13 @@
                     "web"
                 ],
                 "created": "2020-04-28T11:07:58.223Z",
-                "ingested": "2022-09-06T07:11:46.762462605Z",
+                "ingested": "2022-09-08T10:05:06.078200843Z",
                 "kind": "event",
                 "original": "192.168.33.1 - - [26/Dec/2016:16:22:10 +0000] \"GET /test HTTP/1.1\" 404 498 \"-\" \"Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:50.0) Gecko/20100101 Firefox/50.0\"",
-                "outcome": "failure"
+                "outcome": "failure",
+                "type": [
+                    "access"
+                ]
             },
             "http": {
                 "request": {
@@ -427,10 +448,13 @@
                     "web"
                 ],
                 "created": "2020-04-28T11:07:58.223Z",
-                "ingested": "2022-09-06T07:11:46.762464295Z",
+                "ingested": "2022-09-08T10:05:06.078202210Z",
                 "kind": "event",
                 "original": "192.168.33.1 - - [26/Dec/2016:16:22:13 +0000] \"GET /hello HTTP/1.1\" 404 499 \"-\" \"Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:50.0) Gecko/20100101 Firefox/50.0\"",
-                "outcome": "failure"
+                "outcome": "failure",
+                "type": [
+                    "access"
+                ]
             },
             "http": {
                 "request": {
@@ -486,10 +510,13 @@
                     "web"
                 ],
                 "created": "2020-04-28T11:07:58.223Z",
-                "ingested": "2022-09-06T07:11:46.762465914Z",
+                "ingested": "2022-09-08T10:05:06.078203552Z",
                 "kind": "event",
                 "original": "192.168.33.1 - - [26/Dec/2016:16:22:17 +0000] \"GET /crap HTTP/1.1\" 404 499 \"-\" \"Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:50.0) Gecko/20100101 Firefox/50.0\"",
-                "outcome": "failure"
+                "outcome": "failure",
+                "type": [
+                    "access"
+                ]
             },
             "http": {
                 "request": {

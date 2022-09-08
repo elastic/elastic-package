@@ -13,10 +13,13 @@
                     "web"
                 ],
                 "created": "2020-04-28T11:07:58.223Z",
-                "ingested": "2022-09-06T07:11:46.614845014Z",
+                "ingested": "2022-09-08T10:05:05.863598691Z",
                 "kind": "event",
                 "original": "::1 - - [26/Dec/2016:16:16:29 +0200] \"GET /favicon.ico HTTP/1.1\" 404 209",
-                "outcome": "failure"
+                "outcome": "failure",
+                "type": [
+                    "access"
+                ]
             },
             "http": {
                 "request": {
@@ -59,10 +62,13 @@
                     "web"
                 ],
                 "created": "2020-04-28T11:07:58.223Z",
-                "ingested": "2022-09-06T07:11:46.614847398Z",
+                "ingested": "2022-09-08T10:05:05.863610730Z",
                 "kind": "event",
                 "original": "192.168.33.1 - - [26/Dec/2016:16:22:13 +0000] \"GET /hello HTTP/1.1\" 404 499 \"-\" \"Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:50.0) Gecko/20100101 Firefox/50.0\"",
-                "outcome": "failure"
+                "outcome": "failure",
+                "type": [
+                    "access"
+                ]
             },
             "http": {
                 "request": {
@@ -118,10 +124,13 @@
                     "web"
                 ],
                 "created": "2020-04-28T11:07:58.223Z",
-                "ingested": "2022-09-06T07:11:46.614848507Z",
+                "ingested": "2022-09-08T10:05:05.863613299Z",
                 "kind": "event",
                 "original": "::1 - - [26/Dec/2016:16:16:48 +0200] \"-\" 408 -",
-                "outcome": "failure"
+                "outcome": "failure",
+                "type": [
+                    "access"
+                ]
             },
             "http": {
                 "response": {
@@ -152,10 +161,13 @@
                     "web"
                 ],
                 "created": "2020-04-28T11:07:58.223Z",
-                "ingested": "2022-09-06T07:11:46.614849470Z",
+                "ingested": "2022-09-08T10:05:05.863614844Z",
                 "kind": "event",
                 "original": "172.17.0.1 - - [29/May/2017:19:02:48 +0000] \"GET /stringpatch HTTP/1.1\" 404 612 \"-\" \"Mozilla/5.0 (Windows NT 6.1; rv:15.0) Gecko/20120716 Firefox/15.0a2\" \"-\"",
-                "outcome": "failure"
+                "outcome": "failure",
+                "type": [
+                    "access"
+                ]
             },
             "http": {
                 "request": {
@@ -211,10 +223,13 @@
                     "web"
                 ],
                 "created": "2020-04-28T11:07:58.223Z",
-                "ingested": "2022-09-06T07:11:46.614850424Z",
+                "ingested": "2022-09-08T10:05:05.863616333Z",
                 "kind": "event",
                 "original": "monitoring-server - - [29/May/2017:19:02:48 +0000] \"GET /status HTTP/1.1\" 200 612 \"-\" \"Mozilla/5.0 (Windows NT 6.1; rv:15.0) Gecko/20120716 Firefox/15.0a2\" \"-\"",
-                "outcome": "success"
+                "outcome": "success",
+                "type": [
+                    "access"
+                ]
             },
             "http": {
                 "request": {
@@ -270,10 +285,13 @@
                     "web"
                 ],
                 "created": "2020-04-28T11:07:58.223Z",
-                "ingested": "2022-09-06T07:11:46.614854678Z",
+                "ingested": "2022-09-08T10:05:05.863617808Z",
                 "kind": "event",
                 "original": "127.0.0.1 - - [02/Feb/2019:05:38:45 +0100] \"-\" 408 152 \"-\" \"-\"",
-                "outcome": "failure"
+                "outcome": "failure",
+                "type": [
+                    "access"
+                ]
             },
             "http": {
                 "request": {
@@ -317,10 +335,13 @@
                     "web"
                 ],
                 "created": "2020-04-28T11:07:58.223Z",
-                "ingested": "2022-09-06T07:11:46.614855729Z",
+                "ingested": "2022-09-08T10:05:05.863619268Z",
                 "kind": "event",
                 "original": "monitoring-server - - [29/May/2017:19:02:48 +0000] \"GET /A%20Beka%20G1%20Howe/029_AND_30/15%20reading%20elephants.mp4 HTTP/1.1\" 200 612 \"-\" \"Mozilla/5.0 (Windows NT 6.1; rv:15.0) Gecko/20120716 Firefox/15.0a2\" \"-\"",
-                "outcome": "success"
+                "outcome": "success",
+                "type": [
+                    "access"
+                ]
             },
             "http": {
                 "request": {
