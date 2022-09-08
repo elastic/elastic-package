@@ -64,11 +64,11 @@ The ` + "`{data stream name}`" + ` data stream provides events from {source} of 
 
 An example event for ` + "`{data stream name}`" + ` looks as following:
 
-{{event "{data stream}"}} -->
+{code block with example} -->
 
 <!-- #### Exported fields
 
-{{fields "{data stream}"}} -->
+{insert table} -->
 
 <!-- If applicable -->
 <!-- ## Metrics reference -->
@@ -83,8 +83,8 @@ The ` + "`{data stream name}`" + ` data stream provides events from {source} of 
 
 An example event for ` + "`{data stream name}`" + ` looks as following:
 
-{{event "{data stream}"}} -->
+{code block with example} -->
 
 <!-- #### Exported fields
 
-{{fields "{data stream}"}} -->`
+{insert table} -->`
