@@ -62,14 +62,15 @@ For example if a document contains `event.category: web`, the value of
 
 ### field "event.dataset" should have value ..., it has ...
 
-The field `event.dataset` should contain the name of the package and the name of
-the data stream that generates it, separated by a dot. For example for documents
-of the "access" data stream of the Apache module, it should be `apache.access`.
+The fields `event.dataset` and `data_stream.dataset` should contain the name of
+the package and the name of the data stream that generates it, separated by a
+dot. For example for documents of the "access" data stream of the Apache module,
+it should be `apache.access`.
 
-To fix this, review what is generating the value of this field. Depending on
-your case, you may apply one of the following solutions.
+If these fields are not being correctly populated, look for the source of the
+value.
 
-Fix the value in the field definition using a `constant_keyword`:
+If it is a constant keyword, review the configured value.
 ```
 - name: event.dataset
   type: constant_keyword
@@ -77,7 +78,8 @@ Fix the value in the field definition using a `constant_keyword`:
   value: "apache.access"
 ```
 
-Explicitly set the value in the pipeline:
+If the value comes with an unexpected value from the collector, you can override
+it in the pipeline:
 ```
 - set:
     field: event.dataset
