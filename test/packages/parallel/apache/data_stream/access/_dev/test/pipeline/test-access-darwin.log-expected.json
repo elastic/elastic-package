@@ -13,10 +13,13 @@
                     "web"
                 ],
                 "created": "2020-04-28T11:07:58.223Z",
-                "ingested": "2022-09-06T07:11:46.659642334Z",
+                "ingested": "2022-09-08T10:05:05.950483828Z",
                 "kind": "event",
                 "original": "::1 - - [26/Dec/2016:16:16:28 +0200] \"GET / HTTP/1.1\" 200 45",
-                "outcome": "success"
+                "outcome": "success",
+                "type": [
+                    "access"
+                ]
             },
             "http": {
                 "request": {
@@ -58,10 +61,13 @@
                     "web"
                 ],
                 "created": "2020-04-28T11:07:58.223Z",
-                "ingested": "2022-09-06T07:11:46.659644823Z",
+                "ingested": "2022-09-08T10:05:05.950496473Z",
                 "kind": "event",
                 "original": "::1 - - [26/Dec/2016:16:16:29 +0200] \"GET /favicon.ico HTTP/1.1\" 404 209",
-                "outcome": "failure"
+                "outcome": "failure",
+                "type": [
+                    "access"
+                ]
             },
             "http": {
                 "request": {
@@ -104,10 +110,13 @@
                     "web"
                 ],
                 "created": "2020-04-28T11:07:58.223Z",
-                "ingested": "2022-09-06T07:11:46.659645835Z",
+                "ingested": "2022-09-08T10:05:05.950497950Z",
                 "kind": "event",
                 "original": "::1 - - [26/Dec/2016:16:16:48 +0200] \"-\" 408 -",
-                "outcome": "failure"
+                "outcome": "failure",
+                "type": [
+                    "access"
+                ]
             },
             "http": {
                 "response": {
@@ -138,10 +147,13 @@
                     "web"
                 ],
                 "created": "2020-04-28T11:07:58.223Z",
-                "ingested": "2022-09-06T07:11:46.659646801Z",
+                "ingested": "2022-09-08T10:05:05.950499298Z",
                 "kind": "event",
                 "original": "89.160.20.156 - - [26/Dec/2016:18:23:35 +0200] \"GET / HTTP/1.1\" 200 45",
-                "outcome": "success"
+                "outcome": "success",
+                "type": [
+                    "access"
+                ]
             },
             "http": {
                 "request": {
@@ -201,10 +213,13 @@
                     "web"
                 ],
                 "created": "2020-04-28T11:07:58.223Z",
-                "ingested": "2022-09-06T07:11:46.659647759Z",
+                "ingested": "2022-09-08T10:05:05.950500622Z",
                 "kind": "event",
                 "original": "89.160.20.156 - - [26/Dec/2016:18:23:41 +0200] \"GET /notfound HTTP/1.1\" 404 206",
-                "outcome": "failure"
+                "outcome": "failure",
+                "type": [
+                    "access"
+                ]
             },
             "http": {
                 "request": {
@@ -264,10 +279,13 @@
                     "web"
                 ],
                 "created": "2020-04-28T11:07:58.223Z",
-                "ingested": "2022-09-06T07:11:46.659648717Z",
+                "ingested": "2022-09-08T10:05:05.950501935Z",
                 "kind": "event",
                 "original": "89.160.20.156 - - [26/Dec/2016:18:23:45 +0200] \"GET /hmm HTTP/1.1\" 404 201",
-                "outcome": "failure"
+                "outcome": "failure",
+                "type": [
+                    "access"
+                ]
             },
             "http": {
                 "request": {

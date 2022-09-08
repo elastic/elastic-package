@@ -205,13 +205,44 @@ func cleanNested(parent *FieldDefinition) (base []FieldDefinition) {
 // AllowedValues is the list of allowed values for a field.
 type AllowedValues []AllowedValue
 
-// Allowed returns true if a given value is allowed.
+// IsAllowed returns true if a given value is allowed.
 func (avs AllowedValues) IsAllowed(value string) bool {
 	if len(avs) == 0 {
 		// No configured allowed values, any value is allowed.
 		return true
 	}
 	return common.StringSliceContains(avs.Values(), value)
+}
+
+// IsExpectedEventType returns true if the event type is allowed for the given value.
+// This method can be used to check single values of event type or arrays of them.
+func (avs AllowedValues) IsExpectedEventType(value string, eventType interface{}) bool {
+	expected := avs.ExpectedEventTypes(value)
+	if len(expected) == 0 {
+		// No restrictions defined, all good to go.
+		return true
+	}
+	switch eventType := eventType.(type) {
+	case string:
+		return common.StringSliceContains(expected, eventType)
+	case []interface{}:
+		if len(eventType) == 0 {
+			return false
+		}
+		for _, elem := range eventType {
+			elem, ok := elem.(string)
+			if !ok {
+				return false
+			}
+			if !common.StringSliceContains(expected, elem) {
+				return false
+			}
+		}
+		return true
+	default:
+		// It must be a string, or an array of strings.
+		return false
+	}
 }
 
 // Values returns the list of allowed values.
@@ -221,6 +252,18 @@ func (avs AllowedValues) Values() []string {
 		values = append(values, v.Name)
 	}
 	return values
+}
+
+// ExpectedEventTypes returns the list of expected event types for a given value.
+func (avs AllowedValues) ExpectedEventTypes(value string) []string {
+	for _, v := range avs {
+		if v.Name == value {
+			return v.ExpectedEventTypes
+		}
+	}
+
+	// If we are here, IsAllowed(value) is also false.
+	return nil
 }
 
 // AllowedValue is one of the allowed values for a field.

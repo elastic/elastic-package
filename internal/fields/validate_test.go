@@ -11,6 +11,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/elastic/elastic-package/internal/common"
 )
 
 type results struct {
@@ -111,6 +113,56 @@ func TestValidate_WithSpecVersion(t *testing.T) {
 	e = readSampleEvent(t, "testdata/invalid-array-normalization.json")
 	errs = validator.ValidateDocumentBody(e)
 	require.Empty(t, errs)
+}
+
+func TestValidate_ExpectedEventType(t *testing.T) {
+	validator, err := CreateValidatorForDirectory("testdata", WithSpecVersion("2.0.0"))
+	require.NoError(t, err)
+	require.NotNil(t, validator)
+
+	cases := []struct {
+		title string
+		doc   common.MapStr
+		valid bool
+	}{
+		{
+			title: "valid event type",
+			doc: common.MapStr{
+				"event.category": "authentication",
+				"event.type":     []interface{}{"info"},
+			},
+			valid: true,
+		},
+		{
+			title: "multiple valid event type",
+			doc: common.MapStr{
+				"event.category": "network",
+				"event.type":     []interface{}{"protocol", "connection", "end"},
+			},
+			valid: true,
+		},
+		{
+			title: "unexpected event type",
+			doc: common.MapStr{
+				"event.category": "authentication",
+				"event.type":     []interface{}{"access"},
+			},
+			valid: false,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.title, func(t *testing.T) {
+			errs := validator.ValidateDocumentMap(c.doc)
+			if c.valid {
+				assert.Empty(t, errs)
+			} else {
+				if assert.Len(t, errs, 1) {
+					assert.Contains(t, errs[0].Error(), "is not one of the expected values")
+				}
+			}
+		})
+	}
 }
 
 func Test_parseElementValue(t *testing.T) {
@@ -433,7 +485,7 @@ func Test_parseElementValue(t *testing.T) {
 		}
 
 		t.Run(test.key, func(t *testing.T) {
-			err := v.parseElementValue(test.key, test.definition, test.value)
+			err := v.parseElementValue(test.key, test.definition, test.value, common.MapStr{})
 			if test.fail {
 				require.Error(t, err)
 			} else {
