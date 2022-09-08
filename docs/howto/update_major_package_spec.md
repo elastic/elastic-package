@@ -1,4 +1,4 @@
-# Update between package spec major versions
+# Update between Package Spec major versions
 
 Each Package Spec major version may bring breaking changes or additional
 validations that may make tests to fail for some packages. Find here guidelines
