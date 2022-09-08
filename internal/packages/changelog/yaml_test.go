@@ -6,7 +6,6 @@ package changelog
 
 import (
 	"errors"
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -75,15 +74,15 @@ func TestPatchYAML(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.title, func(t *testing.T) {
-			d, err := ioutil.ReadFile(c.original)
+			d, err := os.ReadFile(c.original)
 			require.NoError(t, err)
 
 			result, err := PatchYAML(d, c.patch)
 			require.NoError(t, err)
 
-			expected, err := ioutil.ReadFile(c.expected)
+			expected, err := os.ReadFile(c.expected)
 			if errors.Is(err, os.ErrNotExist) {
-				err := ioutil.WriteFile(c.expected, result, 0644)
+				err := os.WriteFile(c.expected, result, 0644)
 				require.NoError(t, err)
 				t.Skip("file generated, run again")
 			}
