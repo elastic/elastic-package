@@ -38,6 +38,9 @@ type Validator struct {
 	// SpecVersion contains the version of the spec used by the package.
 	specVersion semver.Version
 
+	// expectedDataset contains the value expected for dataset fields.
+	expectedDataset string
+
 	defaultNumericConversion bool
 	numericKeywordFields     map[string]struct{}
 
@@ -94,6 +97,14 @@ func WithDisabledDependencyManagement() ValidatorOption {
 func WithEnabledAllowedIPCheck() ValidatorOption {
 	return func(v *Validator) error {
 		v.enabledAllowedIPCheck = true
+		return nil
+	}
+}
+
+// WithExpectedDataset configures the validator to check if the dataset fields have the expected values.
+func WithExpectedDataset(dataset string) ValidatorOption {
+	return func(v *Validator) error {
+		v.expectedDataset = dataset
 		return nil
 	}
 }
@@ -202,9 +213,34 @@ func (v *Validator) ValidateDocumentBody(body json.RawMessage) multierror.Error 
 
 // ValidateDocumentMap validates the provided document as common.MapStr.
 func (v *Validator) ValidateDocumentMap(body common.MapStr) multierror.Error {
-	errs := v.validateMapElement("", body, body)
+	errs := v.validateDocumentValues(body)
+	errs = append(errs, v.validateMapElement("", body, body)...)
 	if len(errs) == 0 {
 		return nil
+	}
+	return errs
+}
+
+var datasetFieldNames = []string{
+	"event.dataset",
+	"data_stream.dataset",
+}
+
+func (v *Validator) validateDocumentValues(body common.MapStr) multierror.Error {
+	var errs multierror.Error
+	if !v.specVersion.LessThan(semver2_0_0) && v.expectedDataset != "" {
+		for _, datasetField := range datasetFieldNames {
+			value, err := body.GetValue(datasetField)
+			if err == common.ErrKeyNotFound {
+				continue
+			}
+			str, ok := value.(string)
+			if !ok || str != v.expectedDataset {
+				err := errors.Errorf("field %q should have value %q, it has \"%v\"",
+					datasetField, v.expectedDataset, value)
+				errs = append(errs, err)
+			}
+		}
 	}
 	return errs
 }

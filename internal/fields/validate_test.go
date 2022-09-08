@@ -165,6 +165,61 @@ func TestValidate_ExpectedEventType(t *testing.T) {
 	}
 }
 
+func TestValidate_ExpectedDataset(t *testing.T) {
+	validator, err := CreateValidatorForDirectory("testdata",
+		WithSpecVersion("2.0.0"),
+		WithExpectedDataset("apache.status"),
+	)
+	require.NoError(t, err)
+	require.NotNil(t, validator)
+
+	cases := []struct {
+		title string
+		doc   common.MapStr
+		valid bool
+	}{
+		{
+			title: "valid dataset",
+			doc: common.MapStr{
+				"event.dataset": "apache.status",
+			},
+			valid: true,
+		},
+		{
+			title: "empty dataset",
+			doc: common.MapStr{
+				"event.dataset": "",
+			},
+			valid: false,
+		},
+		{
+			title: "absent dataset",
+			doc:   common.MapStr{},
+			valid: true,
+		},
+		{
+			title: "wrong dataset",
+			doc: common.MapStr{
+				"event.dataset": "httpd.status",
+			},
+			valid: false,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.title, func(t *testing.T) {
+			errs := validator.ValidateDocumentMap(c.doc)
+			if c.valid {
+				assert.Empty(t, errs)
+			} else {
+				if assert.Len(t, errs, 1) {
+					assert.Contains(t, errs[0].Error(), `field "event.dataset" should have value`)
+				}
+			}
+		})
+	}
+}
+
 func Test_parseElementValue(t *testing.T) {
 	for _, test := range []struct {
 		key        string
