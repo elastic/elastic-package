@@ -13,8 +13,10 @@ cleanup() {
     kubectl describe pods --all-namespaces > build/kubectl-dump.txt
     kubectl logs -l app=elastic-agent -n kube-system >> build/kubectl-dump.txt
 
-    # Take down the kind cluster
-    kind delete cluster
+    # Take down the kind cluster.
+    # Sometimes kind has troubles with deleting the cluster, but it isn't an issue with elastic-package.
+    # As it causes flaky issues on the CI side, let's ignore it.
+    kind delete cluster || true
   fi
 
   # Take down the stack
