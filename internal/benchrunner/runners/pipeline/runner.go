@@ -22,6 +22,9 @@ import (
 const (
 	// BenchType defining pipeline benchmarks.
 	BenchType benchrunner.BenchType = "pipeline"
+
+	expectedTestResultSuffix = "-expected.json"
+	configTestSuffixYAML     = "-config.yml"
 )
 
 type runner struct {
@@ -90,11 +93,6 @@ func (r *runner) run() (*benchrunner.Result, error) {
 }
 
 func (r *runner) listBenchmarkFiles() ([]string, error) {
-	const (
-		expectedTestResultSuffix = "-expected.json"
-		configTestSuffixYAML     = "-config.yml"
-	)
-
 	fis, err := os.ReadDir(r.options.Folder.Path)
 	if err != nil {
 		return nil, errors.Wrapf(err, "reading pipeline benchmarks failed (path: %s)", r.options.Folder.Path)

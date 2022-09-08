@@ -16,11 +16,6 @@ import (
 	"github.com/elastic/elastic-package/internal/elasticsearch/ingest"
 )
 
-const (
-	// How many top processors to return.
-	numTopProcs = 10
-)
-
 func (r *runner) benchmarkPipeline(b *benchmark, entryPipeline string) (*benchrunner.BenchmarkResult, error) {
 	// Run benchmark
 	bench, err := r.benchmarkIngest(b, entryPipeline)
@@ -70,7 +65,7 @@ func (r *runner) benchmarkPipeline(b *benchmark, entryPipeline string) (*benchru
 		aggregate(processorKey, byAbsoluteTime).
 		filter(nonZero).
 		sort(descending).
-		top(numTopProcs).
+		top(r.options.NumTopProcs).
 		collect(asPercentageOfTotalTime)
 	if err != nil {
 		return nil, err
@@ -80,7 +75,7 @@ func (r *runner) benchmarkPipeline(b *benchmark, entryPipeline string) (*benchru
 		aggregate(processorKey, byRelativeTime).
 		filter(nonZero).
 		sort(descending).
-		top(numTopProcs).
+		top(r.options.NumTopProcs).
 		collect(asDuration)
 	if err != nil {
 		return nil, err
@@ -127,13 +122,13 @@ func (r *runner) benchmarkPipeline(b *benchmark, entryPipeline string) (*benchru
 			{
 				Name:        "processors by total time",
 				Detailed:    true,
-				Description: fmt.Sprintf("top %d processors by time spent", numTopProcs),
+				Description: fmt.Sprintf("top %d processors by time spent", r.options.NumTopProcs),
 				Results:     topAbsProc,
 			},
 			{
 				Name:        "processors by average time per doc",
 				Detailed:    true,
-				Description: fmt.Sprintf("top %d processors by average time per document", numTopProcs),
+				Description: fmt.Sprintf("top %d processors by average time per document", r.options.NumTopProcs),
 				Results:     topRelProcs,
 			},
 		},

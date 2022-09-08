@@ -59,8 +59,8 @@ type BenchmarkValue struct {
 	Value interface{} `xml:"value,omitempty"`
 }
 
-// PrettyValue returns a BenchmarkValue's value nicely-formatted.
-func (p BenchmarkValue) PrettyValue() (r string) {
+// String returns a BenchmarkValue's value nicely-formatted.
+func (p BenchmarkValue) String() (r string) {
 	if str, ok := p.Value.(fmt.Stringer); ok {
 		return str.String()
 	}

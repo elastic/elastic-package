@@ -26,9 +26,10 @@ import (
 const benchLongDescription = `Use this command to run benchmarks on a package. Currently, the following types of benchmarks are available:
 
 #### Pipeline Benchmarks
+
 These benchmarks allow you to benchmark any Ingest Node Pipelines defined by your packages.
 
-For details on how to configure pipeline benchmarks for a package, review the [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/pipeline_benchmarking.md).`
+For details on how to configure pipeline benchmarks for a package, review the [HOWTO guide](./docs/howto/pipeline_benchmarking.md).`
 
 func setupBenchmarkCommand() *cobraext.Command {
 	var benchTypeCmdActions []cobraext.CommandAction
@@ -51,6 +52,8 @@ func setupBenchmarkCommand() *cobraext.Command {
 	cmd.PersistentFlags().StringP(cobraext.ReportFormatFlagName, "", string(formats.ReportFormatHuman), cobraext.ReportFormatFlagDescription)
 	cmd.PersistentFlags().StringP(cobraext.ReportOutputFlagName, "", string(outputs.ReportOutputSTDOUT), cobraext.ReportOutputFlagDescription)
 	cmd.PersistentFlags().BoolP(cobraext.BenchWithTestSamplesFlagName, "", true, cobraext.BenchWithTestSamplesFlagDescription)
+	cmd.PersistentFlags().IntP(cobraext.BenchNumTopProcsFlagName, "", 10, cobraext.BenchNumTopProcsFlagDescription)
+	cmd.PersistentFlags().StringSliceP(cobraext.DataStreamsFlagName, "", nil, cobraext.DataStreamsFlagDescription)
 
 	for benchType, runner := range benchrunner.BenchRunners() {
 		action := benchTypeCommandActionFactory(runner)
@@ -96,6 +99,11 @@ func benchTypeCommandActionFactory(runner benchrunner.BenchRunner) cobraext.Comm
 			return cobraext.FlagParsingError(err, cobraext.BenchWithTestSamplesFlagName)
 		}
 
+		numTopProcs, err := cmd.Flags().GetInt(cobraext.BenchNumTopProcsFlagName)
+		if err != nil {
+			return cobraext.FlagParsingError(err, cobraext.BenchNumTopProcsFlagName)
+		}
+
 		packageRootPath, found, err := packages.FindPackageRoot()
 		if !found {
 			return errors.New("package root not found")
@@ -104,29 +112,22 @@ func benchTypeCommandActionFactory(runner benchrunner.BenchRunner) cobraext.Comm
 			return errors.Wrap(err, "locating package root failed")
 		}
 
-		signal.Enable()
+		dataStreams, err := cmd.Flags().GetStringSlice(cobraext.DataStreamsFlagName)
+		if err != nil {
+			return cobraext.FlagParsingError(err, cobraext.DataStreamsFlagName)
+		}
 
-		var (
-			benchFolders []testrunner.TestFolder
-			dataStreams  []string
-		)
-		// We check for the existence of the data streams flag before trying to
-		// parse it because if the root benchmark command is run instead of one of the
-		// subcommands of benchmark, the data streams flag will not be defined.
-		if cmd.Flags().Lookup(cobraext.DataStreamsFlagName) != nil {
-			dataStreams, err = cmd.Flags().GetStringSlice(cobraext.DataStreamsFlagName)
+		if len(dataStreams) > 0 {
 			common.TrimStringSlice(dataStreams)
-			if err != nil {
-				return cobraext.FlagParsingError(err, cobraext.DataStreamsFlagName)
-			}
 
-			err = validateDataStreamsFlag(packageRootPath, dataStreams)
-			if err != nil {
+			if err := validateDataStreamsFlag(packageRootPath, dataStreams); err != nil {
 				return cobraext.FlagParsingError(err, cobraext.DataStreamsFlagName)
 			}
 		}
 
-		benchFolders, err = benchrunner.FindBenchmarkFolders(packageRootPath, dataStreams, benchType)
+		signal.Enable()
+
+		benchFolders, err := benchrunner.FindBenchmarkFolders(packageRootPath, dataStreams, benchType)
 		if err != nil {
 			return errors.Wrap(err, "unable to determine benchmark folder paths")
 		}
@@ -157,6 +158,7 @@ func benchTypeCommandActionFactory(runner benchrunner.BenchRunner) cobraext.Comm
 				Folder:          folder,
 				PackageRootPath: packageRootPath,
 				API:             esClient.API,
+				NumTopProcs:     numTopProcs,
 			})
 
 			if err != nil {

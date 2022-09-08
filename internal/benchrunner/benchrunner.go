@@ -25,6 +25,7 @@ type BenchOptions struct {
 	Folder          testrunner.TestFolder
 	PackageRootPath string
 	API             *elasticsearch.API
+	NumTopProcs     int
 }
 
 // BenchRunner is the interface all benchmark runners must implement.

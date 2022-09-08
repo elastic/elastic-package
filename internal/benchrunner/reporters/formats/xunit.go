@@ -29,11 +29,11 @@ func reportXUnitFormat(results []*benchrunner.Result) ([]string, error) {
 		}
 	}
 
-	benchFmtd, err := reportXUnitFormatBenchmark(benchmarks)
+	benchFormatted, err := reportXUnitFormatBenchmark(benchmarks)
 	if err != nil {
 		return nil, err
 	}
-	return benchFmtd, nil
+	return benchFormatted, nil
 }
 
 func reportXUnitFormatBenchmark(benchmarks []*benchrunner.BenchmarkResult) ([]string, error) {

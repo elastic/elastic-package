@@ -34,11 +34,11 @@ func reportHumanFormat(results []*benchrunner.Result) ([]string, error) {
 		}
 	}
 
-	benchFmtd, err := reportHumanFormatBenchmark(benchmarks)
+	benchFormatted, err := reportHumanFormatBenchmark(benchmarks)
 	if err != nil {
 		return nil, err
 	}
-	return benchFmtd, nil
+	return benchFormatted, nil
 }
 
 func reportHumanFormatBenchmark(benchmarks []benchrunner.BenchmarkResult) ([]string, error) {
@@ -67,7 +67,7 @@ func renderBenchmarkTable(title string, values []benchrunner.BenchmarkValue) str
 		},
 	})
 	for _, r := range values {
-		t.AppendRow(table.Row{r.Name, r.PrettyValue()})
+		t.AppendRow(table.Row{r.Name, r.String()})
 	}
 	return t.Render()
 }
