@@ -221,16 +221,25 @@ func (v *Validator) ValidateDocumentMap(body common.MapStr) multierror.Error {
 	return errs
 }
 
+var datasetFieldNames = []string{
+	"event.dataset",
+	"data_stream.dataset",
+}
+
 func (v *Validator) validateDocumentValues(body common.MapStr) multierror.Error {
 	var errs multierror.Error
 	if !v.specVersion.LessThan(semver2_0_0) && v.expectedDataset != "" {
-		const datasetField = "event.dataset"
-		value, _ := body.GetValue(datasetField)
-		str, ok := value.(string)
-		if !ok || str != v.expectedDataset {
-			err := errors.Errorf("field %q should have value %q, it has \"%v\"",
-				datasetField, v.expectedDataset, value)
-			errs = append(errs, err)
+		for _, datasetField := range datasetFieldNames {
+			value, err := body.GetValue(datasetField)
+			if err == common.ErrKeyNotFound {
+				continue
+			}
+			str, ok := value.(string)
+			if !ok || str != v.expectedDataset {
+				err := errors.Errorf("field %q should have value %q, it has \"%v\"",
+					datasetField, v.expectedDataset, value)
+				errs = append(errs, err)
+			}
 		}
 	}
 	return errs

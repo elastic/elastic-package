@@ -139,12 +139,14 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		}
 
 		tr.TimeElapsed = time.Since(startTime)
+		expectedDataset := pkgManifest.Name + "." + r.options.TestFolder.DataStream
 		fieldsValidator, err := fields.CreateValidatorForDirectory(dataStreamPath,
 			fields.WithSpecVersion(pkgManifest.SpecVersion),
 			fields.WithNumericKeywordFields(tc.config.NumericKeywordFields),
 			// explicitly enabled for pipeline tests only
 			// since system tests can have dynamic public IPs
 			fields.WithEnabledAllowedIPCheck(),
+			fields.WithExpectedDataset(expectedDataset),
 		)
 		if err != nil {
 			return nil, errors.Wrapf(err, "creating fields validator for data stream failed (path: %s, test case file: %s)", dataStreamPath, testCaseFile)

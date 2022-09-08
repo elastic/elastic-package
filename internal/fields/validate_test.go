@@ -195,7 +195,7 @@ func TestValidate_ExpectedDataset(t *testing.T) {
 		{
 			title: "absent dataset",
 			doc:   common.MapStr{},
-			valid: false,
+			valid: true,
 		},
 		{
 			title: "wrong dataset",
