@@ -95,9 +95,10 @@ _Context: package_
 Use this command to run benchmarks on a package. Currently, the following types of benchmarks are available:
 
 #### Pipeline Benchmarks
+
 These benchmarks allow you to benchmark any Ingest Node Pipelines defined by your packages.
 
-For details on how to configure pipeline benchmarks for a package, review the [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/pipeline_benchmarking.md).
+For details on how to configure pipeline benchmarks for a package, review the [HOWTO guide](./docs/howto/pipeline_benchmarking.md).
 
 ### `elastic-package build`
 
