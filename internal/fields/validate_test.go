@@ -129,7 +129,15 @@ func TestValidate_ExpectedEventType(t *testing.T) {
 			title: "valid event type",
 			doc: common.MapStr{
 				"event.category": "authentication",
-				"event.type":     "info",
+				"event.type":     []interface{}{"info"},
+			},
+			valid: true,
+		},
+		{
+			title: "multiple valid event type",
+			doc: common.MapStr{
+				"event.category": "network",
+				"event.type":     []interface{}{"protocol", "connection", "end"},
 			},
 			valid: true,
 		},
@@ -137,7 +145,7 @@ func TestValidate_ExpectedEventType(t *testing.T) {
 			title: "unexpected event type",
 			doc: common.MapStr{
 				"event.category": "authentication",
-				"event.type":     "access",
+				"event.type":     []interface{}{"access"},
 			},
 			valid: false,
 		},

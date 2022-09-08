@@ -215,18 +215,34 @@ func (avs AllowedValues) IsAllowed(value string) bool {
 }
 
 // IsExpectedEventType returns true if the event type is allowed for the given value.
+// This method can be used to check single values of event type or arrays of them.
 func (avs AllowedValues) IsExpectedEventType(value string, eventType interface{}) bool {
 	expected := avs.ExpectedEventTypes(value)
 	if len(expected) == 0 {
 		// No restrictions defined, all good to go.
 		return true
 	}
-	eventTypeStr, ok := eventType.(string)
-	if !ok {
-		// It must be a string.
+	switch eventType := eventType.(type) {
+	case string:
+		return common.StringSliceContains(expected, eventType)
+	case []interface{}:
+		if len(eventType) == 0 {
+			return false
+		}
+		for _, elem := range eventType {
+			elem, ok := elem.(string)
+			if !ok {
+				return false
+			}
+			if !common.StringSliceContains(expected, elem) {
+				return false
+			}
+		}
+		return true
+	default:
+		// It must be a string, or an array of strings.
 		return false
 	}
-	return common.StringSliceContains(expected, eventTypeStr)
 }
 
 // Values returns the list of allowed values.
