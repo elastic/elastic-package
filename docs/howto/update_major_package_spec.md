@@ -66,8 +66,8 @@ The field `event.dataset` should contain the name of the package and the name of
 the data stream that generates it, separated by a dot. For example for documents
 of the "access" data stream of the Apache module, it should be `apache.access`.
 
-To fix this, review what is generating the value of this field. Some ways to fix
-it are the following.
+To fix this, review what is generating the value of this field. Depending on
+your case, you may apply one of the following solutions.
 
 Fix the value in the field definition using a `constant_keyword`:
 ```
