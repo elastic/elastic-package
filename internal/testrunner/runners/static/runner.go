@@ -95,9 +95,12 @@ func (r runner) verifySampleEvent(pkgManifest *packages.PackageManifest) []testr
 		return results
 	}
 
+	expectedDataset := pkgManifest.Name + "." + r.options.TestFolder.DataStream
 	fieldsValidator, err := fields.CreateValidatorForDirectory(dataStreamPath,
 		fields.WithSpecVersion(pkgManifest.SpecVersion),
-		fields.WithDefaultNumericConversion())
+		fields.WithDefaultNumericConversion(),
+		fields.WithExpectedDataset(expectedDataset),
+	)
 	if err != nil {
 		results, _ := resultComposer.WithError(errors.Wrap(err, "creating fields validator for data stream failed"))
 		return results

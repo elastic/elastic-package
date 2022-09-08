@@ -59,3 +59,30 @@ some of the expected values.
 
 For example if a document contains `event.category: web`, the value of
 `event.type` must be `access`, `error` or `info` according to ECS 8.4.
+
+### field "event.dataset" should have value ..., it has ...
+
+The field `event.dataset` should contain the name of the package and the name of
+the data stream that generates it, separated by a dot. For example for documents
+of the "access" data stream of the Apache module, it should be `apache.access`.
+
+To fix this, review what is generating the value of this field. Some ways to fix
+it are the following.
+
+Fix the value in the field definition using a `constant_keyword`:
+```
+- name: event.dataset
+  type: constant_keyword
+  external: ecs
+  value: "apache.access"
+```
+
+Explicitly set the value in the pipeline:
+```
+- set:
+    field: event.dataset
+    value: "apache.access"
+```
+
+Changing the value of `event.dataset` can be considered a breaking change, take
+this into account in your package when adding the changelog entry.
