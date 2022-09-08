@@ -64,16 +64,16 @@ processors:
       value: event
   - set:
       field: event.category
-      value: web
+      value: ["web"]
   - script:
       if: "ctx?.log?.level != null"
       lang: painless
       source: >-
         def err_levels = ["emerg", "alert", "crit", "error", "warn"];
         if (err_levels.contains(ctx.log.level)) {
-          ctx.event.type = "error";
+          ctx.event.type = ["error"];
         } else {
-          ctx.event.type = "info";
+          ctx.event.type = ["info"];
         }
 
   - grok:

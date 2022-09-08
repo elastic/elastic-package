@@ -33,6 +33,8 @@ cleanup() {
 
 trap cleanup EXIT
 
+export ELASTIC_PACKAGE_LINKS_FILE_PATH="$(pwd)/scripts/links_table.yml"
+
 OLDPWD=$PWD
 # Build/check packages
 for d in test/packages/${PACKAGE_TEST_TYPE:-other}/${PACKAGE_UNDER_TEST:-*}/; do
