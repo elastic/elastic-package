@@ -7,7 +7,7 @@ about how to fix these issues.
 Version of the Package Spec used by a package is defined by the `format_version`
 setting in the `manifest.yml` file.
 
-## Upgrading from Package Spec v1 to v2
+## Troubleshooting upgrades from Package Spec v1 to v2
 
 ### field (root): Additional property license is not allowed
 
