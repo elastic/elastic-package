@@ -26,6 +26,8 @@ import (
 	"github.com/elastic/elastic-package/internal/packages/buildmanifest"
 )
 
+var semver2_0_0 = semver.MustParse("2.0.0")
+
 // Validator is responsible for fields validation.
 type Validator struct {
 	// Schema contains definition records.
@@ -380,7 +382,7 @@ func compareKeys(key string, def FieldDefinition, searchedKey string) bool {
 
 func (v *Validator) validateExpectedNormalization(definition FieldDefinition, val interface{}) error {
 	// Validate expected normalization starting with packages following spec v2 format.
-	if v.specVersion.LessThan(semver.MustParse("2.0.0")) {
+	if v.specVersion.LessThan(semver2_0_0) {
 		return nil
 	}
 	for _, normalize := range definition.Normalize {
@@ -457,7 +459,7 @@ func (v *Validator) parseSingleElementValue(key string, definition FieldDefiniti
 		if err := ensureAllowedValues(key, valStr, definition); err != nil {
 			return err
 		}
-		if !v.specVersion.LessThan(semver.MustParse("2.0.0")) {
+		if !v.specVersion.LessThan(semver2_0_0) {
 			if err := ensureExpectedEventType(key, valStr, definition, doc); err != nil {
 				return err
 			}
@@ -476,7 +478,7 @@ func (v *Validator) parseSingleElementValue(key string, definition FieldDefiniti
 		if err := ensureAllowedValues(key, valStr, definition); err != nil {
 			return err
 		}
-		if !v.specVersion.LessThan(semver.MustParse("2.0.0")) {
+		if !v.specVersion.LessThan(semver2_0_0) {
 			if err := ensureExpectedEventType(key, valStr, definition, doc); err != nil {
 				return err
 			}
