@@ -1,6 +1,6 @@
 module github.com/elastic/elastic-package
 
-go 1.17
+go 1.19
 
 require (
 	github.com/AlecAivazis/survey/v2 v2.3.5
@@ -12,7 +12,7 @@ require (
 	github.com/elastic/go-elasticsearch/v7 v7.17.1
 	github.com/elastic/go-licenser v0.4.1
 	github.com/elastic/go-ucfg v0.8.6
-	github.com/elastic/package-spec v1.17.0
+	github.com/elastic/package-spec v1.18.0
 	github.com/fatih/color v1.13.0
 	github.com/go-git/go-billy/v5 v5.3.1
 	github.com/go-git/go-git/v5 v5.4.2
