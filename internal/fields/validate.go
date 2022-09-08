@@ -26,6 +26,8 @@ import (
 	"github.com/elastic/elastic-package/internal/packages/buildmanifest"
 )
 
+var semver2_0_0 = semver.MustParse("2.0.0")
+
 // Validator is responsible for fields validation.
 type Validator struct {
 	// Schema contains definition records.
@@ -195,23 +197,19 @@ func (v *Validator) ValidateDocumentBody(body json.RawMessage) multierror.Error 
 		return errs
 	}
 
-	errs := v.validateMapElement("", c)
-	if len(errs) == 0 {
-		return nil
-	}
-	return errs
+	return v.ValidateDocumentMap(c)
 }
 
 // ValidateDocumentMap validates the provided document as common.MapStr.
 func (v *Validator) ValidateDocumentMap(body common.MapStr) multierror.Error {
-	errs := v.validateMapElement("", body)
+	errs := v.validateMapElement("", body, body)
 	if len(errs) == 0 {
 		return nil
 	}
 	return errs
 }
 
-func (v *Validator) validateMapElement(root string, elem common.MapStr) multierror.Error {
+func (v *Validator) validateMapElement(root string, elem common.MapStr, doc common.MapStr) multierror.Error {
 	var errs multierror.Error
 	for name, val := range elem {
 		key := strings.TrimLeft(root+"."+name, ".")
@@ -219,7 +217,7 @@ func (v *Validator) validateMapElement(root string, elem common.MapStr) multierr
 		switch val := val.(type) {
 		case []map[string]interface{}:
 			for _, m := range val {
-				err := v.validateMapElement(key, m)
+				err := v.validateMapElement(key, m, doc)
 				if err != nil {
 					errs = append(errs, err...)
 				}
@@ -230,12 +228,12 @@ func (v *Validator) validateMapElement(root string, elem common.MapStr) multierr
 				// because the entire object is mapped as a single field.
 				continue
 			}
-			err := v.validateMapElement(key, val)
+			err := v.validateMapElement(key, val, doc)
 			if err != nil {
 				errs = append(errs, err...)
 			}
 		default:
-			err := v.validateScalarElement(key, val)
+			err := v.validateScalarElement(key, val, doc)
 			if err != nil {
 				errs = append(errs, err)
 			}
@@ -244,7 +242,7 @@ func (v *Validator) validateMapElement(root string, elem common.MapStr) multierr
 	return errs
 }
 
-func (v *Validator) validateScalarElement(key string, val interface{}) error {
+func (v *Validator) validateScalarElement(key string, val interface{}, doc common.MapStr) error {
 	if key == "" {
 		return nil // root key is always valid
 	}
@@ -276,7 +274,7 @@ func (v *Validator) validateScalarElement(key string, val interface{}) error {
 		return errors.Wrapf(err, "field %q is not normalized as expected", key)
 	}
 
-	err = v.parseElementValue(key, *definition, val)
+	err = v.parseElementValue(key, *definition, val, doc)
 	if err != nil {
 		return errors.Wrap(err, "parsing field value failed")
 	}
@@ -384,7 +382,7 @@ func compareKeys(key string, def FieldDefinition, searchedKey string) bool {
 
 func (v *Validator) validateExpectedNormalization(definition FieldDefinition, val interface{}) error {
 	// Validate expected normalization starting with packages following spec v2 format.
-	if v.specVersion.LessThan(semver.MustParse("2.0.0")) {
+	if v.specVersion.LessThan(semver2_0_0) {
 		return nil
 	}
 	for _, normalize := range definition.Normalize {
@@ -433,11 +431,11 @@ func validSubField(def FieldDefinition, extraPart string) bool {
 
 // parseElementValue checks that the value stored in a field matches the field definition. For
 // arrays it checks it for each Element.
-func (v *Validator) parseElementValue(key string, definition FieldDefinition, val interface{}) error {
-	return forEachElementValue(key, definition, val, v.parseSingleElementValue)
+func (v *Validator) parseElementValue(key string, definition FieldDefinition, val interface{}, doc common.MapStr) error {
+	return forEachElementValue(key, definition, val, doc, v.parseSingleElementValue)
 }
 
-func (v *Validator) parseSingleElementValue(key string, definition FieldDefinition, val interface{}) error {
+func (v *Validator) parseSingleElementValue(key string, definition FieldDefinition, val interface{}, doc common.MapStr) error {
 	invalidTypeError := func() error {
 		return fmt.Errorf("field %q's Go type, %T, does not match the expected field type: %s (field value: %v)", key, val, definition.Type, val)
 	}
@@ -461,6 +459,11 @@ func (v *Validator) parseSingleElementValue(key string, definition FieldDefiniti
 		if err := ensureAllowedValues(key, valStr, definition); err != nil {
 			return err
 		}
+		if !v.specVersion.LessThan(semver2_0_0) {
+			if err := ensureExpectedEventType(key, valStr, definition, doc); err != nil {
+				return err
+			}
+		}
 	// Normal text fields should be of type string.
 	// If a pattern is provided, it checks if the value matches.
 	case "keyword", "text":
@@ -474,6 +477,11 @@ func (v *Validator) parseSingleElementValue(key string, definition FieldDefiniti
 		}
 		if err := ensureAllowedValues(key, valStr, definition); err != nil {
 			return err
+		}
+		if !v.specVersion.LessThan(semver2_0_0) {
+			if err := ensureExpectedEventType(key, valStr, definition, doc); err != nil {
+				return err
+			}
 		}
 	// Dates are expected to be formatted as strings or as seconds or milliseconds
 	// since epoch.
@@ -563,13 +571,13 @@ func (v *Validator) isAllowedIPValue(s string) bool {
 
 // forEachElementValue visits a function for each element in the given value if
 // it is an array. If it is not an array, it calls the function with it.
-func forEachElementValue(key string, definition FieldDefinition, val interface{}, fn func(string, FieldDefinition, interface{}) error) error {
+func forEachElementValue(key string, definition FieldDefinition, val interface{}, doc common.MapStr, fn func(string, FieldDefinition, interface{}, common.MapStr) error) error {
 	arr, isArray := val.([]interface{})
 	if !isArray {
-		return fn(key, definition, val)
+		return fn(key, definition, val, doc)
 	}
 	for _, element := range arr {
-		err := fn(key, definition, element)
+		err := fn(key, definition, element, doc)
 		if err != nil {
 			return err
 		}
@@ -613,6 +621,17 @@ func ensureAllowedValues(key, value string, definition FieldDefinition) error {
 	}
 	if e := definition.ExpectedValues; len(e) > 0 && !common.StringSliceContains(e, value) {
 		return fmt.Errorf("field %q's value %q is not one of the expected values (%s)", key, value, strings.Join(e, ", "))
+	}
+	return nil
+}
+
+// ensureExpectedEventType validates that the document's `event.type` field is one of the expected
+// one for the given value.
+func ensureExpectedEventType(key, value string, definition FieldDefinition, doc common.MapStr) error {
+	eventType, _ := doc.GetValue("event.type")
+	if !definition.AllowedValues.IsExpectedEventType(value, eventType) {
+		expected := definition.AllowedValues.ExpectedEventTypes(value)
+		return fmt.Errorf("field \"event.type\" value \"%v\" (%T) is not one of the expected values (%s) for %s=%q", eventType, eventType, strings.Join(expected, ", "), key, value)
 	}
 	return nil
 }

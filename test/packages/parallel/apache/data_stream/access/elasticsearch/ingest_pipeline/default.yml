@@ -48,6 +48,9 @@ processors:
       field: event.category
       value: ["web"]
   - set:
+      field: event.type
+      value: ["access"]
+  - set:
       field: event.outcome
       value: success
       if: "ctx?.http?.response?.status_code != null && ctx.http.response.status_code < 400"
