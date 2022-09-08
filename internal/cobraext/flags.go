@@ -26,6 +26,12 @@ const (
 	AgentPolicyFlagName    = "agent-policy"
 	AgentPolicyDescription = "name of the agent policy"
 
+	BenchNumTopProcsFlagName        = "num-top-procs"
+	BenchNumTopProcsFlagDescription = "number of top processors to show in the benchmarks results"
+
+	BenchWithTestSamplesFlagName        = "use-test-samples"
+	BenchWithTestSamplesFlagDescription = "use test samples for the benchmarks"
+
 	BuildSkipValidationFlagName        = "skip-validation"
 	BuildSkipValidationFlagDescription = "skip validation of the built package, use only if all validation issues have been acknowledged"
 

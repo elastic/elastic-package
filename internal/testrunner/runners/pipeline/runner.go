@@ -62,8 +62,7 @@ func (r *runner) TearDown() error {
 		signal.Sleep(r.options.DeferCleanup)
 	}
 
-	err := uninstallIngestPipelines(r.options.API, r.pipelines)
-	if err != nil {
+	if err := ingest.UninstallPipelines(r.options.API, r.pipelines); err != nil {
 		return errors.Wrap(err, "uninstalling ingest pipelines failed")
 	}
 	return nil
@@ -90,7 +89,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 	}
 
 	var entryPipeline string
-	entryPipeline, r.pipelines, err = installIngestPipelines(r.options.API, dataStreamPath)
+	entryPipeline, r.pipelines, err = ingest.InstallDataStreamPipelines(r.options.API, dataStreamPath)
 	if err != nil {
 		return nil, errors.Wrap(err, "installing ingest pipelines failed")
 	}
@@ -130,13 +129,15 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 			continue
 		}
 
-		result, err := simulatePipelineProcessing(r.options.API, entryPipeline, tc)
+		processedEvents, err := ingest.SimulatePipeline(r.options.API, entryPipeline, tc.events)
 		if err != nil {
 			err := errors.Wrap(err, "simulating pipeline processing failed")
 			tr.ErrorMsg = err.Error()
 			results = append(results, tr)
 			continue
 		}
+
+		result := &testResult{events: processedEvents}
 
 		tr.TimeElapsed = time.Since(startTime)
 		fieldsValidator, err := fields.CreateValidatorForDirectory(dataStreamPath,
@@ -175,6 +176,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		}
 		results = append(results, tr)
 	}
+
 	return results, nil
 }
 

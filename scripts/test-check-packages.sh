@@ -66,8 +66,12 @@ for d in test/packages/${PACKAGE_TEST_TYPE:-other}/${PACKAGE_UNDER_TEST:-*}/; do
     cd $d
     elastic-package install -v
 
-    # defer-cleanup is set to a short period to verify that the option is available
-    elastic-package test -v --report-format xUnit --report-output file --defer-cleanup 1s --test-coverage
+    if [ "${PACKAGE_TEST_TYPE:-other}" == "benchmarks" ]; then
+      elastic-package benchmark -v --report-format xUnit --report-output file --fail-on-missing
+    else
+      # defer-cleanup is set to a short period to verify that the option is available
+      elastic-package test -v --report-format xUnit --report-output file --defer-cleanup 1s --test-coverage
+    fi
   )
 cd -
 done
