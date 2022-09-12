@@ -98,7 +98,7 @@ depend more on the version of the Elastic Agent than on the integration itself.
 The list of fields allowed to don't have a definition has been reduced for
 packages following the Package Spec v2.
 
-The fields that must be defined now are the ones starting belonging to the
+The fields that must be defined now are the ones belonging to the
 following groups:
 * `cloud`
 * `event`
