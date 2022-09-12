@@ -284,7 +284,7 @@ func (v *Validator) validateScalarElement(key string, val interface{}, doc commo
 	}
 
 	definition := FindElementDefinition(key, v.Schema)
-	if definition == nil && skipValidationForField(key) {
+	if definition == nil && skipValidationForField(v.specVersion, key) {
 		return nil // generic field, let's skip validation for now
 	}
 	if definition == nil {
@@ -325,7 +325,16 @@ func isNumericKeyword(definition FieldDefinition, val interface{}) bool {
 // skipValidationForField skips field validation (field presence) of special fields. The special fields are present
 // in every (most?) documents collected by Elastic Agent, but aren't defined in any integration in `fields.yml` files.
 // FIXME https://github.com/elastic/elastic-package/issues/147
-func skipValidationForField(key string) bool {
+func skipValidationForField(specVersion semver.Version, key string) bool {
+	if specVersion.LessThan(semver2_0_0) {
+		// In package spec 2.0.0, reduce skipped fields to the ones set
+		// by agent or metricbeat. Agents without custom processing shouldn't
+		// fill the rest of fields. So if the other fields are set, they are
+		// probably relevant to the integration and should be explicitly defined.
+		return isFieldFamilyMatching("agent", key) ||
+			isFieldFamilyMatching("metricset", key) || // field is deprecated
+			isFieldFamilyMatching("event.module", key) // field is deprecated
+	}
 	return isFieldFamilyMatching("agent", key) ||
 		isFieldFamilyMatching("elastic_agent", key) ||
 		isFieldFamilyMatching("cloud", key) || // too many common fields

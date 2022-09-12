@@ -20,3 +20,7 @@
   name: user_agent.name
 - external: ecs
   name: user_agent.version
+- external: ecs
+  name: event.ingested
+- external: ecs
+  name: event.original

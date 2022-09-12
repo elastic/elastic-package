@@ -88,3 +88,29 @@ it in the pipeline:
 
 Changing the value of `event.dataset` can be considered a breaking change, take
 this into account in your package when adding the changelog entry.
+
+### field "..." is undefined
+
+Elastic Package looks for fields definitions for all the fields included in
+documents generated during tests. It skips some fields that are considered to
+depend more on the version of the Elastic Agent than on the integration itself.
+
+The list of fields allowed to don't have a definition has been reduced for
+packages following the Package Spec v2.
+
+The fields that must be defined now are the ones starting belonging to the
+following groups:
+* `cloud`
+* `event`
+* `host`
+
+When these fields appear without using custom processing, it is very possible
+that they are relevant to the integration, and they should be explicitly
+defined.
+
+To solve this issue, define the missing definitions. Usually they are ECS
+fields, so they can be imported as:
+```
+- name: cloud.region
+  external: ecs
+```
