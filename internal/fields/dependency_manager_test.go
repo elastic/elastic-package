@@ -58,6 +58,27 @@ func TestDependencyManagerInjectExternalFields(t *testing.T) {
 			valid:   true,
 		},
 		{
+			title: "keyword to constant_keyword override",
+			defs: []common.MapStr{
+				{
+					"name":     "event.dataset",
+					"type":     "constant_keyword",
+					"external": "test",
+					"value":    "nginx.access",
+				},
+			},
+			result: []common.MapStr{
+				{
+					"name":        "event.dataset",
+					"type":        "constant_keyword",
+					"description": "Dataset that collected this event",
+					"value":       "nginx.access",
+				},
+			},
+			changed: true,
+			valid:   true,
+		},
+		{
 			title: "external dimension",
 			defs: []common.MapStr{
 				{
@@ -361,6 +382,11 @@ func TestDependencyManagerInjectExternalFields(t *testing.T) {
 			Name:        "data_stream.dataset",
 			Description: "Data stream dataset.",
 			Type:        "constant_keyword",
+		},
+		{
+			Name:        "event.dataset",
+			Description: "Dataset that collected this event",
+			Type:        "keyword",
 		},
 		{
 			Name:        "process.command_line",
