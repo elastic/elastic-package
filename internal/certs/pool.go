@@ -8,7 +8,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"io/ioutil"
+	"os"
 )
 
 // PoolWithCACertificate returns a new pool that includes the CA certificate
@@ -37,7 +37,7 @@ func SystemPoolWithCACertificate(path string) (*x509.CertPool, error) {
 }
 
 func addCACertificateToPool(pool *x509.CertPool, path string) error {
-	d, err := ioutil.ReadFile(path)
+	d, err := os.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("failed to read certificate in %q: %w", path, err)
 	}

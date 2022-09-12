@@ -8,7 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/elasticsearch"
@@ -71,7 +71,7 @@ func getIngestPipelineByID(ctx context.Context, api *elasticsearch.API, id strin
 	}
 	defer resp.Body.Close()
 
-	d, err := ioutil.ReadAll(resp.Body)
+	d, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
