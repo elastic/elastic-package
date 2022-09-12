@@ -88,3 +88,39 @@ it in the pipeline:
 
 Changing the value of `event.dataset` can be considered a breaking change, take
 this into account in your package when adding the changelog entry.
+
+### field ...type: ...type must be one of the following:...
+
+This happens when a field doesn't have one of the allowed types. In Package Spec
+2.0.0 we are removing the `array` data type. The reason is that this cannot be
+mapped to any data type in Elasticsearch, and an invalid configuration can lead
+to an invalid mapping.
+
+Any Elasticsearch field can contain any number of values of the same type, and
+this is what is expected in most of the cases when using the `array` type.
+
+If you are using something like the following definition:
+```
+- name: ciphersuites
+  type: array
+```
+
+You should be using something like this:
+```
+- name: ciphersuites
+  type: keyword
+```
+
+If you were using `object_type` to define the type of the elements in the array,
+like this:
+```
+- name: ciphersuites
+  type: array
+  object_type: keyword
+```
+
+You can instead use the object type directly as type:
+```
+- name: ciphersuites
+  type: keyword
+```
