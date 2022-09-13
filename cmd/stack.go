@@ -211,6 +211,7 @@ func setupStackCommand() *cobraext.Command {
 				if err != nil {
 					return fmt.Errorf("cannot detect parent shell from current process: %w", err)
 				}
+				fmt.Fprintf(cmd.OutOrStderr(), "detected shell: %s\n", shell)
 			}
 
 			profile, err := profile.LoadProfile(profileName)
