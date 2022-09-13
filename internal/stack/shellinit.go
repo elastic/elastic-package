@@ -42,19 +42,19 @@ const (
 	// shell init code for POSIX compliant shells.
 	// IEEE POSIX Shell and Tools portion of the IEEE POSIX specification (IEEE Standard 1003.1)
 	posixTemplate = `export %s=%s
-	export %s=%s
-	export %s=%s
-	export %s=%s
-	export %s=%s
-	`
+export %s=%s
+export %s=%s
+export %s=%s
+export %s=%s
+`
 	// fish shell init code.
 	// fish shell is similar but not compliant to POSIX.
 	fishTemplate = `set -x %s %s;
-	set -x %s %s;
-	set -x %s %s;
-	set -x %s %s;
-	set -x %s %s;
-	`
+set -x %s %s;
+set -x %s %s;
+set -x %s %s;
+set -x %s %s;
+`
 )
 
 // availableShellTypes list all available values for s in initTemplate
