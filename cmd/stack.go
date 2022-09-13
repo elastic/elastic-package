@@ -198,7 +198,7 @@ func setupStackCommand() *cobraext.Command {
 				return cobraext.FlagParsingError(err, cobraext.ProfileFlagName)
 			}
 
-			s, err := cmd.Flags().GetString(cobraext.ShellInitShellFlagName)
+			shell, err := cmd.Flags().GetString(cobraext.ShellInitShellFlagName)
 			if err != nil {
 				return cobraext.FlagParsingError(err, cobraext.ShellInitShellFlagName)
 			}
@@ -208,11 +208,11 @@ func setupStackCommand() *cobraext.Command {
 				return errors.Wrap(err, "error loading profile")
 			}
 
-			shell, err := stack.ShellInit(profile, s)
+			shellCode, err := stack.ShellInit(profile, shell)
 			if err != nil {
 				return errors.Wrap(err, "shellinit failed")
 			}
-			fmt.Println(shell)
+			fmt.Println(shellCode)
 			return nil
 		},
 	}
