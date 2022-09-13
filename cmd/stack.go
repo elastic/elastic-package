@@ -201,17 +201,17 @@ func setupStackCommand() *cobraext.Command {
 				return cobraext.FlagParsingError(err, cobraext.ProfileFlagName)
 			}
 
-			shell, err := cmd.Flags().GetString(cobraext.ShellInitShellFlagName)
+			shellName, err := cmd.Flags().GetString(cobraext.ShellInitShellFlagName)
 			if err != nil {
 				return cobraext.FlagParsingError(err, cobraext.ShellInitShellFlagName)
 			}
 
-			if shell == "detect" {
-				shell, err = detectShell()
+			if shellName == "detect" {
+				shellName, err = detectShell()
 				if err != nil {
 					return fmt.Errorf("cannot detect parent shell from current process: %w", err)
 				}
-				fmt.Fprintf(cmd.OutOrStderr(), "detected shell: %s\n", shell)
+				fmt.Fprintf(cmd.OutOrStderr(), "detected shell: %s\n", shellName)
 			}
 
 			profile, err := profile.LoadProfile(profileName)
@@ -219,7 +219,7 @@ func setupStackCommand() *cobraext.Command {
 				return errors.Wrap(err, "error loading profile")
 			}
 
-			shellCode, err := stack.ShellInit(profile, shell)
+			shellCode, err := stack.ShellInit(profile, shellName)
 			if err != nil {
 				return errors.Wrap(err, "shellinit failed")
 			}
