@@ -5,6 +5,7 @@
 package stack
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -29,7 +30,12 @@ func ShellInit(elasticStackProfile *profile.Profile, st string) (string, error) 
 	}
 
 	// NOTE: to add new env vars, the template need to be adjusted
-	return fmt.Sprintf(initTemplate(st),
+	t, err := initTemplate(st)
+	if err != nil {
+		return "", fmt.Errorf("cannot get shell init template: %w", err)
+	}
+
+	return fmt.Sprintf(t,
 		ElasticsearchHostEnv, config.ElasticsearchHostPort,
 		ElasticsearchUsernameEnv, config.ElasticsearchUsername,
 		ElasticsearchPasswordEnv, config.ElasticsearchPassword,
@@ -61,17 +67,17 @@ set -x %s %s;
 var availableShellTypes = []string{"bash", "fish", "sh", "zsh"}
 
 // InitTemplate returns code templates for shell initialization
-func initTemplate(s string) string {
+func initTemplate(s string) (string, error) {
 	switch s {
 	case "bash":
-		return posixTemplate
+		return posixTemplate, nil
 	case "fish":
-		return fishTemplate
+		return fishTemplate, nil
 	case "sh":
-		return posixTemplate
+		return posixTemplate, nil
 	case "zsh":
-		return posixTemplate
+		return posixTemplate, nil
 	default:
-		panic("shell type is unknown, should be one of " + strings.Join(availableShellTypes, ", "))
+		return "", errors.New("shell type is unknown, should be one of " + strings.Join(availableShellTypes, ", "))
 	}
 }
