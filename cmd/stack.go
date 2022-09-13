@@ -6,6 +6,8 @@ package cmd
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/jedib0t/go-pretty/table"
@@ -17,6 +19,7 @@ import (
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/profile"
 	"github.com/elastic/elastic-package/internal/stack"
+	"github.com/elastic/go-sysinfo"
 )
 
 var availableServices = map[string]struct{}{
@@ -203,6 +206,13 @@ func setupStackCommand() *cobraext.Command {
 				return cobraext.FlagParsingError(err, cobraext.ShellInitShellFlagName)
 			}
 
+			if shell == "detect" {
+				shell, err = detectShell()
+				if err != nil {
+					return fmt.Errorf("cannot detect parent shell from current process: %w", err)
+				}
+			}
+
 			profile, err := profile.LoadProfile(profileName)
 			if err != nil {
 				return errors.Wrap(err, "error loading profile")
@@ -216,7 +226,8 @@ func setupStackCommand() *cobraext.Command {
 			return nil
 		},
 	}
-	shellInitCommand.Flags().StringP(cobraext.ShellInitShellFlagName, "", "bash", cobraext.ShellInitShellDescription)
+	// NOTE: detect is used to trigger automatic detection of parent shell from current process
+	shellInitCommand.Flags().StringP(cobraext.ShellInitShellFlagName, "", "detect", cobraext.ShellInitShellDescription)
 
 	dumpCommand := &cobra.Command{
 		Use:   "dump",
@@ -337,4 +348,21 @@ func printStatus(cmd *cobra.Command, servicesStatus []stack.ServiceStatus) {
 	}
 	t.SetStyle(table.StyleRounded)
 	cmd.Println(t.Render())
+}
+
+func detectShell() (string, error) {
+	ppid := os.Getppid()
+
+	parent, err := sysinfo.Process(ppid)
+	if err != nil {
+		return "", fmt.Errorf("cannot retrieve information for process %d: %w", ppid, err)
+	}
+
+	parentInfo, err := parent.Info()
+	if err != nil {
+		return "", fmt.Errorf("cannot retrieve information for parent of process %d: %w", ppid, err)
+	}
+
+	shell := filepath.Base(parentInfo.Exe)
+	return shell, nil
 }
