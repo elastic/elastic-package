@@ -146,5 +146,5 @@ And an ILM policy definition exists in:
 
 It could be the case that you are trying to reference to an ILM policy defined
 in some other place out of the package. This is not supported. If you have a use
-case for this, please open an issue in https://github.com/elastic/package-spec
-so possible approaches can be discussed.
+case for this, please [open an issue](https://github.com/elastic/package-spec/issues/new?assignees=&labels=discuss&template=Change_Proposal.md&title=%5BChange+Proposal%5D+)
+for discussion.
