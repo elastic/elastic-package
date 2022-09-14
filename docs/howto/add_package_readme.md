@@ -17,6 +17,7 @@ Files in `_dev/build/docs/*.md` follow Markdown syntax and they are rendered usi
 In addition to Markdown syntax, there are some additional placeholders that can be used in order to help
 to complete the information shown to the user.
 
+
 ## Placeholders
 
 List of placeholders that can be used in the Markdown templates:
@@ -81,3 +82,62 @@ List of placeholders that can be used in the Markdown templates:
       | data_stream.type | Data stream type. | constant_keyword |  |  |
       ...
       ```
+- `url <link_key>`: this placeholder is replaced by the URL defined in the `links_table.yml` file.
+    - Example of usage:
+      ```
+      Check {{ url "foo" }}
+      ```
+    - Let's assume that there exists a file `links_table.yml` with these contents:
+      ```
+      links:
+        foo: http://url.com.test
+        help: http://other.url.com/help
+      ```
+    - Rendered output:
+      ```
+      Check http://url.com.test
+      ```
+    - Requirements:
+        - It is needed to define a file with the links definitions. More information [in this section](#requirements)
+- `url <link_key> <link_text>`: this placeholder is replaced by the URL defined in the `links_table.yml` file and it creates a
+  markdown link as `[link_text](url)`
+    - Example of usage:
+      ```
+      Check {{ url "help" "help guide" }}
+      ```
+    - Let's assume that there exists a file `links_table.yml` with these contents:
+      ```
+      links:
+        foo: http://url.com.test
+        help: http://other.url.com/help
+      ```
+    - Rendered output:
+      ```
+      Check [help guide](http://other.url.com/help)
+      ```
+    - Requirements:
+        - It is needed to define a file with the links definitions. More information [in this section](#requirements)
+
+## Requirements
+
+### Links definitions file
+
+In order to be able to use `url` placeholder, links must be defined in a file.
+
+This file by default is located at the root of the repository with the name `links_table.yml`.
+It can be overwritten by setting the environment variable `ELASTIC_PACKAGE_LINKS_FILE_PATH` with
+the path to corresponding YAML file.
+
+The format of this file must be:
+```
+links:
+  <key_1>: <url_1>
+  <key_2>: <url_2>
+  <key_3>: <url_3>
+```
+
+As these links are rendered in building time (running `elastic-package build` command), there are some
+considerations that developers need to take into account:
+- packages will be built using always the links defined in the given file (e.g. `links_table.yml`).
+- any needed change in links requires that a new version of the package must be published to update the
+  corresponding README file.

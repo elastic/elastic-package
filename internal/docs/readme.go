@@ -141,7 +141,12 @@ func generateReadme(fileName, packageRoot string) ([]byte, bool, error) {
 	}
 	logger.Debugf("Template file for %s found: %s", fileName, templatePath)
 
-	rendered, err := renderReadme(fileName, packageRoot, templatePath)
+	linksMap, err := readLinksMap()
+	if err != nil {
+		return nil, false, err
+	}
+
+	rendered, err := renderReadme(fileName, packageRoot, templatePath, linksMap)
 	if err != nil {
 		return nil, true, errors.Wrap(err, "rendering Readme failed")
 	}
@@ -160,7 +165,7 @@ func findReadmeTemplatePath(fileName, packageRoot string) (string, bool, error) 
 	return templatePath, true, nil
 }
 
-func renderReadme(fileName, packageRoot, templatePath string) ([]byte, error) {
+func renderReadme(fileName, packageRoot, templatePath string, linksMap linkMap) ([]byte, error) {
 	logger.Debugf("Render %s file (package: %s, templatePath: %s)", fileName, packageRoot, templatePath)
 
 	t := template.New(fileName)
@@ -174,6 +179,13 @@ func renderReadme(fileName, packageRoot, templatePath string) ([]byte, error) {
 				return renderExportedFields(dataStreamPath)
 			}
 			return renderExportedFields(packageRoot)
+		},
+		"url": func(args ...string) (string, error) {
+			options := linkOptions{}
+			if len(args) > 1 {
+				options.caption = args[1]
+			}
+			return linksMap.RenderLink(args[0], options)
 		},
 	}).ParseFiles(templatePath)
 	if err != nil {

@@ -10,7 +10,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net"
 	"net/http"
 	"os/exec"
@@ -114,7 +114,7 @@ func testTLSClient(t *testing.T, root *Certificate, commonName, address string) 
 	resp, err := client.Get("https://" + commonName)
 	require.NoError(t, err)
 	defer resp.Body.Close()
-	d, _ := ioutil.ReadAll(resp.Body)
+	d, _ := io.ReadAll(resp.Body)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	assert.Equal(t, "ok", string(d))
 

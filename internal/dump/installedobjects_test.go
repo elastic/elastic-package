@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -164,7 +163,7 @@ func assertEqualDumps(t *testing.T, expectedDir, resultDir string) {
 func assertEquivalentJSON(t *testing.T, expectedPath, foundPath string) {
 	t.Helper()
 	readJSON := func(p string) map[string]interface{} {
-		d, err := ioutil.ReadFile(p)
+		d, err := os.ReadFile(p)
 		require.NoError(t, err)
 		var o map[string]interface{}
 		err = json.Unmarshal(d, &o)

@@ -8,9 +8,9 @@ import (
 	"bytes"
 	"crypto/x509"
 	"encoding/pem"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -59,7 +59,7 @@ func writeCACertFile(t *testing.T, cert *x509.Certificate) string {
 	require.NoError(t, err)
 
 	caCertFile := filepath.Join(t.TempDir(), "ca.pem")
-	err = ioutil.WriteFile(caCertFile, d.Bytes(), 0644)
+	err = os.WriteFile(caCertFile, d.Bytes(), 0644)
 	require.NoError(t, err)
 
 	return caCertFile

@@ -68,6 +68,5 @@ func reportHumanFormat(results []testrunner.TestResult) (string, error) {
 	t.SetStyle(table.StyleRounded)
 
 	report.WriteString(t.Render())
-
 	return report.String(), nil
 }

@@ -13,3 +13,54 @@
       value: correct
     - name: ip_address
       type: ip
+- name: container.image.tag
+  type: keyword
+  normalize:
+  - array
+- name: event.category
+  type: keyword
+  allowed_values:
+  - name: authentication
+    expected_event_types:
+    - start
+    - end
+    - info
+  - name: configuration
+    expected_event_types:
+    - access
+    - change
+    - creation
+    - deletion
+    - info
+  - name: network
+    expected_event_types:
+    - access
+    - allowed
+    - connection
+    - denied
+    - end
+    - info
+    - protocol
+    - start
+- name: event.type
+  type: keyword
+  normalize:
+    - array
+  allowed_values:
+    - name: access
+    - name: admin
+    - name: allowed
+    - name: change
+    - name: connection
+    - name: creation
+    - name: deletion
+    - name: denied
+    - name: end
+    - name: error
+    - name: group
+    - name: indicator
+    - name: info
+    - name: installation
+    - name: protocol
+    - name: start
+    - name: user
