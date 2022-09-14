@@ -124,3 +124,27 @@ You can instead use the object type directly as type:
 - name: ciphersuites
   type: keyword
 ```
+
+### Invalid field ilm_policy
+
+Package Spec 2.0.0 will include additional validations on the `ilm_policy` field of
+the data streams manifest. These validations aim to ensure that the ILM policy
+is defined in the data stream, so the package is self-contained.
+
+If you find errors related to this field, it can be caused by a typo, or because
+the policy is missing. The error message will describe the expected values.
+
+To solve this error, check that the value of `ilm_policy` follows the pattern:
+```
+{data stream type}-{package name}.{data stream name}-{ilm file name without extension}
+```
+
+And an ILM policy definition exists in:
+```
+./data_streams/{data stream name}/elasticsearch/ilm/{ilm file name without extension}.json
+```
+
+It could be the case that you are trying to reference to an ILM policy defined
+in some other place out of the package. This is not supported. If you have a use
+case for this, please [open an issue](https://github.com/elastic/package-spec/issues/new?assignees=&labels=discuss&template=Change_Proposal.md&title=%5BChange+Proposal%5D+)
+for discussion.
