@@ -22,6 +22,17 @@ conditions:
   elastic.subscription: basic
 ```
 
+### field ...: Additional property ... is not allowed
+
+Validation of properties on fields definitions is stricter now. If you see any
+error about properties not allowed in fields definitions, this probably means
+one of these two things:
+
+There is a typo, please check that this is the property you wanted to use.
+
+The property is not supported, then you should probably remove it. If you think
+that the property should be supported, please [open an issue](https://github.com/elastic/package-spec/issues/new?assignees=&labels=discuss&template=Change_Proposal.md&title=%5BChange+Proposal%5D+)
+
 ### field ... is not normalized as expected: expected array, found ...
 
 ECS fields can indicate normalization rules. `elastic-package` checks that they
