@@ -1,0 +1,7 @@
+version: '2.3'
+services:
+  with_dataset:
+    image: "alpine:3.16"
+    command: ["sh", "-c", "while true; do echo '{\"message\": \"hello\"}' >> ./logs/with_dataset.log; sleep 1; done"]
+    volumes:
+      - ${SERVICE_LOGS_DIR}:/logs
