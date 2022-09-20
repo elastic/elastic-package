@@ -151,7 +151,7 @@ func installElasticAgentInCluster() error {
 		return errors.Wrap(err, "can't create Kibana client")
 	}
 
-	stackVersion, err := kibanaClient.Version()
+	stackVersion, _, err := kibanaClient.Version()
 	if err != nil {
 		return errors.Wrap(err, "can't read Kibana injected metadata")
 	}

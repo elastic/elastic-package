@@ -26,6 +26,9 @@ const (
 	AgentPolicyFlagName    = "agent-policy"
 	AgentPolicyDescription = "name of the agent policy"
 
+	AllowSnapshotFlagName    = "allow-snapshot"
+	AllowSnapshotDescription = "allow to export dashboards from a Elastic stack SNAPSHTO version"
+
 	BenchNumTopProcsFlagName        = "num-top-procs"
 	BenchNumTopProcsFlagDescription = "number of top processors to show in the benchmarks results"
 

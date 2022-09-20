@@ -32,6 +32,7 @@ func setupExportCommand() *cobraext.Command {
 	}
 	exportDashboardCmd.Flags().StringSliceP(cobraext.DashboardIDsFlagName, "d", nil, cobraext.DashboardIDsFlagDescription)
 	exportDashboardCmd.Flags().Bool(cobraext.TLSSkipVerifyFlagName, false, cobraext.TLSSkipVerifyFlagDescription)
+	exportDashboardCmd.Flags().Bool(cobraext.AllowSnapshotFlagName, false, cobraext.AllowSnapshotDescription)
 
 	cmd := &cobra.Command{
 		Use:   "export",
@@ -59,9 +60,20 @@ func exportDashboardsCmd(cmd *cobra.Command, args []string) error {
 		opts = append(opts, kibana.TLSSkipVerify())
 	}
 
+	allowSnapshot, _ := cmd.Flags().GetBool(cobraext.AllowSnapshotFlagName)
+
 	kibanaClient, err := kibana.NewClient(opts...)
 	if err != nil {
 		return errors.Wrap(err, "can't create Kibana client")
+	}
+
+	kibanaVersion, isSnapshot, err := kibanaClient.Version()
+	if err != nil {
+		return errors.Wrap(err, "can't get Kibana status information")
+	}
+
+	if !allowSnapshot && isSnapshot {
+		return errors.Errorf("kibana SNAPSHOT version: %s", kibanaVersion)
 	}
 
 	if len(dashboardIDs) == 0 {

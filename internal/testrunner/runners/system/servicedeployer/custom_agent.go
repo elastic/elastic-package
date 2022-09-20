@@ -50,7 +50,7 @@ func (d *CustomAgentDeployer) SetUp(inCtxt ServiceContext) (DeployedService, err
 		return nil, errors.Wrap(err, "can't create Kibana client")
 	}
 
-	stackVersion, err := kibanaClient.Version()
+	stackVersion, _, err := kibanaClient.Version()
 	if err != nil {
 		return nil, errors.Wrap(err, "can't read Kibana injected metadata")
 	}
