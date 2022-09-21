@@ -76,9 +76,9 @@ func exportDashboardsCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	if isSnapshot {
-		message := fmt.Sprintf("Exporting dashboards from a Elastic stack SNAPSHOT version (%s) is discouraged. It could lead to invalid dashboards (e.g. using features that could be not released or they could changed)", kibanaVersion)
+		message := fmt.Sprintf("exporting dashboards from a SNAPSHOT version of Kibana (%s) is discouraged. It could lead to invalid dashboards (for example if they use features that are reverted or modified before the final release)", kibanaVersion)
 		if !allowSnapshot {
-			return errors.Errorf("using Elastic stack SNAPSHOT version: %s. %s", kibanaVersion, message)
+			return errors.Errorf("%s. --%s flag can be used to ignore this error", message, cobraext.AllowSnapshotFlagName)
 		}
 		fmt.Printf("Warning: %s\n", message)
 	}
