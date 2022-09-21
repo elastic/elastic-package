@@ -73,7 +73,9 @@ func exportDashboardsCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	if !allowSnapshot && isSnapshot {
-		return errors.Errorf("kibana SNAPSHOT version: %s", kibanaVersion)
+		return errors.Errorf(
+			"kibana version: %s. Exporting dashboards from a Elastic stack SNAPSHOT version is discouraged. It could lead to invalid dashboards (e.g. using features that could be not released or they could changed)",
+			kibanaVersion)
 	}
 
 	if len(dashboardIDs) == 0 {
