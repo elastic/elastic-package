@@ -75,10 +75,12 @@ func exportDashboardsCmd(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "can't get Kibana status information")
 	}
 
-	if isSnapshot && !allowSnapshot {
-		return errors.Errorf(
-			"kibana version: %s. Exporting dashboards from a Elastic stack SNAPSHOT version is discouraged. It could lead to invalid dashboards (e.g. using features that could be not released or they could changed)",
-			kibanaVersion)
+	if isSnapshot {
+		message := fmt.Sprintf("Exporting dashboards from a Elastic stack SNAPSHOT version (%s) is discouraged. It could lead to invalid dashboards (e.g. using features that could be not released or they could changed)", kibanaVersion)
+		if !allowSnapshot {
+			return errors.Errorf("using Elastic stack SNAPSHOT version: %s. %s", kibanaVersion, message)
+		}
+		fmt.Printf("Warning: %s\n", message)
 	}
 
 	if len(dashboardIDs) == 0 {
