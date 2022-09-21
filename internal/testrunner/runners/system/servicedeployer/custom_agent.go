@@ -61,7 +61,7 @@ func (d *CustomAgentDeployer) SetUp(inCtxt ServiceContext) (DeployedService, err
 	}
 
 	env := append(
-		appConfig.StackImageRefs(stackVersion).AsEnv(),
+		appConfig.StackImageRefs(stackVersion.Version()).AsEnv(),
 		fmt.Sprintf("%s=%s", serviceLogsDirEnv, inCtxt.Logs.Folder.Local),
 		fmt.Sprintf("%s=%s", localCACertEnv, caCertPath),
 	)
