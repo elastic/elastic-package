@@ -1,0 +1,14 @@
+title: Service logs
+type: logs
+dataset: with_dataset.overwritten_dataset.foo
+streams:
+  - input: logfile
+    title: Sample logs
+    description: Collect sample logs
+    vars:
+      - name: paths
+        title: Paths
+        type: text
+        required: true
+        multi: true
+        show_user: true
