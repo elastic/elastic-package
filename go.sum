@@ -179,8 +179,8 @@ github.com/elastic/go-ucfg v0.8.6 h1:stUeyh2goTgGX+/wb9gzKvTv0YB0231LTpKUgCKj4U0
 github.com/elastic/go-ucfg v0.8.6/go.mod h1:4E8mPOLSUV9hQ7sgLEJ4bvt0KhMuDJa8joDT2QGAEKA=
 github.com/elastic/gojsonschema v1.2.1 h1:cUMbgsz0wyEB4x7xf3zUEvUVDl6WCz2RKcQPul8OsQc=
 github.com/elastic/gojsonschema v1.2.1/go.mod h1:biw5eBS2Z4T02wjATMRSfecfjCmwaDPvuaqf844gLrg=
-github.com/elastic/package-spec v1.18.0 h1:1A+m6iQwuhec6lqOIbZOSHGN2OlVSWDMI8V2/RVV83Y=
-github.com/elastic/package-spec v1.18.0/go.mod h1:a50/EHVXzVT+noUHlug5RQq2Cn+WCRo5lDQD8YZYKLI=
+github.com/elastic/package-spec/v2 v2.0.0-rc2 h1:Fvn/OJdCCuX8Bq3f+oh0SesFd8tUFVxq/5T8WlN4NA4=
+github.com/elastic/package-spec/v2 v2.0.0-rc2/go.mod h1:bGpJHojIN9FYyNbqNySJ7D3mDVqOe1sL2l4m7BCSjWo=
 github.com/elazarl/goproxy v0.0.0-20180725130230-947c36da3153 h1:yUdfgN0XgIJw7foRItutHYUIhlcKzcSf5vDpdhQAKTc=
 github.com/elazarl/goproxy v0.0.0-20180725130230-947c36da3153/go.mod h1:/Zj4wYkgs4iZTTu3o/KG3Itv/qCCa8VVMlb3i9OVuzc=
 github.com/emicklei/go-restful v0.0.0-20170410110728-ff4f55a20633/go.mod h1:otzb+WCGbkyDHkqmQmT5YD2WR4BBwUdeQoFo8l/7tVs=

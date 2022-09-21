@@ -12,7 +12,7 @@ import (
 	"github.com/magefile/mage/sh"
 	"github.com/pkg/errors"
 
-	"github.com/elastic/package-spec/code/go/pkg/validator"
+	"github.com/elastic/package-spec/v2/code/go/pkg/validator"
 
 	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/logger"
