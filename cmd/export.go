@@ -61,6 +61,9 @@ func exportDashboardsCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	allowSnapshot, _ := cmd.Flags().GetBool(cobraext.AllowSnapshotFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.AllowSnapshotFlagName)
+	}
 
 	kibanaClient, err := kibana.NewClient(opts...)
 	if err != nil {
@@ -72,7 +75,7 @@ func exportDashboardsCmd(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "can't get Kibana status information")
 	}
 
-	if !allowSnapshot && isSnapshot {
+	if isSnapshot && !allowSnapshot {
 		return errors.Errorf(
 			"kibana version: %s. Exporting dashboards from a Elastic stack SNAPSHOT version is discouraged. It could lead to invalid dashboards (e.g. using features that could be not released or they could changed)",
 			kibanaVersion)

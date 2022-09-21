@@ -7,9 +7,12 @@ package kibana
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 
 	"github.com/pkg/errors"
 )
+
+const SNAPSHOT_SUFFIX = "-SNAPSHOT"
 
 type statusType struct {
 	Version struct {
@@ -22,7 +25,11 @@ type statusType struct {
 func (c *Client) Version() (string, bool, error) {
 	statusCode, respBody, err := c.get(StatusAPI)
 	if err != nil {
-		return "", false, errors.Wrapf(err, "could not get Status data; API status code = %d; response body = %s", statusCode, respBody)
+		return "", false, errors.Wrapf(err, "could not reach status endpoint")
+	}
+
+	if statusCode != http.StatusOK {
+		return "", false, fmt.Errorf("could not get status data; API status code = %d; response body = %s", statusCode, respBody)
 	}
 
 	var status statusType
@@ -33,7 +40,7 @@ func (c *Client) Version() (string, bool, error) {
 
 	stackVersion := status.Version.Number
 	if status.Version.BuildSnapshot {
-		stackVersion = fmt.Sprintf("%s-SNAPSHOT", stackVersion)
+		stackVersion = fmt.Sprintf("%s%s", stackVersion, SNAPSHOT_SUFFIX)
 	}
 
 	return stackVersion, status.Version.BuildSnapshot, nil
