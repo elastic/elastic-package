@@ -70,13 +70,13 @@ func exportDashboardsCmd(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "can't create Kibana client")
 	}
 
-	kibanaVersion, isSnapshot, err := kibanaClient.Version()
+	kibanaVersion, err := kibanaClient.Version()
 	if err != nil {
 		return errors.Wrap(err, "can't get Kibana status information")
 	}
 
-	if isSnapshot {
-		message := fmt.Sprintf("exporting dashboards from a SNAPSHOT version of Kibana (%s) is discouraged. It could lead to invalid dashboards (for example if they use features that are reverted or modified before the final release)", kibanaVersion)
+	if kibanaVersion.IsSnapshot() {
+		message := fmt.Sprintf("exporting dashboards from a SNAPSHOT version of Kibana (%s) is discouraged. It could lead to invalid dashboards (for example if they use features that are reverted or modified before the final release)", kibanaVersion.Version())
 		if !allowSnapshot {
 			return errors.Errorf("%s. --%s flag can be used to ignore this error", message, cobraext.AllowSnapshotFlagName)
 		}

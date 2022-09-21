@@ -50,7 +50,7 @@ func (d *CustomAgentDeployer) SetUp(inCtxt ServiceContext) (DeployedService, err
 		return nil, errors.Wrap(err, "can't create Kibana client")
 	}
 
-	stackVersion, _, err := kibanaClient.Version()
+	stackVersion, err := kibanaClient.Version()
 	if err != nil {
 		return nil, errors.Wrap(err, "can't read Kibana injected metadata")
 	}
@@ -61,7 +61,7 @@ func (d *CustomAgentDeployer) SetUp(inCtxt ServiceContext) (DeployedService, err
 	}
 
 	env := append(
-		appConfig.StackImageRefs(stackVersion).AsEnv(),
+		appConfig.StackImageRefs(stackVersion.Version()).AsEnv(),
 		fmt.Sprintf("%s=%s", serviceLogsDirEnv, inCtxt.Logs.Folder.Local),
 		fmt.Sprintf("%s=%s", localCACertEnv, caCertPath),
 	)

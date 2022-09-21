@@ -14,34 +14,43 @@ import (
 
 const SNAPSHOT_SUFFIX = "-SNAPSHOT"
 
+type VersionInfo struct {
+	Number        string `json:"number"`
+	BuildSnapshot bool   `json:"build_snapshot"`
+}
+
+func (v VersionInfo) Version() string {
+	if v.BuildSnapshot {
+		return fmt.Sprintf("%s%s", v.Number, SNAPSHOT_SUFFIX)
+	}
+	return v.Number
+}
+
+func (v VersionInfo) IsSnapshot() bool {
+	return v.BuildSnapshot
+}
+
 type statusType struct {
-	Version struct {
-		Number        string `json:"number"`
-		BuildSnapshot bool   `json:"build_snapshot"`
-	} `json:"version"`
+	Version VersionInfo `json:"version"`
 }
 
 // Version method returns the version of Kibana (Elastic stack)
-func (c *Client) Version() (string, bool, error) {
+func (c *Client) Version() (VersionInfo, error) {
+	var version VersionInfo
 	statusCode, respBody, err := c.get(StatusAPI)
 	if err != nil {
-		return "", false, errors.Wrapf(err, "could not reach status endpoint")
+		return version, errors.Wrapf(err, "could not reach status endpoint")
 	}
 
 	if statusCode != http.StatusOK {
-		return "", false, fmt.Errorf("could not get status data; API status code = %d; response body = %s", statusCode, respBody)
+		return version, fmt.Errorf("could not get status data; API status code = %d; response body = %s", statusCode, respBody)
 	}
 
 	var status statusType
 	err = json.Unmarshal(respBody, &status)
 	if err != nil {
-		return "", false, errors.Wrapf(err, "unmarshalling response failed (body: \n%s)", respBody)
+		return version, errors.Wrapf(err, "unmarshalling response failed (body: \n%s)", respBody)
 	}
 
-	stackVersion := status.Version.Number
-	if status.Version.BuildSnapshot {
-		stackVersion = fmt.Sprintf("%s%s", stackVersion, SNAPSHOT_SUFFIX)
-	}
-
-	return stackVersion, status.Version.BuildSnapshot, nil
+	return status.Version, nil
 }
