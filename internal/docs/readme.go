@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"text/template"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/builder"
@@ -22,6 +23,7 @@ import (
 type ReadmeFile struct {
 	FileName string
 	UpToDate bool
+	Diff     string
 	Error    error
 }
 
@@ -40,11 +42,12 @@ func AreReadmesUpToDate() ([]ReadmeFile, error) {
 	var readmeFiles []ReadmeFile
 	for _, filePath := range files {
 		fileName := filepath.Base(filePath)
-		ok, err := isReadmeUpToDate(fileName, packageRoot)
+		ok, diff, err := isReadmeUpToDate(fileName, packageRoot)
 		if !ok || err != nil {
 			readmeFile := ReadmeFile{
 				FileName: fileName,
 				UpToDate: ok,
+				Diff:     diff,
 				Error:    err,
 			}
 			readmeFiles = append(readmeFiles, readmeFile)
@@ -52,30 +55,33 @@ func AreReadmesUpToDate() ([]ReadmeFile, error) {
 	}
 
 	if readmeFiles != nil {
-		return readmeFiles, fmt.Errorf("checking readme files are up-to-date failed")
+		return readmeFiles, fmt.Errorf("files do not match")
 	}
 	return readmeFiles, nil
 }
 
-func isReadmeUpToDate(fileName, packageRoot string) (bool, error) {
+func isReadmeUpToDate(fileName, packageRoot string) (bool, string, error) {
 	logger.Debugf("Check if %s is up-to-date", fileName)
 
 	rendered, shouldBeRendered, err := generateReadme(fileName, packageRoot)
 	if err != nil {
-		return false, errors.Wrap(err, "generating readme file failed")
+		return false, "", errors.Wrap(err, "generating readme file failed")
 	}
 	if !shouldBeRendered {
-		return true, nil // README file is static and doesn't use template.
+		return true, "", nil // README file is static and doesn't use template.
 	}
 
 	existing, found, err := readReadme(fileName, packageRoot)
 	if err != nil {
-		return false, errors.Wrap(err, "reading README file failed")
+		return false, "", errors.Wrap(err, "reading README file failed")
 	}
 	if !found {
-		return false, nil
+		return false, "", nil
 	}
-	return bytes.Equal(existing, rendered), nil
+	if bytes.Equal(existing, rendered) {
+		return true, "", nil
+	}
+	return false, cmp.Diff(string(existing), string(rendered)), nil
 }
 
 // UpdateReadmes function updates all .md readme files using a defined template
@@ -219,7 +225,7 @@ func writeReadme(fileName, packageRoot string, content []byte) (string, error) {
 
 	docsPath := docsPath(packageRoot)
 	logger.Debugf("Create directories: %s", docsPath)
-	err := os.MkdirAll(docsPath, 0755)
+	err := os.MkdirAll(docsPath, 0o755)
 	if err != nil {
 		return "", errors.Wrapf(err, "mkdir failed (path: %s)", docsPath)
 	}
@@ -227,7 +233,7 @@ func writeReadme(fileName, packageRoot string, content []byte) (string, error) {
 	aReadmePath := readmePath(fileName, packageRoot)
 	logger.Debugf("Write %s file to: %s", fileName, aReadmePath)
 
-	err = os.WriteFile(aReadmePath, content, 0644)
+	err = os.WriteFile(aReadmePath, content, 0o644)
 	if err != nil {
 		return "", errors.Wrapf(err, "writing file failed (path: %s)", aReadmePath)
 	}
