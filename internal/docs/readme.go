@@ -11,8 +11,8 @@ import (
 	"path/filepath"
 	"text/template"
 
-	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
+	"github.com/pmezard/go-difflib/difflib"
 
 	"github.com/elastic/elastic-package/internal/builder"
 	"github.com/elastic/elastic-package/internal/logger"
@@ -81,7 +81,15 @@ func isReadmeUpToDate(fileName, packageRoot string) (bool, string, error) {
 	if bytes.Equal(existing, rendered) {
 		return true, "", nil
 	}
-	return false, cmp.Diff(string(existing), string(rendered)), nil
+	var buf bytes.Buffer
+	err = difflib.WriteUnifiedDiff(&buf, difflib.UnifiedDiff{
+		A:        difflib.SplitLines(string(existing)),
+		B:        difflib.SplitLines(string(rendered)),
+		FromFile: "want",
+		ToFile:   "got",
+		Context:  1,
+	})
+	return false, buf.String(), err
 }
 
 // UpdateReadmes function updates all .md readme files using a defined template
