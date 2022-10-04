@@ -172,10 +172,11 @@ type Stream struct {
 
 // Input represents a package-level input.
 type Input struct {
-	Type    string   `json:"type"`
-	Enabled bool     `json:"enabled"`
-	Streams []Stream `json:"streams"`
-	Vars    Vars     `json:"vars"`
+	PolicyTemplate string   `json:"policy_template,omitempty"` // Name of policy_template from the package manifest that contains this input. If not specified the Kibana uses the first policy_template.
+	Type           string   `json:"type"`
+	Enabled        bool     `json:"enabled"`
+	Streams        []Stream `json:"streams"`
+	Vars           Vars     `json:"vars"`
 }
 
 // PackageDataStream represents a request to add a single package's single data stream to a

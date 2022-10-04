@@ -114,7 +114,7 @@ will not be used. An agent will be deployed as a Docker compose service named `d
 which base configuration is provided [here](../../internal/install/_static/docker-custom-agent-base.yml).
 This configuration will be merged with the one provided in the `custom-agent.yml` file.
 This is useful if you need different capabilities than the provided by the
-`elastic-agent` used by the `elastic-package stack` command. 
+`elastic-agent` used by the `elastic-package stack` command.
 
 `custom-agent.yml`
 ```
@@ -260,9 +260,12 @@ elastic-package test system --data-streams pod -v # start system tests for the "
 
 ### Test case definition
 
-Next, we must define at least one configuration for each data stream that we want to system test. There can be multiple test cases defined for the same data stream.
+Next, we must define at least one configuration for each data stream that we
+want to system test. There can be multiple test cases defined for the same data
+stream.
 
-_Hint: if you plan to define only one test case, you can consider the filename `test-default-config.yml`._
+_Hint: if you plan to define only one test case, you can consider the filename
+`test-default-config.yml`._
 
 ```
 <package root>/
@@ -274,25 +277,57 @@ _Hint: if you plan to define only one test case, you can consider the filename `
             test-<test_name>-config.yml
 ```
 
-The `test-<test_name>-config.yml` file allows you to define values for package and data stream-level variables. For example, the `apache/access` data stream's `test-access-log-config.yml` is shown below.
+The `test-<test_name>-config.yml` file allows you to define values for package
+and data stream-level variables. These are the available configuration options
+for system tests.
 
-```
+| Option | Type | Required | Description |
+|---|---|---|---|
+| data_stream.vars | dictionary |  | Data stream level variables to set (i.e. declared in `package_root/data_stream/$data_stream/manifest.yml`). If not specified the defaults from the manifest are used. |
+| input | string | yes | Input type to test (e.g. logfile, httpjson, etc). Defaults to the input used by the first stream in the data stream manifest. |
+| numeric_keyword_fields | []string |  | List of fields to ignore during validation that are mapped as `keyword` in Elasticsearch, but their JSON data type is a number. |
+| policy_template | string |  | Name of policy template associated with the data stream and input. Required when multiple policy templates include the input being tested. |
+| service | string |  | Name of a specific Docker service to setup for the test. |
+| service_notify_signal | string |  | Signal name to send to 'service' when the test policy has been applied to the Agent. This can be used to trigger the service after the Agent is ready to receive data. |
+| skip.link | URL |  | URL linking to an issue about why the test is skipped. |
+| skip.reason | string |  | Reason to skip the test. If specified the test will not execute. |
+| vars | dictionary |  | Package level variables to set (i.e. declared in `$package_root/manifest.yml`). If not specified the defaults from the manifest are used. |
+| wait_for_data_timeout | duration |  | Amount of time to wait for data to be present in Elasticsearch. Defaults to 10m. |
+
+For example, the `apache/access` data stream's `test-access-log-config.yml` is
+shown below.
+
+```yaml
 vars: ~
 input: logfile
 data_stream:
   vars:
     paths:
-      - "{{SERVICE_LOGS_DIR}}/access.log*"
+      - "{{{SERVICE_LOGS_DIR}}}/access.log*"
 ```
 
-The top-level `vars` field corresponds to package-level variables defined in the `apache` package's `manifest.yml` file. In the above example we don't override any of these package-level variables, so their default values, as specified in the `apache` package's `manifest.yml` file are used.
+The top-level `vars` field corresponds to package-level variables defined in the
+`apache` package's `manifest.yml` file. In the above example we don't override
+any of these package-level variables, so their default values, as specified in
+the `apache` package's `manifest.yml` file are used.
 
-The `data_stream.vars` field corresponds to data stream-level variables for the current data stream (`apache/access` in the above example). In the above example we override the `paths` variable. All other variables are populated with their default values, as specified in the `apache/access` data stream's `manifest.yml` file.
+The `data_stream.vars` field corresponds to data stream-level variables for the
+current data stream (`apache/access` in the above example). In the above example
+we override the `paths` variable. All other variables are populated with their
+default values, as specified in the `apache/access` data stream's `manifest.yml`
+file.
 
-Notice the use of the `{{SERVICE_LOGS_DIR}}` placeholder. This corresponds to the `${SERVICE_LOGS_DIR}` variable we saw in the `docker-compose.yml` file earlier. In the above example, the net effect is as if the `/usr/local/apache2/logs/access.log*` files located inside the Apache integration service container become available at the same path from Elastic Agent's perspective.
+Notice the use of the `{{{SERVICE_LOGS_DIR}}}` placeholder. This corresponds to
+the `${SERVICE_LOGS_DIR}` variable we saw in the `docker-compose.yml` file
+earlier. In the above example, the net effect is as if the
+`/usr/local/apache2/logs/access.log*` files located inside the Apache
+integration service container become available at the same path from Elastic
+Agent's perspective.
 
-When a data stream's manifest declares multiple streams with different inputs you can use the `input` option to select the stream to test. The first stream
-whose input type matches the `input` value will be tested. By default, the first stream declared in the manifest will be tested.
+When a data stream's manifest declares multiple streams with different inputs
+you can use the `input` option to select the stream to test. The first stream
+whose input type matches the `input` value will be tested. By default, the first
+stream declared in the manifest will be tested.
 
 #### Placeholders
 
@@ -306,7 +341,7 @@ The `SERVICE_LOGS_DIR` placeholder is not the only one available for use in a da
 | `Logs.Folder.Agent` | string | Path to integration service's logs folder, as addressable by the Agent. |
 | `SERVICE_LOGS_DIR` | string | Alias for `Logs.Folder.Agent`. Provided as a convenience. |
 
-Placeholders used in the `test-<test_name>-config.yml` must be enclosed in `{{` and `}}` delimiters, per Handlebars syntax.
+Placeholders used in the `test-<test_name>-config.yml` must be enclosed in `{{{` and `}}}` delimiters, per Handlebars syntax.
 
 
 **NOTE**: Terraform variables in the form of environment variables (prefixed with `TF_VAR_`) are not injected and cannot be used as placeholder (their value will always be empty).
@@ -372,4 +407,3 @@ The exposed environment variables are passed to the test runners through service
 The tests use the [default version](https://github.com/elastic/elastic-package/blob/main/internal/install/stack_version.go#L9) `elastic-package` provides.
 
 You can override this value by changing it in your PR if needed. To update the default version always create a dedicated PR.
-
