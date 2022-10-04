@@ -6,7 +6,6 @@ package files
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 
 	"github.com/ProtonMail/gopenpgp/v2/armor"
@@ -14,14 +13,15 @@ import (
 	"github.com/ProtonMail/gopenpgp/v2/crypto"
 	"github.com/pkg/errors"
 
+	"github.com/elastic/elastic-package/internal/environment"
 	"github.com/elastic/elastic-package/internal/logger"
 )
 
-const (
-	signerPrivateKeyfileEnv = "ELASTIC_PACKAGE_SIGNER_PRIVATE_KEYFILE"
-	signerPassphraseEnv     = "ELASTIC_PACKAGE_SIGNER_PASSPHRASE"
+const signatureComment = "Signed with elastic-package (using GopenPGP: https://gopenpgp.org)"
 
-	signatureComment = "Signed with elastic-package (using GopenPGP: https://gopenpgp.org)"
+var (
+	signerPrivateKeyfileEnv = environment.WithElasticPackagePrefix("SIGNER_PRIVATE_KEYFILE")
+	signerPassphraseEnv     = environment.WithElasticPackagePrefix("SIGNER_PASSPHRASE")
 )
 
 type SignOptions struct {
@@ -53,7 +53,7 @@ func VerifySignerConfiguration() error {
 func Sign(targetFile string, options SignOptions) error {
 	signerPrivateKeyfile := os.Getenv(signerPrivateKeyfileEnv)
 	logger.Debugf("Read signer private keyfile: %s", signerPrivateKeyfile)
-	signerPrivateKey, err := ioutil.ReadFile(signerPrivateKeyfile)
+	signerPrivateKey, err := os.ReadFile(signerPrivateKeyfile)
 	if err != nil {
 		return errors.Wrapf(err, "can't read the signer private keyfile (path: %s)", signerPrivateKeyfile)
 	}
@@ -96,7 +96,7 @@ func Sign(targetFile string, options SignOptions) error {
 
 	logger.Debug("Signature generated for the target file, writing the .sig file")
 	targetSigFile := targetFile + ".sig"
-	err = ioutil.WriteFile(targetSigFile, []byte(armoredSignature), 0644)
+	err = os.WriteFile(targetSigFile, []byte(armoredSignature), 0644)
 	if err != nil {
 		return errors.Wrap(err, "can't write the signature file")
 	}

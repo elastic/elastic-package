@@ -5,7 +5,7 @@
 package cmd
 
 import (
-	"io/ioutil"
+	"os"
 	"path/filepath"
 
 	"github.com/Masterminds/semver"
@@ -145,7 +145,7 @@ func changelogCmdVersion(nextMode, packageRoot string) (*semver.Version, error) 
 // trying to conserve original format and comments.
 func patchChangelogFile(packageRoot string, patch changelog.Revision) error {
 	changelogPath := filepath.Join(packageRoot, changelog.PackageChangelogFile)
-	d, err := ioutil.ReadFile(changelogPath)
+	d, err := os.ReadFile(changelogPath)
 	if err != nil {
 		return err
 	}
@@ -155,12 +155,12 @@ func patchChangelogFile(packageRoot string, patch changelog.Revision) error {
 		return err
 	}
 
-	return ioutil.WriteFile(changelogPath, d, 0644)
+	return os.WriteFile(changelogPath, d, 0644)
 }
 
 func setManifestVersion(packageRoot string, version string) error {
 	manifestPath := filepath.Join(packageRoot, packages.PackageManifestFile)
-	d, err := ioutil.ReadFile(manifestPath)
+	d, err := os.ReadFile(manifestPath)
 	if err != nil {
 		return err
 	}
@@ -170,5 +170,5 @@ func setManifestVersion(packageRoot string, version string) error {
 		return err
 	}
 
-	return ioutil.WriteFile(manifestPath, d, 0644)
+	return os.WriteFile(manifestPath, d, 0644)
 }

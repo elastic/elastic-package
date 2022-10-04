@@ -12,7 +12,7 @@ import (
 	"github.com/magefile/mage/sh"
 	"github.com/pkg/errors"
 
-	"github.com/elastic/package-spec/code/go/pkg/validator"
+	"github.com/elastic/package-spec/v2/code/go/pkg/validator"
 
 	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/logger"
@@ -267,7 +267,7 @@ func copyLicenseTextFile(licensePath string) error {
 }
 
 func createBuildDirectory(dirs ...string) (string, error) {
-	dir, err := findRepositoryRootDirectory()
+	dir, err := files.FindRepositoryRootDirectory()
 	if errors.Is(err, os.ErrNotExist) {
 		return "", errors.New("package can be only built inside of a Git repository (.git folder is used as reference point)")
 	}
@@ -287,40 +287,17 @@ func createBuildDirectory(dirs ...string) (string, error) {
 	return buildDir, nil
 }
 
-func findRepositoryRootDirectory() (string, error) {
-	workDir, err := os.Getwd()
-	if err != nil {
-		return "", errors.Wrap(err, "locating working directory failed")
-	}
-
-	dir := workDir
-	for dir != "." {
-		path := filepath.Join(dir, ".git")
-		fileInfo, err := os.Stat(path)
-		if err == nil && fileInfo.IsDir() {
-			return dir, nil
-		}
-
-		if dir == "/" {
-			break
-		}
-		dir = filepath.Dir(dir)
-	}
-
-	return "", os.ErrNotExist
-}
-
 func findRepositoryLicense() (string, error) {
-	dir, err := findRepositoryRootDirectory()
+	dir, err := files.FindRepositoryRootDirectory()
 	if err != nil {
 		return "", err
 	}
 
-	sourceLicensePath := filepath.Join(dir, licenseTextFileName)
-	_, err = os.Stat(sourceLicensePath)
+	sourceFileName := filepath.Join(dir, licenseTextFileName)
+	_, err = os.Stat(sourceFileName)
 	if err != nil {
 		return "", err
 	}
 
-	return sourceLicensePath, nil
+	return sourceFileName, nil
 }

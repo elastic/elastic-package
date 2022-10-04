@@ -114,6 +114,7 @@ type Owner struct {
 
 // PackageManifest represents the basic structure of a package's manifest
 type PackageManifest struct {
+	SpecVersion     string           `config:"format_version" json:"format_version" yaml:"format_version"`
 	Name            string           `config:"name" json:"name" yaml:"name"`
 	Title           string           `config:"title" json:"title" yaml:"title"`
 	Type            string           `config:"type" json:"type" yaml:"type"`

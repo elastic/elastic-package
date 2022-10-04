@@ -31,7 +31,6 @@ func reportToFile(pkg, report string, format testrunner.TestReportFormat) error 
 	if err != nil {
 		return errors.Wrap(err, "could not determine test reports folder")
 	}
-
 	// Create test reports folder if it doesn't exist
 	_, err = os.Stat(dest)
 	if err != nil && errors.Is(err, os.ErrNotExist) {

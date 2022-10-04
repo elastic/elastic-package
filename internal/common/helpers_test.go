@@ -39,3 +39,22 @@ func TestStringSliceContains(t *testing.T) {
 		assert.Equalf(t, c.expected, found, "checking if slice %v contains '%s'", c.slice, c.s)
 	}
 }
+
+func TestStringSlicesUnion(t *testing.T) {
+	cases := []struct {
+		slices   [][]string
+		expected []string
+	}{
+		{nil, nil},
+		{[][]string{{"foo", "bar"}, nil}, []string{"foo", "bar"}},
+		{[][]string{nil, {"foo", "bar"}}, []string{"foo", "bar"}},
+		{[][]string{{"foo", "bar"}, {"foo", "bar"}}, []string{"foo", "bar"}},
+		{[][]string{{"foo", "baz"}, {"foo", "bar"}}, []string{"foo", "bar", "baz"}},
+		{[][]string{{"foo", "bar"}, {"foo", "baz"}}, []string{"foo", "bar", "baz"}},
+	}
+
+	for _, c := range cases {
+		result := StringSlicesUnion(c.slices...)
+		assert.ElementsMatch(t, c.expected, result)
+	}
+}

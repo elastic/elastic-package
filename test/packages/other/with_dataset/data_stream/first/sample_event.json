@@ -1,0 +1,60 @@
+{
+    "@timestamp": "2022-09-20T17:53:26.894Z",
+    "agent": {
+        "ephemeral_id": "78997008-6321-4097-aeb4-9680e1e9eedf",
+        "id": "f1020af0-6e41-466e-b8d3-8e6d98624fd5",
+        "name": "docker-fleet-agent",
+        "type": "filebeat",
+        "version": "8.4.1"
+    },
+    "data_stream": {
+        "dataset": "with_dataset.overwritten_dataset.foo",
+        "namespace": "ep",
+        "type": "logs"
+    },
+    "ecs": {
+        "version": "1.6.0"
+    },
+    "elastic_agent": {
+        "id": "f1020af0-6e41-466e-b8d3-8e6d98624fd5",
+        "snapshot": false,
+        "version": "8.4.1"
+    },
+    "event": {
+        "agent_id_status": "verified",
+        "dataset": "with_dataset.overwritten_dataset.foo",
+        "ingested": "2022-09-20T17:53:30Z"
+    },
+    "host": {
+        "architecture": "x86_64",
+        "containerized": true,
+        "hostname": "docker-fleet-agent",
+        "id": "51511c1493f34922b559a964798246ec",
+        "ip": [
+            "192.168.32.7"
+        ],
+        "mac": [
+            "02:42:c0:a8:20:07"
+        ],
+        "name": "docker-fleet-agent",
+        "os": {
+            "codename": "focal",
+            "family": "debian",
+            "kernel": "5.10.47-linuxkit",
+            "name": "Ubuntu",
+            "platform": "ubuntu",
+            "type": "linux",
+            "version": "20.04.4 LTS (Focal Fossa)"
+        }
+    },
+    "input": {
+        "type": "log"
+    },
+    "log": {
+        "file": {
+            "path": "/tmp/service_logs/with_dataset.log"
+        },
+        "offset": 0
+    },
+    "message": "{\"message\": \"hello\"}"
+}

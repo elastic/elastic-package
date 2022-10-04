@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 )
@@ -27,7 +26,7 @@ func dumpJSONResource(dir string, object DumpableJSONResource) error {
 		return fmt.Errorf("failed to format JSON object: %w", err)
 	}
 	path := filepath.Join(dir, object.Name()+".json")
-	err = ioutil.WriteFile(path, formatted, 0644)
+	err = os.WriteFile(path, formatted, 0644)
 	if err != nil {
 		return fmt.Errorf("failed to dump object to file: %w", err)
 	}

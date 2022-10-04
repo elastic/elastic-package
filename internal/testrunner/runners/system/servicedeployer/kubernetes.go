@@ -8,7 +8,6 @@ import (
 	"bytes"
 	_ "embed"
 	"encoding/base64"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -157,7 +156,7 @@ func installElasticAgentInCluster() error {
 		return errors.Wrap(err, "can't read Kibana injected metadata")
 	}
 
-	elasticAgentManagedYaml, err := getElasticAgentYAML(stackVersion)
+	elasticAgentManagedYaml, err := getElasticAgentYAML(stackVersion.Version())
 	if err != nil {
 		return errors.Wrap(err, "can't retrieve Kubernetes file for Elastic Agent")
 	}
@@ -208,7 +207,7 @@ func readCACertBase64() (string, error) {
 		return "", errors.Errorf("%s not defined", stack.CACertificateEnv)
 	}
 
-	d, err := ioutil.ReadFile(caCertPath)
+	d, err := os.ReadFile(caCertPath)
 	if err != nil {
 		return "", err
 	}

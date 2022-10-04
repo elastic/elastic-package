@@ -12,6 +12,7 @@ import (
 
 	"github.com/elastic/elastic-package/internal/fields"
 	"github.com/elastic/elastic-package/internal/logger"
+	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
 
@@ -64,12 +65,17 @@ func (r runner) run() ([]testrunner.TestResult, error) {
 		return result.WithSkip(testConfig.Skip)
 	}
 
+	pkgManifest, err := packages.ReadPackageManifestFromPackageRoot(r.options.PackageRootPath)
+	if err != nil {
+		return result.WithError(errors.Wrap(err, "failed to read manifest"))
+	}
+
 	var results []testrunner.TestResult
-	results = append(results, r.verifySampleEvent()...)
+	results = append(results, r.verifySampleEvent(pkgManifest)...)
 	return results, nil
 }
 
-func (r runner) verifySampleEvent() []testrunner.TestResult {
+func (r runner) verifySampleEvent(pkgManifest *packages.PackageManifest) []testrunner.TestResult {
 	dataStreamPath := filepath.Join(r.options.PackageRootPath, "data_stream", r.options.TestFolder.DataStream)
 	sampleEventPath := filepath.Join(dataStreamPath, sampleEventJSON)
 	_, err := os.Stat(sampleEventPath)
@@ -89,9 +95,12 @@ func (r runner) verifySampleEvent() []testrunner.TestResult {
 		return results
 	}
 
-	fieldsValidator, err := fields.CreateValidatorForDirectory(
-		dataStreamPath,
-		fields.WithDefaultNumericConversion())
+	expectedDataset := pkgManifest.Name + "." + r.options.TestFolder.DataStream
+	fieldsValidator, err := fields.CreateValidatorForDirectory(dataStreamPath,
+		fields.WithSpecVersion(pkgManifest.SpecVersion),
+		fields.WithDefaultNumericConversion(),
+		fields.WithExpectedDataset(expectedDataset),
+	)
 	if err != nil {
 		results, _ := resultComposer.WithError(errors.Wrap(err, "creating fields validator for data stream failed"))
 		return results

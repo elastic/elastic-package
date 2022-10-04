@@ -4,7 +4,7 @@
 
 package archetype
 
-const packageManifestTemplate = `format_version: 1.0.0
+const packageManifestTemplate = `format_version: 2.0.0
 name: {{.Manifest.Name}}
 title: "{{.Manifest.Title}}"
 version: {{.Manifest.Version}}
@@ -12,7 +12,6 @@ version: {{.Manifest.Version}}
 source:
   license: "{{.Manifest.Source.License}}"
 {{ end }}
-license: {{.Manifest.License}}
 description: "{{.Manifest.Description}}"
 type: {{.Manifest.Type}}
 categories:{{range $category := .Manifest.Categories}}

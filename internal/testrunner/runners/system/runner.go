@@ -455,8 +455,12 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	}
 
 	// Validate fields in docs
+	expectedDataset := pkgManifest.Name + "." + r.options.TestFolder.DataStream
 	fieldsValidator, err := fields.CreateValidatorForDirectory(serviceOptions.DataStreamRootPath,
-		fields.WithNumericKeywordFields(config.NumericKeywordFields))
+		fields.WithSpecVersion(pkgManifest.SpecVersion),
+		fields.WithNumericKeywordFields(config.NumericKeywordFields),
+		fields.WithExpectedDataset(expectedDataset),
+	)
 	if err != nil {
 		return result.WithError(errors.Wrapf(err, "creating fields validator for data stream failed (path: %s)", serviceOptions.DataStreamRootPath))
 	}
@@ -539,7 +543,7 @@ func createPackageDatastream(
 			Enabled: true,
 			DataStream: kibana.DataStream{
 				Type:    ds.Type,
-				Dataset: fmt.Sprintf("%s.%s", pkg.Name, ds.Name),
+				Dataset: getDataStreamDataset(pkg, ds),
 			},
 		},
 	}
@@ -598,6 +602,13 @@ func getDataStreamIndex(inputName string, ds packages.DataStreamManifest) int {
 		}
 	}
 	return 0
+}
+
+func getDataStreamDataset(pkg packages.PackageManifest, ds packages.DataStreamManifest) string {
+	if len(ds.Dataset) > 0 {
+		return ds.Dataset
+	}
+	return fmt.Sprintf("%s.%s", pkg.Name, ds.Name)
 }
 
 // findPolicyTemplateForInput returns the name of the policy_template that
