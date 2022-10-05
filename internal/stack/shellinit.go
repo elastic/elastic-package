@@ -23,14 +23,14 @@ var (
 )
 
 // ShellInit method exposes environment variables that can be used for testing purposes.
-func ShellInit(elasticStackProfile *profile.Profile, st string) (string, error) {
+func ShellInit(elasticStackProfile *profile.Profile, shellType string) (string, error) {
 	config, err := StackInitConfig(elasticStackProfile)
 	if err != nil {
 		return "", nil
 	}
 
 	// NOTE: to add new env vars, the template need to be adjusted
-	t, err := initTemplate(st)
+	t, err := initTemplate(shellType)
 	if err != nil {
 		return "", fmt.Errorf("cannot get shell init template: %w", err)
 	}
