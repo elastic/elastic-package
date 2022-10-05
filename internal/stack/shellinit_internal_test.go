@@ -5,7 +5,10 @@
 package stack
 
 import (
+	"strings"
 	"testing"
+
+	"gotest.tools/v3/assert"
 )
 
 func TestCodeTemplate(t *testing.T) {
@@ -24,7 +27,7 @@ func TestCodeTemplate(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := initTemplate(tt.args.s); got != tt.want {
+			if got, _ := initTemplate(tt.args.s); got != tt.want {
 				t.Errorf("CodeTemplate() = %v, want %v", got, tt.want)
 			}
 		})
@@ -32,11 +35,6 @@ func TestCodeTemplate(t *testing.T) {
 }
 
 func TestCodeTemplate_wrongInput(t *testing.T) {
-	defer func() {
-		if r := recover(); r == nil {
-			t.Errorf("initTemplate should have paniced here")
-		}
-	}()
-
-	initTemplate("invalid shell type")
+	_, err := initTemplate("invalid shell type")
+	assert.Error(t, err, "shell type is unknown, should be one of "+strings.Join(availableShellTypes, ", "))
 }
