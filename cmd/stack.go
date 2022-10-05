@@ -365,5 +365,7 @@ func detectShell() (string, error) {
 	}
 
 	shell := filepath.Base(parentInfo.Exe)
+	// NOTE: remove .exe extension from executable name present in Windows
+	shell = strings.TrimSuffix(shell, ".exe")
 	return shell, nil
 }
