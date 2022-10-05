@@ -206,7 +206,7 @@ func setupStackCommand() *cobraext.Command {
 				return cobraext.FlagParsingError(err, cobraext.ShellInitShellFlagName)
 			}
 
-			if shellName == "detect" {
+			if shellName == cobraext.ShellInitShellDetect {
 				shellName, err = detectShell()
 				if err != nil {
 					return fmt.Errorf("cannot detect parent shell from current process: %w", err)
@@ -227,8 +227,8 @@ func setupStackCommand() *cobraext.Command {
 			return nil
 		},
 	}
-	// NOTE: detect is used to trigger automatic detection of parent shell from current process
-	shellInitCommand.Flags().StringP(cobraext.ShellInitShellFlagName, "", "detect", cobraext.ShellInitShellDescription)
+	// NOTE: cobraext.ShellInitShellDetect value is used to trigger automatic detection of parent shell from current process
+	shellInitCommand.Flags().StringP(cobraext.ShellInitShellFlagName, "", cobraext.ShellInitShellDetect, cobraext.ShellInitShellDescription)
 
 	dumpCommand := &cobra.Command{
 		Use:   "dump",
