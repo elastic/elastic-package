@@ -15,6 +15,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/go-sysinfo"
+	"github.com/elastic/go-sysinfo/types"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/common"
@@ -352,21 +353,42 @@ func printStatus(cmd *cobra.Command, servicesStatus []stack.ServiceStatus) {
 	cmd.Println(t.Render())
 }
 
-func detectShell() (string, error) {
-	ppid := os.Getppid()
-
+func getParentInfo(ppid int) (types.ProcessInfo, error) {
 	parent, err := sysinfo.Process(ppid)
 	if err != nil {
-		return "", fmt.Errorf("cannot retrieve information for process %d: %w", ppid, err)
+		return types.ProcessInfo{}, fmt.Errorf("cannot retrieve information for process %d: %w", ppid, err)
 	}
 
 	parentInfo, err := parent.Info()
 	if err != nil {
-		return "", fmt.Errorf("cannot retrieve information for parent of process %d: %w", ppid, err)
+		return types.ProcessInfo{}, fmt.Errorf("cannot retrieve information for parent of process %d: %w", ppid, err)
 	}
 
-	shell := filepath.Base(parentInfo.Exe)
-	// NOTE: remove .exe extension from executable name present in Windows
+	return parentInfo, nil
+}
+
+func getShellName(exe string) string {
+	shell := filepath.Base(exe)
+	// NOTE: remove .exe extension from executable names present in Windows
 	shell = strings.TrimSuffix(shell, ".exe")
+	return shell
+}
+
+func detectShell() (string, error) {
+	ppid := os.Getppid()
+	parentInfo, err := getParentInfo(ppid)
+	if err != nil {
+		return "", err
+	}
+
+	shell := getShellName(parentInfo.Exe)
+	if shell == "go" {
+		parentParentInfo, err := getParentInfo(parentInfo.PPID)
+		if err != nil {
+			return "", fmt.Errorf("cannot retrieve parent parent info: %w", err)
+		}
+		return getShellName(parentParentInfo.Exe), nil
+	}
+
 	return shell, nil
 }
