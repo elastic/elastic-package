@@ -56,7 +56,7 @@ func (cfg simpleFile) writeConfig() error {
 func (cfg *simpleFile) readConfig() error {
 	body, err := os.ReadFile(cfg.path)
 	if err != nil {
-		return errors.Wrapf(err, "reading filed failed (path: %s)", cfg.path)
+		return errors.Wrapf(err, "reading file failed (path: %s)", cfg.path)
 	}
 	cfg.body = string(body)
 	return nil
