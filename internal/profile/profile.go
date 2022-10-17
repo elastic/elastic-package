@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 
 	"github.com/pkg/errors"
+
+	"github.com/elastic/elastic-package/internal/logger"
 )
 
 // Profile manages a a given user config profile
@@ -278,6 +280,10 @@ func (profile Profile) localFilesChanged() (bool, error) {
 func (profile Profile) readProfileResources() error {
 	for _, cfgFile := range profile.configFiles {
 		err := cfgFile.readConfig()
+		if errors.Is(err, os.ErrNotExist) {
+			logger.Debugf("File %s not found while reading profile.", cfgFile.path)
+			continue
+		}
 		if err != nil {
 			return errors.Wrap(err, "error reading in profile")
 		}
