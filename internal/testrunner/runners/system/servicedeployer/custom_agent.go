@@ -154,5 +154,5 @@ func (d *CustomAgentDeployer) loadComposeDefinitions() ([]string, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "can't locate Docker Compose file for Custom Agent deployer")
 	}
-	return []string{locationManager.DockerCustomAgentDeployerYml(), d.cfg}, nil
+	return []string{d.cfg,locationManager.DockerCustomAgentDeployerYml()}, nil
 }
