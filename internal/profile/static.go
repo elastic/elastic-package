@@ -123,8 +123,7 @@ func newPackageRegistryConfig(_ string, profilePath string) (*simpleFile, error)
 }
 
 // PackageRegistryBaseImage is the base Docker image of the Elastic Package Registry.
-// commit SHA of enabled proxy mode (technical preview feature)
-const PackageRegistryBaseImage = "docker.elastic.co/package-registry/package-registry:fbeed6de1a5872df95d25ab445e261d8912c22ba"
+const PackageRegistryBaseImage = "docker.elastic.co/package-registry/package-registry:v1.15.0"
 
 // PackageRegistryDockerfileFile is the dockerfile for the Elastic package registry
 const PackageRegistryDockerfileFile configFile = "Dockerfile.package-registry"
