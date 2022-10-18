@@ -116,6 +116,10 @@ const (
 	ShowAllFlagName        = "all"
 	ShowAllFlagDescription = "show all deployed package revisions"
 
+	ShellInitShellFlagName    = "shell"
+	ShellInitShellDescription = "change output shell code compatibility. Use 'detect' to use integrated shell detection; suggested to not change unless detection is not working"
+	ShellInitShellDetect      = "auto"
+
 	SignPackageFlagName        = "sign"
 	SignPackageFlagDescription = "sign package"
 
