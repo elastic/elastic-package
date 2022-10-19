@@ -42,6 +42,15 @@
     - info
     - protocol
     - start
+  - name: iam
+    expected_event_types:
+    - admin
+    - change
+    - creation
+    - deletion
+    - group
+    - info
+    - user
 - name: event.type
   type: keyword
   normalize:
