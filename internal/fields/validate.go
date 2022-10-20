@@ -468,9 +468,33 @@ func validSubField(def FieldDefinition, extraPart string) bool {
 // parseElementValue checks that the value stored in a field matches the field definition. For
 // arrays it checks it for each Element.
 func (v *Validator) parseElementValue(key string, definition FieldDefinition, val interface{}, doc common.MapStr) error {
+	err := v.parseAllElementValues(key, definition, val, doc)
+	if err != nil {
+		return err
+	}
+
 	return forEachElementValue(key, definition, val, doc, v.parseSingleElementValue)
 }
 
+// parseAllElementValues performs validations that must be done for all elements at once in
+// case that there are multiple values.
+func (v *Validator) parseAllElementValues(key string, definition FieldDefinition, val interface{}, doc common.MapStr) error {
+	switch definition.Type {
+	case "constant_keyword", "keyword", "text":
+		if !v.specVersion.LessThan(semver2_0_0) {
+			strings, err := valueToStringsSlice(val)
+			if err != nil {
+				return fmt.Errorf("field %q value \"%v\" (%T): %w", key, val, val, err)
+			}
+			if err := ensureExpectedEventType(key, strings, definition, doc); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// parseSingeElementValue performs validations on individual values of each element.
 func (v *Validator) parseSingleElementValue(key string, definition FieldDefinition, val interface{}, doc common.MapStr) error {
 	invalidTypeError := func() error {
 		return fmt.Errorf("field %q's Go type, %T, does not match the expected field type: %s (field value: %v)", key, val, definition.Type, val)
@@ -495,11 +519,6 @@ func (v *Validator) parseSingleElementValue(key string, definition FieldDefiniti
 		if err := ensureAllowedValues(key, valStr, definition); err != nil {
 			return err
 		}
-		if !v.specVersion.LessThan(semver2_0_0) {
-			if err := ensureExpectedEventType(key, valStr, definition, doc); err != nil {
-				return err
-			}
-		}
 	// Normal text fields should be of type string.
 	// If a pattern is provided, it checks if the value matches.
 	case "keyword", "text":
@@ -513,11 +532,6 @@ func (v *Validator) parseSingleElementValue(key string, definition FieldDefiniti
 		}
 		if err := ensureAllowedValues(key, valStr, definition); err != nil {
 			return err
-		}
-		if !v.specVersion.LessThan(semver2_0_0) {
-			if err := ensureExpectedEventType(key, valStr, definition, doc); err != nil {
-				return err
-			}
 		}
 	// Dates are expected to be formatted as strings or as seconds or milliseconds
 	// since epoch.
@@ -663,11 +677,47 @@ func ensureAllowedValues(key, value string, definition FieldDefinition) error {
 
 // ensureExpectedEventType validates that the document's `event.type` field is one of the expected
 // one for the given value.
-func ensureExpectedEventType(key, value string, definition FieldDefinition, doc common.MapStr) error {
-	eventType, _ := doc.GetValue("event.type")
-	if !definition.AllowedValues.IsExpectedEventType(value, eventType) {
-		expected := definition.AllowedValues.ExpectedEventTypes(value)
-		return fmt.Errorf("field \"event.type\" value \"%v\" (%T) is not one of the expected values (%s) for %s=%q", eventType, eventType, strings.Join(expected, ", "), key, value)
+func ensureExpectedEventType(key string, values []string, definition FieldDefinition, doc common.MapStr) error {
+	eventTypeVal, _ := doc.GetValue("event.type")
+	eventTypes, err := valueToStringsSlice(eventTypeVal)
+	if err != nil {
+		return fmt.Errorf("field \"event.type\" value \"%v\" (%T): %w", eventTypeVal, eventTypeVal, err)
 	}
+	var expected []string
+	for _, value := range values {
+		expectedForValue := definition.AllowedValues.ExpectedEventTypes(value)
+		expected = common.StringSlicesUnion(expected, expectedForValue)
+	}
+	if len(expected) == 0 {
+		// No restrictions defined for this value, all good to go.
+		return nil
+	}
+	for _, eventType := range eventTypes {
+		if !common.StringSliceContains(expected, eventType) {
+			return fmt.Errorf("field \"event.type\" value %q is not one of the expected values (%s) for any of the values of %q (%s)", eventType, strings.Join(expected, ", "), key, strings.Join(values, ", "))
+		}
+	}
+
 	return nil
+}
+
+func valueToStringsSlice(value interface{}) ([]string, error) {
+	switch v := value.(type) {
+	case nil:
+		return nil, nil
+	case string:
+		return []string{v}, nil
+	case []interface{}:
+		var values []string
+		for _, e := range v {
+			s, ok := e.(string)
+			if !ok {
+				return nil, fmt.Errorf("expected string or array of strings")
+			}
+			values = append(values, s)
+		}
+		return values, nil
+	default:
+		return nil, fmt.Errorf("expected string or array of strings")
+	}
 }
