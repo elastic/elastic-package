@@ -64,19 +64,15 @@ set -x %s %s;
 )
 
 // availableShellTypes list all available values for s in initTemplate
-var availableShellTypes = []string{"bash", "fish", "sh", "zsh"}
+var availableShellTypes = []string{"bash", "dash", "fish", "sh", "zsh"}
 
 // InitTemplate returns code templates for shell initialization
 func initTemplate(s string) (string, error) {
 	switch s {
-	case "bash":
+	case "bash", "dash", "sh", "zsh":
 		return posixTemplate, nil
 	case "fish":
 		return fishTemplate, nil
-	case "sh":
-		return posixTemplate, nil
-	case "zsh":
-		return posixTemplate, nil
 	default:
 		return "", errors.New("shell type is unknown, should be one of " + strings.Join(availableShellTypes, ", "))
 	}
