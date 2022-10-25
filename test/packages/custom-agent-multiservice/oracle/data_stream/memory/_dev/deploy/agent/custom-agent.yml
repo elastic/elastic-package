@@ -21,6 +21,3 @@ services:
     ports:
       - 1521:1521
       - 5500:5500
-networks:
-   elastic-package-service_default:
-     external: true
