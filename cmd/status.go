@@ -101,8 +101,6 @@ func print(p *status.PackageStatus, w io.Writer) error {
 		cyan.Fprintln(w, formatOwner(p))
 		environmentTable = append(environmentTable, formatManifest("Local", *p.Local, nil))
 	}
-	environmentTable = append(environmentTable, formatManifests("Snapshot", p.Snapshot))
-	environmentTable = append(environmentTable, formatManifests("Staging", p.Staging))
 	environmentTable = append(environmentTable, formatManifests("Production", p.Production))
 
 	if p.PendingChanges != nil {

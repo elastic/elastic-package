@@ -25,10 +25,14 @@ func fooPackage(version string) packages.PackageManifest {
 		Version:     version,
 		Title:       "Foo",
 		Description: "Foo integration",
+		Owner: packages.Owner{
+			Github: "team",
+		},
 	}
 }
 
 func TestStatusFormatAndPrint(t *testing.T) {
+	localPackage := fooPackage("2.0.0-rc1")
 	cases := []struct {
 		title     string
 		pkgStatus *status.PackageStatus
@@ -50,20 +54,27 @@ func TestStatusFormatAndPrint(t *testing.T) {
 			expected: "./testdata/status-version-one-stage",
 		},
 		{
-			title: "some versions",
+			title: "beta versions",
 			pkgStatus: &status.PackageStatus{
 				Name: "foo",
 				Production: []packages.PackageManifest{
 					fooPackage("1.0.0"),
-				},
-				Staging: []packages.PackageManifest{
 					fooPackage("1.1.0-beta1"),
 				},
-				Snapshot: []packages.PackageManifest{
+			},
+			expected: "./testdata/status-beta-versions",
+		},
+		{
+			title: "release candidate versions",
+			pkgStatus: &status.PackageStatus{
+				Name: "foo",
+				Production: []packages.PackageManifest{
+					fooPackage("1.0.0"),
+					fooPackage("1.1.0-beta1"),
 					fooPackage("2.0.0-rc1"),
 				},
 			},
-			expected: "./testdata/status-some-versions",
+			expected: "./testdata/status-release-candidate-versions",
 		},
 		{
 			title: "preview versions",
@@ -71,40 +82,25 @@ func TestStatusFormatAndPrint(t *testing.T) {
 				Name: "foo",
 				Production: []packages.PackageManifest{
 					fooPackage("0.9.0"),
-				},
-				Staging: []packages.PackageManifest{
 					fooPackage("1.0.0-preview1"),
-				},
-				Snapshot: []packages.PackageManifest{
 					fooPackage("1.0.0-preview5"),
 				},
 			},
 			expected: "./testdata/status-preview-versions",
 		},
 		{
-			title: "multiple versions in stage",
+			title: "local version stage",
 			pkgStatus: &status.PackageStatus{
-				Name: "foo",
+				Name:  "foo",
+				Local: &localPackage,
 				Production: []packages.PackageManifest{
 					fooPackage("1.0.0"),
 					fooPackage("1.0.1"),
 					fooPackage("1.0.2"),
-				},
-				Staging: []packages.PackageManifest{
-					fooPackage("1.0.0"),
-					fooPackage("1.0.1"),
-					fooPackage("1.0.2"),
 					fooPackage("1.1.0-beta1"),
-				},
-				Snapshot: []packages.PackageManifest{
-					fooPackage("1.0.0"),
-					fooPackage("1.0.1"),
-					fooPackage("1.0.2"),
-					fooPackage("1.1.0-beta1"),
-					fooPackage("2.0.0-rc1"),
 				},
 			},
-			expected: "./testdata/status-multiple-versions-in-stage",
+			expected: "./testdata/status-local-version-stage",
 		},
 	}
 
