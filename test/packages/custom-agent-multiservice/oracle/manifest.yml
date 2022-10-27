@@ -11,35 +11,6 @@ categories:
 release: ga
 conditions:
   kibana.version: "^8.3.0"
-screenshots:
-  - src: /img/Oracle-overview-dashboard.png
-    title: Oracle overview dashboard
-    size: 3298x1722
-    type: image/png
-  - src: /img/Oracle-memory-dashboard.png
-    title: Oracle memory metrics dashboard
-    size: 3360x3590
-    type: image/png
-  - src: /img/Oracle-performance-dashboard.png
-    title: Oracle performance metrics dashboard
-    size: 3360x3590
-    type: image/png
-  - src: /img/Oracle-system_statistics-dashboard.png
-    title: Oracle system statistics metrics dashboard
-    size: 3360x3590
-    type: image/png
-  - src: /img/Oracle-tablespace-dashboard.png
-    title: Oracle tablespace metrics dashboard
-    size: 3360x3590
-    type: image/png
-  - src: /img/Oracle-sysmetrics-dashboard.png
-    title: Oracle sysmetrics dashboard
-    size: 3360x3590
-    type: image/png
-  - src: /img/Oracle-sysmetrics-dashboard-2.png
-    title: Oracle sysmetrics dashboard
-    size: 3360x3590
-    type: image/png
 icons:
   - src: /img/oracle_logo.svg
     title: Oracle
