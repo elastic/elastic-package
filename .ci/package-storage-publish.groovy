@@ -146,6 +146,10 @@ def uploadUnpublishedToPackageStorage(builtPackagesPath) {
             ],
             useCrumbCache: true,
             useJobInfoCache: true)
+
+          // As publishing job remote is triggered in dry-run mode, uploaded files (*.zip and *.zig.sig) should be deleted from the bucket
+          sh(label: 'Remove package .zip file', script: "gsutil rm ${env.PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH}/${packageZip}")
+          sh(label: 'Remove package .sig file', script: "gsutil rm ${env.PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH}/${packageZip}.sig")
         }
       }
     }
