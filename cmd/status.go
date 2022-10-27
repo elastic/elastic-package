@@ -111,7 +111,7 @@ func print(p *status.PackageStatus, w io.Writer) error {
 		for _, change := range p.PendingChanges.Changes {
 			changelogTable = append(changelogTable, formatChangelogEntry(change))
 		}
-		table := tablewriter.NewWriter(os.Stdout)
+		table := tablewriter.NewWriter(w)
 		table.SetHeader([]string{"Type", "Description", "Link"})
 		table.SetHeaderColor(
 			twColor(tablewriter.Colors{tablewriter.Bold}),

@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/internal/packages/changelog"
 	"github.com/elastic/elastic-package/internal/packages/status"
 )
 
@@ -33,6 +34,17 @@ func fooPackage(version string) packages.PackageManifest {
 
 func TestStatusFormatAndPrint(t *testing.T) {
 	localPackage := fooPackage("2.0.0-rc1")
+	localPendingChanges := changelog.Revision{
+		Version: "2.0.0-rc2",
+		Changes: []changelog.Entry{
+			changelog.Entry{
+				Description: "New feature",
+				Type:        "enhancement",
+				Link:        "http:github.com/org/repo/pull/2",
+			},
+		},
+	}
+
 	cases := []struct {
 		title     string
 		pkgStatus *status.PackageStatus
@@ -101,6 +113,18 @@ func TestStatusFormatAndPrint(t *testing.T) {
 				},
 			},
 			expected: "./testdata/status-local-version-stage",
+		},
+		{
+			title: "local pending changes",
+			pkgStatus: &status.PackageStatus{
+				Name:           "foo",
+				Local:          &localPackage,
+				PendingChanges: &localPendingChanges,
+				Production: []packages.PackageManifest{
+					fooPackage("1.0.0"),
+				},
+			},
+			expected: "./testdata/status-pending-changes",
 		},
 	}
 
