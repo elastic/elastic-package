@@ -23,6 +23,7 @@ type Agent struct {
 	ID             string `json:"id"`
 	PolicyID       string `json:"policy_id"`
 	PolicyRevision int    `json:"policy_revision,omitempty"`
+	Status         string `json:"status"`
 	LocalMetadata  struct {
 		Host struct {
 			Name string `json:"name"`
