@@ -711,7 +711,7 @@ func filterAgents(allAgents []kibana.Agent, ctx servicedeployer.ServiceContext) 
 
 		if agent.Status == "offline" {
 			continue
-		} 
+		}
 
 		if agent.PolicyRevision == 0 {
 			continue // For some reason Kibana doesn't always return a valid policy revision (eventually it will be present and valid)
