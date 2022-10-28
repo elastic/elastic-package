@@ -401,12 +401,6 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 		return result.WithError(err)
 	}
 
-	agents, err = checkEnrolledAgents(kib, ctxt)
-	if err != nil {
-		return result.WithError(errors.Wrap(err, "can't check enrolled agents"))
-	}
-	agent = agents[0]
-
 	// Assign policy to agent
 	r.resetAgentPolicyHandler = func() error {
 		logger.Debug("reassigning original policy back to agent...")
@@ -499,15 +493,8 @@ func checkEnrolledAgents(client *kibana.Client, ctxt servicedeployer.ServiceCont
 			return false, errors.Wrap(err, "could not list agents")
 		}
 
-		for _, agent := range allAgents {
-			logger.Debugf("All Agents --> ID : %s \t Name: %s \t Status: %s", agent.ID, agent.LocalMetadata.Host.Name, agent.Status)
-		}
-
 		agents = filterAgents(allAgents, ctxt)
 		logger.Debugf("found %d enrolled agent(s)", len(agents))
-		for _, agent := range agents {
-			logger.Debugf("Filtered Agent --> ID : %s \t Name: %s \t Status: --%s--", agent.ID, agent.LocalMetadata.Host.Name, agent.Status)
-		}
 		if len(agents) == 0 {
 			return false, nil // selected agents are unavailable yet
 		}
@@ -708,11 +695,6 @@ func filterAgents(allAgents []kibana.Agent, ctx servicedeployer.ServiceContext) 
 
 	var filtered []kibana.Agent
 	for _, agent := range allAgents {
-
-		if agent.Status == "offline" {
-			continue
-		}
-
 		if agent.PolicyRevision == 0 {
 			continue // For some reason Kibana doesn't always return a valid policy revision (eventually it will be present and valid)
 		}
