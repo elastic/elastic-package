@@ -329,16 +329,6 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 		return result.WithError(errors.Wrap(err, "can't create Kibana client"))
 	}
 
-	agents, err := checkEnrolledAgents(kib, ctxt)
-	if err != nil {
-		return result.WithError(errors.Wrap(err, "can't check enrolled agents"))
-	}
-	agent := agents[0]
-	origPolicy := kibana.Policy{
-		ID:       agent.PolicyID,
-		Revision: agent.PolicyRevision,
-	}
-
 	// Configure package (single data stream) via Ingest Manager APIs.
 	logger.Debug("creating test policy...")
 	testTime := time.Now().Format("20060102T15:04:05Z")
@@ -400,6 +390,16 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 		}
 		return result.WithError(err)
 	}
+
+	agents, err := checkEnrolledAgents(kib, ctxt)
+        if err != nil {
+                return result.WithError(errors.Wrap(err, "can't check enrolled agents"))
+        }
+        agent := agents[0]
+        origPolicy := kibana.Policy{
+                ID:       agent.PolicyID,
+                Revision: agent.PolicyRevision,
+        }
 
 	// Assign policy to agent
 	r.resetAgentPolicyHandler = func() error {
