@@ -159,6 +159,72 @@ data_stream:
   # ...
 ```
 
+#### Agent service deployer with multiple services
+
+Multiple services may need to be created to meet specific requirements. For example, a custom elastic-agent having certain libraries installed is required to connect with the service that is intended for testing.
+
+`Dockerfile` having the image build instructions, `custom-agent.yml` having docker-compose definition for configuring the custom-agent can be kept in the below location
+
+```
+<package root>/
+  _dev/
+    deploy/
+      <service deployer>/
+        <service deployer files>
+```
+
+or the data stream's level:
+
+```
+<package root>/
+  data_stream/
+    <data stream>/
+      _dev/
+        deploy/
+          <service deployer>/
+            <service deployer files>
+```
+
+An example for `Dockerfile` is as below
+```
+FROM docker.elastic.co/elastic-agent/elastic-agent-complete:8.4.0
+USER root
+RUN apt-get update && apt-get -y install \
+    libaio1 \
+    wget \
+    unzip
+```
+An example for `custom-agent.yml` in multi-service setup is as below
+```
+version: '2.3'
+services:
+  docker-custom-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: elastic-agent-oracle-client-1
+    depends_on:
+        oracle:
+          condition: service_healthy
+    healthcheck:
+      test: ["CMD", "bash", "-c", "echo 'select sysdate from dual;' | ORACLE_HOME=/opt/oracle/instantclient_21_4 /opt/oracle/instantclient_21_4/sqlplus -s <user>/<password>@oracle:1521/ORCLCDB.localdomain as sysdba"]
+      interval: 120s
+      timeout: 300s
+      retries: 300
+
+  oracle:
+    image: docker.elastic.co/observability-ci/database-enterprise:12.2.0.1
+    container_name: oracle
+    ports:
+      - 1521:1521
+      - 5500:5500
+    healthcheck:
+      test: ["CMD", "bash", "-c", "echo 'select sysdate from dual;' | ORACLE_HOME=/u01/app/oracle/product/12.2.0/dbhome_1/ /u01/app/oracle/product/12.2.0/dbhome_1/bin/sqlplus -s <user>/<password>@oracle:1521/ORCLCDB.localdomain as sysdba"]
+      interval: 120s
+      timeout: 300s
+      retries: 300
+```
+
 
 ### Terraform service deployer
 
