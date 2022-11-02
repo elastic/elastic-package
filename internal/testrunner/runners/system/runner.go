@@ -392,14 +392,14 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	}
 
 	agents, err := checkEnrolledAgents(kib, ctxt)
-        if err != nil {
-                return result.WithError(errors.Wrap(err, "can't check enrolled agents"))
-        }
-        agent := agents[0]
-        origPolicy := kibana.Policy{
-                ID:       agent.PolicyID,
-                Revision: agent.PolicyRevision,
-        }
+	if err != nil {
+		return result.WithError(errors.Wrap(err, "can't check enrolled agents"))
+	}
+	agent := agents[0]
+	origPolicy := kibana.Policy{
+		ID:       agent.PolicyID,
+		Revision: agent.PolicyRevision,
+	}
 
 	// Assign policy to agent
 	r.resetAgentPolicyHandler = func() error {
