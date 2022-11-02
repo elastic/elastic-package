@@ -107,14 +107,6 @@ volumes:
   mysqldata:
 ```
 
-And in the test config:
-
-```
-data_stream:
-  vars:
-  # ...
-```
-
 ### Agent service deployer
 
 When using the Agent service deployer, the `elastic-agent` provided by the stack
@@ -157,6 +149,14 @@ services:
       FLEET_ENROLL: "1"
       FLEET_INSECURE: "1"
       FLEET_URL: "http://fleet-server:8220"
+```
+
+And in the test config:
+
+```
+data_stream:
+  vars:
+  # ...
 ```
 
 #### Agent service deployer with multiple services
@@ -224,6 +224,7 @@ services:
       timeout: 300s
       retries: 300
 ```
+
 
 ### Terraform service deployer
 
