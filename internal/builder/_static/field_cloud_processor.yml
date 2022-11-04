@@ -1,0 +1,18 @@
+- external: ecs
+  name: cloud.account.id
+- external: ecs
+  name: cloud.availability_zone
+- external: ecs
+  name: cloud.instance.id
+- external: ecs
+  name: cloud.instance.name
+- external: ecs
+  name: cloud.machine.type
+- external: ecs
+  name: cloud.provider
+- external: ecs
+  name: cloud.region
+- external: ecs
+  name: cloud.project.id
+# - external: ecs
+#   name: cloud.image.id
