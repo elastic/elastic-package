@@ -7,6 +7,10 @@ services:
         ES_AGENT_IMAGE: ${ELASTIC_AGENT_COMPLETE_IMAGE_REF}
       dockerfile: Dockerfile
     image: elastic-agent-oracle-client-1
+    environment:
+     - "FLEET_ENROLL=1"
+     - "FLEET_INSECURE=1"
+     - "FLEET_URL=http://fleet-server:8220"
     depends_on:
       oracle:
         condition: service_healthy
