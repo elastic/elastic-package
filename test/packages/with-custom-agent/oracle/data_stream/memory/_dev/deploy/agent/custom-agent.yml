@@ -4,7 +4,7 @@ services:
     build:
       context: .
       args:
-        ES_AGENT_IMAGE: ${ELASTIC_AGENT_IMAGE_REF}
+        ES_AGENT_IMAGE: ${ELASTIC_AGENT_COMPLETE_IMAGE_REF}
       dockerfile: Dockerfile
     image: elastic-agent-oracle-client-1
     depends_on:
