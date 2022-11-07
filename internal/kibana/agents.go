@@ -23,16 +23,11 @@ type Agent struct {
 	ID             string `json:"id"`
 	PolicyID       string `json:"policy_id"`
 	PolicyRevision int    `json:"policy_revision,omitempty"`
-	Status         string `json:"status"`
-	Name           string `json:"name,omitempty"`
 	LocalMetadata  struct {
 		Host struct {
 			Name string `json:"name"`
 		} `json:"host"`
 	} `json:"local_metadata"`
-	Agent struct {
-		Version string `json:"version,omitempty"`
-	} `json:"agent,omitempty"`
 }
 
 // String method returns string representation of an agent.

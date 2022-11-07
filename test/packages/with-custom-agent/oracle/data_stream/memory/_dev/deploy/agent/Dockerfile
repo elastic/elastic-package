@@ -1,4 +1,5 @@
-FROM docker.elastic.co/elastic-agent/elastic-agent-complete:8.3.0
+ARG ES_AGENT_IMAGE=docker.elastic.co/elastic-agent/elastic-agent-complete:latest
+FROM $ES_AGENT_IMAGE
 USER root
 RUN apt-get update && apt-get -y install \
     libaio1 \
@@ -13,3 +14,4 @@ RUN export LD_LIBRARY_PATH=/opt/oracle/instantclient_21_4:$LD_LIBRARY_PATH  && e
 ENV LD_LIBRARY_PATH "${LD_LIBRARY_PATH}:/opt/oracle/instantclient_21_4"
 ENV PATH "${PATH}:/opt/oracle/instantclient_21_4"
 WORKDIR /opt/oracle/instantclient_21_4
+
