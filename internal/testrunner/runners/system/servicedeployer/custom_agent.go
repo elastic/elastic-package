@@ -36,6 +36,17 @@ func NewCustomAgentDeployer(cfgPath string) (*CustomAgentDeployer, error) {
 	}, nil
 }
 
+// GetFleetServerVersion returns the version information of docker-fleet-server.
+func GetFleetServerVersion(client *kibana.Client) string {
+	allAgents, _ := client.ListAgents()
+	for i := 0; i < len(allAgents); i++ {
+		if allAgents[i].Agent.Version != "" && allAgents[i].LocalMetadata.Host.Name == "docker-fleet-server" && allAgents[i].Status != "offline" {
+			return allAgents[i].Agent.Version
+		}
+	}
+	return ""
+}
+
 // SetUp sets up the service and returns any relevant information.
 func (d *CustomAgentDeployer) SetUp(inCtxt ServiceContext) (DeployedService, error) {
 	logger.Debug("setting up service using Docker Compose service deployer")
@@ -60,12 +71,14 @@ func (d *CustomAgentDeployer) SetUp(inCtxt ServiceContext) (DeployedService, err
 		return nil, errors.Wrapf(err, "can't locate CA certificate: %s environment variable not set", stack.CACertificateEnv)
 	}
 
+	esVersion := GetFleetServerVersion(kibanaClient)
+
 	env := append(
 		appConfig.StackImageRefs(stackVersion.Version()).AsEnv(),
 		fmt.Sprintf("%s=%s", serviceLogsDirEnv, inCtxt.Logs.Folder.Local),
 		fmt.Sprintf("%s=%s", localCACertEnv, caCertPath),
+		fmt.Sprintf("%s=%s", "ES_AGENT_VERSION", esVersion),
 	)
-
 	ymlPaths, err := d.loadComposeDefinitions()
 	if err != nil {
 		return nil, err
