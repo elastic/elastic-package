@@ -14,4 +14,3 @@ RUN export LD_LIBRARY_PATH=/opt/oracle/instantclient_21_4:$LD_LIBRARY_PATH  && e
 ENV LD_LIBRARY_PATH "${LD_LIBRARY_PATH}:/opt/oracle/instantclient_21_4"
 ENV PATH "${PATH}:/opt/oracle/instantclient_21_4"
 WORKDIR /opt/oracle/instantclient_21_4
-
