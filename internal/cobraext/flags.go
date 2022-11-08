@@ -32,6 +32,15 @@ const (
 	BenchNumTopProcsFlagName        = "num-top-procs"
 	BenchNumTopProcsFlagDescription = "number of top processors to show in the benchmarks results"
 
+	BenchReportSrcPathFlagName        = "source"
+	BenchReportSrcPathFlagDescription = "path of the directory containing the source benchmarks of the report"
+
+	BenchReportTargetPathFlagName        = "target"
+	BenchReportTargetPathFlagDescription = "path of the directory containing the target benchmarks to compare against to generate the report"
+
+	BenchThresholdFlagName        = "threshold"
+	BenchThresholdFlagDescription = "threshold to assume a benchmark report has significantly changed"
+
 	BenchWithTestSamplesFlagName        = "use-test-samples"
 	BenchWithTestSamplesFlagDescription = "use test samples for the benchmarks"
 
@@ -109,6 +118,9 @@ const (
 
 	ReportFormatFlagName        = "report-format"
 	ReportFormatFlagDescription = "format of test report"
+
+	ReportFullFlagName        = "full"
+	ReportFullFlagDescription = "whether to show the full report or a summary"
 
 	ReportOutputFlagName        = "report-output"
 	ReportOutputFlagDescription = "output location for test report"

@@ -66,30 +66,3 @@ func (p BenchmarkValue) String() (r string) {
 	}
 	return r
 }
-
-func (r *BenchmarkResult) getEPS() float64 {
-	for _, test := range r.Tests {
-		for _, res := range test.Results {
-			if res.Name == "eps" {
-				v, _ := res.Value.(float64)
-				return v
-			}
-		}
-	}
-	return 0
-}
-
-func (r *BenchmarkResult) getPackageAndDatastream() (string, string) {
-	var pkg, ds string
-	for _, p := range r.Parameters {
-		switch p.Name {
-		case "package":
-			v, _ := p.Value.(string)
-			pkg = v
-		case "data_stream":
-			v, _ := p.Value.(string)
-			ds = v
-		}
-	}
-	return pkg, ds
-}
