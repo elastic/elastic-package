@@ -67,7 +67,7 @@ for d in test/packages/${PACKAGE_TEST_TYPE:-other}/${PACKAGE_UNDER_TEST:-*}/; do
     elastic-package install -v
 
     if [ "${PACKAGE_TEST_TYPE:-other}" == "benchmarks" ]; then
-      elastic-package benchmark -v --report-format xUnit --report-output file --fail-on-missing
+      elastic-package benchmark -v --report-format json --report-output file --fail-on-missing
     else
       # defer-cleanup is set to a short period to verify that the option is available
       elastic-package test -v --report-format xUnit --report-output file --defer-cleanup 1s --test-coverage
