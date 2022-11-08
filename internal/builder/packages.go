@@ -14,6 +14,7 @@ import (
 
 	"github.com/elastic/package-spec/v2/code/go/pkg/validator"
 
+	"github.com/elastic/elastic-package/internal/environment"
 	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
@@ -21,6 +22,8 @@ import (
 
 const builtPackagesFolder = "packages"
 const licenseTextFileName = "LICENSE.txt"
+
+var repositoryLicenseEnv = environment.WithElasticPackagePrefix("REPOSITORY_LICENSE")
 
 type BuildOptions struct {
 	PackageRoot string
@@ -293,10 +296,15 @@ func findRepositoryLicense() (string, error) {
 		return "", err
 	}
 
-	sourceFileName := filepath.Join(dir, licenseTextFileName)
+	repositoryLicenseTextFileName, found := os.LookupEnv(repositoryLicenseEnv)
+	if !found {
+		repositoryLicenseTextFileName = licenseTextFileName
+	}
+
+	sourceFileName := filepath.Join(dir, repositoryLicenseTextFileName)
 	_, err = os.Stat(sourceFileName)
 	if err != nil {
-		return "", err
+		return "", errors.Wrapf(err, "failed to find repository license")
 	}
 
 	return sourceFileName, nil
