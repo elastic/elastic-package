@@ -5,12 +5,11 @@
 package outputs
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"time"
-
-	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/builder"
 	"github.com/elastic/elastic-package/internal/reportgenerator"
