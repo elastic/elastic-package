@@ -251,13 +251,18 @@ func copyLicenseTextFile(licensePath string) error {
 		return nil
 	}
 
-	sourceLicensePath, err := findRepositoryLicense()
-	if errors.Is(err, os.ErrNotExist) {
+	repositoryLicenseTextFileName, userDefined := os.LookupEnv(repositoryLicenseEnv)
+	if !userDefined {
+		repositoryLicenseTextFileName = licenseTextFileName
+	}
+
+	sourceLicensePath, err := findRepositoryLicense(repositoryLicenseTextFileName)
+	if !userDefined && errors.Is(err, os.ErrNotExist) {
 		logger.Debug("No license text file is included in package")
 		return nil
 	}
 	if err != nil {
-		return errors.Wrap(err, "failure while looking for license in repository")
+		return errors.Wrapf(err, "failure while looking for license %q in repository", repositoryLicenseTextFileName)
 	}
 
 	logger.Infof("License text found in %q will be included in package", sourceLicensePath)
@@ -290,18 +295,13 @@ func createBuildDirectory(dirs ...string) (string, error) {
 	return buildDir, nil
 }
 
-func findRepositoryLicense() (string, error) {
+func findRepositoryLicense(licenseTextFileName string) (string, error) {
 	dir, err := files.FindRepositoryRootDirectory()
 	if err != nil {
 		return "", err
 	}
 
-	repositoryLicenseTextFileName, found := os.LookupEnv(repositoryLicenseEnv)
-	if !found {
-		repositoryLicenseTextFileName = licenseTextFileName
-	}
-
-	sourceFileName := filepath.Join(dir, repositoryLicenseTextFileName)
+	sourceFileName := filepath.Join(dir, licenseTextFileName)
 	_, err = os.Stat(sourceFileName)
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to find repository license")
