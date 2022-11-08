@@ -6,11 +6,10 @@ package pipeline
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sort"
 	"time"
-
-	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/benchrunner"
 	"github.com/elastic/elastic-package/internal/elasticsearch/ingest"
@@ -20,7 +19,7 @@ func (r *runner) benchmarkPipeline(b *benchmark, entryPipeline string) (*benchru
 	// Run benchmark
 	bench, err := r.benchmarkIngest(b, entryPipeline)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed running benchmark")
+		return nil, fmt.Errorf("failed running benchmark: %w", err)
 	}
 
 	// Extract performance measurements
@@ -252,12 +251,12 @@ func (r *runner) runSingleBenchmark(entryPipeline string, docs []json.RawMessage
 	}
 
 	if _, err := ingest.SimulatePipeline(r.options.API, entryPipeline, docs); err != nil {
-		return ingestResult{}, errors.Wrap(err, "simulate failed")
+		return ingestResult{}, fmt.Errorf("simulate failed: %w", err)
 	}
 
 	stats, err := ingest.GetPipelineStats(r.options.API, r.pipelines)
 	if err != nil {
-		return ingestResult{}, errors.Wrap(err, "error fetching pipeline stats")
+		return ingestResult{}, fmt.Errorf("error fetching pipeline stats: %w", err)
 	}
 	var took time.Duration
 	for _, pSt := range stats {
