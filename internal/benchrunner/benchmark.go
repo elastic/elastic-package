@@ -8,55 +8,47 @@ import (
 	"fmt"
 )
 
-// BenchmarkResult represents the result of a benchmark run.
-// This is modeled after the xUnit benchmark schema.
-// See https://github.com/Autodesk/jenkinsci-benchmark-plugin/blob/master/doc/EXAMPLE_SCHEMA_XML_DEFAULT.md
 type BenchmarkResult struct {
-	// XMLName is a zero-length field used as an annotation for XML marshaling.
-	XMLName struct{} `xml:"group"`
-
-	// Name of this benchmark run.
-	Name string `xml:"name,attr"`
-
+	// Type of benchmark
+	Type string `json:"type"`
+	// Package of the benchmark
+	Package string `json:"package"`
+	// DataStream of the benchmark
+	DataStream string `json:"data_stream"`
 	// Description of the benchmark run.
-	Description string `xml:"description,omitempty"`
-
+	Description string `json:"description,omitempty"`
 	// Parameters used for this benchmark.
-	Parameters []BenchmarkValue `xml:"parameter"`
-
+	Parameters []BenchmarkValue `json:"parameters,omitempty"`
 	// Tests holds the results for the benchmark.
-	Tests []BenchmarkTest `xml:"test"`
+	Tests []BenchmarkTest `json:"test"`
 }
 
 // BenchmarkTest models a particular test performed during a benchmark.
 type BenchmarkTest struct {
 	// Name of this test.
-	Name string `xml:"name,attr"`
+	Name string `json:"name"`
 	// Detailed benchmark tests will be printed to the output but not
-	// included in xUnit reports.
-	Detailed bool `xml:"-"`
+	// included in file reports.
+	Detailed bool `json:"-"`
 	// Description of this test.
-	Description string `xml:"description,omitempty"`
+	Description string `json:"description,omitempty"`
 	// Parameters for this test.
-	Parameters []BenchmarkValue `xml:"parameter"`
+	Parameters []BenchmarkValue `json:"parameters,omitempty"`
 	// Results of the test.
-	Results []BenchmarkValue `xml:"result"`
+	Results []BenchmarkValue `json:"result"`
 }
 
 // BenchmarkValue represents a value (result or parameter)
 // with an optional associated unit.
 type BenchmarkValue struct {
 	// Name of the value.
-	Name string `xml:"name,attr"`
-
+	Name string `json:"name"`
 	// Description of the value.
-	Description string `xml:"description,omitempty"`
-
+	Description string `json:"description,omitempty"`
 	// Unit used for this value.
-	Unit string `xml:"unit,omitempty"`
-
+	Unit string `json:"unit,omitempty"`
 	// Value is of any type, usually string or numeric.
-	Value interface{} `xml:"value,omitempty"`
+	Value interface{} `json:"value,omitempty"`
 }
 
 // String returns a BenchmarkValue's value nicely-formatted.
@@ -73,4 +65,31 @@ func (p BenchmarkValue) String() (r string) {
 		r += p.Unit
 	}
 	return r
+}
+
+func (r *BenchmarkResult) getEPS() float64 {
+	for _, test := range r.Tests {
+		for _, res := range test.Results {
+			if res.Name == "eps" {
+				v, _ := res.Value.(float64)
+				return v
+			}
+		}
+	}
+	return 0
+}
+
+func (r *BenchmarkResult) getPackageAndDatastream() (string, string) {
+	var pkg, ds string
+	for _, p := range r.Parameters {
+		switch p.Name {
+		case "package":
+			v, _ := p.Value.(string)
+			pkg = v
+		case "data_stream":
+			v, _ := p.Value.(string)
+			ds = v
+		}
+	}
+	return pkg, ds
 }

@@ -5,23 +5,22 @@
 package formats
 
 import (
-	"encoding/xml"
-
-	"github.com/pkg/errors"
+	"encoding/json"
+	"fmt"
 
 	"github.com/elastic/elastic-package/internal/benchrunner"
 )
 
 func init() {
-	benchrunner.RegisterReporterFormat(ReportFormatXUnit, reportXUnitFormat)
+	benchrunner.RegisterReporterFormat(ReportFormatJSON, jsonFormat)
 }
 
 const (
-	// ReportFormatXUnit reports benchmark results in the xUnit format
-	ReportFormatXUnit benchrunner.BenchReportFormat = "xUnit"
+	// ReportFormatJSON reports benchmark results in the json format
+	ReportFormatJSON benchrunner.BenchReportFormat = "json"
 )
 
-func reportXUnitFormat(results []*benchrunner.Result) ([]string, error) {
+func jsonFormat(results []*benchrunner.Result) ([]string, error) {
 	var benchmarks []*benchrunner.BenchmarkResult
 	for _, r := range results {
 		if r.Benchmark != nil {
@@ -29,18 +28,18 @@ func reportXUnitFormat(results []*benchrunner.Result) ([]string, error) {
 		}
 	}
 
-	benchFormatted, err := reportXUnitFormatBenchmark(benchmarks)
+	benchFormatted, err := jsonFormatBenchmark(benchmarks)
 	if err != nil {
 		return nil, err
 	}
 	return benchFormatted, nil
 }
 
-func reportXUnitFormatBenchmark(benchmarks []*benchrunner.BenchmarkResult) ([]string, error) {
+func jsonFormatBenchmark(benchmarks []*benchrunner.BenchmarkResult) ([]string, error) {
 	var reports []string
 	for _, b := range benchmarks {
 		// Filter out detailed benchmarks. These add too much information for the
-		// aggregated nature of xUnit reports, creating a lot of noise in Jenkins.
+		// aggregated nature of the reports, creating a lot of noise in Jenkins.
 		var benchmarks []benchrunner.BenchmarkTest
 		for _, t := range b.Tests {
 			if !t.Detailed {
@@ -48,11 +47,11 @@ func reportXUnitFormatBenchmark(benchmarks []*benchrunner.BenchmarkResult) ([]st
 			}
 		}
 		b.Tests = benchmarks
-		out, err := xml.MarshalIndent(b, "", "  ")
+		out, err := json.MarshalIndent(b, "", " ")
 		if err != nil {
-			return nil, errors.Wrap(err, "unable to format benchmark results as xUnit")
+			return nil, fmt.Errorf("unable to format benchmark results as json: %w", err)
 		}
-		reports = append(reports, xml.Header+string(out))
+		reports = append(reports, string(out))
 	}
 	return reports, nil
 }

@@ -40,8 +40,8 @@ func reportToFile(pkg, report string, format benchrunner.BenchReportFormat) erro
 	}
 
 	ext := "txt"
-	if format == formats.ReportFormatXUnit {
-		ext = "xml"
+	if format == formats.ReportFormatJSON {
+		ext = "json"
 	}
 	fileName := fmt.Sprintf("%s_%d.%s", pkg, time.Now().UnixNano(), ext)
 	filePath := filepath.Join(dest, fileName)
