@@ -32,11 +32,11 @@ const (
 	BenchNumTopProcsFlagName        = "num-top-procs"
 	BenchNumTopProcsFlagDescription = "number of top processors to show in the benchmarks results"
 
-	BenchReportSrcPathFlagName        = "source"
-	BenchReportSrcPathFlagDescription = "path of the directory containing the source benchmarks of the report"
+	BenchReportNewPathFlagName        = "new"
+	BenchReportNewPathFlagDescription = "path of the directory containing the new benchmarks of the report"
 
-	BenchReportTargetPathFlagName        = "target"
-	BenchReportTargetPathFlagDescription = "path of the directory containing the target benchmarks to compare against to generate the report"
+	BenchReportOldPathFlagName        = "old"
+	BenchReportOldPathFlagDescription = "path of the directory containing the old benchmarks to compare against to generate the report"
 
 	BenchThresholdFlagName        = "threshold"
 	BenchThresholdFlagDescription = "threshold to assume a benchmark report has significantly changed"
@@ -123,7 +123,10 @@ const (
 	ReportFullFlagDescription = "whether to show the full report or a summary"
 
 	ReportOutputFlagName        = "report-output"
-	ReportOutputFlagDescription = "output location for test report"
+	ReportOutputFlagDescription = "output type for test report, eg: stdout, file"
+
+	ReportOutputPathFlagName        = "report-output-path"
+	ReportOutputPathFlagDescription = "output path for test report"
 
 	ShowAllFlagName        = "all"
 	ShowAllFlagDescription = "show all deployed package revisions"

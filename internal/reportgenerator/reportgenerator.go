@@ -9,10 +9,10 @@ import (
 )
 
 type ReportOptions struct {
-	SrcPath    string
-	TargetPath string
-	Threshold  float64
-	Full       bool
+	NewPath   string
+	OldPath   string
+	Threshold float64
+	Full      bool
 }
 
 // ReportType represents the various supported report generators

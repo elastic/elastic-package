@@ -7,9 +7,11 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 
+	"github.com/elastic/elastic-package/internal/builder"
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/reportgenerator"
 	_ "github.com/elastic/elastic-package/internal/reportgenerator/generators" // register all report generators
@@ -43,9 +45,15 @@ func setupReportsCommand() *cobraext.Command {
 			return cobraext.ComposeCommandActions(cmd, args, reportTypeCmdActions...)
 		}}
 
+	dest, err := resultsDir()
+	if err != nil {
+		cmd.PrintErrf("could not determine benchmark reports folder: %v", err)
+	}
+
 	cmd.PersistentFlags().BoolP(cobraext.FailOnMissingFlagName, "m", false, cobraext.FailOnMissingFlagDescription)
 	cmd.PersistentFlags().BoolP(cobraext.ReportFullFlagName, "", false, cobraext.ReportFullFlagDescription)
 	cmd.PersistentFlags().StringP(cobraext.ReportOutputFlagName, "", string(outputs.OutputFile), cobraext.ReportOutputFlagDescription)
+	cmd.PersistentFlags().StringP(cobraext.ReportOutputPathFlagName, "", dest, cobraext.ReportOutputPathFlagDescription)
 
 	// add benchmark report creation subcommand
 	cmd.AddCommand(getBenchReportCommand())
@@ -71,19 +79,24 @@ func getBenchReportCommand() *cobra.Command {
 				return cobraext.FlagParsingError(err, cobraext.ReportOutputFlagName)
 			}
 
+			reportOutputPath, err := cmd.Flags().GetString(cobraext.ReportOutputPathFlagName)
+			if err != nil {
+				return cobraext.FlagParsingError(err, cobraext.ReportOutputPathFlagName)
+			}
+
 			isFull, err := cmd.Flags().GetBool(cobraext.ReportFullFlagName)
 			if err != nil {
 				return cobraext.FlagParsingError(err, cobraext.ReportFullFlagName)
 			}
 
-			srcPath, err := cmd.Flags().GetString(cobraext.BenchReportSrcPathFlagName)
+			newPath, err := cmd.Flags().GetString(cobraext.BenchReportNewPathFlagName)
 			if err != nil {
-				return cobraext.FlagParsingError(err, cobraext.BenchReportSrcPathFlagName)
+				return cobraext.FlagParsingError(err, cobraext.BenchReportNewPathFlagName)
 			}
 
-			targetPath, err := cmd.Flags().GetString(cobraext.BenchReportTargetPathFlagName)
+			oldPath, err := cmd.Flags().GetString(cobraext.BenchReportOldPathFlagName)
 			if err != nil {
-				return cobraext.FlagParsingError(err, cobraext.BenchReportTargetPathFlagName)
+				return cobraext.FlagParsingError(err, cobraext.BenchReportOldPathFlagName)
 			}
 
 			threshold, err := cmd.Flags().GetFloat64(cobraext.BenchThresholdFlagName)
@@ -91,8 +104,8 @@ func getBenchReportCommand() *cobra.Command {
 				return cobraext.FlagParsingError(err, cobraext.BenchThresholdFlagName)
 			}
 
-			if _, err := os.Stat(srcPath); err != nil {
-				err = fmt.Errorf("stat file failed (path: %s): %w", srcPath, err)
+			if _, err := os.Stat(newPath); err != nil {
+				err = fmt.Errorf("stat file failed for the new path (path: %s): %w", newPath, err)
 				if failOnMissing {
 					return err
 				}
@@ -100,8 +113,8 @@ func getBenchReportCommand() *cobra.Command {
 				return nil
 			}
 
-			if _, err := os.Stat(targetPath); err != nil {
-				err = fmt.Errorf("stat file failed (path: %s): %w", targetPath, err)
+			if _, err := os.Stat(oldPath); err != nil {
+				err = fmt.Errorf("stat file failed for the old path (path: %s): %w", oldPath, err)
 				if failOnMissing {
 					return err
 				}
@@ -110,10 +123,10 @@ func getBenchReportCommand() *cobra.Command {
 			}
 
 			report, err := reportgenerator.Generate("benchmark", reportgenerator.ReportOptions{
-				SrcPath:    srcPath,
-				TargetPath: targetPath,
-				Threshold:  threshold,
-				Full:       isFull,
+				NewPath:   newPath,
+				OldPath:   oldPath,
+				Threshold: threshold,
+				Full:      isFull,
 			})
 			if err != nil {
 				return err
@@ -123,6 +136,7 @@ func getBenchReportCommand() *cobra.Command {
 				reportgenerator.ReportOutput(reportOutput),
 				report,
 				(reportgenerator.ReportGenerators()["benchmark"]).Format(),
+				reportOutputPath,
 			); err != nil {
 				return fmt.Errorf("error writing benchmark report: %w", err)
 			}
@@ -131,9 +145,19 @@ func getBenchReportCommand() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringP(cobraext.BenchReportSrcPathFlagName, "", "", cobraext.BenchReportSrcPathFlagDescription)
-	cmd.Flags().StringP(cobraext.BenchReportTargetPathFlagName, "", "", cobraext.BenchReportTargetPathFlagDescription)
+	cmd.Flags().StringP(cobraext.BenchReportNewPathFlagName, "", "", cobraext.BenchReportNewPathFlagDescription)
+	cmd.Flags().StringP(cobraext.BenchReportOldPathFlagName, "", "", cobraext.BenchReportOldPathFlagDescription)
 	cmd.Flags().Float64P(cobraext.BenchThresholdFlagName, "", 10, cobraext.BenchThresholdFlagDescription)
 
 	return cmd
+}
+
+// resultsDir returns the location of the directory to store reports.
+func resultsDir() (string, error) {
+	buildDir, err := builder.BuildDirectory()
+	if err != nil {
+		return "", fmt.Errorf("locating build directory failed: %w", err)
+	}
+	const folder = "benchmark-report"
+	return filepath.Join(buildDir, folder), nil
 }

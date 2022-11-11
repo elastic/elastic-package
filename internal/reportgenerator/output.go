@@ -12,7 +12,7 @@ import (
 type ReportOutput string
 
 // ReportOutputFunc defines the writer function.
-type ReportOutputFunc func(result []byte, format string) error
+type ReportOutputFunc func(result []byte, format, destinatioPath string) error
 
 var reportOutputs = map[ReportOutput]ReportOutputFunc{}
 
@@ -22,10 +22,10 @@ func RegisterReportOutput(name ReportOutput, outputFunc ReportOutputFunc) {
 }
 
 // WriteReport delegates writing of benchmark reports to the registered benchmark output
-func WriteReport(name ReportOutput, report []byte, format string) error {
+func WriteReport(name ReportOutput, report []byte, format, destPath string) error {
 	outputFunc, defined := reportOutputs[name]
 	if !defined {
 		return fmt.Errorf("unregistered benchmark output: %s", name)
 	}
-	return outputFunc(report, format)
+	return outputFunc(report, format, destPath)
 }

@@ -19,7 +19,7 @@ const (
 	OutputSTDOUT reportgenerator.ReportOutput = "stdout"
 )
 
-func writeToSTDOUT(report []byte, _ string) error {
+func writeToSTDOUT(report []byte, _, _ string) error {
 	fmt.Println(string(report))
 	return nil
 }

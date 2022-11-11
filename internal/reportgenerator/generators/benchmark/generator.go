@@ -6,6 +6,7 @@ package benchmark
 
 import (
 	"encoding/json"
+	"encoding/xml"
 	"fmt"
 	"io/fs"
 	"math"
@@ -58,49 +59,49 @@ func (g *generator) Generate(options reportgenerator.ReportOptions) ([]byte, err
 }
 
 func (g *generator) generate() ([]byte, error) {
-	// get all results from source
-	srcResults, err := listAllDirResults(g.options.SrcPath)
+	// get all results from new
+	newResults, err := listAllDirResults(g.options.NewPath)
 	if err != nil {
-		return nil, fmt.Errorf("listing source results failed: %w", err)
+		return nil, fmt.Errorf("listing new results failed: %w", err)
 	}
 
-	// get all results from target
-	tgtResults, err := listAllDirResultsAsMap(g.options.TargetPath)
+	// get all results from old
+	oldResults, err := listAllDirResultsAsMap(g.options.OldPath)
 	if err != nil {
-		return nil, fmt.Errorf("listing target results failed: %w", err)
+		return nil, fmt.Errorf("listing old results failed: %w", err)
 	}
 
-	// lookup source reports in target and compare
+	// lookup new reports in the old ones and compare
 	reports := Reports{}
-	for _, entry := range srcResults {
-		srcRes, err := readResult(g.options.SrcPath, entry)
+	for _, entry := range newResults {
+		newRes, err := readResult(g.options.NewPath, entry)
 		if err != nil {
-			return nil, fmt.Errorf("reading source result: %w", err)
+			return nil, fmt.Errorf("reading new result: %w", err)
 		}
-		pkg, ds := srcRes.Package, srcRes.DataStream
-		var tgtRes benchrunner.BenchmarkResult
-		if tgtEntry, found := tgtResults[pkg]; found {
-			if ds, found := tgtEntry[ds]; found {
-				tgtRes, err = readResult(g.options.TargetPath, ds)
+		pkg, ds := newRes.Package, newRes.DataStream
+		var oldRes benchrunner.BenchmarkResult
+		if oldEntry, found := oldResults[pkg]; found {
+			if ds, found := oldEntry[ds]; found {
+				oldRes, err = readResult(g.options.OldPath, ds)
 				if err != nil {
-					return nil, fmt.Errorf("reading source result: %w", err)
+					return nil, fmt.Errorf("reading old result: %w", err)
 				}
 			}
 		}
-		report := createReport(srcRes, tgtRes)
+		report := createReport(newRes, oldRes)
 		reports[report.Package] = append(reports[report.Package], report)
 	}
 
 	return g.markdownFormat(reports)
 }
 
-func createReport(src, tgt benchrunner.BenchmarkResult) Report {
+func createReport(new, old benchrunner.BenchmarkResult) Report {
 	var r Report
-	r.Package, r.DataStream = src.Package, src.DataStream
+	r.Package, r.DataStream = new.Package, new.DataStream
 
 	// we round all the values to 2 decimals approximations
-	r.New = roundFloat64(getEPS(src))
-	r.Old = roundFloat64(getEPS(tgt))
+	r.New = roundFloat64(getEPS(new))
+	r.Old = roundFloat64(getEPS(old))
 	r.Diff = roundFloat64(r.New - r.Old)
 	if r.Old > 0 {
 		r.Percentage = roundFloat64((r.Diff / r.Old) * 100)
@@ -134,7 +135,7 @@ func listAllDirResults(path string) ([]os.DirEntry, error) {
 	// only keep results, scan is not recursive
 	var filtered []os.DirEntry
 	for _, e := range entries {
-		if e.IsDir() || filepath.Ext(e.Name()) != resultExt {
+		if e.IsDir() || !resultExts[filepath.Ext(e.Name())] {
 			continue
 		}
 		filtered = append(filtered, e)
@@ -177,8 +178,17 @@ func readResult(path string, e fs.DirEntry) (benchrunner.BenchmarkResult, error)
 	}
 
 	var br benchrunner.BenchmarkResult
-	if err := json.Unmarshal(b, &br); err != nil {
-		return benchrunner.BenchmarkResult{}, fmt.Errorf("decoding json (file: %s): %w", fi.Name(), err)
+	switch ext := filepath.Ext(fi.Name()); ext {
+	case ".json":
+		if err := json.Unmarshal(b, &br); err != nil {
+			return benchrunner.BenchmarkResult{}, fmt.Errorf("decoding json (file: %s): %w", fi.Name(), err)
+		}
+	case ".xml":
+		if err := xml.Unmarshal(b, &br); err != nil {
+			return benchrunner.BenchmarkResult{}, fmt.Errorf("decoding xml (file: %s): %w", fi.Name(), err)
+		}
+	default:
+		return benchrunner.BenchmarkResult{}, fmt.Errorf("unsupported result format: %v", ext)
 	}
 
 	return br, nil

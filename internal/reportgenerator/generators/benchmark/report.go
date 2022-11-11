@@ -12,9 +12,9 @@ import (
 	"github.com/elastic/elastic-package/internal/reportgenerator"
 )
 
-const (
-	resultExt = ".json"
+var resultExts = map[string]bool{".json": true, ".xml": true}
 
+const (
 	resultNoChange    = ":+1:"
 	resultImprovement = ":green_heart:"
 	resultWorse       = ":broken_heart:"
