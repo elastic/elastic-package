@@ -61,7 +61,8 @@ func setupTestCommand() *cobraext.Command {
 			}
 
 			return cobraext.ComposeCommandActions(cmd, args, testTypeCmdActions...)
-		}}
+		},
+	}
 
 	cmd.PersistentFlags().BoolP(cobraext.FailOnMissingFlagName, "m", false, cobraext.FailOnMissingFlagDescription)
 	cmd.PersistentFlags().BoolP(cobraext.GenerateTestResultFlagName, "g", false, cobraext.GenerateTestResultFlagDescription)
@@ -130,10 +131,20 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 			return errors.Wrap(err, "locating package root failed")
 		}
 
+		manifest, err := packages.ReadPackageManifestFromPackageRoot(packageRootPath)
+		if err != nil {
+			return errors.Wrapf(err, "reading package manifest failed (path: %s)", packageRootPath)
+		}
+
+		hasDataStreams, err := packageHasDataStreams(manifest)
+		if err != nil {
+			return errors.Wrapf(err, "cannot determine if package has data streams")
+		}
+
 		signal.Enable()
 
 		var testFolders []testrunner.TestFolder
-		if runner.CanRunPerDataStream() {
+		if hasDataStreams && runner.CanRunPerDataStream() {
 			var dataStreams []string
 			// We check for the existence of the data streams flag before trying to
 			// parse it because if the root test command is run instead of one of the
@@ -171,10 +182,21 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 			}
 		} else {
 			_, pkg := filepath.Split(packageRootPath)
-			testFolders = []testrunner.TestFolder{
-				{
-					Package: pkg,
-				},
+
+			if runner.TestFolderRequired() {
+				testFolders, err = testrunner.FindTestFolders(packageRootPath, nil, testType)
+				if err != nil {
+					return errors.Wrap(err, "unable to determine test folder paths")
+				}
+				if failOnMissing && len(testFolders) == 0 {
+					return fmt.Errorf("no %s tests found", testType)
+				}
+			} else {
+				testFolders = []testrunner.TestFolder{
+					{
+						Package: pkg,
+					},
+				}
 			}
 		}
 
@@ -215,17 +237,12 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 			return errors.Wrap(err, "error formatting test report")
 		}
 
-		m, err := packages.ReadPackageManifestFromPackageRoot(packageRootPath)
-		if err != nil {
-			return errors.Wrapf(err, "reading package manifest failed (path: %s)", packageRootPath)
-		}
-
-		if err := testrunner.WriteReport(m.Name, testrunner.TestReportOutput(reportOutput), report, format); err != nil {
+		if err := testrunner.WriteReport(manifest.Name, testrunner.TestReportOutput(reportOutput), report, format); err != nil {
 			return errors.Wrap(err, "error writing test report")
 		}
 
 		if testCoverage {
-			err := testrunner.WriteCoverage(packageRootPath, m.Name, runner.Type(), results)
+			err := testrunner.WriteCoverage(packageRootPath, manifest.Name, runner.Type(), results)
 			if err != nil {
 				return errors.Wrap(err, "error writing test coverage")
 			}
@@ -238,6 +255,17 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 			}
 		}
 		return nil
+	}
+}
+
+func packageHasDataStreams(manifest *packages.PackageManifest) (bool, error) {
+	switch manifest.Type {
+	case "integration":
+		return true, nil
+	case "input":
+		return false, nil
+	default:
+		return false, fmt.Errorf("unexpected package type %q", manifest.Type)
 	}
 }
 
