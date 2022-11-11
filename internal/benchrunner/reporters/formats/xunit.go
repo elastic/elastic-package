@@ -11,15 +11,15 @@ import (
 )
 
 func init() {
-	benchrunner.RegisterReporterFormat(ReportFormatXML, reportXMLFormat)
+	benchrunner.RegisterReporterFormat(ReportFormatXUnit, reportXUnitFormat)
 }
 
 const (
-	// ReportFormatXML reports benchmark results in the xml format
-	ReportFormatXML benchrunner.BenchReportFormat = "xml"
+	// ReportFormatXUnit reports benchmark results in the xUnit format
+	ReportFormatXUnit benchrunner.BenchReportFormat = "xUnit"
 )
 
-func reportXMLFormat(results []*benchrunner.Result) ([]string, error) {
+func reportXUnitFormat(results []*benchrunner.Result) ([]string, error) {
 	var benchmarks []*benchrunner.BenchmarkResult
 	for _, r := range results {
 		if r.Benchmark != nil {
@@ -27,18 +27,18 @@ func reportXMLFormat(results []*benchrunner.Result) ([]string, error) {
 		}
 	}
 
-	benchFormatted, err := reportXMLFormatBenchmark(benchmarks)
+	benchFormatted, err := reportXUnitFormatBenchmark(benchmarks)
 	if err != nil {
 		return nil, err
 	}
 	return benchFormatted, nil
 }
 
-func reportXMLFormatBenchmark(benchmarks []*benchrunner.BenchmarkResult) ([]string, error) {
+func reportXUnitFormatBenchmark(benchmarks []*benchrunner.BenchmarkResult) ([]string, error) {
 	var reports []string
 	for _, b := range benchmarks {
 		// Filter out detailed benchmarks. These add too much information for the
-		// aggregated nature of XML reports, creating a lot of noise in Jenkins.
+		// aggregated nature of xUnit reports, creating a lot of noise in Jenkins.
 		var benchmarks []benchrunner.BenchmarkTest
 		for _, t := range b.Tests {
 			if !t.Detailed {
@@ -48,7 +48,7 @@ func reportXMLFormatBenchmark(benchmarks []*benchrunner.BenchmarkResult) ([]stri
 		b.Tests = benchmarks
 		out, err := xml.MarshalIndent(b, "", "  ")
 		if err != nil {
-			return nil, fmt.Errorf("unable to format benchmark results as XML: %w", err)
+			return nil, fmt.Errorf("unable to format benchmark results as xUnit: %w", err)
 		}
 		reports = append(reports, xml.Header+string(out))
 	}

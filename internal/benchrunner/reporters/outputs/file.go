@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/elastic/elastic-package/internal/benchrunner"
+	"github.com/elastic/elastic-package/internal/benchrunner/reporters/formats"
 	"github.com/elastic/elastic-package/internal/builder"
 )
 
@@ -38,7 +39,13 @@ func reportToFile(pkg, report string, format benchrunner.BenchReportFormat) erro
 		}
 	}
 
-	ext := format
+	var ext string
+	switch format {
+	case formats.ReportFormatXUnit:
+		ext = "xml"
+	default:
+		ext = string(format)
+	}
 	fileName := fmt.Sprintf("%s_%d.%s", pkg, time.Now().UnixNano(), ext)
 	filePath := filepath.Join(dest, fileName)
 
