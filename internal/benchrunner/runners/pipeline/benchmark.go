@@ -6,11 +6,10 @@ package pipeline
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sort"
 	"time"
-
-	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/benchrunner"
 	"github.com/elastic/elastic-package/internal/elasticsearch/ingest"
@@ -20,7 +19,7 @@ func (r *runner) benchmarkPipeline(b *benchmark, entryPipeline string) (*benchru
 	// Run benchmark
 	bench, err := r.benchmarkIngest(b, entryPipeline)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed running benchmark")
+		return nil, fmt.Errorf("failed running benchmark: %w", err)
 	}
 
 	// Extract performance measurements
@@ -83,51 +82,44 @@ func (r *runner) benchmarkPipeline(b *benchmark, entryPipeline string) (*benchru
 
 	// Build result
 	result := &benchrunner.BenchmarkResult{
-		Name: fmt.Sprintf("pipeline benchmark for %s/%s", r.options.Folder.Package, r.options.Folder.DataStream),
+		Type:        string(BenchType),
+		Package:     r.options.Folder.Package,
+		DataStream:  r.options.Folder.DataStream,
+		Description: fmt.Sprintf("pipeline benchmark for %s/%s", r.options.Folder.Package, r.options.Folder.DataStream),
 		Parameters: []benchrunner.BenchmarkValue{
 			{
-				Name:  "package",
-				Value: r.options.Folder.Package,
-			},
-			{
-				Name:  "data_stream",
-				Value: r.options.Folder.DataStream,
-			},
-			{
-				Name:  "source doc count",
+				Name:  "source_doc_count",
 				Value: len(b.events),
 			},
 			{
-				Name:  "doc count",
+				Name:  "doc_count",
 				Value: bench.numDocs,
 			},
 		},
 		Tests: []benchrunner.BenchmarkTest{
 			{
-				Name: "ingest performance",
+				Name: "pipeline_performance",
 				Results: []benchrunner.BenchmarkValue{
 					{
-						Name:        "ingest time",
-						Description: "time elapsed in ingest processors",
+						Name:        "processing_time",
+						Description: "time elapsed in pipeline processors",
 						Value:       bench.elapsed.Seconds(),
 						Unit:        "s",
 					},
 					{
 						Name:        "eps",
-						Description: "ingested events per second",
+						Description: "processed events per second",
 						Value:       float64(bench.numDocs) / bench.elapsed.Seconds(),
 					},
 				},
 			},
 			{
-				Name:        "processors by total time",
-				Detailed:    true,
+				Name:        "procs_by_total_time",
 				Description: fmt.Sprintf("top %d processors by time spent", r.options.NumTopProcs),
 				Results:     topAbsProc,
 			},
 			{
-				Name:        "processors by average time per doc",
-				Detailed:    true,
+				Name:        "procs_by_avg_time_per_doc",
 				Description: fmt.Sprintf("top %d processors by average time per document", r.options.NumTopProcs),
 				Results:     topRelProcs,
 			},
@@ -252,12 +244,12 @@ func (r *runner) runSingleBenchmark(entryPipeline string, docs []json.RawMessage
 	}
 
 	if _, err := ingest.SimulatePipeline(r.options.API, entryPipeline, docs); err != nil {
-		return ingestResult{}, errors.Wrap(err, "simulate failed")
+		return ingestResult{}, fmt.Errorf("simulate failed: %w", err)
 	}
 
 	stats, err := ingest.GetPipelineStats(r.options.API, r.pipelines)
 	if err != nil {
-		return ingestResult{}, errors.Wrap(err, "error fetching pipeline stats")
+		return ingestResult{}, fmt.Errorf("error fetching pipeline stats: %w", err)
 	}
 	var took time.Duration
 	for _, pSt := range stats {
