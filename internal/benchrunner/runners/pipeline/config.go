@@ -5,11 +5,12 @@
 package pipeline
 
 import (
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 
 	"github.com/elastic/go-ucfg/yaml"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -31,12 +32,12 @@ func readConfig(path string) (*config, error) {
 	c := defaultConfig()
 	cfg, err := yaml.NewConfigWithFile(configPath)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return nil, errors.Wrapf(err, "can't load common configuration: %s", configPath)
+		return nil, fmt.Errorf("can't load common configuration: %s: %w", configPath, err)
 	}
 
 	if err == nil {
 		if err := cfg.Unpack(c); err != nil {
-			return nil, errors.Wrapf(err, "can't unpack benchmark configuration: %s", configPath)
+			return nil, fmt.Errorf("can't unpack benchmark configuration: %s: %w", configPath, err)
 		}
 	}
 
