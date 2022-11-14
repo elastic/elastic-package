@@ -8,13 +8,12 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
 
 	"github.com/elastic/elastic-package/internal/common"
-
-	"github.com/pkg/errors"
 )
 
 type benchmark struct {
@@ -30,7 +29,7 @@ func readBenchmarkEntriesForEvents(inputData []byte) ([]json.RawMessage, error) 
 	var tcd benchmarkDefinition
 	err := jsonUnmarshalUsingNumber(inputData, &tcd)
 	if err != nil {
-		return nil, errors.Wrap(err, "unmarshalling input data failed")
+		return nil, fmt.Errorf("unmarshalling input data failed: %w", err)
 	}
 	return tcd.Events, nil
 }
@@ -38,7 +37,7 @@ func readBenchmarkEntriesForEvents(inputData []byte) ([]json.RawMessage, error) 
 func readBenchmarkEntriesForRawInput(inputData []byte) ([]json.RawMessage, error) {
 	entries, err := readRawInputEntries(inputData)
 	if err != nil {
-		return nil, errors.Wrap(err, "reading raw input entries failed")
+		return nil, fmt.Errorf("reading raw input entries failed: %w", err)
 	}
 
 	var events []json.RawMessage
@@ -48,7 +47,7 @@ func readBenchmarkEntriesForRawInput(inputData []byte) ([]json.RawMessage, error
 
 		m, err := json.Marshal(&event)
 		if err != nil {
-			return nil, errors.Wrap(err, "marshalling mocked event failed")
+			return nil, fmt.Errorf("marshalling mocked event failed: %w", err)
 		}
 		events = append(events, m)
 	}
@@ -61,12 +60,12 @@ func createBenchmark(entries []json.RawMessage, config *config) (*benchmark, err
 		var m common.MapStr
 		err := jsonUnmarshalUsingNumber(entry, &m)
 		if err != nil {
-			return nil, errors.Wrap(err, "can't unmarshal benchmark entry")
+			return nil, fmt.Errorf("can't unmarshal benchmark entry: %w", err)
 		}
 
 		event, err := json.Marshal(&m)
 		if err != nil {
-			return nil, errors.Wrap(err, "marshalling event failed")
+			return nil, fmt.Errorf("marshalling event failed: %w", err)
 		}
 		events = append(events, event)
 	}
@@ -87,7 +86,7 @@ func readRawInputEntries(inputData []byte) ([]string, error) {
 	}
 	err := scanner.Err()
 	if err != nil {
-		return nil, errors.Wrap(err, "reading raw input benchmark file failed")
+		return nil, fmt.Errorf("reading raw input benchmark file failed: %w", err)
 	}
 
 	lastEntry := builder.String()

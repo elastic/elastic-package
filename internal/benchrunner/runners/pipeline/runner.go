@@ -6,13 +6,12 @@ package pipeline
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
-
-	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/benchrunner"
 	"github.com/elastic/elastic-package/internal/elasticsearch/ingest"
@@ -51,7 +50,7 @@ func (r *runner) Run(options benchrunner.BenchOptions) (*benchrunner.Result, err
 // TearDown shuts down the pipeline benchmark runner.
 func (r *runner) TearDown() error {
 	if err := ingest.UninstallPipelines(r.options.API, r.pipelines); err != nil {
-		return errors.Wrap(err, "uninstalling ingest pipelines failed")
+		return fmt.Errorf("uninstalling ingest pipelines failed: %w", err)
 	}
 	return nil
 }
@@ -59,7 +58,7 @@ func (r *runner) TearDown() error {
 func (r *runner) run() (*benchrunner.Result, error) {
 	dataStreamPath, found, err := packages.FindDataStreamRootForPath(r.options.Folder.Path)
 	if err != nil {
-		return nil, errors.Wrap(err, "locating data_stream root failed")
+		return nil, fmt.Errorf("locating data_stream root failed: %w", err)
 	}
 	if !found {
 		return nil, errors.New("data stream root not found")
@@ -68,7 +67,7 @@ func (r *runner) run() (*benchrunner.Result, error) {
 	var entryPipeline string
 	entryPipeline, r.pipelines, err = ingest.InstallDataStreamPipelines(r.options.API, dataStreamPath)
 	if err != nil {
-		return nil, errors.Wrap(err, "installing ingest pipelines failed")
+		return nil, fmt.Errorf("installing ingest pipelines failed: %w", err)
 	}
 
 	start := time.Now()
@@ -80,7 +79,7 @@ func (r *runner) run() (*benchrunner.Result, error) {
 
 	b, err := r.loadBenchmark()
 	if err != nil {
-		return nil, errors.Wrap(err, "loading benchmark failed")
+		return nil, fmt.Errorf("loading benchmark failed: %w", err)
 	}
 
 	if result.Benchmark, err = r.benchmarkPipeline(b, entryPipeline); err != nil {
@@ -95,7 +94,7 @@ func (r *runner) run() (*benchrunner.Result, error) {
 func (r *runner) listBenchmarkFiles() ([]string, error) {
 	fis, err := os.ReadDir(r.options.Folder.Path)
 	if err != nil {
-		return nil, errors.Wrapf(err, "reading pipeline benchmarks failed (path: %s)", r.options.Folder.Path)
+		return nil, fmt.Errorf("reading pipeline benchmarks failed (path: %s): %w", r.options.Folder.Path, err)
 	}
 
 	var files []string
@@ -123,7 +122,7 @@ func (r *runner) loadBenchmark() (*benchmark, error) {
 		benchPath := filepath.Join(r.options.Folder.Path, benchFile)
 		benchData, err := os.ReadFile(benchPath)
 		if err != nil {
-			return nil, errors.Wrapf(err, "reading input file failed (benchPath: %s)", benchPath)
+			return nil, fmt.Errorf("reading input file failed (benchPath: %s): %w", benchPath, err)
 		}
 
 		ext := filepath.Ext(benchFile)
@@ -132,12 +131,12 @@ func (r *runner) loadBenchmark() (*benchmark, error) {
 		case ".json":
 			entries, err = readBenchmarkEntriesForEvents(benchData)
 			if err != nil {
-				return nil, errors.Wrapf(err, "reading benchmark case entries for events failed (benchmarkPath: %s)", benchPath)
+				return nil, fmt.Errorf("reading benchmark case entries for events failed (benchmarkPath: %s): %w", benchPath, err)
 			}
 		case ".log":
 			entries, err = readBenchmarkEntriesForRawInput(benchData)
 			if err != nil {
-				return nil, errors.Wrapf(err, "creating benchmark case entries for raw input failed (benchmarkPath: %s)", benchPath)
+				return nil, fmt.Errorf("creating benchmark case entries for raw input failed (benchmarkPath: %s): %w", benchPath, err)
 			}
 		default:
 			return nil, fmt.Errorf("unsupported extension for benchmark case file (ext: %s)", ext)
@@ -147,12 +146,12 @@ func (r *runner) loadBenchmark() (*benchmark, error) {
 
 	config, err := readConfig(r.options.Folder.Path)
 	if err != nil {
-		return nil, errors.Wrapf(err, "reading config for benchmark failed (benchPath: %s)", r.options.Folder.Path)
+		return nil, fmt.Errorf("reading config for benchmark failed (benchPath: %s): %w", r.options.Folder.Path, err)
 	}
 
 	tc, err := createBenchmark(allEntries, config)
 	if err != nil {
-		return nil, errors.Wrapf(err, "can't create benchmark case (benchmarkPath: %s)", r.options.Folder.Path)
+		return nil, fmt.Errorf("can't create benchmark case (benchmarkPath: %s): %w", r.options.Folder.Path, err)
 	}
 	return tc, nil
 }
