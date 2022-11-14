@@ -11,8 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
-
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
@@ -180,10 +178,10 @@ func Run(benchType BenchType, options BenchOptions) (*Result, error) {
 	result, err := runner.Run(options)
 	tdErr := runner.TearDown()
 	if err != nil {
-		return nil, errors.Wrap(err, "could not complete benchmark run")
+		return nil, fmt.Errorf("could not complete benchmark run: %w", err)
 	}
 	if tdErr != nil {
-		return result, errors.Wrap(err, "could not teardown benchmark runner")
+		return result, fmt.Errorf("could not teardown benchmark runner: %w", err)
 	}
 	return result, nil
 }
@@ -199,7 +197,7 @@ func findBenchFolderPaths(packageRootPath, dataStreamGlob, benchTypeGlob string)
 	benchFoldersGlob := filepath.Join(packageRootPath, "data_stream", dataStreamGlob, "_dev", "benchmark", benchTypeGlob)
 	paths, err := filepath.Glob(benchFoldersGlob)
 	if err != nil {
-		return nil, errors.Wrap(err, "error finding benchmark folders")
+		return nil, fmt.Errorf("error finding benchmark folders: %w", err)
 	}
 	return paths, err
 }
