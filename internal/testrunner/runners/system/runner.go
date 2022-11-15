@@ -618,6 +618,9 @@ func getDataStreamDataset(pkg packages.PackageManifest, ds packages.DataStreamMa
 // matches or if multiple policy templates match and the response is ambiguous.
 func findPolicyTemplateForInput(pkg packages.PackageManifest, ds packages.DataStreamManifest, inputName string) (string, error) {
 	if inputName == "" {
+		if pkg.Type == "input" {
+			return "", errors.New("no input specified for input package")
+		}
 		if len(ds.Streams) == 0 {
 			return "", errors.New("no streams declared in data stream manifest")
 		}
@@ -627,14 +630,17 @@ func findPolicyTemplateForInput(pkg packages.PackageManifest, ds packages.DataSt
 	var matchedPolicyTemplates []string
 
 	for _, policyTemplate := range pkg.PolicyTemplates {
-		// Does this policy_template include this input type?
-		if policyTemplate.FindInputByType(inputName) == nil {
-			continue
-		}
+		// Directly match if the template input is the expected one (input packages).
+		if policyTemplate.Input != inputName {
+			// Does this policy_template include this input type?
+			if policyTemplate.FindInputByType(inputName) == nil {
+				continue
+			}
 
-		// Does the policy_template apply to this data stream (when data streams are specified)?
-		if len(policyTemplate.DataStreams) > 0 && !common.StringSliceContains(policyTemplate.DataStreams, ds.Name) {
-			continue
+			// Does the policy_template apply to this data stream (when data streams are specified)?
+			if len(policyTemplate.DataStreams) > 0 && !common.StringSliceContains(policyTemplate.DataStreams, ds.Name) {
+				continue
+			}
 		}
 
 		matchedPolicyTemplates = append(matchedPolicyTemplates, policyTemplate.Name)
