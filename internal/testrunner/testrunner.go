@@ -200,7 +200,7 @@ func FindTestFolders(packageRootPath string, dataStreams []string, testType Test
 	if len(dataStreams) > 0 {
 		sort.Strings(dataStreams)
 		for _, dataStream := range dataStreams {
-			p, err := findTestFolderPaths(packageRootPath, dataStream, testTypeGlob)
+			p, err := findDataStreamTestFolderPaths(packageRootPath, dataStream, testTypeGlob)
 			if err != nil {
 				return nil, err
 			}
@@ -208,9 +208,14 @@ func FindTestFolders(packageRootPath string, dataStreams []string, testType Test
 			paths = append(paths, p...)
 		}
 	} else {
-		p, err := findTestFolderPaths(packageRootPath, "*", testTypeGlob)
+		p, err := findDataStreamTestFolderPaths(packageRootPath, "*", testTypeGlob)
 		if err != nil {
 			return nil, err
+		}
+
+		// Look for tests at the package level, like for input packages.
+		if len(p) == 0 {
+			p, err = findPackageTestFolderPaths(packageRootPath, testTypeGlob)
 		}
 
 		paths = p
@@ -263,10 +268,20 @@ func TestRunners() map[TestType]TestRunner {
 	return runners
 }
 
-// findTestFoldersPaths can only be called for test runners that require tests to be defined
+// findDataStreamTestFoldersPaths can only be called for test runners that require tests to be defined
 // at the data stream level.
-func findTestFolderPaths(packageRootPath, dataStreamGlob, testTypeGlob string) ([]string, error) {
+func findDataStreamTestFolderPaths(packageRootPath, dataStreamGlob, testTypeGlob string) ([]string, error) {
 	testFoldersGlob := filepath.Join(packageRootPath, "data_stream", dataStreamGlob, "_dev", "test", testTypeGlob)
+	paths, err := filepath.Glob(testFoldersGlob)
+	if err != nil {
+		return nil, errors.Wrap(err, "error finding test folders")
+	}
+	return paths, err
+}
+
+// findPackageTestFolderPaths finds tests at the package level.
+func findPackageTestFolderPaths(packageRootPath, testTypeGlob string) ([]string, error) {
+	testFoldersGlob := filepath.Join(packageRootPath, "_dev", "test", testTypeGlob)
 	paths, err := filepath.Glob(testFoldersGlob)
 	if err != nil {
 		return nil, errors.Wrap(err, "error finding test folders")
