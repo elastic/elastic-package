@@ -1,6 +1,4 @@
 vars:
   hosts:
-    - tcp({{Hostname}}:{{Port}})/
-  username: root
-  password: test
+    - root:test@tcp({{Hostname}}:{{Port}})/
 input: sql/metrics

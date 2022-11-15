@@ -1,4 +1,16 @@
 - name: input.name
   type: constant_keyword
   description: Sample field to be added.
-  value: logs
+  value: sql
+- name: data_stream.dataset
+  external: ecs
+- name: data_stream.namespace
+  external: ecs
+- name: data_stream.type
+  external: ecs
+- name: service.address
+  external: ecs
+- name: sql.driver
+  type: keyword
+- name: sql.query
+  type: keyword
