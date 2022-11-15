@@ -1,16 +1,16 @@
 version: '2.3'
 services:
-  mysql:
+  sql_input:
     build: .
     ports:
       - 3306
     volumes:
-      - ${SERVICE_LOGS_DIR}/mysql:/var/log/mysql
+      - ${SERVICE_LOGS_DIR}/sql_input:/var/log/mysql
       - mysqldata:/var/lib/mysql
-  mysql_is_ready:
+  sql_input_is_ready:
     image: tianon/true
     depends_on:
-      mysql:
+      sql_input:
         condition: service_healthy
 volumes:
   mysqldata:
