@@ -555,39 +555,35 @@ func createPackageDatastream(
 		}
 
 		// Add dataStream-level vars
-		dsVars := kibana.Vars{}
-		for _, dsVar := range stream.Vars {
-			val := dsVar.Default
-
-			cfgVar, exists := c.DataStream.Vars[dsVar.Name]
-			if exists {
-				// overlay var value from test configuration
-				val = cfgVar
-			}
-
-			dsVars[dsVar.Name] = kibana.Var{
-				Type:  dsVar.Type,
-				Value: val,
-			}
-		}
-		streams[0].Vars = dsVars
+		streams[0].Vars = setKibanaVariables(stream.Vars, c.DataStream.Vars)
 		r.Inputs[0].Streams = streams
 	} else {
-		r.Inputs[0].Streams = []kibana.Stream{
+		streams := []kibana.Stream{
 			{
-				ID:      fmt.Sprintf("%s-%s.%s", streamInput, pkg.Name, "TODO"), // TODO: What to use here instead of the ds name?
+				ID:      fmt.Sprintf("%s-%s.%s", streamInput, pkg.Name, pkgPolicyTemplate.Name),
 				Enabled: true,
 				DataStream: kibana.DataStream{
 					Type:    pkgPolicyTemplate.Type,
-					Dataset: fmt.Sprintf("%s.%s", pkg.Name, "TODO"), // TODO: What dataset to use for input packages?
+					Dataset: fmt.Sprintf("%s.%s", pkg.Name, pkgPolicyTemplate.Name),
 				},
-				Vars: kibana.Vars{},
 			},
 		}
+
+		// Add policyTemplate-level vars.
+		vars := setKibanaVariables(pkgPolicyTemplate.Vars, c.Vars)
+		if _, found := vars["data_stream.dataset"]; !found {
+			var value packages.VarValue
+			value.Unpack(pkg.Name + "_test")
+			vars["data_stream.dataset"] = kibana.Var{
+				Value: value,
+				Type:  "text",
+			}
+		}
+		streams[0].Vars = vars
+		r.Inputs[0].Streams = streams
 	}
 
 	// Add package-level vars
-	pkgVars := kibana.Vars{}
 	input := pkgPolicyTemplate.FindInputByType(streamInput)
 	var inputVars []packages.Variable
 	if input != nil {
@@ -596,29 +592,27 @@ func createPackageDatastream(
 		inputVars = append(inputVars, pkg.Vars...)
 	}
 
-	// Variables in the policy template directly (input packages).
-	if vars := pkgPolicyTemplate.Vars; len(vars) > 0 { // TODO: Why using the first?
-		inputVars = append(inputVars, vars...)
-		inputVars = append(inputVars, pkg.Vars...)
-	}
+	r.Inputs[0].Vars = setKibanaVariables(inputVars, c.Vars)
 
-	for _, pkgVar := range inputVars {
-		val := pkgVar.Default
+	return r
+}
 
-		cfgVar, exists := c.Vars[pkgVar.Name]
+func setKibanaVariables(definitions []packages.Variable, values map[string]packages.VarValue) kibana.Vars {
+	vars := kibana.Vars{}
+	for _, definition := range definitions {
+		val := definition.Default
+
+		value, exists := values[definition.Name]
 		if exists {
-			// overlay var value from test configuration
-			val = cfgVar
+			val = value
 		}
 
-		pkgVars[pkgVar.Name] = kibana.Var{
-			Type:  pkgVar.Type,
+		vars[definition.Name] = kibana.Var{
+			Type:  definition.Type,
 			Value: val,
 		}
 	}
-	r.Inputs[0].Vars = pkgVars
-
-	return r
+	return vars
 }
 
 // getDataStreamIndex returns the index of the data stream whose input name

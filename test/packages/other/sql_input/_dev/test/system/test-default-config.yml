@@ -1,3 +1,6 @@
-wait_for_data_timeout: 10m
-vars: ~
+vars:
+  hosts:
+    - tcp({{Hostname}}:{{Port}})/
+  username: root
+  password: test
 input: sql/metrics
