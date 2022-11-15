@@ -102,9 +102,10 @@ type PolicyTemplate struct {
 	Inputs      []Input  `config:"inputs,omitempty" json:"inputs,omitempty" yaml:"inputs,omitempty"`
 
 	// For purposes of "input packages"
-	Input        string `config:"input,omitempty" json:"input,omitempty" yaml:"input,omitempty"`
-	Type         string `config:"type,omitempty" json:"type,omitempty" yaml:"type,omitempty"`
-	TemplatePath string `config:"template_path,omitempty" json:"template_path,omitempty" yaml:"template_path,omitempty"`
+	Input        string     `config:"input,omitempty" json:"input,omitempty" yaml:"input,omitempty"`
+	Type         string     `config:"type,omitempty" json:"type,omitempty" yaml:"type,omitempty"`
+	TemplatePath string     `config:"template_path,omitempty" json:"template_path,omitempty" yaml:"template_path,omitempty"`
+	Vars         []Variable `config:"vars" json:"vars" yaml:"vars"`
 }
 
 // Owner defines package owners, either a single person or a team.
