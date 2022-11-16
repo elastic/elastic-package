@@ -105,7 +105,7 @@ type PolicyTemplate struct {
 	Input        string     `config:"input,omitempty" json:"input,omitempty" yaml:"input,omitempty"`
 	Type         string     `config:"type,omitempty" json:"type,omitempty" yaml:"type,omitempty"`
 	TemplatePath string     `config:"template_path,omitempty" json:"template_path,omitempty" yaml:"template_path,omitempty"`
-	Vars         []Variable `config:"vars" json:"vars" yaml:"vars"`
+	Vars         []Variable `config:"vars,omitempty" json:"vars,omitempty" yaml:"vars,omitempty"`
 }
 
 // Owner defines package owners, either a single person or a team.
