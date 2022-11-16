@@ -294,7 +294,42 @@ Notice the use of the `{{SERVICE_LOGS_DIR}}` placeholder. This corresponds to th
 When a data stream's manifest declares multiple streams with different inputs you can use the `input` option to select the stream to test. The first stream
 whose input type matches the `input` value will be tested. By default, the first stream declared in the manifest will be tested.
 
-WIP - add detail for assert expected events
+For an http request, consider this example from the `httpjson/generic` data stream's `test-expected-event-count-config.yml`, shown below.
+
+```
+input: httpjson
+service: httpjson
+data_stream:
+  vars:
+    data_stream.dataset: httpjson.generic
+    username: test
+    password: test
+    request_url: http://{{Hostname}}:{{Port}}/testexpectedevents/api
+system_test:
+  expected_event_count: 3
+```
+
+The `data_stream.vars.request_url` corresponds to a path in the `_dev/deploy/docker/files/config.yml` file
+
+The `system_test.expected_event_count` field corresponds to the expected number of events in the corresponding path in the `_dev/deploy/docker/files/config.yml` file
+
+For example
+
+```
+  - path: /testexpectedevents/api
+    methods: ["GET"]
+    request_headers:
+      Authorization: "Basic dGVzdDp0ZXN0"
+    responses:
+      - status_code: 200
+        headers:
+          Content-Type:
+            - "application/json"
+        body: |-
+          {"parent":[{"k":"v"},{"k":"v"},{"k":"v"}]}
+```
+
+If the `system_test.expected_event_count` is defined and `> 0` the system test will only pass when the number of elements in the top-level array of the JSON body is equal to this value. 
 
 #### Placeholders
 
