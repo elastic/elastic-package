@@ -477,12 +477,8 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	}
 
 	// Write sample events file from first doc, if requested
-	if r.options.GenerateTestResult {
-		ds := r.options.TestFolder.DataStream
-		dsPath := filepath.Join(r.options.PackageRootPath, "data_stream", ds)
-		if err := writeSampleEvent(dsPath, docs[0]); err != nil {
-			return result.WithError(errors.Wrap(err, "failed to write sample event file"))
-		}
+	if err := r.generateTestResult(docs); err != nil {
+		return result.WithError(err)
 	}
 
 	return result.WithSuccess()
@@ -870,4 +866,21 @@ func (r *runner) selectVariants(variantsFile *servicedeployer.VariantsFile) []st
 		variantNames = append(variantNames, k)
 	}
 	return variantNames
+}
+
+func (r *runner) generateTestResult(docs []common.MapStr) error {
+	if !r.options.GenerateTestResult {
+		return nil
+	}
+
+	rootPath := r.options.PackageRootPath
+	if ds := r.options.TestFolder.DataStream; ds != "" {
+		rootPath = filepath.Join(rootPath, "data_stream", r.options.TestFolder.DataStream)
+	}
+
+	if err := writeSampleEvent(rootPath, docs[0]); err != nil {
+		return errors.Wrap(err, "failed to write sample event file")
+	}
+
+	return nil
 }

@@ -227,9 +227,12 @@ func FindTestFolders(packageRootPath string, dataStreams []string, testType Test
 	folders := make([]TestFolder, len(paths))
 	_, pkg := filepath.Split(packageRootPath)
 	for idx, p := range paths {
-		relP := strings.TrimPrefix(p, packageRootPath)
-		parts := strings.Split(relP, string(filepath.Separator))
-		dataStream := parts[2]
+		dataStream := ""
+		if len(dataStreams) > 0 {
+			relP := strings.TrimPrefix(p, packageRootPath)
+			parts := strings.Split(relP, string(filepath.Separator))
+			dataStream = parts[2]
+		}
 
 		folder := TestFolder{
 			p,
