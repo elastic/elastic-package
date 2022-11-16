@@ -1,4 +1,3 @@
 vars:
   hosts:
     - root:test@tcp({{Hostname}}:{{Port}})/
-input: sql/metrics
