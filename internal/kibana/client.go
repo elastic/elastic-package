@@ -111,9 +111,6 @@ func (c *Client) sendRequest(method, resourcePath string, body []byte) (int, []b
 	u := base.ResolveReference(rel)
 
 	logger.Debugf("%s %s", method, u)
-	if len(body) > 0 {
-		logger.Debug(string(body))
-	}
 
 	req, err := http.NewRequest(method, u.String(), reqBody)
 	if err != nil {
