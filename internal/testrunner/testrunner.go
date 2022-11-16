@@ -216,6 +216,9 @@ func FindTestFolders(packageRootPath string, dataStreams []string, testType Test
 		// Look for tests at the package level, like for input packages.
 		if len(p) == 0 {
 			p, err = findPackageTestFolderPaths(packageRootPath, testTypeGlob)
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		paths = p
