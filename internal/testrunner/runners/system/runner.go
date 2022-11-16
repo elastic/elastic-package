@@ -523,71 +523,53 @@ func createPackageDatastream(
 	ds packages.DataStreamManifest,
 	config testConfig,
 ) kibana.PackageDataStream {
+	if pkg.Type == "input" {
+		return createInputPackageDatastream(kibanaPolicy, pkg, policyTemplate, config)
+	}
+	return createIntegrationPackageDatastream(kibanaPolicy, pkg, policyTemplate, ds, config)
+}
+
+func createIntegrationPackageDatastream(
+	kibanaPolicy kibana.Policy,
+	pkg packages.PackageManifest,
+	policyTemplate packages.PolicyTemplate,
+	ds packages.DataStreamManifest,
+	config testConfig,
+) kibana.PackageDataStream {
 	r := kibana.PackageDataStream{
 		Name:      fmt.Sprintf("%s-%s", pkg.Name, ds.Name),
 		Namespace: "ep",
 		PolicyID:  kibanaPolicy.ID,
 		Enabled:   true,
+		Inputs: []kibana.Input{
+			{
+				PolicyTemplate: policyTemplate.Name,
+				Enabled:        true,
+			},
+		},
 	}
 	r.Package.Name = pkg.Name
 	r.Package.Title = pkg.Title
 	r.Package.Version = pkg.Version
-	r.Inputs = []kibana.Input{
+
+	stream := ds.Streams[getDataStreamIndex(config.Input, ds)]
+	streamInput := stream.Input
+	r.Inputs[0].Type = streamInput
+
+	streams := []kibana.Stream{
 		{
-			PolicyTemplate: policyTemplate.Name,
-			Enabled:        true,
+			ID:      fmt.Sprintf("%s-%s.%s", streamInput, pkg.Name, ds.Name),
+			Enabled: true,
+			DataStream: kibana.DataStream{
+				Type:    ds.Type,
+				Dataset: getDataStreamDataset(pkg, ds),
+			},
 		},
 	}
 
-	var streamInput string
-	if len(ds.Streams) > 0 {
-		stream := ds.Streams[getDataStreamIndex(config.Input, ds)]
-		streamInput = stream.Input
-		r.Inputs[0].Type = streamInput
-
-		streams := []kibana.Stream{
-			{
-				ID:      fmt.Sprintf("%s-%s.%s", streamInput, pkg.Name, ds.Name),
-				Enabled: true,
-				DataStream: kibana.DataStream{
-					Type:    ds.Type,
-					Dataset: getDataStreamDataset(pkg, ds),
-				},
-			},
-		}
-
-		// Add dataStream-level vars
-		streams[0].Vars = setKibanaVariables(stream.Vars, config.DataStream.Vars)
-		r.Inputs[0].Streams = streams
-	} else {
-		streamInput = policyTemplate.Input
-		r.Inputs[0].Type = streamInput
-
-		r.Name = fmt.Sprintf("%s-%s", pkg.Name, policyTemplate.Name)
-		streams := []kibana.Stream{
-			{
-				ID:      fmt.Sprintf("%s-%s.%s", streamInput, pkg.Name, policyTemplate.Name),
-				Enabled: true,
-				DataStream: kibana.DataStream{
-					Type:    policyTemplate.Type,
-					Dataset: fmt.Sprintf("%s.%s", pkg.Name, policyTemplate.Name),
-				},
-			},
-		}
-
-		// Add policyTemplate-level vars.
-		vars := setKibanaVariables(policyTemplate.Vars, config.Vars)
-		if _, found := vars["data_stream.dataset"]; !found {
-			var value packages.VarValue
-			value.Unpack(pkg.Name + "_test")
-			vars["data_stream.dataset"] = kibana.Var{
-				Value: value,
-				Type:  "text",
-			}
-		}
-		streams[0].Vars = vars
-		r.Inputs[0].Streams = streams
-	}
+	// Add dataStream-level vars
+	streams[0].Vars = setKibanaVariables(stream.Vars, config.DataStream.Vars)
+	r.Inputs[0].Streams = streams
 
 	// Add package-level vars
 	var inputVars []packages.Variable
@@ -600,6 +582,59 @@ func createPackageDatastream(
 
 	r.Inputs[0].Vars = setKibanaVariables(inputVars, config.Vars)
 
+	return r
+}
+
+func createInputPackageDatastream(
+	kibanaPolicy kibana.Policy,
+	pkg packages.PackageManifest,
+	policyTemplate packages.PolicyTemplate,
+	config testConfig,
+) kibana.PackageDataStream {
+	r := kibana.PackageDataStream{
+		Name:      fmt.Sprintf("%s-%s", pkg.Name, policyTemplate.Name),
+		Namespace: "ep",
+		PolicyID:  kibanaPolicy.ID,
+		Enabled:   true,
+	}
+	r.Package.Name = pkg.Name
+	r.Package.Title = pkg.Title
+	r.Package.Version = pkg.Version
+	r.Inputs = []kibana.Input{
+		{
+			PolicyTemplate: policyTemplate.Name,
+			Enabled:        true,
+			Vars:           kibana.Vars{},
+		},
+	}
+
+	streamInput := policyTemplate.Input
+	r.Inputs[0].Type = streamInput
+
+	streams := []kibana.Stream{
+		{
+			ID:      fmt.Sprintf("%s-%s.%s", streamInput, pkg.Name, policyTemplate.Name),
+			Enabled: true,
+			DataStream: kibana.DataStream{
+				Type:    policyTemplate.Type,
+				Dataset: fmt.Sprintf("%s.%s", pkg.Name, policyTemplate.Name),
+			},
+		},
+	}
+
+	// Add policyTemplate-level vars.
+	vars := setKibanaVariables(policyTemplate.Vars, config.Vars)
+	if _, found := vars["data_stream.dataset"]; !found {
+		var value packages.VarValue
+		value.Unpack(pkg.Name + "_test")
+		vars["data_stream.dataset"] = kibana.Var{
+			Value: value,
+			Type:  "text",
+		}
+	}
+
+	streams[0].Vars = vars
+	r.Inputs[0].Streams = streams
 	return r
 }
 
