@@ -879,7 +879,7 @@ func (r *runner) generateTestResult(docs []common.MapStr) error {
 
 	rootPath := r.options.PackageRootPath
 	if ds := r.options.TestFolder.DataStream; ds != "" {
-		rootPath = filepath.Join(rootPath, "data_stream", r.options.TestFolder.DataStream)
+		rootPath = filepath.Join(rootPath, "data_stream", ds)
 	}
 
 	if err := writeSampleEvent(rootPath, docs[0]); err != nil {

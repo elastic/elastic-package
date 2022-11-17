@@ -214,19 +214,10 @@ func FindTestFolders(packageRootPath string, dataStreams []string, testType Test
 			paths = append(paths, p...)
 		}
 	} else {
-		p, err := findDataStreamTestFolderPaths(packageRootPath, "*", testTypeGlob)
+		p, err := findPackageTestFolderPaths(packageRootPath, testTypeGlob)
 		if err != nil {
 			return nil, err
 		}
-
-		// Look for tests at the package level, like for input packages.
-		if len(p) == 0 {
-			p, err = findPackageTestFolderPaths(packageRootPath, testTypeGlob)
-			if err != nil {
-				return nil, err
-			}
-		}
-
 		paths = p
 	}
 
