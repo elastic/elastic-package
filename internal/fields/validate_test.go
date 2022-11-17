@@ -134,10 +134,25 @@ func TestValidate_ExpectedEventType(t *testing.T) {
 			valid: true,
 		},
 		{
+			title: "no event type",
+			doc: common.MapStr{
+				"event.category": "authentication",
+			},
+			valid: true,
+		},
+		{
 			title: "multiple valid event type",
 			doc: common.MapStr{
 				"event.category": "network",
 				"event.type":     []interface{}{"protocol", "connection", "end"},
+			},
+			valid: true,
+		},
+		{
+			title: "multiple categories",
+			doc: common.MapStr{
+				"event.category": []interface{}{"iam", "configuration"},
+				"event.type":     []interface{}{"group", "change"},
 			},
 			valid: true,
 		},
@@ -149,15 +164,31 @@ func TestValidate_ExpectedEventType(t *testing.T) {
 			},
 			valid: false,
 		},
+		{
+			title: "multiple categories, no match",
+			doc: common.MapStr{
+				"event.category": []interface{}{"iam", "configuration"},
+				"event.type":     []interface{}{"denied", "end"},
+			},
+			valid: false,
+		},
+		{
+			title: "multiple categories, some types don't match",
+			doc: common.MapStr{
+				"event.category": []interface{}{"iam", "configuration"},
+				"event.type":     []interface{}{"denied", "end", "group", "change"},
+			},
+			valid: false,
+		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.title, func(t *testing.T) {
 			errs := validator.ValidateDocumentMap(c.doc)
 			if c.valid {
-				assert.Empty(t, errs)
+				assert.Empty(t, errs, "should not have errors")
 			} else {
-				if assert.Len(t, errs, 1) {
+				if assert.Len(t, errs, 1, "should have one error") {
 					assert.Contains(t, errs[0].Error(), "is not one of the expected values")
 				}
 			}

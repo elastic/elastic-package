@@ -1,0 +1,22 @@
+format_version: 1.0.0
+name: with_dataset
+title: With dataset test
+version: 0.0.1
+description: Package that defines system test for data streams with an overwriting dataset
+categories:
+  - custom
+release: experimental
+license: basic
+type: integration
+conditions:
+  kibana.version: '^8.0.0'
+policy_templates:
+  - name: sample
+    title: Sample logs
+    description: Collect sample logs
+    inputs:
+      - type: logfile
+        title: Collect sample logs from instances
+        description: Collecting sample logs
+owner:
+  github: elastic/integrations

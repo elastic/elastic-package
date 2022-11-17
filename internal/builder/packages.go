@@ -12,8 +12,9 @@ import (
 	"github.com/magefile/mage/sh"
 	"github.com/pkg/errors"
 
-	"github.com/elastic/package-spec/code/go/pkg/validator"
+	"github.com/elastic/package-spec/v2/code/go/pkg/validator"
 
+	"github.com/elastic/elastic-package/internal/environment"
 	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
@@ -21,6 +22,8 @@ import (
 
 const builtPackagesFolder = "packages"
 const licenseTextFileName = "LICENSE.txt"
+
+var repositoryLicenseEnv = environment.WithElasticPackagePrefix("REPOSITORY_LICENSE")
 
 type BuildOptions struct {
 	PackageRoot string
@@ -248,13 +251,18 @@ func copyLicenseTextFile(licensePath string) error {
 		return nil
 	}
 
-	sourceLicensePath, err := findRepositoryLicense()
-	if errors.Is(err, os.ErrNotExist) {
+	repositoryLicenseTextFileName, userDefined := os.LookupEnv(repositoryLicenseEnv)
+	if !userDefined {
+		repositoryLicenseTextFileName = licenseTextFileName
+	}
+
+	sourceLicensePath, err := findRepositoryLicense(repositoryLicenseTextFileName)
+	if !userDefined && errors.Is(err, os.ErrNotExist) {
 		logger.Debug("No license text file is included in package")
 		return nil
 	}
 	if err != nil {
-		return errors.Wrap(err, "failure while looking for license in repository")
+		return errors.Wrapf(err, "failure while looking for license %q in repository", repositoryLicenseTextFileName)
 	}
 
 	logger.Infof("License text found in %q will be included in package", sourceLicensePath)
@@ -287,7 +295,7 @@ func createBuildDirectory(dirs ...string) (string, error) {
 	return buildDir, nil
 }
 
-func findRepositoryLicense() (string, error) {
+func findRepositoryLicense(licenseTextFileName string) (string, error) {
 	dir, err := files.FindRepositoryRootDirectory()
 	if err != nil {
 		return "", err
@@ -296,7 +304,7 @@ func findRepositoryLicense() (string, error) {
 	sourceFileName := filepath.Join(dir, licenseTextFileName)
 	_, err = os.Stat(sourceFileName)
 	if err != nil {
-		return "", err
+		return "", errors.Wrapf(err, "failed to find repository license")
 	}
 
 	return sourceFileName, nil

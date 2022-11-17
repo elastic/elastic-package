@@ -11,6 +11,9 @@ const (
 	// SavedObjectsAPI is the prefix for all Kibana Saved Objects API resources.
 	SavedObjectsAPI = "/api/saved_objects"
 
+	// StatusAPI is the prefix for Kibana Status API resource.
+	StatusAPI = "/api/status"
+
 	// FleetAPI is the prefix for all Kibana Fleet API resources.
 	FleetAPI = "/api/fleet"
 )

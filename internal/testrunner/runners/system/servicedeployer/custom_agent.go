@@ -61,7 +61,7 @@ func (d *CustomAgentDeployer) SetUp(inCtxt ServiceContext) (DeployedService, err
 	}
 
 	env := append(
-		appConfig.StackImageRefs(stackVersion).AsEnv(),
+		appConfig.StackImageRefs(stackVersion.Version()).AsEnv(),
 		fmt.Sprintf("%s=%s", serviceLogsDirEnv, inCtxt.Logs.Folder.Local),
 		fmt.Sprintf("%s=%s", localCACertEnv, caCertPath),
 	)
@@ -154,5 +154,5 @@ func (d *CustomAgentDeployer) loadComposeDefinitions() ([]string, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "can't locate Docker Compose file for Custom Agent deployer")
 	}
-	return []string{locationManager.DockerCustomAgentDeployerYml(), d.cfg}, nil
+	return []string{d.cfg, locationManager.DockerCustomAgentDeployerYml()}, nil
 }

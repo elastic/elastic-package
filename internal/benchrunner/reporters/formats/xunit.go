@@ -1,13 +1,11 @@
 // Copyright Elasticsearch B.V. and/or licensed to Elasticsearch B.V. under one
 // or more contributor license agreements. Licensed under the Elastic License;
 // you may not use this file except in compliance with the Elastic License.
-
 package formats
 
 import (
 	"encoding/xml"
-
-	"github.com/pkg/errors"
+	"fmt"
 
 	"github.com/elastic/elastic-package/internal/benchrunner"
 )
@@ -50,7 +48,7 @@ func reportXUnitFormatBenchmark(benchmarks []*benchrunner.BenchmarkResult) ([]st
 		b.Tests = benchmarks
 		out, err := xml.MarshalIndent(b, "", "  ")
 		if err != nil {
-			return nil, errors.Wrap(err, "unable to format benchmark results as xUnit")
+			return nil, fmt.Errorf("unable to format benchmark results as xUnit: %w", err)
 		}
 		reports = append(reports, xml.Header+string(out))
 	}

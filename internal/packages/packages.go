@@ -10,9 +10,10 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/pkg/errors"
+
 	"github.com/elastic/go-ucfg"
 	"github.com/elastic/go-ucfg/yaml"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -96,7 +97,9 @@ type Conditions struct {
 
 // PolicyTemplate is a configuration of inputs responsible for collecting log or metric data.
 type PolicyTemplate struct {
-	Inputs []Input `config:"inputs,omitempty" json:"inputs,omitempty" yaml:"inputs,omitempty"`
+	Name        string   `config:"name" json:"name" yaml:"name"`                                                       // Name of policy template.
+	DataStreams []string `config:"data_streams,omitempty" json:"data_streams,omitempty" yaml:"data_streams,omitempty"` // List of data streams compatible with the policy template.
+	Inputs      []Input  `config:"inputs,omitempty" json:"inputs,omitempty" yaml:"inputs,omitempty"`
 
 	// For purposes of "input packages"
 	Input        string `config:"input,omitempty" json:"input,omitempty" yaml:"input,omitempty"`
