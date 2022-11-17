@@ -329,7 +329,7 @@ For example
           {"parent":[{"k":"v"},{"k":"v"},{"k":"v"}]}
 ```
 
-If the `system_test.expected_event_count` is defined and `> 0` the system test will only pass when the number of elements in the top-level array of the JSON body is equal to this value. 
+The test is applied when `system_test.expected_event_count` is defined and `> 0`. It expects a message body comprised of a JSON string that includes an arbitrary top-level field whose value is an array. The system test will only pass when the number of elements in this array is equal to the configured value. 
 
 #### Placeholders
 
