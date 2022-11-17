@@ -26,8 +26,20 @@ const (
 	AgentPolicyFlagName    = "agent-policy"
 	AgentPolicyDescription = "name of the agent policy"
 
+	AllowSnapshotFlagName    = "allow-snapshot"
+	AllowSnapshotDescription = "allow to export dashboards from a Elastic stack SNAPSHOT version"
+
 	BenchNumTopProcsFlagName        = "num-top-procs"
 	BenchNumTopProcsFlagDescription = "number of top processors to show in the benchmarks results"
+
+	BenchReportNewPathFlagName        = "new"
+	BenchReportNewPathFlagDescription = "path of the directory containing the new benchmarks of the report"
+
+	BenchReportOldPathFlagName        = "old"
+	BenchReportOldPathFlagDescription = "path of the directory containing the old benchmarks to compare against to generate the report"
+
+	BenchThresholdFlagName        = "threshold"
+	BenchThresholdFlagDescription = "threshold to assume a benchmark report has significantly changed"
 
 	BenchWithTestSamplesFlagName        = "use-test-samples"
 	BenchWithTestSamplesFlagDescription = "use test samples for the benchmarks"
@@ -107,11 +119,21 @@ const (
 	ReportFormatFlagName        = "report-format"
 	ReportFormatFlagDescription = "format of test report"
 
+	ReportFullFlagName        = "full"
+	ReportFullFlagDescription = "whether to show the full report or a summary"
+
 	ReportOutputFlagName        = "report-output"
-	ReportOutputFlagDescription = "output location for test report"
+	ReportOutputFlagDescription = "output type for test report, eg: stdout, file"
+
+	ReportOutputPathFlagName        = "report-output-path"
+	ReportOutputPathFlagDescription = "output path for test report"
 
 	ShowAllFlagName        = "all"
 	ShowAllFlagDescription = "show all deployed package revisions"
+
+	ShellInitShellFlagName    = "shell"
+	ShellInitShellDescription = "change output shell code compatibility. Use 'detect' to use integrated shell detection; suggested to not change unless detection is not working"
+	ShellInitShellDetect      = "auto"
 
 	SignPackageFlagName        = "sign"
 	SignPackageFlagDescription = "sign package"

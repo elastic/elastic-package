@@ -28,6 +28,7 @@ type testConfig struct {
 	testrunner.SkippableConfig `config:",inline"`
 
 	Input               string        `config:"input"`
+	PolicyTemplate      string        `config:"policy_template"` // Policy template associated with input. Required when multiple policy templates include the input being tested.
 	Service             string        `config:"service"`
 	ServiceNotifySignal string        `config:"service_notify_signal"` // Signal to send when the agent policy is applied.
 	WaitForDataTimeout  time.Duration `config:"wait_for_data_timeout"`
@@ -46,8 +47,8 @@ type testConfig struct {
 	// type but can be ingested as numeric type.
 	NumericKeywordFields []string `config:"numeric_keyword_fields"`
 
-	Path               string
-	ServiceVariantName string
+	Path               string `config:",ignore"` // Path of config file.
+	ServiceVariantName string `config:",ignore"` // Name of test variant when using variants.yml.
 }
 
 func (t testConfig) Name() string {

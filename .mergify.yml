@@ -4,6 +4,13 @@ queue_rules:
       - check-success=elastic-package/pr-merge
 
 pull_request_rules:
+  - name: automatic approval for Dependabot pull requests
+    conditions:
+      - author~=^dependabot(|-preview)\[bot\]$
+    actions:
+      review:
+        type: APPROVE
+        message: Automatically approving dependabot
   - name: automatic merge of bot 🤖
     conditions:
       - check-success=elastic-package/pr-merge

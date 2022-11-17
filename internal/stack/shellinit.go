@@ -5,7 +5,9 @@
 package stack
 
 import (
+	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/elastic/elastic-package/internal/environment"
 	"github.com/elastic/elastic-package/internal/profile"
@@ -20,24 +22,58 @@ var (
 	CACertificateEnv         = environment.WithElasticPackagePrefix("CA_CERT")
 )
 
-var shellInitFormat = "export " + ElasticsearchHostEnv + "=%s\n" +
-	"export " + ElasticsearchUsernameEnv + "=%s\n" +
-	"export " + ElasticsearchPasswordEnv + "=%s\n" +
-	"export " + KibanaHostEnv + "=%s\n" +
-	"export " + CACertificateEnv + "=%s"
-
 // ShellInit method exposes environment variables that can be used for testing purposes.
-func ShellInit(elasticStackProfile *profile.Profile) (string, error) {
+func ShellInit(elasticStackProfile *profile.Profile, shellType string) (string, error) {
 	config, err := StackInitConfig(elasticStackProfile)
 	if err != nil {
 		return "", nil
 	}
 
-	return fmt.Sprintf(shellInitFormat,
-		config.ElasticsearchHostPort,
-		config.ElasticsearchUsername,
-		config.ElasticsearchPassword,
-		config.KibanaHostPort,
-		config.CACertificatePath,
+	// NOTE: to add new env vars, the template need to be adjusted
+	t, err := initTemplate(shellType)
+	if err != nil {
+		return "", fmt.Errorf("cannot get shell init template: %w", err)
+	}
+
+	return fmt.Sprintf(t,
+		ElasticsearchHostEnv, config.ElasticsearchHostPort,
+		ElasticsearchUsernameEnv, config.ElasticsearchUsername,
+		ElasticsearchPasswordEnv, config.ElasticsearchPassword,
+		KibanaHostEnv, config.KibanaHostPort,
+		CACertificateEnv, config.CACertificatePath,
 	), nil
+}
+
+const (
+	// shell init code for POSIX compliant shells.
+	// IEEE POSIX Shell and Tools portion of the IEEE POSIX specification (IEEE Standard 1003.1)
+	posixTemplate = `export %s=%s
+export %s=%s
+export %s=%s
+export %s=%s
+export %s=%s
+`
+	// fish shell init code.
+	// fish shell is similar but not compliant to POSIX.
+	fishTemplate = `set -x %s %s;
+set -x %s %s;
+set -x %s %s;
+set -x %s %s;
+set -x %s %s;
+`
+)
+
+// availableShellTypes list all available values for s in initTemplate
+var availableShellTypes = []string{"bash", "dash", "fish", "sh", "zsh"}
+
+// InitTemplate returns code templates for shell initialization
+func initTemplate(s string) (string, error) {
+	switch s {
+	case "bash", "dash", "sh", "zsh":
+		return posixTemplate, nil
+	case "fish":
+		return fishTemplate, nil
+	default:
+		return "", errors.New("shell type is unknown, should be one of " + strings.Join(availableShellTypes, ", "))
+	}
 }

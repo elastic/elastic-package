@@ -32,6 +32,7 @@ func setupExportCommand() *cobraext.Command {
 	}
 	exportDashboardCmd.Flags().StringSliceP(cobraext.DashboardIDsFlagName, "d", nil, cobraext.DashboardIDsFlagDescription)
 	exportDashboardCmd.Flags().Bool(cobraext.TLSSkipVerifyFlagName, false, cobraext.TLSSkipVerifyFlagDescription)
+	exportDashboardCmd.Flags().Bool(cobraext.AllowSnapshotFlagName, false, cobraext.AllowSnapshotDescription)
 
 	cmd := &cobra.Command{
 		Use:   "export",
@@ -59,9 +60,27 @@ func exportDashboardsCmd(cmd *cobra.Command, args []string) error {
 		opts = append(opts, kibana.TLSSkipVerify())
 	}
 
+	allowSnapshot, _ := cmd.Flags().GetBool(cobraext.AllowSnapshotFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.AllowSnapshotFlagName)
+	}
+
 	kibanaClient, err := kibana.NewClient(opts...)
 	if err != nil {
 		return errors.Wrap(err, "can't create Kibana client")
+	}
+
+	kibanaVersion, err := kibanaClient.Version()
+	if err != nil {
+		return errors.Wrap(err, "can't get Kibana status information")
+	}
+
+	if kibanaVersion.IsSnapshot() {
+		message := fmt.Sprintf("exporting dashboards from a SNAPSHOT version of Kibana (%s) is discouraged. It could lead to invalid dashboards (for example if they use features that are reverted or modified before the final release)", kibanaVersion.Version())
+		if !allowSnapshot {
+			return errors.Errorf("%s. --%s flag can be used to ignore this error", message, cobraext.AllowSnapshotFlagName)
+		}
+		fmt.Printf("Warning: %s\n", message)
 	}
 
 	if len(dashboardIDs) == 0 {

@@ -8,7 +8,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
-	"github.com/elastic/package-spec/code/go/pkg/validator"
+	"github.com/elastic/package-spec/v2/code/go/pkg/validator"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/docs"
@@ -47,7 +47,7 @@ func lintCommandAction(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		for _, f := range readmeFiles {
 			if !f.UpToDate {
-				cmd.Printf("%s is outdated. Rebuild the package with 'elastic-package build'\n", f.FileName)
+				cmd.Printf("%s is outdated. Rebuild the package with 'elastic-package build'\n%s", f.FileName, f.Diff)
 			}
 			if f.Error != nil {
 				cmd.Printf("check if %s is up-to-date failed: %s\n", f.FileName, f.Error)
