@@ -384,6 +384,8 @@ Hello from the SQL input package!
 | source.user.name | Short name or login of the user. | keyword |
 | source.user.name.text | Multi-field of `source.user.name`. | match_only_text |
 | sql.driver |  | keyword |
+| sql.metrics.numeric.\* |  | double |
+| sql.metrics.string.\* |  | keyword |
 | sql.query |  | keyword |
 | tags | List of keywords used to tag each event. | keyword |
 | threat.framework | Name of the threat framework used to further categorize and classify the tactic and technique of the reported threat. Framework classification can be provided by detecting systems, evaluated at ingest time, or retrospectively tagged to events. | keyword |
