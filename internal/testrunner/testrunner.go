@@ -183,13 +183,19 @@ func AssumeTestFolders(packageRootPath string, dataStreams []string, testType Te
 
 // FindTestFolders finds test folders for the given package and, optionally, test type and data streams
 func FindTestFolders(packageRootPath string, dataStreams []string, testType TestType) ([]TestFolder, error) {
-	// Expected folder structure:
+	// Expected folder structure for packages with data streams (integration packages):
 	// <packageRootPath>/
 	//   data_stream/
 	//     <dataStream>/
 	//       _dev/
 	//         test/
 	//           <testType>/
+	//
+	// Expected folder structure for packages without data streams (input packages):
+	// <packageRootPath>/
+	//   _dev/
+	//     test/
+	//       <testType>/
 
 	testTypeGlob := "*"
 	if testType != "" {
