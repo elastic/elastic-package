@@ -464,7 +464,7 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	// Validate fields in docs
 	var expectedDataset string
 	if ds := r.options.TestFolder.DataStream; ds != "" {
-		expectedDataset = pkgManifest.Name + "." + r.options.TestFolder.DataStream
+		expectedDataset = pkgManifest.Name + "." + ds
 	} else {
 		expectedDataset = pkgManifest.Name + "." + policyTemplateName
 	}
