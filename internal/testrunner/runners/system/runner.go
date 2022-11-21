@@ -481,8 +481,12 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 
 	// Check Event Count within docs, if 0 then it has not been specified
 	if config.SystemTest.ExpectedEventCount != 0 {
-		if err := checkEventCount(docs, config.SystemTest.ExpectedEventCount); err != nil {
+		if result.EventCount, err = getEventCount(docs); err != nil {
 			return result.WithError(err)
+		}
+		if result.EventCount != config.SystemTest.ExpectedEventCount {
+			result.FailureMsg = fmt.Sprintf("observed event count %d did not match expected event count %d", result.EventCount, config.SystemTest.ExpectedEventCount)
+			return result.WithError(fmt.Errorf("%s", result.FailureMsg))
 		}
 	}
 
@@ -755,51 +759,41 @@ func validateFields(docs []common.MapStr, fieldsValidator *fields.Validator, dat
 	return nil
 }
 
-func countEvents(events map[string]interface{}) int {
+func getDocEventCount(events map[string]interface{}) int {
 	for k, v := range events {
 		if reflect.ValueOf(v).Kind() == reflect.Slice {
 			e := events[k].([]interface{})
-			logger.Debugf("Found %d events under %s", len(e), k)
+			logger.Debugf("found %d events under \"%s\"", len(e), k)
 			return len(e)
 		}
 	}
 	return 0
 }
 
-func checkEventCount(docs []common.MapStr, expected int) error {
-	var lenEvents int
-
+func getEventCount(docs []common.MapStr) (lenEvents int, err error) {
 	for _, doc := range docs {
 		var message interface{}
 		var events interface{}
-		var err error
 
 		if message, err = doc.GetValue("message"); err != nil {
-			return testrunner.ErrTestCaseFailed{
+			return 0, testrunner.ErrTestCaseFailed{
 				Reason:  fmt.Sprintf("could not find message in doc %v", doc),
 				Details: err.Error(),
 			}
 		}
 
 		if err = json.Unmarshal([]byte(message.(string)), &events); err != nil {
-			return testrunner.ErrTestCaseFailed{
+			return 0, testrunner.ErrTestCaseFailed{
 				Reason:  fmt.Sprintf("could not decode events from message %v", message.(string)),
 				Details: err.Error(),
 			}
 		}
 
 		eventMap := events.(map[string]interface{})
-		lenEvents += countEvents(eventMap)
+		lenEvents += getDocEventCount(eventMap)
 	}
 
-	if lenEvents != expected {
-		return testrunner.ErrTestCaseFailed{
-			Reason:  fmt.Sprintf("Observed Event Count %d did not match Expected Event Count %d", lenEvents, expected),
-			Details: fmt.Sprintf("docs: %v", docs),
-		}
-	}
-
-	return nil
+	return lenEvents, nil
 }
 
 func (r *runner) selectVariants(variantsFile *servicedeployer.VariantsFile) []string {
