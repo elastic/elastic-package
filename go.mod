@@ -13,7 +13,7 @@ require (
 	github.com/elastic/go-licenser v0.4.1
 	github.com/elastic/go-sysinfo v1.8.1
 	github.com/elastic/go-ucfg v0.8.6
-	github.com/elastic/package-spec/v2 v2.1.0
+	github.com/elastic/package-spec/v2 v2.2.0
 	github.com/fatih/color v1.13.0
 	github.com/go-git/go-billy/v5 v5.3.1
 	github.com/go-git/go-git/v5 v5.4.2
