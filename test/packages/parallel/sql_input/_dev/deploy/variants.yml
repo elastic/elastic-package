@@ -1,0 +1,6 @@
+variants:
+  mysql_8_0_13:
+    IMAGE: mysql:8.0.13
+  mariadb_10_4_4:
+    IMAGE: mariadb:10.4.4
+default: mysql_8_0_13
