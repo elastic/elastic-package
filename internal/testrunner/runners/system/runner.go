@@ -644,7 +644,7 @@ func setKibanaVariables(definitions []packages.Variable, values map[string]packa
 	for _, definition := range definitions {
 		val := definition.Default
 
-		value, exists := values[definition.Name]
+		value, exists := getConfigValue(values, definition.Name)
 		if exists {
 			val = value
 		}
@@ -655,6 +655,26 @@ func setKibanaVariables(definitions []packages.Variable, values map[string]packa
 		}
 	}
 	return vars
+}
+
+func getConfigValue(values map[string]packages.VarValue, name string) (packages.VarValue, bool) {
+	value, found := values[name]
+	if found {
+		return value, true
+	}
+
+	// Workaround when the value has been expanded.
+	root, leaf, found := strings.Cut(name, ".")
+	if !found {
+		return packages.VarValue{}, false
+	}
+
+	parent, found := values[root]
+	if !found {
+		return packages.VarValue{}, false
+	}
+
+	return parent.GetChildValue(leaf)
 }
 
 // getDataStreamIndex returns the index of the data stream whose input name

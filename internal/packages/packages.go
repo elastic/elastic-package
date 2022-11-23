@@ -12,6 +12,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/go-ucfg"
 	"github.com/elastic/go-ucfg/yaml"
 )
@@ -34,6 +35,7 @@ const (
 // VarValue represents a variable value as defined in a package or data stream
 // manifest file.
 type VarValue struct {
+	dict   map[string]interface{}
 	scalar interface{}
 	list   []interface{}
 }
@@ -42,6 +44,8 @@ type VarValue struct {
 // manifest file into a VarValue.
 func (vv *VarValue) Unpack(value interface{}) error {
 	switch u := value.(type) {
+	case map[string]interface{}:
+		vv.dict = u
 	case []interface{}:
 		vv.list = u
 	default:
@@ -57,8 +61,31 @@ func (vv VarValue) MarshalJSON() ([]byte, error) {
 		return json.Marshal(vv.scalar)
 	} else if vv.list != nil {
 		return json.Marshal(vv.list)
+	} else if vv.dict != nil {
+		return json.Marshal(vv.dict)
 	}
 	return []byte("null"), nil
+}
+
+// GetChildValue helps accessing subvalues when the value is a dictionary.
+// This is generally a workaround for ucfg not keeping the structure of
+// the read configuration (https://github.com/elastic/go-ucfg/issues/124).
+// For variables we want their full names.
+func (vv *VarValue) GetChildValue(name string) (VarValue, bool) {
+	if vv.dict == nil {
+		return VarValue{}, false
+	}
+
+	ms := common.MapStr(vv.dict)
+	value, err := ms.GetValue(name)
+	if err != nil {
+		return VarValue{}, false
+	}
+
+	var varValue VarValue
+	// Ignoring error as this cannot fail.
+	_ = varValue.Unpack(value)
+	return varValue, true
 }
 
 // Variable is an instance of configuration variable (named, typed).

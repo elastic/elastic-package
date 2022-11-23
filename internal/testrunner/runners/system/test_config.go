@@ -78,18 +78,27 @@ func newConfig(configFilePath string, ctxt servicedeployer.ServiceContext, servi
 		return nil, errors.Wrapf(err, "could not apply context to test configuration file: %s", configFilePath)
 	}
 
-	var c testConfig
-	cfg, err := yaml.NewConfig(data, ucfg.PathSep("."))
+	c, err := parseConfig(configFilePath, data)
 	if err != nil {
-		return nil, errors.Wrapf(err, "unable to load system test configuration file: %s", configFilePath)
+		return nil, err
 	}
-	if err := cfg.Unpack(&c); err != nil {
-		return nil, errors.Wrapf(err, "unable to unpack system test configuration file: %s", configFilePath)
-	}
+
 	// Save path
 	c.Path = configFilePath
 	c.ServiceVariantName = serviceVariantName
 	return &c, nil
+}
+
+func parseConfig(configFilePath string, data []byte) (testConfig, error) {
+	var c testConfig
+	cfg, err := yaml.NewConfig(data, ucfg.PathSep("."))
+	if err != nil {
+		return c, errors.Wrapf(err, "unable to load system test configuration file: %s", configFilePath)
+	}
+	if err := cfg.Unpack(&c); err != nil {
+		return c, errors.Wrapf(err, "unable to unpack system test configuration file: %s", configFilePath)
+	}
+	return c, nil
 }
 
 func listConfigFiles(systemTestFolderPath string) (files []string, err error) {
