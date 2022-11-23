@@ -50,7 +50,8 @@ func (c *Client) get(resourcePath string) (int, []byte, error) {
 		return 0, nil, errors.Wrapf(err, "could not create relative URL from resource path: %v", resourcePath)
 	}
 
-	u := base.ResolveReference(rel)
+	u := base.JoinPath(rel.EscapedPath())
+	u.RawQuery = rel.RawQuery
 
 	req, err := http.NewRequest(http.MethodGet, u.String(), nil)
 	if err != nil {
