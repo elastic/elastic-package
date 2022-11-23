@@ -108,7 +108,7 @@ func (c *Client) sendRequest(method, resourcePath string, body []byte) (int, []b
 		return 0, nil, errors.Wrapf(err, "could not create relative URL from resource path: %v", resourcePath)
 	}
 
-	u := base.ResolveReference(rel)
+	u := base.JoinPath(rel.String())
 
 	logger.Debugf("%s %s", method, u)
 
