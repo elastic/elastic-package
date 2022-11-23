@@ -611,13 +611,14 @@ func createInputPackageDatastream(
 	streamInput := policyTemplate.Input
 	r.Inputs[0].Type = streamInput
 
+	dataset := fmt.Sprintf("%s.%s", pkg.Name, policyTemplate.Name)
 	streams := []kibana.Stream{
 		{
 			ID:      fmt.Sprintf("%s-%s.%s", streamInput, pkg.Name, policyTemplate.Name),
 			Enabled: true,
 			DataStream: kibana.DataStream{
 				Type:    policyTemplate.Type,
-				Dataset: fmt.Sprintf("%s.%s", pkg.Name, policyTemplate.Name),
+				Dataset: dataset,
 			},
 		},
 	}
@@ -626,7 +627,7 @@ func createInputPackageDatastream(
 	vars := setKibanaVariables(policyTemplate.Vars, config.Vars)
 	if _, found := vars["data_stream.dataset"]; !found {
 		var value packages.VarValue
-		value.Unpack(pkg.Name + "_test")
+		value.Unpack(dataset)
 		vars["data_stream.dataset"] = kibana.Var{
 			Value: value,
 			Type:  "text",
