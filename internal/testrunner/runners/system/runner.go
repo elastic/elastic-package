@@ -639,14 +639,15 @@ func createInputPackageDatastream(
 	return r
 }
 
-func setKibanaVariables(definitions []packages.Variable, values map[string]packages.VarValue) kibana.Vars {
+func setKibanaVariables(definitions []packages.Variable, values common.MapStr) kibana.Vars {
 	vars := kibana.Vars{}
 	for _, definition := range definitions {
 		val := definition.Default
 
-		value, exists := values[definition.Name]
-		if exists {
-			val = value
+		value, err := values.GetValue(definition.Name)
+		if err == nil {
+			val = packages.VarValue{}
+			val.Unpack(value)
 		}
 
 		vars[definition.Name] = kibana.Var{
