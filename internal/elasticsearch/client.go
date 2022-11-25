@@ -5,8 +5,11 @@
 package elasticsearch
 
 import (
+	"context"
 	"crypto/tls"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 
@@ -27,6 +30,9 @@ type IngestSimulateRequest = esapi.IngestSimulateRequest
 
 // IngestGetPipelineRequest configures the Ingest Get Pipeline API request.
 type IngestGetPipelineRequest = esapi.IngestGetPipelineRequest
+
+// ClusterStateRequest configures the Cluster State API request.
+type ClusterStateRequest = esapi.ClusterStateRequest
 
 // clientOptions are used to configure a client.
 type clientOptions struct {
@@ -109,4 +115,32 @@ func Client(customOptions ...ClientOption) (*elasticsearch.Client, error) {
 		return nil, errors.Wrap(err, "can't create instance")
 	}
 	return client, nil
+}
+
+// CheckHealth checks the health of a cluster.
+func CheckHealth(ctx context.Context, client *API) error {
+	resp, err := client.Cluster.Health(client.Cluster.Health.WithContext(ctx))
+	if err != nil {
+		return errors.Wrap(err, "error checking cluster health")
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return errors.Wrap(err, "error reading cluster health response")
+	}
+
+	var clusterHealth struct {
+		Status string `json:"status"`
+	}
+	err = json.Unmarshal(body, &clusterHealth)
+	if err != nil {
+		return errors.Wrap(err, "error decoding cluster health response")
+	}
+
+	if status := clusterHealth.Status; status != "green" && status != "yellow" {
+		return errors.Errorf("cluster in unhealthy state: %q", status)
+	}
+
+	return nil
 }
