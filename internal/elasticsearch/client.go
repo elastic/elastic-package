@@ -12,6 +12,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/pkg/errors"
 
@@ -118,7 +119,7 @@ func Client(customOptions ...ClientOption) (*elasticsearch.Client, error) {
 }
 
 // CheckHealth checks the health of a cluster.
-func CheckHealth(ctx context.Context, client *API) error {
+func CheckHealth(ctx context.Context, client *elasticsearch.Client) error {
 	resp, err := client.Cluster.Health(client.Cluster.Health.WithContext(ctx))
 	if err != nil {
 		return errors.Wrap(err, "error checking cluster health")
@@ -139,8 +140,89 @@ func CheckHealth(ctx context.Context, client *API) error {
 	}
 
 	if status := clusterHealth.Status; status != "green" && status != "yellow" {
-		return errors.Errorf("cluster in unhealthy state: %q", status)
+		if status != "red" {
+			return errors.Errorf("cluster in unhealthy state: %q", status)
+		}
+		cause, err := redHealthCause(ctx, client)
+		if err != nil {
+			return errors.Wrapf(err, "cluster in unhealthy state, failed to identify cause")
+		}
+		return errors.Errorf("cluster in unhealthy state: %s", cause)
 	}
 
 	return nil
+}
+
+// redHealthCause tries to identify the cause of a cluster in red state. This could be
+// also used as a replacement of CheckHealth, but keeping them separated because it uses
+// internal undocumented APIs that might change.
+func redHealthCause(ctx context.Context, client *elasticsearch.Client) (string, error) {
+	req, err := http.NewRequest(http.MethodGet, "/_internal/_health", nil)
+	if err != nil {
+		return "", errors.Wrap(err, "error creating internal health request")
+	}
+	resp, err := client.Transport.Perform(req)
+	if err != nil {
+		return "", errors.Wrap(err, "error performing internal health request")
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", errors.Wrap(err, "error reading internal health response")
+	}
+
+	var internalHealth struct {
+		Status     string `json:"status"`
+		Indicators map[string]struct {
+			Status  string `json:"status"`
+			Impacts []struct {
+				Severity int `json:"severity"`
+			} `json:"impacts"`
+			Diagnosis []struct {
+				Cause string `json:"cause"`
+			} `json:"diagnosis"`
+		} `json:"indicators"`
+	}
+	err = json.Unmarshal(body, &internalHealth)
+	if err != nil {
+		return "", errors.Wrap(err, "error decoding internal health response")
+	}
+	if internalHealth.Status != "red" {
+		return "", errors.New("cluster state is not red?")
+	}
+
+	// Only diagnostics with the highest severity impacts are returned.
+	var highestSeverity int
+	var causes []string
+	for _, indicator := range internalHealth.Indicators {
+		if indicator.Status != "red" {
+			continue
+		}
+
+		var severity int
+		for _, impact := range indicator.Impacts {
+			if impact.Severity > severity {
+				severity = impact.Severity
+			}
+		}
+
+		switch {
+		case severity < highestSeverity:
+			continue
+		case severity == highestSeverity:
+			break
+		case severity > highestSeverity:
+			highestSeverity = severity
+			causes = nil
+		}
+
+		for _, diagnosis := range indicator.Diagnosis {
+			causes = append(causes, diagnosis.Cause)
+		}
+	}
+	if len(causes) == 0 {
+		return "", errors.New("no causes found")
+	}
+	return strings.Join(causes, ", "), nil
 }

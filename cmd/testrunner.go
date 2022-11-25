@@ -211,7 +211,7 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 		if err != nil {
 			return errors.Wrap(err, "can't create Elasticsearch client")
 		}
-		err = elasticsearch.CheckHealth(cmd.Context(), esClient.API)
+		err = elasticsearch.CheckHealth(cmd.Context(), esClient)
 		if err != nil {
 			return err
 		}

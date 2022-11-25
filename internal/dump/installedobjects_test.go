@@ -80,7 +80,7 @@ func (s *installedObjectsDumpSuite) TestDumpAll() {
 	client := estest.ElasticsearchClient(s.T(), s.RecordDir)
 
 	outputDir := s.T().TempDir()
-	dumper := NewInstalledObjectsDumper(client, s.PackageName)
+	dumper := NewInstalledObjectsDumper(client.API, s.PackageName)
 	n, err := dumper.DumpAll(context.Background(), outputDir)
 	s.Require().NoError(err)
 
@@ -95,7 +95,7 @@ func (s *installedObjectsDumpSuite) TestDumpAll() {
 
 func (s *installedObjectsDumpSuite) TestDumpSome() {
 	client := estest.ElasticsearchClient(s.T(), s.RecordDir)
-	dumper := NewInstalledObjectsDumper(client, s.PackageName)
+	dumper := NewInstalledObjectsDumper(client.API, s.PackageName)
 
 	// In a map so order of execution is randomized.
 	dumpers := map[string]func(ctx context.Context, outputDir string) (int, error){

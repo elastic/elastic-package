@@ -13,6 +13,7 @@ import (
 	"strings"
 	"testing"
 
+	esclient "github.com/elastic/go-elasticsearch/v7"
 	"github.com/stretchr/testify/require"
 
 	"github.com/elastic/elastic-package/internal/elasticsearch"
@@ -22,7 +23,7 @@ import (
 // responses. If responses are not found, it forwards the query to the server started by
 // elastic-package stack, and records the response.
 // Responses are recorded in the directory indicated by serverDataDir.
-func ElasticsearchClient(t *testing.T, serverDataDir string) *elasticsearch.API {
+func ElasticsearchClient(t *testing.T, serverDataDir string) *esclient.Client {
 	server := testElasticsearchServer(t, serverDataDir)
 	t.Cleanup(func() { server.Close() })
 
@@ -31,7 +32,7 @@ func ElasticsearchClient(t *testing.T, serverDataDir string) *elasticsearch.API 
 	)
 	require.NoError(t, err)
 
-	return client.API
+	return client
 }
 
 func testElasticsearchServer(t *testing.T, mockServerDir string) *httptest.Server {

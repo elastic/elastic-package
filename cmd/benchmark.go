@@ -151,7 +151,7 @@ func benchTypeCommandActionFactory(runner benchrunner.BenchRunner) cobraext.Comm
 		if err != nil {
 			return errors.Wrap(err, "can't create Elasticsearch client")
 		}
-		err = elasticsearch.CheckHealth(cmd.Context(), esClient.API)
+		err = elasticsearch.CheckHealth(cmd.Context(), esClient)
 		if err != nil {
 			return err
 		}
