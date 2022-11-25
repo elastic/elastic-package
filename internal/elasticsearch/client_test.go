@@ -30,7 +30,7 @@ func TestClientWithTLS(t *testing.T) {
 	caCertFile := writeCACertFile(t, server.Certificate())
 
 	t.Run("no TLS config, should fail", func(t *testing.T) {
-		client, err := elasticsearch.Client(elasticsearch.OptionWithAddress(server.URL))
+		client, err := elasticsearch.NewClient(elasticsearch.OptionWithAddress(server.URL))
 		require.NoError(t, err)
 
 		_, err = client.Ping()
@@ -38,7 +38,7 @@ func TestClientWithTLS(t *testing.T) {
 	})
 
 	t.Run("with CA", func(t *testing.T) {
-		client, err := elasticsearch.Client(elasticsearch.OptionWithAddress(server.URL), elasticsearch.OptionWithCertificateAuthority(caCertFile))
+		client, err := elasticsearch.NewClient(elasticsearch.OptionWithAddress(server.URL), elasticsearch.OptionWithCertificateAuthority(caCertFile))
 		require.NoError(t, err)
 
 		_, err = client.Ping()
@@ -46,7 +46,7 @@ func TestClientWithTLS(t *testing.T) {
 	})
 
 	t.Run("skip TLS verify", func(t *testing.T) {
-		client, err := elasticsearch.Client(elasticsearch.OptionWithAddress(server.URL), elasticsearch.OptionWithSkipTLSVerify())
+		client, err := elasticsearch.NewClient(elasticsearch.OptionWithAddress(server.URL), elasticsearch.OptionWithSkipTLSVerify())
 		require.NoError(t, err)
 
 		_, err = client.Ping()
@@ -70,9 +70,9 @@ func TestClusterHealth(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.RecordDir, func(t *testing.T) {
-			client := test.ElasticsearchClient(t, c.RecordDir)
+			client := test.NewClient(t, c.RecordDir)
 
-			err := elasticsearch.CheckHealth(context.Background(), client)
+			err := client.CheckHealth(context.Background())
 			if c.Expected != "" {
 				if assert.Error(t, err) {
 					assert.Equal(t, c.Expected, err.Error())

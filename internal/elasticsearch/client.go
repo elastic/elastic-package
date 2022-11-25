@@ -81,8 +81,13 @@ func OptionWithSkipTLSVerify() ClientOption {
 	}
 }
 
-// Client method creates new instance of the Elasticsearch client.
-func Client(customOptions ...ClientOption) (*elasticsearch.Client, error) {
+// Client is a wrapper over an Elasticsearch Client.
+type Client struct {
+	*elasticsearch.Client
+}
+
+// NewClient method creates new instance of the Elasticsearch client.
+func NewClient(customOptions ...ClientOption) (*Client, error) {
 	options := defaultOptionsFromEnv()
 	for _, option := range customOptions {
 		option(&options)
@@ -115,11 +120,11 @@ func Client(customOptions ...ClientOption) (*elasticsearch.Client, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "can't create instance")
 	}
-	return client, nil
+	return &Client{Client: client}, nil
 }
 
-// CheckHealth checks the health of a cluster.
-func CheckHealth(ctx context.Context, client *elasticsearch.Client) error {
+// CheckHealth checks the health of the cluster.
+func (client *Client) CheckHealth(ctx context.Context) error {
 	resp, err := client.Cluster.Health(client.Cluster.Health.WithContext(ctx))
 	if err != nil {
 		return errors.Wrap(err, "error checking cluster health")
@@ -143,7 +148,7 @@ func CheckHealth(ctx context.Context, client *elasticsearch.Client) error {
 		if status != "red" {
 			return errors.Errorf("cluster in unhealthy state: %q", status)
 		}
-		cause, err := redHealthCause(ctx, client)
+		cause, err := client.redHealthCause(ctx)
 		if err != nil {
 			return errors.Wrapf(err, "cluster in unhealthy state, failed to identify cause")
 		}
@@ -156,8 +161,8 @@ func CheckHealth(ctx context.Context, client *elasticsearch.Client) error {
 // redHealthCause tries to identify the cause of a cluster in red state. This could be
 // also used as a replacement of CheckHealth, but keeping them separated because it uses
 // internal undocumented APIs that might change.
-func redHealthCause(ctx context.Context, client *elasticsearch.Client) (string, error) {
-	req, err := http.NewRequest(http.MethodGet, "/_internal/_health", nil)
+func (client *Client) redHealthCause(ctx context.Context) (string, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "/_internal/_health", nil)
 	if err != nil {
 		return "", errors.Wrap(err, "error creating internal health request")
 	}

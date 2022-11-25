@@ -207,11 +207,11 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 
 		variantFlag, _ := cmd.Flags().GetString(cobraext.VariantFlagName)
 
-		esClient, err := elasticsearch.Client()
+		esClient, err := elasticsearch.NewClient()
 		if err != nil {
 			return errors.Wrap(err, "can't create Elasticsearch client")
 		}
-		err = elasticsearch.CheckHealth(cmd.Context(), esClient)
+		err = esClient.CheckHealth(cmd.Context())
 		if err != nil {
 			return err
 		}

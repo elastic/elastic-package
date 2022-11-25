@@ -64,7 +64,7 @@ type installedObjectsDumpSuite struct {
 func (s *installedObjectsDumpSuite) SetupTest() {
 	_, err := os.Stat(s.DumpDir)
 	if errors.Is(err, os.ErrNotExist) {
-		client, err := elasticsearch.Client()
+		client, err := elasticsearch.NewClient()
 		s.Require().NoError(err)
 
 		dumper := NewInstalledObjectsDumper(client.API, s.PackageName)
@@ -77,7 +77,7 @@ func (s *installedObjectsDumpSuite) SetupTest() {
 }
 
 func (s *installedObjectsDumpSuite) TestDumpAll() {
-	client := estest.ElasticsearchClient(s.T(), s.RecordDir)
+	client := estest.NewClient(s.T(), s.RecordDir)
 
 	outputDir := s.T().TempDir()
 	dumper := NewInstalledObjectsDumper(client.API, s.PackageName)
@@ -94,7 +94,7 @@ func (s *installedObjectsDumpSuite) TestDumpAll() {
 }
 
 func (s *installedObjectsDumpSuite) TestDumpSome() {
-	client := estest.ElasticsearchClient(s.T(), s.RecordDir)
+	client := estest.NewClient(s.T(), s.RecordDir)
 	dumper := NewInstalledObjectsDumper(client.API, s.PackageName)
 
 	// In a map so order of execution is randomized.
