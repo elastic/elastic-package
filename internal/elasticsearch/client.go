@@ -215,11 +215,11 @@ func (client *Client) redHealthCause(ctx context.Context) (string, error) {
 		switch {
 		case severity < highestSeverity:
 			continue
-		case severity == highestSeverity:
-			break
 		case severity > highestSeverity:
 			highestSeverity = severity
 			causes = nil
+		case severity == highestSeverity:
+			// Continue appending for current severity.
 		}
 
 		for _, diagnosis := range indicator.Diagnosis {
