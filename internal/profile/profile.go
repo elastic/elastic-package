@@ -126,7 +126,15 @@ func CreateProfile(options Options) error {
 		Prefix: stackDir,
 	})
 
-	results, err := resourceManager.Apply(profileResources)
+	resources := append([]resource.Resource{}, profileResources...)
+
+	certResources, err := initTLSCertificates("profile-file", profileDir)
+	if err != nil {
+		return fmt.Errorf("failed to create TLS files: %w", err)
+	}
+	resources = append(resources, certResources...)
+
+	results, err := resourceManager.Apply(resources)
 	if err != nil {
 		var errors []string
 		for _, result := range results {
@@ -136,6 +144,7 @@ func CreateProfile(options Options) error {
 		}
 		return fmt.Errorf("%w: %s", err, strings.Join(errors, ", "))
 	}
+
 	return nil
 }
 
@@ -145,6 +154,8 @@ type Profile struct {
 	ProfilePath      string
 	ProfileStackPath string
 	ProfileName      string
+
+	resources []resource.Resource
 }
 
 // ErrNotAProfile is returned in cases where we don't have a valid profile directory
@@ -152,7 +163,7 @@ var ErrNotAProfile = errors.New("not a profile")
 
 // FetchPath returns an absolute path to the given file
 func (profile Profile) FetchPath(name string) string {
-	for _, r := range profileResources {
+	for _, r := range profile.resources {
 		file, ok := r.(*resource.File)
 		if !ok {
 			continue
@@ -242,10 +253,19 @@ func loadProfile(elasticPackagePath string, profileName string) (*Profile, error
 		return nil, ErrNotAProfile
 	}
 
+	resources := append([]resource.Resource{}, profileResources...)
+
+	certResources, err := initTLSCertificates("profile-file", profilePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create TLS files: %w", err)
+	}
+	resources = append(resources, certResources...)
+
 	profile := Profile{
 		ProfileName:      profileName,
 		ProfilePath:      profilePath,
 		ProfileStackPath: filepath.Join(profilePath, profileStackPath),
+		resources:        resources,
 	}
 
 	return &profile, nil

@@ -5,6 +5,7 @@
 package fields
 
 import (
+	"bufio"
 	_ "embed"
 	"encoding/json"
 	"fmt"
@@ -14,13 +15,18 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/Masterminds/semver"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/common"
+	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/multierror"
+	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/packages/buildmanifest"
 )
+
+var semver2_0_0 = semver.MustParse("2.0.0")
 
 // Validator is responsible for fields validation.
 type Validator struct {
@@ -29,17 +35,35 @@ type Validator struct {
 	// FieldDependencyManager resolves references to external fields
 	FieldDependencyManager *DependencyManager
 
+	// SpecVersion contains the version of the spec used by the package.
+	specVersion semver.Version
+
+	// expectedDataset contains the value expected for dataset fields.
+	expectedDataset string
+
 	defaultNumericConversion bool
 	numericKeywordFields     map[string]struct{}
 
 	disabledDependencyManagement bool
 
 	enabledAllowedIPCheck bool
-	allowedIPs            map[string]struct{}
+	allowedCIDRs          []*net.IPNet
 }
 
-// ValidatorOption represents an optional flag that can be passed to  CreateValidatorForDataStream.
+// ValidatorOption represents an optional flag that can be passed to  CreateValidatorForDirectory.
 type ValidatorOption func(*Validator) error
+
+// WithSpecVersion enables validation dependant of the spec version used by the package.
+func WithSpecVersion(version string) ValidatorOption {
+	return func(v *Validator) error {
+		sv, err := semver.NewVersion(version)
+		if err != nil {
+			return fmt.Errorf("invalid version %q: %v", version, err)
+		}
+		v.specVersion = *sv
+		return nil
+	}
+}
 
 // WithDefaultNumericConversion configures the validator to accept defined keyword (or constant_keyword) fields as numeric-type.
 func WithDefaultNumericConversion() ValidatorOption {
@@ -77,8 +101,16 @@ func WithEnabledAllowedIPCheck() ValidatorOption {
 	}
 }
 
-// CreateValidatorForDataStream function creates a validator for the data stream.
-func CreateValidatorForDataStream(dataStreamRootPath string, opts ...ValidatorOption) (v *Validator, err error) {
+// WithExpectedDataset configures the validator to check if the dataset fields have the expected values.
+func WithExpectedDataset(dataset string) ValidatorOption {
+	return func(v *Validator) error {
+		v.expectedDataset = dataset
+		return nil
+	}
+}
+
+// CreateValidatorForDirectory function creates a validator for the directory.
+func CreateValidatorForDirectory(fieldsParentDir string, opts ...ValidatorOption) (v *Validator, err error) {
 	v = new(Validator)
 	for _, opt := range opts {
 		if err := opt(v); err != nil {
@@ -86,18 +118,30 @@ func CreateValidatorForDataStream(dataStreamRootPath string, opts ...ValidatorOp
 		}
 	}
 
-	v.allowedIPs = initializeAllowedIPsList()
+	v.allowedCIDRs = initializeAllowedCIDRsList()
 
-	v.Schema, err = loadFieldsForDataStream(dataStreamRootPath)
+	fieldsDir := filepath.Join(fieldsParentDir, "fields")
+	v.Schema, err = loadFieldsFromDir(fieldsDir)
 	if err != nil {
-		return nil, errors.Wrapf(err, "can't load fields for data stream (path: %s)", dataStreamRootPath)
+		return nil, errors.Wrapf(err, "can't load fields from directory (path: %s)", fieldsDir)
 	}
 
 	if v.disabledDependencyManagement {
 		return v, nil
 	}
 
-	packageRoot := filepath.Dir(filepath.Dir(dataStreamRootPath))
+	packageRoot, found, err := packages.FindPackageRoot()
+	if err != nil {
+		return nil, errors.Wrap(err, "can't find package root")
+	}
+	// As every command starts with approximating where is the package root, it isn't required to return an error in case the root is missing.
+	// This is also useful for testing purposes, where we don't have a real package, but just "fields" directory. The package root is always absent.
+	if !found {
+		logger.Debug("Package root not found, dependency management will be disabled.")
+		v.disabledDependencyManagement = true
+		return v, nil
+	}
+
 	bm, ok, err := buildmanifest.ReadBuildManifest(packageRoot)
 	if err != nil {
 		return nil, errors.Wrap(err, "can't read build manifest")
@@ -118,24 +162,20 @@ func CreateValidatorForDataStream(dataStreamRootPath string, opts ...ValidatorOp
 //go:embed _static/allowed_geo_ips.txt
 var allowedGeoIPs string
 
-func initializeAllowedIPsList() map[string]struct{} {
-	m := map[string]struct{}{
-		"0.0.0.0": {}, "255.255.255.255": {},
-		"0:0:0:0:0:0:0:0": {}, "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff": {}, "::": {},
-	}
-	for _, ip := range strings.Split(allowedGeoIPs, "\n") {
-		ip = strings.Trim(ip, " \n\t")
-		if ip == "" {
-			continue
+func initializeAllowedCIDRsList() (cidrs []*net.IPNet) {
+	s := bufio.NewScanner(strings.NewReader(allowedGeoIPs))
+	for s.Scan() {
+		_, cidr, err := net.ParseCIDR(s.Text())
+		if err != nil {
+			panic("invalid ip in _static/allowed_geo_ips.txt: " + s.Text())
 		}
-		m[ip] = struct{}{}
+		cidrs = append(cidrs, cidr)
 	}
 
-	return m
+	return cidrs
 }
 
-func loadFieldsForDataStream(dataStreamRootPath string) ([]FieldDefinition, error) {
-	fieldsDir := filepath.Join(dataStreamRootPath, "fields")
+func loadFieldsFromDir(fieldsDir string) ([]FieldDefinition, error) {
 	files, err := filepath.Glob(filepath.Join(fieldsDir, "*.yml"))
 	if err != nil {
 		return nil, errors.Wrapf(err, "reading directory with fields failed (path: %s)", fieldsDir)
@@ -168,23 +208,44 @@ func (v *Validator) ValidateDocumentBody(body json.RawMessage) multierror.Error 
 		return errs
 	}
 
-	errs := v.validateMapElement("", c)
-	if len(errs) == 0 {
-		return nil
-	}
-	return errs
+	return v.ValidateDocumentMap(c)
 }
 
 // ValidateDocumentMap validates the provided document as common.MapStr.
 func (v *Validator) ValidateDocumentMap(body common.MapStr) multierror.Error {
-	errs := v.validateMapElement("", body)
+	errs := v.validateDocumentValues(body)
+	errs = append(errs, v.validateMapElement("", body, body)...)
 	if len(errs) == 0 {
 		return nil
 	}
 	return errs
 }
 
-func (v *Validator) validateMapElement(root string, elem common.MapStr) multierror.Error {
+var datasetFieldNames = []string{
+	"event.dataset",
+	"data_stream.dataset",
+}
+
+func (v *Validator) validateDocumentValues(body common.MapStr) multierror.Error {
+	var errs multierror.Error
+	if !v.specVersion.LessThan(semver2_0_0) && v.expectedDataset != "" {
+		for _, datasetField := range datasetFieldNames {
+			value, err := body.GetValue(datasetField)
+			if err == common.ErrKeyNotFound {
+				continue
+			}
+			str, ok := value.(string)
+			if !ok || str != v.expectedDataset {
+				err := errors.Errorf("field %q should have value %q, it has \"%v\"",
+					datasetField, v.expectedDataset, value)
+				errs = append(errs, err)
+			}
+		}
+	}
+	return errs
+}
+
+func (v *Validator) validateMapElement(root string, elem common.MapStr, doc common.MapStr) multierror.Error {
 	var errs multierror.Error
 	for name, val := range elem {
 		key := strings.TrimLeft(root+"."+name, ".")
@@ -192,7 +253,7 @@ func (v *Validator) validateMapElement(root string, elem common.MapStr) multierr
 		switch val := val.(type) {
 		case []map[string]interface{}:
 			for _, m := range val {
-				err := v.validateMapElement(key, m)
+				err := v.validateMapElement(key, m, doc)
 				if err != nil {
 					errs = append(errs, err...)
 				}
@@ -203,12 +264,12 @@ func (v *Validator) validateMapElement(root string, elem common.MapStr) multierr
 				// because the entire object is mapped as a single field.
 				continue
 			}
-			err := v.validateMapElement(key, val)
+			err := v.validateMapElement(key, val, doc)
 			if err != nil {
 				errs = append(errs, err...)
 			}
 		default:
-			err := v.validateScalarElement(key, val)
+			err := v.validateScalarElement(key, val, doc)
 			if err != nil {
 				errs = append(errs, err)
 			}
@@ -217,7 +278,7 @@ func (v *Validator) validateMapElement(root string, elem common.MapStr) multierr
 	return errs
 }
 
-func (v *Validator) validateScalarElement(key string, val interface{}) error {
+func (v *Validator) validateScalarElement(key string, val interface{}, doc common.MapStr) error {
 	if key == "" {
 		return nil // root key is always valid
 	}
@@ -244,7 +305,12 @@ func (v *Validator) validateScalarElement(key string, val interface{}) error {
 		val = fmt.Sprintf("%q", val)
 	}
 
-	err := v.parseElementValue(key, *definition, val)
+	err := v.validateExpectedNormalization(*definition, val)
+	if err != nil {
+		return errors.Wrapf(err, "field %q is not normalized as expected", key)
+	}
+
+	err = v.parseElementValue(key, *definition, val, doc)
 	if err != nil {
 		return errors.Wrap(err, "parsing field value failed")
 	}
@@ -339,33 +405,109 @@ func compareKeys(key string, def FieldDefinition, searchedKey string) bool {
 		return true
 	}
 
-	// Workaround for potential geo_point, as "lon" and "lat" fields are not present in field definitions.
-	// Unfortunately we have to assume that imported field could be a geo_point (nasty workaround).
+	// Workaround for potential subfields of certain types as geo_point or histogram.
 	if len(searchedKey) > j {
-		if def.Type == "geo_point" || def.External != "" {
-			extraPart := searchedKey[j:]
-			if extraPart == ".lon" || extraPart == ".lat" {
-				return true
-			}
+		extraPart := searchedKey[j:]
+		if validSubField(def, extraPart) {
+			return true
 		}
 	}
 
 	return false
 }
 
-func (v *Validator) parseElementValue(key string, definition FieldDefinition, val interface{}) error {
-	val, ok := ensureSingleElementValue(val)
-	if !ok {
-		return nil // it's an array, but it's not possible to extract the single value.
+func (v *Validator) validateExpectedNormalization(definition FieldDefinition, val interface{}) error {
+	// Validate expected normalization starting with packages following spec v2 format.
+	if v.specVersion.LessThan(semver2_0_0) {
+		return nil
+	}
+	for _, normalize := range definition.Normalize {
+		switch normalize {
+		case "array":
+			if _, isArray := val.([]interface{}); val != nil && !isArray {
+				return fmt.Errorf("expected array, found %q (%T)", val, val)
+			}
+		}
+	}
+	return nil
+}
+
+// validSubField checks if the extra part that didn't match with any field definition,
+// matches with the possible sub field of complex fields like geo_point or histogram.
+func validSubField(def FieldDefinition, extraPart string) bool {
+	fieldType := def.Type
+	if def.Type == "object" && def.ObjectType != "" {
+		fieldType = def.ObjectType
 	}
 
-	var valid bool
+	subFields := []string{".lat", ".lon", ".values", ".counts"}
+	perType := map[string][]string{
+		"geo_point": subFields[0:2],
+		"histogram": subFields[2:4],
+	}
+
+	allowed, found := perType[fieldType]
+	if !found {
+		if def.External != "" {
+			// An unresolved external field could be anything.
+			allowed = subFields
+		} else {
+			return false
+		}
+	}
+
+	for _, a := range allowed {
+		if a == extraPart {
+			return true
+		}
+	}
+
+	return false
+}
+
+// parseElementValue checks that the value stored in a field matches the field definition. For
+// arrays it checks it for each Element.
+func (v *Validator) parseElementValue(key string, definition FieldDefinition, val interface{}, doc common.MapStr) error {
+	err := v.parseAllElementValues(key, definition, val, doc)
+	if err != nil {
+		return err
+	}
+
+	return forEachElementValue(key, definition, val, doc, v.parseSingleElementValue)
+}
+
+// parseAllElementValues performs validations that must be done for all elements at once in
+// case that there are multiple values.
+func (v *Validator) parseAllElementValues(key string, definition FieldDefinition, val interface{}, doc common.MapStr) error {
 	switch definition.Type {
+	case "constant_keyword", "keyword", "text":
+		if !v.specVersion.LessThan(semver2_0_0) {
+			strings, err := valueToStringsSlice(val)
+			if err != nil {
+				return fmt.Errorf("field %q value \"%v\" (%T): %w", key, val, val, err)
+			}
+			if err := ensureExpectedEventType(key, strings, definition, doc); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// parseSingeElementValue performs validations on individual values of each element.
+func (v *Validator) parseSingleElementValue(key string, definition FieldDefinition, val interface{}, doc common.MapStr) error {
+	invalidTypeError := func() error {
+		return fmt.Errorf("field %q's Go type, %T, does not match the expected field type: %s (field value: %v)", key, val, definition.Type, val)
+	}
+
+	switch definition.Type {
+	// Constant keywords can define a value in the definition, if they do, all
+	// values stored in this field should be this one.
+	// If a pattern is provided, it checks if the value matches.
 	case "constant_keyword":
-		var valStr string
-		valStr, valid = val.(string)
+		valStr, valid := val.(string)
 		if !valid {
-			break
+			return invalidTypeError()
 		}
 
 		if err := ensureConstantKeywordValueMatches(key, valStr, definition.Value); err != nil {
@@ -374,37 +516,47 @@ func (v *Validator) parseElementValue(key string, definition FieldDefinition, va
 		if err := ensurePatternMatches(key, valStr, definition.Pattern); err != nil {
 			return err
 		}
+		if err := ensureAllowedValues(key, valStr, definition); err != nil {
+			return err
+		}
+	// Normal text fields should be of type string.
+	// If a pattern is provided, it checks if the value matches.
 	case "keyword", "text":
-		var valStr string
-		valStr, valid = val.(string)
+		valStr, valid := val.(string)
 		if !valid {
-			break
+			return invalidTypeError()
 		}
 
 		if err := ensurePatternMatches(key, valStr, definition.Pattern); err != nil {
 			return err
 		}
+		if err := ensureAllowedValues(key, valStr, definition); err != nil {
+			return err
+		}
+	// Dates are expected to be formatted as strings or as seconds or milliseconds
+	// since epoch.
+	// If it is a string and a pattern is provided, it checks if the value matches.
 	case "date":
 		switch val := val.(type) {
 		case string:
 			if err := ensurePatternMatches(key, val, definition.Pattern); err != nil {
 				return err
 			}
-			valid = true
 		case float64:
 			// date as seconds or milliseconds since epoch
 			if definition.Pattern != "" {
 				return fmt.Errorf("numeric date in field %q, but pattern defined", key)
 			}
-			valid = true
 		default:
-			valid = false
+			return invalidTypeError()
 		}
+	// IP values should be actual IPs, included in the ranges of IPs available
+	// in the geoip test database.
+	// If a pattern is provided, it checks if the value matches.
 	case "ip":
-		var valStr string
-		valStr, valid = val.(string)
+		valStr, valid := val.(string)
 		if !valid {
-			break
+			return invalidTypeError()
 		}
 
 		if err := ensurePatternMatches(key, valStr, definition.Pattern); err != nil {
@@ -414,15 +566,25 @@ func (v *Validator) parseElementValue(key string, definition FieldDefinition, va
 		if v.enabledAllowedIPCheck && !v.isAllowedIPValue(valStr) {
 			return fmt.Errorf("the IP %q is not one of the allowed test IPs (see: https://github.com/elastic/elastic-package/blob/main/internal/fields/_static/allowed_geo_ips.txt)", valStr)
 		}
+	// Groups should only contain nested fields, not single values.
+	case "group":
+		switch val.(type) {
+		case map[string]interface{}:
+			// TODO: This is probably an element from an array of objects,
+			// even if not recommended, it should be validated.
+		default:
+			return fmt.Errorf("field %q is a group of fields, it cannot store values", key)
+		}
+	// Numbers should have been parsed as float64, otherwise they are not numbers.
 	case "float", "long", "double":
-		_, valid = val.(float64)
+		if _, valid := val.(float64); !valid {
+			return invalidTypeError()
+		}
+	// All other types are considered valid not blocking validation.
 	default:
-		valid = true // all other types are considered valid not blocking validation
+		return nil
 	}
 
-	if !valid {
-		return fmt.Errorf("field %q's Go type, %T, does not match the expected field type: %s (field value: %v)", key, val, definition.Type, val)
-	}
 	return nil
 }
 
@@ -433,34 +595,44 @@ func (v *Validator) parseElementValue(key string, definition FieldDefinition, va
 // - 0.0.0.0 and 255.255.255.255 for IPv4
 // - 0:0:0:0:0:0:0:0 and ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff for IPv6
 func (v *Validator) isAllowedIPValue(s string) bool {
-	if _, found := v.allowedIPs[s]; found {
-		return true
-	}
-
 	ip := net.ParseIP(s)
 	if ip == nil {
 		return false
 	}
 
-	if ip.IsPrivate() || ip.IsLoopback() ||
-		ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
+	for _, allowedCIDR := range v.allowedCIDRs {
+		if allowedCIDR.Contains(ip) {
+			return true
+		}
+	}
+
+	if ip.IsUnspecified() ||
+		ip.IsPrivate() ||
+		ip.IsLoopback() ||
+		ip.IsLinkLocalUnicast() ||
+		ip.IsLinkLocalMulticast() ||
+		ip.IsMulticast() ||
+		ip.Equal(net.IPv4bcast) {
 		return true
 	}
 
 	return false
 }
 
-// ensureSingleElementValue extracts single entity from a potential array, which is a valid field representation
-// in Elasticsearch. For type assertion we need a single value.
-func ensureSingleElementValue(val interface{}) (interface{}, bool) {
+// forEachElementValue visits a function for each element in the given value if
+// it is an array. If it is not an array, it calls the function with it.
+func forEachElementValue(key string, definition FieldDefinition, val interface{}, doc common.MapStr, fn func(string, FieldDefinition, interface{}, common.MapStr) error) error {
 	arr, isArray := val.([]interface{})
 	if !isArray {
-		return val, true
+		return fn(key, definition, val, doc)
 	}
-	if len(arr) > 0 {
-		return arr[0], true
+	for _, element := range arr {
+		err := fn(key, definition, element, doc)
+		if err != nil {
+			return err
+		}
 	}
-	return nil, false // false: empty array, can't deduce single value type
+	return nil
 }
 
 // ensurePatternMatches validates the document's field value matches the field
@@ -489,4 +661,63 @@ func ensureConstantKeywordValueMatches(key, value, constantKeywordValue string) 
 		return fmt.Errorf("field %q's value %q does not match the declared constant_keyword value %q", key, value, constantKeywordValue)
 	}
 	return nil
+}
+
+// ensureAllowedValues validates that the document's field value
+// is one of the allowed values.
+func ensureAllowedValues(key, value string, definition FieldDefinition) error {
+	if !definition.AllowedValues.IsAllowed(value) {
+		return fmt.Errorf("field %q's value %q is not one of the allowed values (%s)", key, value, strings.Join(definition.AllowedValues.Values(), ", "))
+	}
+	if e := definition.ExpectedValues; len(e) > 0 && !common.StringSliceContains(e, value) {
+		return fmt.Errorf("field %q's value %q is not one of the expected values (%s)", key, value, strings.Join(e, ", "))
+	}
+	return nil
+}
+
+// ensureExpectedEventType validates that the document's `event.type` field is one of the expected
+// one for the given value.
+func ensureExpectedEventType(key string, values []string, definition FieldDefinition, doc common.MapStr) error {
+	eventTypeVal, _ := doc.GetValue("event.type")
+	eventTypes, err := valueToStringsSlice(eventTypeVal)
+	if err != nil {
+		return fmt.Errorf("field \"event.type\" value \"%v\" (%T): %w", eventTypeVal, eventTypeVal, err)
+	}
+	var expected []string
+	for _, value := range values {
+		expectedForValue := definition.AllowedValues.ExpectedEventTypes(value)
+		expected = common.StringSlicesUnion(expected, expectedForValue)
+	}
+	if len(expected) == 0 {
+		// No restrictions defined for this value, all good to go.
+		return nil
+	}
+	for _, eventType := range eventTypes {
+		if !common.StringSliceContains(expected, eventType) {
+			return fmt.Errorf("field \"event.type\" value %q is not one of the expected values (%s) for any of the values of %q (%s)", eventType, strings.Join(expected, ", "), key, strings.Join(values, ", "))
+		}
+	}
+
+	return nil
+}
+
+func valueToStringsSlice(value interface{}) ([]string, error) {
+	switch v := value.(type) {
+	case nil:
+		return nil, nil
+	case string:
+		return []string{v}, nil
+	case []interface{}:
+		var values []string
+		for _, e := range v {
+			s, ok := e.(string)
+			if !ok {
+				return nil, fmt.Errorf("expected string or array of strings")
+			}
+			values = append(values, s)
+		}
+		return values, nil
+	default:
+		return nil, fmt.Errorf("expected string or array of strings")
+	}
 }

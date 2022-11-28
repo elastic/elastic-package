@@ -37,6 +37,7 @@ func setupPublishCommand() *cobraext.Command {
 
 func publishCommandAction(cmd *cobra.Command, args []string) error {
 	cmd.Println("Publish the package")
+	cmd.Println("DEPRECATED: Package candidates to the Package Storage v2 will be published using Jenkins jobs. This command will be removed soon. README: https://github.com/elastic/elastic-package/blob/main/docs/howto/use_package_storage_v2.md")
 
 	fork, err := cmd.Flags().GetBool(cobraext.ForkFlagName)
 	if err != nil {

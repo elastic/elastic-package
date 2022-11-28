@@ -11,6 +11,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/elastic/elastic-package/internal/common"
 )
 
 type results struct {
@@ -18,7 +20,7 @@ type results struct {
 }
 
 func TestValidate_NoWildcardFields(t *testing.T) {
-	validator, err := CreateValidatorForDataStream("../../test/packages/parallel/aws/data_stream/elb_logs")
+	validator, err := CreateValidatorForDirectory("../../test/packages/parallel/aws/data_stream/elb_logs")
 	require.NoError(t, err)
 	require.NotNil(t, validator)
 
@@ -30,7 +32,7 @@ func TestValidate_NoWildcardFields(t *testing.T) {
 }
 
 func TestValidate_WithWildcardFields(t *testing.T) {
-	validator, err := CreateValidatorForDataStream("../../test/packages/parallel/aws/data_stream/sns")
+	validator, err := CreateValidatorForDirectory("../../test/packages/parallel/aws/data_stream/sns")
 	require.NoError(t, err)
 	require.NotNil(t, validator)
 
@@ -40,7 +42,7 @@ func TestValidate_WithWildcardFields(t *testing.T) {
 }
 
 func TestValidate_WithFlattenedFields(t *testing.T) {
-	validator, err := CreateValidatorForDataStream("testdata",
+	validator, err := CreateValidatorForDirectory("testdata",
 		WithDisabledDependencyManagement())
 	require.NoError(t, err)
 	require.NotNil(t, validator)
@@ -51,7 +53,7 @@ func TestValidate_WithFlattenedFields(t *testing.T) {
 }
 
 func TestValidate_WithNumericKeywordFields(t *testing.T) {
-	validator, err := CreateValidatorForDataStream("testdata",
+	validator, err := CreateValidatorForDirectory("testdata",
 		WithNumericKeywordFields([]string{"foo.code"}),
 		WithDisabledDependencyManagement())
 	require.NoError(t, err)
@@ -63,7 +65,7 @@ func TestValidate_WithNumericKeywordFields(t *testing.T) {
 }
 
 func TestValidate_constantKeyword(t *testing.T) {
-	validator, err := CreateValidatorForDataStream("testdata")
+	validator, err := CreateValidatorForDirectory("testdata")
 	require.NoError(t, err)
 	require.NotNil(t, validator)
 
@@ -77,7 +79,7 @@ func TestValidate_constantKeyword(t *testing.T) {
 }
 
 func TestValidate_ipAddress(t *testing.T) {
-	validator, err := CreateValidatorForDataStream("testdata", WithEnabledAllowedIPCheck())
+	validator, err := CreateValidatorForDirectory("testdata", WithEnabledAllowedIPCheck())
 	require.NoError(t, err)
 	require.NotNil(t, validator)
 
@@ -91,6 +93,164 @@ func TestValidate_ipAddress(t *testing.T) {
 	require.Empty(t, errs)
 }
 
+func TestValidate_WithSpecVersion(t *testing.T) {
+	validator, err := CreateValidatorForDirectory("testdata", WithSpecVersion("2.0.0"))
+	require.NoError(t, err)
+
+	e := readSampleEvent(t, "testdata/invalid-array-normalization.json")
+	errs := validator.ValidateDocumentBody(e)
+	require.Len(t, errs, 1)
+	require.Contains(t, errs[0].Error(), `field "container.image.tag" is not normalized as expected`)
+
+	e = readSampleEvent(t, "testdata/valid-array-normalization.json")
+	errs = validator.ValidateDocumentBody(e)
+	require.Empty(t, errs)
+
+	// Check now that this validation was only enabled for 2.0.0.
+	validator, err = CreateValidatorForDirectory("testdata", WithSpecVersion("1.99.99"))
+	require.NoError(t, err)
+
+	e = readSampleEvent(t, "testdata/invalid-array-normalization.json")
+	errs = validator.ValidateDocumentBody(e)
+	require.Empty(t, errs)
+}
+
+func TestValidate_ExpectedEventType(t *testing.T) {
+	validator, err := CreateValidatorForDirectory("testdata", WithSpecVersion("2.0.0"))
+	require.NoError(t, err)
+	require.NotNil(t, validator)
+
+	cases := []struct {
+		title string
+		doc   common.MapStr
+		valid bool
+	}{
+		{
+			title: "valid event type",
+			doc: common.MapStr{
+				"event.category": "authentication",
+				"event.type":     []interface{}{"info"},
+			},
+			valid: true,
+		},
+		{
+			title: "no event type",
+			doc: common.MapStr{
+				"event.category": "authentication",
+			},
+			valid: true,
+		},
+		{
+			title: "multiple valid event type",
+			doc: common.MapStr{
+				"event.category": "network",
+				"event.type":     []interface{}{"protocol", "connection", "end"},
+			},
+			valid: true,
+		},
+		{
+			title: "multiple categories",
+			doc: common.MapStr{
+				"event.category": []interface{}{"iam", "configuration"},
+				"event.type":     []interface{}{"group", "change"},
+			},
+			valid: true,
+		},
+		{
+			title: "unexpected event type",
+			doc: common.MapStr{
+				"event.category": "authentication",
+				"event.type":     []interface{}{"access"},
+			},
+			valid: false,
+		},
+		{
+			title: "multiple categories, no match",
+			doc: common.MapStr{
+				"event.category": []interface{}{"iam", "configuration"},
+				"event.type":     []interface{}{"denied", "end"},
+			},
+			valid: false,
+		},
+		{
+			title: "multiple categories, some types don't match",
+			doc: common.MapStr{
+				"event.category": []interface{}{"iam", "configuration"},
+				"event.type":     []interface{}{"denied", "end", "group", "change"},
+			},
+			valid: false,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.title, func(t *testing.T) {
+			errs := validator.ValidateDocumentMap(c.doc)
+			if c.valid {
+				assert.Empty(t, errs, "should not have errors")
+			} else {
+				if assert.Len(t, errs, 1, "should have one error") {
+					assert.Contains(t, errs[0].Error(), "is not one of the expected values")
+				}
+			}
+		})
+	}
+}
+
+func TestValidate_ExpectedDataset(t *testing.T) {
+	validator, err := CreateValidatorForDirectory("testdata",
+		WithSpecVersion("2.0.0"),
+		WithExpectedDataset("apache.status"),
+	)
+	require.NoError(t, err)
+	require.NotNil(t, validator)
+
+	cases := []struct {
+		title string
+		doc   common.MapStr
+		valid bool
+	}{
+		{
+			title: "valid dataset",
+			doc: common.MapStr{
+				"event.dataset": "apache.status",
+			},
+			valid: true,
+		},
+		{
+			title: "empty dataset",
+			doc: common.MapStr{
+				"event.dataset": "",
+			},
+			valid: false,
+		},
+		{
+			title: "absent dataset",
+			doc:   common.MapStr{},
+			valid: true,
+		},
+		{
+			title: "wrong dataset",
+			doc: common.MapStr{
+				"event.dataset": "httpd.status",
+			},
+			valid: false,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.title, func(t *testing.T) {
+			errs := validator.ValidateDocumentMap(c.doc)
+			if c.valid {
+				assert.Empty(t, errs)
+			} else {
+				if assert.Len(t, errs, 1) {
+					assert.Contains(t, errs[0].Error(), `field "event.dataset" should have value`)
+				}
+			}
+		})
+	}
+}
+
 func Test_parseElementValue(t *testing.T) {
 	for _, test := range []struct {
 		key        string
@@ -98,7 +258,7 @@ func Test_parseElementValue(t *testing.T) {
 		definition FieldDefinition
 		fail       bool
 	}{
-		// Arrays (only first value checked)
+		// Arrays
 		{
 			key:   "string array to keyword",
 			value: []interface{}{"hello", "world"},
@@ -109,6 +269,14 @@ func Test_parseElementValue(t *testing.T) {
 		{
 			key:   "numeric string array to long",
 			value: []interface{}{"123", "42"},
+			definition: FieldDefinition{
+				Type: "long",
+			},
+			fail: true,
+		},
+		{
+			key:   "mixed numbers and strings in number array",
+			value: []interface{}{123, "hi"},
 			definition: FieldDefinition{
 				Type: "long",
 			},
@@ -194,6 +362,70 @@ func Test_parseElementValue(t *testing.T) {
 			},
 			fail: true,
 		},
+		{
+			key:   "ip in allowed list",
+			value: "1.128.3.4",
+			definition: FieldDefinition{
+				Type: "ip",
+			},
+		},
+		{
+			key:   "ipv6 in allowed list",
+			value: "2a02:cf40:add:4002:91f2:a9b2:e09a:6fc6",
+			definition: FieldDefinition{
+				Type: "ip",
+			},
+		},
+		{
+			key:   "unspecified ipv6",
+			value: "::",
+			definition: FieldDefinition{
+				Type: "ip",
+			},
+		},
+		{
+			key:   "unspecified ipv4",
+			value: "0.0.0.0",
+			definition: FieldDefinition{
+				Type: "ip",
+			},
+		},
+		{
+			key:   "ipv4 broadcast address",
+			value: "255.255.255.255",
+			definition: FieldDefinition{
+				Type: "ip",
+			},
+		},
+		{
+			key:   "ipv6 min multicast",
+			value: "ff00::",
+			definition: FieldDefinition{
+				Type: "ip",
+			},
+		},
+		{
+			key:   "ipv6 max multicast",
+			value: "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff",
+			definition: FieldDefinition{
+				Type: "ip",
+			},
+		},
+		{
+			key:   "abbreviated ipv6 in allowed list with leading 0",
+			value: "2a02:cf40:0add:0::1",
+			definition: FieldDefinition{
+				Type: "ip",
+			},
+		},
+		{
+			key:   "ip not in geoip database",
+			value: "8.8.8.8",
+			definition: FieldDefinition{
+				Type: "ip",
+			},
+			fail: true,
+		},
 		// text
 		{
 			key:   "text",
@@ -228,10 +460,118 @@ func Test_parseElementValue(t *testing.T) {
 			},
 			fail: true,
 		},
+		// allowed values
+		{
+			key:   "allowed values",
+			value: "configuration",
+			definition: FieldDefinition{
+				Type: "keyword",
+				AllowedValues: AllowedValues{
+					{
+						Name: "configuration",
+					},
+					{
+						Name: "network",
+					},
+				},
+			},
+		},
+		{
+			key:   "not allowed value",
+			value: "display",
+			definition: FieldDefinition{
+				Type: "keyword",
+				AllowedValues: AllowedValues{
+					{
+						Name: "configuration",
+					},
+					{
+						Name: "network",
+					},
+				},
+			},
+			fail: true,
+		},
+		{
+			key:   "not allowed value in array",
+			value: []string{"configuration", "display"},
+			definition: FieldDefinition{
+				Type: "keyword",
+				AllowedValues: AllowedValues{
+					{
+						Name: "configuration",
+					},
+					{
+						Name: "network",
+					},
+				},
+			},
+			fail: true,
+		},
+		// expected values
+		{
+			key:   "expected values",
+			value: "linux",
+			definition: FieldDefinition{
+				Type:           "keyword",
+				ExpectedValues: []string{"linux", "windows"},
+			},
+		},
+		{
+			key:   "not expected values",
+			value: "bsd",
+			definition: FieldDefinition{
+				Type:           "keyword",
+				ExpectedValues: []string{"linux", "windows"},
+			},
+			fail: true,
+		},
+		// fields shouldn't be stored in groups
+		{
+			key:   "host",
+			value: "42",
+			definition: FieldDefinition{
+				Type: "group",
+			},
+			fail: true,
+		},
+		// arrays of objects can be stored in groups, even if not recommended
+		{
+			key: "host",
+			value: []interface{}{
+				map[string]interface{}{
+					"id":       "somehost-id",
+					"hostname": "somehost",
+				},
+				map[string]interface{}{
+					"id":       "otherhost-id",
+					"hostname": "otherhost",
+				},
+			},
+			definition: FieldDefinition{
+				Name: "host",
+				Type: "group",
+				Fields: []FieldDefinition{
+					{
+						Name: "id",
+						Type: "keyword",
+					},
+					{
+						Name: "hostname",
+						Type: "keyword",
+					},
+				},
+			},
+		},
 	} {
-		v := Validator{disabledDependencyManagement: true}
+		v := Validator{
+			disabledDependencyManagement: true,
+			enabledAllowedIPCheck:        true,
+			allowedCIDRs:                 initializeAllowedCIDRsList(),
+		}
+
 		t.Run(test.key, func(t *testing.T) {
-			err := v.parseElementValue(test.key, test.definition, test.value)
+			err := v.parseElementValue(test.key, test.definition, test.value, common.MapStr{})
 			if test.fail {
 				require.Error(t, err)
 			} else {
@@ -347,8 +687,38 @@ func TestCompareKeys(t *testing.T) {
 		},
 		{
 			key:         "example.*",
+			def:         FieldDefinition{Type: "object", ObjectType: "geo_point"},
+			searchedKey: "example.geo.lon",
+			expected:    true,
+		},
+		{
+			key:         "example.*",
 			def:         FieldDefinition{Type: "geo_point"},
 			searchedKey: "example.geo.foo",
+			expected:    false,
+		},
+		{
+			key:         "example.histogram",
+			def:         FieldDefinition{Type: "histogram"},
+			searchedKey: "example.histogram.counts",
+			expected:    true,
+		},
+		{
+			key:         "example.*",
+			def:         FieldDefinition{Type: "histogram"},
+			searchedKey: "example.histogram.counts",
+			expected:    true,
+		},
+		{
+			key:         "example.*",
+			def:         FieldDefinition{Type: "histogram"},
+			searchedKey: "example.histogram.values",
+			expected:    true,
+		},
+		{
+			key:         "example.*",
+			def:         FieldDefinition{Type: "histogram"},
+			searchedKey: "example.histogram.foo",
 			expected:    false,
 		},
 	}
@@ -377,7 +747,7 @@ func readSampleEvent(t *testing.T, path string) json.RawMessage {
 }
 
 func TestValidate_geo_point(t *testing.T) {
-	validator, err := CreateValidatorForDataStream("../../test/packages/other/fields_tests/data_stream/first")
+	validator, err := CreateValidatorForDirectory("../../test/packages/other/fields_tests/data_stream/first")
 
 	require.NoError(t, err)
 	require.NotNil(t, validator)

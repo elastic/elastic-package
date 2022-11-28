@@ -183,13 +183,19 @@ func AssumeTestFolders(packageRootPath string, dataStreams []string, testType Te
 
 // FindTestFolders finds test folders for the given package and, optionally, test type and data streams
 func FindTestFolders(packageRootPath string, dataStreams []string, testType TestType) ([]TestFolder, error) {
-	// Expected folder structure:
+	// Expected folder structure for packages with data streams (integration packages):
 	// <packageRootPath>/
 	//   data_stream/
 	//     <dataStream>/
 	//       _dev/
 	//         test/
 	//           <testType>/
+	//
+	// Expected folder structure for packages without data streams (input packages):
+	// <packageRootPath>/
+	//   _dev/
+	//     test/
+	//       <testType>/
 
 	testTypeGlob := "*"
 	if testType != "" {
@@ -200,7 +206,7 @@ func FindTestFolders(packageRootPath string, dataStreams []string, testType Test
 	if len(dataStreams) > 0 {
 		sort.Strings(dataStreams)
 		for _, dataStream := range dataStreams {
-			p, err := findTestFolderPaths(packageRootPath, dataStream, testTypeGlob)
+			p, err := findDataStreamTestFolderPaths(packageRootPath, dataStream, testTypeGlob)
 			if err != nil {
 				return nil, err
 			}
@@ -208,9 +214,18 @@ func FindTestFolders(packageRootPath string, dataStreams []string, testType Test
 			paths = append(paths, p...)
 		}
 	} else {
-		p, err := findTestFolderPaths(packageRootPath, "*", testTypeGlob)
+		// No datastreams specified, try to discover them.
+		p, err := findDataStreamTestFolderPaths(packageRootPath, "*", testTypeGlob)
 		if err != nil {
 			return nil, err
+		}
+
+		// Look for tests at the package level, like for input packages.
+		if len(p) == 0 {
+			p, err = findPackageTestFolderPaths(packageRootPath, testTypeGlob)
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		paths = p
@@ -221,12 +236,15 @@ func FindTestFolders(packageRootPath string, dataStreams []string, testType Test
 	for idx, p := range paths {
 		relP := strings.TrimPrefix(p, packageRootPath)
 		parts := strings.Split(relP, string(filepath.Separator))
-		dataStream := parts[2]
+		dataStream := ""
+		if len(parts) >= 3 && parts[1] == "data_stream" {
+			dataStream = parts[2]
+		}
 
 		folder := TestFolder{
-			p,
-			pkg,
-			dataStream,
+			Path:       p,
+			Package:    pkg,
+			DataStream: dataStream,
 		}
 
 		folders[idx] = folder
@@ -263,10 +281,20 @@ func TestRunners() map[TestType]TestRunner {
 	return runners
 }
 
-// findTestFoldersPaths can only be called for test runners that require tests to be defined
+// findDataStreamTestFoldersPaths can only be called for test runners that require tests to be defined
 // at the data stream level.
-func findTestFolderPaths(packageRootPath, dataStreamGlob, testTypeGlob string) ([]string, error) {
+func findDataStreamTestFolderPaths(packageRootPath, dataStreamGlob, testTypeGlob string) ([]string, error) {
 	testFoldersGlob := filepath.Join(packageRootPath, "data_stream", dataStreamGlob, "_dev", "test", testTypeGlob)
+	paths, err := filepath.Glob(testFoldersGlob)
+	if err != nil {
+		return nil, errors.Wrap(err, "error finding test folders")
+	}
+	return paths, err
+}
+
+// findPackageTestFolderPaths finds tests at the package level.
+func findPackageTestFolderPaths(packageRootPath, testTypeGlob string) ([]string, error) {
+	testFoldersGlob := filepath.Join(packageRootPath, "_dev", "test", testTypeGlob)
 	paths, err := filepath.Glob(testFoldersGlob)
 	if err != nil {
 		return nil, errors.Wrap(err, "error finding test folders")

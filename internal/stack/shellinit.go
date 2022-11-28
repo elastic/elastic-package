@@ -5,81 +5,75 @@
 package stack
 
 import (
+	"errors"
 	"fmt"
-	"os"
+	"strings"
 
-	"github.com/pkg/errors"
-	"gopkg.in/yaml.v3"
-
-	"github.com/elastic/elastic-package/internal/compose"
-	"github.com/elastic/elastic-package/internal/install"
+	"github.com/elastic/elastic-package/internal/environment"
 	"github.com/elastic/elastic-package/internal/profile"
-)
-
-const (
-	elasticPackageEnvPrefix = "ELASTIC_PACKAGE_"
 )
 
 // Environment variables describing the stack.
 var (
-	ElasticsearchHostEnv     = elasticPackageEnvPrefix + "ELASTICSEARCH_HOST"
-	ElasticsearchUsernameEnv = elasticPackageEnvPrefix + "ELASTICSEARCH_USERNAME"
-	ElasticsearchPasswordEnv = elasticPackageEnvPrefix + "ELASTICSEARCH_PASSWORD"
-	KibanaHostEnv            = elasticPackageEnvPrefix + "KIBANA_HOST"
+	ElasticsearchHostEnv     = environment.WithElasticPackagePrefix("ELASTICSEARCH_HOST")
+	ElasticsearchUsernameEnv = environment.WithElasticPackagePrefix("ELASTICSEARCH_USERNAME")
+	ElasticsearchPasswordEnv = environment.WithElasticPackagePrefix("ELASTICSEARCH_PASSWORD")
+	KibanaHostEnv            = environment.WithElasticPackagePrefix("KIBANA_HOST")
+	CACertificateEnv         = environment.WithElasticPackagePrefix("CA_CERT")
 )
 
-var shellInitFormat = "export " + ElasticsearchHostEnv + "=%s\nexport " + ElasticsearchUsernameEnv + "=%s\nexport " +
-	ElasticsearchPasswordEnv + "=%s\nexport " + KibanaHostEnv + "=%s"
+// ShellInit method exposes environment variables that can be used for testing purposes.
+func ShellInit(elasticStackProfile *profile.Profile, shellType string) (string, error) {
+	config, err := StackInitConfig(elasticStackProfile)
+	if err != nil {
+		return "", nil
+	}
 
-type kibanaConfiguration struct {
-	ElasticsearchUsername string `yaml:"elasticsearch.username"`
-	ElasticsearchPassword string `yaml:"elasticsearch.password"`
+	// NOTE: to add new env vars, the template need to be adjusted
+	t, err := initTemplate(shellType)
+	if err != nil {
+		return "", fmt.Errorf("cannot get shell init template: %w", err)
+	}
+
+	return fmt.Sprintf(t,
+		ElasticsearchHostEnv, config.ElasticsearchHostPort,
+		ElasticsearchUsernameEnv, config.ElasticsearchUsername,
+		ElasticsearchPasswordEnv, config.ElasticsearchPassword,
+		KibanaHostEnv, config.KibanaHostPort,
+		CACertificateEnv, config.CACertificatePath,
+	), nil
 }
 
-// ShellInit method exposes environment variables that can be used for testing purposes.
-func ShellInit(elasticStackProfile *profile.Profile) (string, error) {
-	body, err := os.ReadFile(elasticStackProfile.FetchPath(profile.KibanaConfigFile))
-	if err != nil {
-		return "", errors.Wrap(err, "error reading Kibana config file")
+const (
+	// shell init code for POSIX compliant shells.
+	// IEEE POSIX Shell and Tools portion of the IEEE POSIX specification (IEEE Standard 1003.1)
+	posixTemplate = `export %s=%s
+export %s=%s
+export %s=%s
+export %s=%s
+export %s=%s
+`
+	// fish shell init code.
+	// fish shell is similar but not compliant to POSIX.
+	fishTemplate = `set -x %s %s;
+set -x %s %s;
+set -x %s %s;
+set -x %s %s;
+set -x %s %s;
+`
+)
+
+// availableShellTypes list all available values for s in initTemplate
+var availableShellTypes = []string{"bash", "dash", "fish", "sh", "zsh"}
+
+// InitTemplate returns code templates for shell initialization
+func initTemplate(s string) (string, error) {
+	switch s {
+	case "bash", "dash", "sh", "zsh":
+		return posixTemplate, nil
+	case "fish":
+		return fishTemplate, nil
+	default:
+		return "", errors.New("shell type is unknown, should be one of " + strings.Join(availableShellTypes, ", "))
 	}
-
-	var kibanaCfg kibanaConfiguration
-	err = yaml.Unmarshal(body, &kibanaCfg)
-	if err != nil {
-		return "", errors.Wrap(err, "unmarshalling Kibana configuration failed")
-	}
-
-	// Read Elasticsearch and Kibana hostnames from Elastic Stack Docker Compose configuration file.
-	p, err := compose.NewProject(DockerComposeProjectName, elasticStackProfile.FetchPath(profile.SnapshotFile))
-	if err != nil {
-		return "", errors.Wrap(err, "could not create docker compose project")
-	}
-
-	appConfig, err := install.Configuration()
-	if err != nil {
-		return "", errors.Wrap(err, "can't read application configuration")
-	}
-
-	serviceComposeConfig, err := p.Config(compose.CommandOptions{
-		Env: newEnvBuilder().
-			withEnvs(appConfig.StackImageRefs(install.DefaultStackVersion).AsEnv()).
-			withEnvs(elasticStackProfile.ComposeEnvVars()).
-			withEnv(stackVariantAsEnv(install.DefaultStackVersion)).
-			build(),
-	})
-	if err != nil {
-		return "", errors.Wrap(err, "could not get Docker Compose configuration for service")
-	}
-
-	kib := serviceComposeConfig.Services["kibana"]
-	kibHostPort := fmt.Sprintf("http://%s:%d", kib.Ports[0].ExternalIP, kib.Ports[0].ExternalPort)
-
-	es := serviceComposeConfig.Services["elasticsearch"]
-	esHostPort := fmt.Sprintf("http://%s:%d", es.Ports[0].ExternalIP, es.Ports[0].ExternalPort)
-
-	return fmt.Sprintf(shellInitFormat,
-		esHostPort,
-		kibanaCfg.ElasticsearchUsername,
-		kibanaCfg.ElasticsearchPassword,
-		kibHostPort), nil
 }

@@ -4,11 +4,14 @@
 
 package archetype
 
-const packageManifestTemplate = `format_version: 1.0.0
+const packageManifestTemplate = `format_version: 2.0.0
 name: {{.Manifest.Name}}
 title: "{{.Manifest.Title}}"
 version: {{.Manifest.Version}}
-license: {{.Manifest.License}}
+{{ if ne .Manifest.Source.License "" }}
+source:
+  license: "{{.Manifest.Source.License}}"
+{{ end }}
 description: "{{.Manifest.Description}}"
 type: {{.Manifest.Type}}
 categories:{{range $category := .Manifest.Categories}}
@@ -16,6 +19,7 @@ categories:{{range $category := .Manifest.Categories}}
 {{- end}}
 conditions:
   kibana.version: "{{.Manifest.Conditions.Kibana.Version}}"
+  elastic.subscription: "{{.Manifest.Conditions.Elastic.Subscription}}"
 screenshots:
   - src: /img/sample-screenshot.png
     title: Sample screenshot

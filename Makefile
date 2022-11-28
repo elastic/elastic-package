@@ -58,14 +58,14 @@ test-stack-command-oldest:
 	./scripts/test-stack-command.sh 7.14.2
 
 test-stack-command-7x:
-	./scripts/test-stack-command.sh 7.17.1-SNAPSHOT
+	./scripts/test-stack-command.sh 7.17.3-SNAPSHOT
 
 test-stack-command-8x:
-	./scripts/test-stack-command.sh 8.2.0-SNAPSHOT
+	./scripts/test-stack-command.sh 8.6.0-SNAPSHOT
 
 test-stack-command: test-stack-command-default test-stack-command-7x test-stack-command-800 test-stack-command-8x
 
-test-check-packages: test-check-packages-with-kind test-check-packages-other test-check-packages-parallel
+test-check-packages: test-check-packages-with-kind test-check-packages-other test-check-packages-parallel test-check-packages-with-custom-agent test-check-packages-benchmarks 
 
 test-check-packages-with-kind:
 	PACKAGE_TEST_TYPE=with-kind ./scripts/test-check-packages.sh
@@ -73,8 +73,14 @@ test-check-packages-with-kind:
 test-check-packages-other:
 	PACKAGE_TEST_TYPE=other ./scripts/test-check-packages.sh
 
+test-check-packages-benchmarks:
+	PACKAGE_TEST_TYPE=benchmarks ./scripts/test-check-packages.sh
+
 test-check-packages-parallel:
 	PACKAGE_TEST_TYPE=parallel ./scripts/test-check-packages.sh
+
+test-check-packages-with-custom-agent:
+	PACKAGE_TEST_TYPE=with-custom-agent ./scripts/test-check-packages.sh
 
 test-build-zip:
 	./scripts/test-build-zip.sh

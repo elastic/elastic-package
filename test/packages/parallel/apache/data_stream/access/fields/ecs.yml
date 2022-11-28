@@ -87,13 +87,7 @@
 - external: ecs
   name: user_agent.device.name
 - external: ecs
-  name: user_agent.device.name
-- external: ecs
   name: user_agent.name
-- external: ecs
-  name: user_agent.name
-- external: ecs
-  name: user_agent.original
 - external: ecs
   name: user_agent.original
 - external: ecs
@@ -101,8 +95,8 @@
 - external: ecs
   name: user_agent.os.name
 - external: ecs
-  name: user_agent.os.name
-- external: ecs
   name: user_agent.os.version
 - external: ecs
   name: user_agent.version
+- external: ecs
+  name: host.ip

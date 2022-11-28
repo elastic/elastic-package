@@ -7,7 +7,7 @@ package cmd
 import (
 	"bytes"
 	"flag"
-	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -121,11 +121,11 @@ func TestStatusFormatAndPrint(t *testing.T) {
 
 func assertOutputWithFile(t *testing.T, path string, out string) {
 	if *generateFlag {
-		err := ioutil.WriteFile(path, []byte(out), 0644)
+		err := os.WriteFile(path, []byte(out), 0644)
 		require.NoError(t, err)
 	}
 
-	d, err := ioutil.ReadFile(path)
+	d, err := os.ReadFile(path)
 	require.NoError(t, err)
 
 	assert.Equal(t, string(d), out)

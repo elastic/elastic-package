@@ -15,6 +15,7 @@ import (
 )
 
 var commands = []*cobraext.Command{
+	setupBenchmarkCommand(),
 	setupBuildCommand(),
 	setupChangelogCommand(),
 	setupCheckCommand(),
@@ -28,6 +29,7 @@ var commands = []*cobraext.Command{
 	setupProfilesCommand(),
 	setupPromoteCommand(),
 	setupPublishCommand(),
+	setupReportsCommand(),
 	setupServiceCommand(),
 	setupStackCommand(),
 	setupStatusCommand(),

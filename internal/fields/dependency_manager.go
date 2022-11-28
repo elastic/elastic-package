@@ -160,34 +160,60 @@ func (dm *DependencyManager) injectFieldsWithRoot(root string, defs []common.Map
 
 			// Allow overrides of everything, except the imported type, for consistency.
 			transformed.DeepUpdate(def)
-			transformed["type"] = imported.Type
 			transformed.Delete("external")
 
-			updated = append(updated, transformed)
+			// Allow to override the type only from keyword to constant_keyword,
+			// to support the case of setting the value already in the mappings.
+			if ttype, _ := transformed["type"].(string); ttype != "constant_keyword" || imported.Type != "keyword" {
+				transformed["type"] = imported.Type
+			}
+
+			def = transformed
 			changed = true
-			continue
+		} else {
+			fields, _ := def.GetValue("fields")
+			if fields != nil {
+				fieldsMs, err := common.ToMapStrSlice(fields)
+				if err != nil {
+					return nil, false, errors.Wrap(err, "can't convert fields")
+				}
+				updatedFields, fieldsChanged, err := dm.injectFieldsWithRoot(fieldPath, fieldsMs)
+				if err != nil {
+					return nil, false, err
+				}
+
+				if fieldsChanged {
+					changed = true
+				}
+
+				def.Put("fields", updatedFields)
+			}
 		}
 
-		fields, _ := def.GetValue("fields")
-		if fields != nil {
-			fieldsMs, err := common.ToMapStrSlice(fields)
-			if err != nil {
-				return nil, false, errors.Wrap(err, "can't convert fields")
-			}
-			updatedFields, fieldsChanged, err := dm.injectFieldsWithRoot(fieldPath, fieldsMs)
-			if err != nil {
-				return nil, false, err
-			}
-
-			if fieldsChanged {
-				changed = true
-			}
-
-			def.Put("fields", updatedFields)
+		if skipField(def) {
+			continue
 		}
 		updated = append(updated, def)
 	}
 	return updated, changed, nil
+}
+
+// skipField decides if a field should be skipped and not injected in the built fields.
+func skipField(def common.MapStr) bool {
+	t, _ := def.GetValue("type")
+	if t == "group" {
+		fields, _ := def.GetValue("fields")
+		switch fields := fields.(type) {
+		case nil:
+			return true
+		case []interface{}:
+			return len(fields) == 0
+		case []common.MapStr:
+			return len(fields) == 0
+		}
+	}
+
+	return false
 }
 
 // ImportField method resolves dependency on a single external field using available schemas.
@@ -241,13 +267,8 @@ func transformImportedField(fd FieldDefinition) common.MapStr {
 		m["doc_values"] = *fd.DocValues
 	}
 
-	if len(fd.Fields) > 0 {
-		var t []common.MapStr
-		for _, f := range fd.Fields {
-			i := transformImportedField(f)
-			t = append(t, i)
-		}
-		m.Put("fields", t)
+	if len(fd.Normalize) > 0 {
+		m["normalize"] = fd.Normalize
 	}
 
 	if len(fd.MultiFields) > 0 {

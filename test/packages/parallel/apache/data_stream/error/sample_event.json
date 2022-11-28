@@ -1,74 +1,82 @@
 {
+    "@timestamp": "2022-09-06T07:48:48.030Z",
     "agent": {
-        "hostname": "4942ef7a8cfc",
-        "name": "4942ef7a8cfc",
-        "id": "73de002e-d848-49c7-829d-e903959d0d44",
-        "ephemeral_id": "e8970288-5c73-40e7-8626-8d297104f4eb",
+        "ephemeral_id": "7d905f37-6778-4228-95af-98b28a0fcb12",
+        "id": "9a83e2ce-8ade-4cc3-ba6a-6305c90b3022",
+        "name": "docker-fleet-agent",
         "type": "filebeat",
-        "version": "7.11.0"
+        "version": "8.3.3"
     },
-    "process": {
-        "pid": 1,
-        "thread": {
-            "id": 140503592395904
-        }
-    },
-    "log": {
-        "file": {
-            "path": "/tmp/service_logs/error.log"
-        },
-        "offset": 0,
-        "level": "notice"
-    },
-    "elastic_agent": {
-        "id": "6c69e2bc-7bb3-4bac-b7e9-41f22558321c",
-        "version": "7.11.0",
-        "snapshot": true
-    },
-    "message": "AH00489: Apache/2.4.46 (Unix) configured -- resuming normal operations",
-    "input": {
-        "type": "log"
-    },
-    "@timestamp": "2020-12-03T16:28:16.376Z",
     "apache": {
         "error": {
             "module": "mpm_event"
         }
     },
-    "ecs": {
-        "version": "1.5.0"
-    },
     "data_stream": {
+        "dataset": "apache.error",
         "namespace": "ep",
-        "type": "logs",
-        "dataset": "apache.error"
+        "type": "logs"
     },
-    "host": {
-        "hostname": "4942ef7a8cfc",
-        "os": {
-            "kernel": "4.9.184-linuxkit",
-            "codename": "Core",
-            "name": "CentOS Linux",
-            "family": "redhat",
-            "version": "7 (Core)",
-            "platform": "centos"
-        },
-        "containerized": true,
-        "ip": [
-            "192.168.0.4"
-        ],
-        "name": "4942ef7a8cfc",
-        "id": "06c26569966fd125c15acac5d7feffb6",
-        "mac": [
-            "02:42:c0:a8:00:04"
-        ],
-        "architecture": "x86_64"
+    "ecs": {
+        "version": "1.12.0"
+    },
+    "elastic_agent": {
+        "id": "9a83e2ce-8ade-4cc3-ba6a-6305c90b3022",
+        "snapshot": false,
+        "version": "8.3.3"
     },
     "event": {
-        "timezone": "+00:00",
+        "agent_id_status": "verified",
+        "category": [
+            "web"
+        ],
+        "dataset": "apache.error",
+        "ingested": "2022-09-06T07:49:06Z",
         "kind": "event",
-        "category": "web",
-        "type": "info",
-        "dataset": "apache.error"
-    }
+        "timezone": "+00:00",
+        "type": [
+            "info"
+        ]
+    },
+    "host": {
+        "architecture": "x86_64",
+        "containerized": false,
+        "hostname": "docker-fleet-agent",
+        "ip": [
+            "172.21.0.7"
+        ],
+        "mac": [
+            "02:42:ac:15:00:07"
+        ],
+        "name": "docker-fleet-agent",
+        "os": {
+            "codename": "focal",
+            "family": "debian",
+            "kernel": "5.15.0-43-generic",
+            "name": "Ubuntu",
+            "platform": "ubuntu",
+            "type": "linux",
+            "version": "20.04.4 LTS (Focal Fossa)"
+        }
+    },
+    "input": {
+        "type": "log"
+    },
+    "log": {
+        "file": {
+            "path": "/tmp/service_logs/error.log"
+        },
+        "level": "notice",
+        "offset": 0
+    },
+    "message": "AH00489: Apache/2.4.46 (Unix) configured -- resuming normal operations",
+    "process": {
+        "pid": 1,
+        "thread": {
+            "id": 140493350368384
+        }
+    },
+    "tags": [
+        "apache-error"
+    ]
 }

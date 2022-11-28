@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -65,7 +64,7 @@ type installedObjectsDumpSuite struct {
 func (s *installedObjectsDumpSuite) SetupTest() {
 	_, err := os.Stat(s.DumpDir)
 	if errors.Is(err, os.ErrNotExist) {
-		client, err := elasticsearch.Client()
+		client, err := elasticsearch.NewClient()
 		s.Require().NoError(err)
 
 		dumper := NewInstalledObjectsDumper(client.API, s.PackageName)
@@ -78,10 +77,10 @@ func (s *installedObjectsDumpSuite) SetupTest() {
 }
 
 func (s *installedObjectsDumpSuite) TestDumpAll() {
-	client := estest.ElasticsearchClient(s.T(), s.RecordDir)
+	client := estest.NewClient(s.T(), s.RecordDir)
 
 	outputDir := s.T().TempDir()
-	dumper := NewInstalledObjectsDumper(client, s.PackageName)
+	dumper := NewInstalledObjectsDumper(client.API, s.PackageName)
 	n, err := dumper.DumpAll(context.Background(), outputDir)
 	s.Require().NoError(err)
 
@@ -95,8 +94,8 @@ func (s *installedObjectsDumpSuite) TestDumpAll() {
 }
 
 func (s *installedObjectsDumpSuite) TestDumpSome() {
-	client := estest.ElasticsearchClient(s.T(), s.RecordDir)
-	dumper := NewInstalledObjectsDumper(client, s.PackageName)
+	client := estest.NewClient(s.T(), s.RecordDir)
+	dumper := NewInstalledObjectsDumper(client.API, s.PackageName)
 
 	// In a map so order of execution is randomized.
 	dumpers := map[string]func(ctx context.Context, outputDir string) (int, error){
@@ -164,7 +163,7 @@ func assertEqualDumps(t *testing.T, expectedDir, resultDir string) {
 func assertEquivalentJSON(t *testing.T, expectedPath, foundPath string) {
 	t.Helper()
 	readJSON := func(p string) map[string]interface{} {
-		d, err := ioutil.ReadFile(p)
+		d, err := os.ReadFile(p)
 		require.NoError(t, err)
 		var o map[string]interface{}
 		err = json.Unmarshal(d, &o)

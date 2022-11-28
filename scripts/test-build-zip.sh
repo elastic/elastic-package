@@ -28,6 +28,7 @@ OLDPWD=$PWD
 # Build packages
 export ELASTIC_PACKAGE_SIGNER_PRIVATE_KEYFILE="$OLDPWD/scripts/gpg-private.asc"
 export ELASTIC_PACKAGE_SIGNER_PASSPHRASE=$(cat "$OLDPWD/scripts/gpg-pass.txt")
+export ELASTIC_PACKAGE_LINKS_FILE_PATH="$(pwd)/scripts/links_table.yml"
 
 for d in test/packages/*/*/; do
   (
@@ -38,7 +39,7 @@ done
 cd -
 
 # Remove unzipped built packages, leave .zip files
-rm -r build/integrations/*/
+rm -r build/packages/*/
 
 # Boot up the stack
 eval "$(elastic-package stack shellinit)"

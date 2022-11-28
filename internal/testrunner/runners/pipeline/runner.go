@@ -21,6 +21,7 @@ import (
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/multierror"
 	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/internal/signal"
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
 
@@ -58,11 +59,10 @@ func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, e
 func (r *runner) TearDown() error {
 	if r.options.DeferCleanup > 0 {
 		logger.Debugf("Waiting for %s before cleanup...", r.options.DeferCleanup)
-		time.Sleep(r.options.DeferCleanup)
+		signal.Sleep(r.options.DeferCleanup)
 	}
 
-	err := uninstallIngestPipelines(r.options.API, r.pipelines)
-	if err != nil {
+	if err := ingest.UninstallPipelines(r.options.API, r.pipelines); err != nil {
 		return errors.Wrap(err, "uninstalling ingest pipelines failed")
 	}
 	return nil
@@ -89,9 +89,14 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 	}
 
 	var entryPipeline string
-	entryPipeline, r.pipelines, err = installIngestPipelines(r.options.API, dataStreamPath)
+	entryPipeline, r.pipelines, err = ingest.InstallDataStreamPipelines(r.options.API, dataStreamPath)
 	if err != nil {
 		return nil, errors.Wrap(err, "installing ingest pipelines failed")
+	}
+
+	pkgManifest, err := packages.ReadPackageManifestFromPackageRoot(r.options.PackageRootPath)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to read manifest")
 	}
 
 	results := make([]testrunner.TestResult, 0)
@@ -124,7 +129,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 			continue
 		}
 
-		result, err := simulatePipelineProcessing(r.options.API, entryPipeline, tc)
+		processedEvents, err := ingest.SimulatePipeline(r.options.API, entryPipeline, tc.events)
 		if err != nil {
 			err := errors.Wrap(err, "simulating pipeline processing failed")
 			tr.ErrorMsg = err.Error()
@@ -132,12 +137,17 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 			continue
 		}
 
+		result := &testResult{events: processedEvents}
+
 		tr.TimeElapsed = time.Since(startTime)
-		fieldsValidator, err := fields.CreateValidatorForDataStream(dataStreamPath,
+		expectedDataset := pkgManifest.Name + "." + r.options.TestFolder.DataStream
+		fieldsValidator, err := fields.CreateValidatorForDirectory(dataStreamPath,
+			fields.WithSpecVersion(pkgManifest.SpecVersion),
 			fields.WithNumericKeywordFields(tc.config.NumericKeywordFields),
 			// explicitly enabled for pipeline tests only
 			// since system tests can have dynamic public IPs
 			fields.WithEnabledAllowedIPCheck(),
+			fields.WithExpectedDataset(expectedDataset),
 		)
 		if err != nil {
 			return nil, errors.Wrapf(err, "creating fields validator for data stream failed (path: %s, test case file: %s)", dataStreamPath, testCaseFile)
@@ -168,6 +178,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		}
 		results = append(results, tr)
 	}
+
 	return results, nil
 }
 

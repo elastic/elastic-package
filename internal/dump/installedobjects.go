@@ -5,12 +5,8 @@
 package dump
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"os"
 	"path/filepath"
 
 	"github.com/elastic/elastic-package/internal/common"
@@ -72,36 +68,6 @@ func (e *InstalledObjectsDumper) DumpAll(ctx context.Context, dir string) (count
 	return count, nil
 }
 
-type DumpableInstalledObject interface {
-	Name() string
-	JSON() []byte
-}
-
-func dumpInstalledObject(dir string, object DumpableInstalledObject) error {
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return fmt.Errorf("failed to create dump directory: %w", err)
-	}
-	formatted, err := formatJSON(object.JSON())
-	if err != nil {
-		return fmt.Errorf("failed to format JSON object: %w", err)
-	}
-	path := filepath.Join(dir, object.Name()+".json")
-	err = ioutil.WriteFile(path, formatted, 0644)
-	if err != nil {
-		return fmt.Errorf("failed to dump object to file: %w", err)
-	}
-	return nil
-}
-
-func formatJSON(in []byte) ([]byte, error) {
-	var buf bytes.Buffer
-	err := json.Indent(&buf, in, "", "  ")
-	if err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
-}
-
 func (e *InstalledObjectsDumper) dumpIndexTemplates(ctx context.Context, dir string) (count int, err error) {
 	indexTemplates, err := e.getIndexTemplates(ctx)
 	if err != nil {
@@ -110,7 +76,7 @@ func (e *InstalledObjectsDumper) dumpIndexTemplates(ctx context.Context, dir str
 
 	dir = filepath.Join(dir, IndexTemplatesDumpDir)
 	for i, t := range indexTemplates {
-		err := dumpInstalledObject(dir, t)
+		err := dumpJSONResource(dir, t)
 		if err != nil {
 			return i, fmt.Errorf("failed to dump index template %s: %w", t.Name(), err)
 		}
@@ -138,7 +104,7 @@ func (e *InstalledObjectsDumper) dumpComponentTemplates(ctx context.Context, dir
 
 	dir = filepath.Join(dir, ComponentTemplatesDumpDir)
 	for i, t := range componentTemplates {
-		err := dumpInstalledObject(dir, t)
+		err := dumpJSONResource(dir, t)
 		if err != nil {
 			return i, fmt.Errorf("failed to dump component template %s: %w", t.Name(), err)
 		}
@@ -187,7 +153,7 @@ func (e *InstalledObjectsDumper) dumpILMPolicies(ctx context.Context, dir string
 
 	dir = filepath.Join(dir, ILMPoliciesDumpDir)
 	for i, t := range ilmPolicies {
-		err := dumpInstalledObject(dir, t)
+		err := dumpJSONResource(dir, t)
 		if err != nil {
 			return i, fmt.Errorf("failed to dump ILM policy %s: %w", t.Name(), err)
 		}
@@ -231,7 +197,7 @@ func (e *InstalledObjectsDumper) dumpIngestPipelines(ctx context.Context, dir st
 
 	dir = filepath.Join(dir, IngestPipelinesDumpDir)
 	for i, t := range ingestPipelines {
-		err := dumpInstalledObject(dir, t)
+		err := dumpJSONResource(dir, t)
 		if err != nil {
 			return i, fmt.Errorf("failed to dump ingest pipeline %s: %w", t.Name(), err)
 		}

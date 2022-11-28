@@ -13,8 +13,10 @@ cleanup() {
     kubectl describe pods --all-namespaces > build/kubectl-dump.txt
     kubectl logs -l app=elastic-agent -n kube-system >> build/kubectl-dump.txt
 
-    # Take down the kind cluster
-    kind delete cluster
+    # Take down the kind cluster.
+    # Sometimes kind has troubles with deleting the cluster, but it isn't an issue with elastic-package.
+    # As it causes flaky issues on the CI side, let's ignore it.
+    kind delete cluster || true
   fi
 
   # Take down the stack
@@ -32,6 +34,8 @@ cleanup() {
 }
 
 trap cleanup EXIT
+
+export ELASTIC_PACKAGE_LINKS_FILE_PATH="$(pwd)/scripts/links_table.yml"
 
 OLDPWD=$PWD
 # Build/check packages
@@ -62,8 +66,23 @@ for d in test/packages/${PACKAGE_TEST_TYPE:-other}/${PACKAGE_UNDER_TEST:-*}/; do
     cd $d
     elastic-package install -v
 
-    # defer-cleanup is set to a short period to verify that the option is available
-    elastic-package test -v --report-format xUnit --report-output file --defer-cleanup 1s --test-coverage
+    if [ "${PACKAGE_TEST_TYPE:-other}" == "benchmarks" ]; then
+      rm -rf "${OLDPWD}/build/benchmark-results"
+      elastic-package benchmark -v --report-format xUnit --report-output file --fail-on-missing
+      
+      rm -rf "${OLDPWD}/build/benchmark-results-old"
+      mv "${OLDPWD}/build/benchmark-results" "${OLDPWD}/build/benchmark-results-old"
+      
+      elastic-package benchmark -v --report-format json --report-output file --fail-on-missing
+      
+      elastic-package report --fail-on-missing benchmark \
+        --new ${OLDPWD}/build/benchmark-results \
+        --old ${OLDPWD}/build/benchmark-results-old \
+        --threshold 1 --report-output-path="${OLDPWD}/build/benchreport"
+    else
+      # defer-cleanup is set to a short period to verify that the option is available
+      elastic-package test -v --report-format xUnit --report-output file --defer-cleanup 1s --test-coverage
+    fi
   )
 cd -
 done

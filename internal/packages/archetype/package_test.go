@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/elastic/package-spec/code/go/pkg/validator"
+	"github.com/elastic/package-spec/v2/code/go/pkg/validator"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 
@@ -62,6 +62,9 @@ func createPackageDescriptorForTest() PackageDescriptor {
 			Conditions: packages.Conditions{
 				Kibana: packages.KibanaConditions{
 					Version: "^7.13.0",
+				},
+				Elastic: packages.ElasticConditions{
+					Subscription: "basic",
 				},
 			},
 			Owner: packages.Owner{

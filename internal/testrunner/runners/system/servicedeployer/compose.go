@@ -6,7 +6,6 @@ package servicedeployer
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"time"
@@ -220,7 +219,7 @@ func writeServiceContainerLogs(serviceName string, content []byte) error {
 
 	containerLogsFilepath := filepath.Join(containerLogsDir, fmt.Sprintf("%s-%d.log", serviceName, time.Now().UnixNano()))
 	logger.Infof("Write container logs to file: %s", containerLogsFilepath)
-	err = ioutil.WriteFile(containerLogsFilepath, content, 0644)
+	err = os.WriteFile(containerLogsFilepath, content, 0644)
 	if err != nil {
 		return errors.Wrapf(err, "can't write container logs to file (path: %s)", containerLogsFilepath)
 	}

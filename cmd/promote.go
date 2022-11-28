@@ -43,13 +43,14 @@ func setupPromoteCommand() *cobraext.Command {
 	}
 	cmd.Flags().StringP(cobraext.DirectionFlagName, "d", "", cobraext.DirectionFlagDescription)
 	cmd.Flags().BoolP(cobraext.NewestOnlyFlagName, "n", false, cobraext.NewestOnlyFlagDescription)
-	cmd.Flags().StringSliceP(cobraext.PackagesFlagName, "p", nil, cobraext.PackagesFlagDescription)
+	cmd.Flags().StringSliceP(cobraext.PromotedPackagesFlagName, "p", nil, cobraext.PromotedPackagesFlagDescription)
 
 	return cobraext.NewCommand(cmd, cobraext.ContextGlobal)
 }
 
 func promoteCommandAction(cmd *cobra.Command, _ []string) error {
 	cmd.Println("Promote packages")
+	cmd.Println("DEPRECATED: Packages stored in the Package Storage v2 won't require to be promoted. This command will be removed soon. README: https://github.com/elastic/elastic-package/blob/main/docs/howto/use_package_storage_v2.md")
 
 	// Setup GitHub
 	err := github.EnsureAuthConfigured()
@@ -210,7 +211,7 @@ func promptPromoteNewestOnly(cmd *cobra.Command) (bool, error) {
 }
 
 func promptPackages(cmd *cobra.Command, packages storage.PackageVersions) (storage.PackageVersions, error) {
-	revisions, _ := cmd.Flags().GetStringSlice(cobraext.PackagesFlagName)
+	revisions, _ := cmd.Flags().GetStringSlice(cobraext.PromotedPackagesFlagName)
 	if len(revisions) > 0 {
 		parsed, err := storage.ParsePackageVersions(revisions)
 		if err != nil {

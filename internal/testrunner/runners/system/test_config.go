@@ -17,7 +17,7 @@ import (
 	"github.com/elastic/go-ucfg"
 	"github.com/elastic/go-ucfg/yaml"
 
-	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/testrunner"
 	"github.com/elastic/elastic-package/internal/testrunner/runners/system/servicedeployer"
 )
@@ -28,21 +28,22 @@ type testConfig struct {
 	testrunner.SkippableConfig `config:",inline"`
 
 	Input               string        `config:"input"`
+	PolicyTemplate      string        `config:"policy_template"` // Policy template associated with input. Required when multiple policy templates include the input being tested.
 	Service             string        `config:"service"`
 	ServiceNotifySignal string        `config:"service_notify_signal"` // Signal to send when the agent policy is applied.
 	WaitForDataTimeout  time.Duration `config:"wait_for_data_timeout"`
 
-	Vars       map[string]packages.VarValue `config:"vars"`
+	Vars       common.MapStr `config:"vars"`
 	DataStream struct {
-		Vars map[string]packages.VarValue `config:"vars"`
+		Vars common.MapStr `config:"vars"`
 	} `config:"data_stream"`
 
 	// NumericKeywordFields holds a list of fields that have keyword
 	// type but can be ingested as numeric type.
 	NumericKeywordFields []string `config:"numeric_keyword_fields"`
 
-	Path               string
-	ServiceVariantName string
+	Path               string `config:",ignore"` // Path of config file.
+	ServiceVariantName string `config:",ignore"` // Name of test variant when using variants.yml.
 }
 
 func (t testConfig) Name() string {
