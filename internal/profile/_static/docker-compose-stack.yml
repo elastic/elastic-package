@@ -3,7 +3,7 @@ services:
   elasticsearch:
     image: "${ELASTICSEARCH_IMAGE_REF}"
     healthcheck:
-      test: ["CMD", "curl", "--cacert", "/usr/share/elasticsearch/config/certs/ca-cert.pem", "-f", "-u", "elastic:changeme", "https://127.0.0.1:9200/"]
+      test: "curl -s --cacert /usr/share/elasticsearch/config/certs/ca-cert.pem -f -u elastic:changeme https://127.0.0.1:9200/_cat/health | cut -f4 -d' ' | grep -E '(green|yellow)'"
       retries: 300
       interval: 1s
     environment:
