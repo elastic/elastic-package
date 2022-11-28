@@ -5,10 +5,14 @@
 package elasticsearch
 
 import (
+	"context"
 	"crypto/tls"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/pkg/errors"
 
@@ -27,6 +31,9 @@ type IngestSimulateRequest = esapi.IngestSimulateRequest
 
 // IngestGetPipelineRequest configures the Ingest Get Pipeline API request.
 type IngestGetPipelineRequest = esapi.IngestGetPipelineRequest
+
+// ClusterStateRequest configures the Cluster State API request.
+type ClusterStateRequest = esapi.ClusterStateRequest
 
 // clientOptions are used to configure a client.
 type clientOptions struct {
@@ -74,8 +81,13 @@ func OptionWithSkipTLSVerify() ClientOption {
 	}
 }
 
-// Client method creates new instance of the Elasticsearch client.
-func Client(customOptions ...ClientOption) (*elasticsearch.Client, error) {
+// Client is a wrapper over an Elasticsearch Client.
+type Client struct {
+	*elasticsearch.Client
+}
+
+// NewClient method creates new instance of the Elasticsearch client.
+func NewClient(customOptions ...ClientOption) (*Client, error) {
 	options := defaultOptionsFromEnv()
 	for _, option := range customOptions {
 		option(&options)
@@ -108,5 +120,114 @@ func Client(customOptions ...ClientOption) (*elasticsearch.Client, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "can't create instance")
 	}
-	return client, nil
+	return &Client{Client: client}, nil
+}
+
+// CheckHealth checks the health of the cluster.
+func (client *Client) CheckHealth(ctx context.Context) error {
+	resp, err := client.Cluster.Health(client.Cluster.Health.WithContext(ctx))
+	if err != nil {
+		return errors.Wrap(err, "error checking cluster health")
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return errors.Wrap(err, "error reading cluster health response")
+	}
+
+	var clusterHealth struct {
+		Status string `json:"status"`
+	}
+	err = json.Unmarshal(body, &clusterHealth)
+	if err != nil {
+		return errors.Wrap(err, "error decoding cluster health response")
+	}
+
+	if status := clusterHealth.Status; status != "green" && status != "yellow" {
+		if status != "red" {
+			return errors.Errorf("cluster in unhealthy state: %q", status)
+		}
+		cause, err := client.redHealthCause(ctx)
+		if err != nil {
+			return errors.Wrapf(err, "cluster in unhealthy state, failed to identify cause")
+		}
+		return errors.Errorf("cluster in unhealthy state: %s", cause)
+	}
+
+	return nil
+}
+
+// redHealthCause tries to identify the cause of a cluster in red state. This could be
+// also used as a replacement of CheckHealth, but keeping them separated because it uses
+// internal undocumented APIs that might change.
+func (client *Client) redHealthCause(ctx context.Context) (string, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "/_internal/_health", nil)
+	if err != nil {
+		return "", errors.Wrap(err, "error creating internal health request")
+	}
+	resp, err := client.Transport.Perform(req)
+	if err != nil {
+		return "", errors.Wrap(err, "error performing internal health request")
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", errors.Wrap(err, "error reading internal health response")
+	}
+
+	var internalHealth struct {
+		Status     string `json:"status"`
+		Indicators map[string]struct {
+			Status  string `json:"status"`
+			Impacts []struct {
+				Severity int `json:"severity"`
+			} `json:"impacts"`
+			Diagnosis []struct {
+				Cause string `json:"cause"`
+			} `json:"diagnosis"`
+		} `json:"indicators"`
+	}
+	err = json.Unmarshal(body, &internalHealth)
+	if err != nil {
+		return "", errors.Wrap(err, "error decoding internal health response")
+	}
+	if internalHealth.Status != "red" {
+		return "", errors.New("cluster state is not red?")
+	}
+
+	// Only diagnostics with the highest severity impacts are returned.
+	var highestSeverity int
+	var causes []string
+	for _, indicator := range internalHealth.Indicators {
+		if indicator.Status != "red" {
+			continue
+		}
+
+		var severity int
+		for _, impact := range indicator.Impacts {
+			if impact.Severity > severity {
+				severity = impact.Severity
+			}
+		}
+
+		switch {
+		case severity < highestSeverity:
+			continue
+		case severity > highestSeverity:
+			highestSeverity = severity
+			causes = nil
+		case severity == highestSeverity:
+			// Continue appending for current severity.
+		}
+
+		for _, diagnosis := range indicator.Diagnosis {
+			causes = append(causes, diagnosis.Cause)
+		}
+	}
+	if len(causes) == 0 {
+		return "", errors.New("no causes found")
+	}
+	return strings.Join(causes, ", "), nil
 }

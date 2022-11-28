@@ -18,20 +18,20 @@ import (
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 )
 
-// ElasticsearchClient returns a client for a testing http server that uses prerecorded
+// NewClient returns a client for a testing http server that uses prerecorded
 // responses. If responses are not found, it forwards the query to the server started by
 // elastic-package stack, and records the response.
 // Responses are recorded in the directory indicated by serverDataDir.
-func ElasticsearchClient(t *testing.T, serverDataDir string) *elasticsearch.API {
+func NewClient(t *testing.T, serverDataDir string) *elasticsearch.Client {
 	server := testElasticsearchServer(t, serverDataDir)
 	t.Cleanup(func() { server.Close() })
 
-	client, err := elasticsearch.Client(
+	client, err := elasticsearch.NewClient(
 		elasticsearch.OptionWithAddress(server.URL),
 	)
 	require.NoError(t, err)
 
-	return client.API
+	return client
 }
 
 func testElasticsearchServer(t *testing.T, mockServerDir string) *httptest.Server {
@@ -56,7 +56,7 @@ func pathForURL(url string) string {
 }
 
 func recordRequest(t *testing.T, r *http.Request, path string) {
-	client, err := elasticsearch.Client()
+	client, err := elasticsearch.NewClient()
 	require.NoError(t, err)
 
 	t.Logf("Recording %s in %s", r.URL.Path, path)
