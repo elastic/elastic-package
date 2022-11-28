@@ -406,8 +406,8 @@ data_stream:
     username: test
     password: test
     request_url: http://{{Hostname}}:{{Port}}/testexpectedevents/api
-system_test:
-  expected_event_count: 3
+assert:
+  events_count: 3
 ```
 
 The `data_stream.vars.request_url` corresponds to a path in the `_dev/deploy/docker/files/config.yml` file
@@ -430,7 +430,7 @@ For example
           {"parent":[{"k":"v"},{"k":"v"},{"k":"v"}]}
 ```
 
-The test is applied when `system_test.expected_event_count` is defined and `> 0`. It expects a message body comprised of a JSON string that includes an arbitrary top-level field whose value is an array. The system test will only pass when the number of elements in this array is equal to the configured value.
+The test is applied when `assert.events_count` is defined and `> 0`. It expects a message body comprised of a JSON string that includes an arbitrary top-level field whose value is an array. The system test will only pass when the number of elements in this array is equal to the configured value.
 
 #### Placeholders
 

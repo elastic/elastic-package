@@ -38,10 +38,10 @@ type testConfig struct {
 		Vars map[string]packages.VarValue `config:"vars"`
 	} `config:"data_stream"`
 
-	SystemTest struct {
+	Assert struct {
 		// Length of first array found within the message field inside a Hit
-		ExpectedEventCount int `config:"expected_event_count"`
-	} `config:"system_test"`
+		EventsCount int `config:"events_count"`
+	} `config:"assert"`
 
 	// NumericKeywordFields holds a list of fields that have keyword
 	// type but can be ingested as numeric type.

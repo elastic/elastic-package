@@ -480,12 +480,12 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	}
 
 	// Check Event Count within docs, if 0 then it has not been specified
-	if config.SystemTest.ExpectedEventCount != 0 {
+	if config.Assert.EventsCount != 0 {
 		if result.EventCount, err = getEventCount(docs); err != nil {
 			return result.WithError(err)
 		}
-		if result.EventCount != config.SystemTest.ExpectedEventCount {
-			result.FailureMsg = fmt.Sprintf("observed event count %d did not match expected event count %d", result.EventCount, config.SystemTest.ExpectedEventCount)
+		if result.EventCount != config.Assert.EventsCount {
+			result.FailureMsg = fmt.Sprintf("observed event count %d did not match expected event count %d", result.EventCount, config.Assert.EventsCount)
 			return result.WithError(fmt.Errorf("%s", result.FailureMsg))
 		}
 	}
