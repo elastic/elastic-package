@@ -412,7 +412,7 @@ assert:
 
 The `data_stream.vars.request_url` corresponds to a path in the `_dev/deploy/docker/files/config.yml` file
 
-The `system_test.expected_event_count` field corresponds to the expected number of events in the corresponding path in the `_dev/deploy/docker/files/config.yml` file
+The `assert.events_count` field corresponds to the expected number of events in the corresponding path in the `_dev/deploy/docker/files/config.yml` file
 
 For example
 
@@ -430,7 +430,13 @@ For example
           {"parent":[{"k":"v"},{"k":"v"},{"k":"v"}]}
 ```
 
-The test is applied when `assert.events_count` is defined and `> 0`. It expects a message body comprised of a JSON string that includes an arbitrary top-level field whose value is an array. The system test will only pass when the number of elements in this array is equal to the configured value.
+This simulates a single call to the API `/testexpectedevents/api` which is expected to return multiple events in a single response.
+
+The `"parent"` field represents the top-level array within which these events are stored. 3rd party APIs will define an appropriate key here according to their schema, some real-world examples might be: `"data":[]` or `"events":[]`.
+
+In this example, there are 3 events. Each event is `{"k":"v"}`. You may wish to use real-world examples for consistency with e.g. pipeline tests elsewhere in the test suite. 
+
+The assertion is applied when `assert.events_count` is defined and `> 0`. It expects a message body comprised of a JSON string that includes an arbitrary top-level field whose value is an array. The system test will only pass when the number of elements in this array is equal to the configured value.
 
 #### Placeholders
 
