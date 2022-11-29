@@ -13,12 +13,11 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/configuration/locations"
-	"github.com/elastic/elastic-package/internal/profile"
 )
 
 const versionFilename = "version"
 
-// EnsureInstalled method installs once static resources for the testing Docker stack.
+// EnsureInstalled method installs once the required configuration files.
 func EnsureInstalled() error {
 	elasticPackagePath, err := locations.NewLocationManager()
 	if err != nil {
@@ -30,40 +29,32 @@ func EnsureInstalled() error {
 		return errors.Wrap(err, "failed to check if there is an elastic-package installation")
 	}
 	if installed {
-		return nil
+		latestInstalled, err := checkIfLatestVersionInstalled(elasticPackagePath)
+		if err != nil {
+			return errors.Wrap(err, "failed to check if latest version is installed")
+		}
+		if latestInstalled {
+			return nil
+		}
+		return migrateConfigDirectory(elasticPackagePath)
 	}
 
-	// Create the root .elastic-package path
+	// Create the root .elastic-package path.
 	err = createElasticPackageDirectory(elasticPackagePath)
 	if err != nil {
 		return errors.Wrap(err, "creating elastic package directory failed")
 	}
 
-	// write the root config.yml file
+	// Write the root config.yml file.
 	err = WriteConfigFile(elasticPackagePath, DefaultConfiguration())
 	if err != nil {
 		return errors.Wrap(err, "writing configuration file failed")
 	}
 
-	// write root version file
+	// Write root version file.
 	err = writeVersionFile(elasticPackagePath)
 	if err != nil {
 		return errors.Wrap(err, "writing version file failed")
-	}
-
-	err = writeStackResources(elasticPackagePath)
-	if err != nil {
-		return errors.Wrap(err, "writing stack resources failed")
-	}
-
-	err = writeTerraformDeployerResources(elasticPackagePath)
-	if err != nil {
-		return errors.Wrap(err, "writing Terraform deployer resources failed")
-	}
-
-	err = writeDockerCustomAgentResources(elasticPackagePath)
-	if err != nil {
-		return errors.Wrap(err, "writing Terraform deployer resources failed")
 	}
 
 	if err := createServiceLogsDir(elasticPackagePath); err != nil {
@@ -75,14 +66,14 @@ func EnsureInstalled() error {
 }
 
 func checkIfAlreadyInstalled(elasticPackagePath *locations.LocationManager) (bool, error) {
-	_, err := os.Stat(elasticPackagePath.StackDir())
+	_, err := os.Stat(elasticPackagePath.RootDir())
 	if errors.Is(err, os.ErrNotExist) {
 		return false, nil
 	}
 	if err != nil {
 		return false, errors.Wrapf(err, "stat file failed (path: %s)", elasticPackagePath)
 	}
-	return checkIfLatestVersionInstalled(elasticPackagePath)
+	return true, nil
 }
 
 func createElasticPackageDirectory(elasticPackagePath *locations.LocationManager) error {
@@ -100,83 +91,6 @@ func createElasticPackageDirectory(elasticPackagePath *locations.LocationManager
 	err = os.MkdirAll(elasticPackagePath.RootDir(), 0755)
 	if err != nil {
 		return errors.Wrapf(err, "creating directory failed (path: %s)", elasticPackagePath)
-	}
-	return nil
-}
-
-func writeStackResources(elasticPackagePath *locations.LocationManager) error {
-	err := os.MkdirAll(elasticPackagePath.PackagesDir(), 0755)
-	if err != nil {
-		return errors.Wrapf(err, "creating directory failed (path: %s)", elasticPackagePath.PackagesDir())
-	}
-
-	err = os.MkdirAll(elasticPackagePath.ProfileDir(), 0755)
-	if err != nil {
-		return errors.Wrapf(err, "creating directory failed (path: %s)", elasticPackagePath.PackagesDir())
-	}
-
-	// Install GeoIP database
-	ingestGeoIPDir := filepath.Join(elasticPackagePath.StackDir(), "ingest-geoip")
-	err = os.MkdirAll(ingestGeoIPDir, 0755)
-	if err != nil {
-		return errors.Wrapf(err, "creating directory failed (path: %s)", ingestGeoIPDir)
-	}
-
-	geoIpAsnMmdbPath := filepath.Join(ingestGeoIPDir, "GeoLite2-ASN.mmdb")
-	err = writeStaticResource(err, geoIpAsnMmdbPath, geoIpAsnMmdb)
-	if err != nil {
-		return errors.Wrapf(err, "copying GeoIP ASN database failed (%s)", geoIpAsnMmdbPath)
-	}
-
-	geoIpCityMmdbPath := filepath.Join(ingestGeoIPDir, "GeoLite2-City.mmdb")
-	err = writeStaticResource(err, geoIpCityMmdbPath, geoIpCityMmdb)
-	if err != nil {
-		return errors.Wrapf(err, "copying GeoIP city database failed (%s)", geoIpCityMmdbPath)
-	}
-
-	geoIpCountryMmdbPath := filepath.Join(ingestGeoIPDir, "GeoLite2-Country.mmdb")
-	err = writeStaticResource(err, geoIpCountryMmdbPath, geoIpCountryMmdb)
-	if err != nil {
-		return errors.Wrapf(err, "copying GeoIP country database failed (%s)", geoIpCountryMmdbPath)
-	}
-
-	serviceTokensPath := filepath.Join(elasticPackagePath.StackDir(), "service_tokens")
-	err = writeStaticResource(err, serviceTokensPath, serviceTokens)
-	if err != nil {
-		return errors.Wrapf(err, "copying service_tokens failed (%s)", serviceTokensPath)
-	}
-
-	options := profile.Options{
-		PackagePath:       elasticPackagePath.ProfileDir(),
-		Name:              profile.DefaultProfile,
-		OverwriteExisting: false,
-	}
-	return profile.CreateProfile(options)
-}
-
-func writeTerraformDeployerResources(elasticPackagePath *locations.LocationManager) error {
-	terraformDeployer := elasticPackagePath.TerraformDeployerDir()
-	err := os.MkdirAll(terraformDeployer, 0755)
-	if err != nil {
-		return errors.Wrapf(err, "creating directory failed (path: %s)", terraformDeployer)
-	}
-
-	err = writeStaticResource(err, elasticPackagePath.TerraformDeployerYml(), terraformDeployerYml)
-	err = writeStaticResource(err, filepath.Join(terraformDeployer, "Dockerfile"), terraformDeployerDockerfile)
-	err = writeStaticResource(err, filepath.Join(terraformDeployer, "run.sh"), terraformDeployerRun)
-	if err != nil {
-		return errors.Wrap(err, "writing static resource failed")
-	}
-	return nil
-}
-
-func writeDockerCustomAgentResources(elasticPackagePath *locations.LocationManager) error {
-	dir := elasticPackagePath.DockerCustomAgentDeployerDir()
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return errors.Wrapf(err, "creating directory failed (path: %s)", dir)
-	}
-	if err := writeStaticResource(nil, elasticPackagePath.DockerCustomAgentDeployerYml(), dockerCustomAgentBaseYml); err != nil {
-		return errors.Wrap(err, "writing static resource failed")
 	}
 	return nil
 }
@@ -203,6 +117,15 @@ func writeStaticResource(err error, path, content string) error {
 	if err != nil {
 		return errors.Wrapf(err, "writing file failed (path: %s)", path)
 	}
+	return nil
+}
+
+func migrateConfigDirectory(elasticPackagePath *locations.LocationManager) error {
+	err := writeVersionFile(elasticPackagePath)
+	if err != nil {
+		return errors.Wrap(err, "writing version file failed")
+	}
+
 	return nil
 }
 

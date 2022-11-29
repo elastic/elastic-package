@@ -62,12 +62,16 @@ User profiles are not overwritten on upgrade of elastic-stack, and can be freely
 				return errors.Wrapf(err, "error creating profile %s from profile %s", newProfileName, fromName)
 			}
 
-			fmt.Printf("Created profile %s from %s.\n", newProfileName, fromName)
+			if fromName == "" {
+				fmt.Printf("Created profile %s.\n", newProfileName)
+			} else {
+				fmt.Printf("Created profile %s from %s.\n", newProfileName, fromName)
+			}
 
 			return nil
 		},
 	}
-	profileNewCommand.Flags().String(cobraext.ProfileFromFlagName, "default", cobraext.ProfileFromFlagDescription)
+	profileNewCommand.Flags().String(cobraext.ProfileFromFlagName, "", cobraext.ProfileFromFlagDescription)
 
 	profileDeleteCommand := &cobra.Command{
 		Use:   "delete",
@@ -104,7 +108,7 @@ User profiles are not overwritten on upgrade of elastic-stack, and can be freely
 
 			format, err := cmd.Flags().GetString(cobraext.ProfileFormatFlagName)
 			if err != nil {
-				return cobraext.FlagParsingError(err, cobraext.ProfileFromFlagName)
+				return cobraext.FlagParsingError(err, cobraext.ProfileFormatFlagName)
 			}
 
 			switch format {
@@ -127,6 +131,11 @@ User profiles are not overwritten on upgrade of elastic-stack, and can be freely
 				return errors.New("use requires an argument")
 			}
 			profileName := args[0]
+
+			_, err := profile.LoadProfile(profileName)
+			if err != nil {
+				return fmt.Errorf("cannot use profile %q: %v", profileName, err)
+			}
 
 			location, err := locations.NewLocationManager()
 			if err != nil {

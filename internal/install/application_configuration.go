@@ -161,6 +161,9 @@ func Configuration() (*ApplicationConfiguration, error) {
 	}
 
 	cfg, err := os.ReadFile(filepath.Join(configPath.RootDir(), applicationConfigurationYmlFile))
+	if errors.Is(err, os.ErrNotExist) {
+		return DefaultConfiguration(), nil
+	}
 	if err != nil {
 		return nil, errors.Wrap(err, "can't read configuration file")
 	}
