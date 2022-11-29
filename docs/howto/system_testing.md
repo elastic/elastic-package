@@ -407,12 +407,12 @@ data_stream:
     password: test
     request_url: http://{{Hostname}}:{{Port}}/testexpectedevents/api
 assert:
-  events_count: 3
+  event_count: 3
 ```
 
 The `data_stream.vars.request_url` corresponds to a path in the `_dev/deploy/docker/files/config.yml` file
 
-The `assert.events_count` field corresponds to the expected number of events in the corresponding path in the `_dev/deploy/docker/files/config.yml` file
+The `assert.event_count` field corresponds to the expected number of events in the corresponding path in the `_dev/deploy/docker/files/config.yml` file
 
 For example
 
@@ -436,7 +436,7 @@ The `"parent"` field represents the top-level array within which these events ar
 
 In this example, there are 3 events. Each event is `{"k":"v"}`. You may wish to use real-world examples for consistency with e.g. pipeline tests elsewhere in the test suite. 
 
-The assertion is applied when `assert.events_count` is defined and `> 0`. It expects a message body comprised of a JSON string that includes an arbitrary top-level field whose value is an array. The system test will only pass when the number of elements in this array is equal to the configured value.
+The assertion is checked when `assert.event_count` is defined and `> 0`. It expects a message body comprised of a JSON string that includes an arbitrary top-level field whose value is an array. The system test will only pass when the number of elements in this array is equal to the configured value.
 
 #### Placeholders
 

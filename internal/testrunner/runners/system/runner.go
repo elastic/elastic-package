@@ -480,14 +480,8 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	}
 
 	// Check Event Count within docs, if 0 then it has not been specified
-	if config.Assert.EventsCount != 0 {
-		if result.EventCount, err = getEventCount(docs); err != nil {
-			return result.WithError(err)
-		}
-		if result.EventCount != config.Assert.EventsCount {
-			result.FailureMsg = fmt.Sprintf("observed event count %d did not match expected event count %d", result.EventCount, config.Assert.EventsCount)
-			return result.WithError(fmt.Errorf("%s", result.FailureMsg))
-		}
+	if result.EventCount, err = assertEventCount(config.Assert.EventCount, docs); err != nil {
+		return result.WithError(err)
 	}
 
 	return result.WithSuccess()
@@ -770,7 +764,7 @@ func getDocEventCount(events map[string]interface{}) int {
 	return 0
 }
 
-func getEventCount(docs []common.MapStr) (lenEvents int, err error) {
+func getMessagesEventCount(docs []common.MapStr) (lenEvents int, err error) {
 	for _, doc := range docs {
 		var message interface{}
 		var events interface{}
@@ -794,6 +788,18 @@ func getEventCount(docs []common.MapStr) (lenEvents int, err error) {
 	}
 
 	return lenEvents, nil
+}
+
+func assertEventCount(expected int, docs []common.MapStr) (observed int, err error) {
+	if expected != 0 {
+		if observed, err = getMessagesEventCount(docs); err != nil {
+			return
+		}
+		if observed != expected {
+			return observed, fmt.Errorf("observed event count %d did not match expected event count %d", observed, expected)
+		}
+	}
+	return observed, err
 }
 
 func (r *runner) selectVariants(variantsFile *servicedeployer.VariantsFile) []string {

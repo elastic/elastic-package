@@ -40,7 +40,7 @@ type testConfig struct {
 
 	Assert struct {
 		// Length of first array found within the message field inside a Hit
-		EventsCount int `config:"events_count"`
+		EventCount int `config:"event_count"`
 	} `config:"assert"`
 
 	// NumericKeywordFields holds a list of fields that have keyword
