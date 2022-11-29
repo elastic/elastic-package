@@ -11,7 +11,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.1.2
 	github.com/elastic/go-elasticsearch/v7 v7.17.7
 	github.com/elastic/go-licenser v0.4.1
-	github.com/elastic/go-sysinfo v1.8.1
+	github.com/elastic/go-sysinfo v1.9.0
 	github.com/elastic/go-ucfg v0.8.6
 	github.com/elastic/package-spec/v2 v2.2.0
 	github.com/fatih/color v1.13.0
@@ -117,7 +117,7 @@ require (
 	github.com/oklog/ulid v1.3.1 // indirect
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
 	github.com/pierrec/lz4/v4 v4.1.2 // indirect
-	github.com/prometheus/procfs v0.7.3 // indirect
+	github.com/prometheus/procfs v0.8.0 // indirect
 	github.com/russross/blackfriday v1.5.2 // indirect
 	github.com/sergi/go-diff v1.1.0 // indirect
 	github.com/sirupsen/logrus v1.8.1 // indirect
