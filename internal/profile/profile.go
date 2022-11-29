@@ -90,14 +90,57 @@ var (
 )
 
 type Options struct {
-	PackagePath string
-	Name        string
-	//FromProfile string
+	PackagePath       string
+	Name              string
+	FromProfile       string
 	OverwriteExisting bool
 }
 
 func CreateProfile(options Options) error {
+	if options.PackagePath == "" {
+		loc, err := locations.NewLocationManager()
+		if err != nil {
+			return fmt.Errorf("error finding profile dir location: %w", err)
+		}
+		options.PackagePath = loc.ProfileDir()
+	}
+
+	// If they're creating from Default, assume they want the actual default, and
+	// not whatever is currently inside default.
+	if from := options.FromProfile; from != "" && from != DefaultProfile {
+		return createProfileFrom(options)
+	}
+
+	resources, err := initProfileResources(options)
+	if err != nil {
+		return err
+	}
+
+	return createProfile(options, resources)
+}
+
+func initProfileResources(options Options) ([]resource.Resource, error) {
+	profileName := options.Name
+	if profileName == "" {
+		profileName = DefaultProfile
+	}
+	profileDir := filepath.Join(options.PackagePath, profileName)
+
+	resources := append([]resource.Resource{}, profileResources...)
+
+	certResources, err := initTLSCertificates("profile-file", profileDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create TLS files: %w", err)
+	}
+	resources = append(resources, certResources...)
+
+	return resources, nil
+}
+
+func createProfile(options Options, resources []resource.Resource) error {
 	stackVersion := "8.1.0" // TODO: Parameterize this.
+	fmt.Printf("%+v\n", options)
+	fmt.Printf("%+v\n", resources)
 
 	profileName := options.Name
 	if profileName == "" {
@@ -126,14 +169,6 @@ func CreateProfile(options Options) error {
 		Prefix: stackDir,
 	})
 
-	resources := append([]resource.Resource{}, profileResources...)
-
-	certResources, err := initTLSCertificates("profile-file", profileDir)
-	if err != nil {
-		return fmt.Errorf("failed to create TLS files: %w", err)
-	}
-	resources = append(resources, certResources...)
-
 	results, err := resourceManager.Apply(resources)
 	if err != nil {
 		var errors []string
@@ -146,6 +181,15 @@ func CreateProfile(options Options) error {
 	}
 
 	return nil
+}
+
+func createProfileFrom(options Options) error {
+	from, err := LoadProfile(options.FromProfile)
+	if err != nil {
+		return fmt.Errorf("failed to load profile to copy %q: %w", options.FromProfile, err)
+	}
+
+	return createProfile(options, from.resources)
 }
 
 // Profile manages a a given user config profile

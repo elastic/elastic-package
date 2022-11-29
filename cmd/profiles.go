@@ -57,8 +57,8 @@ User profiles are not overwritten on upgrade of elastic-stack, and can be freely
 				return cobraext.FlagParsingError(err, cobraext.ProfileFromFlagName)
 			}
 			options := profile.Options{
-				Name: newProfileName,
-				// TODO: FromProfile: fromName,
+				Name:        newProfileName,
+				FromProfile: fromName,
 			}
 			err = profile.CreateProfile(options)
 			if err != nil {
