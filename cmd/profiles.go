@@ -16,7 +16,7 @@ import (
 
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/configuration/locations"
-	"github.com/elastic/elastic-package/internal/environment"
+	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/profile"
 )
 
@@ -25,9 +25,6 @@ const jsonFormat = "json"
 
 // tableFormat is the format for table output
 const tableFormat = "table"
-
-// profileNameEnvVar is the name of the environment variable to set the default profile
-var profileNameEnvVar = environment.WithElasticPackagePrefix("PROFILE")
 
 func setupProfilesCommand() *cobraext.Command {
 	profilesLongDescription := `Use this command to add, remove, and manage multiple config profiles.
@@ -122,7 +119,40 @@ User profiles are not overwritten on upgrade of elastic-stack, and can be freely
 	}
 	profileListCommand.Flags().String(cobraext.ProfileFormatFlagName, tableFormat, cobraext.ProfileFormatFlagDescription)
 
-	profileCommand.AddCommand(profileNewCommand, profileDeleteCommand, profileListCommand)
+	profileUseCommand := &cobra.Command{
+		Use:   "use",
+		Short: "Sets the profile to use when no other is specified",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) == 0 {
+				return errors.New("use requires an argument")
+			}
+			profileName := args[0]
+
+			location, err := locations.NewLocationManager()
+			if err != nil {
+				return fmt.Errorf("error fetching profile: %w", err)
+			}
+
+			config, err := install.Configuration()
+			if err != nil {
+				return fmt.Errorf("failed to load current configuration: %w", err)
+			}
+			config.SetCurrentProfile(profileName)
+
+			err = install.WriteConfigFile(location, config)
+			if err != nil {
+				return fmt.Errorf("failed to store configuration: %w", err)
+			}
+			return nil
+		},
+	}
+
+	profileCommand.AddCommand(
+		profileNewCommand,
+		profileDeleteCommand,
+		profileListCommand,
+		profileUseCommand,
+	)
 
 	return cobraext.NewCommand(profileCommand, cobraext.ContextGlobal)
 }
@@ -173,15 +203,6 @@ func profileToList(profiles []profile.Metadata) [][]string {
 	}
 
 	return profileList
-}
-
-func lookupEnv() string {
-	env := os.Getenv(profileNameEnvVar)
-	if env == "" {
-		return profile.DefaultProfile
-	}
-	return env
-
 }
 
 func availableProfilesAsAList() ([]string, error) {

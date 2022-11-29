@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 
 	"github.com/pkg/errors"
+	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/profile"
@@ -39,7 +40,7 @@ func EnsureInstalled() error {
 	}
 
 	// write the root config.yml file
-	err = writeConfigFile(elasticPackagePath)
+	err = WriteConfigFile(elasticPackagePath, DefaultConfiguration())
 	if err != nil {
 		return errors.Wrap(err, "writing configuration file failed")
 	}
@@ -186,9 +187,13 @@ func writeDockerCustomAgentResources(elasticPackagePath *locations.LocationManag
 	return nil
 }
 
-func writeConfigFile(elasticPackagePath *locations.LocationManager) error {
-	var err error
-	err = writeStaticResource(err, filepath.Join(elasticPackagePath.RootDir(), applicationConfigurationYmlFile), applicationConfigurationYml)
+func WriteConfigFile(elasticPackagePath *locations.LocationManager, configuration *ApplicationConfiguration) error {
+	d, err := yaml.Marshal(configuration.c)
+	if err != nil {
+		return errors.Wrap(err, "failed to encode configuration")
+	}
+
+	err = writeStaticResource(err, filepath.Join(elasticPackagePath.RootDir(), applicationConfigurationYmlFile), string(d))
 	if err != nil {
 		return errors.Wrap(err, "writing static resource failed")
 	}

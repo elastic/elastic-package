@@ -78,9 +78,9 @@ func setupStackCommand() *cobraext.Command {
 				return cobraext.FlagParsingError(err, cobraext.StackVersionFlagName)
 			}
 
-			profileName, err := cmd.Flags().GetString(cobraext.ProfileFlagName)
+			profileName, err := getProfileNameFlag(cmd)
 			if err != nil {
-				return cobraext.FlagParsingError(err, cobraext.ProfileFlagName)
+				return err
 			}
 
 			userProfile, err := profile.LoadProfile(profileName)
@@ -129,9 +129,9 @@ func setupStackCommand() *cobraext.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.Println("Take down the Elastic stack")
 
-			profileName, err := cmd.Flags().GetString(cobraext.ProfileFlagName)
+			profileName, err := getProfileNameFlag(cmd)
 			if err != nil {
-				return cobraext.FlagParsingError(err, cobraext.ProfileFlagName)
+				return err
 			}
 
 			userProfile, err := profile.LoadProfile(profileName)
@@ -165,9 +165,9 @@ func setupStackCommand() *cobraext.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.Println("Update the Elastic stack")
 
-			profileName, err := cmd.Flags().GetString(cobraext.ProfileFlagName)
+			profileName, err := getProfileNameFlag(cmd)
 			if err != nil {
-				return cobraext.FlagParsingError(err, cobraext.ProfileFlagName)
+				return err
 			}
 
 			profile, err := profile.LoadProfile(profileName)
@@ -198,9 +198,9 @@ func setupStackCommand() *cobraext.Command {
 		Use:   "shellinit",
 		Short: "Export environment variables",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			profileName, err := cmd.Flags().GetString(cobraext.ProfileFlagName)
+			profileName, err := getProfileNameFlag(cmd)
 			if err != nil {
-				return cobraext.FlagParsingError(err, cobraext.ProfileFlagName)
+				return err
 			}
 
 			shellName, err := cmd.Flags().GetString(cobraext.ShellInitShellFlagName)
@@ -241,9 +241,9 @@ func setupStackCommand() *cobraext.Command {
 				return cobraext.FlagParsingError(err, cobraext.StackDumpOutputFlagName)
 			}
 
-			profileName, err := cmd.Flags().GetString(cobraext.ProfileFlagName)
+			profileName, err := getProfileNameFlag(cmd)
 			if err != nil {
-				return cobraext.FlagParsingError(err, cobraext.ProfileFlagName)
+				return err
 			}
 
 			profile, err := profile.LoadProfile(profileName)
@@ -287,7 +287,7 @@ func setupStackCommand() *cobraext.Command {
 		Short: "Manage the Elastic stack",
 		Long:  stackLongDescription,
 	}
-	cmd.PersistentFlags().StringP(cobraext.ProfileFlagName, "p", lookupEnv(), fmt.Sprintf(cobraext.ProfileFlagDescription, profileNameEnvVar))
+	cmd.PersistentFlags().StringP(cobraext.ProfileFlagName, "p", "", fmt.Sprintf(cobraext.ProfileFlagDescription, install.ProfileNameEnvVar))
 	cmd.AddCommand(
 		upCommand,
 		downCommand,
@@ -365,6 +365,21 @@ func getParentInfo(ppid int) (types.ProcessInfo, error) {
 	}
 
 	return parentInfo, nil
+}
+
+func getProfileNameFlag(cmd *cobra.Command) (string, error) {
+	profileName, err := cmd.Flags().GetString(cobraext.ProfileFlagName)
+	if err != nil {
+		return "", cobraext.FlagParsingError(err, cobraext.ProfileFlagName)
+	}
+	if profileName == "" {
+		config, err := install.Configuration()
+		if err != nil {
+			return "", fmt.Errorf("cannot read configuration: %w", err)
+		}
+		profileName = config.CurrentProfile()
+	}
+	return profileName, nil
 }
 
 func getShellName(exe string) string {

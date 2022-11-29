@@ -139,8 +139,6 @@ func initProfileResources(options Options) ([]resource.Resource, error) {
 
 func createProfile(options Options, resources []resource.Resource) error {
 	stackVersion := "8.1.0" // TODO: Parameterize this.
-	fmt.Printf("%+v\n", options)
-	fmt.Printf("%+v\n", resources)
 
 	profileName := options.Name
 	if profileName == "" {

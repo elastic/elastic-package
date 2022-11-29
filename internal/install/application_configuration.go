@@ -14,18 +14,50 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/configuration/locations"
+	"github.com/elastic/elastic-package/internal/environment"
 	"github.com/elastic/elastic-package/internal/logger"
+	"github.com/elastic/elastic-package/internal/profile"
 )
 
 const (
 	stackVersion715 = "7.15.0-SNAPSHOT"
 	stackVersion820 = "8.2.0-SNAPSHOT"
+
+	elasticAgentImageName               = "docker.elastic.co/beats/elastic-agent"
+	elasticAgentCompleteLegacyImageName = "docker.elastic.co/beats/elastic-agent-complete"
+	elasticAgentCompleteImageName       = "docker.elastic.co/elastic-agent/elastic-agent-complete"
+	elasticsearchImageName              = "docker.elastic.co/elasticsearch/elasticsearch"
+	kibanaImageName                     = "docker.elastic.co/kibana/kibana"
+
+	applicationConfigurationYmlFile = "config.yml"
 )
 
 var (
 	elasticAgentCompleteFirstSupportedVersion = semver.MustParse(stackVersion715)
 	elasticAgentCompleteOwnNamespaceVersion   = semver.MustParse(stackVersion820)
+
+	// ProfileNameEnvVar is the name of the environment variable to set the default profile
+	ProfileNameEnvVar = environment.WithElasticPackagePrefix("PROFILE")
 )
+
+func DefaultConfiguration() *ApplicationConfiguration {
+	config := ApplicationConfiguration{}
+	config.c.Profile.Current = profile.DefaultProfile
+
+	// Uncomment and use the commented definition of "stack" in case of emergency
+	// to define Docker image overrides (stack.image_ref_overrides).
+	// The following sample defines overrides for the Elastic stack ver. 7.13.0-SNAPSHOT.
+	// It's advised to use latest stable snapshots for the stack snapshot.
+	//
+	//  config.c.Stack.ImageRefOverrides = map[string]ImageRefs{
+	//	"7.13.0-SNAPSHOT": ImageRefs{
+	//		ElasticAgent: elasticAgentImageName + `@sha256:76c294cf55654bc28dde72ce936032f34ad5f40c345f3df964924778b249e581`,
+	//		Kibana:       kibanaImageName + `@sha256:78ae3b1ca09efee242d2c77597dfab18670e984adb96c2407ec03fe07ceca4f6`,
+	//	},
+	//  }
+
+	return &config
+}
 
 // ApplicationConfiguration represents the configuration of the elastic-package.
 type ApplicationConfiguration struct {
@@ -33,7 +65,10 @@ type ApplicationConfiguration struct {
 }
 
 type configFile struct {
-	Stack stack `yaml:"stack"`
+	Stack   stack `yaml:"stack"`
+	Profile struct {
+		Current string `yaml:"current"`
+	} `yaml:"profile"`
 }
 
 type stack struct {
@@ -77,6 +112,24 @@ func (ac *ApplicationConfiguration) StackImageRefs(version string) ImageRefs {
 	refs.Elasticsearch = stringOrDefault(refs.Elasticsearch, fmt.Sprintf("%s:%s", elasticsearchImageName, version))
 	refs.Kibana = stringOrDefault(refs.Kibana, fmt.Sprintf("%s:%s", kibanaImageName, version))
 	return refs
+}
+
+// CurrentProfile returns the current profile, or the default one if not set.
+func (ac *ApplicationConfiguration) CurrentProfile() string {
+	fromEnv := os.Getenv(ProfileNameEnvVar)
+	if fromEnv != "" {
+		return fromEnv
+	}
+	current := ac.c.Profile.Current
+	if current == "" {
+		return profile.DefaultProfile
+	}
+	return current
+}
+
+// SetCurrentProfile sets the current profile.
+func (ac *ApplicationConfiguration) SetCurrentProfile(name string) {
+	ac.c.Profile.Current = name
 }
 
 // selectElasticAgentImageName function returns the appropriate image name for Elastic-Agent depending on the stack version.
