@@ -410,7 +410,7 @@ assert:
   event_count: 3
 ```
 
-The `data_stream.vars.request_url` corresponds to a path in the `_dev/deploy/docker/files/config.yml` file
+The `data_stream.vars.request_url` corresponds to a path in the `_dev/deploy/docker/files/config.yml` file.
 
 The `assert.event_count` field corresponds to the expected number of events in the corresponding path in the `_dev/deploy/docker/files/config.yml` file
 
