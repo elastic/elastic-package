@@ -105,6 +105,10 @@ User profiles are not overwritten on upgrade of elastic-stack, and can be freely
 			if err != nil {
 				return errors.Wrap(err, "error listing all profiles")
 			}
+			if len(profileList) == 0 {
+				fmt.Println("There are no profiles yet.")
+				return nil
+			}
 
 			format, err := cmd.Flags().GetString(cobraext.ProfileFormatFlagName)
 			if err != nil {

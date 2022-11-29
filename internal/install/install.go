@@ -13,6 +13,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/configuration/locations"
+	"github.com/elastic/elastic-package/internal/profile"
 )
 
 const versionFilename = "version"
@@ -55,6 +56,17 @@ func EnsureInstalled() error {
 	err = writeVersionFile(elasticPackagePath)
 	if err != nil {
 		return errors.Wrap(err, "writing version file failed")
+	}
+
+	// Create initial profile:
+	options := profile.Options{
+		PackagePath:       elasticPackagePath.ProfileDir(),
+		Name:              profile.DefaultProfile,
+		OverwriteExisting: false,
+	}
+	err = profile.CreateProfile(options)
+	if err != nil {
+		return errors.Wrap(err, "creation of initial profile failed")
 	}
 
 	if err := createServiceLogsDir(elasticPackagePath); err != nil {

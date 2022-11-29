@@ -89,7 +89,7 @@ func setupStackCommand() *cobraext.Command {
 				if err != nil {
 					return errors.Wrap(err, "error listing known profiles")
 				}
-				return fmt.Errorf("%s is not a valid profile, known profiles are: %s", profileName, pList)
+				return fmt.Errorf("%s is not a valid profile, known profiles are: %s", profileName, strings.Join(pList, ", "))
 			}
 			if err != nil {
 				return errors.Wrap(err, "error loading profile")

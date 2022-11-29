@@ -80,6 +80,29 @@ var (
 		},
 		&resource.File{
 			Provider: "stack-file",
+			Path:     "service_tokens",
+			Content:  staticSource.File("_static/service_tokens"),
+		},
+		&resource.File{
+			Provider:     "stack-file",
+			Path:         "ingest-geoip/GeoLite2-ASN.mmdb",
+			CreateParent: true,
+			Content:      staticSource.File("_static/GeoLite2-ASN.mmdb"),
+		},
+		&resource.File{
+			Provider:     "stack-file",
+			Path:         "ingest-geoip/GeoLite2-City.mmdb",
+			CreateParent: true,
+			Content:      staticSource.File("_static/GeoLite2-City.mmdb"),
+		},
+		&resource.File{
+			Provider:     "stack-file",
+			Path:         "ingest-geoip/GeoLite2-Country.mmdb",
+			CreateParent: true,
+			Content:      staticSource.File("_static/GeoLite2-Country.mmdb"),
+		},
+		&resource.File{
+			Provider: "stack-file",
 			Path:     KibanaConfigFile,
 			Content:  staticSource.Template("_static/kibana.yml.tmpl"),
 		},
@@ -259,6 +282,9 @@ func DeleteProfile(profileName string) error {
 // FetchAllProfiles returns a list of profile values
 func FetchAllProfiles(elasticPackagePath string) ([]Metadata, error) {
 	dirList, err := os.ReadDir(elasticPackagePath)
+	if errors.Is(err, os.ErrNotExist) {
+		return []Metadata{}, nil
+	}
 	if err != nil {
 		return []Metadata{}, fmt.Errorf("error reading from directory %s: %w", elasticPackagePath, err)
 	}

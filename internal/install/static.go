@@ -15,17 +15,5 @@ var terraformDeployerYml string
 //go:embed _static/terraform_deployer_run.sh
 var terraformDeployerRun string
 
-//go:embed _static/GeoLite2-ASN.mmdb
-var geoIpAsnMmdb string
-
-//go:embed _static/GeoLite2-City.mmdb
-var geoIpCityMmdb string
-
-//go:embed _static/GeoLite2-Country.mmdb
-var geoIpCountryMmdb string
-
-//go:embed _static/service_tokens
-var serviceTokens string
-
 //go:embed _static/docker-custom-agent-base.yml
 var dockerCustomAgentBaseYml string

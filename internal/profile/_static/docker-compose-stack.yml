@@ -12,8 +12,8 @@ services:
     volumes:
       - "./elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml"
       - "../certs/elasticsearch:/usr/share/elasticsearch/config/certs"
-      - "../../../stack/ingest-geoip:/usr/share/elasticsearch/config/ingest-geoip"
-      - "../../../stack/service_tokens:/usr/share/elasticsearch/config/service_tokens"
+      - "./ingest-geoip:/usr/share/elasticsearch/config/ingest-geoip"
+      - "./service_tokens:/usr/share/elasticsearch/config/service_tokens"
     ports:
       - "127.0.0.1:9200:9200"
 
