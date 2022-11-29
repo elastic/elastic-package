@@ -115,12 +115,6 @@ func writeStackResources(elasticPackagePath *locations.LocationManager) error {
 		return errors.Wrapf(err, "creating directory failed (path: %s)", elasticPackagePath.PackagesDir())
 	}
 
-	kibanaHealthcheckPath := filepath.Join(elasticPackagePath.StackDir(), "healthcheck.sh")
-	err = writeStaticResource(err, kibanaHealthcheckPath, kibanaHealthcheckSh)
-	if err != nil {
-		return errors.Wrapf(err, "copying healthcheck script failed (%s)", kibanaHealthcheckPath)
-	}
-
 	// Install GeoIP database
 	ingestGeoIPDir := filepath.Join(elasticPackagePath.StackDir(), "ingest-geoip")
 	err = os.MkdirAll(ingestGeoIPDir, 0755)

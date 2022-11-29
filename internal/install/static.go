@@ -6,9 +6,6 @@ package install
 
 import _ "embed"
 
-//go:embed _static/kibana_healthcheck.sh
-var kibanaHealthcheckSh string
-
 //go:embed _static/Dockerfile.terraform_deployer
 var terraformDeployerDockerfile string
 

@@ -1,3 +1,7 @@
+// Copyright Elasticsearch B.V. and/or licensed to Elasticsearch B.V. under one
+// or more contributor license agreements. Licensed under the Elastic License;
+// you may not use this file except in compliance with the Elastic License.
+
 package profile
 
 import (
@@ -27,11 +31,14 @@ const (
 	// KibanaConfigFile is the kibana config file.
 	KibanaConfigFile = "kibana.yml"
 
+	// KibanaHealthcheckFile is the kibana healthcheck.
+	KibanaHealthcheckFile = "kibana_healthcheck.sh"
+
 	// PackageRegistryConfigFile is the config file for the Elastic Package registry
 	PackageRegistryConfigFile = "package-registry.yml"
 
 	// PackageRegistryBaseImage is the base Docker image of the Elastic Package Registry.
-	PackageRegistryBaseImage = "docker.elastic.co/package-registry/distribution:snapshot"
+	PackageRegistryBaseImage = "docker.elastic.co/package-registry/package-registry:v1.15.0"
 
 	// ElasticAgentEnvFile is the elastic agent environment variables file.
 	ElasticAgentEnvFile = "elastic-agent.env"
@@ -75,6 +82,11 @@ var (
 			Provider: "stack-file",
 			Path:     KibanaConfigFile,
 			Content:  staticSource.Template("_static/kibana.yml.tmpl"),
+		},
+		&resource.File{
+			Provider: "stack-file",
+			Path:     KibanaHealthcheckFile,
+			Content:  staticSource.File("_static/kibana_healthcheck.sh"),
 		},
 		&resource.File{
 			Provider: "stack-file",
