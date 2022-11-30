@@ -5,16 +5,14 @@
 package profile
 
 import (
-	"embed"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
-	"text/template"
 
-	"github.com/Masterminds/semver"
 	"github.com/elastic/elastic-package/internal/configuration/locations"
+	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/go-resource"
 )
 
@@ -22,104 +20,15 @@ const (
 	// PackageProfileMetaFile is the filename of the profile metadata file
 	PackageProfileMetaFile = "profile.json"
 
-	// SnapshotFile is the docker-compose snapshot.yml file name.
-	SnapshotFile = "snapshot.yml"
-
-	// ElasticsearchConfigFile is the elasticsearch config file.
-	ElasticsearchConfigFile = "elasticsearch.yml"
-
-	// KibanaConfigFile is the kibana config file.
-	KibanaConfigFile = "kibana.yml"
-
-	// KibanaHealthcheckFile is the kibana healthcheck.
-	KibanaHealthcheckFile = "kibana_healthcheck.sh"
-
-	// PackageRegistryConfigFile is the config file for the Elastic Package registry
-	PackageRegistryConfigFile = "package-registry.yml"
-
-	// PackageRegistryBaseImage is the base Docker image of the Elastic Package Registry.
-	PackageRegistryBaseImage = "docker.elastic.co/package-registry/package-registry:v1.15.0"
-
-	// ElasticAgentEnvFile is the elastic agent environment variables file.
-	ElasticAgentEnvFile = "elastic-agent.env"
-
 	// DefaultProfile is the name of the default profile.
 	DefaultProfile = "default"
-
-	profileStackPath = "stack"
 )
 
-//go:embed _static
-var static embed.FS
-
 var (
-	templateFuncs = template.FuncMap{
-		"semverLessThan": semverLessThan,
-	}
-	staticSource     = resource.NewSourceFS(static).WithTemplateFuncs(templateFuncs)
 	profileResources = []resource.Resource{
 		&resource.File{
-			Provider: "profile-file",
-			Path:     PackageProfileMetaFile,
-			Content:  profileMetadataContent,
-		},
-		&resource.File{
-			Provider: "stack-file",
-			Path:     "Dockerfile.package-registry",
-			Content:  staticSource.Template("_static/Dockerfile.package-registry.tmpl"),
-		},
-		&resource.File{
-			Provider: "stack-file",
-			Path:     SnapshotFile,
-			Content:  staticSource.File("_static/docker-compose-stack.yml"),
-		},
-		&resource.File{
-			Provider: "stack-file",
-			Path:     ElasticsearchConfigFile,
-			Content:  staticSource.Template("_static/elasticsearch.yml.tmpl"),
-		},
-		&resource.File{
-			Provider: "stack-file",
-			Path:     "service_tokens",
-			Content:  staticSource.File("_static/service_tokens"),
-		},
-		&resource.File{
-			Provider:     "stack-file",
-			Path:         "ingest-geoip/GeoLite2-ASN.mmdb",
-			CreateParent: true,
-			Content:      staticSource.File("_static/GeoLite2-ASN.mmdb"),
-		},
-		&resource.File{
-			Provider:     "stack-file",
-			Path:         "ingest-geoip/GeoLite2-City.mmdb",
-			CreateParent: true,
-			Content:      staticSource.File("_static/GeoLite2-City.mmdb"),
-		},
-		&resource.File{
-			Provider:     "stack-file",
-			Path:         "ingest-geoip/GeoLite2-Country.mmdb",
-			CreateParent: true,
-			Content:      staticSource.File("_static/GeoLite2-Country.mmdb"),
-		},
-		&resource.File{
-			Provider: "stack-file",
-			Path:     KibanaConfigFile,
-			Content:  staticSource.Template("_static/kibana.yml.tmpl"),
-		},
-		&resource.File{
-			Provider: "stack-file",
-			Path:     KibanaHealthcheckFile,
-			Content:  staticSource.File("_static/kibana_healthcheck.sh"),
-		},
-		&resource.File{
-			Provider: "stack-file",
-			Path:     PackageRegistryConfigFile,
-			Content:  staticSource.File("_static/package-registry.yml"),
-		},
-		&resource.File{
-			Provider: "stack-file",
-			Path:     ElasticAgentEnvFile,
-			Content:  staticSource.Template("_static/elastic-agent.env.tmpl"),
+			Path:    PackageProfileMetaFile,
+			Content: profileMetadataContent,
 		},
 	}
 )
@@ -140,66 +49,41 @@ func CreateProfile(options Options) error {
 		options.PackagePath = loc.ProfileDir()
 	}
 
+	if options.Name == "" {
+		options.Name = DefaultProfile
+	}
+
+	if !options.OverwriteExisting {
+		_, err := LoadProfile(options.Name)
+		if err == nil {
+			return fmt.Errorf("profile %q already exists", options.Name)
+		}
+		if err != nil && err != ErrNotAProfile {
+			return fmt.Errorf("failed to check if profile %q exists: %w", options.Name, err)
+		}
+	}
+
 	// If they're creating from Default, assume they want the actual default, and
 	// not whatever is currently inside default.
 	if from := options.FromProfile; from != "" && from != DefaultProfile {
 		return createProfileFrom(options)
 	}
 
-	resources, err := initProfileResources(options)
-	if err != nil {
-		return err
-	}
-
-	return createProfile(options, resources)
-}
-
-func initProfileResources(options Options) ([]resource.Resource, error) {
-	profileName := options.Name
-	if profileName == "" {
-		profileName = DefaultProfile
-	}
-	profileDir := filepath.Join(options.PackagePath, profileName)
-
-	resources := append([]resource.Resource{}, profileResources...)
-
-	certResources, err := initTLSCertificates("profile-file", profileDir)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create TLS files: %w", err)
-	}
-	resources = append(resources, certResources...)
-
-	return resources, nil
+	return createProfile(options, profileResources)
 }
 
 func createProfile(options Options, resources []resource.Resource) error {
-	stackVersion := "8.1.0" // TODO: Parameterize this.
-
-	profileName := options.Name
-	if profileName == "" {
-		profileName = DefaultProfile
-	}
-	profileDir := filepath.Join(options.PackagePath, profileName)
-	stackDir := filepath.Join(options.PackagePath, profileName, profileStackPath)
+	profileDir := filepath.Join(options.PackagePath, options.Name)
 
 	resourceManager := resource.NewManager()
 	resourceManager.AddFacter(resource.StaticFacter{
-		"profile_name": profileName,
+		"profile_name": options.Name,
 		"profile_path": profileDir,
-
-		"registry_base_image": PackageRegistryBaseImage,
-
-		"elasticsearch_version": stackVersion,
-		"kibana_version":        stackVersion,
-		"agent_version":         stackVersion,
 	})
 
-	os.MkdirAll(stackDir, 0755)
-	resourceManager.RegisterProvider("profile-file", &resource.FileProvider{
+	os.MkdirAll(profileDir, 0755)
+	resourceManager.RegisterProvider("file", &resource.FileProvider{
 		Prefix: profileDir,
-	})
-	resourceManager.RegisterProvider("stack-file", &resource.FileProvider{
-		Prefix: stackDir,
 	})
 
 	results, err := resourceManager.Apply(resources)
@@ -222,45 +106,38 @@ func createProfileFrom(options Options) error {
 		return fmt.Errorf("failed to load profile to copy %q: %w", options.FromProfile, err)
 	}
 
-	return createProfile(options, from.resources)
+	profileDir := filepath.Join(options.PackagePath, options.Name)
+	err = files.CopyAll(from.ProfilePath, profileDir)
+	if err != nil {
+		return fmt.Errorf("failed to copy files from profile %q to %q", options.FromProfile, options.Name)
+	}
+
+	overwriteOptions := options
+	overwriteOptions.OverwriteExisting = true
+	return createProfile(overwriteOptions, profileResources)
 }
 
 // Profile manages a a given user config profile
 type Profile struct {
 	// ProfilePath is the absolute path to the profile
-	ProfilePath      string
-	ProfileStackPath string
-	ProfileName      string
+	ProfilePath string
+	ProfileName string
+}
 
-	resources []resource.Resource
+// Path returns an absolute path to the given file
+func (profile Profile) Path(names ...string) string {
+	elems := append([]string{profile.ProfilePath}, names...)
+	return filepath.Join(elems...)
 }
 
 // ErrNotAProfile is returned in cases where we don't have a valid profile directory
 var ErrNotAProfile = errors.New("not a profile")
-
-// FetchPath returns an absolute path to the given file
-func (profile Profile) FetchPath(name string) string {
-	for _, r := range profile.resources {
-		file, ok := r.(*resource.File)
-		if !ok {
-			continue
-		}
-
-		if file.Path != name {
-			continue
-		}
-
-		return filepath.Join(profile.ProfileStackPath, file.Path)
-	}
-	panic(fmt.Sprintf("%q profile file is not defined", name))
-}
 
 // ComposeEnvVars returns a list of environment variables that can be passed
 // to docker-compose for the sake of filling out paths and names in the snapshot.yml file.
 func (profile Profile) ComposeEnvVars() []string {
 	return []string{
 		fmt.Sprintf("PROFILE_NAME=%s", profile.ProfileName),
-		fmt.Sprintf("STACK_PATH=%s", profile.ProfileStackPath),
 	}
 }
 
@@ -333,19 +210,9 @@ func loadProfile(elasticPackagePath string, profileName string) (*Profile, error
 		return nil, ErrNotAProfile
 	}
 
-	resources := append([]resource.Resource{}, profileResources...)
-
-	certResources, err := initTLSCertificates("profile-file", profilePath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create TLS files: %w", err)
-	}
-	resources = append(resources, certResources...)
-
 	profile := Profile{
-		ProfileName:      profileName,
-		ProfilePath:      profilePath,
-		ProfileStackPath: filepath.Join(profilePath, profileStackPath),
-		resources:        resources,
+		ProfileName: profileName,
+		ProfilePath: profilePath,
 	}
 
 	return &profile, nil
@@ -362,17 +229,4 @@ func isProfileDir(path string) (bool, error) {
 		return false, fmt.Errorf("error stat: %s: %w", metaPath, err)
 	}
 	return true, nil
-}
-
-func semverLessThan(a, b string) (bool, error) {
-	sa, err := semver.NewVersion(a)
-	if err != nil {
-		return false, err
-	}
-	sb, err := semver.NewVersion(b)
-	if err != nil {
-		return false, err
-	}
-
-	return sa.LessThan(sb), nil
 }

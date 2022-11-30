@@ -26,7 +26,7 @@ type InitConfig struct {
 
 func StackInitConfig(elasticStackProfile *profile.Profile) (*InitConfig, error) {
 	// Read Elasticsearch username and password from Kibana configuration file.
-	body, err := os.ReadFile(elasticStackProfile.FetchPath(profile.KibanaConfigFile))
+	body, err := os.ReadFile(elasticStackProfile.Path(profileStackPath, KibanaConfigFile))
 	if err != nil {
 		return nil, errors.Wrap(err, "error reading Kibana config file")
 	}
@@ -41,7 +41,7 @@ func StackInitConfig(elasticStackProfile *profile.Profile) (*InitConfig, error) 
 	}
 
 	// Read Elasticsearch and Kibana hostnames from Elastic Stack Docker Compose configuration file.
-	p, err := compose.NewProject(DockerComposeProjectName, elasticStackProfile.FetchPath(profile.SnapshotFile))
+	p, err := compose.NewProject(DockerComposeProjectName, elasticStackProfile.Path(profileStackPath, SnapshotFile))
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create docker compose project")
 	}
@@ -68,7 +68,7 @@ func StackInitConfig(elasticStackProfile *profile.Profile) (*InitConfig, error) 
 	es := serviceComposeConfig.Services["elasticsearch"]
 	esHostPort := fmt.Sprintf("https://%s:%d", es.Ports[0].ExternalIP, es.Ports[0].ExternalPort)
 
-	caCert := elasticStackProfile.FetchPath(profile.CACertificateFile)
+	caCert := elasticStackProfile.Path(profileStackPath, CACertificateFile)
 
 	return &InitConfig{
 		ElasticsearchHostPort: esHostPort,

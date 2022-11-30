@@ -53,6 +53,11 @@ func BootUp(options Options) error {
 		fmt.Printf("- %s\n", buildPackagesPath)
 	}
 
+	err = applyResources(options.Profile, options.StackVersion)
+	if err != nil {
+		return errors.Wrap(err, "creating stack files failed")
+	}
+
 	err = dockerComposeBuild(options)
 	if err != nil {
 		return errors.Wrap(err, "building docker images failed")
