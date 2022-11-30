@@ -35,6 +35,7 @@ type envBuilder struct {
 	vars []string
 }
 
+// TODO: Use template variables instead of environment variables to parameterize docker-compose.
 func newEnvBuilder() *envBuilder {
 	return new(envBuilder)
 }
