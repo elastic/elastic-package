@@ -78,21 +78,9 @@ func setupStackCommand() *cobraext.Command {
 				return cobraext.FlagParsingError(err, cobraext.StackVersionFlagName)
 			}
 
-			profileName, err := getProfileNameFlag(cmd)
+			userProfile, err := getProfileFlag(cmd)
 			if err != nil {
 				return err
-			}
-
-			userProfile, err := profile.LoadProfile(profileName)
-			if errors.Is(err, profile.ErrNotAProfile) {
-				pList, err := availableProfilesAsAList()
-				if err != nil {
-					return errors.Wrap(err, "error listing known profiles")
-				}
-				return fmt.Errorf("%s is not a valid profile, known profiles are: %s", profileName, strings.Join(pList, ", "))
-			}
-			if err != nil {
-				return errors.Wrap(err, "error loading profile")
 			}
 
 			// Print information before starting the stack, for cases where
@@ -129,22 +117,9 @@ func setupStackCommand() *cobraext.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.Println("Take down the Elastic stack")
 
-			profileName, err := getProfileNameFlag(cmd)
+			userProfile, err := getProfileFlag(cmd)
 			if err != nil {
 				return err
-			}
-
-			userProfile, err := profile.LoadProfile(profileName)
-			if errors.Is(err, profile.ErrNotAProfile) {
-				pList, err := availableProfilesAsAList()
-				if err != nil {
-					return errors.Wrap(err, "error listing known profiles")
-				}
-				return fmt.Errorf("%s is not a valid profile, known profiles are: %s", profileName, pList)
-			}
-
-			if err != nil {
-				return errors.Wrap(err, "error loading profile")
 			}
 
 			err = stack.TearDown(stack.Options{
@@ -165,14 +140,9 @@ func setupStackCommand() *cobraext.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.Println("Update the Elastic stack")
 
-			profileName, err := getProfileNameFlag(cmd)
+			profile, err := getProfileFlag(cmd)
 			if err != nil {
 				return err
-			}
-
-			profile, err := profile.LoadProfile(profileName)
-			if err != nil {
-				return errors.Wrap(err, "error loading profile")
 			}
 
 			stackVersion, err := cmd.Flags().GetString(cobraext.StackVersionFlagName)
@@ -198,11 +168,6 @@ func setupStackCommand() *cobraext.Command {
 		Use:   "shellinit",
 		Short: "Export environment variables",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			profileName, err := getProfileNameFlag(cmd)
-			if err != nil {
-				return err
-			}
-
 			shellName, err := cmd.Flags().GetString(cobraext.ShellInitShellFlagName)
 			if err != nil {
 				return cobraext.FlagParsingError(err, cobraext.ShellInitShellFlagName)
@@ -216,9 +181,9 @@ func setupStackCommand() *cobraext.Command {
 				fmt.Fprintf(cmd.OutOrStderr(), "Detected shell: %s\n", shellName)
 			}
 
-			profile, err := profile.LoadProfile(profileName)
+			profile, err := getProfileFlag(cmd)
 			if err != nil {
-				return errors.Wrap(err, "error loading profile")
+				return err
 			}
 
 			shellCode, err := stack.ShellInit(profile, shellName)
@@ -241,14 +206,9 @@ func setupStackCommand() *cobraext.Command {
 				return cobraext.FlagParsingError(err, cobraext.StackDumpOutputFlagName)
 			}
 
-			profileName, err := getProfileNameFlag(cmd)
+			profile, err := getProfileFlag(cmd)
 			if err != nil {
 				return err
-			}
-
-			profile, err := profile.LoadProfile(profileName)
-			if err != nil {
-				return errors.Wrap(err, "error loading profile")
 			}
 
 			target, err := stack.Dump(stack.DumpOptions{
@@ -367,19 +327,35 @@ func getParentInfo(ppid int) (types.ProcessInfo, error) {
 	return parentInfo, nil
 }
 
-func getProfileNameFlag(cmd *cobra.Command) (string, error) {
+func getProfileFlag(cmd *cobra.Command) (*profile.Profile, error) {
 	profileName, err := cmd.Flags().GetString(cobraext.ProfileFlagName)
 	if err != nil {
-		return "", cobraext.FlagParsingError(err, cobraext.ProfileFlagName)
+		return nil, cobraext.FlagParsingError(err, cobraext.ProfileFlagName)
 	}
 	if profileName == "" {
 		config, err := install.Configuration()
 		if err != nil {
-			return "", fmt.Errorf("cannot read configuration: %w", err)
+			return nil, fmt.Errorf("cannot read configuration: %w", err)
 		}
 		profileName = config.CurrentProfile()
 	}
-	return profileName, nil
+
+	userProfile, err := profile.LoadProfile(profileName)
+	if errors.Is(err, profile.ErrNotAProfile) {
+		list, err := availableProfilesAsAList()
+		if err != nil {
+			return nil, errors.Wrap(err, "error listing known profiles")
+		}
+		if len(list) == 0 {
+			return nil, fmt.Errorf("%s is not a valid profile", profileName)
+		}
+		return nil, fmt.Errorf("%s is not a valid profile, known profiles are: %s", profileName, strings.Join(list, ", "))
+	}
+	if err != nil {
+		return nil, errors.Wrap(err, "error loading profile")
+	}
+
+	return userProfile, nil
 }
 
 func getShellName(exe string) string {
