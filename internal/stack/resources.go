@@ -44,6 +44,9 @@ const (
 	ElasticAgentEnvFile = "elastic-agent.env"
 
 	profileStackPath = "stack"
+
+	elasticsearchUsername = "elastic"
+	elasticsearchPassword = "changeme"
 )
 
 var (
@@ -58,7 +61,7 @@ var (
 		},
 		&resource.File{
 			Path:    SnapshotFile,
-			Content: staticSource.File("_static/docker-compose-stack.yml"),
+			Content: staticSource.Template("_static/docker-compose-stack.yml.tmpl"),
 		},
 		&resource.File{
 			Path:    ElasticsearchConfigFile,
@@ -89,7 +92,7 @@ var (
 		},
 		&resource.File{
 			Path:    KibanaHealthcheckFile,
-			Content: staticSource.File("_static/kibana_healthcheck.sh"),
+			Content: staticSource.Template("_static/kibana_healthcheck.sh.tmpl"),
 		},
 		&resource.File{
 			Path:    PackageRegistryConfigFile,
@@ -111,6 +114,9 @@ func applyResources(profile *profile.Profile, stackVersion string) error {
 		"elasticsearch_version": stackVersion,
 		"kibana_version":        stackVersion,
 		"agent_version":         stackVersion,
+
+		"username": elasticsearchUsername,
+		"password": elasticsearchPassword,
 	})
 
 	os.MkdirAll(stackDir, 0755)

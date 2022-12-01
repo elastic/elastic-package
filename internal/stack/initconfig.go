@@ -6,10 +6,8 @@ package stack
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/pkg/errors"
-	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/compose"
 	"github.com/elastic/elastic-package/internal/install"
@@ -25,21 +23,6 @@ type InitConfig struct {
 }
 
 func StackInitConfig(elasticStackProfile *profile.Profile) (*InitConfig, error) {
-	// Read Elasticsearch username and password from Kibana configuration file.
-	body, err := os.ReadFile(elasticStackProfile.Path(profileStackPath, KibanaConfigFile))
-	if err != nil {
-		return nil, errors.Wrap(err, "error reading Kibana config file")
-	}
-
-	var kibanaCfg struct {
-		ElasticsearchUsername string `yaml:"elasticsearch.username"`
-		ElasticsearchPassword string `yaml:"elasticsearch.password"`
-	}
-	err = yaml.Unmarshal(body, &kibanaCfg)
-	if err != nil {
-		return nil, errors.Wrap(err, "unmarshalling Kibana configuration failed")
-	}
-
 	// Read Elasticsearch and Kibana hostnames from Elastic Stack Docker Compose configuration file.
 	p, err := compose.NewProject(DockerComposeProjectName, elasticStackProfile.Path(profileStackPath, SnapshotFile))
 	if err != nil {
@@ -72,8 +55,8 @@ func StackInitConfig(elasticStackProfile *profile.Profile) (*InitConfig, error) 
 
 	return &InitConfig{
 		ElasticsearchHostPort: esHostPort,
-		ElasticsearchUsername: kibanaCfg.ElasticsearchUsername,
-		ElasticsearchPassword: kibanaCfg.ElasticsearchPassword,
+		ElasticsearchUsername: elasticsearchUsername,
+		ElasticsearchPassword: elasticsearchPassword,
 		KibanaHostPort:        kibHostPort,
 		CACertificatePath:     caCert,
 	}, nil

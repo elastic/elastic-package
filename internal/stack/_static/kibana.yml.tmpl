@@ -10,8 +10,8 @@ elasticsearch.hosts: [ "https://elasticsearch:9200" ]
 elasticsearch.ssl.certificateAuthorities: "/usr/share/kibana/config/certs/ca-cert.pem"
 
 {{ if semverLessThan $version "8.0.0" }}
-elasticsearch.username: elastic
-elasticsearch.password: changeme
+elasticsearch.username: {{ fact "username" }}
+elasticsearch.password: {{ fact "password" }}
 
 xpack.monitoring.ui.container.elasticsearch.enabled: true
 xpack.fleet.enabled: true
