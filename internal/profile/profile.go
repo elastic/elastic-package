@@ -11,9 +11,10 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/elastic/go-resource"
+
 	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/files"
-	"github.com/elastic/go-resource"
 )
 
 const (

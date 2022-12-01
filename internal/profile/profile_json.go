@@ -13,8 +13,9 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/elastic/elastic-package/internal/version"
 	"github.com/elastic/go-resource"
+
+	"github.com/elastic/elastic-package/internal/version"
 )
 
 // Metadata stores the data associated with a given profile

@@ -11,8 +11,9 @@ import (
 	"io"
 	"path/filepath"
 
-	"github.com/elastic/elastic-package/internal/certs"
 	"github.com/elastic/go-resource"
+
+	"github.com/elastic/elastic-package/internal/certs"
 )
 
 // tlsServices is the list of server TLS certificates that will be
