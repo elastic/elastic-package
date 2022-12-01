@@ -5,12 +5,6 @@
 package stack
 
 import (
-	"fmt"
-
-	"github.com/pkg/errors"
-
-	"github.com/elastic/elastic-package/internal/compose"
-	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/profile"
 )
 
@@ -22,42 +16,17 @@ type InitConfig struct {
 	CACertificatePath     string
 }
 
-func StackInitConfig(elasticStackProfile *profile.Profile) (*InitConfig, error) {
-	// Read Elasticsearch and Kibana hostnames from Elastic Stack Docker Compose configuration file.
-	p, err := compose.NewProject(DockerComposeProjectName, elasticStackProfile.Path(profileStackPath, SnapshotFile))
+func StackInitConfig(profile *profile.Profile) (*InitConfig, error) {
+	config, err := loadConfig(profile)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not create docker compose project")
+		return nil, err
 	}
-
-	appConfig, err := install.Configuration()
-	if err != nil {
-		return nil, errors.Wrap(err, "can't read application configuration")
-	}
-
-	serviceComposeConfig, err := p.Config(compose.CommandOptions{
-		Env: newEnvBuilder().
-			withEnvs(appConfig.StackImageRefs(install.DefaultStackVersion).AsEnv()).
-			withEnvs(elasticStackProfile.ComposeEnvVars()).
-			withEnv(stackVariantAsEnv(install.DefaultStackVersion)).
-			build(),
-	})
-	if err != nil {
-		return nil, errors.Wrap(err, "could not get Docker Compose configuration for service")
-	}
-
-	kib := serviceComposeConfig.Services["kibana"]
-	kibHostPort := fmt.Sprintf("https://%s:%d", kib.Ports[0].ExternalIP, kib.Ports[0].ExternalPort)
-
-	es := serviceComposeConfig.Services["elasticsearch"]
-	esHostPort := fmt.Sprintf("https://%s:%d", es.Ports[0].ExternalIP, es.Ports[0].ExternalPort)
-
-	caCert := elasticStackProfile.Path(profileStackPath, CACertificateFile)
 
 	return &InitConfig{
-		ElasticsearchHostPort: esHostPort,
-		ElasticsearchUsername: elasticsearchUsername,
-		ElasticsearchPassword: elasticsearchPassword,
-		KibanaHostPort:        kibHostPort,
-		CACertificatePath:     caCert,
+		ElasticsearchHostPort: config.ElasticsearchHost,
+		ElasticsearchUsername: config.ElasticsearchUsername,
+		ElasticsearchPassword: config.ElasticsearchPassword,
+		KibanaHostPort:        config.KibanaHost,
+		CACertificatePath:     config.CACertFile,
 	}, nil
 }

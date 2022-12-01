@@ -39,7 +39,7 @@ type Provider interface {
 	Dump(DumpOptions) (string, error)
 
 	// Status obtains status information of the stack.
-	Status() ([]ServiceStatus, error)
+	Status(Options) ([]ServiceStatus, error)
 }
 
 // BuildProvider returns the provider for the given name.
@@ -71,6 +71,6 @@ func (*composeProvider) Dump(options DumpOptions) (string, error) {
 	return Dump(options)
 }
 
-func (*composeProvider) Status() ([]ServiceStatus, error) {
+func (*composeProvider) Status(options Options) ([]ServiceStatus, error) {
 	return Status()
 }

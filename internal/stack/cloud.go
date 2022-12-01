@@ -37,6 +37,6 @@ func (*cloudProvider) Dump(options DumpOptions) (string, error) {
 	return "", fmt.Errorf("not implemented")
 }
 
-func (*cloudProvider) Status() ([]ServiceStatus, error) {
+func (*cloudProvider) Status(options Options) ([]ServiceStatus, error) {
 	return nil, fmt.Errorf("not implemented")
 }

@@ -68,6 +68,19 @@ func BootUp(options Options) error {
 		return errors.Wrap(err, "running docker-compose failed")
 	}
 
+	config := Config{
+		Provider:              ProviderCompose,
+		ElasticsearchHost:     "https://127.0.0.1:9200",
+		ElasticsearchUsername: elasticsearchUsername,
+		ElasticsearchPassword: elasticsearchPassword,
+		KibanaHost:            "https://127.0.0.1:5601",
+		CACertFile:            options.Profile.Path(profileStackPath, CACertificateFile),
+	}
+	err = storeConfig(options.Profile, config)
+	if err != nil {
+		return errors.Wrap(err, "failed to store config")
+	}
+
 	return nil
 }
 

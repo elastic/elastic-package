@@ -261,7 +261,9 @@ func setupStackCommand() *cobraext.Command {
 				return err
 			}
 
-			servicesStatus, err := provider.Status()
+			servicesStatus, err := provider.Status(stack.Options{
+				Profile: profile,
+			})
 			if err != nil {
 				return errors.Wrap(err, "failed getting stack status")
 			}
