@@ -11,17 +11,17 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"time"
 
 	"github.com/elastic/cloud-sdk-go/pkg/api"
 	"github.com/elastic/cloud-sdk-go/pkg/api/deploymentapi"
 	"github.com/elastic/cloud-sdk-go/pkg/api/deploymentapi/deptemplateapi"
 	"github.com/elastic/cloud-sdk-go/pkg/auth"
 	"github.com/elastic/cloud-sdk-go/pkg/models"
+	"github.com/elastic/cloud-sdk-go/pkg/plan"
+	"github.com/elastic/cloud-sdk-go/pkg/plan/planutil"
 
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/profile"
-	"github.com/elastic/elastic-package/internal/signal"
 )
 
 const (
@@ -89,6 +89,7 @@ func (cp *cloudProvider) BootUp(options Options) error {
 	region := "gcp-europe-west3"
 	templateID := "gcp-io-optimized"
 
+	logger.Debugf("Getting deployment template %q", templateID)
 	template, err := deptemplateapi.Get(deptemplateapi.GetParams{
 		API:          cp.api,
 		TemplateID:   templateID,
@@ -115,6 +116,7 @@ func (cp *cloudProvider) BootUp(options Options) error {
 		plan.DeploymentTemplate.ID = &templateID
 	}
 
+	logger.Debugf("Creating deployment %q", name)
 	res, err := deploymentapi.Create(deploymentapi.CreateParams{
 		API:     cp.api,
 		Request: payload,
@@ -138,6 +140,7 @@ func (cp *cloudProvider) BootUp(options Options) error {
 		return fmt.Errorf("deployment created, but couldn't get its ID, check in the console UI")
 	}
 	config.Parameters["cloud_deployment_id"] = *deploymentID
+
 	for _, resource := range res.Resources {
 		kind := resource.Kind
 		if kind == nil {
@@ -155,51 +158,43 @@ func (cp *cloudProvider) BootUp(options Options) error {
 		}
 	}
 
-	// Storing once before getting the endpoints, so we have the ID.
+	deployment, err := deploymentapi.Get(deploymentapi.GetParams{
+		API:          cp.api,
+		DeploymentID: *deploymentID,
+	})
+	if err != nil {
+		return fmt.Errorf("couldn't check deployment health: %w", err)
+	}
+
+	config.ElasticsearchHost, err = cp.getServiceURL(deployment.Resources.Elasticsearch)
+	if err != nil {
+		return fmt.Errorf("failed to get elasticsearch host: %w", err)
+	}
+	config.KibanaHost, err = cp.getServiceURL(deployment.Resources.Kibana)
+	if err != nil {
+		return fmt.Errorf("failed to get kibana host: %w", err)
+	}
+	config.Parameters["fleet_url"], err = cp.getServiceURL(deployment.Resources.IntegrationsServer)
+	if err != nil {
+		return fmt.Errorf("failed to get fleet host: %w", err)
+	}
+
 	err = storeConfig(cp.profile, config)
 	if err != nil {
 		return fmt.Errorf("failed to store config: %w", err)
 	}
 
-	for {
-		deployment, err := deploymentapi.Get(deploymentapi.GetParams{
+	logger.Debug("Waiting for creation plan to be completed")
+	err = planutil.TrackChange(planutil.TrackChangeParams{
+		TrackChangeParams: plan.TrackChangeParams{
 			API:          cp.api,
 			DeploymentID: *deploymentID,
-		})
-		if err != nil {
-			return fmt.Errorf("couldn't check deployment health: %w", err)
-		}
-
-		if healthy := deployment.Healthy; healthy == nil || !*healthy {
-			if signal.SIGINT() {
-				return fmt.Errorf("wait interrupted")
-			}
-			time.Sleep(1 * time.Second)
-			continue
-		}
-
-		// TODO: Check that resources are healthy too.
-
-		config.ElasticsearchHost, err = cp.getServiceURL(deployment.Resources.Elasticsearch)
-		if err != nil {
-			return fmt.Errorf("failed to get elasticsearch host: %w", err)
-		}
-		config.KibanaHost, err = cp.getServiceURL(deployment.Resources.Kibana)
-		if err != nil {
-			return fmt.Errorf("failed to get kibana host: %w", err)
-		}
-		config.Parameters["fleet_url"], err = cp.getServiceURL(deployment.Resources.IntegrationsServer)
-		if err != nil {
-			return fmt.Errorf("failed to get fleet host: %w", err)
-		}
-
-		break
-	}
-
-	// Store the configuration again now with the service urls.
-	err = storeConfig(cp.profile, config)
+		},
+		Writer: &cloudTrackWriter{},
+		Format: "text",
+	})
 	if err != nil {
-		return fmt.Errorf("failed to store config: %w", err)
+		return fmt.Errorf("failed to track cluster creation", err)
 	}
 
 	return nil
@@ -225,16 +220,6 @@ func (cp *cloudProvider) TearDown(options Options) error {
 		return fmt.Errorf("failed to shutdown deployment: %w", err)
 	}
 
-	/*
-		_, err = deploymentapi.Delete(deploymentapi.DeleteParams{
-			API:          cp.api,
-			DeploymentID: *deployment.ID,
-		})
-		if err != nil {
-			return fmt.Errorf("failed to remove deployment: %w", err)
-		}
-	*/
-
 	return nil
 }
 
@@ -253,11 +238,21 @@ func (cp *cloudProvider) Status(options Options) ([]ServiceStatus, error) {
 		return nil, err
 	}
 
+	status, _ := cp.deploymentStatus(deployment)
+	return status, nil
+}
+
+func (*cloudProvider) deploymentStatus(deployment *models.DeploymentGetResponse) ([]ServiceStatus, bool) {
+	allHealthy := true
 	healthStatus := func(healthy *bool) string {
 		if healthy != nil && *healthy {
 			return "healthy"
 		}
+		allHealthy = false
 		return "unhealthy"
+	}
+	if healthy := deployment.Healthy; healthy == nil || !*healthy {
+		allHealthy = false
 	}
 
 	var status []ServiceStatus
@@ -306,7 +301,7 @@ func (cp *cloudProvider) Status(options Options) ([]ServiceStatus, error) {
 			})
 		}
 	}
-	return status, nil
+	return status, allHealthy
 }
 
 func (cp *cloudProvider) currentDeployment() (*models.DeploymentGetResponse, error) {
@@ -359,4 +354,11 @@ func (*cloudProvider) getServiceURL(resourcesResponse any) (string, error) {
 		}
 	}
 	return "", fmt.Errorf("url not found")
+}
+
+type cloudTrackWriter struct{}
+
+func (*cloudTrackWriter) Write(p []byte) (n int, err error) {
+	logger.Debug(string(p))
+	return len(p), nil
 }
