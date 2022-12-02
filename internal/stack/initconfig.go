@@ -17,7 +17,7 @@ type InitConfig struct {
 }
 
 func StackInitConfig(profile *profile.Profile) (*InitConfig, error) {
-	config, err := loadConfig(profile)
+	config, err := LoadConfig(profile)
 	if err != nil {
 		return nil, err
 	}

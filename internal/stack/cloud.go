@@ -79,7 +79,7 @@ func (cp *cloudProvider) BootUp(options Options) error {
 	if err == nil {
 		// Do nothing, deployment already exists.
 		// TODO: Migrate configuration if changed.
-		config, err := loadConfig(cp.profile)
+		config, err := LoadConfig(cp.profile)
 		if err != nil {
 			return err
 		}
@@ -137,6 +137,7 @@ func (cp *cloudProvider) BootUp(options Options) error {
 	}
 
 	var config Config
+	config.Provider = ProviderCloud
 	config.Parameters = map[string]string{
 		"cloud_deployment_alias": res.Alias,
 	}
@@ -312,7 +313,7 @@ func (*cloudProvider) deploymentStatus(deployment *models.DeploymentGetResponse)
 }
 
 func (cp *cloudProvider) currentDeployment() (*models.DeploymentGetResponse, error) {
-	config, err := loadConfig(cp.profile)
+	config, err := LoadConfig(cp.profile)
 	if err != nil {
 		return nil, err
 	}

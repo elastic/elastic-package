@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/elastic/elastic-package/internal/profile"
 )
@@ -36,7 +37,7 @@ func defaultConfig() Config {
 	}
 }
 
-func loadConfig(profile *profile.Profile) (Config, error) {
+func LoadConfig(profile *profile.Profile) (Config, error) {
 	d, err := os.ReadFile(configPath(profile))
 	if errors.Is(err, os.ErrNotExist) {
 		return defaultConfig(), nil
@@ -58,6 +59,11 @@ func storeConfig(profile *profile.Profile, config Config) error {
 	d, err := json.Marshal(config)
 	if err != nil {
 		return fmt.Errorf("failed to encode stack config: %w", err)
+	}
+
+	err = os.MkdirAll(filepath.Dir(configPath(profile)), 0755)
+	if err != nil {
+		return fmt.Errorf("failed to create parent directory: %w", err)
 	}
 
 	err = os.WriteFile(configPath(profile), d, 0644)

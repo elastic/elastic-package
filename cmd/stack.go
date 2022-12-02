@@ -44,7 +44,7 @@ By default the latest released version of the stack is spun up but it is possibl
 
 Be aware that a common issue while trying to boot up the stack is that your Docker environments settings are too low in terms of memory threshold.
 
-To ęxpose local packages in the Package Registry, build them first and boot up the stack from inside of the Git repository containing the package (e.g. elastic/integrations). They will be copied to the development stack (~/.elastic-package/stack/development) and used to build a custom Docker image of the Package Registry.
+To expose local packages in the Package Registry, build them first and boot up the stack from inside of the Git repository containing the package (e.g. elastic/integrations). They will be copied to the development stack (~/.elastic-package/stack/development) and used to build a custom Docker image of the Package Registry.
 
 For details on how to connect the service with the Elastic stack, see the [service command](https://github.com/elastic/elastic-package/blob/main/README.md#elastic-package-service).`
 
@@ -83,7 +83,7 @@ func setupStackCommand() *cobraext.Command {
 				return err
 			}
 
-			provider, err := getProviderFlag(cmd, profile)
+			provider, err := getProviderFromProfile(cmd, profile, true)
 			if err != nil {
 				return err
 			}
@@ -109,6 +109,7 @@ func setupStackCommand() *cobraext.Command {
 	upCommand.Flags().StringSliceP(cobraext.StackServicesFlagName, "s", nil,
 		fmt.Sprintf(cobraext.StackServicesFlagDescription, strings.Join(availableServicesAsList(), ",")))
 	upCommand.Flags().StringP(cobraext.StackVersionFlagName, "", install.DefaultStackVersion, cobraext.StackVersionFlagDescription)
+	upCommand.Flags().String(cobraext.StackProviderFlagName, "", fmt.Sprintf(cobraext.StackProviderFlagDescription, strings.Join(stack.SupportedProviders, ", ")))
 
 	downCommand := &cobra.Command{
 		Use:   "down",
@@ -121,7 +122,7 @@ func setupStackCommand() *cobraext.Command {
 				return err
 			}
 
-			provider, err := getProviderFlag(cmd, profile)
+			provider, err := getProviderFromProfile(cmd, profile, false)
 			if err != nil {
 				return err
 			}
@@ -150,7 +151,7 @@ func setupStackCommand() *cobraext.Command {
 				return err
 			}
 
-			provider, err := getProviderFlag(cmd, profile)
+			provider, err := getProviderFromProfile(cmd, profile, false)
 			if err != nil {
 				return err
 			}
@@ -222,7 +223,7 @@ func setupStackCommand() *cobraext.Command {
 				return err
 			}
 
-			provider, err := getProviderFlag(cmd, profile)
+			provider, err := getProviderFromProfile(cmd, profile, false)
 			if err != nil {
 				return err
 			}
@@ -252,7 +253,7 @@ func setupStackCommand() *cobraext.Command {
 				return err
 			}
 
-			provider, err := getProviderFlag(cmd, profile)
+			provider, err := getProviderFromProfile(cmd, profile, false)
 			if err != nil {
 				return err
 			}
@@ -277,7 +278,6 @@ func setupStackCommand() *cobraext.Command {
 		Long:  stackLongDescription,
 	}
 	cmd.PersistentFlags().StringP(cobraext.ProfileFlagName, "p", "", fmt.Sprintf(cobraext.ProfileFlagDescription, install.ProfileNameEnvVar))
-	cmd.PersistentFlags().String(cobraext.StackProviderFlagName, "compose", fmt.Sprintf(cobraext.StackProviderFlagDescription, strings.Join(stack.SupportedProviders, ", ")))
 	cmd.AddCommand(
 		upCommand,
 		downCommand,
@@ -376,13 +376,24 @@ func getProfileFlag(cmd *cobra.Command) (*profile.Profile, error) {
 	return p, nil
 }
 
-func getProviderFlag(cmd *cobra.Command, profile *profile.Profile) (stack.Provider, error) {
-	providerName, err := cmd.Flags().GetString(cobraext.StackProviderFlagName)
+func getProviderFromProfile(cmd *cobra.Command, profile *profile.Profile, checkFlag bool) (stack.Provider, error) {
+	var providerName = stack.DefaultProvider
+	stackConfig, err := stack.LoadConfig(profile)
 	if err != nil {
-		return nil, cobraext.FlagParsingError(err, cobraext.StackProviderFlagName)
+		return nil, err
 	}
-	if providerName == "" {
-		providerName = stack.DefaultProvider
+	if stackConfig.Provider != "" {
+		providerName = stackConfig.Provider
+	}
+
+	if checkFlag {
+		providerFlag, err := cmd.Flags().GetString(cobraext.StackProviderFlagName)
+		if err != nil {
+			return nil, cobraext.FlagParsingError(err, cobraext.StackProviderFlagName)
+		}
+		if providerFlag != "" {
+			providerName = providerFlag
+		}
 	}
 
 	return stack.BuildProvider(providerName, profile)
