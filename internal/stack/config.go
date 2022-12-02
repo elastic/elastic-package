@@ -31,16 +31,23 @@ func configPath(profile *profile.Profile) string {
 	return profile.Path(profileStackPath, configFileName)
 }
 
-func defaultConfig() Config {
+func defaultConfig(profile *profile.Profile) Config {
 	return Config{
 		Provider: DefaultProvider,
+
+		// Hard-coded default values for backwards-compatibility.
+		ElasticsearchHost:     "https://127.0.0.1:9200",
+		ElasticsearchUsername: elasticsearchUsername,
+		ElasticsearchPassword: elasticsearchPassword,
+		KibanaHost:            "https://127.0.0.1:5601",
+		CACertFile:            profile.Path(profileStackPath, CACertificateFile),
 	}
 }
 
 func LoadConfig(profile *profile.Profile) (Config, error) {
 	d, err := os.ReadFile(configPath(profile))
 	if errors.Is(err, os.ErrNotExist) {
-		return defaultConfig(), nil
+		return defaultConfig(profile), nil
 	}
 	if err != nil {
 		return Config{}, fmt.Errorf("failed to read stack config: %w", err)
