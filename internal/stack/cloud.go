@@ -19,12 +19,23 @@ import (
 	"github.com/elastic/cloud-sdk-go/pkg/auth"
 	"github.com/elastic/cloud-sdk-go/pkg/models"
 
+	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/profile"
 	"github.com/elastic/elastic-package/internal/signal"
 )
 
-// Docs: https://www.elastic.co/guide/en/cloud/current/ec-api-deployment-crud.html
-const cloudAPI = "https://api.elastic-cloud.com/api/v1"
+const (
+	paramCloudDeploymentID    = "cloud_deployment_id"
+	paramCloudDeploymentAlias = "cloud_deployment_alias"
+
+	// Docs: https://www.elastic.co/guide/en/cloud/current/ec-api-deployment-crud.html
+	cloudAPI = "https://api.elastic-cloud.com/api/v1"
+)
+
+var (
+	deploymentNotExistErr     = errors.New("deployment does not exist")
+	deploymentAlreadyExistErr = errors.New("deployment already exists")
+)
 
 var cloudDeploymentsAPI string
 
@@ -40,40 +51,38 @@ func init() {
 }
 
 type cloudProvider struct {
+	api     *api.API
 	profile *profile.Profile
 }
 
-func (cp *cloudProvider) getAPI() (*api.API, error) {
+func newCloudProvider(profile *profile.Profile) (*cloudProvider, error) {
 	apiKey := os.Getenv("EC_API_KEY")
 	if apiKey == "" {
 		return nil, errors.New("unable to obtain value from EC_API_KEY environment variable")
 	}
-
-	ec, err := api.NewAPI(api.Config{
+	api, err := api.NewAPI(api.Config{
 		Client:     new(http.Client),
 		AuthWriter: auth.APIKey(apiKey),
 	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to initialize API client: %w", err)
 	}
 
-	return ec, nil
-
-}
-
-func newCloudProvider(profile *profile.Profile) (*cloudProvider, error) {
 	return &cloudProvider{
+		api:     api,
 		profile: profile,
 	}, nil
 }
 
 func (cp *cloudProvider) BootUp(options Options) error {
-	api, err := cp.getAPI()
-	if err != nil {
+	_, err := cp.currentDeployment()
+	if err == nil {
+		// Do nothing, deployment already exists.
+		// TODO: Migrate configuration if changed.
+		return nil
+	} else if err != nil && err != deploymentNotExistErr {
 		return err
 	}
-
-	// TODO: Check if the deployment already exists.
 
 	// TODO: Parameterize this.
 	name := "elastic-package-test"
@@ -81,7 +90,7 @@ func (cp *cloudProvider) BootUp(options Options) error {
 	templateID := "gcp-io-optimized"
 
 	template, err := deptemplateapi.Get(deptemplateapi.GetParams{
-		API:          api,
+		API:          cp.api,
 		TemplateID:   templateID,
 		Region:       region,
 		StackVersion: options.StackVersion,
@@ -107,7 +116,7 @@ func (cp *cloudProvider) BootUp(options Options) error {
 	}
 
 	res, err := deploymentapi.Create(deploymentapi.CreateParams{
-		API:     api,
+		API:     cp.api,
 		Request: payload,
 		Overrides: &deploymentapi.PayloadOverrides{
 			Name: name,
@@ -122,13 +131,13 @@ func (cp *cloudProvider) BootUp(options Options) error {
 
 	var config Config
 	config.Parameters = map[string]string{
-		"alias": res.Alias,
+		"cloud_deployment_alias": res.Alias,
 	}
 	deploymentID := res.ID
 	if deploymentID == nil {
 		return fmt.Errorf("deployment created, but couldn't get its ID, check in the console UI")
 	}
-	config.Parameters["id"] = *deploymentID
+	config.Parameters["cloud_deployment_id"] = *deploymentID
 	for _, resource := range res.Resources {
 		kind := resource.Kind
 		if kind == nil {
@@ -154,7 +163,7 @@ func (cp *cloudProvider) BootUp(options Options) error {
 
 	for {
 		deployment, err := deploymentapi.Get(deploymentapi.GetParams{
-			API:          api,
+			API:          cp.api,
 			DeploymentID: *deploymentID,
 		})
 		if err != nil {
@@ -196,6 +205,135 @@ func (cp *cloudProvider) BootUp(options Options) error {
 	return nil
 }
 
+func (cp *cloudProvider) TearDown(options Options) error {
+	deployment, err := cp.currentDeployment()
+	if err != nil {
+		return fmt.Errorf("failed to find current deployment: %w", err)
+	}
+	if deployment.ID == nil {
+		return fmt.Errorf("deployment doesn't have id?")
+	}
+
+	logger.Debugf("Deleting deployment %q", *deployment.ID)
+
+	_, err = deploymentapi.Shutdown(deploymentapi.ShutdownParams{
+		API:          cp.api,
+		DeploymentID: *deployment.ID,
+		SkipSnapshot: true,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to shutdown deployment: %w", err)
+	}
+
+	/*
+		_, err = deploymentapi.Delete(deploymentapi.DeleteParams{
+			API:          cp.api,
+			DeploymentID: *deployment.ID,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to remove deployment: %w", err)
+		}
+	*/
+
+	return nil
+}
+
+func (*cloudProvider) Update(options Options) error {
+	fmt.Println("Nothing to do.")
+	return nil
+}
+
+func (*cloudProvider) Dump(options DumpOptions) (string, error) {
+	return "", fmt.Errorf("not implemented")
+}
+
+func (cp *cloudProvider) Status(options Options) ([]ServiceStatus, error) {
+	deployment, err := cp.currentDeployment()
+	if err != nil {
+		return nil, err
+	}
+
+	healthStatus := func(healthy *bool) string {
+		if healthy != nil && *healthy {
+			return "healthy"
+		}
+		return "unhealthy"
+	}
+
+	var status []ServiceStatus
+	for _, resource := range deployment.Resources.Elasticsearch {
+		for i, instance := range resource.Info.Topology.Instances {
+			var name string
+			if instance.InstanceName == nil {
+				name = fmt.Sprintf("elasticsearch-%d", i)
+			} else {
+				name = fmt.Sprintf("elasticsearch-%s", *instance.InstanceName)
+			}
+			status = append(status, ServiceStatus{
+				Name:    name,
+				Version: instance.ServiceVersion,
+				Status:  healthStatus(instance.Healthy),
+			})
+		}
+	}
+	for _, resource := range deployment.Resources.Kibana {
+		for i, instance := range resource.Info.Topology.Instances {
+			var name string
+			if instance.InstanceName == nil {
+				name = fmt.Sprintf("kibana-%d", i)
+			} else {
+				name = fmt.Sprintf("kibana-%s", *instance.InstanceName)
+			}
+			status = append(status, ServiceStatus{
+				Name:    name,
+				Version: instance.ServiceVersion,
+				Status:  healthStatus(instance.Healthy),
+			})
+		}
+	}
+	for _, resource := range deployment.Resources.IntegrationsServer {
+		for i, instance := range resource.Info.Topology.Instances {
+			var name string
+			if instance.InstanceName == nil {
+				name = fmt.Sprintf("integrations-server-%d", i)
+			} else {
+				name = fmt.Sprintf("integrations-server-%s", *instance.InstanceName)
+			}
+			status = append(status, ServiceStatus{
+				Name:    name,
+				Version: instance.ServiceVersion,
+				Status:  healthStatus(instance.Healthy),
+			})
+		}
+	}
+	return status, nil
+}
+
+func (cp *cloudProvider) currentDeployment() (*models.DeploymentGetResponse, error) {
+	config, err := loadConfig(cp.profile)
+	if err != nil {
+		return nil, err
+	}
+	deploymentID, found := config.Parameters[paramCloudDeploymentID]
+	if !found {
+		return nil, deploymentNotExistErr
+	}
+	deployment, err := deploymentapi.Get(deploymentapi.GetParams{
+		API:          cp.api,
+		DeploymentID: deploymentID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("couldn't check deployment health: %w", err)
+	}
+
+	// It seems that terminated deployments still exist, but hidden.
+	if hidden := deployment.Metadata.Hidden; hidden != nil && *hidden {
+		return nil, deploymentNotExistErr
+	}
+
+	return deployment, nil
+}
+
 func (*cloudProvider) getServiceURL(resourcesResponse any) (string, error) {
 	// Converting back and forth for easier access.
 	var resources []struct {
@@ -221,21 +359,4 @@ func (*cloudProvider) getServiceURL(resourcesResponse any) (string, error) {
 		}
 	}
 	return "", fmt.Errorf("url not found")
-}
-
-func (*cloudProvider) TearDown(options Options) error {
-	return fmt.Errorf("not implemented")
-}
-
-func (*cloudProvider) Update(options Options) error {
-	fmt.Println("Nothing to do.")
-	return nil
-}
-
-func (*cloudProvider) Dump(options DumpOptions) (string, error) {
-	return "", fmt.Errorf("not implemented")
-}
-
-func (*cloudProvider) Status(options Options) ([]ServiceStatus, error) {
-	return nil, fmt.Errorf("not implemented")
 }
