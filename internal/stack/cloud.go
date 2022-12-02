@@ -79,6 +79,11 @@ func (cp *cloudProvider) BootUp(options Options) error {
 	if err == nil {
 		// Do nothing, deployment already exists.
 		// TODO: Migrate configuration if changed.
+		config, err := loadConfig(cp.profile)
+		if err != nil {
+			return err
+		}
+		printUserConfig(options.Printer, config)
 		return nil
 	} else if err != nil && err != deploymentNotExistErr {
 		return err
@@ -178,6 +183,8 @@ func (cp *cloudProvider) BootUp(options Options) error {
 	if err != nil {
 		return fmt.Errorf("failed to get fleet host: %w", err)
 	}
+
+	printUserConfig(options.Printer, config)
 
 	err = storeConfig(cp.profile, config)
 	if err != nil {

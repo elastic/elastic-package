@@ -24,6 +24,13 @@ var (
 	}
 )
 
+// Printer is the interface that can be used to print information on operations.
+type Printer interface {
+	Print(i ...interface{})
+	Println(i ...interface{})
+	Printf(format string, i ...interface{})
+}
+
 // Provider is the implementation of a stack provider.
 type Provider interface {
 	// BootUp starts a stack.

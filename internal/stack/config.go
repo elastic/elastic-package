@@ -67,3 +67,13 @@ func storeConfig(profile *profile.Profile, config Config) error {
 
 	return nil
 }
+
+func printUserConfig(printer Printer, config Config) {
+	if printer == nil {
+		return
+	}
+	printer.Printf("Elasticsearch host: %s\n", config.ElasticsearchHost)
+	printer.Printf("Kibana host: %s\n", config.KibanaHost)
+	printer.Printf("Username: %s\n", config.ElasticsearchUsername)
+	printer.Printf("Password: %s\n", config.ElasticsearchPassword)
+}
