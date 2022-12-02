@@ -10,7 +10,7 @@ import (
 	"github.com/elastic/elastic-package/internal/cobraext"
 )
 
-const publishLongDescription = `Use this command to publish a new package revision.
+const publishLongDescription = `[DEPRECATED] Use this command to publish a new package revision.
 
 The command checks if the package hasn't been already published (whether it's present in snapshot/staging/production branch or open as pull request). If the package revision hasn't been published, it will open a new pull request.`
 
