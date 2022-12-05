@@ -8,7 +8,7 @@ require (
 	github.com/ProtonMail/gopenpgp/v2 v2.4.10
 	github.com/aymerick/raymond v2.0.2+incompatible
 	github.com/boumenot/gocover-cobertura v1.2.0
-	github.com/cespare/xxhash/v2 v2.1.2
+	github.com/cespare/xxhash/v2 v2.2.0
 	github.com/elastic/go-elasticsearch/v7 v7.17.7
 	github.com/elastic/go-licenser v0.4.1
 	github.com/elastic/go-sysinfo v1.9.0
