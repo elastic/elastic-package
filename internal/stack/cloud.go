@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 	"os"
 
 	"github.com/elastic/cloud-sdk-go/pkg/api"
@@ -27,28 +26,11 @@ import (
 const (
 	paramCloudDeploymentID    = "cloud_deployment_id"
 	paramCloudDeploymentAlias = "cloud_deployment_alias"
-
-	// Docs: https://www.elastic.co/guide/en/cloud/current/ec-api-deployment-crud.html
-	cloudAPI = "https://api.elastic-cloud.com/api/v1"
 )
 
 var (
-	deploymentNotExistErr     = errors.New("deployment does not exist")
-	deploymentAlreadyExistErr = errors.New("deployment already exists")
+	errDeploymentNotExist = errors.New("deployment does not exist")
 )
-
-var cloudDeploymentsAPI string
-
-func init() {
-	mustJoinURL := func(base string, elem ...string) string {
-		joined, err := url.JoinPath(base, elem...)
-		if err != nil {
-			panic(err)
-		}
-		return joined
-	}
-	cloudDeploymentsAPI = mustJoinURL(cloudAPI, "deployments")
-}
 
 type cloudProvider struct {
 	api     *api.API
@@ -85,7 +67,7 @@ func (cp *cloudProvider) BootUp(options Options) error {
 		}
 		printUserConfig(options.Printer, config)
 		return nil
-	} else if err != nil && err != deploymentNotExistErr {
+	} else if err != nil && err != errDeploymentNotExist {
 		return err
 	}
 
@@ -202,7 +184,7 @@ func (cp *cloudProvider) BootUp(options Options) error {
 		Format: "text",
 	})
 	if err != nil {
-		return fmt.Errorf("failed to track cluster creation", err)
+		return fmt.Errorf("failed to track cluster creation: %w", err)
 	}
 
 	return nil
@@ -319,7 +301,7 @@ func (cp *cloudProvider) currentDeployment() (*models.DeploymentGetResponse, err
 	}
 	deploymentID, found := config.Parameters[paramCloudDeploymentID]
 	if !found {
-		return nil, deploymentNotExistErr
+		return nil, errDeploymentNotExist
 	}
 	deployment, err := deploymentapi.Get(deploymentapi.GetParams{
 		API:          cp.api,
@@ -331,7 +313,7 @@ func (cp *cloudProvider) currentDeployment() (*models.DeploymentGetResponse, err
 
 	// It seems that terminated deployments still exist, but hidden.
 	if hidden := deployment.Metadata.Hidden; hidden != nil && *hidden {
-		return nil, deploymentNotExistErr
+		return nil, errDeploymentNotExist
 	}
 
 	return deployment, nil
