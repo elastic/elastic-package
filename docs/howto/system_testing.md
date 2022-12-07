@@ -395,7 +395,7 @@ you can use the `input` option to select the stream to test. The first stream
 whose input type matches the `input` value will be tested. By default, the first
 stream declared in the manifest will be tested.
 
-For an http request, consider this example from the `httpjson/generic` data stream's `test-expected-event-count-config.yml`, shown below.
+To add an assertion on the number of hits in a given system test, consider this example from the `httpjson/generic` data stream's `test-expected-hit-count-config.yml`, shown below.
 
 ```
 input: httpjson
@@ -405,38 +405,44 @@ data_stream:
     data_stream.dataset: httpjson.generic
     username: test
     password: test
-    request_url: http://{{Hostname}}:{{Port}}/testexpectedevents/api
+    request_url: http://{{Hostname}}:{{Port}}/testexpectedhits/api
+    response_split: |- 
+      target: body.hits
+      type: array
+      keep_parent: false     
 assert:
-  event_count: 3
+  hit_count: 3
 ```
 
-The `data_stream.vars.request_url` corresponds to a path in the `_dev/deploy/docker/files/config.yml` file.
-
-The `assert.event_count` field corresponds to the expected number of events in the corresponding path in the `_dev/deploy/docker/files/config.yml` file
-
-For example
+The `data_stream.vars.request_url` corresponds to a test-stub path in the `_dev/deploy/docker/files/config.yml` file.
 
 ```
-  - path: /testexpectedevents/api
+  - path: /testexpectedhits/api
     methods: ["GET"]
     request_headers:
-      Authorization: "Basic dGVzdDp0ZXN0"
+      Authorization:
+        - "Basic dGVzdDp0ZXN0"
     responses:
       - status_code: 200
         headers:
           Content-Type:
-            - "application/json"
+            - "application/json; charset=utf-8"
         body: |-
-          {"parent":[{"k":"v"},{"k":"v"},{"k":"v"}]}
+          {"total":3,"hits":[{"message": "success"},{"message": "success"},{"message": "success"}]}
 ```
 
-This simulates a single call to the API `/testexpectedevents/api` which is expected to return multiple events in a single response.
+Handlebar syntax in `httpjson.yml.hbs`
 
-The `"parent"` field represents the top-level array within which these events are stored. 3rd party APIs will define an appropriate key here according to their schema, some real-world examples might be: `"data":[]` or `"events":[]`.
+```
+{{#if response_split}}
+response.split: 
+  {{response_split}}
+{{/if}}
+```
 
-In this example, there are 3 events. Each event is `{"k":"v"}`. You may wish to use real-world examples for consistency with e.g. pipeline tests elsewhere in the test suite. 
+inserts the value of `response_split` from the test configuration into the integration, in this case, ensuring the `total.hits[]` array from the test-stub response yields 3 hits.
 
-The assertion is checked when `assert.event_count` is defined and `> 0`. It expects a message body comprised of a JSON string that includes an arbitrary top-level field whose value is an array. The system test will only pass when the number of elements in this array is equal to the configured value.
+Returning to `test-expected-hit-count-config.yml`, when `assert.hit_count` is defined and `> 0` the test will assert that the number of hits in the array matches that value and fail when this is not true.
 
 #### Placeholders
 

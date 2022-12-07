@@ -39,8 +39,8 @@ type testConfig struct {
 	} `config:"data_stream"`
 
 	Assert struct {
-		// Length of first array found within the message field inside a Hit
-		EventCount int `config:"event_count"`
+		// Expected number of hits for a given test
+		HitCount int `config:"hit_count"`
 	} `config:"assert"`
 
 	// NumericKeywordFields holds a list of fields that have keyword

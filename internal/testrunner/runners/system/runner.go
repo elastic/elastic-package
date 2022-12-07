@@ -10,7 +10,6 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"time"
 
@@ -480,8 +479,8 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	}
 
 	// Check Event Count within docs, if 0 then it has not been specified
-	if result.EventCount, err = assertEventCount(config.Assert.EventCount, docs); err != nil {
-		return result.WithError(err)
+	if assertion_pass, message := assertHitCount(config.Assert.HitCount, docs); assertion_pass != true {
+		result.FailureMsg = message
 	}
 
 	return result.WithSuccess()
@@ -753,53 +752,15 @@ func validateFields(docs []common.MapStr, fieldsValidator *fields.Validator, dat
 	return nil
 }
 
-func getDocEventCount(events map[string]interface{}) int {
-	for k, v := range events {
-		if reflect.ValueOf(v).Kind() == reflect.Slice {
-			e := events[k].([]interface{})
-			logger.Debugf("found %d events under \"%s\"", len(e), k)
-			return len(e)
-		}
-	}
-	return 0
-}
-
-func getMessagesEventCount(docs []common.MapStr) (lenEvents int, err error) {
-	for _, doc := range docs {
-		var message interface{}
-		var events interface{}
-
-		if message, err = doc.GetValue("message"); err != nil {
-			return 0, testrunner.ErrTestCaseFailed{
-				Reason:  fmt.Sprintf("could not find message in doc %v", doc),
-				Details: err.Error(),
-			}
-		}
-
-		if err = json.Unmarshal([]byte(message.(string)), &events); err != nil {
-			return 0, testrunner.ErrTestCaseFailed{
-				Reason:  fmt.Sprintf("could not decode events from message %v", message.(string)),
-				Details: err.Error(),
-			}
-		}
-
-		eventMap := events.(map[string]interface{})
-		lenEvents += getDocEventCount(eventMap)
-	}
-
-	return lenEvents, nil
-}
-
-func assertEventCount(expected int, docs []common.MapStr) (observed int, err error) {
+func assertHitCount(expected int, docs []common.MapStr) (pass bool, message string) {
+	observed := len(docs)
 	if expected != 0 {
-		if observed, err = getMessagesEventCount(docs); err != nil {
-			return
-		}
+		logger.Debugf("assert hit count expected %d, observed %d", expected, observed)
 		if observed != expected {
-			return observed, fmt.Errorf("observed event count %d did not match expected event count %d", observed, expected)
+			return false, fmt.Sprintf("observed hit count %d did not match expected hit count %d", observed, expected)
 		}
 	}
-	return observed, err
+	return true, ""
 }
 
 func (r *runner) selectVariants(variantsFile *servicedeployer.VariantsFile) []string {

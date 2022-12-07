@@ -90,8 +90,6 @@ type TestResult struct {
 
 	// Coverage details in Cobertura format (optional).
 	Coverage *CoberturaCoverage
-
-	EventCount int
 }
 
 // ResultComposer wraps a TestResult and provides convenience methods for
