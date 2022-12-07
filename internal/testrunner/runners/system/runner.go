@@ -478,8 +478,8 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 		}
 	}
 
-	// Check Event Count within docs, if 0 then it has not been specified
-	if assertion_pass, message := assertHitCount(config.Assert.HitCount, docs); assertion_pass != true {
+	// Check Hit Count within docs, if 0 then it has not been specified
+	if assertion_pass, message := assertHitCount(config.Assert.HitCount, docs); !assertion_pass {
 		result.FailureMsg = message
 	}
 
