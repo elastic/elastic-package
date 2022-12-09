@@ -70,8 +70,9 @@ type Variable struct {
 
 // Input is a single input configuration.
 type Input struct {
-	Type string     `config:"type" json:"type" yaml:"type"`
-	Vars []Variable `config:"vars" json:"vars" yaml:"vars"`
+	Type    string           `config:"type" json:"type" yaml:"type"`
+	Vars    []Variable       `config:"vars" json:"vars" yaml:"vars"`
+	Streams []ManifestStream `config:"streams" json:"streams" yaml:"streams"`
 }
 
 // Source contains metadata about the source code of the package.
@@ -143,10 +144,13 @@ type DataStreamManifest struct {
 			Name string `config:"name" json:"name" yaml:"name"`
 		} `config:"ingest_pipeline" json:"ingest_pipeline" yaml:"ingest_pipeline"`
 	} `config:"elasticsearch" json:"elasticsearch" yaml:"elasticsearch"`
-	Streams []struct {
-		Input string     `config:"input" json:"input" yaml:"input"`
-		Vars  []Variable `config:"vars" json:"vars" yaml:"vars"`
-	} `config:"streams" json:"streams" yaml:"streams"`
+	Streams []ManifestStream `config:"streams" json:"streams" yaml:"streams"`
+}
+
+type ManifestStream struct {
+	Input   string     `config:"input" json:"input" yaml:"input"`
+	Dataset string     `config:"dataset" json:"dataset" yaml:"dataset"`
+	Vars    []Variable `config:"vars" json:"vars" yaml:"vars"`
 }
 
 // MustFindPackageRoot finds and returns the path to the root folder of a package.

@@ -6,11 +6,18 @@ services:
       test: "elastic-agent status"
       retries: 180
       interval: 1s
-    hostname: docker-custom-agent
+    hostname: "${CONTAINER_NAME}"
+    container_name: "${CONTAINER_NAME}"
     environment:
       - FLEET_ENROLL=1
       - FLEET_URL=https://fleet-server:8220
       - KIBANA_HOST=https://kibana:5601
+      - ELASTIC_AGENT_TAGS=${ELASTIC_AGENT_TAGS}
+      - FLEET_TOKEN_POLICY_NAME=${FLEET_TOKEN_POLICY_NAME}
     volumes:
       - ${SERVICE_LOGS_DIR}:/tmp/service_logs/
       - ${LOCAL_CA_CERT}:/etc/ssl/certs/elastic-package.pem
+networks:
+    default:
+        external:
+            name: "${ELASTIC_PACKAGE_STACK_NETWORK}"

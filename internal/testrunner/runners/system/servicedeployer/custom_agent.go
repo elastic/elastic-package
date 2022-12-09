@@ -13,7 +13,6 @@ import (
 
 	"github.com/elastic/elastic-package/internal/compose"
 	"github.com/elastic/elastic-package/internal/configuration/locations"
-	"github.com/elastic/elastic-package/internal/docker"
 	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/kibana"
@@ -60,10 +59,20 @@ func (d *CustomAgentDeployer) SetUp(inCtxt ServiceContext) (DeployedService, err
 		return nil, errors.Wrapf(err, "can't locate CA certificate: %s environment variable not set", stack.CACertificateEnv)
 	}
 
+	// Verify the Elastic stack network
+	err = stack.EnsureStackNetworkUp()
+	if err != nil {
+		return nil, errors.Wrap(err, "Elastic stack network is not ready")
+	}
+
 	env := append(
 		appConfig.StackImageRefs(stackVersion.Version()).AsEnv(),
 		fmt.Sprintf("%s=%s", serviceLogsDirEnv, inCtxt.Logs.Folder.Local),
 		fmt.Sprintf("%s=%s", localCACertEnv, caCertPath),
+		fmt.Sprintf("ELASTIC_AGENT_TAGS=%s", inCtxt.CustomProperties["tags"]),
+		fmt.Sprintf("CONTAINER_NAME=%s", inCtxt.Name),
+		fmt.Sprintf("FLEET_TOKEN_POLICY_NAME=%s", inCtxt.CustomProperties["policy_name"]),
+		fmt.Sprintf("ELASTIC_PACKAGE_STACK_NETWORK=%s", stack.Network()),
 	)
 
 	ymlPaths, err := d.loadComposeDefinitions()
@@ -73,7 +82,7 @@ func (d *CustomAgentDeployer) SetUp(inCtxt ServiceContext) (DeployedService, err
 
 	service := dockerComposeDeployedService{
 		ymlPaths: ymlPaths,
-		project:  "elastic-package-service",
+		project:  "elastic-package-agents",
 		sv: ServiceVariant{
 			Name: dockerCustomAgentName,
 			Env:  env,
@@ -87,19 +96,12 @@ func (d *CustomAgentDeployer) SetUp(inCtxt ServiceContext) (DeployedService, err
 		return nil, errors.Wrap(err, "could not create Docker Compose project for service")
 	}
 
-	// Verify the Elastic stack network
-	err = stack.EnsureStackNetworkUp()
-	if err != nil {
-		return nil, errors.Wrap(err, "Elastic stack network is not ready")
-	}
-
 	// Clean service logs
 	err = files.RemoveContent(outCtxt.Logs.Folder.Local)
 	if err != nil {
-		return nil, errors.Wrap(err, "removing service logs failed")
+		return nil, errors.Wrap(err, "removing service logs failed foo:"+outCtxt.Logs.Folder.Local)
 	}
 
-	inCtxt.Name = dockerCustomAgentName
 	serviceName := inCtxt.Name
 	opts := compose.CommandOptions{
 		Env:       env,
@@ -108,12 +110,6 @@ func (d *CustomAgentDeployer) SetUp(inCtxt ServiceContext) (DeployedService, err
 	err = p.Up(opts)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not boot up service using Docker Compose")
-	}
-
-	// Connect service network with stack network (for the purpose of metrics collection)
-	err = docker.ConnectToNetwork(p.ContainerName(serviceName), stack.Network())
-	if err != nil {
-		return nil, errors.Wrapf(err, "can't attach service container to the stack network")
 	}
 
 	err = p.WaitForHealthy(opts)
@@ -125,7 +121,7 @@ func (d *CustomAgentDeployer) SetUp(inCtxt ServiceContext) (DeployedService, err
 	}
 
 	// Build service container name
-	outCtxt.Hostname = p.ContainerName(serviceName)
+	outCtxt.Hostname = serviceName
 
 	logger.Debugf("adding service container %s internal ports to context", p.ContainerName(serviceName))
 	serviceComposeConfig, err := p.Config(compose.CommandOptions{Env: env})
@@ -154,5 +150,9 @@ func (d *CustomAgentDeployer) loadComposeDefinitions() ([]string, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "can't locate Docker Compose file for Custom Agent deployer")
 	}
-	return []string{d.cfg, locationManager.DockerCustomAgentDeployerYml()}, nil
+
+	if len(d.cfg) > 0 {
+		return []string{d.cfg, locationManager.DockerCustomAgentDeployerYml()}, nil
+	}
+	return []string{locationManager.DockerCustomAgentDeployerYml()}, nil
 }
