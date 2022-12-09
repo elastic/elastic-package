@@ -11,10 +11,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/elastic/elastic-package/internal/environment"
-	"github.com/elastic/elastic-package/internal/profile"
 	"github.com/elastic/go-sysinfo"
 	"github.com/elastic/go-sysinfo/types"
+
+	"github.com/elastic/elastic-package/internal/environment"
+	"github.com/elastic/elastic-package/internal/profile"
 )
 
 // Environment variables describing the stack.
