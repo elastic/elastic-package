@@ -6,16 +6,11 @@ package cmd
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/jedib0t/go-pretty/table"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-
-	"github.com/elastic/go-sysinfo"
-	"github.com/elastic/go-sysinfo/types"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/common"
@@ -209,11 +204,13 @@ func setupStackCommand() *cobraext.Command {
 			}
 
 			if shellName == cobraext.ShellInitShellDetect {
-				shellName, err = detectShell()
+				shellName, err = stack.AutodetectedShell()
 				if err != nil {
 					return fmt.Errorf("cannot detect parent shell from current process: %w", err)
 				}
 				fmt.Fprintf(cmd.OutOrStderr(), "Detected shell: %s\n", shellName)
+			} else {
+				stack.SelectShell(shellName)
 			}
 
 			profile, err := profile.LoadProfile(profileName)
@@ -221,7 +218,7 @@ func setupStackCommand() *cobraext.Command {
 				return errors.Wrap(err, "error loading profile")
 			}
 
-			shellCode, err := stack.ShellInit(profile, shellName)
+			shellCode, err := stack.ShellInit(profile)
 			if err != nil {
 				return errors.Wrap(err, "shellinit failed")
 			}
@@ -351,44 +348,4 @@ func printStatus(cmd *cobra.Command, servicesStatus []stack.ServiceStatus) {
 	}
 	t.SetStyle(table.StyleRounded)
 	cmd.Println(t.Render())
-}
-
-func getParentInfo(ppid int) (types.ProcessInfo, error) {
-	parent, err := sysinfo.Process(ppid)
-	if err != nil {
-		return types.ProcessInfo{}, fmt.Errorf("cannot retrieve information for process %d: %w", ppid, err)
-	}
-
-	parentInfo, err := parent.Info()
-	if err != nil {
-		return types.ProcessInfo{}, fmt.Errorf("cannot retrieve information for parent of process %d: %w", ppid, err)
-	}
-
-	return parentInfo, nil
-}
-
-func getShellName(exe string) string {
-	shell := filepath.Base(exe)
-	// NOTE: remove .exe extension from executable names present in Windows
-	shell = strings.TrimSuffix(shell, ".exe")
-	return shell
-}
-
-func detectShell() (string, error) {
-	ppid := os.Getppid()
-	parentInfo, err := getParentInfo(ppid)
-	if err != nil {
-		return "", err
-	}
-
-	shell := getShellName(parentInfo.Exe)
-	if shell == "go" {
-		parentParentInfo, err := getParentInfo(parentInfo.PPID)
-		if err != nil {
-			return "", fmt.Errorf("cannot retrieve parent parent info: %w", err)
-		}
-		return getShellName(parentParentInfo.Exe), nil
-	}
-
-	return shell, nil
 }
