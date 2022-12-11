@@ -256,6 +256,26 @@ func ReadDataStreamManifest(path string) (*DataStreamManifest, error) {
 	return &m, nil
 }
 
+func ReadAllDataStreamManifests(packageRoot string) ([]*DataStreamManifest, error) {
+	var manifests []*DataStreamManifest
+	dataStreamsPath := filepath.Join(packageRoot, "data_stream")
+	directories, err := os.ReadDir(dataStreamsPath)
+	if err != nil {
+		return nil, errors.Wrapf(err, "error reading data stream directory (path: %s)", dataStreamsPath)
+	}
+
+	for _, dir := range directories {
+		dsmPath := filepath.Join(dataStreamsPath, dir.Name(), DataStreamManifestFile)
+		dsm, err := ReadDataStreamManifest(dsmPath)
+		if err != nil {
+			return nil, errors.Wrapf(err, "reading data stream manifest failed (path: %s)", dsmPath)
+		}
+		manifests = append(manifests, dsm)
+	}
+
+	return manifests, nil
+}
+
 // GetPipelineNameOrDefault returns the name of the data stream's pipeline, if one is explicitly defined in the
 // data stream manifest. If not, the default pipeline name is returned.
 func (dsm *DataStreamManifest) GetPipelineNameOrDefault() string {
