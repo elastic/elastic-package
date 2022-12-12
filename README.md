@@ -5,7 +5,7 @@ WARNING: This is a generated file. Do NOT edit it manually. To regenerate this f
 # elastic-package
 
 `elastic-package` is a command line tool, written in Go, used for developing Elastic packages. It can help you lint, format,
-test, build, and promote your packages. Learn about each of these and other features in [_Commands_](#commands) below.
+test and build your packages. Learn about each of these and other features in [_Commands_](#commands) below.
 
 Currently, `elastic-package` only supports packages of type [Elastic Integrations](https://github.com/elastic/integrations).
 
@@ -200,7 +200,7 @@ User profiles are not overwritten on upgrade of elastic-stack, and can be freely
 
 _Context: global_
 
-Use this command to move packages between the snapshot, staging, and production stages of the package registry.
+[DEPRECATED] Use this command to move packages between the snapshot, staging, and production stages of the package registry.
 
 This command is intended primarily for use by administrators.
 
@@ -210,7 +210,7 @@ It allows for selecting packages for promotion and opens new pull requests to re
 
 _Context: package_
 
-Use this command to publish a new package revision.
+[DEPRECATED] Use this command to publish a new package revision.
 
 The command checks if the package hasn't been already published (whether it's present in snapshot/staging/production branch or open as pull request). If the package revision hasn't been published, it will open a new pull request.
 
@@ -297,22 +297,6 @@ _Context: global_
 Use this command to print the version of elastic-package that you have installed. This is especially useful when reporting bugs.
 
 
-
-### GitHub authorization
-
-The `promote` and `publish` commands require access to the GitHub API to open pull requests or check authorized account data.
-The tool uses the GitHub token to authorize user's call to API. The token can be stored in the `~/.elastic/github.token`
-file or passed via the `GITHUB_TOKEN` environment variable.
-
-Here are the instructions on how to create your own personal access token (PAT):
-https://docs.github.com/en/github/authenticating-to-github/creating-a-personal-access-token
-
-Make sure you have enabled the following scopes:
-* `public_repo` — to open pull requests on GitHub repositories.
-* `read:user` and `user:email` — to read your user profile information from GitHub in order to populate pull requests appropriately.
-
-After creating or modifying your personal access token, authorize the token for
-use of the Elastic organization: https://docs.github.com/en/github/authenticating-to-github/authenticating-with-saml-single-sign-on/authorizing-a-personal-access-token-for-use-with-saml-single-sign-on
 
 ## Development
 
