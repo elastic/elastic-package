@@ -83,7 +83,6 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 	for _, asset := range installedPackage.Assets {
 		cmd.Printf("- %s (type: %s)\n", asset.ID, asset.Type)
 	}
-
 	cmd.Println("Done")
 	return nil
 }
