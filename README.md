@@ -156,6 +156,14 @@ _Context: global_
 
 Use this command as an exploratory tool to dump resources from Elastic Stack (objects installed as part of package and agent policies).
 
+### `elastic-package enroll`
+
+_Context: package_
+
+Use this command to enroll an agent in Fleet.
+
+The command spawns a new agent automatically enrolled in Fleet. A policy configuration is provided as a flag to attach integrations to the agent.
+
 ### `elastic-package export`
 
 _Context: package_
