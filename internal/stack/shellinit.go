@@ -7,7 +7,12 @@ package stack
 import (
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
+
+	"github.com/elastic/go-sysinfo"
+	"github.com/elastic/go-sysinfo/types"
 
 	"github.com/elastic/elastic-package/internal/environment"
 	"github.com/elastic/elastic-package/internal/profile"
@@ -22,8 +27,26 @@ var (
 	CACertificateEnv         = environment.WithElasticPackagePrefix("CA_CERT")
 )
 
+var shellType string
+var shellDetectError error
+
+func init() {
+	shellType, shellDetectError = detectShell()
+}
+
+// SelectShell selects the shell to use.
+func SelectShell(shell string) {
+	shellType = shell
+	shellDetectError = nil
+}
+
+// AutodetectedShell returns an error if shell could not be detected.
+func AutodetectedShell() (string, error) {
+	return shellType, shellDetectError
+}
+
 // ShellInit method exposes environment variables that can be used for testing purposes.
-func ShellInit(elasticStackProfile *profile.Profile, shellType string) (string, error) {
+func ShellInit(elasticStackProfile *profile.Profile) (string, error) {
 	config, err := StackInitConfig(elasticStackProfile)
 	if err != nil {
 		return "", nil
@@ -61,10 +84,18 @@ set -x %s %s;
 set -x %s %s;
 set -x %s %s;
 `
+
+	// PowerShell init code.
+	// Output to be evaluated with `elastic-package stack shellinit | Invoke-Expression
+	powershellTemplate = `$Env:%s="%s";
+$Env:%s="%s";
+$Env:%s="%s";
+$Env:%s="%s";
+$Env:%s="%s";`
 )
 
 // availableShellTypes list all available values for s in initTemplate
-var availableShellTypes = []string{"bash", "dash", "fish", "sh", "zsh"}
+var availableShellTypes = []string{"bash", "dash", "fish", "sh", "zsh", "pwsh", "powershell"}
 
 // InitTemplate returns code templates for shell initialization
 func initTemplate(s string) (string, error) {
@@ -73,7 +104,59 @@ func initTemplate(s string) (string, error) {
 		return posixTemplate, nil
 	case "fish":
 		return fishTemplate, nil
+	case "pwsh", "powershell":
+		return powershellTemplate, nil
 	default:
 		return "", errors.New("shell type is unknown, should be one of " + strings.Join(availableShellTypes, ", "))
 	}
+}
+
+// helpText returns the instrutions about how to set environment variables with shellinit
+func helpText(shell string) string {
+	switch shell {
+	case "pwsh", "powershell":
+		return `elastic-package stack shellinit | Invoke-Expression`
+	default:
+		return `eval "$(elastic-package stack shellinit)"`
+	}
+}
+
+func getShellName(exe string) string {
+	shell := filepath.Base(exe)
+	// NOTE: remove .exe extension from executable names present in Windows
+	shell = strings.TrimSuffix(shell, ".exe")
+	return shell
+}
+
+func detectShell() (string, error) {
+	ppid := os.Getppid()
+	parentInfo, err := getParentInfo(ppid)
+	if err != nil {
+		return "", err
+	}
+
+	shell := getShellName(parentInfo.Exe)
+	if shell == "go" {
+		parentParentInfo, err := getParentInfo(parentInfo.PPID)
+		if err != nil {
+			return "", fmt.Errorf("cannot retrieve parent parent info: %w", err)
+		}
+		return getShellName(parentParentInfo.Exe), nil
+	}
+
+	return shell, nil
+}
+
+func getParentInfo(ppid int) (types.ProcessInfo, error) {
+	parent, err := sysinfo.Process(ppid)
+	if err != nil {
+		return types.ProcessInfo{}, fmt.Errorf("cannot retrieve information for process %d: %w", ppid, err)
+	}
+
+	parentInfo, err := parent.Info()
+	if err != nil {
+		return types.ProcessInfo{}, fmt.Errorf("cannot retrieve information for parent of process %d: %w", ppid, err)
+	}
+
+	return parentInfo, nil
 }
