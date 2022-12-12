@@ -138,9 +138,5 @@ func Enroll(options EnrollOptions) (servicedeployer.DeployedService, error) {
 
 func deployAgent(ctx servicedeployer.ServiceContext) (servicedeployer.DeployedService, error) {
 	deployer := servicedeployer.NewAgentDeployer()
-	service, err := deployer.SetUp(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return service, nil
+	return deployer.SetUp(ctx)
 }

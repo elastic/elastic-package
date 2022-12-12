@@ -108,7 +108,6 @@ func (d *CustomAgentDeployer) SetUp(inCtxt ServiceContext) (DeployedService, err
 		appConfig.StackImageRefs(stackVersion.Version()).AsEnv(),
 		fmt.Sprintf("%s=%s", serviceLogsDirEnv, inCtxt.Logs.Folder.Local),
 		fmt.Sprintf("%s=%s", localCACertEnv, caCertPath),
-		fmt.Sprintf("CONTAINER_NAME=%s", inCtxt.Name),
 		fmt.Sprintf("ELASTIC_PACKAGE_STACK_NETWORK=%s", stack.Network()),
 	)
 
