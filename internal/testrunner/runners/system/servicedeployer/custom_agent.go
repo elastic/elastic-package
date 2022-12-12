@@ -52,6 +52,7 @@ func (d *CustomAgentDeployer) buildYml() string {
 services:
   %s:
     image: "${ELASTIC_AGENT_IMAGE_REF}"
+    hostname: %s
     healthcheck:
       test: "elastic-agent status"
       retries: 180
@@ -68,7 +69,7 @@ services:
 networks:
     default:
         external:
-            name: "${ELASTIC_PACKAGE_STACK_NETWORK}"`, d.serviceName)
+            name: "${ELASTIC_PACKAGE_STACK_NETWORK}"`, d.serviceName, d.serviceName)
 
 	return yml
 }
