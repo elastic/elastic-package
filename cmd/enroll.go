@@ -68,7 +68,7 @@ func enrollCommandAction(cmd *cobra.Command, _ []string) error {
 		return cobraext.FlagParsingError(err, cobraext.PackageRootFlagName)
 	}
 
-	_, err = Enroll(packageRootPath, policyConfigurationPath)
+	_, err = Enroll(EnrollOptions{packageRootPath, policyConfigurationPath})
 	if err != nil {
 		return errors.Wrap(err, "can't enroll agent")
 	}
@@ -77,7 +77,12 @@ func enrollCommandAction(cmd *cobra.Command, _ []string) error {
 	return nil
 }
 
-func Enroll(packageRootPath string, policyConfigurationPath string) (servicedeployer.DeployedService, error) {
+type EnrollOptions struct {
+	packageRootPath         string
+	policyConfigurationPath string
+}
+
+func Enroll(options EnrollOptions) (servicedeployer.DeployedService, error) {
 	kib, err := kibana.NewClient()
 	if err != nil {
 		return nil, errors.Wrap(err, "can't create Kibana client")
@@ -88,7 +93,7 @@ func Enroll(packageRootPath string, policyConfigurationPath string) (servicedepl
 		return nil, errors.Wrap(err, "reading service logs directory failed")
 	}
 
-	packageName := filepath.Base(packageRootPath)
+	packageName := filepath.Base(options.packageRootPath)
 	policyID := fmt.Sprintf("elastic-package_%s_%d", packageName, time.Now().UnixNano())
 
 	var serviceCtxt servicedeployer.ServiceContext
@@ -99,11 +104,12 @@ func Enroll(packageRootPath string, policyConfigurationPath string) (servicedepl
 		"tags":        []string{packageName},
 	}
 
-	configPath := filepath.Join(packageRootPath, "_dev", "policy", policyConfigurationPath)
-	config, err := system.NewPackageConfig(configPath, packageRootPath, serviceCtxt)
+	configPath := filepath.Join(options.packageRootPath, "_dev", "policy", options.policyConfigurationPath)
+	config, err := system.NewPackageConfig(configPath, options.packageRootPath, serviceCtxt)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create package configuration")
 	}
+	packageDataStreams := config.CreatePackageDataStreams(policyID)
 
 	_, err = kib.CreatePolicy(kibana.Policy{
 		ID:          policyID,
@@ -115,7 +121,6 @@ func Enroll(packageRootPath string, policyConfigurationPath string) (servicedepl
 		return nil, errors.Wrap(err, "failed to create policy")
 	}
 
-	packageDataStreams := config.CreatePackageDataStreams(policyID)
 	err = kib.AddPackageDataStreamToPolicy(packageDataStreams)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to add data streams to policy")
