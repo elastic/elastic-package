@@ -39,6 +39,14 @@ func setupEnrollCommand() *cobraext.Command {
 	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
 }
 
+/**
+ * Creates a docker container with a running agent connected to the stack network.
+ * The command accepts a policy configuration that can define which package and
+ * datasets the agent should collect. the policy is currently mandatory but could
+ * be made optional, agent would fallback to the default Elastic Package policy.
+ * agents are spawned with a unique container name in the elastic-package-service
+ * project and can be run in parallel.
+ */
 func enrollCommandAction(cmd *cobra.Command, _ []string) error {
 	packageRootPath, err := cmd.Flags().GetString(cobraext.PackageRootFlagName)
 	if err != nil {
@@ -84,7 +92,6 @@ func Enroll(packageRootPath string, policyConfigurationPath string) (servicedepl
 	policyID := fmt.Sprintf("elastic-package_%s_%d", packageName, time.Now().UnixNano())
 
 	var serviceCtxt servicedeployer.ServiceContext
-	serviceCtxt.Name = fmt.Sprintf("agent-%s", policyID)
 	serviceCtxt.Logs.Folder.Agent = system.ServiceLogsAgentDir
 	serviceCtxt.Logs.Folder.Local = locationManager.ServiceLogDir()
 	serviceCtxt.CustomProperties = map[string]interface{}{

@@ -82,9 +82,7 @@ func NewPackageConfig(configFilePath string, packageRootPath string, ctxt servic
 	return &c, nil
 }
 
-func (config *PackageConfig) CreatePackageDataStreams(
-	kibanaPolicyID string,
-) kibana.PackageDataStream {
+func (config *PackageConfig) CreatePackageDataStreams(kibanaPolicyID string) kibana.PackageDataStream {
 	r := kibana.PackageDataStream{
 		Name:      fmt.Sprintf("%s-%d", config.packageManifest.Name, time.Now().Unix()),
 		Namespace: "default",

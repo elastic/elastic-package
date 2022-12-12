@@ -143,9 +143,10 @@ func (d *CustomAgentDeployer) SetUp(inCtxt ServiceContext) (DeployedService, err
 	// Clean service logs
 	err = files.RemoveContent(outCtxt.Logs.Folder.Local)
 	if err != nil {
-		return nil, errors.Wrap(err, "removing service logs failed foo:"+outCtxt.Logs.Folder.Local)
+		return nil, errors.Wrap(err, "removing service logs failed")
 	}
 
+	inCtxt.Name = d.serviceName
 	serviceName := inCtxt.Name
 	opts := compose.CommandOptions{
 		Env:       env,
@@ -165,7 +166,7 @@ func (d *CustomAgentDeployer) SetUp(inCtxt ServiceContext) (DeployedService, err
 	}
 
 	// Build service container name
-	outCtxt.Hostname = serviceName
+	outCtxt.Hostname = p.ContainerName(serviceName)
 
 	logger.Debugf("adding service container %s internal ports to context", p.ContainerName(serviceName))
 	serviceComposeConfig, err := p.Config(compose.CommandOptions{Env: env})
