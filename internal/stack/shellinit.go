@@ -137,7 +137,7 @@ func detectShell() (string, error) {
 		// This mainly affects osx when building without CGO.
 		// Assume bash in that case.
 		// See https://github.com/elastic/elastic-package/issues/1030.
-		logger.Debugf("Failed to determine parent process info while detecting shell, will assume bash")
+		logger.Debug("Failed to determine parent process info while detecting shell, will assume bash")
 		return "bash", nil
 	}
 	if err != nil {
