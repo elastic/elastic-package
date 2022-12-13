@@ -15,6 +15,7 @@ import (
 	"github.com/elastic/go-sysinfo/types"
 
 	"github.com/elastic/elastic-package/internal/environment"
+	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/profile"
 )
 
@@ -131,6 +132,14 @@ func getShellName(exe string) string {
 func detectShell() (string, error) {
 	ppid := os.Getppid()
 	parentInfo, err := getParentInfo(ppid)
+	if errors.Is(err, types.ErrNotImplemented) {
+		// Sysinfo doesn't implement some features in some platforms.
+		// This mainly affects osx when building without CGO.
+		// Assume bash in that case.
+		// See https://github.com/elastic/elastic-package/issues/1030.
+		logger.Debugf("Failed to determine parent process info while detecting shell, will assume bash")
+		return "bash", nil
+	}
 	if err != nil {
 		return "", err
 	}
@@ -139,7 +148,7 @@ func detectShell() (string, error) {
 	if shell == "go" {
 		parentParentInfo, err := getParentInfo(parentInfo.PPID)
 		if err != nil {
-			return "", fmt.Errorf("cannot retrieve parent parent info: %w", err)
+			return "", fmt.Errorf("cannot retrieve parent process info: %w", err)
 		}
 		return getShellName(parentParentInfo.Exe), nil
 	}
