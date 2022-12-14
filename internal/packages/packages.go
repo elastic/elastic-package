@@ -139,9 +139,11 @@ type DataStreamManifest struct {
 	Hidden        bool   `config:"hidden" json:"hidden" yaml:"hidden"`
 	Release       string `config:"release" json:"release" yaml:"release"`
 	Elasticsearch *struct {
-		IngestPipeline *struct {
-			Name string `config:"name" json:"name" yaml:"name"`
-		} `config:"ingest_pipeline" json:"ingest_pipeline" yaml:"ingest_pipeline"`
+		IndexTemplate *struct {
+			IngestPipeline *struct {
+				Name string `config:"name" json:"name" yaml:"name"`
+			} `config:"ingest_pipeline" json:"ingest_pipeline" yaml:"ingest_pipeline"`
+		} `config:"index_template" json:"index_template" yaml:"index_template"`
 	} `config:"elasticsearch" json:"elasticsearch" yaml:"elasticsearch"`
 	Streams []struct {
 		Input string     `config:"input" json:"input" yaml:"input"`
@@ -255,8 +257,8 @@ func ReadDataStreamManifest(path string) (*DataStreamManifest, error) {
 // GetPipelineNameOrDefault returns the name of the data stream's pipeline, if one is explicitly defined in the
 // data stream manifest. If not, the default pipeline name is returned.
 func (dsm *DataStreamManifest) GetPipelineNameOrDefault() string {
-	if dsm.Elasticsearch != nil && dsm.Elasticsearch.IngestPipeline != nil && dsm.Elasticsearch.IngestPipeline.Name != "" {
-		return dsm.Elasticsearch.IngestPipeline.Name
+	if dsm.Elasticsearch != nil && dsm.Elasticsearch.IndexTemplate != nil && dsm.Elasticsearch.IndexTemplate.IngestPipeline != nil && dsm.Elasticsearch.IndexTemplate.IngestPipeline.Name != "" {
+		return dsm.Elasticsearch.IndexTemplate.IngestPipeline.Name
 	}
 	return defaultPipelineName
 }
