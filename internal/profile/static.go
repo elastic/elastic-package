@@ -123,7 +123,7 @@ func newPackageRegistryConfig(_ string, profilePath string) (*simpleFile, error)
 }
 
 // PackageRegistryBaseImage is the base Docker image of the Elastic Package Registry.
-const PackageRegistryBaseImage = "docker.elastic.co/package-registry/package-registry:v1.16.0"
+const PackageRegistryBaseImage = "docker.elastic.co/package-registry/package-registry:v1.16.3"
 
 // PackageRegistryDockerfileFile is the dockerfile for the Elastic package registry
 const PackageRegistryDockerfileFile configFile = "Dockerfile.package-registry"
