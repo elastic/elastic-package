@@ -14,17 +14,11 @@ import (
 
 const (
 	productionURL = "https://epr.elastic.co"
-	stagingURL    = "https://epr-staging.elastic.co"
-	snapshotURL   = "https://epr-snapshot.elastic.co"
 )
 
 var (
 	// Production is a pre-configured production client
 	Production = NewClient(productionURL)
-	// Staging is a pre-configured staging client
-	Staging = NewClient(stagingURL)
-	// Snapshot is a pre-configured snapshot client
-	Snapshot = NewClient(snapshotURL)
 )
 
 // Client is responsible for exporting dashboards from Kibana.

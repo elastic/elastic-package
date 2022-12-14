@@ -3,6 +3,5 @@ Package Versions:
 +-------------+--------------------------------+-------------------+-------+-----------------+
 | ENVIRONMENT |            VERSION             |      RELEASE      | TITLE |   DESCRIPTION   |
 +-------------+--------------------------------+-------------------+-------+-----------------+
-| Production  | 1.0.0-preview5 (0.9.0,         | Technical Preview | Foo   | Foo integration |
-|             | 1.0.0-preview1)                |                   |       |                 |
+| Production  | 2.0.0-rc1 (1.0.0, 1.1.0-beta1) | Release Candidate | Foo   | Foo integration |
 +-------------+--------------------------------+-------------------+-------+-----------------+

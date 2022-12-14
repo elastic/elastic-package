@@ -5,15 +5,12 @@
 package cmd
 
 import (
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
-	"github.com/elastic/elastic-package/internal/github"
-	"github.com/elastic/elastic-package/internal/publish"
 )
 
-const publishLongDescription = `Use this command to publish a new package revision.
+const publishLongDescription = `[DEPRECATED] Use this command to publish a new package revision.
 
 The command checks if the package hasn't been already published (whether it's present in snapshot/staging/production branch or open as pull request). If the package revision hasn't been published, it will open a new pull request.`
 
@@ -37,42 +34,7 @@ func setupPublishCommand() *cobraext.Command {
 
 func publishCommandAction(cmd *cobra.Command, args []string) error {
 	cmd.Println("Publish the package")
-	cmd.Println("DEPRECATED: Package candidates to the Package Storage v2 will be published using Jenkins jobs. This command will be removed soon. README: https://github.com/elastic/elastic-package/blob/main/docs/howto/use_package_storage_v2.md")
+	cmd.Println("DEPRECATED: Package candidates to the Package Storage v2 are published using Jenkins jobs. README: https://github.com/elastic/elastic-package/blob/main/docs/howto/use_package_storage_v2.md")
 
-	fork, err := cmd.Flags().GetBool(cobraext.ForkFlagName)
-	if err != nil {
-		return cobraext.FlagParsingError(err, cobraext.ForkFlagName)
-	}
-
-	skipPullRequest, err := cmd.Flags().GetBool(cobraext.SkipPullRequestFlagName)
-	if err != nil {
-		return cobraext.FlagParsingError(err, cobraext.SkipPullRequestFlagName)
-	}
-
-	// Setup GitHub
-	err = github.EnsureAuthConfigured()
-	if err != nil {
-		return errors.Wrap(err, "GitHub auth configuration failed")
-	}
-
-	githubClient, err := github.Client()
-	if err != nil {
-		return errors.Wrap(err, "creating GitHub client failed")
-	}
-
-	// GitHub user
-	githubUser, err := github.User(githubClient)
-	if err != nil {
-		return errors.Wrap(err, "fetching GitHub user failed")
-	}
-	cmd.Printf("Current GitHub user: %s\n", githubUser)
-
-	// Publish the package
-	err = publish.Package(githubUser, githubClient, fork, skipPullRequest)
-	if err != nil {
-		return errors.Wrap(err, "can't publish the package")
-	}
-
-	cmd.Println("Done")
 	return nil
 }
