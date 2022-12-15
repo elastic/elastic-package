@@ -1,3 +1,7 @@
+// Copyright Elasticsearch B.V. and/or licensed to Elasticsearch B.V. under one
+// or more contributor license agreements. Licensed under the Elastic License;
+// you may not use this file except in compliance with the Elastic License.
+
 package builder
 
 import (
@@ -26,7 +30,14 @@ func addDynamicMappings(destinationDir string) error {
 
 	for _, datastream := range dataStreamManifests {
 		logger.Infof("Adding mappings to datastream %s", datastream)
-		addDynamicMappingElements(datastream)
+		contents, err := addDynamicMappingElements(datastream)
+		if err != nil {
+			return err
+		}
+		err = os.WriteFile(datastream, contents, 0664)
+		if err != nil {
+			return err
+		}
 	}
 
 	packageManifest := filepath.Join(destinationDir, packages.PackageManifestFile)
@@ -37,7 +48,14 @@ func addDynamicMappings(destinationDir string) error {
 	}
 	if m.Type == "input" {
 		logger.Infof("Adding mappings to package manifest %s", packageManifest)
-		addDynamicMappingElements(packageManifest)
+		contents, err := addDynamicMappingElements(packageManifest)
+		if err != nil {
+			return err
+		}
+		os.WriteFile(packageManifest, contents, 0664)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -75,7 +93,7 @@ func addDynamicMappingElements(path string) ([]byte, error) {
 		return nil, err
 	}
 
-	err = appendListElements(&doc, []string{"elasticsearch", "index_template", "mappings", "dynamic_templates"}, &templates)
+	err = appendElements(&doc, []string{"elasticsearch", "index_template", "mappings", "dynamic_templates"}, &templates)
 	if err != nil {
 		logger.Errorf("Error appending elems %s", err)
 		return nil, err
@@ -89,7 +107,7 @@ func addDynamicMappingElements(path string) ([]byte, error) {
 	}
 	logger.Infof("Number of properties to be added: %d", len(ecsMappings.Mappings.Properties))
 
-	err = appendMapElements(&doc, []string{"elasticsearch", "index_template", "mappings", "properties"}, &properties)
+	err = appendElements(&doc, []string{"elasticsearch", "index_template", "mappings", "properties"}, &properties)
 	if err != nil {
 		logger.Errorf("Error appending properties %s", err)
 		return nil, err
@@ -102,11 +120,11 @@ func addDynamicMappingElements(path string) ([]byte, error) {
 	}
 
 	logger.Infof("New Contents manifest:\n%s", contents)
-	return nil, nil
+	return contents, nil
 
 }
 
-func appendListElements(root *yaml.Node, path []string, values *yaml.Node) error {
+func appendElements(root *yaml.Node, path []string, values *yaml.Node) error {
 	if len(path) == 0 {
 		root.Content = append(root.Content, values.Content...)
 		return nil
@@ -117,54 +135,12 @@ func appendListElements(root *yaml.Node, path []string, values *yaml.Node) error
 
 	switch root.Kind {
 	case yaml.DocumentNode:
-		return appendListElements(root.Content[0], path, values)
+		return appendElements(root.Content[0], path, values)
 	case yaml.MappingNode:
 		for i := 0; i < len(root.Content); i += 2 {
 			child := root.Content[i]
 			if child.Value == key {
-				return appendListElements(root.Content[i+1], rest, values)
-			}
-		}
-	case yaml.SequenceNode:
-		index, err := strconv.Atoi(key)
-		if err != nil {
-			return err
-		}
-		return appendListElements(root.Content[index], rest, values)
-	}
-	return nil
-}
-
-func appendMapElements(root *yaml.Node, path []string, values *yaml.Node) error {
-	if len(path) == 0 {
-		contents, _ := yaml.Marshal(root.Content)
-		logger.Infof("appendMapElements> Node kind: %s", root.Kind)
-		logger.Infof("appendMapElements> Values kind: %s", values.Kind)
-		if len(values.Content) > 0 {
-			logger.Infof("appendMapElements> First Values kind: %s", values.Content[0].Kind)
-			logger.Infof("appendMapElements> Second Values kind: %s", values.Content[1].Kind)
-		}
-		logger.Infof("appendMapElements> First root child kind: %s", root.Content[0].Kind)
-		logger.Infof("appendMapElements> Second root child kind: %s", root.Content[1].Kind)
-		logger.Infof("appendMapElements> Node to update:\n%s", string(contents))
-		contents, _ = yaml.Marshal(values.Content)
-		logger.Infof("appendMapElements> Values to add :\n%s", string(contents))
-
-		root.Content = append(root.Content, values.Content...)
-		return nil
-	}
-
-	key := path[0]
-	rest := path[1:]
-
-	switch root.Kind {
-	case yaml.DocumentNode:
-		return appendMapElements(root.Content[0], path, values)
-	case yaml.MappingNode:
-		for i := 0; i < len(root.Content); i += 2 {
-			child := root.Content[i]
-			if child.Value == key {
-				return appendMapElements(root.Content[i+1], rest, values)
+				return appendElements(root.Content[i+1], rest, values)
 			}
 		}
 		// TODO not found
@@ -174,7 +150,7 @@ func appendMapElements(root *yaml.Node, path []string, values *yaml.Node) error 
 		if err != nil {
 			return err
 		}
-		return appendMapElements(root.Content[index], rest, values)
+		return appendElements(root.Content[index], rest, values)
 	}
 	return nil
 }
