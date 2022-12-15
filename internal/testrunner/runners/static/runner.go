@@ -70,22 +70,10 @@ func (r runner) run() ([]testrunner.TestResult, error) {
 		return result.WithError(errors.Wrap(err, "failed to read manifest"))
 	}
 
-	dataStreamManifest, err := packages.ReadDataStreamManifestFromPackageRoot(r.options.PackageRootPath, r.options.TestFolder.DataStream)
-	if err != nil {
-		return result.WithError(errors.Wrap(err, "failed to read data stream manifest"))
-	}
-
-	return r.verifySampleEvent(pkgManifest, dataStreamManifest), nil
+	return r.verifySampleEvent(pkgManifest), nil
 }
 
-func (r runner) verifySampleEvent(pkgManifest *packages.PackageManifest, dataStreamManifest *packages.DataStreamManifest) []testrunner.TestResult {
-	dataStreamPath := filepath.Join(r.options.PackageRootPath, "data_stream", r.options.TestFolder.DataStream)
-	sampleEventPath := filepath.Join(dataStreamPath, sampleEventJSON)
-	_, err := os.Stat(sampleEventPath)
-	if errors.Is(err, os.ErrNotExist) {
-		return []testrunner.TestResult{} // nothing to succeed, nothing to skip
-	}
-
+func (r runner) verifySampleEvent(pkgManifest *packages.PackageManifest) []testrunner.TestResult {
 	resultComposer := testrunner.NewResultComposer(testrunner.TestResult{
 		Name:       "Verify " + sampleEventJSON,
 		TestType:   TestType,
@@ -93,16 +81,22 @@ func (r runner) verifySampleEvent(pkgManifest *packages.PackageManifest, dataStr
 		DataStream: r.options.TestFolder.DataStream,
 	})
 
+	sampleEventPath, found, err := r.getSampleEventPath()
 	if err != nil {
-		results, _ := resultComposer.WithError(errors.Wrap(err, "stat file failed"))
+		results, _ := resultComposer.WithError(err)
 		return results
 	}
-
-	expectedDataset := dataStreamManifest.Dataset
-	if expectedDataset == "" {
-		expectedDataset = pkgManifest.Name + "." + r.options.TestFolder.DataStream
+	if !found {
+		// Nothing to do.
+		return []testrunner.TestResult{}
 	}
-	fieldsValidator, err := fields.CreateValidatorForDirectory(dataStreamPath,
+
+	expectedDataset, err := r.getExpectedDataset(pkgManifest)
+	if err != nil {
+		results, _ := resultComposer.WithError(err)
+		return results
+	}
+	fieldsValidator, err := fields.CreateValidatorForDirectory(filepath.Dir(sampleEventPath),
 		fields.WithSpecVersion(pkgManifest.SpecVersion),
 		fields.WithDefaultNumericConversion(),
 		fields.WithExpectedDataset(expectedDataset),
@@ -129,6 +123,46 @@ func (r runner) verifySampleEvent(pkgManifest *packages.PackageManifest, dataStr
 
 	results, _ := resultComposer.WithSuccess()
 	return results
+}
+
+func (r runner) getSampleEventPath() (string, bool, error) {
+	var sampleEventPath string
+	if r.options.TestFolder.DataStream != "" {
+		sampleEventPath = filepath.Join(
+			r.options.PackageRootPath,
+			"data_stream",
+			r.options.TestFolder.DataStream,
+			sampleEventJSON)
+	} else {
+		sampleEventPath = filepath.Join(r.options.PackageRootPath, sampleEventJSON)
+	}
+	_, err := os.Stat(sampleEventPath)
+	if errors.Is(err, os.ErrNotExist) {
+		return "", false, nil
+	}
+	if err != nil {
+		return "", false, errors.Wrap(err, "stat file failed")
+	}
+	return sampleEventPath, true, nil
+}
+
+func (r runner) getExpectedDataset(pkgManifest *packages.PackageManifest) (string, error) {
+	dsName := r.options.TestFolder.DataStream
+	if dsName == "" {
+		// TODO: This should return the package name plus the policy name, but we don't know
+		// what policy created this event, so we cannot reliably know it here. Skip the check
+		// by now.
+		return "", nil
+	}
+
+	dataStreamManifest, err := packages.ReadDataStreamManifestFromPackageRoot(r.options.PackageRootPath, dsName)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to read data stream manifest")
+	}
+	if ds := dataStreamManifest.Dataset; ds != "" {
+		return ds, nil
+	}
+	return pkgManifest.Name + "." + dsName, nil
 }
 
 func (r runner) TearDown() error {
