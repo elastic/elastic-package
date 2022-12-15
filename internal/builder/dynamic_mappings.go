@@ -22,14 +22,12 @@ import (
 var staticEcsMappings string
 
 func addDynamicMappings(destinationDir string) error {
-	// Get raw datastream setFieldmanifest
 	dataStreamManifests, err := filepath.Glob(filepath.Join(destinationDir, "data_stream", "*", packages.DataStreamManifestFile))
 	if err != nil {
 		return err
 	}
 
 	for _, datastream := range dataStreamManifests {
-		logger.Infof("Adding mappings to datastream %s", datastream)
 		contents, err := addDynamicMappingElements(datastream)
 		if err != nil {
 			return err
@@ -47,7 +45,6 @@ func addDynamicMappings(destinationDir string) error {
 		return err
 	}
 	if m.Type == "input" {
-		logger.Infof("Adding mappings to package manifest %s", packageManifest)
 		contents, err := addDynamicMappingElements(packageManifest)
 		if err != nil {
 			return err
@@ -86,10 +83,14 @@ func addDynamicMappingElements(path string) ([]byte, error) {
 		return nil, err
 	}
 
-	logger.Infof("Number of dynamic templates to be added: %d", len(ecsMappings.Mappings.DynamicTemplates))
-	var templates yaml.Node
+	var templates, properties yaml.Node
 	err = templates.Encode(ecsMappings.Mappings.DynamicTemplates)
 	if err != nil {
+		return nil, err
+	}
+	err = properties.Encode(ecsMappings.Mappings.Properties)
+	if err != nil {
+		logger.Errorf("Error encoding properties %s", err)
 		return nil, err
 	}
 
@@ -98,14 +99,6 @@ func addDynamicMappingElements(path string) ([]byte, error) {
 		logger.Errorf("Error appending elems %s", err)
 		return nil, err
 	}
-
-	var properties yaml.Node
-	err = properties.Encode(ecsMappings.Mappings.Properties)
-	if err != nil {
-		logger.Errorf("Error encoding properties %s", err)
-		return nil, err
-	}
-	logger.Infof("Number of properties to be added: %d", len(ecsMappings.Mappings.Properties))
 
 	err = appendElements(&doc, []string{"elasticsearch", "index_template", "mappings", "properties"}, &properties)
 	if err != nil {
@@ -119,9 +112,8 @@ func addDynamicMappingElements(path string) ([]byte, error) {
 		return nil, err
 	}
 
-	logger.Infof("New Contents manifest:\n%s", contents)
+	logger.Debugf("New Contents manifest:\n%s", contents)
 	return contents, nil
-
 }
 
 func appendElements(root *yaml.Node, path []string, values *yaml.Node) error {
@@ -143,22 +135,39 @@ func appendElements(root *yaml.Node, path []string, values *yaml.Node) error {
 				return appendElements(root.Content[i+1], rest, values)
 			}
 		}
-		// TODO not found
-		// create
+		newContentNodes := newYamlNode(key)
+
+		root.Content = append(root.Content, newContentNodes...)
+		return appendElements(newContentNodes[1], rest, values)
 	case yaml.SequenceNode:
 		index, err := strconv.Atoi(key)
 		if err != nil {
 			return err
 		}
+		if len(root.Content) >= index {
+			return errors.Errorf("index out of range in nodes from key %s", key)
+		}
+
 		return appendElements(root.Content[index], rest, values)
 	}
 	return nil
 }
 
+func newYamlNode(key string) []*yaml.Node {
+	keyNode := &yaml.Node{Kind: yaml.ScalarNode, Value: key}
+	var childNode *yaml.Node
+	switch key {
+	case "dynamic_templates":
+		childNode = &yaml.Node{Kind: yaml.SequenceNode, Value: key}
+	default:
+		childNode = &yaml.Node{Kind: yaml.MappingNode, Value: key}
+	}
+	return []*yaml.Node{keyNode, childNode}
+}
+
 func formatResult(result interface{}) ([]byte, error) {
 	d, err := yaml.Marshal(result)
 	if err != nil {
-		logger.Errorf("formatResult error > %s", err)
 		return nil, errors.New("failed to encode")
 	}
 	d, _, err = formatter.YAMLFormatter(d)
