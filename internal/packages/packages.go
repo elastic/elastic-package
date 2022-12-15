@@ -254,6 +254,12 @@ func ReadDataStreamManifest(path string) (*DataStreamManifest, error) {
 	return &m, nil
 }
 
+// ReadDataStreamManifestFromPackageRoot reads and parses the manifest of the given
+// data stream from the given package root.
+func ReadDataStreamManifestFromPackageRoot(packageRoot string, name string) (*DataStreamManifest, error) {
+	return ReadDataStreamManifest(filepath.Join(packageRoot, "data_stream", name, DataStreamManifestFile))
+}
+
 // GetPipelineNameOrDefault returns the name of the data stream's pipeline, if one is explicitly defined in the
 // data stream manifest. If not, the default pipeline name is returned.
 func (dsm *DataStreamManifest) GetPipelineNameOrDefault() string {

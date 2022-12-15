@@ -70,12 +70,15 @@ func (r runner) run() ([]testrunner.TestResult, error) {
 		return result.WithError(errors.Wrap(err, "failed to read manifest"))
 	}
 
-	var results []testrunner.TestResult
-	results = append(results, r.verifySampleEvent(pkgManifest)...)
-	return results, nil
+	dataStreamManifest, err := packages.ReadDataStreamManifestFromPackageRoot(r.options.PackageRootPath, r.options.TestFolder.DataStream)
+	if err != nil {
+		return result.WithError(errors.Wrap(err, "failed to read data stream manifest"))
+	}
+
+	return r.verifySampleEvent(pkgManifest, dataStreamManifest), nil
 }
 
-func (r runner) verifySampleEvent(pkgManifest *packages.PackageManifest) []testrunner.TestResult {
+func (r runner) verifySampleEvent(pkgManifest *packages.PackageManifest, dataStreamManifest *packages.DataStreamManifest) []testrunner.TestResult {
 	dataStreamPath := filepath.Join(r.options.PackageRootPath, "data_stream", r.options.TestFolder.DataStream)
 	sampleEventPath := filepath.Join(dataStreamPath, sampleEventJSON)
 	_, err := os.Stat(sampleEventPath)
@@ -95,7 +98,10 @@ func (r runner) verifySampleEvent(pkgManifest *packages.PackageManifest) []testr
 		return results
 	}
 
-	expectedDataset := pkgManifest.Name + "." + r.options.TestFolder.DataStream
+	expectedDataset := dataStreamManifest.Dataset
+	if expectedDataset == "" {
+		expectedDataset = pkgManifest.Name + "." + r.options.TestFolder.DataStream
+	}
 	fieldsValidator, err := fields.CreateValidatorForDirectory(dataStreamPath,
 		fields.WithSpecVersion(pkgManifest.SpecVersion),
 		fields.WithDefaultNumericConversion(),
