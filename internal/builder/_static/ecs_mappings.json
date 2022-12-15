@@ -1,0 +1,886 @@
+{
+  "mappings": {
+    "properties": {
+      "@timestamp": {
+        "type": "date",
+        "ignore_malformed": false
+      }
+    },
+    "dynamic_templates": [
+      {
+        "data_stream_to_constant": {
+          "path_match": "data_stream.*",
+          "mapping": {
+            "type": "constant_keyword"
+          }
+        }
+      },
+      {
+        "resolved_ip_to_ip": {
+          "match": "resolved_ip",
+          "mapping": {
+            "type": "ip"
+          }
+        }
+      },
+      {
+        "forwarded_ip_to_ip": {
+          "match_mapping_type": "string",
+          "match": "forwarded_ip",
+          "mapping": {
+            "type": "ip"
+          }
+        }
+      },
+      {
+        "ip_to_ip": {
+          "match_mapping_type": "string",
+          "match": "ip",
+          "mapping": {
+            "type": "ip"
+          }
+        }
+      },
+      {
+        "port_to_long": {
+          "match": "port",
+          "mapping": {
+            "type": "long"
+          }
+        }
+      },
+      {
+        "thread_id_to_long": {
+          "path_match": "*.thread.id",
+          "mapping": {
+            "type": "long"
+          }
+        }
+      },
+      {
+        "status_code_to_long": {
+          "match": "status_code",
+          "mapping": {
+            "type": "long"
+          }
+        }
+      },
+      {
+        "line_to_long": {
+          "path_match": "*.file.line",
+          "mapping": {
+            "type": "long"
+          }
+        }
+      },
+      {
+        "priority_to_long": {
+          "path_match": "log.syslog.priority",
+          "mapping": {
+            "type": "long"
+          }
+        }
+      },
+      {
+        "code_to_long": {
+          "path_match": "*.facility.code",
+          "mapping": {
+            "type": "long"
+          }
+        }
+      },
+      {
+        "code_to_long": {
+          "path_match": "*.severity.code",
+          "mapping": {
+            "type": "long"
+          }
+        }
+      },
+      {
+        "bytes_to_long": {
+          "match": "bytes",
+          "path_unmatch": "*.data.bytes",
+          "mapping": {
+            "type": "long"
+          }
+        }
+      },
+      {
+        "packets_to_long": {
+          "match": "packets",
+          "mapping": {
+            "type": "long"
+          }
+        }
+      },
+      {
+        "public_key_exponent_to_long": {
+          "match": "public_key_exponent",
+          "mapping": {
+            "type": "long"
+          }
+        }
+      },
+      {
+        "severity_to_long": {
+          "path_match": "event.severity",
+          "mapping": {
+            "type": "long"
+          }
+        }
+      },
+      {
+        "duration_to_long": {
+          "path_match": "event.duration",
+          "mapping": {
+            "type": "long"
+          }
+        }
+      },
+      {
+        "pid_to_long": {
+          "match": "pid",
+          "mapping": {
+            "type": "long"
+          }
+        }
+      },
+      {
+        "uptime_to_long": {
+          "match": "uptime",
+          "mapping": {
+            "type": "long"
+          }
+        }
+      },
+      {
+        "sequence_to_long": {
+          "match": "sequence",
+          "mapping": {
+            "type": "long"
+          }
+        }
+      },
+      {
+        "entropy_to_long": {
+          "match": "*entropy",
+          "mapping": {
+            "type": "long"
+          }
+        }
+      },
+      {
+        "size_to_long": {
+          "match": "*size",
+          "mapping": {
+            "type": "long"
+          }
+        }
+      },
+      {
+        "entrypoint_to_long": {
+          "match": "entrypoint",
+          "mapping": {
+            "type": "long"
+          }
+        }
+      },
+      {
+        "ttl_to_long": {
+          "match": "ttl",
+          "mapping": {
+            "type": "long"
+          }
+        }
+      },
+      {
+        "major_to_long": {
+          "match": "major",
+          "mapping": {
+            "type": "long"
+          }
+        }
+      },
+      {
+        "minor_to_long": {
+          "match": "minor",
+          "mapping": {
+            "type": "long"
+          }
+        }
+      },
+      {
+        "as_number_to_long": {
+          "path_match": "*.as.number",
+          "mapping": {
+            "type": "long"
+          }
+        }
+      },
+      {
+        "pgid_to_long": {
+          "match": "pgid",
+          "mapping": {
+            "type": "long"
+          }
+        }
+      },
+      {
+        "exit_code_to_long": {
+          "match": "exit_code",
+          "mapping": {
+            "type": "long"
+          }
+        }
+      },
+      {
+        "chi_to_long": {
+          "match": "chi2",
+          "mapping": {
+            "type": "long"
+          }
+        }
+      },
+      {
+        "args_count_to_long": {
+          "match": "args_count",
+          "mapping": {
+            "type": "long"
+          }
+        }
+      },
+      {
+        "virtual_address_to_long": {
+          "match": "virtual_address",
+          "mapping": {
+            "type": "long"
+          }
+        }
+      },
+      {
+        "io_text_to_wildcard": {
+          "path_match": "*.io.text",
+          "mapping": {
+            "type": "wildcard"
+          }
+        }
+      },
+      {
+        "strings_to_wildcard": {
+          "path_match": "registry.data.strings",
+          "mapping": {
+            "type": "wildcard"
+          }
+        }
+      },
+      {
+        "path_to_wildcard": {
+          "path_match": "*url.path",
+          "mapping": {
+            "type": "wildcard"
+          }
+        }
+      },
+      {
+        "message_id_to_wildcard": {
+          "match": "message_id",
+          "mapping": {
+            "type": "wildcard"
+          }
+        }
+      },
+      {
+        "command_line_to_multifield": {
+          "match": "command_line",
+          "mapping": {
+            "type": "wildcard",
+            "fields": {
+              "text": {
+                "type": "match_only_text"
+              }
+            }
+          }
+        }
+      },
+      {
+        "error_stack_trace_to_multifield": {
+          "match": "stack_trace",
+          "mapping": {
+            "type": "wildcard",
+            "fields": {
+              "text": {
+                "type": "match_only_text"
+              }
+            }
+          }
+        }
+      },
+      {
+        "http_content_to_multifield": {
+          "path_match": "*.body.content",
+          "mapping": {
+            "type": "wildcard",
+            "fields": {
+              "text": {
+                "type": "match_only_text"
+              }
+            }
+          }
+        }
+      },
+      {
+        "url_full_to_multifield": {
+          "path_match": "*.url.full",
+          "mapping": {
+            "type": "wildcard",
+            "fields": {
+              "text": {
+                "type": "match_only_text"
+              }
+            }
+          }
+        }
+      },
+      {
+        "url_original_to_multifield": {
+          "path_match": "*.url.original",
+          "mapping": {
+            "type": "wildcard",
+            "fields": {
+              "text": {
+                "type": "match_only_text"
+              }
+            }
+          }
+        }
+      },
+      {
+        "user_agent_original_to_multifield": {
+          "path_match": "user_agent.original",
+          "mapping": {
+            "type": "wildcard",
+            "fields": {
+              "text": {
+                "type": "match_only_text"
+              }
+            }
+          }
+        }
+      },
+      {
+        "error_message_to_match_only": {
+          "path_match": "error.message",
+          "mapping": {
+            "type": "match_only_text"
+          }
+        }
+      },
+      {
+        "message_match_only_text": {
+          "path_match": "message",
+          "mapping": {
+            "type": "match_only_text"
+          }
+        }
+      },
+      {
+        "agent_name_to_keyword": {
+          "path_match": "agent.name",
+          "mapping": {
+            "type": "keyword"
+          }
+        }
+      },
+      {
+        "service_name_to_keyword": {
+          "path_match": "*.service.name",
+          "mapping": {
+            "type": "keyword"
+          }
+        }
+      },
+      {
+        "sections_name_to_keyword": {
+          "path_match": "*.sections.name",
+          "mapping": {
+            "type": "keyword"
+          }
+        }
+      },
+      {
+        "resource_name_to_keyword": {
+          "path_match": "*.resource.name",
+          "mapping": {
+            "type": "keyword"
+          }
+        }
+      },
+      {
+        "observer_name_to_keyword": {
+          "path_match": "observer.name",
+          "mapping": {
+            "type": "keyword"
+          }
+        }
+      },
+      {
+        "question_name_to_keyword": {
+          "path_match": "*.question.name",
+          "mapping": {
+            "type": "keyword"
+          }
+        }
+      },
+      {
+        "group_name_to_keyword": {
+          "path_match": "*.group.name",
+          "mapping": {
+            "type": "keyword"
+          }
+        }
+      },
+      {
+        "geo_name_to_keyword": {
+          "path_match": "*.geo.name",
+          "mapping": {
+            "type": "keyword"
+          }
+        }
+      },
+      {
+        "host_name_to_keyword": {
+          "path_match": "host.name",
+          "mapping": {
+            "type": "keyword"
+          }
+        }
+      },
+      {
+        "severity_name_to_keyword": {
+          "path_match": "*.severity.name",
+          "mapping": {
+            "type": "keyword"
+          }
+        }
+      },
+      {
+        "title_to_multifield": {
+          "match": "title",
+          "mapping": {
+            "type": "keyword",
+            "fields": {
+              "text": {
+                "type": "match_only_text"
+              }
+            }
+          }
+        }
+      },
+      {
+        "executable_to_multifield": {
+          "match": "executable",
+          "mapping": {
+            "type": "keyword",
+            "fields": {
+              "text": {
+                "type": "match_only_text"
+              }
+            }
+          }
+        }
+      },
+      {
+        "file_path_to_multifield": {
+          "path_match": "*.file.path",
+          "mapping": {
+            "type": "keyword",
+            "fields": {
+              "text": {
+                "type": "match_only_text"
+              }
+            }
+          }
+        }
+      },
+      {
+        "file_target_path_to_multifield": {
+          "path_match": "*.file.target_path",
+          "mapping": {
+            "type": "keyword",
+            "fields": {
+              "text": {
+                "type": "match_only_text"
+              }
+            }
+          }
+        }
+      },
+      {
+        "name_to_multifield": {
+          "match": "name",
+          "mapping": {
+            "type": "keyword",
+            "fields": {
+              "text": {
+                "type": "match_only_text"
+              }
+            }
+          }
+        }
+      },
+      {
+        "full_name_to_multifield": {
+          "match": "full_name",
+          "mapping": {
+            "type": "keyword",
+            "fields": {
+              "text": {
+                "type": "match_only_text"
+              }
+            }
+          }
+        }
+      },
+      {
+        "os_full_to_multifield": {
+          "path_match": "*.os.full",
+          "mapping": {
+            "type": "keyword",
+            "fields": {
+              "text": {
+                "type": "match_only_text"
+              }
+            }
+          }
+        }
+      },
+      {
+        "working_directory_to_multifield": {
+          "match": "working_directory",
+          "mapping": {
+            "type": "keyword",
+            "fields": {
+              "text": {
+                "type": "match_only_text"
+              }
+            }
+          }
+        }
+      },
+      {
+        "timestamp_to_date": {
+          "match": "timestamp",
+          "mapping": {
+            "type": "date"
+          }
+        }
+      },
+      {
+        "delivery_timestamp_to_date": {
+          "match": "delivery_timestamp",
+          "mapping": {
+            "type": "date"
+          }
+        }
+      },
+      {
+        "not_after_to_date": {
+          "match": "not_after",
+          "mapping": {
+            "type": "date"
+          }
+        }
+      },
+      {
+        "not_before_to_date": {
+          "match": "not_before",
+          "mapping": {
+            "type": "date"
+          }
+        }
+      },
+      {
+        "accessed_to_date": {
+          "match": "accessed",
+          "mapping": {
+            "type": "date"
+          }
+        }
+      },
+      {
+        "origination_timestamp_to_date": {
+          "match": "origination_timestamp",
+          "mapping": {
+            "type": "date"
+          }
+        }
+      },
+      {
+        "created_to_date": {
+          "match": "created",
+          "mapping": {
+            "type": "date"
+          }
+        }
+      },
+      {
+        "installed_to_date": {
+          "match": "installed",
+          "mapping": {
+            "type": "date"
+          }
+        }
+      },
+      {
+        "creation_date_to_date": {
+          "match": "creation_date",
+          "mapping": {
+            "type": "date"
+          }
+        }
+      },
+      {
+        "ctime_to_date": {
+          "match": "ctime",
+          "mapping": {
+            "type": "date"
+          }
+        }
+      },
+      {
+        "mtime_to_date": {
+          "match": "mtime",
+          "mapping": {
+            "type": "date"
+          }
+        }
+      },
+      {
+        "ingested_to_date": {
+          "match": "ingested",
+          "mapping": {
+            "type": "date"
+          }
+        }
+      },
+      {
+        "start_to_date": {
+          "match": "start",
+          "mapping": {
+            "type": "date"
+          }
+        }
+      },
+      {
+        "end_to_date": {
+          "match": "end",
+          "mapping": {
+            "type": "date"
+          }
+        }
+      },
+      {
+        "score_base_to_float": {
+          "path_match": "*.score.base",
+          "mapping": {
+            "type": "float"
+          }
+        }
+      },
+      {
+        "score_temporal_to_float": {
+          "path_match": "*.score.temporal",
+          "mapping": {
+            "type": "float"
+          }
+        }
+      },
+      {
+        "score_to_float": {
+          "match": "*_score",
+          "mapping": {
+            "type": "float"
+          }
+        }
+      },
+      {
+        "score_norm_to_float": {
+          "match": "*_score_norm",
+          "mapping": {
+            "type": "float"
+          }
+        }
+      },
+      {
+        "usage_to_float": {
+          "match": "usage",
+          "mapping": {
+            "type": "scaled_float",
+            "scaling_factor": 1000
+          }
+        }
+      },
+      {
+        "location_to_geo_point": {
+          "match": "location",
+          "mapping": {
+            "type": "geo_point"
+          }
+        }
+      },
+      {
+        "same_as_process_to_boolean": {
+          "match": "same_as_process",
+          "mapping": {
+            "type": "boolean"
+          }
+        }
+      },
+      {
+        "established_to_boolean": {
+          "match": "established",
+          "mapping": {
+            "type": "boolean"
+          }
+        }
+      },
+      {
+        "resumed_to_boolean": {
+          "match": "resumed",
+          "mapping": {
+            "type": "boolean"
+          }
+        }
+      },
+      {
+        "max_bytes_per_process_exceeded_to_boolean": {
+          "match": "max_bytes_per_process_exceeded",
+          "mapping": {
+            "type": "boolean"
+          }
+        }
+      },
+      {
+        "interactive_to_boolean": {
+          "match": "interactive",
+          "mapping": {
+            "type": "boolean"
+          }
+        }
+      },
+      {
+        "exists_to_boolean": {
+          "match": "exists",
+          "mapping": {
+            "type": "boolean"
+          }
+        }
+      },
+      {
+        "trusted_to_boolean": {
+          "match": "trusted",
+          "mapping": {
+            "type": "boolean"
+          }
+        }
+      },
+      {
+        "valid_to_boolean": {
+          "match": "valid",
+          "mapping": {
+            "type": "boolean"
+          }
+        }
+      },
+      {
+        "go_stripped_to_boolean": {
+          "match": "go_stripped",
+          "mapping": {
+            "type": "boolean"
+          }
+        }
+      },
+      {
+        "coldstart_to_boolean": {
+          "match": "coldstart",
+          "mapping": {
+            "type": "boolean"
+          }
+        }
+      },
+      {
+        "exports_to_flattened": {
+          "match": "exports",
+          "mapping": {
+            "type": "flattened"
+          }
+        }
+      },
+      {
+        "structured_data_to_flattened": {
+          "match": "structured_data",
+          "mapping": {
+            "type": "flattened"
+          }
+        }
+      },
+      {
+        "imports_to_flattened": {
+          "match": "*imports",
+          "mapping": {
+            "type": "flattened"
+          }
+        }
+      },
+      {
+        "attachments_to_nested": {
+          "match": "attachments",
+          "mapping": {
+            "type": "nested"
+          }
+        }
+      },
+      {
+        "segments_to_nested": {
+          "match": "segments",
+          "mapping": {
+            "type": "nested"
+          }
+        }
+      },
+      {
+        "elf_sections_to_nested": {
+          "path_match": "*.elf.sections",
+          "mapping": {
+            "type": "nested"
+          }
+        }
+      },
+      {
+        "pe_sections_to_nested": {
+          "path_match": "*.pe.sections",
+          "mapping": {
+            "type": "nested"
+          }
+        }
+      },
+      {
+        "macho_sections_to_nested": {
+          "path_match": "*.macho.sections",
+          "mapping": {
+            "type": "nested"
+          }
+        }
+      },
+      {
+        "trigger_to_nested": {
+          "match": "trigger",
+          "mapping": {
+            "type": "nested"
+          }
+        }
+      }
+    ]
+  }
+}
