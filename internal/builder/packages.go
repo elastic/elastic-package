@@ -181,7 +181,7 @@ func BuildPackage(options BuildOptions) (string, error) {
 	}
 
 	logger.Debug("Add dynamic mappings")
-	err = addDynamicMappings(destinationDir)
+	err = addDynamicMappings(options.PackageRoot, destinationDir)
 	if err != nil {
 		return "", errors.Wrap(err, "adding dynamic mappings")
 	}

@@ -8,9 +8,10 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/pkg/errors"
+
 	"github.com/elastic/go-ucfg"
 	"github.com/elastic/go-ucfg/yaml"
-	"github.com/pkg/errors"
 )
 
 // BuildManifest defines the manifest defining the building procedure.
@@ -25,12 +26,18 @@ type Dependencies struct {
 
 // ECSDependency defines a dependency on ECS fields.
 type ECSDependency struct {
-	Reference string `config:"reference"`
+	Reference                   string `config:"reference"`
+	ImportCommonDynamicMappings bool   `config:"import_common_dynamic_mappings"`
 }
 
 // HasDependencies function checks if there are any dependencies defined.
 func (bm *BuildManifest) HasDependencies() bool {
 	return bm.Dependencies.ECS.Reference != ""
+}
+
+// HasDependencies function checks if there are any dependencies defined.
+func (bm *BuildManifest) ImportCommonDynamicMappings() bool {
+	return bm.Dependencies.ECS.ImportCommonDynamicMappings
 }
 
 // ReadBuildManifest function reads the package build manifest.

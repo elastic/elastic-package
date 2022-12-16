@@ -16,12 +16,26 @@ import (
 	"github.com/elastic/elastic-package/internal/formatter"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/internal/packages/buildmanifest"
 )
 
 //go:embed _static/ecs_mappings.json
 var staticEcsMappings string
 
-func addDynamicMappings(destinationDir string) error {
+func addDynamicMappings(packageRoot, destinationDir string) error {
+	bm, ok, err := buildmanifest.ReadBuildManifest(packageRoot)
+	if err != nil {
+		return errors.Wrap(err, "can't read build manifest")
+	}
+	if !ok {
+		logger.Debugf("Build manifest hasn't been defined for the package")
+		return nil
+	}
+	if !bm.ImportCommonDynamicMappings() {
+		logger.Debugf("Package doesn't have to import common dynamic mappings")
+		return nil
+	}
+
 	dataStreamManifests, err := filepath.Glob(filepath.Join(destinationDir, "data_stream", "*", packages.DataStreamManifestFile))
 	if err != nil {
 		return err
