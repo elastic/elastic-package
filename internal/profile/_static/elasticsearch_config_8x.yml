@@ -13,3 +13,9 @@ xpack.security.http.ssl.key: "certs/key.pem"
 xpack.security.http.ssl.certificate: "certs/cert.pem"
 
 ingest.geoip.downloader.enabled: false
+
+tracing.apm.enabled: true
+tracing.apm.agent:
+  server_url: http://fleet-server:8200
+  secret_token: changeme
+  environment: dev

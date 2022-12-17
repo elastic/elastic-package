@@ -20,12 +20,25 @@ xpack.encryptedSavedObjects.encryptionKey: "12345678901234567890123456789012"
 
 xpack.cloudSecurityPosture.enabled: true
 
+elastic.apm.active: true
+elastic.apm.serverUrl: http://fleet-server:8200
+elastic.apm.secretToken: changeme
+# elastic.apm.environment: dev # this doesn't work?
+elastic.apm.verifyServerCert: false
+elastic.apm.transactionSampleRate: 1.0
+elastic.apm.breakdownMetrics: true
+elastic.apm.captureSpanStackTraces: true
+elastic.apm.propagateTracestate: true
+elastic.apm.contextPropagationOnly: false
+
 xpack.fleet.packages:
   - name: system
     version: latest
   - name: elastic_agent
     version: latest
   - name: fleet_server
+    version: latest
+  - name: apm
     version: latest
 xpack.fleet.agentPolicies:
   - name: Elastic-Agent (elastic-package)
@@ -51,3 +64,26 @@ xpack.fleet.agentPolicies:
         id: default-fleet-server
         package:
           name: fleet_server
+        inputs:
+          - type: fleet-server
+            vars:
+              - name: custom
+                value: |
+                  server.runtime:
+                    gc_percent: 20
+                  server.instrumentation:
+                    enabled: true
+                    hosts:
+                    - "http://fleet-server:8200"
+                    environment: dev
+                    secret_token: changeme
+      - name: apm-1
+        package:
+          name: apm
+        inputs:
+          - type: apm
+            vars:
+              - name: host
+                value: "0.0.0.0:8200"
+              - name: secret_token
+                value: changeme
