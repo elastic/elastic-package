@@ -1,0 +1,19 @@
+title: existing
+
+elasticsearch:
+  index_template:
+    mappings:
+      _meta:
+        managed: true
+        ecs_properties_added:
+          - example
+        ecs_dynamic_templates_added:
+          - to_nested
+      properties:
+        example:
+          type: short
+      dynamic_templates:
+        - to_nested:
+            path: trigger
+            mapping:
+              type: nested

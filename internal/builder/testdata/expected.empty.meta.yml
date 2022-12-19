@@ -1,0 +1,9 @@
+title: empty
+elasticsearch:
+  index_template:
+    mappings:
+      _meta:
+        ecs_properties_added:
+          - datetime
+        ecs_dynamic_templates_added:
+          - example_template

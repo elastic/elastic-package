@@ -192,7 +192,11 @@ func addEcsMappingsListMeta(doc *yaml.Node, mappings ecsTemplates) error {
 
 func appendElements(root *yaml.Node, path []string, values *yaml.Node) error {
 	if len(path) == 0 {
-		root.Content = append(root.Content, values.Content...)
+		contents := values.Content
+		if values.Kind == yaml.DocumentNode {
+			contents = values.Content[0].Content
+		}
+		root.Content = append(root.Content, contents...)
 		return nil
 	}
 

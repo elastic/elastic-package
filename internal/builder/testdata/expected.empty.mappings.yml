@@ -1,0 +1,12 @@
+title: empty
+elasticsearch:
+  index_template:
+    mappings:
+      dynamic_templates:
+        - example_template:
+            mapping:
+              type: short
+            patch_match: example.*
+      properties:
+        datetime:
+          type: long
