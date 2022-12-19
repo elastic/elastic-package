@@ -10,7 +10,7 @@ import (
 	"net/http"
 	"sort"
 
-	"github.com/Masterminds/semver"
+	"github.com/Masterminds/semver/v3"
 	"github.com/google/go-querystring/query"
 	"github.com/pkg/errors"
 
