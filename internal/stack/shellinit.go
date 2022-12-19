@@ -11,10 +11,11 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/shirou/gopsutil/process"
+
 	"github.com/elastic/elastic-package/internal/environment"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/profile"
-	"github.com/shirou/gopsutil/process"
 )
 
 // Environment variables describing the stack.
