@@ -204,10 +204,7 @@ func setupStackCommand() *cobraext.Command {
 			}
 
 			if shellName == cobraext.ShellInitShellDetect {
-				shellName, err = stack.AutodetectedShell()
-				if err != nil {
-					return fmt.Errorf("cannot detect parent shell from current process: %w", err)
-				}
+				shellName = stack.AutodetectedShell()
 				fmt.Fprintf(cmd.OutOrStderr(), "Detected shell: %s\n", shellName)
 			} else {
 				stack.SelectShell(shellName)

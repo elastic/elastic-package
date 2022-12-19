@@ -27,21 +27,19 @@ var (
 )
 
 var shellType string
-var shellDetectError error
 
 func init() {
-	shellType, shellDetectError = detectShell()
+	shellType = detectShell()
 }
 
 // SelectShell selects the shell to use.
 func SelectShell(shell string) {
 	shellType = shell
-	shellDetectError = nil
 }
 
 // AutodetectedShell returns an error if shell could not be detected.
-func AutodetectedShell() (string, error) {
-	return shellType, shellDetectError
+func AutodetectedShell() string {
+	return shellType
 }
 
 // ShellInit method exposes environment variables that can be used for testing purposes.
@@ -127,14 +125,14 @@ func getShellName(exe string) string {
 	return shell
 }
 
-func detectShell() (string, error) {
+func detectShell() string {
 	shell, err := getParentShell()
 	if err != nil {
 		logger.Debugf("Failed to determine parent process info while detecting shell, will assume bash: %v", err)
-		return "bash", nil
+		return "bash"
 	}
 
-	return shell, nil
+	return shell
 }
 
 func getParentShell() (string, error) {
