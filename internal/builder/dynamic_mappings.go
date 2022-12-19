@@ -22,6 +22,13 @@ import (
 //go:embed _static/ecs_mappings.json
 var staticEcsMappings string
 
+type ecsTemplates struct {
+	Mappings struct {
+		Properties       map[string]interface{}   `yaml:"properties"`
+		DynamicTemplates []map[string]interface{} `yaml:"dynamic_templates"`
+	} `yaml:"mappings"`
+}
+
 func addDynamicMappings(packageRoot, destinationDir string) error {
 	bm, ok, err := buildmanifest.ReadBuildManifest(packageRoot)
 	if err != nil {
@@ -73,13 +80,6 @@ func addDynamicMappings(packageRoot, destinationDir string) error {
 }
 
 func addDynamicMappingElements(path string) ([]byte, error) {
-	type ecsTemplates struct {
-		Mappings struct {
-			Properties       map[string]interface{}   `yaml:"properties"`
-			DynamicTemplates []map[string]interface{} `yaml:"dynamic_templates"`
-		} `yaml:"mappings"`
-	}
-
 	var ecsMappings ecsTemplates
 	err := yaml.Unmarshal([]byte(staticEcsMappings), &ecsMappings)
 	if err != nil {
@@ -97,26 +97,13 @@ func addDynamicMappingElements(path string) ([]byte, error) {
 		return nil, err
 	}
 
-	var templates, properties yaml.Node
-	err = templates.Encode(ecsMappings.Mappings.DynamicTemplates)
+	err = addEcsMappings(&doc, ecsMappings)
 	if err != nil {
-		return nil, err
-	}
-	err = properties.Encode(ecsMappings.Mappings.Properties)
-	if err != nil {
-		logger.Errorf("Error encoding properties %s", err)
 		return nil, err
 	}
 
-	err = appendElements(&doc, []string{"elasticsearch", "index_template", "mappings", "dynamic_templates"}, &templates)
+	err = addEcsMappingsListMeta(&doc, ecsMappings)
 	if err != nil {
-		logger.Errorf("Error appending elems %s", err)
-		return nil, err
-	}
-
-	err = appendElements(&doc, []string{"elasticsearch", "index_template", "mappings", "properties"}, &properties)
-	if err != nil {
-		logger.Errorf("Error appending properties %s", err)
 		return nil, err
 	}
 
@@ -128,6 +115,79 @@ func addDynamicMappingElements(path string) ([]byte, error) {
 
 	logger.Debugf("New Contents manifest:\n%s", contents)
 	return contents, nil
+}
+
+func addEcsMappings(doc *yaml.Node, mappings ecsTemplates) error {
+	var templates, properties yaml.Node
+	err := templates.Encode(mappings.Mappings.DynamicTemplates)
+	if err != nil {
+		return err
+	}
+	err = properties.Encode(mappings.Mappings.Properties)
+	if err != nil {
+		logger.Errorf("Error encoding properties %s", err)
+		return err
+	}
+
+	err = appendElements(doc, []string{"elasticsearch", "index_template", "mappings", "dynamic_templates"}, &templates)
+	if err != nil {
+		logger.Errorf("Error appending elems %s", err)
+		return err
+	}
+
+	err = appendElements(doc, []string{"elasticsearch", "index_template", "mappings", "properties"}, &properties)
+	if err != nil {
+		logger.Errorf("Error appending properties %s", err)
+		return err
+	}
+
+	return nil
+}
+
+func addEcsMappingsListMeta(doc *yaml.Node, mappings ecsTemplates) error {
+	type ecsMappingsAdded struct {
+		Properties       []string `yaml:"properties"`
+		DynamicTemplates []string `yaml:"dynamic_templates"`
+	}
+
+	var mappingsAdded ecsMappingsAdded
+	for property := range mappings.Mappings.Properties {
+		mappingsAdded.Properties = append(mappingsAdded.Properties, property)
+	}
+
+	for _, dynamicTemplate := range mappings.Mappings.DynamicTemplates {
+		if len(dynamicTemplate) > 1 {
+			return errors.New("more than one dynamic template present")
+		}
+
+		for title := range dynamicTemplate {
+			mappingsAdded.DynamicTemplates = append(mappingsAdded.DynamicTemplates, title)
+		}
+	}
+
+	var properties yaml.Node
+	err := properties.Encode(mappingsAdded.Properties)
+	if err != nil {
+		return err
+	}
+
+	err = appendElements(doc, []string{"elasticsearch", "index_template", "mappings", "_meta", "ecs_properties_added"}, &properties)
+	if err != nil {
+		return err
+	}
+
+	var dynamicTemplates yaml.Node
+	err = dynamicTemplates.Encode(mappingsAdded.DynamicTemplates)
+	if err != nil {
+		return err
+	}
+
+	err = appendElements(doc, []string{"elasticsearch", "index_template", "mappings", "_meta", "ecs_dynamic_templates_added"}, &dynamicTemplates)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func appendElements(root *yaml.Node, path []string, values *yaml.Node) error {
@@ -171,7 +231,7 @@ func newYamlNode(key string) []*yaml.Node {
 	keyNode := &yaml.Node{Kind: yaml.ScalarNode, Value: key}
 	var childNode *yaml.Node
 	switch key {
-	case "dynamic_templates":
+	case "dynamic_templates", "ecs_properties_added", "ecs_dynamic_templates_added":
 		childNode = &yaml.Node{Kind: yaml.SequenceNode, Value: key}
 	default:
 		childNode = &yaml.Node{Kind: yaml.MappingNode, Value: key}
