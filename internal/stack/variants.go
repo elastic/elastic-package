@@ -7,7 +7,7 @@ package stack
 import (
 	"fmt"
 
-	"github.com/Masterminds/semver"
+	"github.com/Masterminds/semver/v3"
 )
 
 // configurationVariantMap is a map of version constraints and their matching configuration variant.

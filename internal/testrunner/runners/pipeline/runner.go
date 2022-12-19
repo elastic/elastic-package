@@ -99,6 +99,16 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		return nil, errors.Wrap(err, "failed to read manifest")
 	}
 
+	dsManifest, err := packages.ReadDataStreamManifestFromPackageRoot(r.options.PackageRootPath, r.options.TestFolder.DataStream)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to read data stream manifest")
+	}
+
+	expectedDataset := dsManifest.Dataset
+	if expectedDataset == "" {
+		expectedDataset = pkgManifest.Name + "." + r.options.TestFolder.DataStream
+	}
+
 	results := make([]testrunner.TestResult, 0)
 	for _, testCaseFile := range testCaseFiles {
 		tr := testrunner.TestResult{
@@ -140,7 +150,6 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		result := &testResult{events: processedEvents}
 
 		tr.TimeElapsed = time.Since(startTime)
-		expectedDataset := pkgManifest.Name + "." + r.options.TestFolder.DataStream
 		fieldsValidator, err := fields.CreateValidatorForDirectory(dataStreamPath,
 			fields.WithSpecVersion(pkgManifest.SpecVersion),
 			fields.WithNumericKeywordFields(tc.config.NumericKeywordFields),
