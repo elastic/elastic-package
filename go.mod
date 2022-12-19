@@ -12,7 +12,7 @@ require (
 	github.com/elastic/cloud-sdk-go v1.11.0
 	github.com/elastic/go-elasticsearch/v7 v7.17.7
 	github.com/elastic/go-licenser v0.4.1
-	github.com/elastic/go-resource v0.1.0
+	github.com/elastic/go-resource v0.1.1
 	github.com/elastic/go-sysinfo v1.9.0
 	github.com/elastic/go-ucfg v0.8.6
 	github.com/elastic/package-spec/v2 v2.2.0
