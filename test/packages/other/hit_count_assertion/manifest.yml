@@ -1,0 +1,23 @@
+format_version: 1.0.0
+name: hit_count_assertion
+title: hit counte assertion test
+# version is set to something very large to so this test package can
+# be installed in the package registry regardless of the version of
+# the actual apache package in the registry at any given time.
+version: 999.999.999
+description: Assert that observed hit count matches expected hit count
+release: experimental
+license: basic
+type: integration
+conditions:
+  kibana.version: '^8.0.0'
+policy_templates:
+  - name: test
+    title: Test
+    description: Description
+    inputs:
+      - type: hits
+        title: Collect logs.
+        description: Collecting logs.
+owner:
+  github: elastic/security-external-integrations

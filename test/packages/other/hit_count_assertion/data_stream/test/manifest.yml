@@ -1,0 +1,17 @@
+title: Test
+release: experimental
+type: logs
+streams:
+  - input: hits
+    title: test logs
+    description: Collect test logs
+    template_path: stream.yml.hbs
+    vars:
+      - name: tags
+        type: text
+        title: Tags
+        multi: true
+        required: true
+        show_user: false
+        default:
+          - forwarded

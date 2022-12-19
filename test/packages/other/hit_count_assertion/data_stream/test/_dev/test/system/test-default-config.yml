@@ -1,0 +1,6 @@
+input: hits
+service: test-assert-hits
+service_notify_signal: SIGHUP
+vars: ~
+assert:
+  hit_count: 3
