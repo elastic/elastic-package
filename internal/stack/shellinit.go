@@ -11,8 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/elastic/go-sysinfo"
-	"github.com/elastic/go-sysinfo/types"
+	"github.com/shirou/gopsutil/v3/process"
 
 	"github.com/elastic/elastic-package/internal/environment"
 	"github.com/elastic/elastic-package/internal/logger"
@@ -29,21 +28,19 @@ var (
 )
 
 var shellType string
-var shellDetectError error
 
 func init() {
-	shellType, shellDetectError = detectShell()
+	shellType = detectShell()
 }
 
 // SelectShell selects the shell to use.
 func SelectShell(shell string) {
 	shellType = shell
-	shellDetectError = nil
 }
 
 // AutodetectedShell returns an error if shell could not be detected.
-func AutodetectedShell() (string, error) {
-	return shellType, shellDetectError
+func AutodetectedShell() string {
+	return shellType
 }
 
 // ShellInit method exposes environment variables that can be used for testing purposes.
@@ -129,43 +126,41 @@ func getShellName(exe string) string {
 	return shell
 }
 
-func detectShell() (string, error) {
-	ppid := os.Getppid()
-	parentInfo, err := getParentInfo(ppid)
-	if errors.Is(err, types.ErrNotImplemented) {
-		// Sysinfo doesn't implement some features in some platforms.
-		// This mainly affects osx when building without CGO.
-		// Assume bash in that case.
-		// See https://github.com/elastic/elastic-package/issues/1030.
-		logger.Debug("Failed to determine parent process info while detecting shell, will assume bash")
-		return "bash", nil
+func detectShell() string {
+	shell, err := getParentShell()
+	if err != nil {
+		logger.Debugf("Failed to determine parent process info while detecting shell, will assume bash: %v", err)
+		return "bash"
 	}
+
+	return shell
+}
+
+func getParentShell() (string, error) {
+	ppid := os.Getppid()
+	p, err := process.NewProcess(int32(ppid))
+	if err != nil {
+		return "", err
+	}
+	exe, err := p.Exe()
 	if err != nil {
 		return "", err
 	}
 
-	shell := getShellName(parentInfo.Exe)
+	shell := getShellName(exe)
 	if shell == "go" {
-		parentParentInfo, err := getParentInfo(parentInfo.PPID)
+		parent, err := p.Parent()
 		if err != nil {
-			return "", fmt.Errorf("cannot retrieve parent process info: %w", err)
+			return "", err
 		}
-		return getShellName(parentParentInfo.Exe), nil
+
+		exe, err := parent.Exe()
+		if err != nil {
+			return "", err
+		}
+
+		return getShellName(exe), nil
 	}
 
 	return shell, nil
-}
-
-func getParentInfo(ppid int) (types.ProcessInfo, error) {
-	parent, err := sysinfo.Process(ppid)
-	if err != nil {
-		return types.ProcessInfo{}, fmt.Errorf("cannot retrieve information for process %d: %w", ppid, err)
-	}
-
-	parentInfo, err := parent.Info()
-	if err != nil {
-		return types.ProcessInfo{}, fmt.Errorf("cannot retrieve information for parent of process %d: %w", ppid, err)
-	}
-
-	return parentInfo, nil
 }
