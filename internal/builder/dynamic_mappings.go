@@ -35,13 +35,13 @@ func addDynamicMappings(packageRoot, destinationDir string) error {
 		return errors.Wrap(err, "can't read build manifest")
 	}
 	if !ok {
-		logger.Debugf("Build manifest hasn't been defined for the package")
+		logger.Debug("Build manifest hasn't been defined for the package")
 		return nil
 	}
-	if !bm.ImportCommonDynamicMappings() {
-		logger.Debugf("Package doesn't have to import common dynamic mappings")
+	if !bm.ImportMappings() {
 		return nil
 	}
+	logger.Debug("Import ECS mappings into the built package")
 
 	dataStreamManifests, err := filepath.Glob(filepath.Join(destinationDir, "data_stream", "*", packages.DataStreamManifestFile))
 	if err != nil {
@@ -113,7 +113,6 @@ func addDynamicMappingElements(path string) ([]byte, error) {
 		return nil, err
 	}
 
-	logger.Debugf("New Contents manifest:\n%s", contents)
 	return contents, nil
 }
 

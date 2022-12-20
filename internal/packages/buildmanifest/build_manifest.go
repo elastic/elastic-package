@@ -26,8 +26,8 @@ type Dependencies struct {
 
 // ECSDependency defines a dependency on ECS fields.
 type ECSDependency struct {
-	Reference                   string `config:"reference"`
-	ImportCommonDynamicMappings bool   `config:"import_common_dynamic_mappings"`
+	Reference      string `config:"reference"`
+	ImportMappings bool   `config:"import_mappings"`
 }
 
 // HasDependencies function checks if there are any dependencies defined.
@@ -36,8 +36,8 @@ func (bm *BuildManifest) HasDependencies() bool {
 }
 
 // HasDependencies function checks if there are any dependencies defined.
-func (bm *BuildManifest) ImportCommonDynamicMappings() bool {
-	return bm.Dependencies.ECS.ImportCommonDynamicMappings
+func (bm *BuildManifest) ImportMappings() bool {
+	return bm.Dependencies.ECS.ImportMappings
 }
 
 // ReadBuildManifest function reads the package build manifest.
