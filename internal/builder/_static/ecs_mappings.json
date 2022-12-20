@@ -1,12 +1,15 @@
 {
   "mappings": {
-    "properties": {
-      "@timestamp": {
-        "type": "date",
-        "ignore_malformed": false
-      }
-    },
     "dynamic_templates": [
+      {
+        "ecs_timestamp": {
+          "path_match": "@timestamp",
+          "mapping": {
+            "type": "date",
+            "ignore_malformed": false
+          }
+        }
+      },
       {
         "data_stream_to_constant": {
           "path_match": "data_stream.*",

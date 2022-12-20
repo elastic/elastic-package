@@ -27,7 +27,6 @@ const prefixMapping = "_embedded_ecs"
 
 type ecsTemplates struct {
 	Mappings struct {
-		Properties       map[string]interface{}   `yaml:"properties"`
 		DynamicTemplates []map[string]interface{} `yaml:"dynamic_templates"`
 	} `yaml:"mappings"`
 }
@@ -127,14 +126,10 @@ func loadEcsMappings() (ecsTemplates, error) {
 }
 
 func addEcsMappings(doc *yaml.Node, mappings ecsTemplates) error {
-	var templates, properties yaml.Node
+	var templates yaml.Node
 	err := templates.Encode(mappings.Mappings.DynamicTemplates)
 	if err != nil {
 		return errors.Wrap(err, "failed to encode dynamic templates")
-	}
-	err = properties.Encode(mappings.Mappings.Properties)
-	if err != nil {
-		return errors.Wrap(err, "failed to encode properties")
 	}
 
 	renameMappingsNames(&templates)
@@ -142,11 +137,6 @@ func addEcsMappings(doc *yaml.Node, mappings ecsTemplates) error {
 	err = appendElements(doc, []string{"elasticsearch", "index_template", "mappings", "dynamic_templates"}, &templates)
 	if err != nil {
 		return errors.Wrap(err, "failed to append dynamic templates")
-	}
-
-	err = appendElements(doc, []string{"elasticsearch", "index_template", "mappings", "properties"}, &properties)
-	if err != nil {
-		return errors.Wrap(err, "failed to append properties")
 	}
 
 	return nil
@@ -169,14 +159,9 @@ func renameMappingsNames(doc *yaml.Node) {
 
 func addEcsMappingsListMeta(doc *yaml.Node, mappings ecsTemplates) error {
 	type ecsMappingsAdded struct {
-		Properties       []string `yaml:"properties"`
 		DynamicTemplates []string `yaml:"dynamic_templates"`
 	}
-
 	var mappingsAdded ecsMappingsAdded
-	for property := range mappings.Mappings.Properties {
-		mappingsAdded.Properties = append(mappingsAdded.Properties, property)
-	}
 
 	for _, dynamicTemplate := range mappings.Mappings.DynamicTemplates {
 		if len(dynamicTemplate) > 1 {
@@ -188,21 +173,10 @@ func addEcsMappingsListMeta(doc *yaml.Node, mappings ecsTemplates) error {
 		}
 	}
 
-	var properties yaml.Node
-	err := properties.Encode(mappingsAdded.Properties)
-	if err != nil {
-		return errors.Wrap(err, "failed to encode properties")
-	}
-
-	err = appendElements(doc, []string{"elasticsearch", "index_template", "mappings", "_meta", "ecs_properties_added"}, &properties)
-	if err != nil {
-		return err
-	}
-
 	var dynamicTemplates yaml.Node
-	err = dynamicTemplates.Encode(mappingsAdded.DynamicTemplates)
+	err := dynamicTemplates.Encode(mappingsAdded.DynamicTemplates)
 	if err != nil {
-		return errors.Wrap(err, "failed to encode dynamic properties")
+		return errors.Wrap(err, "failed to encode dynamic templates")
 	}
 
 	err = appendElements(doc, []string{"elasticsearch", "index_template", "mappings", "_meta", "ecs_dynamic_templates_added"}, &dynamicTemplates)

@@ -6,7 +6,6 @@ elasticsearch:
         managed: true
         ecs_properties_added:
           - example
-          - datetime
         ecs_dynamic_templates_added:
           - to_nested
           - _embedded_ecs.example_template

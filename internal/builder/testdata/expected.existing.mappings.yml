@@ -11,8 +11,6 @@ elasticsearch:
       properties:
         example:
           type: short
-        datetime:
-          type: long
       dynamic_templates:
         - to_nested:
             path: trigger
