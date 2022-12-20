@@ -9,7 +9,7 @@ elasticsearch:
           - datetime
         ecs_dynamic_templates_added:
           - to_nested
-          - example_template
+          - _embedded_ecs.example_template
       properties:
         example:
           type: short

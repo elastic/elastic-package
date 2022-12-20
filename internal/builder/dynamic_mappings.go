@@ -6,6 +6,7 @@ package builder
 
 import (
 	_ "embed"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -21,6 +22,8 @@ import (
 
 //go:embed _static/ecs_mappings.json
 var staticEcsMappings string
+
+const prefixMapping = "_embedded_ecs"
 
 type ecsTemplates struct {
 	Mappings struct {
@@ -80,15 +83,14 @@ func addDynamicMappings(packageRoot, destinationDir string) error {
 }
 
 func addDynamicMappingElements(path string) ([]byte, error) {
-	var ecsMappings ecsTemplates
-	err := yaml.Unmarshal([]byte(staticEcsMappings), &ecsMappings)
+	ecsMappings, err := loadEcsMappings()
 	if err != nil {
-		return nil, err
+		return nil, errors.New("can't load ecs mappings template")
 	}
 
 	contents, err := os.ReadFile(path)
 	if err != nil {
-		return nil, err
+		return nil, errors.New("can't read manifest")
 	}
 
 	var doc yaml.Node
@@ -109,38 +111,60 @@ func addDynamicMappingElements(path string) ([]byte, error) {
 
 	contents, err = formatResult(&doc)
 	if err != nil {
-		logger.Errorf("Error formatting %s", err)
 		return nil, err
 	}
 
 	return contents, nil
 }
 
+func loadEcsMappings() (ecsTemplates, error) {
+	var ecsMappings ecsTemplates
+	err := yaml.Unmarshal([]byte(staticEcsMappings), &ecsMappings)
+	if err != nil {
+		return ecsMappings, err
+	}
+	return ecsMappings, nil
+}
+
 func addEcsMappings(doc *yaml.Node, mappings ecsTemplates) error {
 	var templates, properties yaml.Node
 	err := templates.Encode(mappings.Mappings.DynamicTemplates)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to encode dynamic templates")
 	}
 	err = properties.Encode(mappings.Mappings.Properties)
 	if err != nil {
-		logger.Errorf("Error encoding properties %s", err)
-		return err
+		return errors.Wrap(err, "failed to encode properties")
 	}
+
+	renameMappingsNames(&templates)
 
 	err = appendElements(doc, []string{"elasticsearch", "index_template", "mappings", "dynamic_templates"}, &templates)
 	if err != nil {
-		logger.Errorf("Error appending elems %s", err)
-		return err
+		return errors.Wrap(err, "failed to append dynamic templates")
 	}
 
 	err = appendElements(doc, []string{"elasticsearch", "index_template", "mappings", "properties"}, &properties)
 	if err != nil {
-		logger.Errorf("Error appending properties %s", err)
-		return err
+		return errors.Wrap(err, "failed to append properties")
 	}
 
 	return nil
+}
+
+func renameMappingsNames(doc *yaml.Node) {
+	switch doc.Kind {
+	case yaml.MappingNode:
+		for i := 0; i < len(doc.Content); i += 2 {
+			doc.Content[i].Value = fmt.Sprintf("%s.%s", prefixMapping, doc.Content[i].Value)
+		}
+	case yaml.SequenceNode:
+		for i := 0; i < len(doc.Content); i++ {
+			renameMappingsNames(doc.Content[i])
+		}
+	case yaml.DocumentNode:
+		renameMappingsNames(doc.Content[0])
+	}
 }
 
 func addEcsMappingsListMeta(doc *yaml.Node, mappings ecsTemplates) error {
@@ -156,18 +180,18 @@ func addEcsMappingsListMeta(doc *yaml.Node, mappings ecsTemplates) error {
 
 	for _, dynamicTemplate := range mappings.Mappings.DynamicTemplates {
 		if len(dynamicTemplate) > 1 {
-			return errors.New("more than one dynamic template present")
+			return errors.New("more than one dynamic template present in the same definition")
 		}
 
 		for title := range dynamicTemplate {
-			mappingsAdded.DynamicTemplates = append(mappingsAdded.DynamicTemplates, title)
+			mappingsAdded.DynamicTemplates = append(mappingsAdded.DynamicTemplates, fmt.Sprintf("%s.%s", prefixMapping, title))
 		}
 	}
 
 	var properties yaml.Node
 	err := properties.Encode(mappingsAdded.Properties)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to encode properties")
 	}
 
 	err = appendElements(doc, []string{"elasticsearch", "index_template", "mappings", "_meta", "ecs_properties_added"}, &properties)
@@ -178,7 +202,7 @@ func addEcsMappingsListMeta(doc *yaml.Node, mappings ecsTemplates) error {
 	var dynamicTemplates yaml.Node
 	err = dynamicTemplates.Encode(mappingsAdded.DynamicTemplates)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to encode dynamic properties")
 	}
 
 	err = appendElements(doc, []string{"elasticsearch", "index_template", "mappings", "_meta", "ecs_dynamic_templates_added"}, &dynamicTemplates)

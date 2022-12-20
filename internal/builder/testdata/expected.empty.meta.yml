@@ -6,4 +6,4 @@ elasticsearch:
         ecs_properties_added:
           - datetime
         ecs_dynamic_templates_added:
-          - example_template
+          - _embedded_ecs.example_template
