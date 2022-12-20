@@ -103,11 +103,6 @@ func addDynamicMappingElements(path string) ([]byte, error) {
 		return nil, err
 	}
 
-	err = addEcsMappingsListMeta(&doc, ecsMappings)
-	if err != nil {
-		return nil, err
-	}
-
 	contents, err = formatResult(&doc)
 	if err != nil {
 		return nil, err
@@ -157,36 +152,6 @@ func renameMappingsNames(doc *yaml.Node) {
 	}
 }
 
-func addEcsMappingsListMeta(doc *yaml.Node, mappings ecsTemplates) error {
-	type ecsMappingsAdded struct {
-		DynamicTemplates []string `yaml:"dynamic_templates"`
-	}
-	var mappingsAdded ecsMappingsAdded
-
-	for _, dynamicTemplate := range mappings.Mappings.DynamicTemplates {
-		if len(dynamicTemplate) > 1 {
-			return errors.New("more than one dynamic template present in the same definition")
-		}
-
-		for title := range dynamicTemplate {
-			mappingsAdded.DynamicTemplates = append(mappingsAdded.DynamicTemplates, fmt.Sprintf("%s.%s", prefixMapping, title))
-		}
-	}
-
-	var dynamicTemplates yaml.Node
-	err := dynamicTemplates.Encode(mappingsAdded.DynamicTemplates)
-	if err != nil {
-		return errors.Wrap(err, "failed to encode dynamic templates")
-	}
-
-	err = appendElements(doc, []string{"elasticsearch", "index_template", "mappings", "_meta", "ecs_dynamic_templates_added"}, &dynamicTemplates)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func appendElements(root *yaml.Node, path []string, values *yaml.Node) error {
 	if len(path) == 0 {
 		contents := values.Content
@@ -232,7 +197,7 @@ func newYamlNode(key string) []*yaml.Node {
 	keyNode := &yaml.Node{Kind: yaml.ScalarNode, Value: key}
 	var childNode *yaml.Node
 	switch key {
-	case "dynamic_templates", "ecs_properties_added", "ecs_dynamic_templates_added":
+	case "dynamic_templates":
 		childNode = &yaml.Node{Kind: yaml.SequenceNode, Value: key}
 	default:
 		childNode = &yaml.Node{Kind: yaml.MappingNode, Value: key}
