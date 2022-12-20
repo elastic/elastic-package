@@ -173,3 +173,5 @@ require (
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.3 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
+
+replace github.com/gobuffalo/packr/v2 => github.com/gobuffalo/packr/v2 v2.3.2
