@@ -1,0 +1,10 @@
+input: hits
+service: test-hits
+service_notify_signal: SIGHUP
+vars: ~
+data_stream:
+  vars:
+    tcp_host: 0.0.0.0
+    tcp_port: 9999
+assert:
+  hit_count: 100

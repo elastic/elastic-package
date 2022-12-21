@@ -1,8 +1,4 @@
-paths:
-{{#each paths as |path i|}}
-  - {{path}}
-{{/each}}
-exclude_files: [".gz$"]
+host: "{{tcp_host}}:{{tcp_port}}"
 tags:
 {{#each tags as |tag i|}}
  - {{tag}}
@@ -11,7 +7,7 @@ fields_under_root: true
 fields:
     observer:
         vendor: Test
-        product: Test
+        product: test
         type: test
 {{#contains tags "forwarded"}}
 publisher_pipeline.disable_host: true
@@ -22,4 +18,4 @@ processors:
 - add_fields:
     target: ''
     fields:
-        ecs.version: 1.6.0
+        ecs.version: 1.7.0

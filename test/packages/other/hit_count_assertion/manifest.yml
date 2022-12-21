@@ -1,11 +1,12 @@
 format_version: 1.0.0
 name: hit_count_assertion
-title: hit counte assertion test
+title: Hit Count Assertion test
 # version is set to something very large to so this test package can
 # be installed in the package registry regardless of the version of
 # the actual apache package in the registry at any given time.
 version: 999.999.999
-description: Assert that observed hit count matches expected hit count
+description: Test for Hit Count Assertion
+categories: ["custom"]
 release: experimental
 license: basic
 type: integration
@@ -17,7 +18,7 @@ policy_templates:
     description: Description
     inputs:
       - type: hits
-        title: Collect logs.
-        description: Collecting logs.
+        title: Collect hits via tcp.
+        description: Collect hits via tcp.
 owner:
   github: elastic/security-external-integrations

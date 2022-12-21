@@ -1,6 +1,6 @@
 version: '2.3'
 services:
-  test-assert-hits:
+  test-hits:
     image: akroh/stream:v0.0.1
     volumes:
       - ./logs:/logs:ro
