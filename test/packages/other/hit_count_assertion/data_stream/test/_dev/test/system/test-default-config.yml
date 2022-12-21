@@ -1,4 +1,4 @@
-input: hits
+input: logfile
 service: test-assert-hits
 service_notify_signal: SIGHUP
 vars: ~
