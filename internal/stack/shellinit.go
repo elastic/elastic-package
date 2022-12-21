@@ -27,24 +27,13 @@ var (
 	CACertificateEnv         = environment.WithElasticPackagePrefix("CA_CERT")
 )
 
-var shellType string
-
-func init() {
-	shellType = detectShell()
-}
-
-// SelectShell selects the shell to use.
-func SelectShell(shell string) {
-	shellType = shell
-}
-
-// AutodetectedShell returns an error if shell could not be detected.
-func AutodetectedShell() string {
-	return shellType
+// AutodetectShell returns the detected shell used.
+func AutodetectShell() string {
+	return detectShell()
 }
 
 // ShellInit method exposes environment variables that can be used for testing purposes.
-func ShellInit(elasticStackProfile *profile.Profile) (string, error) {
+func ShellInit(elasticStackProfile *profile.Profile, shellType string) (string, error) {
 	config, err := StackInitConfig(elasticStackProfile)
 	if err != nil {
 		return "", nil
