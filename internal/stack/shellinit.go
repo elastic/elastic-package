@@ -27,7 +27,7 @@ var (
 	CACertificateEnv         = environment.WithElasticPackagePrefix("CA_CERT")
 )
 
-// AutodetectShell returns an error if shell could not be detected.
+// AutodetectShell returns the detected shell used.
 func AutodetectShell() string {
 	return detectShell()
 }
