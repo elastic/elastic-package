@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strconv"
 
+	"github.com/Masterminds/semver"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 
@@ -25,6 +26,8 @@ var staticEcsMappings string
 
 const prefixMapping = "_embedded_ecs"
 
+var semver2_3_0 = semver.MustParse("2.3.0")
+
 type ecsTemplates struct {
 	Mappings struct {
 		DynamicTemplates []map[string]interface{} `yaml:"dynamic_templates"`
@@ -32,43 +35,41 @@ type ecsTemplates struct {
 }
 
 func addDynamicMappings(packageRoot, destinationDir string) error {
-	bm, ok, err := buildmanifest.ReadBuildManifest(packageRoot)
-	if err != nil {
-		return errors.Wrap(err, "can't read build manifest")
-	}
-	if !ok {
-		logger.Debug("Build manifest hasn't been defined for the package")
-		return nil
-	}
-	if !bm.ImportMappings() {
-		logger.Debug("Package doesn't have to import ECS mappings")
-		return nil
-	}
-	logger.Debug("Import ECS mappings into the built package")
-
-	dataStreamManifests, err := filepath.Glob(filepath.Join(destinationDir, "data_stream", "*", packages.DataStreamManifestFile))
-	if err != nil {
-		return err
-	}
-
-	for _, datastream := range dataStreamManifests {
-		contents, err := addDynamicMappingElements(datastream)
-		if err != nil {
-			return err
-		}
-		err = os.WriteFile(datastream, contents, 0664)
-		if err != nil {
-			return err
-		}
-	}
-
 	packageManifest := filepath.Join(destinationDir, packages.PackageManifestFile)
 
 	m, err := packages.ReadPackageManifest(packageManifest)
 	if err != nil {
 		return err
 	}
-	if m.Type == "input" {
+
+	shouldImport, err := shouldImportEcsMappings(m.SpecVersion, packageRoot)
+	if err != nil {
+		return err
+	}
+	if !shouldImport {
+		return nil
+	}
+
+	logger.Debug("Import ECS mappings into the built package")
+
+	switch m.Type {
+	case "integration":
+		dataStreamManifests, err := filepath.Glob(filepath.Join(destinationDir, "data_stream", "*", packages.DataStreamManifestFile))
+		if err != nil {
+			return err
+		}
+
+		for _, datastream := range dataStreamManifests {
+			contents, err := addDynamicMappingElements(datastream)
+			if err != nil {
+				return err
+			}
+			err = os.WriteFile(datastream, contents, 0664)
+			if err != nil {
+				return err
+			}
+		}
+	case "input":
 		contents, err := addDynamicMappingElements(packageManifest)
 		if err != nil {
 			return err
@@ -80,6 +81,32 @@ func addDynamicMappings(packageRoot, destinationDir string) error {
 	}
 
 	return nil
+}
+
+func shouldImportEcsMappings(specVersion, packageRoot string) (bool, error) {
+	v, err := semver.NewVersion(specVersion)
+	if err != nil {
+		return false, errors.Wrap(err, "invalid spec version")
+	}
+
+	if v.LessThan(semver2_3_0) {
+		logger.Debugf("Required spec version >= %s to import ECS mappings", semver2_3_0.String())
+		return false, nil
+	}
+
+	bm, ok, err := buildmanifest.ReadBuildManifest(packageRoot)
+	if err != nil {
+		return false, errors.Wrap(err, "can't read build manifest")
+	}
+	if !ok {
+		logger.Debug("Build manifest hasn't been defined for the package")
+		return false, nil
+	}
+	if !bm.ImportMappings() {
+		logger.Debug("Package doesn't have to import ECS mappings")
+		return false, nil
+	}
+	return true, nil
 }
 
 func addDynamicMappingElements(path string) ([]byte, error) {
