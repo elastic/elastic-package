@@ -26,18 +26,15 @@ const (
 	fieldsCachedDir = "cache/fields"
 
 	terraformDeployerYmlFile = "terraform-deployer.yml"
-
-	dockerCustomAgentDeployerYmlFile = "docker-custom-agent-base.yml"
 )
 
 var (
 	// elasticPackageDataHome is the name of the environment variable used to override data folder for elastic-package
 	elasticPackageDataHome = environment.WithElasticPackagePrefix("DATA_HOME")
 
-	serviceLogsDir               = filepath.Join(temporaryDir, "service_logs")
-	kubernetesDeployerDir        = filepath.Join(deployerDir, "kubernetes")
-	terraformDeployerDir         = filepath.Join(deployerDir, "terraform")
-	dockerCustomAgentDeployerDir = filepath.Join(deployerDir, "docker_custom_agent")
+	serviceLogsDir        = filepath.Join(temporaryDir, "service_logs")
+	kubernetesDeployerDir = filepath.Join(deployerDir, "kubernetes")
+	terraformDeployerDir  = filepath.Join(deployerDir, "terraform")
 )
 
 // LocationManager maintains an instance of a config path location
@@ -99,16 +96,6 @@ func (loc LocationManager) TerraformDeployerDir() string {
 // TerraformDeployerYml returns the Terraform deployer yml file
 func (loc LocationManager) TerraformDeployerYml() string {
 	return filepath.Join(loc.stackPath, terraformDeployerDir, terraformDeployerYmlFile)
-}
-
-// DockerCustomAgentDeployerDir returns the DockerCustomAgent Directory
-func (loc LocationManager) DockerCustomAgentDeployerDir() string {
-	return filepath.Join(loc.stackPath, dockerCustomAgentDeployerDir)
-}
-
-// DockerCustomAgentDeployerYml returns the DockerCustomAgent deployer yml file
-func (loc LocationManager) DockerCustomAgentDeployerYml() string {
-	return filepath.Join(loc.stackPath, dockerCustomAgentDeployerDir, dockerCustomAgentDeployerYmlFile)
 }
 
 // ServiceLogDir returns the log directory
