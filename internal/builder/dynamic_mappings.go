@@ -41,6 +41,7 @@ func addDynamicMappings(packageRoot, destinationDir string) error {
 		return nil
 	}
 	if !bm.ImportMappings() {
+		logger.Debug("Package doesn't have to import ECS mappings")
 		return nil
 	}
 	logger.Debug("Import ECS mappings into the built package")
