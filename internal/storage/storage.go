@@ -11,7 +11,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/Masterminds/semver"
+	"github.com/Masterminds/semver/v3"
 	"github.com/go-git/go-billy/v5"
 	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/go-git/go-billy/v5/osfs"

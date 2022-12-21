@@ -1,15 +1,14 @@
-format_version: 1.0.0
+format_version: 2.2.0
 name: with_dataset
 title: With dataset test
-version: 0.0.1
+version: 0.0.2
 description: Package that defines system test for data streams with an overwriting dataset
 categories:
   - custom
-release: experimental
-license: basic
 type: integration
 conditions:
   kibana.version: '^8.0.0'
+  elastic.subscription: basic
 policy_templates:
   - name: sample
     title: Sample logs
