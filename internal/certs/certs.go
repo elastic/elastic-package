@@ -262,7 +262,7 @@ func (c *Certificate) WriteCert(w io.Writer) error {
 func (c *Certificate) WriteEnv(w io.Writer) error {
 	fingerprint := c.Fingerprint()
 	_, err := fmt.Fprintf(w, "%s=%s\n",
-		"ELASTIC_PACKAGE_CA_SHA256",
+		"ELASTIC_PACKAGE_CA_TRUSTED_FINGERPRINT",
 		strings.ToUpper(hex.EncodeToString(fingerprint)))
 	return err
 }
