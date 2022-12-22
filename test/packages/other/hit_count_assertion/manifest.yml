@@ -6,7 +6,7 @@ title: Hit Count Assertion test
 # the actual apache package in the registry at any given time.
 version: 999.999.999
 description: Test for Hit Count Assertion
-categories: ["custom"]
+categories: ["network"]
 release: experimental
 license: basic
 type: integration
@@ -17,7 +17,7 @@ policy_templates:
     title: Test
     description: Description
     inputs:
-      - type: hits
+      - type: tcp
         title: Collect hits via tcp.
         description: Collect hits via tcp.
 owner:
