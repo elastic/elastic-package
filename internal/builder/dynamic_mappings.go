@@ -169,7 +169,7 @@ func renameMappingsNames(doc *yaml.Node) {
 	switch doc.Kind {
 	case yaml.MappingNode:
 		for i := 0; i < len(doc.Content); i += 2 {
-			doc.Content[i].Value = fmt.Sprintf("%s.%s", prefixMapping, doc.Content[i].Value)
+			doc.Content[i].Value = fmt.Sprintf("%s-%s", prefixMapping, doc.Content[i].Value)
 		}
 	case yaml.SequenceNode:
 		for i := 0; i < len(doc.Content); i++ {

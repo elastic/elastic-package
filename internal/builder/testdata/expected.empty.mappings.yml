@@ -3,7 +3,7 @@ elasticsearch:
   index_template:
     mappings:
       dynamic_templates:
-        - _embedded_ecs.example_template:
+        - _embedded_ecs-example_template:
             mapping:
               type: short
             patch_match: example.*
