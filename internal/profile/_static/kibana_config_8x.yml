@@ -14,7 +14,6 @@ monitoring.ui.container.elasticsearch.enabled: true
 xpack.fleet.registryUrl: "https://package-registry:8080"
 xpack.fleet.agents.enabled: true
 xpack.fleet.agents.elasticsearch.hosts: ["https://elasticsearch:9200"]
-xpack.fleet.agents.elasticsearch.ca_trusted_fingerprint: "${ELASTIC_PACKAGE_CA_TRUSTED_FINGERPRINT}"
 xpack.fleet.agents.fleet_server.hosts: ["https://fleet-server:8220"]
 
 xpack.encryptedSavedObjects.encryptionKey: "12345678901234567890123456789012"
@@ -52,3 +51,11 @@ xpack.fleet.agentPolicies:
         id: default-fleet-server
         package:
           name: fleet_server
+xpack.fleet.outputs:
+  - id: fleet-default-output
+    name: default
+    type: elasticsearch
+    hosts: [ https://elasticsearch:9200 ]
+    ca_trusted_fingerprint: "${ELASTIC_PACKAGE_CA_TRUSTED_FINGERPRINT}"
+    is_default: true
+    is_default_monitoring: true
