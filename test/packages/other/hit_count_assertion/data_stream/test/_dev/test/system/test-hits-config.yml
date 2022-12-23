@@ -7,4 +7,4 @@ data_stream:
     tcp_host: 0.0.0.0
     tcp_port: 9999
 assert:
-  hit_count: 101
+  hit_count: 100
