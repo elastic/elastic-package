@@ -1,4 +1,4 @@
-input: hits
+input: tcp
 service: test-hits
 service_notify_signal: SIGHUP
 vars: ~

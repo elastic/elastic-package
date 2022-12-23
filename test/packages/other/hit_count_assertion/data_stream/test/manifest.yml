@@ -2,7 +2,7 @@ title: Test
 release: experimental
 type: logs
 streams:
-  - input: hits
+  - input: tcp
     title: logs
     description: Collect logs
     template_path: hits.yml.hbs
