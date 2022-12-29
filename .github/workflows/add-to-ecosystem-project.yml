@@ -22,7 +22,7 @@ jobs:
           projectid: ${{ env.PROJECT_ID }}
           contentid: ${{ github.event.issue.node_id }}
         env:
-          PROJECT_ID: "PN_kwDOAGc3Zs4ABFUO"
+          PROJECT_ID: "PVT_kwDOAGc3Zs4AEzn4"
           GITHUB_TOKEN: ${{ secrets.ECOSYSTEM_USER_TOKEN }}
       - uses: octokit/graphql-action@v2.x
         id: label_team
