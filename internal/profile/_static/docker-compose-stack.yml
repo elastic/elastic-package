@@ -34,6 +34,8 @@ services:
       test: "sh /usr/share/kibana/healthcheck.sh"
       retries: 600
       interval: 1s
+    env_file:
+      - "../certs/ca.env"
     environment:
       # Is there a better way to add certificates to Kibana/Fleet?
       - "NODE_EXTRA_CA_CERTS=/usr/share/kibana/config/certs/ca-cert.pem"

@@ -10,8 +10,10 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/hex"
 	"encoding/pem"
 	"fmt"
 	"io"
@@ -19,6 +21,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/elastic/elastic-package/internal/common"
@@ -255,7 +258,23 @@ func (c *Certificate) WriteCert(w io.Writer) error {
 	return nil
 }
 
-// WriteCertFile writes the PEM-encoded certificate in the given file.
+// WriteEnv writes the environment variables about the certificate in the given writer.
+func (c *Certificate) WriteEnv(w io.Writer) error {
+	fingerprint := c.Fingerprint()
+	_, err := fmt.Fprintf(w, "%s=%s\n",
+		"ELASTIC_PACKAGE_CA_TRUSTED_FINGERPRINT",
+		strings.ToUpper(hex.EncodeToString(fingerprint)))
+	return err
+}
+
+// Fingerprint returns the fingerprint of the certificate. The fingerprint
+// of a CA can be used to verify certificates.
+func (c *Certificate) Fingerprint() []byte {
+	f := sha256.Sum256(c.cert.Raw)
+	return f[:]
+}
+
+// WriteCertFile writes the PEM-encoded certifiacte in the given file.
 func (c *Certificate) WriteCertFile(path string) error {
 	err := os.MkdirAll(filepath.Dir(path), 0755)
 	if err != nil {
