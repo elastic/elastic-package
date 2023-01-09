@@ -15,7 +15,7 @@ require (
 	github.com/elastic/package-spec/v2 v2.2.0
 	github.com/fatih/color v1.13.0
 	github.com/go-git/go-billy/v5 v5.4.0
-	github.com/go-git/go-git/v5 v5.5.1
+	github.com/go-git/go-git/v5 v5.5.2
 	github.com/google/go-cmp v0.5.9
 	github.com/google/go-github/v32 v32.1.0
 	github.com/google/go-querystring v1.1.0
