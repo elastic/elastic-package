@@ -7,6 +7,7 @@ package fields
 import (
 	"encoding/json"
 	"os"
+	"sort"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -62,6 +63,24 @@ func TestValidate_WithNumericKeywordFields(t *testing.T) {
 	e := readSampleEvent(t, "testdata/numeric.json")
 	errs := validator.ValidateDocumentBody(e)
 	require.Empty(t, errs)
+}
+
+func TestValidate_WithDisabledImportAllECSSchema(t *testing.T) {
+	validator, err := CreateValidatorForDirectory("../../test/packages/other/imported_mappings_tests/data_stream/first",
+		WithDisabledImportAllECSSChema())
+	require.NoError(t, err)
+	require.NotNil(t, validator)
+
+	e := readSampleEvent(t, "../../test/packages/other/imported_mappings_tests/data_stream/first/sample_event.json")
+	errs := validator.ValidateDocumentBody(e)
+	require.Len(t, errs, 4)
+
+	errorMessages := []string{}
+	for _, err := range errs {
+		errorMessages = append(errorMessages, err.Error())
+	}
+	sort.Strings(errorMessages)
+	require.Contains(t, errorMessages[0], `field "destination.geo.location.lat" is undefined`)
 }
 
 func TestValidate_constantKeyword(t *testing.T) {

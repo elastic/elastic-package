@@ -117,7 +117,7 @@ func WithExpectedDataset(dataset string) ValidatorOption {
 }
 
 // WithDisabledImportAllECSSchema configures the validator to not check the fields with the complete ECS schema.
-func WithDisdabledImportAllECSSChema() ValidatorOption {
+func WithDisabledImportAllECSSChema() ValidatorOption {
 	return func(v *Validator) error {
 		v.disabledImportAllECSSchema = true
 		return nil
