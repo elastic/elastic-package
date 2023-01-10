@@ -180,7 +180,7 @@ func BuildPackage(options BuildOptions) (string, error) {
 		return "", errors.Wrap(err, "resolving external fields failed")
 	}
 
-	logger.Debug("Add dynamic mappings if needed")
+	logger.Debug("Add dynamic mappings if needed (technical preview)")
 	err = addDynamicMappings(options.PackageRoot, destinationDir)
 	if err != nil {
 		return "", errors.Wrap(err, "adding dynamic mappings")
