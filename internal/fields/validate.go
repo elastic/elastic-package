@@ -26,9 +26,12 @@ import (
 	"github.com/elastic/elastic-package/internal/packages/buildmanifest"
 )
 
-var semver2_0_0 = semver.MustParse("2.0.0")
+var (
+	semver2_0_0 = semver.MustParse("2.0.0")
+	semver2_3_0 = semver.MustParse("2.3.0")
 
-var defaultExternal = "ecs"
+	defaultExternal = "ecs"
+)
 
 // Validator is responsible for fields validation.
 type Validator struct {
@@ -166,7 +169,7 @@ func CreateValidatorForDirectory(fieldsParentDir string, opts ...ValidatorOption
 		return v, nil
 	}
 
-	if !bm.ImportMappings() {
+	if !bm.ImportMappings() || v.specVersion.LessThan(semver2_3_0) {
 		v.disabledImportAllECSSchema = true
 	}
 
