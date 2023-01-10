@@ -28,6 +28,8 @@ import (
 
 var semver2_0_0 = semver.MustParse("2.0.0")
 
+var defaultExternal = "ecs"
+
 // Validator is responsible for fields validation.
 type Validator struct {
 	// Schema contains definition records.
@@ -48,6 +50,8 @@ type Validator struct {
 
 	enabledAllowedIPCheck bool
 	allowedCIDRs          []*net.IPNet
+
+	disabledImportAllECSSchema bool
 }
 
 // ValidatorOption represents an optional flag that can be passed to  CreateValidatorForDirectory.
@@ -109,6 +113,14 @@ func WithExpectedDataset(dataset string) ValidatorOption {
 	}
 }
 
+// WithDisabledImportAllECSSchema configures the validator to not check the fields with the complete ECS schema.
+func WithDisdabledImportAllECSSChema() ValidatorOption {
+	return func(v *Validator) error {
+		v.disabledImportAllECSSchema = true
+		return nil
+	}
+}
+
 // CreateValidatorForDirectory function creates a validator for the directory.
 func CreateValidatorForDirectory(fieldsParentDir string, opts ...ValidatorOption) (v *Validator, err error) {
 	v = new(Validator)
@@ -127,6 +139,7 @@ func CreateValidatorForDirectory(fieldsParentDir string, opts ...ValidatorOption
 	}
 
 	if v.disabledDependencyManagement {
+		v.disabledImportAllECSSchema = true
 		return v, nil
 	}
 
@@ -139,6 +152,7 @@ func CreateValidatorForDirectory(fieldsParentDir string, opts ...ValidatorOption
 	if !found {
 		logger.Debug("Package root not found, dependency management will be disabled.")
 		v.disabledDependencyManagement = true
+		v.disabledImportAllECSSchema = true
 		return v, nil
 	}
 
@@ -148,7 +162,12 @@ func CreateValidatorForDirectory(fieldsParentDir string, opts ...ValidatorOption
 	}
 	if !ok {
 		v.disabledDependencyManagement = true
+		v.disabledImportAllECSSchema = true
 		return v, nil
+	}
+
+	if !bm.ImportMappings() {
+		v.disabledImportAllECSSchema = true
 	}
 
 	fdm, err := CreateFieldDependencyManager(bm.Dependencies)
@@ -287,6 +306,21 @@ func (v *Validator) validateScalarElement(key string, val interface{}, doc commo
 	if definition == nil && skipValidationForField(key) {
 		return nil // generic field, let's skip validation for now
 	}
+
+	if definition == nil && !v.disabledImportAllECSSchema {
+		// import all fields from external schema
+		ecsSchema, err := v.FieldDependencyManager.ImportAllFields(defaultExternal)
+		if err != nil {
+			return err
+		}
+
+		importedDefinition := FindElementDefinition(key, ecsSchema)
+		if definition == nil && importedDefinition != nil {
+			logger.Debugf("Found key %s in imported ecsSchema", key)
+			definition = importedDefinition
+		}
+	}
+
 	if definition == nil {
 		return fmt.Errorf(`field "%s" is undefined`, key)
 	}
