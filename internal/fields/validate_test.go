@@ -67,6 +67,7 @@ func TestValidate_WithNumericKeywordFields(t *testing.T) {
 
 func TestValidate_WithDisabledImportAllECSSchema(t *testing.T) {
 	validator, err := CreateValidatorForDirectory("../../test/packages/other/imported_mappings_tests/data_stream/first",
+		WithSpecVersion("2.3.0"),
 		WithDisabledImportAllECSSChema())
 	require.NoError(t, err)
 	require.NotNil(t, validator)

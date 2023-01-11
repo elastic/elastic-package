@@ -178,6 +178,17 @@ func CreateValidatorForDirectory(fieldsParentDir string, opts ...ValidatorOption
 		return nil, errors.Wrap(err, "can't create field dependency manager")
 	}
 	v.FieldDependencyManager = fdm
+
+	if v.disabledImportAllECSSchema {
+		return v, nil
+	}
+
+	ecsSchema, err := v.FieldDependencyManager.ImportAllFields(defaultExternal)
+	if err != nil {
+		return nil, err
+	}
+	logger.Debug("Adding to the schema the ECS field definitions")
+	v.Schema = append(v.Schema, ecsSchema...)
 	return v, nil
 }
 
@@ -308,20 +319,6 @@ func (v *Validator) validateScalarElement(key string, val interface{}, doc commo
 	definition := FindElementDefinition(key, v.Schema)
 	if definition == nil && skipValidationForField(key) {
 		return nil // generic field, let's skip validation for now
-	}
-
-	if definition == nil && !v.disabledImportAllECSSchema {
-		// import all fields from external schema
-		ecsSchema, err := v.FieldDependencyManager.ImportAllFields(defaultExternal)
-		if err != nil {
-			return err
-		}
-
-		importedDefinition := FindElementDefinition(key, ecsSchema)
-		if definition == nil && importedDefinition != nil {
-			logger.Debugf("Found key %s in imported ecsSchema", key)
-			definition = importedDefinition
-		}
 	}
 
 	if definition == nil {
