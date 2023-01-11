@@ -25,7 +25,8 @@ type fieldsTableRecord struct {
 var escaper = strings.NewReplacer("*", "\\*", "{", "\\{", "}", "\\}", "<", "\\<", ">", "\\>")
 
 func renderExportedFields(fieldsParentDir string) (string, error) {
-	validator, err := fields.CreateValidatorForDirectory(fieldsParentDir)
+	validator, err := fields.CreateValidatorForDirectory(fieldsParentDir,
+		fields.WithDisabledImportAllECSSChema())
 	if err != nil {
 		return "", errors.Wrapf(err, "can't create fields validator instance (path: %s)", fieldsParentDir)
 	}
