@@ -54,7 +54,7 @@ type Validator struct {
 	enabledAllowedIPCheck bool
 	allowedCIDRs          []*net.IPNet
 
-	disabledImportAllECSSchema bool
+	enabledImportAllECSSchema bool
 }
 
 // ValidatorOption represents an optional flag that can be passed to  CreateValidatorForDirectory.
@@ -119,7 +119,7 @@ func WithExpectedDataset(dataset string) ValidatorOption {
 // WithDisabledImportAllECSSchema configures the validator to not check the fields with the complete ECS schema.
 func WithDisabledImportAllECSSChema() ValidatorOption {
 	return func(v *Validator) error {
-		v.disabledImportAllECSSchema = true
+		v.enabledImportAllECSSchema = false
 		return nil
 	}
 }
@@ -142,7 +142,7 @@ func CreateValidatorForDirectory(fieldsParentDir string, opts ...ValidatorOption
 	}
 
 	if v.disabledDependencyManagement {
-		v.disabledImportAllECSSchema = true
+		v.enabledImportAllECSSchema = false
 		return v, nil
 	}
 
@@ -155,7 +155,7 @@ func CreateValidatorForDirectory(fieldsParentDir string, opts ...ValidatorOption
 	if !found {
 		logger.Debug("Package root not found, dependency management will be disabled.")
 		v.disabledDependencyManagement = true
-		v.disabledImportAllECSSchema = true
+		v.enabledImportAllECSSchema = false
 		return v, nil
 	}
 
@@ -165,12 +165,12 @@ func CreateValidatorForDirectory(fieldsParentDir string, opts ...ValidatorOption
 	}
 	if !ok {
 		v.disabledDependencyManagement = true
-		v.disabledImportAllECSSchema = true
+		v.enabledImportAllECSSchema = false
 		return v, nil
 	}
 
 	if !bm.ImportMappings() || v.specVersion.LessThan(semver2_3_0) {
-		v.disabledImportAllECSSchema = true
+		v.enabledImportAllECSSchema = false
 	}
 
 	fdm, err := CreateFieldDependencyManager(bm.Dependencies)
@@ -179,16 +179,15 @@ func CreateValidatorForDirectory(fieldsParentDir string, opts ...ValidatorOption
 	}
 	v.FieldDependencyManager = fdm
 
-	if v.disabledImportAllECSSchema {
-		return v, nil
+	if v.enabledImportAllECSSchema {
+		ecsSchema, err := v.FieldDependencyManager.ImportAllFields(defaultExternal)
+		if err != nil {
+			return nil, err
+		}
+		logger.Debug("Adding to the schema the ECS field definitions")
+		v.Schema = append(v.Schema, ecsSchema...)
 	}
 
-	ecsSchema, err := v.FieldDependencyManager.ImportAllFields(defaultExternal)
-	if err != nil {
-		return nil, err
-	}
-	logger.Debug("Adding to the schema the ECS field definitions")
-	v.Schema = append(v.Schema, ecsSchema...)
 	return v, nil
 }
 
