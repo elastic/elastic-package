@@ -124,8 +124,23 @@ func WithEnabledImportAllECSSChema(importSchema bool) ValidatorOption {
 	}
 }
 
+type packageRootFinder interface {
+	FindPackageRoot() (string, bool, error)
+}
+
+type packageRoot struct{}
+
+func (p packageRoot) FindPackageRoot() (string, bool, error) {
+	return packages.FindPackageRoot()
+}
+
 // CreateValidatorForDirectory function creates a validator for the directory.
 func CreateValidatorForDirectory(fieldsParentDir string, opts ...ValidatorOption) (v *Validator, err error) {
+	p := packageRoot{}
+	return createValidatorForDirectoryAndPackageRoot(fieldsParentDir, p, opts...)
+}
+
+func createValidatorForDirectoryAndPackageRoot(fieldsParentDir string, finder packageRootFinder, opts ...ValidatorOption) (v *Validator, err error) {
 	v = new(Validator)
 	for _, opt := range opts {
 		if err := opt(v); err != nil {
@@ -145,7 +160,7 @@ func CreateValidatorForDirectory(fieldsParentDir string, opts ...ValidatorOption
 		return v, nil
 	}
 
-	packageRoot, found, err := packages.FindPackageRoot()
+	packageRoot, found, err := finder.FindPackageRoot()
 	if err != nil {
 		return nil, errors.Wrap(err, "can't find package root")
 	}
@@ -177,7 +192,6 @@ func CreateValidatorForDirectory(fieldsParentDir string, opts ...ValidatorOption
 		if err != nil {
 			return nil, err
 		}
-		logger.Info("Adding to the schema the ECS field definitions")
 		v.Schema = append(v.Schema, ecsSchema...)
 	}
 

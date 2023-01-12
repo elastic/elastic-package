@@ -20,6 +20,14 @@ type results struct {
 	Expected []json.RawMessage
 }
 
+type packageRootTestFinder struct {
+	packageRootPath string
+}
+
+func (p packageRootTestFinder) FindPackageRoot() (string, bool, error) {
+	return p.packageRootPath, true, nil
+}
+
 func TestValidate_NoWildcardFields(t *testing.T) {
 	validator, err := CreateValidatorForDirectory("../../test/packages/parallel/aws/data_stream/elb_logs")
 	require.NoError(t, err)
@@ -65,10 +73,28 @@ func TestValidate_WithNumericKeywordFields(t *testing.T) {
 	require.Empty(t, errs)
 }
 
-func TestValidate_WithDisabledImportAllECSSchema(t *testing.T) {
-	validator, err := CreateValidatorForDirectory("../../test/packages/other/imported_mappings_tests/data_stream/first",
+func TestValidate_WithEnabledImportAllECSSchema(t *testing.T) {
+	finder := packageRootTestFinder{"../../test/packages/other/imported_mappings_tests"}
+
+	validator, err := createValidatorForDirectoryAndPackageRoot("../../test/packages/other/imported_mappings_tests/data_stream/first",
+		finder,
 		WithSpecVersion("2.3.0"),
-		WithDisabledImportAllECSSChema())
+		WithEnabledImportAllECSSChema(true))
+	require.NoError(t, err)
+	require.NotNil(t, validator)
+
+	e := readSampleEvent(t, "../../test/packages/other/imported_mappings_tests/data_stream/first/sample_event.json")
+	errs := validator.ValidateDocumentBody(e)
+	require.Empty(t, errs)
+}
+
+func TestValidate_WithDisabledImportAllECSSchema(t *testing.T) {
+	finder := packageRootTestFinder{"../../test/packages/other/imported_mappings_tests"}
+
+	validator, err := createValidatorForDirectoryAndPackageRoot("../../test/packages/other/imported_mappings_tests/data_stream/first",
+		finder,
+		WithSpecVersion("2.3.0"),
+		WithEnabledImportAllECSSChema(false))
 	require.NoError(t, err)
 	require.NotNil(t, validator)
 
