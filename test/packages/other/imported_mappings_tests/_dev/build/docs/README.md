@@ -3,3 +3,7 @@
 {{event "first"}}
 
 {{fields "first"}}
+
+{{event "second"}}
+
+{{fields "second"}}
