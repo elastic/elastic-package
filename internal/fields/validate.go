@@ -116,10 +116,10 @@ func WithExpectedDataset(dataset string) ValidatorOption {
 	}
 }
 
-// WithDisabledImportAllECSSchema configures the validator to not check the fields with the complete ECS schema.
-func WithDisabledImportAllECSSChema() ValidatorOption {
+// WithEnabledImportAllECSSchema configures the validator to check or not the fields with the complete ECS schema.
+func WithEnabledImportAllECSSChema(importSchema bool) ValidatorOption {
 	return func(v *Validator) error {
-		v.enabledImportAllECSSchema = false
+		v.enabledImportAllECSSchema = importSchema
 		return nil
 	}
 }
@@ -142,7 +142,6 @@ func CreateValidatorForDirectory(fieldsParentDir string, opts ...ValidatorOption
 	}
 
 	if v.disabledDependencyManagement {
-		v.enabledImportAllECSSchema = false
 		return v, nil
 	}
 
@@ -155,7 +154,6 @@ func CreateValidatorForDirectory(fieldsParentDir string, opts ...ValidatorOption
 	if !found {
 		logger.Debug("Package root not found, dependency management will be disabled.")
 		v.disabledDependencyManagement = true
-		v.enabledImportAllECSSchema = false
 		return v, nil
 	}
 
@@ -165,16 +163,7 @@ func CreateValidatorForDirectory(fieldsParentDir string, opts ...ValidatorOption
 	}
 	if !ok {
 		v.disabledDependencyManagement = true
-		v.enabledImportAllECSSchema = false
 		return v, nil
-	}
-
-	if bm.ImportMappings() {
-		v.enabledImportAllECSSchema = true
-	}
-
-	if v.specVersion.LessThan(semver2_3_0) {
-		v.enabledImportAllECSSchema = false
 	}
 
 	fdm, err := CreateFieldDependencyManager(bm.Dependencies)
@@ -183,8 +172,7 @@ func CreateValidatorForDirectory(fieldsParentDir string, opts ...ValidatorOption
 	}
 	v.FieldDependencyManager = fdm
 
-	logger.Infof("Value of parameter %v", v.enabledImportAllECSSchema)
-	if v.enabledImportAllECSSchema {
+	if bm.ImportMappings() && !v.specVersion.LessThan(semver2_3_0) && v.enabledImportAllECSSchema {
 		ecsSchema, err := v.FieldDependencyManager.ImportAllFields(defaultExternal)
 		if err != nil {
 			return nil, err
