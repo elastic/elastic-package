@@ -169,7 +169,11 @@ func CreateValidatorForDirectory(fieldsParentDir string, opts ...ValidatorOption
 		return v, nil
 	}
 
-	if !bm.ImportMappings() || v.specVersion.LessThan(semver2_3_0) {
+	if bm.ImportMappings() {
+		v.enabledImportAllECSSchema = true
+	}
+
+	if v.specVersion.LessThan(semver2_3_0) {
 		v.enabledImportAllECSSchema = false
 	}
 
@@ -179,12 +183,13 @@ func CreateValidatorForDirectory(fieldsParentDir string, opts ...ValidatorOption
 	}
 	v.FieldDependencyManager = fdm
 
+	logger.Infof("Value of parameter %v", v.enabledImportAllECSSchema)
 	if v.enabledImportAllECSSchema {
 		ecsSchema, err := v.FieldDependencyManager.ImportAllFields(defaultExternal)
 		if err != nil {
 			return nil, err
 		}
-		logger.Debug("Adding to the schema the ECS field definitions")
+		logger.Info("Adding to the schema the ECS field definitions")
 		v.Schema = append(v.Schema, ecsSchema...)
 	}
 
