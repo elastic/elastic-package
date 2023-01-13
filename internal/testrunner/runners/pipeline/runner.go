@@ -157,6 +157,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 			// since system tests can have dynamic public IPs
 			fields.WithEnabledAllowedIPCheck(),
 			fields.WithExpectedDataset(expectedDataset),
+			fields.WithEnabledImportAllECSSChema(true),
 		)
 		if err != nil {
 			return nil, errors.Wrapf(err, "creating fields validator for data stream failed (path: %s, test case file: %s)", dataStreamPath, testCaseFile)

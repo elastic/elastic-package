@@ -50,7 +50,7 @@ func addDynamicMappings(packageRoot, destinationDir string) error {
 		return nil
 	}
 
-	logger.Debug("Import ECS mappings into the built package")
+	logger.Info("Import ECS mappings into the built package (technical preview)")
 
 	switch m.Type {
 	case "integration":
