@@ -180,6 +180,12 @@ func BuildPackage(options BuildOptions) (string, error) {
 		return "", errors.Wrap(err, "resolving external fields failed")
 	}
 
+	logger.Debug("Add dynamic mappings if needed")
+	err = addDynamicMappings(options.PackageRoot, destinationDir)
+	if err != nil {
+		return "", errors.Wrap(err, "adding dynamic mappings")
+	}
+
 	if options.CreateZip {
 		return buildZippedPackage(options, destinationDir)
 	}
@@ -189,6 +195,7 @@ func BuildPackage(options BuildOptions) (string, error) {
 		return destinationDir, nil
 	}
 
+	logger.Debugf("Validating built package (path: %s)", destinationDir)
 	err = validator.ValidateFromPath(destinationDir)
 	if err != nil {
 		return "", errors.Wrap(err, "invalid content found in built package")
@@ -211,6 +218,7 @@ func buildZippedPackage(options BuildOptions, destinationDir string) (string, er
 	if options.SkipValidation {
 		logger.Debug("Skip validation of the built .zip package")
 	} else {
+		logger.Debugf("Validating built .zip package (path: %s)", zippedPackagePath)
 		err = validator.ValidateFromZip(zippedPackagePath)
 		if err != nil {
 			return "", errors.Wrapf(err, "invalid content found in built zip package")
