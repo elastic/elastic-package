@@ -753,8 +753,8 @@ func validateFields(docs []common.MapStr, fieldsValidator *fields.Validator, dat
 }
 
 func assertHitCount(expected int, docs []common.MapStr) (pass bool, message string) {
-	observed := len(docs)
 	if expected != 0 {
+		observed := len(docs)
 		logger.Debugf("assert hit count expected %d, observed %d", expected, observed)
 		if observed != expected {
 			return false, fmt.Sprintf("observed hit count %d did not match expected hit count %d", observed, expected)
