@@ -5,14 +5,11 @@
 package stack
 
 import (
-	"os"
-	"reflect"
 	"strings"
 	"testing"
 
-	"github.com/elastic/go-sysinfo"
-	"github.com/elastic/go-sysinfo/types"
-	"gotest.tools/v3/assert"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCodeTemplate(t *testing.T) {
@@ -64,41 +61,8 @@ func Test_getShellName(t *testing.T) {
 	}
 }
 
-func Test_getParentInfo(t *testing.T) {
-	ppid := os.Getppid()
-	parent, err := sysinfo.Process(ppid)
-	if err != nil {
-		panic(err)
-	}
-	info, err := parent.Info()
-	if err != nil {
-		panic(err)
-	}
-
-	type args struct {
-		ppid int
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    types.ProcessInfo
-		wantErr bool
-	}{
-		// TODO: Add test cases.
-		{"test parent", args{ppid}, info, false},
-		{"bogus ppid", args{999999}, types.ProcessInfo{}, true},
-		{"no parent", args{1}, types.ProcessInfo{}, true},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := getParentInfo(tt.args.ppid)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("getParentInfo() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("getParentInfo() = %v, want %v", got, tt.want)
-			}
-		})
-	}
+func TestGetParentShell(t *testing.T) {
+	shell, err := getParentShell()
+	require.NoError(t, err)
+	assert.NotEmpty(t, shell)
 }

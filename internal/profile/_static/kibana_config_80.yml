@@ -49,3 +49,11 @@ xpack.fleet.agentPolicies:
         id: default-fleet-server
         package:
           name: fleet_server
+xpack.fleet.outputs:
+  - id: fleet-default-output
+    name: default
+    type: elasticsearch
+    hosts: [ https://elasticsearch:9200 ]
+    ca_trusted_fingerprint: "${ELASTIC_PACKAGE_CA_TRUSTED_FINGERPRINT}"
+    is_default: true
+    is_default_monitoring: true
