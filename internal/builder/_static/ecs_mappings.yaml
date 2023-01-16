@@ -1,0 +1,453 @@
+mappings:
+    dynamic_templates:
+        - ecs_timestamp:
+            mapping:
+                ignore_malformed: false
+                type: date
+            path_match: '@timestamp'
+        - data_stream_to_constant:
+            mapping:
+                type: constant_keyword
+            path_match: data_stream.*
+        - resolved_ip_to_ip:
+            mapping:
+                type: ip
+            match: resolved_ip
+        - forwarded_ip_to_ip:
+            mapping:
+                type: ip
+            match: forwarded_ip
+            match_mapping_type: string
+        - ip_to_ip:
+            mapping:
+                type: ip
+            match: ip
+            match_mapping_type: string
+        - port_to_long:
+            mapping:
+                type: long
+            match: port
+        - thread_id_to_long:
+            mapping:
+                type: long
+            path_match: '*.thread.id'
+        - status_code_to_long:
+            mapping:
+                type: long
+            match: status_code
+        - line_to_long:
+            mapping:
+                type: long
+            path_match: '*.file.line'
+        - priority_to_long:
+            mapping:
+                type: long
+            path_match: log.syslog.priority
+        - code_to_long:
+            mapping:
+                type: long
+            path_match: '*.facility.code'
+        - code_to_long:
+            mapping:
+                type: long
+            path_match: '*.severity.code'
+        - bytes_to_long:
+            mapping:
+                type: long
+            match: bytes
+            path_unmatch: '*.data.bytes'
+        - packets_to_long:
+            mapping:
+                type: long
+            match: packets
+        - public_key_exponent_to_long:
+            mapping:
+                type: long
+            match: public_key_exponent
+        - severity_to_long:
+            mapping:
+                type: long
+            path_match: event.severity
+        - duration_to_long:
+            mapping:
+                type: long
+            path_match: event.duration
+        - pid_to_long:
+            mapping:
+                type: long
+            match: pid
+        - uptime_to_long:
+            mapping:
+                type: long
+            match: uptime
+        - sequence_to_long:
+            mapping:
+                type: long
+            match: sequence
+        - entropy_to_long:
+            mapping:
+                type: long
+            match: '*entropy'
+        - size_to_long:
+            mapping:
+                type: long
+            match: '*size'
+        - entrypoint_to_long:
+            mapping:
+                type: long
+            match: entrypoint
+        - ttl_to_long:
+            mapping:
+                type: long
+            match: ttl
+        - major_to_long:
+            mapping:
+                type: long
+            match: major
+        - minor_to_long:
+            mapping:
+                type: long
+            match: minor
+        - as_number_to_long:
+            mapping:
+                type: long
+            path_match: '*.as.number'
+        - pgid_to_long:
+            mapping:
+                type: long
+            match: pgid
+        - exit_code_to_long:
+            mapping:
+                type: long
+            match: exit_code
+        - chi_to_long:
+            mapping:
+                type: long
+            match: chi2
+        - args_count_to_long:
+            mapping:
+                type: long
+            match: args_count
+        - virtual_address_to_long:
+            mapping:
+                type: long
+            match: virtual_address
+        - io_text_to_wildcard:
+            mapping:
+                type: wildcard
+            path_match: '*.io.text'
+        - strings_to_wildcard:
+            mapping:
+                type: wildcard
+            path_match: registry.data.strings
+        - path_to_wildcard:
+            mapping:
+                type: wildcard
+            path_match: '*url.path'
+        - message_id_to_wildcard:
+            mapping:
+                type: wildcard
+            match: message_id
+        - command_line_to_multifield:
+            mapping:
+                fields:
+                    text:
+                        type: match_only_text
+                type: wildcard
+            match: command_line
+        - error_stack_trace_to_multifield:
+            mapping:
+                fields:
+                    text:
+                        type: match_only_text
+                type: wildcard
+            match: stack_trace
+        - http_content_to_multifield:
+            mapping:
+                fields:
+                    text:
+                        type: match_only_text
+                type: wildcard
+            path_match: '*.body.content'
+        - url_full_to_multifield:
+            mapping:
+                fields:
+                    text:
+                        type: match_only_text
+                type: wildcard
+            path_match: '*.url.full'
+        - url_original_to_multifield:
+            mapping:
+                fields:
+                    text:
+                        type: match_only_text
+                type: wildcard
+            path_match: '*.url.original'
+        - user_agent_original_to_multifield:
+            mapping:
+                fields:
+                    text:
+                        type: match_only_text
+                type: wildcard
+            path_match: user_agent.original
+        - error_message_to_match_only:
+            mapping:
+                type: match_only_text
+            path_match: error.message
+        - message_match_only_text:
+            mapping:
+                type: match_only_text
+            path_match: message
+        - agent_name_to_keyword:
+            mapping:
+                type: keyword
+            path_match: agent.name
+        - service_name_to_keyword:
+            mapping:
+                type: keyword
+            path_match: '*.service.name'
+        - sections_name_to_keyword:
+            mapping:
+                type: keyword
+            path_match: '*.sections.name'
+        - resource_name_to_keyword:
+            mapping:
+                type: keyword
+            path_match: '*.resource.name'
+        - observer_name_to_keyword:
+            mapping:
+                type: keyword
+            path_match: observer.name
+        - question_name_to_keyword:
+            mapping:
+                type: keyword
+            path_match: '*.question.name'
+        - group_name_to_keyword:
+            mapping:
+                type: keyword
+            path_match: '*.group.name'
+        - geo_name_to_keyword:
+            mapping:
+                type: keyword
+            path_match: '*.geo.name'
+        - host_name_to_keyword:
+            mapping:
+                type: keyword
+            path_match: host.name
+        - severity_name_to_keyword:
+            mapping:
+                type: keyword
+            path_match: '*.severity.name'
+        - title_to_multifield:
+            mapping:
+                fields:
+                    text:
+                        type: match_only_text
+                type: keyword
+            match: title
+        - executable_to_multifield:
+            mapping:
+                fields:
+                    text:
+                        type: match_only_text
+                type: keyword
+            match: executable
+        - file_path_to_multifield:
+            mapping:
+                fields:
+                    text:
+                        type: match_only_text
+                type: keyword
+            path_match: '*.file.path'
+        - file_target_path_to_multifield:
+            mapping:
+                fields:
+                    text:
+                        type: match_only_text
+                type: keyword
+            path_match: '*.file.target_path'
+        - name_to_multifield:
+            mapping:
+                fields:
+                    text:
+                        type: match_only_text
+                type: keyword
+            match: name
+        - full_name_to_multifield:
+            mapping:
+                fields:
+                    text:
+                        type: match_only_text
+                type: keyword
+            match: full_name
+        - os_full_to_multifield:
+            mapping:
+                fields:
+                    text:
+                        type: match_only_text
+                type: keyword
+            path_match: '*.os.full'
+        - working_directory_to_multifield:
+            mapping:
+                fields:
+                    text:
+                        type: match_only_text
+                type: keyword
+            match: working_directory
+        - timestamp_to_date:
+            mapping:
+                type: date
+            match: timestamp
+        - delivery_timestamp_to_date:
+            mapping:
+                type: date
+            match: delivery_timestamp
+        - not_after_to_date:
+            mapping:
+                type: date
+            match: not_after
+        - not_before_to_date:
+            mapping:
+                type: date
+            match: not_before
+        - accessed_to_date:
+            mapping:
+                type: date
+            match: accessed
+        - origination_timestamp_to_date:
+            mapping:
+                type: date
+            match: origination_timestamp
+        - created_to_date:
+            mapping:
+                type: date
+            match: created
+        - installed_to_date:
+            mapping:
+                type: date
+            match: installed
+        - creation_date_to_date:
+            mapping:
+                type: date
+            match: creation_date
+        - ctime_to_date:
+            mapping:
+                type: date
+            match: ctime
+        - mtime_to_date:
+            mapping:
+                type: date
+            match: mtime
+        - ingested_to_date:
+            mapping:
+                type: date
+            match: ingested
+        - start_to_date:
+            mapping:
+                type: date
+            match: start
+        - end_to_date:
+            mapping:
+                type: date
+            match: end
+        - score_base_to_float:
+            mapping:
+                type: float
+            path_match: '*.score.base'
+        - score_temporal_to_float:
+            mapping:
+                type: float
+            path_match: '*.score.temporal'
+        - score_to_float:
+            mapping:
+                type: float
+            match: '*_score'
+        - score_norm_to_float:
+            mapping:
+                type: float
+            match: '*_score_norm'
+        - usage_to_float:
+            mapping:
+                scaling_factor: 1000
+                type: scaled_float
+            match: usage
+        - location_to_geo_point:
+            mapping:
+                type: geo_point
+            match: location
+        - same_as_process_to_boolean:
+            mapping:
+                type: boolean
+            match: same_as_process
+        - established_to_boolean:
+            mapping:
+                type: boolean
+            match: established
+        - resumed_to_boolean:
+            mapping:
+                type: boolean
+            match: resumed
+        - max_bytes_per_process_exceeded_to_boolean:
+            mapping:
+                type: boolean
+            match: max_bytes_per_process_exceeded
+        - interactive_to_boolean:
+            mapping:
+                type: boolean
+            match: interactive
+        - exists_to_boolean:
+            mapping:
+                type: boolean
+            match: exists
+        - trusted_to_boolean:
+            mapping:
+                type: boolean
+            match: trusted
+        - valid_to_boolean:
+            mapping:
+                type: boolean
+            match: valid
+        - go_stripped_to_boolean:
+            mapping:
+                type: boolean
+            match: go_stripped
+        - coldstart_to_boolean:
+            mapping:
+                type: boolean
+            match: coldstart
+        - exports_to_flattened:
+            mapping:
+                type: flattened
+            match: exports
+        - structured_data_to_flattened:
+            mapping:
+                type: flattened
+            match: structured_data
+        - imports_to_flattened:
+            mapping:
+                type: flattened
+            match: '*imports'
+        - attachments_to_nested:
+            mapping:
+                type: nested
+            match: attachments
+        - segments_to_nested:
+            mapping:
+                type: nested
+            match: segments
+        - elf_sections_to_nested:
+            mapping:
+                type: nested
+            path_match: '*.elf.sections'
+        - pe_sections_to_nested:
+            mapping:
+                type: nested
+            path_match: '*.pe.sections'
+        - macho_sections_to_nested:
+            mapping:
+                type: nested
+            path_match: '*.macho.sections'
+        - trigger_to_nested:
+            mapping:
+                type: nested
+            match: trigger
