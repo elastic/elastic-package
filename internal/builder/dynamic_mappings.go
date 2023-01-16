@@ -21,7 +21,7 @@ import (
 	"github.com/elastic/elastic-package/internal/packages/buildmanifest"
 )
 
-//go:embed _static/ecs_mappings.json
+//go:embed _static/ecs_mappings.yaml
 var staticEcsMappings string
 
 const prefixMapping = "_embedded_ecs"
