@@ -31,7 +31,7 @@ require (
 	golang.org/x/oauth2 v0.4.0
 	golang.org/x/tools v0.5.0
 	gopkg.in/yaml.v3 v3.0.1
-	gotest.tools/gotestsum v1.8.2
+	gotest.tools/gotestsum v1.9.0
 	helm.sh/helm/v3 v3.10.3
 	honnef.co/go/tools v0.3.3
 	k8s.io/apimachinery v0.26.0
