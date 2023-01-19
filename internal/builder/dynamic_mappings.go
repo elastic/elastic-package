@@ -89,11 +89,6 @@ func shouldImportEcsMappings(specVersion, packageRoot string) (bool, error) {
 		return false, errors.Wrap(err, "invalid spec version")
 	}
 
-	if v.LessThan(semver2_3_0) {
-		logger.Debugf("Required spec version >= %s to import ECS mappings", semver2_3_0.String())
-		return false, nil
-	}
-
 	bm, ok, err := buildmanifest.ReadBuildManifest(packageRoot)
 	if err != nil {
 		return false, errors.Wrap(err, "can't read build manifest")
@@ -106,6 +101,12 @@ func shouldImportEcsMappings(specVersion, packageRoot string) (bool, error) {
 		logger.Debug("Package doesn't have to import ECS mappings")
 		return false, nil
 	}
+
+	if v.LessThan(semver2_3_0) {
+		logger.Debugf("Required spec version >= %s to import ECS mappings", semver2_3_0.String())
+		return false, nil
+	}
+
 	return true, nil
 }
 
