@@ -5,7 +5,7 @@ server.ssl.certificate: "/usr/share/kibana/config/certs/cert.pem"
 server.ssl.key: "/usr/share/kibana/config/certs/key.pem"
 server.ssl.certificateAuthorities: ["/usr/share/kibana/config/certs/ca-cert.pem"]
 
-elasticsearch.hosts: [ "https://elasticsearch:9200" ]
+elasticsearch.hosts: ["https://elasticsearch:9200"]
 elasticsearch.ssl.certificateAuthorities: "/usr/share/kibana/config/certs/ca-cert.pem"
 elasticsearch.serviceAccountToken: "AAEAAWVsYXN0aWMva2liYW5hL2VsYXN0aWMtcGFja2FnZS1raWJhbmEtdG9rZW46b2x4b051SWNRa0tYMHdXazdLWmFBdw"
 
@@ -15,6 +15,7 @@ xpack.fleet.registryUrl: "https://package-registry:8080"
 xpack.fleet.agents.enabled: true
 xpack.fleet.agents.elasticsearch.hosts: ["https://elasticsearch:9200"]
 xpack.fleet.agents.fleet_server.hosts: ["https://fleet-server:8220"]
+xpack.fleet.enableExperimental: ["experimentalDataStreamSettings"] # Enable experimental toggles in Fleet UI
 
 xpack.encryptedSavedObjects.encryptionKey: "12345678901234567890123456789012"
 
@@ -55,7 +56,7 @@ xpack.fleet.outputs:
   - id: fleet-default-output
     name: default
     type: elasticsearch
-    hosts: [ https://elasticsearch:9200 ]
+    hosts: [https://elasticsearch:9200]
     ca_trusted_fingerprint: "${ELASTIC_PACKAGE_CA_TRUSTED_FINGERPRINT}"
     is_default: true
     is_default_monitoring: true
