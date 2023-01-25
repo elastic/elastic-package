@@ -6,7 +6,6 @@ package pipeline
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"sort"
 	"time"
@@ -240,7 +239,7 @@ func (agg aggregation) collect(fn mapFn) ([]benchrunner.BenchmarkValue, error) {
 
 func (r *runner) runSingleBenchmark(entryPipeline string, docs []json.RawMessage) (ingestResult, error) {
 	if len(docs) == 0 {
-		return ingestResult{}, errors.New("no docs supplied for benchmark")
+		return ingestResult{}, fmt.Errorf("no docs supplied for benchmark")
 	}
 
 	if _, err := ingest.SimulatePipeline(r.options.API, entryPipeline, docs); err != nil {

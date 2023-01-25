@@ -13,7 +13,6 @@ import (
 	"path/filepath"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/pkg/errors"
 	"github.com/pmezard/go-difflib/difflib"
 
 	"github.com/elastic/elastic-package/internal/common"
@@ -36,11 +35,11 @@ func writeTestResult(testCasePath string, result *testResult) error {
 
 	data, err := marshalTestResultDefinition(result)
 	if err != nil {
-		return errors.Wrap(err, "marshalling test result failed")
+		return fmt.Errorf("marshalling test result failed: %s", err)
 	}
 	err = os.WriteFile(filepath.Join(testCaseDir, expectedTestResultFile(testCaseFile)), data, 0644)
 	if err != nil {
-		return errors.Wrap(err, "writing test result failed")
+		return fmt.Errorf("writing test result failed: %s", err)
 	}
 	return nil
 }
@@ -48,27 +47,27 @@ func writeTestResult(testCasePath string, result *testResult) error {
 func compareResults(testCasePath string, config *testConfig, result *testResult) error {
 	resultsWithoutDynamicFields, err := adjustTestResult(result, config)
 	if err != nil {
-		return errors.Wrap(err, "can't adjust test results")
+		return fmt.Errorf("can't adjust test results: %s", err)
 	}
 
 	actual, err := marshalTestResultDefinition(resultsWithoutDynamicFields)
 	if err != nil {
-		return errors.Wrap(err, "marshalling actual test results failed")
+		return fmt.Errorf("marshalling actual test results failed: %s", err)
 	}
 
 	expectedResults, err := readExpectedTestResult(testCasePath, config)
 	if err != nil {
-		return errors.Wrap(err, "reading expected test result failed")
+		return fmt.Errorf("reading expected test result failed: %s", err)
 	}
 
 	expected, err := marshalTestResultDefinition(expectedResults)
 	if err != nil {
-		return errors.Wrap(err, "marshalling expected test results failed")
+		return fmt.Errorf("marshalling expected test results failed: %s", err)
 	}
 
 	report, err := diffJson(expected, actual)
 	if err != nil {
-		return errors.Wrap(err, "comparing expected test result")
+		return fmt.Errorf("comparing expected test result: %s", err)
 	}
 	if report != "" {
 		return testrunner.ErrTestCaseFailed{
@@ -144,17 +143,17 @@ func readExpectedTestResult(testCasePath string, config *testConfig) (*testResul
 	path := filepath.Join(testCaseDir, expectedTestResultFile(testCaseFile))
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil, errors.Wrap(err, "reading test result file failed")
+		return nil, fmt.Errorf("reading test result file failed: %s", err)
 	}
 
 	u, err := unmarshalTestResult(data)
 	if err != nil {
-		return nil, errors.Wrap(err, "unmarshalling expected test result failed")
+		return nil, fmt.Errorf("unmarshalling expected test result failed: %s", err)
 	}
 
 	adjusted, err := adjustTestResult(u, config)
 	if err != nil {
-		return nil, errors.Wrap(err, "adjusting test result failed")
+		return nil, fmt.Errorf("adjusting test result failed: %s", err)
 	}
 	return adjusted, nil
 }
@@ -175,19 +174,19 @@ func adjustTestResult(result *testResult, config *testConfig) (*testResult, erro
 		var m common.MapStr
 		err := jsonUnmarshalUsingNumber(event, &m)
 		if err != nil {
-			return nil, errors.Wrapf(err, "can't unmarshal event: %s", string(event))
+			return nil, fmt.Errorf("can't unmarshal event: %s: %s", string(event), err)
 		}
 
 		for key := range config.DynamicFields {
 			err := m.Delete(key)
 			if err != nil && err != common.ErrKeyNotFound {
-				return nil, errors.Wrap(err, "can't remove dynamic field")
+				return nil, fmt.Errorf("can't remove dynamic field: %s", err)
 			}
 		}
 
 		b, err := json.Marshal(&m)
 		if err != nil {
-			return nil, errors.Wrap(err, "can't marshal event")
+			return nil, fmt.Errorf("can't marshal event: %s", err)
 		}
 
 		stripped.events = append(stripped.events, b)
@@ -199,7 +198,7 @@ func unmarshalTestResult(body []byte) (*testResult, error) {
 	var trd testResultDefinition
 	err := jsonUnmarshalUsingNumber(body, &trd)
 	if err != nil {
-		return nil, errors.Wrap(err, "unmarshalling test result failed")
+		return nil, fmt.Errorf("unmarshalling test result failed: %s", err)
 	}
 
 	var tr testResult
@@ -217,7 +216,7 @@ func jsonUnmarshalUsingNumber(data []byte, v interface{}) error {
 	err := dec.Decode(v)
 	if err != nil {
 		if err == io.EOF {
-			return errors.New("unexpected end of JSON input")
+			return fmt.Errorf("unexpected end of JSON input")
 		}
 		return err
 	}
@@ -234,7 +233,7 @@ func marshalTestResultDefinition(result *testResult) ([]byte, error) {
 	trd.Expected = result.events
 	body, err := marshalNormalizedJSON(trd)
 	if err != nil {
-		return nil, errors.Wrap(err, "marshalling test result definition failed")
+		return nil, fmt.Errorf("marshalling test result definition failed: %s", err)
 	}
 	return body, nil
 }

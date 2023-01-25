@@ -6,11 +6,10 @@ package profile
 
 import (
 	"encoding/json"
+	"fmt"
 	"os/user"
 	"path/filepath"
 	"time"
-
-	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/version"
 )
@@ -31,7 +30,7 @@ const PackageProfileMetaFile configFile = "profile.json"
 func createProfileMetadata(profileName string, profilePath string) (*simpleFile, error) {
 	currentUser, err := user.Current()
 	if err != nil {
-		return nil, errors.Wrap(err, "error fetching current user")
+		return nil, fmt.Errorf("error fetching current user: %s", err)
 	}
 
 	profileData := Metadata{
@@ -44,7 +43,7 @@ func createProfileMetadata(profileName string, profilePath string) (*simpleFile,
 
 	jsonRaw, err := json.MarshalIndent(profileData, "", "  ")
 	if err != nil {
-		return nil, errors.Wrap(err, "error marshalling json")
+		return nil, fmt.Errorf("error marshalling json: %s", err)
 	}
 
 	return &simpleFile{

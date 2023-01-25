@@ -5,7 +5,6 @@
 package servicedeployer
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 
@@ -35,7 +34,7 @@ func (tsd TerraformServiceDeployer) buildTerraformExecutorEnvironment(ctxt Servi
 func buildTerraformAliases(serviceComposeConfig *compose.Config) (map[string]interface{}, error) {
 	terraformService, found := serviceComposeConfig.Services["terraform"]
 	if !found {
-		return nil, errors.New("missing config section for terraform service")
+		return nil, fmt.Errorf("missing config section for terraform service")
 	}
 
 	m := map[string]interface{}{}

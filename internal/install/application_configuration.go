@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/configuration/locations"
@@ -104,18 +103,18 @@ func selectElasticAgentImageName(version string) string {
 func Configuration() (*ApplicationConfiguration, error) {
 	configPath, err := locations.NewLocationManager()
 	if err != nil {
-		return nil, errors.Wrap(err, "can't read configuration directory")
+		return nil, fmt.Errorf("can't read configuration directory: %s", err)
 	}
 
 	cfg, err := os.ReadFile(filepath.Join(configPath.RootDir(), applicationConfigurationYmlFile))
 	if err != nil {
-		return nil, errors.Wrap(err, "can't read configuration file")
+		return nil, fmt.Errorf("can't read configuration file: %s", err)
 	}
 
 	var c configFile
 	err = yaml.Unmarshal(cfg, &c)
 	if err != nil {
-		return nil, errors.Wrap(err, "can't unmarshal configuration file")
+		return nil, fmt.Errorf("can't unmarshal configuration file: %s", err)
 	}
 
 	return &ApplicationConfiguration{

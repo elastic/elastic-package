@@ -5,10 +5,10 @@
 package profile
 
 import (
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
-
-	"github.com/pkg/errors"
 )
 
 // NewConfig is a generic function type to return a new Managed config
@@ -31,7 +31,7 @@ func (cfg simpleFile) configFilesDiffer() (bool, error) {
 		return false, nil
 	}
 	if err != nil {
-		return false, errors.Wrapf(err, "error reading %s", cfg.path)
+		return false, fmt.Errorf("error reading %s: %s", cfg.path, err)
 	}
 	if string(changes) == cfg.body {
 		return false, nil
@@ -43,11 +43,11 @@ func (cfg simpleFile) configFilesDiffer() (bool, error) {
 func (cfg simpleFile) writeConfig() error {
 	err := os.MkdirAll(filepath.Dir(cfg.path), 0755)
 	if err != nil {
-		return errors.Wrapf(err, "creating parent directories for file failed (path: %s)", cfg.path)
+		return fmt.Errorf("creating parent directories for file failed (path: %s): %s", cfg.path, err)
 	}
 	err = os.WriteFile(cfg.path, []byte(cfg.body), 0644)
 	if err != nil {
-		return errors.Wrapf(err, "writing file failed (path: %s)", cfg.path)
+		return fmt.Errorf("writing file failed (path: %s): %s", cfg.path, err)
 	}
 	return nil
 }
@@ -56,7 +56,7 @@ func (cfg simpleFile) writeConfig() error {
 func (cfg *simpleFile) readConfig() error {
 	body, err := os.ReadFile(cfg.path)
 	if err != nil {
-		return errors.Wrapf(err, "reading file failed (path: %s)", cfg.path)
+		return fmt.Errorf("reading file failed (path: %s): %s", cfg.path, err)
 	}
 	cfg.body = string(body)
 	return nil

@@ -5,7 +5,7 @@
 package stack
 
 import (
-	"github.com/pkg/errors"
+	"fmt"
 
 	"github.com/elastic/elastic-package/internal/docker"
 	"github.com/elastic/elastic-package/internal/profile"
@@ -15,12 +15,12 @@ import (
 func Update(options Options) error {
 	err := docker.Pull(profile.PackageRegistryBaseImage)
 	if err != nil {
-		return errors.Wrap(err, "pulling package-registry docker image failed")
+		return fmt.Errorf("pulling package-registry docker image failed: %s", err)
 	}
 
 	err = dockerComposePull(options)
 	if err != nil {
-		return errors.Wrap(err, "updating docker images failed")
+		return fmt.Errorf("updating docker images failed: %s", err)
 	}
 	return nil
 }

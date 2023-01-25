@@ -5,9 +5,8 @@
 package stack
 
 import (
+	"fmt"
 	"path/filepath"
-
-	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/compose"
 	"github.com/elastic/elastic-package/internal/docker"
@@ -17,7 +16,7 @@ import (
 func dockerComposeLogs(serviceName string, snapshotFile string) ([]byte, error) {
 	p, err := compose.NewProject(DockerComposeProjectName, snapshotFile)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not create docker compose project")
+		return nil, fmt.Errorf("could not create docker compose project: %s", err)
 	}
 
 	opts := compose.CommandOptions{
@@ -29,7 +28,7 @@ func dockerComposeLogs(serviceName string, snapshotFile string) ([]byte, error) 
 
 	out, err := p.Logs(opts)
 	if err != nil {
-		return nil, errors.Wrap(err, "running command failed")
+		return nil, fmt.Errorf("running command failed: %s", err)
 	}
 	return out, nil
 }
@@ -43,14 +42,14 @@ func copyDockerInternalLogs(serviceName, outputPath string) error {
 
 	p, err := compose.NewProject(DockerComposeProjectName)
 	if err != nil {
-		return errors.Wrap(err, "could not create docker compose project")
+		return fmt.Errorf("could not create docker compose project: %s", err)
 	}
 
 	outputPath = filepath.Join(outputPath, serviceName+"-internal")
 	serviceContainer := p.ContainerName(serviceName)
 	err = docker.Copy(serviceContainer, "/usr/share/elastic-agent/state/data/logs/default", outputPath)
 	if err != nil {
-		return errors.Wrap(err, "docker copy failed")
+		return fmt.Errorf("docker copy failed: %s", err)
 	}
 	return nil
 }

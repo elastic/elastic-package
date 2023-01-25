@@ -9,8 +9,6 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/pkg/errors"
-
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
@@ -21,7 +19,7 @@ func (c *Client) InstallPackage(pkg packages.PackageManifest) ([]packages.Asset,
 
 	statusCode, respBody, err := c.post(path, reqBody)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not install package")
+		return nil, fmt.Errorf("could not install package: %s", err)
 	}
 
 	return processResults("install", statusCode, respBody)
@@ -32,7 +30,7 @@ func (c *Client) RemovePackage(pkg packages.PackageManifest) ([]packages.Asset, 
 	path := fmt.Sprintf("%s/epm/packages/%s-%s", FleetAPI, pkg.Name, pkg.Version)
 	statusCode, respBody, err := c.delete(path)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not delete package")
+		return nil, fmt.Errorf("could not delete package: %s", err)
 	}
 
 	return processResults("remove", statusCode, respBody)
@@ -48,7 +46,7 @@ func processResults(action string, statusCode int, respBody []byte) ([]packages.
 	}
 
 	if err := json.Unmarshal(respBody, &resp); err != nil {
-		return nil, errors.Wrapf(err, "could not convert %s package (response) to JSON", action)
+		return nil, fmt.Errorf("could not convert %s package (response) to JSON: %s", action, err)
 	}
 
 	return resp.Assets, nil

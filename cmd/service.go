@@ -5,9 +5,9 @@
 package cmd
 
 import (
+	"fmt"
 	"path/filepath"
 
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
@@ -43,10 +43,10 @@ func upCommandAction(cmd *cobra.Command, args []string) error {
 
 	packageRoot, found, err := packages.FindPackageRoot()
 	if err != nil {
-		return errors.Wrap(err, "locating package root failed")
+		return fmt.Errorf("locating package root failed: %s", err)
 	}
 	if !found {
-		return errors.New("package root not found")
+		return fmt.Errorf("package root not found")
 	}
 
 	var dataStreamPath string
@@ -65,7 +65,7 @@ func upCommandAction(cmd *cobra.Command, args []string) error {
 		Variant:            variantFlag,
 	})
 	if err != nil {
-		return errors.Wrap(err, "up command failed")
+		return fmt.Errorf("up command failed: %s", err)
 	}
 	return nil
 }

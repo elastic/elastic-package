@@ -5,7 +5,8 @@
 package cmd
 
 import (
-	"github.com/pkg/errors"
+	"fmt"
+
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
@@ -34,10 +35,10 @@ func formatCommandAction(cmd *cobra.Command, args []string) error {
 
 	packageRoot, found, err := packages.FindPackageRoot()
 	if err != nil {
-		return errors.Wrap(err, "locating package root failed")
+		return fmt.Errorf("locating package root failed: %s", err)
 	}
 	if !found {
-		return errors.New("package root not found")
+		return fmt.Errorf("package root not found")
 	}
 
 	ff, err := cmd.Flags().GetBool(cobraext.FailFastFlagName)
@@ -47,7 +48,7 @@ func formatCommandAction(cmd *cobra.Command, args []string) error {
 
 	err = formatter.Format(packageRoot, ff)
 	if err != nil {
-		return errors.Wrapf(err, "formatting the integration failed (path: %s, failFast: %t)", packageRoot, ff)
+		return fmt.Errorf("formatting the integration failed (path: %s, failFast: %t): %s", packageRoot, ff, err)
 	}
 
 	cmd.Println("Done")

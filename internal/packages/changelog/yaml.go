@@ -5,8 +5,9 @@
 package changelog
 
 import (
+	"fmt"
+
 	"github.com/Masterminds/semver/v3"
-	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/formatter"
@@ -47,7 +48,7 @@ func PatchYAML(d []byte, patch Revision) ([]byte, error) {
 		}
 
 		if foundVersion.GreaterThan(patchVersion) {
-			return nil, errors.New("cannot add change to old version")
+			return nil, fmt.Errorf("cannot add change to old version")
 		}
 
 		var newNode yaml.Node
@@ -86,12 +87,12 @@ func PatchYAML(d []byte, patch Revision) ([]byte, error) {
 	}
 
 	if !patched {
-		return nil, errors.New("changelog entry was not added, this is probably a bug")
+		return nil, fmt.Errorf("changelog entry was not added, this is probably a bug")
 	}
 
 	d, err = formatResult(result)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to format manifest")
+		return nil, fmt.Errorf("failed to format manifest: %s", err)
 	}
 	return d, nil
 }
@@ -100,19 +101,19 @@ func SetManifestVersion(d []byte, version string) ([]byte, error) {
 	var node yaml.Node
 	err := yaml.Unmarshal(d, &node)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to decode manifest")
+		return nil, fmt.Errorf("failed to decode manifest: %s", err)
 	}
 
 	// Manifest is a document, with a single element, that should be a map.
 	if len(node.Content) == 0 || node.Content[0].Kind != yaml.MappingNode {
-		return nil, errors.Wrap(err, "unexpected manifest content")
+		return nil, fmt.Errorf("unexpected manifest content: %s", err)
 	}
 
 	setYamlMapValue(node.Content[0], "version", version)
 
 	d, err = formatResult(&node)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to format manifest")
+		return nil, fmt.Errorf("failed to format manifest: %s", err)
 	}
 	return d, nil
 }
@@ -120,11 +121,11 @@ func SetManifestVersion(d []byte, version string) ([]byte, error) {
 func formatResult(result interface{}) ([]byte, error) {
 	d, err := yaml.Marshal(result)
 	if err != nil {
-		return nil, errors.New("failed to encode")
+		return nil, fmt.Errorf("failed to encode")
 	}
 	d, _, err = formatter.YAMLFormatter(d)
 	if err != nil {
-		return nil, errors.New("failed to format")
+		return nil, fmt.Errorf("failed to format")
 	}
 	return d, nil
 }

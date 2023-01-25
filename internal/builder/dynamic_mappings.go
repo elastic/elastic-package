@@ -12,7 +12,6 @@ import (
 	"strconv"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/formatter"
@@ -86,12 +85,12 @@ func addDynamicMappings(packageRoot, destinationDir string) error {
 func shouldImportEcsMappings(specVersion, packageRoot string) (bool, error) {
 	v, err := semver.NewVersion(specVersion)
 	if err != nil {
-		return false, errors.Wrap(err, "invalid spec version")
+		return false, fmt.Errorf("invalid spec version: %s", err)
 	}
 
 	bm, ok, err := buildmanifest.ReadBuildManifest(packageRoot)
 	if err != nil {
-		return false, errors.Wrap(err, "can't read build manifest")
+		return false, fmt.Errorf("can't read build manifest: %s", err)
 	}
 	if !ok {
 		logger.Debug("Build manifest hasn't been defined for the package")
@@ -113,12 +112,12 @@ func shouldImportEcsMappings(specVersion, packageRoot string) (bool, error) {
 func addDynamicMappingElements(path string) ([]byte, error) {
 	ecsMappings, err := loadEcsMappings()
 	if err != nil {
-		return nil, errors.New("can't load ecs mappings template")
+		return nil, fmt.Errorf("can't load ecs mappings template")
 	}
 
 	contents, err := os.ReadFile(path)
 	if err != nil {
-		return nil, errors.New("can't read manifest")
+		return nil, fmt.Errorf("can't read manifest")
 	}
 
 	var doc yaml.Node
@@ -153,14 +152,14 @@ func addEcsMappings(doc *yaml.Node, mappings ecsTemplates) error {
 	var templates yaml.Node
 	err := templates.Encode(mappings.Mappings.DynamicTemplates)
 	if err != nil {
-		return errors.Wrap(err, "failed to encode dynamic templates")
+		return fmt.Errorf("failed to encode dynamic templates: %s", err)
 	}
 
 	renameMappingsNames(&templates)
 
 	err = appendElements(doc, []string{"elasticsearch", "index_template", "mappings", "dynamic_templates"}, &templates)
 	if err != nil {
-		return errors.Wrap(err, "failed to append dynamic templates")
+		return fmt.Errorf("failed to append dynamic templates: %s", err)
 	}
 
 	return nil
@@ -214,7 +213,7 @@ func appendElements(root *yaml.Node, path []string, values *yaml.Node) error {
 			return err
 		}
 		if len(root.Content) >= index {
-			return errors.Errorf("index out of range in nodes from key %s", key)
+			return fmt.Errorf("index out of range in nodes from key %s", key)
 		}
 
 		return appendElements(root.Content[index], rest, values)
@@ -237,11 +236,11 @@ func newYamlNode(key string) []*yaml.Node {
 func formatResult(result interface{}) ([]byte, error) {
 	d, err := yaml.Marshal(result)
 	if err != nil {
-		return nil, errors.New("failed to encode")
+		return nil, fmt.Errorf("failed to encode")
 	}
 	d, _, err = formatter.YAMLFormatter(d)
 	if err != nil {
-		return nil, errors.New("failed to format")
+		return nil, fmt.Errorf("failed to format")
 	}
 	return d, nil
 }

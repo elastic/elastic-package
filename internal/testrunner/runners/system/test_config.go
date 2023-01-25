@@ -5,6 +5,8 @@
 package system
 
 import (
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -12,7 +14,6 @@ import (
 	"time"
 
 	"github.com/aymerick/raymond"
-	"github.com/pkg/errors"
 
 	"github.com/elastic/go-ucfg"
 	"github.com/elastic/go-ucfg/yaml"
@@ -66,25 +67,25 @@ func (t testConfig) Name() string {
 func newConfig(configFilePath string, ctxt servicedeployer.ServiceContext, serviceVariantName string) (*testConfig, error) {
 	data, err := os.ReadFile(configFilePath)
 	if err != nil && errors.Is(err, os.ErrNotExist) {
-		return nil, errors.Wrapf(err, "unable to find system test configuration file: %s", configFilePath)
+		return nil, fmt.Errorf("unable to find system test configuration file: %s: %s", configFilePath, err)
 	}
 
 	if err != nil {
-		return nil, errors.Wrapf(err, "could not load system test configuration file: %s", configFilePath)
+		return nil, fmt.Errorf("could not load system test configuration file: %s: %s", configFilePath, err)
 	}
 
 	data, err = applyContext(data, ctxt)
 	if err != nil {
-		return nil, errors.Wrapf(err, "could not apply context to test configuration file: %s", configFilePath)
+		return nil, fmt.Errorf("could not apply context to test configuration file: %s: %s", configFilePath, err)
 	}
 
 	var c testConfig
 	cfg, err := yaml.NewConfig(data, ucfg.PathSep("."))
 	if err != nil {
-		return nil, errors.Wrapf(err, "unable to load system test configuration file: %s", configFilePath)
+		return nil, fmt.Errorf("unable to load system test configuration file: %s: %s", configFilePath, err)
 	}
 	if err := cfg.Unpack(&c); err != nil {
-		return nil, errors.Wrapf(err, "unable to unpack system test configuration file: %s", configFilePath)
+		return nil, fmt.Errorf("unable to unpack system test configuration file: %s: %s", configFilePath, err)
 	}
 	// Save path
 	c.Path = configFilePath
@@ -116,13 +117,13 @@ func listConfigFiles(systemTestFolderPath string) (files []string, err error) {
 func applyContext(data []byte, ctxt servicedeployer.ServiceContext) ([]byte, error) {
 	tmpl, err := raymond.Parse(string(data))
 	if err != nil {
-		return data, errors.Wrap(err, "parsing template body failed")
+		return data, fmt.Errorf("parsing template body failed: %s", err)
 	}
 	tmpl.RegisterHelpers(ctxt.Aliases())
 
 	result, err := tmpl.Exec(ctxt)
 	if err != nil {
-		return data, errors.Wrap(err, "could not render data with context")
+		return data, fmt.Errorf("could not render data with context: %s", err)
 	}
 	return []byte(result), nil
 }

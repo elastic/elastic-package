@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/benchrunner"
@@ -106,10 +105,10 @@ func benchTypeCommandActionFactory(runner benchrunner.BenchRunner) cobraext.Comm
 
 		packageRootPath, found, err := packages.FindPackageRoot()
 		if !found {
-			return errors.New("package root not found")
+			return fmt.Errorf("package root not found")
 		}
 		if err != nil {
-			return errors.Wrap(err, "locating package root failed")
+			return fmt.Errorf("locating package root failed: %s", err)
 		}
 
 		dataStreams, err := cmd.Flags().GetStringSlice(cobraext.DataStreamsFlagName)
@@ -129,13 +128,13 @@ func benchTypeCommandActionFactory(runner benchrunner.BenchRunner) cobraext.Comm
 
 		benchFolders, err := benchrunner.FindBenchmarkFolders(packageRootPath, dataStreams, benchType)
 		if err != nil {
-			return errors.Wrap(err, "unable to determine benchmark folder paths")
+			return fmt.Errorf("unable to determine benchmark folder paths: %s", err)
 		}
 
 		if useTestSamples {
 			testFolders, err := testrunner.FindTestFolders(packageRootPath, dataStreams, testrunner.TestType(benchType))
 			if err != nil {
-				return errors.Wrap(err, "unable to determine test folder paths")
+				return fmt.Errorf("unable to determine test folder paths: %s", err)
 			}
 			benchFolders = append(benchFolders, testFolders...)
 		}
@@ -149,7 +148,7 @@ func benchTypeCommandActionFactory(runner benchrunner.BenchRunner) cobraext.Comm
 
 		esClient, err := elasticsearch.NewClient()
 		if err != nil {
-			return errors.Wrap(err, "can't create Elasticsearch client")
+			return fmt.Errorf("can't create Elasticsearch client: %s", err)
 		}
 		err = esClient.CheckHealth(cmd.Context())
 		if err != nil {
@@ -166,7 +165,7 @@ func benchTypeCommandActionFactory(runner benchrunner.BenchRunner) cobraext.Comm
 			})
 
 			if err != nil {
-				return errors.Wrapf(err, "error running package %s benchmarks", benchType)
+				return fmt.Errorf("error running package %s benchmarks: %s", benchType, err)
 			}
 
 			results = append(results, r)
@@ -175,17 +174,17 @@ func benchTypeCommandActionFactory(runner benchrunner.BenchRunner) cobraext.Comm
 		format := benchrunner.BenchReportFormat(reportFormat)
 		benchReports, err := benchrunner.FormatReport(format, results)
 		if err != nil {
-			return errors.Wrap(err, "error formatting benchmark report")
+			return fmt.Errorf("error formatting benchmark report: %s", err)
 		}
 
 		m, err := packages.ReadPackageManifestFromPackageRoot(packageRootPath)
 		if err != nil {
-			return errors.Wrapf(err, "reading package manifest failed (path: %s)", packageRootPath)
+			return fmt.Errorf("reading package manifest failed (path: %s): %s", packageRootPath, err)
 		}
 
 		for idx, report := range benchReports {
 			if err := benchrunner.WriteReport(fmt.Sprintf("%s-%d", m.Name, idx+1), benchrunner.BenchReportOutput(reportOutput), report, format); err != nil {
-				return errors.Wrap(err, "error writing benchmark report")
+				return fmt.Errorf("error writing benchmark report: %s", err)
 			}
 		}
 

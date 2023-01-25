@@ -10,8 +10,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/pkg/errors"
-
 	"github.com/elastic/elastic-package/internal/builder"
 	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/files"
@@ -25,24 +23,24 @@ const DockerComposeProjectName = "elastic-package-stack"
 func BootUp(options Options) error {
 	buildPackagesPath, found, err := builder.FindBuildPackagesDirectory()
 	if err != nil {
-		return errors.Wrap(err, "finding build packages directory failed")
+		return fmt.Errorf("finding build packages directory failed: %s", err)
 	}
 
 	stackPackagesDir, err := locations.NewLocationManager()
 	if err != nil {
-		return errors.Wrap(err, "locating stack packages directory failed")
+		return fmt.Errorf("locating stack packages directory failed: %s", err)
 	}
 
 	err = files.ClearDir(stackPackagesDir.PackagesDir())
 	if err != nil {
-		return errors.Wrap(err, "clearing package contents failed")
+		return fmt.Errorf("clearing package contents failed: %s", err)
 	}
 
 	if found {
 		fmt.Printf("Custom build packages directory found: %s\n", buildPackagesPath)
 		err = copyUniquePackages(buildPackagesPath, stackPackagesDir.PackagesDir())
 		if err != nil {
-			return errors.Wrap(err, "copying package contents failed")
+			return fmt.Errorf("copying package contents failed: %s", err)
 		}
 	}
 
@@ -55,12 +53,12 @@ func BootUp(options Options) error {
 
 	err = dockerComposeBuild(options)
 	if err != nil {
-		return errors.Wrap(err, "building docker images failed")
+		return fmt.Errorf("building docker images failed: %s", err)
 	}
 
 	err = dockerComposeUp(options)
 	if err != nil {
-		return errors.Wrap(err, "running docker-compose failed")
+		return fmt.Errorf("running docker-compose failed: %s", err)
 	}
 
 	return nil
@@ -70,7 +68,7 @@ func BootUp(options Options) error {
 func TearDown(options Options) error {
 	err := dockerComposeDown(options)
 	if err != nil {
-		return errors.Wrap(err, "stopping docker containers failed")
+		return fmt.Errorf("stopping docker containers failed: %s", err)
 	}
 	return nil
 }
@@ -80,7 +78,7 @@ func copyUniquePackages(sourcePath, destinationPath string) error {
 
 	dirEntries, err := os.ReadDir(sourcePath)
 	if err != nil {
-		return errors.Wrapf(err, "can't read source dir (sourcePath: %s)", sourcePath)
+		return fmt.Errorf("can't read source dir (sourcePath: %s): %s", sourcePath, err)
 	}
 	for _, entry := range dirEntries {
 		if entry.IsDir() {

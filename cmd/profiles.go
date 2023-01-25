@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/olekukonko/tablewriter"
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
@@ -48,7 +47,7 @@ User profiles are not overwritten on upgrade of elastic-stack, and can be freely
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			if len(args) == 0 {
-				return errors.New("create requires an argument")
+				return fmt.Errorf("create requires an argument")
 			}
 			newProfileName := args[0]
 
@@ -62,7 +61,7 @@ User profiles are not overwritten on upgrade of elastic-stack, and can be freely
 			}
 			err = profile.CreateProfile(options)
 			if err != nil {
-				return errors.Wrapf(err, "error creating profile %s from profile %s", newProfileName, fromName)
+				return fmt.Errorf("error creating profile %s from profile %s: %s", newProfileName, fromName, err)
 			}
 
 			fmt.Printf("Created profile %s from %s.\n", newProfileName, fromName)
@@ -77,13 +76,13 @@ User profiles are not overwritten on upgrade of elastic-stack, and can be freely
 		Short: "Delete a profile",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
-				return errors.New("delete requires an argument")
+				return fmt.Errorf("delete requires an argument")
 			}
 			profileName := args[0]
 
 			err := profile.DeleteProfile(profileName)
 			if err != nil {
-				return errors.Wrap(err, "error deleting profile")
+				return fmt.Errorf("error deleting profile: %s", err)
 			}
 
 			fmt.Printf("Deleted profile %s\n", profileName)
@@ -98,11 +97,11 @@ User profiles are not overwritten on upgrade of elastic-stack, and can be freely
 		RunE: func(cmd *cobra.Command, args []string) error {
 			loc, err := locations.NewLocationManager()
 			if err != nil {
-				return errors.Wrap(err, "error fetching profile")
+				return fmt.Errorf("error fetching profile: %s", err)
 			}
 			profileList, err := profile.FetchAllProfiles(loc.ProfileDir())
 			if err != nil {
-				return errors.Wrap(err, "error listing all profiles")
+				return fmt.Errorf("error listing all profiles: %s", err)
 			}
 
 			format, err := cmd.Flags().GetString(cobraext.ProfileFormatFlagName)
@@ -130,7 +129,7 @@ User profiles are not overwritten on upgrade of elastic-stack, and can be freely
 func formatJSON(profileList []profile.Metadata) error {
 	data, err := json.Marshal(profileList)
 	if err != nil {
-		return errors.Wrap(err, "error listing all profiles in JSON format")
+		return fmt.Errorf("error listing all profiles in JSON format: %s", err)
 	}
 
 	fmt.Print(string(data))
@@ -187,13 +186,13 @@ func lookupEnv() string {
 func availableProfilesAsAList() ([]string, error) {
 	loc, err := locations.NewLocationManager()
 	if err != nil {
-		return []string{}, errors.Wrap(err, "error fetching profile path")
+		return []string{}, fmt.Errorf("error fetching profile path: %s", err)
 	}
 
 	profileNames := []string{}
 	profileList, err := profile.FetchAllProfiles(loc.ProfileDir())
 	if err != nil {
-		return profileNames, errors.Wrap(err, "error fetching all profiles")
+		return profileNames, fmt.Errorf("error fetching all profiles: %s", err)
 	}
 	for _, prof := range profileList {
 		profileNames = append(profileNames, prof.Name)

@@ -8,7 +8,6 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -106,7 +105,7 @@ func jsonUnmarshalUsingNumber(data []byte, v interface{}) error {
 	err := dec.Decode(v)
 	if err != nil {
 		if err == io.EOF {
-			return errors.New("unexpected end of JSON input")
+			return fmt.Errorf("unexpected end of JSON input")
 		}
 		return err
 	}

@@ -367,7 +367,7 @@ func TestDependencyManagerInjectExternalFields(t *testing.T) {
 	}
 
 	indexFalse := false
-	schema := map[string][]FieldDefinition{"test": []FieldDefinition{
+	schema := map[string][]FieldDefinition{"test": {
 		{
 			Name:        "container.id",
 			Description: "Container identifier.",

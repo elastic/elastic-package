@@ -13,7 +13,6 @@ import (
 	"github.com/Masterminds/semver/v3"
 	"github.com/fatih/color"
 	"github.com/olekukonko/tablewriter"
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
@@ -79,10 +78,10 @@ func getPackageStatus(packageName string, options registry.SearchOptions) (*stat
 	}
 	packageRootPath, found, err := packages.FindPackageRoot()
 	if !found {
-		return nil, errors.New("no package specified and package root not found")
+		return nil, fmt.Errorf("no package specified and package root not found")
 	}
 	if err != nil {
-		return nil, errors.Wrap(err, "locating package root failed")
+		return nil, fmt.Errorf("locating package root failed: %s", err)
 	}
 	return status.LocalPackage(packageRootPath, options)
 }

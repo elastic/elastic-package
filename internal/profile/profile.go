@@ -6,11 +6,10 @@ package profile
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
-
-	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/logger"
 )
@@ -30,7 +29,7 @@ const (
 )
 
 // ErrNotAProfile is returned in cases where we don't have a valid profile directory
-var ErrNotAProfile = errors.New("not a profile")
+var ErrNotAProfile = fmt.Errorf("not a profile")
 
 // configFile is a type for for the config file names in a managed profile config
 type configFile string
@@ -61,14 +60,14 @@ func NewConfigProfile(elasticPackagePath string, profileName string) (*Profile, 
 	for fileItem, configInit := range managedProfileFiles {
 		cfg, err := configInit(profileName, profilePath)
 		if err != nil {
-			return nil, errors.Wrapf(err, "error initializing config %s", cfg)
+			return nil, fmt.Errorf("error initializing config %s: %s", cfg, err)
 		}
 		configMap[fileItem] = cfg
 	}
 
 	err := initTLSCertificates(profilePath, configMap)
 	if err != nil {
-		return nil, errors.Wrap(err, "error initializing TLS certificates")
+		return nil, fmt.Errorf("error initializing TLS certificates: %s", err)
 	}
 
 	newProfile := &Profile{
@@ -98,7 +97,7 @@ func newProfileFromExistingFiles(elasticPackagePath string, profileName string, 
 
 		byteFile, err := os.ReadFile(file)
 		if err != nil {
-			return nil, errors.Wrapf(err, "error reading file %s", file)
+			return nil, fmt.Errorf("error reading file %s: %s", file, err)
 		}
 		//format this in the way configFile expects
 		name := filepath.Base(file)
@@ -112,7 +111,7 @@ func newProfileFromExistingFiles(elasticPackagePath string, profileName string, 
 	//add metadata file
 	metadata, err := createProfileMetadata(profileName, profilePath)
 	if err != nil {
-		return nil, errors.Wrap(err, "error creating profile metadata")
+		return nil, fmt.Errorf("error creating profile metadata: %s", err)
 	}
 	configMap[PackageProfileMetaFile] = metadata
 
@@ -130,7 +129,7 @@ func loadProfile(elasticPackagePath string, profileName string) (*Profile, error
 
 	isValid, err := isProfileDir(profilePath)
 	if err != nil {
-		return nil, errors.Wrapf(err, "error checking profile %s", profileName)
+		return nil, fmt.Errorf("error checking profile %s: %s", profileName, err)
 	}
 
 	if !isValid {
@@ -141,14 +140,14 @@ func loadProfile(elasticPackagePath string, profileName string) (*Profile, error
 	for fileItem, configInit := range managedProfileFiles {
 		cfg, err := configInit(profileName, profilePath)
 		if err != nil {
-			return nil, errors.Wrapf(err, "error initializing config %s", cfg)
+			return nil, fmt.Errorf("error initializing config %s: %s", cfg, err)
 		}
 		configMap[fileItem] = cfg
 	}
 
 	err = initTLSCertificates(profilePath, configMap)
 	if err != nil {
-		return nil, errors.Wrap(err, "error initializing TLS certificates")
+		return nil, fmt.Errorf("error initializing TLS certificates: %s", err)
 	}
 
 	profile := &Profile{
@@ -160,7 +159,7 @@ func loadProfile(elasticPackagePath string, profileName string) (*Profile, error
 
 	exists, err := profile.alreadyExists()
 	if err != nil {
-		return nil, errors.Wrapf(err, "error checking if profile %s exists", profileName)
+		return nil, fmt.Errorf("error checking if profile %s exists: %s", profileName, err)
 	}
 
 	if !exists {
@@ -169,7 +168,7 @@ func loadProfile(elasticPackagePath string, profileName string) (*Profile, error
 
 	err = profile.readProfileResources()
 	if err != nil {
-		return nil, errors.Wrapf(err, "error reading in profile %s", profileName)
+		return nil, fmt.Errorf("error reading in profile %s: %s", profileName, err)
 	}
 
 	return profile, nil
@@ -199,7 +198,7 @@ func writeConfigFiles(configFiles map[configFile]*simpleFile) error {
 	for _, cfgFiles := range configFiles {
 		err := cfgFiles.writeConfig()
 		if err != nil {
-			return errors.Wrap(err, "error writing config file")
+			return fmt.Errorf("error writing config file: %s", err)
 		}
 	}
 
@@ -232,7 +231,7 @@ func (profile Profile) alreadyExists() (bool, error) {
 		return false, nil
 	}
 	if err != nil {
-		return false, errors.Wrapf(err, "error checking root directory: %s", packageMetadata.path)
+		return false, fmt.Errorf("error checking root directory: %s: %s", packageMetadata.path, err)
 	}
 
 	// If the folder exists, check to make sure it's a profile folder
@@ -241,13 +240,13 @@ func (profile Profile) alreadyExists() (bool, error) {
 		return false, ErrNotAProfile
 	}
 	if err != nil {
-		return false, errors.Wrapf(err, "error checking metadata: %s", packageMetadata.path)
+		return false, fmt.Errorf("error checking metadata: %s: %s", packageMetadata.path, err)
 	}
 
 	//if it is, see if it has the same profile name
 	profileInfo, err := profile.metadata()
 	if err != nil {
-		return false, errors.Wrap(err, "error reading metadata")
+		return false, fmt.Errorf("error reading metadata: %s", err)
 	}
 
 	//TODO: this will break default_old, as we don't update the json
@@ -267,7 +266,7 @@ func (profile Profile) localFilesChanged() (bool, error) {
 		}
 		changes, err := cfgFile.configFilesDiffer()
 		if err != nil {
-			return false, errors.Wrap(err, "error checking config file")
+			return false, fmt.Errorf("error checking config file: %s", err)
 		}
 		if changes {
 			return true, nil
@@ -285,7 +284,7 @@ func (profile Profile) readProfileResources() error {
 			continue
 		}
 		if err != nil {
-			return errors.Wrap(err, "error reading in profile")
+			return fmt.Errorf("error reading in profile: %s", err)
 		}
 	}
 	return nil
@@ -296,14 +295,14 @@ func (profile Profile) metadata() (Metadata, error) {
 	packageMetadata := profile.configFiles[PackageProfileMetaFile]
 	rawPackageMetadata, err := os.ReadFile(packageMetadata.path)
 	if err != nil {
-		return Metadata{}, errors.Wrap(err, "error reading metadata file")
+		return Metadata{}, fmt.Errorf("error reading metadata file: %s", err)
 	}
 
 	profileInfo := Metadata{}
 
 	err = json.Unmarshal(rawPackageMetadata, &profileInfo)
 	if err != nil {
-		return Metadata{}, errors.Wrap(err, "error unmarshalling JSON")
+		return Metadata{}, fmt.Errorf("error unmarshalling JSON: %s", err)
 	}
 	return profileInfo, nil
 }
@@ -313,11 +312,11 @@ func (profile *Profile) updateMetadata(meta Metadata) error {
 	packageMetadata := profile.configFiles[PackageProfileMetaFile]
 	metaString, err := json.Marshal(meta)
 	if err != nil {
-		return errors.Wrap(err, "error marshalling metadata json")
+		return fmt.Errorf("error marshalling metadata json: %s", err)
 	}
 	err = os.WriteFile(packageMetadata.path, metaString, 0664)
 	if err != nil {
-		return errors.Wrap(err, "error writing metadata file")
+		return fmt.Errorf("error writing metadata file: %s", err)
 	}
 	return nil
 }
@@ -330,7 +329,7 @@ func isProfileDir(path string) (bool, error) {
 		return false, nil
 	}
 	if err != nil {
-		return false, errors.Wrapf(err, "error stat: %s", metaPath)
+		return false, fmt.Errorf("error stat: %s: %s", metaPath, err)
 	}
 	return true, nil
 }

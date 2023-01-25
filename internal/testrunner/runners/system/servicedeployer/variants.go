@@ -5,12 +5,12 @@
 package servicedeployer
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 )
 
@@ -46,18 +46,18 @@ func ReadVariantsFile(devDeployPath string) (*VariantsFile, error) {
 		return nil, os.ErrNotExist
 	}
 	if err != nil {
-		return nil, errors.Wrap(err, "can't stat variants file")
+		return nil, fmt.Errorf("can't stat variants file: %s", err)
 	}
 
 	content, err := os.ReadFile(variantsYmlPath)
 	if err != nil {
-		return nil, errors.Wrap(err, "can't read variants file")
+		return nil, fmt.Errorf("can't read variants file: %s", err)
 	}
 
 	var f VariantsFile
 	err = yaml.Unmarshal(content, &f)
 	if err != nil {
-		return nil, errors.Wrap(err, "can't unmarshal variants file")
+		return nil, fmt.Errorf("can't unmarshal variants file: %s", err)
 	}
 	return &f, nil
 }
@@ -75,7 +75,7 @@ func useServiceVariant(devDeployPath, selected string) (ServiceVariant, error) {
 	}
 
 	if f.Default == "" {
-		return ServiceVariant{}, errors.New("default variant is undefined")
+		return ServiceVariant{}, fmt.Errorf("default variant is undefined")
 	}
 
 	env, ok := f.Variants[selected]

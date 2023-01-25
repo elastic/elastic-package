@@ -5,12 +5,11 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"math/rand"
 	"os"
 	"time"
-
-	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/cmd"
 	"github.com/elastic/elastic-package/internal/install"
@@ -23,7 +22,7 @@ func main() {
 
 	err := install.EnsureInstalled()
 	if err != nil {
-		log.Fatal(errors.Wrap(err, "validating installation failed"))
+		log.Fatal(fmt.Errorf("validating installation failed: %s", err))
 	}
 
 	err = rootCmd.Execute()

@@ -5,7 +5,6 @@
 package stack
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -94,7 +93,7 @@ func initTemplate(s string) (string, error) {
 	case "pwsh", "powershell":
 		return powershellTemplate, nil
 	default:
-		return "", errors.New("shell type is unknown, should be one of " + strings.Join(availableShellTypes, ", "))
+		return "", fmt.Errorf("shell type is unknown, should be one of " + strings.Join(availableShellTypes, ", "))
 	}
 }
 

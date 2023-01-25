@@ -22,7 +22,6 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/format/index"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/go-git/go-git/v5/storage/memory"
-	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/github"
 	"github.com/elastic/elastic-package/internal/logger"
@@ -61,7 +60,7 @@ func NewPackageVersion(name, version string) (*PackageVersion, error) {
 func NewPackageVersionWithRoot(name, version, root string) (*PackageVersion, error) {
 	packageVersion, err := semver.NewVersion(version)
 	if err != nil {
-		return nil, errors.Wrapf(err, "reading package version failed (name: %s, version: %s)", name, version)
+		return nil, fmt.Errorf("reading package version failed (name: %s, version: %s): %s", name, version, err)
 	}
 	return &PackageVersion{
 		Name:    name,
@@ -144,7 +143,7 @@ func ParsePackageVersions(packageVersions []string) (PackageVersions, error) {
 
 		revision, err := NewPackageVersion(s[0], s[1])
 		if err != nil {
-			return nil, errors.Wrapf(err, "can't create package version (%s)", s)
+			return nil, fmt.Errorf("can't create package version (%s): %s", s, err)
 		}
 		parsed = append(parsed, *revision)
 	}
@@ -163,7 +162,7 @@ func CloneRepositoryWithFork(user, stage string, fork bool) (*git.Repository, er
 	// Initialize repository
 	r, err := git.Init(memory.NewStorage(), memfs.New())
 	if err != nil {
-		return nil, errors.Wrap(err, "initializing repository")
+		return nil, fmt.Errorf("initializing repository: %s", err)
 	}
 
 	// Add remotes
@@ -179,7 +178,7 @@ func CloneRepositoryWithFork(user, stage string, fork bool) (*git.Repository, er
 			},
 		})
 		if err != nil {
-			return nil, errors.Wrap(err, "creating user remote failed")
+			return nil, fmt.Errorf("creating user remote failed: %s", err)
 		}
 	}
 
@@ -190,13 +189,13 @@ func CloneRepositoryWithFork(user, stage string, fork bool) (*git.Repository, er
 		},
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "creating remote failed")
+		return nil, fmt.Errorf("creating remote failed: %s", err)
 	}
 
 	// Check if user remote exists
 	authToken, err := github.AuthToken()
 	if err != nil {
-		return nil, errors.Wrap(err, "reading auth token failed")
+		return nil, fmt.Errorf("reading auth token failed: %s", err)
 	}
 
 	if !fork {
@@ -209,7 +208,7 @@ func CloneRepositoryWithFork(user, stage string, fork bool) (*git.Repository, er
 			},
 		})
 		if err != nil {
-			return nil, errors.Wrapf(err, "checking user remote (%s, url: %s)", user, userRepositoryURL)
+			return nil, fmt.Errorf("checking user remote (%s, url: %s): %s", user, userRepositoryURL, err)
 		}
 	}
 
@@ -223,17 +222,17 @@ func CloneRepositoryWithFork(user, stage string, fork bool) (*git.Repository, er
 		Depth: 1,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "fetch remote branches failed")
+		return nil, fmt.Errorf("fetch remote branches failed: %s", err)
 	}
 	wt, err := r.Worktree()
 	if err != nil {
-		return nil, errors.Wrap(err, "working copy initialization failed")
+		return nil, fmt.Errorf("working copy initialization failed: %s", err)
 	}
 	err = wt.Checkout(&git.CheckoutOptions{
 		Branch: plumbing.NewBranchReferenceName(stage),
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "checkout failed")
+		return nil, fmt.Errorf("checkout failed: %s", err)
 	}
 
 	return r, nil
@@ -243,21 +242,21 @@ func CloneRepositoryWithFork(user, stage string, fork bool) (*git.Repository, er
 func ChangeStage(r *git.Repository, stage string) error {
 	wt, err := r.Worktree()
 	if err != nil {
-		return errors.Wrap(err, "fetching worktree reference failed")
+		return fmt.Errorf("fetching worktree reference failed: %s", err)
 	}
 
 	err = wt.Checkout(&git.CheckoutOptions{
 		Branch: plumbing.NewBranchReferenceName(stage),
 	})
 	if err != nil {
-		return errors.Wrapf(err, "changing branch failed (stage: %s)", stage)
+		return fmt.Errorf("changing branch failed (stage: %s): %s", stage, err)
 	}
 
 	err = wt.Clean(&git.CleanOptions{
 		Dir: true,
 	})
 	if err != nil {
-		return errors.Wrapf(err, "can't hard reset worktree (stage: %s)", stage)
+		return fmt.Errorf("can't hard reset worktree (stage: %s): %s", stage, err)
 	}
 	return nil
 }
@@ -272,12 +271,12 @@ func ListPackages(r *git.Repository) (PackageVersions, error) {
 func ListPackagesByName(r *git.Repository, packageName string) (PackageVersions, error) {
 	wt, err := r.Worktree()
 	if err != nil {
-		return nil, errors.Wrap(err, "fetching worktree reference failed")
+		return nil, fmt.Errorf("fetching worktree reference failed: %s", err)
 	}
 
 	packageDirs, err := wt.Filesystem.ReadDir("/" + packagesDir)
 	if err != nil {
-		return nil, errors.Wrap(err, "reading packages directory failed")
+		return nil, fmt.Errorf("reading packages directory failed: %s", err)
 	}
 
 	var versions PackageVersions
@@ -296,7 +295,7 @@ func ListPackagesByName(r *git.Repository, packageName string) (PackageVersions,
 
 		versionDirs, err := wt.Filesystem.ReadDir(filepath.Join(packagesDir, packageDir.Name()))
 		if err != nil {
-			return nil, errors.Wrap(err, "reading packages directory failed")
+			return nil, fmt.Errorf("reading packages directory failed: %s", err)
 		}
 
 		for _, versionDir := range versionDirs {
@@ -306,7 +305,7 @@ func ListPackagesByName(r *git.Repository, packageName string) (PackageVersions,
 
 			packageVersion, err := NewPackageVersion(packageDir.Name(), versionDir.Name())
 			if err != nil {
-				return nil, errors.Wrap(err, "can't create instance of PackageVersion")
+				return nil, fmt.Errorf("can't create instance of PackageVersion: %s", err)
 			}
 			versions = append(versions, *packageVersion)
 		}
@@ -326,7 +325,7 @@ func CopyPackagesWithTransform(r *git.Repository, sourceStage, destinationStage 
 	transform contentTransformer) error {
 	wt, err := r.Worktree()
 	if err != nil {
-		return errors.Wrap(err, "fetching worktree reference failed")
+		return fmt.Errorf("fetching worktree reference failed: %s", err)
 	}
 
 	var contents fileContents
@@ -336,18 +335,18 @@ func CopyPackagesWithTransform(r *git.Repository, sourceStage, destinationStage 
 			Branch: plumbing.NewBranchReferenceName(sourceStage),
 		})
 		if err != nil {
-			return errors.Wrapf(err, "changing branch failed (path: %s)", sourceStage)
+			return fmt.Errorf("changing branch failed (path: %s): %s", sourceStage, err)
 		}
 
 		logger.Debugf("Load package resources from source stage")
 		resourcePaths, err := walkPackageVersions(wt.Filesystem, packages...)
 		if err != nil {
-			return errors.Wrap(err, "walking package versions failed")
+			return fmt.Errorf("walking package versions failed: %s", err)
 		}
 
 		contents, err = loadPackageContents(wt.Filesystem, resourcePaths)
 		if err != nil {
-			return errors.Wrap(err, "loading package contents failed")
+			return fmt.Errorf("loading package contents failed: %s", err)
 		}
 	}
 
@@ -356,7 +355,7 @@ func CopyPackagesWithTransform(r *git.Repository, sourceStage, destinationStage 
 		Branch: plumbing.NewBranchReferenceName(destinationStage),
 	})
 	if err != nil {
-		return errors.Wrapf(err, "changing branch failed (path: %s)", destinationStage)
+		return fmt.Errorf("changing branch failed (path: %s): %s", destinationStage, err)
 	}
 
 	logger.Debugf("Create new destination branch: %s", destinationBranch)
@@ -365,7 +364,7 @@ func CopyPackagesWithTransform(r *git.Repository, sourceStage, destinationStage 
 		Create: true,
 	})
 	if err != nil {
-		return errors.Wrapf(err, "changing branch failed (path: %s)", destinationBranch)
+		return fmt.Errorf("changing branch failed (path: %s): %s", destinationBranch, err)
 	}
 
 	if len(contents) == 0 {
@@ -379,19 +378,19 @@ func CopyPackagesWithTransform(r *git.Repository, sourceStage, destinationStage 
 	logger.Debugf("Write package resources to destination branch")
 	err = writePackageContents(wt.Filesystem, contents)
 	if err != nil {
-		return errors.Wrap(err, "writing package contents failed")
+		return fmt.Errorf("writing package contents failed: %s", err)
 	}
 
 	logger.Debugf("Add package resources to index")
 	_, err = wt.Add(packagesDir)
 	if err != nil {
-		return errors.Wrapf(err, "adding resource to index failed")
+		return fmt.Errorf("adding resource to index failed: %s", err)
 	}
 
 	logger.Debugf("Commit changes to destination branch")
 	_, err = wt.Commit(fmt.Sprintf("Copy packages from %s to %s", sourceStage, destinationStage), new(git.CommitOptions))
 	if err != nil {
-		return errors.Wrapf(err, "committing files failed (stage: %s)", destinationBranch)
+		return fmt.Errorf("committing files failed (stage: %s): %s", destinationBranch, err)
 	}
 	return nil
 }
@@ -409,31 +408,31 @@ func CopyPackagesWithTransform(r *git.Repository, sourceStage, destinationStage 
 func CopyOverLocalPackage(r *git.Repository, builtPackageDir string, manifest *packages.PackageManifest) (string, error) {
 	wt, err := r.Worktree()
 	if err != nil {
-		return "", errors.Wrap(err, "fetching worktree reference failed")
+		return "", fmt.Errorf("fetching worktree reference failed: %s", err)
 	}
 
 	logger.Debugf("Temporarily remove all files from index")
 	publishedPackageDir := filepath.Join(packagesDir, manifest.Name, manifest.Version)
 	_, err = wt.Remove(publishedPackageDir)
 	if err != nil && err != index.ErrEntryNotFound {
-		return "", errors.Wrapf(err, "can't remove files within path: %s", publishedPackageDir)
+		return "", fmt.Errorf("can't remove files within path: %s: %s", publishedPackageDir, err)
 	}
 
 	packageVersion, err := NewPackageVersionWithRoot(manifest.Name, manifest.Version, "")
 	if err != nil {
-		return "", errors.Wrap(err, "can't create instance of PackageVersion")
+		return "", fmt.Errorf("can't create instance of PackageVersion: %s", err)
 	}
 
 	logger.Debugf("Evaluate all resource paths for the package (buildDir: %s)", builtPackageDir)
 	osFs := osfs.New(builtPackageDir)
 	resourcePaths, err := walkPackageVersions(osFs, *packageVersion)
 	if err != nil {
-		return "", errors.Wrap(err, "walking package versions failed")
+		return "", fmt.Errorf("walking package versions failed: %s", err)
 	}
 
 	contents, err := loadPackageContents(osFs, resourcePaths)
 	if err != nil {
-		return "", errors.Wrap(err, "loading package contents failed")
+		return "", fmt.Errorf("loading package contents failed: %s", err)
 	}
 
 	contents = transformPackageContents(contents, func(path string, body []byte) (string, []byte) {
@@ -442,19 +441,19 @@ func CopyOverLocalPackage(r *git.Repository, builtPackageDir string, manifest *p
 
 	err = writePackageContents(wt.Filesystem, contents)
 	if err != nil {
-		return "", errors.Wrap(err, "writing package contents failed")
+		return "", fmt.Errorf("writing package contents failed: %s", err)
 	}
 
 	logger.Debugf("Add updated resources to index")
 	_, err = wt.Add(packagesDir)
 	if err != nil {
-		return "", errors.Wrapf(err, "adding updated resource to index failed")
+		return "", fmt.Errorf("adding updated resource to index failed: %s", err)
 	}
 
 	logger.Debugf("Commit changes to destination branch")
 	commitHash, err := wt.Commit("Copy over local package sources", new(git.CommitOptions))
 	if err != nil {
-		return "", errors.Wrap(err, "committing files failed")
+		return "", fmt.Errorf("committing files failed: %s", err)
 	}
 	return commitHash.String(), nil
 }
@@ -464,7 +463,7 @@ func walkPackageVersions(filesystem billy.Filesystem, versions ...PackageVersion
 	for _, r := range versions {
 		paths, err := walkPackageResources(filesystem, r.path())
 		if err != nil {
-			return nil, errors.Wrap(err, "walking package resources failed")
+			return nil, fmt.Errorf("walking package resources failed: %s", err)
 		}
 		collected = append(collected, paths...)
 	}
@@ -474,7 +473,7 @@ func walkPackageVersions(filesystem billy.Filesystem, versions ...PackageVersion
 func walkPackageResources(filesystem billy.Filesystem, path string) ([]string, error) {
 	fis, err := filesystem.ReadDir(path)
 	if err != nil {
-		return nil, errors.Wrapf(err, "reading directory failed (path: %s)", path)
+		return nil, fmt.Errorf("reading directory failed (path: %s): %s", path, err)
 	}
 
 	var collected []string
@@ -483,7 +482,7 @@ func walkPackageResources(filesystem billy.Filesystem, path string) ([]string, e
 			p := filepath.Join(path, fi.Name())
 			c, err := walkPackageResources(filesystem, p)
 			if err != nil {
-				return nil, errors.Wrapf(err, "recursive walking failed (path: %s)", p)
+				return nil, fmt.Errorf("recursive walking failed (path: %s): %s", p, err)
 			}
 			collected = append(collected, c...)
 			continue
@@ -498,12 +497,12 @@ func loadPackageContents(filesystem billy.Filesystem, resourcePaths []string) (f
 	for _, path := range resourcePaths {
 		f, err := filesystem.Open(path)
 		if err != nil {
-			return nil, errors.Wrapf(err, "reading file failed (path: %s)", path)
+			return nil, fmt.Errorf("reading file failed (path: %s): %s", path, err)
 		}
 
 		c, err := io.ReadAll(f)
 		if err != nil {
-			return nil, errors.Wrapf(err, "reading file content failed (path: %s)", path)
+			return nil, fmt.Errorf("reading file content failed (path: %s): %s", path, err)
 		}
 
 		m[path] = c
@@ -525,12 +524,12 @@ func writePackageContents(filesystem billy.Filesystem, contents fileContents) er
 		dir := filepath.Dir(resourcePath)
 		err := filesystem.MkdirAll(dir, 0644)
 		if err != nil {
-			return errors.Wrapf(err, "creating directory failed (path: %s)", dir)
+			return fmt.Errorf("creating directory failed (path: %s): %s", dir, err)
 		}
 
 		err = util.WriteFile(filesystem, resourcePath, content, 0755)
 		if err != nil {
-			return errors.Wrapf(err, "writing file failed (path: %s)", dir)
+			return fmt.Errorf("writing file failed (path: %s): %s", dir, err)
 		}
 	}
 	return nil
@@ -542,7 +541,7 @@ func RemovePackages(r *git.Repository, sourceStage string, packages PackageVersi
 
 	wt, err := r.Worktree()
 	if err != nil {
-		return errors.Wrap(err, "fetching worktree reference failed")
+		return fmt.Errorf("fetching worktree reference failed: %s", err)
 	}
 
 	logger.Debugf("Checkout source stage: %s", sourceStage)
@@ -550,7 +549,7 @@ func RemovePackages(r *git.Repository, sourceStage string, packages PackageVersi
 		Branch: plumbing.NewBranchReferenceName(sourceStage),
 	})
 	if err != nil {
-		return errors.Wrapf(err, "changing branch failed (path: %s)", sourceStage)
+		return fmt.Errorf("changing branch failed (path: %s): %s", sourceStage, err)
 	}
 
 	logger.Debugf("Create new source branch: %s", sourceBranch)
@@ -559,21 +558,21 @@ func RemovePackages(r *git.Repository, sourceStage string, packages PackageVersi
 		Create: true,
 	})
 	if err != nil {
-		return errors.Wrapf(err, "changing branch failed (path: %s)", sourceBranch)
+		return fmt.Errorf("changing branch failed (path: %s): %s", sourceBranch, err)
 	}
 
 	logger.Debugf("Remove package resources from new source branch")
 	for _, p := range packages {
 		_, err := wt.Remove(p.path())
 		if err != nil {
-			return errors.Wrapf(err, "removing package from index failed (path: %s)", p.path())
+			return fmt.Errorf("removing package from index failed (path: %s): %s", p.path(), err)
 		}
 	}
 
 	logger.Debugf("Commit changes to new source branch")
 	_, err = wt.Commit(fmt.Sprintf("Delete packages from %s", sourceStage), new(git.CommitOptions))
 	if err != nil {
-		return errors.Wrapf(err, "committing files failed (stage: %s)", sourceStage)
+		return fmt.Errorf("committing files failed (stage: %s): %s", sourceStage, err)
 	}
 	return nil
 }
@@ -589,7 +588,7 @@ func PushChanges(user string, r *git.Repository, stages ...string) error {
 func PushChangesWithFork(user string, r *git.Repository, fork bool, stages ...string) error {
 	authToken, err := github.AuthToken()
 	if err != nil {
-		return errors.Wrap(err, "reading auth token failed")
+		return fmt.Errorf("reading auth token failed: %s", err)
 	}
 
 	var refSpecs []config.RefSpec
@@ -612,7 +611,7 @@ func PushChangesWithFork(user string, r *git.Repository, fork bool, stages ...st
 		},
 	})
 	if err != nil {
-		return errors.Wrap(err, "pushing branch failed")
+		return fmt.Errorf("pushing branch failed: %s", err)
 	}
 	return nil
 }

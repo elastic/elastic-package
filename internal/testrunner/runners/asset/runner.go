@@ -8,8 +8,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/pkg/errors"
-
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/packages/installer"
@@ -65,7 +63,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 
 	testConfig, err := newConfig(r.testFolder.Path)
 	if err != nil {
-		return result.WithError(errors.Wrap(err, "unable to load asset loading test config file"))
+		return result.WithError(fmt.Errorf("unable to load asset loading test config file: %s", err))
 
 	}
 
@@ -79,29 +77,29 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 	logger.Debug("installing package...")
 	manifest, err := packages.ReadPackageManifestFromPackageRoot(r.packageRootPath)
 	if err != nil {
-		return result.WithError(errors.Wrapf(err, "reading package manifest failed (path: %s)", r.packageRootPath))
+		return result.WithError(fmt.Errorf("reading package manifest failed (path: %s): %s", r.packageRootPath, err))
 	}
 
 	packageInstaller, err := installer.CreateForManifest(*manifest)
 	if err != nil {
-		return result.WithError(errors.Wrap(err, "can't create the package installer"))
+		return result.WithError(fmt.Errorf("can't create the package installer: %s", err))
 	}
 	installedPackage, err := packageInstaller.Install()
 	if err != nil {
-		return result.WithError(errors.Wrap(err, "can't install the package"))
+		return result.WithError(fmt.Errorf("can't install the package: %s", err))
 	}
 
 	r.removePackageHandler = func() error {
 		logger.Debug("removing package...")
 		if err := packageInstaller.Uninstall(); err != nil {
-			return errors.Wrap(err, "error cleaning up package")
+			return fmt.Errorf("error cleaning up package: %s", err)
 		}
 		return nil
 	}
 
 	expectedAssets, err := packages.LoadPackageAssets(r.packageRootPath)
 	if err != nil {
-		return result.WithError(errors.Wrap(err, "could not load expected package assets"))
+		return result.WithError(fmt.Errorf("could not load expected package assets: %s", err))
 	}
 
 	results := make([]testrunner.TestResult, 0, len(expectedAssets))

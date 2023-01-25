@@ -12,13 +12,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
-
-	"github.com/pkg/errors"
 )
 
 var (
 	// ErrKeyNotFound indicates that the specified key was not found.
-	ErrKeyNotFound = errors.New("key not found")
+	ErrKeyNotFound = fmt.Errorf("key not found")
 )
 
 // MapStr is a map[string]interface{} wrapper with utility methods for common
@@ -148,7 +146,7 @@ func ToMapStrSlice(slice interface{}) ([]MapStr, error) {
 	for _, v := range sliceI {
 		m, err := toMapStr(v)
 		if err != nil {
-			return nil, errors.Wrap(err, "can't convert element to MapStr")
+			return nil, fmt.Errorf("can't convert element to MapStr: %s", err)
 		}
 		mapStrs = append(mapStrs, m)
 	}
@@ -161,7 +159,7 @@ func ToMapStrSlice(slice interface{}) ([]MapStr, error) {
 func toMapStr(v interface{}) (MapStr, error) {
 	m, ok := tryToMapStr(v)
 	if !ok {
-		return nil, errors.Errorf("expected map but type is %T", v)
+		return nil, fmt.Errorf("expected map but type is %T", v)
 	}
 	return m, nil
 }

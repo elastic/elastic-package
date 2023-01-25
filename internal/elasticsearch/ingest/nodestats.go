@@ -6,10 +6,9 @@ package ingest
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"strings"
-
-	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 )
@@ -47,7 +46,7 @@ func (p wrappedProcessor) extract() (stats ProcessorStats, err error) {
 		for k := range p {
 			keys = append(keys, k)
 		}
-		return stats, errors.Errorf("can't extract processor stats. Need a single key in the processor identifier, got %d: %v", len(p), keys)
+		return stats, fmt.Errorf("can't extract processor stats. Need a single key in the processor identifier, got %d: %v", len(p), keys)
 	}
 
 	// Read single entry in map.
@@ -65,7 +64,7 @@ func (p wrappedProcessor) extract() (stats ProcessorStats, err error) {
 	case "conditional":
 		stats.Conditional = true
 	default:
-		return stats, errors.Errorf("can't understand processor identifier '%s' in %+v", processorType, p)
+		return stats, fmt.Errorf("can't understand processor identifier '%s' in %+v", processorType, p)
 	}
 	stats.Type = processorType
 
@@ -84,7 +83,7 @@ func (r pipelineStatsRecord) extract() (stats PipelineStats, err error) {
 	}
 	for idx, wrapped := range r.Processors {
 		if stats.Processors[idx], err = wrapped.extract(); err != nil {
-			return stats, errors.Wrapf(err, "extracting processor %d", idx)
+			return stats, fmt.Errorf("extracting processor %d: %s", idx, err)
 		}
 	}
 	return stats, nil
@@ -106,17 +105,17 @@ func GetPipelineStats(esClient *elasticsearch.API, pipelines []Pipeline) (stats 
 	statsReq := esClient.Nodes.Stats.WithFilterPath("nodes.*.ingest.pipelines")
 	resp, err := esClient.Nodes.Stats(statsReq)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Node Stats API call failed")
+		return nil, fmt.Errorf("node Stats API call failed: %s", err)
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to read Stats API response body")
+		return nil, fmt.Errorf("failed to read Stats API response body: %s", err)
 	}
 
 	if resp.StatusCode != 200 {
-		return nil, errors.Wrapf(elasticsearch.NewError(body), "unexpected response status for Node Stats (%d): %s", resp.StatusCode, resp.Status())
+		return nil, fmt.Errorf("unexpected response status for Node Stats (%d): %s: %s", resp.StatusCode, resp.Status(), elasticsearch.NewError(body))
 	}
 	return getPipelineStats(body, pipelines)
 }
@@ -124,11 +123,11 @@ func GetPipelineStats(esClient *elasticsearch.API, pipelines []Pipeline) (stats 
 func getPipelineStats(body []byte, pipelines []Pipeline) (stats PipelineStatsMap, err error) {
 	var statsResponse pipelinesStatsResponse
 	if err = json.Unmarshal(body, &statsResponse); err != nil {
-		return nil, errors.Wrap(err, "error decoding Node Stats response")
+		return nil, fmt.Errorf("error decoding Node Stats response: %s", err)
 	}
 
 	if nodeCount := len(statsResponse.Nodes); nodeCount != 1 {
-		return nil, errors.Errorf("Need exactly one ES node in stats response (got %d)", nodeCount)
+		return nil, fmt.Errorf("need exactly one ES node in stats response (got %d)", nodeCount)
 	}
 	var nodePipelines map[string]pipelineStatsRecord
 	for _, node := range statsResponse.Nodes {
@@ -139,14 +138,14 @@ func getPipelineStats(body []byte, pipelines []Pipeline) (stats PipelineStatsMap
 	for _, requested := range pipelines {
 		if pStats, found := nodePipelines[requested.Name]; found {
 			if stats[requested.Name], err = pStats.extract(); err != nil {
-				return stats, errors.Wrapf(err, "converting pipeline %s", requested.Name)
+				return stats, fmt.Errorf("converting pipeline %s: %s", requested.Name, err)
 			}
 		} else {
 			missing = append(missing, requested.Name)
 		}
 	}
 	if len(missing) != 0 {
-		return stats, errors.Errorf("Node Stats response is missing expected pipelines: %s", strings.Join(missing, ", "))
+		return stats, fmt.Errorf("node Stats response is missing expected pipelines: %s", strings.Join(missing, ", "))
 	}
 
 	return stats, nil

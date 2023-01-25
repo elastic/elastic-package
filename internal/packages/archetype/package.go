@@ -9,8 +9,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/pkg/errors"
-
 	"github.com/elastic/elastic-package/internal/formatter"
 	"github.com/elastic/elastic-package/internal/licenses"
 	"github.com/elastic/elastic-package/internal/logger"
@@ -33,49 +31,49 @@ func CreatePackage(packageDescriptor PackageDescriptor) error {
 	logger.Debugf("Write package manifest")
 	err = renderResourceFile(packageManifestTemplate, &packageDescriptor, filepath.Join(baseDir, "manifest.yml"))
 	if err != nil {
-		return errors.Wrap(err, "can't render package manifest")
+		return fmt.Errorf("can't render package manifest: %s", err)
 	}
 
 	logger.Debugf("Write package changelog")
 	err = renderResourceFile(packageChangelogTemplate, &packageDescriptor, filepath.Join(baseDir, "changelog.yml"))
 	if err != nil {
-		return errors.Wrap(err, "can't render package changelog")
+		return fmt.Errorf("can't render package changelog: %s", err)
 	}
 
 	logger.Debugf("Write docs readme")
 	err = renderResourceFile(packageDocsReadme, &packageDescriptor, filepath.Join(baseDir, "docs", "README.md"))
 	if err != nil {
-		return errors.Wrap(err, "can't render package README")
+		return fmt.Errorf("can't render package README: %s", err)
 	}
 
 	if license := packageDescriptor.Manifest.Source.License; license != "" {
 		logger.Debugf("Write license file")
 		err = licenses.WriteTextToFile(license, filepath.Join(baseDir, "LICENSE.txt"))
 		if err != nil {
-			return errors.Wrap(err, "can't write license file")
+			return fmt.Errorf("can't write license file: %s", err)
 		}
 	}
 
 	logger.Debugf("Write sample icon")
 	err = writeRawResourceFile(packageImgSampleIcon, filepath.Join(baseDir, "img", "sample-logo.svg"))
 	if err != nil {
-		return errors.Wrap(err, "can't render sample icon")
+		return fmt.Errorf("can't render sample icon: %s", err)
 	}
 
 	logger.Debugf("Write sample screenshot")
 	decodedSampleScreenshot, err := decodeBase64Resource(packageImgSampleScreenshot)
 	if err != nil {
-		return errors.Wrap(err, "can't decode sample screenshot")
+		return fmt.Errorf("can't decode sample screenshot: %s", err)
 	}
 	err = writeRawResourceFile(decodedSampleScreenshot, filepath.Join(baseDir, "img", "sample-screenshot.png"))
 	if err != nil {
-		return errors.Wrap(err, "can't render sample screenshot")
+		return fmt.Errorf("can't render sample screenshot: %s", err)
 	}
 
 	logger.Debugf("Format the entire package")
 	err = formatter.Format(baseDir, false)
 	if err != nil {
-		return errors.Wrap(err, "can't format the new package")
+		return fmt.Errorf("can't format the new package: %s", err)
 	}
 
 	fmt.Printf("New package has been created: %s\n", baseDir)

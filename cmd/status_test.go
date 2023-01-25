@@ -37,7 +37,7 @@ func TestStatusFormatAndPrint(t *testing.T) {
 	localPendingChanges := changelog.Revision{
 		Version: "2.0.0-rc2",
 		Changes: []changelog.Entry{
-			changelog.Entry{
+			{
 				Description: "New feature",
 				Type:        "enhancement",
 				Link:        "http:github.com/org/repo/pull/2",

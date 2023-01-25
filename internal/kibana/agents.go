@@ -10,8 +10,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/pkg/errors"
-
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/signal"
 )
@@ -43,7 +41,7 @@ func (a *Agent) String() string {
 func (c *Client) ListAgents() ([]Agent, error) {
 	statusCode, respBody, err := c.get(fmt.Sprintf("%s/agents", FleetAPI))
 	if err != nil {
-		return nil, errors.Wrap(err, "could not list agents")
+		return nil, fmt.Errorf("could not list agents: %s", err)
 	}
 
 	if statusCode != http.StatusOK {
@@ -55,7 +53,7 @@ func (c *Client) ListAgents() ([]Agent, error) {
 	}
 
 	if err := json.Unmarshal(respBody, &resp); err != nil {
-		return nil, errors.Wrap(err, "could not convert list agents (response) to JSON")
+		return nil, fmt.Errorf("could not convert list agents (response) to JSON: %s", err)
 	}
 
 	return resp.List, nil
@@ -68,7 +66,7 @@ func (c *Client) AssignPolicyToAgent(a Agent, p Policy) error {
 	path := fmt.Sprintf("%s/agents/%s/reassign", FleetAPI, a.ID)
 	statusCode, respBody, err := c.put(path, []byte(reqBody))
 	if err != nil {
-		return errors.Wrap(err, "could not assign policy to agent")
+		return fmt.Errorf("could not assign policy to agent: %s", err)
 	}
 
 	if statusCode != http.StatusOK {
@@ -77,7 +75,7 @@ func (c *Client) AssignPolicyToAgent(a Agent, p Policy) error {
 
 	err = c.waitUntilPolicyAssigned(a, p)
 	if err != nil {
-		return errors.Wrap(err, "error occurred while waiting for the policy to be assigned to all agents")
+		return fmt.Errorf("error occurred while waiting for the policy to be assigned to all agents: %s", err)
 	}
 	return nil
 }
@@ -86,16 +84,16 @@ func (c *Client) waitUntilPolicyAssigned(a Agent, p Policy) error {
 	timeout := time.Now().Add(waitForPolicyAssignedTimeout)
 	for {
 		if time.Now().After(timeout) {
-			return errors.New("timeout: policy hasn't been assigned in time")
+			return fmt.Errorf("timeout: policy hasn't been assigned in time")
 		}
 
 		if signal.SIGINT() {
-			return errors.New("SIGINT: cancel waiting for policy assigned")
+			return fmt.Errorf("SIGINT: cancel waiting for policy assigned")
 		}
 
 		agent, err := c.getAgent(a.ID)
 		if err != nil {
-			return errors.Wrap(err, "can't get the agent")
+			return fmt.Errorf("can't get the agent: %s", err)
 		}
 		logger.Debugf("Agent data: %s", agent.String())
 
@@ -113,7 +111,7 @@ func (c *Client) waitUntilPolicyAssigned(a Agent, p Policy) error {
 func (c *Client) getAgent(agentID string) (*Agent, error) {
 	statusCode, respBody, err := c.get(fmt.Sprintf("%s/agents/%s", FleetAPI, agentID))
 	if err != nil {
-		return nil, errors.Wrap(err, "could not list agents")
+		return nil, fmt.Errorf("could not list agents: %s", err)
 	}
 
 	if statusCode != http.StatusOK {
@@ -124,7 +122,7 @@ func (c *Client) getAgent(agentID string) (*Agent, error) {
 		Item Agent `json:"item"`
 	}
 	if err := json.Unmarshal(respBody, &resp); err != nil {
-		return nil, errors.Wrap(err, "could not convert list agents (response) to JSON")
+		return nil, fmt.Errorf("could not convert list agents (response) to JSON: %s", err)
 	}
 	return &resp.Item, nil
 }

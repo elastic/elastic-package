@@ -31,12 +31,12 @@ func TestDumpInstalledObjects(t *testing.T) {
 	// - Run tests.
 	// - Check that recorded files make sense and commit them.
 	suites := []*installedObjectsDumpSuite{
-		&installedObjectsDumpSuite{
+		{
 			PackageName: "apache",
 			RecordDir:   "./testdata/elasticsearch-7-mock-dump-apache",
 			DumpDir:     "./testdata/elasticsearch-7-apache-dump-all",
 		},
-		&installedObjectsDumpSuite{
+		{
 			PackageName: "apache",
 			RecordDir:   "./testdata/elasticsearch-8-mock-dump-apache",
 			DumpDir:     "./testdata/elasticsearch-8-apache-dump-all",

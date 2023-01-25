@@ -10,8 +10,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/pkg/errors"
-
 	"github.com/elastic/go-ucfg"
 	"github.com/elastic/go-ucfg/yaml"
 )
@@ -156,10 +154,10 @@ type DataStreamManifest struct {
 func MustFindPackageRoot() (string, error) {
 	root, found, err := FindPackageRoot()
 	if err != nil {
-		return "", errors.Wrap(err, "locating package root failed")
+		return "", fmt.Errorf("locating package root failed: %s", err)
 	}
 	if !found {
-		return "", errors.New("package root not found")
+		return "", fmt.Errorf("package root not found")
 	}
 	return root, nil
 }
@@ -168,7 +166,7 @@ func MustFindPackageRoot() (string, error) {
 func FindPackageRoot() (string, bool, error) {
 	workDir, err := os.Getwd()
 	if err != nil {
-		return "", false, errors.Wrap(err, "locating working directory failed")
+		return "", false, fmt.Errorf("locating working directory failed: %s", err)
 	}
 
 	dir := workDir
@@ -178,7 +176,7 @@ func FindPackageRoot() (string, bool, error) {
 		if err == nil && !fileInfo.IsDir() {
 			ok, err := isPackageManifest(path)
 			if err != nil {
-				return "", false, errors.Wrapf(err, "verifying manifest file failed (path: %s)", path)
+				return "", false, fmt.Errorf("verifying manifest file failed (path: %s): %s", path, err)
 			}
 			if ok {
 				return dir, true, nil
@@ -202,7 +200,7 @@ func FindDataStreamRootForPath(workDir string) (string, bool, error) {
 		if err == nil && !fileInfo.IsDir() {
 			ok, err := isDataStreamManifest(path)
 			if err != nil {
-				return "", false, errors.Wrapf(err, "verifying manifest file failed (path: %s)", path)
+				return "", false, fmt.Errorf("verifying manifest file failed (path: %s): %s", path, err)
 			}
 			if ok {
 				return dir, true, nil
@@ -226,13 +224,13 @@ func ReadPackageManifestFromPackageRoot(packageRoot string) (*PackageManifest, e
 func ReadPackageManifest(path string) (*PackageManifest, error) {
 	cfg, err := yaml.NewConfigWithFile(path, ucfg.PathSep("."))
 	if err != nil {
-		return nil, errors.Wrapf(err, "reading file failed (path: %s)", path)
+		return nil, fmt.Errorf("reading file failed (path: %s): %s", path, err)
 	}
 
 	var m PackageManifest
 	err = cfg.Unpack(&m)
 	if err != nil {
-		return nil, errors.Wrapf(err, "unpacking package manifest failed (path: %s)", path)
+		return nil, fmt.Errorf("unpacking package manifest failed (path: %s): %s", path, err)
 	}
 	return &m, nil
 }
@@ -241,13 +239,13 @@ func ReadPackageManifest(path string) (*PackageManifest, error) {
 func ReadDataStreamManifest(path string) (*DataStreamManifest, error) {
 	cfg, err := yaml.NewConfigWithFile(path, ucfg.PathSep("."))
 	if err != nil {
-		return nil, errors.Wrapf(err, "reading file failed (path: %s)", path)
+		return nil, fmt.Errorf("reading file failed (path: %s): %s", path, err)
 	}
 
 	var m DataStreamManifest
 	err = cfg.Unpack(&m)
 	if err != nil {
-		return nil, errors.Wrapf(err, "unpacking data stream manifest failed (path: %s)", path)
+		return nil, fmt.Errorf("unpacking data stream manifest failed (path: %s): %s", path, err)
 	}
 
 	m.Name = filepath.Base(filepath.Dir(path))
@@ -301,7 +299,7 @@ func (pt *PolicyTemplate) FindInputByType(inputType string) *Input {
 func isPackageManifest(path string) (bool, error) {
 	m, err := ReadPackageManifest(path)
 	if err != nil {
-		return false, errors.Wrapf(err, "reading package manifest failed (path: %s)", path)
+		return false, fmt.Errorf("reading package manifest failed (path: %s): %s", path, err)
 	}
 	return (m.Type == "integration" || m.Type == "input") && m.Version != "", nil
 }
@@ -309,7 +307,7 @@ func isPackageManifest(path string) (bool, error) {
 func isDataStreamManifest(path string) (bool, error) {
 	m, err := ReadDataStreamManifest(path)
 	if err != nil {
-		return false, errors.Wrapf(err, "reading package manifest failed (path: %s)", path)
+		return false, fmt.Errorf("reading package manifest failed (path: %s): %s", path, err)
 	}
 	return m.Title != "" &&
 			(m.Type == dataStreamTypeLogs || m.Type == dataStreamTypeMetrics || m.Type == dataStreamTypeSynthetics || m.Type == dataStreamTypeTraces),

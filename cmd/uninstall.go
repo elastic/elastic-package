@@ -5,7 +5,8 @@
 package cmd
 
 import (
-	"github.com/pkg/errors"
+	"fmt"
+
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
@@ -31,27 +32,27 @@ func setupUninstallCommand() *cobraext.Command {
 func uninstallCommandAction(cmd *cobra.Command, args []string) error {
 	packageRootPath, found, err := packages.FindPackageRoot()
 	if !found {
-		return errors.New("package root not found")
+		return fmt.Errorf("package root not found")
 	}
 	if err != nil {
-		return errors.Wrap(err, "locating package root failed")
+		return fmt.Errorf("locating package root failed: %s", err)
 	}
 
 	m, err := packages.ReadPackageManifestFromPackageRoot(packageRootPath)
 	if err != nil {
-		return errors.Wrapf(err, "reading package manifest failed (path: %s)", packageRootPath)
+		return fmt.Errorf("reading package manifest failed (path: %s): %s", packageRootPath, err)
 	}
 
 	packageInstaller, err := installer.CreateForManifest(*m)
 	if err != nil {
-		return errors.Wrap(err, "can't create the package installer")
+		return fmt.Errorf("can't create the package installer: %s", err)
 	}
 
 	// Uninstall the package
 	cmd.Println("Uninstall the package")
 	err = packageInstaller.Uninstall()
 	if err != nil {
-		return errors.Wrap(err, "can't uninstall the package")
+		return fmt.Errorf("can't uninstall the package: %s", err)
 	}
 	cmd.Println("Done")
 	return nil

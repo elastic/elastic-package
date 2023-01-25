@@ -5,11 +5,11 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/jedib0t/go-pretty/table"
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
@@ -65,7 +65,7 @@ func setupStackCommand() *cobraext.Command {
 
 			err = validateServicesFlag(services)
 			if err != nil {
-				return errors.Wrap(err, "validating services failed")
+				return fmt.Errorf("validating services failed: %s", err)
 			}
 
 			stackVersion, err := cmd.Flags().GetString(cobraext.StackVersionFlagName)
@@ -82,12 +82,12 @@ func setupStackCommand() *cobraext.Command {
 			if errors.Is(err, profile.ErrNotAProfile) {
 				pList, err := availableProfilesAsAList()
 				if err != nil {
-					return errors.Wrap(err, "error listing known profiles")
+					return fmt.Errorf("error listing known profiles: %s", err)
 				}
 				return fmt.Errorf("%s is not a valid profile, known profiles are: %s", profileName, pList)
 			}
 			if err != nil {
-				return errors.Wrap(err, "error loading profile")
+				return fmt.Errorf("error loading profile: %s", err)
 			}
 
 			// Print information before starting the stack, for cases where
@@ -106,7 +106,7 @@ func setupStackCommand() *cobraext.Command {
 				Profile:      userProfile,
 			})
 			if err != nil {
-				return errors.Wrap(err, "booting up the stack failed")
+				return fmt.Errorf("booting up the stack failed: %s", err)
 			}
 
 			cmd.Println("Done")
@@ -133,20 +133,20 @@ func setupStackCommand() *cobraext.Command {
 			if errors.Is(err, profile.ErrNotAProfile) {
 				pList, err := availableProfilesAsAList()
 				if err != nil {
-					return errors.Wrap(err, "error listing known profiles")
+					return fmt.Errorf("error listing known profiles: %s", err)
 				}
 				return fmt.Errorf("%s is not a valid profile, known profiles are: %s", profileName, pList)
 			}
 
 			if err != nil {
-				return errors.Wrap(err, "error loading profile")
+				return fmt.Errorf("error loading profile: %s", err)
 			}
 
 			err = stack.TearDown(stack.Options{
 				Profile: userProfile,
 			})
 			if err != nil {
-				return errors.Wrap(err, "tearing down the stack failed")
+				return fmt.Errorf("tearing down the stack failed: %s", err)
 			}
 
 			cmd.Println("Done")
@@ -167,7 +167,7 @@ func setupStackCommand() *cobraext.Command {
 
 			profile, err := profile.LoadProfile(profileName)
 			if err != nil {
-				return errors.Wrap(err, "error loading profile")
+				return fmt.Errorf("error loading profile: %s", err)
 			}
 
 			stackVersion, err := cmd.Flags().GetString(cobraext.StackVersionFlagName)
@@ -180,7 +180,7 @@ func setupStackCommand() *cobraext.Command {
 				Profile:      profile,
 			})
 			if err != nil {
-				return errors.Wrap(err, "failed updating the stack images")
+				return fmt.Errorf("failed updating the stack images: %s", err)
 			}
 
 			cmd.Println("Done")
@@ -209,12 +209,12 @@ func setupStackCommand() *cobraext.Command {
 
 			profile, err := profile.LoadProfile(profileName)
 			if err != nil {
-				return errors.Wrap(err, "error loading profile")
+				return fmt.Errorf("error loading profile: %s", err)
 			}
 
 			shellCode, err := stack.ShellInit(profile, shellName)
 			if err != nil {
-				return errors.Wrap(err, "shellinit failed")
+				return fmt.Errorf("shellinit failed: %s", err)
 			}
 			fmt.Println(shellCode)
 			return nil
@@ -239,7 +239,7 @@ func setupStackCommand() *cobraext.Command {
 
 			profile, err := profile.LoadProfile(profileName)
 			if err != nil {
-				return errors.Wrap(err, "error loading profile")
+				return fmt.Errorf("error loading profile: %s", err)
 			}
 
 			target, err := stack.Dump(stack.DumpOptions{
@@ -247,7 +247,7 @@ func setupStackCommand() *cobraext.Command {
 				Profile: profile,
 			})
 			if err != nil {
-				return errors.Wrap(err, "dump failed")
+				return fmt.Errorf("dump failed: %s", err)
 			}
 
 			cmd.Printf("Path to stack dump: %s\n", target)
@@ -264,7 +264,7 @@ func setupStackCommand() *cobraext.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			servicesStatus, err := stack.Status()
 			if err != nil {
-				return errors.Wrap(err, "failed getting stack status")
+				return fmt.Errorf("failed getting stack status: %s", err)
 			}
 
 			cmd.Println("Status of Elastic stack services:")

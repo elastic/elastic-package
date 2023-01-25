@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/compose"
@@ -29,7 +28,7 @@ func StackInitConfig(elasticStackProfile *profile.Profile) (*InitConfig, error) 
 	// FIXME read credentials from correct Kibana config file, not default
 	body, err := os.ReadFile(elasticStackProfile.FetchPath(profile.KibanaConfigDefaultFile))
 	if err != nil {
-		return nil, errors.Wrap(err, "error reading Kibana config file")
+		return nil, fmt.Errorf("error reading Kibana config file: %s", err)
 	}
 
 	var kibanaCfg struct {
@@ -38,18 +37,18 @@ func StackInitConfig(elasticStackProfile *profile.Profile) (*InitConfig, error) 
 	}
 	err = yaml.Unmarshal(body, &kibanaCfg)
 	if err != nil {
-		return nil, errors.Wrap(err, "unmarshalling Kibana configuration failed")
+		return nil, fmt.Errorf("unmarshalling Kibana configuration failed: %s", err)
 	}
 
 	// Read Elasticsearch and Kibana hostnames from Elastic Stack Docker Compose configuration file.
 	p, err := compose.NewProject(DockerComposeProjectName, elasticStackProfile.FetchPath(profile.SnapshotFile))
 	if err != nil {
-		return nil, errors.Wrap(err, "could not create docker compose project")
+		return nil, fmt.Errorf("could not create docker compose project: %s", err)
 	}
 
 	appConfig, err := install.Configuration()
 	if err != nil {
-		return nil, errors.Wrap(err, "can't read application configuration")
+		return nil, fmt.Errorf("can't read application configuration: %s", err)
 	}
 
 	serviceComposeConfig, err := p.Config(compose.CommandOptions{
@@ -60,7 +59,7 @@ func StackInitConfig(elasticStackProfile *profile.Profile) (*InitConfig, error) 
 			build(),
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "could not get Docker Compose configuration for service")
+		return nil, fmt.Errorf("could not get Docker Compose configuration for service: %s", err)
 	}
 
 	kib := serviceComposeConfig.Services["kibana"]

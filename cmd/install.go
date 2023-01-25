@@ -5,7 +5,8 @@
 package cmd
 
 import (
-	"github.com/pkg/errors"
+	"fmt"
+
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
@@ -39,28 +40,28 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 		var found bool
 		packageRootPath, found, err = packages.FindPackageRoot()
 		if !found {
-			return errors.New("package root not found")
+			return fmt.Errorf("package root not found")
 		}
 		if err != nil {
-			return errors.Wrap(err, "locating package root failed")
+			return fmt.Errorf("locating package root failed: %s", err)
 		}
 	}
 
 	m, err := packages.ReadPackageManifestFromPackageRoot(packageRootPath)
 	if err != nil {
-		return errors.Wrapf(err, "reading package manifest failed (path: %s)", packageRootPath)
+		return fmt.Errorf("reading package manifest failed (path: %s): %s", packageRootPath, err)
 	}
 
 	// Check conditions
 	keyValuePairs, err := cmd.Flags().GetStringSlice(cobraext.CheckConditionFlagName)
 	if err != nil {
-		return errors.Wrap(err, "can't process check-condition flag")
+		return fmt.Errorf("can't process check-condition flag: %s", err)
 	}
 	if len(keyValuePairs) > 0 {
 		cmd.Println("Check conditions for package")
 		err = packages.CheckConditions(*m, keyValuePairs)
 		if err != nil {
-			return errors.Wrap(err, "checking conditions failed")
+			return fmt.Errorf("checking conditions failed: %s", err)
 		}
 		cmd.Println("Requirements satisfied - the package can be installed.")
 		cmd.Println("Done")
@@ -69,14 +70,14 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 
 	packageInstaller, err := installer.CreateForManifest(*m)
 	if err != nil {
-		return errors.Wrap(err, "can't create the package installer")
+		return fmt.Errorf("can't create the package installer: %s", err)
 	}
 
 	// Install the package
 	cmd.Println("Install the package")
 	installedPackage, err := packageInstaller.Install()
 	if err != nil {
-		return errors.Wrap(err, "can't install the package")
+		return fmt.Errorf("can't install the package: %s", err)
 	}
 
 	cmd.Println("Installed assets:")

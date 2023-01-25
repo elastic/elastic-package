@@ -6,9 +6,8 @@ package github
 
 import (
 	"context"
+	"fmt"
 	"net/http"
-
-	"github.com/pkg/errors"
 
 	"github.com/google/go-github/v32/github"
 	"golang.org/x/oauth2"
@@ -18,7 +17,7 @@ import (
 func Client() (*github.Client, error) {
 	authToken, err := AuthToken()
 	if err != nil {
-		return nil, errors.Wrap(err, "reading auth token failed")
+		return nil, fmt.Errorf("reading auth token failed: %s", err)
 	}
 	return github.NewClient(oauth2.NewClient(context.Background(), oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: authToken},
@@ -34,7 +33,7 @@ func UnauthorizedClient() *github.Client {
 func User(client *github.Client) (string, error) {
 	user, _, err := client.Users.Get(context.Background(), "")
 	if err != nil {
-		return "", errors.Wrap(err, "fetching authenticated user failed")
+		return "", fmt.Errorf("fetching authenticated user failed: %s", err)
 	}
 	return *user.Login, nil
 }

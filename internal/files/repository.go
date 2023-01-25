@@ -5,16 +5,15 @@
 package files
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
-
-	"github.com/pkg/errors"
 )
 
 func FindRepositoryRootDirectory() (string, error) {
 	workDir, err := os.Getwd()
 	if err != nil {
-		return "", errors.Wrap(err, "locating working directory failed")
+		return "", fmt.Errorf("locating working directory failed: %s", err)
 	}
 
 	dir := workDir

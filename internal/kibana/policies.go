@@ -9,8 +9,6 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/pkg/errors"
-
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
@@ -27,12 +25,12 @@ type Policy struct {
 func (c *Client) CreatePolicy(p Policy) (*Policy, error) {
 	reqBody, err := json.Marshal(p)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not convert policy (request) to JSON")
+		return nil, fmt.Errorf("could not convert policy (request) to JSON: %s", err)
 	}
 
 	statusCode, respBody, err := c.post(fmt.Sprintf("%s/agent_policies", FleetAPI), reqBody)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not create policy")
+		return nil, fmt.Errorf("could not create policy: %s", err)
 	}
 
 	if statusCode != http.StatusOK {
@@ -44,7 +42,7 @@ func (c *Client) CreatePolicy(p Policy) (*Policy, error) {
 	}
 
 	if err := json.Unmarshal(respBody, &resp); err != nil {
-		return nil, errors.Wrap(err, "could not convert policy (response) to JSON")
+		return nil, fmt.Errorf("could not convert policy (response) to JSON: %s", err)
 	}
 
 	return &resp.Item, nil
@@ -54,7 +52,7 @@ func (c *Client) CreatePolicy(p Policy) (*Policy, error) {
 func (c *Client) GetPolicy(policyID string) (*Policy, error) {
 	statusCode, respBody, err := c.get(fmt.Sprintf("%s/agent_policies/%s", FleetAPI, policyID))
 	if err != nil {
-		return nil, errors.Wrap(err, "could not get policy")
+		return nil, fmt.Errorf("could not get policy: %s", err)
 	}
 
 	if statusCode != http.StatusOK {
@@ -66,7 +64,7 @@ func (c *Client) GetPolicy(policyID string) (*Policy, error) {
 	}
 
 	if err := json.Unmarshal(respBody, &resp); err != nil {
-		return nil, errors.Wrap(err, "could not convert policy (response) to JSON")
+		return nil, fmt.Errorf("could not convert policy (response) to JSON: %s", err)
 	}
 
 	return &resp.Item, nil
@@ -76,7 +74,7 @@ func (c *Client) GetPolicy(policyID string) (*Policy, error) {
 func (c *Client) GetRawPolicy(policyID string) (json.RawMessage, error) {
 	statusCode, respBody, err := c.get(fmt.Sprintf("%s/agent_policies/%s", FleetAPI, policyID))
 	if err != nil {
-		return nil, errors.Wrap(err, "could not get policy")
+		return nil, fmt.Errorf("could not get policy: %s", err)
 	}
 
 	if statusCode != http.StatusOK {
@@ -88,7 +86,7 @@ func (c *Client) GetRawPolicy(policyID string) (json.RawMessage, error) {
 	}
 
 	if err := json.Unmarshal(respBody, &resp); err != nil {
-		return nil, errors.Wrap(err, "could not convert policy (response) to JSON")
+		return nil, fmt.Errorf("could not convert policy (response) to JSON: %s", err)
 	}
 
 	return resp.Item, nil
@@ -109,7 +107,7 @@ func (c *Client) ListRawPolicies() ([]json.RawMessage, error) {
 	for finished := false; !finished; finished = itemsRetrieved == resp.Total {
 		statusCode, respBody, err := c.get(fmt.Sprintf("%s/agent_policies?full=true&page=%d", FleetAPI, currentPage))
 		if err != nil {
-			return nil, errors.Wrap(err, "could not get policies")
+			return nil, fmt.Errorf("could not get policies: %s", err)
 		}
 
 		if statusCode != http.StatusOK {
@@ -117,7 +115,7 @@ func (c *Client) ListRawPolicies() ([]json.RawMessage, error) {
 		}
 
 		if err := json.Unmarshal(respBody, &resp); err != nil {
-			return nil, errors.Wrap(err, "could not convert policies (response) to JSON")
+			return nil, fmt.Errorf("could not convert policies (response) to JSON: %s", err)
 		}
 
 		itemsRetrieved += len(resp.Items)
@@ -134,7 +132,7 @@ func (c *Client) DeletePolicy(p Policy) error {
 
 	statusCode, respBody, err := c.post(fmt.Sprintf("%s/agent_policies/delete", FleetAPI), []byte(reqBody))
 	if err != nil {
-		return errors.Wrap(err, "could not delete policy")
+		return fmt.Errorf("could not delete policy: %s", err)
 	}
 
 	if statusCode != http.StatusOK {
@@ -200,12 +198,12 @@ type PackageDataStream struct {
 func (c *Client) AddPackageDataStreamToPolicy(r PackageDataStream) error {
 	reqBody, err := json.Marshal(r)
 	if err != nil {
-		return errors.Wrap(err, "could not convert policy-package (request) to JSON")
+		return fmt.Errorf("could not convert policy-package (request) to JSON: %s", err)
 	}
 
 	statusCode, respBody, err := c.post(fmt.Sprintf("%s/package_policies", FleetAPI), reqBody)
 	if err != nil {
-		return errors.Wrap(err, "could not add package to policy")
+		return fmt.Errorf("could not add package to policy: %s", err)
 	}
 
 	if statusCode != http.StatusOK {

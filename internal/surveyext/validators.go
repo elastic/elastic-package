@@ -11,7 +11,6 @@ import (
 	"regexp"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/pkg/errors"
 )
 
 var (
@@ -22,7 +21,7 @@ var (
 func PackageDoesNotExistValidator(val interface{}) error {
 	baseDir, ok := val.(string)
 	if !ok {
-		return errors.New("string type expected")
+		return fmt.Errorf("string type expected")
 	}
 	_, err := os.Stat(baseDir)
 	if err == nil {
@@ -35,7 +34,7 @@ func PackageDoesNotExistValidator(val interface{}) error {
 func DataStreamDoesNotExistValidator(val interface{}) error {
 	name, ok := val.(string)
 	if !ok {
-		return errors.New("string type expected")
+		return fmt.Errorf("string type expected")
 	}
 
 	dataStreamDir := filepath.Join("data_stream", name)
@@ -50,11 +49,11 @@ func DataStreamDoesNotExistValidator(val interface{}) error {
 func SemverValidator(val interface{}) error {
 	ver, ok := val.(string)
 	if !ok {
-		return errors.New("string type expected")
+		return fmt.Errorf("string type expected")
 	}
 	_, err := semver.NewVersion(ver)
 	if err != nil {
-		return errors.Wrap(err, "can't parse value as proper semver")
+		return fmt.Errorf("can't parse value as proper semver: %s", err)
 	}
 	return nil
 }
@@ -63,11 +62,11 @@ func SemverValidator(val interface{}) error {
 func ConstraintValidator(val interface{}) error {
 	c, ok := val.(string)
 	if !ok {
-		return errors.New("string type expected")
+		return fmt.Errorf("string type expected")
 	}
 	_, err := semver.NewConstraint(c)
 	if err != nil {
-		return errors.Wrap(err, "can't parse value as proper constraint")
+		return fmt.Errorf("can't parse value as proper constraint: %s", err)
 	}
 	return nil
 }
@@ -76,7 +75,7 @@ func ConstraintValidator(val interface{}) error {
 func GithubOwnerValidator(val interface{}) error {
 	githubOwner, ok := val.(string)
 	if !ok {
-		return errors.New("string type expected")
+		return fmt.Errorf("string type expected")
 	}
 
 	if !githubOwnerRegexp.MatchString(githubOwner) {

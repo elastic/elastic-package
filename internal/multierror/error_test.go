@@ -5,7 +5,7 @@
 package multierror
 
 import (
-	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -13,11 +13,11 @@ import (
 
 func TestUnique(t *testing.T) {
 	errs := Error{
-		errors.New("2"),
-		errors.New("1"),
-		errors.New("2"),
-		errors.New("1"),
-		errors.New("3"),
+		fmt.Errorf("2"),
+		fmt.Errorf("1"),
+		fmt.Errorf("2"),
+		fmt.Errorf("1"),
+		fmt.Errorf("3"),
 	}
 
 	unique := errs.Unique()

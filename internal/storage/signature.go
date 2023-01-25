@@ -15,7 +15,6 @@ import (
 	"github.com/go-git/go-billy/v5"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
-	"github.com/pkg/errors"
 )
 
 // SignedPackageVersion represents a package version stored in the package-storage with a calculated signature.
@@ -62,26 +61,26 @@ func (s SignedPackageVersions) ToPackageVersions() PackageVersions {
 func CalculatePackageSignatures(r *git.Repository, branch string, packageVersions PackageVersions) (SignedPackageVersions, error) {
 	wt, err := r.Worktree()
 	if err != nil {
-		return nil, errors.Wrap(err, "fetching worktree reference failed while calculating directory hash")
+		return nil, fmt.Errorf("fetching worktree reference failed while calculating directory hash: %s", err)
 	}
 
 	err = wt.Checkout(&git.CheckoutOptions{
 		Branch: plumbing.NewBranchReferenceName(branch),
 	})
 	if err != nil {
-		return nil, errors.Wrapf(err, "changing branch failed (path: %s) while calculating directory hash", branch)
+		return nil, fmt.Errorf("changing branch failed (path: %s) while calculating directory hash: %s", branch, err)
 	}
 
 	var signedPackages SignedPackageVersions
 	for _, version := range packageVersions {
 		resources, err := walkPackageResources(wt.Filesystem, version.path())
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to retrieve package paths while calculating directory hash")
+			return nil, fmt.Errorf("failed to retrieve package paths while calculating directory hash: %s", err)
 		}
 
 		signature, err := calculateFilesSignature(wt.Filesystem, resources)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to calculate the package signature for %s", version.Name)
+			return nil, fmt.Errorf("failed to calculate the package signature for %s: %s", version.Name, err)
 		}
 		signedPackages = append(signedPackages, NewSignedPackageVersion(version, signature))
 	}
@@ -99,17 +98,17 @@ func calculateFilesSignature(filesystem billy.Filesystem, files []string) (strin
 	var fileHashes []string
 	for _, file := range files {
 		if strings.Contains(file, "\n") {
-			return "", errors.New("dirhash: filenames with newlines are not supported")
+			return "", fmt.Errorf("dirhash: filenames with newlines are not supported")
 		}
 
 		f, err := filesystem.Open(file)
 		if err != nil {
-			return "", errors.Wrapf(err, "reading file failed (path: %s)", file)
+			return "", fmt.Errorf("reading file failed (path: %s): %s", file, err)
 		}
 
 		c, err := io.ReadAll(f)
 		if err != nil {
-			return "", errors.Wrapf(err, "reading file content failed (path: %s)", file)
+			return "", fmt.Errorf("reading file content failed (path: %s): %s", file, err)
 		}
 
 		fileHash := xxhash.New()

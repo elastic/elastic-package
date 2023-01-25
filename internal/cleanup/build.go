@@ -5,10 +5,10 @@
 package cleanup
 
 import (
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
-
-	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/builder"
 	"github.com/elastic/elastic-package/internal/logger"
@@ -21,17 +21,17 @@ func Build() (string, error) {
 
 	packageRoot, err := packages.MustFindPackageRoot()
 	if err != nil {
-		return "", errors.Wrap(err, "locating package root failed")
+		return "", fmt.Errorf("locating package root failed: %s", err)
 	}
 
 	m, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
 	if err != nil {
-		return "", errors.Wrapf(err, "reading package manifest failed (path: %s)", packageRoot)
+		return "", fmt.Errorf("reading package manifest failed (path: %s): %s", packageRoot, err)
 	}
 
 	buildDir, found, err := builder.FindBuildPackagesDirectory()
 	if err != nil {
-		return "", errors.Wrap(err, "locating build directory failed")
+		return "", fmt.Errorf("locating build directory failed: %s", err)
 	}
 
 	if !found {
@@ -44,7 +44,7 @@ func Build() (string, error) {
 
 	_, err = os.Stat(destinationDir)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return "", errors.Wrapf(err, "stat file failed: %s", destinationDir)
+		return "", fmt.Errorf("stat file failed: %s: %s", destinationDir, err)
 	}
 	if errors.Is(err, os.ErrNotExist) {
 		logger.Debugf("Package hasn't been built (missing path: %s)", destinationDir)
@@ -54,14 +54,14 @@ func Build() (string, error) {
 	logger.Debugf("Remove directory (path: %s)", destinationDir)
 	err = os.RemoveAll(destinationDir)
 	if err != nil {
-		return "", errors.Wrapf(err, "can't remove directory (path: %s)", destinationDir)
+		return "", fmt.Errorf("can't remove directory (path: %s): %s", destinationDir, err)
 	}
 
 	zippedBuildPackagePath := builder.ZippedBuiltPackagePath(buildDir, *m)
 	logger.Debugf("Remove zipped built package (path: %s)", zippedBuildPackagePath)
 	err = os.RemoveAll(zippedBuildPackagePath)
 	if err != nil {
-		return "", errors.Wrapf(err, "can't remove zipped built package (path: %s)", zippedBuildPackagePath)
+		return "", fmt.Errorf("can't remove zipped built package (path: %s): %s", zippedBuildPackagePath, err)
 	}
 	return destinationDir, nil
 }

@@ -6,7 +6,6 @@ package pipeline
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -61,7 +60,7 @@ func (r *runner) run() (*benchrunner.Result, error) {
 		return nil, fmt.Errorf("locating data_stream root failed: %w", err)
 	}
 	if !found {
-		return nil, errors.New("data stream root not found")
+		return nil, fmt.Errorf("data stream root not found")
 	}
 
 	var entryPipeline string

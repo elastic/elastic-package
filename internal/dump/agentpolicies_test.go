@@ -24,7 +24,7 @@ func TestDumpAgentPolicies(t *testing.T) {
 	// - Run tests.
 	// - Check that recorded files make sense and commit them.
 	suites := []*agentPoliciesDumpSuite{
-		&agentPoliciesDumpSuite{
+		{
 			AgentPolicy:        "499b5aa7-d214-5b5d-838b-3cd76469844e",
 			PackageName:        "nginx",
 			RecordDir:          "./testdata/fleet-7-mock-dump-all",
@@ -32,7 +32,7 @@ func TestDumpAgentPolicies(t *testing.T) {
 			DumpDirPackage:     "./testdata/fleet-7-dump/package",
 			DumpDirAgentPolicy: "./testdata/fleet-7-dump/agentpolicy",
 		},
-		&agentPoliciesDumpSuite{
+		{
 			AgentPolicy:        "fleet-server-policy",
 			PackageName:        "nginx",
 			RecordDir:          "./testdata/fleet-8-mock-dump-all",

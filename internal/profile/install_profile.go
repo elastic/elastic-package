@@ -5,11 +5,10 @@
 package profile
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
-
-	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/logger"
@@ -22,7 +21,7 @@ func CreateProfile(options Options) error {
 	if options.PackagePath == "" {
 		loc, err := locations.NewLocationManager()
 		if err != nil {
-			return errors.Wrap(err, "error finding stack dir location")
+			return fmt.Errorf("error finding stack dir location: %s", err)
 		}
 		options.PackagePath = loc.ProfileDir()
 	}
@@ -41,15 +40,15 @@ func CreateProfile(options Options) error {
 func MigrateProfileFiles(options Options, files []string) error {
 	profile, err := newProfileFromExistingFiles(options.PackagePath, options.Name, files, true)
 	if err != nil {
-		return errors.Wrap(err, "error creating new profile from files")
+		return fmt.Errorf("error creating new profile from files: %s", err)
 	}
 	err = os.Mkdir(profile.ProfilePath, 0755)
 	if err != nil {
-		return errors.Wrapf(err, "error crating profile directory %s", profile.ProfilePath)
+		return fmt.Errorf("error crating profile directory %s: %s", profile.ProfilePath, err)
 	}
 	err = profile.writeProfileResources()
 	if err != nil {
-		return errors.Wrap(err, "error writing out new profile config")
+		return fmt.Errorf("error writing out new profile config: %s", err)
 	}
 	return nil
 }
@@ -58,7 +57,7 @@ func MigrateProfileFiles(options Options, files []string) error {
 func LoadProfile(profileName string) (*Profile, error) {
 	loc, err := locations.NewLocationManager()
 	if err != nil {
-		return nil, errors.Wrap(err, "error finding stack dir location")
+		return nil, fmt.Errorf("error finding stack dir location: %s", err)
 	}
 
 	return loadProfile(loc.ProfileDir(), profileName)
@@ -68,7 +67,7 @@ func LoadProfile(profileName string) (*Profile, error) {
 func DeleteProfile(profileName string) error {
 	loc, err := locations.NewLocationManager()
 	if err != nil {
-		return errors.Wrap(err, "error finding stack dir location")
+		return fmt.Errorf("error finding stack dir location: %s", err)
 	}
 	return deleteProfile(loc.ProfileDir(), profileName)
 }
@@ -77,7 +76,7 @@ func DeleteProfile(profileName string) error {
 func FetchAllProfiles(elasticPackagePath string) ([]Metadata, error) {
 	dirList, err := os.ReadDir(elasticPackagePath)
 	if err != nil {
-		return []Metadata{}, errors.Wrapf(err, "error reading from directory %s", elasticPackagePath)
+		return []Metadata{}, fmt.Errorf("error reading from directory %s: %s", elasticPackagePath, err)
 	}
 
 	var profiles []Metadata
@@ -91,11 +90,11 @@ func FetchAllProfiles(elasticPackagePath string) ([]Metadata, error) {
 			continue
 		}
 		if err != nil {
-			return profiles, errors.Wrapf(err, "error loading profile %s", item.Name())
+			return profiles, fmt.Errorf("error loading profile %s: %s", item.Name(), err)
 		}
 		metadata, err := profile.metadata()
 		if err != nil {
-			return profiles, errors.Wrap(err, "error reading profile metadata")
+			return profiles, fmt.Errorf("error reading profile metadata: %s", err)
 		}
 		profiles = append(profiles, metadata)
 	}
@@ -108,12 +107,12 @@ func FetchAllProfiles(elasticPackagePath string) ([]Metadata, error) {
 func createProfile(options Options) error {
 	profile, err := createAndCheckProfile(options.PackagePath, options.Name, options.OverwriteExisting)
 	if err != nil {
-		return errors.Wrap(err, "error creating new profile")
+		return fmt.Errorf("error creating new profile: %s", err)
 	}
 	// write the resources
 	err = profile.writeProfileResources()
 	if err != nil {
-		return errors.Wrap(err, "error writing profile file")
+		return fmt.Errorf("error writing profile file: %s", err)
 	}
 	return nil
 }
@@ -122,18 +121,18 @@ func createProfile(options Options) error {
 func createProfileFrom(options Options) error {
 	fromProfile, err := loadProfile(options.PackagePath, options.FromProfile)
 	if err != nil {
-		return errors.Wrapf(err, "error loading %s profile", options.FromProfile)
+		return fmt.Errorf("error loading %s profile: %s", options.FromProfile, err)
 	}
 
 	newProfile, err := createAndCheckProfile(options.PackagePath, options.Name, options.OverwriteExisting)
 	if err != nil {
-		return errors.Wrap(err, "error creating new profile")
+		return fmt.Errorf("error creating new profile: %s", err)
 	}
 
 	newProfile.overwrite(fromProfile.configFiles)
 	err = newProfile.writeProfileResources()
 	if err != nil {
-		return errors.Wrap(err, "error writing new profile")
+		return fmt.Errorf("error writing new profile: %s", err)
 	}
 	return nil
 }
@@ -143,18 +142,18 @@ func createProfileFrom(options Options) error {
 func createAndCheckProfile(packagePath, packageName string, overwriteExisting bool) (*Profile, error) {
 	profile, err := NewConfigProfile(packagePath, packageName)
 	if err != nil {
-		return nil, errors.Wrap(err, "error creating profile")
+		return nil, fmt.Errorf("error creating profile: %s", err)
 	}
 
 	// check to see if we have an existing profile at that location.
 	exists, err := profile.alreadyExists()
 	if err != nil {
-		return nil, errors.Wrap(err, "error checking for existing profile")
+		return nil, fmt.Errorf("error checking for existing profile: %s", err)
 	}
 	if exists {
 		localChanges, err := profile.localFilesChanged()
 		if err != nil {
-			return nil, errors.Wrapf(err, "error checking for changes in %s", profile.ProfilePath)
+			return nil, fmt.Errorf("error checking for changes in %s: %s", profile.ProfilePath, err)
 		}
 		// If there are changes and we've selected CreateNew, move the old path
 		if localChanges && !overwriteExisting {
@@ -164,25 +163,25 @@ func createAndCheckProfile(packagePath, packageName string, overwriteExisting bo
 			// Migrate the existing profile
 			err = updateExistingDefaultProfile(packagePath)
 			if err != nil {
-				return nil, errors.Wrap(err, "error moving old profile")
+				return nil, fmt.Errorf("error moving old profile: %s", err)
 			}
 			err = os.Mkdir(profile.ProfilePath, 0755)
 			if err != nil {
-				return nil, errors.Wrapf(err, "error crating profile directory %s", profile.ProfilePath)
+				return nil, fmt.Errorf("error crating profile directory %s: %s", profile.ProfilePath, err)
 			}
 			err = os.Mkdir(profile.ProfileStackPath, 0755)
 			if err != nil {
-				return nil, errors.Wrapf(err, "error crating profile directory %s", profile.ProfilePath)
+				return nil, fmt.Errorf("error crating profile directory %s: %s", profile.ProfilePath, err)
 			}
 		}
 	} else {
 		err = os.Mkdir(profile.ProfilePath, 0755)
 		if err != nil {
-			return nil, errors.Wrapf(err, "error crating profile directory %s", profile.ProfilePath)
+			return nil, fmt.Errorf("error crating profile directory %s: %s", profile.ProfilePath, err)
 		}
 		err = os.Mkdir(profile.ProfileStackPath, 0755)
 		if err != nil {
-			return nil, errors.Wrapf(err, "error crating profile directory %s", profile.ProfilePath)
+			return nil, fmt.Errorf("error crating profile directory %s: %s", profile.ProfilePath, err)
 		}
 	}
 
@@ -193,11 +192,11 @@ func createAndCheckProfile(packagePath, packageName string, overwriteExisting bo
 func updateExistingDefaultProfile(path string) error {
 	profile, err := NewConfigProfile(path, DefaultProfile)
 	if err != nil {
-		return errors.Wrap(err, "error creating profile")
+		return fmt.Errorf("error creating profile: %s", err)
 	}
 	meta, err := profile.metadata()
 	if err != nil {
-		return errors.Wrap(err, "error updating metadata")
+		return fmt.Errorf("error updating metadata: %s", err)
 	}
 	newName := fmt.Sprintf("default_%s_%d", meta.Version, meta.DateCreated.Unix())
 	newFilePath := filepath.Join(filepath.Dir(profile.ProfilePath), newName)
@@ -206,12 +205,12 @@ func updateExistingDefaultProfile(path string) error {
 
 	err = profile.updateMetadata(meta)
 	if err != nil {
-		return errors.Wrap(err, "error updating metadata")
+		return fmt.Errorf("error updating metadata: %s", err)
 	}
 
 	err = os.Rename(profile.ProfilePath, newFilePath)
 	if err != nil {
-		return errors.Wrap(err, "error moving default profile")
+		return fmt.Errorf("error moving default profile: %s", err)
 	}
 	return nil
 }
@@ -219,7 +218,7 @@ func updateExistingDefaultProfile(path string) error {
 // deleteProfile deletes a given config profile.
 func deleteProfile(elasticPackagePath string, profileName string) error {
 	if profileName == DefaultProfile {
-		return errors.New("cannot remove default profile")
+		return fmt.Errorf("cannot remove default profile")
 	}
 
 	pathToDelete := filepath.Join(elasticPackagePath, profileName)
