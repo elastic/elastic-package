@@ -128,6 +128,8 @@ services:
       start_period: 60s
       retries: 360
       interval: 1s
+    # Handle failures caused by fleet-server being restarted or reconfigured after the health-check passed.
+    restart: on-failure:5
     hostname: docker-fleet-agent
     env_file: "./elastic-agent.${STACK_VERSION_VARIANT}.env"
     volumes:
