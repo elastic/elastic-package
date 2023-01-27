@@ -7,7 +7,6 @@ title: Multi-input test
 version: 999.999.999
 description: Test for multiple input tests
 categories: ["network"]
-release: experimental
 license: basic
 type: integration
 conditions:
