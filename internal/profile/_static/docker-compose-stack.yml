@@ -89,7 +89,7 @@ services:
         condition: service_healthy
     healthcheck:
       test: "curl --cacert /etc/ssl/elastic-agent/ca-cert.pem -f https://localhost:8220/api/status | grep -i healthy 2>&1 >/dev/null"
-      retries: 60
+      retries: 180
       interval: 5s
     hostname: docker-fleet-server
     environment:
@@ -124,7 +124,7 @@ services:
         condition: service_healthy
     healthcheck:
       test: "elastic-agent status"
-      retries: 180
+      retries: 360
       interval: 1s
     hostname: docker-fleet-agent
     env_file: "./elastic-agent.${STACK_VERSION_VARIANT}.env"
