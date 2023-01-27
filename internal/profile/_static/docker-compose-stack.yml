@@ -18,7 +18,7 @@ services:
       - "127.0.0.1:9200:9200"
 
   elasticsearch_is_ready:
-    image: tianon/true
+    image: k8s.gcr.io/pause:3.3
     depends_on:
       elasticsearch:
         condition: service_healthy
@@ -47,7 +47,7 @@ services:
       - "127.0.0.1:5601:5601"
 
   kibana_is_ready:
-    image: tianon/true
+    image: k8s.gcr.io/pause:3.3
     depends_on:
       kibana:
         condition: service_healthy
@@ -75,7 +75,7 @@ services:
       - "127.0.0.1:9000:9000"
 
   package-registry_is_ready:
-    image: tianon/true
+    image: k8s.gcr.io/pause:3.3
     depends_on:
       package-registry:
         condition: service_healthy
@@ -113,7 +113,7 @@ services:
       - "127.0.0.1:8220:8220"
 
   fleet-server_is_ready:
-    image: tianon/true
+    image: k8s.gcr.io/pause:3.3
     depends_on:
       fleet-server:
         condition: service_healthy
@@ -139,7 +139,7 @@ services:
       target: /tmp/service_logs/
 
   elastic-agent_is_ready:
-    image: tianon/true
+    image: k8s.gcr.io/pause:3.3
     depends_on:
       elastic-agent:
         condition: service_healthy
