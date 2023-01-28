@@ -124,8 +124,9 @@ services:
         condition: service_healthy
     healthcheck:
       test: "elastic-agent status"
+      timeout: 2s
       start_period: 360s
-      retries: 20
+      retries: 180
       interval: 5s
     # Handle failures caused by fleet-server being restarted or reconfigured after the health-check passed.
     restart: on-failure:5
