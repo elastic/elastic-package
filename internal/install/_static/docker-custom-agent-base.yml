@@ -4,7 +4,7 @@ services:
     image: "${ELASTIC_AGENT_IMAGE_REF}"
     healthcheck:
       test: "elastic-agent status"
-      retries: 360
+      retries: 180
       interval: 1s
     hostname: docker-custom-agent
     environment:

@@ -18,7 +18,7 @@ services:
       - "127.0.0.1:9200:9200"
 
   elasticsearch_is_ready:
-    image: k8s.gcr.io/pause:3.3
+    image: tianon/true
     depends_on:
       elasticsearch:
         condition: service_healthy
@@ -47,7 +47,7 @@ services:
       - "127.0.0.1:5601:5601"
 
   kibana_is_ready:
-    image: k8s.gcr.io/pause:3.3
+    image: tianon/true
     depends_on:
       kibana:
         condition: service_healthy
@@ -75,7 +75,7 @@ services:
       - "127.0.0.1:9000:9000"
 
   package-registry_is_ready:
-    image: k8s.gcr.io/pause:3.3
+    image: tianon/true
     depends_on:
       package-registry:
         condition: service_healthy
@@ -89,8 +89,7 @@ services:
         condition: service_healthy
     healthcheck:
       test: "curl --cacert /etc/ssl/elastic-agent/ca-cert.pem -f https://localhost:8220/api/status | grep -i healthy 2>&1 >/dev/null"
-      start_period: 60s
-      retries: 180
+      retries: 60
       interval: 5s
     hostname: docker-fleet-server
     environment:
@@ -113,7 +112,7 @@ services:
       - "127.0.0.1:8220:8220"
 
   fleet-server_is_ready:
-    image: k8s.gcr.io/pause:3.3
+    image: tianon/true
     depends_on:
       fleet-server:
         condition: service_healthy
@@ -125,8 +124,7 @@ services:
         condition: service_healthy
     healthcheck:
       test: "elastic-agent status"
-      start_period: 60s
-      retries: 360
+      retries: 180
       interval: 1s
     # Handle failures caused by fleet-server being restarted or reconfigured after the health-check passed.
     restart: on-failure:5
@@ -139,7 +137,7 @@ services:
       target: /tmp/service_logs/
 
   elastic-agent_is_ready:
-    image: k8s.gcr.io/pause:3.3
+    image: tianon/true
     depends_on:
       elastic-agent:
         condition: service_healthy
