@@ -62,8 +62,9 @@ func BootUp(options Options) error {
 	if err != nil {
 		// At least starting on 8.6.0, fleet-server may be reconfigured or
 		// restarted after being healthy. If elastic-agent tries to enroll at
-		// this moment, it fails inmediately and makes `docker-compose up` to fail too.
-		// As workaround, try to give another chance to docker-compose if only
+		// this moment, it fails inmediately, stopping and making `docker-compose up`
+		// to fail too.
+		// As a workaround, try to give another chance to docker-compose if only
 		// elastic-agent failed.
 		if onlyElasticAgentFailed() {
 			fmt.Println("Elastic Agent failed to start, trying again.")
@@ -78,7 +79,7 @@ func BootUp(options Options) error {
 func onlyElasticAgentFailed() bool {
 	status, err := Status()
 	if err != nil {
-		fmt.Println("Failed to check status of the stack after failure: %s", err)
+		fmt.Printf("Failed to check status of the stack after failure: %v\n", err)
 		return false
 	}
 
