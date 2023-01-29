@@ -66,6 +66,7 @@ func BootUp(options Options) error {
 		// As workaround, try to give another chance to docker-compose if only
 		// elastic-agent failed.
 		if onlyElasticAgentFailed() {
+			fmt.Println("Elastic Agent failed to start, trying again.")
 			err = dockerComposeUp(options)
 		}
 		return errors.Wrap(err, "running docker-compose failed")
