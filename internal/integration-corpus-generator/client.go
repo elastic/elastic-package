@@ -6,10 +6,11 @@ package integration_corpus_generator
 
 import (
 	"bytes"
-	"github.com/pkg/errors"
 	"io"
 	"net/http"
 	"net/url"
+
+	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/logger"
 )

@@ -6,13 +6,15 @@ package cmd
 
 import (
 	"bytes"
+	"os"
+
 	"github.com/dustin/go-humanize"
 	"github.com/elastic/elastic-integration-corpus-generator-tool/pkg/genlib"
-	"github.com/elastic/elastic-package/internal/cobraext"
-	integration_corpus_generator "github.com/elastic/elastic-package/internal/integration-corpus-generator"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"os"
+
+	"github.com/elastic/elastic-package/internal/cobraext"
+	integration_corpus_generator "github.com/elastic/elastic-package/internal/integration-corpus-generator"
 )
 
 func generateDataStreamCommandAction(cmd *cobra.Command, _ []string) error {
@@ -67,9 +69,19 @@ func getGenerator(packageName, dataStreamName string) (genlib.Generator, error) 
 
 	genLibClient := integration_corpus_generator.NewClient()
 
-	cfg, err := genLibClient.GetGenlibConf(packageName, dataStreamName)
-	flds, err := genLibClient.GetGenlibFields(packageName, dataStreamName)
+	cfg, err := genLibClient.GetConf(packageName, dataStreamName)
+	if err != nil {
+		return nil, err
+	}
+	flds, err := genLibClient.GetFields(packageName, dataStreamName)
+
+	if err != nil {
+		return nil, err
+	}
 	tpl, err := genLibClient.GetGoTextTemplate(packageName, dataStreamName)
+	if err != nil {
+		return nil, err
+	}
 
 	g, err := genlib.NewGeneratorWithTextTemplate(tpl, cfg, flds)
 	if err != nil {

@@ -7,14 +7,16 @@ package integration_corpus_generator
 import (
 	"context"
 	"fmt"
-	"github.com/elastic/elastic-integration-corpus-generator-tool/pkg/genlib"
-	"github.com/elastic/elastic-integration-corpus-generator-tool/pkg/genlib/config"
-	"github.com/elastic/elastic-integration-corpus-generator-tool/pkg/genlib/fields"
-	"github.com/elastic/elastic-package/internal/builder"
-	"github.com/pkg/errors"
 	"net/http"
 	"os"
 	"path/filepath"
+
+	"github.com/elastic/elastic-integration-corpus-generator-tool/pkg/genlib"
+	"github.com/elastic/elastic-integration-corpus-generator-tool/pkg/genlib/config"
+	"github.com/elastic/elastic-integration-corpus-generator-tool/pkg/genlib/fields"
+	"github.com/pkg/errors"
+
+	"github.com/elastic/elastic-package/internal/builder"
 )
 
 // GetGoTextTemplate returns the gotext template of a package's data stream
@@ -33,8 +35,8 @@ func (c *Client) GetGoTextTemplate(packageName, dataStreamName string) ([]byte, 
 	return respBody, nil
 }
 
-// GetGenlibConf returns the genlib.Config of a package's data stream
-func (c *Client) GetGenlibConf(packageName, dataStreamName string) (genlib.Config, error) {
+// GetConf returns the genlib.Config of a package's data stream
+func (c *Client) GetConf(packageName, dataStreamName string) (genlib.Config, error) {
 	assetsSubFolder := fmt.Sprintf("%s.%s", packageName, dataStreamName)
 	confYamlAssetName := fmt.Sprintf("%s.conf.yml", dataStreamName)
 
@@ -56,8 +58,8 @@ func (c *Client) GetGenlibConf(packageName, dataStreamName string) (genlib.Confi
 	return cfg, nil
 }
 
-// GetGenlibFields returns the genlib.Config of a package's data stream
-func (c *Client) GetGenlibFields(packageName, dataStreamName string) (genlib.Fields, error) {
+// GetFields returns the genlib.Config of a package's data stream
+func (c *Client) GetFields(packageName, dataStreamName string) (genlib.Fields, error) {
 	assetsSubFolder := fmt.Sprintf("%s.%s", packageName, dataStreamName)
 	fieldsYamlAssetName := fmt.Sprintf("%s.fields.yml", dataStreamName)
 
