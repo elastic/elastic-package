@@ -92,6 +92,14 @@ const (
 	FailFastFlagName        = "fail-fast"
 	FailFastFlagDescription = "fail immediately if any file requires updates (do not overwrite)"
 
+	GenerateDataStreamFlagName        = "data-stream"
+	GenerateDataStreamFlagShorthand   = "D"
+	GenerateDataStreamFlagDescription = "data stream to generate benchmarks data for"
+
+	GenerateSizeFlagName        = "size"
+	GenerateSizeFlagShorthand   = "S"
+	GenerateSizeFlagDescription = "size of benchmarks data to generate"
+
 	GenerateTestResultFlagName        = "generate"
 	GenerateTestResultFlagDescription = "generate test result file"
 

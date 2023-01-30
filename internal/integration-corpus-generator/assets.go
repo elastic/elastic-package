@@ -1,0 +1,117 @@
+// Copyright Elasticsearch B.V. and/or licensed to Elasticsearch B.V. under one
+// or more contributor license agreements. Licensed under the Elastic License;
+// you may not use this file except in compliance with the Elastic License.
+
+package integration_corpus_generator
+
+import (
+	"context"
+	"fmt"
+	"github.com/elastic/elastic-integration-corpus-generator-tool/pkg/genlib"
+	"github.com/elastic/elastic-integration-corpus-generator-tool/pkg/genlib/config"
+	"github.com/elastic/elastic-integration-corpus-generator-tool/pkg/genlib/fields"
+	"github.com/elastic/elastic-package/internal/builder"
+	"github.com/pkg/errors"
+	"net/http"
+	"os"
+	"path/filepath"
+)
+
+// GetGoTextTemplate returns the gotext template of a package's data stream
+func (c *Client) GetGoTextTemplate(packageName, dataStreamName string) ([]byte, error) {
+	assetsSubFolder := fmt.Sprintf("%s.%s", packageName, dataStreamName)
+	gotextTemplateAssetName := fmt.Sprintf("%s.gotext.log", dataStreamName)
+	statusCode, respBody, err := c.get(fmt.Sprintf("%s/%s", assetsSubFolder, gotextTemplateAssetName))
+	if err != nil {
+		return nil, errors.Wrap(err, "could not get gotext template")
+	}
+
+	if statusCode != http.StatusOK {
+		return nil, fmt.Errorf("could not get gotext template; API status code = %d; response body = %s", statusCode, respBody)
+	}
+
+	return respBody, nil
+}
+
+// GetGenlibConf returns the genlib.Config of a package's data stream
+func (c *Client) GetGenlibConf(packageName, dataStreamName string) (genlib.Config, error) {
+	assetsSubFolder := fmt.Sprintf("%s.%s", packageName, dataStreamName)
+	confYamlAssetName := fmt.Sprintf("%s.conf.yml", dataStreamName)
+
+	statusCode, respBody, err := c.get(fmt.Sprintf("%s/%s", assetsSubFolder, confYamlAssetName))
+	if err != nil {
+
+		return genlib.Config{}, errors.Wrap(err, "could not get config yaml")
+	}
+
+	if statusCode != http.StatusOK {
+		return genlib.Config{}, fmt.Errorf("could not get config yaml; API status code = %d; response body = %s", statusCode, respBody)
+	}
+
+	cfg, err := config.LoadConfigFromYaml(respBody)
+	if err != nil {
+		return genlib.Config{}, errors.Wrap(err, "could not load  config yaml")
+	}
+
+	return cfg, nil
+}
+
+// GetGenlibFields returns the genlib.Config of a package's data stream
+func (c *Client) GetGenlibFields(packageName, dataStreamName string) (genlib.Fields, error) {
+	assetsSubFolder := fmt.Sprintf("%s.%s", packageName, dataStreamName)
+	fieldsYamlAssetName := fmt.Sprintf("%s.fields.yml", dataStreamName)
+
+	statusCode, respBody, err := c.get(fmt.Sprintf("%s/%s", assetsSubFolder, fieldsYamlAssetName))
+	if err != nil {
+		return genlib.Fields{}, errors.Wrap(err, "could not get config yaml")
+	}
+
+	if statusCode != http.StatusOK {
+		return genlib.Fields{}, fmt.Errorf("could not get config yaml; API status code = %d; response body = %s", statusCode, respBody)
+	}
+
+	fieldsDefinitionPath, err := writeFieldsYamlFile(respBody, packageName, dataStreamName)
+	if err != nil {
+		return genlib.Fields{}, errors.Wrap(err, "could not load fields yaml")
+	}
+
+	ctx := context.Background()
+	flds, err := fields.LoadFieldsWithTemplate(ctx, fieldsDefinitionPath)
+	if err != nil {
+		return genlib.Fields{}, errors.Wrap(err, "could not load fields yaml")
+	}
+
+	return flds, nil
+}
+
+func tmpGenlibDir() (string, error) {
+	buildDir, err := builder.BuildDirectory()
+	if err != nil {
+		return "", errors.Wrap(err, "locating build directory failed")
+	}
+	return filepath.Join(buildDir, "genlib"), nil
+}
+
+func writeFieldsYamlFile(fieldsYamlContent []byte, packageName, dataStreamName string) (string, error) {
+	dest, err := tmpGenlibDir()
+	if err != nil {
+		return "", errors.Wrap(err, "could not determine genlib temp folder")
+	}
+
+	// Create genlib temp folder folder if it doesn't exist
+	_, err = os.Stat(dest)
+	if err != nil && errors.Is(err, os.ErrNotExist) {
+		if err := os.MkdirAll(dest, 0755); err != nil {
+			return "", errors.Wrap(err, "could not create genlib temp folder")
+		}
+	}
+
+	fileName := fmt.Sprintf("%s-%s", packageName, dataStreamName)
+	filePath := filepath.Join(dest, fileName)
+
+	if err := os.WriteFile(filePath, fieldsYamlContent, 0644); err != nil {
+		return "", errors.Wrap(err, "could not write genlib field yaml temp file")
+	}
+
+	return filePath, nil
+}
