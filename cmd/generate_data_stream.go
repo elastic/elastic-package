@@ -16,8 +16,6 @@ import (
 )
 
 func generateDataStreamCommandAction(cmd *cobra.Command, _ []string) error {
-	cmd.Println("Generate benchmarks data for a data stream")
-
 	packageName, err := cmd.Flags().GetString(cobraext.PackageFlagName)
 	if err != nil {
 		return cobraext.FlagParsingError(err, cobraext.PackageRootFlagName)
