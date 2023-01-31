@@ -1,6 +1,7 @@
 agents:
   image: "golang:1.19.5"
-  cpu: "16"
+  cpu: "8"
+  memory: "4G"
 
 
 steps:
@@ -8,4 +9,3 @@ steps:
     command: "make check-static"
   - label: ":go: Run unit tests"
     command: "make test-go-ci"
-
