@@ -10,6 +10,7 @@ steps:
     command: "make test-go-ci"
     artifact_paths:
       - "build/test-results/*.xml"
+      - "build/test-coverage/*.xml"
     agents:
       image: "golang:1.19.5"
       cpu: "8"
