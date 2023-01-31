@@ -7,7 +7,6 @@ title: Pipeline tests
 version: 999.999.999
 description: Test for pipeline test runner
 categories: ["network"]
-release: experimental
 license: basic
 type: integration
 conditions:

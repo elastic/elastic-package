@@ -60,10 +60,39 @@ func BootUp(options Options) error {
 
 	err = dockerComposeUp(options)
 	if err != nil {
+		// At least starting on 8.6.0, fleet-server may be reconfigured or
+		// restarted after being healthy. If elastic-agent tries to enroll at
+		// this moment, it fails inmediately, stopping and making `docker-compose up`
+		// to fail too.
+		// As a workaround, try to give another chance to docker-compose if only
+		// elastic-agent failed.
+		if onlyElasticAgentFailed() {
+			fmt.Println("Elastic Agent failed to start, trying again.")
+			err = dockerComposeUp(options)
+		}
 		return errors.Wrap(err, "running docker-compose failed")
 	}
 
 	return nil
+}
+
+func onlyElasticAgentFailed() bool {
+	status, err := Status()
+	if err != nil {
+		fmt.Printf("Failed to check status of the stack after failure: %v\n", err)
+		return false
+	}
+
+	for _, service := range status {
+		if strings.Contains(service.Name, "elastic-agent") {
+			continue
+		}
+		if !strings.HasPrefix(service.Status, "running") {
+			return false
+		}
+	}
+
+	return true
 }
 
 // TearDown function takes down the testing stack.
