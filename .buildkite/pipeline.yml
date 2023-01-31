@@ -11,3 +11,9 @@ steps:
     command: "make test-go-ci"
     artifacts_paths:
       - "build/test-results/*.xml"
+  - wait
+
+  - plugins:
+      - junit-annotate#v2.4.1:
+          artifacts: "build/test-results/*.xml"
+
