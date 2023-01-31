@@ -9,3 +9,5 @@ steps:
     command: "make check-static"
   - label: ":go: Run unit tests"
     command: "make test-go-ci"
+    artifacts_path:
+      - "build/test-results/*.xml"
