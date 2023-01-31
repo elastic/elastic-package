@@ -1,3 +1,11 @@
+agents:
+  image: "golang:1.19.5"
+  cpu: "4"
+
+
 steps:
-  - label: "Example Test"
-    command: echo "Hello!"
+  - label: ":go: Run check-static"
+    command: "make check-static"
+  - label: ":go: Run unit tests"
+    command: "make test-go-ci"
+
