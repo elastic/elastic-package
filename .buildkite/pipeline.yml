@@ -16,6 +16,7 @@ steps:
       memory: "4G"
 
   - wait
+    continue_on_failure: true
 
   - label: "Junit annotate"
     plugins:
