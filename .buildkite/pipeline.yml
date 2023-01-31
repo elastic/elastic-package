@@ -14,7 +14,10 @@ steps:
 
   - wait
 
-  - plugins:
+  - label: "Junit annotate"
+    plugins:
       - junit-annotate#v2.4.1:
           artifacts: "build/test-results/*.xml"
+    agents:
+      provider: "gcp"
 
