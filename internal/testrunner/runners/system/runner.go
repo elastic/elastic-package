@@ -443,6 +443,11 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 
 		var err error
 		docs, err = r.getDocs(dataStream)
+
+		if config.Assert.HitCount > 0 {
+			return len(docs) >= config.Assert.HitCount, err
+		}
+
 		return len(docs) > 0, err
 	}, waitForDataTimeout)
 	if err != nil {
