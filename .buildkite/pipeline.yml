@@ -19,10 +19,20 @@ steps:
   - wait: ~
     continue_on_failure: true
 
-  - label: "Junit annotate"
+  - label: ":junit: Junit annotate"
     plugins:
       - junit-annotate#v2.4.1:
           artifacts: "build/test-results/*.xml"
     agents:
       provider: "gcp"
 
+  - label: ":github: Release"
+    # TODO enable this conditional
+    # if: |
+    #   build.tag =~ /^v[0-9]+[.][0-9]+[.][0-9]+$$/ &&  build.branch == "main"
+    # TODO GITHUB_TOKEN environment var
+    command: ".buildkite/scripts/release.sh"
+    agents:
+      image: "golang:1.19.5"
+      cpu: "8"
+      memory: "4G"
