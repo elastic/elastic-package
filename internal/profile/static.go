@@ -53,6 +53,20 @@ func newKibanaConfig8x(_ string, profilePath string) (*simpleFile, error) {
 	}, nil
 }
 
+// KibanaConfig86File is the Kibana config file for the 8.x stack family (8.2 to 8.6)
+const KibanaConfig86File configFile = "kibana.config.86.yml"
+
+//go:embed _static/kibana_config_86.yml
+var kibanaConfig86Yml string
+
+func newKibanaConfig86(_ string, profilePath string) (*simpleFile, error) {
+	return &simpleFile{
+		name: string(KibanaConfig86File),
+		path: filepath.Join(profilePath, profileStackPath, string(KibanaConfig86File)),
+		body: kibanaConfig86Yml,
+	}, nil
+}
+
 // KibanaConfig80File is the Kibana config file for 8.0 stack family (8.0 to 8.1)
 const KibanaConfig80File configFile = "kibana.config.80.yml"
 
@@ -91,6 +105,17 @@ func newElasticsearchConfig8x(_ string, profilePath string) (*simpleFile, error)
 	return &simpleFile{
 		name: string(ElasticsearchConfig8xFile),
 		path: filepath.Join(profilePath, profileStackPath, string(ElasticsearchConfig8xFile)),
+		body: elasticsearchConfig8xYml,
+	}, nil
+}
+
+// ElasticsearchConfig8xFile is the Elasticsearch config file for 8.x stack family (8.2 to 8.6)
+const ElasticsearchConfig86File configFile = "elasticsearch.config.86.yml"
+
+func newElasticsearchConfig86(_ string, profilePath string) (*simpleFile, error) {
+	return &simpleFile{
+		name: string(ElasticsearchConfig86File),
+		path: filepath.Join(profilePath, profileStackPath, string(ElasticsearchConfig86File)),
 		body: elasticsearchConfig8xYml,
 	}, nil
 }
@@ -150,6 +175,18 @@ func newElasticAgent80Env(_ string, profilePath string) (*simpleFile, error) {
 	return &simpleFile{
 		name: string(ElasticAgent80EnvFile),
 		path: filepath.Join(profilePath, profileStackPath, string(ElasticAgent80EnvFile)),
+		body: elasticAgent8xEnv,
+	}, nil
+}
+
+// ElasticAgent86EnvFile is the .env for the 8.6 stack.
+// This file does not exist in the source code, since it's identical to the 8x env file.
+const ElasticAgent86EnvFile configFile = "elastic-agent.86.env"
+
+func newElasticAgent86Env(_ string, profilePath string) (*simpleFile, error) {
+	return &simpleFile{
+		name: string(ElasticAgent86EnvFile),
+		path: filepath.Join(profilePath, profileStackPath, string(ElasticAgent86EnvFile)),
 		body: elasticAgent8xEnv,
 	}, nil
 }
