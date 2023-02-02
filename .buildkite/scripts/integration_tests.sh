@@ -2,10 +2,14 @@
 
 set -euo pipefail
 
+PARALLEL_TARGET="test-check-packages-parallel"
+KIND_TARGET="test-check-packages-with-kind"
+
 usage() {
     echo "$0 [-t <target>] [-h]"
     echo "Trigger integration tests related to a target in Makefile"
     echo -e "\t-t <target>: Makefile target. Mandatory"
+    echo -e "\t-p <package>: Package (required for test-check-packages-parallel target)."
     echo -e "\t-h: Show this message"
 }
 
@@ -43,10 +47,14 @@ with_docker_compose() {
 }
 
 TARGET=""
-while getopts ":t:h" o; do
+PACKAGE=""
+while getopts ":t:p:h" o; do
     case "${o}" in
         t)
             TARGET=${OPTARG}
+            ;;
+        p)
+            PACKAGE=${OPTARG}
             ;;
         h)
             usage
@@ -83,5 +91,16 @@ export PATH="$(go env GOPATH)/bin:${PATH}"
 echo "--- install docker-compose"
 with_docker_compose
 
+if [[ "${TARGET}" == "${KIND_TARGET}" ]]; then
+    echo "--- install kubectl & kind"
+    with_kubernetes
+fi
+
 echo "--- Run integration test ${TARGET}"
+if [[ "${TARGET}" == "${PARALLEL_TARGET}" ]]; then
+    make install
+    make PACKAGE_UNDER_TEST=${PACKAGE} ${TARGET}
+    exit 0
+fi
+
 make install ${TARGET} check-git-clean

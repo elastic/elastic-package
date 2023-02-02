@@ -42,12 +42,35 @@ for test in ${CHECK_PACKAGES_TESTS[@]}; do
     echo "          provider: \"gcp\""
     echo "        artifact_paths:"
     echo "          - build/test-results/*.xml"
-    echo "          - build/elastic-stack-dump/stack/*/logs/*.log"
-    echo "          - build/elastic-stack-dump/stack/*/logs/fleet-server-internal/*.log"
-    if [[ $test =~ with-kind ]]; then
+    echo "          - build/elastic-stack-dump/stack/check-*/logs/*.log"
+    echo "          - build/elastic-stack-dump/stack/check-*/logs/fleet-server-internal/*.log"
+    if [[ $test =~ with-kind$ ]]; then
         echo "          - build/kubectl-dump.txt"
     fi
 done
+
+pushd test/packages/parallel > /dev/null
+for package in $(find . -maxdepth 1 -mindepth 1 -type d) ; do
+    package_name=$(basename ${package})
+    if [[ "${package_name}" =~ ^(aws|gcp)$ ]]; then
+        # TODO: missing secrets
+        continue
+    fi
+    echo "      - label: \":go: Running integration test: ${package_name}\""
+    echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-check-packages-parallel -p ${package_name}"
+    echo "        agents:"
+    echo "          provider: \"gcp\""
+    echo "        artifact_paths:"
+    echo "          - build/test-results/*.xml"
+    echo "          - build/elastic-stack-dump/stack/check-*/logs/*.log"
+    echo "          - build/elastic-stack-dump/stack/check-*/logs/fleet-server-internal/*.log"
+    echo "          - insecure-logs/${package_name}"
+    echo "          - build/elastic-stack-dump/stack/check-${package_name}/logs/elastic-agent-internal/*"
+    echo "          - insecure-logs/${package_name}/container-logs"
+    echo "          - build/container-logs/*.log"
+done
+
+popd > /dev/null
 
 echo "      - label: \":go: Running integration test: test-build-zip\""
 echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-build-zip"
