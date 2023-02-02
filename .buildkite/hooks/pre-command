@@ -3,5 +3,5 @@
 set -euo pipefail
 
 if [[ "$BUILDKITE_PIPELINE_SLUG" == "elastic-package" && "$BUILDKITE_STEP_KEY" == "test-secret" ]]; then
-  export MY_SECRET="test"
+  export MY_SECRET="foobar"
 fi
