@@ -16,6 +16,13 @@ steps:
       cpu: "8"
       memory: "4G"
 
+  - label: "Test"
+    key: test-secret
+    command: "./.buildkite/scripts/test_secret.sh"
+    agents:
+      image: "golang:1.19.5"
+
+
   - wait: ~
     continue_on_failure: true
 
