@@ -25,16 +25,17 @@ steps:
   - wait: ~
     continue_on_failure: true
 
+  - label: ":pipeline: Trigger Integration tests"
+    command: ".buildkite/pipeline.trigger.integration.tests.sh | buildkite-agent pipeline upload"
+    # command: ".buildkite/scripts/integration_tests.sh"
+
+  - wait: ~
+    continue_on_failure: true
+
   - label: ":junit: Junit annotate"
     plugins:
       - junit-annotate#v2.4.1:
           artifacts: "build/test-results/*.xml"
-    agents:
-      provider: "gcp"
-
-  - label: ":go: Integration tests"
-    # command: ".buildkite/pipeline.trigger.integration.tests.sh | buildkite-agent pipeline upload"
-    command: ".buildkite/scripts/integration_tests.sh"
     agents:
       provider: "gcp"
 

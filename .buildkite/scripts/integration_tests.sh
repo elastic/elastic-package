@@ -2,6 +2,13 @@
 
 set -euo pipefail
 
+usage() {
+    echo "$0 [-t <target>] [-h]"
+    echo "Trigger integration tests related to a target in Makefile"
+    echo -e "\t-t <target>: Makefile target. Mandatory"
+    echo -e "\t-h: Show this message"
+}
+
 with_kubernetes() {
     # FIXME add retry logic
     mkdir -p ${WORKSPACE}/bin
@@ -35,6 +42,34 @@ with_docker_compose() {
     docker-compose version
 }
 
+TARGET=""
+while getopts ":t:h" o; do
+    case "${o}" in
+        t)
+            TARGET=${OPTARG}
+            ;;
+        h)
+            usage
+            exit 0
+            ;;
+        \?)
+            echo "Invalid option ${OPTARG}"
+            usage
+            exit 1
+            ;;
+        :)
+            echo "Missing argument for -${OPTARG}"
+            usage
+            exit 1
+            ;;
+    esac
+done
+
+if [[ "${TARGET}" == "" ]]; then
+    echo "Missing target"
+    usage
+    exit 1
+fi
 
 echo "Current path: $(pwd)"
 WORKSPACE="$(pwd)"
@@ -48,5 +83,5 @@ export PATH="$(go env GOPATH)/bin:${PATH}"
 echo "--- install docker-compose"
 with_docker_compose
 
-echo "--- Run integration test stack-command-default"
-make install test-stack-command-default check-git-clean
+echo "--- Run integration test ${TARGET}"
+make install ${TARGET} check-git-clean
