@@ -223,11 +223,11 @@ func IsDocumentation(ip net.IP) (bool) {
 		//   The blocks 192.0.2.0/24 (TEST-NET-1), 198.51.100.0/24 (TEST-NET-2),
 		//   and 203.0.113.0/24 (TEST-NET-3) are provided for use in
 		//   documentation.
-		return (ip4[0] == 192 && ip4[1] == 0 && ip4[2] == 2 ||
-			ip4[0] == 198 && ip4[1] == 51 && ip4[2] == 100 ||
-			ip4[0] == 203 && ip4[1] == 0 && ip4[2] == 113)
+		return ((ip4[0] == 192 && ip4[1] == 0 && ip4[2] == 2) ||
+			(ip4[0] == 198 && ip4[1] == 51 && ip4[2] == 100) ||
+			(ip4[0] == 203 && ip4[1] == 0 && ip4[2] == 113))
 	}
-	// Following RFC 3849, Section 2. Documentation IPv6 Address Prefix which
+  // Following RFC 3849, Section 2. Documentation IPv6 Address Prefix which
   // says:
   //   The prefix allocated for documentation purposes is 2001:DB8::/32
 	return len(ip) == net.IPv6len && ip[0] == 32 && ip[1] == 1 && ip[2] == 13 && ip[3] == 184
