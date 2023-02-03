@@ -55,7 +55,7 @@ func CreateProfile(options Options) error {
 	}
 
 	if !options.OverwriteExisting {
-		_, err := LoadProfile(options.Name)
+		_, err := loadProfile(options.PackagePath, options.Name)
 		if err == nil {
 			return fmt.Errorf("profile %q already exists", options.Name)
 		}

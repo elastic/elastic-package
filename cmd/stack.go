@@ -179,12 +179,9 @@ func setupStackCommand() *cobraext.Command {
 			if err != nil {
 				return cobraext.FlagParsingError(err, cobraext.ShellInitShellFlagName)
 			}
-
 			if shellName == cobraext.ShellInitShellDetect {
-				shellName = stack.AutodetectedShell()
+				shellName = stack.AutodetectShell()
 				fmt.Fprintf(cmd.OutOrStderr(), "Detected shell: %s\n", shellName)
-			} else {
-				stack.SelectShell(shellName)
 			}
 
 			profile, err := getProfileFlag(cmd)
@@ -192,7 +189,7 @@ func setupStackCommand() *cobraext.Command {
 				return err
 			}
 
-			shellCode, err := stack.ShellInit(profile)
+			shellCode, err := stack.ShellInit(profile, shellName)
 			if err != nil {
 				return errors.Wrap(err, "shellinit failed")
 			}

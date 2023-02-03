@@ -135,7 +135,12 @@ func (s *dockerComposeDeployedService) Signal(signal string) error {
 		return errors.Wrap(err, "could not create Docker Compose project for service")
 	}
 
-	opts := compose.CommandOptions{ExtraArgs: []string{"-s", signal}}
+	opts := compose.CommandOptions{
+		Env: append(
+			[]string{fmt.Sprintf("%s=%s", serviceLogsDirEnv, s.ctxt.Logs.Folder.Local)},
+			s.variant.Env...),
+		ExtraArgs: []string{"-s", signal},
+	}
 	if s.ctxt.Name != "" {
 		opts.Services = append(opts.Services, s.ctxt.Name)
 	}

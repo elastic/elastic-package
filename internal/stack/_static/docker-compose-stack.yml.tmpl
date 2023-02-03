@@ -6,8 +6,8 @@ services:
     image: "${ELASTICSEARCH_IMAGE_REF}"
     healthcheck:
       test: "curl -s --cacert /usr/share/elasticsearch/config/certs/ca-cert.pem -f -u {{ $username }}:{{ $password }} https://127.0.0.1:9200/_cat/health | cut -f4 -d' ' | grep -E '(green|yellow)'"
-      retries: 300
-      interval: 1s
+      start_period: 300s
+      interval: 5s
     environment:
       - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
       - "ELASTIC_PASSWORD={{ $password }}"
@@ -34,8 +34,10 @@ services:
         condition: service_healthy
     healthcheck:
       test: "sh /usr/share/kibana/healthcheck.sh"
-      retries: 600
-      interval: 1s
+      start_period: 600s
+      interval: 5s
+    env_file:
+      - "./certs/ca.env"
     environment:
       # Is there a better way to add certificates to Kibana/Fleet?
       - "NODE_EXTRA_CA_CERTS=/usr/share/kibana/config/certs/ca-cert.pem"
@@ -60,8 +62,8 @@ services:
         PROFILE: "${PROFILE_NAME}"
     healthcheck:
       test: ["CMD", "curl", "--cacert", "/etc/ssl/package-registry/ca-cert.pem", "-f", "https://localhost:8080"]
-      retries: 300
-      interval: 1s
+      start_period: 300s
+      interval: 5s
     environment:
       - "EPR_LOG_LEVEL=debug"
       - "EPR_ADDRESS=0.0.0.0:8080"
@@ -89,7 +91,7 @@ services:
         condition: service_healthy
     healthcheck:
       test: "curl --cacert /etc/ssl/elastic-agent/ca-cert.pem -f https://localhost:8220/api/status | grep -i healthy 2>&1 >/dev/null"
-      retries: 60
+      start_period: 60s
       interval: 5s
     hostname: docker-fleet-server
     environment:
@@ -124,8 +126,10 @@ services:
         condition: service_healthy
     healthcheck:
       test: "elastic-agent status"
+      timeout: 2s
+      start_period: 360s
       retries: 180
-      interval: 1s
+      interval: 5s
     hostname: docker-fleet-agent
     env_file: "./elastic-agent.env"
     volumes:

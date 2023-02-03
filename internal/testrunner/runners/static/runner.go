@@ -100,6 +100,7 @@ func (r runner) verifySampleEvent(pkgManifest *packages.PackageManifest) []testr
 		fields.WithSpecVersion(pkgManifest.SpecVersion),
 		fields.WithDefaultNumericConversion(),
 		fields.WithExpectedDataset(expectedDataset),
+		fields.WithEnabledImportAllECSSChema(true),
 	)
 	if err != nil {
 		results, _ := resultComposer.WithError(errors.Wrap(err, "creating fields validator for data stream failed"))

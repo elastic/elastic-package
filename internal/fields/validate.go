@@ -26,7 +26,12 @@ import (
 	"github.com/elastic/elastic-package/internal/packages/buildmanifest"
 )
 
-var semver2_0_0 = semver.MustParse("2.0.0")
+var (
+	semver2_0_0 = semver.MustParse("2.0.0")
+	semver2_3_0 = semver.MustParse("2.3.0")
+
+	defaultExternal = "ecs"
+)
 
 // Validator is responsible for fields validation.
 type Validator struct {
@@ -48,6 +53,8 @@ type Validator struct {
 
 	enabledAllowedIPCheck bool
 	allowedCIDRs          []*net.IPNet
+
+	enabledImportAllECSSchema bool
 }
 
 // ValidatorOption represents an optional flag that can be passed to  CreateValidatorForDirectory.
@@ -109,8 +116,31 @@ func WithExpectedDataset(dataset string) ValidatorOption {
 	}
 }
 
+// WithEnabledImportAllECSSchema configures the validator to check or not the fields with the complete ECS schema.
+func WithEnabledImportAllECSSChema(importSchema bool) ValidatorOption {
+	return func(v *Validator) error {
+		v.enabledImportAllECSSchema = importSchema
+		return nil
+	}
+}
+
+type packageRootFinder interface {
+	FindPackageRoot() (string, bool, error)
+}
+
+type packageRoot struct{}
+
+func (p packageRoot) FindPackageRoot() (string, bool, error) {
+	return packages.FindPackageRoot()
+}
+
 // CreateValidatorForDirectory function creates a validator for the directory.
 func CreateValidatorForDirectory(fieldsParentDir string, opts ...ValidatorOption) (v *Validator, err error) {
+	p := packageRoot{}
+	return createValidatorForDirectoryAndPackageRoot(fieldsParentDir, p, opts...)
+}
+
+func createValidatorForDirectoryAndPackageRoot(fieldsParentDir string, finder packageRootFinder, opts ...ValidatorOption) (v *Validator, err error) {
 	v = new(Validator)
 	for _, opt := range opts {
 		if err := opt(v); err != nil {
@@ -130,7 +160,7 @@ func CreateValidatorForDirectory(fieldsParentDir string, opts ...ValidatorOption
 		return v, nil
 	}
 
-	packageRoot, found, err := packages.FindPackageRoot()
+	packageRoot, found, err := finder.FindPackageRoot()
 	if err != nil {
 		return nil, errors.Wrap(err, "can't find package root")
 	}
@@ -156,6 +186,15 @@ func CreateValidatorForDirectory(fieldsParentDir string, opts ...ValidatorOption
 		return nil, errors.Wrap(err, "can't create field dependency manager")
 	}
 	v.FieldDependencyManager = fdm
+
+	if bm.ImportMappings() && !v.specVersion.LessThan(semver2_3_0) && v.enabledImportAllECSSchema {
+		ecsSchema, err := v.FieldDependencyManager.ImportAllFields(defaultExternal)
+		if err != nil {
+			return nil, err
+		}
+		v.Schema = append(v.Schema, ecsSchema...)
+	}
+
 	return v, nil
 }
 
@@ -287,6 +326,7 @@ func (v *Validator) validateScalarElement(key string, val interface{}, doc commo
 	if definition == nil && skipValidationForField(key) {
 		return nil // generic field, let's skip validation for now
 	}
+
 	if definition == nil {
 		return fmt.Errorf(`field "%s" is undefined`, key)
 	}

@@ -34,6 +34,9 @@ var (
 
 	// CAKeyFile is the path to the CA key file inside a profile.
 	CAKeyFile = filepath.Join(CertificatesDirectory, "ca-key.pem")
+
+	// CAEnvFile is the path to the file with environment variables about the CA.
+	CAEnvFile = filepath.Join(CertificatesDirectory, "ca.env")
 )
 
 // initTLSCertificates initializes all the certificates needed to run the services
@@ -43,6 +46,7 @@ func initTLSCertificates(fileProvider string, profilePath string) ([]resource.Re
 	certsDir := filepath.Join(profilePath, CertificatesDirectory)
 	caCertFile := filepath.Join(profilePath, string(CACertificateFile))
 	caKeyFile := filepath.Join(profilePath, string(CAKeyFile))
+	envFile := filepath.Join(profilePath, string(CAEnvFile))
 
 	var resources []resource.Resource
 
@@ -55,6 +59,10 @@ func initTLSCertificates(fileProvider string, profilePath string) ([]resource.Re
 		return nil, err
 	}
 	resources, err = certWriteToResource(resources, fileProvider, profilePath, caKeyFile, ca.WriteKey)
+	if err != nil {
+		return nil, err
+	}
+	resources, err = certWriteToResource(resources, fileProvider, profilePath, envFile, ca.WriteEnv)
 	if err != nil {
 		return nil, err
 	}
