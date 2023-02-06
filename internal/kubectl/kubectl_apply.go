@@ -70,9 +70,9 @@ func (c condition) String() string {
 }
 
 // Apply function adds resources to the Kubernetes cluster based on provided definitions.
-func Apply(definitionPath string) error {
+func Apply(definitionsPath string) error {
 	logger.Debugf("Apply Kubernetes custom definitions")
-	out, err := modifyKubernetesResources("apply", definitionPath)
+	out, err := modifyKubernetesResources("apply", definitionsPath)
 	if err != nil {
 		return errors.Wrap(err, "can't modify Kubernetes resources (apply)")
 	}

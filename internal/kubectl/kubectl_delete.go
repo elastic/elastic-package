@@ -5,7 +5,7 @@
 package kubectl
 
 // Delete function removes resources from the Kubernetes cluster based on provided definitions.
-func Delete(definitionPath string) error {
-	_, err := modifyKubernetesResources("delete", definitionPath)
+func Delete(definitionsPath string) error {
+	_, err := modifyKubernetesResources("delete", definitionsPath)
 	return err
 }

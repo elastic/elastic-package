@@ -27,8 +27,8 @@ func CurrentContext() (string, error) {
 	return string(bytes.TrimSpace(output)), nil
 }
 
-func modifyKubernetesResources(action string, definitionPath string) ([]byte, error) {
-	args := []string{action, "-k", definitionPath}
+func modifyKubernetesResources(action string, definitionsPath string) ([]byte, error) {
+	args := []string{action, "-k", definitionsPath}
 
 	if action != "delete" { // "delete" supports only '-o name'
 		args = append(args, "-o", "yaml")
