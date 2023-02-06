@@ -37,7 +37,7 @@ type kubernetesDeployedService struct {
 func (s kubernetesDeployedService) TearDown() error {
 	logger.Debugf("uninstall custom Kubernetes definitions (directory: %s)", s.definitionsPath)
 
-	definitionsPath, err := checkKubernetesDefinition(s.definitionsPath)
+	definitionsPath, err := containsKustomization(s.definitionsPath)
 	if err != nil {
 		return errors.Wrapf(err, "can't find Kubernetes definitions in given directory (path: %s)", s.definitionsPath)
 	}
@@ -113,7 +113,7 @@ func (ksd KubernetesServiceDeployer) SetUp(ctxt ServiceContext) (DeployedService
 func (ksd KubernetesServiceDeployer) installCustomDefinitions() error {
 	logger.Debugf("install custom Kubernetes definitions (directory: %s)", ksd.definitionsPath)
 
-	definitionsPath, err := checkKubernetesDefinition(ksd.definitionsPath)
+	definitionsPath, err := containsKustomization(ksd.definitionsPath)
 	if err != nil {
 		return errors.Wrapf(err, "can't find Kubernetes definitions in given path: %s", ksd.definitionsPath)
 	}
@@ -132,7 +132,7 @@ func (ksd KubernetesServiceDeployer) installCustomDefinitions() error {
 
 var _ ServiceDeployer = new(KubernetesServiceDeployer)
 
-func checkKubernetesDefinition(definitionsPath string) (string, error) {
+func containsKustomization(definitionsPath string) (string, error) {
 	if _, err := os.Stat(definitionsPath); err != nil {
 		return "", errors.Wrapf(err, "can't read definitions directory (path: %s)", definitionsPath)
 	}
