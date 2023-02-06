@@ -303,8 +303,8 @@ There are some specific environment variables that should be leveraged to overco
 ### Kubernetes service deployer
 
 The Kubernetes service deployer requires the `_dev/deploy/k8s` directory to be present. 
-It needs to include either a `kustomization.yaml` file or an `.empty` file. The first is needed to ensure the deployment of each resource.
-In case there are no resources to deploy, then the `.empty` file should be present in `_dev/deploy/k8s` of the datastream directory.
+It needs to include either a `kustomization.yaml` file or an `.empty` file. The first is needed to ensure the deployment of each resource,
+while the second is required if no custom resources are needed.
 
 The Kubernetes service deployer needs [kind](https://kind.sigs.k8s.io/) to be installed and the cluster to be up and running:
 ```bash
