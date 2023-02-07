@@ -5,7 +5,7 @@
 package status
 
 import (
-	"github.com/Masterminds/semver"
+	"github.com/Masterminds/semver/v3"
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/packages"
@@ -20,8 +20,6 @@ type PackageStatus struct {
 	PendingChanges *changelog.Revision
 	Local          *packages.PackageManifest
 	Production     []packages.PackageManifest
-	Staging        []packages.PackageManifest
-	Snapshot       []packages.PackageManifest
 }
 
 // LocalPackage returns the status of a given package including local development information
@@ -61,22 +59,12 @@ func LocalPackage(packageRootPath string, options registry.SearchOptions) (*Pack
 
 // RemotePackage returns the status of a given package
 func RemotePackage(packageName string, options registry.SearchOptions) (*PackageStatus, error) {
-	snapshotManifests, err := registry.Snapshot.Revisions(packageName, options)
-	if err != nil {
-		return nil, errors.Wrap(err, "retrieving snapshot deployment failed")
-	}
-	stagingManifests, err := registry.Staging.Revisions(packageName, options)
-	if err != nil {
-		return nil, errors.Wrap(err, "retrieving staging deployment failed")
-	}
 	productionManifests, err := registry.Production.Revisions(packageName, options)
 	if err != nil {
 		return nil, errors.Wrap(err, "retrieving production deployment failed")
 	}
 	return &PackageStatus{
 		Name:       packageName,
-		Snapshot:   snapshotManifests,
-		Staging:    stagingManifests,
 		Production: productionManifests,
 	}, nil
 }

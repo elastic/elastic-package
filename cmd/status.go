@@ -10,7 +10,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/Masterminds/semver"
+	"github.com/Masterminds/semver/v3"
 	"github.com/fatih/color"
 	"github.com/olekukonko/tablewriter"
 	"github.com/pkg/errors"
@@ -101,8 +101,6 @@ func print(p *status.PackageStatus, w io.Writer) error {
 		cyan.Fprintln(w, formatOwner(p))
 		environmentTable = append(environmentTable, formatManifest("Local", *p.Local, nil))
 	}
-	environmentTable = append(environmentTable, formatManifests("Snapshot", p.Snapshot))
-	environmentTable = append(environmentTable, formatManifests("Staging", p.Staging))
 	environmentTable = append(environmentTable, formatManifests("Production", p.Production))
 
 	if p.PendingChanges != nil {
@@ -113,7 +111,7 @@ func print(p *status.PackageStatus, w io.Writer) error {
 		for _, change := range p.PendingChanges.Changes {
 			changelogTable = append(changelogTable, formatChangelogEntry(change))
 		}
-		table := tablewriter.NewWriter(os.Stdout)
+		table := tablewriter.NewWriter(w)
 		table.SetHeader([]string{"Type", "Description", "Link"})
 		table.SetHeaderColor(
 			twColor(tablewriter.Colors{tablewriter.Bold}),

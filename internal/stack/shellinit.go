@@ -7,9 +7,14 @@ package stack
 import (
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 
+	"github.com/shirou/gopsutil/v3/process"
+
 	"github.com/elastic/elastic-package/internal/environment"
+	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/profile"
 )
 
@@ -21,6 +26,11 @@ var (
 	KibanaHostEnv            = environment.WithElasticPackagePrefix("KIBANA_HOST")
 	CACertificateEnv         = environment.WithElasticPackagePrefix("CA_CERT")
 )
+
+// AutodetectShell returns the detected shell used.
+func AutodetectShell() string {
+	return detectShell()
+}
 
 // ShellInit method exposes environment variables that can be used for testing purposes.
 func ShellInit(elasticStackProfile *profile.Profile, shellType string) (string, error) {
@@ -61,10 +71,18 @@ set -x %s %s;
 set -x %s %s;
 set -x %s %s;
 `
+
+	// PowerShell init code.
+	// Output to be evaluated with `elastic-package stack shellinit | Invoke-Expression
+	powershellTemplate = `$Env:%s="%s";
+$Env:%s="%s";
+$Env:%s="%s";
+$Env:%s="%s";
+$Env:%s="%s";`
 )
 
 // availableShellTypes list all available values for s in initTemplate
-var availableShellTypes = []string{"bash", "dash", "fish", "sh", "zsh"}
+var availableShellTypes = []string{"bash", "dash", "fish", "sh", "zsh", "pwsh", "powershell"}
 
 // InitTemplate returns code templates for shell initialization
 func initTemplate(s string) (string, error) {
@@ -73,7 +91,65 @@ func initTemplate(s string) (string, error) {
 		return posixTemplate, nil
 	case "fish":
 		return fishTemplate, nil
+	case "pwsh", "powershell":
+		return powershellTemplate, nil
 	default:
 		return "", errors.New("shell type is unknown, should be one of " + strings.Join(availableShellTypes, ", "))
 	}
+}
+
+// helpText returns the instrutions about how to set environment variables with shellinit
+func helpText(shell string) string {
+	switch shell {
+	case "pwsh", "powershell":
+		return `elastic-package stack shellinit | Invoke-Expression`
+	default:
+		return `eval "$(elastic-package stack shellinit)"`
+	}
+}
+
+func getShellName(exe string) string {
+	shell := filepath.Base(exe)
+	// NOTE: remove .exe extension from executable names present in Windows
+	shell = strings.TrimSuffix(shell, ".exe")
+	return shell
+}
+
+func detectShell() string {
+	shell, err := getParentShell()
+	if err != nil {
+		logger.Debugf("Failed to determine parent process info while detecting shell, will assume bash: %v", err)
+		return "bash"
+	}
+
+	return shell
+}
+
+func getParentShell() (string, error) {
+	ppid := os.Getppid()
+	p, err := process.NewProcess(int32(ppid))
+	if err != nil {
+		return "", err
+	}
+	exe, err := p.Exe()
+	if err != nil {
+		return "", err
+	}
+
+	shell := getShellName(exe)
+	if shell == "go" {
+		parent, err := p.Parent()
+		if err != nil {
+			return "", err
+		}
+
+		exe, err := parent.Exe()
+		if err != nil {
+			return "", err
+		}
+
+		return getShellName(exe), nil
+	}
+
+	return shell, nil
 }

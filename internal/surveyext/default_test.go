@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Masterminds/semver"
+	"github.com/Masterminds/semver/v3"
 	"github.com/stretchr/testify/require"
 )
 

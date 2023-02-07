@@ -1,0 +1,9 @@
+mappings:
+  properties:
+    datetime:
+      type: long
+  dynamic_templates:
+    - example_template:
+        patch_match: 'example.*'
+        mapping:
+          type: short

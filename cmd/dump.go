@@ -80,7 +80,7 @@ func dumpInstalledObjectsCmdAction(cmd *cobra.Command, args []string) error {
 	if tlsSkipVerify {
 		clientOptions = append(clientOptions, elasticsearch.OptionWithSkipTLSVerify())
 	}
-	client, err := elasticsearch.Client(clientOptions...)
+	client, err := elasticsearch.NewClient(clientOptions...)
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize Elasticsearch client")
 	}

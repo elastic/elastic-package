@@ -51,10 +51,9 @@ pipeline {
     stage('Build package') {
       steps {
         cleanup()
-        withGoEnv() {
-          dir("${BASE_DIR}") {
+        dir("${BASE_DIR}") {
+          withGoEnv() {
             sh(label: 'Install elastic-package',script: "make install")
-            // sh(label: 'Install elastic-package', script: 'go build github.com/elastic/elastic-package')
             dir("test/packages/package-storage/package_storage_candidate") {
               sh(label: 'Build package', script: "elastic-package build -v --zip")
             }

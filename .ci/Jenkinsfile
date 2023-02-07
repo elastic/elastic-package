@@ -15,8 +15,8 @@ pipeline {
     PIPELINE_LOG_LEVEL='INFO'
     AWS_ACCOUNT_SECRET = 'secret/observability-team/ci/elastic-observability-aws-account-auth'
     HOME = "${env.WORKSPACE}"
-    KIND_VERSION = 'v0.14.0'
-    K8S_VERSION = 'v1.25.0'
+    KIND_VERSION = 'v0.17.0'
+    K8S_VERSION = 'v1.26.0'
     JOB_GCS_BUCKET = 'fleet-ci-temp'
     JOB_GCS_BUCKET_INTERNAL = 'fleet-ci-temp-internal'
     JOB_GCS_CREDENTIALS = 'fleet-ci-gcs-plugin'
@@ -99,6 +99,7 @@ pipeline {
                     'stack-command-default': generateTestCommandStage(command: 'test-stack-command-default', artifacts: ['build/elastic-stack-dump/stack/*/logs/*.log', 'build/elastic-stack-dump/stack/*/logs/fleet-server-internal/*', 'build/elastic-stack-status/*/*']),
                     'stack-command-oldest': generateTestCommandStage(command: 'test-stack-command-oldest', artifacts: ['build/elastic-stack-dump/stack/*/logs/*.log', 'build/elastic-stack-dump/stack/*/logs/fleet-server-internal/*', 'build/elastic-stack-status/*/*']),
                     'stack-command-7x': generateTestCommandStage(command: 'test-stack-command-7x', artifacts: ['build/elastic-stack-dump/stack/*/logs/*.log', 'build/elastic-stack-dump/stack/*/logs/fleet-server-internal/*', 'build/elastic-stack-status/*/*']),
+                    'stack-command-86': generateTestCommandStage(command: 'test-stack-command-86', artifacts: ['build/elastic-stack-dump/stack/*/logs/*.log', 'build/elastic-stack-dump/stack/*/logs/fleet-server-internal/*', 'build/elastic-stack-status/*/*']),
                     'stack-command-8x': generateTestCommandStage(command: 'test-stack-command-8x', artifacts: ['build/elastic-stack-dump/stack/*/logs/*.log', 'build/elastic-stack-dump/stack/*/logs/fleet-server-internal/*', 'build/elastic-stack-status/*/*']),
                     'check-packages-with-kind': generateTestCommandStage(command: 'test-check-packages-with-kind', artifacts: ['build/test-results/*.xml', 'build/kubectl-dump.txt', 'build/elastic-stack-dump/check-*/logs/*.log', 'build/elastic-stack-dump/check-*/logs/fleet-server-internal/*'], junitArtifacts: true, publishCoverage: true),
                     'check-packages-other': generateTestCommandStage(command: 'test-check-packages-other', artifacts: ['build/test-results/*.xml', 'build/elastic-stack-dump/check-*/logs/*.log', 'build/elastic-stack-dump/check-*/logs/fleet-server-internal/*'], junitArtifacts: true, publishCoverage: true),

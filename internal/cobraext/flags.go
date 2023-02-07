@@ -80,9 +80,6 @@ const (
 	DataStreamsFlagName        = "data-streams"
 	DataStreamsFlagDescription = "comma-separated data streams to test"
 
-	DirectionFlagName        = "direction"
-	DirectionFlagDescription = "promotion direction"
-
 	DeferCleanupFlagName        = "defer-cleanup"
 	DeferCleanupFlagDescription = "defer test cleanup for debugging purposes"
 
@@ -95,9 +92,6 @@ const (
 	FailFastFlagName        = "fail-fast"
 	FailFastFlagDescription = "fail immediately if any file requires updates (do not overwrite)"
 
-	ForkFlagName        = "fork"
-	ForkFlagDescription = "use fork mode (set to \"false\" if user can't fork the storage repository)"
-
 	GenerateTestResultFlagName        = "generate"
 	GenerateTestResultFlagDescription = "generate test result file"
 
@@ -109,12 +103,6 @@ const (
 
 	ProfileFormatFlagName        = "format"
 	ProfileFormatFlagDescription = "format of the profiles list (table | json)"
-
-	NewestOnlyFlagName        = "newest-only"
-	NewestOnlyFlagDescription = "promote newest packages and remove old ones"
-
-	PromotedPackagesFlagName        = "packages"
-	PromotedPackagesFlagDescription = "packages to be promoted (comma-separated values: apache-1.2.3,nginx-5.6.7)"
 
 	ReportFormatFlagName        = "report-format"
 	ReportFormatFlagDescription = "format of test report"
@@ -138,9 +126,6 @@ const (
 	SignPackageFlagName        = "sign"
 	SignPackageFlagDescription = "sign package"
 
-	SkipPullRequestFlagName        = "skip-pull-request"
-	SkipPullRequestFlagDescription = "skip opening a new pull request"
-
 	TLSSkipVerifyFlagName        = "tls-skip-verify"
 	TLSSkipVerifyFlagDescription = "skip TLS verify"
 
@@ -161,4 +146,21 @@ const (
 
 	VariantFlagName        = "variant"
 	VariantFlagDescription = "service variant"
+
+	// To be removed promote commands flags
+	DirectionFlagName        = "direction"
+	DirectionFlagDescription = "promotion direction"
+
+	NewestOnlyFlagName        = "newest-only"
+	NewestOnlyFlagDescription = "promote newest packages and remove old ones"
+
+	PromotedPackagesFlagName        = "packages"
+	PromotedPackagesFlagDescription = "packages to be promoted (comma-separated values: apache-1.2.3,nginx-5.6.7)"
+
+	// To be removed publish commands flags
+	ForkFlagName        = "fork"
+	ForkFlagDescription = "use fork mode (set to \"false\" if user can't fork the storage repository)"
+
+	SkipPullRequestFlagName        = "skip-pull-request"
+	SkipPullRequestFlagDescription = "skip opening a new pull request"
 )

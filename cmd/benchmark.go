@@ -147,9 +147,13 @@ func benchTypeCommandActionFactory(runner benchrunner.BenchRunner) cobraext.Comm
 			return fmt.Errorf("no %s benchmarks found", benchType)
 		}
 
-		esClient, err := elasticsearch.Client()
+		esClient, err := elasticsearch.NewClient()
 		if err != nil {
 			return errors.Wrap(err, "can't create Elasticsearch client")
+		}
+		err = esClient.CheckHealth(cmd.Context())
+		if err != nil {
+			return err
 		}
 
 		var results []*benchrunner.Result

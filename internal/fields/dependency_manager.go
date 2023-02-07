@@ -233,6 +233,19 @@ func (dm *DependencyManager) ImportField(schemaName, fieldPath string) (FieldDef
 	return *imported, nil
 }
 
+// ImportAllFields method resolves all fields avaialble in the default ECS schema.
+func (dm *DependencyManager) ImportAllFields(schemaName string) ([]FieldDefinition, error) {
+	if dm == nil {
+		return []FieldDefinition{}, fmt.Errorf(`importing all external fields: external fields not allowed because dependencies file "_dev/build/build.yml" is missing`)
+	}
+	schema, ok := dm.schema[schemaName]
+	if !ok {
+		return []FieldDefinition{}, fmt.Errorf(`schema "%s" is not defined as package depedency`, schemaName)
+	}
+
+	return schema, nil
+}
+
 func buildFieldPath(root string, field common.MapStr) string {
 	path := root
 	if root != "" {

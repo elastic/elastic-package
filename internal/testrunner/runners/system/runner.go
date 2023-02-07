@@ -149,13 +149,10 @@ func (r *runner) run() (results []testrunner.TestResult, err error) {
 	if err != nil {
 		return result.WithError(errors.Wrap(err, "locating data stream root failed"))
 	}
-	if !found {
-		return result.WithError(errors.New("data stream root not found"))
-	}
-
-	cfgFiles, err := listConfigFiles(r.options.TestFolder.Path)
-	if err != nil {
-		return result.WithError(errors.Wrap(err, "failed listing test case config cfgFiles"))
+	if found {
+		logger.Debug("Running system tests for data stream")
+	} else {
+		logger.Debug("Running system tests for package")
 	}
 
 	devDeployPath, err := servicedeployer.FindDevDeployPath(servicedeployer.FactoryOptions{
@@ -164,6 +161,11 @@ func (r *runner) run() (results []testrunner.TestResult, err error) {
 	})
 	if err != nil {
 		return result.WithError(errors.Wrap(err, "_dev/deploy directory not found"))
+	}
+
+	cfgFiles, err := listConfigFiles(r.options.TestFolder.Path)
+	if err != nil {
+		return result.WithError(errors.Wrap(err, "failed listing test case config cfgFiles"))
 	}
 
 	variantsFile, err := servicedeployer.ReadVariantsFile(devDeployPath)
@@ -294,6 +296,11 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 		}
 	}
 
+	policyTemplate, err := selectPolicyTemplateByName(pkgManifest.PolicyTemplates, policyTemplateName)
+	if err != nil {
+		return result.WithError(errors.Wrap(err, "failed to find the selected policy_template"))
+	}
+
 	// Setup service.
 	logger.Debug("setting up service...")
 	serviceDeployer, err := servicedeployer.Factory(serviceOptions)
@@ -350,7 +357,7 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	}
 
 	logger.Debug("adding package data stream to test policy...")
-	ds := createPackageDatastream(*policy, *pkgManifest, policyTemplateName, *dataStreamManifest, *config)
+	ds := createPackageDatastream(*policy, *pkgManifest, policyTemplate, *dataStreamManifest, *config)
 	if err := kib.AddPackageDataStreamToPolicy(ds); err != nil {
 		return result.WithError(errors.Wrap(err, "could not add data stream config to policy"))
 	}
@@ -460,27 +467,28 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	}
 
 	// Validate fields in docs
-	expectedDataset := pkgManifest.Name + "." + r.options.TestFolder.DataStream
+	var expectedDataset string
+	if ds := r.options.TestFolder.DataStream; ds != "" {
+		expectedDataset = getDataStreamDataset(*pkgManifest, *dataStreamManifest)
+	} else {
+		expectedDataset = pkgManifest.Name + "." + policyTemplateName
+	}
 	fieldsValidator, err := fields.CreateValidatorForDirectory(serviceOptions.DataStreamRootPath,
 		fields.WithSpecVersion(pkgManifest.SpecVersion),
 		fields.WithNumericKeywordFields(config.NumericKeywordFields),
 		fields.WithExpectedDataset(expectedDataset),
+		fields.WithEnabledImportAllECSSChema(true),
 	)
 	if err != nil {
 		return result.WithError(errors.Wrapf(err, "creating fields validator for data stream failed (path: %s)", serviceOptions.DataStreamRootPath))
 	}
-
 	if err := validateFields(docs, fieldsValidator, dataStream); err != nil {
 		return result.WithError(err)
 	}
 
 	// Write sample events file from first doc, if requested
-	if r.options.GenerateTestResult {
-		ds := r.options.TestFolder.DataStream
-		dsPath := filepath.Join(r.options.PackageRootPath, "data_stream", ds)
-		if err := writeSampleEvent(dsPath, docs[0]); err != nil {
-			return result.WithError(errors.Wrap(err, "failed to write sample event file"))
-		}
+	if err := r.generateTestResult(docs); err != nil {
+		return result.WithError(err)
 	}
 
 	// Check Hit Count within docs, if 0 then it has not been specified
@@ -520,32 +528,44 @@ func checkEnrolledAgents(client *kibana.Client, ctxt servicedeployer.ServiceCont
 }
 
 func createPackageDatastream(
-	p kibana.Policy,
+	kibanaPolicy kibana.Policy,
 	pkg packages.PackageManifest,
-	policyTemplate string,
+	policyTemplate packages.PolicyTemplate,
 	ds packages.DataStreamManifest,
-	c testConfig,
+	config testConfig,
 ) kibana.PackageDataStream {
-	stream := ds.Streams[getDataStreamIndex(c.Input, ds)]
-	streamInput := stream.Input
+	if pkg.Type == "input" {
+		return createInputPackageDatastream(kibanaPolicy, pkg, policyTemplate, config)
+	}
+	return createIntegrationPackageDatastream(kibanaPolicy, pkg, policyTemplate, ds, config)
+}
+
+func createIntegrationPackageDatastream(
+	kibanaPolicy kibana.Policy,
+	pkg packages.PackageManifest,
+	policyTemplate packages.PolicyTemplate,
+	ds packages.DataStreamManifest,
+	config testConfig,
+) kibana.PackageDataStream {
 	r := kibana.PackageDataStream{
 		Name:      fmt.Sprintf("%s-%s", pkg.Name, ds.Name),
 		Namespace: "ep",
-		PolicyID:  p.ID,
+		PolicyID:  kibanaPolicy.ID,
 		Enabled:   true,
+		Inputs: []kibana.Input{
+			{
+				PolicyTemplate: policyTemplate.Name,
+				Enabled:        true,
+			},
+		},
 	}
-
 	r.Package.Name = pkg.Name
 	r.Package.Title = pkg.Title
 	r.Package.Version = pkg.Version
 
-	r.Inputs = []kibana.Input{
-		{
-			PolicyTemplate: policyTemplate,
-			Type:           streamInput,
-			Enabled:        true,
-		},
-	}
+	stream := ds.Streams[getDataStreamIndex(config.Input, ds)]
+	streamInput := stream.Input
+	r.Inputs[0].Type = streamInput
 
 	streams := []kibana.Stream{
 		{
@@ -559,48 +579,94 @@ func createPackageDatastream(
 	}
 
 	// Add dataStream-level vars
-	dsVars := kibana.Vars{}
-	for _, dsVar := range stream.Vars {
-		val := dsVar.Default
-
-		cfgVar, exists := c.DataStream.Vars[dsVar.Name]
-		if exists {
-			// overlay var value from test configuration
-			val = cfgVar
-		}
-
-		dsVars[dsVar.Name] = kibana.Var{
-			Type:  dsVar.Type,
-			Value: val,
-		}
-	}
-	streams[0].Vars = dsVars
+	streams[0].Vars = setKibanaVariables(stream.Vars, config.DataStream.Vars)
 	r.Inputs[0].Streams = streams
 
 	// Add package-level vars
-	pkgVars := kibana.Vars{}
-	input := pkg.PolicyTemplates[0].FindInputByType(streamInput)
+	var inputVars []packages.Variable
+	input := policyTemplate.FindInputByType(streamInput)
 	if input != nil {
 		// copy package-level vars into each input
-		input.Vars = append(input.Vars, pkg.Vars...)
-		for _, pkgVar := range input.Vars {
-			val := pkgVar.Default
-
-			cfgVar, exists := c.Vars[pkgVar.Name]
-			if exists {
-				// overlay var value from test configuration
-				val = cfgVar
-			}
-
-			pkgVars[pkgVar.Name] = kibana.Var{
-				Type:  pkgVar.Type,
-				Value: val,
-			}
-		}
+		inputVars = append(inputVars, input.Vars...)
+		inputVars = append(inputVars, pkg.Vars...)
 	}
-	r.Inputs[0].Vars = pkgVars
+
+	r.Inputs[0].Vars = setKibanaVariables(inputVars, config.Vars)
 
 	return r
+}
+
+func createInputPackageDatastream(
+	kibanaPolicy kibana.Policy,
+	pkg packages.PackageManifest,
+	policyTemplate packages.PolicyTemplate,
+	config testConfig,
+) kibana.PackageDataStream {
+	r := kibana.PackageDataStream{
+		Name:      fmt.Sprintf("%s-%s", pkg.Name, policyTemplate.Name),
+		Namespace: "ep",
+		PolicyID:  kibanaPolicy.ID,
+		Enabled:   true,
+	}
+	r.Package.Name = pkg.Name
+	r.Package.Title = pkg.Title
+	r.Package.Version = pkg.Version
+	r.Inputs = []kibana.Input{
+		{
+			PolicyTemplate: policyTemplate.Name,
+			Enabled:        true,
+			Vars:           kibana.Vars{},
+		},
+	}
+
+	streamInput := policyTemplate.Input
+	r.Inputs[0].Type = streamInput
+
+	dataset := fmt.Sprintf("%s.%s", pkg.Name, policyTemplate.Name)
+	streams := []kibana.Stream{
+		{
+			ID:      fmt.Sprintf("%s-%s.%s", streamInput, pkg.Name, policyTemplate.Name),
+			Enabled: true,
+			DataStream: kibana.DataStream{
+				Type:    policyTemplate.Type,
+				Dataset: dataset,
+			},
+		},
+	}
+
+	// Add policyTemplate-level vars.
+	vars := setKibanaVariables(policyTemplate.Vars, config.Vars)
+	if _, found := vars["data_stream.dataset"]; !found {
+		var value packages.VarValue
+		value.Unpack(dataset)
+		vars["data_stream.dataset"] = kibana.Var{
+			Value: value,
+			Type:  "text",
+		}
+	}
+
+	streams[0].Vars = vars
+	r.Inputs[0].Streams = streams
+	return r
+}
+
+func setKibanaVariables(definitions []packages.Variable, values common.MapStr) kibana.Vars {
+	vars := kibana.Vars{}
+	for _, definition := range definitions {
+		val := definition.Default
+
+		value, err := values.GetValue(definition.Name)
+		if err == nil {
+			val = packages.VarValue{}
+			val.Unpack(value)
+		}
+
+		vars[definition.Name] = kibana.Var{
+			Type:  definition.Type,
+			Value: val,
+		}
+	}
+	return vars
 }
 
 // getDataStreamIndex returns the index of the data stream whose input name
@@ -625,6 +691,13 @@ func getDataStreamDataset(pkg packages.PackageManifest, ds packages.DataStreamMa
 // applies to the input under test. An error is returned if no policy template
 // matches or if multiple policy templates match and the response is ambiguous.
 func findPolicyTemplateForInput(pkg packages.PackageManifest, ds packages.DataStreamManifest, inputName string) (string, error) {
+	if pkg.Type == "input" {
+		return findPolicyTemplateForInputPackage(pkg, inputName)
+	}
+	return findPolicyTemplateForDataStream(pkg, ds, inputName)
+}
+
+func findPolicyTemplateForDataStream(pkg packages.PackageManifest, ds packages.DataStreamManifest, inputName string) (string, error) {
 	if inputName == "" {
 		if len(ds.Streams) == 0 {
 			return "", errors.New("no streams declared in data stream manifest")
@@ -633,7 +706,6 @@ func findPolicyTemplateForInput(pkg packages.PackageManifest, ds packages.DataSt
 	}
 
 	var matchedPolicyTemplates []string
-
 	for _, policyTemplate := range pkg.PolicyTemplates {
 		// Does this policy_template include this input type?
 		if policyTemplate.FindInputByType(inputName) == nil {
@@ -661,6 +733,47 @@ func findPolicyTemplateForInput(pkg packages.PackageManifest, ds packages.DataSt
 			"specify the 'policy_template' in the system test config",
 			strings.Join(matchedPolicyTemplates, ", "), ds.Name, inputName)
 	}
+}
+
+func findPolicyTemplateForInputPackage(pkg packages.PackageManifest, inputName string) (string, error) {
+	if inputName == "" {
+		if len(pkg.PolicyTemplates) == 0 {
+			return "", errors.New("no policy templates specified for input package")
+		}
+		inputName = pkg.PolicyTemplates[0].Input
+	}
+
+	var matched []string
+	for _, policyTemplate := range pkg.PolicyTemplates {
+		if policyTemplate.Input != inputName {
+			continue
+		}
+
+		matched = append(matched, policyTemplate.Name)
+	}
+
+	switch len(matched) {
+	case 1:
+		return matched[0], nil
+	case 0:
+		return "", fmt.Errorf("no policy template was found"+
+			"with input type %q: verify that you have included the data stream "+
+			"and input in the package's policy_template list", inputName)
+	default:
+		return "", fmt.Errorf("ambiguous result: multiple policy templates ([%s]) "+
+			"with input type %q: please "+
+			"specify the 'policy_template' in the system test config",
+			strings.Join(matched, ", "), inputName)
+	}
+}
+
+func selectPolicyTemplateByName(policies []packages.PolicyTemplate, name string) (packages.PolicyTemplate, error) {
+	for _, policy := range policies {
+		if policy.Name == name {
+			return policy, nil
+		}
+	}
+	return packages.PolicyTemplate{}, fmt.Errorf("policy template %q not found", name)
 }
 
 func deleteDataStreamDocs(api *elasticsearch.API, dataStream string) error {
@@ -781,4 +894,21 @@ func (r *runner) selectVariants(variantsFile *servicedeployer.VariantsFile) []st
 		variantNames = append(variantNames, k)
 	}
 	return variantNames
+}
+
+func (r *runner) generateTestResult(docs []common.MapStr) error {
+	if !r.options.GenerateTestResult {
+		return nil
+	}
+
+	rootPath := r.options.PackageRootPath
+	if ds := r.options.TestFolder.DataStream; ds != "" {
+		rootPath = filepath.Join(rootPath, "data_stream", ds)
+	}
+
+	if err := writeSampleEvent(rootPath, docs[0]); err != nil {
+		return errors.Wrap(err, "failed to write sample event file")
+	}
+
+	return nil
 }

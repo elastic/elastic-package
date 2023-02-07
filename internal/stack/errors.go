@@ -9,5 +9,5 @@ import "fmt"
 // UndefinedEnvError formats an error reported for undefined variable.
 func UndefinedEnvError(envName string) error {
 	return fmt.Errorf("undefined environment variable: %s. If you have started the Elastic stack using the elastic-package tool, "+
-		`please load stack environment variables using 'eval "$(elastic-package stack shellinit)"' or set their values manually`, envName)
+		`please load stack environment variables using '%s' or set their values manually`, envName, helpText(AutodetectShell()))
 }

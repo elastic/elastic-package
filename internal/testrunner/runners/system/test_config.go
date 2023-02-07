@@ -17,7 +17,7 @@ import (
 	"github.com/elastic/go-ucfg"
 	"github.com/elastic/go-ucfg/yaml"
 
-	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/testrunner"
 	"github.com/elastic/elastic-package/internal/testrunner/runners/system/servicedeployer"
 )
@@ -33,9 +33,9 @@ type testConfig struct {
 	ServiceNotifySignal string        `config:"service_notify_signal"` // Signal to send when the agent policy is applied.
 	WaitForDataTimeout  time.Duration `config:"wait_for_data_timeout"`
 
-	Vars       map[string]packages.VarValue `config:"vars"`
+	Vars       common.MapStr `config:"vars"`
 	DataStream struct {
-		Vars map[string]packages.VarValue `config:"vars"`
+		Vars common.MapStr `config:"vars"`
 	} `config:"data_stream"`
 
 	Assert struct {

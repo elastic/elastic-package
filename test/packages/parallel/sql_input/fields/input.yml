@@ -1,0 +1,20 @@
+- name: input.name
+  type: constant_keyword
+  description: Sample field to be added.
+  value: sql
+- name: sql.metrics.numeric.*
+  type: double
+- name: sql.metrics.string.*
+  type: keyword
+- name: data_stream.dataset
+  external: ecs
+- name: data_stream.namespace
+  external: ecs
+- name: data_stream.type
+  external: ecs
+- name: service.address
+  external: ecs
+- name: sql.driver
+  type: keyword
+- name: sql.query
+  type: keyword

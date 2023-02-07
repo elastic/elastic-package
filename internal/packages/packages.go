@@ -102,9 +102,10 @@ type PolicyTemplate struct {
 	Inputs      []Input  `config:"inputs,omitempty" json:"inputs,omitempty" yaml:"inputs,omitempty"`
 
 	// For purposes of "input packages"
-	Input        string `config:"input,omitempty" json:"input,omitempty" yaml:"input,omitempty"`
-	Type         string `config:"type,omitempty" json:"type,omitempty" yaml:"type,omitempty"`
-	TemplatePath string `config:"template_path,omitempty" json:"template_path,omitempty" yaml:"template_path,omitempty"`
+	Input        string     `config:"input,omitempty" json:"input,omitempty" yaml:"input,omitempty"`
+	Type         string     `config:"type,omitempty" json:"type,omitempty" yaml:"type,omitempty"`
+	TemplatePath string     `config:"template_path,omitempty" json:"template_path,omitempty" yaml:"template_path,omitempty"`
+	Vars         []Variable `config:"vars,omitempty" json:"vars,omitempty" yaml:"vars,omitempty"`
 }
 
 // Owner defines package owners, either a single person or a team.
@@ -138,9 +139,11 @@ type DataStreamManifest struct {
 	Hidden        bool   `config:"hidden" json:"hidden" yaml:"hidden"`
 	Release       string `config:"release" json:"release" yaml:"release"`
 	Elasticsearch *struct {
-		IngestPipeline *struct {
-			Name string `config:"name" json:"name" yaml:"name"`
-		} `config:"ingest_pipeline" json:"ingest_pipeline" yaml:"ingest_pipeline"`
+		IndexTemplate *struct {
+			IngestPipeline *struct {
+				Name string `config:"name" json:"name" yaml:"name"`
+			} `config:"ingest_pipeline" json:"ingest_pipeline" yaml:"ingest_pipeline"`
+		} `config:"index_template" json:"index_template" yaml:"index_template"`
 	} `config:"elasticsearch" json:"elasticsearch" yaml:"elasticsearch"`
 	Streams []struct {
 		Input string     `config:"input" json:"input" yaml:"input"`
@@ -251,11 +254,17 @@ func ReadDataStreamManifest(path string) (*DataStreamManifest, error) {
 	return &m, nil
 }
 
+// ReadDataStreamManifestFromPackageRoot reads and parses the manifest of the given
+// data stream from the given package root.
+func ReadDataStreamManifestFromPackageRoot(packageRoot string, name string) (*DataStreamManifest, error) {
+	return ReadDataStreamManifest(filepath.Join(packageRoot, "data_stream", name, DataStreamManifestFile))
+}
+
 // GetPipelineNameOrDefault returns the name of the data stream's pipeline, if one is explicitly defined in the
 // data stream manifest. If not, the default pipeline name is returned.
 func (dsm *DataStreamManifest) GetPipelineNameOrDefault() string {
-	if dsm.Elasticsearch != nil && dsm.Elasticsearch.IngestPipeline != nil && dsm.Elasticsearch.IngestPipeline.Name != "" {
-		return dsm.Elasticsearch.IngestPipeline.Name
+	if dsm.Elasticsearch != nil && dsm.Elasticsearch.IndexTemplate != nil && dsm.Elasticsearch.IndexTemplate.IngestPipeline != nil && dsm.Elasticsearch.IndexTemplate.IngestPipeline.Name != "" {
+		return dsm.Elasticsearch.IndexTemplate.IngestPipeline.Name
 	}
 	return defaultPipelineName
 }
