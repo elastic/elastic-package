@@ -25,7 +25,8 @@ function retry {
 if [[ "$BUILDKITE_PIPELINE_SLUG" == "elastic-package" && "$BUILDKITE_STEP_KEY" == "integration-parallel-gcp" ]]; then
   export ELASTIC_PACKAGE_GCP_PROJECT_SECRET=$(retry 5 vault read -field project "secret/ci/elastic-elastic-package/gcp-service-account-temp")
   export ELASTIC_PACKAGE_GCP_CREDENTIALS_SECRET=$(retry 5 vault read -field google_credentials "secret/ci/elastic-elastic-package/gcp-service-account-temp")
-  export TEST_SECRET="testtest"
-  export GOOGLE_CREDENTIALS=${TEST_SECRET}
-  export GCP_PROJECT_ID=${TEST_SECRET}
+
+  # Environment variables required by the service deployer
+  export GOOGLE_CREDENTIALS=${ELASTIC_PACKAGE_GCP_CREDENTIALS_SECRET}
+  export GCP_PROJECT_ID=${ELASTIC_PACKAGE_GCP_PROJECT_SECRET}
 fi
