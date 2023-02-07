@@ -1,5 +1,7 @@
 CODE_COVERAGE_REPORT_FOLDER = $(PWD)/build/test-coverage
+WIN_CODE_COVERAGE_REPORT_FOLDER = $(PWD)\build\test-coverage
 CODE_COVERAGE_REPORT_NAME_UNIT = $(CODE_COVERAGE_REPORT_FOLDER)/coverage-unit-report
+WIN_CODE_COVERAGE_REPORT_NAME_UNIT = $(CODE_COVERAGE_REPORT_FOLDER)\coverage-unit-report
 VERSION_IMPORT_PATH = github.com/elastic/elastic-package/internal/version
 VERSION_COMMIT_HASH = `git describe --always --long --dirty`
 VERSION_BUILD_TIME = `date +%s`
@@ -38,6 +40,9 @@ update: update-readme
 $(CODE_COVERAGE_REPORT_FOLDER):
 	mkdir -p $@
 
+$(WIN_CODE_COVERAGE_REPORT_FOLDER):
+	mkdir -p $@
+
 test-go: $(CODE_COVERAGE_REPORT_FOLDER)
 	# -count=1 is included to invalidate the test cache. This way, if you run "make test-go" multiple times
 	# you will get fresh test results each time. For instance, changing the source of mocked packages
@@ -49,6 +54,12 @@ test-go-ci: $(CODE_COVERAGE_REPORT_FOLDER)
 	mkdir -p $(PWD)/build/test-coverage
 	go run gotest.tools/gotestsum --junitfile "$(PWD)/build/test-results/TEST-unit.xml" -- -count=1 -coverprofile=$(CODE_COVERAGE_REPORT_NAME_UNIT).out ./...
 	go run github.com/boumenot/gocover-cobertura < $(CODE_COVERAGE_REPORT_NAME_UNIT).out > $(CODE_COVERAGE_REPORT_NAME_UNIT).xml
+
+test-go-ci-win: $(WIN_CODE_COVERAGE_REPORT_FOLDER)
+	mkdir -p $(PWD)\build\test-results
+	mkdir -p $(PWD)\build\test-coverage
+	go run gotest.tools/gotestsum --junitfile "$(PWD)\build\test-results\TEST-unit.xml" -- -count=1 -coverprofile=$(WIN_CODE_COVERAGE_REPORT_NAME_UNIT).out ./...
+	go run github.com/boumenot/gocover-cobertura < $(WIN_CODE_COVERAGE_REPORT_NAME_UNIT).out > $(WIN_CODE_COVERAGE_REPORT_NAME_UNIT).xml
 
 test-stack-command-default:
 	./scripts/test-stack-command.sh

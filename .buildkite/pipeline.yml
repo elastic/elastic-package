@@ -12,7 +12,7 @@ steps:
       cpu: "8"
       memory: "4G"
 
-  - label: ":go: Run unit tests"
+  - label: ":go: :linux: Run unit tests"
     command: "make test-go-ci"
     artifact_paths:
       - "build/test-results/*.xml"
@@ -21,6 +21,13 @@ steps:
       image: "golang:1.19.5"
       cpu: "8"
       memory: "4G"
+
+  - label: ":go: :windows: Run unit tests"
+    key: unit-tests-windows
+    command: ".buildkite/scripts/unit_tests_windows.ps1"
+    agents:
+      provider: "gcp"
+      image: "family/ci-windows-2022"
 
   - wait: ~
     continue_on_failure: true
