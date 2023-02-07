@@ -36,7 +36,7 @@ steps:
       - junit-annotate#v2.4.1:
           artifacts: "build/test-results/*.xml"
     agents:
-      provider: "gcp"
+      provider: "gcp"  # junit plugin requires docker
 
   - label: ":github: Release"
     # TODO enable this conditional
