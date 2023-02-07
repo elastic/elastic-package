@@ -52,11 +52,12 @@ done
 pushd test/packages/parallel > /dev/null
 for package in $(find . -maxdepth 1 -mindepth 1 -type d) ; do
     package_name=$(basename ${package})
-    if [[ "${package_name}" =~ ^(aws|gcp)$ ]]; then
+    if [[ "${package_name}" =~ ^aws$ ]]; then
         # TODO: missing secrets
         continue
     fi
     echo "      - label: \":go: Running integration test: ${package_name}\""
+    echo "        key: \"integration-parallel-${package_name}\""
     echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-check-packages-parallel -p ${package_name}"
     echo "        agents:"
     echo "          provider: \"gcp\""

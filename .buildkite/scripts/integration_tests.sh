@@ -98,6 +98,10 @@ fi
 
 echo "--- Run integration test ${TARGET}"
 if [[ "${TARGET}" == "${PARALLEL_TARGET}" ]]; then
+    if [[ "${PACKAGE}" == "gcp" ]]; then
+      echo "Project test: $GCP_PROJECT_ID"
+      echo "Google credentials test: $GOOGLE_CREDENTIALS"
+    fi
     make install
     make PACKAGE_UNDER_TEST=${PACKAGE} ${TARGET}
     exit 0

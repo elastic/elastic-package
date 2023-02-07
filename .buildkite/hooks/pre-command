@@ -1,0 +1,31 @@
+#!/bin/bash
+
+set -euo pipefail
+
+function retry {
+  local retries=$1
+  shift
+
+  local count=0
+  until "$@"; do
+    exit=$?
+    wait=$((2 ** count))
+    count=$((count + 1))
+    if [ $count -lt "$retries" ]; then
+      >&2 echo "Retry $count/$retries exited $exit, retrying in $wait seconds..."
+      sleep $wait
+    else
+      >&2 echo "Retry $count/$retries exited $exit, no more retries left."
+      return $exit
+    fi
+  done
+  return 0
+}
+
+if [[ "$BUILDKITE_PIPELINE_SLUG" == "elastic-package" && "$BUILDKITE_STEP_KEY" == "integration-parallel-gcp" ]]; then
+  export ELASTIC_PACKAGE_GCP_PROJECT_SECRET=$(retry 5 vault read -field project "secret/ci/elastic-elastic-package/gcp-service-account-temp")
+  export ELASTIC_PACKAGE_GCP_CREDENTIALS_SECRET=$(retry 5 vault read -field google_credentials "secret/ci/elastic-elastic-package/gcp-service-account-temp")
+  export TEST_SECRET="test"
+  export GOOGLE_CREDENTIALS=${TEST_SECRET}
+  export GCP_PROJECT_ID=${TEST_SECRET}
+fi
