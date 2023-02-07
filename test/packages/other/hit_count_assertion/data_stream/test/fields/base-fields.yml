@@ -31,3 +31,15 @@
 - name: '@timestamp'
   type: date
   description: Event timestamp.
+- name: ecs.version
+  type: keyword
+- name: message
+  type: match_only_text
+- name: observer.product
+  type: keyword
+- name: observer.type
+  type: keyword
+- name: observer.vendor
+  type: keyword
+- name: tags
+  type: keyword
