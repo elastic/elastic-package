@@ -6,6 +6,7 @@ env:
 
 steps:
   - label: ":go: Run check-static"
+    key: check-static
     command: "make check-static"
     agents:
       image: "golang:1.19.5"
@@ -13,6 +14,7 @@ steps:
       memory: "4G"
 
   - label: ":go: :linux: Run unit tests"
+    key: unit-tests-linux
     command: "make test-go-ci"
     artifact_paths:
       - "build/test-results/*.xml"
@@ -34,6 +36,13 @@ steps:
 
   - label: ":pipeline: Trigger Integration tests"
     command: ".buildkite/pipeline.trigger.integration.tests.sh | buildkite-agent pipeline upload"
+    depends_on:
+      - step: check-static
+        allow_failure: false
+      - step: unit-tests-linux
+        allow_failure: false
+      - step: unit-tests-windows
+        allow_failure: false
 
   - wait: ~
     continue_on_failure: true
