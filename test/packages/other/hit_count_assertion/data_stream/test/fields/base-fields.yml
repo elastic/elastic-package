@@ -28,3 +28,6 @@
 - name: log.offset
   description: Offset of the entry in the log file.
   type: long
+- name: '@timestamp'
+  type: date
+  description: Event timestamp.

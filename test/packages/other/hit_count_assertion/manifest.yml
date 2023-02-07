@@ -7,7 +7,6 @@ title: Hit Count Assertion test
 version: 999.999.999
 description: Test for Hit Count Assertion
 categories: ["network"]
-license: basic
 type: integration
 conditions:
   kibana.version: '^8.0.0'
