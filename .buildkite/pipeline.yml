@@ -1,0 +1,28 @@
+steps:
+  - label: ":go: Run check-static"
+    command: "make check-static"
+    agents:
+      image: "golang:1.19.5"
+      cpu: "8"
+      memory: "4G"
+
+  - label: ":go: Run unit tests"
+    command: "make test-go-ci"
+    artifact_paths:
+      - "build/test-results/*.xml"
+      - "build/test-coverage/*.xml"
+    agents:
+      image: "golang:1.19.5"
+      cpu: "8"
+      memory: "4G"
+
+  - wait: ~
+    continue_on_failure: true
+
+  - label: "Junit annotate"
+    plugins:
+      - junit-annotate#v2.4.1:
+          artifacts: "build/test-results/*.xml"
+    agents:
+      provider: "gcp"
+

@@ -58,10 +58,14 @@ test-stack-command-oldest:
 	./scripts/test-stack-command.sh 7.14.2
 
 test-stack-command-7x:
-	./scripts/test-stack-command.sh 7.17.3-SNAPSHOT
+	./scripts/test-stack-command.sh 7.17.8
+
+# Keeping a test for 8.6 because it has an specific configuration file.
+test-stack-command-86:
+	./scripts/test-stack-command.sh 8.6.1
 
 test-stack-command-8x:
-	./scripts/test-stack-command.sh 8.6.0-SNAPSHOT
+	./scripts/test-stack-command.sh 8.7.0-SNAPSHOT
 
 test-stack-command: test-stack-command-default test-stack-command-7x test-stack-command-800 test-stack-command-8x
 
