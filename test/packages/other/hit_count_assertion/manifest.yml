@@ -1,4 +1,4 @@
-format_version: 1.0.0
+format_version: 2.5.0
 name: hit_count_assertion
 title: Hit Count Assertion test
 # version is set to something very large to so this test package can
@@ -7,7 +7,6 @@ title: Hit Count Assertion test
 version: 999.999.999
 description: Test for Hit Count Assertion
 categories: ["network"]
-release: experimental
 license: basic
 type: integration
 conditions:
