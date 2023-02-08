@@ -23,6 +23,11 @@ import (
 	"github.com/elastic/elastic-package/internal/stack"
 )
 
+const (
+	kustomizationFile = "kustomization.yaml"
+	emptyFile         = ".empty"
+)
+
 // KubernetesServiceDeployer is responsible for deploying resources in the Kubernetes cluster.
 type KubernetesServiceDeployer struct {
 	definitionsPath string
@@ -137,11 +142,11 @@ func containsKustomization(definitionsPath string) (bool, error) {
 		return false, errors.Wrapf(err, "can't read definitions directory (path: %s)", definitionsPath)
 	}
 	// check if kustomization.yaml exists
-	if _, err := os.Stat(filepath.Join(definitionsPath, "kustomization.yaml")); err != nil {
+	if _, err := os.Stat(filepath.Join(definitionsPath, kustomizationFile)); err != nil {
 		// if it does not exist, then the .empty file needs to be present
-		if _, err := os.Stat(filepath.Join(definitionsPath, ".empty")); err != nil {
-			return false, errors.Errorf("kustomization.yaml file is missing (path: %s). Add one or create an .empty file"+
-				" if no custom definitions are required.", definitionsPath)
+		if _, err := os.Stat(filepath.Join(definitionsPath, emptyFile)); err != nil {
+			return false, errors.Errorf("%s file is missing (path: %s). Add one or create an %s file"+
+				" if no custom definitions are required.", kustomizationFile, definitionsPath, emptyFile)
 		}
 		return false, nil
 	}

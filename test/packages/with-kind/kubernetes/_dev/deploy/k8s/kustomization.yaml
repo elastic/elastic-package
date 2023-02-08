@@ -7,4 +7,4 @@ resources:
   - configmap.yaml
   - rq.yaml
   - ss.yaml
-  - github.com/kubernetes/kube-state-metrics?ref=main
+  - github.com/kubernetes/kube-state-metrics?ref=abe3fd3184e16893b5a47196f90a94ed13e1b04d
