@@ -6,7 +6,6 @@ package kubectl
 
 import (
 	"bytes"
-	"github.com/elastic/elastic-package/internal/testrunner/runners/system/servicedeployer"
 	"os/exec"
 	"path/filepath"
 
@@ -14,6 +13,8 @@ import (
 
 	"github.com/elastic/elastic-package/internal/logger"
 )
+
+const kustomizationFile = "kustomization.yaml"
 
 // CurrentContext function returns the selected Kubernetes context.
 func CurrentContext() (string, error) {
@@ -32,7 +33,7 @@ func CurrentContext() (string, error) {
 func modifyKubernetesResources(action string, definitionPaths []string) ([]byte, error) {
 	args := []string{action}
 	for _, definitionPath := range definitionPaths {
-		if filepath.Base(definitionPath) == servicedeployer.KustomizationFile {
+		if filepath.Base(definitionPath) == kustomizationFile {
 			args = []string{action, "-k", definitionPath}
 			break
 		}

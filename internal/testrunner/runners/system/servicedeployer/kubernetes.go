@@ -23,8 +23,6 @@ import (
 	"github.com/elastic/elastic-package/internal/stack"
 )
 
-const KustomizationFile = "kustomization.yaml"
-
 // KubernetesServiceDeployer is responsible for deploying resources in the Kubernetes cluster.
 type KubernetesServiceDeployer struct {
 	definitionsDir string
