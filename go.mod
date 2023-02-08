@@ -32,7 +32,7 @@ require (
 	golang.org/x/tools v0.5.0
 	gopkg.in/yaml.v3 v3.0.1
 	gotest.tools/gotestsum v1.9.0
-	helm.sh/helm/v3 v3.11.0
+	helm.sh/helm/v3 v3.11.1
 	honnef.co/go/tools v0.4.0
 	k8s.io/apimachinery v0.26.1
 	k8s.io/cli-runtime v0.26.1
