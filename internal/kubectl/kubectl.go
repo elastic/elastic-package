@@ -6,7 +6,9 @@ package kubectl
 
 import (
 	"bytes"
+	"github.com/elastic/elastic-package/internal/testrunner/runners/system/servicedeployer"
 	"os/exec"
+	"path/filepath"
 
 	"github.com/pkg/errors"
 
@@ -27,8 +29,16 @@ func CurrentContext() (string, error) {
 	return string(bytes.TrimSpace(output)), nil
 }
 
-func modifyKubernetesResources(action string, definitionsPath string) ([]byte, error) {
-	args := []string{action, "-k", definitionsPath}
+func modifyKubernetesResources(action string, definitionPaths []string) ([]byte, error) {
+	args := []string{action}
+	for _, definitionPath := range definitionPaths {
+		if filepath.Base(definitionPath) == servicedeployer.KustomizationFile {
+			args = []string{action, "-k", definitionPath}
+			break
+		}
+		args = append(args, "-f")
+		args = append(args, definitionPath)
+	}
 
 	if action != "delete" { // "delete" supports only '-o name'
 		args = append(args, "-o", "yaml")

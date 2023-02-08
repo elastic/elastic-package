@@ -47,6 +47,7 @@ policy_templates:
     description: Collect container metrics from Kubernetes Kube-state-metrics with Elastic Agent.
     data_streams:
       - state_pod
+      - state_cronjob
     inputs:
       - type: kubernetes/metrics
         title: Collect Kubernetes metrics from kube-state-metrics

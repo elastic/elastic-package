@@ -23,38 +23,35 @@ import (
 	"github.com/elastic/elastic-package/internal/stack"
 )
 
-const (
-	kustomizationFile = "kustomization.yaml"
-	emptyFile         = ".empty"
-)
+const KustomizationFile = "kustomization.yaml"
 
 // KubernetesServiceDeployer is responsible for deploying resources in the Kubernetes cluster.
 type KubernetesServiceDeployer struct {
-	definitionsPath string
+	definitionsDir string
 }
 
 type kubernetesDeployedService struct {
 	ctxt ServiceContext
 
-	definitionsPath string
+	definitionsDir string
 }
 
 func (s kubernetesDeployedService) TearDown() error {
-	logger.Debugf("uninstall custom Kubernetes definitions (directory: %s)", s.definitionsPath)
+	logger.Debugf("uninstall custom Kubernetes definitions (directory: %s)", s.definitionsDir)
 
-	deleteResources, err := containsKustomization(s.definitionsPath)
+	definitionPaths, err := findKubernetesDefinitions(s.definitionsDir)
 	if err != nil {
-		return errors.Wrapf(err, "can't find Kubernetes definitions in given directory (path: %s)", s.definitionsPath)
+		return errors.Wrapf(err, "can't find Kubernetes definitions in given directory (path: %s)", s.definitionsDir)
 	}
 
-	if !deleteResources {
-		logger.Debugf("no custom definitions found (directory: %s). Nothing will be uninstalled.", s.definitionsPath)
+	if len(definitionPaths) == 0 {
+		logger.Debugf("no custom definitions found (directory: %s). Nothing will be uninstalled.", s.definitionsDir)
 		return nil
 	}
 
-	err = kubectl.Delete(s.definitionsPath)
+	err = kubectl.Delete(definitionPaths)
 	if err != nil {
-		return errors.Wrapf(err, "can't uninstall Kubernetes resources (path: %s)", s.definitionsPath)
+		return errors.Wrapf(err, "can't uninstall Kubernetes resources (path: %s)", s.definitionsDir)
 	}
 	return nil
 }
@@ -77,7 +74,7 @@ var _ DeployedService = new(kubernetesDeployedService)
 // NewKubernetesServiceDeployer function creates a new instance of KubernetesServiceDeployer.
 func NewKubernetesServiceDeployer(definitionsPath string) (*KubernetesServiceDeployer, error) {
 	return &KubernetesServiceDeployer{
-		definitionsPath: definitionsPath,
+		definitionsDir: definitionsPath,
 	}, nil
 }
 
@@ -110,25 +107,25 @@ func (ksd KubernetesServiceDeployer) SetUp(ctxt ServiceContext) (DeployedService
 	// to deploy Agent Pod. Because of this, hostname inside pod will be equal to the name of the k8s host.
 	ctxt.Agent.Host.NamePrefix = "kind-control-plane"
 	return &kubernetesDeployedService{
-		ctxt:            ctxt,
-		definitionsPath: ksd.definitionsPath,
+		ctxt:           ctxt,
+		definitionsDir: ksd.definitionsDir,
 	}, nil
 }
 
 func (ksd KubernetesServiceDeployer) installCustomDefinitions() error {
-	logger.Debugf("install custom Kubernetes definitions (directory: %s)", ksd.definitionsPath)
+	logger.Debugf("install custom Kubernetes definitions (directory: %s)", ksd.definitionsDir)
 
-	installResources, err := containsKustomization(ksd.definitionsPath)
+	definitionPaths, err := findKubernetesDefinitions(ksd.definitionsDir)
 	if err != nil {
-		return errors.Wrapf(err, "can't find Kubernetes definitions in given path: %s", ksd.definitionsPath)
+		return errors.Wrapf(err, "can't find Kubernetes definitions in given path: %s", ksd.definitionsDir)
 	}
 
-	if !installResources {
-		logger.Debugf("no custom definitions found (path: %s). Nothing else will be installed.", ksd.definitionsPath)
+	if len(definitionPaths) == 0 {
+		logger.Debugf("no custom definitions found (path: %s). Nothing else will be installed.", ksd.definitionsDir)
 		return nil
 	}
 
-	err = kubectl.Apply(ksd.definitionsPath)
+	err = kubectl.Apply(definitionPaths)
 	if err != nil {
 		return errors.Wrap(err, "can't install custom definitions")
 	}
@@ -137,20 +134,40 @@ func (ksd KubernetesServiceDeployer) installCustomDefinitions() error {
 
 var _ ServiceDeployer = new(KubernetesServiceDeployer)
 
-func containsKustomization(definitionsPath string) (bool, error) {
-	if _, err := os.Stat(definitionsPath); err != nil {
-		return false, errors.Wrapf(err, "can't read definitions directory (path: %s)", definitionsPath)
+func findKubernetesDefinitions(definitionsDir string) ([]string, error) {
+	/*
+		files, err := filepath.Glob(filepath.Join(definitionsDir, "*.yaml"))
+		if err != nil {
+			return nil, errors.Wrapf(err, "can't read definitions directory (path: %s)", definitionsDir)
+		var definitionPaths []string
+		definitionPaths = append(definitionPaths, files...)
+		return definitionPaths, nil
+
+	*/
+
+	files, err := filepath.Glob(filepath.Join(definitionsDir, "*.yaml"))
+	if err != nil {
+		return nil, errors.Wrapf(err, "can't read definitions directory (path: %s)", definitionsDir)
 	}
-	// check if kustomization.yaml exists
-	if _, err := os.Stat(filepath.Join(definitionsPath, kustomizationFile)); err != nil {
-		// if it does not exist, then the .empty file needs to be present
-		if _, err := os.Stat(filepath.Join(definitionsPath, emptyFile)); err != nil {
-			return false, errors.Errorf("%s file is missing (path: %s). Add one or create an %s file"+
-				" if no custom definitions are required.", kustomizationFile, definitionsPath, emptyFile)
+
+	var definitionPaths []string
+	definitionPaths = append(definitionPaths, files...)
+	return definitionPaths, nil
+
+	/*
+		if _, err := os.Stat(definitionsDir); err != nil {
+			return false, errors.Wrapf(err, "can't read definitions directory (path: %s)", definitionsDir)
 		}
-		return false, nil
-	}
-	return true, nil
+		// check if kustomization.yaml exists
+		if _, err := os.Stat(filepath.Join(definitionsDir, kustomizationFile)); err != nil {
+			// if it does not exist, then the .empty file needs to be present
+			if _, err := os.Stat(filepath.Join(definitionsDir, emptyFile)); err != nil {
+				return false, errors.Errorf("%s file is missing (path: %s). Add one or create an %s file"+
+					" if no custom definitions are required.", kustomizationFile, definitionsDir, emptyFile)
+			}
+			return false, nil
+		}
+		return true, nil*/
 }
 
 func installElasticAgentInCluster() error {
