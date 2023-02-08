@@ -133,16 +133,6 @@ func (ksd KubernetesServiceDeployer) installCustomDefinitions() error {
 var _ ServiceDeployer = new(KubernetesServiceDeployer)
 
 func findKubernetesDefinitions(definitionsDir string) ([]string, error) {
-	/*
-		files, err := filepath.Glob(filepath.Join(definitionsDir, "*.yaml"))
-		if err != nil {
-			return nil, errors.Wrapf(err, "can't read definitions directory (path: %s)", definitionsDir)
-		var definitionPaths []string
-		definitionPaths = append(definitionPaths, files...)
-		return definitionPaths, nil
-
-	*/
-
 	files, err := filepath.Glob(filepath.Join(definitionsDir, "*.yaml"))
 	if err != nil {
 		return nil, errors.Wrapf(err, "can't read definitions directory (path: %s)", definitionsDir)
@@ -151,21 +141,6 @@ func findKubernetesDefinitions(definitionsDir string) ([]string, error) {
 	var definitionPaths []string
 	definitionPaths = append(definitionPaths, files...)
 	return definitionPaths, nil
-
-	/*
-		if _, err := os.Stat(definitionsDir); err != nil {
-			return false, errors.Wrapf(err, "can't read definitions directory (path: %s)", definitionsDir)
-		}
-		// check if kustomization.yaml exists
-		if _, err := os.Stat(filepath.Join(definitionsDir, kustomizationFile)); err != nil {
-			// if it does not exist, then the .empty file needs to be present
-			if _, err := os.Stat(filepath.Join(definitionsDir, emptyFile)); err != nil {
-				return false, errors.Errorf("%s file is missing (path: %s). Add one or create an %s file"+
-					" if no custom definitions are required.", kustomizationFile, definitionsDir, emptyFile)
-			}
-			return false, nil
-		}
-		return true, nil*/
 }
 
 func installElasticAgentInCluster() error {

@@ -34,7 +34,7 @@ func modifyKubernetesResources(action string, definitionPaths []string) ([]byte,
 	args := []string{action}
 	for _, definitionPath := range definitionPaths {
 		if filepath.Base(definitionPath) == kustomizationFile {
-			args = []string{action, "-k", definitionPath}
+			args = []string{action, "-k", filepath.Dir(definitionPath)}
 			break
 		}
 		args = append(args, "-f")
