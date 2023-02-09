@@ -53,9 +53,10 @@ steps:
       provider: "gcp"  # junit plugin requires docker
 
   - label: ":github: Release"
-    # TODO enable this conditional
-    # if: |
-    #   build.tag =~ /^v[0-9]+[.][0-9]+[.][0-9]+$$/ &&  build.branch == "main"
+    key: "release"
+    # build.tag =~ /^v[0-9]+\.[0-9]+\.[0-9]+$$/ && build.branch == "main"
+    if: |
+      build.tag != null && build.branch == "main"
     # TODO GITHUB_TOKEN environment var
     command: ".buildkite/scripts/release.sh"
     agents:
