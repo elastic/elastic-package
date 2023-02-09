@@ -16,7 +16,7 @@ require (
 	github.com/elastic/go-ucfg v0.8.6
 	github.com/elastic/package-spec/v2 v2.5.0
 	github.com/fatih/color v1.14.1
-	github.com/go-git/go-billy/v5 v5.4.0
+	github.com/go-git/go-billy/v5 v5.4.1
 	github.com/go-git/go-git/v5 v5.5.2
 	github.com/google/go-cmp v0.5.9
 	github.com/google/go-github/v32 v32.1.0
@@ -34,8 +34,8 @@ require (
 	golang.org/x/tools v0.5.0
 	gopkg.in/yaml.v3 v3.0.1
 	gotest.tools/gotestsum v1.9.0
-	helm.sh/helm/v3 v3.11.0
-	honnef.co/go/tools v0.3.3
+	helm.sh/helm/v3 v3.11.1
+	honnef.co/go/tools v0.4.0
 	k8s.io/apimachinery v0.26.1
 	k8s.io/cli-runtime v0.26.1
 	k8s.io/client-go v0.26.1
@@ -143,7 +143,7 @@ require (
 	go.mongodb.org/mongo-driver v1.11.1 // indirect
 	go.starlark.net v0.0.0-20221205180719-3fd0dac74452 // indirect
 	golang.org/x/crypto v0.5.0 // indirect
-	golang.org/x/exp/typeparams v0.0.0-20220218215828-6cf2b201936e // indirect
+	golang.org/x/exp/typeparams v0.0.0-20221208152030-732eee02a75a // indirect
 	golang.org/x/mod v0.7.0 // indirect
 	golang.org/x/net v0.5.0 // indirect
 	golang.org/x/sync v0.1.0 // indirect

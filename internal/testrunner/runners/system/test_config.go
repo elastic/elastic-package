@@ -38,6 +38,11 @@ type testConfig struct {
 		Vars common.MapStr `config:"vars"`
 	} `config:"data_stream"`
 
+	Assert struct {
+		// Expected number of hits for a given test
+		HitCount int `config:"hit_count"`
+	} `config:"assert"`
+
 	// NumericKeywordFields holds a list of fields that have keyword
 	// type but can be ingested as numeric type.
 	NumericKeywordFields []string `config:"numeric_keyword_fields"`
