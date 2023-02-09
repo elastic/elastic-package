@@ -55,7 +55,7 @@ func (tsd TerraformServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedServic
 
 	configDir, err := tsd.installDockerfile()
 	if err != nil {
-		return nil, errors.Wrap(err, "can't load Docker Compose definitions")
+		return nil, errors.Wrap(err, "can't install Docker Compose definitions")
 	}
 
 	ymlPaths := []string{filepath.Join(configDir, terraformDeployerYml)}
@@ -130,16 +130,19 @@ func (tsd TerraformServiceDeployer) installDockerfile() (string, error) {
 
 	resources := []resource.Resource{
 		&resource.File{
-			Path:    terraformDeployerYml,
-			Content: resource.FileContentLiteral(terraformDeployerYmlContent),
+			Path:         terraformDeployerYml,
+			Content:      resource.FileContentLiteral(terraformDeployerYmlContent),
+			CreateParent: true,
 		},
 		&resource.File{
-			Path:    terraformDeployerRun,
-			Content: resource.FileContentLiteral(terraformDeployerRunContent),
+			Path:         terraformDeployerRun,
+			Content:      resource.FileContentLiteral(terraformDeployerRunContent),
+			CreateParent: true,
 		},
 		&resource.File{
-			Path:    terraformDeployerDockerfile,
-			Content: resource.FileContentLiteral(terraformDeployerDockerfileContent),
+			Path:         terraformDeployerDockerfile,
+			Content:      resource.FileContentLiteral(terraformDeployerDockerfileContent),
+			CreateParent: true,
 		},
 	}
 
