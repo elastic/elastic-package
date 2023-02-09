@@ -13,11 +13,12 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/elastic/go-resource"
+
 	"github.com/elastic/elastic-package/internal/compose"
 	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/logger"
-	"github.com/elastic/go-resource"
 )
 
 const (
