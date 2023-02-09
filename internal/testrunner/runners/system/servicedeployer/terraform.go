@@ -6,8 +6,10 @@ package servicedeployer
 
 import (
 	_ "embed"
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/pkg/errors"
 
@@ -15,19 +17,24 @@ import (
 	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/logger"
+	"github.com/elastic/go-resource"
 )
 
 const (
-	terraformDeployerDir = "terraform"
-	terraformDeployerYml = "terraform-deployer.yml"
-	terraformDeployerRun = "run.sh"
+	terraformDeployerDir        = "terraform"
+	terraformDeployerYml        = "terraform-deployer.yml"
+	terraformDeployerDockerfile = "Dockerfile"
+	terraformDeployerRun        = "run.sh"
 )
 
 //go:embed _static/terraform_deployer.yml
-var terraformDeployerYmlContent []byte
+var terraformDeployerYmlContent string
 
 //go:embed _static/terraform_deployer_run.sh
-var terraformDeployerRunContent []byte
+var terraformDeployerRunContent string
+
+//go:embed _static/Dockerfile.terraform_deployer
+var terraformDeployerDockerfileContent string
 
 // TerraformServiceDeployer is responsible for deploying infrastructure described with Terraform definitions.
 type TerraformServiceDeployer struct {
@@ -36,7 +43,6 @@ type TerraformServiceDeployer struct {
 
 // NewTerraformServiceDeployer creates an instance of TerraformServiceDeployer.
 func NewTerraformServiceDeployer(definitionsDir string) (*TerraformServiceDeployer, error) {
-	logger.Debug("%+v", definitionsDir)
 	return &TerraformServiceDeployer{
 		definitionsDir: definitionsDir,
 	}, nil
@@ -75,8 +81,12 @@ func (tsd TerraformServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedServic
 		return nil, errors.Wrap(err, "removing service logs failed")
 	}
 
+	tfEnvironment := tsd.buildTerraformExecutorEnvironment(inCtxt)
+
 	// Set custom aliases, which may be used in agent policies.
-	serviceComposeConfig, err := p.Config(compose.CommandOptions{})
+	serviceComposeConfig, err := p.Config(compose.CommandOptions{
+		Env: tfEnvironment,
+	})
 	if err != nil {
 		return nil, errors.Wrap(err, "could not get Docker Compose configuration for service")
 	}
@@ -86,7 +96,6 @@ func (tsd TerraformServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedServic
 	}
 
 	// Boot up service
-	tfEnvironment := tsd.buildTerraformExecutorEnvironment(inCtxt)
 	opts := compose.CommandOptions{
 		Env:       tfEnvironment,
 		ExtraArgs: []string{"--build", "-d"},
@@ -117,21 +126,36 @@ func (tsd TerraformServiceDeployer) installDockerfile() (string, error) {
 	}
 
 	tfDir := filepath.Join(locationManager.DeployerDir(), terraformDeployerDir)
-	err = os.MkdirAll(tfDir, 0755)
-	if err != nil {
-		return "", errors.Wrap(err, "failed to create directory for terraform deployer files")
+
+	resources := []resource.Resource{
+		&resource.File{
+			Path:    terraformDeployerYml,
+			Content: resource.FileContentLiteral(terraformDeployerYmlContent),
+		},
+		&resource.File{
+			Path:    terraformDeployerRun,
+			Content: resource.FileContentLiteral(terraformDeployerRunContent),
+		},
+		&resource.File{
+			Path:    terraformDeployerDockerfile,
+			Content: resource.FileContentLiteral(terraformDeployerDockerfileContent),
+		},
 	}
 
-	deployerYmlFile := filepath.Join(tfDir, terraformDeployerYml)
-	err = os.WriteFile(deployerYmlFile, terraformDeployerYmlContent, 0644)
-	if err != nil {
-		return "", errors.Wrap(err, "failed to create terraform deployer yaml")
-	}
+	resourceManager := resource.NewManager()
+	resourceManager.RegisterProvider("file", &resource.FileProvider{
+		Prefix: tfDir,
+	})
 
-	deployerRunFile := filepath.Join(tfDir, terraformDeployerRun)
-	err = os.WriteFile(deployerRunFile, terraformDeployerRunContent, 0644)
+	results, err := resourceManager.Apply(resources)
 	if err != nil {
-		return "", errors.Wrap(err, "failed to create terraform deployer run script")
+		var errors []string
+		for _, result := range results {
+			if err := result.Err(); err != nil {
+				errors = append(errors, err.Error())
+			}
+		}
+		return "", fmt.Errorf("%w: %s", err, strings.Join(errors, ", "))
 	}
 
 	return tfDir, nil
