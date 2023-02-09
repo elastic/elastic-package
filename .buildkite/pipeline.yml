@@ -55,9 +55,8 @@ steps:
   - label: ":github: Release"
     key: "release"
     # build.tag =~ /^v[0-9]+\.[0-9]+\.[0-9]+$$/ && build.branch == "main"
-    if: |
-      build.tag != null && build.branch == "main"
-    # TODO GITHUB_TOKEN environment var
+    # if: |
+    #   build.tag != null && build.branch == "main"
     command: ".buildkite/scripts/release.sh"
     agents:
       image: "golang:1.19.5"
