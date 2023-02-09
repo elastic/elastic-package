@@ -47,7 +47,7 @@ func (s kubernetesDeployedService) TearDown() error {
 		return nil
 	}
 
-	err = kubectl.Delete(definitionPaths...)
+	err = kubectl.Delete(definitionPaths)
 	if err != nil {
 		return errors.Wrapf(err, "can't uninstall Kubernetes resources (path: %s)", s.definitionsDir)
 	}
@@ -70,9 +70,9 @@ func (s *kubernetesDeployedService) SetContext(sc ServiceContext) error {
 var _ DeployedService = new(kubernetesDeployedService)
 
 // NewKubernetesServiceDeployer function creates a new instance of KubernetesServiceDeployer.
-func NewKubernetesServiceDeployer(definitionsDir string) (*KubernetesServiceDeployer, error) {
+func NewKubernetesServiceDeployer(definitionsPath string) (*KubernetesServiceDeployer, error) {
 	return &KubernetesServiceDeployer{
-		definitionsDir: definitionsDir,
+		definitionsDir: definitionsPath,
 	}, nil
 }
 
@@ -115,15 +115,15 @@ func (ksd KubernetesServiceDeployer) installCustomDefinitions() error {
 
 	definitionPaths, err := findKubernetesDefinitions(ksd.definitionsDir)
 	if err != nil {
-		return errors.Wrapf(err, "can't find Kubernetes definitions in given directory (path: %s)", ksd.definitionsDir)
+		return errors.Wrapf(err, "can't find Kubernetes definitions in given path: %s", ksd.definitionsDir)
 	}
 
 	if len(definitionPaths) == 0 {
-		logger.Debugf("no custom definitions found (directory: %s). Nothing else will be installed.", ksd.definitionsDir)
+		logger.Debugf("no custom definitions found (path: %s). Nothing else will be installed.", ksd.definitionsDir)
 		return nil
 	}
 
-	err = kubectl.Apply(definitionPaths...)
+	err = kubectl.Apply(definitionPaths)
 	if err != nil {
 		return errors.Wrap(err, "can't install custom definitions")
 	}
