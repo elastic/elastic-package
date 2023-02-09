@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/Masterminds/semver/v3"
+	"github.com/go-git/go-billy/v5"
 	"github.com/pkg/errors"
 )
 
@@ -134,4 +135,26 @@ func ParsePackageVersions(packageVersions []string) (PackageVersions, error) {
 		parsed = append(parsed, *revision)
 	}
 	return parsed, nil
+}
+
+func walkPackageResources(filesystem billy.Filesystem, path string) ([]string, error) {
+	fis, err := filesystem.ReadDir(path)
+	if err != nil {
+		return nil, errors.Wrapf(err, "reading directory failed (path: %s)", path)
+	}
+
+	var collected []string
+	for _, fi := range fis {
+		if fi.IsDir() {
+			p := filepath.Join(path, fi.Name())
+			c, err := walkPackageResources(filesystem, p)
+			if err != nil {
+				return nil, errors.Wrapf(err, "recursive walking failed (path: %s)", p)
+			}
+			collected = append(collected, c...)
+			continue
+		}
+		collected = append(collected, filepath.Join(path, fi.Name()))
+	}
+	return collected, nil
 }
