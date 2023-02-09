@@ -1,4 +1,4 @@
-metricsets: ["pod"]
+metricsets: ["state_pod"]
 add_metadata: {{add_metadata}}
 {{#if add_resource_metadata_config}}
 {{add_resource_metadata_config}}
@@ -8,9 +8,17 @@ hosts:
   - {{this}}
 {{/each}}
 period: {{period}}
+{{#if leaderelection}}
+condition: ${kubernetes_leaderelection.leader} == true
+{{/if}}
+{{#if node}}
+node: {{node}}
+{{/if}}
+{{#if namespace}}
+namespace: {{namespace}}
+{{/if}}
 {{#if bearer_token_file}}
 bearer_token_file: {{bearer_token_file}}
-ssl.verification_mode: {{ssl.verification_mode}}
 {{/if}}
 {{#if ssl.certificate_authorities}}
 ssl.certificate_authorities:

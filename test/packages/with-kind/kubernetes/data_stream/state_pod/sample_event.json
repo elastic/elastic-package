@@ -16,72 +16,35 @@
             }
         },
         "pod": {
-            "start_time": "2021-12-20T08:47:13Z",
-            "uid": "9a8de23e-5e64-462f-8576-f6591fb3f7b8",
-            "memory": {
-                "rss": {
-                    "bytes": 64204800
-                },
-                "major_page_faults": 792,
-                "usage": {
-                    "node": {
-                        "pct": 0.011827949440812145
-                    },
-                    "bytes": 117321728,
-                    "limit": {
-                        "pct": 0.011827949440812145
-                    }
-                },
-                "available": {
-                    "bytes": 0
-                },
-                "page_faults": 27027,
-                "working_set": {
-                    "bytes": 96862208,
-                    "limit": {
-                        "pct": 0.00976529512
-                    }
-                }
-            },
+            "uid": "d06d59c2-929f-4b13-bc7d-c2492200ce07",
+            "host_ip": "172.20.0.2",
             "ip": "172.20.0.2",
-            "name": "kube-controller-manager-kind-control-plane",
-            "cpu": {
-                "usage": {
-                    "node": {
-                        "pct": 0.001893070125
-                    },
-                    "limit": {
-                        "pct": 0.001893070125
-                    },
-                    "nanocores": 15144561
-                }
-            },
-            "network": {
-                "tx": {
-                    "bytes": 0,
-                    "errors": 0
-                },
-                "rx": {
-                    "bytes": 0,
-                    "errors": 0
-                }
+            "name": "elastic-agent-h2mgj",
+            "status": {
+                "phase": "running",
+                "ready": "true",
+                "scheduled": "true"
             }
         },
         "namespace": "kube-system",
+        "daemonset": {
+            "name": "elastic-agent"
+        },
         "namespace_uid": "a4453575-518e-4a21-9909-34874f674177",
         "namespace_labels": {
             "kubernetes_io/metadata_name": "kube-system"
         },
         "labels": {
-            "component": "kube-controller-manager",
-            "tier": "control-plane"
+            "app": "elastic-agent",
+            "controller-revision-hash": "57c5d7c56f",
+            "pod-template-generation": "3"
         }
     },
     "agent": {
         "name": "kind-control-plane",
         "id": "de42127b-4db8-4471-824e-a7b14f478663",
-        "ephemeral_id": "22ed892c-43bd-408a-9121-65e2f5b6a56e",
         "type": "metricbeat",
+        "ephemeral_id": "22ed892c-43bd-408a-9121-65e2f5b6a56e",
         "version": "8.1.0"
     },
     "elastic_agent": {
@@ -95,18 +58,18 @@
             "url": "kind-control-plane:6443"
         }
     },
-    "@timestamp": "2021-12-20T09:59:45.257Z",
+    "@timestamp": "2021-12-20T10:03:24.643Z",
     "ecs": {
         "version": "8.0.0"
-    },
-    "service": {
-        "address": "https://kind-control-plane:10250/stats/summary",
-        "type": "kubernetes"
     },
     "data_stream": {
         "namespace": "default",
         "type": "metrics",
-        "dataset": "kubernetes.pod"
+        "dataset": "kubernetes.state_pod"
+    },
+    "service": {
+        "address": "http://kube-state-metrics:8080/metrics",
+        "type": "kubernetes"
     },
     "host": {
         "hostname": "kind-control-plane",
@@ -114,8 +77,8 @@
             "kernel": "5.10.47-linuxkit",
             "codename": "Core",
             "name": "CentOS Linux",
-            "type": "linux",
             "family": "redhat",
+            "type": "linux",
             "version": "7 (Core)",
             "platform": "centos"
         },
@@ -132,13 +95,13 @@
     },
     "metricset": {
         "period": 10000,
-        "name": "pod"
+        "name": "state_pod"
     },
     "event": {
-        "duration": 1041186,
+        "duration": 736951,
         "agent_id_status": "verified",
-        "ingested": "2021-12-20T09:59:45Z",
+        "ingested": "2021-12-20T10:03:25Z",
         "module": "kubernetes",
-        "dataset": "kubernetes.pod"
+        "dataset": "kubernetes.state_pod"
     }
 }

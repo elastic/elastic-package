@@ -42,5 +42,26 @@ policy_templates:
         title: Metricbeat Kubernetes Overview
         size: 1896x961
         type: image/png
+  - name: kube-state-metrics
+    title: Kube-state-metrics
+    description: Collect container metrics from Kubernetes Kube-state-metrics with Elastic Agent.
+    data_streams:
+      - state_pod
+      - state_cronjob
+    inputs:
+      - type: kubernetes/metrics
+        title: Collect Kubernetes metrics from kube-state-metrics
+        description: Collecting metrics from kube-state-metrics (container, cronjob, deployment, daemonset, node, persistentvolume, persistentvolumeclaim, pod, replicaset, resourcequota, service, statefulset, storageclass)
+        input_group: metrics
+    icons:
+      - src: /img/logo_kubernetes.svg
+        title: Logo Kubernetes
+        size: 32x32
+        type: image/svg+xml
+    screenshots:
+      - src: /img/metricbeat_kubernetes_overview.png
+        title: Metricbeat Kubernetes Overview
+        size: 1896x961
+        type: image/png
 owner:
   github: elastic/integrations

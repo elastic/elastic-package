@@ -80,7 +80,6 @@
         Kubernetes node UID
 
     - name: namespace_uid
-      dimension: true
       type: keyword
       description: >
         Kubernetes namespace UID
@@ -116,15 +115,15 @@
       description: >
         Kubernetes deployment name
 
-    - name: daemonset.name
-      type: keyword
-      description: >
-        Kubernetes daemonset name
-
     - name: statefulset.name
       type: keyword
       description: >
         Kubernetes statefulset name
+
+    - name: daemonset.name
+      type: keyword
+      description: >
+        Kubernetes daemonset name
 
     - name: job.name
       type: keyword

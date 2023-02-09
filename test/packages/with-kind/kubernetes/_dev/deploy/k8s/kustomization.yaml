@@ -1,0 +1,10 @@
+resources:
+  - pv.yaml
+  - pvc.yaml
+  - cronjob.yaml
+  - job.yaml
+  - daemonset.yaml
+  - configmap.yaml
+  - rq.yaml
+  - ss.yaml
+  - github.com/kubernetes/kube-state-metrics?ref=abe3fd3184e16893b5a47196f90a94ed13e1b04d

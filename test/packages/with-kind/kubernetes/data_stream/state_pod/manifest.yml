@@ -2,6 +2,7 @@ title: Kubernetes Pod metrics
 type: metrics
 streams:
   - input: kubernetes/metrics
+    enabled: true
     vars:
       - name: add_metadata
         type: bool
@@ -10,13 +11,6 @@ streams:
         required: true
         show_user: true
         default: true
-      - name: bearer_token_file
-        type: text
-        title: Bearer Token File
-        multi: false
-        required: true
-        show_user: true
-        default: /var/run/secrets/kubernetes.io/serviceaccount/token
       - name: hosts
         type: text
         title: Hosts
@@ -24,7 +18,14 @@ streams:
         required: true
         show_user: true
         default:
-          - https://${env.NODE_NAME}:10250
+          - kube-state-metrics:8080
+      - name: leaderelection
+        type: bool
+        title: Leader Election
+        multi: false
+        required: true
+        show_user: true
+        default: true
       - name: period
         type: text
         title: Period
@@ -32,13 +33,25 @@ streams:
         required: true
         show_user: true
         default: 10s
-      - name: ssl.verification_mode
+      - name: node
         type: text
-        title: SSL Verification Mode
+        title: Node to watch resources from for metadata
         multi: false
-        required: true
-        show_user: true
-        default: none
+        required: false
+        show_user: false
+      - name: namespace
+        type: text
+        title: Namespace to watch resources from for metadata
+        multi: false
+        required: false
+        show_user: false
+      - name: bearer_token_file
+        type: text
+        title: Bearer Token File
+        multi: false
+        required: false
+        show_user: false
+        default: /var/run/secrets/kubernetes.io/serviceaccount/token
       - name: ssl.certificate_authorities
         type: text
         title: SSL Certificate Authorities
@@ -68,4 +81,4 @@ streams:
           Processors are used to reduce the number of fields in the exported event or to enhance the event with metadata. This executes in the agent before the events are shipped. See [Processors](https://www.elastic.co/guide/en/beats/filebeat/current/filtering-and-enhancing-data.html) for details.
 
     title: Kubernetes Pod metrics
-    description: Collect Kubernetes Pod metrics
+    description: Collect Kubernetes Pod metrics from kube_state_metrics

@@ -18,5 +18,5 @@
   type: long
   format: bytes
   metric_type: counter
-  description: |-
+  description: |
     Total number of incoming bytes.
