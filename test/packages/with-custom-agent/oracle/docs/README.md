@@ -191,7 +191,8 @@ An example event for `memory` looks as following:
     "service": {
         "address": "elastic-package-service_oracle_1:1521",
         "type": "sql"
-    }
+    },
+    "foo": "bar"
 }
 ```
 

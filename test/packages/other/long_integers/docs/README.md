@@ -12,7 +12,8 @@ An example event for `test` looks as following:
         9007199254740993,
         18014398509481985,
         9223372036854773807
-    ]
+    ],
+    "foo": "bar"
 }
 ```
 
