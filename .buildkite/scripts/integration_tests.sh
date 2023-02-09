@@ -98,10 +98,6 @@ fi
 
 echo "--- Run integration test ${TARGET}"
 if [[ "${TARGET}" == "${PARALLEL_TARGET}" ]]; then
-    if [[ "${PACKAGE}" == "aws" ]]; then
-        echo "Test dummy key: ${AWS_SECRET_ACCESS_KEY} - ${AWS_ACCESS_KEY_ID}"
-        exit 0
-    fi
     make install
     make PACKAGE_UNDER_TEST=${PACKAGE} ${TARGET}
     exit 0
