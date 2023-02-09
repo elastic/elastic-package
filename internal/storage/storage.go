@@ -15,19 +15,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-const (
-	upstream = "elastic"
-
-	snapshotPackage = "snapshot"
-	stagingPackage  = "staging"
-	repositoryURL   = "https://github.com/%s/package-storage"
-
-	packagesDir = "packages"
-)
-
-type fileContents map[string][]byte
-
-type contentTransformer func(string, []byte) (string, []byte)
+const packagesDir = "packages"
 
 // PackageVersion represents a package version stored in the package-storage.
 type PackageVersion struct {
