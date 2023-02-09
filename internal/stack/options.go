@@ -14,4 +14,5 @@ type Options struct {
 	Services []string
 
 	Profile *profile.Profile
+	Printer Printer
 }

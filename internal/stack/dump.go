@@ -52,7 +52,7 @@ func dumpStackLogs(options DumpOptions) error {
 		return errors.Wrapf(err, "can't create output location (path: %s)", logsPath)
 	}
 
-	snapshotPath := options.Profile.FetchPath(profile.SnapshotFile)
+	snapshotPath := options.Profile.Path(profileStackPath, SnapshotFile)
 
 	for _, serviceName := range observedServices {
 		logger.Debugf("Dump stack logs for %s", serviceName)

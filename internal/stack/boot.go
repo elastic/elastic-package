@@ -23,6 +23,18 @@ const DockerComposeProjectName = "elastic-package-stack"
 
 // BootUp function boots up the Elastic stack.
 func BootUp(options Options) error {
+	// Print information before starting the stack, for cases where
+	// this is executed in the foreground, without daemon mode.
+	config := Config{
+		Provider:              ProviderCompose,
+		ElasticsearchHost:     "https://127.0.0.1:9200",
+		ElasticsearchUsername: elasticsearchUsername,
+		ElasticsearchPassword: elasticsearchPassword,
+		KibanaHost:            "https://127.0.0.1:5601",
+		CACertFile:            options.Profile.Path(profileStackPath, CACertificateFile),
+	}
+	printUserConfig(options.Printer, config)
+
 	buildPackagesPath, found, err := builder.FindBuildPackagesDirectory()
 	if err != nil {
 		return errors.Wrap(err, "finding build packages directory failed")
@@ -46,11 +58,16 @@ func BootUp(options Options) error {
 		}
 	}
 
-	fmt.Println("Packages from the following directories will be loaded into the package-registry:")
-	fmt.Println("- built-in packages (package-storage:snapshot Docker image)")
+	options.Printer.Println("Packages from the following directories will be loaded into the package-registry:")
+	options.Printer.Println("- built-in packages (package-storage:snapshot Docker image)")
 
 	if found {
-		fmt.Printf("- %s\n", buildPackagesPath)
+		options.Printer.Printf("- %s\n", buildPackagesPath)
+	}
+
+	err = applyResources(options.Profile, options.StackVersion)
+	if err != nil {
+		return errors.Wrap(err, "creating stack files failed")
 	}
 
 	err = dockerComposeBuild(options)
@@ -71,6 +88,11 @@ func BootUp(options Options) error {
 			err = dockerComposeUp(options)
 		}
 		return errors.Wrap(err, "running docker-compose failed")
+	}
+
+	err = storeConfig(options.Profile, config)
+	if err != nil {
+		return errors.Wrap(err, "failed to store config")
 	}
 
 	return nil

@@ -129,6 +129,9 @@ const (
 	TLSSkipVerifyFlagName        = "tls-skip-verify"
 	TLSSkipVerifyFlagDescription = "skip TLS verify"
 
+	StackProviderFlagName        = "provider"
+	StackProviderFlagDescription = "service provider to start a stack (%s)"
+
 	StackServicesFlagName        = "services"
 	StackServicesFlagDescription = "component services (comma-separated values: \"%s\")"
 

@@ -11,6 +11,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.2.0
 	github.com/elastic/go-elasticsearch/v7 v7.17.7
 	github.com/elastic/go-licenser v0.4.1
+	github.com/elastic/go-resource v0.1.1
 	github.com/elastic/go-ucfg v0.8.6
 	github.com/elastic/package-spec/v2 v2.5.0
 	github.com/fatih/color v1.14.1
@@ -159,3 +160,5 @@ require (
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.3 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
+
+replace github.com/gobuffalo/packr/v2 => github.com/gobuffalo/packr/v2 v2.3.2

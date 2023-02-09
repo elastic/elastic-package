@@ -1,4 +1,5 @@
-FROM __BASE_IMAGE__
+FROM {{ fact "registry_base_image" }}
+
 ARG PROFILE
 
 # Disable package validation (already done).
@@ -7,5 +8,5 @@ ENV EPR_DISABLE_PACKAGE_VALIDATION=true
 ENV EPR_FEATURE_PROXY_MODE=true
 ENV EPR_PROXY_TO=https://epr.elastic.co
 
-COPY profiles/${PROFILE}/stack/package-registry.config.yml /package-registry/config.yml
+COPY profiles/${PROFILE}/stack/package-registry.yml /package-registry/config.yml
 COPY stack/development/ /packages/development

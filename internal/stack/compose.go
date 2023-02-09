@@ -14,7 +14,6 @@ import (
 	"github.com/elastic/elastic-package/internal/docker"
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/logger"
-	"github.com/elastic/elastic-package/internal/profile"
 )
 
 type ServiceStatus struct {
@@ -36,6 +35,7 @@ type envBuilder struct {
 	vars []string
 }
 
+// TODO: Use template variables instead of environment variables to parameterize docker-compose.
 func newEnvBuilder() *envBuilder {
 	return new(envBuilder)
 }
@@ -55,7 +55,7 @@ func (eb *envBuilder) build() []string {
 }
 
 func dockerComposeBuild(options Options) error {
-	c, err := compose.NewProject(DockerComposeProjectName, options.Profile.FetchPath(profile.SnapshotFile))
+	c, err := compose.NewProject(DockerComposeProjectName, options.Profile.Path(profileStackPath, SnapshotFile))
 	if err != nil {
 		return errors.Wrap(err, "could not create docker compose project")
 	}
@@ -81,7 +81,7 @@ func dockerComposeBuild(options Options) error {
 }
 
 func dockerComposePull(options Options) error {
-	c, err := compose.NewProject(DockerComposeProjectName, options.Profile.FetchPath(profile.SnapshotFile))
+	c, err := compose.NewProject(DockerComposeProjectName, options.Profile.Path(profileStackPath, SnapshotFile))
 	if err != nil {
 		return errors.Wrap(err, "could not create docker compose project")
 	}
@@ -107,7 +107,7 @@ func dockerComposePull(options Options) error {
 }
 
 func dockerComposeUp(options Options) error {
-	c, err := compose.NewProject(DockerComposeProjectName, options.Profile.FetchPath(profile.SnapshotFile))
+	c, err := compose.NewProject(DockerComposeProjectName, options.Profile.Path(profileStackPath, SnapshotFile))
 	if err != nil {
 		return errors.Wrap(err, "could not create docker compose project")
 	}
@@ -139,7 +139,7 @@ func dockerComposeUp(options Options) error {
 }
 
 func dockerComposeDown(options Options) error {
-	c, err := compose.NewProject(DockerComposeProjectName, options.Profile.FetchPath(profile.SnapshotFile))
+	c, err := compose.NewProject(DockerComposeProjectName, options.Profile.Path(profileStackPath, SnapshotFile))
 	if err != nil {
 		return errors.Wrap(err, "could not create docker compose project")
 	}

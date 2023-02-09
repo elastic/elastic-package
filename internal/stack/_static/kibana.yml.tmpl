@@ -1,3 +1,4 @@
+{{ $version := fact "kibana_version" }}
 server.name: kibana
 server.host: "0.0.0.0"
 server.ssl.enabled: true
@@ -7,17 +8,37 @@ server.ssl.certificateAuthorities: ["/usr/share/kibana/config/certs/ca-cert.pem"
 
 elasticsearch.hosts: [ "https://elasticsearch:9200" ]
 elasticsearch.ssl.certificateAuthorities: "/usr/share/kibana/config/certs/ca-cert.pem"
+
+{{ if semverLessThan $version "8.0.0" }}
+elasticsearch.username: {{ fact "username" }}
+elasticsearch.password: {{ fact "password" }}
+
+xpack.monitoring.ui.container.elasticsearch.enabled: true
+xpack.fleet.enabled: true
+xpack.fleet.agents.elasticsearch.host: "https://elasticsearch:9200"
+{{ else }}
 elasticsearch.serviceAccountToken: "AAEAAWVsYXN0aWMva2liYW5hL2VsYXN0aWMtcGFja2FnZS1raWJhbmEtdG9rZW46b2x4b051SWNRa0tYMHdXazdLWmFBdw"
 
 monitoring.ui.container.elasticsearch.enabled: true
 
+xpack.fleet.agents.elasticsearch.hosts: ["https://elasticsearch:9200"]
+{{ end }}
+
 xpack.fleet.registryUrl: "https://package-registry:8080"
 xpack.fleet.agents.enabled: true
-xpack.fleet.agents.elasticsearch.hosts: ["https://elasticsearch:9200"]
 xpack.fleet.agents.fleet_server.hosts: ["https://fleet-server:8220"]
+
+{{ if not (semverLessThan $version "8.7.0") }}
+xpack.fleet.enableExperimental: ["experimentalDataStreamSettings"] # Enable experimental toggles in Fleet UI
+{{ end }}
 
 xpack.encryptedSavedObjects.encryptionKey: "12345678901234567890123456789012"
 
+{{ if not (semverLessThan $version "8.1.0") }}
+xpack.cloudSecurityPosture.enabled: true
+{{ end }}
+
+{{ if not (semverLessThan $version "8.0.0") }}
 xpack.fleet.packages:
   - name: system
     version: latest
@@ -57,3 +78,4 @@ xpack.fleet.outputs:
     ca_trusted_fingerprint: "${ELASTIC_PACKAGE_CA_TRUSTED_FINGERPRINT}"
     is_default: true
     is_default_monitoring: true
+{{ end }}
