@@ -1,0 +1,7 @@
+version: '2.3'
+services:
+  test-hits:
+    image: akroh/stream:v0.0.1
+    volumes:
+      - ./logs:/logs:ro
+    command: log --start-signal=SIGHUP --delay=5s --addr elastic-agent:9999 -p=tcp /logs/generated.log

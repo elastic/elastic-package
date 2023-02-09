@@ -450,6 +450,11 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 
 		var err error
 		docs, err = r.getDocs(dataStream)
+
+		if config.Assert.HitCount > 0 {
+			return len(docs) >= config.Assert.HitCount, err
+		}
+
 		return len(docs) > 0, err
 	}, waitForDataTimeout)
 	if err != nil {
@@ -484,6 +489,11 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	// Write sample events file from first doc, if requested
 	if err := r.generateTestResult(docs); err != nil {
 		return result.WithError(err)
+	}
+
+	// Check Hit Count within docs, if 0 then it has not been specified
+	if assertionPass, message := assertHitCount(config.Assert.HitCount, docs); !assertionPass {
+		result.FailureMsg = message
 	}
 
 	return result.WithSuccess()
@@ -858,6 +868,17 @@ func validateFields(docs []common.MapStr, fieldsValidator *fields.Validator, dat
 	}
 
 	return nil
+}
+
+func assertHitCount(expected int, docs []common.MapStr) (pass bool, message string) {
+	if expected != 0 {
+		observed := len(docs)
+		logger.Debugf("assert hit count expected %d, observed %d", expected, observed)
+		if observed != expected {
+			return false, fmt.Sprintf("observed hit count %d did not match expected hit count %d", observed, expected)
+		}
+	}
+	return true, ""
 }
 
 func (r *runner) selectVariants(variantsFile *servicedeployer.VariantsFile) []string {
