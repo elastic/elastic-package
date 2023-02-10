@@ -61,10 +61,6 @@ for package in $(find . -maxdepth 1 -mindepth 1 -type d) ; do
     echo "          - build/test-results/*.xml"
     echo "          - build/elastic-stack-dump/stack/check-*/logs/*.log"
     echo "          - build/elastic-stack-dump/stack/check-*/logs/fleet-server-internal/*.log"
-    echo "          - insecure-logs/${package_name}"
-    echo "          - build/elastic-stack-dump/stack/check-${package_name}/logs/elastic-agent-internal/*"
-    echo "          - insecure-logs/${package_name}/container-logs"
-    echo "          - build/container-logs/*.log"
 done
 
 popd > /dev/null
