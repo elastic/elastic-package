@@ -49,7 +49,7 @@ steps:
     key: "release"
     # build.tag != null && build.branch == "main"
     if: |
-      build.tag =~ /^v[0-9]+\.[0-9]+\.[0-9]+$$/ && build.branch == "main"
+      build.tag =~ /^v[0-9]+[.][0-9]+[.][0-9]+$$/ && build.branch == "main"
     command: ".buildkite/scripts/release.sh"
     agents:
       image: "golang:1.19.5"
