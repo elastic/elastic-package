@@ -58,11 +58,11 @@ func BootUp(options Options) error {
 		}
 	}
 
-	options.Printer.Println("Packages from the following directories will be loaded into the package-registry:")
-	options.Printer.Println("- built-in packages (package-storage:snapshot Docker image)")
+	options.Printer.Println("Local package-registry will serve packages from these sources:")
+	options.Printer.Println("- Proxy to https://epr.elastic.co")
 
 	if found {
-		options.Printer.Printf("- %s\n", buildPackagesPath)
+		options.Printer.Printf("- Local directory %s\n", buildPackagesPath)
 	}
 
 	err = applyResources(options.Profile, options.StackVersion)
