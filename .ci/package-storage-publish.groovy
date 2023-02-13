@@ -10,7 +10,6 @@ pipeline {
 
     BASE_DIR="src/github.com/elastic/elastic-package"
     JOB_GIT_CREDENTIALS = "f6c7695a-671e-4f4f-a331-acdce44ff9ba"
-    GITHUB_TOKEN_CREDENTIALS = "2a9602aa-ab9f-4e52-baf3-b71ca88469c7"
     PIPELINE_LOG_LEVEL='INFO'
 
     // Signing
