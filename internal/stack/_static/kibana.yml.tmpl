@@ -34,7 +34,7 @@ xpack.fleet.enableExperimental: ["experimentalDataStreamSettings"] # Enable expe
 
 xpack.encryptedSavedObjects.encryptionKey: "12345678901234567890123456789012"
 
-{{ if not (semverLessThan $version "8.1.0") }}
+{{ if not (semverLessThan $version "8.2.0") }}
 xpack.cloudSecurityPosture.enabled: true
 {{ end }}
 
