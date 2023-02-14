@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-merge() {
+checkout_merge() {
     local pr_id=$1
     local branch=$2
 
