@@ -20,7 +20,7 @@ fi
 
 # use merge changeset
 PR_ID=${BUILDKITE_PULL_REQUEST}
-MERGE_BRANCH=${pr_merge_${PR_ID}}
+MERGE_BRANCH="pr_merge_${PR_ID}"
 
 checkout_merge ${PR_ID} ${MERGE_BRANCH}
 
