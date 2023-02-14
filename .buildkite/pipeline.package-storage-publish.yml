@@ -1,9 +1,11 @@
+plugins: &plugins
+  - seek-oss/github-merged-pr#v1.1.2:
+      mode: checkout
+
 steps:
   - label: "Example Test"
     command: echo "Hello!"
-    plugins:
-      - seek-oss/github-merged-pr#v1.1.2:
-          mode: checkout
+    plugins: *plugins
 
   - label: ":go: Build package"
     key: build-package
@@ -14,15 +16,11 @@ steps:
       image: "golang:1.19.5"
       cpu: "8"
       memory: "4G"
-    plugins:
-      - seek-oss/github-merged-pr#v1.1.2:
-          mode: checkout
+    plugins: *plugins
 
   - label: "Test"
     key: sign-publish
     command: ".buildkite/scripts/signAndPublishPackage.sh"
     agents:
       provider: "gcp"
-    plugins:
-      - seek-oss/github-merged-pr#v1.1.2:
-          mode: checkout
+    plugins: *plugins
