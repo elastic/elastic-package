@@ -1,0 +1,28 @@
+#!/bin/bash
+
+set -euo pipefail
+
+merge() {
+    local pr_id=$1
+    local branch=$2
+
+    echo "Checking out reference refs/pull/${pr_id}/merge into ${branch}"
+    git fetch origin +refs/pull/${pr_id}/merge:${branch}
+    git checkout ${branch}
+}
+
+pull_request="${BUILDKITE_PULL_REQUEST:-false}"
+
+if [[ "${pull_request}" == "false" ]]; then
+    echo "Not a pull request, skipping"
+    exit 0
+fi
+
+# use merge changeset
+PR_ID=${BUILDKITE_PULL_REQUEST}
+MERGE_BRANCH=${pr_merge_${PR_ID}}
+
+checkout_merge ${PR_ID} ${MERGE_BRANCH}
+
+echo "--- Commit information"
+git log --format=%B -n 1
