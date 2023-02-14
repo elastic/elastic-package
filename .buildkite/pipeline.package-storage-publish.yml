@@ -1,12 +1,9 @@
-plugins: &plugins
-  - seek-oss/github-merged-pr#v1.1.2:
-      mode: checkout
-
 steps:
   - label: "Example Test"
     command: echo "Hello!"
     plugins:
-      <<: *plugins
+      - seek-oss/github-merged-pr#v1.1.2:
+          mode: checkout
 
   - label: ":go: Build package"
     key: build-package
@@ -18,7 +15,8 @@ steps:
       cpu: "8"
       memory: "4G"
     plugins:
-      <<: *plugins
+      - seek-oss/github-merged-pr#v1.1.2:
+          mode: checkout
 
   - label: "Test"
     key: sign-publish
@@ -26,4 +24,5 @@ steps:
     agents:
       provider: "gcp"
     plugins:
-      <<: *plugins
+      - seek-oss/github-merged-pr#v1.1.2:
+          mode: checkout
