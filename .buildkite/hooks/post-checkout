@@ -20,10 +20,10 @@ checkout_merge() {
     git checkout -b ${merge_branch}
     echo "New branch created: $(git rev-parse --abbrev-ref HEAD)"
 
-    # env vars to ensure merge is non-interactive
-    GIT_AUTHOR_NAME="github-merged-pr-post-checkout" \
-    GIT_COMMITTER_EMAIL="auto-merge@buildkite" \
-    GIT_COMMITTER_NAME="github-merged-pr-post-checkout" \
+    # set author identity so it can be run git merge
+    git config user.name "github-merged-pr-post-checkout"
+    git config user.email "auto-merge@buildkite"
+
     git merge --no-edit "${BUILDKITE_COMMIT}" || {
         local merge_result=$?
         echo "Merge failed: ${merge_result}"
