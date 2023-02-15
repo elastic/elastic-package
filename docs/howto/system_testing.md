@@ -303,11 +303,11 @@ There are some specific environment variables that should be leveraged to overco
 ### Kubernetes service deployer
 
 The Kubernetes service deployer requires the `_dev/deploy/k8s` directory to be present. It can include additional `*.yaml` files to deploy
-custom applications in the Kubernetes cluster (e.g. Nginx deployment). If no resource definitions (`*.yaml` files ) are needed,
+custom applications in the Kubernetes cluster (e.g. Nginx deployment). It is possible to use a `kustomization.yaml` file. 
+If no resource definitions (`*.yaml` files ) are needed,
 the `_dev/deploy/k8s` directory must contain an `.empty` file (to preserve the `k8s` directory under version control).
 
 The Kubernetes service deployer needs [kind](https://kind.sigs.k8s.io/) to be installed and the cluster to be up and running:
-
 ```bash
 wget -qO-  https://raw.githubusercontent.com/elastic/elastic-package/main/scripts/kind-config.yaml | kind create cluster --config -
 ```
@@ -394,6 +394,55 @@ When a data stream's manifest declares multiple streams with different inputs
 you can use the `input` option to select the stream to test. The first stream
 whose input type matches the `input` value will be tested. By default, the first
 stream declared in the manifest will be tested.
+
+To add an assertion on the number of hits in a given system test, consider this example from the `httpjson/generic` data stream's `test-expected-hit-count-config.yml`, shown below.
+
+```
+input: httpjson
+service: httpjson
+data_stream:
+  vars:
+    data_stream.dataset: httpjson.generic
+    username: test
+    password: test
+    request_url: http://{{Hostname}}:{{Port}}/testexpectedhits/api
+    response_split: |- 
+      target: body.hits
+      type: array
+      keep_parent: false     
+assert:
+  hit_count: 3
+```
+
+The `data_stream.vars.request_url` corresponds to a test-stub path in the `_dev/deploy/docker/files/config.yml` file.
+
+```
+  - path: /testexpectedhits/api
+    methods: ["GET"]
+    request_headers:
+      Authorization:
+        - "Basic dGVzdDp0ZXN0"
+    responses:
+      - status_code: 200
+        headers:
+          Content-Type:
+            - "application/json; charset=utf-8"
+        body: |-
+          {"total":3,"hits":[{"message": "success"},{"message": "success"},{"message": "success"}]}
+```
+
+Handlebar syntax in `httpjson.yml.hbs`
+
+```
+{{#if response_split}}
+response.split: 
+  {{response_split}}
+{{/if}}
+```
+
+inserts the value of `response_split` from the test configuration into the integration, in this case, ensuring the `total.hits[]` array from the test-stub response yields 3 hits.
+
+Returning to `test-expected-hit-count-config.yml`, when `assert.hit_count` is defined and `> 0` the test will assert that the number of hits in the array matches that value and fail when this is not true.
 
 #### Placeholders
 
