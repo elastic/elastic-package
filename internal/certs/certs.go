@@ -152,7 +152,9 @@ func New(isCA bool, issuer *Issuer, opts ...Option) (*Certificate, error) {
 		return nil, fmt.Errorf("failed to get a unique serial number: %w", err)
 	}
 
-	const longTime = 100 * 24 * 365 * time.Hour
+	// Don't use a expiration time longer than 825 days.
+	// See https://rahulkj.github.io/openssl,/certificates/2022/09/09/self-signed-certificates.html.
+	const longTime = 800 * 24 * time.Hour
 	template := x509.Certificate{
 		NotBefore: time.Now(),
 		NotAfter:  time.Now().Add(longTime),
