@@ -23,7 +23,7 @@ function retry {
 }
 
 GCP_SERVICE_ACCOUNT_SECRET_PATH=secret/ci/elastic-elastic-package/gcp-service-account
-AWS_SERVICE_ACCOUNT_SECRET_PATH=secret/ci/elastic-elastic-package/elastic-temp-aws-account-auth
+AWS_SERVICE_ACCOUNT_SECRET_PATH=kv/ci-shared/platform-ingest/aws_account_auth
 GITHUB_TOKEN_VAULT_PATH=kv/ci-shared/platform-ingest/github_token
 
 # Secrets must be redacted
@@ -39,8 +39,8 @@ if [[ "$BUILDKITE_PIPELINE_SLUG" == "elastic-package" && "$BUILDKITE_STEP_KEY" =
 fi
 
 if [[ "$BUILDKITE_PIPELINE_SLUG" == "elastic-package" && "$BUILDKITE_STEP_KEY" == "integration-parallel-aws" ]]; then
-    export ELASTIC_PACKAGE_AWS_SECRET_KEY=$(retry 5 vault read -field secret_key ${AWS_SERVICE_ACCOUNT_SECRET_PATH})
-    export ELASTIC_PACKAGE_AWS_ACCESS_KEY=$(retry 5 vault read -field access_key ${AWS_SERVICE_ACCOUNT_SECRET_PATH})
+    export ELASTIC_PACKAGE_AWS_SECRET_KEY=$(retry 5 vault kv get -field secret_key ${AWS_SERVICE_ACCOUNT_SECRET_PATH})
+    export ELASTIC_PACKAGE_AWS_ACCESS_KEY=$(retry 5 vault kv get -field access_key ${AWS_SERVICE_ACCOUNT_SECRET_PATH})
 
     # Environment variables required by the service deployer
     export AWS_SECRET_ACCESS_KEY=${ELASTIC_PACKAGE_AWS_SECRET_KEY}
