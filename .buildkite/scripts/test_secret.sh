@@ -7,3 +7,4 @@ echo "Checking writing to file"
 echo "${MY_SECRET}" > some_file
 echo "File:"
 cat some_file
+echo "Is it shown using other env. var? ${OTHER_VAR}"
