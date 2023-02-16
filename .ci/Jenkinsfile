@@ -51,6 +51,7 @@ pipeline {
             cleanup()
             dir("${BASE_DIR}"){
               githubEnv()
+              gitCmd(cmd: 'fetch', args:'--unshallow')
               sh(label: 'Check', script: '''
                 echo "Current commit: ${GIT_COMMIT}"
                 echo "Current base commit: ${GIT_BASE_COMMIT}"
