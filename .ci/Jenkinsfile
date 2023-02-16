@@ -50,20 +50,25 @@ pipeline {
           steps {
             cleanup()
             dir("${BASE_DIR}"){
-              githubEnv()
-              gitCmd(cmd: 'fetch', args: '+refs/heads/*:refs/remotes/origin/*')
-              sh(label: 'Check', script: '''
-                echo "Current commit: ${GIT_COMMIT}"
-                echo "Current base commit: ${GIT_BASE_COMMIT}"
-                git fetch
-                git branch -a --contains "${GIT_BASE_COMMIT}"
-                echo "Current branch: ${GIT_BRANCH} - ${BRANCH_NAME}"
-                git branch -a "${GIT_BRANCH}" --contains "${BUILDKITE_MERGE_COMMIT}"
-                git branch -a --contains "${BUILDKITE_MERGE_COMMIT}"
-                git rev-parse --abbrev-ref HEAD
+              script {
+                githubEnv()
+                gitCmd(cmd: 'fetch', args: '+refs/heads/*:refs/remotes/origin/*')
+                r = sh(label: 'Check', returnStatus: true, script: '''
+                  echo "Current commit: ${GIT_COMMIT}"
+                  echo "Current base commit: ${GIT_BASE_COMMIT}"
+                  git branch -a --contains "${GIT_BASE_COMMIT}"
+                  echo "Current branch: ${GIT_BRANCH} - ${BRANCH_NAME}"
+                  git branch -a "${GIT_BRANCH}" --contains "${BUILDKITE_MERGE_COMMIT}"
+                  git branch -a --contains "${BUILDKITE_MERGE_COMMIT}"
+                  git rev-parse --abbrev-ref HEAD
 
-                git log --format=%H "${GIT_BASE_COMMIT}" | grep "${BUILDKITE_MERGE_COMMIT}"
-              ''')
+                  git log --format=%H "${GIT_BASE_COMMIT}" | grep "${BUILDKITE_MERGE_COMMIT}"
+                ''')
+                if (r != 0) {
+                  echo("You should update your branch to include latest buildkite pipelines")
+                  sh(label: 'Exit', script: 'exit 1')
+                }
+              }
             }
           }
         }
