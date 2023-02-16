@@ -74,7 +74,7 @@ pipeline {
 
                   git log --format=%H "${GIT_BASE_COMMIT}" | grep "${BUILDKITE_MERGE_COMMIT}"
                 ''')
-                if (r == 0) {
+                if (r != 0) {
                   echo("You should update your branch to include latest buildkite pipelines")
                   sh(label: 'Exit', script: 'exit 1')
                 }
