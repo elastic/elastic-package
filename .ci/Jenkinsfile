@@ -54,6 +54,7 @@ pipeline {
               sh(label: 'Check', script: '''
                 echo "Current commit: ${GIT_COMMIT}"
                 echo "Current base commit: ${GIT_BASE_COMMIT}"
+                git fetch
                 git branch --contains "${GIT_BASE_COMMIT}"
                 echo "Current branch: ${GIT_BRANCH} - ${BRANCH_NAME}"
                 git branch "${GIT_BRANCH}" --contains "${BUILDKITE_MERGE_COMMIT}"
