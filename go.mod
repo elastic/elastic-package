@@ -12,7 +12,7 @@ require (
 	github.com/elastic/go-elasticsearch/v7 v7.17.7
 	github.com/elastic/go-licenser v0.4.1
 	github.com/elastic/go-ucfg v0.8.6
-	github.com/elastic/package-spec/v2 v2.5.0
+	github.com/elastic/package-spec/v2 v2.5.1
 	github.com/fatih/color v1.14.1
 	github.com/go-git/go-billy/v5 v5.4.1
 	github.com/go-git/go-git/v5 v5.5.2
@@ -32,7 +32,7 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 	gotest.tools/gotestsum v1.9.0
 	helm.sh/helm/v3 v3.11.1
-	honnef.co/go/tools v0.4.0
+	honnef.co/go/tools v0.4.1
 	k8s.io/apimachinery v0.26.1
 	k8s.io/cli-runtime v0.26.1
 	k8s.io/client-go v0.26.1
