@@ -54,6 +54,7 @@ pipeline {
                 echo "Current commit: ${GIT_COMMIT}"
                 echo "Current branch: ${GIT_BRANCH}"
                 git branch "${GIT_BRANCH}" --contains "${BUILDKITE_MERGE_COMMIT}"
+                git log -n 15
               ''')
             }
           }
