@@ -23,6 +23,7 @@ pipeline {
     JOB_GCS_EXT_CREDENTIALS = 'fleet-ci-gcs-plugin-file-credentials'
     ELASTIC_PACKAGE_GCP_SECRET = 'secret/observability-team/ci/service-account/elastic-package-gcp'
     ELASTIC_OBSERVABILITY_PROJECT_ID = 'elastic-observability'
+    BUILDKITE_MERGE_COMMIT = "79ee1738578deac17f8f5caf8d925db6244ab6df"
   }
   options {
     timeout(time: 1, unit: 'HOURS')
@@ -50,6 +51,30 @@ pipeline {
             deleteDir()
             gitCheckout(basedir: "${BASE_DIR}")
             stash allowEmpty: true, name: 'source', useDefaultExcludes: false
+          }
+        }
+        /**
+        Check the source code.
+        */
+        stage('Check it contains Buildkite pipeline') {
+          steps {
+            cleanup()
+            dir("${BASE_DIR}"){
+              githubEnv()
+              gitCmd(cmd: 'fetch', args: '+refs/heads/*:refs/remotes/origin/*')
+              sh(label: 'Check', script: '''
+                echo "Current commit: ${GIT_COMMIT}"
+                echo "Current base commit: ${GIT_BASE_COMMIT}"
+                git fetch
+                git branch -a --contains "${GIT_BASE_COMMIT}"
+                echo "Current branch: ${GIT_BRANCH} - ${BRANCH_NAME}"
+                git branch -a "${GIT_BRANCH}" --contains "${BUILDKITE_MERGE_COMMIT}"
+                git branch -a --contains "${BUILDKITE_MERGE_COMMIT}"
+                git rev-parse --abbrev-ref HEAD
+
+                git log --format=%H "${GIT_BASE_COMMIT}" | grep "${BUILDKITE_MERGE_COMMIT}"
+              ''')
+            }
           }
         }
         /**
