@@ -51,7 +51,7 @@ pipeline {
             cleanup()
             dir("${BASE_DIR}"){
               githubEnv()
-              gitCmd(cmd: 'fetch')
+              gitCmd(cmd: 'fetch', args: '+refs/heads/*:refs/remotes/origin/*')
               sh(label: 'Check', script: '''
                 echo "Current commit: ${GIT_COMMIT}"
                 echo "Current base commit: ${GIT_BASE_COMMIT}"
@@ -61,7 +61,8 @@ pipeline {
                 git branch -a "${GIT_BRANCH}" --contains "${BUILDKITE_MERGE_COMMIT}"
                 git branch -a --contains "${BUILDKITE_MERGE_COMMIT}"
                 git rev-parse --abbrev-ref HEAD
-                git log -n 15
+
+                git log --format=%H "${GIT_BASE_COMMIT}" | grep "${BUILDKITE_MERGE_COMMIT}"
               ''')
             }
           }
