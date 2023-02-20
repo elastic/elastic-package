@@ -57,7 +57,7 @@ Before we deprecate the v1 storage, package owners will have to adjust their rel
 to the new destination. Every package candidate should be submitted together with a corresponding signature, generated
 using the [Elastic signing pipeline](https://internal-ci.elastic.co/job/elastic+unified-release+master+sign-artifacts-with-gpg/).
 
-Here is the list of requirements and code modifications based on the `beats-ci`.
+Here is the list of requirements and code modifications based on the `fleet-ci`.
 
 #### Requirements
 
