@@ -31,7 +31,7 @@ func (c *Client) InstallPackage(pkg packages.PackageManifest) ([]packages.Asset,
 
 // InstallZipPackage installs the local zip package in Fleet.
 func (c *Client) InstallZipPackage(zipFile string) ([]packages.Asset, error) {
-	path := fmt.Sprintf("%s/epm/packages/", FleetAPI)
+	path := fmt.Sprintf("%s/epm/packages", FleetAPI)
 
 	fileContents, err := os.ReadFile(zipFile)
 	if err != nil {
