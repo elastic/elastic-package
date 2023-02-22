@@ -43,7 +43,7 @@ func (c *Client) InstallZipPackage(zipFile string) ([]packages.Asset, error) {
 	case strings.HasSuffix(zipFile, ".zip"):
 		contentTypeHeader = "application/zip"
 	default:
-		return nil, errors.Wrap(err, "compress file not supported")
+		return nil, errors.Errorf("archive type not supported")
 	}
 
 	statusCode, respBody, err := c.postFile(path, contentTypeHeader, fileContents)

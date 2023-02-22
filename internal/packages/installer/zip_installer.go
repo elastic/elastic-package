@@ -7,11 +7,14 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/packages"
 )
+
+var semver8_7_0 = semver.MustParse("8.7.0")
 
 type zipInstaller struct {
 	zipPath  string
@@ -30,7 +33,13 @@ func CreateForZip(zipPath string) (Installer, error) {
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("Kibana Version %s\n", kibanaVersion.Number)
+	v, err := semver.NewVersion(kibanaVersion.Number)
+	if err != nil {
+		return nil, fmt.Errorf("invalid kibana version")
+	}
+	if v.LessThan(semver8_7_0) {
+		return nil, fmt.Errorf("not supported uploading zip packages in %s", kibanaVersion.Number)
+	}
 
 	tempDir, err := os.MkdirTemp("", "elastic-package-")
 	if err != nil {

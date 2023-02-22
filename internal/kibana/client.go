@@ -21,7 +21,7 @@ import (
 	"github.com/elastic/elastic-package/internal/stack"
 )
 
-const DefaultContentType = "application/json"
+const defaultContentType = "application/json"
 
 // Client is responsible for exporting dashboards from Kibana.
 type Client struct {
@@ -83,11 +83,11 @@ func CertificateAuthority(certificateAuthority string) ClientOption {
 }
 
 func (c *Client) get(resourcePath string) (int, []byte, error) {
-	return c.sendRequest(http.MethodGet, resourcePath, nil, map[string]string{"content-type": DefaultContentType})
+	return c.sendRequest(http.MethodGet, resourcePath, nil, map[string]string{"content-type": defaultContentType})
 }
 
 func (c *Client) post(resourcePath string, body []byte) (int, []byte, error) {
-	return c.sendRequest(http.MethodPost, resourcePath, body, map[string]string{"content-type": DefaultContentType})
+	return c.sendRequest(http.MethodPost, resourcePath, body, map[string]string{"content-type": defaultContentType})
 }
 
 func (c *Client) postFile(resourcePath, contentTypeHeader string, body []byte) (int, []byte, error) {
@@ -95,11 +95,11 @@ func (c *Client) postFile(resourcePath, contentTypeHeader string, body []byte) (
 }
 
 func (c *Client) put(resourcePath string, body []byte) (int, []byte, error) {
-	return c.sendRequest(http.MethodPut, resourcePath, body, map[string]string{"content-type": DefaultContentType})
+	return c.sendRequest(http.MethodPut, resourcePath, body, map[string]string{"content-type": defaultContentType})
 }
 
 func (c *Client) delete(resourcePath string) (int, []byte, error) {
-	return c.sendRequest(http.MethodDelete, resourcePath, nil, map[string]string{"content-type": DefaultContentType})
+	return c.sendRequest(http.MethodDelete, resourcePath, nil, map[string]string{"content-type": defaultContentType})
 }
 
 func (c *Client) sendRequest(method, resourcePath string, body []byte, extraHeaders map[string]string) (int, []byte, error) {
@@ -118,7 +118,6 @@ func (c *Client) sendRequest(method, resourcePath string, body []byte, extraHead
 	u.RawQuery = rel.RawQuery
 
 	logger.Debugf("%s %s", method, u)
-	logger.Debugf("Request %s", u.String())
 
 	req, err := http.NewRequest(method, u.String(), reqBody)
 	if err != nil {
@@ -131,9 +130,6 @@ func (c *Client) sendRequest(method, resourcePath string, body []byte, extraHead
 	for k, v := range extraHeaders {
 		req.Header.Add(k, v)
 	}
-
-	logger.Debugf("Headers %s", req.Header)
-	logger.Debugf("ContentLength %s", req.ContentLength)
 
 	client := http.Client{}
 	if c.tlSkipVerify {

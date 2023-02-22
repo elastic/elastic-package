@@ -85,7 +85,6 @@ func installLocalPackage(cmd *cobra.Command, m *packages.PackageManifest) error 
 		return errors.Wrap(err, "can't create the package installer")
 	}
 
-	// Install the package
 	cmd.Println("Install the package")
 	installedPackage, err := packageInstaller.Install()
 	if err != nil {
@@ -105,6 +104,7 @@ func installZipPackage(cmd *cobra.Command, zipPath string) error {
 		return errors.Wrap(err, "can't create the package installer")
 	}
 
+	cmd.Println("Install the package")
 	installedPackage, err := packageInstaller.Install()
 	if err != nil {
 		return errors.Wrap(err, "can't install the package")
