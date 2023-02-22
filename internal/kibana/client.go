@@ -21,6 +21,8 @@ import (
 	"github.com/elastic/elastic-package/internal/stack"
 )
 
+const DefaultContentType = "application/json"
+
 // Client is responsible for exporting dashboards from Kibana.
 type Client struct {
 	host     string
@@ -81,22 +83,26 @@ func CertificateAuthority(certificateAuthority string) ClientOption {
 }
 
 func (c *Client) get(resourcePath string) (int, []byte, error) {
-	return c.sendRequest(http.MethodGet, resourcePath, nil)
+	return c.sendRequest(http.MethodGet, resourcePath, nil, map[string]string{"content-type": DefaultContentType})
 }
 
 func (c *Client) post(resourcePath string, body []byte) (int, []byte, error) {
-	return c.sendRequest(http.MethodPost, resourcePath, body)
+	return c.sendRequest(http.MethodPost, resourcePath, body, map[string]string{"content-type": DefaultContentType})
+}
+
+func (c *Client) postFile(resourcePath, contentTypeHeader string, body []byte) (int, []byte, error) {
+	return c.sendRequest(http.MethodPost, resourcePath, body, map[string]string{"content-type": contentTypeHeader})
 }
 
 func (c *Client) put(resourcePath string, body []byte) (int, []byte, error) {
-	return c.sendRequest(http.MethodPut, resourcePath, body)
+	return c.sendRequest(http.MethodPut, resourcePath, body, map[string]string{"content-type": DefaultContentType})
 }
 
 func (c *Client) delete(resourcePath string) (int, []byte, error) {
-	return c.sendRequest(http.MethodDelete, resourcePath, nil)
+	return c.sendRequest(http.MethodDelete, resourcePath, nil, map[string]string{"content-type": DefaultContentType})
 }
 
-func (c *Client) sendRequest(method, resourcePath string, body []byte) (int, []byte, error) {
+func (c *Client) sendRequest(method, resourcePath string, body []byte, extraHeaders map[string]string) (int, []byte, error) {
 	reqBody := bytes.NewReader(body)
 	base, err := url.Parse(c.host)
 	if err != nil {
@@ -112,6 +118,7 @@ func (c *Client) sendRequest(method, resourcePath string, body []byte) (int, []b
 	u.RawQuery = rel.RawQuery
 
 	logger.Debugf("%s %s", method, u)
+	logger.Debugf("Request %s", u.String())
 
 	req, err := http.NewRequest(method, u.String(), reqBody)
 	if err != nil {
@@ -119,8 +126,14 @@ func (c *Client) sendRequest(method, resourcePath string, body []byte) (int, []b
 	}
 
 	req.SetBasicAuth(c.username, c.password)
-	req.Header.Add("content-type", "application/json")
 	req.Header.Add("kbn-xsrf", install.DefaultStackVersion)
+
+	for k, v := range extraHeaders {
+		req.Header.Add(k, v)
+	}
+
+	logger.Debugf("Headers %s", req.Header)
+	logger.Debugf("ContentLength %s", req.ContentLength)
 
 	client := http.Client{}
 	if c.tlSkipVerify {

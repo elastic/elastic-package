@@ -92,10 +92,7 @@ func installLocalPackage(cmd *cobra.Command, m *packages.PackageManifest) error 
 		return errors.Wrap(err, "can't install the package")
 	}
 
-	cmd.Println("Installed assets:")
-	for _, asset := range installedPackage.Assets {
-		cmd.Printf("- %s (type: %s)\n", asset.ID, asset.Type)
-	}
+	showAssets(cmd, installedPackage)
 	cmd.Println("Done")
 	return nil
 }
@@ -103,6 +100,24 @@ func installLocalPackage(cmd *cobra.Command, m *packages.PackageManifest) error 
 func installZipPackage(cmd *cobra.Command, zipPath string) error {
 	cmd.Printf("Install zip package: %s\n", zipPath)
 
+	packageInstaller, err := installer.CreateForZip(zipPath)
+	if err != nil {
+		return errors.Wrap(err, "can't create the package installer")
+	}
+
+	installedPackage, err := packageInstaller.Install()
+	if err != nil {
+		return errors.Wrap(err, "can't install the package")
+	}
+
+	showAssets(cmd, installedPackage)
 	cmd.Println("Done")
 	return nil
+}
+
+func showAssets(cmd *cobra.Command, installedPackage *installer.InstalledPackage) {
+	cmd.Println("Installed assets:")
+	for _, asset := range installedPackage.Assets {
+		cmd.Printf("- %s (type: %s)\n", asset.ID, asset.Type)
+	}
 }

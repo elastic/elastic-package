@@ -12,7 +12,12 @@ import (
 )
 
 // Installer is responsible for installation/uninstallation of the package.
-type Installer struct {
+type Installer interface {
+	Install() (*InstalledPackage, error)
+	Uninstall() error
+}
+
+type manifestInstaller struct {
 	manifest packages.PackageManifest
 
 	kibanaClient *kibana.Client
@@ -25,20 +30,20 @@ type InstalledPackage struct {
 }
 
 // CreateForManifest function creates a new instance of the installer.
-func CreateForManifest(manifest packages.PackageManifest) (*Installer, error) {
+func CreateForManifest(manifest packages.PackageManifest) (Installer, error) {
 	kibanaClient, err := kibana.NewClient()
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create kibana client")
 	}
 
-	return &Installer{
+	return &manifestInstaller{
 		manifest:     manifest,
 		kibanaClient: kibanaClient,
 	}, nil
 }
 
 // Install method installs the package using Kibana API.
-func (i *Installer) Install() (*InstalledPackage, error) {
+func (i *manifestInstaller) Install() (*InstalledPackage, error) {
 	assets, err := i.kibanaClient.InstallPackage(i.manifest)
 	if err != nil {
 		return nil, errors.Wrap(err, "can't install the package")
@@ -51,7 +56,7 @@ func (i *Installer) Install() (*InstalledPackage, error) {
 }
 
 // Uninstall method uninstalls the package using Kibana API.
-func (i *Installer) Uninstall() error {
+func (i *manifestInstaller) Uninstall() error {
 	_, err := i.kibanaClient.RemovePackage(i.manifest)
 	if err != nil {
 		return errors.Wrap(err, "can't remove the package")

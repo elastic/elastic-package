@@ -8,6 +8,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
+	"strings"
 
 	"github.com/pkg/errors"
 
@@ -25,6 +27,31 @@ func (c *Client) InstallPackage(pkg packages.PackageManifest) ([]packages.Asset,
 	}
 
 	return processResults("install", statusCode, respBody)
+}
+
+// InstallZipPackage installs the local zip package in Fleet.
+func (c *Client) InstallZipPackage(zipFile string) ([]packages.Asset, error) {
+	path := fmt.Sprintf("%s/epm/packages/", FleetAPI)
+
+	fileContents, err := os.ReadFile(zipFile)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to read zip file")
+	}
+
+	contentTypeHeader := ""
+	switch {
+	case strings.HasSuffix(zipFile, ".zip"):
+		contentTypeHeader = "application/zip"
+	default:
+		return nil, errors.Wrap(err, "compress file not supported")
+	}
+
+	statusCode, respBody, err := c.postFile(path, contentTypeHeader, fileContents)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not install package")
+	}
+
+	return processResults("zip-install", statusCode, respBody)
 }
 
 // RemovePackage removes the given package from Fleet.
