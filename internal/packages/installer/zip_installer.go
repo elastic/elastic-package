@@ -23,7 +23,7 @@ type zipInstaller struct {
 	kibanaClient *kibana.Client
 }
 
-// CreateForManifest function creates a new instance of the installer.
+// CreateForZip function creates a new instance of the installer.
 func CreateForZip(zipPath string) (Installer, error) {
 	kibanaClient, err := kibana.NewClient()
 	if err != nil {
@@ -47,7 +47,11 @@ func CreateForZip(zipPath string) (Installer, error) {
 	}
 	defer os.RemoveAll(tempDir)
 
-	uncompressManifestZipPackage(zipPath, tempDir)
+	err = uncompressManifestZipPackage(zipPath, tempDir)
+	if err != nil {
+		return nil, errors.Wrap(err, "extracting manifest from zip failed")
+	}
+
 	m, err := packages.ReadPackageManifestFromPackageRoot(tempDir)
 	if err != nil {
 		return nil, errors.Wrapf(err, "reading package manifest from zip failed (path: %s)", zipPath)
@@ -97,7 +101,7 @@ func uncompressManifestZipPackage(zipPath, target string) error {
 }
 
 // Install method installs the package using Kibana API.
-func (i zipInstaller) Install() (*InstalledPackage, error) {
+func (i *zipInstaller) Install() (*InstalledPackage, error) {
 	assets, err := i.kibanaClient.InstallZipPackage(i.zipPath)
 	if err != nil {
 		return nil, errors.Wrap(err, "can't install the package")
@@ -110,6 +114,6 @@ func (i zipInstaller) Install() (*InstalledPackage, error) {
 }
 
 // Uninstall method uninstalls the package using Kibana API.
-func (i zipInstaller) Uninstall() error {
+func (i *zipInstaller) Uninstall() error {
 	return errors.Errorf("not implemented")
 }

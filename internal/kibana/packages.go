@@ -46,7 +46,7 @@ func (c *Client) InstallZipPackage(zipFile string) ([]packages.Asset, error) {
 		return nil, errors.Errorf("archive type not supported")
 	}
 
-	statusCode, respBody, err := c.postFile(path, contentTypeHeader, fileContents)
+	statusCode, respBody, err := c.postWithContentType(path, contentTypeHeader, fileContents)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not install package")
 	}

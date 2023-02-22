@@ -87,10 +87,10 @@ func (c *Client) get(resourcePath string) (int, []byte, error) {
 }
 
 func (c *Client) post(resourcePath string, body []byte) (int, []byte, error) {
-	return c.sendRequest(http.MethodPost, resourcePath, body, map[string]string{"content-type": defaultContentType})
+	return c.postWithContentType(resourcePath, defaultContentType, body)
 }
 
-func (c *Client) postFile(resourcePath, contentTypeHeader string, body []byte) (int, []byte, error) {
+func (c *Client) postWithContentType(resourcePath, contentTypeHeader string, body []byte) (int, []byte, error) {
 	return c.sendRequest(http.MethodPost, resourcePath, body, map[string]string{"content-type": contentTypeHeader})
 }
 
