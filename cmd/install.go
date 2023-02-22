@@ -26,11 +26,20 @@ func setupInstallCommand() *cobraext.Command {
 	}
 	cmd.Flags().StringSliceP(cobraext.CheckConditionFlagName, "c", nil, cobraext.CheckConditionFlagDescription)
 	cmd.Flags().StringP(cobraext.PackageRootFlagName, cobraext.PackageRootFlagShorthand, "", cobraext.PackageRootFlagDescription)
+	cmd.Flags().StringP(cobraext.InstallZipPackageFlagName, "", "", cobraext.InstallZipPackageFlagDescription)
 
 	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
 }
 
 func installCommandAction(cmd *cobra.Command, _ []string) error {
+	zipPathFile, err := cmd.Flags().GetString(cobraext.InstallZipPackageFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.InstallZipPackageFlagName)
+	}
+	if zipPathFile != "" {
+		return installZipPackage(cmd, zipPathFile)
+	}
+
 	packageRootPath, err := cmd.Flags().GetString(cobraext.PackageRootFlagName)
 	if err != nil {
 		return cobraext.FlagParsingError(err, cobraext.PackageRootFlagName)
@@ -67,6 +76,10 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 		return nil
 	}
 
+	return installLocalPackage(cmd, m)
+}
+
+func installLocalPackage(cmd *cobra.Command, m *packages.PackageManifest) error {
 	packageInstaller, err := installer.CreateForManifest(*m)
 	if err != nil {
 		return errors.Wrap(err, "can't create the package installer")
@@ -83,6 +96,13 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 	for _, asset := range installedPackage.Assets {
 		cmd.Printf("- %s (type: %s)\n", asset.ID, asset.Type)
 	}
+	cmd.Println("Done")
+	return nil
+}
+
+func installZipPackage(cmd *cobra.Command, zipPath string) error {
+	cmd.Printf("Install zip package: %s\n", zipPath)
+
 	cmd.Println("Done")
 	return nil
 }
