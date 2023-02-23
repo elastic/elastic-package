@@ -43,10 +43,10 @@ pipeline {
             stash allowEmpty: true, name: 'source', useDefaultExcludes: false
           }
         }
-        /**
-        Check the source code.
-        */
-        stage('Check it contains Buildkite pipeline') {
+        stage('Check if the PR contains Buildkite pipeline') {
+          when {
+            changeRequest()
+          }
           steps {
             cleanup()
             dir("${BASE_DIR}"){
