@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path"
 	"path/filepath"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/kibana"
-	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
@@ -89,13 +89,20 @@ func uncompressManifestZipPackage(zipPath, target string) error {
 		return err
 	}
 	defer outputFile.Close()
-	logger.Debugf("created temp dir %s", targetPath)
 
+	// elastic-package build command creates a zip that contains all the package files
+	// under a folder named "package-version". Example elastic_package_registry-0.0.6/manifest.yml
+	packageManifestFilePath := fmt.Sprintf("*/%s", packages.PackageManifestFile)
 	for _, f := range zipReader.File {
-		logger.Debugf("Checking file: %s", f.Name)
-		if f.Name != packages.PackageManifestFile {
+		matched, err := path.Match(packageManifestFilePath, f.Name)
+		if err != nil {
+			return err
+		}
+
+		if !matched {
 			continue
 		}
+
 		zippedFile, err := f.Open()
 		if err != nil {
 			return err
