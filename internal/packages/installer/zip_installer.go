@@ -11,6 +11,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/kibana"
+	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
@@ -41,6 +42,19 @@ func CreateForZip(zipPath string) (Installer, error) {
 		return nil, fmt.Errorf("not supported uploading zip packages in %s", kibanaVersion.Number)
 	}
 
+	manifest, err := extractPackageManifestFromZipPackage(zipPath)
+	if err != nil {
+		return nil, err
+	}
+
+	return &zipInstaller{
+		zipPath:      zipPath,
+		kibanaClient: kibanaClient,
+		manifest:     *manifest,
+	}, nil
+}
+
+func extractPackageManifestFromZipPackage(zipPath string) (*packages.PackageManifest, error) {
 	tempDir, err := os.MkdirTemp("", "elastic-package-")
 	if err != nil {
 		return nil, errors.Wrap(err, "can't prepare a temporary directory")
@@ -56,12 +70,7 @@ func CreateForZip(zipPath string) (Installer, error) {
 	if err != nil {
 		return nil, errors.Wrapf(err, "reading package manifest from zip failed (path: %s)", zipPath)
 	}
-
-	return &zipInstaller{
-		zipPath:      zipPath,
-		kibanaClient: kibanaClient,
-		manifest:     *m,
-	}, nil
+	return m, nil
 }
 
 func uncompressManifestZipPackage(zipPath, target string) error {
@@ -80,8 +89,10 @@ func uncompressManifestZipPackage(zipPath, target string) error {
 		return err
 	}
 	defer outputFile.Close()
+	logger.Debugf("created temp dir %s", targetPath)
 
 	for _, f := range zipReader.File {
+		logger.Debugf("Checking file: %s", f.Name)
 		if f.Name != packages.PackageManifestFile {
 			continue
 		}
