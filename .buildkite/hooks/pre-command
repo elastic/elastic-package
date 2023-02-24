@@ -25,6 +25,7 @@ function retry {
 GCP_SERVICE_ACCOUNT_SECRET_PATH=secret/ci/elastic-elastic-package/gcp-service-account
 AWS_SERVICE_ACCOUNT_SECRET_PATH=kv/ci-shared/platform-ingest/aws_account_auth
 GITHUB_TOKEN_VAULT_PATH=kv/ci-shared/platform-ingest/github_token
+JENKINS_API_TOKEN_PATH=kv/ci-shared/platform-ingest/jenkins_api_tokens
 
 # Secrets must be redacted
 # https://buildkite.com/docs/pipelines/managing-log-output#redacted-environment-variables
@@ -49,4 +50,10 @@ fi
 
 if [[ "$BUILDKITE_PIPELINE_SLUG" == "elastic-package" && "$BUILDKITE_STEP_KEY" == "release" ]]; then
     export GITHUB_TOKEN=$(retry 5 vault kv get -field token ${GITHUB_TOKEN_VAULT_PATH})
+fi
+
+if [[ "$BUILDKITE_PIPELINE_SLUG" == "elastic-package-package-storage-publish" && "$BUILDKITE_STEP_KEY" == "sign-publish" ]]; then
+    export JENKINS_USERNAME_SECRET=$(retry 5 vault kv get -field username ${JENKINS_API_TOKEN_PATH})
+    export JENKINS_HOST_SECRET=$(retry 5 vault kv get -field internal_ci_host ${JENKINS_API_TOKEN_PATH})
+    export JENKINS_TOKEN=$(retry 5 vault kv get -field internal_ci ${JENKINS_API_TOKEN_PATH})
 fi
