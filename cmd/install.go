@@ -95,22 +95,22 @@ func installLocalPackage(cmd *cobra.Command, m *packages.PackageManifest) error 
 		return errors.Wrap(err, "can't create the package installer")
 	}
 
+	cmd.Println("Install the package")
 	return installPackage(cmd, packageInstaller)
 }
 
 func installZipPackage(cmd *cobra.Command, zipPath string, m *packages.PackageManifest) error {
-	cmd.Printf("Install zip package: %s\n", zipPath)
 
 	packageInstaller, err := installer.CreateForZip(zipPath, *m)
 	if err != nil {
 		return errors.Wrap(err, "can't create the package installer")
 	}
 
+	cmd.Printf("Install zip package: %s\n", zipPath)
 	return installPackage(cmd, packageInstaller)
 }
 
 func installPackage(cmd *cobra.Command, packageInstaller installer.Installer) error {
-	cmd.Println("Install the package")
 	installedPackage, err := packageInstaller.Install()
 	if err != nil {
 		return errors.Wrap(err, "can't install the package")
