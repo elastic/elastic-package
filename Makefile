@@ -89,6 +89,10 @@ test-check-packages-with-custom-agent:
 test-build-zip:
 	./scripts/test-build-zip.sh
 
+# TODO remove version once default one is 8.7.0 or higher
+test-install-zip:
+	./scripts/test-install-zip.sh 8.7.0-SNAPSHOT
+
 test-profiles-command:
 	./scripts/test-profiles-command.sh
 
