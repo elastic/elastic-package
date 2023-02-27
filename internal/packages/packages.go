@@ -5,9 +5,12 @@
 package packages
 
 import (
+	"archive/zip"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
+	"path"
 	"path/filepath"
 
 	"github.com/pkg/errors"
@@ -220,6 +223,68 @@ func FindDataStreamRootForPath(workDir string) (string, bool, error) {
 // ReadPackageManifestFromPackageRoot reads and parses the package manifest file for the given package.
 func ReadPackageManifestFromPackageRoot(packageRoot string) (*PackageManifest, error) {
 	return ReadPackageManifest(filepath.Join(packageRoot, PackageManifestFile))
+}
+
+// ReadPackageManifestFromZipPackage reads and parses the package manifest file for the given zip package.
+func ReadPackageManifestFromZipPackage(zipPackage string) (*PackageManifest, error) {
+	tempDir, err := os.MkdirTemp("", "elastic-package-")
+	if err != nil {
+		return nil, errors.Wrap(err, "can't prepare a temporary directory")
+	}
+	defer os.RemoveAll(tempDir)
+
+	tempPackageManifestFile := filepath.Join(tempDir, PackageManifestFile)
+
+	err = uncompressManifestZipPackage(zipPackage, PackageManifestFile, tempPackageManifestFile)
+	if err != nil {
+		return nil, errors.Wrapf(err, "extracting manifest from zip file failed (path: %s)", zipPackage)
+	}
+
+	return ReadPackageManifest(tempPackageManifestFile)
+}
+
+func uncompressManifestZipPackage(zipPath, sourcePath, targetPath string) error {
+	zipReader, err := zip.OpenReader(zipPath)
+	if err != nil {
+		return err
+	}
+	defer zipReader.Close()
+	outputFile, err := os.OpenFile(
+		targetPath,
+		os.O_WRONLY|os.O_CREATE|os.O_TRUNC,
+		0644,
+	)
+	if err != nil {
+		return err
+	}
+	defer outputFile.Close()
+
+	// elastic-package build command creates a zip that contains all the package files
+	// under a folder named "package-version". Example elastic_package_registry-0.0.6/manifest.yml
+	zipFilePath := fmt.Sprintf("*/%s", sourcePath)
+	for _, f := range zipReader.File {
+		matched, err := path.Match(zipFilePath, f.Name)
+		if err != nil {
+			return err
+		}
+
+		if !matched {
+			continue
+		}
+
+		zippedFile, err := f.Open()
+		if err != nil {
+			return err
+		}
+		defer zippedFile.Close()
+
+		_, err = io.Copy(outputFile, zippedFile)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+	return errors.Errorf("not found package %s in %s", sourcePath, zipPath)
 }
 
 // ReadPackageManifest reads and parses the given package manifest file.

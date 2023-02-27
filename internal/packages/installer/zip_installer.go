@@ -5,12 +5,7 @@
 package installer
 
 import (
-	"archive/zip"
 	"fmt"
-	"io"
-	"os"
-	"path"
-	"path/filepath"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/pkg/errors"
@@ -40,13 +35,13 @@ func CreateForZip(zipPath string) (Installer, error) {
 	}
 	v, err := semver.NewVersion(kibanaVersion.Number)
 	if err != nil {
-		return nil, fmt.Errorf("invalid kibana version")
+		return nil, fmt.Errorf("invalid Kibana version")
 	}
 	if v.LessThan(semver8_7_0) {
-		return nil, fmt.Errorf("not supported uploading zip packages in %s", kibanaVersion.Number)
+		return nil, fmt.Errorf("not supported uploading zip packages in Kibana %s", kibanaVersion.Number)
 	}
 
-	manifest, err := extractPackageManifestFromZipPackage(zipPath)
+	manifest, err := packages.ReadPackageManifestFromZipPackage(zipPath)
 	if err != nil {
 		return nil, err
 	}
@@ -56,70 +51,6 @@ func CreateForZip(zipPath string) (Installer, error) {
 		kibanaClient: kibanaClient,
 		manifest:     *manifest,
 	}, nil
-}
-
-func extractPackageManifestFromZipPackage(zipPath string) (*packages.PackageManifest, error) {
-	tempDir, err := os.MkdirTemp("", "elastic-package-")
-	if err != nil {
-		return nil, errors.Wrap(err, "can't prepare a temporary directory")
-	}
-	defer os.RemoveAll(tempDir)
-
-	err = uncompressManifestZipPackage(zipPath, tempDir)
-	if err != nil {
-		return nil, errors.Wrap(err, "extracting manifest from zip failed")
-	}
-
-	m, err := packages.ReadPackageManifestFromPackageRoot(tempDir)
-	if err != nil {
-		return nil, errors.Wrapf(err, "reading package manifest from zip failed (path: %s)", zipPath)
-	}
-	return m, nil
-}
-
-func uncompressManifestZipPackage(zipPath, target string) error {
-	zipReader, err := zip.OpenReader(zipPath)
-	if err != nil {
-		return err
-	}
-	defer zipReader.Close()
-	targetPath := filepath.Join(target, packages.PackageManifestFile)
-	outputFile, err := os.OpenFile(
-		targetPath,
-		os.O_WRONLY|os.O_CREATE|os.O_TRUNC,
-		0644,
-	)
-	if err != nil {
-		return err
-	}
-	defer outputFile.Close()
-
-	// elastic-package build command creates a zip that contains all the package files
-	// under a folder named "package-version". Example elastic_package_registry-0.0.6/manifest.yml
-	packageManifestFilePath := fmt.Sprintf("*/%s", packages.PackageManifestFile)
-	for _, f := range zipReader.File {
-		matched, err := path.Match(packageManifestFilePath, f.Name)
-		if err != nil {
-			return err
-		}
-
-		if !matched {
-			continue
-		}
-
-		zippedFile, err := f.Open()
-		if err != nil {
-			return err
-		}
-		defer zippedFile.Close()
-
-		_, err = io.Copy(outputFile, zippedFile)
-		if err != nil {
-			return err
-		}
-		return nil
-	}
-	return errors.Errorf("not found package %s in %s", packages.PackageManifestFile, zipPath)
 }
 
 // Install method installs the package using Kibana API.
