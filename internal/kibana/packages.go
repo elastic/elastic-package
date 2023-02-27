@@ -48,7 +48,7 @@ func (c *Client) InstallZipPackage(zipFile string) ([]packages.Asset, error) {
 
 	statusCode, respBody, err := c.postWithContentType(path, contentTypeHeader, fileContents)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not install package")
+		return nil, errors.Wrap(err, "could not install zip package")
 	}
 
 	return processResults("zip-install", statusCode, respBody)

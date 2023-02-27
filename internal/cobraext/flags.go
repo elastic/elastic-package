@@ -95,9 +95,6 @@ const (
 	GenerateTestResultFlagName        = "generate"
 	GenerateTestResultFlagDescription = "generate test result file"
 
-	InstallZipPackageFlagName        = "zip"
-	InstallZipPackageFlagDescription = "install package from zip file path"
-
 	ProfileFlagName        = "profile"
 	ProfileFlagDescription = "select a profile to use for the stack configuration. Can also be set with %s"
 
@@ -149,6 +146,10 @@ const (
 
 	VariantFlagName        = "variant"
 	VariantFlagDescription = "service variant"
+
+	ZipPackageFilePathFlagName        = "zip"
+	ZipPackageFilePathFlagShorthand   = "z"
+	ZipPackageFilePathFlagDescription = "path to the zip package file (*.zip)"
 
 	// To be removed promote commands flags
 	DirectionFlagName        = "direction"

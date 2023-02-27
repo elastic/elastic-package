@@ -26,15 +26,15 @@ func setupInstallCommand() *cobraext.Command {
 	}
 	cmd.Flags().StringSliceP(cobraext.CheckConditionFlagName, "c", nil, cobraext.CheckConditionFlagDescription)
 	cmd.Flags().StringP(cobraext.PackageRootFlagName, cobraext.PackageRootFlagShorthand, "", cobraext.PackageRootFlagDescription)
-	cmd.Flags().StringP(cobraext.InstallZipPackageFlagName, "", "", cobraext.InstallZipPackageFlagDescription)
+	cmd.Flags().StringP(cobraext.ZipPackageFilePathFlagName, cobraext.ZipPackageFilePathFlagShorthand, "", cobraext.ZipPackageFilePathFlagDescription)
 
 	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
 }
 
 func installCommandAction(cmd *cobra.Command, _ []string) error {
-	zipPathFile, err := cmd.Flags().GetString(cobraext.InstallZipPackageFlagName)
+	zipPathFile, err := cmd.Flags().GetString(cobraext.ZipPackageFilePathFlagName)
 	if err != nil {
-		return cobraext.FlagParsingError(err, cobraext.InstallZipPackageFlagName)
+		return cobraext.FlagParsingError(err, cobraext.ZipPackageFilePathFlagName)
 	}
 	if zipPathFile != "" {
 		return installZipPackage(cmd, zipPathFile)
