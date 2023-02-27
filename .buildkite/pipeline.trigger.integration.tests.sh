@@ -44,6 +44,7 @@ for test in ${CHECK_PACKAGES_TESTS[@]}; do
     echo "          - build/test-results/*.xml"
     echo "          - build/elastic-stack-dump/stack/check-*/logs/*.log"
     echo "          - build/elastic-stack-dump/stack/check-*/logs/fleet-server-internal/*.log"
+    echo "          - build/elastic-stack-status/*/*"
     if [[ $test =~ with-kind$ ]]; then
         echo "          - build/kubectl-dump.txt"
     fi
@@ -70,7 +71,7 @@ echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-build-z
 echo "        agents:"
 echo "          provider: \"gcp\""
 echo "        artifact_paths:"
-echo "          - build/elastic-stack-dump/stack/*/logs/*.log"
+echo "          - build/elastic-stack-dump/build-zip/logs/*.log"
 echo "          - build/packages/*.sig"
 
 echo "      - label: \":go: Running integration test: test-install-zip\""
@@ -78,7 +79,7 @@ echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-install
 echo "        agents:"
 echo "          provider: \"gcp\""
 echo "        artifact_paths:"
-echo "          - build/elastic-stack-dump/stack/*/logs/*.log"
+echo "          - build/elastic-stack-dump/install-zip/logs/*.log"
 
 echo "      - label: \":go: Running integration test: test-profiles-command\""
 echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-profiles-command"
