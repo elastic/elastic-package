@@ -5,15 +5,10 @@
 package installer
 
 import (
-	"fmt"
-
-	"github.com/Masterminds/semver/v3"
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/kibana"
 )
-
-var semver8_7_0 = semver.MustParse("8.7.0")
 
 type zipInstaller struct {
 	zipPath string
@@ -28,17 +23,6 @@ func CreateForZip(zipPath, name, version string) (*zipInstaller, error) {
 	kibanaClient, err := kibana.NewClient()
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create kibana client")
-	}
-	kibanaVersion, err := kibanaClient.Version()
-	if err != nil {
-		return nil, err
-	}
-	v, err := semver.NewVersion(kibanaVersion.Number)
-	if err != nil {
-		return nil, fmt.Errorf("invalid Kibana version")
-	}
-	if v.LessThan(semver8_7_0) {
-		return nil, fmt.Errorf("not supported uploading zip packages in Kibana %s", kibanaVersion.Number)
 	}
 
 	return &zipInstaller{
