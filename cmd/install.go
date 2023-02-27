@@ -16,7 +16,7 @@ import (
 
 const installLongDescription = `Use this command to install the package in Kibana.
 
-The command uses Kibana API to install the package in Kibana. The package must be exposed via the Package Registry.`
+The command uses Kibana API to install the package in Kibana. The package must be exposed via the Package Registry or built locally in zip format so they can be installed using --zip parameter. Zip packages can be installed directly in Kibana >= 8.7.0.`
 
 func setupInstallCommand() *cobraext.Command {
 	cmd := &cobra.Command{
