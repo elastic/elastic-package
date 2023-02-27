@@ -64,7 +64,6 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 		if err != nil {
 			return errors.Wrapf(err, "reading package manifest failed (path: %s)", packageRootPath)
 		}
-
 	}
 
 	// Check conditions

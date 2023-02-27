@@ -73,7 +73,7 @@ echo "        artifact_paths:"
 echo "          - build/elastic-stack-dump/stack/*/logs/*.log"
 echo "          - build/packages/*.sig"
 
-echo "      - label: \":go: Running integration test: test-instgall-zip\""
+echo "      - label: \":go: Running integration test: test-install-zip\""
 echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-install-zip"
 echo "        agents:"
 echo "          provider: \"gcp\""
