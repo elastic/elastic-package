@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
+	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/packages/installer"
 )
@@ -36,15 +37,11 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 	if err != nil {
 		return cobraext.FlagParsingError(err, cobraext.ZipPackageFilePathFlagName)
 	}
-	if zipPathFile != "" {
-		return installZipPackage(cmd, zipPathFile)
-	}
-
 	packageRootPath, err := cmd.Flags().GetString(cobraext.PackageRootFlagName)
 	if err != nil {
 		return cobraext.FlagParsingError(err, cobraext.PackageRootFlagName)
 	}
-	if packageRootPath == "" {
+	if zipPathFile == "" && packageRootPath == "" {
 		var found bool
 		packageRootPath, found, err = packages.FindPackageRoot()
 		if !found {
@@ -54,10 +51,20 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 			return errors.Wrap(err, "locating package root failed")
 		}
 	}
+	var manifest *packages.PackageManifest
+	if zipPathFile != "" {
+		logger.Debugf("Reading package manifest from %s", zipPathFile)
+		manifest, err = packages.ReadPackageManifestFromZipPackage(zipPathFile)
+		if err != nil {
+			return errors.Wrapf(err, "reading package manifest failed (path: %s)", zipPathFile)
+		}
+	} else {
+		logger.Debugf("Reading package manifest from %s", packageRootPath)
+		manifest, err = packages.ReadPackageManifestFromPackageRoot(packageRootPath)
+		if err != nil {
+			return errors.Wrapf(err, "reading package manifest failed (path: %s)", packageRootPath)
+		}
 
-	m, err := packages.ReadPackageManifestFromPackageRoot(packageRootPath)
-	if err != nil {
-		return errors.Wrapf(err, "reading package manifest failed (path: %s)", packageRootPath)
 	}
 
 	// Check conditions
@@ -67,7 +74,7 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 	}
 	if len(keyValuePairs) > 0 {
 		cmd.Println("Check conditions for package")
-		err = packages.CheckConditions(*m, keyValuePairs)
+		err = packages.CheckConditions(*manifest, keyValuePairs)
 		if err != nil {
 			return errors.Wrap(err, "checking conditions failed")
 		}
@@ -76,7 +83,11 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 		return nil
 	}
 
-	return installLocalPackage(cmd, m)
+	if zipPathFile != "" {
+		return installZipPackage(cmd, zipPathFile, manifest)
+	}
+
+	return installLocalPackage(cmd, manifest)
 }
 
 func installLocalPackage(cmd *cobra.Command, m *packages.PackageManifest) error {
@@ -88,10 +99,10 @@ func installLocalPackage(cmd *cobra.Command, m *packages.PackageManifest) error 
 	return installPackage(cmd, packageInstaller)
 }
 
-func installZipPackage(cmd *cobra.Command, zipPath string) error {
+func installZipPackage(cmd *cobra.Command, zipPath string, m *packages.PackageManifest) error {
 	cmd.Printf("Install zip package: %s\n", zipPath)
 
-	packageInstaller, err := installer.CreateForZip(zipPath)
+	packageInstaller, err := installer.CreateForZip(zipPath, *m)
 	if err != nil {
 		return errors.Wrap(err, "can't create the package installer")
 	}
