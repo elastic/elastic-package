@@ -83,10 +83,11 @@ func runSignPackageJob(ctx context.Context, client *jenkinsClient, async bool, j
 func runPublishingRemoteJob(ctx context.Context, client *jenkinsClient, async bool, jobName, packagePath, signaturePath string) error {
 
 	// Run the job with some parameters
-	params := map[string]string{}
-	params["dry_run"] = "true"
-	params["gs_package_build_zip_path"] = packagePath
-	params["gs_package_signature_path"] = signaturePath
+	params := map[string]string{
+		"dry_run":                   "true",
+		"gs_package_build_zip_path": packagePath,
+		"gs_package_signature_path": signaturePath,
+	}
 
 	return client.runJob(ctx, jobName, async, params)
 }

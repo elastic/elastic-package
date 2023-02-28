@@ -72,8 +72,14 @@ func (j *jenkinsClient) getBuildFromQueueID(ctx context.Context, job *gojenkins.
 		return nil, err
 	}
 	// Jenkins queue API has about 4.7second quiet period
+	waitingTime := 1000 * time.Millisecond
 	for task.Raw.Executable.Number == 0 {
-		time.Sleep(1000 * time.Millisecond)
+		select {
+		case <-time.After(waitingTime):
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+		time.Sleep(waitingTime)
 		_, err = task.Poll(ctx)
 		if err != nil {
 			return nil, err
@@ -88,9 +94,15 @@ func (j *jenkinsClient) getBuildFromQueueID(ctx context.Context, job *gojenkins.
 }
 
 func (j *jenkinsClient) waitForBuildFinished(ctx context.Context, build *gojenkins.Build) {
+	waitingTime := 5000 * time.Millisecond
 	for build.IsRunning(ctx) {
 		log.Printf("Build still running, waiting for 5 secs...")
-		time.Sleep(5000 * time.Millisecond)
+		select {
+		case <-time.After(waitingTime):
+		case <-ctx.Done():
+			return
+		}
+		time.Sleep(waitingTime)
 		build.Poll(ctx)
 	}
 }
