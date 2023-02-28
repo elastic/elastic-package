@@ -21,8 +21,6 @@ import (
 	"github.com/elastic/elastic-package/internal/stack"
 )
 
-const defaultContentType = "application/json"
-
 // Client is responsible for exporting dashboards from Kibana.
 type Client struct {
 	host     string
