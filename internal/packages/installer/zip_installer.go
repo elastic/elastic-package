@@ -24,7 +24,7 @@ type zipInstaller struct {
 }
 
 // CreateForZip function creates a new instance of the installer.
-func CreateForZip(zipPath string, m packages.PackageManifest) (Installer, error) {
+func CreateForZip(zipPath string, m packages.PackageManifest) (*zipInstaller, error) {
 	kibanaClient, err := kibana.NewClient()
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create kibana client")

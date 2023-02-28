@@ -30,7 +30,7 @@ type InstalledPackage struct {
 }
 
 // CreateForManifest function creates a new instance of the installer.
-func CreateForManifest(manifest packages.PackageManifest) (Installer, error) {
+func CreateForManifest(manifest packages.PackageManifest) (*manifestInstaller, error) {
 	kibanaClient, err := kibana.NewClient()
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create kibana client")
