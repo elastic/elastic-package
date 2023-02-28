@@ -8,9 +8,8 @@ import (
 	"archive/zip"
 	"encoding/json"
 	"fmt"
-	"io"
+	"io/fs"
 	"os"
-	"path"
 	"path/filepath"
 
 	"github.com/pkg/errors"
@@ -261,30 +260,24 @@ func uncompressManifestZipPackage(zipPath, sourcePath, targetPath string) error 
 
 	// elastic-package build command creates a zip that contains all the package files
 	// under a folder named "package-version". Example elastic_package_registry-0.0.6/manifest.yml
-	zipFilePath := fmt.Sprintf("*/%s", sourcePath)
-	for _, f := range zipReader.File {
-		matched, err := path.Match(zipFilePath, f.Name)
-		if err != nil {
-			return err
-		}
-
-		if !matched {
-			continue
-		}
-
-		zippedFile, err := f.Open()
-		if err != nil {
-			return err
-		}
-		defer zippedFile.Close()
-
-		_, err = io.Copy(outputFile, zippedFile)
-		if err != nil {
-			return err
-		}
-		return nil
+	matched, err := fs.Glob(zipReader, fmt.Sprintf("*/%s", sourcePath))
+	if err != nil {
+		return err
 	}
-	return errors.Errorf("not found package %s in %s", sourcePath, zipPath)
+
+	if len(matched) == 0 {
+		return errors.Errorf("not found package %s in %s", sourcePath, zipPath)
+	}
+
+	contents, err := fs.ReadFile(zipReader, matched[0])
+	if err != nil {
+		return errors.Wrapf(err, "can't read manifest from zip %s", zipPath)
+	}
+	_, err = outputFile.Write(contents)
+	if err != nil {
+		return errors.Wrapf(err, "can't write manifest to file %s", targetPath)
+	}
+	return nil
 }
 
 // ReadPackageManifest reads and parses the given package manifest file.
