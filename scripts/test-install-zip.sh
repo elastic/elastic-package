@@ -58,9 +58,9 @@ rm -r build/packages/*/
 for zipFile in build/packages/*.zip; do
   PACKAGE_NAME_VERSION=$(basename ${zipFile} .zip)
 
-  # check that the package is installed
   elastic-package install -v --zip ${zipFile}
 
+  # check that the package is installed
   curl -s \
     -u ${ELASTIC_PACKAGE_ELASTICSEARCH_USERNAME}:${ELASTIC_PACKAGE_ELASTICSEARCH_PASSWORD} \
     --cacert ${ELASTIC_PACKAGE_CA_CERT} \
