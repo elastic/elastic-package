@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"strings"
 
 	"github.com/pkg/errors"
 
@@ -38,15 +37,13 @@ func (c *Client) InstallZipPackage(zipFile string) ([]packages.Asset, error) {
 		return nil, errors.Wrap(err, "failed to read zip file")
 	}
 
-	contentTypeHeader := ""
-	switch {
-	case strings.HasSuffix(zipFile, ".zip"):
-		contentTypeHeader = "application/zip"
-	default:
-		return nil, errors.Errorf("archive type not supported")
+	req, err := c.newRequest(http.MethodPost, path, fileContents)
+	if err != nil {
+		return nil, err
 	}
+	req.Header.Set("Content-Type", "application/zip")
 
-	statusCode, respBody, err := c.postWithContentType(path, contentTypeHeader, fileContents)
+	statusCode, respBody, err := c.doRequest(req)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not install zip package")
 	}
