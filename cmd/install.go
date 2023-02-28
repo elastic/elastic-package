@@ -51,19 +51,11 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 			return errors.Wrap(err, "locating package root failed")
 		}
 	}
-	var manifest *packages.PackageManifest
-	if zipPathFile != "" {
-		logger.Debugf("Reading package manifest from %s", zipPathFile)
-		manifest, err = packages.ReadPackageManifestFromZipPackage(zipPathFile)
-		if err != nil {
-			return errors.Wrapf(err, "reading package manifest failed (path: %s)", zipPathFile)
-		}
-	} else {
-		logger.Debugf("Reading package manifest from %s", packageRootPath)
-		manifest, err = packages.ReadPackageManifestFromPackageRoot(packageRootPath)
-		if err != nil {
-			return errors.Wrapf(err, "reading package manifest failed (path: %s)", packageRootPath)
-		}
+
+	aInstaller := newInstaller(zipPathFile, packageRootPath)
+	manifest, err := aInstaller.manifest()
+	if err != nil {
+		return err
 	}
 
 	// Check conditions
@@ -82,32 +74,65 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 		return nil
 	}
 
-	if zipPathFile != "" {
-		return installZipPackage(cmd, zipPathFile, manifest)
-	}
-
-	return installLocalPackage(cmd, manifest)
+	return aInstaller.install(cmd, manifest)
 }
 
-func installLocalPackage(cmd *cobra.Command, m *packages.PackageManifest) error {
-	packageInstaller, err := installer.CreateForManifest(*m)
+type packageInstaller interface {
+	manifest() (*packages.PackageManifest, error)
+	install(cmd *cobra.Command, manifest *packages.PackageManifest) error
+}
+
+func newInstaller(zipPath, packageRootPath string) packageInstaller {
+	if zipPath != "" {
+		return zipPackage{zipPath: zipPath}
+	}
+	return localPackage{rootPath: packageRootPath}
+}
+
+type localPackage struct {
+	rootPath string
+}
+
+func (l localPackage) manifest() (*packages.PackageManifest, error) {
+	logger.Debugf("Reading package manifest from %s", l.rootPath)
+	manifest, err := packages.ReadPackageManifestFromPackageRoot(l.rootPath)
+	if err != nil {
+		return nil, errors.Wrapf(err, "reading package manifest failed (path: %s)", l.rootPath)
+	}
+	return manifest, nil
+}
+
+func (l localPackage) install(cmd *cobra.Command, manifest *packages.PackageManifest) error {
+	aInstaller, err := installer.CreateForManifest(*manifest)
 	if err != nil {
 		return errors.Wrap(err, "can't create the package installer")
 	}
 
 	cmd.Println("Install the package")
-	return installPackage(cmd, packageInstaller)
+	return installPackage(cmd, aInstaller)
 }
 
-func installZipPackage(cmd *cobra.Command, zipPath string, m *packages.PackageManifest) error {
+type zipPackage struct {
+	zipPath string
+}
 
-	packageInstaller, err := installer.CreateForZip(zipPath, *m)
+func (z zipPackage) manifest() (*packages.PackageManifest, error) {
+	logger.Debugf("Reading package manifest from %s", z.zipPath)
+	manifest, err := packages.ReadPackageManifestFromZipPackage(z.zipPath)
+	if err != nil {
+		return nil, errors.Wrapf(err, "reading package manifest failed (path: %s)", z.zipPath)
+	}
+	return manifest, nil
+}
+
+func (z zipPackage) install(cmd *cobra.Command, manifest *packages.PackageManifest) error {
+	aInstaller, err := installer.CreateForZip(z.zipPath, *manifest)
 	if err != nil {
 		return errors.Wrap(err, "can't create the package installer")
 	}
 
-	cmd.Printf("Install zip package: %s\n", zipPath)
-	return installPackage(cmd, packageInstaller)
+	cmd.Printf("Install zip package: %s\n", z.zipPath)
+	return installPackage(cmd, aInstaller)
 }
 
 func installPackage(cmd *cobra.Command, packageInstaller installer.Installer) error {
