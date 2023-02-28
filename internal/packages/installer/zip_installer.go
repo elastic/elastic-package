@@ -63,5 +63,9 @@ func (i *zipInstaller) Install() (*InstalledPackage, error) {
 
 // Uninstall method uninstalls the package using Kibana API.
 func (i *zipInstaller) Uninstall() error {
-	return errors.Errorf("not implemented")
+	_, err := i.kibanaClient.RemovePackage(i.manifest)
+	if err != nil {
+		return errors.Wrap(err, "can't remove the package")
+	}
+	return nil
 }
