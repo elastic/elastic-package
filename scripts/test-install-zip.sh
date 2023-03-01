@@ -68,3 +68,12 @@ for zipFile in build/packages/*.zip; do
     -H 'kbn-xsrf: true' \
     -f ${ELASTIC_PACKAGE_KIBANA_HOST}/api/fleet/epm/packages/${PACKAGE_NAME_VERSION} | grep -q '"status":"installed"'
 done
+
+elastic-package stack shellinit
+
+unset ELASTIC_PACKAGE_KIBANA_HOST
+unset ELASTIC_PACKAGE_ELASTICSEARCH_USERNAME
+unset ELASTIC_PACKAGE_ELASTICSEARCH_PASSWORD
+unset ELASTIC_PACKAGE_CA_CERT
+
+# try to install one package
