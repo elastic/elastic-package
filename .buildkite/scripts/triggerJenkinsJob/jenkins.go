@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/bndr/gojenkins"
-	"github.com/pkg/errors"
 )
 
 type jenkinsClient struct {
@@ -21,7 +20,7 @@ type jenkinsClient struct {
 func newJenkinsClient(ctx context.Context, host, user, token string) (*jenkinsClient, error) {
 	jenkins, err := gojenkins.CreateJenkins(nil, host, user, token).Init(ctx)
 	if err != nil {
-		return nil, errors.Wrap(err, "client coult not be created")
+		return nil, fmt.Errorf("client coult not be created: %w", err)
 	}
 
 	return &jenkinsClient{
@@ -55,12 +54,12 @@ func (j *jenkinsClient) runJob(ctx context.Context, jobName string, async bool, 
 func (j *jenkinsClient) getBuildFromJobAndQueueID(ctx context.Context, jobName string, queueId int64) (*gojenkins.Build, error) {
 	job, err := j.client.GetJob(ctx, jobName)
 	if err != nil {
-		return nil, errors.Wrapf(err, "not able to get job %s", jobName)
+		return nil, fmt.Errorf("not able to get job %s: %w", jobName, err)
 	}
 
 	build, err := j.getBuildFromQueueID(ctx, job, queueId)
 	if err != nil {
-		return nil, errors.Wrapf(err, "not able to get build from %s", jobName)
+		return nil, fmt.Errorf("not able to get build from %s: %w", jobName, err)
 	}
 	return build, nil
 }
@@ -88,7 +87,7 @@ func (j *jenkinsClient) getBuildFromQueueID(ctx context.Context, job *gojenkins.
 
 	build, err := job.GetBuild(ctx, task.Raw.Executable.Number)
 	if err != nil {
-		return nil, errors.Wrapf(err, "not able to retrieve build %s", task.Raw.Executable.Number)
+		return nil, fmt.Errorf("not able to retrieve build %s", task.Raw.Executable.Number, err)
 	}
 	return build, nil
 }
