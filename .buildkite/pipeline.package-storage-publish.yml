@@ -17,3 +17,4 @@ steps:
     command: ".buildkite/scripts/signAndPublishPackage.sh"
     agents:
       provider: "gcp"
+      image: family/core-ubuntu-2004
