@@ -45,7 +45,10 @@ func (j *JenkinsClient) RunJob(ctx context.Context, jobName string, async bool, 
 	}
 
 	log.Printf("Waiting to be finished %s\n", build.GetUrl())
-	j.waitForBuildFinished(ctx, build)
+	err = j.waitForBuildFinished(ctx, build)
+	if err != nil {
+		return fmt.Errorf("not finished job %s/%d: %w", jobName, build.GetBuildNumber(), err)
+	}
 
 	log.Printf("Build %s finished with result: %v\n", build.GetUrl(), build.GetBuildNumber(), build.GetResult())
 	return nil
@@ -71,14 +74,12 @@ func (j *JenkinsClient) getBuildFromQueueID(ctx context.Context, job *gojenkins.
 		return nil, err
 	}
 	// Jenkins queue API has about 4.7second quiet period
-	waitingTime := 1000 * time.Millisecond
 	for task.Raw.Executable.Number == 0 {
 		select {
-		case <-time.After(waitingTime):
+		case <-time.After(1000 * time.Millisecond):
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		}
-		time.Sleep(waitingTime)
 		_, err = task.Poll(ctx)
 		if err != nil {
 			return nil, err
@@ -92,16 +93,17 @@ func (j *JenkinsClient) getBuildFromQueueID(ctx context.Context, job *gojenkins.
 	return build, nil
 }
 
-func (j *JenkinsClient) waitForBuildFinished(ctx context.Context, build *gojenkins.Build) {
-	waitingTime := 5000 * time.Millisecond
+func (j *JenkinsClient) waitForBuildFinished(ctx context.Context, build *gojenkins.Build) error {
 	for build.IsRunning(ctx) {
 		log.Printf("Build still running, waiting for 5 secs...")
 		select {
-		case <-time.After(waitingTime):
+		case <-time.After(5000 * time.Millisecond):
 		case <-ctx.Done():
-			return
+			return ctx.Err()
 		}
-		time.Sleep(waitingTime)
-		build.Poll(ctx)
+		_, err = build.Poll(ctx)
+		if err != nil {
+			return err
+		}
 	}
 }
