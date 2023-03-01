@@ -11,20 +11,20 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/kibana"
-	"github.com/elastic/elastic-package/internal/packages"
 )
 
 var semver8_7_0 = semver.MustParse("8.7.0")
 
 type zipInstaller struct {
-	zipPath  string
-	manifest packages.PackageManifest
+	zipPath string
+	name    string
+	version string
 
 	kibanaClient *kibana.Client
 }
 
 // CreateForZip function creates a new instance of the installer.
-func CreateForZip(zipPath string, m packages.PackageManifest) (*zipInstaller, error) {
+func CreateForZip(zipPath, name, version string) (*zipInstaller, error) {
 	kibanaClient, err := kibana.NewClient()
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create kibana client")
@@ -44,7 +44,8 @@ func CreateForZip(zipPath string, m packages.PackageManifest) (*zipInstaller, er
 	return &zipInstaller{
 		zipPath:      zipPath,
 		kibanaClient: kibanaClient,
-		manifest:     m,
+		name:         name,
+		version:      version,
 	}, nil
 }
 
@@ -56,14 +57,15 @@ func (i *zipInstaller) Install() (*InstalledPackage, error) {
 	}
 
 	return &InstalledPackage{
-		Manifest: i.manifest,
-		Assets:   assets,
+		Name:    i.name,
+		Version: i.version,
+		Assets:  assets,
 	}, nil
 }
 
 // Uninstall method uninstalls the package using Kibana API.
 func (i *zipInstaller) Uninstall() error {
-	_, err := i.kibanaClient.RemovePackage(i.manifest)
+	_, err := i.kibanaClient.RemovePackage(i.name, i.version)
 	if err != nil {
 		return errors.Wrap(err, "can't remove the package")
 	}

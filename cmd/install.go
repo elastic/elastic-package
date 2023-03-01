@@ -74,12 +74,12 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 		return nil
 	}
 
-	return aInstaller.install(cmd, manifest)
+	return aInstaller.install(cmd, manifest.Name, manifest.Version)
 }
 
 type packageInstaller interface {
 	manifest() (*packages.PackageManifest, error)
-	install(cmd *cobra.Command, manifest *packages.PackageManifest) error
+	install(cmd *cobra.Command, name, version string) error
 }
 
 func newInstaller(zipPath, packageRootPath string) packageInstaller {
@@ -102,8 +102,8 @@ func (l localPackage) manifest() (*packages.PackageManifest, error) {
 	return manifest, nil
 }
 
-func (l localPackage) install(cmd *cobra.Command, manifest *packages.PackageManifest) error {
-	aInstaller, err := installer.CreateForManifest(*manifest)
+func (l localPackage) install(cmd *cobra.Command, name, version string) error {
+	aInstaller, err := installer.CreateForManifest(name, version)
 	if err != nil {
 		return errors.Wrap(err, "can't create the package installer")
 	}
@@ -125,8 +125,8 @@ func (z zipPackage) manifest() (*packages.PackageManifest, error) {
 	return manifest, nil
 }
 
-func (z zipPackage) install(cmd *cobra.Command, manifest *packages.PackageManifest) error {
-	aInstaller, err := installer.CreateForZip(z.zipPath, *manifest)
+func (z zipPackage) install(cmd *cobra.Command, name, version string) error {
+	aInstaller, err := installer.CreateForZip(z.zipPath, name, version)
 	if err != nil {
 		return errors.Wrap(err, "can't create the package installer")
 	}

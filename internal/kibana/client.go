@@ -150,8 +150,6 @@ func (c *Client) doRequest(request *http.Request) (int, []byte, error) {
 		}
 	}
 
-	logger.Debugf("Headers: %s", request.Header)
-
 	resp, err := client.Do(request)
 	if err != nil {
 		return 0, nil, errors.Wrap(err, "could not send request to Kibana API")
