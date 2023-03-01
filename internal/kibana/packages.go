@@ -32,12 +32,12 @@ func (c *Client) InstallPackage(name, version string) ([]packages.Asset, error) 
 func (c *Client) InstallZipPackage(zipFile string) ([]packages.Asset, error) {
 	path := fmt.Sprintf("%s/epm/packages", FleetAPI)
 
-	fileContents, err := os.ReadFile(zipFile)
+	body, err := os.Open(zipFile)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to read zip file")
 	}
 
-	req, err := c.newRequest(http.MethodPost, path, fileContents)
+	req, err := c.newRequest(http.MethodPost, path, body)
 	if err != nil {
 		return nil, err
 	}

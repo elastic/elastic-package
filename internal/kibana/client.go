@@ -97,7 +97,7 @@ func (c *Client) delete(resourcePath string) (int, []byte, error) {
 }
 
 func (c *Client) sendRequest(method, resourcePath string, body []byte) (int, []byte, error) {
-	request, err := c.newRequest(method, resourcePath, body)
+	request, err := c.newRequest(method, resourcePath, bytes.NewReader(body))
 	if err != nil {
 		return 0, nil, err
 	}
@@ -105,8 +105,7 @@ func (c *Client) sendRequest(method, resourcePath string, body []byte) (int, []b
 	return c.doRequest(request)
 }
 
-func (c *Client) newRequest(method, resourcePath string, body []byte) (*http.Request, error) {
-	reqBody := bytes.NewReader(body)
+func (c *Client) newRequest(method, resourcePath string, reqBody io.Reader) (*http.Request, error) {
 	base, err := url.Parse(c.host)
 	if err != nil {
 		return nil, errors.Wrapf(err, "could not create base URL from host: %v", c.host)
