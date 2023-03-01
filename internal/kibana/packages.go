@@ -36,6 +36,7 @@ func (c *Client) InstallZipPackage(zipFile string) ([]packages.Asset, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to read zip file")
 	}
+	defer body.Close()
 
 	req, err := c.newRequest(http.MethodPost, path, body)
 	if err != nil {
