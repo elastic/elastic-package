@@ -42,12 +42,12 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 		return cobraext.FlagParsingError(err, cobraext.PackageRootFlagName)
 	}
 
-	aInstaller, err := newInstaller(zipPathFile, packageRootPath)
+	installer, err := newInstaller(zipPathFile, packageRootPath)
 	if err != nil {
 		return err
 	}
 
-	manifest, err := aInstaller.manifest()
+	manifest, err := installer.manifest()
 	if err != nil {
 		return err
 	}
@@ -68,7 +68,7 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 		return nil
 	}
 
-	return aInstaller.install(cmd, manifest.Name, manifest.Version)
+	return installer.install(cmd, manifest.Name, manifest.Version)
 }
 
 type packageInstaller interface {
