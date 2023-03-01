@@ -7,7 +7,6 @@ require (
 	github.com/Masterminds/semver/v3 v3.2.0
 	github.com/ProtonMail/gopenpgp/v2 v2.5.2
 	github.com/aymerick/raymond v2.0.2+incompatible
-	github.com/bndr/gojenkins v1.1.0
 	github.com/boumenot/gocover-cobertura v1.2.0
 	github.com/cespare/xxhash/v2 v2.2.0
 	github.com/elastic/go-elasticsearch/v7 v7.17.7

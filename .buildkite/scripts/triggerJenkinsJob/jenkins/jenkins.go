@@ -2,7 +2,7 @@
 // or more contributor license agreements. Licensed under the Elastic License;
 // you may not use this file except in compliance with the Elastic License.
 
-package main
+package jenkins
 
 import (
 	"context"
@@ -13,25 +13,25 @@ import (
 	"github.com/bndr/gojenkins"
 )
 
-type jenkinsClient struct {
+type JenkinsClient struct {
 	client *gojenkins.Jenkins
 }
 
-func newJenkinsClient(ctx context.Context, host, user, token string) (*jenkinsClient, error) {
+func NewJenkinsClient(ctx context.Context, host, user, token string) (*JenkinsClient, error) {
 	jenkins, err := gojenkins.CreateJenkins(nil, host, user, token).Init(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("client coult not be created: %w", err)
 	}
 
-	return &jenkinsClient{
+	return &JenkinsClient{
 		client: jenkins,
 	}, nil
 }
 
-func (j *jenkinsClient) runJob(ctx context.Context, jobName string, async bool, params map[string]string) error {
-	queueId, err := j.client.BuildJob(ctx, publishingRemoteJob, params)
+func (j *JenkinsClient) RunJob(ctx context.Context, jobName string, async bool, params map[string]string) error {
+	queueId, err := j.client.BuildJob(ctx, jobName, params)
 	if err != nil {
-		fmt.Printf("error running job %s : %s\n", publishingRemoteJob, err)
+		fmt.Printf("error running job %s : %s\n", jobName, err)
 		return err
 	}
 	build, err := j.getBuildFromJobAndQueueID(ctx, jobName, queueId)
@@ -51,7 +51,7 @@ func (j *jenkinsClient) runJob(ctx context.Context, jobName string, async bool, 
 	return nil
 }
 
-func (j *jenkinsClient) getBuildFromJobAndQueueID(ctx context.Context, jobName string, queueId int64) (*gojenkins.Build, error) {
+func (j *JenkinsClient) getBuildFromJobAndQueueID(ctx context.Context, jobName string, queueId int64) (*gojenkins.Build, error) {
 	job, err := j.client.GetJob(ctx, jobName)
 	if err != nil {
 		return nil, fmt.Errorf("not able to get job %s: %w", jobName, err)
@@ -65,7 +65,7 @@ func (j *jenkinsClient) getBuildFromJobAndQueueID(ctx context.Context, jobName s
 }
 
 // based on https://github.com/bndr/gojenkins/blob/master/jenkins.go#L282
-func (j *jenkinsClient) getBuildFromQueueID(ctx context.Context, job *gojenkins.Job, queueid int64) (*gojenkins.Build, error) {
+func (j *JenkinsClient) getBuildFromQueueID(ctx context.Context, job *gojenkins.Job, queueid int64) (*gojenkins.Build, error) {
 	task, err := j.client.GetQueueItem(ctx, queueid)
 	if err != nil {
 		return nil, err
@@ -92,7 +92,7 @@ func (j *jenkinsClient) getBuildFromQueueID(ctx context.Context, job *gojenkins.
 	return build, nil
 }
 
-func (j *jenkinsClient) waitForBuildFinished(ctx context.Context, build *gojenkins.Build) {
+func (j *JenkinsClient) waitForBuildFinished(ctx context.Context, build *gojenkins.Build) {
 	waitingTime := 5000 * time.Millisecond
 	for build.IsRunning(ctx) {
 		log.Printf("Build still running, waiting for 5 secs...")

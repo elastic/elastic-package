@@ -11,6 +11,8 @@ import (
 	"log"
 	"os"
 	"strings"
+
+	"github.com/elastic/trigger-jenkins-buildkite-plugin/jenkins"
 )
 
 const (
@@ -54,7 +56,7 @@ func main() {
 	log.Printf("Triggering job: %s", allowedJenkinsJobs[*jenkinsJob])
 
 	ctx := context.Background()
-	client, err := newJenkinsClient(ctx, jenkinsHost, jenkinsUser, jenkinsToken)
+	client, err := jenkins.NewJenkinsClient(ctx, jenkinsHost, jenkinsUser, jenkinsToken)
 	if err != nil {
 		log.Fatalf("error creating jenkins client")
 	}
@@ -73,14 +75,14 @@ func main() {
 	}
 }
 
-func runSignPackageJob(ctx context.Context, client *jenkinsClient, async bool, jobName, packagePath string) error {
+func runSignPackageJob(ctx context.Context, client *jenkins.JenkinsClient, async bool, jobName, packagePath string) error {
 	params := map[string]string{}
 	// TODO set parameters for sign job
 
-	return client.runJob(ctx, jobName, async, params)
+	return client.RunJob(ctx, jobName, async, params)
 }
 
-func runPublishingRemoteJob(ctx context.Context, client *jenkinsClient, async bool, jobName, packagePath, signaturePath string) error {
+func runPublishingRemoteJob(ctx context.Context, client *jenkins.JenkinsClient, async bool, jobName, packagePath, signaturePath string) error {
 
 	// Run the job with some parameters
 	params := map[string]string{
@@ -89,5 +91,5 @@ func runPublishingRemoteJob(ctx context.Context, client *jenkinsClient, async bo
 		"gs_package_signature_path": signaturePath,
 	}
 
-	return client.runJob(ctx, jobName, async, params)
+	return client.RunJob(ctx, jobName, async, params)
 }
