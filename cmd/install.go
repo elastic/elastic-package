@@ -41,18 +41,12 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 	if err != nil {
 		return cobraext.FlagParsingError(err, cobraext.PackageRootFlagName)
 	}
-	if zipPathFile == "" && packageRootPath == "" {
-		var found bool
-		packageRootPath, found, err = packages.FindPackageRoot()
-		if !found {
-			return errors.New("package root not found")
-		}
-		if err != nil {
-			return errors.Wrap(err, "locating package root failed")
-		}
+
+	aInstaller, err := newInstaller(zipPathFile, packageRootPath)
+	if err != nil {
+		return err
 	}
 
-	aInstaller := newInstaller(zipPathFile, packageRootPath)
 	manifest, err := aInstaller.manifest()
 	if err != nil {
 		return err
@@ -82,11 +76,23 @@ type packageInstaller interface {
 	install(cmd *cobra.Command, name, version string) error
 }
 
-func newInstaller(zipPath, packageRootPath string) packageInstaller {
+func newInstaller(zipPath, packageRootPath string) (packageInstaller, error) {
 	if zipPath != "" {
-		return zipPackage{zipPath: zipPath}
+		return zipPackage{zipPath: zipPath}, nil
 	}
-	return localPackage{rootPath: packageRootPath}
+	if packageRootPath == "" {
+		var found bool
+		var err error
+		packageRootPath, found, err = packages.FindPackageRoot()
+		if !found {
+			return nil, errors.New("package root not found")
+		}
+		if err != nil {
+			return nil, errors.Wrap(err, "locating package root failed")
+		}
+	}
+
+	return localPackage{rootPath: packageRootPath}, nil
 }
 
 type localPackage struct {
