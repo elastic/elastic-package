@@ -20,8 +20,8 @@ Starting with Kibana 8.7.0, there is a new API to install the packages directly 
 
 **NOTE**: These methods assume that the packages have been validated previously.
 
-From Kibana 8.7.0 version, elastic-package install has been updated:
-- a new parameter `--zip` has been added to allow installing a specific zip file.
+From Kibana 8.7.0 version, `elastic-package install` is able to install packages through the upload API.
+- The `--zip` parameter can be used to install a specific zip file.
 - `install` subcommand instead of relying in Package Registry, it does the following steps:
     - build the package
     - upload the zip file built to Kibana.
