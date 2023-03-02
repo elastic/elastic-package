@@ -97,15 +97,23 @@ func (c *Client) delete(resourcePath string) (int, []byte, error) {
 }
 
 func (c *Client) sendRequest(method, resourcePath string, body []byte) (int, []byte, error) {
-	reqBody := bytes.NewReader(body)
+	request, err := c.newRequest(method, resourcePath, bytes.NewReader(body))
+	if err != nil {
+		return 0, nil, err
+	}
+
+	return c.doRequest(request)
+}
+
+func (c *Client) newRequest(method, resourcePath string, reqBody io.Reader) (*http.Request, error) {
 	base, err := url.Parse(c.host)
 	if err != nil {
-		return 0, nil, errors.Wrapf(err, "could not create base URL from host: %v", c.host)
+		return nil, errors.Wrapf(err, "could not create base URL from host: %v", c.host)
 	}
 
 	rel, err := url.Parse(resourcePath)
 	if err != nil {
-		return 0, nil, errors.Wrapf(err, "could not create relative URL from resource path: %v", resourcePath)
+		return nil, errors.Wrapf(err, "could not create relative URL from resource path: %v", resourcePath)
 	}
 
 	u := base.JoinPath(rel.EscapedPath())
@@ -115,13 +123,17 @@ func (c *Client) sendRequest(method, resourcePath string, body []byte) (int, []b
 
 	req, err := http.NewRequest(method, u.String(), reqBody)
 	if err != nil {
-		return 0, nil, errors.Wrapf(err, "could not create %v request to Kibana API resource: %s", method, resourcePath)
+		return nil, errors.Wrapf(err, "could not create %v request to Kibana API resource: %s", method, resourcePath)
 	}
 
 	req.SetBasicAuth(c.username, c.password)
 	req.Header.Add("content-type", "application/json")
 	req.Header.Add("kbn-xsrf", install.DefaultStackVersion)
 
+	return req, nil
+}
+
+func (c *Client) doRequest(request *http.Request) (int, []byte, error) {
 	client := http.Client{}
 	if c.tlSkipVerify {
 		client.Transport = &http.Transport{
@@ -137,13 +149,13 @@ func (c *Client) sendRequest(method, resourcePath string, body []byte) (int, []b
 		}
 	}
 
-	resp, err := client.Do(req)
+	resp, err := client.Do(request)
 	if err != nil {
 		return 0, nil, errors.Wrap(err, "could not send request to Kibana API")
 	}
 
 	defer resp.Body.Close()
-	body, err = io.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return resp.StatusCode, nil, errors.Wrap(err, "could not read response body")
 	}

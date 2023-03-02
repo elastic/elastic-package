@@ -82,7 +82,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		return result.WithError(errors.Wrapf(err, "reading package manifest failed (path: %s)", r.packageRootPath))
 	}
 
-	packageInstaller, err := installer.CreateForManifest(*manifest)
+	packageInstaller, err := installer.CreateForManifest(manifest.Name, manifest.Version)
 	if err != nil {
 		return result.WithError(errors.Wrap(err, "can't create the package installer"))
 	}
@@ -108,7 +108,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 	for _, e := range expectedAssets {
 		rc := testrunner.NewResultComposer(testrunner.TestResult{
 			Name:       fmt.Sprintf("%s %s is loaded", e.Type, e.ID),
-			Package:    installedPackage.Manifest.Name,
+			Package:    installedPackage.Name,
 			DataStream: e.DataStream,
 			TestType:   TestType,
 		})

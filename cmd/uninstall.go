@@ -42,7 +42,7 @@ func uninstallCommandAction(cmd *cobra.Command, args []string) error {
 		return errors.Wrapf(err, "reading package manifest failed (path: %s)", packageRootPath)
 	}
 
-	packageInstaller, err := installer.CreateForManifest(*m)
+	packageInstaller, err := installer.CreateForManifest(m.Name, m.Version)
 	if err != nil {
 		return errors.Wrap(err, "can't create the package installer")
 	}
