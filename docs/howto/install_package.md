@@ -19,6 +19,7 @@ elastic-package install -v
 Starting with Kibana 8.7.0, there is a new API to install the packages directly without the need to be exposed in Package Registry. It can be use zip files built using `elastic-package build`command.
 
 **NOTE**: These methods assume that the packages have been validated previously.
+- Before building the package, the package can be validated by running `elastic-package check` command.
 
 From Kibana 8.7.0 version, `elastic-package install` is able to install packages through the upload API.
 - The `--zip` parameter can be used to install a specific zip file.

@@ -90,8 +90,14 @@ test-build-zip:
 	./scripts/test-build-zip.sh
 
 # TODO remove version once default one is 8.7.0 or higher
+# Setting environment variables manually
 test-install-zip:
-	./scripts/test-install-zip.sh 8.7.0-SNAPSHOT
+	./scripts/test-install-zip.sh -v 8.7.0-SNAPSHOT
+
+# TODO remove version once default one is 8.7.0 or higher
+# Using elastic-package stack shellinit to populate environment variables
+test-install-zip-shellinit:
+	./scripts/test-install-zip.sh -v 8.7.0-SNAPSHOT -s
 
 test-profiles-command:
 	./scripts/test-profiles-command.sh
