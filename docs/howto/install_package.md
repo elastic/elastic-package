@@ -90,3 +90,14 @@ This package installation can be customized to be installed in other Kibana inst
 - ELASTIC_PACKAGE_ELASTICSEARCH_USERNAME
 - ELASTIC_PACKAGE_ELASTICSEARCH_PASSWORD
 - ELASTIC_PACKAGE_CA_CERT
+
+As an example:
+```bash
+export ELASTIC_PACKAGE_KIBANA_HOST="https://test-installation.kibana.test:9243"
+export ELASTIC_PACKAGE_ELASTICSEARCH_USERNAME="elastic"
+export ELASTIC_PACKAGE_ELASTICSEARCH_PASSWORD="xxx"
+# if it is a public instance, this variable should not be needed
+export ELASTIC_PACKAGE_CA_CERT=""
+
+elastic-package install --zip elastic_package_registry-0.0.6.zip -v
+```
