@@ -5,7 +5,7 @@ set -euxo pipefail
 STACK_VERSION=${1:-default}
 
 cleanup() {
-  r=$?
+  local r=$?
 
   # Dump stack logs
   elastic-package stack dump -v --output build/elastic-stack-dump/install-zip
@@ -21,6 +21,21 @@ cleanup() {
   done
 
   exit $r
+}
+
+installAndVerifyPackage() {
+  local zipFile="$1"
+  local PACKAGE_NAME_VERSION=$(basename ${zipFile} .zip)
+
+  elastic-package install -v --zip ${zipFile}
+
+  # check that the package is installed
+  curl -s \
+    -u ${ELASTIC_PACKAGE_ELASTICSEARCH_USERNAME}:${ELASTIC_PACKAGE_ELASTICSEARCH_PASSWORD} \
+    --cacert ${ELASTIC_PACKAGE_CA_CERT} \
+    -H 'content-type: application/json' \
+    -H 'kbn-xsrf: true' \
+    -f ${ELASTIC_PACKAGE_KIBANA_HOST}/api/fleet/epm/packages/${PACKAGE_NAME_VERSION} | grep -q '"status":"installed"'
 }
 
 trap cleanup EXIT
@@ -56,24 +71,20 @@ rm -r build/packages/*/
 
 # Install packages and verify
 for zipFile in build/packages/*.zip; do
-  PACKAGE_NAME_VERSION=$(basename ${zipFile} .zip)
-
-  elastic-package install -v --zip ${zipFile}
-
-  # check that the package is installed
-  curl -s \
-    -u ${ELASTIC_PACKAGE_ELASTICSEARCH_USERNAME}:${ELASTIC_PACKAGE_ELASTICSEARCH_PASSWORD} \
-    --cacert ${ELASTIC_PACKAGE_CA_CERT} \
-    -H 'content-type: application/json' \
-    -H 'kbn-xsrf: true' \
-    -f ${ELASTIC_PACKAGE_KIBANA_HOST}/api/fleet/epm/packages/${PACKAGE_NAME_VERSION} | grep -q '"status":"installed"'
+  installAndVerifyPackage ${zipFile}
 done
 
-elastic-package stack shellinit
-
+# try to install one package without elastic-package stack shellinit
 unset ELASTIC_PACKAGE_KIBANA_HOST
 unset ELASTIC_PACKAGE_ELASTICSEARCH_USERNAME
 unset ELASTIC_PACKAGE_ELASTICSEARCH_PASSWORD
 unset ELASTIC_PACKAGE_CA_CERT
 
-# try to install one package
+export ELASTIC_PACKAGE_ELASTICSEARCH_USERNAME=elastic
+export ELASTIC_PACKAGE_ELASTICSEARCH_PASSWORD=changeme
+export ELASTIC_PACKAGE_KIBANA_HOST=https://127.0.0.1:5601
+export ELASTIC_PACKAGE_CA_CERT=${HOME}/.elastic-package/profiles/default/certs/ca-cert.pem
+
+zipFile="build/packages/$(ls -rt build/packages/ | tail -n 1)"
+
+installAndVerifyPackage ${zipFile}
