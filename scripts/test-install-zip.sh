@@ -5,7 +5,7 @@ set -euxo pipefail
 cleanup() {
   local r=$?
 
-  local output_path="build/elastic-stack/dump/install-zip"
+  local output_path="build/elastic-stack-dump/install-zip"
   if [ ${USE_SHELLINIT} -eq 1 ]; then
       output_path="${output_path}-shellinit"
   fi
