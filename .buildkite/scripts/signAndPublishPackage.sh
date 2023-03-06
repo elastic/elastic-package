@@ -116,9 +116,9 @@ publishPackage() {
     export GOOGLE_APPLICATIONS_CREDENTIALS=${secretFileLocation}
 
     # upload files
-    echo "Upload package .zip file ${package}"
+    echo "Upload package .zip file ${package} to ${PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH}"
     gsutil cp ${package} ${PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH}
-    echo "Upload package .sig file ${package}.sig"
+    echo "Upload package .sig file ${package}.sig to ${PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH}"
     gsutil cp ${package}.sig ${PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH}
 
     echo "Trigger Jenkins job for publishing package ${packageZip}"
