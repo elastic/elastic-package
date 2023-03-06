@@ -75,8 +75,8 @@ signPackage() {
     echo "Activated service account"
     export GOOGLE_APPLICATIONS_CREDENTIALS=${secretFileLocation}
 
-    echo "Upload package .zip file for signing"
-    gsutil cp ${packageZip} ${INFRA_SIGNING_BUCKET_ARTIFACTS_PATH}
+    echo "Upload package .zip file for signing ${package}"
+    gsutil cp ${package} ${INFRA_SIGNING_BUCKET_ARTIFACTS_PATH}
 
     echo "Trigger Jenkins job for signing package ${packageZip}"
     pushd ${JENKINS_TRIGGER_PATH} > /dev/null
@@ -116,10 +116,10 @@ publishPackage() {
     export GOOGLE_APPLICATIONS_CREDENTIALS=${secretFileLocation}
 
     # upload files
-    echo "Upload package .zip file"
-    gsutil cp ${packageZip} ${PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH}
-    echo "Upload package .sig file"
-    gsutil cp ${packageZip}.sig ${PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH}
+    echo "Upload package .zip file ${package}"
+    gsutil cp ${package} ${PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH}
+    echo "Upload package .sig file ${package}.sig"
+    gsutil cp ${package}.sig ${PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH}
 
     echo "Trigger Jenkins job for publishing package ${packageZip}"
     pushd ${JENKINS_TRIGGER_PATH} > /dev/null
