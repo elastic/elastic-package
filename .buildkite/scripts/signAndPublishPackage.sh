@@ -44,6 +44,8 @@ REPO_BUILD_TAG="${REPO_NAME}/${BUILD_TAG}/"
 
 BUILD_PACKAGES_PATH="build/packages"
 TEMPLATE_TEMP_FOLDER="tmp.elastic-package.XXXXXXXXX"
+JENKINS_TRIGGER_PATH=".buildkite/scripts/triggerJenkinsJob"
+GOOGLE_CREDENTIALS_FILENAME="google-cloud-credentials.json"
 
 ## Signing
 INFRA_SIGNING_BUCKET_NAME='internal-ci-artifacts'
@@ -54,9 +56,6 @@ INFRA_SIGNING_BUCKET_SIGNED_ARTIFACTS_PATH="gs://${INFRA_SIGNING_BUCKET_NAME}/${
 ## Publishing
 PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH="gs://elastic-bekitzur-package-storage-internal/queue-publishing/${REPO_BUILD_TAG}"
 
-JENKINS_TRIGGER_PATH=".buildkite/scripts/triggerJenkinsJob"
-
-GOOGLE_CREDENTIALS_FILENAME="google-cloud-credentials.json"
 
 google_cloud_auth() {
     local key_file="$1"
@@ -89,14 +88,14 @@ signPackage() {
     popd > /dev/null
 
     echo "Download signatures"
-    gsutil cp ${INFRA_SIGNING_BUCKET_SIGNED_ARTIFACTS_PATH}/${packageZip}.asc ${BUILD_PACKAGES}
+    gsutil cp ${INFRA_SIGNING_BUCKET_SIGNED_ARTIFACTS_PATH}/${packageZip}.asc ${BUILD_PACKAGES_PATH}
 
     echo "Rename asc to sig"
     for f in build/packages/*.asc; do
         mv "$f" "${f%.asc}.sig"
     done
 
-    ls -l ${BUILD_PACKAGES}
+    ls -l ${BUILD_PACKAGES_PATH}
 
     rm -r ${gsUtilLocation}
 }
@@ -134,13 +133,12 @@ publishPackage() {
     rm -r ${gsUtilLocation}
 }
 
-# download package artifact
-mkdir -p ${BUILD_PACKAGES}
+# download package artifact from previous step
+mkdir -p ${BUILD_PACKAGES_PATH}
 
-buildkite-agent artifact download "${BUILD_PACKAGES}/*.zip" --step build-package ${BUILD_PACKAGES}
+buildkite-agent artifact download "${BUILD_PACKAGES_PATH}/*.zip" --step build-package ${BUILD_PACKAGES_PATH}
 
-
-for package in ${BUILD_PACKAGES}/*.zip; do
+for package in ${BUILD_PACKAGES_PATH}/*.zip; do
     echo "isAlareadyInstalled ${package}?"
     packageZip=$(basename ${package})
     if isAlreadyPublished ${packageZip} ; then
