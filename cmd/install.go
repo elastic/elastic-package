@@ -5,10 +5,15 @@
 package cmd
 
 import (
+	"fmt"
+
+	"github.com/Masterminds/semver/v3"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
+	"github.com/elastic/elastic-package/internal/builder"
 	"github.com/elastic/elastic-package/internal/cobraext"
+	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/packages/installer"
@@ -16,7 +21,9 @@ import (
 
 const installLongDescription = `Use this command to install the package in Kibana.
 
-The command uses Kibana API to install the package in Kibana. The package must be exposed via the Package Registry or built locally in zip format so they can be installed using --zip parameter. Zip packages can be installed directly in Kibana >= 8.7.0.`
+The command uses Kibana API to install the package in Kibana. The package must be exposed via the Package Registry or built locally in zip format so they can be installed using --zip parameter. Zip packages can be installed directly in Kibana >= 8.7.0. More details in this [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/install_package.md).`
+
+var semver8_7_0 = semver.MustParse("8.7.0")
 
 func setupInstallCommand() *cobraext.Command {
 	cmd := &cobra.Command{
@@ -42,7 +49,20 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 		return cobraext.FlagParsingError(err, cobraext.PackageRootFlagName)
 	}
 
-	installer, err := newInstaller(zipPathFile, packageRootPath)
+	kibanaClient, err := kibana.NewClient()
+	if err != nil {
+		return errors.Wrap(err, "could not create kibana client")
+	}
+	kibanaVersion, err := kibanaClient.Version()
+	if err != nil {
+		return err
+	}
+	v, err := semver.NewVersion(kibanaVersion.Number)
+	if err != nil {
+		return fmt.Errorf("invalid Kibana version")
+	}
+
+	installer, err := newInstaller(zipPathFile, packageRootPath, v)
 	if err != nil {
 		return err
 	}
@@ -76,8 +96,11 @@ type packageInstaller interface {
 	install(cmd *cobra.Command, name, version string) error
 }
 
-func newInstaller(zipPath, packageRootPath string) (packageInstaller, error) {
+func newInstaller(zipPath, packageRootPath string, kibanaVersion *semver.Version) (packageInstaller, error) {
 	if zipPath != "" {
+		if kibanaVersion.LessThan(semver8_7_0) {
+			return nil, fmt.Errorf("not supported uploading zip packages in Kibana %s", kibanaVersion)
+		}
 		return zipPackage{zipPath: zipPath}, nil
 	}
 	if packageRootPath == "" {
@@ -92,7 +115,23 @@ func newInstaller(zipPath, packageRootPath string) (packageInstaller, error) {
 		}
 	}
 
-	return localPackage{rootPath: packageRootPath}, nil
+	if kibanaVersion.LessThan(semver8_7_0) {
+		return localPackage{rootPath: packageRootPath}, nil
+	}
+
+	// build and install
+	target, err := builder.BuildPackage(builder.BuildOptions{
+		PackageRoot:    packageRootPath,
+		CreateZip:      true,
+		SignPackage:    false,
+		SkipValidation: false,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "building package failed")
+	}
+	logger.Infof("Built package path: %s", target)
+
+	return zipPackage{zipPath: target}, nil
 }
 
 type localPackage struct {

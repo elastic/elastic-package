@@ -81,6 +81,13 @@ echo "          provider: \"gcp\""
 echo "        artifact_paths:"
 echo "          - build/elastic-stack-dump/install-zip/logs/*.log"
 
+echo "      - label: \":go: Running integration test: test-install-zip-shellinit\""
+echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-install-zip-shellinit"
+echo "        agents:"
+echo "          provider: \"gcp\""
+echo "        artifact_paths:"
+echo "          - build/elastic-stack-dump/install-zip-shellinit/logs/*.log"
+
 echo "      - label: \":go: Running integration test: test-profiles-command\""
 echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-profiles-command"
 echo "        agents:"
