@@ -59,7 +59,7 @@ PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH="gs://elastic-bekitzur-pac
 
 google_cloud_auth() {
     local key_file="$1"
-    gcloud auth activate-service-account --key-file ${key_file}
+    gcloud auth activate-service-account --key-file ${key_file} > /dev/null
 }
 
 signPackage() {
@@ -72,6 +72,7 @@ signPackage() {
     echo "${INTERNAL_CI_GCS_CREDENTIALS_SECRET}" > ${secretFileLocation}
 
     google_cloud_auth ${secretFileLocation}
+    echo "Activated service account"
     export GOOGLE_APPLICATIONS_CREDENTIALS=${secretFileLocation}
 
     echo "Upload package .zip file for signing"
@@ -111,6 +112,7 @@ publishPackage() {
     echo "${PACKAGE_UPLOADER_GCS_CREDENTIALS_SECRET}" > ${secretFileLocation}
 
     google_cloud_auth ${secretFileLocation}
+    echo "Activated service account"
     export GOOGLE_APPLICATIONS_CREDENTIALS=${secretFileLocation}
 
     # upload files
