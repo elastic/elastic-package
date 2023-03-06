@@ -139,6 +139,8 @@ publishPackage() {
 mkdir -p ${BUILD_PACKAGES_PATH}
 
 buildkite-agent artifact download "${BUILD_PACKAGES_PATH}/*.zip" --step build-package ${BUILD_PACKAGES_PATH}
+echo "Show artifacts downloaded from previous step ${BUILD_PACKAGES_PATH}"
+ls -l ${BUILD_PACKAGES_PATH}
 
 for package in $(ls ${BUILD_PACKAGES_PATH}/*.zip); do
     echo "isAlreadyInstalled ${package}?"
