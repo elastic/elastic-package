@@ -24,6 +24,15 @@ steps:
       cpu: "8"
       memory: "4G"
 
+  - label: ":go: :windows: Run unit tests"
+    key: unit-tests-windows
+    command: "go test ./..."
+    agents:
+      windows: true
+      image: "golang:1.19.5-windowsservercore-ltsc2022"
+      cpu: "8"
+      memory: "4G"
+
   - wait: ~
     continue_on_failure: true
 
