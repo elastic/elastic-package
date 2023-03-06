@@ -59,7 +59,7 @@ PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH="gs://elastic-bekitzur-pac
 
 google_cloud_auth() {
     local key_file="$1"
-    gcloud gcloud auth activate-service-account --key-file ${keyFile}
+    gcloud gcloud auth activate-service-account --key-file ${key_file}
 }
 
 signPackage() {
