@@ -136,9 +136,9 @@ publishPackage() {
 }
 
 # download package artifact from previous step
-mkdir -p ${BUILD_PACKAGES_PATH}
+mkdir -p BUILD_PACKAGES_PATH
 
-buildkite-agent artifact download "${BUILD_PACKAGES_PATH}/*.zip" --step build-package ${BUILD_PACKAGES_PATH}
+buildkite-agent artifact download "${BUILD_PACKAGES_PATH}/*.zip" --step build-package .
 echo "Show artifacts downloaded from previous step ${BUILD_PACKAGES_PATH}"
 ls -l ${BUILD_PACKAGES_PATH}
 
