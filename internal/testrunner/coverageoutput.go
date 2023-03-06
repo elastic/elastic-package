@@ -9,6 +9,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"time"
 
@@ -346,7 +347,7 @@ func transformToCoberturaReport(details *testCoverageDetails) *CoberturaCoverage
 
 		aClass := &CoberturaClass{
 			Name:     string(details.testType),
-			Filename: details.packageName + "/" + dataStream,
+			Filename: path.Join(details.packageName, dataStream),
 			Methods:  methods,
 		}
 		classes = append(classes, aClass)
