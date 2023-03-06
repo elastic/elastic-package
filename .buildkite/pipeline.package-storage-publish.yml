@@ -17,6 +17,8 @@ steps:
   - label: "Test"
     key: sign-publish
     command: ".buildkite/scripts/signAndPublishPackage.sh"
+    depends_on:
+      - build-package
     agents:
       provider: "gcp"
       image: family/core-ubuntu-2004
