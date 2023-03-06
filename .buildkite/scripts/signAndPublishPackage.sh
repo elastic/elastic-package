@@ -75,7 +75,7 @@ signPackage() {
     echo "Activated service account"
     export GOOGLE_APPLICATIONS_CREDENTIALS=${secretFileLocation}
 
-    echo "Upload package .zip file for signing ${package}"
+    echo "Upload package .zip file for signing ${package} to ${INFRA_SIGNING_BUCKET_ARTIFACTS_PATH}"
     gsutil cp ${package} ${INFRA_SIGNING_BUCKET_ARTIFACTS_PATH}
 
     echo "Trigger Jenkins job for signing package ${packageZip}"
