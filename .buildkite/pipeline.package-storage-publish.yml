@@ -1,7 +1,4 @@
 steps:
-  - label: "Example Test"
-    command: echo "Hello!"
-
   - label: ":go: Build package"
     key: build-package
     command:
