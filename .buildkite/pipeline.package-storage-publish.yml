@@ -11,6 +11,8 @@ steps:
       image: "golang:1.19.5"
       cpu: "8"
       memory: "4G"
+    artifact_paths:
+      - build/packages/*.zip
 
   - label: "Test"
     key: sign-publish

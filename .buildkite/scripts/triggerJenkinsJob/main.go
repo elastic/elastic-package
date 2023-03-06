@@ -76,8 +76,9 @@ func main() {
 }
 
 func runSignPackageJob(ctx context.Context, client *jenkins.JenkinsClient, async bool, jobName, packagePath string) error {
-	params := map[string]string{}
-	// TODO set parameters for sign job
+	params := map[string]string{
+		"gcs_input_path": packagePath,
+	}
 
 	return client.RunJob(ctx, jobName, async, params)
 }
