@@ -63,5 +63,5 @@ if [[ "$BUILDKITE_PIPELINE_SLUG" == "elastic-package-package-storage-publish" &&
     export INTERNAL_CI_GCS_CREDENTIALS_SECRET=$(retry 5 vault read -field plaintext ${INTERNAL_CI_GCS_CREDENTIALS_PATH})
 
     # publishing job
-    export PACKAGE_UPLOADER_GCS_CREDENTIALS_SECRET=$(retry 5 vault read -field plaintext ${PACKAGE_UPLOADER_GCS_CREDENTIALS_PATH})
+    export PACKAGE_UPLOADER_GCS_CREDENTIALS_SECRET=$(retry 5 vault read -field value ${PACKAGE_UPLOADER_GCS_CREDENTIALS_PATH})
 fi
