@@ -92,7 +92,7 @@ signPackage() {
     gsutil cp ${INFRA_SIGNING_BUCKET_SIGNED_ARTIFACTS_PATH}/${packageZip}.asc ${BUILD_PACKAGES_PATH}
 
     echo "Rename asc to sig"
-    for f in build/packages/*.asc; do
+    for f in $(ls ${BUILD_PACKAGES_PATH}/*.asc); do
         mv "$f" "${f%.asc}.sig"
     done
 
@@ -138,13 +138,10 @@ publishPackage() {
 # download package artifact from previous step
 mkdir -p ${BUILD_PACKAGES_PATH}
 
-buildkite-agent artifact download "${BUILD_PACKAGES_PATH}/*" --step build-package ${BUILD_PACKAGES_PATH}
+buildkite-agent artifact download "${BUILD_PACKAGES_PATH}/*.zip" --step build-package ${BUILD_PACKAGES_PATH}
 
-echo "Artifacts downloaded:"
-ls -l ${BUILD_PACKAGES_PATH}
-
-for package in ${BUILD_PACKAGES_PATH}/*.zip; do
-    echo "isAlareadyInstalled ${package}?"
+for package in $(ls ${BUILD_PACKAGES_PATH}/*.zip); do
+    echo "isAlreadyInstalled ${package}?"
     packageZip=$(basename ${package})
     if isAlreadyPublished ${packageZip} ; then
         echo "Skipping. ${packageZip} already published"
