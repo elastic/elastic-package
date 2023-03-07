@@ -20,14 +20,7 @@ else
 fi
 
 source .buildkite/scripts/install_deps.sh
-
-repoName() {
-    # Example of URL: git@github.com:acme-inc/my-project.git
-    local repoUrl=$1
-
-    orgAndRepo=$(echo $repoUrl | cut -d':' -f 2)
-    echo "$(basename ${orgAndRepo} .git)"
-}
+source .buildkite/scripts/tooling.sh
 
 isAlreadyPublished() {
     local packageZip=$1
@@ -58,23 +51,33 @@ INFRA_SIGNING_BUCKET_SIGNED_ARTIFACTS_PATH="gs://${INFRA_SIGNING_BUCKET_NAME}/${
 PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH="gs://elastic-bekitzur-package-storage-internal/queue-publishing/${REPO_BUILD_TAG}"
 
 
-google_cloud_auth() {
-    local key_file="$1"
-    gcloud auth activate-service-account --key-file ${key_file} 2> /dev/null
+google_cloud_auth_signing() {
+    local gsUtilLocation=$(mktemp -d -p . -t ${TEMPLATE_TEMP_FOLDER})
+
+    local secretFileLocation=${gsUtilLocation}/${GOOGLE_CREDENTIALS_FILENAME}
+    echo "${INTERNAL_CI_GCS_CREDENTIALS_SECRET}" > ${secretFileLocation}
+
+    google_cloud_auth "${secretFileLocation}"
+
+    echo "${gsUtilLocation}"
+}
+
+google_cloud_auth_publishing() {
+    local gsUtilLocation=$(mktemp -d -p . -t ${TEMPLATE_TEMP_FOLDER})
+
+    local secretFileLocation=${gsUtilLocation}/${GOOGLE_CREDENTIALS_FILENAME}
+    echo "${PACKAGE_UPLOADER_GCS_CREDENTIALS_SECRET}" > ${secretFileLocation}
+
+    google_cloud_auth "${secretFileLocation}"
+
+    echo "${gsUtilLocation}"
 }
 
 signPackage() {
     local package=${1}
     local packageZip=$(basename ${package})
 
-    gsUtilLocation=$(mktemp -d -p . -t ${TEMPLATE_TEMP_FOLDER})
-
-    secretFileLocation=${gsUtilLocation}/${GOOGLE_CREDENTIALS_FILENAME}
-    echo "${INTERNAL_CI_GCS_CREDENTIALS_SECRET}" > ${secretFileLocation}
-
-    google_cloud_auth ${secretFileLocation}
-    echo "Activated service account"
-    export GOOGLE_APPLICATIONS_CREDENTIALS=${secretFileLocation}
+    local gsUtilLocation=$(google_cloud_auth_signing)
 
     echo "Upload package .zip file for signing ${package} to ${INFRA_SIGNING_BUCKET_ARTIFACTS_PATH}"
     gsutil cp ${package} ${INFRA_SIGNING_BUCKET_ARTIFACTS_PATH}
@@ -104,17 +107,10 @@ signPackage() {
 
 publishPackage() {
     local package=$1
-
     local packageZip=$(basename ${package})
+
     # create file with credentials
-    gsUtilLocation=$(mktemp -d -p . -t ${TEMPLATE_TEMP_FOLDER})
-
-    secretFileLocation=${gsUtilLocation}/${GOOGLE_CREDENTIALS_FILENAME}
-    echo "${PACKAGE_UPLOADER_GCS_CREDENTIALS_SECRET}" > ${secretFileLocation}
-
-    google_cloud_auth ${secretFileLocation}
-    echo "Activated service account"
-    export GOOGLE_APPLICATIONS_CREDENTIALS=${secretFileLocation}
+    local gsUtilLocation=$(google_cloud_auth_publishing)
 
     # upload files
     echo "Upload package .zip file ${package} to ${PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH}"
@@ -140,7 +136,7 @@ publishPackage() {
 with_go
 
 # download package artifact from previous step
-mkdir -p BUILD_PACKAGES_PATH
+mkdir -p ${BUILD_PACKAGES_PATH}
 
 buildkite-agent artifact download "${BUILD_PACKAGES_PATH}/*.zip" --step build-package .
 echo "Show artifacts downloaded from previous step ${BUILD_PACKAGES_PATH}"

@@ -26,7 +26,7 @@ GCP_SERVICE_ACCOUNT_SECRET_PATH=secret/ci/elastic-elastic-package/gcp-service-ac
 AWS_SERVICE_ACCOUNT_SECRET_PATH=kv/ci-shared/platform-ingest/aws_account_auth
 GITHUB_TOKEN_VAULT_PATH=kv/ci-shared/platform-ingest/github_token
 JENKINS_API_TOKEN_PATH=kv/ci-shared/platform-ingest/jenkins_api_tokens
-INTERNAL_CI_GCS_CREDENTIALS_PATH=secret/ci/elastic-elastic-package/jenkins_k8s_plugin_credentials
+INTERNAL_CI_GCS_CREDENTIALS_PATH=secret/ci/elastic-elastic-package/jenkins_gcs_plugin_credentials
 PACKAGE_UPLOADER_GCS_CREDENTIALS_PATH=secret/ci/elastic-elastic-package/package-storage-uploader
 
 # Secrets must be redacted
