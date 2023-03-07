@@ -25,9 +25,11 @@ source .buildkite/scripts/tooling.sh
 isAlreadyPublished() {
     local packageZip=$1
 
-    if curl --head https://package-storage.elastic.co/artifacts/packages/${packageZip} | grep -q "HTTP/2 200" ; then
+    if curl -s --head https://package-storage.elastic.co/artifacts/packages/${packageZip} | grep -q "HTTP/2 200" ; then
+        echo "- Already published ${packageZip}"
         return 0
     fi
+    echo "- Not published ${packageZip}"
     return 1
 }
 
