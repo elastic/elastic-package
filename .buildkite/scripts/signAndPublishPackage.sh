@@ -4,6 +4,9 @@ set -euo pipefail
 WORKSPACE="$(pwd)"
 TMP_FOLDER_TEMPLATE_BASE="tmp.elastic-package"
 
+source .buildkite/scripts/install_deps.sh
+source .buildkite/scripts/tooling.sh
+
 cleanup() {
     echo "Deleting temporal files..."
     cd ${WORKSPACE}
@@ -13,7 +16,8 @@ cleanup() {
 
 trap cleanup EXIT
 
-export PATH="${WORKSPACE}/bin:${PATH}"
+add_bin_path
+
 
 echo "Checking gsutil command..."
 if ! command -v gsutil &> /dev/null ; then
@@ -22,9 +26,6 @@ if ! command -v gsutil &> /dev/null ; then
 else
     echo "✅ gsutil is installed"
 fi
-
-source .buildkite/scripts/install_deps.sh
-source .buildkite/scripts/tooling.sh
 
 isAlreadyPublished() {
     local packageZip=$1
