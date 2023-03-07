@@ -2,14 +2,14 @@
 set -euo pipefail
 
 cleanup() {
-    cd $FIRST_PWD
+    cd ${WORKSPACE}
     rm -rf tmp.elastic-package.*
 }
 
 trap cleanup EXIT
 
-FIRST_PWD=$(pwd)
 WORKSPACE="$(pwd)"
+export PATH="${WORKSPACE}/bin:${PATH}"
 
 echo "Checking gsutil command..."
 if ! command -v gsutil &> /dev/null ; then
