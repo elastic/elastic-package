@@ -41,6 +41,8 @@ steps:
         allow_failure: false
       - step: unit-tests-linux
         allow_failure: false
+      - step: unit-tests-windows
+        allow_failure: false
 
   - wait: ~
     continue_on_failure: true
