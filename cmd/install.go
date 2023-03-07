@@ -124,7 +124,7 @@ func newInstaller(zipPath, packageRootPath string, kibanaVersion *semver.Version
 		PackageRoot:    packageRootPath,
 		CreateZip:      true,
 		SignPackage:    false,
-		SkipValidation: false,
+		SkipValidation: true,
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "building package failed")
