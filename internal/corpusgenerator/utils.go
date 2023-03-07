@@ -20,6 +20,8 @@ func RunGenerator(generator genlib.Generator) error {
 			if _, err = f.Write(buf.Bytes()); err != nil {
 				return err
 			}
+
+			buf.Reset()
 		}
 
 		if err == io.EOF {
