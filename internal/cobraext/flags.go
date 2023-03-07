@@ -92,13 +92,17 @@ const (
 	FailFastFlagName        = "fail-fast"
 	FailFastFlagDescription = "fail immediately if any file requires updates (do not overwrite)"
 
-	GenerateDataStreamFlagName        = "data-stream"
-	GenerateDataStreamFlagShorthand   = "D"
-	GenerateDataStreamFlagDescription = "data stream to generate benchmarks data for"
+	GenerateCorpusDataStreamFlagName        = "data-stream"
+	GenerateCorpusDataStreamFlagShorthand   = "D"
+	GenerateCorpusDataStreamFlagDescription = "data stream to generate benchmarks data corpus for"
 
-	GenerateSizeFlagName        = "size"
-	GenerateSizeFlagShorthand   = "S"
-	GenerateSizeFlagDescription = "size of benchmarks data to generate"
+	GenerateCorpusCommitFlagName        = "commit"
+	GenerateCorpusCommitFlagShorthand   = "C"
+	GenerateCorpusCommitFlagDescription = "commit to fetch assets from the corpus generator tool repo from"
+
+	GenerateCorpusSizeFlagName        = "size"
+	GenerateCorpusSizeFlagShorthand   = "S"
+	GenerateCorpusSizeFlagDescription = "size of benchmarks data corpus to generate"
 
 	GenerateTestResultFlagName        = "generate"
 	GenerateTestResultFlagDescription = "generate test result file"

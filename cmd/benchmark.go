@@ -6,6 +6,8 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/dustin/go-humanize"
+	"github.com/elastic/elastic-package/internal/corpusgenerator"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -22,6 +24,12 @@ import (
 	"github.com/elastic/elastic-package/internal/signal"
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
+
+const generateLongDescription = `
+BEWARE: this command is in beta and it's behaviour may change in the future.
+Use this command to generate benchmarks corpus  data for a package.
+Currently, only data for what we have related assets on https://github.com/elastic/elastic-integration-corpus-generator-tool are supported.
+`
 
 const benchLongDescription = `Use this command to run benchmarks on a package. Currently, the following types of benchmarks are available:
 
@@ -70,6 +78,9 @@ func setupBenchmarkCommand() *cobraext.Command {
 
 		cmd.AddCommand(benchTypeCmd)
 	}
+
+	generateCorpusCmd := getGenerateCorpusCommand()
+	cmd.AddCommand(generateCorpusCmd)
 
 	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
 }
@@ -197,4 +208,67 @@ func benchTypeCommandActionFactory(runner benchrunner.BenchRunner) cobraext.Comm
 		}
 		return nil
 	}
+}
+
+func getGenerateCorpusCommand() *cobra.Command {
+	generateCorpusCmd := &cobra.Command{
+		Use:   "generate-corpus",
+		Short: "Generate benchmarks corpus data for the package",
+		Long:  generateLongDescription,
+		RunE:  generateDataStreamCorpusCommandAction,
+	}
+
+	generateCorpusCmd.PersistentFlags().StringP(cobraext.PackageFlagName, cobraext.PackageFlagShorthand, "", cobraext.PackageFlagDescription)
+	generateCorpusCmd.PersistentFlags().StringP(cobraext.GenerateCorpusDataStreamFlagName, cobraext.GenerateCorpusDataStreamFlagShorthand, "", cobraext.GenerateCorpusDataStreamFlagDescription)
+	generateCorpusCmd.PersistentFlags().StringP(cobraext.GenerateCorpusSizeFlagName, cobraext.GenerateCorpusSizeFlagShorthand, "", cobraext.GenerateCorpusSizeFlagDescription)
+	generateCorpusCmd.PersistentFlags().StringP(cobraext.GenerateCorpusCommitFlagName, cobraext.GenerateCorpusCommitFlagShorthand, "main", cobraext.GenerateCorpusCommitFlagDescription)
+
+	return generateCorpusCmd
+}
+
+func generateDataStreamCorpusCommandAction(cmd *cobra.Command, _ []string) error {
+	packageName, err := cmd.Flags().GetString(cobraext.PackageFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.PackageFlagName)
+	}
+
+	dataStreamName, err := cmd.Flags().GetString(cobraext.GenerateCorpusDataStreamFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.GenerateCorpusDataStreamFlagName)
+	}
+
+	totSize, err := cmd.Flags().GetString(cobraext.GenerateCorpusSizeFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.GenerateCorpusSizeFlagName)
+	}
+
+	totSizeInBytes, err := humanize.ParseBytes(totSize)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.GenerateCorpusSizeFlagName)
+	}
+
+	if totSizeInBytes < 0 {
+		return cobraext.FlagParsingError(errors.New("provide a positive size vaue"), cobraext.GenerateCorpusSizeFlagName)
+	}
+
+	commit, err := cmd.Flags().GetString(cobraext.GenerateCorpusCommitFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.GenerateCorpusSizeFlagName)
+	}
+
+	if len(commit) == 0 {
+		commit = "main"
+	}
+
+	generator, err := corpusgenerator.GetGenerator(packageName, dataStreamName, commit, totSizeInBytes)
+	if err != nil {
+		return errors.Wrap(err, "can't generate benchmarks data corpus for data stream")
+	}
+
+	err = corpusgenerator.RunGenerator(generator)
+	if err != nil {
+		return errors.Wrap(err, "can't generate benchmarks data corpus for data stream")
+	}
+
+	return nil
 }

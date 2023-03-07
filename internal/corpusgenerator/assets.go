@@ -2,7 +2,7 @@
 // or more contributor license agreements. Licensed under the Elastic License;
 // you may not use this file except in compliance with the Elastic License.
 
-package integration_corpus_generator
+package corpusgenerator
 
 import (
 	"context"
@@ -19,10 +19,15 @@ import (
 	"github.com/elastic/elastic-package/internal/builder"
 )
 
+const (
+	confYamlAssetName       = "schema-b/configs.yml"
+	fieldsYamlAssetName     = "schema-b/fields.yml"
+	gotextTemplateAssetName = "schema-b/gotext.tpl"
+)
+
 // GetGoTextTemplate returns the gotext template of a package's data stream
 func (c *Client) GetGoTextTemplate(packageName, dataStreamName string) ([]byte, error) {
 	assetsSubFolder := fmt.Sprintf("%s.%s", packageName, dataStreamName)
-	gotextTemplateAssetName := fmt.Sprintf("%s.gotext.log", dataStreamName)
 	statusCode, respBody, err := c.get(fmt.Sprintf("%s/%s", assetsSubFolder, gotextTemplateAssetName))
 	if err != nil {
 		return nil, errors.Wrap(err, "could not get gotext template")
@@ -38,7 +43,6 @@ func (c *Client) GetGoTextTemplate(packageName, dataStreamName string) ([]byte, 
 // GetConf returns the genlib.Config of a package's data stream
 func (c *Client) GetConf(packageName, dataStreamName string) (genlib.Config, error) {
 	assetsSubFolder := fmt.Sprintf("%s.%s", packageName, dataStreamName)
-	confYamlAssetName := fmt.Sprintf("%s.conf.yml", dataStreamName)
 
 	statusCode, respBody, err := c.get(fmt.Sprintf("%s/%s", assetsSubFolder, confYamlAssetName))
 	if err != nil {
@@ -61,7 +65,6 @@ func (c *Client) GetConf(packageName, dataStreamName string) (genlib.Config, err
 // GetFields returns the genlib.Config of a package's data stream
 func (c *Client) GetFields(packageName, dataStreamName string) (genlib.Fields, error) {
 	assetsSubFolder := fmt.Sprintf("%s.%s", packageName, dataStreamName)
-	fieldsYamlAssetName := fmt.Sprintf("%s.fields.yml", dataStreamName)
 
 	statusCode, respBody, err := c.get(fmt.Sprintf("%s/%s", assetsSubFolder, fieldsYamlAssetName))
 	if err != nil {
