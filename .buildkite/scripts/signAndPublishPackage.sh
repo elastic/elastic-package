@@ -139,21 +139,6 @@ publishPackage() {
 # Required to trigger Jenkins job
 with_go
 
-# test triggering job in Jenkins
-echo "Trigger Jenkins job for publishing package"
-pushd ${JENKINS_TRIGGER_PATH} > /dev/null
-
-go run main.go \
-    --jenkins-job publish \
-    --package  gs://elastic-bekitzur-package-storage-internal/queue-publishing/elastic-package/jenkins-Ingest-manager-elastic-package-package-storage-publish-PR-1175-14/package_storage_candidate-0.0.1.zip\
-    --signature gs://elastic-bekitzur-package-storage-internal/queue-publishing/elastic-package/jenkins-Ingest-manager-elastic-package-package-storage-publish-PR-1175-14/package_storage_candidate-0.0.1.zip.sig
-
-sleep 5
-
-popd > /dev/null
-
-exit 0
-
 # download package artifact from previous step
 mkdir -p BUILD_PACKAGES_PATH
 
