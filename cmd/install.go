@@ -11,6 +11,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
+	"github.com/elastic/package-spec/v2/code/go/pkg/validator"
+
 	"github.com/elastic/elastic-package/internal/builder"
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/kibana"
@@ -35,6 +37,7 @@ func setupInstallCommand() *cobraext.Command {
 	cmd.Flags().StringSliceP(cobraext.CheckConditionFlagName, "c", nil, cobraext.CheckConditionFlagDescription)
 	cmd.Flags().StringP(cobraext.PackageRootFlagName, cobraext.PackageRootFlagShorthand, "", cobraext.PackageRootFlagDescription)
 	cmd.Flags().StringP(cobraext.ZipPackageFilePathFlagName, cobraext.ZipPackageFilePathFlagShorthand, "", cobraext.ZipPackageFilePathFlagDescription)
+	cmd.Flags().Bool(cobraext.BuildSkipValidationFlagName, false, cobraext.BuildSkipValidationFlagDescription)
 
 	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
 }
@@ -47,6 +50,10 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 	packageRootPath, err := cmd.Flags().GetString(cobraext.PackageRootFlagName)
 	if err != nil {
 		return cobraext.FlagParsingError(err, cobraext.PackageRootFlagName)
+	}
+	skipValidation, err := cmd.Flags().GetBool(cobraext.BuildSkipValidationFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.BuildSkipValidationFlagName)
 	}
 
 	kibanaClient, err := kibana.NewClient()
@@ -62,7 +69,7 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("invalid Kibana version")
 	}
 
-	installer, err := newInstaller(zipPathFile, packageRootPath, v)
+	installer, err := newInstaller(zipPathFile, packageRootPath, v, skipValidation)
 	if err != nil {
 		return err
 	}
@@ -96,11 +103,19 @@ type packageInstaller interface {
 	install(cmd *cobra.Command, name, version string) error
 }
 
-func newInstaller(zipPath, packageRootPath string, kibanaVersion *semver.Version) (packageInstaller, error) {
+func newInstaller(zipPath, packageRootPath string, kibanaVersion *semver.Version, skipValidation bool) (packageInstaller, error) {
 	if zipPath != "" {
 		if kibanaVersion.LessThan(semver8_7_0) {
 			return nil, fmt.Errorf("not supported uploading zip packages in Kibana %s", kibanaVersion)
 		}
+		if !skipValidation {
+			logger.Debugf("Validating built .zip package (path: %s)", zipPath)
+			err := validator.ValidateFromZip(zipPath)
+			if err != nil {
+				return nil, errors.Wrapf(err, "invalid content found in built zip package")
+			}
+		}
+		logger.Debug("Skip validation of the built .zip package")
 		return zipPackage{zipPath: zipPath}, nil
 	}
 	if packageRootPath == "" {
@@ -124,7 +139,7 @@ func newInstaller(zipPath, packageRootPath string, kibanaVersion *semver.Version
 		PackageRoot:    packageRootPath,
 		CreateZip:      true,
 		SignPackage:    false,
-		SkipValidation: true,
+		SkipValidation: skipValidation,
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "building package failed")
