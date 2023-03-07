@@ -97,7 +97,7 @@ func (j *JenkinsClient) waitForBuildFinished(ctx context.Context, build *gojenki
 	for build.IsRunning(ctx) {
 		log.Printf("Build still running, waiting for 5 secs...")
 		select {
-		case <-time.After(5000 * time.Millisecond):
+		case <-time.After(10000 * time.Millisecond):
 		case <-ctx.Done():
 			return ctx.Err()
 		}
