@@ -50,7 +50,7 @@ func (j *JenkinsClient) RunJob(ctx context.Context, jobName string, async bool, 
 		return fmt.Errorf("not finished job %s/%d: %w", jobName, build.GetBuildNumber(), err)
 	}
 
-	log.Printf("Build %s finished with result: %v\n", build.GetUrl(), build.GetBuildNumber(), build.GetResult())
+	log.Printf("Build %s finished with result: %s\n", build.GetUrl(), build.GetResult())
 	return nil
 }
 
