@@ -12,47 +12,56 @@ import (
 )
 
 // Installer is responsible for installation/uninstallation of the package.
-type Installer struct {
-	manifest packages.PackageManifest
+type Installer interface {
+	Install() (*InstalledPackage, error)
+	Uninstall() error
+}
+
+type manifestInstaller struct {
+	name    string
+	version string
 
 	kibanaClient *kibana.Client
 }
 
 // InstalledPackage represents the installed package (including assets).
 type InstalledPackage struct {
-	Assets   []packages.Asset
-	Manifest packages.PackageManifest
+	Assets  []packages.Asset
+	Name    string
+	Version string
 }
 
 // CreateForManifest function creates a new instance of the installer.
-func CreateForManifest(manifest packages.PackageManifest) (*Installer, error) {
+func CreateForManifest(name, version string) (*manifestInstaller, error) {
 	kibanaClient, err := kibana.NewClient()
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create kibana client")
 	}
 
-	return &Installer{
-		manifest:     manifest,
+	return &manifestInstaller{
+		name:         name,
+		version:      version,
 		kibanaClient: kibanaClient,
 	}, nil
 }
 
 // Install method installs the package using Kibana API.
-func (i *Installer) Install() (*InstalledPackage, error) {
-	assets, err := i.kibanaClient.InstallPackage(i.manifest)
+func (i *manifestInstaller) Install() (*InstalledPackage, error) {
+	assets, err := i.kibanaClient.InstallPackage(i.name, i.version)
 	if err != nil {
 		return nil, errors.Wrap(err, "can't install the package")
 	}
 
 	return &InstalledPackage{
-		Manifest: i.manifest,
-		Assets:   assets,
+		Name:    i.name,
+		Version: i.version,
+		Assets:  assets,
 	}, nil
 }
 
 // Uninstall method uninstalls the package using Kibana API.
-func (i *Installer) Uninstall() error {
-	_, err := i.kibanaClient.RemovePackage(i.manifest)
+func (i *manifestInstaller) Uninstall() error {
+	_, err := i.kibanaClient.RemovePackage(i.name, i.version)
 	if err != nil {
 		return errors.Wrap(err, "can't remove the package")
 	}

@@ -155,6 +155,10 @@ const (
 	VariantFlagName        = "variant"
 	VariantFlagDescription = "service variant"
 
+	ZipPackageFilePathFlagName        = "zip"
+	ZipPackageFilePathFlagShorthand   = "z"
+	ZipPackageFilePathFlagDescription = "path to the zip package file (*.zip)"
+
 	// To be removed promote commands flags
 	DirectionFlagName        = "direction"
 	DirectionFlagDescription = "promotion direction"
