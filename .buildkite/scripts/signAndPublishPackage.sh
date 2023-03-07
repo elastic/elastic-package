@@ -9,6 +9,7 @@ cleanup() {
 trap cleanup EXIT
 
 FIRST_PWD=$(pwd)
+WORKSPACE="$(pwd)"
 
 echo "Checking gsutil command..."
 if ! command -v gsutil &> /dev/null ; then
