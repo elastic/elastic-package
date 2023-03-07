@@ -67,11 +67,6 @@ pipeline {
       }
     }
   }
-  post {
-    cleanup {
-      notifyBuildResult(prComment: true)
-    }
-  }
 }
 
 def cleanup(){
