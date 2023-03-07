@@ -101,9 +101,10 @@ func (j *JenkinsClient) waitForBuildFinished(ctx context.Context, build *gojenki
 		case <-ctx.Done():
 			return ctx.Err()
 		}
-		_, err = build.Poll(ctx)
+		_, err := build.Poll(ctx)
 		if err != nil {
 			return err
 		}
 	}
+	return nil
 }
