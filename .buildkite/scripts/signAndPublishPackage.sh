@@ -135,6 +135,9 @@ publishPackage() {
     rm -r ${gsUtilLocation}
 }
 
+# Required to trigger Jenkins job
+with_go
+
 # test triggering job in Jenkins
 echo "Trigger Jenkins job for publishing package"
 pushd ${JENKINS_TRIGGER_PATH} > /dev/null
