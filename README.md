@@ -170,12 +170,6 @@ Use this command to format the package files.
 
 The formatter supports JSON and YAML format, and skips "ingest_pipeline" directories as it's hard to correctly format Handlebars template files. Formatted files are being overwritten.
 
-### `elastic-package generate`
-
-_Context: global_
-
-Use this command to generate benchmarks data for a package. Currently, only data for what we have related assets on https://github.com/elastic/elastic-integration-corpus-generator-tool are supported.
-
 ### `elastic-package install`
 
 _Context: package_
