@@ -68,7 +68,7 @@ func (c *Client) GetFields(packageName, dataStreamName string) (genlib.Fields, e
 
 	statusCode, respBody, err := c.get(fmt.Sprintf("%s/%s", assetsSubFolder, fieldsYamlAssetName))
 	if err != nil {
-		return genlib.Fields{}, errors.Wrap(err, "could not get config yaml")
+		return genlib.Fields{}, errors.Wrap(err, "could not get fields yaml")
 	}
 
 	if statusCode != http.StatusOK {
