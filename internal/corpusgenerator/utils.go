@@ -19,16 +19,6 @@ func RunGenerator(generator genlib.Generator) error {
 	buf := bytes.NewBufferString("")
 	for {
 		err := generator.Emit(state, buf)
-		if err == nil {
-			buf.WriteByte('\n')
-
-			if _, err = f.Write(buf.Bytes()); err != nil {
-				return err
-			}
-
-			buf.Reset()
-		}
-
 		if err == io.EOF {
 			break
 		}
@@ -36,6 +26,13 @@ func RunGenerator(generator genlib.Generator) error {
 		if err != nil {
 			return err
 		}
+
+		buf.WriteByte('\n')
+		if _, err = f.Write(buf.Bytes()); err != nil {
+			return err
+		}
+
+		buf.Reset()
 	}
 
 	return generator.Close()
