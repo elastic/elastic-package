@@ -72,7 +72,7 @@ func (c *Client) GetFields(packageName, dataStreamName string) (genlib.Fields, e
 	}
 
 	if statusCode != http.StatusOK {
-		return genlib.Fields{}, fmt.Errorf("could not get config yaml; API status code = %d; response body = %s", statusCode, respBody)
+		return genlib.Fields{}, fmt.Errorf("could not get fields yaml; API status code = %d; response body = %s", statusCode, respBody)
 	}
 
 	fieldsDefinitionPath, err := writeFieldsYamlFile(respBody, packageName, dataStreamName)
