@@ -58,12 +58,12 @@ func setupBenchmarkCommand() *cobraext.Command {
 			return cobraext.ComposeCommandActions(cmd, args, benchTypeCmdActions...)
 		}}
 
-	cmd.PersistentFlags().BoolP(cobraext.FailOnMissingFlagName, "m", false, cobraext.FailOnMissingFlagDescription)
-	cmd.PersistentFlags().StringP(cobraext.ReportFormatFlagName, "", string(formats.ReportFormatHuman), cobraext.ReportFormatFlagDescription)
-	cmd.PersistentFlags().StringP(cobraext.ReportOutputFlagName, "", string(outputs.ReportOutputSTDOUT), cobraext.ReportOutputFlagDescription)
-	cmd.PersistentFlags().BoolP(cobraext.BenchWithTestSamplesFlagName, "", true, cobraext.BenchWithTestSamplesFlagDescription)
-	cmd.PersistentFlags().IntP(cobraext.BenchNumTopProcsFlagName, "", 10, cobraext.BenchNumTopProcsFlagDescription)
-	cmd.PersistentFlags().StringSliceP(cobraext.DataStreamsFlagName, "", nil, cobraext.DataStreamsFlagDescription)
+	cmd.Flags().BoolP(cobraext.FailOnMissingFlagName, "m", false, cobraext.FailOnMissingFlagDescription)
+	cmd.Flags().StringP(cobraext.ReportFormatFlagName, "", string(formats.ReportFormatHuman), cobraext.ReportFormatFlagDescription)
+	cmd.Flags().StringP(cobraext.ReportOutputFlagName, "", string(outputs.ReportOutputSTDOUT), cobraext.ReportOutputFlagDescription)
+	cmd.Flags().BoolP(cobraext.BenchWithTestSamplesFlagName, "", true, cobraext.BenchWithTestSamplesFlagDescription)
+	cmd.Flags().IntP(cobraext.BenchNumTopProcsFlagName, "", 10, cobraext.BenchNumTopProcsFlagDescription)
+	cmd.Flags().StringSliceP(cobraext.DataStreamsFlagName, "", nil, cobraext.DataStreamsFlagDescription)
 
 	for benchType, runner := range benchrunner.BenchRunners() {
 		action := benchTypeCommandActionFactory(runner)
@@ -76,6 +76,11 @@ func setupBenchmarkCommand() *cobraext.Command {
 			RunE:  action,
 		}
 
+		benchTypeCmd.Flags().BoolP(cobraext.FailOnMissingFlagName, "m", false, cobraext.FailOnMissingFlagDescription)
+		benchTypeCmd.Flags().StringP(cobraext.ReportFormatFlagName, "", string(formats.ReportFormatHuman), cobraext.ReportFormatFlagDescription)
+		benchTypeCmd.Flags().StringP(cobraext.ReportOutputFlagName, "", string(outputs.ReportOutputSTDOUT), cobraext.ReportOutputFlagDescription)
+		benchTypeCmd.Flags().BoolP(cobraext.BenchWithTestSamplesFlagName, "", true, cobraext.BenchWithTestSamplesFlagDescription)
+		benchTypeCmd.Flags().IntP(cobraext.BenchNumTopProcsFlagName, "", 10, cobraext.BenchNumTopProcsFlagDescription)
 		benchTypeCmd.Flags().StringSliceP(cobraext.DataStreamsFlagName, "d", nil, cobraext.DataStreamsFlagDescription)
 
 		cmd.AddCommand(benchTypeCmd)
@@ -220,10 +225,10 @@ func getGenerateCorpusCommand() *cobra.Command {
 		RunE:  generateDataStreamCorpusCommandAction,
 	}
 
-	generateCorpusCmd.PersistentFlags().StringP(cobraext.PackageFlagName, cobraext.PackageFlagShorthand, "", cobraext.PackageFlagDescription)
-	generateCorpusCmd.PersistentFlags().StringP(cobraext.GenerateCorpusDataStreamFlagName, cobraext.GenerateCorpusDataStreamFlagShorthand, "", cobraext.GenerateCorpusDataStreamFlagDescription)
-	generateCorpusCmd.PersistentFlags().StringP(cobraext.GenerateCorpusSizeFlagName, cobraext.GenerateCorpusSizeFlagShorthand, "", cobraext.GenerateCorpusSizeFlagDescription)
-	generateCorpusCmd.PersistentFlags().StringP(cobraext.GenerateCorpusCommitFlagName, cobraext.GenerateCorpusCommitFlagShorthand, "main", cobraext.GenerateCorpusCommitFlagDescription)
+	generateCorpusCmd.Flags().StringP(cobraext.PackageFlagName, cobraext.PackageFlagShorthand, "", cobraext.PackageFlagDescription)
+	generateCorpusCmd.Flags().StringP(cobraext.GenerateCorpusDataStreamFlagName, cobraext.GenerateCorpusDataStreamFlagShorthand, "", cobraext.GenerateCorpusDataStreamFlagDescription)
+	generateCorpusCmd.Flags().StringP(cobraext.GenerateCorpusSizeFlagName, cobraext.GenerateCorpusSizeFlagShorthand, "", cobraext.GenerateCorpusSizeFlagDescription)
+	generateCorpusCmd.Flags().StringP(cobraext.GenerateCorpusCommitFlagName, cobraext.GenerateCorpusCommitFlagShorthand, "main", cobraext.GenerateCorpusCommitFlagDescription)
 
 	return generateCorpusCmd
 }
