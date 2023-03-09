@@ -29,7 +29,7 @@ import (
 
 const generateLongDescription = `
 BEWARE: this command is in beta and it's behaviour may change in the future.
-Use this command to generate benchmarks corpus  data for a package.
+Use this command to generate benchmarks corpus data for a package.
 Currently, only data for what we have related assets on https://github.com/elastic/elastic-integration-corpus-generator-tool are supported.
 `
 
