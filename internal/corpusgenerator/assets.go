@@ -56,7 +56,7 @@ func (c *Client) GetConf(packageName, dataStreamName string) (genlib.Config, err
 
 	cfg, err := config.LoadConfigFromYaml(respBody)
 	if err != nil {
-		return genlib.Config{}, errors.Wrap(err, "could not load  config yaml")
+		return genlib.Config{}, errors.Wrap(err, "could not load config yaml")
 	}
 
 	return cfg, nil
