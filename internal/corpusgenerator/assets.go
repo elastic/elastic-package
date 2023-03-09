@@ -81,12 +81,12 @@ func (c *Client) GetFields(packageName, dataStreamName string) (genlib.Fields, e
 	}
 
 	ctx := context.Background()
-	flds, err := fields.LoadFieldsWithTemplate(ctx, fieldsDefinitionPath)
+	fields, err := fields.LoadFieldsWithTemplate(ctx, fieldsDefinitionPath)
 	if err != nil {
 		return genlib.Fields{}, errors.Wrap(err, "could not load fields yaml")
 	}
 
-	return flds, nil
+	return fields, nil
 }
 
 func tmpGenlibDir() (string, error) {
