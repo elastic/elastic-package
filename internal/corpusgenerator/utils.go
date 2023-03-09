@@ -41,7 +41,7 @@ func RunGenerator(generator genlib.Generator) error {
 	return generator.Close()
 }
 
-func GetGenerator(packageName, dataStreamName, commit string, totSizeInBytes uint64) (genlib.Generator, error) {
+func NewGenerator(packageName, dataStreamName, commit string, totSizeInBytes uint64) (genlib.Generator, error) {
 
 	genLibClient := NewClient(commit)
 
