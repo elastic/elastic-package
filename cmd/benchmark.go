@@ -8,6 +8,10 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/dustin/go-humanize"
+
+	"github.com/elastic/elastic-package/internal/corpusgenerator"
+
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
@@ -22,6 +26,12 @@ import (
 	"github.com/elastic/elastic-package/internal/signal"
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
+
+const generateLongDescription = `
+BEWARE: this command is in beta and it's behaviour may change in the future.
+Use this command to generate benchmarks corpus data for a package.
+Currently, only data for what we have related assets on https://github.com/elastic/elastic-integration-corpus-generator-tool are supported.
+`
 
 const benchLongDescription = `Use this command to run benchmarks on a package. Currently, the following types of benchmarks are available:
 
@@ -48,12 +58,12 @@ func setupBenchmarkCommand() *cobraext.Command {
 			return cobraext.ComposeCommandActions(cmd, args, benchTypeCmdActions...)
 		}}
 
-	cmd.PersistentFlags().BoolP(cobraext.FailOnMissingFlagName, "m", false, cobraext.FailOnMissingFlagDescription)
-	cmd.PersistentFlags().StringP(cobraext.ReportFormatFlagName, "", string(formats.ReportFormatHuman), cobraext.ReportFormatFlagDescription)
-	cmd.PersistentFlags().StringP(cobraext.ReportOutputFlagName, "", string(outputs.ReportOutputSTDOUT), cobraext.ReportOutputFlagDescription)
-	cmd.PersistentFlags().BoolP(cobraext.BenchWithTestSamplesFlagName, "", true, cobraext.BenchWithTestSamplesFlagDescription)
-	cmd.PersistentFlags().IntP(cobraext.BenchNumTopProcsFlagName, "", 10, cobraext.BenchNumTopProcsFlagDescription)
-	cmd.PersistentFlags().StringSliceP(cobraext.DataStreamsFlagName, "", nil, cobraext.DataStreamsFlagDescription)
+	cmd.Flags().BoolP(cobraext.FailOnMissingFlagName, "m", false, cobraext.FailOnMissingFlagDescription)
+	cmd.Flags().StringP(cobraext.ReportFormatFlagName, "", string(formats.ReportFormatHuman), cobraext.ReportFormatFlagDescription)
+	cmd.Flags().StringP(cobraext.ReportOutputFlagName, "", string(outputs.ReportOutputSTDOUT), cobraext.ReportOutputFlagDescription)
+	cmd.Flags().BoolP(cobraext.BenchWithTestSamplesFlagName, "", true, cobraext.BenchWithTestSamplesFlagDescription)
+	cmd.Flags().IntP(cobraext.BenchNumTopProcsFlagName, "", 10, cobraext.BenchNumTopProcsFlagDescription)
+	cmd.Flags().StringSliceP(cobraext.DataStreamsFlagName, "", nil, cobraext.DataStreamsFlagDescription)
 
 	for benchType, runner := range benchrunner.BenchRunners() {
 		action := benchTypeCommandActionFactory(runner)
@@ -66,10 +76,18 @@ func setupBenchmarkCommand() *cobraext.Command {
 			RunE:  action,
 		}
 
+		benchTypeCmd.Flags().BoolP(cobraext.FailOnMissingFlagName, "m", false, cobraext.FailOnMissingFlagDescription)
+		benchTypeCmd.Flags().StringP(cobraext.ReportFormatFlagName, "", string(formats.ReportFormatHuman), cobraext.ReportFormatFlagDescription)
+		benchTypeCmd.Flags().StringP(cobraext.ReportOutputFlagName, "", string(outputs.ReportOutputSTDOUT), cobraext.ReportOutputFlagDescription)
+		benchTypeCmd.Flags().BoolP(cobraext.BenchWithTestSamplesFlagName, "", true, cobraext.BenchWithTestSamplesFlagDescription)
+		benchTypeCmd.Flags().IntP(cobraext.BenchNumTopProcsFlagName, "", 10, cobraext.BenchNumTopProcsFlagDescription)
 		benchTypeCmd.Flags().StringSliceP(cobraext.DataStreamsFlagName, "d", nil, cobraext.DataStreamsFlagDescription)
 
 		cmd.AddCommand(benchTypeCmd)
 	}
+
+	generateCorpusCmd := getGenerateCorpusCommand()
+	cmd.AddCommand(generateCorpusCmd)
 
 	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
 }
@@ -197,4 +215,63 @@ func benchTypeCommandActionFactory(runner benchrunner.BenchRunner) cobraext.Comm
 		}
 		return nil
 	}
+}
+
+func getGenerateCorpusCommand() *cobra.Command {
+	generateCorpusCmd := &cobra.Command{
+		Use:   "generate-corpus",
+		Short: "Generate benchmarks corpus data for the package",
+		Long:  generateLongDescription,
+		RunE:  generateDataStreamCorpusCommandAction,
+	}
+
+	generateCorpusCmd.Flags().StringP(cobraext.PackageFlagName, cobraext.PackageFlagShorthand, "", cobraext.PackageFlagDescription)
+	generateCorpusCmd.Flags().StringP(cobraext.GenerateCorpusDataStreamFlagName, cobraext.GenerateCorpusDataStreamFlagShorthand, "", cobraext.GenerateCorpusDataStreamFlagDescription)
+	generateCorpusCmd.Flags().StringP(cobraext.GenerateCorpusSizeFlagName, cobraext.GenerateCorpusSizeFlagShorthand, "", cobraext.GenerateCorpusSizeFlagDescription)
+	generateCorpusCmd.Flags().StringP(cobraext.GenerateCorpusCommitFlagName, cobraext.GenerateCorpusCommitFlagShorthand, "main", cobraext.GenerateCorpusCommitFlagDescription)
+
+	return generateCorpusCmd
+}
+
+func generateDataStreamCorpusCommandAction(cmd *cobra.Command, _ []string) error {
+	packageName, err := cmd.Flags().GetString(cobraext.PackageFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.PackageFlagName)
+	}
+
+	dataStreamName, err := cmd.Flags().GetString(cobraext.GenerateCorpusDataStreamFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.GenerateCorpusDataStreamFlagName)
+	}
+
+	totSize, err := cmd.Flags().GetString(cobraext.GenerateCorpusSizeFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.GenerateCorpusSizeFlagName)
+	}
+
+	totSizeInBytes, err := humanize.ParseBytes(totSize)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.GenerateCorpusSizeFlagName)
+	}
+
+	commit, err := cmd.Flags().GetString(cobraext.GenerateCorpusCommitFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.GenerateCorpusCommitFlagName)
+	}
+
+	if len(commit) == 0 {
+		commit = "main"
+	}
+
+	generator, err := corpusgenerator.NewGenerator(packageName, dataStreamName, commit, totSizeInBytes)
+	if err != nil {
+		return errors.Wrap(err, "can't generate benchmarks data corpus for data stream")
+	}
+
+	err = corpusgenerator.RunGenerator(generator)
+	if err != nil {
+		return errors.Wrap(err, "can't generate benchmarks data corpus for data stream")
+	}
+
+	return nil
 }
