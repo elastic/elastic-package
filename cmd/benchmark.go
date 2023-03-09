@@ -251,7 +251,7 @@ func generateDataStreamCorpusCommandAction(cmd *cobra.Command, _ []string) error
 
 	commit, err := cmd.Flags().GetString(cobraext.GenerateCorpusCommitFlagName)
 	if err != nil {
-		return cobraext.FlagParsingError(err, cobraext.GenerateCorpusSizeFlagName)
+		return cobraext.FlagParsingError(err, cobraext.GenerateCorpusCommitFlagName)
 	}
 
 	if len(commit) == 0 {
