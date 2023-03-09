@@ -258,7 +258,7 @@ func generateDataStreamCorpusCommandAction(cmd *cobra.Command, _ []string) error
 		commit = "main"
 	}
 
-	generator, err := corpusgenerator.GetGenerator(packageName, dataStreamName, commit, totSizeInBytes)
+	generator, err := corpusgenerator.NewGenerator(packageName, dataStreamName, commit, totSizeInBytes)
 	if err != nil {
 		return errors.Wrap(err, "can't generate benchmarks data corpus for data stream")
 	}
