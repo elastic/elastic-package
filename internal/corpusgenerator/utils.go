@@ -8,15 +8,30 @@ import (
 	"bytes"
 	"io"
 	"os"
+	"path/filepath"
 
 	"github.com/elastic/elastic-integration-corpus-generator-tool/pkg/genlib"
 )
 
-func RunGenerator(generator genlib.Generator) error {
+func RunGenerator(generator genlib.Generator, dataStream, rallyTrackOutputDir string) error {
 	state := genlib.NewGenState()
 
-	f := os.Stdout
+	var f io.Writer
+	if len(rallyTrackOutputDir) == 0 {
+		f = os.Stdout
+	} else {
+		err := os.MkdirAll(rallyTrackOutputDir, os.ModePerm)
+		if err != nil {
+			return err
+		}
+
+		f, err = os.CreateTemp(rallyTrackOutputDir, "corpus-*")
+		if err != nil {
+			return err
+		}
+	}
 	buf := bytes.NewBufferString("")
+	var corpusDocsCount uint64
 	for {
 		err := generator.Emit(state, buf)
 		if err == io.EOF {
@@ -33,6 +48,21 @@ func RunGenerator(generator genlib.Generator) error {
 		}
 
 		buf.Reset()
+		corpusDocsCount += 1
+	}
+
+	if len(rallyTrackOutputDir) > 0 {
+		corpusFile := f.(*os.File)
+		rallyTrackContent, err := generateRallyTrack(dataStream, corpusFile, corpusDocsCount)
+		if err != nil {
+			return err
+		}
+
+		err = os.WriteFile(filepath.Join(rallyTrackOutputDir, "track.json"), rallyTrackContent, os.ModePerm)
+		if err != nil {
+			return err
+		}
+
 	}
 
 	return generator.Close()

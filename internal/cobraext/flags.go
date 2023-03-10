@@ -100,6 +100,10 @@ const (
 	GenerateCorpusCommitFlagShorthand   = "C"
 	GenerateCorpusCommitFlagDescription = "commit to fetch assets from the corpus generator tool repo from"
 
+	GenerateCorpusRallyTrackOutputDirFlagName        = "rally-track-output-dir"
+	GenerateCorpusRallyTrackOutputDirFlagShorthand   = "R"
+	GenerateCorpusRallyTrackOutputDirFlagDescription = "output dir of the rally track: if present the command will generate a rally track instead of writing the generated data to stdout"
+
 	GenerateCorpusSizeFlagName        = "size"
 	GenerateCorpusSizeFlagShorthand   = "S"
 	GenerateCorpusSizeFlagDescription = "size of benchmarks data corpus to generate"
