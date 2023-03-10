@@ -100,6 +100,22 @@ These benchmarks allow you to benchmark any Ingest Node Pipelines defined by you
 
 For details on how to configure pipeline benchmarks for a package, review the [HOWTO guide](./docs/howto/pipeline_benchmarking.md).
 
+### `elastic-package benchmark generate-corpus`
+
+_Context: package_
+
+
+*BEWARE*: this command is in beta and it's behaviour may change in the future.
+Use this command to generate benchmarks corpus data for a package.
+Currently, only data for what we have related assets on https://github.com/elastic/elastic-integration-corpus-generator-tool are supported.
+For details on how to run this command, review the [HOWTO guide](./docs/howto/generate_corpus.md).
+
+### `elastic-package benchmark pipeline`
+
+_Context: package_
+
+Run pipeline benchmarks for the package.
+
 ### `elastic-package build`
 
 _Context: package_
@@ -122,6 +138,19 @@ Use this command to work with the changelog of the package.
 
 You can use this command to modify the changelog following the expected format and good practices.
 This can be useful when introducing changelog entries for changes done by automated processes.
+
+
+### `elastic-package changelog add`
+
+_Context: package_
+
+Use this command to add an entry to the changelog file.
+
+The entry added will include the given description, type and link. It is added on top of the
+last entry in the current version
+
+Alternatively, you can start a new version indicating the specific version, or if it should
+be the next major, minor or patch version.
 
 
 ### `elastic-package check`
@@ -150,17 +179,61 @@ The command can help bootstrap the first draft of a package using embedded packa
 
 For details on how to create a new package, review the [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/create_new_package.md).
 
+### `elastic-package create data-stream`
+
+_Context: global_
+
+Use this command to create a new data stream.
+
+The command can extend the package with a new data stream using embedded data stream template and wizard.
+
+### `elastic-package create package`
+
+_Context: global_
+
+Use this command to create a new package.
+
+The command can bootstrap the first draft of a package using embedded package template and wizard.
+
 ### `elastic-package dump`
 
 _Context: global_
 
 Use this command as an exploratory tool to dump resources from Elastic Stack (objects installed as part of package and agent policies).
 
+### `elastic-package dump agent-policies`
+
+_Context: global_
+
+Use this command to dump agent policies created by Fleet as part of a package installation.
+
+Use this command as an exploratory tool to dump agent policies as they are created by Fleet when installing a package. Dumped agent policies are stored in files as they are returned by APIs of the stack, without any processing.
+
+If no flag is provided, by default this command dumps all agent policies created by Fleet.
+
+If --package flag is provided, this command dumps all agent policies that the given package has been assigned to it.
+
+### `elastic-package dump installed-objects`
+
+_Context: global_
+
+Use this command to dump objects installed by Fleet as part of a package.
+
+Use this command as an exploratory tool to dump objects as they are installed by Fleet when installing a package. Dumped objects are stored in files as they are returned by APIs of the stack, without any processing.
+
 ### `elastic-package export`
 
 _Context: package_
 
 Use this command to export assets relevant for the package, e.g. Kibana dashboards.
+
+### `elastic-package export dashboards`
+
+_Context: package_
+
+Use this command to export dashboards with referenced objects from the Kibana instance.
+
+Use this command to download selected dashboards and other associated saved objects from Kibana. This command adjusts the downloaded saved objects according to package naming conventions (prefixes, unique IDs) and writes them locally into folders corresponding to saved object types (dashboard, visualization, map, etc.).
 
 ### `elastic-package format`
 
@@ -196,6 +269,24 @@ Individual user profiles appear in ~/.elastic-package/stack, and contain all the
 Once a new profile is created, it can be specified with the -p flag, or the ELASTIC_PACKAGE_PROFILE environment variable.
 User profiles are not overwritten on upgrade of elastic-stack, and can be freely modified to allow for different stack configs.
 
+### `elastic-package profiles create`
+
+_Context: global_
+
+
+
+### `elastic-package profiles delete`
+
+_Context: global_
+
+
+
+### `elastic-package profiles list`
+
+_Context: global_
+
+
+
 ### `elastic-package promote`
 
 _Context: global_
@@ -228,6 +319,12 @@ The report will show performance differences between both runs.
 It is formatted as a Markdown Github comment to use as part of the CI results.
 
 
+### `elastic-package report benchmark`
+
+_Context: package_
+
+Generate a benchmark report comparing local results against ones from another benchmark run.
+
 ### `elastic-package service`
 
 _Context: package_
@@ -235,6 +332,12 @@ _Context: package_
 Use this command to boot up the service stack that can be observed with the package.
 
 The command manages lifecycle of the service stack defined for the package ("_dev/deploy") for package development and testing purposes.
+
+### `elastic-package service up`
+
+_Context: package_
+
+
 
 ### `elastic-package stack`
 
@@ -245,6 +348,50 @@ Use this command to spin up a Docker-based Elastic Stack consisting of Elasticse
 Be aware that a common issue while trying to boot up the stack is that your Docker environments settings are too low in terms of memory threshold.
 
 For details on how to connect the service with the Elastic stack, see the [service command](https://github.com/elastic/elastic-package/blob/main/README.md#elastic-package-service).
+
+### `elastic-package stack down`
+
+_Context: global_
+
+
+
+### `elastic-package stack dump`
+
+_Context: global_
+
+
+
+### `elastic-package stack shellinit`
+
+_Context: global_
+
+
+
+### `elastic-package stack status`
+
+_Context: global_
+
+
+
+### `elastic-package stack up`
+
+_Context: global_
+
+Use this command to boot up the stack locally.
+
+By default the latest released version of the stack is spun up but it is possible to specify a different version, including SNAPSHOT versions by appending --version <version>.
+
+Be aware that a common issue while trying to boot up the stack is that your Docker environments settings are too low in terms of memory threshold.
+
+To ęxpose local packages in the Package Registry, build them first and boot up the stack from inside of the Git repository containing the package (e.g. elastic/integrations). They will be copied to the development stack (~/.elastic-package/stack/development) and used to build a custom Docker image of the Package Registry.
+
+For details on how to connect the service with the Elastic stack, see the [service command](https://github.com/elastic/elastic-package/blob/main/README.md#elastic-package-service).
+
+### `elastic-package stack update`
+
+_Context: global_
+
+
 
 ### `elastic-package status [package]`
 
@@ -281,6 +428,30 @@ For details on how to run static tests for a package, see the [HOWTO guide](http
 These tests allow you to test a package's ability to ingest data end-to-end.
 
 For details on how to configure amd run system tests, review the [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/system_testing.md).
+
+### `elastic-package test asset`
+
+_Context: package_
+
+Run asset loading tests for the package.
+
+### `elastic-package test pipeline`
+
+_Context: package_
+
+Run pipeline tests for the package.
+
+### `elastic-package test static`
+
+_Context: package_
+
+Run static files tests for the package.
+
+### `elastic-package test system`
+
+_Context: package_
+
+Run system tests for the package.
 
 ### `elastic-package uninstall`
 

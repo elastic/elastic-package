@@ -8,15 +8,11 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"os"
-	"path/filepath"
 
 	"github.com/elastic/elastic-integration-corpus-generator-tool/pkg/genlib"
 	"github.com/elastic/elastic-integration-corpus-generator-tool/pkg/genlib/config"
 	"github.com/elastic/elastic-integration-corpus-generator-tool/pkg/genlib/fields"
 	"github.com/pkg/errors"
-
-	"github.com/elastic/elastic-package/internal/builder"
 )
 
 const (
@@ -75,48 +71,11 @@ func (c *Client) GetFields(packageName, dataStreamName string) (genlib.Fields, e
 		return genlib.Fields{}, fmt.Errorf("could not get fields yaml; API status code = %d; response body = %s", statusCode, respBody)
 	}
 
-	fieldsDefinitionPath, err := writeFieldsYamlFile(respBody, packageName, dataStreamName)
-	if err != nil {
-		return genlib.Fields{}, errors.Wrap(err, "could not load fields yaml")
-	}
-
 	ctx := context.Background()
-	fields, err := fields.LoadFieldsWithTemplate(ctx, fieldsDefinitionPath)
+	fields, err := fields.LoadFieldsWithTemplateFromString(ctx, string(respBody))
 	if err != nil {
 		return genlib.Fields{}, errors.Wrap(err, "could not load fields yaml")
 	}
 
 	return fields, nil
-}
-
-func tmpGenlibDir() (string, error) {
-	buildDir, err := builder.BuildDirectory()
-	if err != nil {
-		return "", errors.Wrap(err, "locating build directory failed")
-	}
-	return filepath.Join(buildDir, "genlib"), nil
-}
-
-func writeFieldsYamlFile(fieldsYamlContent []byte, packageName, dataStreamName string) (string, error) {
-	dest, err := tmpGenlibDir()
-	if err != nil {
-		return "", errors.Wrap(err, "could not determine genlib temp folder")
-	}
-
-	// Create genlib temp folder folder if it doesn't exist
-	_, err = os.Stat(dest)
-	if err != nil && errors.Is(err, os.ErrNotExist) {
-		if err := os.MkdirAll(dest, 0755); err != nil {
-			return "", errors.Wrap(err, "could not create genlib temp folder")
-		}
-	}
-
-	fileName := fmt.Sprintf("%s-%s", packageName, dataStreamName)
-	filePath := filepath.Join(dest, fileName)
-
-	if err := os.WriteFile(filePath, fieldsYamlContent, 0644); err != nil {
-		return "", errors.Wrap(err, "could not write genlib field yaml temp file")
-	}
-
-	return filePath, nil
 }

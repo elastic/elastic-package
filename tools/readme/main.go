@@ -20,7 +20,8 @@ import (
 // Generate README
 func main() {
 	commandTemplate := loadCommandTemplate()
-	commandsDoc := generateCommandsDoc(commandTemplate)
+	subCommandTemplate := loadSubCommandTemplate()
+	commandsDoc := generateCommandsDoc(commandTemplate, subCommandTemplate)
 
 	readmeTemplate := loadReadmeTemplate()
 	generateReadme(readmeTemplate, commandsDoc.String())
@@ -40,12 +41,32 @@ func loadCommandTemplate() *template.Template {
 	return cmdTmpl
 }
 
-func generateCommandsDoc(cmdTmpl *template.Template) strings.Builder {
+func loadSubCommandTemplate() *template.Template {
+	subCmdTmpl, err := template.ParseFiles("./subcmd.md.tmpl")
+	if err != nil {
+		log.Fatal(errors.Wrap(err, "loading subcommand template failed"))
+	}
+	return subCmdTmpl
+}
+
+func generateCommandsDoc(cmdTmpl *template.Template, subCommandTemplate *template.Template) strings.Builder {
 	cmdsDoc := strings.Builder{}
 	for _, cmd := range cmd.Commands() {
 		log.Printf("generating command doc for %s...\n", cmd.Name())
 		if err := cmdTmpl.Execute(&cmdsDoc, cmd); err != nil {
 			log.Fatal(errors.Wrapf(err, "writing documentation for command '%s' failed", cmd.Name()))
+		}
+		for _, subCommand := range cmd.Commands() {
+			log.Printf("generating command doc for %s %s...\n", cmd.Name(), subCommand.Name())
+			templateData := map[string]any{
+				"CmdName":    cmd.Name(),
+				"SubCmdName": subCommand.Name(),
+				"Context":    cmd.Context(),
+				"Long":       subCommand.Long,
+			}
+			if err := subCommandTemplate.Execute(&cmdsDoc, templateData); err != nil {
+				log.Fatal(errors.Wrapf(err, "writing documentation for command '%s %s' failed", cmd.Name(), subCommand.Name()))
+			}
 		}
 	}
 	return cmdsDoc
