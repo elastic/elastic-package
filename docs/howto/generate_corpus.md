@@ -21,6 +21,7 @@ Currently, only data for what we have related assets on https://github.com/elast
 
 ### Generate a rally track for a package dataset and run a rally benchmark
 
+*BEWARE*: this is only supported for `metrics` type data streams.
 
 #### Steps
 

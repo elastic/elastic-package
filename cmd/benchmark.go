@@ -28,7 +28,7 @@ import (
 )
 
 const generateLongDescription = `
-BEWARE: this command is in beta and it's behaviour may change in the future.
+*BEWARE*: this command is in beta and it's behaviour may change in the future.
 Use this command to generate benchmarks corpus data for a package.
 Currently, only data for what we have related assets on https://github.com/elastic/elastic-integration-corpus-generator-tool are supported.
 For details on how to run this command, review the [HOWTO guide](./docs/howto/generate_corpus.md).`
@@ -274,6 +274,7 @@ func generateDataStreamCorpusCommandAction(cmd *cobra.Command, _ []string) error
 		return errors.Wrap(err, "can't generate benchmarks data corpus for data stream")
 	}
 
+	// TODO: we need a way to extract the type from the package and dataset, currently hardcode to `metrics`
 	dataStream := fmt.Sprintf("metrics-%s.%s-default", packageName, dataSetName)
 	err = corpusgenerator.RunGenerator(generator, dataStream, rallyTrackOutputDir)
 	if err != nil {

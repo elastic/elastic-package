@@ -42,8 +42,13 @@ func RunGenerator(generator genlib.Generator, dataStream, rallyTrackOutputDir st
 			return err
 		}
 
-		buf.WriteByte('\n')
-		if _, err = f.Write(buf.Bytes()); err != nil {
+		// TODO: this should be taken care of by the corpus generator tool, once it will be done let's remove this
+		event := bytes.ReplaceAll(buf.Bytes(), []byte("\n"), []byte(""))
+		if _, err = f.Write(event); err != nil {
+			return err
+		}
+
+		if _, err = f.Write([]byte("\n")); err != nil {
 			return err
 		}
 
