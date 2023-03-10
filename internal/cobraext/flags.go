@@ -92,9 +92,9 @@ const (
 	FailFastFlagName        = "fail-fast"
 	FailFastFlagDescription = "fail immediately if any file requires updates (do not overwrite)"
 
-	GenerateCorpusDataStreamFlagName        = "data-stream"
-	GenerateCorpusDataStreamFlagShorthand   = "D"
-	GenerateCorpusDataStreamFlagDescription = "data stream to generate benchmarks data corpus for"
+	GenerateCorpusDataSetFlagName        = "dataset"
+	GenerateCorpusDataSetFlagShorthand   = "D"
+	GenerateCorpusDataSetFlagDescription = "dataset to generate benchmarks data corpus for"
 
 	GenerateCorpusCommitFlagName        = "commit"
 	GenerateCorpusCommitFlagShorthand   = "C"

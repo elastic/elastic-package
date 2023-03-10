@@ -226,7 +226,7 @@ func getGenerateCorpusCommand() *cobra.Command {
 	}
 
 	generateCorpusCmd.Flags().StringP(cobraext.PackageFlagName, cobraext.PackageFlagShorthand, "", cobraext.PackageFlagDescription)
-	generateCorpusCmd.Flags().StringP(cobraext.GenerateCorpusDataStreamFlagName, cobraext.GenerateCorpusDataStreamFlagShorthand, "", cobraext.GenerateCorpusDataStreamFlagDescription)
+	generateCorpusCmd.Flags().StringP(cobraext.GenerateCorpusDataSetFlagName, cobraext.GenerateCorpusDataSetFlagShorthand, "", cobraext.GenerateCorpusDataSetFlagDescription)
 	generateCorpusCmd.Flags().StringP(cobraext.GenerateCorpusSizeFlagName, cobraext.GenerateCorpusSizeFlagShorthand, "", cobraext.GenerateCorpusSizeFlagDescription)
 	generateCorpusCmd.Flags().StringP(cobraext.GenerateCorpusCommitFlagName, cobraext.GenerateCorpusCommitFlagShorthand, "main", cobraext.GenerateCorpusCommitFlagDescription)
 
@@ -239,9 +239,9 @@ func generateDataStreamCorpusCommandAction(cmd *cobra.Command, _ []string) error
 		return cobraext.FlagParsingError(err, cobraext.PackageFlagName)
 	}
 
-	dataStreamName, err := cmd.Flags().GetString(cobraext.GenerateCorpusDataStreamFlagName)
+	dataStreamName, err := cmd.Flags().GetString(cobraext.GenerateCorpusDataSetFlagName)
 	if err != nil {
-		return cobraext.FlagParsingError(err, cobraext.GenerateCorpusDataStreamFlagName)
+		return cobraext.FlagParsingError(err, cobraext.GenerateCorpusDataSetFlagName)
 	}
 
 	totSize, err := cmd.Flags().GetString(cobraext.GenerateCorpusSizeFlagName)
