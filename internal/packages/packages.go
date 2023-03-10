@@ -173,6 +173,10 @@ func FindPackageRoot() (string, bool, error) {
 		return "", false, errors.Wrap(err, "locating working directory failed")
 	}
 
+	// VolumeName() will return something like "C:" in Windows, and "" in other OSs
+	// rootDir will be something like "C:\" in Windows, and "/" everywhere else.
+	rootDir := filepath.VolumeName(workDir) + string(filepath.Separator)
+
 	dir := workDir
 	for dir != "." {
 		path := filepath.Join(dir, PackageManifestFile)
@@ -187,7 +191,7 @@ func FindPackageRoot() (string, bool, error) {
 			}
 		}
 
-		if dir == "/" {
+		if dir == rootDir {
 			break
 		}
 		dir = filepath.Dir(dir)

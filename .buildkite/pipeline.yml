@@ -24,6 +24,13 @@ steps:
       cpu: "8"
       memory: "4G"
 
+  - label: ":go: :windows: Run unit tests"
+    key: unit-tests-windows
+    command: ".buildkite/scripts/unit_tests_windows.ps1"
+    agents:
+      provider: "gcp"
+      image: "family/ci-windows-2022"
+
   - wait: ~
     continue_on_failure: true
 
@@ -33,6 +40,8 @@ steps:
       - step: check-static
         allow_failure: false
       - step: unit-tests-linux
+        allow_failure: false
+      - step: unit-tests-windows
         allow_failure: false
 
   - wait: ~
