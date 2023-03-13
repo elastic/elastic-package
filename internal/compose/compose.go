@@ -185,7 +185,9 @@ func NewProject(name string, paths ...string) (*Project, error) {
 // Up brings up a Docker Compose project.
 func (p *Project) Up(opts CommandOptions) error {
 	args := p.baseArgs()
+	args = append(args, "--ansi", "never")
 	args = append(args, "up")
+	args = append(args, "--quiet-pull")
 	args = append(args, opts.ExtraArgs...)
 	args = append(args, opts.Services...)
 
@@ -199,6 +201,7 @@ func (p *Project) Up(opts CommandOptions) error {
 // Down tears down a Docker Compose project.
 func (p *Project) Down(opts CommandOptions) error {
 	args := p.baseArgs()
+	args = append(args, "--ansi", "never")
 	args = append(args, "down")
 	args = append(args, opts.ExtraArgs...)
 
