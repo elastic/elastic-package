@@ -5,8 +5,10 @@
 package packages
 
 import (
+	"archive/zip"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 
@@ -171,6 +173,10 @@ func FindPackageRoot() (string, bool, error) {
 		return "", false, errors.Wrap(err, "locating working directory failed")
 	}
 
+	// VolumeName() will return something like "C:" in Windows, and "" in other OSs
+	// rootDir will be something like "C:\" in Windows, and "/" everywhere else.
+	rootDir := filepath.VolumeName(workDir) + string(filepath.Separator)
+
 	dir := workDir
 	for dir != "." {
 		path := filepath.Join(dir, PackageManifestFile)
@@ -185,7 +191,7 @@ func FindPackageRoot() (string, bool, error) {
 			}
 		}
 
-		if dir == "/" {
+		if dir == rootDir {
 			break
 		}
 		dir = filepath.Dir(dir)
@@ -222,6 +228,48 @@ func ReadPackageManifestFromPackageRoot(packageRoot string) (*PackageManifest, e
 	return ReadPackageManifest(filepath.Join(packageRoot, PackageManifestFile))
 }
 
+// ReadPackageManifestFromZipPackage reads and parses the package manifest file for the given zip package.
+func ReadPackageManifestFromZipPackage(zipPackage string) (*PackageManifest, error) {
+	tempDir, err := os.MkdirTemp("", "elastic-package-")
+	if err != nil {
+		return nil, errors.Wrap(err, "can't prepare a temporary directory")
+	}
+	defer os.RemoveAll(tempDir)
+
+	contents, err := extractPackageManifestZipPackage(zipPackage, PackageManifestFile)
+	if err != nil {
+		return nil, errors.Wrapf(err, "extracting manifest from zip file failed (path: %s)", zipPackage)
+	}
+
+	return ReadPackageManifestBytes(contents)
+}
+
+func extractPackageManifestZipPackage(zipPath, sourcePath string) ([]byte, error) {
+	zipReader, err := zip.OpenReader(zipPath)
+	if err != nil {
+		return nil, err
+	}
+	defer zipReader.Close()
+
+	// elastic-package build command creates a zip that contains all the package files
+	// under a folder named "package-version". Example elastic_package_registry-0.0.6/manifest.yml
+	matched, err := fs.Glob(zipReader, fmt.Sprintf("*/%s", sourcePath))
+	if err != nil {
+		return nil, err
+	}
+
+	if len(matched) == 0 {
+		return nil, errors.Errorf("not found package %s in %s", sourcePath, zipPath)
+	}
+
+	contents, err := fs.ReadFile(zipReader, matched[0])
+	if err != nil {
+		return nil, errors.Wrapf(err, "can't read manifest from zip %s", zipPath)
+	}
+
+	return contents, nil
+}
+
 // ReadPackageManifest reads and parses the given package manifest file.
 func ReadPackageManifest(path string) (*PackageManifest, error) {
 	cfg, err := yaml.NewConfigWithFile(path, ucfg.PathSep("."))
@@ -233,6 +281,20 @@ func ReadPackageManifest(path string) (*PackageManifest, error) {
 	err = cfg.Unpack(&m)
 	if err != nil {
 		return nil, errors.Wrapf(err, "unpacking package manifest failed (path: %s)", path)
+	}
+	return &m, nil
+}
+
+func ReadPackageManifestBytes(contents []byte) (*PackageManifest, error) {
+	cfg, err := yaml.NewConfig(contents, ucfg.PathSep("."))
+	if err != nil {
+		return nil, errors.Wrap(err, "reading manifest file failed")
+	}
+
+	var m PackageManifest
+	err = cfg.Unpack(&m)
+	if err != nil {
+		return nil, errors.Wrapf(err, "unpacking package manifest failed")
 	}
 	return &m, nil
 }

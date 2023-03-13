@@ -11,18 +11,9 @@ pipeline {
     REPO = "elastic-package"
     BASE_DIR="src/github.com/elastic/elastic-package"
     JOB_GIT_CREDENTIALS = "f6c7695a-671e-4f4f-a331-acdce44ff9ba"
-    GITHUB_TOKEN_CREDENTIALS = "2a9602aa-ab9f-4e52-baf3-b71ca88469c7"
     PIPELINE_LOG_LEVEL='INFO'
-    AWS_ACCOUNT_SECRET = 'secret/observability-team/ci/elastic-observability-aws-account-auth'
     HOME = "${env.WORKSPACE}"
-    KIND_VERSION = 'v0.17.0'
-    K8S_VERSION = 'v1.26.0'
-    JOB_GCS_BUCKET = 'fleet-ci-temp'
-    JOB_GCS_BUCKET_INTERNAL = 'fleet-ci-temp-internal'
-    JOB_GCS_CREDENTIALS = 'fleet-ci-gcs-plugin'
-    JOB_GCS_EXT_CREDENTIALS = 'fleet-ci-gcs-plugin-file-credentials'
-    ELASTIC_PACKAGE_GCP_SECRET = 'secret/observability-team/ci/service-account/elastic-package-gcp'
-    ELASTIC_OBSERVABILITY_PROJECT_ID = 'elastic-observability'
+    BUILDKITE_MERGE_COMMIT = "79ee1738578deac17f8f5caf8d925db6244ab6df"
   }
   options {
     timeout(time: 1, unit: 'HOURS')
@@ -52,96 +43,28 @@ pipeline {
             stash allowEmpty: true, name: 'source', useDefaultExcludes: false
           }
         }
-        /**
-        Check the source code.
-        */
-        stage('Check static') {
-          steps {
-            cleanup()
-            dir("${BASE_DIR}"){
-              withMageEnv(){
-                sh(label: 'Check',script: 'make check-static')
-              }
-            }
-          }
-        }
-        /**
-        Run the unit tests suite
-        */
-        stage('Unit tests') {
-          steps {
-            cleanup()
-            dir("${BASE_DIR}"){
-              withMageEnv(){
-                sh(label: 'Check',script: 'make test-go-ci')
-              }
-            }
-          }
-          post {
-            always {
-              dir("${BASE_DIR}") {
-                archiveArtifacts(allowEmptyArchive: true, artifacts: 'build/test-results/*.xml')
-                junit(allowEmptyResults: false, keepLongStdio: true, testResults: "build/test-results/*.xml")
-                stashCoverageReport()
-              }
-            }
-          }
-        }
-        stage('Integration tests') {
-          failFast true
-          options { skipDefaultCheckout() }
-          steps {
-            withGithubNotify(context: 'Integration tests', tab: 'tests') {
-              cleanup()
-              dir("${BASE_DIR}") {
-                script {
-                  def basicTasks = [
-                    'stack-command-default': generateTestCommandStage(command: 'test-stack-command-default', artifacts: ['build/elastic-stack-dump/stack/*/logs/*.log', 'build/elastic-stack-dump/stack/*/logs/fleet-server-internal/*', 'build/elastic-stack-status/*/*']),
-                    'stack-command-oldest': generateTestCommandStage(command: 'test-stack-command-oldest', artifacts: ['build/elastic-stack-dump/stack/*/logs/*.log', 'build/elastic-stack-dump/stack/*/logs/fleet-server-internal/*', 'build/elastic-stack-status/*/*']),
-                    'stack-command-7x': generateTestCommandStage(command: 'test-stack-command-7x', artifacts: ['build/elastic-stack-dump/stack/*/logs/*.log', 'build/elastic-stack-dump/stack/*/logs/fleet-server-internal/*', 'build/elastic-stack-status/*/*']),
-                    'stack-command-86': generateTestCommandStage(command: 'test-stack-command-86', artifacts: ['build/elastic-stack-dump/stack/*/logs/*.log', 'build/elastic-stack-dump/stack/*/logs/fleet-server-internal/*', 'build/elastic-stack-status/*/*']),
-                    'stack-command-8x': generateTestCommandStage(command: 'test-stack-command-8x', artifacts: ['build/elastic-stack-dump/stack/*/logs/*.log', 'build/elastic-stack-dump/stack/*/logs/fleet-server-internal/*', 'build/elastic-stack-status/*/*']),
-                    'check-packages-with-kind': generateTestCommandStage(command: 'test-check-packages-with-kind', artifacts: ['build/test-results/*.xml', 'build/kubectl-dump.txt', 'build/elastic-stack-dump/check-*/logs/*.log', 'build/elastic-stack-dump/check-*/logs/fleet-server-internal/*'], junitArtifacts: true, publishCoverage: true),
-                    'check-packages-other': generateTestCommandStage(command: 'test-check-packages-other', artifacts: ['build/test-results/*.xml', 'build/elastic-stack-dump/check-*/logs/*.log', 'build/elastic-stack-dump/check-*/logs/fleet-server-internal/*'], junitArtifacts: true, publishCoverage: true),
-                    'check-packages-with-custom-agent': generateTestCommandStage(command: 'test-check-packages-with-custom-agent', artifacts: ['build/test-results/*.xml', 'build/elastic-stack-dump/check-*/logs/*.log', 'build/elastic-stack-dump/check-*/logs/fleet-server-internal/*'], junitArtifacts: true, publishCoverage: true),
-		    'check-packages-benchmarks': generateTestCommandStage(command: 'test-check-packages-benchmarks', artifacts: ['build/test-results/*.xml', 'build/elastic-stack-dump/check-*/logs/*.log', 'build/elastic-stack-dump/check-*/logs/fleet-server-internal/*'], junitArtifacts: true, publishCoverage: false),
-                    'build-zip': generateTestCommandStage(command: 'test-build-zip', artifacts: ['build/elastic-stack-dump/build-zip/logs/*.log', 'build/packages/*.sig']),
-                    'profiles-command': generateTestCommandStage(command: 'test-profiles-command')
-                  ]
-
-                  def checkSinglePackageTasks = generateTestCheckSinglePackageStage()
-                  def tasks = basicTasks + checkSinglePackageTasks
-                  parallel tasks
-                }
-              }
-            }
-          }
-        }
-        stage('Release') {
+        stage('Check if the PR contains Buildkite pipeline') {
           when {
-            tag pattern: '(v)?\\d+\\.\\d+\\.\\d+', comparator: 'REGEXP'
+            changeRequest()
           }
           steps {
+            cleanup()
             dir("${BASE_DIR}"){
-              withMageEnv(){
-                withCredentials([string(credentialsId: "${GITHUB_TOKEN_CREDENTIALS}", variable: 'GITHUB_TOKEN')]) {
-                  // Ensure that tags are present so goreleaser can build the changelog from the last release.
-                  gitCmd(cmd: 'fetch', args: '--unshallow --tags')
-                  sh 'curl -sL https://git.io/goreleaser | bash'
+              script {
+                githubEnv()
+                r = sh(label: 'Check', returnStatus: true, script: '''
+                  echo "Base commit: ${GIT_BASE_COMMIT}"
+                  git log --format=%H "${GIT_BASE_COMMIT}" | grep "${BUILDKITE_MERGE_COMMIT}"
+                ''')
+                if (r != 0) {
+                  echo("You should update your branch to include latest buildkite pipelines")
+                  sh(label: 'Exit', script: 'exit 1')
                 }
               }
             }
           }
         }
       }
-    }
-  }
-  post {
-    always {
-      publishCoverageReports()
-    }
-    cleanup {
-      notifyBuildResult(prComment: true)
     }
   }
 }
@@ -151,158 +74,4 @@ def cleanup(){
     deleteDir()
   }
   unstash 'source'
-}
-
-def generateTestCheckSinglePackageStage(Map args = [:]) {
-  def artifacts = ['build/test-results/*.xml', 'build/elastic-stack-dump/check-*/logs/*.log', 'build/elastic-stack-dump/check-*/logs/fleet-server-internal/*']
-
-  def integrations = [:]
-  dir("test/packages/parallel") {
-      // Include hack to skip temporary files with "@tmp" suffix.
-      // For reference: https://issues.jenkins.io/browse/JENKINS-52750
-      findFiles()?.findAll{ !it.name.endsWith('@tmp') }?.collect{ it.name }?.sort()?.each {
-        integrations["check-package-${it}"] = {
-         withNode(labels: "ubuntu-20 && immutable", sleepMax: 20, forceWorkspace: true) {
-           cleanup()
-           try {
-             dir("${BASE_DIR}"){
-               withMageEnv(){
-                 withCloudTestEnv() {
-                   sh(label: 'Install elastic-package',script: "make install")
-                   sh(label: 'Build elastic-package',script: "make PACKAGE_UNDER_TEST=${it} test-check-packages-parallel")
-                 }
-               }
-             }
-           } finally {
-             dir("${BASE_DIR}") {
-               artifacts.each { artifact ->
-                 archiveArtifacts(allowEmptyArchive: true, artifacts: "${artifact}")
-               }
-               archiveArtifactsSafe("insecure-logs/${it}", "build/elastic-stack-dump/check-${it}/logs/elastic-agent-internal/*")
-               archiveArtifactsSafe("insecure-logs/${it}/container-logs", "build/container-logs/*.log")
-
-               junit(allowEmptyResults: true, keepLongStdio: true, testResults: "build/test-results/*.xml")
-               stashCoverageReport()
-             }
-           }
-         }
-        }
-      }
-  }
-  return integrations
-}
-
-def generateTestCommandStage(Map args = [:]){
-  def command = args.get('command')
-  def artifacts = args.get('artifacts') ? args.get('artifacts') : []
-  def junitArtifacts = args.get('junitArtifacts') ? args.get('junitArtifacts') : false
-  def publishCoverage = args.get('publishCoverage') ? args.get('publishCoverage') : false
-
-  return {
-    withNode(labels: "ubuntu-20 && immutable", sleepMax: 20, forceWorkspace: true) {
-      cleanup()
-      try {
-        dir("${BASE_DIR}"){
-          withMageEnv(){
-            withKubernetes() {
-              withCloudTestEnv() {
-                sh(label: 'Check',script: "make install ${command} check-git-clean")
-              }
-            }
-          }
-        }
-      } finally {
-        dir("${BASE_DIR}") {
-          artifacts.each { artifact ->
-            archiveArtifacts(allowEmptyArchive: true, artifacts: "${artifact}")
-          }
-
-          if (junitArtifacts) {
-            junit(allowEmptyResults: true,
-                keepLongStdio: true,
-                testResults: "build/test-results/*.xml")
-          }
-
-          if (publishCoverage) {
-            stashCoverageReport()
-          }
-        }
-      }
-    }
-  }
-}
-
-def getCoverageBucketURI() {
-  return "gs://${JOB_GCS_BUCKET}/" + getCoveragePathPrefix()
-}
-
-def getCoveragePathPrefix() {
-  return "${env.JOB_NAME}-${env.BUILD_ID}/test-coverage/"
-}
-
-def publishCoverageReports() {
-  stage('Publish coverage reports') {
-    dir("${BASE_DIR}") {
-      def bucketUri = getCoverageBucketURI() + "*.xml"
-      googleStorageDownload(bucketUri: bucketUri, credentialsId: "${JOB_GCS_CREDENTIALS}", localDirectory: 'build/test-coverage', pathPrefix: getCoveragePathPrefix())
-      coverageReport('build/test-coverage')
-    }
-  }
-}
-
-def stashCoverageReport() {
-  r = sh(label: "isCoverageReportPresent", script: "ls build/test-coverage/*.xml", returnStatus: true)
-  if (r != 0) {
-    echo "isCoverageReportPresent: coverage files not found, report won't be stashed"
-    return
-  }
-
-  googleStorageUploadExt(bucket: getCoverageBucketURI(), credentialsId: "${JOB_GCS_EXT_CREDENTIALS}", pattern: "build/test-coverage/*.xml")
-}
-
-def withKubernetes(Closure body) {
-    retryWithSleep(retries: 2, seconds: 5, backoff: true) { sh(label: "Install kind", script: '''
-       mkdir -p ${HOME}/bin
-       curl -sSLo ${HOME}/bin/kind "https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-linux-amd64"
-       chmod +x ${HOME}/bin/kind
-       kind version
-       ''') }
-    retryWithSleep(retries: 2, seconds: 5, backoff: true) { sh(label: "Install kubectl", script: '''
-       mkdir -p ${HOME}/bin
-       curl -sSLo ${HOME}/bin/kubectl "https://storage.googleapis.com/kubernetes-release/release/${K8S_VERSION}/bin/linux/amd64/kubectl"
-       chmod +x ${HOME}/bin/kubectl
-       kubectl version --client
-       ''') }
-    withEnv(["PATH+TOOLS=${HOME}/bin"]) {
-      body()
-    }
-}
-
-def withCloudTestEnv(Closure body) {
-  def maskedVars = []
-  // GCP
-  withGCPEnv(secret: env.ELASTIC_PACKAGE_GCP_SECRET) {
-    maskedVars.add([var: 'GOOGLE_CREDENTIALS', password: readFile(file: env.GOOGLE_APPLICATION_CREDENTIALS)]);
-    maskedVars.add([var: 'GCP_PROJECT_ID', password: env.ELASTIC_OBSERVABILITY_PROJECT_ID])
-  }
-  // Masking
-  withEnvMask(vars: maskedVars) {
-    withSecretVault(secret: "${AWS_ACCOUNT_SECRET}",
-                    data: ['access_key': 'AWS_ACCESS_KEY_ID', 'secret_key': 'AWS_SECRET_ACCESS_KEY']) {
-      body()
-    }
-  }
-}
-
-def archiveArtifactsSafe(remotePath, artifacts) {
-  r = sh(label: "areArtifactsPresent", script: "ls ${artifacts}", returnStatus: true)
-  if (r != 0) {
-    echo "areArtifactsPresent: artifacts files not found, nothing will be archived"
-    return
-  }
-
-  googleStorageUploadExt(
-    bucket: "gs://${JOB_GCS_BUCKET_INTERNAL}/${env.JOB_NAME}-${env.BUILD_ID}/${remotePath}",
-    credentialsId: "${JOB_GCS_EXT_CREDENTIALS}",
-    pattern: artifacts)
 }

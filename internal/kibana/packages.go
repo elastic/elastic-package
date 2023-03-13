@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 
 	"github.com/pkg/errors"
 
@@ -15,8 +16,8 @@ import (
 )
 
 // InstallPackage installs the given package in Fleet.
-func (c *Client) InstallPackage(pkg packages.PackageManifest) ([]packages.Asset, error) {
-	path := fmt.Sprintf("%s/epm/packages/%s-%s", FleetAPI, pkg.Name, pkg.Version)
+func (c *Client) InstallPackage(name, version string) ([]packages.Asset, error) {
+	path := fmt.Sprintf("%s/epm/packages/%s-%s", FleetAPI, name, version)
 	reqBody := []byte(`{"force":true}`) // allows installing older versions of the package being tested
 
 	statusCode, respBody, err := c.post(path, reqBody)
@@ -27,9 +28,33 @@ func (c *Client) InstallPackage(pkg packages.PackageManifest) ([]packages.Asset,
 	return processResults("install", statusCode, respBody)
 }
 
+// InstallZipPackage installs the local zip package in Fleet.
+func (c *Client) InstallZipPackage(zipFile string) ([]packages.Asset, error) {
+	path := fmt.Sprintf("%s/epm/packages", FleetAPI)
+
+	body, err := os.Open(zipFile)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to read zip file")
+	}
+	defer body.Close()
+
+	req, err := c.newRequest(http.MethodPost, path, body)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/zip")
+
+	statusCode, respBody, err := c.doRequest(req)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not install zip package")
+	}
+
+	return processResults("zip-install", statusCode, respBody)
+}
+
 // RemovePackage removes the given package from Fleet.
-func (c *Client) RemovePackage(pkg packages.PackageManifest) ([]packages.Asset, error) {
-	path := fmt.Sprintf("%s/epm/packages/%s-%s", FleetAPI, pkg.Name, pkg.Version)
+func (c *Client) RemovePackage(name, version string) ([]packages.Asset, error) {
+	path := fmt.Sprintf("%s/epm/packages/%s-%s", FleetAPI, name, version)
 	statusCode, respBody, err := c.delete(path)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not delete package")

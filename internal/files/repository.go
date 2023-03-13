@@ -5,17 +5,20 @@
 package files
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
-
-	"github.com/pkg/errors"
 )
 
 func FindRepositoryRootDirectory() (string, error) {
 	workDir, err := os.Getwd()
 	if err != nil {
-		return "", errors.Wrap(err, "locating working directory failed")
+		return "", fmt.Errorf("locating working directory failed: %w", err)
 	}
+
+	// VolumeName() will return something like "C:" in Windows, and "" in other OSs
+	// rootDir will be something like "C:\" in Windows, and "/" everywhere else.
+	rootDir := filepath.VolumeName(workDir) + string(filepath.Separator)
 
 	dir := workDir
 	for dir != "." {
@@ -25,7 +28,7 @@ func FindRepositoryRootDirectory() (string, error) {
 			return dir, nil
 		}
 
-		if dir == "/" {
+		if dir == rootDir {
 			break
 		}
 		dir = filepath.Dir(dir)

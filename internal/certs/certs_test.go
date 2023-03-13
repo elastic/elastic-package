@@ -142,6 +142,8 @@ func testCurl(t *testing.T, root *Certificate, commonName, address string) {
 		"--cacert", caCert,
 		// Send requests to the listener address.
 		"--resolve", reqAddress + ":" + serverHost,
+		// Ignore check for revocation status when not available.
+		"--ssl-revoke-best-effort",
 		"https://" + reqAddress,
 	}
 

@@ -5,7 +5,7 @@
 package cmd
 
 import (
-	"strings"
+	"path/filepath"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -76,8 +76,8 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 	}
 
 	for _, target := range targets {
-		splitTarget := strings.Split(target, "/")
-		cmd.Printf("%s file rendered: %s\n", splitTarget[len(splitTarget)-1], target)
+		fileName := filepath.Base(target)
+		cmd.Printf("%s file rendered: %s\n", fileName, target)
 	}
 
 	target, err := builder.BuildPackage(builder.BuildOptions{
