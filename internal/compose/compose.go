@@ -173,11 +173,6 @@ func NewProject(name string, paths ...string) (*Project, error) {
 	c.name = name
 	c.composeFilePaths = paths
 
-	v, ok := os.LookupEnv(DisableANSIComposeEnv)
-	if ok && strings.ToLower(v) != "false" {
-		c.disableANSI = true
-	}
-
 	ver, err := c.dockerComposeVersion()
 	if err != nil {
 		logger.Errorf("Unable to determine Docker Compose version: %v. Defaulting to 1.x", err)
@@ -188,15 +183,18 @@ func NewProject(name string, paths ...string) (*Project, error) {
 		logger.Debugf("Determined Docker Compose version: %v, the tool will use Compose V1", ver)
 		c.dockerComposeV1 = true
 	}
+
+	v, ok := os.LookupEnv(DisableANSIComposeEnv)
+	if !c.dockerComposeV1 && ok && strings.ToLower(v) != "false" {
+		c.disableANSI = true
+	}
+
 	return &c, nil
 }
 
 // Up brings up a Docker Compose project.
 func (p *Project) Up(opts CommandOptions) error {
 	args := p.baseArgs()
-	if p.disableANSI {
-		args = append(args, "--ansi", "never")
-	}
 	args = append(args, "up")
 	if p.disableANSI {
 		args = append(args, "--quiet-pull")
@@ -214,9 +212,6 @@ func (p *Project) Up(opts CommandOptions) error {
 // Down tears down a Docker Compose project.
 func (p *Project) Down(opts CommandOptions) error {
 	args := p.baseArgs()
-	if p.disableANSI {
-		args = append(args, "--ansi", "never")
-	}
 	args = append(args, "down")
 	args = append(args, opts.ExtraArgs...)
 
@@ -380,6 +375,10 @@ func (p *Project) baseArgs() []string {
 	var args []string
 	for _, path := range p.composeFilePaths {
 		args = append(args, "-f", path)
+	}
+
+	if p.disableANSI {
+		args = append(args, "--ansi", "never")
 	}
 
 	args = append(args, "-p", p.name)
