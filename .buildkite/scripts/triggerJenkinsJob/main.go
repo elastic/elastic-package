@@ -17,7 +17,7 @@ import (
 
 const (
 	publishingRemoteJob = "package_storage/job/publishing-job-remote"
-	signingJob          = "elastic+unified-release+master+sign-artifacts-wigh-gpg"
+	signingJob          = "elastic+unified-release+master+sign-artifacts-with-gpg"
 
 	publishJobKey = "publish"
 	signJobKey    = "sign"
