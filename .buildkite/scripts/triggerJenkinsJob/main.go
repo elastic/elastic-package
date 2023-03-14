@@ -71,7 +71,7 @@ func main() {
 	}
 
 	if err != nil {
-		log.Fatal("Error: %s", err)
+		log.Fatalf("Error: %s", err)
 	}
 }
 
