@@ -83,8 +83,9 @@ signPackage() {
 
     local gsUtilLocation=$(google_cloud_auth_signing)
 
+    # upload zip package (trailing forward slashes are required)
     echo "Upload package .zip file for signing ${package} to ${INFRA_SIGNING_BUCKET_ARTIFACTS_PATH}"
-    gsutil cp ${package} ${INFRA_SIGNING_BUCKET_ARTIFACTS_PATH}
+    gsutil cp ${package} "${INFRA_SIGNING_BUCKET_ARTIFACTS_PATH}/"
 
     echo "Trigger Jenkins job for signing package ${packageZip}"
     pushd ${JENKINS_TRIGGER_PATH} > /dev/null
@@ -97,14 +98,14 @@ signPackage() {
     popd > /dev/null
 
     echo "Download signatures"
-    gsutil cp ${INFRA_SIGNING_BUCKET_SIGNED_ARTIFACTS_PATH}/${packageZip}.asc ${BUILD_PACKAGES_PATH}
+    gsutil cp "${INFRA_SIGNING_BUCKET_SIGNED_ARTIFACTS_PATH}/${packageZip}.asc" "${BUILD_PACKAGES_PATH}"
 
     echo "Rename asc to sig"
     for f in $(ls ${BUILD_PACKAGES_PATH}/*.asc); do
         mv "$f" "${f%.asc}.sig"
     done
 
-    ls -l ${BUILD_PACKAGES_PATH}
+    ls -l "${BUILD_PACKAGES_PATH}"
 
     echo "Removing temporal location ${gsUtilLocation}"
     rm -r "${gsUtilLocation}"
@@ -117,19 +118,19 @@ publishPackage() {
     # create file with credentials
     local gsUtilLocation=$(google_cloud_auth_publishing)
 
-    # upload files
+    # upload files (trailing forward slashes are required)
     echo "Upload package .zip file ${package} to ${PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH}"
-    gsutil cp ${package} ${PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH}
+    gsutil cp ${package} "${PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH}/"
     echo "Upload package .sig file ${package}.sig to ${PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH}"
-    gsutil cp ${package}.sig ${PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH}
+    gsutil cp ${package}.sig "${PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH}/"
 
     echo "Trigger Jenkins job for publishing package ${packageZip}"
     pushd ${JENKINS_TRIGGER_PATH} > /dev/null
 
     go run main.go \
         --jenkins-job publish \
-        --package ${PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH}/${packageZip} \
-        --signature ${PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH}/${packageZip}.sig
+        --package "${PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH}/${packageZip}" \
+        --signature "${PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH}/${packageZip}.sig"
 
     sleep 5
 
@@ -143,11 +144,11 @@ publishPackage() {
 with_go
 
 # download package artifact from previous step
-mkdir -p ${BUILD_PACKAGES_PATH}
+mkdir -p "${BUILD_PACKAGES_PATH}"
 
 buildkite-agent artifact download "${BUILD_PACKAGES_PATH}/*.zip" --step build-package .
 echo "Show artifacts downloaded from previous step ${BUILD_PACKAGES_PATH}"
-ls -l ${BUILD_PACKAGES_PATH}
+ls -l "${BUILD_PACKAGES_PATH}"
 
 for package in $(ls ${BUILD_PACKAGES_PATH}/*.zip); do
     echo "isAlreadyInstalled ${package}?"
