@@ -88,7 +88,7 @@ func runSignPackageJob(ctx context.Context, client *jenkins.JenkinsClient, async
 }
 
 func runPublishingRemoteJob(ctx context.Context, client *jenkins.JenkinsClient, async bool, jobName, packagePath, signaturePath string) error {
-	if zipPackagePath == "" {
+	if packagePath == "" {
 		return fmt.Errorf("missing parameter --gs_package_build_zip_path")
 	}
 	if signaturePath == "" {
