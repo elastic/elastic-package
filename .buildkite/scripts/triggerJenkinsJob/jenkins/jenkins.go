@@ -51,6 +51,10 @@ func (j *JenkinsClient) RunJob(ctx context.Context, jobName string, async bool, 
 	}
 
 	log.Printf("Build %s finished with result: %s\n", build.GetUrl(), build.GetResult())
+
+	if build.GetResult() != gojenkins.STATUS_SUCCESS {
+		return fmt.Errorf("build %s finished with result %s", build.GetUrl(), build.GetResult())
+	}
 	return nil
 }
 
