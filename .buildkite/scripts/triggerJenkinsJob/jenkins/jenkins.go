@@ -95,7 +95,7 @@ func (j *JenkinsClient) getBuildFromQueueID(ctx context.Context, job *gojenkins.
 
 func (j *JenkinsClient) waitForBuildFinished(ctx context.Context, build *gojenkins.Build) error {
 	for build.IsRunning(ctx) {
-		log.Printf("Build still running, waiting for 5 secs...")
+		log.Printf("Build still running, waiting for 10 secs...")
 		select {
 		case <-time.After(10000 * time.Millisecond):
 		case <-ctx.Done():

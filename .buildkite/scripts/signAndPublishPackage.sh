@@ -89,7 +89,7 @@ signPackage() {
 
     go run main.go \
         --jenkins-job sign \
-        --package ${INFRA_SIGNING_BUCKET_ARTIFACTS_PATH}/${packageZip}
+        --folder ${INFRA_SIGNING_BUCKET_ARTIFACTS_PATH}
 
     sleep 5
     popd > /dev/null
