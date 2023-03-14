@@ -98,10 +98,11 @@ func (j *JenkinsClient) getBuildFromQueueID(ctx context.Context, job *gojenkins.
 }
 
 func (j *JenkinsClient) waitForBuildFinished(ctx context.Context, build *gojenkins.Build) error {
+	waitingPeriod := 10000 * time.Millisecond
 	for build.IsRunning(ctx) {
-		log.Printf("Build still running, waiting for 10 secs...")
+		log.Printf("Build still running, waiting for %s...", waitingPeriod)
 		select {
-		case <-time.After(10000 * time.Millisecond):
+		case <-time.After(waitingPeriod):
 		case <-ctx.Done():
 			return ctx.Err()
 		}

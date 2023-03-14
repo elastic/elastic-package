@@ -2,8 +2,10 @@
 set -euo pipefail
 
 cleanup() {
+    echo "Deleting temporal files..."
     cd ${WORKSPACE}
     rm -rf tmp.elastic-package.*
+    echo "Done."
 }
 
 trap cleanup EXIT
@@ -104,7 +106,8 @@ signPackage() {
 
     ls -l ${BUILD_PACKAGES_PATH}
 
-    rm -r ${gsUtilLocation}
+    echo "Removing temporal location ${gsUtilLocation}"
+    rm -r "${gsUtilLocation}"
 }
 
 publishPackage() {
@@ -131,7 +134,9 @@ publishPackage() {
     sleep 5
 
     popd > /dev/null
-    rm -r ${gsUtilLocation}
+
+    echo "Removing temporal location ${gsUtilLocation}"
+    rm -r "${gsUtilLocation}"
 }
 
 # Required to trigger Jenkins job

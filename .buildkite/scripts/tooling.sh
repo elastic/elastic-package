@@ -14,7 +14,6 @@ google_cloud_auth() {
 
     gcloud auth activate-service-account --key-file ${keyFile} 2> /dev/null
 
-    echo "Activated service account"
     export GOOGLE_APPLICATIONS_CREDENTIALS=${secretFileLocation}
 }
 
