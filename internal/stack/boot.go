@@ -31,7 +31,7 @@ func BootUp(options Options) error {
 		ElasticsearchUsername: elasticsearchUsername,
 		ElasticsearchPassword: elasticsearchPassword,
 		KibanaHost:            "https://127.0.0.1:5601",
-		CACertFile:            options.Profile.Path(profileStackPath, CACertificateFile),
+		CACertFile:            options.Profile.Path(CACertificateFile),
 	}
 	printUserConfig(options.Printer, config)
 
