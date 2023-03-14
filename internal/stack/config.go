@@ -40,7 +40,7 @@ func defaultConfig(profile *profile.Profile) Config {
 		ElasticsearchUsername: elasticsearchUsername,
 		ElasticsearchPassword: elasticsearchPassword,
 		KibanaHost:            "https://127.0.0.1:5601",
-		CACertFile:            profile.Path(profileStackPath, CACertificateFile),
+		CACertFile:            profile.Path(CACertificateFile),
 	}
 }
 
