@@ -120,7 +120,7 @@ if [[ "${TARGET}" == "${PARALLEL_TARGET}" ]]; then
         upload_safe_logs \
             "${JOB_GCS_BUCKET_INTERNAL}" \
             "build/container-logs/*.log" \
-            "insecure-logs/${PACKAGE}/"
+            "insecure-logs/${PACKAGE}/container-logs/"
     fi
     make check-git-clean
     exit 0
