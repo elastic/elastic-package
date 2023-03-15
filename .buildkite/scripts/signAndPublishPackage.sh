@@ -18,15 +18,6 @@ trap cleanup EXIT
 
 add_bin_path
 
-
-echo "Checking gsutil command..."
-if ! command -v gsutil &> /dev/null ; then
-    echo "⚠️  gsutil is not installed"
-    exit 1
-else
-    echo "✅ gsutil is installed"
-fi
-
 isAlreadyPublished() {
     local packageZip=$1
 
@@ -37,6 +28,15 @@ isAlreadyPublished() {
     echo "- Not published ${packageZip}"
     return 1
 }
+
+echo "Checking gsutil command..."
+if ! command -v gsutil &> /dev/null ; then
+    echo "⚠️  gsutil is not installed"
+    exit 1
+else
+    echo "✅ gsutil is installed"
+fi
+
 
 REPO_NAME=$(repoName "${BUILDKITE_REPO}")
 BUILD_TAG="buildkite-${BUILDKITE_PIPELINE_SLUG}-${BUILDKITE_BUILD_NUMBER}"
@@ -142,6 +142,8 @@ publishPackage() {
     echo "Removing temporal location ${gsUtilLocation}"
     rm -r "${gsUtilLocation}"
 }
+
+add_bin_path
 
 # Required to trigger Jenkins job
 with_go
