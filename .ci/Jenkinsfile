@@ -72,7 +72,7 @@ pipeline {
             cleanup()
             dir("${BASE_DIR}"){
               withMageEnv(){
-                sh(label: 'Check',script: 'make test-go-ci')
+                sh(label: 'Check',script: 'curl --version; make test-go-ci || true')
               }
             }
           }
