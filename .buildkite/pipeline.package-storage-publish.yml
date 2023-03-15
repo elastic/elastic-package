@@ -14,7 +14,7 @@ steps:
     artifact_paths:
       - build/packages/*.zip
 
-  - label: "Test"
+  - label: "Sign and Publish package"
     key: sign-publish
     command: ".buildkite/scripts/signAndPublishPackage.sh"
     depends_on:
