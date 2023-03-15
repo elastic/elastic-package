@@ -5,7 +5,7 @@ go 1.19
 require (
 	github.com/AlecAivazis/survey/v2 v2.3.6
 	github.com/Masterminds/semver/v3 v3.2.0
-	github.com/ProtonMail/gopenpgp/v2 v2.5.2
+	github.com/ProtonMail/gopenpgp/v2 v2.6.0
 	github.com/aymerick/raymond v2.0.2+incompatible
 	github.com/boumenot/gocover-cobertura v1.2.0
 	github.com/cespare/xxhash/v2 v2.2.0
@@ -50,7 +50,7 @@ require (
 	github.com/PaesslerAG/gval v1.2.1 // indirect
 	github.com/PaesslerAG/jsonpath v0.1.1 // indirect
 	github.com/Pallinder/go-randomdata v1.2.0 // indirect
-	github.com/ProtonMail/go-crypto v0.0.0-20230124153114-0acdc8ae009b // indirect
+	github.com/ProtonMail/go-crypto v0.0.0-20230217124315-7d5c6f04bbb8 // indirect
 	github.com/ProtonMail/go-mime v0.0.0-20221031134845-8fd9bc37cf08 // indirect
 	github.com/acomagu/bufpipe v1.0.3 // indirect
 	github.com/andybalholm/brotli v1.0.4 // indirect
@@ -139,7 +139,7 @@ require (
 	github.com/yusufpapurcu/wmi v1.2.2 // indirect
 	go.mongodb.org/mongo-driver v1.11.1 // indirect
 	go.starlark.net v0.0.0-20221205180719-3fd0dac74452 // indirect
-	golang.org/x/crypto v0.5.0 // indirect
+	golang.org/x/crypto v0.7.0 // indirect
 	golang.org/x/exp/typeparams v0.0.0-20221208152030-732eee02a75a // indirect
 	golang.org/x/mod v0.9.0 // indirect
 	golang.org/x/net v0.8.0 // indirect
