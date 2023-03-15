@@ -98,7 +98,7 @@ func (j *JenkinsClient) getBuildFromQueueID(ctx context.Context, job *gojenkins.
 }
 
 func (j *JenkinsClient) waitForBuildFinished(ctx context.Context, build *gojenkins.Build) error {
-	waitingPeriod := 10000 * time.Millisecond
+	const waitingPeriod = 10000 * time.Millisecond
 	for build.IsRunning(ctx) {
 		log.Printf("Build still running, waiting for %s...", waitingPeriod)
 		select {
