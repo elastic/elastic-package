@@ -82,7 +82,7 @@ upload_safe_logs() {
 
     local gsUtilLocation=$(google_cloud_auth_safe_logs)
 
-    gsutil cp "${source}" "gs://${bucket}/buildkite/${REPO_BUILD_TAG}/${target}"
+    gsutil cp ${source} "gs://${bucket}/buildkite/${REPO_BUILD_TAG}/${target}"
 
     rm -rf "${gsUtilLocation}"
     unset GOOGLE_APPLICATIONS_CREDENTIALS
@@ -117,6 +117,7 @@ if [[ "${TARGET}" == "${PARALLEL_TARGET}" ]]; then
             "build/container-logs/*.log" \
             "insecure-logs/${PACKAGE}/"
     fi
+    make check-git-clean
     exit 0
 fi
 
