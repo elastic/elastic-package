@@ -61,7 +61,7 @@ google_cloud_auth_signing() {
     local gsUtilLocation=$(mktemp -d -p . -t ${TMP_FOLDER_TEMPLATE})
 
     local secretFileLocation=${gsUtilLocation}/${GOOGLE_CREDENTIALS_FILENAME}
-    echo "${INTERNAL_CI_GCS_CREDENTIALS_SECRET}" > ${secretFileLocation}
+    echo "${SIGNING_PACKAGES_GCS_CREDENTIALS_SECRET}" > ${secretFileLocation}
 
     google_cloud_auth "${secretFileLocation}"
 
