@@ -19,6 +19,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/docker"
+	"github.com/elastic/elastic-package/internal/environment"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/signal"
 )
@@ -30,12 +31,15 @@ const (
 	waitForHealthyInterval = 1 * time.Second
 )
 
+var DisableANSIComposeEnv = environment.WithElasticPackagePrefix("COMPOSE_DISABLE_ANSI")
+
 // Project represents a Docker Compose project.
 type Project struct {
 	name             string
 	composeFilePaths []string
 
 	dockerComposeV1 bool
+	disableANSI     bool
 }
 
 // Config represents a Docker Compose configuration file.
@@ -179,6 +183,12 @@ func NewProject(name string, paths ...string) (*Project, error) {
 		logger.Debugf("Determined Docker Compose version: %v, the tool will use Compose V1", ver)
 		c.dockerComposeV1 = true
 	}
+
+	v, ok := os.LookupEnv(DisableANSIComposeEnv)
+	if !c.dockerComposeV1 && ok && strings.ToLower(v) != "false" {
+		c.disableANSI = true
+	}
+
 	return &c, nil
 }
 
@@ -186,6 +196,9 @@ func NewProject(name string, paths ...string) (*Project, error) {
 func (p *Project) Up(opts CommandOptions) error {
 	args := p.baseArgs()
 	args = append(args, "up")
+	if p.disableANSI {
+		args = append(args, "--quiet-pull")
+	}
 	args = append(args, opts.ExtraArgs...)
 	args = append(args, opts.Services...)
 
@@ -362,6 +375,10 @@ func (p *Project) baseArgs() []string {
 	var args []string
 	for _, path := range p.composeFilePaths {
 		args = append(args, "-f", path)
+	}
+
+	if p.disableANSI {
+		args = append(args, "--ansi", "never")
 	}
 
 	args = append(args, "-p", p.name)
