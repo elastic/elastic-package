@@ -1,10 +1,13 @@
 #!/bin/bash
 set -euo pipefail
 
+WORKSPACE="$(pwd)"
+TMP_FOLDER_TEMPLATE_BASE="tmp.elastic-package"
+
 cleanup() {
     echo "Deleting temporal files..."
     cd ${WORKSPACE}
-    rm -rf "tmp.elastic-package.*"
+    rm -rf "${TMP_FOLDER_TEMPLATE_BASE}.*"
     echo "Done."
 }
 trap cleanup EXIT
@@ -20,10 +23,9 @@ usage() {
 source .buildkite/scripts/install_deps.sh
 source .buildkite/scripts/tooling.sh
 
-WORKSPACE="$(pwd)"
 PARALLEL_TARGET="test-check-packages-parallel"
 KIND_TARGET="test-check-packages-with-kind"
-TEMPLATE_TEMP_FOLDER="tmp.elastic-package.XXXXXXXXX"
+TMP_FOLDER_TEMPLATE="${TMP_FOLDER_TEMPLATE_BASE}.XXXXXXXXX"
 GOOGLE_CREDENTIALS_FILENAME="google-cloud-credentials.json"
 
 JOB_GCS_BUCKET_INTERNAL="fleet-ci-temp-internal"
@@ -65,7 +67,7 @@ if [[ "${TARGET}" == "" ]]; then
 fi
 
 google_cloud_auth_safe_logs() {
-    local gsUtilLocation=$(mktemp -d -p . -t ${TEMPLATE_TEMP_FOLDER})
+    local gsUtilLocation=$(mktemp -d -p . -t ${TMP_FOLDER_TEMPLATE})
     local secretFileLocation=${gsUtilLocation}/${GOOGLE_CREDENTIALS_FILENAME}
 
     echo "${PRIVATE_CI_GCS_CREDENTIALS_SECRET}" > ${secretFileLocation}
