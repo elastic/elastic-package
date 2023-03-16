@@ -32,7 +32,7 @@ Currently, only data for what we have related assets on https://github.com/elast
    2. replace the sample value for `--package` with the one of the package you want to generate a corpus for
    3. replace the sample value for `--size` with the *approximate* size of the corpus you want to generate
    4. replace the sample value for `--rally-track-output-dir` with the path to the folder where you want to save the rally track and the generated corpus (the folder will be created if it does not exist already)
-2. Go to the Kibana instance of the cluster you want to run the rally on and install the integration package that you have generated the rally track for. 
+2. Go to the Kibana instance of the cluster you want to run the rally on and install the integration package that you have generated the rally track for. You can use as well the `elastic-package install` command in order to install the package in Kibana: more details in this [HOWTO guide](./install_package.md).
 3. Run the rally race with the generated track:
    `esrally race --kill-running-processes --track-path=./track-output-dir --target-hosts=my-deployment.es.eastus2.azure.elastic-cloud.com:443 --pipeline=benchmark-only`
    1. replace the sample value for `--track-path` with the path to the folder provided as `--rally-track-output-dir` at step 1

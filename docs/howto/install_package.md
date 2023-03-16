@@ -23,7 +23,7 @@ Starting with Kibana 8.7.0, there is a new API to install the packages directly 
 
 From Kibana 8.7.0 version, `elastic-package install` is able to install packages through the upload API.
 - The `--zip` parameter can be used to install a specific zip file.
-- `install` subcommand instead of relying in Package Registry, it does the following steps:
+- `install` subcommand instead of relying on Package Registry, it does the following steps:
     - build the package
     - upload the zip file built to Kibana.
 
