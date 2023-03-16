@@ -1,16 +1,18 @@
 #!/bin/bash
 set -euo pipefail
 
+WORKSPACE="$(pwd)"
+TMP_FOLDER_TEMPLATE_BASE="tmp.elastic-package"
+
 cleanup() {
     echo "Deleting temporal files..."
     cd ${WORKSPACE}
-    rm -rf tmp.elastic-package.*
+    rm -rf ${TMP_FOLDER_TEMPLATE_BASE}.*
     echo "Done."
 }
 
 trap cleanup EXIT
 
-WORKSPACE="$(pwd)"
 export PATH="${WORKSPACE}/bin:${PATH}"
 
 echo "Checking gsutil command..."
@@ -41,7 +43,7 @@ BUILD_TAG="buildkite-${BUILDKITE_PIPELINE_SLUG}-${BUILDKITE_BUILD_NUMBER}"
 REPO_BUILD_TAG="${REPO_NAME}/${BUILD_TAG}"
 
 BUILD_PACKAGES_PATH="build/packages"
-TEMPLATE_TEMP_FOLDER="tmp.elastic-package.XXXXXXXXX"
+TMP_FOLDER_TEMPLATE="${TMP_FOLDER_TEMPLATE_BASE}.XXXXXXXXX"
 JENKINS_TRIGGER_PATH=".buildkite/scripts/triggerJenkinsJob"
 GOOGLE_CREDENTIALS_FILENAME="google-cloud-credentials.json"
 
@@ -56,7 +58,7 @@ PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH="gs://elastic-bekitzur-pac
 
 
 google_cloud_auth_signing() {
-    local gsUtilLocation=$(mktemp -d -p . -t ${TEMPLATE_TEMP_FOLDER})
+    local gsUtilLocation=$(mktemp -d -p . -t ${TMP_FOLDER_TEMPLATE})
 
     local secretFileLocation=${gsUtilLocation}/${GOOGLE_CREDENTIALS_FILENAME}
     echo "${INTERNAL_CI_GCS_CREDENTIALS_SECRET}" > ${secretFileLocation}
@@ -67,7 +69,7 @@ google_cloud_auth_signing() {
 }
 
 google_cloud_auth_publishing() {
-    local gsUtilLocation=$(mktemp -d -p . -t ${TEMPLATE_TEMP_FOLDER})
+    local gsUtilLocation=$(mktemp -d -p . -t ${TMP_FOLDER_TEMPLATE})
 
     local secretFileLocation=${gsUtilLocation}/${GOOGLE_CREDENTIALS_FILENAME}
     echo "${PACKAGE_UPLOADER_GCS_CREDENTIALS_SECRET}" > ${secretFileLocation}
