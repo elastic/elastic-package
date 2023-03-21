@@ -45,7 +45,7 @@ download() {
 download
 tar -xf "$TAR_FILE" -C "${TARGET_DIR}"
 
-rm ${TARGET_FILE}
+rm ${TAR_FILE}
 chmod u+x ${TARGET_DIR}/goreleaser
 
 # build
