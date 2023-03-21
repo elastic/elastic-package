@@ -2,7 +2,13 @@
 
 set -euo pipefail
 
-WORKSPACE="$(pwd)"
+cleanup() {
+    rm -rf ${WORKSPACE}
+}
+trap cleanup exit
+
+WORKSPACE="/tmp/bin-buildkite/"
+
 VERSION=""
 source .buildkite/scripts/install_deps.sh
 source .buildkite/scripts/tooling.sh
@@ -48,8 +54,7 @@ tar -xf "$TAR_FILE" -C "${TARGET_DIR}"
 rm ${TAR_FILE}
 chmod u+x ${TARGET_DIR}/goreleaser
 
-# build
-goreleaser build
+git status
 
 # release skip
-goreleaser release --skip-publish
+goreleaser release --skip-publish --snapshot
