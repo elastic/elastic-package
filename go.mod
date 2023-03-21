@@ -10,7 +10,7 @@ require (
 	github.com/boumenot/gocover-cobertura v1.2.0
 	github.com/cespare/xxhash/v2 v2.2.0
 	github.com/dustin/go-humanize v1.0.1
-	github.com/elastic/elastic-integration-corpus-generator-tool v0.4.3
+	github.com/elastic/elastic-integration-corpus-generator-tool v0.5.0
 	github.com/elastic/go-elasticsearch/v7 v7.17.7
 	github.com/elastic/go-licenser v0.4.1
 	github.com/elastic/go-ucfg v0.8.6
