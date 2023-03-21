@@ -16,8 +16,6 @@ cleanup() {
 
 trap cleanup EXIT
 
-add_bin_path
-
 isAlreadyPublished() {
     local packageZip=$1
 
