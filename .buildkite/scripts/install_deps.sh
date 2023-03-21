@@ -5,6 +5,7 @@ set -euo pipefail
 source .buildkite/scripts/tooling.sh
 
 add_bin_path(){
+    mkdir -p ${WORKSPACE}/bin
     export PATH="${WORKSPACE}/bin:${PATH}"
 }
 
