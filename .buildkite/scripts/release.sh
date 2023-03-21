@@ -2,6 +2,13 @@
 
 set -euo pipefail
 
+WORKSPACE="$(pwd)"
+source .buildkite/scripts/install_deps.sh
+source .buildkite/scripts/tooling.sh
+
+add_bin_path
+with_go
+
 echo "--- fetching tags"
 # Ensure that tags are present so goreleaser can build the changelog from the last release.
 git rev-parse --is-shallow-repository
