@@ -3,6 +3,7 @@
 set -euo pipefail
 
 WORKSPACE="$(pwd)"
+VERSION=""
 source .buildkite/scripts/install_deps.sh
 source .buildkite/scripts/tooling.sh
 
