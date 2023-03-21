@@ -56,6 +56,8 @@ for package in $(find . -maxdepth 1 -mindepth 1 -type d) ; do
     echo "      - label: \":go: Running integration test: ${package_name}\""
     echo "        key: \"integration-parallel-${package_name}\""
     echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-check-packages-parallel -p ${package_name}"
+    echo "        env:"
+    echo "          UPLOAD_SAFE_LOGS: 1"
     echo "        agents:"
     echo "          provider: \"gcp\""
     echo "        artifact_paths:"

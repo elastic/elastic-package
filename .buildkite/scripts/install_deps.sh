@@ -4,6 +4,10 @@ set -euo pipefail
 
 source .buildkite/scripts/tooling.sh
 
+add_bin_path(){
+    export PATH="${WORKSPACE}/bin:${PATH}"
+}
+
 with_kubernetes() {
     mkdir -p ${WORKSPACE}/bin
     retry 5 curl -sSLo ${WORKSPACE}/bin/kind "https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-linux-amd64"
@@ -25,6 +29,7 @@ with_go() {
     eval "$(gvm $(cat .go-version))"
     go version
     which go
+    export PATH="$(go env GOPATH)/bin:${PATH}"
 }
 
 with_docker_compose() {

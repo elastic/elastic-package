@@ -4,6 +4,9 @@ set -euo pipefail
 WORKSPACE="$(pwd)"
 TMP_FOLDER_TEMPLATE_BASE="tmp.elastic-package"
 
+source .buildkite/scripts/install_deps.sh
+source .buildkite/scripts/tooling.sh
+
 cleanup() {
     echo "Deleting temporal files..."
     cd ${WORKSPACE}
@@ -12,19 +15,6 @@ cleanup() {
 }
 
 trap cleanup EXIT
-
-export PATH="${WORKSPACE}/bin:${PATH}"
-
-echo "Checking gsutil command..."
-if ! command -v gsutil &> /dev/null ; then
-    echo "⚠️  gsutil is not installed"
-    exit 1
-else
-    echo "✅ gsutil is installed"
-fi
-
-source .buildkite/scripts/install_deps.sh
-source .buildkite/scripts/tooling.sh
 
 isAlreadyPublished() {
     local packageZip=$1
@@ -36,6 +26,13 @@ isAlreadyPublished() {
     echo "- Not published ${packageZip}"
     return 1
 }
+
+echo "Checking gsutil command..."
+if ! command -v gsutil &> /dev/null ; then
+    echo "⚠️  gsutil is not installed"
+    exit 1
+fi
+
 
 REPO_NAME=$(repoName "${BUILDKITE_REPO}")
 BUILD_TAG="buildkite-${BUILDKITE_PIPELINE_SLUG}-${BUILDKITE_BUILD_NUMBER}"
@@ -141,6 +138,8 @@ publishPackage() {
     echo "Removing temporal location ${gsUtilLocation}"
     rm -r "${gsUtilLocation}"
 }
+
+add_bin_path
 
 # Required to trigger Jenkins job
 with_go
