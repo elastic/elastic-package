@@ -63,5 +63,5 @@ steps:
     command: ".buildkite/scripts/release.sh"
     agents:
       image: "golang:1.19.5"
-      cpu: "8"
-      memory: "4G"
+      cpu: "4"
+      memory: "16G"
