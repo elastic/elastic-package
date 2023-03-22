@@ -19,6 +19,7 @@ steps:
     command: ".buildkite/scripts/signAndPublishPackage.sh"
     depends_on:
       - build-package
+    timeout_in_minutes: 30
     agents:
       provider: "gcp"
       image: family/core-ubuntu-2004
