@@ -17,6 +17,8 @@ type JenkinsClient struct {
 	client *gojenkins.Jenkins
 }
 
+const maxNumberBuildAttemps = 5
+
 func NewJenkinsClient(ctx context.Context, host, user, token string) (*JenkinsClient, error) {
 	jenkins, err := gojenkins.CreateJenkins(nil, host, user, token).Init(ctx)
 	if err != nil {
@@ -28,12 +30,30 @@ func NewJenkinsClient(ctx context.Context, host, user, token string) (*JenkinsCl
 	}, nil
 }
 
-func (j *JenkinsClient) RunJob(ctx context.Context, jobName string, async bool, params map[string]string) error {
-	queueId, err := j.client.BuildJob(ctx, jobName, params)
-	if err != nil {
-		fmt.Printf("error running job %s : %s\n", jobName, err)
-		return err
+func (j *JenkinsClient) buildJob(ctx context.Context, jobName string, params map[string]string) (int64, error) {
+	for i := 0; i < maxNumberBuildAttemps; i++ {
+		log.Printf("Building job %s (Attempt %d)", jobName, i+1)
+		queueId, err := j.client.BuildJob(ctx, jobName, params)
+		if err != nil {
+			fmt.Printf("error running job %s : %s\n", jobName, err)
+			return 0, err
+		}
+
+		if queueId != 0 {
+			return queueId, nil
+		}
+		select {
+		case <-time.After(1000 * time.Millisecond):
+		case <-ctx.Done():
+			return 0, ctx.Err()
+		}
 	}
+	return 0, fmt.Errorf("failed to build job %s: max attemps reached", jobName)
+}
+
+func (j *JenkinsClient) RunJob(ctx context.Context, jobName string, async bool, params map[string]string) error {
+	queueId, err := j.buildJob(ctx, jobName, params)
+
 	build, err := j.getBuildFromJobAndQueueID(ctx, jobName, queueId)
 	if err != nil {
 		return err
