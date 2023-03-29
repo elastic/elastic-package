@@ -36,8 +36,7 @@ func (j *JenkinsClient) buildJob(ctx context.Context, jobName string, params map
 		log.Printf("Building job %s (Attempt %d)", jobName, i+1)
 		queueId, err := j.client.BuildJob(ctx, jobName, params)
 		if err != nil {
-			fmt.Printf("error running job %s : %s\n", jobName, err)
-			return 0, err
+			return 0, fmt.Errorf("error running job %s: %w", jobName, err)
 		}
 
 		if queueId != 0 {
