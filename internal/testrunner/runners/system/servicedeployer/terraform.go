@@ -54,8 +54,12 @@ func (tsd TerraformServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedServic
 		return nil, errors.Wrap(err, "removing service logs failed")
 	}
 
+	tfEnvironment := tsd.buildTerraformExecutorEnvironment(inCtxt)
+	opts := compose.CommandOptions{
+		Env: tfEnvironment,
+	}
 	// Set custom aliases, which may be used in agent policies.
-	serviceComposeConfig, err := p.Config(compose.CommandOptions{})
+	serviceComposeConfig, err := p.Config(opts)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not get Docker Compose configuration for service")
 	}
@@ -65,12 +69,10 @@ func (tsd TerraformServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedServic
 	}
 
 	// Boot up service
-	tfEnvironment := tsd.buildTerraformExecutorEnvironment(inCtxt)
-	opts := compose.CommandOptions{
+	opts = compose.CommandOptions{
 		Env:       tfEnvironment,
 		ExtraArgs: []string{"--build", "-d"},
 	}
-
 	err = p.Up(opts)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not boot up service using Docker Compose")
