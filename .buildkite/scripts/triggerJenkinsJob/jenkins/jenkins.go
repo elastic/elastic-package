@@ -31,7 +31,7 @@ func NewJenkinsClient(ctx context.Context, host, user, token string) (*JenkinsCl
 }
 
 func (j *JenkinsClient) buildJob(ctx context.Context, jobName string, params map[string]string) (int64, error) {
-	const waitingPeriod = 5000 * time.Millisecond
+	const waitingPeriod = 10000 * time.Millisecond
 	for i := 0; i < maxNumberBuildAttemps; i++ {
 		log.Printf("Building job %s (Attempt %d)", jobName, i+1)
 		queueId, err := j.client.BuildJob(ctx, jobName, params)
