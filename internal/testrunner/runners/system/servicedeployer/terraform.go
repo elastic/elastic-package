@@ -37,9 +37,12 @@ func (tsd TerraformServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedServic
 		return nil, errors.Wrap(err, "can't load Docker Compose definitions")
 	}
 
+	tfEnvironment := tsd.buildTerraformExecutorEnvironment(inCtxt)
+
 	service := dockerComposeDeployedService{
 		ymlPaths: ymlPaths,
 		project:  "elastic-package-service",
+		env:      tfEnvironment,
 	}
 	outCtxt := inCtxt
 
@@ -54,7 +57,6 @@ func (tsd TerraformServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedServic
 		return nil, errors.Wrap(err, "removing service logs failed")
 	}
 
-	tfEnvironment := tsd.buildTerraformExecutorEnvironment(inCtxt)
 	opts := compose.CommandOptions{
 		Env: tfEnvironment,
 	}
@@ -70,7 +72,7 @@ func (tsd TerraformServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedServic
 
 	// Boot up service
 	opts = compose.CommandOptions{
-		Env:       tfEnvironment,
+		Env:       service.env,
 		ExtraArgs: []string{"--build", "-d"},
 	}
 	err = p.Up(opts)

@@ -33,6 +33,7 @@ type dockerComposeDeployedService struct {
 	ymlPaths []string
 	project  string
 	sv       ServiceVariant
+	env      []string
 }
 
 // NewDockerComposeServiceDeployer returns a new instance of a DockerComposeServiceDeployer.
@@ -50,6 +51,7 @@ func (d *DockerComposeServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedSer
 		ymlPaths: d.ymlPaths,
 		project:  "elastic-package-service",
 		sv:       d.sv,
+		env:      []string{fmt.Sprintf("%s=%s", serviceLogsDirEnv, inCtxt.Logs.Folder.Local)},
 	}
 	outCtxt := inCtxt
 
@@ -78,7 +80,7 @@ func (d *DockerComposeServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedSer
 	serviceName := inCtxt.Name
 	opts := compose.CommandOptions{
 		Env: append(
-			[]string{fmt.Sprintf("%s=%s", serviceLogsDirEnv, outCtxt.Logs.Folder.Local)},
+			service.env,
 			d.sv.Env...),
 		ExtraArgs: []string{"--build", "-d"},
 	}
@@ -137,7 +139,7 @@ func (s *dockerComposeDeployedService) Signal(signal string) error {
 
 	opts := compose.CommandOptions{
 		Env: append(
-			[]string{fmt.Sprintf("%s=%s", serviceLogsDirEnv, s.ctxt.Logs.Folder.Local)},
+			s.env,
 			s.sv.Env...),
 		ExtraArgs: []string{"-s", signal},
 	}
@@ -165,15 +167,13 @@ func (s *dockerComposeDeployedService) TearDown() error {
 
 	opts := compose.CommandOptions{
 		Env: append(
-			[]string{fmt.Sprintf("%s=%s", serviceLogsDirEnv, s.ctxt.Logs.Folder.Local)},
+			s.env,
 			s.sv.Env...),
 	}
 	processServiceContainerLogs(p, opts, s.ctxt.Name)
 
 	if err := p.Down(compose.CommandOptions{
-		Env: append(
-			[]string{fmt.Sprintf("%s=%s", serviceLogsDirEnv, s.ctxt.Logs.Folder.Local)},
-			s.sv.Env...),
+		Env:       opts.Env,
 		ExtraArgs: []string{"--volumes"}, // Remove associated volumes.
 	}); err != nil {
 		return errors.Wrap(err, "could not shut down service using Docker Compose")
