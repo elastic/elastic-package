@@ -33,25 +33,25 @@ func NewJenkinsClient(ctx context.Context, host, user, token string) (*JenkinsCl
 	}, nil
 }
 
-func (j *JenkinsClient) buildJob(ctx context.Context, jobName string, params map[string]string) (int64, error) {
-	log.Printf("Building job %s", jobName)
-	queueId, err := j.client.BuildJob(ctx, jobName, params)
-	if err != nil {
-		return 0, fmt.Errorf("error running job %s: %w", jobName, err)
-	}
-
-	if queueId != 0 {
-		return queueId, nil
-	}
-	return 0, fmt.Errorf("already running %s?", jobName)
-}
-
 func (j *JenkinsClient) RunJob(ctx context.Context, jobName string, async bool, params map[string]string, opts Options) error {
-	log.Printf("Jenkins options: %+v", opts)
-	r := retry(j.buildJob, opts.Retries, opts.WaitingTime)
+	log.Printf("Building job %s", jobName)
+	var queueId int64
 
-	queueId, err := r(ctx, jobName, params)
-	if err != nil {
+	r := retry(func(ctx context.Context) error {
+		var err error
+		queueId, err = j.client.BuildJob(ctx, jobName, params)
+		if err != nil {
+			return fmt.Errorf("error running job %s: %w", jobName, err)
+		}
+
+		if queueId != 0 {
+			return nil
+		}
+		return fmt.Errorf("already running %s?", jobName)
+
+	}, opts.Retries, opts.WaitingTime)
+
+	if err := r(ctx); err != nil {
 		return err
 	}
 
