@@ -7,7 +7,6 @@ package export
 import (
 	"fmt"
 	"log"
-	"strings"
 
 	"github.com/pkg/errors"
 
@@ -53,19 +52,40 @@ func removeTagsFromDashboard(ctx *transformationContext, object common.MapStr) (
 }
 
 func removeTagObjects(ctx *transformationContext, object common.MapStr) (common.MapStr, error) {
-	log.Printf("Removing tags")
+	log.Printf("Removing tags objects")
 	aId, err := object.GetValue("id")
 	if err == common.ErrKeyNotFound {
 		return object, nil
 	}
 
-	switch aId {
-	case fmt.Sprintf("fleet-pkg-%s-default", ctx.packageName):
-		return nil, nil
-	case "fleet-managed-default":
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to read id field")
+	}
+
+	aIdString, ok := aId.(string)
+	if !ok {
+		return nil, errors.Wrap(err, "failed to read id string")
+	}
+
+	if isTagFleetManaged(aIdString, ctx.packageName) {
+		log.Printf("1. Removing fleet tag object: %s", aId)
 		return nil, nil
 	}
+	log.Printf("2. Adding tag: %s", aId)
 	return object, nil
+}
+
+func isTagFleetManaged(aId, packageName string) bool {
+	var empty interface{}
+	fleetManagedTags := map[string]interface{}{
+		fmt.Sprintf("fleet-pkg-%s-default", packageName):                 empty,
+		"fleet-managed-default":                                          empty,
+		fmt.Sprintf("%s-fleet-pkg-%s-default", packageName, packageName): empty,
+		fmt.Sprintf("%s-fleet-managed-default", packageName):             empty,
+	}
+
+	_, ok := fleetManagedTags[aId]
+	return ok
 }
 
 func filterOutFleetManagedTags(ctx *transformationContext, references []interface{}) ([]interface{}, error) {
@@ -88,31 +108,12 @@ func filterOutFleetManagedTags(ctx *transformationContext, references []interfac
 			continue
 		}
 
-		log.Printf("Id tag .> %s", aId)
-		switch aId {
-		case fmt.Sprintf("fleet-pkg-%s-default", ctx.packageName):
-			log.Printf("Matched %s", fmt.Sprintf("fleet-pkg-%s-default", ctx.packageName))
-			continue
-		case "fleet-managed-default":
-			log.Printf("Matched fleet-managed-default")
-			continue
-		case fmt.Sprintf("%s-fleet-pkg-%s-default", ctx.packageName, ctx.packageName):
-			log.Printf("Matched %s", fmt.Sprintf("%s-fleet-pkg-%s-default", ctx.packageName, ctx.packageName))
-			continue
-		case fmt.Sprintf("%s-fleet-managed-default", ctx.packageName):
-			log.Printf("Matched %s", fmt.Sprintf("%s-fleet-managed-default", ctx.packageName))
-			continue
-		}
-		continue
-
-		aName, ok := reference["name"]
+		aIdString, ok := aId.(string)
 		if !ok {
-			continue
+			return nil, errors.New("failed to read id string")
 		}
-		if aName == "tag-ref-fleet-managed-default" {
-			continue
-		}
-		if strings.HasPrefix(aName.(string), "tag-ref-fleet-pkg") {
+		log.Printf("Id tag .> %s", aIdString)
+		if isTagFleetManaged(aIdString, ctx.packageName) {
 			continue
 		}
 		newReferences = append(newReferences, r)
