@@ -17,7 +17,7 @@ import (
 
 const (
 	publishingRemoteJob = "package_storage/job/publishing-job-remote"
-	signingJob          = "elastic+unified-release+master+sign-artifacts-wigh-gpg"
+	signingJob          = "elastic+unified-release+master+sign-artifacts-with-gpg"
 
 	publishJobKey = "publish"
 	signJobKey    = "sign"
@@ -44,7 +44,8 @@ func jenkinsJobOptions() []string {
 
 func main() {
 	jenkinsJob := flag.String("jenkins-job", "", fmt.Sprintf("Jenkins job to trigger. Allowed values: %s", strings.Join(jenkinsJobOptions(), " ,")))
-	zipPackagePath := flag.String("package", "", "Path to zip package file (*.zip) ")
+	folderPath := flag.String("folder", "", "Path to artifacts folder")
+	zipPackagePath := flag.String("package", "", "Path to zip package file (*.zip)")
 	sigPackagePath := flag.String("signature", "", "Path to the signature file of the package file (*.zip.sig)")
 	async := flag.Bool("async", false, "Run async the Jenkins job")
 	flag.Parse()
@@ -65,24 +66,34 @@ func main() {
 	case publishJobKey:
 		err = runPublishingRemoteJob(ctx, client, *async, allowedJenkinsJobs[*jenkinsJob], *zipPackagePath, *sigPackagePath)
 	case signJobKey:
-		err = runSignPackageJob(ctx, client, *async, allowedJenkinsJobs[*jenkinsJob], *zipPackagePath)
+		err = runSignPackageJob(ctx, client, *async, allowedJenkinsJobs[*jenkinsJob], *folderPath)
 	default:
 		log.Fatal("unsupported jenkins job")
 	}
 
 	if err != nil {
-		log.Fatal("Error: %s", err)
+		log.Fatalf("Error: %s", err)
 	}
 }
 
-func runSignPackageJob(ctx context.Context, client *jenkins.JenkinsClient, async bool, jobName, packagePath string) error {
-	params := map[string]string{}
-	// TODO set parameters for sign job
+func runSignPackageJob(ctx context.Context, client *jenkins.JenkinsClient, async bool, jobName, folderPath string) error {
+	if folderPath == "" {
+		return fmt.Errorf("missing parameter --gcs_input_path for")
+	}
+	params := map[string]string{
+		"gcs_input_path": folderPath,
+	}
 
 	return client.RunJob(ctx, jobName, async, params)
 }
 
 func runPublishingRemoteJob(ctx context.Context, client *jenkins.JenkinsClient, async bool, jobName, packagePath, signaturePath string) error {
+	if packagePath == "" {
+		return fmt.Errorf("missing parameter --gs_package_build_zip_path")
+	}
+	if signaturePath == "" {
+		return fmt.Errorf("missing parameter --gs_package_signature_path")
+	}
 
 	// Run the job with some parameters
 	params := map[string]string{

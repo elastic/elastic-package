@@ -1,9 +1,16 @@
 #!/bin/bash
-
 set -euo pipefail
 
-PARALLEL_TARGET="test-check-packages-parallel"
-KIND_TARGET="test-check-packages-with-kind"
+WORKSPACE="$(pwd)"
+TMP_FOLDER_TEMPLATE_BASE="tmp.elastic-package"
+
+cleanup() {
+    echo "Deleting temporal files..."
+    cd ${WORKSPACE}
+    rm -rf "${TMP_FOLDER_TEMPLATE_BASE}.*"
+    echo "Done."
+}
+trap cleanup EXIT
 
 usage() {
     echo "$0 [-t <target>] [-h]"
@@ -13,38 +20,18 @@ usage() {
     echo -e "\t-h: Show this message"
 }
 
-with_kubernetes() {
-    # FIXME add retry logic
-    mkdir -p ${WORKSPACE}/bin
-    curl -sSLo ${WORKSPACE}/bin/kind "https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-linux-amd64"
-    chmod +x ${WORKSPACE}/bin/kind
-    kind version
-    which kind
+source .buildkite/scripts/install_deps.sh
+source .buildkite/scripts/tooling.sh
 
-    mkdir -p ${WORKSPACE}/bin
-    curl -sSLo ${WORKSPACE}/bin/kubectl "https://storage.googleapis.com/kubernetes-release/release/${K8S_VERSION}/bin/linux/amd64/kubectl"
-    chmod +x ${WORKSPACE}/bin/kubectl
-    kubectl version --client
-    which kubectl
-}
+PARALLEL_TARGET="test-check-packages-parallel"
+KIND_TARGET="test-check-packages-with-kind"
+TMP_FOLDER_TEMPLATE="${TMP_FOLDER_TEMPLATE_BASE}.XXXXXXXXX"
+GOOGLE_CREDENTIALS_FILENAME="google-cloud-credentials.json"
 
-with_go() {
-    # FIXME add retry logic
-    mkdir -p ${WORKSPACE}/bin
-    curl -sL -o ${WORKSPACE}/bin/gvm "https://github.com/andrewkroh/gvm/releases/download/${SETUP_GVM_VERSION}/gvm-linux-amd64"
-    chmod +x ${WORKSPACE}/bin/gvm
-    eval "$(gvm $(cat .go-version))"
-    go version
-    which go
-}
+JOB_GCS_BUCKET_INTERNAL="fleet-ci-temp-internal"
 
-with_docker_compose() {
-    # FIXME add retry logic
-    mkdir -p ${WORKSPACE}/bin
-    curl -SL -o ${WORKSPACE}/bin/docker-compose "https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-linux-x86_64"
-    chmod +x ${WORKSPACE}/bin/docker-compose
-    docker-compose version
-}
+REPO_NAME=$(repoName "${BUILDKITE_REPO}")
+REPO_BUILD_TAG="${REPO_NAME}/${BUILDKITE_BUILD_NUMBER}"
 
 TARGET=""
 PACKAGE=""
@@ -79,14 +66,39 @@ if [[ "${TARGET}" == "" ]]; then
     exit 1
 fi
 
-echo "Current path: $(pwd)"
-WORKSPACE="$(pwd)"
-export PATH="${WORKSPACE}/bin:${PATH}"
-echo "Path: $PATH"
+google_cloud_auth_safe_logs() {
+    local gsUtilLocation=$(mktemp -d -p . -t ${TMP_FOLDER_TEMPLATE})
+    local secretFileLocation=${gsUtilLocation}/${GOOGLE_CREDENTIALS_FILENAME}
+
+    echo "${PRIVATE_CI_GCS_CREDENTIALS_SECRET}" > ${secretFileLocation}
+
+    google_cloud_auth "${secretFileLocation}"
+
+    echo "${gsUtilLocation}"
+}
+
+upload_safe_logs() {
+    local bucket="$1"
+    local source="$2"
+    local target="$3"
+
+    if ! ls ${source} 2>&1 > /dev/null ; then
+        echo "upload_safe_logs: artifacts files not found, nothing will be archived"
+        return
+    fi
+
+    local gsUtilLocation=$(google_cloud_auth_safe_logs)
+
+    gsutil cp ${source} "gs://${bucket}/buildkite/${REPO_BUILD_TAG}/${target}"
+
+    rm -rf "${gsUtilLocation}"
+    unset GOOGLE_APPLICATIONS_CREDENTIALS
+}
+
+add_bin_path
 
 echo "--- install go"
 with_go
-export PATH="$(go env GOPATH)/bin:${PATH}"
 
 echo "--- install docker-compose"
 with_docker_compose
@@ -100,6 +112,19 @@ echo "--- Run integration test ${TARGET}"
 if [[ "${TARGET}" == "${PARALLEL_TARGET}" ]]; then
     make install
     make PACKAGE_UNDER_TEST=${PACKAGE} ${TARGET}
+
+    if [[ "${UPLOAD_SAFE_LOGS}" -eq 1 ]] ; then
+        upload_safe_logs \
+            "${JOB_GCS_BUCKET_INTERNAL}" \
+            "build/elastic-stack-dump/check-${PACKAGE}/logs/elastic-agent-internal/*" \
+            "insecure-logs/${PACKAGE}/"
+
+        upload_safe_logs \
+            "${JOB_GCS_BUCKET_INTERNAL}" \
+            "build/container-logs/*.log" \
+            "insecure-logs/${PACKAGE}/container-logs/"
+    fi
+    make check-git-clean
     exit 0
 fi
 

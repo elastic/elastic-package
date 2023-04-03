@@ -1,6 +1,7 @@
 env:
   SETUP_GVM_VERSION: 'v0.5.0' # https://github.com/andrewkroh/gvm/issues/44#issuecomment-1013231151
   DOCKER_COMPOSE_VERSION: "1.25.5" # "v2.15.1"
+  ELASTIC_PACKAGE_COMPOSE_DISABLE_ANSI: "true"
   KIND_VERSION: 'v0.17.0'
   K8S_VERSION: 'v1.26.0'
 
@@ -56,11 +57,8 @@ steps:
 
   - label: ":github: Release"
     key: "release"
-    # build.tag != null && build.branch == "main"
     if: |
       build.tag =~ /^v[0-9]+[.][0-9]+[.][0-9]+$$/
     command: ".buildkite/scripts/release.sh"
     agents:
-      image: "golang:1.19.5"
-      cpu: "8"
-      memory: "4G"
+      provider: "gcp"

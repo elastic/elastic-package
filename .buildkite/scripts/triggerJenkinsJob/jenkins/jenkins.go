@@ -50,7 +50,11 @@ func (j *JenkinsClient) RunJob(ctx context.Context, jobName string, async bool, 
 		return fmt.Errorf("not finished job %s/%d: %w", jobName, build.GetBuildNumber(), err)
 	}
 
-	log.Printf("Build %s finished with result: %v\n", build.GetUrl(), build.GetBuildNumber(), build.GetResult())
+	log.Printf("Build %s finished with result: %s\n", build.GetUrl(), build.GetResult())
+
+	if build.GetResult() != gojenkins.STATUS_SUCCESS {
+		return fmt.Errorf("build %s finished with result %s", build.GetUrl(), build.GetResult())
+	}
 	return nil
 }
 
@@ -94,16 +98,18 @@ func (j *JenkinsClient) getBuildFromQueueID(ctx context.Context, job *gojenkins.
 }
 
 func (j *JenkinsClient) waitForBuildFinished(ctx context.Context, build *gojenkins.Build) error {
+	const waitingPeriod = 10000 * time.Millisecond
 	for build.IsRunning(ctx) {
-		log.Printf("Build still running, waiting for 5 secs...")
+		log.Printf("Build still running, waiting for %s...", waitingPeriod)
 		select {
-		case <-time.After(5000 * time.Millisecond):
+		case <-time.After(waitingPeriod):
 		case <-ctx.Done():
 			return ctx.Err()
 		}
-		_, err = build.Poll(ctx)
+		_, err := build.Poll(ctx)
 		if err != nil {
 			return err
 		}
 	}
+	return nil
 }
