@@ -46,6 +46,7 @@ func jenkinsJobOptions() []string {
 func main() {
 	jenkinsJob := flag.String("jenkins-job", "", fmt.Sprintf("Jenkins job to trigger. Allowed values: %s", strings.Join(jenkinsJobOptions(), " ,")))
 	waitingTime := flag.Duration("waiting-time", 30*time.Second, fmt.Sprintf("Waiting period between each retry"))
+	growthFactor := flag.Float64("growth-factor", 1.0, fmt.Sprintf("Growth-Factor used for exponential backoff delays"))
 	retries := flag.Int("retries", 10, fmt.Sprintf("Number of retries to trigger the job"))
 
 	folderPath := flag.String("folder", "", "Path to artifacts folder")
@@ -69,8 +70,9 @@ func main() {
 	}
 
 	opts := jenkins.Options{
-		WaitingTime: *waitingTime,
-		Retries:     *retries,
+		WaitingTime:  *waitingTime,
+		Retries:      *retries,
+		GrowthFactor: *growthFactor,
 	}
 
 	switch *jenkinsJob {

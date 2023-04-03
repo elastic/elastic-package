@@ -7,12 +7,13 @@ package jenkins
 import (
 	"context"
 	"log"
+	"math"
 	"time"
 )
 
 type retryableFunction func(context.Context) error
 
-func retry(f retryableFunction, retries int, delay time.Duration) retryableFunction {
+func retry(f retryableFunction, retries int, growthFactor float64, delay time.Duration) retryableFunction {
 	return func(ctx context.Context) error {
 		for r := 0; ; r++ {
 			err := f(ctx)
@@ -25,7 +26,7 @@ func retry(f retryableFunction, retries int, delay time.Duration) retryableFunct
 			log.Printf("Function failed, retrying in %v", delay)
 
 			select {
-			case <-time.After(delay):
+			case <-time.After(time.Duration(math.Pow(growthFactor, float64(retries))) * delay):
 			case <-ctx.Done():
 				return ctx.Err()
 			}

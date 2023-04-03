@@ -18,8 +18,9 @@ type JenkinsClient struct {
 }
 
 type Options struct {
-	WaitingTime time.Duration
-	Retries     int
+	WaitingTime  time.Duration
+	GrowthFactor float64
+	Retries      int
 }
 
 func NewJenkinsClient(ctx context.Context, host, user, token string) (*JenkinsClient, error) {
@@ -49,7 +50,7 @@ func (j *JenkinsClient) RunJob(ctx context.Context, jobName string, async bool, 
 		}
 		return fmt.Errorf("already running %s?", jobName)
 
-	}, opts.Retries, opts.WaitingTime)
+	}, opts.Retries, opts.GrowthFactor, opts.WaitingTime)
 
 	if err := r(ctx); err != nil {
 		return err
