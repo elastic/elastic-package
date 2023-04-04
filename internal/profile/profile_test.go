@@ -4,10 +4,16 @@
 
 package profile
 
-// Options defines available stack management options
-type Options struct {
-	PackagePath       string
-	Name              string
-	FromProfile       string
-	OverwriteExisting bool
+import (
+	"testing"
+
+	"github.com/stretchr/testify/require"
+)
+
+func TestCreateProfile(t *testing.T) {
+	options := Options{
+		PackagePath: t.TempDir(),
+	}
+	err := CreateProfile(options)
+	require.NoError(t, err)
 }

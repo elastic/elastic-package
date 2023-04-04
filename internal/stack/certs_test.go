@@ -2,13 +2,14 @@
 // or more contributor license agreements. Licensed under the Elastic License;
 // you may not use this file except in compliance with the Elastic License.
 
-package profile
+package stack
 
 import (
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/elastic/go-resource"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -20,11 +21,15 @@ func TestTLSCertsInitialization(t *testing.T) {
 
 	assert.Error(t, verifyTLSCertificates(caCertFile, caCertFile, caKeyFile, ""))
 
-	configMap := make(map[configFile]*simpleFile)
-	err := initTLSCertificates(profilePath, configMap)
+	providerName := "test-file"
+	resources, err := initTLSCertificates(providerName, profilePath)
 	require.NoError(t, err)
 
-	err = writeConfigFiles(configMap)
+	resourceManager := resource.NewManager()
+	resourceManager.RegisterProvider(providerName, &resource.FileProvider{
+		Prefix: profilePath,
+	})
+	_, err = resourceManager.Apply(resources)
 	require.NoError(t, err)
 
 	assert.NoError(t, verifyTLSCertificates(caCertFile, caCertFile, caKeyFile, ""))
@@ -49,12 +54,11 @@ func TestTLSCertsInitialization(t *testing.T) {
 		assert.Error(t, verifyTLSCertificates(caCertFile, serviceCertFile, serviceKeyFile, service))
 
 		// Check it is created again and is validated by the same CA.
-		configMap := make(map[configFile]*simpleFile)
-		err := initTLSCertificates(profilePath, configMap)
+		resources, err := initTLSCertificates(providerName, profilePath)
+		require.NoError(t, err)
+		_, err = resourceManager.Apply(resources)
 		require.NoError(t, err)
 
-		err = writeConfigFiles(configMap)
-		require.NoError(t, err)
 		assert.NoError(t, verifyTLSCertificates(caCertFile, serviceCertFile, serviceKeyFile, service))
 	})
 }

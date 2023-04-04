@@ -24,7 +24,7 @@ import (
 // a Docker Compose file.
 type DockerComposeServiceDeployer struct {
 	ymlPaths []string
-	sv       ServiceVariant
+	variant  ServiceVariant
 }
 
 type dockerComposeDeployedService struct {
@@ -32,14 +32,14 @@ type dockerComposeDeployedService struct {
 
 	ymlPaths []string
 	project  string
-	sv       ServiceVariant
+	variant  ServiceVariant
 }
 
 // NewDockerComposeServiceDeployer returns a new instance of a DockerComposeServiceDeployer.
 func NewDockerComposeServiceDeployer(ymlPaths []string, sv ServiceVariant) (*DockerComposeServiceDeployer, error) {
 	return &DockerComposeServiceDeployer{
 		ymlPaths: ymlPaths,
-		sv:       sv,
+		variant:  sv,
 	}, nil
 }
 
@@ -49,7 +49,7 @@ func (d *DockerComposeServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedSer
 	service := dockerComposeDeployedService{
 		ymlPaths: d.ymlPaths,
 		project:  "elastic-package-service",
-		sv:       d.sv,
+		variant:  d.variant,
 	}
 	outCtxt := inCtxt
 
@@ -71,15 +71,15 @@ func (d *DockerComposeServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedSer
 	}
 
 	// Boot up service
-	if d.sv.active() {
-		logger.Infof("Using service variant: %s", d.sv.String())
+	if d.variant.active() {
+		logger.Infof("Using service variant: %s", d.variant.String())
 	}
 
 	serviceName := inCtxt.Name
 	opts := compose.CommandOptions{
 		Env: append(
 			[]string{fmt.Sprintf("%s=%s", serviceLogsDirEnv, outCtxt.Logs.Folder.Local)},
-			d.sv.Env...),
+			d.variant.Env...),
 		ExtraArgs: []string{"--build", "-d"},
 	}
 	err = p.Up(opts)
@@ -138,7 +138,7 @@ func (s *dockerComposeDeployedService) Signal(signal string) error {
 	opts := compose.CommandOptions{
 		Env: append(
 			[]string{fmt.Sprintf("%s=%s", serviceLogsDirEnv, s.ctxt.Logs.Folder.Local)},
-			s.sv.Env...),
+			s.variant.Env...),
 		ExtraArgs: []string{"-s", signal},
 	}
 	if s.ctxt.Name != "" {
@@ -166,14 +166,14 @@ func (s *dockerComposeDeployedService) TearDown() error {
 	opts := compose.CommandOptions{
 		Env: append(
 			[]string{fmt.Sprintf("%s=%s", serviceLogsDirEnv, s.ctxt.Logs.Folder.Local)},
-			s.sv.Env...),
+			s.variant.Env...),
 	}
 	processServiceContainerLogs(p, opts, s.ctxt.Name)
 
 	if err := p.Down(compose.CommandOptions{
 		Env: append(
 			[]string{fmt.Sprintf("%s=%s", serviceLogsDirEnv, s.ctxt.Logs.Folder.Local)},
-			s.sv.Env...),
+			s.variant.Env...),
 		ExtraArgs: []string{"--volumes"}, // Remove associated volumes.
 	}); err != nil {
 		return errors.Wrap(err, "could not shut down service using Docker Compose")

@@ -5,16 +5,37 @@
 package servicedeployer
 
 import (
+	_ "embed"
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/pkg/errors"
+
+	"github.com/elastic/go-resource"
 
 	"github.com/elastic/elastic-package/internal/compose"
 	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/logger"
 )
+
+const (
+	terraformDeployerDir        = "terraform"
+	terraformDeployerYml        = "terraform-deployer.yml"
+	terraformDeployerDockerfile = "Dockerfile"
+	terraformDeployerRun        = "run.sh"
+)
+
+//go:embed _static/terraform_deployer.yml
+var terraformDeployerYmlContent string
+
+//go:embed _static/terraform_deployer_run.sh
+var terraformDeployerRunContent string
+
+//go:embed _static/Dockerfile.terraform_deployer
+var terraformDeployerDockerfileContent string
 
 // TerraformServiceDeployer is responsible for deploying infrastructure described with Terraform definitions.
 type TerraformServiceDeployer struct {
@@ -32,9 +53,16 @@ func NewTerraformServiceDeployer(definitionsDir string) (*TerraformServiceDeploy
 func (tsd TerraformServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedService, error) {
 	logger.Debug("setting up service using Terraform deployer")
 
-	ymlPaths, err := tsd.loadComposeDefinitions()
+	configDir, err := tsd.installDockerfile()
 	if err != nil {
-		return nil, errors.Wrap(err, "can't load Docker Compose definitions")
+		return nil, errors.Wrap(err, "can't install Docker Compose definitions")
+	}
+
+	ymlPaths := []string{filepath.Join(configDir, terraformDeployerYml)}
+	envYmlPath := filepath.Join(tsd.definitionsDir, envYmlFile)
+	_, err = os.Stat(envYmlPath)
+	if err == nil {
+		ymlPaths = append(ymlPaths, envYmlPath)
 	}
 
 	service := dockerComposeDeployedService{
@@ -54,8 +82,12 @@ func (tsd TerraformServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedServic
 		return nil, errors.Wrap(err, "removing service logs failed")
 	}
 
+	tfEnvironment := tsd.buildTerraformExecutorEnvironment(inCtxt)
+
 	// Set custom aliases, which may be used in agent policies.
-	serviceComposeConfig, err := p.Config(compose.CommandOptions{})
+	serviceComposeConfig, err := p.Config(compose.CommandOptions{
+		Env: tfEnvironment,
+	})
 	if err != nil {
 		return nil, errors.Wrap(err, "could not get Docker Compose configuration for service")
 	}
@@ -65,7 +97,6 @@ func (tsd TerraformServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedServic
 	}
 
 	// Boot up service
-	tfEnvironment := tsd.buildTerraformExecutorEnvironment(inCtxt)
 	opts := compose.CommandOptions{
 		Env:       tfEnvironment,
 		ExtraArgs: []string{"--build", "-d"},
@@ -89,25 +120,49 @@ func (tsd TerraformServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedServic
 	return &service, nil
 }
 
-func (tsd TerraformServiceDeployer) loadComposeDefinitions() ([]string, error) {
+func (tsd TerraformServiceDeployer) installDockerfile() (string, error) {
 	locationManager, err := locations.NewLocationManager()
 	if err != nil {
-		return nil, errors.Wrap(err, "can't locate Docker Compose file for Terraform deployer")
+		return "", errors.Wrap(err, "failed to find the configuration directory")
 	}
 
-	envYmlPath := filepath.Join(tsd.definitionsDir, envYmlFile)
-	_, err = os.Stat(envYmlPath)
-	if errors.Is(err, os.ErrNotExist) {
-		return []string{
-			locationManager.TerraformDeployerYml(),
-		}, nil
+	tfDir := filepath.Join(locationManager.DeployerDir(), terraformDeployerDir)
+
+	resources := []resource.Resource{
+		&resource.File{
+			Path:         terraformDeployerYml,
+			Content:      resource.FileContentLiteral(terraformDeployerYmlContent),
+			CreateParent: true,
+		},
+		&resource.File{
+			Path:         terraformDeployerRun,
+			Content:      resource.FileContentLiteral(terraformDeployerRunContent),
+			CreateParent: true,
+		},
+		&resource.File{
+			Path:         terraformDeployerDockerfile,
+			Content:      resource.FileContentLiteral(terraformDeployerDockerfileContent),
+			CreateParent: true,
+		},
 	}
+
+	resourceManager := resource.NewManager()
+	resourceManager.RegisterProvider("file", &resource.FileProvider{
+		Prefix: tfDir,
+	})
+
+	results, err := resourceManager.Apply(resources)
 	if err != nil {
-		return nil, errors.Wrapf(err, "stat failed (path: %s)", envYmlPath)
+		var errors []string
+		for _, result := range results {
+			if err := result.Err(); err != nil {
+				errors = append(errors, err.Error())
+			}
+		}
+		return "", fmt.Errorf("%w: %s", err, strings.Join(errors, ", "))
 	}
-	return []string{
-		locationManager.TerraformDeployerYml(), envYmlPath,
-	}, nil
+
+	return tfDir, nil
 }
 
 var _ ServiceDeployer = new(TerraformServiceDeployer)

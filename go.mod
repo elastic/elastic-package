@@ -13,6 +13,7 @@ require (
 	github.com/elastic/elastic-integration-corpus-generator-tool v0.5.0
 	github.com/elastic/go-elasticsearch/v7 v7.17.7
 	github.com/elastic/go-licenser v0.4.1
+	github.com/elastic/go-resource v0.1.1
 	github.com/elastic/go-ucfg v0.8.6
 	github.com/elastic/package-spec/v2 v2.6.0
 	github.com/fatih/color v1.15.0
