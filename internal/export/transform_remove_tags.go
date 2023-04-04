@@ -113,7 +113,7 @@ func filterOutFleetManagedTags(ctx *transformationContext, references []interfac
 
 		aIdString, ok := aId.(string)
 		if !ok {
-			return nil, errors.New("failed to assert id as a string: %v", aId)
+			return nil, fmt.Errorf("failed to assert id as a string: %v", aId)
 		}
 		log.Printf("Id tag .> %s", aIdString)
 		if isTagFleetManaged(aIdString, ctx.packageName) {
