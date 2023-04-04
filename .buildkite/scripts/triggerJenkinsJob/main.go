@@ -11,6 +11,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/elastic/trigger-jenkins-buildkite-plugin/jenkins"
 )
@@ -44,6 +45,11 @@ func jenkinsJobOptions() []string {
 
 func main() {
 	jenkinsJob := flag.String("jenkins-job", "", fmt.Sprintf("Jenkins job to trigger. Allowed values: %s", strings.Join(jenkinsJobOptions(), " ,")))
+	waitingTime := flag.Duration("waiting-time", 5*time.Second, fmt.Sprintf("Waiting period between each retry"))
+	growthFactor := flag.Float64("growth-factor", 1.25, fmt.Sprintf("Growth-Factor used for exponential backoff delays"))
+	retries := flag.Int("retries", 20, fmt.Sprintf("Number of retries to trigger the job"))
+	maxWaitingTime := flag.Duration("max-waiting-time", 60*time.Minute, fmt.Sprintf("Maximum waiting time per each retry"))
+
 	folderPath := flag.String("folder", "", "Path to artifacts folder")
 	zipPackagePath := flag.String("package", "", "Path to zip package file (*.zip)")
 	sigPackagePath := flag.String("signature", "", "Path to the signature file of the package file (*.zip.sig)")
@@ -62,11 +68,18 @@ func main() {
 		log.Fatalf("error creating jenkins client")
 	}
 
+	opts := jenkins.Options{
+		WaitingTime:    *waitingTime,
+		Retries:        *retries,
+		GrowthFactor:   *growthFactor,
+		MaxWaitingTime: *maxWaitingTime,
+	}
+
 	switch *jenkinsJob {
 	case publishJobKey:
-		err = runPublishingRemoteJob(ctx, client, *async, allowedJenkinsJobs[*jenkinsJob], *zipPackagePath, *sigPackagePath)
+		err = runPublishingRemoteJob(ctx, client, *async, allowedJenkinsJobs[*jenkinsJob], *zipPackagePath, *sigPackagePath, opts)
 	case signJobKey:
-		err = runSignPackageJob(ctx, client, *async, allowedJenkinsJobs[*jenkinsJob], *folderPath)
+		err = runSignPackageJob(ctx, client, *async, allowedJenkinsJobs[*jenkinsJob], *folderPath, opts)
 	default:
 		log.Fatal("unsupported jenkins job")
 	}
@@ -76,7 +89,7 @@ func main() {
 	}
 }
 
-func runSignPackageJob(ctx context.Context, client *jenkins.JenkinsClient, async bool, jobName, folderPath string) error {
+func runSignPackageJob(ctx context.Context, client *jenkins.JenkinsClient, async bool, jobName, folderPath string, opts jenkins.Options) error {
 	if folderPath == "" {
 		return fmt.Errorf("missing parameter --gcs_input_path for")
 	}
@@ -84,10 +97,10 @@ func runSignPackageJob(ctx context.Context, client *jenkins.JenkinsClient, async
 		"gcs_input_path": folderPath,
 	}
 
-	return client.RunJob(ctx, jobName, async, params)
+	return client.RunJob(ctx, jobName, async, params, opts)
 }
 
-func runPublishingRemoteJob(ctx context.Context, client *jenkins.JenkinsClient, async bool, jobName, packagePath, signaturePath string) error {
+func runPublishingRemoteJob(ctx context.Context, client *jenkins.JenkinsClient, async bool, jobName, packagePath, signaturePath string, opts jenkins.Options) error {
 	if packagePath == "" {
 		return fmt.Errorf("missing parameter --gs_package_build_zip_path")
 	}
@@ -102,5 +115,5 @@ func runPublishingRemoteJob(ctx context.Context, client *jenkins.JenkinsClient, 
 		"gs_package_signature_path": signaturePath,
 	}
 
-	return client.RunJob(ctx, jobName, async, params)
+	return client.RunJob(ctx, jobName, async, params, opts)
 }

@@ -1,19 +1,21 @@
+{{ $username := fact "username" }}
+{{ $password := fact "password" }}
 version: '2.3'
 services:
   elasticsearch:
     image: "${ELASTICSEARCH_IMAGE_REF}"
     healthcheck:
-      test: "curl -s --cacert /usr/share/elasticsearch/config/certs/ca-cert.pem -f -u elastic:changeme https://127.0.0.1:9200/_cat/health | cut -f4 -d' ' | grep -E '(green|yellow)'"
+      test: "curl -s --cacert /usr/share/elasticsearch/config/certs/ca-cert.pem -f -u {{ $username }}:{{ $password }} https://127.0.0.1:9200/_cat/health | cut -f4 -d' ' | grep -E '(green|yellow)'"
       start_period: 300s
       interval: 5s
     environment:
       - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
-      - "ELASTIC_PASSWORD=changeme"
+      - "ELASTIC_PASSWORD={{ $password }}"
     volumes:
-      - "./elasticsearch.config.${STACK_VERSION_VARIANT}.yml:/usr/share/elasticsearch/config/elasticsearch.yml"
+      - "./elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml"
       - "../certs/elasticsearch:/usr/share/elasticsearch/config/certs"
-      - "../../../stack/ingest-geoip:/usr/share/elasticsearch/config/ingest-geoip"
-      - "../../../stack/service_tokens:/usr/share/elasticsearch/config/service_tokens"
+      - "./ingest-geoip:/usr/share/elasticsearch/config/ingest-geoip"
+      - "./service_tokens:/usr/share/elasticsearch/config/service_tokens"
     ports:
       - "127.0.0.1:9200:9200"
 
@@ -40,9 +42,9 @@ services:
       # Is there a better way to add certificates to Kibana/Fleet?
       - "NODE_EXTRA_CA_CERTS=/usr/share/kibana/config/certs/ca-cert.pem"
     volumes:
-      - "./kibana.config.${STACK_VERSION_VARIANT}.yml:/usr/share/kibana/config/kibana.yml"
+      - "./kibana.yml:/usr/share/kibana/config/kibana.yml"
       - "../certs/kibana:/usr/share/kibana/config/certs"
-      - "../../../stack/healthcheck.sh:/usr/share/kibana/healthcheck.sh"
+      - "./kibana_healthcheck.sh:/usr/share/kibana/healthcheck.sh"
     ports:
       - "127.0.0.1:5601:5601"
 
@@ -55,7 +57,7 @@ services:
   package-registry:
     build:
       context: ../../../
-      dockerfile: "${STACK_PATH}/Dockerfile.package-registry"
+      dockerfile: "./profiles/${PROFILE_NAME}/stack/Dockerfile.package-registry"
       args:
         PROFILE: "${PROFILE_NAME}"
     healthcheck:
@@ -129,7 +131,7 @@ services:
       retries: 180
       interval: 5s
     hostname: docker-fleet-agent
-    env_file: "./elastic-agent.${STACK_VERSION_VARIANT}.env"
+    env_file: "./elastic-agent.env"
     volumes:
     - "../certs/ca-cert.pem:/etc/ssl/certs/elastic-package.pem"
     - type: bind

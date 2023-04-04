@@ -61,16 +61,15 @@ const (
 export %s=%s
 export %s=%s
 export %s=%s
-export %s=%s
-`
+export %s=%s`
+
 	// fish shell init code.
 	// fish shell is similar but not compliant to POSIX.
 	fishTemplate = `set -x %s %s;
 set -x %s %s;
 set -x %s %s;
 set -x %s %s;
-set -x %s %s;
-`
+set -x %s %s;`
 
 	// PowerShell init code.
 	// Output to be evaluated with `elastic-package stack shellinit | Invoke-Expression

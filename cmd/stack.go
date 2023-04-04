@@ -39,7 +39,7 @@ By default the latest released version of the stack is spun up but it is possibl
 
 Be aware that a common issue while trying to boot up the stack is that your Docker environments settings are too low in terms of memory threshold.
 
-To ęxpose local packages in the Package Registry, build them first and boot up the stack from inside of the Git repository containing the package (e.g. elastic/integrations). They will be copied to the development stack (~/.elastic-package/stack/development) and used to build a custom Docker image of the Package Registry.
+To expose local packages in the Package Registry, build them first and boot up the stack from inside of the Git repository containing the package (e.g. elastic/integrations). They will be copied to the development stack (~/.elastic-package/stack/development) and used to build a custom Docker image of the Package Registry.
 
 For details on how to connect the service with the Elastic stack, see the [service command](https://github.com/elastic/elastic-package/blob/main/README.md#elastic-package-service).`
 
@@ -73,37 +73,24 @@ func setupStackCommand() *cobraext.Command {
 				return cobraext.FlagParsingError(err, cobraext.StackVersionFlagName)
 			}
 
-			profileName, err := cmd.Flags().GetString(cobraext.ProfileFlagName)
-			if err != nil {
-				return cobraext.FlagParsingError(err, cobraext.ProfileFlagName)
-			}
-
-			userProfile, err := profile.LoadProfile(profileName)
-			if errors.Is(err, profile.ErrNotAProfile) {
-				pList, err := availableProfilesAsAList()
-				if err != nil {
-					return errors.Wrap(err, "error listing known profiles")
-				}
-				return fmt.Errorf("%s is not a valid profile, known profiles are: %s", profileName, pList)
-			}
-			if err != nil {
-				return errors.Wrap(err, "error loading profile")
-			}
-
-			// Print information before starting the stack, for cases where
-			// this is executed in the foreground, without daemon mode.
-			cmd.Printf("Using profile %s.\n", userProfile.ProfilePath)
-			cmd.Println(`Remember to load stack environment variables using 'eval "$(elastic-package stack shellinit)"'.`)
-			err = printInitConfig(cmd, userProfile)
+			profile, err := getProfileFlag(cmd)
 			if err != nil {
 				return err
 			}
 
-			err = stack.BootUp(stack.Options{
+			provider, err := getProviderFromProfile(cmd, profile, true)
+			if err != nil {
+				return err
+			}
+
+			cmd.Printf("Using profile %s.\n", profile.ProfilePath)
+			cmd.Println(`Remember to load stack environment variables using 'eval "$(elastic-package stack shellinit)"'.`)
+			err = provider.BootUp(stack.Options{
 				DaemonMode:   daemonMode,
 				StackVersion: stackVersion,
 				Services:     services,
-				Profile:      userProfile,
+				Profile:      profile,
+				Printer:      cmd,
 			})
 			if err != nil {
 				return errors.Wrap(err, "booting up the stack failed")
@@ -117,6 +104,7 @@ func setupStackCommand() *cobraext.Command {
 	upCommand.Flags().StringSliceP(cobraext.StackServicesFlagName, "s", nil,
 		fmt.Sprintf(cobraext.StackServicesFlagDescription, strings.Join(availableServicesAsList(), ",")))
 	upCommand.Flags().StringP(cobraext.StackVersionFlagName, "", install.DefaultStackVersion, cobraext.StackVersionFlagDescription)
+	upCommand.Flags().String(cobraext.StackProviderFlagName, "", fmt.Sprintf(cobraext.StackProviderFlagDescription, strings.Join(stack.SupportedProviders, ", ")))
 
 	downCommand := &cobra.Command{
 		Use:   "down",
@@ -124,26 +112,19 @@ func setupStackCommand() *cobraext.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.Println("Take down the Elastic stack")
 
-			profileName, err := cmd.Flags().GetString(cobraext.ProfileFlagName)
+			profile, err := getProfileFlag(cmd)
 			if err != nil {
-				return cobraext.FlagParsingError(err, cobraext.ProfileFlagName)
+				return err
 			}
 
-			userProfile, err := profile.LoadProfile(profileName)
-			if errors.Is(err, profile.ErrNotAProfile) {
-				pList, err := availableProfilesAsAList()
-				if err != nil {
-					return errors.Wrap(err, "error listing known profiles")
-				}
-				return fmt.Errorf("%s is not a valid profile, known profiles are: %s", profileName, pList)
-			}
-
+			provider, err := getProviderFromProfile(cmd, profile, false)
 			if err != nil {
-				return errors.Wrap(err, "error loading profile")
+				return err
 			}
 
-			err = stack.TearDown(stack.Options{
-				Profile: userProfile,
+			err = provider.TearDown(stack.Options{
+				Profile: profile,
+				Printer: cmd,
 			})
 			if err != nil {
 				return errors.Wrap(err, "tearing down the stack failed")
@@ -160,14 +141,14 @@ func setupStackCommand() *cobraext.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.Println("Update the Elastic stack")
 
-			profileName, err := cmd.Flags().GetString(cobraext.ProfileFlagName)
+			profile, err := getProfileFlag(cmd)
 			if err != nil {
-				return cobraext.FlagParsingError(err, cobraext.ProfileFlagName)
+				return err
 			}
 
-			profile, err := profile.LoadProfile(profileName)
+			provider, err := getProviderFromProfile(cmd, profile, false)
 			if err != nil {
-				return errors.Wrap(err, "error loading profile")
+				return err
 			}
 
 			stackVersion, err := cmd.Flags().GetString(cobraext.StackVersionFlagName)
@@ -175,9 +156,10 @@ func setupStackCommand() *cobraext.Command {
 				return cobraext.FlagParsingError(err, cobraext.StackVersionFlagName)
 			}
 
-			err = stack.Update(stack.Options{
+			err = provider.Update(stack.Options{
 				StackVersion: stackVersion,
 				Profile:      profile,
+				Printer:      cmd,
 			})
 			if err != nil {
 				return errors.Wrap(err, "failed updating the stack images")
@@ -193,11 +175,6 @@ func setupStackCommand() *cobraext.Command {
 		Use:   "shellinit",
 		Short: "Export environment variables",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			profileName, err := cmd.Flags().GetString(cobraext.ProfileFlagName)
-			if err != nil {
-				return cobraext.FlagParsingError(err, cobraext.ProfileFlagName)
-			}
-
 			shellName, err := cmd.Flags().GetString(cobraext.ShellInitShellFlagName)
 			if err != nil {
 				return cobraext.FlagParsingError(err, cobraext.ShellInitShellFlagName)
@@ -207,9 +184,9 @@ func setupStackCommand() *cobraext.Command {
 				fmt.Fprintf(cmd.OutOrStderr(), "Detected shell: %s\n", shellName)
 			}
 
-			profile, err := profile.LoadProfile(profileName)
+			profile, err := getProfileFlag(cmd)
 			if err != nil {
-				return errors.Wrap(err, "error loading profile")
+				return err
 			}
 
 			shellCode, err := stack.ShellInit(profile, shellName)
@@ -232,17 +209,17 @@ func setupStackCommand() *cobraext.Command {
 				return cobraext.FlagParsingError(err, cobraext.StackDumpOutputFlagName)
 			}
 
-			profileName, err := cmd.Flags().GetString(cobraext.ProfileFlagName)
+			profile, err := getProfileFlag(cmd)
 			if err != nil {
-				return cobraext.FlagParsingError(err, cobraext.ProfileFlagName)
+				return err
 			}
 
-			profile, err := profile.LoadProfile(profileName)
+			provider, err := getProviderFromProfile(cmd, profile, false)
 			if err != nil {
-				return errors.Wrap(err, "error loading profile")
+				return err
 			}
 
-			target, err := stack.Dump(stack.DumpOptions{
+			target, err := provider.Dump(stack.DumpOptions{
 				Output:  output,
 				Profile: profile,
 			})
@@ -262,7 +239,20 @@ func setupStackCommand() *cobraext.Command {
 		Use:   "status",
 		Short: "Show status of the stack services",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			servicesStatus, err := stack.Status()
+			profile, err := getProfileFlag(cmd)
+			if err != nil {
+				return err
+			}
+
+			provider, err := getProviderFromProfile(cmd, profile, false)
+			if err != nil {
+				return err
+			}
+
+			servicesStatus, err := provider.Status(stack.Options{
+				Profile: profile,
+				Printer: cmd,
+			})
 			if err != nil {
 				return errors.Wrap(err, "failed getting stack status")
 			}
@@ -278,7 +268,7 @@ func setupStackCommand() *cobraext.Command {
 		Short: "Manage the Elastic stack",
 		Long:  stackLongDescription,
 	}
-	cmd.PersistentFlags().StringP(cobraext.ProfileFlagName, "p", lookupEnv(), fmt.Sprintf(cobraext.ProfileFlagDescription, profileNameEnvVar))
+	cmd.PersistentFlags().StringP(cobraext.ProfileFlagName, "p", "", fmt.Sprintf(cobraext.ProfileFlagDescription, install.ProfileNameEnvVar))
 	cmd.AddCommand(
 		upCommand,
 		downCommand,
@@ -317,18 +307,6 @@ func validateServicesFlag(services []string) error {
 	return nil
 }
 
-func printInitConfig(cmd *cobra.Command, profile *profile.Profile) error {
-	initConfig, err := stack.StackInitConfig(profile)
-	if err != nil {
-		return nil
-	}
-	cmd.Printf("Elasticsearch host: %s\n", initConfig.ElasticsearchHostPort)
-	cmd.Printf("Kibana host: %s\n", initConfig.KibanaHostPort)
-	cmd.Printf("Username: %s\n", initConfig.ElasticsearchUsername)
-	cmd.Printf("Password: %s\n", initConfig.ElasticsearchPassword)
-	return nil
-}
-
 func printStatus(cmd *cobra.Command, servicesStatus []stack.ServiceStatus) {
 	if len(servicesStatus) == 0 {
 		cmd.Printf(" - No service running\n")
@@ -342,4 +320,58 @@ func printStatus(cmd *cobra.Command, servicesStatus []stack.ServiceStatus) {
 	}
 	t.SetStyle(table.StyleRounded)
 	cmd.Println(t.Render())
+}
+
+func getProfileFlag(cmd *cobra.Command) (*profile.Profile, error) {
+	profileName, err := cmd.Flags().GetString(cobraext.ProfileFlagName)
+	if err != nil {
+		return nil, cobraext.FlagParsingError(err, cobraext.ProfileFlagName)
+	}
+	if profileName == "" {
+		config, err := install.Configuration()
+		if err != nil {
+			return nil, fmt.Errorf("cannot read configuration: %w", err)
+		}
+		profileName = config.CurrentProfile()
+	}
+
+	p, err := profile.LoadProfile(profileName)
+	if errors.Is(err, profile.ErrNotAProfile) {
+		list, err := availableProfilesAsAList()
+		if err != nil {
+			return nil, errors.Wrap(err, "error listing known profiles")
+		}
+		if len(list) == 0 {
+			return nil, fmt.Errorf("%s is not a valid profile", profileName)
+		}
+		return nil, fmt.Errorf("%s is not a valid profile, known profiles are: %s", profileName, strings.Join(list, ", "))
+	}
+	if err != nil {
+		return nil, errors.Wrap(err, "error loading profile")
+	}
+
+	return p, nil
+}
+
+func getProviderFromProfile(cmd *cobra.Command, profile *profile.Profile, checkFlag bool) (stack.Provider, error) {
+	var providerName = stack.DefaultProvider
+	stackConfig, err := stack.LoadConfig(profile)
+	if err != nil {
+		return nil, err
+	}
+	if stackConfig.Provider != "" {
+		providerName = stackConfig.Provider
+	}
+
+	if checkFlag {
+		providerFlag, err := cmd.Flags().GetString(cobraext.StackProviderFlagName)
+		if err != nil {
+			return nil, cobraext.FlagParsingError(err, cobraext.StackProviderFlagName)
+		}
+		if providerFlag != "" {
+			providerName = providerFlag
+		}
+	}
+
+	return stack.BuildProvider(providerName, profile)
 }

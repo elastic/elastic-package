@@ -6,11 +6,14 @@ package profile
 
 import (
 	"encoding/json"
+	"io"
+	"os"
 	"os/user"
-	"path/filepath"
 	"time"
 
 	"github.com/pkg/errors"
+
+	"github.com/elastic/go-resource"
 
 	"github.com/elastic/elastic-package/internal/version"
 )
@@ -24,14 +27,21 @@ type Metadata struct {
 	Path        string    `json:"path"`
 }
 
-// PackageProfileMetaFile is the filename of the profile metadata file
-const PackageProfileMetaFile configFile = "profile.json"
-
-// createProfileMetadata creates the body of the profile.json file
-func createProfileMetadata(profileName string, profilePath string) (*simpleFile, error) {
+// profileMetadataContent generates the content of the profile.json file.
+func profileMetadataContent(applyCtx resource.Context, w io.Writer) error {
 	currentUser, err := user.Current()
 	if err != nil {
-		return nil, errors.Wrap(err, "error fetching current user")
+		return errors.Wrap(err, "error fetching current user")
+	}
+
+	profileName, found := applyCtx.Fact("profile_name")
+	if !found {
+		return errors.New("unknown profile name")
+	}
+
+	profilePath, found := applyCtx.Fact("profile_path")
+	if !found {
+		return errors.New("unknown profile path")
 	}
 
 	profileData := Metadata{
@@ -42,14 +52,26 @@ func createProfileMetadata(profileName string, profilePath string) (*simpleFile,
 		profilePath,
 	}
 
-	jsonRaw, err := json.MarshalIndent(profileData, "", "  ")
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "  ")
+	err = enc.Encode(profileData)
 	if err != nil {
-		return nil, errors.Wrap(err, "error marshalling json")
+		return errors.Wrap(err, "error marshalling json")
 	}
 
-	return &simpleFile{
-		name: string(PackageProfileMetaFile),
-		path: filepath.Join(profilePath, string(PackageProfileMetaFile)),
-		body: string(jsonRaw),
-	}, nil
+	return nil
+}
+
+func loadProfileMetadata(path string) (Metadata, error) {
+	d, err := os.ReadFile(path)
+	if err != nil {
+		return Metadata{}, errors.Wrap(err, "error reading metadata file")
+	}
+
+	metadata := Metadata{}
+	err = json.Unmarshal(d, &metadata)
+	if err != nil {
+		return Metadata{}, errors.Wrapf(err, "error checking profile metadata file %q", path)
+	}
+	return metadata, nil
 }

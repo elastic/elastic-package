@@ -2,7 +2,7 @@
 // or more contributor license agreements. Licensed under the Elastic License;
 // you may not use this file except in compliance with the Elastic License.
 
-package profile
+package stack
 
 import (
 	"bytes"
@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+
+	"github.com/elastic/go-resource"
 
 	"github.com/elastic/elastic-package/internal/certs"
 )
@@ -28,39 +30,41 @@ var (
 	CertificatesDirectory = "certs"
 
 	// CACertificateFile is the path to the CA certificate file inside a profile.
-	CACertificateFile = configFile(filepath.Join(CertificatesDirectory, "ca-cert.pem"))
+	CACertificateFile = filepath.Join(CertificatesDirectory, "ca-cert.pem")
 
 	// CAKeyFile is the path to the CA key file inside a profile.
-	CAKeyFile = configFile(filepath.Join(CertificatesDirectory, "ca-key.pem"))
+	CAKeyFile = filepath.Join(CertificatesDirectory, "ca-key.pem")
 
 	// CAEnvFile is the path to the file with environment variables about the CA.
-	CAEnvFile = configFile(filepath.Join(CertificatesDirectory, "ca.env"))
+	CAEnvFile = filepath.Join(CertificatesDirectory, "ca.env")
 )
 
 // initTLSCertificates initializes all the certificates needed to run the services
 // managed by elastic-package stack. It includes a CA, and a pair of keys and
 // certificates for each service.
-func initTLSCertificates(profilePath string, configMap map[configFile]*simpleFile) error {
+func initTLSCertificates(fileProvider string, profilePath string) ([]resource.Resource, error) {
 	certsDir := filepath.Join(profilePath, CertificatesDirectory)
 	caCertFile := filepath.Join(profilePath, string(CACertificateFile))
 	caKeyFile := filepath.Join(profilePath, string(CAKeyFile))
 	envFile := filepath.Join(profilePath, string(CAEnvFile))
 
+	var resources []resource.Resource
+
 	ca, err := initCA(caCertFile, caKeyFile)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	err = certWriterToSimpleFile(configMap, profilePath, caCertFile, ca.WriteCert)
+	resources, err = certWriteToResource(resources, fileProvider, profilePath, caCertFile, ca.WriteCert)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	err = certWriterToSimpleFile(configMap, profilePath, caKeyFile, ca.WriteKey)
+	resources, err = certWriteToResource(resources, fileProvider, profilePath, caKeyFile, ca.WriteKey)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	err = certWriterToSimpleFile(configMap, profilePath, envFile, ca.WriteEnv)
+	resources, err = certWriteToResource(resources, fileProvider, profilePath, envFile, ca.WriteEnv)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	for _, service := range tlsServices {
@@ -70,47 +74,47 @@ func initTLSCertificates(profilePath string, configMap map[configFile]*simpleFil
 		keyFile := filepath.Join(certsDir, "key.pem")
 		cert, err := initServiceTLSCertificates(ca, caCertFile, certFile, keyFile, service)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
-		err = certWriterToSimpleFile(configMap, profilePath, certFile, cert.WriteCert)
+		resources, err = certWriteToResource(resources, fileProvider, profilePath, certFile, cert.WriteCert)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		err = certWriterToSimpleFile(configMap, profilePath, keyFile, cert.WriteKey)
+		resources, err = certWriteToResource(resources, fileProvider, profilePath, keyFile, cert.WriteKey)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		// Write the CA also in the service directory, so only a directory needs to be mounted
 		// for services that need to configure the CA to validate other services certificates.
-		err = certWriterToSimpleFile(configMap, profilePath, caFile, ca.WriteCert)
+		resources, err = certWriteToResource(resources, fileProvider, profilePath, caFile, ca.WriteCert)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
-	return nil
+	return resources, nil
 }
 
-func certWriterToSimpleFile(configMap map[configFile]*simpleFile, profilePath string, absPath string, writeFile func(w io.Writer) error) error {
+func certWriteToResource(resources []resource.Resource, fileProvider string, profilePath string, absPath string, write func(w io.Writer) error) ([]resource.Resource, error) {
 	path, err := filepath.Rel(profilePath, absPath)
 	if err != nil {
-		return err
+		return resources, err
 	}
 
 	var buf bytes.Buffer
-	err = writeFile(&buf)
+	err = write(&buf)
 	if err != nil {
-		return err
+		return resources, err
 	}
 
-	configMap[configFile(path)] = &simpleFile{
-		name: path,
-		path: absPath,
-		body: buf.String(),
-	}
-	return nil
+	return append(resources, &resource.File{
+		Provider:     fileProvider,
+		Path:         path,
+		CreateParent: true,
+		Content:      resource.FileContentLiteral(buf.String()),
+	}), nil
 }
 
 func initCA(certFile, keyFile string) (*certs.Issuer, error) {

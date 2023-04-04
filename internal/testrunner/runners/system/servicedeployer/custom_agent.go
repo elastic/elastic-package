@@ -8,6 +8,7 @@ import (
 	_ "embed"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/pkg/errors"
 
@@ -21,18 +22,25 @@ import (
 	"github.com/elastic/elastic-package/internal/stack"
 )
 
-const dockerCustomAgentName = "docker-custom-agent"
+const (
+	dockerCustomAgentName       = "docker-custom-agent"
+	dockerCustomAgentDir        = "docker_custom_agent"
+	dockerCustomAgentDockerfile = "docker-custom-agent-base.yml"
+)
+
+//go:embed _static/docker-custom-agent-base.yml
+var dockerCustomAgentDockerfileContent []byte
 
 // CustomAgentDeployer knows how to deploy a custom elastic-agent defined via
 // a Docker Compose file.
 type CustomAgentDeployer struct {
-	cfg string
+	dockerComposeFile string
 }
 
 // NewCustomAgentDeployer returns a new instance of a deployedCustomAgent.
-func NewCustomAgentDeployer(cfgPath string) (*CustomAgentDeployer, error) {
+func NewCustomAgentDeployer(dockerComposeFile string) (*CustomAgentDeployer, error) {
 	return &CustomAgentDeployer{
-		cfg: cfgPath,
+		dockerComposeFile: dockerComposeFile,
 	}, nil
 }
 
@@ -66,15 +74,20 @@ func (d *CustomAgentDeployer) SetUp(inCtxt ServiceContext) (DeployedService, err
 		fmt.Sprintf("%s=%s", localCACertEnv, caCertPath),
 	)
 
-	ymlPaths, err := d.loadComposeDefinitions()
+	configDir, err := d.installDockerfile()
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "could not create resources for custom agent")
+	}
+
+	ymlPaths := []string{
+		d.dockerComposeFile,
+		filepath.Join(configDir, dockerCustomAgentDockerfile),
 	}
 
 	service := dockerComposeDeployedService{
 		ymlPaths: ymlPaths,
 		project:  "elastic-package-service",
-		sv: ServiceVariant{
+		variant: ServiceVariant{
 			Name: dockerCustomAgentName,
 			Env:  env,
 		},
@@ -149,10 +162,25 @@ func (d *CustomAgentDeployer) SetUp(inCtxt ServiceContext) (DeployedService, err
 	return &service, nil
 }
 
-func (d *CustomAgentDeployer) loadComposeDefinitions() ([]string, error) {
+// installDockerfile creates the files needed to run the custom elastic agent and returns
+// the directory with these files.
+func (d *CustomAgentDeployer) installDockerfile() (string, error) {
 	locationManager, err := locations.NewLocationManager()
 	if err != nil {
-		return nil, errors.Wrap(err, "can't locate Docker Compose file for Custom Agent deployer")
+		return "", errors.Wrap(err, "failed to find the configuration directory")
 	}
-	return []string{d.cfg, locationManager.DockerCustomAgentDeployerYml()}, nil
+
+	customAgentDir := filepath.Join(locationManager.DeployerDir(), dockerCustomAgentDir)
+	err = os.MkdirAll(customAgentDir, 0755)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to create directory for custom agent files")
+	}
+
+	customAgentDockerfile := filepath.Join(customAgentDir, dockerCustomAgentDockerfile)
+	err = os.WriteFile(customAgentDockerfile, dockerCustomAgentDockerfileContent, 0644)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to create docker compose file for custom agent")
+	}
+
+	return customAgentDir, nil
 }
