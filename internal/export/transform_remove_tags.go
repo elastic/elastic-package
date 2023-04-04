@@ -42,6 +42,9 @@ func removeTagsFromDashboard(ctx *transformationContext, object common.MapStr) (
 	}
 
 	newReferences, err := filterOutFleetManagedTags(ctx, references.([]interface{}))
+	if err != nil {
+		return nil, err
+	}
 
 	_, err = object.Put("references", newReferences)
 	if err != nil {
@@ -110,7 +113,7 @@ func filterOutFleetManagedTags(ctx *transformationContext, references []interfac
 
 		aIdString, ok := aId.(string)
 		if !ok {
-			return nil, errors.New("failed to read id string")
+			return nil, errors.New("failed to assert id as a string: %v", aId)
 		}
 		log.Printf("Id tag .> %s", aIdString)
 		if isTagFleetManaged(aIdString, ctx.packageName) {
