@@ -17,6 +17,13 @@ type JenkinsClient struct {
 	client *gojenkins.Jenkins
 }
 
+type Options struct {
+	WaitingTime    time.Duration
+	MaxWaitingTime time.Duration
+	GrowthFactor   float64
+	Retries        int
+}
+
 func NewJenkinsClient(ctx context.Context, host, user, token string) (*JenkinsClient, error) {
 	jenkins, err := gojenkins.CreateJenkins(nil, host, user, token).Init(ctx)
 	if err != nil {
@@ -28,12 +35,28 @@ func NewJenkinsClient(ctx context.Context, host, user, token string) (*JenkinsCl
 	}, nil
 }
 
-func (j *JenkinsClient) RunJob(ctx context.Context, jobName string, async bool, params map[string]string) error {
-	queueId, err := j.client.BuildJob(ctx, jobName, params)
-	if err != nil {
-		fmt.Printf("error running job %s : %s\n", jobName, err)
+func (j *JenkinsClient) RunJob(ctx context.Context, jobName string, async bool, params map[string]string, opts Options) error {
+	log.Printf("Building job %s", jobName)
+	var queueId int64
+
+	r := retry(func(ctx context.Context) error {
+		var err error
+		queueId, err = j.client.BuildJob(ctx, jobName, params)
+		if err != nil {
+			return fmt.Errorf("error running job %s: %w", jobName, err)
+		}
+
+		if queueId != 0 {
+			return nil
+		}
+		return fmt.Errorf("already running %s?", jobName)
+
+	}, opts.Retries, opts.GrowthFactor, opts.WaitingTime, opts.MaxWaitingTime)
+
+	if err := r(ctx); err != nil {
 		return err
 	}
+
 	build, err := j.getBuildFromJobAndQueueID(ctx, jobName, queueId)
 	if err != nil {
 		return err
