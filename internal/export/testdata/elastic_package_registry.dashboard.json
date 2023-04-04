@@ -1,0 +1,74 @@
+{
+    "attributes": {
+        "description": "Overview Elastic Package Registry service",
+        "kibanaSavedObjectMeta": {
+            "searchSourceJSON": {
+                "filter": [],
+                "query": {
+                    "language": "kuery",
+                    "query": ""
+                }
+            }
+        },
+        "optionsJSON": {
+            "hidePanelTitles": false,
+            "syncColors": false,
+            "syncCursor": true,
+            "syncTooltips": false,
+            "useMargins": true
+        },
+        "refreshInterval": {
+            "pause": false,
+            "value": 60000
+        },
+        "timeFrom": "now-15m",
+        "timeRestore": true,
+        "timeTo": "now",
+        "title": "[EPR Metrics] Overview",
+        "version": 1
+    },
+    "coreMigrationVersion": "8.7.0",
+    "created_at": "2023-04-04T10:31:18.629Z",
+    "id": "elastic_package_registry-313c2700-099b-11ed-91b6-3b1f9c2b2771",
+    "migrationVersion": {
+        "dashboard": "8.7.0"
+    },
+    "references": [
+        {
+            "id": "metrics-*",
+            "name": "2b137c7a-b65d-40c1-8ded-f1f0b3a467f1:indexpattern-datasource-current-indexpattern",
+            "type": "index-pattern"
+        },
+        {
+            "id": "metrics-*",
+            "name": "2b137c7a-b65d-40c1-8ded-f1f0b3a467f1:indexpattern-datasource-layer-f29a1076-32b0-4d8b-8205-f1cbe358a72a",
+            "type": "index-pattern"
+        },
+        {
+            "id": "elastic_package_registry-fleet-managed-default",
+            "name": "tag-ref-elastic_package_registry-fleet-managed-default",
+            "type": "tag"
+        },
+        {
+            "id": "elastic_package_registry-fleet-pkg-elastic_package_registry-default",
+            "name": "tag-ref-elastic_package_registry-fleet-pkg-elastic_package_registry-default",
+            "type": "tag"
+        },
+        {
+            "id": "elastic_package_registry-fleet-managed-default",
+            "name": "tag-ref-fleet-managed-default",
+            "type": "tag"
+        },
+        {
+            "id": "elastic_package_registry-fleet-pkg-elastic_package_registry-default",
+            "name": "tag-ref-fleet-pkg-elastic_package_registry-default",
+            "type": "tag"
+        },
+        {
+            "id": "elastic_package_registry-54252400-d309-11ed-97de-b7062e02194f",
+            "name": "tag-ref-54252400-d309-11ed-97de-b7062e02194f",
+            "type": "tag"
+         }
+    ],
+    "type": "dashboard"
+}
