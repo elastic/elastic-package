@@ -63,9 +63,9 @@ func setupReportsCommand() *cobraext.Command {
 
 func getBenchReportCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "benchmark",
-		Short: "Generate a benchmark report",
-		Long:  "Generate a benchmark report comparing local results against ones from another benchmark run.",
+		Use:   "pipeline-bench",
+		Short: "Generate a pipeline benchmark report",
+		Long:  "Generate a pipeline benchmark report comparing local results against ones from another benchmark run.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.Printf("Generate benchmark reports\n")
 

@@ -11,21 +11,25 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/elastic/elastic-package/internal/benchrunner"
-	"github.com/elastic/elastic-package/internal/benchrunner/reporters/formats"
+	"github.com/elastic/elastic-package/internal/benchrunner/reporters"
 	"github.com/elastic/elastic-package/internal/builder"
 )
 
 func init() {
-	benchrunner.RegisterReporterOutput(ReportOutputFile, reportToFile)
+	reporters.RegisterOutput(ReportOutputFile, reportToFile)
 }
 
 const (
 	// ReportOutputFile reports benchmark results to files in a folder
-	ReportOutputFile benchrunner.BenchReportOutput = "file"
+	ReportOutputFile reporters.Output = "file"
 )
 
-func reportToFile(pkg, report string, format benchrunner.BenchReportFormat) error {
+func reportToFile(report reporters.Reportable) error {
+	reportableFile, ok := report.(reporters.ReportableFile)
+	if !ok {
+		return errors.New("this output requires a reportable file")
+	}
+
 	dest, err := reportsDir()
 	if err != nil {
 		return fmt.Errorf("could not determine benchmark reports folder: %w", err)
@@ -39,17 +43,15 @@ func reportToFile(pkg, report string, format benchrunner.BenchReportFormat) erro
 		}
 	}
 
-	var ext string
-	switch format {
-	case formats.ReportFormatXUnit:
-		ext = "xml"
-	default:
-		ext = string(format)
-	}
-	fileName := fmt.Sprintf("%s_%d.%s", pkg, time.Now().UnixNano(), ext)
+	fileName := fmt.Sprintf(
+		"%s_%d.%s",
+		reportableFile.Package(),
+		time.Now().UnixNano(),
+		reportableFile.Extension(),
+	)
 	filePath := filepath.Join(dest, fileName)
 
-	if err := os.WriteFile(filePath, []byte(report+"\n"), 0644); err != nil {
+	if err := os.WriteFile(filePath, append(reportableFile.Report(), byte('\n')), 0644); err != nil {
 		return fmt.Errorf("could not write benchmark report file: %w", err)
 	}
 
