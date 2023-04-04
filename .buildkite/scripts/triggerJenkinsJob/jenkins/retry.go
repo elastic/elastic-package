@@ -13,8 +13,16 @@ import (
 
 type retryableFunction func(context.Context) error
 
-func retry(f retryableFunction, retries int, growthFactor float64, delay time.Duration) retryableFunction {
+func minDuration(a, b time.Duration) time.Duration {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func retry(f retryableFunction, retries int, growthFactor float64, delay, maxDelay time.Duration) retryableFunction {
 	return func(ctx context.Context) error {
+		delaySeconds := delay.Seconds()
 		for r := 0; ; r++ {
 			err := f(ctx)
 			if err == nil || r >= retries {
@@ -23,10 +31,14 @@ func retry(f retryableFunction, retries int, growthFactor float64, delay time.Du
 				return err
 			}
 
-			log.Printf("Function failed, retrying in %v", delay)
+			waitingTimeSeconds := math.Pow(growthFactor, float64(r)) * delaySeconds
+			waitingTime := time.Duration(waitingTimeSeconds) * time.Second
+			waitingTime = minDuration(waitingTime, maxDelay)
+
+			log.Printf("Function failed, retrying in %v -> %.2f", waitingTime, waitingTimeSeconds)
 
 			select {
-			case <-time.After(time.Duration(math.Pow(growthFactor, float64(retries))) * delay):
+			case <-time.After(waitingTime):
 			case <-ctx.Done():
 				return ctx.Err()
 			}

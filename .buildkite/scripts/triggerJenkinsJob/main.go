@@ -45,16 +45,15 @@ func jenkinsJobOptions() []string {
 
 func main() {
 	jenkinsJob := flag.String("jenkins-job", "", fmt.Sprintf("Jenkins job to trigger. Allowed values: %s", strings.Join(jenkinsJobOptions(), " ,")))
-	waitingTime := flag.Duration("waiting-time", 30*time.Second, fmt.Sprintf("Waiting period between each retry"))
-	growthFactor := flag.Float64("growth-factor", 1.0, fmt.Sprintf("Growth-Factor used for exponential backoff delays"))
-	retries := flag.Int("retries", 10, fmt.Sprintf("Number of retries to trigger the job"))
+	waitingTime := flag.Duration("waiting-time", 5*time.Second, fmt.Sprintf("Waiting period between each retry"))
+	growthFactor := flag.Float64("growth-factor", 1.25, fmt.Sprintf("Growth-Factor used for exponential backoff delays"))
+	retries := flag.Int("retries", 20, fmt.Sprintf("Number of retries to trigger the job"))
+	maxWaitingTime := flag.Duration("max-waiting-time", 60*time.Minute, fmt.Sprintf("Maximum waiting time per each retry"))
 
 	folderPath := flag.String("folder", "", "Path to artifacts folder")
 	zipPackagePath := flag.String("package", "", "Path to zip package file (*.zip)")
 	sigPackagePath := flag.String("signature", "", "Path to the signature file of the package file (*.zip.sig)")
-
 	async := flag.Bool("async", false, "Run async the Jenkins job")
-
 	flag.Parse()
 
 	if _, ok := allowedJenkinsJobs[*jenkinsJob]; !ok {
@@ -70,9 +69,10 @@ func main() {
 	}
 
 	opts := jenkins.Options{
-		WaitingTime:  *waitingTime,
-		Retries:      *retries,
-		GrowthFactor: *growthFactor,
+		WaitingTime:    *waitingTime,
+		Retries:        *retries,
+		GrowthFactor:   *growthFactor,
+		MaxWaitingTime: *maxWaitingTime,
 	}
 
 	switch *jenkinsJob {
