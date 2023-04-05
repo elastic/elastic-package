@@ -29,8 +29,7 @@ The entry added will include the given description, type and link. It is added o
 last entry in the current version
 
 Alternatively, you can start a new version indicating the specific version, or if it should
-be the next major, minor or patch version.
-`
+be the next major, minor or patch version.`
 
 func setupChangelogCommand() *cobraext.Command {
 	addChangelogCmd := &cobra.Command{
