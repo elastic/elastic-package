@@ -7,15 +7,13 @@ package export
 import (
 	"fmt"
 
-	"github.com/pkg/errors"
-
 	"github.com/elastic/elastic-package/internal/common"
 )
 
 func removeFleetManagedTags(ctx *transformationContext, object common.MapStr) (common.MapStr, error) {
 	aType, err := object.GetValue("type")
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to read type field")
+		return nil, fmt.Errorf("failed to read type field: %w", err)
 	}
 
 	if aType == "dashboard" {
@@ -36,7 +34,7 @@ func removeTagsFromDashboard(ctx *transformationContext, object common.MapStr) (
 	}
 
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to read references field")
+		return nil, fmt.Errorf("failed to read references field: %w", err)
 	}
 
 	newReferences, err := filterOutFleetManagedTags(ctx, references.([]interface{}))
@@ -46,7 +44,7 @@ func removeTagsFromDashboard(ctx *transformationContext, object common.MapStr) (
 
 	_, err = object.Put("references", newReferences)
 	if err != nil {
-		return nil, errors.Wrapf(err, "can't update references")
+		return nil, fmt.Errorf("can't update references: %w", err)
 	}
 
 	return object, nil
@@ -59,12 +57,12 @@ func removeTagObjects(ctx *transformationContext, object common.MapStr) (common.
 	}
 
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to read id field")
+		return nil, fmt.Errorf("failed to read id field: %w", err)
 	}
 
 	aIdString, ok := aId.(string)
 	if !ok {
-		return nil, errors.Wrap(err, "failed to read id string")
+		return nil, fmt.Errorf("failed to assert id as a string: %v", aId)
 	}
 
 	if isTagFleetManaged(aIdString, ctx.packageName) {
