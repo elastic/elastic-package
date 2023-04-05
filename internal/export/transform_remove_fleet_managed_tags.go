@@ -6,7 +6,6 @@ package export
 
 import (
 	"fmt"
-	"log"
 
 	"github.com/pkg/errors"
 
@@ -31,7 +30,6 @@ func removeFleetManagedTags(ctx *transformationContext, object common.MapStr) (c
 }
 
 func removeTagsFromDashboard(ctx *transformationContext, object common.MapStr) (common.MapStr, error) {
-	log.Printf("Removing tags from dashboard")
 	references, err := object.GetValue("references")
 	if err == common.ErrKeyNotFound {
 		return object, nil
@@ -55,7 +53,6 @@ func removeTagsFromDashboard(ctx *transformationContext, object common.MapStr) (
 }
 
 func removeTagObjects(ctx *transformationContext, object common.MapStr) (common.MapStr, error) {
-	log.Printf("Removing tags objects")
 	aId, err := object.GetValue("id")
 	if err == common.ErrKeyNotFound {
 		return object, nil
@@ -71,10 +68,8 @@ func removeTagObjects(ctx *transformationContext, object common.MapStr) (common.
 	}
 
 	if isTagFleetManaged(aIdString, ctx.packageName) {
-		log.Printf("1. Removing fleet tag object: %s", aId)
 		return nil, nil
 	}
-	log.Printf("2. Adding tag: %s", aId)
 	return object, nil
 }
 
@@ -115,7 +110,6 @@ func filterOutFleetManagedTags(ctx *transformationContext, references []interfac
 		if !ok {
 			return nil, fmt.Errorf("failed to assert id as a string: %v", aId)
 		}
-		log.Printf("Id tag .> %s", aIdString)
 		if isTagFleetManaged(aIdString, ctx.packageName) {
 			continue
 		}
