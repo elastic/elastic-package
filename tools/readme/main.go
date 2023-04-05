@@ -58,11 +58,18 @@ func generateCommandsDoc(cmdTmpl *template.Template, subCommandTemplate *templat
 		}
 		for _, subCommand := range cmd.Commands() {
 			log.Printf("generating command doc for %s %s...\n", cmd.Name(), subCommand.Name())
+			description := subCommand.Long
+			if description == "" {
+				description = subCommand.Short
+			}
+			if !strings.HasSuffix(strings.TrimSpace(description), ".") {
+				description = description + "."
+			}
 			templateData := map[string]any{
-				"CmdName":    cmd.Name(),
-				"SubCmdName": subCommand.Name(),
-				"Context":    cmd.Context(),
-				"Long":       subCommand.Long,
+				"CmdName":     cmd.Name(),
+				"SubCmdName":  subCommand.Name(),
+				"Context":     cmd.Context(),
+				"Description": description,
 			}
 			if err := subCommandTemplate.Execute(&cmdsDoc, templateData); err != nil {
 				log.Fatal(errors.Wrapf(err, "writing documentation for command '%s %s' failed", cmd.Name(), subCommand.Name()))

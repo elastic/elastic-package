@@ -152,7 +152,6 @@ last entry in the current version
 Alternatively, you can start a new version indicating the specific version, or if it should
 be the next major, minor or patch version.
 
-
 ### `elastic-package check`
 
 _Context: package_
@@ -273,25 +272,25 @@ User profiles are not overwritten on upgrade of elastic-stack, and can be freely
 
 _Context: global_
 
-
+Create a new profile.
 
 ### `elastic-package profiles delete`
 
 _Context: global_
 
-
+Delete a profile.
 
 ### `elastic-package profiles list`
 
 _Context: global_
 
-
+List available profiles.
 
 ### `elastic-package profiles use`
 
 _Context: global_
 
-
+Sets the profile to use when no other is specified.
 
 ### `elastic-package promote`
 
@@ -343,7 +342,7 @@ The command manages lifecycle of the service stack defined for the package ("_de
 
 _Context: package_
 
-
+Boot up the stack.
 
 ### `elastic-package stack`
 
@@ -359,25 +358,25 @@ For details on how to connect the service with the Elastic stack, see the [servi
 
 _Context: global_
 
-
+Take down the stack.
 
 ### `elastic-package stack dump`
 
 _Context: global_
 
-
+Dump stack data for debug purposes.
 
 ### `elastic-package stack shellinit`
 
 _Context: global_
 
-
+Export environment variables.
 
 ### `elastic-package stack status`
 
 _Context: global_
 
-
+Show status of the stack services.
 
 ### `elastic-package stack up`
 
@@ -397,7 +396,7 @@ For details on how to connect the service with the Elastic stack, see the [servi
 
 _Context: global_
 
-
+Update the stack to the most recent versions.
 
 ### `elastic-package status [package]`
 
