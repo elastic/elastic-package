@@ -1,0 +1,15 @@
+{
+    "attributes": {
+        "color": "#207038",
+        "description": "",
+        "name": "foo"
+    },
+    "coreMigrationVersion": "8.7.0",
+    "created_at": "2023-04-04T16:54:13.824Z",
+    "id": "elastic_package_registry-54252400-d309-11ed-97de-b7062e02194f",
+    "migrationVersion": {
+        "tag": "8.0.0"
+    },
+    "references": [],
+    "type": "tag"
+}
