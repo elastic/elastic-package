@@ -16,18 +16,14 @@ func removeFleetManagedTags(ctx *transformationContext, object common.MapStr) (c
 		return nil, fmt.Errorf("failed to read type field: %w", err)
 	}
 
-	if aType == "dashboard" {
-		return removeTagsFromDashboard(ctx, object)
-	}
-
 	if aType == "tag" {
 		return removeTagObjects(ctx, object)
 	}
 
-	return object, nil
+	return removeTagReferences(ctx, object)
 }
 
-func removeTagsFromDashboard(ctx *transformationContext, object common.MapStr) (common.MapStr, error) {
+func removeTagReferences(ctx *transformationContext, object common.MapStr) (common.MapStr, error) {
 	references, err := object.GetValue("references")
 	if err == common.ErrKeyNotFound {
 		return object, nil
