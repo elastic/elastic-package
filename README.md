@@ -266,7 +266,7 @@ Use this command to add, remove, and manage multiple config profiles.
 	
 Individual user profiles appear in ~/.elastic-package/stack, and contain all the config files needed by the "stack" subcommand. 
 Once a new profile is created, it can be specified with the -p flag, or the ELASTIC_PACKAGE_PROFILE environment variable.
-User profiles are not overwritten on upgrade of elastic-stack, and can be freely modified to allow for different stack configs.
+User profiles can be configured with a "config.yml" file in the profile directory.
 
 ### `elastic-package profiles create`
 
@@ -473,6 +473,26 @@ _Context: global_
 Use this command to print the version of elastic-package that you have installed. This is especially useful when reporting bugs.
 
 
+
+## Elastic Package profiles
+
+The `profiles` subcommand allows to work with different configurations. By default,
+`elastic-package` uses the "default" profile. Other profiles can be created with the
+`elastic-package profiles create` command. Once a profile is created, it will have its
+own directory inside the elastic-package data directory. Once you have more profiles,
+you can change the default with `elastic-package profiles use`.
+
+You can find the profiles in your system with `elastic-package profiles list`.
+
+You can delete profiles with `elastic-package profiles delete`.
+
+Each profile can have a `config.yml` file that allows to persist configuration settings
+that apply only to commands using this profile.
+
+The following settings are available per profile:
+
+* `stack.geoip_dir` defines a directory with GeoIP databases that can be used by
+  Elasticsearch in stacks managed by elastic-package.
 
 ## Development
 

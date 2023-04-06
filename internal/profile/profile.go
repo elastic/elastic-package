@@ -21,6 +21,9 @@ const (
 	// PackageProfileMetaFile is the filename of the profile metadata file
 	PackageProfileMetaFile = "profile.json"
 
+	// PackageProfileConfigFile is the filename of the profile configuration file
+	PackageProfileConfigFile = "config.yml"
+
 	// DefaultProfile is the name of the default profile.
 	DefaultProfile = "default"
 )
@@ -123,12 +126,23 @@ type Profile struct {
 	// ProfilePath is the absolute path to the profile
 	ProfilePath string
 	ProfileName string
+
+	config config
 }
 
 // Path returns an absolute path to the given file
 func (profile Profile) Path(names ...string) string {
 	elems := append([]string{profile.ProfilePath}, names...)
 	return filepath.Join(elems...)
+}
+
+// Config returns a configuration setting, or its default if setting not found
+func (profile Profile) Config(name string, def string) string {
+	v, found := profile.config.get(name)
+	if !found {
+		return def
+	}
+	return v
 }
 
 // ErrNotAProfile is returned in cases where we don't have a valid profile directory
@@ -211,9 +225,16 @@ func loadProfile(elasticPackagePath string, profileName string) (*Profile, error
 		return nil, ErrNotAProfile
 	}
 
+	configPath := filepath.Join(profilePath, PackageProfileConfigFile)
+	config, err := loadProfileConfig(configPath)
+	if err != nil {
+		return nil, fmt.Errorf("error loading configuration for profile %q: %w", profileName, err)
+	}
+
 	profile := Profile{
 		ProfileName: profileName,
 		ProfilePath: profilePath,
+		config:      config,
 	}
 
 	return &profile, nil
