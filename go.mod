@@ -37,7 +37,7 @@ require (
 	helm.sh/helm/v3 v3.11.3
 	honnef.co/go/tools v0.4.3
 	k8s.io/apimachinery v0.27.0
-	k8s.io/cli-runtime v0.26.3
+	k8s.io/cli-runtime v0.27.0
 	k8s.io/client-go v0.27.0
 )
 
@@ -167,8 +167,8 @@ require (
 	k8s.io/kubectl v0.26.0 // indirect
 	k8s.io/utils v0.0.0-20230220204549-a5ecb0141aa5 // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
-	sigs.k8s.io/kustomize/api v0.12.1 // indirect
-	sigs.k8s.io/kustomize/kyaml v0.13.9 // indirect
+	sigs.k8s.io/kustomize/api v0.13.2 // indirect
+	sigs.k8s.io/kustomize/kyaml v0.14.1 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.3 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
