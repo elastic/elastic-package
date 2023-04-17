@@ -19,6 +19,7 @@ import (
 	"github.com/elastic/elastic-package/internal/benchrunner/reporters"
 	"github.com/elastic/elastic-package/internal/benchrunner/reporters/outputs"
 	"github.com/elastic/elastic-package/internal/benchrunner/runners/pipeline"
+	"github.com/elastic/elastic-package/internal/benchrunner/runners/system"
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/elasticsearch"
@@ -50,6 +51,9 @@ func setupBenchmarkCommand() *cobraext.Command {
 
 	pipelineCmd := getPipelineCommand()
 	cmd.AddCommand(pipelineCmd)
+
+	systemCmd := getSystemCommand()
+	cmd.AddCommand(systemCmd)
 
 	generateCorpusCmd := getGenerateCorpusCommand()
 	cmd.AddCommand(generateCorpusCmd)
@@ -184,6 +188,68 @@ func pipelineCommandAction(cmd *cobra.Command, args []string) error {
 		if err := reporters.WriteReportable(reporters.Output(reportOutput), report); err != nil {
 			return errors.Wrap(err, "error writing benchmark report")
 		}
+	}
+
+	return nil
+}
+
+func getSystemCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "system",
+		Short: "Run system benchmarks",
+		Long:  "Run system benchmarks for the package",
+		RunE:  systemCommandAction,
+	}
+
+	cmd.Flags().StringP(cobraext.ReportFormatFlagName, "", string(pipeline.ReportFormatHuman), cobraext.ReportFormatFlagDescription)
+	cmd.Flags().StringP(cobraext.ReportOutputFlagName, "", string(outputs.ReportOutputSTDOUT), cobraext.ReportOutputFlagDescription)
+	cmd.Flags().StringP(cobraext.BenchNameFlagName, "", "", cobraext.BenchNameFlagDescription)
+
+	return cmd
+}
+
+func systemCommandAction(cmd *cobra.Command, args []string) error {
+	cmd.Println("Run system benchmarks for the package")
+
+	reportFormat, err := cmd.Flags().GetString(cobraext.ReportFormatFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.ReportFormatFlagName)
+	}
+	_ = reportFormat
+
+	reportOutput, err := cmd.Flags().GetString(cobraext.ReportOutputFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.ReportOutputFlagName)
+	}
+
+	benchName, err := cmd.Flags().GetString(cobraext.BenchNameFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.BenchNameFlagName)
+	}
+
+	packageRootPath, found, err := packages.FindPackageRoot()
+	if !found {
+		return errors.New("package root not found")
+	}
+	if err != nil {
+		return errors.Wrap(err, "locating package root failed")
+	}
+
+	signal.Enable()
+
+	opts := system.NewOptions(
+		system.WithBenchmarkName(benchName),
+		system.WithPackageRootPath(packageRootPath),
+	)
+	runner := system.NewSystemBenchmark(opts)
+
+	r, err := benchrunner.Run(runner)
+	if err != nil {
+		return errors.Wrapf(err, "error running package system benchmarks")
+	}
+
+	if err := reporters.WriteReportable(reporters.Output(reportOutput), r); err != nil {
+		return errors.Wrap(err, "error writing benchmark report")
 	}
 
 	return nil

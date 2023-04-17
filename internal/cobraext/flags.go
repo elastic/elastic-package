@@ -29,6 +29,9 @@ const (
 	AllowSnapshotFlagName    = "allow-snapshot"
 	AllowSnapshotDescription = "allow to export dashboards from a Elastic stack SNAPSHOT version"
 
+	BenchNameFlagName        = "benchmark"
+	BenchNameFlagDescription = "name of the benchmark scenario to run"
+
 	BenchNumTopProcsFlagName        = "num-top-procs"
 	BenchNumTopProcsFlagDescription = "number of top processors to show in the benchmarks results"
 

@@ -1,0 +1,8 @@
+version: "2.3"
+services:
+  tcp-sender:
+    image: docker.elastic.co/observability/stream:v0.8.0
+    volumes:
+      - ${PATH}:/sample_logs:ro
+    entrypoint: /bin/bash
+    command: -c "/stream log --start-signal=SIGHUP --delay=5s --addr ${AGENT_IP}:${PORT} -p=tcp /sample_logs/log.log"

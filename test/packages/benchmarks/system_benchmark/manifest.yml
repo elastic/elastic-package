@@ -1,0 +1,20 @@
+format_version: 1.0.0
+name: system_benchmarks
+title: System benchmarks
+version: 999.999.999
+description: Test for system benchmark runner
+categories: ["network"]
+license: basic
+type: integration
+conditions:
+  kibana.version: '^8.0.0'
+policy_templates:
+  - name: test
+    title: Test
+    description: Description
+    inputs:
+      - type: file
+        title: Foo bar
+        description: Foo bar
+owner:
+  github: elastic/integrations
