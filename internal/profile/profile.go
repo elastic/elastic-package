@@ -5,6 +5,7 @@
 package profile
 
 import (
+	"embed"
 	"errors"
 	"fmt"
 	"os"
@@ -28,11 +29,19 @@ const (
 	DefaultProfile = "default"
 )
 
+//go:embed _static
+var static embed.FS
+
 var (
+	staticSource     = resource.NewSourceFS(static)
 	profileResources = []resource.Resource{
 		&resource.File{
 			Path:    PackageProfileMetaFile,
 			Content: profileMetadataContent,
+		},
+		&resource.File{
+			Path:    PackageProfileConfigFile + ".example",
+			Content: staticSource.File("_static/config.yml.example"),
 		},
 	}
 )
