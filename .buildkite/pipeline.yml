@@ -10,7 +10,7 @@ steps:
     key: check-static
     command: "make check-static"
     agents:
-      image: "golang:1.19.5"
+      image: "golang:1.20.3"
       cpu: "8"
       memory: "4G"
 
@@ -21,7 +21,7 @@ steps:
       - "build/test-results/*.xml"
       - "build/test-coverage/*.xml"
     agents:
-      image: "golang:1.19.5"
+      image: "golang:1.20.3"
       cpu: "8"
       memory: "4G"
 
