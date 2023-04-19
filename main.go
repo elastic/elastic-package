@@ -6,9 +6,7 @@ package main
 
 import (
 	"log"
-	"math/rand"
 	"os"
-	"time"
 
 	"github.com/pkg/errors"
 
@@ -17,8 +15,6 @@ import (
 )
 
 func main() {
-	rand.Seed(time.Now().UnixNano())
-
 	rootCmd := cmd.RootCmd()
 
 	err := install.EnsureInstalled()
