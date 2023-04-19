@@ -117,6 +117,8 @@ func applyResources(profile *profile.Profile, stackVersion string) error {
 
 		"username": elasticsearchUsername,
 		"password": elasticsearchPassword,
+
+		"geoip_dir": profile.Config("stack.geoip_dir", "./ingest-geoip"),
 	})
 
 	os.MkdirAll(stackDir, 0755)

@@ -90,6 +90,28 @@ Run `elastic-package completion` and follow the instruction for your shell.
 
 {{ .Cmds }}
 
+## Elastic Package profiles
+
+The `profiles` subcommand allows to work with different configurations. By default,
+`elastic-package` uses the "default" profile. Other profiles can be created with the
+`elastic-package profiles create` command. Once a profile is created, it will have its
+own directory inside the elastic-package data directory. Once you have more profiles,
+you can change the default with `elastic-package profiles use`.
+
+You can find the profiles in your system with `elastic-package profiles list`.
+
+You can delete profiles with `elastic-package profiles delete`.
+
+Each profile can have a `config.yml` file that allows to persist configuration settings
+that apply only to commands using this profile. You can find a `config.yml.example` that
+you can copy to start.
+
+The following settings are available per profile:
+
+* `stack.geoip_dir` defines a directory with GeoIP databases that can be used by
+  Elasticsearch in stacks managed by elastic-package. It is recommended to use
+  an absolute path, out of the `.elastic-package` directory.
+
 ## Development
 
 Even though the project is "go-gettable", there is the `Makefile` present, which can be used to build, format or vendor
