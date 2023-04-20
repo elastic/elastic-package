@@ -21,6 +21,7 @@ spec:
       description: ':go: Build and test the elastic-package project'
     spec:
       branch_configuration: "main v0.* v1.*"
+      pipeline_file: ".buildkite/pipeline.yml"
       provider_settings:
         build_pull_request_forks: false
         build_tags: true
