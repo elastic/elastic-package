@@ -4,8 +4,13 @@
 
 package system
 
+import (
+	"github.com/elastic/elastic-package/internal/elasticsearch"
+)
+
 // Options contains benchmark runner options.
 type Options struct {
+	API             *elasticsearch.API
 	BenchName       string
 	PackageRootPath string
 }
@@ -18,6 +23,12 @@ func NewOptions(fns ...OptionFunc) Options {
 		fn(&opts)
 	}
 	return opts
+}
+
+func WithESAPI(api *elasticsearch.API) OptionFunc {
+	return func(opts *Options) {
+		opts.API = api
+	}
 }
 
 func WithPackageRootPath(path string) OptionFunc {

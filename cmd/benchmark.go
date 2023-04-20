@@ -5,6 +5,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -12,7 +13,6 @@ import (
 
 	"github.com/elastic/elastic-package/internal/corpusgenerator"
 
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/benchrunner"
@@ -112,7 +112,7 @@ func pipelineCommandAction(cmd *cobra.Command, args []string) error {
 		return errors.New("package root not found")
 	}
 	if err != nil {
-		return errors.Wrap(err, "locating package root failed")
+		return fmt.Errorf("locating package root failed: %w", err)
 	}
 
 	dataStreams, err := cmd.Flags().GetStringSlice(cobraext.DataStreamsFlagName)
@@ -132,13 +132,13 @@ func pipelineCommandAction(cmd *cobra.Command, args []string) error {
 
 	benchFolders, err := pipeline.FindBenchmarkFolders(packageRootPath, dataStreams)
 	if err != nil {
-		return errors.Wrap(err, "unable to determine benchmark folder paths")
+		return fmt.Errorf("unable to determine benchmark folder paths: %w", err)
 	}
 
 	if useTestSamples {
 		testFolders, err := testrunner.FindTestFolders(packageRootPath, dataStreams, testrunner.TestType(pipeline.BenchType))
 		if err != nil {
-			return errors.Wrap(err, "unable to determine test folder paths")
+			return fmt.Errorf("unable to determine test folder paths: %w", err)
 		}
 		benchFolders = append(benchFolders, testFolders...)
 	}
@@ -152,7 +152,7 @@ func pipelineCommandAction(cmd *cobra.Command, args []string) error {
 
 	esClient, err := elasticsearch.NewClient()
 	if err != nil {
-		return errors.Wrap(err, "can't create Elasticsearch client")
+		return fmt.Errorf("can't create Elasticsearch client: %w", err)
 	}
 	err = esClient.CheckHealth(cmd.Context())
 	if err != nil {
@@ -174,19 +174,19 @@ func pipelineCommandAction(cmd *cobra.Command, args []string) error {
 		r, err := benchrunner.Run(runner)
 
 		if err != nil {
-			return errors.Wrapf(err, "error running package pipeline benchmarks")
+			return fmt.Errorf("error running package pipeline benchmarks: %w", err)
 		}
 
 		results = append(results, r)
 	}
 
 	if err != nil {
-		return errors.Wrapf(err, "error running package pipeline benchmarks")
+		return fmt.Errorf("error running package pipeline benchmarks: %w", err)
 	}
 
 	for _, report := range results {
 		if err := reporters.WriteReportable(reporters.Output(reportOutput), report); err != nil {
-			return errors.Wrap(err, "error writing benchmark report")
+			return fmt.Errorf("error writing benchmark report: %w", err)
 		}
 	}
 
@@ -232,24 +232,34 @@ func systemCommandAction(cmd *cobra.Command, args []string) error {
 		return errors.New("package root not found")
 	}
 	if err != nil {
-		return errors.Wrap(err, "locating package root failed")
+		return fmt.Errorf("locating package root failed: %w", err)
 	}
 
 	signal.Enable()
 
+	esClient, err := elasticsearch.NewClient()
+	if err != nil {
+		return fmt.Errorf("can't create Elasticsearch client: %w", err)
+	}
+	err = esClient.CheckHealth(cmd.Context())
+	if err != nil {
+		return err
+	}
+
 	opts := system.NewOptions(
 		system.WithBenchmarkName(benchName),
 		system.WithPackageRootPath(packageRootPath),
+		system.WithESAPI(esClient.API),
 	)
 	runner := system.NewSystemBenchmark(opts)
 
 	r, err := benchrunner.Run(runner)
 	if err != nil {
-		return errors.Wrapf(err, "error running package system benchmarks")
+		return fmt.Errorf("error running package system benchmarks: %w", err)
 	}
 
 	if err := reporters.WriteReportable(reporters.Output(reportOutput), r); err != nil {
-		return errors.Wrap(err, "error writing benchmark report")
+		return fmt.Errorf("error writing benchmark report: %w", err)
 	}
 
 	return nil
@@ -309,14 +319,14 @@ func generateDataStreamCorpusCommandAction(cmd *cobra.Command, _ []string) error
 
 	generator, err := corpusgenerator.NewGenerator(packageName, dataSetName, commit, totSizeInBytes)
 	if err != nil {
-		return errors.Wrap(err, "can't generate benchmarks data corpus for data stream")
+		return fmt.Errorf("can't generate benchmarks data corpus for data stream: %w", err)
 	}
 
 	// TODO: we need a way to extract the type from the package and dataset, currently hardcode to `metrics`
 	dataStream := fmt.Sprintf("metrics-%s.%s-default", packageName, dataSetName)
 	err = corpusgenerator.RunGenerator(generator, dataStream, rallyTrackOutputDir)
 	if err != nil {
-		return errors.Wrap(err, "can't generate benchmarks data corpus for data stream")
+		return fmt.Errorf("can't generate benchmarks data corpus for data stream: %w", err)
 	}
 
 	return nil

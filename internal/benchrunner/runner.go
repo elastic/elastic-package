@@ -40,7 +40,7 @@ func Run(runner Runner) (reporters.Reportable, error) {
 	}
 
 	if tdErr != nil {
-		return report, fmt.Errorf("could not teardown benchmark runner: %w", err)
+		return report, fmt.Errorf("could not teardown benchmark runner: %w", tdErr)
 	}
 
 	return report, nil

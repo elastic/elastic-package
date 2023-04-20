@@ -16,11 +16,13 @@ import (
 
 // Policy represents an Agent Policy in Fleet.
 type Policy struct {
-	ID          string `json:"id,omitempty"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Namespace   string `json:"namespace"`
-	Revision    int    `json:"revision,omitempty"`
+	ID                 string   `json:"id,omitempty"`
+	Name               string   `json:"name"`
+	Description        string   `json:"description"`
+	Namespace          string   `json:"namespace"`
+	Revision           int      `json:"revision,omitempty"`
+	MonitoringEnabled  []string `json:"monitoring_enabled"`
+	MonitoringOutputID string   `json:"monitoring_output_id"`
 }
 
 // CreatePolicy persists the given Policy in Fleet.
