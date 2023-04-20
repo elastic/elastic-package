@@ -17,8 +17,6 @@ processors:
   - user_agent:
       field: user_agent.original
       ignore_missing: true
-  - drop:
-      if: "ctx?.user_agent?.original?.startsWith('skip-this-one')"
 on_failure:
   - set:
       field: error.message

@@ -38,16 +38,6 @@ func NewPipelineBenchmark(opts Options) benchrunner.Runner {
 	return &runner{options: opts}
 }
 
-// Type returns the type of benchmark that can be run by this benchmark runner.
-func (r *runner) Type() benchrunner.Type {
-	return BenchType
-}
-
-// String returns the human-friendly name of the benchmark runner.
-func (r *runner) String() string {
-	return string(BenchType)
-}
-
 func (r *runner) SetUp() error {
 	dataStreamPath, found, err := packages.FindDataStreamRootForPath(r.options.Folder.Path)
 	if err != nil {

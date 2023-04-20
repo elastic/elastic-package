@@ -12,6 +12,7 @@ import (
 	"github.com/dustin/go-humanize"
 
 	"github.com/elastic/elastic-package/internal/corpusgenerator"
+	"github.com/elastic/elastic-package/internal/kibana"
 
 	"github.com/spf13/cobra"
 
@@ -246,10 +247,16 @@ func systemCommandAction(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	kc, err := kibana.NewClient()
+	if err != nil {
+		return fmt.Errorf("can't create Kibana client: %w", err)
+	}
+
 	opts := system.NewOptions(
 		system.WithBenchmarkName(benchName),
 		system.WithPackageRootPath(packageRootPath),
 		system.WithESAPI(esClient.API),
+		system.WithKibanaClient(kc),
 	)
 	runner := system.NewSystemBenchmark(opts)
 

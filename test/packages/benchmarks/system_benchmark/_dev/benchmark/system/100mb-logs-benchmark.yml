@@ -1,0 +1,17 @@
+---
+description: Benchmark 100MiB of data ingested
+input: filestream
+# input: udp
+vars: ~
+data_stream.name: test
+# data_stream.vars.port: 9511
+# data_stream.vars.host: 0.0.0.0
+data_stream.vars.paths:
+  - "{{SERVICE_LOGS_DIR}}/corpus-*"
+warmup_time_period: 60
+corpora.generator.size: 100MiB
+corpora.generator.template.path: ./100mb-logs-benchmark/template.log
+corpora.generator.config.path: ./100mb-logs-benchmark/config.yml
+corpora.generator.fields.path: ./100mb-logs-benchmark/fields.yml
+# corpora.input_service.name: udp-sender
+# corpora.input_service.signal: SIGHUP

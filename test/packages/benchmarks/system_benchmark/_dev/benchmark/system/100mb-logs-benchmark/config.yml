@@ -1,0 +1,40 @@
+- name: IP
+  cardinality:
+    numerator: 1
+    denominator: 100
+- name: Day
+  range:
+    min: 1
+    max: 28
+- name: H
+  range:
+    min: 10
+    max: 23
+- name: MS
+  range:
+    min: 10
+    max: 59
+- name: Mon
+  enum: 
+    - "Jan"
+    - "Feb"
+    - "Mar"
+    - "Apr"
+    - "May"
+    - "Jun"
+    - "Jul"
+    - "Aug"
+    - "Sep"
+    - "Oct"
+    - "Nov"
+    - "Dec"
+- name: StatusCode
+  enum: ["200", "400", "404"]
+- name: Size
+  range:
+    min: 1
+    max: 1000
+- name: Port
+  range:
+    min: 8000
+    max: 8080

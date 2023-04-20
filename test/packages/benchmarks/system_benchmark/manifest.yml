@@ -13,8 +13,11 @@ policy_templates:
     title: Test
     description: Description
     inputs:
-      - type: file
+      - type: udp
         title: Foo bar
         description: Foo bar
+      - type: filestream
+        title: Collect logs
+        description: Collecting logs
 owner:
   github: elastic/integrations

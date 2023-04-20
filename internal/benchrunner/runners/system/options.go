@@ -6,13 +6,16 @@ package system
 
 import (
 	"github.com/elastic/elastic-package/internal/elasticsearch"
+	"github.com/elastic/elastic-package/internal/kibana"
 )
 
 // Options contains benchmark runner options.
 type Options struct {
-	API             *elasticsearch.API
-	BenchName       string
-	PackageRootPath string
+	ESAPI            *elasticsearch.API
+	KibanaClient     *kibana.Client
+	MetricstoreESURL string
+	BenchName        string
+	PackageRootPath  string
 }
 
 type OptionFunc func(*Options)
@@ -27,7 +30,13 @@ func NewOptions(fns ...OptionFunc) Options {
 
 func WithESAPI(api *elasticsearch.API) OptionFunc {
 	return func(opts *Options) {
-		opts.API = api
+		opts.ESAPI = api
+	}
+}
+
+func WithKibanaClient(c *kibana.Client) OptionFunc {
+	return func(opts *Options) {
+		opts.KibanaClient = c
 	}
 }
 

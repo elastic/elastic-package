@@ -15,8 +15,6 @@ import (
 type Type string
 
 type Runner interface {
-	Type() Type
-	String() string
 	SetUp() error
 	Run() (reporters.Reportable, error)
 	TearDown() error

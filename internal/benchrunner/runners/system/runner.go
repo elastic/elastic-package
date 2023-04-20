@@ -24,9 +24,7 @@ import (
 	"github.com/elastic/elastic-package/internal/benchrunner"
 	"github.com/elastic/elastic-package/internal/benchrunner/reporters"
 	"github.com/elastic/elastic-package/internal/benchrunner/runners/system/servicedeployer"
-	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/configuration/locations"
-	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/multierror"
@@ -70,16 +68,6 @@ type runner struct {
 
 func NewSystemBenchmark(opts Options) benchrunner.Runner {
 	return &runner{options: opts}
-}
-
-// Type returns the type of test that can be run by this test runner.
-func (r *runner) Type() benchrunner.Type {
-	return BenchType
-}
-
-// String returns the human-friendly name of the test runner.
-func (r *runner) String() string {
-	return string(BenchType)
 }
 
 func (r *runner) SetUp() error {
@@ -136,7 +124,7 @@ func (r *runner) setUp() error {
 	serviceLogsDir := locationManager.ServiceLogDir()
 	r.ctxt.Logs.Folder.Local = serviceLogsDir
 	r.ctxt.Logs.Folder.Agent = ServiceLogsAgentDir
-	r.ctxt.Test.RunID = createRunID()
+	r.ctxt.Bench.RunID = createRunID()
 
 	scenario, err := readConfig(r.options.PackageRootPath, r.options.BenchName, r.ctxt)
 	if err != nil {
@@ -144,11 +132,26 @@ func (r *runner) setUp() error {
 	}
 	r.scenario = scenario
 
+	if r.scenario.Corpora.Generator != nil {
+		var err error
+		r.generator, err = r.initializeGenerator()
+		if err != nil {
+			return fmt.Errorf("can't initialize generator: %w", err)
+		}
+	}
+
 	pkgManifest, err := packages.ReadPackageManifestFromPackageRoot(r.options.PackageRootPath)
 	if err != nil {
 		return fmt.Errorf("reading package manifest failed: %w", err)
 	}
 
+	policy, err := r.createBenchmarkPolicy(pkgManifest)
+	if err != nil {
+		return err
+	}
+
+	// Delete old data
+	logger.Debug("deleting old data in data stream...")
 	dataStreamManifest, err := packages.ReadDataStreamManifest(
 		filepath.Join(
 			getDataStreamPath(r.options.PackageRootPath, r.scenario.DataStream.Name),
@@ -159,80 +162,25 @@ func (r *runner) setUp() error {
 		return fmt.Errorf("reading data stream manifest failed: %w", err)
 	}
 
-	if r.scenario.Corpora.Generator != nil {
-		var err error
-		r.generator, err = r.initializeGenerator()
-		if err != nil {
-			return fmt.Errorf("can't initialize generator: %w", err)
-		}
-	}
-
-	policyTemplateName := r.scenario.PolicyTemplate
-	if policyTemplateName == "" {
-		policyTemplateName, err = findPolicyTemplateForInput(*pkgManifest, *dataStreamManifest, r.scenario.Input)
-		if err != nil {
-			return fmt.Errorf("failed to determine the associated policy_template: %w", err)
-		}
-	}
-
-	policyTemplate, err := selectPolicyTemplateByName(pkgManifest.PolicyTemplates, policyTemplateName)
-	if err != nil {
-		return fmt.Errorf("failed to find the selected policy_template: %w", err)
-	}
-
-	kib, err := kibana.NewClient()
-	if err != nil {
-		return fmt.Errorf("can't create Kibana client: %w", err)
-	}
-
-	// Configure package (single data stream) via Ingest Manager APIs.
-	logger.Debug("creating benchmark policy...")
-	testTime := time.Now().Format("20060102T15:04:05Z")
-	p := kibana.Policy{
-		Name:              fmt.Sprintf("ep-bench-%s-%s", r.options.BenchName, testTime),
-		Description:       fmt.Sprintf("policy created by elastic-package for benchmark %s", r.options.BenchName),
-		Namespace:         "ep",
-		MonitoringEnabled: []string{"logs", "metrics"},
-	}
-	policy, err := kib.CreatePolicy(p)
-	if err != nil {
-		return fmt.Errorf("could not create benchmark policy: %w", err)
-	}
-
-	r.deletePolicyHandler = func() error {
-		logger.Debug("deleting benchmark policy...")
-		if err := kib.DeletePolicy(*policy); err != nil {
-			return fmt.Errorf("error cleaning up benchmark policy: %w", err)
-		}
-		return nil
-	}
-
-	logger.Debug("adding package data stream to benchmark policy...")
-	ds := createPackageDatastream(*policy, *pkgManifest, policyTemplate, *dataStreamManifest, *r.scenario)
-	if err := kib.AddPackageDataStreamToPolicy(ds); err != nil {
-		return fmt.Errorf("could not add data stream config to policy: %w", err)
-	}
-
-	// Delete old data
-	logger.Debug("deleting old data in data stream...")
 	dataStream := fmt.Sprintf(
-		"%s-%s-%s",
-		ds.Inputs[0].Streams[0].DataStream.Type,
-		ds.Inputs[0].Streams[0].DataStream.Dataset,
-		ds.Namespace,
+		"%s-%s.%s-%s",
+		dataStreamManifest.Type,
+		pkgManifest.Name,
+		dataStreamManifest.Name,
+		policy.Namespace,
 	)
 
 	r.runtimeDataStream = dataStream
 
 	r.wipeDataStreamHandler = func() error {
 		logger.Debugf("deleting data in data stream...")
-		if err := deleteDataStreamDocs(r.options.API, dataStream); err != nil {
+		if err := r.deleteDataStreamDocs(dataStream); err != nil {
 			return fmt.Errorf("error deleting data in data stream: %w", err)
 		}
 		return nil
 	}
 
-	if err := deleteDataStreamDocs(r.options.API, dataStream); err != nil {
+	if err := r.deleteDataStreamDocs(dataStream); err != nil {
 		return fmt.Errorf("error deleting old data in data stream: %s: %w", dataStream, err)
 	}
 
@@ -251,7 +199,7 @@ func (r *runner) setUp() error {
 		return err
 	}
 
-	agents, err := checkEnrolledAgents(kib)
+	agents, err := r.checkEnrolledAgents()
 	if err != nil {
 		return fmt.Errorf("can't check enrolled agents: %w", err)
 	}
@@ -266,19 +214,19 @@ func (r *runner) setUp() error {
 		// Assign policy to agent
 		handlers[i] = func() error {
 			logger.Debug("reassigning original policy back to agent...")
-			if err := kib.AssignPolicyToAgent(agent, origPolicy); err != nil {
+			if err := r.options.KibanaClient.AssignPolicyToAgent(agent, origPolicy); err != nil {
 				return fmt.Errorf("error reassigning original policy to agent %s: %w", agent.ID, err)
 			}
 			return nil
 		}
 
-		policyWithDataStream, err := kib.GetPolicy(policy.ID)
+		policyWithDataStream, err := r.options.KibanaClient.GetPolicy(policy.ID)
 		if err != nil {
 			return fmt.Errorf("could not read the policy with data stream: %w", err)
 		}
 
 		logger.Debug("assigning package data stream to agent...")
-		if err := kib.AssignPolicyToAgent(agent, *policyWithDataStream); err != nil {
+		if err := r.options.KibanaClient.AssignPolicyToAgent(agent, *policyWithDataStream); err != nil {
 			return fmt.Errorf("could not assign policy to agent: %w", err)
 		}
 	}
@@ -356,7 +304,7 @@ func (r *runner) run() (report reporters.Reportable, err error) {
 			return false, err
 		}
 
-		ret := hits != oldHits
+		ret := hits == oldHits
 		if hits != oldHits {
 			oldHits = hits
 		}
@@ -373,267 +321,241 @@ func (r *runner) run() (report reporters.Reportable, err error) {
 
 	return nil, nil
 }
-
-// findPolicyTemplateForInput returns the name of the policy_template that
-// applies to the benchmarked input. An error is returned if no policy template
-// matches or if multiple policy templates match and the response is ambiguous.
-func findPolicyTemplateForInput(pkg packages.PackageManifest, ds packages.DataStreamManifest, inputName string) (string, error) {
-	if pkg.Type == "input" {
-		return findPolicyTemplateForInputPackage(pkg, inputName)
+func (r *runner) deleteDataStreamDocs(dataStream string) error {
+	body := strings.NewReader(`{ "query": { "match_all": {} } }`)
+	_, err := r.options.ESAPI.DeleteByQuery([]string{dataStream}, body)
+	if err != nil {
+		return err
 	}
-	return findPolicyTemplateForDataStream(pkg, ds, inputName)
+
+	return nil
 }
 
-func findPolicyTemplateForDataStream(pkg packages.PackageManifest, ds packages.DataStreamManifest, inputName string) (string, error) {
-	if inputName == "" {
-		if len(ds.Streams) == 0 {
-			return "", errors.New("no streams declared in data stream manifest")
-		}
-		inputName = ds.Streams[getDataStreamIndex(inputName, ds)].Input
+func (r *runner) createBenchmarkPolicy(pkgManifest *packages.PackageManifest) (*kibana.Policy, error) {
+	// Configure package (single data stream) via Ingest Manager APIs.
+	logger.Debug("creating benchmark policy...")
+	testTime := time.Now().Format("20060102T15:04:05Z")
+	p := kibana.Policy{
+		Name:              fmt.Sprintf("ep-bench-%s-%s", r.options.BenchName, testTime),
+		Description:       fmt.Sprintf("policy created by elastic-package for benchmark %s", r.options.BenchName),
+		Namespace:         "ep",
+		MonitoringEnabled: []string{"logs", "metrics"},
 	}
 
-	var matchedPolicyTemplates []string
-	for _, policyTemplate := range pkg.PolicyTemplates {
-		// Does this policy_template include this input type?
-		if policyTemplate.FindInputByType(inputName) == nil {
-			continue
+	var out *kibana.Output
+	if r.options.MetricstoreESURL != "" {
+		o := kibana.Output{
+			Name:                "Benchmark Metricstore",
+			Type:                "elasticsearch",
+			IsDefault:           false,
+			IsDefaultMonitoring: true,
+			Hosts:               []string{r.options.MetricstoreESURL},
 		}
 
-		// Does the policy_template apply to this data stream (when data streams are specified)?
-		if len(policyTemplate.DataStreams) > 0 && !common.StringSliceContains(policyTemplate.DataStreams, ds.Name) {
-			continue
+		var err error
+		out, err = r.options.KibanaClient.CreateOutput(o)
+		if err != nil {
+			return nil, err
+		}
+		p.MonitoringOutputID = out.ID
+	}
+
+	policy, err := r.options.KibanaClient.CreatePolicy(p)
+	if err != nil {
+		return nil, err
+	}
+
+	packagePolicy, err := r.createPackagePolicy(pkgManifest, policy)
+	if err != nil {
+		return nil, err
+	}
+
+	r.deletePolicyHandler = func() error {
+		var merr multierror.Error
+
+		logger.Debug("deleting benchmark package policy...")
+		if err := r.options.KibanaClient.DeletePackagePolicy(*packagePolicy); err != nil {
+			merr = append(merr, fmt.Errorf("error cleaning up benchmark package policy: %w", err))
 		}
 
-		matchedPolicyTemplates = append(matchedPolicyTemplates, policyTemplate.Name)
+		logger.Debug("deleting benchmark policy...")
+		if err := r.options.KibanaClient.DeletePolicy(*policy); err != nil {
+			merr = append(merr, fmt.Errorf("error cleaning up benchmark policy: %w", err))
+		}
+
+		if out != nil {
+			logger.Debug("deleting benchmark metricstore output...")
+			if err := r.options.KibanaClient.DeleteOutput(*out); err != nil {
+				merr = append(merr, fmt.Errorf("error cleaning up benchmark policy: %w", err))
+			}
+		}
+
+		if len(merr) > 0 {
+			return merr
+		}
+
+		return nil
 	}
 
-	switch len(matchedPolicyTemplates) {
-	case 1:
-		return matchedPolicyTemplates[0], nil
-	case 0:
-		return "", fmt.Errorf("no policy template was found for data stream %q "+
-			"with input type %q: verify that you have included the data stream "+
-			"and input in the package's policy_template list", ds.Name, inputName)
-	default:
-		return "", fmt.Errorf("ambiguous result: multiple policy templates ([%s]) "+
-			"were found that apply to data stream %q with input type %q: please "+
-			"specify the 'policy_template' in the system test config",
-			strings.Join(matchedPolicyTemplates, ", "), ds.Name, inputName)
-	}
+	return policy, nil
 }
 
-func findPolicyTemplateForInputPackage(pkg packages.PackageManifest, inputName string) (string, error) {
-	if inputName == "" {
-		if len(pkg.PolicyTemplates) == 0 {
-			return "", errors.New("no policy templates specified for input package")
-		}
-		inputName = pkg.PolicyTemplates[0].Input
+func (r *runner) createPackagePolicy(pkgManifest *packages.PackageManifest, p *kibana.Policy) (*kibana.PackagePolicy, error) {
+	logger.Debug("creating package policy...")
+
+	if r.scenario.Version == "" {
+		r.scenario.Version = pkgManifest.Version
 	}
 
-	var matched []string
-	for _, policyTemplate := range pkg.PolicyTemplates {
-		if policyTemplate.Input != inputName {
-			continue
-		}
-
-		matched = append(matched, policyTemplate.Name)
-	}
-
-	switch len(matched) {
-	case 1:
-		return matched[0], nil
-	case 0:
-		return "", fmt.Errorf("no policy template was found"+
-			"with input type %q: verify that you have included the data stream "+
-			"and input in the package's policy_template list", inputName)
-	default:
-		return "", fmt.Errorf("ambiguous result: multiple policy templates ([%s]) "+
-			"with input type %q: please "+
-			"specify the 'policy_template' in the system benchmark config",
-			strings.Join(matched, ", "), inputName)
-	}
-}
-
-// getDataStreamIndex returns the index of the data stream whose input name
-// matches. Otherwise it returns the 0.
-func getDataStreamIndex(inputName string, ds packages.DataStreamManifest) int {
-	for i, s := range ds.Streams {
-		if s.Input == inputName {
-			return i
-		}
-	}
-	return 0
-}
-
-func getDataStreamPath(packageRoot, dataStream string) string {
-	return filepath.Join(packageRoot, "data_stream", dataStream)
-}
-
-func selectPolicyTemplateByName(policies []packages.PolicyTemplate, name string) (packages.PolicyTemplate, error) {
-	for _, policy := range policies {
-		if policy.Name == name {
-			return policy, nil
-		}
-	}
-	return packages.PolicyTemplate{}, fmt.Errorf("policy template %q not found", name)
-}
-
-func createPackageDatastream(
-	kibanaPolicy kibana.Policy,
-	pkg packages.PackageManifest,
-	policyTemplate packages.PolicyTemplate,
-	ds packages.DataStreamManifest,
-	scenario scenario,
-) kibana.PackageDataStream {
-	if pkg.Type == "input" {
-		return createInputPackageDatastream(kibanaPolicy, pkg, policyTemplate, scenario)
-	}
-	return createIntegrationPackageDatastream(kibanaPolicy, pkg, policyTemplate, ds, scenario)
-}
-
-func createIntegrationPackageDatastream(
-	kibanaPolicy kibana.Policy,
-	pkg packages.PackageManifest,
-	policyTemplate packages.PolicyTemplate,
-	ds packages.DataStreamManifest,
-	scenario scenario,
-) kibana.PackageDataStream {
-	r := kibana.PackageDataStream{
-		Name:      fmt.Sprintf("%s-%s", pkg.Name, ds.Name),
+	pp := kibana.PackagePolicy{
 		Namespace: "ep",
-		PolicyID:  kibanaPolicy.ID,
-		Enabled:   true,
-		Inputs: []kibana.Input{
-			{
-				PolicyTemplate: policyTemplate.Name,
-				Enabled:        true,
+		PolicyID:  p.ID,
+		Vars:      r.scenario.Vars,
+		Force:     true,
+		Inputs: map[string]kibana.PackagePolicyInput{
+			fmt.Sprintf("%s-%s", r.scenario.DataStream.Name, r.scenario.Input): {
+				Enabled: true,
+				Streams: map[string]kibana.PackagePolicyStream{
+					fmt.Sprintf("%s.%s", pkgManifest.Name, r.scenario.DataStream.Name): {
+						Enabled: true,
+						Vars:    r.scenario.DataStream.Vars,
+					},
+				},
 			},
 		},
 	}
-	r.Package.Name = pkg.Name
-	r.Package.Title = pkg.Title
-	r.Package.Version = pkg.Version
+	pp.Package.Name = pkgManifest.Name
+	pp.Package.Version = r.scenario.Version
 
-	stream := ds.Streams[getDataStreamIndex(scenario.Input, ds)]
-	streamInput := stream.Input
-	r.Inputs[0].Type = streamInput
-
-	streams := []kibana.Stream{
-		{
-			ID:      fmt.Sprintf("%s-%s.%s", streamInput, pkg.Name, ds.Name),
-			Enabled: true,
-			DataStream: kibana.DataStream{
-				Type:    ds.Type,
-				Dataset: getDataStreamDataset(pkg, ds),
-			},
-		},
+	policy, err := r.options.KibanaClient.CreatePackagePolicy(pp)
+	if err != nil {
+		return nil, err
 	}
 
-	// Add dataStream-level vars
-	streams[0].Vars = setKibanaVariables(stream.Vars, scenario.DataStream.Vars)
-	r.Inputs[0].Streams = streams
-
-	// Add package-level vars
-	var inputVars []packages.Variable
-	input := policyTemplate.FindInputByType(streamInput)
-	if input != nil {
-		// copy package-level vars into each input
-		inputVars = append(inputVars, input.Vars...)
-		inputVars = append(inputVars, pkg.Vars...)
-	}
-
-	r.Inputs[0].Vars = setKibanaVariables(inputVars, scenario.Vars)
-
-	return r
+	return policy, nil
 }
 
-func createInputPackageDatastream(
-	kibanaPolicy kibana.Policy,
-	pkg packages.PackageManifest,
-	policyTemplate packages.PolicyTemplate,
-	scenario scenario,
-) kibana.PackageDataStream {
-	r := kibana.PackageDataStream{
-		Name:      fmt.Sprintf("%s-%s", pkg.Name, policyTemplate.Name),
-		Namespace: "ep",
-		PolicyID:  kibanaPolicy.ID,
-		Enabled:   true,
-	}
-	r.Package.Name = pkg.Name
-	r.Package.Title = pkg.Title
-	r.Package.Version = pkg.Version
-	r.Inputs = []kibana.Input{
-		{
-			PolicyTemplate: policyTemplate.Name,
-			Enabled:        true,
-			Vars:           kibana.Vars{},
-		},
+func (r *runner) initializeGenerator() (genlib.Generator, error) {
+	totSizeInBytes, err := humanize.ParseBytes(r.scenario.Corpora.Generator.Size)
+	if err != nil {
+		return nil, err
 	}
 
-	streamInput := policyTemplate.Input
-	r.Inputs[0].Type = streamInput
-
-	dataset := fmt.Sprintf("%s.%s", pkg.Name, policyTemplate.Name)
-	streams := []kibana.Stream{
-		{
-			ID:      fmt.Sprintf("%s-%s.%s", streamInput, pkg.Name, policyTemplate.Name),
-			Enabled: true,
-			DataStream: kibana.DataStream{
-				Type:    policyTemplate.Type,
-				Dataset: dataset,
-			},
-		},
+	tplPath := filepath.Clean(filepath.Join(devPath, r.scenario.Corpora.Generator.Template.Path))
+	tpl, err := os.ReadFile(tplPath)
+	if err != nil {
+		return nil, fmt.Errorf("can't open template file %s: %w", tplPath, err)
 	}
 
-	// Add policyTemplate-level vars.
-	vars := setKibanaVariables(policyTemplate.Vars, scenario.Vars)
-	if _, found := vars["data_stream.dataset"]; !found {
-		var value packages.VarValue
-		_ = value.Unpack(dataset)
-		vars["data_stream.dataset"] = kibana.Var{
-			Value: value,
-			Type:  "text",
-		}
+	configPath := filepath.Clean(filepath.Join(devPath, r.scenario.Corpora.Generator.Config.Path))
+	config, err := config.LoadConfig(configPath)
+	if err != nil {
+		return nil, fmt.Errorf("can't open config file %s: %w", configPath, err)
 	}
 
-	streams[0].Vars = vars
-	r.Inputs[0].Streams = streams
-	return r
+	fieldsPath := filepath.Clean(filepath.Join(devPath, r.scenario.Corpora.Generator.Fields.Path))
+	fieldsBytes, err := os.ReadFile(fieldsPath)
+	if err != nil {
+		return nil, fmt.Errorf("can't open fields file %s: %w", tplPath, err)
+	}
+
+	fields, err := fields.LoadFieldsWithTemplateFromString(context.Background(), string(fieldsBytes))
+	if err != nil {
+		return nil, fmt.Errorf("could not load fields yaml: %w", err)
+	}
+
+	generator, err := genlib.NewGeneratorWithCustomTemplate(tpl, config, fields, totSizeInBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	return generator, nil
 }
 
-func setKibanaVariables(definitions []packages.Variable, values common.MapStr) kibana.Vars {
-	vars := kibana.Vars{}
-	for _, definition := range definitions {
-		val := definition.Default
+func (r *runner) runGenerator(destDir string) error {
+	state := genlib.NewGenState()
 
-		value, err := values.GetValue(definition.Name)
-		if err == nil {
-			val = packages.VarValue{}
-			_ = val.Unpack(value)
+	f, err := os.CreateTemp(destDir, "corpus-*")
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	buf := bytes.NewBufferString("")
+	var corpusDocsCount uint64
+	for {
+		err := r.generator.Emit(state, buf)
+		if err == io.EOF {
+			break
 		}
 
-		vars[definition.Name] = kibana.Var{
-			Type:  definition.Type,
-			Value: val,
+		if err != nil {
+			return err
 		}
+
+		// TODO: this should be taken care of by the corpus generator tool, once it will be done let's remove this
+		event := bytes.ReplaceAll(buf.Bytes(), []byte("\n"), []byte(""))
+		if _, err = f.Write(event); err != nil {
+			return err
+		}
+
+		if _, err = f.Write([]byte("\n")); err != nil {
+			return err
+		}
+
+		buf.Reset()
+		corpusDocsCount += 1
 	}
-	return vars
+
+	return r.generator.Close()
 }
 
-func getDataStreamDataset(pkg packages.PackageManifest, ds packages.DataStreamManifest) string {
-	if len(ds.Dataset) > 0 {
-		return ds.Dataset
+func (r *runner) getTotalHits(dataStream string) (int, error) {
+	resp, err := r.options.ESAPI.Search(
+		r.options.ESAPI.Search.WithIndex(dataStream),
+		r.options.ESAPI.Search.WithSort("@timestamp:asc"),
+		r.options.ESAPI.Search.WithSize(elasticsearchQuerySize),
+	)
+	if err != nil {
+		return 0, fmt.Errorf("could not search data stream: %w", err)
 	}
-	return fmt.Sprintf("%s.%s", pkg.Name, ds.Name)
+	defer resp.Body.Close()
+
+	var results struct {
+		Hits struct {
+			Total struct {
+				Value int
+			}
+		}
+		Error *struct {
+			Type   string
+			Reason string
+		}
+		Status int
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&results); err != nil {
+		return 0, fmt.Errorf("could not decode search results response: %w", err)
+	}
+
+	numHits := results.Hits.Total.Value
+	if results.Error != nil {
+		logger.Debugf("found %d hits in %s data stream: %s: %s Status=%d",
+			numHits, dataStream, results.Error.Type, results.Error.Reason, results.Status)
+	} else {
+		logger.Debugf("found %d hits in %s data stream", numHits, dataStream)
+	}
+
+	return numHits, nil
 }
 
-func checkEnrolledAgents(client *kibana.Client) ([]kibana.Agent, error) {
+func (r *runner) checkEnrolledAgents() ([]kibana.Agent, error) {
 	var agents []kibana.Agent
 	enrolled, err := waitUntilTrue(func() (bool, error) {
 		if signal.SIGINT() {
 			return false, errors.New("SIGINT: cancel checking enrolled agents")
 		}
-		allAgents, err := client.ListAgents()
+		allAgents, err := r.options.KibanaClient.ListAgents()
 		if err != nil {
 			return false, fmt.Errorf("could not list agents: %w", err)
 		}
@@ -677,7 +599,7 @@ func waitUntilTrue(fn func() (bool, error), timeout time.Duration) (bool, error)
 	timeoutTicker := time.NewTicker(timeout)
 	defer timeoutTicker.Stop()
 
-	retryTicker := time.NewTicker(1 * time.Second)
+	retryTicker := time.NewTicker(5 * time.Second)
 	defer retryTicker.Stop()
 
 	for {
@@ -698,130 +620,10 @@ func waitUntilTrue(fn func() (bool, error), timeout time.Duration) (bool, error)
 	}
 }
 
-func (r *runner) getTotalHits(dataStream string) (int, error) {
-	resp, err := r.options.API.Search(
-		r.options.API.Search.WithIndex(dataStream),
-		r.options.API.Search.WithSort("@timestamp:asc"),
-		r.options.API.Search.WithSize(elasticsearchQuerySize),
-	)
-	if err != nil {
-		return 0, fmt.Errorf("could not search data stream: %w", err)
-	}
-	defer resp.Body.Close()
-
-	var results struct {
-		Hits struct {
-			Total struct {
-				Value int
-			}
-		}
-		Error *struct {
-			Type   string
-			Reason string
-		}
-		Status int
-	}
-
-	if err := json.NewDecoder(resp.Body).Decode(&results); err != nil {
-		return 0, fmt.Errorf("could not decode search results response: %w", err)
-	}
-
-	numHits := results.Hits.Total.Value
-	if results.Error != nil {
-		logger.Debugf("found %d hits in %s data stream: %s: %s Status=%d",
-			numHits, dataStream, results.Error.Type, results.Error.Reason, results.Status)
-	} else {
-		logger.Debugf("found %d hits in %s data stream", numHits, dataStream)
-	}
-
-	return numHits, nil
-}
-
-func (r *runner) runGenerator(destDir string) error {
-	state := genlib.NewGenState()
-
-	f, err := os.CreateTemp(destDir, "corpus-*")
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	buf := bytes.NewBufferString("")
-	var corpusDocsCount uint64
-	for {
-		err := r.generator.Emit(state, buf)
-		if err == io.EOF {
-			break
-		}
-
-		if err != nil {
-			return err
-		}
-
-		// TODO: this should be taken care of by the corpus generator tool, once it will be done let's remove this
-		event := bytes.ReplaceAll(buf.Bytes(), []byte("\n"), []byte(""))
-		if _, err = f.Write(event); err != nil {
-			return err
-		}
-
-		if _, err = f.Write([]byte("\n")); err != nil {
-			return err
-		}
-
-		buf.Reset()
-		corpusDocsCount += 1
-	}
-
-	return r.generator.Close()
-}
-
-func deleteDataStreamDocs(api *elasticsearch.API, dataStream string) error {
-	body := strings.NewReader(`{ "query": { "match_all": {} } }`)
-	_, err := api.DeleteByQuery([]string{dataStream}, body)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func createRunID() string {
 	return fmt.Sprintf("%d", rand.Intn(runMaxID-runMinID)+runMinID)
 }
 
-func (r *runner) initializeGenerator() (genlib.Generator, error) {
-	totSizeInBytes, err := humanize.ParseBytes(r.scenario.Corpora.Generator.Size)
-	if err != nil {
-		return nil, err
-	}
-
-	tplPath := filepath.Clean(filepath.Join(devPath, r.scenario.Corpora.Generator.TemplatePath))
-	tpl, err := os.ReadFile(tplPath)
-	if err != nil {
-		return nil, fmt.Errorf("can't open template file %s: %w", tplPath, err)
-	}
-
-	configPath := filepath.Clean(filepath.Join(devPath, r.scenario.Corpora.Generator.ConfigPath))
-	config, err := config.LoadConfig(configPath)
-	if err != nil {
-		return nil, fmt.Errorf("can't open config file %s: %w", configPath, err)
-	}
-
-	fieldsPath := filepath.Clean(filepath.Join(devPath, r.scenario.Corpora.Generator.FieldsPath))
-	fieldsBytes, err := os.ReadFile(fieldsPath)
-	if err != nil {
-		return nil, fmt.Errorf("can't open fields file %s: %w", tplPath, err)
-	}
-
-	fields, err := fields.LoadFieldsWithTemplateFromString(context.Background(), string(fieldsBytes))
-	if err != nil {
-		return nil, fmt.Errorf("could not load fields yaml: %w", err)
-	}
-
-	generator, err := genlib.NewGeneratorWithCustomTemplate(tpl, config, fields, totSizeInBytes)
-	if err != nil {
-		return nil, err
-	}
-
-	return generator, nil
+func getDataStreamPath(packageRoot, dataStream string) string {
+	return filepath.Join(packageRoot, "data_stream", dataStream)
 }
