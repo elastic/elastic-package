@@ -13,12 +13,14 @@ import (
 
 const (
 	ProviderCompose = "compose"
+	ProviderCloud   = "cloud"
 )
 
 var (
 	DefaultProvider    = ProviderCompose
 	SupportedProviders = []string{
 		ProviderCompose,
+		ProviderCloud,
 	}
 )
 
@@ -52,6 +54,8 @@ func BuildProvider(name string, profile *profile.Profile) (Provider, error) {
 	switch name {
 	case "compose":
 		return &composeProvider{}, nil
+	case "cloud":
+		return newCloudProvider(profile)
 	}
 	return nil, fmt.Errorf("unknown provider %q, supported providers: %s", name, strings.Join(SupportedProviders, ", "))
 }
