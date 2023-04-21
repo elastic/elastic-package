@@ -110,7 +110,8 @@ func (cp *cloudProvider) BootUp(options Options) error {
 		API:     cp.api,
 		Request: payload,
 		Overrides: &deploymentapi.PayloadOverrides{
-			Name: name,
+			Name:    name,
+			Version: options.StackVersion,
 		},
 	})
 	if err != nil {
