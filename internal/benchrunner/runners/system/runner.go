@@ -11,13 +11,16 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"math/rand"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/dustin/go-humanize"
+	"github.com/google/uuid"
+	"gopkg.in/yaml.v2"
+
 	"github.com/elastic/elastic-integration-corpus-generator-tool/pkg/genlib"
 	"github.com/elastic/elastic-integration-corpus-generator-tool/pkg/genlib/config"
 	"github.com/elastic/elastic-integration-corpus-generator-tool/pkg/genlib/fields"
@@ -25,6 +28,7 @@ import (
 	"github.com/elastic/elastic-package/internal/benchrunner/reporters"
 	"github.com/elastic/elastic-package/internal/benchrunner/runners/system/servicedeployer"
 	"github.com/elastic/elastic-package/internal/configuration/locations"
+	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/multierror"
@@ -33,12 +37,6 @@ import (
 )
 
 const (
-	runMaxID = 99999
-	runMinID = 10000
-
-	// Maximum number of events to query.
-	elasticsearchQuerySize = 500
-
 	// ServiceLogsAgentDir is folder path where log files produced by the service
 	// are stored on the Agent container's filesystem.
 	ServiceLogsAgentDir = "/tmp/service_logs"
@@ -55,9 +53,11 @@ type runner struct {
 	options  Options
 	scenario *scenario
 
-	generator         genlib.Generator
 	ctxt              servicedeployer.ServiceContext
 	runtimeDataStream string
+	pipelinePrefix    string
+	generator         genlib.Generator
+	mcollector        *collector
 
 	// Execution order of following handlers is defined in runner.TearDown() method.
 	deletePolicyHandler     func() error
@@ -80,6 +80,11 @@ func (r *runner) Run() (reporters.Reportable, error) {
 }
 
 func (r *runner) TearDown() error {
+	if r.options.DeferCleanup > 0 {
+		logger.Debugf("waiting for %s before tearing down...", r.options.DeferCleanup)
+		signal.Sleep(r.options.DeferCleanup)
+	}
+
 	var merr multierror.Error
 
 	if r.resetAgentPolicyHandler != nil {
@@ -162,26 +167,31 @@ func (r *runner) setUp() error {
 		return fmt.Errorf("reading data stream manifest failed: %w", err)
 	}
 
-	dataStream := fmt.Sprintf(
+	r.runtimeDataStream = fmt.Sprintf(
 		"%s-%s.%s-%s",
 		dataStreamManifest.Type,
 		pkgManifest.Name,
 		dataStreamManifest.Name,
 		policy.Namespace,
 	)
-
-	r.runtimeDataStream = dataStream
+	r.pipelinePrefix = fmt.Sprintf(
+		"%s-%s.%s-%s",
+		dataStreamManifest.Type,
+		pkgManifest.Name,
+		dataStreamManifest.Name,
+		r.scenario.Version,
+	)
 
 	r.wipeDataStreamHandler = func() error {
 		logger.Debugf("deleting data in data stream...")
-		if err := r.deleteDataStreamDocs(dataStream); err != nil {
+		if err := r.deleteDataStreamDocs(r.runtimeDataStream); err != nil {
 			return fmt.Errorf("error deleting data in data stream: %w", err)
 		}
 		return nil
 	}
 
-	if err := r.deleteDataStreamDocs(dataStream); err != nil {
-		return fmt.Errorf("error deleting old data in data stream: %s: %w", dataStream, err)
+	if err := r.deleteDataStreamDocs(r.runtimeDataStream); err != nil {
+		return fmt.Errorf("error deleting old data in data stream: %s: %w", r.runtimeDataStream, err)
 	}
 
 	cleared, err := waitUntilTrue(func() (bool, error) {
@@ -189,7 +199,7 @@ func (r *runner) setUp() error {
 			return true, errors.New("SIGINT: cancel clearing data")
 		}
 
-		hits, err := r.getTotalHits(dataStream)
+		hits, err := getTotalHits(r.options.ESAPI, r.runtimeDataStream)
 		return hits == 0, err
 	}, 2*time.Minute)
 	if err != nil || !cleared {
@@ -277,6 +287,9 @@ func (r *runner) run() (report reporters.Reportable, err error) {
 		}
 	}
 
+	r.startMetricsColletion()
+
+	// if there is a generator config, generate the data
 	if r.generator != nil {
 		logger.Debugf("generating corpus data to %s...", r.ctxt.Logs.Folder.Local)
 		if err := r.runGenerator(r.ctxt.Logs.Folder.Local); err != nil {
@@ -291,43 +304,47 @@ func (r *runner) run() (report reporters.Reportable, err error) {
 		}
 	}
 
-	logger.Debug("checking for all data in data stream...")
-	oldHits := 0
-	_, err = waitUntilTrue(func() (bool, error) {
-		if signal.SIGINT() {
-			return true, errors.New("SIGINT: cancel waiting for policy assigned")
-		}
-
-		var err error
-		hits, err := r.getTotalHits(r.runtimeDataStream)
-		if hits == 0 {
-			return false, err
-		}
-
-		ret := hits == oldHits
-		if hits != oldHits {
-			oldHits = hits
-		}
-
-		return ret, err
-	}, waitForDataDefaultTimeout)
-	if err != nil {
+	if err := r.waitUntilBenchmarkFinishes(); err != nil {
 		return nil, err
 	}
 
-	// get metrics
+	msum, err := r.collectAndSummarizeMetrics()
+	if err != nil {
+		return nil, fmt.Errorf("can't summarize metrics: %w", err)
+	}
 
-	// generate report
+	// TODO reindex if configured and es metricstore is set
 
-	return nil, nil
+	return createReport(r.options.BenchName, r.scenario, msum)
 }
+
+func (r *runner) startMetricsColletion() {
+	// TODO send metrics to es metricstore if set
+	// TODO collect agent hosts metrics using system integration
+	warmup := time.Duration(r.scenario.WarmupTimePeriodSecs) * time.Second
+	r.mcollector = newCollector(
+		r.ctxt,
+		r.options.ESAPI,
+		r.options.MetricsInterval,
+		warmup,
+		r.runtimeDataStream,
+		r.pipelinePrefix,
+	)
+	r.mcollector.start()
+}
+
+func (r *runner) collectAndSummarizeMetrics() (*metricsSummary, error) {
+	r.mcollector.stop()
+	sum, err := r.mcollector.summarize()
+	return sum, err
+}
+
 func (r *runner) deleteDataStreamDocs(dataStream string) error {
 	body := strings.NewReader(`{ "query": { "match_all": {} } }`)
 	_, err := r.options.ESAPI.DeleteByQuery([]string{dataStream}, body)
 	if err != nil {
 		return err
 	}
-
 	return nil
 }
 
@@ -340,24 +357,6 @@ func (r *runner) createBenchmarkPolicy(pkgManifest *packages.PackageManifest) (*
 		Description:       fmt.Sprintf("policy created by elastic-package for benchmark %s", r.options.BenchName),
 		Namespace:         "ep",
 		MonitoringEnabled: []string{"logs", "metrics"},
-	}
-
-	var out *kibana.Output
-	if r.options.MetricstoreESURL != "" {
-		o := kibana.Output{
-			Name:                "Benchmark Metricstore",
-			Type:                "elasticsearch",
-			IsDefault:           false,
-			IsDefaultMonitoring: true,
-			Hosts:               []string{r.options.MetricstoreESURL},
-		}
-
-		var err error
-		out, err = r.options.KibanaClient.CreateOutput(o)
-		if err != nil {
-			return nil, err
-		}
-		p.MonitoringOutputID = out.ID
 	}
 
 	policy, err := r.options.KibanaClient.CreatePolicy(p)
@@ -383,13 +382,6 @@ func (r *runner) createBenchmarkPolicy(pkgManifest *packages.PackageManifest) (*
 			merr = append(merr, fmt.Errorf("error cleaning up benchmark policy: %w", err))
 		}
 
-		if out != nil {
-			logger.Debug("deleting benchmark metricstore output...")
-			if err := r.options.KibanaClient.DeleteOutput(*out); err != nil {
-				merr = append(merr, fmt.Errorf("error cleaning up benchmark policy: %w", err))
-			}
-		}
-
 		if len(merr) > 0 {
 			return merr
 		}
@@ -405,6 +397,10 @@ func (r *runner) createPackagePolicy(pkgManifest *packages.PackageManifest, p *k
 
 	if r.scenario.Version == "" {
 		r.scenario.Version = pkgManifest.Version
+	}
+
+	if r.scenario.Package == "" {
+		r.scenario.Package = pkgManifest.Name
 	}
 
 	pp := kibana.PackagePolicy{
@@ -441,35 +437,130 @@ func (r *runner) initializeGenerator() (genlib.Generator, error) {
 		return nil, err
 	}
 
-	tplPath := filepath.Clean(filepath.Join(devPath, r.scenario.Corpora.Generator.Template.Path))
-	tpl, err := os.ReadFile(tplPath)
+	config, err := r.getGeneratorConfig()
 	if err != nil {
-		return nil, fmt.Errorf("can't open template file %s: %w", tplPath, err)
+		return nil, err
 	}
 
-	configPath := filepath.Clean(filepath.Join(devPath, r.scenario.Corpora.Generator.Config.Path))
-	config, err := config.LoadConfig(configPath)
+	fields, err := r.getGeneratorFields()
 	if err != nil {
-		return nil, fmt.Errorf("can't open config file %s: %w", configPath, err)
+		return nil, err
 	}
 
-	fieldsPath := filepath.Clean(filepath.Join(devPath, r.scenario.Corpora.Generator.Fields.Path))
-	fieldsBytes, err := os.ReadFile(fieldsPath)
+	tpl, err := r.getGeneratorTemplate()
 	if err != nil {
-		return nil, fmt.Errorf("can't open fields file %s: %w", tplPath, err)
+		return nil, err
 	}
 
-	fields, err := fields.LoadFieldsWithTemplateFromString(context.Background(), string(fieldsBytes))
-	if err != nil {
-		return nil, fmt.Errorf("could not load fields yaml: %w", err)
+	var generator genlib.Generator
+	switch r.scenario.Corpora.Generator.Template.Type {
+	default:
+		logger.Debugf("unknown generator template type %q, defaulting to \"placeholder\"", r.scenario.Corpora.Generator.Template.Type)
+		fallthrough
+	case "", "placeholder":
+		generator, err = genlib.NewGeneratorWithCustomTemplate(tpl, *config, fields, totSizeInBytes)
+	case "gotext":
+		generator, err = genlib.NewGeneratorWithTextTemplate(tpl, *config, fields, totSizeInBytes)
 	}
 
-	generator, err := genlib.NewGeneratorWithCustomTemplate(tpl, config, fields, totSizeInBytes)
 	if err != nil {
 		return nil, err
 	}
 
 	return generator, nil
+}
+
+func (r *runner) getGeneratorConfig() (*config.Config, error) {
+	var (
+		data []byte
+		err  error
+	)
+
+	if r.scenario.Corpora.Generator.Config.Path != "" {
+		configPath := filepath.Clean(filepath.Join(devPath, r.scenario.Corpora.Generator.Config.Path))
+		configPath = os.ExpandEnv(configPath)
+		if _, err := os.Stat(configPath); err != nil {
+			return nil, fmt.Errorf("can't find config file %s: %w", configPath, err)
+		}
+		data, err = ioutil.ReadFile(configPath)
+		if err != nil {
+			return nil, fmt.Errorf("can't read config file %s: %w", configPath, err)
+		}
+	}
+
+	if len(r.scenario.Corpora.Generator.Config.Raw) > 0 {
+		data, err = yaml.Marshal(r.scenario.Corpora.Generator.Config.Raw)
+		if err != nil {
+			return nil, fmt.Errorf("can't parse raw generator config: %w", err)
+		}
+	}
+
+	cfg, err := config.LoadConfigFromYaml(data)
+	if err != nil {
+		return nil, fmt.Errorf("can't get generator config: %w", err)
+	}
+
+	return &cfg, nil
+}
+
+func (r *runner) getGeneratorFields() (fields.Fields, error) {
+	var (
+		data []byte
+		err  error
+	)
+
+	if r.scenario.Corpora.Generator.Fields.Path != "" {
+		fieldsPath := filepath.Clean(filepath.Join(devPath, r.scenario.Corpora.Generator.Fields.Path))
+		fieldsPath = os.ExpandEnv(fieldsPath)
+		if _, err := os.Stat(fieldsPath); err != nil {
+			return nil, fmt.Errorf("can't find fields file %s: %w", fieldsPath, err)
+		}
+
+		data, err = os.ReadFile(fieldsPath)
+		if err != nil {
+			return nil, fmt.Errorf("can't read fields file %s: %w", fieldsPath, err)
+		}
+	}
+
+	if len(r.scenario.Corpora.Generator.Fields.Raw) > 0 {
+		data, err = yaml.Marshal(r.scenario.Corpora.Generator.Config.Raw)
+		if err != nil {
+			return nil, fmt.Errorf("can't parse raw generator config: %w", err)
+		}
+	}
+
+	fields, err := fields.LoadFieldsWithTemplateFromString(context.Background(), string(data))
+	if err != nil {
+		return nil, fmt.Errorf("could not load fields yaml: %w", err)
+	}
+
+	return fields, nil
+}
+
+func (r *runner) getGeneratorTemplate() ([]byte, error) {
+	var (
+		data []byte
+		err  error
+	)
+
+	if r.scenario.Corpora.Generator.Template.Path != "" {
+		tplPath := filepath.Clean(filepath.Join(devPath, r.scenario.Corpora.Generator.Template.Path))
+		tplPath = os.ExpandEnv(tplPath)
+		if _, err := os.Stat(tplPath); err != nil {
+			return nil, fmt.Errorf("can't find template file %s: %w", tplPath, err)
+		}
+
+		data, err = os.ReadFile(tplPath)
+		if err != nil {
+			return nil, fmt.Errorf("can't read template file %s: %w", tplPath, err)
+		}
+	}
+
+	if len(r.scenario.Corpora.Generator.Template.Raw) > 0 {
+		data = []byte(r.scenario.Corpora.Generator.Template.Raw)
+	}
+
+	return data, nil
 }
 
 func (r *runner) runGenerator(destDir string) error {
@@ -510,45 +601,6 @@ func (r *runner) runGenerator(destDir string) error {
 	return r.generator.Close()
 }
 
-func (r *runner) getTotalHits(dataStream string) (int, error) {
-	resp, err := r.options.ESAPI.Search(
-		r.options.ESAPI.Search.WithIndex(dataStream),
-		r.options.ESAPI.Search.WithSort("@timestamp:asc"),
-		r.options.ESAPI.Search.WithSize(elasticsearchQuerySize),
-	)
-	if err != nil {
-		return 0, fmt.Errorf("could not search data stream: %w", err)
-	}
-	defer resp.Body.Close()
-
-	var results struct {
-		Hits struct {
-			Total struct {
-				Value int
-			}
-		}
-		Error *struct {
-			Type   string
-			Reason string
-		}
-		Status int
-	}
-
-	if err := json.NewDecoder(resp.Body).Decode(&results); err != nil {
-		return 0, fmt.Errorf("could not decode search results response: %w", err)
-	}
-
-	numHits := results.Hits.Total.Value
-	if results.Error != nil {
-		logger.Debugf("found %d hits in %s data stream: %s: %s Status=%d",
-			numHits, dataStream, results.Error.Type, results.Error.Reason, results.Status)
-	} else {
-		logger.Debugf("found %d hits in %s data stream", numHits, dataStream)
-	}
-
-	return numHits, nil
-}
-
 func (r *runner) checkEnrolledAgents() ([]kibana.Agent, error) {
 	var agents []kibana.Agent
 	enrolled, err := waitUntilTrue(func() (bool, error) {
@@ -576,11 +628,84 @@ func (r *runner) checkEnrolledAgents() ([]kibana.Agent, error) {
 	return agents, nil
 }
 
+func (r *runner) waitUntilBenchmarkFinishes() error {
+	logger.Debug("checking for all data in data stream...")
+	var benchTime *time.Timer
+	if r.scenario.BenchmarkTimeSecs > 0 {
+		benchTime = time.NewTimer(time.Duration(r.scenario.BenchmarkTimeSecs) * time.Second)
+	}
+
+	oldHits := 0
+	_, err := waitUntilTrue(func() (bool, error) {
+		if signal.SIGINT() {
+			return true, errors.New("SIGINT: cancel waiting for policy assigned")
+		}
+
+		var err error
+		hits, err := getTotalHits(r.options.ESAPI, r.runtimeDataStream)
+		if hits == 0 {
+			return false, err
+		}
+
+		ret := hits == oldHits
+		if hits != oldHits {
+			oldHits = hits
+		}
+
+		if benchTime != nil {
+			select {
+			case <-benchTime.C:
+				return true, err
+			default:
+				return false, err
+			}
+		}
+
+		return ret, err
+	}, waitForDataDefaultTimeout)
+	return err
+}
+
+func getTotalHits(esapi *elasticsearch.API, dataStream string) (int, error) {
+	resp, err := esapi.Count(
+		esapi.Count.WithIndex(dataStream),
+	)
+	if err != nil {
+		return 0, fmt.Errorf("could not search data stream: %w", err)
+	}
+	defer resp.Body.Close()
+
+	var results struct {
+		Count int
+		Error *struct {
+			Type   string
+			Reason string
+		}
+		Status int
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&results); err != nil {
+		return 0, fmt.Errorf("could not decode search results response: %w", err)
+	}
+
+	numHits := results.Count
+	if results.Error != nil {
+		logger.Debugf("found %d hits in %s data stream: %s: %s Status=%d",
+			numHits, dataStream, results.Error.Type, results.Error.Reason, results.Status)
+	} else {
+		logger.Debugf("found %d hits in %s data stream", numHits, dataStream)
+	}
+
+	return numHits, nil
+}
+
 func filterAgents(allAgents []kibana.Agent) []kibana.Agent {
 	var filtered []kibana.Agent
 	for _, agent := range allAgents {
 		if agent.PolicyRevision == 0 {
-			continue // For some reason Kibana doesn't always return a valid policy revision (eventually it will be present and valid)
+			// For some reason Kibana doesn't always return
+			// a valid policy revision (eventually it will be present and valid)
+			continue
 		}
 
 		// best effort to ignore fleet server agents
@@ -621,7 +746,7 @@ func waitUntilTrue(fn func() (bool, error), timeout time.Duration) (bool, error)
 }
 
 func createRunID() string {
-	return fmt.Sprintf("%d", rand.Intn(runMaxID-runMinID)+runMinID)
+	return uuid.New().String()
 }
 
 func getDataStreamPath(packageRoot, dataStream string) string {

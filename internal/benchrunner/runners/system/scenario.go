@@ -21,14 +21,15 @@ const (
 )
 
 type scenario struct {
-	Description      string                 `config:"description"`
-	Version          string                 `config:"version"`
-	PolicyTemplate   string                 `config:"policy_template"`
-	Input            string                 `config:"input"`
-	Vars             map[string]interface{} `config:"vars"`
-	DataStream       dataStream             `config:"data_stream"`
-	WarmupTimePeriod int                    `config:"warmup_time_period"`
-	Corpora          corpora                `config:"corpora"`
+	Package              string                 `config:"package"`
+	Description          string                 `config:"description"`
+	Version              string                 `config:"version"`
+	Input                string                 `config:"input"`
+	Vars                 map[string]interface{} `config:"vars"`
+	DataStream           dataStream             `config:"data_stream"`
+	WarmupTimePeriodSecs int                    `config:"warmup_time_period"`
+	BenchmarkTimeSecs    int                    `config:"benchmark_time"`
+	Corpora              corpora                `config:"corpora"`
 }
 
 type dataStream struct {
@@ -47,10 +48,26 @@ type inputService struct {
 }
 
 type generator struct {
-	Size         string `config:"size"`
-	TemplatePath string `config:"template_path"`
-	ConfigPath   string `config:"config_path"`
-	FieldsPath   string `config:"fields_path"`
+	Size     string          `config:"size"`
+	Template corporaTemplate `config:"template"`
+	Config   corporaConfig   `config:"config"`
+	Fields   corporaFields   `config:"fields"`
+}
+
+type corporaTemplate struct {
+	Raw  string `config:"raw"`
+	Path string `config:"path"`
+	Type string `config:"type"`
+}
+
+type corporaConfig struct {
+	Raw  map[string]interface{} `config:"raw"`
+	Path string                 `config:"path"`
+}
+
+type corporaFields struct {
+	Raw  map[string]interface{} `config:"raw"`
+	Path string                 `config:"path"`
 }
 
 func defaultConfig() *scenario {
@@ -69,7 +86,7 @@ func readConfig(path, scenario string, ctxt servicedeployer.ServiceContext) (*sc
 
 	data, err = applyContext(data, ctxt)
 	if err != nil {
-		return nil, fmt.Errorf("could not apply context to test configuration file: %s: %w", configPath)
+		return nil, fmt.Errorf("could not apply context to test configuration file: %s: %w", configPath, err)
 	}
 
 	cfg, err := yaml.NewConfig(data, ucfg.PathSep("."))
