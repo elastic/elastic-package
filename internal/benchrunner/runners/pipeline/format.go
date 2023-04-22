@@ -9,6 +9,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/jedib0t/go-pretty/table"
 	"github.com/jedib0t/go-pretty/text"
@@ -30,7 +31,7 @@ type Format string
 func formatResult(name Format, result *BenchmarkResult) (report []byte, err error) {
 	switch name {
 	case ReportFormatHuman:
-		return reportHumanFormat(result)
+		return reportHumanFormat(result), nil
 	case ReportFormatJSON:
 		return reportJSONFormat(result)
 	case ReportFormatXUnit:
@@ -39,7 +40,7 @@ func formatResult(name Format, result *BenchmarkResult) (report []byte, err erro
 	return nil, fmt.Errorf("unknown format: %s", name)
 }
 
-func reportHumanFormat(b *BenchmarkResult) ([]byte, error) {
+func reportHumanFormat(b *BenchmarkResult) []byte {
 	var report strings.Builder
 	if len(b.Parameters) > 0 {
 		report.WriteString(renderBenchmarkTable("parameters", b.Parameters) + "\n")
@@ -47,7 +48,7 @@ func reportHumanFormat(b *BenchmarkResult) ([]byte, error) {
 	for _, t := range b.Tests {
 		report.WriteString(renderBenchmarkTable(t.Name, t.Results) + "\n")
 	}
-	return []byte(report.String()), nil
+	return []byte(report.String())
 }
 
 func renderBenchmarkTable(title string, values []BenchmarkValue) string {
@@ -100,12 +101,21 @@ func reportXUnitFormat(b *BenchmarkResult) ([]byte, error) {
 	return out, nil
 }
 
-func extensionByFormat(format Format) string {
+func filenameByFormat(pkg string, format Format) string {
+	var ext string
 	switch format {
+	default:
+		fallthrough
 	case ReportFormatJSON:
-		return "json"
+		ext = "json"
 	case ReportFormatXUnit:
-		return "xml"
+		ext = "xml"
 	}
-	return ""
+	fileName := fmt.Sprintf(
+		"%s_%d.%s",
+		pkg,
+		time.Now().UnixNano(),
+		ext,
+	)
+	return fileName
 }

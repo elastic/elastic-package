@@ -91,7 +91,7 @@ func (r *runner) run() (reporters.Reportable, error) {
 
 	return reporters.NewFileReport(
 		r.options.BenchName,
-		extensionByFormat(r.options.Format),
+		filenameByFormat(r.options.BenchName, r.options.Format),
 		formattedReport,
 	), nil
 }

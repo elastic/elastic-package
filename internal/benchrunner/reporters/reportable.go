@@ -4,41 +4,69 @@
 
 package reporters
 
+// Reportable defines a raw report associated to a package.
 type Reportable interface {
 	Package() string
 	Report() []byte
 }
 
 type Report struct {
-	benchName string
-	p         []byte
+	pkg string
+	p   []byte
 }
 
-func NewReport(benchName string, p []byte) *Report {
-	return &Report{benchName: benchName, p: p}
+func NewReport(pkg string, p []byte) *Report {
+	return &Report{pkg: pkg, p: p}
 }
 
-func (r *Report) Package() string { return r.benchName }
+func (r *Report) Package() string { return r.pkg }
 
 func (r *Report) Report() []byte { return r.p }
 
+// Reportable file associates a report to a filename.
 type ReportableFile interface {
 	Reportable
-	Extension() string
+	Filename() string
 }
 
 type FileReport struct {
-	benchName string
-	p         []byte
-	extension string
+	pkg      string
+	p        []byte
+	filename string
 }
 
-func NewFileReport(benchName, ext string, p []byte) *FileReport {
-	return &FileReport{benchName: benchName, p: p, extension: ext}
+func NewFileReport(pkg, name string, p []byte) *FileReport {
+	return &FileReport{pkg: pkg, p: p, filename: name}
 }
 
-func (r *FileReport) Package() string { return r.benchName }
+func (r *FileReport) Package() string { return r.pkg }
 
 func (r *FileReport) Report() []byte { return r.p }
 
-func (r *FileReport) Extension() string { return r.extension }
+func (r *FileReport) Filename() string { return r.filename }
+
+// MultiReportable defines an extended interface to ship multiple reports together.
+// A call to Report() will return all reports contents combined.
+type MultiReportable interface {
+	Reportable
+	Split() []Reportable
+}
+
+type MultiReport struct {
+	pkg     string
+	reports []Reportable
+}
+
+func NewMultiReport(pkg string, reports []Reportable) *MultiReport {
+	return &MultiReport{pkg: pkg, reports: reports}
+}
+
+func (r *MultiReport) Package() string { return r.pkg }
+
+func (r *MultiReport) Report() []byte {
+	var combined []byte
+	for _, fr := range r.reports {
+		combined = append(combined, append(fr.Report(), '\n')...)
+	}
+	return combined
+}
