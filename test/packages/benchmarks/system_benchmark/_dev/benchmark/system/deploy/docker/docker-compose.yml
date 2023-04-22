@@ -1,8 +1,0 @@
-version: "2.3"
-services:
-  udp-sender:
-    image: docker.elastic.co/observability/stream:v0.8.0
-    volumes:
-      - ${SERVICE_LOGS_DIR}:/sample_logs:ro
-      # - /Users/marcguasch/.elastic-package/tmp/service_logs:/sample_logs:ro
-    command: log --start-signal=SIGHUP --delay=5s --addr elastic-agent:9511 -p=udp /sample_logs/*
