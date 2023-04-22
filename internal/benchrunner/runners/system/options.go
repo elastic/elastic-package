@@ -5,6 +5,8 @@
 package system
 
 import (
+	"time"
+
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/kibana"
 )
@@ -13,6 +15,9 @@ import (
 type Options struct {
 	ESAPI            *elasticsearch.API
 	KibanaClient     *kibana.Client
+	DeferCleanup     time.Duration
+	MetricsInterval  time.Duration
+	ReindexData      bool
 	MetricstoreESURL string
 	BenchName        string
 	PackageRootPath  string
@@ -49,5 +54,21 @@ func WithPackageRootPath(path string) OptionFunc {
 func WithBenchmarkName(name string) OptionFunc {
 	return func(opts *Options) {
 		opts.BenchName = name
+	}
+}
+
+func WithDeferCleanup(d time.Duration) OptionFunc {
+	return func(opts *Options) {
+		opts.DeferCleanup = d
+	}
+}
+func WithMetricsInterval(d time.Duration) OptionFunc {
+	return func(opts *Options) {
+		opts.MetricsInterval = d
+	}
+}
+func WithDataReindexing(b bool) OptionFunc {
+	return func(opts *Options) {
+		opts.ReindexData = b
 	}
 }

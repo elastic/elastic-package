@@ -35,6 +35,12 @@ const (
 	BenchNumTopProcsFlagName        = "num-top-procs"
 	BenchNumTopProcsFlagDescription = "number of top processors to show in the benchmarks results"
 
+	BenchMetricsIntervalFlagName        = "metrics-collection-interval"
+	BenchMetricsIntervalFlagDescription = "the interval at which metrics are collected"
+
+	BenchReindexToMetricstoreFlagName        = "reindex-to-metricstore"
+	BenchReindexToMetricstoreFlagDescription = "if set the documents from the benchmark will be reindexed to the metricstore for posterior analysis"
+
 	BenchReportNewPathFlagName        = "new"
 	BenchReportNewPathFlagDescription = "path of the directory containing the new benchmarks of the report"
 

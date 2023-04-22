@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/dustin/go-humanize"
 
@@ -202,9 +203,10 @@ func getSystemCommand() *cobra.Command {
 		RunE:  systemCommandAction,
 	}
 
-	cmd.Flags().StringP(cobraext.ReportFormatFlagName, "", string(pipeline.ReportFormatHuman), cobraext.ReportFormatFlagDescription)
-	cmd.Flags().StringP(cobraext.ReportOutputFlagName, "", string(outputs.ReportOutputSTDOUT), cobraext.ReportOutputFlagDescription)
 	cmd.Flags().StringP(cobraext.BenchNameFlagName, "", "", cobraext.BenchNameFlagDescription)
+	cmd.Flags().BoolP(cobraext.BenchReindexToMetricstoreFlagName, "", false, cobraext.BenchReindexToMetricstoreFlagDescription)
+	cmd.Flags().DurationP(cobraext.BenchMetricsIntervalFlagName, "", time.Second, cobraext.BenchMetricsIntervalFlagDescription)
+	cmd.Flags().DurationP(cobraext.DeferCleanupFlagName, "", 0, cobraext.DeferCleanupFlagDescription)
 
 	return cmd
 }
@@ -212,20 +214,24 @@ func getSystemCommand() *cobra.Command {
 func systemCommandAction(cmd *cobra.Command, args []string) error {
 	cmd.Println("Run system benchmarks for the package")
 
-	reportFormat, err := cmd.Flags().GetString(cobraext.ReportFormatFlagName)
-	if err != nil {
-		return cobraext.FlagParsingError(err, cobraext.ReportFormatFlagName)
-	}
-	_ = reportFormat
-
-	reportOutput, err := cmd.Flags().GetString(cobraext.ReportOutputFlagName)
-	if err != nil {
-		return cobraext.FlagParsingError(err, cobraext.ReportOutputFlagName)
-	}
-
 	benchName, err := cmd.Flags().GetString(cobraext.BenchNameFlagName)
 	if err != nil {
 		return cobraext.FlagParsingError(err, cobraext.BenchNameFlagName)
+	}
+
+	deferCleanup, err := cmd.Flags().GetDuration(cobraext.DeferCleanupFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.DeferCleanupFlagName)
+	}
+
+	metricsInterval, err := cmd.Flags().GetDuration(cobraext.BenchMetricsIntervalFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.BenchMetricsIntervalFlagName)
+	}
+
+	dataReindex, err := cmd.Flags().GetBool(cobraext.BenchReindexToMetricstoreFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.BenchReindexToMetricstoreFlagName)
 	}
 
 	packageRootPath, found, err := packages.FindPackageRoot()
@@ -254,6 +260,9 @@ func systemCommandAction(cmd *cobra.Command, args []string) error {
 
 	opts := system.NewOptions(
 		system.WithBenchmarkName(benchName),
+		system.WithDeferCleanup(deferCleanup),
+		system.WithMetricsInterval(metricsInterval),
+		system.WithDataReindexing(dataReindex),
 		system.WithPackageRootPath(packageRootPath),
 		system.WithESAPI(esClient.API),
 		system.WithKibanaClient(kc),
@@ -265,7 +274,7 @@ func systemCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("error running package system benchmarks: %w", err)
 	}
 
-	if err := reporters.WriteReportable(reporters.Output(reportOutput), r); err != nil {
+	if err := reporters.WriteReportable(reporters.Output(outputs.ReportOutputSTDOUT), r); err != nil {
 		return fmt.Errorf("error writing benchmark report: %w", err)
 	}
 
