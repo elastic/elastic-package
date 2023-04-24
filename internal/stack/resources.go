@@ -47,6 +47,8 @@ const (
 
 	elasticsearchUsername = "elastic"
 	elasticsearchPassword = "changeme"
+
+	serverless = "false"
 )
 
 var (
@@ -117,6 +119,8 @@ func applyResources(profile *profile.Profile, stackVersion string) error {
 
 		"username": elasticsearchUsername,
 		"password": elasticsearchPassword,
+
+		"serverless": serverless,
 
 		"geoip_dir": profile.Config("stack.geoip_dir", "./ingest-geoip"),
 	})

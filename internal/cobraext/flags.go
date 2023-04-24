@@ -170,6 +170,9 @@ const (
 	ZipPackageFilePathFlagShorthand   = "z"
 	ZipPackageFilePathFlagDescription = "path to the zip package file (*.zip)"
 
+	ServerlessFlagName        = "serverless"
+	ServerlessFlagDescription = "serverless flag (true or false)"
+
 	// To be removed promote commands flags
 	DirectionFlagName        = "direction"
 	DirectionFlagDescription = "promotion direction"

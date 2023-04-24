@@ -1,5 +1,6 @@
 {{ $username := fact "username" }}
 {{ $password := fact "password" }}
+{{ $serverless := fact "serverless" }}
 version: '2.3'
 services:
   elasticsearch:
@@ -9,7 +10,7 @@ services:
       start_period: 300s
       interval: 5s
     environment:
-      - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
+      - "ES_JAVA_OPTS=-Xms1g -Xmx1g -Des.serverless={{ $serverless }}"
       - "ELASTIC_PASSWORD={{ $password }}"
     volumes:
       - "./elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml"

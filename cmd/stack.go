@@ -73,6 +73,11 @@ func setupStackCommand() *cobraext.Command {
 				return cobraext.FlagParsingError(err, cobraext.StackVersionFlagName)
 			}
 
+			/*serverless, err := cmd.Flags().GetString(cobraext.ServerlessFlagName)
+			if err != nil {
+				return cobraext.FlagParsingError(err, cobraext.ServerlessFlagName)
+			}*/
+
 			profile, err := getProfileFlag(cmd)
 			if err != nil {
 				return err
