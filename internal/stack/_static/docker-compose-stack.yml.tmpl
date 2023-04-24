@@ -137,6 +137,9 @@ services:
     - type: bind
       source: ../../../tmp/service_logs/
       target: /tmp/service_logs/
+    - type: bind
+      source: ../../../tmp/service_logs/
+      target: /run/service_logs/
 
   elastic-agent_is_ready:
     image: tianon/true
