@@ -111,7 +111,12 @@ fi
 echo "--- Run integration test ${TARGET}"
 if [[ "${TARGET}" == "${PARALLEL_TARGET}" ]]; then
     make install
+
+    # allow to fail this command, to be able to upload safe logs
+    set +e
     make PACKAGE_UNDER_TEST=${PACKAGE} ${TARGET}
+    testReturnCode=$?
+    set -e
 
     if [[ "${UPLOAD_SAFE_LOGS}" -eq 1 ]] ; then
         upload_safe_logs \
@@ -124,6 +129,12 @@ if [[ "${TARGET}" == "${PARALLEL_TARGET}" ]]; then
             "build/container-logs/*.log" \
             "insecure-logs/${PACKAGE}/container-logs/"
     fi
+
+    if [ $testReturnCode != 0 ]; then
+        echo "make PACKAGE_UDER_TEST=${PACKAGE} ${TARGET} failed with ${testReturnCode}"
+        exit ${testReturnCode}
+    fi
+
     make check-git-clean
     exit 0
 fi
