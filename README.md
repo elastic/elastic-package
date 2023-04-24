@@ -100,6 +100,12 @@ These benchmarks allow you to benchmark any Ingest Node Pipelines defined by you
 
 For details on how to configure pipeline benchmarks for a package, review the [HOWTO guide](./docs/howto/pipeline_benchmarking.md).
 
+#### System Benchmarks
+
+These benchmarks allow you to benchmark an integration end to end.
+
+For details on how to configure system benchmarks for a package, review the [HOWTO guide](./docs/howto/system_benchmarking.md).
+
 ### `elastic-package benchmark generate-corpus`
 
 _Context: package_
@@ -115,6 +121,12 @@ For details on how to run this command, review the [HOWTO guide](./docs/howto/ge
 _Context: package_
 
 Run pipeline benchmarks for the package.
+
+### `elastic-package benchmark system`
+
+_Context: package_
+
+Run system benchmarks for the package.
 
 ### `elastic-package build`
 
@@ -324,11 +336,11 @@ The report will show performance differences between both runs.
 It is formatted as a Markdown Github comment to use as part of the CI results.
 
 
-### `elastic-package report benchmark`
+### `elastic-package report pipeline-bench`
 
 _Context: package_
 
-Generate a benchmark report comparing local results against ones from another benchmark run.
+Generate a pipeline benchmark report comparing local results against ones from another benchmark run.
 
 ### `elastic-package service`
 
