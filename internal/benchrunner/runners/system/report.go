@@ -104,7 +104,7 @@ func reportHumanFormat(r *report) []byte {
 		"run ID", r.Info.RunID,
 		"package", r.Info.Package,
 		"start ts (s)", r.Info.StartTs,
-		"end ts (s)", r.Info.StartTs,
+		"end ts (s)", r.Info.EndTs,
 		"duration", r.Info.Duration,
 	) + "\n")
 
