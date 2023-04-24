@@ -54,6 +54,7 @@ type runner struct {
 	scenario *scenario
 
 	ctxt              servicedeployer.ServiceContext
+	benchPolicy       *kibana.Policy
 	runtimeDataStream string
 	pipelinePrefix    string
 	generator         genlib.Generator
@@ -154,6 +155,7 @@ func (r *runner) setUp() error {
 	if err != nil {
 		return err
 	}
+	r.benchPolicy = policy
 
 	// Delete old data
 	logger.Debug("deleting old data in data stream...")
@@ -209,51 +211,6 @@ func (r *runner) setUp() error {
 		return err
 	}
 
-	agents, err := r.checkEnrolledAgents()
-	if err != nil {
-		return fmt.Errorf("can't check enrolled agents: %w", err)
-	}
-
-	handlers := make([]func() error, len(agents))
-	for i, agent := range agents {
-		origPolicy := kibana.Policy{
-			ID:       agent.PolicyID,
-			Revision: agent.PolicyRevision,
-		}
-
-		// Assign policy to agent
-		handlers[i] = func() error {
-			logger.Debug("reassigning original policy back to agent...")
-			if err := r.options.KibanaClient.AssignPolicyToAgent(agent, origPolicy); err != nil {
-				return fmt.Errorf("error reassigning original policy to agent %s: %w", agent.ID, err)
-			}
-			return nil
-		}
-
-		policyWithDataStream, err := r.options.KibanaClient.GetPolicy(policy.ID)
-		if err != nil {
-			return fmt.Errorf("could not read the policy with data stream: %w", err)
-		}
-
-		logger.Debug("assigning package data stream to agent...")
-		if err := r.options.KibanaClient.AssignPolicyToAgent(agent, *policyWithDataStream); err != nil {
-			return fmt.Errorf("could not assign policy to agent: %w", err)
-		}
-	}
-
-	r.resetAgentPolicyHandler = func() error {
-		var merr multierror.Error
-		for _, h := range handlers {
-			if err := h(); err != nil {
-				merr = append(merr, err)
-			}
-		}
-		if len(merr) == 0 {
-			return nil
-		}
-		return merr
-	}
-
 	return nil
 }
 
@@ -295,6 +252,11 @@ func (r *runner) run() (report reporters.Reportable, err error) {
 		if err := r.runGenerator(r.ctxt.Logs.Folder.Local); err != nil {
 			return nil, fmt.Errorf("can't generate benchmarks data corpus for data stream: %w", err)
 		}
+	}
+
+	// once data is generated, enroll agents and assign policy
+	if err := r.enrollAgents(); err != nil {
+		return nil, err
 	}
 
 	// Signal to the service that the agent is ready (policy is assigned).
@@ -667,6 +629,55 @@ func (r *runner) waitUntilBenchmarkFinishes() error {
 		return ret, err
 	}, waitForDataTimeout)
 	return err
+}
+
+func (r *runner) enrollAgents() error {
+	agents, err := r.checkEnrolledAgents()
+	if err != nil {
+		return fmt.Errorf("can't check enrolled agents: %w", err)
+	}
+
+	handlers := make([]func() error, len(agents))
+	for i, agent := range agents {
+		origPolicy := kibana.Policy{
+			ID:       agent.PolicyID,
+			Revision: agent.PolicyRevision,
+		}
+
+		// Assign policy to agent
+		handlers[i] = func() error {
+			logger.Debug("reassigning original policy back to agent...")
+			if err := r.options.KibanaClient.AssignPolicyToAgent(agent, origPolicy); err != nil {
+				return fmt.Errorf("error reassigning original policy to agent %s: %w", agent.ID, err)
+			}
+			return nil
+		}
+
+		policyWithDataStream, err := r.options.KibanaClient.GetPolicy(r.benchPolicy.ID)
+		if err != nil {
+			return fmt.Errorf("could not read the policy with data stream: %w", err)
+		}
+
+		logger.Debug("assigning package data stream to agent...")
+		if err := r.options.KibanaClient.AssignPolicyToAgent(agent, *policyWithDataStream); err != nil {
+			return fmt.Errorf("could not assign policy to agent: %w", err)
+		}
+	}
+
+	r.resetAgentPolicyHandler = func() error {
+		var merr multierror.Error
+		for _, h := range handlers {
+			if err := h(); err != nil {
+				merr = append(merr, err)
+			}
+		}
+		if len(merr) == 0 {
+			return nil
+		}
+		return merr
+	}
+
+	return nil
 }
 
 func getTotalHits(esapi *elasticsearch.API, dataStream string) (int, error) {
