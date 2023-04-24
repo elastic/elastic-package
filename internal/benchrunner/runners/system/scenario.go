@@ -12,9 +12,10 @@ import (
 	"time"
 
 	"github.com/aymerick/raymond"
-	"github.com/elastic/elastic-package/internal/benchrunner/runners/system/servicedeployer"
 	"github.com/elastic/go-ucfg"
 	"github.com/elastic/go-ucfg/yaml"
+
+	"github.com/elastic/elastic-package/internal/benchrunner/runners/system/servicedeployer"
 )
 
 const (

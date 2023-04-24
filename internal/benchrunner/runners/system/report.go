@@ -10,10 +10,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/elastic/elastic-package/internal/benchrunner/reporters"
-	"github.com/elastic/elastic-package/internal/elasticsearch/ingest"
 	"github.com/jedib0t/go-pretty/table"
 	"github.com/jedib0t/go-pretty/text"
+
+	"github.com/elastic/elastic-package/internal/benchrunner/reporters"
+	"github.com/elastic/elastic-package/internal/elasticsearch/ingest"
 )
 
 type report struct {

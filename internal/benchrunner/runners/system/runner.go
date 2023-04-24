@@ -11,7 +11,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -24,6 +23,7 @@ import (
 	"github.com/elastic/elastic-integration-corpus-generator-tool/pkg/genlib"
 	"github.com/elastic/elastic-integration-corpus-generator-tool/pkg/genlib/config"
 	"github.com/elastic/elastic-integration-corpus-generator-tool/pkg/genlib/fields"
+
 	"github.com/elastic/elastic-package/internal/benchrunner"
 	"github.com/elastic/elastic-package/internal/benchrunner/reporters"
 	"github.com/elastic/elastic-package/internal/benchrunner/runners/system/servicedeployer"
@@ -443,7 +443,7 @@ func (r *runner) getGeneratorConfig() (*config.Config, error) {
 		if _, err := os.Stat(configPath); err != nil {
 			return nil, fmt.Errorf("can't find config file %s: %w", configPath, err)
 		}
-		data, err = ioutil.ReadFile(configPath)
+		data, err = os.ReadFile(configPath)
 		if err != nil {
 			return nil, fmt.Errorf("can't read config file %s: %w", configPath, err)
 		}
