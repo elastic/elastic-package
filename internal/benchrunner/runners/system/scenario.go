@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/aymerick/raymond"
 	"github.com/elastic/elastic-package/internal/benchrunner/runners/system/servicedeployer"
@@ -21,15 +22,16 @@ const (
 )
 
 type scenario struct {
-	Package              string                 `config:"package"`
-	Description          string                 `config:"description"`
-	Version              string                 `config:"version"`
-	Input                string                 `config:"input"`
-	Vars                 map[string]interface{} `config:"vars"`
-	DataStream           dataStream             `config:"data_stream"`
-	WarmupTimePeriodSecs int                    `config:"warmup_time_period"`
-	BenchmarkTimeSecs    int                    `config:"benchmark_time"`
-	Corpora              corpora                `config:"corpora"`
+	Package             string                 `config:"package"`
+	Description         string                 `config:"description"`
+	Version             string                 `config:"version"`
+	Input               string                 `config:"input"`
+	Vars                map[string]interface{} `config:"vars"`
+	DataStream          dataStream             `config:"data_stream"`
+	WarmupTimePeriod    time.Duration          `config:"warmup_time_period"`
+	BenchmarkTimePeriod time.Duration          `config:"benchmark_time_period"`
+	WaitForDataTimeout  time.Duration          `config:"wait_for_data_timeout"`
+	Corpora             corpora                `config:"corpora"`
 }
 
 type dataStream struct {

@@ -19,7 +19,7 @@ import (
 
 	"github.com/dustin/go-humanize"
 	"github.com/google/uuid"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-integration-corpus-generator-tool/pkg/genlib"
 	"github.com/elastic/elastic-integration-corpus-generator-tool/pkg/genlib/config"
@@ -321,12 +321,11 @@ func (r *runner) run() (report reporters.Reportable, err error) {
 func (r *runner) startMetricsColletion() {
 	// TODO send metrics to es metricstore if set
 	// TODO collect agent hosts metrics using system integration
-	warmup := time.Duration(r.scenario.WarmupTimePeriodSecs) * time.Second
 	r.mcollector = newCollector(
 		r.ctxt,
 		r.options.ESAPI,
 		r.options.MetricsInterval,
-		warmup,
+		r.scenario.WarmupTimePeriod,
 		r.runtimeDataStream,
 		r.pipelinePrefix,
 	)
@@ -631,8 +630,12 @@ func (r *runner) checkEnrolledAgents() ([]kibana.Agent, error) {
 func (r *runner) waitUntilBenchmarkFinishes() error {
 	logger.Debug("checking for all data in data stream...")
 	var benchTime *time.Timer
-	if r.scenario.BenchmarkTimeSecs > 0 {
-		benchTime = time.NewTimer(time.Duration(r.scenario.BenchmarkTimeSecs) * time.Second)
+	if r.scenario.BenchmarkTimePeriod > 0 {
+		benchTime = time.NewTimer(r.scenario.BenchmarkTimePeriod)
+	}
+	waitForDataTimeout := waitForDataDefaultTimeout
+	if r.scenario.WaitForDataTimeout > 0 {
+		waitForDataTimeout = r.scenario.WaitForDataTimeout
 	}
 
 	oldHits := 0
@@ -662,7 +665,7 @@ func (r *runner) waitUntilBenchmarkFinishes() error {
 		}
 
 		return ret, err
-	}, waitForDataDefaultTimeout)
+	}, waitForDataTimeout)
 	return err
 }
 

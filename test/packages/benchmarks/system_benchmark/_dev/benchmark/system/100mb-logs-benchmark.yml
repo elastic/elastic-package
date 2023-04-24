@@ -5,7 +5,7 @@ vars: ~
 data_stream.name: test
 data_stream.vars.paths:
   - "{{SERVICE_LOGS_DIR}}/corpus-*"
-warmup_time_period: 10
+warmup_time_period: 10s
 corpora.generator.size: 100MiB
 corpora.generator.template.path: ./100mb-logs-benchmark/template.log
 corpora.generator.config.path: ./100mb-logs-benchmark/config.yml

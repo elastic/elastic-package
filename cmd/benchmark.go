@@ -42,7 +42,13 @@ const benchLongDescription = `Use this command to run benchmarks on a package. C
 
 These benchmarks allow you to benchmark any Ingest Node Pipelines defined by your packages.
 
-For details on how to configure pipeline benchmarks for a package, review the [HOWTO guide](./docs/howto/pipeline_benchmarking.md).`
+For details on how to configure pipeline benchmarks for a package, review the [HOWTO guide](./docs/howto/pipeline_benchmarking.md).
+
+#### System Benchmarks
+
+These benchmarks allow you to benchmark an integration end to end.
+
+For details on how to configure system benchmarks for a package, review the [HOWTO guide](./docs/howto/system_benchmarking.md).`
 
 func setupBenchmarkCommand() *cobraext.Command {
 	cmd := &cobra.Command{

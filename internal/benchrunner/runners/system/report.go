@@ -26,13 +26,14 @@ type report struct {
 		Duration    time.Duration
 	}
 	Parameters struct {
-		PackageVersion       string
-		Input                string
-		Vars                 map[string]interface{}
-		DataStream           dataStream
-		WarmupTimePeriodSecs int
-		BenchmarkTimeSecs    int
-		Corpora              corpora
+		PackageVersion      string
+		Input               string
+		Vars                map[string]interface{}
+		DataStream          dataStream
+		WarmupTimePeriod    time.Duration
+		BenchmarkTimePeriod time.Duration
+		WaitForDataTimeout  time.Duration
+		Corpora             corpora
 	}
 	ClusterName         string
 	Nodes               int
@@ -61,8 +62,9 @@ func newReport(benchName string, s *scenario, sum *metricsSummary) *report {
 	report.Parameters.Input = s.Input
 	report.Parameters.Vars = s.Vars
 	report.Parameters.DataStream = s.DataStream
-	report.Parameters.WarmupTimePeriodSecs = s.WarmupTimePeriodSecs
-	report.Parameters.BenchmarkTimeSecs = s.BenchmarkTimeSecs
+	report.Parameters.WarmupTimePeriod = s.WarmupTimePeriod
+	report.Parameters.BenchmarkTimePeriod = s.BenchmarkTimePeriod
+	report.Parameters.WaitForDataTimeout = s.WaitForDataTimeout
 	report.Parameters.Corpora = s.Corpora
 	report.ClusterName = sum.ClusterName
 	report.Nodes = sum.Nodes
@@ -102,8 +104,9 @@ func reportHumanFormat(r *report) []byte {
 	}
 
 	pkvs = append(pkvs,
-		"warmup time (s)", r.Parameters.WarmupTimePeriodSecs,
-		"benchmark time (s)", r.Parameters.BenchmarkTimeSecs,
+		"warmup time period", r.Parameters.WarmupTimePeriod,
+		"benchmark time period", r.Parameters.BenchmarkTimePeriod,
+		"wait for data timeout", r.Parameters.WaitForDataTimeout,
 	)
 
 	if r.Parameters.Corpora.Generator != nil {
