@@ -108,7 +108,7 @@ func GetPipelineStats(esClient *elasticsearch.API, pipelines []Pipeline) (stats 
 	if err != nil {
 		return nil, err
 	}
-	return getPipelineStats(*statsResponse, pipelines)
+	return getPipelineStats(statsResponse, pipelines)
 }
 
 func GetPipelineStatsByPrefix(esClient *elasticsearch.API, pipelinePrefix string) (map[string]PipelineStatsMap, error) {
@@ -116,10 +116,10 @@ func GetPipelineStatsByPrefix(esClient *elasticsearch.API, pipelinePrefix string
 	if err != nil {
 		return nil, err
 	}
-	return getPipelineStatsByPrefix(*statsResponse, pipelinePrefix)
+	return getPipelineStatsByPrefix(statsResponse, pipelinePrefix)
 }
 
-func requestPipelineStats(esClient *elasticsearch.API) (*pipelinesStatsResponse, error) {
+func requestPipelineStats(esClient *elasticsearch.API) ([]byte, error) {
 	statsReq := esClient.Nodes.Stats.WithFilterPath("nodes.*.ingest.pipelines")
 	resp, err := esClient.Nodes.Stats(statsReq)
 	if err != nil {
@@ -136,15 +136,15 @@ func requestPipelineStats(esClient *elasticsearch.API) (*pipelinesStatsResponse,
 		return nil, errors.Wrapf(elasticsearch.NewError(body), "unexpected response status for Node Stats (%d): %s", resp.StatusCode, resp.Status())
 	}
 
+	return body, nil
+}
+
+func getPipelineStatsByPrefix(body []byte, pipelinePrefix string) (stats map[string]PipelineStatsMap, err error) {
 	var statsResponse pipelinesStatsResponse
 	if err = json.Unmarshal(body, &statsResponse); err != nil {
 		return nil, errors.Wrap(err, "error decoding Node Stats response")
 	}
 
-	return &statsResponse, nil
-}
-
-func getPipelineStatsByPrefix(statsResponse pipelinesStatsResponse, pipelinePrefix string) (stats map[string]PipelineStatsMap, err error) {
 	stats = make(map[string]PipelineStatsMap, len(statsResponse.Nodes))
 
 	for nid, node := range statsResponse.Nodes {
@@ -163,7 +163,11 @@ func getPipelineStatsByPrefix(statsResponse pipelinesStatsResponse, pipelinePref
 	return stats, nil
 }
 
-func getPipelineStats(statsResponse pipelinesStatsResponse, pipelines []Pipeline) (stats PipelineStatsMap, err error) {
+func getPipelineStats(body []byte, pipelines []Pipeline) (stats PipelineStatsMap, err error) {
+	var statsResponse pipelinesStatsResponse
+	if err = json.Unmarshal(body, &statsResponse); err != nil {
+		return nil, errors.Wrap(err, "error decoding Node Stats response")
+	}
 	if nodeCount := len(statsResponse.Nodes); nodeCount != 1 {
 		return nil, errors.Errorf("Need exactly one ES node in stats response (got %d)", nodeCount)
 	}

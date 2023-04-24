@@ -5,7 +5,6 @@
 package ingest
 
 import (
-	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -183,11 +182,7 @@ func TestGetPipelineStats(t *testing.T) {
 		},
 	} {
 		t.Run(testcase.title, func(t *testing.T) {
-			var statsResponse pipelinesStatsResponse
-			if err := json.Unmarshal([]byte(testcase.body), &statsResponse); err != nil {
-				t.Fatalf("error decoding Node Stats response: %v", err)
-			}
-			stats, err := getPipelineStats(statsResponse, testcase.pipelines)
+			stats, err := getPipelineStats([]byte(testcase.body), testcase.pipelines)
 			if testcase.isErr {
 				if !assert.Error(t, err) {
 					t.Fatal("error expected")
