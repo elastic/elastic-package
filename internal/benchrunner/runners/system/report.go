@@ -87,7 +87,7 @@ func newReport(benchName string, s *scenario, sum *metricsSummary) *report {
 }
 
 func reportJSONFormat(r *report) ([]byte, error) {
-	b, err := json.Marshal(r)
+	b, err := json.MarshalIndent(r, "", "\t")
 	if err != nil {
 		return nil, err
 	}
