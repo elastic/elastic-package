@@ -10,6 +10,8 @@ type Reportable interface {
 	Report() []byte
 }
 
+var _ Reportable = &Report{}
+
 type Report struct {
 	pkg string
 	p   []byte
@@ -28,6 +30,9 @@ type ReportableFile interface {
 	Reportable
 	Filename() string
 }
+
+var _ Reportable = &FileReport{}
+var _ ReportableFile = &FileReport{}
 
 type FileReport struct {
 	pkg      string
@@ -52,6 +57,9 @@ type MultiReportable interface {
 	Split() []Reportable
 }
 
+var _ Reportable = &MultiReport{}
+var _ MultiReportable = &MultiReport{}
+
 type MultiReport struct {
 	pkg     string
 	reports []Reportable
@@ -69,4 +77,8 @@ func (r *MultiReport) Report() []byte {
 		combined = append(combined, append(fr.Report(), '\n')...)
 	}
 	return combined
+}
+
+func (r *MultiReport) Split() []Reportable {
+	return r.reports
 }

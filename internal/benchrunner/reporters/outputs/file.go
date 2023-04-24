@@ -74,7 +74,7 @@ func reportSingle(report reporters.Reportable) error {
 		}
 	}
 
-	filePath := filepath.Join(dest, reportableFile.Filename())
+	filePath := filepath.Join(dest, filepath.Base(reportableFile.Filename()))
 
 	if err := os.WriteFile(filePath, append(reportableFile.Report(), byte('\n')), 0644); err != nil {
 		return fmt.Errorf("could not write benchmark report file: %w", err)

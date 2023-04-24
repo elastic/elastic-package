@@ -5,6 +5,7 @@
 package system
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -46,7 +47,17 @@ type report struct {
 func createReport(benchName string, s *scenario, sum *metricsSummary) (reporters.Reportable, error) {
 	r := newReport(benchName, s, sum)
 	human := reporters.NewReport(s.Package, reportHumanFormat(r))
-	return human, nil
+
+	jsonBytes, err := reportJSONFormat(r)
+	if err != nil {
+		return nil, fmt.Errorf("rendering JSON report: %w", err)
+	}
+
+	jsonFile := reporters.NewFileReport(s.Package, fmt.Sprintf("system/%s/report.json", sum.RunID), jsonBytes)
+
+	mr := reporters.NewMultiReport(s.Package, []reporters.Reportable{human, jsonFile})
+
+	return mr, nil
 }
 
 func newReport(benchName string, s *scenario, sum *metricsSummary) *report {
@@ -73,6 +84,14 @@ func newReport(benchName string, s *scenario, sum *metricsSummary) *report {
 	report.DiskUsage = sum.DiskUsage
 	report.TotalHits = sum.TotalHits
 	return &report
+}
+
+func reportJSONFormat(r *report) ([]byte, error) {
+	b, err := json.Marshal(r)
+	if err != nil {
+		return nil, err
+	}
+	return b, nil
 }
 
 func reportHumanFormat(r *report) []byte {
