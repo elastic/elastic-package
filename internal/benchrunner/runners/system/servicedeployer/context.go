@@ -7,12 +7,12 @@ package servicedeployer
 const (
 	LocalCACertEnv    = "LOCAL_CA_CERT"
 	ServiceLogsDirEnv = "SERVICE_LOGS_DIR"
-	BenchRunIDEnv     = "TEST_RUN_ID"
+	BenchRunIDEnv     = "BENCH_RUN_ID"
 )
 
 // ServiceContext encapsulates context that is both available to a ServiceDeployer and
 // populated by a DeployedService. The fields in ServiceContext may be used in handlebars
-// templates in system test configuration files, for example: {{ Hostname }}.
+// templates in system benchmark configuration files, for example: {{ Hostname }}.
 type ServiceContext struct {
 	// Name is the name of the service.
 	Name string
@@ -45,7 +45,7 @@ type ServiceContext struct {
 
 	// Bench related properties.
 	Bench struct {
-		// RunID identifies the current test run.
+		// RunID identifies the current benchmark run.
 		RunID string
 	}
 

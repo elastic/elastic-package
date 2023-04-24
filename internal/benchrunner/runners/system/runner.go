@@ -75,7 +75,7 @@ func (r *runner) SetUp() error {
 	return r.setUp()
 }
 
-// Run runs the system tests defined under the given folder
+// Run runs the system benchmarks defined under the given folder
 func (r *runner) Run() (reporters.Reportable, error) {
 	return r.run()
 }
@@ -262,7 +262,7 @@ func (r *runner) run() (report reporters.Reportable, err error) {
 	// Signal to the service that the agent is ready (policy is assigned).
 	if r.scenario.Corpora.InputService != nil && r.scenario.Corpora.InputService.Signal != "" {
 		if err = service.Signal(r.scenario.Corpora.InputService.Signal); err != nil {
-			return nil, fmt.Errorf("failed to notify test service: %w", err)
+			return nil, fmt.Errorf("failed to notify benchmark service: %w", err)
 		}
 	}
 
@@ -312,9 +312,9 @@ func (r *runner) deleteDataStreamDocs(dataStream string) error {
 func (r *runner) createBenchmarkPolicy(pkgManifest *packages.PackageManifest) (*kibana.Policy, error) {
 	// Configure package (single data stream) via Ingest Manager APIs.
 	logger.Debug("creating benchmark policy...")
-	testTime := time.Now().Format("20060102T15:04:05Z")
+	benchTime := time.Now().Format("20060102T15:04:05Z")
 	p := kibana.Policy{
-		Name:              fmt.Sprintf("ep-bench-%s-%s", r.options.BenchName, testTime),
+		Name:              fmt.Sprintf("ep-bench-%s-%s", r.options.BenchName, benchTime),
 		Description:       fmt.Sprintf("policy created by elastic-package for benchmark %s", r.options.BenchName),
 		Namespace:         "ep",
 		MonitoringEnabled: []string{"logs", "metrics"},

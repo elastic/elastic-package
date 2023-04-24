@@ -82,14 +82,14 @@ func readConfig(path, scenario string, ctxt servicedeployer.ServiceContext) (*sc
 	data, err := os.ReadFile(configPath)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return nil, fmt.Errorf("unable to find system test configuration file: %s: %w", configPath, err)
+			return nil, fmt.Errorf("unable to find system benchmark configuration file: %s: %w", configPath, err)
 		}
-		return nil, fmt.Errorf("could not load system test configuration file: %s: %w", configPath, err)
+		return nil, fmt.Errorf("could not load system benchmark configuration file: %s: %w", configPath, err)
 	}
 
 	data, err = applyContext(data, ctxt)
 	if err != nil {
-		return nil, fmt.Errorf("could not apply context to test configuration file: %s: %w", configPath, err)
+		return nil, fmt.Errorf("could not apply context to benchmark configuration file: %s: %w", configPath, err)
 	}
 
 	cfg, err := yaml.NewConfig(data, ucfg.PathSep("."))
@@ -110,7 +110,7 @@ func readConfig(path, scenario string, ctxt servicedeployer.ServiceContext) (*sc
 	return c, nil
 }
 
-// applyContext takes the given system test configuration (data) and replaces any placeholder variables in
+// applyContext takes the given system benchmark configuration (data) and replaces any placeholder variables in
 // it with values from the given context (ctxt). The context may be populated from various sources but usually the
 // most interesting context values will be set by a ServiceDeployer in its SetUp method.
 func applyContext(data []byte, ctxt servicedeployer.ServiceContext) ([]byte, error) {
