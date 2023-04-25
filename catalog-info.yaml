@@ -5,6 +5,7 @@ apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
   name: elastic-package
+  description: elastic-package - Command line tool for developing Elastic Integrations
 
 spec:
   type: tool
