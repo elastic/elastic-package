@@ -179,10 +179,13 @@ func NewProject(name string, paths ...string) (*Project, error) {
 		c.dockerComposeV1 = true
 		return &c, nil
 	}
+
+	versionMessage := fmt.Sprintf("Determined Docker Compose version: %v", ver)
 	if ver.Major() == 1 {
-		logger.Debugf("Determined Docker Compose version: %v, the tool will use Compose V1", ver)
+		versionMessage = fmt.Sprintf("%s, the tool will use Compose V1", versionMessage)
 		c.dockerComposeV1 = true
 	}
+	logger.Debug(versionMessage)
 
 	v, ok := os.LookupEnv(DisableANSIComposeEnv)
 	if !c.dockerComposeV1 && ok && strings.ToLower(v) != "false" {
