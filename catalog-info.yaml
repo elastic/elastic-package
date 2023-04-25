@@ -58,7 +58,7 @@ spec:
     apiVersion: buildkite.elastic.dev/v1
     kind: Pipeline
     metadata:
-      name: elastic-package-package-stroage-publish
+      name: elastic-package-package-storage-publish
       description: 'Minimal Jenkins pipeline to exercise publishing a package to Package Storage (for testing only)'
     spec:
       branch_configuration: main
