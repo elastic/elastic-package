@@ -6,6 +6,8 @@ kind: Component
 metadata:
   name: elastic-package
   description: elastic-package - Command line tool for developing Elastic Integrations
+  annotations:
+    backstage.io/techdocs-ref: url:https://www.elastic.co/guide/en/integrations-developer/current/elastic-package.html
 
 spec:
   type: tool
