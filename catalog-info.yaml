@@ -7,7 +7,7 @@ metadata:
   name: elastic-package
   description: elastic-package - Command line tool for developing Elastic Integrations
   links:
-    - title: Developer Documentation
+    - title: Developer Documentation 
       icon: file-doc
       url: https://www.elastic.co/guide/en/integrations-developer/current/elastic-package.html
 
