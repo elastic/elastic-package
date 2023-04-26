@@ -21,49 +21,6 @@ apiVersion: backstage.io/v1alpha1
 kind: Resource
 metadata:
   name: buildkite-pipeline-elastic-package
-  description: ':go: Build and test the elastic-package project for Pull Requests'
-  links:
-    - title: Pipeline
-      url: https://buildkite.com/elastic/elastic-package
-
-spec:
-  type: buildkite-pipeline
-  owner: group:ingest-fp
-  system: buildkite
-  implementation:
-    apiVersion: buildkite.elastic.dev/v1
-    kind: Pipeline
-    metadata:
-      name: elastic-package
-      description: ':go: Build and test the elastic-package project for Pull Requests'
-    spec:
-      branch_configuration: "main v0.* v1.*"
-      pipeline_file: ".buildkite/pipeline.yml"
-      provider_settings:
-        build_pull_request_forks: false
-        build_pull_requests: false # PR builds are managed by buildkite-pr-bot
-        build_tags: false
-        trigger_mode: none
-      repository: elastic/elastic-package
-      cancel_intermediate_builds: true
-      cancel_intermediate_builds_branch_filter: '!main'
-      skip_intermediate_builds: true
-      skip_intermediate_builds_branch_filter: '!main'
-      env:
-        ELASTIC_PR_COMMENTS_ENABLED: 'true'
-      teams:
-        ecosystem:
-          access_level: MANAGE_BUILD_AND_READ
-        ingest-fp:
-          access_level: MANAGE_BUILD_AND_READ
-        everyone:
-          access_level: READ_ONLY
----
-# yaml-language-server: $schema=https://gist.githubusercontent.com/elasticmachine/988b80dae436cafea07d9a4a460a011d/raw/e57ee3bed7a6f73077a3f55a38e76e40ec87a7cf/rre.schema.json
-apiVersion: backstage.io/v1alpha1
-kind: Resource
-metadata:
-  name: buildkite-pipeline-elastic-package-main
   description: ':go: Build and test the elastic-package project'
   links:
     - title: Pipeline
@@ -77,7 +34,7 @@ spec:
     apiVersion: buildkite.elastic.dev/v1
     kind: Pipeline
     metadata:
-      name: elastic-package-main
+      name: elastic-package
       description: ':go: Build and test the elastic-package project'
     spec:
       branch_configuration: "main v0.* v1.*"
@@ -86,7 +43,6 @@ spec:
         build_pull_request_forks: false
         build_pull_requests: false # PR builds are managed by buildkite-pr-bot
         build_tags: true
-        trigger_mode: code
       repository: elastic/elastic-package
       cancel_intermediate_builds: true
       cancel_intermediate_builds_branch_filter: '!main'
@@ -129,50 +85,7 @@ spec:
       provider_settings:
         build_pull_request_forks: false
         build_pull_requests: false # PR builds are managed by buildkite-pr-bot
-        build_tags: false
-        trigger_mode: none
-      repository: elastic/elastic-package
-      cancel_intermediate_builds: true
-      cancel_intermediate_builds_branch_filter: '!main'
-      skip_intermediate_builds: true
-      skip_intermediate_builds_branch_filter: '!main'
-      teams:
-        ecosystem:
-          access_level: MANAGE_BUILD_AND_READ
-        ingest-fp:
-          access_level: MANAGE_BUILD_AND_READ
-        everyone:
-          access_level: READ_ONLY
-
----
-# yaml-language-server: $schema=https://gist.githubusercontent.com/elasticmachine/988b80dae436cafea07d9a4a460a011d/raw/e57ee3bed7a6f73077a3f55a38e76e40ec87a7cf/rre.schema.json
-apiVersion: backstage.io/v1alpha1
-kind: Resource
-metadata:
-  name: buildkite-pipeline-elastic-package-package-storage-publish-main
-  description: 'Minimal Jenkins pipeline to exercise publishing a package to Package Storage (for testing only) for Pull Requests'
-  links:
-    - title: Pipeline
-      url: https://buildkite.com/elastic/elastic-package-package-storage-publish
-
-spec:
-  type: buildkite-pipeline
-  owner: group:ingest-fp
-  system: buildkite
-  implementation:
-    apiVersion: buildkite.elastic.dev/v1
-    kind: Pipeline
-    metadata:
-      name: elastic-package-package-storage-publish-main
-      description: 'Minimal Jenkins pipeline to exercise publishing a package to Package Storage (for testing only) for Pull Requests'
-    spec:
-      branch_configuration: main
-      pipeline_file: ".buildkite/pipeline.package-storage-publish.yml"
-      provider_settings:
-        build_pull_request_forks: false
-        build_pull_requests: false # PR builds are managed by buildkite-pr-bot
-        build_tags: false
-        trigger_mode: code
+        build_tags: true
       repository: elastic/elastic-package
       cancel_intermediate_builds: true
       cancel_intermediate_builds_branch_filter: '!main'
