@@ -35,7 +35,7 @@ spec:
     kind: Pipeline
     metadata:
       name: elastic-package
-      description: ':go: Build and test the elastic-package project'
+      description: ':go: Build and test the elastic-package project for Pull Requests'
     spec:
       branch_configuration: "main v0.* v1.*"
       pipeline_file: ".buildkite/pipeline.yml"
@@ -150,7 +150,7 @@ apiVersion: backstage.io/v1alpha1
 kind: Resource
 metadata:
   name: buildkite-pipeline-elastic-package-package-storage-publish-main
-  description: 'Minimal Jenkins pipeline to exercise publishing a package to Package Storage (for testing only)'
+  description: 'Minimal Jenkins pipeline to exercise publishing a package to Package Storage (for testing only) for Pull Requests'
   links:
     - title: Pipeline
       url: https://buildkite.com/elastic/elastic-package-package-storage-publish
@@ -164,7 +164,7 @@ spec:
     kind: Pipeline
     metadata:
       name: elastic-package-package-storage-publish-main
-      description: 'Minimal Jenkins pipeline to exercise publishing a package to Package Storage (for testing only)'
+      description: 'Minimal Jenkins pipeline to exercise publishing a package to Package Storage (for testing only) for Pull Requests'
     spec:
       branch_configuration: main
       pipeline_file: ".buildkite/pipeline.package-storage-publish.yml"
