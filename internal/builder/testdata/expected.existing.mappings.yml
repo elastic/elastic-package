@@ -6,10 +6,6 @@ elasticsearch:
         example:
           type: short
       dynamic_templates:
-        - to_nested:
-            path: trigger
-            mapping:
-              type: nested
         - _embedded_ecs-example_template:
             mapping:
               type: short
