@@ -6,6 +6,11 @@ elasticsearch:
         example:
           type: short
       dynamic_templates:
+        - forwarded_ip_to_ip:
+            mapping:
+                type: ip
+            match: forwarded_ip
+            match_mapping_type: string
         - _embedded_ecs-example_template:
             mapping:
               type: short
