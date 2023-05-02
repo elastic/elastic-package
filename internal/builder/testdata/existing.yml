@@ -9,7 +9,7 @@ elasticsearch:
       dynamic_templates:
         - forwarded_ip_to_ip:
             mapping:
-                type: ip
+              type: ip
             match: forwarded_ip
             match_mapping_type: string
 
