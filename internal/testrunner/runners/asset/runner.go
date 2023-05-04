@@ -30,9 +30,14 @@ type runner struct {
 	packageRootPath string
 	kibanaClient    *kibana.Client
 
+	installedPackage *installer.InstalledPackage
+
 	// Execution order of following handlers is defined in runner.tearDown() method.
 	removePackageHandler func() error
 }
+
+// Ensures that runner implements testrunner.TestRunner interface
+var _ testrunner.TestRunner = new(runner)
 
 // Type returns the type of test that can be run by this test runner.
 func (r *runner) Type() testrunner.TestType {
@@ -48,6 +53,43 @@ func (r runner) String() string {
 // data streams within the package.
 func (r runner) CanRunPerDataStream() bool {
 	return false
+}
+
+// Setup install the package
+func (r *runner) Setup(options testrunner.TestOptions) error {
+	r.testFolder = options.TestFolder
+	r.packageRootPath = options.PackageRootPath
+
+	logger.Debug("installing package...")
+	packageInstaller, err := installer.NewForPackage(installer.Options{
+		Kibana:         r.kibanaClient,
+		RootPath:       r.packageRootPath,
+		SkipValidation: true,
+	})
+	if err != nil {
+		return fmt.Errorf("can't create the package installer: %w", err)
+	}
+	r.installedPackage, err = packageInstaller.Install()
+	if err != nil {
+		return fmt.Errorf("can't install the package: %w", err)
+	}
+
+	r.removePackageHandler = func() error {
+		pkgManifest, err := packages.ReadPackageManifestFromPackageRoot(r.packageRootPath)
+		if err != nil {
+			return fmt.Errorf("reading package manifest failed: %w", err)
+		}
+
+		logger.Debug("removing package...")
+		err = packageInstaller.Uninstall()
+
+		// by default system package is part of an agent policy and it cannot be uninstalled
+		// https://github.com/elastic/elastic-package/blob/5f65dc29811c57454bc7142aaf73725b6d4dc8e6/internal/stack/_static/kibana.yml.tmpl#L62
+		if err != nil && pkgManifest.Name != "system" {
+			logger.Warnf("failed to uninstall package %q: %s", pkgManifest.Name, err.Error())
+		}
+		return nil
+	}
 }
 
 // Run runs the asset loading tests
@@ -72,7 +114,6 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 	testConfig, err := newConfig(r.testFolder.Path)
 	if err != nil {
 		return result.WithError(fmt.Errorf("unable to load asset loading test config file: %w", err))
-
 	}
 
 	if testConfig != nil && testConfig.Skip != nil {
@@ -82,62 +123,32 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		return result.WithSkip(testConfig.Skip)
 	}
 
-	logger.Debug("installing package...")
-	packageInstaller, err := installer.NewForPackage(installer.Options{
-		Kibana:         r.kibanaClient,
-		RootPath:       r.packageRootPath,
-		SkipValidation: true,
-	})
-	if err != nil {
-		return result.WithError(fmt.Errorf("can't create the package installer: %w", err))
-	}
-	installedPackage, err := packageInstaller.Install()
-	if err != nil {
-		return result.WithError(fmt.Errorf("can't install the package: %w", err))
-	}
-
-	r.removePackageHandler = func() error {
-		pkgManifest, err := packages.ReadPackageManifestFromPackageRoot(r.packageRootPath)
-		if err != nil {
-			return fmt.Errorf("reading package manifest failed: %w", err)
-		}
-
-		logger.Debug("removing package...")
-		err = packageInstaller.Uninstall()
-
-		// by default system package is part of an agent policy and it cannot be uninstalled
-		// https://github.com/elastic/elastic-package/blob/5f65dc29811c57454bc7142aaf73725b6d4dc8e6/internal/stack/_static/kibana.yml.tmpl#L62
-		if err != nil && pkgManifest.Name != "system" {
-			logger.Warnf("failed to uninstall package %q: %s", pkgManifest.Name, err.Error())
-		}
-		return nil
-	}
-
 	expectedAssets, err := packages.LoadPackageAssets(r.packageRootPath)
 	if err != nil {
 		return result.WithError(fmt.Errorf("could not load expected package assets: %w", err))
 	}
+	logger.Debugf("Information about installed package: %+v", r.installedPackage)
 
 	results := make([]testrunner.TestResult, 0, len(expectedAssets))
 	for _, e := range expectedAssets {
 		rc := testrunner.NewResultComposer(testrunner.TestResult{
 			Name:       fmt.Sprintf("%s %s is loaded", e.Type, e.ID),
-			Package:    installedPackage.Name,
+			Package:    r.installedPackage.Name,
 			DataStream: e.DataStream,
 			TestType:   TestType,
 		})
 
-		var r []testrunner.TestResult
-		if !findActualAsset(installedPackage.Assets, e) {
-			r, _ = rc.WithError(testrunner.ErrTestCaseFailed{
+		var testResult []testrunner.TestResult
+		if !findActualAsset(r.installedPackage.Assets, e) {
+			testResult, _ = rc.WithError(testrunner.ErrTestCaseFailed{
 				Reason:  "could not find expected asset",
-				Details: fmt.Sprintf("could not find %s asset \"%s\". Assets loaded:\n%s", e.Type, e.ID, formatAssetsAsString(installedPackage.Assets)),
+				Details: fmt.Sprintf("could not find %s asset \"%s\". Assets loaded:\n%s", e.Type, e.ID, formatAssetsAsString(r.installedPackage.Assets)),
 			})
 		} else {
-			r, _ = rc.WithSuccess()
+			testResult, _ = rc.WithSuccess()
 		}
 
-		results = append(results, r[0])
+		results = append(results, testResult[0])
 	}
 
 	return results, nil

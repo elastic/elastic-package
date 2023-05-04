@@ -44,6 +44,9 @@ type TestRunner interface {
 	// String returns the human-friendly name of the test runner.
 	String() string
 
+	// Setup installs package and starts the service
+	Setup(TestOptions) error
+
 	// Run executes the test runner.
 	Run(TestOptions) ([]TestResult, error)
 
@@ -267,6 +270,11 @@ func Run(testType TestType, options TestOptions) ([]TestResult, error) {
 	runner, defined := runners[testType]
 	if !defined {
 		return nil, fmt.Errorf("unregistered runner test: %s", testType)
+	}
+
+	err := runner.Setup(options)
+	if err != nil {
+		return nil, fmt.Errorf("could not setup test runner: %w", err)
 	}
 
 	results, err := runner.Run(options)

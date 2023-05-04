@@ -109,6 +109,9 @@ type runner struct {
 	wipeDataStreamHandler   func() error
 }
 
+// Ensures that runner implements testrunner.TestRunner interface
+var _ testrunner.TestRunner = new(runner)
+
 // Type returns the type of test that can be run by this test runner.
 func (r *runner) Type() testrunner.TestType {
 	return TestType
@@ -127,6 +130,12 @@ func (r *runner) CanRunPerDataStream() bool {
 
 func (r *runner) TestFolderRequired() bool {
 	return true
+}
+
+// Setup installs the packge and starts the service
+func (r *runner) Setup(options testrunner.TestOptions) error {
+	r.options = options
+	return nil
 }
 
 // Run runs the system tests defined under the given folder

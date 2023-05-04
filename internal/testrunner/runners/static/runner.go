@@ -22,6 +22,7 @@ type runner struct {
 	options testrunner.TestOptions
 }
 
+// Ensures that runner implements testrunner.TestRunner interface
 var _ testrunner.TestRunner = new(runner)
 
 func init() {
@@ -39,6 +40,10 @@ func (r runner) Type() testrunner.TestType {
 
 func (r runner) String() string {
 	return "static files"
+}
+
+func (r *runner) Setup(options testrunner.TestOptions) error {
+	return nil
 }
 
 func (r runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, error) {
