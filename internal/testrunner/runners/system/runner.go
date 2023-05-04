@@ -73,34 +73,38 @@ type logsByContainer struct {
 	patterns      []logsRegexp
 }
 
-var (
-	errorPatterns = []logsByContainer{
-		logsByContainer{
-			containerName: "elastic-agent",
-			patterns: []logsRegexp{
-				logsRegexp{
-					includes: regexp.MustCompile("^Cannot index event publisher.Event"),
-					excludes: []*regexp.Regexp{
-						// this regex is excluded to ensure that logs coming from the `system` package installed by default are not taken into account
-						regexp.MustCompile(`action \[indices:data\/write\/bulk\[s\]\] is unauthorized for API key id \[.*\] of user \[.*\] on indices \[.*\], this action is granted by the index privileges \[.*\]`),
-					},
+var errorPatterns = []logsByContainer{
+	{
+		containerName: "elastic-agent",
+		patterns: []logsRegexp{
+			{
+				includes: regexp.MustCompile("^Cannot index event publisher.Event"),
+				excludes: []*regexp.Regexp{
+					// this regex is excluded to ensure that logs coming from the `system` package installed by default are not taken into account
+					regexp.MustCompile(`action \[indices:data\/write\/bulk\[s\]\] is unauthorized for API key id \[.*\] of user \[.*\] on indices \[.*\], this action is granted by the index privileges \[.*\]`),
 				},
-				logsRegexp{
-					includes: regexp.MustCompile("->(FAILED|DEGRADED)"),
+			},
+			{
+				includes: regexp.MustCompile("->(FAILED|DEGRADED)"),
 
-					// this regex is excluded to avoid a regresion in 8.11 that can make a component to pass to a degraded state during some seconds after reassigning or removing a policy
-					excludes: []*regexp.Regexp{
-						regexp.MustCompile(`Component state changed .* \(HEALTHY->DEGRADED\): Degraded: pid .* missed .* check-in`),
-					},
+				// this regex is excluded to avoid a regresion in 8.11 that can make a component to pass to a degraded state during some seconds after reassigning or removing a policy
+				excludes: []*regexp.Regexp{
+					regexp.MustCompile(`Component state changed .* \(HEALTHY->DEGRADED\): Degraded: pid .* missed .* check-in`),
 				},
 			},
 		},
-	}
-)
+	},
+}
 
 type runner struct {
 	options   testrunner.TestOptions
 	pipelines []ingest.Pipeline
+
+	dataStreamPath string
+	cfgFiles       []string
+	variantsFile   *servicedeployer.VariantsFile
+	stackVersion   kibana.VersionInfo
+
 	// Execution order of following handlers is defined in runner.TearDown() method.
 	deleteTestPolicyHandler func() error
 	deletePackageHandler    func() error
@@ -135,6 +139,51 @@ func (r *runner) TestFolderRequired() bool {
 // Setup installs the packge and starts the service
 func (r *runner) Setup(options testrunner.TestOptions) error {
 	r.options = options
+	var found bool
+	var err error
+
+	r.dataStreamPath, found, err = packages.FindDataStreamRootForPath(r.options.TestFolder.Path)
+	if err != nil {
+		return fmt.Errorf("locating data stream root failed: %w", err)
+	}
+	if found {
+		logger.Debug("Running system tests for data stream")
+	} else {
+		logger.Debug("Running system tests for package")
+	}
+
+	if r.options.API == nil {
+		return result.WithError(errors.New("missing Elasticsearch client"))
+	}
+	if r.options.KibanaClient == nil {
+		return result.WithError(errors.New("missing Kibana client"))
+	}
+
+	r.stackVersion, err = r.options.KibanaClient.Version()
+	if err != nil {
+		return result.WithError(fmt.Errorf("cannot request Kibana version: %w", err))
+	}
+
+	devDeployPath, err := servicedeployer.FindDevDeployPath(servicedeployer.FactoryOptions{
+		Profile:            r.options.Profile,
+		PackageRootPath:    r.options.PackageRootPath,
+		DataStreamRootPath: dataStreamPath,
+		DevDeployDir:       DevDeployDir,
+		StackVersion:       stackVersion.Version(),
+	})
+	if err != nil {
+		return fmt.Errorf("_dev/deploy directory not found: %w", err)
+	}
+
+	r.cfgFiles, err = listConfigFiles(r.options.TestFolder.Path)
+	if err != nil {
+		return fmt.Errorf("failed listing test case config cfgFiles: %w", err)
+	}
+
+	r.variantsFile, err = servicedeployer.ReadVariantsFile(devDeployPath)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("can't read service variant: %w", err)
+	}
 	return nil
 }
 
@@ -209,53 +258,10 @@ func (r *runner) run() (results []testrunner.TestResult, err error) {
 		return result.WithError(fmt.Errorf("reading service logs directory failed: %w", err))
 	}
 
-	dataStreamPath, found, err := packages.FindDataStreamRootForPath(r.options.TestFolder.Path)
-	if err != nil {
-		return result.WithError(fmt.Errorf("locating data stream root failed: %w", err))
-	}
-	if found {
-		logger.Debug("Running system tests for data stream")
-	} else {
-		logger.Debug("Running system tests for package")
-	}
-
-	if r.options.API == nil {
-		return result.WithError(errors.New("missing Elasticsearch client"))
-	}
-	if r.options.KibanaClient == nil {
-		return result.WithError(errors.New("missing Kibana client"))
-	}
-
-	stackVersion, err := r.options.KibanaClient.Version()
-	if err != nil {
-		return result.WithError(fmt.Errorf("cannot request Kibana version: %w", err))
-	}
-
-	devDeployPath, err := servicedeployer.FindDevDeployPath(servicedeployer.FactoryOptions{
-		Profile:            r.options.Profile,
-		PackageRootPath:    r.options.PackageRootPath,
-		DataStreamRootPath: dataStreamPath,
-		DevDeployDir:       DevDeployDir,
-		StackVersion:       stackVersion.Version(),
-	})
-	if err != nil {
-		return result.WithError(fmt.Errorf("_dev/deploy directory not found: %w", err))
-	}
-
-	cfgFiles, err := listConfigFiles(r.options.TestFolder.Path)
-	if err != nil {
-		return result.WithError(fmt.Errorf("failed listing test case config cfgFiles: %w", err))
-	}
-
-	variantsFile, err := servicedeployer.ReadVariantsFile(devDeployPath)
-	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return result.WithError(fmt.Errorf("can't read service variant: %w", err))
-	}
-
 	startTesting := time.Now()
-	for _, cfgFile := range cfgFiles {
-		for _, variantName := range r.selectVariants(variantsFile) {
-			partial, err := r.runTestPerVariant(result, locationManager, cfgFile, dataStreamPath, variantName, stackVersion.Version())
+	for _, cfgFile := range r.cfgFiles {
+		for _, variantName := range r.selectVariants(r.variantsFile) {
+			partial, err := r.runTestPerVariant(result, locationManager, cfgFile, r.dataStreamPath, variantName, r.stackVersion.Version())
 			results = append(results, partial...)
 			if err != nil {
 				return results, err
@@ -1272,7 +1278,7 @@ func writeSampleEvent(path string, doc common.MapStr, specVersion semver.Version
 		return fmt.Errorf("marshalling sample event failed: %w", err)
 	}
 
-	err = os.WriteFile(filepath.Join(path, "sample_event.json"), body, 0644)
+	err = os.WriteFile(filepath.Join(path, "sample_event.json"), body, 0o644)
 	if err != nil {
 		return fmt.Errorf("writing sample event failed: %w", err)
 	}
@@ -1350,7 +1356,6 @@ func (r *runner) generateTestResult(docs []common.MapStr, specVersion semver.Ver
 }
 
 func (r *runner) checkAgentLogs(dumpOptions stack.DumpOptions, startTesting time.Time, errorPatterns []logsByContainer) (results []testrunner.TestResult, err error) {
-
 	for _, patternsContainer := range errorPatterns {
 		startTime := time.Now()
 
