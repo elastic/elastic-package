@@ -15,6 +15,11 @@ import (
 )
 
 func dockerComposeLogs(serviceName string, snapshotFile string) ([]byte, error) {
+	appConfig, err := install.Configuration()
+	if err != nil {
+		return nil, errors.Wrap(err, "can't read application configuration")
+	}
+
 	p, err := compose.NewProject(DockerComposeProjectName, snapshotFile)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create docker compose project")
@@ -22,6 +27,7 @@ func dockerComposeLogs(serviceName string, snapshotFile string) ([]byte, error) 
 
 	opts := compose.CommandOptions{
 		Env: newEnvBuilder().
+			withEnvs(appConfig.StackImageRefs(install.DefaultStackVersion).AsEnv()).
 			withEnv(stackVariantAsEnv(install.DefaultStackVersion)).
 			build(),
 		Services: []string{serviceName},
