@@ -34,6 +34,8 @@ type TestOptions struct {
 	ServiceVariant string
 	WithCoverage   bool
 	CoverageType   string
+
+	ConfigFilePath string
 }
 
 // TestRunner is the interface all test runners must implement.

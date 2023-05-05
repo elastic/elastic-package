@@ -76,6 +76,7 @@ func setupTestCommand() *cobraext.Command {
 	cmd.PersistentFlags().DurationP(cobraext.DeferCleanupFlagName, "", 0, cobraext.DeferCleanupFlagDescription)
 	cmd.PersistentFlags().String(cobraext.VariantFlagName, "", cobraext.VariantFlagDescription)
 	cmd.PersistentFlags().StringP(cobraext.ProfileFlagName, "p", "", fmt.Sprintf(cobraext.ProfileFlagDescription, install.ProfileNameEnvVar))
+	cmd.PersistentFlags().String(cobraext.ConfigFileFlagName, "", cobraext.ConfigFileFlagDescription)
 
 	for testType, runner := range testrunner.TestRunners() {
 		action := testTypeCommandActionFactory(runner)
@@ -226,6 +227,7 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 		if err != nil {
 			return err
 		}
+		configFileFlag, _ := cmd.Flags().GetString(cobraext.ConfigFileFlagName)
 
 		esClient, err := stack.NewElasticsearchClientFromProfile(profile)
 		if err != nil {
@@ -258,6 +260,7 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 				ServiceVariant:     variantFlag,
 				WithCoverage:       testCoverage,
 				CoverageType:       testCoverageFormat,
+				ConfigFilePath:     configFileFlag,
 			})
 
 			results = append(results, r...)

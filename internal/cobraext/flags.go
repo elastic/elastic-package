@@ -198,6 +198,9 @@ const (
 	VariantFlagName        = "variant"
 	VariantFlagDescription = "service variant"
 
+	ConfigFileFlagName    = "config-file"
+	ConfigFileDescription = "configuration file to setup service and test"
+
 	ZipPackageFilePathFlagName        = "zip"
 	ZipPackageFilePathFlagShorthand   = "z"
 	ZipPackageFilePathFlagDescription = "path to the zip package file (*.zip)"
