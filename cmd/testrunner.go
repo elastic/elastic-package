@@ -227,6 +227,7 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 		if err != nil {
 			return err
 		}
+
 		configFileFlag, _ := cmd.Flags().GetString(cobraext.ConfigFileFlagName)
 
 		esClient, err := stack.NewElasticsearchClientFromProfile(profile)
