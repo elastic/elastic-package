@@ -57,7 +57,7 @@ func dumpStackLogs(options DumpOptions) error {
 	for _, serviceName := range observedServices {
 		logger.Debugf("Dump stack logs for %s", serviceName)
 
-		content, err := dockerComposeLogs(serviceName, snapshotPath)
+		content, err := dockerComposeLogs(serviceName, snapshotPath, options.Profile)
 		if err != nil {
 			logger.Errorf("can't fetch service logs (service: %s): %v", serviceName, err)
 		} else {

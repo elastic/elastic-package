@@ -12,9 +12,10 @@ import (
 	"github.com/elastic/elastic-package/internal/compose"
 	"github.com/elastic/elastic-package/internal/docker"
 	"github.com/elastic/elastic-package/internal/install"
+	"github.com/elastic/elastic-package/internal/profile"
 )
 
-func dockerComposeLogs(serviceName string, snapshotFile string) ([]byte, error) {
+func dockerComposeLogs(serviceName string, snapshotFile string, profile *profile.Profile) ([]byte, error) {
 	appConfig, err := install.Configuration()
 	if err != nil {
 		return nil, errors.Wrap(err, "can't read application configuration")
@@ -29,6 +30,7 @@ func dockerComposeLogs(serviceName string, snapshotFile string) ([]byte, error) 
 		Env: newEnvBuilder().
 			withEnvs(appConfig.StackImageRefs(install.DefaultStackVersion).AsEnv()).
 			withEnv(stackVariantAsEnv(install.DefaultStackVersion)).
+			withEnvs(profile.ComposeEnvVars()).
 			build(),
 		Services: []string{serviceName},
 	}
