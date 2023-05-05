@@ -15,27 +15,25 @@ import (
 	"github.com/elastic/elastic-package/internal/profile"
 )
 
-func dockerComposeLogs(serviceName string, snapshotFile string, profile *profile.Profile) ([]byte, error) {
+func dockerComposeLogs(serviceName string, profile *profile.Profile) ([]byte, error) {
 	appConfig, err := install.Configuration()
 	if err != nil {
 		return nil, errors.Wrap(err, "can't read application configuration")
 	}
+
+	snapshotFile := options.Profile.Path(profileStackPath, SnapshotFile)
 
 	p, err := compose.NewProject(DockerComposeProjectName, snapshotFile)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create docker compose project")
 	}
 
-	envBuilder := newEnvBuilder().
-		withEnvs(appConfig.StackImageRefs(install.DefaultStackVersion).AsEnv()).
-		withEnv(stackVariantAsEnv(install.DefaultStackVersion))
-
-	if profile != nil {
-		envBuilder = envBuilder.withEnvs(profile.ComposeEnvVars())
-	}
-
 	opts := compose.CommandOptions{
-		Env:      envBuilder.build(),
+		Env: newEnvBuilder().
+			withEnvs(appConfig.StackImageRefs(install.DefaultStackVersion).AsEnv()).
+			withEnv(stackVariantAsEnv(install.DefaultStackVersion)).
+			withEnvs(profile.ComposeEnvVars()).
+			build(),
 		Services: []string{serviceName},
 	}
 
