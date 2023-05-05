@@ -40,9 +40,6 @@ type runner struct {
 	options   testrunner.TestOptions
 	pipelines []ingest.Pipeline
 
-	dataStreamPath string
-	entryPipeline  string
-
 	runCompareResults bool
 }
 
@@ -69,23 +66,11 @@ func (r *runner) String() string {
 	return "pipeline"
 }
 
+func (r *runner) Configure(options testrunner.TestOptions) error {
+	return nil
+}
+
 func (r *runner) Setup(options testrunner.TestOptions) error {
-	r.options = options
-	var found bool
-	var err error
-
-	r.dataStreamPath, found, err = packages.FindDataStreamRootForPath(r.options.TestFolder.Path)
-	if err != nil {
-		return fmt.Errorf("locating data_stream root failed: %w", err)
-	}
-	if !found {
-		return errors.New("data stream root not found")
-	}
-
-	r.entryPipeline, r.pipelines, err = ingest.InstallDataStreamPipelines(r.options.API, r.dataStreamPath)
-	if err != nil {
-		return fmt.Errorf("installing ingest pipelines failed: %w", err)
-	}
 	return nil
 }
 
@@ -138,6 +123,20 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 
 	if r.options.API == nil {
 		return nil, errors.New("missing Elasticsearch client")
+	}
+
+	dataStreamPath, found, err := packages.FindDataStreamRootForPath(r.options.TestFolder.Path)
+	if err != nil {
+		return nil, fmt.Errorf("locating data_stream root failed: %w", err)
+	}
+	if !found {
+		return nil, errors.New("data stream root not found")
+	}
+
+	var entryPipeline string
+	entryPipeline, r.pipelines, err = ingest.InstallDataStreamPipelines(r.options.API, dataStreamPath)
+	if err != nil {
+		return nil, fmt.Errorf("installing ingest pipelines failed: %w", err)
 	}
 
 	pkgManifest, err := packages.ReadPackageManifestFromPackageRoot(r.options.PackageRootPath)
@@ -204,7 +203,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		}
 
 		simulateDataStream := dsManifest.Type + "-" + r.options.TestFolder.Package + "." + r.options.TestFolder.DataStream + "-default"
-		processedEvents, err := ingest.SimulatePipeline(r.options.API, r.entryPipeline, tc.events, simulateDataStream)
+		processedEvents, err := ingest.SimulatePipeline(r.options.API, entryPipeline, tc.events, simulateDataStream)
 		if err != nil {
 			err := fmt.Errorf("simulating pipeline processing failed: %w", err)
 			tr.ErrorMsg = err.Error()
@@ -215,7 +214,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		result := &testResult{events: processedEvents}
 
 		tr.TimeElapsed = time.Since(startTime)
-		fieldsValidator, err := fields.CreateValidatorForDirectory(r.dataStreamPath,
+		fieldsValidator, err := fields.CreateValidatorForDirectory(dataStreamPath,
 			fields.WithSpecVersion(pkgManifest.SpecVersion),
 			fields.WithNumericKeywordFields(tc.config.NumericKeywordFields),
 			// explicitly enabled for pipeline tests only
@@ -225,7 +224,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 			fields.WithEnabledImportAllECSSChema(true),
 		)
 		if err != nil {
-			return nil, fmt.Errorf("creating fields validator for data stream failed (path: %s, test case file: %s): %w", r.dataStreamPath, testCaseFile, err)
+			return nil, fmt.Errorf("creating fields validator for data stream failed (path: %s, test case file: %s): %w", dataStreamPath, testCaseFile, err)
 		}
 
 		// TODO: Add tests to cover regressive use of json.Unmarshal in verifyResults.

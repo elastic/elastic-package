@@ -76,7 +76,6 @@ func setupTestCommand() *cobraext.Command {
 	cmd.PersistentFlags().DurationP(cobraext.DeferCleanupFlagName, "", 0, cobraext.DeferCleanupFlagDescription)
 	cmd.PersistentFlags().String(cobraext.VariantFlagName, "", cobraext.VariantFlagDescription)
 	cmd.PersistentFlags().StringP(cobraext.ProfileFlagName, "p", "", fmt.Sprintf(cobraext.ProfileFlagDescription, install.ProfileNameEnvVar))
-	cmd.PersistentFlags().String(cobraext.ConfigFileFlagName, "", cobraext.ConfigFileFlagDescription)
 
 	for testType, runner := range testrunner.TestRunners() {
 		action := testTypeCommandActionFactory(runner)
@@ -93,6 +92,11 @@ func setupTestCommand() *cobraext.Command {
 		if runner.CanRunPerDataStream() {
 			testTypeCmd.Flags().StringSliceP(cobraext.DataStreamsFlagName, "d", nil, cobraext.DataStreamsFlagDescription)
 		}
+
+		testTypeCmd.Flags().String(cobraext.ConfigFileFlagName, "", cobraext.ConfigFileFlagDescription)
+		testTypeCmd.Flags().Bool(cobraext.SetupFlagName, false, cobraext.SetupFlagDescription)
+		testTypeCmd.Flags().Bool(cobraext.TearDownFlagName, false, cobraext.TearDownFlagDescription)
+		testTypeCmd.MarkFlagsMutuallyExclusive(cobraext.SetupFlagName, cobraext.TearDownFlagName)
 
 		cmd.AddCommand(testTypeCmd)
 	}

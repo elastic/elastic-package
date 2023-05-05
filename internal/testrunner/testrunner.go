@@ -46,6 +46,9 @@ type TestRunner interface {
 	// String returns the human-friendly name of the test runner.
 	String() string
 
+	// Configure installs package and starts the service
+	Configure(TestOptions) error
+
 	// Setup installs package and starts the service
 	Setup(TestOptions) error
 
@@ -59,6 +62,15 @@ type TestRunner interface {
 	CanRunPerDataStream() bool
 
 	TestFolderRequired() bool
+}
+
+// TODO
+type TestRunnerSetterUp interface {
+	// Setup installs package and starts the service
+	Configure(TestOptions) error
+
+	// Setup installs package and starts the service
+	Setup(TestOptions) error
 }
 
 var runners = map[TestType]TestRunner{}
@@ -288,6 +300,38 @@ func Run(testType TestType, options TestOptions) ([]TestResult, error) {
 		return results, fmt.Errorf("could not teardown test runner: %w", tdErr)
 	}
 	return results, nil
+}
+
+// Setup method delegates setup execution to the registered test runner, based on the test type.
+func Setup(testType TestType, options TestOptions) error {
+	runner, defined := runners[testType]
+	if !defined {
+		return fmt.Errorf("unregistered runner test: %s", testType)
+	}
+
+	err := runner.Setup(options)
+	if err != nil {
+		return fmt.Errorf("could not setup test runner: %w", err)
+	}
+	return nil
+}
+
+// TearDown method delegates teardown execution to the registered test runner, based on the test type.
+func TearDown(testType TestType, options TestOptions) error {
+	runner, defined := runners[testType]
+	if !defined {
+		return fmt.Errorf("unregistered runner test: %s", testType)
+	}
+
+	err := runner.Configure(options)
+	if err != nil {
+		return fmt.Errorf("could not setup test runner: %w", err)
+	}
+	err = runner.TearDown()
+	if err != nil {
+		return fmt.Errorf("could not setup test runner: %w", err)
+	}
+	return nil
 }
 
 // TestRunners returns registered test runners.

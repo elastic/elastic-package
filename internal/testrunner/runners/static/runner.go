@@ -42,6 +42,10 @@ func (r runner) String() string {
 	return "static files"
 }
 
+func (r *runner) Configure(options testrunner.TestOptions) error {
+	return nil
+}
+
 func (r *runner) Setup(options testrunner.TestOptions) error {
 	return nil
 }

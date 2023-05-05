@@ -136,6 +136,11 @@ func (r *runner) TestFolderRequired() bool {
 	return true
 }
 
+// Configure gets all the needed configuration to run the setup, run and teardown steps
+func (r *runner) Configure(options testrunner.TestOptions) error {
+	return nil
+}
+
 // Setup installs the packge and starts the service
 func (r *runner) Setup(options testrunner.TestOptions) error {
 	r.options = options
@@ -153,23 +158,23 @@ func (r *runner) Setup(options testrunner.TestOptions) error {
 	}
 
 	if r.options.API == nil {
-		return result.WithError(errors.New("missing Elasticsearch client"))
+		return errors.New("missing Elasticsearch client")
 	}
 	if r.options.KibanaClient == nil {
-		return result.WithError(errors.New("missing Kibana client"))
+		return errors.New("missing Kibana client")
 	}
 
 	r.stackVersion, err = r.options.KibanaClient.Version()
 	if err != nil {
-		return result.WithError(fmt.Errorf("cannot request Kibana version: %w", err))
+		return fmt.Errorf("cannot request Kibana version: %w", err)
 	}
 
 	devDeployPath, err := servicedeployer.FindDevDeployPath(servicedeployer.FactoryOptions{
 		Profile:            r.options.Profile,
 		PackageRootPath:    r.options.PackageRootPath,
-		DataStreamRootPath: dataStreamPath,
+		DataStreamRootPath: r.dataStreamPath,
 		DevDeployDir:       DevDeployDir,
-		StackVersion:       stackVersion.Version(),
+		StackVersion:       r.stackVersion.Version(),
 	})
 	if err != nil {
 		return fmt.Errorf("_dev/deploy directory not found: %w", err)
@@ -1278,7 +1283,7 @@ func writeSampleEvent(path string, doc common.MapStr, specVersion semver.Version
 		return fmt.Errorf("marshalling sample event failed: %w", err)
 	}
 
-	err = os.WriteFile(filepath.Join(path, "sample_event.json"), body, 0o644)
+	err = os.WriteFile(filepath.Join(path, "sample_event.json"), body, 0644)
 	if err != nil {
 		return fmt.Errorf("writing sample event failed: %w", err)
 	}

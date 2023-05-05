@@ -198,8 +198,14 @@ const (
 	VariantFlagName        = "variant"
 	VariantFlagDescription = "service variant"
 
-	ConfigFileFlagName    = "config-file"
-	ConfigFileDescription = "configuration file to setup service and test"
+	ConfigFileFlagName        = "config-file"
+	ConfigFileFlagDescription = "configuration file to setup service and test"
+
+	SetupFlagName        = "setup"
+	SetupFlagDescription = "trigger just the setup phase of testing"
+
+	TearDownFlagName        = "tear-down"
+	TearDownFlagDescription = "trigger just the tear-down phase of testing"
 
 	ZipPackageFilePathFlagName        = "zip"
 	ZipPackageFilePathFlagShorthand   = "z"
