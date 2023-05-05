@@ -21,7 +21,7 @@ func dockerComposeLogs(serviceName string, profile *profile.Profile) ([]byte, er
 		return nil, errors.Wrap(err, "can't read application configuration")
 	}
 
-	snapshotFile := options.Profile.Path(profileStackPath, SnapshotFile)
+	snapshotFile := profile.Path(profileStackPath, SnapshotFile)
 
 	p, err := compose.NewProject(DockerComposeProjectName, snapshotFile)
 	if err != nil {
