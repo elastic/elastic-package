@@ -121,8 +121,14 @@ if [[ "${TARGET}" == "${PARALLEL_TARGET}" ]]; then
     if [[ "${UPLOAD_SAFE_LOGS}" -eq 1 ]] ; then
         upload_safe_logs \
             "${JOB_GCS_BUCKET_INTERNAL}" \
-            "build/elastic-stack-dump/check-${PACKAGE}/logs/elastic-agent-internal/*" \
+            "build/elastic-stack-dump/check-${PACKAGE}/logs/elastic-agent-internal/*.*" \
             "insecure-logs/${PACKAGE}/"
+
+        # required for <8.6.0
+        upload_safe_logs \
+            "${JOB_GCS_BUCKET_INTERNAL}" \
+            "build/elastic-stack-dump/check-${PACKAGE}/logs/elastic-agent-internal/default/*" \
+            "insecure-logs/${PACKAGE}/default/"
 
         upload_safe_logs \
             "${JOB_GCS_BUCKET_INTERNAL}" \
