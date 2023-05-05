@@ -26,12 +26,16 @@ func dockerComposeLogs(serviceName string, snapshotFile string, profile *profile
 		return nil, errors.Wrap(err, "could not create docker compose project")
 	}
 
+	envBuilder := newEnvBuilder().
+		withEnvs(appConfig.StackImageRefs(install.DefaultStackVersion).AsEnv()).
+		withEnv(stackVariantAsEnv(install.DefaultStackVersion))
+
+	if profile != nil {
+		envBuilder = envBuilder.withEnvs(profile.ComposeEnvVars())
+	}
+
 	opts := compose.CommandOptions{
-		Env: newEnvBuilder().
-			withEnvs(appConfig.StackImageRefs(install.DefaultStackVersion).AsEnv()).
-			withEnv(stackVariantAsEnv(install.DefaultStackVersion)).
-			withEnvs(profile.ComposeEnvVars()).
-			build(),
+		Env:      envBuilder.build(),
 		Services: []string{serviceName},
 	}
 
