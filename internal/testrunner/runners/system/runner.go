@@ -943,6 +943,11 @@ func (r *runner) generateTestResult(docs []common.MapStr) error {
 }
 
 func (r *runner) anyErrorMessages(profile *profile.Profile, serviceName string) error {
+	if _, found := errorPatterns[serviceName]; !found {
+		logger.Debugf("No error patterns defined for %s", serviceName)
+		return nil
+	}
+
 	tempDir, err := os.MkdirTemp("", "test-system-")
 	if err != nil {
 		return err
