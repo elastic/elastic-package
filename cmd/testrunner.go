@@ -16,6 +16,7 @@ import (
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/elasticsearch"
+	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/signal"
 	"github.com/elastic/elastic-package/internal/testrunner"
@@ -71,6 +72,7 @@ func setupTestCommand() *cobraext.Command {
 	cmd.PersistentFlags().BoolP(cobraext.TestCoverageFlagName, "", false, cobraext.TestCoverageFlagDescription)
 	cmd.PersistentFlags().DurationP(cobraext.DeferCleanupFlagName, "", 0, cobraext.DeferCleanupFlagDescription)
 	cmd.PersistentFlags().String(cobraext.VariantFlagName, "", cobraext.VariantFlagDescription)
+	cmd.PersistentFlags().StringP(cobraext.ProfileFlagName, "p", "", fmt.Sprintf(cobraext.ProfileFlagDescription, install.ProfileNameEnvVar))
 
 	for testType, runner := range testrunner.TestRunners() {
 		action := testTypeCommandActionFactory(runner)
@@ -207,6 +209,11 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 
 		variantFlag, _ := cmd.Flags().GetString(cobraext.VariantFlagName)
 
+		profile, err := getProfileFlag(cmd)
+		if err != nil {
+			return err
+		}
+
 		esClient, err := elasticsearch.NewClient()
 		if err != nil {
 			return errors.Wrap(err, "can't create Elasticsearch client")
@@ -226,6 +233,7 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 				DeferCleanup:       deferCleanup,
 				ServiceVariant:     variantFlag,
 				WithCoverage:       testCoverage,
+				Profile:            profile,
 			})
 
 			results = append(results, r...)
