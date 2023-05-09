@@ -10,6 +10,7 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -53,10 +54,11 @@ const (
 	waitForDataDefaultTimeout = 10 * time.Minute
 )
 
-// FIXME use regex instead of plain strings
 var errorPatterns = map[string][]string{
-	"elastic-agent":    []string{"State changed to STOPPED"},
-	"package-registry": []string{},
+	"elastic-agent": []string{
+		"Cannot index event publisher.Event",
+		"(panic|runtime error)",
+	},
 }
 
 type runner struct {
@@ -965,9 +967,12 @@ func (r *runner) anyErrorMessages(profile *profile.Profile, serviceName string) 
 	}
 
 	var multiErr multierror.Error
-	for _, log := range logs {
-		for _, pattern := range errorPatterns[serviceName] {
-			if strings.Contains(log.Message, pattern) {
+
+	for _, pattern := range errorPatterns[serviceName] {
+		r := regexp.MustCompile(pattern)
+
+		for _, log := range logs {
+			if r.MatchString(log.Message) {
 				multiErr = append(multiErr, fmt.Errorf("service %s raised this error %q", serviceName, log.Message))
 			}
 		}
