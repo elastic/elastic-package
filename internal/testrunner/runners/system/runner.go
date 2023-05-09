@@ -7,8 +7,6 @@ package system
 import (
 	"encoding/json"
 	"fmt"
-	"io/fs"
-	"log"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -25,6 +23,7 @@ import (
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/multierror"
 	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/internal/profile"
 	"github.com/elastic/elastic-package/internal/signal"
 	"github.com/elastic/elastic-package/internal/stack"
 	"github.com/elastic/elastic-package/internal/testrunner"
@@ -53,6 +52,11 @@ const (
 
 	waitForDataDefaultTimeout = 10 * time.Minute
 )
+
+var errorPatterns = map[string][]string{
+	"elastic-agent":    []string{"State changed to STOPPED"},
+	"package-registry": []string{},
+}
 
 type runner struct {
 	options testrunner.TestOptions
@@ -187,42 +191,24 @@ func (r *runner) run() (results []testrunner.TestResult, err error) {
 	}
 
 	// check agent logs
-	tempDir, err := os.MkdirTemp("", "test-system-")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer os.RemoveAll(tempDir)
-
-	dumpFolder, err := stack.Dump(stack.DumpOptions{
-		Output:  tempDir,
-		Profile: r.options.Profile,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	// logs from elastic-agent >8.6.0
-	// stack.ParseErrorLogs()
-	containers := []string{"elastic_agent"}
-	for _, c := range containers {
-		elasticAgentLogsFolder := filepath.Join(dumpFolder, "logs", "elastic-agent-internal")
-
-		err = filepath.WalkDir(elasticAgentLogsFolder, func(path string, d fs.DirEntry, err error) error {
-			if err != nil {
-				return err
-			}
-			if d.IsDir() {
-				return nil
-			}
-
-			logger.Debugf("Checking file as elastic-agent log: %s", path)
-
-			// read file and look for errors
-			return nil
-		})
-		if err != nil {
-			return nil, err
+	startTime := time.Now()
+	err = r.anyErrorMessages(r.options.Profile, "elastic-agent")
+	if e, ok := err.(testrunner.ErrTestCaseFailed); ok {
+		tr := testrunner.TestResult{
+			TestType:   TestType,
+			Name:       "(logs)",
+			Package:    r.options.TestFolder.Package,
+			DataStream: r.options.TestFolder.DataStream,
 		}
+		tr.FailureMsg = e.Error()
+		tr.FailureDetails = e.Details
+		tr.TimeElapsed = time.Since(startTime)
+		results = append(results, tr)
+		return results, nil
+	}
+
+	if err != nil {
+		return result.WithError(fmt.Errorf("check log messages failed: %s", err))
 	}
 
 	return results, nil
@@ -953,5 +939,39 @@ func (r *runner) generateTestResult(docs []common.MapStr) error {
 		return errors.Wrap(err, "failed to write sample event file")
 	}
 
+	return nil
+}
+
+func (r *runner) anyErrorMessages(profile *profile.Profile, serviceName string) error {
+	tempDir, err := os.MkdirTemp("", "test-system-")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(tempDir)
+
+	logs, err := stack.ParseLogs(stack.ParseLogsOptions{
+		ServiceName: serviceName,
+		Profile:     r.options.Profile,
+		LogsPath:    tempDir,
+	})
+	if err != nil {
+		return err
+	}
+
+	var multiErr multierror.Error
+	for _, log := range logs {
+		for _, pattern := range errorPatterns[serviceName] {
+			if strings.Contains(log.Message, pattern) {
+				multiErr = append(multiErr, fmt.Errorf("service %s raised this error %q", serviceName, log.Message))
+			}
+		}
+	}
+	if len(multiErr) > 0 {
+		multiErr = multiErr.Unique()
+		return testrunner.ErrTestCaseFailed{
+			Reason:  fmt.Sprintf("one or more errors found while examining logs from services"),
+			Details: multiErr.Error(),
+		}
+	}
 	return nil
 }
