@@ -974,7 +974,7 @@ func (r *runner) anyErrorMessages(profile *profile.Profile, serviceName string) 
 	if len(multiErr) > 0 {
 		multiErr = multiErr.Unique()
 		return testrunner.ErrTestCaseFailed{
-			Reason:  fmt.Sprintf("one or more errors found while examining logs from services"),
+			Reason:  fmt.Sprintf("one or more errors found while examining logs from service %s", serviceName),
 			Details: multiErr.Error(),
 		}
 	}
