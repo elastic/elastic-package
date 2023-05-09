@@ -53,6 +53,7 @@ const (
 	waitForDataDefaultTimeout = 10 * time.Minute
 )
 
+// FIXME use regex instead of plain strings
 var errorPatterns = map[string][]string{
 	"elastic-agent":    []string{"State changed to STOPPED"},
 	"package-registry": []string{},

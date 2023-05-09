@@ -29,6 +29,7 @@ type LogLine struct {
 	Message   string    `json:"message"`
 }
 
+// ParseLogs returns all the logs for a given service name
 func ParseLogs(options ParseLogsOptions) (DockerComposeLogs, error) {
 	// create dump
 	outputPath, err := Dump(DumpOptions{Output: options.LogsPath, Profile: options.Profile})
@@ -36,7 +37,7 @@ func ParseLogs(options ParseLogsOptions) (DockerComposeLogs, error) {
 		return nil, err
 	}
 
-	// check logs for a service
+	// TODO: should we parse files of internal logs (elastic-agent and fleet-server)?
 	serviceLogs := filepath.Join(outputPath, "logs", fmt.Sprintf("%s.log", options.ServiceName))
 
 	file, err := os.Open(serviceLogs)
@@ -56,12 +57,12 @@ func ParseLogs(options ParseLogsOptions) (DockerComposeLogs, error) {
 			return nil, fmt.Errorf("malformed docker-compose log line")
 		}
 
-		// service := messageSlice[0]
 		messageLog := messageSlice[1]
 
 		var log LogLine
 		err := json.Unmarshal([]byte(messageLog), &log)
 		if err != nil {
+			// there are logs that are just plain text in these logs
 			log.Message = strings.TrimSpace(messageLog)
 		}
 
