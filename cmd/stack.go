@@ -72,12 +72,12 @@ func setupStackCommand() *cobraext.Command {
 				return cobraext.FlagParsingError(err, cobraext.StackVersionFlagName)
 			}
 
-			profile, err := getProfileFlag(cmd)
+			profile, err := cobraext.GetProfileFlag(cmd)
 			if err != nil {
 				return err
 			}
 
-			provider, err := getProviderFromProfile(cmd, profile, true)
+			provider, err := cobraext.GetProviderFromProfile(cmd, profile, true)
 			if err != nil {
 				return err
 			}
@@ -111,12 +111,12 @@ func setupStackCommand() *cobraext.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.Println("Take down the Elastic stack")
 
-			profile, err := getProfileFlag(cmd)
+			profile, err := cobraext.GetProfileFlag(cmd)
 			if err != nil {
 				return err
 			}
 
-			provider, err := getProviderFromProfile(cmd, profile, false)
+			provider, err := cobraext.GetProviderFromProfile(cmd, profile, false)
 			if err != nil {
 				return err
 			}
@@ -140,12 +140,12 @@ func setupStackCommand() *cobraext.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.Println("Update the Elastic stack")
 
-			profile, err := getProfileFlag(cmd)
+			profile, err := cobraext.GetProfileFlag(cmd)
 			if err != nil {
 				return err
 			}
 
-			provider, err := getProviderFromProfile(cmd, profile, false)
+			provider, err := cobraext.GetProviderFromProfile(cmd, profile, false)
 			if err != nil {
 				return err
 			}
@@ -183,7 +183,7 @@ func setupStackCommand() *cobraext.Command {
 				fmt.Fprintf(cmd.OutOrStderr(), "Detected shell: %s\n", shellName)
 			}
 
-			profile, err := getProfileFlag(cmd)
+			profile, err := cobraext.GetProfileFlag(cmd)
 			if err != nil {
 				return err
 			}
@@ -208,12 +208,12 @@ func setupStackCommand() *cobraext.Command {
 				return cobraext.FlagParsingError(err, cobraext.StackDumpOutputFlagName)
 			}
 
-			profile, err := getProfileFlag(cmd)
+			profile, err := cobraext.GetProfileFlag(cmd)
 			if err != nil {
 				return err
 			}
 
-			provider, err := getProviderFromProfile(cmd, profile, false)
+			provider, err := cobraext.GetProviderFromProfile(cmd, profile, false)
 			if err != nil {
 				return err
 			}
@@ -238,12 +238,12 @@ func setupStackCommand() *cobraext.Command {
 		Use:   "status",
 		Short: "Show status of the stack services",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			profile, err := getProfileFlag(cmd)
+			profile, err := cobraext.GetProfileFlag(cmd)
 			if err != nil {
 				return err
 			}
 
-			provider, err := getProviderFromProfile(cmd, profile, false)
+			provider, err := cobraext.GetProviderFromProfile(cmd, profile, false)
 			if err != nil {
 				return err
 			}

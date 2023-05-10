@@ -209,7 +209,7 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 
 		variantFlag, _ := cmd.Flags().GetString(cobraext.VariantFlagName)
 
-		profile, err := getProfileFlag(cmd)
+		profile, err := cobraext.GetProfileFlag(cmd)
 		if err != nil {
 			return err
 		}

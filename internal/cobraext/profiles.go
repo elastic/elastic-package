@@ -17,7 +17,8 @@ import (
 	"github.com/elastic/elastic-package/internal/stack"
 )
 
-func getProfileFlag(cmd *cobra.Command) (*profile.Profile, error) {
+// GetProfileFlag returns the profile information
+func GetProfileFlag(cmd *cobra.Command) (*profile.Profile, error) {
 	profileName, err := cmd.Flags().GetString(ProfileFlagName)
 	if err != nil {
 		return nil, FlagParsingError(err, ProfileFlagName)
@@ -66,7 +67,8 @@ func availableProfilesAsAList() ([]string, error) {
 	return profileNames, nil
 }
 
-func getProviderFromProfile(cmd *cobra.Command, profile *profile.Profile, checkFlag bool) (stack.Provider, error) {
+// GetProviderFromProfile returns the provider related to the given profile
+func GetProviderFromProfile(cmd *cobra.Command, profile *profile.Profile, checkFlag bool) (stack.Provider, error) {
 	var providerName = stack.DefaultProvider
 	stackConfig, err := stack.LoadConfig(profile)
 	if err != nil {
