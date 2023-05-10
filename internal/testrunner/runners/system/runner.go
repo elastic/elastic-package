@@ -24,7 +24,6 @@ import (
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/multierror"
 	"github.com/elastic/elastic-package/internal/packages"
-	"github.com/elastic/elastic-package/internal/profile"
 	"github.com/elastic/elastic-package/internal/signal"
 	"github.com/elastic/elastic-package/internal/stack"
 	"github.com/elastic/elastic-package/internal/testrunner"
@@ -54,10 +53,10 @@ const (
 	waitForDataDefaultTimeout = 10 * time.Minute
 )
 
-var errorPatterns = map[string][]string{
-	"elastic-agent": []string{
-		"Cannot index event publisher.Event",
-		"(panic|runtime error)",
+var errorPatterns = map[string][]*regexp.Regexp{
+	"elastic-agent": []*regexp.Regexp{
+		regexp.MustCompile("Cannot index event publisher.Event"),
+		regexp.MustCompile("(panic|runtime error)"),
 	},
 }
 
@@ -183,6 +182,7 @@ func (r *runner) run() (results []testrunner.TestResult, err error) {
 		return result.WithError(errors.Wrap(err, "can't read service variant"))
 	}
 
+	startTesting := time.Now()
 	for _, cfgFile := range cfgFiles {
 		for _, variantName := range r.selectVariants(variantsFile) {
 			partial, err := r.runTestPerVariant(result, locationManager, cfgFile, dataStreamPath, variantName)
@@ -195,7 +195,13 @@ func (r *runner) run() (results []testrunner.TestResult, err error) {
 
 	// check agent logs
 	startTime := time.Now()
-	err = r.anyErrorMessages(r.options.Profile, "elastic-agent")
+	serviceName := "elastic-agent"
+	if _, found := errorPatterns[serviceName]; !found {
+		logger.Debugf("No error patterns defined for ", serviceName)
+		return results, nil
+	}
+
+	err = r.anyErrorMessages(serviceName, startTesting, errorPatterns[serviceName])
 	if e, ok := err.(testrunner.ErrTestCaseFailed); ok {
 		tr := testrunner.TestResult{
 			TestType:   TestType,
@@ -945,38 +951,32 @@ func (r *runner) generateTestResult(docs []common.MapStr) error {
 	return nil
 }
 
-func (r *runner) anyErrorMessages(profile *profile.Profile, serviceName string) error {
-	if _, found := errorPatterns[serviceName]; !found {
-		logger.Debugf("No error patterns defined for %s", serviceName)
-		return nil
-	}
-
+func (r *runner) anyErrorMessages(serviceName string, startTime time.Time, errorPatterns []*regexp.Regexp) error {
 	tempDir, err := os.MkdirTemp("", "test-system-")
 	if err != nil {
 		return err
 	}
 	defer os.RemoveAll(tempDir)
 
-	logs, err := stack.ParseLogs(stack.ParseLogsOptions{
+	var multiErr multierror.Error
+	processLog := func(log stack.LogLine) error {
+		for _, pattern := range errorPatterns {
+			if pattern.MatchString(log.Message) {
+				multiErr = append(multiErr, fmt.Errorf("found error %q", log.Message))
+			}
+		}
+		return nil
+	}
+	err = stack.ParseLogs(stack.ParseLogsOptions{
 		ServiceName: serviceName,
+		StartTime:   startTime,
 		Profile:     r.options.Profile,
 		LogsPath:    tempDir,
-	})
+	}, processLog)
 	if err != nil {
 		return err
 	}
 
-	var multiErr multierror.Error
-
-	for _, pattern := range errorPatterns[serviceName] {
-		r := regexp.MustCompile(pattern)
-
-		for _, log := range logs {
-			if r.MatchString(log.Message) {
-				multiErr = append(multiErr, fmt.Errorf("service %s raised this error %q", serviceName, log.Message))
-			}
-		}
-	}
 	if len(multiErr) > 0 {
 		multiErr = multiErr.Unique()
 		return testrunner.ErrTestCaseFailed{

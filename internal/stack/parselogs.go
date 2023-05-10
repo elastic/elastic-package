@@ -13,16 +13,17 @@ import (
 	"strings"
 	"time"
 
+	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/profile"
 )
 
 type ParseLogsOptions struct {
 	ServiceName string
+	StartTime   time.Time
 	LogsPath    string
 	Profile     *profile.Profile
 }
 
-type DockerComposeLogs []LogLine
 type LogLine struct {
 	LogLevel  string    `json:"log.lovel"`
 	Timestamp time.Time `json:"@timestamp"`
@@ -30,11 +31,11 @@ type LogLine struct {
 }
 
 // ParseLogs returns all the logs for a given service name
-func ParseLogs(options ParseLogsOptions) (DockerComposeLogs, error) {
+func ParseLogs(options ParseLogsOptions, process func(log LogLine) error) error {
 	// create dump
 	outputPath, err := Dump(DumpOptions{Output: options.LogsPath, Profile: options.Profile})
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	// TODO: should we parse files of internal logs (elastic-agent and fleet-server)?
@@ -42,11 +43,12 @@ func ParseLogs(options ParseLogsOptions) (DockerComposeLogs, error) {
 
 	file, err := os.Open(serviceLogs)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer file.Close()
 
-	var logs DockerComposeLogs
+	startProcessing := false
+
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -54,7 +56,7 @@ func ParseLogs(options ParseLogsOptions) (DockerComposeLogs, error) {
 		messageSlice := strings.SplitN(line, "|", 2)
 
 		if len(messageSlice) != 2 {
-			return nil, fmt.Errorf("malformed docker-compose log line")
+			return fmt.Errorf("malformed docker-compose log line")
 		}
 
 		messageLog := messageSlice[1]
@@ -66,8 +68,19 @@ func ParseLogs(options ParseLogsOptions) (DockerComposeLogs, error) {
 			log.Message = strings.TrimSpace(messageLog)
 		}
 
-		logs = append(logs, log)
+		// There could be valid messages with just plain text without timestamp
+		if !startProcessing && log.Timestamp.Before(options.StartTime) {
+			logger.Debugf("found old message (%s): %s", options.StartTime, log)
+			continue
+		}
+		startProcessing = true
+
+		logger.Debugf("processing (%s): %s", options.StartTime, log)
+		err = process(log)
+		if err != nil {
+			return err
+		}
 	}
 
-	return logs, nil
+	return nil
 }
