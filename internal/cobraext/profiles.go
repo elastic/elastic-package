@@ -11,15 +11,16 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
+	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/profile"
 	"github.com/elastic/elastic-package/internal/stack"
 )
 
 func getProfileFlag(cmd *cobra.Command) (*profile.Profile, error) {
-	profileName, err := cmd.Flags().GetString(cobraext.ProfileFlagName)
+	profileName, err := cmd.Flags().GetString(ProfileFlagName)
 	if err != nil {
-		return nil, cobraext.FlagParsingError(err, cobraext.ProfileFlagName)
+		return nil, FlagParsingError(err, ProfileFlagName)
 	}
 	if profileName == "" {
 		config, err := install.Configuration()
@@ -47,6 +48,24 @@ func getProfileFlag(cmd *cobra.Command) (*profile.Profile, error) {
 	return p, nil
 }
 
+func availableProfilesAsAList() ([]string, error) {
+	loc, err := locations.NewLocationManager()
+	if err != nil {
+		return []string{}, errors.Wrap(err, "error fetching profile path")
+	}
+
+	profileNames := []string{}
+	profileList, err := profile.FetchAllProfiles(loc.ProfileDir())
+	if err != nil {
+		return profileNames, errors.Wrap(err, "error fetching all profiles")
+	}
+	for _, prof := range profileList {
+		profileNames = append(profileNames, prof.Name)
+	}
+
+	return profileNames, nil
+}
+
 func getProviderFromProfile(cmd *cobra.Command, profile *profile.Profile, checkFlag bool) (stack.Provider, error) {
 	var providerName = stack.DefaultProvider
 	stackConfig, err := stack.LoadConfig(profile)
@@ -58,9 +77,9 @@ func getProviderFromProfile(cmd *cobra.Command, profile *profile.Profile, checkF
 	}
 
 	if checkFlag {
-		providerFlag, err := cmd.Flags().GetString(cobraext.StackProviderFlagName)
+		providerFlag, err := cmd.Flags().GetString(StackProviderFlagName)
 		if err != nil {
-			return nil, cobraext.FlagParsingError(err, cobraext.StackProviderFlagName)
+			return nil, FlagParsingError(err, StackProviderFlagName)
 		}
 		if providerFlag != "" {
 			providerName = providerFlag

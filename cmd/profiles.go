@@ -217,21 +217,3 @@ func profileToList(profiles []profile.Metadata) [][]string {
 
 	return profileList
 }
-
-func availableProfilesAsAList() ([]string, error) {
-	loc, err := locations.NewLocationManager()
-	if err != nil {
-		return []string{}, errors.Wrap(err, "error fetching profile path")
-	}
-
-	profileNames := []string{}
-	profileList, err := profile.FetchAllProfiles(loc.ProfileDir())
-	if err != nil {
-		return profileNames, errors.Wrap(err, "error fetching all profiles")
-	}
-	for _, prof := range profileList {
-		profileNames = append(profileNames, prof.Name)
-	}
-
-	return profileNames, nil
-}
