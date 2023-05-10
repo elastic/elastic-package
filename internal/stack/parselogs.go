@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -17,10 +16,9 @@ import (
 )
 
 type ParseLogsOptions struct {
-	ServiceName string
-	StartTime   time.Time
-	LogsPath    string
-	Profile     *profile.Profile
+	LogsFilePath string
+	StartTime    time.Time
+	Profile      *profile.Profile
 }
 
 type LogLine struct {
@@ -31,16 +29,7 @@ type LogLine struct {
 
 // ParseLogs returns all the logs for a given service name
 func ParseLogs(options ParseLogsOptions, process func(log LogLine) error) error {
-	// create dump
-	outputPath, err := Dump(DumpOptions{Output: options.LogsPath, Profile: options.Profile})
-	if err != nil {
-		return err
-	}
-
-	// TODO: should we parse files of internal logs (elastic-agent and fleet-server)?
-	serviceLogs := filepath.Join(outputPath, "logs", fmt.Sprintf("%s.log", options.ServiceName))
-
-	file, err := os.Open(serviceLogs)
+	file, err := os.Open(options.LogsFilePath)
 	if err != nil {
 		return err
 	}

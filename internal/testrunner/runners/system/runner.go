@@ -201,7 +201,20 @@ func (r *runner) run() (results []testrunner.TestResult, err error) {
 		return results, nil
 	}
 
-	err = r.anyErrorMessages(serviceName, startTesting, errorPatterns[serviceName])
+	tempDir, err := os.MkdirTemp("", "test-system-")
+	if err != nil {
+		return result.WithError(fmt.Errorf("can't create temporal directory: %w", err))
+	}
+	defer os.RemoveAll(tempDir)
+	dumpOptions := stack.DumpOptions{Output: tempDir, Profile: r.options.Profile}
+	_, err = stack.Dump(dumpOptions)
+	if err != nil {
+		return result.WithError(fmt.Errorf("dump failed: %w", err))
+	}
+
+	serviceLogsFile := stack.DumpLogsFile(dumpOptions, serviceName)
+
+	err = r.anyErrorMessages(serviceLogsFile, startTesting, errorPatterns[serviceName])
 	if e, ok := err.(testrunner.ErrTestCaseFailed); ok {
 		tr := testrunner.TestResult{
 			TestType:   TestType,
@@ -951,12 +964,7 @@ func (r *runner) generateTestResult(docs []common.MapStr) error {
 	return nil
 }
 
-func (r *runner) anyErrorMessages(serviceName string, startTime time.Time, errorPatterns []*regexp.Regexp) error {
-	tempDir, err := os.MkdirTemp("", "test-system-")
-	if err != nil {
-		return err
-	}
-	defer os.RemoveAll(tempDir)
+func (r *runner) anyErrorMessages(logsFilePath string, startTime time.Time, errorPatterns []*regexp.Regexp) error {
 
 	var multiErr multierror.Error
 	processLog := func(log stack.LogLine) error {
@@ -967,11 +975,10 @@ func (r *runner) anyErrorMessages(serviceName string, startTime time.Time, error
 		}
 		return nil
 	}
-	err = stack.ParseLogs(stack.ParseLogsOptions{
-		ServiceName: serviceName,
-		StartTime:   startTime,
-		Profile:     r.options.Profile,
-		LogsPath:    tempDir,
+	err := stack.ParseLogs(stack.ParseLogsOptions{
+		LogsFilePath: logsFilePath,
+		StartTime:    startTime,
+		Profile:      r.options.Profile,
 	}, processLog)
 	if err != nil {
 		return err
@@ -980,7 +987,7 @@ func (r *runner) anyErrorMessages(serviceName string, startTime time.Time, error
 	if len(multiErr) > 0 {
 		multiErr = multiErr.Unique()
 		return testrunner.ErrTestCaseFailed{
-			Reason:  fmt.Sprintf("one or more errors found while examining logs from service %s", serviceName),
+			Reason:  fmt.Sprintf("one or more errors found while examining %s logs", filepath.Base(logsFilePath)),
 			Details: multiErr.Error(),
 		}
 	}
