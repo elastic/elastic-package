@@ -13,7 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/profile"
 )
 
@@ -70,12 +69,10 @@ func ParseLogs(options ParseLogsOptions, process func(log LogLine) error) error 
 
 		// There could be valid messages with just plain text without timestamp
 		if !startProcessing && log.Timestamp.Before(options.StartTime) {
-			logger.Debugf("found old message (%s): %s", options.StartTime, log)
 			continue
 		}
 		startProcessing = true
 
-		logger.Debugf("processing (%s): %s", options.StartTime, log)
 		err = process(log)
 		if err != nil {
 			return err
