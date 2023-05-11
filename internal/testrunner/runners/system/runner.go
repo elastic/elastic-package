@@ -57,13 +57,6 @@ var (
 	errorPatterns = map[string][]*regexp.Regexp{
 		"elastic-agent": []*regexp.Regexp{
 			regexp.MustCompile("Cannot index event publisher.Event"),
-			regexp.MustCompile("New State ID"),
-		},
-		"fleet-server": []*regexp.Regexp{
-			regexp.MustCompile("New State ID"),
-		},
-		"package-registry": []*regexp.Regexp{
-			regexp.MustCompile("GET"),
 		},
 	}
 )
