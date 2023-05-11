@@ -53,11 +53,20 @@ const (
 	waitForDataDefaultTimeout = 10 * time.Minute
 )
 
-var errorPatterns = map[string][]*regexp.Regexp{
-	"elastic-agent": []*regexp.Regexp{
-		regexp.MustCompile("Cannot index event publisher.Event"),
-	},
-}
+var (
+	errorPatterns = map[string][]*regexp.Regexp{
+		"elastic-agent": []*regexp.Regexp{
+			regexp.MustCompile("Cannot index event publisher.Event"),
+			regexp.MustCompile("New State ID"),
+		},
+		"fleet-server": []*regexp.Regexp{
+			regexp.MustCompile("New State ID"),
+		},
+		"package-registry": []*regexp.Regexp{
+			regexp.MustCompile("GET"),
+		},
+	}
+)
 
 type runner struct {
 	options testrunner.TestOptions
@@ -205,17 +214,12 @@ func (r *runner) run() (results []testrunner.TestResult, err error) {
 		return result.WithError(fmt.Errorf("dump failed: %w", err))
 	}
 
-	checkServices := []string{"elastic-agent", "package-registry"}
-	for _, serviceName := range checkServices {
+	for serviceName, patterns := range errorPatterns {
 		startTime := time.Now()
-		if _, found := errorPatterns[serviceName]; !found {
-			logger.Debugf("No error patterns defined for ", serviceName)
-			return results, nil
-		}
 
 		serviceLogsFile := stack.DumpLogsFile(dumpOptions, serviceName)
 
-		err = r.anyErrorMessages(serviceLogsFile, startTesting, errorPatterns[serviceName])
+		err = r.anyErrorMessages(serviceLogsFile, startTesting, patterns)
 		if e, ok := err.(testrunner.ErrTestCaseFailed); ok {
 			tr := testrunner.TestResult{
 				TestType:   TestType,
