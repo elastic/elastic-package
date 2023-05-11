@@ -447,7 +447,3 @@ mappings:
             mapping:
                 type: nested
             path_match: '*.macho.sections'
-        - trigger_to_nested:
-            mapping:
-                type: nested
-            match: trigger

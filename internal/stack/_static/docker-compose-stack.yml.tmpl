@@ -137,6 +137,10 @@ services:
     - type: bind
       source: ../../../tmp/service_logs/
       target: /tmp/service_logs/
+    # Mount service_logs under /run too as a testing workaround for the journald input (see elastic-package#1235).
+    - type: bind
+      source: ../../../tmp/service_logs/
+      target: /run/service_logs/
 
   elastic-agent_is_ready:
     image: tianon/true
