@@ -56,7 +56,6 @@ const (
 var errorPatterns = map[string][]*regexp.Regexp{
 	"elastic-agent": []*regexp.Regexp{
 		regexp.MustCompile("Cannot index event publisher.Event"),
-		// regexp.MustCompile("(panic|runtime error)"),
 	},
 }
 
@@ -194,43 +193,46 @@ func (r *runner) run() (results []testrunner.TestResult, err error) {
 	}
 
 	// check agent logs
-	startTime := time.Now()
-	serviceName := "elastic-agent"
-	if _, found := errorPatterns[serviceName]; !found {
-		logger.Debugf("No error patterns defined for ", serviceName)
-		return results, nil
-	}
-
 	tempDir, err := os.MkdirTemp("", "test-system-")
 	if err != nil {
 		return result.WithError(fmt.Errorf("can't create temporal directory: %w", err))
 	}
 	defer os.RemoveAll(tempDir)
+
 	dumpOptions := stack.DumpOptions{Output: tempDir, Profile: r.options.Profile}
 	_, err = stack.Dump(dumpOptions)
 	if err != nil {
 		return result.WithError(fmt.Errorf("dump failed: %w", err))
 	}
 
-	serviceLogsFile := stack.DumpLogsFile(dumpOptions, serviceName)
-
-	err = r.anyErrorMessages(serviceLogsFile, startTesting, errorPatterns[serviceName])
-	if e, ok := err.(testrunner.ErrTestCaseFailed); ok {
-		tr := testrunner.TestResult{
-			TestType:   TestType,
-			Name:       "(logs)",
-			Package:    r.options.TestFolder.Package,
-			DataStream: r.options.TestFolder.DataStream,
+	checkServices := []string{"elastic-agent", "package-registry"}
+	for _, serviceName := range checkServices {
+		startTime := time.Now()
+		if _, found := errorPatterns[serviceName]; !found {
+			logger.Debugf("No error patterns defined for ", serviceName)
+			return results, nil
 		}
-		tr.FailureMsg = e.Error()
-		tr.FailureDetails = e.Details
-		tr.TimeElapsed = time.Since(startTime)
-		results = append(results, tr)
-		return results, nil
-	}
 
-	if err != nil {
-		return result.WithError(fmt.Errorf("check log messages failed: %s", err))
+		serviceLogsFile := stack.DumpLogsFile(dumpOptions, serviceName)
+
+		err = r.anyErrorMessages(serviceLogsFile, startTesting, errorPatterns[serviceName])
+		if e, ok := err.(testrunner.ErrTestCaseFailed); ok {
+			tr := testrunner.TestResult{
+				TestType:   TestType,
+				Name:       fmt.Sprintf("(%s logs)", serviceName),
+				Package:    r.options.TestFolder.Package,
+				DataStream: r.options.TestFolder.DataStream,
+			}
+			tr.FailureMsg = e.Error()
+			tr.FailureDetails = e.Details
+			tr.TimeElapsed = time.Since(startTime)
+			results = append(results, tr)
+			continue
+		}
+
+		if err != nil {
+			return result.WithError(fmt.Errorf("check log messages failed: %s", err))
+		}
 	}
 
 	return results, nil
@@ -987,7 +989,7 @@ func (r *runner) anyErrorMessages(logsFilePath string, startTime time.Time, erro
 	if len(multiErr) > 0 {
 		multiErr = multiErr.Unique()
 		return testrunner.ErrTestCaseFailed{
-			Reason:  fmt.Sprintf("one or more errors found while examining %s logs", filepath.Base(logsFilePath)),
+			Reason:  fmt.Sprintf("one or more errors found while examining %s", filepath.Base(logsFilePath)),
 			Details: multiErr.Error(),
 		}
 	}
