@@ -57,6 +57,7 @@ var (
 	errorPatterns = map[string][]*regexp.Regexp{
 		"elastic-agent": []*regexp.Regexp{
 			regexp.MustCompile("Cannot index event publisher.Event"),
+			regexp.MustCompile("->(FAILED|DEGRADED)"),
 		},
 	}
 )
