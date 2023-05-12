@@ -19,9 +19,10 @@ const createDataStreamLongDescription = `Use this command to create a new data s
 The command can extend the package with a new data stream using embedded data stream template and wizard.`
 
 type newDataStreamAnswers struct {
-	Name  string
-	Title string
-	Type  string
+	Name      string
+	Title     string
+	Type      string
+	Synthetic bool
 }
 
 func createDataStreamCommandAction(cmd *cobra.Command, args []string) error {
@@ -61,6 +62,14 @@ func createDataStreamCommandAction(cmd *cobra.Command, args []string) error {
 			},
 			Validate: survey.Required,
 		},
+		{
+			Name: "synthetic",
+			Prompt: &survey.Confirm{
+				Message: "Enable synthetic source:",
+				Default: true,
+			},
+			Validate: survey.Required,
+		},
 	}
 	var answers newDataStreamAnswers
 	err = survey.Ask(qs, &answers)
@@ -79,12 +88,19 @@ func createDataStreamCommandAction(cmd *cobra.Command, args []string) error {
 }
 
 func createDataStreamDescriptorFromAnswers(answers newDataStreamAnswers, packageRoot string) archetype.DataStreamDescriptor {
+	manifest := packages.DataStreamManifest{
+		Name:  answers.Name,
+		Title: answers.Title,
+		Type:  answers.Type,
+	}
+	if answers.Synthetic {
+		elasticsearch := packages.Elasticsearch{
+			SourceMode: "synthetic",
+		}
+		manifest.Elasticsearch = &elasticsearch
+	}
 	return archetype.DataStreamDescriptor{
-		Manifest: packages.DataStreamManifest{
-			Name:  answers.Name,
-			Title: answers.Title,
-			Type:  answers.Type,
-		},
+		Manifest:    manifest,
 		PackageRoot: packageRoot,
 	}
 }

@@ -132,22 +132,25 @@ type PackageManifest struct {
 	Categories      []string         `config:"categories" json:"categories" yaml:"categories"`
 }
 
+type Elasticsearch struct {
+	IndexTemplate *struct {
+		IngestPipeline *struct {
+			Name string `config:"name" json:"name" yaml:"name"`
+		} `config:"ingest_pipeline" json:"ingest_pipeline" yaml:"ingest_pipeline"`
+	} `config:"index_template" json:"index_template" yaml:"index_template"`
+	SourceMode string `config:"source_mode" json:"source_mode" yaml:"source_mode"`
+}
+
 // DataStreamManifest represents the structure of a data stream's manifest
 type DataStreamManifest struct {
-	Name          string `config:"name" json:"name" yaml:"name"`
-	Title         string `config:"title" json:"title" yaml:"title"`
-	Type          string `config:"type" json:"type" yaml:"type"`
-	Dataset       string `config:"dataset" json:"dataset" yaml:"dataset"`
-	Hidden        bool   `config:"hidden" json:"hidden" yaml:"hidden"`
-	Release       string `config:"release" json:"release" yaml:"release"`
-	Elasticsearch *struct {
-		IndexTemplate *struct {
-			IngestPipeline *struct {
-				Name string `config:"name" json:"name" yaml:"name"`
-			} `config:"ingest_pipeline" json:"ingest_pipeline" yaml:"ingest_pipeline"`
-		} `config:"index_template" json:"index_template" yaml:"index_template"`
-	} `config:"elasticsearch" json:"elasticsearch" yaml:"elasticsearch"`
-	Streams []struct {
+	Name          string         `config:"name" json:"name" yaml:"name"`
+	Title         string         `config:"title" json:"title" yaml:"title"`
+	Type          string         `config:"type" json:"type" yaml:"type"`
+	Dataset       string         `config:"dataset" json:"dataset" yaml:"dataset"`
+	Hidden        bool           `config:"hidden" json:"hidden" yaml:"hidden"`
+	Release       string         `config:"release" json:"release" yaml:"release"`
+	Elasticsearch *Elasticsearch `config:"elasticsearch" json:"elasticsearch" yaml:"elasticsearch"`
+	Streams       []struct {
 		Input string     `config:"input" json:"input" yaml:"input"`
 		Vars  []Variable `config:"vars" json:"vars" yaml:"vars"`
 	} `config:"streams" json:"streams" yaml:"streams"`

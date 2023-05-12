@@ -27,6 +27,10 @@ streams:{{if eq .Manifest.Type "logs" }}
         title: Period
         default: 10s
 {{- end}}
+{{ if .Manifest.Elasticsearch }}
+{{ if eq .Manifest.Elasticsearch.SourceMode "synthetic" }}
 elasticsearch:
   source_mode: synthetic
+{{- end}}
+{{- end}}
 `
