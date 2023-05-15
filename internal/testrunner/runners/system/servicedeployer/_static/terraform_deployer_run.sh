@@ -21,6 +21,7 @@ trap cleanup EXIT INT TERM
 terraform init
 terraform plan
 terraform apply -auto-approve && touch /tmp/tf-applied
+terraform output -json > ./infrastructure.json
 
 echo "Terraform definitions applied."
 
