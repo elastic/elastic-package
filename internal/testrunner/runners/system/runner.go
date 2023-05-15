@@ -53,11 +53,36 @@ const (
 	waitForDataDefaultTimeout = 10 * time.Minute
 )
 
+type logsRegexp struct {
+	includes *regexp.Regexp
+	excludes []*regexp.Regexp
+}
+
 var (
-	errorPatterns = map[string][]*regexp.Regexp{
-		"elastic-agent": []*regexp.Regexp{
-			regexp.MustCompile("Cannot index event publisher.Event"),
-			regexp.MustCompile("->(FAILED|DEGRADED)"),
+	errorPatterns = map[string][]logsRegexp{
+		"elastic-agent": []logsRegexp{
+			logsRegexp{
+				includes: regexp.MustCompile("^Cannot index event publisher.Event"),
+				excludes: []*regexp.Regexp{
+					// this regex is excluded to ensure that logs coming from the `system` package installed by default are not taken into account
+					regexp.MustCompile(`action \[indices:data\/write\/bulk\[s\]\] is unauthorized for API key id \[.*\] of user \[.*\] on indices \[.*\], this action is granted by the index privileges \[.*\]`),
+				},
+			},
+			// logsRegexp{
+			// 	includes: regexp.MustCompile("New State ID"),
+			// 	excludes: []*regexp.Regexp{
+			// 		regexp.MustCompile("is unahorized API key id"),
+			// 	},
+			// },
+			// logsRegexp{
+			// 	includes: regexp.MustCompile("->HEALTHY"),
+			// 	excludes: []*regexp.Regexp{
+			// 		regexp.MustCompile(`Healthy$`),
+			// 	},
+			// },
+			logsRegexp{
+				includes: regexp.MustCompile("->(FAILED|DEGRADED)"),
+			},
 		},
 	}
 )
@@ -964,14 +989,26 @@ func (r *runner) generateTestResult(docs []common.MapStr) error {
 	return nil
 }
 
-func (r *runner) anyErrorMessages(logsFilePath string, startTime time.Time, errorPatterns []*regexp.Regexp) error {
+func (r *runner) anyErrorMessages(logsFilePath string, startTime time.Time, errorPatterns []logsRegexp) error {
 
 	var multiErr multierror.Error
 	processLog := func(log stack.LogLine) error {
 		for _, pattern := range errorPatterns {
-			if pattern.MatchString(log.Message) {
-				multiErr = append(multiErr, fmt.Errorf("found error %q", log.Message))
+			if !pattern.includes.MatchString(log.Message) {
+				continue
 			}
+			isExcluded := false
+			for _, excludes := range pattern.excludes {
+				if excludes.MatchString(log.Message) {
+					isExcluded = true
+					break
+				}
+			}
+			if isExcluded {
+				continue
+			}
+
+			multiErr = append(multiErr, fmt.Errorf("found error %q", log.Message))
 		}
 		return nil
 	}
