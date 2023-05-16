@@ -67,8 +67,8 @@ func availableProfilesAsAList() ([]string, error) {
 	return profileNames, nil
 }
 
-// GetProviderFromProfile returns the provider related to the given profile
-func GetProviderFromProfile(cmd *cobra.Command, profile *profile.Profile, checkFlag bool) (stack.Provider, error) {
+// GetStackProviderFromProfile returns the provider related to the given profile
+func GetStackProviderFromProfile(cmd *cobra.Command, profile *profile.Profile, checkFlag bool) (stack.Provider, error) {
 	var providerName = stack.DefaultProvider
 	stackConfig, err := stack.LoadConfig(profile)
 	if err != nil {

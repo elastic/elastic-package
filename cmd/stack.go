@@ -77,7 +77,7 @@ func setupStackCommand() *cobraext.Command {
 				return err
 			}
 
-			provider, err := cobraext.GetProviderFromProfile(cmd, profile, true)
+			provider, err := cobraext.GetStackProviderFromProfile(cmd, profile, true)
 			if err != nil {
 				return err
 			}
@@ -116,7 +116,7 @@ func setupStackCommand() *cobraext.Command {
 				return err
 			}
 
-			provider, err := cobraext.GetProviderFromProfile(cmd, profile, false)
+			provider, err := cobraext.GetStackProviderFromProfile(cmd, profile, false)
 			if err != nil {
 				return err
 			}
@@ -145,7 +145,7 @@ func setupStackCommand() *cobraext.Command {
 				return err
 			}
 
-			provider, err := cobraext.GetProviderFromProfile(cmd, profile, false)
+			provider, err := cobraext.GetStackProviderFromProfile(cmd, profile, false)
 			if err != nil {
 				return err
 			}
@@ -213,7 +213,7 @@ func setupStackCommand() *cobraext.Command {
 				return err
 			}
 
-			provider, err := cobraext.GetProviderFromProfile(cmd, profile, false)
+			provider, err := cobraext.GetStackProviderFromProfile(cmd, profile, false)
 			if err != nil {
 				return err
 			}
@@ -243,7 +243,7 @@ func setupStackCommand() *cobraext.Command {
 				return err
 			}
 
-			provider, err := cobraext.GetProviderFromProfile(cmd, profile, false)
+			provider, err := cobraext.GetStackProviderFromProfile(cmd, profile, false)
 			if err != nil {
 				return err
 			}
