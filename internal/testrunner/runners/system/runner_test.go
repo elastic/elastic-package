@@ -171,7 +171,7 @@ func TestCheckAgentLogs(t *testing.T) {
 	var testCases = []struct {
 		testName        string
 		startingTime    string
-		errorPatterns   map[string][]logsRegexp
+		errorPatterns   []logsByContainer
 		sampleLogs      map[string][]string
 		expectedErrors  int
 		expectedMessage []string
@@ -180,10 +180,13 @@ func TestCheckAgentLogs(t *testing.T) {
 		{
 			testName:     "all logs found",
 			startingTime: "2023-05-15T12:00:00.000Z",
-			errorPatterns: map[string][]logsRegexp{
-				"service": []logsRegexp{
-					logsRegexp{
-						includes: regexp.MustCompile(".*"),
+			errorPatterns: []logsByContainer{
+				logsByContainer{
+					containerName: "service",
+					patterns: []logsRegexp{
+						logsRegexp{
+							includes: regexp.MustCompile(".*"),
+						},
 					},
 				},
 			},
@@ -198,16 +201,19 @@ func TestCheckAgentLogs(t *testing.T) {
 				"test case failed: one or more errors found while examining service.log",
 			},
 			expectedDetails: []string{
-				"[0] found error \"foo\"\n[1] found error \"something\"",
+				"[0] found error \"something\"\n[1] found error \"foo\"",
 			},
 		},
 		{
-			testName:     "skipped logs because starting time",
+			testName:     "remove old logs",
 			startingTime: "2023-05-15T13:00:02.000Z",
-			errorPatterns: map[string][]logsRegexp{
-				"service": []logsRegexp{
-					logsRegexp{
-						includes: regexp.MustCompile(".*"),
+			errorPatterns: []logsByContainer{
+				logsByContainer{
+					containerName: "service",
+					patterns: []logsRegexp{
+						logsRegexp{
+							includes: regexp.MustCompile(".*"),
+						},
 					},
 				},
 			},
@@ -222,12 +228,15 @@ func TestCheckAgentLogs(t *testing.T) {
 			expectedDetails: []string{"[0] found error \"foo\""},
 		},
 		{
-			testName:     "no logs found because starting time",
+			testName:     "all logs older",
 			startingTime: "2023-05-15T14:00:00.000Z",
-			errorPatterns: map[string][]logsRegexp{
-				"service": []logsRegexp{
-					logsRegexp{
-						includes: regexp.MustCompile(".*"),
+			errorPatterns: []logsByContainer{
+				logsByContainer{
+					containerName: "service",
+					patterns: []logsRegexp{
+						logsRegexp{
+							includes: regexp.MustCompile(".*"),
+						},
 					},
 				},
 			},
@@ -242,10 +251,13 @@ func TestCheckAgentLogs(t *testing.T) {
 		{
 			testName:     "filter logs by regex",
 			startingTime: "2023-05-15T12:00:00.000Z",
-			errorPatterns: map[string][]logsRegexp{
-				"service": []logsRegexp{
-					logsRegexp{
-						includes: regexp.MustCompile(".*thing$"),
+			errorPatterns: []logsByContainer{
+				logsByContainer{
+					containerName: "service",
+					patterns: []logsRegexp{
+						logsRegexp{
+							includes: regexp.MustCompile(".*thing$"),
+						},
 					},
 				},
 			},
@@ -261,17 +273,23 @@ func TestCheckAgentLogs(t *testing.T) {
 			expectedDetails: []string{"[0] found error \"something\""},
 		},
 		{
-			testName:     "erros found in two services - filtered",
+			testName:     "logs found for two services",
 			startingTime: "2023-05-15T13:00:01.000Z",
-			errorPatterns: map[string][]logsRegexp{
-				"service": []logsRegexp{
-					logsRegexp{
-						includes: regexp.MustCompile(".*thing$"),
+			errorPatterns: []logsByContainer{
+				logsByContainer{
+					containerName: "service",
+					patterns: []logsRegexp{
+						logsRegexp{
+							includes: regexp.MustCompile(".*thing$"),
+						},
 					},
 				},
-				"external": []logsRegexp{
-					logsRegexp{
-						includes: regexp.MustCompile(" other "),
+				logsByContainer{
+					containerName: "external",
+					patterns: []logsRegexp{
+						logsRegexp{
+							includes: regexp.MustCompile(" foo$"),
+						},
 					},
 				},
 			},
@@ -284,7 +302,7 @@ func TestCheckAgentLogs(t *testing.T) {
 				"external": []string{
 					`external_1 | {"@timestamp": "2023-05-15T13:00:00.000Z", "message": "external: initial"}`,
 					`external_1 | {"@timestamp": "2023-05-15T13:00:05.000Z", "message": "external: foo"}`,
-					`external_1 | {"@timestamp": "2023-05-15T13:00:08.000Z", "message": "external: any other thing"}`,
+					`external_1 | {"@timestamp": "2023-05-15T13:00:08.000Z", "message": "external: any other foo"}`,
 				},
 			},
 			expectedErrors: 2,
@@ -294,7 +312,7 @@ func TestCheckAgentLogs(t *testing.T) {
 			},
 			expectedDetails: []string{
 				"[0] found error \"service: something\"",
-				"[0] found error \"external: any other thing\"",
+				"[0] found error \"external: foo\"\n[1] found error \"external: any other foo\"",
 			},
 		},
 	}
@@ -342,8 +360,8 @@ func TestCheckAgentLogs(t *testing.T) {
 			}
 
 			for i := 0; i < tc.expectedErrors; i++ {
-				assert.Contains(t, tc.expectedMessage, results[i].FailureMsg)
-				assert.Contains(t, tc.expectedDetails, results[i].FailureDetails)
+				assert.Equal(t, tc.expectedMessage[i], results[i].FailureMsg)
+				assert.Equal(t, tc.expectedDetails[i], results[i].FailureDetails)
 			}
 		})
 	}

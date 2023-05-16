@@ -60,33 +60,36 @@ type logsRegexp struct {
 
 type logsByContainer struct {
 	containerName string
-	logsRegexp    []logsRegexp
+	patterns      []logsRegexp
 }
 
 var (
-	errorPatterns = map[string][]logsRegexp{
-		"elastic-agent": []logsRegexp{
-			logsRegexp{
-				includes: regexp.MustCompile("^Cannot index event publisher.Event"),
-				excludes: []*regexp.Regexp{
-					// this regex is excluded to ensure that logs coming from the `system` package installed by default are not taken into account
-					regexp.MustCompile(`action \[indices:data\/write\/bulk\[s\]\] is unauthorized for API key id \[.*\] of user \[.*\] on indices \[.*\], this action is granted by the index privileges \[.*\]`),
+	errorPatterns = []logsByContainer{
+		logsByContainer{
+			containerName: "elastic-agent",
+			patterns: []logsRegexp{
+				logsRegexp{
+					includes: regexp.MustCompile("^Cannot index event publisher.Event"),
+					excludes: []*regexp.Regexp{
+						// this regex is excluded to ensure that logs coming from the `system` package installed by default are not taken into account
+						regexp.MustCompile(`action \[indices:data\/write\/bulk\[s\]\] is unauthorized for API key id \[.*\] of user \[.*\] on indices \[.*\], this action is granted by the index privileges \[.*\]`),
+					},
 				},
-			},
-			logsRegexp{
-				includes: regexp.MustCompile("New State ID"),
-				excludes: []*regexp.Regexp{
-					regexp.MustCompile("is unahorized API key id"),
+				logsRegexp{
+					includes: regexp.MustCompile("New State ID"),
+					excludes: []*regexp.Regexp{
+						regexp.MustCompile("is unahorized API key id"),
+					},
 				},
-			},
-			logsRegexp{
-				includes: regexp.MustCompile("->HEALTHY"),
-				excludes: []*regexp.Regexp{
-					regexp.MustCompile(`Healthy$`),
+				logsRegexp{
+					includes: regexp.MustCompile("->HEALTHY"),
+					excludes: []*regexp.Regexp{
+						regexp.MustCompile(`Healthy$`),
+					},
 				},
-			},
-			logsRegexp{
-				includes: regexp.MustCompile("->(FAILED|DEGRADED)"),
+				logsRegexp{
+					includes: regexp.MustCompile("->(FAILED|DEGRADED)"),
+				},
 			},
 		},
 	}
@@ -974,18 +977,18 @@ func (r *runner) generateTestResult(docs []common.MapStr) error {
 	return nil
 }
 
-func (r *runner) checkAgentLogs(dumpOptions stack.DumpOptions, startTesting time.Time, errorPatterns map[string][]logsRegexp) (results []testrunner.TestResult, err error) {
+func (r *runner) checkAgentLogs(dumpOptions stack.DumpOptions, startTesting time.Time, errorPatterns []logsByContainer) (results []testrunner.TestResult, err error) {
 
-	for serviceName, patterns := range errorPatterns {
+	for _, patternsContainer := range errorPatterns {
 		startTime := time.Now()
 
-		serviceLogsFile := stack.DumpLogsFile(dumpOptions, serviceName)
+		serviceLogsFile := stack.DumpLogsFile(dumpOptions, patternsContainer.containerName)
 
-		err = r.anyErrorMessages(serviceLogsFile, startTesting, patterns)
+		err = r.anyErrorMessages(serviceLogsFile, startTesting, patternsContainer.patterns)
 		if e, ok := err.(testrunner.ErrTestCaseFailed); ok {
 			tr := testrunner.TestResult{
 				TestType:   TestType,
-				Name:       fmt.Sprintf("(%s logs)", serviceName),
+				Name:       fmt.Sprintf("(%s logs)", patternsContainer.containerName),
 				Package:    r.options.TestFolder.Package,
 				DataStream: r.options.TestFolder.DataStream,
 			}
@@ -1004,7 +1007,6 @@ func (r *runner) checkAgentLogs(dumpOptions stack.DumpOptions, startTesting time
 }
 
 func (r *runner) anyErrorMessages(logsFilePath string, startTime time.Time, errorPatterns []logsRegexp) error {
-
 	var multiErr multierror.Error
 	processLog := func(log stack.LogLine) error {
 		for _, pattern := range errorPatterns {
@@ -1035,7 +1037,6 @@ func (r *runner) anyErrorMessages(logsFilePath string, startTime time.Time, erro
 	}
 
 	if len(multiErr) > 0 {
-		multiErr = multiErr.Unique()
 		return testrunner.ErrTestCaseFailed{
 			Reason:  fmt.Sprintf("one or more errors found while examining %s", filepath.Base(logsFilePath)),
 			Details: multiErr.Error(),
