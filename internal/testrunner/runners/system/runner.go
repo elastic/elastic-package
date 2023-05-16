@@ -58,6 +58,11 @@ type logsRegexp struct {
 	excludes []*regexp.Regexp
 }
 
+type logsByContainer struct {
+	containerName string
+	logsRegexp    []logsRegexp
+}
+
 var (
 	errorPatterns = map[string][]logsRegexp{
 		"elastic-agent": []logsRegexp{
@@ -68,18 +73,18 @@ var (
 					regexp.MustCompile(`action \[indices:data\/write\/bulk\[s\]\] is unauthorized for API key id \[.*\] of user \[.*\] on indices \[.*\], this action is granted by the index privileges \[.*\]`),
 				},
 			},
-			// logsRegexp{
-			// 	includes: regexp.MustCompile("New State ID"),
-			// 	excludes: []*regexp.Regexp{
-			// 		regexp.MustCompile("is unahorized API key id"),
-			// 	},
-			// },
-			// logsRegexp{
-			// 	includes: regexp.MustCompile("->HEALTHY"),
-			// 	excludes: []*regexp.Regexp{
-			// 		regexp.MustCompile(`Healthy$`),
-			// 	},
-			// },
+			logsRegexp{
+				includes: regexp.MustCompile("New State ID"),
+				excludes: []*regexp.Regexp{
+					regexp.MustCompile("is unahorized API key id"),
+				},
+			},
+			logsRegexp{
+				includes: regexp.MustCompile("->HEALTHY"),
+				excludes: []*regexp.Regexp{
+					regexp.MustCompile(`Healthy$`),
+				},
+			},
 			logsRegexp{
 				includes: regexp.MustCompile("->(FAILED|DEGRADED)"),
 			},
@@ -220,43 +225,23 @@ func (r *runner) run() (results []testrunner.TestResult, err error) {
 		}
 	}
 
-	// check agent logs
 	tempDir, err := os.MkdirTemp("", "test-system-")
 	if err != nil {
-		return result.WithError(fmt.Errorf("can't create temporal directory: %w", err))
+		return nil, fmt.Errorf("can't create temporal directory: %w", err)
 	}
 	defer os.RemoveAll(tempDir)
 
 	dumpOptions := stack.DumpOptions{Output: tempDir, Profile: r.options.Profile}
 	_, err = stack.Dump(dumpOptions)
 	if err != nil {
-		return result.WithError(fmt.Errorf("dump failed: %w", err))
+		return nil, fmt.Errorf("dump failed: %w", err)
 	}
 
-	for serviceName, patterns := range errorPatterns {
-		startTime := time.Now()
-
-		serviceLogsFile := stack.DumpLogsFile(dumpOptions, serviceName)
-
-		err = r.anyErrorMessages(serviceLogsFile, startTesting, patterns)
-		if e, ok := err.(testrunner.ErrTestCaseFailed); ok {
-			tr := testrunner.TestResult{
-				TestType:   TestType,
-				Name:       fmt.Sprintf("(%s logs)", serviceName),
-				Package:    r.options.TestFolder.Package,
-				DataStream: r.options.TestFolder.DataStream,
-			}
-			tr.FailureMsg = e.Error()
-			tr.FailureDetails = e.Details
-			tr.TimeElapsed = time.Since(startTime)
-			results = append(results, tr)
-			continue
-		}
-
-		if err != nil {
-			return result.WithError(fmt.Errorf("check log messages failed: %s", err))
-		}
+	logResults, err := r.checkAgentLogs(dumpOptions, startTesting, errorPatterns)
+	if err != nil {
+		return result.WithError(err)
 	}
+	results = append(results, logResults...)
 
 	return results, nil
 }
@@ -989,6 +974,35 @@ func (r *runner) generateTestResult(docs []common.MapStr) error {
 	return nil
 }
 
+func (r *runner) checkAgentLogs(dumpOptions stack.DumpOptions, startTesting time.Time, errorPatterns map[string][]logsRegexp) (results []testrunner.TestResult, err error) {
+
+	for serviceName, patterns := range errorPatterns {
+		startTime := time.Now()
+
+		serviceLogsFile := stack.DumpLogsFile(dumpOptions, serviceName)
+
+		err = r.anyErrorMessages(serviceLogsFile, startTesting, patterns)
+		if e, ok := err.(testrunner.ErrTestCaseFailed); ok {
+			tr := testrunner.TestResult{
+				TestType:   TestType,
+				Name:       fmt.Sprintf("(%s logs)", serviceName),
+				Package:    r.options.TestFolder.Package,
+				DataStream: r.options.TestFolder.DataStream,
+			}
+			tr.FailureMsg = e.Error()
+			tr.FailureDetails = e.Details
+			tr.TimeElapsed = time.Since(startTime)
+			results = append(results, tr)
+			continue
+		}
+
+		if err != nil {
+			return nil, fmt.Errorf("check log messages failed: %s", err)
+		}
+	}
+	return results, nil
+}
+
 func (r *runner) anyErrorMessages(logsFilePath string, startTime time.Time, errorPatterns []logsRegexp) error {
 
 	var multiErr multierror.Error
@@ -1015,7 +1029,6 @@ func (r *runner) anyErrorMessages(logsFilePath string, startTime time.Time, erro
 	err := stack.ParseLogs(stack.ParseLogsOptions{
 		LogsFilePath: logsFilePath,
 		StartTime:    startTime,
-		Profile:      r.options.Profile,
 	}, processLog)
 	if err != nil {
 		return err

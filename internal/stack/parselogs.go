@@ -11,14 +11,11 @@ import (
 	"os"
 	"strings"
 	"time"
-
-	"github.com/elastic/elastic-package/internal/profile"
 )
 
 type ParseLogsOptions struct {
 	LogsFilePath string
 	StartTime    time.Time
-	Profile      *profile.Profile
 }
 
 type LogLine struct {
