@@ -76,18 +76,6 @@ var (
 					},
 				},
 				logsRegexp{
-					includes: regexp.MustCompile("New State ID"),
-					excludes: []*regexp.Regexp{
-						regexp.MustCompile("is unahorized API key id"),
-					},
-				},
-				logsRegexp{
-					includes: regexp.MustCompile("->HEALTHY"),
-					excludes: []*regexp.Regexp{
-						regexp.MustCompile(`Healthy$`),
-					},
-				},
-				logsRegexp{
 					includes: regexp.MustCompile("->(FAILED|DEGRADED)"),
 				},
 			},
