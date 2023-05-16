@@ -315,6 +315,36 @@ func TestCheckAgentLogs(t *testing.T) {
 				"[0] found error \"external: foo\"\n[1] found error \"external: any other foo\"",
 			},
 		},
+		{
+			testName:     "usage of includes and excludes",
+			startingTime: "2023-05-15T12:00:00.000Z",
+			errorPatterns: []logsByContainer{
+				logsByContainer{
+					containerName: "service",
+					patterns: []logsRegexp{
+						logsRegexp{
+							includes: regexp.MustCompile("^(something|foo)"),
+							excludes: []*regexp.Regexp{
+								regexp.MustCompile("foo$"),
+								regexp.MustCompile("42"),
+							},
+						},
+					},
+				},
+			},
+			sampleLogs: map[string][]string{
+				"service": []string{
+					`service_1 | {"@timestamp": "2023-05-15T13:00:00.000Z", "message": "something"}`,
+					`service_1 | {"@timestamp": "2023-05-15T13:00:05.000Z", "message": "something foo"}`,
+					`service_1 | {"@timestamp": "2023-05-15T13:00:10.000Z", "message": "foo bar"}`,
+					`service_1 | {"@timestamp": "2023-05-15T13:00:15.000Z", "message": "foo bar 42"}`,
+					`service_1 | {"@timestamp": "2023-05-15T13:00:20.000Z", "message": "other message"}`,
+				},
+			},
+			expectedErrors:  1,
+			expectedMessage: []string{"test case failed: one or more errors found while examining service.log"},
+			expectedDetails: []string{"[0] found error \"something\"\n[1] found error \"foo bar\""},
+		},
 	}
 
 	for _, tc := range testCases {
