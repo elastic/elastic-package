@@ -269,7 +269,8 @@ func generateDataStreamCorpusCommandAction(cmd *cobra.Command, _ []string) error
 		return cobraext.FlagParsingError(err, cobraext.GenerateCorpusRallyTrackOutputDirFlagName)
 	}
 
-	generator, err := corpusgenerator.NewGenerator(packageName, dataSetName, commit, totSizeInBytes)
+	genLibClient := corpusgenerator.NewClient(commit)
+	generator, err := corpusgenerator.NewGenerator(genLibClient, packageName, dataSetName, totSizeInBytes)
 	if err != nil {
 		return errors.Wrap(err, "can't generate benchmarks data corpus for data stream")
 	}
