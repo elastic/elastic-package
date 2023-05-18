@@ -5,8 +5,10 @@
 package system
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -228,11 +230,23 @@ func createTestRunID() string {
 	return fmt.Sprintf("%d", rand.Intn(testRunMaxID-testRunMinID)+testRunMinID)
 }
 
+func buildAllFieldsBody() io.Reader {
+	var b strings.Builder
+	b.WriteString("\n")
+	b.WriteString(`{
+	  "fields": ["*"]
+	}`)
+	b.WriteString("\n")
+	return strings.NewReader(b.String())
+}
+
 func (r *runner) getDocs(dataStream string) ([]common.MapStr, error) {
 	resp, err := r.options.API.Search(
 		r.options.API.Search.WithIndex(dataStream),
 		r.options.API.Search.WithSort("@timestamp:asc"),
 		r.options.API.Search.WithSize(elasticsearchQuerySize),
+		r.options.API.Search.WithSource("true"),
+		r.options.API.Search.WithBody(buildAllFieldsBody()),
 	)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not search data stream")
@@ -246,6 +260,7 @@ func (r *runner) getDocs(dataStream string) ([]common.MapStr, error) {
 			}
 			Hits []struct {
 				Source common.MapStr `json:"_source"`
+				Fields common.MapStr `json:"fields"`
 			}
 		}
 		Error *struct {
@@ -255,7 +270,13 @@ func (r *runner) getDocs(dataStream string) ([]common.MapStr, error) {
 		Status int
 	}
 
-	if err := json.NewDecoder(resp.Body).Decode(&results); err != nil {
+	b, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	logger.Debugf("\n\n\n>>> Response:\n%s\n\n\n", string(b))
+
+	if err := json.NewDecoder(bytes.NewReader(b)).Decode(&results); err != nil {
 		return nil, errors.Wrap(err, "could not decode search results response")
 	}
 
@@ -269,7 +290,10 @@ func (r *runner) getDocs(dataStream string) ([]common.MapStr, error) {
 
 	var docs []common.MapStr
 	for _, hit := range results.Hits.Hits {
+		// docs = append(docs, hit.Fields)
 		docs = append(docs, hit.Source)
+		logger.Debugf("Checking hit fields:\n%s", hit.Fields)
+		logger.Debugf("Checking hit _source:\n%s", hit.Source)
 	}
 
 	return docs, nil
