@@ -36,7 +36,7 @@ require (
 	gotest.tools/gotestsum v1.10.0
 	helm.sh/helm/v3 v3.12.0
 	honnef.co/go/tools v0.4.3
-	k8s.io/apimachinery v0.27.1
+	k8s.io/apimachinery v0.27.2
 	k8s.io/cli-runtime v0.27.1
 	k8s.io/client-go v0.27.1
 )
@@ -162,7 +162,7 @@ require (
 	k8s.io/apiextensions-apiserver v0.27.1 // indirect
 	k8s.io/component-base v0.27.1 // indirect
 	k8s.io/klog/v2 v2.90.1 // indirect
-	k8s.io/kube-openapi v0.0.0-20230308215209-15aac26d736a // indirect
+	k8s.io/kube-openapi v0.0.0-20230501164219-8b0f38b5fd1f // indirect
 	k8s.io/kubectl v0.27.1 // indirect
 	k8s.io/utils v0.0.0-20230220204549-a5ecb0141aa5 // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
