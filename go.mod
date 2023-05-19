@@ -30,7 +30,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.0
 	github.com/shirou/gopsutil/v3 v3.23.4
 	github.com/spf13/cobra v1.7.0
-	github.com/stretchr/testify v1.8.2
+	github.com/stretchr/testify v1.8.3
 	golang.org/x/tools v0.9.1
 	gopkg.in/yaml.v3 v3.0.1
 	gotest.tools/gotestsum v1.10.0
