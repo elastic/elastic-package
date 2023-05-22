@@ -22,6 +22,8 @@ terraform init
 terraform plan
 terraform apply -auto-approve && touch /tmp/tf-applied
 
+terraform output -json > /tmp/output.json
+
 echo "Terraform definitions applied."
 
 set +x
