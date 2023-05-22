@@ -38,7 +38,7 @@
         "allow_org_users": true,
         "allowed_repo_permissions": ["admin", "write"],
         "allowed_list": [ ],
-        "set_commit_status": true,
+        "set_commit_status": false,
         "build_on_commit": false,
         "build_on_comment": true,
         "trigger_comment_regex": "^(?:(?:buildkite\\W+)?(?:test)\\W+(?:integrations))$",
