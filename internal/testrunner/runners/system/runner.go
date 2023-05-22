@@ -290,8 +290,8 @@ func (r *runner) getDocs(dataStream string) ([]common.MapStr, error) {
 
 	var docs []common.MapStr
 	for _, hit := range results.Hits.Hits {
-		// docs = append(docs, hit.Fields)
-		docs = append(docs, hit.Source)
+		docs = append(docs, hit.Fields)
+		// docs = append(docs, hit.Source)
 		logger.Debugf("Checking hit fields:\n%s", hit.Fields)
 		logger.Debugf("Checking hit _source:\n%s", hit.Source)
 	}
