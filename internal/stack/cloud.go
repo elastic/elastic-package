@@ -15,8 +15,10 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"strings"
 	"time"
 
+	"github.com/elastic/go-elasticsearch/v7"
 	"github.com/sethvargo/go-retry"
 
 	"github.com/elastic/cloud-sdk-go/pkg/api"
@@ -88,12 +90,6 @@ func (cp *cloudProvider) BootUp(options Options) error {
 	region := "gcp-europe-west3"
 	templateID := "gcp-io-optimized"
 
-	logger.Debugf("Uploading GeoIP databases")
-	geoIPExtension, err := cp.createGeoIPExtension()
-	if err != nil {
-		return fmt.Errorf("failed to create GeoIP extension: %w", err)
-	}
-
 	logger.Debugf("Getting deployment template %q", templateID)
 	template, err := deptemplateapi.Get(deptemplateapi.GetParams{
 		API:          cp.api,
@@ -119,15 +115,6 @@ func (cp *cloudProvider) BootUp(options Options) error {
 			plan.DeploymentTemplate = &models.DeploymentTemplateReference{}
 		}
 		plan.DeploymentTemplate.ID = &templateID
-
-		// Add the GeoIP bundle.
-		plan.Elasticsearch.UserBundles = []*models.ElasticsearchUserBundle{
-			&models.ElasticsearchUserBundle{
-				ElasticsearchVersion: &options.StackVersion,
-				Name:                 geoIPExtension.Name,
-				URL:                  geoIPExtension.URL,
-			},
-		}
 	}
 
 	logger.Debugf("Creating deployment %q", name)
@@ -150,7 +137,6 @@ func (cp *cloudProvider) BootUp(options Options) error {
 	config.Provider = ProviderCloud
 	config.Parameters = map[string]string{
 		paramCloudDeploymentAlias: res.Alias,
-		paramGeoIPExtensionID:     *geoIPExtension.ID,
 	}
 	deploymentID := res.ID
 	if deploymentID == nil {
@@ -198,12 +184,96 @@ func (cp *cloudProvider) BootUp(options Options) error {
 
 	printUserConfig(options.Printer, config)
 
+	logger.Debug("Waiting for creation plan to be completed")
+	err = planutil.TrackChange(planutil.TrackChangeParams{
+		TrackChangeParams: plan.TrackChangeParams{
+			API:          cp.api,
+			DeploymentID: *deploymentID,
+		},
+		Writer: &cloudTrackWriter{},
+		Format: "text",
+	})
+	if err != nil {
+		return fmt.Errorf("failed to track cluster creation: %w", err)
+	}
+
+	// Storing configuration now, so if something fails with the extension, we still
+	// keep track of the deployment id.
 	err = storeConfig(cp.profile, config)
 	if err != nil {
 		return fmt.Errorf("failed to store config: %w", err)
 	}
 
-	logger.Debug("Waiting for creation plan to be completed")
+	logger.Debugf("Replacing GeoIP databases")
+
+	client, err := elasticsearch.NewClient(elasticsearch.Config{
+		Addresses: []string{config.ElasticsearchHost},
+		Username:  config.ElasticsearchUsername,
+		Password:  config.ElasticsearchPassword,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to initialize Elasticsearch client: %w", err)
+	}
+
+	settingsPayload := `{"persistent": {"ingest.geoip.downloader.enabled":false}}`
+	resp, err := client.Cluster.PutSettings(strings.NewReader(settingsPayload))
+	if err != nil {
+		return fmt.Errorf("failed to disable geoip automatic downloader: %w", err)
+	}
+	if resp.IsError() {
+		return fmt.Errorf("failed to disable geoup automatic downloader (status: %v): %v:", resp.StatusCode, resp.String())
+	}
+
+	geoIPExtension, err := cp.createGeoIPExtension()
+	if err != nil {
+		return fmt.Errorf("failed to create GeoIP extension: %w", err)
+	}
+
+	config.Parameters[paramGeoIPExtensionID] = *geoIPExtension.ID
+	err = storeConfig(cp.profile, config)
+	if err != nil {
+		return fmt.Errorf("failed to store config: %w", err)
+	}
+
+	// Add the GeoIP bundle.
+	updatePlan := models.ElasticsearchClusterPlan{
+		// If no cluster topology is included, cluster is terminated.
+		ClusterTopology: payload.Resources.Elasticsearch[0].Plan.ClusterTopology,
+		Elasticsearch: &models.ElasticsearchConfiguration{
+			UserBundles: []*models.ElasticsearchUserBundle{
+				&models.ElasticsearchUserBundle{
+					ElasticsearchVersion: &options.StackVersion,
+					Name:                 geoIPExtension.Name,
+					URL:                  geoIPExtension.URL,
+				},
+			},
+			Version: options.StackVersion,
+		},
+		DeploymentTemplate: &models.DeploymentTemplateReference{
+			ID: &templateID,
+		},
+	}
+	pruneOrphans := false
+	_, err = deploymentapi.Update(deploymentapi.UpdateParams{
+		API:          cp.api,
+		DeploymentID: *deploymentID,
+		Request: &models.DeploymentUpdateRequest{
+			PruneOrphans: &pruneOrphans,
+			Resources: &models.DeploymentUpdateResources{
+				Elasticsearch: []*models.ElasticsearchPayload{
+					&models.ElasticsearchPayload{
+						RefID:  res.Resources[0].RefID,
+						Region: res.Resources[0].Region,
+						Plan:   &updatePlan,
+					},
+				},
+			},
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to add extension to deployment: %w", err)
+	}
+
 	err = planutil.TrackChange(planutil.TrackChangeParams{
 		TrackChangeParams: plan.TrackChangeParams{
 			API:          cp.api,
@@ -220,41 +290,9 @@ func (cp *cloudProvider) BootUp(options Options) error {
 }
 
 func (cp *cloudProvider) createGeoIPExtension() (*models.Extension, error) {
-	// From https://www.elastic.co/guide/en/cloud/current/ec-custom-bundles.html
-	const baseDir = "ingest-geoip"
-
-	files := []struct {
-		source string
-		target string
-	}{
-		// These files cannot have the default prefix, we will rename them.
-		{"GeoLite2-ASN.mmdb", "ElasticPackage-ASN.mmdb"},
-		{"GeoLite2-City.mmdb", "ElasticPackage-City.mmdb"},
-		{"GeoLite2-Country.mmdb", "ElasticPackage-Country.mmdb"},
-	}
-
-	var bundle bytes.Buffer
-	w := zip.NewWriter(&bundle)
-	for _, f := range files {
-		fw, err := w.Create(path.Join(baseDir, f.target))
-		if err != nil {
-			return nil, fmt.Errorf("failed to create file %q in bundle: %w", f.target, err)
-		}
-
-		fr, err := static.Open(path.Join("_static", f.source))
-		if err != nil {
-			return nil, fmt.Errorf("failed to open static file %q: %w", f.source, err)
-		}
-
-		_, err = io.Copy(fw, fr)
-		if err != nil {
-			fr.Close()
-			return nil, fmt.Errorf("failed to copy contents of file %q: %w", f.source, err)
-		}
-		fr.Close()
-	}
-	if err := w.Close(); err != nil {
-		return nil, fmt.Errorf("failed to close bundle: %w", err)
+	bundle, err := zipGeoIPBundle()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create GeoIP bundle: %w", err)
 	}
 
 	// TODO: Parameterize extension Name.
@@ -276,13 +314,50 @@ func (cp *cloudProvider) createGeoIPExtension() (*models.Extension, error) {
 	extension, err = extensionapi.Upload(extensionapi.UploadParams{
 		API:         cp.api,
 		ExtensionID: *extension.ID,
-		File:        &bundle,
+		File:        bundle,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to upload bundle: %w", err)
 	}
 
 	return extension, nil
+}
+
+func zipGeoIPBundle() (*bytes.Buffer, error) {
+	// From https://www.elastic.co/guide/en/cloud/current/ec-custom-bundles.html
+	const baseDir = "ingest-geoip"
+
+	files := []string{
+		"GeoLite2-ASN.mmdb",
+		"GeoLite2-City.mmdb",
+		"GeoLite2-Country.mmdb",
+	}
+
+	var bundle bytes.Buffer
+	w := zip.NewWriter(&bundle)
+	for _, fileName := range files {
+		fw, err := w.Create(path.Join(baseDir, fileName))
+		if err != nil {
+			return nil, fmt.Errorf("failed to create file %q in bundle: %w", fileName, err)
+		}
+
+		fr, err := static.Open(path.Join("_static", fileName))
+		if err != nil {
+			return nil, fmt.Errorf("failed to open static file %q: %w", fileName, err)
+		}
+
+		_, err = io.Copy(fw, fr)
+		if err != nil {
+			fr.Close()
+			return nil, fmt.Errorf("failed to copy contents of file %q: %w", fileName, err)
+		}
+		fr.Close()
+	}
+	if err := w.Close(); err != nil {
+		return nil, fmt.Errorf("failed to close bundle: %w", err)
+	}
+
+	return &bundle, nil
 }
 
 func (cp *cloudProvider) deleteGeoIPExtension() error {
