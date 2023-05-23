@@ -57,7 +57,7 @@ git_push_with_auth() {
 
 clone_repository() {
     local target="$1"
-    retry 5 git clone https://github.com/elastic/integrations ${target}
+    retry 5 git clone --depth 1 https://github.com/elastic/integrations ${target}
 }
 
 create_pull_request() {
@@ -89,6 +89,7 @@ create_or_update_pull_request() {
     local checkout_options=""
     local integrations_pr_number=""
 
+    echo "Cloning repository"
     clone_repository "${repo_path}"
     pushd "${repo_path}" > /dev/null
 
@@ -96,16 +97,19 @@ create_or_update_pull_request() {
 
     integrations_pr_number=$(get_pr_number "${INTEGRATIONS_PR_BRANCH}")
     if [ -z "${integrations_pr_number}" ]; then
+        echo "Exists PR in integrations repository: ${integrations_pr_number}"
         checkout_options=" -b "
     fi
     git checkout ${checkout_options} ${INTEGRATIONS_PR_BRANCH}
 
+    echo "Updating dependency :pushpin:"
     update_dependency
 
     return
     git_push_with_auth
 
     if [ -z "${integrations_pr_number}" ]; then
+        echo "Creating pull request :github:"
         create_pull_request
     fi
 
@@ -129,5 +133,5 @@ create_or_update_pull_request
 
 exit 0
 
-echo "--- adding comment into elastic-package pull request"
+echo "--- adding comment into elastic-package pull request :memo:"
 add_pr_comment "${BUILDKITE_PULL_REQUEST}"
