@@ -1,5 +1,7 @@
 env:
   GOLANG_VERSION: "1.20.3"
+  GH_CLI_VERSION: "2.29.0"
+  JQ_VERSION: "1.6"
 
 steps:
   - label: ":go: Run check-static"
@@ -9,4 +11,9 @@ steps:
       image: "golang:${GOLANG_VERSION}"
       cpu: "8"
       memory: "4G"
+  - label: ":hammer: Create PR in integrations"
+    key: pr-integrations
+    command: ".buildkite/scripts/test-with-integrations.sh"
+    agents:
+      provider: "gcp"
 
