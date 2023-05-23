@@ -78,5 +78,4 @@ if [[ "$BUILDKITE_PIPELINE_SLUG" == "elastic-package-test-with-integrations" && 
 
     export GITHUB_USERNAME_SECRET="useruser"
     export GITHUB_EMAIL_SECRET="myemailemail"
-    export GITHUB_TOKEN="tokentoken"
 fi
