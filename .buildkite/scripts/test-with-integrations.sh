@@ -4,7 +4,7 @@ set -euo pipefail
 
 WORKSPACE="$(pwd)"
 
-TMP_FOLDER_TEMPLATE="tmp.repo"
+TMP_FOLDER_TEMPLATE="tmp.${GITHUB_PR_BASE_REPO}.XXXXXXXXX"
 
 cleanup() {
     echo "Deleting temporal files..."
