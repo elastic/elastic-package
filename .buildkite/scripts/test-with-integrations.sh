@@ -24,6 +24,7 @@ with_github_cli
 echo "--- install jq"
 with_jq
 
+
 INTEGRATIONS_SOURCE_BRANCH=main
 INTEGRATIONS_REPO=github.com:elastic/integrations.git
 INTEGRATIONS_PR_BRANCH="test-elastic-package-pr-${BUILDKITE_PULL_REQUEST}"
@@ -75,6 +76,10 @@ create_pull_request() {
 }
 
 update_dependency() {
+    # it needs to set the Golang version from the integrations repository (.go-version file)
+    echo "--- install go"
+    with_go
+
     go mod edit -replace github.com/${GITHUB_PR_BASE_OWNER}/${GITHUB_PR_BASE_REPO}=github.com/${GITHUB_PR_OWNER}/${GITHUB_PR_REPO}@${GITHUB_PR_HEAD_SHA}
     go mod tidy
 

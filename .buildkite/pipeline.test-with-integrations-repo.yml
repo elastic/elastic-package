@@ -1,4 +1,5 @@
 env:
+  SETUP_GVM_VERSION: 'v0.5.0' # https://github.com/andrewkroh/gvm/issues/44#issuecomment-1013231151
   GOLANG_VERSION: "1.20.3"
   GH_CLI_VERSION: "2.29.0"
   JQ_VERSION: "1.6"
