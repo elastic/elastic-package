@@ -18,7 +18,10 @@ source .buildkite/scripts/install_deps.sh
 
 add_bin_path
 
+echo "--- install gh cli"
 with_github_cli
+
+echo "--- install jq"
 with_jq
 
 INTEGRATIONS_SOURCE_BRANCH=main
@@ -121,9 +124,10 @@ add_pr_comment() {
 }
 
 
-# integrations repository
+echo "--- creating or updating integrations pull request"
 create_or_update_pull_request
 
 exit 0
-# elastic-package
+
+echo "--- adding comment into elastic-package pull request"
 add_pr_comment "${BUILDKITE_PULL_REQUEST}"
