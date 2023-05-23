@@ -31,6 +31,7 @@ INTEGRATIONS_PR_TITLE="Test elastic-package - DO NOT MERGE"
 
 
 get_pr_number() {
+    # requires GITHUB_TOKEN
     local branch="$1"
     gh pr list -H "${branch}" --json number | jq -r '.[]|.number'
 }
@@ -61,6 +62,7 @@ clone_repository() {
 }
 
 create_pull_request() {
+    # requires GITHUB_TOKEN
     echo "Creating Pull Request"
     retry 3 \
         gh pr create \
