@@ -46,10 +46,12 @@ with_github_cli() {
 
     local gh_filename="gh_${GH_CLI_VERSION}_linux_amd64"
     local gh_tar_file="${gh_filename}.tar.gz"
+    local gh_tar_full_path="${WORKSPACE}/tmp/${gh_tar_file}"
 
-    retry 5 curl -sL -o ${WORKSPACE}/tmp "https://github.com/cli/cli/releases/download/v${GH_CLI_VERSION}/${gh_tar_file}"
+    retry 5 curl -sL -o ${gh_tar_full_path} "https://github.com/cli/cli/releases/download/v${GH_CLI_VERSION}/${gh_tar_file}"
 
-    tar -C ${WORKSPACE}/bin -xpf ${WORKSPACE}/tmp/${gh_tar_file} ${gh_filename}/bin/gh --strip-components=2
+    # just extract the binary file from the tar.gz
+    tar -C ${WORKSPACE}/bin -xpf ${gh_tar_full_path} ${gh_filename}/bin/gh --strip-components=2
 
     chmod +x ${WORKSPACE}/bin/gh
     rm -rf ${WORKSPACE}/tmp
