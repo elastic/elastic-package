@@ -30,6 +30,8 @@ import (
 	"github.com/elastic/cloud-sdk-go/pkg/plan"
 	"github.com/elastic/cloud-sdk-go/pkg/plan/planutil"
 
+	"github.com/elastic/elastic-package/internal/compose"
+	"github.com/elastic/elastic-package/internal/docker"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/profile"
 )
@@ -72,7 +74,8 @@ func (cp *cloudProvider) BootUp(options Options) error {
 	logger.Warn("Elastic Cloud provider is in technical preview")
 
 	_, err := cp.currentDeployment()
-	if err == nil {
+	switch err {
+	case nil:
 		// Do nothing, deployment already exists.
 		// TODO: Migrate configuration if changed.
 		config, err := LoadConfig(cp.profile)
@@ -81,7 +84,10 @@ func (cp *cloudProvider) BootUp(options Options) error {
 		}
 		printUserConfig(options.Printer, config)
 		return nil
-	} else if err != nil && err != errDeploymentNotExist {
+	case errDeploymentNotExist:
+		// Deployment doesn't exist, let's continue.
+		break
+	default:
 		return err
 	}
 
@@ -221,7 +227,7 @@ func (cp *cloudProvider) BootUp(options Options) error {
 		return fmt.Errorf("failed to disable geoip automatic downloader: %w", err)
 	}
 	if resp.IsError() {
-		return fmt.Errorf("failed to disable geoup automatic downloader (status: %v): %v:", resp.StatusCode, resp.String())
+		return fmt.Errorf("failed to disable geoip automatic downloader (status: %v): %v", resp.StatusCode, resp.String())
 	}
 
 	geoIPExtension, err := cp.createGeoIPExtension()
@@ -284,6 +290,15 @@ func (cp *cloudProvider) BootUp(options Options) error {
 	})
 	if err != nil {
 		return fmt.Errorf("failed to track cluster creation: %w", err)
+	}
+
+	// FIXME: Create initial agent policy.
+
+	logger.Debugf("Starting local agent")
+
+	err = cp.startLocalAgent(options, config)
+	if err != nil {
+		return fmt.Errorf("failed to start local agent: %w", err)
 	}
 
 	return nil
@@ -360,33 +375,41 @@ func zipGeoIPBundle() (*bytes.Buffer, error) {
 	return &bundle, nil
 }
 
-func (cp *cloudProvider) deleteGeoIPExtension() error {
-	config, err := LoadConfig(cp.profile)
+func (cp *cloudProvider) localAgentComposeProject() (*compose.Project, error) {
+	composeFile := cp.profile.Path(profileStackPath, CloudComposeFile)
+	return compose.NewProject(DockerComposeProjectName, composeFile)
+}
+
+func (cp *cloudProvider) startLocalAgent(options Options, config Config) error {
+	err := applyCloudResources(cp.profile, options.StackVersion, config)
 	if err != nil {
-		return fmt.Errorf("failed to load configuration: %w", err)
-	}
-	extensionID, found := config.Parameters[paramGeoIPExtensionID]
-	if !found {
-		return nil
+		return fmt.Errorf("could not initialize compose files for local agent: %w", err)
 	}
 
-	backoff := retry.NewFibonacci(1 * time.Second)
-	backoff = retry.WithMaxDuration(180*time.Second, backoff)
-	retry.Do(context.TODO(), backoff, func(ctx context.Context) error {
-		err = extensionapi.Delete(extensionapi.DeleteParams{
-			API:         cp.api,
-			ExtensionID: extensionID,
-		})
-		// Actually, we should only retry on extensions.extension_in_use errors.
-		return retry.RetryableError(err)
-	})
+	project, err := cp.localAgentComposeProject()
 	if err != nil {
-		return fmt.Errorf("delete API call failed: %w", err)
+		return fmt.Errorf("could not initialize local agent compose project")
 	}
+
+	err = project.Build(compose.CommandOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to build images for local agent: %w", err)
+	}
+
+	err = project.Up(compose.CommandOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to start local agent: %w", err)
+	}
+
 	return nil
 }
 
 func (cp *cloudProvider) TearDown(options Options) error {
+	err := cp.destroyLocalAgent()
+	if err != nil {
+		return fmt.Errorf("failed to destroy local agent: %w", err)
+	}
+
 	deployment, err := cp.currentDeployment()
 	if err != nil {
 		return fmt.Errorf("failed to find current deployment: %w", err)
@@ -415,6 +438,46 @@ func (cp *cloudProvider) TearDown(options Options) error {
 	return nil
 }
 
+func (cp *cloudProvider) deleteGeoIPExtension() error {
+	config, err := LoadConfig(cp.profile)
+	if err != nil {
+		return fmt.Errorf("failed to load configuration: %w", err)
+	}
+	extensionID, found := config.Parameters[paramGeoIPExtensionID]
+	if !found {
+		return nil
+	}
+
+	backoff := retry.NewFibonacci(1 * time.Second)
+	backoff = retry.WithMaxDuration(180*time.Second, backoff)
+	retry.Do(context.TODO(), backoff, func(ctx context.Context) error {
+		err = extensionapi.Delete(extensionapi.DeleteParams{
+			API:         cp.api,
+			ExtensionID: extensionID,
+		})
+		// Actually, we should only retry on extensions.extension_in_use errors.
+		return retry.RetryableError(err)
+	})
+	if err != nil {
+		return fmt.Errorf("delete API call failed: %w", err)
+	}
+	return nil
+}
+
+func (cp *cloudProvider) destroyLocalAgent() error {
+	project, err := cp.localAgentComposeProject()
+	if err != nil {
+		return fmt.Errorf("could not initialize local agent compose project")
+	}
+
+	err = project.Down(compose.CommandOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to destroy local agent: %w", err)
+	}
+
+	return nil
+}
+
 func (*cloudProvider) Update(options Options) error {
 	fmt.Println("Nothing to do.")
 	return nil
@@ -431,6 +494,14 @@ func (cp *cloudProvider) Status(options Options) ([]ServiceStatus, error) {
 	}
 
 	status, _ := cp.deploymentStatus(deployment)
+
+	agentStatus, err := cp.localAgentStatus()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get local agent status: %w", err)
+	}
+
+	status = append(status, agentStatus...)
+
 	return status, nil
 }
 
@@ -494,6 +565,35 @@ func (*cloudProvider) deploymentStatus(deployment *models.DeploymentGetResponse)
 		}
 	}
 	return status, allHealthy
+}
+
+func (cp *cloudProvider) localAgentStatus() ([]ServiceStatus, error) {
+	var services []ServiceStatus
+	// query directly to docker to avoid load environment variables (e.g. STACK_VERSION_VARIANT) and profiles
+	containerIDs, err := docker.ContainerIDsWithLabel(projectLabelDockerCompose, DockerComposeProjectName)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(containerIDs) == 0 {
+		return services, nil
+	}
+
+	containerDescriptions, err := docker.InspectContainers(containerIDs...)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, containerDescription := range containerDescriptions {
+		service, err := newServiceStatus(&containerDescription)
+		if err != nil {
+			return nil, err
+		}
+		logger.Debugf("Adding Service: \"%v\"", service.Name)
+		services = append(services, *service)
+	}
+
+	return services, nil
 }
 
 func (cp *cloudProvider) currentDeployment() (*models.DeploymentGetResponse, error) {
