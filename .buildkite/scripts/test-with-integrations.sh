@@ -4,12 +4,13 @@ set -euo pipefail
 
 WORKSPACE="$(pwd)"
 
-TMP_FOLDER_TEMPLATE="tmp.${GITHUB_PR_BASE_REPO}.XXXXXXXXX"
+TMP_FOLDER_TEMPLATE_BASE="tmp.${GITHUB_PR_BASE_REPO}"
+TMP_FOLDER_TEMPLATE="${TMP_FOLDER_TEMPLATE_BASE}.XXXXXXXXX"
 
 cleanup() {
     echo "Deleting temporal files..."
     cd ${WORKSPACE}
-    rm -rf "${TMP_FOLDER_TEMPLATE}.*"
+    rm -rf "${TMP_FOLDER_TEMPLATE_BASE}.*"
     echo "Done."
 }
 
@@ -77,7 +78,7 @@ create_pull_request() {
 
 update_dependency() {
     # it needs to set the Golang version from the integrations repository (.go-version file)
-    echo "--- install go"
+    echo "--- install go for integrations repository :go:"
     with_go
 
     go mod edit -replace github.com/${GITHUB_PR_BASE_OWNER}/${GITHUB_PR_BASE_REPO}=github.com/${GITHUB_PR_OWNER}/${GITHUB_PR_REPO}@${GITHUB_PR_HEAD_SHA}
@@ -87,6 +88,10 @@ update_dependency() {
     git add go.sum
 
     git commit -m "Test elastic-package from PR ${BUILDKITE_PULL_REQUEST} - ${GITHUB_PR_HEAD_SHA}"
+
+    echo ""
+    git show -p HEAD
+    echo ""
 }
 
 
@@ -112,7 +117,6 @@ create_or_update_pull_request() {
     echo "Updating dependency :pushpin:"
     update_dependency
 
-    return
     git_push_with_auth
 
     if [ -z "${integrations_pr_number}" ]; then
@@ -135,6 +139,8 @@ add_pr_comment() {
 }
 
 
+echo "> check ${GITHUB_USERNAME_SECRET}"
+echo "> check ${GITHUB_EMAIL_SECRET}"
 echo "--- creating or updating integrations pull request"
 create_or_update_pull_request
 
