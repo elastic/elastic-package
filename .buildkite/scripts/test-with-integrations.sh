@@ -84,7 +84,7 @@ update_dependency() {
     echo "--- install go for integrations repository :go:"
     with_go
 
-    echo "--- Updating go.mod and go.sum :hammer_and_wrench:"
+    echo "--- Updating go.mod and go.sum with ${GITHUB_PR_HEAD_SHA} :hammer_and_wrench:"
     go mod edit -replace github.com/${GITHUB_PR_BASE_OWNER}/${GITHUB_PR_BASE_REPO}=github.com/${GITHUB_PR_OWNER}/${GITHUB_PR_REPO}@${GITHUB_PR_HEAD_SHA}
     go mod tidy
 
@@ -93,12 +93,12 @@ update_dependency() {
 
     # allow not to commit if there are no changes
     # previous execution could fail and just pushed the branch but PR is not created
-    if git diff-index --quiet HEAD ; then
+    if ! git diff-index --quiet HEAD ; then
         git commit -m "Test elastic-package from PR ${BUILDKITE_PULL_REQUEST} - ${GITHUB_PR_HEAD_SHA}"
     fi
 
     echo ""
-    git --no-pager show -p HEAD
+    git --no-pager show --format=online HEAD
     echo ""
 }
 
