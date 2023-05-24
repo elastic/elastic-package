@@ -27,7 +27,8 @@ with_jq
 
 
 INTEGRATIONS_SOURCE_BRANCH=main
-INTEGRATIONS_REPO=github.com:elastic/integrations.git
+INTEGRATIONS_GITHUB_OWNER=elastic
+INTEGRATIONS_GITHUB_REPO_NAME=integrations.git
 INTEGRATIONS_PR_BRANCH="test-elastic-package-pr-${BUILDKITE_PULL_REQUEST}"
 INTEGRATIONS_PR_TITLE="Test elastic-package - DO NOT MERGE"
 
@@ -53,9 +54,11 @@ set_git_config() {
 }
 
 git_push_with_auth() {
-    local branch="$1"
+    local owner="$1"
+    local repository="$2"
+    local branch="$4"
 
-    retry 3 git push https://${GITHUB_USERNAME_SECRET}:${GITHUB_TOKEN}@github.com/${GITHUB_PR_BASE_OWNER}/${GITHUB_PR_BASE_REPO}.git "${branch}"
+    retry 3 git push https://${GITHUB_USERNAME_SECRET}:${GITHUB_TOKEN}@github.com/${owner}/${repository}.git "${branch}"
 }
 
 clone_repository() {
@@ -122,7 +125,7 @@ create_or_update_pull_request() {
     update_dependency
 
     echo "--- Pushing branch ${INTEGRATIONS_PR_BRANCH} to integrations repository..."
-    git_push_with_auth ${INTEGRATIONS_PR_BRANCH}
+    git_push_with_auth ${INTEGRATIONS_GITHUB_OWNER} ${INTEGRATIONS_GITHUB_REPO_NAME} ${INTEGRATIONS_PR_BRANCH}
 
     if [ -z "${integrations_pr_number}" ]; then
         echo "--- Creating pull request :github:"
