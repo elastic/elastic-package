@@ -184,12 +184,21 @@ func (cp *cloudProvider) BootUp(options Options) error {
 	if err != nil {
 		return fmt.Errorf("failed to get kibana host: %w", err)
 	}
-	config.Parameters["fleet_url"], err = cp.getServiceURL(deployment.Resources.IntegrationsServer)
-	if err != nil {
-		return fmt.Errorf("failed to get fleet host: %w", err)
-	}
+
+	// FIXME: Why this URL is not the good one?
+	//config.Parameters["fleet_url"], err = cp.getServiceURL(deployment.Resources.IntegrationsServer)
+	//if err != nil {
+	//   return fmt.Errorf("failed to get fleet host: %w", err)
+	//}
 
 	printUserConfig(options.Printer, config)
+
+	// Storing configuration now, so if something fails from now on, we still
+	// keep track of the deployment id.
+	err = storeConfig(cp.profile, config)
+	if err != nil {
+		return fmt.Errorf("failed to store config: %w", err)
+	}
 
 	logger.Debug("Waiting for creation plan to be completed")
 	err = planutil.TrackChange(planutil.TrackChangeParams{
@@ -204,11 +213,10 @@ func (cp *cloudProvider) BootUp(options Options) error {
 		return fmt.Errorf("failed to track cluster creation: %w", err)
 	}
 
-	// Storing configuration now, so if something fails with the extension, we still
-	// keep track of the deployment id.
-	err = storeConfig(cp.profile, config)
+	// FIXME: See comment above, why the Integrations Server URL cannot be used?
+	config.Parameters["fleet_url"], err = getDefaultFleetServerURL(config)
 	if err != nil {
-		return fmt.Errorf("failed to store config: %w", err)
+		return fmt.Errorf("failed to get fleet URL: %w", err)
 	}
 
 	logger.Infof("Creating agent policy")
@@ -426,6 +434,51 @@ func doKibanaRequest(config Config, req *http.Request) error {
 	return nil
 }
 
+func getDefaultFleetServerURL(config Config) (string, error) {
+	fleetServersURL, err := url.JoinPath(config.KibanaHost, "/api/fleet/fleet_server_hosts")
+	if err != nil {
+		return "", fmt.Errorf("failed to build url for fleet server hosts: %w", err)
+	}
+	req, err := http.NewRequest(http.MethodGet, fleetServersURL, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to initialize request: %w", err)
+	}
+	req.SetBasicAuth(config.ElasticsearchUsername, config.ElasticsearchPassword)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("performing request failed: %w", err)
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	logger.Debugf("Fleet Server hosts response: %q", string(body))
+
+	if err != nil {
+		return "", fmt.Errorf("could not read response body (status %s): %w", resp.StatusCode, err)
+	}
+	if resp.StatusCode >= 300 {
+		return "", fmt.Errorf("request failed with status %v and response %v", resp.StatusCode, string(body))
+	}
+
+	var hosts struct {
+		Items []struct {
+			IsDefault bool     `json:"is_default"`
+			HostURLs  []string `json:"host_urls"`
+		} `json:"items"`
+	}
+	err = json.Unmarshal(body, &hosts)
+	if err != nil {
+		return "", fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	for _, server := range hosts.Items {
+		if server.IsDefault && len(server.HostURLs) > 0 {
+			return server.HostURLs[0], nil
+		}
+	}
+
+	return "", errors.New("could not find the fleet server URL for this deployment")
+}
+
 func (cp *cloudProvider) createAgentPolicy(config Config) error {
 	agentPoliciesURL, err := url.JoinPath(config.KibanaHost, "/api/fleet/agent_policies")
 	if err != nil {
@@ -477,7 +530,7 @@ func (cp *cloudProvider) startLocalAgent(options Options, config Config) error {
 		return fmt.Errorf("failed to build images for local agent: %w", err)
 	}
 
-	err = project.Up(compose.CommandOptions{})
+	err = project.Up(compose.CommandOptions{ExtraArgs: []string{"-d"}})
 	if err != nil {
 		return fmt.Errorf("failed to start local agent: %w", err)
 	}
@@ -669,6 +722,9 @@ func (cp *cloudProvider) localAgentStatus() ([]ServiceStatus, error) {
 		service, err := newServiceStatus(&containerDescription)
 		if err != nil {
 			return nil, err
+		}
+		if strings.HasSuffix(service.Name, readyServicesSuffix) {
+			continue
 		}
 		logger.Debugf("Adding Service: \"%v\"", service.Name)
 		services = append(services, *service)
