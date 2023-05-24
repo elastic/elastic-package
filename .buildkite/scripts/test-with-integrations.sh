@@ -117,6 +117,7 @@ create_or_update_pull_request() {
     echo "Updating dependency :pushpin:"
     update_dependency
 
+    echo "Pushing branch ${INTEGRATIONS_PR_BRANCH} to integrations repository..."
     git_push_with_auth
 
     if [ -z "${integrations_pr_number}" ]; then
