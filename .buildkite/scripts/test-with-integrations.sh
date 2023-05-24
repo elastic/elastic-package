@@ -63,7 +63,7 @@ git_push_with_auth() {
 
 clone_repository() {
     local target="$1"
-    retry 5 git clone --depth 1 https://github.com/elastic/integrations ${target}
+    retry 5 git clone https://github.com/elastic/integrations ${target}
 }
 
 create_integrations_pull_request() {
@@ -103,6 +103,14 @@ update_dependency() {
 }
 
 
+exists_branch() {
+    local owner="$1"
+    local repository="$2"
+    local branch="$1"
+
+    git ls-remote --exit-code --heads https://github.com/${owner}/${repository}.git ${branch} > /dev/null
+}
+
 create_or_update_pull_request() {
     local temp_path=$(mktemp -d -p ${WORKSPACE} -t ${TMP_FOLDER_TEMPLATE})
     local repo_path="${temp_path}/elastic-integrations"
@@ -111,15 +119,18 @@ create_or_update_pull_request() {
 
     echo "Cloning repository"
     clone_repository "${repo_path}"
+
     pushd "${repo_path}" > /dev/null
 
     set_git_config
 
+    if ! exists_branch ${INTEGRATIONS_GITHUB_OWNER} ${INTEGRATIONS_GITHUB_REPO_NAME} ${INTEGRATIONS_PR_BRANCH} ; then
+        checkout_options=" -b "
+        echo "Creating a new branch..."
+    fi
+
     integrations_pr_number=$(get_pr_number "${INTEGRATIONS_PR_BRANCH}")
     if [ -z "${integrations_pr_number}" ]; then
-        echo "No PR created, creating a new branch..."
-        checkout_options=" -b "
-    else
         echo "Exists PR in integrations repository: ${integrations_pr_number}"
     fi
 
