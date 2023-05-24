@@ -1,8 +1,7 @@
-{{ $image := fact "agent_image" }}
 version: '2.3'
 services:
   elastic-agent:
-    image: "{{ $image }}"
+    image: "{{ fact "agent_image" }}"
     healthcheck:
       test: "elastic-agent status"
       timeout: 2s

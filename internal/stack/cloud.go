@@ -453,7 +453,7 @@ func getDefaultFleetServerURL(config Config) (string, error) {
 	logger.Debugf("Fleet Server hosts response: %q", string(body))
 
 	if err != nil {
-		return "", fmt.Errorf("could not read response body (status %s): %w", resp.StatusCode, err)
+		return "", fmt.Errorf("could not read response body (status %v): %w", resp.StatusCode, err)
 	}
 	if resp.StatusCode >= 300 {
 		return "", fmt.Errorf("request failed with status %v and response %v", resp.StatusCode, string(body))
