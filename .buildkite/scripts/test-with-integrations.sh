@@ -56,7 +56,7 @@ set_git_config() {
 git_push_with_auth() {
     local owner="$1"
     local repository="$2"
-    local branch="$4"
+    local branch="$3"
 
     retry 3 git push https://${GITHUB_USERNAME_SECRET}:${GITHUB_TOKEN}@github.com/${owner}/${repository}.git "${branch}"
 }
