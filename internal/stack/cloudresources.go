@@ -53,7 +53,7 @@ func applyCloudResources(profile *profile.Profile, stackVersion string, config C
 		"username":      config.ElasticsearchUsername,
 		"password":      config.ElasticsearchPassword,
 		"kibana_host":   config.KibanaHost,
-		"fleet_url":     config.Parameters["fleet_url"],
+		"fleet_url":     config.Parameters[paramCloudFleetURL],
 	})
 
 	os.MkdirAll(stackDir, 0755)

@@ -19,7 +19,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/elastic/go-elasticsearch/v7"
 	"github.com/sethvargo/go-retry"
 
 	"github.com/elastic/cloud-sdk-go/pkg/api"
@@ -30,6 +29,7 @@ import (
 	"github.com/elastic/cloud-sdk-go/pkg/models"
 	"github.com/elastic/cloud-sdk-go/pkg/plan"
 	"github.com/elastic/cloud-sdk-go/pkg/plan/planutil"
+	"github.com/elastic/go-elasticsearch/v7"
 
 	"github.com/elastic/elastic-package/internal/compose"
 	"github.com/elastic/elastic-package/internal/docker"
@@ -38,9 +38,11 @@ import (
 )
 
 const (
-	paramCloudDeploymentID    = "cloud_deployment_id"
-	paramCloudDeploymentAlias = "cloud_deployment_alias"
-	paramGeoIPExtensionID     = "geoip_extension_id"
+	paramCloudDeploymentID     = "cloud_deployment_id"
+	paramCloudClusterRefID     = "cloud_ref_id"
+	paramCloudDeploymentAlias  = "cloud_deployment_alias"
+	paramCloudGeoIPExtensionID = "cloud_geoip_extension_id"
+	paramCloudFleetURL         = "cloud_fleet_url"
 )
 
 var (
@@ -98,6 +100,39 @@ func (cp *cloudProvider) BootUp(options Options) error {
 	templateID := "gcp-io-optimized"
 
 	logger.Debugf("Getting deployment template %q", templateID)
+	payload, err := cp.getDeploymentRequest(options, region, templateID)
+	if err != nil {
+		return fmt.Errorf("failed to get deployment template: %w", err)
+	}
+
+	logger.Infof("Creating deployment %q", name)
+	config, err := cp.createDeployment(name, options, payload)
+	if err != nil {
+		return fmt.Errorf("failed to create deployment: %w", err)
+	}
+
+	logger.Infof("Creating agent policy")
+	err = cp.createAgentPolicy(config, options.StackVersion)
+	if err != nil {
+		return fmt.Errorf("failed to create agent policy: %w", err)
+	}
+
+	logger.Infof("Starting local agent")
+	err = cp.startLocalAgent(options, config)
+	if err != nil {
+		return fmt.Errorf("failed to start local agent: %w", err)
+	}
+
+	logger.Infof("Replacing GeoIP databases")
+	err = cp.replaceGeoIPDatabases(config, options, templateID, region, payload.Resources.Elasticsearch[0].Plan.ClusterTopology)
+	if err != nil {
+		return fmt.Errorf("failed to replace GeoIP databases: %w", err)
+	}
+
+	return nil
+}
+
+func (cp *cloudProvider) getDeploymentRequest(options Options, region, templateID string) (*models.DeploymentCreateRequest, error) {
 	template, err := deptemplateapi.Get(deptemplateapi.GetParams{
 		API:          cp.api,
 		TemplateID:   templateID,
@@ -105,7 +140,7 @@ func (cp *cloudProvider) BootUp(options Options) error {
 		StackVersion: options.StackVersion,
 	})
 	if err != nil {
-		return fmt.Errorf("failed to get deployment template %q: %w", templateID, err)
+		return nil, fmt.Errorf("failed to get deployment template %q: %w", templateID, err)
 	}
 
 	payload := template.DeploymentTemplate
@@ -124,7 +159,10 @@ func (cp *cloudProvider) BootUp(options Options) error {
 		plan.DeploymentTemplate.ID = &templateID
 	}
 
-	logger.Infof("Creating deployment %q", name)
+	return payload, nil
+}
+
+func (cp *cloudProvider) createDeployment(name string, options Options, payload *models.DeploymentCreateRequest) (Config, error) {
 	res, err := deploymentapi.Create(deploymentapi.CreateParams{
 		API:     cp.api,
 		Request: payload,
@@ -134,10 +172,10 @@ func (cp *cloudProvider) BootUp(options Options) error {
 		},
 	})
 	if err != nil {
-		return fmt.Errorf("failed to create deployment: %w", err)
+		return Config{}, fmt.Errorf("failed to create deployment: %w", err)
 	}
 	if created := res.Created; created == nil || !*created {
-		return fmt.Errorf("request succeeded, but deployment was not created, check in the console UI")
+		return Config{}, fmt.Errorf("request succeeded, but deployment was not created, check in the console UI")
 	}
 
 	var config Config
@@ -147,9 +185,10 @@ func (cp *cloudProvider) BootUp(options Options) error {
 	}
 	deploymentID := res.ID
 	if deploymentID == nil {
-		return fmt.Errorf("deployment created, but couldn't get its ID, check in the console UI")
+		return Config{}, fmt.Errorf("deployment created, but couldn't get its ID, check in the console UI")
 	}
 	config.Parameters[paramCloudDeploymentID] = *deploymentID
+	config.Parameters[paramCloudClusterRefID] = *res.Resources[0].RefID
 
 	for _, resource := range res.Resources {
 		kind := resource.Kind
@@ -173,20 +212,20 @@ func (cp *cloudProvider) BootUp(options Options) error {
 		DeploymentID: *deploymentID,
 	})
 	if err != nil {
-		return fmt.Errorf("couldn't check deployment health: %w", err)
+		return Config{}, fmt.Errorf("couldn't check deployment health: %w", err)
 	}
 
 	config.ElasticsearchHost, err = cp.getServiceURL(deployment.Resources.Elasticsearch)
 	if err != nil {
-		return fmt.Errorf("failed to get elasticsearch host: %w", err)
+		return Config{}, fmt.Errorf("failed to get elasticsearch host: %w", err)
 	}
 	config.KibanaHost, err = cp.getServiceURL(deployment.Resources.Kibana)
 	if err != nil {
-		return fmt.Errorf("failed to get kibana host: %w", err)
+		return Config{}, fmt.Errorf("failed to get kibana host: %w", err)
 	}
 
 	// FIXME: Why this URL is not the good one?
-	//config.Parameters["fleet_url"], err = cp.getServiceURL(deployment.Resources.IntegrationsServer)
+	//config.Parameters[paramCloudFleetURL], err = cp.getServiceURL(deployment.Resources.IntegrationsServer)
 	//if err != nil {
 	//   return fmt.Errorf("failed to get fleet host: %w", err)
 	//}
@@ -197,7 +236,7 @@ func (cp *cloudProvider) BootUp(options Options) error {
 	// keep track of the deployment id.
 	err = storeConfig(cp.profile, config)
 	if err != nil {
-		return fmt.Errorf("failed to store config: %w", err)
+		return Config{}, fmt.Errorf("failed to store config: %w", err)
 	}
 
 	logger.Debug("Waiting for creation plan to be completed")
@@ -210,112 +249,16 @@ func (cp *cloudProvider) BootUp(options Options) error {
 		Format: "text",
 	})
 	if err != nil {
-		return fmt.Errorf("failed to track cluster creation: %w", err)
+		return Config{}, fmt.Errorf("failed to track cluster creation: %w", err)
 	}
 
 	// FIXME: See comment above, why the Integrations Server URL cannot be used?
-	config.Parameters["fleet_url"], err = getDefaultFleetServerURL(config)
+	config.Parameters[paramCloudFleetURL], err = getDefaultFleetServerURL(config)
 	if err != nil {
-		return fmt.Errorf("failed to get fleet URL: %w", err)
+		return Config{}, fmt.Errorf("failed to get fleet URL: %w", err)
 	}
 
-	logger.Infof("Creating agent policy")
-
-	err = cp.createAgentPolicy(config)
-	if err != nil {
-		return fmt.Errorf("failed to create agent policy: %w", err)
-	}
-
-	logger.Infof("Starting local agent")
-
-	err = cp.startLocalAgent(options, config)
-	if err != nil {
-		return fmt.Errorf("failed to start local agent: %w", err)
-	}
-
-	logger.Infof("Replacing GeoIP databases")
-
-	client, err := elasticsearch.NewClient(elasticsearch.Config{
-		Addresses: []string{config.ElasticsearchHost},
-		Username:  config.ElasticsearchUsername,
-		Password:  config.ElasticsearchPassword,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to initialize Elasticsearch client: %w", err)
-	}
-
-	settingsPayload := `{"persistent": {"ingest.geoip.downloader.enabled":false}}`
-	resp, err := client.Cluster.PutSettings(strings.NewReader(settingsPayload))
-	if err != nil {
-		return fmt.Errorf("failed to disable geoip automatic downloader: %w", err)
-	}
-	if resp.IsError() {
-		return fmt.Errorf("failed to disable geoip automatic downloader (status: %v): %v", resp.StatusCode, resp.String())
-	}
-
-	geoIPExtension, err := cp.createGeoIPExtension()
-	if err != nil {
-		return fmt.Errorf("failed to create GeoIP extension: %w", err)
-	}
-
-	config.Parameters[paramGeoIPExtensionID] = *geoIPExtension.ID
-	err = storeConfig(cp.profile, config)
-	if err != nil {
-		return fmt.Errorf("failed to store config: %w", err)
-	}
-
-	// Add the GeoIP bundle.
-	updatePlan := models.ElasticsearchClusterPlan{
-		// If no cluster topology is included, cluster is terminated.
-		ClusterTopology: payload.Resources.Elasticsearch[0].Plan.ClusterTopology,
-		Elasticsearch: &models.ElasticsearchConfiguration{
-			UserBundles: []*models.ElasticsearchUserBundle{
-				&models.ElasticsearchUserBundle{
-					ElasticsearchVersion: &options.StackVersion,
-					Name:                 geoIPExtension.Name,
-					URL:                  geoIPExtension.URL,
-				},
-			},
-			Version: options.StackVersion,
-		},
-		DeploymentTemplate: &models.DeploymentTemplateReference{
-			ID: &templateID,
-		},
-	}
-	pruneOrphans := false
-	_, err = deploymentapi.Update(deploymentapi.UpdateParams{
-		API:          cp.api,
-		DeploymentID: *deploymentID,
-		Request: &models.DeploymentUpdateRequest{
-			PruneOrphans: &pruneOrphans,
-			Resources: &models.DeploymentUpdateResources{
-				Elasticsearch: []*models.ElasticsearchPayload{
-					&models.ElasticsearchPayload{
-						RefID:  res.Resources[0].RefID,
-						Region: res.Resources[0].Region,
-						Plan:   &updatePlan,
-					},
-				},
-			},
-		},
-	})
-	if err != nil {
-		return fmt.Errorf("failed to add extension to deployment: %w", err)
-	}
-
-	err = planutil.TrackChange(planutil.TrackChangeParams{
-		TrackChangeParams: plan.TrackChangeParams{
-			API:          cp.api,
-			DeploymentID: *deploymentID,
-		},
-		Writer: &cloudTrackWriter{},
-		Format: "text",
-	})
-	if err != nil {
-		return fmt.Errorf("failed to track cluster creation: %w", err)
-	}
-
-	return nil
+	return config, nil
 }
 
 func (cp *cloudProvider) createGeoIPExtension() (*models.Extension, error) {
@@ -406,7 +349,7 @@ const cloudKibanaPackagePolicy = `{
   "policy_id": "elastic-agent-managed-ep",
   "package": {
     "name": "system",
-    "version": "1.26.0"
+    "version": "%s"
   }
 }`
 
@@ -479,7 +422,7 @@ func getDefaultFleetServerURL(config Config) (string, error) {
 	return "", errors.New("could not find the fleet server URL for this deployment")
 }
 
-func (cp *cloudProvider) createAgentPolicy(config Config) error {
+func (cp *cloudProvider) createAgentPolicy(config Config, stackVersion string) error {
 	agentPoliciesURL, err := url.JoinPath(config.KibanaHost, "/api/fleet/agent_policies")
 	if err != nil {
 		return fmt.Errorf("failed to build url for agent policies: %w", err)
@@ -493,11 +436,17 @@ func (cp *cloudProvider) createAgentPolicy(config Config) error {
 		return fmt.Errorf("error while creating agent policy: %w", err)
 	}
 
+	systemVersion, err := getPackageVersion("https://epr.elastic.co", "system", stackVersion)
+	if err != nil {
+		return fmt.Errorf("could not get the system package version for kibana %v: %w", stackVersion, err)
+	}
+
 	packagePoliciesURL, err := url.JoinPath(config.KibanaHost, "/api/fleet/package_policies")
 	if err != nil {
 		return fmt.Errorf("failed to build url for package policies: %w", err)
 	}
-	req, err = http.NewRequest(http.MethodPost, packagePoliciesURL, strings.NewReader(cloudKibanaPackagePolicy))
+	packagePolicy := fmt.Sprintf(cloudKibanaPackagePolicy, systemVersion)
+	req, err = http.NewRequest(http.MethodPost, packagePoliciesURL, strings.NewReader(packagePolicy))
 	if err != nil {
 		return fmt.Errorf("failed to initialize request to create package policy: %w", err)
 	}
@@ -507,6 +456,42 @@ func (cp *cloudProvider) createAgentPolicy(config Config) error {
 	}
 
 	return nil
+}
+
+func getPackageVersion(registryURL, packageName, stackVersion string) (string, error) {
+	searchURL, err := url.JoinPath(registryURL, "search")
+	if err != nil {
+		return "", fmt.Errorf("could not build URL: %w", err)
+	}
+	searchURL = fmt.Sprintf("%s?package=%s&kibana.version=%s", searchURL, packageName, stackVersion)
+	resp, err := http.Get(searchURL)
+	if err != nil {
+		return "", fmt.Errorf("request failed (url: %s): %w", searchURL, err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 300 {
+		return "", fmt.Errorf("unexpected status code %v", resp.StatusCode)
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("failed to read response body: %w", err)
+	}
+	var packages []struct {
+		Name    string `json:"name"`
+		Version string `json:"version"`
+	}
+	err = json.Unmarshal(body, &packages)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse response body: %w", err)
+	}
+	if len(packages) != 1 {
+		return "", fmt.Errorf("expected 1 package, obtained %v", len(packages))
+	}
+	if found := packages[0].Name; found != packageName {
+		return "", fmt.Errorf("expected package %s, found %s", packageName, found)
+	}
+
+	return packages[0].Version, nil
 }
 
 func (cp *cloudProvider) localAgentComposeProject() (*compose.Project, error) {
@@ -533,6 +518,92 @@ func (cp *cloudProvider) startLocalAgent(options Options, config Config) error {
 	err = project.Up(compose.CommandOptions{ExtraArgs: []string{"-d"}})
 	if err != nil {
 		return fmt.Errorf("failed to start local agent: %w", err)
+	}
+
+	return nil
+}
+
+func (cp *cloudProvider) replaceGeoIPDatabases(config Config, options Options, templateID string, region string, topology []*models.ElasticsearchClusterTopologyElement) error {
+	client, err := elasticsearch.NewClient(elasticsearch.Config{
+		Addresses: []string{config.ElasticsearchHost},
+		Username:  config.ElasticsearchUsername,
+		Password:  config.ElasticsearchPassword,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to initialize Elasticsearch client: %w", err)
+	}
+
+	settingsPayload := `{"persistent": {"ingest.geoip.downloader.enabled":false}}`
+	resp, err := client.Cluster.PutSettings(strings.NewReader(settingsPayload))
+	if err != nil {
+		return fmt.Errorf("failed to disable geoip automatic downloader: %w", err)
+	}
+	if resp.IsError() {
+		return fmt.Errorf("failed to disable geoip automatic downloader (status: %v): %v", resp.StatusCode, resp.String())
+	}
+
+	geoIPExtension, err := cp.createGeoIPExtension()
+	if err != nil {
+		return fmt.Errorf("failed to create GeoIP extension: %w", err)
+	}
+
+	config.Parameters[paramCloudGeoIPExtensionID] = *geoIPExtension.ID
+	err = storeConfig(cp.profile, config)
+	if err != nil {
+		return fmt.Errorf("failed to store config: %w", err)
+	}
+
+	// Add the GeoIP bundle.
+	updatePlan := models.ElasticsearchClusterPlan{
+		// If no cluster topology is included, cluster is terminated.
+		ClusterTopology: topology,
+		Elasticsearch: &models.ElasticsearchConfiguration{
+			UserBundles: []*models.ElasticsearchUserBundle{
+				&models.ElasticsearchUserBundle{
+					ElasticsearchVersion: &options.StackVersion,
+					Name:                 geoIPExtension.Name,
+					URL:                  geoIPExtension.URL,
+				},
+			},
+			Version: options.StackVersion,
+		},
+		DeploymentTemplate: &models.DeploymentTemplateReference{
+			ID: &templateID,
+		},
+	}
+	deploymentID := config.Parameters[paramCloudDeploymentID]
+	refID := config.Parameters[paramCloudClusterRefID]
+	pruneOrphans := false
+	_, err = deploymentapi.Update(deploymentapi.UpdateParams{
+		API:          cp.api,
+		DeploymentID: deploymentID,
+		Request: &models.DeploymentUpdateRequest{
+			PruneOrphans: &pruneOrphans,
+			Resources: &models.DeploymentUpdateResources{
+				Elasticsearch: []*models.ElasticsearchPayload{
+					&models.ElasticsearchPayload{
+						RefID:  &refID,
+						Region: &region,
+						Plan:   &updatePlan,
+					},
+				},
+			},
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to add extension to deployment: %w", err)
+	}
+
+	err = planutil.TrackChange(planutil.TrackChangeParams{
+		TrackChangeParams: plan.TrackChangeParams{
+			API:          cp.api,
+			DeploymentID: deploymentID,
+		},
+		Writer: &cloudTrackWriter{},
+		Format: "text",
+	})
+	if err != nil {
+		return fmt.Errorf("failed to track cluster creation: %w", err)
 	}
 
 	return nil
@@ -577,7 +648,7 @@ func (cp *cloudProvider) deleteGeoIPExtension() error {
 	if err != nil {
 		return fmt.Errorf("failed to load configuration: %w", err)
 	}
-	extensionID, found := config.Parameters[paramGeoIPExtensionID]
+	extensionID, found := config.Parameters[paramCloudGeoIPExtensionID]
 	if !found {
 		return nil
 	}
