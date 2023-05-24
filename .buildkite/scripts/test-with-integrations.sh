@@ -48,6 +48,10 @@ get_elastic_package_pr_link() {
     echo "https://github.com/${GITHUB_PR_BASE_OWNER}/${GITHUB_PR_BASE_REPO}/pull/${BUILDKITE_PULL_REQUEST}"
 }
 
+get_elastic_package_commit_link() {
+    echo "https://github.com/${GITHUB_PR_BASE_OWNER}/${GITHUB_PR_BASE_REPO}/commit/${GITHUB_PR_HEAD_SHA}"
+}
+
 set_git_config() {
     git config user.name "${GITHUB_USERNAME_SECRET}"
     git config user.email "${GITHUB_EMAIL_SECRET}"
@@ -70,7 +74,7 @@ create_integrations_pull_request() {
     # requires GITHUB_TOKEN
     local temp_path=$(mktemp -d -p ${WORKSPACE} -t ${TMP_FOLDER_TEMPLATE})
     echo "Creating Pull Request"
-    message="Update elastic-package reference to ${GITHUB_PR_HEAD_SHA}.\nAutomated by [Buildkite build](${BUILDKITE_BUILD_URL})\n\nRelates: $(get_elastic_package_pr_link)"
+    message="Update elastic-package reference to $(get_elastic_package_commit_link).\nAutomated by [Buildkite build](${BUILDKITE_BUILD_URL})\n\nRelates: $(get_elastic_package_pr_link)"
     echo -e $message > ${temp_path}/body-pr.txt
     retry 3 \
         gh pr create \
