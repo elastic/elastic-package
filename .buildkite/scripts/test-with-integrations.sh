@@ -124,7 +124,8 @@ create_or_update_pull_request() {
 
     set_git_config
 
-    echo "Checking branch ${INTEGRATIONS_PR_BRANCH} in remote"
+    echo "Checking branch ${INTEGRATIONS_PR_BRANCH} in remote ${INTEGRATIONS_GITHUB_OWNER}/${INTEGRATIONS_GITHUB_REPO_NAME}"
+    git branch -r |grep test-elastic-package
     if ! exists_branch ${INTEGRATIONS_GITHUB_OWNER} ${INTEGRATIONS_GITHUB_REPO_NAME} ${INTEGRATIONS_PR_BRANCH} ; then
         checkout_options=" -b "
         echo "Creating a new branch..."
