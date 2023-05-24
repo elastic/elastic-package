@@ -6,7 +6,9 @@ package servicedeployer
 
 import (
 	_ "embed"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -26,6 +28,7 @@ const (
 	terraformDeployerYml        = "terraform-deployer.yml"
 	terraformDeployerDockerfile = "Dockerfile"
 	terraformDeployerRun        = "run.sh"
+	terraformOutputPrefix       = "TF_OUTPUT_"
 )
 
 //go:embed _static/terraform_deployer.yml
@@ -40,6 +43,34 @@ var terraformDeployerDockerfileContent string
 // TerraformServiceDeployer is responsible for deploying infrastructure described with Terraform definitions.
 type TerraformServiceDeployer struct {
 	definitionsDir string
+}
+
+// addTerraformOutputs method reads the terraform outputs generated in the json format and
+// adds them to the custom properties of ServiceContext and can be used in the handlebars template
+// like `{{TF_OUTPUT_queue_url}}` where `queue_url` is the output configured
+func addTerraformOutputs(customProps map[string]interface{}) error {
+	// Read the `output.json` file where terraform outputs are generated
+	content, err := ioutil.ReadFile("/tmp/output.json")
+	if err != nil {
+		return errors.Wrap(err, "Unable to read the file output.json")
+	}
+
+	// Unmarshall the data into `payload`
+	logger.Debug("Unmarshalling terraform output json")
+	var payload map[string]map[string]interface{}
+	err = json.Unmarshal(content, &payload)
+	if err != nil {
+		return errors.Wrap(err, "Error during json Unmarshal()")
+	}
+
+	// Add the terraform outputs to custom properties with the key appeneded by "TF_OUTPUT_"
+	// The values are converted safely to strings
+	for k := range payload {
+		valueMap := payload[k]
+		customProps[terraformOutputPrefix+k] = fmt.Sprint(valueMap["value"])
+	}
+
+	return nil
 }
 
 // NewTerraformServiceDeployer creates an instance of TerraformServiceDeployer.
@@ -117,6 +148,11 @@ func (tsd TerraformServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedServic
 	}
 
 	outCtxt.Agent.Host.NamePrefix = "docker-fleet-agent"
+
+	err = addTerraformOutputs(outCtxt.CustomProperties)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not handle terraform output")
+	}
 	service.ctxt = outCtxt
 	return &service, nil
 }
