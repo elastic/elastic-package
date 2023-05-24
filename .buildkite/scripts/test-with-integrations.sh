@@ -81,6 +81,7 @@ update_dependency() {
     echo "--- install go for integrations repository :go:"
     with_go
 
+    echo "--- Updating go.mod and go.sum :hammer_and_wrench:"
     go mod edit -replace github.com/${GITHUB_PR_BASE_OWNER}/${GITHUB_PR_BASE_REPO}=github.com/${GITHUB_PR_OWNER}/${GITHUB_PR_REPO}@${GITHUB_PR_HEAD_SHA}
     go mod tidy
 
@@ -90,7 +91,7 @@ update_dependency() {
     git commit -m "Test elastic-package from PR ${BUILDKITE_PULL_REQUEST} - ${GITHUB_PR_HEAD_SHA}"
 
     echo ""
-    git show -p HEAD
+    git --no-pager show -p HEAD
     echo ""
 }
 
@@ -109,19 +110,22 @@ create_or_update_pull_request() {
 
     integrations_pr_number=$(get_pr_number "${INTEGRATIONS_PR_BRANCH}")
     if [ -z "${integrations_pr_number}" ]; then
-        echo "Exists PR in integrations repository: ${integrations_pr_number}"
+        echo "No PR created, creating a new branch..."
         checkout_options=" -b "
+    else
+        echo "Exists PR in integrations repository: ${integrations_pr_number}"
     fi
+
     git checkout ${checkout_options} ${INTEGRATIONS_PR_BRANCH}
 
-    echo "Updating dependency :pushpin:"
+    echo "--- Updating dependency :pushpin:"
     update_dependency
 
-    echo "Pushing branch ${INTEGRATIONS_PR_BRANCH} to integrations repository..."
+    echo "--- Pushing branch ${INTEGRATIONS_PR_BRANCH} to integrations repository..."
     git_push_with_auth
 
     if [ -z "${integrations_pr_number}" ]; then
-        echo "Creating pull request :github:"
+        echo "--- Creating pull request :github:"
         create_pull_request
     fi
 
