@@ -8,7 +8,6 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -50,7 +49,7 @@ type TerraformServiceDeployer struct {
 // like `{{TF_OUTPUT_queue_url}}` where `queue_url` is the output configured
 func addTerraformOutputs(customProps map[string]interface{}) error {
 	// Read the `output.json` file where terraform outputs are generated
-	content, err := ioutil.ReadFile("/tmp/output.json")
+	content, err := os.ReadFile("/tmp/output.json")
 	if err != nil {
 		return errors.Wrap(err, "Unable to read the file output.json")
 	}
