@@ -53,7 +53,7 @@ set_git_config() {
 }
 
 git_push_with_auth() {
-    local branch=$1
+    local branch="$1"
 
     retry 3 git push https://${GITHUB_USERNAME_SECRET}:${GITHUB_TOKEN}@github.com/${GITHUB_PR_BASE_OWNER}/${GITHUB_PR_BASE_REPO}.git "${branch}"
 }
@@ -122,7 +122,7 @@ create_or_update_pull_request() {
     update_dependency
 
     echo "--- Pushing branch ${INTEGRATIONS_PR_BRANCH} to integrations repository..."
-    git_push_with_auth
+    git_push_with_auth ${INTEGRATIONS_PR_BRANCH}
 
     if [ -z "${integrations_pr_number}" ]; then
         echo "--- Creating pull request :github:"
@@ -144,12 +144,8 @@ add_pr_comment() {
 }
 
 
-echo "> check ${GITHUB_USERNAME_SECRET}"
-echo "> check ${GITHUB_EMAIL_SECRET}"
 echo "--- creating or updating integrations pull request"
 create_or_update_pull_request
-
-exit 0
 
 echo "--- adding comment into elastic-package pull request :memo:"
 add_pr_comment "${BUILDKITE_PULL_REQUEST}"
