@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path"
 	"strings"
@@ -123,7 +124,7 @@ func (cp *cloudProvider) BootUp(options Options) error {
 		plan.DeploymentTemplate.ID = &templateID
 	}
 
-	logger.Debugf("Creating deployment %q", name)
+	logger.Infof("Creating deployment %q", name)
 	res, err := deploymentapi.Create(deploymentapi.CreateParams{
 		API:     cp.api,
 		Request: payload,
@@ -210,7 +211,21 @@ func (cp *cloudProvider) BootUp(options Options) error {
 		return fmt.Errorf("failed to store config: %w", err)
 	}
 
-	logger.Debugf("Replacing GeoIP databases")
+	logger.Infof("Creating agent policy")
+
+	err = cp.createAgentPolicy(config)
+	if err != nil {
+		return fmt.Errorf("failed to create agent policy: %w", err)
+	}
+
+	logger.Infof("Starting local agent")
+
+	err = cp.startLocalAgent(options, config)
+	if err != nil {
+		return fmt.Errorf("failed to start local agent: %w", err)
+	}
+
+	logger.Infof("Replacing GeoIP databases")
 
 	client, err := elasticsearch.NewClient(elasticsearch.Config{
 		Addresses: []string{config.ElasticsearchHost},
@@ -292,15 +307,6 @@ func (cp *cloudProvider) BootUp(options Options) error {
 		return fmt.Errorf("failed to track cluster creation: %w", err)
 	}
 
-	// FIXME: Create initial agent policy.
-
-	logger.Debugf("Starting local agent")
-
-	err = cp.startLocalAgent(options, config)
-	if err != nil {
-		return fmt.Errorf("failed to start local agent: %w", err)
-	}
-
 	return nil
 }
 
@@ -373,6 +379,81 @@ func zipGeoIPBundle() (*bytes.Buffer, error) {
 	}
 
 	return &bundle, nil
+}
+
+const cloudKibanaAgentPolicy = `{
+  "name": "Elastic-Agent (elastic-package)",
+  "id": "elastic-agent-managed-ep",
+  "description": "Policy created by elastic-package",
+  "namespace": "default",
+  "monitoring_enabled": [
+    "logs",
+    "metrics"
+  ]
+}`
+
+// TODO: Avoid hard-coding the package version here.
+const cloudKibanaPackagePolicy = `{
+  "name": "system-1",
+  "policy_id": "elastic-agent-managed-ep",
+  "package": {
+    "name": "system",
+    "version": "1.26.0"
+  }
+}`
+
+func doKibanaRequest(config Config, req *http.Request) error {
+	req.SetBasicAuth(config.ElasticsearchUsername, config.ElasticsearchPassword)
+	req.Header.Add("content-type", "application/json")
+	req.Header.Add("kbn-xsrf", "elastic-package")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("performing request failed: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusConflict {
+		// Already created, go on.
+		// TODO: We could try to update the policy.
+		return nil
+	}
+	if resp.StatusCode >= 300 {
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return fmt.Errorf("request failed with status %v and could not read body: %w", resp.StatusCode, err)
+		}
+		return fmt.Errorf("request failed with status %v and response %v", resp.StatusCode, string(body))
+	}
+	return nil
+}
+
+func (cp *cloudProvider) createAgentPolicy(config Config) error {
+	agentPoliciesURL, err := url.JoinPath(config.KibanaHost, "/api/fleet/agent_policies")
+	if err != nil {
+		return fmt.Errorf("failed to build url for agent policies: %w", err)
+	}
+	req, err := http.NewRequest(http.MethodPost, agentPoliciesURL, strings.NewReader(cloudKibanaAgentPolicy))
+	if err != nil {
+		return fmt.Errorf("failed to initialize request to create agent policy: %w", err)
+	}
+	err = doKibanaRequest(config, req)
+	if err != nil {
+		return fmt.Errorf("error while creating agent policy: %w", err)
+	}
+
+	packagePoliciesURL, err := url.JoinPath(config.KibanaHost, "/api/fleet/package_policies")
+	if err != nil {
+		return fmt.Errorf("failed to build url for package policies: %w", err)
+	}
+	req, err = http.NewRequest(http.MethodPost, packagePoliciesURL, strings.NewReader(cloudKibanaPackagePolicy))
+	if err != nil {
+		return fmt.Errorf("failed to initialize request to create package policy: %w", err)
+	}
+	err = doKibanaRequest(config, req)
+	if err != nil {
+		return fmt.Errorf("error while creating package policy: %w", err)
+	}
+
+	return nil
 }
 
 func (cp *cloudProvider) localAgentComposeProject() (*compose.Project, error) {
