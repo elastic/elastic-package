@@ -108,7 +108,7 @@ exists_branch() {
     local repository="$2"
     local branch="$1"
 
-    git ls-remote --exit-code --heads https://github.com/${owner}/${repository}.git ${branch} > /dev/null
+    git ls-remote --exit-code --heads https://github.com/${owner}/${repository}.git ${branch}
 }
 
 create_or_update_pull_request() {
