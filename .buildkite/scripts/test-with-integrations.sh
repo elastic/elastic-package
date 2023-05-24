@@ -66,7 +66,7 @@ clone_repository() {
     retry 5 git clone --depth 1 https://github.com/elastic/integrations ${target}
 }
 
-create_pull_request() {
+create_integrations_pull_request() {
     # requires GITHUB_TOKEN
     echo "Creating Pull Request"
     retry 3 \
@@ -76,7 +76,7 @@ create_pull_request() {
         --draft \
         --base ${INTEGRATIONS_SOURCE_BRANCH} \
         --head ${INTEGRATIONS_PR_BRANCH} \
-        --assignee ${BUILDKITE_PR_HEAD_USER}
+        --assignee ${GITHUB_PR_HEAD_USER}
 }
 
 update_dependency() {
@@ -91,7 +91,11 @@ update_dependency() {
     git add go.mod
     git add go.sum
 
-    git commit -m "Test elastic-package from PR ${BUILDKITE_PULL_REQUEST} - ${GITHUB_PR_HEAD_SHA}"
+    # allow not to commit if there are no changes
+    # previous execution could fail and just pushed the branch but PR is not created
+    if git diff-index --quiet HEAD ; then
+        git commit -m "Test elastic-package from PR ${BUILDKITE_PULL_REQUEST} - ${GITHUB_PR_HEAD_SHA}"
+    fi
 
     echo ""
     git --no-pager show -p HEAD
@@ -129,7 +133,7 @@ create_or_update_pull_request() {
 
     if [ -z "${integrations_pr_number}" ]; then
         echo "--- Creating pull request :github:"
-        create_pull_request
+        create_integrations_pull_request
     fi
 
     popd > /dev/null
