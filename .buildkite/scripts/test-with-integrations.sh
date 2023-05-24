@@ -106,7 +106,7 @@ update_dependency() {
 exists_branch() {
     local owner="$1"
     local repository="$2"
-    local branch="$1"
+    local branch="$3"
 
     git ls-remote --exit-code --heads https://github.com/${owner}/${repository}.git ${branch}
 }
