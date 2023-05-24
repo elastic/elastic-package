@@ -78,4 +78,5 @@ if [[ "$BUILDKITE_PIPELINE_SLUG" == "elastic-package-test-with-integrations" && 
 
     export GITHUB_USERNAME_SECRET="useruser"
     export GITHUB_EMAIL_SECRET="myemailemail"
+    echo "In hook test ${GITHUB_USERNAME_SECRET} - ${GITHUB_EMAIL_SECRET}"
 fi
