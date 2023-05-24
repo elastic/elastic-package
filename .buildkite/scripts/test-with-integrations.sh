@@ -125,6 +125,8 @@ create_or_update_pull_request() {
     set_git_config
 
     echo "Checking branch ${INTEGRATIONS_PR_BRANCH} in remote ${INTEGRATIONS_GITHUB_OWNER}/${INTEGRATIONS_GITHUB_REPO_NAME}"
+    set -x
+    git status
     git branch -r |grep test-elastic-package
     if ! exists_branch ${INTEGRATIONS_GITHUB_OWNER} ${INTEGRATIONS_GITHUB_REPO_NAME} ${INTEGRATIONS_PR_BRANCH} ; then
         checkout_options=" -b "
@@ -132,6 +134,7 @@ create_or_update_pull_request() {
     else
         echo "Already existed"
     fi
+    set +x
 
     integrations_pr_number=$(get_pr_number "${INTEGRATIONS_PR_BRANCH}")
     if [ -z "${integrations_pr_number}" ]; then
