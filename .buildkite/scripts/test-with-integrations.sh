@@ -125,16 +125,12 @@ create_or_update_pull_request() {
     set_git_config
 
     echo "Checking branch ${INTEGRATIONS_PR_BRANCH} in remote ${INTEGRATIONS_GITHUB_OWNER}/${INTEGRATIONS_GITHUB_REPO_NAME}"
-    set -x
-    git status
-    git branch -r |grep test-elastic-package
     if ! exists_branch ${INTEGRATIONS_GITHUB_OWNER} ${INTEGRATIONS_GITHUB_REPO_NAME} ${INTEGRATIONS_PR_BRANCH} ; then
         checkout_options=" -b "
         echo "Creating a new branch..."
     else
         echo "Already existed"
     fi
-    set +x
 
     integrations_pr_number=$(get_pr_number "${INTEGRATIONS_PR_BRANCH}")
     if [ -z "${integrations_pr_number}" ]; then
@@ -152,25 +148,30 @@ create_or_update_pull_request() {
     if [ -z "${integrations_pr_number}" ]; then
         echo "--- Creating pull request :github:"
         create_integrations_pull_request
+
+        sleep 10
+
+        integrations_pr_number=$(get_pr_number "${INTEGRATIONS_PR_BRANCH}")
     fi
 
     popd > /dev/null
 
     rm -rf "${temp_path}"
+
+    echo "--- adding comment into elastic-package pull request :memo:"
+    add_pr_comment "${BUILDKITE_PULL_REQUEST}" "$(get_integrations_pr_link ${integrations_pr_number})"
 }
 
 
 add_pr_comment() {
-    local pr_number="$1"
+    local elastic_pr_number="$1"
+    local integrations_pr_link="$2"
     retry 3 \
         gh pr comment ${pr_number} \
-        --body "Created or updated PR in integrations repostiory to test this vesrion. Check ${get_integrations_pr_link}" \
+        --body "Created or updated PR in integrations repostiory to test this vesrion. Check ${integrations_pr_link}" \
         --repo ${GITHUB_PR_BASE_OWNER}/${GITHUB_PR_BASE_REPO}
 }
 
 
 echo "--- creating or updating integrations pull request"
 create_or_update_pull_request
-
-echo "--- adding comment into elastic-package pull request :memo:"
-add_pr_comment "${BUILDKITE_PULL_REQUEST}"
