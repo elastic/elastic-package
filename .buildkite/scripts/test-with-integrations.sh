@@ -167,7 +167,7 @@ add_pr_comment() {
     local elastic_pr_number="$1"
     local integrations_pr_link="$2"
     retry 3 \
-        gh pr comment ${pr_number} \
+        gh pr comment ${elastic_pr_number} \
         --body "Created or updated PR in integrations repostiory to test this vesrion. Check ${integrations_pr_link}" \
         --repo ${GITHUB_PR_BASE_OWNER}/${GITHUB_PR_BASE_REPO}
 }
