@@ -98,7 +98,7 @@ update_dependency() {
     fi
 
     echo ""
-    git --no-pager show --format=online HEAD
+    git --no-pager show --format=oneline HEAD
     echo ""
 }
 
