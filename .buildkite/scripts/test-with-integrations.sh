@@ -68,11 +68,14 @@ clone_repository() {
 
 create_integrations_pull_request() {
     # requires GITHUB_TOKEN
+    local temp_path=$(mktemp -d -p ${WORKSPACE} -t ${TMP_FOLDER_TEMPLATE})
     echo "Creating Pull Request"
+    message="Update elastic-package reference to ${GITHUB_PR_HEAD_SHA}.\nAutomated by [Buildkite build](${BUILDKITE_BUILD_URL})\n\nRelates: $(get_elastic_package_pr_link)"
+    echo -e $message > ${temp_path}/body-pr.txt
     retry 3 \
         gh pr create \
         --title "${INTEGRATIONS_PR_TITLE}" \
-        --body "Update elastic-package reference to ${GITHUB_PR_HEAD_SHA}.\nAutomated by [Buildkite build](${BUILDKITE_BUILD_URL})\n\nRelates: $(get_elastic_package_pr_link)" \
+        --body-file ${temp_path}/body-pr.txt \
         --draft \
         --base ${INTEGRATIONS_SOURCE_BRANCH} \
         --head ${INTEGRATIONS_PR_BRANCH} \
@@ -166,6 +169,7 @@ create_or_update_pull_request() {
 add_pr_comment() {
     local elastic_pr_number="$1"
     local integrations_pr_link="$2"
+
     retry 3 \
         gh pr comment ${elastic_pr_number} \
         --body "Created or updated PR in integrations repostiory to test this vesrion. Check ${integrations_pr_link}" \
