@@ -94,25 +94,25 @@ func (cp *cloudProvider) BootUp(options Options) error {
 		return err
 	}
 
-	// TODO: Parameterize this.
-	name := "elastic-package-test"
-	region := "gcp-europe-west3"
-	templateID := "gcp-general-purpose-v5"
+	settings, err := getDeploymentSettings(options)
+	if err != nil {
+		return err
+	}
 
-	logger.Debugf("Getting deployment template %q", templateID)
-	payload, err := cp.getDeploymentRequest(options, region, templateID)
+	logger.Debugf("Getting deployment template %q", settings.TemplateID)
+	payload, err := cp.getDeploymentRequest(settings)
 	if err != nil {
 		return fmt.Errorf("failed to get deployment template: %w", err)
 	}
 
-	logger.Infof("Creating deployment %q", name)
-	config, err := cp.createDeployment(name, options, payload)
+	logger.Infof("Creating deployment %q", settings.Name)
+	config, err := cp.createDeployment(settings.Name, options, payload)
 	if err != nil {
 		return fmt.Errorf("failed to create deployment: %w", err)
 	}
 
 	logger.Infof("Replacing GeoIP databases")
-	err = cp.replaceGeoIPDatabases(config, options, templateID, region, payload.Resources.Elasticsearch[0].Plan.ClusterTopology)
+	err = cp.replaceGeoIPDatabases(config, options, settings.TemplateID, settings.Region, payload.Resources.Elasticsearch[0].Plan.ClusterTopology)
 	if err != nil {
 		return fmt.Errorf("failed to replace GeoIP databases: %w", err)
 	}
@@ -132,15 +132,60 @@ func (cp *cloudProvider) BootUp(options Options) error {
 	return nil
 }
 
-func (cp *cloudProvider) getDeploymentRequest(options Options, region, templateID string) (*models.DeploymentCreateRequest, error) {
+type deploymentSettings struct {
+	Name       string
+	Region     string
+	TemplateID string
+
+	StackVersion string
+
+	ZoneCount  int
+	MemorySize int
+}
+
+func getDeploymentSettings(options Options) (deploymentSettings, error) {
+	const (
+		configMemorySize = "stack.cloud.memory_size"
+		configRegion     = "stack.cloud.region"
+		configTemplate   = "stack.cloud.template"
+		configZoneCount  = "stack.cloud.zone_count"
+	)
+	s := deploymentSettings{
+		Name:         fmt.Sprintf("elastic-package-test-%s", options.Profile.ProfileName),
+		Region:       options.Profile.Config(configRegion, "gcp-europe-west3"),
+		TemplateID:   options.Profile.Config(configTemplate, "gcp-general-purpose-v5"),
+		StackVersion: options.StackVersion,
+	}
+
+	var err error
+	s.ZoneCount, err = options.Profile.ConfigInt(configZoneCount, 1)
+	if err != nil {
+		return s, fmt.Errorf("invalid value for %q: %w", configZoneCount, err)
+	}
+	if zones := s.ZoneCount; zones < 0 || zones > 3 {
+		return s, fmt.Errorf("%s should have a value between 1 and 3, found %d", configZoneCount, zones)
+	}
+
+	s.MemorySize, err = options.Profile.ConfigInt(configMemorySize, 4096)
+	if err != nil {
+		return s, fmt.Errorf("invalid value for %s: %w", configMemorySize, err)
+	}
+	if size := s.MemorySize; size <= 0 {
+		return s, fmt.Errorf("%s should have a value greater than 0, found %d", configMemorySize, size)
+	}
+
+	return s, nil
+}
+
+func (cp *cloudProvider) getDeploymentRequest(settings deploymentSettings) (*models.DeploymentCreateRequest, error) {
 	template, err := deptemplateapi.Get(deptemplateapi.GetParams{
 		API:          cp.api,
-		TemplateID:   templateID,
-		Region:       region,
-		StackVersion: options.StackVersion,
+		TemplateID:   settings.TemplateID,
+		Region:       settings.Region,
+		StackVersion: settings.StackVersion,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to get deployment template %q: %w", templateID, err)
+		return nil, fmt.Errorf("failed to get deployment template %q: %w", settings.TemplateID, err)
 	}
 
 	payload := template.DeploymentTemplate
@@ -156,13 +201,13 @@ func (cp *cloudProvider) getDeploymentRequest(options Options, region, templateI
 		if plan.DeploymentTemplate == nil {
 			plan.DeploymentTemplate = &models.DeploymentTemplateReference{}
 		}
-		plan.DeploymentTemplate.ID = &templateID
+		plan.DeploymentTemplate.ID = &settings.TemplateID
 
 		for _, tier := range plan.ClusterTopology {
 			if tier.ID == "hot_content" {
-				memory := int32(4096)
+				memory := int32(settings.MemorySize)
 				tier.Size.Value = &memory
-				tier.ZoneCount = 1
+				tier.ZoneCount = int32(settings.ZoneCount)
 			}
 		}
 	}
@@ -273,17 +318,17 @@ func (cp *cloudProvider) createDeployment(name string, options Options, payload 
 }
 
 func (cp *cloudProvider) createGeoIPExtension() (*models.Extension, error) {
+	// TODO: Add support for stack.geoip_dir.
 	bundle, err := zipGeoIPBundle()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create GeoIP bundle: %w", err)
 	}
 
-	// TODO: Parameterize extension Name.
-	extensionName := "geoip-extension"
+	extensionName := fmt.Sprintf("elastic-package-%s-geoip", cp.profile.ProfileName)
 	extension, err := extensionapi.Create(extensionapi.CreateParams{
 		API:         cp.api,
 		Name:        extensionName,
-		Description: "GeoIP extension for elastic-package tests",
+		Description: fmt.Sprintf("GeoIP extension for elastic-package tests (%s profile)", cp.profile.ProfileName),
 		Type:        "bundle",
 		Version:     "*",
 	})
@@ -503,9 +548,13 @@ func getPackageVersion(registryURL, packageName, stackVersion string) (string, e
 	return packages[0].Version, nil
 }
 
+func (cp *cloudProvider) composeProjectName() string {
+	return DockerComposeProjectName + "-" + cp.profile.ProfileName
+}
+
 func (cp *cloudProvider) localAgentComposeProject() (*compose.Project, error) {
 	composeFile := cp.profile.Path(profileStackPath, CloudComposeFile)
-	return compose.NewProject(DockerComposeProjectName, composeFile)
+	return compose.NewProject(cp.composeProjectName(), composeFile)
 }
 
 func (cp *cloudProvider) startLocalAgent(options Options, config Config) error {
@@ -784,7 +833,7 @@ func (*cloudProvider) deploymentStatus(deployment *models.DeploymentGetResponse)
 func (cp *cloudProvider) localAgentStatus() ([]ServiceStatus, error) {
 	var services []ServiceStatus
 	// query directly to docker to avoid load environment variables (e.g. STACK_VERSION_VARIANT) and profiles
-	containerIDs, err := docker.ContainerIDsWithLabel(projectLabelDockerCompose, DockerComposeProjectName)
+	containerIDs, err := docker.ContainerIDsWithLabel(projectLabelDockerCompose, cp.composeProjectName())
 	if err != nil {
 		return nil, err
 	}
