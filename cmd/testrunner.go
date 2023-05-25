@@ -16,6 +16,7 @@ import (
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/elasticsearch"
+	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/signal"
 	"github.com/elastic/elastic-package/internal/testrunner"
@@ -71,6 +72,7 @@ func setupTestCommand() *cobraext.Command {
 	cmd.PersistentFlags().BoolP(cobraext.TestCoverageFlagName, "", false, cobraext.TestCoverageFlagDescription)
 	cmd.PersistentFlags().DurationP(cobraext.DeferCleanupFlagName, "", 0, cobraext.DeferCleanupFlagDescription)
 	cmd.PersistentFlags().String(cobraext.VariantFlagName, "", cobraext.VariantFlagDescription)
+	cmd.PersistentFlags().StringP(cobraext.ProfileFlagName, "p", "", fmt.Sprintf(cobraext.ProfileFlagDescription, install.ProfileNameEnvVar))
 
 	for testType, runner := range testrunner.TestRunners() {
 		action := testTypeCommandActionFactory(runner)
@@ -216,9 +218,15 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 			return err
 		}
 
+		profile, err := getProfileFlag(cmd)
+		if err != nil {
+			return err
+		}
+
 		var results []testrunner.TestResult
 		for _, folder := range testFolders {
 			r, err := testrunner.Run(testType, testrunner.TestOptions{
+				Profile:            profile,
 				TestFolder:         folder,
 				PackageRootPath:    packageRootPath,
 				GenerateTestResult: generateTestResult,

@@ -11,6 +11,7 @@ import (
 	"syscall"
 
 	"github.com/elastic/elastic-package/internal/logger"
+	"github.com/elastic/elastic-package/internal/profile"
 
 	"github.com/pkg/errors"
 
@@ -21,6 +22,8 @@ import (
 
 // Options define the details of the service which should be booted up.
 type Options struct {
+	Profile *profile.Profile
+
 	ServiceName        string
 	PackageRootPath    string
 	DataStreamRootPath string
@@ -32,6 +35,7 @@ type Options struct {
 func BootUp(options Options) error {
 	logger.Debugf("Create new instance of the service deployer")
 	serviceDeployer, err := servicedeployer.Factory(servicedeployer.FactoryOptions{
+		Profile:            options.Profile,
 		PackageRootPath:    options.DataStreamRootPath,
 		DataStreamRootPath: options.DataStreamRootPath,
 		Variant:            options.Variant,

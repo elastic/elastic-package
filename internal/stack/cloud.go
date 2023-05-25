@@ -592,7 +592,7 @@ func getPackageVersion(registryURL, packageName, stackVersion string) (string, e
 }
 
 func (cp *cloudProvider) composeProjectName() string {
-	return DockerComposeProjectName + "-" + cp.profile.ProfileName
+	return DockerComposeProjectName(cp.profile)
 }
 
 func (cp *cloudProvider) localAgentComposeProject() (*compose.Project, error) {

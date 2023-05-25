@@ -55,7 +55,7 @@ func (eb *envBuilder) build() []string {
 }
 
 func dockerComposeBuild(options Options) error {
-	c, err := compose.NewProject(DockerComposeProjectName, options.Profile.Path(profileStackPath, SnapshotFile))
+	c, err := compose.NewProject(DockerComposeProjectName(options.Profile), options.Profile.Path(profileStackPath, SnapshotFile))
 	if err != nil {
 		return errors.Wrap(err, "could not create docker compose project")
 	}
@@ -81,7 +81,7 @@ func dockerComposeBuild(options Options) error {
 }
 
 func dockerComposePull(options Options) error {
-	c, err := compose.NewProject(DockerComposeProjectName, options.Profile.Path(profileStackPath, SnapshotFile))
+	c, err := compose.NewProject(DockerComposeProjectName(options.Profile), options.Profile.Path(profileStackPath, SnapshotFile))
 	if err != nil {
 		return errors.Wrap(err, "could not create docker compose project")
 	}
@@ -107,7 +107,7 @@ func dockerComposePull(options Options) error {
 }
 
 func dockerComposeUp(options Options) error {
-	c, err := compose.NewProject(DockerComposeProjectName, options.Profile.Path(profileStackPath, SnapshotFile))
+	c, err := compose.NewProject(DockerComposeProjectName(options.Profile), options.Profile.Path(profileStackPath, SnapshotFile))
 	if err != nil {
 		return errors.Wrap(err, "could not create docker compose project")
 	}
@@ -139,7 +139,7 @@ func dockerComposeUp(options Options) error {
 }
 
 func dockerComposeDown(options Options) error {
-	c, err := compose.NewProject(DockerComposeProjectName, options.Profile.Path(profileStackPath, SnapshotFile))
+	c, err := compose.NewProject(DockerComposeProjectName(options.Profile), options.Profile.Path(profileStackPath, SnapshotFile))
 	if err != nil {
 		return errors.Wrap(err, "could not create docker compose project")
 	}
@@ -185,10 +185,10 @@ func withIsReadyServices(services []string) []string {
 	return allServices
 }
 
-func dockerComposeStatus() ([]ServiceStatus, error) {
+func dockerComposeStatus(options Options) ([]ServiceStatus, error) {
 	var services []ServiceStatus
 	// query directly to docker to avoid load environment variables (e.g. STACK_VERSION_VARIANT) and profiles
-	containerIDs, err := docker.ContainerIDsWithLabel(projectLabelDockerCompose, DockerComposeProjectName)
+	containerIDs, err := docker.ContainerIDsWithLabel(projectLabelDockerCompose, DockerComposeProjectName(options.Profile))
 	if err != nil {
 		return nil, err
 	}

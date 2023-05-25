@@ -12,6 +12,7 @@ import (
 	"github.com/elastic/elastic-package/internal/docker"
 	"github.com/elastic/elastic-package/internal/kubectl"
 	"github.com/elastic/elastic-package/internal/logger"
+	"github.com/elastic/elastic-package/internal/profile"
 	"github.com/elastic/elastic-package/internal/stack"
 )
 
@@ -35,13 +36,13 @@ func VerifyContext() error {
 }
 
 // ConnectToElasticStackNetwork function ensures that the control plane node is connected to the Elastic stack network.
-func ConnectToElasticStackNetwork() error {
+func ConnectToElasticStackNetwork(profile *profile.Profile) error {
 	containerID, err := controlPlaneContainerID()
 	if err != nil {
 		return errors.Wrap(err, "can't find kind-control plane node")
 	}
 
-	stackNetwork := stack.Network()
+	stackNetwork := stack.Network(profile)
 	logger.Debugf("check network connectivity between service container %s (ID: %s) and the stack network %s", ControlPlaneContainerName, containerID, stackNetwork)
 
 	networkDescriptions, err := docker.InspectNetwork(stackNetwork)

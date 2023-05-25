@@ -17,12 +17,14 @@ import (
 	"github.com/elastic/elastic-package/internal/docker"
 	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/logger"
+	"github.com/elastic/elastic-package/internal/profile"
 	"github.com/elastic/elastic-package/internal/stack"
 )
 
 // DockerComposeServiceDeployer knows how to deploy a service defined via
 // a Docker Compose file.
 type DockerComposeServiceDeployer struct {
+	profile  *profile.Profile
 	ymlPaths []string
 	variant  ServiceVariant
 }
@@ -37,8 +39,9 @@ type dockerComposeDeployedService struct {
 }
 
 // NewDockerComposeServiceDeployer returns a new instance of a DockerComposeServiceDeployer.
-func NewDockerComposeServiceDeployer(ymlPaths []string, sv ServiceVariant) (*DockerComposeServiceDeployer, error) {
+func NewDockerComposeServiceDeployer(profile *profile.Profile, ymlPaths []string, sv ServiceVariant) (*DockerComposeServiceDeployer, error) {
 	return &DockerComposeServiceDeployer{
+		profile:  profile,
 		ymlPaths: ymlPaths,
 		variant:  sv,
 	}, nil
@@ -61,7 +64,7 @@ func (d *DockerComposeServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedSer
 	}
 
 	// Verify the Elastic stack network
-	err = stack.EnsureStackNetworkUp()
+	err = stack.EnsureStackNetworkUp(d.profile)
 	if err != nil {
 		return nil, errors.Wrap(err, "Elastic stack network is not ready")
 	}
@@ -101,7 +104,7 @@ func (d *DockerComposeServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedSer
 	outCtxt.Hostname = p.ContainerName(serviceName)
 
 	// Connect service network with stack network (for the purpose of metrics collection)
-	err = docker.ConnectToNetwork(p.ContainerName(serviceName), stack.Network())
+	err = docker.ConnectToNetwork(p.ContainerName(serviceName), stack.Network(d.profile))
 	if err != nil {
 		return nil, errors.Wrapf(err, "can't attach service container to the stack network")
 	}

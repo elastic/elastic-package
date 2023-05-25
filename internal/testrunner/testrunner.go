@@ -15,6 +15,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/elasticsearch"
+	"github.com/elastic/elastic-package/internal/profile"
 )
 
 // TestType represents the various supported test types
@@ -22,6 +23,7 @@ type TestType string
 
 // TestOptions contains test runner options.
 type TestOptions struct {
+	Profile            *profile.Profile
 	TestFolder         TestFolder
 	PackageRootPath    string
 	GenerateTestResult bool
