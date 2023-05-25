@@ -29,8 +29,8 @@ with_jq
 INTEGRATIONS_SOURCE_BRANCH=main
 INTEGRATIONS_GITHUB_OWNER=elastic
 INTEGRATIONS_GITHUB_REPO_NAME=integrations
-INTEGRATIONS_PR_BRANCH="test-elastic-package-pr-${BUILDKITE_PULL_REQUEST}"
-INTEGRATIONS_PR_TITLE="Test elastic-package - DO NOT MERGE"
+INTEGRATIONS_PR_BRANCH="test-${GITHUB_PR_BASE_REPO}-pr-${BUILDKITE_PULL_REQUEST}"
+INTEGRATIONS_PR_TITLE="Test ${GITHUB_PR_BASE_REPO} - DO NOT MERGE"
 
 
 get_pr_number() {
@@ -44,11 +44,11 @@ get_integrations_pr_link() {
     echo "https://github.com/elastic/integrations/pull/${pr_number}"
 }
 
-get_elastic_package_pr_link() {
+get_source_pr_link() {
     echo "https://github.com/${GITHUB_PR_BASE_OWNER}/${GITHUB_PR_BASE_REPO}/pull/${BUILDKITE_PULL_REQUEST}"
 }
 
-get_elastic_package_commit_link() {
+get_source_commit_link() {
     echo "https://github.com/${GITHUB_PR_BASE_OWNER}/${GITHUB_PR_BASE_REPO}/commit/${GITHUB_PR_HEAD_SHA}"
 }
 
@@ -74,7 +74,7 @@ create_integrations_pull_request() {
     # requires GITHUB_TOKEN
     local temp_path=$(mktemp -d -p ${WORKSPACE} -t ${TMP_FOLDER_TEMPLATE})
     echo "Creating Pull Request"
-    message="Update elastic-package reference to $(get_elastic_package_commit_link).\nAutomated by [Buildkite build](${BUILDKITE_BUILD_URL})\n\nRelates: $(get_elastic_package_pr_link)"
+    message="Update ${GITHUB_PR_BASE_REPO} reference to $(get_source_commit_link).\nAutomated by [Buildkite build](${BUILDKITE_BUILD_URL})\n\nRelates: $(get_source_pr_link)"
     echo -e $message > ${temp_path}/body-pr.txt
     retry 3 \
         gh pr create \
@@ -165,17 +165,17 @@ create_or_update_pull_request() {
 
     rm -rf "${temp_path}"
 
-    echo "--- adding comment into elastic-package pull request :memo:"
+    echo "--- adding comment into ${GITHUB_PR_BASE_REPO} pull request :memo:"
     add_pr_comment "${BUILDKITE_PULL_REQUEST}" "$(get_integrations_pr_link ${integrations_pr_number})"
 }
 
 
 add_pr_comment() {
-    local elastic_pr_number="$1"
+    local source_pr_number="$1"
     local integrations_pr_link="$2"
 
     retry 3 \
-        gh pr comment ${elastic_pr_number} \
+        gh pr comment ${source_pr_number} \
         --body "Created or updated PR in integrations repostiory to test this vesrion. Check ${integrations_pr_link}" \
         --repo ${GITHUB_PR_BASE_OWNER}/${GITHUB_PR_BASE_REPO}
 }
