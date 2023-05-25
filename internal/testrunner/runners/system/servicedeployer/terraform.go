@@ -69,6 +69,8 @@ func addTerraformOutputs(customProps map[string]interface{}) error {
 		customProps[terraformOutputPrefix+k] = fmt.Sprint(valueMap["value"])
 	}
 
+	logger.Debugf("Custom properties %s", customProps)
+
 	return nil
 }
 
