@@ -24,6 +24,7 @@ import (
 	"github.com/elastic/cloud-sdk-go/pkg/api"
 	"github.com/elastic/cloud-sdk-go/pkg/api/deploymentapi"
 	"github.com/elastic/cloud-sdk-go/pkg/api/deploymentapi/deptemplateapi"
+	"github.com/elastic/cloud-sdk-go/pkg/api/deploymentapi/deputil"
 	"github.com/elastic/cloud-sdk-go/pkg/api/deploymentapi/extensionapi"
 	"github.com/elastic/cloud-sdk-go/pkg/auth"
 	"github.com/elastic/cloud-sdk-go/pkg/models"
@@ -38,11 +39,11 @@ import (
 )
 
 const (
-	paramCloudDeploymentID     = "cloud_deployment_id"
 	paramCloudClusterRefID     = "cloud_ref_id"
 	paramCloudDeploymentAlias  = "cloud_deployment_alias"
-	paramCloudGeoIPExtensionID = "cloud_geoip_extension_id"
+	paramCloudDeploymentID     = "cloud_deployment_id"
 	paramCloudFleetURL         = "cloud_fleet_url"
+	paramCloudGeoIPExtensionID = "cloud_geoip_extension_id"
 )
 
 var (
@@ -76,22 +77,9 @@ func newCloudProvider(profile *profile.Profile) (*cloudProvider, error) {
 func (cp *cloudProvider) BootUp(options Options) error {
 	logger.Warn("Elastic Cloud provider is in technical preview")
 
-	_, err := cp.currentDeployment()
-	switch err {
-	case nil:
-		// Do nothing, deployment already exists.
-		// TODO: Migrate configuration if changed.
-		config, err := LoadConfig(cp.profile)
-		if err != nil {
-			return err
-		}
-		printUserConfig(options.Printer, config)
-		return nil
-	case errDeploymentNotExist:
-		// Deployment doesn't exist, let's continue.
-		break
-	default:
-		return err
+	config, err := LoadConfig(cp.profile)
+	if err != nil {
+		return fmt.Errorf("failed to load configuration: %w", err)
 	}
 
 	settings, err := getDeploymentSettings(options)
@@ -99,28 +87,41 @@ func (cp *cloudProvider) BootUp(options Options) error {
 		return err
 	}
 
-	logger.Debugf("Getting deployment template %q", settings.TemplateID)
-	payload, err := cp.getDeploymentRequest(settings)
-	if err != nil {
-		return fmt.Errorf("failed to get deployment template: %w", err)
-	}
+	deployment, err := cp.currentDeployment(config)
+	switch err {
+	default:
+		return err
+	case errDeploymentNotExist:
+		logger.Debugf("Getting deployment template %q", settings.TemplateID)
+		payload, err := cp.getDeploymentRequest(settings)
+		if err != nil {
+			return fmt.Errorf("failed to get deployment template: %w", err)
+		}
 
-	logger.Infof("Creating deployment %q", settings.Name)
-	config, err := cp.createDeployment(settings.Name, options, payload)
-	if err != nil {
-		return fmt.Errorf("failed to create deployment: %w", err)
-	}
+		logger.Infof("Creating deployment %q", settings.Name)
+		config, err = cp.createDeployment(settings.Name, options, payload)
+		if err != nil {
+			return fmt.Errorf("failed to create deployment: %w", err)
+		}
 
-	logger.Infof("Replacing GeoIP databases")
-	err = cp.replaceGeoIPDatabases(config, options, settings.TemplateID, settings.Region, payload.Resources.Elasticsearch[0].Plan.ClusterTopology)
-	if err != nil {
-		return fmt.Errorf("failed to replace GeoIP databases: %w", err)
-	}
+		logger.Infof("Creating agent policy")
+		err = cp.createAgentPolicy(config, options.StackVersion)
+		if err != nil {
+			return fmt.Errorf("failed to create agent policy: %w", err)
+		}
 
-	logger.Infof("Creating agent policy")
-	err = cp.createAgentPolicy(config, options.StackVersion)
-	if err != nil {
-		return fmt.Errorf("failed to create agent policy: %w", err)
+		logger.Infof("Replacing GeoIP databases")
+		err = cp.replaceGeoIPDatabases(config, options, settings.TemplateID, settings.Region, payload.Resources.Elasticsearch[0].Plan.ClusterTopology)
+		if err != nil {
+			return fmt.Errorf("failed to replace GeoIP databases: %w", err)
+		}
+	case nil:
+		printUserConfig(options.Printer, config)
+		logger.Infof("Updating deployment")
+		err = cp.updateDeployment(deployment, settings)
+		if err != nil {
+			return fmt.Errorf("failed to update deployment: %w", err)
+		}
 	}
 
 	logger.Infof("Starting local agent")
@@ -144,6 +145,7 @@ type deploymentSettings struct {
 }
 
 func getDeploymentSettings(options Options) (deploymentSettings, error) {
+	// TODO: Implement a config unpacker in options.Profile.
 	const (
 		configMemorySize = "stack.cloud.memory_size"
 		configRegion     = "stack.cloud.region"
@@ -196,14 +198,13 @@ func (cp *cloudProvider) getDeploymentRequest(settings deploymentSettings) (*mod
 	payload.Resources.EnterpriseSearch = nil
 
 	// Initialize the plan with the id of the template, otherwise the create request fails.
-	if es := payload.Resources.Elasticsearch; len(es) > 0 {
-		plan := es[0].Plan
-		if plan.DeploymentTemplate == nil {
-			plan.DeploymentTemplate = &models.DeploymentTemplateReference{}
+	for _, es := range payload.Resources.Elasticsearch {
+		if es.Plan.DeploymentTemplate == nil {
+			es.Plan.DeploymentTemplate = &models.DeploymentTemplateReference{}
 		}
-		plan.DeploymentTemplate.ID = &settings.TemplateID
+		es.Plan.DeploymentTemplate.ID = &settings.TemplateID
 
-		for _, tier := range plan.ClusterTopology {
+		for _, tier := range es.Plan.ClusterTopology {
 			if tier.ID == "hot_content" {
 				memory := int32(settings.MemorySize)
 				tier.Size.Value = &memory
@@ -512,6 +513,48 @@ func (cp *cloudProvider) createAgentPolicy(config Config, stackVersion string) e
 	return nil
 }
 
+func (cp *cloudProvider) updateDeployment(current *models.DeploymentGetResponse, settings deploymentSettings) error {
+	updateRequest := deploymentapi.NewUpdateRequest(current)
+
+	// If any, we only want to update Elasticsearch.
+	updateRequest.Resources.Apm = nil
+	updateRequest.Resources.Kibana = nil
+	updateRequest.Resources.IntegrationsServer = nil
+
+	// Try to update only what is configurable.
+	for _, es := range updateRequest.Resources.Elasticsearch {
+		for _, tier := range es.Plan.ClusterTopology {
+			if tier.ID == "hot_content" {
+				memory := int32(settings.MemorySize)
+				tier.Size.Value = &memory
+				tier.ZoneCount = int32(settings.ZoneCount)
+			}
+		}
+	}
+	_, err := deploymentapi.Update(deploymentapi.UpdateParams{
+		API:          cp.api,
+		DeploymentID: *current.ID,
+		Request:      updateRequest,
+	})
+	if err != nil {
+		return fmt.Errorf("update request failed: %w", err)
+	}
+
+	err = planutil.TrackChange(planutil.TrackChangeParams{
+		TrackChangeParams: plan.TrackChangeParams{
+			API:          cp.api,
+			DeploymentID: *current.ID,
+		},
+		Writer: &cloudTrackWriter{},
+		Format: "text",
+	})
+	if err != nil {
+		return fmt.Errorf("failed to track cluster creation: %w", err)
+	}
+
+	return nil
+}
+
 func getPackageVersion(registryURL, packageName, stackVersion string) (string, error) {
 	searchURL, err := url.JoinPath(registryURL, "search")
 	if err != nil {
@@ -668,12 +711,17 @@ func (cp *cloudProvider) replaceGeoIPDatabases(config Config, options Options, t
 }
 
 func (cp *cloudProvider) TearDown(options Options) error {
-	err := cp.destroyLocalAgent()
+	config, err := LoadConfig(cp.profile)
+	if err != nil {
+		return fmt.Errorf("failed to load configuration: %w", err)
+	}
+
+	err = cp.destroyLocalAgent()
 	if err != nil {
 		return fmt.Errorf("failed to destroy local agent: %w", err)
 	}
 
-	deployment, err := cp.currentDeployment()
+	deployment, err := cp.currentDeployment(config)
 	if err != nil {
 		return fmt.Errorf("failed to find current deployment: %w", err)
 	}
@@ -751,7 +799,12 @@ func (*cloudProvider) Dump(options DumpOptions) (string, error) {
 }
 
 func (cp *cloudProvider) Status(options Options) ([]ServiceStatus, error) {
-	deployment, err := cp.currentDeployment()
+	config, err := LoadConfig(cp.profile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load configuration: %w", err)
+	}
+
+	deployment, err := cp.currentDeployment(config)
 	if err != nil {
 		return nil, err
 	}
@@ -862,11 +915,7 @@ func (cp *cloudProvider) localAgentStatus() ([]ServiceStatus, error) {
 	return services, nil
 }
 
-func (cp *cloudProvider) currentDeployment() (*models.DeploymentGetResponse, error) {
-	config, err := LoadConfig(cp.profile)
-	if err != nil {
-		return nil, err
-	}
+func (cp *cloudProvider) currentDeployment(config Config) (*models.DeploymentGetResponse, error) {
 	deploymentID, found := config.Parameters[paramCloudDeploymentID]
 	if !found {
 		return nil, errDeploymentNotExist
@@ -874,6 +923,9 @@ func (cp *cloudProvider) currentDeployment() (*models.DeploymentGetResponse, err
 	deployment, err := deploymentapi.Get(deploymentapi.GetParams{
 		API:          cp.api,
 		DeploymentID: deploymentID,
+		QueryParams: deputil.QueryParams{
+			ShowPlans: true,
+		},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("couldn't check deployment health: %w", err)
