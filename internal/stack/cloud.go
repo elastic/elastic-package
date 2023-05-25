@@ -97,7 +97,7 @@ func (cp *cloudProvider) BootUp(options Options) error {
 	// TODO: Parameterize this.
 	name := "elastic-package-test"
 	region := "gcp-europe-west3"
-	templateID := "gcp-io-optimized"
+	templateID := "gcp-general-purpose-v5"
 
 	logger.Debugf("Getting deployment template %q", templateID)
 	payload, err := cp.getDeploymentRequest(options, region, templateID)
@@ -111,6 +111,12 @@ func (cp *cloudProvider) BootUp(options Options) error {
 		return fmt.Errorf("failed to create deployment: %w", err)
 	}
 
+	logger.Infof("Replacing GeoIP databases")
+	err = cp.replaceGeoIPDatabases(config, options, templateID, region, payload.Resources.Elasticsearch[0].Plan.ClusterTopology)
+	if err != nil {
+		return fmt.Errorf("failed to replace GeoIP databases: %w", err)
+	}
+
 	logger.Infof("Creating agent policy")
 	err = cp.createAgentPolicy(config, options.StackVersion)
 	if err != nil {
@@ -121,12 +127,6 @@ func (cp *cloudProvider) BootUp(options Options) error {
 	err = cp.startLocalAgent(options, config)
 	if err != nil {
 		return fmt.Errorf("failed to start local agent: %w", err)
-	}
-
-	logger.Infof("Replacing GeoIP databases")
-	err = cp.replaceGeoIPDatabases(config, options, templateID, region, payload.Resources.Elasticsearch[0].Plan.ClusterTopology)
-	if err != nil {
-		return fmt.Errorf("failed to replace GeoIP databases: %w", err)
 	}
 
 	return nil
@@ -157,6 +157,14 @@ func (cp *cloudProvider) getDeploymentRequest(options Options, region, templateI
 			plan.DeploymentTemplate = &models.DeploymentTemplateReference{}
 		}
 		plan.DeploymentTemplate.ID = &templateID
+
+		for _, tier := range plan.ClusterTopology {
+			if tier.ID == "hot_content" {
+				memory := int32(4096)
+				tier.Size.Value = &memory
+				tier.ZoneCount = 1
+			}
+		}
 	}
 
 	return payload, nil
@@ -188,6 +196,9 @@ func (cp *cloudProvider) createDeployment(name string, options Options, payload 
 		return Config{}, fmt.Errorf("deployment created, but couldn't get its ID, check in the console UI")
 	}
 	config.Parameters[paramCloudDeploymentID] = *deploymentID
+
+	// We need the ref id to make update requests, otherwise we need to make a get deployment
+	// request using the deployment ID.
 	config.Parameters[paramCloudClusterRefID] = *res.Resources[0].RefID
 
 	for _, resource := range res.Resources {
@@ -393,8 +404,6 @@ func getDefaultFleetServerURL(config Config) (string, error) {
 	}
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
-	logger.Debugf("Fleet Server hosts response: %q", string(body))
-
 	if err != nil {
 		return "", fmt.Errorf("could not read response body (status %v): %w", resp.StatusCode, err)
 	}
