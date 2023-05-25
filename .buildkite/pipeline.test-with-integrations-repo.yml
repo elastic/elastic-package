@@ -12,9 +12,22 @@ steps:
       image: "golang:${GOLANG_VERSION}"
       cpu: "8"
       memory: "4G"
+  - label: ":go: :linux: Run unit tests"
+    key: unit-tests-linux
+    command: "make test-go-ci"
+    artifact_paths:
+      - "build/test-results/*.xml"
+      - "build/test-coverage/*.xml"
+    agents:
+      image: "golang:${GOLANG_VERSION}"
+      cpu: "8"
+      memory: "4G"
   - label: ":hammer: Create PR in integrations"
     key: pr-integrations
     command: ".buildkite/scripts/test-with-integrations.sh"
     agents:
       provider: "gcp"
+    depends_on:
+      - check-static
+      - unit-tests-linux
 
