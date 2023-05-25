@@ -13,8 +13,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/pkg/errors"
 
+	"github.com/elastic/elastic-package/internal/builder"
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/elasticsearch"
@@ -338,6 +340,14 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 		return result.WithError(errors.Wrap(err, "can't create Kibana client"))
 	}
 
+	// Install the package before creating the policy, so we control exactly what is being
+	// installed.
+	logger.Debug("Installing package...")
+	err = installPackage(kib, pkgManifest, r.options.PackageRootPath)
+	if err != nil {
+		return result.WithError(errors.Wrap(err, "unable to install package"))
+	}
+
 	// Configure package (single data stream) via Ingest Manager APIs.
 	logger.Debug("creating test policy...")
 	testTime := time.Now().Format("20060102T15:04:05Z")
@@ -527,6 +537,42 @@ func checkEnrolledAgents(client *kibana.Client, ctxt servicedeployer.ServiceCont
 		return nil, errors.New("no agent enrolled in time")
 	}
 	return agents, nil
+}
+
+func installPackage(client *kibana.Client, manifest *packages.PackageManifest, rootPath string) error {
+	kibVersion, err := client.Version()
+	if err != nil {
+		return errors.Wrap(err, "could not obtain kibana version")
+	}
+	version, err := semver.NewVersion(kibVersion.Number)
+	if err != nil {
+		return errors.Wrap(err, "could not parse kibana semantic version")
+	}
+
+	if version.LessThan(semver.MustParse("8.7.0")) {
+		_, err := client.InstallPackage(manifest.Name, manifest.Version)
+		if err != nil {
+			return errors.Wrap(err, "could not install package through package registry")
+		}
+		return nil
+	}
+
+	target, err := builder.BuildPackage(builder.BuildOptions{
+		PackageRoot:    rootPath,
+		CreateZip:      true,
+		SignPackage:    false,
+		SkipValidation: true,
+	})
+	if err != nil {
+		return errors.Wrap(err, "failed to build zip package for installation")
+	}
+
+	_, err = client.InstallZipPackage(target)
+	if err != nil {
+		return errors.Wrapf(err, "failed to install zip package \"%s\"", target)
+	}
+
+	return nil
 }
 
 func createPackageDatastream(
