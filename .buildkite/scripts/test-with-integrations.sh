@@ -31,7 +31,7 @@ INTEGRATIONS_GITHUB_OWNER=elastic
 INTEGRATIONS_GITHUB_REPO_NAME=integrations
 INTEGRATIONS_PR_BRANCH="test-${GITHUB_PR_BASE_REPO}-pr-${BUILDKITE_PULL_REQUEST}"
 INTEGRATIONS_PR_TITLE="Test ${GITHUB_PR_BASE_REPO} - DO NOT MERGE"
-
+VERSION_DEP=""
 
 get_pr_number() {
     # requires GITHUB_TOKEN
@@ -92,7 +92,10 @@ update_dependency() {
     with_go
 
     echo "--- Updating go.mod and go.sum with ${GITHUB_PR_HEAD_SHA} :hammer_and_wrench:"
-    go mod edit -replace github.com/${GITHUB_PR_BASE_OWNER}/${GITHUB_PR_BASE_REPO}=github.com/${GITHUB_PR_OWNER}/${GITHUB_PR_REPO}@${GITHUB_PR_HEAD_SHA}
+    local source_dep="github.com/${GITHUB_PR_BASE_OWNER}/${GITHUB_PR_BASE_REPO}${VERSION_DEP}"
+    local target_dep="github.com/${GITHUB_PR_OWNER}/${GITHUB_PR_REPO}${VERSION_DEP}@${GITHUB_PR_HEAD_SHA}"
+
+    go mod edit -replace ${source_dep}=${target_dep}
     go mod tidy
 
     git add go.mod
