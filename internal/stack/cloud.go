@@ -400,7 +400,6 @@ const cloudKibanaAgentPolicy = `{
   ]
 }`
 
-// TODO: Avoid hard-coding the package version here.
 const cloudKibanaPackagePolicy = `{
   "name": "system-1",
   "policy_id": "elastic-agent-managed-ep",
