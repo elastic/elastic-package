@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/elastic/elastic-integration-corpus-generator-tool/pkg/genlib"
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/logger"
@@ -27,8 +28,15 @@ type Client struct {
 	commit string
 }
 
+// GenLibClient is an interface for the genlib client
+type GenLibClient interface {
+	GetGoTextTemplate(packageName, dataStreamName string) ([]byte, error)
+	GetConf(packageName, dataStreamName string) (genlib.Config, error)
+	GetFields(packageName, dataStreamName string) (genlib.Fields, error)
+}
+
 // NewClient creates a new instance of the client.
-func NewClient(commit string) *Client {
+func NewClient(commit string) GenLibClient {
 	return &Client{commit: commit}
 }
 
