@@ -283,7 +283,24 @@ func (v *Validator) validateDocumentValues(body common.MapStr) multierror.Error 
 			if err == common.ErrKeyNotFound {
 				continue
 			}
-			str, ok := value.(string)
+
+			var str string
+			var ok bool
+			if v.disabledNormalization {
+				ok = true
+				vals, err := common.ToStringSlice(value)
+				if err != nil {
+					ok = false
+				}
+				if err == nil && len(vals) != 1 {
+					ok = false
+				}
+				if err == nil && len(vals) != 1 {
+					str = vals[0]
+				}
+			} else {
+				str, ok = value.(string)
+			}
 			if !ok || str != v.expectedDataset {
 				err := errors.Errorf("field %q should have value %q, it has \"%v\"",
 					datasetField, v.expectedDataset, value)
