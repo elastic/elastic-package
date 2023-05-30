@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-repoName() {
+repo_name() {
     # Example of URL: git@github.com:acme-inc/my-project.git
     local repoUrl=$1
 
