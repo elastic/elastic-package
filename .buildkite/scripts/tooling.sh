@@ -10,8 +10,8 @@ repo_name() {
 }
 
 buildkite_pr_branch_build_id() {
-    if [ "${BUILD_PULL_REQUEST}" == "true" ]; then
-        echo "PR-${BUILD_PULL_REQUEST}-${BUILDKITE_BUILD_NUMBER}"
+    if [ "${BUILDKITE_PULL_REQUEST}" == "true" ]; then
+        echo "PR-${BUILDKITE_PULL_REQUEST}-${BUILDKITE_BUILD_NUMBER}"
         return
     fi
     echo "${BUILDKITE_BRANCH}-${BUILDKITE_BUILD_NUMBER}"
