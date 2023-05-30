@@ -1,0 +1,150 @@
+{
+    "elastic_agent.version": [
+        "8.8.0"
+    ],
+    "event.category": [
+        "web"
+    ],
+    "host.os.name.text": [
+        "Ubuntu"
+    ],
+    "host.hostname": [
+        "docker-fleet-agent"
+    ],
+    "host.mac": [
+        "02-42-AC-17-00-07"
+    ],
+    "service.type": [
+        "prometheus"
+    ],
+    "apache_tomcat.cache.application_name": [
+        "/"
+    ],
+    "host.os.version": [
+        "20.04.6 LTS (Focal Fossa)"
+    ],
+    "host.os.name": [
+        "Ubuntu"
+    ],
+    "agent.name": [
+        "docker-fleet-agent"
+    ],
+    "host.name": [
+        "docker-fleet-agent"
+    ],
+    "event.agent_id_status": [
+        "verified"
+    ],
+    "metricset.name.text": [
+        "collector"
+    ],
+    "event.kind": [
+        "metric"
+    ],
+    "host.os.type": [
+        "linux"
+    ],
+    "apache_tomcat.cache.object.size.max.kb": [
+        512.0
+    ],
+    "apache_tomcat.cache.size.max.kb": [
+        10240.0
+    ],
+    "data_stream.type": [
+        "metrics"
+    ],
+    "tags": [
+        "apache_tomcat-cache",
+        "forwarded"
+    ],
+    "host.architecture": [
+        "x86_64"
+    ],
+    "agent.id": [
+        "5cad1bda-ddc8-4333-8d88-333b6ef311b5"
+    ],
+    "ecs.version": [
+        "8.7.0"
+    ],
+    "host.containerized": [
+        false
+    ],
+    "service.address": [
+        "http://elastic-package-service-apache_tomcat-1:9090/metrics"
+    ],
+    "agent.version": [
+        "8.8.0"
+    ],
+    "host.os.family": [
+        "debian"
+    ],
+    "apache_tomcat.cache.size.current.kb": [
+        19.0
+    ],
+    "apache_tomcat.cache.lookup.count": [
+        30.0
+    ],
+    "host.ip": [
+        "172.23.0.7"
+    ],
+    "agent.type": [
+        "metricbeat"
+    ],
+    "event.module": [
+        "apache_tomcat"
+    ],
+    "host.os.kernel": [
+        "5.19.0-42-generic"
+    ],
+    "elastic_agent.snapshot": [
+        true
+    ],
+    "host.id": [
+        "4e0d02de87bd4101b7215d3aaf5f623b"
+    ],
+    "elastic_agent.id": [
+        "5cad1bda-ddc8-4333-8d88-333b6ef311b5"
+    ],
+    "data_stream.namespace": [
+        "ep"
+    ],
+    "metricset.period": [
+        10000
+    ],
+    "host.os.codename": [
+        "focal"
+    ],
+    "apache_tomcat.cache.ttl.ms": [
+        5000.0
+    ],
+    "metricset.name": [
+        "collector"
+    ],
+    "event.duration": [
+        136411023
+    ],
+    "event.ingested": [
+        "2023-05-30T11:42:09Z"
+    ],
+    "@timestamp": [
+        "2023-05-30T11:42:07.923Z"
+    ],
+    "host.os.platform": [
+        "ubuntu"
+    ],
+    "data_stream.dataset": [
+        "apache_tomcat.cache"
+    ],
+    "event.type": [
+        "info"
+    ],
+    "agent.ephemeral_id": [
+        "7dd994f8-d866-4068-9f29-d6c90a28738e"
+    ],
+    "apache_tomcat.cache.hit.count": [
+        15.0
+    ],
+    "event.dataset": [
+        "apache_tomcat.cache"
+    ]
+}
