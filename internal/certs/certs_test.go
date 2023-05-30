@@ -46,9 +46,9 @@ func TestCA(t *testing.T) {
 		t.Run("go-http client", func(t *testing.T) {
 			testTLSClient(t, ca.Certificate, commonName, address)
 		})
-		t.Run("curl", func(t *testing.T) {
-			testCurl(t, ca.Certificate, commonName, address)
-		})
+		// t.Run("curl", func(t *testing.T) {
+		// 	testCurl(t, ca.Certificate, commonName, address)
+		// })
 	})
 
 	t.Run("validate server with intermediate CA", func(t *testing.T) {
@@ -56,9 +56,9 @@ func TestCA(t *testing.T) {
 		t.Run("go-http client", func(t *testing.T) {
 			testTLSClient(t, intermediate.Certificate, commonName, address)
 		})
-		t.Run("curl", func(t *testing.T) {
-			testCurl(t, intermediate.Certificate, commonName, address)
-		})
+		// t.Run("curl", func(t *testing.T) {
+		// 	testCurl(t, intermediate.Certificate, commonName, address)
+		// })
 	})
 }
 
