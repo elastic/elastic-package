@@ -286,6 +286,8 @@ func (v *Validator) validateDocumentValues(body common.MapStr) multierror.Error 
 			var str string
 			var ok bool
 			if v.disabledNormalization {
+				// when synthetics mode is enabled, each field present in the document is an array
+				// so this check needs to retrieve the first element of the array
 				ok = true
 				vals, err := common.ToStringSlice(value)
 				if err != nil {
@@ -294,7 +296,7 @@ func (v *Validator) validateDocumentValues(body common.MapStr) multierror.Error 
 				if err == nil && len(vals) != 1 {
 					ok = false
 				}
-				if err == nil && len(vals) != 1 {
+				if err == nil && len(vals) == 1 {
 					str = vals[0]
 				}
 			} else {
