@@ -240,7 +240,77 @@ func buildAllFieldsBody() io.Reader {
 	return strings.NewReader(b.String())
 }
 
-func (r *runner) getDocs(dataStream string) ([]common.MapStr, error) {
+func (r *runner) isSyntheticsEnabled(dataStream, componentTemplatePackage string) (bool, error) {
+	// resp, err := r.options.API.Indices.GetSettings(
+	// 	r.options.API.Indices.GetSettings.WithIndex(dataStream),
+	// 	r.options.API.Indices.GetSettings.WithFlatSettings(true),
+	// )
+	// if err != nil {
+	// 	return false, fmt.Errorf("could not get mappings from data stream %s: %w", err)
+	// }
+	// defer resp.Body.Close()
+
+	// fmt.Println("GetSettings >")
+	// fmt.Println(resp, err)
+
+	// resp1, err := r.options.API.Indices.GetMapping(
+	// 	r.options.API.Indices.GetMapping.WithIndex(dataStream),
+	// )
+	// if err != nil {
+	// 	return false, fmt.Errorf("could not get mappings from data stream %s: %w", err)
+	// }
+	// defer resp1.Body.Close()
+	// fmt.Println("GetMapping >")
+	// fmt.Println(resp1, err)
+
+	resp, err := r.options.API.Cluster.GetComponentTemplate(
+		r.options.API.Cluster.GetComponentTemplate.WithName(componentTemplatePackage),
+	)
+	if err != nil {
+		return false, fmt.Errorf("could not get component template from data stream %s: %w", err)
+	}
+	defer resp.Body.Close()
+	fmt.Println("GetComponentTemplate>")
+	fmt.Println(resp, err)
+
+	var results struct {
+		ComponentTemplates []struct {
+			Name              string `json:"name"`
+			ComponentTemplate struct {
+				Template struct {
+					Mappings struct {
+						Source *struct {
+							Mode string `json:"mode"`
+						} `json:"_source,omitempty"`
+					} `json:"mappings"`
+				} `json:"template"`
+			} `json:"component_template"`
+		} `json:"component_templates"`
+	}
+	b, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return false, err
+	}
+	logger.Debugf("\n\n\n>>> Response:\n%s\n\n\n", string(b))
+
+	if err := json.NewDecoder(bytes.NewReader(b)).Decode(&results); err != nil {
+		return false, fmt.Errorf("could not decode search results response: %w", err)
+	}
+
+	if len(results.ComponentTemplates) != 1 {
+		return false, fmt.Errorf("unexpected response, not found component template")
+	}
+
+	template := results.ComponentTemplates[0]
+
+	if template.ComponentTemplate.Template.Mappings.Source == nil {
+		return false, nil
+	}
+
+	return template.ComponentTemplate.Template.Mappings.Source.Mode == "synthetic", nil
+}
+
+func (r *runner) getDocs(dataStream string) ([]common.MapStr, []common.MapStr, error) {
 	resp, err := r.options.API.Search(
 		r.options.API.Search.WithIndex(dataStream),
 		r.options.API.Search.WithSort("@timestamp:asc"),
@@ -249,7 +319,7 @@ func (r *runner) getDocs(dataStream string) ([]common.MapStr, error) {
 		r.options.API.Search.WithBody(buildAllFieldsBody()),
 	)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not search data stream")
+		return nil, nil, errors.Wrap(err, "could not search data stream")
 	}
 	defer resp.Body.Close()
 
@@ -272,12 +342,12 @@ func (r *runner) getDocs(dataStream string) ([]common.MapStr, error) {
 
 	b, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	logger.Debugf("\n\n\n>>> Response:\n%s\n\n\n", string(b))
 
 	if err := json.NewDecoder(bytes.NewReader(b)).Decode(&results); err != nil {
-		return nil, errors.Wrap(err, "could not decode search results response")
+		return nil, nil, errors.Wrap(err, "could not decode search results response")
 	}
 
 	numHits := results.Hits.Total.Value
@@ -288,15 +358,15 @@ func (r *runner) getDocs(dataStream string) ([]common.MapStr, error) {
 		logger.Debugf("found %d hits in %s data stream", numHits, dataStream)
 	}
 
-	var docs []common.MapStr
+	var docsSource, docsFields []common.MapStr
 	for _, hit := range results.Hits.Hits {
-		docs = append(docs, hit.Fields)
-		// docs = append(docs, hit.Source)
+		docsSource = append(docsSource, hit.Source)
+		docsFields = append(docsFields, hit.Fields)
 		logger.Debugf("Checking hit fields:\n%s", hit.Fields)
 		logger.Debugf("Checking hit _source:\n%s", hit.Source)
 	}
 
-	return docs, nil
+	return docsSource, docsFields, nil
 }
 
 func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext, serviceOptions servicedeployer.FactoryOptions) ([]testrunner.TestResult, error) {
@@ -395,6 +465,12 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 		ds.Namespace,
 	)
 
+	componentTemplatePackage := fmt.Sprintf(
+		"%s-%s@package",
+		ds.Inputs[0].Streams[0].DataStream.Type,
+		ds.Inputs[0].Streams[0].DataStream.Dataset,
+	)
+
 	r.wipeDataStreamHandler = func() error {
 		logger.Debugf("deleting data in data stream...")
 		if err := deleteDataStreamDocs(r.options.API, dataStream); err != nil {
@@ -412,7 +488,7 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 			return true, errors.New("SIGINT: cancel clearing data")
 		}
 
-		docs, err := r.getDocs(dataStream)
+		docs, _, err := r.getDocs(dataStream)
 		return len(docs) == 0, err
 	}, 2*time.Minute)
 	if err != nil || !cleared {
@@ -466,14 +542,14 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 
 	// (TODO in future) Optionally exercise service to generate load.
 	logger.Debug("checking for expected data in data stream...")
-	var docs []common.MapStr
+	var docs, docsFields []common.MapStr
 	passed, err := waitUntilTrue(func() (bool, error) {
 		if signal.SIGINT() {
 			return true, errors.New("SIGINT: cancel waiting for policy assigned")
 		}
 
 		var err error
-		docs, err = r.getDocs(dataStream)
+		docs, docsFields, err = r.getDocs(dataStream)
 
 		if config.Assert.HitCount > 0 {
 			return len(docs) >= config.Assert.HitCount, err
@@ -489,6 +565,14 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 		result.FailureMsg = fmt.Sprintf("could not find hits in %s data stream", dataStream)
 		return result.WithError(fmt.Errorf("%s", result.FailureMsg))
 	}
+
+	logger.Debugf("docs fields number: %d", len(docsFields))
+	logger.Debug("check whether or not synthetics is enabled...")
+	syntheticEnabled, err := r.isSyntheticsEnabled(dataStream, componentTemplatePackage)
+	if err != nil {
+		return result.WithError(err)
+	}
+	logger.Debugf("data stream %s has synthetics enabled: %t", dataStream, syntheticEnabled)
 
 	// Validate fields in docs
 	var expectedDataset string
