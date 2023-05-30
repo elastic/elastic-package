@@ -4,7 +4,10 @@
 
 package common
 
-import "strings"
+import (
+	"fmt"
+	"strings"
+)
 
 // TrimStringSlice removes whitespace from the beginning and end of the contents of a []string.
 func TrimStringSlice(slice []string) {
@@ -35,4 +38,22 @@ func StringSlicesUnion(slices ...[]string) (result []string) {
 		}
 	}
 	return
+}
+
+// ToStringSlice returns the list of strings from an interface variable
+func ToStringSlice(val interface{}) ([]string, error) {
+	vals, ok := val.([]interface{})
+	if !ok {
+		return nil, fmt.Errorf("conversion error")
+	}
+
+	var s []string
+	for _, v := range vals {
+		str, ok := v.(string)
+		if !ok {
+			return nil, fmt.Errorf("conversion error")
+		}
+		s = append(s, str)
+	}
+	return s, nil
 }
