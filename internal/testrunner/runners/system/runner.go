@@ -5,7 +5,6 @@
 package system
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -241,37 +240,13 @@ func buildAllFieldsBody() io.Reader {
 }
 
 func (r *runner) isSyntheticsEnabled(dataStream, componentTemplatePackage string) (bool, error) {
-	// resp, err := r.options.API.Indices.GetSettings(
-	// 	r.options.API.Indices.GetSettings.WithIndex(dataStream),
-	// 	r.options.API.Indices.GetSettings.WithFlatSettings(true),
-	// )
-	// if err != nil {
-	// 	return false, fmt.Errorf("could not get mappings from data stream %s: %w", err)
-	// }
-	// defer resp.Body.Close()
-
-	// fmt.Println("GetSettings >")
-	// fmt.Println(resp, err)
-
-	// resp1, err := r.options.API.Indices.GetMapping(
-	// 	r.options.API.Indices.GetMapping.WithIndex(dataStream),
-	// )
-	// if err != nil {
-	// 	return false, fmt.Errorf("could not get mappings from data stream %s: %w", err)
-	// }
-	// defer resp1.Body.Close()
-	// fmt.Println("GetMapping >")
-	// fmt.Println(resp1, err)
-
 	resp, err := r.options.API.Cluster.GetComponentTemplate(
 		r.options.API.Cluster.GetComponentTemplate.WithName(componentTemplatePackage),
 	)
 	if err != nil {
-		return false, fmt.Errorf("could not get component template from data stream %s: %w", err)
+		return false, fmt.Errorf("could not get component template from data stream %s: %w", dataStream, err)
 	}
 	defer resp.Body.Close()
-	fmt.Println("GetComponentTemplate>")
-	fmt.Println(resp, err)
 
 	var results struct {
 		ComponentTemplates []struct {
@@ -287,13 +262,8 @@ func (r *runner) isSyntheticsEnabled(dataStream, componentTemplatePackage string
 			} `json:"component_template"`
 		} `json:"component_templates"`
 	}
-	b, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return false, err
-	}
-	logger.Debugf("\n\n\n>>> Response:\n%s\n\n\n", string(b))
 
-	if err := json.NewDecoder(bytes.NewReader(b)).Decode(&results); err != nil {
+	if err := json.NewDecoder(resp.Body).Decode(&results); err != nil {
 		return false, fmt.Errorf("could not decode search results response: %w", err)
 	}
 
@@ -356,13 +326,6 @@ func (r *runner) getDocs(dataStream string) (*hits, error) {
 		Status int
 	}
 
-	// b, err := io.ReadAll(resp.Body)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// logger.Debugf("\n\n\n>>> Response:\n%s\n\n\n", string(b))
-
-	// if err := json.NewDecoder(bytes.NewReader(b)).Decode(&results); err != nil {
 	if err := json.NewDecoder(resp.Body).Decode(&results); err != nil {
 		return nil, errors.Wrap(err, "could not decode search results response")
 	}
