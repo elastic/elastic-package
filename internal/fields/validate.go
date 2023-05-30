@@ -55,6 +55,8 @@ type Validator struct {
 	allowedCIDRs          []*net.IPNet
 
 	enabledImportAllECSSchema bool
+
+	disabledNormalization bool
 }
 
 // ValidatorOption represents an optional flag that can be passed to  CreateValidatorForDirectory.
@@ -120,6 +122,14 @@ func WithExpectedDataset(dataset string) ValidatorOption {
 func WithEnabledImportAllECSSChema(importSchema bool) ValidatorOption {
 	return func(v *Validator) error {
 		v.enabledImportAllECSSchema = importSchema
+		return nil
+	}
+}
+
+// WithDisableNormalization configures the validator to disable normalization.
+func WithDisableNormalization(disabledNormalization bool) ValidatorOption {
+	return func(v *Validator) error {
+		v.disabledNormalization = disabledNormalization
 		return nil
 	}
 }
@@ -345,12 +355,14 @@ func (v *Validator) validateScalarElement(key string, val interface{}, doc commo
 		val = fmt.Sprintf("%q", val)
 	}
 
-	err := v.validateExpectedNormalization(*definition, val)
-	if err != nil {
-		return errors.Wrapf(err, "field %q is not normalized as expected", key)
+	if !v.disabledNormalization {
+		err := v.validateExpectedNormalization(*definition, val)
+		if err != nil {
+			return errors.Wrapf(err, "field %q is not normalized as expected", key)
+		}
 	}
 
-	err = v.parseElementValue(key, *definition, val, doc)
+	err := v.parseElementValue(key, *definition, val, doc)
 	if err != nil {
 		return errors.Wrap(err, "parsing field value failed")
 	}

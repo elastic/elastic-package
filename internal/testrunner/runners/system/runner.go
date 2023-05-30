@@ -586,6 +586,7 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 		fields.WithNumericKeywordFields(config.NumericKeywordFields),
 		fields.WithExpectedDataset(expectedDataset),
 		fields.WithEnabledImportAllECSSChema(true),
+		fields.WithDisableNormalization(syntheticEnabled),
 	)
 	if err != nil {
 		return result.WithError(errors.Wrapf(err, "creating fields validator for data stream failed (path: %s)", serviceOptions.DataStreamRootPath))
