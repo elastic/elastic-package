@@ -240,7 +240,7 @@ func buildAllFieldsBody() io.Reader {
 }
 
 func (r *runner) isSyntheticsEnabled(dataStream, componentTemplatePackage string) (bool, error) {
-	logger.Debug("check whether or not synthetics is enabled (component template %s)...", componentTemplatePackage)
+	logger.Debugf("check whether or not synthetics is enabled (component template %s)...", componentTemplatePackage)
 	resp, err := r.options.API.Cluster.GetComponentTemplate(
 		r.options.API.Cluster.GetComponentTemplate.WithName(componentTemplatePackage),
 	)
