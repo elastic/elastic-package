@@ -16,7 +16,6 @@ import (
 	"strings"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/common"
@@ -163,7 +162,7 @@ func createValidatorForDirectoryAndPackageRoot(fieldsParentDir string, finder pa
 	fieldsDir := filepath.Join(fieldsParentDir, "fields")
 	v.Schema, err = loadFieldsFromDir(fieldsDir)
 	if err != nil {
-		return nil, errors.Wrapf(err, "can't load fields from directory (path: %s)", fieldsDir)
+		return nil, fmt.Errorf("can't load fields from directory (path: %s): %w", fieldsDir, err)
 	}
 
 	if v.disabledDependencyManagement {
@@ -172,7 +171,7 @@ func createValidatorForDirectoryAndPackageRoot(fieldsParentDir string, finder pa
 
 	packageRoot, found, err := finder.FindPackageRoot()
 	if err != nil {
-		return nil, errors.Wrap(err, "can't find package root")
+		return nil, fmt.Errorf("can't find package root: %w", err)
 	}
 	// As every command starts with approximating where is the package root, it isn't required to return an error in case the root is missing.
 	// This is also useful for testing purposes, where we don't have a real package, but just "fields" directory. The package root is always absent.
@@ -184,7 +183,7 @@ func createValidatorForDirectoryAndPackageRoot(fieldsParentDir string, finder pa
 
 	bm, ok, err := buildmanifest.ReadBuildManifest(packageRoot)
 	if err != nil {
-		return nil, errors.Wrap(err, "can't read build manifest")
+		return nil, fmt.Errorf("can't read build manifest: %w", err)
 	}
 	if !ok {
 		v.disabledDependencyManagement = true
@@ -193,7 +192,7 @@ func createValidatorForDirectoryAndPackageRoot(fieldsParentDir string, finder pa
 
 	fdm, err := CreateFieldDependencyManager(bm.Dependencies)
 	if err != nil {
-		return nil, errors.Wrap(err, "can't create field dependency manager")
+		return nil, fmt.Errorf("can't create field dependency manager: %w", err)
 	}
 	v.FieldDependencyManager = fdm
 
@@ -227,20 +226,20 @@ func initializeAllowedCIDRsList() (cidrs []*net.IPNet) {
 func loadFieldsFromDir(fieldsDir string) ([]FieldDefinition, error) {
 	files, err := filepath.Glob(filepath.Join(fieldsDir, "*.yml"))
 	if err != nil {
-		return nil, errors.Wrapf(err, "reading directory with fields failed (path: %s)", fieldsDir)
+		return nil, fmt.Errorf("reading directory with fields failed (path: %s): %w", fieldsDir, err)
 	}
 
 	var fields []FieldDefinition
 	for _, file := range files {
 		body, err := os.ReadFile(file)
 		if err != nil {
-			return nil, errors.Wrap(err, "reading fields file failed")
+			return nil, fmt.Errorf("reading fields file failed: %w", err)
 		}
 
 		var u []FieldDefinition
 		err = yaml.Unmarshal(body, &u)
 		if err != nil {
-			return nil, errors.Wrap(err, "unmarshalling field body failed")
+			return nil, fmt.Errorf("unmarshalling field body failed: %w", err)
 		}
 		fields = append(fields, u...)
 	}
@@ -253,7 +252,7 @@ func (v *Validator) ValidateDocumentBody(body json.RawMessage) multierror.Error 
 	err := json.Unmarshal(body, &c)
 	if err != nil {
 		var errs multierror.Error
-		errs = append(errs, errors.Wrap(err, "unmarshalling document body failed"))
+		errs = append(errs, fmt.Errorf("unmarshalling document body failed: %w", err))
 		return errs
 	}
 
@@ -302,7 +301,7 @@ func (v *Validator) validateDocumentValues(body common.MapStr) multierror.Error 
 				str, ok = value.(string)
 			}
 			if !ok || str != v.expectedDataset {
-				err := errors.Errorf("field %q should have value %q, it has \"%v\"",
+				err := fmt.Errorf("field %q should have value %q, it has \"%v\"",
 					datasetField, v.expectedDataset, value)
 				errs = append(errs, err)
 			}
@@ -361,7 +360,7 @@ func (v *Validator) validateScalarElement(key string, val interface{}, doc commo
 	if !v.disabledDependencyManagement && definition.External != "" {
 		def, err := v.FieldDependencyManager.ImportField(definition.External, key)
 		if err != nil {
-			return errors.Wrapf(err, "can't import field (field: %s)", key)
+			return fmt.Errorf("can't import field (field: %s): %w", key, err)
 		}
 		definition = &def
 	}
@@ -375,13 +374,13 @@ func (v *Validator) validateScalarElement(key string, val interface{}, doc commo
 	if !v.disabledNormalization {
 		err := v.validateExpectedNormalization(*definition, val)
 		if err != nil {
-			return errors.Wrapf(err, "field %q is not normalized as expected", key)
+			return fmt.Errorf("field %q is not normalized as expected: %w", key, err)
 		}
 	}
 
 	err := v.parseElementValue(key, *definition, val, doc)
 	if err != nil {
-		return errors.Wrap(err, "parsing field value failed")
+		return fmt.Errorf("parsing field value failed: %w", err)
 	}
 	return nil
 }
@@ -712,7 +711,7 @@ func ensurePatternMatches(key, value, pattern string) error {
 	}
 	valid, err := regexp.MatchString(pattern, value)
 	if err != nil {
-		return errors.Wrap(err, "invalid pattern")
+		return fmt.Errorf("invalid pattern: %w", err)
 	}
 	if !valid {
 		return fmt.Errorf("field %q's value, %s, does not match the expected pattern: %s", key, value, pattern)
