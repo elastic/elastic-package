@@ -19,8 +19,8 @@ resource "aws_s3_bucket" "bucket" {
 }
 
 resource "aws_sqs_queue" "queue" {
-  name = "elastic-package-aws-logs-queue-${var.TEST_RUN_ID}"
-  policy = <<POLICY
+  name       = "elastic-package-aws-logs-queue-${var.TEST_RUN_ID}"
+  policy     = <<POLICY
 {
   "Version": "2012-10-17",
   "Statement": [
@@ -42,8 +42,8 @@ resource "aws_s3_bucket_notification" "bucket_notification" {
   bucket = aws_s3_bucket.bucket.id
 
   queue {
-    queue_arn     = aws_sqs_queue.queue.arn
-    events        = ["s3:ObjectCreated:*"]
+    queue_arn = aws_sqs_queue.queue.arn
+    events    = ["s3:ObjectCreated:*"]
   }
 }
 
@@ -55,8 +55,8 @@ resource "aws_s3_object" "object" {
   # The filemd5() function is available in Terraform 0.11.12 and later
   # For Terraform 0.11.11 and earlier, use the md5() function and the file() function:
   # etag = "${md5(file("path/to/file"))}"
-  etag = filemd5("/workspace/main.tf")
-  depends_on = [ aws_sqs_queue.queue ]
+  etag       = filemd5("/workspace/main.tf")
+  depends_on = [aws_sqs_queue.queue]
 }
 
 output "queue_url" {

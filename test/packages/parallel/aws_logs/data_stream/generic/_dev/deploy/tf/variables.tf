@@ -21,10 +21,10 @@ variable "REPO" {
   default = "unknown-repo-name"
 }
 
-variable bucket_name {
-    default = "elastic-package-aws-logs-bucket"
+variable "bucket_name" {
+  default = "elastic-package-aws-logs-bucket"
 }
 
-variable queue_name {
-    default = "elastic-package-aws-logs-queue"
+variable "queue_name" {
+  default = "elastic-package-aws-logs-queue"
 }

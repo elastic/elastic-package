@@ -14,6 +14,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/elastic/elastic-agent-libs/mapstr"
 	"github.com/elastic/go-resource"
 
 	"github.com/elastic/elastic-package/internal/compose"
@@ -28,6 +29,7 @@ const (
 	terraformDeployerDockerfile = "Dockerfile"
 	terraformDeployerRun        = "run.sh"
 	terraformOutputPrefix       = "TF_OUTPUT_"
+	terraformOutputJsonFile     = "/tfOutputValues.json"
 )
 
 //go:embed _static/terraform_deployer.yml
@@ -47,30 +49,35 @@ type TerraformServiceDeployer struct {
 // addTerraformOutputs method reads the terraform outputs generated in the json format and
 // adds them to the custom properties of ServiceContext and can be used in the handlebars template
 // like `{{TF_OUTPUT_queue_url}}` where `queue_url` is the output configured
-func addTerraformOutputs(customProps map[string]interface{}) error {
+func addTerraformOutputs(outCtxt ServiceContext) error {
 	// Read the `output.json` file where terraform outputs are generated
-	content, err := os.ReadFile("/tmp/output.json")
+	content, err := os.ReadFile("/tmp/" + outCtxt.Test.RunID + terraformOutputJsonFile)
 	if err != nil {
-		return errors.Wrap(err, "Unable to read the file output.json")
+		return fmt.Errorf("failed to read terraform output file: %w", err)
 	}
 
-	// Unmarshall the data into `payload`
+	// Unmarshall the data into `terraformOutputs`
 	logger.Debug("Unmarshalling terraform output json")
-	var payload map[string]map[string]interface{}
-	err = json.Unmarshal(content, &payload)
+
+	var terraformOutputs map[string]interface{}
+	err = json.Unmarshal(content, &terraformOutputs)
 	if err != nil {
-		return errors.Wrap(err, "Error during json Unmarshal()")
+		return fmt.Errorf("error during json Unmarshal %w", err)
 	}
 
+	// Flatten if there are any objects in the output json
+	outputs := (mapstr.M).Flatten(terraformOutputs)
+	customProps := outCtxt.CustomProperties
+
+	// Considering only values from the output json
+	// https://github.com/hashicorp/terraform/blob/v1.4.6/internal/command/views/output.go#L217-L222
 	// Add the terraform outputs to custom properties with the key appeneded by "TF_OUTPUT_"
-	// The values are converted safely to strings
-	for k := range payload {
-		valueMap := payload[k]
-		customProps[terraformOutputPrefix+k] = fmt.Sprint(valueMap["value"])
+	for k, v := range outputs {
+		if strings.Contains(k, ".value") {
+			newKey := strings.Replace(k, ".value", "", 1)
+			customProps[terraformOutputPrefix+newKey] = v
+		}
 	}
-
-	logger.Debugf("Custom properties %s", customProps)
-
 	return nil
 }
 
@@ -150,9 +157,9 @@ func (tsd TerraformServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedServic
 
 	outCtxt.Agent.Host.NamePrefix = "docker-fleet-agent"
 
-	err = addTerraformOutputs(outCtxt.CustomProperties)
+	err = addTerraformOutputs(outCtxt)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not handle terraform output")
+		return nil, fmt.Errorf("could not handle terraform output %w", err)
 	}
 	service.ctxt = outCtxt
 	return &service, nil

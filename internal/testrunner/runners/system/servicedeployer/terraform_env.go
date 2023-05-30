@@ -7,6 +7,7 @@ package servicedeployer
 import (
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/elastic/elastic-package/internal/compose"
@@ -14,7 +15,9 @@ import (
 
 const (
 	tfDir       = "TF_DIR"
+	tfOutputDir = "TF_OUTPUT_DIR"
 	tfTestRunID = "TF_VAR_TEST_RUN_ID"
+	outputDir   = "/tmp/"
 
 	envYmlFile = "env.yml"
 )
@@ -24,6 +27,9 @@ func (tsd TerraformServiceDeployer) buildTerraformExecutorEnvironment(ctxt Servi
 	vars[serviceLogsDirEnv] = ctxt.Logs.Folder.Local
 	vars[tfTestRunID] = ctxt.Test.RunID
 	vars[tfDir] = tsd.definitionsDir
+
+	os.MkdirAll(outputDir+ctxt.Test.RunID, os.ModePerm)
+	vars[tfOutputDir] = outputDir + ctxt.Test.RunID
 
 	var pairs []string
 	for k, v := range vars {

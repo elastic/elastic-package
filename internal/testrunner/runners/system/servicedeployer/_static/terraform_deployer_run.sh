@@ -21,7 +21,11 @@ trap cleanup EXIT INT TERM
 terraform init
 terraform plan
 terraform apply -auto-approve && touch /tmp/tf-applied
-terraform output -json > /tmp/output.json
+
+# Create a temporary directory for  collecting outputs from terraform
+mkdir -p /output
+
+terraform output -json > /output/tfOutputValues.json
 
 echo "Terraform definitions applied."
 
