@@ -240,6 +240,7 @@ func buildAllFieldsBody() io.Reader {
 }
 
 func (r *runner) isSyntheticsEnabled(dataStream, componentTemplatePackage string) (bool, error) {
+	logger.Debug("check whether or not synthetics is enabled (component template %s)...", componentTemplatePackage)
 	resp, err := r.options.API.Cluster.GetComponentTemplate(
 		r.options.API.Cluster.GetComponentTemplate.WithName(componentTemplatePackage),
 	)
@@ -267,6 +268,10 @@ func (r *runner) isSyntheticsEnabled(dataStream, componentTemplatePackage string
 		return false, fmt.Errorf("could not decode search results response: %w", err)
 	}
 
+	if len(results.ComponentTemplates) == 0 {
+		logger.Debugf("no component template found for data stream %s", dataStream)
+		return false, nil
+	}
 	if len(results.ComponentTemplates) != 1 {
 		return false, fmt.Errorf("unexpected response, not found component template")
 	}
@@ -544,7 +549,6 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 		return result.WithError(fmt.Errorf("%s", result.FailureMsg))
 	}
 
-	logger.Debug("check whether or not synthetics is enabled...")
 	syntheticEnabled, err := r.isSyntheticsEnabled(dataStream, componentTemplatePackage)
 	if err != nil {
 		return result.WithError(err)
