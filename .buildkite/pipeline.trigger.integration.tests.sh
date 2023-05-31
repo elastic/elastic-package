@@ -60,6 +60,7 @@ for package in $(find . -maxdepth 1 -mindepth 1 -type d) ; do
     echo "          UPLOAD_SAFE_LOGS: 1"
     echo "        agents:"
     echo "          provider: \"gcp\""
+    echo "          machineType: \"n1-standard-8\""
     echo "        artifact_paths:"
     echo "          - build/test-results/*.xml"
     echo "          - build/elastic-stack-dump/stack/check-*/logs/*.log"
