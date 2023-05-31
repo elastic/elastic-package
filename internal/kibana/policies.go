@@ -194,6 +194,7 @@ type PackageDataStream struct {
 		Title   string `json:"title"`
 		Version string `json:"version"`
 	} `json:"package"`
+	Vars Vars `json:"vars"`
 }
 
 // AddPackageDataStreamToPolicy adds a PackageDataStream to a Policy in Fleet.
