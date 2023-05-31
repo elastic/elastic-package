@@ -592,6 +592,7 @@ func createIntegrationPackageDatastream(
 	}
 
 	r.Inputs[0].Vars = setKibanaVariables(inputVars, config.Vars)
+	r.Vars = r.Inputs[0].Vars
 
 	return r
 }

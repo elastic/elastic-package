@@ -189,6 +189,7 @@ type PackageDataStream struct {
 	Enabled     bool    `json:"enabled"`
 	OutputID    string  `json:"output_id"`
 	Inputs      []Input `json:"inputs"`
+	Vars        Vars    `json:"vars"`
 	Package     struct {
 		Name    string `json:"name"`
 		Title   string `json:"title"`
