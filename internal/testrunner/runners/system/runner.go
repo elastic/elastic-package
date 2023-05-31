@@ -582,17 +582,14 @@ func createIntegrationPackageDatastream(
 	streams[0].Vars = setKibanaVariables(stream.Vars, config.DataStream.Vars)
 	r.Inputs[0].Streams = streams
 
-	// Add package-level vars
-	var inputVars []packages.Variable
+	// Add input-level vars
 	input := policyTemplate.FindInputByType(streamInput)
 	if input != nil {
-		// copy package-level vars into each input
-		inputVars = append(inputVars, input.Vars...)
-		inputVars = append(inputVars, pkg.Vars...)
+		r.Inputs[0].Vars = setKibanaVariables(input.Vars, config.Vars)
 	}
 
-	r.Inputs[0].Vars = setKibanaVariables(inputVars, config.Vars)
-	r.Vars = r.Inputs[0].Vars
+	// Add package-level vars
+	r.Vars = setKibanaVariables(pkg.Vars, config.Vars)
 
 	return r
 }
