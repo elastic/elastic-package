@@ -1,0 +1,72 @@
+{
+    "@timestamp": "2023-05-31T19:55:04.734Z",
+    "agent": {
+        "ephemeral_id": "d8c2f32e-9fa7-419a-bdd0-a93604aea83a",
+        "id": "63a71457-c239-40ed-b42d-1a0e8b523875",
+        "name": "docker-fleet-agent",
+        "type": "metricbeat",
+        "version": "8.6.2"
+    },
+    "data_stream": {
+        "dataset": "synthetic_mode.synthetic",
+        "namespace": "ep",
+        "type": "metrics"
+    },
+    "ecs": {
+        "version": "8.0.0"
+    },
+    "elastic_agent": {
+        "id": "63a71457-c239-40ed-b42d-1a0e8b523875",
+        "snapshot": false,
+        "version": "8.6.2"
+    },
+    "event": {
+        "agent_id_status": "verified",
+        "dataset": "synthetic_mode.synthetic",
+        "duration": 3889366,
+        "ingested": "2023-05-31T19:55:05Z",
+        "module": "prometheus"
+    },
+    "host": {
+        "architecture": "x86_64",
+        "containerized": false,
+        "hostname": "docker-fleet-agent",
+        "id": "f91b175388d443fca5c155815dfc2279",
+        "ip": [
+            "172.30.0.7"
+        ],
+        "mac": [
+            "02-42-AC-1E-00-07"
+        ],
+        "name": "docker-fleet-agent",
+        "os": {
+            "codename": "focal",
+            "family": "debian",
+            "kernel": "5.19.0-42-generic",
+            "name": "Ubuntu",
+            "platform": "ubuntu",
+            "type": "linux",
+            "version": "20.04.5 LTS (Focal Fossa)"
+        }
+    },
+    "metricset": {
+        "name": "collector",
+        "period": 10000
+    },
+    "prometheus": {
+        "labels": {
+            "event": "update",
+            "instance": "elastic-package-service-synthetic_mode-1:9090",
+            "job": "prometheus",
+            "role": "node"
+        },
+        "prometheus_sd_kubernetes_events_total": {
+            "counter": 0,
+            "rate": 0
+        }
+    },
+    "service": {
+        "address": "http://elastic-package-service-synthetic_mode-1:9090/metrics",
+        "type": "prometheus"
+    }
+}
