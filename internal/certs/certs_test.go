@@ -5,6 +5,7 @@
 package certs
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
@@ -12,6 +13,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -118,40 +120,40 @@ func testTLSClient(t *testing.T, root *Certificate, commonName, address string) 
 
 }
 
-// func testCurl(t *testing.T, root *Certificate, commonName, address string) {
-// 	_, err := exec.LookPath("curl")
-// 	if err != nil {
-// 		t.Skip("curl not available")
-// 	}
-//
-// 	caCert := filepath.Join(t.TempDir(), "ca-cert.pem")
-// 	err = root.WriteCertFile(caCert)
-// 	require.NoError(t, err)
-//
-// 	serverHost, port, err := net.SplitHostPort(address)
-// 	require.NoError(t, err)
-// 	require.NotNilf(t, net.ParseIP(serverHost), "%s expected to be an ip", serverHost)
-//
-// 	// Address to use in the request, hostname here must match name in certificate.
-// 	reqAddress := net.JoinHostPort(commonName, port)
-//
-// 	args := []string{
-// 		"-v",
-// 		"--cacert", caCert,
-// 		// Send requests to the listener address.
-// 		"--resolve", reqAddress + ":" + serverHost,
-// 		// Ignore check for revocation status when not available.
-// 		"--ssl-revoke-best-effort",
-// 		"https://" + reqAddress,
-// 	}
-//
-// 	var buf bytes.Buffer
-// 	cmd := exec.Command("curl", args...)
-// 	cmd.Stderr = &buf
-// 	cmd.Stdout = &buf
-//
-// 	err = cmd.Run()
-// 	if !assert.NoError(t, err) {
-// 		t.Log(buf.String())
-// 	}
-// }
+func testCurl(t *testing.T, root *Certificate, commonName, address string) {
+	_, err := exec.LookPath("curl")
+	if err != nil {
+		t.Skip("curl not available")
+	}
+
+	caCert := filepath.Join(t.TempDir(), "ca-cert.pem")
+	err = root.WriteCertFile(caCert)
+	require.NoError(t, err)
+
+	serverHost, port, err := net.SplitHostPort(address)
+	require.NoError(t, err)
+	require.NotNilf(t, net.ParseIP(serverHost), "%s expected to be an ip", serverHost)
+
+	// Address to use in the request, hostname here must match name in certificate.
+	reqAddress := net.JoinHostPort(commonName, port)
+
+	args := []string{
+		"-v",
+		"--cacert", caCert,
+		// Send requests to the listener address.
+		"--resolve", reqAddress + ":" + serverHost,
+		// Ignore check for revocation status when not available.
+		"--ssl-revoke-best-effort",
+		"https://" + reqAddress,
+	}
+
+	var buf bytes.Buffer
+	cmd := exec.Command("curl", args...)
+	cmd.Stderr = &buf
+	cmd.Stdout = &buf
+
+	err = cmd.Run()
+	if !assert.NoError(t, err) {
+		t.Log(buf.String())
+	}
+}
