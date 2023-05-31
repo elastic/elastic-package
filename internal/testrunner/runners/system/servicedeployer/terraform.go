@@ -16,7 +16,6 @@ import (
 
 	"github.com/elastic/go-resource"
 
-	"github.com/elastic/elastic-package/internal/builder"
 	"github.com/elastic/elastic-package/internal/compose"
 	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/files"
@@ -29,7 +28,7 @@ const (
 	terraformDeployerDockerfile = "Dockerfile"
 	terraformDeployerRun        = "run.sh"
 	terraformOutputPrefix       = "TF_OUTPUT_"
-	terraformOutputJsonFile     = "/tfOutputValues.json"
+	terraformOutputJsonFile     = "tfOutputValues.json"
 )
 
 //go:embed _static/terraform_deployer.yml
@@ -51,7 +50,8 @@ type TerraformServiceDeployer struct {
 // like `{{TF_OUTPUT_queue_url}}` where `queue_url` is the output configured
 func addTerraformOutputs(outCtxt ServiceContext) error {
 	// Read the `output.json` file where terraform outputs are generated
-	content, err := os.ReadFile(outCtxt.OutputDir + terraformOutputJsonFile)
+	outputFile := filepath.Join(outCtxt.OutputDir, terraformOutputJsonFile)
+	content, err := os.ReadFile(outputFile)
 	if err != nil {
 		return fmt.Errorf("failed to read terraform output file: %w", err)
 	}
@@ -68,7 +68,11 @@ func addTerraformOutputs(outCtxt ServiceContext) error {
 		return fmt.Errorf("error during json Unmarshal %w", err)
 	}
 
-	if len(terraformOutputs) > 0 && outCtxt.CustomProperties == nil {
+	if len(terraformOutputs) == 0 {
+		return nil
+	}
+
+	if outCtxt.CustomProperties == nil {
 		outCtxt.CustomProperties = make(map[string]any, len(terraformOutputs))
 	}
 	// Prefix variables names with TF_OUTPUT_
@@ -99,11 +103,6 @@ func (tsd TerraformServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedServic
 	_, err = os.Stat(envYmlPath)
 	if err == nil {
 		ymlPaths = append(ymlPaths, envYmlPath)
-	}
-
-	inCtxt.OutputDir, err = createOutputDir(inCtxt.Test.RunID)
-	if err != nil {
-		return nil, fmt.Errorf("could not create output dir for terraform deployer %w", err)
 	}
 
 	tfEnvironment := tsd.buildTerraformExecutorEnvironment(inCtxt)
@@ -165,19 +164,6 @@ func (tsd TerraformServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedServic
 	}
 	service.ctxt = outCtxt
 	return &service, nil
-}
-
-func createOutputDir(runId string) (string, error) {
-	buildDir, err := builder.BuildDirectory()
-	if err != nil {
-		return "", fmt.Errorf("locating build directory failed %w", err)
-	}
-
-	od := filepath.Join(buildDir + runId)
-	if err := os.MkdirAll(od, 0755); err != nil {
-		return "", fmt.Errorf("failed to create output directory: %w", err)
-	}
-	return od, nil
 }
 
 func (tsd TerraformServiceDeployer) installDockerfile() (string, error) {

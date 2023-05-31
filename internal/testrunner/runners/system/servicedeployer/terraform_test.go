@@ -12,7 +12,6 @@ import (
 )
 
 func TestAddTerraformOutputs(t *testing.T) {
-
 	var testCases = []struct {
 		testName      string
 		err           string

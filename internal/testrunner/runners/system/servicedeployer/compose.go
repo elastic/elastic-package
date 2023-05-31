@@ -182,7 +182,6 @@ func (s *dockerComposeDeployedService) TearDown() error {
 	}); err != nil {
 		return errors.Wrap(err, "could not shut down service using Docker Compose")
 	}
-
 	return nil
 }
 
