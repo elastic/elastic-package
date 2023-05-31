@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestFindPolicyTemplateForInput(t *testing.T) {
+func TestAddTerraformOutputs(t *testing.T) {
 
 	var testCases = []struct {
 		testName      string
@@ -90,7 +90,7 @@ func TestFindPolicyTemplateForInput(t *testing.T) {
 						}
 					  ],
 					  "value": {
-						"description": "this is a triangle",
+						"value": "this is a triangle",
 						"s_one": 1,
 						"s_three": 2.5,
 						"s_two": 2.5
@@ -99,30 +99,27 @@ func TestFindPolicyTemplateForInput(t *testing.T) {
 				}`,
 			),
 			expectedProps: map[string]interface{}{
-				"TF_OUTPUT_queue_url":                   "https://sqs.us-east-1.amazonaws.com/1234654/elastic-package-aws-logs-queue-someId",
-				"TF_OUTPUT_triangle_output.s_one":       1.0,
-				"TF_OUTPUT_triangle_output.s_two":       2.5,
-				"TF_OUTPUT_triangle_output.s_three":     2.5,
-				"TF_OUTPUT_triangle_output.description": "this is a triangle",
+				"TF_OUTPUT_queue_url": "https://sqs.us-east-1.amazonaws.com/1234654/elastic-package-aws-logs-queue-someId",
+				"TF_OUTPUT_triangle_output": map[string]any{
+					"s_one":   1.0,
+					"s_three": 2.5,
+					"s_two":   2.5,
+					"value":   "this is a triangle",
+				},
 			},
 		},
 	}
 
 	t.Parallel()
 	for _, tc := range testCases {
-		tc := tc
 
 		t.Run(tc.testName, func(t *testing.T) {
 			tc.ctxt.CustomProperties = make(map[string]interface{})
+			tc.ctxt.OutputDir = t.TempDir()
 
-			os.Mkdir("/tmp/"+tc.runId, os.ModePerm)
-			file, _ := os.OpenFile("/tmp/"+tc.runId+"/tfOutputValues.json", os.O_CREATE|os.O_WRONLY, 0777)
-			file.Write(tc.content)
-
-			defer func() {
-				_ = file.Close()
-				_ = os.RemoveAll("/tmp/" + tc.runId + "/")
-			}()
+			if err := os.WriteFile(tc.ctxt.OutputDir+"/tfOutputValues.json", tc.content, 0777); err != nil {
+				t.Fatal(err)
+			}
 
 			// Test that the terraform output values are generated correctly
 			addTerraformOutputs(tc.ctxt)

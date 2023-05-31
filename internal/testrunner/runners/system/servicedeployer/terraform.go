@@ -14,7 +14,6 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/elastic/elastic-agent-libs/mapstr"
 	"github.com/elastic/go-resource"
 
 	"github.com/elastic/elastic-package/internal/compose"
@@ -51,32 +50,29 @@ type TerraformServiceDeployer struct {
 // like `{{TF_OUTPUT_queue_url}}` where `queue_url` is the output configured
 func addTerraformOutputs(outCtxt ServiceContext) error {
 	// Read the `output.json` file where terraform outputs are generated
-	content, err := os.ReadFile("/tmp/" + outCtxt.Test.RunID + terraformOutputJsonFile)
+	content, err := os.ReadFile(outCtxt.OutputDir + terraformOutputJsonFile)
 	if err != nil {
 		return fmt.Errorf("failed to read terraform output file: %w", err)
 	}
 
+	// https://github.com/hashicorp/terraform/blob/v1.4.6/internal/command/views/output.go#L217-L222
+	type OutputMeta struct {
+		Value interface{} `json:"value"`
+	}
+
 	// Unmarshall the data into `terraformOutputs`
 	logger.Debug("Unmarshalling terraform output json")
-
-	var terraformOutputs map[string]interface{}
-	err = json.Unmarshal(content, &terraformOutputs)
-	if err != nil {
+	var terraformOutputs map[string]OutputMeta
+	if err = json.Unmarshal(content, &terraformOutputs); err != nil {
 		return fmt.Errorf("error during json Unmarshal %w", err)
 	}
 
-	// Flatten if there are any objects in the output json
-	outputs := (mapstr.M).Flatten(terraformOutputs)
-	customProps := outCtxt.CustomProperties
-
-	// Considering only values from the output json
-	// https://github.com/hashicorp/terraform/blob/v1.4.6/internal/command/views/output.go#L217-L222
-	// Add the terraform outputs to custom properties with the key appeneded by "TF_OUTPUT_"
-	for k, v := range outputs {
-		if strings.Contains(k, ".value") {
-			newKey := strings.Replace(k, ".value", "", 1)
-			customProps[terraformOutputPrefix+newKey] = v
-		}
+	if len(terraformOutputs) > 0 && outCtxt.CustomProperties == nil {
+		outCtxt.CustomProperties = make(map[string]any, len(terraformOutputs))
+	}
+	// Prefix variables names with TF_OUTPUT_
+	for k, outputs := range terraformOutputs {
+		outCtxt.CustomProperties[terraformOutputPrefix+k] = outputs.Value
 	}
 	return nil
 }
@@ -102,6 +98,11 @@ func (tsd TerraformServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedServic
 	_, err = os.Stat(envYmlPath)
 	if err == nil {
 		ymlPaths = append(ymlPaths, envYmlPath)
+	}
+
+	inCtxt.OutputDir, err = createOutputDir(inCtxt.Test.RunID)
+	if err != nil {
+		return nil, fmt.Errorf("could not create output dir for terraform deployer %w", err)
 	}
 
 	tfEnvironment := tsd.buildTerraformExecutorEnvironment(inCtxt)
@@ -163,6 +164,14 @@ func (tsd TerraformServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedServic
 	}
 	service.ctxt = outCtxt
 	return &service, nil
+}
+
+func createOutputDir(runId string) (string, error) {
+	od := filepath.Join(os.TempDir() + runId)
+	if err := os.MkdirAll(od, 0755); err != nil {
+		return "", fmt.Errorf("failed to create output directory: %w", err)
+	}
+	return od, nil
 }
 
 func (tsd TerraformServiceDeployer) installDockerfile() (string, error) {
