@@ -189,12 +189,12 @@ type PackageDataStream struct {
 	Enabled     bool    `json:"enabled"`
 	OutputID    string  `json:"output_id"`
 	Inputs      []Input `json:"inputs"`
+	Vars        Vars    `json:"vars,omitempty"`
 	Package     struct {
 		Name    string `json:"name"`
 		Title   string `json:"title"`
 		Version string `json:"version"`
 	} `json:"package"`
-	Vars Vars `json:"vars"`
 }
 
 // AddPackageDataStreamToPolicy adds a PackageDataStream to a Policy in Fleet.
