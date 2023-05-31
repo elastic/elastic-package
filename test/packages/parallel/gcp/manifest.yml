@@ -1,8 +1,8 @@
 name: gcp
 title: Google Cloud Platform
-version: "999.999.999"
+version: 999.999.999
 release: ga
-description: Collect logs and metrics from Google Cloud Platform with Elastic Agent.
+description: Collect logs from Google Cloud Platform with Elastic Agent.
 type: integration
 icons:
   - src: /img/logo_gcp.svg
@@ -13,9 +13,14 @@ format_version: 1.0.0
 license: basic
 categories:
   - google_cloud
+  - cloud
 conditions:
-  kibana.version: ^8.6.0
+  kibana.version: ^7.15.0 || ^8.0.0
 screenshots:
+  - src: /img/gcp-billing.png
+    title: GCP Billing Metrics Dashboard
+    size: 2000x1020
+    type: image/png
   - src: /img/gcp-compute.png
     title: GCP Compute Metrics Dashboard
     size: 2000x2021
@@ -44,8 +49,6 @@ policy_templates:
   - name: compute
     title: Google Cloud Platform (GCP) Compute metrics
     description: Collect compute metrics from Google Cloud Platform (GCP) with Elastic Agent
-    categories:
-      - observability
     data_streams:
       - compute
     inputs:
