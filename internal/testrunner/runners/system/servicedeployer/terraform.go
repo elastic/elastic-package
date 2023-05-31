@@ -16,6 +16,7 @@ import (
 
 	"github.com/elastic/go-resource"
 
+	"github.com/elastic/elastic-package/internal/builder"
 	"github.com/elastic/elastic-package/internal/compose"
 	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/files"
@@ -167,7 +168,12 @@ func (tsd TerraformServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedServic
 }
 
 func createOutputDir(runId string) (string, error) {
-	od := filepath.Join(os.TempDir() + runId)
+	buildDir, err := builder.BuildDirectory()
+	if err != nil {
+		return "", fmt.Errorf("locating build directory failed %w", err)
+	}
+
+	od := filepath.Join(buildDir + runId)
 	if err := os.MkdirAll(od, 0755); err != nil {
 		return "", fmt.Errorf("failed to create output directory: %w", err)
 	}
