@@ -62,19 +62,28 @@ func createDataStreamCommandAction(cmd *cobra.Command, args []string) error {
 			},
 			Validate: survey.Required,
 		},
-		{
-			Name: "synthetic",
-			Prompt: &survey.Confirm{
-				Message: "Enable synthetic source:",
-				Default: true,
-			},
-			Validate: survey.Required,
-		},
 	}
 	var answers newDataStreamAnswers
 	err = survey.Ask(qs, &answers)
 	if err != nil {
 		return errors.Wrap(err, "prompt failed")
+	}
+
+	if answers.Type == "metrics" {
+		qs := []*survey.Question{
+			{
+				Name: "synthetic",
+				Prompt: &survey.Confirm{
+					Message: "Enable synthetic source:",
+					Default: true,
+				},
+				Validate: survey.Required,
+			},
+		}
+		err = survey.Ask(qs, &answers)
+		if err != nil {
+			return errors.Wrap(err, "prompt failed")
+		}
 	}
 
 	descriptor := createDataStreamDescriptorFromAnswers(answers, packageRoot)
