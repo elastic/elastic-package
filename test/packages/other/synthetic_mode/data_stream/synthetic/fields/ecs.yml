@@ -4,4 +4,7 @@
   name: service.address
 - external: ecs
   name: service.type
-
+- external: ecs
+  name: event.category
+- external: ecs
+  name: event.type

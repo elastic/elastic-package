@@ -143,3 +143,5 @@ streams:
     title: Prometheus collector metrics
     enabled: true
     description: Collect Prometheus collector metrics
+elasticsearch:
+  source_mode: synthetic
