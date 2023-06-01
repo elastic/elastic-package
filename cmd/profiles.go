@@ -28,8 +28,8 @@ const tableFormat = "table"
 
 func setupProfilesCommand() *cobraext.Command {
 	profilesLongDescription := `Use this command to add, remove, and manage multiple config profiles.
-	
-Individual user profiles appear in ~/.elastic-package/stack, and contain all the config files needed by the "stack" subcommand. 
+
+Individual user profiles appear in ~/.elastic-package/stack, and contain all the config files needed by the "stack" subcommand.
 Once a new profile is created, it can be specified with the -p flag, or the ELASTIC_PACKAGE_PROFILE environment variable.
 User profiles can be configured with a "config.yml" file in the profile directory.`
 
@@ -246,22 +246,4 @@ func profileToList(profiles []profile.Metadata, currentProfile string) [][]strin
 	}
 
 	return profileList
-}
-
-func availableProfilesAsAList() ([]string, error) {
-	loc, err := locations.NewLocationManager()
-	if err != nil {
-		return []string{}, errors.Wrap(err, "error fetching profile path")
-	}
-
-	profileNames := []string{}
-	profileList, err := profile.FetchAllProfiles(loc.ProfileDir())
-	if err != nil {
-		return profileNames, errors.Wrap(err, "error fetching all profiles")
-	}
-	for _, prof := range profileList {
-		profileNames = append(profileNames, prof.Name)
-	}
-
-	return profileNames, nil
 }
