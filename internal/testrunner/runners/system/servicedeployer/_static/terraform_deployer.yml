@@ -13,3 +13,4 @@ services:
       - TF_VAR_REPO=${REPO:-unknown}
     volumes:
       - ${TF_DIR}:/stage
+      - ${TF_OUTPUT_DIR}:/output
