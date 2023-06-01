@@ -6,7 +6,7 @@ source .buildkite/scripts/tooling.sh
 
 add_bin_path(){
     mkdir -p ${WORKSPACE}/bin
-    export PATH="${WORKSPACE}/bin:${PATH}"
+    export PATH="${PATH}:${WORKSPACE}/bin"
 }
 
 with_kubernetes() {
@@ -30,7 +30,7 @@ with_go() {
     eval "$(gvm $(cat .go-version))"
     go version
     which go
-    export PATH="$(go env GOPATH)/bin:${PATH}"
+    export PATH="${PATH}:$(go env GOPATH)/bin"
 }
 
 with_docker_compose() {
