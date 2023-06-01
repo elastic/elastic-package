@@ -197,6 +197,13 @@ func (r *runner) runTestPerVariant(result *testrunner.ResultComposer, locationMa
 	ctxt.Logs.Folder.Local = locationManager.ServiceLogDir()
 	ctxt.Logs.Folder.Agent = ServiceLogsAgentDir
 	ctxt.Test.RunID = createTestRunID()
+
+	outputDir, err := createOutputDir(locationManager, ctxt.Test.RunID)
+	if err != nil {
+		return nil, fmt.Errorf("could not create output dir for terraform deployer %w", err)
+	}
+	ctxt.OutputDir = outputDir
+
 	testConfig, err := newConfig(filepath.Join(r.options.TestFolder.Path, cfgFile), ctxt, variantName)
 	if err != nil {
 		return result.WithError(errors.Wrapf(err, "unable to load system test case file '%s'", cfgFile))
@@ -222,6 +229,14 @@ func (r *runner) runTestPerVariant(result *testrunner.ResultComposer, locationMa
 		return partial, errors.Wrap(tdErr, "failed to tear down runner")
 	}
 	return partial, nil
+}
+
+func createOutputDir(locationManager *locations.LocationManager, runId string) (string, error) {
+	outputDir := filepath.Join(locationManager.ServiceOutputDir(), runId)
+	if err := os.MkdirAll(outputDir, 0755); err != nil {
+		return "", fmt.Errorf("failed to create output directory: %w", err)
+	}
+	return outputDir, nil
 }
 
 func createTestRunID() string {

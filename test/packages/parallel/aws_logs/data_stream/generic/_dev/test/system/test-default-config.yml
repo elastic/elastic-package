@@ -1,3 +1,4 @@
+input: aws-s3
 wait_for_data_timeout: 20m # AWS CloudWatch may delay metrics delivery for more than 10 minutes.
 vars:
   access_key_id: '{{AWS_ACCESS_KEY_ID}}'
@@ -7,7 +8,7 @@ data_stream:
   vars:
     period: 5m
     latency: 10m
-    instance_id: '{{TF_OUTPUT_instance_id}}'
+    queue_url: '{{TF_OUTPUT_queue_url}}'
     tags_filter: |-
       - key: Name
         value: "elastic-package-test-{{TEST_RUN_ID}}"
