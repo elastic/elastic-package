@@ -387,6 +387,66 @@ func (v *Validator) validateScalarElement(key string, val interface{}, doc commo
 	return nil
 }
 
+func (v *Validator) SanitizeDocs(docs []common.MapStr) ([]common.MapStr, error) {
+	for _, doc := range docs {
+		for key, contents := range doc {
+			logger.Debugf("Look for field with key %q", key)
+
+			definition := FindElementDefinition(key, v.Schema)
+			if definition == nil {
+				continue
+			}
+
+			// resolve external fields
+			if !v.disabledDependencyManagement && definition.External != "" {
+				def, err := v.FieldDependencyManager.ImportField(definition.External, key)
+				if err != nil {
+					return nil, fmt.Errorf("can't import field (field: %s): %w", key, err)
+				}
+				definition = &def
+			}
+			logger.Debugf("Found definition for %s:\n%+v", key, definition)
+
+			shouldBeNormalized := false
+			if v.disabledNormalization && !v.specVersion.LessThan(semver2_0_0) {
+				for _, normalize := range definition.Normalize {
+					switch normalize {
+					case "array":
+						shouldBeNormalized = true
+						break
+					}
+				}
+			}
+			if shouldBeNormalized {
+				logger.Debugf("Skip changes key %s must be normalized", key)
+				continue
+			}
+			// is an array of just one element ?
+			vals, ok := contents.([]interface{})
+			if !ok {
+				logger.Debugf("key %s just has one element: %v", key, contents)
+				// logger.Debugf("should be normalized: %t", shouldBeNormalized)
+				// // one element
+
+				// logger.Debugf("Updating key %s to be an array", key)
+				// _, err := doc.Put(key, []interface{}{contents})
+				// if err != nil {
+				// 	return nil, fmt.Errorf("key %s was not updated: %w", key, err)
+				// }
+
+				continue
+			}
+			if len(vals) == 1 {
+				_, err := doc.Put(key, vals[0])
+				if err != nil {
+					return nil, fmt.Errorf("key %s was not updated: %w", key, err)
+				}
+			}
+		}
+	}
+	return docs, nil
+}
+
 func isNumericKeyword(definition FieldDefinition, val interface{}) bool {
 	_, isNumber := val.(float64)
 	return isNumber && (definition.Type == "keyword" || definition.Type == "constant_keyword")

@@ -593,6 +593,13 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 		return result.WithError(err)
 	}
 
+	if syntheticEnabled {
+		docs, err = fieldsValidator.SanitizeDocs(docs)
+		if err != nil {
+			return result.WithError(err)
+		}
+	}
+
 	// Write sample events file from first doc, if requested
 	if err := r.generateTestResult(docs); err != nil {
 		return result.WithError(err)
@@ -936,6 +943,7 @@ func filterAgents(allAgents []kibana.Agent, ctx servicedeployer.ServiceContext) 
 }
 
 func writeSampleEvent(path string, doc common.MapStr) error {
+
 	body, err := json.MarshalIndent(doc, "", "    ")
 	if err != nil {
 		return errors.Wrap(err, "marshalling sample event failed")
