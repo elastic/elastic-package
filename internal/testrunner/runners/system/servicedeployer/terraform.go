@@ -6,6 +6,7 @@ package servicedeployer
 
 import (
 	_ "embed"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -27,6 +28,8 @@ const (
 	localstackDeployerYml       = "localstack-deployer.yml"
 	terraformDeployerDockerfile = "Dockerfile"
 	terraformDeployerRun        = "run.sh"
+	terraformOutputPrefix       = "TF_OUTPUT_"
+	terraformOutputJsonFile     = "tfOutputValues.json"
 )
 
 //go:embed _static/localstack_deployer.yml
@@ -44,6 +47,43 @@ var terraformDeployerDockerfileContent string
 // TerraformServiceDeployer is responsible for deploying infrastructure described with Terraform definitions.
 type TerraformServiceDeployer struct {
 	definitionsDir string
+}
+
+// addTerraformOutputs method reads the terraform outputs generated in the json format and
+// adds them to the custom properties of ServiceContext and can be used in the handlebars template
+// like `{{TF_OUTPUT_queue_url}}` where `queue_url` is the output configured
+func addTerraformOutputs(outCtxt ServiceContext) error {
+	// Read the `output.json` file where terraform outputs are generated
+	outputFile := filepath.Join(outCtxt.OutputDir, terraformOutputJsonFile)
+	content, err := os.ReadFile(outputFile)
+	if err != nil {
+		return fmt.Errorf("failed to read terraform output file: %w", err)
+	}
+
+	// https://github.com/hashicorp/terraform/blob/v1.4.6/internal/command/views/output.go#L217-L222
+	type OutputMeta struct {
+		Value interface{} `json:"value"`
+	}
+
+	// Unmarshall the data into `terraformOutputs`
+	logger.Debug("Unmarshalling terraform output json")
+	var terraformOutputs map[string]OutputMeta
+	if err = json.Unmarshal(content, &terraformOutputs); err != nil {
+		return fmt.Errorf("error during json Unmarshal %w", err)
+	}
+
+	if len(terraformOutputs) == 0 {
+		return nil
+	}
+
+	if outCtxt.CustomProperties == nil {
+		outCtxt.CustomProperties = make(map[string]any, len(terraformOutputs))
+	}
+	// Prefix variables names with TF_OUTPUT_
+	for k, outputs := range terraformOutputs {
+		outCtxt.CustomProperties[terraformOutputPrefix+k] = outputs.Value
+	}
+	return nil
 }
 
 // NewTerraformServiceDeployer creates an instance of TerraformServiceDeployer.
@@ -130,6 +170,11 @@ func (tsd TerraformServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedServic
 	}
 
 	outCtxt.Agent.Host.NamePrefix = "docker-fleet-agent"
+
+	err = addTerraformOutputs(outCtxt)
+	if err != nil {
+		return nil, fmt.Errorf("could not handle terraform output %w", err)
+	}
 	service.ctxt = outCtxt
 	return &service, nil
 }

@@ -23,6 +23,8 @@ terraform plan
 terraform apply -auto-approve && touch /tmp/tf-applied
 terraform output -json > ./infrastructure.json
 
+terraform output -json > /output/tfOutputValues.json
+
 echo "Terraform definitions applied."
 
 set +x

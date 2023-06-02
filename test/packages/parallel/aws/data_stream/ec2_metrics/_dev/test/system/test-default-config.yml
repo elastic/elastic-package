@@ -5,8 +5,9 @@ vars:
   session_token: '{{AWS_SESSION_TOKEN}}'
 data_stream:
   vars:
-    period: 1m
-    latency: 1m
+    period: 5m
+    latency: 10m
+    instance_id: '{{TF_OUTPUT_instance_id}}'
     tags_filter: |-
       - key: Name
         value: "elastic-package-test-{{TEST_RUN_ID}}"

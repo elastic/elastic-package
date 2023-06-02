@@ -32,7 +32,6 @@ vars:
     multi: false
     required: true
     show_user: true
-    default: SET_PROJECT_NAME
   - name: credentials_file
     type: text
     title: Credentials File

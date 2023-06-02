@@ -10,6 +10,7 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -24,6 +25,7 @@ import (
 	"github.com/elastic/elastic-package/internal/multierror"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/signal"
+	"github.com/elastic/elastic-package/internal/stack"
 	"github.com/elastic/elastic-package/internal/testrunner"
 	"github.com/elastic/elastic-package/internal/testrunner/runners/system/servicedeployer"
 )
@@ -49,6 +51,36 @@ const (
 	ServiceLogsAgentDir = "/tmp/service_logs"
 
 	waitForDataDefaultTimeout = 10 * time.Minute
+)
+
+type logsRegexp struct {
+	includes *regexp.Regexp
+	excludes []*regexp.Regexp
+}
+
+type logsByContainer struct {
+	containerName string
+	patterns      []logsRegexp
+}
+
+var (
+	errorPatterns = []logsByContainer{
+		logsByContainer{
+			containerName: "elastic-agent",
+			patterns: []logsRegexp{
+				logsRegexp{
+					includes: regexp.MustCompile("^Cannot index event publisher.Event"),
+					excludes: []*regexp.Regexp{
+						// this regex is excluded to ensure that logs coming from the `system` package installed by default are not taken into account
+						regexp.MustCompile(`action \[indices:data\/write\/bulk\[s\]\] is unauthorized for API key id \[.*\] of user \[.*\] on indices \[.*\], this action is granted by the index privileges \[.*\]`),
+					},
+				},
+				logsRegexp{
+					includes: regexp.MustCompile("->(FAILED|DEGRADED)"),
+				},
+			},
+		},
+	}
 )
 
 type runner struct {
@@ -173,6 +205,7 @@ func (r *runner) run() (results []testrunner.TestResult, err error) {
 		return result.WithError(errors.Wrap(err, "can't read service variant"))
 	}
 
+	startTesting := time.Now()
 	for _, cfgFile := range cfgFiles {
 		for _, variantName := range r.selectVariants(variantsFile) {
 			partial, err := r.runTestPerVariant(result, locationManager, cfgFile, dataStreamPath, variantName)
@@ -182,6 +215,25 @@ func (r *runner) run() (results []testrunner.TestResult, err error) {
 			}
 		}
 	}
+
+	tempDir, err := os.MkdirTemp("", "test-system-")
+	if err != nil {
+		return nil, fmt.Errorf("can't create temporal directory: %w", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	dumpOptions := stack.DumpOptions{Output: tempDir, Profile: r.options.Profile}
+	_, err = stack.Dump(dumpOptions)
+	if err != nil {
+		return nil, fmt.Errorf("dump failed: %w", err)
+	}
+
+	logResults, err := r.checkAgentLogs(dumpOptions, startTesting, errorPatterns)
+	if err != nil {
+		return result.WithError(err)
+	}
+	results = append(results, logResults...)
+
 	return results, nil
 }
 
@@ -197,6 +249,13 @@ func (r *runner) runTestPerVariant(result *testrunner.ResultComposer, locationMa
 	ctxt.Logs.Folder.Local = locationManager.ServiceLogDir()
 	ctxt.Logs.Folder.Agent = ServiceLogsAgentDir
 	ctxt.Test.RunID = createTestRunID()
+
+	outputDir, err := createOutputDir(locationManager, ctxt.Test.RunID)
+	if err != nil {
+		return nil, fmt.Errorf("could not create output dir for terraform deployer %w", err)
+	}
+	ctxt.OutputDir = outputDir
+
 	testConfig, err := newConfig(filepath.Join(r.options.TestFolder.Path, cfgFile), ctxt, variantName)
 	if err != nil {
 		return result.WithError(errors.Wrapf(err, "unable to load system test case file '%s'", cfgFile))
@@ -222,6 +281,14 @@ func (r *runner) runTestPerVariant(result *testrunner.ResultComposer, locationMa
 		return partial, errors.Wrap(tdErr, "failed to tear down runner")
 	}
 	return partial, nil
+}
+
+func createOutputDir(locationManager *locations.LocationManager, runId string) (string, error) {
+	outputDir := filepath.Join(locationManager.ServiceOutputDir(), runId)
+	if err := os.MkdirAll(outputDir, 0755); err != nil {
+		return "", fmt.Errorf("failed to create output directory: %w", err)
+	}
+	return outputDir, nil
 }
 
 func createTestRunID() string {
@@ -582,16 +649,14 @@ func createIntegrationPackageDatastream(
 	streams[0].Vars = setKibanaVariables(stream.Vars, config.DataStream.Vars)
 	r.Inputs[0].Streams = streams
 
-	// Add package-level vars
-	var inputVars []packages.Variable
+	// Add input-level vars
 	input := policyTemplate.FindInputByType(streamInput)
 	if input != nil {
-		// copy package-level vars into each input
-		inputVars = append(inputVars, input.Vars...)
-		inputVars = append(inputVars, pkg.Vars...)
+		r.Inputs[0].Vars = setKibanaVariables(input.Vars, config.Vars)
 	}
 
-	r.Inputs[0].Vars = setKibanaVariables(inputVars, config.Vars)
+	// Add package-level vars
+	r.Vars = setKibanaVariables(pkg.Vars, config.Vars)
 
 	return r
 }
@@ -910,5 +975,73 @@ func (r *runner) generateTestResult(docs []common.MapStr) error {
 		return errors.Wrap(err, "failed to write sample event file")
 	}
 
+	return nil
+}
+
+func (r *runner) checkAgentLogs(dumpOptions stack.DumpOptions, startTesting time.Time, errorPatterns []logsByContainer) (results []testrunner.TestResult, err error) {
+
+	for _, patternsContainer := range errorPatterns {
+		startTime := time.Now()
+
+		serviceLogsFile := stack.DumpLogsFile(dumpOptions, patternsContainer.containerName)
+
+		err = r.anyErrorMessages(serviceLogsFile, startTesting, patternsContainer.patterns)
+		if e, ok := err.(testrunner.ErrTestCaseFailed); ok {
+			tr := testrunner.TestResult{
+				TestType:   TestType,
+				Name:       fmt.Sprintf("(%s logs)", patternsContainer.containerName),
+				Package:    r.options.TestFolder.Package,
+				DataStream: r.options.TestFolder.DataStream,
+			}
+			tr.FailureMsg = e.Error()
+			tr.FailureDetails = e.Details
+			tr.TimeElapsed = time.Since(startTime)
+			results = append(results, tr)
+			continue
+		}
+
+		if err != nil {
+			return nil, fmt.Errorf("check log messages failed: %s", err)
+		}
+	}
+	return results, nil
+}
+
+func (r *runner) anyErrorMessages(logsFilePath string, startTime time.Time, errorPatterns []logsRegexp) error {
+	var multiErr multierror.Error
+	processLog := func(log stack.LogLine) error {
+		for _, pattern := range errorPatterns {
+			if !pattern.includes.MatchString(log.Message) {
+				continue
+			}
+			isExcluded := false
+			for _, excludes := range pattern.excludes {
+				if excludes.MatchString(log.Message) {
+					isExcluded = true
+					break
+				}
+			}
+			if isExcluded {
+				continue
+			}
+
+			multiErr = append(multiErr, fmt.Errorf("found error %q", log.Message))
+		}
+		return nil
+	}
+	err := stack.ParseLogs(stack.ParseLogsOptions{
+		LogsFilePath: logsFilePath,
+		StartTime:    startTime,
+	}, processLog)
+	if err != nil {
+		return err
+	}
+
+	if len(multiErr) > 0 {
+		return testrunner.ErrTestCaseFailed{
+			Reason:  fmt.Sprintf("one or more errors found while examining %s", filepath.Base(logsFilePath)),
+			Details: multiErr.Error(),
+		}
+	}
 	return nil
 }

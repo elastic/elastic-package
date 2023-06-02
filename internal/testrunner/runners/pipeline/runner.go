@@ -385,6 +385,16 @@ func checkErrorMessage(event json.RawMessage) error {
 		return nil
 	case string, []string:
 		return fmt.Errorf("unexpected pipeline error: %s", m)
+	case []interface{}:
+		for i, v := range m {
+			switch v.(type) {
+			case string:
+				break
+			default:
+				return fmt.Errorf("unexpected pipeline error (unexpected error.message type %T at position %d): %v", v, i, m)
+			}
+		}
+		return fmt.Errorf("unexpected pipeline error: %s", m)
 	default:
 		return fmt.Errorf("unexpected pipeline error (unexpected error.message type %T): %[1]v", m)
 	}
