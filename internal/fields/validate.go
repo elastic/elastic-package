@@ -390,7 +390,7 @@ func (v *Validator) validateScalarElement(key string, val interface{}, doc commo
 func (v *Validator) SanitizeDocs(docs []common.MapStr) ([]common.MapStr, error) {
 	for _, doc := range docs {
 		for key, contents := range doc {
-			logger.Debugf("Look for field with key %q", key)
+			// logger.Debugf("Look for field with key %q", key)
 
 			definition := FindElementDefinition(key, v.Schema)
 			if definition == nil {
@@ -405,7 +405,7 @@ func (v *Validator) SanitizeDocs(docs []common.MapStr) ([]common.MapStr, error) 
 				}
 				definition = &def
 			}
-			logger.Debugf("Found definition for %s:\n%+v", key, definition)
+			// logger.Debugf("Found definition for %s:\n%+v", key, definition)
 
 			shouldBeNormalized := false
 			if v.disabledNormalization && !v.specVersion.LessThan(semver2_0_0) {
@@ -418,22 +418,13 @@ func (v *Validator) SanitizeDocs(docs []common.MapStr) ([]common.MapStr, error) 
 				}
 			}
 			if shouldBeNormalized {
-				logger.Debugf("Skip changes key %s must be normalized", key)
+				// logger.Debugf("Skip changes key %s must be normalized", key)
 				continue
 			}
 			// is an array of just one element ?
 			vals, ok := contents.([]interface{})
 			if !ok {
-				logger.Debugf("key %s just has one element: %v", key, contents)
-				// logger.Debugf("should be normalized: %t", shouldBeNormalized)
-				// // one element
-
-				// logger.Debugf("Updating key %s to be an array", key)
-				// _, err := doc.Put(key, []interface{}{contents})
-				// if err != nil {
-				// 	return nil, fmt.Errorf("key %s was not updated: %w", key, err)
-				// }
-
+				// logger.Debugf("key %s just has one element: %v", key, contents)
 				continue
 			}
 			if len(vals) == 1 {
