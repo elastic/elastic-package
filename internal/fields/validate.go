@@ -397,7 +397,6 @@ func (v *Validator) SanitizeDocs(docs []common.MapStr) ([]common.MapStr, error) 
 				continue
 			}
 
-			// resolve external fields
 			if !v.disabledDependencyManagement && definition.External != "" {
 				def, err := v.FieldDependencyManager.ImportField(definition.External, key)
 				if err != nil {
@@ -408,20 +407,27 @@ func (v *Validator) SanitizeDocs(docs []common.MapStr) ([]common.MapStr, error) 
 			// logger.Debugf("Found definition for %s:\n%+v", key, definition)
 
 			shouldBeNormalized := false
+			// normalization should just be checked if synthetic source is enabled and the
+			// spec version of this package is >= 2.0.0
 			if v.disabledNormalization && !v.specVersion.LessThan(semver2_0_0) {
 				for _, normalize := range definition.Normalize {
 					switch normalize {
 					case "array":
 						shouldBeNormalized = true
+					}
+					if shouldBeNormalized {
 						break
 					}
 				}
 			}
+			// if it needs to be normalized, the field is kept as it is
 			if shouldBeNormalized {
 				// logger.Debugf("Skip changes key %s must be normalized", key)
 				continue
 			}
-			// is an array of just one element ?
+			// in case it is not specified any normalization and that field is an array of
+			// just one element, the field is going to be updated to remove the array and keep
+			// that element as a value.
 			vals, ok := contents.([]interface{})
 			if !ok {
 				// logger.Debugf("key %s just has one element: %v", key, contents)
