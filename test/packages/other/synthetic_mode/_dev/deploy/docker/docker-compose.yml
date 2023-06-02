@@ -4,4 +4,3 @@ services:
     image: prom/prometheus:${PROMETHEUS_VERSION:-prometheus_2}
     ports:
       - 9090:9090
-
