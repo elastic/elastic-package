@@ -32,6 +32,7 @@ var (
 
 	serviceLogsDir        = filepath.Join(temporaryDir, "service_logs")
 	kubernetesDeployerDir = filepath.Join(deployerDir, "kubernetes")
+	serviceOutputDir      = filepath.Join(temporaryDir, "output")
 )
 
 // LocationManager maintains an instance of a config path location
@@ -88,6 +89,11 @@ func (loc LocationManager) KubernetesDeployerDir() string {
 // ServiceLogDir returns the log directory
 func (loc LocationManager) ServiceLogDir() string {
 	return filepath.Join(loc.stackPath, serviceLogsDir)
+}
+
+// ServiceOutputDir returns the output directory
+func (loc LocationManager) ServiceOutputDir() string {
+	return filepath.Join(loc.stackPath, serviceOutputDir)
 }
 
 // FieldsCacheDir returns the directory with cached fields
