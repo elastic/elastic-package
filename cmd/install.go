@@ -70,6 +70,9 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 		SkipValidation: skipValidation,
 		ZipPath:        zipPathFile,
 	})
+	if err != nil {
+		return errors.Wrap(err, "package installation failed")
+	}
 
 	// Check conditions
 	keyValuePairs, err := cmd.Flags().GetStringSlice(cobraext.CheckConditionFlagName)
