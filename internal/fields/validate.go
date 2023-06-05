@@ -387,11 +387,9 @@ func (v *Validator) validateScalarElement(key string, val interface{}, doc commo
 	return nil
 }
 
-func (v *Validator) SanitizeDocs(docs []common.MapStr) ([]common.MapStr, error) {
+func (v *Validator) SanitizeSyntheticsDocs(docs []common.MapStr) ([]common.MapStr, error) {
 	for _, doc := range docs {
 		for key, contents := range doc {
-			// logger.Debugf("Look for field with key %q", key)
-
 			definition := FindElementDefinition(key, v.Schema)
 			if definition == nil {
 				continue
@@ -404,7 +402,6 @@ func (v *Validator) SanitizeDocs(docs []common.MapStr) ([]common.MapStr, error) 
 				}
 				definition = &def
 			}
-			// logger.Debugf("Found definition for %s:\n%+v", key, definition)
 
 			shouldBeNormalized := false
 			// normalization should just be checked if synthetic source is enabled and the
@@ -422,7 +419,6 @@ func (v *Validator) SanitizeDocs(docs []common.MapStr) ([]common.MapStr, error) 
 			}
 			// if it needs to be normalized, the field is kept as it is
 			if shouldBeNormalized {
-				// logger.Debugf("Skip changes key %s must be normalized", key)
 				continue
 			}
 			// in case it is not specified any normalization and that field is an array of
@@ -430,13 +426,12 @@ func (v *Validator) SanitizeDocs(docs []common.MapStr) ([]common.MapStr, error) 
 			// that element as a value.
 			vals, ok := contents.([]interface{})
 			if !ok {
-				// logger.Debugf("key %s just has one element: %v", key, contents)
 				continue
 			}
 			if len(vals) == 1 {
 				_, err := doc.Put(key, vals[0])
 				if err != nil {
-					return nil, fmt.Errorf("key %s was not updated: %w", key, err)
+					return nil, fmt.Errorf("key %s could not be updated: %w", key, err)
 				}
 			}
 		}

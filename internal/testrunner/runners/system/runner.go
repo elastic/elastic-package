@@ -594,7 +594,7 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	}
 
 	if syntheticEnabled {
-		docs, err = fieldsValidator.SanitizeDocs(docs)
+		docs, err = fieldsValidator.SanitizeSyntheticsDocs(docs)
 		if err != nil {
 			return result.WithError(err)
 		}
