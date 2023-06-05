@@ -46,7 +46,7 @@ func NewForPackage(options Options) (Installer, error) {
 		return nil, errors.New("missing kibana client")
 	}
 	if options.RootPath == "" && options.ZipPath == "" {
-		return nil, errors.New("missing package root path and pre-built zip package")
+		return nil, errors.New("missing package root path or pre-built zip package")
 	}
 
 	version, err := kibanaVersion(options.Kibana)
