@@ -18,7 +18,9 @@ import (
 	"github.com/elastic/elastic-package/internal/reportgenerator/outputs"
 )
 
-const reportLongDescription = `Use this command to generate various reports relative to the packages. Currently, the following types of reports are available:
+const (
+	benchmarksFolder      = "benchmark-report"
+	reportLongDescription = `Use this command to generate various reports relative to the packages. Currently, the following types of reports are available:
 
 #### Benchmark report for Github
 
@@ -27,6 +29,7 @@ The report will show performance differences between both runs.
 
 It is formatted as a Markdown Github comment to use as part of the CI results.
 `
+)
 
 func setupReportsCommand() *cobraext.Command {
 	var reportTypeCmdActions []cobraext.CommandAction
@@ -43,17 +46,13 @@ func setupReportsCommand() *cobraext.Command {
 			}
 
 			return cobraext.ComposeCommandActions(cmd, args, reportTypeCmdActions...)
-		}}
-
-	dest, err := resultsDir()
-	if err != nil {
-		cmd.PrintErrf("could not determine benchmark reports folder: %v", err)
+		},
 	}
 
 	cmd.PersistentFlags().BoolP(cobraext.FailOnMissingFlagName, "m", false, cobraext.FailOnMissingFlagDescription)
 	cmd.PersistentFlags().BoolP(cobraext.ReportFullFlagName, "", false, cobraext.ReportFullFlagDescription)
 	cmd.PersistentFlags().StringP(cobraext.ReportOutputFlagName, "", string(outputs.OutputFile), cobraext.ReportOutputFlagDescription)
-	cmd.PersistentFlags().StringP(cobraext.ReportOutputPathFlagName, "", dest, cobraext.ReportOutputPathFlagDescription)
+	cmd.PersistentFlags().StringP(cobraext.ReportOutputPathFlagName, "", "", fmt.Sprintf(cobraext.ReportOutputPathFlagDescription, benchmarksFolder))
 
 	// add benchmark report creation subcommand
 	cmd.AddCommand(getBenchReportCommand())
@@ -82,6 +81,13 @@ func getBenchReportCommand() *cobra.Command {
 			reportOutputPath, err := cmd.Flags().GetString(cobraext.ReportOutputPathFlagName)
 			if err != nil {
 				return cobraext.FlagParsingError(err, cobraext.ReportOutputPathFlagName)
+			}
+			if reportOutputPath == "" {
+				dest, err := resultsDir()
+				if err != nil {
+					return fmt.Errorf("could not determine benchmark reports folder: %w", err)
+				}
+				reportOutputPath = dest
 			}
 
 			isFull, err := cmd.Flags().GetBool(cobraext.ReportFullFlagName)
@@ -158,6 +164,5 @@ func resultsDir() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("locating build directory failed: %w", err)
 	}
-	const folder = "benchmark-report"
-	return filepath.Join(buildDir, folder), nil
+	return filepath.Join(buildDir, benchmarksFolder), nil
 }

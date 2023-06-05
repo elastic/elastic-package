@@ -15,6 +15,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/elasticsearch"
+	"github.com/elastic/elastic-package/internal/profile"
 )
 
 // TestType represents the various supported test types
@@ -30,6 +31,8 @@ type TestOptions struct {
 	DeferCleanup   time.Duration
 	ServiceVariant string
 	WithCoverage   bool
+
+	Profile *profile.Profile
 }
 
 // TestRunner is the interface all test runners must implement.

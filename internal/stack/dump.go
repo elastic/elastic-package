@@ -76,3 +76,8 @@ func writeLogFiles(logsPath, serviceName string, content []byte) {
 		logger.Errorf("can't write service logs (service: %s): %v", serviceName, err)
 	}
 }
+
+// DumpLogsFile returns the file path to the logs of a given service
+func DumpLogsFile(options DumpOptions, serviceName string) string {
+	return filepath.Join(options.Output, "logs", fmt.Sprintf("%s.log", serviceName))
+}
