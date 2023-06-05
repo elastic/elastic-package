@@ -52,7 +52,7 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 		return errors.Wrap(err, "could not create kibana client")
 	}
 
-	if packageRootPath == "" {
+	if zipPathFile == "" && packageRootPath == "" {
 		var found bool
 		var err error
 		packageRootPath, found, err = packages.FindPackageRoot()
