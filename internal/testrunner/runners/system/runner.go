@@ -88,6 +88,7 @@ type runner struct {
 
 	// Execution order of following handlers is defined in runner.TearDown() method.
 	deleteTestPolicyHandler func() error
+	deletePackageHandler    func() error
 	resetAgentPolicyHandler func() error
 	shutdownServiceHandler  func() error
 	wipeDataStreamHandler   func() error
@@ -142,6 +143,13 @@ func (r *runner) tearDownTest() error {
 			return err
 		}
 		r.deleteTestPolicyHandler = nil
+	}
+
+	if r.deletePackageHandler != nil {
+		if err := r.deletePackageHandler(); err != nil {
+			return err
+		}
+		r.deletePackageHandler = nil
 	}
 
 	if r.shutdownServiceHandler != nil {
@@ -418,12 +426,13 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	if err != nil {
 		return result.WithError(fmt.Errorf("failed to install package: %v", err))
 	}
-	defer func() {
+	r.deletePackageHandler = func() error {
 		err := installer.Uninstall()
 		if err != nil {
-			logger.Warnf("failed to uninstall package: %v", err)
+			return fmt.Errorf("failed to uninstall package: %v", err)
 		}
-	}()
+		return nil
+	}
 
 	// Configure package (single data stream) via Ingest Manager APIs.
 	logger.Debug("creating test policy...")
