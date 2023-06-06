@@ -399,22 +399,22 @@ func (v *Validator) SanitizeSyntheticSourceDocs(docs []common.MapStr) ([]common.
 				definition = &def
 			}
 
-			shouldBeNormalized := false
+			shouldBeArray := false
 			// normalization should just be checked if synthetic source is enabled and the
 			// spec version of this package is >= 2.0.0
 			if v.disabledNormalization && !v.specVersion.LessThan(semver2_0_0) {
 				for _, normalize := range definition.Normalize {
 					switch normalize {
 					case "array":
-						shouldBeNormalized = true
+						shouldBeArray = true
 					}
-					if shouldBeNormalized {
+					if shouldBeArray {
 						break
 					}
 				}
 			}
 			// if it needs to be normalized, the field is kept as it is
-			if shouldBeNormalized {
+			if shouldBeArray {
 				continue
 			}
 			// in case it is not specified any normalization and that field is an array of
