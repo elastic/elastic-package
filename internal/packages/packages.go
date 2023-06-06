@@ -139,6 +139,7 @@ type Elasticsearch struct {
 		} `config:"ingest_pipeline" json:"ingest_pipeline" yaml:"ingest_pipeline"`
 	} `config:"index_template" json:"index_template" yaml:"index_template"`
 	SourceMode string `config:"source_mode" json:"source_mode" yaml:"source_mode"`
+	IndexMode  string `config:"index_mode" json:"index_mode" yaml:"index_mode"`
 }
 
 // DataStreamManifest represents the structure of a data stream's manifest
