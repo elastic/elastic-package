@@ -609,7 +609,7 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 
 	syntheticEnabled, err := r.isSyntheticsEnabled(dataStream, componentTemplatePackage)
 	if err != nil {
-		return result.WithError(fmt.Errorf("failed to check if synthetic source is enabled", err))
+		return result.WithError(fmt.Errorf("failed to check if synthetic source is enabled: %w", err))
 	}
 	logger.Debugf("data stream %s has synthetics enabled: %t", dataStream, syntheticEnabled)
 
@@ -639,7 +639,7 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	if syntheticEnabled {
 		docs, err = fieldsValidator.SanitizeSyntheticSourceDocs(docs)
 		if err != nil {
-			return result.WithError(err)
+			return result.WithError(fmt.Errorf("failed to sanitize synthetic source docs: %w", err))
 		}
 	}
 
