@@ -383,7 +383,7 @@ func (v *Validator) validateScalarElement(key string, val interface{}, doc commo
 	return nil
 }
 
-func (v *Validator) SanitizeSyntheticsDocs(docs []common.MapStr) ([]common.MapStr, error) {
+func (v *Validator) SanitizeSyntheticSourceDocs(docs []common.MapStr) ([]common.MapStr, error) {
 	for _, doc := range docs {
 		for key, contents := range doc {
 			definition := FindElementDefinition(key, v.Schema)
