@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
+	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/packages/installer"
 )
@@ -37,12 +38,11 @@ func uninstallCommandAction(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "locating package root failed")
 	}
 
-	m, err := packages.ReadPackageManifestFromPackageRoot(packageRootPath)
+	kibanaClient, err := kibana.NewClient()
 	if err != nil {
-		return errors.Wrapf(err, "reading package manifest failed (path: %s)", packageRootPath)
+		return errors.Wrap(err, "could not create kibana client")
 	}
-
-	packageInstaller, err := installer.CreateForManifest(m.Name, m.Version)
+	packageInstaller, err := installer.CreateForManifest(kibanaClient, packageRootPath)
 	if err != nil {
 		return errors.Wrap(err, "can't create the package installer")
 	}

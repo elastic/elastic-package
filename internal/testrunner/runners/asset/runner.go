@@ -10,6 +10,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/packages/installer"
@@ -77,12 +78,11 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 	}
 
 	logger.Debug("installing package...")
-	manifest, err := packages.ReadPackageManifestFromPackageRoot(r.packageRootPath)
+	kibanaClient, err := kibana.NewClient()
 	if err != nil {
-		return result.WithError(errors.Wrapf(err, "reading package manifest failed (path: %s)", r.packageRootPath))
+		return result.WithError(errors.Wrap(err, "could not create kibana client"))
 	}
-
-	packageInstaller, err := installer.CreateForManifest(manifest.Name, manifest.Version)
+	packageInstaller, err := installer.CreateForManifest(kibanaClient, r.packageRootPath)
 	if err != nil {
 		return result.WithError(errors.Wrap(err, "can't create the package installer"))
 	}
