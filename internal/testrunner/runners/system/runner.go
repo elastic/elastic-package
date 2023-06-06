@@ -7,7 +7,6 @@ package system
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -34,6 +33,8 @@ import (
 const (
 	testRunMaxID = 99999
 	testRunMinID = 10000
+
+	allFieldsBody = `{"fields": ["*"]}`
 )
 
 func init() {
@@ -296,16 +297,6 @@ func createTestRunID() string {
 	return fmt.Sprintf("%d", rand.Intn(testRunMaxID-testRunMinID)+testRunMinID)
 }
 
-func buildAllFieldsBody() io.Reader {
-	var b strings.Builder
-	b.WriteString("\n")
-	b.WriteString(`{
-	  "fields": ["*"]
-	}`)
-	b.WriteString("\n")
-	return strings.NewReader(b.String())
-}
-
 func (r *runner) isSyntheticsEnabled(dataStream, componentTemplatePackage string) (bool, error) {
 	logger.Debugf("check whether or not synthetics is enabled (component template %s)...", componentTemplatePackage)
 	resp, err := r.options.API.Cluster.GetComponentTemplate(
@@ -374,7 +365,7 @@ func (r *runner) getDocs(dataStream string) (*hits, error) {
 		r.options.API.Search.WithSort("@timestamp:asc"),
 		r.options.API.Search.WithSize(elasticsearchQuerySize),
 		r.options.API.Search.WithSource("true"),
-		r.options.API.Search.WithBody(buildAllFieldsBody()),
+		r.options.API.Search.WithBody(strings.NewReader(allFieldsBody)),
 	)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not search data stream")
