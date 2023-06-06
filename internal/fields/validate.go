@@ -283,25 +283,7 @@ func (v *Validator) validateDocumentValues(body common.MapStr) multierror.Error 
 				continue
 			}
 
-			var str string
-			var ok bool
-			if v.disabledNormalization {
-				// when synthetics mode is enabled, each field present in the document is an array
-				// so this check needs to retrieve the first element of the array
-				ok = true
-				vals, err := common.ToStringSlice(value)
-				if err != nil {
-					ok = false
-				}
-				if err == nil && len(vals) != 1 {
-					ok = false
-				}
-				if err == nil && len(vals) == 1 {
-					str = vals[0]
-				}
-			} else {
-				str, ok = value.(string)
-			}
+			str, ok := valueToString(value, v.disabledNormalization)
 			if !ok || str != v.expectedDataset {
 				err := fmt.Errorf("field %q should have value %q, it has \"%v\"",
 					datasetField, v.expectedDataset, value)
@@ -310,6 +292,20 @@ func (v *Validator) validateDocumentValues(body common.MapStr) multierror.Error 
 		}
 	}
 	return errs
+}
+
+func valueToString(value any, disabledNormalization bool) (string, bool) {
+	if disabledNormalization {
+		// when synthetics mode is enabled, each field present in the document is an array
+		// so this check needs to retrieve the first element of the array
+		vals, err := common.ToStringSlice(value)
+		if err != nil || len(vals) != 1 {
+			return "", false
+		}
+		return vals[0], true
+	}
+	str, ok := value.(string)
+	return str, ok
 }
 
 func (v *Validator) validateMapElement(root string, elem common.MapStr, doc common.MapStr) multierror.Error {
