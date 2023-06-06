@@ -609,7 +609,7 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 
 	syntheticEnabled, err := r.isSyntheticsEnabled(dataStream, componentTemplatePackage)
 	if err != nil {
-		return result.WithError(err)
+		return result.WithError(fmt.Errorf("failed to check if synthetic source is enabled", err))
 	}
 	logger.Debugf("data stream %s has synthetics enabled: %t", dataStream, syntheticEnabled)
 
