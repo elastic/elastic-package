@@ -445,7 +445,7 @@ func (v *Validator) SanitizeSyntheticSourceDocs(docs []common.MapStr) ([]common.
 
 func createDocExpandingObjects(doc common.MapStr) (common.MapStr, error) {
 	keys := make([]string, 0)
-	for k, _ := range doc {
+	for k := range doc {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
