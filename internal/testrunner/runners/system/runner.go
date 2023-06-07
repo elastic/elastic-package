@@ -986,7 +986,6 @@ func filterAgents(allAgents []kibana.Agent, ctx servicedeployer.ServiceContext) 
 }
 
 func writeSampleEvent(path string, doc common.MapStr) error {
-
 	body, err := json.MarshalIndent(doc, "", "    ")
 	if err != nil {
 		return errors.Wrap(err, "marshalling sample event failed")

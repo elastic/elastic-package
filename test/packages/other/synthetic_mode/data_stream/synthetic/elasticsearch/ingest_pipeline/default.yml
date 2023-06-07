@@ -1,0 +1,17 @@
+---
+processors:
+  - set:
+      field: ecs.version
+      value: 8.7.0
+  - set:
+      field: event.kind
+      value: metric
+  - set:
+      field: event.module
+      value: synthetic_mode
+  - set:
+      field: event.type
+      value: [info]
+  - set:
+      field: event.category
+      value: [web]

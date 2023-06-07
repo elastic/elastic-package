@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/Masterminds/semver/v3"
@@ -384,6 +385,7 @@ func (v *Validator) validateScalarElement(key string, val interface{}, doc commo
 }
 
 func (v *Validator) SanitizeSyntheticSourceDocs(docs []common.MapStr) ([]common.MapStr, error) {
+	var newDocs []common.MapStr
 	for _, doc := range docs {
 		for key, contents := range doc {
 			definition := FindElementDefinition(key, v.Schema)
@@ -431,10 +433,46 @@ func (v *Validator) SanitizeSyntheticSourceDocs(docs []common.MapStr) ([]common.
 				}
 			}
 		}
+		expandedDoc, err := createDocExpandingObjects(doc)
+		if err != nil {
+			return nil, fmt.Errorf("failure while expanding objects from doc: %w", err)
+		}
+
+		newDocs = append(newDocs, expandedDoc)
 	}
-	return docs, nil
+	return newDocs, nil
 }
 
+func createDocExpandingObjects(doc common.MapStr) (common.MapStr, error) {
+	keys := make([]string, 0)
+	for k, _ := range doc {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	newDoc := make(common.MapStr)
+	for _, k := range keys {
+		value, err := doc.GetValue(k)
+		if err != nil {
+			return nil, fmt.Errorf("not found key %s: %w", k, err)
+		}
+
+		_, err = newDoc.Put(k, value)
+		if err == nil {
+			continue
+		}
+
+		// Possible errors found but not limited to those
+		// - expected map but type is string
+		// - expected map but type is []interface{}
+		if strings.HasPrefix(err.Error(), "expected map but type is") {
+			logger.Warnf("not able to add key %s, is this a multifield?: %s", k, err)
+			continue
+		}
+		return nil, fmt.Errorf("not added key %s with value %s: %w", k, value, err)
+	}
+	return newDoc, nil
+}
 func isNumericKeyword(definition FieldDefinition, val interface{}) bool {
 	_, isNumber := val.(float64)
 	return isNumber && (definition.Type == "keyword" || definition.Type == "constant_keyword")

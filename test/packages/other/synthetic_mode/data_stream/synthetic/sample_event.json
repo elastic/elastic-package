@@ -1,75 +1,94 @@
 {
-    "@timestamp": "2023-06-02T15:21:39.436Z",
-    "agent.ephemeral_id": "d5a061f5-0aac-4c11-8496-7f2c42f2393c",
-    "agent.id": "bc2c6d4c-79fd-4368-ae8b-540913be01fe",
-    "agent.name": "docker-fleet-agent",
-    "agent.type": "metricbeat",
-    "agent.version": "8.7.1",
-    "data_stream.dataset": "synthetic_mode.synthetic",
-    "data_stream.namespace": "ep",
-    "data_stream.type": "metrics",
-    "ecs.version": "8.7.0",
-    "elastic_agent.id": [
-        "bc2c6d4c-79fd-4368-ae8b-540913be01fe"
-    ],
-    "elastic_agent.snapshot": [
-        false
-    ],
-    "elastic_agent.version": [
-        "8.7.1"
-    ],
-    "event.agent_id_status": "verified",
-    "event.category": [
-        "web"
-    ],
-    "event.dataset": "synthetic_mode.synthetic",
-    "event.duration": 5392852,
-    "event.ingested": "2023-06-02T15:21:40Z",
-    "event.kind": "metric",
-    "event.module": "apache_tomcat",
-    "event.type": [
-        "info"
-    ],
-    "host.architecture": "x86_64",
-    "host.containerized": [
-        false
-    ],
-    "host.hostname": "docker-fleet-agent",
-    "host.id": "fd2c4b0943e444508c12855a04d117c7",
-    "host.ip": [
-        "192.168.224.7"
-    ],
-    "host.mac": [
-        "02-42-C0-A8-E0-07"
-    ],
-    "host.name": "docker-fleet-agent",
-    "host.os.codename": [
-        "focal"
-    ],
-    "host.os.family": "debian",
-    "host.os.kernel": "5.19.0-42-generic",
-    "host.os.name": "Ubuntu",
-    "host.os.name.text": [
-        "Ubuntu"
-    ],
-    "host.os.platform": "ubuntu",
-    "host.os.type": "linux",
-    "host.os.version": "20.04.6 LTS (Focal Fossa)",
-    "metricset.name": [
-        "collector"
-    ],
-    "metricset.name.text": [
-        "collector"
-    ],
-    "metricset.period": [
-        10000
-    ],
-    "prometheus.labels.dialer_name": "prometheus",
-    "prometheus.labels.instance": "elastic-package-service-synthetic_mode-1:9090",
-    "prometheus.labels.job": "prometheus",
-    "prometheus.labels.reason": "resolution",
-    "prometheus.net_conntrack_dialer_conn_failed_total.counter": 0,
-    "prometheus.net_conntrack_dialer_conn_failed_total.rate": 0,
-    "service.address": "http://elastic-package-service-synthetic_mode-1:9090/metrics",
-    "service.type": "prometheus"
+    "@timestamp": "2023-06-07T08:30:02.333Z",
+    "agent": {
+        "ephemeral_id": "296ade19-2a9f-47f6-95f9-dcfa40559fd0",
+        "id": "86e09a11-1c59-4cb9-9eda-2b025a06143e",
+        "name": "docker-fleet-agent",
+        "type": "metricbeat",
+        "version": "8.7.1"
+    },
+    "data_stream": {
+        "dataset": "synthetic_mode.synthetic",
+        "namespace": "ep",
+        "type": "metrics"
+    },
+    "ecs": {
+        "version": "8.7.0"
+    },
+    "elastic_agent": {
+        "id": [
+            "86e09a11-1c59-4cb9-9eda-2b025a06143e"
+        ],
+        "snapshot": [
+            false
+        ],
+        "version": [
+            "8.7.1"
+        ]
+    },
+    "event": {
+        "agent_id_status": "verified",
+        "category": [
+            "web"
+        ],
+        "dataset": "synthetic_mode.synthetic",
+        "duration": 7261724,
+        "ingested": "2023-06-07T08:30:06Z",
+        "kind": "metric",
+        "module": "synthetic_mode",
+        "type": [
+            "info"
+        ]
+    },
+    "host": {
+        "architecture": "x86_64",
+        "containerized": [
+            false
+        ],
+        "hostname": "docker-fleet-agent",
+        "id": "fd2c4b0943e444508c12855a04d117c7",
+        "ip": [
+            "172.26.0.7"
+        ],
+        "mac": [
+            "02-42-AC-1A-00-07"
+        ],
+        "name": "docker-fleet-agent",
+        "os": {
+            "codename": [
+                "focal"
+            ],
+            "family": "debian",
+            "kernel": "5.19.0-42-generic",
+            "name": "Ubuntu",
+            "platform": "ubuntu",
+            "type": "linux",
+            "version": "20.04.6 LTS (Focal Fossa)"
+        }
+    },
+    "metricset": {
+        "name": [
+            "collector"
+        ],
+        "period": [
+            10000
+        ]
+    },
+    "prometheus": {
+        "labels": {
+            "branch": "HEAD",
+            "goversion": "go1.18.3",
+            "instance": "elastic-package-service-synthetic_mode-1:9090",
+            "job": "prometheus",
+            "revision": "d7e7b8e04b5ecdc1dd153534ba376a622b72741b",
+            "version": "2.36.2"
+        },
+        "prometheus_build_info": {
+            "value": 1
+        }
+    },
+    "service": {
+        "address": "http://elastic-package-service-synthetic_mode-1:9090/metrics",
+        "type": "prometheus"
+    }
 }
