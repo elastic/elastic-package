@@ -1,8 +1,8 @@
 {
-    "@timestamp": "2023-06-07T08:30:02.333Z",
+    "@timestamp": "2023-06-07T11:18:14.475Z",
     "agent": {
-        "ephemeral_id": "296ade19-2a9f-47f6-95f9-dcfa40559fd0",
-        "id": "86e09a11-1c59-4cb9-9eda-2b025a06143e",
+        "ephemeral_id": "0265eeb1-26e2-452a-8ec0-e52e125ba9f6",
+        "id": "f1c9ef05-68a9-4eee-b254-89692ad3eacf",
         "name": "docker-fleet-agent",
         "type": "metricbeat",
         "version": "8.7.1"
@@ -16,15 +16,9 @@
         "version": "8.7.0"
     },
     "elastic_agent": {
-        "id": [
-            "86e09a11-1c59-4cb9-9eda-2b025a06143e"
-        ],
-        "snapshot": [
-            false
-        ],
-        "version": [
-            "8.7.1"
-        ]
+        "id": "f1c9ef05-68a9-4eee-b254-89692ad3eacf",
+        "snapshot": false,
+        "version": "8.7.1"
     },
     "event": {
         "agent_id_status": "verified",
@@ -32,8 +26,8 @@
             "web"
         ],
         "dataset": "synthetic_mode.synthetic",
-        "duration": 7261724,
-        "ingested": "2023-06-07T08:30:06Z",
+        "duration": 4378129,
+        "ingested": "2023-06-07T11:18:18Z",
         "kind": "metric",
         "module": "synthetic_mode",
         "type": [
@@ -42,22 +36,18 @@
     },
     "host": {
         "architecture": "x86_64",
-        "containerized": [
-            false
-        ],
+        "containerized": false,
         "hostname": "docker-fleet-agent",
         "id": "fd2c4b0943e444508c12855a04d117c7",
         "ip": [
-            "172.26.0.7"
+            "192.168.80.7"
         ],
         "mac": [
-            "02-42-AC-1A-00-07"
+            "02-42-C0-A8-50-07"
         ],
         "name": "docker-fleet-agent",
         "os": {
-            "codename": [
-                "focal"
-            ],
+            "codename": "focal",
             "family": "debian",
             "kernel": "5.19.0-42-generic",
             "name": "Ubuntu",
@@ -67,24 +57,19 @@
         }
     },
     "metricset": {
-        "name": [
-            "collector"
-        ],
-        "period": [
-            10000
-        ]
+        "name": "collector",
+        "period": 10000
     },
     "prometheus": {
         "labels": {
-            "branch": "HEAD",
-            "goversion": "go1.18.3",
+            "event": "delete",
             "instance": "elastic-package-service-synthetic_mode-1:9090",
             "job": "prometheus",
-            "revision": "d7e7b8e04b5ecdc1dd153534ba376a622b72741b",
-            "version": "2.36.2"
+            "role": "node"
         },
-        "prometheus_build_info": {
-            "value": 1
+        "prometheus_sd_kubernetes_events_total": {
+            "counter": 0,
+            "rate": 0
         }
     },
     "service": {

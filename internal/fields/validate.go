@@ -388,33 +388,20 @@ func (v *Validator) SanitizeSyntheticSourceDocs(docs []common.MapStr) ([]common.
 	var newDocs []common.MapStr
 	for _, doc := range docs {
 		for key, contents := range doc {
-			definition := FindElementDefinition(key, v.Schema)
-			if definition == nil {
-				continue
-			}
-
-			if !v.disabledDependencyManagement && definition.External != "" {
-				def, err := v.FieldDependencyManager.ImportField(definition.External, key)
-				if err != nil {
-					return nil, fmt.Errorf("can't import field (field: %s): %w", key, err)
-				}
-				definition = &def
-			}
-
 			shouldBeArray := false
-			// normalization should just be checked if synthetic source is enabled and the
-			// spec version of this package is >= 2.0.0
-			if v.disabledNormalization && !v.specVersion.LessThan(semver2_0_0) {
-				for _, normalize := range definition.Normalize {
-					switch normalize {
-					case "array":
-						shouldBeArray = true
+			definition := FindElementDefinition(key, v.Schema)
+			if definition != nil {
+				if !v.disabledDependencyManagement && definition.External != "" {
+					def, err := v.FieldDependencyManager.ImportField(definition.External, key)
+					if err != nil {
+						return nil, fmt.Errorf("can't import field (field: %s): %w", key, err)
 					}
-					if shouldBeArray {
-						break
-					}
+					definition = &def
 				}
+
+				shouldBeArray = v.shouldValueBeArray(definition)
 			}
+
 			// if it needs to be normalized, the field is kept as it is
 			if shouldBeArray {
 				continue
@@ -443,6 +430,20 @@ func (v *Validator) SanitizeSyntheticSourceDocs(docs []common.MapStr) ([]common.
 	return newDocs, nil
 }
 
+func (v *Validator) shouldValueBeArray(definition *FieldDefinition) bool {
+	// normalization should just be checked if synthetic source is enabled and the
+	// spec version of this package is >= 2.0.0
+	if v.disabledNormalization && !v.specVersion.LessThan(semver2_0_0) {
+		for _, normalize := range definition.Normalize {
+			switch normalize {
+			case "array":
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func createDocExpandingObjects(doc common.MapStr) (common.MapStr, error) {
 	keys := make([]string, 0)
 	for k := range doc {
@@ -466,7 +467,7 @@ func createDocExpandingObjects(doc common.MapStr) (common.MapStr, error) {
 		// - expected map but type is string
 		// - expected map but type is []interface{}
 		if strings.HasPrefix(err.Error(), "expected map but type is") {
-			logger.Warnf("not able to add key %s, is this a multifield?: %s", k, err)
+			logger.Debugf("not able to add key %s, is this a multifield?: %s", k, err)
 			continue
 		}
 		return nil, fmt.Errorf("not added key %s with value %s: %w", k, value, err)
