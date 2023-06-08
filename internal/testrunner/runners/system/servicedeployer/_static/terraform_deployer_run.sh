@@ -26,7 +26,7 @@ set +e
 terraform output -json > /output/tfOutputValues.json
 
 echo "Output Values content"
-cat /output/tfOutputValues
+cat /output/tfOutputValues.json
 echo "-----"
 set -e
 
