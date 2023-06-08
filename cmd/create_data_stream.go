@@ -19,11 +19,11 @@ const createDataStreamLongDescription = `Use this command to create a new data s
 The command can extend the package with a new data stream using embedded data stream template and wizard.`
 
 type newDataStreamAnswers struct {
-	Name       string
-	Title      string
-	Type       string
-	Synthetic  bool
-	TimeSeries bool
+	Name                   string
+	Title                  string
+	Type                   string
+	SyntheticAndTimeSeries bool
+	Synthetic              bool
 }
 
 func createDataStreamCommandAction(cmd *cobra.Command, args []string) error {
@@ -73,9 +73,9 @@ func createDataStreamCommandAction(cmd *cobra.Command, args []string) error {
 	if answers.Type == "metrics" {
 		qs := []*survey.Question{
 			{
-				Name: "synthetic",
+				Name: "syntheticAndTimeSeries",
 				Prompt: &survey.Confirm{
-					Message: "Enable synthetic source?",
+					Message: "Enable time series and synthetic source?",
 					Default: true,
 				},
 				Validate: survey.Required,
@@ -85,21 +85,22 @@ func createDataStreamCommandAction(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return errors.Wrap(err, "prompt failed")
 		}
-	}
-	if answers.Synthetic {
-		qs := []*survey.Question{
-			{
-				Name: "timeSeries",
-				Prompt: &survey.Confirm{
-					Message: "Enable time series?",
-					Default: false,
+
+		if !answers.SyntheticAndTimeSeries {
+			qs := []*survey.Question{
+				{
+					Name: "synthetic",
+					Prompt: &survey.Confirm{
+						Message: "Enable synthetic source?",
+						Default: true,
+					},
+					Validate: survey.Required,
 				},
-				Validate: survey.Required,
-			},
-		}
-		err = survey.Ask(qs, &answers)
-		if err != nil {
-			return errors.Wrap(err, "prompt failed")
+			}
+			err = survey.Ask(qs, &answers)
+			if err != nil {
+				return errors.Wrap(err, "prompt failed")
+			}
 		}
 	}
 
@@ -120,17 +121,16 @@ func createDataStreamDescriptorFromAnswers(answers newDataStreamAnswers, package
 		Type:  answers.Type,
 	}
 
-	if !answers.Synthetic && !answers.TimeSeries {
+	if !answers.SyntheticAndTimeSeries && !answers.Synthetic {
 		return archetype.DataStreamDescriptor{
 			Manifest:    manifest,
 			PackageRoot: packageRoot,
 		}
 	}
-	elasticsearch := packages.Elasticsearch{}
-	if answers.Synthetic {
-		elasticsearch.SourceMode = "synthetic"
+	elasticsearch := packages.Elasticsearch{
+		SourceMode: "synthetic",
 	}
-	if answers.TimeSeries {
+	if answers.SyntheticAndTimeSeries {
 		elasticsearch.IndexMode = "time_series"
 	}
 	manifest.Elasticsearch = &elasticsearch
