@@ -56,6 +56,8 @@ func ParseLogs(options ParseLogsOptions, process func(log LogLine) error) error 
 		}
 
 		// There could be valid messages with just plain text without timestamp
+		// and therefore not processed, cannot be ensured in which timestamp they
+		// were generated
 		if !startProcessing && log.Timestamp.Before(options.StartTime) {
 			continue
 		}
