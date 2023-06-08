@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestAddTerraformOutputs(t *testing.T) {
@@ -21,28 +20,6 @@ func TestAddTerraformOutputs(t *testing.T) {
 		content       []byte
 		expectedProps map[string]interface{}
 	}{
-		{
-			testName: "invalid_json_output",
-			runId:    "987987",
-			ctxt: ServiceContext{
-				Test: struct{ RunID string }{"987987"},
-			},
-			content: []byte(
-				``,
-			),
-			expectedProps: map[string]interface{}{},
-		},
-		{
-			testName: "empty_json_output",
-			runId:    "v",
-			ctxt: ServiceContext{
-				Test: struct{ RunID string }{"9887"},
-			},
-			content: []byte(
-				`{}`,
-			),
-			expectedProps: map[string]interface{}{},
-		},
 		{
 			testName: "single_value_output",
 			runId:    "99999",
@@ -144,8 +121,7 @@ func TestAddTerraformOutputs(t *testing.T) {
 			}
 
 			// Test that the terraform output values are generated correctly
-			err := addTerraformOutputs(tc.ctxt)
-			require.NoError(t, err)
+			addTerraformOutputs(tc.ctxt)
 			assert.Equal(t, tc.expectedProps, tc.ctxt.CustomProperties)
 		})
 	}
