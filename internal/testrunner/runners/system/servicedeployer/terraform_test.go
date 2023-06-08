@@ -21,6 +21,28 @@ func TestAddTerraformOutputs(t *testing.T) {
 		expectedProps map[string]interface{}
 	}{
 		{
+			testName: "invalid_json_output",
+			runId:    "987987",
+			ctxt: ServiceContext{
+				Test: struct{ RunID string }{"987987"},
+			},
+			content: []byte(
+				``,
+			),
+			expectedProps: map[string]interface{}{},
+		},
+		{
+			testName: "empty_json_output",
+			runId:    "v",
+			ctxt: ServiceContext{
+				Test: struct{ RunID string }{"9887"},
+			},
+			content: []byte(
+				`{}`,
+			),
+			expectedProps: map[string]interface{}{},
+		},
+		{
 			testName: "single_value_output",
 			runId:    "99999",
 			ctxt: ServiceContext{
@@ -121,7 +143,8 @@ func TestAddTerraformOutputs(t *testing.T) {
 			}
 
 			// Test that the terraform output values are generated correctly
-			addTerraformOutputs(tc.ctxt)
+			err := addTerraformOutputs(tc.ctxt)
+			assert.Equal(t, err, nil)
 			assert.Equal(t, tc.expectedProps, tc.ctxt.CustomProperties)
 		})
 	}

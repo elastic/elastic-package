@@ -64,8 +64,14 @@ func addTerraformOutputs(outCtxt ServiceContext) error {
 	// Unmarshall the data into `terraformOutputs`
 	logger.Debug("Unmarshalling terraform output json")
 	var terraformOutputs map[string]OutputMeta
-	if err = json.Unmarshal(content, &terraformOutputs); err != nil {
-		return fmt.Errorf("error during json Unmarshal %w", err)
+
+	if json.Valid(content) {
+		if err = json.Unmarshal(content, &terraformOutputs); err != nil {
+			return fmt.Errorf("error during json Unmarshal %w", err)
+		}
+	} else {
+		logger.Error("Invalid Json Content")
+		return nil
 	}
 
 	if len(terraformOutputs) == 0 {
