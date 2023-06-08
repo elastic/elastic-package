@@ -26,5 +26,14 @@ streams:{{if eq .Manifest.Type "logs" }}
         type: text
         title: Period
         default: 10s
+{{ if .Manifest.Elasticsearch }}
+elasticsearch:
+{{ if .Manifest.Elasticsearch.SourceMode }}
+  source_mode: {{ .Manifest.Elasticsearch.SourceMode }}
+{{- end}}
+{{ if .Manifest.Elasticsearch.IndexMode }}
+  index_mode: {{ .Manifest.Elasticsearch.IndexMode }}
+{{- end}}
+{{- end}}
 {{- end}}
 `
