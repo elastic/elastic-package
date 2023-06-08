@@ -31,7 +31,3 @@ data "aws_ami" "latest-amzn" {
     values = ["amzn2-ami-minimal-hvm-*-ebs"]
   }
 }
-
-output "instance_id" {
-  value = aws_instance.i.id
-}
