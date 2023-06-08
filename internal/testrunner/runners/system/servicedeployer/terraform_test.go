@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestAddTerraformOutputs(t *testing.T) {
@@ -144,7 +145,7 @@ func TestAddTerraformOutputs(t *testing.T) {
 
 			// Test that the terraform output values are generated correctly
 			err := addTerraformOutputs(tc.ctxt)
-			assert.Equal(t, err, nil)
+			require.NoError(t, err)
 			assert.Equal(t, tc.expectedProps, tc.ctxt.CustomProperties)
 		})
 	}
