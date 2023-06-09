@@ -20,15 +20,13 @@ trap cleanup EXIT INT TERM
 
 terraform init
 terraform plan
-terraform apply -auto-approve && touch /tmp/tf-applied
+terraform apply -auto-approve
 
-set +e
 terraform output -json > /output/tfOutputValues.json
 
-echo "Output Values content"
 cat /output/tfOutputValues.json
-echo "-----"
-set -e
+
+touch /tmp/tf-applied
 
 echo "Terraform definitions applied."
 
