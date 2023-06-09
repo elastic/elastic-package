@@ -65,7 +65,7 @@ func addTerraformOutputs(outCtxt ServiceContext) error {
 	logger.Debug("Unmarshalling terraform output json")
 	var terraformOutputs map[string]OutputMeta
 	if err = json.Unmarshal(content, &terraformOutputs); err != nil {
-		return fmt.Errorf("error during json Unmarshal %w", err)
+		return fmt.Errorf("error during JSON Unmarshal: %w", err)
 	}
 
 	if len(terraformOutputs) == 0 {
@@ -160,6 +160,10 @@ func (tsd TerraformServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedServic
 
 	err = addTerraformOutputs(outCtxt)
 	if err != nil {
+		if strings.HasPrefix(err.Error(), "error during JSON Unmarshal") {
+			logger.Errorf(err)
+			return &service, nil
+		}
 		return nil, fmt.Errorf("could not handle terraform output %w", err)
 	}
 	service.ctxt = outCtxt
