@@ -86,17 +86,14 @@ func addTerraformOutputs(outCtxt ServiceContext) error {
 			return true, errors.New("SIGINT: cancel clearing data")
 		}
 
-		logger.Debugf("Trying to read %s", outputFile)
 		content, err = os.ReadFile(outputFile)
 		if err != nil {
 			return false, fmt.Errorf("failed to read terraform output file: %w", err)
 		}
 		if !json.Valid(content) {
-			logger.Debugf("Invalid contents %s", outputFile)
 			time.Sleep(5 * time.Second)
 			return false, nil
 		}
-		logger.Debugf("JSON valid %s", outputFile)
 		return true, nil
 	}, 2*time.Minute)
 
