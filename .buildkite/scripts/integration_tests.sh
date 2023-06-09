@@ -111,7 +111,6 @@ echo "--- Run integration test ${TARGET}"
 if [[ "${TARGET}" == "${PARALLEL_TARGET}" ]]; then
     make install
 
-    docker info | grep "Driver"
     # allow to fail this command, to be able to upload safe logs
     set +e
     make PACKAGE_UNDER_TEST=${PACKAGE} ${TARGET}

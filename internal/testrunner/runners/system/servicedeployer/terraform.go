@@ -64,11 +64,11 @@ func addTerraformOutputs(outCtxt ServiceContext) error {
 	// Unmarshall the data into `terraformOutputs`
 	logger.Debug("Unmarshalling terraform output json")
 	var terraformOutputs map[string]OutputMeta
-	logger.Debugf("**********JSON CONTENT****************\n%s***********************", string(content))
-	if !json.Valid(content) {
-		logger.Debug("Invalid Json content in the terraform output file, skipped creating outputs")
-		return fmt.Errorf("error during JSON Unmarshal: %w", err)
-	}
+	// logger.Debugf("**********JSON CONTENT****************\n%s***********************", string(content))
+	// if !json.Valid(content) {
+	// 	logger.Debug("Invalid Json content in the terraform output file, skipped creating outputs")
+	// 	return fmt.Errorf("error during JSON Unmarshal: %w", err)
+	// }
 
 	if err = json.Unmarshal(content, &terraformOutputs); err != nil {
 		return fmt.Errorf("error during JSON Unmarshal: %w", err)
@@ -166,11 +166,7 @@ func (tsd TerraformServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedServic
 
 	err = addTerraformOutputs(outCtxt)
 	if err != nil {
-		if strings.HasPrefix(err.Error(), "error during JSON Unmarshal") {
-			logger.Errorf(err.Error())
-			return &service, nil
-		}
-		return nil, fmt.Errorf("could not handle terraform output %w", err)
+		return nil, fmt.Errorf("could not handle terraform output: %w", err)
 	}
 	service.ctxt = outCtxt
 	return &service, nil
