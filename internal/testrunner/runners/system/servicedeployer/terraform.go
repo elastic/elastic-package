@@ -161,7 +161,7 @@ func (tsd TerraformServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedServic
 	err = addTerraformOutputs(outCtxt)
 	if err != nil {
 		if strings.HasPrefix(err.Error(), "error during JSON Unmarshal") {
-			logger.Errorf(err)
+			logger.Errorf(err.Error())
 			return &service, nil
 		}
 		return nil, fmt.Errorf("could not handle terraform output %w", err)
