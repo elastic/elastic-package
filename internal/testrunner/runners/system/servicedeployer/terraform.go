@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 
@@ -20,6 +21,7 @@ import (
 	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/logger"
+	"github.com/elastic/elastic-package/internal/signal"
 )
 
 const (
@@ -45,15 +47,61 @@ type TerraformServiceDeployer struct {
 	definitionsDir string
 }
 
+// copied from system package
+func waitUntilTrue(fn func() (bool, error), timeout time.Duration) (bool, error) {
+	timeoutTicker := time.NewTicker(timeout)
+	defer timeoutTicker.Stop()
+
+	retryTicker := time.NewTicker(1 * time.Second)
+	defer retryTicker.Stop()
+
+	for {
+		result, err := fn()
+		if err != nil {
+			return false, err
+		}
+		if result {
+			return true, nil
+		}
+
+		select {
+		case <-retryTicker.C:
+			continue
+		case <-timeoutTicker.C:
+			return false, nil
+		}
+	}
+}
+
 // addTerraformOutputs method reads the terraform outputs generated in the json format and
 // adds them to the custom properties of ServiceContext and can be used in the handlebars template
 // like `{{TF_OUTPUT_queue_url}}` where `queue_url` is the output configured
 func addTerraformOutputs(outCtxt ServiceContext) error {
 	// Read the `output.json` file where terraform outputs are generated
 	outputFile := filepath.Join(outCtxt.OutputDir, terraformOutputJsonFile)
-	content, err := os.ReadFile(outputFile)
+	var content []byte
+	ready, err := waitUntilTrue(func() (bool, error) {
+		var err error
+		if signal.SIGINT() {
+			return true, errors.New("SIGINT: cancel clearing data")
+		}
+
+		content, err = os.ReadFile(outputFile)
+		if err != nil {
+			return false, fmt.Errorf("failed to read terraform output file: %w", err)
+		}
+		if !json.Valid(content) {
+			time.Sleep(5 * time.Second)
+			return false, nil
+		}
+		return true, nil
+	}, 2*time.Minute)
+
 	if err != nil {
-		return fmt.Errorf("failed to read terraform output file: %w", err)
+		return err
+	}
+	if !ready {
+		logger.Debugf("Not ready output file")
 	}
 
 	// https://github.com/hashicorp/terraform/blob/v1.4.6/internal/command/views/output.go#L217-L222
@@ -64,7 +112,7 @@ func addTerraformOutputs(outCtxt ServiceContext) error {
 	// Unmarshall the data into `terraformOutputs`
 	logger.Debug("Unmarshalling terraform output json")
 	var terraformOutputs map[string]OutputMeta
-	logger.Debugf("**********JSON CONTENT****************\n%s***********************", string(content))
+	logger.Debugf("***JSON CONTENT %s****************\n%s ***********************", outputFile, string(content))
 	if !json.Valid(content) {
 		logger.Debug("Invalid Json content in the terraform output file, skipped creating outputs")
 		return fmt.Errorf("error during JSON Unmarshal: %w", err)
