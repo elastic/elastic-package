@@ -8,8 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-
-	"github.com/pkg/errors"
 )
 
 const SNAPSHOT_SUFFIX = "-SNAPSHOT"
@@ -39,7 +37,7 @@ func (c *Client) Version() (VersionInfo, error) {
 	var version VersionInfo
 	statusCode, respBody, err := c.get(StatusAPI)
 	if err != nil {
-		return version, errors.Wrapf(err, "could not reach status endpoint")
+		return version, fmt.Errorf("could not reach status endpoint: %w", err)
 	}
 
 	if statusCode != http.StatusOK {
@@ -49,7 +47,7 @@ func (c *Client) Version() (VersionInfo, error) {
 	var status statusType
 	err = json.Unmarshal(respBody, &status)
 	if err != nil {
-		return version, errors.Wrapf(err, "unmarshalling response failed (body: \n%s)", respBody)
+		return version, fmt.Errorf("unmarshalling response failed (body: \n%s): %w", respBody, err)
 	}
 
 	return status.Version, nil

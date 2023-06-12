@@ -9,8 +9,6 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/pkg/errors"
-
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 )
 
@@ -48,22 +46,22 @@ func GetDiskUsage(esClient *elasticsearch.API, datastream string) (map[string]Di
 		esClient.Indices.DiskUsage.WithRunExpensiveTasks(true),
 	)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Node Stats API call failed")
+		return nil, fmt.Errorf("DiskUsage Stats API call failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to read Stats API response body")
+		return nil, fmt.Errorf("failed to read Stats API response body: %w", err)
 	}
 
 	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("unexpected response status for Node Stats (%d): %s: %w", resp.StatusCode, resp.Status(), elasticsearch.NewError(body))
+		return nil, fmt.Errorf("unexpected response status for DiskUsage Stats (%d): %s: %w", resp.StatusCode, resp.Status(), elasticsearch.NewError(body))
 	}
 
 	var stats map[string]DiskUsage
 	if err = json.Unmarshal(body, &stats); err != nil {
-		return nil, errors.Wrap(err, "error decoding stats response")
+		return nil, fmt.Errorf("error decoding stats response: %w", err)
 	}
 	delete(stats, "_shards")
 	return stats, nil

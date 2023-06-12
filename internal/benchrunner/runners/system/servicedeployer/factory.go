@@ -5,11 +5,10 @@
 package servicedeployer
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
-
-	"github.com/pkg/errors"
 )
 
 const devDeployDir = "_dev/benchmark/system/deploy"
@@ -24,12 +23,12 @@ type FactoryOptions struct {
 func Factory(options FactoryOptions) (ServiceDeployer, error) {
 	devDeployPath, err := FindDevDeployPath(options)
 	if err != nil {
-		return nil, errors.Wrapf(err, "can't find \"%s\" directory", devDeployDir)
+		return nil, fmt.Errorf("can't find \"%s\" directory: %w", devDeployDir, err)
 	}
 
 	serviceDeployerName, err := findServiceDeployer(devDeployPath)
 	if err != nil {
-		return nil, errors.Wrap(err, "can't find any valid service deployer")
+		return nil, fmt.Errorf("can't find any valid service deployer: %w", err)
 	}
 
 	serviceDeployerPath := filepath.Join(devDeployPath, serviceDeployerName)
@@ -50,7 +49,7 @@ func FindDevDeployPath(options FactoryOptions) (string, error) {
 	if _, err := os.Stat(path); err == nil {
 		return path, nil
 	} else if !errors.Is(err, os.ErrNotExist) {
-		return "", errors.Wrapf(err, "stat failed for path (path: %s)", path)
+		return "", fmt.Errorf("stat failed for path (path: %s): %w", path, err)
 	}
 	return "", fmt.Errorf("\"%s\" directory doesn't exist", devDeployDir)
 }
@@ -58,7 +57,7 @@ func FindDevDeployPath(options FactoryOptions) (string, error) {
 func findServiceDeployer(devDeployPath string) (string, error) {
 	fis, err := os.ReadDir(devDeployPath)
 	if err != nil {
-		return "", errors.Wrapf(err, "can't read directory (path: %s)", devDeployDir)
+		return "", fmt.Errorf("can't read directory (path: %s): %w", devDeployDir, err)
 	}
 
 	var folders []os.DirEntry

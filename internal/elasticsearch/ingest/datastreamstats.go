@@ -6,10 +6,9 @@ package ingest
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
-
-	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 )
@@ -29,26 +28,26 @@ func GetDataStreamStats(esClient *elasticsearch.API, datastream string) (*DataSt
 	req := esClient.Indices.DataStreamsStats.WithName(datastream)
 	resp, err := esClient.Indices.DataStreamsStats(req)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Node Stats API call failed")
+		return nil, fmt.Errorf("failed call to DataStream Stats API: %w", err)
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to read Stats API response body")
+		return nil, fmt.Errorf("failed to read Stats API response body: %w", err)
 	}
 
 	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("unexpected response status for Node Stats (%d): %s: %w", resp.StatusCode, resp.Status(), elasticsearch.NewError(body))
+		return nil, fmt.Errorf("unexpected response status for DataStream Stats (%d): %s: %w", resp.StatusCode, resp.Status(), elasticsearch.NewError(body))
 	}
 
 	var statsResponse DataStreamsStats
 	if err = json.Unmarshal(body, &statsResponse); err != nil {
-		return nil, errors.Wrap(err, "error decoding Node Stats response")
+		return nil, fmt.Errorf("error decoding DataStream Stats response: %w", err)
 	}
 	if len(statsResponse.DataStreams) > 0 {
 		return &statsResponse.DataStreams[0], nil
 	}
 
-	return nil, errors.New("couldn't get datastream stats")
+	return nil, errors.New("couldn't get DataStream stats")
 }
