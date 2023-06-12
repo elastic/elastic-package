@@ -540,8 +540,9 @@ func (r *runner) runGenerator(destDir string) error {
 		}
 
 		// TODO: this should be taken care of by the corpus generator tool, once it will be done let's remove this
-		event := bytes.ReplaceAll(buf.Bytes(), []byte("\n"), []byte(""))
-		if _, err = f.Write(event); err != nil {
+		replacer := strings.NewReplacer("\n", "")
+		event := replacer.Replace(buf.String())
+		if _, err = f.Write([]byte(event)); err != nil {
 			return err
 		}
 
