@@ -60,6 +60,9 @@ type ServiceContext struct {
 
 	// CustomProperties store additional data used to boot up the service, e.g. AWS credentials.
 	CustomProperties map[string]interface{}
+
+	// Directory to store any outputs generated
+	OutputDir string
 }
 
 // Aliases method returned aliases to properties of the service context.

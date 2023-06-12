@@ -13,10 +13,10 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/common"
@@ -55,6 +55,8 @@ type Validator struct {
 	allowedCIDRs          []*net.IPNet
 
 	enabledImportAllECSSchema bool
+
+	disabledNormalization bool
 }
 
 // ValidatorOption represents an optional flag that can be passed to  CreateValidatorForDirectory.
@@ -124,6 +126,14 @@ func WithEnabledImportAllECSSChema(importSchema bool) ValidatorOption {
 	}
 }
 
+// WithDisableNormalization configures the validator to disable normalization.
+func WithDisableNormalization(disabledNormalization bool) ValidatorOption {
+	return func(v *Validator) error {
+		v.disabledNormalization = disabledNormalization
+		return nil
+	}
+}
+
 type packageRootFinder interface {
 	FindPackageRoot() (string, bool, error)
 }
@@ -153,7 +163,7 @@ func createValidatorForDirectoryAndPackageRoot(fieldsParentDir string, finder pa
 	fieldsDir := filepath.Join(fieldsParentDir, "fields")
 	v.Schema, err = loadFieldsFromDir(fieldsDir)
 	if err != nil {
-		return nil, errors.Wrapf(err, "can't load fields from directory (path: %s)", fieldsDir)
+		return nil, fmt.Errorf("can't load fields from directory (path: %s): %w", fieldsDir, err)
 	}
 
 	if v.disabledDependencyManagement {
@@ -162,7 +172,7 @@ func createValidatorForDirectoryAndPackageRoot(fieldsParentDir string, finder pa
 
 	packageRoot, found, err := finder.FindPackageRoot()
 	if err != nil {
-		return nil, errors.Wrap(err, "can't find package root")
+		return nil, fmt.Errorf("can't find package root: %w", err)
 	}
 	// As every command starts with approximating where is the package root, it isn't required to return an error in case the root is missing.
 	// This is also useful for testing purposes, where we don't have a real package, but just "fields" directory. The package root is always absent.
@@ -174,7 +184,7 @@ func createValidatorForDirectoryAndPackageRoot(fieldsParentDir string, finder pa
 
 	bm, ok, err := buildmanifest.ReadBuildManifest(packageRoot)
 	if err != nil {
-		return nil, errors.Wrap(err, "can't read build manifest")
+		return nil, fmt.Errorf("can't read build manifest: %w", err)
 	}
 	if !ok {
 		v.disabledDependencyManagement = true
@@ -183,7 +193,7 @@ func createValidatorForDirectoryAndPackageRoot(fieldsParentDir string, finder pa
 
 	fdm, err := CreateFieldDependencyManager(bm.Dependencies)
 	if err != nil {
-		return nil, errors.Wrap(err, "can't create field dependency manager")
+		return nil, fmt.Errorf("can't create field dependency manager: %w", err)
 	}
 	v.FieldDependencyManager = fdm
 
@@ -217,20 +227,20 @@ func initializeAllowedCIDRsList() (cidrs []*net.IPNet) {
 func loadFieldsFromDir(fieldsDir string) ([]FieldDefinition, error) {
 	files, err := filepath.Glob(filepath.Join(fieldsDir, "*.yml"))
 	if err != nil {
-		return nil, errors.Wrapf(err, "reading directory with fields failed (path: %s)", fieldsDir)
+		return nil, fmt.Errorf("reading directory with fields failed (path: %s): %w", fieldsDir, err)
 	}
 
 	var fields []FieldDefinition
 	for _, file := range files {
 		body, err := os.ReadFile(file)
 		if err != nil {
-			return nil, errors.Wrap(err, "reading fields file failed")
+			return nil, fmt.Errorf("reading fields file failed: %w", err)
 		}
 
 		var u []FieldDefinition
 		err = yaml.Unmarshal(body, &u)
 		if err != nil {
-			return nil, errors.Wrap(err, "unmarshalling field body failed")
+			return nil, fmt.Errorf("unmarshalling field body failed: %w", err)
 		}
 		fields = append(fields, u...)
 	}
@@ -243,7 +253,7 @@ func (v *Validator) ValidateDocumentBody(body json.RawMessage) multierror.Error 
 	err := json.Unmarshal(body, &c)
 	if err != nil {
 		var errs multierror.Error
-		errs = append(errs, errors.Wrap(err, "unmarshalling document body failed"))
+		errs = append(errs, fmt.Errorf("unmarshalling document body failed: %w", err))
 		return errs
 	}
 
@@ -273,15 +283,30 @@ func (v *Validator) validateDocumentValues(body common.MapStr) multierror.Error 
 			if err == common.ErrKeyNotFound {
 				continue
 			}
-			str, ok := value.(string)
+
+			str, ok := valueToString(value, v.disabledNormalization)
 			if !ok || str != v.expectedDataset {
-				err := errors.Errorf("field %q should have value %q, it has \"%v\"",
+				err := fmt.Errorf("field %q should have value %q, it has \"%v\"",
 					datasetField, v.expectedDataset, value)
 				errs = append(errs, err)
 			}
 		}
 	}
 	return errs
+}
+
+func valueToString(value any, disabledNormalization bool) (string, bool) {
+	if disabledNormalization {
+		// when synthetics mode is enabled, each field present in the document is an array
+		// so this check needs to retrieve the first element of the array
+		vals, err := common.ToStringSlice(value)
+		if err != nil || len(vals) != 1 {
+			return "", false
+		}
+		return vals[0], true
+	}
+	str, ok := value.(string)
+	return str, ok
 }
 
 func (v *Validator) validateMapElement(root string, elem common.MapStr, doc common.MapStr) multierror.Error {
@@ -334,7 +359,7 @@ func (v *Validator) validateScalarElement(key string, val interface{}, doc commo
 	if !v.disabledDependencyManagement && definition.External != "" {
 		def, err := v.FieldDependencyManager.ImportField(definition.External, key)
 		if err != nil {
-			return errors.Wrapf(err, "can't import field (field: %s)", key)
+			return fmt.Errorf("can't import field (field: %s): %w", key, err)
 		}
 		definition = &def
 	}
@@ -345,18 +370,110 @@ func (v *Validator) validateScalarElement(key string, val interface{}, doc commo
 		val = fmt.Sprintf("%q", val)
 	}
 
-	err := v.validateExpectedNormalization(*definition, val)
-	if err != nil {
-		return errors.Wrapf(err, "field %q is not normalized as expected", key)
+	if !v.disabledNormalization {
+		err := v.validateExpectedNormalization(*definition, val)
+		if err != nil {
+			return fmt.Errorf("field %q is not normalized as expected: %w", key, err)
+		}
 	}
 
-	err = v.parseElementValue(key, *definition, val, doc)
+	err := v.parseElementValue(key, *definition, val, doc)
 	if err != nil {
-		return errors.Wrap(err, "parsing field value failed")
+		return fmt.Errorf("parsing field value failed: %w", err)
 	}
 	return nil
 }
 
+func (v *Validator) SanitizeSyntheticSourceDocs(docs []common.MapStr) ([]common.MapStr, error) {
+	var newDocs []common.MapStr
+	for _, doc := range docs {
+		for key, contents := range doc {
+			shouldBeArray := false
+			definition := FindElementDefinition(key, v.Schema)
+			if definition != nil {
+				if !v.disabledDependencyManagement && definition.External != "" {
+					def, err := v.FieldDependencyManager.ImportField(definition.External, key)
+					if err != nil {
+						return nil, fmt.Errorf("can't import field (field: %s): %w", key, err)
+					}
+					definition = &def
+				}
+
+				shouldBeArray = v.shouldValueBeArray(definition)
+			}
+
+			// if it needs to be normalized, the field is kept as it is
+			if shouldBeArray {
+				continue
+			}
+			// in case it is not specified any normalization and that field is an array of
+			// just one element, the field is going to be updated to remove the array and keep
+			// that element as a value.
+			vals, ok := contents.([]interface{})
+			if !ok {
+				continue
+			}
+			if len(vals) == 1 {
+				_, err := doc.Put(key, vals[0])
+				if err != nil {
+					return nil, fmt.Errorf("key %s could not be updated: %w", key, err)
+				}
+			}
+		}
+		expandedDoc, err := createDocExpandingObjects(doc)
+		if err != nil {
+			return nil, fmt.Errorf("failure while expanding objects from doc: %w", err)
+		}
+
+		newDocs = append(newDocs, expandedDoc)
+	}
+	return newDocs, nil
+}
+
+func (v *Validator) shouldValueBeArray(definition *FieldDefinition) bool {
+	// normalization should just be checked if synthetic source is enabled and the
+	// spec version of this package is >= 2.0.0
+	if v.disabledNormalization && !v.specVersion.LessThan(semver2_0_0) {
+		for _, normalize := range definition.Normalize {
+			switch normalize {
+			case "array":
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func createDocExpandingObjects(doc common.MapStr) (common.MapStr, error) {
+	keys := make([]string, 0)
+	for k := range doc {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	newDoc := make(common.MapStr)
+	for _, k := range keys {
+		value, err := doc.GetValue(k)
+		if err != nil {
+			return nil, fmt.Errorf("not found key %s: %w", k, err)
+		}
+
+		_, err = newDoc.Put(k, value)
+		if err == nil {
+			continue
+		}
+
+		// Possible errors found but not limited to those
+		// - expected map but type is string
+		// - expected map but type is []interface{}
+		if strings.HasPrefix(err.Error(), "expected map but type is") {
+			logger.Debugf("not able to add key %s, is this a multifield?: %s", k, err)
+			continue
+		}
+		return nil, fmt.Errorf("not added key %s with value %s: %w", k, value, err)
+	}
+	return newDoc, nil
+}
 func isNumericKeyword(definition FieldDefinition, val interface{}) bool {
 	_, isNumber := val.(float64)
 	return isNumber && (definition.Type == "keyword" || definition.Type == "constant_keyword")
@@ -683,7 +800,7 @@ func ensurePatternMatches(key, value, pattern string) error {
 	}
 	valid, err := regexp.MatchString(pattern, value)
 	if err != nil {
-		return errors.Wrap(err, "invalid pattern")
+		return fmt.Errorf("invalid pattern: %w", err)
 	}
 	if !valid {
 		return fmt.Errorf("field %q's value, %s, does not match the expected pattern: %s", key, value, pattern)

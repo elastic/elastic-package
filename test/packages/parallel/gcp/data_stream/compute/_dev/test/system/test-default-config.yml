@@ -1,7 +1,8 @@
-# wait_for_data_timeout: 10m
+wait_for_data_timeout: 20m
 vars:
   project_id: "{{GCP_PROJECT_ID}}"
-  zone: "{{GCP_ZONE}}"
   credentials_json: '{{{GOOGLE_CREDENTIALS}}}'
-data_streams:
-  vars: ~
+data_stream:
+  vars:
+    zone: "{{GCP_ZONE}}"
+    region: "{{GCP_REGION}}"

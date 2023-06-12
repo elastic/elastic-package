@@ -53,6 +53,8 @@ elastic-package stack update -v
 # Boot up the stack
 elastic-package stack up -d -v
 
+elastic-package stack status
+
 if [ "${PACKAGE_TEST_TYPE:-other}" == "with-kind" ]; then
   # Boot up the kind cluster
   kind create cluster --config $PWD/scripts/kind-config.yaml

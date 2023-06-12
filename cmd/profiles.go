@@ -28,8 +28,8 @@ const tableFormat = "table"
 
 func setupProfilesCommand() *cobraext.Command {
 	profilesLongDescription := `Use this command to add, remove, and manage multiple config profiles.
-	
-Individual user profiles appear in ~/.elastic-package/stack, and contain all the config files needed by the "stack" subcommand. 
+
+Individual user profiles appear in ~/.elastic-package/stack, and contain all the config files needed by the "stack" subcommand.
 Once a new profile is created, it can be specified with the -p flag, or the ELASTIC_PACKAGE_PROFILE environment variable.
 User profiles can be configured with a "config.yml" file in the profile directory.`
 
@@ -63,9 +63,9 @@ User profiles can be configured with a "config.yml" file in the profile director
 			}
 
 			if fromName == "" {
-				fmt.Printf("Created profile %s.\n", newProfileName)
+				fmt.Printf("Created profile %q.\n", newProfileName)
 			} else {
-				fmt.Printf("Created profile %s from %s.\n", newProfileName, fromName)
+				fmt.Printf("Created profile %q from %q.\n", newProfileName, fromName)
 			}
 
 			return nil
@@ -82,12 +82,32 @@ User profiles can be configured with a "config.yml" file in the profile director
 			}
 			profileName := args[0]
 
-			err := profile.DeleteProfile(profileName)
+			config, err := install.Configuration()
+			if err != nil {
+				return fmt.Errorf("failed to load current configuration: %w", err)
+			}
+
+			err = profile.DeleteProfile(profileName)
 			if err != nil {
 				return errors.Wrap(err, "error deleting profile")
 			}
 
-			fmt.Printf("Deleted profile %s\n", profileName)
+			if currentProfile := config.CurrentProfile(); currentProfile == profileName {
+				config.SetCurrentProfile(profile.DefaultProfile)
+
+				location, err := locations.NewLocationManager()
+				if err != nil {
+					return fmt.Errorf("error fetching profile: %w", err)
+				}
+				err = install.WriteConfigFile(location, config)
+				if err != nil {
+					return fmt.Errorf("failed to store configuration: %w", err)
+				}
+
+				cmd.Printf("%q was the current profile. Default profile will be used now.\n", profileName)
+			}
+
+			fmt.Printf("Deleted profile %q.\n", profileName)
 
 			return nil
 		},
@@ -117,7 +137,11 @@ User profiles can be configured with a "config.yml" file in the profile director
 
 			switch format {
 			case tableFormat:
-				return formatTable(profileList)
+				config, err := install.Configuration()
+				if err != nil {
+					return fmt.Errorf("failed to load current configuration: %w", err)
+				}
+				return formatTable(profileList, config.CurrentProfile())
 			case jsonFormat:
 				return formatJSON(profileList)
 			default:
@@ -156,6 +180,8 @@ User profiles can be configured with a "config.yml" file in the profile director
 			if err != nil {
 				return fmt.Errorf("failed to store configuration: %w", err)
 			}
+
+			cmd.Printf("Current profile set to %q.\n", profileName)
 			return nil
 		},
 	}
@@ -181,9 +207,9 @@ func formatJSON(profileList []profile.Metadata) error {
 	return nil
 }
 
-func formatTable(profileList []profile.Metadata) error {
+func formatTable(profileList []profile.Metadata, currentProfile string) error {
 	table := tablewriter.NewWriter(os.Stdout)
-	var profilesTable = profileToList(profileList)
+	var profilesTable = profileToList(profileList, currentProfile)
 
 	table.SetHeader([]string{"Name", "Date Created", "User", "Version", "Path"})
 	table.SetHeaderColor(
@@ -209,29 +235,15 @@ func formatTable(profileList []profile.Metadata) error {
 	return nil
 }
 
-func profileToList(profiles []profile.Metadata) [][]string {
+func profileToList(profiles []profile.Metadata, currentProfile string) [][]string {
 	var profileList [][]string
 	for _, profile := range profiles {
-		profileList = append(profileList, []string{profile.Name, profile.DateCreated.Format(time.RFC3339), profile.User, profile.Version, profile.Path})
+		name := profile.Name
+		if name == currentProfile {
+			name = name + " (current)"
+		}
+		profileList = append(profileList, []string{name, profile.DateCreated.Format(time.RFC3339), profile.User, profile.Version, profile.Path})
 	}
 
 	return profileList
-}
-
-func availableProfilesAsAList() ([]string, error) {
-	loc, err := locations.NewLocationManager()
-	if err != nil {
-		return []string{}, errors.Wrap(err, "error fetching profile path")
-	}
-
-	profileNames := []string{}
-	profileList, err := profile.FetchAllProfiles(loc.ProfileDir())
-	if err != nil {
-		return profileNames, errors.Wrap(err, "error fetching all profiles")
-	}
-	for _, prof := range profileList {
-		profileNames = append(profileNames, prof.Name)
-	}
-
-	return profileNames, nil
 }

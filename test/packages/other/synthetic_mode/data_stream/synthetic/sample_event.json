@@ -1,0 +1,79 @@
+{
+    "@timestamp": "2023-06-07T11:18:14.475Z",
+    "agent": {
+        "ephemeral_id": "0265eeb1-26e2-452a-8ec0-e52e125ba9f6",
+        "id": "f1c9ef05-68a9-4eee-b254-89692ad3eacf",
+        "name": "docker-fleet-agent",
+        "type": "metricbeat",
+        "version": "8.7.1"
+    },
+    "data_stream": {
+        "dataset": "synthetic_mode.synthetic",
+        "namespace": "ep",
+        "type": "metrics"
+    },
+    "ecs": {
+        "version": "8.7.0"
+    },
+    "elastic_agent": {
+        "id": "f1c9ef05-68a9-4eee-b254-89692ad3eacf",
+        "snapshot": false,
+        "version": "8.7.1"
+    },
+    "event": {
+        "agent_id_status": "verified",
+        "category": [
+            "web"
+        ],
+        "dataset": "synthetic_mode.synthetic",
+        "duration": 4378129,
+        "ingested": "2023-06-07T11:18:18Z",
+        "kind": "metric",
+        "module": "synthetic_mode",
+        "type": [
+            "info"
+        ]
+    },
+    "host": {
+        "architecture": "x86_64",
+        "containerized": false,
+        "hostname": "docker-fleet-agent",
+        "id": "fd2c4b0943e444508c12855a04d117c7",
+        "ip": [
+            "192.168.80.7"
+        ],
+        "mac": [
+            "02-42-C0-A8-50-07"
+        ],
+        "name": "docker-fleet-agent",
+        "os": {
+            "codename": "focal",
+            "family": "debian",
+            "kernel": "5.19.0-42-generic",
+            "name": "Ubuntu",
+            "platform": "ubuntu",
+            "type": "linux",
+            "version": "20.04.6 LTS (Focal Fossa)"
+        }
+    },
+    "metricset": {
+        "name": "collector",
+        "period": 10000
+    },
+    "prometheus": {
+        "labels": {
+            "event": "delete",
+            "instance": "elastic-package-service-synthetic_mode-1:9090",
+            "job": "prometheus",
+            "role": "node"
+        },
+        "prometheus_sd_kubernetes_events_total": {
+            "counter": 0,
+            "rate": 0
+        }
+    },
+    "service": {
+        "address": "http://elastic-package-service-synthetic_mode-1:9090/metrics",
+        "type": "prometheus"
+    }
+}

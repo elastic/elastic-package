@@ -139,7 +139,7 @@ const (
 	ReportOutputFlagDescription = "output type for test report, eg: stdout, file"
 
 	ReportOutputPathFlagName        = "report-output-path"
-	ReportOutputPathFlagDescription = "output path for test report"
+	ReportOutputPathFlagDescription = "output path for test report (defaults to %q in build directory)"
 
 	ShowAllFlagName        = "all"
 	ShowAllFlagDescription = "show all deployed package revisions"

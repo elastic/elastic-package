@@ -73,9 +73,7 @@ func RunGenerator(generator genlib.Generator, dataStream, rallyTrackOutputDir st
 	return generator.Close()
 }
 
-func NewGenerator(packageName, dataStreamName, commit string, totSizeInBytes uint64) (genlib.Generator, error) {
-
-	genLibClient := NewClient(commit)
+func NewGenerator(genLibClient GenLibClient, packageName, dataStreamName string, totSizeInBytes uint64) (genlib.Generator, error) {
 
 	config, err := genLibClient.GetConf(packageName, dataStreamName)
 	if err != nil {

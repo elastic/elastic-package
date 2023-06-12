@@ -15,7 +15,10 @@ import (
 	"github.com/elastic/elastic-package/internal/signal"
 )
 
-var waitForPolicyAssignedTimeout = 10 * time.Minute
+var (
+	waitForPolicyAssignedTimeout     = 10 * time.Minute
+	waitForPolicyAssignedRetryPeriod = 2 * time.Second
+)
 
 // Agent represents an Elastic Agent enrolled with fleet.
 type Agent struct {
@@ -82,12 +85,12 @@ func (c *Client) AssignPolicyToAgent(a Agent, p Policy) error {
 }
 
 func (c *Client) waitUntilPolicyAssigned(a Agent, p Policy) error {
-	timeout := time.Now().Add(waitForPolicyAssignedTimeout)
-	for {
-		if time.Now().After(timeout) {
-			return errors.New("timeout: policy hasn't been assigned in time")
-		}
+	timeout := time.NewTimer(waitForPolicyAssignedTimeout)
+	defer timeout.Stop()
+	ticker := time.NewTicker(waitForPolicyAssignedRetryPeriod)
+	defer ticker.Stop()
 
+	for {
 		if signal.SIGINT() {
 			return errors.New("SIGINT: cancel waiting for policy assigned")
 		}
@@ -98,13 +101,19 @@ func (c *Client) waitUntilPolicyAssigned(a Agent, p Policy) error {
 		}
 		logger.Debugf("Agent data: %s", agent.String())
 
-		if agent.PolicyID == p.ID && agent.PolicyRevision == p.Revision {
+		if agent.PolicyID == p.ID && agent.PolicyRevision >= p.Revision {
 			logger.Debugf("Policy revision assigned to the agent (ID: %s)...", a.ID)
 			break
 		}
 
 		logger.Debugf("Wait until the policy (ID: %s, revision: %d) is assigned to the agent (ID: %s)...", p.ID, p.Revision, a.ID)
-		time.Sleep(2 * time.Second)
+		select {
+		case <-timeout.C:
+			return errors.New("timeout: policy hasn't been assigned in time")
+		case <-ticker.C:
+			continue
+		}
+
 	}
 	return nil
 }

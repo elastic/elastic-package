@@ -19,9 +19,11 @@ const createDataStreamLongDescription = `Use this command to create a new data s
 The command can extend the package with a new data stream using embedded data stream template and wizard.`
 
 type newDataStreamAnswers struct {
-	Name  string
-	Title string
-	Type  string
+	Name                   string
+	Title                  string
+	Type                   string
+	SyntheticAndTimeSeries bool
+	Synthetic              bool
 }
 
 func createDataStreamCommandAction(cmd *cobra.Command, args []string) error {
@@ -68,6 +70,40 @@ func createDataStreamCommandAction(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "prompt failed")
 	}
 
+	if answers.Type == "metrics" {
+		qs := []*survey.Question{
+			{
+				Name: "syntheticAndTimeSeries",
+				Prompt: &survey.Confirm{
+					Message: "Enable time series and synthetic source?",
+					Default: true,
+				},
+				Validate: survey.Required,
+			},
+		}
+		err = survey.Ask(qs, &answers)
+		if err != nil {
+			return errors.Wrap(err, "prompt failed")
+		}
+
+		if !answers.SyntheticAndTimeSeries {
+			qs := []*survey.Question{
+				{
+					Name: "synthetic",
+					Prompt: &survey.Confirm{
+						Message: "Enable synthetic source?",
+						Default: true,
+					},
+					Validate: survey.Required,
+				},
+			}
+			err = survey.Ask(qs, &answers)
+			if err != nil {
+				return errors.Wrap(err, "prompt failed")
+			}
+		}
+	}
+
 	descriptor := createDataStreamDescriptorFromAnswers(answers, packageRoot)
 	err = archetype.CreateDataStream(descriptor)
 	if err != nil {
@@ -79,12 +115,27 @@ func createDataStreamCommandAction(cmd *cobra.Command, args []string) error {
 }
 
 func createDataStreamDescriptorFromAnswers(answers newDataStreamAnswers, packageRoot string) archetype.DataStreamDescriptor {
+	manifest := packages.DataStreamManifest{
+		Name:  answers.Name,
+		Title: answers.Title,
+		Type:  answers.Type,
+	}
+
+	if !answers.SyntheticAndTimeSeries && !answers.Synthetic {
+		return archetype.DataStreamDescriptor{
+			Manifest:    manifest,
+			PackageRoot: packageRoot,
+		}
+	}
+	elasticsearch := packages.Elasticsearch{
+		SourceMode: "synthetic",
+	}
+	if answers.SyntheticAndTimeSeries {
+		elasticsearch.IndexMode = "time_series"
+	}
+	manifest.Elasticsearch = &elasticsearch
 	return archetype.DataStreamDescriptor{
-		Manifest: packages.DataStreamManifest{
-			Name:  answers.Name,
-			Title: answers.Title,
-			Type:  answers.Type,
-		},
+		Manifest:    manifest,
 		PackageRoot: packageRoot,
 	}
 }
