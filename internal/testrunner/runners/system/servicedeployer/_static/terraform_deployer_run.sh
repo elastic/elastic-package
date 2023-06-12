@@ -24,8 +24,6 @@ terraform apply -auto-approve
 
 terraform output -json > /output/tfOutputValues.json
 
-cat /output/tfOutputValues.json
-
 touch /tmp/tf-applied
 
 echo "Terraform definitions applied."
