@@ -14,16 +14,16 @@ var _ Reportable = &Report{}
 
 type Report struct {
 	pkg string
-	p   []byte
+	r   []byte
 }
 
 func NewReport(pkg string, p []byte) *Report {
-	return &Report{pkg: pkg, p: p}
+	return &Report{pkg: pkg, r: p}
 }
 
 func (r *Report) Package() string { return r.pkg }
 
-func (r *Report) Report() []byte { return r.p }
+func (r *Report) Report() []byte { return r.r }
 
 // Reportable file associates a report to a filename.
 type ReportableFile interface {
@@ -36,17 +36,17 @@ var _ ReportableFile = &FileReport{}
 
 type FileReport struct {
 	pkg      string
-	p        []byte
+	r        []byte
 	filename string
 }
 
 func NewFileReport(pkg, name string, p []byte) *FileReport {
-	return &FileReport{pkg: pkg, p: p, filename: name}
+	return &FileReport{pkg: pkg, r: p, filename: name}
 }
 
 func (r *FileReport) Package() string { return r.pkg }
 
-func (r *FileReport) Report() []byte { return r.p }
+func (r *FileReport) Report() []byte { return r.r }
 
 func (r *FileReport) Filename() string { return r.filename }
 
