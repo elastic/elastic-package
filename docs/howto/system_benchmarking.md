@@ -84,12 +84,12 @@ along with values for package and data stream-level variables. These are the ava
 | wait_for_data_timeout | duration |  | Amount of time to wait for data to be present in Elasticsearch. Defaults to 10m. |
 | corpora.generator.size | string |  | String describing the amount of data to generate. Example: `20MiB` |
 | corpora.generator.template.raw | string |  | Raw template for the corpus generator. |
-| corpora.generator.template.path | string |  | Path to the template for the corpus generator. |
+| corpora.generator.template.path | string |  | Path to the template for the corpus generator. If a `path` is defined, it will override any `raw` template definition. |
 | corpora.generator.template.type | string |  | Type of the template for the corpus generator. Default `placeholder`. |
 | corpora.generator.config.raw | dictionary |  | Raw config for the corpus generator. |
-| corpora.generator.config.path | string |  | Path to the config for the corpus generator. |
+| corpora.generator.config.path | string |  | Path to the config for the corpus generator. If a `path` is defined, it will override any `raw` config definition. |
 | corpora.generator.fields.raw | dictionary |  | Raw fields for the corpus generator. |
-| corpora.generator.fields.path | string |  | Path to the fields for the corpus generator. |
+| corpora.generator.fields.path | string |  | Path to the fields for the corpus generator. If a `path` is defined, it will override any `raw` fields definition. |
 | corpora.input_service.name | string |  | Name of the input service to use (defined in the `deploy` folder). |
 | corpora.input_service.signal | string |  | Signal to send to the input service once the benchmark is ready to start. |
 

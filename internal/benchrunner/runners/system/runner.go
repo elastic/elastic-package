@@ -447,9 +447,7 @@ func (r *runner) getGeneratorConfig() (*config.Config, error) {
 		if err != nil {
 			return nil, fmt.Errorf("can't read config file %s: %w", configPath, err)
 		}
-	}
-
-	if len(r.scenario.Corpora.Generator.Config.Raw) > 0 {
+	} else if len(r.scenario.Corpora.Generator.Config.Raw) > 0 {
 		data, err = yaml.Marshal(r.scenario.Corpora.Generator.Config.Raw)
 		if err != nil {
 			return nil, fmt.Errorf("can't parse raw generator config: %w", err)
@@ -481,9 +479,7 @@ func (r *runner) getGeneratorFields() (fields.Fields, error) {
 		if err != nil {
 			return nil, fmt.Errorf("can't read fields file %s: %w", fieldsPath, err)
 		}
-	}
-
-	if len(r.scenario.Corpora.Generator.Fields.Raw) > 0 {
+	} else if len(r.scenario.Corpora.Generator.Fields.Raw) > 0 {
 		data, err = yaml.Marshal(r.scenario.Corpora.Generator.Config.Raw)
 		if err != nil {
 			return nil, fmt.Errorf("can't parse raw generator config: %w", err)
@@ -515,9 +511,7 @@ func (r *runner) getGeneratorTemplate() ([]byte, error) {
 		if err != nil {
 			return nil, fmt.Errorf("can't read template file %s: %w", tplPath, err)
 		}
-	}
-
-	if len(r.scenario.Corpora.Generator.Template.Raw) > 0 {
+	} else if len(r.scenario.Corpora.Generator.Template.Raw) > 0 {
 		data = []byte(r.scenario.Corpora.Generator.Template.Raw)
 	}
 
