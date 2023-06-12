@@ -2,7 +2,7 @@
 description: Benchmark 100MiB of data ingested
 input: filestream
 vars: ~
-data_stream.name: test
+data_stream.name: testds
 data_stream.vars.paths:
   - "{{SERVICE_LOGS_DIR}}/corpus-*"
 warmup_time_period: 10s

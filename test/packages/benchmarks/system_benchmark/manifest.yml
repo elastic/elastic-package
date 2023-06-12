@@ -9,7 +9,7 @@ type: integration
 conditions:
   kibana.version: '^8.0.0'
 policy_templates:
-  - name: test
+  - name: testpo
     title: Test
     description: Description
     inputs:

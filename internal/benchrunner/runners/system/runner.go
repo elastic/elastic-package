@@ -364,13 +364,14 @@ func (r *runner) createPackagePolicy(pkgManifest *packages.PackageManifest, p *k
 		r.scenario.Package = pkgManifest.Name
 	}
 
+	// TODO: add ability to define which policy template to use
 	pp := kibana.PackagePolicy{
 		Namespace: "ep",
 		PolicyID:  p.ID,
 		Vars:      r.scenario.Vars,
 		Force:     true,
 		Inputs: map[string]kibana.PackagePolicyInput{
-			fmt.Sprintf("%s-%s", r.scenario.DataStream.Name, r.scenario.Input): {
+			fmt.Sprintf("%s-%s", pkgManifest.PolicyTemplates[0].Name, r.scenario.Input): {
 				Enabled: true,
 				Streams: map[string]kibana.PackagePolicyStream{
 					fmt.Sprintf("%s.%s", pkgManifest.Name, r.scenario.DataStream.Name): {
