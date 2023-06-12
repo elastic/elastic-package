@@ -18,9 +18,7 @@ import (
 	"github.com/elastic/elastic-package/internal/benchrunner/runners/system/servicedeployer"
 )
 
-const (
-	devPath = "_dev/benchmark/system"
-)
+const devPath = "_dev/benchmark/system"
 
 type scenario struct {
 	Package             string                 `config:"package"`

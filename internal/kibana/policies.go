@@ -215,7 +215,7 @@ func (c *Client) AddPackageDataStreamToPolicy(r PackageDataStream) error {
 	return nil
 }
 
-// PackagePolicy represents an Agent Policy in Fleet.
+// PackagePolicy represents an Package Policy in Fleet.
 type PackagePolicy struct {
 	ID          string `json:"id,omitempty"`
 	Name        string `json:"name"`
