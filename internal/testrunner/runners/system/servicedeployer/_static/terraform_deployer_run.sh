@@ -24,7 +24,7 @@ terraform apply -auto-approve
 
 terraform output -json > /output/tfOutputValues.json
 
-touch /tmp/tf-applied
+touch /tmp/tf-applied # This file is used as indicator (healthcheck) that the service is UP, and so it must be placed as the last statement in the script
 
 echo "Terraform definitions applied."
 
