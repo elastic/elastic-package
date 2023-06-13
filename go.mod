@@ -3,7 +3,7 @@ module github.com/elastic/elastic-package
 go 1.20
 
 require (
-	github.com/AlecAivazis/survey/v2 v2.3.6
+	github.com/AlecAivazis/survey/v2 v2.3.7
 	github.com/Masterminds/semver/v3 v3.2.1
 	github.com/ProtonMail/gopenpgp/v2 v2.7.1
 	github.com/aymerick/raymond v2.0.2+incompatible
