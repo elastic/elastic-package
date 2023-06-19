@@ -82,7 +82,11 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 	if err != nil {
 		return result.WithError(errors.Wrap(err, "could not create kibana client"))
 	}
-	packageInstaller, err := installer.CreateForManifest(kibanaClient, r.packageRootPath)
+	packageInstaller, err := installer.NewForPackage(installer.Options{
+		Kibana:         kibanaClient,
+		RootPath:       r.packageRootPath,
+		SkipValidation: true,
+	})
 	if err != nil {
 		return result.WithError(errors.Wrap(err, "can't create the package installer"))
 	}
