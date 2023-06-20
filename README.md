@@ -336,11 +336,11 @@ The report will show performance differences between both runs.
 It is formatted as a Markdown Github comment to use as part of the CI results.
 
 
-### `elastic-package report pipeline-bench`
+### `elastic-package report benchmark`
 
 _Context: package_
 
-Generate a pipeline benchmark report comparing local results against ones from another benchmark run.
+Generate a benchmark report comparing local results against ones from another benchmark run.
 
 ### `elastic-package service`
 
