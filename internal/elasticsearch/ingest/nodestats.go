@@ -121,7 +121,7 @@ func requestPipelineStats(esClient *elasticsearch.API) ([]byte, error) {
 	statsReq := esClient.Nodes.Stats.WithFilterPath("nodes.*.ingest.pipelines")
 	resp, err := esClient.Nodes.Stats(statsReq)
 	if err != nil {
-		return nil, fmt.Errorf("Node Stats API call failed: %w", err)
+		return nil, fmt.Errorf("node stats API call failed: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -167,7 +167,7 @@ func getPipelineStats(body []byte, pipelines []Pipeline) (stats PipelineStatsMap
 		return nil, fmt.Errorf("error decoding Node Stats response: %w", err)
 	}
 	if nodeCount := len(statsResponse.Nodes); nodeCount != 1 {
-		return nil, fmt.Errorf("Need exactly one ES node in stats response (got %d)", nodeCount)
+		return nil, fmt.Errorf("need exactly one ES node in stats response (got %d)", nodeCount)
 	}
 	var nodePipelines map[string]pipelineStatsRecord
 	for _, node := range statsResponse.Nodes {
@@ -185,7 +185,7 @@ func getPipelineStats(body []byte, pipelines []Pipeline) (stats PipelineStatsMap
 		}
 	}
 	if len(missing) != 0 {
-		return stats, fmt.Errorf("Node Stats response is missing expected pipelines: %s", strings.Join(missing, ", "))
+		return stats, fmt.Errorf("node stats response is missing expected pipelines: %s", strings.Join(missing, ", "))
 	}
 
 	return stats, nil
@@ -430,7 +430,7 @@ func GetNodesStats(esClient *elasticsearch.API) (*NodesStats, error) {
 	)
 	resp, err := esClient.Nodes.Stats(req)
 	if err != nil {
-		return nil, fmt.Errorf("Node Stats API call failed: %w", err)
+		return nil, fmt.Errorf("node stats API call failed: %w", err)
 	}
 	defer resp.Body.Close()
 

@@ -87,7 +87,7 @@ func SimulatePipeline(api *elasticsearch.API, pipelineName string, events []json
 		request.PipelineID = pipelineName
 	})
 	if err != nil {
-		return nil, fmt.Errorf("Simulate API call failed (pipelineName: %s): %w", pipelineName, err)
+		return nil, fmt.Errorf("simulate API call failed (pipelineName: %s): %w", pipelineName, err)
 	}
 	defer r.Body.Close()
 
@@ -117,7 +117,7 @@ func UninstallPipelines(api *elasticsearch.API, pipelines []Pipeline) error {
 	for _, p := range pipelines {
 		resp, err := api.Ingest.DeletePipeline(p.Name)
 		if err != nil {
-			return fmt.Errorf("DeletePipeline API call failed (pipelineName: %s): %w", p.Name, err)
+			return fmt.Errorf("delete pipeline API call failed (pipelineName: %s): %w", p.Name, err)
 		}
 		resp.Body.Close()
 	}
