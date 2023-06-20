@@ -55,7 +55,7 @@ func (d *DockerComposeServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedSer
 	// Verify the Elastic stack network
 	err = stack.EnsureStackNetworkUp()
 	if err != nil {
-		return nil, fmt.Errorf("Elastic stack network is not ready: %w", err)
+		return nil, fmt.Errorf("elastic stack network is not ready: %w", err)
 	}
 
 	// Clean service logs
