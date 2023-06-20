@@ -1,5 +1,5 @@
 ---
-description: Benchmark 100MiB of data ingested
+description: Benchmark 20MiB of data ingested
 input: filestream
 vars: ~
 data_stream.name: testds

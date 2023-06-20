@@ -15,7 +15,7 @@
     min: 10
     max: 59
 - name: Mon
-  enum: 
+  enum:
     - "Jan"
     - "Feb"
     - "Mar"
