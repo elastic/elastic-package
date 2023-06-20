@@ -59,6 +59,7 @@ type runner struct {
 	pipelinePrefix    string
 	generator         genlib.Generator
 	mcollector        *collector
+	corporaFile       string
 
 	// Execution order of following handlers is defined in runner.TearDown() method.
 	deletePolicyHandler     func() error
@@ -277,7 +278,7 @@ func (r *runner) run() (report reporters.Reportable, err error) {
 
 	// TODO reindex if configured and es metricstore is set
 
-	return createReport(r.options.BenchName, r.scenario, msum)
+	return createReport(r.options.BenchName, r.corporaFile, r.scenario, msum)
 }
 
 func (r *runner) startMetricsColletion() {
@@ -555,6 +556,7 @@ func (r *runner) runGenerator(destDir string) error {
 		corpusDocsCount += 1
 	}
 
+	r.corporaFile = f.Name()
 	return r.generator.Close()
 }
 

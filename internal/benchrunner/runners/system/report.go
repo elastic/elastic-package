@@ -19,13 +19,14 @@ import (
 
 type report struct {
 	Info struct {
-		Benchmark   string
-		Description string
-		RunID       string
-		Package     string
-		StartTs     int64
-		EndTs       int64
-		Duration    time.Duration
+		Benchmark            string
+		Description          string
+		RunID                string
+		Package              string
+		StartTs              int64
+		EndTs                int64
+		Duration             time.Duration
+		GeneratedCorporaFile string
 	}
 	Parameters struct {
 		PackageVersion      string
@@ -45,8 +46,8 @@ type report struct {
 	TotalHits           int
 }
 
-func createReport(benchName string, s *scenario, sum *metricsSummary) (reporters.Reportable, error) {
-	r := newReport(benchName, s, sum)
+func createReport(benchName, corporaFile string, s *scenario, sum *metricsSummary) (reporters.Reportable, error) {
+	r := newReport(benchName, corporaFile, s, sum)
 	human := reporters.NewReport(s.Package, reportHumanFormat(r))
 
 	jsonBytes, err := reportJSONFormat(r)
@@ -61,7 +62,7 @@ func createReport(benchName string, s *scenario, sum *metricsSummary) (reporters
 	return mr, nil
 }
 
-func newReport(benchName string, s *scenario, sum *metricsSummary) *report {
+func newReport(benchName, corporaFile string, s *scenario, sum *metricsSummary) *report {
 	var report report
 	report.Info.Benchmark = benchName
 	report.Info.Description = s.Description
@@ -70,6 +71,7 @@ func newReport(benchName string, s *scenario, sum *metricsSummary) *report {
 	report.Info.StartTs = sum.CollectionStartTs
 	report.Info.EndTs = sum.CollectionEndTs
 	report.Info.Duration = time.Duration(sum.CollectionEndTs-sum.CollectionStartTs) * time.Second
+	report.Info.GeneratedCorporaFile = corporaFile
 	report.Parameters.PackageVersion = s.Version
 	report.Parameters.Input = s.Input
 	report.Parameters.Vars = s.Vars
@@ -106,6 +108,7 @@ func reportHumanFormat(r *report) []byte {
 		"start ts (s)", r.Info.StartTs,
 		"end ts (s)", r.Info.EndTs,
 		"duration", r.Info.Duration,
+		"generated corpora file", r.Info.GeneratedCorporaFile,
 	) + "\n")
 
 	pkvs := []interface{}{
