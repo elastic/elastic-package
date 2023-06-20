@@ -51,7 +51,7 @@ func (r runner) CanRunPerDataStream() bool {
 }
 
 // Run runs the asset loading tests
-func (r runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, error) {
+func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, error) {
 	r.testFolder = options.TestFolder
 	r.packageRootPath = options.PackageRootPath
 
