@@ -30,7 +30,10 @@ func (p Pipeline) Processors() (procs []Processor, err error) {
 	default:
 		return nil, fmt.Errorf("unsupported pipeline format: %s", p.Format)
 	}
-	return procs, fmt.Errorf("failure processing %s pipeline '%s': %w", p.Format, p.Filename(), err)
+	if err != nil {
+		return nil, fmt.Errorf("failure processing %s pipeline '%s': %w", p.Format, p.Filename(), err)
+	}
+	return procs, nil
 }
 
 // extract a list of processors from a pipeline definition in YAML format.
