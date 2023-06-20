@@ -496,10 +496,25 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	}
 	r.deletePackageHandler = func() error {
 		err := installer.Uninstall()
-		if err != nil {
-			return fmt.Errorf("failed to uninstall package: %v", err)
+		if err == nil {
+			return nil
 		}
+		// by default system package is part of an agent policy and it cannot be uninstalled
+		// https://github.com/elastic/elastic-package/blob/5f65dc29811c57454bc7142aaf73725b6d4dc8e6/internal/stack/_static/kibana.yml.tmpl#L62
+		switch pkgManifest.Name {
+		case "system":
+			logger.Debugf("failed to uninstall package %q: %s", pkgManifest.Name, err.Error())
+		default:
+			logger.Warnf("failed to uninstall package %q: %s", pkgManifest.Name, err.Error())
+		}
+
 		return nil
+		// by default system package is part of an agent policy and it cannot be uninstalled
+		// https://github.com/elastic/elastic-package/blob/5f65dc29811c57454bc7142aaf73725b6d4dc8e6/internal/stack/_static/kibana.yml.tmpl#L62
+		// if err != nil && pkgManifest.Name != "system" {
+		// 	logger.Warnf("failed to uninstall package %q: %s", pkgManifest.Name, err.Error())
+		// }
+		// return nil
 	}
 
 	// Configure package (single data stream) via Ingest Manager APIs.
