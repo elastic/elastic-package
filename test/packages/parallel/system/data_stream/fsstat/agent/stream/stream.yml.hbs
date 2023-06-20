@@ -1,0 +1,12 @@
+metricsets: ["fsstat"]
+period: {{period}}
+processors: {{processors}}
+{{#if system.hostfs}}
+system.hostfs: {{system.hostfs}}
+{{/if}}
+{{#if tags.length}}
+tags:
+{{#each tags as |tag i|}}
+- {{tag}}
+{{/each}}
+{{/if}}
