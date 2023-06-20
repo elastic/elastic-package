@@ -66,6 +66,7 @@ type runner struct {
 	resetAgentPolicyHandler func() error
 	shutdownServiceHandler  func() error
 	wipeDataStreamHandler   func() error
+	clearCorporaHandler     func() error
 }
 
 func NewSystemBenchmark(opts Options) benchrunner.Runner {
@@ -116,6 +117,14 @@ func (r *runner) TearDown() error {
 		}
 		r.wipeDataStreamHandler = nil
 	}
+
+	if r.clearCorporaHandler != nil {
+		if err := r.clearCorporaHandler(); err != nil {
+			merr = append(merr, err)
+		}
+		r.clearCorporaHandler = nil
+	}
+
 	if len(merr) == 0 {
 		return nil
 	}
@@ -557,6 +566,10 @@ func (r *runner) runGenerator(destDir string) error {
 	}
 
 	r.corporaFile = f.Name()
+	r.clearCorporaHandler = func() error {
+		return os.Remove(r.corporaFile)
+	}
+
 	return r.generator.Close()
 }
 
