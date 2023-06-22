@@ -32,9 +32,10 @@ func YAMLFormatter(content []byte) ([]byte, bool, error) {
 	}
 	formatted := b.Bytes()
 
+	prefix := []byte("---\n")
 	// required to preserve yaml files starting with "---" as yaml.Encoding strips them
-	if bytes.HasPrefix(content, []byte("---\n")) {
-		formatted = append([]byte("---\n"), formatted...)
+	if bytes.HasPrefix(content, prefix) && !bytes.HasPrefix(formatted, prefix) {
+		formatted = append(prefix, formatted...)
 	}
 
 	return formatted, string(content) == string(formatted), nil
