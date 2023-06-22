@@ -1,0 +1,12 @@
+---
+description: Benchmark 20MiB of data ingested
+input: filestream
+vars: ~
+data_stream.name: testds
+data_stream.vars.paths:
+  - "{{SERVICE_LOGS_DIR}}/corpus-*"
+warmup_time_period: 10s
+corpora.generator.size: 20MiB
+corpora.generator.template.path: ./logs-benchmark/template.log
+corpora.generator.config.path: ./logs-benchmark/config.yml
+corpora.generator.fields.path: ./logs-benchmark/fields.yml

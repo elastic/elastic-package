@@ -16,7 +16,7 @@ import (
 // The function is exposed, so it can be used by other internal packages.
 func YAMLFormatter(content []byte) ([]byte, bool, error) {
 	// yaml.Unmarshal() requires `yaml.Node` to be passed instead of generic `interface{}`.
-	// Otherwise it can detect any comments and fields are considered as normal map.
+	// Otherwise it can't detect any comments and fields are considered as normal map.
 	var node yaml.Node
 	err := yaml.Unmarshal(content, &node)
 	if err != nil {
@@ -31,5 +31,12 @@ func YAMLFormatter(content []byte) ([]byte, bool, error) {
 		return nil, false, errors.Wrap(err, "marshalling YAML node failed")
 	}
 	formatted := b.Bytes()
+
+	prefix := []byte("---\n")
+	// required to preserve yaml files starting with "---" as yaml.Encoding strips them
+	if bytes.HasPrefix(content, prefix) && !bytes.HasPrefix(formatted, prefix) {
+		formatted = append(prefix, formatted...)
+	}
+
 	return formatted, string(content) == string(formatted), nil
 }

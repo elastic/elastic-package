@@ -10,41 +10,49 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
-	"time"
 
 	"github.com/elastic/elastic-package/internal/benchrunner"
+	"github.com/elastic/elastic-package/internal/benchrunner/reporters"
 	"github.com/elastic/elastic-package/internal/elasticsearch/ingest"
 	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/internal/testrunner"
 )
 
 const (
 	// BenchType defining pipeline benchmarks.
-	BenchType benchrunner.BenchType = "pipeline"
+	BenchType benchrunner.Type = "pipeline"
 
 	expectedTestResultSuffix = "-expected.json"
 	configTestSuffixYAML     = "-config.yml"
 )
 
 type runner struct {
-	options   benchrunner.BenchOptions
-	pipelines []ingest.Pipeline
+	options       Options
+	entryPipeline string
+	pipelines     []ingest.Pipeline
 }
 
-// Type returns the type of benchmark that can be run by this benchmark runner.
-func (r *runner) Type() benchrunner.BenchType {
-	return BenchType
+func NewPipelineBenchmark(opts Options) benchrunner.Runner {
+	return &runner{options: opts}
 }
 
-// String returns the human-friendly name of the benchmark runner.
-func (r *runner) String() string {
-	return "pipeline"
-}
+func (r *runner) SetUp() error {
+	dataStreamPath, found, err := packages.FindDataStreamRootForPath(r.options.Folder.Path)
+	if err != nil {
+		return fmt.Errorf("locating data_stream root failed: %w", err)
+	}
+	if !found {
+		return errors.New("data stream root not found")
+	}
 
-// Run runs the pipeline benchmarks defined under the given folder
-func (r *runner) Run(options benchrunner.BenchOptions) (*benchrunner.Result, error) {
-	r.options = options
-	return r.run()
+	r.entryPipeline, r.pipelines, err = ingest.InstallDataStreamPipelines(r.options.API, dataStreamPath)
+	if err != nil {
+		return fmt.Errorf("installing ingest pipelines failed: %w", err)
+	}
+
+	return nil
 }
 
 // TearDown shuts down the pipeline benchmark runner.
@@ -55,40 +63,96 @@ func (r *runner) TearDown() error {
 	return nil
 }
 
-func (r *runner) run() (*benchrunner.Result, error) {
-	dataStreamPath, found, err := packages.FindDataStreamRootForPath(r.options.Folder.Path)
-	if err != nil {
-		return nil, fmt.Errorf("locating data_stream root failed: %w", err)
-	}
-	if !found {
-		return nil, errors.New("data stream root not found")
-	}
+// Run runs the pipeline benchmarks defined under the given folder
+func (r *runner) Run() (reporters.Reportable, error) {
+	return r.run()
+}
 
-	var entryPipeline string
-	entryPipeline, r.pipelines, err = ingest.InstallDataStreamPipelines(r.options.API, dataStreamPath)
-	if err != nil {
-		return nil, fmt.Errorf("installing ingest pipelines failed: %w", err)
-	}
-
-	start := time.Now()
-	result := &benchrunner.Result{
-		BenchType:  BenchType + " benchmark",
-		Package:    r.options.Folder.Package,
-		DataStream: r.options.Folder.DataStream,
-	}
-
+func (r *runner) run() (reporters.Reportable, error) {
 	b, err := r.loadBenchmark()
 	if err != nil {
 		return nil, fmt.Errorf("loading benchmark failed: %w", err)
 	}
 
-	if result.Benchmark, err = r.benchmarkPipeline(b, entryPipeline); err != nil {
-		result.ErrorMsg = err.Error()
+	benchmark, err := r.benchmarkPipeline(b, r.entryPipeline)
+	if err != nil {
+		return nil, err
 	}
 
-	result.TimeElapsed = time.Since(start)
+	formattedReport, err := formatResult(r.options.Format, benchmark)
+	if err != nil {
+		return nil, err
+	}
 
-	return result, nil
+	switch r.options.Format {
+	case ReportFormatHuman:
+		return reporters.NewReport(r.options.Folder.Package, formattedReport), nil
+	}
+
+	return reporters.NewFileReport(
+		r.options.BenchName,
+		filenameByFormat(r.options.BenchName, r.options.Format),
+		formattedReport,
+	), nil
+}
+
+// FindBenchmarkFolders finds benchmark folders for the given package and, optionally, benchmark type and data streams
+func FindBenchmarkFolders(packageRootPath string, dataStreams []string) ([]testrunner.TestFolder, error) {
+	// Expected folder structure:
+	// <packageRootPath>/
+	//   data_stream/
+	//     <dataStream>/
+	//       _dev/
+	//         benchmark/
+	//           <benchType>/
+
+	var paths []string
+	if len(dataStreams) > 0 {
+		sort.Strings(dataStreams)
+		for _, dataStream := range dataStreams {
+			p, err := findBenchFolderPaths(packageRootPath, dataStream)
+			if err != nil {
+				return nil, err
+			}
+
+			paths = append(paths, p...)
+		}
+	} else {
+		p, err := findBenchFolderPaths(packageRootPath, "*")
+		if err != nil {
+			return nil, err
+		}
+
+		paths = p
+	}
+
+	sort.Strings(dataStreams)
+	for _, dataStream := range dataStreams {
+		p, err := findBenchFolderPaths(packageRootPath, dataStream)
+		if err != nil {
+			return nil, err
+		}
+
+		paths = append(paths, p...)
+	}
+
+	folders := make([]testrunner.TestFolder, len(paths))
+	_, pkg := filepath.Split(packageRootPath)
+	for idx, p := range paths {
+		relP := strings.TrimPrefix(p, packageRootPath)
+		parts := strings.Split(relP, string(filepath.Separator))
+		dataStream := parts[2]
+
+		folder := testrunner.TestFolder{
+			Path:       p,
+			Package:    pkg,
+			DataStream: dataStream,
+		}
+
+		folders[idx] = folder
+	}
+
+	return folders, nil
 }
 
 func (r *runner) listBenchmarkFiles() ([]string, error) {
@@ -156,6 +220,13 @@ func (r *runner) loadBenchmark() (*benchmark, error) {
 	return tc, nil
 }
 
-func init() {
-	benchrunner.RegisterRunner(&runner{})
+// findBenchFoldersPaths can only be called for benchmark runners that require benchmarks to be defined
+// at the data stream level.
+func findBenchFolderPaths(packageRootPath, dataStreamGlob string) ([]string, error) {
+	benchFoldersGlob := filepath.Join(packageRootPath, "data_stream", dataStreamGlob, "_dev", "benchmark", "pipeline")
+	paths, err := filepath.Glob(benchFoldersGlob)
+	if err != nil {
+		return nil, fmt.Errorf("error finding benchmark folders: %w", err)
+	}
+	return paths, err
 }

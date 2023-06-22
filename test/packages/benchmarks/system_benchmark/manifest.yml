@@ -1,0 +1,23 @@
+format_version: 1.0.0
+name: system_benchmarks
+title: System benchmarks
+version: 999.999.999
+description: Test for system benchmark runner
+categories: ["network"]
+license: basic
+type: integration
+conditions:
+  kibana.version: '^8.0.0'
+policy_templates:
+  - name: testpo
+    title: Test
+    description: Description
+    inputs:
+      - type: udp
+        title: Foo bar
+        description: Foo bar
+      - type: filestream
+        title: Collect logs
+        description: Collecting logs
+owner:
+  github: elastic/integrations

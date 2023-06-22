@@ -13,7 +13,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/elastic/elastic-package/internal/benchrunner"
+	"github.com/elastic/elastic-package/internal/benchrunner/runners/pipeline"
 	"github.com/elastic/elastic-package/internal/reportgenerator"
 )
 
@@ -79,7 +79,7 @@ func (g *generator) generate() ([]byte, error) {
 			return nil, fmt.Errorf("reading new result: %w", err)
 		}
 		pkg, ds := newRes.Package, newRes.DataStream
-		var oldRes benchrunner.BenchmarkResult
+		var oldRes pipeline.BenchmarkResult
 		if oldEntry, found := oldResults[pkg]; found {
 			if ds, found := oldEntry[ds]; found {
 				oldRes, err = readResult(g.options.OldPath, ds)
@@ -95,7 +95,7 @@ func (g *generator) generate() ([]byte, error) {
 	return g.markdownFormat(reports)
 }
 
-func createReport(new, old benchrunner.BenchmarkResult) Report {
+func createReport(new, old pipeline.BenchmarkResult) Report {
 	var r Report
 	r.Package, r.DataStream = new.Package, new.DataStream
 
@@ -110,7 +110,7 @@ func createReport(new, old benchrunner.BenchmarkResult) Report {
 	return r
 }
 
-func getEPS(r benchrunner.BenchmarkResult) float64 {
+func getEPS(r pipeline.BenchmarkResult) float64 {
 	for _, test := range r.Tests {
 		for _, res := range test.Results {
 			if res.Name == "eps" {
@@ -166,29 +166,29 @@ func listAllDirResultsAsMap(path string) (map[string]map[string]fs.DirEntry, err
 	return m, nil
 }
 
-func readResult(path string, e fs.DirEntry) (benchrunner.BenchmarkResult, error) {
+func readResult(path string, e fs.DirEntry) (pipeline.BenchmarkResult, error) {
 	fi, err := e.Info()
 	if err != nil {
-		return benchrunner.BenchmarkResult{}, fmt.Errorf("getting file info failed (file: %s): %w", e.Name(), err)
+		return pipeline.BenchmarkResult{}, fmt.Errorf("getting file info failed (file: %s): %w", e.Name(), err)
 	}
 
 	b, err := os.ReadFile(path + string(os.PathSeparator) + fi.Name())
 	if err != nil {
-		return benchrunner.BenchmarkResult{}, fmt.Errorf("reading result contents (file: %s): %w", fi.Name(), err)
+		return pipeline.BenchmarkResult{}, fmt.Errorf("reading result contents (file: %s): %w", fi.Name(), err)
 	}
 
-	var br benchrunner.BenchmarkResult
+	var br pipeline.BenchmarkResult
 	switch ext := filepath.Ext(fi.Name()); ext {
 	case ".json":
 		if err := json.Unmarshal(b, &br); err != nil {
-			return benchrunner.BenchmarkResult{}, fmt.Errorf("decoding json (file: %s): %w", fi.Name(), err)
+			return pipeline.BenchmarkResult{}, fmt.Errorf("decoding json (file: %s): %w", fi.Name(), err)
 		}
 	case ".xml":
 		if err := xml.Unmarshal(b, &br); err != nil {
-			return benchrunner.BenchmarkResult{}, fmt.Errorf("decoding xml (file: %s): %w", fi.Name(), err)
+			return pipeline.BenchmarkResult{}, fmt.Errorf("decoding xml (file: %s): %w", fi.Name(), err)
 		}
 	default:
-		return benchrunner.BenchmarkResult{}, fmt.Errorf("unsupported result format: %v", ext)
+		return pipeline.BenchmarkResult{}, fmt.Errorf("unsupported result format: %v", ext)
 	}
 
 	return br, nil

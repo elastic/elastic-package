@@ -1,0 +1,36 @@
+title: Test
+release: experimental
+type: logs
+streams:
+  - input: udp
+    title: UDP logs
+    enabled: false
+    description: Collect UDP logs
+    template_path: udp.yml.hbs
+    vars:
+      - name: host
+        type: text
+        title: UDP host to listen on
+        multi: false
+        required: true
+        show_user: true
+        default: localhost
+      - name: port
+        type: integer
+        title: UDP port to listen on
+        multi: false
+        required: true
+        show_user: true
+        default: 9511
+  - input: filestream
+    enabled: false
+    title: Logs
+    description: Collect logs
+    template_path: filestream.yml.hbs
+    vars:
+      - name: paths
+        type: text
+        title: Paths
+        multi: true
+        required: true
+        show_user: true

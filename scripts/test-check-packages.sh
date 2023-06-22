@@ -69,18 +69,23 @@ for d in test/packages/${PACKAGE_TEST_TYPE:-other}/${PACKAGE_UNDER_TEST:-*}/; do
     elastic-package install -v
 
     if [ "${PACKAGE_TEST_TYPE:-other}" == "benchmarks" ]; then
-      rm -rf "${OLDPWD}/build/benchmark-results"
-      elastic-package benchmark -v --report-format xUnit --report-output file --fail-on-missing
-      
-      rm -rf "${OLDPWD}/build/benchmark-results-old"
-      mv "${OLDPWD}/build/benchmark-results" "${OLDPWD}/build/benchmark-results-old"
-      
-      elastic-package benchmark -v --report-format json --report-output file --fail-on-missing
-      
-      elastic-package report --fail-on-missing benchmark \
-        --new ${OLDPWD}/build/benchmark-results \
-        --old ${OLDPWD}/build/benchmark-results-old \
-        --threshold 1 --report-output-path="${OLDPWD}/build/benchreport"
+      if [ "${PACKAGE_UNDER_TEST:-*}" == "pipeline_benchmark" ]; then
+        rm -rf "${OLDPWD}/build/benchmark-results"
+        elastic-package benchmark pipeline -v --report-format xUnit --report-output file --fail-on-missing
+        
+        rm -rf "${OLDPWD}/build/benchmark-results-old"
+        mv "${OLDPWD}/build/benchmark-results" "${OLDPWD}/build/benchmark-results-old"
+        
+        elastic-package benchmark pipeline -v --report-format json --report-output file --fail-on-missing
+        
+        elastic-package report --fail-on-missing benchmark \
+          --new ${OLDPWD}/build/benchmark-results \
+          --old ${OLDPWD}/build/benchmark-results-old \
+          --threshold 1 --report-output-path="${OLDPWD}/build/benchreport"
+      fi
+      if [ "${PACKAGE_UNDER_TEST:-*}" == "system_benchmark" ]; then
+        elastic-package benchmark system --benchmark logs-benchmark -v --defer-cleanup 1s
+      fi
     else
       # defer-cleanup is set to a short period to verify that the option is available
       elastic-package test -v --report-format xUnit --report-output file --defer-cleanup 1s --test-coverage

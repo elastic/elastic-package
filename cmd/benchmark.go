@@ -5,20 +5,23 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/dustin/go-humanize"
 
 	"github.com/elastic/elastic-package/internal/corpusgenerator"
+	"github.com/elastic/elastic-package/internal/kibana"
 
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/benchrunner"
-	"github.com/elastic/elastic-package/internal/benchrunner/reporters/formats"
+	"github.com/elastic/elastic-package/internal/benchrunner/reporters"
 	"github.com/elastic/elastic-package/internal/benchrunner/reporters/outputs"
-	_ "github.com/elastic/elastic-package/internal/benchrunner/runners" // register all benchmark runners
+	"github.com/elastic/elastic-package/internal/benchrunner/runners/pipeline"
+	"github.com/elastic/elastic-package/internal/benchrunner/runners/system"
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/elasticsearch"
@@ -39,52 +42,26 @@ const benchLongDescription = `Use this command to run benchmarks on a package. C
 
 These benchmarks allow you to benchmark any Ingest Node Pipelines defined by your packages.
 
-For details on how to configure pipeline benchmarks for a package, review the [HOWTO guide](./docs/howto/pipeline_benchmarking.md).`
+For details on how to configure pipeline benchmarks for a package, review the [HOWTO guide](./docs/howto/pipeline_benchmarking.md).
+
+#### System Benchmarks
+
+These benchmarks allow you to benchmark an integration end to end.
+
+For details on how to configure system benchmarks for a package, review the [HOWTO guide](./docs/howto/system_benchmarking.md).`
 
 func setupBenchmarkCommand() *cobraext.Command {
-	var benchTypeCmdActions []cobraext.CommandAction
-
 	cmd := &cobra.Command{
 		Use:   "benchmark",
 		Short: "Run benchmarks for the package",
 		Long:  benchLongDescription,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			cmd.Println("Run benchmarks for the package")
-
-			if len(args) > 0 {
-				return fmt.Errorf("unsupported benchmark type: %s", args[0])
-			}
-
-			return cobraext.ComposeCommandActions(cmd, args, benchTypeCmdActions...)
-		}}
-
-	cmd.Flags().BoolP(cobraext.FailOnMissingFlagName, "m", false, cobraext.FailOnMissingFlagDescription)
-	cmd.Flags().StringP(cobraext.ReportFormatFlagName, "", string(formats.ReportFormatHuman), cobraext.ReportFormatFlagDescription)
-	cmd.Flags().StringP(cobraext.ReportOutputFlagName, "", string(outputs.ReportOutputSTDOUT), cobraext.ReportOutputFlagDescription)
-	cmd.Flags().BoolP(cobraext.BenchWithTestSamplesFlagName, "", true, cobraext.BenchWithTestSamplesFlagDescription)
-	cmd.Flags().IntP(cobraext.BenchNumTopProcsFlagName, "", 10, cobraext.BenchNumTopProcsFlagDescription)
-	cmd.Flags().StringSliceP(cobraext.DataStreamsFlagName, "", nil, cobraext.DataStreamsFlagDescription)
-
-	for benchType, runner := range benchrunner.BenchRunners() {
-		action := benchTypeCommandActionFactory(runner)
-		benchTypeCmdActions = append(benchTypeCmdActions, action)
-
-		benchTypeCmd := &cobra.Command{
-			Use:   string(benchType),
-			Short: fmt.Sprintf("Run %s benchmarks", runner.String()),
-			Long:  fmt.Sprintf("Run %s benchmarks for the package.", runner.String()),
-			RunE:  action,
-		}
-
-		benchTypeCmd.Flags().BoolP(cobraext.FailOnMissingFlagName, "m", false, cobraext.FailOnMissingFlagDescription)
-		benchTypeCmd.Flags().StringP(cobraext.ReportFormatFlagName, "", string(formats.ReportFormatHuman), cobraext.ReportFormatFlagDescription)
-		benchTypeCmd.Flags().StringP(cobraext.ReportOutputFlagName, "", string(outputs.ReportOutputSTDOUT), cobraext.ReportOutputFlagDescription)
-		benchTypeCmd.Flags().BoolP(cobraext.BenchWithTestSamplesFlagName, "", true, cobraext.BenchWithTestSamplesFlagDescription)
-		benchTypeCmd.Flags().IntP(cobraext.BenchNumTopProcsFlagName, "", 10, cobraext.BenchNumTopProcsFlagDescription)
-		benchTypeCmd.Flags().StringSliceP(cobraext.DataStreamsFlagName, "d", nil, cobraext.DataStreamsFlagDescription)
-
-		cmd.AddCommand(benchTypeCmd)
 	}
+
+	pipelineCmd := getPipelineCommand()
+	cmd.AddCommand(pipelineCmd)
+
+	systemCmd := getSystemCommand()
+	cmd.AddCommand(systemCmd)
 
 	generateCorpusCmd := getGenerateCorpusCommand()
 	cmd.AddCommand(generateCorpusCmd)
@@ -92,129 +69,235 @@ func setupBenchmarkCommand() *cobraext.Command {
 	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
 }
 
-func benchTypeCommandActionFactory(runner benchrunner.BenchRunner) cobraext.CommandAction {
-	benchType := runner.Type()
-	return func(cmd *cobra.Command, args []string) error {
-		cmd.Printf("Run %s benchmarks for the package\n", benchType)
+func getPipelineCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "pipeline",
+		Short: "Run pipeline benchmarks",
+		Long:  "Run pipeline benchmarks for the package",
+		RunE:  pipelineCommandAction,
+	}
 
-		failOnMissing, err := cmd.Flags().GetBool(cobraext.FailOnMissingFlagName)
-		if err != nil {
-			return cobraext.FlagParsingError(err, cobraext.FailOnMissingFlagName)
-		}
+	cmd.Flags().BoolP(cobraext.FailOnMissingFlagName, "m", false, cobraext.FailOnMissingFlagDescription)
+	cmd.Flags().StringP(cobraext.ReportFormatFlagName, "", string(pipeline.ReportFormatHuman), cobraext.ReportFormatFlagDescription)
+	cmd.Flags().StringP(cobraext.ReportOutputFlagName, "", string(outputs.ReportOutputSTDOUT), cobraext.ReportOutputFlagDescription)
+	cmd.Flags().StringSliceP(cobraext.DataStreamsFlagName, "d", nil, cobraext.DataStreamsFlagDescription)
+	cmd.Flags().BoolP(cobraext.BenchWithTestSamplesFlagName, "", true, cobraext.BenchWithTestSamplesFlagDescription)
+	cmd.Flags().IntP(cobraext.BenchNumTopProcsFlagName, "", 10, cobraext.BenchNumTopProcsFlagDescription)
 
-		reportFormat, err := cmd.Flags().GetString(cobraext.ReportFormatFlagName)
-		if err != nil {
-			return cobraext.FlagParsingError(err, cobraext.ReportFormatFlagName)
-		}
+	return cmd
+}
 
-		reportOutput, err := cmd.Flags().GetString(cobraext.ReportOutputFlagName)
-		if err != nil {
-			return cobraext.FlagParsingError(err, cobraext.ReportOutputFlagName)
-		}
+func pipelineCommandAction(cmd *cobra.Command, args []string) error {
+	cmd.Println("Run pipeline benchmarks for the package")
 
-		useTestSamples, err := cmd.Flags().GetBool(cobraext.BenchWithTestSamplesFlagName)
-		if err != nil {
-			return cobraext.FlagParsingError(err, cobraext.BenchWithTestSamplesFlagName)
-		}
+	failOnMissing, err := cmd.Flags().GetBool(cobraext.FailOnMissingFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.FailOnMissingFlagName)
+	}
 
-		numTopProcs, err := cmd.Flags().GetInt(cobraext.BenchNumTopProcsFlagName)
-		if err != nil {
-			return cobraext.FlagParsingError(err, cobraext.BenchNumTopProcsFlagName)
-		}
+	reportFormat, err := cmd.Flags().GetString(cobraext.ReportFormatFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.ReportFormatFlagName)
+	}
 
-		packageRootPath, found, err := packages.FindPackageRoot()
-		if !found {
-			return errors.New("package root not found")
-		}
-		if err != nil {
-			return errors.Wrap(err, "locating package root failed")
-		}
+	reportOutput, err := cmd.Flags().GetString(cobraext.ReportOutputFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.ReportOutputFlagName)
+	}
 
-		dataStreams, err := cmd.Flags().GetStringSlice(cobraext.DataStreamsFlagName)
-		if err != nil {
+	useTestSamples, err := cmd.Flags().GetBool(cobraext.BenchWithTestSamplesFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.BenchWithTestSamplesFlagName)
+	}
+
+	numTopProcs, err := cmd.Flags().GetInt(cobraext.BenchNumTopProcsFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.BenchNumTopProcsFlagName)
+	}
+
+	packageRootPath, found, err := packages.FindPackageRoot()
+	if !found {
+		return errors.New("package root not found")
+	}
+	if err != nil {
+		return fmt.Errorf("locating package root failed: %w", err)
+	}
+
+	dataStreams, err := cmd.Flags().GetStringSlice(cobraext.DataStreamsFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.DataStreamsFlagName)
+	}
+
+	if len(dataStreams) > 0 {
+		common.TrimStringSlice(dataStreams)
+
+		if err := validateDataStreamsFlag(packageRootPath, dataStreams); err != nil {
 			return cobraext.FlagParsingError(err, cobraext.DataStreamsFlagName)
 		}
-
-		if len(dataStreams) > 0 {
-			common.TrimStringSlice(dataStreams)
-
-			if err := validateDataStreamsFlag(packageRootPath, dataStreams); err != nil {
-				return cobraext.FlagParsingError(err, cobraext.DataStreamsFlagName)
-			}
-		}
-
-		signal.Enable()
-
-		benchFolders, err := benchrunner.FindBenchmarkFolders(packageRootPath, dataStreams, benchType)
-		if err != nil {
-			return errors.Wrap(err, "unable to determine benchmark folder paths")
-		}
-
-		if useTestSamples {
-			testFolders, err := testrunner.FindTestFolders(packageRootPath, dataStreams, testrunner.TestType(benchType))
-			if err != nil {
-				return errors.Wrap(err, "unable to determine test folder paths")
-			}
-			benchFolders = append(benchFolders, testFolders...)
-		}
-
-		if failOnMissing && len(benchFolders) == 0 {
-			if len(dataStreams) > 0 {
-				return fmt.Errorf("no %s benchmarks found for %s data stream(s)", benchType, strings.Join(dataStreams, ","))
-			}
-			return fmt.Errorf("no %s benchmarks found", benchType)
-		}
-
-		esClient, err := elasticsearch.NewClient()
-		if err != nil {
-			return errors.Wrap(err, "can't create Elasticsearch client")
-		}
-		err = esClient.CheckHealth(cmd.Context())
-		if err != nil {
-			return err
-		}
-
-		var results []*benchrunner.Result
-		for _, folder := range benchFolders {
-			r, err := benchrunner.Run(benchType, benchrunner.BenchOptions{
-				Folder:          folder,
-				PackageRootPath: packageRootPath,
-				API:             esClient.API,
-				NumTopProcs:     numTopProcs,
-			})
-
-			if err != nil {
-				return errors.Wrapf(err, "error running package %s benchmarks", benchType)
-			}
-
-			results = append(results, r)
-		}
-
-		format := benchrunner.BenchReportFormat(reportFormat)
-		benchReports, err := benchrunner.FormatReport(format, results)
-		if err != nil {
-			return errors.Wrap(err, "error formatting benchmark report")
-		}
-
-		m, err := packages.ReadPackageManifestFromPackageRoot(packageRootPath)
-		if err != nil {
-			return errors.Wrapf(err, "reading package manifest failed (path: %s)", packageRootPath)
-		}
-
-		for idx, report := range benchReports {
-			if err := benchrunner.WriteReport(fmt.Sprintf("%s-%d", m.Name, idx+1), benchrunner.BenchReportOutput(reportOutput), report, format); err != nil {
-				return errors.Wrap(err, "error writing benchmark report")
-			}
-		}
-
-		// Check if there is any error or failure reported
-		for _, r := range results {
-			if r.ErrorMsg != "" {
-				return fmt.Errorf("one or more benchmarks failed: %v", r.ErrorMsg)
-			}
-		}
-		return nil
 	}
+
+	signal.Enable()
+
+	benchFolders, err := pipeline.FindBenchmarkFolders(packageRootPath, dataStreams)
+	if err != nil {
+		return fmt.Errorf("unable to determine benchmark folder paths: %w", err)
+	}
+
+	if useTestSamples {
+		testFolders, err := testrunner.FindTestFolders(packageRootPath, dataStreams, testrunner.TestType(pipeline.BenchType))
+		if err != nil {
+			return fmt.Errorf("unable to determine test folder paths: %w", err)
+		}
+		benchFolders = append(benchFolders, testFolders...)
+	}
+
+	if failOnMissing && len(benchFolders) == 0 {
+		if len(dataStreams) > 0 {
+			return fmt.Errorf("no pipeline benchmarks found for %s data stream(s)", strings.Join(dataStreams, ","))
+		}
+		return errors.New("no pipeline benchmarks found")
+	}
+
+	esClient, err := elasticsearch.NewClient()
+	if err != nil {
+		return fmt.Errorf("can't create Elasticsearch client: %w", err)
+	}
+	err = esClient.CheckHealth(cmd.Context())
+	if err != nil {
+		return err
+	}
+
+	var results []reporters.Reportable
+	for idx, folder := range benchFolders {
+		opts := pipeline.NewOptions(
+			pipeline.WithBenchmarkName(fmt.Sprintf("%s-%d", folder.Package, idx+1)),
+			pipeline.WithFolder(folder),
+			pipeline.WithPackageRootPath(packageRootPath),
+			pipeline.WithESAPI(esClient.API),
+			pipeline.WithNumTopProcs(numTopProcs),
+			pipeline.WithFormat(reportFormat),
+		)
+		runner := pipeline.NewPipelineBenchmark(opts)
+
+		r, err := benchrunner.Run(runner)
+
+		if err != nil {
+			return fmt.Errorf("error running package pipeline benchmarks: %w", err)
+		}
+
+		results = append(results, r)
+	}
+
+	if err != nil {
+		return fmt.Errorf("error running package pipeline benchmarks: %w", err)
+	}
+
+	for _, report := range results {
+		if err := reporters.WriteReportable(reporters.Output(reportOutput), report); err != nil {
+			return fmt.Errorf("error writing benchmark report: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func getSystemCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "system",
+		Short: "Run system benchmarks",
+		Long:  "Run system benchmarks for the package",
+		RunE:  systemCommandAction,
+	}
+
+	cmd.Flags().StringP(cobraext.BenchNameFlagName, "", "", cobraext.BenchNameFlagDescription)
+	cmd.Flags().BoolP(cobraext.BenchReindexToMetricstoreFlagName, "", false, cobraext.BenchReindexToMetricstoreFlagDescription)
+	cmd.Flags().DurationP(cobraext.BenchMetricsIntervalFlagName, "", time.Second, cobraext.BenchMetricsIntervalFlagDescription)
+	cmd.Flags().DurationP(cobraext.DeferCleanupFlagName, "", 0, cobraext.DeferCleanupFlagDescription)
+
+	return cmd
+}
+
+func systemCommandAction(cmd *cobra.Command, args []string) error {
+	cmd.Println("Run system benchmarks for the package")
+
+	benchName, err := cmd.Flags().GetString(cobraext.BenchNameFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.BenchNameFlagName)
+	}
+
+	deferCleanup, err := cmd.Flags().GetDuration(cobraext.DeferCleanupFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.DeferCleanupFlagName)
+	}
+
+	metricsInterval, err := cmd.Flags().GetDuration(cobraext.BenchMetricsIntervalFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.BenchMetricsIntervalFlagName)
+	}
+
+	dataReindex, err := cmd.Flags().GetBool(cobraext.BenchReindexToMetricstoreFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.BenchReindexToMetricstoreFlagName)
+	}
+
+	packageRootPath, found, err := packages.FindPackageRoot()
+	if !found {
+		return errors.New("package root not found")
+	}
+	if err != nil {
+		return fmt.Errorf("locating package root failed: %w", err)
+	}
+
+	signal.Enable()
+
+	esClient, err := elasticsearch.NewClient()
+	if err != nil {
+		return fmt.Errorf("can't create Elasticsearch client: %w", err)
+	}
+	err = esClient.CheckHealth(cmd.Context())
+	if err != nil {
+		return err
+	}
+
+	kc, err := kibana.NewClient()
+	if err != nil {
+		return fmt.Errorf("can't create Kibana client: %w", err)
+	}
+
+	opts := system.NewOptions(
+		system.WithBenchmarkName(benchName),
+		system.WithDeferCleanup(deferCleanup),
+		system.WithMetricsInterval(metricsInterval),
+		system.WithDataReindexing(dataReindex),
+		system.WithPackageRootPath(packageRootPath),
+		system.WithESAPI(esClient.API),
+		system.WithKibanaClient(kc),
+	)
+	runner := system.NewSystemBenchmark(opts)
+
+	r, err := benchrunner.Run(runner)
+	if err != nil {
+		return fmt.Errorf("error running package system benchmarks: %w", err)
+	}
+
+	multiReport, ok := r.(reporters.MultiReportable)
+	if !ok {
+		return fmt.Errorf("system benchmark is expected to return multiple reports")
+	}
+
+	// human report will always be the first
+	human := multiReport.Split()[0]
+	if err := reporters.WriteReportable(reporters.Output(outputs.ReportOutputSTDOUT), human); err != nil {
+		return fmt.Errorf("error writing benchmark report: %w", err)
+	}
+
+	// file report will always be the second
+	file := multiReport.Split()[1]
+	if err := reporters.WriteReportable(reporters.Output(outputs.ReportOutputFile), file); err != nil {
+		return fmt.Errorf("error writing benchmark report: %w", err)
+	}
+
+	return nil
 }
 
 func getGenerateCorpusCommand() *cobra.Command {
@@ -272,14 +355,14 @@ func generateDataStreamCorpusCommandAction(cmd *cobra.Command, _ []string) error
 	genLibClient := corpusgenerator.NewClient(commit)
 	generator, err := corpusgenerator.NewGenerator(genLibClient, packageName, dataSetName, totSizeInBytes)
 	if err != nil {
-		return errors.Wrap(err, "can't generate benchmarks data corpus for data stream")
+		return fmt.Errorf("can't generate benchmarks data corpus for data stream: %w", err)
 	}
 
 	// TODO: we need a way to extract the type from the package and dataset, currently hardcode to `metrics`
 	dataStream := fmt.Sprintf("metrics-%s.%s-default", packageName, dataSetName)
 	err = corpusgenerator.RunGenerator(generator, dataStream, rallyTrackOutputDir)
 	if err != nil {
-		return errors.Wrap(err, "can't generate benchmarks data corpus for data stream")
+		return fmt.Errorf("can't generate benchmarks data corpus for data stream: %w", err)
 	}
 
 	return nil

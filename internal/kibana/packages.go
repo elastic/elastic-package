@@ -10,8 +10,6 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/pkg/errors"
-
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
@@ -22,7 +20,7 @@ func (c *Client) InstallPackage(name, version string) ([]packages.Asset, error) 
 
 	statusCode, respBody, err := c.post(path, reqBody)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not install package")
+		return nil, fmt.Errorf("could not install package: %w", err)
 	}
 
 	return processResults("install", statusCode, respBody)
@@ -34,7 +32,7 @@ func (c *Client) InstallZipPackage(zipFile string) ([]packages.Asset, error) {
 
 	body, err := os.Open(zipFile)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to read zip file")
+		return nil, fmt.Errorf("failed to read zip file: %w", err)
 	}
 	defer body.Close()
 
@@ -46,7 +44,7 @@ func (c *Client) InstallZipPackage(zipFile string) ([]packages.Asset, error) {
 
 	statusCode, respBody, err := c.doRequest(req)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not install zip package")
+		return nil, fmt.Errorf("could not install zip package: %w", err)
 	}
 
 	return processResults("zip-install", statusCode, respBody)
@@ -57,7 +55,7 @@ func (c *Client) RemovePackage(name, version string) ([]packages.Asset, error) {
 	path := fmt.Sprintf("%s/epm/packages/%s-%s", FleetAPI, name, version)
 	statusCode, respBody, err := c.delete(path)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not delete package")
+		return nil, fmt.Errorf("could not delete package: %w", err)
 	}
 
 	return processResults("remove", statusCode, respBody)
@@ -73,7 +71,7 @@ func processResults(action string, statusCode int, respBody []byte) ([]packages.
 	}
 
 	if err := json.Unmarshal(respBody, &resp); err != nil {
-		return nil, errors.Wrapf(err, "could not convert %s package (response) to JSON", action)
+		return nil, fmt.Errorf("could not convert %s package (response) to JSON: %w", action, err)
 	}
 
 	return resp.Assets, nil

@@ -1,0 +1,1 @@
+{{.IP}} - - [{{.Day}}/{{.Mon}}/2022:{{.H}}:{{.MS}}:{{.MS}} +0200] "GET /favicon.ico HTTP/1.1" {{.StatusCode}} {{.Size}} "http://{{.Hostname}}:{{.Port}}/" "skip-this-one/5.0 (Macintosh; Intel Mac OS X 10_12_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.59 Safari/537.36"
