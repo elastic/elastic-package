@@ -51,7 +51,7 @@ func (r runner) CanRunPerDataStream() bool {
 }
 
 // Run runs the asset loading tests
-func (r runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, error) {
+func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, error) {
 	r.testFolder = options.TestFolder
 	r.packageRootPath = options.PackageRootPath
 
@@ -82,7 +82,11 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 	if err != nil {
 		return result.WithError(errors.Wrap(err, "could not create kibana client"))
 	}
-	packageInstaller, err := installer.CreateForManifest(kibanaClient, r.packageRootPath)
+	packageInstaller, err := installer.NewForPackage(installer.Options{
+		Kibana:         kibanaClient,
+		RootPath:       r.packageRootPath,
+		SkipValidation: true,
+	})
 	if err != nil {
 		return result.WithError(errors.Wrap(err, "can't create the package installer"))
 	}
@@ -92,9 +96,18 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 	}
 
 	r.removePackageHandler = func() error {
+		pkgManifest, err := packages.ReadPackageManifestFromPackageRoot(r.packageRootPath)
+		if err != nil {
+			return fmt.Errorf("reading package manifest failed: %w", err)
+		}
+
 		logger.Debug("removing package...")
-		if err := packageInstaller.Uninstall(); err != nil {
-			return errors.Wrap(err, "error cleaning up package")
+		err = packageInstaller.Uninstall()
+
+		// by default system package is part of an agent policy and it cannot be uninstalled
+		// https://github.com/elastic/elastic-package/blob/5f65dc29811c57454bc7142aaf73725b6d4dc8e6/internal/stack/_static/kibana.yml.tmpl#L62
+		if err != nil && pkgManifest.Name != "system" {
+			logger.Warnf("failed to uninstall package %q: %s", pkgManifest.Name, err.Error())
 		}
 		return nil
 	}

@@ -274,7 +274,7 @@ func Run(testType TestType, options TestOptions) ([]TestResult, error) {
 		return nil, errors.Wrap(err, "could not complete test run")
 	}
 	if tdErr != nil {
-		return results, errors.Wrap(err, "could not teardown test runner")
+		return results, errors.Wrap(tdErr, "could not teardown test runner")
 	}
 	return results, nil
 }
