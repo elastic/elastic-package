@@ -84,7 +84,7 @@ for d in test/packages/${PACKAGE_TEST_TYPE:-other}/${PACKAGE_UNDER_TEST:-*}/; do
           --threshold 1 --report-output-path="${OLDPWD}/build/benchreport"
       fi
       if [ "${PACKAGE_UNDER_TEST:-*}" == "system_benchmark" ]; then
-        elastic-package benchmark system --benchmark 20mb-logs-benchmark -v --defer-cleanup 1s
+        elastic-package benchmark system --benchmark logs-benchmark -v --defer-cleanup 1s
       fi
     else
       # defer-cleanup is set to a short period to verify that the option is available

@@ -95,7 +95,7 @@ along with values for package and data stream-level variables. These are the ava
 
 Example:
 
-`100mb-logs-benchmark.yml`
+`logs-benchmark.yml`
 ```yaml
 ---
 description: Benchmark 100MiB of data ingested
@@ -106,9 +106,9 @@ data_stream.vars.paths:
   - "{{SERVICE_LOGS_DIR}}/corpus-*"
 warmup_time_period: 10s
 corpora.generator.size: 100MiB
-corpora.generator.template.path: ./100mb-logs-benchmark/template.log
-corpora.generator.config.path: ./100mb-logs-benchmark/config.yml
-corpora.generator.fields.path: ./100mb-logs-benchmark/fields.yml
+corpora.generator.template.path: ./logs-benchmark/template.log
+corpora.generator.config.path: ./logs-benchmark/config.yml
+corpora.generator.fields.path: ./logs-benchmark/fields.yml
 ```
 
 The top-level `vars` field corresponds to package-level variables defined in the
@@ -163,13 +163,13 @@ $(elastic-package stack shellinit)
 Next, you must invoke the system benchmark runner.
 
 ```
-elastic-package benchmark system --benchmark 100mb-logs-benchmark -v
+elastic-package benchmark system --benchmark logs-benchmark -v
 # ... debug output
 --- Benchmark results for package: system_benchmarks - START ---
 ╭─────────────────────────────────────────────────────╮
 │ info                                                │
 ├──────────────┬──────────────────────────────────────┤
-│ benchmark    │                 100mb-logs-benchmark │
+│ benchmark    │                       logs-benchmark │
 │ description  │    Benchmark 100MiB of data ingested │
 │ run ID       │ d2960c04-0028-42c9-bafc-35e599563cb1 │
 │ package      │                    system_benchmarks │
@@ -188,12 +188,12 @@ elastic-package benchmark system --benchmark 100mb-logs-benchmark -v
 │ benchmark time period           │                                  0s │
 │ wait for data timeout           │                                  0s │
 │ corpora.generator.size          │                              100MiB │
-│ corpora.generator.template.path │ ./100mb-logs-benchmark/template.log │
+│ corpora.generator.template.path │       ./logs-benchmark/template.log │
 │ corpora.generator.template.raw  │                                     │
 │ corpora.generator.template.type │                                     │
-│ corpora.generator.config.path   │   ./100mb-logs-benchmark/config.yml │
+│ corpora.generator.config.path   │         ./logs-benchmark/config.yml │
 │ corpora.generator.config.raw    │                               map[] │
-│ corpora.generator.fields.path   │   ./100mb-logs-benchmark/fields.yml │
+│ corpora.generator.fields.path   │         ./logs-benchmark/fields.yml │
 │ corpora.generator.fields.raw    │                               map[] │
 ╰─────────────────────────────────┴─────────────────────────────────────╯
 ╭───────────────────────╮
