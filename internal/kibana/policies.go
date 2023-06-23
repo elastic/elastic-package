@@ -19,8 +19,8 @@ type Policy struct {
 	Description        string   `json:"description"`
 	Namespace          string   `json:"namespace"`
 	Revision           int      `json:"revision,omitempty"`
-	MonitoringEnabled  []string `json:"monitoring_enabled"`
-	MonitoringOutputID string   `json:"monitoring_output_id"`
+	MonitoringEnabled  []string `json:"monitoring_enabled,omitempty"`
+	MonitoringOutputID string   `json:"monitoring_output_id,omitempty"`
 }
 
 // CreatePolicy persists the given Policy in Fleet.
