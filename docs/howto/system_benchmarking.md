@@ -21,7 +21,7 @@ Conceptually, running a system benchmark involves the following steps:
    the benchmark will continue until the number of documents is not changed in the data stream.
 1. Metrics collection ends and a summary report is created.
 1. Delete test artifacts and tear down the instance of the package's integration service.
-1. **TODO**: Optionally reindex all ingested data into the ES Metricstore for further analysis.
+1. Optionally reindex all ingested data into the ES Metricstore for further analysis.
 1. **TODO**: Optionally compare results against another benchmark run.
 
 ## Defining a system benchmark scenario

@@ -285,7 +285,9 @@ func (r *runner) run() (report reporters.Reportable, err error) {
 		return nil, fmt.Errorf("can't summarize metrics: %w", err)
 	}
 
-	// TODO reindex if configured and es metricstore is set
+	if err := r.reindexData(); err != nil {
+		return nil, fmt.Errorf("can't reindex data: %w", err)
+	}
 
 	return createReport(r.options.BenchName, r.corporaFile, r.scenario, msum)
 }
@@ -690,6 +692,159 @@ func (r *runner) enrollAgents() error {
 	}
 
 	return nil
+}
+
+func (r *runner) reindexData() error {
+	if !r.options.ReindexData {
+		return nil
+	}
+	if r.options.ESMetricsAPI == nil {
+		return errors.New("the option to reindex data is set, but the metricstore was not initialized")
+	}
+
+	logger.Debug("starting reindexing of data...")
+
+	logger.Debug("gettings orignal mappings...")
+	// Get the mapping from the source data stream
+	mappingRes, err := r.options.ESAPI.Indices.GetMapping(
+		r.options.ESAPI.Indices.GetMapping.WithIndex(r.runtimeDataStream),
+	)
+	if err != nil {
+		return fmt.Errorf("error getting mapping: %w", err)
+	}
+	defer mappingRes.Body.Close()
+
+	body, err := io.ReadAll(mappingRes.Body)
+	if err != nil {
+		return fmt.Errorf("error reading mapping body: %w", err)
+	}
+
+	mappings := map[string]struct {
+		Mappings json.RawMessage
+	}{}
+
+	if err := json.Unmarshal(body, &mappings); err != nil {
+		return fmt.Errorf("error unmarshaling mappings: %w", err)
+	}
+
+	if len(mappings) != 1 {
+		return fmt.Errorf("exactly 1 mapping was expected, got %d", len(mappings))
+	}
+
+	var mapping string
+	for _, v := range mappings {
+		mapping = string(v.Mappings)
+	}
+
+	reader := bytes.NewReader(
+		[]byte(fmt.Sprintf(`{
+			"settings": {"number_of_replicas":0},
+			"mappings": %s
+		}`, mapping)),
+	)
+
+	indexName := fmt.Sprintf("bench-reindex-%s-%s", r.runtimeDataStream, r.ctxt.Bench.RunID)
+
+	logger.Debugf("creating %s index in metricstore...", indexName)
+
+	createRes, err := r.options.ESMetricsAPI.Indices.Create(
+		indexName,
+		r.options.ESMetricsAPI.Indices.Create.WithBody(reader),
+	)
+	if err != nil {
+		return fmt.Errorf("could not create index: %w", err)
+	}
+	defer createRes.Body.Close()
+
+	if createRes.IsError() {
+		return errors.New("got a response error while creating index")
+	}
+
+	bodyReader := strings.NewReader(`{"query":{"match_all":{}}}`)
+
+	logger.Debug("starting scrolling of events...")
+	res, err := r.options.ESAPI.Search(
+		r.options.ESAPI.Search.WithIndex(r.runtimeDataStream),
+		r.options.ESAPI.Search.WithBody(bodyReader),
+		r.options.ESAPI.Search.WithScroll(time.Minute),
+		r.options.ESAPI.Search.WithSize(10000),
+	)
+	if err != nil {
+		return fmt.Errorf("error executing search: %w", err)
+	}
+	defer res.Body.Close()
+
+	// Iterate through the search results using the Scroll API
+	for {
+		var sr map[string]interface{}
+		if err := json.NewDecoder(res.Body).Decode(&sr); err != nil {
+			return fmt.Errorf("error decoding search response: %w", err)
+		}
+
+		resErr, found := sr["error"]
+		if found {
+			errStr := resErr.(map[string]interface{})["reason"].(string)
+			return fmt.Errorf("error searching for documents: %s", errStr)
+		}
+
+		hits, found := sr["hits"].(map[string]interface{})["hits"].([]interface{})
+		if !found || len(hits) == 0 {
+			break
+		}
+
+		var bulkBodyBuilder strings.Builder
+		for _, hit := range hits {
+			bulkBodyBuilder.WriteString(fmt.Sprintf("{\"index\":{\"_index\":\"%s\",\"_id\":\"%s\"}}\n", indexName, hit.(map[string]interface{})["_id"]))
+			enriched := r.enrichEventWithBenchmarkMetadata(hit.(map[string]interface{})["_source"].(map[string]interface{}))
+			src, err := json.Marshal(enriched)
+			if err != nil {
+				return fmt.Errorf("error decoding _source: %w", err)
+			}
+			bulkBodyBuilder.WriteString(fmt.Sprintf("%s\n", string(src)))
+		}
+
+		logger.Debugf("bulk request of %d events...", len(hits))
+
+		bulkRes, err := r.options.ESMetricsAPI.Bulk(strings.NewReader(bulkBodyBuilder.String()))
+		if err != nil {
+			return fmt.Errorf("error performing the bulk index request: %w", err)
+		}
+		bulkRes.Body.Close()
+
+		scrollId, found := sr["_scroll_id"].(string)
+		if !found {
+			return errors.New("error getting scroll ID")
+		}
+
+		res, err = r.options.ESAPI.Scroll(
+			r.options.ESAPI.Scroll.WithScrollID(scrollId),
+			r.options.ESAPI.Scroll.WithScroll(time.Minute),
+		)
+		if err != nil {
+			return fmt.Errorf("error executing scroll: %s", err)
+		}
+		defer res.Body.Close()
+	}
+
+	logger.Debug("reindexing operation finished")
+	return nil
+}
+
+type benchMeta struct {
+	Info struct {
+		Benchmark string `json:"benchmark"`
+		RunID     string `json:"run_id"`
+	} `json:"info"`
+	Parameters scenario `json:"parameter"`
+}
+
+func (r *runner) enrichEventWithBenchmarkMetadata(e map[string]interface{}) map[string]interface{} {
+	var m benchMeta
+	m.Info.Benchmark = r.options.BenchName
+	m.Info.RunID = r.ctxt.Bench.RunID
+	m.Parameters = *r.scenario
+	e["benchmark_metadata"] = m
+	return e
 }
 
 func getTotalHits(esapi *elasticsearch.API, dataStream string) (int, error) {
