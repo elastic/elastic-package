@@ -41,10 +41,6 @@ const (
 	// are stored on the Agent container's filesystem.
 	ServiceLogsAgentDir = "/tmp/service_logs"
 
-	waitForDataDefaultTimeout = 10 * time.Minute
-)
-
-const (
 	// BenchType defining system benchmark
 	BenchType benchrunner.Type = "system"
 )
@@ -297,10 +293,11 @@ func (r *runner) startMetricsColletion() {
 	// TODO collect agent hosts metrics using system integration
 	r.mcollector = newCollector(
 		r.ctxt,
+		r.options.BenchName,
+		*r.scenario,
 		r.options.ESAPI,
 		r.options.ESMetricsAPI,
 		r.options.MetricsInterval,
-		r.scenario.WarmupTimePeriod,
 		r.runtimeDataStream,
 		r.pipelinePrefix,
 	)
@@ -609,10 +606,6 @@ func (r *runner) waitUntilBenchmarkFinishes() error {
 	if r.scenario.BenchmarkTimePeriod > 0 {
 		benchTime = time.NewTimer(r.scenario.BenchmarkTimePeriod)
 	}
-	waitForDataTimeout := waitForDataDefaultTimeout
-	if r.scenario.WaitForDataTimeout > 0 {
-		waitForDataTimeout = r.scenario.WaitForDataTimeout
-	}
 
 	oldHits := 0
 	_, err := waitUntilTrue(func() (bool, error) {
@@ -641,7 +634,7 @@ func (r *runner) waitUntilBenchmarkFinishes() error {
 		}
 
 		return ret, err
-	}, waitForDataTimeout)
+	}, *r.scenario.WaitForDataTimeout)
 	return err
 }
 

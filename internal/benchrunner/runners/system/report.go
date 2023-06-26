@@ -78,7 +78,7 @@ func newReport(benchName, corporaFile string, s *scenario, sum *metricsSummary) 
 	report.Parameters.DataStream = s.DataStream
 	report.Parameters.WarmupTimePeriod = s.WarmupTimePeriod
 	report.Parameters.BenchmarkTimePeriod = s.BenchmarkTimePeriod
-	report.Parameters.WaitForDataTimeout = s.WaitForDataTimeout
+	report.Parameters.WaitForDataTimeout = *s.WaitForDataTimeout
 	report.Parameters.Corpora = s.Corpora
 	report.ClusterName = sum.ClusterName
 	report.Nodes = sum.Nodes

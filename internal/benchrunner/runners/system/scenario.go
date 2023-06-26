@@ -72,7 +72,10 @@ type corporaFields struct {
 }
 
 func defaultConfig() *scenario {
-	return &scenario{}
+	timeout := 10 * time.Minute
+	return &scenario{
+		WaitForDataTimeout: &timeout,
+	}
 }
 
 func readConfig(path, scenario string, ctxt servicedeployer.ServiceContext) (*scenario, error) {

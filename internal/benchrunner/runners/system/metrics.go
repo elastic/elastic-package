@@ -24,8 +24,10 @@ var (
 )
 
 type collector struct {
-	ctxt           servicedeployer.ServiceContext
-	warmupD        time.Duration
+	ctxt     servicedeployer.ServiceContext
+	metadata benchMeta
+	scenario scenario
+
 	interval       time.Duration
 	esapi          *elasticsearch.API
 	msapi          *elasticsearch.API
@@ -63,13 +65,20 @@ type metricsSummary struct {
 
 func newCollector(
 	ctxt servicedeployer.ServiceContext,
+	benchName string,
+	scenario scenario,
 	esapi, msapi *elasticsearch.API,
+	interval time.Duration,
 	datastream, pipelinePrefix string,
 ) *collector {
+	meta := benchMeta{Parameters: scenario}
+	meta.Info.Benchmark = benchName
+	meta.Info.RunID = ctxt.Bench.RunID
 	return &collector{
 		ctxt:           ctxt,
 		interval:       interval,
-		warmupD:        warmup,
+		scenario:       scenario,
+		metadata:       meta,
 		esapi:          esapi,
 		msapi:          msapi,
 		datastream:     datastream,
@@ -217,9 +226,9 @@ readyLoop:
 		}
 	}
 
-	if c.warmupD > 0 {
-		logger.Debugf("waiting %s for warmup period", c.warmupD)
-		<-time.After(c.warmupD)
+	if c.scenario.WarmupTimePeriod > 0 {
+		logger.Debugf("waiting %s for warmup period", c.scenario.WarmupTimePeriod)
+		<-time.After(c.scenario.WarmupTimePeriod)
 	}
 	logger.Debug("metric collection starting...")
 }
