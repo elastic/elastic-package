@@ -66,6 +66,20 @@ func OptionWithAddress(address string) ClientOption {
 	}
 }
 
+// OptionWithUsername sets the username to be used by the client.
+func OptionWithUsername(username string) ClientOption {
+	return func(opts *clientOptions) {
+		opts.username = username
+	}
+}
+
+// OptionWithPassword sets the password to be used by the client.
+func OptionWithPassword(password string) ClientOption {
+	return func(opts *clientOptions) {
+		opts.password = password
+	}
+}
+
 // OptionWithCertificateAuthority sets the certificate authority to be used by the client.
 func OptionWithCertificateAuthority(certificateAuthority string) ClientOption {
 	return func(opts *clientOptions) {

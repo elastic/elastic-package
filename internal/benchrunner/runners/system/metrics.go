@@ -11,8 +11,16 @@ import (
 	"github.com/elastic/elastic-package/internal/benchrunner/runners/system/servicedeployer"
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/elasticsearch/ingest"
+	"github.com/elastic/elastic-package/internal/environment"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/signal"
+)
+
+var (
+	ESMetricstoreHostEnv          = environment.WithElasticPackagePrefix("ESMETRICSTORE_HOST")
+	ESMetricstoreUsernameEnv      = environment.WithElasticPackagePrefix("ESMETRICSTORE_USERNAME")
+	ESMetricstorePasswordEnv      = environment.WithElasticPackagePrefix("ESMETRICSTORE_PASSWORD")
+	ESMetricstoreCACertificateEnv = environment.WithElasticPackagePrefix("ESMETRICSTORE_CA_CERT")
 )
 
 type collector struct {
@@ -20,6 +28,7 @@ type collector struct {
 	warmupD        time.Duration
 	interval       time.Duration
 	esapi          *elasticsearch.API
+	msapi          *elasticsearch.API
 	datastream     string
 	pipelinePrefix string
 
@@ -54,8 +63,7 @@ type metricsSummary struct {
 
 func newCollector(
 	ctxt servicedeployer.ServiceContext,
-	esapi *elasticsearch.API,
-	interval, warmup time.Duration,
+	esapi, msapi *elasticsearch.API,
 	datastream, pipelinePrefix string,
 ) *collector {
 	return &collector{
@@ -63,6 +71,7 @@ func newCollector(
 		interval:       interval,
 		warmupD:        warmup,
 		esapi:          esapi,
+		msapi:          msapi,
 		datastream:     datastream,
 		pipelinePrefix: pipelinePrefix,
 		stopC:          make(chan struct{}, 1),

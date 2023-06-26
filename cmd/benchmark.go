@@ -5,8 +5,10 @@
 package cmd
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -14,6 +16,7 @@ import (
 
 	"github.com/elastic/elastic-package/internal/corpusgenerator"
 	"github.com/elastic/elastic-package/internal/kibana"
+	"github.com/elastic/elastic-package/internal/logger"
 
 	"github.com/spf13/cobra"
 
@@ -264,7 +267,7 @@ func systemCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("can't create Kibana client: %w", err)
 	}
 
-	opts := system.NewOptions(
+	withOpts := []system.OptionFunc{
 		system.WithBenchmarkName(benchName),
 		system.WithDeferCleanup(deferCleanup),
 		system.WithMetricsInterval(metricsInterval),
@@ -272,8 +275,17 @@ func systemCommandAction(cmd *cobra.Command, args []string) error {
 		system.WithPackageRootPath(packageRootPath),
 		system.WithESAPI(esClient.API),
 		system.WithKibanaClient(kc),
-	)
-	runner := system.NewSystemBenchmark(opts)
+	}
+
+	esMetricsClient, err := initializeESMetricsClient(cmd.Context())
+	if err != nil {
+		return fmt.Errorf("can't create Elasticsearch metrics client: %w", err)
+	}
+	if esMetricsClient != nil {
+		withOpts = append(withOpts, system.WithESMetricsAPI(esMetricsClient.API))
+	}
+
+	runner := system.NewSystemBenchmark(system.NewOptions(withOpts...))
 
 	r, err := benchrunner.Run(runner)
 	if err != nil {
@@ -366,4 +378,31 @@ func generateDataStreamCorpusCommandAction(cmd *cobra.Command, _ []string) error
 	}
 
 	return nil
+}
+
+func initializeESMetricsClient(ctx context.Context) (*elasticsearch.Client, error) {
+	address := os.Getenv(system.ESMetricstoreHostEnv)
+	user := os.Getenv(system.ESMetricstoreUsernameEnv)
+	pass := os.Getenv(system.ESMetricstorePasswordEnv)
+	cacert := os.Getenv(system.ESMetricstoreCACertificateEnv)
+	if address == "" || user == "" || pass == "" {
+		logger.Debugf("can't initialize metricstore, missing environment configuration")
+		return nil, nil
+	}
+
+	esClient, err := elasticsearch.NewClient(
+		elasticsearch.OptionWithAddress(address),
+		elasticsearch.OptionWithUsername(user),
+		elasticsearch.OptionWithPassword(pass),
+		elasticsearch.OptionWithCertificateAuthority(cacert),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := esClient.CheckHealth(ctx); err != nil {
+		return nil, err
+	}
+
+	return esClient, nil
 }

@@ -13,14 +13,14 @@ import (
 
 // Options contains benchmark runner options.
 type Options struct {
-	ESAPI            *elasticsearch.API
-	KibanaClient     *kibana.Client
-	DeferCleanup     time.Duration
-	MetricsInterval  time.Duration
-	ReindexData      bool
-	MetricstoreESURL string
-	BenchName        string
-	PackageRootPath  string
+	ESAPI           *elasticsearch.API
+	KibanaClient    *kibana.Client
+	DeferCleanup    time.Duration
+	MetricsInterval time.Duration
+	ReindexData     bool
+	ESMetricsAPI    *elasticsearch.API
+	BenchName       string
+	PackageRootPath string
 }
 
 type OptionFunc func(*Options)
@@ -62,13 +62,21 @@ func WithDeferCleanup(d time.Duration) OptionFunc {
 		opts.DeferCleanup = d
 	}
 }
+
 func WithMetricsInterval(d time.Duration) OptionFunc {
 	return func(opts *Options) {
 		opts.MetricsInterval = d
 	}
 }
+
 func WithDataReindexing(b bool) OptionFunc {
 	return func(opts *Options) {
 		opts.ReindexData = b
+	}
+}
+
+func WithESMetricsAPI(api *elasticsearch.API) OptionFunc {
+	return func(opts *Options) {
+		opts.ESMetricsAPI = api
 	}
 }

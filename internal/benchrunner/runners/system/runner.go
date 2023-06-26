@@ -296,6 +296,7 @@ func (r *runner) startMetricsColletion() {
 	r.mcollector = newCollector(
 		r.ctxt,
 		r.options.ESAPI,
+		r.options.ESMetricsAPI,
 		r.options.MetricsInterval,
 		r.scenario.WarmupTimePeriod,
 		r.runtimeDataStream,
