@@ -379,11 +379,11 @@ func (r *runner) createPackagePolicy(pkgManifest *packages.PackageManifest, p *k
 	pp := kibana.PackagePolicy{
 		Namespace: "ep",
 		PolicyID:  p.ID,
-		Vars:      r.scenario.Vars,
 		Force:     true,
 		Inputs: map[string]kibana.PackagePolicyInput{
 			fmt.Sprintf("%s-%s", pkgManifest.PolicyTemplates[0].Name, r.scenario.Input): {
 				Enabled: true,
+				Vars:    r.scenario.Vars,
 				Streams: map[string]kibana.PackagePolicyStream{
 					fmt.Sprintf("%s.%s", pkgManifest.Name, r.scenario.DataStream.Name): {
 						Enabled: true,

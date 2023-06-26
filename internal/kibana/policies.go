@@ -227,13 +227,13 @@ type PackagePolicy struct {
 		Name    string `json:"name"`
 		Version string `json:"version"`
 	} `json:"package"`
-	Vars   map[string]interface{}        `json:"vars,omitempty"`
 	Inputs map[string]PackagePolicyInput `json:"inputs,omitempty"`
 	Force  bool                          `json:"force"`
 }
 
 type PackagePolicyInput struct {
 	Enabled bool                           `json:"enabled"`
+	Vars    map[string]interface{}         `json:"vars,omitempty"`
 	Streams map[string]PackagePolicyStream `json:"streams,omitempty"`
 }
 
