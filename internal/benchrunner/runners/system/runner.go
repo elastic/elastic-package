@@ -886,7 +886,7 @@ func filterAgents(allAgents []kibana.Agent) []kibana.Agent {
 		switch {
 		case agent.LocalMetadata.Host.Name == "docker-fleet-server",
 			agent.PolicyID == "fleet-server-policy",
-			agent.PolicyID == "Elastic Cloud agent policy":
+			agent.PolicyID == "policy-elastic-agent-on-cloud":
 			continue
 		}
 		filtered = append(filtered, agent)
