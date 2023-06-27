@@ -42,7 +42,7 @@ You can run your own custom images for Elasticsearch, Kibana or elastic-agent, s
 
 Be aware that a common issue while trying to boot up the stack is that your Docker environments settings are too low in terms of memory threshold.
 
-For Elastic stack versions prior to 8.7, to expose local packages in the Package Registry, build them first and boot up the stack from inside of the Git repository containing the package (e.g. elastic/integrations). They will be copied to the development stack (~/.elastic-package/stack/development) and used to build a custom Docker image of the Package Registry.
+To expose local packages in the Package Registry, build them first and boot up the stack from inside of the Git repository containing the package (e.g. elastic/integrations). They will be copied to the development stack (~/.elastic-package/stack/development) and used to build a custom Docker image of the Package Registry. Starting with Elastic stack version >= 8.7.0, it is not mandatory to be available local packages in the Package Registry to run the tests.
 
 For details on how to connect the service with the Elastic stack, see the [service command](https://github.com/elastic/elastic-package/blob/main/README.md#elastic-package-service).`
 
