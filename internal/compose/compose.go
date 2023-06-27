@@ -31,15 +31,19 @@ const (
 	waitForHealthyInterval = 1 * time.Second
 )
 
-var DisableANSIComposeEnv = environment.WithElasticPackagePrefix("COMPOSE_DISABLE_ANSI")
+var (
+	DisableANSIComposeEnv             = environment.WithElasticPackagePrefix("COMPOSE_DISABLE_ANSI")
+	DisablePullProgressInformationEnv = environment.WithElasticPackagePrefix("COMPOSE_DISABLE_PULL_PROGRESS_INFORMATION")
+)
 
 // Project represents a Docker Compose project.
 type Project struct {
 	name             string
 	composeFilePaths []string
 
-	dockerComposeV1 bool
-	disableANSI     bool
+	dockerComposeV1                bool
+	disableANSI                    bool
+	disablePullProgressInformation bool
 }
 
 // Config represents a Docker Compose configuration file.
@@ -192,6 +196,11 @@ func NewProject(name string, paths ...string) (*Project, error) {
 		c.disableANSI = true
 	}
 
+	v, ok = os.LookupEnv(DisablePullProgressInformationEnv)
+	if ok && strings.ToLower(v) != "false" {
+		c.disablePullProgressInformation = true
+	}
+
 	return &c, nil
 }
 
@@ -199,7 +208,7 @@ func NewProject(name string, paths ...string) (*Project, error) {
 func (p *Project) Up(opts CommandOptions) error {
 	args := p.baseArgs()
 	args = append(args, "up")
-	if p.disableANSI {
+	if p.disablePullProgressInformation {
 		args = append(args, "--quiet-pull")
 	}
 	args = append(args, opts.ExtraArgs...)
@@ -277,7 +286,7 @@ func (p *Project) Config(opts CommandOptions) (*Config, error) {
 func (p *Project) Pull(opts CommandOptions) error {
 	args := p.baseArgs()
 	args = append(args, "pull")
-	if p.disableANSI {
+	if p.disablePullProgressInformation {
 		args = append(args, "--quiet")
 	}
 	args = append(args, opts.ExtraArgs...)
