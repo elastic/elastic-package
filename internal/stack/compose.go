@@ -13,7 +13,6 @@ import (
 	"github.com/elastic/elastic-package/internal/compose"
 	"github.com/elastic/elastic-package/internal/docker"
 	"github.com/elastic/elastic-package/internal/install"
-	"github.com/elastic/elastic-package/internal/logger"
 )
 
 type ServiceStatus struct {
@@ -207,7 +206,6 @@ func dockerComposeStatus() ([]ServiceStatus, error) {
 		if err != nil {
 			return nil, err
 		}
-		logger.Debugf("Adding Service: \"%v\"", service.Name)
 		services = append(services, *service)
 	}
 
