@@ -11,7 +11,7 @@ achieved in two different ways:
 - [defining environment variables](#using-environment-variables)
 - [updating elastic-package configuration file](#using-the-configuration-file)
 
-If both way are used, environment variables have preference to set the custom image.
+If both ways are used, environment variables have preference to set the custom image.
 
 The current images that could be overwritten are:
 
@@ -23,7 +23,7 @@ The current images that could be overwritten are:
 
 
 For the following two examples, it will be used as example overwriting elastic-agent image.
-Here, there are the steps to follow to create the images for the examples ([docs link](https://github.com/elastic/elastic-agent#packaging)):
+You can find here the instructions to create the docker images for the examples ([docs link](https://github.com/elastic/elastic-agent#packaging)):
 
 ```bash
 # Go to elastic-agent repository and create the packages for docker
