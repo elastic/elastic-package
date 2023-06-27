@@ -73,8 +73,10 @@ var (
 				logsRegexp{
 					includes: regexp.MustCompile("^Cannot index event publisher.Event"),
 					excludes: []*regexp.Regexp{
-						// this regex is excluded to ensure that logs coming from the `system` package installed by default are not taken into account
+						// This regex is excluded to ensure that logs coming from the `system` package installed by default are not taken into account
 						regexp.MustCompile(`action \[indices:data\/write\/bulk\[s\]\] is unauthorized for API key id \[.*\] of user \[.*\] on indices \[.*\], this action is granted by the index privileges \[.*\]`),
+						// Some packages fail with this error, seen when upgrading to 0.83 in https://github.com/elastic/integrations/pull/6679
+						regexp.MustCompile(`action \[indices:admin\/auto_create\] is unauthorized for API key id \[.*\] of user \[.*\] on indices \[.*\], this action is granted by the index privileges \[.*\]`),
 					},
 				},
 				logsRegexp{
