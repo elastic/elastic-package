@@ -360,7 +360,9 @@ Boot up the stack.
 
 _Context: global_
 
-Use this command to spin up a Docker-based Elastic Stack consisting of Elasticsearch, Kibana, and the Package Registry. By default the latest released version of the stack is spun up but it is possible to specify a different version, including SNAPSHOT versions by appending --version <version>. In case, you need to run your own custom images (e.g. Elasticsearch, Kibana or elastic-agent), see [this document](./docs/howto/custom_images.md).
+Use this command to spin up a Docker-based Elastic Stack consisting of Elasticsearch, Kibana, and the Package Registry. By default the latest released version of the stack is spun up but it is possible to specify a different version, including SNAPSHOT versions by appending --version <version>.
+
+You can run your own custom images for Elasticsearch, Kibana or elastic-agent, see [this document](./docs/howto/custom_images.md).
 
 Be aware that a common issue while trying to boot up the stack is that your Docker environments settings are too low in terms of memory threshold.
 
@@ -396,7 +398,9 @@ _Context: global_
 
 Use this command to boot up the stack locally.
 
-By default the latest released version of the stack is spun up but it is possible to specify a different version, including SNAPSHOT versions by appending --version <version>. In case, you need to run your own custom images (e.g. Elasticsearch, Kibana or elastic-agent), see [this document](./docs/howto/custom_images.md).
+By default the latest released version of the stack is spun up but it is possible to specify a different version, including SNAPSHOT versions by appending --version <version>.
+
+You can run your own custom images for Elasticsearch, Kibana or elastic-agent, see [this document](./docs/howto/custom_images.md).
 
 Be aware that a common issue while trying to boot up the stack is that your Docker environments settings are too low in terms of memory threshold.
 
