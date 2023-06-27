@@ -277,6 +277,9 @@ func (p *Project) Config(opts CommandOptions) (*Config, error) {
 func (p *Project) Pull(opts CommandOptions) error {
 	args := p.baseArgs()
 	args = append(args, "pull")
+	if p.disableANSI {
+		args = append(args, "--quiet")
+	}
 	args = append(args, opts.ExtraArgs...)
 	args = append(args, opts.Services...)
 
