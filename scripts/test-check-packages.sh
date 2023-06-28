@@ -8,7 +8,7 @@ run_elastic_package_command() {
         local full_path="${OLDPWD}/${CI_DEBUG_LOG_FILE_PATH}"
         local folder=$(dirname ${full_path})
 
-        elastic-package $@ 2>&1 /dev/stdout | grep " DEBUG " > ${full_path}
+        elastic-package $@ 2>&1 /dev/stdout | tee ${full_path} | grep -v " DEBUG "
         exit 0
     fi
     elastic-package $@
