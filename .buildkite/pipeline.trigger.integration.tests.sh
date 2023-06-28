@@ -36,8 +36,13 @@ CHECK_PACKAGES_TESTS=(
     test-check-packages-benchmarks
 )
 for test in ${CHECK_PACKAGES_TESTS[@]}; do
+    options=""
+    if [ "${test}" == "test-check-packages-benchmarks" ]; then
+        package_name=$(basename ${package})
+        options="-p ${package_name}"
+    fi
     echo "      - label: \":go: Running integration test: ${test}\""
-    echo "        command: ./.buildkite/scripts/integration_tests.sh -t ${test}"
+    echo "        command: ./.buildkite/scripts/integration_tests.sh -t ${test} ${options}"
     echo "        agents:"
     echo "          provider: \"gcp\""
     echo "        artifact_paths:"
