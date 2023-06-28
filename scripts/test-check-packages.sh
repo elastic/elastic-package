@@ -2,11 +2,25 @@
 
 set -euxo pipefail
 
+
+run_elastic_package_command() {
+    local folder=$(dirname ${CI_DEBUG_LOG_FILE_PATH})
+    if [ "${folder}" != "." ]; then
+        mkdir -p ${folder}
+    fi
+
+    if [ "${CI_DEBUG_LOG_TO_FILE:-false}" == "true" ]; then
+        elastic-package $@ 2>&1 /dev/stdout | grep " DEBUG " > ${CI_DEBUG_LOG_FILE_PATH}
+        exit 0
+    fi
+    elastic-package $@
+}
+
 cleanup() {
   r=$?
 
   # Dump stack logs
-  elastic-package stack dump -v --output "build/elastic-stack-dump/check-${PACKAGE_UNDER_TEST:-${PACKAGE_TEST_TYPE:-any}}"
+  run_elastic_package_command stack dump -v --output "build/elastic-stack-dump/check-${PACKAGE_UNDER_TEST:-${PACKAGE_TEST_TYPE:-any}}"
 
   if [ "${PACKAGE_TEST_TYPE:-other}" == "with-kind" ]; then
     # Dump kubectl details
@@ -20,13 +34,13 @@ cleanup() {
   fi
 
   # Take down the stack
-  elastic-package stack down -v
+  run_elastic_package_command stack down -v
 
   # Clean used resources
   for d in test/packages/${PACKAGE_TEST_TYPE:-other}/${PACKAGE_UNDER_TEST:-*}/; do
     (
       cd $d
-      elastic-package clean -v
+      run_elastic_package_commandclean -v
     )
   done
 
@@ -42,18 +56,18 @@ OLDPWD=$PWD
 for d in test/packages/${PACKAGE_TEST_TYPE:-other}/${PACKAGE_UNDER_TEST:-*}/; do
   (
     cd $d
-    elastic-package check -v
+    run_elastic_package_command check -v
   )
 done
 cd -
 
 # Update the stack
-elastic-package stack update -v
+run_elastic_package_command stack update -v
 
 # Boot up the stack
-elastic-package stack up -d -v
+run_elastic_package_command stack up -d -v
 
-elastic-package stack status
+run_elastic_package_command stack status
 
 if [ "${PACKAGE_TEST_TYPE:-other}" == "with-kind" ]; then
   # Boot up the kind cluster
@@ -61,36 +75,36 @@ if [ "${PACKAGE_TEST_TYPE:-other}" == "with-kind" ]; then
 fi
 
 # Run package tests
-eval "$(elastic-package stack shellinit)"
+eval "$(run_elastic_package_command stack shellinit)"
 
 for d in test/packages/${PACKAGE_TEST_TYPE:-other}/${PACKAGE_UNDER_TEST:-*}/; do
   (
     cd $d
-    elastic-package install -v
+    run_elastic_package_command install -v
 
     if [ "${PACKAGE_TEST_TYPE:-other}" == "benchmarks" ]; then
       # It is not used PACKAGE_UNDER_TEST, so all benchmark packages are run in the same loop
       package_to_test=$(basename ${d})
       if [ "${package_to_test}" == "pipeline_benchmark" ]; then
         rm -rf "${OLDPWD}/build/benchmark-results"
-        elastic-package benchmark pipeline -v --report-format xUnit --report-output file --fail-on-missing
+        run_elastic_package_command benchmark pipeline -v --report-format xUnit --report-output file --fail-on-missing
 
         rm -rf "${OLDPWD}/build/benchmark-results-old"
         mv "${OLDPWD}/build/benchmark-results" "${OLDPWD}/build/benchmark-results-old"
 
-        elastic-package benchmark pipeline -v --report-format json --report-output file --fail-on-missing
+        run_elastic_package_command benchmark pipeline -v --report-format json --report-output file --fail-on-missing
 
-        elastic-package report --fail-on-missing benchmark \
+        run_elastic_package_command report --fail-on-missing benchmark \
           --new ${OLDPWD}/build/benchmark-results \
           --old ${OLDPWD}/build/benchmark-results-old \
           --threshold 1 --report-output-path="${OLDPWD}/build/benchreport"
       fi
       if [ "${package_to_test}" == "system_benchmark" ]; then
-        elastic-package benchmark system --benchmark logs-benchmark -v --defer-cleanup 1s
+        run_elastic_package_command benchmark system --benchmark logs-benchmark -v --defer-cleanup 1s
       fi
     else
       # defer-cleanup is set to a short period to verify that the option is available
-      elastic-package test -v --report-format xUnit --report-output file --defer-cleanup 1s --test-coverage
+      run_elastic_package_command test -v --report-format xUnit --report-output file --defer-cleanup 1s --test-coverage
     fi
   )
 cd -

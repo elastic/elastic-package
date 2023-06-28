@@ -27,6 +27,9 @@ for test in ${STACK_COMMAND_TESTS[@]}; do
     echo "          - build/elastic-stack-dump/stack/*/logs/*.log"
     echo "          - build/elastic-stack-dump/stack/*/logs/fleet-server-internal/**/*"
     echo "          - build/elastic-stack-status/*/*"
+    if [ "x${CI_DEBUG_LOG_FILE_PATH}" != "x" ]; then
+        echo "          - ${CI_DEBUG_LOG_FILE_PATH}"
+    fi
 done
 
 CHECK_PACKAGES_TESTS=(
@@ -45,6 +48,9 @@ for test in ${CHECK_PACKAGES_TESTS[@]}; do
     echo "          - build/elastic-stack-dump/check-*/logs/*.log"
     echo "          - build/elastic-stack-dump/check-*/logs/fleet-server-internal/**/*"
     echo "          - build/container-status/*.log"
+    if [ "x${CI_DEBUG_LOG_FILE_PATH}" != "x" ]; then
+        echo "          - ${CI_DEBUG_LOG_FILE_PATH}"
+    fi
     if [[ $test =~ with-kind$ ]]; then
         echo "          - build/kubectl-dump.txt"
     fi
@@ -63,6 +69,9 @@ for package in $(find . -maxdepth 1 -mindepth 1 -type d) ; do
     echo "        artifact_paths:"
     echo "          - build/test-results/*.xml"
     echo "          - build/container-status/*.log"
+    if [ "x${CI_DEBUG_LOG_FILE_PATH}" != "x" ]; then
+        echo "          - ${CI_DEBUG_LOG_FILE_PATH}"
+    fi
 done
 
 popd > /dev/null
@@ -74,6 +83,9 @@ echo "          provider: \"gcp\""
 echo "        artifact_paths:"
 echo "          - build/elastic-stack-dump/build-zip/logs/*.log"
 echo "          - build/packages/*.sig"
+if [ "x${CI_DEBUG_LOG_FILE_PATH}" != "x" ]; then
+    echo "          - ${CI_DEBUG_LOG_FILE_PATH}"
+fi
 
 echo "      - label: \":go: Running integration test: test-install-zip\""
 echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-install-zip"
@@ -81,6 +93,9 @@ echo "        agents:"
 echo "          provider: \"gcp\""
 echo "        artifact_paths:"
 echo "          - build/elastic-stack-dump/install-zip/logs/*.log"
+if [ "x${CI_DEBUG_LOG_FILE_PATH}" != "x" ]; then
+    echo "          - ${CI_DEBUG_LOG_FILE_PATH}"
+fi
 
 echo "      - label: \":go: Running integration test: test-install-zip-shellinit\""
 echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-install-zip-shellinit"
@@ -88,8 +103,14 @@ echo "        agents:"
 echo "          provider: \"gcp\""
 echo "        artifact_paths:"
 echo "          - build/elastic-stack-dump/install-zip-shellinit/logs/*.log"
+if [ "x${CI_DEBUG_LOG_FILE_PATH}" != "x" ]; then
+    echo "          - ${CI_DEBUG_LOG_FILE_PATH}"
+fi
 
 echo "      - label: \":go: Running integration test: test-profiles-command\""
 echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-profiles-command"
 echo "        agents:"
 echo "          provider: \"gcp\""
+if [ "x${CI_DEBUG_LOG_FILE_PATH}" != "x" ]; then
+    echo "          - ${CI_DEBUG_LOG_FILE_PATH}"
+fi
