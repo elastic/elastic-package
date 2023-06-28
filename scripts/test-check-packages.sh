@@ -7,6 +7,7 @@ run_elastic_package_command() {
     if [ "x${CI_DEBUG_LOG_FILE_PATH:-}" != "x" ]; then
         local full_path="${OLDPWD}/${CI_DEBUG_LOG_FILE_PATH}"
         local folder=$(dirname ${full_path})
+        mkdir -p ${folder}
 
         elastic-package $@ 2>&1 /dev/stdout | tee ${full_path} | grep -v " DEBUG "
         exit 0
