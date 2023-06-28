@@ -49,8 +49,6 @@ for test in ${CHECK_PACKAGES_TESTS[@]}; do
     fi
 done
 
-exit 0
-
 pushd test/packages/parallel > /dev/null
 for package in $(find . -maxdepth 1 -mindepth 1 -type d) ; do
     package_name=$(basename ${package})

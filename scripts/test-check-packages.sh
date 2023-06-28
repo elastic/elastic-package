@@ -71,7 +71,6 @@ for d in test/packages/${PACKAGE_TEST_TYPE:-other}/${PACKAGE_UNDER_TEST:-*}/; do
     if [ "${PACKAGE_TEST_TYPE:-other}" == "benchmarks" ]; then
       # It is not used PACKAGE_UNDER_TEST, so all benchmark packages are run in the same loop
       package_to_test=$(basename ${d})
-      echo "> Checking package ${package_to_test}"
       if [ "${package_to_test}" == "pipeline_benchmark" ]; then
         rm -rf "${OLDPWD}/build/benchmark-results"
         elastic-package benchmark pipeline -v --report-format xUnit --report-output file --fail-on-missing
