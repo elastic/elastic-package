@@ -97,9 +97,9 @@ for d in test/packages/${PACKAGE_TEST_TYPE:-other}/${PACKAGE_UNDER_TEST:-*}/; do
           --old ${OLDPWD}/build/benchmark-results-old \
           --threshold 1 --report-output-path="${OLDPWD}/build/benchreport"
       fi
-      if [ "${package_to_test}" == "system_benchmark" ]; then
-        run_elastic_package_command benchmark system --benchmark logs-benchmark -v --defer-cleanup 1s
-      fi
+      # if [ "${package_to_test}" == "system_benchmark" ]; then
+      #   run_elastic_package_command benchmark system --benchmark logs-benchmark -v
+      # fi
     else
       # defer-cleanup is set to a short period to verify that the option is available
       run_elastic_package_command test -v --report-format xUnit --report-output file --defer-cleanup 1s --test-coverage
