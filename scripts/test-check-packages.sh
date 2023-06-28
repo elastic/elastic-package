@@ -4,7 +4,7 @@ set -euxo pipefail
 
 
 run_elastic_package_command() {
-    if [ "x${CI_DEBUG_LOG_FILE_PATH:-}" == "x" ]; then
+    if [ "x${CI_DEBUG_LOG_FILE_PATH:-}" != "x" ]; then
         local full_path="${OLDPWD}/${CI_DEBUG_LOG_FILE_PATH}"
         local folder=$(dirname ${full_path})
 
