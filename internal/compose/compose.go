@@ -314,7 +314,7 @@ func (p *Project) Logs(opts CommandOptions) ([]byte, error) {
 }
 
 // WaitForHealthy method waits until all containers are healthy.
-func (p *Project) WaitForHealthy(opts CommandOptions) error {
+func (p *Project) WaitForHealthy(opts CommandOptions) ([][]byte, error) {
 	// Read container IDs
 	args := p.baseArgs()
 	args = append(args, "ps")
@@ -322,20 +322,21 @@ func (p *Project) WaitForHealthy(opts CommandOptions) error {
 
 	var b bytes.Buffer
 	if err := p.runDockerComposeCmd(dockerComposeOptions{args: args, env: opts.Env, stdout: &b}); err != nil {
-		return err
+		return nil, err
 	}
 
 	startTime := time.Now()
 	timeout := startTime.Add(waitForHealthyTimeout)
 
 	containerIDs := strings.Fields(b.String())
+	containerStatuses := [][]byte{}
 	for {
 		if time.Now().After(timeout) {
-			return errors.New("timeout waiting for healthy container")
+			return containerStatuses, errors.New("timeout waiting for healthy container")
 		}
 
 		if signal.SIGINT() {
-			return errors.New("SIGINT: cancel waiting for policy assigned")
+			return containerStatuses, errors.New("SIGINT: cancel waiting for policy assigned")
 		}
 
 		// NOTE: healthy must be reinitialized at each iteration
@@ -344,11 +345,11 @@ func (p *Project) WaitForHealthy(opts CommandOptions) error {
 		logger.Debugf("Wait for healthy containers: %s", strings.Join(containerIDs, ","))
 		descriptions, err := docker.InspectContainers(containerIDs...)
 		if err != nil {
-			return err
+			return containerStatuses, err
 		}
 
 		for _, containerDescription := range descriptions {
-			logger.Debugf("Container status: %s", containerDescription.String())
+			containerStatuses = append(containerStatuses, []byte(containerDescription.String()))
 
 			// No healthcheck defined for service
 			if containerDescription.State.Status == "running" && containerDescription.State.Health == nil {
@@ -367,7 +368,7 @@ func (p *Project) WaitForHealthy(opts CommandOptions) error {
 
 			// Container exited with code > 0
 			if containerDescription.State.Status == "exited" && containerDescription.State.ExitCode > 0 {
-				return fmt.Errorf("container (ID: %s) exited with code %d", containerDescription.ID, containerDescription.State.ExitCode)
+				return containerStatuses, fmt.Errorf("container (ID: %s) exited with code %d", containerDescription.ID, containerDescription.State.ExitCode)
 			}
 
 			// Any different status is considered unhealthy
@@ -383,7 +384,7 @@ func (p *Project) WaitForHealthy(opts CommandOptions) error {
 		time.Sleep(waitForHealthyInterval)
 	}
 
-	return nil
+	return containerStatuses, nil
 }
 
 func (p *Project) baseArgs() []string {

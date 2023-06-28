@@ -5,6 +5,7 @@
 package servicedeployer
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -89,7 +90,10 @@ func (d *DockerComposeServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedSer
 		return nil, errors.Wrap(err, "could not boot up service using Docker Compose")
 	}
 
-	err = p.WaitForHealthy(opts)
+	statuses, err := p.WaitForHealthy(opts)
+	if statusErr := writeServiceContainerStatus(outCtxt.Name, statuses); statusErr != nil {
+		logger.Errorf("failed to create container status file: %v", statusErr)
+	}
 	if err != nil {
 		processServiceContainerLogs(p, compose.CommandOptions{
 			Env: opts.Env,
@@ -231,6 +235,33 @@ func writeServiceContainerLogs(serviceName string, content []byte) error {
 	err = os.WriteFile(containerLogsFilepath, content, 0644)
 	if err != nil {
 		return errors.Wrapf(err, "can't write container logs to file (path: %s)", containerLogsFilepath)
+	}
+	return nil
+}
+
+func writeServiceContainerStatus(serviceName string, content [][]byte) error {
+	if len(content) == 0 {
+		return nil
+	}
+
+	buildDir, err := builder.BuildDirectory()
+	if err != nil {
+		return fmt.Errorf("locating build directory failed: %w", err)
+	}
+
+	containerStatusDir := filepath.Join(buildDir, "container-status")
+	err = os.MkdirAll(containerStatusDir, 0755)
+	if err != nil {
+		return fmt.Errorf("can't create directory for service container status (path: %s): %w", containerStatusDir, err)
+	}
+
+	containerStatusFilepath := filepath.Join(containerStatusDir, fmt.Sprintf("%s-%d.log", serviceName, time.Now().UnixNano()))
+	logger.Infof("Write container status to file: %s", containerStatusFilepath)
+
+	contentFile := bytes.Join(content, []byte("\n"))
+	err = os.WriteFile(containerStatusFilepath, contentFile, 0644)
+	if err != nil {
+		return fmt.Errorf("can't write container status to file (path: %s): %w", containerStatusFilepath, err)
 	}
 	return nil
 }

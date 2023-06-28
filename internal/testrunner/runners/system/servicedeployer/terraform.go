@@ -148,7 +148,10 @@ func (tsd TerraformServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedServic
 		return nil, errors.Wrap(err, "could not boot up service using Docker Compose")
 	}
 
-	err = p.WaitForHealthy(opts)
+	statuses, err := p.WaitForHealthy(opts)
+	if statusErr := writeServiceContainerStatus(outCtxt.Name, statuses); statusErr != nil {
+		logger.Errorf("failed to create container status file: %v", statusErr)
+	}
 	if err != nil {
 		processServiceContainerLogs(p, compose.CommandOptions{
 			Env: opts.Env,
