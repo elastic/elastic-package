@@ -22,7 +22,7 @@ STACK_COMMAND_TESTS=(
 
 for test in ${STACK_COMMAND_TESTS[@]}; do
     echo "      - label: \":go: Running integration test: ${test}\""
-    echo "        command: ./.buildkite/scripts/integration_tests.sh -t ${test}"
+    echo "        command: bash ./.buildkite/scripts/integration_tests.sh -t ${test}"
     echo "        agents:"
     echo "          provider: \"gcp\""
     echo "        artifact_paths:"
@@ -42,7 +42,7 @@ CHECK_PACKAGES_TESTS=(
 )
 for test in ${CHECK_PACKAGES_TESTS[@]}; do
     echo "      - label: \":go: Running integration test: ${test}\""
-    echo "        command: ./.buildkite/scripts/integration_tests.sh -t ${test}"
+    echo "        command: bash ./.buildkite/scripts/integration_tests.sh -t ${test}"
     echo "        agents:"
     echo "          provider: \"gcp\""
     echo "        artifact_paths:"
@@ -62,7 +62,7 @@ for package in $(find . -maxdepth 1 -mindepth 1 -type d) ; do
     package_name=$(basename ${package})
     echo "      - label: \":go: Running integration test: ${package_name}\""
     echo "        key: \"integration-parallel-${package_name}\""
-    echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-check-packages-parallel -p ${package_name}"
+    echo "        command: bash ./.buildkite/scripts/integration_tests.sh -t test-check-packages-parallel -p ${package_name}"
     echo "        env:"
     echo "          UPLOAD_SAFE_LOGS: 1"
     echo "        agents:"
@@ -77,7 +77,7 @@ done
 popd > /dev/null
 
 echo "      - label: \":go: Running integration test: test-build-zip\""
-echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-build-zip"
+echo "        command: bash ./.buildkite/scripts/integration_tests.sh -t test-build-zip"
 echo "        agents:"
 echo "          provider: \"gcp\""
 echo "        artifact_paths:"
@@ -88,7 +88,7 @@ if [ "x${CI_DEBUG_LOG_FOLDER_PATH}" != "x" ]; then
 fi
 
 echo "      - label: \":go: Running integration test: test-install-zip\""
-echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-install-zip"
+echo "        command: bash ./.buildkite/scripts/integration_tests.sh -t test-install-zip"
 echo "        agents:"
 echo "          provider: \"gcp\""
 echo "        artifact_paths:"
@@ -98,7 +98,7 @@ if [ "x${CI_DEBUG_LOG_FOLDER_PATH}" != "x" ]; then
 fi
 
 echo "      - label: \":go: Running integration test: test-install-zip-shellinit\""
-echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-install-zip-shellinit"
+echo "        command: bash ./.buildkite/scripts/integration_tests.sh -t test-install-zip-shellinit"
 echo "        agents:"
 echo "          provider: \"gcp\""
 echo "        artifact_paths:"
@@ -108,7 +108,7 @@ if [ "x${CI_DEBUG_LOG_FOLDER_PATH}" != "x" ]; then
 fi
 
 echo "      - label: \":go: Running integration test: test-profiles-command\""
-echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-profiles-command"
+echo "        command: bash ./.buildkite/scripts/integration_tests.sh -t test-profiles-command"
 echo "        agents:"
 echo "          provider: \"gcp\""
 if [ "x${CI_DEBUG_LOG_FOLDER_PATH}" != "x" ]; then
