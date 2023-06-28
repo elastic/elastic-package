@@ -8,8 +8,7 @@ buildkite-agent artifact download "build/output-logs/*" .
 
 for package_type in $(ls build/output-logs/); do
     for output_file in $(ls build/output-logs/${package_type}); do
-        elastic-package-demo-output*.log ; do
-        errors=$(grep -E "^Error:" $file)
+        errors=$(grep -E "^Error:" build/ouput-logs/${package_type}/${output_file})
 
         if [ -n "${errors}" ]; then
             cat <<EOF >> markdown.md
