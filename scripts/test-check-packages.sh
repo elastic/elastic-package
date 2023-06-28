@@ -75,7 +75,7 @@ if [ "${PACKAGE_TEST_TYPE:-other}" == "with-kind" ]; then
 fi
 
 # Run package tests
-eval "$(run_elastic_package_command stack shellinit)"
+eval "$(elastic-package stack shellinit)"
 
 for d in test/packages/${PACKAGE_TEST_TYPE:-other}/${PACKAGE_UNDER_TEST:-*}/; do
   (
