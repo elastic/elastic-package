@@ -112,5 +112,6 @@ echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-profile
 echo "        agents:"
 echo "          provider: \"gcp\""
 if [ "x${CI_DEBUG_LOG_FILE_PATH}" != "x" ]; then
+    echo "        artifact_paths:"
     echo "          - ${CI_DEBUG_LOG_FILE_PATH}"
 fi

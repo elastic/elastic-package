@@ -5,7 +5,6 @@ env:
   ELASTIC_PACKAGE_COMPOSE_DISABLE_PULL_PROGRESS_INFORMATION: "true"
   KIND_VERSION: 'v0.17.0'
   K8S_VERSION: 'v1.26.0'
-  CI_DEBUG_LOG_TO_FILE: 'true'
   CI_DEBUG_LOG_FILE_PATH: 'build/elastic-package-debug-output.log'
 
 steps:
