@@ -4,13 +4,11 @@ set -euxo pipefail
 
 
 run_elastic_package_command() {
-    local folder=$(dirname ${CI_DEBUG_LOG_FILE_PATH})
-    if [ "${folder}" != "." ]; then
-        mkdir -p ${folder}
-    fi
+    local full_path="${OLDPWD}/${CI_DEBUG_LOG_FILE_PATH}"
+    local folder=$(dirname ${full_path})
 
     if [ "${CI_DEBUG_LOG_TO_FILE:-false}" == "true" ]; then
-        elastic-package $@ 2>&1 /dev/stdout | grep " DEBUG " > ${CI_DEBUG_LOG_FILE_PATH}
+        elastic-package $@ 2>&1 /dev/stdout | grep " DEBUG " > ${full_path}
         exit 0
     fi
     elastic-package $@
