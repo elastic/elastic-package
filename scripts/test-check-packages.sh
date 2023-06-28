@@ -5,14 +5,15 @@ set -euxo pipefail
 DEFAULT_DEBUG_LOG_FILE=elastic-package-debug-output-main.log
 
 run_elastic_package_command() {
+    local command="elastic-package $@"
     if [ "x${CI_DEBUG_LOG_FOLDER_PATH:-}" != "x" ]; then
         local full_path="${OLDPWD}/${CI_DEBUG_LOG_FOLDER_PATH}/${CI_DEBUG_LOG_FILE_PATH:-$DEFAULT_DEBUG_LOG_FILE}"
         local folder=$(dirname ${full_path})
         mkdir -p ${folder}
 
-        elastic-package $@ 2>&1 /dev/stdout | tee -a ${full_path} | grep -v " DEBUG "
+        ${command} 2>&1 /dev/stdout | tee -a ${full_path} | grep -v " DEBUG "
     else
-        elastic-package $@
+        ${command}
     fi
 }
 
