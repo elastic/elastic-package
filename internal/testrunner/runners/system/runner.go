@@ -232,13 +232,11 @@ func (r *runner) run() (results []testrunner.TestResult, err error) {
 	}
 	defer os.RemoveAll(tempDir)
 
-	logger.DisableDebugMode()
 	dumpOptions := stack.DumpOptions{Output: tempDir, Profile: r.options.Profile}
 	_, err = stack.Dump(dumpOptions)
 	if err != nil {
 		return nil, fmt.Errorf("dump failed: %w", err)
 	}
-	logger.EnableDebugMode()
 
 	logResults, err := r.checkAgentLogs(dumpOptions, startTesting, errorPatterns)
 	if err != nil {
