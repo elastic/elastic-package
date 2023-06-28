@@ -129,10 +129,7 @@ func (d *CustomAgentDeployer) SetUp(inCtxt ServiceContext) (DeployedService, err
 		return nil, errors.Wrapf(err, "can't attach service container to the stack network")
 	}
 
-	statuses, err := p.WaitForHealthy(opts)
-	if statusErr := writeServiceContainerStatus(outCtxt.Name, statuses); statusErr != nil {
-		logger.Errorf("failed to create container status file: %v", statusErr)
-	}
+	err = p.WaitForHealthy(opts)
 	if err != nil {
 		processServiceContainerLogs(p, compose.CommandOptions{
 			Env: opts.Env,

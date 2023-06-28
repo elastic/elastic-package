@@ -47,7 +47,6 @@ for test in ${CHECK_PACKAGES_TESTS[@]}; do
     echo "          - build/test-results/*.xml"
     echo "          - build/elastic-stack-dump/check-*/logs/*.log"
     echo "          - build/elastic-stack-dump/check-*/logs/fleet-server-internal/**/*"
-    echo "          - build/container-status/*.log"
     if [ "x${CI_DEBUG_LOG_FILE_PATH}" != "x" ]; then
         echo "          - ${CI_DEBUG_LOG_FILE_PATH}"
     fi
@@ -68,7 +67,6 @@ for package in $(find . -maxdepth 1 -mindepth 1 -type d) ; do
     echo "          provider: \"gcp\""
     echo "        artifact_paths:"
     echo "          - build/test-results/*.xml"
-    echo "          - build/container-status/*.log"
     if [ "x${CI_DEBUG_LOG_FILE_PATH}" != "x" ]; then
         echo "          - ${CI_DEBUG_LOG_FILE_PATH}"
     fi
