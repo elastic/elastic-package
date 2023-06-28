@@ -18,6 +18,11 @@ func EnableDebugMode() {
 	Debug("Enable verbose logging")
 }
 
+// DisableDebugMode method disables verbose logging.
+func DisableDebugMode() {
+	isDebugMode = false
+}
+
 // Debug method logs message with "debug" level.
 func Debug(a ...interface{}) {
 	if !IsDebugMode() {

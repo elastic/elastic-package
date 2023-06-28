@@ -70,6 +70,7 @@ func NewForPackage(options Options) (Installer, error) {
 		return CreateForZip(options.Kibana, options.ZipPath)
 	}
 
+	logger.DisableDebugMode()
 	target, err := builder.BuildPackage(builder.BuildOptions{
 		PackageRoot:    options.RootPath,
 		CreateZip:      supportsZip,
@@ -79,6 +80,7 @@ func NewForPackage(options Options) (Installer, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to build package: %v", err)
 	}
+	logger.EnableDebugMode()
 
 	if supportsZip {
 		return CreateForZip(options.Kibana, target)
