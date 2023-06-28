@@ -10,9 +10,9 @@ run_elastic_package_command() {
         mkdir -p ${folder}
 
         elastic-package $@ 2>&1 /dev/stdout | tee -a ${full_path} | grep -v " DEBUG "
-        exit 0
+    else
+        elastic-package $@
     fi
-    elastic-package $@
 }
 
 cleanup() {
