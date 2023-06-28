@@ -9,7 +9,7 @@ run_elastic_package_command() {
         local folder=$(dirname ${full_path})
         mkdir -p ${folder}
 
-        elastic-package $@ 2>&1 /dev/stdout | tee ${full_path} | grep -v " DEBUG "
+        elastic-package $@ 2>&1 /dev/stdout | tee -a ${full_path} | grep -v " DEBUG "
         exit 0
     fi
     elastic-package $@
