@@ -2,10 +2,11 @@
 
 set -euxo pipefail
 
+DEFAULT_DEBUG_LOG_FILE=elastic-package-debug-output-main.log
 
 run_elastic_package_command() {
-    if [ "x${CI_DEBUG_LOG_FILE_PATH:-}" != "x" ]; then
-        local full_path="${OLDPWD}/${CI_DEBUG_LOG_FILE_PATH}"
+    if [ "x${CI_DEBUG_LOG_FOLDER_PATH:-}" != "x" ]; then
+        local full_path="${OLDPWD}/${CI_DEBUG_LOG_FOLDER_PATH}/${CI_DEBUG_LOG_FILE_PATH:-$DEFAULT_DEBUG_LOG_FILE}"
         local folder=$(dirname ${full_path})
         mkdir -p ${folder}
 
@@ -80,10 +81,12 @@ for d in test/packages/${PACKAGE_TEST_TYPE:-other}/${PACKAGE_UNDER_TEST:-*}/; do
   (
     cd $d
     run_elastic_package_command install -v
+    package_to_test=$(basename ${d})
+
+    CI_DEBUG_LOG_FILE_PATH="${CI_DEBUG_LOG_FOLDER_PATH}/elastic-package-debug-output-${package_to_test}.log"
 
     if [ "${PACKAGE_TEST_TYPE:-other}" == "benchmarks" ]; then
       # It is not used PACKAGE_UNDER_TEST, so all benchmark packages are run in the same loop
-      package_to_test=$(basename ${d})
       if [ "${package_to_test}" == "pipeline_benchmark" ]; then
         rm -rf "${OLDPWD}/build/benchmark-results"
         run_elastic_package_command benchmark pipeline -v --report-format xUnit --report-output file --fail-on-missing
