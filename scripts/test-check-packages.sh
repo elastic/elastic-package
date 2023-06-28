@@ -2,16 +2,16 @@
 
 set -euxo pipefail
 
-DEFAULT_DEBUG_LOG_FILE=elastic-package-debug-output-main.log
+DEFAULT_DEBUG_LOG_FILE=elastic-package-debug-output.log
 
 run_elastic_package_command() {
     local command="elastic-package $@"
     if [ "x${CI_DEBUG_LOG_FOLDER_PATH:-}" != "x" ]; then
-        local full_path="${OLDPWD}/${CI_DEBUG_LOG_FOLDER_PATH}/${CI_DEBUG_LOG_FILE_PATH:-$DEFAULT_DEBUG_LOG_FILE}"
+        local full_path="${OLDPWD}/${CI_DEBUG_LOG_FOLDER_PATH}/output-logs/${PACKAGE_TEST_TYPE:-other}/${CI_DEBUG_LOG_FILE_PATH:-$DEFAULT_DEBUG_LOG_FILE}"
         local folder=$(dirname ${full_path})
         mkdir -p ${folder}
 
-        ${command} 2>&1 /dev/stdout | tee -a ${full_path} | grep -v " DEBUG "
+        ${command} 2>&1 | tee -a ${full_path}
     else
         ${command}
     fi
@@ -78,13 +78,15 @@ fi
 # Run package tests
 eval "$(elastic-package stack shellinit)"
 
+elastic-package stack status -v -d --version 8.9.9
+
 for d in test/packages/${PACKAGE_TEST_TYPE:-other}/${PACKAGE_UNDER_TEST:-*}/; do
   (
     cd $d
-    run_elastic_package_command install -v
-    package_to_test=$(basename ${d})
+    # package_to_test=$(basename ${d})
+    package_to_test=${PACKAGE_UNDER_TEST:-*}
 
-    CI_DEBUG_LOG_FILE_PATH="${CI_DEBUG_LOG_FOLDER_PATH}/elastic-package-debug-output-${package_to_test}.log"
+    run_elastic_package_command install -v
 
     if [ "${PACKAGE_TEST_TYPE:-other}" == "benchmarks" ]; then
       # It is not used PACKAGE_UNDER_TEST, so all benchmark packages are run in the same loop
@@ -112,3 +114,4 @@ for d in test/packages/${PACKAGE_TEST_TYPE:-other}/${PACKAGE_UNDER_TEST:-*}/; do
   )
 cd -
 done
+

@@ -58,6 +58,11 @@ steps:
     agents:
       provider: "gcp"  # junit plugin requires docker
 
+  - label: ":mag_right: Check for errors"
+    command: "bash .buildkite/scripts/check_for_errors.sh"
+    agents:
+      provider: "gcp"
+
   - label: ":github: Release"
     key: "release"
     if: |
