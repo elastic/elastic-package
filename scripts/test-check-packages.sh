@@ -4,10 +4,10 @@ set -euxo pipefail
 
 
 run_elastic_package_command() {
-    local full_path="${OLDPWD}/${CI_DEBUG_LOG_FILE_PATH}"
-    local folder=$(dirname ${full_path})
+    if [ "x${CI_DEBUG_LOG_FILE_PATH:-}" == "x" ]; then
+        local full_path="${OLDPWD}/${CI_DEBUG_LOG_FILE_PATH}"
+        local folder=$(dirname ${full_path})
 
-    if [ "${CI_DEBUG_LOG_TO_FILE:-false}" == "true" ]; then
         elastic-package $@ 2>&1 /dev/stdout | grep " DEBUG " > ${full_path}
         exit 0
     fi
@@ -38,7 +38,7 @@ cleanup() {
   for d in test/packages/${PACKAGE_TEST_TYPE:-other}/${PACKAGE_UNDER_TEST:-*}/; do
     (
       cd $d
-      run_elastic_package_commandclean -v
+      run_elastic_package_command clean -v
     )
   done
 
