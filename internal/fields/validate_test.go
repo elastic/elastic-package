@@ -802,17 +802,9 @@ func TestValidateExternalMultiField(t *testing.T) {
 	dataStreamRoot := filepath.Join(packageRoot, "data_stream", "status")
 
 	validator, err := createValidatorForDirectoryAndPackageRoot(dataStreamRoot,
-		packageRootTestFinder{packageRoot},
-		WithSpecVersion("2.3.0"),
-		WithEnabledImportAllECSSChema(true))
-
-	def := FindElementDefinition("process.name", validator.Schema)
-
+		packageRootTestFinder{packageRoot})
 	require.NoError(t, err)
 	require.NotNil(t, validator)
-
-	d, _ := json.MarshalIndent(def, "", "  ")
-	t.Log(string(d))
 
 	e := readSampleEvent(t, filepath.Join(dataStreamRoot, "sample_event.json"))
 	errs := validator.ValidateDocumentBody(e)

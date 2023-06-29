@@ -38,6 +38,7 @@ type Validator struct {
 	// Schema contains definition records.
 	Schema []FieldDefinition
 	// FieldDependencyManager resolves references to external fields
+	// XXX: Remove this.
 	FieldDependencyManager *DependencyManager
 
 	// SpecVersion contains the version of the spec used by the package.
@@ -161,51 +162,61 @@ func createValidatorForDirectoryAndPackageRoot(fieldsParentDir string, finder pa
 	v.allowedCIDRs = initializeAllowedCIDRsList()
 
 	fieldsDir := filepath.Join(fieldsParentDir, "fields")
-	v.Schema, err = loadFieldsFromDir(fieldsDir)
+
+	var fdm *DependencyManager
+	if !v.disabledDependencyManagement {
+		packageRoot, found, err := finder.FindPackageRoot()
+		if err != nil {
+			return nil, fmt.Errorf("can't find package root: %w", err)
+		}
+		// As every command starts with approximating where is the package root, it isn't required to return an error in case the root is missing.
+		// This is also useful for testing purposes, where we don't have a real package, but just "fields" directory. The package root is always absent.
+		if !found {
+			logger.Debug("Package root not found, dependency management will be disabled.")
+			v.disabledDependencyManagement = true
+		} else {
+			fdm, v.Schema, err = initDependencyManagement(packageRoot, v.specVersion, v.enabledImportAllECSSchema)
+			if err != nil {
+				return nil, fmt.Errorf("failed to initialize dependency management: %w", err)
+			}
+			v.FieldDependencyManager = fdm
+		}
+	}
+
+	fields, err := loadFieldsFromDir(fieldsDir, fdm)
 	if err != nil {
 		return nil, fmt.Errorf("can't load fields from directory (path: %s): %w", fieldsDir, err)
 	}
 
-	if v.disabledDependencyManagement {
-		return v, nil
-	}
+	v.Schema = append(fields, v.Schema...)
+	return v, nil
+}
 
-	packageRoot, found, err := finder.FindPackageRoot()
+func initDependencyManagement(packageRoot string, specVersion semver.Version, importECSSchema bool) (*DependencyManager, []FieldDefinition, error) {
+	buildManifest, ok, err := buildmanifest.ReadBuildManifest(packageRoot)
 	if err != nil {
-		return nil, fmt.Errorf("can't find package root: %w", err)
-	}
-	// As every command starts with approximating where is the package root, it isn't required to return an error in case the root is missing.
-	// This is also useful for testing purposes, where we don't have a real package, but just "fields" directory. The package root is always absent.
-	if !found {
-		logger.Debug("Package root not found, dependency management will be disabled.")
-		v.disabledDependencyManagement = true
-		return v, nil
-	}
-
-	bm, ok, err := buildmanifest.ReadBuildManifest(packageRoot)
-	if err != nil {
-		return nil, fmt.Errorf("can't read build manifest: %w", err)
+		return nil, nil, fmt.Errorf("can't read build manifest: %w", err)
 	}
 	if !ok {
-		v.disabledDependencyManagement = true
-		return v, nil
+		// There is no build manifest, nothing to do.
+		return nil, nil, nil
 	}
 
-	fdm, err := CreateFieldDependencyManager(bm.Dependencies)
+	fdm, err := CreateFieldDependencyManager(buildManifest.Dependencies)
 	if err != nil {
-		return nil, fmt.Errorf("can't create field dependency manager: %w", err)
+		return nil, nil, fmt.Errorf("can't create field dependency manager: %w", err)
 	}
-	v.FieldDependencyManager = fdm
 
-	if bm.ImportMappings() && !v.specVersion.LessThan(semver2_3_0) && v.enabledImportAllECSSchema {
-		ecsSchema, err := v.FieldDependencyManager.ImportAllFields(defaultExternal)
+	var schema []FieldDefinition
+	if buildManifest.ImportMappings() && !specVersion.LessThan(semver2_3_0) && importECSSchema {
+		ecsSchema, err := fdm.ImportAllFields(defaultExternal)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
-		v.Schema = append(v.Schema, ecsSchema...)
+		schema = ecsSchema
 	}
 
-	return v, nil
+	return fdm, schema, nil
 }
 
 //go:embed _static/allowed_geo_ips.txt
@@ -224,7 +235,7 @@ func initializeAllowedCIDRsList() (cidrs []*net.IPNet) {
 	return cidrs
 }
 
-func loadFieldsFromDir(fieldsDir string) ([]FieldDefinition, error) {
+func loadFieldsFromDir(fieldsDir string, fdm *DependencyManager) ([]FieldDefinition, error) {
 	files, err := filepath.Glob(filepath.Join(fieldsDir, "*.yml"))
 	if err != nil {
 		return nil, fmt.Errorf("reading directory with fields failed (path: %s): %w", fieldsDir, err)
@@ -237,6 +248,13 @@ func loadFieldsFromDir(fieldsDir string) ([]FieldDefinition, error) {
 			return nil, fmt.Errorf("reading fields file failed: %w", err)
 		}
 
+		if fdm != nil {
+			body, err = injectFields(body, fdm)
+			if err != nil {
+				return nil, fmt.Errorf("loading external fields failed: %w", err)
+			}
+		}
+
 		var u []FieldDefinition
 		err = yaml.Unmarshal(body, &u)
 		if err != nil {
@@ -245,6 +263,21 @@ func loadFieldsFromDir(fieldsDir string) ([]FieldDefinition, error) {
 		fields = append(fields, u...)
 	}
 	return fields, nil
+}
+
+func injectFields(d []byte, dm *DependencyManager) ([]byte, error) {
+	var fields []common.MapStr
+	err := yaml.Unmarshal(d, &fields)
+	if err != nil {
+		return nil, fmt.Errorf("parsing fields failed: %w", err)
+	}
+
+	fields, _, err = dm.InjectFields(fields)
+	if err != nil {
+		return nil, fmt.Errorf("injecting fields failed: %w", err)
+	}
+
+	return yaml.Marshal(fields)
 }
 
 // ValidateDocumentBody validates the provided document body.
@@ -356,14 +389,6 @@ func (v *Validator) validateScalarElement(key string, val interface{}, doc commo
 		return fmt.Errorf(`field "%s" is undefined`, key)
 	}
 
-	if !v.disabledDependencyManagement && definition.External != "" {
-		def, err := v.FieldDependencyManager.ImportField(definition.External, key)
-		if err != nil {
-			return fmt.Errorf("can't import field (field: %s): %w", key, err)
-		}
-		definition = &def
-	}
-
 	// Convert numeric keyword fields to string for validation.
 	_, found := v.numericKeywordFields[key]
 	if (found || v.defaultNumericConversion) && isNumericKeyword(*definition, val) {
@@ -391,14 +416,6 @@ func (v *Validator) SanitizeSyntheticSourceDocs(docs []common.MapStr) ([]common.
 			shouldBeArray := false
 			definition := FindElementDefinition(key, v.Schema)
 			if definition != nil {
-				if !v.disabledDependencyManagement && definition.External != "" {
-					def, err := v.FieldDependencyManager.ImportField(definition.External, key)
-					if err != nil {
-						return nil, fmt.Errorf("can't import field (field: %s): %w", key, err)
-					}
-					definition = &def
-				}
-
 				shouldBeArray = v.shouldValueBeArray(definition)
 			}
 
