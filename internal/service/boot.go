@@ -13,8 +13,8 @@ import (
 	"github.com/elastic/elastic-package/internal/logger"
 
 	"github.com/elastic/elastic-package/internal/configuration/locations"
+	"github.com/elastic/elastic-package/internal/servicedeployer"
 	"github.com/elastic/elastic-package/internal/testrunner/runners/system"
-	"github.com/elastic/elastic-package/internal/testrunner/runners/system/servicedeployer"
 )
 
 // Options define the details of the service which should be booted up.

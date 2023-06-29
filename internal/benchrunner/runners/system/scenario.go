@@ -15,7 +15,7 @@ import (
 	"github.com/elastic/go-ucfg"
 	"github.com/elastic/go-ucfg/yaml"
 
-	"github.com/elastic/elastic-package/internal/benchrunner/runners/system/servicedeployer"
+	"github.com/elastic/elastic-package/internal/servicedeployer"
 )
 
 const devPath = "_dev/benchmark/system"

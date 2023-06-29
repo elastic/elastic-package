@@ -216,12 +216,18 @@ func getSystemCommand() *cobra.Command {
 	cmd.Flags().BoolP(cobraext.BenchReindexToMetricstoreFlagName, "", false, cobraext.BenchReindexToMetricstoreFlagDescription)
 	cmd.Flags().DurationP(cobraext.BenchMetricsIntervalFlagName, "", time.Second, cobraext.BenchMetricsIntervalFlagDescription)
 	cmd.Flags().DurationP(cobraext.DeferCleanupFlagName, "", 0, cobraext.DeferCleanupFlagDescription)
+	cmd.Flags().String(cobraext.VariantFlagName, "", cobraext.VariantFlagDescription)
 
 	return cmd
 }
 
 func systemCommandAction(cmd *cobra.Command, args []string) error {
 	cmd.Println("Run system benchmarks for the package")
+
+	variant, err := cmd.Flags().GetString(cobraext.VariantFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.VariantFlagName)
+	}
 
 	benchName, err := cmd.Flags().GetString(cobraext.BenchNameFlagName)
 	if err != nil {
@@ -268,6 +274,7 @@ func systemCommandAction(cmd *cobra.Command, args []string) error {
 	}
 
 	withOpts := []system.OptionFunc{
+		system.WithVariant(variant),
 		system.WithBenchmarkName(benchName),
 		system.WithDeferCleanup(deferCleanup),
 		system.WithMetricsInterval(metricsInterval),

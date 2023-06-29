@@ -210,4 +210,12 @@ func (tsd TerraformServiceDeployer) installDockerfile() (string, error) {
 	return tfDir, nil
 }
 
+func CreateOutputDir(locationManager *locations.LocationManager, runId string) (string, error) {
+	outputDir := filepath.Join(locationManager.ServiceOutputDir(), runId)
+	if err := os.MkdirAll(outputDir, 0755); err != nil {
+		return "", fmt.Errorf("failed to create output directory: %w", err)
+	}
+	return outputDir, nil
+}
+
 var _ ServiceDeployer = new(TerraformServiceDeployer)

@@ -26,13 +26,13 @@ import (
 
 	"github.com/elastic/elastic-package/internal/benchrunner"
 	"github.com/elastic/elastic-package/internal/benchrunner/reporters"
-	"github.com/elastic/elastic-package/internal/benchrunner/runners/system/servicedeployer"
 	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/multierror"
 	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/internal/servicedeployer"
 	"github.com/elastic/elastic-package/internal/signal"
 )
 
@@ -40,6 +40,7 @@ const (
 	// ServiceLogsAgentDir is folder path where log files produced by the service
 	// are stored on the Agent container's filesystem.
 	ServiceLogsAgentDir = "/tmp/service_logs"
+	devDeployDir        = "_dev/benchmark/system/deploy"
 
 	// BenchType defining system benchmark
 	BenchType benchrunner.Type = "system"
@@ -136,7 +137,13 @@ func (r *runner) setUp() error {
 	serviceLogsDir := locationManager.ServiceLogDir()
 	r.ctxt.Logs.Folder.Local = serviceLogsDir
 	r.ctxt.Logs.Folder.Agent = ServiceLogsAgentDir
-	r.ctxt.Bench.RunID = createRunID()
+	r.ctxt.Test.RunID = createRunID()
+
+	outputDir, err := servicedeployer.CreateOutputDir(locationManager, r.ctxt.Test.RunID)
+	if err != nil {
+		return fmt.Errorf("could not create output dir for terraform deployer %w", err)
+	}
+	r.ctxt.OutputDir = outputDir
 
 	scenario, err := readConfig(r.options.PackageRootPath, r.options.BenchName, r.ctxt)
 	if err != nil {
@@ -225,9 +232,13 @@ func (r *runner) run() (report reporters.Reportable, err error) {
 	if r.scenario.Corpora.InputService != nil {
 		// Setup service.
 		logger.Debug("setting up service...")
-		serviceDeployer, err := servicedeployer.Factory(servicedeployer.FactoryOptions{
-			RootPath: r.options.PackageRootPath,
-		})
+		opts := servicedeployer.FactoryOptions{
+			PackageRootPath: r.options.PackageRootPath,
+			DevDeployDir:    devDeployDir,
+			Variant:         r.options.Variant,
+			Type:            servicedeployer.TypeBench,
+		}
+		serviceDeployer, err := servicedeployer.Factory(opts)
 
 		if err != nil {
 			return nil, fmt.Errorf("could not create service runner: %w", err)
@@ -735,7 +746,7 @@ func (r *runner) reindexData() error {
 		}`, mapping)),
 	)
 
-	indexName := fmt.Sprintf("bench-reindex-%s-%s", r.runtimeDataStream, r.ctxt.Bench.RunID)
+	indexName := fmt.Sprintf("bench-reindex-%s-%s", r.runtimeDataStream, r.ctxt.Test.RunID)
 
 	logger.Debugf("creating %s index in metricstore...", indexName)
 
@@ -833,7 +844,7 @@ type benchMeta struct {
 func (r *runner) enrichEventWithBenchmarkMetadata(e map[string]interface{}) map[string]interface{} {
 	var m benchMeta
 	m.Info.Benchmark = r.options.BenchName
-	m.Info.RunID = r.ctxt.Bench.RunID
+	m.Info.RunID = r.ctxt.Test.RunID
 	m.Parameters = *r.scenario
 	e["benchmark_metadata"] = m
 	return e

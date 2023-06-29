@@ -21,6 +21,7 @@ type Options struct {
 	ESMetricsAPI    *elasticsearch.API
 	BenchName       string
 	PackageRootPath string
+	Variant         string
 }
 
 type OptionFunc func(*Options)
@@ -78,5 +79,11 @@ func WithDataReindexing(b bool) OptionFunc {
 func WithESMetricsAPI(api *elasticsearch.API) OptionFunc {
 	return func(opts *Options) {
 		opts.ESMetricsAPI = api
+	}
+}
+
+func WithVariant(name string) OptionFunc {
+	return func(opts *Options) {
+		opts.Variant = name
 	}
 }

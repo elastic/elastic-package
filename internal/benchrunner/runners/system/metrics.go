@@ -11,11 +11,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/elastic/elastic-package/internal/benchrunner/runners/system/servicedeployer"
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/elasticsearch/ingest"
 	"github.com/elastic/elastic-package/internal/environment"
 	"github.com/elastic/elastic-package/internal/logger"
+	"github.com/elastic/elastic-package/internal/servicedeployer"
 	"github.com/elastic/elastic-package/internal/signal"
 )
 
@@ -78,7 +78,7 @@ func newCollector(
 ) *collector {
 	meta := benchMeta{Parameters: scenario}
 	meta.Info.Benchmark = benchName
-	meta.Info.RunID = ctxt.Bench.RunID
+	meta.Info.RunID = ctxt.Test.RunID
 	return &collector{
 		ctxt:           ctxt,
 		interval:       interval,
@@ -231,12 +231,12 @@ func (c *collector) createMetricsIndex() {
 }
 
 func (c *collector) indexName() string {
-	return fmt.Sprintf("bench-metrics-%s-%s", c.datastream, c.ctxt.Bench.RunID)
+	return fmt.Sprintf("bench-metrics-%s-%s", c.datastream, c.ctxt.Test.RunID)
 }
 
 func (c *collector) summarize() (*metricsSummary, error) {
 	sum := metricsSummary{
-		RunID:               c.ctxt.Bench.RunID,
+		RunID:               c.ctxt.Test.RunID,
 		IngestPipelineStats: make(map[string]ingest.PipelineStatsMap),
 		NodesStats:          make(map[string]ingest.NodeStats),
 		DiskUsage:           c.diskUsage,
