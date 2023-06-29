@@ -83,19 +83,17 @@ fi
 # Run package tests
 eval "$(elastic-package stack shellinit)"
 
-run_elastic_package_command package stack status -v -d --version 8.9.9
+run_elastic_package_command stack status -v -d --version 8.9.9
 
 for d in test/packages/${PACKAGE_TEST_TYPE:-other}/${PACKAGE_UNDER_TEST:-*}/; do
   (
     cd $d
-    # package_to_test=$(basename ${d})
-    package_to_test=${PACKAGE_UNDER_TEST:-*}
 
     run_elastic_package_command install -v
 
     if [ "${PACKAGE_TEST_TYPE:-other}" == "benchmarks" ]; then
       # It is not used PACKAGE_UNDER_TEST, so all benchmark packages are run in the same loop
-      if [ "${package_to_test}" == "pipeline_benchmark" ]; then
+      if [ "${PACKAGE_UNDER_TEST:-*}" == "pipeline_benchmark" ]; then
         rm -rf "${OLDPWD}/build/benchmark-results"
         run_elastic_package_command benchmark pipeline -v --report-format xUnit --report-output file --fail-on-missing
 
@@ -109,9 +107,9 @@ for d in test/packages/${PACKAGE_TEST_TYPE:-other}/${PACKAGE_UNDER_TEST:-*}/; do
           --old ${OLDPWD}/build/benchmark-results-old \
           --threshold 1 --report-output-path="${OLDPWD}/build/benchreport"
       fi
-      # if [ "${package_to_test}" == "system_benchmark" ]; then
-      #   run_elastic_package_command benchmark system --benchmark logs-benchmark -v
-      # fi
+      if [ "${PACKAGE_UNDER_TEST:-*}" == "system_benchmark" ]; then
+        run_elastic_package_command benchmark system --benchmark logs-benchmark -v
+      fi
     else
       # defer-cleanup is set to a short period to verify that the option is available
       run_elastic_package_command test -v --report-format xUnit --report-output file --defer-cleanup 1s --test-coverage
