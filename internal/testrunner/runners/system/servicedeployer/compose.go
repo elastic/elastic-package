@@ -145,7 +145,11 @@ func (s *dockerComposeDeployedService) Signal(signal string) error {
 		opts.Services = append(opts.Services, s.ctxt.Name)
 	}
 
-	return fmt.Errorf("could not send %q signal: %w", signal, p.Kill(opts))
+	err = p.Kill(opts)
+	if err != nil {
+		return fmt.Errorf("could not send %q signal: %w", signal, err)
+	}
+	return nil
 }
 
 // TearDown tears down the service.
