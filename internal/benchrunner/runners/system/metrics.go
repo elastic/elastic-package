@@ -5,6 +5,9 @@
 package system
 
 import (
+	"bytes"
+	"encoding/json"
+	"fmt"
 	"sync"
 	"time"
 
@@ -39,7 +42,8 @@ type collector struct {
 
 	startIngestMetrics map[string]ingest.PipelineStatsMap
 	endIngestMetrics   map[string]ingest.PipelineStatsMap
-	collectedMetrics   []metrics
+	startMetrics       metrics
+	endMetrics         metrics
 	diskUsage          map[string]ingest.DiskUsage
 	startTotalHits     int
 	endTotalHits       int
@@ -61,6 +65,7 @@ type metricsSummary struct {
 	IngestPipelineStats map[string]ingest.PipelineStatsMap
 	DiskUsage           map[string]ingest.DiskUsage
 	TotalHits           int
+	NodesStats          map[string]ingest.NodeStats
 }
 
 func newCollector(
@@ -83,26 +88,30 @@ func newCollector(
 		msapi:          msapi,
 		datastream:     datastream,
 		pipelinePrefix: pipelinePrefix,
-		stopC:          make(chan struct{}, 1),
+		stopC:          make(chan struct{}),
 	}
 }
 
 func (c *collector) start() {
 	c.tick = time.NewTicker(c.interval)
+	c.createMetricsIndex()
+	var once sync.Once
 
 	go func() {
-		var once sync.Once
 		once.Do(c.waitUntilReady)
 
 		defer c.tick.Stop()
 
 		c.startIngestMetrics = c.collectIngestMetrics()
 		c.startTotalHits = c.collectTotalHits()
+		c.startMetrics = c.collect()
+		c.publish(c.createEventsFromMetrics(c.startMetrics))
 
 		for {
 			if signal.SIGINT() {
 				logger.Debug("SIGINT: cancel metrics collection")
 				c.collectMetricsPreviousToStop()
+				c.publish(c.createEventsFromMetrics(c.endMetrics))
 				return
 			}
 
@@ -110,10 +119,12 @@ func (c *collector) start() {
 			case <-c.stopC:
 				// last collect before stopping
 				c.collectMetricsPreviousToStop()
+				c.publish(c.createEventsFromMetrics(c.endMetrics))
 				c.stopC <- struct{}{}
 				return
 			case <-c.tick.C:
-				c.collect()
+				m := c.collect()
+				c.publish(c.createEventsFromMetrics(m))
 			}
 		}
 	}()
@@ -125,7 +136,7 @@ func (c *collector) stop() {
 	close(c.stopC)
 }
 
-func (c *collector) collect() {
+func (c *collector) collect() metrics {
 	m := metrics{
 		ts: time.Now().Unix(),
 	}
@@ -144,24 +155,99 @@ func (c *collector) collect() {
 		m.dsMetrics = dsstats
 	}
 
-	c.collectedMetrics = append(c.collectedMetrics, m)
+	return m
+}
+
+func (c *collector) publish(events [][]byte) {
+	if c.msapi == nil {
+		return
+	}
+	for _, e := range events {
+		reqBody := bytes.NewReader(e)
+		resp, err := c.msapi.Index(c.indexName(), reqBody)
+		if err != nil {
+			logger.Debugf("error indexing metrics: %e", err)
+			continue
+		}
+		var sr map[string]interface{}
+		if err := json.NewDecoder(resp.Body).Decode(&sr); err != nil {
+			logger.Debugf("error decoding search response: %e", err)
+		}
+
+		resErr, found := sr["error"]
+		if found {
+			errStr := resErr.(map[string]interface{})["reason"].(string)
+			logger.Debugf("error searching for documents: %s", errStr)
+		}
+	}
+}
+
+func (c *collector) createMetricsIndex() {
+	if c.msapi == nil {
+		return
+	}
+	reader := bytes.NewReader(
+		[]byte(`{
+			"settings": {
+				"number_of_replicas": 0
+			},
+			"mappings": {
+				"dynamic_templates": [
+					{
+						"strings_as_keyword": {
+							"match_mapping_type": "string",
+							"mapping": {
+								"ignore_above": 1024,
+								"type": "keyword"
+							}
+						}
+					}
+				],
+				"date_detection": false,
+				"properties": {
+					"@timestamp": {
+						"type": "date"
+					}
+				}
+			}
+		}`),
+	)
+
+	logger.Debugf("creating %s index in metricstore...", c.indexName())
+
+	createRes, err := c.msapi.Indices.Create(
+		c.indexName(),
+		c.msapi.Indices.Create.WithBody(reader),
+	)
+	if err != nil {
+		logger.Debugf("could not create index: %v", err)
+		return
+	}
+	createRes.Body.Close()
+
+	if createRes.IsError() {
+		logger.Debug("got a response error while creating index")
+	}
+}
+
+func (c *collector) indexName() string {
+	return fmt.Sprintf("bench-metrics-%s-%s", c.datastream, c.ctxt.Bench.RunID)
 }
 
 func (c *collector) summarize() (*metricsSummary, error) {
 	sum := metricsSummary{
 		RunID:               c.ctxt.Bench.RunID,
 		IngestPipelineStats: make(map[string]ingest.PipelineStatsMap),
+		NodesStats:          make(map[string]ingest.NodeStats),
 		DiskUsage:           c.diskUsage,
 		TotalHits:           c.endTotalHits - c.startTotalHits,
 	}
 
-	if len(c.collectedMetrics) > 0 {
-		sum.CollectionStartTs = c.collectedMetrics[0].ts
-		sum.CollectionEndTs = c.collectedMetrics[len(c.collectedMetrics)-1].ts
-		sum.DataStreamStats = c.collectedMetrics[len(c.collectedMetrics)-1].dsMetrics
-		sum.ClusterName = c.collectedMetrics[0].nMetrics.ClusterName
-		sum.Nodes = len(c.collectedMetrics[len(c.collectedMetrics)-1].nMetrics.Nodes)
-	}
+	sum.ClusterName = c.startMetrics.nMetrics.ClusterName
+	sum.CollectionStartTs = c.startMetrics.ts
+	sum.CollectionEndTs = c.endMetrics.ts
+	sum.DataStreamStats = c.endMetrics.dsMetrics
+	sum.Nodes = len(c.endMetrics.nMetrics.Nodes)
 
 	for node, endPStats := range c.endIngestMetrics {
 		startPStats, found := c.startIngestMetrics[node]
@@ -178,8 +264,9 @@ func (c *collector) summarize() (*metricsSummary, error) {
 			}
 			sumStats[pname] = ingest.PipelineStats{
 				StatsRecord: ingest.StatsRecord{
-					Count:  endStats.Count - startStats.Count,
-					Failed: endStats.TimeInMillis - startStats.TimeInMillis,
+					Count:        endStats.Count - startStats.Count,
+					Failed:       endStats.Failed - startStats.Failed,
+					TimeInMillis: endStats.TimeInMillis - startStats.TimeInMillis,
 				},
 				Processors: make([]ingest.ProcessorStats, len(endStats.Processors)),
 			}
@@ -252,10 +339,10 @@ func (c *collector) collectDiskUsage() map[string]ingest.DiskUsage {
 }
 
 func (c *collector) collectMetricsPreviousToStop() {
-	c.collect()
 	c.endIngestMetrics = c.collectIngestMetrics()
 	c.diskUsage = c.collectDiskUsage()
 	c.endTotalHits = c.collectTotalHits()
+	c.endMetrics = c.collect()
 }
 
 func (c *collector) collectTotalHits() int {
@@ -264,4 +351,47 @@ func (c *collector) collectTotalHits() int {
 		logger.Debugf("could not total hits: %w", err)
 	}
 	return totalHits
+}
+
+func (c *collector) createEventsFromMetrics(m metrics) [][]byte {
+	dsEvent := struct {
+		Ts int64 `json:"@timestamp"`
+		*ingest.DataStreamStats
+		Meta benchMeta `json:"benchmark_metadata"`
+	}{
+		Ts:              m.ts * 1000, // ms to s
+		DataStreamStats: m.dsMetrics,
+		Meta:            c.metadata,
+	}
+
+	type nEvent struct {
+		Ts          int64  `json:"@timestamp"`
+		ClusterName string `json:"cluster_name"`
+		NodeName    string `json:"node_name"`
+		*ingest.NodeStats
+		Meta benchMeta `json:"benchmark_metadata"`
+	}
+
+	var nEvents []interface{}
+
+	for node, stats := range m.nMetrics.Nodes {
+		nEvents = append(nEvents, nEvent{
+			Ts:          m.ts * 1000, // ms to s
+			ClusterName: m.nMetrics.ClusterName,
+			NodeName:    node,
+			NodeStats:   &stats,
+			Meta:        c.metadata,
+		})
+	}
+
+	var events [][]byte
+	for _, e := range append(nEvents, dsEvent) {
+		b, err := json.Marshal(e)
+		if err != nil {
+			logger.Debugf("error marhsaling metrics event: %w", err)
+			continue
+		}
+		events = append(events, b)
+	}
+	return events
 }

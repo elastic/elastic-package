@@ -289,7 +289,6 @@ func (r *runner) run() (report reporters.Reportable, err error) {
 }
 
 func (r *runner) startMetricsColletion() {
-	// TODO send metrics to es metricstore if set
 	// TODO collect agent hosts metrics using system integration
 	r.mcollector = newCollector(
 		r.ctxt,

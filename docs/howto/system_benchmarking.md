@@ -13,7 +13,7 @@ Conceptually, running a system benchmark involves the following steps:
 1. Create a benchmark policy that configures a single data stream for a single package.
 1. Assign the policy to the enrolled Agent(s).
 1. Metrics collections from the cluster starts. (**TODO**: record metrics from all Elastic Agents involved using the `system` integration.)
-1. **TODO**: Send the collected metrics to the ES Metricstore if set.
+1. Send the collected metrics to the ES Metricstore if set.
 1. Generate data if configured (it uses the [corpus-generator-rool](https://github.com/elastic/elastic-integration-corpus-generator-tool))
 1. Wait a reasonable amount of time for the Agent to collect data from the
    integration service and index it into the correct Elasticsearch data stream.
