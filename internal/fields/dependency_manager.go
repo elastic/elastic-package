@@ -151,7 +151,7 @@ func (dm *DependencyManager) injectFieldsWithRoot(root string, defs []common.Map
 
 		external, _ := def.GetValue("external")
 		if external != nil {
-			imported, err := dm.ImportField(external.(string), fieldPath)
+			imported, err := dm.importField(external.(string), fieldPath)
 			if err != nil {
 				return nil, false, fmt.Errorf("can't import field: %w", err)
 			}
@@ -216,8 +216,8 @@ func skipField(def common.MapStr) bool {
 	return false
 }
 
-// ImportField method resolves dependency on a single external field using available schemas.
-func (dm *DependencyManager) ImportField(schemaName, fieldPath string) (FieldDefinition, error) {
+// importField method resolves dependency on a single external field using available schemas.
+func (dm *DependencyManager) importField(schemaName, fieldPath string) (FieldDefinition, error) {
 	if dm == nil {
 		return FieldDefinition{}, fmt.Errorf(`importing external field "%s": external fields not allowed because dependencies file "_dev/build/build.yml" is missing`, fieldPath)
 	}
