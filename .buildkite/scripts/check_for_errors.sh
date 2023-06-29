@@ -14,12 +14,13 @@ for package_type in $(ls build/output-logs/); do
     for output_file in $(ls build/output-logs/${package_type}); do
         output="build/output-logs/${package_type}/${output_file}"
         echo "Any error on ${output}?"
-        errors=$(grep -E "^Error:" ${output})
 
-        echo "Found errors":
-        echo "${errors}"
+        if grep -E "^Error:" ${output}; then
+            echo "Found errors":
 
-        if [ -n "${errors}" ]; then
+            errors=$(grep -E "^Error:" ${output})
+            echo "${errors}"
+
             cat <<EOF >> markdown.md
             - Error found in ${package_type}
               > ${errors}
