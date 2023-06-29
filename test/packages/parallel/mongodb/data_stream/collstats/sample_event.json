@@ -1,8 +1,8 @@
 {
-    "@timestamp": "2023-06-27T15:05:34.410Z",
+    "@timestamp": "2023-06-29T17:58:25.465Z",
     "agent": {
-        "ephemeral_id": "379d06ef-b1a1-4aae-a292-1bd3bc8e78df",
-        "id": "ee8ce08e-6f80-467d-a633-e9ff4ffdb266",
+        "ephemeral_id": "c9e5ccdb-8232-4a7d-b161-ecd4f444bba5",
+        "id": "3bcbc378-6f9d-4e10-9bf2-b99c50493aa5",
         "name": "docker-fleet-agent",
         "type": "metricbeat",
         "version": "8.8.0"
@@ -16,29 +16,29 @@
         "version": "8.0.0"
     },
     "elastic_agent": {
-        "id": "ee8ce08e-6f80-467d-a633-e9ff4ffdb266",
+        "id": "3bcbc378-6f9d-4e10-9bf2-b99c50493aa5",
         "snapshot": false,
         "version": "8.8.0"
     },
     "event": {
         "agent_id_status": "verified",
         "dataset": "mongodb.collstats",
-        "duration": 5036250,
-        "ingested": "2023-06-27T15:05:35Z",
+        "duration": 2334698,
+        "ingested": "2023-06-29T17:58:26Z",
         "module": "mongodb"
     },
     "host": {
-        "architecture": "aarch64",
+        "architecture": "x86_64",
         "containerized": false,
         "hostname": "docker-fleet-agent",
-        "id": "b5cb0e96dbea41d19c3216af1f327d73",
-        "ip": "192.168.48.7",
-        "mac": "02-42-C0-A8-30-07",
+        "id": "e8978f2086c14e13b7a0af9ed0011d19",
+        "ip": "192.168.160.7",
+        "mac": "02-42-C0-A8-A0-07",
         "name": "docker-fleet-agent",
         "os": {
             "codename": "focal",
             "family": "debian",
-            "kernel": "5.10.104-linuxkit",
+            "kernel": "5.19.0-43-generic",
             "name": "Ubuntu",
             "platform": "ubuntu",
             "type": "linux",
@@ -51,7 +51,7 @@
     },
     "mongodb": {
         "collstats": {
-            "collection": "oplog.rs",
+            "collection": "system.replset",
             "commands": {
                 "count": 0,
                 "time": {
@@ -73,19 +73,19 @@
             },
             "lock": {
                 "read": {
-                    "count": 17,
+                    "count": 1,
                     "time": {
-                        "us": 68
+                        "us": 1
                     }
                 },
                 "write": {
-                    "count": 1,
+                    "count": 0,
                     "time": {
-                        "us": 7516
+                        "us": 0
                     }
                 }
             },
-            "name": "local.oplog.rs",
+            "name": "local.system.replset",
             "queries": {
                 "count": 0,
                 "time": {
@@ -99,9 +99,9 @@
                 }
             },
             "total": {
-                "count": 18,
+                "count": 1,
                 "time": {
-                    "us": 7584
+                    "us": 1
                 }
             },
             "update": {
@@ -113,7 +113,7 @@
         }
     },
     "service": {
-        "address": "mongodb://elastic-package-service_mongodb_1",
+        "address": "mongodb://elastic-package-service-mongodb-1",
         "type": "mongodb"
     }
 }

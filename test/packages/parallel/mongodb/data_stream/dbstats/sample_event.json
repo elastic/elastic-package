@@ -1,8 +1,8 @@
 {
-    "@timestamp": "2023-06-27T09:46:40.443Z",
+    "@timestamp": "2023-06-29T17:59:01.652Z",
     "agent": {
-        "ephemeral_id": "edda44e9-e81b-4916-a6dd-ad6716976001",
-        "id": "ee8ce08e-6f80-467d-a633-e9ff4ffdb266",
+        "ephemeral_id": "9a272b3d-98cd-49d8-a116-2c89c7b75d03",
+        "id": "3bcbc378-6f9d-4e10-9bf2-b99c50493aa5",
         "name": "docker-fleet-agent",
         "type": "metricbeat",
         "version": "8.8.0"
@@ -16,29 +16,29 @@
         "version": "8.0.0"
     },
     "elastic_agent": {
-        "id": "ee8ce08e-6f80-467d-a633-e9ff4ffdb266",
+        "id": "3bcbc378-6f9d-4e10-9bf2-b99c50493aa5",
         "snapshot": false,
         "version": "8.8.0"
     },
     "event": {
         "agent_id_status": "verified",
         "dataset": "mongodb.dbstats",
-        "duration": 3543708,
-        "ingested": "2023-06-27T09:46:42Z",
+        "duration": 2384254,
+        "ingested": "2023-06-29T17:59:02Z",
         "module": "mongodb"
     },
     "host": {
-        "architecture": "aarch64",
+        "architecture": "x86_64",
         "containerized": false,
         "hostname": "docker-fleet-agent",
-        "id": "b5cb0e96dbea41d19c3216af1f327d73",
-        "ip": "192.168.48.7",
-        "mac": "02-42-C0-A8-30-07",
+        "id": "e8978f2086c14e13b7a0af9ed0011d19",
+        "ip": "192.168.160.7",
+        "mac": "02-42-C0-A8-A0-07",
         "name": "docker-fleet-agent",
         "os": {
             "codename": "focal",
             "family": "debian",
-            "kernel": "5.10.104-linuxkit",
+            "kernel": "5.19.0-43-generic",
             "name": "Ubuntu",
             "platform": "ubuntu",
             "type": "linux",
@@ -52,26 +52,25 @@
     "mongodb": {
         "dbstats": {
             "avg_obj_size": {
-                "bytes": 522
+                "bytes": 59
             },
-            "collections": 3,
+            "collections": 1,
             "data_size": {
-                "bytes": 1566
+                "bytes": 59
             },
-            "db": "local",
+            "db": "admin",
             "index_size": {
-                "bytes": 12288
+                "bytes": 4096
             },
-            "indexes": 3,
-            "num_extents": 0,
-            "objects": 3,
+            "indexes": 1,
+            "objects": 1,
             "storage_size": {
-                "bytes": 12288
+                "bytes": 4096
             }
         }
     },
     "service": {
-        "address": "mongodb://elastic-package-service_mongodb_1",
+        "address": "mongodb://elastic-package-service-mongodb-1",
         "type": "mongodb"
     }
 }

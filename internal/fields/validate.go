@@ -8,6 +8,7 @@ import (
 	"bufio"
 	_ "embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -166,15 +167,12 @@ func createValidatorForDirectoryAndPackageRoot(fieldsParentDir string, finder pa
 		if err != nil {
 			return nil, fmt.Errorf("can't find package root: %w", err)
 		}
-		// As every command starts with approximating where is the package root, it isn't required to return an error in case the root is missing.
-		// This is also useful for testing purposes, where we don't have a real package, but just "fields" directory. The package root is always absent.
 		if !found {
-			logger.Debug("Package root not found, dependency management will be disabled.")
-		} else {
-			fdm, v.Schema, err = initDependencyManagement(packageRoot, v.specVersion, v.enabledImportAllECSSchema)
-			if err != nil {
-				return nil, fmt.Errorf("failed to initialize dependency management: %w", err)
-			}
+			return nil, errors.New("package root not found and dependency management is enabled")
+		}
+		fdm, v.Schema, err = initDependencyManagement(packageRoot, v.specVersion, v.enabledImportAllECSSchema)
+		if err != nil {
+			return nil, fmt.Errorf("failed to initialize dependency management: %w", err)
 		}
 	}
 

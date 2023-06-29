@@ -30,7 +30,7 @@ func (p packageRootTestFinder) FindPackageRoot() (string, bool, error) {
 }
 
 func TestValidate_NoWildcardFields(t *testing.T) {
-	validator, err := CreateValidatorForDirectory("../../test/packages/parallel/aws/data_stream/elb_logs")
+	validator, err := CreateValidatorForDirectory("../../test/packages/parallel/aws/data_stream/elb_logs", WithDisabledDependencyManagement())
 	require.NoError(t, err)
 	require.NotNil(t, validator)
 
@@ -42,7 +42,7 @@ func TestValidate_NoWildcardFields(t *testing.T) {
 }
 
 func TestValidate_WithWildcardFields(t *testing.T) {
-	validator, err := CreateValidatorForDirectory("../../test/packages/parallel/aws/data_stream/sns")
+	validator, err := CreateValidatorForDirectory("../../test/packages/parallel/aws/data_stream/sns", WithDisabledDependencyManagement())
 	require.NoError(t, err)
 	require.NotNil(t, validator)
 
@@ -112,7 +112,7 @@ func TestValidate_WithDisabledImportAllECSSchema(t *testing.T) {
 }
 
 func TestValidate_constantKeyword(t *testing.T) {
-	validator, err := CreateValidatorForDirectory("testdata")
+	validator, err := CreateValidatorForDirectory("testdata", WithDisabledDependencyManagement())
 	require.NoError(t, err)
 	require.NotNil(t, validator)
 
@@ -126,7 +126,7 @@ func TestValidate_constantKeyword(t *testing.T) {
 }
 
 func TestValidate_ipAddress(t *testing.T) {
-	validator, err := CreateValidatorForDirectory("testdata", WithEnabledAllowedIPCheck())
+	validator, err := CreateValidatorForDirectory("testdata", WithEnabledAllowedIPCheck(), WithDisabledDependencyManagement())
 	require.NoError(t, err)
 	require.NotNil(t, validator)
 
@@ -141,7 +141,7 @@ func TestValidate_ipAddress(t *testing.T) {
 }
 
 func TestValidate_WithSpecVersion(t *testing.T) {
-	validator, err := CreateValidatorForDirectory("testdata", WithSpecVersion("2.0.0"))
+	validator, err := CreateValidatorForDirectory("testdata", WithSpecVersion("2.0.0"), WithDisabledDependencyManagement())
 	require.NoError(t, err)
 
 	e := readSampleEvent(t, "testdata/invalid-array-normalization.json")
@@ -154,7 +154,7 @@ func TestValidate_WithSpecVersion(t *testing.T) {
 	require.Empty(t, errs)
 
 	// Check now that this validation was only enabled for 2.0.0.
-	validator, err = CreateValidatorForDirectory("testdata", WithSpecVersion("1.99.99"))
+	validator, err = CreateValidatorForDirectory("testdata", WithSpecVersion("1.99.99"), WithDisabledDependencyManagement())
 	require.NoError(t, err)
 
 	e = readSampleEvent(t, "testdata/invalid-array-normalization.json")
@@ -163,7 +163,7 @@ func TestValidate_WithSpecVersion(t *testing.T) {
 }
 
 func TestValidate_ExpectedEventType(t *testing.T) {
-	validator, err := CreateValidatorForDirectory("testdata", WithSpecVersion("2.0.0"))
+	validator, err := CreateValidatorForDirectory("testdata", WithSpecVersion("2.0.0"), WithDisabledDependencyManagement())
 	require.NoError(t, err)
 	require.NotNil(t, validator)
 
@@ -255,6 +255,7 @@ func TestValidate_ExpectedDataset(t *testing.T) {
 	validator, err := CreateValidatorForDirectory("testdata",
 		WithSpecVersion("2.0.0"),
 		WithExpectedDataset("apache.status"),
+		WithDisabledDependencyManagement(),
 	)
 	require.NoError(t, err)
 	require.NotNil(t, validator)
@@ -787,7 +788,7 @@ func TestCompareKeys(t *testing.T) {
 }
 
 func TestValidateGeoPoint(t *testing.T) {
-	validator, err := CreateValidatorForDirectory("../../test/packages/other/fields_tests/data_stream/first")
+	validator, err := CreateValidatorForDirectory("../../test/packages/other/fields_tests/data_stream/first", WithDisabledDependencyManagement())
 
 	require.NoError(t, err)
 	require.NotNil(t, validator)
@@ -806,7 +807,18 @@ func TestValidateExternalMultiField(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, validator)
 
-	e := readSampleEvent(t, filepath.Join(dataStreamRoot, "sample_event.json"))
+	def := FindElementDefinition("process.name", validator.Schema)
+	require.NotEmpty(t, def.MultiFields, "expected to test with a data stream with a field with multifields")
+
+	e := readSampleEvent(t, "testdata/mongodb-multi-fields.json")
+	var event common.MapStr
+	err = json.Unmarshal(e, &event)
+	require.NoError(t, err)
+
+	v, err := event.GetValue("process.name.text")
+	require.NotNil(t, v, "expected document with multi-field")
+	require.NoError(t, err, "expected document with multi-field")
+
 	errs := validator.ValidateDocumentBody(e)
 	require.Empty(t, errs)
 }

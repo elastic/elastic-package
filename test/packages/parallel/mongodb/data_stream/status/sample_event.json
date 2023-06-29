@@ -1,8 +1,8 @@
 {
-    "@timestamp": "2023-06-27T15:08:06.769Z",
+    "@timestamp": "2023-06-29T18:00:46.865Z",
     "agent": {
-        "ephemeral_id": "fce49932-c128-4170-a730-a770830f611f",
-        "id": "ee8ce08e-6f80-467d-a633-e9ff4ffdb266",
+        "ephemeral_id": "3a77a36c-6a5e-4e95-972d-c7e78c813e03",
+        "id": "3bcbc378-6f9d-4e10-9bf2-b99c50493aa5",
         "name": "docker-fleet-agent",
         "type": "metricbeat",
         "version": "8.8.0"
@@ -16,29 +16,29 @@
         "version": "8.0.0"
     },
     "elastic_agent": {
-        "id": "ee8ce08e-6f80-467d-a633-e9ff4ffdb266",
+        "id": "3bcbc378-6f9d-4e10-9bf2-b99c50493aa5",
         "snapshot": false,
         "version": "8.8.0"
     },
     "event": {
         "agent_id_status": "verified",
         "dataset": "mongodb.status",
-        "duration": 9078125,
-        "ingested": "2023-06-27T15:08:07Z",
+        "duration": 3735431,
+        "ingested": "2023-06-29T18:00:47Z",
         "module": "mongodb"
     },
     "host": {
-        "architecture": "aarch64",
+        "architecture": "x86_64",
         "containerized": false,
         "hostname": "docker-fleet-agent",
-        "id": "b5cb0e96dbea41d19c3216af1f327d73",
-        "ip": "192.168.48.7",
-        "mac": "02-42-C0-A8-30-07",
+        "id": "e8978f2086c14e13b7a0af9ed0011d19",
+        "ip": "192.168.160.7",
+        "mac": "02-42-C0-A8-A0-07",
         "name": "docker-fleet-agent",
         "os": {
             "codename": "focal",
             "family": "debian",
-            "kernel": "5.10.104-linuxkit",
+            "kernel": "5.19.0-43-generic",
             "name": "Ubuntu",
             "platform": "ubuntu",
             "type": "linux",
@@ -49,18 +49,13 @@
         "name": "status",
         "period": 10000
     },
-    "process": {
-       "name": {
-         "text": "mongodb"
-       }
-    },
     "mongodb": {
         "status": {
             "asserts": {
                 "msg": 0,
                 "regular": 0,
                 "rollovers": 0,
-                "user": 129,
+                "user": 118,
                 "warning": 0
             },
             "connections": {
@@ -69,7 +64,7 @@
                 "total_created": 18
             },
             "extra_info": {
-                "page_faults": 3
+                "page_faults": 0
             },
             "global_lock": {
                 "active_clients": {
@@ -83,17 +78,17 @@
                     "writers": 0
                 },
                 "total_time": {
-                    "us": 17064000
+                    "us": 17359000
                 }
             },
-            "local_time": "2023-06-27T15:08:06.775Z",
+            "local_time": "2023-06-29T18:00:46.866Z",
             "locks": {
                 "collection": {
                     "acquire": {
                         "count": {
-                            "W": 4,
-                            "r": 17,
-                            "w": 8
+                            "W": 2,
+                            "r": 13,
+                            "w": 5
                         }
                     }
                 },
@@ -101,25 +96,25 @@
                     "acquire": {
                         "count": {
                             "W": 1,
-                            "r": 37,
-                            "w": 13
+                            "r": 13,
+                            "w": 7
                         }
                     }
                 },
                 "global": {
                     "acquire": {
                         "count": {
-                            "W": 6,
-                            "r": 101,
-                            "w": 31
+                            "W": 5,
+                            "r": 65,
+                            "w": 8
                         }
-                    }
-                },
-                "oplog": {
-                    "acquire": {
+                    },
+                    "wait": {
                         "count": {
-                            "r": 16,
-                            "w": 1
+                            "r": 1
+                        },
+                        "us": {
+                            "r": 16
                         }
                     }
                 }
@@ -127,34 +122,34 @@
             "memory": {
                 "bits": 64,
                 "resident": {
-                    "mb": 111
+                    "mb": 113
                 },
                 "virtual": {
-                    "mb": 1620
+                    "mb": 1510
                 }
             },
             "network": {
                 "in": {
-                    "bytes": 14524
+                    "bytes": 14411
                 },
                 "out": {
-                    "bytes": 945370
+                    "bytes": 937002
                 },
                 "requests": 140
             },
             "ops": {
                 "counters": {
-                    "command": 141,
+                    "command": 143,
                     "delete": 0,
                     "getmore": 0,
                     "insert": 0,
-                    "query": 15,
+                    "query": 0,
                     "update": 0
                 },
                 "latencies": {
                     "commands": {
                         "count": 138,
-                        "latency": 13178
+                        "latency": 15242
                     },
                     "reads": {
                         "count": 0,
@@ -178,15 +173,15 @@
                 "name": "wiredTiger"
             },
             "uptime": {
-                "ms": 17057
+                "ms": 17352
             },
             "wired_tiger": {
                 "cache": {
                     "dirty": {
-                        "bytes": 47958
+                        "bytes": 30796
                     },
                     "maximum": {
-                        "bytes": 3578789888
+                        "bytes": 16148070400
                     },
                     "pages": {
                         "evicted": 0,
@@ -194,7 +189,7 @@
                         "write": 0
                     },
                     "used": {
-                        "bytes": 51276
+                        "bytes": 33192
                     }
                 },
                 "concurrent_transactions": {
@@ -210,7 +205,7 @@
                     }
                 },
                 "log": {
-                    "flushes": 163,
+                    "flushes": 170,
                     "max_file_size": {
                         "bytes": 104857600
                     },
@@ -218,17 +213,20 @@
                     "size": {
                         "bytes": 33554432
                     },
-                    "syncs": 17,
+                    "syncs": 14,
                     "write": {
-                        "bytes": 29568
+                        "bytes": 21504
                     },
-                    "writes": 93
+                    "writes": 64
                 }
             }
         }
     },
+    "process": {
+        "name": "mongod"
+    },
     "service": {
-        "address": "mongodb://elastic-package-service_mongodb_1",
+        "address": "mongodb://elastic-package-service-mongodb-1",
         "type": "mongodb",
         "version": "5.0.18"
     }
