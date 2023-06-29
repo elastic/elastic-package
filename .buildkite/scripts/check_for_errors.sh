@@ -21,9 +21,9 @@ for package_type in $(ls build/output-logs/); do
             errors=$(grep -E "Error:" ${output})
             echo "${errors}"
 
-            cat <<EOF >> markdown.md
-            - Error found in ${package_type}
-              > ${errors}
+            cat <<EOF >> markdown.
+- Error found in ${package_type}
+  > ${errors}
 EOF
         fi
     done
