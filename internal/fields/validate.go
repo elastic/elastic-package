@@ -170,7 +170,6 @@ func createValidatorForDirectoryAndPackageRoot(fieldsParentDir string, finder pa
 		// This is also useful for testing purposes, where we don't have a real package, but just "fields" directory. The package root is always absent.
 		if !found {
 			logger.Debug("Package root not found, dependency management will be disabled.")
-			v.disabledDependencyManagement = true
 		} else {
 			fdm, v.Schema, err = initDependencyManagement(packageRoot, v.specVersion, v.enabledImportAllECSSchema)
 			if err != nil {
