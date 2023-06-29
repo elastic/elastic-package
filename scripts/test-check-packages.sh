@@ -83,7 +83,7 @@ fi
 # Run package tests
 eval "$(elastic-package stack shellinit)"
 
-elastic-package stack status -v -d --version 8.9.9
+run_elastic_package_command package stack status -v -d --version 8.9.9
 
 for d in test/packages/${PACKAGE_TEST_TYPE:-other}/${PACKAGE_UNDER_TEST:-*}/; do
   (
