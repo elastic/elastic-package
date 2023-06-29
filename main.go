@@ -5,7 +5,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"os"
 
@@ -18,7 +17,7 @@ func main() {
 
 	err := install.EnsureInstalled()
 	if err != nil {
-		log.Fatal(fmt.Errorf("validating installation failed: %w", err))
+		log.Fatalf("Validating installation failed: %v", err)
 	}
 
 	err = rootCmd.Execute()
