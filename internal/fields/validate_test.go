@@ -7,6 +7,7 @@ package fields
 import (
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"sort"
 	"testing"
 
@@ -785,6 +786,39 @@ func TestCompareKeys(t *testing.T) {
 	}
 }
 
+func TestValidateGeoPoint(t *testing.T) {
+	validator, err := CreateValidatorForDirectory("../../test/packages/other/fields_tests/data_stream/first")
+
+	require.NoError(t, err)
+	require.NotNil(t, validator)
+
+	e := readSampleEvent(t, "../../test/packages/other/fields_tests/data_stream/first/sample_event.json")
+	errs := validator.ValidateDocumentBody(e)
+	require.Empty(t, errs)
+}
+
+func TestValidateExternalMultiField(t *testing.T) {
+	packageRoot := "../../test/packages/parallel/mongodb"
+	dataStreamRoot := filepath.Join(packageRoot, "data_stream", "status")
+
+	validator, err := createValidatorForDirectoryAndPackageRoot(dataStreamRoot,
+		packageRootTestFinder{packageRoot},
+		WithSpecVersion("2.3.0"),
+		WithEnabledImportAllECSSChema(true))
+
+	def := FindElementDefinition("process.name", validator.Schema)
+
+	require.NoError(t, err)
+	require.NotNil(t, validator)
+
+	d, _ := json.MarshalIndent(def, "", "  ")
+	t.Log(string(d))
+
+	e := readSampleEvent(t, filepath.Join(dataStreamRoot, "sample_event.json"))
+	errs := validator.ValidateDocumentBody(e)
+	require.Empty(t, errs)
+}
+
 func readTestResults(t *testing.T, path string) (f results) {
 	c, err := os.ReadFile(path)
 	require.NoError(t, err)
@@ -798,15 +832,4 @@ func readSampleEvent(t *testing.T, path string) json.RawMessage {
 	c, err := os.ReadFile(path)
 	require.NoError(t, err)
 	return c
-}
-
-func TestValidate_geo_point(t *testing.T) {
-	validator, err := CreateValidatorForDirectory("../../test/packages/other/fields_tests/data_stream/first")
-
-	require.NoError(t, err)
-	require.NotNil(t, validator)
-
-	e := readSampleEvent(t, "../../test/packages/other/fields_tests/data_stream/first/sample_event.json")
-	errs := validator.ValidateDocumentBody(e)
-	require.Empty(t, errs)
 }

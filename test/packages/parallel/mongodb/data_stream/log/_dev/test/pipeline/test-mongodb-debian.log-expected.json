@@ -1,0 +1,1116 @@
+{
+    "expected": [
+        {
+            "@timestamp": "2018-02-05T12:44:56.657Z",
+            "ecs": {
+                "version": "8.5.1"
+            },
+            "event": {
+                "category": [
+                    "database"
+                ],
+                "created": "2020-04-28T11:07:58.223Z",
+                "ingested": "2023-06-27T15:13:59.438143879Z",
+                "kind": "event",
+                "type": [
+                    "info"
+                ]
+            },
+            "log": {
+                "level": "I"
+            },
+            "message": "git version: 009580ad490190ba33d1c6253ebd8d91808923e4",
+            "mongodb": {
+                "log": {
+                    "component": "CONTROL",
+                    "context": "initandlisten"
+                }
+            },
+            "tags": [
+                "preserve_original_event"
+            ]
+        },
+        {
+            "@timestamp": "2018-02-05T12:44:56.657Z",
+            "ecs": {
+                "version": "8.5.1"
+            },
+            "event": {
+                "category": [
+                    "database"
+                ],
+                "created": "2020-04-28T11:07:58.223Z",
+                "ingested": "2023-06-27T15:13:59.438160629Z",
+                "kind": "event",
+                "type": [
+                    "info"
+                ]
+            },
+            "log": {
+                "level": "I"
+            },
+            "message": "modules: none",
+            "mongodb": {
+                "log": {
+                    "component": "CONTROL",
+                    "context": "initandlisten"
+                }
+            },
+            "tags": [
+                "preserve_original_event"
+            ]
+        },
+        {
+            "@timestamp": "2018-02-05T12:44:56.657Z",
+            "ecs": {
+                "version": "8.5.1"
+            },
+            "event": {
+                "category": [
+                    "database"
+                ],
+                "created": "2020-04-28T11:07:58.223Z",
+                "ingested": "2023-06-27T15:13:59.438162545Z",
+                "kind": "event",
+                "type": [
+                    "info"
+                ]
+            },
+            "log": {
+                "level": "I"
+            },
+            "message": "OpenSSL version: OpenSSL 1.0.2l  25 May 2017",
+            "mongodb": {
+                "log": {
+                    "component": "CONTROL",
+                    "context": "initandlisten"
+                }
+            },
+            "tags": [
+                "preserve_original_event"
+            ]
+        },
+        {
+            "@timestamp": "2018-02-05T12:44:56.677Z",
+            "ecs": {
+                "version": "8.5.1"
+            },
+            "event": {
+                "category": [
+                    "database"
+                ],
+                "created": "2020-04-28T11:07:58.223Z",
+                "ingested": "2023-06-27T15:13:59.438163837Z",
+                "kind": "event",
+                "type": [
+                    "info"
+                ]
+            },
+            "log": {
+                "level": "I"
+            },
+            "message": "wiredtiger_open config: create,cache_size=8G,session_max=20000,eviction=(threads_max=4),config_base=false,statistics=(fast),log=(enabled=true,archive=true,path=journal,compressor=snappy),file_manager=(close_idle_time=100000),checkpoint=(wait=60,log_size=2GB),statistics_log=(wait=0),",
+            "mongodb": {
+                "log": {
+                    "component": "STORAGE",
+                    "context": "initandlisten"
+                }
+            },
+            "tags": [
+                "preserve_original_event"
+            ]
+        },
+        {
+            "@timestamp": "2018-02-05T12:44:56.724Z",
+            "ecs": {
+                "version": "8.5.1"
+            },
+            "event": {
+                "category": [
+                    "database"
+                ],
+                "created": "2020-04-28T11:07:58.223Z",
+                "ingested": "2023-06-27T15:13:59.438165004Z",
+                "kind": "event",
+                "type": [
+                    "info"
+                ]
+            },
+            "log": {
+                "level": "I"
+            },
+            "message": "Initializing full-time diagnostic data capture with directory '/var/lib/mongodb/diagnostic.data'",
+            "mongodb": {
+                "log": {
+                    "component": "FTDC",
+                    "context": "initandlisten"
+                }
+            },
+            "tags": [
+                "preserve_original_event"
+            ]
+        },
+        {
+            "@timestamp": "2018-02-05T12:44:56.724Z",
+            "ecs": {
+                "version": "8.5.1"
+            },
+            "event": {
+                "category": [
+                    "database"
+                ],
+                "created": "2020-04-28T11:07:58.223Z",
+                "ingested": "2023-06-27T15:13:59.438166170Z",
+                "kind": "event",
+                "type": [
+                    "info"
+                ]
+            },
+            "log": {
+                "level": "I"
+            },
+            "message": "Starting hostname canonicalization worker",
+            "mongodb": {
+                "log": {
+                    "component": "NETWORK",
+                    "context": "HostnameCanonicalizationWorker"
+                }
+            },
+            "tags": [
+                "preserve_original_event"
+            ]
+        },
+        {
+            "@timestamp": "2018-02-05T12:44:56.744Z",
+            "ecs": {
+                "version": "8.5.1"
+            },
+            "event": {
+                "category": [
+                    "database"
+                ],
+                "created": "2020-04-28T11:07:58.223Z",
+                "ingested": "2023-06-27T15:13:59.438167295Z",
+                "kind": "event",
+                "type": [
+                    "info"
+                ]
+            },
+            "log": {
+                "level": "I"
+            },
+            "message": "waiting for connections on port 27017",
+            "mongodb": {
+                "log": {
+                    "component": "NETWORK",
+                    "context": "initandlisten"
+                }
+            },
+            "tags": [
+                "preserve_original_event"
+            ]
+        },
+        {
+            "@timestamp": "2018-02-05T12:50:55.170Z",
+            "ecs": {
+                "version": "8.5.1"
+            },
+            "event": {
+                "category": [
+                    "database"
+                ],
+                "created": "2020-04-28T11:07:58.223Z",
+                "ingested": "2023-06-27T15:13:59.438168462Z",
+                "kind": "event",
+                "type": [
+                    "info"
+                ]
+            },
+            "log": {
+                "level": "I"
+            },
+            "message": "end connection 127.0.0.1:55404 (0 connections now open)",
+            "mongodb": {
+                "log": {
+                    "component": "NETWORK",
+                    "context": "conn1"
+                }
+            },
+            "tags": [
+                "preserve_original_event"
+            ]
+        },
+        {
+            "@timestamp": "2018-02-05T12:50:55.487Z",
+            "ecs": {
+                "version": "8.5.1"
+            },
+            "event": {
+                "category": [
+                    "database"
+                ],
+                "created": "2020-04-28T11:07:58.223Z",
+                "ingested": "2023-06-27T15:13:59.438169587Z",
+                "kind": "event",
+                "type": [
+                    "info"
+                ]
+            },
+            "log": {
+                "level": "I"
+            },
+            "message": "connection accepted from 127.0.0.1:55406 #2 (1 connection now open)",
+            "mongodb": {
+                "log": {
+                    "component": "NETWORK",
+                    "context": "initandlisten"
+                }
+            },
+            "tags": [
+                "preserve_original_event"
+            ]
+        },
+        {
+            "@timestamp": "2018-02-05T13:49:45.606Z",
+            "ecs": {
+                "version": "8.5.1"
+            },
+            "event": {
+                "category": [
+                    "database"
+                ],
+                "created": "2020-04-28T11:07:58.223Z",
+                "ingested": "2023-06-27T15:13:59.438170712Z",
+                "kind": "event",
+                "type": [
+                    "info"
+                ]
+            },
+            "log": {
+                "level": "I"
+            },
+            "message": "now exiting",
+            "mongodb": {
+                "log": {
+                    "component": "CONTROL",
+                    "context": "signalProcessingThread"
+                }
+            },
+            "tags": [
+                "preserve_original_event"
+            ]
+        },
+        {
+            "@timestamp": "2018-02-05T13:49:45.606Z",
+            "ecs": {
+                "version": "8.5.1"
+            },
+            "event": {
+                "category": [
+                    "database"
+                ],
+                "created": "2020-04-28T11:07:58.223Z",
+                "ingested": "2023-06-27T15:13:59.438171837Z",
+                "kind": "event",
+                "type": [
+                    "info"
+                ]
+            },
+            "log": {
+                "level": "I"
+            },
+            "message": "closing listening socket: 7",
+            "mongodb": {
+                "log": {
+                    "component": "NETWORK",
+                    "context": "signalProcessingThread"
+                }
+            },
+            "tags": [
+                "preserve_original_event"
+            ]
+        },
+        {
+            "@timestamp": "2018-02-05T13:49:45.606Z",
+            "ecs": {
+                "version": "8.5.1"
+            },
+            "event": {
+                "category": [
+                    "database"
+                ],
+                "created": "2020-04-28T11:07:58.223Z",
+                "ingested": "2023-06-27T15:13:59.438173129Z",
+                "kind": "event",
+                "type": [
+                    "info"
+                ]
+            },
+            "log": {
+                "level": "I"
+            },
+            "message": "removing socket file: /run/mongodb/mongodb-27017.sock",
+            "mongodb": {
+                "log": {
+                    "component": "NETWORK",
+                    "context": "signalProcessingThread"
+                }
+            },
+            "tags": [
+                "preserve_original_event"
+            ]
+        },
+        {
+            "@timestamp": "2018-02-05T13:49:45.606Z",
+            "ecs": {
+                "version": "8.5.1"
+            },
+            "event": {
+                "category": [
+                    "database"
+                ],
+                "created": "2020-04-28T11:07:58.223Z",
+                "ingested": "2023-06-27T15:13:59.438174295Z",
+                "kind": "event",
+                "type": [
+                    "info"
+                ]
+            },
+            "log": {
+                "level": "I"
+            },
+            "message": "shutdown: going to flush diaglog...",
+            "mongodb": {
+                "log": {
+                    "component": "NETWORK",
+                    "context": "signalProcessingThread"
+                }
+            },
+            "tags": [
+                "preserve_original_event"
+            ]
+        },
+        {
+            "@timestamp": "2018-02-05T13:49:45.606Z",
+            "ecs": {
+                "version": "8.5.1"
+            },
+            "event": {
+                "category": [
+                    "database"
+                ],
+                "created": "2020-04-28T11:07:58.223Z",
+                "ingested": "2023-06-27T15:13:59.438175462Z",
+                "kind": "event",
+                "type": [
+                    "info"
+                ]
+            },
+            "log": {
+                "level": "I"
+            },
+            "message": "shutdown: going to close sockets...",
+            "mongodb": {
+                "log": {
+                    "component": "NETWORK",
+                    "context": "signalProcessingThread"
+                }
+            },
+            "tags": [
+                "preserve_original_event"
+            ]
+        },
+        {
+            "@timestamp": "2018-02-05T13:49:45.688Z",
+            "ecs": {
+                "version": "8.5.1"
+            },
+            "event": {
+                "category": [
+                    "database"
+                ],
+                "created": "2020-04-28T11:07:58.223Z",
+                "ingested": "2023-06-27T15:13:59.438176629Z",
+                "kind": "event",
+                "type": [
+                    "info"
+                ]
+            },
+            "log": {
+                "level": "I"
+            },
+            "message": "shutdown: removing fs lock...",
+            "mongodb": {
+                "log": {
+                    "component": "STORAGE",
+                    "context": "signalProcessingThread"
+                }
+            },
+            "tags": [
+                "preserve_original_event"
+            ]
+        },
+        {
+            "@timestamp": "2018-02-05T12:44:56.657Z",
+            "ecs": {
+                "version": "8.5.1"
+            },
+            "event": {
+                "category": [
+                    "database"
+                ],
+                "created": "2020-04-28T11:07:58.223Z",
+                "ingested": "2023-06-27T15:13:59.438177795Z",
+                "kind": "event",
+                "type": [
+                    "info"
+                ]
+            },
+            "log": {
+                "level": "I"
+            },
+            "message": "db version v3.2.11",
+            "mongodb": {
+                "log": {
+                    "component": "CONTROL",
+                    "context": "initandlisten"
+                }
+            },
+            "tags": [
+                "preserve_original_event"
+            ]
+        },
+        {
+            "@timestamp": "2018-02-05T12:44:56.657Z",
+            "ecs": {
+                "version": "8.5.1"
+            },
+            "event": {
+                "category": [
+                    "database"
+                ],
+                "created": "2020-04-28T11:07:58.223Z",
+                "ingested": "2023-06-27T15:13:59.438178962Z",
+                "kind": "event",
+                "type": [
+                    "info"
+                ]
+            },
+            "log": {
+                "level": "I"
+            },
+            "message": "build environment:",
+            "mongodb": {
+                "log": {
+                    "component": "CONTROL",
+                    "context": "initandlisten"
+                }
+            },
+            "tags": [
+                "preserve_original_event"
+            ]
+        },
+        {
+            "@timestamp": "2018-02-05T12:44:56.657Z",
+            "ecs": {
+                "version": "8.5.1"
+            },
+            "event": {
+                "category": [
+                    "database"
+                ],
+                "created": "2020-04-28T11:07:58.223Z",
+                "ingested": "2023-06-27T15:13:59.438180129Z",
+                "kind": "event",
+                "type": [
+                    "info"
+                ]
+            },
+            "log": {
+                "level": "I"
+            },
+            "message": "distarch: x86_64",
+            "mongodb": {
+                "log": {
+                    "component": "CONTROL",
+                    "context": "initandlisten"
+                }
+            },
+            "tags": [
+                "preserve_original_event"
+            ]
+        },
+        {
+            "@timestamp": "2018-02-05T12:44:56.657Z",
+            "ecs": {
+                "version": "8.5.1"
+            },
+            "event": {
+                "category": [
+                    "database"
+                ],
+                "created": "2020-04-28T11:07:58.223Z",
+                "ingested": "2023-06-27T15:13:59.438181295Z",
+                "kind": "event",
+                "type": [
+                    "info"
+                ]
+            },
+            "log": {
+                "level": "I"
+            },
+            "message": "options: { config: \"/etc/mongodb.conf\", net: { bindIp: \"127.0.0.1\", unixDomainSocket: { pathPrefix: \"/run/mongodb\" } }, storage: { dbPath: \"/var/lib/mongodb\", journal: { enabled: true } }, systemLog: { destination: \"file\", logAppend: true, path: \"/var/log/mongodb/mongodb.log\" } }",
+            "mongodb": {
+                "log": {
+                    "component": "CONTROL",
+                    "context": "initandlisten"
+                }
+            },
+            "tags": [
+                "preserve_original_event"
+            ]
+        },
+        {
+            "@timestamp": "2018-02-05T12:50:55.170Z",
+            "ecs": {
+                "version": "8.5.1"
+            },
+            "event": {
+                "category": [
+                    "database"
+                ],
+                "created": "2020-04-28T11:07:58.223Z",
+                "ingested": "2023-06-27T15:13:59.438182420Z",
+                "kind": "event",
+                "type": [
+                    "info"
+                ]
+            },
+            "log": {
+                "level": "I"
+            },
+            "message": "connection accepted from 127.0.0.1:55404 #1 (1 connection now open)",
+            "mongodb": {
+                "log": {
+                    "component": "NETWORK",
+                    "context": "initandlisten"
+                }
+            },
+            "tags": [
+                "preserve_original_event"
+            ]
+        },
+        {
+            "@timestamp": "2018-02-05T12:50:56.180Z",
+            "ecs": {
+                "version": "8.5.1"
+            },
+            "event": {
+                "category": [
+                    "database"
+                ],
+                "created": "2020-04-28T11:07:58.223Z",
+                "ingested": "2023-06-27T15:13:59.438187045Z",
+                "kind": "event",
+                "type": [
+                    "info"
+                ]
+            },
+            "log": {
+                "level": "I"
+            },
+            "message": "end connection 127.0.0.1:55414 (0 connections now open)",
+            "mongodb": {
+                "log": {
+                    "component": "NETWORK",
+                    "context": "conn3"
+                }
+            },
+            "tags": [
+                "preserve_original_event"
+            ]
+        },
+        {
+            "@timestamp": "2018-02-05T13:15:42.095Z",
+            "ecs": {
+                "version": "8.5.1"
+            },
+            "event": {
+                "category": [
+                    "database"
+                ],
+                "created": "2020-04-28T11:07:58.223Z",
+                "ingested": "2023-06-27T15:13:59.438188254Z",
+                "kind": "event",
+                "type": [
+                    "info"
+                ]
+            },
+            "log": {
+                "level": "I"
+            },
+            "message": "end connection 127.0.0.1:58336 (0 connections now open)",
+            "mongodb": {
+                "log": {
+                    "component": "NETWORK",
+                    "context": "conn4"
+                }
+            },
+            "tags": [
+                "preserve_original_event"
+            ]
+        },
+        {
+            "@timestamp": "2018-02-05T13:49:45.606Z",
+            "ecs": {
+                "version": "8.5.1"
+            },
+            "event": {
+                "category": [
+                    "database"
+                ],
+                "created": "2020-04-28T11:07:58.223Z",
+                "ingested": "2023-06-27T15:13:59.438189420Z",
+                "kind": "event",
+                "type": [
+                    "info"
+                ]
+            },
+            "log": {
+                "level": "I"
+            },
+            "message": "shutdown: going to close listening sockets...",
+            "mongodb": {
+                "log": {
+                    "component": "NETWORK",
+                    "context": "signalProcessingThread"
+                }
+            },
+            "tags": [
+                "preserve_original_event"
+            ]
+        },
+        {
+            "@timestamp": "2018-02-05T13:49:45.606Z",
+            "ecs": {
+                "version": "8.5.1"
+            },
+            "event": {
+                "category": [
+                    "database"
+                ],
+                "created": "2020-04-28T11:07:58.223Z",
+                "ingested": "2023-06-27T15:13:59.438190629Z",
+                "kind": "event",
+                "type": [
+                    "info"
+                ]
+            },
+            "log": {
+                "level": "I"
+            },
+            "message": "WiredTigerKVEngine shutting down",
+            "mongodb": {
+                "log": {
+                    "component": "STORAGE",
+                    "context": "signalProcessingThread"
+                }
+            },
+            "tags": [
+                "preserve_original_event"
+            ]
+        },
+        {
+            "@timestamp": "2018-02-05T13:49:45.688Z",
+            "ecs": {
+                "version": "8.5.1"
+            },
+            "event": {
+                "category": [
+                    "database"
+                ],
+                "created": "2020-04-28T11:07:58.223Z",
+                "ingested": "2023-06-27T15:13:59.438195712Z",
+                "kind": "event",
+                "type": [
+                    "info"
+                ]
+            },
+            "log": {
+                "level": "I"
+            },
+            "message": "dbexit:  rc: 0",
+            "mongodb": {
+                "log": {
+                    "component": "CONTROL",
+                    "context": "signalProcessingThread"
+                }
+            },
+            "tags": [
+                "preserve_original_event"
+            ]
+        },
+        {
+            "@timestamp": "2018-02-05T12:44:56.657Z",
+            "ecs": {
+                "version": "8.5.1"
+            },
+            "event": {
+                "category": [
+                    "database"
+                ],
+                "created": "2020-04-28T11:07:58.223Z",
+                "ingested": "2023-06-27T15:13:59.438196879Z",
+                "kind": "event",
+                "type": [
+                    "info"
+                ]
+            },
+            "log": {
+                "level": "I"
+            },
+            "message": "MongoDB starting : pid=29803 port=27017 dbpath=/var/lib/mongodb 64-bit host=sleipnir",
+            "mongodb": {
+                "log": {
+                    "component": "CONTROL",
+                    "context": "initandlisten"
+                }
+            },
+            "tags": [
+                "preserve_original_event"
+            ]
+        },
+        {
+            "@timestamp": "2018-02-05T12:44:56.657Z",
+            "ecs": {
+                "version": "8.5.1"
+            },
+            "event": {
+                "category": [
+                    "database"
+                ],
+                "created": "2020-04-28T11:07:58.223Z",
+                "ingested": "2023-06-27T15:13:59.438198129Z",
+                "kind": "event",
+                "type": [
+                    "info"
+                ]
+            },
+            "log": {
+                "level": "I"
+            },
+            "message": "allocator: tcmalloc",
+            "mongodb": {
+                "log": {
+                    "component": "CONTROL",
+                    "context": "initandlisten"
+                }
+            },
+            "tags": [
+                "preserve_original_event"
+            ]
+        },
+        {
+            "@timestamp": "2018-02-05T12:44:56.657Z",
+            "ecs": {
+                "version": "8.5.1"
+            },
+            "event": {
+                "category": [
+                    "database"
+                ],
+                "created": "2020-04-28T11:07:58.223Z",
+                "ingested": "2023-06-27T15:13:59.438199295Z",
+                "kind": "event",
+                "type": [
+                    "info"
+                ]
+            },
+            "log": {
+                "level": "I"
+            },
+            "message": "target_arch: x86_64",
+            "mongodb": {
+                "log": {
+                    "component": "CONTROL",
+                    "context": "initandlisten"
+                }
+            },
+            "tags": [
+                "preserve_original_event"
+            ]
+        },
+        {
+            "@timestamp": "2018-02-05T12:50:55.487Z",
+            "ecs": {
+                "version": "8.5.1"
+            },
+            "event": {
+                "category": [
+                    "database"
+                ],
+                "created": "2020-04-28T11:07:58.223Z",
+                "ingested": "2023-06-27T15:13:59.438200462Z",
+                "kind": "event",
+                "type": [
+                    "info"
+                ]
+            },
+            "log": {
+                "level": "I"
+            },
+            "message": "end connection 127.0.0.1:55406 (0 connections now open)",
+            "mongodb": {
+                "log": {
+                    "component": "NETWORK",
+                    "context": "conn2"
+                }
+            },
+            "tags": [
+                "preserve_original_event"
+            ]
+        },
+        {
+            "@timestamp": "2018-02-05T12:50:56.180Z",
+            "ecs": {
+                "version": "8.5.1"
+            },
+            "event": {
+                "category": [
+                    "database"
+                ],
+                "created": "2020-04-28T11:07:58.223Z",
+                "ingested": "2023-06-27T15:13:59.438201629Z",
+                "kind": "event",
+                "type": [
+                    "info"
+                ]
+            },
+            "log": {
+                "level": "I"
+            },
+            "message": "connection accepted from 127.0.0.1:55414 #3 (1 connection now open)",
+            "mongodb": {
+                "log": {
+                    "component": "NETWORK",
+                    "context": "initandlisten"
+                }
+            },
+            "tags": [
+                "preserve_original_event"
+            ]
+        },
+        {
+            "@timestamp": "2018-02-05T13:11:41.401Z",
+            "ecs": {
+                "version": "8.5.1"
+            },
+            "event": {
+                "category": [
+                    "database"
+                ],
+                "created": "2020-04-28T11:07:58.223Z",
+                "ingested": "2023-06-27T15:13:59.438202754Z",
+                "kind": "event",
+                "type": [
+                    "info"
+                ]
+            },
+            "log": {
+                "level": "I"
+            },
+            "message": "connection accepted from 127.0.0.1:58336 #4 (1 connection now open)",
+            "mongodb": {
+                "log": {
+                    "component": "NETWORK",
+                    "context": "initandlisten"
+                }
+            },
+            "tags": [
+                "preserve_original_event"
+            ]
+        },
+        {
+            "@timestamp": "2018-02-05T13:49:45.605Z",
+            "ecs": {
+                "version": "8.5.1"
+            },
+            "event": {
+                "category": [
+                    "database"
+                ],
+                "created": "2020-04-28T11:07:58.223Z",
+                "ingested": "2023-06-27T15:13:59.438203879Z",
+                "kind": "event",
+                "type": [
+                    "info"
+                ]
+            },
+            "log": {
+                "level": "I"
+            },
+            "message": "got signal 15 (Terminated), will terminate after current cmd ends",
+            "mongodb": {
+                "log": {
+                    "component": "CONTROL",
+                    "context": "signalProcessingThread"
+                }
+            },
+            "tags": [
+                "preserve_original_event"
+            ]
+        },
+        {
+            "@timestamp": "2018-02-05T13:49:45.605Z",
+            "ecs": {
+                "version": "8.5.1"
+            },
+            "event": {
+                "category": [
+                    "database"
+                ],
+                "created": "2020-04-28T11:07:58.223Z",
+                "ingested": "2023-06-27T15:13:59.438205004Z",
+                "kind": "event",
+                "type": [
+                    "info"
+                ]
+            },
+            "log": {
+                "level": "I"
+            },
+            "message": "Shutting down full-time diagnostic data capture",
+            "mongodb": {
+                "log": {
+                    "component": "FTDC",
+                    "context": "signalProcessingThread"
+                }
+            },
+            "tags": [
+                "preserve_original_event"
+            ]
+        },
+        {
+            "@timestamp": "2018-02-05T13:49:45.606Z",
+            "ecs": {
+                "version": "8.5.1"
+            },
+            "event": {
+                "category": [
+                    "database"
+                ],
+                "created": "2020-04-28T11:07:58.223Z",
+                "ingested": "2023-06-27T15:13:59.438206170Z",
+                "kind": "event",
+                "type": [
+                    "info"
+                ]
+            },
+            "log": {
+                "level": "I"
+            },
+            "message": "closing listening socket: 6",
+            "mongodb": {
+                "log": {
+                    "component": "NETWORK",
+                    "context": "signalProcessingThread"
+                }
+            },
+            "tags": [
+                "preserve_original_event"
+            ]
+        },
+        {
+            "@timestamp": "2019-03-07T15:10:26.960Z",
+            "ecs": {
+                "version": "8.5.1"
+            },
+            "event": {
+                "category": [
+                    "database"
+                ],
+                "created": "2020-04-28T11:07:58.223Z",
+                "ingested": "2023-06-27T15:13:59.438207379Z",
+                "kind": "event",
+                "type": [
+                    "info"
+                ]
+            },
+            "log": {
+                "level": "I"
+            },
+            "message": "Successfully connected to dbbox7:27017, took 10ms (1 connections now open to dbbox7:27017)",
+            "mongodb": {
+                "log": {
+                    "component": "ASIO",
+                    "context": "NetworkInterfaceASIO-Replication-0"
+                }
+            },
+            "tags": [
+                "preserve_original_event"
+            ]
+        },
+        {
+            "@timestamp": "2020-03-31T21:19:46.942Z",
+            "ecs": {
+                "version": "8.5.1"
+            },
+            "event": {
+                "category": [
+                    "database"
+                ],
+                "created": "2020-04-28T11:07:58.223Z",
+                "ingested": "2023-06-27T15:13:59.438208545Z",
+                "kind": "event",
+                "type": [
+                    "change",
+                    "error"
+                ]
+            },
+            "log": {
+                "level": "E"
+            },
+            "message": "** ERROR: A write operation resulted in an error. E11000 duplicate key error index: test.people.$_id_ dup key: { : 0 }",
+            "mongodb": {
+                "log": {
+                    "component": "WRITE",
+                    "context": "initandlisten"
+                }
+            },
+            "tags": [
+                "preserve_original_event"
+            ]
+        },
+        {
+            "@timestamp": "2020-03-31T21:19:47.420Z",
+            "ecs": {
+                "version": "8.5.1"
+            },
+            "event": {
+                "category": [
+                    "database"
+                ],
+                "created": "2020-04-28T11:07:58.223Z",
+                "ingested": "2023-06-27T15:13:59.438209712Z",
+                "kind": "event",
+                "type": [
+                    "info",
+                    "error"
+                ]
+            },
+            "log": {
+                "level": "E"
+            },
+            "message": "** ERROR: No connection could be made because the target machine actively refused it 127.0.0.1:27017 at System.Net.Sockets.Socket.EndConnect",
+            "mongodb": {
+                "log": {
+                    "component": "NETWORK",
+                    "context": "initandlisten"
+                }
+            },
+            "tags": [
+                "preserve_original_event"
+            ]
+        }
+    ]
+}

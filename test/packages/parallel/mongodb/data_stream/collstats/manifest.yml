@@ -1,0 +1,16 @@
+title: MongoDB collstats metrics
+type: metrics
+streams:
+  - input: mongodb/metrics
+    vars:
+      - name: period
+        type: text
+        title: Period
+        multi: false
+        required: true
+        show_user: true
+        default: 10s
+    title: MongoDB collstats metrics
+    description: Collect MongoDB collstats metrics
+elasticsearch:
+  index_mode: "time_series"

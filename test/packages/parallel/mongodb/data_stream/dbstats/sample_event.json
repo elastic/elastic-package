@@ -1,0 +1,77 @@
+{
+    "@timestamp": "2023-06-27T09:46:40.443Z",
+    "agent": {
+        "ephemeral_id": "edda44e9-e81b-4916-a6dd-ad6716976001",
+        "id": "ee8ce08e-6f80-467d-a633-e9ff4ffdb266",
+        "name": "docker-fleet-agent",
+        "type": "metricbeat",
+        "version": "8.8.0"
+    },
+    "data_stream": {
+        "dataset": "mongodb.dbstats",
+        "namespace": "ep",
+        "type": "metrics"
+    },
+    "ecs": {
+        "version": "8.0.0"
+    },
+    "elastic_agent": {
+        "id": "ee8ce08e-6f80-467d-a633-e9ff4ffdb266",
+        "snapshot": false,
+        "version": "8.8.0"
+    },
+    "event": {
+        "agent_id_status": "verified",
+        "dataset": "mongodb.dbstats",
+        "duration": 3543708,
+        "ingested": "2023-06-27T09:46:42Z",
+        "module": "mongodb"
+    },
+    "host": {
+        "architecture": "aarch64",
+        "containerized": false,
+        "hostname": "docker-fleet-agent",
+        "id": "b5cb0e96dbea41d19c3216af1f327d73",
+        "ip": "192.168.48.7",
+        "mac": "02-42-C0-A8-30-07",
+        "name": "docker-fleet-agent",
+        "os": {
+            "codename": "focal",
+            "family": "debian",
+            "kernel": "5.10.104-linuxkit",
+            "name": "Ubuntu",
+            "platform": "ubuntu",
+            "type": "linux",
+            "version": "20.04.6 LTS (Focal Fossa)"
+        }
+    },
+    "metricset": {
+        "name": "dbstats",
+        "period": 10000
+    },
+    "mongodb": {
+        "dbstats": {
+            "avg_obj_size": {
+                "bytes": 522
+            },
+            "collections": 3,
+            "data_size": {
+                "bytes": 1566
+            },
+            "db": "local",
+            "index_size": {
+                "bytes": 12288
+            },
+            "indexes": 3,
+            "num_extents": 0,
+            "objects": 3,
+            "storage_size": {
+                "bytes": 12288
+            }
+        }
+    },
+    "service": {
+        "address": "mongodb://elastic-package-service_mongodb_1",
+        "type": "mongodb"
+    }
+}
