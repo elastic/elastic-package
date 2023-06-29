@@ -6,10 +6,6 @@ set -euo pipefail
 mkdir -p build
 buildkite-agent artifact download "build/output-logs/*" build/
 
-echo ----
-ls -lR build
-echo ----
-
 for package_type in $(ls build/output-logs/); do
     for output_file in $(ls build/output-logs/${package_type}); do
         output="build/output-logs/${package_type}/${output_file}"
@@ -21,7 +17,7 @@ for package_type in $(ls build/output-logs/); do
             errors=$(grep -E "Error:" ${output})
             echo "${errors}"
 
-            cat <<EOF >> markdown.
+            cat <<EOF >> markdown.md
 - Error found in ${package_type}
   > ${errors}
 EOF
