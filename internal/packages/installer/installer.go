@@ -7,8 +7,6 @@ package installer
 import (
 	"fmt"
 
-	"github.com/pkg/errors"
-
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/packages"
 )
@@ -41,7 +39,7 @@ func CreateForManifest(kibanaClient *kibana.Client, packageRoot string) (*manife
 func (i *manifestInstaller) Install() (*InstalledPackage, error) {
 	assets, err := i.kibanaClient.InstallPackage(i.manifest.Name, i.manifest.Version)
 	if err != nil {
-		return nil, errors.Wrap(err, "can't install the package")
+		return nil, fmt.Errorf("can't install the package: %w", err)
 	}
 
 	return &InstalledPackage{
@@ -55,7 +53,7 @@ func (i *manifestInstaller) Install() (*InstalledPackage, error) {
 func (i *manifestInstaller) Uninstall() error {
 	_, err := i.kibanaClient.RemovePackage(i.manifest.Name, i.manifest.Version)
 	if err != nil {
-		return errors.Wrap(err, "can't remove the package")
+		return fmt.Errorf("can't remove the package: %w", err)
 	}
 	return nil
 }

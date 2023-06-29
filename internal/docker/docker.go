@@ -13,8 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
-
 	"github.com/elastic/elastic-package/internal/logger"
 )
 
@@ -67,7 +65,7 @@ func Pull(image string) error {
 	logger.Debugf("run command: %s", cmd)
 	err := cmd.Run()
 	if err != nil {
-		return errors.Wrap(err, "running docker command failed")
+		return fmt.Errorf("running docker command failed: %w", err)
 	}
 	return nil
 }
@@ -81,7 +79,7 @@ func ContainerID(containerName string) (string, error) {
 	logger.Debugf("output command: %s", cmd)
 	output, err := cmd.Output()
 	if err != nil {
-		return "", errors.Wrapf(err, "could not find \"%s\" container (stderr=%q)", containerName, errOutput.String())
+		return "", fmt.Errorf("could not find \"%s\" container (stderr=%q): %w", containerName, errOutput.String(), err)
 	}
 	containerIDs := strings.Fields(string(output))
 	if len(containerIDs) != 1 {
@@ -100,7 +98,7 @@ func ContainerIDsWithLabel(key, value string) ([]string, error) {
 	logger.Debugf("output command: %s", cmd)
 	output, err := cmd.Output()
 	if err != nil {
-		return []string{}, errors.Wrapf(err, "error getting containers with label \"%s\" (stderr=%q)", label, errOutput.String())
+		return []string{}, fmt.Errorf("error getting containers with label \"%s\" (stderr=%q): %w", label, errOutput.String(), err)
 	}
 	containerIDs := strings.Fields(string(output))
 	return containerIDs, nil
@@ -115,13 +113,13 @@ func InspectNetwork(network string) ([]NetworkDescription, error) {
 	logger.Debugf("output command: %s", cmd)
 	output, err := cmd.Output()
 	if err != nil {
-		return nil, errors.Wrapf(err, "could not inspect the network (stderr=%q)", errOutput.String())
+		return nil, fmt.Errorf("could not inspect the network (stderr=%q): %w", errOutput.String(), err)
 	}
 
 	var networkDescriptions []NetworkDescription
 	err = json.Unmarshal(output, &networkDescriptions)
 	if err != nil {
-		return nil, errors.Wrapf(err, "can't unmarshal network inspect for %s (stderr=%q)", network, errOutput.String())
+		return nil, fmt.Errorf("can't unmarshal network inspect for %s (stderr=%q): %w", network, errOutput.String(), err)
 	}
 	return networkDescriptions, nil
 }
@@ -134,7 +132,7 @@ func ConnectToNetwork(containerID, network string) error {
 
 	logger.Debugf("run command: %s", cmd)
 	if err := cmd.Run(); err != nil {
-		return errors.Wrapf(err, "could not attach container to the stack network (stderr=%q)", errOutput.String())
+		return fmt.Errorf("could not attach container to the stack network (stderr=%q): %w", errOutput.String(), err)
 	}
 	return nil
 }
@@ -151,13 +149,13 @@ func InspectContainers(containerIDs ...string) ([]ContainerDescription, error) {
 	logger.Debugf("output command: %s", cmd)
 	output, err := cmd.Output()
 	if err != nil {
-		return nil, errors.Wrapf(err, "could not inspect containers (stderr=%q)", errOutput.String())
+		return nil, fmt.Errorf("could not inspect containers (stderr=%q): %w", errOutput.String(), err)
 	}
 
 	var containerDescriptions []ContainerDescription
 	err = json.Unmarshal(output, &containerDescriptions)
 	if err != nil {
-		return nil, errors.Wrapf(err, "can't unmarshal container inspect for %s (stderr=%q)", strings.Join(containerIDs, ","), errOutput.String())
+		return nil, fmt.Errorf("can't unmarshal container inspect for %s (stderr=%q): %w", strings.Join(containerIDs, ","), errOutput.String(), err)
 	}
 	return containerDescriptions, nil
 }
@@ -170,7 +168,7 @@ func Copy(containerName, containerPath, localPath string) error {
 
 	logger.Debugf("run command: %s", cmd)
 	if err := cmd.Run(); err != nil {
-		return errors.Wrapf(err, "could not copy files from the container (stderr=%q)", errOutput.String())
+		return fmt.Errorf("could not copy files from the container (stderr=%q): %w", errOutput.String(), err)
 	}
 	return nil
 }

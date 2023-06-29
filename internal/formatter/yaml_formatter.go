@@ -6,10 +6,9 @@ package formatter
 
 import (
 	"bytes"
+	"fmt"
 
 	"gopkg.in/yaml.v3"
-
-	"github.com/pkg/errors"
 )
 
 // YAMLFormatter function is responsible for formatting the given YAML input.
@@ -20,7 +19,7 @@ func YAMLFormatter(content []byte) ([]byte, bool, error) {
 	var node yaml.Node
 	err := yaml.Unmarshal(content, &node)
 	if err != nil {
-		return nil, false, errors.Wrap(err, "unmarshalling YAML file failed")
+		return nil, false, fmt.Errorf("unmarshalling YAML file failed: %w", err)
 	}
 
 	var b bytes.Buffer
@@ -28,7 +27,7 @@ func YAMLFormatter(content []byte) ([]byte, bool, error) {
 	encoder.SetIndent(2)
 	err = encoder.Encode(&node)
 	if err != nil {
-		return nil, false, errors.Wrap(err, "marshalling YAML node failed")
+		return nil, false, fmt.Errorf("marshalling YAML node failed: %w", err)
 	}
 	formatted := b.Bytes()
 

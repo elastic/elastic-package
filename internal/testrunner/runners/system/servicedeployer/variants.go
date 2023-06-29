@@ -5,12 +5,12 @@
 package servicedeployer
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 )
 
@@ -46,18 +46,18 @@ func ReadVariantsFile(devDeployPath string) (*VariantsFile, error) {
 		return nil, os.ErrNotExist
 	}
 	if err != nil {
-		return nil, errors.Wrap(err, "can't stat variants file")
+		return nil, fmt.Errorf("can't stat variants file: %w", err)
 	}
 
 	content, err := os.ReadFile(variantsYmlPath)
 	if err != nil {
-		return nil, errors.Wrap(err, "can't read variants file")
+		return nil, fmt.Errorf("can't read variants file: %w", err)
 	}
 
 	var f VariantsFile
 	err = yaml.Unmarshal(content, &f)
 	if err != nil {
-		return nil, errors.Wrap(err, "can't unmarshal variants file")
+		return nil, fmt.Errorf("can't unmarshal variants file: %w", err)
 	}
 	return &f, nil
 }

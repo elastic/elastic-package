@@ -5,10 +5,10 @@
 package buildmanifest
 
 import (
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
-
-	"github.com/pkg/errors"
 
 	"github.com/elastic/go-ucfg"
 	"github.com/elastic/go-ucfg/yaml"
@@ -48,13 +48,13 @@ func ReadBuildManifest(packageRoot string) (*BuildManifest, bool, error) {
 		return nil, false, nil // ignore not found errors
 	}
 	if err != nil {
-		return nil, false, errors.Wrapf(err, "reading file failed (path: %s)", path)
+		return nil, false, fmt.Errorf("reading file failed (path: %s): %w", path, err)
 	}
 
 	var bm BuildManifest
 	err = cfg.Unpack(&bm)
 	if err != nil {
-		return nil, true, errors.Wrapf(err, "unpacking build manifest failed (path: %s)", path)
+		return nil, true, fmt.Errorf("unpacking build manifest failed (path: %s): %w", path, err)
 	}
 	return &bm, true, nil
 }

@@ -6,8 +6,7 @@ package formatter
 
 import (
 	"encoding/json"
-
-	"github.com/pkg/errors"
+	"fmt"
 )
 
 // JSONFormatter function is responsible for formatting the given JSON input.
@@ -16,12 +15,12 @@ func JSONFormatter(content []byte) ([]byte, bool, error) {
 	var rawMessage json.RawMessage
 	err := json.Unmarshal(content, &rawMessage)
 	if err != nil {
-		return nil, false, errors.Wrap(err, "unmarshalling JSON file failed")
+		return nil, false, fmt.Errorf("unmarshalling JSON file failed: %w", err)
 	}
 
 	formatted, err := json.MarshalIndent(&rawMessage, "", "    ")
 	if err != nil {
-		return nil, false, errors.Wrap(err, "marshalling JSON raw message failed")
+		return nil, false, fmt.Errorf("marshalling JSON raw message failed: %w", err)
 	}
 	return formatted, string(content) == string(formatted), nil
 }

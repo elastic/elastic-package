@@ -5,12 +5,12 @@
 package builder
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 
 	"github.com/magefile/mage/sh"
-	"github.com/pkg/errors"
 
 	"github.com/elastic/package-spec/v2/code/go/pkg/validator"
 
@@ -37,12 +37,12 @@ type BuildOptions struct {
 func BuildDirectory() (string, error) {
 	buildDir, found, err := findBuildDirectory()
 	if err != nil {
-		return "", errors.Wrap(err, "can't locate build directory")
+		return "", fmt.Errorf("can't locate build directory: %w", err)
 	}
 	if !found {
 		buildDir, err = createBuildDirectory()
 		if err != nil {
-			return "", errors.Wrap(err, "can't create new build directory")
+			return "", fmt.Errorf("can't create new build directory: %w", err)
 		}
 	}
 	return buildDir, nil
@@ -51,7 +51,7 @@ func BuildDirectory() (string, error) {
 func findBuildDirectory() (string, bool, error) {
 	workDir, err := os.Getwd()
 	if err != nil {
-		return "", false, errors.Wrap(err, "can't locate build directory")
+		return "", false, fmt.Errorf("can't locate build directory: %w", err)
 	}
 
 	dir := workDir
@@ -76,11 +76,11 @@ func findBuildDirectory() (string, bool, error) {
 func BuildPackagesDirectory(packageRoot string) (string, error) {
 	buildDir, err := buildPackagesRootDirectory()
 	if err != nil {
-		return "", errors.Wrap(err, "can't locate build packages root directory")
+		return "", fmt.Errorf("can't locate build packages root directory: %w", err)
 	}
 	m, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
 	if err != nil {
-		return "", errors.Wrapf(err, "reading package manifest failed (path: %s)", packageRoot)
+		return "", fmt.Errorf("reading package manifest failed (path: %s): %w", packageRoot, err)
 	}
 	return filepath.Join(buildDir, m.Name, m.Version), nil
 }
@@ -89,11 +89,11 @@ func BuildPackagesDirectory(packageRoot string) (string, error) {
 func buildPackagesZipPath(packageRoot string) (string, error) {
 	buildDir, err := buildPackagesRootDirectory()
 	if err != nil {
-		return "", errors.Wrap(err, "can't locate build packages root directory")
+		return "", fmt.Errorf("can't locate build packages root directory: %w", err)
 	}
 	m, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
 	if err != nil {
-		return "", errors.Wrapf(err, "reading package manifest failed (path: %s)", packageRoot)
+		return "", fmt.Errorf("reading package manifest failed (path: %s): %w", packageRoot, err)
 	}
 	return ZippedBuiltPackagePath(buildDir, *m), nil
 }
@@ -106,12 +106,12 @@ func ZippedBuiltPackagePath(buildDir string, m packages.PackageManifest) string 
 func buildPackagesRootDirectory() (string, error) {
 	buildDir, found, err := FindBuildPackagesDirectory()
 	if err != nil {
-		return "", errors.Wrap(err, "can't locate build directory")
+		return "", fmt.Errorf("can't locate build directory: %w", err)
 	}
 	if !found {
 		buildDir, err = createBuildDirectory(builtPackagesFolder)
 		if err != nil {
-			return "", errors.Wrap(err, "can't create new build directory")
+			return "", fmt.Errorf("can't create new build directory: %w", err)
 		}
 	}
 	return buildDir, nil
@@ -146,43 +146,43 @@ func FindBuildPackagesDirectory() (string, bool, error) {
 func BuildPackage(options BuildOptions) (string, error) {
 	destinationDir, err := BuildPackagesDirectory(options.PackageRoot)
 	if err != nil {
-		return "", errors.Wrap(err, "can't locate build directory")
+		return "", fmt.Errorf("can't locate build directory: %w", err)
 	}
 	logger.Debugf("Build directory: %s\n", destinationDir)
 
 	logger.Debugf("Clear target directory (path: %s)", destinationDir)
 	err = files.ClearDir(destinationDir)
 	if err != nil {
-		return "", errors.Wrap(err, "clearing package contents failed")
+		return "", fmt.Errorf("clearing package contents failed: %w", err)
 	}
 
 	logger.Debugf("Copy package content (source: %s)", options.PackageRoot)
 	err = files.CopyWithoutDev(options.PackageRoot, destinationDir)
 	if err != nil {
-		return "", errors.Wrap(err, "copying package contents failed")
+		return "", fmt.Errorf("copying package contents failed: %w", err)
 	}
 
 	logger.Debug("Copy license file if needed")
 	err = copyLicenseTextFile(filepath.Join(destinationDir, licenseTextFileName))
 	if err != nil {
-		return "", errors.Wrap(err, "copying license text file")
+		return "", fmt.Errorf("copying license text file: %w", err)
 	}
 
 	logger.Debug("Encode dashboards")
 	err = encodeDashboards(destinationDir)
 	if err != nil {
-		return "", errors.Wrap(err, "encoding dashboards failed")
+		return "", fmt.Errorf("encoding dashboards failed: %w", err)
 	}
 
 	logger.Debug("Resolve external fields")
 	err = resolveExternalFields(options.PackageRoot, destinationDir)
 	if err != nil {
-		return "", errors.Wrap(err, "resolving external fields failed")
+		return "", fmt.Errorf("resolving external fields failed: %w", err)
 	}
 
 	err = addDynamicMappings(options.PackageRoot, destinationDir)
 	if err != nil {
-		return "", errors.Wrap(err, "adding dynamic mappings")
+		return "", fmt.Errorf("adding dynamic mappings: %w", err)
 	}
 
 	if options.CreateZip {
@@ -197,7 +197,7 @@ func BuildPackage(options BuildOptions) (string, error) {
 	logger.Debugf("Validating built package (path: %s)", destinationDir)
 	err = validator.ValidateFromPath(destinationDir)
 	if err != nil {
-		return "", errors.Wrap(err, "invalid content found in built package")
+		return "", fmt.Errorf("invalid content found in built package: %w", err)
 	}
 	return destinationDir, nil
 }
@@ -206,12 +206,12 @@ func buildZippedPackage(options BuildOptions, destinationDir string) (string, er
 	logger.Debug("Build zipped package")
 	zippedPackagePath, err := buildPackagesZipPath(options.PackageRoot)
 	if err != nil {
-		return "", errors.Wrap(err, "can't evaluate path for the zipped package")
+		return "", fmt.Errorf("can't evaluate path for the zipped package: %w", err)
 	}
 
 	err = files.Zip(destinationDir, zippedPackagePath)
 	if err != nil {
-		return "", errors.Wrapf(err, "can't compress the built package (compressed file path: %s)", zippedPackagePath)
+		return "", fmt.Errorf("can't compress the built package (compressed file path: %s): %w", zippedPackagePath, err)
 	}
 
 	if options.SkipValidation {
@@ -220,7 +220,7 @@ func buildZippedPackage(options BuildOptions, destinationDir string) (string, er
 		logger.Debugf("Validating built .zip package (path: %s)", zippedPackagePath)
 		err = validator.ValidateFromZip(zippedPackagePath)
 		if err != nil {
-			return "", errors.Wrapf(err, "invalid content found in built zip package")
+			return "", fmt.Errorf("invalid content found in built zip package: %w", err)
 		}
 	}
 
@@ -238,7 +238,7 @@ func signZippedPackage(options BuildOptions, zippedPackagePath string) error {
 	logger.Debug("Sign the package")
 	m, err := packages.ReadPackageManifestFromPackageRoot(options.PackageRoot)
 	if err != nil {
-		return errors.Wrapf(err, "reading package manifest failed (path: %s)", options.PackageRoot)
+		return fmt.Errorf("reading package manifest failed (path: %s): %w", options.PackageRoot, err)
 	}
 
 	err = files.Sign(zippedPackagePath, files.SignOptions{
@@ -246,7 +246,7 @@ func signZippedPackage(options BuildOptions, zippedPackagePath string) error {
 		PackageVersion: m.Version,
 	})
 	if err != nil {
-		return errors.Wrapf(err, "can't sign the zipped package (path: %s)", zippedPackagePath)
+		return fmt.Errorf("can't sign the zipped package (path: %s): %w", zippedPackagePath, err)
 	}
 	return nil
 }
@@ -269,13 +269,13 @@ func copyLicenseTextFile(licensePath string) error {
 		return nil
 	}
 	if err != nil {
-		return errors.Wrapf(err, "failure while looking for license %q in repository", repositoryLicenseTextFileName)
+		return fmt.Errorf("failure while looking for license %q in repository: %w", repositoryLicenseTextFileName, err)
 	}
 
 	logger.Infof("License text found in %q will be included in package", sourceLicensePath)
 	err = sh.Copy(licensePath, sourceLicensePath)
 	if err != nil {
-		return errors.Wrap(err, "can't copy license from repository")
+		return fmt.Errorf("can't copy license from repository: %w", err)
 	}
 
 	return nil
@@ -297,7 +297,7 @@ func createBuildDirectory(dirs ...string) (string, error) {
 	buildDir := filepath.Join(p...)
 	err = os.MkdirAll(buildDir, 0755)
 	if err != nil {
-		return "", errors.Wrapf(err, "mkdir failed (path: %s)", buildDir)
+		return "", fmt.Errorf("mkdir failed (path: %s): %w", buildDir, err)
 	}
 	return buildDir, nil
 }
@@ -311,7 +311,7 @@ func findRepositoryLicense(licenseTextFileName string) (string, error) {
 	sourceFileName := filepath.Join(dir, licenseTextFileName)
 	_, err = os.Stat(sourceFileName)
 	if err != nil {
-		return "", errors.Wrapf(err, "failed to find repository license")
+		return "", fmt.Errorf("failed to find repository license: %w", err)
 	}
 
 	return sourceFileName, nil

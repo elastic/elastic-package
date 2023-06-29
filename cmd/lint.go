@@ -5,7 +5,9 @@
 package cmd
 
 import (
-	"github.com/pkg/errors"
+	"errors"
+	"fmt"
+
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/package-spec/v2/code/go/pkg/validator"
@@ -53,7 +55,7 @@ func lintCommandAction(cmd *cobra.Command, args []string) error {
 				cmd.Printf("check if %s is up-to-date failed: %s\n", f.FileName, f.Error)
 			}
 		}
-		return errors.Wrap(err, "checking readme files are up-to-date failed")
+		return fmt.Errorf("checking readme files are up-to-date failed: %w", err)
 	}
 	return nil
 }
@@ -64,11 +66,11 @@ func validateSourceCommandAction(cmd *cobra.Command, args []string) error {
 		return errors.New("package root not found")
 	}
 	if err != nil {
-		return errors.Wrap(err, "locating package root failed")
+		return fmt.Errorf("locating package root failed: %w", err)
 	}
 	err = validator.ValidateFromPath(packageRootPath)
 	if err != nil {
-		return errors.Wrap(err, "linting package failed")
+		return fmt.Errorf("linting package failed: %w", err)
 	}
 
 	return nil

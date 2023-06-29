@@ -5,12 +5,11 @@
 package outputs
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"time"
-
-	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/builder"
 	"github.com/elastic/elastic-package/internal/testrunner"
@@ -29,13 +28,13 @@ const (
 func reportToFile(pkg, report string, format testrunner.TestReportFormat) error {
 	dest, err := testReportsDir()
 	if err != nil {
-		return errors.Wrap(err, "could not determine test reports folder")
+		return fmt.Errorf("could not determine test reports folder: %w", err)
 	}
 	// Create test reports folder if it doesn't exist
 	_, err = os.Stat(dest)
 	if err != nil && errors.Is(err, os.ErrNotExist) {
 		if err := os.MkdirAll(dest, 0755); err != nil {
-			return errors.Wrap(err, "could not create test reports folder")
+			return fmt.Errorf("could not create test reports folder: %w", err)
 		}
 	}
 
@@ -48,7 +47,7 @@ func reportToFile(pkg, report string, format testrunner.TestReportFormat) error 
 	filePath := filepath.Join(dest, fileName)
 
 	if err := os.WriteFile(filePath, []byte(report+"\n"), 0644); err != nil {
-		return errors.Wrap(err, "could not write report file")
+		return fmt.Errorf("could not write report file: %w", err)
 	}
 
 	return nil
@@ -58,7 +57,7 @@ func reportToFile(pkg, report string, format testrunner.TestReportFormat) error 
 func testReportsDir() (string, error) {
 	buildDir, err := builder.BuildDirectory()
 	if err != nil {
-		return "", errors.Wrap(err, "locating build directory failed")
+		return "", fmt.Errorf("locating build directory failed: %w", err)
 	}
 	return filepath.Join(buildDir, "test-results"), nil
 }

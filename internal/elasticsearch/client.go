@@ -8,13 +8,12 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"strings"
-
-	"github.com/pkg/errors"
 
 	"github.com/elastic/go-elasticsearch/v7"
 	"github.com/elastic/go-elasticsearch/v7/esapi"
@@ -118,7 +117,7 @@ func NewClient(customOptions ...ClientOption) (*Client, error) {
 
 	client, err := elasticsearch.NewClient(config)
 	if err != nil {
-		return nil, errors.Wrap(err, "can't create instance")
+		return nil, fmt.Errorf("can't create instance: %w", err)
 	}
 	return &Client{Client: client}, nil
 }
@@ -127,13 +126,13 @@ func NewClient(customOptions ...ClientOption) (*Client, error) {
 func (client *Client) CheckHealth(ctx context.Context) error {
 	resp, err := client.Cluster.Health(client.Cluster.Health.WithContext(ctx))
 	if err != nil {
-		return errors.Wrap(err, "error checking cluster health")
+		return fmt.Errorf("error checking cluster health: %w", err)
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return errors.Wrap(err, "error reading cluster health response")
+		return fmt.Errorf("error reading cluster health response: %w", err)
 	}
 
 	var clusterHealth struct {
@@ -141,18 +140,18 @@ func (client *Client) CheckHealth(ctx context.Context) error {
 	}
 	err = json.Unmarshal(body, &clusterHealth)
 	if err != nil {
-		return errors.Wrap(err, "error decoding cluster health response")
+		return fmt.Errorf("error decoding cluster health response: %w", err)
 	}
 
 	if status := clusterHealth.Status; status != "green" && status != "yellow" {
 		if status != "red" {
-			return errors.Errorf("cluster in unhealthy state: %q", status)
+			return fmt.Errorf("cluster in unhealthy state: %q", status)
 		}
 		cause, err := client.redHealthCause(ctx)
 		if err != nil {
-			return errors.Wrapf(err, "cluster in unhealthy state, failed to identify cause")
+			return fmt.Errorf("cluster in unhealthy state, failed to identify cause: %w", err)
 		}
-		return errors.Errorf("cluster in unhealthy state: %s", cause)
+		return fmt.Errorf("cluster in unhealthy state: %s", cause)
 	}
 
 	return nil
@@ -164,17 +163,17 @@ func (client *Client) CheckHealth(ctx context.Context) error {
 func (client *Client) redHealthCause(ctx context.Context) (string, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "/_internal/_health", nil)
 	if err != nil {
-		return "", errors.Wrap(err, "error creating internal health request")
+		return "", fmt.Errorf("error creating internal health request: %w", err)
 	}
 	resp, err := client.Transport.Perform(req)
 	if err != nil {
-		return "", errors.Wrap(err, "error performing internal health request")
+		return "", fmt.Errorf("error performing internal health request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", errors.Wrap(err, "error reading internal health response")
+		return "", fmt.Errorf("error reading internal health response: %w", err)
 	}
 
 	var internalHealth struct {
@@ -191,7 +190,7 @@ func (client *Client) redHealthCause(ctx context.Context) (string, error) {
 	}
 	err = json.Unmarshal(body, &internalHealth)
 	if err != nil {
-		return "", errors.Wrap(err, "error decoding internal health response")
+		return "", fmt.Errorf("error decoding internal health response: %w", err)
 	}
 	if internalHealth.Status != "red" {
 		return "", errors.New("cluster state is not red?")

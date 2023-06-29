@@ -8,8 +8,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-
-	"github.com/pkg/errors"
 )
 
 type formatter func(content []byte) ([]byte, bool, error)
@@ -35,13 +33,13 @@ func Format(packageRoot string, failFast bool) error {
 		}
 		err = formatFile(path, failFast)
 		if err != nil {
-			return errors.Wrapf(err, "formatting file failed (path: %s)", path)
+			return fmt.Errorf("formatting file failed (path: %s): %w", path, err)
 		}
 
 		return nil
 	})
 	if err != nil {
-		return errors.Wrap(err, "walking through the integration files failed")
+		return fmt.Errorf("walking through the integration files failed: %w", err)
 	}
 	return nil
 }
@@ -52,7 +50,7 @@ func formatFile(path string, failFast bool) error {
 
 	content, err := os.ReadFile(path)
 	if err != nil {
-		return errors.Wrap(err, "reading file content failed")
+		return fmt.Errorf("reading file content failed: %w", err)
 	}
 
 	format, defined := formatters[ext]
@@ -62,7 +60,7 @@ func formatFile(path string, failFast bool) error {
 
 	newContent, alreadyFormatted, err := format(content)
 	if err != nil {
-		return errors.Wrap(err, "formatting file content failed")
+		return fmt.Errorf("formatting file content failed: %w", err)
 	}
 
 	if alreadyFormatted {
@@ -75,7 +73,7 @@ func formatFile(path string, failFast bool) error {
 
 	err = os.WriteFile(path, newContent, 0755)
 	if err != nil {
-		return errors.Wrapf(err, "rewriting file failed (path: %s)", path)
+		return fmt.Errorf("rewriting file failed (path: %s): %w", path, err)
 	}
 	return nil
 }

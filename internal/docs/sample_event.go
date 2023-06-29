@@ -11,8 +11,6 @@ import (
 	"strings"
 
 	"github.com/elastic/elastic-package/internal/formatter"
-
-	"github.com/pkg/errors"
 )
 
 const sampleEventFile = "sample_event.json"
@@ -22,12 +20,12 @@ func renderSampleEvent(packageRoot, dataStreamName string) (string, error) {
 
 	body, err := os.ReadFile(eventPath)
 	if err != nil {
-		return "", errors.Wrapf(err, "reading sample event file failed (path: %s)", eventPath)
+		return "", fmt.Errorf("reading sample event file failed (path: %s): %w", eventPath, err)
 	}
 
 	formatted, _, err := formatter.JSONFormatter(body)
 	if err != nil {
-		return "", errors.Wrapf(err, "formatting sample event file failed (path: %s)", eventPath)
+		return "", fmt.Errorf("formatting sample event file failed (path: %s): %w", eventPath, err)
 	}
 
 	var builder strings.Builder

@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/jedib0t/go-pretty/table"
-	"github.com/pkg/errors"
+
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
@@ -68,7 +68,7 @@ func setupStackCommand() *cobraext.Command {
 
 			err = validateServicesFlag(services)
 			if err != nil {
-				return errors.Wrap(err, "validating services failed")
+				return fmt.Errorf("validating services failed: %w", err)
 			}
 
 			stackVersion, err := cmd.Flags().GetString(cobraext.StackVersionFlagName)
@@ -96,7 +96,7 @@ func setupStackCommand() *cobraext.Command {
 				Printer:      cmd,
 			})
 			if err != nil {
-				return errors.Wrap(err, "booting up the stack failed")
+				return fmt.Errorf("booting up the stack failed: %w", err)
 			}
 
 			cmd.Println("Done")
@@ -130,7 +130,7 @@ func setupStackCommand() *cobraext.Command {
 				Printer: cmd,
 			})
 			if err != nil {
-				return errors.Wrap(err, "tearing down the stack failed")
+				return fmt.Errorf("tearing down the stack failed: %w", err)
 			}
 
 			cmd.Println("Done")
@@ -165,7 +165,7 @@ func setupStackCommand() *cobraext.Command {
 				Printer:      cmd,
 			})
 			if err != nil {
-				return errors.Wrap(err, "failed updating the stack images")
+				return fmt.Errorf("failed updating the stack images: %w", err)
 			}
 
 			cmd.Println("Done")
@@ -194,7 +194,7 @@ func setupStackCommand() *cobraext.Command {
 
 			shellCode, err := stack.ShellInit(profile, shellName)
 			if err != nil {
-				return errors.Wrap(err, "shellinit failed")
+				return fmt.Errorf("shellinit failed: %w", err)
 			}
 			fmt.Println(shellCode)
 			return nil
@@ -227,7 +227,7 @@ func setupStackCommand() *cobraext.Command {
 				Profile: profile,
 			})
 			if err != nil {
-				return errors.Wrap(err, "dump failed")
+				return fmt.Errorf("dump failed: %w", err)
 			}
 
 			cmd.Printf("Path to stack dump: %s\n", target)
@@ -257,7 +257,7 @@ func setupStackCommand() *cobraext.Command {
 				Printer: cmd,
 			})
 			if err != nil {
-				return errors.Wrap(err, "failed getting stack status")
+				return fmt.Errorf("failed getting stack status: %w", err)
 			}
 
 			cmd.Println("Status of Elastic stack services:")

@@ -10,8 +10,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/pkg/errors"
-
 	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/version"
@@ -24,7 +22,7 @@ func checkIfLatestVersionInstalled(elasticPackagePath *locations.LocationManager
 		return false, nil // old version, no version file
 	}
 	if err != nil {
-		return false, errors.Wrap(err, "reading version file failed")
+		return false, fmt.Errorf("reading version file failed: %w", err)
 	}
 	v := string(versionFile)
 	if version.CommitHash == "undefined" && strings.Contains(v, "undefined") {
@@ -39,7 +37,7 @@ func writeVersionFile(elasticPackagePath *locations.LocationManager) error {
 		filepath.Join(elasticPackagePath.RootDir(), versionFilename),
 		buildVersionFile(version.CommitHash, version.BuildTime))
 	if err != nil {
-		return errors.Wrap(err, "writing static resource failed")
+		return fmt.Errorf("writing static resource failed: %w", err)
 	}
 	return nil
 }

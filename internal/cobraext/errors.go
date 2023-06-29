@@ -4,9 +4,9 @@
 
 package cobraext
 
-import "github.com/pkg/errors"
+import "fmt"
 
 // FlagParsingError method wraps the original error with parsing error.
 func FlagParsingError(err error, flagName string) error {
-	return errors.Wrapf(err, "error parsing --%s flag", flagName)
+	return fmt.Errorf("error parsing --%s flag: %w", flagName, err)
 }

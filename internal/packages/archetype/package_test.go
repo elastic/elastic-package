@@ -5,12 +5,13 @@
 package archetype
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/elastic/package-spec/v2/code/go/pkg/validator"
-	"github.com/pkg/errors"
+
 	"github.com/stretchr/testify/require"
 
 	"github.com/elastic/elastic-package/internal/packages"
@@ -80,7 +81,7 @@ func createPackageDescriptorForTest() PackageDescriptor {
 func checkPackage(packageName string) error {
 	wd, err := os.Getwd()
 	if err != nil {
-		return errors.Wrap(err, "can't get working directory")
+		return fmt.Errorf("can't get working directory: %w", err)
 	}
 	packageRoot := filepath.Join(wd, packageName)
 
@@ -89,7 +90,7 @@ func checkPackage(packageName string) error {
 
 	err = validator.ValidateFromPath(packageRoot)
 	if err != nil {
-		return errors.Wrap(err, "linting package failed")
+		return fmt.Errorf("linting package failed: %w", err)
 	}
 	return nil
 }
