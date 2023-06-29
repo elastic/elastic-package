@@ -508,11 +508,12 @@ func findElementDefinitionForRoot(root, searchedKey string, FieldDefinitions []F
 			return &def
 		}
 
-		if len(def.Fields) == 0 {
-			continue
+		fd := findElementDefinitionForRoot(key, searchedKey, def.Fields)
+		if fd != nil {
+			return fd
 		}
 
-		fd := findElementDefinitionForRoot(key, searchedKey, def.Fields)
+		fd = findElementDefinitionForRoot(key, searchedKey, def.MultiFields)
 		if fd != nil {
 			return fd
 		}

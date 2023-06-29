@@ -226,6 +226,14 @@ func TestValidate_ExpectedEventType(t *testing.T) {
 			},
 			valid: false,
 		},
+		{
+			title: "multi-field",
+			doc: common.MapStr{
+				"process.name":      "elastic-package",
+				"process.name.text": "elastic-package",
+			},
+			valid: true,
+		},
 	}
 
 	for _, c := range cases {
