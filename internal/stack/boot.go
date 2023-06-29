@@ -85,7 +85,9 @@ func BootUp(options Options) error {
 			fmt.Println("Elastic Agent failed to start, trying again.")
 			err = dockerComposeUp(options)
 		}
-		return fmt.Errorf("running docker-compose failed: %w", err)
+		if err != nil {
+			return fmt.Errorf("running docker-compose failed: %w", err)
+		}
 	}
 
 	err = storeConfig(options.Profile, config)
