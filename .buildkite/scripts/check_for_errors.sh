@@ -3,7 +3,9 @@
 set -euo pipefail
 
 
-buildkite-agent artifact download "build/output-logs/*" .
+buildkite-agent artifact download "build/output-logs/*" build/
+
+ls -l build
 
 
 for package_type in $(ls build/output-logs/); do

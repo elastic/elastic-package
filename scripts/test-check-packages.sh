@@ -7,7 +7,12 @@ DEFAULT_DEBUG_LOG_FILE=elastic-package-debug-output.log
 run_elastic_package_command() {
     local command="elastic-package $@"
     if [ "x${CI_DEBUG_LOG_FOLDER_PATH:-}" != "x" ]; then
-        local full_path="${OLDPWD}/${CI_DEBUG_LOG_FOLDER_PATH}/output-logs/${PACKAGE_TEST_TYPE:-other}/${CI_DEBUG_LOG_FILE_PATH:-$DEFAULT_DEBUG_LOG_FILE}"
+        local full_path="${OLDPWD}/${CI_DEBUG_LOG_FOLDER_PATH}/output-logs/${PACKAGE_TEST_TYPE:-other}"
+        if [ -n "${PACKAGE_UNDER_TEST:-}" ]; then
+            full_path="${full_path}-${PACKAGE_UNDER_TEST}"
+        fi
+        full_path="${full_path}/${CI_DEBUG_LOG_FILE_PATH:-$DEFAULT_DEBUG_LOG_FILE}"
+
         local folder=$(dirname ${full_path})
         mkdir -p ${folder}
 
