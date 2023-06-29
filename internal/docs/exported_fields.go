@@ -106,7 +106,7 @@ func collectFieldsFromDefinitions(validator *fields.Validator) ([]fieldsTableRec
 	root := validator.Schema
 	var err error
 	for _, f := range root {
-		records, err = visitFields("", f, records, validator.FieldDependencyManager)
+		records, err = visitFields("", f, records)
 		if err != nil {
 			return nil, fmt.Errorf("visiting fields failed: %w", err)
 		}
@@ -114,7 +114,7 @@ func collectFieldsFromDefinitions(validator *fields.Validator) ([]fieldsTableRec
 	return uniqueTableRecords(records), nil
 }
 
-func visitFields(namePrefix string, f fields.FieldDefinition, records []fieldsTableRecord, fdm *fields.DependencyManager) ([]fieldsTableRecord, error) {
+func visitFields(namePrefix string, f fields.FieldDefinition, records []fieldsTableRecord) ([]fieldsTableRecord, error) {
 	var name = namePrefix
 	if namePrefix != "" {
 		name += "."
@@ -122,20 +122,6 @@ func visitFields(namePrefix string, f fields.FieldDefinition, records []fieldsTa
 	name += f.Name
 
 	if len(f.Fields) == 0 && f.Type != "group" {
-		if f.External != "" {
-			imported, err := fdm.ImportField(f.External, name)
-			if err != nil {
-				return nil, fmt.Errorf("can't import field: %w", err)
-			}
-
-			// Override imported fields with the definition, except for the type and external.
-			var updated fields.FieldDefinition
-			updated.Update(imported)
-			updated.Update(f)
-			updated.Type = imported.Type
-			updated.External = ""
-			f = updated
-		}
 		records = append(records, fieldsTableRecord{
 			name:        name,
 			description: f.Description,
@@ -156,7 +142,7 @@ func visitFields(namePrefix string, f fields.FieldDefinition, records []fieldsTa
 
 	var err error
 	for _, fieldEntry := range f.Fields {
-		records, err = visitFields(name, fieldEntry, records, fdm)
+		records, err = visitFields(name, fieldEntry, records)
 		if err != nil {
 			return nil, fmt.Errorf("recursive visiting fields failed (namePrefix: %s): %w", namePrefix, err)
 		}

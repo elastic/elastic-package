@@ -37,9 +37,6 @@ var (
 type Validator struct {
 	// Schema contains definition records.
 	Schema []FieldDefinition
-	// FieldDependencyManager resolves references to external fields
-	// XXX: Remove this.
-	FieldDependencyManager *DependencyManager
 
 	// SpecVersion contains the version of the spec used by the package.
 	specVersion semver.Version
@@ -179,7 +176,6 @@ func createValidatorForDirectoryAndPackageRoot(fieldsParentDir string, finder pa
 			if err != nil {
 				return nil, fmt.Errorf("failed to initialize dependency management: %w", err)
 			}
-			v.FieldDependencyManager = fdm
 		}
 	}
 
