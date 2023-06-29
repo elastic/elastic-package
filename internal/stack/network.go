@@ -13,7 +13,10 @@ import (
 // EnsureStackNetworkUp function verifies if stack network is up and running.
 func EnsureStackNetworkUp() error {
 	_, err := docker.InspectNetwork(Network())
-	return fmt.Errorf("network not available: %w", err)
+	if err != nil {
+		return fmt.Errorf("network not available: %w", err)
+	}
+	return nil
 }
 
 // Network function returns the stack network name.
