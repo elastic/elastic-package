@@ -12,8 +12,6 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/pkg/errors"
-
 	"github.com/elastic/elastic-package/cmd"
 )
 
@@ -36,7 +34,7 @@ type readmeVars struct {
 func loadCommandTemplate() *template.Template {
 	cmdTmpl, err := template.ParseFiles("./cmd.md.tmpl")
 	if err != nil {
-		log.Fatal(errors.Wrap(err, "loading command template failed"))
+		log.Fatal(fmt.Errorf("loading command template failed: %w", err))
 	}
 	return cmdTmpl
 }
@@ -44,7 +42,7 @@ func loadCommandTemplate() *template.Template {
 func loadSubCommandTemplate() *template.Template {
 	subCmdTmpl, err := template.ParseFiles("./subcmd.md.tmpl")
 	if err != nil {
-		log.Fatal(errors.Wrap(err, "loading subcommand template failed"))
+		log.Fatal(fmt.Errorf("loading subcommand template failed: %w", err))
 	}
 	return subCmdTmpl
 }
@@ -54,7 +52,7 @@ func generateCommandsDoc(cmdTmpl *template.Template, subCommandTemplate *templat
 	for _, cmd := range cmd.Commands() {
 		log.Printf("generating command doc for %s...\n", cmd.Name())
 		if err := cmdTmpl.Execute(&cmdsDoc, cmd); err != nil {
-			log.Fatal(errors.Wrapf(err, "writing documentation for command '%s' failed", cmd.Name()))
+			log.Fatal(fmt.Errorf("writing documentation for command '%s' failed: %w", cmd.Name(), err))
 		}
 		for _, subCommand := range cmd.Commands() {
 			log.Printf("generating command doc for %s %s...\n", cmd.Name(), subCommand.Name())
@@ -72,7 +70,7 @@ func generateCommandsDoc(cmdTmpl *template.Template, subCommandTemplate *templat
 				"Description": description,
 			}
 			if err := subCommandTemplate.Execute(&cmdsDoc, templateData); err != nil {
-				log.Fatal(errors.Wrapf(err, "writing documentation for command '%s %s' failed", cmd.Name(), subCommand.Name()))
+				log.Fatal(fmt.Errorf("writing documentation for command '%s %s' failed: %w", cmd.Name(), subCommand.Name(), err))
 			}
 		}
 	}
@@ -82,7 +80,7 @@ func generateCommandsDoc(cmdTmpl *template.Template, subCommandTemplate *templat
 func loadReadmeTemplate() *template.Template {
 	readmeTmpl, err := template.ParseFiles("./readme.md.tmpl")
 	if err != nil {
-		log.Fatal(errors.Wrap(err, "loading README template failed"))
+		log.Fatal(fmt.Errorf("loading README template failed: %w", err))
 	}
 	return readmeTmpl
 }
@@ -90,17 +88,17 @@ func loadReadmeTemplate() *template.Template {
 func generateReadme(readmeTmpl *template.Template, cmdsDoc string) {
 	readmePath, err := filepath.Abs("../../README.md")
 	if err != nil {
-		log.Fatal(errors.Wrap(err, "creating README absolute file path failed"))
+		log.Fatal(fmt.Errorf("creating README absolute file path failed: %w", err))
 	}
 
 	readme, err := os.OpenFile(readmePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
-		log.Fatal(errors.Wrapf(err, "opening README file %s failed", readmePath))
+		log.Fatal(fmt.Errorf("opening README file %s failed: %w", readmePath, err))
 	}
 	defer readme.Close()
 
 	r := readmeVars{cmdsDoc}
 	if err := readmeTmpl.Execute(readme, r); err != nil {
-		log.Fatal(errors.Wrapf(err, "writing README file %s failed", readmePath))
+		log.Fatal(fmt.Errorf("writing README file %s failed: %w", readmePath, err))
 	}
 }

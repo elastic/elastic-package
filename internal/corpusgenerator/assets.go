@@ -12,7 +12,6 @@ import (
 	"github.com/elastic/elastic-integration-corpus-generator-tool/pkg/genlib"
 	"github.com/elastic/elastic-integration-corpus-generator-tool/pkg/genlib/config"
 	"github.com/elastic/elastic-integration-corpus-generator-tool/pkg/genlib/fields"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -26,7 +25,7 @@ func (c *Client) GetGoTextTemplate(packageName, dataStreamName string) ([]byte, 
 	assetsSubFolder := fmt.Sprintf("%s.%s", packageName, dataStreamName)
 	statusCode, respBody, err := c.get(fmt.Sprintf("%s/%s", assetsSubFolder, gotextTemplateAssetName))
 	if err != nil {
-		return nil, errors.Wrap(err, "could not get gotext template")
+		return nil, fmt.Errorf("could not get gotext template: %w", err)
 	}
 
 	if statusCode != http.StatusOK {
@@ -43,7 +42,7 @@ func (c *Client) GetConf(packageName, dataStreamName string) (genlib.Config, err
 	statusCode, respBody, err := c.get(fmt.Sprintf("%s/%s", assetsSubFolder, confYamlAssetName))
 	if err != nil {
 
-		return genlib.Config{}, errors.Wrap(err, "could not get config yaml")
+		return genlib.Config{}, fmt.Errorf("could not get config yaml: %w", err)
 	}
 
 	if statusCode != http.StatusOK {
@@ -52,7 +51,7 @@ func (c *Client) GetConf(packageName, dataStreamName string) (genlib.Config, err
 
 	cfg, err := config.LoadConfigFromYaml(respBody)
 	if err != nil {
-		return genlib.Config{}, errors.Wrap(err, "could not load config yaml")
+		return genlib.Config{}, fmt.Errorf("could not load config yaml: %w", err)
 	}
 
 	return cfg, nil
@@ -64,7 +63,7 @@ func (c *Client) GetFields(packageName, dataStreamName string) (genlib.Fields, e
 
 	statusCode, respBody, err := c.get(fmt.Sprintf("%s/%s", assetsSubFolder, fieldsYamlAssetName))
 	if err != nil {
-		return genlib.Fields{}, errors.Wrap(err, "could not get fields yaml")
+		return genlib.Fields{}, fmt.Errorf("could not get fields yaml: %w", err)
 	}
 
 	if statusCode != http.StatusOK {
@@ -74,7 +73,7 @@ func (c *Client) GetFields(packageName, dataStreamName string) (genlib.Fields, e
 	ctx := context.Background()
 	fields, err := fields.LoadFieldsWithTemplateFromString(ctx, string(respBody))
 	if err != nil {
-		return genlib.Fields{}, errors.Wrap(err, "could not load fields yaml")
+		return genlib.Fields{}, fmt.Errorf("could not load fields yaml: %w", err)
 	}
 
 	return fields, nil

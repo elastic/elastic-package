@@ -12,7 +12,6 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/google/go-querystring/query"
-	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/packages"
 )
@@ -40,13 +39,13 @@ func (c *Client) Revisions(packageName string, options SearchOptions) ([]package
 		Package:       packageName,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "could not encode options as query parameters")
+		return nil, fmt.Errorf("could not encode options as query parameters: %w", err)
 	}
 	path := searchAPI + "?" + parameters.Encode()
 
 	statusCode, respBody, err := c.get(path)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not retrieve package")
+		return nil, fmt.Errorf("could not retrieve package: %w", err)
 	}
 	if statusCode != http.StatusOK {
 		return nil, fmt.Errorf("could not retrieve package; API status code = %d; response body = %s", statusCode, respBody)
@@ -54,7 +53,7 @@ func (c *Client) Revisions(packageName string, options SearchOptions) ([]package
 
 	var packageManifests []packages.PackageManifest
 	if err := json.Unmarshal(respBody, &packageManifests); err != nil {
-		return nil, errors.Wrap(err, "could not convert package manifests from JSON")
+		return nil, fmt.Errorf("could not convert package manifests from JSON: %w", err)
 	}
 	sort.Slice(packageManifests, func(i, j int) bool {
 		firstVersion, err := semver.NewVersion(packageManifests[i].Version)

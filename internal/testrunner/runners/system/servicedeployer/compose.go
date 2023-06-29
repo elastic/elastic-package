@@ -10,8 +10,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/pkg/errors"
-
 	"github.com/elastic/elastic-package/internal/builder"
 	"github.com/elastic/elastic-package/internal/compose"
 	"github.com/elastic/elastic-package/internal/docker"
@@ -57,19 +55,19 @@ func (d *DockerComposeServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedSer
 
 	p, err := compose.NewProject(service.project, service.ymlPaths...)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not create Docker Compose project for service")
+		return nil, fmt.Errorf("could not create Docker Compose project for service: %w", err)
 	}
 
 	// Verify the Elastic stack network
 	err = stack.EnsureStackNetworkUp()
 	if err != nil {
-		return nil, errors.Wrap(err, "Elastic stack network is not ready")
+		return nil, fmt.Errorf("stack network is not ready: %w", err)
 	}
 
 	// Clean service logs
 	err = files.RemoveContent(outCtxt.Logs.Folder.Local)
 	if err != nil {
-		return nil, errors.Wrap(err, "removing service logs failed")
+		return nil, fmt.Errorf("removing service logs failed: %w", err)
 	}
 
 	// Boot up service
@@ -86,7 +84,7 @@ func (d *DockerComposeServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedSer
 	}
 	err = p.Up(opts)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not boot up service using Docker Compose")
+		return nil, fmt.Errorf("could not boot up service using Docker Compose: %w", err)
 	}
 
 	err = p.WaitForHealthy(opts)
@@ -94,7 +92,7 @@ func (d *DockerComposeServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedSer
 		processServiceContainerLogs(p, compose.CommandOptions{
 			Env: opts.Env,
 		}, outCtxt.Name)
-		return nil, errors.Wrap(err, "service is unhealthy")
+		return nil, fmt.Errorf("service is unhealthy: %w", err)
 	}
 
 	// Build service container name
@@ -103,7 +101,7 @@ func (d *DockerComposeServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedSer
 	// Connect service network with stack network (for the purpose of metrics collection)
 	err = docker.ConnectToNetwork(p.ContainerName(serviceName), stack.Network())
 	if err != nil {
-		return nil, errors.Wrapf(err, "can't attach service container to the stack network")
+		return nil, fmt.Errorf("can't attach service container to the stack network: %w", err)
 	}
 
 	logger.Debugf("adding service container %s internal ports to context", p.ContainerName(serviceName))
@@ -111,7 +109,7 @@ func (d *DockerComposeServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedSer
 		Env: []string{fmt.Sprintf("%s=%s", serviceLogsDirEnv, outCtxt.Logs.Folder.Local)},
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "could not get Docker Compose configuration for service")
+		return nil, fmt.Errorf("could not get Docker Compose configuration for service: %w", err)
 	}
 
 	s := serviceComposeConfig.Services[serviceName]
@@ -134,7 +132,7 @@ func (d *DockerComposeServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedSer
 func (s *dockerComposeDeployedService) Signal(signal string) error {
 	p, err := compose.NewProject(s.project, s.ymlPaths...)
 	if err != nil {
-		return errors.Wrap(err, "could not create Docker Compose project for service")
+		return fmt.Errorf("could not create Docker Compose project for service: %w", err)
 	}
 
 	opts := compose.CommandOptions{
@@ -147,7 +145,7 @@ func (s *dockerComposeDeployedService) Signal(signal string) error {
 		opts.Services = append(opts.Services, s.ctxt.Name)
 	}
 
-	return errors.Wrapf(p.Kill(opts), "could not send %q signal", signal)
+	return fmt.Errorf("could not send %q signal: %w", signal, p.Kill(opts))
 }
 
 // TearDown tears down the service.
@@ -166,7 +164,7 @@ func (s *dockerComposeDeployedService) TearDown() error {
 
 	p, err := compose.NewProject(s.project, s.ymlPaths...)
 	if err != nil {
-		return errors.Wrap(err, "could not create Docker Compose project for service")
+		return fmt.Errorf("could not create Docker Compose project for service: %w", err)
 	}
 
 	opts := compose.CommandOptions{
@@ -180,7 +178,7 @@ func (s *dockerComposeDeployedService) TearDown() error {
 		Env:       opts.Env,
 		ExtraArgs: []string{"--volumes"}, // Remove associated volumes.
 	}); err != nil {
-		return errors.Wrap(err, "could not shut down service using Docker Compose")
+		return fmt.Errorf("could not shut down service using Docker Compose: %w", err)
 	}
 	return nil
 }
@@ -217,20 +215,20 @@ func processServiceContainerLogs(p *compose.Project, opts compose.CommandOptions
 func writeServiceContainerLogs(serviceName string, content []byte) error {
 	buildDir, err := builder.BuildDirectory()
 	if err != nil {
-		return errors.Wrap(err, "locating build directory failed")
+		return fmt.Errorf("locating build directory failed: %w", err)
 	}
 
 	containerLogsDir := filepath.Join(buildDir, "container-logs")
 	err = os.MkdirAll(containerLogsDir, 0755)
 	if err != nil {
-		return errors.Wrapf(err, "can't create directory for service container logs (path: %s)", containerLogsDir)
+		return fmt.Errorf("can't create directory for service container logs (path: %s): %w", containerLogsDir, err)
 	}
 
 	containerLogsFilepath := filepath.Join(containerLogsDir, fmt.Sprintf("%s-%d.log", serviceName, time.Now().UnixNano()))
 	logger.Infof("Write container logs to file: %s", containerLogsFilepath)
 	err = os.WriteFile(containerLogsFilepath, content, 0644)
 	if err != nil {
-		return errors.Wrapf(err, "can't write container logs to file (path: %s)", containerLogsFilepath)
+		return fmt.Errorf("can't write container logs to file (path: %s): %w", containerLogsFilepath, err)
 	}
 	return nil
 }

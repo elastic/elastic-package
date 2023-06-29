@@ -5,10 +5,10 @@
 package cobraext
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/configuration/locations"
@@ -35,7 +35,7 @@ func GetProfileFlag(cmd *cobra.Command) (*profile.Profile, error) {
 	if errors.Is(err, profile.ErrNotAProfile) {
 		list, err := availableProfilesAsAList()
 		if err != nil {
-			return nil, errors.Wrap(err, "error listing known profiles")
+			return nil, fmt.Errorf("error listing known profiles: %w", err)
 		}
 		if len(list) == 0 {
 			return nil, fmt.Errorf("%s is not a valid profile", profileName)
@@ -43,7 +43,7 @@ func GetProfileFlag(cmd *cobra.Command) (*profile.Profile, error) {
 		return nil, fmt.Errorf("%s is not a valid profile, known profiles are: %s", profileName, strings.Join(list, ", "))
 	}
 	if err != nil {
-		return nil, errors.Wrap(err, "error loading profile")
+		return nil, fmt.Errorf("error loading profile: %w", err)
 	}
 
 	return p, nil
@@ -52,13 +52,13 @@ func GetProfileFlag(cmd *cobra.Command) (*profile.Profile, error) {
 func availableProfilesAsAList() ([]string, error) {
 	loc, err := locations.NewLocationManager()
 	if err != nil {
-		return []string{}, errors.Wrap(err, "error fetching profile path")
+		return []string{}, fmt.Errorf("error fetching profile path: %w", err)
 	}
 
 	profileNames := []string{}
 	profileList, err := profile.FetchAllProfiles(loc.ProfileDir())
 	if err != nil {
-		return profileNames, errors.Wrap(err, "error fetching all profiles")
+		return profileNames, fmt.Errorf("error fetching all profiles: %w", err)
 	}
 	for _, prof := range profileList {
 		profileNames = append(profileNames, prof.Name)

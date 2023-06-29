@@ -8,8 +8,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/pkg/errors"
-
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
@@ -66,7 +64,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 
 	testConfig, err := newConfig(r.testFolder.Path)
 	if err != nil {
-		return result.WithError(errors.Wrap(err, "unable to load asset loading test config file"))
+		return result.WithError(fmt.Errorf("unable to load asset loading test config file: %w", err))
 
 	}
 
@@ -80,7 +78,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 	logger.Debug("installing package...")
 	kibanaClient, err := kibana.NewClient()
 	if err != nil {
-		return result.WithError(errors.Wrap(err, "could not create kibana client"))
+		return result.WithError(fmt.Errorf("could not create kibana client: %w", err))
 	}
 	packageInstaller, err := installer.NewForPackage(installer.Options{
 		Kibana:         kibanaClient,
@@ -88,11 +86,11 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		SkipValidation: true,
 	})
 	if err != nil {
-		return result.WithError(errors.Wrap(err, "can't create the package installer"))
+		return result.WithError(fmt.Errorf("can't create the package installer: %w", err))
 	}
 	installedPackage, err := packageInstaller.Install()
 	if err != nil {
-		return result.WithError(errors.Wrap(err, "can't install the package"))
+		return result.WithError(fmt.Errorf("can't install the package: %w", err))
 	}
 
 	r.removePackageHandler = func() error {
@@ -114,7 +112,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 
 	expectedAssets, err := packages.LoadPackageAssets(r.packageRootPath)
 	if err != nil {
-		return result.WithError(errors.Wrap(err, "could not load expected package assets"))
+		return result.WithError(fmt.Errorf("could not load expected package assets: %w", err))
 	}
 
 	results := make([]testrunner.TestResult, 0, len(expectedAssets))

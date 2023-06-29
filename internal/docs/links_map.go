@@ -9,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/environment"
@@ -39,12 +38,12 @@ func (l linkMap) Get(key string) (string, error) {
 	if url, ok := l.Links[key]; ok {
 		return url, nil
 	}
-	return "", errors.Errorf("link key not found: %s", key)
+	return "", fmt.Errorf("link key not found: %s", key)
 }
 
 func (l linkMap) Add(key, value string) error {
 	if _, ok := l.Links[key]; ok {
-		return errors.Errorf("link key already present: %s", key)
+		return fmt.Errorf("link key already present: %s", key)
 	}
 	l.Links[key] = value
 	return nil
@@ -53,7 +52,7 @@ func (l linkMap) Add(key, value string) error {
 func readLinksMap() (linkMap, error) {
 	linksFilePath, err := linksDefinitionsFilePath()
 	if err != nil {
-		return linkMap{}, errors.Wrap(err, "locating links file failed")
+		return linkMap{}, fmt.Errorf("locating links file failed: %w", err)
 	}
 
 	links := newLinkMap()
@@ -64,7 +63,7 @@ func readLinksMap() (linkMap, error) {
 	logger.Debugf("Using links definitions file: %s", linksFilePath)
 	contents, err := os.ReadFile(linksFilePath)
 	if err != nil {
-		return linkMap{}, errors.Wrapf(err, "readfile failed (path: %s)", linksFilePath)
+		return linkMap{}, fmt.Errorf("readfile failed (path: %s): %w", linksFilePath, err)
 	}
 
 	err = yaml.Unmarshal(contents, &links)

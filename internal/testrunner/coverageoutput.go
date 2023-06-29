@@ -7,13 +7,12 @@ package testrunner
 import (
 	"bytes"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"os"
 	"path"
 	"path/filepath"
 	"time"
-
-	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/builder"
 	"github.com/elastic/elastic-package/internal/multierror"
@@ -48,7 +47,7 @@ func (tcd *testCoverageDetails) withTestResults(results []TestResult) *testCover
 		tcd.dataStreams[result.DataStream] = append(tcd.dataStreams[result.DataStream], result.Name)
 		if tcd.cobertura != nil && result.Coverage != nil {
 			if err := tcd.cobertura.merge(result.Coverage); err != nil {
-				tcd.errors = append(tcd.errors, errors.Wrapf(err, "can't merge Cobertura coverage for test `%s`", result.Name))
+				tcd.errors = append(tcd.errors, fmt.Errorf("can't merge Cobertura coverage for test `%s`: %w", result.Name, err))
 			}
 		} else if tcd.cobertura == nil {
 			tcd.cobertura = result.Coverage
@@ -118,7 +117,7 @@ type CoberturaLine struct {
 func (c *CoberturaCoverage) bytes() ([]byte, error) {
 	out, err := xml.MarshalIndent(&c, "", "  ")
 	if err != nil {
-		return nil, errors.Wrap(err, "unable to format test results as xUnit")
+		return nil, fmt.Errorf("unable to format test results as xUnit: %w", err)
 	}
 
 	var buffer bytes.Buffer
@@ -145,7 +144,7 @@ func (c *CoberturaClass) merge(b *CoberturaClass) error {
 			len(c.Methods[idx].Lines) == len(b.Methods[idx].Lines)
 	}
 	if !equal {
-		return errors.Errorf("merging incompatible classes: %+v != %+v", *c, *b)
+		return fmt.Errorf("merging incompatible classes: %+v != %+v", *c, *b)
 	}
 	// Update methods
 	for idx := range b.Methods {
@@ -238,7 +237,7 @@ func (c *CoberturaCoverage) merge(b *CoberturaCoverage) error {
 func WriteCoverage(packageRootPath, packageName string, testType TestType, results []TestResult) error {
 	details, err := collectTestCoverageDetails(packageRootPath, packageName, testType, results)
 	if err != nil {
-		return errors.Wrap(err, "can't collect test coverage details")
+		return fmt.Errorf("can't collect test coverage details: %w", err)
 	}
 
 	// Use provided cobertura report, or generate a custom report if not available.
@@ -249,7 +248,7 @@ func WriteCoverage(packageRootPath, packageName string, testType TestType, resul
 
 	err = writeCoverageReportFile(report, packageName)
 	if err != nil {
-		return errors.Wrap(err, "can't write test coverage report file")
+		return fmt.Errorf("can't write test coverage report file: %w", err)
 	}
 	return nil
 }
@@ -257,7 +256,7 @@ func WriteCoverage(packageRootPath, packageName string, testType TestType, resul
 func collectTestCoverageDetails(packageRootPath, packageName string, testType TestType, results []TestResult) (*testCoverageDetails, error) {
 	withoutTests, err := findDataStreamsWithoutTests(packageRootPath, testType)
 	if err != nil {
-		return nil, errors.Wrap(err, "can't find data streams without tests")
+		return nil, fmt.Errorf("can't find data streams without tests: %w", err)
 	}
 
 	details := newTestCoverageDetails(packageName, testType).
@@ -277,7 +276,7 @@ func findDataStreamsWithoutTests(packageRootPath string, testType TestType) ([]s
 	if errors.Is(err, os.ErrNotExist) {
 		return noTests, nil // there are packages that don't have any data streams (fleet_server, security_detection_engine)
 	} else if err != nil {
-		return nil, errors.Wrap(err, "can't list data streams directory")
+		return nil, fmt.Errorf("can't list data streams directory: %w", err)
 	}
 
 	for _, dataStream := range dataStreams {
@@ -287,7 +286,7 @@ func findDataStreamsWithoutTests(packageRootPath string, testType TestType) ([]s
 
 		expected, err := verifyTestExpected(packageRootPath, dataStream.Name(), testType)
 		if err != nil {
-			return nil, errors.Wrap(err, "can't verify if test is expected")
+			return nil, fmt.Errorf("can't verify if test is expected: %w", err)
 		}
 		if !expected {
 			continue
@@ -300,7 +299,7 @@ func findDataStreamsWithoutTests(packageRootPath string, testType TestType) ([]s
 			continue
 		}
 		if err != nil {
-			return nil, errors.Wrapf(err, "can't stat path: %s", dataStreamTestPath)
+			return nil, fmt.Errorf("can't stat path: %s: %w", dataStreamTestPath, err)
 		}
 	}
 	return noTests, nil
@@ -319,7 +318,7 @@ func verifyTestExpected(packageRootPath string, dataStreamName string, testType 
 		return false, nil
 	}
 	if err != nil {
-		return false, errors.Wrapf(err, "can't stat path: %s", ingestPipelinePath)
+		return false, fmt.Errorf("can't stat path: %s: %w", ingestPipelinePath, err)
 	}
 	return true, nil
 }
@@ -367,14 +366,14 @@ func transformToCoberturaReport(details *testCoverageDetails) *CoberturaCoverage
 func writeCoverageReportFile(report *CoberturaCoverage, packageName string) error {
 	dest, err := testCoverageReportsDir()
 	if err != nil {
-		return errors.Wrap(err, "could not determine test coverage reports folder")
+		return fmt.Errorf("could not determine test coverage reports folder: %w", err)
 	}
 
 	// Create test coverage reports folder if it doesn't exist
 	_, err = os.Stat(dest)
 	if err != nil && errors.Is(err, os.ErrNotExist) {
 		if err := os.MkdirAll(dest, 0755); err != nil {
-			return errors.Wrap(err, "could not create test coverage reports folder")
+			return fmt.Errorf("could not create test coverage reports folder: %w", err)
 		}
 	}
 
@@ -383,11 +382,11 @@ func writeCoverageReportFile(report *CoberturaCoverage, packageName string) erro
 
 	b, err := report.bytes()
 	if err != nil {
-		return errors.Wrap(err, "can't marshal test coverage report")
+		return fmt.Errorf("can't marshal test coverage report: %w", err)
 	}
 
 	if err := os.WriteFile(filePath, b, 0644); err != nil {
-		return errors.Wrap(err, "could not write test coverage report file")
+		return fmt.Errorf("could not write test coverage report file: %w", err)
 	}
 	return nil
 }
@@ -395,7 +394,7 @@ func writeCoverageReportFile(report *CoberturaCoverage, packageName string) erro
 func testCoverageReportsDir() (string, error) {
 	buildDir, err := builder.BuildDirectory()
 	if err != nil {
-		return "", errors.Wrap(err, "locating build directory failed")
+		return "", fmt.Errorf("locating build directory failed: %w", err)
 	}
 	return filepath.Join(buildDir, "test-coverage"), nil
 }

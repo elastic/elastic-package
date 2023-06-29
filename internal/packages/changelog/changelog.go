@@ -5,11 +5,11 @@
 package changelog
 
 import (
+	"fmt"
 	"path/filepath"
 
 	"github.com/elastic/go-ucfg"
 	"github.com/elastic/go-ucfg/yaml"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -39,13 +39,13 @@ func ReadChangelogFromPackageRoot(packageRoot string) ([]Revision, error) {
 func ReadChangelog(path string) ([]Revision, error) {
 	cfg, err := yaml.NewConfigWithFile(path, ucfg.PathSep("."))
 	if err != nil {
-		return nil, errors.Wrapf(err, "reading file failed (path: %s)", path)
+		return nil, fmt.Errorf("reading file failed (path: %s): %w", path, err)
 	}
 
 	var c []Revision
 	err = cfg.Unpack(&c)
 	if err != nil {
-		return nil, errors.Wrapf(err, "unpacking package changelog failed (path: %s)", path)
+		return nil, fmt.Errorf("unpacking package changelog failed (path: %s): %w", path, err)
 	}
 	return c, nil
 }

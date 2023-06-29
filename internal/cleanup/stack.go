@@ -5,10 +5,10 @@
 package cleanup
 
 import (
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
-
-	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/packages"
@@ -22,23 +22,23 @@ func Stack() (string, error) {
 
 	packageRoot, err := packages.MustFindPackageRoot()
 	if err != nil {
-		return "", errors.Wrap(err, "locating package root failed")
+		return "", fmt.Errorf("locating package root failed: %w", err)
 	}
 
 	m, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
 	if err != nil {
-		return "", errors.Wrapf(err, "reading package manifest failed (path: %s)", packageRoot)
+		return "", fmt.Errorf("reading package manifest failed (path: %s): %w", packageRoot, err)
 	}
 
 	locationManager, err := locations.NewLocationManager()
 	if err != nil {
-		return "", errors.Wrap(err, "can't find stack packages dir")
+		return "", fmt.Errorf("can't find stack packages dir: %w", err)
 	}
 	destinationDir := filepath.Join(locationManager.PackagesDir(), m.Name)
 
 	_, err = os.Stat(destinationDir)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return "", errors.Wrapf(err, "stat file failed: %s", destinationDir)
+		return "", fmt.Errorf("stat file failed: %s: %w", destinationDir, err)
 	}
 	if errors.Is(err, os.ErrNotExist) {
 		logger.Debugf("Stack package is not part of the development stack (missing path: %s)", destinationDir)
@@ -48,7 +48,7 @@ func Stack() (string, error) {
 	logger.Debugf("Remove folder (path: %s)", destinationDir)
 	err = os.RemoveAll(destinationDir)
 	if err != nil {
-		return "", errors.Wrapf(err, "can't remove directory (path: %s)", destinationDir)
+		return "", fmt.Errorf("can't remove directory (path: %s): %w", destinationDir, err)
 	}
 	return destinationDir, nil
 }

@@ -5,14 +5,13 @@
 package testrunner
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 	"time"
-
-	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/profile"
@@ -162,7 +161,7 @@ func AssumeTestFolders(packageRootPath string, dataStreams []string, testType Te
 			return []TestFolder{}, nil // data streams defined
 		}
 		if err != nil {
-			return nil, errors.Wrapf(err, "can't read directory (path: %s)", dataStreamsPath)
+			return nil, fmt.Errorf("can't read directory (path: %s): %w", dataStreamsPath, err)
 		}
 
 		for _, fi := range fileInfos {
@@ -271,10 +270,10 @@ func Run(testType TestType, options TestOptions) ([]TestResult, error) {
 	results, err := runner.Run(options)
 	tdErr := runner.TearDown()
 	if err != nil {
-		return nil, errors.Wrap(err, "could not complete test run")
+		return nil, fmt.Errorf("could not complete test run: %w", err)
 	}
 	if tdErr != nil {
-		return results, errors.Wrap(tdErr, "could not teardown test runner")
+		return results, fmt.Errorf("could not teardown test runner: %w", tdErr)
 	}
 	return results, nil
 }
@@ -290,7 +289,7 @@ func findDataStreamTestFolderPaths(packageRootPath, dataStreamGlob, testTypeGlob
 	testFoldersGlob := filepath.Join(packageRootPath, "data_stream", dataStreamGlob, "_dev", "test", testTypeGlob)
 	paths, err := filepath.Glob(testFoldersGlob)
 	if err != nil {
-		return nil, errors.Wrap(err, "error finding test folders")
+		return nil, fmt.Errorf("error finding test folders: %w", err)
 	}
 	return paths, err
 }
@@ -300,7 +299,7 @@ func findPackageTestFolderPaths(packageRootPath, testTypeGlob string) ([]string,
 	testFoldersGlob := filepath.Join(packageRootPath, "_dev", "test", testTypeGlob)
 	paths, err := filepath.Glob(testFoldersGlob)
 	if err != nil {
-		return nil, errors.Wrap(err, "error finding test folders")
+		return nil, fmt.Errorf("error finding test folders: %w", err)
 	}
 	return paths, err
 }

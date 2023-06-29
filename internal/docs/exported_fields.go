@@ -9,8 +9,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/pkg/errors"
-
 	"github.com/elastic/elastic-package/internal/fields"
 )
 
@@ -27,12 +25,12 @@ var escaper = strings.NewReplacer("*", "\\*", "{", "\\{", "}", "\\}", "<", "\\<"
 func renderExportedFields(fieldsParentDir string) (string, error) {
 	validator, err := fields.CreateValidatorForDirectory(fieldsParentDir)
 	if err != nil {
-		return "", errors.Wrapf(err, "can't create fields validator instance (path: %s)", fieldsParentDir)
+		return "", fmt.Errorf("can't create fields validator instance (path: %s): %w", fieldsParentDir, err)
 	}
 
 	collected, err := collectFieldsFromDefinitions(validator)
 	if err != nil {
-		return "", errors.Wrap(err, "collecting fields files failed")
+		return "", fmt.Errorf("collecting fields files failed: %w", err)
 	}
 
 	var builder strings.Builder
@@ -110,7 +108,7 @@ func collectFieldsFromDefinitions(validator *fields.Validator) ([]fieldsTableRec
 	for _, f := range root {
 		records, err = visitFields("", f, records, validator.FieldDependencyManager)
 		if err != nil {
-			return nil, errors.Wrapf(err, "visiting fields failed")
+			return nil, fmt.Errorf("visiting fields failed: %w", err)
 		}
 	}
 	return uniqueTableRecords(records), nil
@@ -127,7 +125,7 @@ func visitFields(namePrefix string, f fields.FieldDefinition, records []fieldsTa
 		if f.External != "" {
 			imported, err := fdm.ImportField(f.External, name)
 			if err != nil {
-				return nil, errors.Wrap(err, "can't import field")
+				return nil, fmt.Errorf("can't import field: %w", err)
 			}
 
 			// Override imported fields with the definition, except for the type and external.
@@ -160,7 +158,7 @@ func visitFields(namePrefix string, f fields.FieldDefinition, records []fieldsTa
 	for _, fieldEntry := range f.Fields {
 		records, err = visitFields(name, fieldEntry, records, fdm)
 		if err != nil {
-			return nil, errors.Wrapf(err, "recursive visiting fields failed (namePrefix: %s)", namePrefix)
+			return nil, fmt.Errorf("recursive visiting fields failed (namePrefix: %s): %w", namePrefix, err)
 		}
 	}
 	return records, nil
