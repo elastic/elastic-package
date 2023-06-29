@@ -3,6 +3,7 @@
 set -euo pipefail
 
 
+mkdir -p build
 buildkite-agent artifact download "build/output-logs/*" build/
 
 ls -l build
