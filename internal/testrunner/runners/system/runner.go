@@ -987,7 +987,7 @@ func waitUntilTrue(fn func() (bool, error), timeout time.Duration) (bool, error)
 	timeoutTicker := time.NewTicker(timeout)
 	defer timeoutTicker.Stop()
 
-	retryTicker := time.NewTicker(1 * time.Second)
+	retryTicker := time.NewTicker(5 * time.Second)
 	defer retryTicker.Stop()
 
 	for {
