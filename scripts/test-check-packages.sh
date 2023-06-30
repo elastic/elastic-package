@@ -30,6 +30,15 @@ cleanup() {
     )
   done
 
+  # This is a false positive scenario and tests that the test case failure is a success scenario  
+  if [ "${PACKAGE_TEST_TYPE:-other}" == "other" ] && [ "${PACKAGE_UNDER_TEST:-*}" == "httpjson_false_positive_asserts" ]; then
+    if [ $r == 1 ]; then
+        exit 0
+      elif [ $r == 0 ]; then
+        exit 1
+      fi
+  fi
+
   exit $r
 }
 

@@ -1,0 +1,18 @@
+wait_for_data_timeout: 20s
+input: httpjson
+service: httpjson
+data_stream:
+  vars:
+    data_stream.dataset: httpjson.generic
+    username: test
+    password: test
+    request_interval: 5s
+    request_url: http://{{Hostname}}:{{Port}}/testpagination/api?page=1
+    response_pagination: |-
+      - set:
+          target: url.params.page
+          value: '[[.last_response.body.page]]'
+          fail_on_template_error: true
+    enable_request_tracer: true
+assert:
+  hit_count: 2
