@@ -69,7 +69,7 @@ test-stack-command-8x:
 
 test-stack-command: test-stack-command-default test-stack-command-7x test-stack-command-800 test-stack-command-8x
 
-test-check-packages: test-check-packages-with-kind test-check-packages-other test-check-packages-parallel test-check-packages-with-custom-agent test-check-packages-benchmarks test-check-false-positives
+test-check-packages: test-check-packages-with-kind test-check-packages-other test-check-packages-parallel test-check-packages-with-custom-agent test-check-packages-benchmarks test-check-packages-false-positives
 
 test-check-packages-with-kind:
 	PACKAGE_TEST_TYPE=with-kind ./scripts/test-check-packages.sh
@@ -77,7 +77,7 @@ test-check-packages-with-kind:
 test-check-packages-other:
 	PACKAGE_TEST_TYPE=other ./scripts/test-check-packages.sh
 
-test-check-false-positives: 
+test-check-packages-false-positives: 
 	PACKAGE_TEST_TYPE=false_positives ./scripts/test-check-false-positives.sh
 
 test-check-packages-benchmarks:
