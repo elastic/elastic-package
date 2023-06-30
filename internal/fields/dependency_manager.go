@@ -138,16 +138,29 @@ func asGitReference(reference string) (string, error) {
 	return reference[len(gitReferencePrefix):], nil
 }
 
-// InjectFields function replaces external field references with target definitions.
-func (dm *DependencyManager) InjectFields(defs []common.MapStr) ([]common.MapStr, bool, error) {
-	return dm.injectFieldsWithRoot("", defs)
+// InjectFieldsOptions allow to configure fields injection.
+type InjectFieldsOptions struct {
+	KeepExternal bool
+
+	root string
 }
 
-func (dm *DependencyManager) injectFieldsWithRoot(root string, defs []common.MapStr) ([]common.MapStr, bool, error) {
+// InjectFields function replaces external field references with target definitions.
+func (dm *DependencyManager) InjectFields(defs []common.MapStr) ([]common.MapStr, bool, error) {
+	return dm.injectFieldsWithOptions(defs, InjectFieldsOptions{})
+}
+
+// InjectFieldsWithOptions function replaces external field references with target definitions.
+// It can be configured with options.
+func (dm *DependencyManager) InjectFieldsWithOptions(defs []common.MapStr, options InjectFieldsOptions) ([]common.MapStr, bool, error) {
+	return dm.injectFieldsWithOptions(defs, options)
+}
+
+func (dm *DependencyManager) injectFieldsWithOptions(defs []common.MapStr, options InjectFieldsOptions) ([]common.MapStr, bool, error) {
 	var updated []common.MapStr
 	var changed bool
 	for _, def := range defs {
-		fieldPath := buildFieldPath(root, def)
+		fieldPath := buildFieldPath(options.root, def)
 
 		external, _ := def.GetValue("external")
 		if external != nil {
@@ -160,7 +173,10 @@ func (dm *DependencyManager) injectFieldsWithRoot(root string, defs []common.Map
 
 			// Allow overrides of everything, except the imported type, for consistency.
 			transformed.DeepUpdate(def)
-			transformed.Delete("external")
+
+			if !options.KeepExternal {
+				transformed.Delete("external")
+			}
 
 			// Allow to override the type only from keyword to constant_keyword,
 			// to support the case of setting the value already in the mappings.
@@ -177,7 +193,8 @@ func (dm *DependencyManager) injectFieldsWithRoot(root string, defs []common.Map
 				if err != nil {
 					return nil, false, fmt.Errorf("can't convert fields: %w", err)
 				}
-				updatedFields, fieldsChanged, err := dm.injectFieldsWithRoot(fieldPath, fieldsMs)
+				options.root = fieldPath
+				updatedFields, fieldsChanged, err := dm.injectFieldsWithOptions(fieldsMs, options)
 				if err != nil {
 					return nil, false, err
 				}
@@ -202,6 +219,12 @@ func (dm *DependencyManager) injectFieldsWithRoot(root string, defs []common.Map
 func skipField(def common.MapStr) bool {
 	t, _ := def.GetValue("type")
 	if t == "group" {
+		// Keep empty external groups for backwards compatibility in docs generation.
+		external, _ := def.GetValue("external")
+		if external != nil {
+			return false
+		}
+
 		fields, _ := def.GetValue("fields")
 		switch fields := fields.(type) {
 		case nil:

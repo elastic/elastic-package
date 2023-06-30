@@ -23,7 +23,12 @@ type fieldsTableRecord struct {
 var escaper = strings.NewReplacer("*", "\\*", "{", "\\{", "}", "\\}", "<", "\\<", ">", "\\>")
 
 func renderExportedFields(fieldsParentDir string) (string, error) {
-	validator, err := fields.CreateValidatorForDirectory(fieldsParentDir)
+	injectOptions := fields.InjectFieldsOptions{
+		// Keep External parameter when rendering fields, so we can render
+		// documentation for empty groups imported from ECS, for backwards compatibility.
+		KeepExternal: true,
+	}
+	validator, err := fields.CreateValidatorForDirectory(fieldsParentDir, fields.WithInjectFieldsOptions(injectOptions))
 	if err != nil {
 		return "", fmt.Errorf("can't create fields validator instance (path: %s): %w", fieldsParentDir, err)
 	}
@@ -114,7 +119,7 @@ func visitFields(namePrefix string, f fields.FieldDefinition, records []fieldsTa
 	}
 	name += f.Name
 
-	if len(f.Fields) == 0 && f.Type != "group" {
+	if (len(f.Fields) == 0 && f.Type != "group") || f.External != "" {
 		records = append(records, fieldsTableRecord{
 			name:        name,
 			description: f.Description,
@@ -130,6 +135,7 @@ func visitFields(namePrefix string, f fields.FieldDefinition, records []fieldsTa
 				aType:       multiField.Type,
 			})
 		}
+
 		return records
 	}
 

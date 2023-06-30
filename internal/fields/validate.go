@@ -56,6 +56,8 @@ type Validator struct {
 	enabledImportAllECSSchema bool
 
 	disabledNormalization bool
+
+	injectFieldsOptions InjectFieldsOptions
 }
 
 // ValidatorOption represents an optional flag that can be passed to  CreateValidatorForDirectory.
@@ -133,6 +135,14 @@ func WithDisableNormalization(disabledNormalization bool) ValidatorOption {
 	}
 }
 
+// WithInjectFieldsOptions configures fields injection.
+func WithInjectFieldsOptions(options InjectFieldsOptions) ValidatorOption {
+	return func(v *Validator) error {
+		v.injectFieldsOptions = options
+		return nil
+	}
+}
+
 type packageRootFinder interface {
 	FindPackageRoot() (string, bool, error)
 }
@@ -176,7 +186,7 @@ func createValidatorForDirectoryAndPackageRoot(fieldsParentDir string, finder pa
 		}
 	}
 
-	fields, err := loadFieldsFromDir(fieldsDir, fdm)
+	fields, err := loadFieldsFromDir(fieldsDir, fdm, v.injectFieldsOptions)
 	if err != nil {
 		return nil, fmt.Errorf("can't load fields from directory (path: %s): %w", fieldsDir, err)
 	}
@@ -228,7 +238,7 @@ func initializeAllowedCIDRsList() (cidrs []*net.IPNet) {
 	return cidrs
 }
 
-func loadFieldsFromDir(fieldsDir string, fdm *DependencyManager) ([]FieldDefinition, error) {
+func loadFieldsFromDir(fieldsDir string, fdm *DependencyManager, injectOptions InjectFieldsOptions) ([]FieldDefinition, error) {
 	files, err := filepath.Glob(filepath.Join(fieldsDir, "*.yml"))
 	if err != nil {
 		return nil, fmt.Errorf("reading directory with fields failed (path: %s): %w", fieldsDir, err)
@@ -242,7 +252,7 @@ func loadFieldsFromDir(fieldsDir string, fdm *DependencyManager) ([]FieldDefinit
 		}
 
 		if fdm != nil {
-			body, err = injectFields(body, fdm)
+			body, err = injectFields(body, fdm, injectOptions)
 			if err != nil {
 				return nil, fmt.Errorf("loading external fields failed: %w", err)
 			}
@@ -258,14 +268,14 @@ func loadFieldsFromDir(fieldsDir string, fdm *DependencyManager) ([]FieldDefinit
 	return fields, nil
 }
 
-func injectFields(d []byte, dm *DependencyManager) ([]byte, error) {
+func injectFields(d []byte, dm *DependencyManager, options InjectFieldsOptions) ([]byte, error) {
 	var fields []common.MapStr
 	err := yaml.Unmarshal(d, &fields)
 	if err != nil {
 		return nil, fmt.Errorf("parsing fields failed: %w", err)
 	}
 
-	fields, _, err = dm.InjectFields(fields)
+	fields, _, err = dm.injectFieldsWithOptions(fields, options)
 	if err != nil {
 		return nil, fmt.Errorf("injecting fields failed: %w", err)
 	}
