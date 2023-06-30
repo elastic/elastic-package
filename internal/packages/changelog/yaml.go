@@ -108,7 +108,7 @@ func SetManifestVersion(d []byte, version string) ([]byte, error) {
 
 	// Manifest is a document, with a single element, that should be a map.
 	if len(node.Content) == 0 || node.Content[0].Kind != yaml.MappingNode {
-		return nil, errors.New("unexpected manifest content")
+		return nil, errors.New("unexpected manifest content: not a map")
 	}
 
 	setYamlMapValue(node.Content[0], "version", version)
