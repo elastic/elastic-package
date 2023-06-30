@@ -28,10 +28,7 @@ func renderExportedFields(fieldsParentDir string) (string, error) {
 		return "", fmt.Errorf("can't create fields validator instance (path: %s): %w", fieldsParentDir, err)
 	}
 
-	collected, err := collectFieldsFromDefinitions(validator)
-	if err != nil {
-		return "", fmt.Errorf("collecting fields files failed: %w", err)
-	}
+	collected := collectFieldsFromDefinitions(validator)
 
 	var builder strings.Builder
 	builder.WriteString("**Exported fields**\n\n")
@@ -100,21 +97,17 @@ func areMetricTypesPresent(collected []fieldsTableRecord) bool {
 	return false
 }
 
-func collectFieldsFromDefinitions(validator *fields.Validator) ([]fieldsTableRecord, error) {
+func collectFieldsFromDefinitions(validator *fields.Validator) []fieldsTableRecord {
 	var records []fieldsTableRecord
 
 	root := validator.Schema
-	var err error
 	for _, f := range root {
-		records, err = visitFields("", f, records)
-		if err != nil {
-			return nil, fmt.Errorf("visiting fields failed: %w", err)
-		}
+		records = visitFields("", f, records)
 	}
-	return uniqueTableRecords(records), nil
+	return uniqueTableRecords(records)
 }
 
-func visitFields(namePrefix string, f fields.FieldDefinition, records []fieldsTableRecord) ([]fieldsTableRecord, error) {
+func visitFields(namePrefix string, f fields.FieldDefinition, records []fieldsTableRecord) []fieldsTableRecord {
 	var name = namePrefix
 	if namePrefix != "" {
 		name += "."
@@ -137,17 +130,13 @@ func visitFields(namePrefix string, f fields.FieldDefinition, records []fieldsTa
 				aType:       multiField.Type,
 			})
 		}
-		return records, nil
+		return records
 	}
 
-	var err error
 	for _, fieldEntry := range f.Fields {
-		records, err = visitFields(name, fieldEntry, records)
-		if err != nil {
-			return nil, fmt.Errorf("recursive visiting fields failed (namePrefix: %s): %w", namePrefix, err)
-		}
+		records = visitFields(name, fieldEntry, records)
 	}
-	return records, nil
+	return records
 }
 
 func uniqueTableRecords(records []fieldsTableRecord) []fieldsTableRecord {
