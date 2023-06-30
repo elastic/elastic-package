@@ -140,6 +140,9 @@ func asGitReference(reference string) (string, error) {
 
 // InjectFieldsOptions allow to configure fields injection.
 type InjectFieldsOptions struct {
+	// KeepExternal can be set to true to avoid deleting the `external` parameter
+	// of a field when resolving it. This helps keeping behaviours that depended
+	// in previous versions on lazy resolution of external fields.
 	KeepExternal bool
 
 	root string
