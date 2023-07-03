@@ -8,7 +8,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/elastic/elastic-package/internal/elasticsearch"
@@ -16,7 +18,6 @@ import (
 	"github.com/elastic/elastic-package/internal/environment"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/servicedeployer"
-	"github.com/elastic/elastic-package/internal/signal"
 )
 
 var (
@@ -37,8 +38,10 @@ type collector struct {
 	datastream     string
 	pipelinePrefix string
 
-	stopC chan struct{}
-	tick  *time.Ticker
+	wg      sync.WaitGroup
+	stopped atomic.Bool
+	stopC   chan struct{}
+	tick    *time.Ticker
 
 	startIngestMetrics map[string]ingest.PipelineStatsMap
 	endIngestMetrics   map[string]ingest.PipelineStatsMap
@@ -97,32 +100,25 @@ func (c *collector) start() {
 	c.createMetricsIndex()
 	var once sync.Once
 
+	c.wg.Add(1)
 	go func() {
-		once.Do(c.waitUntilReady)
-
 		defer c.tick.Stop()
-
-		c.startIngestMetrics = c.collectIngestMetrics()
-		c.startTotalHits = c.collectTotalHits()
-		c.startMetrics = c.collect()
-		c.publish(c.createEventsFromMetrics(c.startMetrics))
-
+		defer c.wg.Done()
 		for {
-			if signal.SIGINT() {
-				logger.Debug("SIGINT: cancel metrics collection")
-				c.collectMetricsPreviousToStop()
-				c.publish(c.createEventsFromMetrics(c.endMetrics))
-				return
-			}
-
 			select {
 			case <-c.stopC:
 				// last collect before stopping
 				c.collectMetricsPreviousToStop()
 				c.publish(c.createEventsFromMetrics(c.endMetrics))
-				c.stopC <- struct{}{}
 				return
 			case <-c.tick.C:
+				once.Do(func() {
+					c.waitUntilReady()
+					c.startIngestMetrics = c.collectIngestMetrics()
+					c.startTotalHits = c.collectTotalHits()
+					c.startMetrics = c.collect()
+					c.publish(c.createEventsFromMetrics(c.startMetrics))
+				})
 				m := c.collect()
 				c.publish(c.createEventsFromMetrics(m))
 			}
@@ -131,9 +127,11 @@ func (c *collector) start() {
 }
 
 func (c *collector) stop() {
-	c.stopC <- struct{}{}
-	<-c.stopC
+	if !c.stopped.CompareAndSwap(false, true) {
+		return
+	}
 	close(c.stopC)
+	c.wg.Wait()
 }
 
 func (c *collector) collect() metrics {
@@ -166,18 +164,17 @@ func (c *collector) publish(events [][]byte) {
 		reqBody := bytes.NewReader(e)
 		resp, err := c.msapi.Index(c.indexName(), reqBody)
 		if err != nil {
-			logger.Debugf("error indexing metrics: %e", err)
+			logger.Debugf("error indexing event: %v", err)
 			continue
 		}
-		var sr map[string]interface{}
-		if err := json.NewDecoder(resp.Body).Decode(&sr); err != nil {
-			logger.Debugf("error decoding search response: %e", err)
+
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			logger.Errorf("failed to read index response body: %v", err)
 		}
 
-		resErr, found := sr["error"]
-		if found {
-			errStr := resErr.(map[string]interface{})["reason"].(string)
-			logger.Debugf("error searching for documents: %s", errStr)
+		if resp.StatusCode != 201 {
+			logger.Errorf("error indexing event (%d): %s: %v", resp.StatusCode, resp.Status(), elasticsearch.NewError(body))
 		}
 	}
 }
@@ -298,12 +295,11 @@ func (c *collector) waitUntilReady() {
 
 readyLoop:
 	for {
-		if signal.SIGINT() {
-			logger.Debug("SIGINT: cancel metrics collection")
+		select {
+		case <-c.stopC:
 			return
+		case <-waitTick.C:
 		}
-
-		<-waitTick.C
 		dsstats, err := ingest.GetDataStreamStats(c.esapi, c.datastream)
 		if err != nil {
 			logger.Debug(err)
@@ -315,7 +311,11 @@ readyLoop:
 
 	if c.scenario.WarmupTimePeriod > 0 {
 		logger.Debugf("waiting %s for warmup period", c.scenario.WarmupTimePeriod)
-		<-time.After(c.scenario.WarmupTimePeriod)
+		select {
+		case <-c.stopC:
+			return
+		case <-time.After(c.scenario.WarmupTimePeriod):
+		}
 	}
 	logger.Debug("metric collection starting...")
 }
