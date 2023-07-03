@@ -214,6 +214,7 @@ func (dm *DependencyManager) injectFieldsWithOptions(defs []common.MapStr, optio
 		}
 
 		if options.SkipEmptyFields && skipField(def) {
+			changed = true
 			continue
 		}
 		updated = append(updated, def)

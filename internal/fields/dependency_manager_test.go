@@ -17,6 +17,7 @@ func TestDependencyManagerInjectExternalFields(t *testing.T) {
 		title   string
 		defs    []common.MapStr
 		result  []common.MapStr
+		options InjectFieldsOptions
 		changed bool
 		valid   bool
 	}{
@@ -354,15 +355,61 @@ func TestDependencyManagerInjectExternalFields(t *testing.T) {
 					"external": "test",
 				},
 			},
+			options: InjectFieldsOptions{
+				// Options used for fields injection for docs.
+				SkipEmptyFields: true,
+				KeepExternal:    true,
+			},
 			result: []common.MapStr{
+				{
+					"name":        "host",
+					"description": "A general computing instance",
+					"external":    "test",
+					"type":        "group",
+				},
 				{
 					"name":        "host.hostname",
 					"description": "Hostname of the host",
+					"external":    "test",
 					"type":        "keyword",
 				},
 			},
 			valid:   true,
 			changed: true,
+		},
+		{
+			title: "skip empty group for docs",
+			defs: []common.MapStr{
+				{
+					"name": "host",
+					"type": "group",
+				},
+			},
+			options: InjectFieldsOptions{
+				// Options used for fields injection for docs.
+				SkipEmptyFields: true,
+				KeepExternal:    true,
+			},
+			result:  nil,
+			valid:   true,
+			changed: true,
+		},
+		{
+			title: "keep empty group for package validation",
+			defs: []common.MapStr{
+				{
+					"name": "host",
+					"type": "group",
+				},
+			},
+			result: []common.MapStr{
+				{
+					"name": "host",
+					"type": "group",
+				},
+			},
+			valid:   true,
+			changed: false,
 		},
 	}
 
@@ -442,7 +489,7 @@ func TestDependencyManagerInjectExternalFields(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.title, func(t *testing.T) {
-			result, changed, err := dm.InjectFields(c.defs)
+			result, changed, err := dm.InjectFieldsWithOptions(c.defs, c.options)
 			if !c.valid {
 				assert.Error(t, err)
 				return
