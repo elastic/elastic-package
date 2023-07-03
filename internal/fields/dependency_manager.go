@@ -199,8 +199,9 @@ func (dm *DependencyManager) injectFieldsWithOptions(defs []common.MapStr, optio
 				if err != nil {
 					return nil, false, fmt.Errorf("can't convert fields: %w", err)
 				}
-				options.root = fieldPath
-				updatedFields, fieldsChanged, err := dm.injectFieldsWithOptions(fieldsMs, options)
+				childrenOptions := options
+				childrenOptions.root = fieldPath
+				updatedFields, fieldsChanged, err := dm.injectFieldsWithOptions(fieldsMs, childrenOptions)
 				if err != nil {
 					return nil, false, err
 				}
