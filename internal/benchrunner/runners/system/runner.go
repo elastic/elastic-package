@@ -262,6 +262,7 @@ func (r *runner) run() (report reporters.Reportable, err error) {
 	}
 
 	r.startMetricsColletion()
+	defer r.mcollector.stop()
 
 	// if there is a generator config, generate the data
 	if r.generator != nil {
@@ -384,13 +385,17 @@ func (r *runner) createPackagePolicy(pkgManifest *packages.PackageManifest, p *k
 		r.scenario.Package = pkgManifest.Name
 	}
 
+	if r.scenario.PolicyTemplate == "" {
+		r.scenario.PolicyTemplate = pkgManifest.PolicyTemplates[0].Name
+	}
+
 	// TODO: add ability to define which policy template to use
 	pp := kibana.PackagePolicy{
 		Namespace: "ep",
 		PolicyID:  p.ID,
 		Force:     true,
 		Inputs: map[string]kibana.PackagePolicyInput{
-			fmt.Sprintf("%s-%s", pkgManifest.PolicyTemplates[0].Name, r.scenario.Input): {
+			fmt.Sprintf("%s-%s", r.scenario.PolicyTemplate, r.scenario.Input): {
 				Enabled: true,
 				Vars:    r.scenario.Vars,
 				Streams: map[string]kibana.PackagePolicyStream{

@@ -24,6 +24,7 @@ type scenario struct {
 	Package             string                 `config:"package" json:"package"`
 	Description         string                 `config:"description" json:"description"`
 	Version             string                 `config:"version" json:"version"`
+	PolicyTemplate      string                 `config:"policy_template" json:"policy_template"`
 	Input               string                 `config:"input" json:"input"`
 	Vars                map[string]interface{} `config:"vars" json:"vars"`
 	DataStream          dataStream             `config:"data_stream" json:"data_stream"`
