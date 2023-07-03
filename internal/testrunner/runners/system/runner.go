@@ -628,16 +628,21 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 
 		var err error
 		hits, err = r.getDocs(dataStream)
-		if hits.size() == 0 {
-			return false, err
-		}
 
-		ret := hits.size() == oldHits
-		if !ret {
-			oldHits = hits.size()
-		}
+		if config.Assert.HitCount > 0 {
+			if hits.size() == 0 {
+				return false, err
+			}
 
-		return ret, err
+			ret := hits.size() == oldHits
+			if !ret {
+				oldHits = hits.size()
+				time.Sleep(4 * time.Second)
+			}
+
+			return ret, err
+		}
+		return hits.size() > 0, err
 	}, waitForDataTimeout)
 
 	if err != nil {
@@ -987,7 +992,7 @@ func waitUntilTrue(fn func() (bool, error), timeout time.Duration) (bool, error)
 	timeoutTicker := time.NewTicker(timeout)
 	defer timeoutTicker.Stop()
 
-	retryTicker := time.NewTicker(5 * time.Second)
+	retryTicker := time.NewTicker(1 * time.Second)
 	defer retryTicker.Stop()
 
 	for {
