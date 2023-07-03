@@ -34,7 +34,6 @@ CHECK_PACKAGES_TESTS=(
     test-check-packages-with-kind
     test-check-packages-with-custom-agent
     test-check-packages-benchmarks
-    test-check-packages-false-positives
 )
 for test in ${CHECK_PACKAGES_TESTS[@]}; do
     echo "      - label: \":go: Running integration test: ${test}\""
@@ -49,6 +48,21 @@ for test in ${CHECK_PACKAGES_TESTS[@]}; do
         echo "          - build/kubectl-dump.txt"
     fi
 done
+
+pushd test/packages/false_positives > /dev/null
+for package in $(find . -maxdepth 1 -mindepth 1 -type d) ; do
+    package_name=$(basename ${package})
+    echo " - label: \":go: Running integration test: ${package_name}\""
+    echo " key: \"integration-false_positives-${package_name}\""
+    echo " command: ./.buildkite/scripts/integration_tests.sh -t test-check-packages-false-positives -p ${package_name}"
+    echo " agents:" echo " provider: \"gcp\""
+    echo " artifact_paths:"
+    echo " - build/test-results/*.xml"
+    echo " - build/elastic-stack-dump/check-*/logs/*.log"
+    echo " - build/elastic-stack-dump/check-*/logs/fleet-server-internal/**/*"
+ done
+
+ popd > /dev/null
 
 pushd test/packages/parallel > /dev/null
 for package in $(find . -maxdepth 1 -mindepth 1 -type d) ; do

@@ -634,6 +634,10 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 				return false, err
 			}
 
+			if hits.size() < config.Assert.HitCount {
+				return false, err
+			}
+
 			ret := hits.size() == oldHits
 			if !ret {
 				oldHits = hits.size()
