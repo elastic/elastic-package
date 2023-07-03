@@ -411,6 +411,57 @@ func TestDependencyManagerInjectExternalFields(t *testing.T) {
 			valid:   true,
 			changed: false,
 		},
+		{
+			title: "sequence of nested definitions to ensure recursion does not have side effects",
+			defs: []common.MapStr{
+				{
+					"name": "container",
+					"type": "group",
+					"fields": []interface{}{
+						common.MapStr{
+							"name":     "id",
+							"external": "test",
+						},
+					},
+				},
+				{
+					"name": "host",
+					"type": "group",
+					"fields": []interface{}{
+						common.MapStr{
+							"name":     "id",
+							"external": "test",
+						},
+					},
+				},
+			},
+			result: []common.MapStr{
+				{
+					"name": "container",
+					"type": "group",
+					"fields": []common.MapStr{
+						{
+							"name":        "id",
+							"description": "Container identifier.",
+							"type":        "keyword",
+						},
+					},
+				},
+				{
+					"name": "host",
+					"type": "group",
+					"fields": []common.MapStr{
+						{
+							"name":        "id",
+							"description": "Unique host id",
+							"type":        "keyword",
+						},
+					},
+				},
+			},
+			valid:   true,
+			changed: true,
+		},
 	}
 
 	indexFalse := false
