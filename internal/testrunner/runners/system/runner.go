@@ -630,10 +630,6 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 		hits, err = r.getDocs(dataStream)
 
 		if config.Assert.HitCount > 0 {
-			if hits.size() == 0 {
-				return false, err
-			}
-
 			if hits.size() < config.Assert.HitCount {
 				return false, err
 			}
