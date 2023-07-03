@@ -30,12 +30,12 @@ func Run(runner Runner) (reporters.Reportable, error) {
 	defer func() {
 		// we want to ensure correct tear down of the benchmark in any situation
 		if rerr := recover(); rerr != nil {
-			logger.Errorf("panic occurred: %w", rerr)
+			logger.Errorf("panic occurred: %v", rerr)
 		}
 
 		tdErr := runner.TearDown()
 		if tdErr != nil {
-			logger.Errorf("could not teardown benchmark runner: %w", tdErr)
+			logger.Errorf("could not teardown benchmark runner: %v", tdErr)
 		}
 	}()
 

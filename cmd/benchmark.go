@@ -304,14 +304,19 @@ func systemCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("system benchmark is expected to return multiple reports")
 	}
 
+	reports := multiReport.Split()
+	if len(reports) != 2 {
+		return fmt.Errorf("system benchmark is expected to return a human an a file report")
+	}
+
 	// human report will always be the first
-	human := multiReport.Split()[0]
+	human := reports[0]
 	if err := reporters.WriteReportable(reporters.Output(outputs.ReportOutputSTDOUT), human); err != nil {
 		return fmt.Errorf("error writing benchmark report: %w", err)
 	}
 
 	// file report will always be the second
-	file := multiReport.Split()[1]
+	file := reports[1]
 	if err := reporters.WriteReportable(reporters.Output(outputs.ReportOutputFile), file); err != nil {
 		return fmt.Errorf("error writing benchmark report: %w", err)
 	}
