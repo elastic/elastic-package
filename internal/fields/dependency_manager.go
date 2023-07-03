@@ -145,6 +145,9 @@ type InjectFieldsOptions struct {
 	// in previous versions on lazy resolution of external fields.
 	KeepExternal bool
 
+	// SkipEmptyFields can be set to true to skip empty groups when injecting fields.
+	SkipEmptyFields bool
+
 	root string
 }
 
@@ -210,7 +213,7 @@ func (dm *DependencyManager) injectFieldsWithOptions(defs []common.MapStr, optio
 			}
 		}
 
-		if skipField(def) {
+		if options.SkipEmptyFields && skipField(def) {
 			continue
 		}
 		updated = append(updated, def)

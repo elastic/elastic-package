@@ -27,6 +27,10 @@ func renderExportedFields(fieldsParentDir string) (string, error) {
 		// Keep External parameter when rendering fields, so we can render
 		// documentation for empty groups imported from ECS, for backwards compatibility.
 		KeepExternal: true,
+
+		// SkipEmptyFields parameter when rendering fields. In other cases we want to
+		// keep them to accept them for validation.
+		SkipEmptyFields: true,
 	}
 	validator, err := fields.CreateValidatorForDirectory(fieldsParentDir, fields.WithInjectFieldsOptions(injectOptions))
 	if err != nil {
