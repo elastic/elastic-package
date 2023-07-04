@@ -8,12 +8,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/pkg/errors"
-
 	"github.com/elastic/elastic-package/internal/compose"
 	"github.com/elastic/elastic-package/internal/docker"
 	"github.com/elastic/elastic-package/internal/install"
-	"github.com/elastic/elastic-package/internal/logger"
 )
 
 type ServiceStatus struct {
@@ -57,12 +54,12 @@ func (eb *envBuilder) build() []string {
 func dockerComposeBuild(options Options) error {
 	c, err := compose.NewProject(DockerComposeProjectName, options.Profile.Path(profileStackPath, SnapshotFile))
 	if err != nil {
-		return errors.Wrap(err, "could not create docker compose project")
+		return fmt.Errorf("could not create docker compose project: %w", err)
 	}
 
 	appConfig, err := install.Configuration()
 	if err != nil {
-		return errors.Wrap(err, "can't read application configuration")
+		return fmt.Errorf("can't read application configuration: %w", err)
 	}
 
 	opts := compose.CommandOptions{
@@ -75,7 +72,7 @@ func dockerComposeBuild(options Options) error {
 	}
 
 	if err := c.Build(opts); err != nil {
-		return errors.Wrap(err, "running command failed")
+		return fmt.Errorf("running command failed: %w", err)
 	}
 	return nil
 }
@@ -83,12 +80,12 @@ func dockerComposeBuild(options Options) error {
 func dockerComposePull(options Options) error {
 	c, err := compose.NewProject(DockerComposeProjectName, options.Profile.Path(profileStackPath, SnapshotFile))
 	if err != nil {
-		return errors.Wrap(err, "could not create docker compose project")
+		return fmt.Errorf("could not create docker compose project: %w", err)
 	}
 
 	appConfig, err := install.Configuration()
 	if err != nil {
-		return errors.Wrap(err, "can't read application configuration")
+		return fmt.Errorf("can't read application configuration: %w", err)
 	}
 
 	opts := compose.CommandOptions{
@@ -101,7 +98,7 @@ func dockerComposePull(options Options) error {
 	}
 
 	if err := c.Pull(opts); err != nil {
-		return errors.Wrap(err, "running command failed")
+		return fmt.Errorf("running command failed: %w", err)
 	}
 	return nil
 }
@@ -109,7 +106,7 @@ func dockerComposePull(options Options) error {
 func dockerComposeUp(options Options) error {
 	c, err := compose.NewProject(DockerComposeProjectName, options.Profile.Path(profileStackPath, SnapshotFile))
 	if err != nil {
-		return errors.Wrap(err, "could not create docker compose project")
+		return fmt.Errorf("could not create docker compose project: %w", err)
 	}
 
 	var args []string
@@ -119,7 +116,7 @@ func dockerComposeUp(options Options) error {
 
 	appConfig, err := install.Configuration()
 	if err != nil {
-		return errors.Wrap(err, "can't read application configuration")
+		return fmt.Errorf("can't read application configuration: %w", err)
 	}
 
 	opts := compose.CommandOptions{
@@ -133,7 +130,7 @@ func dockerComposeUp(options Options) error {
 	}
 
 	if err := c.Up(opts); err != nil {
-		return errors.Wrap(err, "running command failed")
+		return fmt.Errorf("running command failed: %w", err)
 	}
 	return nil
 }
@@ -141,12 +138,12 @@ func dockerComposeUp(options Options) error {
 func dockerComposeDown(options Options) error {
 	c, err := compose.NewProject(DockerComposeProjectName, options.Profile.Path(profileStackPath, SnapshotFile))
 	if err != nil {
-		return errors.Wrap(err, "could not create docker compose project")
+		return fmt.Errorf("could not create docker compose project: %w", err)
 	}
 
 	appConfig, err := install.Configuration()
 	if err != nil {
-		return errors.Wrap(err, "can't read application configuration")
+		return fmt.Errorf("can't read application configuration: %w", err)
 	}
 
 	downOptions := compose.CommandOptions{
@@ -159,7 +156,7 @@ func dockerComposeDown(options Options) error {
 		ExtraArgs: []string{"--volumes", "--remove-orphans"},
 	}
 	if err := c.Down(downOptions); err != nil {
-		return errors.Wrap(err, "running command failed")
+		return fmt.Errorf("running command failed: %w", err)
 	}
 	return nil
 }
@@ -207,7 +204,6 @@ func dockerComposeStatus() ([]ServiceStatus, error) {
 		if err != nil {
 			return nil, err
 		}
-		logger.Debugf("Adding Service: \"%v\"", service.Name)
 		services = append(services, *service)
 	}
 

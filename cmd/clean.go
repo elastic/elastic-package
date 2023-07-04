@@ -5,7 +5,8 @@
 package cmd
 
 import (
-	"github.com/pkg/errors"
+	"fmt"
+
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/cleanup"
@@ -32,7 +33,7 @@ func cleanCommandAction(cmd *cobra.Command, args []string) error {
 
 	target, err := cleanup.Build()
 	if err != nil {
-		return errors.Wrap(err, "can't clean build resources")
+		return fmt.Errorf("can't clean build resources: %w", err)
 	}
 
 	if target != "" {
@@ -41,7 +42,7 @@ func cleanCommandAction(cmd *cobra.Command, args []string) error {
 
 	target, err = cleanup.Stack()
 	if err != nil {
-		return errors.Wrap(err, "can't clean the development stack")
+		return fmt.Errorf("can't clean the development stack: %w", err)
 	}
 	if target != "" {
 		cmd.Printf("Package removed from the development stack: %s\n", target)
@@ -49,7 +50,7 @@ func cleanCommandAction(cmd *cobra.Command, args []string) error {
 
 	target, err = cleanup.ServiceLogs()
 	if err != nil {
-		return errors.Wrap(err, "can't clean temporary service logs")
+		return fmt.Errorf("can't clean temporary service logs: %w", err)
 	}
 	if target != "" {
 		cmd.Printf("Temporary service logs removed: %s\n", target)

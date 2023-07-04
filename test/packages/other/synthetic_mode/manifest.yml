@@ -1,0 +1,33 @@
+format_version: 2.8.0
+name: synthetic_mode
+title: "Synthetic Mode"
+version: 0.0.1
+source:
+  license: "Elastic-2.0"
+description: "This package contains data streams with synthetic mode enabled"
+type: integration
+categories:
+  - custom
+conditions:
+  kibana.version: "^8.6.0"
+  elastic.subscription: "basic"
+screenshots:
+  - src: /img/sample-screenshot.png
+    title: Sample screenshot
+    size: 600x600
+    type: image/png
+icons:
+  - src: /img/sample-logo.svg
+    title: Sample logo
+    size: 32x32
+    type: image/svg+xml
+policy_templates:
+  - name: prometheus
+    title: Prometheus metrics
+    description: Collect metrics from Prometheus instances
+    inputs:
+      - type: prometheus/metrics
+        title: Collect Prometheus metrics
+        description: Collecting metrics from Prometheus exporters, Prometheus query API as well as able to receive metrics via remote write functionality.
+owner:
+  github: elastic/integrations

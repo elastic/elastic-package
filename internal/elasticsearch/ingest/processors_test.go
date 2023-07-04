@@ -172,17 +172,11 @@ processors:
 			}
 			procs, err := p.Processors()
 			if !tt.wantErr {
-				if !assert.NoError(t, err) {
-					t.Fatal(err)
-				}
+				assert.NoError(t, err)
 			} else {
-				if !assert.Error(t, err) {
-					t.Fatal("error expected")
-				}
+				assert.Error(t, err)
 			}
-			if !assert.Equal(t, tt.expected, procs) {
-				t.Errorf("Processors() gotProcs = %v, want %v", procs, tt.expected)
-			}
+			assert.Equal(t, tt.expected, procs)
 		})
 	}
 }

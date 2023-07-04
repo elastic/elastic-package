@@ -5,9 +5,8 @@
 package files
 
 import (
+	"fmt"
 	"os"
-
-	"github.com/pkg/errors"
 )
 
 // ClearDir method removes all items from the destination directory.
@@ -15,12 +14,12 @@ import (
 func ClearDir(destinationPath string) error {
 	err := os.RemoveAll(destinationPath)
 	if err != nil {
-		return errors.Wrapf(err, "removing directory failed (path: %s)", destinationPath)
+		return fmt.Errorf("removing directory failed (path: %s): %w", destinationPath, err)
 	}
 
 	err = os.MkdirAll(destinationPath, 0755)
 	if err != nil {
-		return errors.Wrapf(err, "creating directory failed (path: %s)", destinationPath)
+		return fmt.Errorf("creating directory failed (path: %s): %w", destinationPath, err)
 	}
 	return nil
 }

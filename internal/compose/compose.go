@@ -6,6 +6,7 @@ package compose
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -15,7 +16,7 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/pkg/errors"
+
 	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/docker"
@@ -31,15 +32,19 @@ const (
 	waitForHealthyInterval = 1 * time.Second
 )
 
-var DisableANSIComposeEnv = environment.WithElasticPackagePrefix("COMPOSE_DISABLE_ANSI")
+var (
+	DisableANSIComposeEnv             = environment.WithElasticPackagePrefix("COMPOSE_DISABLE_ANSI")
+	DisablePullProgressInformationEnv = environment.WithElasticPackagePrefix("COMPOSE_DISABLE_PULL_PROGRESS_INFORMATION")
+)
 
 // Project represents a Docker Compose project.
 type Project struct {
 	name             string
 	composeFilePaths []string
 
-	dockerComposeV1 bool
-	disableANSI     bool
+	dockerComposeV1                bool
+	disableANSI                    bool
+	disablePullProgressInformation bool
 }
 
 // Config represents a Docker Compose configuration file.
@@ -82,7 +87,7 @@ func (p *portMapping) UnmarshalYAML(node *yaml.Node) error {
 	if node.Kind == yaml.MappingNode {
 		b, err := yaml.Marshal(node)
 		if err != nil {
-			return errors.Wrap(err, "could not re-encode YAML map node to YAML")
+			return fmt.Errorf("could not re-encode YAML map node to YAML: %w", err)
 		}
 
 		var s struct {
@@ -93,7 +98,7 @@ func (p *portMapping) UnmarshalYAML(node *yaml.Node) error {
 		}
 
 		if err := yaml.Unmarshal(b, &s); err != nil {
-			return errors.Wrap(err, "could not unmarshal YAML map node")
+			return fmt.Errorf("could not unmarshal YAML map node: %w", err)
 		}
 
 		p.InternalPort = int(s.Target)
@@ -130,14 +135,14 @@ func (p *portMapping) UnmarshalYAML(node *yaml.Node) error {
 
 	internalPort, err := strconv.Atoi(internalPortStr)
 	if err != nil {
-		return errors.Wrap(err, "error parsing internal port as integer")
+		return fmt.Errorf("error parsing internal port as integer: %w", err)
 	}
 	p.InternalPort = internalPort
 
 	if externalPortStr != "" {
 		externalPort, err := strconv.Atoi(externalPortStr)
 		if err != nil {
-			return errors.Wrap(err, "error parsing external port as integer")
+			return fmt.Errorf("error parsing external port as integer: %w", err)
 		}
 		p.ExternalPort = externalPort
 	}
@@ -161,7 +166,7 @@ func NewProject(name string, paths ...string) (*Project, error) {
 	for _, path := range paths {
 		info, err := os.Stat(path)
 		if err != nil {
-			return nil, errors.Wrapf(err, "could not find Docker Compose configuration file: %s", path)
+			return nil, fmt.Errorf("could not find Docker Compose configuration file: %s: %w", path, err)
 		}
 
 		if info.IsDir() {
@@ -192,6 +197,11 @@ func NewProject(name string, paths ...string) (*Project, error) {
 		c.disableANSI = true
 	}
 
+	v, ok = os.LookupEnv(DisablePullProgressInformationEnv)
+	if ok && strings.ToLower(v) != "false" {
+		c.disablePullProgressInformation = true
+	}
+
 	return &c, nil
 }
 
@@ -199,14 +209,14 @@ func NewProject(name string, paths ...string) (*Project, error) {
 func (p *Project) Up(opts CommandOptions) error {
 	args := p.baseArgs()
 	args = append(args, "up")
-	if p.disableANSI {
+	if p.disablePullProgressInformation {
 		args = append(args, "--quiet-pull")
 	}
 	args = append(args, opts.ExtraArgs...)
 	args = append(args, opts.Services...)
 
 	if err := p.runDockerComposeCmd(dockerComposeOptions{args: args, env: opts.Env}); err != nil {
-		return errors.Wrap(err, "running Docker Compose up command failed")
+		return fmt.Errorf("running Docker Compose up command failed: %w", err)
 	}
 
 	return nil
@@ -219,7 +229,7 @@ func (p *Project) Down(opts CommandOptions) error {
 	args = append(args, opts.ExtraArgs...)
 
 	if err := p.runDockerComposeCmd(dockerComposeOptions{args: args, env: opts.Env}); err != nil {
-		return errors.Wrap(err, "running Docker Compose down command failed")
+		return fmt.Errorf("running Docker Compose down command failed: %w", err)
 	}
 
 	return nil
@@ -233,7 +243,7 @@ func (p *Project) Build(opts CommandOptions) error {
 	args = append(args, opts.Services...)
 
 	if err := p.runDockerComposeCmd(dockerComposeOptions{args: args, env: opts.Env}); err != nil {
-		return errors.Wrap(err, "running Docker Compose build command failed")
+		return fmt.Errorf("running Docker Compose build command failed: %w", err)
 	}
 
 	return nil
@@ -247,7 +257,7 @@ func (p *Project) Kill(opts CommandOptions) error {
 	args = append(args, opts.Services...)
 
 	if err := p.runDockerComposeCmd(dockerComposeOptions{args: args, env: opts.Env}); err != nil {
-		return errors.Wrap(err, "running Docker Compose kill command failed")
+		return fmt.Errorf("running Docker Compose kill command failed: %w", err)
 	}
 
 	return nil
@@ -277,11 +287,14 @@ func (p *Project) Config(opts CommandOptions) (*Config, error) {
 func (p *Project) Pull(opts CommandOptions) error {
 	args := p.baseArgs()
 	args = append(args, "pull")
+	if p.disablePullProgressInformation {
+		args = append(args, "--quiet")
+	}
 	args = append(args, opts.ExtraArgs...)
 	args = append(args, opts.Services...)
 
 	if err := p.runDockerComposeCmd(dockerComposeOptions{args: args, env: opts.Env}); err != nil {
-		return errors.Wrap(err, "running Docker Compose pull command failed")
+		return fmt.Errorf("running Docker Compose pull command failed: %w", err)
 	}
 
 	return nil
@@ -418,12 +431,12 @@ func (p *Project) dockerComposeVersion() (*semver.Version, error) {
 		"--short",
 	}
 	if err := p.runDockerComposeCmd(dockerComposeOptions{args: args, stdout: &b}); err != nil {
-		return nil, errors.Wrap(err, "running Docker Compose version command failed")
+		return nil, fmt.Errorf("running Docker Compose version command failed: %w", err)
 	}
 	dcVersion := b.String()
 	ver, err := semver.NewVersion(strings.TrimSpace(dcVersion))
 	if err != nil {
-		return nil, errors.Wrapf(err, "docker compose version is not a valid semver (value: %s)", dcVersion)
+		return nil, fmt.Errorf("docker compose version is not a valid semver (value: %s): %w", dcVersion, err)
 	}
 	return ver, nil
 }

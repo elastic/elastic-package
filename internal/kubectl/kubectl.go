@@ -6,10 +6,9 @@ package kubectl
 
 import (
 	"bytes"
+	"fmt"
 	"os/exec"
 	"path/filepath"
-
-	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/logger"
 )
@@ -25,7 +24,7 @@ func CurrentContext() (string, error) {
 	logger.Debugf("output command: %s", cmd)
 	output, err := cmd.Output()
 	if err != nil {
-		return "", errors.Wrapf(err, "kubectl command failed (stderr=%q)", errOutput.String())
+		return "", fmt.Errorf("kubectl command failed (stderr=%q): %w", errOutput.String(), err)
 	}
 	return string(bytes.TrimSpace(output)), nil
 }
@@ -52,7 +51,7 @@ func modifyKubernetesResources(action string, definitionPaths []string) ([]byte,
 	logger.Debugf("run command: %s", cmd)
 	output, err := cmd.Output()
 	if err != nil {
-		return nil, errors.Wrapf(err, "kubectl apply failed (stderr=%q)", errOutput.String())
+		return nil, fmt.Errorf("kubectl apply failed (stderr=%q): %w", errOutput.String(), err)
 	}
 	return output, nil
 }
@@ -70,7 +69,7 @@ func applyKubernetesResourcesStdin(input []byte) ([]byte, error) {
 	logger.Debugf("run command: %s", kubectlCmd)
 	output, err := kubectlCmd.Output()
 	if err != nil {
-		return nil, errors.Wrapf(err, "kubectl apply failed (stderr=%q)", errOutput.String())
+		return nil, fmt.Errorf("kubectl apply failed (stderr=%q): %w", errOutput.String(), err)
 	}
 	return output, nil
 }

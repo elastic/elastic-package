@@ -12,7 +12,6 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/go-git/go-billy/v5"
-	"github.com/pkg/errors"
 )
 
 const packagesDir = "packages"
@@ -35,7 +34,7 @@ func NewPackageVersion(name, version string) (*PackageVersion, error) {
 func NewPackageVersionWithRoot(name, version, root string) (*PackageVersion, error) {
 	packageVersion, err := semver.NewVersion(version)
 	if err != nil {
-		return nil, errors.Wrapf(err, "reading package version failed (name: %s, version: %s)", name, version)
+		return nil, fmt.Errorf("reading package version failed (name: %s, version: %s): %w", name, version, err)
 	}
 	return &PackageVersion{
 		Name:    name,
@@ -118,7 +117,7 @@ func ParsePackageVersions(packageVersions []string) (PackageVersions, error) {
 
 		revision, err := NewPackageVersion(s[0], s[1])
 		if err != nil {
-			return nil, errors.Wrapf(err, "can't create package version (%s)", s)
+			return nil, fmt.Errorf("can't create package version (%s): %w", s, err)
 		}
 		parsed = append(parsed, *revision)
 	}
@@ -128,7 +127,7 @@ func ParsePackageVersions(packageVersions []string) (PackageVersions, error) {
 func walkPackageResources(filesystem billy.Filesystem, path string) ([]string, error) {
 	fis, err := filesystem.ReadDir(path)
 	if err != nil {
-		return nil, errors.Wrapf(err, "reading directory failed (path: %s)", path)
+		return nil, fmt.Errorf("reading directory failed (path: %s): %w", path, err)
 	}
 
 	var collected []string
@@ -137,7 +136,7 @@ func walkPackageResources(filesystem billy.Filesystem, path string) ([]string, e
 			p := filepath.Join(path, fi.Name())
 			c, err := walkPackageResources(filesystem, p)
 			if err != nil {
-				return nil, errors.Wrapf(err, "recursive walking failed (path: %s)", p)
+				return nil, fmt.Errorf("recursive walking failed (path: %s): %w", p, err)
 			}
 			collected = append(collected, c...)
 			continue

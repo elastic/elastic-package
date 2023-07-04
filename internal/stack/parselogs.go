@@ -7,10 +7,11 @@ package stack
 import (
 	"bufio"
 	"encoding/json"
-	"fmt"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/elastic/elastic-package/internal/logger"
 )
 
 type ParseLogsOptions struct {
@@ -41,7 +42,8 @@ func ParseLogs(options ParseLogsOptions, process func(log LogLine) error) error 
 		messageSlice := strings.SplitN(line, "|", 2)
 
 		if len(messageSlice) != 2 {
-			return fmt.Errorf("malformed docker-compose log line")
+			logger.Debugf("skipped malformed docker-compose log line: %s", line)
+			continue
 		}
 
 		messageLog := messageSlice[1]
@@ -54,6 +56,8 @@ func ParseLogs(options ParseLogsOptions, process func(log LogLine) error) error 
 		}
 
 		// There could be valid messages with just plain text without timestamp
+		// and therefore not processed, cannot be ensured in which timestamp they
+		// were generated
 		if !startProcessing && log.Timestamp.Before(options.StartTime) {
 			continue
 		}

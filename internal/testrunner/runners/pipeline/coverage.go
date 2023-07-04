@@ -5,11 +5,11 @@
 package pipeline
 
 import (
+	"errors"
+	"fmt"
 	"path/filepath"
 	"strings"
 	"time"
-
-	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/elasticsearch/ingest"
 	"github.com/elastic/elastic-package/internal/packages"
@@ -20,7 +20,7 @@ import (
 func GetPipelineCoverage(options testrunner.TestOptions, pipelines []ingest.Pipeline) (*testrunner.CoberturaCoverage, error) {
 	dataStreamPath, found, err := packages.FindDataStreamRootForPath(options.TestFolder.Path)
 	if err != nil {
-		return nil, errors.Wrap(err, "locating data_stream root failed")
+		return nil, fmt.Errorf("locating data_stream root failed: %w", err)
 	}
 	if !found {
 		return nil, errors.New("data stream root not found")
@@ -30,7 +30,7 @@ func GetPipelineCoverage(options testrunner.TestOptions, pipelines []ingest.Pipe
 	// These stats contain hit counts for all main processors in a pipeline.
 	stats, err := ingest.GetPipelineStats(options.API, pipelines)
 	if err != nil {
-		return nil, errors.Wrap(err, "error fetching pipeline stats for code coverage calculations")
+		return nil, fmt.Errorf("error fetching pipeline stats for code coverage calculations: %w", err)
 	}
 
 	// Construct the Cobertura report.
@@ -58,7 +58,7 @@ func GetPipelineCoverage(options testrunner.TestOptions, pipelines []ingest.Pipe
 	for _, pipeline := range pipelines {
 		covered, class, err := coverageForSinglePipeline(pipeline, stats, basePath, dataStreamPath)
 		if err != nil {
-			return nil, errors.Wrapf(err, "error calculating coverage for pipeline '%s'", pipeline.Filename())
+			return nil, fmt.Errorf("error calculating coverage for pipeline '%s': %w", pipeline.Filename(), err)
 		}
 		pkg.Classes = append(pkg.Classes, class)
 		coverage.LinesValid += int64(len(class.Methods))
@@ -76,19 +76,19 @@ func coverageForSinglePipeline(pipeline ingest.Pipeline, stats ingest.PipelineSt
 
 	pstats, found := stats[pipeline.Name]
 	if !found {
-		return 0, nil, errors.Errorf("pipeline '%s' not installed in Elasticsearch", pipeline.Name)
+		return 0, nil, fmt.Errorf("pipeline '%s' not installed in Elasticsearch", pipeline.Name)
 	}
 
 	// Ensure there is no inconsistency in the list of processors in stats vs obtained from source.
 	if len(src) != len(pstats.Processors) {
-		return 0, nil, errors.Errorf("processor count mismatch for %s (src:%d stats:%d)", pipeline.Filename(), len(src), len(pstats.Processors))
+		return 0, nil, fmt.Errorf("processor count mismatch for %s (src:%d stats:%d)", pipeline.Filename(), len(src), len(pstats.Processors))
 	}
 	for idx, st := range pstats.Processors {
 		// Check that we have the expected type of processor, except for `compound` processors.
 		// Elasticsearch will return a `compound` processor in the case of `foreach` and
 		// any processor that defines `on_failure` processors.
 		if st.Type != "compound" && st.Type != src[idx].Type {
-			return 0, nil, errors.Errorf("processor type mismatch for %s processor %d (src:%s stats:%s)", pipeline.Filename(), idx, src[idx].Type, st.Type)
+			return 0, nil, fmt.Errorf("processor type mismatch for %s processor %d (src:%s stats:%s)", pipeline.Filename(), idx, src[idx].Type, st.Type)
 		}
 	}
 
@@ -104,7 +104,7 @@ func coverageForSinglePipeline(pipeline ingest.Pipeline, stats ingest.PipelineSt
 	pipelinePath := filepath.Join(dataStreamPath, "elasticsearch", "ingest_pipeline", pipeline.Filename())
 	pipelineRelPath, err := filepath.Rel(basePath, pipelinePath)
 	if err != nil {
-		return 0, nil, errors.Wrapf(err, "cannot create relative path to pipeline file. Package root: '%s', pipeline path: '%s'", basePath, pipelinePath)
+		return 0, nil, fmt.Errorf("cannot create relative path to pipeline file. Package root: '%s', pipeline path: '%s': %w", basePath, pipelinePath, err)
 	}
 
 	// Report every pipeline as a "class".

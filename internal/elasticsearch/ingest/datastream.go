@@ -16,8 +16,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
-
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/packages"
 )
@@ -27,7 +25,7 @@ var ingestPipelineTag = regexp.MustCompile(`{{\s*IngestPipeline.+}}`)
 func InstallDataStreamPipelines(api *elasticsearch.API, dataStreamPath string) (string, []Pipeline, error) {
 	dataStreamManifest, err := packages.ReadDataStreamManifest(filepath.Join(dataStreamPath, packages.DataStreamManifestFile))
 	if err != nil {
-		return "", nil, errors.Wrap(err, "reading data stream manifest failed")
+		return "", nil, fmt.Errorf("reading data stream manifest failed: %w", err)
 	}
 
 	nonce := time.Now().UnixNano()
@@ -35,7 +33,7 @@ func InstallDataStreamPipelines(api *elasticsearch.API, dataStreamPath string) (
 	mainPipeline := getPipelineNameWithNonce(dataStreamManifest.GetPipelineNameOrDefault(), nonce)
 	pipelines, err := loadIngestPipelineFiles(dataStreamPath, nonce)
 	if err != nil {
-		return "", nil, errors.Wrap(err, "loading ingest pipeline files failed")
+		return "", nil, fmt.Errorf("loading ingest pipeline files failed: %w", err)
 	}
 
 	err = installPipelinesInElasticsearch(api, pipelines)
@@ -52,7 +50,7 @@ func loadIngestPipelineFiles(dataStreamPath string, nonce int64) ([]Pipeline, er
 	for _, pattern := range []string{"*.json", "*.yml"} {
 		files, err := filepath.Glob(filepath.Join(elasticsearchPath, pattern))
 		if err != nil {
-			return nil, errors.Wrapf(err, "listing '%s' in '%s'", pattern, elasticsearchPath)
+			return nil, fmt.Errorf("listing '%s' in '%s': %w", pattern, elasticsearchPath, err)
 		}
 		pipelineFiles = append(pipelineFiles, files...)
 	}
@@ -61,7 +59,7 @@ func loadIngestPipelineFiles(dataStreamPath string, nonce int64) ([]Pipeline, er
 	for _, path := range pipelineFiles {
 		c, err := os.ReadFile(path)
 		if err != nil {
-			return nil, errors.Wrapf(err, "reading ingest pipeline failed (path: %s)", path)
+			return nil, fmt.Errorf("reading ingest pipeline failed (path: %s): %w", path, err)
 		}
 
 		c = ingestPipelineTag.ReplaceAllFunc(c, func(found []byte) []byte {
@@ -98,7 +96,8 @@ func pipelineError(err error, pipeline Pipeline, format string, args ...interfac
 		context += ", path: " + pipeline.Path
 	}
 
-	return errors.Wrapf(err, format+" ("+context+")", args...)
+	errorStr := fmt.Sprintf(format+" ("+context+")", args...)
+	return fmt.Errorf("%s: %w", errorStr, err)
 }
 
 func installPipeline(api *elasticsearch.API, pipeline Pipeline) error {

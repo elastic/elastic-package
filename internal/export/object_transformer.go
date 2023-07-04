@@ -5,7 +5,7 @@
 package export
 
 import (
-	"github.com/pkg/errors"
+	"fmt"
 
 	"github.com/elastic/elastic-package/internal/common"
 )
@@ -36,7 +36,7 @@ func (ot *objectTransformer) transform(objects []common.MapStr) ([]common.MapStr
 			object, err = fn(ot.ctx, object)
 			if err != nil {
 				id, _ := object.GetValue("id")
-				return nil, errors.Wrapf(err, "object transformation failed (ID: %s)", id)
+				return nil, fmt.Errorf("object transformation failed (ID: %s): %w", id, err)
 			}
 		}
 

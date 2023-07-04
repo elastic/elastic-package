@@ -5,7 +5,7 @@
 package stack
 
 import (
-	"github.com/pkg/errors"
+	"fmt"
 
 	"github.com/elastic/elastic-package/internal/docker"
 )
@@ -14,17 +14,17 @@ import (
 func Update(options Options) error {
 	err := applyResources(options.Profile, options.StackVersion)
 	if err != nil {
-		return errors.Wrap(err, "creating stack files failed")
+		return fmt.Errorf("creating stack files failed: %w", err)
 	}
 
 	err = docker.Pull(PackageRegistryBaseImage)
 	if err != nil {
-		return errors.Wrap(err, "pulling package-registry docker image failed")
+		return fmt.Errorf("pulling package-registry docker image failed: %w", err)
 	}
 
 	err = dockerComposePull(options)
 	if err != nil {
-		return errors.Wrap(err, "updating docker images failed")
+		return fmt.Errorf("updating docker images failed: %w", err)
 	}
 	return nil
 }

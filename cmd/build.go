@@ -5,9 +5,10 @@
 package cmd
 
 import (
+	"errors"
+	"fmt"
 	"path/filepath"
 
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/builder"
@@ -55,24 +56,24 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 	if signPackage {
 		err := files.VerifySignerConfiguration()
 		if err != nil {
-			return errors.Wrap(err, "can't verify signer configuration")
+			return fmt.Errorf("can't verify signer configuration: %w", err)
 		}
 	}
 
 	packageRoot, err := packages.MustFindPackageRoot()
 	if err != nil {
-		return errors.Wrap(err, "locating package root failed")
+		return fmt.Errorf("locating package root failed: %w", err)
 	}
 
 	buildDir, err := builder.BuildDirectory()
 	if err != nil {
-		return errors.Wrap(err, "can't prepare build directory")
+		return fmt.Errorf("can't prepare build directory: %w", err)
 	}
 	logger.Debugf("Use build directory: %s", buildDir)
 
 	targets, err := docs.UpdateReadmes(packageRoot)
 	if err != nil {
-		return errors.Wrap(err, "updating files failed")
+		return fmt.Errorf("updating files failed: %w", err)
 	}
 
 	for _, target := range targets {
@@ -87,7 +88,7 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 		SkipValidation: skipValidation,
 	})
 	if err != nil {
-		return errors.Wrap(err, "building package failed")
+		return fmt.Errorf("building package failed: %w", err)
 	}
 	cmd.Printf("Package built: %s\n", target)
 

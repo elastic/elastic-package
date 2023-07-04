@@ -5,24 +5,23 @@
 package files
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
-
-	"github.com/pkg/errors"
 )
 
 // RemoveContent method wipes out the directory content.
 func RemoveContent(dir string) error {
 	fis, err := os.ReadDir(dir)
 	if err != nil {
-		return errors.Wrapf(err, "readdir failed (path: %s)", dir)
+		return fmt.Errorf("readdir failed (path: %s): %w", dir, err)
 	}
 
 	for _, fi := range fis {
 		p := filepath.Join(dir, fi.Name())
 		err = os.RemoveAll(p)
 		if err != nil {
-			return errors.Wrapf(err, "removing resource failed (path: %s)", p)
+			return fmt.Errorf("removing resource failed (path: %s): %w", p, err)
 		}
 	}
 	return nil

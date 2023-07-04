@@ -46,7 +46,7 @@ spec:
         build_pull_requests: true # requires filter_enabled and filter_condition settings as below when used with buildkite-pr-bot
         build_tags: true
         filter_enabled: true
-        filter_condition: |
+        filter_condition: >-
           build.pull_request.id == null || (build.creator.name == 'elasticmachine' && build.pull_request.id != null)
       repository: elastic/elastic-package
       cancel_intermediate_builds: true
@@ -92,7 +92,7 @@ spec:
         build_pull_requests: true # requires filter_enabled and filter_condition settings as below when used with buildkite-pr-bot
         build_tags: true
         filter_enabled: true
-        filter_condition: |
+        filter_condition: >-
           build.pull_request.id == null || (build.creator.name == 'elasticmachine' && build.pull_request.id != null)
       repository: elastic/elastic-package
       cancel_intermediate_builds: true
@@ -138,7 +138,7 @@ spec:
         build_pull_request_forks: false
         build_pull_requests: true # requires filter_enabled and filter_condition settings as below when used with buildkite-pr-bot
         filter_enabled: true
-        filter_condition: |
+        filter_condition: >-
           build.pull_request.id == null || (build.creator.name == 'elasticmachine' && build.pull_request.id != null)
       repository: elastic/elastic-package
       cancel_intermediate_builds: true

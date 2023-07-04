@@ -7,22 +7,22 @@ package outputs
 import (
 	"fmt"
 
-	"github.com/elastic/elastic-package/internal/benchrunner"
+	"github.com/elastic/elastic-package/internal/benchrunner/reporters"
 )
 
 func init() {
-	benchrunner.RegisterReporterOutput(ReportOutputSTDOUT, reportToSTDOUT)
+	reporters.RegisterOutput(ReportOutputSTDOUT, reportToSTDOUT)
 }
 
 const (
 	// ReportOutputSTDOUT reports benchmark results to STDOUT
-	ReportOutputSTDOUT benchrunner.BenchReportOutput = "stdout"
+	ReportOutputSTDOUT reporters.Output = "stdout"
 )
 
-func reportToSTDOUT(pkg, report string, _ benchrunner.BenchReportFormat) error {
-	fmt.Printf("--- Benchmark results for package: %s - START ---\n", pkg)
-	fmt.Println(report)
-	fmt.Printf("--- Benchmark results for package: %s - END   ---\n", pkg)
+func reportToSTDOUT(report reporters.Reportable) error {
+	fmt.Printf("--- Benchmark results for package: %s - START ---\n", report.Package())
+	fmt.Println(string(report.Report()))
+	fmt.Printf("--- Benchmark results for package: %s - END   ---\n", report.Package())
 	fmt.Println("Done")
 	return nil
 }

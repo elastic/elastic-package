@@ -6,10 +6,9 @@ package kibana
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
-
-	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/logger"
@@ -35,13 +34,13 @@ func (c *Client) Export(dashboardIDs []string) ([]common.MapStr, error) {
 	path := fmt.Sprintf("%s/dashboards/export%s", CoreAPI, query.String())
 	statusCode, respBody, err := c.get(path)
 	if err != nil {
-		return nil, errors.Wrapf(err, "could not export dashboards; API status code = %d; response body = %s", statusCode, respBody)
+		return nil, fmt.Errorf("could not export dashboards; API status code = %d; response body = %s: %w", statusCode, respBody, err)
 	}
 
 	var exported exportedType
 	err = json.Unmarshal(respBody, &exported)
 	if err != nil {
-		return nil, errors.Wrapf(err, "unmarshalling response failed (body: \n%s)", respBody)
+		return nil, fmt.Errorf("unmarshalling response failed (body: \n%s): %w", respBody, err)
 	}
 
 	var multiErr multierror.Error
@@ -57,7 +56,7 @@ func (c *Client) Export(dashboardIDs []string) ([]common.MapStr, error) {
 	}
 
 	if len(multiErr) > 0 {
-		return nil, errors.Wrap(multiErr, "at least Kibana object returned an error")
+		return nil, fmt.Errorf("at least Kibana object returned an error: %w", multiErr)
 	}
 	return exported.Objects, nil
 }

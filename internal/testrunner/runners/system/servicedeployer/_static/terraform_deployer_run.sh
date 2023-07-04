@@ -20,10 +20,12 @@ trap cleanup EXIT INT TERM
 
 terraform init
 terraform plan
-terraform apply -auto-approve && touch /tmp/tf-applied
-terraform output -json > ./infrastructure.json
+
+terraform apply -auto-approve
 
 terraform output -json > /output/tfOutputValues.json
+
+touch /tmp/tf-applied # This file is used as indicator (healthcheck) that the service is UP, and so it must be placed as the last statement in the script
 
 echo "Terraform definitions applied."
 

@@ -29,8 +29,17 @@ const (
 	AllowSnapshotFlagName    = "allow-snapshot"
 	AllowSnapshotDescription = "allow to export dashboards from a Elastic stack SNAPSHOT version"
 
+	BenchNameFlagName        = "benchmark"
+	BenchNameFlagDescription = "name of the benchmark scenario to run"
+
 	BenchNumTopProcsFlagName        = "num-top-procs"
 	BenchNumTopProcsFlagDescription = "number of top processors to show in the benchmarks results"
+
+	BenchMetricsIntervalFlagName        = "metrics-collection-interval"
+	BenchMetricsIntervalFlagDescription = "the interval at which metrics are collected"
+
+	BenchReindexToMetricstoreFlagName        = "reindex-to-metricstore"
+	BenchReindexToMetricstoreFlagDescription = "if set the documents from the benchmark will be reindexed to the metricstore for posterior analysis"
 
 	BenchReportNewPathFlagName        = "new"
 	BenchReportNewPathFlagDescription = "path of the directory containing the new benchmarks of the report"
@@ -130,7 +139,7 @@ const (
 	ReportOutputFlagDescription = "output type for test report, eg: stdout, file"
 
 	ReportOutputPathFlagName        = "report-output-path"
-	ReportOutputPathFlagDescription = "output path for test report"
+	ReportOutputPathFlagDescription = "output path for test report (defaults to %q in build directory)"
 
 	ShowAllFlagName        = "all"
 	ShowAllFlagDescription = "show all deployed package revisions"

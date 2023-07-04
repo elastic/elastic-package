@@ -12,8 +12,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/pkg/errors"
-
 	"github.com/elastic/go-resource"
 
 	"github.com/elastic/elastic-package/internal/compose"
@@ -66,10 +64,10 @@ func addTerraformOutputs(outCtxt ServiceContext) error {
 	}
 
 	// Unmarshall the data into `terraformOutputs`
-	logger.Debug("Unmarshalling terraform output json")
+	logger.Debug("Unmarshalling terraform output JSON")
 	var terraformOutputs map[string]OutputMeta
 	if err = json.Unmarshal(content, &terraformOutputs); err != nil {
-		return fmt.Errorf("error during json Unmarshal %w", err)
+		return fmt.Errorf("error during JSON Unmarshal: %w", err)
 	}
 
 	if len(terraformOutputs) == 0 {
@@ -99,7 +97,7 @@ func (tsd TerraformServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedServic
 
 	configDir, err := tsd.installDockerfile()
 	if err != nil {
-		return nil, errors.Wrap(err, "can't install Docker Compose definitions")
+		return nil, fmt.Errorf("can't install Docker Compose definitions: %w", err)
 	}
 
 	ymlPaths := []string{filepath.Join(configDir, terraformDeployerYml)}
@@ -129,13 +127,13 @@ func (tsd TerraformServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedServic
 
 	p, err := compose.NewProject(service.project, service.ymlPaths...)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not create Docker Compose project for service")
+		return nil, fmt.Errorf("could not create Docker Compose project for service: %w", err)
 	}
 
 	// Clean service logs
 	err = files.RemoveContent(outCtxt.Logs.Folder.Local)
 	if err != nil {
-		return nil, errors.Wrap(err, "removing service logs failed")
+		return nil, fmt.Errorf("removing service logs failed: %w", err)
 	}
 
 	opts := compose.CommandOptions{
@@ -144,11 +142,11 @@ func (tsd TerraformServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedServic
 	// Set custom aliases, which may be used in agent policies.
 	serviceComposeConfig, err := p.Config(opts)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not get Docker Compose configuration for service")
+		return nil, fmt.Errorf("could not get Docker Compose configuration for service: %w", err)
 	}
 	outCtxt.CustomProperties, err = buildTerraformAliases(serviceComposeConfig)
 	if err != nil {
-		return nil, errors.Wrap(err, "can't build Terraform aliases")
+		return nil, fmt.Errorf("can't build Terraform aliases: %w", err)
 	}
 
 	// Boot up service
@@ -158,7 +156,7 @@ func (tsd TerraformServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedServic
 	}
 	err = p.Up(opts)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not boot up service using Docker Compose")
+		return nil, fmt.Errorf("could not boot up service using Docker Compose: %w", err)
 	}
 
 	err = p.WaitForHealthy(opts)
@@ -166,14 +164,15 @@ func (tsd TerraformServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedServic
 		processServiceContainerLogs(p, compose.CommandOptions{
 			Env: opts.Env,
 		}, outCtxt.Name)
-		return nil, errors.Wrap(err, "Terraform deployer is unhealthy")
+		//lint:ignore ST1005 error starting with product name can be capitalized
+		return nil, fmt.Errorf("Terraform deployer is unhealthy: %w", err)
 	}
 
 	outCtxt.Agent.Host.NamePrefix = "docker-fleet-agent"
 
 	err = addTerraformOutputs(outCtxt)
 	if err != nil {
-		return nil, fmt.Errorf("could not handle terraform output %w", err)
+		return nil, fmt.Errorf("could not handle terraform output: %w", err)
 	}
 	service.ctxt = outCtxt
 	return &service, nil
@@ -182,7 +181,7 @@ func (tsd TerraformServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedServic
 func (tsd TerraformServiceDeployer) installDockerfile() (string, error) {
 	locationManager, err := locations.NewLocationManager()
 	if err != nil {
-		return "", errors.Wrap(err, "failed to find the configuration directory")
+		return "", fmt.Errorf("failed to find the configuration directory: %w", err)
 	}
 
 	tfDir := filepath.Join(locationManager.DeployerDir(), terraformDeployerDir)

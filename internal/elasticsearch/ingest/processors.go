@@ -5,7 +5,8 @@
 package ingest
 
 import (
-	"github.com/pkg/errors"
+	"fmt"
+
 	"gopkg.in/yaml.v3"
 )
 
@@ -27,9 +28,12 @@ func (p Pipeline) Processors() (procs []Processor, err error) {
 	case "yaml", "yml", "json":
 		procs, err = processorsFromYAML(p.Content)
 	default:
-		return nil, errors.Errorf("unsupported pipeline format: %s", p.Format)
+		return nil, fmt.Errorf("unsupported pipeline format: %s", p.Format)
 	}
-	return procs, errors.Wrapf(err, "failure processing %s pipeline '%s'", p.Format, p.Filename())
+	if err != nil {
+		return nil, fmt.Errorf("failure processing %s pipeline '%s': %w", p.Format, p.Filename(), err)
+	}
+	return procs, nil
 }
 
 // extract a list of processors from a pipeline definition in YAML format.
@@ -42,14 +46,14 @@ func processorsFromYAML(content []byte) (procs []Processor, err error) {
 	}
 	for idx, entry := range p.Processors {
 		if entry.Kind != yaml.MappingNode || len(entry.Content) != 2 {
-			return nil, errors.Errorf("processor#%d is not a single-key map (kind:%v content:%d)", idx, entry.Kind, len(entry.Content))
+			return nil, fmt.Errorf("processor#%d is not a single-key map (kind:%v content:%d)", idx, entry.Kind, len(entry.Content))
 		}
 		var proc Processor
 		if err := entry.Content[1].Decode(&proc); err != nil {
-			return nil, errors.Wrapf(err, "error decoding processor#%d configuration", idx)
+			return nil, fmt.Errorf("error decoding processor#%d configuration: %w", idx, err)
 		}
 		if err := entry.Content[0].Decode(&proc.Type); err != nil {
-			return nil, errors.Wrapf(err, "error decoding processor#%d type", idx)
+			return nil, fmt.Errorf("error decoding processor#%d type: %w", idx, err)
 		}
 		proc.FirstLine = entry.Line
 		proc.LastLine = lastLine(&entry)

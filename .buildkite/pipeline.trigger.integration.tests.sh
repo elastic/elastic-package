@@ -35,20 +35,20 @@ CHECK_PACKAGES_TESTS=(
     test-check-packages-with-custom-agent
     test-check-packages-benchmarks
 )
-# for test in ${CHECK_PACKAGES_TESTS[@]}; do
-#     echo "      - label: \":go: Running integration test: ${test}\""
-#     echo "        command: ./.buildkite/scripts/integration_tests.sh -t ${test}"
-#     echo "        agents:"
-#     echo "          provider: \"gcp\""
-#     echo "        artifact_paths:"
-#     echo "          - build/test-results/*.xml"
-#     echo "          - build/elastic-stack-dump/stack/check-*/logs/*.log"
-#     echo "          - build/elastic-stack-dump/stack/check-*/logs/fleet-server-internal/**/*"
-#     echo "          - build/elastic-stack-status/*/*"
-#     if [[ $test =~ with-kind$ ]]; then
-#         echo "          - build/kubectl-dump.txt"
-#     fi
-# done
+
+for test in ${CHECK_PACKAGES_TESTS[@]}; do
+    echo "      - label: \":go: Running integration test: ${test}\""
+    echo "        command: ./.buildkite/scripts/integration_tests.sh -t ${test}"
+    echo "        agents:"
+    echo "          provider: \"gcp\""
+    echo "        artifact_paths:"
+    echo "          - build/test-results/*.xml"
+    echo "          - build/elastic-stack-dump/check-*/logs/*.log"
+    echo "          - build/elastic-stack-dump/check-*/logs/fleet-server-internal/**/*"
+    if [[ $test =~ with-kind$ ]]; then
+        echo "          - build/kubectl-dump.txt"
+    fi
+done
 
 pushd test/packages/parallel > /dev/null
 for package in $(find . -maxdepth 1 -mindepth 1 -type d) ; do
@@ -62,8 +62,6 @@ for package in $(find . -maxdepth 1 -mindepth 1 -type d) ; do
     echo "          provider: \"gcp\""
     echo "        artifact_paths:"
     echo "          - build/test-results/*.xml"
-    echo "          - build/elastic-stack-dump/stack/check-*/logs/*.log"
-    echo "          - build/elastic-stack-dump/stack/check-*/logs/fleet-server-internal/**/*"
 done
 
 popd > /dev/null

@@ -8,7 +8,7 @@ import (
 	"fmt"
 
 	"github.com/AlecAivazis/survey/v2"
-	"github.com/pkg/errors"
+
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
@@ -67,18 +67,18 @@ func exportDashboardsCmd(cmd *cobra.Command, args []string) error {
 
 	kibanaClient, err := kibana.NewClient(opts...)
 	if err != nil {
-		return errors.Wrap(err, "can't create Kibana client")
+		return fmt.Errorf("can't create Kibana client: %w", err)
 	}
 
 	kibanaVersion, err := kibanaClient.Version()
 	if err != nil {
-		return errors.Wrap(err, "can't get Kibana status information")
+		return fmt.Errorf("can't get Kibana status information: %w", err)
 	}
 
 	if kibanaVersion.IsSnapshot() {
 		message := fmt.Sprintf("exporting dashboards from a SNAPSHOT version of Kibana (%s) is discouraged. It could lead to invalid dashboards (for example if they use features that are reverted or modified before the final release)", kibanaVersion.Version())
 		if !allowSnapshot {
-			return errors.Errorf("%s. --%s flag can be used to ignore this error", message, cobraext.AllowSnapshotFlagName)
+			return fmt.Errorf("%s. --%s flag can be used to ignore this error", message, cobraext.AllowSnapshotFlagName)
 		}
 		fmt.Printf("Warning: %s\n", message)
 	}
@@ -86,7 +86,7 @@ func exportDashboardsCmd(cmd *cobra.Command, args []string) error {
 	if len(dashboardIDs) == 0 {
 		dashboardIDs, err = promptDashboardIDs(kibanaClient)
 		if err != nil {
-			return errors.Wrap(err, "prompt for dashboard selection failed")
+			return fmt.Errorf("prompt for dashboard selection failed: %w", err)
 		}
 
 		if len(dashboardIDs) == 0 {
@@ -97,7 +97,7 @@ func exportDashboardsCmd(cmd *cobra.Command, args []string) error {
 
 	err = export.Dashboards(kibanaClient, dashboardIDs)
 	if err != nil {
-		return errors.Wrap(err, "dashboards export failed")
+		return fmt.Errorf("dashboards export failed: %w", err)
 	}
 
 	cmd.Println("Done")
@@ -107,7 +107,7 @@ func exportDashboardsCmd(cmd *cobra.Command, args []string) error {
 func promptDashboardIDs(kibanaClient *kibana.Client) ([]string, error) {
 	savedDashboards, err := kibanaClient.FindDashboards()
 	if err != nil {
-		return nil, errors.Wrap(err, "finding dashboards failed")
+		return nil, fmt.Errorf("finding dashboards failed: %w", err)
 	}
 
 	if len(savedDashboards) == 0 {

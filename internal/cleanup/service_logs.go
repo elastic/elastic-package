@@ -5,7 +5,7 @@
 package cleanup
 
 import (
-	"github.com/pkg/errors"
+	"fmt"
 
 	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/files"
@@ -18,13 +18,13 @@ func ServiceLogs() (string, error) {
 
 	locationManager, err := locations.NewLocationManager()
 	if err != nil {
-		return "", errors.Wrap(err, "can't find service logs dir")
+		return "", fmt.Errorf("can't find service logs dir: %w", err)
 	}
 
 	logger.Debugf("Remove folder content (path: %s)", locationManager.ServiceLogDir())
 	err = files.RemoveContent(locationManager.ServiceLogDir())
 	if err != nil {
-		return "", errors.Wrapf(err, "can't remove content (path: %s)", locationManager.ServiceLogDir())
+		return "", fmt.Errorf("can't remove content (path: %s): %w", locationManager.ServiceLogDir(), err)
 	}
 	return locationManager.ServiceLogDir(), nil
 }

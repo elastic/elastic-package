@@ -30,9 +30,8 @@ GOOGLE_CREDENTIALS_FILENAME="google-cloud-credentials.json"
 
 JOB_GCS_BUCKET_INTERNAL="fleet-ci-temp-internal"
 
-REPO_NAME=$(repoName "${BUILDKITE_REPO}")
-REPO_BUILD_TAG="${REPO_NAME}/${BUILDKITE_BUILD_NUMBER}"
-
+REPO_NAME=$(repo_name "${BUILDKITE_REPO}")
+REPO_BUILD_TAG="${REPO_NAME}/$(buildkite_pr_branch_build_id)"
 TARGET=""
 PACKAGE=""
 while getopts ":t:p:h" o; do

@@ -7,11 +7,11 @@ package ingest
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
 
-	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/elasticsearch"
@@ -59,13 +59,13 @@ func (p *Pipeline) MarshalJSON() (asJSON []byte, err error) {
 		var node map[string]interface{}
 		err = yaml.Unmarshal(p.Content, &node)
 		if err != nil {
-			return nil, errors.Wrapf(err, "unmarshalling pipeline content failed (pipeline: %s)", p.Name)
+			return nil, fmt.Errorf("unmarshalling pipeline content failed (pipeline: %s): %w", p.Name, err)
 		}
 		if asJSON, err = json.Marshal(node); err != nil {
-			return nil, errors.Wrapf(err, "marshalling pipeline content failed (pipeline: %s)", p.Name)
+			return nil, fmt.Errorf("marshalling pipeline content failed (pipeline: %s): %w", p.Name, err)
 		}
 	default:
-		return nil, errors.Errorf("unsupported pipeline format '%s' (pipeline: %s)", p.Format, p.Name)
+		return nil, fmt.Errorf("unsupported pipeline format '%s' (pipeline: %s)", p.Format, p.Name)
 	}
 	return asJSON, nil
 }
@@ -80,30 +80,30 @@ func SimulatePipeline(api *elasticsearch.API, pipelineName string, events []json
 
 	requestBody, err := json.Marshal(&request)
 	if err != nil {
-		return nil, errors.Wrap(err, "marshalling simulate request failed")
+		return nil, fmt.Errorf("marshalling simulate request failed: %w", err)
 	}
 
 	r, err := api.Ingest.Simulate(bytes.NewReader(requestBody), func(request *elasticsearch.IngestSimulateRequest) {
 		request.PipelineID = pipelineName
 	})
 	if err != nil {
-		return nil, errors.Wrapf(err, "Simulate API call failed (pipelineName: %s)", pipelineName)
+		return nil, fmt.Errorf("simulate API call failed (pipelineName: %s): %w", pipelineName, err)
 	}
 	defer r.Body.Close()
 
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to read Simulate API response body")
+		return nil, fmt.Errorf("failed to read Simulate API response body: %w", err)
 	}
 
 	if r.StatusCode != http.StatusOK {
-		return nil, errors.Wrapf(elasticsearch.NewError(body), "unexpected response status for Simulate (%d): %s", r.StatusCode, r.Status())
+		return nil, fmt.Errorf("unexpected response status for Simulate (%d): %s: %w", r.StatusCode, r.Status(), elasticsearch.NewError(body))
 	}
 
 	var response simulatePipelineResponse
 	err = json.Unmarshal(body, &response)
 	if err != nil {
-		return nil, errors.Wrap(err, "unmarshalling simulate request failed")
+		return nil, fmt.Errorf("unmarshalling simulate request failed: %w", err)
 	}
 
 	processedEvents := make([]json.RawMessage, len(response.Docs))
@@ -117,7 +117,7 @@ func UninstallPipelines(api *elasticsearch.API, pipelines []Pipeline) error {
 	for _, p := range pipelines {
 		resp, err := api.Ingest.DeletePipeline(p.Name)
 		if err != nil {
-			return errors.Wrapf(err, "DeletePipeline API call failed (pipelineName: %s)", p.Name)
+			return fmt.Errorf("delete pipeline API call failed (pipelineName: %s): %w", p.Name, err)
 		}
 		resp.Body.Close()
 	}

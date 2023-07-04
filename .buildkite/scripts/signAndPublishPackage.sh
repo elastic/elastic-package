@@ -16,7 +16,7 @@ cleanup() {
 
 trap cleanup EXIT
 
-isAlreadyPublished() {
+is_already_published() {
     local packageZip=$1
 
     if curl -s --head https://package-storage.elastic.co/artifacts/packages/${packageZip} | grep -q "HTTP/2 200" ; then
@@ -34,7 +34,7 @@ if ! command -v gsutil &> /dev/null ; then
 fi
 
 
-REPO_NAME=$(repoName "${BUILDKITE_REPO}")
+REPO_NAME=$(repo_name "${BUILDKITE_REPO}")
 BUILD_TAG="buildkite-${BUILDKITE_PIPELINE_SLUG}-${BUILDKITE_BUILD_NUMBER}"
 
 REPO_BUILD_TAG="${REPO_NAME}/${BUILD_TAG}"
@@ -76,7 +76,7 @@ google_cloud_auth_publishing() {
     echo "${gsUtilLocation}"
 }
 
-signPackage() {
+sign_package() {
     local package=${1}
     local packageZip=$(basename ${package})
 
@@ -110,7 +110,7 @@ signPackage() {
     rm -r "${gsUtilLocation}"
 }
 
-publishPackage() {
+publish_package() {
     local package=$1
     local packageZip=$(basename ${package})
 
@@ -154,14 +154,14 @@ ls -l "${BUILD_PACKAGES_PATH}"
 for package in $(ls ${BUILD_PACKAGES_PATH}/*.zip); do
     echo "isAlreadyInstalled ${package}?"
     packageZip=$(basename ${package})
-    if isAlreadyPublished ${packageZip} ; then
+    if is_already_published ${packageZip} ; then
         echo "Skipping. ${packageZip} already published"
         continue
     fi
 
     echo "Signing package ${packageZip}"
-    signPackage "${package}"
+    sign_package "${package}"
 
     echo "Publishing package ${packageZip}"
-    publishPackage "${package}"
+    publish_package "${package}"
 done

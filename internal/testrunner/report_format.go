@@ -4,7 +4,9 @@
 
 package testrunner
 
-import "fmt"
+import (
+	"fmt"
+)
 
 // TestReportFormat represents a test report format
 type TestReportFormat string

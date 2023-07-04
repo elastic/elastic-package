@@ -5,8 +5,11 @@
 package changelog
 
 import (
+	"errors"
+	"fmt"
+
 	"github.com/Masterminds/semver/v3"
-	"github.com/pkg/errors"
+
 	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/formatter"
@@ -91,7 +94,7 @@ func PatchYAML(d []byte, patch Revision) ([]byte, error) {
 
 	d, err = formatResult(result)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to format manifest")
+		return nil, fmt.Errorf("failed to format manifest: %w", err)
 	}
 	return d, nil
 }
@@ -100,19 +103,19 @@ func SetManifestVersion(d []byte, version string) ([]byte, error) {
 	var node yaml.Node
 	err := yaml.Unmarshal(d, &node)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to decode manifest")
+		return nil, fmt.Errorf("failed to decode manifest: %w", err)
 	}
 
 	// Manifest is a document, with a single element, that should be a map.
 	if len(node.Content) == 0 || node.Content[0].Kind != yaml.MappingNode {
-		return nil, errors.Wrap(err, "unexpected manifest content")
+		return nil, errors.New("unexpected manifest content: not a map")
 	}
 
 	setYamlMapValue(node.Content[0], "version", version)
 
 	d, err = formatResult(&node)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to format manifest")
+		return nil, fmt.Errorf("failed to format manifest: %w", err)
 	}
 	return d, nil
 }
