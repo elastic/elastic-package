@@ -61,8 +61,6 @@ for package in $(find . -maxdepth 1 -mindepth 1 -type d) ; do
     echo "          provider: \"gcp\""
     echo "        artifact_paths:"
     echo "          - build/test-results/*.xml"
-    echo "          - build/elastic-stack-dump/check-*/logs/*.log"
-    echo "          - build/elastic-stack-dump/check-*/logs/fleet-server-internal/**/*"
 done
 
  popd > /dev/null
