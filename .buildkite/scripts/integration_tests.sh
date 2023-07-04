@@ -24,6 +24,7 @@ source .buildkite/scripts/install_deps.sh
 source .buildkite/scripts/tooling.sh
 
 PARALLEL_TARGET="test-check-packages-parallel"
+FALSE_POSITIVES_TARGET="test-check-packages-false-positives"
 KIND_TARGET="test-check-packages-with-kind"
 TMP_FOLDER_TEMPLATE="${TMP_FOLDER_TEMPLATE_BASE}.XXXXXXXXX"
 GOOGLE_CREDENTIALS_FILENAME="google-cloud-credentials.json"
@@ -108,7 +109,7 @@ if [[ "${TARGET}" == "${KIND_TARGET}" ]]; then
 fi
 
 echo "--- Run integration test ${TARGET}"
-if [[ "${TARGET}" == "${PARALLEL_TARGET}" ]]; then
+if [[ "${TARGET}" == "${PARALLEL_TARGET}" ]] || [[ "${TARGET}" == "${FALSE_POSITIVES_TARGET}" ]]; then
     make install
 
     # allow to fail this command, to be able to upload safe logs
