@@ -35,7 +35,7 @@ const (
 	testRunMinID = 10000
 
 	allFieldsBody = `{"fields": ["*"]}`
-	devDeployDir  = "_dev/deploy"
+	DevDeployDir  = "_dev/deploy"
 )
 
 func init() {
@@ -201,7 +201,7 @@ func (r *runner) run() (results []testrunner.TestResult, err error) {
 	devDeployPath, err := servicedeployer.FindDevDeployPath(servicedeployer.FactoryOptions{
 		PackageRootPath:    r.options.PackageRootPath,
 		DataStreamRootPath: dataStreamPath,
-		DevDeployDir:       devDeployDir,
+		DevDeployDir:       DevDeployDir,
 	})
 	if err != nil {
 		return result.WithError(fmt.Errorf("_dev/deploy directory not found: %w", err))
@@ -253,6 +253,7 @@ func (r *runner) runTestPerVariant(result *testrunner.ResultComposer, locationMa
 	serviceOptions := servicedeployer.FactoryOptions{
 		PackageRootPath:    r.options.PackageRootPath,
 		DataStreamRootPath: dataStreamPath,
+		DevDeployDir:       DevDeployDir,
 		Variant:            variantName,
 		Type:               servicedeployer.TypeTest,
 	}

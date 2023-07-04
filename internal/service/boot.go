@@ -21,6 +21,7 @@ import (
 type Options struct {
 	ServiceName        string
 	PackageRootPath    string
+	DevDeployDir       string
 	DataStreamRootPath string
 
 	Variant string
@@ -32,6 +33,7 @@ func BootUp(options Options) error {
 	serviceDeployer, err := servicedeployer.Factory(servicedeployer.FactoryOptions{
 		PackageRootPath:    options.DataStreamRootPath,
 		DataStreamRootPath: options.DataStreamRootPath,
+		DevDeployDir:       options.DevDeployDir,
 		Variant:            options.Variant,
 	})
 	if err != nil {
