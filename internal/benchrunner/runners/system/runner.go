@@ -284,8 +284,12 @@ func (r *runner) run() (report reporters.Reportable, err error) {
 		}
 	}
 
-	if err := r.waitUntilBenchmarkFinishes(); err != nil {
+	finishedOnTime, err := r.waitUntilBenchmarkFinishes()
+	if err != nil {
 		return nil, err
+	}
+	if !finishedOnTime {
+		return nil, errors.New("timeout exceeded")
 	}
 
 	msum, err := r.collectAndSummarizeMetrics()
@@ -389,7 +393,6 @@ func (r *runner) createPackagePolicy(pkgManifest *packages.PackageManifest, p *k
 		r.scenario.PolicyTemplate = pkgManifest.PolicyTemplates[0].Name
 	}
 
-	// TODO: add ability to define which policy template to use
 	pp := kibana.PackagePolicy{
 		Namespace: "ep",
 		PolicyID:  p.ID,
@@ -615,7 +618,7 @@ func (r *runner) checkEnrolledAgents() ([]kibana.Agent, error) {
 	return agents, nil
 }
 
-func (r *runner) waitUntilBenchmarkFinishes() error {
+func (r *runner) waitUntilBenchmarkFinishes() (bool, error) {
 	logger.Debug("checking for all data in data stream...")
 	var benchTime *time.Timer
 	if r.scenario.BenchmarkTimePeriod > 0 {
@@ -623,7 +626,7 @@ func (r *runner) waitUntilBenchmarkFinishes() error {
 	}
 
 	oldHits := 0
-	_, err := waitUntilTrue(func() (bool, error) {
+	return waitUntilTrue(func() (bool, error) {
 		if signal.SIGINT() {
 			return true, errors.New("SIGINT: cancel waiting for policy assigned")
 		}
@@ -650,7 +653,6 @@ func (r *runner) waitUntilBenchmarkFinishes() error {
 
 		return ret, err
 	}, *r.scenario.WaitForDataTimeout)
-	return err
 }
 
 func (r *runner) enrollAgents() error {
