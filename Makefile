@@ -77,7 +77,7 @@ test-check-packages-with-kind:
 test-check-packages-other:
 	PACKAGE_TEST_TYPE=other ./scripts/test-check-packages.sh
 
-test-check-packages-false-positives: 
+test-check-packages-false-positives:
 	PACKAGE_TEST_TYPE=false_positives ./scripts/test-check-false-positives.sh
 
 test-check-packages-benchmarks:

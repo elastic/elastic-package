@@ -19,13 +19,34 @@ cleanup() {
     )
   done
 
-  # This is a false positive scenario and tests that the test case failure is a success scenario  
+  # This is a false positive scenario and tests that the test case failure is a success scenario
   if [ "${PACKAGE_TEST_TYPE:-false_positives}" == "false_positives" ]; then
     if [ $r == 1 ]; then
-      rm build/test-results/*.xml
+      EXPECTED_ERRORS_FILE="test/packages/false_positives/${PACKAGE_UNDER_TEST}.expected_errors"
+      if [ ! -f ${EXPECTED_ERRORS_FILE} ]; then
+        echo "Error: Missing expected errors file: ${EXPECTED_ERRORS_FILE}"
+      fi
+      RESULTS_NO_SPACES="build/test-results-no-spaces.xml"
+      cat build/test-results/*.xml | tr -d '\n' > ${RESULTS_NO_SPACES}
+
+      # check number of expected errors
+      number_errors=$(cat build/test-results/*.xml | grep "<failure>" | wc -l)
+      expected_errors=$(cat ${EXPECTED_ERRORS_FILE} | wc -l)
+
+      if [ ${number_errors} -ne ${expected_errors} ]; then
+          echo "Error: There are unexpected errors in ${PACKAGE_UNDER_TEST}"
+          exit 1
+      fi
+
+      # check whether or not the expected errors exist in the xml files
+      while read -r line; do
+        cat ${RESULTS_NO_SPACES} | grep -E "${line}"
+      done < ${EXPECTED_ERRORS_FILE}
+      rm -f build/test-results/*.xml
+      rm -f ${RESULTS_NO_SPACES}
       exit 0
     elif [ $r == 0 ]; then
-      echo "Expected to fail tests, but there was none failing"
+      echo "Error: Expected to fail tests, but there was none failing"
       exit 1
     fi
   fi
