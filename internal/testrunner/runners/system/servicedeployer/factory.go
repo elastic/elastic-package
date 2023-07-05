@@ -101,7 +101,7 @@ func FindDevDeployPath(options FactoryOptions) (string, error) {
 func findServiceDeployer(devDeployPath string) ([]string, error) {
 	fis, err := os.ReadDir(devDeployPath)
 	if err != nil {
-		return "", fmt.Errorf("can't read directory (path: %s): %w", devDeployDir, err)
+		return nil, fmt.Errorf("can't read directory (path: %s): %w", devDeployDir, err)
 	}
 
 	var folders []os.DirEntry
