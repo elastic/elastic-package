@@ -5,8 +5,11 @@
 package cmd
 
 import (
+	"errors"
+	"fmt"
+
 	"github.com/AlecAivazis/survey/v2"
-	"github.com/pkg/errors"
+
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/packages"
@@ -31,7 +34,7 @@ func createDataStreamCommandAction(cmd *cobra.Command, args []string) error {
 
 	packageRoot, found, err := packages.FindPackageRoot()
 	if err != nil {
-		return errors.Wrap(err, "locating package root failed")
+		return fmt.Errorf("locating package root failed: %w", err)
 	}
 	if !found {
 		return errors.New("package root not found, you can only create new data stream in the package context")
@@ -67,7 +70,7 @@ func createDataStreamCommandAction(cmd *cobra.Command, args []string) error {
 	var answers newDataStreamAnswers
 	err = survey.Ask(qs, &answers)
 	if err != nil {
-		return errors.Wrap(err, "prompt failed")
+		return fmt.Errorf("prompt failed: %w", err)
 	}
 
 	if answers.Type == "metrics" {
@@ -83,7 +86,7 @@ func createDataStreamCommandAction(cmd *cobra.Command, args []string) error {
 		}
 		err = survey.Ask(qs, &answers)
 		if err != nil {
-			return errors.Wrap(err, "prompt failed")
+			return fmt.Errorf("prompt failed: %w", err)
 		}
 
 		if !answers.SyntheticAndTimeSeries {
@@ -99,7 +102,7 @@ func createDataStreamCommandAction(cmd *cobra.Command, args []string) error {
 			}
 			err = survey.Ask(qs, &answers)
 			if err != nil {
-				return errors.Wrap(err, "prompt failed")
+				return fmt.Errorf("prompt failed: %w", err)
 			}
 		}
 	}
@@ -107,7 +110,7 @@ func createDataStreamCommandAction(cmd *cobra.Command, args []string) error {
 	descriptor := createDataStreamDescriptorFromAnswers(answers, packageRoot)
 	err = archetype.CreateDataStream(descriptor)
 	if err != nil {
-		return errors.Wrap(err, "can't create new data stream")
+		return fmt.Errorf("can't create new data stream: %w", err)
 	}
 
 	cmd.Println("Done")

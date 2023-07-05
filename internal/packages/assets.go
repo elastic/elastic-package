@@ -6,11 +6,10 @@ package packages
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
-
-	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/multierror"
 )
@@ -46,12 +45,12 @@ func (asset Asset) String() string {
 func LoadPackageAssets(pkgRootPath string) ([]Asset, error) {
 	assets, err := loadKibanaAssets(pkgRootPath)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not load kibana assets")
+		return nil, fmt.Errorf("could not load kibana assets: %w", err)
 	}
 
 	a, err := loadElasticsearchAssets(pkgRootPath)
 	if err != nil {
-		return a, errors.Wrap(err, "could not load elasticsearch assets")
+		return a, fmt.Errorf("could not load elasticsearch assets: %w", err)
 	}
 	assets = append(assets, a...)
 
@@ -78,7 +77,7 @@ func loadKibanaAssets(pkgRootPath string) ([]Asset, error) {
 	for _, assetType := range assetTypes {
 		a, err := loadFileBasedAssets(kibanaAssetsFolderPath, assetType)
 		if err != nil {
-			errs = append(errs, errors.Wrapf(err, "could not load kibana %s assets", assetType))
+			errs = append(errs, fmt.Errorf("could not load kibana %s assets: %w", assetType, err))
 			continue
 		}
 
@@ -96,19 +95,19 @@ func loadElasticsearchAssets(pkgRootPath string) ([]Asset, error) {
 	packageManifestPath := filepath.Join(pkgRootPath, PackageManifestFile)
 	pkgManifest, err := ReadPackageManifest(packageManifestPath)
 	if err != nil {
-		return nil, errors.Wrap(err, "reading package manifest file failed")
+		return nil, fmt.Errorf("reading package manifest file failed: %w", err)
 	}
 
 	dataStreamManifestPaths, err := filepath.Glob(filepath.Join(pkgRootPath, "data_stream", "*", DataStreamManifestFile))
 	if err != nil {
-		return nil, errors.Wrap(err, "could not read data stream manifest file paths")
+		return nil, fmt.Errorf("could not read data stream manifest file paths: %w", err)
 	}
 
 	var assets []Asset
 	for _, dsManifestPath := range dataStreamManifestPaths {
 		dsManifest, err := ReadDataStreamManifest(dsManifestPath)
 		if err != nil {
-			return nil, errors.Wrap(err, "reading data stream manifest failed")
+			return nil, fmt.Errorf("reading data stream manifest failed: %w", err)
 		}
 
 		indexTemplateName := dsManifest.IndexTemplateName(pkgManifest.Name)
@@ -127,7 +126,7 @@ func loadElasticsearchAssets(pkgRootPath string) ([]Asset, error) {
 			for _, pattern := range []string{"*.json", "*.yml"} {
 				files, err := filepath.Glob(filepath.Join(elasticsearchDirPath, pattern))
 				if err != nil {
-					return nil, errors.Wrapf(err, "listing '%s' in '%s'", pattern, elasticsearchDirPath)
+					return nil, fmt.Errorf("listing '%s' in '%s': %w", pattern, elasticsearchDirPath, err)
 				}
 				pipelineFiles = append(pipelineFiles, files...)
 			}
@@ -160,19 +159,19 @@ func loadFileBasedAssets(kibanaAssetsFolderPath string, assetType AssetType) ([]
 		return nil, nil
 	}
 	if err != nil {
-		return nil, errors.Wrapf(err, "error finding kibana %s assets folder", assetType)
+		return nil, fmt.Errorf("error finding kibana %s assets folder: %w", assetType, err)
 	}
 
 	paths, err := filepath.Glob(filepath.Join(assetsFolderPath, "*.json"))
 	if err != nil {
-		return nil, errors.Wrapf(err, "could not read %s files", assetType)
+		return nil, fmt.Errorf("could not read %s files: %w", assetType, err)
 	}
 
 	var assets []Asset
 	for _, assetPath := range paths {
 		assetID, err := readAssetID(assetPath)
 		if err != nil {
-			return nil, errors.Wrapf(err, "can't read asset ID (path: %s)", assetPath)
+			return nil, fmt.Errorf("can't read asset ID (path: %s): %w", assetPath, err)
 		}
 
 		asset := Asset{
@@ -188,7 +187,7 @@ func loadFileBasedAssets(kibanaAssetsFolderPath string, assetType AssetType) ([]
 func readAssetID(assetPath string) (string, error) {
 	content, err := os.ReadFile(assetPath)
 	if err != nil {
-		return "", errors.Wrap(err, "can't read file body")
+		return "", fmt.Errorf("can't read file body: %w", err)
 	}
 
 	assetBody := struct {
@@ -197,7 +196,7 @@ func readAssetID(assetPath string) (string, error) {
 
 	err = json.Unmarshal(content, &assetBody)
 	if err != nil {
-		return "", errors.Wrap(err, "can't unmarshal asset")
+		return "", fmt.Errorf("can't unmarshal asset: %w", err)
 	}
 
 	if assetBody.ID == "" {

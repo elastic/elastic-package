@@ -7,8 +7,6 @@ package installer
 import (
 	"fmt"
 
-	"github.com/pkg/errors"
-
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/packages"
 )
@@ -37,7 +35,7 @@ func CreateForZip(kibanaClient *kibana.Client, zipPath string) (*zipInstaller, e
 func (i *zipInstaller) Install() (*InstalledPackage, error) {
 	assets, err := i.kibanaClient.InstallZipPackage(i.zipPath)
 	if err != nil {
-		return nil, errors.Wrap(err, "can't install the package")
+		return nil, fmt.Errorf("can't install the package: %w", err)
 	}
 
 	return &InstalledPackage{
@@ -51,7 +49,7 @@ func (i *zipInstaller) Install() (*InstalledPackage, error) {
 func (i *zipInstaller) Uninstall() error {
 	_, err := i.kibanaClient.RemovePackage(i.manifest.Name, i.manifest.Version)
 	if err != nil {
-		return errors.Wrap(err, "can't remove the package")
+		return fmt.Errorf("can't remove the package: %w", err)
 	}
 	return nil
 }

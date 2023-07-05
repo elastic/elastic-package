@@ -6,8 +6,7 @@ package export
 
 import (
 	"encoding/json"
-
-	"github.com/pkg/errors"
+	"fmt"
 
 	"github.com/elastic/elastic-package/internal/common"
 )
@@ -30,7 +29,7 @@ func decodeObject(ctx *transformationContext, object common.MapStr) (common.MapS
 		if err == common.ErrKeyNotFound {
 			continue
 		} else if err != nil {
-			return nil, errors.Wrapf(err, "retrieving value failed (key: %s)", fieldToDecode)
+			return nil, fmt.Errorf("retrieving value failed (key: %s): %w", fieldToDecode, err)
 		}
 
 		var target interface{}
@@ -43,13 +42,13 @@ func decodeObject(ctx *transformationContext, object common.MapStr) (common.MapS
 		} else {
 			err = json.Unmarshal([]byte(v.(string)), &array)
 			if err != nil {
-				return nil, errors.Wrapf(err, "can't unmarshal encoded field (key: %s)", fieldToDecode)
+				return nil, fmt.Errorf("can't unmarshal encoded field (key: %s): %w", fieldToDecode, err)
 			}
 			target = array
 		}
 		_, err = object.Put(fieldToDecode, target)
 		if err != nil {
-			return nil, errors.Wrapf(err, "can't update field (key: %s)", fieldToDecode)
+			return nil, fmt.Errorf("can't update field (key: %s): %w", fieldToDecode, err)
 		}
 	}
 	return object, nil

@@ -6,5 +6,5 @@ package runners
 
 import (
 	// Registered benchmark runners
-	_ "github.com/elastic/elastic-package/internal/reportgenerator/generators/benchmark"
+	_ "github.com/elastic/elastic-package/internal/reportgenerator/generators/pipelinebench"
 )

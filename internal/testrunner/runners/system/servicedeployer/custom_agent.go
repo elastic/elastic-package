@@ -10,8 +10,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/pkg/errors"
-
 	"github.com/elastic/elastic-package/internal/compose"
 	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/docker"
@@ -50,22 +48,22 @@ func (d *CustomAgentDeployer) SetUp(inCtxt ServiceContext) (DeployedService, err
 
 	appConfig, err := install.Configuration()
 	if err != nil {
-		return nil, errors.Wrap(err, "can't read application configuration")
+		return nil, fmt.Errorf("can't read application configuration: %w", err)
 	}
 
 	kibanaClient, err := kibana.NewClient()
 	if err != nil {
-		return nil, errors.Wrap(err, "can't create Kibana client")
+		return nil, fmt.Errorf("can't create Kibana client: %w", err)
 	}
 
 	stackVersion, err := kibanaClient.Version()
 	if err != nil {
-		return nil, errors.Wrap(err, "can't read Kibana injected metadata")
+		return nil, fmt.Errorf("can't read Kibana injected metadata: %w", err)
 	}
 
 	caCertPath, ok := os.LookupEnv(stack.CACertificateEnv)
 	if !ok {
-		return nil, errors.Wrapf(err, "can't locate CA certificate: %s environment variable not set", stack.CACertificateEnv)
+		return nil, fmt.Errorf("can't locate CA certificate: %s environment variable not set", stack.CACertificateEnv)
 	}
 
 	env := append(
@@ -76,7 +74,7 @@ func (d *CustomAgentDeployer) SetUp(inCtxt ServiceContext) (DeployedService, err
 
 	configDir, err := d.installDockerfile()
 	if err != nil {
-		return nil, errors.Wrap(err, "could not create resources for custom agent")
+		return nil, fmt.Errorf("could not create resources for custom agent: %w", err)
 	}
 
 	ymlPaths := []string{
@@ -97,19 +95,19 @@ func (d *CustomAgentDeployer) SetUp(inCtxt ServiceContext) (DeployedService, err
 
 	p, err := compose.NewProject(service.project, service.ymlPaths...)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not create Docker Compose project for service")
+		return nil, fmt.Errorf("could not create Docker Compose project for service: %w", err)
 	}
 
 	// Verify the Elastic stack network
 	err = stack.EnsureStackNetworkUp()
 	if err != nil {
-		return nil, errors.Wrap(err, "Elastic stack network is not ready")
+		return nil, fmt.Errorf("stack network is not ready: %w", err)
 	}
 
 	// Clean service logs
 	err = files.RemoveContent(outCtxt.Logs.Folder.Local)
 	if err != nil {
-		return nil, errors.Wrap(err, "removing service logs failed")
+		return nil, fmt.Errorf("removing service logs failed: %w", err)
 	}
 
 	inCtxt.Name = dockerCustomAgentName
@@ -120,13 +118,13 @@ func (d *CustomAgentDeployer) SetUp(inCtxt ServiceContext) (DeployedService, err
 	}
 	err = p.Up(opts)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not boot up service using Docker Compose")
+		return nil, fmt.Errorf("could not boot up service using Docker Compose: %w", err)
 	}
 
 	// Connect service network with stack network (for the purpose of metrics collection)
 	err = docker.ConnectToNetwork(p.ContainerName(serviceName), stack.Network())
 	if err != nil {
-		return nil, errors.Wrapf(err, "can't attach service container to the stack network")
+		return nil, fmt.Errorf("can't attach service container to the stack network: %w", err)
 	}
 
 	err = p.WaitForHealthy(opts)
@@ -134,7 +132,7 @@ func (d *CustomAgentDeployer) SetUp(inCtxt ServiceContext) (DeployedService, err
 		processServiceContainerLogs(p, compose.CommandOptions{
 			Env: opts.Env,
 		}, outCtxt.Name)
-		return nil, errors.Wrap(err, "service is unhealthy")
+		return nil, fmt.Errorf("service is unhealthy: %w", err)
 	}
 
 	// Build service container name
@@ -143,7 +141,7 @@ func (d *CustomAgentDeployer) SetUp(inCtxt ServiceContext) (DeployedService, err
 	logger.Debugf("adding service container %s internal ports to context", p.ContainerName(serviceName))
 	serviceComposeConfig, err := p.Config(compose.CommandOptions{Env: env})
 	if err != nil {
-		return nil, errors.Wrap(err, "could not get Docker Compose configuration for service")
+		return nil, fmt.Errorf("could not get Docker Compose configuration for service: %w", err)
 	}
 
 	s := serviceComposeConfig.Services[serviceName]
@@ -167,19 +165,19 @@ func (d *CustomAgentDeployer) SetUp(inCtxt ServiceContext) (DeployedService, err
 func (d *CustomAgentDeployer) installDockerfile() (string, error) {
 	locationManager, err := locations.NewLocationManager()
 	if err != nil {
-		return "", errors.Wrap(err, "failed to find the configuration directory")
+		return "", fmt.Errorf("failed to find the configuration directory: %w", err)
 	}
 
 	customAgentDir := filepath.Join(locationManager.DeployerDir(), dockerCustomAgentDir)
 	err = os.MkdirAll(customAgentDir, 0755)
 	if err != nil {
-		return "", errors.Wrap(err, "failed to create directory for custom agent files")
+		return "", fmt.Errorf("failed to create directory for custom agent files: %w", err)
 	}
 
 	customAgentDockerfile := filepath.Join(customAgentDir, dockerCustomAgentDockerfile)
 	err = os.WriteFile(customAgentDockerfile, dockerCustomAgentDockerfileContent, 0644)
 	if err != nil {
-		return "", errors.Wrap(err, "failed to create docker compose file for custom agent")
+		return "", fmt.Errorf("failed to create docker compose file for custom agent: %w", err)
 	}
 
 	return customAgentDir, nil

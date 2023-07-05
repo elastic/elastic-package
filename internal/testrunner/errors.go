@@ -4,7 +4,9 @@
 
 package testrunner
 
-import "fmt"
+import (
+	"fmt"
+)
 
 // ErrTestCaseFailed represents a test case failure result
 type ErrTestCaseFailed struct {

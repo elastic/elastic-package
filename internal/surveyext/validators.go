@@ -5,13 +5,13 @@
 package surveyext
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/pkg/errors"
 )
 
 var (
@@ -54,7 +54,7 @@ func SemverValidator(val interface{}) error {
 	}
 	_, err := semver.NewVersion(ver)
 	if err != nil {
-		return errors.Wrap(err, "can't parse value as proper semver")
+		return fmt.Errorf("can't parse value as proper semver: %w", err)
 	}
 	return nil
 }
@@ -67,7 +67,7 @@ func ConstraintValidator(val interface{}) error {
 	}
 	_, err := semver.NewConstraint(c)
 	if err != nil {
-		return errors.Wrap(err, "can't parse value as proper constraint")
+		return fmt.Errorf("can't parse value as proper constraint: %w", err)
 	}
 	return nil
 }

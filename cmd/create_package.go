@@ -5,8 +5,10 @@
 package cmd
 
 import (
+	"fmt"
+
 	"github.com/AlecAivazis/survey/v2"
-	"github.com/pkg/errors"
+
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/licenses"
@@ -133,13 +135,13 @@ func createPackageCommandAction(cmd *cobra.Command, args []string) error {
 	var answers newPackageAnswers
 	err := survey.Ask(qs, &answers)
 	if err != nil {
-		return errors.Wrap(err, "prompt failed")
+		return fmt.Errorf("prompt failed: %w", err)
 	}
 
 	descriptor := createPackageDescriptorFromAnswers(answers)
 	err = archetype.CreatePackage(descriptor)
 	if err != nil {
-		return errors.Wrap(err, "can't create new package")
+		return fmt.Errorf("can't create new package: %w", err)
 	}
 
 	cmd.Println("Done")

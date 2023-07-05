@@ -7,7 +7,6 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
@@ -82,13 +81,13 @@ func dumpInstalledObjectsCmdAction(cmd *cobra.Command, args []string) error {
 	}
 	client, err := elasticsearch.NewClient(clientOptions...)
 	if err != nil {
-		return errors.Wrap(err, "failed to initialize Elasticsearch client")
+		return fmt.Errorf("failed to initialize Elasticsearch client: %w", err)
 	}
 
 	dumper := dump.NewInstalledObjectsDumper(client.API, packageName)
 	n, err := dumper.DumpAll(cmd.Context(), outputPath)
 	if err != nil {
-		return errors.Wrap(err, "dump failed")
+		return fmt.Errorf("dump failed: %w", err)
 	}
 	if n == 0 {
 		cmd.Printf("No objects were dumped for package %s, is it installed?\n", packageName)
@@ -122,7 +121,7 @@ func dumpAgentPoliciesCmdAction(cmd *cobra.Command, args []string) error {
 	}
 	kibanaClient, err := kibana.NewClient(clientOptions...)
 	if err != nil {
-		return errors.Wrap(err, "failed to initialize Kibana client")
+		return fmt.Errorf("failed to initialize Kibana client: %w", err)
 	}
 
 	switch {
@@ -132,14 +131,14 @@ func dumpAgentPoliciesCmdAction(cmd *cobra.Command, args []string) error {
 		dumper := dump.NewAgentPoliciesDumper(kibanaClient)
 		err = dumper.DumpByName(cmd.Context(), outputPath, agentPolicy)
 		if err != nil {
-			return errors.Wrap(err, "dump failed")
+			return fmt.Errorf("dump failed: %w", err)
 		}
 		cmd.Printf("Dumped agent policy %s to %s\n", agentPolicy, outputPath)
 	case packageName != "":
 		dumper := dump.NewAgentPoliciesDumper(kibanaClient)
 		count, err := dumper.DumpByPackage(cmd.Context(), outputPath, packageName)
 		if err != nil {
-			return errors.Wrap(err, "dump failed")
+			return fmt.Errorf("dump failed: %w", err)
 		}
 		if count != 0 {
 			cmd.Printf("Dumped %d agent policies filtering by package name %s to %s\n", count, packageName, outputPath)
@@ -150,7 +149,7 @@ func dumpAgentPoliciesCmdAction(cmd *cobra.Command, args []string) error {
 		dumper := dump.NewAgentPoliciesDumper(kibanaClient)
 		count, err := dumper.DumpAll(cmd.Context(), outputPath)
 		if err != nil {
-			return errors.Wrap(err, "dump failed")
+			return fmt.Errorf("dump failed: %w", err)
 		}
 		if count != 0 {
 			cmd.Printf("Dumped %d agent policies to %s\n", count, outputPath)

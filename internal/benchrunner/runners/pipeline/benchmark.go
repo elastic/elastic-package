@@ -11,11 +11,71 @@ import (
 	"sort"
 	"time"
 
-	"github.com/elastic/elastic-package/internal/benchrunner"
 	"github.com/elastic/elastic-package/internal/elasticsearch/ingest"
 )
 
-func (r *runner) benchmarkPipeline(b *benchmark, entryPipeline string) (*benchrunner.BenchmarkResult, error) {
+type BenchmarkResult struct {
+	// XMLName is a zero-length field used as an annotation for XML marshaling.
+	XMLName struct{} `xml:"group" json:"-"`
+	// Type of benchmark
+	Type string `xml:"type" json:"type"`
+	// Package of the benchmark
+	Package string `xml:"package" json:"package"`
+	// DataStream of the benchmark
+	DataStream string `xml:"data_stream" json:"data_stream"`
+	// Description of the benchmark run.
+	Description string `xml:"description,omitempty" json:"description,omitempty"`
+	// Parameters used for this benchmark.
+	Parameters []BenchmarkValue `xml:"parameters,omitempty" json:"parameters,omitempty"`
+	// Tests holds the results for the benchmark.
+	Tests []BenchmarkTest `xml:"test" json:"test"`
+}
+
+// BenchmarkTest models a particular test performed during a benchmark.
+type BenchmarkTest struct {
+	// Name of this test.
+	Name string `xml:"name" json:"name"`
+	// Detailed benchmark tests will be printed to the output but not
+	// included in file reports.
+	Detailed bool `xml:"-" json:"-"`
+	// Description of this test.
+	Description string `xml:"description,omitempty" json:"description,omitempty"`
+	// Parameters for this test.
+	Parameters []BenchmarkValue `xml:"parameters,omitempty" json:"parameters,omitempty"`
+	// Results of the test.
+	Results []BenchmarkValue `xml:"result" json:"result"`
+}
+
+// BenchmarkValue represents a value (result or parameter)
+// with an optional associated unit.
+type BenchmarkValue struct {
+	// Name of the value.
+	Name string `xml:"name" json:"name"`
+	// Description of the value.
+	Description string `xml:"description,omitempty" json:"description,omitempty"`
+	// Unit used for this value.
+	Unit string `xml:"unit,omitempty" json:"unit,omitempty"`
+	// Value is of any type, usually string or numeric.
+	Value interface{} `xml:"value,omitempty" json:"value,omitempty"`
+}
+
+// String returns a BenchmarkValue's value nicely-formatted.
+func (p BenchmarkValue) String() (r string) {
+	if str, ok := p.Value.(fmt.Stringer); ok {
+		return str.String()
+	}
+	if float, ok := p.Value.(float64); ok {
+		r = fmt.Sprintf("%.02f", float)
+	} else {
+		r = fmt.Sprintf("%v", p.Value)
+	}
+	if p.Unit != "" {
+		r += p.Unit
+	}
+	return r
+}
+
+func (r *runner) benchmarkPipeline(b *benchmark, entryPipeline string) (*BenchmarkResult, error) {
 	// Run benchmark
 	bench, err := r.benchmarkIngest(b, entryPipeline)
 	if err != nil {
@@ -40,16 +100,16 @@ func (r *runner) benchmarkPipeline(b *benchmark, entryPipeline string) (*benchru
 		}
 		return record.TimeInMillis * int64(time.Millisecond) / record.Count
 	}
-	asPercentageOfTotalTime := func(perf processorPerformance) benchrunner.BenchmarkValue {
-		return benchrunner.BenchmarkValue{
+	asPercentageOfTotalTime := func(perf processorPerformance) BenchmarkValue {
+		return BenchmarkValue{
 			Name:        perf.key,
 			Description: perf.key,
 			Unit:        "%",
 			Value:       time.Duration(perf.value).Seconds() * 100 / bench.elapsed.Seconds(),
 		}
 	}
-	asDuration := func(perf processorPerformance) benchrunner.BenchmarkValue {
-		return benchrunner.BenchmarkValue{
+	asDuration := func(perf processorPerformance) BenchmarkValue {
+		return BenchmarkValue{
 			Name:        perf.key,
 			Description: perf.key,
 			Value:       time.Duration(perf.value),
@@ -81,12 +141,12 @@ func (r *runner) benchmarkPipeline(b *benchmark, entryPipeline string) (*benchru
 	}
 
 	// Build result
-	result := &benchrunner.BenchmarkResult{
+	result := &BenchmarkResult{
 		Type:        string(BenchType),
 		Package:     r.options.Folder.Package,
 		DataStream:  r.options.Folder.DataStream,
 		Description: fmt.Sprintf("pipeline benchmark for %s/%s", r.options.Folder.Package, r.options.Folder.DataStream),
-		Parameters: []benchrunner.BenchmarkValue{
+		Parameters: []BenchmarkValue{
 			{
 				Name:  "source_doc_count",
 				Value: len(b.events),
@@ -96,10 +156,10 @@ func (r *runner) benchmarkPipeline(b *benchmark, entryPipeline string) (*benchru
 				Value: bench.numDocs,
 			},
 		},
-		Tests: []benchrunner.BenchmarkTest{
+		Tests: []BenchmarkTest{
 			{
 				Name: "pipeline_performance",
-				Results: []benchrunner.BenchmarkValue{
+				Results: []BenchmarkValue{
 					{
 						Name:        "processing_time",
 						Description: "time elapsed in pipeline processors",
@@ -154,7 +214,7 @@ type aggregation struct {
 type (
 	keyFn     func(ingest.Pipeline, ingest.Processor) string
 	valueFn   func(record ingest.StatsRecord) int64
-	mapFn     func(processorPerformance) benchrunner.BenchmarkValue
+	mapFn     func(processorPerformance) BenchmarkValue
 	compareFn func(a, b processorPerformance) bool
 	filterFn  func(processorPerformance) bool
 )
@@ -227,11 +287,11 @@ func (agg aggregation) filter(keep filterFn) aggregation {
 	return agg
 }
 
-func (agg aggregation) collect(fn mapFn) ([]benchrunner.BenchmarkValue, error) {
+func (agg aggregation) collect(fn mapFn) ([]BenchmarkValue, error) {
 	if agg.err != nil {
 		return nil, agg.err
 	}
-	r := make([]benchrunner.BenchmarkValue, len(agg.result))
+	r := make([]BenchmarkValue, len(agg.result))
 	for idx := range r {
 		r[idx] = fn(agg.result[idx])
 	}

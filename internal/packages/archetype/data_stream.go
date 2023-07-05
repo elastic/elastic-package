@@ -9,8 +9,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/pkg/errors"
-
 	"github.com/elastic/elastic-package/internal/formatter"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
@@ -33,33 +31,33 @@ func CreateDataStream(dataStreamDescriptor DataStreamDescriptor) error {
 	logger.Debugf("Write data stream manifest")
 	err = renderResourceFile(dataStreamManifestTemplate, &dataStreamDescriptor, filepath.Join(dataStreamDir, "manifest.yml"))
 	if err != nil {
-		return errors.Wrap(err, "can't render data stream manifest")
+		return fmt.Errorf("can't render data stream manifest: %w", err)
 	}
 
 	logger.Debugf("Write base fields")
 	err = renderResourceFile(dataStreamFieldsBaseTemplate, &dataStreamDescriptor, filepath.Join(dataStreamDir, "fields", "base-fields.yml"))
 	if err != nil {
-		return errors.Wrap(err, "can't render base fields")
+		return fmt.Errorf("can't render base fields: %w", err)
 	}
 
 	logger.Debugf("Write agent stream")
 	err = renderResourceFile(dataStreamAgentStreamTemplate, &dataStreamDescriptor, filepath.Join(dataStreamDir, "agent", "stream", "stream.yml.hbs"))
 	if err != nil {
-		return errors.Wrap(err, "can't render base fields")
+		return fmt.Errorf("can't render base fields: %w", err)
 	}
 
 	if dataStreamDescriptor.Manifest.Type == "logs" {
 		logger.Debugf("Write ingest pipeline")
 		err = renderResourceFile(dataStreamElasticsearchIngestPipelineTemplate, &dataStreamDescriptor, filepath.Join(dataStreamDir, "elasticsearch", "ingest_pipeline", "default.yml"))
 		if err != nil {
-			return errors.Wrap(err, "can't render ingest pipeline")
+			return fmt.Errorf("can't render ingest pipeline: %w", err)
 		}
 	}
 
 	logger.Debugf("Format the entire package")
 	err = formatter.Format(dataStreamDescriptor.PackageRoot, false)
 	if err != nil {
-		return errors.Wrap(err, "can't format the new package")
+		return fmt.Errorf("can't format the new package: %w", err)
 	}
 
 	fmt.Printf("New data stream has been created: %s\n", dataStreamDescriptor.Manifest.Name)

@@ -8,8 +8,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/pkg/errors"
-
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
@@ -51,7 +49,7 @@ func (r runner) CanRunPerDataStream() bool {
 }
 
 // Run runs the asset loading tests
-func (r runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, error) {
+func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, error) {
 	r.testFolder = options.TestFolder
 	r.packageRootPath = options.PackageRootPath
 
@@ -66,7 +64,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 
 	testConfig, err := newConfig(r.testFolder.Path)
 	if err != nil {
-		return result.WithError(errors.Wrap(err, "unable to load asset loading test config file"))
+		return result.WithError(fmt.Errorf("unable to load asset loading test config file: %w", err))
 
 	}
 
@@ -80,28 +78,41 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 	logger.Debug("installing package...")
 	kibanaClient, err := kibana.NewClient()
 	if err != nil {
-		return result.WithError(errors.Wrap(err, "could not create kibana client"))
+		return result.WithError(fmt.Errorf("could not create kibana client: %w", err))
 	}
-	packageInstaller, err := installer.CreateForManifest(kibanaClient, r.packageRootPath)
+	packageInstaller, err := installer.NewForPackage(installer.Options{
+		Kibana:         kibanaClient,
+		RootPath:       r.packageRootPath,
+		SkipValidation: true,
+	})
 	if err != nil {
-		return result.WithError(errors.Wrap(err, "can't create the package installer"))
+		return result.WithError(fmt.Errorf("can't create the package installer: %w", err))
 	}
 	installedPackage, err := packageInstaller.Install()
 	if err != nil {
-		return result.WithError(errors.Wrap(err, "can't install the package"))
+		return result.WithError(fmt.Errorf("can't install the package: %w", err))
 	}
 
 	r.removePackageHandler = func() error {
+		pkgManifest, err := packages.ReadPackageManifestFromPackageRoot(r.packageRootPath)
+		if err != nil {
+			return fmt.Errorf("reading package manifest failed: %w", err)
+		}
+
 		logger.Debug("removing package...")
-		if err := packageInstaller.Uninstall(); err != nil {
-			return errors.Wrap(err, "error cleaning up package")
+		err = packageInstaller.Uninstall()
+
+		// by default system package is part of an agent policy and it cannot be uninstalled
+		// https://github.com/elastic/elastic-package/blob/5f65dc29811c57454bc7142aaf73725b6d4dc8e6/internal/stack/_static/kibana.yml.tmpl#L62
+		if err != nil && pkgManifest.Name != "system" {
+			logger.Warnf("failed to uninstall package %q: %s", pkgManifest.Name, err.Error())
 		}
 		return nil
 	}
 
 	expectedAssets, err := packages.LoadPackageAssets(r.packageRootPath)
 	if err != nil {
-		return result.WithError(errors.Wrap(err, "could not load expected package assets"))
+		return result.WithError(fmt.Errorf("could not load expected package assets: %w", err))
 	}
 
 	results := make([]testrunner.TestResult, 0, len(expectedAssets))

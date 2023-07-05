@@ -5,12 +5,13 @@
 package asset
 
 import (
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 
 	"github.com/elastic/go-ucfg"
 	"github.com/elastic/go-ucfg/yaml"
-	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
@@ -30,16 +31,16 @@ func newConfig(assetTestFolderPath string) (*testConfig, error) {
 
 	data, err := os.ReadFile(configFilePath)
 	if err != nil {
-		return nil, errors.Wrapf(err, "could not load asset loading test configuration file: %s", configFilePath)
+		return nil, fmt.Errorf("could not load asset loading test configuration file: %s: %w", configFilePath, err)
 	}
 
 	var c testConfig
 	cfg, err := yaml.NewConfig(data, ucfg.PathSep("."))
 	if err != nil {
-		return nil, errors.Wrapf(err, "unable to load asset loading test configuration file: %s", configFilePath)
+		return nil, fmt.Errorf("unable to load asset loading test configuration file: %s: %w", configFilePath, err)
 	}
 	if err := cfg.Unpack(&c); err != nil {
-		return nil, errors.Wrapf(err, "unable to unpack asset loading test configuration file: %s", configFilePath)
+		return nil, fmt.Errorf("unable to unpack asset loading test configuration file: %s: %w", configFilePath, err)
 	}
 
 	return &c, nil

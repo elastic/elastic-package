@@ -6,10 +6,9 @@ package export
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
-
-	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/kibana"
@@ -22,18 +21,18 @@ import (
 func Dashboards(kibanaClient *kibana.Client, dashboardsIDs []string) error {
 	packageRoot, err := packages.MustFindPackageRoot()
 	if err != nil {
-		return errors.Wrap(err, "locating package root failed")
+		return fmt.Errorf("locating package root failed: %w", err)
 	}
 	logger.Debugf("Package root found: %s", packageRoot)
 
 	m, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
 	if err != nil {
-		return errors.Wrapf(err, "reading package manifest failed (path: %s)", packageRoot)
+		return fmt.Errorf("reading package manifest failed (path: %s): %w", packageRoot, err)
 	}
 
 	objects, err := kibanaClient.Export(dashboardsIDs)
 	if err != nil {
-		return errors.Wrap(err, "exporting dashboards using Kibana client failed")
+		return fmt.Errorf("exporting dashboards using Kibana client failed: %w", err)
 	}
 
 	ctx := &transformationContext{
@@ -42,12 +41,12 @@ func Dashboards(kibanaClient *kibana.Client, dashboardsIDs []string) error {
 
 	objects, err = applyTransformations(ctx, objects)
 	if err != nil {
-		return errors.Wrap(err, "can't transform Kibana objects")
+		return fmt.Errorf("can't transform Kibana objects: %w", err)
 	}
 
 	err = saveObjectsToFiles(packageRoot, objects)
 	if err != nil {
-		return errors.Wrap(err, "can't save Kibana objects")
+		return fmt.Errorf("can't save Kibana objects: %w", err)
 	}
 	return nil
 }
@@ -74,21 +73,21 @@ func saveObjectsToFiles(packageRoot string, objects []common.MapStr) error {
 		// Marshal object to byte content
 		b, err := json.MarshalIndent(&object, "", "    ")
 		if err != nil {
-			return errors.Wrapf(err, "marshalling Kibana object failed (ID: %s)", id.(string))
+			return fmt.Errorf("marshalling Kibana object failed (ID: %s): %w", id.(string), err)
 		}
 
 		// Create target directory
 		targetDir := filepath.Join(packageRoot, "kibana", aType.(string))
 		err = os.MkdirAll(targetDir, 0755)
 		if err != nil {
-			return errors.Wrapf(err, "creating target directory failed (path: %s)", targetDir)
+			return fmt.Errorf("creating target directory failed (path: %s): %w", targetDir, err)
 		}
 
 		// Save object to file
 		objectPath := filepath.Join(targetDir, id.(string)+".json")
 		err = os.WriteFile(objectPath, b, 0644)
 		if err != nil {
-			return errors.Wrap(err, "writing to file failed")
+			return fmt.Errorf("writing to file failed: %w", err)
 		}
 	}
 	return nil

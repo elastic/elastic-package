@@ -6,6 +6,7 @@ package files
 
 import (
 	"compress/flate"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,7 +14,6 @@ import (
 	"github.com/elastic/elastic-package/internal/logger"
 
 	"github.com/mholt/archiver/v3"
-	"github.com/pkg/errors"
 )
 
 // Zip function creates the .zip archive from the source path (built package content).
@@ -32,24 +32,24 @@ func Zip(sourcePath, destinationFile string) error {
 	// Create a temporary work directory to properly name the root directory in the archive, e.g. aws-1.0.1
 	tempDir, err := os.MkdirTemp("", "elastic-package-")
 	if err != nil {
-		return errors.Wrap(err, "can't prepare a temporary directory")
+		return fmt.Errorf("can't prepare a temporary directory: %w", err)
 	}
 	defer os.RemoveAll(tempDir)
 	workDir := filepath.Join(tempDir, folderNameFromFileName(destinationFile))
 	err = os.MkdirAll(workDir, 0755)
 	if err != nil {
-		return errors.Wrapf(err, "can't prepare work directory: %s", workDir)
+		return fmt.Errorf("can't prepare work directory: %s: %w", workDir, err)
 	}
 
 	logger.Debugf("Create work directory for archiving: %s", workDir)
 	err = CopyAll(sourcePath, workDir)
 	if err != nil {
-		return errors.Wrapf(err, "can't create a work directory (path: %s)", workDir)
+		return fmt.Errorf("can't create a work directory (path: %s): %w", workDir, err)
 	}
 
 	err = z.Archive([]string{workDir}, destinationFile)
 	if err != nil {
-		return errors.Wrapf(err, "can't archive source directory (source path: %s)", sourcePath)
+		return fmt.Errorf("can't archive source directory (source path: %s): %w", sourcePath, err)
 	}
 	return nil
 }

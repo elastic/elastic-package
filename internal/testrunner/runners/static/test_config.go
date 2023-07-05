@@ -5,12 +5,13 @@
 package static
 
 import (
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 
 	"github.com/elastic/go-ucfg"
 	"github.com/elastic/go-ucfg/yaml"
-	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
@@ -30,17 +31,17 @@ func newConfig(staticTestFolderPath string) (*testConfig, error) {
 
 	data, err := os.ReadFile(configFilePath)
 	if err != nil {
-		return nil, errors.Wrapf(err, "could not load static test configuration file: %s", configFilePath)
+		return nil, fmt.Errorf("could not load static test configuration file: %s: %w", configFilePath, err)
 	}
 
 	cfg, err := yaml.NewConfig(data, ucfg.PathSep("."))
 	if err != nil {
-		return nil, errors.Wrapf(err, "unable to load static test configuration file: %s", configFilePath)
+		return nil, fmt.Errorf("unable to load static test configuration file: %s: %w", configFilePath, err)
 	}
 
 	var c testConfig
 	if err := cfg.Unpack(&c); err != nil {
-		return nil, errors.Wrapf(err, "unable to unpack static test configuration file: %s", configFilePath)
+		return nil, fmt.Errorf("unable to unpack static test configuration file: %s: %w", configFilePath, err)
 	}
 
 	return &c, nil

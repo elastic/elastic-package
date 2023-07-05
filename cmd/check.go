@@ -5,7 +5,8 @@
 package cmd
 
 import (
-	"github.com/pkg/errors"
+	"fmt"
+
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
@@ -27,7 +28,7 @@ func setupCheckCommand() *cobraext.Command {
 				setupBuildCommand(),
 			)
 			if err != nil {
-				return errors.Wrap(err, "checking package failed")
+				return fmt.Errorf("checking package failed: %w", err)
 			}
 			return nil
 		},

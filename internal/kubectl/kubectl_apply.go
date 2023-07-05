@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 	"helm.sh/helm/v3/pkg/kube"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -74,13 +73,13 @@ func Apply(definitionsPath []string) error {
 	logger.Debugf("Apply Kubernetes custom definitions")
 	out, err := modifyKubernetesResources("apply", definitionsPath)
 	if err != nil {
-		return errors.Wrap(err, "can't modify Kubernetes resources (apply)")
+		return fmt.Errorf("can't modify Kubernetes resources (apply): %w", err)
 	}
 
 	logger.Debugf("Handle \"apply\" command output")
 	err = handleApplyCommandOutput(out)
 	if err != nil {
-		return errors.Wrap(err, "can't handle command output")
+		return fmt.Errorf("can't handle command output: %w", err)
 	}
 	return nil
 }
@@ -90,13 +89,13 @@ func ApplyStdin(input []byte) error {
 	logger.Debugf("Apply Kubernetes stdin")
 	out, err := applyKubernetesResourcesStdin(input)
 	if err != nil {
-		return errors.Wrap(err, "can't modify Kubernetes resources (apply stdin)")
+		return fmt.Errorf("can't modify Kubernetes resources (apply stdin): %w", err)
 	}
 
 	logger.Debugf("Handle \"apply\" command output")
 	err = handleApplyCommandOutput(out)
 	if err != nil {
-		return errors.Wrap(err, "can't handle command output")
+		return fmt.Errorf("can't handle command output: %w", err)
 	}
 	return nil
 }
@@ -105,13 +104,13 @@ func handleApplyCommandOutput(out []byte) error {
 	logger.Debugf("Extract resources from command output")
 	resources, err := extractResources(out)
 	if err != nil {
-		return errors.Wrap(err, "can't extract resources")
+		return fmt.Errorf("can't extract resources: %w", err)
 	}
 
 	logger.Debugf("Wait for ready resources")
 	err = waitForReadyResources(resources)
 	if err != nil {
-		return errors.Wrap(err, "resources are not ready")
+		return fmt.Errorf("resources are not ready: %w", err)
 	}
 	return nil
 }
@@ -121,7 +120,7 @@ func waitForReadyResources(resources []resource) error {
 	for _, r := range resources {
 		resInfo, err := createResourceInfo(r)
 		if err != nil {
-			return errors.Wrap(err, "can't fetch resource info")
+			return fmt.Errorf("can't fetch resource info: %w", err)
 		}
 		resList = append(resList, resInfo)
 	}
@@ -137,7 +136,7 @@ func waitForReadyResources(resources []resource) error {
 	// Can be solved with multi-node clusters.
 	err := kubeClient.Wait(resList, readinessTimeout)
 	if err != nil {
-		return errors.Wrap(err, "waiter failed")
+		return fmt.Errorf("waiter failed: %w", err)
 	}
 	return nil
 }
@@ -158,7 +157,7 @@ func extractResource(output []byte) (*resource, error) {
 	var r resource
 	err := yaml.Unmarshal(output, &r)
 	if err != nil {
-		return nil, errors.Wrap(err, "can't unmarshal command output")
+		return nil, fmt.Errorf("can't unmarshal command output: %w", err)
 	}
 	return &r, nil
 }
@@ -171,7 +170,7 @@ func createResourceInfo(r resource) (*kresource.Info, error) {
 
 	restClient, err := createRESTClientForResource(r)
 	if err != nil {
-		return nil, errors.Wrap(err, "can't create REST client for resource")
+		return nil, fmt.Errorf("can't create REST client for resource: %w", err)
 	}
 
 	var group string
@@ -206,7 +205,7 @@ func createResourceInfo(r resource) (*kresource.Info, error) {
 	logger.Debugf("Sync resource info: %s (kind: %s, namespace: %s)", r.Metadata.Name, r.Kind, r.Metadata.Namespace)
 	err = resInfo.Get()
 	if err != nil {
-		return nil, errors.Wrap(err, "can't sync resource info")
+		return nil, fmt.Errorf("can't sync resource info: %w", err)
 	}
 	return resInfo, nil
 }
@@ -215,7 +214,7 @@ func createRESTClientForResource(r resource) (*rest.RESTClient, error) {
 	restClientGetter := genericclioptions.NewConfigFlags(true)
 	restConfig, err := restClientGetter.ToRESTConfig()
 	if err != nil {
-		return nil, errors.Wrap(err, "can't convert to REST config")
+		return nil, fmt.Errorf("can't convert to REST config: %w", err)
 	}
 	restConfig.NegotiatedSerializer = kresource.UnstructuredPlusDefaultContentConfig().NegotiatedSerializer
 
@@ -227,7 +226,7 @@ func createRESTClientForResource(r resource) (*rest.RESTClient, error) {
 
 	restClient, err := rest.UnversionedRESTClientFor(restConfig)
 	if err != nil {
-		return nil, errors.Wrap(err, "can't create unversioned REST client")
+		return nil, fmt.Errorf("can't create unversioned REST client: %w", err)
 	}
 	return restClient, nil
 }

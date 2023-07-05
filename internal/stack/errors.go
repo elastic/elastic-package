@@ -4,7 +4,9 @@
 
 package stack
 
-import "fmt"
+import (
+	"fmt"
+)
 
 // UndefinedEnvError formats an error reported for undefined variable.
 func UndefinedEnvError(envName string) error {

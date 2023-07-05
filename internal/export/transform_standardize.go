@@ -5,10 +5,9 @@
 package export
 
 import (
+	"fmt"
 	"regexp"
 	"strings"
-
-	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/common"
 )
@@ -20,23 +19,23 @@ func standardizeObjectID(ctx *transformationContext, object common.MapStr) (comm
 	id, _ := object.GetValue("id")
 	_, err := object.Put("id", adjustObjectID(ctx, id.(string)))
 	if err != nil {
-		return nil, errors.Wrapf(err, "can't update object ID")
+		return nil, fmt.Errorf("can't update object ID: %w", err)
 	}
 
 	// Adjust references
 	references, err := object.GetValue("references")
 	if err != nil && err != common.ErrKeyNotFound {
-		return nil, errors.Wrap(err, "retrieving object references failed")
+		return nil, fmt.Errorf("retrieving object references failed: %w", err)
 	}
 
 	newReferences, err := adjustObjectReferences(ctx, references.([]interface{}))
 	if err != nil {
-		return nil, errors.Wrapf(err, "can't adjust object references (ID: %s)", id)
+		return nil, fmt.Errorf("can't adjust object references (ID: %s): %w", id, err)
 	}
 
 	_, err = object.Put("references", newReferences)
 	if err != nil {
-		return nil, errors.Wrapf(err, "can't update references")
+		return nil, fmt.Errorf("can't update references: %w", err)
 	}
 	return object, nil
 }
@@ -62,7 +61,7 @@ func standardizeObjectProperties(ctx *transformationContext, object common.MapSt
 		if key == "title" {
 			_, err := object.Put(key, adjustTitleProperty(value.(string)))
 			if err != nil {
-				return nil, errors.Wrapf(err, "can't update field (key: %s)", key)
+				return nil, fmt.Errorf("can't update field (key: %s): %w", key, err)
 			}
 			continue
 		}
@@ -70,7 +69,7 @@ func standardizeObjectProperties(ctx *transformationContext, object common.MapSt
 		if key == "markdown" {
 			_, err := object.Put(key, adjustMarkdownProperty(ctx, value.(string)))
 			if err != nil {
-				return nil, errors.Wrapf(err, "can't update field (key: %s)", key)
+				return nil, fmt.Errorf("can't update field (key: %s): %w", key, err)
 			}
 			continue
 		}
@@ -83,7 +82,7 @@ func standardizeObjectProperties(ctx *transformationContext, object common.MapSt
 		case map[string]interface{}:
 			target, err = standardizeObjectProperties(ctx, value)
 			if err != nil {
-				return nil, errors.Wrapf(err, "can't standardize object (key: %s)", key)
+				return nil, fmt.Errorf("can't standardize object (key: %s): %w", key, err)
 			}
 			updated = true
 		case []map[string]interface{}:
@@ -91,7 +90,7 @@ func standardizeObjectProperties(ctx *transformationContext, object common.MapSt
 			for i, obj := range arr {
 				newValue, err := standardizeObjectProperties(ctx, obj)
 				if err != nil {
-					return nil, errors.Wrapf(err, "can't standardize object (array index: %d)", i)
+					return nil, fmt.Errorf("can't standardize object (array index: %d): %w", i, err)
 				}
 				arr[i] = newValue
 			}
@@ -105,7 +104,7 @@ func standardizeObjectProperties(ctx *transformationContext, object common.MapSt
 
 		_, err = object.Put(key, target)
 		if err != nil {
-			return nil, errors.Wrapf(err, "can't update field (key: %s)", key)
+			return nil, fmt.Errorf("can't update field (key: %s): %w", key, err)
 		}
 	}
 	return object, nil

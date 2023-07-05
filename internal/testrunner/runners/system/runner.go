@@ -504,8 +504,13 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	}
 	r.deletePackageHandler = func() error {
 		err := installer.Uninstall()
-		if err != nil {
-			return fmt.Errorf("failed to uninstall package: %v", err)
+
+		// by default system package is part of an agent policy and it cannot be uninstalled
+		// https://github.com/elastic/elastic-package/blob/5f65dc29811c57454bc7142aaf73725b6d4dc8e6/internal/stack/_static/kibana.yml.tmpl#L62
+		if err != nil && pkgManifest.Name != "system" {
+			// logging the error as a warning and not returning it since there could be other reasons that could make fail this process
+			// for instance being defined a test agent policy where this package is used for debugging purposes
+			logger.Warnf("failed to uninstall package %q: %s", pkgManifest.Name, err.Error())
 		}
 		return nil
 	}

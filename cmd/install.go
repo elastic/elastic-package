@@ -5,7 +5,9 @@
 package cmd
 
 import (
-	"github.com/pkg/errors"
+	"errors"
+	"fmt"
+
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
@@ -49,7 +51,7 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 
 	kibanaClient, err := kibana.NewClient()
 	if err != nil {
-		return errors.Wrap(err, "could not create kibana client")
+		return fmt.Errorf("could not create kibana client: %w", err)
 	}
 
 	if zipPathFile == "" && packageRootPath == "" {
@@ -60,7 +62,7 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 			return errors.New("package root not found")
 		}
 		if err != nil {
-			return errors.Wrap(err, "locating package root failed")
+			return fmt.Errorf("locating package root failed: %w", err)
 		}
 	}
 
@@ -71,13 +73,13 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 		ZipPath:        zipPathFile,
 	})
 	if err != nil {
-		return errors.Wrap(err, "package installation failed")
+		return fmt.Errorf("package installation failed: %w", err)
 	}
 
 	// Check conditions
 	keyValuePairs, err := cmd.Flags().GetStringSlice(cobraext.CheckConditionFlagName)
 	if err != nil {
-		return errors.Wrap(err, "can't process check-condition flag")
+		return fmt.Errorf("can't process check-condition flag: %w", err)
 	}
 	if len(keyValuePairs) > 0 {
 		manifest, err := installer.Manifest()
@@ -88,7 +90,7 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 		cmd.Println("Check conditions for package")
 		err = packages.CheckConditions(*manifest, keyValuePairs)
 		if err != nil {
-			return errors.Wrap(err, "checking conditions failed")
+			return fmt.Errorf("checking conditions failed: %w", err)
 		}
 		cmd.Println("Requirements satisfied - the package can be installed.")
 		cmd.Println("Done")

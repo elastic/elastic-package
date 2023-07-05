@@ -8,8 +8,6 @@ import (
 	"encoding/xml"
 	"fmt"
 
-	"github.com/pkg/errors"
-
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
 
@@ -138,7 +136,7 @@ func reportXUnitFormat(results []testrunner.TestResult) (string, error) {
 
 	out, err := xml.MarshalIndent(&ts, "", "  ")
 	if err != nil {
-		return "", errors.Wrap(err, "unable to format test results as xUnit")
+		return "", fmt.Errorf("unable to format test results as xUnit: %w", err)
 	}
 
 	return xml.Header + string(out), nil

@@ -1,0 +1,22 @@
+paths:
+{{#each paths as |path i|}}
+ - {{path}}
+{{/each}}
+exclude_files: [".gz$"]
+multiline:
+  pattern: "^\\s"
+  match: after
+processors:
+- add_locale: ~
+{{#if processors.length}}
+{{processors}}
+{{/if}}
+{{#if tags.length}}
+tags:
+{{#each tags as |tag i|}}
+- {{tag}}
+{{/each}}
+{{/if}}
+{{#if ignore_older}}
+ignore_older: {{ignore_older}}
+{{/if}}
