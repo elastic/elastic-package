@@ -22,9 +22,11 @@ cleanup() {
   # This is a false positive scenario and tests that the test case failure is a success scenario  
   if [ "${PACKAGE_TEST_TYPE:-false_positives}" == "false_positives" ]; then
     if [ $r == 1 ]; then
-        exit 0
-      elif [ $r == 0 ]; then
-        exit 1
+      rm build/test-results/*.xml
+      exit 0
+    elif [ $r == 0 ]; then
+      echo "Expected to fail tests, but there was none failing"
+      exit 1
     fi
   fi
 
