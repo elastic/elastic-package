@@ -620,6 +620,7 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	// (TODO in future) Optionally exercise service to generate load.
 	logger.Debug("checking for expected data in data stream...")
 	var hits *hits
+	oldHits := 0
 	passed, err := waitUntilTrue(func() (bool, error) {
 		if signal.SIGINT() {
 			return true, errors.New("SIGINT: cancel waiting for policy assigned")
@@ -629,11 +630,21 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 		hits, err = r.getDocs(dataStream)
 
 		if config.Assert.HitCount > 0 {
-			return hits.size() >= config.Assert.HitCount, err
-		}
+			if hits.size() < config.Assert.HitCount {
+				return false, err
+			}
 
+			ret := hits.size() == oldHits
+			if !ret {
+				oldHits = hits.size()
+				time.Sleep(4 * time.Second)
+			}
+
+			return ret, err
+		}
 		return hits.size() > 0, err
 	}, waitForDataTimeout)
+
 	if err != nil {
 		return result.WithError(err)
 	}

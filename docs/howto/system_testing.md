@@ -568,6 +568,23 @@ to indexing generated data from the integration's data streams into Elasticsearc
 elastic-package test system --generate
 ```
 
+### System testing negative or false-positive scenarios
+
+The system tests support packages to be tested for negative scenarios. An example would be to test that the `assert.hit_count` is verified when all the docs are ingested rather than just finding enough docs for the testcase.
+
+There are some special rules for testing negative scenarios
+
+- The negative / false-positive test packages are added under `test/packages/false_positives`
+- It is required to have a file `<package_name>.expected_errors` with the lines needed for every package added under `test/packages/false_positives`.
+- One line per error, taking into account that all `\n` were removed, meaning it is just one line for everything.
+- As it is used `grep` with `-E` some kind of regexes can be used.
+
+Example `expected_errors` file content:
+
+```xml
+<testcase name=\"system test: pagination\" classname=\"httpjson_false_positive_asserts.generic\" time=\".*\"> * <failure>observed hit count 4 did not match expected hit count 2</failure>
+```
+
 ## Continuous Integration
 
 `elastic-package` runs a set of system tests on some [dummy packages](https://github.com/elastic/elastic-package/tree/main/test/packages) to ensure it's functionalities work as expected. This allows to test changes affecting package testing within `elastic-package` before merging and releasing the changes.

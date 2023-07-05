@@ -1,0 +1,20 @@
+format_version: 2.7.0
+name: httpjson
+title: Custom API
+description: Collect custom events from an API endpoint with Elastic agent
+type: integration
+version: "999.999.999"
+conditions:
+  kibana.version: "^8.7.1"
+categories:
+  - custom
+policy_templates:
+  - name: generic
+    title: Custom API Input
+    description: Collect custom data from REST API's
+    inputs:
+      - type: httpjson
+        title: Collect custom data from REST API's
+        description: Collect custom data from REST API's
+owner:
+  github: elastic/security-external-integrations

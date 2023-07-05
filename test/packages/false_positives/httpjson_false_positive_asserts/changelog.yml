@@ -1,0 +1,5 @@
+- version: "999.999.999"
+  changes:
+    - description: Test assert.hit_count
+      type: enhancement
+      link: https://github.com/elastic/integrations/pull/6326
