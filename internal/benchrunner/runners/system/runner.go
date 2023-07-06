@@ -556,6 +556,10 @@ func (r *runner) runGenerator(destDir string) error {
 	}
 	defer f.Close()
 
+	if err := f.Chmod(os.ModePerm); err != nil {
+		return err
+	}
+
 	buf := bytes.NewBufferString("")
 	var corpusDocsCount uint64
 	for {
