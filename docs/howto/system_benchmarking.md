@@ -401,3 +401,20 @@ Finally, when you are done running the benchmark, bring down the Elastic Stack.
 elastic-package stack down
 ```
 
+## Setting up an external metricstore
+
+A metricstore can be set up to send metrics collected during the benchmark execution.
+In order to initialize it, you need to set up the following environment variables:
+
+```bash
+export ELASTIC_PACKAGE_ESMETRICSTORE_HOST=https://127.0.0.1:9200
+export ELASTIC_PACKAGE_ESMETRICSTORE_USERNAME=elastic
+export ELASTIC_PACKAGE_ESMETRICSTORE_PASSWORD=changeme
+export ELASTIC_PACKAGE_ESMETRICSTORE_CA_CERT="$HOME/.elastic-package/profiles/default/certs/ca-cert.pem"
+```
+
+The only one that is optional is `ELASTIC_PACKAGE_ESMETRICSTORE_CA_CERT`.
+
+When these are detected, metrics will be automatically collected every second and sent to a new index called `bench-metrics-{dataset}-{testRunID}"`.
+
+Additionally, if the `reindex-to-metricstore` flag is used, the data generated during the benchmark will be sent to the metricstore into an index called `bench-reindex-{datastream}-{testRunID}` for further analysis. The events will be enriched with metadata related to the benchmark run.
