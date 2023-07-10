@@ -23,15 +23,21 @@ type fieldsTableRecord struct {
 var escaper = strings.NewReplacer("*", "\\*", "{", "\\{", "}", "\\}", "<", "\\<", ">", "\\>")
 
 func renderExportedFields(fieldsParentDir string) (string, error) {
-	validator, err := fields.CreateValidatorForDirectory(fieldsParentDir)
+	injectOptions := fields.InjectFieldsOptions{
+		// Keep External parameter when rendering fields, so we can render
+		// documentation for empty groups imported from ECS, for backwards compatibility.
+		KeepExternal: true,
+
+		// SkipEmptyFields parameter when rendering fields. In other cases we want to
+		// keep them to accept them for validation.
+		SkipEmptyFields: true,
+	}
+	validator, err := fields.CreateValidatorForDirectory(fieldsParentDir, fields.WithInjectFieldsOptions(injectOptions))
 	if err != nil {
 		return "", fmt.Errorf("can't create fields validator instance (path: %s): %w", fieldsParentDir, err)
 	}
 
-	collected, err := collectFieldsFromDefinitions(validator)
-	if err != nil {
-		return "", fmt.Errorf("collecting fields files failed: %w", err)
-	}
+	collected := collectFieldsFromDefinitions(validator)
 
 	var builder strings.Builder
 	builder.WriteString("**Exported fields**\n\n")
@@ -100,42 +106,24 @@ func areMetricTypesPresent(collected []fieldsTableRecord) bool {
 	return false
 }
 
-func collectFieldsFromDefinitions(validator *fields.Validator) ([]fieldsTableRecord, error) {
+func collectFieldsFromDefinitions(validator *fields.Validator) []fieldsTableRecord {
 	var records []fieldsTableRecord
 
 	root := validator.Schema
-	var err error
 	for _, f := range root {
-		records, err = visitFields("", f, records, validator.FieldDependencyManager)
-		if err != nil {
-			return nil, fmt.Errorf("visiting fields failed: %w", err)
-		}
+		records = visitFields("", f, records)
 	}
-	return uniqueTableRecords(records), nil
+	return uniqueTableRecords(records)
 }
 
-func visitFields(namePrefix string, f fields.FieldDefinition, records []fieldsTableRecord, fdm *fields.DependencyManager) ([]fieldsTableRecord, error) {
+func visitFields(namePrefix string, f fields.FieldDefinition, records []fieldsTableRecord) []fieldsTableRecord {
 	var name = namePrefix
 	if namePrefix != "" {
 		name += "."
 	}
 	name += f.Name
 
-	if len(f.Fields) == 0 && f.Type != "group" {
-		if f.External != "" {
-			imported, err := fdm.ImportField(f.External, name)
-			if err != nil {
-				return nil, fmt.Errorf("can't import field: %w", err)
-			}
-
-			// Override imported fields with the definition, except for the type and external.
-			var updated fields.FieldDefinition
-			updated.Update(imported)
-			updated.Update(f)
-			updated.Type = imported.Type
-			updated.External = ""
-			f = updated
-		}
+	if (len(f.Fields) == 0 && f.Type != "group") || f.External != "" {
 		records = append(records, fieldsTableRecord{
 			name:        name,
 			description: f.Description,
@@ -151,17 +139,14 @@ func visitFields(namePrefix string, f fields.FieldDefinition, records []fieldsTa
 				aType:       multiField.Type,
 			})
 		}
-		return records, nil
+
+		return records
 	}
 
-	var err error
 	for _, fieldEntry := range f.Fields {
-		records, err = visitFields(name, fieldEntry, records, fdm)
-		if err != nil {
-			return nil, fmt.Errorf("recursive visiting fields failed (namePrefix: %s): %w", namePrefix, err)
-		}
+		records = visitFields(name, fieldEntry, records)
 	}
-	return records, nil
+	return records
 }
 
 func uniqueTableRecords(records []fieldsTableRecord) []fieldsTableRecord {
