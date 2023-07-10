@@ -103,7 +103,7 @@ Usually, this would require the following steps:
     - Creating this PR would automatically trigger a new Jenkins pipeline.
 
 
-This process can be done also automatically directly from your Pull Request by adding a comment `test integrations`. Example:
+This process can also be done automatically directly from your Pull Request by adding a comment `test integrations`. Example:
 - Comment: https://github.com/elastic/elastic-package/pull/1335#issuecomment-1619721861
 - Pull Request created in integrations repository: https://github.com/elastic/integrations/pull/6756
 
