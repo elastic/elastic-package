@@ -38,7 +38,7 @@ elastic-package help
 
 ## Development
 
-Even though the project is "go-gettable", there is the [`Makefile`](../../Makefile) present, which can be used to build,
+Even though the project is "go-gettable", there is the [`Makefile`](./Makefile) present, which can be used to build,
 install, format the source code among others. Some examples of the available targets are:
 
 `make build` - build the tool source
