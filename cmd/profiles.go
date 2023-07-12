@@ -6,12 +6,13 @@ package cmd
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"time"
 
 	"github.com/olekukonko/tablewriter"
-	"github.com/pkg/errors"
+
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
@@ -28,8 +29,8 @@ const tableFormat = "table"
 
 func setupProfilesCommand() *cobraext.Command {
 	profilesLongDescription := `Use this command to add, remove, and manage multiple config profiles.
-	
-Individual user profiles appear in ~/.elastic-package/stack, and contain all the config files needed by the "stack" subcommand. 
+
+Individual user profiles appear in ~/.elastic-package/stack, and contain all the config files needed by the "stack" subcommand.
 Once a new profile is created, it can be specified with the -p flag, or the ELASTIC_PACKAGE_PROFILE environment variable.
 User profiles can be configured with a "config.yml" file in the profile directory.`
 
@@ -59,7 +60,7 @@ User profiles can be configured with a "config.yml" file in the profile director
 			}
 			err = profile.CreateProfile(options)
 			if err != nil {
-				return errors.Wrapf(err, "error creating profile %s from profile %s", newProfileName, fromName)
+				return fmt.Errorf("error creating profile %s from profile %s: %w", newProfileName, fromName, err)
 			}
 
 			if fromName == "" {
@@ -89,7 +90,7 @@ User profiles can be configured with a "config.yml" file in the profile director
 
 			err = profile.DeleteProfile(profileName)
 			if err != nil {
-				return errors.Wrap(err, "error deleting profile")
+				return fmt.Errorf("error deleting profile: %w", err)
 			}
 
 			if currentProfile := config.CurrentProfile(); currentProfile == profileName {
@@ -119,11 +120,11 @@ User profiles can be configured with a "config.yml" file in the profile director
 		RunE: func(cmd *cobra.Command, args []string) error {
 			loc, err := locations.NewLocationManager()
 			if err != nil {
-				return errors.Wrap(err, "error fetching profile")
+				return fmt.Errorf("error fetching profile: %w", err)
 			}
 			profileList, err := profile.FetchAllProfiles(loc.ProfileDir())
 			if err != nil {
-				return errors.Wrap(err, "error listing all profiles")
+				return fmt.Errorf("error listing all profiles: %w", err)
 			}
 			if len(profileList) == 0 {
 				fmt.Println("There are no profiles yet.")
@@ -199,7 +200,7 @@ User profiles can be configured with a "config.yml" file in the profile director
 func formatJSON(profileList []profile.Metadata) error {
 	data, err := json.Marshal(profileList)
 	if err != nil {
-		return errors.Wrap(err, "error listing all profiles in JSON format")
+		return fmt.Errorf("error listing all profiles in JSON format: %w", err)
 	}
 
 	fmt.Print(string(data))
@@ -246,22 +247,4 @@ func profileToList(profiles []profile.Metadata, currentProfile string) [][]strin
 	}
 
 	return profileList
-}
-
-func availableProfilesAsAList() ([]string, error) {
-	loc, err := locations.NewLocationManager()
-	if err != nil {
-		return []string{}, errors.Wrap(err, "error fetching profile path")
-	}
-
-	profileNames := []string{}
-	profileList, err := profile.FetchAllProfiles(loc.ProfileDir())
-	if err != nil {
-		return profileNames, errors.Wrap(err, "error fetching all profiles")
-	}
-	for _, prof := range profileList {
-		profileNames = append(profileNames, prof.Name)
-	}
-
-	return profileNames, nil
 }

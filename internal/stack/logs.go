@@ -5,9 +5,8 @@
 package stack
 
 import (
+	"fmt"
 	"path/filepath"
-
-	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/compose"
 	"github.com/elastic/elastic-package/internal/docker"
@@ -18,14 +17,14 @@ import (
 func dockerComposeLogs(serviceName string, profile *profile.Profile) ([]byte, error) {
 	appConfig, err := install.Configuration()
 	if err != nil {
-		return nil, errors.Wrap(err, "can't read application configuration")
+		return nil, fmt.Errorf("can't read application configuration: %w", err)
 	}
 
 	snapshotFile := profile.Path(profileStackPath, SnapshotFile)
 
 	p, err := compose.NewProject(DockerComposeProjectName(profile), snapshotFile)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not create docker compose project")
+		return nil, fmt.Errorf("could not create docker compose project: %w", err)
 	}
 
 	opts := compose.CommandOptions{
@@ -39,7 +38,7 @@ func dockerComposeLogs(serviceName string, profile *profile.Profile) ([]byte, er
 
 	out, err := p.Logs(opts)
 	if err != nil {
-		return nil, errors.Wrap(err, "running command failed")
+		return nil, fmt.Errorf("running command failed: %w", err)
 	}
 	return out, nil
 }
@@ -53,14 +52,14 @@ func copyDockerInternalLogs(serviceName, outputPath string, profile *profile.Pro
 
 	p, err := compose.NewProject(DockerComposeProjectName(profile))
 	if err != nil {
-		return errors.Wrap(err, "could not create docker compose project")
+		return fmt.Errorf("could not create docker compose project: %w", err)
 	}
 
 	outputPath = filepath.Join(outputPath, serviceName+"-internal")
 	serviceContainer := p.ContainerName(serviceName)
 	err = docker.Copy(serviceContainer, "/usr/share/elastic-agent/state/data/logs/", outputPath)
 	if err != nil {
-		return errors.Wrap(err, "docker copy failed")
+		return fmt.Errorf("docker copy failed: %w", err)
 	}
 	return nil
 }

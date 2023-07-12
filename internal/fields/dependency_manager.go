@@ -5,6 +5,7 @@
 package fields
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -12,7 +13,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/common"
@@ -38,7 +38,7 @@ type DependencyManager struct {
 func CreateFieldDependencyManager(deps buildmanifest.Dependencies) (*DependencyManager, error) {
 	schema, err := buildFieldsSchema(deps)
 	if err != nil {
-		return nil, errors.Wrap(err, "can't build fields schema")
+		return nil, fmt.Errorf("can't build fields schema: %w", err)
 	}
 	return &DependencyManager{
 		schema: schema,
@@ -49,7 +49,7 @@ func buildFieldsSchema(deps buildmanifest.Dependencies) (map[string][]FieldDefin
 	schema := map[string][]FieldDefinition{}
 	ecsSchema, err := loadECSFieldsSchema(deps.ECS)
 	if err != nil {
-		return nil, errors.Wrap(err, "can't load fields")
+		return nil, fmt.Errorf("can't load fields: %w", err)
 	}
 	schema[ecsSchemaName] = ecsSchema
 	return schema, nil
@@ -63,7 +63,7 @@ func loadECSFieldsSchema(dep buildmanifest.ECSDependency) ([]FieldDefinition, er
 
 	content, err := readECSFieldsSchemaFile(dep)
 	if err != nil {
-		return nil, errors.Wrap(err, "error reading ECS fields schema file")
+		return nil, fmt.Errorf("error reading ECS fields schema file: %w", err)
 	}
 
 	return parseECSFieldsSchema(content)
@@ -72,12 +72,12 @@ func loadECSFieldsSchema(dep buildmanifest.ECSDependency) ([]FieldDefinition, er
 func readECSFieldsSchemaFile(dep buildmanifest.ECSDependency) ([]byte, error) {
 	gitReference, err := asGitReference(dep.Reference)
 	if err != nil {
-		return nil, errors.Wrap(err, "can't process the value as Git reference")
+		return nil, fmt.Errorf("can't process the value as Git reference: %w", err)
 	}
 
 	loc, err := locations.NewLocationManager()
 	if err != nil {
-		return nil, errors.Wrap(err, "error fetching profile path")
+		return nil, fmt.Errorf("error fetching profile path: %w", err)
 	}
 	cachedSchemaPath := filepath.Join(loc.FieldsCacheDir(), ecsSchemaName, gitReference, ecsSchemaFile)
 	content, err := os.ReadFile(cachedSchemaPath)
@@ -88,7 +88,7 @@ func readECSFieldsSchemaFile(dep buildmanifest.ECSDependency) ([]byte, error) {
 		logger.Debugf("Schema URL: %s", url)
 		resp, err := http.Get(url)
 		if err != nil {
-			return nil, errors.Wrapf(err, "can't download the online schema (URL: %s)", url)
+			return nil, fmt.Errorf("can't download the online schema (URL: %s): %w", url, err)
 		}
 		defer resp.Body.Close()
 		if resp.StatusCode == http.StatusNotFound {
@@ -99,23 +99,23 @@ func readECSFieldsSchemaFile(dep buildmanifest.ECSDependency) ([]byte, error) {
 
 		content, err = io.ReadAll(resp.Body)
 		if err != nil {
-			return nil, errors.Wrapf(err, "can't read schema content (URL: %s)", url)
+			return nil, fmt.Errorf("can't read schema content (URL: %s): %w", url, err)
 		}
 		logger.Debugf("Downloaded %d bytes", len(content))
 
 		cachedSchemaDir := filepath.Dir(cachedSchemaPath)
 		err = os.MkdirAll(cachedSchemaDir, 0755)
 		if err != nil {
-			return nil, errors.Wrapf(err, "can't create cache directories for schema (path: %s)", cachedSchemaDir)
+			return nil, fmt.Errorf("can't create cache directories for schema (path: %s): %w", cachedSchemaDir, err)
 		}
 
 		logger.Debugf("Cache downloaded schema: %s", cachedSchemaPath)
 		err = os.WriteFile(cachedSchemaPath, content, 0644)
 		if err != nil {
-			return nil, errors.Wrapf(err, "can't write cached schema (path: %s)", cachedSchemaPath)
+			return nil, fmt.Errorf("can't write cached schema (path: %s): %w", cachedSchemaPath, err)
 		}
 	} else if err != nil {
-		return nil, errors.Wrapf(err, "can't read cached schema (path: %s)", cachedSchemaPath)
+		return nil, fmt.Errorf("can't read cached schema (path: %s): %w", cachedSchemaPath, err)
 	}
 
 	return content, nil
@@ -125,7 +125,7 @@ func parseECSFieldsSchema(content []byte) ([]FieldDefinition, error) {
 	var fields FieldDefinitions
 	err := yaml.Unmarshal(content, &fields)
 	if err != nil {
-		return nil, errors.Wrap(err, "unmarshalling field body failed")
+		return nil, fmt.Errorf("unmarshalling field body failed: %w", err)
 	}
 
 	return fields, nil
@@ -138,29 +138,51 @@ func asGitReference(reference string) (string, error) {
 	return reference[len(gitReferencePrefix):], nil
 }
 
-// InjectFields function replaces external field references with target definitions.
-func (dm *DependencyManager) InjectFields(defs []common.MapStr) ([]common.MapStr, bool, error) {
-	return dm.injectFieldsWithRoot("", defs)
+// InjectFieldsOptions allow to configure fields injection.
+type InjectFieldsOptions struct {
+	// KeepExternal can be set to true to avoid deleting the `external` parameter
+	// of a field when resolving it. This helps keeping behaviours that depended
+	// in previous versions on lazy resolution of external fields.
+	KeepExternal bool
+
+	// SkipEmptyFields can be set to true to skip empty groups when injecting fields.
+	SkipEmptyFields bool
+
+	root string
 }
 
-func (dm *DependencyManager) injectFieldsWithRoot(root string, defs []common.MapStr) ([]common.MapStr, bool, error) {
+// InjectFields function replaces external field references with target definitions.
+func (dm *DependencyManager) InjectFields(defs []common.MapStr) ([]common.MapStr, bool, error) {
+	return dm.injectFieldsWithOptions(defs, InjectFieldsOptions{})
+}
+
+// InjectFieldsWithOptions function replaces external field references with target definitions.
+// It can be configured with options.
+func (dm *DependencyManager) InjectFieldsWithOptions(defs []common.MapStr, options InjectFieldsOptions) ([]common.MapStr, bool, error) {
+	return dm.injectFieldsWithOptions(defs, options)
+}
+
+func (dm *DependencyManager) injectFieldsWithOptions(defs []common.MapStr, options InjectFieldsOptions) ([]common.MapStr, bool, error) {
 	var updated []common.MapStr
 	var changed bool
 	for _, def := range defs {
-		fieldPath := buildFieldPath(root, def)
+		fieldPath := buildFieldPath(options.root, def)
 
 		external, _ := def.GetValue("external")
 		if external != nil {
-			imported, err := dm.ImportField(external.(string), fieldPath)
+			imported, err := dm.importField(external.(string), fieldPath)
 			if err != nil {
-				return nil, false, errors.Wrap(err, "can't import field")
+				return nil, false, fmt.Errorf("can't import field: %w", err)
 			}
 
 			transformed := transformImportedField(imported)
 
 			// Allow overrides of everything, except the imported type, for consistency.
 			transformed.DeepUpdate(def)
-			transformed.Delete("external")
+
+			if !options.KeepExternal {
+				transformed.Delete("external")
+			}
 
 			// Allow to override the type only from keyword to constant_keyword,
 			// to support the case of setting the value already in the mappings.
@@ -175,9 +197,11 @@ func (dm *DependencyManager) injectFieldsWithRoot(root string, defs []common.Map
 			if fields != nil {
 				fieldsMs, err := common.ToMapStrSlice(fields)
 				if err != nil {
-					return nil, false, errors.Wrap(err, "can't convert fields")
+					return nil, false, fmt.Errorf("can't convert fields: %w", err)
 				}
-				updatedFields, fieldsChanged, err := dm.injectFieldsWithRoot(fieldPath, fieldsMs)
+				childrenOptions := options
+				childrenOptions.root = fieldPath
+				updatedFields, fieldsChanged, err := dm.injectFieldsWithOptions(fieldsMs, childrenOptions)
 				if err != nil {
 					return nil, false, err
 				}
@@ -190,7 +214,8 @@ func (dm *DependencyManager) injectFieldsWithRoot(root string, defs []common.Map
 			}
 		}
 
-		if skipField(def) {
+		if options.SkipEmptyFields && skipField(def) {
+			changed = true
 			continue
 		}
 		updated = append(updated, def)
@@ -202,6 +227,12 @@ func (dm *DependencyManager) injectFieldsWithRoot(root string, defs []common.Map
 func skipField(def common.MapStr) bool {
 	t, _ := def.GetValue("type")
 	if t == "group" {
+		// Keep empty external groups for backwards compatibility in docs generation.
+		external, _ := def.GetValue("external")
+		if external != nil {
+			return false
+		}
+
 		fields, _ := def.GetValue("fields")
 		switch fields := fields.(type) {
 		case nil:
@@ -216,8 +247,8 @@ func skipField(def common.MapStr) bool {
 	return false
 }
 
-// ImportField method resolves dependency on a single external field using available schemas.
-func (dm *DependencyManager) ImportField(schemaName, fieldPath string) (FieldDefinition, error) {
+// importField method resolves dependency on a single external field using available schemas.
+func (dm *DependencyManager) importField(schemaName, fieldPath string) (FieldDefinition, error) {
 	if dm == nil {
 		return FieldDefinition{}, fmt.Errorf(`importing external field "%s": external fields not allowed because dependencies file "_dev/build/build.yml" is missing`, fieldPath)
 	}

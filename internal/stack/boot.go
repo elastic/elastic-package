@@ -10,8 +10,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/pkg/errors"
-
 	"github.com/elastic/elastic-package/internal/builder"
 	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/files"
@@ -43,24 +41,24 @@ func BootUp(options Options) error {
 
 	buildPackagesPath, found, err := builder.FindBuildPackagesDirectory()
 	if err != nil {
-		return errors.Wrap(err, "finding build packages directory failed")
+		return fmt.Errorf("finding build packages directory failed: %w", err)
 	}
 
 	stackPackagesDir, err := locations.NewLocationManager()
 	if err != nil {
-		return errors.Wrap(err, "locating stack packages directory failed")
+		return fmt.Errorf("locating stack packages directory failed: %w", err)
 	}
 
 	err = files.ClearDir(stackPackagesDir.PackagesDir())
 	if err != nil {
-		return errors.Wrap(err, "clearing package contents failed")
+		return fmt.Errorf("clearing package contents failed: %w", err)
 	}
 
 	if found {
 		fmt.Printf("Custom build packages directory found: %s\n", buildPackagesPath)
 		err = copyUniquePackages(buildPackagesPath, stackPackagesDir.PackagesDir())
 		if err != nil {
-			return errors.Wrap(err, "copying package contents failed")
+			return fmt.Errorf("copying package contents failed: %w", err)
 		}
 	}
 
@@ -73,12 +71,12 @@ func BootUp(options Options) error {
 
 	err = applyResources(options.Profile, options.StackVersion)
 	if err != nil {
-		return errors.Wrap(err, "creating stack files failed")
+		return fmt.Errorf("creating stack files failed: %w", err)
 	}
 
 	err = dockerComposeBuild(options)
 	if err != nil {
-		return errors.Wrap(err, "building docker images failed")
+		return fmt.Errorf("building docker images failed: %w", err)
 	}
 
 	err = dockerComposeUp(options)
@@ -93,12 +91,14 @@ func BootUp(options Options) error {
 			fmt.Println("Elastic Agent failed to start, trying again.")
 			err = dockerComposeUp(options)
 		}
-		return errors.Wrap(err, "running docker-compose failed")
+		if err != nil {
+			return fmt.Errorf("running docker-compose failed: %w", err)
+		}
 	}
 
 	err = storeConfig(options.Profile, config)
 	if err != nil {
-		return errors.Wrap(err, "failed to store config")
+		return fmt.Errorf("failed to store config: %w", err)
 	}
 
 	return nil
@@ -127,7 +127,7 @@ func onlyElasticAgentFailed(options Options) bool {
 func TearDown(options Options) error {
 	err := dockerComposeDown(options)
 	if err != nil {
-		return errors.Wrap(err, "stopping docker containers failed")
+		return fmt.Errorf("stopping docker containers failed: %w", err)
 	}
 	return nil
 }
@@ -137,7 +137,7 @@ func copyUniquePackages(sourcePath, destinationPath string) error {
 
 	dirEntries, err := os.ReadDir(sourcePath)
 	if err != nil {
-		return errors.Wrapf(err, "can't read source dir (sourcePath: %s)", sourcePath)
+		return fmt.Errorf("can't read source dir (sourcePath: %s): %w", sourcePath, err)
 	}
 	for _, entry := range dirEntries {
 		if entry.IsDir() {

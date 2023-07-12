@@ -5,10 +5,10 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
 
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
@@ -46,7 +46,7 @@ func upCommandAction(cmd *cobra.Command, args []string) error {
 
 	packageRoot, found, err := packages.FindPackageRoot()
 	if err != nil {
-		return errors.Wrap(err, "locating package root failed")
+		return fmt.Errorf("locating package root failed: %w", err)
 	}
 	if !found {
 		return errors.New("package root not found")
@@ -60,7 +60,7 @@ func upCommandAction(cmd *cobra.Command, args []string) error {
 
 	variantFlag, _ := cmd.Flags().GetString(cobraext.VariantFlagName)
 
-	profile, err := getProfileFlag(cmd)
+	profile, err := cobraext.GetProfileFlag(cmd)
 	if err != nil {
 		return err
 	}
@@ -74,7 +74,7 @@ func upCommandAction(cmd *cobra.Command, args []string) error {
 		Variant:            variantFlag,
 	})
 	if err != nil {
-		return errors.Wrap(err, "up command failed")
+		return fmt.Errorf("up command failed: %w", err)
 	}
 	return nil
 }

@@ -9,26 +9,61 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"time"
 
-	"github.com/elastic/elastic-package/internal/benchrunner"
-	"github.com/elastic/elastic-package/internal/benchrunner/reporters/formats"
+	"github.com/elastic/elastic-package/internal/benchrunner/reporters"
 	"github.com/elastic/elastic-package/internal/builder"
+	"github.com/elastic/elastic-package/internal/multierror"
 )
 
 func init() {
-	benchrunner.RegisterReporterOutput(ReportOutputFile, reportToFile)
+	reporters.RegisterOutput(ReportOutputFile, reportToFile)
 }
 
 const (
 	// ReportOutputFile reports benchmark results to files in a folder
-	ReportOutputFile benchrunner.BenchReportOutput = "file"
+	ReportOutputFile reporters.Output = "file"
 )
 
-func reportToFile(pkg, report string, format benchrunner.BenchReportFormat) error {
+func reportToFile(report reporters.Reportable) error {
+	multiReport, ok := report.(reporters.MultiReportable)
+	if !ok {
+		return reportSingle(report)
+	}
+
+	var merr multierror.Error
+	for _, r := range multiReport.Split() {
+		reportableFile, ok := r.(reporters.ReportableFile)
+		if !ok {
+			continue
+		}
+
+		if err := reportSingle(reportableFile); err != nil {
+			merr = append(merr, err)
+		}
+	}
+
+	if len(merr) > 0 {
+		return merr
+	}
+
+	return nil
+}
+
+func reportSingle(report reporters.Reportable) error {
+	reportableFile, ok := report.(reporters.ReportableFile)
+	if !ok {
+		return errors.New("this output requires a reportable file")
+	}
+
 	dest, err := reportsDir()
 	if err != nil {
 		return fmt.Errorf("could not determine benchmark reports folder: %w", err)
+	}
+
+	// If filename contains folders, be sure we create them properly
+	dir := filepath.Dir(reportableFile.Filename())
+	if dir != reportableFile.Filename() {
+		dest = filepath.Join(dest, dir)
 	}
 
 	// Create benchmark reports folder if it doesn't exist
@@ -39,17 +74,9 @@ func reportToFile(pkg, report string, format benchrunner.BenchReportFormat) erro
 		}
 	}
 
-	var ext string
-	switch format {
-	case formats.ReportFormatXUnit:
-		ext = "xml"
-	default:
-		ext = string(format)
-	}
-	fileName := fmt.Sprintf("%s_%d.%s", pkg, time.Now().UnixNano(), ext)
-	filePath := filepath.Join(dest, fileName)
+	filePath := filepath.Join(dest, filepath.Base(reportableFile.Filename()))
 
-	if err := os.WriteFile(filePath, []byte(report+"\n"), 0644); err != nil {
+	if err := os.WriteFile(filePath, append(reportableFile.Report(), byte('\n')), 0644); err != nil {
 		return fmt.Errorf("could not write benchmark report file: %w", err)
 	}
 

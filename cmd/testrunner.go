@@ -5,12 +5,12 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
@@ -130,17 +130,17 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 			return errors.New("package root not found")
 		}
 		if err != nil {
-			return errors.Wrap(err, "locating package root failed")
+			return fmt.Errorf("locating package root failed: %w", err)
 		}
 
 		manifest, err := packages.ReadPackageManifestFromPackageRoot(packageRootPath)
 		if err != nil {
-			return errors.Wrapf(err, "reading package manifest failed (path: %s)", packageRootPath)
+			return fmt.Errorf("reading package manifest failed (path: %s): %w", packageRootPath, err)
 		}
 
 		hasDataStreams, err := packageHasDataStreams(manifest)
 		if err != nil {
-			return errors.Wrapf(err, "cannot determine if package has data streams")
+			return fmt.Errorf("cannot determine if package has data streams: %w", err)
 		}
 
 		signal.Enable()
@@ -167,12 +167,12 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 			if runner.TestFolderRequired() {
 				testFolders, err = testrunner.FindTestFolders(packageRootPath, dataStreams, testType)
 				if err != nil {
-					return errors.Wrap(err, "unable to determine test folder paths")
+					return fmt.Errorf("unable to determine test folder paths: %w", err)
 				}
 			} else {
 				testFolders, err = testrunner.AssumeTestFolders(packageRootPath, dataStreams, testType)
 				if err != nil {
-					return errors.Wrap(err, "unable to assume test folder paths")
+					return fmt.Errorf("unable to assume test folder paths: %w", err)
 				}
 			}
 
@@ -188,7 +188,7 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 			if runner.TestFolderRequired() {
 				testFolders, err = testrunner.FindTestFolders(packageRootPath, nil, testType)
 				if err != nil {
-					return errors.Wrap(err, "unable to determine test folder paths")
+					return fmt.Errorf("unable to determine test folder paths: %w", err)
 				}
 				if failOnMissing && len(testFolders) == 0 {
 					return fmt.Errorf("no %s tests found", testType)
@@ -209,16 +209,16 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 
 		variantFlag, _ := cmd.Flags().GetString(cobraext.VariantFlagName)
 
-		esClient, err := elasticsearch.NewClient()
-		if err != nil {
-			return errors.Wrap(err, "can't create Elasticsearch client")
-		}
-		err = esClient.CheckHealth(cmd.Context())
+		profile, err := cobraext.GetProfileFlag(cmd)
 		if err != nil {
 			return err
 		}
 
-		profile, err := getProfileFlag(cmd)
+		esClient, err := elasticsearch.NewClient()
+		if err != nil {
+			return fmt.Errorf("can't create Elasticsearch client: %w", err)
+		}
+		err = esClient.CheckHealth(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -239,24 +239,24 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 			results = append(results, r...)
 
 			if err != nil {
-				return errors.Wrapf(err, "error running package %s tests", testType)
+				return fmt.Errorf("error running package %s tests: %w", testType, err)
 			}
 		}
 
 		format := testrunner.TestReportFormat(reportFormat)
 		report, err := testrunner.FormatReport(format, results)
 		if err != nil {
-			return errors.Wrap(err, "error formatting test report")
+			return fmt.Errorf("error formatting test report: %w", err)
 		}
 
 		if err := testrunner.WriteReport(manifest.Name, testrunner.TestReportOutput(reportOutput), report, format); err != nil {
-			return errors.Wrap(err, "error writing test report")
+			return fmt.Errorf("error writing test report: %w", err)
 		}
 
 		if testCoverage {
 			err := testrunner.WriteCoverage(packageRootPath, manifest.Name, runner.Type(), results)
 			if err != nil {
-				return errors.Wrap(err, "error writing test coverage")
+				return fmt.Errorf("error writing test coverage: %w", err)
 			}
 		}
 
@@ -286,7 +286,7 @@ func validateDataStreamsFlag(packageRootPath string, dataStreams []string) error
 		path := filepath.Join(packageRootPath, "data_stream", dataStream)
 		fileInfo, err := os.Stat(path)
 		if err != nil {
-			return errors.Wrapf(err, "stat directory failed (path: %s)", path)
+			return fmt.Errorf("stat directory failed (path: %s): %w", path, err)
 		}
 
 		if !fileInfo.IsDir() {

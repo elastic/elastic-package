@@ -5,22 +5,14 @@
 package installer
 
 import (
-	"github.com/pkg/errors"
+	"fmt"
 
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
-// Installer is responsible for installation/uninstallation of the package.
-type Installer interface {
-	Install() (*InstalledPackage, error)
-	Uninstall() error
-}
-
 type manifestInstaller struct {
-	name    string
-	version string
-
+	manifest     *packages.PackageManifest
 	kibanaClient *kibana.Client
 }
 
@@ -32,38 +24,41 @@ type InstalledPackage struct {
 }
 
 // CreateForManifest function creates a new instance of the installer.
-func CreateForManifest(name, version string) (*manifestInstaller, error) {
-	kibanaClient, err := kibana.NewClient()
+func CreateForManifest(kibanaClient *kibana.Client, packageRoot string) (*manifestInstaller, error) {
+	manifest, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not create kibana client")
+		return nil, fmt.Errorf("could not read manifest: %w", err)
 	}
-
 	return &manifestInstaller{
-		name:         name,
-		version:      version,
+		manifest:     manifest,
 		kibanaClient: kibanaClient,
 	}, nil
 }
 
 // Install method installs the package using Kibana API.
 func (i *manifestInstaller) Install() (*InstalledPackage, error) {
-	assets, err := i.kibanaClient.InstallPackage(i.name, i.version)
+	assets, err := i.kibanaClient.InstallPackage(i.manifest.Name, i.manifest.Version)
 	if err != nil {
-		return nil, errors.Wrap(err, "can't install the package")
+		return nil, fmt.Errorf("can't install the package: %w", err)
 	}
 
 	return &InstalledPackage{
-		Name:    i.name,
-		Version: i.version,
+		Name:    i.manifest.Name,
+		Version: i.manifest.Version,
 		Assets:  assets,
 	}, nil
 }
 
 // Uninstall method uninstalls the package using Kibana API.
 func (i *manifestInstaller) Uninstall() error {
-	_, err := i.kibanaClient.RemovePackage(i.name, i.version)
+	_, err := i.kibanaClient.RemovePackage(i.manifest.Name, i.manifest.Version)
 	if err != nil {
-		return errors.Wrap(err, "can't remove the package")
+		return fmt.Errorf("can't remove the package: %w", err)
 	}
 	return nil
+}
+
+// Manifest method returns the package manifest.
+func (i *manifestInstaller) Manifest() (*packages.PackageManifest, error) {
+	return i.manifest, nil
 }

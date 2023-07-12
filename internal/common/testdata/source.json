@@ -1,0 +1,92 @@
+{
+    "@timestamp": "2023-05-30T11:42:07.923Z",
+    "agent": {
+        "ephemeral_id": "7dd994f8-d866-4068-9f29-d6c90a28738e",
+        "id": "5cad1bda-ddc8-4333-8d88-333b6ef311b5",
+        "name": "docker-fleet-agent",
+        "type": "metricbeat",
+        "version": "8.8.0"
+    },
+    "apache_tomcat": {
+        "cache": {
+            "application_name": "/",
+            "hit": {
+                "count": 15.0
+            },
+            "lookup": {
+                "count": 30.0
+            },
+            "object": {
+                "size": {
+                    "max": {
+                        "kb": 512.0
+                    }
+                }
+            },
+            "size": {
+                "current": {
+                    "kb": 19.0
+                },
+                "max": {
+                    "kb": 10240.0
+                }
+            },
+            "ttl": {
+                "ms": 5000.0
+            }
+        }
+    },
+    "data_stream": {
+        "dataset": "apache_tomcat.cache",
+        "namespace": "ep",
+        "type": "metrics"
+    },
+    "ecs": {
+        "version": "8.7.0"
+    },
+    "elastic_agent": {
+        "id": "5cad1bda-ddc8-4333-8d88-333b6ef311b5",
+        "snapshot": true,
+        "version": "8.8.0"
+    },
+    "event": {
+        "agent_id_status": "verified",
+        "category": "web",
+        "dataset": "apache_tomcat.cache",
+        "duration": 136411023,
+        "ingested": "2023-05-30T11:42:09Z",
+        "kind": "metric",
+        "module": "apache_tomcat",
+        "type": "info"
+    },
+    "host": {
+        "architecture": "x86_64",
+        "containerized": false,
+        "hostname": "docker-fleet-agent",
+        "id": "4e0d02de87bd4101b7215d3aaf5f623b",
+        "ip": "172.23.0.7",
+        "mac": "02-42-AC-17-00-07",
+        "name": "docker-fleet-agent",
+        "os": {
+            "codename": "focal",
+            "family": "debian",
+            "kernel": "5.19.0-42-generic",
+            "name": "Ubuntu",
+            "platform": "ubuntu",
+            "type": "linux",
+            "version": "20.04.6 LTS (Focal Fossa)"
+        }
+    },
+    "metricset": {
+        "name": "collector",
+        "period": 10000
+    },
+    "service": {
+        "address": "http://elastic-package-service-apache_tomcat-1:9090/metrics",
+        "type": "prometheus"
+    },
+    "tags": [
+        "apache_tomcat-cache",
+        "forwarded"
+    ]
+}

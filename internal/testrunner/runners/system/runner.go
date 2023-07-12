@@ -6,15 +6,16 @@ package system
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/rand"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/builder"
 	"github.com/elastic/elastic-package/internal/common"
@@ -25,7 +26,9 @@ import (
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/multierror"
 	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/internal/packages/installer"
 	"github.com/elastic/elastic-package/internal/signal"
+	"github.com/elastic/elastic-package/internal/stack"
 	"github.com/elastic/elastic-package/internal/testrunner"
 	"github.com/elastic/elastic-package/internal/testrunner/runners/system/servicedeployer"
 )
@@ -33,6 +36,8 @@ import (
 const (
 	testRunMaxID = 99999
 	testRunMinID = 10000
+
+	allFieldsBody = `{"fields": ["*"]}`
 )
 
 func init() {
@@ -53,11 +58,42 @@ const (
 	waitForDataDefaultTimeout = 10 * time.Minute
 )
 
+type logsRegexp struct {
+	includes *regexp.Regexp
+	excludes []*regexp.Regexp
+}
+
+type logsByContainer struct {
+	containerName string
+	patterns      []logsRegexp
+}
+
+var (
+	errorPatterns = []logsByContainer{
+		logsByContainer{
+			containerName: "elastic-agent",
+			patterns: []logsRegexp{
+				logsRegexp{
+					includes: regexp.MustCompile("^Cannot index event publisher.Event"),
+					excludes: []*regexp.Regexp{
+						// this regex is excluded to ensure that logs coming from the `system` package installed by default are not taken into account
+						regexp.MustCompile(`action \[indices:data\/write\/bulk\[s\]\] is unauthorized for API key id \[.*\] of user \[.*\] on indices \[.*\], this action is granted by the index privileges \[.*\]`),
+					},
+				},
+				logsRegexp{
+					includes: regexp.MustCompile("->(FAILED|DEGRADED)"),
+				},
+			},
+		},
+	}
+)
+
 type runner struct {
 	options testrunner.TestOptions
 
 	// Execution order of following handlers is defined in runner.TearDown() method.
 	deleteTestPolicyHandler func() error
+	deletePackageHandler    func() error
 	resetAgentPolicyHandler func() error
 	shutdownServiceHandler  func() error
 	wipeDataStreamHandler   func() error
@@ -114,6 +150,13 @@ func (r *runner) tearDownTest() error {
 		r.deleteTestPolicyHandler = nil
 	}
 
+	if r.deletePackageHandler != nil {
+		if err := r.deletePackageHandler(); err != nil {
+			return err
+		}
+		r.deletePackageHandler = nil
+	}
+
 	if r.shutdownServiceHandler != nil {
 		if err := r.shutdownServiceHandler(); err != nil {
 			return err
@@ -144,12 +187,12 @@ func (r *runner) run() (results []testrunner.TestResult, err error) {
 	result := r.newResult("(init)")
 	locationManager, err := locations.NewLocationManager()
 	if err != nil {
-		return result.WithError(errors.Wrap(err, "reading service logs directory failed"))
+		return result.WithError(fmt.Errorf("reading service logs directory failed: %w", err))
 	}
 
 	dataStreamPath, found, err := packages.FindDataStreamRootForPath(r.options.TestFolder.Path)
 	if err != nil {
-		return result.WithError(errors.Wrap(err, "locating data stream root failed"))
+		return result.WithError(fmt.Errorf("locating data stream root failed: %w", err))
 	}
 	if found {
 		logger.Debug("Running system tests for data stream")
@@ -163,19 +206,20 @@ func (r *runner) run() (results []testrunner.TestResult, err error) {
 		DataStreamRootPath: dataStreamPath,
 	})
 	if err != nil {
-		return result.WithError(errors.Wrap(err, "_dev/deploy directory not found"))
+		return result.WithError(fmt.Errorf("_dev/deploy directory not found: %w", err))
 	}
 
 	cfgFiles, err := listConfigFiles(r.options.TestFolder.Path)
 	if err != nil {
-		return result.WithError(errors.Wrap(err, "failed listing test case config cfgFiles"))
+		return result.WithError(fmt.Errorf("failed listing test case config cfgFiles: %w", err))
 	}
 
 	variantsFile, err := servicedeployer.ReadVariantsFile(devDeployPath)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return result.WithError(errors.Wrap(err, "can't read service variant"))
+		return result.WithError(fmt.Errorf("can't read service variant: %w", err))
 	}
 
+	startTesting := time.Now()
 	for _, cfgFile := range cfgFiles {
 		for _, variantName := range r.selectVariants(variantsFile) {
 			partial, err := r.runTestPerVariant(result, locationManager, cfgFile, dataStreamPath, variantName)
@@ -185,6 +229,25 @@ func (r *runner) run() (results []testrunner.TestResult, err error) {
 			}
 		}
 	}
+
+	tempDir, err := os.MkdirTemp("", "test-system-")
+	if err != nil {
+		return nil, fmt.Errorf("can't create temporal directory: %w", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	dumpOptions := stack.DumpOptions{Output: tempDir, Profile: r.options.Profile}
+	_, err = stack.Dump(dumpOptions)
+	if err != nil {
+		return nil, fmt.Errorf("dump failed: %w", err)
+	}
+
+	logResults, err := r.checkAgentLogs(dumpOptions, startTesting, errorPatterns)
+	if err != nil {
+		return result.WithError(err)
+	}
+	results = append(results, logResults...)
+
 	return results, nil
 }
 
@@ -201,9 +264,16 @@ func (r *runner) runTestPerVariant(result *testrunner.ResultComposer, locationMa
 	ctxt.Logs.Folder.Local = locationManager.ServiceLogDir()
 	ctxt.Logs.Folder.Agent = ServiceLogsAgentDir
 	ctxt.Test.RunID = createTestRunID()
+
+	outputDir, err := createOutputDir(locationManager, ctxt.Test.RunID)
+	if err != nil {
+		return nil, fmt.Errorf("could not create output dir for terraform deployer %w", err)
+	}
+	ctxt.OutputDir = outputDir
+
 	testConfig, err := newConfig(filepath.Join(r.options.TestFolder.Path, cfgFile), ctxt, variantName)
 	if err != nil {
-		return result.WithError(errors.Wrapf(err, "unable to load system test case file '%s'", cfgFile))
+		return result.WithError(fmt.Errorf("unable to load system test case file '%s': %w", cfgFile, err))
 	}
 
 	var partial []testrunner.TestResult
@@ -223,23 +293,95 @@ func (r *runner) runTestPerVariant(result *testrunner.ResultComposer, locationMa
 		return partial, err
 	}
 	if tdErr != nil {
-		return partial, errors.Wrap(tdErr, "failed to tear down runner")
+		return partial, fmt.Errorf("failed to tear down runner: %w", tdErr)
 	}
 	return partial, nil
+}
+
+func createOutputDir(locationManager *locations.LocationManager, runId string) (string, error) {
+	outputDir := filepath.Join(locationManager.ServiceOutputDir(), runId)
+	if err := os.MkdirAll(outputDir, 0755); err != nil {
+		return "", fmt.Errorf("failed to create output directory: %w", err)
+	}
+	return outputDir, nil
 }
 
 func createTestRunID() string {
 	return fmt.Sprintf("%d", rand.Intn(testRunMaxID-testRunMinID)+testRunMinID)
 }
 
-func (r *runner) getDocs(dataStream string) ([]common.MapStr, error) {
+func (r *runner) isSyntheticsEnabled(dataStream, componentTemplatePackage string) (bool, error) {
+	logger.Debugf("check whether or not synthetics is enabled (component template %s)...", componentTemplatePackage)
+	resp, err := r.options.API.Cluster.GetComponentTemplate(
+		r.options.API.Cluster.GetComponentTemplate.WithName(componentTemplatePackage),
+	)
+	if err != nil {
+		return false, fmt.Errorf("could not get component template from data stream %s: %w", dataStream, err)
+	}
+	defer resp.Body.Close()
+
+	var results struct {
+		ComponentTemplates []struct {
+			Name              string `json:"name"`
+			ComponentTemplate struct {
+				Template struct {
+					Mappings struct {
+						Source *struct {
+							Mode string `json:"mode"`
+						} `json:"_source,omitempty"`
+					} `json:"mappings"`
+				} `json:"template"`
+			} `json:"component_template"`
+		} `json:"component_templates"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&results); err != nil {
+		return false, fmt.Errorf("could not decode search results response: %w", err)
+	}
+
+	if len(results.ComponentTemplates) == 0 {
+		logger.Debugf("no component template found for data stream %s", dataStream)
+		return false, nil
+	}
+	if len(results.ComponentTemplates) != 1 {
+		return false, fmt.Errorf("unexpected response, not found component template")
+	}
+
+	template := results.ComponentTemplates[0]
+
+	if template.ComponentTemplate.Template.Mappings.Source == nil {
+		return false, nil
+	}
+
+	return template.ComponentTemplate.Template.Mappings.Source.Mode == "synthetic", nil
+}
+
+type hits struct {
+	Source []common.MapStr `json:"_source"`
+	Fields []common.MapStr `json:"fields"`
+}
+
+func (h hits) getDocs(syntheticsEnabled bool) []common.MapStr {
+	if syntheticsEnabled {
+		return h.Fields
+	}
+	return h.Source
+}
+
+func (h hits) size() int {
+	return len(h.Source)
+}
+
+func (r *runner) getDocs(dataStream string) (*hits, error) {
 	resp, err := r.options.API.Search(
 		r.options.API.Search.WithIndex(dataStream),
 		r.options.API.Search.WithSort("@timestamp:asc"),
 		r.options.API.Search.WithSize(elasticsearchQuerySize),
+		r.options.API.Search.WithSource("true"),
+		r.options.API.Search.WithBody(strings.NewReader(allFieldsBody)),
 	)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not search data stream")
+		return nil, fmt.Errorf("could not search data stream: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -250,6 +392,7 @@ func (r *runner) getDocs(dataStream string) ([]common.MapStr, error) {
 			}
 			Hits []struct {
 				Source common.MapStr `json:"_source"`
+				Fields common.MapStr `json:"fields"`
 			}
 		}
 		Error *struct {
@@ -260,7 +403,7 @@ func (r *runner) getDocs(dataStream string) ([]common.MapStr, error) {
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&results); err != nil {
-		return nil, errors.Wrap(err, "could not decode search results response")
+		return nil, fmt.Errorf("could not decode search results response: %w", err)
 	}
 
 	numHits := results.Hits.Total.Value
@@ -271,12 +414,13 @@ func (r *runner) getDocs(dataStream string) ([]common.MapStr, error) {
 		logger.Debugf("found %d hits in %s data stream", numHits, dataStream)
 	}
 
-	var docs []common.MapStr
+	var hits hits
 	for _, hit := range results.Hits.Hits {
-		docs = append(docs, hit.Source)
+		hits.Source = append(hits.Source, hit.Source)
+		hits.Fields = append(hits.Fields, hit.Fields)
 	}
 
-	return docs, nil
+	return &hits, nil
 }
 
 func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext, serviceOptions servicedeployer.FactoryOptions) ([]testrunner.TestResult, error) {
@@ -284,32 +428,32 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 
 	pkgManifest, err := packages.ReadPackageManifestFromPackageRoot(r.options.PackageRootPath)
 	if err != nil {
-		return result.WithError(errors.Wrap(err, "reading package manifest failed"))
+		return result.WithError(fmt.Errorf("reading package manifest failed: %w", err))
 	}
 
 	dataStreamManifest, err := packages.ReadDataStreamManifest(filepath.Join(serviceOptions.DataStreamRootPath, packages.DataStreamManifestFile))
 	if err != nil {
-		return result.WithError(errors.Wrap(err, "reading data stream manifest failed"))
+		return result.WithError(fmt.Errorf("reading data stream manifest failed: %w", err))
 	}
 
 	policyTemplateName := config.PolicyTemplate
 	if policyTemplateName == "" {
 		policyTemplateName, err = findPolicyTemplateForInput(*pkgManifest, *dataStreamManifest, config.Input)
 		if err != nil {
-			return result.WithError(errors.Wrap(err, "failed to determine the associated policy_template"))
+			return result.WithError(fmt.Errorf("failed to determine the associated policy_template: %w", err))
 		}
 	}
 
 	policyTemplate, err := selectPolicyTemplateByName(pkgManifest.PolicyTemplates, policyTemplateName)
 	if err != nil {
-		return result.WithError(errors.Wrap(err, "failed to find the selected policy_template"))
+		return result.WithError(fmt.Errorf("failed to find the selected policy_template: %w", err))
 	}
 
 	// Setup service.
 	logger.Debug("setting up service...")
 	serviceDeployer, err := servicedeployer.Factory(serviceOptions)
 	if err != nil {
-		return result.WithError(errors.Wrap(err, "could not create service runner"))
+		return result.WithError(fmt.Errorf("could not create service runner: %w", err))
 	}
 
 	if config.Service != "" {
@@ -317,13 +461,13 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	}
 	service, err := serviceDeployer.SetUp(ctxt)
 	if err != nil {
-		return result.WithError(errors.Wrap(err, "could not setup service"))
+		return result.WithError(fmt.Errorf("could not setup service: %w", err))
 	}
 	ctxt = service.Context()
 	r.shutdownServiceHandler = func() error {
 		logger.Debug("tearing down service...")
 		if err := service.TearDown(); err != nil {
-			return errors.Wrap(err, "error tearing down service")
+			return fmt.Errorf("error tearing down service: %w", err)
 		}
 
 		return nil
@@ -332,12 +476,40 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	// Reload test config with ctx variable substitution.
 	config, err = newConfig(config.Path, ctxt, serviceOptions.Variant)
 	if err != nil {
-		return result.WithError(errors.Wrap(err, "unable to reload system test case configuration"))
+		return result.WithError(fmt.Errorf("unable to reload system test case configuration: %w", err))
 	}
 
 	kib, err := kibana.NewClient()
 	if err != nil {
-		return result.WithError(errors.Wrap(err, "can't create Kibana client"))
+		return result.WithError(fmt.Errorf("can't create Kibana client: %w", err))
+	}
+
+	// Install the package before creating the policy, so we control exactly what is being
+	// installed.
+	logger.Debug("Installing package...")
+	installer, err := installer.NewForPackage(installer.Options{
+		Kibana:         kib,
+		RootPath:       r.options.PackageRootPath,
+		SkipValidation: true,
+	})
+	if err != nil {
+		return result.WithError(fmt.Errorf("failed to initialize package installer: %v", err))
+	}
+	_, err = installer.Install()
+	if err != nil {
+		return result.WithError(fmt.Errorf("failed to install package: %v", err))
+	}
+	r.deletePackageHandler = func() error {
+		err := installer.Uninstall()
+
+		// by default system package is part of an agent policy and it cannot be uninstalled
+		// https://github.com/elastic/elastic-package/blob/5f65dc29811c57454bc7142aaf73725b6d4dc8e6/internal/stack/_static/kibana.yml.tmpl#L62
+		if err != nil && pkgManifest.Name != "system" {
+			// logging the error as a warning and not returning it since there could be other reasons that could make fail this process
+			// for instance being defined a test agent policy where this package is used for debugging purposes
+			logger.Warnf("failed to uninstall package %q: %s", pkgManifest.Name, err.Error())
+		}
+		return nil
 	}
 
 	// Install the package before creating the policy, so we control exactly what is being
@@ -345,7 +517,7 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	logger.Debug("Installing package...")
 	err = installPackage(kib, pkgManifest, r.options.PackageRootPath)
 	if err != nil {
-		return result.WithError(errors.Wrap(err, "unable to install package"))
+		return result.WithError(fmt.Errorf("unable to install package: %w", err))
 	}
 
 	// Configure package (single data stream) via Ingest Manager APIs.
@@ -358,12 +530,12 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	}
 	policy, err := kib.CreatePolicy(p)
 	if err != nil {
-		return result.WithError(errors.Wrap(err, "could not create test policy"))
+		return result.WithError(fmt.Errorf("could not create test policy: %w", err))
 	}
 	r.deleteTestPolicyHandler = func() error {
 		logger.Debug("deleting test policy...")
 		if err := kib.DeletePolicy(*policy); err != nil {
-			return errors.Wrap(err, "error cleaning up test policy")
+			return fmt.Errorf("error cleaning up test policy: %w", err)
 		}
 		return nil
 	}
@@ -371,7 +543,7 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	logger.Debug("adding package data stream to test policy...")
 	ds := createPackageDatastream(*policy, *pkgManifest, policyTemplate, *dataStreamManifest, *config)
 	if err := kib.AddPackageDataStreamToPolicy(ds); err != nil {
-		return result.WithError(errors.Wrap(err, "could not add data stream config to policy"))
+		return result.WithError(fmt.Errorf("could not add data stream config to policy: %w", err))
 	}
 
 	// Delete old data
@@ -383,16 +555,22 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 		ds.Namespace,
 	)
 
+	componentTemplatePackage := fmt.Sprintf(
+		"%s-%s@package",
+		ds.Inputs[0].Streams[0].DataStream.Type,
+		ds.Inputs[0].Streams[0].DataStream.Dataset,
+	)
+
 	r.wipeDataStreamHandler = func() error {
 		logger.Debugf("deleting data in data stream...")
 		if err := deleteDataStreamDocs(r.options.API, dataStream); err != nil {
-			return errors.Wrap(err, "error deleting data in data stream")
+			return fmt.Errorf("error deleting data in data stream: %w", err)
 		}
 		return nil
 	}
 
 	if err := deleteDataStreamDocs(r.options.API, dataStream); err != nil {
-		return result.WithError(errors.Wrapf(err, "error deleting old data in data stream: %s", dataStream))
+		return result.WithError(fmt.Errorf("error deleting old data in data stream: %s: %w", dataStream, err))
 	}
 
 	cleared, err := waitUntilTrue(func() (bool, error) {
@@ -400,8 +578,8 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 			return true, errors.New("SIGINT: cancel clearing data")
 		}
 
-		docs, err := r.getDocs(dataStream)
-		return len(docs) == 0, err
+		hits, err := r.getDocs(dataStream)
+		return hits.size() == 0, err
 	}, 2*time.Minute)
 	if err != nil || !cleared {
 		if err == nil {
@@ -412,7 +590,7 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 
 	agents, err := checkEnrolledAgents(kib, ctxt)
 	if err != nil {
-		return result.WithError(errors.Wrap(err, "can't check enrolled agents"))
+		return result.WithError(fmt.Errorf("can't check enrolled agents: %w", err))
 	}
 	agent := agents[0]
 	origPolicy := kibana.Policy{
@@ -424,25 +602,25 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	r.resetAgentPolicyHandler = func() error {
 		logger.Debug("reassigning original policy back to agent...")
 		if err := kib.AssignPolicyToAgent(agent, origPolicy); err != nil {
-			return errors.Wrap(err, "error reassigning original policy to agent")
+			return fmt.Errorf("error reassigning original policy to agent: %w", err)
 		}
 		return nil
 	}
 
 	policyWithDataStream, err := kib.GetPolicy(policy.ID)
 	if err != nil {
-		return result.WithError(errors.Wrap(err, "could not read the policy with data stream"))
+		return result.WithError(fmt.Errorf("could not read the policy with data stream: %w", err))
 	}
 
 	logger.Debug("assigning package data stream to agent...")
 	if err := kib.AssignPolicyToAgent(agent, *policyWithDataStream); err != nil {
-		return result.WithError(errors.Wrap(err, "could not assign policy to agent"))
+		return result.WithError(fmt.Errorf("could not assign policy to agent: %w", err))
 	}
 
 	// Signal to the service that the agent is ready (policy is assigned).
 	if config.ServiceNotifySignal != "" {
 		if err = service.Signal(config.ServiceNotifySignal); err != nil {
-			return result.WithError(errors.Wrap(err, "failed to notify test service"))
+			return result.WithError(fmt.Errorf("failed to notify test service: %w", err))
 		}
 	}
 
@@ -454,21 +632,32 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 
 	// (TODO in future) Optionally exercise service to generate load.
 	logger.Debug("checking for expected data in data stream...")
-	var docs []common.MapStr
+	var hits *hits
+	oldHits := 0
 	passed, err := waitUntilTrue(func() (bool, error) {
 		if signal.SIGINT() {
 			return true, errors.New("SIGINT: cancel waiting for policy assigned")
 		}
 
 		var err error
-		docs, err = r.getDocs(dataStream)
+		hits, err = r.getDocs(dataStream)
 
 		if config.Assert.HitCount > 0 {
-			return len(docs) >= config.Assert.HitCount, err
-		}
+			if hits.size() < config.Assert.HitCount {
+				return false, err
+			}
 
-		return len(docs) > 0, err
+			ret := hits.size() == oldHits
+			if !ret {
+				oldHits = hits.size()
+				time.Sleep(4 * time.Second)
+			}
+
+			return ret, err
+		}
+		return hits.size() > 0, err
 	}, waitForDataTimeout)
+
 	if err != nil {
 		return result.WithError(err)
 	}
@@ -477,6 +666,14 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 		result.FailureMsg = fmt.Sprintf("could not find hits in %s data stream", dataStream)
 		return result.WithError(fmt.Errorf("%s", result.FailureMsg))
 	}
+
+	syntheticEnabled, err := r.isSyntheticsEnabled(dataStream, componentTemplatePackage)
+	if err != nil {
+		return result.WithError(fmt.Errorf("failed to check if synthetic source is enabled: %w", err))
+	}
+	logger.Debugf("data stream %s has synthetics enabled: %t", dataStream, syntheticEnabled)
+
+	docs := hits.getDocs(syntheticEnabled)
 
 	// Validate fields in docs
 	var expectedDataset string
@@ -490,12 +687,20 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 		fields.WithNumericKeywordFields(config.NumericKeywordFields),
 		fields.WithExpectedDataset(expectedDataset),
 		fields.WithEnabledImportAllECSSChema(true),
+		fields.WithDisableNormalization(syntheticEnabled),
 	)
 	if err != nil {
-		return result.WithError(errors.Wrapf(err, "creating fields validator for data stream failed (path: %s)", serviceOptions.DataStreamRootPath))
+		return result.WithError(fmt.Errorf("creating fields validator for data stream failed (path: %s): %w", serviceOptions.DataStreamRootPath, err))
 	}
 	if err := validateFields(docs, fieldsValidator, dataStream); err != nil {
 		return result.WithError(err)
+	}
+
+	if syntheticEnabled {
+		docs, err = fieldsValidator.SanitizeSyntheticSourceDocs(docs)
+		if err != nil {
+			return result.WithError(fmt.Errorf("failed to sanitize synthetic source docs: %w", err))
+		}
 	}
 
 	// Write sample events file from first doc, if requested
@@ -520,7 +725,7 @@ func checkEnrolledAgents(client *kibana.Client, ctxt servicedeployer.ServiceCont
 
 		allAgents, err := client.ListAgents()
 		if err != nil {
-			return false, errors.Wrap(err, "could not list agents")
+			return false, fmt.Errorf("could not list agents: %w", err)
 		}
 
 		agents = filterAgents(allAgents, ctxt)
@@ -531,7 +736,7 @@ func checkEnrolledAgents(client *kibana.Client, ctxt servicedeployer.ServiceCont
 		return true, nil
 	}, 5*time.Minute)
 	if err != nil {
-		return nil, errors.Wrap(err, "agent enrollment failed")
+		return nil, fmt.Errorf("agent enrollment failed: %w", err)
 	}
 	if !enrolled {
 		return nil, errors.New("no agent enrolled in time")
@@ -542,17 +747,17 @@ func checkEnrolledAgents(client *kibana.Client, ctxt servicedeployer.ServiceCont
 func installPackage(client *kibana.Client, manifest *packages.PackageManifest, rootPath string) error {
 	kibVersion, err := client.Version()
 	if err != nil {
-		return errors.Wrap(err, "could not obtain kibana version")
+		return fmt.Errorf("could not obtain kibana version: %w", err)
 	}
 	version, err := semver.NewVersion(kibVersion.Number)
 	if err != nil {
-		return errors.Wrap(err, "could not parse kibana semantic version")
+		return fmt.Errorf("could not parse kibana semantic version: %w", err)
 	}
 
 	if version.LessThan(semver.MustParse("8.7.0")) {
 		_, err := client.InstallPackage(manifest.Name, manifest.Version)
 		if err != nil {
-			return errors.Wrap(err, "could not install package through package registry")
+			return fmt.Errorf("could not install package through package registry: %w", err)
 		}
 		return nil
 	}
@@ -564,12 +769,12 @@ func installPackage(client *kibana.Client, manifest *packages.PackageManifest, r
 		SkipValidation: true,
 	})
 	if err != nil {
-		return errors.Wrap(err, "failed to build zip package for installation")
+		return fmt.Errorf("failed to build zip package for installation: %w", err)
 	}
 
 	_, err = client.InstallZipPackage(target)
 	if err != nil {
-		return errors.Wrapf(err, "failed to install zip package \"%s\"", target)
+		return fmt.Errorf("failed to install zip package \"%s\": %w", target, err)
 	}
 
 	return nil
@@ -630,16 +835,14 @@ func createIntegrationPackageDatastream(
 	streams[0].Vars = setKibanaVariables(stream.Vars, config.DataStream.Vars)
 	r.Inputs[0].Streams = streams
 
-	// Add package-level vars
-	var inputVars []packages.Variable
+	// Add input-level vars
 	input := policyTemplate.FindInputByType(streamInput)
 	if input != nil {
-		// copy package-level vars into each input
-		inputVars = append(inputVars, input.Vars...)
-		inputVars = append(inputVars, pkg.Vars...)
+		r.Inputs[0].Vars = setKibanaVariables(input.Vars, config.Vars)
 	}
 
-	r.Inputs[0].Vars = setKibanaVariables(inputVars, config.Vars)
+	// Add package-level vars
+	r.Vars = setKibanaVariables(pkg.Vars, config.Vars)
 
 	return r
 }
@@ -881,12 +1084,12 @@ func filterAgents(allAgents []kibana.Agent, ctx servicedeployer.ServiceContext) 
 func writeSampleEvent(path string, doc common.MapStr) error {
 	body, err := json.MarshalIndent(doc, "", "    ")
 	if err != nil {
-		return errors.Wrap(err, "marshalling sample event failed")
+		return fmt.Errorf("marshalling sample event failed: %w", err)
 	}
 
 	err = os.WriteFile(filepath.Join(path, "sample_event.json"), body, 0644)
 	if err != nil {
-		return errors.Wrap(err, "writing sample event failed")
+		return fmt.Errorf("writing sample event failed: %w", err)
 	}
 
 	return nil
@@ -955,8 +1158,76 @@ func (r *runner) generateTestResult(docs []common.MapStr) error {
 	}
 
 	if err := writeSampleEvent(rootPath, docs[0]); err != nil {
-		return errors.Wrap(err, "failed to write sample event file")
+		return fmt.Errorf("failed to write sample event file: %w", err)
 	}
 
+	return nil
+}
+
+func (r *runner) checkAgentLogs(dumpOptions stack.DumpOptions, startTesting time.Time, errorPatterns []logsByContainer) (results []testrunner.TestResult, err error) {
+
+	for _, patternsContainer := range errorPatterns {
+		startTime := time.Now()
+
+		serviceLogsFile := stack.DumpLogsFile(dumpOptions, patternsContainer.containerName)
+
+		err = r.anyErrorMessages(serviceLogsFile, startTesting, patternsContainer.patterns)
+		if e, ok := err.(testrunner.ErrTestCaseFailed); ok {
+			tr := testrunner.TestResult{
+				TestType:   TestType,
+				Name:       fmt.Sprintf("(%s logs)", patternsContainer.containerName),
+				Package:    r.options.TestFolder.Package,
+				DataStream: r.options.TestFolder.DataStream,
+			}
+			tr.FailureMsg = e.Error()
+			tr.FailureDetails = e.Details
+			tr.TimeElapsed = time.Since(startTime)
+			results = append(results, tr)
+			continue
+		}
+
+		if err != nil {
+			return nil, fmt.Errorf("check log messages failed: %s", err)
+		}
+	}
+	return results, nil
+}
+
+func (r *runner) anyErrorMessages(logsFilePath string, startTime time.Time, errorPatterns []logsRegexp) error {
+	var multiErr multierror.Error
+	processLog := func(log stack.LogLine) error {
+		for _, pattern := range errorPatterns {
+			if !pattern.includes.MatchString(log.Message) {
+				continue
+			}
+			isExcluded := false
+			for _, excludes := range pattern.excludes {
+				if excludes.MatchString(log.Message) {
+					isExcluded = true
+					break
+				}
+			}
+			if isExcluded {
+				continue
+			}
+
+			multiErr = append(multiErr, fmt.Errorf("found error %q", log.Message))
+		}
+		return nil
+	}
+	err := stack.ParseLogs(stack.ParseLogsOptions{
+		LogsFilePath: logsFilePath,
+		StartTime:    startTime,
+	}, processLog)
+	if err != nil {
+		return err
+	}
+
+	if len(multiErr) > 0 {
+		return testrunner.ErrTestCaseFailed{
+			Reason:  fmt.Sprintf("one or more errors found while examining %s", filepath.Base(logsFilePath)),
+			Details: multiErr.Error(),
+		}
+	}
 	return nil
 }

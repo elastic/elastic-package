@@ -7,8 +7,6 @@ package kind
 import (
 	"fmt"
 
-	"github.com/pkg/errors"
-
 	"github.com/elastic/elastic-package/internal/docker"
 	"github.com/elastic/elastic-package/internal/kubectl"
 	"github.com/elastic/elastic-package/internal/logger"
@@ -27,7 +25,7 @@ func VerifyContext() error {
 
 	currentContext, err := kubectl.CurrentContext()
 	if err != nil {
-		return errors.Wrap(err, "can't read current Kubernetes context")
+		return fmt.Errorf("can't read current Kubernetes context: %w", err)
 	}
 	if currentContext != kindContext {
 		return fmt.Errorf("unexpected Kubernetes context selected (actual: %s, expected: %s)", currentContext, kindContext)
@@ -39,7 +37,7 @@ func VerifyContext() error {
 func ConnectToElasticStackNetwork(profile *profile.Profile) error {
 	containerID, err := controlPlaneContainerID()
 	if err != nil {
-		return errors.Wrap(err, "can't find kind-control plane node")
+		return fmt.Errorf("can't find kind-control plane node: %w", err)
 	}
 
 	stackNetwork := stack.Network(profile)
@@ -47,7 +45,7 @@ func ConnectToElasticStackNetwork(profile *profile.Profile) error {
 
 	networkDescriptions, err := docker.InspectNetwork(stackNetwork)
 	if err != nil {
-		return errors.Wrap(err, "can't inspect network")
+		return fmt.Errorf("can't inspect network: %w", err)
 	}
 	if len(networkDescriptions) != 1 {
 		return fmt.Errorf("expected single network description, got %d entries", len(networkDescriptions))
@@ -63,7 +61,7 @@ func ConnectToElasticStackNetwork(profile *profile.Profile) error {
 	logger.Debugf("attach %s container (ID: %s) to stack network %s", ControlPlaneContainerName, containerID, stackNetwork)
 	err = docker.ConnectToNetwork(containerID, stackNetwork)
 	if err != nil {
-		return errors.Wrap(err, "can't connect to the Elastic stack network")
+		return fmt.Errorf("can't connect to the Elastic stack network: %w", err)
 	}
 	return nil
 }
@@ -73,7 +71,7 @@ func controlPlaneContainerID() (string, error) {
 
 	containerID, err := docker.ContainerID(ControlPlaneContainerName)
 	if err != nil {
-		return "", errors.Wrap(err, "can't find container ID, make sure you have run \"kind create cluster\"")
+		return "", fmt.Errorf("can't find container ID, make sure you have run \"kind create cluster\": %w", err)
 	}
 	return containerID, nil
 }

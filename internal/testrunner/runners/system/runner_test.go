@@ -5,12 +5,20 @@
 package system
 
 import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"regexp"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/internal/stack"
+	"github.com/elastic/elastic-package/internal/testrunner"
 )
 
 func TestFindPolicyTemplateForInput(t *testing.T) {
@@ -155,6 +163,236 @@ func TestFindPolicyTemplateForInput(t *testing.T) {
 
 			require.NoError(t, err)
 			assert.Equal(t, policyTemplateName, name)
+		})
+	}
+}
+
+func TestCheckAgentLogs(t *testing.T) {
+	var testCases = []struct {
+		testName        string
+		startingTime    string
+		errorPatterns   []logsByContainer
+		sampleLogs      map[string][]string
+		expectedErrors  int
+		expectedMessage []string
+		expectedDetails []string
+	}{
+		{
+			testName:     "all logs found",
+			startingTime: "2023-05-15T12:00:00.000Z",
+			errorPatterns: []logsByContainer{
+				logsByContainer{
+					containerName: "service",
+					patterns: []logsRegexp{
+						logsRegexp{
+							includes: regexp.MustCompile(".*"),
+						},
+					},
+				},
+			},
+			sampleLogs: map[string][]string{
+				"service": []string{
+					`service_1 | {"@timestamp": "2023-05-15T13:00:00.000Z", "message": "something"}`,
+					`service_1 | {"@timestamp": "2023-05-15T13:00:01.000Z", "message": "foo"}`,
+				},
+			},
+			expectedErrors: 1,
+			expectedMessage: []string{
+				"test case failed: one or more errors found while examining service.log",
+			},
+			expectedDetails: []string{
+				"[0] found error \"something\"\n[1] found error \"foo\"",
+			},
+		},
+		{
+			testName:     "remove old logs",
+			startingTime: "2023-05-15T13:00:02.000Z",
+			errorPatterns: []logsByContainer{
+				logsByContainer{
+					containerName: "service",
+					patterns: []logsRegexp{
+						logsRegexp{
+							includes: regexp.MustCompile(".*"),
+						},
+					},
+				},
+			},
+			sampleLogs: map[string][]string{
+				"service": []string{
+					`service_1 | {"@timestamp": "2023-05-15T13:00:00.000Z", "message": "something"}`,
+					`service_1 | {"@timestamp": "2023-05-15T13:00:05.000Z", "message": "foo"}`,
+				},
+			},
+			expectedErrors:  1,
+			expectedMessage: []string{"test case failed: one or more errors found while examining service.log"},
+			expectedDetails: []string{"[0] found error \"foo\""},
+		},
+		{
+			testName:     "all logs older",
+			startingTime: "2023-05-15T14:00:00.000Z",
+			errorPatterns: []logsByContainer{
+				logsByContainer{
+					containerName: "service",
+					patterns: []logsRegexp{
+						logsRegexp{
+							includes: regexp.MustCompile(".*"),
+						},
+					},
+				},
+			},
+			sampleLogs: map[string][]string{
+				"service": []string{
+					`service_1 | {"@timestamp": "2023-05-15T13:00:00.000Z", "message": "something"}`,
+					`service_1 | {"@timestamp": "2023-05-15T13:00:05.000Z", "message": "foo"}`,
+				},
+			},
+			expectedErrors: 0,
+		},
+		{
+			testName:     "filter logs by regex",
+			startingTime: "2023-05-15T12:00:00.000Z",
+			errorPatterns: []logsByContainer{
+				logsByContainer{
+					containerName: "service",
+					patterns: []logsRegexp{
+						logsRegexp{
+							includes: regexp.MustCompile(".*thing$"),
+						},
+					},
+				},
+			},
+			sampleLogs: map[string][]string{
+				"service": []string{
+					`service_1 | {"@timestamp": "2023-05-15T13:00:00.000Z", "message": "initial"}`,
+					`service_1 | {"@timestamp": "2023-05-15T13:00:02.000Z", "message": "something"}`,
+					`service_1 | {"@timestamp": "2023-05-15T13:00:05.000Z", "message": "foo"}`,
+				},
+			},
+			expectedErrors:  1,
+			expectedMessage: []string{"test case failed: one or more errors found while examining service.log"},
+			expectedDetails: []string{"[0] found error \"something\""},
+		},
+		{
+			testName:     "logs found for two services",
+			startingTime: "2023-05-15T13:00:01.000Z",
+			errorPatterns: []logsByContainer{
+				logsByContainer{
+					containerName: "service",
+					patterns: []logsRegexp{
+						logsRegexp{
+							includes: regexp.MustCompile(".*thing$"),
+						},
+					},
+				},
+				logsByContainer{
+					containerName: "external",
+					patterns: []logsRegexp{
+						logsRegexp{
+							includes: regexp.MustCompile(" foo$"),
+						},
+					},
+				},
+			},
+			sampleLogs: map[string][]string{
+				"service": []string{
+					`service_1 | {"@timestamp": "2023-05-15T13:00:00.000Z", "message": "service: initial"}`,
+					`service_1 | {"@timestamp": "2023-05-15T13:00:02.000Z", "message": "service: something"}`,
+					`service_1 | {"@timestamp": "2023-05-15T13:00:05.000Z", "message": "service: foo"}`,
+				},
+				"external": []string{
+					`external_1 | {"@timestamp": "2023-05-15T13:00:00.000Z", "message": "external: initial"}`,
+					`external_1 | {"@timestamp": "2023-05-15T13:00:05.000Z", "message": "external: foo"}`,
+					`external_1 | {"@timestamp": "2023-05-15T13:00:08.000Z", "message": "external: any other foo"}`,
+				},
+			},
+			expectedErrors: 2,
+			expectedMessage: []string{
+				"test case failed: one or more errors found while examining service.log",
+				"test case failed: one or more errors found while examining external.log",
+			},
+			expectedDetails: []string{
+				"[0] found error \"service: something\"",
+				"[0] found error \"external: foo\"\n[1] found error \"external: any other foo\"",
+			},
+		},
+		{
+			testName:     "usage of includes and excludes",
+			startingTime: "2023-05-15T12:00:00.000Z",
+			errorPatterns: []logsByContainer{
+				logsByContainer{
+					containerName: "service",
+					patterns: []logsRegexp{
+						logsRegexp{
+							includes: regexp.MustCompile("^(something|foo)"),
+							excludes: []*regexp.Regexp{
+								regexp.MustCompile("foo$"),
+								regexp.MustCompile("42"),
+							},
+						},
+					},
+				},
+			},
+			sampleLogs: map[string][]string{
+				"service": []string{
+					`service_1 | {"@timestamp": "2023-05-15T13:00:00.000Z", "message": "something"}`,
+					`service_1 | {"@timestamp": "2023-05-15T13:00:05.000Z", "message": "something foo"}`,
+					`service_1 | {"@timestamp": "2023-05-15T13:00:10.000Z", "message": "foo bar"}`,
+					`service_1 | {"@timestamp": "2023-05-15T13:00:15.000Z", "message": "foo bar 42"}`,
+					`service_1 | {"@timestamp": "2023-05-15T13:00:20.000Z", "message": "other message"}`,
+				},
+			},
+			expectedErrors:  1,
+			expectedMessage: []string{"test case failed: one or more errors found while examining service.log"},
+			expectedDetails: []string{"[0] found error \"something\"\n[1] found error \"foo bar\""},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.testName, func(t *testing.T) {
+			logsDirTemp := t.TempDir()
+
+			startTime, err := time.Parse(time.RFC3339, tc.startingTime)
+			require.NoError(t, err)
+
+			err = os.MkdirAll(filepath.Join(logsDirTemp, "logs"), 0755)
+			require.NoError(t, err)
+
+			for service, logs := range tc.sampleLogs {
+				logsFile := filepath.Join(logsDirTemp, "logs", fmt.Sprintf("%s.log", service))
+				file, err := os.Create(logsFile)
+				require.NoError(t, err)
+
+				_, err = file.WriteString(strings.Join(logs, "\n"))
+				require.NoError(t, err)
+				file.Close()
+			}
+
+			runner := runner{
+				options: testrunner.TestOptions{
+					TestFolder: testrunner.TestFolder{
+						Package:    "package",
+						DataStream: "datastream",
+					},
+				},
+			}
+
+			dumpOptions := stack.DumpOptions{
+				Output: logsDirTemp,
+			}
+			results, err := runner.checkAgentLogs(dumpOptions, startTime, tc.errorPatterns)
+			require.NoError(t, err)
+
+			require.Len(t, results, tc.expectedErrors)
+
+			if tc.expectedErrors == 0 {
+				assert.Nil(t, results)
+				return
+			}
+
+			for i := 0; i < tc.expectedErrors; i++ {
+				assert.Equal(t, tc.expectedMessage[i], results[i].FailureMsg)
+				assert.Equal(t, tc.expectedDetails[i], results[i].FailureDetails)
+			}
 		})
 	}
 }

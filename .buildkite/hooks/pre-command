@@ -33,7 +33,7 @@ PRIVATE_CI_GCS_CREDENTIALS_PATH=kv/ci-shared/platform-ingest/private_ci_artifact
 # Secrets must be redacted
 # https://buildkite.com/docs/pipelines/managing-log-output#redacted-environment-variables
 
-if [[ "$BUILDKITE_PIPELINE_SLUG" == "elastic-package" && "$BUILDKITE_STEP_KEY" =~ ^integration-parallel ]]; then
+if [[ "$BUILDKITE_PIPELINE_SLUG" == "elastic-package" && ("$BUILDKITE_STEP_KEY" =~ ^integration-parallel || "$BUILDKITE_STEP_KEY" =~ ^integration-false_positives) ]]; then
     export PRIVATE_CI_GCS_CREDENTIALS_SECRET=$(retry 5 vault kv get -field plaintext ${PRIVATE_CI_GCS_CREDENTIALS_PATH})
 fi
 
@@ -46,7 +46,7 @@ if [[ "$BUILDKITE_PIPELINE_SLUG" == "elastic-package" && "$BUILDKITE_STEP_KEY" =
     export GCP_PROJECT_ID=${ELASTIC_PACKAGE_GCP_PROJECT_SECRET}
 fi
 
-if [[ "$BUILDKITE_PIPELINE_SLUG" == "elastic-package" && "$BUILDKITE_STEP_KEY" == "integration-parallel-aws" ]]; then
+if [[ "$BUILDKITE_PIPELINE_SLUG" == "elastic-package" && ("$BUILDKITE_STEP_KEY" == "integration-parallel-aws" || "$BUILDKITE_STEP_KEY" == "integration-parallel-aws_logs") ]]; then
     export ELASTIC_PACKAGE_AWS_SECRET_KEY=$(retry 5 vault kv get -field secret_key ${AWS_SERVICE_ACCOUNT_SECRET_PATH})
     export ELASTIC_PACKAGE_AWS_ACCESS_KEY=$(retry 5 vault kv get -field access_key ${AWS_SERVICE_ACCOUNT_SECRET_PATH})
 
@@ -69,4 +69,10 @@ if [[ "$BUILDKITE_PIPELINE_SLUG" == "elastic-package-package-storage-publish" &&
 
     # publishing job
     export PACKAGE_UPLOADER_GCS_CREDENTIALS_SECRET=$(retry 5 vault kv get -field value ${PACKAGE_UPLOADER_GCS_CREDENTIALS_PATH})
+fi
+
+if [[ "$BUILDKITE_PIPELINE_SLUG" == "elastic-package-test-with-integrations" && "$BUILDKITE_STEP_KEY" == "pr-integrations" ]]; then
+    export GITHUB_USERNAME_SECRET=$(retry 5 vault kv get -field username ${GITHUB_TOKEN_VAULT_PATH})
+    export GITHUB_EMAIL_SECRET=$(retry 5 vault kv get -field email ${GITHUB_TOKEN_VAULT_PATH})
+    export GITHUB_TOKEN=$(retry 5 vault kv get -field token ${GITHUB_TOKEN_VAULT_PATH})
 fi

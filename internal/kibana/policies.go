@@ -9,30 +9,30 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/pkg/errors"
-
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
 // Policy represents an Agent Policy in Fleet.
 type Policy struct {
-	ID          string `json:"id,omitempty"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Namespace   string `json:"namespace"`
-	Revision    int    `json:"revision,omitempty"`
+	ID                 string   `json:"id,omitempty"`
+	Name               string   `json:"name"`
+	Description        string   `json:"description"`
+	Namespace          string   `json:"namespace"`
+	Revision           int      `json:"revision,omitempty"`
+	MonitoringEnabled  []string `json:"monitoring_enabled,omitempty"`
+	MonitoringOutputID string   `json:"monitoring_output_id,omitempty"`
 }
 
 // CreatePolicy persists the given Policy in Fleet.
 func (c *Client) CreatePolicy(p Policy) (*Policy, error) {
 	reqBody, err := json.Marshal(p)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not convert policy (request) to JSON")
+		return nil, fmt.Errorf("could not convert policy (request) to JSON: %w", err)
 	}
 
 	statusCode, respBody, err := c.post(fmt.Sprintf("%s/agent_policies", FleetAPI), reqBody)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not create policy")
+		return nil, fmt.Errorf("could not create policy: %w", err)
 	}
 
 	if statusCode != http.StatusOK {
@@ -44,7 +44,7 @@ func (c *Client) CreatePolicy(p Policy) (*Policy, error) {
 	}
 
 	if err := json.Unmarshal(respBody, &resp); err != nil {
-		return nil, errors.Wrap(err, "could not convert policy (response) to JSON")
+		return nil, fmt.Errorf("could not convert policy (response) to JSON: %w", err)
 	}
 
 	return &resp.Item, nil
@@ -54,7 +54,7 @@ func (c *Client) CreatePolicy(p Policy) (*Policy, error) {
 func (c *Client) GetPolicy(policyID string) (*Policy, error) {
 	statusCode, respBody, err := c.get(fmt.Sprintf("%s/agent_policies/%s", FleetAPI, policyID))
 	if err != nil {
-		return nil, errors.Wrap(err, "could not get policy")
+		return nil, fmt.Errorf("could not get policy: %w", err)
 	}
 
 	if statusCode != http.StatusOK {
@@ -66,7 +66,7 @@ func (c *Client) GetPolicy(policyID string) (*Policy, error) {
 	}
 
 	if err := json.Unmarshal(respBody, &resp); err != nil {
-		return nil, errors.Wrap(err, "could not convert policy (response) to JSON")
+		return nil, fmt.Errorf("could not convert policy (response) to JSON: %w", err)
 	}
 
 	return &resp.Item, nil
@@ -76,7 +76,7 @@ func (c *Client) GetPolicy(policyID string) (*Policy, error) {
 func (c *Client) GetRawPolicy(policyID string) (json.RawMessage, error) {
 	statusCode, respBody, err := c.get(fmt.Sprintf("%s/agent_policies/%s", FleetAPI, policyID))
 	if err != nil {
-		return nil, errors.Wrap(err, "could not get policy")
+		return nil, fmt.Errorf("could not get policy: %w", err)
 	}
 
 	if statusCode != http.StatusOK {
@@ -88,7 +88,7 @@ func (c *Client) GetRawPolicy(policyID string) (json.RawMessage, error) {
 	}
 
 	if err := json.Unmarshal(respBody, &resp); err != nil {
-		return nil, errors.Wrap(err, "could not convert policy (response) to JSON")
+		return nil, fmt.Errorf("could not convert policy (response) to JSON: %w", err)
 	}
 
 	return resp.Item, nil
@@ -109,7 +109,7 @@ func (c *Client) ListRawPolicies() ([]json.RawMessage, error) {
 	for finished := false; !finished; finished = itemsRetrieved == resp.Total {
 		statusCode, respBody, err := c.get(fmt.Sprintf("%s/agent_policies?full=true&page=%d", FleetAPI, currentPage))
 		if err != nil {
-			return nil, errors.Wrap(err, "could not get policies")
+			return nil, fmt.Errorf("could not get policies: %w", err)
 		}
 
 		if statusCode != http.StatusOK {
@@ -117,7 +117,7 @@ func (c *Client) ListRawPolicies() ([]json.RawMessage, error) {
 		}
 
 		if err := json.Unmarshal(respBody, &resp); err != nil {
-			return nil, errors.Wrap(err, "could not convert policies (response) to JSON")
+			return nil, fmt.Errorf("could not convert policies (response) to JSON: %w", err)
 		}
 
 		itemsRetrieved += len(resp.Items)
@@ -134,7 +134,7 @@ func (c *Client) DeletePolicy(p Policy) error {
 
 	statusCode, respBody, err := c.post(fmt.Sprintf("%s/agent_policies/delete", FleetAPI), []byte(reqBody))
 	if err != nil {
-		return errors.Wrap(err, "could not delete policy")
+		return fmt.Errorf("could not delete policy: %w", err)
 	}
 
 	if statusCode != http.StatusOK {
@@ -189,6 +189,7 @@ type PackageDataStream struct {
 	Enabled     bool    `json:"enabled"`
 	OutputID    string  `json:"output_id"`
 	Inputs      []Input `json:"inputs"`
+	Vars        Vars    `json:"vars,omitempty"`
 	Package     struct {
 		Name    string `json:"name"`
 		Title   string `json:"title"`
@@ -200,16 +201,89 @@ type PackageDataStream struct {
 func (c *Client) AddPackageDataStreamToPolicy(r PackageDataStream) error {
 	reqBody, err := json.Marshal(r)
 	if err != nil {
-		return errors.Wrap(err, "could not convert policy-package (request) to JSON")
+		return fmt.Errorf("could not convert policy-package (request) to JSON: %w", err)
 	}
 
 	statusCode, respBody, err := c.post(fmt.Sprintf("%s/package_policies", FleetAPI), reqBody)
 	if err != nil {
-		return errors.Wrap(err, "could not add package to policy")
+		return fmt.Errorf("could not add package to policy: %w", err)
 	}
 
 	if statusCode != http.StatusOK {
 		return fmt.Errorf("could not add package to policy; API status code = %d; response body = %s", statusCode, respBody)
+	}
+
+	return nil
+}
+
+// PackagePolicy represents an Package Policy in Fleet.
+type PackagePolicy struct {
+	ID          string `json:"id,omitempty"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Namespace   string `json:"namespace"`
+	PolicyID    string `json:"policy_id"`
+	Package     struct {
+		Name    string `json:"name"`
+		Version string `json:"version"`
+	} `json:"package"`
+	Vars   map[string]interface{}        `json:"vars,omitempty"`
+	Inputs map[string]PackagePolicyInput `json:"inputs,omitempty"`
+	Force  bool                          `json:"force"`
+}
+
+type PackagePolicyInput struct {
+	Enabled bool                           `json:"enabled"`
+	Streams map[string]PackagePolicyStream `json:"streams,omitempty"`
+}
+
+type PackagePolicyStream struct {
+	Enabled bool                   `json:"enabled"`
+	Vars    map[string]interface{} `json:"vars,omitempty"`
+}
+
+// CreatePackagePolicy persists the given Package Policy in Fleet.
+func (c *Client) CreatePackagePolicy(p PackagePolicy) (*PackagePolicy, error) {
+	reqBody, err := json.Marshal(p)
+	if err != nil {
+		return nil, fmt.Errorf("could not convert package policy (request) to JSON: %w", err)
+	}
+
+	statusCode, respBody, err := c.post(fmt.Sprintf("%s/package_policies", FleetAPI), reqBody)
+	if err != nil {
+		return nil, fmt.Errorf("could not create package policy (req %s): %w", string(reqBody), err)
+	}
+
+	if statusCode != http.StatusOK {
+		return nil, fmt.Errorf("could not create package policy (req %s); API status code = %d; response body = %s", string(reqBody), statusCode, respBody)
+	}
+
+	// Response format for the policy is inconsistent with the creation one,
+	// we update the ID to avoid having a full type only to hold the response.
+	var resp struct {
+		Item struct {
+			ID string `json:"id"`
+		} `json:"item"`
+	}
+
+	if err := json.Unmarshal(respBody, &resp); err != nil {
+		return nil, fmt.Errorf("could not convert package policy (response) to JSON: %w", err)
+	}
+
+	p.ID = resp.Item.ID
+
+	return &p, nil
+}
+
+// DeletePackagePolicy removes the given Package Policy from Fleet.
+func (c *Client) DeletePackagePolicy(p PackagePolicy) error {
+	statusCode, respBody, err := c.delete(fmt.Sprintf("%s/package_policies/%s", FleetAPI, p.ID))
+	if err != nil {
+		return fmt.Errorf("could not delete package policy: %w", err)
+	}
+
+	if statusCode != http.StatusOK {
+		return fmt.Errorf("could not delete package policy; API status code = %d; response body = %s", statusCode, respBody)
 	}
 
 	return nil

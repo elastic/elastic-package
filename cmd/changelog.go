@@ -5,11 +5,12 @@
 package cmd
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/pkg/errors"
+
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
@@ -60,13 +61,13 @@ func setupChangelogCommand() *cobraext.Command {
 func changelogAddCmd(cmd *cobra.Command, args []string) error {
 	packageRoot, err := packages.MustFindPackageRoot()
 	if err != nil {
-		return errors.Wrap(err, "locating package root failed")
+		return fmt.Errorf("locating package root failed: %w", err)
 	}
 
 	version, _ := cmd.Flags().GetString(cobraext.ChangelogAddVersionFlagName)
 	nextMode, _ := cmd.Flags().GetString(cobraext.ChangelogAddNextFlagName)
 	if version != "" && nextMode != "" {
-		return errors.Errorf("flags %q and %q cannot be used at the same time",
+		return fmt.Errorf("flags %q and %q cannot be used at the same time",
 			cobraext.ChangelogAddVersionFlagName,
 			cobraext.ChangelogAddNextFlagName)
 	}
@@ -109,7 +110,7 @@ func changelogAddCmd(cmd *cobra.Command, args []string) error {
 func changelogCmdVersion(nextMode, packageRoot string) (*semver.Version, error) {
 	revisions, err := changelog.ReadChangelogFromPackageRoot(packageRoot)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to read current changelog")
+		return nil, fmt.Errorf("failed to read current changelog: %w", err)
 	}
 	if len(revisions) == 0 {
 		return semver.MustParse("0.0.0"), nil
@@ -117,7 +118,7 @@ func changelogCmdVersion(nextMode, packageRoot string) (*semver.Version, error) 
 
 	version, err := semver.NewVersion(revisions[0].Version)
 	if err != nil {
-		return nil, errors.Wrapf(err, "invalid version in changelog %q", revisions[0].Version)
+		return nil, fmt.Errorf("invalid version in changelog %q: %w", revisions[0].Version, err)
 	}
 
 	switch nextMode {
@@ -133,7 +134,7 @@ func changelogCmdVersion(nextMode, packageRoot string) (*semver.Version, error) 
 		v := version.IncPatch()
 		version = &v
 	default:
-		return nil, errors.Errorf("invalid value for %q: %s",
+		return nil, fmt.Errorf("invalid value for %q: %s",
 			cobraext.ChangelogAddNextFlagName, nextMode)
 	}
 

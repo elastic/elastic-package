@@ -5,12 +5,12 @@
 package pipeline
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 
 	"github.com/elastic/go-ucfg/yaml"
-	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
@@ -44,24 +44,24 @@ func readConfigForTestCase(testCasePath string) (*testConfig, error) {
 	var c testConfig
 	cfg, err := yaml.NewConfigWithFile(commonConfigPath)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return nil, errors.Wrapf(err, "can't load common configuration: %s", commonConfigPath)
+		return nil, fmt.Errorf("can't load common configuration: %s: %w", commonConfigPath, err)
 	}
 
 	if err == nil {
 		if err := cfg.Unpack(&c); err != nil {
-			return nil, errors.Wrapf(err, "can't unpack test configuration: %s", commonConfigPath)
+			return nil, fmt.Errorf("can't unpack test configuration: %s: %w", commonConfigPath, err)
 		}
 	}
 
 	configPath := filepath.Join(testCaseDir, expectedTestConfigFile(testCaseFile, configTestSuffixYAML))
 	cfg, err = yaml.NewConfigWithFile(configPath)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return nil, errors.Wrapf(err, "can't load test configuration: %s", configPath)
+		return nil, fmt.Errorf("can't load test configuration: %s: %w", configPath, err)
 	}
 
 	if err == nil {
 		if err := cfg.Unpack(&c); err != nil {
-			return nil, errors.Wrapf(err, "can't unpack test configuration: %s", configPath)
+			return nil, fmt.Errorf("can't unpack test configuration: %s: %w", configPath, err)
 		}
 	}
 	return &c, nil

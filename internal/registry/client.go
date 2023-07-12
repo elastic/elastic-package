@@ -5,11 +5,10 @@
 package registry
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
-
-	"github.com/pkg/errors"
 )
 
 const (
@@ -36,12 +35,12 @@ func NewClient(baseURL string) *Client {
 func (c *Client) get(resourcePath string) (int, []byte, error) {
 	base, err := url.Parse(c.baseURL)
 	if err != nil {
-		return 0, nil, errors.Wrapf(err, "could not parse base URL: %v", c.baseURL)
+		return 0, nil, fmt.Errorf("could not parse base URL: %v: %w", c.baseURL, err)
 	}
 
 	rel, err := url.Parse(resourcePath)
 	if err != nil {
-		return 0, nil, errors.Wrapf(err, "could not create relative URL from resource path: %v", resourcePath)
+		return 0, nil, fmt.Errorf("could not create relative URL from resource path: %v: %w", resourcePath, err)
 	}
 
 	u := base.JoinPath(rel.EscapedPath())
@@ -49,19 +48,19 @@ func (c *Client) get(resourcePath string) (int, []byte, error) {
 
 	req, err := http.NewRequest(http.MethodGet, u.String(), nil)
 	if err != nil {
-		return 0, nil, errors.Wrapf(err, "could not create request to Package Registry API resource: %s", resourcePath)
+		return 0, nil, fmt.Errorf("could not create request to Package Registry API resource: %s: %w", resourcePath, err)
 	}
 
 	client := http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		return 0, nil, errors.Wrap(err, "could not send request to Package Registry API")
+		return 0, nil, fmt.Errorf("could not send request to Package Registry API: %w", err)
 	}
 
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return resp.StatusCode, nil, errors.Wrap(err, "could not read response body")
+		return resp.StatusCode, nil, fmt.Errorf("could not read response body: %w", err)
 	}
 
 	return resp.StatusCode, body, nil

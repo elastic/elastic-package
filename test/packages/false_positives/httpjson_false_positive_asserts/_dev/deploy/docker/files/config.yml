@@ -1,0 +1,21 @@
+rules:
+  - path: /testpagination/api
+    methods: ["GET"]
+    query_params:
+      page: 1
+    request_headers:
+      Authorization: "Basic dGVzdDp0ZXN0"
+    responses:
+      - status_code: 200
+        body: |-
+          {"message": "success", "page": 2}
+  - path: /testpagination/api
+    methods: ["GET"]
+    query_params:
+      page: 2
+    request_headers:
+      Authorization: "Basic dGVzdDp0ZXN0"
+    responses:
+      - status_code: 200
+        body: |-
+          {"message": "success"}

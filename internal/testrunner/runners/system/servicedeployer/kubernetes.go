@@ -8,12 +8,12 @@ import (
 	"bytes"
 	_ "embed"
 	"encoding/base64"
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"text/template"
-
-	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/kibana"
@@ -41,7 +41,7 @@ func (s kubernetesDeployedService) TearDown() error {
 
 	definitionPaths, err := findKubernetesDefinitions(s.definitionsDir)
 	if err != nil {
-		return errors.Wrapf(err, "can't find Kubernetes definitions in given directory (path: %s)", s.definitionsDir)
+		return fmt.Errorf("can't find Kubernetes definitions in given directory (path: %s): %w", s.definitionsDir, err)
 	}
 
 	if len(definitionPaths) == 0 {
@@ -51,7 +51,7 @@ func (s kubernetesDeployedService) TearDown() error {
 
 	err = kubectl.Delete(definitionPaths)
 	if err != nil {
-		return errors.Wrapf(err, "can't uninstall Kubernetes resources (path: %s)", s.definitionsDir)
+		return fmt.Errorf("can't uninstall Kubernetes resources (path: %s): %w", s.definitionsDir, err)
 	}
 	return nil
 }
@@ -84,22 +84,22 @@ func NewKubernetesServiceDeployer(profile *profile.Profile, definitionsPath stri
 func (ksd KubernetesServiceDeployer) SetUp(ctxt ServiceContext) (DeployedService, error) {
 	err := kind.VerifyContext()
 	if err != nil {
-		return nil, errors.Wrap(err, "kind context verification failed")
+		return nil, fmt.Errorf("kind context verification failed: %w", err)
 	}
 
 	err = kind.ConnectToElasticStackNetwork(ksd.profile)
 	if err != nil {
-		return nil, errors.Wrap(err, "can't connect control plane to Elastic stack network")
+		return nil, fmt.Errorf("can't connect control plane to Elastic stack network: %w", err)
 	}
 
 	err = installElasticAgentInCluster()
 	if err != nil {
-		return nil, errors.Wrap(err, "can't install Elastic-Agent in the Kubernetes cluster")
+		return nil, fmt.Errorf("can't install Elastic-Agent in the Kubernetes cluster: %w", err)
 	}
 
 	err = ksd.installCustomDefinitions()
 	if err != nil {
-		return nil, errors.Wrap(err, "can't install custom definitions in the Kubernetes cluster")
+		return nil, fmt.Errorf("can't install custom definitions in the Kubernetes cluster: %w", err)
 	}
 
 	ctxt.Name = kind.ControlPlaneContainerName
@@ -118,7 +118,7 @@ func (ksd KubernetesServiceDeployer) installCustomDefinitions() error {
 
 	definitionPaths, err := findKubernetesDefinitions(ksd.definitionsDir)
 	if err != nil {
-		return errors.Wrapf(err, "can't find Kubernetes definitions in given path: %s", ksd.definitionsDir)
+		return fmt.Errorf("can't find Kubernetes definitions in given path: %s: %w", ksd.definitionsDir, err)
 	}
 
 	if len(definitionPaths) == 0 {
@@ -128,7 +128,7 @@ func (ksd KubernetesServiceDeployer) installCustomDefinitions() error {
 
 	err = kubectl.Apply(definitionPaths)
 	if err != nil {
-		return errors.Wrap(err, "can't install custom definitions")
+		return fmt.Errorf("can't install custom definitions: %w", err)
 	}
 	return nil
 }
@@ -138,7 +138,7 @@ var _ ServiceDeployer = new(KubernetesServiceDeployer)
 func findKubernetesDefinitions(definitionsDir string) ([]string, error) {
 	files, err := filepath.Glob(filepath.Join(definitionsDir, "*.yaml"))
 	if err != nil {
-		return nil, errors.Wrapf(err, "can't read definitions directory (path: %s)", definitionsDir)
+		return nil, fmt.Errorf("can't read definitions directory (path: %s): %w", definitionsDir, err)
 	}
 
 	var definitionPaths []string
@@ -151,22 +151,22 @@ func installElasticAgentInCluster() error {
 
 	kibanaClient, err := kibana.NewClient()
 	if err != nil {
-		return errors.Wrap(err, "can't create Kibana client")
+		return fmt.Errorf("can't create Kibana client: %w", err)
 	}
 
 	stackVersion, err := kibanaClient.Version()
 	if err != nil {
-		return errors.Wrap(err, "can't read Kibana injected metadata")
+		return fmt.Errorf("can't read Kibana injected metadata: %w", err)
 	}
 
 	elasticAgentManagedYaml, err := getElasticAgentYAML(stackVersion.Version())
 	if err != nil {
-		return errors.Wrap(err, "can't retrieve Kubernetes file for Elastic Agent")
+		return fmt.Errorf("can't retrieve Kubernetes file for Elastic Agent: %w", err)
 	}
 
 	err = kubectl.ApplyStdin(elasticAgentManagedYaml)
 	if err != nil {
-		return errors.Wrap(err, "can't install Elastic-Agent in Kubernetes cluster")
+		return fmt.Errorf("can't install Elastic-Agent in Kubernetes cluster: %w", err)
 	}
 	return nil
 }
@@ -179,12 +179,12 @@ func getElasticAgentYAML(stackVersion string) ([]byte, error) {
 
 	appConfig, err := install.Configuration()
 	if err != nil {
-		return nil, errors.Wrap(err, "can't read application configuration")
+		return nil, fmt.Errorf("can't read application configuration: %w", err)
 	}
 
 	caCert, err := readCACertBase64()
 	if err != nil {
-		return nil, errors.Wrap(err, "can't read certificate authority file")
+		return nil, fmt.Errorf("can't read certificate authority file: %w", err)
 	}
 
 	tmpl := template.Must(template.New("elastic-agent.yml").Parse(elasticAgentManagedYamlTmpl))
@@ -198,7 +198,7 @@ func getElasticAgentYAML(stackVersion string) ([]byte, error) {
 		"elasticAgentTokenPolicyName": getTokenPolicyName(stackVersion),
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "can't generate elastic agent manifest")
+		return nil, fmt.Errorf("can't generate elastic agent manifest: %w", err)
 	}
 
 	return elasticAgentYaml.Bytes(), nil
@@ -207,7 +207,7 @@ func getElasticAgentYAML(stackVersion string) ([]byte, error) {
 func readCACertBase64() (string, error) {
 	caCertPath, ok := os.LookupEnv(stack.CACertificateEnv)
 	if !ok {
-		return "", errors.Errorf("%s not defined", stack.CACertificateEnv)
+		return "", fmt.Errorf("%s not defined", stack.CACertificateEnv)
 	}
 
 	d, err := os.ReadFile(caCertPath)

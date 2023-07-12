@@ -10,10 +10,9 @@ package common
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
-
-	"github.com/pkg/errors"
 )
 
 var (
@@ -148,7 +147,7 @@ func ToMapStrSlice(slice interface{}) ([]MapStr, error) {
 	for _, v := range sliceI {
 		m, err := toMapStr(v)
 		if err != nil {
-			return nil, errors.Wrap(err, "can't convert element to MapStr")
+			return nil, fmt.Errorf("can't convert element to MapStr: %w", err)
 		}
 		mapStrs = append(mapStrs, m)
 	}
@@ -161,7 +160,7 @@ func ToMapStrSlice(slice interface{}) ([]MapStr, error) {
 func toMapStr(v interface{}) (MapStr, error) {
 	m, ok := tryToMapStr(v)
 	if !ok {
-		return nil, errors.Errorf("expected map but type is %T", v)
+		return nil, fmt.Errorf("expected map but type is %T", v)
 	}
 	return m, nil
 }

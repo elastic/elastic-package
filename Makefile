@@ -65,17 +65,20 @@ test-stack-command-86:
 	./scripts/test-stack-command.sh 8.6.2
 
 test-stack-command-8x:
-	./scripts/test-stack-command.sh 8.7.0-SNAPSHOT
+	./scripts/test-stack-command.sh 8.9.0-SNAPSHOT
 
 test-stack-command: test-stack-command-default test-stack-command-7x test-stack-command-800 test-stack-command-8x
 
-test-check-packages: test-check-packages-with-kind test-check-packages-other test-check-packages-parallel test-check-packages-with-custom-agent test-check-packages-benchmarks 
+test-check-packages: test-check-packages-with-kind test-check-packages-other test-check-packages-parallel test-check-packages-with-custom-agent test-check-packages-benchmarks test-check-packages-false-positives
 
 test-check-packages-with-kind:
 	PACKAGE_TEST_TYPE=with-kind ./scripts/test-check-packages.sh
 
 test-check-packages-other:
 	PACKAGE_TEST_TYPE=other ./scripts/test-check-packages.sh
+
+test-check-packages-false-positives:
+	PACKAGE_TEST_TYPE=false_positives ./scripts/test-check-false-positives.sh
 
 test-check-packages-benchmarks:
 	PACKAGE_TEST_TYPE=benchmarks ./scripts/test-check-packages.sh
@@ -89,15 +92,11 @@ test-check-packages-with-custom-agent:
 test-build-zip:
 	./scripts/test-build-zip.sh
 
-# TODO remove version once default one is 8.7.0 or higher
-# Setting environment variables manually
 test-install-zip:
-	./scripts/test-install-zip.sh -v 8.7.0-SNAPSHOT
+	./scripts/test-install-zip.sh
 
-# TODO remove version once default one is 8.7.0 or higher
-# Using elastic-package stack shellinit to populate environment variables
 test-install-zip-shellinit:
-	./scripts/test-install-zip.sh -v 8.7.0-SNAPSHOT -s
+	./scripts/test-install-zip.sh -s
 
 test-profiles-command:
 	./scripts/test-profiles-command.sh

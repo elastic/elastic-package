@@ -8,12 +8,11 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"regexp"
 	"strings"
 
 	"github.com/elastic/elastic-package/internal/common"
-
-	"github.com/pkg/errors"
 )
 
 type testCase struct {
@@ -30,7 +29,7 @@ func readTestCaseEntriesForEvents(inputData []byte) ([]json.RawMessage, error) {
 	var tcd testCaseDefinition
 	err := jsonUnmarshalUsingNumber(inputData, &tcd)
 	if err != nil {
-		return nil, errors.Wrap(err, "unmarshalling input data failed")
+		return nil, fmt.Errorf("unmarshalling input data failed: %w", err)
 	}
 	return tcd.Events, nil
 }
@@ -38,7 +37,7 @@ func readTestCaseEntriesForEvents(inputData []byte) ([]json.RawMessage, error) {
 func readTestCaseEntriesForRawInput(inputData []byte, config *testConfig) ([]json.RawMessage, error) {
 	entries, err := readRawInputEntries(inputData, config)
 	if err != nil {
-		return nil, errors.Wrap(err, "reading raw input entries failed")
+		return nil, fmt.Errorf("reading raw input entries failed: %w", err)
 	}
 
 	var events []json.RawMessage
@@ -48,7 +47,7 @@ func readTestCaseEntriesForRawInput(inputData []byte, config *testConfig) ([]jso
 
 		m, err := json.Marshal(&event)
 		if err != nil {
-			return nil, errors.Wrap(err, "marshalling mocked event failed")
+			return nil, fmt.Errorf("marshalling mocked event failed: %w", err)
 		}
 		events = append(events, m)
 	}
@@ -61,19 +60,19 @@ func createTestCase(filename string, entries []json.RawMessage, config *testConf
 		var m common.MapStr
 		err := jsonUnmarshalUsingNumber(entry, &m)
 		if err != nil {
-			return nil, errors.Wrap(err, "can't unmarshal test case entry")
+			return nil, fmt.Errorf("can't unmarshal test case entry: %w", err)
 		}
 
 		for k, v := range config.Fields {
 			_, err = m.Put(k, v)
 			if err != nil {
-				return nil, errors.Wrap(err, "can't set custom field")
+				return nil, fmt.Errorf("can't set custom field: %w", err)
 			}
 		}
 
 		event, err := json.Marshal(&m)
 		if err != nil {
-			return nil, errors.Wrap(err, "marshalling event failed")
+			return nil, fmt.Errorf("marshalling event failed: %w", err)
 		}
 		events = append(events, event)
 	}
@@ -96,7 +95,7 @@ func readRawInputEntries(inputData []byte, c *testConfig) ([]string, error) {
 		if c.Multiline != nil && c.Multiline.FirstLinePattern != "" {
 			matched, err := regexp.MatchString(c.Multiline.FirstLinePattern, line)
 			if err != nil {
-				return nil, errors.Wrapf(err, "regexp matching failed (pattern: %s)", c.Multiline.FirstLinePattern)
+				return nil, fmt.Errorf("regexp matching failed (pattern: %s): %w", c.Multiline.FirstLinePattern, err)
 			}
 
 			if matched {
@@ -118,7 +117,7 @@ func readRawInputEntries(inputData []byte, c *testConfig) ([]string, error) {
 	}
 	err := scanner.Err()
 	if err != nil {
-		return nil, errors.Wrap(err, "reading raw input test file failed")
+		return nil, fmt.Errorf("reading raw input test file failed: %w", err)
 	}
 
 	lastEntry := builder.String()

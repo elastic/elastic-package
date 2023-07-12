@@ -13,8 +13,6 @@ import (
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/profile"
 
-	"github.com/pkg/errors"
-
 	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/testrunner/runners/system"
 	"github.com/elastic/elastic-package/internal/testrunner/runners/system/servicedeployer"
@@ -41,14 +39,14 @@ func BootUp(options Options) error {
 		Variant:            options.Variant,
 	})
 	if err != nil {
-		return errors.Wrap(err, "can't create the service deployer instance")
+		return fmt.Errorf("can't create the service deployer instance: %w", err)
 	}
 
 	// Boot up the service
 	logger.Debugf("Boot up the service instance")
 	locationManager, err := locations.NewLocationManager()
 	if err != nil {
-		return errors.Wrap(err, "reading service logs directory failed")
+		return fmt.Errorf("reading service logs directory failed: %w", err)
 	}
 
 	var serviceCtxt servicedeployer.ServiceContext
@@ -57,7 +55,7 @@ func BootUp(options Options) error {
 	serviceCtxt.Logs.Folder.Local = locationManager.ServiceLogDir()
 	deployed, err := serviceDeployer.SetUp(serviceCtxt)
 	if err != nil {
-		return errors.Wrap(err, "can't set up the service deployer")
+		return fmt.Errorf("can't set up the service deployer: %w", err)
 	}
 
 	fmt.Println("Service is up, please use ctrl+c to take it down")
@@ -69,7 +67,7 @@ func BootUp(options Options) error {
 	fmt.Println("Take down the service")
 	err = deployed.TearDown()
 	if err != nil {
-		return errors.Wrap(err, "can't tear down the service")
+		return fmt.Errorf("can't tear down the service: %w", err)
 	}
 	return nil
 }

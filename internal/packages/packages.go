@@ -7,12 +7,11 @@ package packages
 import (
 	"archive/zip"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
-
-	"github.com/pkg/errors"
 
 	"github.com/elastic/go-ucfg"
 	"github.com/elastic/go-ucfg/yaml"
@@ -132,22 +131,26 @@ type PackageManifest struct {
 	Categories      []string         `config:"categories" json:"categories" yaml:"categories"`
 }
 
+type Elasticsearch struct {
+	IndexTemplate *struct {
+		IngestPipeline *struct {
+			Name string `config:"name" json:"name" yaml:"name"`
+		} `config:"ingest_pipeline" json:"ingest_pipeline" yaml:"ingest_pipeline"`
+	} `config:"index_template" json:"index_template" yaml:"index_template"`
+	SourceMode string `config:"source_mode" json:"source_mode" yaml:"source_mode"`
+	IndexMode  string `config:"index_mode" json:"index_mode" yaml:"index_mode"`
+}
+
 // DataStreamManifest represents the structure of a data stream's manifest
 type DataStreamManifest struct {
-	Name          string `config:"name" json:"name" yaml:"name"`
-	Title         string `config:"title" json:"title" yaml:"title"`
-	Type          string `config:"type" json:"type" yaml:"type"`
-	Dataset       string `config:"dataset" json:"dataset" yaml:"dataset"`
-	Hidden        bool   `config:"hidden" json:"hidden" yaml:"hidden"`
-	Release       string `config:"release" json:"release" yaml:"release"`
-	Elasticsearch *struct {
-		IndexTemplate *struct {
-			IngestPipeline *struct {
-				Name string `config:"name" json:"name" yaml:"name"`
-			} `config:"ingest_pipeline" json:"ingest_pipeline" yaml:"ingest_pipeline"`
-		} `config:"index_template" json:"index_template" yaml:"index_template"`
-	} `config:"elasticsearch" json:"elasticsearch" yaml:"elasticsearch"`
-	Streams []struct {
+	Name          string         `config:"name" json:"name" yaml:"name"`
+	Title         string         `config:"title" json:"title" yaml:"title"`
+	Type          string         `config:"type" json:"type" yaml:"type"`
+	Dataset       string         `config:"dataset" json:"dataset" yaml:"dataset"`
+	Hidden        bool           `config:"hidden" json:"hidden" yaml:"hidden"`
+	Release       string         `config:"release" json:"release" yaml:"release"`
+	Elasticsearch *Elasticsearch `config:"elasticsearch" json:"elasticsearch" yaml:"elasticsearch"`
+	Streams       []struct {
 		Input string     `config:"input" json:"input" yaml:"input"`
 		Vars  []Variable `config:"vars" json:"vars" yaml:"vars"`
 	} `config:"streams" json:"streams" yaml:"streams"`
@@ -158,7 +161,7 @@ type DataStreamManifest struct {
 func MustFindPackageRoot() (string, error) {
 	root, found, err := FindPackageRoot()
 	if err != nil {
-		return "", errors.Wrap(err, "locating package root failed")
+		return "", fmt.Errorf("locating package root failed: %w", err)
 	}
 	if !found {
 		return "", errors.New("package root not found")
@@ -170,7 +173,7 @@ func MustFindPackageRoot() (string, error) {
 func FindPackageRoot() (string, bool, error) {
 	workDir, err := os.Getwd()
 	if err != nil {
-		return "", false, errors.Wrap(err, "locating working directory failed")
+		return "", false, fmt.Errorf("locating working directory failed: %w", err)
 	}
 
 	// VolumeName() will return something like "C:" in Windows, and "" in other OSs
@@ -184,7 +187,7 @@ func FindPackageRoot() (string, bool, error) {
 		if err == nil && !fileInfo.IsDir() {
 			ok, err := isPackageManifest(path)
 			if err != nil {
-				return "", false, errors.Wrapf(err, "verifying manifest file failed (path: %s)", path)
+				return "", false, fmt.Errorf("verifying manifest file failed (path: %s): %w", path, err)
 			}
 			if ok {
 				return dir, true, nil
@@ -208,7 +211,7 @@ func FindDataStreamRootForPath(workDir string) (string, bool, error) {
 		if err == nil && !fileInfo.IsDir() {
 			ok, err := isDataStreamManifest(path)
 			if err != nil {
-				return "", false, errors.Wrapf(err, "verifying manifest file failed (path: %s)", path)
+				return "", false, fmt.Errorf("verifying manifest file failed (path: %s): %w", path, err)
 			}
 			if ok {
 				return dir, true, nil
@@ -232,13 +235,13 @@ func ReadPackageManifestFromPackageRoot(packageRoot string) (*PackageManifest, e
 func ReadPackageManifestFromZipPackage(zipPackage string) (*PackageManifest, error) {
 	tempDir, err := os.MkdirTemp("", "elastic-package-")
 	if err != nil {
-		return nil, errors.Wrap(err, "can't prepare a temporary directory")
+		return nil, fmt.Errorf("can't prepare a temporary directory: %w", err)
 	}
 	defer os.RemoveAll(tempDir)
 
 	contents, err := extractPackageManifestZipPackage(zipPackage, PackageManifestFile)
 	if err != nil {
-		return nil, errors.Wrapf(err, "extracting manifest from zip file failed (path: %s)", zipPackage)
+		return nil, fmt.Errorf("extracting manifest from zip file failed (path: %s): %w", zipPackage, err)
 	}
 
 	return ReadPackageManifestBytes(contents)
@@ -259,12 +262,12 @@ func extractPackageManifestZipPackage(zipPath, sourcePath string) ([]byte, error
 	}
 
 	if len(matched) == 0 {
-		return nil, errors.Errorf("not found package %s in %s", sourcePath, zipPath)
+		return nil, fmt.Errorf("not found package %s in %s", sourcePath, zipPath)
 	}
 
 	contents, err := fs.ReadFile(zipReader, matched[0])
 	if err != nil {
-		return nil, errors.Wrapf(err, "can't read manifest from zip %s", zipPath)
+		return nil, fmt.Errorf("can't read manifest from zip %s: %w", zipPath, err)
 	}
 
 	return contents, nil
@@ -274,13 +277,13 @@ func extractPackageManifestZipPackage(zipPath, sourcePath string) ([]byte, error
 func ReadPackageManifest(path string) (*PackageManifest, error) {
 	cfg, err := yaml.NewConfigWithFile(path, ucfg.PathSep("."))
 	if err != nil {
-		return nil, errors.Wrapf(err, "reading file failed (path: %s)", path)
+		return nil, fmt.Errorf("reading file failed (path: %s): %w", path, err)
 	}
 
 	var m PackageManifest
 	err = cfg.Unpack(&m)
 	if err != nil {
-		return nil, errors.Wrapf(err, "unpacking package manifest failed (path: %s)", path)
+		return nil, fmt.Errorf("unpacking package manifest failed (path: %s): %w", path, err)
 	}
 	return &m, nil
 }
@@ -288,13 +291,13 @@ func ReadPackageManifest(path string) (*PackageManifest, error) {
 func ReadPackageManifestBytes(contents []byte) (*PackageManifest, error) {
 	cfg, err := yaml.NewConfig(contents, ucfg.PathSep("."))
 	if err != nil {
-		return nil, errors.Wrap(err, "reading manifest file failed")
+		return nil, fmt.Errorf("reading manifest file failed: %w", err)
 	}
 
 	var m PackageManifest
 	err = cfg.Unpack(&m)
 	if err != nil {
-		return nil, errors.Wrapf(err, "unpacking package manifest failed")
+		return nil, fmt.Errorf("unpacking package manifest failed: %w", err)
 	}
 	return &m, nil
 }
@@ -303,13 +306,13 @@ func ReadPackageManifestBytes(contents []byte) (*PackageManifest, error) {
 func ReadDataStreamManifest(path string) (*DataStreamManifest, error) {
 	cfg, err := yaml.NewConfigWithFile(path, ucfg.PathSep("."))
 	if err != nil {
-		return nil, errors.Wrapf(err, "reading file failed (path: %s)", path)
+		return nil, fmt.Errorf("reading file failed (path: %s): %w", path, err)
 	}
 
 	var m DataStreamManifest
 	err = cfg.Unpack(&m)
 	if err != nil {
-		return nil, errors.Wrapf(err, "unpacking data stream manifest failed (path: %s)", path)
+		return nil, fmt.Errorf("unpacking data stream manifest failed (path: %s): %w", path, err)
 	}
 
 	m.Name = filepath.Base(filepath.Dir(path))
@@ -363,7 +366,7 @@ func (pt *PolicyTemplate) FindInputByType(inputType string) *Input {
 func isPackageManifest(path string) (bool, error) {
 	m, err := ReadPackageManifest(path)
 	if err != nil {
-		return false, errors.Wrapf(err, "reading package manifest failed (path: %s)", path)
+		return false, fmt.Errorf("reading package manifest failed (path: %s): %w", path, err)
 	}
 	return (m.Type == "integration" || m.Type == "input") && m.Version != "", nil
 }
@@ -371,7 +374,7 @@ func isPackageManifest(path string) (bool, error) {
 func isDataStreamManifest(path string) (bool, error) {
 	m, err := ReadDataStreamManifest(path)
 	if err != nil {
-		return false, errors.Wrapf(err, "reading package manifest failed (path: %s)", path)
+		return false, fmt.Errorf("reading package manifest failed (path: %s): %w", path, err)
 	}
 	return m.Title != "" &&
 			(m.Type == dataStreamTypeLogs || m.Type == dataStreamTypeMetrics || m.Type == dataStreamTypeSynthetics || m.Type == dataStreamTypeTraces),

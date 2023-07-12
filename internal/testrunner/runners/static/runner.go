@@ -5,10 +5,10 @@
 package static
 
 import (
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
-
-	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/fields"
 	"github.com/elastic/elastic-package/internal/logger"
@@ -55,7 +55,7 @@ func (r runner) run() ([]testrunner.TestResult, error) {
 
 	testConfig, err := newConfig(r.options.TestFolder.Path)
 	if err != nil {
-		return result.WithError(errors.Wrap(err, "unable to load asset loading test config file"))
+		return result.WithError(fmt.Errorf("unable to load asset loading test config file: %w", err))
 	}
 
 	if testConfig != nil && testConfig.Skip != nil {
@@ -67,7 +67,7 @@ func (r runner) run() ([]testrunner.TestResult, error) {
 
 	pkgManifest, err := packages.ReadPackageManifestFromPackageRoot(r.options.PackageRootPath)
 	if err != nil {
-		return result.WithError(errors.Wrap(err, "failed to read manifest"))
+		return result.WithError(fmt.Errorf("failed to read manifest: %w", err))
 	}
 
 	return r.verifySampleEvent(pkgManifest), nil
@@ -103,13 +103,13 @@ func (r runner) verifySampleEvent(pkgManifest *packages.PackageManifest) []testr
 		fields.WithEnabledImportAllECSSChema(true),
 	)
 	if err != nil {
-		results, _ := resultComposer.WithError(errors.Wrap(err, "creating fields validator for data stream failed"))
+		results, _ := resultComposer.WithError(fmt.Errorf("creating fields validator for data stream failed: %w", err))
 		return results
 	}
 
 	content, err := os.ReadFile(sampleEventPath)
 	if err != nil {
-		results, _ := resultComposer.WithError(errors.Wrap(err, "can't read file"))
+		results, _ := resultComposer.WithError(fmt.Errorf("can't read file: %w", err))
 		return results
 	}
 
@@ -142,7 +142,7 @@ func (r runner) getSampleEventPath() (string, bool, error) {
 		return "", false, nil
 	}
 	if err != nil {
-		return "", false, errors.Wrap(err, "stat file failed")
+		return "", false, fmt.Errorf("stat file failed: %w", err)
 	}
 	return sampleEventPath, true, nil
 }
@@ -158,7 +158,7 @@ func (r runner) getExpectedDataset(pkgManifest *packages.PackageManifest) (strin
 
 	dataStreamManifest, err := packages.ReadDataStreamManifestFromPackageRoot(r.options.PackageRootPath, dsName)
 	if err != nil {
-		return "", errors.Wrap(err, "failed to read data stream manifest")
+		return "", fmt.Errorf("failed to read data stream manifest: %w", err)
 	}
 	if ds := dataStreamManifest.Dataset; ds != "" {
 		return ds, nil

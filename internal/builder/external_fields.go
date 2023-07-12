@@ -5,10 +5,10 @@
 package builder
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 
-	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/common"
@@ -20,7 +20,7 @@ import (
 func resolveExternalFields(packageRoot, destinationDir string) error {
 	bm, ok, err := buildmanifest.ReadBuildManifest(packageRoot)
 	if err != nil {
-		return errors.Wrap(err, "can't read build manifest")
+		return fmt.Errorf("can't read build manifest: %w", err)
 	}
 	if !ok {
 		logger.Debugf("Build manifest hasn't been defined for the package")
@@ -34,7 +34,7 @@ func resolveExternalFields(packageRoot, destinationDir string) error {
 	logger.Debugf("Package has external dependencies defined")
 	fdm, err := fields.CreateFieldDependencyManager(bm.Dependencies)
 	if err != nil {
-		return errors.Wrap(err, "can't create field dependency manager")
+		return fmt.Errorf("can't create field dependency manager: %w", err)
 	}
 
 	dataStreamFieldsFiles, err := filepath.Glob(filepath.Join(destinationDir, "data_stream", "*", "fields", "*.yml"))
@@ -76,12 +76,12 @@ func injectFields(fdm *fields.DependencyManager, content []byte) ([]byte, bool, 
 	var f []common.MapStr
 	err := yaml.Unmarshal(content, &f)
 	if err != nil {
-		return nil, false, errors.Wrap(err, "can't unmarshal source file")
+		return nil, false, fmt.Errorf("can't unmarshal source file: %w", err)
 	}
 
 	f, changed, err := fdm.InjectFields(f)
 	if err != nil {
-		return nil, false, errors.Wrap(err, "can't resolve fields")
+		return nil, false, fmt.Errorf("can't resolve fields: %w", err)
 	}
 	if !changed {
 		return content, false, nil
@@ -89,7 +89,7 @@ func injectFields(fdm *fields.DependencyManager, content []byte) ([]byte, bool, 
 
 	content, err = yaml.Marshal(&f)
 	if err != nil {
-		return nil, false, errors.Wrap(err, "can't marshal source file")
+		return nil, false, fmt.Errorf("can't marshal source file: %w", err)
 	}
 	return content, true, nil
 }

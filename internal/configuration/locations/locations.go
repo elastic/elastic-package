@@ -6,10 +6,9 @@
 package locations
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
-
-	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/environment"
 )
@@ -32,6 +31,7 @@ var (
 
 	serviceLogsDir        = filepath.Join(temporaryDir, "service_logs")
 	kubernetesDeployerDir = filepath.Join(deployerDir, "kubernetes")
+	serviceOutputDir      = filepath.Join(temporaryDir, "output")
 )
 
 // LocationManager maintains an instance of a config path location
@@ -43,7 +43,7 @@ type LocationManager struct {
 func NewLocationManager() (*LocationManager, error) {
 	cfg, err := configurationDir()
 	if err != nil {
-		return nil, errors.Wrap(err, "error getting config dir")
+		return nil, fmt.Errorf("error getting config dir: %w", err)
 	}
 
 	return &LocationManager{stackPath: cfg}, nil
@@ -90,6 +90,11 @@ func (loc LocationManager) ServiceLogDir() string {
 	return filepath.Join(loc.stackPath, serviceLogsDir)
 }
 
+// ServiceOutputDir returns the output directory
+func (loc LocationManager) ServiceOutputDir() string {
+	return filepath.Join(loc.stackPath, serviceOutputDir)
+}
+
 // FieldsCacheDir returns the directory with cached fields
 func (loc LocationManager) FieldsCacheDir() string {
 	return filepath.Join(loc.stackPath, fieldsCachedDir)
@@ -106,7 +111,7 @@ func configurationDir() (string, error) {
 
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		return "", errors.Wrap(err, "reading home dir failed")
+		return "", fmt.Errorf("reading home dir failed: %w", err)
 	}
 	return filepath.Join(homeDir, elasticPackageDir), nil
 }

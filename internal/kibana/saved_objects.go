@@ -10,8 +10,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/pkg/errors"
-
 	"github.com/elastic/elastic-package/internal/logger"
 )
 
@@ -65,7 +63,7 @@ func (c *Client) FindDashboards() (DashboardSavedObjects, error) {
 	for {
 		r, err := c.findDashboardsNextPage(page)
 		if err != nil {
-			return nil, errors.Wrap(err, "can't fetch page with results")
+			return nil, fmt.Errorf("can't fetch page with results: %w", err)
 		}
 		if r.Error != "" {
 			return nil, fmt.Errorf("%s: %s", r.Error, r.Message)
@@ -94,13 +92,13 @@ func (c *Client) findDashboardsNextPage(page int) (*savedObjectsResponse, error)
 	path := fmt.Sprintf("%s/_find?type=dashboard&fields=title&per_page=%d&page=%d", SavedObjectsAPI, findDashboardsPerPage, page)
 	statusCode, respBody, err := c.get(path)
 	if err != nil {
-		return nil, errors.Wrapf(err, "could not find dashboards; API status code = %d; response body = %s", statusCode, respBody)
+		return nil, fmt.Errorf("could not find dashboards; API status code = %d; response body = %s: %w", statusCode, respBody, err)
 	}
 
 	var r savedObjectsResponse
 	err = json.Unmarshal(respBody, &r)
 	if err != nil {
-		return nil, errors.Wrap(err, "unmarshalling response failed")
+		return nil, fmt.Errorf("unmarshalling response failed: %w", err)
 	}
 	return &r, nil
 }

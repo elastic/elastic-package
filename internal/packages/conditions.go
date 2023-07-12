@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/multierror"
@@ -28,19 +27,20 @@ type packageRequirements struct {
 func CheckConditions(manifest PackageManifest, keyValuePairs []string) error {
 	requirements, err := parsePackageRequirements(keyValuePairs)
 	if err != nil {
-		return errors.Wrap(err, "can't parse given keyValue pairs as package conditions")
+		return fmt.Errorf("can't parse given keyValue pairs as package conditions: %w", err)
 	}
 
 	// So far, Kibana is the only supported constraint
 	if len(manifest.Conditions.Kibana.Version) > 0 && requirements.kibana.version != nil {
 		kibanaConstraint, err := semver.NewConstraint(manifest.Conditions.Kibana.Version)
 		if err != nil {
-			return errors.Wrap(err, "invalid constraint for Kibana")
+			return fmt.Errorf("invalid constraint for Kibana: %w", err)
 		}
 
 		logger.Debugf("Verify Kibana version (constraint: %s, requirement: %s)", manifest.Conditions.Kibana.Version, requirements.kibana.version)
 		if ok, errs := kibanaConstraint.Validate(requirements.kibana.version); !ok {
-			return errors.Wrap(multierror.Error(errs), "Kibana constraint unsatisfied")
+			//lint:ignore ST1005 error starting with product name can be capitalized
+			return fmt.Errorf("Kibana constraint unsatisfied: %w", multierror.Error(errs))
 		}
 		logger.Debugf("Constraint %s = %s is satisfied", kibanaVersionRequirement, manifest.Conditions.Kibana.Version)
 	}
@@ -60,7 +60,7 @@ func parsePackageRequirements(keyValuePairs []string) (*packageRequirements, err
 		case kibanaVersionRequirement:
 			ver, err := semver.NewVersion(s[1])
 			if err != nil {
-				return nil, errors.Wrap(err, "can't parse kibana.version as valid semver")
+				return nil, fmt.Errorf("can't parse kibana.version as valid semver: %w", err)
 			}
 
 			// Constraint validation doesn't handle prerelease tags. It fails with error:
@@ -69,7 +69,7 @@ func parsePackageRequirements(keyValuePairs []string) (*packageRequirements, err
 			// Source code reference: https://github.com/Masterminds/semver/blob/7e314bd12e4aa8ea9742b1e4765f3fe65de38c2d/constraints.go#L89
 			withoutPrerelease, err := ver.SetPrerelease("") // clean prerelease tag
 			if err != nil {
-				return nil, errors.Wrap(err, "can't clean prerelease tag from semver")
+				return nil, fmt.Errorf("can't clean prerelease tag from semver: %w", err)
 			}
 			pr.kibana.version = &withoutPrerelease
 		default:

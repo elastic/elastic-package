@@ -6,14 +6,13 @@ package pipeline
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
-
-	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/elasticsearch/ingest"
@@ -63,7 +62,7 @@ func (r *runner) TearDown() error {
 	}
 
 	if err := ingest.UninstallPipelines(r.options.API, r.pipelines); err != nil {
-		return errors.Wrap(err, "uninstalling ingest pipelines failed")
+		return fmt.Errorf("uninstalling ingest pipelines failed: %w", err)
 	}
 	return nil
 }
@@ -77,12 +76,12 @@ func (r *runner) CanRunPerDataStream() bool {
 func (r *runner) run() ([]testrunner.TestResult, error) {
 	testCaseFiles, err := r.listTestCaseFiles()
 	if err != nil {
-		return nil, errors.Wrap(err, "listing test case definitions failed")
+		return nil, fmt.Errorf("listing test case definitions failed: %w", err)
 	}
 
 	dataStreamPath, found, err := packages.FindDataStreamRootForPath(r.options.TestFolder.Path)
 	if err != nil {
-		return nil, errors.Wrap(err, "locating data_stream root failed")
+		return nil, fmt.Errorf("locating data_stream root failed: %w", err)
 	}
 	if !found {
 		return nil, errors.New("data stream root not found")
@@ -91,17 +90,17 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 	var entryPipeline string
 	entryPipeline, r.pipelines, err = ingest.InstallDataStreamPipelines(r.options.API, dataStreamPath)
 	if err != nil {
-		return nil, errors.Wrap(err, "installing ingest pipelines failed")
+		return nil, fmt.Errorf("installing ingest pipelines failed: %w", err)
 	}
 
 	pkgManifest, err := packages.ReadPackageManifestFromPackageRoot(r.options.PackageRootPath)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to read manifest")
+		return nil, fmt.Errorf("failed to read manifest: %w", err)
 	}
 
 	dsManifest, err := packages.ReadDataStreamManifestFromPackageRoot(r.options.PackageRootPath, r.options.TestFolder.DataStream)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to read data stream manifest")
+		return nil, fmt.Errorf("failed to read data stream manifest: %w", err)
 	}
 
 	expectedDataset := dsManifest.Dataset
@@ -122,7 +121,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		// See https://github.com/elastic/elastic-package/pull/717.
 		tc, err := r.loadTestCaseFile(testCaseFile)
 		if err != nil {
-			err := errors.Wrap(err, "loading test case failed")
+			err := fmt.Errorf("loading test case failed: %w", err)
 			tr.ErrorMsg = err.Error()
 			results = append(results, tr)
 			continue
@@ -141,7 +140,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 
 		processedEvents, err := ingest.SimulatePipeline(r.options.API, entryPipeline, tc.events)
 		if err != nil {
-			err := errors.Wrap(err, "simulating pipeline processing failed")
+			err := fmt.Errorf("simulating pipeline processing failed: %w", err)
 			tr.ErrorMsg = err.Error()
 			results = append(results, tr)
 			continue
@@ -160,7 +159,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 			fields.WithEnabledImportAllECSSChema(true),
 		)
 		if err != nil {
-			return nil, errors.Wrapf(err, "creating fields validator for data stream failed (path: %s, test case file: %s)", dataStreamPath, testCaseFile)
+			return nil, fmt.Errorf("creating fields validator for data stream failed (path: %s, test case file: %s): %w", dataStreamPath, testCaseFile, err)
 		}
 
 		// TODO: Add tests to cover regressive use of json.Unmarshal in verifyResults.
@@ -174,7 +173,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 			continue
 		}
 		if err != nil {
-			err := errors.Wrap(err, "verifying test result failed")
+			err := fmt.Errorf("verifying test result failed: %w", err)
 			tr.ErrorMsg = err.Error()
 			results = append(results, tr)
 			continue
@@ -183,7 +182,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		if r.options.WithCoverage {
 			tr.Coverage, err = GetPipelineCoverage(r.options, r.pipelines)
 			if err != nil {
-				return nil, errors.Wrap(err, "error calculating pipeline coverage")
+				return nil, fmt.Errorf("error calculating pipeline coverage: %w", err)
 			}
 		}
 		results = append(results, tr)
@@ -195,7 +194,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 func (r *runner) listTestCaseFiles() ([]string, error) {
 	fis, err := os.ReadDir(r.options.TestFolder.Path)
 	if err != nil {
-		return nil, errors.Wrapf(err, "reading pipeline tests failed (path: %s)", r.options.TestFolder.Path)
+		return nil, fmt.Errorf("reading pipeline tests failed (path: %s): %w", r.options.TestFolder.Path, err)
 	}
 
 	var files []string
@@ -213,12 +212,12 @@ func (r *runner) loadTestCaseFile(testCaseFile string) (*testCase, error) {
 	testCasePath := filepath.Join(r.options.TestFolder.Path, testCaseFile)
 	testCaseData, err := os.ReadFile(testCasePath)
 	if err != nil {
-		return nil, errors.Wrapf(err, "reading input file failed (testCasePath: %s)", testCasePath)
+		return nil, fmt.Errorf("reading input file failed (testCasePath: %s): %w", testCasePath, err)
 	}
 
 	config, err := readConfigForTestCase(testCasePath)
 	if err != nil {
-		return nil, errors.Wrapf(err, "reading config for test case failed (testCasePath: %s)", testCasePath)
+		return nil, fmt.Errorf("reading config for test case failed (testCasePath: %s): %w", testCasePath, err)
 	}
 
 	if config.Skip != nil {
@@ -235,12 +234,12 @@ func (r *runner) loadTestCaseFile(testCaseFile string) (*testCase, error) {
 	case ".json":
 		entries, err = readTestCaseEntriesForEvents(testCaseData)
 		if err != nil {
-			return nil, errors.Wrapf(err, "reading test case entries for events failed (testCasePath: %s)", testCasePath)
+			return nil, fmt.Errorf("reading test case entries for events failed (testCasePath: %s): %w", testCasePath, err)
 		}
 	case ".log":
 		entries, err = readTestCaseEntriesForRawInput(testCaseData, config)
 		if err != nil {
-			return nil, errors.Wrapf(err, "creating test case entries for raw input failed (testCasePath: %s)", testCasePath)
+			return nil, fmt.Errorf("creating test case entries for raw input failed (testCasePath: %s): %w", testCasePath, err)
 		}
 	default:
 		return nil, fmt.Errorf("unsupported extension for test case file (ext: %s)", ext)
@@ -248,7 +247,7 @@ func (r *runner) loadTestCaseFile(testCaseFile string) (*testCase, error) {
 
 	tc, err := createTestCase(testCaseFile, entries, config)
 	if err != nil {
-		return nil, errors.Wrapf(err, "can't create test case (testCasePath: %s)", testCasePath)
+		return nil, fmt.Errorf("can't create test case (testCasePath: %s): %w", testCasePath, err)
 	}
 	return tc, nil
 }
@@ -261,7 +260,7 @@ func (r *runner) verifyResults(testCaseFile string, config *testConfig, result *
 		// See https://github.com/elastic/elastic-package/pull/717.
 		err := writeTestResult(testCasePath, result)
 		if err != nil {
-			return errors.Wrap(err, "writing test result failed")
+			return fmt.Errorf("writing test result failed: %w", err)
 		}
 	}
 
@@ -270,7 +269,7 @@ func (r *runner) verifyResults(testCaseFile string, config *testConfig, result *
 		return err
 	}
 	if err != nil {
-		return errors.Wrap(err, "comparing test results failed")
+		return fmt.Errorf("comparing test results failed: %w", err)
 	}
 
 	result = stripEmptyTestResults(result)
@@ -310,13 +309,13 @@ func verifyDynamicFields(result *testResult, config *testConfig) error {
 		var m common.MapStr
 		err := jsonUnmarshalUsingNumber(event, &m)
 		if err != nil {
-			return errors.Wrap(err, "can't unmarshal event")
+			return fmt.Errorf("can't unmarshal event: %w", err)
 		}
 
 		for key, pattern := range config.DynamicFields {
 			val, err := m.GetValue(key)
 			if err != nil && err != common.ErrKeyNotFound {
-				return errors.Wrap(err, "can't remove dynamic field")
+				return fmt.Errorf("can't remove dynamic field: %w", err)
 			}
 
 			valStr, ok := val.(string)
@@ -326,7 +325,7 @@ func verifyDynamicFields(result *testResult, config *testConfig) error {
 
 			matched, err := regexp.MatchString(pattern, valStr)
 			if err != nil {
-				return errors.Wrap(err, "pattern matching for dynamic field failed")
+				return fmt.Errorf("pattern matching for dynamic field failed: %w", err)
 			}
 
 			if !matched {
@@ -377,13 +376,23 @@ func checkErrorMessage(event json.RawMessage) error {
 	}
 	err := jsonUnmarshalUsingNumber(event, &pipelineError)
 	if err != nil {
-		return errors.Wrapf(err, "can't unmarshal event to check pipeline error: %#q", event)
+		return fmt.Errorf("can't unmarshal event to check pipeline error: %#q: %w", event, err)
 	}
 
 	switch m := pipelineError.Error.Message.(type) {
 	case nil:
 		return nil
 	case string, []string:
+		return fmt.Errorf("unexpected pipeline error: %s", m)
+	case []interface{}:
+		for i, v := range m {
+			switch v.(type) {
+			case string:
+				break
+			default:
+				return fmt.Errorf("unexpected pipeline error (unexpected error.message type %T at position %d): %v", v, i, m)
+			}
+		}
 		return fmt.Errorf("unexpected pipeline error: %s", m)
 	default:
 		return fmt.Errorf("unexpected pipeline error (unexpected error.message type %T): %[1]v", m)

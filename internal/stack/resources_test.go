@@ -69,3 +69,13 @@ func TestApplyResourcesWithCustomGeoipDir(t *testing.T) {
 	expectedVolume := fmt.Sprintf("%s:/usr/share/elasticsearch/config/ingest-geoip", expectedGeoipPath)
 	assert.Contains(t, volumes, expectedVolume)
 }
+
+func TestSemverLessThan(t *testing.T) {
+	b, err := semverLessThan("8.9.0", "8.10.0-SNAPSHOT")
+	require.NoError(t, err)
+	assert.True(t, b)
+
+	b, err = semverLessThan("8.10.0-SNAPSHOT", "8.10.0")
+	require.NoError(t, err)
+	assert.True(t, b)
+}

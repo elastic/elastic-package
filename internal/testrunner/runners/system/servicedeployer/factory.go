@@ -5,11 +5,10 @@
 package servicedeployer
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
-
-	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/profile"
 )
@@ -31,12 +30,12 @@ type FactoryOptions struct {
 func Factory(options FactoryOptions) (ServiceDeployer, error) {
 	devDeployPath, err := FindDevDeployPath(options)
 	if err != nil {
-		return nil, errors.Wrapf(err, "can't find \"%s\" directory", devDeployDir)
+		return nil, fmt.Errorf("can't find \"%s\" directory: %w", devDeployDir, err)
 	}
 
 	serviceDeployerName, err := findServiceDeployer(devDeployPath)
 	if err != nil {
-		return nil, errors.Wrap(err, "can't find any valid service deployer")
+		return nil, fmt.Errorf("can't find any valid service deployer: %w", err)
 	}
 
 	serviceDeployerPath := filepath.Join(devDeployPath, serviceDeployerName)
@@ -51,14 +50,14 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 		if _, err := os.Stat(dockerComposeYMLPath); err == nil {
 			sv, err := useServiceVariant(devDeployPath, options.Variant)
 			if err != nil {
-				return nil, errors.Wrap(err, "can't use service variant")
+				return nil, fmt.Errorf("can't use service variant: %w", err)
 			}
 			return NewDockerComposeServiceDeployer(options.Profile, []string{dockerComposeYMLPath}, sv)
 		}
 	case "agent":
 		customAgentCfgYMLPath := filepath.Join(serviceDeployerPath, "custom-agent.yml")
 		if _, err := os.Stat(customAgentCfgYMLPath); err != nil {
-			return nil, errors.Wrap(err, "can't find expected file custom-agent.yml")
+			return nil, fmt.Errorf("can't find expected file custom-agent.yml: %w", err)
 		}
 		return NewCustomAgentDeployer(options.Profile, customAgentCfgYMLPath)
 
@@ -77,7 +76,7 @@ func FindDevDeployPath(options FactoryOptions) (string, error) {
 	if err == nil {
 		return dataStreamDevDeployPath, nil
 	} else if !errors.Is(err, os.ErrNotExist) {
-		return "", errors.Wrapf(err, "stat failed for data stream (path: %s)", dataStreamDevDeployPath)
+		return "", fmt.Errorf("stat failed for data stream (path: %s): %w", dataStreamDevDeployPath, err)
 	}
 
 	packageDevDeployPath := filepath.Join(options.PackageRootPath, devDeployDir)
@@ -85,7 +84,7 @@ func FindDevDeployPath(options FactoryOptions) (string, error) {
 	if err == nil {
 		return packageDevDeployPath, nil
 	} else if !errors.Is(err, os.ErrNotExist) {
-		return "", errors.Wrapf(err, "stat failed for package (path: %s)", packageDevDeployPath)
+		return "", fmt.Errorf("stat failed for package (path: %s): %w", packageDevDeployPath, err)
 	}
 	return "", fmt.Errorf("\"%s\" directory doesn't exist", devDeployDir)
 }
@@ -93,7 +92,7 @@ func FindDevDeployPath(options FactoryOptions) (string, error) {
 func findServiceDeployer(devDeployPath string) (string, error) {
 	fis, err := os.ReadDir(devDeployPath)
 	if err != nil {
-		return "", errors.Wrapf(err, "can't read directory (path: %s)", devDeployDir)
+		return "", fmt.Errorf("can't read directory (path: %s): %w", devDeployDir, err)
 	}
 
 	var folders []os.DirEntry

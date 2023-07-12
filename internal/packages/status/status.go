@@ -5,8 +5,9 @@
 package status
 
 import (
+	"fmt"
+
 	"github.com/Masterminds/semver/v3"
-	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/packages/changelog"
@@ -26,11 +27,11 @@ type PackageStatus struct {
 func LocalPackage(packageRootPath string, options registry.SearchOptions) (*PackageStatus, error) {
 	manifest, err := packages.ReadPackageManifestFromPackageRoot(packageRootPath)
 	if err != nil {
-		return nil, errors.Wrap(err, "reading package manifest failed")
+		return nil, fmt.Errorf("reading package manifest failed: %w", err)
 	}
 	changelog, err := changelog.ReadChangelogFromPackageRoot(packageRootPath)
 	if err != nil {
-		return nil, errors.Wrap(err, "reading package changelog failed")
+		return nil, fmt.Errorf("reading package changelog failed: %w", err)
 	}
 	status, err := RemotePackage(manifest.Name, options)
 	if err != nil {
@@ -45,11 +46,11 @@ func LocalPackage(packageRootPath string, options registry.SearchOptions) (*Pack
 	lastChangelogEntry := changelog[0]
 	pendingVersion, err := semver.NewVersion(lastChangelogEntry.Version)
 	if err != nil {
-		return nil, errors.Wrap(err, "reading changelog semver failed")
+		return nil, fmt.Errorf("reading changelog semver failed: %w", err)
 	}
 	currentVersion, err := semver.NewVersion(manifest.Version)
 	if err != nil {
-		return nil, errors.Wrap(err, "reading manifest semver failed")
+		return nil, fmt.Errorf("reading manifest semver failed: %w", err)
 	}
 	if currentVersion.LessThan(pendingVersion) {
 		status.PendingChanges = &lastChangelogEntry
@@ -61,7 +62,7 @@ func LocalPackage(packageRootPath string, options registry.SearchOptions) (*Pack
 func RemotePackage(packageName string, options registry.SearchOptions) (*PackageStatus, error) {
 	productionManifests, err := registry.Production.Revisions(packageName, options)
 	if err != nil {
-		return nil, errors.Wrap(err, "retrieving production deployment failed")
+		return nil, fmt.Errorf("retrieving production deployment failed: %w", err)
 	}
 	return &PackageStatus{
 		Name:       packageName,

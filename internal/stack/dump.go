@@ -9,8 +9,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/pkg/errors"
-
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/profile"
 )
@@ -34,7 +32,7 @@ func Dump(options DumpOptions) (string, error) {
 
 	err := dumpStackLogs(options)
 	if err != nil {
-		return "", errors.Wrap(err, "can't dump Elastic stack logs")
+		return "", fmt.Errorf("can't dump Elastic stack logs: %w", err)
 	}
 	return options.Output, nil
 }
@@ -43,13 +41,13 @@ func dumpStackLogs(options DumpOptions) error {
 	logger.Debugf("Dump stack logs (location: %s)", options.Output)
 	err := os.RemoveAll(options.Output)
 	if err != nil {
-		return errors.Wrap(err, "can't remove output location")
+		return fmt.Errorf("can't remove output location: %w", err)
 	}
 
 	logsPath := filepath.Join(options.Output, "logs")
 	err = os.MkdirAll(logsPath, 0755)
 	if err != nil {
-		return errors.Wrapf(err, "can't create output location (path: %s)", logsPath)
+		return fmt.Errorf("can't create output location (path: %s): %w", logsPath, err)
 	}
 
 	for _, serviceName := range observedServices {
@@ -75,4 +73,9 @@ func writeLogFiles(logsPath, serviceName string, content []byte) {
 	if err != nil {
 		logger.Errorf("can't write service logs (service: %s): %v", serviceName, err)
 	}
+}
+
+// DumpLogsFile returns the file path to the logs of a given service
+func DumpLogsFile(options DumpOptions, serviceName string) string {
+	return filepath.Join(options.Output, "logs", fmt.Sprintf("%s.log", serviceName))
 }

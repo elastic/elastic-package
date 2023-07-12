@@ -42,13 +42,28 @@ for test in ${CHECK_PACKAGES_TESTS[@]}; do
     echo "          provider: \"gcp\""
     echo "        artifact_paths:"
     echo "          - build/test-results/*.xml"
-    echo "          - build/elastic-stack-dump/stack/check-*/logs/*.log"
-    echo "          - build/elastic-stack-dump/stack/check-*/logs/fleet-server-internal/**/*"
-    echo "          - build/elastic-stack-status/*/*"
+    echo "          - build/elastic-stack-dump/check-*/logs/*.log"
+    echo "          - build/elastic-stack-dump/check-*/logs/fleet-server-internal/**/*"
     if [[ $test =~ with-kind$ ]]; then
         echo "          - build/kubectl-dump.txt"
     fi
 done
+
+pushd test/packages/false_positives > /dev/null
+for package in $(find . -maxdepth 1 -mindepth 1 -type d) ; do
+    package_name=$(basename ${package})
+    echo "      - label: \":go: Running integration test (false positive): ${package_name}\""
+    echo "        key: \"integration-false_positives-${package_name}\""
+    echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-check-packages-false-positives -p ${package_name}"
+    echo "        env:"
+    echo "          UPLOAD_SAFE_LOGS: 1"
+    echo "        agents:"
+    echo "          provider: \"gcp\""
+    echo "        artifact_paths:"
+    echo "          - build/test-results/*.xml"
+done
+
+ popd > /dev/null
 
 pushd test/packages/parallel > /dev/null
 for package in $(find . -maxdepth 1 -mindepth 1 -type d) ; do
@@ -62,8 +77,6 @@ for package in $(find . -maxdepth 1 -mindepth 1 -type d) ; do
     echo "          provider: \"gcp\""
     echo "        artifact_paths:"
     echo "          - build/test-results/*.xml"
-    echo "          - build/elastic-stack-dump/stack/check-*/logs/*.log"
-    echo "          - build/elastic-stack-dump/stack/check-*/logs/fleet-server-internal/**/*"
 done
 
 popd > /dev/null

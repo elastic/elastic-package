@@ -6,10 +6,9 @@ package builder
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
-
-	"github.com/pkg/errors"
 
 	"github.com/elastic/elastic-package/internal/common"
 )
@@ -58,7 +57,7 @@ func encodedSavedObject(data []byte) ([]byte, bool, error) {
 	savedObject := common.MapStr{}
 	err := json.Unmarshal(data, &savedObject)
 	if err != nil {
-		return nil, false, errors.Wrapf(err, "unmarshalling saved object failed")
+		return nil, false, fmt.Errorf("unmarshalling saved object failed: %w", err)
 	}
 
 	var changed bool
@@ -83,7 +82,7 @@ func encodedSavedObject(data []byte) ([]byte, bool, error) {
 		}
 		_, err = savedObject.Put(v, string(r))
 		if err != nil {
-			return nil, false, errors.Wrapf(err, "can't put value to the saved object")
+			return nil, false, fmt.Errorf("can't put value to the saved object: %w", err)
 		}
 		changed = true
 	}

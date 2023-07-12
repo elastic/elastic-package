@@ -30,7 +30,7 @@ with_go() {
     eval "$(gvm $(cat .go-version))"
     go version
     which go
-    export PATH="$(go env GOPATH)/bin:${PATH}"
+    export PATH="${PATH}:$(go env GOPATH)/bin"
 }
 
 with_docker_compose() {
@@ -38,4 +38,31 @@ with_docker_compose() {
     retry 5 curl -SL -o ${WORKSPACE}/bin/docker-compose "https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-linux-x86_64"
     chmod +x ${WORKSPACE}/bin/docker-compose
     docker-compose version
+}
+
+with_github_cli() {
+    mkdir -p ${WORKSPACE}/bin
+    mkdir -p ${WORKSPACE}/tmp
+
+    local gh_filename="gh_${GH_CLI_VERSION}_linux_amd64"
+    local gh_tar_file="${gh_filename}.tar.gz"
+    local gh_tar_full_path="${WORKSPACE}/tmp/${gh_tar_file}"
+
+    retry 5 curl -sL -o ${gh_tar_full_path} "https://github.com/cli/cli/releases/download/v${GH_CLI_VERSION}/${gh_tar_file}"
+
+    # just extract the binary file from the tar.gz
+    tar -C ${WORKSPACE}/bin -xpf ${gh_tar_full_path} ${gh_filename}/bin/gh --strip-components=2
+
+    chmod +x ${WORKSPACE}/bin/gh
+    rm -rf ${WORKSPACE}/tmp
+
+    gh version
+}
+
+with_jq() {
+    mkdir -p ${WORKSPACE}/bin
+    retry 5 curl -sL -o ${WORKSPACE}/bin/jq "https://github.com/stedolan/jq/releases/download/jq-${JQ_VERSION}/jq-linux64"
+
+    chmod +x ${WORKSPACE}/bin/jq
+    jq --version
 }

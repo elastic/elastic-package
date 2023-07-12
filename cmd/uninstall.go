@@ -5,10 +5,13 @@
 package cmd
 
 import (
-	"github.com/pkg/errors"
+	"errors"
+	"fmt"
+
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
+	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/packages/installer"
 )
@@ -34,24 +37,23 @@ func uninstallCommandAction(cmd *cobra.Command, args []string) error {
 		return errors.New("package root not found")
 	}
 	if err != nil {
-		return errors.Wrap(err, "locating package root failed")
+		return fmt.Errorf("locating package root failed: %w", err)
 	}
 
-	m, err := packages.ReadPackageManifestFromPackageRoot(packageRootPath)
+	kibanaClient, err := kibana.NewClient()
 	if err != nil {
-		return errors.Wrapf(err, "reading package manifest failed (path: %s)", packageRootPath)
+		return fmt.Errorf("could not create kibana client: %w", err)
 	}
-
-	packageInstaller, err := installer.CreateForManifest(m.Name, m.Version)
+	packageInstaller, err := installer.CreateForManifest(kibanaClient, packageRootPath)
 	if err != nil {
-		return errors.Wrap(err, "can't create the package installer")
+		return fmt.Errorf("can't create the package installer: %w", err)
 	}
 
 	// Uninstall the package
 	cmd.Println("Uninstall the package")
 	err = packageInstaller.Uninstall()
 	if err != nil {
-		return errors.Wrap(err, "can't uninstall the package")
+		return fmt.Errorf("can't uninstall the package: %w", err)
 	}
 	cmd.Println("Done")
 	return nil
