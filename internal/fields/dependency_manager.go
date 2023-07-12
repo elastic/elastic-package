@@ -138,20 +138,39 @@ func asGitReference(reference string) (string, error) {
 	return reference[len(gitReferencePrefix):], nil
 }
 
-// InjectFields function replaces external field references with target definitions.
-func (dm *DependencyManager) InjectFields(defs []common.MapStr) ([]common.MapStr, bool, error) {
-	return dm.injectFieldsWithRoot("", defs)
+// InjectFieldsOptions allow to configure fields injection.
+type InjectFieldsOptions struct {
+	// KeepExternal can be set to true to avoid deleting the `external` parameter
+	// of a field when resolving it. This helps keeping behaviours that depended
+	// in previous versions on lazy resolution of external fields.
+	KeepExternal bool
+
+	// SkipEmptyFields can be set to true to skip empty groups when injecting fields.
+	SkipEmptyFields bool
+
+	root string
 }
 
-func (dm *DependencyManager) injectFieldsWithRoot(root string, defs []common.MapStr) ([]common.MapStr, bool, error) {
+// InjectFields function replaces external field references with target definitions.
+func (dm *DependencyManager) InjectFields(defs []common.MapStr) ([]common.MapStr, bool, error) {
+	return dm.injectFieldsWithOptions(defs, InjectFieldsOptions{})
+}
+
+// InjectFieldsWithOptions function replaces external field references with target definitions.
+// It can be configured with options.
+func (dm *DependencyManager) InjectFieldsWithOptions(defs []common.MapStr, options InjectFieldsOptions) ([]common.MapStr, bool, error) {
+	return dm.injectFieldsWithOptions(defs, options)
+}
+
+func (dm *DependencyManager) injectFieldsWithOptions(defs []common.MapStr, options InjectFieldsOptions) ([]common.MapStr, bool, error) {
 	var updated []common.MapStr
 	var changed bool
 	for _, def := range defs {
-		fieldPath := buildFieldPath(root, def)
+		fieldPath := buildFieldPath(options.root, def)
 
 		external, _ := def.GetValue("external")
 		if external != nil {
-			imported, err := dm.ImportField(external.(string), fieldPath)
+			imported, err := dm.importField(external.(string), fieldPath)
 			if err != nil {
 				return nil, false, fmt.Errorf("can't import field: %w", err)
 			}
@@ -160,7 +179,10 @@ func (dm *DependencyManager) injectFieldsWithRoot(root string, defs []common.Map
 
 			// Allow overrides of everything, except the imported type, for consistency.
 			transformed.DeepUpdate(def)
-			transformed.Delete("external")
+
+			if !options.KeepExternal {
+				transformed.Delete("external")
+			}
 
 			// Allow to override the type only from keyword to constant_keyword,
 			// to support the case of setting the value already in the mappings.
@@ -177,7 +199,9 @@ func (dm *DependencyManager) injectFieldsWithRoot(root string, defs []common.Map
 				if err != nil {
 					return nil, false, fmt.Errorf("can't convert fields: %w", err)
 				}
-				updatedFields, fieldsChanged, err := dm.injectFieldsWithRoot(fieldPath, fieldsMs)
+				childrenOptions := options
+				childrenOptions.root = fieldPath
+				updatedFields, fieldsChanged, err := dm.injectFieldsWithOptions(fieldsMs, childrenOptions)
 				if err != nil {
 					return nil, false, err
 				}
@@ -190,7 +214,8 @@ func (dm *DependencyManager) injectFieldsWithRoot(root string, defs []common.Map
 			}
 		}
 
-		if skipField(def) {
+		if options.SkipEmptyFields && skipField(def) {
+			changed = true
 			continue
 		}
 		updated = append(updated, def)
@@ -202,6 +227,12 @@ func (dm *DependencyManager) injectFieldsWithRoot(root string, defs []common.Map
 func skipField(def common.MapStr) bool {
 	t, _ := def.GetValue("type")
 	if t == "group" {
+		// Keep empty external groups for backwards compatibility in docs generation.
+		external, _ := def.GetValue("external")
+		if external != nil {
+			return false
+		}
+
 		fields, _ := def.GetValue("fields")
 		switch fields := fields.(type) {
 		case nil:
@@ -216,8 +247,8 @@ func skipField(def common.MapStr) bool {
 	return false
 }
 
-// ImportField method resolves dependency on a single external field using available schemas.
-func (dm *DependencyManager) ImportField(schemaName, fieldPath string) (FieldDefinition, error) {
+// importField method resolves dependency on a single external field using available schemas.
+func (dm *DependencyManager) importField(schemaName, fieldPath string) (FieldDefinition, error) {
 	if dm == nil {
 		return FieldDefinition{}, fmt.Errorf(`importing external field "%s": external fields not allowed because dependencies file "_dev/build/build.yml" is missing`, fieldPath)
 	}

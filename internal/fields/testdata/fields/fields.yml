@@ -73,3 +73,8 @@
     - name: protocol
     - name: start
     - name: user
+- name: process.name
+  type: wildcard
+  multi_fields:
+    - name: text
+      type: text
