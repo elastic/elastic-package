@@ -38,7 +38,26 @@ elastic-package help
 
 ## Development
 
-Download and build the latest main of `elastic-package` binary:
+Even though the project is "go-gettable", there is the [`Makefile`](./Makefile) present, which can be used to build,
+install, format the source code among others. Some examples of the available targets are:
+
+`make build` - build the tool source
+
+`make clean` - delete elastic-package binary and build folder
+
+`make format` - format the Go code
+
+`make check` - one-liner, used by CI to verify if source code is ready to be pushed to the repository
+
+`make install` - build the tool source and move binary to `$GOBIN`
+
+`make gomod` - ensure go.mod and go.sum are up to date
+
+`make update` - update README.md file
+
+`make licenser` - add the Elastic license header in the source code
+
+To start developing, download and build the latest main of `elastic-package` binary:
 
 ```bash
 git clone https://github.com/elastic/elastic-package.git
@@ -60,6 +79,40 @@ git config core.autocrlf input
 git rm --cached -r .
 git reset --hard
 ```
+
+### Testing with integrations repository
+
+While working on a new branch, it is interesting to test these changes
+with all the packages defined in the [integrations repository](https://github.com/elastic/integrations).
+This allows to test a much wider scenarios than the test packages that are defined in this repository.
+
+This test can be triggered automatically directly from your Pull Request by adding a comment `test integrations`. Example:
+- Comment: https://github.com/elastic/elastic-package/pull/1335#issuecomment-1619721861
+- Pull Request created in integrations repository: https://github.com/elastic/integrations/pull/6756
+
+This comment triggers this [Buildkite pipeline](https://github.com/elastic/elastic-package/blob/6f084e21561105ac9773acab00c3439251f111a0/.buildkite/pipeline.test-with-integrations-repo.yml) ([Buildkite job](https://buildkite.com/elastic/elastic-package-test-with-integrations)).
+
+This pipeline creates a new draft Pull Request in integration updating the required dependencies to test your own changes. As a new pull request is created, a CI
+job will be triggered to test all the packages defined in this repository. A new comment with the link to this new Pull Request will be posted in your package-spec Pull Request.
+
+**IMPORTANT**: Remember to close this PR in the integrations repository once you close the package-spec Pull Request.
+
+Usually, this process would require the following manual steps:
+1. Create your elastic-package pull request and push all your commits
+2. Get the SHA of the latest changeset of your PR:
+   ```bash
+    $ git show -s --pretty=format:%H
+   1131866bcff98c29e2c84bcc1c772fff4307aaca
+   ```
+3. Go to the integrations repository, and update go.mod and go.sum with that changeset:
+   ```bash
+   cd /path/to/integrations/repostiory
+   go mod edit -replace github.com/elastic/elastic-package=github.com/<your_github_user>/elastic-package@1131866bcff98c29e2c84bcc1c772fff4307aaca
+   go mod tidy
+   ```
+4. Push these changes into a branch and create a Pull Request
+    - Creating this PR would automatically trigger a new Jenkins pipeline.
+
 
 ## Commands
 
@@ -511,21 +564,6 @@ The following settings are available per profile:
 * `stack.geoip_dir` defines a directory with GeoIP databases that can be used by
   Elasticsearch in stacks managed by elastic-package. It is recommended to use
   an absolute path, out of the `.elastic-package` directory.
-
-## Development
-
-Even though the project is "go-gettable", there is the `Makefile` present, which can be used to build, format or vendor
-source code:
-
-`make build` - build the tool source
-
-`make format` - format the Go code
-
-`make install` - build the tool source and move binary to `$GOBIN`
-
-`make vendor` - vendor code of dependencies
-
-`make check` - one-liner, used by CI to verify if source code is ready to be pushed to the repository
 
 ## Release process
 
