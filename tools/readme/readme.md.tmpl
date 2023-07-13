@@ -93,7 +93,7 @@ This test can be triggered automatically directly from your Pull Request by addi
 This comment triggers this [Buildkite pipeline](https://github.com/elastic/elastic-package/blob/6f084e21561105ac9773acab00c3439251f111a0/.buildkite/pipeline.test-with-integrations-repo.yml) ([Buildkite job](https://buildkite.com/elastic/elastic-package-test-with-integrations)).
 
 This pipeline creates a new draft Pull Request in integration updating the required dependencies to test your own changes. As a new pull request is created, a CI
-job will be triggered to test all the packages defined in this repository.
+job will be triggered to test all the packages defined in this repository. A new comment with the link to this new Pull Request will be posted in your package-spec Pull Request.
 
 **IMPORTANT**: Remember to close this PR in the integrations repository once you close the package-spec Pull Request.
 
