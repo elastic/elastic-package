@@ -43,6 +43,7 @@ func (c *Client) Export(dashboardIDs []string) ([]common.MapStr, error) {
 }
 
 type exportSavedObjectsRequest struct {
+	ExcludeExportDetails  bool                              `json:"excludeExportDetails"`
 	IncludeReferencesDeep bool                              `json:"includeReferencesDeep"`
 	Objects               []exportSavedObjectsRequestObject `json:"objects"`
 }
@@ -55,7 +56,9 @@ type exportSavedObjectsRequestObject struct {
 func (c *Client) exportWithSavedObjectsAPI(dashboardIDs []string) ([]common.MapStr, error) {
 	logger.Debug("Export dashboards using the Kibana Saved Objects Export API")
 
-	var exportRequest exportSavedObjectsRequest
+	exportRequest := exportSavedObjectsRequest{
+		ExcludeExportDetails: true,
+	}
 	for _, dashboardID := range dashboardIDs {
 		exportRequest.Objects = append(exportRequest.Objects, exportSavedObjectsRequestObject{
 			ID:   dashboardID,
@@ -78,11 +81,6 @@ func (c *Client) exportWithSavedObjectsAPI(dashboardIDs []string) ([]common.MapS
 	decoder := json.NewDecoder(bytes.NewReader(respBody))
 
 	for decoder.More() {
-		if len(dashboards) == len(dashboardIDs) {
-			// Ignore summary included as last line.
-			break
-		}
-
 		var dashboard common.MapStr
 		err := decoder.Decode(&dashboard)
 		if err != nil {
