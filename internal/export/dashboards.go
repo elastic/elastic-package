@@ -54,13 +54,15 @@ func Dashboards(kibanaClient *kibana.Client, dashboardsIDs []string) error {
 func applyTransformations(ctx *transformationContext, objects []common.MapStr) ([]common.MapStr, error) {
 	return newObjectTransformer().
 		withContext(ctx).
-		withTransforms(filterUnsupportedTypes,
+		withTransforms(
+			filterUnsupportedTypes,
 			decodeObject,
 			stripObjectProperties,
 			standardizeObjectProperties,
 			removeFleetManagedTags,
-			standardizeObjectID).
-		transform(objects)
+			standardizeObjectID,
+			fixMigrationVersion,
+		).transform(objects)
 }
 
 func saveObjectsToFiles(packageRoot string, objects []common.MapStr) error {
