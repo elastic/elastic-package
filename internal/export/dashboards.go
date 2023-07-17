@@ -10,6 +10,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/Masterminds/semver/v3"
+
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
@@ -30,6 +32,14 @@ func Dashboards(kibanaClient *kibana.Client, dashboardsIDs []string) error {
 		return fmt.Errorf("reading package manifest failed (path: %s): %w", packageRoot, err)
 	}
 
+	versionInfo, err := kibanaClient.Version()
+	if err != nil {
+		return fmt.Errorf("getting Kibana version information: %w", err)
+	}
+	if err := checkKibanaVersion(versionInfo); err != nil {
+		return fmt.Errorf("cannot import from this Kibana version: %w", err)
+	}
+
 	objects, err := kibanaClient.Export(dashboardsIDs)
 	if err != nil {
 		return fmt.Errorf("exporting dashboards using Kibana client failed: %w", err)
@@ -47,6 +57,23 @@ func Dashboards(kibanaClient *kibana.Client, dashboardsIDs []string) error {
 	err = saveObjectsToFiles(packageRoot, objects)
 	if err != nil {
 		return fmt.Errorf("can't save Kibana objects: %w", err)
+	}
+	return nil
+}
+
+func checkKibanaVersion(info kibana.VersionInfo) error {
+	version, err := semver.NewVersion(info.Number)
+	if err != nil {
+		return fmt.Errorf("cannot parse version %s: %w", info.Number, err)
+	}
+
+	minVersion := semver.MustParse("8.8.0")
+	maxVersion := semver.MustParse("8.10.0")
+	if version.LessThan(maxVersion) && !version.LessThan(minVersion) {
+		// See:
+		// - https://github.com/elastic/elastic-package/issues/1354
+		// - https://github.com/elastic/kibana/pull/161969
+		return fmt.Errorf("packages with dashboards exported since Kibana %s may not be installed till %s, please export the dashboard/s from a different version", minVersion, maxVersion)
 	}
 	return nil
 }
