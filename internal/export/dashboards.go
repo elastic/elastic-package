@@ -6,7 +6,6 @@ package export
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -74,7 +73,7 @@ func checkKibanaVersion(info kibana.VersionInfo) error {
 		// See:
 		// - https://github.com/elastic/elastic-package/issues/1354
 		// - https://github.com/elastic/kibana/pull/161969
-		return errors.New("packages with dashboards exported since Kibana 8.8 may not be installed till 8.10, please export the dashboard/s from a different version")
+		return fmt.Errorf("packages with dashboards exported since Kibana %s may not be installed till %s, please export the dashboard/s from a different version", minVersion, maxVersion)
 	}
 	return nil
 }
