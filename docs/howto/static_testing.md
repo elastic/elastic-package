@@ -26,3 +26,4 @@ If you want to run pipeline tests for **specific data streams** in a package, na
 ```
 elastic-package test static --data-streams <data stream 1>[,<data stream 2>,...]
 ```
+
