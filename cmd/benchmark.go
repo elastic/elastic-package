@@ -13,6 +13,7 @@ import (
 	"github.com/dustin/go-humanize"
 
 	"github.com/elastic/elastic-package/internal/corpusgenerator"
+	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/kibana"
 
 	"github.com/spf13/cobra"
@@ -56,6 +57,8 @@ func setupBenchmarkCommand() *cobraext.Command {
 		Short: "Run benchmarks for the package",
 		Long:  benchLongDescription,
 	}
+
+	cmd.PersistentFlags().StringP(cobraext.ProfileFlagDescription, "p", "", fmt.Sprintf(cobraext.ProfileFlagDescription, install.ProfileNameEnvVar))
 
 	pipelineCmd := getPipelineCommand()
 	cmd.AddCommand(pipelineCmd)
@@ -248,6 +251,11 @@ func systemCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("locating package root failed: %w", err)
 	}
 
+	profile, err := cobraext.GetProfileFlag(cmd)
+	if err != nil {
+		return nil
+	}
+
 	signal.Enable()
 
 	esClient, err := elasticsearch.NewClient()
@@ -272,6 +280,7 @@ func systemCommandAction(cmd *cobra.Command, args []string) error {
 		system.WithPackageRootPath(packageRootPath),
 		system.WithESAPI(esClient.API),
 		system.WithKibanaClient(kc),
+		system.WithProfile(profile),
 	)
 	runner := system.NewSystemBenchmark(opts)
 

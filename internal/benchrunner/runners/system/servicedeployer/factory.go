@@ -9,12 +9,16 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/elastic/elastic-package/internal/profile"
 )
 
 const devDeployDir = "_dev/benchmark/system/deploy"
 
 // FactoryOptions defines options used to create an instance of a service deployer.
 type FactoryOptions struct {
+	Profile *profile.Profile
+
 	RootPath string
 }
 
@@ -37,7 +41,7 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 	case "docker":
 		dockerComposeYMLPath := filepath.Join(serviceDeployerPath, "docker-compose.yml")
 		if _, err := os.Stat(dockerComposeYMLPath); err == nil {
-			return NewDockerComposeServiceDeployer([]string{dockerComposeYMLPath})
+			return NewDockerComposeServiceDeployer(options.Profile, []string{dockerComposeYMLPath})
 		}
 	}
 	return nil, fmt.Errorf("unsupported service deployer (name: %s)", serviceDeployerName)

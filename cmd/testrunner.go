@@ -226,6 +226,7 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 		var results []testrunner.TestResult
 		for _, folder := range testFolders {
 			r, err := testrunner.Run(testType, testrunner.TestOptions{
+				Profile:            profile,
 				TestFolder:         folder,
 				PackageRootPath:    packageRootPath,
 				GenerateTestResult: generateTestResult,
@@ -233,7 +234,6 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 				DeferCleanup:       deferCleanup,
 				ServiceVariant:     variantFlag,
 				WithCoverage:       testCoverage,
-				Profile:            profile,
 			})
 
 			results = append(results, r...)

@@ -20,11 +20,13 @@ import (
 	"github.com/elastic/elastic-package/internal/kind"
 	"github.com/elastic/elastic-package/internal/kubectl"
 	"github.com/elastic/elastic-package/internal/logger"
+	"github.com/elastic/elastic-package/internal/profile"
 	"github.com/elastic/elastic-package/internal/stack"
 )
 
 // KubernetesServiceDeployer is responsible for deploying resources in the Kubernetes cluster.
 type KubernetesServiceDeployer struct {
+	profile        *profile.Profile
 	definitionsDir string
 }
 
@@ -84,7 +86,7 @@ func (ksd KubernetesServiceDeployer) SetUp(ctxt ServiceContext) (DeployedService
 		return nil, fmt.Errorf("kind context verification failed: %w", err)
 	}
 
-	err = kind.ConnectToElasticStackNetwork()
+	err = kind.ConnectToElasticStackNetwork(ksd.profile)
 	if err != nil {
 		return nil, fmt.Errorf("can't connect control plane to Elastic stack network: %w", err)
 	}
