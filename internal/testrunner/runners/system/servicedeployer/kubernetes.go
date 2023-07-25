@@ -72,8 +72,9 @@ func (s *kubernetesDeployedService) SetContext(sc ServiceContext) error {
 var _ DeployedService = new(kubernetesDeployedService)
 
 // NewKubernetesServiceDeployer function creates a new instance of KubernetesServiceDeployer.
-func NewKubernetesServiceDeployer(definitionsPath string) (*KubernetesServiceDeployer, error) {
+func NewKubernetesServiceDeployer(profile *profile.Profile, definitionsPath string) (*KubernetesServiceDeployer, error) {
 	return &KubernetesServiceDeployer{
+		profile:        profile,
 		definitionsDir: definitionsPath,
 	}, nil
 }

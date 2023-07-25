@@ -43,7 +43,7 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 	switch serviceDeployerName {
 	case "k8s":
 		if _, err := os.Stat(serviceDeployerPath); err == nil {
-			return NewKubernetesServiceDeployer(serviceDeployerPath)
+			return NewKubernetesServiceDeployer(options.Profile, serviceDeployerPath)
 		}
 	case "docker":
 		dockerComposeYMLPath := filepath.Join(serviceDeployerPath, "docker-compose.yml")
