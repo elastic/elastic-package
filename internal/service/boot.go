@@ -20,7 +20,8 @@ import (
 
 // Options define the details of the service which should be booted up.
 type Options struct {
-	Profile            *profile.Profile
+	Profile *profile.Profile
+
 	ServiceName        string
 	PackageRootPath    string
 	DataStreamRootPath string
