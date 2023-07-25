@@ -58,7 +58,7 @@ func setupBenchmarkCommand() *cobraext.Command {
 		Long:  benchLongDescription,
 	}
 
-	cmd.PersistentFlags().StringP(cobraext.ProfileFlagDescription, "p", "", fmt.Sprintf(cobraext.ProfileFlagDescription, install.ProfileNameEnvVar))
+	cmd.PersistentFlags().StringP(cobraext.ProfileFlagName, "p", "", fmt.Sprintf(cobraext.ProfileFlagDescription, install.ProfileNameEnvVar))
 
 	pipelineCmd := getPipelineCommand()
 	cmd.AddCommand(pipelineCmd)

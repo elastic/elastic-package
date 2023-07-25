@@ -36,7 +36,7 @@ func setupServiceCommand() *cobraext.Command {
 		Long:  serviceLongDescription,
 	}
 	cmd.AddCommand(upCommand)
-	cmd.PersistentFlags().StringP(cobraext.ProfileFlagDescription, "p", "", fmt.Sprintf(cobraext.ProfileFlagDescription, install.ProfileNameEnvVar))
+	cmd.PersistentFlags().StringP(cobraext.ProfileFlagName, "p", "", fmt.Sprintf(cobraext.ProfileFlagDescription, install.ProfileNameEnvVar))
 
 	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
 }
