@@ -446,7 +446,7 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 
 	// Setup service.
 	logger.Debug("setting up service...")
-	serviceDeployer, err := servicedeployer.Factory(serviceOptions)
+	serviceDeployers, err := servicedeployer.Factory(serviceOptions)
 	if err != nil {
 		return result.WithError(fmt.Errorf("could not create service runner: %w", err))
 	}
@@ -454,18 +454,26 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	if config.Service != "" {
 		ctxt.Name = config.Service
 	}
-	service, err := serviceDeployer.SetUp(ctxt)
-	if err != nil {
-		return result.WithError(fmt.Errorf("could not setup service: %w", err))
-	}
-	ctxt = service.Context()
-	r.shutdownServiceHandler = func() error {
-		logger.Debug("tearing down service...")
-		if err := service.TearDown(); err != nil {
-			return fmt.Errorf("error tearing down service: %w", err)
+
+	var services []servicedeployer.DeployedService
+
+	for _, serviceDeployer := range serviceDeployers {
+
+		service, err := serviceDeployer.SetUp(ctxt)
+		if err != nil {
+			return result.WithError(fmt.Errorf("could not setup service: %w", err))
+		}
+		ctxt = service.Context()
+		r.shutdownServiceHandler = func() error {
+			logger.Debug("tearing down service...")
+			if err := service.TearDown(); err != nil {
+				return fmt.Errorf("error tearing down service: %w", err)
+			}
+
+			return nil
 		}
 
-		return nil
+		services = append(services, service)
 	}
 
 	// Reload test config with ctx variable substitution.
@@ -606,8 +614,12 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 
 	// Signal to the service that the agent is ready (policy is assigned).
 	if config.ServiceNotifySignal != "" {
-		if err = service.Signal(config.ServiceNotifySignal); err != nil {
-			return result.WithError(fmt.Errorf("failed to notify test service: %w", err))
+		for _, service := range services {
+			if service.Context().Name == "docker" {
+				if err = service.Signal(config.ServiceNotifySignal); err != nil {
+					return result.WithError(fmt.Errorf("failed to notify test service: %w", err))
+				}
+			}
 		}
 	}
 
