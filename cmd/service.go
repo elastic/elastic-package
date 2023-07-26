@@ -62,7 +62,7 @@ func upCommandAction(cmd *cobra.Command, args []string) error {
 
 	profile, err := cobraext.GetProfileFlag(cmd)
 	if err != nil {
-		return nil
+		return err
 	}
 
 	_, serviceName := filepath.Split(packageRoot)
