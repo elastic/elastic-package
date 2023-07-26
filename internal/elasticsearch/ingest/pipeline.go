@@ -26,6 +26,7 @@ type simulatePipelineResponse struct {
 }
 
 type pipelineDocument struct {
+	Index  string          `json:"_index"`
 	Source json.RawMessage `json:"_source"`
 }
 
@@ -74,6 +75,7 @@ func SimulatePipeline(api *elasticsearch.API, pipelineName string, events []json
 	var request simulatePipelineRequest
 	for _, event := range events {
 		request.Docs = append(request.Docs, pipelineDocument{
+			Index:  "logs-generic-default",
 			Source: event,
 		})
 	}

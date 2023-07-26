@@ -320,6 +320,11 @@ func (v *Validator) validateDocumentValues(body common.MapStr) multierror.Error 
 				continue
 			}
 
+			// skip checking `data_stream.dataset` because reroute processor will change this field value
+			if datasetField == "data_stream.dataset" {
+				continue
+			}
+
 			str, ok := valueToString(value, v.disabledNormalization)
 			if !ok || str != v.expectedDataset {
 				err := fmt.Errorf("field %q should have value %q, it has \"%v\"",
