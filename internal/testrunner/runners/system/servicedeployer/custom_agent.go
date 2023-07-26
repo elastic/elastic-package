@@ -17,6 +17,7 @@ import (
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
+	"github.com/elastic/elastic-package/internal/profile"
 	"github.com/elastic/elastic-package/internal/stack"
 )
 
@@ -32,12 +33,14 @@ var dockerCustomAgentDockerfileContent []byte
 // CustomAgentDeployer knows how to deploy a custom elastic-agent defined via
 // a Docker Compose file.
 type CustomAgentDeployer struct {
+	profile           *profile.Profile
 	dockerComposeFile string
 }
 
 // NewCustomAgentDeployer returns a new instance of a deployedCustomAgent.
-func NewCustomAgentDeployer(dockerComposeFile string) (*CustomAgentDeployer, error) {
+func NewCustomAgentDeployer(profile *profile.Profile, dockerComposeFile string) (*CustomAgentDeployer, error) {
 	return &CustomAgentDeployer{
+		profile:           profile,
 		dockerComposeFile: dockerComposeFile,
 	}, nil
 }
@@ -99,7 +102,7 @@ func (d *CustomAgentDeployer) SetUp(inCtxt ServiceContext) (DeployedService, err
 	}
 
 	// Verify the Elastic stack network
-	err = stack.EnsureStackNetworkUp()
+	err = stack.EnsureStackNetworkUp(d.profile)
 	if err != nil {
 		return nil, fmt.Errorf("stack network is not ready: %w", err)
 	}
@@ -122,7 +125,7 @@ func (d *CustomAgentDeployer) SetUp(inCtxt ServiceContext) (DeployedService, err
 	}
 
 	// Connect service network with stack network (for the purpose of metrics collection)
-	err = docker.ConnectToNetwork(p.ContainerName(serviceName), stack.Network())
+	err = docker.ConnectToNetwork(p.ContainerName(serviceName), stack.Network(d.profile))
 	if err != nil {
 		return nil, fmt.Errorf("can't attach service container to the stack network: %w", err)
 	}

@@ -60,7 +60,7 @@ func dumpStackLogs(options DumpOptions) error {
 			writeLogFiles(logsPath, serviceName, content)
 		}
 
-		err = copyDockerInternalLogs(serviceName, logsPath)
+		err = copyDockerInternalLogs(serviceName, logsPath, options.Profile)
 		if err != nil {
 			logger.Errorf("can't copy internal logs (service: %s): %v", serviceName, err)
 		}

@@ -22,7 +22,7 @@ func dockerComposeLogs(serviceName string, profile *profile.Profile) ([]byte, er
 
 	snapshotFile := profile.Path(profileStackPath, SnapshotFile)
 
-	p, err := compose.NewProject(DockerComposeProjectName, snapshotFile)
+	p, err := compose.NewProject(DockerComposeProjectName(profile), snapshotFile)
 	if err != nil {
 		return nil, fmt.Errorf("could not create docker compose project: %w", err)
 	}
@@ -43,14 +43,14 @@ func dockerComposeLogs(serviceName string, profile *profile.Profile) ([]byte, er
 	return out, nil
 }
 
-func copyDockerInternalLogs(serviceName, outputPath string) error {
+func copyDockerInternalLogs(serviceName, outputPath string, profile *profile.Profile) error {
 	switch serviceName {
 	case elasticAgentService, fleetServerService:
 	default:
 		return nil // we need to pull internal logs only from Elastic-Agent and Fleets Server container
 	}
 
-	p, err := compose.NewProject(DockerComposeProjectName)
+	p, err := compose.NewProject(DockerComposeProjectName(profile))
 	if err != nil {
 		return fmt.Errorf("could not create docker compose project: %w", err)
 	}

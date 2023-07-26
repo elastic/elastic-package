@@ -12,8 +12,8 @@ import (
 )
 
 // Status shows the status for each service
-func Status() ([]ServiceStatus, error) {
-	servicesStatus, err := dockerComposeStatus()
+func Status(options Options) ([]ServiceStatus, error) {
+	servicesStatus, err := dockerComposeStatus(options)
 	if err != nil {
 		return nil, err
 	}

@@ -198,6 +198,7 @@ func (r *runner) run() (results []testrunner.TestResult, err error) {
 	}
 
 	devDeployPath, err := servicedeployer.FindDevDeployPath(servicedeployer.FactoryOptions{
+		Profile:            r.options.Profile,
 		PackageRootPath:    r.options.PackageRootPath,
 		DataStreamRootPath: dataStreamPath,
 	})
@@ -249,6 +250,7 @@ func (r *runner) run() (results []testrunner.TestResult, err error) {
 
 func (r *runner) runTestPerVariant(result *testrunner.ResultComposer, locationManager *locations.LocationManager, cfgFile, dataStreamPath, variantName string) ([]testrunner.TestResult, error) {
 	serviceOptions := servicedeployer.FactoryOptions{
+		Profile:            r.options.Profile,
 		PackageRootPath:    r.options.PackageRootPath,
 		DataStreamRootPath: dataStreamPath,
 		Variant:            variantName,
