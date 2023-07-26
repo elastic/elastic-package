@@ -29,7 +29,7 @@ cleanup() {
       elastic-package clean -v
     )
   done
-  
+
   exit $r
 }
 

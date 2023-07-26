@@ -75,5 +75,5 @@ func (*composeProvider) Dump(options DumpOptions) (string, error) {
 }
 
 func (*composeProvider) Status(options Options) ([]ServiceStatus, error) {
-	return Status()
+	return Status(options)
 }

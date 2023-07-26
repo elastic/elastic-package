@@ -13,11 +13,20 @@ import (
 	"github.com/elastic/elastic-package/internal/builder"
 	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/files"
+	"github.com/elastic/elastic-package/internal/profile"
 )
 
-// DockerComposeProjectName is the name of the Docker Compose project used to boot up
+// baseComposeProjectName is the base name of the Docker Compose project used to boot up
 // Elastic Stack containers.
-const DockerComposeProjectName = "elastic-package-stack"
+const baseComposeProjectName = "elastic-package-stack"
+
+// DockerComposeProjectName returns the docker compose project name for a given profile.
+func DockerComposeProjectName(profile *profile.Profile) string {
+	if profile.ProfileName == "default" {
+		return baseComposeProjectName
+	}
+	return baseComposeProjectName + "-" + profile.ProfileName
+}
 
 // BootUp function boots up the Elastic stack.
 func BootUp(options Options) error {
@@ -81,7 +90,7 @@ func BootUp(options Options) error {
 		// to fail too.
 		// As a workaround, try to give another chance to docker-compose if only
 		// elastic-agent failed.
-		if onlyElasticAgentFailed() {
+		if onlyElasticAgentFailed(options) {
 			fmt.Println("Elastic Agent failed to start, trying again.")
 			err = dockerComposeUp(options)
 		}
@@ -98,8 +107,8 @@ func BootUp(options Options) error {
 	return nil
 }
 
-func onlyElasticAgentFailed() bool {
-	status, err := Status()
+func onlyElasticAgentFailed(options Options) bool {
+	status, err := Status(options)
 	if err != nil {
 		fmt.Printf("Failed to check status of the stack after failure: %v\n", err)
 		return false

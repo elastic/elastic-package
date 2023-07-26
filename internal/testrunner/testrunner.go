@@ -22,6 +22,7 @@ type TestType string
 
 // TestOptions contains test runner options.
 type TestOptions struct {
+	Profile            *profile.Profile
 	TestFolder         TestFolder
 	PackageRootPath    string
 	GenerateTestResult bool
@@ -30,8 +31,6 @@ type TestOptions struct {
 	DeferCleanup   time.Duration
 	ServiceVariant string
 	WithCoverage   bool
-
-	Profile *profile.Profile
 }
 
 // TestRunner is the interface all test runners must implement.

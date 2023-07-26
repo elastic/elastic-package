@@ -230,6 +230,7 @@ func (r *runner) run() (report reporters.Reportable, err error) {
 		// Setup service.
 		logger.Debug("setting up service...")
 		serviceDeployer, err := servicedeployer.Factory(servicedeployer.FactoryOptions{
+			Profile:  r.options.Profile,
 			RootPath: r.options.PackageRootPath,
 		})
 

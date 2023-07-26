@@ -8,11 +8,12 @@ import (
 	"fmt"
 
 	"github.com/elastic/elastic-package/internal/docker"
+	"github.com/elastic/elastic-package/internal/profile"
 )
 
 // EnsureStackNetworkUp function verifies if stack network is up and running.
-func EnsureStackNetworkUp() error {
-	_, err := docker.InspectNetwork(Network())
+func EnsureStackNetworkUp(profile *profile.Profile) error {
+	_, err := docker.InspectNetwork(Network(profile))
 	if err != nil {
 		return fmt.Errorf("network not available: %w", err)
 	}
@@ -20,6 +21,6 @@ func EnsureStackNetworkUp() error {
 }
 
 // Network function returns the stack network name.
-func Network() string {
-	return fmt.Sprintf("%s_default", DockerComposeProjectName)
+func Network(profile *profile.Profile) string {
+	return fmt.Sprintf("%s_default", DockerComposeProjectName(profile))
 }

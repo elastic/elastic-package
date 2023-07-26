@@ -9,10 +9,12 @@ import (
 
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/kibana"
+	"github.com/elastic/elastic-package/internal/profile"
 )
 
 // Options contains benchmark runner options.
 type Options struct {
+	Profile          *profile.Profile
 	ESAPI            *elasticsearch.API
 	KibanaClient     *kibana.Client
 	DeferCleanup     time.Duration
@@ -70,5 +72,11 @@ func WithMetricsInterval(d time.Duration) OptionFunc {
 func WithDataReindexing(b bool) OptionFunc {
 	return func(opts *Options) {
 		opts.ReindexData = b
+	}
+}
+
+func WithProfile(p *profile.Profile) OptionFunc {
+	return func(opts *Options) {
+		opts.Profile = p
 	}
 }
