@@ -22,6 +22,9 @@ const baseComposeProjectName = "elastic-package-stack"
 
 // DockerComposeProjectName returns the docker compose project name for a given profile.
 func DockerComposeProjectName(profile *profile.Profile) string {
+	if profile.ProfileName == "default" {
+		return baseComposeProjectName
+	}
 	return baseComposeProjectName + "-" + profile.ProfileName
 }
 
