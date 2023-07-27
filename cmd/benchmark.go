@@ -253,7 +253,7 @@ func systemCommandAction(cmd *cobra.Command, args []string) error {
 
 	profile, err := cobraext.GetProfileFlag(cmd)
 	if err != nil {
-		return nil
+		return err
 	}
 
 	signal.Enable()
