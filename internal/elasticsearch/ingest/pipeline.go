@@ -71,11 +71,11 @@ func (p *Pipeline) MarshalJSON() (asJSON []byte, err error) {
 	return asJSON, nil
 }
 
-func SimulatePipeline(api *elasticsearch.API, pipelineName string, events []json.RawMessage) ([]json.RawMessage, error) {
+func SimulatePipeline(api *elasticsearch.API, pipelineName string, events []json.RawMessage, simulateDataStream string) ([]json.RawMessage, error) {
 	var request simulatePipelineRequest
 	for _, event := range events {
 		request.Docs = append(request.Docs, pipelineDocument{
-			Index:  "logs-generic-default",
+			Index:  simulateDataStream,
 			Source: event,
 		})
 	}

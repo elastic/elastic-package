@@ -108,6 +108,18 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		expectedDataset = pkgManifest.Name + "." + r.options.TestFolder.DataStream
 	}
 
+	// when reroute processors are used, expectedDataset should be set to "" to avoid checking the dataset fields
+	for _, pipeline := range r.pipelines {
+		if processors, err := pipeline.Processors(); err == nil {
+			for _, p := range processors {
+				if p.Type == "reroute" {
+					expectedDataset = ""
+					break
+				}
+			}
+		}
+	}
+
 	results := make([]testrunner.TestResult, 0)
 	for _, testCaseFile := range testCaseFiles {
 		tr := testrunner.TestResult{
@@ -138,7 +150,8 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 			continue
 		}
 
-		processedEvents, err := ingest.SimulatePipeline(r.options.API, entryPipeline, tc.events)
+		simulateDataStream := "test-" + r.options.TestFolder.Package + "." + r.options.TestFolder.DataStream + "-default"
+		processedEvents, err := ingest.SimulatePipeline(r.options.API, entryPipeline, tc.events, simulateDataStream)
 		if err != nil {
 			err := fmt.Errorf("simulating pipeline processing failed: %w", err)
 			tr.ErrorMsg = err.Error()
