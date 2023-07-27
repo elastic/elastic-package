@@ -1,8 +1,14 @@
+// Copyright Elasticsearch B.V. and/or licensed to Elasticsearch B.V. under one
+// or more contributor license agreements. Licensed under the Elastic License;
+// you may not use this file except in compliance with the Elastic License.
+
 package stack
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/profile"
@@ -43,6 +49,12 @@ func (sp *serverlessProvider) createProject(settings projectSettings, options Op
 		return Config{}, fmt.Errorf("failed to create %s project %s in %s: %w", settings.Type, settings.Name, settings.Region, err)
 	}
 
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*30)
+	defer cancel()
+	if err := sp.client.EnsureEndpoints(ctx, project); err != nil {
+		return Config{}, fmt.Errorf("failed to ensure endpoints have been provisioned properly: %w", err)
+	}
+
 	var config Config
 	config.Provider = ProviderServerless
 	config.Parameters = map[string]string{
@@ -53,11 +65,20 @@ func (sp *serverlessProvider) createProject(settings projectSettings, options Op
 	config.ElasticsearchHost = project.Endpoints.Elasticsearch
 	config.KibanaHost = project.Endpoints.Kibana
 
+	config.ElasticsearchUsername = project.Credentials.Username
+	config.ElasticsearchPassword = project.Credentials.Password
+
 	printUserConfig(options.Printer, config)
 
 	err = storeConfig(sp.profile, config)
 	if err != nil {
 		return Config{}, fmt.Errorf("failed to store config: %w", err)
+	}
+
+	logger.Debug("Waiting for creation plan to be completed")
+	err = project.EnsureHealthy(ctx)
+	if err != nil {
+		return Config{}, fmt.Errorf("not all services are healthy: %w", err)
 	}
 
 	return config, nil
@@ -150,6 +171,8 @@ func (sp *serverlessProvider) BootUp(options Options) error {
 		// if err != nil {
 		// 	return fmt.Errorf("failed to replace GeoIP databases: %w", err)
 		// }
+		logger.Debugf("Project created: %s", project.Name)
+		printUserConfig(options.Printer, config)
 	case nil:
 		logger.Debugf("Project existed: %s", project.Name)
 		printUserConfig(options.Printer, config)
@@ -209,7 +232,7 @@ func (sp *serverlessProvider) TearDown(options Options) error {
 		return fmt.Errorf("failed to find current project: %w", err)
 	}
 
-	logger.Debugf("Deleting project %q", project.ID)
+	logger.Debugf("Deleting project %q (%s)", project.Name, project.ID)
 
 	err = sp.deleteProject(project, options)
 	if err != nil {
@@ -222,10 +245,10 @@ func (sp *serverlessProvider) TearDown(options Options) error {
 	// 	return fmt.Errorf("failed to delete GeoIP extension: %w", err)
 	// }
 
-	err = storeConfig(sp.profile, Config{})
-	if err != nil {
-		return fmt.Errorf("failed to store config: %w", err)
-	}
+	// err = storeConfig(sp.profile, Config{})
+	// if err != nil {
+	// 	return fmt.Errorf("failed to store config: %w", err)
+	// }
 
 	return nil
 }

@@ -1,3 +1,7 @@
+// Copyright Elasticsearch B.V. and/or licensed to Elasticsearch B.V. under one
+// or more contributor license agreements. Licensed under the Elastic License;
+// you may not use this file except in compliance with the Elastic License.
+
 package serverless
 
 import (
@@ -10,6 +14,8 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
+	"time"
 
 	"github.com/elastic/elastic-package/internal/environment"
 	"github.com/elastic/elastic-package/internal/logger"
@@ -18,6 +24,9 @@ import (
 type Client struct {
 	host   string
 	apiKey string
+
+	username string
+	password string
 }
 
 // ClientOption is functional option modifying Serverless API client.
@@ -52,17 +61,31 @@ func NewClient(opts ...ClientOption) (*Client, error) {
 	return c, nil
 }
 
-// Address option sets the host to use to connect to Kibana.
+// WithAddress option sets the host to use to connect to Kibana.
 func WithAddress(address string) ClientOption {
 	return func(c *Client) {
 		c.host = address
 	}
 }
 
-// Address option sets the host to use to connect to Kibana.
+// WithApiKey option sets the host to use to connect to Kibana.
 func WithApiKey(apiKey string) ClientOption {
 	return func(c *Client) {
 		c.apiKey = apiKey
+	}
+}
+
+// WithUsername option sets the username.
+func WithUsername(username string) ClientOption {
+	return func(c *Client) {
+		c.username = username
+	}
+}
+
+// WithPassword option sets the password.
+func WithPassword(password string) ClientOption {
+	return func(c *Client) {
+		c.password = password
 	}
 }
 
@@ -109,8 +132,13 @@ func (c *Client) newRequest(ctx context.Context, method, resourcePath string, re
 	}
 
 	req.Header.Add("content-type", "application/json")
-	req.Header.Add("Authorization", fmt.Sprintf("ApiKey %s", c.apiKey))
 
+	if c.username != "" {
+		req.SetBasicAuth(c.username, c.password)
+		return req, nil
+	}
+
+	req.Header.Add("Authorization", fmt.Sprintf("ApiKey %s", c.apiKey))
 	return req, nil
 }
 
@@ -198,4 +226,33 @@ func (c *Client) GetProject(projectType, projectID string) (*Project, error) {
 	project := &Project{url: c.host, apiKey: c.apiKey}
 	err = json.Unmarshal(respBody, &project)
 	return project, err
+}
+
+func (c *Client) EnsureEndpoints(ctx context.Context, project *Project) error {
+	timer := time.NewTimer(time.Millisecond)
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-timer.C:
+		}
+
+		if project.Endpoints.Elasticsearch != "" {
+			if project.Endpoints.Fleet == "" {
+				logger.Debugf("Fleet Endpoint empty, setting it based on ES")
+				project.Endpoints.Fleet = strings.Replace(project.Endpoints.Elasticsearch, ".es.", ".fleet.", 1)
+			}
+			return nil
+		}
+
+		newProject, err := c.GetProject(project.Type, project.ID)
+		if err != nil {
+			logger.Debugf("request error: %s", err.Error())
+			timer.Reset(time.Second * 5)
+			continue
+		}
+
+		project.Endpoints = newProject.Endpoints
+		timer.Reset(time.Second * 5)
+	}
 }

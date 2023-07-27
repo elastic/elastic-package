@@ -1,12 +1,17 @@
+// Copyright Elasticsearch B.V. and/or licensed to Elasticsearch B.V. under one
+// or more contributor license agreements. Licensed under the Elastic License;
+// you may not use this file except in compliance with the Elastic License.
+
 package serverless
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
+	"time"
+
+	"github.com/elastic/elastic-package/internal/logger"
 )
 
 // Project represents a serverless project
@@ -16,6 +21,7 @@ type Project struct {
 
 	Name   string `json:"name"`
 	ID     string `json:"id"`
+	Alias  string `json:"alias"`
 	Type   string `json:"type"`
 	Region string `json:"region_id"`
 
@@ -32,44 +38,126 @@ type Project struct {
 	} `json:"endpoints"`
 }
 
-// NewObservabilityProject creates a new observability type project
-func NewObservabilityProject(ctx context.Context, url, name, apiKey, region string) (*Project, error) {
-	return newProject(ctx, url, name, apiKey, region, "observability")
+type serviceHealthy func(context.Context, *Project) error
+
+func (p *Project) EnsureHealthy(ctx context.Context) error {
+	if err := p.ensureServiceHealthy(ctx, getESHealthy); err != nil {
+		return fmt.Errorf("elasticsearch not healthy: %w", err)
+	}
+	if err := p.ensureServiceHealthy(ctx, getKibanaHealthy); err != nil {
+		return fmt.Errorf("kibana not healthy: %w", err)
+	}
+	if err := p.ensureServiceHealthy(ctx, getFleetHealthy); err != nil {
+		return fmt.Errorf("fleet not healthy: %w", err)
+	}
+	return nil
 }
 
-// newProject creates a new serverless project
-// Note that the Project.Endpoints may not be populated and another call may be required.
-func newProject(ctx context.Context, url, name, apiKey, region, projectType string) (*Project, error) {
-	ReqBody := struct {
-		Name     string `json:"name"`
-		RegionID string `json:"region_id"`
-	}{
-		Name:     name,
-		RegionID: region,
-	}
-	p, err := json.Marshal(ReqBody)
-	if err != nil {
-		return nil, err
-	}
-	req, err := http.NewRequestWithContext(ctx, "POST", url+"/api/v1/serverless/projects/"+projectType, bytes.NewReader(p))
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "ApiKey "+apiKey)
+func (p *Project) ensureServiceHealthy(ctx context.Context, serviceFunc serviceHealthy) error {
+	timer := time.NewTimer(time.Millisecond)
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-timer.C:
+		}
 
-	resp, err := http.DefaultClient.Do(req)
+		err := serviceFunc(ctx, p)
+		if err != nil {
+			logger.Debugf("service not ready: %s", err.Error())
+			timer.Reset(time.Second * 5)
+			continue
+		}
+
+		return nil
+	}
+	return nil
+}
+
+func getESHealthy(ctx context.Context, project *Project) error {
+	client, err := NewClient(
+		WithAddress(project.Endpoints.Elasticsearch),
+		WithUsername(project.Credentials.Username),
+		WithPassword(project.Credentials.Password),
+	)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusCreated {
-		p, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("unexpected status code %d, body: %s", resp.StatusCode, string(p))
+	statusCode, respBody, err := client.get(ctx, "/_cluster/health")
+	if err != nil {
+		return fmt.Errorf("failed to query elasticsearch health: %w", err)
 	}
-	project := &Project{url: url, apiKey: apiKey}
 
-	err = json.NewDecoder(resp.Body).Decode(project)
-	return project, err
+	if statusCode != http.StatusOK {
+		return fmt.Errorf("unexpected status code %d, body: %s", statusCode, string(respBody))
+	}
+
+	var health struct {
+		Status string `json:"status"`
+	}
+	if err := json.Unmarshal(respBody, &health); err != nil {
+		logger.Debugf("Unable to decode response: %v body: %s", err, string(respBody))
+		return err
+	}
+	if health.Status == "green" {
+		return nil
+	}
+	return fmt.Errorf("elasticsearch unhealthy: %s", health.Status)
+}
+
+func getKibanaHealthy(ctx context.Context, project *Project) error {
+	client, err := NewClient(
+		WithAddress(project.Endpoints.Kibana),
+		WithUsername(project.Credentials.Username),
+		WithPassword(project.Credentials.Password),
+	)
+	if err != nil {
+		return err
+	}
+
+	statusCode, respBody, err := client.get(ctx, "/api/status")
+	if err != nil {
+		return fmt.Errorf("failed to query kibana status: %w", err)
+	}
+	if statusCode != http.StatusOK {
+		return fmt.Errorf("unexpected status code %d, body: %s", statusCode, string(respBody))
+	}
+
+	var status struct {
+		Status struct {
+			Overall struct {
+				Level string `json:"level"`
+			} `json:"overall"`
+		} `json:"status"`
+	}
+	if err := json.Unmarshal(respBody, &status); err != nil {
+		logger.Debugf("Unable to decode response: %v body: %s", err, string(respBody))
+		return err
+	}
+	if status.Status.Overall.Level == "available" {
+		return nil
+	}
+	return fmt.Errorf("kibana unhealthy: %s", status.Status.Overall.Level)
+}
+
+func getFleetHealthy(ctx context.Context, project *Project) error {
+	client, err := NewClient(
+		WithAddress(project.Endpoints.Fleet),
+		WithUsername(project.Credentials.Username),
+		WithPassword(project.Credentials.Password),
+	)
+	if err != nil {
+		return err
+	}
+
+	statusCode, respBody, err := client.get(ctx, "/api/status")
+	if err != nil {
+		return fmt.Errorf("failed to query fleet status: %w", err)
+	}
+	if statusCode != http.StatusOK {
+		return fmt.Errorf("fleet unhealthy: status code %d, body: %s", statusCode, string(respBody))
+	}
+
+	return nil
 }
