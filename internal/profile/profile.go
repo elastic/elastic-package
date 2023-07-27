@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/elastic/go-resource"
@@ -152,6 +153,15 @@ func (profile Profile) Config(name string, def string) string {
 		return def
 	}
 	return v
+}
+
+// Config returns a configuration setting as integer, or its default if setting not found
+func (profile Profile) ConfigInt(name string, def int) (int, error) {
+	v, found := profile.config.get(name)
+	if !found {
+		return def, nil
+	}
+	return strconv.Atoi(v)
 }
 
 // ErrNotAProfile is returned in cases where we don't have a valid profile directory
