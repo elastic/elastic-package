@@ -150,7 +150,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 			continue
 		}
 
-		simulateDataStream := "test-" + r.options.TestFolder.Package + "." + r.options.TestFolder.DataStream + "-default"
+		simulateDataStream := dsManifest.Type + "-" + r.options.TestFolder.Package + "." + r.options.TestFolder.DataStream + "-default"
 		processedEvents, err := ingest.SimulatePipeline(r.options.API, entryPipeline, tc.events, simulateDataStream)
 		if err != nil {
 			err := fmt.Errorf("simulating pipeline processing failed: %w", err)

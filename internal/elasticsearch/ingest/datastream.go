@@ -16,11 +16,24 @@ import (
 	"strings"
 	"time"
 
+	"gopkg.in/yaml.v3"
+
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
 var ingestPipelineTag = regexp.MustCompile(`{{\s*IngestPipeline.+}}`)
+
+type Rule struct {
+	TargetDataset interface{}   `yaml:"target_dataset"`
+	If            interface{}   `yaml:"if"`
+	Namespace     []interface{} `yaml:"namespace"`
+}
+
+type SourceData struct {
+	SourceDataset interface{} `yaml:"source_dataset"`
+	Rules         []Rule      `yaml:"rules"`
+}
 
 func InstallDataStreamPipelines(api *elasticsearch.API, dataStreamPath string) (string, []Pipeline, error) {
 	dataStreamManifest, err := packages.ReadDataStreamManifest(filepath.Join(dataStreamPath, packages.DataStreamManifestFile))
@@ -55,6 +68,10 @@ func loadIngestPipelineFiles(dataStreamPath string, nonce int64) ([]Pipeline, er
 		pipelineFiles = append(pipelineFiles, files...)
 	}
 
+	// read routing_rules.yml and convert it into reroute processors in ingest pipeline
+	// TODO: handle error here, especially when routing_rules.yml doesn't exist
+	routingPipeline, _ := loadRoutingRuleFile(dataStreamPath)
+
 	var pipelines []Pipeline
 	for _, path := range pipelineFiles {
 		c, err := os.ReadFile(path)
@@ -75,10 +92,41 @@ func loadIngestPipelineFiles(dataStreamPath string, nonce int64) ([]Pipeline, er
 			Path:    path,
 			Name:    getPipelineNameWithNonce(name[:strings.Index(name, ".")], nonce),
 			Format:  filepath.Ext(path)[1:],
-			Content: c,
+			Content: append(c, routingPipeline...),
 		})
 	}
 	return pipelines, nil
+}
+
+func loadRoutingRuleFile(dataStreamPath string) ([]byte, error) {
+	routingRulePath := filepath.Join(dataStreamPath, "routing_rules.yml")
+	c, err := os.ReadFile(routingRulePath)
+	if err != nil {
+		return nil, fmt.Errorf("reading routing_rules.yml failed (path: %s): %w", routingRulePath, err)
+	}
+
+	// unmarshal yaml into a struct
+	var data []SourceData
+	err = yaml.Unmarshal(c, &data)
+	if err != nil {
+		return nil, fmt.Errorf("unmarshalling routing_rules.yml content failed: %w", err)
+	}
+
+	// Now you can work with the data as Go structs
+	constructPipeline := ""
+	for _, srcData := range data {
+		for _, rule := range srcData.Rules {
+			rerouteProcessor := "  - reroute:\n"
+			rerouteProcessor += "      tag: " + srcData.SourceDataset.(string) + "\n"
+			rerouteProcessor += "      if: " + rule.If.(string) + "\n"
+			//TODO: deal with multiple datasets?
+			rerouteProcessor += "      dataset: " + rule.TargetDataset.(string) + "\n"
+			//TODO: deal with multiple namespaces?
+			rerouteProcessor += "      namespace: " + rule.Namespace[0].(string) + "\n"
+			constructPipeline += rerouteProcessor
+		}
+	}
+	return []byte(constructPipeline), nil
 }
 
 func installPipelinesInElasticsearch(api *elasticsearch.API, pipelines []Pipeline) error {
