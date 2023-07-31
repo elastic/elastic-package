@@ -25,14 +25,20 @@ import (
 var ingestPipelineTag = regexp.MustCompile(`{{\s*IngestPipeline.+}}`)
 
 type Rule struct {
-	TargetDataset interface{}   `yaml:"target_dataset"`
-	If            interface{}   `yaml:"if"`
-	Namespace     []interface{} `yaml:"namespace"`
+	TargetDataset interface{} `yaml:"target_dataset"`
+	If            string      `yaml:"if"`
+	Namespace     interface{} `yaml:"namespace"`
 }
 
 type SourceData struct {
-	SourceDataset interface{} `yaml:"source_dataset"`
-	Rules         []Rule      `yaml:"rules"`
+	SourceDataset string `yaml:"source_dataset"`
+	Rules         []Rule `yaml:"rules"`
+}
+
+type ESIngestPipeline struct {
+	Description      string                   `yaml:"description"`
+	Processors       []map[string]interface{} `yaml:"processors"`
+	AdditionalFields map[string]interface{}   `yaml:",inline"`
 }
 
 func InstallDataStreamPipelines(api *elasticsearch.API, dataStreamPath string) (string, []Pipeline, error) {
@@ -68,10 +74,6 @@ func loadIngestPipelineFiles(dataStreamPath string, nonce int64) ([]Pipeline, er
 		pipelineFiles = append(pipelineFiles, files...)
 	}
 
-	// read routing_rules.yml and convert it into reroute processors in ingest pipeline
-	// TODO: handle error here, especially when routing_rules.yml doesn't exist
-	routingPipeline, _ := loadRoutingRuleFile(dataStreamPath)
-
 	var pipelines []Pipeline
 	for _, path := range pipelineFiles {
 		c, err := os.ReadFile(path)
@@ -87,22 +89,55 @@ func loadIngestPipelineFiles(dataStreamPath string, nonce int64) ([]Pipeline, er
 			pipelineTag := s[1]
 			return []byte(getPipelineNameWithNonce(pipelineTag, nonce))
 		})
+
+		// Unmarshal the YAML data into a ESIngestPipeline struct
+		var esPipeline ESIngestPipeline
+		err = yaml.Unmarshal(c, &esPipeline)
+		if err != nil {
+			return nil, fmt.Errorf("failed to unmarshal ingest pipeline YAML data (path: %s): %w", path, err)
+		}
+
+		// read routing_rules.yml and convert it into reroute processors in ingest pipeline
+		rerouteProcessors, err := loadRoutingRuleFile(dataStreamPath)
+		if err != nil {
+			log.Fatalf("failed loading routing_rules.yml: %v", err)
+		}
+
+		esPipeline.Processors = append(esPipeline.Processors, rerouteProcessors...)
+		c, err = yaml.Marshal(esPipeline)
+		if err != nil {
+			log.Fatalf("Failed to marshal modified ingest pipeline YAML data: %v", err)
+		}
+
+		// put routing rules into processors
 		name := filepath.Base(path)
 		pipelines = append(pipelines, Pipeline{
 			Path:    path,
 			Name:    getPipelineNameWithNonce(name[:strings.Index(name, ".")], nonce),
 			Format:  filepath.Ext(path)[1:],
-			Content: append(c, routingPipeline...),
+			Content: c,
 		})
 	}
 	return pipelines, nil
 }
 
-func loadRoutingRuleFile(dataStreamPath string) ([]byte, error) {
+type RerouteProcessor struct {
+	Tag       string   `yaml:"tag"`
+	If        string   `yaml:"if"`
+	Dataset   []string `yaml:"dataset"`
+	Namespace []string `yaml:"namespace"`
+}
+
+func loadRoutingRuleFile(dataStreamPath string) ([]map[string]interface{}, error) {
 	routingRulePath := filepath.Join(dataStreamPath, "routing_rules.yml")
 	c, err := os.ReadFile(routingRulePath)
 	if err != nil {
-		return nil, fmt.Errorf("reading routing_rules.yml failed (path: %s): %w", routingRulePath, err)
+		// routing_rules.yml does not exist
+		if os.IsNotExist(err) {
+			return nil, nil
+		} else {
+			return nil, fmt.Errorf("reading routing_rules.yml failed (path: %s): %w", routingRulePath, err)
+		}
 	}
 
 	// unmarshal yaml into a struct
@@ -113,20 +148,44 @@ func loadRoutingRuleFile(dataStreamPath string) ([]byte, error) {
 	}
 
 	// Now you can work with the data as Go structs
-	constructPipeline := ""
+	var rerouteProcessors []map[string]interface{}
 	for _, srcData := range data {
 		for _, rule := range srcData.Rules {
-			rerouteProcessor := "  - reroute:\n"
-			rerouteProcessor += "      tag: " + srcData.SourceDataset.(string) + "\n"
-			rerouteProcessor += "      if: " + rule.If.(string) + "\n"
-			//TODO: deal with multiple datasets?
-			rerouteProcessor += "      dataset: " + rule.TargetDataset.(string) + "\n"
-			//TODO: deal with multiple namespaces?
-			rerouteProcessor += "      namespace: " + rule.Namespace[0].(string) + "\n"
-			constructPipeline += rerouteProcessor
+			var td []string
+			switch rule.TargetDataset.(type) {
+			case string:
+				td = []string{rule.TargetDataset.(string)}
+			case []string:
+				td = rule.TargetDataset.([]string)
+			case []interface{}:
+				for _, n := range rule.TargetDataset.([]interface{}) {
+					td = append(td, n.(string))
+				}
+			}
+
+			var ns []string
+			switch rule.Namespace.(type) {
+			case string:
+				ns = []string{rule.Namespace.(string)}
+			case []string:
+				ns = rule.Namespace.([]string)
+			case []interface{}:
+				for _, n := range rule.Namespace.([]interface{}) {
+					ns = append(ns, n.(string))
+				}
+			}
+
+			processor := make(map[string]interface{})
+			processor["reroute"] = RerouteProcessor{
+				Tag:       srcData.SourceDataset,
+				If:        rule.If,
+				Dataset:   td,
+				Namespace: ns,
+			}
+			rerouteProcessors = append(rerouteProcessors, processor)
 		}
 	}
-	return []byte(constructPipeline), nil
+	return rerouteProcessors, nil
 }
 
 func installPipelinesInElasticsearch(api *elasticsearch.API, pipelines []Pipeline) error {
