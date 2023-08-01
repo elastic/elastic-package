@@ -1,0 +1,5 @@
+- source_dataset: multiple_rules
+  rules:
+    - target_dataset: aws.test1_logs
+      if: ctx['aws.cloudwatch.log_stream'].contains('Test1')
+      namespace: 1

@@ -42,8 +42,8 @@ type Validator struct {
 	// SpecVersion contains the version of the spec used by the package.
 	specVersion semver.Version
 
-	// expectedDataset contains the value expected for dataset fields.
-	expectedDataset string
+	// expectedDatasets contains the value expected for dataset fields.
+	expectedDatasets []string
 
 	defaultNumericConversion bool
 	numericKeywordFields     map[string]struct{}
@@ -111,10 +111,10 @@ func WithEnabledAllowedIPCheck() ValidatorOption {
 	}
 }
 
-// WithExpectedDataset configures the validator to check if the dataset fields have the expected values.
-func WithExpectedDataset(dataset string) ValidatorOption {
+// WithExpectedDatasets configures the validator to check if the dataset field value matches one of the expected values.
+func WithExpectedDatasets(datasets []string) ValidatorOption {
 	return func(v *Validator) error {
-		v.expectedDataset = dataset
+		v.expectedDatasets = datasets
 		return nil
 	}
 }
@@ -313,7 +313,7 @@ var datasetFieldNames = []string{
 
 func (v *Validator) validateDocumentValues(body common.MapStr) multierror.Error {
 	var errs multierror.Error
-	if !v.specVersion.LessThan(semver2_0_0) && v.expectedDataset != "" {
+	if !v.specVersion.LessThan(semver2_0_0) && v.expectedDatasets != nil {
 		for _, datasetField := range datasetFieldNames {
 			value, err := body.GetValue(datasetField)
 			if err == common.ErrKeyNotFound {
@@ -321,14 +321,27 @@ func (v *Validator) validateDocumentValues(body common.MapStr) multierror.Error 
 			}
 
 			str, ok := valueToString(value, v.disabledNormalization)
-			if !ok || str != v.expectedDataset {
-				err := fmt.Errorf("field %q should have value %q, it has \"%v\"",
-					datasetField, v.expectedDataset, value)
+			exists := stringInArray(str, v.expectedDatasets)
+			if !ok || !exists {
+				err := fmt.Errorf("field %q should have value in %q, it has \"%v\"",
+					datasetField, v.expectedDatasets, value)
 				errs = append(errs, err)
 			}
 		}
 	}
 	return errs
+}
+
+func stringInArray(target string, arr []string) bool {
+	// Check if target is part of the array
+	found := false
+	for _, item := range arr {
+		if item == target {
+			found = true
+			break
+		}
+	}
+	return found
 }
 
 func valueToString(value any, disabledNormalization bool) (string, bool) {

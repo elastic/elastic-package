@@ -1,0 +1,6 @@
+- source_dataset: awsfirehose.log
+  rules:
+    - target_dataset: aws.cloudtrail
+      if: ctx['aws.cloudwatch.log_stream'].contains('CloudTrail')
+      namespace:
+        - default

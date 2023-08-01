@@ -41,6 +41,13 @@ type ESIngestPipeline struct {
 	AdditionalFields map[string]interface{}   `yaml:",inline"`
 }
 
+type RerouteProcessor struct {
+	Tag       string   `yaml:"tag"`
+	If        string   `yaml:"if"`
+	Dataset   []string `yaml:"dataset"`
+	Namespace []string `yaml:"namespace"`
+}
+
 func InstallDataStreamPipelines(api *elasticsearch.API, dataStreamPath string) (string, []Pipeline, error) {
 	dataStreamManifest, err := packages.ReadDataStreamManifest(filepath.Join(dataStreamPath, packages.DataStreamManifestFile))
 	if err != nil {
@@ -121,13 +128,6 @@ func loadIngestPipelineFiles(dataStreamPath string, nonce int64) ([]Pipeline, er
 	return pipelines, nil
 }
 
-type RerouteProcessor struct {
-	Tag       string   `yaml:"tag"`
-	If        string   `yaml:"if"`
-	Dataset   []string `yaml:"dataset"`
-	Namespace []string `yaml:"namespace"`
-}
-
 func loadRoutingRuleFile(dataStreamPath string) ([]map[string]interface{}, error) {
 	routingRulePath := filepath.Join(dataStreamPath, "routing_rules.yml")
 	c, err := os.ReadFile(routingRulePath)
@@ -151,28 +151,14 @@ func loadRoutingRuleFile(dataStreamPath string) ([]map[string]interface{}, error
 	var rerouteProcessors []map[string]interface{}
 	for _, srcData := range data {
 		for _, rule := range srcData.Rules {
-			var td []string
-			switch rule.TargetDataset.(type) {
-			case string:
-				td = []string{rule.TargetDataset.(string)}
-			case []string:
-				td = rule.TargetDataset.([]string)
-			case []interface{}:
-				for _, n := range rule.TargetDataset.([]interface{}) {
-					td = append(td, n.(string))
-				}
+			td, err := convertValue(rule.TargetDataset, "target_dataset")
+			if err != nil {
+				return nil, fmt.Errorf("convertValue failed: %w", err)
 			}
 
-			var ns []string
-			switch rule.Namespace.(type) {
-			case string:
-				ns = []string{rule.Namespace.(string)}
-			case []string:
-				ns = rule.Namespace.([]string)
-			case []interface{}:
-				for _, n := range rule.Namespace.([]interface{}) {
-					ns = append(ns, n.(string))
-				}
+			ns, err := convertValue(rule.Namespace, "namespace")
+			if err != nil {
+				return nil, fmt.Errorf("convertValue failed: %w", err)
 			}
 
 			processor := make(map[string]interface{})
@@ -186,6 +172,27 @@ func loadRoutingRuleFile(dataStreamPath string) ([]map[string]interface{}, error
 		}
 	}
 	return rerouteProcessors, nil
+}
+
+func convertValue(value interface{}, label string) ([]string, error) {
+	switch value := value.(type) {
+	case string:
+		return []string{value}, nil
+	case []string:
+		return value, nil
+	case []interface{}:
+		result := make([]string, 0, len(value))
+		for _, v := range value {
+			if vStr, ok := v.(string); ok {
+				result = append(result, vStr)
+			} else {
+				return nil, fmt.Errorf("%s in routing_rules.yml has to be a string or an array of strings: %v", label, value)
+			}
+		}
+		return result, nil
+	default:
+		return nil, fmt.Errorf("%s in routing_rules.yml has to be a string or an array of strings: %v", label, value)
+	}
 }
 
 func installPipelinesInElasticsearch(api *elasticsearch.API, pipelines []Pipeline) error {
