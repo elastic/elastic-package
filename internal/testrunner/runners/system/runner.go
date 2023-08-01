@@ -8,13 +8,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/elastic/elastic-package/internal/elasticsearch/ingest"
 	"math/rand"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/elastic/elastic-package/internal/elasticsearch/ingest"
 
 	"gopkg.in/yaml.v3"
 
