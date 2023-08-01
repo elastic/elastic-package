@@ -126,7 +126,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		}
 	}
 
-	if expectedDatasets == nil {
+	if len(expectedDatasets) == 0 {
 		expectedDataset := dsManifest.Dataset
 		if expectedDataset == "" {
 			expectedDataset = pkgManifest.Name + "." + r.options.TestFolder.DataStream
