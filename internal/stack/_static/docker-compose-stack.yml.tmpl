@@ -1,6 +1,6 @@
 {{ $username := fact "username" }}
 {{ $password := fact "password" }}
-version: '2.3'
+version: '3.5'
 services:
   elasticsearch:
     image: "${ELASTICSEARCH_IMAGE_REF}"
@@ -18,6 +18,8 @@ services:
       - "./service_tokens:/usr/share/elasticsearch/config/service_tokens"
     ports:
       - "127.0.0.1:9200:9200"
+    networks:
+      - shared-network
 
   elasticsearch_is_ready:
     image: tianon/true
@@ -47,6 +49,8 @@ services:
       - "./kibana_healthcheck.sh:/usr/share/kibana/healthcheck.sh"
     ports:
       - "127.0.0.1:5601:5601"
+    networks:
+      - shared-network
 
   kibana_is_ready:
     image: tianon/true
@@ -75,6 +79,8 @@ services:
     ports:
       - "127.0.0.1:8080:8080"
       - "127.0.0.1:9000:9000"
+    networks:
+      - shared-network
 
   package-registry_is_ready:
     image: tianon/true
@@ -112,6 +118,8 @@ services:
       - "../certs/fleet-server:/etc/ssl/elastic-agent"
     ports:
       - "127.0.0.1:8220:8220"
+    networks:
+      - shared-network
 
   fleet-server_is_ready:
     image: tianon/true
@@ -141,9 +149,16 @@ services:
     - type: bind
       source: ../../../tmp/service_logs/
       target: /run/service_logs/
+    networks:
+      - shared-network
 
   elastic-agent_is_ready:
     image: tianon/true
     depends_on:
       elastic-agent:
         condition: service_healthy
+
+# This network shall be used by other services outside this docker-compose that should communicate with the stack.
+networks:
+  shared-network:
+    name: elastic_package_test_network

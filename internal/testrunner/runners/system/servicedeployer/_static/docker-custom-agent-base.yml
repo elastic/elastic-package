@@ -1,4 +1,4 @@
-version: "2.3"
+version: "3.5"
 services:
   docker-custom-agent:
     image: "${ELASTIC_AGENT_IMAGE_REF}"
@@ -14,3 +14,11 @@ services:
     volumes:
       - ${SERVICE_LOGS_DIR}:/tmp/service_logs/
       - ${LOCAL_CA_CERT}:/etc/ssl/certs/elastic-package.pem
+    networks:
+      - my-shared-network
+
+# Network to communicate with the elastic stack
+networks:
+  my-shared-network:
+    name: elastic_package_test_network
+    external: true

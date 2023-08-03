@@ -1,4 +1,4 @@
-version: '2.3'
+version: '3.5'
 services:
   terraform:
     build: .
@@ -14,3 +14,11 @@ services:
     volumes:
       - ${TF_DIR}:/stage
       - ${TF_OUTPUT_DIR}:/output
+    networks:
+      - my-shared-network
+
+# Network to communicate with the elastic stack
+networks:
+  my-shared-network:
+    name: elastic_package_test_network
+    external: true
