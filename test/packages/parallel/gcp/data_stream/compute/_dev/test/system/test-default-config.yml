@@ -6,3 +6,6 @@ data_stream:
   vars:
     zone: "{{GCP_ZONE}}"
     region: "{{GCP_REGION}}"
+skip:
+  link: https://github.com/elastic/elastic-package/issues/1381
+  reason: GCP test package keep failing with could not find hits in metrics-gcp.compute-ep data stream
