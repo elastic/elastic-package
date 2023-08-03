@@ -28,10 +28,10 @@ require (
 	github.com/mholt/archiver/v3 v3.5.1
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/pmezard/go-difflib v1.0.0
-	github.com/shirou/gopsutil/v3 v3.23.6
+	github.com/shirou/gopsutil/v3 v3.23.7
 	github.com/spf13/cobra v1.7.0
 	github.com/stretchr/testify v1.8.4
-	golang.org/x/tools v0.11.0
+	golang.org/x/tools v0.11.1
 	gopkg.in/yaml.v3 v3.0.1
 	gotest.tools/gotestsum v1.10.1
 	helm.sh/helm/v3 v3.12.2
