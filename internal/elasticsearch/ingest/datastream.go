@@ -22,7 +22,11 @@ import (
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
-var ingestPipelineTag = regexp.MustCompile(`{{\s*IngestPipeline.+}}`)
+var (
+	ingestPipelineTag   = regexp.MustCompile(`{{\s*IngestPipeline.+}}`)
+	defaultPipelineJSON = "default.json"
+	defaultPipelineYML  = "default.yml"
+)
 
 type Rule struct {
 	TargetDataset interface{} `yaml:"target_dataset"`
@@ -110,7 +114,12 @@ func loadIngestPipelineFiles(dataStreamPath string, nonce int64) ([]Pipeline, er
 			log.Fatalf("failed loading routing_rules.yml: %v", err)
 		}
 
-		esPipeline.Processors = append(esPipeline.Processors, rerouteProcessors...)
+		// only attach routing_rules.yml reroute processors after the default pipeline
+		filename := filepath.Base(path)
+		if filename == defaultPipelineJSON || filename == defaultPipelineYML {
+			esPipeline.Processors = append(esPipeline.Processors, rerouteProcessors...)
+		}
+
 		c, err = yaml.Marshal(esPipeline)
 		if err != nil {
 			log.Fatalf("Failed to marshal modified ingest pipeline YAML data: %v", err)

@@ -15,13 +15,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/elastic/elastic-package/internal/elasticsearch/ingest"
-
 	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/elasticsearch"
+	"github.com/elastic/elastic-package/internal/elasticsearch/ingest"
 	"github.com/elastic/elastic-package/internal/fields"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
