@@ -34,7 +34,7 @@ type Rule struct {
 	Namespace     interface{} `yaml:"namespace"`
 }
 
-type SourceData struct {
+type RoutingRule struct {
 	SourceDataset string `yaml:"source_dataset"`
 	Rules         []Rule `yaml:"rules"`
 }
@@ -150,16 +150,16 @@ func loadRoutingRuleFile(dataStreamPath string) ([]map[string]interface{}, error
 	}
 
 	// unmarshal yaml into a struct
-	var data []SourceData
-	err = yaml.Unmarshal(c, &data)
+	var routingRule []RoutingRule
+	err = yaml.Unmarshal(c, &routingRule)
 	if err != nil {
 		return nil, fmt.Errorf("unmarshalling routing_rules.yml content failed: %w", err)
 	}
 
 	// Now you can work with the data as Go structs
 	var rerouteProcessors []map[string]interface{}
-	for _, srcData := range data {
-		for _, rule := range srcData.Rules {
+	for _, r := range routingRule {
+		for _, rule := range r.Rules {
 			td, err := convertValue(rule.TargetDataset, "target_dataset")
 			if err != nil {
 				return nil, fmt.Errorf("convertValue failed: %w", err)
@@ -172,7 +172,7 @@ func loadRoutingRuleFile(dataStreamPath string) ([]map[string]interface{}, error
 
 			processor := make(map[string]interface{})
 			processor["reroute"] = RerouteProcessor{
-				Tag:       srcData.SourceDataset,
+				Tag:       r.SourceDataset,
 				If:        rule.If,
 				Dataset:   td,
 				Namespace: ns,
