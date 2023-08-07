@@ -303,7 +303,7 @@ func (r *runner) runSingleBenchmark(entryPipeline string, docs []json.RawMessage
 		return ingestResult{}, errors.New("no docs supplied for benchmark")
 	}
 
-	if _, err := ingest.SimulatePipeline(r.options.API, entryPipeline, docs); err != nil {
+	if _, err := ingest.SimulatePipeline(r.options.API, entryPipeline, docs, "test-generic-default"); err != nil {
 		return ingestResult{}, fmt.Errorf("simulate failed: %w", err)
 	}
 

@@ -14,6 +14,8 @@ import (
 	"strings"
 	"time"
 
+	"gopkg.in/yaml.v3"
+
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/elasticsearch/ingest"
 	"github.com/elastic/elastic-package/internal/fields"
@@ -32,6 +34,12 @@ const (
 type runner struct {
 	options   testrunner.TestOptions
 	pipelines []ingest.Pipeline
+}
+
+type IngestPipelineReroute struct {
+	Description      string                               `yaml:"description"`
+	Processors       []map[string]ingest.RerouteProcessor `yaml:"processors"`
+	AdditionalFields map[string]interface{}               `yaml:",inline"`
 }
 
 func (r *runner) TestFolderRequired() bool {
@@ -103,9 +111,27 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		return nil, fmt.Errorf("failed to read data stream manifest: %w", err)
 	}
 
-	expectedDataset := dsManifest.Dataset
-	if expectedDataset == "" {
-		expectedDataset = pkgManifest.Name + "." + r.options.TestFolder.DataStream
+	// when reroute processors are used, expectedDatasets should be set depends on the processor config
+	var expectedDatasets []string
+	for _, pipeline := range r.pipelines {
+		var esIngestPipeline IngestPipelineReroute
+		err = yaml.Unmarshal(pipeline.Content, &esIngestPipeline)
+		if err != nil {
+			return nil, fmt.Errorf("unmarshalling ingest pipeline content failed: %w", err)
+		}
+		for _, processor := range esIngestPipeline.Processors {
+			if reroute, ok := processor["reroute"]; ok {
+				expectedDatasets = append(expectedDatasets, reroute.Dataset...)
+			}
+		}
+	}
+
+	if len(expectedDatasets) == 0 {
+		expectedDataset := dsManifest.Dataset
+		if expectedDataset == "" {
+			expectedDataset = pkgManifest.Name + "." + r.options.TestFolder.DataStream
+		}
+		expectedDatasets = []string{expectedDataset}
 	}
 
 	results := make([]testrunner.TestResult, 0)
@@ -138,7 +164,8 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 			continue
 		}
 
-		processedEvents, err := ingest.SimulatePipeline(r.options.API, entryPipeline, tc.events)
+		simulateDataStream := dsManifest.Type + "-" + r.options.TestFolder.Package + "." + r.options.TestFolder.DataStream + "-default"
+		processedEvents, err := ingest.SimulatePipeline(r.options.API, entryPipeline, tc.events, simulateDataStream)
 		if err != nil {
 			err := fmt.Errorf("simulating pipeline processing failed: %w", err)
 			tr.ErrorMsg = err.Error()
@@ -155,7 +182,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 			// explicitly enabled for pipeline tests only
 			// since system tests can have dynamic public IPs
 			fields.WithEnabledAllowedIPCheck(),
-			fields.WithExpectedDataset(expectedDataset),
+			fields.WithExpectedDatasets(expectedDatasets),
 			fields.WithEnabledImportAllECSSChema(true),
 		)
 		if err != nil {

@@ -91,7 +91,7 @@ func (r runner) verifySampleEvent(pkgManifest *packages.PackageManifest) []testr
 		return []testrunner.TestResult{}
 	}
 
-	expectedDataset, err := r.getExpectedDataset(pkgManifest)
+	expectedDatasets, err := r.getExpectedDatasets(pkgManifest)
 	if err != nil {
 		results, _ := resultComposer.WithError(err)
 		return results
@@ -99,7 +99,7 @@ func (r runner) verifySampleEvent(pkgManifest *packages.PackageManifest) []testr
 	fieldsValidator, err := fields.CreateValidatorForDirectory(filepath.Dir(sampleEventPath),
 		fields.WithSpecVersion(pkgManifest.SpecVersion),
 		fields.WithDefaultNumericConversion(),
-		fields.WithExpectedDataset(expectedDataset),
+		fields.WithExpectedDatasets(expectedDatasets),
 		fields.WithEnabledImportAllECSSChema(true),
 	)
 	if err != nil {
@@ -147,23 +147,23 @@ func (r runner) getSampleEventPath() (string, bool, error) {
 	return sampleEventPath, true, nil
 }
 
-func (r runner) getExpectedDataset(pkgManifest *packages.PackageManifest) (string, error) {
+func (r runner) getExpectedDatasets(pkgManifest *packages.PackageManifest) ([]string, error) {
 	dsName := r.options.TestFolder.DataStream
 	if dsName == "" {
 		// TODO: This should return the package name plus the policy name, but we don't know
 		// what policy created this event, so we cannot reliably know it here. Skip the check
 		// by now.
-		return "", nil
+		return nil, nil
 	}
 
 	dataStreamManifest, err := packages.ReadDataStreamManifestFromPackageRoot(r.options.PackageRootPath, dsName)
 	if err != nil {
-		return "", fmt.Errorf("failed to read data stream manifest: %w", err)
+		return nil, fmt.Errorf("failed to read data stream manifest: %w", err)
 	}
 	if ds := dataStreamManifest.Dataset; ds != "" {
-		return ds, nil
+		return []string{ds}, nil
 	}
-	return pkgManifest.Name + "." + dsName, nil
+	return []string{pkgManifest.Name + "." + dsName}, nil
 }
 
 func (r runner) TearDown() error {
