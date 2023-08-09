@@ -671,12 +671,17 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	// when reroute processors are used, expectedDatasets should be set depends on the processor config
 	var expectedDatasets []string
 	for _, pipeline := range r.pipelines {
-		var esIngestPipeline ingest.ESIngestPipeline
+		var esIngestPipeline map[string]any
 		err = yaml.Unmarshal(pipeline.Content, &esIngestPipeline)
 		if err != nil {
 			return nil, fmt.Errorf("unmarshalling ingest pipeline content failed: %w", err)
 		}
-		for _, processor := range esIngestPipeline.Processors {
+		processors, _ := esIngestPipeline["processors"].([]any)
+		for _, p := range processors {
+			processor, ok := p.(map[string]any)
+			if !ok {
+				return nil, fmt.Errorf("unexpected processor %+v", p)
+			}
 			if reroute, ok := processor["reroute"]; ok {
 				if rerouteP, ok := reroute.(ingest.RerouteProcessor); ok {
 					expectedDatasets = append(expectedDatasets, rerouteP.Dataset...)
