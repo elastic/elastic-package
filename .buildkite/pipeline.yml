@@ -4,7 +4,7 @@ env:
   ELASTIC_PACKAGE_COMPOSE_DISABLE_ANSI: "true"
   ELASTIC_PACKAGE_COMPOSE_DISABLE_PULL_PROGRESS_INFORMATION: "true"
   KIND_VERSION: 'v0.20.0'
-  K8S_VERSION: 'v1.27.4'
+  K8S_VERSION: 'v1.27.3'
 
 steps:
   - label: ":go: Run check-static"
