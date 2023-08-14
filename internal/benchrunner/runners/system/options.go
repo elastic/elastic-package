@@ -9,6 +9,7 @@ import (
 
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/kibana"
+	"github.com/elastic/elastic-package/internal/profile"
 )
 
 // Options contains benchmark runner options.
@@ -22,6 +23,7 @@ type Options struct {
 	BenchName       string
 	PackageRootPath string
 	Variant         string
+	Profile         *profile.Profile
 }
 
 type OptionFunc func(*Options)
@@ -85,5 +87,11 @@ func WithESMetricsAPI(api *elasticsearch.API) OptionFunc {
 func WithVariant(name string) OptionFunc {
 	return func(opts *Options) {
 		opts.Variant = name
+	}
+}
+
+func WithProfile(p *profile.Profile) OptionFunc {
+	return func(opts *Options) {
+		opts.Profile = p
 	}
 }

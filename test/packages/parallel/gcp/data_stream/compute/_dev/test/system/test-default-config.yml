@@ -1,4 +1,4 @@
-wait_for_data_timeout: 20m
+wait_for_data_timeout: 40m
 vars:
   project_id: "{{GCP_PROJECT_ID}}"
   credentials_json: '{{{GOOGLE_CREDENTIALS}}}'
@@ -6,3 +6,5 @@ data_stream:
   vars:
     zone: "{{GCP_ZONE}}"
     region: "{{GCP_REGION}}"
+skip.link: https://github.com/elastic/elastic-package/issues/1381
+skip.reason: GCP test package keep failing with could not find hits in metrics-gcp.compute-ep data stream

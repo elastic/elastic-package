@@ -236,6 +236,7 @@ func (r *runner) run() (report reporters.Reportable, err error) {
 			PackageRootPath: r.options.PackageRootPath,
 			DevDeployDir:    devDeployDir,
 			Variant:         r.options.Variant,
+			Profile:         r.options.Profile,
 			Type:            servicedeployer.TypeBench,
 		}
 		serviceDeployer, err := servicedeployer.Factory(opts)

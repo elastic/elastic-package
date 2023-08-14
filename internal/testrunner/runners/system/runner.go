@@ -15,9 +15,12 @@ import (
 	"strings"
 	"time"
 
+	"gopkg.in/yaml.v3"
+
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/elasticsearch"
+	"github.com/elastic/elastic-package/internal/elasticsearch/ingest"
 	"github.com/elastic/elastic-package/internal/fields"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
@@ -87,8 +90,8 @@ var (
 )
 
 type runner struct {
-	options testrunner.TestOptions
-
+	options   testrunner.TestOptions
+	pipelines []ingest.Pipeline
 	// Execution order of following handlers is defined in runner.TearDown() method.
 	deleteTestPolicyHandler func() error
 	deletePackageHandler    func() error
@@ -199,6 +202,7 @@ func (r *runner) run() (results []testrunner.TestResult, err error) {
 	}
 
 	devDeployPath, err := servicedeployer.FindDevDeployPath(servicedeployer.FactoryOptions{
+		Profile:            r.options.Profile,
 		PackageRootPath:    r.options.PackageRootPath,
 		DataStreamRootPath: dataStreamPath,
 		DevDeployDir:       DevDeployDir,
@@ -251,6 +255,7 @@ func (r *runner) run() (results []testrunner.TestResult, err error) {
 
 func (r *runner) runTestPerVariant(result *testrunner.ResultComposer, locationManager *locations.LocationManager, cfgFile, dataStreamPath, variantName string) ([]testrunner.TestResult, error) {
 	serviceOptions := servicedeployer.FactoryOptions{
+		Profile:            r.options.Profile,
 		PackageRootPath:    r.options.PackageRootPath,
 		DataStreamRootPath: dataStreamPath,
 		DevDeployDir:       DevDeployDir,
@@ -659,16 +664,42 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	docs := hits.getDocs(syntheticEnabled)
 
 	// Validate fields in docs
-	var expectedDataset string
-	if ds := r.options.TestFolder.DataStream; ds != "" {
-		expectedDataset = getDataStreamDataset(*pkgManifest, *dataStreamManifest)
-	} else {
-		expectedDataset = pkgManifest.Name + "." + policyTemplateName
+	// when reroute processors are used, expectedDatasets should be set depends on the processor config
+	var expectedDatasets []string
+	for _, pipeline := range r.pipelines {
+		var esIngestPipeline map[string]any
+		err = yaml.Unmarshal(pipeline.Content, &esIngestPipeline)
+		if err != nil {
+			return nil, fmt.Errorf("unmarshalling ingest pipeline content failed: %w", err)
+		}
+		processors, _ := esIngestPipeline["processors"].([]any)
+		for _, p := range processors {
+			processor, ok := p.(map[string]any)
+			if !ok {
+				return nil, fmt.Errorf("unexpected processor %+v", p)
+			}
+			if reroute, ok := processor["reroute"]; ok {
+				if rerouteP, ok := reroute.(ingest.RerouteProcessor); ok {
+					expectedDatasets = append(expectedDatasets, rerouteP.Dataset...)
+				}
+			}
+		}
 	}
+
+	if expectedDatasets == nil {
+		var expectedDataset string
+		if ds := r.options.TestFolder.DataStream; ds != "" {
+			expectedDataset = getDataStreamDataset(*pkgManifest, *dataStreamManifest)
+		} else {
+			expectedDataset = pkgManifest.Name + "." + policyTemplateName
+		}
+		expectedDatasets = []string{expectedDataset}
+	}
+
 	fieldsValidator, err := fields.CreateValidatorForDirectory(serviceOptions.DataStreamRootPath,
 		fields.WithSpecVersion(pkgManifest.SpecVersion),
 		fields.WithNumericKeywordFields(config.NumericKeywordFields),
-		fields.WithExpectedDataset(expectedDataset),
+		fields.WithExpectedDatasets(expectedDatasets),
 		fields.WithEnabledImportAllECSSChema(true),
 		fields.WithDisableNormalization(syntheticEnabled),
 	)

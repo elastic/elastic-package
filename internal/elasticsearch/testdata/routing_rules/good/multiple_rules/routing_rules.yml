@@ -1,0 +1,8 @@
+- source_dataset: multiple_rules
+  rules:
+    - target_dataset: aws.test1_logs
+      if: ctx['aws.cloudwatch.log_stream'].contains('Test1')
+      namespace: default
+    - target_dataset: aws.test2_logs
+      if: ctx['aws.cloudwatch.log_stream'].contains('Test2')
+      namespace: "{{labels.data_stream.namespace}}"

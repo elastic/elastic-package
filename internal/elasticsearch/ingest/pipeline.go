@@ -26,6 +26,7 @@ type simulatePipelineResponse struct {
 }
 
 type pipelineDocument struct {
+	Index  string          `json:"_index"`
 	Source json.RawMessage `json:"_source"`
 }
 
@@ -70,10 +71,11 @@ func (p *Pipeline) MarshalJSON() (asJSON []byte, err error) {
 	return asJSON, nil
 }
 
-func SimulatePipeline(api *elasticsearch.API, pipelineName string, events []json.RawMessage) ([]json.RawMessage, error) {
+func SimulatePipeline(api *elasticsearch.API, pipelineName string, events []json.RawMessage, simulateDataStream string) ([]json.RawMessage, error) {
 	var request simulatePipelineRequest
 	for _, event := range events {
 		request.Docs = append(request.Docs, pipelineDocument{
+			Index:  simulateDataStream,
 			Source: event,
 		})
 	}

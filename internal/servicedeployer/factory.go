@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/elastic/elastic-package/internal/profile"
 )
 
 const (
@@ -18,6 +20,8 @@ const (
 
 // FactoryOptions defines options used to create an instance of a service deployer.
 type FactoryOptions struct {
+	Profile *profile.Profile
+
 	PackageRootPath    string
 	DataStreamRootPath string
 	DevDeployDir       string
@@ -44,7 +48,7 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 	switch serviceDeployerName {
 	case "k8s":
 		if _, err := os.Stat(serviceDeployerPath); err == nil {
-			return NewKubernetesServiceDeployer(serviceDeployerPath)
+			return NewKubernetesServiceDeployer(options.Profile, serviceDeployerPath)
 		}
 	case "docker":
 		dockerComposeYMLPath := filepath.Join(serviceDeployerPath, "docker-compose.yml")
@@ -53,7 +57,7 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 			if err != nil {
 				return nil, fmt.Errorf("can't use service variant: %w", err)
 			}
-			return NewDockerComposeServiceDeployer([]string{dockerComposeYMLPath}, sv)
+			return NewDockerComposeServiceDeployer(options.Profile, []string{dockerComposeYMLPath}, sv)
 		}
 	case "agent":
 		if options.Type != TypeTest {
@@ -63,7 +67,7 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 		if _, err := os.Stat(customAgentCfgYMLPath); err != nil {
 			return nil, fmt.Errorf("can't find expected file custom-agent.yml: %w", err)
 		}
-		return NewCustomAgentDeployer(customAgentCfgYMLPath)
+		return NewCustomAgentDeployer(options.Profile, customAgentCfgYMLPath)
 
 	case "tf":
 		if _, err := os.Stat(serviceDeployerPath); err == nil {

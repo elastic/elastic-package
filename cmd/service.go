@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
+	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/service"
 	"github.com/elastic/elastic-package/internal/testrunner/runners/system"
@@ -36,6 +37,7 @@ func setupServiceCommand() *cobraext.Command {
 		Long:  serviceLongDescription,
 	}
 	cmd.AddCommand(upCommand)
+	cmd.PersistentFlags().StringP(cobraext.ProfileFlagName, "p", "", fmt.Sprintf(cobraext.ProfileFlagDescription, install.ProfileNameEnvVar))
 
 	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
 }
@@ -59,8 +61,14 @@ func upCommandAction(cmd *cobra.Command, args []string) error {
 
 	variantFlag, _ := cmd.Flags().GetString(cobraext.VariantFlagName)
 
+	profile, err := cobraext.GetProfileFlag(cmd)
+	if err != nil {
+		return err
+	}
+
 	_, serviceName := filepath.Split(packageRoot)
 	err = service.BootUp(service.Options{
+		Profile:            profile,
 		ServiceName:        serviceName,
 		PackageRootPath:    packageRoot,
 		DevDeployDir:       system.DevDeployDir,

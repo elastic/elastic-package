@@ -1,0 +1,7 @@
+- source_dataset:
+    - test1
+    - test2
+  rules:
+    - target_dataset: aws.route53_public_logs
+      if: ctx['aws.cloudwatch.log_stream'].contains('Route53')
+      namespace: "{{labels.data_stream.namespace}}"

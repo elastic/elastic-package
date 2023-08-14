@@ -1,0 +1,7 @@
+title: Logs from Amazon Kinesis Data Firehose
+type: logs
+dataset: awsfirehose.log
+# Ensures agents have permissions to write data to `logs-*-*`
+elasticsearch:
+  dynamic_dataset: true
+  dynamic_namespace: true
