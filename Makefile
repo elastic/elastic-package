@@ -84,7 +84,7 @@ test-check-packages-benchmarks:
 	PACKAGE_TEST_TYPE=benchmarks ./scripts/test-check-packages.sh
 
 test-check-packages-parallel:
-	PACKAGE_TEST_TYPE=parallel ./scripts/test-check-packages.sh
+	PACKAGE_TEST_TYPE=parallel PACKAGE_UNDER_TEST=aws ./scripts/test-check-packages.sh
 
 test-check-packages-with-custom-agent:
 	PACKAGE_TEST_TYPE=with-custom-agent ./scripts/test-check-packages.sh

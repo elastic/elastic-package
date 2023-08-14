@@ -23,11 +23,15 @@ import (
 const (
 	terraformDeployerDir        = "terraform"
 	terraformDeployerYml        = "terraform-deployer.yml"
+	localstackDeployerYml       = "localstack-deployer.yml"
 	terraformDeployerDockerfile = "Dockerfile"
 	terraformDeployerRun        = "run.sh"
 	terraformOutputPrefix       = "TF_OUTPUT_"
 	terraformOutputJsonFile     = "tfOutputValues.json"
 )
+
+//go:embed _static/localstack_deployer.yml
+var localstackDeployerYmlContent string
 
 //go:embed _static/terraform_deployer.yml
 var terraformDeployerYmlContent string
@@ -97,11 +101,20 @@ func (tsd TerraformServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedServic
 	}
 
 	ymlPaths := []string{filepath.Join(configDir, terraformDeployerYml)}
+
+	localstackYmlPath := filepath.Join(configDir, localstackDeployerYml)
+	_, err = os.Stat(localstackYmlPath)
+	if err == nil {
+		ymlPaths = append(ymlPaths, localstackYmlPath)
+	}
+
 	envYmlPath := filepath.Join(tsd.definitionsDir, envYmlFile)
 	_, err = os.Stat(envYmlPath)
 	if err == nil {
 		ymlPaths = append(ymlPaths, envYmlPath)
 	}
+
+	logger.Debug("Print the yml Paths %s", ymlPaths)
 
 	tfEnvironment := tsd.buildTerraformExecutorEnvironment(inCtxt)
 
@@ -174,6 +187,11 @@ func (tsd TerraformServiceDeployer) installDockerfile() (string, error) {
 	tfDir := filepath.Join(locationManager.DeployerDir(), terraformDeployerDir)
 
 	resources := []resource.Resource{
+		&resource.File{
+			Path:         localstackDeployerYml,
+			Content:      resource.FileContentLiteral(localstackDeployerYmlContent),
+			CreateParent: true,
+		},
 		&resource.File{
 			Path:         terraformDeployerYml,
 			Content:      resource.FileContentLiteral(terraformDeployerYmlContent),
