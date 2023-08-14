@@ -17,6 +17,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/hoisie/mustache"
+
 	"github.com/Masterminds/semver/v3"
 	"gopkg.in/yaml.v3"
 
@@ -320,8 +322,15 @@ func (v *Validator) validateDocumentValues(body common.MapStr) multierror.Error 
 				continue
 			}
 
+			var actualExpectedDatasets []string
+			for _, dataset := range v.expectedDatasets {
+				renderedDataset := mustache.Render(dataset, body)
+				actualExpectedDatasets = append(actualExpectedDatasets, renderedDataset)
+			}
+
 			str, ok := valueToString(value, v.disabledNormalization)
-			exists := stringInArray(str, v.expectedDatasets)
+			//exists := stringInArray(str, v.expectedDatasets)
+			exists := stringInArray(str, actualExpectedDatasets)
 			if !ok || !exists {
 				err := fmt.Errorf("field %q should have value in %q, it has \"%v\"",
 					datasetField, v.expectedDatasets, value)
