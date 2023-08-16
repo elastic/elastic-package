@@ -28,9 +28,9 @@ var (
 )
 
 type Rule struct {
-	TargetDataset *interface{} `yaml:"target_dataset"`
-	If            *string      `yaml:"if"`
-	Namespace     *interface{} `yaml:"namespace"`
+	TargetDataset interface{} `yaml:"target_dataset"`
+	If            string      `yaml:"if"`
+	Namespace     interface{} `yaml:"namespace"`
 }
 
 type RoutingRule struct {
@@ -197,8 +197,8 @@ func loadRoutingRuleFile(dataStreamPath string) ([]map[string]interface{}, error
 				Dataset:   td,
 				Namespace: ns,
 			}
-			if rule.If != nil {
-				rp.If = *rule.If
+			if rule.If != "" {
+				rp.If = rule.If
 			}
 			processor["reroute"] = rp
 			rerouteProcessors = append(rerouteProcessors, processor)
@@ -207,12 +207,12 @@ func loadRoutingRuleFile(dataStreamPath string) ([]map[string]interface{}, error
 	return rerouteProcessors, nil
 }
 
-func convertValue(originalValue *interface{}, label string) ([]string, error) {
+func convertValue(originalValue interface{}, label string) ([]string, error) {
 	if originalValue == nil {
 		return nil, nil
 	}
 
-	switch value := (*originalValue).(type) {
+	switch value := originalValue.(type) {
 	case string:
 		return []string{value}, nil
 	case []string:
