@@ -8,6 +8,7 @@ require (
 	github.com/ProtonMail/gopenpgp/v2 v2.7.2
 	github.com/aymerick/raymond v2.0.2+incompatible
 	github.com/boumenot/gocover-cobertura v1.2.0
+	github.com/cbroglie/mustache v1.4.0
 	github.com/cespare/xxhash/v2 v2.2.0
 	github.com/dustin/go-humanize v1.0.1
 	github.com/elastic/elastic-integration-corpus-generator-tool v0.5.0
@@ -23,7 +24,6 @@ require (
 	github.com/google/go-github/v32 v32.1.0
 	github.com/google/go-querystring v1.1.0
 	github.com/google/uuid v1.3.0
-	github.com/hoisie/mustache v0.0.0-20160804235033-6375acf62c69
 	github.com/jedib0t/go-pretty v4.3.0+incompatible
 	github.com/magefile/mage v1.15.0
 	github.com/mholt/archiver/v3 v3.5.1

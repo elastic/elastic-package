@@ -17,7 +17,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/hoisie/mustache"
+	"github.com/cbroglie/mustache"
 
 	"github.com/Masterminds/semver/v3"
 	"gopkg.in/yaml.v3"
@@ -334,7 +334,12 @@ func (v *Validator) validateDocumentValues(body common.MapStr) multierror.Error 
 			//
 			var renderedExpectedDatasets []string
 			for _, dataset := range v.expectedDatasets {
-				renderedDataset := mustache.Render(dataset, body)
+				renderedDataset, err := mustache.Render(dataset, body)
+				if err != nil {
+					err := fmt.Errorf("can't render expected dataset %q: %w", dataset, err)
+					errs = append(errs, err)
+					return errs
+				}
 				renderedExpectedDatasets = append(renderedExpectedDatasets, renderedDataset)
 			}
 
