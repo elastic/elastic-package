@@ -6,10 +6,17 @@ package stack
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
+	"net/url"
+	"strings"
 	"time"
 
+	"github.com/elastic/elastic-package/internal/compose"
+	"github.com/elastic/elastic-package/internal/docker"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/profile"
 	"github.com/elastic/elastic-package/internal/serverless"
@@ -190,11 +197,11 @@ func (sp *serverlessProvider) BootUp(options Options) error {
 			return fmt.Errorf("failed to create deployment: %w", err)
 		}
 
-		// logger.Infof("Creating agent policy")
-		// err = sp.createAgentPolicy(config, options.StackVersion)
-		// if err != nil {
-		// 	return fmt.Errorf("failed to create agent policy: %w", err)
-		// }
+		logger.Infof("Creating agent policy")
+		err = sp.createAgentPolicy(config, options.StackVersion)
+		if err != nil {
+			return fmt.Errorf("failed to create agent policy: %w", err)
+		}
 
 		// logger.Infof("Replacing GeoIP databases")
 		// err = cp.replaceGeoIPDatabases(config, options, settings.TemplateID, settings.Region, payload.Resources.Elasticsearch[0].Plan.ClusterTopology)
@@ -213,38 +220,163 @@ func (sp *serverlessProvider) BootUp(options Options) error {
 		// }
 	}
 
-	// logger.Infof("Starting local agent")
-	// err = sp.startLocalAgent(options, config)
-	// if err != nil {
-	// 	return fmt.Errorf("failed to start local agent: %w", err)
-	// }
+	logger.Infof("Starting local agent")
+	err = sp.startLocalAgent(options, config)
+	if err != nil {
+		return fmt.Errorf("failed to start local agent: %w", err)
+	}
 
 	return nil
 }
 
-// func (sp *serverlessProvider) startLocalAgent(options Options, config Config) error {
-// 	err := applyCloudResources(sp.profile, options.StackVersion, config)
-// 	if err != nil {
-// 		return fmt.Errorf("could not initialize compose files for local agent: %w", err)
-// 	}
-//
-// 	project, err := sp.localAgentComposeProject()
-// 	if err != nil {
-// 		return fmt.Errorf("could not initialize local agent compose project")
-// 	}
-//
-// 	err = project.Build(compose.CommandOptions{})
-// 	if err != nil {
-// 		return fmt.Errorf("failed to build images for local agent: %w", err)
-// 	}
-//
-// 	err = project.Up(compose.CommandOptions{ExtraArgs: []string{"-d"}})
-// 	if err != nil {
-// 		return fmt.Errorf("failed to start local agent: %w", err)
-// 	}
-//
-// 	return nil
-// }
+func (sp *serverlessProvider) composeProjectName() string {
+	return DockerComposeProjectName(sp.profile)
+}
+
+func (sp *serverlessProvider) localAgentComposeProject() (*compose.Project, error) {
+	composeFile := sp.profile.Path(profileStackPath, ServerlessComposeFile)
+	return compose.NewProject(sp.composeProjectName(), composeFile)
+}
+
+func (sp *serverlessProvider) startLocalAgent(options Options, config Config) error {
+	err := applyServerlessResources(sp.profile, options.StackVersion, config)
+	if err != nil {
+		return fmt.Errorf("could not initialize compose files for local agent: %w", err)
+	}
+
+	project, err := sp.localAgentComposeProject()
+	if err != nil {
+		return fmt.Errorf("could not initialize local agent compose project")
+	}
+
+	err = project.Build(compose.CommandOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to build images for local agent: %w", err)
+	}
+
+	err = project.Up(compose.CommandOptions{ExtraArgs: []string{"-d"}})
+	if err != nil {
+		return fmt.Errorf("failed to start local agent: %w", err)
+	}
+
+	return nil
+}
+
+const serverlessKibanaAgentPolicy = `{
+  "name": "Elastic-Agent (elastic-package)",
+  "id": "elastic-agent-managed-ep",
+  "description": "Policy created by elastic-package",
+  "namespace": "default",
+  "monitoring_enabled": [
+    "logs",
+    "metrics"
+  ]
+}`
+
+const serverlessKibanaPackagePolicy = `{
+  "name": "system-1",
+  "policy_id": "elastic-agent-managed-ep",
+  "package": {
+    "name": "system",
+    "version": "%s"
+  }
+}`
+
+func doKibanaRequest(config Config, req *http.Request) error {
+	req.SetBasicAuth(config.ElasticsearchUsername, config.ElasticsearchPassword)
+	req.Header.Add("content-type", "application/json")
+	req.Header.Add("kbn-xsrf", "elastic-package")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("performing request failed: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusConflict {
+		// Already created, go on.
+		// TODO: We could try to update the policy.
+		return nil
+	}
+	if resp.StatusCode >= 300 {
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return fmt.Errorf("request failed with status %v and could not read body: %w", resp.StatusCode, err)
+		}
+		return fmt.Errorf("request failed with status %v and response %v", resp.StatusCode, string(body))
+	}
+	return nil
+}
+
+func (sp *serverlessProvider) createAgentPolicy(config Config, stackVersion string) error {
+	agentPoliciesURL, err := url.JoinPath(config.KibanaHost, "/api/fleet/agent_policies")
+	if err != nil {
+		return fmt.Errorf("failed to build url for agent policies: %w", err)
+	}
+	req, err := http.NewRequest(http.MethodPost, agentPoliciesURL, strings.NewReader(serverlessKibanaAgentPolicy))
+	if err != nil {
+		return fmt.Errorf("failed to initialize request to create agent policy: %w", err)
+	}
+	err = doKibanaRequest(config, req)
+	if err != nil {
+		return fmt.Errorf("error while creating agent policy: %w", err)
+	}
+
+	systemVersion, err := getPackageVersion("https://epr.elastic.co", "system", stackVersion)
+	if err != nil {
+		return fmt.Errorf("could not get the system package version for kibana %v: %w", stackVersion, err)
+	}
+
+	packagePoliciesURL, err := url.JoinPath(config.KibanaHost, "/api/fleet/package_policies")
+	if err != nil {
+		return fmt.Errorf("failed to build url for package policies: %w", err)
+	}
+	packagePolicy := fmt.Sprintf(serverlessKibanaPackagePolicy, systemVersion)
+	req, err = http.NewRequest(http.MethodPost, packagePoliciesURL, strings.NewReader(packagePolicy))
+	if err != nil {
+		return fmt.Errorf("failed to initialize request to create package policy: %w", err)
+	}
+	err = doKibanaRequest(config, req)
+	if err != nil {
+		return fmt.Errorf("error while creating package policy: %w", err)
+	}
+
+	return nil
+}
+
+func getPackageVersion(registryURL, packageName, stackVersion string) (string, error) {
+	searchURL, err := url.JoinPath(registryURL, "search")
+	if err != nil {
+		return "", fmt.Errorf("could not build URL: %w", err)
+	}
+	searchURL = fmt.Sprintf("%s?package=%s&kibana.version=%s", searchURL, packageName, stackVersion)
+	resp, err := http.Get(searchURL)
+	if err != nil {
+		return "", fmt.Errorf("request failed (url: %s): %w", searchURL, err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 300 {
+		return "", fmt.Errorf("unexpected status code %v", resp.StatusCode)
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("failed to read response body: %w", err)
+	}
+	var packages []struct {
+		Name    string `json:"name"`
+		Version string `json:"version"`
+	}
+	err = json.Unmarshal(body, &packages)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse response body: %w", err)
+	}
+	if len(packages) != 1 {
+		return "", fmt.Errorf("expected 1 package, obtained %v", len(packages))
+	}
+	if found := packages[0].Name; found != packageName {
+		return "", fmt.Errorf("expected package %s, found %s", packageName, found)
+	}
+
+	return packages[0].Version, nil
+}
 
 func (sp *serverlessProvider) TearDown(options Options) error {
 	config, err := LoadConfig(sp.profile)
@@ -252,10 +384,10 @@ func (sp *serverlessProvider) TearDown(options Options) error {
 		return fmt.Errorf("failed to load configuration: %w", err)
 	}
 
-	// err = cp.destroyLocalAgent()
-	// if err != nil {
-	// 	return fmt.Errorf("failed to destroy local agent: %w", err)
-	// }
+	err = sp.destroyLocalAgent()
+	if err != nil {
+		return fmt.Errorf("failed to destroy local agent: %w", err)
+	}
 
 	project, err := sp.currentProject(config)
 	if err != nil {
@@ -279,6 +411,20 @@ func (sp *serverlessProvider) TearDown(options Options) error {
 	// if err != nil {
 	// 	return fmt.Errorf("failed to store config: %w", err)
 	// }
+
+	return nil
+}
+
+func (sp *serverlessProvider) destroyLocalAgent() error {
+	project, err := sp.localAgentComposeProject()
+	if err != nil {
+		return fmt.Errorf("could not initialize local agent compose project")
+	}
+
+	err = project.Down(compose.CommandOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to destroy local agent: %w", err)
+	}
 
 	return nil
 }
@@ -318,5 +464,44 @@ func (sp *serverlessProvider) Status(options Options) ([]ServiceStatus, error) {
 		})
 	}
 
+	agentStatus, err := sp.localAgentStatus()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get local agent status: %w", err)
+	}
+
+	serviceStatus = append(serviceStatus, agentStatus...)
+
 	return serviceStatus, nil
+}
+
+func (sp *serverlessProvider) localAgentStatus() ([]ServiceStatus, error) {
+	var services []ServiceStatus
+	// query directly to docker to avoid load environment variables (e.g. STACK_VERSION_VARIANT) and profiles
+	containerIDs, err := docker.ContainerIDsWithLabel(projectLabelDockerCompose, sp.composeProjectName())
+	if err != nil {
+		return nil, err
+	}
+
+	if len(containerIDs) == 0 {
+		return services, nil
+	}
+
+	containerDescriptions, err := docker.InspectContainers(containerIDs...)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, containerDescription := range containerDescriptions {
+		service, err := newServiceStatus(&containerDescription)
+		if err != nil {
+			return nil, err
+		}
+		if strings.HasSuffix(service.Name, readyServicesSuffix) {
+			continue
+		}
+		logger.Debugf("Adding Service: \"%v\"", service.Name)
+		services = append(services, *service)
+	}
+
+	return services, nil
 }

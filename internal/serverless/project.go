@@ -156,7 +156,7 @@ func getESHealthy(ctx context.Context, project *Project) error {
 		logger.Debugf("Unable to decode response: %v body: %s", err, string(respBody))
 		return err
 	}
-	if health.Status == "green" {
+	if health.Status == "green" || health.Status == "yellow" {
 		return nil
 	}
 	return fmt.Errorf("elasticsearch unhealthy: %s", health.Status)
