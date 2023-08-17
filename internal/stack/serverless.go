@@ -75,8 +75,8 @@ func (sp *serverlessProvider) createProject(settings projectSettings, options Op
 	config.ElasticsearchUsername = project.Credentials.Username
 	config.ElasticsearchPassword = project.Credentials.Password
 
-	printUserConfig(options.Printer, config)
-
+	// Store config now in case fails initialization or other requests,
+	// so it can be destroyed later
 	err = storeConfig(sp.profile, config)
 	if err != nil {
 		return Config{}, fmt.Errorf("failed to store config: %w", err)
@@ -96,6 +96,7 @@ func (sp *serverlessProvider) createProject(settings projectSettings, options Op
 
 	printUserConfig(options.Printer, config)
 
+	// update config with latest updates (e.g. fleet server url)
 	err = storeConfig(sp.profile, config)
 	if err != nil {
 		return Config{}, fmt.Errorf("failed to store config: %w", err)
@@ -208,8 +209,6 @@ func (sp *serverlessProvider) BootUp(options Options) error {
 		// if err != nil {
 		// 	return fmt.Errorf("failed to replace GeoIP databases: %w", err)
 		// }
-		logger.Debugf("Project created: %s", project.Name)
-		printUserConfig(options.Printer, config)
 	case nil:
 		logger.Debugf("Project existed: %s", project.Name)
 		printUserConfig(options.Printer, config)
