@@ -65,6 +65,8 @@ func (sp *serverlessProvider) createProject(settings projectSettings, options Op
 
 	config.ElasticsearchHost = project.Endpoints.Elasticsearch
 	config.KibanaHost = project.Endpoints.Kibana
+	config.ElasticsearchUsername = project.Credentials.Username
+	config.ElasticsearchPassword = project.Credentials.Password
 
 	printUserConfig(options.Printer, config)
 
@@ -78,14 +80,6 @@ func (sp *serverlessProvider) createProject(settings projectSettings, options Op
 	if err != nil {
 		return Config{}, fmt.Errorf("project not initialized: %w", err)
 	}
-
-	logger.Debugf("Getting credentials for project %s (%s)", project.Name, project.Type)
-	project, err = sp.client.ResetCredentials(ctx, project)
-	if err != nil {
-		return Config{}, fmt.Errorf("credentials not reset: %w", err)
-	}
-	config.ElasticsearchUsername = project.Credentials.Username
-	config.ElasticsearchPassword = project.Credentials.Password
 
 	config.Parameters[paramServerlessFleetURL], err = project.DefaultFleetServerURL(ctx)
 	if err != nil {

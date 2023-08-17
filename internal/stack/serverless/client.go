@@ -185,6 +185,11 @@ func (c *Client) CreateProject(name, region, project string) (*Project, error) {
 	serverlessProject := &Project{url: c.host, apiKey: c.apiKey}
 	err = json.Unmarshal(respBody, &serverlessProject)
 
+	serverlessProject, err = c.ResetCredentials(ctx, serverlessProject)
+	if err != nil {
+		return nil, fmt.Errorf("failed to reset credentials: %w", err)
+	}
+
 	bytes, _ := json.MarshalIndent(&serverlessProject, "", "  ")
 	fmt.Printf("Project:\n%s", string(bytes))
 
