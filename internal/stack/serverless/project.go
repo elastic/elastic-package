@@ -7,6 +7,7 @@ package serverless
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -53,6 +54,23 @@ func (p *Project) EnsureHealthy(ctx context.Context) error {
 	return nil
 }
 
+func (p *Project) Status(ctx context.Context) (map[string]string, error) {
+	var status map[string]string
+	healthStatus := func(err error) string {
+		if err != nil {
+			return fmt.Sprintf("unhealthy: %s", err.Error())
+		}
+		return "healthy"
+	}
+
+	status = map[string]string{
+		"elasticsearch": healthStatus(getESHealthy(ctx, p)),
+		"kibana":        healthStatus(getKibanaHealthy(ctx, p)),
+		"fleet":         healthStatus(getFleetHealthy(ctx, p)),
+	}
+	return status, nil
+}
+
 func (p *Project) ensureServiceHealthy(ctx context.Context, serviceFunc serviceHealthy) error {
 	timer := time.NewTimer(time.Millisecond)
 	for {
@@ -72,6 +90,44 @@ func (p *Project) ensureServiceHealthy(ctx context.Context, serviceFunc serviceH
 		return nil
 	}
 	return nil
+}
+
+func (p *Project) DefaultFleetServerURL(ctx context.Context) (string, error) {
+	client, err := NewClient(
+		WithAddress(p.Endpoints.Kibana),
+		WithUsername(p.Credentials.Username),
+		WithPassword(p.Credentials.Password),
+	)
+	if err != nil {
+		return "", err
+	}
+	statusCode, respBody, err := client.get(ctx, "/api/fleet/fleet_server_hosts")
+	if err != nil {
+		return "", fmt.Errorf("failed to query fleet server hosts: %w", err)
+	}
+
+	if statusCode != http.StatusOK {
+		return "", fmt.Errorf("unexpected status code %d, body: %s", statusCode, string(respBody))
+	}
+
+	var hosts struct {
+		Items []struct {
+			IsDefault bool     `json:"is_default"`
+			HostURLs  []string `json:"host_urls"`
+		} `json:"items"`
+	}
+	err = json.Unmarshal(respBody, &hosts)
+	if err != nil {
+		return "", fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	for _, server := range hosts.Items {
+		if server.IsDefault && len(server.HostURLs) > 0 {
+			return server.HostURLs[0], nil
+		}
+	}
+
+	return "", errors.New("could not find the fleet server URL for this project")
 }
 
 func getESHealthy(ctx context.Context, project *Project) error {

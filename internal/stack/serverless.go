@@ -18,6 +18,7 @@ import (
 const (
 	paramServerlessProjectID   = "serverless_project_id"
 	paramServerlessProjectType = "serverless_project_type"
+	paramServerlessFleetURL    = "serverless_fleet_url"
 
 	configRegion      = "stack.serverless.region"
 	configProjectType = "stack.serverless.type"
@@ -86,6 +87,12 @@ func (sp *serverlessProvider) createProject(settings projectSettings, options Op
 	config.ElasticsearchUsername = project.Credentials.Username
 	config.ElasticsearchPassword = project.Credentials.Password
 
+	config.Parameters[paramServerlessFleetURL], err = project.DefaultFleetServerURL(ctx)
+	if err != nil {
+		return Config{}, fmt.Errorf("failed to get fleet URL: %w", err)
+	}
+	project.Endpoints.Fleet = config.Parameters[paramServerlessFleetURL]
+
 	printUserConfig(options.Printer, config)
 
 	err = storeConfig(sp.profile, config)
@@ -123,6 +130,18 @@ func (sp *serverlessProvider) currentProject(config Config) (*serverless.Project
 	if err != nil {
 		return nil, fmt.Errorf("couldn't check project health: %w", err)
 	}
+
+	project.Credentials.Username = config.ElasticsearchUsername
+	project.Credentials.Password = config.ElasticsearchPassword
+
+	fleetURL, ok := config.Parameters[paramServerlessFleetURL]
+	if !ok {
+		fleetURL, err = project.DefaultFleetServerURL(context.Background())
+		if err != nil {
+			return nil, fmt.Errorf("failed to get fleet URL: %w", err)
+		}
+	}
+	project.Endpoints.Fleet = fleetURL
 
 	return project, nil
 }
@@ -280,5 +299,30 @@ func (sp *serverlessProvider) Dump(options DumpOptions) (string, error) {
 
 func (sp *serverlessProvider) Status(options Options) ([]ServiceStatus, error) {
 	logger.Warn("Elastic Serverless provider is in technical preview")
-	return Status(options)
+	config, err := LoadConfig(sp.profile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load configuration: %w", err)
+	}
+
+	project, err := sp.currentProject(config)
+	if err != nil {
+		return nil, err
+	}
+
+	ctx := context.Background()
+	projectServiceStatus, err := project.Status(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var serviceStatus []ServiceStatus
+	for service, status := range projectServiceStatus {
+		serviceStatus = append(serviceStatus, ServiceStatus{
+			Name:    service,
+			Version: "serverless",
+			Status:  status,
+		})
+	}
+
+	return serviceStatus, nil
 }

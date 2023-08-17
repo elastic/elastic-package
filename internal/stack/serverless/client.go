@@ -14,7 +14,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/elastic/elastic-package/internal/environment"
@@ -315,10 +314,6 @@ func (c *Client) EnsureEndpoints(ctx context.Context, project *Project) error {
 		}
 
 		if project.Endpoints.Elasticsearch != "" {
-			if project.Endpoints.Fleet == "" {
-				logger.Debugf("Fleet Endpoint empty, setting it based on ES")
-				project.Endpoints.Fleet = strings.Replace(project.Endpoints.Elasticsearch, ".es.", ".fleet.", 1)
-			}
 			return nil
 		}
 
