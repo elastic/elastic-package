@@ -65,6 +65,24 @@ func (sp *serverlessProvider) createProject(settings projectSettings, options Op
 	config.ElasticsearchHost = project.Endpoints.Elasticsearch
 	config.KibanaHost = project.Endpoints.Kibana
 
+	printUserConfig(options.Printer, config)
+
+	err = storeConfig(sp.profile, config)
+	if err != nil {
+		return Config{}, fmt.Errorf("failed to store config: %w", err)
+	}
+
+	logger.Debug("Waiting for creation plan to be completed")
+	err = sp.client.EnsureProjectInitialized(ctx, project)
+	if err != nil {
+		return Config{}, fmt.Errorf("project not initialized: %w", err)
+	}
+
+	logger.Debugf("Getting credentials for project %s (%s)", project.Name, project.Type)
+	project, err = sp.client.ResetCredentials(ctx, project)
+	if err != nil {
+		return Config{}, fmt.Errorf("credentials not reset: %w", err)
+	}
 	config.ElasticsearchUsername = project.Credentials.Username
 	config.ElasticsearchPassword = project.Credentials.Password
 
@@ -75,7 +93,6 @@ func (sp *serverlessProvider) createProject(settings projectSettings, options Op
 		return Config{}, fmt.Errorf("failed to store config: %w", err)
 	}
 
-	logger.Debug("Waiting for creation plan to be completed")
 	err = project.EnsureHealthy(ctx)
 	if err != nil {
 		return Config{}, fmt.Errorf("not all services are healthy: %w", err)

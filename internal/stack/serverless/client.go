@@ -192,6 +192,82 @@ func (c *Client) CreateProject(name, region, project string) (*Project, error) {
 	return serverlessProject, err
 }
 
+func (c *Client) EnsureProjectInitialized(ctx context.Context, project *Project) error {
+	timer := time.NewTimer(time.Millisecond)
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-timer.C:
+		}
+
+		status, err := c.StatusProject(ctx, project)
+		if err != nil {
+			logger.Debugf("error querying for status: %s", err.Error())
+			timer.Reset(time.Second * 5)
+			continue
+		}
+
+		if status != "initialized" {
+			logger.Debugf("project not initialized, status: %s", status)
+			timer.Reset(time.Second * 5)
+			continue
+		}
+
+		return nil
+	}
+	return nil
+}
+
+func (c *Client) StatusProject(ctx context.Context, project *Project) (string, error) {
+	resourcePath := fmt.Sprintf("%s/api/v1/serverless/projects/%s/%s/status", c.host, project.Type, project.ID)
+	statusCode, respBody, err := c.get(ctx, resourcePath)
+
+	if err != nil {
+		return "", fmt.Errorf("error getting status project: %w", err)
+	}
+
+	if statusCode != http.StatusOK {
+		return "", fmt.Errorf("unexpected status code %d", statusCode)
+	}
+
+	var status struct {
+		Phase string `json:"phase"`
+	}
+
+	if err := json.Unmarshal(respBody, &status); err != nil {
+		return "", fmt.Errorf("unable to decode status: %w", err)
+	}
+
+	return status.Phase, nil
+}
+
+func (c *Client) ResetCredentials(ctx context.Context, project *Project) (*Project, error) {
+	resourcePath := fmt.Sprintf("%s/api/v1/serverless/projects/%s/%s/_reset-credentials", c.host, project.Type, project.ID)
+	statusCode, respBody, err := c.post(ctx, resourcePath, nil)
+
+	if err != nil {
+		return nil, fmt.Errorf("error creating project: %w", err)
+	}
+
+	if statusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status code %d", statusCode)
+	}
+
+	var credentials struct {
+		Username string `json:"username"`
+		Password string `json:"password"`
+	}
+	if err := json.Unmarshal(respBody, &credentials); err != nil {
+		return nil, fmt.Errorf("unable to decode credentials: %w", err)
+	}
+
+	project.Credentials.Username = credentials.Username
+	project.Credentials.Password = credentials.Password
+
+	return project, err
+}
+
 func (c *Client) DeleteProject(project *Project) error {
 	ctx := context.Background()
 	resourcePath := fmt.Sprintf("%s/api/v1/serverless/projects/%s/%s", c.host, project.Type, project.ID)
@@ -201,7 +277,7 @@ func (c *Client) DeleteProject(project *Project) error {
 	}
 
 	if statusCode != http.StatusOK {
-		return fmt.Errorf("unexpected status code %ds", statusCode)
+		return fmt.Errorf("unexpected status code %d", statusCode)
 	}
 
 	return nil
@@ -225,6 +301,7 @@ func (c *Client) GetProject(projectType, projectID string) (*Project, error) {
 
 	project := &Project{url: c.host, apiKey: c.apiKey}
 	err = json.Unmarshal(respBody, &project)
+
 	return project, err
 }
 
