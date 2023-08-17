@@ -12,7 +12,7 @@ import (
 
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/profile"
-	"github.com/elastic/elastic-package/internal/stack/serverless"
+	"github.com/elastic/elastic-package/internal/serverless"
 )
 
 const (
