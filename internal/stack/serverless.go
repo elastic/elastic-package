@@ -296,79 +296,37 @@ func (sp *serverlessProvider) startLocalAgent(options Options, config Config) er
 	return nil
 }
 
-const serverlessKibanaAgentPolicy = `{
-  "name": "Elastic-Agent (elastic-package)",
-  "id": "elastic-agent-managed-ep",
-  "description": "Policy created by elastic-package",
-  "namespace": "default",
-  "monitoring_enabled": [
-    "logs",
-    "metrics"
-  ]
-}`
-
-const serverlessKibanaPackagePolicy = `{
-  "name": "system-1",
-  "policy_id": "elastic-agent-managed-ep",
-  "package": {
-    "name": "system",
-    "version": "%s"
-  }
-}`
-
-func doKibanaRequest(config Config, req *http.Request) error {
-	req.SetBasicAuth(config.ElasticsearchUsername, config.ElasticsearchPassword)
-	req.Header.Add("content-type", "application/json")
-	req.Header.Add("kbn-xsrf", "elastic-package")
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return fmt.Errorf("performing request failed: %w", err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode == http.StatusConflict {
-		// Already created, go on.
-		// TODO: We could try to update the policy.
-		return nil
-	}
-	if resp.StatusCode >= 300 {
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return fmt.Errorf("request failed with status %v and could not read body: %w", resp.StatusCode, err)
-		}
-		return fmt.Errorf("request failed with status %v and response %v", resp.StatusCode, string(body))
-	}
-	return nil
-}
-
 func (sp *serverlessProvider) createAgentPolicy(config Config, stackVersion string) error {
-	agentPoliciesURL, err := url.JoinPath(config.KibanaHost, "/api/fleet/agent_policies")
-	if err != nil {
-		return fmt.Errorf("failed to build url for agent policies: %w", err)
-	}
-	req, err := http.NewRequest(http.MethodPost, agentPoliciesURL, strings.NewReader(serverlessKibanaAgentPolicy))
-	if err != nil {
-		return fmt.Errorf("failed to initialize request to create agent policy: %w", err)
-	}
-	err = doKibanaRequest(config, req)
-	if err != nil {
-		return fmt.Errorf("error while creating agent policy: %w", err)
-	}
-
 	systemVersion, err := getPackageVersion("https://epr.elastic.co", "system", stackVersion)
 	if err != nil {
 		return fmt.Errorf("could not get the system package version for kibana %v: %w", stackVersion, err)
 	}
 
-	packagePoliciesURL, err := url.JoinPath(config.KibanaHost, "/api/fleet/package_policies")
+	client, err := NewKibanaClient()
 	if err != nil {
-		return fmt.Errorf("failed to build url for package policies: %w", err)
+		return fmt.Errorf("failed to create kibana client: %w", err)
 	}
-	packagePolicy := fmt.Sprintf(serverlessKibanaPackagePolicy, systemVersion)
-	req, err = http.NewRequest(http.MethodPost, packagePoliciesURL, strings.NewReader(packagePolicy))
+
+	policy := kibana.Policy{
+		ID:                "elastic-agent-managed-ep",
+		Name:              "Elastic-Agent (elastic-package)",
+		Description:       "Policy created by elastic-package",
+		Namespace:         "default",
+		MonitoringEnabled: []string{"logs", "metrics"},
+	}
+	newPolicy, err := client.CreatePolicy(policy)
 	if err != nil {
-		return fmt.Errorf("failed to initialize request to create package policy: %w", err)
+		return fmt.Errorf("error while creating agent policy: %w", err)
 	}
-	err = doKibanaRequest(config, req)
+
+	packagePolicy := kibana.PackagePolicy{
+		Name:     "system-1",
+		PolicyID: newPolicy.ID,
+	}
+	packagePolicy.Package.Name = "system"
+	packagePolicy.Package.Version = systemVersion
+
+	_, err = client.CreatePackagePolicy(packagePolicy)
 	if err != nil {
 		return fmt.Errorf("error while creating package policy: %w", err)
 	}

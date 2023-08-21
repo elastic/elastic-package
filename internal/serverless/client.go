@@ -184,6 +184,9 @@ func (c *Client) CreateProject(name, region, project string) (*Project, error) {
 
 	serverlessProject := &Project{url: c.host, apiKey: c.apiKey}
 	err = json.Unmarshal(respBody, &serverlessProject)
+	if err != nil {
+		return nil, fmt.Errorf("error while decoding create project response: %w", err)
+	}
 
 	serverlessProject, err = c.ResetCredentials(ctx, serverlessProject)
 	if err != nil {
