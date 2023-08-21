@@ -120,7 +120,7 @@ func dumpAgentPoliciesCmdAction(cmd *cobra.Command, args []string) error {
 	if tlsSkipVerify {
 		clientOptions = append(clientOptions, kibana.TLSSkipVerify())
 	}
-	kibanaClient, err := kibana.NewClient(clientOptions...)
+	kibanaClient, err := stack.NewKibanaClient(clientOptions...)
 	if err != nil {
 		return fmt.Errorf("failed to initialize Kibana client: %w", err)
 	}

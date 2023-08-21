@@ -15,6 +15,7 @@ import (
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/export"
 	"github.com/elastic/elastic-package/internal/kibana"
+	"github.com/elastic/elastic-package/internal/stack"
 )
 
 const exportLongDescription = `Use this command to export assets relevant for the package, e.g. Kibana dashboards.`
@@ -65,7 +66,7 @@ func exportDashboardsCmd(cmd *cobra.Command, args []string) error {
 		return cobraext.FlagParsingError(err, cobraext.AllowSnapshotFlagName)
 	}
 
-	kibanaClient, err := kibana.NewClient(opts...)
+	kibanaClient, err := stack.NewKibanaClient(opts...)
 	if err != nil {
 		return fmt.Errorf("can't create Kibana client: %w", err)
 	}

@@ -8,10 +8,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/packages/installer"
+	"github.com/elastic/elastic-package/internal/stack"
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
 
@@ -76,7 +76,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 	}
 
 	logger.Debug("installing package...")
-	kibanaClient, err := kibana.NewClient()
+	kibanaClient, err := stack.NewKibanaClient()
 	if err != nil {
 		return result.WithError(fmt.Errorf("could not create kibana client: %w", err))
 	}

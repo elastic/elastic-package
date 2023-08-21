@@ -14,7 +14,6 @@ import (
 
 	"github.com/elastic/elastic-package/internal/corpusgenerator"
 	"github.com/elastic/elastic-package/internal/install"
-	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/stack"
 
 	"github.com/spf13/cobra"
@@ -267,7 +266,7 @@ func systemCommandAction(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	kc, err := kibana.NewClient()
+	kc, err := stack.NewKibanaClient()
 	if err != nil {
 		return fmt.Errorf("can't create Kibana client: %w", err)
 	}

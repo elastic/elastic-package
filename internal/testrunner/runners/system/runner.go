@@ -479,7 +479,7 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 		return result.WithError(fmt.Errorf("unable to reload system test case configuration: %w", err))
 	}
 
-	kib, err := kibana.NewClient()
+	kib, err := stack.NewKibanaClient()
 	if err != nil {
 		return result.WithError(fmt.Errorf("can't create Kibana client: %w", err))
 	}
