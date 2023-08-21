@@ -18,6 +18,7 @@ import (
 	"github.com/elastic/elastic-package/internal/compose"
 	"github.com/elastic/elastic-package/internal/docker"
 	"github.com/elastic/elastic-package/internal/elasticsearch"
+	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/profile"
 	"github.com/elastic/elastic-package/internal/serverless"
@@ -125,6 +126,15 @@ func (sp *serverlessProvider) createClients(project *serverless.Project) (*serve
 	)
 	if err != nil {
 		return project, fmt.Errorf("failed to create elasticsearch client")
+	}
+
+	project.KibanaClient, err = NewKibanaClient(
+		kibana.Address(project.Endpoints.Kibana),
+		kibana.Username(project.Credentials.Username),
+		kibana.Password(project.Credentials.Password),
+	)
+	if err != nil {
+		return project, fmt.Errorf("failed to create kibana client")
 	}
 
 	return project, nil

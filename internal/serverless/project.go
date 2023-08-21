@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/elastic/elastic-package/internal/elasticsearch"
+	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
 )
 
@@ -40,6 +41,7 @@ type Project struct {
 	} `json:"endpoints"`
 
 	ElasticsearchClient *elasticsearch.Client
+	KibanaClient        *kibana.Client
 }
 
 type serviceHealthy func(context.Context, *Project) error
@@ -48,7 +50,7 @@ func (p *Project) EnsureHealthy(ctx context.Context) error {
 	if err := p.ensureElasticserchHealthy(ctx); err != nil {
 		return fmt.Errorf("elasticsearch not healthy: %w", err)
 	}
-	if err := p.ensureServiceHealthy(ctx, getKibanaHealthy); err != nil {
+	if err := p.ensureKibanaHealthy(ctx); err != nil {
 		return fmt.Errorf("kibana not healthy: %w", err)
 	}
 	if err := p.ensureServiceHealthy(ctx, getFleetHealthy); err != nil {
@@ -68,7 +70,7 @@ func (p *Project) Status(ctx context.Context) (map[string]string, error) {
 
 	status = map[string]string{
 		"elasticsearch": healthStatus(p.getESHealth(ctx)),
-		"kibana":        healthStatus(getKibanaHealthy(ctx, p)),
+		"kibana":        healthStatus(p.getKibanaHealth()),
 		"fleet":         healthStatus(getFleetHealthy(ctx, p)),
 	}
 	return status, nil
@@ -84,6 +86,27 @@ func (p *Project) ensureElasticserchHealthy(ctx context.Context) error {
 		}
 
 		err := p.ElasticsearchClient.CheckHealth(ctx)
+		if err != nil {
+			logger.Debugf("service not ready: %s", err.Error())
+			timer.Reset(time.Second * 5)
+			continue
+		}
+
+		return nil
+	}
+	return nil
+}
+
+func (p *Project) ensureKibanaHealthy(ctx context.Context) error {
+	timer := time.NewTimer(time.Millisecond)
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-timer.C:
+		}
+
+		err := p.KibanaClient.CheckHealth()
 		if err != nil {
 			logger.Debugf("service not ready: %s", err.Error())
 			timer.Reset(time.Second * 5)
@@ -158,39 +181,8 @@ func (p *Project) getESHealth(ctx context.Context) error {
 	return p.ElasticsearchClient.CheckHealth(ctx)
 }
 
-func getKibanaHealthy(ctx context.Context, project *Project) error {
-	client, err := NewClient(
-		WithAddress(project.Endpoints.Kibana),
-		WithUsername(project.Credentials.Username),
-		WithPassword(project.Credentials.Password),
-	)
-	if err != nil {
-		return err
-	}
-
-	statusCode, respBody, err := client.get(ctx, "/api/status")
-	if err != nil {
-		return fmt.Errorf("failed to query kibana status: %w", err)
-	}
-	if statusCode != http.StatusOK {
-		return fmt.Errorf("unexpected status code %d, body: %s", statusCode, string(respBody))
-	}
-
-	var status struct {
-		Status struct {
-			Overall struct {
-				Level string `json:"level"`
-			} `json:"overall"`
-		} `json:"status"`
-	}
-	if err := json.Unmarshal(respBody, &status); err != nil {
-		logger.Debugf("Unable to decode response: %v body: %s", err, string(respBody))
-		return err
-	}
-	if status.Status.Overall.Level == "available" {
-		return nil
-	}
-	return fmt.Errorf("kibana unhealthy: %s", status.Status.Overall.Level)
+func (p *Project) getKibanaHealth() error {
+	return p.KibanaClient.CheckHealth()
 }
 
 func getFleetHealthy(ctx context.Context, project *Project) error {
