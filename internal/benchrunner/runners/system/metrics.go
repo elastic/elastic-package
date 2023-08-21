@@ -6,6 +6,7 @@ package system
 
 import (
 	"bytes"
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -33,8 +34,8 @@ type collector struct {
 	scenario scenario
 
 	interval       time.Duration
-	esapi          *elasticsearch.API
-	msapi          *elasticsearch.API
+	esAPI          *elasticsearch.API
+	metricsAPI     *elasticsearch.API
 	datastream     string
 	pipelinePrefix string
 
@@ -75,7 +76,7 @@ func newCollector(
 	ctxt servicedeployer.ServiceContext,
 	benchName string,
 	scenario scenario,
-	esapi, msapi *elasticsearch.API,
+	esAPI, metricsAPI *elasticsearch.API,
 	interval time.Duration,
 	datastream, pipelinePrefix string,
 ) *collector {
@@ -87,8 +88,8 @@ func newCollector(
 		interval:       interval,
 		scenario:       scenario,
 		metadata:       meta,
-		esapi:          esapi,
-		msapi:          msapi,
+		esAPI:          esAPI,
+		metricsAPI:     metricsAPI,
 		datastream:     datastream,
 		pipelinePrefix: pipelinePrefix,
 		stopC:          make(chan struct{}),
@@ -139,14 +140,14 @@ func (c *collector) collect() metrics {
 		ts: time.Now().Unix(),
 	}
 
-	nstats, err := ingest.GetNodesStats(c.esapi)
+	nstats, err := ingest.GetNodesStats(c.esAPI)
 	if err != nil {
 		logger.Debug(err)
 	} else {
 		m.nMetrics = nstats
 	}
 
-	dsstats, err := ingest.GetDataStreamStats(c.esapi, c.datastream)
+	dsstats, err := ingest.GetDataStreamStats(c.esAPI, c.datastream)
 	if err != nil {
 		logger.Debug(err)
 	} else {
@@ -157,12 +158,12 @@ func (c *collector) collect() metrics {
 }
 
 func (c *collector) publish(events [][]byte) {
-	if c.msapi == nil {
+	if c.metricsAPI == nil {
 		return
 	}
 	for _, e := range events {
 		reqBody := bytes.NewReader(e)
-		resp, err := c.msapi.Index(c.indexName(), reqBody)
+		resp, err := c.metricsAPI.Index(c.indexName(), reqBody)
 		if err != nil {
 			logger.Debugf("error indexing event: %v", err)
 			continue
@@ -172,6 +173,7 @@ func (c *collector) publish(events [][]byte) {
 		if err != nil {
 			logger.Errorf("failed to read index response body: %v", err)
 		}
+		resp.Body.Close()
 
 		if resp.StatusCode != 201 {
 			logger.Errorf("error indexing event (%d): %s: %v", resp.StatusCode, resp.Status(), elasticsearch.NewError(body))
@@ -179,42 +181,21 @@ func (c *collector) publish(events [][]byte) {
 	}
 }
 
+//go:embed metrics_index.json
+var metricsIndexBytes []byte
+
 func (c *collector) createMetricsIndex() {
-	if c.msapi == nil {
+	if c.metricsAPI == nil {
 		return
 	}
-	reader := bytes.NewReader(
-		[]byte(`{
-			"settings": {
-				"number_of_replicas": 0
-			},
-			"mappings": {
-				"dynamic_templates": [
-					{
-						"strings_as_keyword": {
-							"match_mapping_type": "string",
-							"mapping": {
-								"ignore_above": 1024,
-								"type": "keyword"
-							}
-						}
-					}
-				],
-				"date_detection": false,
-				"properties": {
-					"@timestamp": {
-						"type": "date"
-					}
-				}
-			}
-		}`),
-	)
+
+	reader := bytes.NewReader(metricsIndexBytes)
 
 	logger.Debugf("creating %s index in metricstore...", c.indexName())
 
-	createRes, err := c.msapi.Indices.Create(
+	createRes, err := c.metricsAPI.Indices.Create(
 		c.indexName(),
-		c.msapi.Indices.Create.WithBody(reader),
+		c.metricsAPI.Indices.Create.WithBody(reader),
 	)
 	if err != nil {
 		logger.Debugf("could not create index: %v", err)
@@ -300,7 +281,7 @@ readyLoop:
 			return
 		case <-waitTick.C:
 		}
-		dsstats, err := ingest.GetDataStreamStats(c.esapi, c.datastream)
+		dsstats, err := ingest.GetDataStreamStats(c.esAPI, c.datastream)
 		if err != nil {
 			logger.Debug(err)
 		}
@@ -321,18 +302,18 @@ readyLoop:
 }
 
 func (c *collector) collectIngestMetrics() map[string]ingest.PipelineStatsMap {
-	ipMetrics, err := ingest.GetPipelineStatsByPrefix(c.esapi, c.pipelinePrefix)
+	ipMetrics, err := ingest.GetPipelineStatsByPrefix(c.esAPI, c.pipelinePrefix)
 	if err != nil {
-		logger.Debugf("could not get ingest pipeline metrics: %w", err)
+		logger.Debugf("could not get ingest pipeline metrics: %v", err)
 		return nil
 	}
 	return ipMetrics
 }
 
 func (c *collector) collectDiskUsage() map[string]ingest.DiskUsage {
-	du, err := ingest.GetDiskUsage(c.esapi, c.datastream)
+	du, err := ingest.GetDiskUsage(c.esAPI, c.datastream)
 	if err != nil {
-		logger.Debugf("could not get disk usage metrics: %w", err)
+		logger.Debugf("could not get disk usage metrics: %v", err)
 		return nil
 	}
 	return du
@@ -346,7 +327,7 @@ func (c *collector) collectMetricsPreviousToStop() {
 }
 
 func (c *collector) collectTotalHits() int {
-	totalHits, err := getTotalHits(c.esapi, c.datastream)
+	totalHits, err := getTotalHits(c.esAPI, c.datastream)
 	if err != nil {
 		logger.Debugf("could not total hits: %w", err)
 	}
@@ -355,11 +336,11 @@ func (c *collector) collectTotalHits() int {
 
 func (c *collector) createEventsFromMetrics(m metrics) [][]byte {
 	dsEvent := struct {
-		Ts int64 `json:"@timestamp"`
+		Timestamp int64 `json:"@timestamp"`
 		*ingest.DataStreamStats
 		Meta benchMeta `json:"benchmark_metadata"`
 	}{
-		Ts:              m.ts * 1000, // ms to s
+		Timestamp:       m.ts * 1000, // ms to s
 		DataStreamStats: m.dsMetrics,
 		Meta:            c.metadata,
 	}
