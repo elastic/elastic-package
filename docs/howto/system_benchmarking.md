@@ -14,7 +14,7 @@ Conceptually, running a system benchmark involves the following steps:
 1. Assign the policy to the enrolled Agent(s).
 1. Metrics collections from the cluster starts. (**TODO**: record metrics from all Elastic Agents involved using the `system` integration.)
 1. Send the collected metrics to the ES Metricstore if set.
-1. Generate data if configured (it uses the [corpus-generator-rool](https://github.com/elastic/elastic-integration-corpus-generator-tool))
+1. Generate data if configured (it uses the [corpus-generator-tool](https://github.com/elastic/elastic-integration-corpus-generator-tool))
 1. Wait a reasonable amount of time for the Agent to collect data from the
    integration service and index it into the correct Elasticsearch data stream.
    This time can be pre-defined with the `benchmark_time`. In case this setting is not set
@@ -404,6 +404,13 @@ elastic-package stack down
 ## Setting up an external metricstore
 
 A metricstore can be set up to send metrics collected during the benchmark execution.
+
+An external metricstore might be useful for:
+
+- Store monitoring data of the benchmark scenario for all its execution time.
+- Analyse the data generated during a benchmark. This is possible when using the `reindex-to-metricstore` flag.
+- **TODO**: Store benchmark results for various benchmark runs permanently for later comparison.
+
 In order to initialize it, you need to set up the following environment variables:
 
 ```bash
@@ -416,5 +423,11 @@ export ELASTIC_PACKAGE_ESMETRICSTORE_CA_CERT="$HOME/.elastic-package/profiles/de
 The only one that is optional is `ELASTIC_PACKAGE_ESMETRICSTORE_CA_CERT`.
 
 When these are detected, metrics will be automatically collected every second and sent to a new index called `bench-metrics-{dataset}-{testRunID}"`.
+
+The collected metrics include the following node stats: `nodes.*.breakers`, `nodes.*.indices`, `nodes.*.jvm.mem`, `nodes.*.jvm.gc`, `nodes.*.jvm.buffer_pools`, `nodes.*.os.mem`, `nodes.*.process.cpu`, `nodes.*.thread_pool`, and `nodes.*.transport`.
+
+Ingest pipelines metrics are only collected at the end since its own collection would affect the benchmark results.
+
+You can see a sample collected metric [here](./sample_metric.json)
 
 Additionally, if the `reindex-to-metricstore` flag is used, the data generated during the benchmark will be sent to the metricstore into an index called `bench-reindex-{datastream}-{testRunID}` for further analysis. The events will be enriched with metadata related to the benchmark run.
