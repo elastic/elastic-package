@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/logger"
 )
 
@@ -37,12 +38,14 @@ type Project struct {
 		Fleet         string `json:"fleet,omitempty"`
 		APM           string `json:"apm,omitempty"`
 	} `json:"endpoints"`
+
+	ElasticsearchClient *elasticsearch.Client
 }
 
 type serviceHealthy func(context.Context, *Project) error
 
 func (p *Project) EnsureHealthy(ctx context.Context) error {
-	if err := p.ensureServiceHealthy(ctx, getESHealthy); err != nil {
+	if err := p.ensureElasticserchHealthy(ctx); err != nil {
 		return fmt.Errorf("elasticsearch not healthy: %w", err)
 	}
 	if err := p.ensureServiceHealthy(ctx, getKibanaHealthy); err != nil {
@@ -64,11 +67,32 @@ func (p *Project) Status(ctx context.Context) (map[string]string, error) {
 	}
 
 	status = map[string]string{
-		"elasticsearch": healthStatus(getESHealthy(ctx, p)),
+		"elasticsearch": healthStatus(p.getESHealth(ctx)),
 		"kibana":        healthStatus(getKibanaHealthy(ctx, p)),
 		"fleet":         healthStatus(getFleetHealthy(ctx, p)),
 	}
 	return status, nil
+}
+
+func (p *Project) ensureElasticserchHealthy(ctx context.Context) error {
+	timer := time.NewTimer(time.Millisecond)
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-timer.C:
+		}
+
+		err := p.ElasticsearchClient.CheckHealth(ctx)
+		if err != nil {
+			logger.Debugf("service not ready: %s", err.Error())
+			timer.Reset(time.Second * 5)
+			continue
+		}
+
+		return nil
+	}
+	return nil
 }
 
 func (p *Project) ensureServiceHealthy(ctx context.Context, serviceFunc serviceHealthy) error {
@@ -130,36 +154,8 @@ func (p *Project) DefaultFleetServerURL(ctx context.Context) (string, error) {
 	return "", errors.New("could not find the fleet server URL for this project")
 }
 
-func getESHealthy(ctx context.Context, project *Project) error {
-	client, err := NewClient(
-		WithAddress(project.Endpoints.Elasticsearch),
-		WithUsername(project.Credentials.Username),
-		WithPassword(project.Credentials.Password),
-	)
-	if err != nil {
-		return err
-	}
-
-	statusCode, respBody, err := client.get(ctx, "/_cluster/health")
-	if err != nil {
-		return fmt.Errorf("failed to query elasticsearch health: %w", err)
-	}
-
-	if statusCode != http.StatusOK {
-		return fmt.Errorf("unexpected status code %d, body: %s", statusCode, string(respBody))
-	}
-
-	var health struct {
-		Status string `json:"status"`
-	}
-	if err := json.Unmarshal(respBody, &health); err != nil {
-		logger.Debugf("Unable to decode response: %v body: %s", err, string(respBody))
-		return err
-	}
-	if health.Status == "green" || health.Status == "yellow" {
-		return nil
-	}
-	return fmt.Errorf("elasticsearch unhealthy: %s", health.Status)
+func (p *Project) getESHealth(ctx context.Context) error {
+	return p.ElasticsearchClient.CheckHealth(ctx)
 }
 
 func getKibanaHealthy(ctx context.Context, project *Project) error {

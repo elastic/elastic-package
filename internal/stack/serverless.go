@@ -17,6 +17,7 @@ import (
 
 	"github.com/elastic/elastic-package/internal/compose"
 	"github.com/elastic/elastic-package/internal/docker"
+	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/profile"
 	"github.com/elastic/elastic-package/internal/serverless"
@@ -88,6 +89,11 @@ func (sp *serverlessProvider) createProject(settings projectSettings, options Op
 		return Config{}, fmt.Errorf("project not initialized: %w", err)
 	}
 
+	project, err = sp.createClients(project)
+	if err != nil {
+		return Config{}, fmt.Errorf("failed to create project client")
+	}
+
 	config.Parameters[paramServerlessFleetURL], err = project.DefaultFleetServerURL(ctx)
 	if err != nil {
 		return Config{}, fmt.Errorf("failed to get fleet URL: %w", err)
@@ -108,6 +114,20 @@ func (sp *serverlessProvider) createProject(settings projectSettings, options Op
 	}
 
 	return config, nil
+}
+
+func (sp *serverlessProvider) createClients(project *serverless.Project) (*serverless.Project, error) {
+	var err error
+	project.ElasticsearchClient, err = NewElasticsearchClient(
+		elasticsearch.OptionWithAddress(project.Endpoints.Elasticsearch),
+		elasticsearch.OptionWithUsername(project.Credentials.Username),
+		elasticsearch.OptionWithPassword(project.Credentials.Password),
+	)
+	if err != nil {
+		return project, fmt.Errorf("failed to create elasticsearch client")
+	}
+
+	return project, nil
 }
 
 func (sp *serverlessProvider) deleteProject(project *serverless.Project, options Options) error {
@@ -144,6 +164,11 @@ func (sp *serverlessProvider) currentProject(config Config) (*serverless.Project
 		}
 	}
 	project.Endpoints.Fleet = fleetURL
+
+	project, err = sp.createClients(project)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create project client")
+	}
 
 	return project, nil
 }

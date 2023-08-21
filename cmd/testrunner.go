@@ -15,10 +15,10 @@ import (
 
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/common"
-	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/signal"
+	"github.com/elastic/elastic-package/internal/stack"
 	"github.com/elastic/elastic-package/internal/testrunner"
 	"github.com/elastic/elastic-package/internal/testrunner/reporters/formats"
 	"github.com/elastic/elastic-package/internal/testrunner/reporters/outputs"
@@ -214,7 +214,7 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 			return err
 		}
 
-		esClient, err := elasticsearch.NewClient()
+		esClient, err := stack.NewElasticsearchClient()
 		if err != nil {
 			return fmt.Errorf("can't create Elasticsearch client: %w", err)
 		}
