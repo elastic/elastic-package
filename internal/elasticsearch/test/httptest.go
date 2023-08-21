@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/elastic/elastic-package/internal/elasticsearch"
+	"github.com/elastic/elastic-package/internal/stack"
 )
 
 // NewClient returns a client for a testing http server that uses prerecorded
@@ -26,7 +27,7 @@ func NewClient(t *testing.T, serverDataDir string) *elasticsearch.Client {
 	server := testElasticsearchServer(t, serverDataDir)
 	t.Cleanup(func() { server.Close() })
 
-	client, err := elasticsearch.NewClient(
+	client, err := stack.NewElasticsearchClient(
 		elasticsearch.OptionWithAddress(server.URL),
 	)
 	require.NoError(t, err)
@@ -56,7 +57,7 @@ func pathForURL(url string) string {
 }
 
 func recordRequest(t *testing.T, r *http.Request, path string) {
-	client, err := elasticsearch.NewClient()
+	client, err := stack.NewElasticsearchClient()
 	require.NoError(t, err)
 
 	t.Logf("Recording %s in %s", r.URL.Path, path)

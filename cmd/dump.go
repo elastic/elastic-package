@@ -13,6 +13,7 @@ import (
 	"github.com/elastic/elastic-package/internal/dump"
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/kibana"
+	"github.com/elastic/elastic-package/internal/stack"
 )
 
 const dumpLongDescription = `Use this command as an exploratory tool to dump resources from Elastic Stack (objects installed as part of package and agent policies).`
@@ -79,7 +80,7 @@ func dumpInstalledObjectsCmdAction(cmd *cobra.Command, args []string) error {
 	if tlsSkipVerify {
 		clientOptions = append(clientOptions, elasticsearch.OptionWithSkipTLSVerify())
 	}
-	client, err := elasticsearch.NewClient(clientOptions...)
+	client, err := stack.NewElasticsearchClient(clientOptions...)
 	if err != nil {
 		return fmt.Errorf("failed to initialize Elasticsearch client: %w", err)
 	}

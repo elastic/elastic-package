@@ -7,6 +7,7 @@ package elasticsearch
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 )
 
@@ -74,3 +75,5 @@ func NewError(body []byte) error {
 	// Fall back to including to raw body if it cannot be parsed.
 	return fmt.Errorf("elasticsearch error: %v", string(body))
 }
+
+var ErrUndefinedAddress = errors.New("missing elasticsearch address")
