@@ -208,10 +208,6 @@ func loadRoutingRuleFile(dataStreamPath string) ([]map[string]interface{}, error
 }
 
 func convertValue(originalValue interface{}, label string) ([]string, error) {
-	if originalValue == nil {
-		return nil, nil
-	}
-
 	switch value := originalValue.(type) {
 	case string:
 		return []string{value}, nil
@@ -227,6 +223,8 @@ func convertValue(originalValue interface{}, label string) ([]string, error) {
 			}
 		}
 		return result, nil
+	case nil:
+		return nil, nil
 	default:
 		return nil, fmt.Errorf("%s in routing_rules.yml has to be a string or an array of strings: %v", label, value)
 	}
