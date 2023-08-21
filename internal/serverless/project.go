@@ -6,8 +6,6 @@ package serverless
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -140,41 +138,12 @@ func (p *Project) ensureServiceHealthy(ctx context.Context, serviceFunc serviceH
 }
 
 func (p *Project) DefaultFleetServerURL(ctx context.Context) (string, error) {
-	client, err := NewClient(
-		WithAddress(p.Endpoints.Kibana),
-		WithUsername(p.Credentials.Username),
-		WithPassword(p.Credentials.Password),
-	)
-	if err != nil {
-		return "", err
-	}
-	statusCode, respBody, err := client.get(ctx, "/api/fleet/fleet_server_hosts")
+	fleetURL, err := p.KibanaClient.DefaultFleetServerURL()
 	if err != nil {
 		return "", fmt.Errorf("failed to query fleet server hosts: %w", err)
 	}
 
-	if statusCode != http.StatusOK {
-		return "", fmt.Errorf("unexpected status code %d, body: %s", statusCode, string(respBody))
-	}
-
-	var hosts struct {
-		Items []struct {
-			IsDefault bool     `json:"is_default"`
-			HostURLs  []string `json:"host_urls"`
-		} `json:"items"`
-	}
-	err = json.Unmarshal(respBody, &hosts)
-	if err != nil {
-		return "", fmt.Errorf("failed to decode response: %w", err)
-	}
-
-	for _, server := range hosts.Items {
-		if server.IsDefault && len(server.HostURLs) > 0 {
-			return server.HostURLs[0], nil
-		}
-	}
-
-	return "", errors.New("could not find the fleet server URL for this project")
+	return fleetURL, nil
 }
 
 func (p *Project) getESHealth(ctx context.Context) error {
