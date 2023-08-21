@@ -28,7 +28,7 @@ func NewElasticsearchClient(customOptions ...elasticsearch.ClientOption) (*elast
 
 func NewKibanaClient(customOptions ...kibana.ClientOption) (*kibana.Client, error) {
 	options := []kibana.ClientOption{
-		kibana.Address(os.Getenv(ElasticsearchHostEnv)),
+		kibana.Address(os.Getenv(KibanaHostEnv)),
 		kibana.Password(os.Getenv(ElasticsearchPasswordEnv)),
 		kibana.Username(os.Getenv(ElasticsearchUsernameEnv)),
 		kibana.CertificateAuthority(os.Getenv(CACertificateEnv)),
