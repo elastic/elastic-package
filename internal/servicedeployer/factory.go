@@ -93,7 +93,7 @@ func FindDevDeployPath(options FactoryOptions) (string, error) {
 		return "", fmt.Errorf("stat failed for package (path: %s): %w", packageDevDeployPath, err)
 	}
 
-	return "", fmt.Errorf("%q directory doesn't exist", options.DevDeployDir)
+	return "", fmt.Errorf("\"%s\" directory doesn't exist", options.DevDeployDir)
 }
 
 func findServiceDeployer(devDeployPath string) (string, error) {
