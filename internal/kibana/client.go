@@ -7,17 +7,18 @@ package kibana
 import (
 	"bytes"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 
 	"github.com/elastic/elastic-package/internal/certs"
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/logger"
-	"github.com/elastic/elastic-package/internal/stack"
 )
+
+var ErrUndefinedHost = errors.New("missing kibana host")
 
 // Client is responsible for exporting dashboards from Kibana.
 type Client struct {
@@ -34,24 +35,13 @@ type ClientOption func(*Client)
 
 // NewClient creates a new instance of the client.
 func NewClient(opts ...ClientOption) (*Client, error) {
-	host := os.Getenv(stack.KibanaHostEnv)
-	username := os.Getenv(stack.ElasticsearchUsernameEnv)
-	password := os.Getenv(stack.ElasticsearchPasswordEnv)
-	certificateAuthority := os.Getenv(stack.CACertificateEnv)
-
-	c := &Client{
-		host:                 host,
-		username:             username,
-		password:             password,
-		certificateAuthority: certificateAuthority,
-	}
-
+	c := &Client{}
 	for _, opt := range opts {
 		opt(c)
 	}
 
 	if c.host == "" {
-		return nil, stack.UndefinedEnvError(stack.KibanaHostEnv)
+		return nil, ErrUndefinedHost
 	}
 
 	return c, nil
@@ -68,6 +58,20 @@ func Address(address string) ClientOption {
 func TLSSkipVerify() ClientOption {
 	return func(c *Client) {
 		c.tlSkipVerify = true
+	}
+}
+
+// Username option sets the username to be used by the client.
+func Username(username string) ClientOption {
+	return func(c *Client) {
+		c.username = username
+	}
+}
+
+// Password option sets the password to be used by the client.
+func Password(password string) ClientOption {
+	return func(c *Client) {
+		c.password = password
 	}
 }
 

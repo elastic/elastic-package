@@ -11,9 +11,9 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
-	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/packages/installer"
+	"github.com/elastic/elastic-package/internal/stack"
 )
 
 const installLongDescription = `Use this command to install the package in Kibana.
@@ -49,7 +49,7 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 		return cobraext.FlagParsingError(err, cobraext.BuildSkipValidationFlagName)
 	}
 
-	kibanaClient, err := kibana.NewClient()
+	kibanaClient, err := stack.NewKibanaClient()
 	if err != nil {
 		return fmt.Errorf("could not create kibana client: %w", err)
 	}

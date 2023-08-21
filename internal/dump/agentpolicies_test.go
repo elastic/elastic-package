@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/elastic/elastic-package/internal/kibana"
+	"github.com/elastic/elastic-package/internal/stack"
 )
 
 func TestDumpAgentPolicies(t *testing.T) {
@@ -72,7 +73,7 @@ type agentPoliciesDumpSuite struct {
 func (s *agentPoliciesDumpSuite) SetupTest() {
 	_, err := os.Stat(s.DumpDirAll)
 	if errors.Is(err, os.ErrNotExist) {
-		client, err := kibana.NewClient()
+		client, err := stack.NewKibanaClient()
 		s.Require().NoError(err)
 
 		dumper := NewAgentPoliciesDumper(client)
@@ -85,7 +86,7 @@ func (s *agentPoliciesDumpSuite) SetupTest() {
 
 	_, err = os.Stat(s.DumpDirPackage)
 	if errors.Is(err, os.ErrNotExist) {
-		client, err := kibana.NewClient()
+		client, err := stack.NewKibanaClient()
 		s.Require().NoError(err)
 
 		dumper := NewAgentPoliciesDumper(client)
@@ -98,7 +99,7 @@ func (s *agentPoliciesDumpSuite) SetupTest() {
 
 	_, err = os.Stat(s.DumpDirAgentPolicy)
 	if errors.Is(err, os.ErrNotExist) {
-		client, err := kibana.NewClient()
+		client, err := stack.NewKibanaClient()
 		s.Require().NoError(err)
 
 		dumper := NewAgentPoliciesDumper(client)
