@@ -6,8 +6,11 @@ package serverless
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/elastic/elastic-package/internal/elasticsearch"
@@ -173,4 +176,74 @@ func getFleetHealthy(ctx context.Context, project *Project) error {
 	}
 
 	return nil
+}
+
+func (p *Project) CreateAgentPolicy(stackVersion string) error {
+	systemVersion, err := getPackageVersion("https://epr.elastic.co", "system", stackVersion)
+	if err != nil {
+		return fmt.Errorf("could not get the system package version for kibana %v: %w", stackVersion, err)
+	}
+
+	policy := kibana.Policy{
+		ID:                "elastic-agent-managed-ep",
+		Name:              "Elastic-Agent (elastic-package)",
+		Description:       "Policy created by elastic-package",
+		Namespace:         "default",
+		MonitoringEnabled: []string{"logs", "metrics"},
+	}
+	newPolicy, err := p.KibanaClient.CreatePolicy(policy)
+	if err != nil {
+		return fmt.Errorf("error while creating agent policy: %w", err)
+	}
+
+	packagePolicy := kibana.PackagePolicy{
+		Name:      "system-1",
+		PolicyID:  newPolicy.ID,
+		Namespace: newPolicy.Namespace,
+	}
+	packagePolicy.Package.Name = "system"
+	packagePolicy.Package.Version = systemVersion
+
+	_, err = p.KibanaClient.CreatePackagePolicy(packagePolicy)
+	if err != nil {
+		return fmt.Errorf("error while creating package policy: %w", err)
+	}
+
+	return nil
+}
+
+func getPackageVersion(registryURL, packageName, stackVersion string) (string, error) {
+	searchURL, err := url.JoinPath(registryURL, "search")
+	if err != nil {
+		return "", fmt.Errorf("could not build URL: %w", err)
+	}
+	searchURL = fmt.Sprintf("%s?package=%s&kibana.version=%s", searchURL, packageName, stackVersion)
+	resp, err := http.Get(searchURL)
+	if err != nil {
+		return "", fmt.Errorf("request failed (url: %s): %w", searchURL, err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 300 {
+		return "", fmt.Errorf("unexpected status code %v", resp.StatusCode)
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("failed to read response body: %w", err)
+	}
+	var packages []struct {
+		Name    string `json:"name"`
+		Version string `json:"version"`
+	}
+	err = json.Unmarshal(body, &packages)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse response body: %w", err)
+	}
+	if len(packages) != 1 {
+		return "", fmt.Errorf("expected 1 package, obtained %v", len(packages))
+	}
+	if found := packages[0].Name; found != packageName {
+		return "", fmt.Errorf("expected package %s, found %s", packageName, found)
+	}
+
+	return packages[0].Version, nil
 }
