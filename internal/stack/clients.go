@@ -13,7 +13,6 @@ import (
 )
 
 func NewElasticsearchClient(customOptions ...elasticsearch.ClientOption) (*elasticsearch.Client, error) {
-
 	options := []elasticsearch.ClientOption{
 		elasticsearch.OptionWithAddress(os.Getenv(ElasticsearchHostEnv)),
 		elasticsearch.OptionWithPassword(os.Getenv(ElasticsearchPasswordEnv)),

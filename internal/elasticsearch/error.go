@@ -76,4 +76,4 @@ func NewError(body []byte) error {
 	return fmt.Errorf("elasticsearch error: %v", string(body))
 }
 
-var ErrUndefinedAddress = errors.New("missing elasticsearch address")
+var ErrUndefinedAddress = errors.New("missing Elasticsearch address")
