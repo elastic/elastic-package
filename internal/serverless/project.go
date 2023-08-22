@@ -18,7 +18,7 @@ import (
 	"github.com/elastic/elastic-package/internal/logger"
 )
 
-const EPR_URL = "https://epr.elastic.co"
+const eprURL = "https://epr.elastic.co"
 
 // Project represents a serverless project
 type Project struct {
@@ -46,8 +46,6 @@ type Project struct {
 	ElasticsearchClient *elasticsearch.Client
 	KibanaClient        *kibana.Client
 }
-
-type serviceHealthy func(context.Context, *Project) error
 
 func (p *Project) EnsureHealthy(ctx context.Context) error {
 	if err := p.ensureElasticserchHealthy(ctx); err != nil {
@@ -97,7 +95,6 @@ func (p *Project) ensureElasticserchHealthy(ctx context.Context) error {
 
 		return nil
 	}
-	return nil
 }
 
 func (p *Project) ensureKibanaHealthy(ctx context.Context) error {
@@ -118,7 +115,6 @@ func (p *Project) ensureKibanaHealthy(ctx context.Context) error {
 
 		return nil
 	}
-	return nil
 }
 
 func (p *Project) ensureFleetHealthy(ctx context.Context) error {
@@ -139,7 +135,6 @@ func (p *Project) ensureFleetHealthy(ctx context.Context) error {
 
 		return nil
 	}
-	return nil
 }
 
 func (p *Project) DefaultFleetServerURL() (string, error) {
@@ -198,7 +193,7 @@ func (p *Project) getFleetHealth(ctx context.Context) error {
 }
 
 func (p *Project) CreateAgentPolicy(stackVersion string) error {
-	systemVersion, err := getPackageVersion(EPR_URL, "system", stackVersion)
+	systemVersion, err := getPackageVersion(eprURL, "system", stackVersion)
 	if err != nil {
 		return fmt.Errorf("could not get the system package version for kibana %v: %w", stackVersion, err)
 	}

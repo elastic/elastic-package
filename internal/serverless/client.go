@@ -193,9 +193,6 @@ func (c *Client) CreateProject(name, region, project string) (*Project, error) {
 		return nil, fmt.Errorf("failed to reset credentials: %w", err)
 	}
 
-	bytes, _ := json.MarshalIndent(&serverlessProject, "", "  ")
-	fmt.Printf("Project:\n%s", string(bytes))
-
 	return serverlessProject, err
 }
 
