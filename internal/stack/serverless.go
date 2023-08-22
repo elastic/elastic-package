@@ -92,13 +92,11 @@ func (sp *serverlessProvider) createProject(settings projectSettings, options Op
 		return Config{}, fmt.Errorf("failed to create project client")
 	}
 
-	if project.Type == "observability" {
-		config.Parameters[paramServerlessFleetURL], err = project.DefaultFleetServerURL(ctx)
-		if err != nil {
-			return Config{}, fmt.Errorf("failed to get fleet URL: %w", err)
-		}
-		project.Endpoints.Fleet = config.Parameters[paramServerlessFleetURL]
+	config.Parameters[paramServerlessFleetURL], err = project.DefaultFleetServerURL()
+	if err != nil {
+		return Config{}, fmt.Errorf("failed to get fleet URL: %w", err)
 	}
+	project.Endpoints.Fleet = config.Parameters[paramServerlessFleetURL]
 
 	printUserConfig(options.Printer, config)
 
@@ -170,13 +168,9 @@ func (sp *serverlessProvider) currentProject(config Config) (*serverless.Project
 		return nil, fmt.Errorf("failed to create project client")
 	}
 
-	if project.Type != "observability" {
-		return project, nil
-	}
-
 	fleetURL := config.Parameters[paramServerlessFleetURL]
 	if true {
-		fleetURL, err = project.DefaultFleetServerURL(context.Background())
+		fleetURL, err = project.DefaultFleetServerURL()
 		if err != nil {
 			return nil, fmt.Errorf("failed to get fleet URL: %w", err)
 		}
@@ -223,6 +217,10 @@ func (sp *serverlessProvider) BootUp(options Options) error {
 		return err
 	}
 
+	if settings.Type == "elasticsearch" {
+		return fmt.Errorf("serverless project type not supported: %s", settings.Type)
+	}
+
 	var project *serverless.Project
 
 	project, err = sp.currentProject(config)
@@ -230,7 +228,7 @@ func (sp *serverlessProvider) BootUp(options Options) error {
 	default:
 		return err
 	case errProjectNotExist:
-		logger.Infof("Creating project %q", settings.Name)
+		logger.Infof("Creating %s project: %q", settings.Type, settings.Name)
 		config, err = sp.createProject(settings, options, config)
 		if err != nil {
 			return fmt.Errorf("failed to create deployment: %w", err)
@@ -253,9 +251,9 @@ func (sp *serverlessProvider) BootUp(options Options) error {
 		// 	return fmt.Errorf("failed to replace GeoIP databases: %w", err)
 		// }
 	case nil:
-		logger.Debugf("Project existed: %s", project.Name)
+		logger.Debugf("%s project existed: %s", project.Type, project.Name)
 		printUserConfig(options.Printer, config)
-		logger.Infof("Updating project %s", project.Name)
+		// logger.Infof("Updating project %s", project.Name)
 		// err = sp.updateDeployment(project, settings)
 		// if err != nil {
 		// 	return fmt.Errorf("failed to update deployment: %w", err)

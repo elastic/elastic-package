@@ -56,7 +56,7 @@ func (p *Project) EnsureHealthy(ctx context.Context) error {
 	if err := p.ensureKibanaHealthy(ctx); err != nil {
 		return fmt.Errorf("kibana not healthy: %w", err)
 	}
-	if err := p.ensureServiceHealthy(ctx, getFleetHealthy); err != nil {
+	if err := p.ensureFleetHealthy(ctx); err != nil {
 		return fmt.Errorf("fleet not healthy: %w", err)
 	}
 	return nil
@@ -74,9 +74,7 @@ func (p *Project) Status(ctx context.Context) (map[string]string, error) {
 	status = map[string]string{
 		"elasticsearch": healthStatus(p.getESHealth(ctx)),
 		"kibana":        healthStatus(p.getKibanaHealth()),
-	}
-	if p.Type == "observability" {
-		status["fleet"] = healthStatus(getFleetHealthy(ctx, p))
+		"fleet":         healthStatus(p.getFleetHealth(ctx)),
 	}
 	return status, nil
 }
@@ -92,7 +90,7 @@ func (p *Project) ensureElasticserchHealthy(ctx context.Context) error {
 
 		err := p.ElasticsearchClient.CheckHealth(ctx)
 		if err != nil {
-			logger.Debugf("service not ready: %s", err.Error())
+			logger.Debugf("Elasticsearch service not ready: %s", err.Error())
 			timer.Reset(time.Second * 5)
 			continue
 		}
@@ -113,7 +111,7 @@ func (p *Project) ensureKibanaHealthy(ctx context.Context) error {
 
 		err := p.KibanaClient.CheckHealth()
 		if err != nil {
-			logger.Debugf("service not ready: %s", err.Error())
+			logger.Debugf("Kibana service not ready: %s", err.Error())
 			timer.Reset(time.Second * 5)
 			continue
 		}
@@ -123,7 +121,7 @@ func (p *Project) ensureKibanaHealthy(ctx context.Context) error {
 	return nil
 }
 
-func (p *Project) ensureServiceHealthy(ctx context.Context, serviceFunc serviceHealthy) error {
+func (p *Project) ensureFleetHealthy(ctx context.Context) error {
 	timer := time.NewTimer(time.Millisecond)
 	for {
 		select {
@@ -132,9 +130,9 @@ func (p *Project) ensureServiceHealthy(ctx context.Context, serviceFunc serviceH
 		case <-timer.C:
 		}
 
-		err := serviceFunc(ctx, p)
+		err := p.getFleetHealth(ctx)
 		if err != nil {
-			logger.Debugf("service not ready: %s", err.Error())
+			logger.Debugf("Fleet service not ready: %s", err.Error())
 			timer.Reset(time.Second * 5)
 			continue
 		}
@@ -144,7 +142,7 @@ func (p *Project) ensureServiceHealthy(ctx context.Context, serviceFunc serviceH
 	return nil
 }
 
-func (p *Project) DefaultFleetServerURL(ctx context.Context) (string, error) {
+func (p *Project) DefaultFleetServerURL() (string, error) {
 	fleetURL, err := p.KibanaClient.DefaultFleetServerURL()
 	if err != nil {
 		return "", fmt.Errorf("failed to query fleet server hosts: %w", err)
@@ -161,13 +159,17 @@ func (p *Project) getKibanaHealth() error {
 	return p.KibanaClient.CheckHealth()
 }
 
-func getFleetHealthy(ctx context.Context, project *Project) error {
-	statusURL, err := url.JoinPath(project.Endpoints.Fleet, "api/status")
+func (p *Project) getFleetHealth(ctx context.Context) error {
+	statusURL, err := url.JoinPath(p.Endpoints.Fleet, "/api/status")
 	if err != nil {
 		return fmt.Errorf("could not build URL: %w", err)
 	}
 	logger.Debugf("GET %s", statusURL)
-	resp, err := http.Get(statusURL)
+	req, err := http.NewRequestWithContext(ctx, "GET", statusURL, nil)
+	if err != nil {
+		return err
+	}
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("request failed (url: %s): %w", statusURL, err)
 	}
