@@ -18,6 +18,8 @@ import (
 	"github.com/elastic/elastic-package/internal/logger"
 )
 
+const EPR_URL = "https://epr.elastic.co"
+
 // Project represents a serverless project
 type Project struct {
 	url    string
@@ -160,28 +162,41 @@ func (p *Project) getKibanaHealth() error {
 }
 
 func getFleetHealthy(ctx context.Context, project *Project) error {
-	client, err := NewClient(
-		WithAddress(project.Endpoints.Fleet),
-		WithUsername(project.Credentials.Username),
-		WithPassword(project.Credentials.Password),
-	)
+	statusURL, err := url.JoinPath(project.Endpoints.Fleet, "api/status")
 	if err != nil {
-		return err
+		return fmt.Errorf("could not build URL: %w", err)
+	}
+	logger.Debugf("GET %s", statusURL)
+	resp, err := http.Get(statusURL)
+	if err != nil {
+		return fmt.Errorf("request failed (url: %s): %w", statusURL, err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 300 {
+		return fmt.Errorf("unexpected status code %v", resp.StatusCode)
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read response body: %w", err)
+	}
+	var status struct {
+		Name   string `json:"name"`
+		Status string `json:"status"`
+	}
+	err = json.Unmarshal(body, &status)
+	if err != nil {
+		return fmt.Errorf("failed to parse response body: %w", err)
 	}
 
-	statusCode, respBody, err := client.get(ctx, "/api/status")
-	if err != nil {
-		return fmt.Errorf("failed to query fleet status: %w", err)
-	}
-	if statusCode != http.StatusOK {
-		return fmt.Errorf("fleet unhealthy: status code %d, body: %s", statusCode, string(respBody))
-	}
+	if status.Status != "HEALTHY" {
+		return fmt.Errorf("fleet status %s", status.Status)
 
+	}
 	return nil
 }
 
 func (p *Project) CreateAgentPolicy(stackVersion string) error {
-	systemVersion, err := getPackageVersion("https://epr.elastic.co", "system", stackVersion)
+	systemVersion, err := getPackageVersion(EPR_URL, "system", stackVersion)
 	if err != nil {
 		return fmt.Errorf("could not get the system package version for kibana %v: %w", stackVersion, err)
 	}
@@ -220,6 +235,7 @@ func getPackageVersion(registryURL, packageName, stackVersion string) (string, e
 		return "", fmt.Errorf("could not build URL: %w", err)
 	}
 	searchURL = fmt.Sprintf("%s?package=%s&kibana.version=%s", searchURL, packageName, stackVersion)
+	logger.Debugf("GET %s", searchURL)
 	resp, err := http.Get(searchURL)
 	if err != nil {
 		return "", fmt.Errorf("request failed (url: %s): %w", searchURL, err)
