@@ -92,11 +92,13 @@ func (sp *serverlessProvider) createProject(settings projectSettings, options Op
 		return Config{}, fmt.Errorf("failed to create project client")
 	}
 
-	config.Parameters[paramServerlessFleetURL], err = project.DefaultFleetServerURL(ctx)
-	if err != nil {
-		return Config{}, fmt.Errorf("failed to get fleet URL: %w", err)
+	if project.Type == "observability" {
+		config.Parameters[paramServerlessFleetURL], err = project.DefaultFleetServerURL(ctx)
+		if err != nil {
+			return Config{}, fmt.Errorf("failed to get fleet URL: %w", err)
+		}
+		project.Endpoints.Fleet = config.Parameters[paramServerlessFleetURL]
 	}
-	project.Endpoints.Fleet = config.Parameters[paramServerlessFleetURL]
 
 	printUserConfig(options.Printer, config)
 
@@ -166,6 +168,10 @@ func (sp *serverlessProvider) currentProject(config Config) (*serverless.Project
 	project, err = sp.createClients(project)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create project client")
+	}
+
+	if project.Type != "observability" {
+		return project, nil
 	}
 
 	fleetURL := config.Parameters[paramServerlessFleetURL]

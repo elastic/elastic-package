@@ -72,7 +72,9 @@ func (p *Project) Status(ctx context.Context) (map[string]string, error) {
 	status = map[string]string{
 		"elasticsearch": healthStatus(p.getESHealth(ctx)),
 		"kibana":        healthStatus(p.getKibanaHealth()),
-		"fleet":         healthStatus(getFleetHealthy(ctx, p)),
+	}
+	if p.Type == "observability" {
+		status["fleet"] = healthStatus(getFleetHealthy(ctx, p))
 	}
 	return status, nil
 }
