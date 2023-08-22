@@ -15,9 +15,10 @@ import (
 	"github.com/dustin/go-humanize"
 
 	"github.com/elastic/elastic-package/internal/corpusgenerator"
+	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/install"
-	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
+	"github.com/elastic/elastic-package/internal/stack"
 
 	"github.com/spf13/cobra"
 
@@ -28,7 +29,6 @@ import (
 	"github.com/elastic/elastic-package/internal/benchrunner/runners/system"
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/common"
-	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/signal"
 	"github.com/elastic/elastic-package/internal/testrunner"
@@ -164,7 +164,7 @@ func pipelineCommandAction(cmd *cobra.Command, args []string) error {
 		return errors.New("no pipeline benchmarks found")
 	}
 
-	esClient, err := elasticsearch.NewClient()
+	esClient, err := stack.NewElasticsearchClient()
 	if err != nil {
 		return fmt.Errorf("can't create Elasticsearch client: %w", err)
 	}
@@ -267,7 +267,7 @@ func systemCommandAction(cmd *cobra.Command, args []string) error {
 
 	signal.Enable()
 
-	esClient, err := elasticsearch.NewClient()
+	esClient, err := stack.NewElasticsearchClient()
 	if err != nil {
 		return fmt.Errorf("can't create Elasticsearch client: %w", err)
 	}
@@ -276,7 +276,7 @@ func systemCommandAction(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	kc, err := kibana.NewClient()
+	kc, err := stack.NewKibanaClient()
 	if err != nil {
 		return fmt.Errorf("can't create Kibana client: %w", err)
 	}

@@ -15,7 +15,6 @@ import (
 	"github.com/elastic/elastic-package/internal/docker"
 	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/install"
-	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/profile"
 	"github.com/elastic/elastic-package/internal/stack"
@@ -54,7 +53,7 @@ func (d *CustomAgentDeployer) SetUp(inCtxt ServiceContext) (DeployedService, err
 		return nil, fmt.Errorf("can't read application configuration: %w", err)
 	}
 
-	kibanaClient, err := kibana.NewClient()
+	kibanaClient, err := stack.NewKibanaClient()
 	if err != nil {
 		return nil, fmt.Errorf("can't create Kibana client: %w", err)
 	}
