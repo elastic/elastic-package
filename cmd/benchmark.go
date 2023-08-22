@@ -411,7 +411,7 @@ func initializeESMetricsClient(ctx context.Context) (*elasticsearch.Client, erro
 		return nil, nil
 	}
 
-	esClient, err := elasticsearch.NewClient(
+	esClient, err := stack.NewElasticsearchClient(
 		elasticsearch.OptionWithAddress(address),
 		elasticsearch.OptionWithUsername(user),
 		elasticsearch.OptionWithPassword(pass),
