@@ -12,14 +12,12 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"strings"
 
 	"github.com/elastic/go-elasticsearch/v7"
 	"github.com/elastic/go-elasticsearch/v7/esapi"
 
 	"github.com/elastic/elastic-package/internal/certs"
-	"github.com/elastic/elastic-package/internal/stack"
 )
 
 // API contains the elasticsearch APIs
@@ -47,22 +45,26 @@ type clientOptions struct {
 	skipTLSVerify bool
 }
 
-// defaultOptionsFromEnv returns clientOptions initialized with values from environmet variables.
-func defaultOptionsFromEnv() clientOptions {
-	return clientOptions{
-		address:              os.Getenv(stack.ElasticsearchHostEnv),
-		username:             os.Getenv(stack.ElasticsearchUsernameEnv),
-		password:             os.Getenv(stack.ElasticsearchPasswordEnv),
-		certificateAuthority: os.Getenv(stack.CACertificateEnv),
-	}
-}
-
 type ClientOption func(*clientOptions)
 
 // OptionWithAddress sets the address to be used by the client.
 func OptionWithAddress(address string) ClientOption {
 	return func(opts *clientOptions) {
 		opts.address = address
+	}
+}
+
+// OptionWithUsername sets the username to be used by the client.
+func OptionWithUsername(username string) ClientOption {
+	return func(opts *clientOptions) {
+		opts.username = username
+	}
+}
+
+// OptionWithPassword sets the password to be used by the client.
+func OptionWithPassword(password string) ClientOption {
+	return func(opts *clientOptions) {
+		opts.password = password
 	}
 }
 
@@ -87,13 +89,13 @@ type Client struct {
 
 // NewClient method creates new instance of the Elasticsearch client.
 func NewClient(customOptions ...ClientOption) (*Client, error) {
-	options := defaultOptionsFromEnv()
+	options := clientOptions{}
 	for _, option := range customOptions {
 		option(&options)
 	}
 
 	if options.address == "" {
-		return nil, stack.UndefinedEnvError(stack.ElasticsearchHostEnv)
+		return nil, ErrUndefinedAddress
 	}
 
 	config := elasticsearch.Config{

@@ -16,7 +16,6 @@ import (
 	"text/template"
 
 	"github.com/elastic/elastic-package/internal/install"
-	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/kind"
 	"github.com/elastic/elastic-package/internal/kubectl"
 	"github.com/elastic/elastic-package/internal/logger"
@@ -149,7 +148,7 @@ func findKubernetesDefinitions(definitionsDir string) ([]string, error) {
 func installElasticAgentInCluster() error {
 	logger.Debug("install Elastic Agent in the Kubernetes cluster")
 
-	kibanaClient, err := kibana.NewClient()
+	kibanaClient, err := stack.NewKibanaClient()
 	if err != nil {
 		return fmt.Errorf("can't create Kibana client: %w", err)
 	}
