@@ -358,7 +358,7 @@ func (sp *serverlessProvider) Update(options Options) error {
 }
 
 func (sp *serverlessProvider) Dump(options DumpOptions) (string, error) {
-	return "", fmt.Errorf("not implemented")
+	return Dump(options)
 }
 
 func (sp *serverlessProvider) Status(options Options) ([]ServiceStatus, error) {
@@ -400,32 +400,63 @@ func (sp *serverlessProvider) Status(options Options) ([]ServiceStatus, error) {
 
 func (sp *serverlessProvider) localAgentStatus() ([]ServiceStatus, error) {
 	var services []ServiceStatus
-	// query directly to docker to avoid load environment variables (e.g. STACK_VERSION_VARIANT) and profiles
-	containerIDs, err := docker.ContainerIDsWithLabel(projectLabelDockerCompose, sp.composeProjectName())
+	serviceStatusFunc := func(description docker.ContainerDescription) error {
+		service, err := newServiceStatus(&description)
+		if err != nil {
+			return err
+		}
+		services = append(services, *service)
+		return nil
+	}
+
+	err := runOnLocalServices(sp.composeProjectName(), serviceStatusFunc)
 	if err != nil {
 		return nil, err
 	}
 
+	return services, nil
+}
+
+func localServiceNames(project string) ([]string, error) {
+	services := []string{}
+	serviceFunc := func(description docker.ContainerDescription) error {
+		services = append(services, description.Config.Labels[serviceLabelDockerCompose])
+		return nil
+	}
+
+	err := runOnLocalServices(project, serviceFunc)
+	if err != nil {
+		return nil, err
+	}
+
+	return services, nil
+}
+
+func runOnLocalServices(project string, serviceFunc func(docker.ContainerDescription) error) error {
+	// query directly to docker to avoid load environment variables (e.g. STACK_VERSION_VARIANT) and profiles
+	containerIDs, err := docker.ContainerIDsWithLabel(projectLabelDockerCompose, project)
+	if err != nil {
+		return err
+	}
+
 	if len(containerIDs) == 0 {
-		return services, nil
+		return nil
 	}
 
 	containerDescriptions, err := docker.InspectContainers(containerIDs...)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	for _, containerDescription := range containerDescriptions {
-		service, err := newServiceStatus(&containerDescription)
-		if err != nil {
-			return nil, err
-		}
-		if strings.HasSuffix(service.Name, readyServicesSuffix) {
+		serviceName := containerDescription.Config.Labels[serviceLabelDockerCompose]
+		if strings.HasSuffix(serviceName, readyServicesSuffix) {
 			continue
 		}
-		logger.Debugf("Adding Service: \"%v\"", service.Name)
-		services = append(services, *service)
+		err := serviceFunc(containerDescription)
+		if err != nil {
+			return err
+		}
 	}
-
-	return services, nil
+	return nil
 }
