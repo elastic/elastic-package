@@ -269,7 +269,7 @@ func (c *Client) ResetCredentials(ctx context.Context, project *Project) (*Proje
 	project.Credentials.Username = credentials.Username
 	project.Credentials.Password = credentials.Password
 
-	return project, err
+	return project, nil
 }
 
 func (c *Client) DeleteProject(project *Project) error {
