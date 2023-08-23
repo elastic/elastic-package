@@ -11,6 +11,7 @@ import (
 	"net/http"
 )
 
+// DefaultFleetServerURL returns the default Fleet server configured in Kibana
 func (c *Client) DefaultFleetServerURL() (string, error) {
 	path := fmt.Sprintf("%s/fleet_server_hosts", FleetAPI)
 
