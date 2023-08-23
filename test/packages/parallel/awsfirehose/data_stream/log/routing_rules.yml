@@ -4,8 +4,8 @@
         - "{{cloud.account.id}}"
       namespace:
         - "{{cloud.account.id}}"
-      if: ctx.cloud?.region == 'eu-west-1'
+      if: ctx.aws?.firehose?.arn?.contains('vpcflow-log') == true
     - target_dataset: aws.cloudtrail
-      if: ctx['aws.cloudwatch.log_stream'].contains('CloudTrail')
+      if: ctx['aws.cloudwatch.log_stream'].contains('CloudTrail') == true
       namespace:
         - default
