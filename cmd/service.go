@@ -15,6 +15,7 @@ import (
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/service"
+	"github.com/elastic/elastic-package/internal/testrunner/runners/system"
 )
 
 const serviceLongDescription = `Use this command to boot up the service stack that can be observed with the package.
@@ -70,6 +71,7 @@ func upCommandAction(cmd *cobra.Command, args []string) error {
 		Profile:            profile,
 		ServiceName:        serviceName,
 		PackageRootPath:    packageRoot,
+		DevDeployDir:       system.DevDeployDir,
 		DataStreamRootPath: dataStreamPath,
 		Variant:            variantFlag,
 	})

@@ -26,13 +26,13 @@ import (
 
 	"github.com/elastic/elastic-package/internal/benchrunner"
 	"github.com/elastic/elastic-package/internal/benchrunner/reporters"
-	"github.com/elastic/elastic-package/internal/benchrunner/runners/system/servicedeployer"
 	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/multierror"
 	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/internal/servicedeployer"
 	"github.com/elastic/elastic-package/internal/signal"
 )
 
@@ -40,11 +40,8 @@ const (
 	// ServiceLogsAgentDir is folder path where log files produced by the service
 	// are stored on the Agent container's filesystem.
 	ServiceLogsAgentDir = "/tmp/service_logs"
+	devDeployDir        = "_dev/benchmark/system/deploy"
 
-	waitForDataDefaultTimeout = 10 * time.Minute
-)
-
-const (
 	// BenchType defining system benchmark
 	BenchType benchrunner.Type = "system"
 )
@@ -140,7 +137,13 @@ func (r *runner) setUp() error {
 	serviceLogsDir := locationManager.ServiceLogDir()
 	r.ctxt.Logs.Folder.Local = serviceLogsDir
 	r.ctxt.Logs.Folder.Agent = ServiceLogsAgentDir
-	r.ctxt.Bench.RunID = createRunID()
+	r.ctxt.Test.RunID = createRunID()
+
+	outputDir, err := servicedeployer.CreateOutputDir(locationManager, r.ctxt.Test.RunID)
+	if err != nil {
+		return fmt.Errorf("could not create output dir for terraform deployer %w", err)
+	}
+	r.ctxt.OutputDir = outputDir
 
 	scenario, err := readConfig(r.options.PackageRootPath, r.options.BenchName, r.ctxt)
 	if err != nil {
@@ -229,10 +232,14 @@ func (r *runner) run() (report reporters.Reportable, err error) {
 	if r.scenario.Corpora.InputService != nil {
 		// Setup service.
 		logger.Debug("setting up service...")
-		serviceDeployer, err := servicedeployer.Factory(servicedeployer.FactoryOptions{
-			Profile:  r.options.Profile,
-			RootPath: r.options.PackageRootPath,
-		})
+		opts := servicedeployer.FactoryOptions{
+			PackageRootPath: r.options.PackageRootPath,
+			DevDeployDir:    devDeployDir,
+			Variant:         r.options.Variant,
+			Profile:         r.options.Profile,
+			Type:            servicedeployer.TypeBench,
+		}
+		serviceDeployer, err := servicedeployer.Factory(opts)
 
 		if err != nil {
 			return nil, fmt.Errorf("could not create service runner: %w", err)
@@ -256,6 +263,7 @@ func (r *runner) run() (report reporters.Reportable, err error) {
 	}
 
 	r.startMetricsColletion()
+	defer r.mcollector.stop()
 
 	// if there is a generator config, generate the data
 	if r.generator != nil {
@@ -277,8 +285,12 @@ func (r *runner) run() (report reporters.Reportable, err error) {
 		}
 	}
 
-	if err := r.waitUntilBenchmarkFinishes(); err != nil {
+	finishedOnTime, err := r.waitUntilBenchmarkFinishes()
+	if err != nil {
 		return nil, err
+	}
+	if !finishedOnTime {
+		return nil, errors.New("timeout exceeded")
 	}
 
 	msum, err := r.collectAndSummarizeMetrics()
@@ -286,19 +298,22 @@ func (r *runner) run() (report reporters.Reportable, err error) {
 		return nil, fmt.Errorf("can't summarize metrics: %w", err)
 	}
 
-	// TODO reindex if configured and es metricstore is set
+	if err := r.reindexData(); err != nil {
+		return nil, fmt.Errorf("can't reindex data: %w", err)
+	}
 
 	return createReport(r.options.BenchName, r.corporaFile, r.scenario, msum)
 }
 
 func (r *runner) startMetricsColletion() {
-	// TODO send metrics to es metricstore if set
 	// TODO collect agent hosts metrics using system integration
 	r.mcollector = newCollector(
 		r.ctxt,
+		r.options.BenchName,
+		*r.scenario,
 		r.options.ESAPI,
+		r.options.ESMetricsAPI,
 		r.options.MetricsInterval,
-		r.scenario.WarmupTimePeriod,
 		r.runtimeDataStream,
 		r.pipelinePrefix,
 	)
@@ -375,15 +390,18 @@ func (r *runner) createPackagePolicy(pkgManifest *packages.PackageManifest, p *k
 		r.scenario.Package = pkgManifest.Name
 	}
 
-	// TODO: add ability to define which policy template to use
+	if r.scenario.PolicyTemplate == "" {
+		r.scenario.PolicyTemplate = pkgManifest.PolicyTemplates[0].Name
+	}
+
 	pp := kibana.PackagePolicy{
 		Namespace: "ep",
 		PolicyID:  p.ID,
-		Vars:      r.scenario.Vars,
 		Force:     true,
 		Inputs: map[string]kibana.PackagePolicyInput{
-			fmt.Sprintf("%s-%s", pkgManifest.PolicyTemplates[0].Name, r.scenario.Input): {
+			fmt.Sprintf("%s-%s", r.scenario.PolicyTemplate, r.scenario.Input): {
 				Enabled: true,
+				Vars:    r.scenario.Vars,
 				Streams: map[string]kibana.PackagePolicyStream{
 					fmt.Sprintf("%s.%s", pkgManifest.Name, r.scenario.DataStream.Name): {
 						Enabled: true,
@@ -539,6 +557,10 @@ func (r *runner) runGenerator(destDir string) error {
 	}
 	defer f.Close()
 
+	if err := f.Chmod(os.ModePerm); err != nil {
+		return err
+	}
+
 	buf := bytes.NewBufferString("")
 	var corpusDocsCount uint64
 	for {
@@ -601,19 +623,15 @@ func (r *runner) checkEnrolledAgents() ([]kibana.Agent, error) {
 	return agents, nil
 }
 
-func (r *runner) waitUntilBenchmarkFinishes() error {
+func (r *runner) waitUntilBenchmarkFinishes() (bool, error) {
 	logger.Debug("checking for all data in data stream...")
 	var benchTime *time.Timer
 	if r.scenario.BenchmarkTimePeriod > 0 {
 		benchTime = time.NewTimer(r.scenario.BenchmarkTimePeriod)
 	}
-	waitForDataTimeout := waitForDataDefaultTimeout
-	if r.scenario.WaitForDataTimeout > 0 {
-		waitForDataTimeout = r.scenario.WaitForDataTimeout
-	}
 
 	oldHits := 0
-	_, err := waitUntilTrue(func() (bool, error) {
+	return waitUntilTrue(func() (bool, error) {
 		if signal.SIGINT() {
 			return true, errors.New("SIGINT: cancel waiting for policy assigned")
 		}
@@ -639,8 +657,7 @@ func (r *runner) waitUntilBenchmarkFinishes() error {
 		}
 
 		return ret, err
-	}, waitForDataTimeout)
-	return err
+	}, *r.scenario.WaitForDataTimeout)
 }
 
 func (r *runner) enrollAgents() error {
@@ -692,6 +709,167 @@ func (r *runner) enrollAgents() error {
 	return nil
 }
 
+// reindexData will read all data generated during the benchmark and will reindex it to the metrisctore
+func (r *runner) reindexData() error {
+	if !r.options.ReindexData {
+		return nil
+	}
+	if r.options.ESMetricsAPI == nil {
+		return errors.New("the option to reindex data is set, but the metricstore was not initialized")
+	}
+
+	logger.Debug("starting reindexing of data...")
+
+	logger.Debug("getting orignal mappings...")
+	// Get the mapping from the source data stream
+	mappingRes, err := r.options.ESAPI.Indices.GetMapping(
+		r.options.ESAPI.Indices.GetMapping.WithIndex(r.runtimeDataStream),
+	)
+	if err != nil {
+		return fmt.Errorf("error getting mapping: %w", err)
+	}
+	defer mappingRes.Body.Close()
+
+	body, err := io.ReadAll(mappingRes.Body)
+	if err != nil {
+		return fmt.Errorf("error reading mapping body: %w", err)
+	}
+
+	mappings := map[string]struct {
+		Mappings json.RawMessage
+	}{}
+
+	if err := json.Unmarshal(body, &mappings); err != nil {
+		return fmt.Errorf("error unmarshaling mappings: %w", err)
+	}
+
+	if len(mappings) != 1 {
+		return fmt.Errorf("exactly 1 mapping was expected, got %d", len(mappings))
+	}
+
+	var mapping string
+	for _, v := range mappings {
+		mapping = string(v.Mappings)
+	}
+
+	reader := bytes.NewReader(
+		[]byte(fmt.Sprintf(`{
+			"settings": {"number_of_replicas":0},
+			"mappings": %s
+		}`, mapping)),
+	)
+
+	indexName := fmt.Sprintf("bench-reindex-%s-%s", r.runtimeDataStream, r.ctxt.Test.RunID)
+
+	logger.Debugf("creating %s index in metricstore...", indexName)
+
+	createRes, err := r.options.ESMetricsAPI.Indices.Create(
+		indexName,
+		r.options.ESMetricsAPI.Indices.Create.WithBody(reader),
+	)
+	if err != nil {
+		return fmt.Errorf("could not create index: %w", err)
+	}
+	defer createRes.Body.Close()
+
+	if createRes.IsError() {
+		return errors.New("got a response error while creating index")
+	}
+
+	bodyReader := strings.NewReader(`{"query":{"match_all":{}}}`)
+
+	logger.Debug("starting scrolling of events...")
+	res, err := r.options.ESAPI.Search(
+		r.options.ESAPI.Search.WithIndex(r.runtimeDataStream),
+		r.options.ESAPI.Search.WithBody(bodyReader),
+		r.options.ESAPI.Search.WithScroll(time.Minute),
+		r.options.ESAPI.Search.WithSize(10000),
+	)
+	if err != nil {
+		return fmt.Errorf("error executing search: %w", err)
+	}
+	defer res.Body.Close()
+
+	type searchRes struct {
+		Error *struct {
+			Reason string `json:"reson"`
+		} `json:"error"`
+		ScrollID string `json:"_scroll_id"`
+		Hits     []struct {
+			ID     string                 `json:"_id"`
+			Source map[string]interface{} `json:"_source"`
+		} `json:"hits"`
+	}
+
+	// Iterate through the search results using the Scroll API
+	for {
+		var sr searchRes
+		if err := json.NewDecoder(res.Body).Decode(&sr); err != nil {
+			return fmt.Errorf("error decoding search response: %w", err)
+		}
+
+		if sr.Error != nil {
+			return fmt.Errorf("error searching for documents: %s", sr.Error.Reason)
+		}
+
+		if len(sr.Hits) == 0 {
+			break
+		}
+
+		var bulkBodyBuilder strings.Builder
+		for _, hit := range sr.Hits {
+			bulkBodyBuilder.WriteString(fmt.Sprintf("{\"index\":{\"_index\":\"%s\",\"_id\":\"%s\"}}\n", indexName, hit.ID))
+			enriched := r.enrichEventWithBenchmarkMetadata(hit.Source)
+			src, err := json.Marshal(enriched)
+			if err != nil {
+				return fmt.Errorf("error decoding _source: %w", err)
+			}
+			bulkBodyBuilder.WriteString(fmt.Sprintf("%s\n", string(src)))
+		}
+
+		logger.Debugf("bulk request of %d events...", len(sr.Hits))
+
+		bulkRes, err := r.options.ESMetricsAPI.Bulk(strings.NewReader(bulkBodyBuilder.String()))
+		if err != nil {
+			return fmt.Errorf("error performing the bulk index request: %w", err)
+		}
+		bulkRes.Body.Close()
+
+		if sr.ScrollID == "" {
+			return errors.New("error getting scroll ID")
+		}
+
+		res, err = r.options.ESAPI.Scroll(
+			r.options.ESAPI.Scroll.WithScrollID(sr.ScrollID),
+			r.options.ESAPI.Scroll.WithScroll(time.Minute),
+		)
+		if err != nil {
+			return fmt.Errorf("error executing scroll: %s", err)
+		}
+		res.Body.Close()
+	}
+
+	logger.Debug("reindexing operation finished")
+	return nil
+}
+
+type benchMeta struct {
+	Info struct {
+		Benchmark string `json:"benchmark"`
+		RunID     string `json:"run_id"`
+	} `json:"info"`
+	Parameters scenario `json:"parameter"`
+}
+
+func (r *runner) enrichEventWithBenchmarkMetadata(e map[string]interface{}) map[string]interface{} {
+	var m benchMeta
+	m.Info.Benchmark = r.options.BenchName
+	m.Info.RunID = r.ctxt.Test.RunID
+	m.Parameters = *r.scenario
+	e["benchmark_metadata"] = m
+	return e
+}
+
 func getTotalHits(esapi *elasticsearch.API, dataStream string) (int, error) {
 	resp, err := esapi.Count(
 		esapi.Count.WithIndex(dataStream),
@@ -738,7 +916,7 @@ func filterAgents(allAgents []kibana.Agent) []kibana.Agent {
 		switch {
 		case agent.LocalMetadata.Host.Name == "docker-fleet-server",
 			agent.PolicyID == "fleet-server-policy",
-			agent.PolicyID == "Elastic Cloud agent policy":
+			agent.PolicyID == "policy-elastic-agent-on-cloud":
 			continue
 		}
 		filtered = append(filtered, agent)

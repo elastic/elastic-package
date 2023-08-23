@@ -14,8 +14,8 @@ import (
 	"github.com/elastic/elastic-package/internal/profile"
 
 	"github.com/elastic/elastic-package/internal/configuration/locations"
+	"github.com/elastic/elastic-package/internal/servicedeployer"
 	"github.com/elastic/elastic-package/internal/testrunner/runners/system"
-	"github.com/elastic/elastic-package/internal/testrunner/runners/system/servicedeployer"
 )
 
 // Options define the details of the service which should be booted up.
@@ -24,6 +24,7 @@ type Options struct {
 
 	ServiceName        string
 	PackageRootPath    string
+	DevDeployDir       string
 	DataStreamRootPath string
 
 	Variant string
@@ -36,6 +37,7 @@ func BootUp(options Options) error {
 		Profile:            options.Profile,
 		PackageRootPath:    options.DataStreamRootPath,
 		DataStreamRootPath: options.DataStreamRootPath,
+		DevDeployDir:       options.DevDeployDir,
 		Variant:            options.Variant,
 	})
 	if err != nil {

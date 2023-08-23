@@ -199,9 +199,7 @@ type NodesStats struct {
 type NodeStats struct {
 	Breakers map[string]struct {
 		LimitSizeInBytes     int     `json:"limit_size_in_bytes"`
-		LimitSize            string  `json:"limit_size"`
 		EstimatedSizeInBytes int     `json:"estimated_size_in_bytes"`
-		EstimatedSize        string  `json:"estimated_size"`
 		Overhead             float64 `json:"overhead"`
 		Tripped              int     `json:"tripped"`
 	}

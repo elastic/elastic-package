@@ -27,10 +27,10 @@ import (
 	"github.com/elastic/elastic-package/internal/multierror"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/packages/installer"
+	"github.com/elastic/elastic-package/internal/servicedeployer"
 	"github.com/elastic/elastic-package/internal/signal"
 	"github.com/elastic/elastic-package/internal/stack"
 	"github.com/elastic/elastic-package/internal/testrunner"
-	"github.com/elastic/elastic-package/internal/testrunner/runners/system/servicedeployer"
 )
 
 const (
@@ -38,6 +38,7 @@ const (
 	testRunMinID = 10000
 
 	allFieldsBody = `{"fields": ["*"]}`
+	DevDeployDir  = "_dev/deploy"
 )
 
 func init() {
@@ -204,6 +205,7 @@ func (r *runner) run() (results []testrunner.TestResult, err error) {
 		Profile:            r.options.Profile,
 		PackageRootPath:    r.options.PackageRootPath,
 		DataStreamRootPath: dataStreamPath,
+		DevDeployDir:       DevDeployDir,
 	})
 	if err != nil {
 		return result.WithError(fmt.Errorf("_dev/deploy directory not found: %w", err))
@@ -256,7 +258,9 @@ func (r *runner) runTestPerVariant(result *testrunner.ResultComposer, locationMa
 		Profile:            r.options.Profile,
 		PackageRootPath:    r.options.PackageRootPath,
 		DataStreamRootPath: dataStreamPath,
+		DevDeployDir:       DevDeployDir,
 		Variant:            variantName,
+		Type:               servicedeployer.TypeTest,
 	}
 
 	var ctxt servicedeployer.ServiceContext
@@ -265,7 +269,7 @@ func (r *runner) runTestPerVariant(result *testrunner.ResultComposer, locationMa
 	ctxt.Logs.Folder.Agent = ServiceLogsAgentDir
 	ctxt.Test.RunID = createTestRunID()
 
-	outputDir, err := createOutputDir(locationManager, ctxt.Test.RunID)
+	outputDir, err := servicedeployer.CreateOutputDir(locationManager, ctxt.Test.RunID)
 	if err != nil {
 		return nil, fmt.Errorf("could not create output dir for terraform deployer %w", err)
 	}
@@ -296,14 +300,6 @@ func (r *runner) runTestPerVariant(result *testrunner.ResultComposer, locationMa
 		return partial, fmt.Errorf("failed to tear down runner: %w", tdErr)
 	}
 	return partial, nil
-}
-
-func createOutputDir(locationManager *locations.LocationManager, runId string) (string, error) {
-	outputDir := filepath.Join(locationManager.ServiceOutputDir(), runId)
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
-		return "", fmt.Errorf("failed to create output directory: %w", err)
-	}
-	return outputDir, nil
 }
 
 func createTestRunID() string {
