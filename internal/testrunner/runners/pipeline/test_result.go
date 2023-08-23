@@ -18,7 +18,6 @@ import (
 	"github.com/pmezard/go-difflib/difflib"
 
 	"github.com/elastic/elastic-package/internal/common"
-	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
 
