@@ -193,7 +193,7 @@ func (c *Client) CreateProject(name, region, project string) (*Project, error) {
 		return nil, fmt.Errorf("failed to reset credentials: %w", err)
 	}
 
-	return serverlessProject, err
+	return serverlessProject, nil
 }
 
 func (c *Client) EnsureProjectInitialized(ctx context.Context, project *Project) error {
@@ -220,7 +220,6 @@ func (c *Client) EnsureProjectInitialized(ctx context.Context, project *Project)
 
 		return nil
 	}
-	return nil
 }
 
 func (c *Client) StatusProject(ctx context.Context, project *Project) (string, error) {
@@ -305,8 +304,11 @@ func (c *Client) GetProject(projectType, projectID string) (*Project, error) {
 
 	project := &Project{url: c.host, apiKey: c.apiKey}
 	err = json.Unmarshal(respBody, &project)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode project: %w", err)
+	}
 
-	return project, err
+	return project, nil
 }
 
 func (c *Client) EnsureEndpoints(ctx context.Context, project *Project) error {
