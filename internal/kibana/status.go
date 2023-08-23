@@ -58,7 +58,7 @@ func (c *Client) Version() (VersionInfo, error) {
 	return status.Version, nil
 }
 
-// CheckHealth returns the status of Kibana (Elastic stack)
+// CheckHealth checks the Kibana health
 func (c *Client) CheckHealth() error {
 	statusCode, respBody, err := c.get(StatusAPI)
 	if err != nil {
