@@ -1,7 +1,0 @@
-title: "Kubernetes container logs"
-type: logs
-dataset: kubernetes.container_logs
-# Ensures agents have permissions to write data to `logs-*-*`
-elasticsearch:
-  dynamic_dataset: true
-  dynamic_namespace: true
