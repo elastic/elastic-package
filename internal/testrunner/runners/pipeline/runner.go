@@ -23,6 +23,7 @@ import (
 	"github.com/elastic/elastic-package/internal/multierror"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/signal"
+	"github.com/elastic/elastic-package/internal/stack"
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
 
@@ -291,7 +292,16 @@ func (r *runner) verifyResults(testCaseFile string, config *testConfig, result *
 		}
 	}
 
-	err := compareResults(testCasePath, config, result)
+	// TODO: currently GeoIP related fields are being removed
+	stackConfig, err := stack.LoadConfig(r.options.Profile)
+	if err != nil {
+		return err
+	}
+	skipGeoIP := false
+	if stackConfig.Provider == "serverless" {
+		skipGeoIP = true
+	}
+	err = compareResults(testCasePath, config, result, skipGeoIP)
 	if _, ok := err.(testrunner.ErrTestCaseFailed); ok {
 		return err
 	}

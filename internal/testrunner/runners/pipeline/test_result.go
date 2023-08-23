@@ -18,6 +18,7 @@ import (
 	"github.com/pmezard/go-difflib/difflib"
 
 	"github.com/elastic/elastic-package/internal/common"
+	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
 
@@ -46,8 +47,8 @@ func writeTestResult(testCasePath string, result *testResult) error {
 	return nil
 }
 
-func compareResults(testCasePath string, config *testConfig, result *testResult) error {
-	resultsWithoutDynamicFields, err := adjustTestResult(result, config)
+func compareResults(testCasePath string, config *testConfig, result *testResult, skipGeoip bool) error {
+	resultsWithoutDynamicFields, err := adjustTestResult(result, config, skipGeoip)
 	if err != nil {
 		return fmt.Errorf("can't adjust test results: %w", err)
 	}
@@ -57,7 +58,7 @@ func compareResults(testCasePath string, config *testConfig, result *testResult)
 		return fmt.Errorf("marshalling actual test results failed: %w", err)
 	}
 
-	expectedResults, err := readExpectedTestResult(testCasePath, config)
+	expectedResults, err := readExpectedTestResult(testCasePath, config, skipGeoip)
 	if err != nil {
 		return fmt.Errorf("reading expected test result failed: %w", err)
 	}
@@ -138,7 +139,7 @@ func diffJson(want, got []byte) (string, error) {
 	return buf.String(), err
 }
 
-func readExpectedTestResult(testCasePath string, config *testConfig) (*testResult, error) {
+func readExpectedTestResult(testCasePath string, config *testConfig, skipGeoIP bool) (*testResult, error) {
 	testCaseDir := filepath.Dir(testCasePath)
 	testCaseFile := filepath.Base(testCasePath)
 
@@ -153,14 +154,14 @@ func readExpectedTestResult(testCasePath string, config *testConfig) (*testResul
 		return nil, fmt.Errorf("unmarshalling expected test result failed: %w", err)
 	}
 
-	adjusted, err := adjustTestResult(u, config)
+	adjusted, err := adjustTestResult(u, config, skipGeoIP)
 	if err != nil {
 		return nil, fmt.Errorf("adjusting test result failed: %w", err)
 	}
 	return adjusted, nil
 }
 
-func adjustTestResult(result *testResult, config *testConfig) (*testResult, error) {
+func adjustTestResult(result *testResult, config *testConfig, skipGeoIP bool) (*testResult, error) {
 	if config == nil || config.DynamicFields == nil {
 		return result, nil
 	}
@@ -183,6 +184,22 @@ func adjustTestResult(result *testResult, config *testConfig) (*testResult, erro
 			err := m.Delete(key)
 			if err != nil && err != common.ErrKeyNotFound {
 				return nil, fmt.Errorf("can't remove dynamic field: %w", err)
+			}
+		}
+
+		if skipGeoIP {
+			// remove common related geoIP keys
+			geoIPKeys := []string{
+				"source.as",
+				"source.geo",
+				"destination.as",
+				"destination.geo",
+			}
+			for _, key := range geoIPKeys {
+				err := m.Delete(key)
+				if err != nil && err != common.ErrKeyNotFound {
+					return nil, fmt.Errorf("can't remove geoIP field: %w", err)
+				}
 			}
 		}
 
