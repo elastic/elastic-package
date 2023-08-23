@@ -1,5 +1,10 @@
 - source_dataset: awsfirehose.log
   rules:
+    - target_dataset:
+        - "{{cloud.account.id}}"
+      namespace:
+        - "{{cloud.account.id}}"
+      if: ctx.cloud?.region == 'eu-west-1'
     - target_dataset: aws.cloudtrail
       if: ctx['aws.cloudwatch.log_stream'].contains('CloudTrail')
       namespace:
