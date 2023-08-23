@@ -23,9 +23,6 @@ import (
 type Client struct {
 	host   string
 	apiKey string
-
-	username string
-	password string
 }
 
 // ClientOption is functional option modifying Serverless API client.
@@ -74,20 +71,6 @@ func WithApiKey(apiKey string) ClientOption {
 	}
 }
 
-// WithUsername option sets the username.
-func WithUsername(username string) ClientOption {
-	return func(c *Client) {
-		c.username = username
-	}
-}
-
-// WithPassword option sets the password.
-func WithPassword(password string) ClientOption {
-	return func(c *Client) {
-		c.password = password
-	}
-}
-
 func (c *Client) get(ctx context.Context, resourcePath string) (int, []byte, error) {
 	return c.sendRequest(ctx, http.MethodGet, resourcePath, nil)
 }
@@ -131,13 +114,8 @@ func (c *Client) newRequest(ctx context.Context, method, resourcePath string, re
 	}
 
 	req.Header.Add("content-type", "application/json")
-
-	if c.username != "" {
-		req.SetBasicAuth(c.username, c.password)
-		return req, nil
-	}
-
 	req.Header.Add("Authorization", fmt.Sprintf("ApiKey %s", c.apiKey))
+
 	return req, nil
 }
 
