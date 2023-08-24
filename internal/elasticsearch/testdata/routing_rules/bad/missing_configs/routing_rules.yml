@@ -2,10 +2,6 @@
   rules:
     - if: ctx['aws.cloudwatch.log_stream'].contains('Test1')
       namespace: default
-- source_dataset: missing_namespace
-  rules:
-    - target_dataset: aws.test2_logs
-      if: ctx['aws.cloudwatch.log_stream'].contains('Test2')
 - source_dataset: missing_if_namespace
   rules:
     - target_dataset: aws.test3_logs

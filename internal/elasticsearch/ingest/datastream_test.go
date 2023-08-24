@@ -85,29 +85,19 @@ func TestLoadRoutingRuleFileGoodEmpty(t *testing.T) {
 }
 
 func TestLoadRoutingRuleFileGoodOptionalConfigs(t *testing.T) {
-	mockDataStreamPath := "../testdata/routing_rules/good/no_target_dataset_namespace_if"
+	mockDataStreamPath := "../testdata/routing_rules/good/no_namespace"
 	rerouteProcessors, err := loadRoutingRuleFile(mockDataStreamPath)
 	assert.NoError(t, err)
-	assert.Equal(t, 3, len(rerouteProcessors))
+	assert.Equal(t, 1, len(rerouteProcessors))
 
 	expectedProcessors := map[string]struct {
 		expectedIf        string
 		expectedDataset   []string
 		expectedNamespace []string
 	}{
-		"missing_target_dataset": {
-			"ctx['aws.cloudwatch.log_stream'].contains('Test1')",
-			nil,
-			[]string{"default"},
-		},
 		"missing_namespace": {
 			"ctx['aws.cloudwatch.log_stream'].contains('Test2')",
 			[]string{"aws.test2_logs"},
-			nil,
-		},
-		"missing_if_namespace": {
-			"",
-			[]string{"aws.test3_logs"},
 			nil,
 		},
 	}
@@ -129,6 +119,13 @@ func TestLoadRoutingRuleFileBadMultipleSourceDataset(t *testing.T) {
 
 func TestLoadRoutingRuleFileBadNotString(t *testing.T) {
 	mockDataStreamPath := "../testdata/routing_rules/bad/not_string"
+	rerouteProcessors, err := loadRoutingRuleFile(mockDataStreamPath)
+	assert.Equal(t, 0, len(rerouteProcessors))
+	assert.Error(t, err)
+}
+
+func TestLoadRoutingRuleFileBadMissingConfigs(t *testing.T) {
+	mockDataStreamPath := "../testdata/routing_rules/bad/missing_configs"
 	rerouteProcessors, err := loadRoutingRuleFile(mockDataStreamPath)
 	assert.Equal(t, 0, len(rerouteProcessors))
 	assert.Error(t, err)
