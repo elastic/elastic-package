@@ -38,7 +38,7 @@ require (
 	honnef.co/go/tools v0.4.5
 	k8s.io/apimachinery v0.28.1
 	k8s.io/cli-runtime v0.28.0
-	k8s.io/client-go v0.28.0
+	k8s.io/client-go v0.28.1
 )
 
 require (
@@ -160,7 +160,7 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	k8s.io/api v0.28.0 // indirect
+	k8s.io/api v0.28.1 // indirect
 	k8s.io/apiextensions-apiserver v0.27.3 // indirect
 	k8s.io/component-base v0.28.0 // indirect
 	k8s.io/klog/v2 v2.100.1 // indirect
