@@ -9,7 +9,7 @@ services:
       retries: 180
       interval: 5s
     hostname: docker-fleet-agent
-    env_file: "./serverless-elastic-agent.env"
+    env_file: "./elastic-agent.env"
     volumes:
     - type: bind
       source: ../../../tmp/service_logs/

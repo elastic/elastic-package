@@ -17,10 +17,6 @@ import (
 )
 
 const (
-	// ServerlessElasticAgentEnvFile is the elastic agent environment variables file for the
-	// serverless provider.
-	ServerlessElasticAgentEnvFile = "serverless-elastic-agent.env"
-
 	// ServerlessComposeFile is the docker-compose snapshot.yml file name.
 	ServerlessComposeFile = "serverless-elastic-agent.yml"
 )
@@ -32,8 +28,8 @@ var (
 			Content: staticSource.Template("_static/serverless-elastic-agent.yml.tmpl"),
 		},
 		&resource.File{
-			Path:    ServerlessElasticAgentEnvFile,
-			Content: staticSource.Template("_static/serverless-elastic-agent.env.tmpl"),
+			Path:    ElasticAgentEnvFile,
+			Content: staticSource.Template("_static/elastic-agent.env.tmpl"),
 		},
 	}
 )
