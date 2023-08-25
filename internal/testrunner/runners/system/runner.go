@@ -410,13 +410,40 @@ func (r *runner) getDocs(dataStream string) (*hits, error) {
 		logger.Debugf("found %d hits in %s data stream", numHits, dataStream)
 	}
 
-	var hits hits
+	var docs hits
 	for _, hit := range results.Hits.Hits {
-		hits.Source = append(hits.Source, hit.Source)
-		hits.Fields = append(hits.Fields, hit.Fields)
+		docs.Source = append(docs.Source, hit.Source)
+		docs.Fields = append(docs.Fields, hit.Fields)
 	}
 
-	return &hits, nil
+	return &docs, nil
+}
+
+func (r *runner) getTransformFailureReason(transformId string) (string, error) {
+	resp, err := r.options.API.TransformGetTransformStats(transformId)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	var stats struct {
+		Transforms []struct {
+			ID     string `json:"id"`
+			State  string `json:"state"`
+			Reason string `json:"reason"`
+		} `json:"transforms"`
+	}
+	err = json.NewDecoder(resp.Body).Decode(&stats)
+	if err != nil {
+		return "", fmt.Errorf("could not decode transform stats response: %w", err)
+	}
+
+	for _, transform := range stats.Transforms {
+		if transform.State == "failed" {
+			return transform.Reason, nil
+		}
+	}
+	return "", nil
 }
 
 func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext, serviceOptions servicedeployer.FactoryOptions) ([]testrunner.TestResult, error) {
@@ -620,7 +647,7 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 
 	// (TODO in future) Optionally exercise service to generate load.
 	logger.Debug("checking for expected data in data stream...")
-	var hits *hits
+	var resultHits *hits
 	oldHits := 0
 	passed, err := waitUntilTrue(func() (bool, error) {
 		if signal.SIGINT() {
@@ -628,22 +655,22 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 		}
 
 		var err error
-		hits, err = r.getDocs(dataStream)
+		resultHits, err = r.getDocs(dataStream)
 
 		if config.Assert.HitCount > 0 {
-			if hits.size() < config.Assert.HitCount {
+			if resultHits.size() < config.Assert.HitCount {
 				return false, err
 			}
 
-			ret := hits.size() == oldHits
+			ret := resultHits.size() == oldHits
 			if !ret {
-				oldHits = hits.size()
+				oldHits = resultHits.size()
 				time.Sleep(4 * time.Second)
 			}
 
 			return ret, err
 		}
-		return hits.size() > 0, err
+		return resultHits.size() > 0, err
 	}, waitForDataTimeout)
 
 	if err != nil {
@@ -661,7 +688,7 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	}
 	logger.Debugf("data stream %s has synthetics enabled: %t", dataStream, syntheticEnabled)
 
-	docs := hits.getDocs(syntheticEnabled)
+	docs := resultHits.getDocs(syntheticEnabled)
 
 	// Validate fields in docs
 	// when reroute processors are used, expectedDatasets should be set depends on the processor config
@@ -725,6 +752,52 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	// Check Hit Count within docs, if 0 then it has not been specified
 	if assertionPass, message := assertHitCount(config.Assert.HitCount, docs); !assertionPass {
 		result.FailureMsg = message
+	}
+
+	// Check transforms if present
+	transforms, err := packages.ReadTransformsFromPackageRoot(r.options.PackageRootPath)
+	if err != nil {
+		return result.WithError(fmt.Errorf("loading transforms for package failed (root: %s)", r.options.PackageRootPath))
+	}
+	for _, transform := range transforms {
+		hasSource, err := transform.HasSource(dataStream)
+		if err != nil {
+			return result.WithError(fmt.Errorf("failed to check if transform %q has %s as source: %w", transform.Description, dataStream, err))
+		}
+		if !hasSource {
+			logger.Debugf("transform %q does not match %q as source (sources: %s)", transform.Description, dataStream, transform.Source.Index)
+			continue
+		}
+		logger.Debugf("checking transform %q", transform.Description)
+		var resultHits *hits
+		found, err := waitUntilTrue(func() (bool, error) {
+			if signal.SIGINT() {
+				return true, errors.New("SIGINT: cancel waiting for policy assigned")
+			}
+
+			failure, err := r.getTransformFailureReason(fmt.Sprintf("%s-%s.*",
+				ds.Inputs[0].Streams[0].DataStream.Type,
+				pkgManifest.Name,
+			))
+			if err != nil {
+				return false, fmt.Errorf("failed to get transform failre: %w", err)
+			}
+			if failure != "" {
+				return false, fmt.Errorf("transform failed with reason: %s", failure)
+			}
+
+			resultHits, err = r.getDocs(transform.Destination.Index)
+			if err != nil {
+				return false, fmt.Errorf("failed to get documents in %q", transform.Destination.Index)
+			}
+			return resultHits.size() > 0, nil
+		}, 2*transform.Frequency)
+		if err != nil {
+			return result.WithError(fmt.Errorf("failed to find documents in transform %q: %w", transform.Description, err))
+		}
+		if !found {
+			return result.WithError(fmt.Errorf("no documents found for transform %q in index %s", transform.Description, transform.Destination.Index))
+		}
 	}
 
 	return result.WithSuccess()

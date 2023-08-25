@@ -12,6 +12,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/elastic/go-ucfg"
 	"github.com/elastic/go-ucfg/yaml"
@@ -156,6 +157,34 @@ type DataStreamManifest struct {
 	} `config:"streams" json:"streams" yaml:"streams"`
 }
 
+// Transform is the definition of an Elasticsearch transform
+type Transform struct {
+	Description string `config:"description" yaml:"description"`
+	Destination struct {
+		Index string `config:"index" yaml:"index"`
+	} `config:"dest" yaml:"dest"`
+	Frequency time.Duration `config:"frequency" yaml:"frequency"`
+	Source    struct {
+		Index []string `config:"index" yaml:"index"`
+	} `config:"source" yaml:"source"`
+}
+
+// HasSource checks if a given index or data stream name maches the transform sources
+func (t *Transform) HasSource(name string) (bool, error) {
+	for _, indexPattern := range t.Source.Index {
+		// Using filepath.Match to match index patterns because the syntax
+		// is basically the same.
+		found, err := filepath.Match(indexPattern, name)
+		if err != nil {
+			return false, fmt.Errorf("maching pattern %q with %q", indexPattern, name, err)
+		}
+		if found {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 // MustFindPackageRoot finds and returns the path to the root folder of a package.
 // It fails with an error if the package root can't be found.
 func MustFindPackageRoot() (string, error) {
@@ -286,6 +315,31 @@ func ReadPackageManifest(path string) (*PackageManifest, error) {
 		return nil, fmt.Errorf("unpacking package manifest failed (path: %s): %w", path, err)
 	}
 	return &m, nil
+}
+
+// ReadTransformsFromPackageRoot looks for transforms in the given package root.
+func ReadTransformsFromPackageRoot(packageRoot string) ([]Transform, error) {
+	files, err := filepath.Glob(filepath.Join(packageRoot, "elasticsearch", "transform", "*", "transform.yml"))
+	if err != nil {
+		return nil, fmt.Errorf("failed matching files with transform definitions: %w", err)
+	}
+
+	var transforms []Transform
+	for _, file := range files {
+		cfg, err := yaml.NewConfigWithFile(file, ucfg.PathSep("."))
+		if err != nil {
+			return nil, fmt.Errorf("reading file failed (path: %s): %w", file, err)
+		}
+
+		var transform Transform
+		err = cfg.Unpack(&transform)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse transform file \"%s\": %w", file, err)
+		}
+		transforms = append(transforms, transform)
+	}
+
+	return transforms, nil
 }
 
 func ReadPackageManifestBytes(contents []byte) (*PackageManifest, error) {
