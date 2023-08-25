@@ -23,6 +23,23 @@ import (
 
 const expectedTestResultSuffix = "-expected.json"
 
+var geoIPKeys = []string{
+	"client.as",
+	"client.geo",
+	"destination.as",
+	"destination.geo",
+	"host.geo",     // not defined host.as in ECS
+	"observer.geo", // not defined observer.as in ECS
+	"server.as",
+	"server.geo",
+	"source.as",
+	"source.geo",
+	"threat.enrichments.indicateor.as",
+	"threat.enrichments.indicateor.geo",
+	"threat.indicateor.as",
+	"threat.indicateor.geo",
+}
+
 type testResult struct {
 	events []json.RawMessage
 }
@@ -187,13 +204,6 @@ func adjustTestResult(result *testResult, config *testConfig, skipGeoIP bool) (*
 		}
 
 		if skipGeoIP {
-			// remove common related geoIP keys
-			geoIPKeys := []string{
-				"source.as",
-				"source.geo",
-				"destination.as",
-				"destination.geo",
-			}
 			for _, key := range geoIPKeys {
 				err := m.Delete(key)
 				if err != nil && err != common.ErrKeyNotFound {
