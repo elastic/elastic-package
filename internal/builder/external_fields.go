@@ -37,17 +37,11 @@ func resolveExternalFields(packageRoot, destinationDir string) error {
 		return fmt.Errorf("can't create field dependency manager: %w", err)
 	}
 
-	dataStreamFieldsFiles, err := filepath.Glob(filepath.Join(destinationDir, "data_stream", "*", "fields", "*.yml"))
+	fieldsFiles, err := listAllFieldsFiles(destinationDir)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to list fields files under \"%s\": %w", destinationDir, err)
 	}
 
-	packageFieldsFiles, err := filepath.Glob(filepath.Join(destinationDir, "fields", "*.yml"))
-	if err != nil {
-		return err
-	}
-
-	var fieldsFiles = append(packageFieldsFiles, dataStreamFieldsFiles...)
 	for _, file := range fieldsFiles {
 		data, err := os.ReadFile(file)
 		if err != nil {
@@ -69,7 +63,30 @@ func resolveExternalFields(packageRoot, destinationDir string) error {
 			logger.Debugf("%s: source file hasn't been changed", rel)
 		}
 	}
+
 	return nil
+}
+
+func listAllFieldsFiles(dir string) ([]string, error) {
+	patterns := []string{
+		// Package fields
+		filepath.Join(dir, "fields", "*.yml"),
+		// Data stream fields
+		filepath.Join(dir, "data_stream", "*", "fields", "*.yml"),
+		// Transform fields
+		filepath.Join(dir, "elasticsearch", "transform", "*", "fields", "*.yml"),
+	}
+
+	var paths []string
+	for _, pattern := range patterns {
+		matches, err := filepath.Glob(pattern)
+		if err != nil {
+			return nil, err
+		}
+		paths = append(paths, matches...)
+	}
+
+	return paths, nil
 }
 
 func injectFields(fdm *fields.DependencyManager, content []byte) ([]byte, bool, error) {
