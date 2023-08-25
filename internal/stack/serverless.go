@@ -250,19 +250,12 @@ func (sp *serverlessProvider) BootUp(options Options) error {
 			return fmt.Errorf("failed to create agent policy: %w", err)
 		}
 
+		// TODO: Ensuring a specific GeoIP database would make tests reproducible
+		// Currently geo ip files would be ignored when running pipeline tests
 		// logger.Infof("Replacing GeoIP databases")
-		// err = cp.replaceGeoIPDatabases(config, options, settings.TemplateID, settings.Region, payload.Resources.Elasticsearch[0].Plan.ClusterTopology)
-		// if err != nil {
-		// 	return fmt.Errorf("failed to replace GeoIP databases: %w", err)
-		// }
 	case nil:
 		logger.Debugf("%s project existed: %s", project.Type, project.Name)
 		printUserConfig(options.Printer, config)
-		// logger.Infof("Updating project %s", project.Name)
-		// err = sp.updateDeployment(project, settings)
-		// if err != nil {
-		// 	return fmt.Errorf("failed to update deployment: %w", err)
-		// }
 	}
 
 	logger.Infof("Starting local agent")
@@ -330,11 +323,8 @@ func (sp *serverlessProvider) TearDown(options Options) error {
 		return fmt.Errorf("failed to delete project: %w", err)
 	}
 
+	// TODO: if GeoIP database is specified, remove the geoip Bundle (if needed)
 	// logger.Debugf("Deleting GeoIP bundle.")
-	// err = cp.deleteGeoIPExtension()
-	// if err != nil {
-	// 	return fmt.Errorf("failed to delete GeoIP extension: %w", err)
-	// }
 
 	// err = storeConfig(sp.profile, Config{})
 	// if err != nil {
