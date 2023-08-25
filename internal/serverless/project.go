@@ -48,7 +48,7 @@ type Project struct {
 }
 
 func (p *Project) EnsureHealthy(ctx context.Context) error {
-	if err := p.ensureElasticserchHealthy(ctx); err != nil {
+	if err := p.ensureElasticsearchHealthy(ctx); err != nil {
 		return fmt.Errorf("elasticsearch not healthy: %w", err)
 	}
 	if err := p.ensureKibanaHealthy(ctx); err != nil {
@@ -77,63 +77,51 @@ func (p *Project) Status(ctx context.Context) (map[string]string, error) {
 	return status, nil
 }
 
-func (p *Project) ensureElasticserchHealthy(ctx context.Context) error {
-	timer := time.NewTimer(time.Millisecond)
+func (p *Project) ensureElasticsearchHealthy(ctx context.Context) error {
 	for {
+		err := p.ElasticsearchClient.CheckHealth(ctx)
+		if err == nil {
+			return nil
+		}
+
+		logger.Debugf("Elasticsearch service not ready: %s", err.Error())
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-timer.C:
+		case <-time.After(5 * time.Second):
 		}
-
-		err := p.ElasticsearchClient.CheckHealth(ctx)
-		if err != nil {
-			logger.Debugf("Elasticsearch service not ready: %s", err.Error())
-			timer.Reset(time.Second * 5)
-			continue
-		}
-
-		return nil
 	}
 }
 
 func (p *Project) ensureKibanaHealthy(ctx context.Context) error {
-	timer := time.NewTimer(time.Millisecond)
 	for {
+		err := p.KibanaClient.CheckHealth()
+		if err == nil {
+			return nil
+		}
+
+		logger.Debugf("Kibana service not ready: %s", err.Error())
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-timer.C:
+		case <-time.After(5 * time.Second):
 		}
-
-		err := p.KibanaClient.CheckHealth()
-		if err != nil {
-			logger.Debugf("Kibana service not ready: %s", err.Error())
-			timer.Reset(time.Second * 5)
-			continue
-		}
-
-		return nil
 	}
 }
 
 func (p *Project) ensureFleetHealthy(ctx context.Context) error {
-	timer := time.NewTimer(time.Millisecond)
 	for {
+		err := p.getFleetHealth(ctx)
+		if err == nil {
+			return nil
+		}
+
+		logger.Debugf("Fleet service not ready: %s", err.Error())
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-timer.C:
+		case <-time.After(5 * time.Second):
 		}
-
-		err := p.getFleetHealth(ctx)
-		if err != nil {
-			logger.Debugf("Fleet service not ready: %s", err.Error())
-			timer.Reset(time.Second * 5)
-			continue
-		}
-
-		return nil
 	}
 }
 
@@ -231,7 +219,12 @@ func getPackageVersion(registryURL, packageName, stackVersion string) (string, e
 	if err != nil {
 		return "", fmt.Errorf("could not build URL: %w", err)
 	}
-	searchURL = fmt.Sprintf("%s?package=%s&kibana.version=%s", searchURL, packageName, stackVersion)
+	// TODO: add capabilities or spec.minVersion?
+	queryValues := url.Values{}
+	queryValues.Add("package", packageName)
+	queryValues.Add("kibana.version", stackVersion)
+
+	searchURL = fmt.Sprintf("%s?%s", searchURL, queryValues.Encode())
 	logger.Debugf("GET %s", searchURL)
 	resp, err := http.Get(searchURL)
 	if err != nil {

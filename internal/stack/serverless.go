@@ -54,7 +54,6 @@ func (sp *serverlessProvider) createProject(settings projectSettings, options Op
 	if err != nil {
 		return Config{}, fmt.Errorf("failed to create %s project %s in %s: %w", settings.Type, settings.Name, settings.Region, err)
 	}
-	// project, _ := sp.currentProject(conf)
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*30)
 	defer cancel()

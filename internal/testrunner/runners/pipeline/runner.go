@@ -292,13 +292,13 @@ func (r *runner) verifyResults(testCaseFile string, config *testConfig, result *
 		}
 	}
 
-	// TODO: currently GeoIP related fields are being removed
+	// TODO: currently GeoIP related fields are being removed when the serverless provider is used.
 	stackConfig, err := stack.LoadConfig(r.options.Profile)
 	if err != nil {
 		return err
 	}
 	skipGeoIP := false
-	if stackConfig.Provider == "serverless" {
+	if stackConfig.Provider == stack.ProviderServerless {
 		skipGeoIP = true
 	}
 	err = compareResults(testCasePath, config, result, skipGeoIP)
