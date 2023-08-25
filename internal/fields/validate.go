@@ -18,7 +18,6 @@ import (
 	"strings"
 
 	"github.com/cbroglie/mustache"
-
 	"github.com/Masterminds/semver/v3"
 	"gopkg.in/yaml.v3"
 
