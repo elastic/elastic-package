@@ -171,7 +171,7 @@ func (c *Client) CreateProject(name, region, projectType string) (*Project, erro
 		return nil, fmt.Errorf("error while decoding create project response: %w", err)
 	}
 
-	serverlessProject, err = c.ResetCredentials(ctx, serverlessProject)
+	err = c.ResetCredentials(ctx, serverlessProject)
 	if err != nil {
 		return nil, fmt.Errorf("failed to reset credentials: %w", err)
 	}
@@ -231,19 +231,19 @@ func (c *Client) StatusProject(ctx context.Context, project *Project) (string, e
 	return status.Phase, nil
 }
 
-func (c *Client) ResetCredentials(ctx context.Context, project *Project) (*Project, error) {
+func (c *Client) ResetCredentials(ctx context.Context, project *Project) error {
 	resourcePath, err := url.JoinPath(c.host, projectsAPI, project.Type, project.ID, "_reset-credentials")
 	if err != nil {
-		return nil, fmt.Errorf("could not build the URL: %w", err)
+		return fmt.Errorf("could not build the URL: %w", err)
 	}
 	statusCode, respBody, err := c.post(ctx, resourcePath, nil)
 
 	if err != nil {
-		return nil, fmt.Errorf("error creating project: %w", err)
+		return fmt.Errorf("error creating project: %w", err)
 	}
 
 	if statusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected status code %d", statusCode)
+		return fmt.Errorf("unexpected status code %d", statusCode)
 	}
 
 	var credentials struct {
@@ -251,13 +251,13 @@ func (c *Client) ResetCredentials(ctx context.Context, project *Project) (*Proje
 		Password string `json:"password"`
 	}
 	if err := json.Unmarshal(respBody, &credentials); err != nil {
-		return nil, fmt.Errorf("unable to decode credentials: %w", err)
+		return fmt.Errorf("unable to decode credentials: %w", err)
 	}
 
 	project.Credentials.Username = credentials.Username
 	project.Credentials.Password = credentials.Password
 
-	return project, nil
+	return nil
 }
 
 func (c *Client) DeleteProject(project *Project) error {
