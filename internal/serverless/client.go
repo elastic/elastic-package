@@ -20,6 +20,8 @@ import (
 	"github.com/elastic/elastic-package/internal/logger"
 )
 
+const projectsAPI = "/api/v1/serverless/projects"
+
 type Client struct {
 	host   string
 	apiKey string
@@ -29,19 +31,19 @@ type Client struct {
 type ClientOption func(*Client)
 
 var (
-	ServerlessApiKeyEnvironmentVariable = "SERVERLESS_API_KEY"
-	ServerlessHostvironmentVariable     = "SERVERLESS_HOST"
+	ServerlessApiKeyEnvironmentVariable = environment.WithElasticPackagePrefix("SERVERLESS_API_KEY")
+	ServerlessHostvironmentVariable     = environment.WithElasticPackagePrefix("SERVERLESS_HOST")
 
 	ErrProjectNotExist = errors.New("project does not exist")
 )
 
 func NewClient(opts ...ClientOption) (*Client, error) {
-	hostEnvName := environment.WithElasticPackagePrefix(ServerlessHostvironmentVariable)
+	hostEnvName := ServerlessHostvironmentVariable
 	host := os.Getenv(hostEnvName)
 	if host == "" {
 		return nil, fmt.Errorf("unable to obtain value from %s environment variable", hostEnvName)
 	}
-	apiKeyEnvName := environment.WithElasticPackagePrefix(ServerlessApiKeyEnvironmentVariable)
+	apiKeyEnvName := ServerlessApiKeyEnvironmentVariable
 	apiKey := os.Getenv(apiKeyEnvName)
 	if apiKey == "" {
 		return nil, fmt.Errorf("unable to obtain value from %s environment variable", apiKeyEnvName)
@@ -136,7 +138,7 @@ func (c *Client) doRequest(request *http.Request) (int, []byte, error) {
 	return resp.StatusCode, body, nil
 }
 
-func (c *Client) CreateProject(name, region, project string) (*Project, error) {
+func (c *Client) CreateProject(name, region, projectType string) (*Project, error) {
 	ReqBody := struct {
 		Name     string `json:"name"`
 		RegionID string `json:"region_id"`
@@ -148,8 +150,11 @@ func (c *Client) CreateProject(name, region, project string) (*Project, error) {
 	if err != nil {
 		return nil, err
 	}
-	ctx := context.Background()
-	resourcePath := fmt.Sprintf("%s/api/v1/serverless/projects/%s", c.host, project)
+	ctx := context.TODO()
+	resourcePath, err := url.JoinPath(c.host, projectsAPI, projectType)
+	if err != nil {
+		return nil, fmt.Errorf("could not build the URL: %w", err)
+	}
 	statusCode, respBody, err := c.post(ctx, resourcePath, p)
 
 	if err != nil {
@@ -201,7 +206,10 @@ func (c *Client) EnsureProjectInitialized(ctx context.Context, project *Project)
 }
 
 func (c *Client) StatusProject(ctx context.Context, project *Project) (string, error) {
-	resourcePath := fmt.Sprintf("%s/api/v1/serverless/projects/%s/%s/status", c.host, project.Type, project.ID)
+	resourcePath, err := url.JoinPath(c.host, projectsAPI, project.Type, project.ID, "status")
+	if err != nil {
+		return "", fmt.Errorf("could not build the URL: %w", err)
+	}
 	statusCode, respBody, err := c.get(ctx, resourcePath)
 
 	if err != nil {
@@ -224,7 +232,10 @@ func (c *Client) StatusProject(ctx context.Context, project *Project) (string, e
 }
 
 func (c *Client) ResetCredentials(ctx context.Context, project *Project) (*Project, error) {
-	resourcePath := fmt.Sprintf("%s/api/v1/serverless/projects/%s/%s/_reset-credentials", c.host, project.Type, project.ID)
+	resourcePath, err := url.JoinPath(c.host, projectsAPI, project.Type, project.ID, "_reset-credentials")
+	if err != nil {
+		return nil, fmt.Errorf("could not build the URL: %w", err)
+	}
 	statusCode, respBody, err := c.post(ctx, resourcePath, nil)
 
 	if err != nil {
@@ -250,8 +261,11 @@ func (c *Client) ResetCredentials(ctx context.Context, project *Project) (*Proje
 }
 
 func (c *Client) DeleteProject(project *Project) error {
-	ctx := context.Background()
-	resourcePath := fmt.Sprintf("%s/api/v1/serverless/projects/%s/%s", c.host, project.Type, project.ID)
+	ctx := context.TODO()
+	resourcePath, err := url.JoinPath(c.host, projectsAPI, project.Type, project.ID)
+	if err != nil {
+		return fmt.Errorf("could not build the URL: %w", err)
+	}
 	statusCode, _, err := c.delete(ctx, resourcePath)
 	if err != nil {
 		return fmt.Errorf("error deleting project: %w", err)
@@ -265,8 +279,11 @@ func (c *Client) DeleteProject(project *Project) error {
 }
 
 func (c *Client) GetProject(projectType, projectID string) (*Project, error) {
-	ctx := context.Background()
-	resourcePath := fmt.Sprintf("%s/api/v1/serverless/projects/%s/%s", c.host, projectType, projectID)
+	ctx := context.TODO()
+	resourcePath, err := url.JoinPath(c.host, projectsAPI, projectType, projectID)
+	if err != nil {
+		return nil, fmt.Errorf("could not build the URL: %w", err)
+	}
 	statusCode, respBody, err := c.get(ctx, resourcePath)
 	if err != nil {
 		return nil, fmt.Errorf("error deleting project: %w", err)
@@ -290,26 +307,24 @@ func (c *Client) GetProject(projectType, projectID string) (*Project, error) {
 }
 
 func (c *Client) EnsureEndpoints(ctx context.Context, project *Project) error {
-	timer := time.NewTimer(time.Millisecond)
+	if project.Endpoints.Elasticsearch != "" {
+		return nil
+	}
+
 	for {
+		newProject, err := c.GetProject(project.Type, project.ID)
+		switch {
+		case err != nil:
+			logger.Debugf("request error: %s", err.Error())
+		case newProject.Endpoints.Elasticsearch != "":
+			project.Endpoints = newProject.Endpoints
+			return nil
+		}
+		logger.Debugf("Waiting for Elasticsearch endpoint for %s project %q", project.Type, project.ID)
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-timer.C:
+		case <-time.After(time.Second * 5):
 		}
-
-		if project.Endpoints.Elasticsearch != "" {
-			return nil
-		}
-
-		newProject, err := c.GetProject(project.Type, project.ID)
-		if err != nil {
-			logger.Debugf("request error: %s", err.Error())
-			timer.Reset(time.Second * 5)
-			continue
-		}
-
-		project.Endpoints = newProject.Endpoints
-		timer.Reset(time.Second * 5)
 	}
 }
