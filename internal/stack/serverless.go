@@ -33,6 +33,11 @@ const (
 )
 
 var (
+	allowedProjectTypes = map[string]struct{}{
+		"security":      {},
+		"observability": {},
+	}
+
 	errProjectNotExist = errors.New("project does not exist")
 )
 
@@ -216,7 +221,8 @@ func (sp *serverlessProvider) BootUp(options Options) error {
 		return err
 	}
 
-	if settings.Type == "elasticsearch" {
+	_, ok := allowedProjectTypes[settings.Type]
+	if !ok {
 		return fmt.Errorf("serverless project type not supported: %s", settings.Type)
 	}
 
