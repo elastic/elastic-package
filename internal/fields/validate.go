@@ -17,8 +17,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/cbroglie/mustache"
 	"github.com/Masterminds/semver/v3"
+	"github.com/cbroglie/mustache"
 	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/common"
