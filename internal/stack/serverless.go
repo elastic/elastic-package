@@ -44,6 +44,9 @@ var (
 type serverlessProvider struct {
 	profile *profile.Profile
 	client  *serverless.Client
+
+	elasticsearchClient *elasticsearch.Client
+	kibanaClient        *kibana.Client
 }
 
 type projectSettings struct {
@@ -60,7 +63,7 @@ func (sp *serverlessProvider) createProject(settings projectSettings, options Op
 		return Config{}, fmt.Errorf("failed to create %s project %s in %s: %w", settings.Type, settings.Name, settings.Region, err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*30)
+	ctx, cancel := context.WithTimeout(context.TODO(), time.Minute*30)
 	defer cancel()
 	if err := sp.client.EnsureEndpoints(ctx, project); err != nil {
 		return Config{}, fmt.Errorf("failed to ensure endpoints have been provisioned properly: %w", err)
@@ -91,12 +94,12 @@ func (sp *serverlessProvider) createProject(settings projectSettings, options Op
 		return Config{}, fmt.Errorf("project not initialized: %w", err)
 	}
 
-	project, err = sp.createClients(project)
+	err = sp.createClients(project)
 	if err != nil {
-		return Config{}, fmt.Errorf("failed to create project client")
+		return Config{}, err
 	}
 
-	config.Parameters[paramServerlessFleetURL], err = project.DefaultFleetServerURL()
+	config.Parameters[paramServerlessFleetURL], err = project.DefaultFleetServerURL(sp.kibanaClient)
 	if err != nil {
 		return Config{}, fmt.Errorf("failed to get fleet URL: %w", err)
 	}
@@ -110,35 +113,12 @@ func (sp *serverlessProvider) createProject(settings projectSettings, options Op
 		return Config{}, fmt.Errorf("failed to store config: %w", err)
 	}
 
-	err = project.EnsureHealthy(ctx)
+	err = project.EnsureHealthy(ctx, sp.elasticsearchClient, sp.kibanaClient)
 	if err != nil {
 		return Config{}, fmt.Errorf("not all services are healthy: %w", err)
 	}
 
 	return config, nil
-}
-
-func (sp *serverlessProvider) createClients(project *serverless.Project) (*serverless.Project, error) {
-	var err error
-	project.ElasticsearchClient, err = NewElasticsearchClient(
-		elasticsearch.OptionWithAddress(project.Endpoints.Elasticsearch),
-		elasticsearch.OptionWithUsername(project.Credentials.Username),
-		elasticsearch.OptionWithPassword(project.Credentials.Password),
-	)
-	if err != nil {
-		return project, fmt.Errorf("failed to create elasticsearch client")
-	}
-
-	project.KibanaClient, err = NewKibanaClient(
-		kibana.Address(project.Endpoints.Kibana),
-		kibana.Username(project.Credentials.Username),
-		kibana.Password(project.Credentials.Password),
-	)
-	if err != nil {
-		return project, fmt.Errorf("failed to create kibana client")
-	}
-
-	return project, nil
 }
 
 func (sp *serverlessProvider) deleteProject(project *serverless.Project, options Options) error {
@@ -167,14 +147,14 @@ func (sp *serverlessProvider) currentProject(config Config) (*serverless.Project
 	project.Credentials.Username = config.ElasticsearchUsername
 	project.Credentials.Password = config.ElasticsearchPassword
 
-	project, err = sp.createClients(project)
+	err = sp.createClients(project)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create project client")
+		return nil, err
 	}
 
 	fleetURL := config.Parameters[paramServerlessFleetURL]
 	if true {
-		fleetURL, err = project.DefaultFleetServerURL()
+		fleetURL, err = project.DefaultFleetServerURL(sp.kibanaClient)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get fleet URL: %w", err)
 		}
@@ -182,6 +162,29 @@ func (sp *serverlessProvider) currentProject(config Config) (*serverless.Project
 	project.Endpoints.Fleet = fleetURL
 
 	return project, nil
+}
+
+func (sp *serverlessProvider) createClients(project *serverless.Project) error {
+	var err error
+	sp.elasticsearchClient, err = NewElasticsearchClient(
+		elasticsearch.OptionWithAddress(project.Endpoints.Elasticsearch),
+		elasticsearch.OptionWithUsername(project.Credentials.Username),
+		elasticsearch.OptionWithPassword(project.Credentials.Password),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create elasticsearch client")
+	}
+
+	sp.kibanaClient, err = NewKibanaClient(
+		kibana.Address(project.Endpoints.Kibana),
+		kibana.Username(project.Credentials.Username),
+		kibana.Password(project.Credentials.Password),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create kibana client")
+	}
+
+	return nil
 }
 
 func getProjectSettings(options Options) (projectSettings, error) {
@@ -205,7 +208,7 @@ func newServerlessProvider(profile *profile.Profile) (*serverlessProvider, error
 		return nil, fmt.Errorf("can't create serverless provider: %w", err)
 	}
 
-	return &serverlessProvider{profile, client}, nil
+	return &serverlessProvider{profile, client, nil, nil}, nil
 }
 
 func (sp *serverlessProvider) BootUp(options Options) error {
@@ -244,8 +247,13 @@ func (sp *serverlessProvider) BootUp(options Options) error {
 			return fmt.Errorf("failed to retrieve latest project created: %w", err)
 		}
 
+		err = sp.createClients(project)
+		if err != nil {
+			return err
+		}
+
 		logger.Infof("Creating agent policy")
-		err = project.CreateAgentPolicy(options.StackVersion)
+		err = project.CreateAgentPolicy(options.StackVersion, sp.kibanaClient)
 		if err != nil {
 			return fmt.Errorf("failed to create agent policy: %w", err)
 		}
@@ -368,8 +376,8 @@ func (sp *serverlessProvider) Status(options Options) ([]ServiceStatus, error) {
 		return nil, err
 	}
 
-	ctx := context.Background()
-	projectServiceStatus, err := project.Status(ctx)
+	ctx := context.TODO()
+	projectServiceStatus, err := project.Status(ctx, sp.elasticsearchClient, sp.kibanaClient)
 	if err != nil {
 		return nil, err
 	}

@@ -42,16 +42,13 @@ type Project struct {
 		Fleet         string `json:"fleet,omitempty"`
 		APM           string `json:"apm,omitempty"`
 	} `json:"endpoints"`
-
-	ElasticsearchClient *elasticsearch.Client
-	KibanaClient        *kibana.Client
 }
 
-func (p *Project) EnsureHealthy(ctx context.Context) error {
-	if err := p.ensureElasticsearchHealthy(ctx); err != nil {
+func (p *Project) EnsureHealthy(ctx context.Context, elasticsearchClient *elasticsearch.Client, kibanaClient *kibana.Client) error {
+	if err := p.ensureElasticsearchHealthy(ctx, elasticsearchClient); err != nil {
 		return fmt.Errorf("elasticsearch not healthy: %w", err)
 	}
-	if err := p.ensureKibanaHealthy(ctx); err != nil {
+	if err := p.ensureKibanaHealthy(ctx, kibanaClient); err != nil {
 		return fmt.Errorf("kibana not healthy: %w", err)
 	}
 	if err := p.ensureFleetHealthy(ctx); err != nil {
@@ -60,7 +57,7 @@ func (p *Project) EnsureHealthy(ctx context.Context) error {
 	return nil
 }
 
-func (p *Project) Status(ctx context.Context) (map[string]string, error) {
+func (p *Project) Status(ctx context.Context, elasticsearchClient *elasticsearch.Client, kibanaClient *kibana.Client) (map[string]string, error) {
 	var status map[string]string
 	healthStatus := func(err error) string {
 		if err != nil {
@@ -70,16 +67,16 @@ func (p *Project) Status(ctx context.Context) (map[string]string, error) {
 	}
 
 	status = map[string]string{
-		"elasticsearch": healthStatus(p.getESHealth(ctx)),
-		"kibana":        healthStatus(p.getKibanaHealth()),
+		"elasticsearch": healthStatus(p.getESHealth(ctx, elasticsearchClient)),
+		"kibana":        healthStatus(p.getKibanaHealth(kibanaClient)),
 		"fleet":         healthStatus(p.getFleetHealth(ctx)),
 	}
 	return status, nil
 }
 
-func (p *Project) ensureElasticsearchHealthy(ctx context.Context) error {
+func (p *Project) ensureElasticsearchHealthy(ctx context.Context, elasticsearchClient *elasticsearch.Client) error {
 	for {
-		err := p.ElasticsearchClient.CheckHealth(ctx)
+		err := elasticsearchClient.CheckHealth(ctx)
 		if err == nil {
 			return nil
 		}
@@ -93,9 +90,9 @@ func (p *Project) ensureElasticsearchHealthy(ctx context.Context) error {
 	}
 }
 
-func (p *Project) ensureKibanaHealthy(ctx context.Context) error {
+func (p *Project) ensureKibanaHealthy(ctx context.Context, kibanaClient *kibana.Client) error {
 	for {
-		err := p.KibanaClient.CheckHealth()
+		err := kibanaClient.CheckHealth()
 		if err == nil {
 			return nil
 		}
@@ -125,8 +122,8 @@ func (p *Project) ensureFleetHealthy(ctx context.Context) error {
 	}
 }
 
-func (p *Project) DefaultFleetServerURL() (string, error) {
-	fleetURL, err := p.KibanaClient.DefaultFleetServerURL()
+func (p *Project) DefaultFleetServerURL(kibanaClient *kibana.Client) (string, error) {
+	fleetURL, err := kibanaClient.DefaultFleetServerURL()
 	if err != nil {
 		return "", fmt.Errorf("failed to query fleet server hosts: %w", err)
 	}
@@ -134,12 +131,12 @@ func (p *Project) DefaultFleetServerURL() (string, error) {
 	return fleetURL, nil
 }
 
-func (p *Project) getESHealth(ctx context.Context) error {
-	return p.ElasticsearchClient.CheckHealth(ctx)
+func (p *Project) getESHealth(ctx context.Context, elasticsearchClient *elasticsearch.Client) error {
+	return elasticsearchClient.CheckHealth(ctx)
 }
 
-func (p *Project) getKibanaHealth() error {
-	return p.KibanaClient.CheckHealth()
+func (p *Project) getKibanaHealth(kibanaClient *kibana.Client) error {
+	return kibanaClient.CheckHealth()
 }
 
 func (p *Project) getFleetHealth(ctx context.Context) error {
@@ -180,7 +177,7 @@ func (p *Project) getFleetHealth(ctx context.Context) error {
 	return nil
 }
 
-func (p *Project) CreateAgentPolicy(stackVersion string) error {
+func (p *Project) CreateAgentPolicy(stackVersion string, kibanaClient *kibana.Client) error {
 	systemVersion, err := getPackageVersion(eprURL, "system", stackVersion)
 	if err != nil {
 		return fmt.Errorf("could not get the system package version for kibana %v: %w", stackVersion, err)
@@ -193,7 +190,7 @@ func (p *Project) CreateAgentPolicy(stackVersion string) error {
 		Namespace:         "default",
 		MonitoringEnabled: []string{"logs", "metrics"},
 	}
-	newPolicy, err := p.KibanaClient.CreatePolicy(policy)
+	newPolicy, err := kibanaClient.CreatePolicy(policy)
 	if err != nil {
 		return fmt.Errorf("error while creating agent policy: %w", err)
 	}
@@ -206,7 +203,7 @@ func (p *Project) CreateAgentPolicy(stackVersion string) error {
 	packagePolicy.Package.Name = "system"
 	packagePolicy.Package.Version = systemVersion
 
-	_, err = p.KibanaClient.CreatePackagePolicy(packagePolicy)
+	_, err = kibanaClient.CreatePackagePolicy(packagePolicy)
 	if err != nil {
 		return fmt.Errorf("error while creating package policy: %w", err)
 	}
