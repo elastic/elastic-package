@@ -16,6 +16,10 @@
                 "kinesis": {
                     "name": "test-vpcflow-logs",
                     "type": "deliverystream"
+                },
+                "labels": {
+                    "elastic_co/dataset": "mydataset",
+                    "elastic_co/namespace": "mynamespace"
                 }
             },
             "data_stream": {
