@@ -6,7 +6,6 @@ package cmd
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -45,10 +44,6 @@ User profiles can be configured with a "config.yml" file in the profile director
 		Short: "Create a new profile",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-
-			if len(args) == 0 {
-				return errors.New("create requires an argument")
-			}
 			newProfileName := args[0]
 
 			fromName, err := cmd.Flags().GetString(cobraext.ProfileFromFlagName)
@@ -80,9 +75,6 @@ User profiles can be configured with a "config.yml" file in the profile director
 		Short: "Delete a profile",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if len(args) == 0 {
-				return errors.New("delete requires an argument")
-			}
 			profileName := args[0]
 
 			config, err := install.Configuration()
@@ -159,9 +151,6 @@ User profiles can be configured with a "config.yml" file in the profile director
 		Short: "Sets the profile to use when no other is specified",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if len(args) == 0 {
-				return errors.New("use requires an argument")
-			}
 			profileName := args[0]
 
 			_, err := profile.LoadProfile(profileName)
