@@ -12,7 +12,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/elastic/go-ucfg"
 	"github.com/elastic/go-ucfg/yaml"
@@ -166,12 +165,7 @@ type Transform struct {
 
 // TransformDefinition is the definition of an Elasticsearch transform
 type TransformDefinition struct {
-	Description string `config:"description" yaml:"description"`
-	Destination struct {
-		Index string `config:"index" yaml:"index"`
-	} `config:"dest" yaml:"dest"`
-	Frequency time.Duration `config:"frequency" yaml:"frequency"`
-	Source    struct {
+	Source struct {
 		Index []string `config:"index" yaml:"index"`
 	} `config:"source" yaml:"source"`
 	Meta struct {

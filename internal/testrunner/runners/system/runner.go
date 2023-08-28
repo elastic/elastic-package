@@ -818,13 +818,25 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 
 		// Using the preview instead of checking the actual index because
 		// transforms with retention policies may be deleting the documents based
-		// on old fixtures as soon as they are stored.
+		// on old fixtures as soon as they are indexed.
 		transformDocs, err := r.previewTransform(transformId)
 		if err != nil {
 			return result.WithError(fmt.Errorf("failed to preview transform %q: %w", transformId, err))
 		}
 		if len(transformDocs) == 0 {
 			return result.WithError(fmt.Errorf("no documents found in preview for transform %q", transformId))
+		}
+
+		fieldsValidator, err := fields.CreateValidatorForDirectory(filepath.Dir(transform.Path),
+			fields.WithSpecVersion(pkgManifest.SpecVersion),
+			fields.WithNumericKeywordFields(config.NumericKeywordFields),
+			fields.WithEnabledImportAllECSSChema(true),
+		)
+		if err != nil {
+			return result.WithError(fmt.Errorf("creating fields validator for data stream failed (path: %s): %w", serviceOptions.DataStreamRootPath, err))
+		}
+		if err := validateFields(transformDocs, fieldsValidator, dataStream); err != nil {
+			return result.WithError(err)
 		}
 	}
 
