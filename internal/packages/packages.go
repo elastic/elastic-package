@@ -180,7 +180,7 @@ func (t *Transform) HasSource(name string) (bool, error) {
 		// is basically the same.
 		found, err := filepath.Match(indexPattern, name)
 		if err != nil {
-			return false, fmt.Errorf("maching pattern %q with %q", indexPattern, name, err)
+			return false, fmt.Errorf("maching pattern %q with %q: %w", indexPattern, name, err)
 		}
 		if found {
 			return true, nil
