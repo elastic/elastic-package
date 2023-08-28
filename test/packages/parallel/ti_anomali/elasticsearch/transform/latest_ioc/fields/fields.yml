@@ -95,9 +95,7 @@
       type: keyword
       description: >-
         Data type of the indicator. Possible values: ip, domain, url, email, md5.
-
     - name: added_at
       type: date
-
     - name: deleted_at
       type: date
