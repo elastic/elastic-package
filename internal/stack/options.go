@@ -17,9 +17,4 @@ type Options struct {
 
 	Profile *profile.Profile
 	Printer Printer
-
-	// User parameters can be passed from flags to the stack provider.
-	// The stack provider has the responsibility of validating and storing
-	// them if needed.
-	UserParameters map[string]string
 }

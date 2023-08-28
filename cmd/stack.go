@@ -86,20 +86,23 @@ func setupStackCommand() *cobraext.Command {
 				return err
 			}
 
+			// Parameters provided through the CLI are not persisted.
+			// Stack providers can get them with `profile.Config`, and they
+			// need to handle and store them if they need it.
 			userParameters, err := cobraext.GetStackUserParameterFlags(cmd)
 			if err != nil {
 				return err
 			}
+			profile.RuntimeOverrides(userParameters)
 
 			cmd.Printf("Using profile %s.\n", profile.ProfilePath)
 			cmd.Println(`Remember to load stack environment variables using 'eval "$(elastic-package stack shellinit)"'.`)
 			err = provider.BootUp(stack.Options{
-				DaemonMode:     daemonMode,
-				StackVersion:   stackVersion,
-				Services:       services,
-				Profile:        profile,
-				Printer:        cmd,
-				UserParameters: userParameters,
+				DaemonMode:   daemonMode,
+				StackVersion: stackVersion,
+				Services:     services,
+				Profile:      profile,
+				Printer:      cmd,
 			})
 			if err != nil {
 				return fmt.Errorf("booting up the stack failed: %w", err)
