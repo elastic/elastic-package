@@ -51,6 +51,7 @@ func setupStackCommand() *cobraext.Command {
 		Use:   "up",
 		Short: "Boot up the stack",
 		Long:  stackUpLongDescription,
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.Println("Boot up the Elastic stack")
 
@@ -112,6 +113,7 @@ func setupStackCommand() *cobraext.Command {
 	downCommand := &cobra.Command{
 		Use:   "down",
 		Short: "Take down the stack",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.Println("Take down the Elastic stack")
 
@@ -141,6 +143,7 @@ func setupStackCommand() *cobraext.Command {
 	updateCommand := &cobra.Command{
 		Use:   "update",
 		Short: "Update the stack to the most recent versions",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.Println("Update the Elastic stack")
 
@@ -177,6 +180,7 @@ func setupStackCommand() *cobraext.Command {
 	shellInitCommand := &cobra.Command{
 		Use:   "shellinit",
 		Short: "Export environment variables",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			shellName, err := cmd.Flags().GetString(cobraext.ShellInitShellFlagName)
 			if err != nil {
@@ -206,6 +210,7 @@ func setupStackCommand() *cobraext.Command {
 	dumpCommand := &cobra.Command{
 		Use:   "dump",
 		Short: "Dump stack data for debug purposes",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			output, err := cmd.Flags().GetString(cobraext.StackDumpOutputFlagName)
 			if err != nil {
@@ -241,6 +246,7 @@ func setupStackCommand() *cobraext.Command {
 	statusCommand := &cobra.Command{
 		Use:   "status",
 		Short: "Show status of the stack services",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			profile, err := cobraext.GetProfileFlag(cmd)
 			if err != nil {
