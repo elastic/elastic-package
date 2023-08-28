@@ -419,31 +419,63 @@ func (r *runner) getDocs(dataStream string) (*hits, error) {
 	return &docs, nil
 }
 
-func (r *runner) getTransformFailureReason(transformId string) (string, error) {
-	resp, err := r.options.API.TransformGetTransformStats(transformId)
+func (r *runner) getTransformId(transformPattern string) (string, error) {
+	resp, err := r.options.API.TransformGetTransform(
+		r.options.API.TransformGetTransform.WithTransformID(transformPattern),
+	)
 	if err != nil {
 		return "", err
 	}
 	defer resp.Body.Close()
 
-	var stats struct {
-		Transforms []struct {
-			ID     string `json:"id"`
-			State  string `json:"state"`
-			Reason string `json:"reason"`
-		} `json:"transforms"`
-	}
-	err = json.NewDecoder(resp.Body).Decode(&stats)
-	if err != nil {
-		return "", fmt.Errorf("could not decode transform stats response: %w", err)
+	if resp.IsError() {
+		return "", fmt.Errorf("failed to get transforms: %s", resp.String())
 	}
 
-	for _, transform := range stats.Transforms {
-		if transform.State == "failed" {
-			return transform.Reason, nil
-		}
+	var transforms struct {
+		Transforms []struct {
+			ID string `json:"id"`
+		} `json:"transforms"`
 	}
-	return "", nil
+
+	err = json.NewDecoder(resp.Body).Decode(&transforms)
+	switch {
+	case err != nil:
+		return "", fmt.Errorf("failed to decode response: %w", err)
+	case len(transforms.Transforms) == 0:
+		return "", fmt.Errorf("no transform found with pattern %q", transformPattern)
+	case len(transforms.Transforms) > 1:
+		return "", fmt.Errorf("multiple transforms (%d) found with pattern %q", len(transforms.Transforms), transformPattern)
+	}
+	id := transforms.Transforms[0].ID
+	if id == "" {
+		return "", fmt.Errorf("empty ID found with pattern %q", transformPattern)
+	}
+	return id, nil
+}
+
+func (r *runner) previewTransform(transformId string) ([]common.MapStr, error) {
+	resp, err := r.options.API.TransformPreviewTransform(
+		r.options.API.TransformPreviewTransform.WithTransformID(transformId),
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.IsError() {
+		return nil, fmt.Errorf("failed to get transforms: %s", resp.String())
+	}
+
+	var preview struct {
+		Documents []common.MapStr `json:"preview"`
+	}
+	err = json.NewDecoder(resp.Body).Decode(&preview)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	return preview.Documents, nil
 }
 
 func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext, serviceOptions servicedeployer.FactoryOptions) ([]testrunner.TestResult, error) {
@@ -762,41 +794,37 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	for _, transform := range transforms {
 		hasSource, err := transform.HasSource(dataStream)
 		if err != nil {
-			return result.WithError(fmt.Errorf("failed to check if transform %q has %s as source: %w", transform.Description, dataStream, err))
+			return result.WithError(fmt.Errorf("failed to check if transform %q has %s as source: %w", transform.Name, dataStream, err))
 		}
 		if !hasSource {
-			logger.Debugf("transform %q does not match %q as source (sources: %s)", transform.Description, dataStream, transform.Source.Index)
+			logger.Debugf("transform %q does not match %q as source (sources: %s)", transform.Name, dataStream, transform.Definition.Source.Index)
 			continue
 		}
-		logger.Debugf("checking transform %q", transform.Description)
-		var resultHits *hits
-		found, err := waitUntilTrue(func() (bool, error) {
-			if signal.SIGINT() {
-				return true, errors.New("SIGINT: cancel waiting for policy assigned")
-			}
 
-			failure, err := r.getTransformFailureReason(fmt.Sprintf("%s-%s.*",
-				ds.Inputs[0].Streams[0].DataStream.Type,
-				pkgManifest.Name,
-			))
-			if err != nil {
-				return false, fmt.Errorf("failed to get transform failre: %w", err)
-			}
-			if failure != "" {
-				return false, fmt.Errorf("transform failed with reason: %s", failure)
-			}
+		logger.Debugf("checking transform %q", transform.Name)
 
-			resultHits, err = r.getDocs(transform.Destination.Index)
-			if err != nil {
-				return false, fmt.Errorf("failed to get documents in %q", transform.Destination.Index)
-			}
-			return resultHits.size() > 0, nil
-		}, 2*transform.Frequency)
+		// IDs format is: "<type>-<package>.<transform>-<namespace>-<version>"
+		// For instance: "logs-ti_anomali.latest_ioc-default-0.1.0"
+		transformPattern := fmt.Sprintf("%s-%s.%s-*-%s",
+			ds.Inputs[0].Streams[0].DataStream.Type,
+			pkgManifest.Name,
+			transform.Name,
+			transform.Definition.Meta.FleetTransformVersion,
+		)
+		transformId, err := r.getTransformId(transformPattern)
 		if err != nil {
-			return result.WithError(fmt.Errorf("failed to find documents in transform %q: %w", transform.Description, err))
+			return result.WithError(fmt.Errorf("failed to determine transform ID: %w", err))
 		}
-		if !found {
-			return result.WithError(fmt.Errorf("no documents found for transform %q in index %s", transform.Description, transform.Destination.Index))
+
+		// Using the preview instead of checking the actual index because
+		// transforms with retention policies may be deleting the documents based
+		// on old fixtures as soon as they are stored.
+		transformDocs, err := r.previewTransform(transformId)
+		if err != nil {
+			return result.WithError(fmt.Errorf("failed to preview transform %q: %w", transformId, err))
+		}
+		if len(transformDocs) == 0 {
+			return result.WithError(fmt.Errorf("no documents found in preview for transform %q", transformId))
 		}
 	}
 

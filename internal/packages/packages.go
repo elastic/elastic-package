@@ -157,8 +157,15 @@ type DataStreamManifest struct {
 	} `config:"streams" json:"streams" yaml:"streams"`
 }
 
-// Transform is the definition of an Elasticsearch transform
+// Transform contains information about a transform included in a package.
 type Transform struct {
+	Name       string
+	Path       string
+	Definition TransformDefinition
+}
+
+// TransformDefinition is the definition of an Elasticsearch transform
+type TransformDefinition struct {
 	Description string `config:"description" yaml:"description"`
 	Destination struct {
 		Index string `config:"index" yaml:"index"`
@@ -167,11 +174,14 @@ type Transform struct {
 	Source    struct {
 		Index []string `config:"index" yaml:"index"`
 	} `config:"source" yaml:"source"`
+	Meta struct {
+		FleetTransformVersion string `config:"fleet_transform_version" yaml:"fleet_transform_version"`
+	} `config:"_meta" yaml:"_meta"`
 }
 
 // HasSource checks if a given index or data stream name maches the transform sources
 func (t *Transform) HasSource(name string) (bool, error) {
-	for _, indexPattern := range t.Source.Index {
+	for _, indexPattern := range t.Definition.Source.Index {
 		// Using filepath.Match to match index patterns because the syntax
 		// is basically the same.
 		found, err := filepath.Match(indexPattern, name)
@@ -331,12 +341,17 @@ func ReadTransformsFromPackageRoot(packageRoot string) ([]Transform, error) {
 			return nil, fmt.Errorf("reading file failed (path: %s): %w", file, err)
 		}
 
-		var transform Transform
-		err = cfg.Unpack(&transform)
+		var definition TransformDefinition
+		err = cfg.Unpack(&definition)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse transform file \"%s\": %w", file, err)
 		}
-		transforms = append(transforms, transform)
+
+		transforms = append(transforms, Transform{
+			Name:       filepath.Base(filepath.Dir(file)),
+			Path:       file,
+			Definition: definition,
+		})
 	}
 
 	return transforms, nil
