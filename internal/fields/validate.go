@@ -18,6 +18,7 @@ import (
 	"strings"
 
 	"github.com/Masterminds/semver/v3"
+	"github.com/cbroglie/mustache"
 	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/common"
@@ -316,12 +317,33 @@ func (v *Validator) validateDocumentValues(body common.MapStr) multierror.Error 
 	if !v.specVersion.LessThan(semver2_0_0) && v.expectedDatasets != nil {
 		for _, datasetField := range datasetFieldNames {
 			value, err := body.GetValue(datasetField)
-			if err == common.ErrKeyNotFound {
+			if errors.Is(err, common.ErrKeyNotFound) {
 				continue
 			}
 
+			// Why do we render the expected datasets here?
+			// Because the expected datasets can contain
+			// mustache templates, and not just static
+			// strings.
+			//
+			// For example, the expected datasets for the
+			// Kubernetes container logs dataset can be:
+			//
+			//   - "{{kubernetes.labels.elastic_co/dataset}}"
+			//
+			var renderedExpectedDatasets []string
+			for _, dataset := range v.expectedDatasets {
+				renderedDataset, err := mustache.Render(dataset, body)
+				if err != nil {
+					err := fmt.Errorf("can't render expected dataset %q: %w", dataset, err)
+					errs = append(errs, err)
+					return errs
+				}
+				renderedExpectedDatasets = append(renderedExpectedDatasets, renderedDataset)
+			}
+
 			str, ok := valueToString(value, v.disabledNormalization)
-			exists := stringInArray(str, v.expectedDatasets)
+			exists := stringInArray(str, renderedExpectedDatasets)
 			if !ok || !exists {
 				err := fmt.Errorf("field %q should have value in %q, it has \"%v\"",
 					datasetField, v.expectedDatasets, value)

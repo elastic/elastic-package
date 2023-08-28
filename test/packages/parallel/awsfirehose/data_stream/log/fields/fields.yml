@@ -38,3 +38,12 @@
           type: keyword
           description: |-
             Kinesis type.
+    - name: labels
+      type: object
+      fields:
+        - name: elastic_co/dataset
+          type: keyword
+          description: Fictional field to test datasets routing rules.
+        - name: elastic_co/namespace
+          type: keyword
+          description: Fictional field to test namespaces routing rules.
