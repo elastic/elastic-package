@@ -111,6 +111,7 @@ User profiles can be configured with a "config.yml" file in the profile director
 	profileListCommand := &cobra.Command{
 		Use:   "list",
 		Short: "List available profiles",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			loc, err := locations.NewLocationManager()
 			if err != nil {
