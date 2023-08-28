@@ -44,7 +44,9 @@ Be aware that a common issue while trying to boot up the stack is that your Dock
 
 To expose local packages in the Package Registry, build them first and boot up the stack from inside of the Git repository containing the package (e.g. elastic/integrations). They will be copied to the development stack (~/.elastic-package/stack/development) and used to build a custom Docker image of the Package Registry. Starting with Elastic stack version >= 8.7.0, it is not mandatory to be available local packages in the Package Registry to run the tests.
 
-For details on how to connect the service with the Elastic stack, see the [service command](https://github.com/elastic/elastic-package/blob/main/README.md#elastic-package-service).`
+For details on how to connect the service with the Elastic stack, see the [service command](https://github.com/elastic/elastic-package/blob/main/README.md#elastic-package-service).
+
+You can customize your stack using profile settings, see [Elastic Package profiles](https://github.com/elastic/elastic-package/blob/main/README.md#elastic-package-profiles-1) section. These settings can be also overriden with the --parameter flag. Settings configured this way are not persisted.`
 
 func setupStackCommand() *cobraext.Command {
 	upCommand := &cobra.Command{
