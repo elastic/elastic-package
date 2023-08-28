@@ -410,13 +410,13 @@ func (r *runner) getDocs(dataStream string) (*hits, error) {
 		logger.Debugf("found %d hits in %s data stream", numHits, dataStream)
 	}
 
-	var docs hits
+	var hits hits
 	for _, hit := range results.Hits.Hits {
-		docs.Source = append(docs.Source, hit.Source)
-		docs.Fields = append(docs.Fields, hit.Fields)
+		hits.Source = append(hits.Source, hit.Source)
+		hits.Fields = append(hits.Fields, hit.Fields)
 	}
 
-	return &docs, nil
+	return &hits, nil
 }
 
 func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext, serviceOptions servicedeployer.FactoryOptions) ([]testrunner.TestResult, error) {
@@ -620,7 +620,7 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 
 	// (TODO in future) Optionally exercise service to generate load.
 	logger.Debug("checking for expected data in data stream...")
-	var resultHits *hits
+	var hits *hits
 	oldHits := 0
 	passed, err := waitUntilTrue(func() (bool, error) {
 		if signal.SIGINT() {
@@ -628,22 +628,22 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 		}
 
 		var err error
-		resultHits, err = r.getDocs(dataStream)
+		hits, err = r.getDocs(dataStream)
 
 		if config.Assert.HitCount > 0 {
-			if resultHits.size() < config.Assert.HitCount {
+			if hits.size() < config.Assert.HitCount {
 				return false, err
 			}
 
-			ret := resultHits.size() == oldHits
+			ret := hits.size() == oldHits
 			if !ret {
-				oldHits = resultHits.size()
+				oldHits = hits.size()
 				time.Sleep(4 * time.Second)
 			}
 
 			return ret, err
 		}
-		return resultHits.size() > 0, err
+		return hits.size() > 0, err
 	}, waitForDataTimeout)
 
 	if err != nil {
@@ -661,7 +661,7 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	}
 	logger.Debugf("data stream %s has synthetics enabled: %t", dataStream, syntheticEnabled)
 
-	docs := resultHits.getDocs(syntheticEnabled)
+	docs := hits.getDocs(syntheticEnabled)
 
 	// Validate fields in docs
 	// when reroute processors are used, expectedDatasets should be set depends on the processor config
@@ -728,7 +728,7 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	}
 
 	// Check transforms if present
-	if err := r.checkTransforms(config, pkgManifest, ds, dataStream, serviceOptions); err != nil {
+	if err := r.checkTransforms(config, pkgManifest, ds, dataStream); err != nil {
 		return result.WithError(err)
 	}
 
@@ -1010,7 +1010,7 @@ func selectPolicyTemplateByName(policies []packages.PolicyTemplate, name string)
 	return packages.PolicyTemplate{}, fmt.Errorf("policy template %q not found", name)
 }
 
-func (r *runner) checkTransforms(config *testConfig, pkgManifest *packages.PackageManifest, ds kibana.PackageDataStream, dataStream string, serviceOptions servicedeployer.FactoryOptions) error {
+func (r *runner) checkTransforms(config *testConfig, pkgManifest *packages.PackageManifest, ds kibana.PackageDataStream, dataStream string) error {
 	transforms, err := packages.ReadTransformsFromPackageRoot(r.options.PackageRootPath)
 	if err != nil {
 		return fmt.Errorf("loading transforms for package failed (root: %s)", r.options.PackageRootPath)
@@ -1051,13 +1051,14 @@ func (r *runner) checkTransforms(config *testConfig, pkgManifest *packages.Packa
 			return fmt.Errorf("no documents found in preview for transform %q", transformId)
 		}
 
-		fieldsValidator, err := fields.CreateValidatorForDirectory(filepath.Dir(transform.Path),
+		transformRootPath := filepath.Dir(transform.Path)
+		fieldsValidator, err := fields.CreateValidatorForDirectory(transformRootPath,
 			fields.WithSpecVersion(pkgManifest.SpecVersion),
 			fields.WithNumericKeywordFields(config.NumericKeywordFields),
 			fields.WithEnabledImportAllECSSChema(true),
 		)
 		if err != nil {
-			return fmt.Errorf("creating fields validator for data stream failed (path: %s): %w", serviceOptions.DataStreamRootPath, err)
+			return fmt.Errorf("creating fields validator for data stream failed (path: %s): %w", transformRootPath, err)
 		}
 		if err := validateFields(transformDocs, fieldsValidator, dataStream); err != nil {
 			return err
