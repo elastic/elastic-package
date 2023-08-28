@@ -86,14 +86,20 @@ func setupStackCommand() *cobraext.Command {
 				return err
 			}
 
+			userParameters, err := cobraext.GetStackUserParameterFlags(cmd)
+			if err != nil {
+				return err
+			}
+
 			cmd.Printf("Using profile %s.\n", profile.ProfilePath)
 			cmd.Println(`Remember to load stack environment variables using 'eval "$(elastic-package stack shellinit)"'.`)
 			err = provider.BootUp(stack.Options{
-				DaemonMode:   daemonMode,
-				StackVersion: stackVersion,
-				Services:     services,
-				Profile:      profile,
-				Printer:      cmd,
+				DaemonMode:     daemonMode,
+				StackVersion:   stackVersion,
+				Services:       services,
+				Profile:        profile,
+				Printer:        cmd,
+				UserParameters: userParameters,
 			})
 			if err != nil {
 				return fmt.Errorf("booting up the stack failed: %w", err)
@@ -108,6 +114,7 @@ func setupStackCommand() *cobraext.Command {
 		fmt.Sprintf(cobraext.StackServicesFlagDescription, strings.Join(availableServicesAsList(), ",")))
 	upCommand.Flags().StringP(cobraext.StackVersionFlagName, "", install.DefaultStackVersion, cobraext.StackVersionFlagDescription)
 	upCommand.Flags().String(cobraext.StackProviderFlagName, "", fmt.Sprintf(cobraext.StackProviderFlagDescription, strings.Join(stack.SupportedProviders, ", ")))
+	upCommand.Flags().StringSliceP(cobraext.StackUserParameterFlagName, cobraext.StackUserParameterFlagShorthand, nil, cobraext.StackUserParameterDescription)
 
 	downCommand := &cobra.Command{
 		Use:   "down",
