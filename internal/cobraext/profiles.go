@@ -98,7 +98,7 @@ func GetStackUserParameterFlags(cmd *cobra.Command) (map[string]string, error) {
 		return nil, FlagParsingError(err, StackUserParameterFlagName)
 	}
 
-	var values map[string]string
+	values := make(map[string]string)
 	for _, p := range parameters {
 		k, v, valid := strings.Cut(p, "=")
 		if !valid {
