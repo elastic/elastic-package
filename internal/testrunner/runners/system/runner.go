@@ -1113,7 +1113,7 @@ func (r *runner) previewTransform(transformId string) ([]common.MapStr, error) {
 	defer resp.Body.Close()
 
 	if resp.IsError() {
-		return nil, fmt.Errorf("failed to get transforms: %s", resp.String())
+		return nil, fmt.Errorf("failed to preview transform %q: %s", transformId, resp.String())
 	}
 
 	var preview struct {
