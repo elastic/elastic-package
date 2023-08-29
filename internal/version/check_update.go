@@ -32,7 +32,6 @@ const (
 var checkUpdatedDisabledEnv = environment.WithElasticPackagePrefix("CHECK_UPDATE_DISABLED")
 
 type versionLatest struct {
-	// Release   gh.RepositoryRelease `json:"latest"`
 	TagName   string    `json:"tag"`
 	HtmlURL   string    `json:"html_url"`
 	Timestamp time.Time `json:"timestamp"`

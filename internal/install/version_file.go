@@ -19,7 +19,6 @@ func checkIfLatestVersionInstalled(elasticPackagePath *locations.LocationManager
 	versionPath := filepath.Join(elasticPackagePath.RootDir(), versionFilename)
 	versionFile, err := os.ReadFile(versionPath)
 	if os.IsExist(err) {
-		logger.Debug("os.IsExist error")
 		return false, nil // old version, no version file
 	}
 	if err != nil {
