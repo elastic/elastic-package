@@ -409,6 +409,12 @@ _Context: package_
 
 Boot up the stack.
 
+### `elastic-package shell`
+
+_Context: global_
+
+
+
 ### `elastic-package stack`
 
 _Context: global_
