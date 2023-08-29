@@ -32,7 +32,7 @@ function installGoDependencies {
 }
 
 fixCRLF
-withGolang $env:GOLANG_VERSION
+withGolang $env:GO_VERSION
 
 
 echo "--- Downloading Go modules"
