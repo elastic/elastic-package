@@ -50,7 +50,7 @@ func Test_getShellName(t *testing.T) {
 		want string
 	}{
 		{"linux exec", args{exe: "bash"}, "bash"},
-		{"windows exec", args{exe: "cmd.exe"}, "cmd2"},
+		{"windows exec", args{exe: "cmd.exe"}, "cmd"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
