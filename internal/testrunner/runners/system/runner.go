@@ -201,11 +201,17 @@ func (r *runner) run() (results []testrunner.TestResult, err error) {
 		logger.Debug("Running system tests for package")
 	}
 
+	stackVersion, err := r.options.KibanaClient.Version()
+	if err != nil {
+		return result.WithError(fmt.Errorf("cannot request Kibana version: %w", err))
+	}
+
 	devDeployPath, err := servicedeployer.FindDevDeployPath(servicedeployer.FactoryOptions{
 		Profile:            r.options.Profile,
 		PackageRootPath:    r.options.PackageRootPath,
 		DataStreamRootPath: dataStreamPath,
 		DevDeployDir:       DevDeployDir,
+		StackVersion:       stackVersion.Version(),
 	})
 	if err != nil {
 		return result.WithError(fmt.Errorf("_dev/deploy directory not found: %w", err))
@@ -224,7 +230,7 @@ func (r *runner) run() (results []testrunner.TestResult, err error) {
 	startTesting := time.Now()
 	for _, cfgFile := range cfgFiles {
 		for _, variantName := range r.selectVariants(variantsFile) {
-			partial, err := r.runTestPerVariant(result, locationManager, cfgFile, dataStreamPath, variantName)
+			partial, err := r.runTestPerVariant(result, locationManager, cfgFile, dataStreamPath, variantName, stackVersion.Version())
 			results = append(results, partial...)
 			if err != nil {
 				return results, err
@@ -253,7 +259,7 @@ func (r *runner) run() (results []testrunner.TestResult, err error) {
 	return results, nil
 }
 
-func (r *runner) runTestPerVariant(result *testrunner.ResultComposer, locationManager *locations.LocationManager, cfgFile, dataStreamPath, variantName string) ([]testrunner.TestResult, error) {
+func (r *runner) runTestPerVariant(result *testrunner.ResultComposer, locationManager *locations.LocationManager, cfgFile, dataStreamPath, variantName, stackVersion string) ([]testrunner.TestResult, error) {
 	serviceOptions := servicedeployer.FactoryOptions{
 		Profile:            r.options.Profile,
 		PackageRootPath:    r.options.PackageRootPath,
@@ -261,6 +267,7 @@ func (r *runner) runTestPerVariant(result *testrunner.ResultComposer, locationMa
 		DevDeployDir:       DevDeployDir,
 		Variant:            variantName,
 		Type:               servicedeployer.TypeTest,
+		StackVersion:       stackVersion,
 	}
 
 	var ctxt servicedeployer.ServiceContext
