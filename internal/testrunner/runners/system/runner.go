@@ -1013,7 +1013,7 @@ func selectPolicyTemplateByName(policies []packages.PolicyTemplate, name string)
 func (r *runner) checkTransforms(config *testConfig, pkgManifest *packages.PackageManifest, ds kibana.PackageDataStream, dataStream string) error {
 	transforms, err := packages.ReadTransformsFromPackageRoot(r.options.PackageRootPath)
 	if err != nil {
-		return fmt.Errorf("loading transforms for package failed (root: %s)", r.options.PackageRootPath)
+		return fmt.Errorf("loading transforms for package failed (root: %s): %w", r.options.PackageRootPath, err)
 	}
 	for _, transform := range transforms {
 		hasSource, err := transform.HasSource(dataStream)
