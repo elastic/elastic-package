@@ -6,6 +6,7 @@ env:
   KIND_VERSION: 'v0.20.0'
   K8S_VERSION: 'v1.27.3'
   LINUX_AGENT_IMAGE: "golang:${GO_VERSION}"
+  WINDOWS_AGENT_IMAGE: "family/ci-windows-2022"
 
 steps:
   - label: ":go: Run check-static"
@@ -32,7 +33,7 @@ steps:
     command: ".buildkite/scripts/unit_tests_windows.ps1"
     agents:
       provider: "gcp"
-      image: "family/ci-windows-2022"
+      image: "${WINDOWS_AGENT_IMAGE}"
     artifact_paths:
       - "TEST-unit.xml"
 
