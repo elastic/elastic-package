@@ -26,6 +26,7 @@ func setupServiceCommand() *cobraext.Command {
 	upCommand := &cobra.Command{
 		Use:   "up",
 		Short: "Boot up the stack",
+		Args:  cobra.NoArgs,
 		RunE:  upCommandAction,
 	}
 	upCommand.Flags().StringP(cobraext.DataStreamFlagName, "d", "", cobraext.DataStreamFlagDescription)

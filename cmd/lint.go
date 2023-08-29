@@ -26,6 +26,7 @@ func setupLintCommand() *cobraext.Command {
 		Use:   "lint",
 		Short: "Lint the package",
 		Long:  lintLongDescription,
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			err := cobraext.ComposeCommandActions(cmd, args,
 				lintCommandAction,

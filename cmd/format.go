@@ -24,6 +24,7 @@ func setupFormatCommand() *cobraext.Command {
 		Use:   "format",
 		Short: "Format the package",
 		Long:  formatLongDescription,
+		Args:  cobra.NoArgs,
 		RunE:  formatCommandAction,
 	}
 	cmd.Flags().BoolP(cobraext.FailFastFlagName, "f", false, cobraext.FailFastFlagDescription)

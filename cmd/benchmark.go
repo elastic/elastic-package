@@ -80,6 +80,7 @@ func getPipelineCommand() *cobra.Command {
 		Use:   "pipeline",
 		Short: "Run pipeline benchmarks",
 		Long:  "Run pipeline benchmarks for the package",
+		Args:  cobra.NoArgs,
 		RunE:  pipelineCommandAction,
 	}
 
@@ -212,6 +213,7 @@ func getSystemCommand() *cobra.Command {
 		Use:   "system",
 		Short: "Run system benchmarks",
 		Long:  "Run system benchmarks for the package",
+		Args:  cobra.NoArgs,
 		RunE:  systemCommandAction,
 	}
 
@@ -338,6 +340,7 @@ func getGenerateCorpusCommand() *cobra.Command {
 		Use:   "generate-corpus",
 		Short: "Generate benchmarks corpus data for the package",
 		Long:  generateLongDescription,
+		Args:  cobra.NoArgs,
 		RunE:  generateDataStreamCorpusCommandAction,
 	}
 

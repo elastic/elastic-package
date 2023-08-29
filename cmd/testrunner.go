@@ -82,6 +82,7 @@ func setupTestCommand() *cobraext.Command {
 			Use:   string(testType),
 			Short: fmt.Sprintf("Run %s tests", runner.String()),
 			Long:  fmt.Sprintf("Run %s tests for the package.", runner.String()),
+			Args:  cobra.NoArgs,
 			RunE:  action,
 		}
 

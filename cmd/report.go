@@ -65,6 +65,7 @@ func getBenchReportCommand() *cobra.Command {
 		Use:   "benchmark",
 		Short: "Generate a benchmark report",
 		Long:  "Generate a benchmark report comparing local results against ones from another benchmark run.",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.Printf("Generate benchmark reports\n")
 
