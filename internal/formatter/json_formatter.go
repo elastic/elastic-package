@@ -5,6 +5,7 @@
 package formatter
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 )
@@ -12,15 +13,11 @@ import (
 // JSONFormatter function is responsible for formatting the given JSON input.
 // The function is exposed, so it can be used by other internal packages, e.g. to format sample events in docs.
 func JSONFormatter(content []byte) ([]byte, bool, error) {
-	var rawMessage json.RawMessage
-	err := json.Unmarshal(content, &rawMessage)
+	var formatted bytes.Buffer
+	err := json.Indent(&formatted, content, "", "    ")
 	if err != nil {
-		return nil, false, fmt.Errorf("unmarshalling JSON file failed: %w", err)
+		return nil, false, fmt.Errorf("indenting JSON failed: %w", err)
 	}
 
-	formatted, err := json.MarshalIndent(&rawMessage, "", "    ")
-	if err != nil {
-		return nil, false, fmt.Errorf("marshalling JSON raw message failed: %w", err)
-	}
-	return formatted, string(content) == string(formatted), nil
+	return formatted.Bytes(), string(content) == formatted.String(), nil
 }

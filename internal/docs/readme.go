@@ -185,7 +185,7 @@ func renderReadme(fileName, packageRoot, templatePath string, linksMap linkMap) 
 	t := template.New(fileName)
 	t, err := t.Funcs(template.FuncMap{
 		"event": func(dataStreamName string) (string, error) {
-			return renderSampleEvent(packageRoot, dataStreamName)
+			return renderSampleEvents(packageRoot, dataStreamName)
 		},
 		"fields": func(args ...string) (string, error) {
 			if len(args) > 0 {
