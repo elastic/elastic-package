@@ -6,9 +6,12 @@ package version
 
 import (
 	"context"
+	"os"
+	"strings"
 
 	"github.com/Masterminds/semver/v3"
 
+	"github.com/elastic/elastic-package/internal/environment"
 	"github.com/elastic/elastic-package/internal/github"
 	"github.com/elastic/elastic-package/internal/logger"
 )
@@ -18,11 +21,19 @@ const (
 	repositoryName  = "elastic-package"
 )
 
+var checkUpdatedDisabledEnv = environment.WithElasticPackagePrefix("CHECK_UPDATE_DISABLED")
+
 // CheckUpdate function checks using Github Release API if newer version is available.
 func CheckUpdate() {
 	if Tag == "" {
 		logger.Debugf("Distribution built without a version tag, can't determine release chronology. Please consider using official releases at " +
 			"https://github.com/elastic/elastic-package/releases")
+		return
+	}
+
+	v, ok := os.LookupEnv(checkUpdatedDisabledEnv)
+	if ok && strings.ToLower(v) != "false" {
+		logger.Debug("Disabled checking updates")
 		return
 	}
 
