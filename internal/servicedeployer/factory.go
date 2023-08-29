@@ -26,6 +26,7 @@ type FactoryOptions struct {
 	DataStreamRootPath string
 	DevDeployDir       string
 	Type               string
+	StackVersion       string
 
 	Variant string
 }
@@ -48,7 +49,7 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 	switch serviceDeployerName {
 	case "k8s":
 		if _, err := os.Stat(serviceDeployerPath); err == nil {
-			return NewKubernetesServiceDeployer(options.Profile, serviceDeployerPath)
+			return NewKubernetesServiceDeployer(options.Profile, serviceDeployerPath, options.StackVersion)
 		}
 	case "docker":
 		dockerComposeYMLPath := filepath.Join(serviceDeployerPath, "docker-compose.yml")
@@ -67,8 +68,7 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 		if _, err := os.Stat(customAgentCfgYMLPath); err != nil {
 			return nil, fmt.Errorf("can't find expected file custom-agent.yml: %w", err)
 		}
-		return NewCustomAgentDeployer(options.Profile, customAgentCfgYMLPath)
-
+		return NewCustomAgentDeployer(options.Profile, customAgentCfgYMLPath, options.StackVersion)
 	case "tf":
 		if _, err := os.Stat(serviceDeployerPath); err == nil {
 			return NewTerraformServiceDeployer(serviceDeployerPath)

@@ -34,13 +34,15 @@ var dockerCustomAgentDockerfileContent []byte
 type CustomAgentDeployer struct {
 	profile           *profile.Profile
 	dockerComposeFile string
+	stackVersion      string
 }
 
 // NewCustomAgentDeployer returns a new instance of a deployedCustomAgent.
-func NewCustomAgentDeployer(profile *profile.Profile, dockerComposeFile string) (*CustomAgentDeployer, error) {
+func NewCustomAgentDeployer(profile *profile.Profile, dockerComposeFile string, stackVersion string) (*CustomAgentDeployer, error) {
 	return &CustomAgentDeployer{
 		profile:           profile,
 		dockerComposeFile: dockerComposeFile,
+		stackVersion:      stackVersion,
 	}, nil
 }
 
@@ -53,23 +55,13 @@ func (d *CustomAgentDeployer) SetUp(inCtxt ServiceContext) (DeployedService, err
 		return nil, fmt.Errorf("can't read application configuration: %w", err)
 	}
 
-	kibanaClient, err := stack.NewKibanaClient()
-	if err != nil {
-		return nil, fmt.Errorf("can't create Kibana client: %w", err)
-	}
-
-	stackVersion, err := kibanaClient.Version()
-	if err != nil {
-		return nil, fmt.Errorf("can't read Kibana injected metadata: %w", err)
-	}
-
 	caCertPath, ok := os.LookupEnv(stack.CACertificateEnv)
 	if !ok {
 		return nil, fmt.Errorf("can't locate CA certificate: %s environment variable not set", stack.CACertificateEnv)
 	}
 
 	env := append(
-		appConfig.StackImageRefs(stackVersion.Version()).AsEnv(),
+		appConfig.StackImageRefs(d.stackVersion).AsEnv(),
 		fmt.Sprintf("%s=%s", serviceLogsDirEnv, inCtxt.Logs.Folder.Local),
 		fmt.Sprintf("%s=%s", localCACertEnv, caCertPath),
 	)

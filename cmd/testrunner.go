@@ -223,6 +223,11 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 			return err
 		}
 
+		kibanaClient, err := stack.NewKibanaClient()
+		if err != nil {
+			return fmt.Errorf("can't create Kibana client: %w", err)
+		}
+
 		var results []testrunner.TestResult
 		for _, folder := range testFolders {
 			r, err := testrunner.Run(testType, testrunner.TestOptions{
@@ -231,6 +236,7 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 				PackageRootPath:    packageRootPath,
 				GenerateTestResult: generateTestResult,
 				API:                esClient.API,
+				KibanaClient:       kibanaClient,
 				DeferCleanup:       deferCleanup,
 				ServiceVariant:     variantFlag,
 				WithCoverage:       testCoverage,

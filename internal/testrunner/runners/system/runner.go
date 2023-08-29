@@ -475,16 +475,11 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 		return result.WithError(fmt.Errorf("unable to reload system test case configuration: %w", err))
 	}
 
-	kib, err := stack.NewKibanaClient()
-	if err != nil {
-		return result.WithError(fmt.Errorf("can't create Kibana client: %w", err))
-	}
-
 	// Install the package before creating the policy, so we control exactly what is being
 	// installed.
 	logger.Debug("Installing package...")
 	installer, err := installer.NewForPackage(installer.Options{
-		Kibana:         kib,
+		Kibana:         r.options.KibanaClient,
 		RootPath:       r.options.PackageRootPath,
 		SkipValidation: true,
 	})
@@ -516,13 +511,13 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 		Description: fmt.Sprintf("test policy created by elastic-package test system for data stream %s/%s", r.options.TestFolder.Package, r.options.TestFolder.DataStream),
 		Namespace:   "ep",
 	}
-	policy, err := kib.CreatePolicy(p)
+	policy, err := r.options.KibanaClient.CreatePolicy(p)
 	if err != nil {
 		return result.WithError(fmt.Errorf("could not create test policy: %w", err))
 	}
 	r.deleteTestPolicyHandler = func() error {
 		logger.Debug("deleting test policy...")
-		if err := kib.DeletePolicy(*policy); err != nil {
+		if err := r.options.KibanaClient.DeletePolicy(*policy); err != nil {
 			return fmt.Errorf("error cleaning up test policy: %w", err)
 		}
 		return nil
@@ -530,7 +525,7 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 
 	logger.Debug("adding package data stream to test policy...")
 	ds := createPackageDatastream(*policy, *pkgManifest, policyTemplate, *dataStreamManifest, *config)
-	if err := kib.AddPackageDataStreamToPolicy(ds); err != nil {
+	if err := r.options.KibanaClient.AddPackageDataStreamToPolicy(ds); err != nil {
 		return result.WithError(fmt.Errorf("could not add data stream config to policy: %w", err))
 	}
 
@@ -576,7 +571,7 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 		return result.WithError(err)
 	}
 
-	agents, err := checkEnrolledAgents(kib, ctxt)
+	agents, err := checkEnrolledAgents(r.options.KibanaClient, ctxt)
 	if err != nil {
 		return result.WithError(fmt.Errorf("can't check enrolled agents: %w", err))
 	}
@@ -589,19 +584,19 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	// Assign policy to agent
 	r.resetAgentPolicyHandler = func() error {
 		logger.Debug("reassigning original policy back to agent...")
-		if err := kib.AssignPolicyToAgent(agent, origPolicy); err != nil {
+		if err := r.options.KibanaClient.AssignPolicyToAgent(agent, origPolicy); err != nil {
 			return fmt.Errorf("error reassigning original policy to agent: %w", err)
 		}
 		return nil
 	}
 
-	policyWithDataStream, err := kib.GetPolicy(policy.ID)
+	policyWithDataStream, err := r.options.KibanaClient.GetPolicy(policy.ID)
 	if err != nil {
 		return result.WithError(fmt.Errorf("could not read the policy with data stream: %w", err))
 	}
 
 	logger.Debug("assigning package data stream to agent...")
-	if err := kib.AssignPolicyToAgent(agent, *policyWithDataStream); err != nil {
+	if err := r.options.KibanaClient.AssignPolicyToAgent(agent, *policyWithDataStream); err != nil {
 		return result.WithError(fmt.Errorf("could not assign policy to agent: %w", err))
 	}
 
