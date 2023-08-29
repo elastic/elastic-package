@@ -5,13 +5,14 @@ env:
   ELASTIC_PACKAGE_COMPOSE_DISABLE_PULL_PROGRESS_INFORMATION: "true"
   KIND_VERSION: 'v0.20.0'
   K8S_VERSION: 'v1.27.3'
+  LINUX_AGENT_IMAGE: "golang:${GO_VERSION}"
 
 steps:
   - label: ":go: Run check-static"
     key: check-static
     command: "make check-static"
     agents:
-      image: "golang:1.20.3"
+      image: "${LINUX_AGENT_IMAGE}"
       cpu: "8"
       memory: "4G"
 
@@ -22,7 +23,7 @@ steps:
       - "build/test-results/*.xml"
       - "build/test-coverage/*.xml"
     agents:
-      image: "golang:1.20.3"
+      image: "${LINUX_AGENT_IMAGE}"
       cpu: "8"
       memory: "4G"
 
@@ -32,6 +33,8 @@ steps:
     agents:
       provider: "gcp"
       image: "family/ci-windows-2022"
+    artifact_paths:
+      - "TEST-unit.xml"
 
   - wait: ~
     continue_on_failure: true
@@ -52,7 +55,7 @@ steps:
   - label: ":junit: Junit annotate"
     plugins:
       - junit-annotate#v2.4.1:
-          artifacts: "build/test-results/*.xml"
+          artifacts: "*.xml"
     agents:
       provider: "gcp"  # junit plugin requires docker
 
