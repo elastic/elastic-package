@@ -26,7 +26,7 @@ const (
 	repositoryName  = "elastic-package"
 
 	latestVersionFile    = "latestVersion"
-	defaultCacheDuration = "1m"
+	defaultCacheDuration = "30m"
 )
 
 var checkUpdatedDisabledEnv = environment.WithElasticPackagePrefix("CHECK_UPDATE_DISABLED")
