@@ -13,6 +13,8 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/Masterminds/semver/v3"
+
 	"github.com/elastic/elastic-package/internal/certs"
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/logger"
@@ -28,6 +30,9 @@ type Client struct {
 
 	certificateAuthority string
 	tlSkipVerify         bool
+
+	versionInfo VersionInfo
+	semver      *semver.Version
 }
 
 // ClientOption is functional option modifying Kibana client.
@@ -42,6 +47,17 @@ func NewClient(opts ...ClientOption) (*Client, error) {
 
 	if c.host == "" {
 		return nil, ErrUndefinedHost
+	}
+
+	v, err := c.requestVersion()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get Kibana version: %w", err)
+	}
+	c.versionInfo = v
+
+	c.semver, err = semver.NewVersion(c.versionInfo.Number)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse Kibana version (%s): %w", c.versionInfo.Number, err)
 	}
 
 	return c, nil
