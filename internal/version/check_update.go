@@ -26,7 +26,7 @@ const (
 	repositoryName  = "elastic-package"
 
 	latestVersionFile    = "latestVersion"
-	defaultCacheDuration = "30m"
+	defaultCacheDuration = 30 * time.Minute
 )
 
 var checkUpdatedDisabledEnv = environment.WithElasticPackagePrefix("CHECK_UPDATE_DISABLED")
@@ -51,12 +51,15 @@ func CheckUpdate() {
 		return
 	}
 
-	duration, err := time.ParseDuration(defaultCacheDuration)
-	if err != nil {
-		logger.Warnf("failed to parse cache duration: %s", err.Error())
-		return
+	expired := true
+	latestVersion, err := loadCacheLatestVersion()
+	switch {
+	case err != nil:
+		logger.Debug("failed to load latest version from cache: %v", err)
+	default:
+		expired = checkCachedLatestVersion(latestVersion, defaultCacheDuration)
 	}
-	latestVersion, expired, _ := checkCachedLatestVersion(duration)
+
 	var release *versionLatest
 	switch {
 	case !expired:
@@ -93,6 +96,11 @@ func CheckUpdate() {
 		logger.Infof("New version is available - %s. Download from: %s", release.TagName, release.HtmlURL)
 	}
 
+	// if version cached is not expired, do not write contents into file
+	if !expired {
+		return
+	}
+
 	if err := writeLatestReleaseToCache(release); err != nil {
 		logger.Debugf("failed to write latest versoin to cache file: %v", err)
 	}
@@ -118,29 +126,30 @@ func writeLatestReleaseToCache(release *versionLatest) error {
 	return nil
 }
 
-func checkCachedLatestVersion(expiration time.Duration) (*versionLatest, bool, error) {
+func loadCacheLatestVersion() (*versionLatest, error) {
 	elasticPackagePath, err := locations.NewLocationManager()
 	if err != nil {
-		return nil, true, fmt.Errorf("failed locating the configuration directory: %w", err)
+		return nil, fmt.Errorf("failed locating the configuration directory: %w", err)
 	}
 
 	latestVersionPath := filepath.Join(elasticPackagePath.RootDir(), latestVersionFile)
 	contents, err := os.ReadFile(latestVersionPath)
 	if err != nil {
 		logger.Warnf("reading version file failed: %w", err.Error())
-		return nil, true, fmt.Errorf("reading version file failed: %w", err)
+		return nil, fmt.Errorf("reading version file failed: %w", err)
 	}
 
 	var infoVersion versionLatest
 	err = json.Unmarshal(contents, &infoVersion)
 	if err != nil {
-		return nil, true, fmt.Errorf("failed to decode file %s: %w", latestVersionPath, err)
+		return nil, fmt.Errorf("failed to decode file %s: %w", latestVersionPath, err)
 	}
 
+	return &infoVersion, nil
+}
+
+func checkCachedLatestVersion(latest *versionLatest, expiration time.Duration) bool {
 	exprirationTime := time.Now().Add(-expiration)
 
-	if infoVersion.Timestamp.Before(exprirationTime) {
-		return nil, true, fmt.Errorf("expired version: %s (%s)", infoVersion.TagName, infoVersion.Timestamp)
-	}
-	return &infoVersion, false, nil
+	return latest.Timestamp.Before(exprirationTime)
 }
