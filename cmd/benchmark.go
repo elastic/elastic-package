@@ -5,15 +5,19 @@
 package cmd
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/dustin/go-humanize"
 
 	"github.com/elastic/elastic-package/internal/corpusgenerator"
+	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/install"
+	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/stack"
 
 	"github.com/spf13/cobra"
@@ -76,6 +80,7 @@ func getPipelineCommand() *cobra.Command {
 		Use:   "pipeline",
 		Short: "Run pipeline benchmarks",
 		Long:  "Run pipeline benchmarks for the package",
+		Args:  cobra.NoArgs,
 		RunE:  pipelineCommandAction,
 	}
 
@@ -208,6 +213,7 @@ func getSystemCommand() *cobra.Command {
 		Use:   "system",
 		Short: "Run system benchmarks",
 		Long:  "Run system benchmarks for the package",
+		Args:  cobra.NoArgs,
 		RunE:  systemCommandAction,
 	}
 
@@ -215,12 +221,18 @@ func getSystemCommand() *cobra.Command {
 	cmd.Flags().BoolP(cobraext.BenchReindexToMetricstoreFlagName, "", false, cobraext.BenchReindexToMetricstoreFlagDescription)
 	cmd.Flags().DurationP(cobraext.BenchMetricsIntervalFlagName, "", time.Second, cobraext.BenchMetricsIntervalFlagDescription)
 	cmd.Flags().DurationP(cobraext.DeferCleanupFlagName, "", 0, cobraext.DeferCleanupFlagDescription)
+	cmd.Flags().String(cobraext.VariantFlagName, "", cobraext.VariantFlagDescription)
 
 	return cmd
 }
 
 func systemCommandAction(cmd *cobra.Command, args []string) error {
 	cmd.Println("Run system benchmarks for the package")
+
+	variant, err := cmd.Flags().GetString(cobraext.VariantFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.VariantFlagName)
+	}
 
 	benchName, err := cmd.Flags().GetString(cobraext.BenchNameFlagName)
 	if err != nil {
@@ -271,7 +283,8 @@ func systemCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("can't create Kibana client: %w", err)
 	}
 
-	opts := system.NewOptions(
+	withOpts := []system.OptionFunc{
+		system.WithVariant(variant),
 		system.WithBenchmarkName(benchName),
 		system.WithDeferCleanup(deferCleanup),
 		system.WithMetricsInterval(metricsInterval),
@@ -280,8 +293,17 @@ func systemCommandAction(cmd *cobra.Command, args []string) error {
 		system.WithESAPI(esClient.API),
 		system.WithKibanaClient(kc),
 		system.WithProfile(profile),
-	)
-	runner := system.NewSystemBenchmark(opts)
+	}
+
+	esMetricsClient, err := initializeESMetricsClient(cmd.Context())
+	if err != nil {
+		return fmt.Errorf("can't create Elasticsearch metrics client: %w", err)
+	}
+	if esMetricsClient != nil {
+		withOpts = append(withOpts, system.WithESMetricsAPI(esMetricsClient.API))
+	}
+
+	runner := system.NewSystemBenchmark(system.NewOptions(withOpts...))
 
 	r, err := benchrunner.Run(runner)
 	if err != nil {
@@ -293,14 +315,19 @@ func systemCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("system benchmark is expected to return multiple reports")
 	}
 
+	reports := multiReport.Split()
+	if len(reports) != 2 {
+		return fmt.Errorf("system benchmark is expected to return a human an a file report")
+	}
+
 	// human report will always be the first
-	human := multiReport.Split()[0]
+	human := reports[0]
 	if err := reporters.WriteReportable(reporters.Output(outputs.ReportOutputSTDOUT), human); err != nil {
 		return fmt.Errorf("error writing benchmark report: %w", err)
 	}
 
 	// file report will always be the second
-	file := multiReport.Split()[1]
+	file := reports[1]
 	if err := reporters.WriteReportable(reporters.Output(outputs.ReportOutputFile), file); err != nil {
 		return fmt.Errorf("error writing benchmark report: %w", err)
 	}
@@ -313,6 +340,7 @@ func getGenerateCorpusCommand() *cobra.Command {
 		Use:   "generate-corpus",
 		Short: "Generate benchmarks corpus data for the package",
 		Long:  generateLongDescription,
+		Args:  cobra.NoArgs,
 		RunE:  generateDataStreamCorpusCommandAction,
 	}
 
@@ -374,4 +402,31 @@ func generateDataStreamCorpusCommandAction(cmd *cobra.Command, _ []string) error
 	}
 
 	return nil
+}
+
+func initializeESMetricsClient(ctx context.Context) (*elasticsearch.Client, error) {
+	address := os.Getenv(system.ESMetricstoreHostEnv)
+	user := os.Getenv(system.ESMetricstoreUsernameEnv)
+	pass := os.Getenv(system.ESMetricstorePasswordEnv)
+	cacert := os.Getenv(system.ESMetricstoreCACertificateEnv)
+	if address == "" || user == "" || pass == "" {
+		logger.Debugf("can't initialize metricstore, missing environment configuration")
+		return nil, nil
+	}
+
+	esClient, err := stack.NewElasticsearchClient(
+		elasticsearch.OptionWithAddress(address),
+		elasticsearch.OptionWithUsername(user),
+		elasticsearch.OptionWithPassword(pass),
+		elasticsearch.OptionWithCertificateAuthority(cacert),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := esClient.CheckHealth(ctx); err != nil {
+		return nil, err
+	}
+
+	return esClient, nil
 }

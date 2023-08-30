@@ -21,6 +21,7 @@ func setupCreateCommand() *cobraext.Command {
 		Use:   "package",
 		Short: "Create new package",
 		Long:  createPackageLongDescription,
+		Args:  cobra.NoArgs,
 		RunE:  createPackageCommandAction,
 	}
 
@@ -28,6 +29,7 @@ func setupCreateCommand() *cobraext.Command {
 		Use:   "data-stream",
 		Short: "Create new data stream",
 		Long:  createDataStreamLongDescription,
+		Args:  cobra.NoArgs,
 		RunE:  createDataStreamCommandAction,
 	}
 

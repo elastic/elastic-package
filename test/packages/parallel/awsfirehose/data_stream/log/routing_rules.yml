@@ -1,6 +1,11 @@
 - source_dataset: awsfirehose.log
   rules:
+    - target_dataset:
+        - "{{aws.labels.elastic_co/dataset}}"
+      namespace:
+        - "{{aws.labels.elastic_co/namespace}}"
+      if: "ctx.aws?.labels != null"
     - target_dataset: aws.cloudtrail
-      if: ctx['aws.cloudwatch.log_stream'].contains('CloudTrail')
+      if: ctx['aws.cloudwatch.log_stream'].contains('CloudTrail') == true
       namespace:
         - default

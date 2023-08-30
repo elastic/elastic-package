@@ -21,6 +21,7 @@ func setupVersionCommand() *cobraext.Command {
 		Use:   "version",
 		Short: "Show application version",
 		Long:  versionLongDescription,
+		Args:  cobra.NoArgs,
 		RunE:  versionCommandAction,
 	}
 

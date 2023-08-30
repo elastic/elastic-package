@@ -21,6 +21,7 @@ func setupCheckCommand() *cobraext.Command {
 		Use:   "check",
 		Short: "Check the package",
 		Long:  checkLongDescription,
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			err := cobraext.ComposeCommands(args,
 				setupFormatCommand(),

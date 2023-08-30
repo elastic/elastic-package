@@ -39,6 +39,10 @@ type statusType struct {
 
 // Version method returns the version of Kibana (Elastic stack)
 func (c *Client) Version() (VersionInfo, error) {
+	return c.versionInfo, nil
+}
+
+func (c *Client) requestVersion() (VersionInfo, error) {
 	var version VersionInfo
 	statusCode, respBody, err := c.get(StatusAPI)
 	if err != nil {

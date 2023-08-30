@@ -15,6 +15,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/Masterminds/semver/v3"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -26,8 +28,13 @@ func TestClientWithTLS(t *testing.T) {
 
 	caCertFile := writeCACertFile(t, server.Certificate())
 
+	version := func(c *Client) {
+		c.versionInfo = VersionInfo{Number: "8.0.0"}
+		c.semver = semver.MustParse(c.versionInfo.Number)
+	}
+
 	t.Run("no TLS config, should fail", func(t *testing.T) {
-		client, err := NewClient(Address(server.URL))
+		client, err := NewClient(version, Address(server.URL))
 		require.NoError(t, err)
 
 		_, _, err = client.get("/")
@@ -35,7 +42,7 @@ func TestClientWithTLS(t *testing.T) {
 	})
 
 	t.Run("with CA", func(t *testing.T) {
-		client, err := NewClient(Address(server.URL), CertificateAuthority(caCertFile))
+		client, err := NewClient(version, Address(server.URL), CertificateAuthority(caCertFile))
 		require.NoError(t, err)
 
 		_, _, err = client.get("/")
@@ -43,7 +50,7 @@ func TestClientWithTLS(t *testing.T) {
 	})
 
 	t.Run("skip TLS verify", func(t *testing.T) {
-		client, err := NewClient(Address(server.URL), TLSSkipVerify())
+		client, err := NewClient(version, Address(server.URL), TLSSkipVerify())
 		require.NoError(t, err)
 
 		_, _, err = client.get("/")

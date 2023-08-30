@@ -3,7 +3,8 @@ CODE_COVERAGE_REPORT_NAME_UNIT = $(CODE_COVERAGE_REPORT_FOLDER)/coverage-unit-re
 VERSION_IMPORT_PATH = github.com/elastic/elastic-package/internal/version
 VERSION_COMMIT_HASH = `git describe --always --long --dirty`
 VERSION_BUILD_TIME = `date +%s`
-VERSION_TAG = `(git describe --exact-match --tags 2>/dev/null || echo '') | tr -d '\n'`
+DEFAULT_VERSION_TAG ?=
+VERSION_TAG = `(git describe --exact-match --tags 2>/dev/null || echo '$(DEFAULT_VERSION_TAG)') | tr -d '\n'`
 VERSION_LDFLAGS = -X $(VERSION_IMPORT_PATH).CommitHash=$(VERSION_COMMIT_HASH) -X $(VERSION_IMPORT_PATH).BuildTime=$(VERSION_BUILD_TIME) -X $(VERSION_IMPORT_PATH).Tag=$(VERSION_TAG)
 
 .PHONY: build
@@ -101,7 +102,10 @@ test-install-zip-shellinit:
 test-profiles-command:
 	./scripts/test-profiles-command.sh
 
-test: test-go test-stack-command test-check-packages test-profiles-command test-build-zip
+test-check-update-version:
+	./scripts/test-check-update-version.sh
+
+test: test-go test-stack-command test-check-packages test-profiles-command test-build-zip test-check-update-version
 
 check-git-clean:
 	git update-index --really-refresh

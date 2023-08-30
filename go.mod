@@ -5,9 +5,10 @@ go 1.20
 require (
 	github.com/AlecAivazis/survey/v2 v2.3.7
 	github.com/Masterminds/semver/v3 v3.2.1
-	github.com/ProtonMail/gopenpgp/v2 v2.7.2
+	github.com/ProtonMail/gopenpgp/v2 v2.7.3
 	github.com/aymerick/raymond v2.0.2+incompatible
 	github.com/boumenot/gocover-cobertura v1.2.0
+	github.com/cbroglie/mustache v1.4.0
 	github.com/cespare/xxhash/v2 v2.2.0
 	github.com/dustin/go-humanize v1.0.1
 	github.com/elastic/elastic-integration-corpus-generator-tool v0.5.0
@@ -36,9 +37,9 @@ require (
 	gotest.tools/gotestsum v1.10.1
 	helm.sh/helm/v3 v3.12.3
 	honnef.co/go/tools v0.4.5
-	k8s.io/apimachinery v0.28.0
-	k8s.io/cli-runtime v0.28.0
-	k8s.io/client-go v0.28.0
+	k8s.io/apimachinery v0.28.1
+	k8s.io/cli-runtime v0.28.1
+	k8s.io/client-go v0.28.1
 )
 
 require (
@@ -160,7 +161,7 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	k8s.io/api v0.28.0 // indirect
+	k8s.io/api v0.28.1 // indirect
 	k8s.io/apiextensions-apiserver v0.27.3 // indirect
 	k8s.io/component-base v0.28.0 // indirect
 	k8s.io/klog/v2 v2.100.1 // indirect

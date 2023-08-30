@@ -19,8 +19,8 @@ import (
 	"github.com/elastic/go-ucfg/yaml"
 
 	"github.com/elastic/elastic-package/internal/common"
+	"github.com/elastic/elastic-package/internal/servicedeployer"
 	"github.com/elastic/elastic-package/internal/testrunner"
-	"github.com/elastic/elastic-package/internal/testrunner/runners/system/servicedeployer"
 )
 
 var systemTestConfigFilePattern = regexp.MustCompile(`^test-([a-z0-9_.-]+)-config.yml$`)

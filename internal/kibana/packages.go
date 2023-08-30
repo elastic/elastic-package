@@ -15,7 +15,7 @@ import (
 
 // InstallPackage installs the given package in Fleet.
 func (c *Client) InstallPackage(name, version string) ([]packages.Asset, error) {
-	path := fmt.Sprintf("%s/epm/packages/%s-%s", FleetAPI, name, version)
+	path := c.epmPackageUrl(name, version)
 	reqBody := []byte(`{"force":true}`) // allows installing older versions of the package being tested
 
 	statusCode, respBody, err := c.post(path, reqBody)
@@ -52,13 +52,22 @@ func (c *Client) InstallZipPackage(zipFile string) ([]packages.Asset, error) {
 
 // RemovePackage removes the given package from Fleet.
 func (c *Client) RemovePackage(name, version string) ([]packages.Asset, error) {
-	path := fmt.Sprintf("%s/epm/packages/%s-%s", FleetAPI, name, version)
+	path := c.epmPackageUrl(name, version)
 	statusCode, respBody, err := c.delete(path)
 	if err != nil {
 		return nil, fmt.Errorf("could not delete package: %w", err)
 	}
 
 	return processResults("remove", statusCode, respBody)
+}
+
+func (c *Client) epmPackageUrl(name, version string) string {
+	switch {
+	case c.semver.Major() < 8:
+		return fmt.Sprintf("%s/epm/packages/%s-%s", FleetAPI, name, version)
+	default:
+		return fmt.Sprintf("%s/epm/packages/%s/%s", FleetAPI, name, version)
+	}
 }
 
 func processResults(action string, statusCode int, respBody []byte) ([]packages.Asset, error) {

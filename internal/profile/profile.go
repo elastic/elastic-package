@@ -136,7 +136,8 @@ type Profile struct {
 	ProfilePath string
 	ProfileName string
 
-	config config
+	config    config
+	overrides map[string]string
 }
 
 // Path returns an absolute path to the given file
@@ -147,11 +148,22 @@ func (profile Profile) Path(names ...string) string {
 
 // Config returns a configuration setting, or its default if setting not found
 func (profile Profile) Config(name string, def string) string {
-	v, found := profile.config.get(name)
-	if !found {
-		return def
+	v, found := profile.overrides[name]
+	if found {
+		return v
 	}
-	return v
+
+	v, found = profile.config.get(name)
+	if found {
+		return v
+	}
+
+	return def
+}
+
+// RuntimeOverrides defines configuration overrides for the current session.
+func (profile *Profile) RuntimeOverrides(overrides map[string]string) {
+	profile.overrides = overrides
 }
 
 // ErrNotAProfile is returned in cases where we don't have a valid profile directory

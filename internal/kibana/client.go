@@ -13,6 +13,8 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/Masterminds/semver/v3"
+
 	"github.com/elastic/elastic-package/internal/certs"
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/logger"
@@ -28,6 +30,9 @@ type Client struct {
 
 	certificateAuthority string
 	tlSkipVerify         bool
+
+	versionInfo VersionInfo
+	semver      *semver.Version
 }
 
 // ClientOption is functional option modifying Kibana client.
@@ -42,6 +47,21 @@ func NewClient(opts ...ClientOption) (*Client, error) {
 
 	if c.host == "" {
 		return nil, ErrUndefinedHost
+	}
+
+	// Allow to initialize version from tests.
+	var zeroVersion VersionInfo
+	if c.semver == nil || c.versionInfo == zeroVersion {
+		v, err := c.requestVersion()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get Kibana version: %w", err)
+		}
+		c.versionInfo = v
+
+		c.semver, err = semver.NewVersion(c.versionInfo.Number)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse Kibana version (%s): %w", c.versionInfo.Number, err)
+		}
 	}
 
 	return c, nil
@@ -83,22 +103,22 @@ func CertificateAuthority(certificateAuthority string) ClientOption {
 }
 
 func (c *Client) get(resourcePath string) (int, []byte, error) {
-	return c.sendRequest(http.MethodGet, resourcePath, nil)
+	return c.SendRequest(http.MethodGet, resourcePath, nil)
 }
 
 func (c *Client) post(resourcePath string, body []byte) (int, []byte, error) {
-	return c.sendRequest(http.MethodPost, resourcePath, body)
+	return c.SendRequest(http.MethodPost, resourcePath, body)
 }
 
 func (c *Client) put(resourcePath string, body []byte) (int, []byte, error) {
-	return c.sendRequest(http.MethodPut, resourcePath, body)
+	return c.SendRequest(http.MethodPut, resourcePath, body)
 }
 
 func (c *Client) delete(resourcePath string) (int, []byte, error) {
-	return c.sendRequest(http.MethodDelete, resourcePath, nil)
+	return c.SendRequest(http.MethodDelete, resourcePath, nil)
 }
 
-func (c *Client) sendRequest(method, resourcePath string, body []byte) (int, []byte, error) {
+func (c *Client) SendRequest(method, resourcePath string, body []byte) (int, []byte, error) {
 	request, err := c.newRequest(method, resourcePath, bytes.NewReader(body))
 	if err != nil {
 		return 0, nil, err

@@ -15,6 +15,8 @@ import (
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/service"
+	"github.com/elastic/elastic-package/internal/stack"
+	"github.com/elastic/elastic-package/internal/testrunner/runners/system"
 )
 
 const serviceLongDescription = `Use this command to boot up the service stack that can be observed with the package.
@@ -25,6 +27,7 @@ func setupServiceCommand() *cobraext.Command {
 	upCommand := &cobra.Command{
 		Use:   "up",
 		Short: "Boot up the stack",
+		Args:  cobra.NoArgs,
 		RunE:  upCommandAction,
 	}
 	upCommand.Flags().StringP(cobraext.DataStreamFlagName, "d", "", cobraext.DataStreamFlagDescription)
@@ -65,13 +68,24 @@ func upCommandAction(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	kibanaClient, err := stack.NewKibanaClient()
+	if err != nil {
+		return fmt.Errorf("cannot create Kibana client: %w", err)
+	}
+	stackVersion, err := kibanaClient.Version()
+	if err != nil {
+		return fmt.Errorf("cannot request Kibana version: %w", err)
+	}
+
 	_, serviceName := filepath.Split(packageRoot)
 	err = service.BootUp(service.Options{
 		Profile:            profile,
 		ServiceName:        serviceName,
 		PackageRootPath:    packageRoot,
+		DevDeployDir:       system.DevDeployDir,
 		DataStreamRootPath: dataStreamPath,
 		Variant:            variantFlag,
+		StackVersion:       stackVersion.Version(),
 	})
 	if err != nil {
 		return fmt.Errorf("up command failed: %w", err)
