@@ -49,15 +49,19 @@ func NewClient(opts ...ClientOption) (*Client, error) {
 		return nil, ErrUndefinedHost
 	}
 
-	v, err := c.requestVersion()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get Kibana version: %w", err)
-	}
-	c.versionInfo = v
+	// Allow to initialize version from tests.
+	var zeroVersion VersionInfo
+	if c.semver == nil || c.versionInfo == zeroVersion {
+		v, err := c.requestVersion()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get Kibana version: %w", err)
+		}
+		c.versionInfo = v
 
-	c.semver, err = semver.NewVersion(c.versionInfo.Number)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse Kibana version (%s): %w", c.versionInfo.Number, err)
+		c.semver, err = semver.NewVersion(c.versionInfo.Number)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse Kibana version (%s): %w", c.versionInfo.Number, err)
+		}
 	}
 
 	return c, nil
