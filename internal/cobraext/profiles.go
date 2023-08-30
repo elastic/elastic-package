@@ -90,3 +90,22 @@ func GetStackProviderFromProfile(cmd *cobra.Command, profile *profile.Profile, c
 
 	return stack.BuildProvider(providerName, profile)
 }
+
+// GetStackUserParameterFlags returns the parameters defined by the user in the command line
+func GetStackUserParameterFlags(cmd *cobra.Command) (map[string]string, error) {
+	parameters, err := cmd.Flags().GetStringSlice(StackUserParameterFlagName)
+	if err != nil {
+		return nil, FlagParsingError(err, StackUserParameterFlagName)
+	}
+
+	values := make(map[string]string)
+	for _, p := range parameters {
+		k, v, valid := strings.Cut(p, "=")
+		if !valid {
+			return nil, fmt.Errorf("invalid format for user parameter, expected key=value, found %q", p)
+		}
+		values[k] = v
+	}
+
+	return values, nil
+}

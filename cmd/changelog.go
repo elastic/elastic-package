@@ -37,6 +37,7 @@ func setupChangelogCommand() *cobraext.Command {
 		Use:   "add",
 		Short: "Add an entry to the changelog file",
 		Long:  changelogAddLongDescription,
+		Args:  cobra.NoArgs,
 		RunE:  changelogAddCmd,
 	}
 	addChangelogCmd.Flags().String(cobraext.ChangelogAddNextFlagName, "", cobraext.ChangelogAddNextFlagDescription)

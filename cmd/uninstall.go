@@ -25,6 +25,7 @@ func setupUninstallCommand() *cobraext.Command {
 		Use:   "uninstall",
 		Short: "Uninstall the package",
 		Long:  uninstallLongDescription,
+		Args:  cobra.NoArgs,
 		RunE:  uninstallCommandAction,
 	}
 

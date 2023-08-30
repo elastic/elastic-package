@@ -29,6 +29,7 @@ func setupExportCommand() *cobraext.Command {
 		Use:   "dashboards",
 		Short: "Export dashboards from Kibana",
 		Long:  exportDashboardsLongDescription,
+		Args:  cobra.NoArgs,
 		RunE:  exportDashboardsCmd,
 	}
 	exportDashboardCmd.Flags().StringSliceP(cobraext.DashboardIDsFlagName, "d", nil, cobraext.DashboardIDsFlagDescription)

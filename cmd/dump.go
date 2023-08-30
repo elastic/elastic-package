@@ -35,6 +35,7 @@ func setupDumpCommand() *cobraext.Command {
 		Use:   "installed-objects",
 		Short: "Dump objects installed in the stack",
 		Long:  dumpInstalledObjectsLongDescription,
+		Args:  cobra.NoArgs,
 		RunE:  dumpInstalledObjectsCmdAction,
 	}
 	dumpInstalledObjectsCmd.Flags().Bool(cobraext.TLSSkipVerifyFlagName, false, cobraext.TLSSkipVerifyFlagDescription)
@@ -45,6 +46,7 @@ func setupDumpCommand() *cobraext.Command {
 		Use:   "agent-policies",
 		Short: "Dump agent policies defined in the stack",
 		Long:  dumpAgentPoliciesLongDescription,
+		Args:  cobra.NoArgs,
 		RunE:  dumpAgentPoliciesCmdAction,
 	}
 	dumpAgentPoliciesCmd.Flags().StringP(cobraext.AgentPolicyFlagName, "", "", cobraext.AgentPolicyDescription)

@@ -230,6 +230,11 @@ func (r *runner) setUp() error {
 func (r *runner) run() (report reporters.Reportable, err error) {
 	var service servicedeployer.DeployedService
 	if r.scenario.Corpora.InputService != nil {
+		stackVersion, err := r.options.KibanaClient.Version()
+		if err != nil {
+			return nil, fmt.Errorf("cannot request Kibana version: %w", err)
+		}
+
 		// Setup service.
 		logger.Debug("setting up service...")
 		opts := servicedeployer.FactoryOptions{
@@ -238,6 +243,7 @@ func (r *runner) run() (report reporters.Reportable, err error) {
 			Variant:         r.options.Variant,
 			Profile:         r.options.Profile,
 			Type:            servicedeployer.TypeBench,
+			StackVersion:    stackVersion.Version(),
 		}
 		serviceDeployer, err := servicedeployer.Factory(opts)
 

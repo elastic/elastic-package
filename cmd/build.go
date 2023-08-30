@@ -34,6 +34,7 @@ func setupBuildCommand() *cobraext.Command {
 		Use:   "build",
 		Short: "Build the package",
 		Long:  buildLongDescription,
+		Args:  cobra.NoArgs,
 		RunE:  buildCommandAction,
 	}
 	cmd.Flags().Bool(cobraext.BuildZipFlagName, true, cobraext.BuildZipFlagDescription)

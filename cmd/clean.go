@@ -22,6 +22,7 @@ func setupCleanCommand() *cobraext.Command {
 		Use:   "clean",
 		Short: "Clean used resources",
 		Long:  cleanLongDescription,
+		Args:  cobra.NoArgs,
 		RunE:  cleanCommandAction,
 	}
 
