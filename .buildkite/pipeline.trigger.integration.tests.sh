@@ -113,6 +113,6 @@ echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-check-u
 echo "        env:"
 echo "          DEFAULT_VERSION_TAG: v0.80.0"
 echo "        agents:"
-echo "          image: \"golang:1.20.3\""
+echo "          image: \"${LINUX_AGENT_IMAGE}\""
 echo "          cpu: \"8\""
 echo "          memory: \"4G\""
