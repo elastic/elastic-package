@@ -70,6 +70,14 @@ func CreatePackage(packageDescriptor PackageDescriptor) error {
 		return fmt.Errorf("can't render sample screenshot: %w", err)
 	}
 
+	if packageDescriptor.Manifest.Type == "input" {
+		logger.Debugf("Write base fields")
+		err = renderResourceFile(fieldsBaseTemplate, &packageDescriptor, filepath.Join(baseDir, "fields", "base-fields.yml"))
+		if err != nil {
+			return fmt.Errorf("can't render base fields: %w", err)
+		}
+	}
+
 	logger.Debugf("Format the entire package")
 	err = formatter.Format(baseDir, false)
 	if err != nil {

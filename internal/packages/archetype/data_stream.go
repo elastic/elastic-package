@@ -35,7 +35,7 @@ func CreateDataStream(dataStreamDescriptor DataStreamDescriptor) error {
 	}
 
 	logger.Debugf("Write base fields")
-	err = renderResourceFile(dataStreamFieldsBaseTemplate, &dataStreamDescriptor, filepath.Join(dataStreamDir, "fields", "base-fields.yml"))
+	err = renderResourceFile(fieldsBaseTemplate, &dataStreamDescriptor, filepath.Join(dataStreamDir, "fields", "base-fields.yml"))
 	if err != nil {
 		return fmt.Errorf("can't render base fields: %w", err)
 	}
@@ -43,7 +43,7 @@ func CreateDataStream(dataStreamDescriptor DataStreamDescriptor) error {
 	logger.Debugf("Write agent stream")
 	err = renderResourceFile(dataStreamAgentStreamTemplate, &dataStreamDescriptor, filepath.Join(dataStreamDir, "agent", "stream", "stream.yml.hbs"))
 	if err != nil {
-		return fmt.Errorf("can't render base fields: %w", err)
+		return fmt.Errorf("can't render agent stream: %w", err)
 	}
 
 	if dataStreamDescriptor.Manifest.Type == "logs" {
@@ -57,7 +57,7 @@ func CreateDataStream(dataStreamDescriptor DataStreamDescriptor) error {
 	logger.Debugf("Format the entire package")
 	err = formatter.Format(dataStreamDescriptor.PackageRoot, false)
 	if err != nil {
-		return fmt.Errorf("can't format the new package: %w", err)
+		return fmt.Errorf("can't format the new data stream: %w", err)
 	}
 
 	fmt.Printf("New data stream has been created: %s\n", dataStreamDescriptor.Manifest.Name)

@@ -28,6 +28,7 @@ const (
 
 type newPackageAnswers struct {
 	Name                string
+	Type                string
 	Version             string
 	SourceLicense       string `survey:"source_license"`
 	Title               string
@@ -49,6 +50,16 @@ func createPackageCommandAction(cmd *cobra.Command, args []string) error {
 				Default: "new_package",
 			},
 			Validate: survey.ComposeValidators(survey.Required, surveyext.PackageDoesNotExistValidator),
+		},
+		{
+			Name: "type",
+			Prompt: &survey.Select{
+				Message:  "Package type:",
+				Options:  []string{"input", "integration"},
+				Default:  "integration",
+				PageSize: 2,
+			},
+			Validate: survey.Required,
 		},
 		{
 			Name: "version",
@@ -157,7 +168,7 @@ func createPackageDescriptorFromAnswers(answers newPackageAnswers) archetype.Pac
 		Manifest: packages.PackageManifest{
 			Name:    answers.Name,
 			Title:   answers.Title,
-			Type:    "integration",
+			Type:    answers.Type,
 			Version: answers.Version,
 			Source: packages.Source{
 				License: sourceLicense,
