@@ -12,9 +12,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/stack"
-	"github.com/stretchr/testify/require"
 )
 
 // NewClient returns a client for a testing http server that uses prerecorded
