@@ -15,6 +15,7 @@ import (
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/service"
+	"github.com/elastic/elastic-package/internal/stack"
 	"github.com/elastic/elastic-package/internal/testrunner/runners/system"
 )
 
@@ -67,6 +68,15 @@ func upCommandAction(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	kibanaClient, err := stack.NewKibanaClient()
+	if err != nil {
+		return fmt.Errorf("cannot create Kibana client: %w", err)
+	}
+	stackVersion, err := kibanaClient.Version()
+	if err != nil {
+		return fmt.Errorf("cannot request Kibana version: %w", err)
+	}
+
 	_, serviceName := filepath.Split(packageRoot)
 	err = service.BootUp(service.Options{
 		Profile:            profile,
@@ -75,6 +85,7 @@ func upCommandAction(cmd *cobra.Command, args []string) error {
 		DevDeployDir:       system.DevDeployDir,
 		DataStreamRootPath: dataStreamPath,
 		Variant:            variantFlag,
+		StackVersion:       stackVersion.Version(),
 	})
 	if err != nil {
 		return fmt.Errorf("up command failed: %w", err)

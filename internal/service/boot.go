@@ -26,6 +26,7 @@ type Options struct {
 	PackageRootPath    string
 	DevDeployDir       string
 	DataStreamRootPath string
+	StackVersion       string
 
 	Variant string
 }
@@ -39,6 +40,7 @@ func BootUp(options Options) error {
 		DataStreamRootPath: options.DataStreamRootPath,
 		DevDeployDir:       options.DevDeployDir,
 		Variant:            options.Variant,
+		StackVersion:       options.StackVersion,
 	})
 	if err != nil {
 		return fmt.Errorf("can't create the service deployer instance: %w", err)

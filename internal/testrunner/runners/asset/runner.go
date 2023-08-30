@@ -8,10 +8,10 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/packages/installer"
-	"github.com/elastic/elastic-package/internal/stack"
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
 
@@ -27,6 +27,7 @@ const (
 type runner struct {
 	testFolder      testrunner.TestFolder
 	packageRootPath string
+	kibanaClient    *kibana.Client
 
 	// Execution order of following handlers is defined in runner.tearDown() method.
 	removePackageHandler func() error
@@ -52,6 +53,7 @@ func (r runner) CanRunPerDataStream() bool {
 func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, error) {
 	r.testFolder = options.TestFolder
 	r.packageRootPath = options.PackageRootPath
+	r.kibanaClient = options.KibanaClient
 
 	return r.run()
 }
@@ -76,12 +78,8 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 	}
 
 	logger.Debug("installing package...")
-	kibanaClient, err := stack.NewKibanaClient()
-	if err != nil {
-		return result.WithError(fmt.Errorf("could not create kibana client: %w", err))
-	}
 	packageInstaller, err := installer.NewForPackage(installer.Options{
-		Kibana:         kibanaClient,
+		Kibana:         r.kibanaClient,
 		RootPath:       r.packageRootPath,
 		SkipValidation: true,
 	})

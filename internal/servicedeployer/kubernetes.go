@@ -27,6 +27,7 @@ import (
 type KubernetesServiceDeployer struct {
 	profile        *profile.Profile
 	definitionsDir string
+	stackVersion   string
 }
 
 type kubernetesDeployedService struct {
@@ -71,10 +72,11 @@ func (s *kubernetesDeployedService) SetContext(sc ServiceContext) error {
 var _ DeployedService = new(kubernetesDeployedService)
 
 // NewKubernetesServiceDeployer function creates a new instance of KubernetesServiceDeployer.
-func NewKubernetesServiceDeployer(profile *profile.Profile, definitionsPath string) (*KubernetesServiceDeployer, error) {
+func NewKubernetesServiceDeployer(profile *profile.Profile, definitionsPath string, stackVersion string) (*KubernetesServiceDeployer, error) {
 	return &KubernetesServiceDeployer{
 		profile:        profile,
 		definitionsDir: definitionsPath,
+		stackVersion:   stackVersion,
 	}, nil
 }
 
@@ -91,7 +93,7 @@ func (ksd KubernetesServiceDeployer) SetUp(ctxt ServiceContext) (DeployedService
 		return nil, fmt.Errorf("can't connect control plane to Elastic stack network: %w", err)
 	}
 
-	err = installElasticAgentInCluster()
+	err = installElasticAgentInCluster(ksd.stackVersion)
 	if err != nil {
 		return nil, fmt.Errorf("can't install Elastic-Agent in the Kubernetes cluster: %w", err)
 	}
@@ -145,20 +147,10 @@ func findKubernetesDefinitions(definitionsDir string) ([]string, error) {
 	return definitionPaths, nil
 }
 
-func installElasticAgentInCluster() error {
+func installElasticAgentInCluster(stackVersion string) error {
 	logger.Debug("install Elastic Agent in the Kubernetes cluster")
 
-	kibanaClient, err := stack.NewKibanaClient()
-	if err != nil {
-		return fmt.Errorf("can't create Kibana client: %w", err)
-	}
-
-	stackVersion, err := kibanaClient.Version()
-	if err != nil {
-		return fmt.Errorf("can't read Kibana injected metadata: %w", err)
-	}
-
-	elasticAgentManagedYaml, err := getElasticAgentYAML(stackVersion.Version())
+	elasticAgentManagedYaml, err := getElasticAgentYAML(stackVersion)
 	if err != nil {
 		return fmt.Errorf("can't retrieve Kubernetes file for Elastic Agent: %w", err)
 	}

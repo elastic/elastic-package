@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/elastic/elastic-package/internal/elasticsearch"
+	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/profile"
 )
 
@@ -27,6 +28,7 @@ type TestOptions struct {
 	PackageRootPath    string
 	GenerateTestResult bool
 	API                *elasticsearch.API
+	KibanaClient       *kibana.Client
 
 	DeferCleanup   time.Duration
 	ServiceVariant string
