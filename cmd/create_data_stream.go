@@ -40,6 +40,15 @@ func createDataStreamCommandAction(cmd *cobra.Command, args []string) error {
 		return errors.New("package root not found, you can only create new data stream in the package context")
 	}
 
+	manifest, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
+	if err != nil {
+		return fmt.Errorf("reading package manifest failed (path: %s): %w", packageRoot, err)
+	}
+
+	if manifest.Type == "input" {
+		return fmt.Errorf("data-streams are not supported in input packages")
+	}
+
 	qs := []*survey.Question{
 		{
 			Name: "name",
