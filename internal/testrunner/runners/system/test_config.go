@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -48,8 +49,74 @@ type testConfig struct {
 	// type but can be ingested as numeric type.
 	NumericKeywordFields []string `config:"numeric_keyword_fields"`
 
+	// Samples can be used to collect additional sample documents.
+	Samples []sampleConfig `config:"samples"`
+
 	Path               string `config:",ignore"` // Path of config file.
 	ServiceVariantName string `config:",ignore"` // Name of test variant when using variants.yml.
+}
+
+type sampleConfig struct {
+	Name      string `config:"name"`
+	Condition struct {
+		Key   string  `config:"key"`
+		Value *string `config:"value"`
+	} `config:"condition"`
+}
+
+func (c *sampleConfig) Matches(doc common.MapStr) bool {
+	v, err := doc.GetValue(c.Condition.Key)
+	if err != nil {
+		return false
+	}
+
+	if expected := c.Condition.Value; expected != nil && !matchesValue(*expected, v) {
+		return false
+	}
+
+	return true
+}
+
+func matchesValue(expected string, v any) bool {
+	switch v := v.(type) {
+	case common.MapStr, map[string]any:
+		return false
+	case []any:
+		for _, e := range v {
+			if matchesSingleValue(expected, e) {
+				return true
+			}
+		}
+	default:
+		return matchesSingleValue(expected, v)
+	}
+
+	return false
+}
+
+func matchesSingleValue(expected string, v any) bool {
+	switch v := v.(type) {
+	case common.MapStr, map[string]any, []any:
+		return false
+	case string:
+		return expected == v
+	case int, int32, int64:
+		n, err := strconv.Atoi(expected)
+		if err != nil {
+			return false
+		}
+		return n == v
+	case float64:
+		n, err := strconv.ParseFloat(expected, 64)
+		if err != nil {
+			return false
+		}
+		return n == v
+	default:
+		return false
+	}
+
+	return false
 }
 
 func (t testConfig) Name() string {
