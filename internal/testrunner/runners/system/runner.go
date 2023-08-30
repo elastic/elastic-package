@@ -720,7 +720,7 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	}
 
 	// Write sample events file from first doc, if requested
-	if err := r.generateTestResult(docs); err != nil {
+	if err := r.generateTestResult(config, docs); err != nil {
 		return result.WithError(err)
 	}
 
@@ -1183,13 +1183,18 @@ func filterAgents(allAgents []kibana.Agent, ctx servicedeployer.ServiceContext) 
 	return filtered
 }
 
-func writeSampleEvent(path string, doc common.MapStr) error {
+func writeSampleEvent(path string, doc common.MapStr, name string) error {
 	body, err := json.MarshalIndent(doc, "", "    ")
 	if err != nil {
 		return fmt.Errorf("marshalling sample event failed: %w", err)
 	}
 
-	err = os.WriteFile(filepath.Join(path, "sample_event.json"), body, 0644)
+	sampleName := "sample_event.json"
+	if name != "" {
+		sampleName = "sample_event_" + name + ".json"
+	}
+
+	err = os.WriteFile(filepath.Join(path, sampleName), body, 0644)
 	if err != nil {
 		return fmt.Errorf("writing sample event failed: %w", err)
 	}
@@ -1249,7 +1254,7 @@ func (r *runner) selectVariants(variantsFile *servicedeployer.VariantsFile) []st
 	return variantNames
 }
 
-func (r *runner) generateTestResult(docs []common.MapStr) error {
+func (r *runner) generateTestResult(config *testConfig, docs []common.MapStr) error {
 	if !r.options.GenerateTestResult {
 		return nil
 	}
@@ -1259,8 +1264,27 @@ func (r *runner) generateTestResult(docs []common.MapStr) error {
 		rootPath = filepath.Join(rootPath, "data_stream", ds)
 	}
 
-	if err := writeSampleEvent(rootPath, docs[0]); err != nil {
-		return fmt.Errorf("failed to write sample event file: %w", err)
+	if len(config.Samples) == 0 {
+		if err := writeSampleEvent(rootPath, docs[0], ""); err != nil {
+			return fmt.Errorf("failed to write sample event file: %w", err)
+		}
+		return nil
+	}
+
+	for _, sample := range config.Samples {
+		found := false
+		for _, doc := range docs {
+			if sample.Matches(doc) {
+				if err := writeSampleEvent(rootPath, docs[0], sample.Name); err != nil {
+					return fmt.Errorf("failed to write sample event file: %w", err)
+				}
+				found = true
+				break
+			}
+		}
+		if !found {
+			return fmt.Errorf("could not find sample for %q", sample.Name)
+		}
 	}
 
 	return nil

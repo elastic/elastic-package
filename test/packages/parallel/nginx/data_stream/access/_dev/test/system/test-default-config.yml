@@ -3,3 +3,8 @@ data_stream:
   vars:
     paths:
       - "{{SERVICE_LOGS_DIR}}/access.log*"
+samples:
+  - name: "200"
+    condition:
+      key: "http.response.status_code"
+      value: "200"
