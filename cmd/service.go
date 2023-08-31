@@ -68,7 +68,7 @@ func upCommandAction(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	kibanaClient, err := stack.NewKibanaClient()
+	kibanaClient, err := stack.NewKibanaClientFromProfile(profile)
 	if err != nil {
 		return fmt.Errorf("cannot create Kibana client: %w", err)
 	}
