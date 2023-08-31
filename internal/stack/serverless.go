@@ -172,7 +172,7 @@ func (sp *serverlessProvider) createClients(project *serverless.Project) error {
 		elasticsearch.OptionWithPassword(project.Credentials.Password),
 	)
 	if err != nil {
-		return fmt.Errorf("failed to create elasticsearch client")
+		return fmt.Errorf("failed to create elasticsearch client: %w", err)
 	}
 
 	sp.kibanaClient, err = NewKibanaClient(
@@ -181,7 +181,7 @@ func (sp *serverlessProvider) createClients(project *serverless.Project) error {
 		kibana.Password(project.Credentials.Password),
 	)
 	if err != nil {
-		return fmt.Errorf("failed to create kibana client")
+		return fmt.Errorf("failed to create kibana client: %w", err)
 	}
 
 	return nil

@@ -16,6 +16,7 @@ import (
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
+	"github.com/elastic/elastic-package/internal/registry"
 )
 
 const eprURL = "https://epr.elastic.co"
@@ -178,10 +179,16 @@ func (p *Project) getFleetHealth(ctx context.Context) error {
 }
 
 func (p *Project) CreateAgentPolicy(stackVersion string, kibanaClient *kibana.Client) error {
-	systemVersion, err := getPackageVersion(eprURL, "system", stackVersion)
+	systemPackages, err := registry.Production.Revisions("system", registry.SearchOptions{
+		KibanaVersion: stackVersion,
+	})
 	if err != nil {
 		return fmt.Errorf("could not get the system package version for kibana %v: %w", stackVersion, err)
 	}
+	if len(systemPackages) != 1 {
+		return fmt.Errorf("unexpected number of system package versions - found %d expected 1", len(systemPackages))
+	}
+	logger.Debugf("Found %s package - version %s", systemPackages[0].Name, systemPackages[0].Version)
 
 	policy := kibana.Policy{
 		ID:                "elastic-agent-managed-ep",
@@ -201,7 +208,7 @@ func (p *Project) CreateAgentPolicy(stackVersion string, kibanaClient *kibana.Cl
 		Namespace: newPolicy.Namespace,
 	}
 	packagePolicy.Package.Name = "system"
-	packagePolicy.Package.Version = systemVersion
+	packagePolicy.Package.Version = systemPackages[0].Version
 
 	_, err = kibanaClient.CreatePackagePolicy(packagePolicy)
 	if err != nil {
@@ -209,46 +216,4 @@ func (p *Project) CreateAgentPolicy(stackVersion string, kibanaClient *kibana.Cl
 	}
 
 	return nil
-}
-
-func getPackageVersion(registryURL, packageName, stackVersion string) (string, error) {
-	searchURL, err := url.JoinPath(registryURL, "search")
-	if err != nil {
-		return "", fmt.Errorf("could not build URL: %w", err)
-	}
-	// TODO: add capabilities or spec.minVersion?
-	queryValues := url.Values{}
-	queryValues.Add("package", packageName)
-	queryValues.Add("kibana.version", stackVersion)
-
-	searchURL = fmt.Sprintf("%s?%s", searchURL, queryValues.Encode())
-	logger.Debugf("GET %s", searchURL)
-	resp, err := http.Get(searchURL)
-	if err != nil {
-		return "", fmt.Errorf("request failed (url: %s): %w", searchURL, err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 300 {
-		return "", fmt.Errorf("unexpected status code %v", resp.StatusCode)
-	}
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", fmt.Errorf("failed to read response body: %w", err)
-	}
-	var packages []struct {
-		Name    string `json:"name"`
-		Version string `json:"version"`
-	}
-	err = json.Unmarshal(body, &packages)
-	if err != nil {
-		return "", fmt.Errorf("failed to parse response body: %w", err)
-	}
-	if len(packages) != 1 {
-		return "", fmt.Errorf("expected 1 package, obtained %v", len(packages))
-	}
-	if found := packages[0].Name; found != packageName {
-		return "", fmt.Errorf("expected package %s, found %s", packageName, found)
-	}
-
-	return packages[0].Version, nil
 }
