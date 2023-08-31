@@ -19,8 +19,6 @@ import (
 	"github.com/elastic/elastic-package/internal/registry"
 )
 
-const eprURL = "https://epr.elastic.co"
-
 // Project represents a serverless project
 type Project struct {
 	url    string
