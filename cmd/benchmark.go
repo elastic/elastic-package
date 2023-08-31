@@ -165,6 +165,11 @@ func pipelineCommandAction(cmd *cobra.Command, args []string) error {
 		return errors.New("no pipeline benchmarks found")
 	}
 
+	profile, err := cobraext.GetProfileFlag(cmd)
+	if err != nil {
+		return err
+	}
+
 	esClient, err := stack.NewElasticsearchClientFromProfile(profile)
 	if err != nil {
 		return fmt.Errorf("can't create Elasticsearch client: %w", err)

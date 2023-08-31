@@ -114,7 +114,7 @@ func NewKibanaClientFromProfile(profile *profile.Profile, customOptions ...kiban
 		kibana.Address(kibanaHost),
 		kibana.Password(elasticsearchPassword),
 		kibana.Username(elasticsearchUsername),
-		kibana.CertificateAuthority(caCertificateEnv),
+		kibana.CertificateAuthority(caCertificate),
 	}
 	options = append(options, customOptions...)
 	client, err := kibana.NewClient(options...)

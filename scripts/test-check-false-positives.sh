@@ -77,8 +77,6 @@ elastic-package stack up -d -v
 elastic-package stack status
 
 # Run package tests
-eval "$(elastic-package stack shellinit)"
-
 for d in test/packages/${PACKAGE_TEST_TYPE:-false_positives}/${PACKAGE_UNDER_TEST:-*}/; do
   (
     cd $d
