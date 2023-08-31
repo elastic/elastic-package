@@ -43,6 +43,12 @@ var availableExtraInfoParameters = []string{
 	elasticsearchSubscriptionParameter,
 }
 
+var (
+	bold = color.New(color.Bold)
+	red  = color.New(color.FgRed, color.Bold)
+	cyan = color.New(color.FgCyan, color.Bold)
+)
+
 func setupStatusCommand() *cobraext.Command {
 	cmd := &cobra.Command{
 		Use:   "status [package]",
@@ -77,6 +83,12 @@ func statusCommandAction(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return cobraext.FlagParsingError(err, cobraext.StatusExtraInfoFlagName)
 	}
+
+	err = validateExtraParameters(extraParameters)
+	if err != nil {
+		return fmt.Errorf("validating info paramaters failed: %w", err)
+
+	}
 	options := registry.SearchOptions{
 		All:           showAll,
 		KibanaVersion: kibanaVersion,
@@ -91,6 +103,22 @@ func statusCommandAction(cmd *cobra.Command, args []string) error {
 	}
 	logger.Debugf("Extra parameters: %s", extraParameters)
 	return print(packageStatus, os.Stdout, extraParameters)
+}
+
+func validateExtraParameters(extraParameters []string) error {
+	for _, param := range extraParameters {
+		found := false
+		for _, validParam := range availableExtraInfoParameters {
+			if param == validParam {
+				found = true
+			}
+		}
+		if !found {
+			return fmt.Errorf("parameter \"%s\" is not available (available ones: \"%s\")", param, strings.Join(availableExtraInfoParameters, ","))
+		}
+	}
+	// no extra parameters
+	return nil
 }
 
 func getPackageStatus(packageName string, options registry.SearchOptions) (*status.PackageStatus, error) {
@@ -109,44 +137,53 @@ func getPackageStatus(packageName string, options registry.SearchOptions) (*stat
 
 // print formats and prints package information into a table
 func print(p *status.PackageStatus, w io.Writer, extraParameters []string) error {
-	bold := color.New(color.Bold)
-	red := color.New(color.FgRed, color.Bold)
-	cyan := color.New(color.FgCyan, color.Bold)
 	bold.Fprint(w, "Package: ")
 	cyan.Fprintln(w, p.Name)
 
-	var environmentTable [][]string
 	if p.Local != nil {
 		bold.Fprint(w, "Owner: ")
 		cyan.Fprintln(w, formatOwner(p))
+	}
+
+	if p.PendingChanges != nil {
+		renderPendingChanges(p, w)
+	}
+
+	renderPackageVersions(p, w, extraParameters)
+	return nil
+}
+
+func renderPendingChanges(p *status.PackageStatus, w io.Writer) {
+	bold.Fprint(w, "Next Version: ")
+	red.Fprintln(w, p.PendingChanges.Version)
+	bold.Fprintln(w, "Pending Changes:")
+	var changelogTable [][]string
+	for _, change := range p.PendingChanges.Changes {
+		changelogTable = append(changelogTable, formatChangelogEntry(change))
+	}
+	table := tablewriter.NewWriter(w)
+	table.SetHeader([]string{"Type", "Description", "Link"})
+	table.SetHeaderColor(
+		twColor(tablewriter.Colors{tablewriter.Bold}),
+		twColor(tablewriter.Colors{tablewriter.Bold}),
+		twColor(tablewriter.Colors{tablewriter.Bold}),
+	)
+	table.SetColumnColor(
+		twColor(tablewriter.Colors{tablewriter.Bold, tablewriter.FgCyanColor}),
+		tablewriter.Colors{},
+		tablewriter.Colors{},
+	)
+	table.SetRowLine(true)
+	table.AppendBulk(changelogTable)
+	table.Render()
+}
+
+func renderPackageVersions(p *status.PackageStatus, w io.Writer, extraParameters []string) {
+	var environmentTable [][]string
+	if p.Local != nil {
 		environmentTable = append(environmentTable, formatManifest("Local", *p.Local, nil, extraParameters))
 	}
 	environmentTable = append(environmentTable, formatManifests("Production", p.Production, extraParameters))
-
-	if p.PendingChanges != nil {
-		bold.Fprint(w, "Next Version: ")
-		red.Fprintln(w, p.PendingChanges.Version)
-		bold.Fprintln(w, "Pending Changes:")
-		var changelogTable [][]string
-		for _, change := range p.PendingChanges.Changes {
-			changelogTable = append(changelogTable, formatChangelogEntry(change))
-		}
-		table := tablewriter.NewWriter(w)
-		table.SetHeader([]string{"Type", "Description", "Link"})
-		table.SetHeaderColor(
-			twColor(tablewriter.Colors{tablewriter.Bold}),
-			twColor(tablewriter.Colors{tablewriter.Bold}),
-			twColor(tablewriter.Colors{tablewriter.Bold}),
-		)
-		table.SetColumnColor(
-			twColor(tablewriter.Colors{tablewriter.Bold, tablewriter.FgCyanColor}),
-			tablewriter.Colors{},
-			tablewriter.Colors{},
-		)
-		table.SetRowLine(true)
-		table.AppendBulk(changelogTable)
-		table.Render()
-	}
 
 	bold.Fprintln(w, "Package Versions:")
 	table := tablewriter.NewWriter(w)
@@ -180,7 +217,7 @@ func print(p *status.PackageStatus, w io.Writer, extraParameters []string) error
 	table.SetRowLine(true)
 	table.AppendBulk(environmentTable)
 	table.Render()
-	return nil
+
 }
 
 // formatOwner returns the name of the package owner

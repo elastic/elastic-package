@@ -131,7 +131,7 @@ func TestStatusFormatAndPrint(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.title, func(t *testing.T) {
 			var buf bytes.Buffer
-			err := print(c.pkgStatus, &buf)
+			err := print(c.pkgStatus, &buf, nil)
 			require.NoError(t, err)
 
 			assertOutputWithFile(t, c.expected, buf.String())
