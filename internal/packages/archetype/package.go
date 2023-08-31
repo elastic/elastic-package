@@ -18,6 +18,8 @@ import (
 // PackageDescriptor defines configurable properties of the package archetype
 type PackageDescriptor struct {
 	Manifest packages.PackageManifest
+
+	InputDataStreamType string
 }
 
 // CreatePackage function bootstraps the new package based on the provided descriptor.
@@ -72,6 +74,22 @@ func createPackageInDir(packageDescriptor PackageDescriptor, cwd string) error {
 	err = writeRawResourceFile(decodedSampleScreenshot, filepath.Join(baseDir, "img", "sample-screenshot.png"))
 	if err != nil {
 		return fmt.Errorf("can't render sample screenshot: %w", err)
+	}
+
+	if packageDescriptor.Manifest.Type == "input" {
+		logger.Debugf("Write base fields")
+		err = renderResourceFile(fieldsBaseTemplate, &packageDescriptor, filepath.Join(baseDir, "fields", "base-fields.yml"))
+		if err != nil {
+			return fmt.Errorf("can't render base fields: %w", err)
+		}
+
+		// agent input configuration
+		logger.Debugf("Write agent input configuration")
+		err = renderResourceFile(inputAgentConfigTemplate, &packageDescriptor, filepath.Join(baseDir, "agent", "input", "input.yml.hbs"))
+		if err != nil {
+			return fmt.Errorf("can't render agent stream: %w", err)
+		}
+
 	}
 
 	logger.Debugf("Format the entire package")
