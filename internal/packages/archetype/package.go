@@ -29,7 +29,7 @@ func CreatePackage(packageDescriptor PackageDescriptor) error {
 	}
 
 	logger.Debugf("Write package manifest")
-	err = renderResourceFile(packageManifestTemplate, &packageDescriptor, filepath.Join(baseDir, "manifest.yml"))
+	err = renderResourceFile(packageManifestTemplate, packageDescriptor, filepath.Join(baseDir, "manifest.yml"))
 	if err != nil {
 		return fmt.Errorf("can't render package manifest: %w", err)
 	}

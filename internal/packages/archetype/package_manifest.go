@@ -4,7 +4,7 @@
 
 package archetype
 
-const packageManifestTemplate = `format_version: 2.8.0
+const packageManifestTemplate = `format_version: {{.Manifest.SpecVersion}}
 name: {{.Manifest.Name}}
 title: "{{.Manifest.Title}}"
 version: {{.Manifest.Version}}
