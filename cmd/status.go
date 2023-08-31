@@ -204,9 +204,9 @@ func renderPackageVersions(p *status.PackageStatus, w io.Writer, extraParameters
 	columnColors := []tablewriter.Colors{
 		twColor(tablewriter.Colors{tablewriter.Bold, tablewriter.FgCyanColor}),
 		twColor(tablewriter.Colors{tablewriter.Bold, tablewriter.FgRedColor}),
-		{},
-		{},
-		{},
+		tablewriter.Colors{},
+		tablewriter.Colors{},
+		tablewriter.Colors{},
 	}
 	for i := 0; i < len(extraParameters); i++ {
 		columnColors = append(columnColors, tablewriter.Colors{})
