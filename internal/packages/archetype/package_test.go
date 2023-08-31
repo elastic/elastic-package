@@ -19,23 +19,23 @@ import (
 
 func TestPackage(t *testing.T) {
 	t.Run("valid", func(t *testing.T) {
-		pd := createPackageDescriptorForTest("integration")
+		pd := createPackageDescriptorForTest("integration", "^7.13.0")
 
 		err := createAndCheckPackage(t, pd)
 		require.NoError(t, err)
 	})
 	t.Run("missing-version", func(t *testing.T) {
-		pd := createPackageDescriptorForTest("integration")
+		pd := createPackageDescriptorForTest("integration", "^7.13.0")
 		pd.Manifest.Version = ""
 
 		err := createAndCheckPackage(t, pd)
 		require.Error(t, err)
 	})
-	t.Run("input-pacakge", func(t *testing.T) {
-		pd := createPackageDescriptorForTest("input")
+	t.Run("input-package", func(t *testing.T) {
+		pd := createPackageDescriptorForTest("input", "^8.9.0")
 
 		err := createAndCheckPackage(t, pd)
-		require.Error(t, err)
+		require.NoError(t, err)
 	})
 }
 
@@ -59,7 +59,7 @@ func createAndCheckPackage(t require.TestingT, pd PackageDescriptor) error {
 	return err
 }
 
-func createPackageDescriptorForTest(packageType string) PackageDescriptor {
+func createPackageDescriptorForTest(packageType, kibanaVersion string) PackageDescriptor {
 	inputDataStreamType := ""
 	if packageType == "input" {
 		inputDataStreamType = "logs"
@@ -72,7 +72,7 @@ func createPackageDescriptorForTest(packageType string) PackageDescriptor {
 			Version: "1.2.3",
 			Conditions: packages.Conditions{
 				Kibana: packages.KibanaConditions{
-					Version: "^7.13.0",
+					Version: kibanaVersion,
 				},
 				Elastic: packages.ElasticConditions{
 					Subscription: "basic",

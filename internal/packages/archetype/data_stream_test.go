@@ -16,7 +16,7 @@ import (
 
 func TestDataStream(t *testing.T) {
 	t.Run("valid-logs", func(t *testing.T) {
-		pd := createPackageDescriptorForTest("integration")
+		pd := createPackageDescriptorForTest("integration", "^7.13.0")
 		dd := createDataStreamDescriptorForTest()
 		dd.Manifest.Type = "logs"
 
@@ -24,7 +24,7 @@ func TestDataStream(t *testing.T) {
 		require.NoError(t, err)
 	})
 	t.Run("valid-metrics", func(t *testing.T) {
-		pd := createPackageDescriptorForTest("integration")
+		pd := createPackageDescriptorForTest("integration", "^7.13.0")
 		dd := createDataStreamDescriptorForTest()
 		dd.Manifest.Type = "metrics"
 
@@ -32,7 +32,7 @@ func TestDataStream(t *testing.T) {
 		require.NoError(t, err)
 	})
 	t.Run("missing-type", func(t *testing.T) {
-		pd := createPackageDescriptorForTest("integration")
+		pd := createPackageDescriptorForTest("integration", "^7.13.0")
 		dd := createDataStreamDescriptorForTest()
 		dd.Manifest.Type = ""
 
