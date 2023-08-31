@@ -5,12 +5,9 @@
 package cmd
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/AlecAivazis/survey/v2"
-	"github.com/Masterminds/semver/v3"
-	spec "github.com/elastic/package-spec/v2"
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/licenses"
@@ -141,7 +138,7 @@ func createPackageCommandAction(cmd *cobra.Command, args []string) error {
 	}
 
 	descriptor := createPackageDescriptorFromAnswers(answers)
-	specVersion, err := getLatestStableSpecVersion()
+	specVersion, err := archetype.GetLatestStableSpecVersion()
 	if err != nil {
 		return fmt.Errorf("failed to get spec version: %w", err)
 	}
@@ -186,20 +183,4 @@ func createPackageDescriptorFromAnswers(answers newPackageAnswers) archetype.Pac
 			Categories:  answers.Categories,
 		},
 	}
-}
-
-func getLatestStableSpecVersion() (semver.Version, error) {
-	specVersions, err := spec.VersionsInChangelog()
-	if err != nil {
-		return semver.Version{}, fmt.Errorf("can't find existing spec versions: %w", err)
-	}
-
-	// We assume versions are sorted here.
-	for _, version := range specVersions {
-		if version.Prerelease() == "" {
-			return version, nil
-		}
-	}
-
-	return semver.Version{}, errors.New("no stable package spec version found, this is probably a bug")
 }
