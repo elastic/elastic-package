@@ -35,7 +35,7 @@ func renderSampleEvents(packageRoot, dataStreamName string) (string, error) {
 			stripDataStreamFolderSuffix(dataStreamName))
 	}
 
-	sort.Sort(sort.StringSlice(eventPaths))
+	sort.Strings(eventPaths)
 	for i, eventPath := range eventPaths {
 		if i > 0 {
 			fmt.Fprintln(&builder)
