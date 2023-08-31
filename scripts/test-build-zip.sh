@@ -42,6 +42,7 @@ cd -
 rm -r build/packages/*/
 
 # Boot up the stack
+eval "$(elastic-package stack shellinit)"
 elastic-package stack up -d -v
 
 # Install zipped packages
