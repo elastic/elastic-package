@@ -31,6 +31,7 @@ icons:
     size: 32x32
     type: image/svg+xml
 policy_templates:
+{{- if eq .Manifest.Type "integration" }}
   - name: sample
     title: Sample logs
     description: Collect sample logs
@@ -38,6 +39,43 @@ policy_templates:
       - type: logfile
         title: Collect sample logs from instances
         description: Collecting sample logs
+{{ else -}}
+{{ if eq .InputDataStreamType "logs"}}
+  - name: sample
+    type: logs
+    title: Sample logs
+    description: Collect sample logs
+    input: logfile
+    template_path: input.yml.hbs
+    vars:
+      - name: paths
+        type: text
+        title: Paths
+        multi: true
+        default:
+          - /var/log/*.log
+{{ else }}
+  - name: sample
+    type: metrics
+    title: Sample metrics
+    description: Collect sample metrics
+    input: sample/metrics
+    template_path: input.yml.hbs
+    vars:
+      - name: period
+        type: text
+        title: Period
+        default: 10s
+      - name: hosts
+        type: text
+        title: Hosts
+        multi: true
+        required: true
+        show_user: true
+        default:
+          - localhost
+{{ end }}
+{{ end -}}
 owner:
   github: {{.Manifest.Owner.Github}}
 `
