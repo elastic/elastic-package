@@ -173,6 +173,9 @@ const (
 	StatusKibanaVersionFlagName        = "kibana-version"
 	StatusKibanaVersionFlagDescription = "show packages for the given kibana version"
 
+	StatusExtraInfoFlagName        = "info"
+	StatusExtraInfoFlagDescription = "show additional information (comma-separated values: \"%s\")"
+
 	TestCoverageFlagName        = "test-coverage"
 	TestCoverageFlagDescription = "generate Cobertura test coverage reports"
 
