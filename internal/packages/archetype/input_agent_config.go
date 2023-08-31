@@ -5,18 +5,18 @@
 package archetype
 
 const inputAgentConfigTemplate = `data_stream:
-  dataset: ` + "{{`{{data_stream.dataset}}`}}" + `
+  dataset: {{ "{{data_stream.dataset}}" }}
 {{if eq .InputDataStreamType "logs"}}paths:
-` + "{{`{{#each paths as |path i|}}`}}" + `
-  - ` + "{{`{{path}}`}}" + `
-` + "{{`{{/each}}`}}" + `
+{{ "{{#each paths as |path i|}}" }}
+  - {{"{{path}}"}}
+{{ "{{/each}}" }}
 exclude_files: [".gz$"]
 processors:
   - add_locale: ~
 {{else}}metricsets: ["sample_metricset"]
 hosts:
-` + "{{`{{#each hosts}}`}}" + `
-  - ` + "{{`{{this}}`}}" + `
-` + "{{`{{/each}}`}}" + `
-period: ` + "{{`{{period}}`}}" + `
+{{ "{{#each hosts}}" }}
+  -  {{ "{{this}}" }}
+{{ "{{/each}}" }}
+period: {{ "{{period}}" }}
 {{end}}`

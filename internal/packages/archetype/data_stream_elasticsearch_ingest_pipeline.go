@@ -13,4 +13,5 @@ processors:
 on_failure:
 - set:
     field: error.message
-    value: '` + "{{`{{ _ingest.on_failure_message }}`}}'"
+    value: {{ "{{ _ingest.on_failure_message }}" }}
+`

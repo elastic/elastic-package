@@ -5,16 +5,16 @@
 package archetype
 
 const dataStreamAgentStreamTemplate = `{{if eq .Manifest.Type "logs"}}paths:
-` + "{{`{{#each paths as |path i|}}`}}" + `
-  - ` + "{{`{{path}}`}}" + `
-` + "{{`{{/each}}`}}" + `
+{{ "{{#each paths as |path i|}}" }}
+  - {{ "{{path}}" }}
+{{ "{{/each}}" }}
 exclude_files: [".gz$"]
 processors:
   - add_locale: ~
 {{else}}metricsets: ["sample_metricset"]
 hosts:
-` + "{{`{{#each hosts}}`}}" + `
-  - ` + "{{`{{this}}`}}" + `
-` + "{{`{{/each}}`}}" + `
-period: ` + "{{`{{period}}`}}" + `
+{{ "{{#each hosts}}" }}
+  -  {{ "{{this}}" }}
+{{ "{{/each}}" }}
+period: {{ "{{period}}" }}
 {{end}}`
