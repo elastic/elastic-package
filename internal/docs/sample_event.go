@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/elastic/elastic-package/internal/formatter"
@@ -34,6 +35,7 @@ func renderSampleEvents(packageRoot, dataStreamName string) (string, error) {
 			stripDataStreamFolderSuffix(dataStreamName))
 	}
 
+	sort.Sort(sort.StringSlice(eventPaths))
 	for i, eventPath := range eventPaths {
 		if i > 0 {
 			fmt.Fprintln(&builder)
