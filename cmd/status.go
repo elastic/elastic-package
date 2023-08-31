@@ -18,7 +18,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
-	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/packages/changelog"
 	"github.com/elastic/elastic-package/internal/packages/status"
@@ -37,16 +36,16 @@ const (
 	elasticsearchSubscriptionParameter = "elastic.subscription"
 )
 
-var availableExtraInfoParameters = []string{
-	kibanaVersionParameter,
-	categoriesParamter,
-	elasticsearchSubscriptionParameter,
-}
-
 var (
 	bold = color.New(color.Bold)
 	red  = color.New(color.FgRed, color.Bold)
 	cyan = color.New(color.FgCyan, color.Bold)
+
+	availableExtraInfoParameters = []string{
+		kibanaVersionParameter,
+		categoriesParamter,
+		elasticsearchSubscriptionParameter,
+	}
 )
 
 func setupStatusCommand() *cobraext.Command {
@@ -84,7 +83,7 @@ func statusCommandAction(cmd *cobra.Command, args []string) error {
 		return cobraext.FlagParsingError(err, cobraext.StatusExtraInfoFlagName)
 	}
 
-	err = validateExtraParameters(extraParameters)
+	err = validateExtraInfoParameters(extraParameters)
 	if err != nil {
 		return fmt.Errorf("validating info paramaters failed: %w", err)
 
@@ -101,11 +100,10 @@ func statusCommandAction(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	logger.Debugf("Extra parameters: %s", extraParameters)
 	return print(packageStatus, os.Stdout, extraParameters)
 }
 
-func validateExtraParameters(extraParameters []string) error {
+func validateExtraInfoParameters(extraParameters []string) error {
 	for _, param := range extraParameters {
 		found := false
 		for _, validParam := range availableExtraInfoParameters {
