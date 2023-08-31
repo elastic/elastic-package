@@ -1,10 +1,4 @@
-// Copyright Elasticsearch B.V. and/or licensed to Elasticsearch B.V. under one
-// or more contributor license agreements. Licensed under the Elastic License;
-// you may not use this file except in compliance with the Elastic License.
-
-package archetype
-
-const packageManifestTemplate = `format_version: 2.8.0
+format_version: 2.8.0
 name: {{.Manifest.Name}}
 title: "{{.Manifest.Title}}"
 version: {{.Manifest.Version}}
@@ -78,4 +72,3 @@ policy_templates:
 {{ end -}}
 owner:
   github: {{.Manifest.Owner.Github}}
-`

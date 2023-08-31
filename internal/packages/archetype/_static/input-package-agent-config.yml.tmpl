@@ -1,10 +1,4 @@
-// Copyright Elasticsearch B.V. and/or licensed to Elasticsearch B.V. under one
-// or more contributor license agreements. Licensed under the Elastic License;
-// you may not use this file except in compliance with the Elastic License.
-
-package archetype
-
-const inputAgentConfigTemplate = `data_stream:
+data_stream:
   dataset: {{ "{{data_stream.dataset}}" }}
 {{if eq .InputDataStreamType "logs"}}paths:
 {{ "{{#each paths as |path i|}}" }}
@@ -19,4 +13,4 @@ hosts:
   -  {{ "{{this}}" }}
 {{ "{{/each}}" }}
 period: {{ "{{period}}" }}
-{{end}}`
+{{end}}
