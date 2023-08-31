@@ -80,8 +80,8 @@ func CreatePackage(packageDescriptor PackageDescriptor) error {
 		}
 
 		// agent input configuration
-		logger.Debugf("Write agent stream")
-		err = renderResourceFile(inputAgentConfigTemplate, &packageDescriptor, filepath.Join(baseDir, "agent", "stream", "input.yml.hbs"))
+		logger.Debugf("Write agent input configuration")
+		err = renderResourceFile(inputAgentConfigTemplate, &packageDescriptor, filepath.Join(baseDir, "agent", "input", "input.yml.hbs"))
 		if err != nil {
 			return fmt.Errorf("can't render agent stream: %w", err)
 		}
