@@ -1275,7 +1275,7 @@ func (r *runner) generateTestResult(config *testConfig, docs []common.MapStr) er
 		found := false
 		for _, doc := range docs {
 			if sample.Matches(doc) {
-				if err := writeSampleEvent(rootPath, docs[0], sample.Name); err != nil {
+				if err := writeSampleEvent(rootPath, doc, sample.Name); err != nil {
 					return fmt.Errorf("failed to write sample event file: %w", err)
 				}
 				found = true
