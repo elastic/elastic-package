@@ -40,7 +40,7 @@ func NewKibanaClient(customOptions ...kibana.ClientOption) (*kibana.Client, erro
 	client, err := kibana.NewClient(options...)
 
 	if errors.Is(err, kibana.ErrUndefinedHost) {
-		return nil, UndefinedEnvError(ElasticsearchHostEnv)
+		return nil, UndefinedEnvError(KibanaHostEnv)
 	}
 
 	return client, err
