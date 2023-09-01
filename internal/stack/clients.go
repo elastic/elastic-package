@@ -135,3 +135,18 @@ func NewKibanaClientFromProfile(profile *profile.Profile, customOptions ...kiban
 
 	return client, err
 }
+
+// FindCACertificate looks for the CA certificate for the stack in the current profile.
+// If not found, it uses the environment variable provided by shellinit.
+func FindCACertificate(profile *profile.Profile) (string, error) {
+	caCertPath, found := os.LookupEnv(CACertificateEnv)
+	if !found {
+		profileConfig, err := StackInitConfig(profile)
+		if err != nil {
+			return "", fmt.Errorf("failed to load config from profile: %w", err)
+		}
+		caCertPath = profileConfig.CACertificatePath
+	}
+
+	return caCertPath, nil
+}

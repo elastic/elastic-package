@@ -55,9 +55,9 @@ func (d *CustomAgentDeployer) SetUp(inCtxt ServiceContext) (DeployedService, err
 		return nil, fmt.Errorf("can't read application configuration: %w", err)
 	}
 
-	caCertPath, ok := os.LookupEnv(stack.CACertificateEnv)
-	if !ok {
-		return nil, fmt.Errorf("can't locate CA certificate: %s environment variable not set", stack.CACertificateEnv)
+	caCertPath, err := stack.FindCACertificate(d.profile)
+	if err != nil {
+		return nil, fmt.Errorf("can't locate CA certificate: %w", err)
 	}
 
 	env := append(
