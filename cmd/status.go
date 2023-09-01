@@ -115,7 +115,6 @@ func validateExtraInfoParameters(extraParameters []string) error {
 			return fmt.Errorf("parameter \"%s\" is not available (available ones: \"%s\")", param, strings.Join(availableExtraInfoParameters, ","))
 		}
 	}
-	// no extra parameters
 	return nil
 }
 
@@ -151,6 +150,7 @@ func print(p *status.PackageStatus, w io.Writer, extraParameters []string) error
 	return nil
 }
 
+// renderPendingChanges formats and prints pending changes in the package into a table
 func renderPendingChanges(p *status.PackageStatus, w io.Writer) {
 	bold.Fprint(w, "Next Version: ")
 	red.Fprintln(w, p.PendingChanges.Version)
@@ -176,6 +176,7 @@ func renderPendingChanges(p *status.PackageStatus, w io.Writer) {
 	table.Render()
 }
 
+// renderPackageVersions formats and prints local and production versions of the package into a table
 func renderPackageVersions(p *status.PackageStatus, w io.Writer, extraParameters []string) {
 	var environmentTable [][]string
 	if p.Local != nil {
@@ -190,7 +191,6 @@ func renderPackageVersions(p *status.PackageStatus, w io.Writer, extraParameters
 
 	table.SetHeader(headers)
 
-	// all headers are bold
 	headerColors := []tablewriter.Colors{}
 	for i := 0; i < len(headers); i++ {
 		headerColors = append(headerColors, twColor(tablewriter.Colors{tablewriter.Bold}))
@@ -198,7 +198,6 @@ func renderPackageVersions(p *status.PackageStatus, w io.Writer, extraParameters
 
 	table.SetHeaderColor(headerColors...)
 
-	// default column colors
 	columnColors := []tablewriter.Colors{
 		twColor(tablewriter.Colors{tablewriter.Bold, tablewriter.FgCyanColor}),
 		twColor(tablewriter.Colors{tablewriter.Bold, tablewriter.FgRedColor}),
@@ -215,7 +214,6 @@ func renderPackageVersions(p *status.PackageStatus, w io.Writer, extraParameters
 	table.SetRowLine(true)
 	table.AppendBulk(environmentTable)
 	table.Render()
-
 }
 
 // formatOwner returns the name of the package owner
@@ -255,12 +253,12 @@ func formatManifest(environment string, manifest packages.PackageManifest, extra
 	data := []string{environment, version, releaseFromVersion(manifest.Version), manifest.Title, manifest.Description}
 
 	for _, param := range extraParameters {
-		switch {
-		case param == kibanaVersionParameter:
+		switch param {
+		case kibanaVersionParameter:
 			data = append(data, manifest.Conditions.Kibana.Version)
-		case param == categoriesParamter:
+		case categoriesParamter:
 			data = append(data, strings.Join(manifest.Categories, ","))
-		case param == elasticsearchSubscriptionParameter:
+		case elasticsearchSubscriptionParameter:
 			data = append(data, manifest.Conditions.Elastic.Subscription)
 		}
 	}
