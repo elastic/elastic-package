@@ -56,7 +56,7 @@ func createDataStreamCommandAction(cmd *cobra.Command, args []string) error {
 				Message: "Data stream name:",
 				Default: "new_data_stream",
 			},
-			Validate: survey.ComposeValidators(survey.Required, surveyext.DataStreamDoesNotExistValidator),
+			Validate: survey.ComposeValidators(survey.Required, surveyext.DataStreamDoesNotExistValidator, surveyext.DataStreamNameValidator),
 		},
 		{
 			Name: "title",
