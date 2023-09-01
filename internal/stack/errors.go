@@ -26,4 +26,4 @@ func UndefinedEnvError(envName string) error {
 }
 
 // ErrUnavailableStack is an error about an unavailable Elastic stack.
-var ErrUnavailableStack = errors.New("Elastic stack unavailable, remember to start it with 'elastic-package stack up', or configure elastic-package with environment variables")
+var ErrUnavailableStack = errors.New("the Elastic stack is unavailable, remember to start it with 'elastic-package stack up', or configure elastic-package with environment variables")
