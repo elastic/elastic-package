@@ -24,14 +24,18 @@ type PackageDescriptor struct {
 
 // CreatePackage function bootstraps the new package based on the provided descriptor.
 func CreatePackage(packageDescriptor PackageDescriptor) error {
-	baseDir := packageDescriptor.Manifest.Name
+	return createPackageInDir(packageDescriptor, ".")
+}
+
+func createPackageInDir(packageDescriptor PackageDescriptor, cwd string) error {
+	baseDir := filepath.Join(cwd, packageDescriptor.Manifest.Name)
 	_, err := os.Stat(baseDir)
 	if err == nil {
 		return fmt.Errorf(`package "%s" already exists`, baseDir)
 	}
 
 	logger.Debugf("Write package manifest")
-	err = renderResourceFile(packageManifestTemplate, &packageDescriptor, filepath.Join(baseDir, "manifest.yml"))
+	err = renderResourceFile(packageManifestTemplate, packageDescriptor, filepath.Join(baseDir, "manifest.yml"))
 	if err != nil {
 		return fmt.Errorf("can't render package manifest: %w", err)
 	}

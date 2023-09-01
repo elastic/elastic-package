@@ -8,7 +8,6 @@ import (
 	"fmt"
 
 	"github.com/AlecAivazis/survey/v2"
-
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/licenses"
@@ -174,6 +173,12 @@ func createPackageCommandAction(cmd *cobra.Command, args []string) error {
 	}
 
 	descriptor := createPackageDescriptorFromAnswers(answers)
+	specVersion, err := archetype.GetLatestStableSpecVersion()
+	if err != nil {
+		return fmt.Errorf("failed to get spec version: %w", err)
+	}
+	descriptor.Manifest.SpecVersion = specVersion.String()
+
 	err = archetype.CreatePackage(descriptor)
 	if err != nil {
 		return fmt.Errorf("can't create new package: %w", err)
