@@ -532,12 +532,6 @@ elastic-package stack up -d
 
 For a complete listing of options available for this command, run `elastic-package stack up -h` or `elastic-package help stack up`.
 
-Next, you must set environment variables needed for further `elastic-package` commands.
-
-```
-$(elastic-package stack shellinit)
-```
-
 Next, you must invoke the system tests runner. This corresponds to steps 3 through 7 as described in the [_Conceptual process_](#Conceptual-process) section.
 
 If you want to run system tests for **all data streams** in a package, navigate to the package's root folder (or any sub-folder under it) and run the following command.
