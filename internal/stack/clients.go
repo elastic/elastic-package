@@ -11,6 +11,7 @@ import (
 
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/kibana"
+	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/profile"
 )
 
@@ -44,7 +45,16 @@ func NewElasticsearchClientFromProfile(profile *profile.Profile, customOptions .
 
 	elasticsearchHost, found := os.LookupEnv(ElasticsearchHostEnv)
 	if !found {
+		status, err := Status(Options{Profile: profile})
+		if err != nil {
+			return nil, fmt.Errorf("failed to check status of stack in current profile: %w", err)
+		}
+		if len(status) == 0 {
+			return nil, ErrUnavailableStack
+		}
+
 		elasticsearchHost = profileConfig.ElasticsearchHostPort
+		logger.Debugf("Connecting with Elasticsearch host from current profile (profile: %s, host: %q)", profile.ProfileName, elasticsearchHost)
 	}
 	elasticsearchPassword, found := os.LookupEnv(ElasticsearchPasswordEnv)
 	if !found {
@@ -66,13 +76,7 @@ func NewElasticsearchClientFromProfile(profile *profile.Profile, customOptions .
 		elasticsearch.OptionWithCertificateAuthority(caCertificate),
 	}
 	options = append(options, customOptions...)
-	client, err := elasticsearch.NewClient(options...)
-
-	if errors.Is(err, elasticsearch.ErrUndefinedAddress) {
-		return nil, UndefinedEnvError(ElasticsearchHostEnv)
-	}
-
-	return client, err
+	return elasticsearch.NewClient(options...)
 }
 
 // NewKibanaClient creates a kibana client with the settings provided by the shellinit
@@ -105,7 +109,16 @@ func NewKibanaClientFromProfile(profile *profile.Profile, customOptions ...kiban
 
 	kibanaHost, found := os.LookupEnv(KibanaHostEnv)
 	if !found {
+		status, err := Status(Options{Profile: profile})
+		if err != nil {
+			return nil, fmt.Errorf("failed to check status of stack in current profile: %w", err)
+		}
+		if len(status) == 0 {
+			return nil, ErrUnavailableStack
+		}
+
 		kibanaHost = profileConfig.KibanaHostPort
+		logger.Debugf("Connecting with Kibana host from current profile (profile: %s, host: %q)", profile.ProfileName, kibanaHost)
 	}
 	elasticsearchPassword, found := os.LookupEnv(ElasticsearchPasswordEnv)
 	if !found {
@@ -127,13 +140,7 @@ func NewKibanaClientFromProfile(profile *profile.Profile, customOptions ...kiban
 		kibana.CertificateAuthority(caCertificate),
 	}
 	options = append(options, customOptions...)
-	client, err := kibana.NewClient(options...)
-
-	if errors.Is(err, kibana.ErrUndefinedHost) {
-		return nil, UndefinedEnvError(KibanaHostEnv)
-	}
-
-	return client, err
+	return kibana.NewClient(options...)
 }
 
 // FindCACertificate looks for the CA certificate for the stack in the current profile.
