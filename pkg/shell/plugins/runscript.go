@@ -6,43 +6,43 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
-	"strings"
 
 	"github.com/spf13/pflag"
 
 	"github.com/elastic/elastic-package/pkg/shell"
 )
 
-var _ shell.Command = &writefileCmd{}
+var _ shell.Command = &runscriptCmd{}
 
-type writefileCmd struct {
+type runscriptCmd struct {
 	p                 *Plugin
 	flags             *pflag.FlagSet
 	name, usage, desc string
 }
 
-func registerWritefileCmd(p *Plugin) {
+func registerRunscriptCmd(p *Plugin) {
 	flags := pflag.NewFlagSet("", pflag.ContinueOnError)
-	flags.String("path", "", "Path to the file (relative to the package root).")
-	flags.String("contents", "", "Contents of the file")
-	cmd := &writefileCmd{
+	flags.String("path", "", "Path to the script file.")
+	cmd := &runscriptCmd{
 		p:     p,
 		flags: flags,
-		name:  "write-file",
-		usage: "write-file --path path --contents contents",
-		desc:  "Writes a file in each of the packages in context 'Shell.Packages'.",
+		name:  "run-script",
+		usage: "run-script --path path [args...]",
+		desc:  "Runs a script for each of the packages in context 'Shell.Packages'. The package dir will be the first argument and the provided args will go next.",
 	}
 	p.RegisterCommand(cmd)
 }
 
-func (c *writefileCmd) Name() string  { return c.name }
-func (c *writefileCmd) Usage() string { return c.usage }
-func (c *writefileCmd) Desc() string  { return c.desc }
+func (c *runscriptCmd) Name() string  { return c.name }
+func (c *runscriptCmd) Usage() string { return c.usage }
+func (c *runscriptCmd) Desc() string  { return c.desc }
 
-func (c *writefileCmd) Exec(wd string, args []string, _, _ io.Writer) error {
+func (c *runscriptCmd) Exec(wd string, args []string, stdout, stderr io.Writer) error {
 	packages, ok := c.p.GetValueFromCtx(ctxKeyPackages).([]string)
 	if !ok {
 		return errors.New("no packages found in the context")
@@ -50,6 +50,16 @@ func (c *writefileCmd) Exec(wd string, args []string, _, _ io.Writer) error {
 
 	if err := c.flags.Parse(args); err != nil {
 		return err
+	}
+
+	path, _ := c.flags.GetString("path")
+
+	if !filepath.IsAbs(path) {
+		path = filepath.Clean(filepath.Join(wd, path))
+	}
+
+	if _, err := os.Stat(path); err != nil {
+		return fmt.Errorf("script not found at %s", path)
 	}
 
 	for _, pkg := range packages {
@@ -62,27 +72,13 @@ func (c *writefileCmd) Exec(wd string, args []string, _, _ io.Writer) error {
 				return errors.New("you need to be in integrations root folder or in the packages folder")
 			}
 		}
-
-		path, _ := c.flags.GetString("path")
-		path = filepath.Join(packageRoot, path)
-
-		contents, _ := c.flags.GetString("contents")
-
-		if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
-			return err
+		cmd := exec.Command(path, append([]string{packageRoot}, args...)...)
+		cmd.Stdout = stdout
+		cmd.Stderr = stderr
+		if err := cmd.Run(); err != nil {
+			fmt.Fprintln(stderr, err)
 		}
-
-		f, err := os.Create(path)
-		if err != nil {
-			return err
-		}
-
-		if _, err := f.WriteString(strings.ReplaceAll(contents, `\n`, "\n")); err != nil {
-			f.Close()
-			return err
-		}
-
-		f.Close()
 	}
+
 	return nil
 }

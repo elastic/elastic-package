@@ -5,7 +5,6 @@
 package main
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -21,48 +20,59 @@ import (
 	"github.com/elastic/elastic-package/pkg/shell"
 )
 
-var _ shell.Command = changelogCmd{}
+var _ shell.Command = &changelogCmd{}
 
-type changelogCmd struct{}
-
-func (changelogCmd) Usage() string {
-	return "changelog --next {major|minor|patch} --description desc --type {bugfix|enhancement|breaking-change} --link link"
+type changelogCmd struct {
+	p                 *Plugin
+	name, usage, desc string
+	flags             *pflag.FlagSet
 }
 
-func (changelogCmd) Desc() string {
-	return "Add an entry to the changelog file in each of the packages in context 'Shell.Packages'."
-}
-
-func (changelogCmd) Flags() *pflag.FlagSet {
+func registerChangelogCmd(p *Plugin) {
 	flags := pflag.NewFlagSet("", pflag.ContinueOnError)
 	flags.String(cobraext.ChangelogAddNextFlagName, "", cobraext.ChangelogAddNextFlagDescription)
 	flags.String(cobraext.ChangelogAddDescriptionFlagName, "", cobraext.ChangelogAddDescriptionFlagDescription)
 	flags.String(cobraext.ChangelogAddTypeFlagName, "", cobraext.ChangelogAddTypeFlagDescription)
 	flags.String(cobraext.ChangelogAddLinkFlagName, "", cobraext.ChangelogAddLinkFlagDescription)
-	return flags
+	cmd := &changelogCmd{
+		p:     p,
+		name:  "changelog",
+		usage: "changelog --next {major|minor|patch} --description desc --type {bugfix|enhancement|breaking-change} --link link",
+		desc:  "Add an entry to the changelog file in each of the packages in context 'Shell.Packages'.",
+		flags: flags,
+	}
+	p.RegisterCommand(cmd)
 }
 
-func (changelogCmd) Exec(ctx context.Context, flags *pflag.FlagSet, args []string, _, stderr io.Writer) (context.Context, error) {
-	packages, ok := ctx.Value(ctxKeyPackages).([]string)
+func (c *changelogCmd) Name() string  { return c.name }
+func (c *changelogCmd) Usage() string { return c.usage }
+func (c *changelogCmd) Desc() string  { return c.desc }
+
+func (c *changelogCmd) Exec(wd string, args []string, _, _ io.Writer) error {
+	packages, ok := c.p.GetValueFromCtx(ctxKeyPackages).([]string)
 	if !ok {
-		fmt.Fprintln(stderr, "no packages found in the context")
-		return ctx, nil
+		return errors.New("no packages found in the context")
 	}
+
+	if err := c.flags.Parse(args); err != nil {
+		return err
+	}
+
 	for _, pkg := range packages {
 		packageRoot := pkg
 		// check if we are in packages folder
-		if _, err := os.Stat(filepath.Join(".", pkg)); err != nil {
+		if _, err := os.Stat(filepath.Join(wd, pkg)); err != nil {
 			// check if we are in integrations root folder
-			packageRoot = filepath.Join(".", "packages", pkg)
+			packageRoot = filepath.Join(wd, "packages", pkg)
 			if _, err := os.Stat(packageRoot); err != nil {
-				return ctx, errors.New("you need to be in intgerations root folder or in the packages folder")
+				return errors.New("you need to be in integrations root folder or in the packages folder")
 			}
 		}
-		if err := changelogAddCmdForRoot(packageRoot, flags, args); err != nil {
-			return ctx, err
+		if err := changelogAddCmdForRoot(packageRoot, c.flags, args); err != nil {
+			return err
 		}
 	}
-	return ctx, nil
+	return nil
 }
 
 func changelogAddCmdForRoot(packageRoot string, flags *pflag.FlagSet, args []string) error {

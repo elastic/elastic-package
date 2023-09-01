@@ -5,102 +5,79 @@
 package shell
 
 import (
-	"context"
-	"fmt"
-	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
-	"plugin"
-
-	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 
 	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/logger"
+	"github.com/hashicorp/go-plugin"
+	"github.com/spf13/cobra"
 )
 
-var (
-	commands = []Command{}
-
-	// globalCtx is updated through all the run time of the shell and
-	// it is used to pass information between plugins
-	globalCtx = context.Background()
-)
-
-type Command interface {
-	// Usage is the one-line usage message.
-	// Recommended syntax is as follows:
-	//   [ ] identifies an optional argument. Arguments that are not enclosed in brackets are required.
-	//   ... indicates that you can specify multiple values for the previous argument.
-	//   |   indicates mutually exclusive information. You can use the argument to the left of the separator or the
-	//       argument to the right of the separator. You cannot use both arguments in a single use of the command.
-	//   { } delimits a set of mutually exclusive arguments when one of the arguments is required. If the arguments are
-	//       optional, they are enclosed in brackets ([ ]).
-	// Example: add [-F file | -D dir]... [-f format] profile
-	Usage() string
-	Desc() string
-	Flags() *pflag.FlagSet
-	Exec(ctx context.Context, flags *pflag.FlagSet, args []string, stdout, stderr io.Writer) (context.Context, error)
-}
-
-type Plugin interface {
-	Commands() []Command
-}
-
-func initCommands() error {
+func initCommands() (map[string]Command, error) {
 	lm, err := locations.NewLocationManager()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	pluginsDir := lm.ShellPluginsDir()
 	entries, err := os.ReadDir(pluginsDir)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
+	pluginMap := map[string]plugin.Plugin{
+		"shell_plugin": &ShellPlugin{},
+	}
+
+	m := map[string]Command{}
 	for _, e := range entries {
-		if e.IsDir() || filepath.Ext(e.Name()) != ".so" {
+		if e.IsDir() {
 			continue
 		}
-
 		pluginPath := filepath.Join(pluginsDir, e.Name())
+		client := plugin.NewClient(&plugin.ClientConfig{
+			HandshakeConfig: Handshake(),
+			Plugins:         pluginMap,
+			Cmd:             exec.Command(pluginPath),
+		})
 
-		p, err := plugin.Open(pluginPath)
+		// Connect via RPC
+		rpcClient, err := client.Client()
 		if err != nil {
-			return err
+			return nil, err
 		}
 
-		regSymbol, err := p.Lookup("Registry")
+		// Request the plugin
+		raw, err := rpcClient.Dispense("shell_plugin")
 		if err != nil {
-			return err
+			return nil, err
 		}
 
-		registry, ok := regSymbol.(Plugin)
-		if !ok {
-			return fmt.Errorf("registry in plugin %s does not implement the Plugin interface", pluginPath)
+		// Obtain the interface implementation we can use to
+		// interact with the plugin.
+		shellPlugin := raw.(Plugin)
+		for k, v := range shellPlugin.Commands() {
+			m[k] = v
 		}
-
-		commands = append(commands, registry.Commands()...)
 	}
-
-	return nil
+	return m, nil
 }
 
 func AttachCommands(parent *cobra.Command) {
-	if err := initCommands(); err != nil {
+	commands, err := initCommands()
+	if err != nil {
 		logger.Error(err)
+		return
 	}
 	for _, command := range commands {
 		cmd := &cobra.Command{
-			Use:   command.Usage(),
-			Short: command.Desc(),
-			RunE:  commandRunE(command),
-		}
-		if command.Flags() != nil {
-			command.Flags().VisitAll(func(f *pflag.Flag) {
-				cmd.Flags().AddFlag(f)
-			})
+			Use:                   command.Usage(),
+			Short:                 command.Desc(),
+			RunE:                  commandRunE(command),
+			DisableFlagParsing:    true,
+			DisableFlagsInUseLine: true,
 		}
 		parent.AddCommand(cmd)
 	}
@@ -108,12 +85,16 @@ func AttachCommands(parent *cobra.Command) {
 
 func commandRunE(command Command) func(*cobra.Command, []string) error {
 	return func(cmd *cobra.Command, args []string) error {
-		flags := cmd.Flags()
-		ctx, err := command.Exec(globalCtx, flags, args, cmd.OutOrStdout(), cmd.OutOrStderr())
-		if err != nil {
-			return err
-		}
-		globalCtx = ctx
-		return nil
+		wd, _ := os.Getwd()
+		return command.Exec(wd, args, cmd.OutOrStdout(), cmd.OutOrStderr())
+	}
+}
+
+// Handshake is a common handshake that is shared by plugin and host.
+func Handshake() plugin.HandshakeConfig {
+	return plugin.HandshakeConfig{
+		ProtocolVersion:  1,
+		MagicCookieKey:   "SHELL_PLUGIN",
+		MagicCookieValue: "2a28a2da-7812-467c-b65b-d3a996f2e692",
 	}
 }

@@ -5,7 +5,6 @@
 package main
 
 import (
-	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -16,7 +15,6 @@ import (
 	"strings"
 
 	_ "github.com/mattn/go-sqlite3"
-	"github.com/spf13/pflag"
 
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/pkg/shell"
@@ -27,26 +25,31 @@ const (
 	insertPackageQuery  = "INSERT INTO `packages` (`name`, `manifest`) VALUES (?,?)"
 )
 
-var _ shell.Command = whereCmd{}
+var _ shell.Command = &whereCmd{}
 
-type whereCmd struct{}
-
-func (whereCmd) Usage() string {
-	return `where "query"`
+type whereCmd struct {
+	p                 *Plugin
+	name, usage, desc string
 }
 
-func (whereCmd) Desc() string {
-	return "Select a list of packages based on some conditions. Reads from context 'Shell.DB' and updates context 'Shell.Packages'."
+func registerWhereCmd(p *Plugin) {
+	cmd := &whereCmd{
+		p:     p,
+		name:  "where",
+		usage: `where "query"`,
+		desc:  "Select a list of packages based on some conditions. Reads from context 'Shell.DB' and updates context 'Shell.Packages'.",
+	}
+	p.RegisterCommand(cmd)
 }
 
-func (whereCmd) Flags() *pflag.FlagSet {
-	return nil
-}
+func (c *whereCmd) Name() string  { return c.name }
+func (c *whereCmd) Usage() string { return c.usage }
+func (c *whereCmd) Desc() string  { return c.desc }
 
-func (whereCmd) Exec(ctx context.Context, flags *pflag.FlagSet, args []string, _, stderr io.Writer) (context.Context, error) {
-	db, ok := ctx.Value(ctxKeyDB).(*sql.DB)
+func (c *whereCmd) Exec(wd string, args []string, _, stderr io.Writer) error {
+	db, ok := c.p.GetValueFromCtx(ctxKeyDB).(*sql.DB)
 	if !ok {
-		return ctx, errors.New("db connection not found in context")
+		return errors.New("db connection not found in context")
 	}
 	conditions := strings.Join(args, " ")
 	query := `SELECT name FROM packages`
@@ -56,7 +59,7 @@ func (whereCmd) Exec(ctx context.Context, flags *pflag.FlagSet, args []string, _
 
 	rows, err := db.Query(query)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer rows.Close()
 
@@ -64,55 +67,60 @@ func (whereCmd) Exec(ctx context.Context, flags *pflag.FlagSet, args []string, _
 	var pkg string
 	for rows.Next() {
 		if err := rows.Scan(&pkg); err != nil {
-			return nil, err
+			return err
 		}
 		pkgs = append(pkgs, pkg)
 	}
 
-	ctx = context.WithValue(ctx, ctxKeyPackages, pkgs)
+	c.p.AddValueToCtx(ctxKeyPackages, pkgs)
 	fmt.Fprintf(stderr, "Found %d packages\n", len(pkgs))
-	return ctx, nil
-}
-
-var _ shell.Command = initdbCmd{}
-
-type initdbCmd struct{}
-
-func (initdbCmd) Usage() string {
-	return "initdb"
-}
-
-func (initdbCmd) Desc() string {
-	return "Initializes the packages database. Sets context 'Shell.DB'."
-}
-
-func (initdbCmd) Flags() *pflag.FlagSet {
 	return nil
 }
 
-func (initdbCmd) Exec(ctx context.Context, flags *pflag.FlagSet, args []string, _, stderr io.Writer) (context.Context, error) {
+var _ shell.Command = &initdbCmd{}
+
+type initdbCmd struct {
+	p                 *Plugin
+	name, usage, desc string
+}
+
+func registerInitdbCmd(p *Plugin) {
+	cmd := &initdbCmd{
+		p:     p,
+		name:  "initdb",
+		usage: "initdb",
+		desc:  "Initializes the packages database. Sets context 'Shell.DB'.",
+	}
+	p.RegisterCommand(cmd)
+}
+
+func (c *initdbCmd) Name() string  { return c.name }
+func (c *initdbCmd) Usage() string { return c.usage }
+func (c *initdbCmd) Desc() string  { return c.desc }
+
+func (c *initdbCmd) Exec(wd string, args []string, _, stderr io.Writer) error {
 	fmt.Fprintln(stderr, "Initializing database...")
 
 	db, err := sql.Open("sqlite3", ":memory:")
 	if err != nil {
-		return ctx, err
+		return err
 	}
 
 	if _, err := db.Exec(createPackagesQuery); err != nil {
-		return ctx, err
+		return err
 	}
 
-	packagesPath := filepath.Join(".", "packages")
+	packagesPath := filepath.Join(wd, "packages")
 	if _, err := os.Stat(packagesPath); err != nil {
-		return ctx, err
+		return err
 	}
 
 	entries, err := os.ReadDir(packagesPath)
 	if err != nil {
-		return ctx, err
+		return err
 	}
 
-	var c int
+	var count int
 	for _, e := range entries {
 		if !e.IsDir() || strings.HasPrefix(e.Name(), ".") {
 			continue
@@ -120,21 +128,21 @@ func (initdbCmd) Exec(ctx context.Context, flags *pflag.FlagSet, args []string, 
 		root := filepath.Join(packagesPath, e.Name())
 		manifest, err := packages.ReadPackageManifestFromPackageRoot(root)
 		if err != nil {
-			return ctx, err
+			return err
 		}
 		p, err := json.Marshal(manifest)
 		if err != nil {
-			return ctx, err
+			return err
 		}
 		if _, err := db.Exec(insertPackageQuery, e.Name(), string(p)); err != nil {
-			return ctx, err
+			return err
 		}
-		c++
+		count++
 	}
 
-	fmt.Fprintf(stderr, "Loaded %d packages\n", c)
+	fmt.Fprintf(stderr, "Loaded %d packages\n", count)
 
-	ctx = context.WithValue(ctx, ctxKeyDB, db)
+	c.p.AddValueToCtx(ctxKeyDB, db)
 
-	return ctx, nil
+	return nil
 }
