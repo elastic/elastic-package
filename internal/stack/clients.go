@@ -14,6 +14,8 @@ import (
 	"github.com/elastic/elastic-package/internal/profile"
 )
 
+// NewElasticsearchClient creates an Elasticsearch client with the settings provided by the shellinit
+// environment variables.
 func NewElasticsearchClient(customOptions ...elasticsearch.ClientOption) (*elasticsearch.Client, error) {
 	options := []elasticsearch.ClientOption{
 		elasticsearch.OptionWithAddress(os.Getenv(ElasticsearchHostEnv)),
@@ -31,6 +33,9 @@ func NewElasticsearchClient(customOptions ...elasticsearch.ClientOption) (*elast
 	return client, err
 }
 
+// NewElasticsearchClientFromProfile creates an Elasticsearch client with the settings provided by the shellinit
+// environment variables. If these environment variables are not set, it uses the information
+// in the provided profile.
 func NewElasticsearchClientFromProfile(profile *profile.Profile, customOptions ...elasticsearch.ClientOption) (*elasticsearch.Client, error) {
 	profileConfig, err := StackInitConfig(profile)
 	if err != nil {
@@ -70,6 +75,8 @@ func NewElasticsearchClientFromProfile(profile *profile.Profile, customOptions .
 	return client, err
 }
 
+// NewKibanaClient creates a kibana client with the settings provided by the shellinit
+// environment variables.
 func NewKibanaClient(customOptions ...kibana.ClientOption) (*kibana.Client, error) {
 	options := []kibana.ClientOption{
 		kibana.Address(os.Getenv(KibanaHostEnv)),
@@ -81,12 +88,15 @@ func NewKibanaClient(customOptions ...kibana.ClientOption) (*kibana.Client, erro
 	client, err := kibana.NewClient(options...)
 
 	if errors.Is(err, kibana.ErrUndefinedHost) {
-		return nil, UndefinedEnvError(ElasticsearchHostEnv)
+		return nil, UndefinedEnvError(KibanaHostEnv)
 	}
 
 	return client, err
 }
 
+// NewKibanaClientFromProfile creates a kibana client with the settings provided by the shellinit
+// environment variables. If these environment variables are not set, it uses the information
+// in the provided profile.
 func NewKibanaClientFromProfile(profile *profile.Profile, customOptions ...kibana.ClientOption) (*kibana.Client, error) {
 	profileConfig, err := StackInitConfig(profile)
 	if err != nil {
@@ -120,7 +130,7 @@ func NewKibanaClientFromProfile(profile *profile.Profile, customOptions ...kiban
 	client, err := kibana.NewClient(options...)
 
 	if errors.Is(err, kibana.ErrUndefinedHost) {
-		return nil, UndefinedEnvError(ElasticsearchHostEnv)
+		return nil, UndefinedEnvError(KibanaHostEnv)
 	}
 
 	return client, err
