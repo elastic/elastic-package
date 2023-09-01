@@ -16,6 +16,9 @@ import (
 
 var (
 	githubOwnerRegexp = regexp.MustCompile(`^(([a-zA-Z0-9-]+)|([a-zA-Z0-9-]+\/[a-zA-Z0-9-]+))$`)
+
+	packageNameRegexp    = regexp.MustCompile(`^[a-z0-9_]+$`)
+	dataStreamNameRegexp = regexp.MustCompile(`^([a-z0-9]{2}|[a-z0-9][a-z0-9_]+[a-z0-9])$`)
 )
 
 // PackageDoesNotExistValidator function checks if the package hasn't been already created.
@@ -81,6 +84,30 @@ func GithubOwnerValidator(val interface{}) error {
 
 	if !githubOwnerRegexp.MatchString(githubOwner) {
 		return fmt.Errorf("value doesn't match the regular expression (organization/group or username): %s", githubOwnerRegexp.String())
+	}
+	return nil
+}
+
+func PackageNameValidator(val interface{}) error {
+	packageName, ok := val.(string)
+	if !ok {
+		return errors.New("string type expected")
+	}
+
+	if !packageNameRegexp.MatchString(packageName) {
+		return fmt.Errorf("value doesn't match the regular expression (package name): %s", packageNameRegexp.String())
+	}
+	return nil
+}
+
+func DataStreamNameValidator(val interface{}) error {
+	dataStreamFolderName, ok := val.(string)
+	if !ok {
+		return errors.New("string type expected")
+	}
+
+	if !dataStreamNameRegexp.MatchString(dataStreamFolderName) {
+		return fmt.Errorf("value doesn't match the regular expression (datastream name): %s", dataStreamNameRegexp.String())
 	}
 	return nil
 }

@@ -67,7 +67,7 @@ func createPackageCommandAction(cmd *cobra.Command, args []string) error {
 				Message: "Package name:",
 				Default: "new_package",
 			},
-			Validate: survey.ComposeValidators(survey.Required, surveyext.PackageDoesNotExistValidator),
+			Validate: survey.ComposeValidators(survey.Required, surveyext.PackageDoesNotExistValidator, surveyext.PackageNameValidator),
 		},
 		{
 			Name: "version",
