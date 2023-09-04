@@ -312,12 +312,6 @@ elastic-package stack up -d
 
 For a complete listing of options available for this command, run `elastic-package stack up -h` or `elastic-package help stack up`.
 
-Next, you must set environment variables needed for further `elastic-package` commands.
-
-```
-$(elastic-package stack shellinit)
-```
-
 Next, you must invoke the system benchmark runner.
 
 ```

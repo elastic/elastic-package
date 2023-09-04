@@ -12,6 +12,7 @@ import (
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/dump"
 	"github.com/elastic/elastic-package/internal/elasticsearch"
+	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/stack"
 )
@@ -58,6 +59,7 @@ func setupDumpCommand() *cobraext.Command {
 		Long:  dumpLongDescription,
 	}
 	cmd.PersistentFlags().StringP(cobraext.DumpOutputFlagName, "o", "package-dump", cobraext.DumpOutputFlagDescription)
+	cmd.PersistentFlags().StringP(cobraext.ProfileFlagName, "p", "", fmt.Sprintf(cobraext.ProfileFlagDescription, install.ProfileNameEnvVar))
 
 	cmd.AddCommand(dumpInstalledObjectsCmd)
 	cmd.AddCommand(dumpAgentPoliciesCmd)
@@ -82,7 +84,13 @@ func dumpInstalledObjectsCmdAction(cmd *cobra.Command, args []string) error {
 	if tlsSkipVerify {
 		clientOptions = append(clientOptions, elasticsearch.OptionWithSkipTLSVerify())
 	}
-	client, err := stack.NewElasticsearchClient(clientOptions...)
+
+	profile, err := cobraext.GetProfileFlag(cmd)
+	if err != nil {
+		return err
+	}
+
+	client, err := stack.NewElasticsearchClientFromProfile(profile, clientOptions...)
 	if err != nil {
 		return fmt.Errorf("failed to initialize Elasticsearch client: %w", err)
 	}
@@ -122,7 +130,13 @@ func dumpAgentPoliciesCmdAction(cmd *cobra.Command, args []string) error {
 	if tlsSkipVerify {
 		clientOptions = append(clientOptions, kibana.TLSSkipVerify())
 	}
-	kibanaClient, err := stack.NewKibanaClient(clientOptions...)
+
+	profile, err := cobraext.GetProfileFlag(cmd)
+	if err != nil {
+		return err
+	}
+
+	kibanaClient, err := stack.NewKibanaClientFromProfile(profile, clientOptions...)
 	if err != nil {
 		return fmt.Errorf("failed to initialize Kibana client: %w", err)
 	}

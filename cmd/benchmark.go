@@ -165,7 +165,12 @@ func pipelineCommandAction(cmd *cobra.Command, args []string) error {
 		return errors.New("no pipeline benchmarks found")
 	}
 
-	esClient, err := stack.NewElasticsearchClient()
+	profile, err := cobraext.GetProfileFlag(cmd)
+	if err != nil {
+		return err
+	}
+
+	esClient, err := stack.NewElasticsearchClientFromProfile(profile)
 	if err != nil {
 		return fmt.Errorf("can't create Elasticsearch client: %w", err)
 	}
@@ -269,7 +274,7 @@ func systemCommandAction(cmd *cobra.Command, args []string) error {
 
 	signal.Enable()
 
-	esClient, err := stack.NewElasticsearchClient()
+	esClient, err := stack.NewElasticsearchClientFromProfile(profile)
 	if err != nil {
 		return fmt.Errorf("can't create Elasticsearch client: %w", err)
 	}
@@ -278,7 +283,7 @@ func systemCommandAction(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	kc, err := stack.NewKibanaClient()
+	kc, err := stack.NewKibanaClientFromProfile(profile)
 	if err != nil {
 		return fmt.Errorf("can't create Kibana client: %w", err)
 	}

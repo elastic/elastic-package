@@ -215,7 +215,7 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 			return err
 		}
 
-		esClient, err := stack.NewElasticsearchClient()
+		esClient, err := stack.NewElasticsearchClientFromProfile(profile)
 		if err != nil {
 			return fmt.Errorf("can't create Elasticsearch client: %w", err)
 		}
@@ -224,7 +224,7 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 			return err
 		}
 
-		kibanaClient, err := stack.NewKibanaClient()
+		kibanaClient, err := stack.NewKibanaClientFromProfile(profile)
 		if err != nil {
 			return fmt.Errorf("can't create Kibana client: %w", err)
 		}

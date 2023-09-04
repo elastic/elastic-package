@@ -48,6 +48,21 @@ For details on how to connect the service with the Elastic stack, see the [servi
 
 You can customize your stack using profile settings, see [Elastic Package profiles](https://github.com/elastic/elastic-package/blob/main/README.md#elastic-package-profiles-1) section. These settings can be also overriden with the --parameter flag. Settings configured this way are not persisted.`
 
+const stackShellinitLongDescription = `Use this command to export to the current shell the configuration of the stack managed by elastic-package.
+
+The output of this command is intended to be evaluated by the current shell. For example in bash: 'eval $(elastic-package stack shellinit)'.
+
+Relevant environment variables are:
+
+- ELASTIC_PACKAGE_ELASTICSEARCH_HOST
+- ELASTIC_PACKAGE_ELASTICSEARCH_USERNAME
+- ELASTIC_PACKAGE_ELASTICSEARCH_PASSWORD
+- ELASTIC_PACKAGE_KIBANA_HOST
+- ELASTIC_PACKAGE_CA_CERT
+
+You can also provide these environment variables manually. In that case elastic-package commands will use these settings.
+`
+
 func setupStackCommand() *cobraext.Command {
 	upCommand := &cobra.Command{
 		Use:   "up",
@@ -99,7 +114,6 @@ func setupStackCommand() *cobraext.Command {
 			profile.RuntimeOverrides(userParameters)
 
 			cmd.Printf("Using profile %s.\n", profile.ProfilePath)
-			cmd.Println(`Remember to load stack environment variables using 'eval "$(elastic-package stack shellinit)"'.`)
 			err = provider.BootUp(stack.Options{
 				DaemonMode:   daemonMode,
 				StackVersion: stackVersion,
@@ -192,6 +206,7 @@ func setupStackCommand() *cobraext.Command {
 	shellInitCommand := &cobra.Command{
 		Use:   "shellinit",
 		Short: "Export environment variables",
+		Long:  stackShellinitLongDescription,
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			shellName, err := cmd.Flags().GetString(cobraext.ShellInitShellFlagName)
