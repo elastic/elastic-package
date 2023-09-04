@@ -1,2 +1,4 @@
 # Directory containing GeoIP databases for stacks managed by elastic-agent.
 # stack.geoip_dir: "/path/to/geoip_dir/"
+# stack.serverless.type: observability
+# stack.serverless.region: aws-us-east-1
