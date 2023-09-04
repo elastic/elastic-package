@@ -77,12 +77,9 @@ elastic-package stack up -d -v
 elastic-package stack status
 
 # Run package tests
-eval "$(elastic-package stack shellinit)"
-
 for d in test/packages/${PACKAGE_TEST_TYPE:-false_positives}/${PACKAGE_UNDER_TEST:-*}/; do
   (
     cd $d
-    elastic-package install -v
 
     # defer-cleanup is set to a short period to verify that the option is available
     elastic-package test -v --report-format xUnit --report-output file --defer-cleanup 1s --test-coverage

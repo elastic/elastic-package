@@ -61,12 +61,9 @@ if [ "${PACKAGE_TEST_TYPE:-other}" == "with-kind" ]; then
 fi
 
 # Run package tests
-eval "$(elastic-package stack shellinit)"
-
 for d in test/packages/${PACKAGE_TEST_TYPE:-other}/${PACKAGE_UNDER_TEST:-*}/; do
   (
     cd $d
-    elastic-package install -v
 
     if [ "${PACKAGE_TEST_TYPE:-other}" == "benchmarks" ]; then
       # It is not used PACKAGE_UNDER_TEST, so all benchmark packages are run in the same loop

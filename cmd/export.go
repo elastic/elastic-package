@@ -14,6 +14,7 @@ import (
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/export"
+	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/stack"
 )
@@ -42,6 +43,7 @@ func setupExportCommand() *cobraext.Command {
 		Long:  exportLongDescription,
 	}
 	cmd.AddCommand(exportDashboardCmd)
+	cmd.PersistentFlags().StringP(cobraext.ProfileFlagName, "p", "", fmt.Sprintf(cobraext.ProfileFlagDescription, install.ProfileNameEnvVar))
 
 	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
 }
@@ -67,7 +69,12 @@ func exportDashboardsCmd(cmd *cobra.Command, args []string) error {
 		return cobraext.FlagParsingError(err, cobraext.AllowSnapshotFlagName)
 	}
 
-	kibanaClient, err := stack.NewKibanaClient(opts...)
+	profile, err := cobraext.GetProfileFlag(cmd)
+	if err != nil {
+		return err
+	}
+
+	kibanaClient, err := stack.NewKibanaClientFromProfile(profile, opts...)
 	if err != nil {
 		return fmt.Errorf("can't create Kibana client: %w", err)
 	}

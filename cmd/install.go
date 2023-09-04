@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
+	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/packages/installer"
 	"github.com/elastic/elastic-package/internal/stack"
@@ -32,6 +33,7 @@ func setupInstallCommand() *cobraext.Command {
 	cmd.Flags().StringP(cobraext.PackageRootFlagName, cobraext.PackageRootFlagShorthand, "", cobraext.PackageRootFlagDescription)
 	cmd.Flags().StringP(cobraext.ZipPackageFilePathFlagName, cobraext.ZipPackageFilePathFlagShorthand, "", cobraext.ZipPackageFilePathFlagDescription)
 	cmd.Flags().Bool(cobraext.BuildSkipValidationFlagName, false, cobraext.BuildSkipValidationFlagDescription)
+	cmd.Flags().StringP(cobraext.ProfileFlagName, "p", "", fmt.Sprintf(cobraext.ProfileFlagDescription, install.ProfileNameEnvVar))
 
 	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
 }
@@ -50,7 +52,12 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 		return cobraext.FlagParsingError(err, cobraext.BuildSkipValidationFlagName)
 	}
 
-	kibanaClient, err := stack.NewKibanaClient()
+	profile, err := cobraext.GetProfileFlag(cmd)
+	if err != nil {
+		return err
+	}
+
+	kibanaClient, err := stack.NewKibanaClientFromProfile(profile)
 	if err != nil {
 		return fmt.Errorf("could not create kibana client: %w", err)
 	}

@@ -93,7 +93,7 @@ func (ksd KubernetesServiceDeployer) SetUp(ctxt ServiceContext) (DeployedService
 		return nil, fmt.Errorf("can't connect control plane to Elastic stack network: %w", err)
 	}
 
-	err = installElasticAgentInCluster(ksd.stackVersion)
+	err = installElasticAgentInCluster(ksd.profile, ksd.stackVersion)
 	if err != nil {
 		return nil, fmt.Errorf("can't install Elastic-Agent in the Kubernetes cluster: %w", err)
 	}
@@ -147,10 +147,10 @@ func findKubernetesDefinitions(definitionsDir string) ([]string, error) {
 	return definitionPaths, nil
 }
 
-func installElasticAgentInCluster(stackVersion string) error {
+func installElasticAgentInCluster(profile *profile.Profile, stackVersion string) error {
 	logger.Debug("install Elastic Agent in the Kubernetes cluster")
 
-	elasticAgentManagedYaml, err := getElasticAgentYAML(stackVersion)
+	elasticAgentManagedYaml, err := getElasticAgentYAML(profile, stackVersion)
 	if err != nil {
 		return fmt.Errorf("can't retrieve Kubernetes file for Elastic Agent: %w", err)
 	}
@@ -165,7 +165,7 @@ func installElasticAgentInCluster(stackVersion string) error {
 //go:embed elastic-agent-managed.yaml.tmpl
 var elasticAgentManagedYamlTmpl string
 
-func getElasticAgentYAML(stackVersion string) ([]byte, error) {
+func getElasticAgentYAML(profile *profile.Profile, stackVersion string) ([]byte, error) {
 	logger.Debugf("Prepare YAML definition for Elastic Agent running in stack v%s", stackVersion)
 
 	appConfig, err := install.Configuration()
@@ -173,7 +173,7 @@ func getElasticAgentYAML(stackVersion string) ([]byte, error) {
 		return nil, fmt.Errorf("can't read application configuration: %w", err)
 	}
 
-	caCert, err := readCACertBase64()
+	caCert, err := readCACertBase64(profile)
 	if err != nil {
 		return nil, fmt.Errorf("can't read certificate authority file: %w", err)
 	}
@@ -195,10 +195,10 @@ func getElasticAgentYAML(stackVersion string) ([]byte, error) {
 	return elasticAgentYaml.Bytes(), nil
 }
 
-func readCACertBase64() (string, error) {
-	caCertPath, ok := os.LookupEnv(stack.CACertificateEnv)
-	if !ok {
-		return "", fmt.Errorf("%s not defined", stack.CACertificateEnv)
+func readCACertBase64(profile *profile.Profile) (string, error) {
+	caCertPath, err := stack.FindCACertificate(profile)
+	if err != nil {
+		return "", fmt.Errorf("can't locate CA certificate: %w", err)
 	}
 
 	d, err := os.ReadFile(caCertPath)

@@ -437,7 +437,20 @@ Dump stack data for debug purposes.
 
 _Context: global_
 
-Export environment variables.
+Use this command to export to the current shell the configuration of the stack managed by elastic-package.
+
+The output of this command is intended to be evaluated by the current shell. For example in bash: 'eval $(elastic-package stack shellinit)'.
+
+Relevant environment variables are:
+
+- ELASTIC_PACKAGE_ELASTICSEARCH_HOST
+- ELASTIC_PACKAGE_ELASTICSEARCH_USERNAME
+- ELASTIC_PACKAGE_ELASTICSEARCH_PASSWORD
+- ELASTIC_PACKAGE_KIBANA_HOST
+- ELASTIC_PACKAGE_CA_CERT
+
+You can also provide these environment variables manually. In that case elastic-package commands will use these settings.
+
 
 ### `elastic-package stack status`
 
