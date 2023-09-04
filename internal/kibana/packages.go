@@ -76,12 +76,20 @@ func processResults(action string, statusCode int, respBody []byte) ([]packages.
 	}
 
 	var resp struct {
-		Assets []packages.Asset `json:"response"`
+		// Assets are here when old API is used.
+		Response []packages.Asset `json:"response"`
+
+		// Assets are here when new API is used.
+		Items []packages.Asset `json:"items"`
 	}
 
 	if err := json.Unmarshal(respBody, &resp); err != nil {
 		return nil, fmt.Errorf("could not convert %s package (response) to JSON: %w", action, err)
 	}
 
-	return resp.Assets, nil
+	if len(resp.Response) > 0 {
+		return resp.Response, nil
+	}
+
+	return resp.Items, nil
 }
