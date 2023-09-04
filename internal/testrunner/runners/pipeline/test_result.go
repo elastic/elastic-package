@@ -178,11 +178,6 @@ func readExpectedTestResult(testCasePath string, config *testConfig, skipGeoIP b
 }
 
 func adjustTestResult(result *testResult, config *testConfig, skipGeoIP bool) (*testResult, error) {
-	if config == nil || config.DynamicFields == nil {
-		return result, nil
-	}
-
-	// Strip dynamic fields from test result
 	var stripped testResult
 	for _, event := range result.events {
 		if event == nil {
@@ -196,10 +191,13 @@ func adjustTestResult(result *testResult, config *testConfig, skipGeoIP bool) (*
 			return nil, fmt.Errorf("can't unmarshal event: %s: %w", string(event), err)
 		}
 
-		for key := range config.DynamicFields {
-			err := m.Delete(key)
-			if err != nil && err != common.ErrKeyNotFound {
-				return nil, fmt.Errorf("can't remove dynamic field: %w", err)
+		if config != nil && config.DynamicFields != nil {
+			// Strip dynamic fields from test result
+			for key := range config.DynamicFields {
+				err := m.Delete(key)
+				if err != nil && err != common.ErrKeyNotFound {
+					return nil, fmt.Errorf("can't remove dynamic field: %w", err)
+				}
 			}
 		}
 
