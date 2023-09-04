@@ -9,8 +9,9 @@ import (
 	"io"
 	"net/rpc"
 
-	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/hashicorp/go-plugin"
+
+	"github.com/elastic/elastic-package/internal/logger"
 )
 
 type Command interface {

@@ -20,10 +20,10 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
-	"github.com/elastic/elastic-package/internal/packages"
-	"github.com/elastic/elastic-package/internal/packages/changelog"
-	"github.com/elastic/elastic-package/internal/packages/status"
 	"github.com/elastic/elastic-package/internal/registry"
+	"github.com/elastic/elastic-package/pkg/packages"
+	"github.com/elastic/elastic-package/pkg/packages/changelog"
+	"github.com/elastic/elastic-package/pkg/packages/status"
 )
 
 const statusLongDescription = `Use this command to display the current deployment status of a package.

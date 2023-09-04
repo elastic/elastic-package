@@ -9,9 +9,9 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 
-	"github.com/elastic/elastic-package/internal/packages"
-	"github.com/elastic/elastic-package/internal/packages/changelog"
 	"github.com/elastic/elastic-package/internal/registry"
+	"github.com/elastic/elastic-package/pkg/packages"
+	"github.com/elastic/elastic-package/pkg/packages/changelog"
 )
 
 // PackageStatus holds version and deployment information about a package

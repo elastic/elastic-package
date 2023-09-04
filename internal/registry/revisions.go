@@ -13,7 +13,7 @@ import (
 	"github.com/Masterminds/semver/v3"
 	"github.com/google/go-querystring/query"
 
-	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/pkg/packages"
 )
 
 // SearchOptions specify the query parameters without the package name for the search API

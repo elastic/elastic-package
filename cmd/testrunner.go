@@ -16,13 +16,13 @@ import (
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/install"
-	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/signal"
 	"github.com/elastic/elastic-package/internal/stack"
 	"github.com/elastic/elastic-package/internal/testrunner"
 	"github.com/elastic/elastic-package/internal/testrunner/reporters/formats"
 	"github.com/elastic/elastic-package/internal/testrunner/reporters/outputs"
 	_ "github.com/elastic/elastic-package/internal/testrunner/runners" // register all test runners
+	"github.com/elastic/elastic-package/pkg/packages"
 )
 
 const testLongDescription = `Use this command to run tests on a package. Currently, the following types of tests are available:

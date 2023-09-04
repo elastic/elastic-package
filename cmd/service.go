@@ -13,10 +13,10 @@ import (
 
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/install"
-	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/service"
 	"github.com/elastic/elastic-package/internal/stack"
 	"github.com/elastic/elastic-package/internal/testrunner/runners/system"
+	"github.com/elastic/elastic-package/pkg/packages"
 )
 
 const serviceLongDescription = `Use this command to boot up the service stack that can be observed with the package.

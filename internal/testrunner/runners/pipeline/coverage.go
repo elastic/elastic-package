@@ -12,8 +12,8 @@ import (
 	"time"
 
 	"github.com/elastic/elastic-package/internal/elasticsearch/ingest"
-	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/testrunner"
+	"github.com/elastic/elastic-package/pkg/packages"
 )
 
 // GetPipelineCoverage returns a coverage report for the provided set of ingest pipelines.

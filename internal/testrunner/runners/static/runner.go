@@ -12,8 +12,8 @@ import (
 
 	"github.com/elastic/elastic-package/internal/fields"
 	"github.com/elastic/elastic-package/internal/logger"
-	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/testrunner"
+	"github.com/elastic/elastic-package/pkg/packages"
 )
 
 const sampleEventJSON = "sample_event.json"

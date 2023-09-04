@@ -9,10 +9,11 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"github.com/elastic/elastic-package/internal/configuration/locations"
-	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/hashicorp/go-plugin"
 	"github.com/spf13/cobra"
+
+	"github.com/elastic/elastic-package/internal/configuration/locations"
+	"github.com/elastic/elastic-package/internal/logger"
 )
 
 func initCommands() (map[string]Command, error) {

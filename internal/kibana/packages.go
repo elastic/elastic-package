@@ -10,7 +10,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/pkg/packages"
 )
 
 // InstallPackage installs the given package in Fleet.

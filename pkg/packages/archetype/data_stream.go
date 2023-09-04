@@ -11,7 +11,7 @@ import (
 
 	"github.com/elastic/elastic-package/internal/formatter"
 	"github.com/elastic/elastic-package/internal/logger"
-	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/pkg/packages"
 )
 
 // DataStreamDescriptor defines configurable properties of the data stream archetype
