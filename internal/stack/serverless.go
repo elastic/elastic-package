@@ -28,7 +28,7 @@ const (
 	configRegion      = "stack.serverless.region"
 	configProjectType = "stack.serverless.type"
 
-	defaultRegion      = "aws-eu-west-1"
+	defaultRegion      = "aws-us-east-1"
 	defaultProjectType = "observability"
 )
 
