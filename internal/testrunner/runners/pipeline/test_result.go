@@ -180,6 +180,9 @@ func readExpectedTestResult(testCasePath string, config *testConfig, skipGeoIP b
 }
 
 func adjustTestResult(result *testResult, config *testConfig, skipGeoIP bool) (*testResult, error) {
+	if !skipGeoIP && (config == nil || config.DynamicFields == nil) {
+		return result, nil
+	}
 	var stripped testResult
 	for _, event := range result.events {
 		if event == nil {
