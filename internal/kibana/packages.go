@@ -76,10 +76,10 @@ func processResults(action string, statusCode int, respBody []byte) ([]packages.
 	}
 
 	var resp struct {
-		// Assets are here when old API is used.
+		// Assets are here when old packages API is used (with hyphen, before 8.0).
 		Response []packages.Asset `json:"response"`
 
-		// Assets are here when new API is used.
+		// Assets are here when new packages API is used (with slash, since 8.0).
 		Items []packages.Asset `json:"items"`
 	}
 
