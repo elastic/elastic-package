@@ -24,6 +24,8 @@ import (
 const expectedTestResultSuffix = "-expected.json"
 
 var geoIPKeys = []string{
+	"as",
+	"geo",
 	"client.as",
 	"client.geo",
 	"destination.as",
