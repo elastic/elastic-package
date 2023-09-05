@@ -128,12 +128,12 @@ func (sp *serverlessProvider) deleteProject(project *serverless.Project, options
 func (sp *serverlessProvider) currentProject(config Config) (*serverless.Project, error) {
 	projectID, found := config.Parameters[paramServerlessProjectID]
 	if !found {
-		return nil, fmt.Errorf("mssing serverless project id")
+		return nil, serverless.ErrProjectNotExist
 	}
 
 	projectType, found := config.Parameters[paramServerlessProjectType]
 	if !found {
-		return nil, fmt.Errorf("missing serverless project type")
+		return nil, serverless.ErrProjectNotExist
 	}
 
 	project, err := sp.client.GetProject(projectType, projectID)
