@@ -37,8 +37,6 @@ var (
 		"security":      {},
 		"observability": {},
 	}
-
-	errProjectNotExist = errors.New("project does not exist")
 )
 
 type serverlessProvider struct {
@@ -128,17 +126,17 @@ func (sp *serverlessProvider) deleteProject(project *serverless.Project, options
 func (sp *serverlessProvider) currentProject(config Config) (*serverless.Project, error) {
 	projectID, found := config.Parameters[paramServerlessProjectID]
 	if !found {
-		return nil, errProjectNotExist
+		return nil, fmt.Errorf("mssing serverless project id")
 	}
 
 	projectType, found := config.Parameters[paramServerlessProjectType]
 	if !found {
-		return nil, errProjectNotExist
+		return nil, fmt.Errorf("missing serverless project type")
 	}
 
 	project, err := sp.client.GetProject(projectType, projectID)
-	if err == serverless.ErrProjectNotExist {
-		return nil, errProjectNotExist
+	if errors.Is(serverless.ErrProjectNotExist, err) {
+		return nil, err
 	}
 	if err != nil {
 		return nil, fmt.Errorf("couldn't check project health: %w", err)
@@ -235,7 +233,7 @@ func (sp *serverlessProvider) BootUp(options Options) error {
 	switch err {
 	default:
 		return err
-	case errProjectNotExist:
+	case serverless.ErrProjectNotExist:
 		logger.Infof("Creating %s project: %q", settings.Type, settings.Name)
 		config, err = sp.createProject(settings, options, config)
 		if err != nil {
@@ -364,7 +362,7 @@ func (sp *serverlessProvider) Status(options Options) ([]ServiceStatus, error) {
 	}
 
 	project, err := sp.currentProject(config)
-	if errors.Is(errProjectNotExist, err) {
+	if errors.Is(serverless.ErrProjectNotExist, err) {
 		return nil, nil
 	}
 	if err != nil {
