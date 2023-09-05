@@ -283,7 +283,7 @@ func (sp *serverlessProvider) composeProjectName() string {
 }
 
 func (sp *serverlessProvider) localAgentComposeProject() (*compose.Project, error) {
-	composeFile := sp.profile.Path(profileStackPath, ServerlessComposeFile)
+	composeFile := sp.profile.Path(profileStackPath, SnapshotFile)
 	return compose.NewProject(sp.composeProjectName(), composeFile)
 }
 

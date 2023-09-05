@@ -16,15 +16,10 @@ import (
 	"github.com/elastic/elastic-package/internal/profile"
 )
 
-const (
-	// ServerlessComposeFile is the docker-compose snapshot.yml file name.
-	ServerlessComposeFile = "serverless-elastic-agent.yml"
-)
-
 var (
 	serverlessStackResources = []resource.Resource{
 		&resource.File{
-			Path:    ServerlessComposeFile,
+			Path:    SnapshotFile,
 			Content: staticSource.Template("_static/serverless-elastic-agent.yml.tmpl"),
 		},
 		&resource.File{
