@@ -305,7 +305,17 @@ func (sp *serverlessProvider) startLocalAgent(options Options, config Config) er
 
 	err = project.Up(compose.CommandOptions{ExtraArgs: []string{"-d"}})
 	if err != nil {
-		return fmt.Errorf("failed to start local agent: %w", err)
+		// At least starting on 8.6.0, fleet-server may be reconfigured or
+		// restarted after being healthy. If elastic-agent tries to enroll at
+		// this moment, it fails inmediately, stopping and making `docker-compose up`
+		// to fail too.
+		// As a workaround, try to give another chance to docker-compose if only
+		// elastic-agent failed.
+		fmt.Println("Elastic Agent failed to start, trying again.")
+		err = project.Up(compose.CommandOptions{ExtraArgs: []string{"-d"}})
+		if err != nil {
+			return fmt.Errorf("failed to start local agent: %w", err)
+		}
 	}
 
 	return nil
