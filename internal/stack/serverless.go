@@ -260,7 +260,6 @@ func (sp *serverlessProvider) BootUp(options Options) error {
 
 		// TODO: Ensuring a specific GeoIP database would make tests reproducible
 		// Currently geo ip files would be ignored when running pipeline tests
-		// logger.Infof("Replacing GeoIP databases")
 	case nil:
 		logger.Debugf("%s project existed: %s", project.Type, project.Name)
 		printUserConfig(options.Printer, config)
@@ -332,13 +331,6 @@ func (sp *serverlessProvider) TearDown(options Options) error {
 	}
 
 	// TODO: if GeoIP database is specified, remove the geoip Bundle (if needed)
-	// logger.Debugf("Deleting GeoIP bundle.")
-
-	// err = storeConfig(sp.profile, Config{})
-	// if err != nil {
-	// 	return fmt.Errorf("failed to store config: %w", err)
-	// }
-
 	return nil
 }
 
@@ -372,6 +364,9 @@ func (sp *serverlessProvider) Status(options Options) ([]ServiceStatus, error) {
 	}
 
 	project, err := sp.currentProject(config)
+	if errors.Is(errProjectNotExist, err) {
+		return nil, nil
+	}
 	if err != nil {
 		return nil, err
 	}
