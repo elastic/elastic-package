@@ -42,12 +42,10 @@ var (
 
 func NewClient(opts ...ClientOption) (*Client, error) {
 	hostEnvName := ServerlessHostvironmentVariable
-	host, ok := os.LookupEnv(hostEnvName)
-	if !ok {
-		host = defaultHostURL
-	}
+	host := os.Getenv(hostEnvName)
 	if host == "" {
-		return nil, fmt.Errorf("unable to obtain value from %s environment variable", hostEnvName)
+		logger.Debugf("Using default host URL: %s", defaultHostURL)
+		host = defaultHostURL
 	}
 	apiKeyEnvName := ServerlessApiKeyEnvironmentVariable
 	apiKey := os.Getenv(apiKeyEnvName)
@@ -292,7 +290,7 @@ func (c *Client) GetProject(projectType, projectID string) (*Project, error) {
 	}
 	statusCode, respBody, err := c.get(ctx, resourcePath)
 	if err != nil {
-		return nil, fmt.Errorf("error deleting project: %w", err)
+		return nil, fmt.Errorf("error getting project: %w", err)
 	}
 
 	if statusCode == http.StatusNotFound {
