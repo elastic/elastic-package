@@ -19,7 +19,11 @@ import (
 	"github.com/elastic/elastic-package/internal/logger"
 )
 
-const projectsAPI = "/api/v1/serverless/projects"
+const (
+	defaultHostURL = "https://cloud.elastic.co"
+
+	projectsAPI = "/api/v1/serverless/projects"
+)
 
 type Client struct {
 	host   string
@@ -38,7 +42,10 @@ var (
 
 func NewClient(opts ...ClientOption) (*Client, error) {
 	hostEnvName := ServerlessHostvironmentVariable
-	host := os.Getenv(hostEnvName)
+	host, ok := os.LookupEnv(hostEnvName)
+	if !ok {
+		host = defaultHostURL
+	}
 	if host == "" {
 		return nil, fmt.Errorf("unable to obtain value from %s environment variable", hostEnvName)
 	}
