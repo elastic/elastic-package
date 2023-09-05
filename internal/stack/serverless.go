@@ -229,7 +229,7 @@ func (sp *serverlessProvider) BootUp(options Options) error {
 		return err
 	}
 
-	if common.StringSliceContains(allowedProjectTypes, settings.Type) {
+	if !common.StringSliceContains(allowedProjectTypes, settings.Type) {
 		return fmt.Errorf("serverless project type not supported: %s", settings.Type)
 	}
 

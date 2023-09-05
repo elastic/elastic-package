@@ -42,41 +42,30 @@ func (c *Client) Version() (VersionInfo, error) {
 	return c.versionInfo, nil
 }
 
-func (c *Client) requestVersion() (VersionInfo, error) {
-	var version VersionInfo
+func (c *Client) requestStatus() (statusType, error) {
+	var status statusType
 	statusCode, respBody, err := c.get(StatusAPI)
 	if err != nil {
-		return version, fmt.Errorf("could not reach status endpoint: %w", err)
+		return status, fmt.Errorf("could not reach status endpoint: %w", err)
 	}
 
 	if statusCode != http.StatusOK {
-		return version, fmt.Errorf("could not get status data; API status code = %d; response body = %s", statusCode, respBody)
+		return status, fmt.Errorf("could not get status data; API status code = %d; response body = %s", statusCode, respBody)
 	}
 
-	var status statusType
 	err = json.Unmarshal(respBody, &status)
 	if err != nil {
-		return version, fmt.Errorf("unmarshalling response failed (body: \n%s): %w", respBody, err)
+		return status, fmt.Errorf("unmarshalling response failed (body: \n%s): %w", respBody, err)
 	}
 
-	return status.Version, nil
+	return status, nil
 }
 
 // CheckHealth checks the Kibana health
 func (c *Client) CheckHealth() error {
-	statusCode, respBody, err := c.get(StatusAPI)
+	status, err := c.requestStatus()
 	if err != nil {
 		return fmt.Errorf("could not reach status endpoint: %w", err)
-	}
-
-	if statusCode != http.StatusOK {
-		return fmt.Errorf("could not get status data; API status code = %d; response body = %s", statusCode, respBody)
-	}
-
-	var status statusType
-	err = json.Unmarshal(respBody, &status)
-	if err != nil {
-		return fmt.Errorf("unmarshalling response failed (body: \n%s): %w", respBody, err)
 	}
 
 	if status.Status.Overall.Level != "available" {
