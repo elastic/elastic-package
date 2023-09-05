@@ -26,8 +26,9 @@ const (
 	paramServerlessProjectType = "serverless_project_type"
 	paramServerlessFleetURL    = "serverless_fleet_url"
 
-	configRegion      = "stack.serverless.region"
-	configProjectType = "stack.serverless.type"
+	configRegion          = "stack.serverless.region"
+	configProjectType     = "stack.serverless.type"
+	configElasticCloudURL = "stack.elastic_agent.host"
 
 	defaultRegion      = "aws-us-east-1"
 	defaultProjectType = "observability"
@@ -202,7 +203,12 @@ func createProjectName(options Options) string {
 }
 
 func newServerlessProvider(profile *profile.Profile) (*serverlessProvider, error) {
-	client, err := serverless.NewClient()
+	host := profile.Config(configElasticCloudURL, "")
+	options := []serverless.ClientOption{}
+	if host != "" {
+		options = append(options, serverless.WithAddress(host))
+	}
+	client, err := serverless.NewClient(options...)
 	if err != nil {
 		return nil, fmt.Errorf("can't create serverless provider: %w", err)
 	}
