@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/compose"
 	"github.com/elastic/elastic-package/internal/docker"
 	"github.com/elastic/elastic-package/internal/elasticsearch"
@@ -33,9 +34,9 @@ const (
 )
 
 var (
-	allowedProjectTypes = map[string]struct{}{
-		"security":      {},
-		"observability": {},
+	allowedProjectTypes = []string{
+		"security",
+		"observability",
 	}
 )
 
@@ -222,8 +223,7 @@ func (sp *serverlessProvider) BootUp(options Options) error {
 		return err
 	}
 
-	_, ok := allowedProjectTypes[settings.Type]
-	if !ok {
+	if common.StringSliceContains(allowedProjectTypes, settings.Type) {
 		return fmt.Errorf("serverless project type not supported: %s", settings.Type)
 	}
 
