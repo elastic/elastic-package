@@ -16,7 +16,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/elastic/elastic-package/internal/environment"
 	"github.com/elastic/elastic-package/internal/logger"
 )
 
@@ -31,8 +30,8 @@ type Client struct {
 type ClientOption func(*Client)
 
 var (
-	ServerlessApiKeyEnvironmentVariable = environment.WithElasticPackagePrefix("SERVERLESS_API_KEY")
-	ServerlessHostvironmentVariable     = environment.WithElasticPackagePrefix("SERVERLESS_HOST")
+	ServerlessApiKeyEnvironmentVariable = "EC_API_KEY"
+	ServerlessHostvironmentVariable     = "EC_HOST"
 
 	ErrProjectNotExist = errors.New("project does not exist")
 )
