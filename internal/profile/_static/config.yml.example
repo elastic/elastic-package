@@ -5,4 +5,4 @@
 # Region where the Serverless project is going to be created
 # stack.serverless.region: aws-us-east-1
 # Elastic cloud host URL
-# stack.elastic_cloud.host
+# stack.elastic_cloud.host: https://cloud.elastic.co
