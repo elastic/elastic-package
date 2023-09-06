@@ -391,11 +391,12 @@ func (sp *serverlessProvider) Status(options Options) ([]ServiceStatus, error) {
 		return nil, err
 	}
 
+	serverlessVersion := fmt.Sprintf("serverless (%s)", project.Type)
 	var serviceStatus []ServiceStatus
 	for service, status := range projectServiceStatus {
 		serviceStatus = append(serviceStatus, ServiceStatus{
 			Name:    service,
-			Version: "serverless",
+			Version: serverlessVersion,
 			Status:  status,
 		})
 	}
