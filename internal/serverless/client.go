@@ -34,20 +34,20 @@ type Client struct {
 type ClientOption func(*Client)
 
 var (
-	ServerlessApiKeyEnvironmentVariable = "EC_API_KEY"
-	ServerlessHostvironmentVariable     = "EC_HOST"
+	elasticCloudApiKeyEnv   = "EC_API_KEY"
+	elasticCloudEndpointEnv = "EC_HOST"
 
 	ErrProjectNotExist = errors.New("project does not exist")
 )
 
 func NewClient(opts ...ClientOption) (*Client, error) {
-	hostEnvName := ServerlessHostvironmentVariable
+	hostEnvName := elasticCloudEndpointEnv
 	host := os.Getenv(hostEnvName)
 	if host == "" {
 		logger.Debugf("Using default host URL: %s", defaultHostURL)
 		host = defaultHostURL
 	}
-	apiKeyEnvName := ServerlessApiKeyEnvironmentVariable
+	apiKeyEnvName := elasticCloudApiKeyEnv
 	apiKey := os.Getenv(apiKeyEnvName)
 	if apiKey == "" {
 		return nil, fmt.Errorf("unable to obtain value from %s environment variable", apiKeyEnvName)
