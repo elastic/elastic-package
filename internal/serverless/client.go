@@ -41,25 +41,25 @@ var (
 )
 
 func NewClient(opts ...ClientOption) (*Client, error) {
-	hostEnvName := elasticCloudEndpointEnv
-	host := os.Getenv(hostEnvName)
-	if host == "" {
-		host = defaultHostURL
-	}
 	apiKeyEnvName := elasticCloudApiKeyEnv
 	apiKey := os.Getenv(apiKeyEnvName)
 	if apiKey == "" {
 		return nil, fmt.Errorf("unable to obtain value from %s environment variable", apiKeyEnvName)
 	}
-	logger.Debugf("Using Elastic Cloud URL: %s", host)
 	c := &Client{
-		host:   host,
+		host:   defaultHostURL,
 		apiKey: apiKey,
 	}
 	for _, opt := range opts {
 		opt(c)
 	}
 
+	hostEnvName := elasticCloudEndpointEnv
+	host := os.Getenv(hostEnvName)
+	if host != "" {
+		c.host = host
+	}
+	logger.Debugf("Using Elastic Cloud URL: %s", c.host)
 	return c, nil
 }
 
