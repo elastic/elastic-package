@@ -1,8 +1,12 @@
 # Directory containing GeoIP databases for stacks managed by elastic-agent.
 # stack.geoip_dir: "/path/to/geoip_dir/"
-# Serverless project type to be created
+## Elastic Cloud 
+# Host URL
+# stack.elastic_cloud.host: https://cloud.elastic.co
+
+## Serverless stack provider
+# Project type
 # stack.serverless.type: observability
 # Region where the Serverless project is going to be created
 # stack.serverless.region: aws-us-east-1
-# Elastic cloud host URL
-# stack.elastic_cloud.host: https://cloud.elastic.co
+

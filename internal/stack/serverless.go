@@ -28,7 +28,7 @@ const (
 
 	configRegion          = "stack.serverless.region"
 	configProjectType     = "stack.serverless.type"
-	configElasticCloudURL = "stack.elastic_agent.host"
+	configElasticCloudURL = "stack.elastic_cloud.host"
 
 	defaultRegion      = "aws-us-east-1"
 	defaultProjectType = "observability"
