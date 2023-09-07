@@ -12,13 +12,15 @@ import (
 )
 
 const (
-	ProviderCompose = "compose"
+	ProviderCompose    = "compose"
+	ProviderServerless = "serverless"
 )
 
 var (
 	DefaultProvider    = ProviderCompose
 	SupportedProviders = []string{
 		ProviderCompose,
+		ProviderServerless,
 	}
 )
 
@@ -50,8 +52,10 @@ type Provider interface {
 // BuildProvider returns the provider for the given name.
 func BuildProvider(name string, profile *profile.Profile) (Provider, error) {
 	switch name {
-	case "compose":
+	case ProviderCompose:
 		return &composeProvider{}, nil
+	case ProviderServerless:
+		return newServerlessProvider(profile)
 	}
 	return nil, fmt.Errorf("unknown provider %q, supported providers: %s", name, strings.Join(SupportedProviders, ", "))
 }

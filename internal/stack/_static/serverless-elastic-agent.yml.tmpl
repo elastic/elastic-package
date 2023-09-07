@@ -1,0 +1,26 @@
+version: '2.3'
+services:
+  elastic-agent:
+    image: "{{ fact "agent_image" }}"
+    healthcheck:
+      test: "elastic-agent status"
+      timeout: 2s
+      start_period: 360s
+      retries: 180
+      interval: 5s
+    hostname: docker-fleet-agent
+    env_file: "./elastic-agent.env"
+    volumes:
+    - type: bind
+      source: ../../../tmp/service_logs/
+      target: /tmp/service_logs/
+    # Mount service_logs under /run too as a testing workaround for the journald input (see elastic-package#1235).
+    - type: bind
+      source: ../../../tmp/service_logs/
+      target: /run/service_logs/
+
+  elastic-agent_is_ready:
+    image: tianon/true
+    depends_on:
+      elastic-agent:
+        condition: service_healthy

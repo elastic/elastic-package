@@ -52,11 +52,11 @@ func NewClient(opts ...ClientOption) (*Client, error) {
 	// Allow to initialize version from tests.
 	var zeroVersion VersionInfo
 	if c.semver == nil || c.versionInfo == zeroVersion {
-		v, err := c.requestVersion()
+		v, err := c.requestStatus()
 		if err != nil {
 			return nil, fmt.Errorf("failed to get Kibana version: %w", err)
 		}
-		c.versionInfo = v
+		c.versionInfo = v.Version
 
 		c.semver, err = semver.NewVersion(c.versionInfo.Number)
 		if err != nil {

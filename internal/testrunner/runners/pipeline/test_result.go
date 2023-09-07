@@ -23,6 +23,25 @@ import (
 
 const expectedTestResultSuffix = "-expected.json"
 
+var geoIPKeys = []string{
+	"as",
+	"geo",
+	"client.as",
+	"client.geo",
+	"destination.as",
+	"destination.geo",
+	"host.geo",     // not defined host.as in ECS
+	"observer.geo", // not defined observer.as in ECS
+	"server.as",
+	"server.geo",
+	"source.as",
+	"source.geo",
+	"threat.enrichments.indicateor.as",
+	"threat.enrichments.indicateor.geo",
+	"threat.indicateor.as",
+	"threat.indicateor.geo",
+}
+
 type testResult struct {
 	events []json.RawMessage
 }
@@ -46,8 +65,8 @@ func writeTestResult(testCasePath string, result *testResult) error {
 	return nil
 }
 
-func compareResults(testCasePath string, config *testConfig, result *testResult) error {
-	resultsWithoutDynamicFields, err := adjustTestResult(result, config)
+func compareResults(testCasePath string, config *testConfig, result *testResult, skipGeoip bool) error {
+	resultsWithoutDynamicFields, err := adjustTestResult(result, config, skipGeoip)
 	if err != nil {
 		return fmt.Errorf("can't adjust test results: %w", err)
 	}
@@ -57,7 +76,7 @@ func compareResults(testCasePath string, config *testConfig, result *testResult)
 		return fmt.Errorf("marshalling actual test results failed: %w", err)
 	}
 
-	expectedResults, err := readExpectedTestResult(testCasePath, config)
+	expectedResults, err := readExpectedTestResult(testCasePath, config, skipGeoip)
 	if err != nil {
 		return fmt.Errorf("reading expected test result failed: %w", err)
 	}
@@ -138,7 +157,7 @@ func diffJson(want, got []byte) (string, error) {
 	return buf.String(), err
 }
 
-func readExpectedTestResult(testCasePath string, config *testConfig) (*testResult, error) {
+func readExpectedTestResult(testCasePath string, config *testConfig, skipGeoIP bool) (*testResult, error) {
 	testCaseDir := filepath.Dir(testCasePath)
 	testCaseFile := filepath.Base(testCasePath)
 
@@ -153,19 +172,17 @@ func readExpectedTestResult(testCasePath string, config *testConfig) (*testResul
 		return nil, fmt.Errorf("unmarshalling expected test result failed: %w", err)
 	}
 
-	adjusted, err := adjustTestResult(u, config)
+	adjusted, err := adjustTestResult(u, config, skipGeoIP)
 	if err != nil {
 		return nil, fmt.Errorf("adjusting test result failed: %w", err)
 	}
 	return adjusted, nil
 }
 
-func adjustTestResult(result *testResult, config *testConfig) (*testResult, error) {
-	if config == nil || config.DynamicFields == nil {
+func adjustTestResult(result *testResult, config *testConfig, skipGeoIP bool) (*testResult, error) {
+	if !skipGeoIP && (config == nil || config.DynamicFields == nil) {
 		return result, nil
 	}
-
-	// Strip dynamic fields from test result
 	var stripped testResult
 	for _, event := range result.events {
 		if event == nil {
@@ -179,10 +196,22 @@ func adjustTestResult(result *testResult, config *testConfig) (*testResult, erro
 			return nil, fmt.Errorf("can't unmarshal event: %s: %w", string(event), err)
 		}
 
-		for key := range config.DynamicFields {
-			err := m.Delete(key)
-			if err != nil && err != common.ErrKeyNotFound {
-				return nil, fmt.Errorf("can't remove dynamic field: %w", err)
+		if config != nil && config.DynamicFields != nil {
+			// Strip dynamic fields from test result
+			for key := range config.DynamicFields {
+				err := m.Delete(key)
+				if err != nil && err != common.ErrKeyNotFound {
+					return nil, fmt.Errorf("can't remove dynamic field: %w", err)
+				}
+			}
+		}
+
+		if skipGeoIP {
+			for _, key := range geoIPKeys {
+				err := m.Delete(key)
+				if err != nil && err != common.ErrKeyNotFound {
+					return nil, fmt.Errorf("can't remove geoIP field: %w", err)
+				}
 			}
 		}
 
