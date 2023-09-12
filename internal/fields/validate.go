@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 
@@ -882,7 +883,7 @@ func ensureAllowedValues(key, value string, definition FieldDefinition) error {
 	if !definition.AllowedValues.IsAllowed(value) {
 		return fmt.Errorf("field %q's value %q is not one of the allowed values (%s)", key, value, strings.Join(definition.AllowedValues.Values(), ", "))
 	}
-	if e := definition.ExpectedValues; len(e) > 0 && !common.StringSliceContains(e, value) {
+	if e := definition.ExpectedValues; len(e) > 0 && !slices.Contains(e, value) {
 		return fmt.Errorf("field %q's value %q is not one of the expected values (%s)", key, value, strings.Join(e, ", "))
 	}
 	return nil
@@ -906,7 +907,7 @@ func ensureExpectedEventType(key string, values []string, definition FieldDefini
 		return nil
 	}
 	for _, eventType := range eventTypes {
-		if !common.StringSliceContains(expected, eventType) {
+		if !slices.Contains(expected, eventType) {
 			return fmt.Errorf("field \"event.type\" value %q is not one of the expected values (%s) for any of the values of %q (%s)", eventType, strings.Join(expected, ", "), key, strings.Join(values, ", "))
 		}
 	}

@@ -21,10 +21,9 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
-
-	"github.com/elastic/elastic-package/internal/common"
 )
 
 // Certificate contains the key and certificate for an issued certificate.
@@ -133,7 +132,7 @@ type Option func(template *x509.Certificate)
 func WithName(name string) Option {
 	return func(template *x509.Certificate) {
 		template.Subject.CommonName = name
-		if !common.StringSliceContains(template.DNSNames, name) {
+		if !slices.Contains(template.DNSNames, name) {
 			template.DNSNames = append(template.DNSNames, name)
 		}
 	}

@@ -9,8 +9,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"slices"
 
-	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 )
 
@@ -105,10 +105,10 @@ func pendingNestedPipelines(pipelines []IngestPipeline, collected []string) []st
 				continue
 			}
 			name := processor.Pipeline.Name
-			if common.StringSliceContains(collected, name) {
+			if slices.Contains(collected, name) {
 				continue
 			}
-			if common.StringSliceContains(names, name) {
+			if slices.Contains(names, name) {
 				continue
 			}
 			names = append(names, name)

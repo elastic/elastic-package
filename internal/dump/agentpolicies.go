@@ -9,8 +9,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"slices"
 
-	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/kibana"
 )
 
@@ -106,7 +106,7 @@ func (d *AgentPoliciesDumper) getAgentPoliciesFilteredByPackage(ctx context.Cont
 		}
 		if packageName != "" {
 			packageNames := getPackagesUsingAgentPolicy(policyPackages.PackagePolicies)
-			if !common.StringSliceContains(packageNames, packageName) {
+			if !slices.Contains(packageNames, packageName) {
 				continue
 			}
 		}

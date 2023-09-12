@@ -6,6 +6,7 @@ package common
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 )
 
@@ -16,22 +17,12 @@ func TrimStringSlice(slice []string) {
 	}
 }
 
-// StringSliceContains checks if the slice contains the given string.
-func StringSliceContains(slice []string, s string) bool {
-	for i := range slice {
-		if slice[i] == s {
-			return true
-		}
-	}
-	return false
-}
-
 // StringSlicesUnion joins multiple slices and returns an slice with the distinct
 // elements of all of them.
-func StringSlicesUnion(slices ...[]string) (result []string) {
-	for _, slice := range slices {
+func StringSlicesUnion(ss ...[]string) (result []string) {
+	for _, slice := range ss {
 		for _, elem := range slice {
-			if StringSliceContains(result, elem) {
+			if slices.Contains(result, elem) {
 				continue
 			}
 			result = append(result, elem)
