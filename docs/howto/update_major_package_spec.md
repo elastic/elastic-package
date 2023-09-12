@@ -65,15 +65,15 @@ Please remove or fix any reference to missing objects.
 ### field processors...: Additional property ... is not allowed
 
 Some ingest pipeline processors are not well supported in the current Package
-Spec, or there are alternative preferred ways to define them. Future new
-processors will need to be explicitly supported before they can be used in
-packages.
+Spec, or there are alternative preferred ways to define them. These processors
+won't be allowed to prevent other issues and have more consistent user
+experience for some features.
 
 If you find this error while trying to use the `reroute` processor, please use
 instead the `reroute_rules.yml` file, so users can more easily customize the
 routing rules.
 
-If you find this error will trying to use a new processor, please open an issue
+If you find this error while trying to use a new processor, please open an issue
 in the Package Spec repository so we can add support for it.
 
 ## Troubleshooting upgrades to Package Spec v2
