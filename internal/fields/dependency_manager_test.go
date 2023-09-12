@@ -462,6 +462,40 @@ func TestDependencyManagerInjectExternalFields(t *testing.T) {
 			valid:   true,
 			changed: true,
 		},
+		{
+			title: "disallowed reusable field at lop level",
+			defs: []common.MapStr{
+				{
+					"name":     "geo.city_name",
+					"external": "test",
+				},
+			},
+			options: InjectFieldsOptions{
+				DisallowReusableECSFieldsAtTopLevel: true,
+			},
+			valid: false,
+		},
+		{
+			title: "legacy support to reuse field at lop level",
+			defs: []common.MapStr{
+				{
+					"name":     "geo.city_name",
+					"external": "test",
+				},
+			},
+			options: InjectFieldsOptions{
+				DisallowReusableECSFieldsAtTopLevel: false,
+			},
+			result: []common.MapStr{
+				{
+					"name":        "geo.city_name",
+					"description": "City name",
+					"type":        "keyword",
+				},
+			},
+			changed: true,
+			valid:   true,
+		},
 	}
 
 	indexFalse := false
@@ -533,6 +567,27 @@ func TestDependencyManagerInjectExternalFields(t *testing.T) {
 					Description: "Hostname of the host",
 					Type:        "keyword",
 				},
+				{
+					Name:        "geo.city_name",
+					Description: "City name",
+					Type:        "keyword",
+				},
+			},
+		},
+		{
+			Name:        "geo",
+			Description: "Location info",
+			Type:        "group",
+			Fields: []FieldDefinition{
+				{
+					Name:               "city_name",
+					Description:        "City name",
+					Type:               "keyword",
+					disallowAtTopLevel: true,
+				},
+			},
+			Reusable: &ReusableConfig{
+				TopLevel: false,
 			},
 		},
 	}}

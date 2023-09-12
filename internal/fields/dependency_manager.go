@@ -148,6 +148,10 @@ type InjectFieldsOptions struct {
 	// SkipEmptyFields can be set to true to skip empty groups when injecting fields.
 	SkipEmptyFields bool
 
+	// DisallowReusableECSFieldsAtTopLevel can be set to true to disallow importing reusable
+	// ECS fields at the top level, when they cannot be reused there.
+	DisallowReusableECSFieldsAtTopLevel bool
+
 	root string
 }
 
@@ -173,6 +177,9 @@ func (dm *DependencyManager) injectFieldsWithOptions(defs []common.MapStr, optio
 			imported, err := dm.importField(external.(string), fieldPath)
 			if err != nil {
 				return nil, false, fmt.Errorf("can't import field: %w", err)
+			}
+			if imported.disallowAtTopLevel && options.DisallowReusableECSFieldsAtTopLevel {
+				return nil, false, fmt.Errorf("field %s cannot be reused at top level", fieldPath)
 			}
 
 			transformed := transformImportedField(imported)
