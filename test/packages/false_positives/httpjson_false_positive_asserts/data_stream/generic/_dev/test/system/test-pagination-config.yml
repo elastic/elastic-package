@@ -3,7 +3,7 @@ input: httpjson
 service: httpjson
 data_stream:
   vars:
-    data_stream.dataset: httpjson.generic
+    data_stream.dataset: httpjson_false_positive_asserts.generic
     username: test
     password: test
     request_interval: 5s

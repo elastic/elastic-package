@@ -1,0 +1,2 @@
+Build the package
+Error: building package failed: resolving external fields failed: can't resolve fields: field geo.city_name cannot be reused at top level
