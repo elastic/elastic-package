@@ -19,27 +19,6 @@ func TestTrimStringSlice(t *testing.T) {
 	require.Equal(t, expected, strs)
 }
 
-func TestStringSliceContains(t *testing.T) {
-	cases := []struct {
-		slice    []string
-		s        string
-		expected bool
-	}{
-		{nil, "", false},
-		{nil, "foo", false},
-		{[]string{"foo"}, "foo", true},
-		{[]string{"foo", "bar"}, "foo", true},
-		{[]string{"foo", "bar"}, "bar", true},
-		{[]string{"foo", "bar"}, "foobar", false},
-		{[]string{"foo", "bar"}, "fo", false},
-	}
-
-	for _, c := range cases {
-		found := StringSliceContains(c.slice, c.s)
-		assert.Equalf(t, c.expected, found, "checking if slice %v contains '%s'", c.slice, c.s)
-	}
-}
-
 func TestStringSlicesUnion(t *testing.T) {
 	cases := []struct {
 		slices   [][]string

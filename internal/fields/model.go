@@ -6,6 +6,7 @@ package fields
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -211,7 +212,7 @@ func (avs AllowedValues) IsAllowed(value string) bool {
 		// No configured allowed values, any value is allowed.
 		return true
 	}
-	return common.StringSliceContains(avs.Values(), value)
+	return slices.Contains(avs.Values(), value)
 }
 
 // Values returns the list of allowed values.

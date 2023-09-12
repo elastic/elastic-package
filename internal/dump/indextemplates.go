@@ -9,8 +9,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"slices"
 
-	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 )
 
@@ -111,5 +111,5 @@ func getIndexTemplatesForPackage(ctx context.Context, api *elasticsearch.API, pa
 
 func managedByFleet(managedBy string) bool {
 	var managers = []string{"ingest-manager", "fleet"}
-	return common.StringSliceContains(managers, managedBy)
+	return slices.Contains(managers, managedBy)
 }
