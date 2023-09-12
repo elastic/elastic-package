@@ -70,7 +70,7 @@ won't be allowed to prevent other issues and have more consistent user
 experience for some features.
 
 If you find this error while trying to use the `reroute` processor, please use
-instead the `reroute_rules.yml` file, so users can more easily customize the
+instead the `routing_rules.yml` file, so users can more easily customize the
 routing rules.
 
 If you find this error while trying to use a new processor, please open an issue
