@@ -30,13 +30,85 @@ An example event for `access` looks as following:
 
 ```json
 {
+    "@timestamp": "2023-08-30T21:58:41.000Z",
+    "_tmp": {},
     "agent": {
-        "hostname": "a73e7856c209",
-        "name": "a73e7856c209",
-        "id": "3987d2b3-b40a-4aa0-99fc-478f9d7079ea",
-        "ephemeral_id": "6d41da1c-5f71-4bd4-b326-a8913bfaa884",
+        "ephemeral_id": "539ad62b-52e5-459a-8412-ab7c327cfd3e",
+        "id": "1fa30280-2acf-49e3-834c-cb600d113118",
+        "name": "docker-fleet-agent",
         "type": "filebeat",
-        "version": "7.11.0"
+        "version": "8.8.2"
+    },
+    "data_stream": {
+        "dataset": "nginx.access",
+        "namespace": "ep",
+        "type": "logs"
+    },
+    "ecs": {
+        "version": "1.12.0"
+    },
+    "elastic_agent": {
+        "id": "1fa30280-2acf-49e3-834c-cb600d113118",
+        "snapshot": false,
+        "version": "8.8.2"
+    },
+    "event": {
+        "agent_id_status": "verified",
+        "category": [
+            "web"
+        ],
+        "created": "2023-08-30T21:58:57.127Z",
+        "dataset": "nginx.access",
+        "ingested": "2023-08-30T21:58:58Z",
+        "kind": "event",
+        "outcome": "success",
+        "timezone": "+00:00",
+        "type": [
+            "access"
+        ]
+    },
+    "host": {
+        "architecture": "x86_64",
+        "containerized": false,
+        "hostname": "docker-fleet-agent",
+        "id": "f61391496aaa43bb94736676494450c5",
+        "ip": [
+            "172.19.0.7"
+        ],
+        "mac": [
+            "02-42-AC-13-00-07"
+        ],
+        "name": "docker-fleet-agent",
+        "os": {
+            "codename": "focal",
+            "family": "debian",
+            "kernel": "5.19.0-50-generic",
+            "name": "Ubuntu",
+            "platform": "ubuntu",
+            "type": "linux",
+            "version": "20.04.6 LTS (Focal Fossa)"
+        }
+    },
+    "http": {
+        "request": {
+            "method": "get"
+        },
+        "response": {
+            "body": {
+                "bytes": 97
+            },
+            "status_code": 200
+        },
+        "version": "1.1"
+    },
+    "input": {
+        "type": "log"
+    },
+    "log": {
+        "file": {
+            "path": "/tmp/service_logs/access.log"
+        },
+        "offset": 0
     },
     "nginx": {
         "access": {
@@ -45,93 +117,28 @@ An example event for `access` looks as following:
             ]
         }
     },
-    "log": {
-        "file": {
-            "path": "/tmp/service_logs/access.log"
-        },
-        "offset": 0
-    },
-    "elastic_agent": {
-        "id": "5ca3af72-37c3-48b6-92e8-176d154bb66f",
-        "version": "7.11.0",
-        "snapshot": true
-    },
-    "source": {
-        "address": "127.0.0.1",
-        "ip": "127.0.0.1"
-    },
-    "url": {
-        "original": "/server-status"
-    },
-    "input": {
-        "type": "log"
-    },
-    "@timestamp": "2020-12-03T11:41:57.000Z",
-    "ecs": {
-        "version": "1.6.0"
-    },
     "related": {
         "ip": [
             "127.0.0.1"
         ]
     },
-    "data_stream": {
-        "namespace": "ep",
-        "type": "logs",
-        "dataset": "nginx.access"
+    "source": {
+        "address": "127.0.0.1",
+        "ip": "127.0.0.1"
     },
-    "host": {
-        "hostname": "a73e7856c209",
-        "os": {
-            "kernel": "4.9.184-linuxkit",
-            "codename": "Core",
-            "name": "CentOS Linux",
-            "family": "redhat",
-            "version": "7 (Core)",
-            "platform": "centos"
-        },
-        "containerized": true,
-        "ip": [
-            "192.168.80.6"
-        ],
-        "name": "a73e7856c209",
-        "id": "06c26569966fd125c15acac5d7feffb6",
-        "mac": [
-            "02:42:c0:a8:50:06"
-        ],
-        "architecture": "x86_64"
-    },
-    "http": {
-        "request": {
-            "method": "get"
-        },
-        "response": {
-            "status_code": 200,
-            "body": {
-                "bytes": 97
-            }
-        },
-        "version": "1.1"
-    },
-    "event": {
-        "timezone": "+00:00",
-        "created": "2020-12-03T11:42:17.116Z",
-        "kind": "event",
-        "category": [
-            "web"
-        ],
-        "type": [
-            "access"
-        ],
-        "dataset": "nginx.access",
-        "outcome": "success"
+    "tags": [
+        "nginx-access"
+    ],
+    "url": {
+        "original": "/server-status",
+        "path": "/server-status"
     },
     "user_agent": {
-        "original": "curl/7.64.0",
-        "name": "curl",
         "device": {
             "name": "Other"
         },
+        "name": "curl",
+        "original": "curl/7.64.0",
         "version": "7.64.0"
     }
 }

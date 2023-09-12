@@ -1,0 +1,113 @@
+{
+    "@timestamp": "2023-08-30T21:58:41.000Z",
+    "_tmp": {},
+    "agent": {
+        "ephemeral_id": "539ad62b-52e5-459a-8412-ab7c327cfd3e",
+        "id": "1fa30280-2acf-49e3-834c-cb600d113118",
+        "name": "docker-fleet-agent",
+        "type": "filebeat",
+        "version": "8.8.2"
+    },
+    "data_stream": {
+        "dataset": "nginx.access",
+        "namespace": "ep",
+        "type": "logs"
+    },
+    "ecs": {
+        "version": "1.12.0"
+    },
+    "elastic_agent": {
+        "id": "1fa30280-2acf-49e3-834c-cb600d113118",
+        "snapshot": false,
+        "version": "8.8.2"
+    },
+    "event": {
+        "agent_id_status": "verified",
+        "category": [
+            "web"
+        ],
+        "created": "2023-08-30T21:58:57.127Z",
+        "dataset": "nginx.access",
+        "ingested": "2023-08-30T21:58:58Z",
+        "kind": "event",
+        "outcome": "success",
+        "timezone": "+00:00",
+        "type": [
+            "access"
+        ]
+    },
+    "host": {
+        "architecture": "x86_64",
+        "containerized": false,
+        "hostname": "docker-fleet-agent",
+        "id": "f61391496aaa43bb94736676494450c5",
+        "ip": [
+            "172.19.0.7"
+        ],
+        "mac": [
+            "02-42-AC-13-00-07"
+        ],
+        "name": "docker-fleet-agent",
+        "os": {
+            "codename": "focal",
+            "family": "debian",
+            "kernel": "5.19.0-50-generic",
+            "name": "Ubuntu",
+            "platform": "ubuntu",
+            "type": "linux",
+            "version": "20.04.6 LTS (Focal Fossa)"
+        }
+    },
+    "http": {
+        "request": {
+            "method": "get"
+        },
+        "response": {
+            "body": {
+                "bytes": 97
+            },
+            "status_code": 200
+        },
+        "version": "1.1"
+    },
+    "input": {
+        "type": "log"
+    },
+    "log": {
+        "file": {
+            "path": "/tmp/service_logs/access.log"
+        },
+        "offset": 0
+    },
+    "nginx": {
+        "access": {
+            "remote_ip_list": [
+                "127.0.0.1"
+            ]
+        }
+    },
+    "related": {
+        "ip": [
+            "127.0.0.1"
+        ]
+    },
+    "source": {
+        "address": "127.0.0.1",
+        "ip": "127.0.0.1"
+    },
+    "tags": [
+        "nginx-access"
+    ],
+    "url": {
+        "original": "/server-status",
+        "path": "/server-status"
+    },
+    "user_agent": {
+        "device": {
+            "name": "Other"
+        },
+        "name": "curl",
+        "original": "curl/7.64.0",
+        "version": "7.64.0"
+    }
+}

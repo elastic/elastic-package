@@ -286,7 +286,7 @@ func createSampleEventFile(packageRoot, dataStreamName, contents string) error {
 		return err
 	}
 
-	sampleEventFile := filepath.Join(dataStreamFolder, sampleEventFile)
+	sampleEventFile := filepath.Join(dataStreamFolder, "sample_event.json")
 	if err := os.WriteFile(sampleEventFile, []byte(contents), 0644); err != nil {
 		return err
 	}

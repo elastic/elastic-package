@@ -6,35 +6,64 @@ package docs
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/elastic/elastic-package/internal/formatter"
 )
 
-const sampleEventFile = "sample_event.json"
+const sampleEventFilePattern = "sample_event*.json"
 
-func renderSampleEvent(packageRoot, dataStreamName string) (string, error) {
-	eventPath := filepath.Join(packageRoot, "data_stream", dataStreamName, sampleEventFile)
+func renderSampleEvents(packageRoot, dataStreamName string) (string, error) {
+	eventPaths, err := filepath.Glob(filepath.Join(packageRoot, "data_stream", dataStreamName, sampleEventFilePattern))
+	if err != nil {
+		return "", fmt.Errorf("failed to look for sample event files: %w", err)
+	}
+	if len(eventPaths) == 0 {
+		return "", fmt.Errorf("could not find any sample event for data stream %s", dataStreamName)
+	}
 
+	var builder strings.Builder
+	if len(eventPaths) == 1 {
+		fmt.Fprintf(&builder, "An example event for `%s` looks as following:\n\n",
+			stripDataStreamFolderSuffix(dataStreamName))
+	} else {
+		fmt.Fprintf(&builder, "Example events for `%s` look as following:\n\n",
+			stripDataStreamFolderSuffix(dataStreamName))
+	}
+
+	sort.Strings(eventPaths)
+	for i, eventPath := range eventPaths {
+		if i > 0 {
+			fmt.Fprintln(&builder)
+		}
+		err := renderSampleEvent(&builder, eventPath)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	return builder.String(), nil
+}
+
+func renderSampleEvent(w io.Writer, eventPath string) error {
 	body, err := os.ReadFile(eventPath)
 	if err != nil {
-		return "", fmt.Errorf("reading sample event file failed (path: %s): %w", eventPath, err)
+		return fmt.Errorf("reading sample event file failed (path: %s): %w", eventPath, err)
 	}
 
 	formatted, _, err := formatter.JSONFormatter(body)
 	if err != nil {
-		return "", fmt.Errorf("formatting sample event file failed (path: %s): %w", eventPath, err)
+		return fmt.Errorf("formatting sample event file failed (path: %s): %w", eventPath, err)
 	}
 
-	var builder strings.Builder
-	builder.WriteString(fmt.Sprintf("An example event for `%s` looks as following:\n\n",
-		stripDataStreamFolderSuffix(dataStreamName)))
-	builder.WriteString("```json\n")
-	builder.Write(formatted)
-	builder.WriteString("\n```")
-	return builder.String(), nil
+	fmt.Fprintln(w, "```json")
+	fmt.Fprintln(w, string(formatted))
+	fmt.Fprint(w, "```")
+	return nil
 }
 
 func stripDataStreamFolderSuffix(dataStreamName string) string {

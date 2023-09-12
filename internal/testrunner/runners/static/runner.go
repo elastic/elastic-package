@@ -5,7 +5,6 @@
 package static
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -16,7 +15,7 @@ import (
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
 
-const sampleEventJSON = "sample_event.json"
+const sampleEventFilePattern = "sample_event*.json"
 
 type runner struct {
 	options testrunner.TestOptions
@@ -75,18 +74,18 @@ func (r runner) run() ([]testrunner.TestResult, error) {
 
 func (r runner) verifySampleEvent(pkgManifest *packages.PackageManifest) []testrunner.TestResult {
 	resultComposer := testrunner.NewResultComposer(testrunner.TestResult{
-		Name:       "Verify " + sampleEventJSON,
+		Name:       "Verify sample events",
 		TestType:   TestType,
 		Package:    r.options.TestFolder.Package,
 		DataStream: r.options.TestFolder.DataStream,
 	})
 
-	sampleEventPath, found, err := r.getSampleEventPath()
+	sampleEventPaths, err := r.findSampleEventPaths()
 	if err != nil {
 		results, _ := resultComposer.WithError(err)
 		return results
 	}
-	if !found {
+	if len(sampleEventPaths) == 0 {
 		// Nothing to do.
 		return []testrunner.TestResult{}
 	}
@@ -96,7 +95,7 @@ func (r runner) verifySampleEvent(pkgManifest *packages.PackageManifest) []testr
 		results, _ := resultComposer.WithError(err)
 		return results
 	}
-	fieldsValidator, err := fields.CreateValidatorForDirectory(filepath.Dir(sampleEventPath),
+	fieldsValidator, err := fields.CreateValidatorForDirectory(filepath.Dir(sampleEventPaths[0]),
 		fields.WithSpecVersion(pkgManifest.SpecVersion),
 		fields.WithDefaultNumericConversion(),
 		fields.WithExpectedDatasets(expectedDatasets),
@@ -107,44 +106,46 @@ func (r runner) verifySampleEvent(pkgManifest *packages.PackageManifest) []testr
 		return results
 	}
 
-	content, err := os.ReadFile(sampleEventPath)
-	if err != nil {
-		results, _ := resultComposer.WithError(fmt.Errorf("can't read file: %w", err))
-		return results
-	}
+	for _, sampleEventPath := range sampleEventPaths {
+		logger.Debugf("Validating fields in sample event %s", sampleEventPath)
+		content, err := os.ReadFile(sampleEventPath)
+		if err != nil {
+			results, _ := resultComposer.WithError(fmt.Errorf("can't read file: %w", err))
+			return results
+		}
 
-	multiErr := fieldsValidator.ValidateDocumentBody(content)
-	if len(multiErr) > 0 {
-		results, _ := resultComposer.WithError(testrunner.ErrTestCaseFailed{
-			Reason:  "one or more errors found in document",
-			Details: multiErr.Error(),
-		})
-		return results
+		multiErr := fieldsValidator.ValidateDocumentBody(content)
+		if len(multiErr) > 0 {
+			results, _ := resultComposer.WithError(testrunner.ErrTestCaseFailed{
+				Reason:  fmt.Sprintf("one or more errors found in sample document \"%s\"", sampleEventPath),
+				Details: multiErr.Error(),
+			})
+			return results
+		}
 	}
 
 	results, _ := resultComposer.WithSuccess()
 	return results
 }
 
-func (r runner) getSampleEventPath() (string, bool, error) {
-	var sampleEventPath string
+func (r runner) findSampleEventPaths() ([]string, error) {
+	var pattern string
 	if r.options.TestFolder.DataStream != "" {
-		sampleEventPath = filepath.Join(
+		pattern = filepath.Join(
 			r.options.PackageRootPath,
 			"data_stream",
 			r.options.TestFolder.DataStream,
-			sampleEventJSON)
+			sampleEventFilePattern)
 	} else {
-		sampleEventPath = filepath.Join(r.options.PackageRootPath, sampleEventJSON)
+		pattern = filepath.Join(r.options.PackageRootPath, sampleEventFilePattern)
 	}
-	_, err := os.Stat(sampleEventPath)
-	if errors.Is(err, os.ErrNotExist) {
-		return "", false, nil
-	}
+
+	files, err := filepath.Glob(pattern)
 	if err != nil {
-		return "", false, fmt.Errorf("stat file failed: %w", err)
+		return nil, fmt.Errorf("glob failed (pattern: %s): %w", pattern, err)
 	}
-	return sampleEventPath, true, nil
+
+	return files, nil
 }
 
 func (r runner) getExpectedDatasets(pkgManifest *packages.PackageManifest) ([]string, error) {
