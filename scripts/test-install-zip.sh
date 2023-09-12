@@ -26,6 +26,10 @@ cleanup() {
   exit $r
 }
 
+testype() {
+  echo $(basename $(dirname $1))
+}
+
 trap cleanup EXIT
 
 installAndVerifyPackage() {
@@ -96,6 +100,10 @@ OLDPWD=$PWD
 
 # Build packages
 for d in test/packages/*/*/; do
+  # Packages in false_positives can have issues.
+  if [ "$(testype $d)" == "false_positives" ]; then
+    continue
+  fi
   (
     cd $d
     elastic-package build
