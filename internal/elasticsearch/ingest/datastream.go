@@ -192,23 +192,20 @@ func loadRoutingRuleFile(dataStreamPath string) ([]map[string]interface{}, error
 			}
 
 			processor := make(map[string]interface{})
-			rp := RerouteProcessor{
+			processor["reroute"] = RerouteProcessor{
 				Tag:       r.SourceDataset,
+				If:        rule.If,
 				Dataset:   td,
 				Namespace: ns,
 			}
-			if rule.If != "" {
-				rp.If = rule.If
-			}
-			processor["reroute"] = rp
 			rerouteProcessors = append(rerouteProcessors, processor)
 		}
 	}
 	return rerouteProcessors, nil
 }
 
-func convertValue(originalValue interface{}, label string) ([]string, error) {
-	switch value := originalValue.(type) {
+func convertValue(value interface{}, label string) ([]string, error) {
+	switch value := value.(type) {
 	case string:
 		return []string{value}, nil
 	case []string:
