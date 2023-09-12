@@ -7,7 +7,76 @@ about how to fix these issues.
 Version of the Package Spec used by a package is defined by the `format_version`
 setting in the `manifest.yml` file.
 
-## Troubleshooting upgrades from Package Spec v1 to v2
+## Troubleshooting upgrades to Package Spec v3
+
+### Error: building package failed: resolving external fields failed: can't resolve fields: field ... cannot be reused at top level
+
+Some ECS fields include a reusability condition, so they can be reused on other
+objects also defined in ECS. Some of these fields explicitly allow to reuse the
+fields in the top level, while others explicitly disallow it.
+
+Previous versions of elastic-package allowed to import reusable fields from ECS
+at the top level in all cases, what shouldn't be always allowed.
+
+If after updating to Package Spec v3 you find this error, please do the
+following:
+
+1. Check if your package is actually using this field.
+2. If it is not using it, please remove it, and you are done.
+3. If it is using it, copy the definition from ECS, or from the zip of a
+   previous build of the package.
+4. Consider moving the field to an ECS field if there is a suitable one. You
+   may need to duplicate the field for some time to avoid breaking changes.
+
+For example, `geo` fields are not expected to be used in the top level. If any
+of your integrations is doing it, please check to what location this field
+refers to. If it refers to the location of the host running elastic-agent, these
+fields could be under `host.geo`. If they refer to the client side of a
+connection, you could use `client.geo`.
+
+### field ...: Additional property ... is not allowed
+
+Package Spec 3.0.0 doesn't allow to use dotted notation in yaml configuration in
+manifests. Previous implementation could lead to ambiguous results if the same
+setting was included with and withoud dotted notation.
+
+This is commonly found in `conditions` or in `elasticsearch` settings.
+
+To solve this, please use nested dotations. So if for example your package has
+something like the following:
+```
+conditions:
+  elastic.subscription: basic
+```
+Transform it to the following:
+```
+conditions:
+  elastic:
+    subscription: basic
+```
+
+### file "..." is invalid: dangling reference found: ...
+
+Package Spec 3.0.0 has stricter validation for some Kibana objects now. It
+checks if all references included are defined in the own package.
+
+Please remove or fix any reference to missing objects.
+
+### field processors...: Additional property ... is not allowed
+
+Some ingest pipeline processors are not well supported in the current Package
+Spec, or there are alternative preferred ways to define them. These processors
+won't be allowed to prevent other issues and have more consistent user
+experience for some features.
+
+If you find this error while trying to use the `reroute` processor, please use
+instead the `routing_rules.yml` file, so users can more easily customize the
+routing rules.
+
+If you find this error while trying to use a new processor, please open an issue
+in the Package Spec repository so we can add support for it.
+
+## Troubleshooting upgrades to Package Spec v2
 
 ### field (root): Additional property license is not allowed
 
@@ -19,7 +88,8 @@ So, for example, for a package with `license: basic`, you must remove this line
 and add the following condition:
 ```
 conditions:
-  elastic.subscription: basic
+  elastic:
+    subscription: basic
 ```
 
 ### field ...: Additional property ... is not allowed
