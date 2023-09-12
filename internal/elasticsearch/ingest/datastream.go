@@ -220,6 +220,12 @@ func convertValue(value interface{}, label string) ([]string, error) {
 			}
 		}
 		return result, nil
+	case nil:
+		// namespace is not required in routing_rules.yml
+		if label != "namespace" {
+			return nil, fmt.Errorf("%s in routing_rules.yml cannot be empty", label)
+		}
+		return nil, nil
 	default:
 		return nil, fmt.Errorf("%s in routing_rules.yml has to be a string or an array of strings: %v", label, value)
 	}
