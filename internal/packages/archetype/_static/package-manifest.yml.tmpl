@@ -12,8 +12,10 @@ categories:{{range $category := .Manifest.Categories}}
   - {{$category}}
 {{- end}}
 conditions:
-  kibana.version: "{{.Manifest.Conditions.Kibana.Version}}"
-  elastic.subscription: "{{.Manifest.Conditions.Elastic.Subscription}}"
+  kibana:
+    version: "{{.Manifest.Conditions.Kibana.Version}}"
+  elastic:
+    subscription: "{{.Manifest.Conditions.Elastic.Subscription}}"
 screenshots:
   - src: /img/sample-screenshot.png
     title: Sample screenshot
