@@ -75,6 +75,7 @@ function check_build_output() {
 
   (
     cd $package_root
+    mkdir -p $(dirname $output_file)
     elastic-package build 2>&1 | tee $output_file || true # Ignore errors here
   )
 
