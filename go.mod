@@ -16,7 +16,7 @@ require (
 	github.com/elastic/go-licenser v0.4.1
 	github.com/elastic/go-resource v0.1.1
 	github.com/elastic/go-ucfg v0.8.6
-	github.com/elastic/package-spec/v2 v2.10.0
+	github.com/elastic/package-spec/v2 v2.11.0
 	github.com/fatih/color v1.15.0
 	github.com/go-git/go-billy/v5 v5.5.0
 	github.com/go-git/go-git/v5 v5.8.1
@@ -69,7 +69,7 @@ require (
 	github.com/emicklei/go-restful/v3 v3.10.1 // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
 	github.com/evanphx/json-patch v5.6.0+incompatible // indirect
-	github.com/evanphx/json-patch/v5 v5.6.0 // indirect
+	github.com/evanphx/json-patch/v5 v5.7.0 // indirect
 	github.com/exponent-io/jsonpath v0.0.0-20210407135951-1de76d718b3f // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/go-errors/errors v1.4.2 // indirect
