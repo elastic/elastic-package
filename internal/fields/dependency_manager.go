@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -24,6 +25,7 @@ import (
 const (
 	ecsSchemaName      = "ecs"
 	gitReferencePrefix = "git@"
+	localFilePrefix    = "file://"
 
 	ecsSchemaFile = "ecs_nested.yml"
 	ecsSchemaURL  = "https://raw.githubusercontent.com/elastic/ecs/%s/generated/ecs/%s"
@@ -70,6 +72,15 @@ func loadECSFieldsSchema(dep buildmanifest.ECSDependency) ([]FieldDefinition, er
 }
 
 func readECSFieldsSchemaFile(dep buildmanifest.ECSDependency) ([]byte, error) {
+	if strings.HasPrefix(dep.Reference, localFilePrefix) {
+		uri, err := url.Parse(dep.Reference)
+		if err != nil {
+			return nil, err
+		}
+
+		return os.ReadFile(uri.Path)
+	}
+
 	gitReference, err := asGitReference(dep.Reference)
 	if err != nil {
 		return nil, fmt.Errorf("can't process the value as Git reference: %w", err)
@@ -330,5 +341,10 @@ func transformImportedField(fd FieldDefinition) common.MapStr {
 		}
 		m.Put("multi_fields", t)
 	}
+
+	if len(fd.AllowedValues) > 0 {
+		m["allowed_values"] = fd.AllowedValues
+	}
+
 	return m
 }
