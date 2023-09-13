@@ -163,6 +163,10 @@ type InjectFieldsOptions struct {
 	// ECS fields at the top level, when they cannot be reused there.
 	DisallowReusableECSFieldsAtTopLevel bool
 
+	// IncludeValidationSettings can be set to enable the injection of settings of imported
+	// fields that are only used for validation of documents, but are not needed on built packages.
+	IncludeValidationSettings bool
+
 	root string
 }
 
@@ -193,7 +197,7 @@ func (dm *DependencyManager) injectFieldsWithOptions(defs []common.MapStr, optio
 				return nil, false, fmt.Errorf("field %s cannot be reused at top level", fieldPath)
 			}
 
-			transformed := transformImportedField(imported)
+			transformed := transformImportedField(imported, options)
 
 			// Allow overrides of everything, except the imported type, for consistency.
 			transformed.DeepUpdate(def)
@@ -306,7 +310,7 @@ func buildFieldPath(root string, field common.MapStr) string {
 	return path
 }
 
-func transformImportedField(fd FieldDefinition) common.MapStr {
+func transformImportedField(fd FieldDefinition, options InjectFieldsOptions) common.MapStr {
 	m := common.MapStr{
 		"name": fd.Name,
 		"type": fd.Type,
@@ -329,21 +333,27 @@ func transformImportedField(fd FieldDefinition) common.MapStr {
 		m["doc_values"] = *fd.DocValues
 	}
 
-	if len(fd.Normalize) > 0 {
-		m["normalize"] = fd.Normalize
-	}
-
 	if len(fd.MultiFields) > 0 {
 		var t []common.MapStr
 		for _, f := range fd.MultiFields {
-			i := transformImportedField(f)
+			i := transformImportedField(f, options)
 			t = append(t, i)
 		}
 		m.Put("multi_fields", t)
 	}
 
-	if len(fd.AllowedValues) > 0 {
-		m["allowed_values"] = fd.AllowedValues
+	if options.IncludeValidationSettings {
+		if len(fd.Normalize) > 0 {
+			m["normalize"] = fd.Normalize
+		}
+
+		if len(fd.AllowedValues) > 0 {
+			m["allowed_values"] = fd.AllowedValues
+		}
+
+		if len(fd.ExpectedValues) > 0 {
+			m["expected_values"] = fd.ExpectedValues
+		}
 	}
 
 	return m

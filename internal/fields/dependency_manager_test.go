@@ -234,6 +234,9 @@ func TestDependencyManagerInjectExternalFields(t *testing.T) {
 					"external": "test",
 				},
 			},
+			options: InjectFieldsOptions{
+				IncludeValidationSettings: true,
+			},
 			result: []common.MapStr{
 				{
 					"name":        "host.ip",
@@ -665,12 +668,15 @@ func TestDependencyManagerWithECS(t *testing.T) {
 			valid: true,
 		},
 		{
-			title: "allowed values are loaded",
+			title: "allowed values are injected for validation",
 			defs: []common.MapStr{
 				{
 					"name":     "event.type",
 					"external": "ecs",
 				},
+			},
+			options: InjectFieldsOptions{
+				IncludeValidationSettings: true,
 			},
 			valid: true,
 			checkFn: func(t *testing.T, result []common.MapStr) {
@@ -680,6 +686,24 @@ func TestDependencyManagerWithECS(t *testing.T) {
 					d, _ := json.MarshalIndent(result[0], "", "  ")
 					t.Logf("expected to find allowed_values in %s", string(d))
 				}
+			},
+		},
+		{
+			title: "allowed values are not injected when not intended for validation",
+			defs: []common.MapStr{
+				{
+					"name":     "event.type",
+					"external": "ecs",
+				},
+			},
+			options: InjectFieldsOptions{
+				IncludeValidationSettings: false,
+			},
+			valid: true,
+			checkFn: func(t *testing.T, result []common.MapStr) {
+				require.Len(t, result, 1)
+				_, ok := result[0]["allowed_values"]
+				assert.False(t, ok)
 			},
 		},
 	}
