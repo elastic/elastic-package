@@ -6,7 +6,6 @@ package fields
 
 import (
 	"encoding/json"
-	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -617,10 +616,9 @@ func TestDependencyManagerInjectExternalFields(t *testing.T) {
 
 func TestDependencyManagerWithECS(t *testing.T) {
 	const ecsNestedPath8_10_0 = "./testdata/ecs_nested_v8.10.0.yml"
-	ecsPath, _ := filepath.Abs(ecsNestedPath8_10_0)
 	deps := buildmanifest.Dependencies{
 		ECS: buildmanifest.ECSDependency{
-			Reference: "file://" + ecsPath,
+			Reference: "file://" + ecsNestedPath8_10_0,
 		},
 	}
 	dm, err := CreateFieldDependencyManager(deps)

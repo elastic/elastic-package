@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -73,12 +72,8 @@ func loadECSFieldsSchema(dep buildmanifest.ECSDependency) ([]FieldDefinition, er
 
 func readECSFieldsSchemaFile(dep buildmanifest.ECSDependency) ([]byte, error) {
 	if strings.HasPrefix(dep.Reference, localFilePrefix) {
-		uri, err := url.Parse(dep.Reference)
-		if err != nil {
-			return nil, err
-		}
-
-		return os.ReadFile(uri.Path)
+		path := strings.TrimPrefix(dep.Reference, localFilePrefix)
+		return os.ReadFile(path)
 	}
 
 	gitReference, err := asGitReference(dep.Reference)
