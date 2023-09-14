@@ -37,7 +37,7 @@ require (
 	gotest.tools/gotestsum v1.10.1
 	helm.sh/helm/v3 v3.12.3
 	honnef.co/go/tools v0.4.6
-	k8s.io/apimachinery v0.28.1
+	k8s.io/apimachinery v0.28.2
 	k8s.io/cli-runtime v0.28.1
 	k8s.io/client-go v0.28.1
 )
