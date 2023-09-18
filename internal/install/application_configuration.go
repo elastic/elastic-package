@@ -29,6 +29,7 @@ const (
 	elasticAgentCompleteImageName       = "docker.elastic.co/elastic-agent/elastic-agent-complete"
 	elasticsearchImageName              = "docker.elastic.co/elasticsearch/elasticsearch"
 	kibanaImageName                     = "docker.elastic.co/kibana/kibana"
+	logstashImageName                   = "docker.elastic.co/logstash/logstash"
 
 	applicationConfigurationYmlFile = "config.yml"
 )
@@ -87,6 +88,7 @@ func (s stack) ImageRefOverridesForVersion(version string) ImageRefs {
 		ElasticAgent:  checkImageRefOverride("ELASTIC_AGENT_IMAGE_REF_OVERRIDE", stringOrDefault(appConfigImageRefs.ElasticAgent, "")),
 		Elasticsearch: checkImageRefOverride("ELASTICSEARCH_IMAGE_REF_OVERRIDE", stringOrDefault(appConfigImageRefs.Elasticsearch, "")),
 		Kibana:        checkImageRefOverride("KIBANA_IMAGE_REF_OVERRIDE", stringOrDefault(appConfigImageRefs.Kibana, "")),
+		Logstash:      checkImageRefOverride("LOGSTAHS_IMAGE_REF_OVERRIDE", stringOrDefault(appConfigImageRefs.Logstash, "")),
 	}
 }
 
@@ -95,6 +97,7 @@ type ImageRefs struct {
 	ElasticAgent  string `yaml:"elastic-agent"`
 	Elasticsearch string `yaml:"elasticsearch"`
 	Kibana        string `yaml:"kibana"`
+	Logstash      string `yaml:"logstash"`
 }
 
 // AsEnv method returns key=value representation of image refs.
@@ -103,6 +106,7 @@ func (ir ImageRefs) AsEnv() []string {
 	vars = append(vars, "ELASTIC_AGENT_IMAGE_REF="+ir.ElasticAgent)
 	vars = append(vars, "ELASTICSEARCH_IMAGE_REF="+ir.Elasticsearch)
 	vars = append(vars, "KIBANA_IMAGE_REF="+ir.Kibana)
+	vars = append(vars, "LOGSTASH_IMAGE_REF="+ir.Logstash)
 	return vars
 }
 
@@ -112,6 +116,7 @@ func (ac *ApplicationConfiguration) StackImageRefs(version string) ImageRefs {
 	refs.ElasticAgent = stringOrDefault(refs.ElasticAgent, fmt.Sprintf("%s:%s", selectElasticAgentImageName(version), version))
 	refs.Elasticsearch = stringOrDefault(refs.Elasticsearch, fmt.Sprintf("%s:%s", elasticsearchImageName, version))
 	refs.Kibana = stringOrDefault(refs.Kibana, fmt.Sprintf("%s:%s", kibanaImageName, version))
+	refs.Logstash = stringOrDefault(refs.Logstash, fmt.Sprintf("%s:%s", logstashImageName, version))
 	return refs
 }
 
