@@ -5,11 +5,14 @@
 package fields
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/elastic/elastic-package/internal/common"
+	"github.com/elastic/elastic-package/internal/packages/buildmanifest"
 )
 
 func TestDependencyManagerInjectExternalFields(t *testing.T) {
@@ -229,6 +232,9 @@ func TestDependencyManagerInjectExternalFields(t *testing.T) {
 					"name":     "host.ip",
 					"external": "test",
 				},
+			},
+			options: InjectFieldsOptions{
+				IncludeValidationSettings: true,
 			},
 			result: []common.MapStr{
 				{
@@ -604,6 +610,119 @@ func TestDependencyManagerInjectExternalFields(t *testing.T) {
 			assert.NoError(t, err)
 			assert.Equal(t, c.changed, changed)
 			assert.EqualValues(t, c.result, result)
+		})
+	}
+}
+
+func TestDependencyManagerWithECS(t *testing.T) {
+	const ecsNestedPath8_10_0 = "./testdata/ecs_nested_v8.10.0.yml"
+	deps := buildmanifest.Dependencies{
+		ECS: buildmanifest.ECSDependency{
+			Reference: "file://" + ecsNestedPath8_10_0,
+		},
+	}
+	dm, err := CreateFieldDependencyManager(deps)
+	require.NoError(t, err)
+
+	cases := []struct {
+		title   string
+		defs    []common.MapStr
+		result  []common.MapStr
+		options InjectFieldsOptions
+		checkFn func(*testing.T, []common.MapStr)
+		valid   bool
+	}{
+		{
+			title: "disallowed reusable field at lop level",
+			defs: []common.MapStr{
+				{
+					"name":     "geo.city_name",
+					"external": "ecs",
+				},
+			},
+			options: InjectFieldsOptions{
+				DisallowReusableECSFieldsAtTopLevel: true,
+			},
+			valid: false,
+		},
+		{
+			title: "legacy support to reuse field at lop level",
+			defs: []common.MapStr{
+				{
+					"name":     "geo.city_name",
+					"external": "ecs",
+				},
+			},
+			options: InjectFieldsOptions{
+				DisallowReusableECSFieldsAtTopLevel: false,
+			},
+			result: []common.MapStr{
+				{
+					"name":        "geo.city_name",
+					"description": "City name.",
+					"type":        "keyword",
+				},
+			},
+			valid: true,
+		},
+		{
+			title: "allowed values are injected for validation",
+			defs: []common.MapStr{
+				{
+					"name":     "event.type",
+					"external": "ecs",
+				},
+			},
+			options: InjectFieldsOptions{
+				IncludeValidationSettings: true,
+			},
+			valid: true,
+			checkFn: func(t *testing.T, result []common.MapStr) {
+				require.Len(t, result, 1)
+				_, ok := result[0]["allowed_values"]
+				if !assert.True(t, ok) {
+					d, _ := json.MarshalIndent(result[0], "", "  ")
+					t.Logf("expected to find allowed_values in %s", string(d))
+				}
+			},
+		},
+		{
+			title: "allowed values are not injected when not intended for validation",
+			defs: []common.MapStr{
+				{
+					"name":     "event.type",
+					"external": "ecs",
+				},
+			},
+			options: InjectFieldsOptions{
+				IncludeValidationSettings: false,
+			},
+			valid: true,
+			checkFn: func(t *testing.T, result []common.MapStr) {
+				require.Len(t, result, 1)
+				_, ok := result[0]["allowed_values"]
+				assert.False(t, ok)
+			},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.title, func(t *testing.T) {
+			result, _, err := dm.InjectFieldsWithOptions(c.defs, c.options)
+			if !c.valid {
+				assert.Error(t, err)
+				return
+			}
+
+			assert.NoError(t, err)
+			if len(c.result) > 0 {
+				assert.EqualValues(t, c.result, result)
+			}
+			if c.checkFn != nil {
+				t.Run("checkFn", func(t *testing.T) {
+					c.checkFn(t, result)
+				})
+			}
 		})
 	}
 }

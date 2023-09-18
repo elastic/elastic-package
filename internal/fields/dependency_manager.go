@@ -24,6 +24,7 @@ import (
 const (
 	ecsSchemaName      = "ecs"
 	gitReferencePrefix = "git@"
+	localFilePrefix    = "file://"
 
 	ecsSchemaFile = "ecs_nested.yml"
 	ecsSchemaURL  = "https://raw.githubusercontent.com/elastic/ecs/%s/generated/ecs/%s"
@@ -70,6 +71,11 @@ func loadECSFieldsSchema(dep buildmanifest.ECSDependency) ([]FieldDefinition, er
 }
 
 func readECSFieldsSchemaFile(dep buildmanifest.ECSDependency) ([]byte, error) {
+	if strings.HasPrefix(dep.Reference, localFilePrefix) {
+		path := strings.TrimPrefix(dep.Reference, localFilePrefix)
+		return os.ReadFile(path)
+	}
+
 	gitReference, err := asGitReference(dep.Reference)
 	if err != nil {
 		return nil, fmt.Errorf("can't process the value as Git reference: %w", err)
@@ -152,6 +158,10 @@ type InjectFieldsOptions struct {
 	// ECS fields at the top level, when they cannot be reused there.
 	DisallowReusableECSFieldsAtTopLevel bool
 
+	// IncludeValidationSettings can be set to enable the injection of settings of imported
+	// fields that are only used for validation of documents, but are not needed on built packages.
+	IncludeValidationSettings bool
+
 	root string
 }
 
@@ -182,7 +192,7 @@ func (dm *DependencyManager) injectFieldsWithOptions(defs []common.MapStr, optio
 				return nil, false, fmt.Errorf("field %s cannot be reused at top level", fieldPath)
 			}
 
-			transformed := transformImportedField(imported)
+			transformed := transformImportedField(imported, options)
 
 			// Allow overrides of everything, except the imported type, for consistency.
 			transformed.DeepUpdate(def)
@@ -295,7 +305,7 @@ func buildFieldPath(root string, field common.MapStr) string {
 	return path
 }
 
-func transformImportedField(fd FieldDefinition) common.MapStr {
+func transformImportedField(fd FieldDefinition, options InjectFieldsOptions) common.MapStr {
 	m := common.MapStr{
 		"name": fd.Name,
 		"type": fd.Type,
@@ -318,17 +328,28 @@ func transformImportedField(fd FieldDefinition) common.MapStr {
 		m["doc_values"] = *fd.DocValues
 	}
 
-	if len(fd.Normalize) > 0 {
-		m["normalize"] = fd.Normalize
-	}
-
 	if len(fd.MultiFields) > 0 {
 		var t []common.MapStr
 		for _, f := range fd.MultiFields {
-			i := transformImportedField(f)
+			i := transformImportedField(f, options)
 			t = append(t, i)
 		}
 		m.Put("multi_fields", t)
 	}
+
+	if options.IncludeValidationSettings {
+		if len(fd.Normalize) > 0 {
+			m["normalize"] = fd.Normalize
+		}
+
+		if len(fd.AllowedValues) > 0 {
+			m["allowed_values"] = fd.AllowedValues
+		}
+
+		if len(fd.ExpectedValues) > 0 {
+			m["expected_values"] = fd.ExpectedValues
+		}
+	}
+
 	return m
 }

@@ -163,6 +163,8 @@ func CreateValidatorForDirectory(fieldsParentDir string, opts ...ValidatorOption
 
 func createValidatorForDirectoryAndPackageRoot(fieldsParentDir string, finder packageRootFinder, opts ...ValidatorOption) (v *Validator, err error) {
 	v = new(Validator)
+	// In validator, inject fields with settings used for validation, such as `allowed_values`.
+	v.injectFieldsOptions.IncludeValidationSettings = true
 	for _, opt := range opts {
 		if err := opt(v); err != nil {
 			return nil, err
