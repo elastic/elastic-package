@@ -36,6 +36,7 @@ type newPackageAnswers struct {
 	KibanaVersion       string `survey:"kibana_version"`
 	ElasticSubscription string `survey:"elastic_subscription"`
 	GithubOwner         string `survey:"github_owner"`
+	OwnerType           string `survey:"owner_type"`
 	DataStreamType      string `survey:"datastream_type"`
 }
 
@@ -149,6 +150,27 @@ func createPackageCommandAction(cmd *cobra.Command, args []string) error {
 			},
 			Validate: survey.ComposeValidators(survey.Required, surveyext.GithubOwnerValidator),
 		},
+		{
+			Name: "owner_type",
+			Prompt: &survey.Select{
+				Message: "Owner type:",
+				Options: []string{"elastic", "partner", "community"},
+				Description: func(value string, _ int) string {
+					switch value {
+					case "elastic":
+						return "Owned and supported by Elastic"
+					case "partner":
+						return "Vendor-owned with support from Elastic"
+					case "community":
+						return "Supported by the community"
+					}
+
+					return ""
+				},
+				Default: "elastic",
+			},
+			Validate: survey.Required,
+		},
 	}
 
 	if answers.Type == "input" {
@@ -217,6 +239,7 @@ func createPackageDescriptorFromAnswers(answers newPackageAnswers) archetype.Pac
 			},
 			Owner: packages.Owner{
 				Github: answers.GithubOwner,
+				Type:   answers.OwnerType,
 			},
 			License:     answers.ElasticSubscription,
 			Description: answers.Description,

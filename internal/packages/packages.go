@@ -112,6 +112,7 @@ type PolicyTemplate struct {
 // Owner defines package owners, either a single person or a team.
 type Owner struct {
 	Github string `config:"github" json:"github" yaml:"github"`
+	Type   string `config:"type" json:"type" yaml:"type"`
 }
 
 // PackageManifest represents the basic structure of a package's manifest

@@ -28,6 +28,7 @@ func fooPackage(version, kibanaVersion string) packages.PackageManifest {
 		Description: "Foo integration",
 		Owner: packages.Owner{
 			Github: "team",
+			Type:   "elastic",
 		},
 		Conditions: packages.Conditions{
 			Kibana: packages.KibanaConditions{Version: kibanaVersion},
