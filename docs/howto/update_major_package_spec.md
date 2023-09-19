@@ -76,6 +76,32 @@ routing rules.
 If you find this error while trying to use a new processor, please open an issue
 in the Package Spec repository so we can add support for it.
 
+### field owner: type is required
+
+Package Spec 3.0.0 now requires the owner type field to be set. This field
+describes who owns the package and the level of support that is provided.
+The 'elastic' value indicates that the package is built and maintained by
+Elastic. The 'partner' value indicates that the package is built and
+maintained by a partner vendor and may include involvement from Elastic.
+The 'community' value indicates the package is built and maintained by
+non-Elastic community members.
+
+The field was initially introduced in Package Spec `2.11.0` and prior to this
+version assumed an implicit default of `elastic`. In `2.11.0`, the implicit
+default changed to `community`. To avoid accidentally tagging an integration
+with the wrong owner type, the field is now required.
+
+The value must be one of the following:
+
+- `elastic`
+- `partner`
+- `community`
+
+```
+owner:
+  type: elastic
+```
+
 ## Troubleshooting upgrades to Package Spec v2
 
 ### field (root): Additional property license is not allowed
