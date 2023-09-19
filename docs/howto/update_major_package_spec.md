@@ -86,7 +86,10 @@ maintained by a partner vendor and may include involvement from Elastic.
 The 'community' value indicates the package is built and maintained by
 non-Elastic community members.
 
-The field was initially introduced in Package Spec `2.11.0` and 
+The field was initially introduced in Package Spec `2.11.0` and prior to this
+version assumed an implicit default of `elastic`. In `2.11.0`, the implicit
+default changed to `community`. To avoid accidentally tagging an integration
+with the wrong owner type, the field is now required.
 
 The value must be one of the following:
 
