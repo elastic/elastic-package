@@ -37,6 +37,10 @@ type versionLatest struct {
 	Timestamp time.Time `json:"timestamp"`
 }
 
+func (v versionLatest) String() string {
+	return fmt.Sprintf("%s. Download from: %s (Timestamp %s)", v.TagName, v.HtmlURL, v.Timestamp)
+}
+
 // CheckUpdate function checks using Github Release API if newer version is available.
 func CheckUpdate() {
 	if Tag == "" {
@@ -63,7 +67,7 @@ func CheckUpdate() {
 	var release *versionLatest
 	switch {
 	case !expired:
-		logger.Debugf("latest version (cached): %s", latestVersion)
+		logger.Debugf("latest version (cached): %s", latestVersion.String())
 		release = latestVersion
 	default:
 		logger.Debugf("checking latest release in Github")
