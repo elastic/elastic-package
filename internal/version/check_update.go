@@ -59,7 +59,7 @@ func CheckUpdate() {
 	latestVersion, err := loadCacheLatestVersion()
 	switch {
 	case err != nil:
-		logger.Debug("failed to load latest version from cache: %v", err)
+		logger.Debugf("failed to load latest version from cache: %v", err.Error())
 	default:
 		expired = checkCachedLatestVersion(latestVersion, defaultCacheDuration)
 	}
@@ -139,7 +139,7 @@ func loadCacheLatestVersion() (*versionLatest, error) {
 	latestVersionPath := filepath.Join(elasticPackagePath.RootDir(), latestVersionFile)
 	contents, err := os.ReadFile(latestVersionPath)
 	if err != nil {
-		logger.Warnf("reading version file failed: %w", err.Error())
+		logger.Warnf("reading version file failed: %v", err.Error())
 		return nil, fmt.Errorf("reading version file failed: %w", err)
 	}
 
