@@ -12,17 +12,24 @@ import (
 	"github.com/Masterminds/semver/v3"
 )
 
-func JSONFormatterBuilder(specVersion semver.Version) func([]byte) ([]byte, bool, error) {
+type JSONFormatter interface {
+	Format([]byte) ([]byte, bool, error)
+	Encode(doc any) ([]byte, error)
+}
+
+func JSONFormatterBuilder(specVersion semver.Version) JSONFormatter {
 	if specVersion.LessThan(semver.MustParse("2.12.0")) {
-		return jsonFormatterWithHTMLEncoding
+		return &jsonFormatterWithHTMLEncoding{}
 	}
 
-	return jsonFormatter
+	return &jsonFormatter{}
 }
 
 // jsonFormatterWithHTMLEncoding function is responsible for formatting the given JSON input.
 // It encodes special HTML characters.
-func jsonFormatterWithHTMLEncoding(content []byte) ([]byte, bool, error) {
+type jsonFormatterWithHTMLEncoding struct{}
+
+func (jsonFormatterWithHTMLEncoding) Format(content []byte) ([]byte, bool, error) {
 	var rawMessage json.RawMessage
 	err := json.Unmarshal(content, &rawMessage)
 	if err != nil {
@@ -36,8 +43,14 @@ func jsonFormatterWithHTMLEncoding(content []byte) ([]byte, bool, error) {
 	return formatted, string(content) == string(formatted), nil
 }
 
+func (jsonFormatterWithHTMLEncoding) Encode(doc any) ([]byte, error) {
+	return json.MarshalIndent(doc, "", "    ")
+}
+
 // jsonFormatter function is responsible for formatting the given JSON input.
-func jsonFormatter(content []byte) ([]byte, bool, error) {
+type jsonFormatter struct{}
+
+func (jsonFormatter) Format(content []byte) ([]byte, bool, error) {
 	var formatted bytes.Buffer
 	err := json.Indent(&formatted, content, "", "    ")
 	if err != nil {
@@ -45,4 +58,19 @@ func jsonFormatter(content []byte) ([]byte, bool, error) {
 	}
 
 	return formatted.Bytes(), bytes.Equal(content, formatted.Bytes()), nil
+}
+
+func (jsonFormatter) Encode(doc any) ([]byte, error) {
+	var formatted bytes.Buffer
+	enc := json.NewEncoder(&formatted)
+	enc.SetEscapeHTML(false)
+	enc.SetIndent("", "    ")
+
+	err := enc.Encode(doc)
+	if err != nil {
+		return nil, err
+	}
+
+	// Trimming to be consistent with MarshalIndent, that seems to trim the result.
+	return bytes.TrimSpace(formatted.Bytes()), nil
 }

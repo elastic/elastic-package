@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Masterminds/semver/v3"
 	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/common"
@@ -23,6 +24,7 @@ import (
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/elasticsearch/ingest"
 	"github.com/elastic/elastic-package/internal/fields"
+	"github.com/elastic/elastic-package/internal/formatter"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/multierror"
@@ -720,8 +722,13 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 		}
 	}
 
+	specVersion, err := semver.NewVersion(pkgManifest.SpecVersion)
+	if err != nil {
+		return result.WithError(fmt.Errorf("failed to parse format version %q: %w", pkgManifest.SpecVersion, err))
+	}
+
 	// Write sample events file from first doc, if requested
-	if err := r.generateTestResult(docs); err != nil {
+	if err := r.generateTestResult(docs, *specVersion); err != nil {
 		return result.WithError(err)
 	}
 
@@ -1184,8 +1191,9 @@ func filterAgents(allAgents []kibana.Agent, ctx servicedeployer.ServiceContext) 
 	return filtered
 }
 
-func writeSampleEvent(path string, doc common.MapStr) error {
-	body, err := json.MarshalIndent(doc, "", "    ")
+func writeSampleEvent(path string, doc common.MapStr, specVersion semver.Version) error {
+	jsonFormatter := formatter.JSONFormatterBuilder(specVersion)
+	body, err := jsonFormatter.Encode(doc)
 	if err != nil {
 		return fmt.Errorf("marshalling sample event failed: %w", err)
 	}
@@ -1250,7 +1258,7 @@ func (r *runner) selectVariants(variantsFile *servicedeployer.VariantsFile) []st
 	return variantNames
 }
 
-func (r *runner) generateTestResult(docs []common.MapStr) error {
+func (r *runner) generateTestResult(docs []common.MapStr, specVersion semver.Version) error {
 	if !r.options.GenerateTestResult {
 		return nil
 	}
@@ -1260,7 +1268,7 @@ func (r *runner) generateTestResult(docs []common.MapStr) error {
 		rootPath = filepath.Join(rootPath, "data_stream", ds)
 	}
 
-	if err := writeSampleEvent(rootPath, docs[0]); err != nil {
+	if err := writeSampleEvent(rootPath, docs[0], specVersion); err != nil {
 		return fmt.Errorf("failed to write sample event file: %w", err)
 	}
 

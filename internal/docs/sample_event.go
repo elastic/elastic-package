@@ -36,7 +36,7 @@ func renderSampleEvent(packageRoot, dataStreamName string) (string, error) {
 	}
 
 	jsonFormatter := formatter.JSONFormatterBuilder(*specVersion)
-	formatted, _, err := jsonFormatter(body)
+	formatted, _, err := jsonFormatter.Format(body)
 	if err != nil {
 		return "", fmt.Errorf("formatting sample event file failed (path: %s): %w", eventPath, err)
 	}

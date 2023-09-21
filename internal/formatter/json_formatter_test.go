@@ -14,7 +14,7 @@ import (
 	"github.com/elastic/elastic-package/internal/formatter"
 )
 
-func TestJSONFormatter(t *testing.T) {
+func TestJSONFormatterFormat(t *testing.T) {
 	cases := []struct {
 		title    string
 		version  *semver.Version
@@ -56,8 +56,8 @@ func TestJSONFormatter(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.title, func(t *testing.T) {
-			jsonFormat := formatter.JSONFormatterBuilder(*c.version)
-			formatted, equal, err := jsonFormat([]byte(c.content))
+			jsonFormatter := formatter.JSONFormatterBuilder(*c.version)
+			formatted, equal, err := jsonFormatter.Format([]byte(c.content))
 			if !c.valid {
 				assert.Error(t, err)
 				return
@@ -66,6 +66,41 @@ func TestJSONFormatter(t *testing.T) {
 
 			assert.Equal(t, c.expected, string(formatted))
 			assert.Equal(t, c.content == c.expected, equal)
+		})
+	}
+}
+
+func TestJSONFormatterEncode(t *testing.T) {
+	cases := []struct {
+		title    string
+		version  *semver.Version
+		object   any
+		expected string
+	}{
+		{
+			title:   "encode html in old versions",
+			version: semver.MustParse("2.0.0"),
+			object:  map[string]any{"a": "<script></script>"},
+			expected: `{
+    "a": "\u003cscript\u003e\u003c/script\u003e"
+}`,
+		},
+		{
+			title:   "don't encode html since 2.12.0",
+			version: semver.MustParse("2.12.0"),
+			object:  map[string]any{"a": "<script></script>"},
+			expected: `{
+    "a": "<script></script>"
+}`,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.title, func(t *testing.T) {
+			jsonFormatter := formatter.JSONFormatterBuilder(*c.version)
+			formatted, err := jsonFormatter.Encode(c.object)
+			require.NoError(t, err)
+			assert.Equal(t, c.expected, string(formatted))
 		})
 	}
 }

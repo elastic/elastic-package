@@ -18,7 +18,7 @@ type formatter func(content []byte) ([]byte, bool, error)
 func newFormatter(specVersion semver.Version, ext string) formatter {
 	switch ext {
 	case ".json":
-		return JSONFormatterBuilder(specVersion)
+		return JSONFormatterBuilder(specVersion).Format
 	case ".yaml", ".yml":
 		return YAMLFormatter
 	default:
