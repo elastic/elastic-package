@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -152,6 +153,9 @@ An example event for ` + "`example`" + ` looks as following:
 			err = createSampleEventFile(c.packageRoot, c.dataStreamName, c.sampleEventJsonContents)
 			require.NoError(t, err)
 
+			err = createManifestFile(c.packageRoot)
+			require.NoError(t, err)
+
 			rendered, err := renderReadme(filename, c.packageRoot, templatePath, linksMap)
 			require.NoError(t, err)
 
@@ -291,6 +295,13 @@ func createSampleEventFile(packageRoot, dataStreamName, contents string) error {
 		return err
 	}
 	return nil
+}
+
+func createManifestFile(packageRoot string) error {
+	// Minimal content needed to render readme.
+	manifest := `format_version: 2.10.0`
+	manifestFile := filepath.Join(packageRoot, packages.PackageManifestFile)
+	return os.WriteFile(manifestFile, []byte(manifest), 0644)
 }
 
 func createDataStreamFolder(packageRoot, dataStreamName string) (string, error) {
