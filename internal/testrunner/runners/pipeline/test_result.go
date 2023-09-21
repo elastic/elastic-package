@@ -285,10 +285,8 @@ func marshalNormalizedJSON(v interface{}, specVersion semver.Version) ([]byte, e
 	if err != nil {
 		return msg, err
 	}
-	return json.MarshalIndent(obj, "", "    ")
 
-	formatted, _, err := jsonFormatter.Format(msg)
-	return formatted, err
+	return jsonFormatter.Encode(obj)
 }
 
 func expectedTestResultFile(testFile string) string {
