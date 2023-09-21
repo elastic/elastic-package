@@ -102,6 +102,25 @@ owner:
   type: elastic
 ```
 
+### expected filter in dashboard: ...
+
+It is required to include filters in dashboards, to limit the size of the data
+handled to the one included in related datasets.
+
+To fix this issue, please include a filter in the dashboard. It usually means to
+add a filter based on `data_stream.dataset`. But it is open to the package
+developer to provide any filter that fits the use case of the package.
+
+There are two variants of this error:
+
+- `no filter found`: that means that no kind of filter has been found in the
+  dashboard, and one should be added.
+- `saved query found, but no filter`: that means that a saved query has been
+  found, but no filter. If that's the case, please migrate the saved query to a
+  filter. We want to make this filtering only in filters, for consistency
+  between different dashboards, and to allow users to quickly filter using the
+  query bar without affecting the provided filters.
+
 ## Troubleshooting upgrades to Package Spec v2
 
 ### field (root): Additional property license is not allowed
