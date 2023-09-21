@@ -148,26 +148,29 @@ services:
       elastic-agent:
         condition: service_healthy
 
- logstash:
-   depends_on:
-     elasticsearch:
-       condition: service_healthy
-     kibana:
-       condition: service_healthy
-   image: ${LOGSTASH_IMAGE_REF}
-   labels:
-     co.elastic.logs/module: logstash
-   user: root
-   volumes:
-     - certs:/usr/share/logstash/certs
-     - logstashdata01:/usr/share/logstash/data
-     - "./logstash_ingest_data/:/usr/share/logstash/ingest_data/"
-     - "./logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro"
-   environment:
-     - xpack.monitoring.enabled=false
-     - ELASTIC_USER=elastic
-     - ELASTIC_PASSWORD=changeme
-     - ELASTIC_HOSTS=https://127.0.0.1:9200
+  logstash:
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+      kibana:
+        condition: service_healthy
+    image: ${LOGSTASH_IMAGE_REF}
+    labels:
+      co.elastic.logs/module: logstash
+    user: root
+    volumes:
+      - "./logstash_ingest_data/:/usr/share/logstash/ingest_data/"
+      - "./logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro"
+    ports:
+       - "5000:5000/tcp"
+       - "5000:5000/udp"
+       - "127.0.0.1:5044:5044"
+       - "127.0.0.1:9600:9600"
+    environment:
+      - xpack.monitoring.enabled=false
+      - ELASTIC_USER=elastic
+      - ELASTIC_PASSWORD=changeme
+      - ELASTIC_HOSTS=https://127.0.0.1:9200
 
   logstash_is_ready:
     image: tianon/true

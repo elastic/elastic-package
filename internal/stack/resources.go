@@ -62,7 +62,7 @@ var (
 		},
 		&resource.File{
 			Path:    SnapshotFile,
-			Content: staticSource.Template("_static/docker-compose-stack.yml.tmpl"),
+			Content: staticSource.Template("_static/docker-compose-stack-logstash.yml.tmpl"),
 		},
 		&resource.File{
 			Path:    ElasticsearchConfigFile,
