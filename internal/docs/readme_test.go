@@ -9,9 +9,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/elastic/elastic-package/internal/packages"
 )
 
 func TestGenerateReadme(t *testing.T) {

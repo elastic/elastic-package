@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 
 	"github.com/Masterminds/semver/v3"
+
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
