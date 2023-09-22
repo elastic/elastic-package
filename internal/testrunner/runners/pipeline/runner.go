@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Masterminds/semver/v3"
 	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/common"
@@ -283,10 +284,19 @@ func (r *runner) loadTestCaseFile(testCaseFile string) (*testCase, error) {
 func (r *runner) verifyResults(testCaseFile string, config *testConfig, result *testResult, fieldsValidator *fields.Validator) error {
 	testCasePath := filepath.Join(r.options.TestFolder.Path, testCaseFile)
 
+	manifest, err := packages.ReadPackageManifestFromPackageRoot(r.options.PackageRootPath)
+	if err != nil {
+		return fmt.Errorf("failed to read package manifest: %w", err)
+	}
+	specVersion, err := semver.NewVersion(manifest.SpecVersion)
+	if err != nil {
+		return fmt.Errorf("failed to parse package format version %q: %w", manifest.SpecVersion, err)
+	}
+
 	if r.options.GenerateTestResult {
 		// TODO: Add tests to cover regressive use of json.Unmarshal in writeTestResult.
 		// See https://github.com/elastic/elastic-package/pull/717.
-		err := writeTestResult(testCasePath, result)
+		err := writeTestResult(testCasePath, result, *specVersion)
 		if err != nil {
 			return fmt.Errorf("writing test result failed: %w", err)
 		}
@@ -301,7 +311,7 @@ func (r *runner) verifyResults(testCaseFile string, config *testConfig, result *
 	if stackConfig.Provider == stack.ProviderServerless {
 		skipGeoIP = true
 	}
-	err = compareResults(testCasePath, config, result, skipGeoIP)
+	err = compareResults(testCasePath, config, result, skipGeoIP, *specVersion)
 	if _, ok := err.(testrunner.ErrTestCaseFailed); ok {
 		return err
 	}
