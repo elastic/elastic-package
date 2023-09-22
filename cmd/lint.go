@@ -61,13 +61,13 @@ func lintCommandAction(cmd *cobra.Command, args []string) error {
 }
 
 func validateSourceCommandAction(cmd *cobra.Command, args []string) error {
-	packageRootPath, found, allErrors := packages.FindPackageRoot()
+	packageRootPath, found, err := packages.FindPackageRoot()
 	if !found {
 		return errors.New("package root not found")
 	}
-	if allErrors != nil {
-		return fmt.Errorf("locating package root failed: %w", allErrors)
+	if err != nil {
+		return fmt.Errorf("locating package root failed: %w", err)
 	}
-	err := validation.ValidateAndFilterFromPath(packageRootPath)
+	err = validation.ValidateAndFilterFromPath(packageRootPath)
 	return fmt.Errorf("linting package failed: %w", err)
 }
