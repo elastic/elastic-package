@@ -1,32 +1,21 @@
 input {
- file {
-   #https://www.elastic.co/guide/en/logstash/current/plugins-inputs-file.html
-   #default is TAIL which assumes more data will come into the file.
-   #change to mode => "read" if the file is a compelte file.  by default, the file will be removed once reading is complete -- backup your files if you need them.
-   mode => "tail"
-   path => "/usr/share/logstash/ingest_data/*"
- }
+  elastic_agent {
+    port => 5044
+  }
 }
 
 
 filter {
   elastic_integration {
-    hosts=>
-    username=> {{ fact "username" }}
-    password=> {{ fact "password" }}
-    cloud_id   => "YOUR_CLOUD_ID_HERE"
-    cloud_auth => "YOUR_CLOUD_AUTH_HERE"
-    geoip_database_directory => "/etc/your/geoip-databases"
+    username => {{ fact "username" }}
+    password => {{ fact "password" }}
   }
 }
 
 
 output {
- elasticsearch {
-   index => "logstash-%{+YYYY.MM.dd}"
-   hosts=> "${ELASTIC_HOSTS}"
-   user=> {{ fact "username" }}
-   password=> {{ fact "password" }}
-   cacert=> "certs/ca/ca.crt"
- }
+  elasticsearch {
+    hosts => ["http://localhost:9200"] 
+    data_stream => "true"
+  }
 }

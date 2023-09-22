@@ -32,6 +32,9 @@ const (
 	// KibanaConfigFile is the kibana config file.
 	KibanaConfigFile = "kibana.yml"
 
+	// LogstashConfigFile is the logstash config file.
+	LogstashConfigFile = "logstash.conf"
+
 	// KibanaHealthcheckFile is the kibana healthcheck.
 	KibanaHealthcheckFile = "kibana_healthcheck.sh"
 
@@ -62,7 +65,7 @@ var (
 		},
 		&resource.File{
 			Path:    SnapshotFile,
-			Content: staticSource.Template("_static/docker-compose-stack-logstash.yml.tmpl"),
+			Content: staticSource.Template("_static/docker-compose-stack.yml.tmpl"),
 		},
 		&resource.File{
 			Path:    ElasticsearchConfigFile,
@@ -90,6 +93,10 @@ var (
 		&resource.File{
 			Path:    KibanaConfigFile,
 			Content: staticSource.Template("_static/kibana.yml.tmpl"),
+		},
+		&resource.File{
+			Path:    LogstashConfigFile,
+			Content: staticSource.Template("_static/logstash.conf.tmpl"),
 		},
 		&resource.File{
 			Path:    KibanaHealthcheckFile,
