@@ -9,11 +9,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/elastic/package-spec/v2/code/go/pkg/validator"
-
 	"github.com/stretchr/testify/require"
 
 	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/internal/validation"
 )
 
 func TestPackage(t *testing.T) {
@@ -83,7 +82,7 @@ func createPackageDescriptorForTest(packageType, kibanaVersion string) PackageDe
 }
 
 func checkPackage(packageRoot string) error {
-	err := validator.ValidateFromPath(packageRoot)
+	err := validation.ValidateFromPath(packageRoot)
 	if err != nil {
 		return fmt.Errorf("linting package failed: %w", err)
 	}

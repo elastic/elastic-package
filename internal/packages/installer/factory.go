@@ -10,12 +10,11 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 
-	"github.com/elastic/package-spec/v2/code/go/pkg/validator"
-
 	"github.com/elastic/elastic-package/internal/builder"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/internal/validation"
 )
 
 var semver8_7_0 = semver.MustParse("8.7.0")
@@ -61,7 +60,7 @@ func NewForPackage(options Options) (Installer, error) {
 		}
 		if !options.SkipValidation {
 			logger.Debugf("Validating built .zip package (path: %s)", options.ZipPath)
-			err := validator.ValidateFromZip(options.ZipPath)
+			err := validation.ValidateAndFilterFromZip(options.ZipPath)
 			if err != nil {
 				return nil, fmt.Errorf("invalid content found in built zip package: %w", err)
 			}

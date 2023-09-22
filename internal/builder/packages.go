@@ -12,12 +12,11 @@ import (
 
 	"github.com/magefile/mage/sh"
 
-	"github.com/elastic/package-spec/v2/code/go/pkg/validator"
-
 	"github.com/elastic/elastic-package/internal/environment"
 	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/internal/validation"
 )
 
 const builtPackagesFolder = "packages"
@@ -195,7 +194,7 @@ func BuildPackage(options BuildOptions) (string, error) {
 	}
 
 	logger.Debugf("Validating built package (path: %s)", destinationDir)
-	err = validator.ValidateFromPath(destinationDir)
+	err = validation.ValidateAndFilterFromPath(destinationDir)
 	if err != nil {
 		return "", fmt.Errorf("invalid content found in built package: %w", err)
 	}
@@ -218,7 +217,7 @@ func buildZippedPackage(options BuildOptions, destinationDir string) (string, er
 		logger.Debug("Skip validation of the built .zip package")
 	} else {
 		logger.Debugf("Validating built .zip package (path: %s)", zippedPackagePath)
-		err = validator.ValidateFromZip(zippedPackagePath)
+		err = validation.ValidateAndFilterFromZip(zippedPackagePath)
 		if err != nil {
 			return "", fmt.Errorf("invalid content found in built zip package: %w", err)
 		}
