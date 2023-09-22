@@ -61,7 +61,7 @@ func filterErrors(allErrors error, rootPath, configPath string) (error, error) {
 		return allErrors, nil
 	}
 
-	config, err := processors.LoadConfigFilter(configPath)
+	config, err := processors.LoadConfigFilter(fsys, configPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read config filter: %w", err)
 	}
