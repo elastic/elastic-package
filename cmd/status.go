@@ -32,8 +32,9 @@ package directory and reports its status.`
 
 const (
 	kibanaVersionParameter             = "kibana.version"
-	categoriesParamter                 = "categories"
+	categoriesParameter                = "categories"
 	elasticsearchSubscriptionParameter = "elastic.subscription"
+	serverlessProjectTypesParameter    = "serverless.project_types"
 )
 
 var (
@@ -43,7 +44,7 @@ var (
 
 	availableExtraInfoParameters = []string{
 		kibanaVersionParameter,
-		categoriesParamter,
+		categoriesParameter,
 		elasticsearchSubscriptionParameter,
 	}
 )
@@ -256,7 +257,7 @@ func formatManifest(environment string, manifest packages.PackageManifest, extra
 		switch param {
 		case kibanaVersionParameter:
 			data = append(data, manifest.Conditions.Kibana.Version)
-		case categoriesParamter:
+		case categoriesParameter:
 			data = append(data, strings.Join(manifest.Categories, ","))
 		case elasticsearchSubscriptionParameter:
 			data = append(data, manifest.Conditions.Elastic.Subscription)

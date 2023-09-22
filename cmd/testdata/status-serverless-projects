@@ -1,0 +1,7 @@
+Package: foo
+Package Versions:
++-------------+---------+---------+-------+-----------------+--------------------------+
+| ENVIRONMENT | VERSION | RELEASE | TITLE |   DESCRIPTION   | SERVERLESS PROJECT TYPES |
++-------------+---------+---------+-------+-----------------+--------------------------+
+| Production  | 1.0.0   | GA      | Foo   | Foo integration | observability, security  |
++-------------+---------+---------+-------+-----------------+--------------------------+
