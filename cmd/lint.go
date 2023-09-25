@@ -69,5 +69,8 @@ func validateSourceCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("locating package root failed: %w", err)
 	}
 	err = validation.ValidateAndFilterFromPath(packageRootPath)
-	return fmt.Errorf("linting package failed: %w", err)
+	if err != nil {
+		return fmt.Errorf("linting package failed: %w", err)
+	}
+	return nil
 }
