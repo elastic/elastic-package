@@ -1,6 +1,7 @@
 package validation
 
 import (
+	"archive/zip"
 	"fmt"
 	"io/fs"
 	"os"
@@ -11,7 +12,7 @@ import (
 	"github.com/elastic/package-spec/v2/code/go/pkg/validator"
 )
 
-const configFilterPath = "_dev/filter.yml"
+const configErrorsPath = "errors.yml"
 
 func ValidateFromPath(rootPath string) error {
 	return validator.ValidateFromPath(rootPath)
@@ -27,7 +28,8 @@ func ValidateAndFilterFromPath(rootPath string) error {
 		return nil
 	}
 
-	errors, err := filterErrors(allErrors, rootPath, configFilterPath)
+	fsys := os.DirFS(rootPath)
+	errors, err := filterErrors(allErrors, fsys, configErrorsPath)
 	if err != nil {
 		return err
 	}
@@ -40,20 +42,45 @@ func ValidateAndFilterFromZip(packagePath string) error {
 		return nil
 	}
 
-	errors, err := filterErrors(allErrors, packagePath, configFilterPath)
+	fsys, err := zip.OpenReader(packagePath)
+	if err != nil {
+		return fmt.Errorf("failed to open zip file (%s): %w", packagePath, err)
+	}
+	defer fsys.Close()
+
+	fsZip, err := fsFromPackageZip(fsys)
+	if err != nil {
+		return fmt.Errorf("failed to extract filesystem from zip file (%s): %w", packagePath, err)
+	}
+
+	errors, err := filterErrors(allErrors, fsZip, configErrorsPath)
 	if err != nil {
 		return err
 	}
 	return errors
 }
 
-func filterErrors(allErrors error, rootPath, configPath string) (error, error) {
+func fsFromPackageZip(fsys fs.FS) (fs.FS, error) {
+	dirs, err := fs.ReadDir(fsys, ".")
+	if err != nil {
+		return nil, fmt.Errorf("failed to read root directory in zip file fs: %w", err)
+	}
+	if len(dirs) != 1 {
+		return nil, fmt.Errorf("a single directory is expected in zip file, %d found", len(dirs))
+	}
+
+	subDir, err := fs.Sub(fsys, dirs[0].Name())
+	if err != nil {
+		return nil, err
+	}
+	return subDir, nil
+}
+
+func filterErrors(allErrors error, fsys fs.FS, configPath string) (error, error) {
 	errs, ok := allErrors.(ve.ValidationErrors)
 	if !ok {
 		return allErrors, nil
 	}
-
-	fsys := os.DirFS(rootPath)
 
 	_, err := fs.Stat(fsys, configPath)
 	if err != nil {
