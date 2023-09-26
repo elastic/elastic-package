@@ -514,9 +514,9 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	logger.Debug("creating test policy...")
 	testTime := time.Now().Format("20060102T15:04:05Z")
 
-	// Assign the data_output_id to the agent policy to configure the output to logstash or a default as elasticsearch
+	// Assign the data_output_id to the agent policy to configure the output to logstash or a default as elasticsearch. The values are inferred from stack/_static/kibana.yml.tmpl
 	var elasticAgentDataOutputId string
-	if r.options.Profile.Config("stack.logstash_enabled", "false") == "true" {
+	if strings.Compare(r.options.Profile.Config("stack.logstash_enabled", "false"), "true") == 0 {
 		elasticAgentDataOutputId = "fleet-logstash-output"
 	} else {
 		elasticAgentDataOutputId = "fleet-default-output"
