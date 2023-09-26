@@ -10,10 +10,11 @@ import (
 	"io/fs"
 	"os"
 
-	"github.com/elastic/elastic-package/internal/logger"
 	ve "github.com/elastic/package-spec/v2/code/go/pkg/errors"
 	"github.com/elastic/package-spec/v2/code/go/pkg/errors/processors"
 	"github.com/elastic/package-spec/v2/code/go/pkg/validator"
+
+	"github.com/elastic/elastic-package/internal/logger"
 )
 
 const configErrorsPath = "errors.yml"
