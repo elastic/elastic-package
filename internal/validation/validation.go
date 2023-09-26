@@ -10,8 +10,8 @@ import (
 	"io/fs"
 	"os"
 
-	ve "github.com/elastic/package-spec/v2/code/go/pkg/errors"
-	"github.com/elastic/package-spec/v2/code/go/pkg/errors/processors"
+	"github.com/elastic/package-spec/v2/code/go/pkg/specerrors"
+	"github.com/elastic/package-spec/v2/code/go/pkg/specerrors/processors"
 	"github.com/elastic/package-spec/v2/code/go/pkg/validator"
 
 	"github.com/elastic/elastic-package/internal/logger"
@@ -82,7 +82,7 @@ func fsFromPackageZip(fsys fs.FS) (fs.FS, error) {
 }
 
 func filterErrors(allErrors error, fsys fs.FS, configPath string) (error, error, error) {
-	errs, ok := allErrors.(ve.ValidationErrors)
+	errs, ok := allErrors.(specerrors.ValidationErrors)
 	if !ok {
 		return allErrors, nil, nil
 	}
