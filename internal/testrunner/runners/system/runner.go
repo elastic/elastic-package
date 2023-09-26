@@ -513,10 +513,20 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	// Configure package (single data stream) via Ingest Manager APIs.
 	logger.Debug("creating test policy...")
 	testTime := time.Now().Format("20060102T15:04:05Z")
+
+	// Assign the data_output_id to the agent policy to configure the output to logstash or a default as elasticsearch
+	var elasticAgentDataOutputId string
+	if r.options.Profile.Config("stack.logstash_enabled", "false") == "true" {
+		elasticAgentDataOutputId = "fleet-logstash-output"
+	} else {
+		elasticAgentDataOutputId = "fleet-default-output"
+	}
+
 	p := kibana.Policy{
-		Name:        fmt.Sprintf("ep-test-system-%s-%s-%s", r.options.TestFolder.Package, r.options.TestFolder.DataStream, testTime),
-		Description: fmt.Sprintf("test policy created by elastic-package test system for data stream %s/%s", r.options.TestFolder.Package, r.options.TestFolder.DataStream),
-		Namespace:   "ep",
+		Name:         fmt.Sprintf("ep-test-system-%s-%s-%s", r.options.TestFolder.Package, r.options.TestFolder.DataStream, testTime),
+		Description:  fmt.Sprintf("test policy created by elastic-package test system for data stream %s/%s", r.options.TestFolder.Package, r.options.TestFolder.DataStream),
+		Namespace:    "ep",
+		DataOutputID: elasticAgentDataOutputId,
 	}
 	policy, err := r.options.KibanaClient.CreatePolicy(p)
 	if err != nil {
