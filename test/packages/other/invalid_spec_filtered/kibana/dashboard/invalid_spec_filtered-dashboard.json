@@ -1,28 +1,28 @@
 {
-  "attributes": {
-    "description": "Overview of Invalid spec filtered",
-    "hits": 0,
-    "kibanaSavedObjectMeta": {
-      "searchSourceJSON": {
-        "filter": [],
-        "query": {
-          "language": "kuery",
-          "query": "data_stream.dataset: invalid_spec.log"
-        }
-      }
+    "attributes": {
+        "description": "Overview of Invalid spec filtered",
+        "hits": 0,
+        "kibanaSavedObjectMeta": {
+            "searchSourceJSON": {
+                "filter": [],
+                "query": {
+                    "language": "kuery",
+                    "query": "data_stream.dataset: invalid_spec.log"
+                }
+            }
+        },
+        "timeRestore": false,
+        "title": "[Invalid spec filtered] Overview",
+        "version": 1
     },
-    "timeRestore": false,
-    "title": "[Invalid spec filtered] Overview",
-    "version": 1
-  },
-  "coreMigrationVersion": "8.3.0",
-  "id": "invalid_spec_filtered-dashboard",
-  "type": "dashboard",
-  "references": [
-    {
-      "id": "mytag-0",
-      "name": "mytag-0",
-      "type": "tag"
-    }
-  ]
+    "coreMigrationVersion": "8.3.0",
+    "id": "invalid_spec_filtered-dashboard",
+    "type": "dashboard",
+    "references": [
+        {
+            "id": "mytag-0",
+            "name": "mytag-0",
+            "type": "tag"
+        }
+    ]
 }
