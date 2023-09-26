@@ -17,7 +17,7 @@ import (
 	"github.com/elastic/elastic-package/internal/logger"
 )
 
-const configErrorsPath = "errors.yml"
+const validationConfigPath = "validation.yml"
 
 func ValidateFromPath(rootPath string) error {
 	return validator.ValidateFromPath(rootPath)
@@ -34,7 +34,7 @@ func ValidateAndFilterFromPath(rootPath string) (error, error) {
 	}
 
 	fsys := os.DirFS(rootPath)
-	errors, skipped, err := filterErrors(allErrors, fsys, configErrorsPath)
+	errors, skipped, err := filterErrors(allErrors, fsys, validationConfigPath)
 	if err != nil {
 		return err, nil
 	}
@@ -58,7 +58,7 @@ func ValidateAndFilterFromZip(packagePath string) (error, error) {
 		return fmt.Errorf("failed to extract filesystem from zip file (%s): %w", packagePath, err), nil
 	}
 
-	errors, skipped, err := filterErrors(allErrors, fsZip, configErrorsPath)
+	errors, skipped, err := filterErrors(allErrors, fsZip, validationConfigPath)
 	if err != nil {
 		return err, nil
 	}
