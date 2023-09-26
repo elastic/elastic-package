@@ -168,7 +168,7 @@ services:
       - "../certs/elasticsearch/cert.pem:/usr/share/logstash/config/certs/elasticsearch.pem"
       - "./logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro"
     ports:
-       - "127.0.0.1:9600:9600"
+       - "127.0.0.1:5044:5044"
     environment:
       - xpack.monitoring.enabled=false
       - ELASTIC_USER=elastic

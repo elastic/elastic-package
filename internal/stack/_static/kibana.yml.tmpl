@@ -84,6 +84,6 @@ xpack.fleet.outputs:
   - id: fleet-logstash-output
     name: logstash-output
     type: logstash
-    hosts: [ 127.0.0.1:9600 ]
+    hosts: [ logstash:5044 ]
   {{ end }}
 {{ end }}
