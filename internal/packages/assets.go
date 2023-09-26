@@ -135,9 +135,14 @@ func loadElasticsearchAssets(pkgRootPath string) ([]Asset, error) {
 				continue // ingest pipeline is not defined
 			}
 
+			// If no dataset value is set in the manifest, it falls back to {packageName}.{dirName}
+			if dsManifest.Dataset == "" {
+				dsManifest.Dataset = fmt.Sprintf("%s.%s", pkgManifest.Name, dsManifest.Name)
+			}
+
 			ingestPipelineName := dsManifest.GetPipelineNameOrDefault()
 			if ingestPipelineName == defaultPipelineName {
-				ingestPipelineName = fmt.Sprintf("%s-%s.%s-%s", dsManifest.Type, pkgManifest.Name, dsManifest.Name, pkgManifest.Version)
+				ingestPipelineName = fmt.Sprintf("%s-%s-%s", dsManifest.Type, dsManifest.Dataset, pkgManifest.Version)
 			}
 			asset = Asset{
 				ID:         ingestPipelineName,

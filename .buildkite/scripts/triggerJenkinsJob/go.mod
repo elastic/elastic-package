@@ -1,6 +1,6 @@
 module github.com/elastic/trigger-jenkins-buildkite-plugin
 
-go 1.20
+go 1.21.0
 
 require github.com/bndr/gojenkins v1.1.0
 

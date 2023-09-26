@@ -8,19 +8,36 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/Masterminds/semver/v3"
+
+	"github.com/elastic/elastic-package/internal/packages"
 )
 
 type formatter func(content []byte) ([]byte, bool, error)
 
-var formatters = map[string]formatter{
-	".json": JSONFormatter,
-	".yaml": YAMLFormatter,
-	".yml":  YAMLFormatter,
+func newFormatter(specVersion semver.Version, ext string) formatter {
+	switch ext {
+	case ".json":
+		return JSONFormatterBuilder(specVersion).Format
+	case ".yaml", ".yml":
+		return YAMLFormatter
+	default:
+		return nil
+	}
 }
 
 // Format method formats files inside of the integration directory.
 func Format(packageRoot string, failFast bool) error {
-	err := filepath.Walk(packageRoot, func(path string, info os.FileInfo, err error) error {
+	manifest, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
+	if err != nil {
+		return fmt.Errorf("failed to read package manifest: %w", err)
+	}
+	specVersion, err := semver.NewVersion(manifest.SpecVersion)
+	if err != nil {
+		return fmt.Errorf("failed to parse package format version %q: %w", manifest.SpecVersion, err)
+	}
+	err = filepath.Walk(packageRoot, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -31,7 +48,7 @@ func Format(packageRoot string, failFast bool) error {
 		if info.IsDir() {
 			return nil
 		}
-		err = formatFile(path, failFast)
+		err = formatFile(path, failFast, *specVersion)
 		if err != nil {
 			return fmt.Errorf("formatting file failed (path: %s): %w", path, err)
 		}
@@ -44,17 +61,15 @@ func Format(packageRoot string, failFast bool) error {
 	return nil
 }
 
-func formatFile(path string, failFast bool) error {
-	file := filepath.Base(path)
-	ext := filepath.Ext(file)
-
+func formatFile(path string, failFast bool, specVersion semver.Version) error {
 	content, err := os.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("reading file content failed: %w", err)
 	}
 
-	format, defined := formatters[ext]
-	if !defined {
+	ext := filepath.Ext(filepath.Base(path))
+	format := newFormatter(specVersion, ext)
+	if format == nil {
 		return nil // no errors returned as we have few files that will be never formatted (png, svg, log, etc.)
 	}
 

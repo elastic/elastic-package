@@ -11,11 +11,16 @@ import (
 
 	"gopkg.in/yaml.v3"
 
+	"github.com/Masterminds/semver/v3"
+
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/fields"
 	"github.com/elastic/elastic-package/internal/logger"
+	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/packages/buildmanifest"
 )
+
+var semver3_0_0 = semver.MustParse("3.0.0")
 
 func resolveExternalFields(packageRoot, destinationDir string) error {
 	bm, ok, err := buildmanifest.ReadBuildManifest(packageRoot)
@@ -42,6 +47,19 @@ func resolveExternalFields(packageRoot, destinationDir string) error {
 		return fmt.Errorf("failed to list fields files under \"%s\": %w", destinationDir, err)
 	}
 
+	manifest, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
+	if err != nil {
+		return fmt.Errorf("failed to read package manifest from \"%s\"", packageRoot)
+	}
+	sv, err := semver.NewVersion(manifest.SpecVersion)
+	if err != nil {
+		return fmt.Errorf("failed to obtain spec version from package manifest in \"%s\"", packageRoot)
+	}
+	var options fields.InjectFieldsOptions
+	if !sv.LessThan(semver3_0_0) {
+		options.DisallowReusableECSFieldsAtTopLevel = true
+	}
+
 	for _, file := range fieldsFiles {
 		data, err := os.ReadFile(file)
 		if err != nil {
@@ -49,7 +67,7 @@ func resolveExternalFields(packageRoot, destinationDir string) error {
 		}
 
 		rel, _ := filepath.Rel(destinationDir, file)
-		output, injected, err := injectFields(fdm, data)
+		output, injected, err := injectFields(fdm, data, options)
 		if err != nil {
 			return err
 		} else if injected {
@@ -89,14 +107,14 @@ func listAllFieldsFiles(dir string) ([]string, error) {
 	return paths, nil
 }
 
-func injectFields(fdm *fields.DependencyManager, content []byte) ([]byte, bool, error) {
+func injectFields(fdm *fields.DependencyManager, content []byte, options fields.InjectFieldsOptions) ([]byte, bool, error) {
 	var f []common.MapStr
 	err := yaml.Unmarshal(content, &f)
 	if err != nil {
 		return nil, false, fmt.Errorf("can't unmarshal source file: %w", err)
 	}
 
-	f, changed, err := fdm.InjectFields(f)
+	f, changed, err := fdm.InjectFieldsWithOptions(f, options)
 	if err != nil {
 		return nil, false, fmt.Errorf("can't resolve fields: %w", err)
 	}

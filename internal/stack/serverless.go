@@ -8,10 +8,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
-	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/compose"
 	"github.com/elastic/elastic-package/internal/docker"
 	"github.com/elastic/elastic-package/internal/elasticsearch"
@@ -229,7 +229,7 @@ func (sp *serverlessProvider) BootUp(options Options) error {
 		return err
 	}
 
-	if !common.StringSliceContains(allowedProjectTypes, settings.Type) {
+	if !slices.Contains(allowedProjectTypes, settings.Type) {
 		return fmt.Errorf("serverless project type not supported: %s", settings.Type)
 	}
 

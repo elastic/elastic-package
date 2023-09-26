@@ -37,6 +37,10 @@ type versionLatest struct {
 	Timestamp time.Time `json:"timestamp"`
 }
 
+func (v versionLatest) String() string {
+	return fmt.Sprintf("%s. Download from: %s (Timestamp %s)", v.TagName, v.HtmlURL, v.Timestamp)
+}
+
 // CheckUpdate function checks using Github Release API if newer version is available.
 func CheckUpdate() {
 	if Tag == "" {
@@ -55,7 +59,7 @@ func CheckUpdate() {
 	latestVersion, err := loadCacheLatestVersion()
 	switch {
 	case err != nil:
-		logger.Debug("failed to load latest version from cache: %v", err)
+		logger.Debugf("failed to load latest version from cache: %v", err.Error())
 	default:
 		expired = checkCachedLatestVersion(latestVersion, defaultCacheDuration)
 	}
@@ -63,7 +67,7 @@ func CheckUpdate() {
 	var release *versionLatest
 	switch {
 	case !expired:
-		logger.Debugf("latest version (cached): %s", latestVersion)
+		logger.Debugf("latest version (cached): %s", latestVersion.String())
 		release = latestVersion
 	default:
 		logger.Debugf("checking latest release in Github")
@@ -135,7 +139,7 @@ func loadCacheLatestVersion() (*versionLatest, error) {
 	latestVersionPath := filepath.Join(elasticPackagePath.RootDir(), latestVersionFile)
 	contents, err := os.ReadFile(latestVersionPath)
 	if err != nil {
-		logger.Warnf("reading version file failed: %w", err.Error())
+		logger.Warnf("reading version file failed: %v", err.Error())
 		return nil, fmt.Errorf("reading version file failed: %w", err)
 	}
 

@@ -13,11 +13,12 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/google/go-cmp/cmp"
-
 	"github.com/pmezard/go-difflib/difflib"
 
 	"github.com/elastic/elastic-package/internal/common"
+	"github.com/elastic/elastic-package/internal/formatter"
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
 
@@ -50,11 +51,11 @@ type testResultDefinition struct {
 	Expected []json.RawMessage `json:"expected"`
 }
 
-func writeTestResult(testCasePath string, result *testResult) error {
+func writeTestResult(testCasePath string, result *testResult, specVersion semver.Version) error {
 	testCaseDir := filepath.Dir(testCasePath)
 	testCaseFile := filepath.Base(testCasePath)
 
-	data, err := marshalTestResultDefinition(result)
+	data, err := marshalTestResultDefinition(result, specVersion)
 	if err != nil {
 		return fmt.Errorf("marshalling test result failed: %w", err)
 	}
@@ -65,13 +66,13 @@ func writeTestResult(testCasePath string, result *testResult) error {
 	return nil
 }
 
-func compareResults(testCasePath string, config *testConfig, result *testResult, skipGeoip bool) error {
+func compareResults(testCasePath string, config *testConfig, result *testResult, skipGeoip bool, specVersion semver.Version) error {
 	resultsWithoutDynamicFields, err := adjustTestResult(result, config, skipGeoip)
 	if err != nil {
 		return fmt.Errorf("can't adjust test results: %w", err)
 	}
 
-	actual, err := marshalTestResultDefinition(resultsWithoutDynamicFields)
+	actual, err := marshalTestResultDefinition(resultsWithoutDynamicFields, specVersion)
 	if err != nil {
 		return fmt.Errorf("marshalling actual test results failed: %w", err)
 	}
@@ -81,12 +82,12 @@ func compareResults(testCasePath string, config *testConfig, result *testResult,
 		return fmt.Errorf("reading expected test result failed: %w", err)
 	}
 
-	expected, err := marshalTestResultDefinition(expectedResults)
+	expected, err := marshalTestResultDefinition(expectedResults, specVersion)
 	if err != nil {
 		return fmt.Errorf("marshalling expected test results failed: %w", err)
 	}
 
-	report, err := diffJson(expected, actual)
+	report, err := diffJson(expected, actual, specVersion)
 	if err != nil {
 		return fmt.Errorf("comparing expected test result: %w", err)
 	}
@@ -123,7 +124,7 @@ func compareJsonNumbers(a, b json.Number) bool {
 	return false
 }
 
-func diffJson(want, got []byte) (string, error) {
+func diffJson(want, got []byte, specVersion semver.Version) (string, error) {
 	var gotVal, wantVal interface{}
 	err := jsonUnmarshalUsingNumber(want, &wantVal)
 	if err != nil {
@@ -137,11 +138,11 @@ func diffJson(want, got []byte) (string, error) {
 		return "", nil
 	}
 
-	got, err = marshalNormalizedJSON(gotVal)
+	got, err = marshalNormalizedJSON(gotVal, specVersion)
 	if err != nil {
 		return "", err
 	}
-	want, err = marshalNormalizedJSON(wantVal)
+	want, err = marshalNormalizedJSON(wantVal, specVersion)
 	if err != nil {
 		return "", err
 	}
@@ -259,10 +260,10 @@ func jsonUnmarshalUsingNumber(data []byte, v interface{}) error {
 	return nil
 }
 
-func marshalTestResultDefinition(result *testResult) ([]byte, error) {
+func marshalTestResultDefinition(result *testResult, specVersion semver.Version) ([]byte, error) {
 	var trd testResultDefinition
 	trd.Expected = result.events
-	body, err := marshalNormalizedJSON(trd)
+	body, err := marshalNormalizedJSON(trd, specVersion)
 	if err != nil {
 		return nil, fmt.Errorf("marshalling test result definition failed: %w", err)
 	}
@@ -272,17 +273,20 @@ func marshalTestResultDefinition(result *testResult) ([]byte, error) {
 // marshalNormalizedJSON marshals test results ensuring that field
 // order remains consistent independent of field order returned by
 // ES to minimize diff noise during changes.
-func marshalNormalizedJSON(v interface{}) ([]byte, error) {
-	msg, err := json.Marshal(v)
+func marshalNormalizedJSON(v interface{}, specVersion semver.Version) ([]byte, error) {
+	jsonFormatter := formatter.JSONFormatterBuilder(specVersion)
+	msg, err := jsonFormatter.Encode(v)
 	if err != nil {
 		return msg, err
 	}
+
 	var obj interface{}
 	err = jsonUnmarshalUsingNumber(msg, &obj)
 	if err != nil {
 		return msg, err
 	}
-	return json.MarshalIndent(obj, "", "    ")
+
+	return jsonFormatter.Encode(obj)
 }
 
 func expectedTestResultFile(testFile string) string {
