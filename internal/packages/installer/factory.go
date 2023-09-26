@@ -60,9 +60,12 @@ func NewForPackage(options Options) (Installer, error) {
 		}
 		if !options.SkipValidation {
 			logger.Debugf("Validating built .zip package (path: %s)", options.ZipPath)
-			err := validation.ValidateAndFilterFromZip(options.ZipPath)
-			if err != nil {
-				return nil, fmt.Errorf("invalid content found in built zip package: %w", err)
+			errs, skipped := validation.ValidateAndFilterFromZip(options.ZipPath)
+			if skipped != nil {
+				logger.Infof("skipped errors: %v", skipped)
+			}
+			if errs != nil {
+				return nil, fmt.Errorf("invalid content found in built zip package: %w", errs)
 			}
 		}
 		logger.Debug("Skip validation of the built .zip package")

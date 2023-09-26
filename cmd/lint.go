@@ -12,6 +12,7 @@ import (
 
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/docs"
+	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/validation"
 )
@@ -68,9 +69,12 @@ func validateSourceCommandAction(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("locating package root failed: %w", err)
 	}
-	err = validation.ValidateAndFilterFromPath(packageRootPath)
-	if err != nil {
-		return fmt.Errorf("linting package failed: %w", err)
+	errs, skipped := validation.ValidateAndFilterFromPath(packageRootPath)
+	if skipped != nil {
+		logger.Infof("skipped errors: %v", skipped)
+	}
+	if errs != nil {
+		return fmt.Errorf("linting package failed: %w", errs)
 	}
 	return nil
 }

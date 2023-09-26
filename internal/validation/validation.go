@@ -27,42 +27,42 @@ func ValidateFromZip(packagePath string) error {
 	return validator.ValidateFromPath(packagePath)
 }
 
-func ValidateAndFilterFromPath(rootPath string) error {
+func ValidateAndFilterFromPath(rootPath string) (error, error) {
 	allErrors := validator.ValidateFromPath(rootPath)
 	if allErrors == nil {
-		return nil
+		return nil, nil
 	}
 
 	fsys := os.DirFS(rootPath)
-	errors, err := filterErrors(allErrors, fsys, configErrorsPath)
+	errors, skipped, err := filterErrors(allErrors, fsys, configErrorsPath)
 	if err != nil {
-		return err
+		return err, nil
 	}
-	return errors
+	return errors, skipped
 }
 
-func ValidateAndFilterFromZip(packagePath string) error {
+func ValidateAndFilterFromZip(packagePath string) (error, error) {
 	allErrors := validator.ValidateFromZip(packagePath)
 	if allErrors == nil {
-		return nil
+		return nil, nil
 	}
 
 	fsys, err := zip.OpenReader(packagePath)
 	if err != nil {
-		return fmt.Errorf("failed to open zip file (%s): %w", packagePath, err)
+		return fmt.Errorf("failed to open zip file (%s): %w", packagePath, err), nil
 	}
 	defer fsys.Close()
 
 	fsZip, err := fsFromPackageZip(fsys)
 	if err != nil {
-		return fmt.Errorf("failed to extract filesystem from zip file (%s): %w", packagePath, err)
+		return fmt.Errorf("failed to extract filesystem from zip file (%s): %w", packagePath, err), nil
 	}
 
-	errors, err := filterErrors(allErrors, fsZip, configErrorsPath)
+	errors, skipped, err := filterErrors(allErrors, fsZip, configErrorsPath)
 	if err != nil {
-		return err
+		return err, nil
 	}
-	return errors
+	return errors, skipped
 }
 
 func fsFromPackageZip(fsys fs.FS) (fs.FS, error) {
@@ -81,28 +81,28 @@ func fsFromPackageZip(fsys fs.FS) (fs.FS, error) {
 	return subDir, nil
 }
 
-func filterErrors(allErrors error, fsys fs.FS, configPath string) (error, error) {
+func filterErrors(allErrors error, fsys fs.FS, configPath string) (error, error, error) {
 	errs, ok := allErrors.(ve.ValidationErrors)
 	if !ok {
-		return allErrors, nil
+		return allErrors, nil, nil
 	}
 
 	_, err := fs.Stat(fsys, configPath)
 	if err != nil {
 		logger.Debugf("file not found: %s", configPath)
-		return allErrors, nil
+		return allErrors, nil, nil
 	}
 
 	config, err := processors.LoadConfigFilter(fsys, configPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read config filter: %w", err)
+		return nil, nil, fmt.Errorf("failed to read config filter: %w", err)
 	}
 
 	filter := processors.NewFilter(config)
 
-	filteredErrors, _, err := filter.Run(errs)
+	filteredErrors, skippedErrors, err := filter.Run(errs)
 	if err != nil {
-		return nil, fmt.Errorf("failed to filter errors: %w", err)
+		return nil, nil, fmt.Errorf("failed to filter errors: %w", err)
 	}
-	return filteredErrors, nil
+	return filteredErrors, skippedErrors, nil
 }
