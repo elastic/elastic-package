@@ -20,7 +20,9 @@ xpack.fleet.agents.elasticsearch.host: "https://elasticsearch:9200"
 elasticsearch.serviceAccountToken: "AAEAAWVsYXN0aWMva2liYW5hL2VsYXN0aWMtcGFja2FnZS1raWJhbmEtdG9rZW46b2x4b051SWNRa0tYMHdXazdLWmFBdw"
 
 monitoring.ui.container.elasticsearch.enabled: true
+{{ end }}
 
+{{ if and (not (semverLessThan $version "8.0.0")) (semverLessThan $version "8.11.0-SNAPSHOT") }}
 xpack.fleet.agents.elasticsearch.hosts: ["https://elasticsearch:9200"]
 {{ end }}
 
