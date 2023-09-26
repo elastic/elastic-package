@@ -8,8 +8,10 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/spf13/cobra"
 
+	spec "github.com/elastic/package-spec/v2"
 	"github.com/elastic/package-spec/v2/code/go/pkg/validator"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
@@ -69,9 +71,43 @@ func validateSourceCommandAction(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("locating package root failed: %w", err)
 	}
+
+	err = validateSpecVersion(packageRootPath)
+	if err != nil {
+		return err
+	}
+
 	err = validator.ValidateFromPath(packageRootPath)
 	if err != nil {
 		return fmt.Errorf("linting package failed: %w", err)
+	}
+
+	return nil
+}
+
+func validateSpecVersion(packageRootPath string) error {
+	manifest, err := packages.ReadPackageManifestFromPackageRoot(packageRootPath)
+	if err != nil {
+		return fmt.Errorf("reading manifest failed: %w", err)
+	}
+	version, err := semver.NewVersion(manifest.Version)
+	if err != nil {
+		return fmt.Errorf("parsing format version %q failed: %w", manifest.SpecVersion, err)
+	}
+	specVersion, err := semver.NewVersion(manifest.SpecVersion)
+	if err != nil {
+		return fmt.Errorf("parsing format version %q failed: %w", manifest.SpecVersion, err)
+	}
+
+	if version.Prerelease() == "" && !specVersion.LessThan(semver.MustParse("3.0.0")) {
+		completeVersion, err := spec.CheckVersion(*specVersion)
+		if err != nil {
+			return fmt.Errorf("checking spec version failed: %w", err)
+		}
+
+		if completeVersion.Prerelease() != "" {
+			return fmt.Errorf("using non-GA Package Spec v%s for GA package", completeVersion)
+		}
 	}
 
 	return nil
