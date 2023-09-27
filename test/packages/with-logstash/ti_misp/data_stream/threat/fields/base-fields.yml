@@ -27,5 +27,5 @@
   type: date
   description: Event timestamp.
 - name: "@version"
-  type: string
+  type: text
   description: Event version.

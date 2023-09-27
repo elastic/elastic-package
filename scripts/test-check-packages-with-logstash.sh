@@ -8,11 +8,11 @@ function cleanup() {
   # Dump stack logs
   elastic-package stack dump -v --output "build/elastic-stack-dump/check-${PACKAGE_UNDER_TEST:-${PACKAGE_TEST_TYPE:-*}}"
 
-  # Delete the logstash profile
-  elastic-package profiles delete logstash -v
-
   # Take down the stack
   elastic-package stack down -v
+
+  # Delete the logstash profile
+  elastic-package profiles delete logstash -v
 
   # Clean used resources
   for d in test/packages/${PACKAGE_TEST_TYPE:-with-logstash}/${PACKAGE_UNDER_TEST:-*}/; do
