@@ -16,8 +16,11 @@ function cleanup() {
 
   # Clean used resources
   for d in test/packages/${PACKAGE_TEST_TYPE:-with-logstash}/${PACKAGE_UNDER_TEST:-*}/; do
+  (
     cd $d
     elastic-package clean -v
+  )
+  cd -
   done
 
   exit $r
@@ -26,6 +29,7 @@ function cleanup() {
 trap cleanup EXIT
 
 export ELASTIC_PACKAGE_LINKS_FILE_PATH="$(pwd)/scripts/links_table.yml"
+OLDPWD=$PWD
 
 # Create a logstash profile and use it
 elastic-package profiles create logstash -v
@@ -47,6 +51,9 @@ elastic-package stack status
 
 # Run package tests
 for d in test/packages/${PACKAGE_TEST_TYPE:-with-logstash}/${PACKAGE_UNDER_TEST:-*}/; do
+(
   cd $d
   elastic-package test -v --report-format xUnit --report-output file --defer-cleanup 1s --test-coverage
+)
+cd -
 done
