@@ -196,7 +196,7 @@ func BuildPackage(options BuildOptions) (string, error) {
 	logger.Debugf("Validating built package (path: %s)", destinationDir)
 	errs, skipped := validation.ValidateAndFilterFromPath(destinationDir)
 	if skipped != nil {
-		logger.Infof("skipped errors: %v", skipped)
+		logger.Infof("Skipped errors: %v", skipped)
 	}
 	if errs != nil {
 		return "", fmt.Errorf("invalid content found in built package: %w", errs)
@@ -222,7 +222,7 @@ func buildZippedPackage(options BuildOptions, destinationDir string) (string, er
 		logger.Debugf("Validating built .zip package (path: %s)", zippedPackagePath)
 		errs, skipped := validation.ValidateAndFilterFromZip(zippedPackagePath)
 		if skipped != nil {
-			logger.Infof("skipped errors: %v", skipped)
+			logger.Infof("Skipped errors: %v", skipped)
 		}
 		if errs != nil {
 			return "", fmt.Errorf("invalid content found in built zip package: %w", errs)

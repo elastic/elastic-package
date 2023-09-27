@@ -71,7 +71,7 @@ func validateSourceCommandAction(cmd *cobra.Command, args []string) error {
 	}
 	errs, skipped := validation.ValidateAndFilterFromPath(packageRootPath)
 	if skipped != nil {
-		logger.Infof("skipped errors: %v", skipped)
+		logger.Infof("Skipped errors: %v", skipped)
 	}
 	if errs != nil {
 		return fmt.Errorf("linting package failed: %w", errs)
