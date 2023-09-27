@@ -579,6 +579,25 @@ Example `expected_errors` file content:
 <testcase name=\"system test: pagination\" classname=\"httpjson_false_positive_asserts.generic\" time=\".*\"> * <failure>observed hit count 4 did not match expected hit count 2</failure>
 ```
 
+### System testing with logstash
+
+It is possible to test packages that output to logstash which in turn publishes events to elasticsearch.
+A profile config option `stack.logstash_enabled` has been added to profile configuration.
+
+When this profile config is enabled
+- Logstash output is added in Fleet with id `fleet-logstash-output`
+- Logstash service is created in the stack which reads from `elastic-agent` input and outputs to `elasticsearch`.
+- Logstash is also configured with `elastic-integration` plugin. Once configured to point to an elasticsearch cluster, this filter will detect which ingest pipeline (if any) should be executed for each event, auto-detecting the event’s data-stream and its default pipeline.
+
+A sample workflow would look like:
+
+- You can [create](https://github.com/elastic/elastic-package#elastic-package-profiles-create) a new profile / [use existing profile](https://github.com/elastic/elastic-package#elastic-package-profiles-use) to test this.
+- Navigate to `~/.elastic-package/profiles/<profilename>/`.
+- Rename `config.yml.example` to `config.yml` [ If config is not used before ]
+- Uncomment the line `# stack.logstash_enabled: true`
+- Run `elastic-package stack up -d -v`
+- Navigate to the package folder in integrations and run `elastic-package test system -v`
+
 ## Continuous Integration
 
 `elastic-package` runs a set of system tests on some [dummy packages](https://github.com/elastic/elastic-package/tree/main/test/packages) to ensure it's functionalities work as expected. This allows to test changes affecting package testing within `elastic-package` before merging and releasing the changes.

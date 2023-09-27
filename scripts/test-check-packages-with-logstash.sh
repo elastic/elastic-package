@@ -16,10 +16,8 @@ function cleanup() {
 
   # Clean used resources
   for d in test/packages/${PACKAGE_TEST_TYPE:-with-logstash}/${PACKAGE_UNDER_TEST:-*}/; do
-    (
-      cd $d
-      elastic-package clean -v
-    )
+    cd $d
+    elastic-package clean -v
   done
 
   exit $r
@@ -34,9 +32,9 @@ elastic-package profiles create logstash -v
 elastic-package profiles use logstash
 
 # Rename the config.yml.example to config.yml
-mv ~/.elastic-package/profiles/logstash/config.yml.example ~/.elastic-package/profiles/logstash/config.yml -v
+mv ~/.elastic-package/profiles/logstash/config.yml.example ~/.elastic-package/profiles/logstash/config.yml
 
-# Add config to enable logstash
+# Append config to enable logstash
 echo "stack.logstash_enabled: true" >> ~/.elastic-package/profiles/logstash/config.yml
 
 # Update the stack
