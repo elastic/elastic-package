@@ -25,7 +25,6 @@ type Config struct {
 	ElasticsearchPassword string `json:"elasticsearch_password,omitempty"`
 	KibanaHost            string `json:"kibana_host,omitempty"`
 	CACertFile            string `json:"ca_cert_file,omitempty"`
-	LogstashHost          string `json:"logstash_host,omitempty"`
 }
 
 func configPath(profile *profile.Profile) string {
@@ -42,7 +41,6 @@ func defaultConfig(profile *profile.Profile) Config {
 		ElasticsearchPassword: elasticsearchPassword,
 		KibanaHost:            "https://127.0.0.1:5601",
 		CACertFile:            profile.Path(CACertificateFile),
-		LogstashHost:          "https://127.0.0.1:5044",
 	}
 }
 
