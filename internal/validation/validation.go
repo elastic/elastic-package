@@ -6,18 +6,14 @@ package validation
 
 import (
 	"archive/zip"
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
 
 	"github.com/elastic/package-spec/v2/code/go/pkg/specerrors"
-	"github.com/elastic/package-spec/v2/code/go/pkg/specerrors/processors"
 	"github.com/elastic/package-spec/v2/code/go/pkg/validator"
-
-	"github.com/elastic/elastic-package/internal/logger"
 )
-
-const validationConfigPath = "validation.yml"
 
 func ValidateFromPath(rootPath string) error {
 	return validator.ValidateFromPath(rootPath)
@@ -34,11 +30,11 @@ func ValidateAndFilterFromPath(rootPath string) (error, error) {
 	}
 
 	fsys := os.DirFS(rootPath)
-	errors, skipped, err := filterErrors(allErrors, fsys, validationConfigPath)
+	result, err := filterErrors(allErrors, fsys)
 	if err != nil {
 		return err, nil
 	}
-	return errors, skipped
+	return result.Processed, result.Removed
 }
 
 func ValidateAndFilterFromZip(packagePath string) (error, error) {
@@ -58,11 +54,11 @@ func ValidateAndFilterFromZip(packagePath string) (error, error) {
 		return fmt.Errorf("failed to extract filesystem from zip file (%s): %w", packagePath, err), nil
 	}
 
-	errors, skipped, err := filterErrors(allErrors, fsZip, validationConfigPath)
+	result, err := filterErrors(allErrors, fsZip)
 	if err != nil {
 		return err, nil
 	}
-	return errors, skipped
+	return result.Processed, result.Removed
 }
 
 func fsFromPackageZip(fsys fs.FS) (fs.FS, error) {
@@ -81,28 +77,31 @@ func fsFromPackageZip(fsys fs.FS) (fs.FS, error) {
 	return subDir, nil
 }
 
-func filterErrors(allErrors error, fsys fs.FS, configPath string) (error, error, error) {
+func filterErrors(allErrors error, fsys fs.FS) (specerrors.FilterResult, error) {
 	errs, ok := allErrors.(specerrors.ValidationErrors)
 	if !ok {
-		return allErrors, nil, nil
+		return specerrors.FilterResult{Processed: allErrors, Removed: nil}, nil
 	}
 
-	_, err := fs.Stat(fsys, configPath)
+	config, err := specerrors.LoadConfigFilter(fsys)
+	if err != nil && errors.Is(err, fs.ErrNotExist) {
+		return specerrors.FilterResult{Processed: allErrors, Removed: nil}, nil
+	}
 	if err != nil {
-		logger.Debugf("file not found: %s", configPath)
-		return allErrors, nil, nil
+		return specerrors.FilterResult{Processed: allErrors, Removed: nil},
+			fmt.Errorf("failed to read config filter: %w", err)
+	}
+	if config == nil {
+		return specerrors.FilterResult{Processed: allErrors, Removed: nil}, nil
 	}
 
-	config, err := processors.LoadConfigFilter(fsys, configPath)
+	filter := specerrors.NewFilter(config)
+
+	result, err := filter.Run(errs)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to read config filter: %w", err)
+		return specerrors.FilterResult{Processed: allErrors, Removed: nil},
+			fmt.Errorf("failed to filter errors: %w", err)
 	}
+	return result, nil
 
-	filter := processors.NewFilter(config)
-
-	filteredErrors, skippedErrors, err := filter.Run(errs)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to filter errors: %w", err)
-	}
-	return filteredErrors, skippedErrors, nil
 }
