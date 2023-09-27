@@ -82,7 +82,7 @@ test-check-packages-false-positives:
 	PACKAGE_TEST_TYPE=false_positives ./scripts/test-check-false-positives.sh
 
 test-check-packages-with-logstash:
-	PACKAGE_TEST_TYPE=with-logstash ./scripts/test-check-packages-with-logstash.sh
+	PACKAGE_TEST_TYPE=with-logstash ./scripts/test-check-packages.sh
 
 test-check-packages-benchmarks:
 	PACKAGE_TEST_TYPE=benchmarks ./scripts/test-check-packages.sh
