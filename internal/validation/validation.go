@@ -24,7 +24,7 @@ func ValidateFromPath(rootPath string) error {
 }
 
 func ValidateFromZip(packagePath string) error {
-	return validator.ValidateFromPath(packagePath)
+	return validator.ValidateFromZip(packagePath)
 }
 
 func ValidateAndFilterFromPath(rootPath string) (error, error) {
