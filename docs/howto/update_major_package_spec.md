@@ -121,6 +121,23 @@ There are two variants of this error:
   between different dashboards, and to allow users to quickly filter using the
   query bar without affecting the provided filters.
 
+### "My Dashboard" contains legacy visualization: "My Visualization" (metric, TSVB)
+
+All visualizations must be created using [Lens](https://www.elastic.co/kibana/kibana-lens) or [Vega](https://www.elastic.co/guide/en/kibana/current/vega.html).
+
+The only exceptions are
+- markdown panels created from the dashboard application
+- TSVB markdown. Support will eventually be removed, but this is
+  currently allowed because we do not yet offer an alternative for
+  injecting analytics into markdown. Prefer the dashboard markdown
+  panels since there are no plans to deprecate those.
+
+Most legacy visualizations can be converted by selecting "Convert to Lens"
+from the dashboard panel context menu or by clicking "Edit visualization in Lens"
+after opening the visualization in the editor.
+
+The legacy "input-control-vis" must also be replaced by the new [dashboard controls](https://www.elastic.co/guide/en/kibana/current/add-controls.html).
+
 ## Troubleshooting upgrades to Package Spec v2
 
 ### field (root): Additional property license is not allowed
