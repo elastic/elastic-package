@@ -16,7 +16,6 @@ The filters themselves are based on the [MISP API documentation](https://www.cir
 | Field | Description | Type |
 |---|---|---|
 | @timestamp | Event timestamp. | date |
-| @version | Event version. | text |
 | cloud.account.id | The cloud account or organization id used to identify different entities in a multi-tenant environment. Examples: AWS account id, Google Cloud ORG Id, or other unique identifier. | keyword |
 | cloud.availability_zone | Availability zone in which this host is running. | keyword |
 | cloud.image.id | Image ID for the cloud instance. | keyword |
@@ -191,7 +190,7 @@ An example event for `threat` looks as following:
         "type": "logs"
     },
     "ecs": {
-        "version": "8.9.0"
+        "version": "8.10.0"
     },
     "elastic_agent": {
         "id": "5607d6f4-6e45-4c33-a087-2e07de5f0082",
@@ -294,7 +293,6 @@ This data stream uses the `/attributes/restSearch` API endpoint which returns mo
 | Field | Description | Type |
 |---|---|---|
 | @timestamp | Event timestamp. | date |
-| @version | Event version. | text |
 | cloud.account.id | The cloud account or organization id used to identify different entities in a multi-tenant environment. Examples: AWS account id, Google Cloud ORG Id, or other unique identifier. | keyword |
 | cloud.availability_zone | Availability zone in which this host is running. | keyword |
 | cloud.image.id | Image ID for the cloud instance. | keyword |

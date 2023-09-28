@@ -11,6 +11,7 @@ input {
 
 filter {
   elastic_integration {
+    remove_field => ['@version']
     hosts => ["https://elasticsearch:9200"]
     username => {{ fact "username" }}
     password => {{ fact "password" }}
