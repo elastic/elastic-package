@@ -11,6 +11,7 @@
                 }
             }
         },
+        "panelsJSON": [],
         "timeRestore": false,
         "title": "[Invalid spec filtered] Overview",
         "version": 1
