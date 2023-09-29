@@ -34,6 +34,7 @@ CHECK_PACKAGES_TESTS=(
     test-check-packages-with-kind
     test-check-packages-with-custom-agent
     test-check-packages-benchmarks
+    test-check-packages-with-logstash
 )
 for test in ${CHECK_PACKAGES_TESTS[@]}; do
     echo "      - label: \":go: Running integration test: ${test}\""
