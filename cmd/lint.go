@@ -73,17 +73,17 @@ func validateSourceCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("locating package root failed: %w", err)
 	}
 
-	err = validateSpecVersion(packageRootPath)
-	if err != nil {
-		return err
-	}
-
 	errs, skipped := validation.ValidateAndFilterFromPath(packageRootPath)
 	if skipped != nil {
 		logger.Infof("Skipped errors: %v", skipped)
 	}
 	if errs != nil {
 		return fmt.Errorf("linting package failed: %w", errs)
+	}
+
+	err = validateSpecVersion(packageRootPath)
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -103,7 +103,7 @@ func validateSpecVersion(packageRootPath string) error {
 		return fmt.Errorf("parsing format version %q failed: %w", manifest.SpecVersion, err)
 	}
 
-	if version.Prerelease() == "" && !specVersion.LessThan(semver.MustParse("3.0.0")) {
+	if version.Prerelease() == "" && !specVersion.LessThan(semver.MustParse("3.0.1")) {
 		completeVersion, err := spec.CheckVersion(*specVersion)
 		if err != nil {
 			return fmt.Errorf("checking spec version failed: %w", err)
