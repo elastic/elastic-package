@@ -10,3 +10,7 @@
 # Region where the Serverless project is going to be created
 # stack.serverless.region: aws-us-east-1
 
+## Enable logstash for testing
+# Flag to enable logstash in elastic-package stack profile config
+# stack.logstash_enabled: true
+

@@ -22,6 +22,11 @@ cleanup() {
   # Take down the stack
   elastic-package stack down -v
 
+  if [ "${PACKAGE_TEST_TYPE:-other}" == "with-logstash" ]; then
+    # Delete the logstash profile
+    elastic-package profiles delete logstash -v
+  fi
+
   # Clean used resources
   for d in test/packages/${PACKAGE_TEST_TYPE:-other}/${PACKAGE_UNDER_TEST:-*}/; do
     (
@@ -46,6 +51,18 @@ for d in test/packages/${PACKAGE_TEST_TYPE:-other}/${PACKAGE_UNDER_TEST:-*}/; do
   )
 done
 cd -
+
+if [ "${PACKAGE_TEST_TYPE:-other}" == "with-logstash" ]; then
+  # Create a logstash profile and use it
+  elastic-package profiles create logstash -v
+  elastic-package profiles use logstash
+
+  # Rename the config.yml.example to config.yml
+  mv ~/.elastic-package/profiles/logstash/config.yml.example ~/.elastic-package/profiles/logstash/config.yml
+  
+  # Append config to enable logstash
+  echo "stack.logstash_enabled: true" >> ~/.elastic-package/profiles/logstash/config.yml
+fi
 
 # Update the stack
 elastic-package stack update -v
