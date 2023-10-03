@@ -7,19 +7,34 @@ package formatter
 import (
 	"bytes"
 	"fmt"
+	"strings"
 
+	"github.com/Masterminds/semver/v3"
 	"gopkg.in/yaml.v3"
 )
 
-// YAMLFormatter function is responsible for formatting the given YAML input.
-// The function is exposed, so it can be used by other internal packages.
-func YAMLFormatter(content []byte) ([]byte, bool, error) {
+// YAMLFormatter is responsible for formatting the given YAML input.
+type YAMLFormatter struct {
+	specVersion semver.Version
+}
+
+func NewYAMLFormatter(specVersion semver.Version) *YAMLFormatter {
+	return &YAMLFormatter{
+		specVersion: specVersion,
+	}
+}
+
+func (f *YAMLFormatter) Format(content []byte) ([]byte, bool, error) {
 	// yaml.Unmarshal() requires `yaml.Node` to be passed instead of generic `interface{}`.
 	// Otherwise it can't detect any comments and fields are considered as normal map.
 	var node yaml.Node
 	err := yaml.Unmarshal(content, &node)
 	if err != nil {
 		return nil, false, fmt.Errorf("unmarshalling YAML file failed: %w", err)
+	}
+
+	if !f.specVersion.LessThan(semver.MustParse("3.0.0")) {
+		extendNestedObjects(&node)
 	}
 
 	var b bytes.Buffer
@@ -38,4 +53,43 @@ func YAMLFormatter(content []byte) ([]byte, bool, error) {
 	}
 
 	return formatted, string(content) == string(formatted), nil
+}
+
+func extendNestedObjects(node *yaml.Node) {
+	if node.Kind == yaml.MappingNode {
+		extendMapNode(node)
+	}
+	for _, child := range node.Content {
+		extendNestedObjects(child)
+	}
+}
+
+func extendMapNode(node *yaml.Node) {
+	for i := 0; i < len(node.Content); i += 2 {
+		key := node.Content[i]
+		value := node.Content[i+1]
+
+		base, rest, found := strings.Cut(key.Value, ".")
+
+		// Insert nested objects only when the key has a dot, and is not quoted.
+		if found && key.Style == 0 {
+			newKey := *key
+			newKey.Value = base
+			newKey.FootComment = ""
+			newKey.HeadComment = ""
+			newKey.LineComment = ""
+			newChildKey := *key
+			newChildKey.Value = rest
+			newNode := *node
+			newNode.Content = []*yaml.Node{
+				&newChildKey,
+				value,
+			}
+
+			node.Content[i] = &newKey
+			node.Content[i+1] = &newNode
+		}
+
+		extendNestedObjects(node.Content[i+1])
+	}
 }

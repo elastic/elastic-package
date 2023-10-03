@@ -125,7 +125,8 @@ func formatResult(result interface{}) ([]byte, error) {
 	if err != nil {
 		return nil, errors.New("failed to encode")
 	}
-	d, _, err = formatter.YAMLFormatter(d)
+	yamlFormatter := &formatter.YAMLFormatter{}
+	d, _, err = yamlFormatter.Format(d)
 	if err != nil {
 		return nil, errors.New("failed to format")
 	}

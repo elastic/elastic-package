@@ -21,7 +21,7 @@ func newFormatter(specVersion semver.Version, ext string) formatter {
 	case ".json":
 		return JSONFormatterBuilder(specVersion).Format
 	case ".yaml", ".yml":
-		return YAMLFormatter
+		return NewYAMLFormatter(specVersion).Format
 	default:
 		return nil
 	}
