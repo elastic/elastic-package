@@ -92,7 +92,7 @@ upload_safe_logs() {
     gsutil cp ${source} "gs://${bucket}/buildkite/${REPO_BUILD_TAG}/${target}"
 
     rm -rf "${gsUtilLocation}"
-    unset GOOGLE_APPLICATIONS_CREDENTIALS
+    unset GOOGLE_APPLICATION_CREDENTIALS
 }
 
 add_bin_path

@@ -12,22 +12,28 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
+
+	"github.com/Masterminds/semver/v3"
+	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/elasticsearch"
+	"github.com/elastic/elastic-package/internal/elasticsearch/ingest"
 	"github.com/elastic/elastic-package/internal/fields"
+	"github.com/elastic/elastic-package/internal/formatter"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/multierror"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/packages/installer"
+	"github.com/elastic/elastic-package/internal/servicedeployer"
 	"github.com/elastic/elastic-package/internal/signal"
 	"github.com/elastic/elastic-package/internal/stack"
 	"github.com/elastic/elastic-package/internal/testrunner"
-	"github.com/elastic/elastic-package/internal/testrunner/runners/system/servicedeployer"
 )
 
 const (
@@ -35,6 +41,7 @@ const (
 	testRunMinID = 10000
 
 	allFieldsBody = `{"fields": ["*"]}`
+	DevDeployDir  = "_dev/deploy"
 )
 
 func init() {
@@ -86,8 +93,8 @@ var (
 )
 
 type runner struct {
-	options testrunner.TestOptions
-
+	options   testrunner.TestOptions
+	pipelines []ingest.Pipeline
 	// Execution order of following handlers is defined in runner.TearDown() method.
 	deleteTestPolicyHandler func() error
 	deletePackageHandler    func() error
@@ -197,9 +204,17 @@ func (r *runner) run() (results []testrunner.TestResult, err error) {
 		logger.Debug("Running system tests for package")
 	}
 
+	stackVersion, err := r.options.KibanaClient.Version()
+	if err != nil {
+		return result.WithError(fmt.Errorf("cannot request Kibana version: %w", err))
+	}
+
 	devDeployPath, err := servicedeployer.FindDevDeployPath(servicedeployer.FactoryOptions{
+		Profile:            r.options.Profile,
 		PackageRootPath:    r.options.PackageRootPath,
 		DataStreamRootPath: dataStreamPath,
+		DevDeployDir:       DevDeployDir,
+		StackVersion:       stackVersion.Version(),
 	})
 	if err != nil {
 		return result.WithError(fmt.Errorf("_dev/deploy directory not found: %w", err))
@@ -218,7 +233,7 @@ func (r *runner) run() (results []testrunner.TestResult, err error) {
 	startTesting := time.Now()
 	for _, cfgFile := range cfgFiles {
 		for _, variantName := range r.selectVariants(variantsFile) {
-			partial, err := r.runTestPerVariant(result, locationManager, cfgFile, dataStreamPath, variantName)
+			partial, err := r.runTestPerVariant(result, locationManager, cfgFile, dataStreamPath, variantName, stackVersion.Version())
 			results = append(results, partial...)
 			if err != nil {
 				return results, err
@@ -247,11 +262,15 @@ func (r *runner) run() (results []testrunner.TestResult, err error) {
 	return results, nil
 }
 
-func (r *runner) runTestPerVariant(result *testrunner.ResultComposer, locationManager *locations.LocationManager, cfgFile, dataStreamPath, variantName string) ([]testrunner.TestResult, error) {
+func (r *runner) runTestPerVariant(result *testrunner.ResultComposer, locationManager *locations.LocationManager, cfgFile, dataStreamPath, variantName, stackVersion string) ([]testrunner.TestResult, error) {
 	serviceOptions := servicedeployer.FactoryOptions{
+		Profile:            r.options.Profile,
 		PackageRootPath:    r.options.PackageRootPath,
 		DataStreamRootPath: dataStreamPath,
+		DevDeployDir:       DevDeployDir,
 		Variant:            variantName,
+		Type:               servicedeployer.TypeTest,
+		StackVersion:       stackVersion,
 	}
 
 	var ctxt servicedeployer.ServiceContext
@@ -260,7 +279,7 @@ func (r *runner) runTestPerVariant(result *testrunner.ResultComposer, locationMa
 	ctxt.Logs.Folder.Agent = ServiceLogsAgentDir
 	ctxt.Test.RunID = createTestRunID()
 
-	outputDir, err := createOutputDir(locationManager, ctxt.Test.RunID)
+	outputDir, err := servicedeployer.CreateOutputDir(locationManager, ctxt.Test.RunID)
 	if err != nil {
 		return nil, fmt.Errorf("could not create output dir for terraform deployer %w", err)
 	}
@@ -291,14 +310,6 @@ func (r *runner) runTestPerVariant(result *testrunner.ResultComposer, locationMa
 		return partial, fmt.Errorf("failed to tear down runner: %w", tdErr)
 	}
 	return partial, nil
-}
-
-func createOutputDir(locationManager *locations.LocationManager, runId string) (string, error) {
-	outputDir := filepath.Join(locationManager.ServiceOutputDir(), runId)
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
-		return "", fmt.Errorf("failed to create output directory: %w", err)
-	}
-	return outputDir, nil
 }
 
 func createTestRunID() string {
@@ -474,16 +485,11 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 		return result.WithError(fmt.Errorf("unable to reload system test case configuration: %w", err))
 	}
 
-	kib, err := kibana.NewClient()
-	if err != nil {
-		return result.WithError(fmt.Errorf("can't create Kibana client: %w", err))
-	}
-
 	// Install the package before creating the policy, so we control exactly what is being
 	// installed.
 	logger.Debug("Installing package...")
 	installer, err := installer.NewForPackage(installer.Options{
-		Kibana:         kib,
+		Kibana:         r.options.KibanaClient,
 		RootPath:       r.options.PackageRootPath,
 		SkipValidation: true,
 	})
@@ -510,18 +516,24 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	// Configure package (single data stream) via Ingest Manager APIs.
 	logger.Debug("creating test policy...")
 	testTime := time.Now().Format("20060102T15:04:05Z")
+
 	p := kibana.Policy{
 		Name:        fmt.Sprintf("ep-test-system-%s-%s-%s", r.options.TestFolder.Package, r.options.TestFolder.DataStream, testTime),
 		Description: fmt.Sprintf("test policy created by elastic-package test system for data stream %s/%s", r.options.TestFolder.Package, r.options.TestFolder.DataStream),
 		Namespace:   "ep",
 	}
-	policy, err := kib.CreatePolicy(p)
+	// Assign the data_output_id to the agent policy to configure the output to logstash. The value is inferred from stack/_static/kibana.yml.tmpl
+	if r.options.Profile.Config("stack.logstash_enabled", "false") == "true" {
+		p.DataOutputID = "fleet-logstash-output"
+	}
+
+	policy, err := r.options.KibanaClient.CreatePolicy(p)
 	if err != nil {
 		return result.WithError(fmt.Errorf("could not create test policy: %w", err))
 	}
 	r.deleteTestPolicyHandler = func() error {
 		logger.Debug("deleting test policy...")
-		if err := kib.DeletePolicy(*policy); err != nil {
+		if err := r.options.KibanaClient.DeletePolicy(*policy); err != nil {
 			return fmt.Errorf("error cleaning up test policy: %w", err)
 		}
 		return nil
@@ -529,7 +541,7 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 
 	logger.Debug("adding package data stream to test policy...")
 	ds := createPackageDatastream(*policy, *pkgManifest, policyTemplate, *dataStreamManifest, *config)
-	if err := kib.AddPackageDataStreamToPolicy(ds); err != nil {
+	if err := r.options.KibanaClient.AddPackageDataStreamToPolicy(ds); err != nil {
 		return result.WithError(fmt.Errorf("could not add data stream config to policy: %w", err))
 	}
 
@@ -575,7 +587,7 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 		return result.WithError(err)
 	}
 
-	agents, err := checkEnrolledAgents(kib, ctxt)
+	agents, err := checkEnrolledAgents(r.options.KibanaClient, ctxt)
 	if err != nil {
 		return result.WithError(fmt.Errorf("can't check enrolled agents: %w", err))
 	}
@@ -588,19 +600,19 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	// Assign policy to agent
 	r.resetAgentPolicyHandler = func() error {
 		logger.Debug("reassigning original policy back to agent...")
-		if err := kib.AssignPolicyToAgent(agent, origPolicy); err != nil {
+		if err := r.options.KibanaClient.AssignPolicyToAgent(agent, origPolicy); err != nil {
 			return fmt.Errorf("error reassigning original policy to agent: %w", err)
 		}
 		return nil
 	}
 
-	policyWithDataStream, err := kib.GetPolicy(policy.ID)
+	policyWithDataStream, err := r.options.KibanaClient.GetPolicy(policy.ID)
 	if err != nil {
 		return result.WithError(fmt.Errorf("could not read the policy with data stream: %w", err))
 	}
 
 	logger.Debug("assigning package data stream to agent...")
-	if err := kib.AssignPolicyToAgent(agent, *policyWithDataStream); err != nil {
+	if err := r.options.KibanaClient.AssignPolicyToAgent(agent, *policyWithDataStream); err != nil {
 		return result.WithError(fmt.Errorf("could not assign policy to agent: %w", err))
 	}
 
@@ -663,16 +675,42 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	docs := hits.getDocs(syntheticEnabled)
 
 	// Validate fields in docs
-	var expectedDataset string
-	if ds := r.options.TestFolder.DataStream; ds != "" {
-		expectedDataset = getDataStreamDataset(*pkgManifest, *dataStreamManifest)
-	} else {
-		expectedDataset = pkgManifest.Name + "." + policyTemplateName
+	// when reroute processors are used, expectedDatasets should be set depends on the processor config
+	var expectedDatasets []string
+	for _, pipeline := range r.pipelines {
+		var esIngestPipeline map[string]any
+		err = yaml.Unmarshal(pipeline.Content, &esIngestPipeline)
+		if err != nil {
+			return nil, fmt.Errorf("unmarshalling ingest pipeline content failed: %w", err)
+		}
+		processors, _ := esIngestPipeline["processors"].([]any)
+		for _, p := range processors {
+			processor, ok := p.(map[string]any)
+			if !ok {
+				return nil, fmt.Errorf("unexpected processor %+v", p)
+			}
+			if reroute, ok := processor["reroute"]; ok {
+				if rerouteP, ok := reroute.(ingest.RerouteProcessor); ok {
+					expectedDatasets = append(expectedDatasets, rerouteP.Dataset...)
+				}
+			}
+		}
 	}
+
+	if expectedDatasets == nil {
+		var expectedDataset string
+		if ds := r.options.TestFolder.DataStream; ds != "" {
+			expectedDataset = getDataStreamDataset(*pkgManifest, *dataStreamManifest)
+		} else {
+			expectedDataset = pkgManifest.Name + "." + policyTemplateName
+		}
+		expectedDatasets = []string{expectedDataset}
+	}
+
 	fieldsValidator, err := fields.CreateValidatorForDirectory(serviceOptions.DataStreamRootPath,
 		fields.WithSpecVersion(pkgManifest.SpecVersion),
 		fields.WithNumericKeywordFields(config.NumericKeywordFields),
-		fields.WithExpectedDataset(expectedDataset),
+		fields.WithExpectedDatasets(expectedDatasets),
 		fields.WithEnabledImportAllECSSChema(true),
 		fields.WithDisableNormalization(syntheticEnabled),
 	)
@@ -690,14 +728,24 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 		}
 	}
 
+	specVersion, err := semver.NewVersion(pkgManifest.SpecVersion)
+	if err != nil {
+		return result.WithError(fmt.Errorf("failed to parse format version %q: %w", pkgManifest.SpecVersion, err))
+	}
+
 	// Write sample events file from first doc, if requested
-	if err := r.generateTestResult(docs); err != nil {
+	if err := r.generateTestResult(docs, *specVersion); err != nil {
 		return result.WithError(err)
 	}
 
 	// Check Hit Count within docs, if 0 then it has not been specified
 	if assertionPass, message := assertHitCount(config.Assert.HitCount, docs); !assertionPass {
 		result.FailureMsg = message
+	}
+
+	// Check transforms if present
+	if err := r.checkTransforms(config, pkgManifest, ds, dataStream); err != nil {
+		return result.WithError(err)
 	}
 
 	return result.WithSuccess()
@@ -915,7 +963,7 @@ func findPolicyTemplateForDataStream(pkg packages.PackageManifest, ds packages.D
 		}
 
 		// Does the policy_template apply to this data stream (when data streams are specified)?
-		if len(policyTemplate.DataStreams) > 0 && !common.StringSliceContains(policyTemplate.DataStreams, ds.Name) {
+		if len(policyTemplate.DataStreams) > 0 && !slices.Contains(policyTemplate.DataStreams, ds.Name) {
 			continue
 		}
 
@@ -978,6 +1026,123 @@ func selectPolicyTemplateByName(policies []packages.PolicyTemplate, name string)
 	return packages.PolicyTemplate{}, fmt.Errorf("policy template %q not found", name)
 }
 
+func (r *runner) checkTransforms(config *testConfig, pkgManifest *packages.PackageManifest, ds kibana.PackageDataStream, dataStream string) error {
+	transforms, err := packages.ReadTransformsFromPackageRoot(r.options.PackageRootPath)
+	if err != nil {
+		return fmt.Errorf("loading transforms for package failed (root: %s): %w", r.options.PackageRootPath, err)
+	}
+	for _, transform := range transforms {
+		hasSource, err := transform.HasSource(dataStream)
+		if err != nil {
+			return fmt.Errorf("failed to check if transform %q has %s as source: %w", transform.Name, dataStream, err)
+		}
+		if !hasSource {
+			logger.Debugf("transform %q does not match %q as source (sources: %s)", transform.Name, dataStream, transform.Definition.Source.Index)
+			continue
+		}
+
+		logger.Debugf("checking transform %q", transform.Name)
+
+		// IDs format is: "<type>-<package>.<transform>-<namespace>-<version>"
+		// For instance: "logs-ti_anomali.latest_ioc-default-0.1.0"
+		transformPattern := fmt.Sprintf("%s-%s.%s-*-%s",
+			ds.Inputs[0].Streams[0].DataStream.Type,
+			pkgManifest.Name,
+			transform.Name,
+			transform.Definition.Meta.FleetTransformVersion,
+		)
+		transformId, err := r.getTransformId(transformPattern)
+		if err != nil {
+			return fmt.Errorf("failed to determine transform ID: %w", err)
+		}
+
+		// Using the preview instead of checking the actual index because
+		// transforms with retention policies may be deleting the documents based
+		// on old fixtures as soon as they are indexed.
+		transformDocs, err := r.previewTransform(transformId)
+		if err != nil {
+			return fmt.Errorf("failed to preview transform %q: %w", transformId, err)
+		}
+		if len(transformDocs) == 0 {
+			return fmt.Errorf("no documents found in preview for transform %q", transformId)
+		}
+
+		transformRootPath := filepath.Dir(transform.Path)
+		fieldsValidator, err := fields.CreateValidatorForDirectory(transformRootPath,
+			fields.WithSpecVersion(pkgManifest.SpecVersion),
+			fields.WithNumericKeywordFields(config.NumericKeywordFields),
+			fields.WithEnabledImportAllECSSChema(true),
+		)
+		if err != nil {
+			return fmt.Errorf("creating fields validator for data stream failed (path: %s): %w", transformRootPath, err)
+		}
+		if err := validateFields(transformDocs, fieldsValidator, dataStream); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (r *runner) getTransformId(transformPattern string) (string, error) {
+	resp, err := r.options.API.TransformGetTransform(
+		r.options.API.TransformGetTransform.WithTransformID(transformPattern),
+	)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	if resp.IsError() {
+		return "", fmt.Errorf("failed to get transforms: %s", resp.String())
+	}
+
+	var transforms struct {
+		Transforms []struct {
+			ID string `json:"id"`
+		} `json:"transforms"`
+	}
+
+	err = json.NewDecoder(resp.Body).Decode(&transforms)
+	switch {
+	case err != nil:
+		return "", fmt.Errorf("failed to decode response: %w", err)
+	case len(transforms.Transforms) == 0:
+		return "", fmt.Errorf("no transform found with pattern %q", transformPattern)
+	case len(transforms.Transforms) > 1:
+		return "", fmt.Errorf("multiple transforms (%d) found with pattern %q", len(transforms.Transforms), transformPattern)
+	}
+	id := transforms.Transforms[0].ID
+	if id == "" {
+		return "", fmt.Errorf("empty ID found with pattern %q", transformPattern)
+	}
+	return id, nil
+}
+
+func (r *runner) previewTransform(transformId string) ([]common.MapStr, error) {
+	resp, err := r.options.API.TransformPreviewTransform(
+		r.options.API.TransformPreviewTransform.WithTransformID(transformId),
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.IsError() {
+		return nil, fmt.Errorf("failed to preview transform %q: %s", transformId, resp.String())
+	}
+
+	var preview struct {
+		Documents []common.MapStr `json:"preview"`
+	}
+	err = json.NewDecoder(resp.Body).Decode(&preview)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	return preview.Documents, nil
+}
+
 func deleteDataStreamDocs(api *elasticsearch.API, dataStream string) error {
 	body := strings.NewReader(`{ "query": { "match_all": {} } }`)
 	_, err := api.DeleteByQuery([]string{dataStream}, body)
@@ -1032,8 +1197,9 @@ func filterAgents(allAgents []kibana.Agent, ctx servicedeployer.ServiceContext) 
 	return filtered
 }
 
-func writeSampleEvent(path string, doc common.MapStr) error {
-	body, err := json.MarshalIndent(doc, "", "    ")
+func writeSampleEvent(path string, doc common.MapStr, specVersion semver.Version) error {
+	jsonFormatter := formatter.JSONFormatterBuilder(specVersion)
+	body, err := jsonFormatter.Encode(doc)
 	if err != nil {
 		return fmt.Errorf("marshalling sample event failed: %w", err)
 	}
@@ -1098,7 +1264,7 @@ func (r *runner) selectVariants(variantsFile *servicedeployer.VariantsFile) []st
 	return variantNames
 }
 
-func (r *runner) generateTestResult(docs []common.MapStr) error {
+func (r *runner) generateTestResult(docs []common.MapStr, specVersion semver.Version) error {
 	if !r.options.GenerateTestResult {
 		return nil
 	}
@@ -1108,7 +1274,7 @@ func (r *runner) generateTestResult(docs []common.MapStr) error {
 		rootPath = filepath.Join(rootPath, "data_stream", ds)
 	}
 
-	if err := writeSampleEvent(rootPath, docs[0]); err != nil {
+	if err := writeSampleEvent(rootPath, docs[0], specVersion); err != nil {
 		return fmt.Errorf("failed to write sample event file: %w", err)
 	}
 

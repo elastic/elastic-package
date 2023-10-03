@@ -14,7 +14,9 @@ import (
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/export"
+	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/kibana"
+	"github.com/elastic/elastic-package/internal/stack"
 )
 
 const exportLongDescription = `Use this command to export assets relevant for the package, e.g. Kibana dashboards.`
@@ -28,6 +30,7 @@ func setupExportCommand() *cobraext.Command {
 		Use:   "dashboards",
 		Short: "Export dashboards from Kibana",
 		Long:  exportDashboardsLongDescription,
+		Args:  cobra.NoArgs,
 		RunE:  exportDashboardsCmd,
 	}
 	exportDashboardCmd.Flags().StringSliceP(cobraext.DashboardIDsFlagName, "d", nil, cobraext.DashboardIDsFlagDescription)
@@ -40,6 +43,7 @@ func setupExportCommand() *cobraext.Command {
 		Long:  exportLongDescription,
 	}
 	cmd.AddCommand(exportDashboardCmd)
+	cmd.PersistentFlags().StringP(cobraext.ProfileFlagName, "p", "", fmt.Sprintf(cobraext.ProfileFlagDescription, install.ProfileNameEnvVar))
 
 	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
 }
@@ -65,7 +69,12 @@ func exportDashboardsCmd(cmd *cobra.Command, args []string) error {
 		return cobraext.FlagParsingError(err, cobraext.AllowSnapshotFlagName)
 	}
 
-	kibanaClient, err := kibana.NewClient(opts...)
+	profile, err := cobraext.GetProfileFlag(cmd)
+	if err != nil {
+		return err
+	}
+
+	kibanaClient, err := stack.NewKibanaClientFromProfile(profile, opts...)
 	if err != nil {
 		return fmt.Errorf("can't create Kibana client: %w", err)
 	}

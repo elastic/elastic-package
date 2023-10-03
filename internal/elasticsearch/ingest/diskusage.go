@@ -13,29 +13,20 @@ import (
 )
 
 type DiskUsageStat struct {
-	Total         string `json:"total"`
-	TotalInBytes  int    `json:"total_in_bytes"`
+	TotalInBytes  uint64 `json:"total_in_bytes"`
 	InvertedIndex struct {
-		Total        string `json:"total"`
-		TotalInBytes int    `json:"total_in_bytes"`
+		TotalInBytes uint64 `json:"total_in_bytes"`
 	} `json:"inverted_index"`
-	StoredFields        string `json:"stored_fields"`
-	StoredFieldsInBytes int    `json:"stored_fields_in_bytes"`
-	DocValues           string `json:"doc_values"`
-	DocValuesInBytes    int    `json:"doc_values_in_bytes"`
-	Points              string `json:"points"`
-	PointsInBytes       int    `json:"points_in_bytes"`
-	Norms               string `json:"norms"`
-	NormsInBytes        int    `json:"norms_in_bytes"`
-	TermVectors         string `json:"term_vectors"`
-	TermVectorsInBytes  int    `json:"term_vectors_in_bytes"`
-	KnnVectors          string `json:"knn_vectors"`
-	KnnVectorsInBytes   int    `json:"knn_vectors_in_bytes"`
+	StoredFieldsInBytes uint64 `json:"stored_fields_in_bytes"`
+	DocValuesInBytes    uint64 `json:"doc_values_in_bytes"`
+	PointsInBytes       uint64 `json:"points_in_bytes"`
+	NormsInBytes        uint64 `json:"norms_in_bytes"`
+	TermVectorsInBytes  uint64 `json:"term_vectors_in_bytes"`
+	KnnVectorsInBytes   uint64 `json:"knn_vectors_in_bytes"`
 }
 
 type DiskUsage struct {
-	StoreSize        string                   `json:"store_size"`
-	StoreSizeInBytes int                      `json:"store_size_in_bytes"`
+	StoreSizeInBytes uint64                   `json:"store_size_in_bytes"`
 	AllFields        DiskUsageStat            `json:"all_fields"`
 	Fields           map[string]DiskUsageStat `json:"fields"`
 }

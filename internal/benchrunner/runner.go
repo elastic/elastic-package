@@ -9,6 +9,7 @@ import (
 	"fmt"
 
 	"github.com/elastic/elastic-package/internal/benchrunner/reporters"
+	"github.com/elastic/elastic-package/internal/logger"
 )
 
 // Type represents the various supported benchmark types
@@ -26,19 +27,20 @@ func Run(runner Runner) (reporters.Reportable, error) {
 		return nil, errors.New("a runner is required")
 	}
 
+	defer func() {
+		tdErr := runner.TearDown()
+		if tdErr != nil {
+			logger.Errorf("could not teardown benchmark runner: %v", tdErr)
+		}
+	}()
+
 	if err := runner.SetUp(); err != nil {
 		return nil, fmt.Errorf("could not set up benchmark runner: %w", err)
 	}
 
 	report, err := runner.Run()
-	tdErr := runner.TearDown()
-
 	if err != nil {
 		return nil, fmt.Errorf("could not complete benchmark run: %w", err)
-	}
-
-	if tdErr != nil {
-		return report, fmt.Errorf("could not teardown benchmark runner: %w", tdErr)
 	}
 
 	return report, nil

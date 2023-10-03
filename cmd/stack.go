@@ -24,6 +24,7 @@ var availableServices = map[string]struct{}{
 	"fleet-server":     {},
 	"kibana":           {},
 	"package-registry": {},
+	"logstash":         {},
 }
 
 const stackLongDescription = `Use this command to spin up a Docker-based Elastic Stack consisting of Elasticsearch, Kibana, and the Package Registry. By default the latest released version of the stack is spun up but it is possible to specify a different version, including SNAPSHOT versions by appending --version <version>.
@@ -44,13 +45,31 @@ Be aware that a common issue while trying to boot up the stack is that your Dock
 
 To expose local packages in the Package Registry, build them first and boot up the stack from inside of the Git repository containing the package (e.g. elastic/integrations). They will be copied to the development stack (~/.elastic-package/stack/development) and used to build a custom Docker image of the Package Registry. Starting with Elastic stack version >= 8.7.0, it is not mandatory to be available local packages in the Package Registry to run the tests.
 
-For details on how to connect the service with the Elastic stack, see the [service command](https://github.com/elastic/elastic-package/blob/main/README.md#elastic-package-service).`
+For details on how to connect the service with the Elastic stack, see the [service command](https://github.com/elastic/elastic-package/blob/main/README.md#elastic-package-service).
+
+You can customize your stack using profile settings, see [Elastic Package profiles](https://github.com/elastic/elastic-package/blob/main/README.md#elastic-package-profiles-1) section. These settings can be also overriden with the --parameter flag. Settings configured this way are not persisted.`
+
+const stackShellinitLongDescription = `Use this command to export to the current shell the configuration of the stack managed by elastic-package.
+
+The output of this command is intended to be evaluated by the current shell. For example in bash: 'eval $(elastic-package stack shellinit)'.
+
+Relevant environment variables are:
+
+- ELASTIC_PACKAGE_ELASTICSEARCH_HOST
+- ELASTIC_PACKAGE_ELASTICSEARCH_USERNAME
+- ELASTIC_PACKAGE_ELASTICSEARCH_PASSWORD
+- ELASTIC_PACKAGE_KIBANA_HOST
+- ELASTIC_PACKAGE_CA_CERT
+
+You can also provide these environment variables manually. In that case elastic-package commands will use these settings.
+`
 
 func setupStackCommand() *cobraext.Command {
 	upCommand := &cobra.Command{
 		Use:   "up",
 		Short: "Boot up the stack",
 		Long:  stackUpLongDescription,
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.Println("Boot up the Elastic stack")
 
@@ -86,8 +105,16 @@ func setupStackCommand() *cobraext.Command {
 				return err
 			}
 
+			// Parameters provided through the CLI are not persisted.
+			// Stack providers can get them with `profile.Config`, and they
+			// need to handle and store them if they need it.
+			userParameters, err := cobraext.GetStackUserParameterFlags(cmd)
+			if err != nil {
+				return err
+			}
+			profile.RuntimeOverrides(userParameters)
+
 			cmd.Printf("Using profile %s.\n", profile.ProfilePath)
-			cmd.Println(`Remember to load stack environment variables using 'eval "$(elastic-package stack shellinit)"'.`)
 			err = provider.BootUp(stack.Options{
 				DaemonMode:   daemonMode,
 				StackVersion: stackVersion,
@@ -108,10 +135,12 @@ func setupStackCommand() *cobraext.Command {
 		fmt.Sprintf(cobraext.StackServicesFlagDescription, strings.Join(availableServicesAsList(), ",")))
 	upCommand.Flags().StringP(cobraext.StackVersionFlagName, "", install.DefaultStackVersion, cobraext.StackVersionFlagDescription)
 	upCommand.Flags().String(cobraext.StackProviderFlagName, "", fmt.Sprintf(cobraext.StackProviderFlagDescription, strings.Join(stack.SupportedProviders, ", ")))
+	upCommand.Flags().StringSliceP(cobraext.StackUserParameterFlagName, cobraext.StackUserParameterFlagShorthand, nil, cobraext.StackUserParameterDescription)
 
 	downCommand := &cobra.Command{
 		Use:   "down",
 		Short: "Take down the stack",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.Println("Take down the Elastic stack")
 
@@ -141,6 +170,7 @@ func setupStackCommand() *cobraext.Command {
 	updateCommand := &cobra.Command{
 		Use:   "update",
 		Short: "Update the stack to the most recent versions",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.Println("Update the Elastic stack")
 
@@ -177,6 +207,8 @@ func setupStackCommand() *cobraext.Command {
 	shellInitCommand := &cobra.Command{
 		Use:   "shellinit",
 		Short: "Export environment variables",
+		Long:  stackShellinitLongDescription,
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			shellName, err := cmd.Flags().GetString(cobraext.ShellInitShellFlagName)
 			if err != nil {
@@ -206,6 +238,7 @@ func setupStackCommand() *cobraext.Command {
 	dumpCommand := &cobra.Command{
 		Use:   "dump",
 		Short: "Dump stack data for debug purposes",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			output, err := cmd.Flags().GetString(cobraext.StackDumpOutputFlagName)
 			if err != nil {
@@ -241,6 +274,7 @@ func setupStackCommand() *cobraext.Command {
 	statusCommand := &cobra.Command{
 		Use:   "status",
 		Short: "Show status of the stack services",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			profile, err := cobraext.GetProfileFlag(cmd)
 			if err != nil {

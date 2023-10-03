@@ -7,13 +7,11 @@ package stack
 import (
 	"sort"
 	"strings"
-
-	"github.com/elastic/elastic-package/internal/logger"
 )
 
 // Status shows the status for each service
-func Status() ([]ServiceStatus, error) {
-	servicesStatus, err := dockerComposeStatus()
+func Status(options Options) ([]ServiceStatus, error) {
+	servicesStatus, err := dockerComposeStatus(options)
 	if err != nil {
 		return nil, err
 	}
@@ -21,7 +19,6 @@ func Status() ([]ServiceStatus, error) {
 	var services []ServiceStatus
 	for _, status := range servicesStatus {
 		if strings.Contains(status.Name, readyServicesSuffix) {
-			logger.Debugf("Filtering out service: %s", status.Name)
 			continue
 		}
 		services = append(services, status)

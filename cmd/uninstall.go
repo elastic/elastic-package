@@ -11,9 +11,10 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
-	"github.com/elastic/elastic-package/internal/kibana"
+	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/packages/installer"
+	"github.com/elastic/elastic-package/internal/stack"
 )
 
 const uninstallLongDescription = `Use this command to uninstall the package in Kibana.
@@ -25,8 +26,10 @@ func setupUninstallCommand() *cobraext.Command {
 		Use:   "uninstall",
 		Short: "Uninstall the package",
 		Long:  uninstallLongDescription,
+		Args:  cobra.NoArgs,
 		RunE:  uninstallCommandAction,
 	}
+	cmd.Flags().StringP(cobraext.ProfileFlagName, "p", "", fmt.Sprintf(cobraext.ProfileFlagDescription, install.ProfileNameEnvVar))
 
 	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
 }
@@ -40,7 +43,12 @@ func uninstallCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("locating package root failed: %w", err)
 	}
 
-	kibanaClient, err := kibana.NewClient()
+	profile, err := cobraext.GetProfileFlag(cmd)
+	if err != nil {
+		return err
+	}
+
+	kibanaClient, err := stack.NewKibanaClientFromProfile(profile)
 	if err != nil {
 		return fmt.Errorf("could not create kibana client: %w", err)
 	}

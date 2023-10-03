@@ -18,18 +18,24 @@ import (
 // PackageDescriptor defines configurable properties of the package archetype
 type PackageDescriptor struct {
 	Manifest packages.PackageManifest
+
+	InputDataStreamType string
 }
 
 // CreatePackage function bootstraps the new package based on the provided descriptor.
 func CreatePackage(packageDescriptor PackageDescriptor) error {
-	baseDir := packageDescriptor.Manifest.Name
+	return createPackageInDir(packageDescriptor, ".")
+}
+
+func createPackageInDir(packageDescriptor PackageDescriptor, cwd string) error {
+	baseDir := filepath.Join(cwd, packageDescriptor.Manifest.Name)
 	_, err := os.Stat(baseDir)
 	if err == nil {
 		return fmt.Errorf(`package "%s" already exists`, baseDir)
 	}
 
 	logger.Debugf("Write package manifest")
-	err = renderResourceFile(packageManifestTemplate, &packageDescriptor, filepath.Join(baseDir, "manifest.yml"))
+	err = renderResourceFile(packageManifestTemplate, packageDescriptor, filepath.Join(baseDir, "manifest.yml"))
 	if err != nil {
 		return fmt.Errorf("can't render package manifest: %w", err)
 	}
@@ -68,6 +74,22 @@ func CreatePackage(packageDescriptor PackageDescriptor) error {
 	err = writeRawResourceFile(decodedSampleScreenshot, filepath.Join(baseDir, "img", "sample-screenshot.png"))
 	if err != nil {
 		return fmt.Errorf("can't render sample screenshot: %w", err)
+	}
+
+	if packageDescriptor.Manifest.Type == "input" {
+		logger.Debugf("Write base fields")
+		err = renderResourceFile(fieldsBaseTemplate, &packageDescriptor, filepath.Join(baseDir, "fields", "base-fields.yml"))
+		if err != nil {
+			return fmt.Errorf("can't render base fields: %w", err)
+		}
+
+		// agent input configuration
+		logger.Debugf("Write agent input configuration")
+		err = renderResourceFile(inputAgentConfigTemplate, &packageDescriptor, filepath.Join(baseDir, "agent", "input", "input.yml.hbs"))
+		if err != nil {
+			return fmt.Errorf("can't render agent stream: %w", err)
+		}
+
 	}
 
 	logger.Debugf("Format the entire package")

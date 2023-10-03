@@ -72,7 +72,7 @@ func (c *Client) exportWithSavedObjectsAPI(dashboardIDs []string) ([]common.MapS
 	}
 
 	path := SavedObjectsAPI + "/_export"
-	statusCode, respBody, err := c.sendRequest(http.MethodPost, path, body)
+	statusCode, respBody, err := c.SendRequest(http.MethodPost, path, body)
 	if err != nil {
 		return nil, fmt.Errorf("could not export dashboards; API status code = %d; response body = %s: %w", statusCode, respBody, err)
 	}

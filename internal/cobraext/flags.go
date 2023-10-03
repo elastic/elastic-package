@@ -166,8 +166,15 @@ const (
 	StackDumpOutputFlagName        = "output"
 	StackDumpOutputFlagDescription = "output location for the stack dump"
 
+	StackUserParameterFlagName      = "parameter"
+	StackUserParameterFlagShorthand = "U"
+	StackUserParameterDescription   = "optional parameter for the stack provider, as key=value"
+
 	StatusKibanaVersionFlagName        = "kibana-version"
 	StatusKibanaVersionFlagDescription = "show packages for the given kibana version"
+
+	StatusExtraInfoFlagName        = "info"
+	StatusExtraInfoFlagDescription = "show additional information (comma-separated values: \"%s\")"
 
 	TestCoverageFlagName        = "test-coverage"
 	TestCoverageFlagDescription = "generate Cobertura test coverage reports"

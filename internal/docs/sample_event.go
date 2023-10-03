@@ -10,7 +10,10 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/Masterminds/semver/v3"
+
 	"github.com/elastic/elastic-package/internal/formatter"
+	"github.com/elastic/elastic-package/internal/packages"
 )
 
 const sampleEventFile = "sample_event.json"
@@ -23,7 +26,17 @@ func renderSampleEvent(packageRoot, dataStreamName string) (string, error) {
 		return "", fmt.Errorf("reading sample event file failed (path: %s): %w", eventPath, err)
 	}
 
-	formatted, _, err := formatter.JSONFormatter(body)
+	manifest, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
+	if err != nil {
+		return "", fmt.Errorf("reading package manifest failed: %w", err)
+	}
+	specVersion, err := semver.NewVersion(manifest.SpecVersion)
+	if err != nil {
+		return "", fmt.Errorf("parsing format version %q failed: %w", manifest.SpecVersion, err)
+	}
+
+	jsonFormatter := formatter.JSONFormatterBuilder(*specVersion)
+	formatted, _, err := jsonFormatter.Format(body)
 	if err != nil {
 		return "", fmt.Errorf("formatting sample event file failed (path: %s): %w", eventPath, err)
 	}

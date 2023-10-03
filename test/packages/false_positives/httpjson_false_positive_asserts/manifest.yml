@@ -1,5 +1,5 @@
 format_version: 2.7.0
-name: httpjson
+name: httpjson_false_positive_asserts
 title: Custom API
 description: Collect custom events from an API endpoint with Elastic agent
 type: integration

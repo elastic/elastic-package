@@ -8,7 +8,6 @@ import (
 	"fmt"
 
 	"github.com/AlecAivazis/survey/v2"
-
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/licenses"
@@ -28,6 +27,7 @@ const (
 
 type newPackageAnswers struct {
 	Name                string
+	Type                string
 	Version             string
 	SourceLicense       string `survey:"source_license"`
 	Title               string
@@ -36,6 +36,8 @@ type newPackageAnswers struct {
 	KibanaVersion       string `survey:"kibana_version"`
 	ElasticSubscription string `survey:"elastic_subscription"`
 	GithubOwner         string `survey:"github_owner"`
+	OwnerType           string `survey:"owner_type"`
+	DataStreamType      string `survey:"datastream_type"`
 }
 
 func createPackageCommandAction(cmd *cobra.Command, args []string) error {
@@ -43,12 +45,30 @@ func createPackageCommandAction(cmd *cobra.Command, args []string) error {
 
 	qs := []*survey.Question{
 		{
+			Name: "type",
+			Prompt: &survey.Select{
+				Message: "Package type:",
+				Options: []string{"input", "integration"},
+				Default: "integration",
+			},
+			Validate: survey.Required,
+		},
+	}
+
+	var answers newPackageAnswers
+	err := survey.Ask(qs, &answers)
+	if err != nil {
+		return fmt.Errorf("prompt failed: %w", err)
+	}
+
+	qs = []*survey.Question{
+		{
 			Name: "name",
 			Prompt: &survey.Input{
 				Message: "Package name:",
 				Default: "new_package",
 			},
-			Validate: survey.ComposeValidators(survey.Required, surveyext.PackageDoesNotExistValidator),
+			Validate: survey.ComposeValidators(survey.Required, surveyext.PackageDoesNotExistValidator, surveyext.PackageNameValidator),
 		},
 		{
 			Name: "version",
@@ -130,15 +150,57 @@ func createPackageCommandAction(cmd *cobra.Command, args []string) error {
 			},
 			Validate: survey.ComposeValidators(survey.Required, surveyext.GithubOwnerValidator),
 		},
+		{
+			Name: "owner_type",
+			Prompt: &survey.Select{
+				Message: "Owner type:",
+				Options: []string{"elastic", "partner", "community"},
+				Description: func(value string, _ int) string {
+					switch value {
+					case "elastic":
+						return "Owned and supported by Elastic"
+					case "partner":
+						return "Vendor-owned with support from Elastic"
+					case "community":
+						return "Supported by the community"
+					}
+
+					return ""
+				},
+				Default: "elastic",
+			},
+			Validate: survey.Required,
+		},
 	}
 
-	var answers newPackageAnswers
-	err := survey.Ask(qs, &answers)
+	if answers.Type == "input" {
+		inputQs := []*survey.Question{
+			{
+				Name: "datastream_type",
+				Prompt: &survey.Select{
+					Message: "Input Data Stream type:",
+					Options: []string{"logs", "metrics"},
+					Default: "logs",
+				},
+				Validate: survey.Required,
+			},
+		}
+
+		qs = append(qs, inputQs...)
+	}
+
+	err = survey.Ask(qs, &answers)
 	if err != nil {
 		return fmt.Errorf("prompt failed: %w", err)
 	}
 
 	descriptor := createPackageDescriptorFromAnswers(answers)
+	specVersion, err := archetype.GetLatestStableSpecVersion()
+	if err != nil {
+		return fmt.Errorf("failed to get spec version: %w", err)
+	}
+	descriptor.Manifest.SpecVersion = specVersion.String()
+
 	err = archetype.CreatePackage(descriptor)
 	if err != nil {
 		return fmt.Errorf("can't create new package: %w", err)
@@ -153,11 +215,16 @@ func createPackageDescriptorFromAnswers(answers newPackageAnswers) archetype.Pac
 	if answers.SourceLicense != noLicenseValue {
 		sourceLicense = answers.SourceLicense
 	}
+
+	inputDataStreamType := ""
+	if answers.Type == "input" {
+		inputDataStreamType = answers.DataStreamType
+	}
 	return archetype.PackageDescriptor{
 		Manifest: packages.PackageManifest{
 			Name:    answers.Name,
 			Title:   answers.Title,
-			Type:    "integration",
+			Type:    answers.Type,
 			Version: answers.Version,
 			Source: packages.Source{
 				License: sourceLicense,
@@ -172,10 +239,12 @@ func createPackageDescriptorFromAnswers(answers newPackageAnswers) archetype.Pac
 			},
 			Owner: packages.Owner{
 				Github: answers.GithubOwner,
+				Type:   answers.OwnerType,
 			},
 			License:     answers.ElasticSubscription,
 			Description: answers.Description,
 			Categories:  answers.Categories,
 		},
+		InputDataStreamType: inputDataStreamType,
 	}
 }

@@ -20,7 +20,7 @@ import (
 
 var generateFlag = flag.Bool("generate", false, "Write golden files")
 
-func fooPackage(version string) packages.PackageManifest {
+func fooPackage(version, kibanaVersion string) packages.PackageManifest {
 	return packages.PackageManifest{
 		Name:        "foo",
 		Version:     version,
@@ -28,12 +28,19 @@ func fooPackage(version string) packages.PackageManifest {
 		Description: "Foo integration",
 		Owner: packages.Owner{
 			Github: "team",
+			Type:   "elastic",
+		},
+		Conditions: packages.Conditions{
+			Kibana: packages.KibanaConditions{Version: kibanaVersion},
+		},
+		Categories: []string{
+			"custom",
 		},
 	}
 }
 
 func TestStatusFormatAndPrint(t *testing.T) {
-	localPackage := fooPackage("2.0.0-rc1")
+	localPackage := fooPackage("2.0.0-rc1", "^8.9.0")
 	localPendingChanges := changelog.Revision{
 		Version: "2.0.0-rc2",
 		Changes: []changelog.Entry{
@@ -46,9 +53,10 @@ func TestStatusFormatAndPrint(t *testing.T) {
 	}
 
 	cases := []struct {
-		title     string
-		pkgStatus *status.PackageStatus
-		expected  string
+		title           string
+		pkgStatus       *status.PackageStatus
+		extraParameters []string
+		expected        string
 	}{
 		{
 			title:     "no versions",
@@ -60,7 +68,7 @@ func TestStatusFormatAndPrint(t *testing.T) {
 			pkgStatus: &status.PackageStatus{
 				Name: "foo",
 				Production: []packages.PackageManifest{
-					fooPackage("1.0.0"),
+					fooPackage("1.0.0", "^8.8.0"),
 				},
 			},
 			expected: "./testdata/status-version-one-stage",
@@ -70,8 +78,8 @@ func TestStatusFormatAndPrint(t *testing.T) {
 			pkgStatus: &status.PackageStatus{
 				Name: "foo",
 				Production: []packages.PackageManifest{
-					fooPackage("1.0.0"),
-					fooPackage("1.1.0-beta1"),
+					fooPackage("1.0.0", "^8.8.0"),
+					fooPackage("1.1.0-beta1", "^8.8.0"),
 				},
 			},
 			expected: "./testdata/status-beta-versions",
@@ -81,9 +89,9 @@ func TestStatusFormatAndPrint(t *testing.T) {
 			pkgStatus: &status.PackageStatus{
 				Name: "foo",
 				Production: []packages.PackageManifest{
-					fooPackage("1.0.0"),
-					fooPackage("1.1.0-beta1"),
-					fooPackage("2.0.0-rc1"),
+					fooPackage("1.0.0", "^8.8.0"),
+					fooPackage("1.1.0-beta1", "^8.8.0"),
+					fooPackage("2.0.0-rc1", "^8.8.0"),
 				},
 			},
 			expected: "./testdata/status-release-candidate-versions",
@@ -93,9 +101,9 @@ func TestStatusFormatAndPrint(t *testing.T) {
 			pkgStatus: &status.PackageStatus{
 				Name: "foo",
 				Production: []packages.PackageManifest{
-					fooPackage("0.9.0"),
-					fooPackage("1.0.0-preview1"),
-					fooPackage("1.0.0-preview5"),
+					fooPackage("0.9.0", "^8.6.0"),
+					fooPackage("1.0.0-preview1", "^8.8.0"),
+					fooPackage("1.0.0-preview5", "^8.8.0"),
 				},
 			},
 			expected: "./testdata/status-preview-versions",
@@ -106,10 +114,10 @@ func TestStatusFormatAndPrint(t *testing.T) {
 				Name:  "foo",
 				Local: &localPackage,
 				Production: []packages.PackageManifest{
-					fooPackage("1.0.0"),
-					fooPackage("1.0.1"),
-					fooPackage("1.0.2"),
-					fooPackage("1.1.0-beta1"),
+					fooPackage("1.0.0", "^8.8.0"),
+					fooPackage("1.0.1", "^8.8.0"),
+					fooPackage("1.0.2", "^8.8.0"),
+					fooPackage("1.1.0-beta1", "^8.8.0"),
 				},
 			},
 			expected: "./testdata/status-local-version-stage",
@@ -121,17 +129,32 @@ func TestStatusFormatAndPrint(t *testing.T) {
 				Local:          &localPackage,
 				PendingChanges: &localPendingChanges,
 				Production: []packages.PackageManifest{
-					fooPackage("1.0.0"),
+					fooPackage("1.0.0", "^8.8.0"),
 				},
 			},
 			expected: "./testdata/status-pending-changes",
+		},
+		{
+			title: "extra parameters",
+			pkgStatus: &status.PackageStatus{
+				Name:  "foo",
+				Local: &localPackage,
+				Production: []packages.PackageManifest{
+					fooPackage("1.0.0", "^8.8.0"),
+				},
+			},
+			extraParameters: []string{
+				"kibana.version",
+				"categories",
+			},
+			expected: "./testdata/status-extra-parameters",
 		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.title, func(t *testing.T) {
 			var buf bytes.Buffer
-			err := print(c.pkgStatus, &buf)
+			err := print(c.pkgStatus, &buf, c.extraParameters)
 			require.NoError(t, err)
 
 			assertOutputWithFile(t, c.expected, buf.String())

@@ -8,8 +8,8 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"slices"
 
-	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 )
 
@@ -137,7 +137,7 @@ func getComponentTemplatesFromIndexTemplates(indexTemplates []IndexTemplate) []s
 			continue
 		}
 		for _, ct := range composedOf {
-			if !common.StringSliceContains(templates, ct) {
+			if !slices.Contains(templates, ct) {
 				templates = append(templates, ct)
 			}
 		}
@@ -182,7 +182,7 @@ func getILMPoliciesFromTemplates(templates []TemplateWithSettings) []string {
 	var policies []string
 	for _, template := range templates {
 		name := template.TemplateSettings().Index.Lifecycle.Name
-		if name != "" && !common.StringSliceContains(policies, name) {
+		if name != "" && !slices.Contains(policies, name) {
 			policies = append(policies, name)
 		}
 	}
@@ -260,7 +260,7 @@ func getIngestPipelinesFromTemplates(templates []TemplateWithSettings) []string 
 			if pipeline == "" {
 				continue
 			}
-			if common.StringSliceContains(pipelines, pipeline) {
+			if slices.Contains(pipelines, pipeline) {
 				continue
 			}
 			pipelines = append(pipelines, pipeline)

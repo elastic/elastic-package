@@ -14,10 +14,12 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 
 	"github.com/Masterminds/semver/v3"
+	"github.com/cbroglie/mustache"
 	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/common"
@@ -42,8 +44,8 @@ type Validator struct {
 	// SpecVersion contains the version of the spec used by the package.
 	specVersion semver.Version
 
-	// expectedDataset contains the value expected for dataset fields.
-	expectedDataset string
+	// expectedDatasets contains the value expected for dataset fields.
+	expectedDatasets []string
 
 	defaultNumericConversion bool
 	numericKeywordFields     map[string]struct{}
@@ -111,10 +113,10 @@ func WithEnabledAllowedIPCheck() ValidatorOption {
 	}
 }
 
-// WithExpectedDataset configures the validator to check if the dataset fields have the expected values.
-func WithExpectedDataset(dataset string) ValidatorOption {
+// WithExpectedDatasets configures the validator to check if the dataset field value matches one of the expected values.
+func WithExpectedDatasets(datasets []string) ValidatorOption {
 	return func(v *Validator) error {
-		v.expectedDataset = dataset
+		v.expectedDatasets = datasets
 		return nil
 	}
 }
@@ -161,6 +163,8 @@ func CreateValidatorForDirectory(fieldsParentDir string, opts ...ValidatorOption
 
 func createValidatorForDirectoryAndPackageRoot(fieldsParentDir string, finder packageRootFinder, opts ...ValidatorOption) (v *Validator, err error) {
 	v = new(Validator)
+	// In validator, inject fields with settings used for validation, such as `allowed_values`.
+	v.injectFieldsOptions.IncludeValidationSettings = true
 	for _, opt := range opts {
 		if err := opt(v); err != nil {
 			return nil, err
@@ -313,22 +317,56 @@ var datasetFieldNames = []string{
 
 func (v *Validator) validateDocumentValues(body common.MapStr) multierror.Error {
 	var errs multierror.Error
-	if !v.specVersion.LessThan(semver2_0_0) && v.expectedDataset != "" {
+	if !v.specVersion.LessThan(semver2_0_0) && v.expectedDatasets != nil {
 		for _, datasetField := range datasetFieldNames {
 			value, err := body.GetValue(datasetField)
-			if err == common.ErrKeyNotFound {
+			if errors.Is(err, common.ErrKeyNotFound) {
 				continue
 			}
 
+			// Why do we render the expected datasets here?
+			// Because the expected datasets can contain
+			// mustache templates, and not just static
+			// strings.
+			//
+			// For example, the expected datasets for the
+			// Kubernetes container logs dataset can be:
+			//
+			//   - "{{kubernetes.labels.elastic_co/dataset}}"
+			//
+			var renderedExpectedDatasets []string
+			for _, dataset := range v.expectedDatasets {
+				renderedDataset, err := mustache.Render(dataset, body)
+				if err != nil {
+					err := fmt.Errorf("can't render expected dataset %q: %w", dataset, err)
+					errs = append(errs, err)
+					return errs
+				}
+				renderedExpectedDatasets = append(renderedExpectedDatasets, renderedDataset)
+			}
+
 			str, ok := valueToString(value, v.disabledNormalization)
-			if !ok || str != v.expectedDataset {
-				err := fmt.Errorf("field %q should have value %q, it has \"%v\"",
-					datasetField, v.expectedDataset, value)
+			exists := stringInArray(str, renderedExpectedDatasets)
+			if !ok || !exists {
+				err := fmt.Errorf("field %q should have value in %q, it has \"%v\"",
+					datasetField, v.expectedDatasets, value)
 				errs = append(errs, err)
 			}
 		}
 	}
 	return errs
+}
+
+func stringInArray(target string, arr []string) bool {
+	// Check if target is part of the array
+	found := false
+	for _, item := range arr {
+		if item == target {
+			found = true
+			break
+		}
+	}
+	return found
 }
 
 func valueToString(value any, disabledNormalization bool) (string, bool) {
@@ -847,7 +885,7 @@ func ensureAllowedValues(key, value string, definition FieldDefinition) error {
 	if !definition.AllowedValues.IsAllowed(value) {
 		return fmt.Errorf("field %q's value %q is not one of the allowed values (%s)", key, value, strings.Join(definition.AllowedValues.Values(), ", "))
 	}
-	if e := definition.ExpectedValues; len(e) > 0 && !common.StringSliceContains(e, value) {
+	if e := definition.ExpectedValues; len(e) > 0 && !slices.Contains(e, value) {
 		return fmt.Errorf("field %q's value %q is not one of the expected values (%s)", key, value, strings.Join(e, ", "))
 	}
 	return nil
@@ -871,7 +909,7 @@ func ensureExpectedEventType(key string, values []string, definition FieldDefini
 		return nil
 	}
 	for _, eventType := range eventTypes {
-		if !common.StringSliceContains(expected, eventType) {
+		if !slices.Contains(expected, eventType) {
 			return fmt.Errorf("field \"event.type\" value %q is not one of the expected values (%s) for any of the values of %q (%s)", eventType, strings.Join(expected, ", "), key, strings.Join(values, ", "))
 		}
 	}

@@ -13,15 +13,35 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/google/go-cmp/cmp"
-
 	"github.com/pmezard/go-difflib/difflib"
 
 	"github.com/elastic/elastic-package/internal/common"
+	"github.com/elastic/elastic-package/internal/formatter"
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
 
 const expectedTestResultSuffix = "-expected.json"
+
+var geoIPKeys = []string{
+	"as",
+	"geo",
+	"client.as",
+	"client.geo",
+	"destination.as",
+	"destination.geo",
+	"host.geo",     // not defined host.as in ECS
+	"observer.geo", // not defined observer.as in ECS
+	"server.as",
+	"server.geo",
+	"source.as",
+	"source.geo",
+	"threat.enrichments.indicateor.as",
+	"threat.enrichments.indicateor.geo",
+	"threat.indicateor.as",
+	"threat.indicateor.geo",
+}
 
 type testResult struct {
 	events []json.RawMessage
@@ -31,11 +51,11 @@ type testResultDefinition struct {
 	Expected []json.RawMessage `json:"expected"`
 }
 
-func writeTestResult(testCasePath string, result *testResult) error {
+func writeTestResult(testCasePath string, result *testResult, specVersion semver.Version) error {
 	testCaseDir := filepath.Dir(testCasePath)
 	testCaseFile := filepath.Base(testCasePath)
 
-	data, err := marshalTestResultDefinition(result)
+	data, err := marshalTestResultDefinition(result, specVersion)
 	if err != nil {
 		return fmt.Errorf("marshalling test result failed: %w", err)
 	}
@@ -46,28 +66,28 @@ func writeTestResult(testCasePath string, result *testResult) error {
 	return nil
 }
 
-func compareResults(testCasePath string, config *testConfig, result *testResult) error {
-	resultsWithoutDynamicFields, err := adjustTestResult(result, config)
+func compareResults(testCasePath string, config *testConfig, result *testResult, skipGeoip bool, specVersion semver.Version) error {
+	resultsWithoutDynamicFields, err := adjustTestResult(result, config, skipGeoip)
 	if err != nil {
 		return fmt.Errorf("can't adjust test results: %w", err)
 	}
 
-	actual, err := marshalTestResultDefinition(resultsWithoutDynamicFields)
+	actual, err := marshalTestResultDefinition(resultsWithoutDynamicFields, specVersion)
 	if err != nil {
 		return fmt.Errorf("marshalling actual test results failed: %w", err)
 	}
 
-	expectedResults, err := readExpectedTestResult(testCasePath, config)
+	expectedResults, err := readExpectedTestResult(testCasePath, config, skipGeoip)
 	if err != nil {
 		return fmt.Errorf("reading expected test result failed: %w", err)
 	}
 
-	expected, err := marshalTestResultDefinition(expectedResults)
+	expected, err := marshalTestResultDefinition(expectedResults, specVersion)
 	if err != nil {
 		return fmt.Errorf("marshalling expected test results failed: %w", err)
 	}
 
-	report, err := diffJson(expected, actual)
+	report, err := diffJson(expected, actual, specVersion)
 	if err != nil {
 		return fmt.Errorf("comparing expected test result: %w", err)
 	}
@@ -104,7 +124,7 @@ func compareJsonNumbers(a, b json.Number) bool {
 	return false
 }
 
-func diffJson(want, got []byte) (string, error) {
+func diffJson(want, got []byte, specVersion semver.Version) (string, error) {
 	var gotVal, wantVal interface{}
 	err := jsonUnmarshalUsingNumber(want, &wantVal)
 	if err != nil {
@@ -118,11 +138,11 @@ func diffJson(want, got []byte) (string, error) {
 		return "", nil
 	}
 
-	got, err = marshalNormalizedJSON(gotVal)
+	got, err = marshalNormalizedJSON(gotVal, specVersion)
 	if err != nil {
 		return "", err
 	}
-	want, err = marshalNormalizedJSON(wantVal)
+	want, err = marshalNormalizedJSON(wantVal, specVersion)
 	if err != nil {
 		return "", err
 	}
@@ -138,7 +158,7 @@ func diffJson(want, got []byte) (string, error) {
 	return buf.String(), err
 }
 
-func readExpectedTestResult(testCasePath string, config *testConfig) (*testResult, error) {
+func readExpectedTestResult(testCasePath string, config *testConfig, skipGeoIP bool) (*testResult, error) {
 	testCaseDir := filepath.Dir(testCasePath)
 	testCaseFile := filepath.Base(testCasePath)
 
@@ -153,19 +173,17 @@ func readExpectedTestResult(testCasePath string, config *testConfig) (*testResul
 		return nil, fmt.Errorf("unmarshalling expected test result failed: %w", err)
 	}
 
-	adjusted, err := adjustTestResult(u, config)
+	adjusted, err := adjustTestResult(u, config, skipGeoIP)
 	if err != nil {
 		return nil, fmt.Errorf("adjusting test result failed: %w", err)
 	}
 	return adjusted, nil
 }
 
-func adjustTestResult(result *testResult, config *testConfig) (*testResult, error) {
-	if config == nil || config.DynamicFields == nil {
+func adjustTestResult(result *testResult, config *testConfig, skipGeoIP bool) (*testResult, error) {
+	if !skipGeoIP && (config == nil || config.DynamicFields == nil) {
 		return result, nil
 	}
-
-	// Strip dynamic fields from test result
 	var stripped testResult
 	for _, event := range result.events {
 		if event == nil {
@@ -179,10 +197,22 @@ func adjustTestResult(result *testResult, config *testConfig) (*testResult, erro
 			return nil, fmt.Errorf("can't unmarshal event: %s: %w", string(event), err)
 		}
 
-		for key := range config.DynamicFields {
-			err := m.Delete(key)
-			if err != nil && err != common.ErrKeyNotFound {
-				return nil, fmt.Errorf("can't remove dynamic field: %w", err)
+		if config != nil && config.DynamicFields != nil {
+			// Strip dynamic fields from test result
+			for key := range config.DynamicFields {
+				err := m.Delete(key)
+				if err != nil && err != common.ErrKeyNotFound {
+					return nil, fmt.Errorf("can't remove dynamic field: %w", err)
+				}
+			}
+		}
+
+		if skipGeoIP {
+			for _, key := range geoIPKeys {
+				err := m.Delete(key)
+				if err != nil && err != common.ErrKeyNotFound {
+					return nil, fmt.Errorf("can't remove geoIP field: %w", err)
+				}
 			}
 		}
 
@@ -230,10 +260,10 @@ func jsonUnmarshalUsingNumber(data []byte, v interface{}) error {
 	return nil
 }
 
-func marshalTestResultDefinition(result *testResult) ([]byte, error) {
+func marshalTestResultDefinition(result *testResult, specVersion semver.Version) ([]byte, error) {
 	var trd testResultDefinition
 	trd.Expected = result.events
-	body, err := marshalNormalizedJSON(trd)
+	body, err := marshalNormalizedJSON(trd, specVersion)
 	if err != nil {
 		return nil, fmt.Errorf("marshalling test result definition failed: %w", err)
 	}
@@ -243,17 +273,20 @@ func marshalTestResultDefinition(result *testResult) ([]byte, error) {
 // marshalNormalizedJSON marshals test results ensuring that field
 // order remains consistent independent of field order returned by
 // ES to minimize diff noise during changes.
-func marshalNormalizedJSON(v interface{}) ([]byte, error) {
-	msg, err := json.Marshal(v)
+func marshalNormalizedJSON(v interface{}, specVersion semver.Version) ([]byte, error) {
+	jsonFormatter := formatter.JSONFormatterBuilder(specVersion)
+	msg, err := jsonFormatter.Encode(v)
 	if err != nil {
 		return msg, err
 	}
+
 	var obj interface{}
 	err = jsonUnmarshalUsingNumber(msg, &obj)
 	if err != nil {
 		return msg, err
 	}
-	return json.MarshalIndent(obj, "", "    ")
+
+	return jsonFormatter.Encode(obj)
 }
 
 func expectedTestResultFile(testFile string) string {

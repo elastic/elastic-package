@@ -532,12 +532,6 @@ elastic-package stack up -d
 
 For a complete listing of options available for this command, run `elastic-package stack up -h` or `elastic-package help stack up`.
 
-Next, you must set environment variables needed for further `elastic-package` commands.
-
-```
-$(elastic-package stack shellinit)
-```
-
 Next, you must invoke the system tests runner. This corresponds to steps 3 through 7 as described in the [_Conceptual process_](#Conceptual-process) section.
 
 If you want to run system tests for **all data streams** in a package, navigate to the package's root folder (or any sub-folder under it) and run the following command.
@@ -584,6 +578,25 @@ Example `expected_errors` file content:
 ```xml
 <testcase name=\"system test: pagination\" classname=\"httpjson_false_positive_asserts.generic\" time=\".*\"> * <failure>observed hit count 4 did not match expected hit count 2</failure>
 ```
+
+### System testing with logstash
+
+It is possible to test packages that output to Logstash which in turn publishes events to Elasticsearch.
+A profile config option `stack.logstash_enabled` has been added to profile configuration.
+
+When this profile config is enabled
+- Logstash output is added in Fleet with id `fleet-logstash-output`
+- Logstash service is created in the stack which reads from `elastic-agent` input and outputs to `elasticsearch`.
+- Logstash is also configured with `elastic-integration` plugin. Once configured to point to an Elasticsearch cluster, this filter will detect which ingest pipeline (if any) should be executed for each event, auto-detecting the event’s data-stream and its default pipeline.
+
+A sample workflow would look like:
+
+- You can [create](https://github.com/elastic/elastic-package#elastic-package-profiles-create) a new profile / [use existing profile](https://github.com/elastic/elastic-package#elastic-package-profiles-use) to test this.
+- Navigate to `~/.elastic-package/profiles/<profilename>/`.
+- Rename `config.yml.example` to `config.yml` [ If config is not used before ]
+- Add the following line (or uncomment if present) `stack.logstash_enabled: true`
+- Run `elastic-package stack up -d -v`
+- Navigate to the package folder in integrations and run `elastic-package test system -v`
 
 ## Continuous Integration
 

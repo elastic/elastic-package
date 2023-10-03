@@ -3,7 +3,8 @@ CODE_COVERAGE_REPORT_NAME_UNIT = $(CODE_COVERAGE_REPORT_FOLDER)/coverage-unit-re
 VERSION_IMPORT_PATH = github.com/elastic/elastic-package/internal/version
 VERSION_COMMIT_HASH = `git describe --always --long --dirty`
 VERSION_BUILD_TIME = `date +%s`
-VERSION_TAG = `(git describe --exact-match --tags 2>/dev/null || echo '') | tr -d '\n'`
+DEFAULT_VERSION_TAG ?=
+VERSION_TAG = `(git describe --exact-match --tags 2>/dev/null || echo '$(DEFAULT_VERSION_TAG)') | tr -d '\n'`
 VERSION_LDFLAGS = -X $(VERSION_IMPORT_PATH).CommitHash=$(VERSION_COMMIT_HASH) -X $(VERSION_IMPORT_PATH).BuildTime=$(VERSION_BUILD_TIME) -X $(VERSION_IMPORT_PATH).Tag=$(VERSION_TAG)
 
 .PHONY: build
@@ -65,11 +66,11 @@ test-stack-command-86:
 	./scripts/test-stack-command.sh 8.6.2
 
 test-stack-command-8x:
-	./scripts/test-stack-command.sh 8.9.0-SNAPSHOT
+	./scripts/test-stack-command.sh 8.11.0-SNAPSHOT
 
 test-stack-command: test-stack-command-default test-stack-command-7x test-stack-command-800 test-stack-command-8x
 
-test-check-packages: test-check-packages-with-kind test-check-packages-other test-check-packages-parallel test-check-packages-with-custom-agent test-check-packages-benchmarks test-check-packages-false-positives
+test-check-packages: test-check-packages-with-kind test-check-packages-other test-check-packages-parallel test-check-packages-with-custom-agent test-check-packages-benchmarks test-check-packages-false-positives test-check-packages-with-logstash
 
 test-check-packages-with-kind:
 	PACKAGE_TEST_TYPE=with-kind ./scripts/test-check-packages.sh
@@ -79,6 +80,9 @@ test-check-packages-other:
 
 test-check-packages-false-positives:
 	PACKAGE_TEST_TYPE=false_positives ./scripts/test-check-false-positives.sh
+
+test-check-packages-with-logstash:
+	PACKAGE_TEST_TYPE=with-logstash ./scripts/test-check-packages.sh
 
 test-check-packages-benchmarks:
 	PACKAGE_TEST_TYPE=benchmarks ./scripts/test-check-packages.sh
@@ -101,7 +105,10 @@ test-install-zip-shellinit:
 test-profiles-command:
 	./scripts/test-profiles-command.sh
 
-test: test-go test-stack-command test-check-packages test-profiles-command test-build-zip
+test-check-update-version:
+	./scripts/test-check-update-version.sh
+
+test: test-go test-stack-command test-check-packages test-profiles-command test-build-zip test-check-update-version
 
 check-git-clean:
 	git update-index --really-refresh

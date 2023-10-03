@@ -32,6 +32,9 @@ const (
 	// KibanaConfigFile is the kibana config file.
 	KibanaConfigFile = "kibana.yml"
 
+	// LogstashConfigFile is the logstash config file.
+	LogstashConfigFile = "logstash.conf"
+
 	// KibanaHealthcheckFile is the kibana healthcheck.
 	KibanaHealthcheckFile = "kibana_healthcheck.sh"
 
@@ -39,7 +42,7 @@ const (
 	PackageRegistryConfigFile = "package-registry.yml"
 
 	// PackageRegistryBaseImage is the base Docker image of the Elastic Package Registry.
-	PackageRegistryBaseImage = "docker.elastic.co/package-registry/package-registry:v1.20.0"
+	PackageRegistryBaseImage = "docker.elastic.co/package-registry/package-registry:v1.21.0"
 
 	// ElasticAgentEnvFile is the elastic agent environment variables file.
 	ElasticAgentEnvFile = "elastic-agent.env"
@@ -92,6 +95,10 @@ var (
 			Content: staticSource.Template("_static/kibana.yml.tmpl"),
 		},
 		&resource.File{
+			Path:    LogstashConfigFile,
+			Content: staticSource.Template("_static/logstash.conf.tmpl"),
+		},
+		&resource.File{
 			Path:    KibanaHealthcheckFile,
 			Content: staticSource.Template("_static/kibana_healthcheck.sh.tmpl"),
 		},
@@ -116,10 +123,14 @@ func applyResources(profile *profile.Profile, stackVersion string) error {
 		"kibana_version":        stackVersion,
 		"agent_version":         stackVersion,
 
+		"kibana_host": "https://kibana:5601",
+		"fleet_url":   "https://fleet-server:8220",
+
 		"username": elasticsearchUsername,
 		"password": elasticsearchPassword,
 
-		"geoip_dir": profile.Config("stack.geoip_dir", "./ingest-geoip"),
+		"geoip_dir":        profile.Config("stack.geoip_dir", "./ingest-geoip"),
+		"logstash_enabled": profile.Config("stack.logstash_enabled", "false"),
 	})
 
 	os.MkdirAll(stackDir, 0755)

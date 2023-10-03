@@ -1,4 +1,4 @@
-wait_for_data_timeout: 20m
+wait_for_data_timeout: 40m
 vars:
   project_id: "{{GCP_PROJECT_ID}}"
   credentials_json: '{{{GOOGLE_CREDENTIALS}}}'

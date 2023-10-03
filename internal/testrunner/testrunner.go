@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/elastic/elastic-package/internal/elasticsearch"
+	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/profile"
 )
 
@@ -22,16 +23,16 @@ type TestType string
 
 // TestOptions contains test runner options.
 type TestOptions struct {
+	Profile            *profile.Profile
 	TestFolder         TestFolder
 	PackageRootPath    string
 	GenerateTestResult bool
 	API                *elasticsearch.API
+	KibanaClient       *kibana.Client
 
 	DeferCleanup   time.Duration
 	ServiceVariant string
 	WithCoverage   bool
-
-	Profile *profile.Profile
 }
 
 // TestRunner is the interface all test runners must implement.

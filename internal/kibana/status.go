@@ -30,25 +30,46 @@ func (v VersionInfo) IsSnapshot() bool {
 
 type statusType struct {
 	Version VersionInfo `json:"version"`
+	Status  struct {
+		Overall struct {
+			Level string `json:"level"`
+		} `json:"overall"`
+	} `json:"status"`
 }
 
 // Version method returns the version of Kibana (Elastic stack)
 func (c *Client) Version() (VersionInfo, error) {
-	var version VersionInfo
+	return c.versionInfo, nil
+}
+
+func (c *Client) requestStatus() (statusType, error) {
+	var status statusType
 	statusCode, respBody, err := c.get(StatusAPI)
 	if err != nil {
-		return version, fmt.Errorf("could not reach status endpoint: %w", err)
+		return status, fmt.Errorf("could not reach status endpoint: %w", err)
 	}
 
 	if statusCode != http.StatusOK {
-		return version, fmt.Errorf("could not get status data; API status code = %d; response body = %s", statusCode, respBody)
+		return status, fmt.Errorf("could not get status data; API status code = %d; response body = %s", statusCode, respBody)
 	}
 
-	var status statusType
 	err = json.Unmarshal(respBody, &status)
 	if err != nil {
-		return version, fmt.Errorf("unmarshalling response failed (body: \n%s): %w", respBody, err)
+		return status, fmt.Errorf("unmarshalling response failed (body: \n%s): %w", respBody, err)
 	}
 
-	return status.Version, nil
+	return status, nil
+}
+
+// CheckHealth checks the Kibana health
+func (c *Client) CheckHealth() error {
+	status, err := c.requestStatus()
+	if err != nil {
+		return fmt.Errorf("could not reach status endpoint: %w", err)
+	}
+
+	if status.Status.Overall.Level != "available" {
+		return fmt.Errorf("kibana in unhealthy state: %s", status.Status.Overall.Level)
+	}
+	return nil
 }

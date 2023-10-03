@@ -15,64 +15,68 @@ import (
 	"github.com/elastic/go-ucfg"
 	"github.com/elastic/go-ucfg/yaml"
 
-	"github.com/elastic/elastic-package/internal/benchrunner/runners/system/servicedeployer"
+	"github.com/elastic/elastic-package/internal/servicedeployer"
 )
 
 const devPath = "_dev/benchmark/system"
 
 type scenario struct {
-	Package             string                 `config:"package"`
-	Description         string                 `config:"description"`
-	Version             string                 `config:"version"`
-	Input               string                 `config:"input"`
-	Vars                map[string]interface{} `config:"vars"`
-	DataStream          dataStream             `config:"data_stream"`
-	WarmupTimePeriod    time.Duration          `config:"warmup_time_period"`
-	BenchmarkTimePeriod time.Duration          `config:"benchmark_time_period"`
-	WaitForDataTimeout  time.Duration          `config:"wait_for_data_timeout"`
-	Corpora             corpora                `config:"corpora"`
+	Package             string                 `config:"package" json:"package"`
+	Description         string                 `config:"description" json:"description"`
+	Version             string                 `config:"version" json:"version"`
+	PolicyTemplate      string                 `config:"policy_template" json:"policy_template"`
+	Input               string                 `config:"input" json:"input"`
+	Vars                map[string]interface{} `config:"vars" json:"vars"`
+	DataStream          dataStream             `config:"data_stream" json:"data_stream"`
+	WarmupTimePeriod    time.Duration          `config:"warmup_time_period" json:"warmup_time_period"`
+	BenchmarkTimePeriod time.Duration          `config:"benchmark_time_period" json:"benchmark_time_period"`
+	WaitForDataTimeout  *time.Duration         `config:"wait_for_data_timeout" json:"wait_for_data_timeout"`
+	Corpora             corpora                `config:"corpora" json:"corpora"`
 }
 
 type dataStream struct {
-	Name string                 `config:"name"`
-	Vars map[string]interface{} `config:"vars"`
+	Name string                 `config:"name" json:"name"`
+	Vars map[string]interface{} `config:"vars" json:"vars"`
 }
 
 type corpora struct {
-	Generator    *generator    `config:"generator"`
-	InputService *inputService `config:"input_service"`
+	Generator    *generator    `config:"generator" json:"generator"`
+	InputService *inputService `config:"input_service" json:"input_service"`
 }
 
 type inputService struct {
-	Name   string `config:"name"`
-	Signal string `config:"signal"`
+	Name   string `config:"name" json:"name"`
+	Signal string `config:"signal" json:"signal"`
 }
 
 type generator struct {
-	Size     string          `config:"size"`
-	Template corporaTemplate `config:"template"`
-	Config   corporaConfig   `config:"config"`
-	Fields   corporaFields   `config:"fields"`
+	Size     string          `config:"size" json:"size"`
+	Template corporaTemplate `config:"template" json:"template"`
+	Config   corporaConfig   `config:"config" json:"config"`
+	Fields   corporaFields   `config:"fields" json:"fields"`
 }
 
 type corporaTemplate struct {
-	Raw  string `config:"raw"`
-	Path string `config:"path"`
-	Type string `config:"type"`
+	Raw  string `config:"raw" json:"raw"`
+	Path string `config:"path" json:"path"`
+	Type string `config:"type" json:"type"`
 }
 
 type corporaConfig struct {
-	Raw  map[string]interface{} `config:"raw"`
-	Path string                 `config:"path"`
+	Raw  map[string]interface{} `config:"raw" json:"raw"`
+	Path string                 `config:"path" json:"path"`
 }
 
 type corporaFields struct {
-	Raw  map[string]interface{} `config:"raw"`
-	Path string                 `config:"path"`
+	Raw  map[string]interface{} `config:"raw" json:"raw"`
+	Path string                 `config:"path" json:"path"`
 }
 
 func defaultConfig() *scenario {
-	return &scenario{}
+	timeout := 10 * time.Minute
+	return &scenario{
+		WaitForDataTimeout: &timeout,
+	}
 }
 
 func readConfig(path, scenario string, ctxt servicedeployer.ServiceContext) (*scenario, error) {

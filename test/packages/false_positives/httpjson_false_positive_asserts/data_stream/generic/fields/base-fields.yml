@@ -14,7 +14,7 @@
 - name: event.dataset
   type: constant_keyword
   description: Event dataset
-  value: httpjson.generic
+  value: httpjson_false_positive_asserts.generic
 - name: "@timestamp"
   type: date
   description: Event timestamp.

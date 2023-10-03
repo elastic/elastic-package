@@ -1,0 +1,670 @@
+{
+    "@timestamp": 1692610780000,
+    "cluster_name": "elasticsearch",
+    "node_name": "M_lyy0n9TSOjGt3kPhnM8Q",
+    "Breakers": {
+        "eql_sequence": {
+            "limit_size_in_bytes": 536870912,
+            "estimated_size_in_bytes": 0,
+            "overhead": 1,
+            "tripped": 0
+        },
+        "fielddata": {
+            "limit_size_in_bytes": 429496729,
+            "estimated_size_in_bytes": 2456,
+            "overhead": 1.03,
+            "tripped": 0
+        },
+        "inflight_requests": {
+            "limit_size_in_bytes": 1073741824,
+            "estimated_size_in_bytes": 0,
+            "overhead": 2,
+            "tripped": 0
+        },
+        "model_inference": {
+            "limit_size_in_bytes": 536870912,
+            "estimated_size_in_bytes": 0,
+            "overhead": 1,
+            "tripped": 0
+        },
+        "parent": {
+            "limit_size_in_bytes": 1020054732,
+            "estimated_size_in_bytes": 349638992,
+            "overhead": 1,
+            "tripped": 0
+        },
+        "request": {
+            "limit_size_in_bytes": 644245094,
+            "estimated_size_in_bytes": 0,
+            "overhead": 1,
+            "tripped": 0
+        }
+    },
+    "indices": {
+        "docs": {
+            "count": 502514,
+            "deleted": 101
+        },
+        "shard_stats": {
+            "total_count": 54
+        },
+        "store": {
+            "size_in_bytes": 231344895,
+            "total_data_set_size_in_bytes": 231344895,
+            "reserved_in_bytes": 0
+        },
+        "indexing": {
+            "index_total": 627678,
+            "index_time_in_millis": 192856,
+            "index_current": 0,
+            "index_failed": 43,
+            "delete_total": 80,
+            "delete_time_in_millis": 37,
+            "delete_current": 0,
+            "noop_update_total": 0,
+            "is_throttled": false,
+            "throttle_time_in_millis": 0,
+            "write_load": 0.00001370894459913557
+        },
+        "get": {
+            "total": 171437,
+            "time_in_millis": 21970,
+            "exists_total": 168394,
+            "exists_time_in_millis": 21727,
+            "missing_total": 3043,
+            "missing_time_in_millis": 243,
+            "current": 0
+        },
+        "search": {
+            "open_contexts": 0,
+            "query_total": 200120,
+            "query_time_in_millis": 98784,
+            "query_current": 0,
+            "fetch_total": 200076,
+            "fetch_time_in_millis": 8849,
+            "fetch_current": 0,
+            "scroll_total": 96697,
+            "scroll_time_in_millis": 10241728,
+            "scroll_current": 0,
+            "suggest_total": 0,
+            "suggest_time_in_millis": 0,
+            "suggest_current": 0
+        },
+        "merges": {
+            "current": 0,
+            "current_docs": 0,
+            "current_size_in_bytes": 0,
+            "total": 11503,
+            "total_time_in_millis": 187989,
+            "total_docs": 6782259,
+            "total_size_in_bytes": 2574092233,
+            "total_stopped_time_in_millis": 0,
+            "total_throttled_time_in_millis": 0,
+            "total_auto_throttle_in_bytes": 1132462080
+        },
+        "refresh": {
+            "total": 122510,
+            "total_time_in_millis": 905546,
+            "external_total": 77930,
+            "external_total_time_in_millis": 970183,
+            "listeners": 0
+        },
+        "flush": {
+            "total": 44585,
+            "periodic": 44585,
+            "total_time_in_millis": 2077597
+        },
+        "warmer": {
+            "current": 0,
+            "total": 77718,
+            "total_time_in_millis": 22729
+        },
+        "query_cache": {
+            "memory_size_in_bytes": 0,
+            "total_count": 0,
+            "hit_count": 0,
+            "miss_count": 0,
+            "cache_size": 0,
+            "cache_count": 0,
+            "evictions": 0
+        },
+        "fielddata": {
+            "memory_size_in_bytes": 2456,
+            "evictions": 0
+        },
+        "completion": {
+            "size_in_bytes": 0
+        },
+        "segments": {
+            "count": 743,
+            "memory_in_bytes": 0,
+            "terms_memory_in_bytes": 0,
+            "stored_fields_memory_in_bytes": 0,
+            "term_vectors_memory_in_bytes": 0,
+            "norms_memory_in_bytes": 0,
+            "points_memory_in_bytes": 0,
+            "doc_values_memory_in_bytes": 0,
+            "index_writer_memory_in_bytes": 2325280,
+            "version_map_memory_in_bytes": 348,
+            "fixed_bit_set_memory_in_bytes": 672,
+            "max_unsafe_auto_id_timestamp": 1691678283104,
+            "file_sizes": {}
+        },
+        "translog": {
+            "operations": 219,
+            "size_in_bytes": 363972,
+            "uncommitted_operations": 219,
+            "uncommitted_size_in_bytes": 363972,
+            "earliest_last_modified_age": 694
+        },
+        "request_cache": {
+            "memory_size_in_bytes": 51488,
+            "evictions": 0,
+            "hit_count": 6830,
+            "miss_count": 1177
+        },
+        "recovery": {
+            "current_as_source": 0,
+            "current_as_target": 0,
+            "throttle_time_in_millis": 0
+        },
+        "bulk": {
+            "total_operations": 336226,
+            "total_time_in_millis": 222470,
+            "total_size_in_bytes": 967279105,
+            "avg_time_in_millis": 0,
+            "avg_size_in_bytes": 2840
+        },
+        "mappings": {
+            "total_count": 11497,
+            "total_estimated_overhead_in_bytes": 11772928
+        }
+    },
+    "jvm": {
+        "mem": {
+            "heap_used_in_bytes": 345444688,
+            "heap_used_percent": 32,
+            "heap_committed_in_bytes": 1073741824,
+            "heap_max_in_bytes": 1073741824,
+            "non_heap_used_in_bytes": 260239608,
+            "non_heap_committed_in_bytes": 309788672,
+            "pools": {
+                "old": {
+                    "used_in_bytes": 199928320,
+                    "max_in_bytes": 1073741824,
+                    "peak_used_in_bytes": 214294528,
+                    "peak_max_in_bytes": 1073741824
+                },
+                "survivor": {
+                    "used_in_bytes": 32270160,
+                    "max_in_bytes": 0,
+                    "peak_used_in_bytes": 83886080,
+                    "peak_max_in_bytes": 0
+                },
+                "young": {
+                    "used_in_bytes": 113246208,
+                    "max_in_bytes": 0,
+                    "peak_used_in_bytes": 629145600,
+                    "peak_max_in_bytes": 0
+                }
+            }
+        },
+        "gc": {
+            "collectors": {
+                "G1 Concurrent GC": {
+                    "collection_count": 604,
+                    "collection_time_in_millis": 5896
+                },
+                "old": {
+                    "collection_count": 0,
+                    "collection_time_in_millis": 0
+                },
+                "young": {
+                    "collection_count": 1511,
+                    "collection_time_in_millis": 17790
+                }
+            }
+        },
+        "buffer_pools": {
+            "direct": {
+                "count": 78,
+                "used_in_bytes": 10105958,
+                "total_capacity_in_bytes": 10105956
+            },
+            "mapped": {
+                "count": 761,
+                "used_in_bytes": 229499619,
+                "total_capacity_in_bytes": 229499619
+            },
+            "mapped - 'non-volatile memory'": {
+                "count": 0,
+                "used_in_bytes": 0,
+                "total_capacity_in_bytes": 0
+            }
+        }
+    },
+    "os": {
+        "mem": {
+            "total_in_bytes": 12560445440,
+            "adjusted_total_in_bytes": 12560445440,
+            "free_in_bytes": 4413337600,
+            "used_in_bytes": 8147107840,
+            "free_percent": 35,
+            "used_percent": 65
+        }
+    },
+    "process": {
+        "cpu": {
+            "percent": 0,
+            "total_in_millis": 9628610
+        }
+    },
+    "thread_pool": {
+        "analyze": {
+            "threads": 0,
+            "queue": 0,
+            "active": 0,
+            "rejected": 0,
+            "largest": 0,
+            "completed": 0
+        },
+        "auto_complete": {
+            "threads": 0,
+            "queue": 0,
+            "active": 0,
+            "rejected": 0,
+            "largest": 0,
+            "completed": 0
+        },
+        "azure_event_loop": {
+            "threads": 0,
+            "queue": 0,
+            "active": 0,
+            "rejected": 0,
+            "largest": 0,
+            "completed": 0
+        },
+        "ccr": {
+            "threads": 0,
+            "queue": 0,
+            "active": 0,
+            "rejected": 0,
+            "largest": 0,
+            "completed": 0
+        },
+        "cluster_coordination": {
+            "threads": 1,
+            "queue": 0,
+            "active": 0,
+            "rejected": 0,
+            "largest": 1,
+            "completed": 2147
+        },
+        "fetch_shard_started": {
+            "threads": 0,
+            "queue": 0,
+            "active": 0,
+            "rejected": 0,
+            "largest": 0,
+            "completed": 0
+        },
+        "fetch_shard_store": {
+            "threads": 0,
+            "queue": 0,
+            "active": 0,
+            "rejected": 0,
+            "largest": 0,
+            "completed": 0
+        },
+        "flush": {
+            "threads": 4,
+            "queue": 0,
+            "active": 0,
+            "rejected": 0,
+            "largest": 4,
+            "completed": 44597
+        },
+        "force_merge": {
+            "threads": 0,
+            "queue": 0,
+            "active": 0,
+            "rejected": 0,
+            "largest": 0,
+            "completed": 0
+        },
+        "generic": {
+            "threads": 9,
+            "queue": 0,
+            "active": 0,
+            "rejected": 0,
+            "largest": 17,
+            "completed": 775114
+        },
+        "get": {
+            "threads": 0,
+            "queue": 0,
+            "active": 0,
+            "rejected": 0,
+            "largest": 0,
+            "completed": 0
+        },
+        "management": {
+            "threads": 5,
+            "queue": 0,
+            "active": 1,
+            "rejected": 0,
+            "largest": 5,
+            "completed": 628761
+        },
+        "ml_datafeed": {
+            "threads": 0,
+            "queue": 0,
+            "active": 0,
+            "rejected": 0,
+            "largest": 0,
+            "completed": 0
+        },
+        "ml_job_comms": {
+            "threads": 0,
+            "queue": 0,
+            "active": 0,
+            "rejected": 0,
+            "largest": 0,
+            "completed": 0
+        },
+        "ml_native_inference_comms": {
+            "threads": 0,
+            "queue": 0,
+            "active": 0,
+            "rejected": 0,
+            "largest": 0,
+            "completed": 0
+        },
+        "ml_utility": {
+            "threads": 2,
+            "queue": 0,
+            "active": 0,
+            "rejected": 0,
+            "largest": 2,
+            "completed": 284235
+        },
+        "profiling": {
+            "threads": 0,
+            "queue": 0,
+            "active": 0,
+            "rejected": 0,
+            "largest": 0,
+            "completed": 0
+        },
+        "refresh": {
+            "threads": 4,
+            "queue": 0,
+            "active": 0,
+            "rejected": 0,
+            "largest": 4,
+            "completed": 6736640
+        },
+        "repository_azure": {
+            "threads": 0,
+            "queue": 0,
+            "active": 0,
+            "rejected": 0,
+            "largest": 0,
+            "completed": 0
+        },
+        "rollup_indexing": {
+            "threads": 0,
+            "queue": 0,
+            "active": 0,
+            "rejected": 0,
+            "largest": 0,
+            "completed": 0
+        },
+        "search": {
+            "threads": 13,
+            "queue": 0,
+            "active": 0,
+            "rejected": 0,
+            "largest": 13,
+            "completed": 506
+        },
+        "search_coordination": {
+            "threads": 0,
+            "queue": 0,
+            "active": 0,
+            "rejected": 0,
+            "largest": 0,
+            "completed": 0
+        },
+        "search_throttled": {
+            "threads": 0,
+            "queue": 0,
+            "active": 0,
+            "rejected": 0,
+            "largest": 0,
+            "completed": 0
+        },
+        "searchable_snapshots_cache_fetch_async": {
+            "threads": 0,
+            "queue": 0,
+            "active": 0,
+            "rejected": 0,
+            "largest": 0,
+            "completed": 0
+        },
+        "searchable_snapshots_cache_prewarming": {
+            "threads": 0,
+            "queue": 0,
+            "active": 0,
+            "rejected": 0,
+            "largest": 0,
+            "completed": 0
+        },
+        "security-crypto": {
+            "threads": 4,
+            "queue": 0,
+            "active": 0,
+            "rejected": 0,
+            "largest": 4,
+            "completed": 9
+        },
+        "security-token-key": {
+            "threads": 0,
+            "queue": 0,
+            "active": 0,
+            "rejected": 0,
+            "largest": 0,
+            "completed": 0
+        },
+        "snapshot": {
+            "threads": 0,
+            "queue": 0,
+            "active": 0,
+            "rejected": 0,
+            "largest": 0,
+            "completed": 0
+        },
+        "snapshot_meta": {
+            "threads": 0,
+            "queue": 0,
+            "active": 0,
+            "rejected": 0,
+            "largest": 0,
+            "completed": 0
+        },
+        "system_critical_read": {
+            "threads": 4,
+            "queue": 0,
+            "active": 0,
+            "rejected": 0,
+            "largest": 4,
+            "completed": 1581
+        },
+        "system_critical_write": {
+            "threads": 4,
+            "queue": 0,
+            "active": 0,
+            "rejected": 0,
+            "largest": 4,
+            "completed": 180
+        },
+        "system_read": {
+            "threads": 4,
+            "queue": 0,
+            "active": 0,
+            "rejected": 0,
+            "largest": 4,
+            "completed": 409012
+        },
+        "system_write": {
+            "threads": 4,
+            "queue": 0,
+            "active": 0,
+            "rejected": 0,
+            "largest": 4,
+            "completed": 104814
+        },
+        "vector_tile_generation": {
+            "threads": 0,
+            "queue": 0,
+            "active": 0,
+            "rejected": 0,
+            "largest": 0,
+            "completed": 0
+        },
+        "warmer": {
+            "threads": 4,
+            "queue": 0,
+            "active": 0,
+            "rejected": 0,
+            "largest": 4,
+            "completed": 342944
+        },
+        "watcher": {
+            "threads": 0,
+            "queue": 0,
+            "active": 0,
+            "rejected": 0,
+            "largest": 0,
+            "completed": 0
+        },
+        "write": {
+            "threads": 8,
+            "queue": 0,
+            "active": 0,
+            "rejected": 0,
+            "largest": 8,
+            "completed": 868562
+        }
+    },
+    "transport": {
+        "server_open": 0,
+        "total_outbound_connections": 0,
+        "rx_count": 0,
+        "rx_size_in_bytes": 0,
+        "tx_count": 0,
+        "tx_size_in_bytes": 0,
+        "inbound_handling_time_histogram": [
+            {
+                "ge_millis": 0,
+                "lt_millis": 1,
+                "count": 273891
+            },
+            {
+                "ge_millis": 1,
+                "lt_millis": 2,
+                "count": 274801
+            },
+            {
+                "ge_millis": 2,
+                "lt_millis": 4,
+                "count": 5713
+            },
+            {
+                "ge_millis": 4,
+                "lt_millis": 8,
+                "count": 834
+            },
+            {
+                "ge_millis": 8,
+                "lt_millis": 16,
+                "count": 488
+            },
+            {
+                "ge_millis": 16,
+                "lt_millis": 32,
+                "count": 385
+            },
+            {
+                "ge_millis": 32,
+                "lt_millis": 64,
+                "count": 161
+            },
+            {
+                "ge_millis": 64,
+                "lt_millis": 128,
+                "count": 110
+            },
+            {
+                "ge_millis": 128,
+                "lt_millis": 256,
+                "count": 68
+            },
+            {
+                "ge_millis": 256,
+                "lt_millis": 512,
+                "count": 30
+            },
+            {
+                "ge_millis": 512,
+                "lt_millis": 1024,
+                "count": 2
+            }
+        ],
+        "outbound_handling_time_histogram": []
+    },
+    "benchmark_metadata": {
+        "info": {
+            "benchmark": "logs-benchmark",
+            "run_id": "a317f7d4-97a2-4ddd-a537-faa6433e62fb"
+        },
+        "parameter": {
+            "package": "system_benchmarks",
+            "description": "Benchmark 20MiB of data ingested",
+            "version": "999.999.999",
+            "policy_template": "testpo",
+            "input": "filestream",
+            "vars": null,
+            "data_stream": {
+                "name": "testds",
+                "vars": {
+                    "paths": [
+                        "/tmp/service_logs/corpus-*"
+                    ]
+                }
+            },
+            "warmup_time_period": 10000000000,
+            "benchmark_time_period": 0,
+            "wait_for_data_timeout": 60000000000,
+            "corpora": {
+                "generator": {
+                    "size": "20MiB",
+                    "template": {
+                        "raw": "",
+                        "path": "./logs-benchmark/template.log",
+                        "type": ""
+                    },
+                    "config": {
+                        "raw": null,
+                        "path": "./logs-benchmark/config.yml"
+                    },
+                    "fields": {
+                        "raw": null,
+                        "path": "./logs-benchmark/fields.yml"
+                    }
+                },
+                "input_service": null
+            }
+        }
+    }
+}

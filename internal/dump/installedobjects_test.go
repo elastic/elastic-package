@@ -17,9 +17,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/elastic/elastic-package/internal/elasticsearch"
 	estest "github.com/elastic/elastic-package/internal/elasticsearch/test"
 	"github.com/elastic/elastic-package/internal/files"
+	"github.com/elastic/elastic-package/internal/stack"
 )
 
 func TestDumpInstalledObjects(t *testing.T) {
@@ -64,7 +64,7 @@ type installedObjectsDumpSuite struct {
 func (s *installedObjectsDumpSuite) SetupTest() {
 	_, err := os.Stat(s.DumpDir)
 	if errors.Is(err, os.ErrNotExist) {
-		client, err := elasticsearch.NewClient()
+		client, err := stack.NewElasticsearchClient()
 		s.Require().NoError(err)
 
 		dumper := NewInstalledObjectsDumper(client.API, s.PackageName)

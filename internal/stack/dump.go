@@ -18,8 +18,6 @@ const (
 	fleetServerService  = "fleet-server"
 )
 
-var observedServices = []string{"elasticsearch", elasticAgentService, fleetServerService, "kibana", "package-registry"}
-
 // DumpOptions defines dumping options for Elatic stack data.
 type DumpOptions struct {
 	Output  string
@@ -50,7 +48,12 @@ func dumpStackLogs(options DumpOptions) error {
 		return fmt.Errorf("can't create output location (path: %s): %w", logsPath, err)
 	}
 
-	for _, serviceName := range observedServices {
+	services, err := localServiceNames(DockerComposeProjectName(options.Profile))
+	if err != nil {
+		return fmt.Errorf("failed to get local services: %w", err)
+	}
+
+	for _, serviceName := range services {
 		logger.Debugf("Dump stack logs for %s", serviceName)
 
 		content, err := dockerComposeLogs(serviceName, options.Profile)
@@ -60,7 +63,7 @@ func dumpStackLogs(options DumpOptions) error {
 			writeLogFiles(logsPath, serviceName, content)
 		}
 
-		err = copyDockerInternalLogs(serviceName, logsPath)
+		err = copyDockerInternalLogs(serviceName, logsPath, options.Profile)
 		if err != nil {
 			logger.Errorf("can't copy internal logs (service: %s): %v", serviceName, err)
 		}

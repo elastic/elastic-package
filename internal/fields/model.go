@@ -6,6 +6,7 @@ package fields
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -31,6 +32,15 @@ type FieldDefinition struct {
 	Normalize      []string          `yaml:"normalize,omitempty"`
 	Fields         FieldDefinitions  `yaml:"fields,omitempty"`
 	MultiFields    []FieldDefinition `yaml:"multi_fields,omitempty"`
+	Reusable       *ReusableConfig   `yaml:"reusable,omitempty"`
+
+	// disallowAtTopLevel transfers the reusability config from parent groups to nested fields.
+	// It is negated respect to Reusable.TopLevel, so it is disabled by default.
+	disallowAtTopLevel bool
+}
+
+type ReusableConfig struct {
+	TopLevel bool `yaml:"top_level"`
 }
 
 func (orig *FieldDefinition) Update(fd FieldDefinition) {
@@ -184,6 +194,10 @@ func (fds *FieldDefinitions) UnmarshalYAML(value *yaml.Node) error {
 func cleanNested(parent *FieldDefinition) (base []FieldDefinition) {
 	var nested []FieldDefinition
 	for _, field := range parent.Fields {
+		if reusable := parent.Reusable; reusable != nil {
+			field.disallowAtTopLevel = !reusable.TopLevel
+		}
+
 		// If the field name is prefixed by the name of its parent,
 		// this is a normal nested field. If not, it is a base field.
 		if strings.HasPrefix(field.Name, parent.Name+".") {
@@ -211,7 +225,7 @@ func (avs AllowedValues) IsAllowed(value string) bool {
 		// No configured allowed values, any value is allowed.
 		return true
 	}
-	return common.StringSliceContains(avs.Values(), value)
+	return slices.Contains(avs.Values(), value)
 }
 
 // Values returns the list of allowed values.

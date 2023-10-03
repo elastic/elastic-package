@@ -34,6 +34,7 @@ CHECK_PACKAGES_TESTS=(
     test-check-packages-with-kind
     test-check-packages-with-custom-agent
     test-check-packages-benchmarks
+    test-check-packages-with-logstash
 )
 for test in ${CHECK_PACKAGES_TESTS[@]}; do
     echo "      - label: \":go: Running integration test: ${test}\""
@@ -107,3 +108,12 @@ echo "      - label: \":go: Running integration test: test-profiles-command\""
 echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-profiles-command"
 echo "        agents:"
 echo "          provider: \"gcp\""
+
+echo "      - label: \":go: Running integration test: test-check-update-version\""
+echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-check-update-version"
+echo "        env:"
+echo "          DEFAULT_VERSION_TAG: v0.80.0"
+echo "        agents:"
+echo "          image: \"${LINUX_AGENT_IMAGE}\""
+echo "          cpu: \"8\""
+echo "          memory: \"4G\""

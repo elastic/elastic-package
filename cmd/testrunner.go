@@ -15,10 +15,10 @@ import (
 
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/common"
-	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/signal"
+	"github.com/elastic/elastic-package/internal/stack"
 	"github.com/elastic/elastic-package/internal/testrunner"
 	"github.com/elastic/elastic-package/internal/testrunner/reporters/formats"
 	"github.com/elastic/elastic-package/internal/testrunner/reporters/outputs"
@@ -82,6 +82,7 @@ func setupTestCommand() *cobraext.Command {
 			Use:   string(testType),
 			Short: fmt.Sprintf("Run %s tests", runner.String()),
 			Long:  fmt.Sprintf("Run %s tests for the package.", runner.String()),
+			Args:  cobra.NoArgs,
 			RunE:  action,
 		}
 
@@ -214,7 +215,7 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 			return err
 		}
 
-		esClient, err := elasticsearch.NewClient()
+		esClient, err := stack.NewElasticsearchClientFromProfile(profile)
 		if err != nil {
 			return fmt.Errorf("can't create Elasticsearch client: %w", err)
 		}
@@ -223,17 +224,23 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 			return err
 		}
 
+		kibanaClient, err := stack.NewKibanaClientFromProfile(profile)
+		if err != nil {
+			return fmt.Errorf("can't create Kibana client: %w", err)
+		}
+
 		var results []testrunner.TestResult
 		for _, folder := range testFolders {
 			r, err := testrunner.Run(testType, testrunner.TestOptions{
+				Profile:            profile,
 				TestFolder:         folder,
 				PackageRootPath:    packageRootPath,
 				GenerateTestResult: generateTestResult,
 				API:                esClient.API,
+				KibanaClient:       kibanaClient,
 				DeferCleanup:       deferCleanup,
 				ServiceVariant:     variantFlag,
 				WithCoverage:       testCoverage,
-				Profile:            profile,
 			})
 
 			results = append(results, r...)

@@ -6,7 +6,6 @@ package cmd
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -41,13 +40,10 @@ User profiles can be configured with a "config.yml" file in the profile director
 	}
 
 	profileNewCommand := &cobra.Command{
-		Use:   "create",
+		Use:   "create [profile]",
 		Short: "Create a new profile",
+		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-
-			if len(args) == 0 {
-				return errors.New("create requires an argument")
-			}
 			newProfileName := args[0]
 
 			fromName, err := cmd.Flags().GetString(cobraext.ProfileFromFlagName)
@@ -75,12 +71,10 @@ User profiles can be configured with a "config.yml" file in the profile director
 	profileNewCommand.Flags().String(cobraext.ProfileFromFlagName, "", cobraext.ProfileFromFlagDescription)
 
 	profileDeleteCommand := &cobra.Command{
-		Use:   "delete",
+		Use:   "delete [profile]",
 		Short: "Delete a profile",
+		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if len(args) == 0 {
-				return errors.New("delete requires an argument")
-			}
 			profileName := args[0]
 
 			config, err := install.Configuration()
@@ -117,6 +111,7 @@ User profiles can be configured with a "config.yml" file in the profile director
 	profileListCommand := &cobra.Command{
 		Use:   "list",
 		Short: "List available profiles",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			loc, err := locations.NewLocationManager()
 			if err != nil {
@@ -153,12 +148,10 @@ User profiles can be configured with a "config.yml" file in the profile director
 	profileListCommand.Flags().String(cobraext.ProfileFormatFlagName, tableFormat, cobraext.ProfileFormatFlagDescription)
 
 	profileUseCommand := &cobra.Command{
-		Use:   "use",
+		Use:   "use [profile]",
 		Short: "Sets the profile to use when no other is specified",
+		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if len(args) == 0 {
-				return errors.New("use requires an argument")
-			}
 			profileName := args[0]
 
 			_, err := profile.LoadProfile(profileName)

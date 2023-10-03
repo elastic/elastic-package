@@ -7,17 +7,20 @@ package kibana
 import (
 	"bytes"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
-	"os"
+
+	"github.com/Masterminds/semver/v3"
 
 	"github.com/elastic/elastic-package/internal/certs"
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/logger"
-	"github.com/elastic/elastic-package/internal/stack"
 )
+
+var ErrUndefinedHost = errors.New("missing kibana host")
 
 // Client is responsible for exporting dashboards from Kibana.
 type Client struct {
@@ -27,6 +30,9 @@ type Client struct {
 
 	certificateAuthority string
 	tlSkipVerify         bool
+
+	versionInfo VersionInfo
+	semver      *semver.Version
 }
 
 // ClientOption is functional option modifying Kibana client.
@@ -34,24 +40,28 @@ type ClientOption func(*Client)
 
 // NewClient creates a new instance of the client.
 func NewClient(opts ...ClientOption) (*Client, error) {
-	host := os.Getenv(stack.KibanaHostEnv)
-	username := os.Getenv(stack.ElasticsearchUsernameEnv)
-	password := os.Getenv(stack.ElasticsearchPasswordEnv)
-	certificateAuthority := os.Getenv(stack.CACertificateEnv)
-
-	c := &Client{
-		host:                 host,
-		username:             username,
-		password:             password,
-		certificateAuthority: certificateAuthority,
-	}
-
+	c := &Client{}
 	for _, opt := range opts {
 		opt(c)
 	}
 
 	if c.host == "" {
-		return nil, stack.UndefinedEnvError(stack.KibanaHostEnv)
+		return nil, ErrUndefinedHost
+	}
+
+	// Allow to initialize version from tests.
+	var zeroVersion VersionInfo
+	if c.semver == nil || c.versionInfo == zeroVersion {
+		v, err := c.requestStatus()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get Kibana version: %w", err)
+		}
+		c.versionInfo = v.Version
+
+		c.semver, err = semver.NewVersion(c.versionInfo.Number)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse Kibana version (%s): %w", c.versionInfo.Number, err)
+		}
 	}
 
 	return c, nil
@@ -71,6 +81,20 @@ func TLSSkipVerify() ClientOption {
 	}
 }
 
+// Username option sets the username to be used by the client.
+func Username(username string) ClientOption {
+	return func(c *Client) {
+		c.username = username
+	}
+}
+
+// Password option sets the password to be used by the client.
+func Password(password string) ClientOption {
+	return func(c *Client) {
+		c.password = password
+	}
+}
+
 // CertificateAuthority sets the certificate authority to be used by the client.
 func CertificateAuthority(certificateAuthority string) ClientOption {
 	return func(c *Client) {
@@ -79,22 +103,22 @@ func CertificateAuthority(certificateAuthority string) ClientOption {
 }
 
 func (c *Client) get(resourcePath string) (int, []byte, error) {
-	return c.sendRequest(http.MethodGet, resourcePath, nil)
+	return c.SendRequest(http.MethodGet, resourcePath, nil)
 }
 
 func (c *Client) post(resourcePath string, body []byte) (int, []byte, error) {
-	return c.sendRequest(http.MethodPost, resourcePath, body)
+	return c.SendRequest(http.MethodPost, resourcePath, body)
 }
 
 func (c *Client) put(resourcePath string, body []byte) (int, []byte, error) {
-	return c.sendRequest(http.MethodPut, resourcePath, body)
+	return c.SendRequest(http.MethodPut, resourcePath, body)
 }
 
 func (c *Client) delete(resourcePath string) (int, []byte, error) {
-	return c.sendRequest(http.MethodDelete, resourcePath, nil)
+	return c.SendRequest(http.MethodDelete, resourcePath, nil)
 }
 
-func (c *Client) sendRequest(method, resourcePath string, body []byte) (int, []byte, error) {
+func (c *Client) SendRequest(method, resourcePath string, body []byte) (int, []byte, error) {
 	request, err := c.newRequest(method, resourcePath, bytes.NewReader(body))
 	if err != nil {
 		return 0, nil, err

@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dustin/go-humanize"
 	"github.com/jedib0t/go-pretty/table"
 	"github.com/jedib0t/go-pretty/text"
 
@@ -78,7 +79,7 @@ func newReport(benchName, corporaFile string, s *scenario, sum *metricsSummary) 
 	report.Parameters.DataStream = s.DataStream
 	report.Parameters.WarmupTimePeriod = s.WarmupTimePeriod
 	report.Parameters.BenchmarkTimePeriod = s.BenchmarkTimePeriod
-	report.Parameters.WaitForDataTimeout = s.WaitForDataTimeout
+	report.Parameters.WaitForDataTimeout = *s.WaitForDataTimeout
 	report.Parameters.Corpora = s.Corpora
 	report.ClusterName = sum.ClusterName
 	report.Nodes = sum.Nodes
@@ -173,20 +174,31 @@ func reportHumanFormat(r *report) []byte {
 		adu := du.AllFields
 		report.WriteString(renderBenchmarkTable(
 			fmt.Sprintf("disk usage for index %s (for all fields)", index),
-			"total", adu.Total,
-			"inverted_index.total", adu.InvertedIndex.Total,
-			"inverted_index.stored_fields", adu.StoredFields,
-			"inverted_index.doc_values", adu.DocValues,
-			"inverted_index.points", adu.Points,
-			"inverted_index.norms", adu.Norms,
-			"inverted_index.term_vectors", adu.TermVectors,
-			"inverted_index.knn_vectors", adu.KnnVectors,
+			"total", humanize.Bytes(adu.TotalInBytes),
+			"inverted_index.total", humanize.Bytes(adu.InvertedIndex.TotalInBytes),
+			"inverted_index.stored_fields", humanize.Bytes(adu.StoredFieldsInBytes),
+			"inverted_index.doc_values", humanize.Bytes(adu.DocValuesInBytes),
+			"inverted_index.points", humanize.Bytes(adu.PointsInBytes),
+			"inverted_index.norms", humanize.Bytes(adu.NormsInBytes),
+			"inverted_index.term_vectors", humanize.Bytes(adu.TermVectorsInBytes),
+			"inverted_index.knn_vectors", humanize.Bytes(adu.KnnVectorsInBytes),
 		) + "\n")
 	}
 
 	for node, pStats := range r.IngestPipelineStats {
 		for pipeline, stats := range pStats {
-			var kvs []interface{}
+			if stats.Count == 0 {
+				continue
+			}
+			kvs := []interface{}{
+				"Totals",
+				fmt.Sprintf(
+					"Count: %d | Failed: %d | Time: %s",
+					stats.Count,
+					stats.Failed,
+					time.Duration(stats.TimeInMillis)*time.Millisecond,
+				),
+			}
 			for _, procStats := range stats.Processors {
 				str := fmt.Sprintf(
 					"Count: %d | Failed: %d | Time: %s",

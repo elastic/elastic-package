@@ -11,17 +11,22 @@ import (
 	"syscall"
 
 	"github.com/elastic/elastic-package/internal/logger"
+	"github.com/elastic/elastic-package/internal/profile"
 
 	"github.com/elastic/elastic-package/internal/configuration/locations"
+	"github.com/elastic/elastic-package/internal/servicedeployer"
 	"github.com/elastic/elastic-package/internal/testrunner/runners/system"
-	"github.com/elastic/elastic-package/internal/testrunner/runners/system/servicedeployer"
 )
 
 // Options define the details of the service which should be booted up.
 type Options struct {
+	Profile *profile.Profile
+
 	ServiceName        string
 	PackageRootPath    string
+	DevDeployDir       string
 	DataStreamRootPath string
+	StackVersion       string
 
 	Variant string
 }
@@ -30,9 +35,12 @@ type Options struct {
 func BootUp(options Options) error {
 	logger.Debugf("Create new instance of the service deployer")
 	serviceDeployer, err := servicedeployer.Factory(servicedeployer.FactoryOptions{
+		Profile:            options.Profile,
 		PackageRootPath:    options.DataStreamRootPath,
 		DataStreamRootPath: options.DataStreamRootPath,
+		DevDeployDir:       options.DevDeployDir,
 		Variant:            options.Variant,
+		StackVersion:       options.StackVersion,
 	})
 	if err != nil {
 		return fmt.Errorf("can't create the service deployer instance: %w", err)

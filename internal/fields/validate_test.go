@@ -251,10 +251,10 @@ func TestValidate_ExpectedEventType(t *testing.T) {
 	}
 }
 
-func TestValidate_ExpectedDataset(t *testing.T) {
+func TestValidate_ExpectedDatasets(t *testing.T) {
 	validator, err := CreateValidatorForDirectory("testdata",
 		WithSpecVersion("2.0.0"),
-		WithExpectedDataset("apache.status"),
+		WithExpectedDatasets([]string{"apache.status"}),
 		WithDisabledDependencyManagement(),
 	)
 	require.NoError(t, err)

@@ -7,7 +7,139 @@ about how to fix these issues.
 Version of the Package Spec used by a package is defined by the `format_version`
 setting in the `manifest.yml` file.
 
-## Troubleshooting upgrades from Package Spec v1 to v2
+## Troubleshooting upgrades to Package Spec v3
+
+### Error: building package failed: resolving external fields failed: can't resolve fields: field ... cannot be reused at top level
+
+Some ECS fields include a reusability condition, so they can be reused on other
+objects also defined in ECS. Some of these fields explicitly allow to reuse the
+fields in the top level, while others explicitly disallow it.
+
+Previous versions of elastic-package allowed to import reusable fields from ECS
+at the top level in all cases, what shouldn't be always allowed.
+
+If after updating to Package Spec v3 you find this error, please do the
+following:
+
+1. Check if your package is actually using this field.
+2. If it is not using it, please remove it, and you are done.
+3. If it is using it, copy the definition from ECS, or from the zip of a
+   previous build of the package.
+4. Consider moving the field to an ECS field if there is a suitable one. You
+   may need to duplicate the field for some time to avoid breaking changes.
+
+For example, `geo` fields are not expected to be used in the top level. If any
+of your integrations is doing it, please check to what location this field
+refers to. If it refers to the location of the host running elastic-agent, these
+fields could be under `host.geo`. If they refer to the client side of a
+connection, you could use `client.geo`.
+
+### field ...: Additional property ... is not allowed
+
+Package Spec 3.0.0 doesn't allow to use dotted notation in yaml configuration in
+manifests. Previous implementation could lead to ambiguous results if the same
+setting was included with and withoud dotted notation.
+
+This is commonly found in `conditions` or in `elasticsearch` settings.
+
+To solve this, please use nested dotations. So if for example your package has
+something like the following:
+```
+conditions:
+  elastic.subscription: basic
+```
+Transform it to the following:
+```
+conditions:
+  elastic:
+    subscription: basic
+```
+
+### file "..." is invalid: dangling reference found: ...
+
+Package Spec 3.0.0 has stricter validation for some Kibana objects now. It
+checks if all references included are defined in the own package.
+
+Please remove or fix any reference to missing objects.
+
+### field processors...: Additional property ... is not allowed
+
+Some ingest pipeline processors are not well supported in the current Package
+Spec, or there are alternative preferred ways to define them. These processors
+won't be allowed to prevent other issues and have more consistent user
+experience for some features.
+
+If you find this error while trying to use the `reroute` processor, please use
+instead the `routing_rules.yml` file, so users can more easily customize the
+routing rules.
+
+If you find this error while trying to use a new processor, please open an issue
+in the Package Spec repository so we can add support for it.
+
+### field owner: type is required
+
+Package Spec 3.0.0 now requires the owner type field to be set. This field
+describes who owns the package and the level of support that is provided.
+The 'elastic' value indicates that the package is built and maintained by
+Elastic. The 'partner' value indicates that the package is built and
+maintained by a partner vendor and may include involvement from Elastic.
+The 'community' value indicates the package is built and maintained by
+non-Elastic community members.
+
+The field was initially introduced in Package Spec `2.11.0` and prior to this
+version assumed an implicit default of `elastic`. In `2.11.0`, the implicit
+default changed to `community`. To avoid accidentally tagging an integration
+with the wrong owner type, the field is now required.
+
+The value must be one of the following:
+
+- `elastic`
+- `partner`
+- `community`
+
+```
+owner:
+  type: elastic
+```
+
+### expected filter in dashboard: ...
+
+It is required to include filters in dashboards, to limit the size of the data
+handled to the one included in related datasets.
+
+To fix this issue, please include a filter in the dashboard. It usually means to
+add a filter based on `data_stream.dataset`. But it is open to the package
+developer to provide any filter that fits the use case of the package.
+
+There are two variants of this error:
+
+- `no filter found`: that means that no kind of filter has been found in the
+  dashboard, and one should be added.
+- `saved query found, but no filter`: that means that a saved query has been
+  found, but no filter. If that's the case, please migrate the saved query to a
+  filter. We want to make this filtering only in filters, for consistency
+  between different dashboards, and to allow users to quickly filter using the
+  query bar without affecting the provided filters.
+
+### "My Dashboard" contains legacy visualization: "My Visualization" (metric, TSVB)
+
+All visualizations must be created using [Lens](https://www.elastic.co/kibana/kibana-lens) or [Vega](https://www.elastic.co/guide/en/kibana/current/vega.html).
+
+The only exceptions are
+- Markdown panels created from the dashboard application. There are no plans to deprecate these.
+- TSVB markdown. Support will eventually be removed, but this is
+  currently allowed because we do not yet offer an alternative for
+  injecting analytics into markdown. Prefer the dashboard markdown
+  panels when possible.
+- The legacy dashboard controls ("input-control-vis"). These should be replaced
+  with the [new dashboard controls](https://www.elastic.co/guide/en/kibana/current/add-controls.html) but we are not currently
+  enforcing this with tooling.
+
+**Note:** most legacy visualizations can be converted by selecting "Convert to Lens"
+from the dashboard panel context menu or by clicking "Edit visualization in Lens"
+after opening the visualization in the editor.
+
+## Troubleshooting upgrades to Package Spec v2
 
 ### field (root): Additional property license is not allowed
 
@@ -19,7 +151,8 @@ So, for example, for a package with `license: basic`, you must remove this line
 and add the following condition:
 ```
 conditions:
-  elastic.subscription: basic
+  elastic:
+    subscription: basic
 ```
 
 ### field ...: Additional property ... is not allowed

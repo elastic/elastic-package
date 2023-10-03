@@ -9,7 +9,6 @@ For versions of `Kibana<8.7.0`, the packages must be exposed via the Package Reg
 In case of development, this means that the package should be built previously and then the Elastic stack must be started. Or at least, package-registry service needs to be restarted in the Elastic stack.
 
 ```shell
-eval "$(elastic-package stack shellinit)"
 elastic-package build -v
 elastic-package stack up -v -d  # elastic-package stack up -v -d --services package-registry
 elastic-package install -v
@@ -30,7 +29,6 @@ From Kibana 8.7.0 version, `elastic-package install` is able to install packages
 Example of using `--zip` parameter:
 ```shell
  $ elastic-package stack up -v -d
- $ eval "$(elastic-package stack shellinit)"
  $ elastic-package install --zip /home/user/Coding/work/integrations/build/packages/elastic_package_registry-0.0.6.zip -v
 2023/02/23 18:44:59 DEBUG Enable verbose logging
 2023/02/23 18:44:59 DEBUG Distribution built without a version tag, can't determine release chronology. Please consider using official releases at https://github.com/elastic/elastic-package/releases
@@ -50,7 +48,6 @@ Done
 Example of using `elastic-package install`
 ```shell
  $ elastic-package stack up -v -d
- $ eval "$(elastic-package stack shellinit)"
  $ elastic-package install -v
 2023/02/28 12:34:44 DEBUG Enable verbose logging
 2023/02/28 12:34:44 DEBUG Distribution built without a version tag, can't determine release chronology. Please consider using official releases at https://github.com/elastic/elastic-package/releases

@@ -21,6 +21,7 @@ type Policy struct {
 	Revision           int      `json:"revision,omitempty"`
 	MonitoringEnabled  []string `json:"monitoring_enabled,omitempty"`
 	MonitoringOutputID string   `json:"monitoring_output_id,omitempty"`
+	DataOutputID       string   `json:"data_output_id,omitempty"`
 }
 
 // CreatePolicy persists the given Policy in Fleet.
@@ -227,13 +228,13 @@ type PackagePolicy struct {
 		Name    string `json:"name"`
 		Version string `json:"version"`
 	} `json:"package"`
-	Vars   map[string]interface{}        `json:"vars,omitempty"`
 	Inputs map[string]PackagePolicyInput `json:"inputs,omitempty"`
 	Force  bool                          `json:"force"`
 }
 
 type PackagePolicyInput struct {
 	Enabled bool                           `json:"enabled"`
+	Vars    map[string]interface{}         `json:"vars,omitempty"`
 	Streams map[string]PackagePolicyStream `json:"streams,omitempty"`
 }
 

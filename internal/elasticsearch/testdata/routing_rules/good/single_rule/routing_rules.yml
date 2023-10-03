@@ -1,0 +1,19 @@
+- source_dataset: multiple_namespace
+  rules:
+    - target_dataset: aws.cloudtrail
+      if: ctx['aws.cloudwatch.log_stream'].contains('CloudTrail')
+      namespace:
+        - "{{labels.data_stream.namespace}}"
+        - default
+- source_dataset: multiple_target_dataset
+  rules:
+    - target_dataset:
+        - aws.firewall_logs
+        - aws.test_logs
+      if: ctx['aws.cloudwatch.log_stream'].contains('Firewall')
+      namespace: default
+- source_dataset: single_namespace_target_dataset
+  rules:
+    - target_dataset: aws.route53_public_logs
+      if: ctx['aws.cloudwatch.log_stream'].contains('Route53')
+      namespace: "{{labels.data_stream.namespace}}"

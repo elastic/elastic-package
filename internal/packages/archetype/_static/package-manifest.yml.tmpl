@@ -1,0 +1,77 @@
+format_version: {{.Manifest.SpecVersion}}
+name: {{.Manifest.Name}}
+title: "{{.Manifest.Title}}"
+version: {{.Manifest.Version}}
+{{ if ne .Manifest.Source.License "" }}
+source:
+  license: "{{.Manifest.Source.License}}"
+{{ end }}
+description: "{{.Manifest.Description}}"
+type: {{.Manifest.Type}}
+categories:{{range $category := .Manifest.Categories}}
+  - {{$category}}
+{{- end}}
+conditions:
+  kibana:
+    version: "{{.Manifest.Conditions.Kibana.Version}}"
+  elastic:
+    subscription: "{{.Manifest.Conditions.Elastic.Subscription}}"
+screenshots:
+  - src: /img/sample-screenshot.png
+    title: Sample screenshot
+    size: 600x600
+    type: image/png
+icons:
+  - src: /img/sample-logo.svg
+    title: Sample logo
+    size: 32x32
+    type: image/svg+xml
+policy_templates:
+{{- if eq .Manifest.Type "integration" }}
+  - name: sample
+    title: Sample logs
+    description: Collect sample logs
+    inputs:
+      - type: logfile
+        title: Collect sample logs from instances
+        description: Collecting sample logs
+{{ else -}}
+{{ if eq .InputDataStreamType "logs"}}
+  - name: sample
+    type: logs
+    title: Sample logs
+    description: Collect sample logs
+    input: logfile
+    template_path: input.yml.hbs
+    vars:
+      - name: paths
+        type: text
+        title: Paths
+        multi: true
+        default:
+          - /var/log/*.log
+{{ else }}
+  - name: sample
+    type: metrics
+    title: Sample metrics
+    description: Collect sample metrics
+    input: sample/metrics
+    template_path: input.yml.hbs
+    vars:
+      - name: period
+        type: text
+        title: Period
+        default: 10s
+      - name: hosts
+        type: text
+        title: Hosts
+        multi: true
+        required: true
+        show_user: true
+        default:
+          - localhost
+{{ end }}
+{{ end -}}
+owner:
+  github: {{.Manifest.Owner.Github}}
+  type: {{.Manifest.Owner.Type}}

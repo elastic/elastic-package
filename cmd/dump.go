@@ -12,7 +12,9 @@ import (
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/dump"
 	"github.com/elastic/elastic-package/internal/elasticsearch"
+	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/kibana"
+	"github.com/elastic/elastic-package/internal/stack"
 )
 
 const dumpLongDescription = `Use this command as an exploratory tool to dump resources from Elastic Stack (objects installed as part of package and agent policies).`
@@ -34,6 +36,7 @@ func setupDumpCommand() *cobraext.Command {
 		Use:   "installed-objects",
 		Short: "Dump objects installed in the stack",
 		Long:  dumpInstalledObjectsLongDescription,
+		Args:  cobra.NoArgs,
 		RunE:  dumpInstalledObjectsCmdAction,
 	}
 	dumpInstalledObjectsCmd.Flags().Bool(cobraext.TLSSkipVerifyFlagName, false, cobraext.TLSSkipVerifyFlagDescription)
@@ -44,6 +47,7 @@ func setupDumpCommand() *cobraext.Command {
 		Use:   "agent-policies",
 		Short: "Dump agent policies defined in the stack",
 		Long:  dumpAgentPoliciesLongDescription,
+		Args:  cobra.NoArgs,
 		RunE:  dumpAgentPoliciesCmdAction,
 	}
 	dumpAgentPoliciesCmd.Flags().StringP(cobraext.AgentPolicyFlagName, "", "", cobraext.AgentPolicyDescription)
@@ -55,6 +59,7 @@ func setupDumpCommand() *cobraext.Command {
 		Long:  dumpLongDescription,
 	}
 	cmd.PersistentFlags().StringP(cobraext.DumpOutputFlagName, "o", "package-dump", cobraext.DumpOutputFlagDescription)
+	cmd.PersistentFlags().StringP(cobraext.ProfileFlagName, "p", "", fmt.Sprintf(cobraext.ProfileFlagDescription, install.ProfileNameEnvVar))
 
 	cmd.AddCommand(dumpInstalledObjectsCmd)
 	cmd.AddCommand(dumpAgentPoliciesCmd)
@@ -79,7 +84,13 @@ func dumpInstalledObjectsCmdAction(cmd *cobra.Command, args []string) error {
 	if tlsSkipVerify {
 		clientOptions = append(clientOptions, elasticsearch.OptionWithSkipTLSVerify())
 	}
-	client, err := elasticsearch.NewClient(clientOptions...)
+
+	profile, err := cobraext.GetProfileFlag(cmd)
+	if err != nil {
+		return err
+	}
+
+	client, err := stack.NewElasticsearchClientFromProfile(profile, clientOptions...)
 	if err != nil {
 		return fmt.Errorf("failed to initialize Elasticsearch client: %w", err)
 	}
@@ -119,7 +130,13 @@ func dumpAgentPoliciesCmdAction(cmd *cobra.Command, args []string) error {
 	if tlsSkipVerify {
 		clientOptions = append(clientOptions, kibana.TLSSkipVerify())
 	}
-	kibanaClient, err := kibana.NewClient(clientOptions...)
+
+	profile, err := cobraext.GetProfileFlag(cmd)
+	if err != nil {
+		return err
+	}
+
+	kibanaClient, err := stack.NewKibanaClientFromProfile(profile, clientOptions...)
 	if err != nil {
 		return fmt.Errorf("failed to initialize Kibana client: %w", err)
 	}

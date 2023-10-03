@@ -22,6 +22,11 @@ cleanup() {
   # Take down the stack
   elastic-package stack down -v
 
+  if [ "${PACKAGE_TEST_TYPE:-other}" == "with-logstash" ]; then
+    # Delete the logstash profile
+    elastic-package profiles delete logstash -v
+  fi
+
   # Clean used resources
   for d in test/packages/${PACKAGE_TEST_TYPE:-other}/${PACKAGE_UNDER_TEST:-*}/; do
     (
@@ -29,7 +34,7 @@ cleanup() {
       elastic-package clean -v
     )
   done
-  
+
   exit $r
 }
 
@@ -47,6 +52,18 @@ for d in test/packages/${PACKAGE_TEST_TYPE:-other}/${PACKAGE_UNDER_TEST:-*}/; do
 done
 cd -
 
+if [ "${PACKAGE_TEST_TYPE:-other}" == "with-logstash" ]; then
+  # Create a logstash profile and use it
+  elastic-package profiles create logstash -v
+  elastic-package profiles use logstash
+
+  # Rename the config.yml.example to config.yml
+  mv ~/.elastic-package/profiles/logstash/config.yml.example ~/.elastic-package/profiles/logstash/config.yml
+  
+  # Append config to enable logstash
+  echo "stack.logstash_enabled: true" >> ~/.elastic-package/profiles/logstash/config.yml
+fi
+
 # Update the stack
 elastic-package stack update -v
 
@@ -61,12 +78,9 @@ if [ "${PACKAGE_TEST_TYPE:-other}" == "with-kind" ]; then
 fi
 
 # Run package tests
-eval "$(elastic-package stack shellinit)"
-
 for d in test/packages/${PACKAGE_TEST_TYPE:-other}/${PACKAGE_UNDER_TEST:-*}/; do
   (
     cd $d
-    elastic-package install -v
 
     if [ "${PACKAGE_TEST_TYPE:-other}" == "benchmarks" ]; then
       # It is not used PACKAGE_UNDER_TEST, so all benchmark packages are run in the same loop
@@ -85,10 +99,9 @@ for d in test/packages/${PACKAGE_TEST_TYPE:-other}/${PACKAGE_UNDER_TEST:-*}/; do
           --old ${OLDPWD}/build/benchmark-results-old \
           --threshold 1 --report-output-path="${OLDPWD}/build/benchreport"
       fi
-      # FIXME: running system benchmark in package "system_benchmark" fails with panic
-      # if [ "${package_to_test}" == "system_benchmark" ]; then
-      #   elastic-package benchmark system --benchmark logs-benchmark -v --defer-cleanup 1s
-      # fi
+      if [ "${package_to_test}" == "system_benchmark" ]; then
+        elastic-package benchmark system --benchmark logs-benchmark -v --defer-cleanup 1s
+      fi
     else
       # defer-cleanup is set to a short period to verify that the option is available
       elastic-package test -v --report-format xUnit --report-output file --defer-cleanup 1s --test-coverage
