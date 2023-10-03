@@ -100,4 +100,29 @@ func extendMapNode(node *yaml.Node) {
 		// Recurse on the current value.
 		extendNestedObjects(node.Content[i+1])
 	}
+
+	mergeNodes(node)
+}
+
+// mergeNodes merges the contents of keys with the same name.
+func mergeNodes(node *yaml.Node) {
+	keys := make(map[string]*yaml.Node)
+	k := 0
+	for i := 0; i < len(node.Content); i += 2 {
+		key := node.Content[i]
+		value := node.Content[i+1]
+
+		merged, found := keys[key.Value]
+		if !found {
+			keys[key.Value] = value
+			node.Content[k] = key
+			node.Content[k+1] = value
+			k += 2
+			continue
+		}
+
+		merged.Content = append(merged.Content, value.Content...)
+	}
+
+	node.Content = node.Content[:k]
 }

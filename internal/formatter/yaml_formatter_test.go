@@ -90,6 +90,18 @@ a:
       bar: 2
 `,
 		},
+		{
+			title: "merge keys",
+			doc: `es.something: true
+es.other.thing: false
+es.other.level: 13`,
+			expected: `es:
+  something: true
+  other:
+    thing: false
+    level: 13
+`,
+		},
 	}
 
 	sv := semver.MustParse("3.0.0")
