@@ -57,7 +57,8 @@ func (c *Client) exportWithSavedObjectsAPI(dashboardIDs []string) ([]common.MapS
 	logger.Debug("Export dashboards using the Kibana Saved Objects Export API")
 
 	exportRequest := exportSavedObjectsRequest{
-		ExcludeExportDetails: true,
+		ExcludeExportDetails:  true,
+		IncludeReferencesDeep: true,
 	}
 	for _, dashboardID := range dashboardIDs {
 		exportRequest.Objects = append(exportRequest.Objects, exportSavedObjectsRequestObject{
