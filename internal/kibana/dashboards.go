@@ -25,17 +25,7 @@ type exportedType struct {
 
 // Export method exports selected dashboards using the Kibana APIs.
 func (c *Client) Export(dashboardIDs []string) ([]common.MapStr, error) {
-	versionInfo, err := c.Version()
-	if err != nil {
-		return nil, fmt.Errorf("could not get Kibana version info: %w", err)
-	}
-
-	sv, err := semver.NewVersion(versionInfo.Number)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse Kibana version: %w", err)
-	}
-
-	if sv.LessThan(semver.MustParse("8.8.0")) {
+	if c.semver.LessThan(semver.MustParse("8.8.0")) {
 		return c.exportWithDashboardsAPI(dashboardIDs)
 	}
 
