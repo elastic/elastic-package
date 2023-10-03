@@ -5,7 +5,6 @@
 package formatter
 
 import (
-	"strconv"
 	"testing"
 
 	"github.com/Masterminds/semver/v3"
@@ -15,23 +14,27 @@ import (
 
 func TestYAMLFormatterNestedObjects(t *testing.T) {
 	cases := []struct {
+		title    string
 		doc      string
 		expected string
 	}{
 		{
-			doc: `foo.bar: 3`,
+			title: "one-level nested setting",
+			doc:   `foo.bar: 3`,
 			expected: `foo:
   bar: 3
 `,
 		},
 		{
-			doc: `foo.bar.baz: 3`,
+			title: "two-level nested setting",
+			doc:   `foo.bar.baz: 3`,
 			expected: `foo:
   bar:
     baz: 3
 `,
 		},
 		{
+			title: "nested setting at second level",
 			doc: `foo:
   bar.baz: 3`,
 			expected: `foo:
@@ -40,6 +43,7 @@ func TestYAMLFormatterNestedObjects(t *testing.T) {
 `,
 		},
 		{
+			title: "two two-level nested settings",
 			doc: `foo.bar.baz: 3
 a.b.c: 42`,
 			expected: `foo:
@@ -51,6 +55,7 @@ a:
 `,
 		},
 		{
+			title: "keep comments with the leaf value",
 			doc: `foo.bar.baz: 3 # baz
 # Mistery of life and everything else.
 a.b.c: 42`,
@@ -64,16 +69,34 @@ a:
 `,
 		},
 		{
+			title:    "keep double-quoted keys",
 			doc:      `"foo.bar.baz": 3`,
 			expected: "\"foo.bar.baz\": 3\n",
+		},
+		{
+			title:    "keep single-quoted keys",
+			doc:      `"foo.bar.baz": 3`,
+			expected: "\"foo.bar.baz\": 3\n",
+		},
+		{
+			title: "array of maps",
+			doc: `foo:
+  - foo.bar: 1
+  - foo.bar: 2`,
+			expected: `foo:
+  - foo:
+      bar: 1
+  - foo:
+      bar: 2
+`,
 		},
 	}
 
 	sv := semver.MustParse("3.0.0")
 	formatter := NewYAMLFormatter(*sv).Format
 
-	for i, c := range cases {
-		t.Run(strconv.Itoa(i), func(t *testing.T) {
+	for _, c := range cases {
+		t.Run(c.title, func(t *testing.T) {
 			result, _, err := formatter([]byte(c.doc))
 			require.NoError(t, err)
 			assert.Equal(t, c.expected, string(result))

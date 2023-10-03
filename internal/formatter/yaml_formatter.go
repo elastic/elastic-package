@@ -73,23 +73,31 @@ func extendMapNode(node *yaml.Node) {
 
 		// Insert nested objects only when the key has a dot, and is not quoted.
 		if found && key.Style == 0 {
+			// Copy key to create the new parent with the first part of the path.
 			newKey := *key
 			newKey.Value = base
 			newKey.FootComment = ""
 			newKey.HeadComment = ""
 			newKey.LineComment = ""
+
+			// Copy key also to create the key of the child value.
 			newChildKey := *key
 			newChildKey.Value = rest
+
+			// Copy the parent node to create the nested object, that contains the new
+			// child key and the original value.
 			newNode := *node
 			newNode.Content = []*yaml.Node{
 				&newChildKey,
 				value,
 			}
 
+			// Replace current key and value.
 			node.Content[i] = &newKey
 			node.Content[i+1] = &newNode
 		}
 
+		// Recurse on the current value.
 		extendNestedObjects(node.Content[i+1])
 	}
 }
