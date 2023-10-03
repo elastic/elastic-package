@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/Masterminds/semver/v3"
@@ -183,7 +184,11 @@ func renderPackageVersions(p *status.PackageStatus, w io.Writer, extraParameters
 	if p.Local != nil {
 		environmentTable = append(environmentTable, formatManifest("Local", *p.Local, nil, extraParameters))
 	}
-	environmentTable = append(environmentTable, formatManifests("Production", p.Production, extraParameters))
+	data := formatManifests("Production", p.Production, extraParameters)
+	if slices.Contains(extraParameters, serverlessProjectTypesParameter) {
+		data = append(data, strings.Join(p.ServerlessProjectTypes, ", "))
+	}
+	environmentTable = append(environmentTable, data)
 
 	bold.Fprintln(w, "Package Versions:")
 	table := tablewriter.NewWriter(w)

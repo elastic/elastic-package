@@ -51,7 +51,7 @@ func GetServerlessProjectTypes(client *http.Client) []ServerlessProjectType {
 		if err != nil {
 			logger.Debugf("failed to get serverless project type configuration from %q: %v", projectType.ConfigURL, err)
 			if !projectType.FallbackFleetDisabled {
-				projectTypes = append(ServerlessProjectType{
+				projectTypes = append(projectTypes, ServerlessProjectType{
 					Name:         projectType.Name,
 					Capabilities: projectType.FallbackCapabilities,
 				})
@@ -59,11 +59,11 @@ func GetServerlessProjectTypes(client *http.Client) []ServerlessProjectType {
 			continue
 		}
 
-		if enabled := config.XPack.Fleet.Enabled; enabled != nil && !enabled {
+		if enabled := config.XPack.Fleet.Enabled; enabled != nil && !*enabled {
 			continue
 		}
 
-		projectTypes = append(ServerlessProjectType{
+		projectTypes = append(projectTypes, ServerlessProjectType{
 			Name:         projectType.Name,
 			Capabilities: config.XPack.Fleet.Internal.Registry.Capabilities,
 		})
@@ -112,7 +112,7 @@ func parseServerlessKibanaConfig(r io.Reader) (*kibanaConfig, error) {
 		return nil, fmt.Errorf("failed to unpack kibana configuration: %w", err)
 	}
 
-	return kibanaConfig
+	return &kibanaConfig, nil
 }
 
 func requestServerlessKibanaConfig(client *http.Client, configURL string) (*kibanaConfig, error) {

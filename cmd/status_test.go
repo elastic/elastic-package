@@ -149,6 +149,23 @@ func TestStatusFormatAndPrint(t *testing.T) {
 			},
 			expected: "./testdata/status-extra-parameters",
 		},
+		{
+			title: "extra serverless parameter",
+			pkgStatus: &status.PackageStatus{
+				Name: "foo",
+				Production: []packages.PackageManifest{
+					fooPackage("1.0.0", "^8.8.0"),
+				},
+				ServerlessProjectTypes: []string{
+					"observability",
+					"security",
+				},
+			},
+			extraParameters: []string{
+				"serverless.project_types",
+			},
+			expected: "./testdata/status-serverless-projects",
+		},
 	}
 
 	for _, c := range cases {

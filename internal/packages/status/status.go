@@ -16,11 +16,12 @@ import (
 
 // PackageStatus holds version and deployment information about a package
 type PackageStatus struct {
-	Name           string
-	Changelog      []changelog.Revision
-	PendingChanges *changelog.Revision
-	Local          *packages.PackageManifest
-	Production     []packages.PackageManifest
+	Name                   string
+	Changelog              []changelog.Revision
+	PendingChanges         *changelog.Revision
+	Local                  *packages.PackageManifest
+	Production             []packages.PackageManifest
+	ServerlessProjectTypes []string
 }
 
 // LocalPackage returns the status of a given package including local development information
@@ -64,6 +65,7 @@ func RemotePackage(packageName string, options registry.SearchOptions) (*Package
 	if err != nil {
 		return nil, fmt.Errorf("retrieving production deployment failed: %w", err)
 	}
+
 	return &PackageStatus{
 		Name:       packageName,
 		Production: productionManifests,
