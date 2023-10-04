@@ -4,17 +4,13 @@ set -euo pipefail
 WORKSPACE="$(pwd)"
 TMP_FOLDER_TEMPLATE_BASE="tmp.elastic-package"
 
-logout() {
-    local error_code=$?
-    if [ $error_code != 0 ] ; then
-        if [ -f ${GOOGLE_APPLICATION_CREDENTIALS} ]; then
-            google_cloud_logout_active_account
-        fi
-    fi
-    exit $error_code
+cleanup() {
+    echo "Deleting temporal files..."
+    cd ${WORKSPACE}
+    rm -rf "${TMP_FOLDER_TEMPLATE_BASE}.*"
+    echo "Done."
 }
-# trap needed to ensure that no account is activated in case of failure
-trap logout EXIT
+trap cleanup EXIT
 
 usage() {
     echo "$0 [-t <target>] [-h]"
@@ -95,8 +91,8 @@ upload_safe_logs() {
 
     gsutil cp ${source} "gs://${bucket}/buildkite/${REPO_BUILD_TAG}/${target}"
 
-    google_cloud_logout_active_account
-    rm -f "${gsUtilLocation}"
+    rm -rf "${gsUtilLocation}"
+    unset GOOGLE_APPLICATION_CREDENTIALS
 }
 
 add_bin_path

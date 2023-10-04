@@ -7,17 +7,14 @@ TMP_FOLDER_TEMPLATE_BASE="tmp.elastic-package"
 source .buildkite/scripts/install_deps.sh
 source .buildkite/scripts/tooling.sh
 
-logout() {
-    local error_code=$?
-    if [ $error_code != 0 ] ; then
-        if [ -f ${GOOGLE_APPLICATION_CREDENTIALS} ]; then
-            google_cloud_logout_active_account
-        fi
-    fi
-    exit $error_code
+cleanup() {
+    echo "Deleting temporal files..."
+    cd ${WORKSPACE}
+    rm -rf ${TMP_FOLDER_TEMPLATE_BASE}.*
+    echo "Done."
 }
-# trap needed to ensure that no account is activated in case of failure
-trap logout EXIT
+
+trap cleanup EXIT
 
 is_already_published() {
     local packageZip=$1
@@ -109,10 +106,8 @@ sign_package() {
 
     ls -l "${BUILD_PACKAGES_PATH}"
 
-    google_cloud_logout_active_account
-
     echo "Removing temporal location ${gsUtilLocation}"
-    rm -f "${gsUtilLocation}"
+    rm -r "${gsUtilLocation}"
 }
 
 publish_package() {
@@ -140,10 +135,8 @@ publish_package() {
 
     popd > /dev/null
 
-    google_cloud_logout_active_account
-
     echo "Removing temporal location ${gsUtilLocation}"
-    rm -f "${gsUtilLocation}"
+    rm -r "${gsUtilLocation}"
 }
 
 add_bin_path
