@@ -59,9 +59,9 @@ google_cloud_logout_active_account() {
     echo "Logging out from GCP for active account"
     gcloud auth revoke $active_account > /dev/null 2>&1
     if [ -n "$GOOGLE_APPLICATION_CREDENTIALS" ]; then
+      rm -rf ${GOOGLE_APPLICATION_CREDENTIALS}
       unset GOOGLE_APPLICATION_CREDENTIALS
     fi
-    cleanup
   else
     echo "No active GCP accounts found."
   fi
