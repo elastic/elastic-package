@@ -7,16 +7,17 @@ TMP_FOLDER_TEMPLATE_BASE="tmp.elastic-package"
 cleanup() {
     local error_code=$?
 
+    if [ $error_code != 0 ] ; then
+        if [ -f ${GOOGLE_APPLICATION_CREDENTIALS+x} ]; then
+             google_cloud_logout_active_account
+        fi
+    fi
+
     echo "Deleting temporal files..."
     cd ${WORKSPACE}
     rm -rf "${TMP_FOLDER_TEMPLATE_BASE}.*"
     echo "Done."
 
-    if [ $error_code != 0 ] ; then
-        if [ -f ${GOOGLE_APPLICATION_CREDENTIALS} ]; then
-             google_cloud_logout_active_account
-        fi
-    fi
     exit $error_code
 }
 trap cleanup EXIT
@@ -76,14 +77,12 @@ if [[ "${TARGET}" == "" ]]; then
 fi
 
 google_cloud_auth_safe_logs() {
-    local gsUtilLocation=$(mktemp -d -p . -t ${TMP_FOLDER_TEMPLATE})
+    local gsUtilLocation=$(mktemp -d -p ${WORKSPACE} -t ${TMP_FOLDER_TEMPLATE})
     local secretFileLocation=${gsUtilLocation}/${GOOGLE_CREDENTIALS_FILENAME}
 
     echo "${PRIVATE_CI_GCS_CREDENTIALS_SECRET}" > ${secretFileLocation}
 
     google_cloud_auth "${secretFileLocation}"
-
-    echo "${gsUtilLocation}"
 }
 
 upload_safe_logs() {
@@ -96,12 +95,11 @@ upload_safe_logs() {
         return
     fi
 
-    local gsUtilLocation=$(google_cloud_auth_safe_logs)
+    google_cloud_auth_safe_logs
 
     gsutil cp ${source} "gs://${bucket}/buildkite/${REPO_BUILD_TAG}/${target}"
 
     google_cloud_logout_active_account
-    rm -f "${gsUtilLocation}"
 }
 
 add_bin_path
