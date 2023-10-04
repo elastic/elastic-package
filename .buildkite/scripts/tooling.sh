@@ -1,6 +1,14 @@
 #!/bin/bash
 set -euo pipefail
 
+unset_secrets () {
+  for var in $(printenv | sed 's;=.*;;' | sort); do
+    if [[ "$var" == *_SECRET || "$var" == *_TOKEN ]]; then
+        unset "$var"
+    fi
+  done
+}
+
 repo_name() {
     # Example of URL: git@github.com:acme-inc/my-project.git
     local repoUrl=$1
