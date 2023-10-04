@@ -1,0 +1,21 @@
+#!/bin/bash
+
+source .buildkite/scripts/tooling.sh
+
+cleanup
+unset_secrets
+
+# unset the environment variables not managged by "unset_secrets"
+if [[ "$BUILDKITE_PIPELINE_SLUG" == "elastic-package" && "$BUILDKITE_STEP_KEY" == "integration-parallel-gcp" ]]; then
+    unset GOOGLE_CREDENTIALS
+    unset GCP_PROJECT_ID
+fi
+
+
+if [[ "$BUILDKITE_PIPELINE_SLUG" == "elastic-package" && ("$BUILDKITE_STEP_KEY" == "integration-parallel-aws" || "$BUILDKITE_STEP_KEY" == "integration-parallel-aws_logs") ]]; then
+    unset ELASTIC_PACKAGE_AWS_ACCESS_KEY
+    unset ELASTIC_PACKAGE_AWS_SECRET_KEY
+    unset AWS_ACCESS_KEY_ID
+    unset AWS_SECRET_ACCESS_KEY
+fi
+
