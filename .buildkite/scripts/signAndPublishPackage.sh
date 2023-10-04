@@ -9,6 +9,7 @@ source .buildkite/scripts/tooling.sh
 
 cleanup() {
     local error_code=$?
+    echo "Running trap function"
 
     if [ $error_code != 0 ] ; then
         if [ -f ${GOOGLE_APPLICATION_CREDENTIALS} ]; then
@@ -113,6 +114,7 @@ sign_package() {
     ls -l "${BUILD_PACKAGES_PATH}"
 
     google_cloud_logout_active_account
+    echo "Logout from google cloud"
 }
 
 publish_package() {
@@ -141,6 +143,7 @@ publish_package() {
     popd > /dev/null
 
     google_cloud_logout_active_account
+    echo "Logout from google cloud"
 }
 
 add_bin_path
