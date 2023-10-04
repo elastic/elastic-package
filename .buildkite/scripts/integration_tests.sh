@@ -5,10 +5,19 @@ WORKSPACE="$(pwd)"
 TMP_FOLDER_TEMPLATE_BASE="tmp.elastic-package"
 
 cleanup() {
+    local error_code=$?
+
     echo "Deleting temporal files..."
     cd ${WORKSPACE}
     rm -rf "${TMP_FOLDER_TEMPLATE_BASE}.*"
     echo "Done."
+
+    if [ $error_code != 0 ] ; then
+        if [ -f ${GOOGLE_APPLICATION_CREDENTIALS} ]; then
+             google_cloud_logout_active_account
+        fi
+    fi
+    exit $error_code
 }
 trap cleanup EXIT
 
@@ -91,8 +100,8 @@ upload_safe_logs() {
 
     gsutil cp ${source} "gs://${bucket}/buildkite/${REPO_BUILD_TAG}/${target}"
 
-    rm -rf "${gsUtilLocation}"
-    unset GOOGLE_APPLICATION_CREDENTIALS
+    google_cloud_logout_active_account
+    rm -f "${gsUtilLocation}"
 }
 
 add_bin_path

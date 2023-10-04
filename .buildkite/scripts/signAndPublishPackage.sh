@@ -8,10 +8,20 @@ source .buildkite/scripts/install_deps.sh
 source .buildkite/scripts/tooling.sh
 
 cleanup() {
+    local error_code=$?
+
     echo "Deleting temporal files..."
     cd ${WORKSPACE}
     rm -rf ${TMP_FOLDER_TEMPLATE_BASE}.*
     echo "Done."
+
+    if [ $error_code != 0 ] ; then
+        if [ -f ${GOOGLE_APPLICATION_CREDENTIALS} ]; then
+             google_cloud_logout_active_account
+        fi
+    fi
+
+    exit $error_code
 }
 
 trap cleanup EXIT
@@ -106,8 +116,9 @@ sign_package() {
 
     ls -l "${BUILD_PACKAGES_PATH}"
 
+    google_cloud_logout_active_account
     echo "Removing temporal location ${gsUtilLocation}"
-    rm -r "${gsUtilLocation}"
+    rm -f "${gsUtilLocation}"
 }
 
 publish_package() {
@@ -135,8 +146,9 @@ publish_package() {
 
     popd > /dev/null
 
+    google_cloud_logout_active_account
     echo "Removing temporal location ${gsUtilLocation}"
-    rm -r "${gsUtilLocation}"
+    rm -f "${gsUtilLocation}"
 }
 
 add_bin_path

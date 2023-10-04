@@ -52,3 +52,17 @@ retry() {
     done
     return 0
 }
+
+google_cloud_logout_active_account() {
+  local active_account=$(gcloud auth list --filter=status:ACTIVE --format="value(account)" 2>/dev/null)
+  if [ -n "$active_account" ]; then
+    echo "Logging out from GCP for active account"
+    gcloud auth revoke $active_account > /dev/null 2>&1
+    if [ -n "$GOOGLE_APPLICATION_CREDENTIALS" ]; then
+      unset GOOGLE_APPLICATION_CREDENTIALS
+    fi
+    cleanup
+  else
+    echo "No active GCP accounts found."
+  fi
+}
