@@ -22,12 +22,13 @@ import (
 	"github.com/cbroglie/mustache"
 	"gopkg.in/yaml.v3"
 
+	"github.com/elastic/package-spec/v2/code/go/pkg/specerrors"
+
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/multierror"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/packages/buildmanifest"
-	"github.com/elastic/package-spec/v2/code/go/pkg/specerrors"
 )
 
 // EPF - Elastic Package Fields [validation]
@@ -790,7 +791,7 @@ func (v *Validator) parseSingleElementValue(key string, definition FieldDefiniti
 			return fmt.Errorf("the IP %q is not one of the allowed test IPs (see: https://github.com/elastic/elastic-package/blob/main/internal/fields/_static/allowed_geo_ips.txt)", valStr)
 		}
 	// Groups should only contain nested fields, not single values.
-	case "group":
+	case "group", "nested":
 		switch val := val.(type) {
 		case map[string]interface{}:
 			// This is probably an element from an array of objects,
@@ -799,7 +800,12 @@ func (v *Validator) parseSingleElementValue(key string, definition FieldDefiniti
 				break
 			}
 			errs := v.validateMapElement(key, common.MapStr(val), doc)
-			errs = append(errs, arrayOfObjectsErr)
+			if definition.Type == "group" {
+				errs = append(errs, arrayOfObjectsErr)
+			}
+			if len(errs) == 0 {
+				return nil
+			}
 			return errs
 		default:
 			return fmt.Errorf("field %q is a group of fields, it cannot store values", key)

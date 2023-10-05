@@ -652,6 +652,34 @@ func Test_parseElementValue(t *testing.T) {
 				}
 			},
 		},
+		// elements in nested objects
+		{
+			key: "nested",
+			value: []interface{}{
+				map[string]interface{}{
+					"id":       "somehost-id",
+					"hostname": "somehost",
+				},
+			},
+			definition: FieldDefinition{
+				Name: "nested",
+				Type: "nested",
+				Fields: []FieldDefinition{
+					{
+						Name: "id",
+						Type: "keyword",
+					},
+				},
+			},
+			specVersion: *semver3_0_0,
+			fail:        true,
+			assertError: func(t *testing.T, err error) {
+				errs := err.(multierror.Error)
+				if assert.Len(t, errs, 1) {
+					assert.Contains(t, errs[0].Error(), `"nested.hostname" is undefined`)
+				}
+			},
+		},
 	} {
 
 		t.Run(test.key, func(t *testing.T) {
