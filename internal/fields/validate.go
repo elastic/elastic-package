@@ -22,17 +22,12 @@ import (
 	"github.com/cbroglie/mustache"
 	"gopkg.in/yaml.v3"
 
-	"github.com/elastic/package-spec/v2/code/go/pkg/specerrors"
-
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/multierror"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/packages/buildmanifest"
 )
-
-// EPF - Elastic Package Fields [validation]
-const ArrayOfObjectsErrorCode = "EPF00001"
 
 var (
 	semver2_0_0 = semver.MustParse("2.0.0")
@@ -41,7 +36,7 @@ var (
 
 	defaultExternal = "ecs"
 
-	arrayOfObjectsErr = specerrors.NewStructuredError(errors.New("array of objects not used as nested type can lead to unexpected results"), ArrayOfObjectsErrorCode)
+	arrayOfObjectsErr = errors.New("array of objects not used as nested type can lead to unexpected results")
 )
 
 // Validator is responsible for fields validation.
