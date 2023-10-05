@@ -36,7 +36,7 @@ var (
 
 	defaultExternal = "ecs"
 
-	arrayOfObjectsErr = errors.New("array of objects not used as nested type can lead to unexpected results")
+	errArrayOfObjects = errors.New("array of objects not used as nested type can lead to unexpected results")
 )
 
 // Validator is responsible for fields validation.
@@ -796,7 +796,7 @@ func (v *Validator) parseSingleElementValue(key string, definition FieldDefiniti
 			}
 			errs := v.validateMapElement(key, common.MapStr(val), doc)
 			if definition.Type == "group" {
-				errs = append(errs, arrayOfObjectsErr)
+				errs = append(errs, errArrayOfObjects)
 			}
 			if len(errs) == 0 {
 				return nil
