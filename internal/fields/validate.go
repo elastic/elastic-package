@@ -32,8 +32,11 @@ import (
 var (
 	semver2_0_0 = semver.MustParse("2.0.0")
 	semver2_3_0 = semver.MustParse("2.3.0")
+	semver3_0_0 = semver.MustParse("3.0.0")
 
 	defaultExternal = "ecs"
+
+	errArrayOfObjects = errors.New("array of objects not used as nested type can lead to unexpected results")
 )
 
 // Validator is responsible for fields validation.
@@ -783,11 +786,22 @@ func (v *Validator) parseSingleElementValue(key string, definition FieldDefiniti
 			return fmt.Errorf("the IP %q is not one of the allowed test IPs (see: https://github.com/elastic/elastic-package/blob/main/internal/fields/_static/allowed_geo_ips.txt)", valStr)
 		}
 	// Groups should only contain nested fields, not single values.
-	case "group":
-		switch val.(type) {
+	case "group", "nested":
+		switch val := val.(type) {
 		case map[string]interface{}:
-			// TODO: This is probably an element from an array of objects,
+			// This is probably an element from an array of objects,
 			// even if not recommended, it should be validated.
+			if v.specVersion.LessThan(semver3_0_0) {
+				break
+			}
+			errs := v.validateMapElement(key, common.MapStr(val), doc)
+			if definition.Type == "group" {
+				errs = append(errs, errArrayOfObjects)
+			}
+			if len(errs) == 0 {
+				return nil
+			}
+			return errs
 		default:
 			return fmt.Errorf("field %q is a group of fields, it cannot store values", key)
 		}
