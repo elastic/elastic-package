@@ -27,13 +27,20 @@ import (
 	"github.com/elastic/elastic-package/internal/multierror"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/packages/buildmanifest"
+	"github.com/elastic/package-spec/v2/code/go/pkg/specerrors"
 )
+
+// EPF - Elastic Package Fields [validation]
+const ArrayOfObjectsErrorCode = "EPF00001"
 
 var (
 	semver2_0_0 = semver.MustParse("2.0.0")
 	semver2_3_0 = semver.MustParse("2.3.0")
+	semver3_0_0 = semver.MustParse("3.0.0")
 
 	defaultExternal = "ecs"
+
+	arrayOfObjectsErr = specerrors.NewStructuredError(errors.New("array of objects not used as nested type can lead to unexpected results"), ArrayOfObjectsErrorCode)
 )
 
 // Validator is responsible for fields validation.
@@ -784,10 +791,16 @@ func (v *Validator) parseSingleElementValue(key string, definition FieldDefiniti
 		}
 	// Groups should only contain nested fields, not single values.
 	case "group":
-		switch val.(type) {
+		switch val := val.(type) {
 		case map[string]interface{}:
-			// TODO: This is probably an element from an array of objects,
+			// This is probably an element from an array of objects,
 			// even if not recommended, it should be validated.
+			if v.specVersion.LessThan(semver3_0_0) {
+				break
+			}
+			errs := v.validateMapElement(key, common.MapStr(val), doc)
+			errs = append(errs, arrayOfObjectsErr)
+			return errs
 		default:
 			return fmt.Errorf("field %q is a group of fields, it cannot store values", key)
 		}
