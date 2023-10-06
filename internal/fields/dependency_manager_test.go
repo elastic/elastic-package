@@ -725,6 +725,44 @@ func TestDependencyManagerWithECS(t *testing.T) {
 				},
 			},
 		},
+		{
+			title: "object to nested override",
+			defs: []common.MapStr{
+				{
+					"name":     "dns.answers",
+					"external": "ecs",
+					"type":     "nested",
+				},
+			},
+			options: InjectFieldsOptions{},
+			valid:   true,
+			result: []common.MapStr{
+				{
+					"name":        "dns.answers",
+					"description": "An array containing an object for each answer section returned by the server.\nThe main keys that should be present in these objects are defined by ECS. Records that have more information may contain more keys than what ECS defines.\nNot all DNS data sources give all details about DNS answers. At minimum, answer objects must contain the `data` key. If more information is available, map as much of it to ECS as possible, and add any additional fields to the answer objects as custom fields.",
+					"type":        "nested",
+				},
+			},
+		},
+		{
+			title: "object to group override",
+			defs: []common.MapStr{
+				{
+					"name":     "dns.answers",
+					"external": "ecs",
+					"type":     "group",
+				},
+			},
+			options: InjectFieldsOptions{},
+			valid:   true,
+			result: []common.MapStr{
+				{
+					"name":        "dns.answers",
+					"description": "An array containing an object for each answer section returned by the server.\nThe main keys that should be present in these objects are defined by ECS. Records that have more information may contain more keys than what ECS defines.\nNot all DNS data sources give all details about DNS answers. At minimum, answer objects must contain the `data` key. If more information is available, map as much of it to ECS as possible, and add any additional fields to the answer objects as custom fields.",
+					"type":        "group",
+				},
+			},
+		},
 	}
 
 	for _, c := range cases {
