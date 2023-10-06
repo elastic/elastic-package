@@ -271,9 +271,6 @@ func allowedTypeOverride(fromType, toType string) bool {
 		// Support the case of setting the value already in the mappings.
 		{"keyword", "constant_keyword"},
 
-		// Not sure why, but was allowed in legacy implementations.
-		{"long", "keyword"},
-
 		// Support objects in ECS where the developer must decide if using
 		// a group or nested object.
 		{"object", "group"},
