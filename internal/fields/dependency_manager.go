@@ -311,6 +311,10 @@ func transformImportedField(fd FieldDefinition, options InjectFieldsOptions) com
 		"type": fd.Type,
 	}
 
+	if fd.ObjectType != "" {
+		m["object_type"] = fd.ObjectType
+	}
+
 	// Multi-fields don't have descriptions.
 	if fd.Description != "" {
 		m["description"] = fd.Description

@@ -704,6 +704,27 @@ func TestDependencyManagerWithECS(t *testing.T) {
 				assert.False(t, ok)
 			},
 		},
+		{
+			title: "object type is imported",
+			defs: []common.MapStr{
+				{
+					"name":     "container.labels",
+					"external": "ecs",
+				},
+			},
+			options: InjectFieldsOptions{
+				IncludeValidationSettings: true,
+			},
+			valid: true,
+			result: []common.MapStr{
+				{
+					"name":        "container.labels",
+					"description": "Image labels.",
+					"type":        "object",
+					"object_type": "keyword",
+				},
+			},
+		},
 	}
 
 	for _, c := range cases {
