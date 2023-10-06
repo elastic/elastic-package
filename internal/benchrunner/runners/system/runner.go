@@ -445,6 +445,9 @@ func (r *runner) initializeGenerator() (genlib.Generator, error) {
 		return nil, err
 	}
 
+	genlib.InitGeneratorTimeNow(time.Now())
+	genlib.InitGeneratorRandSeed(time.Now().UnixNano())
+
 	var generator genlib.Generator
 	switch r.scenario.Corpora.Generator.Template.Type {
 	default:
