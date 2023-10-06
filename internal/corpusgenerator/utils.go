@@ -73,7 +73,7 @@ func RunGenerator(generator genlib.Generator, dataStream, rallyTrackOutputDir st
 	return generator.Close()
 }
 
-func NewGenerator(genLibClient GenLibClient, packageName, dataStreamName string, totSizeInBytes uint64) (genlib.Generator, error) {
+func NewGenerator(genLibClient GenLibClient, packageName, dataStreamName string, totEvents uint64) (genlib.Generator, error) {
 
 	config, err := genLibClient.GetConf(packageName, dataStreamName)
 	if err != nil {
@@ -89,7 +89,7 @@ func NewGenerator(genLibClient GenLibClient, packageName, dataStreamName string,
 		return nil, err
 	}
 
-	g, err := genlib.NewGeneratorWithTextTemplate(tpl, config, fields, totSizeInBytes)
+	g, err := genlib.NewGeneratorWithTextTemplate(tpl, config, fields, totEvents)
 	if err != nil {
 		return nil, err
 	}

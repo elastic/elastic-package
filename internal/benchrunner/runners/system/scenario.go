@@ -50,10 +50,10 @@ type inputService struct {
 }
 
 type generator struct {
-	Size     string          `config:"size" json:"size"`
-	Template corporaTemplate `config:"template" json:"template"`
-	Config   corporaConfig   `config:"config" json:"config"`
-	Fields   corporaFields   `config:"fields" json:"fields"`
+	TotEvents uint64          `config:"tot_events" json:"tot_events"`
+	Template  corporaTemplate `config:"template" json:"template"`
+	Config    corporaConfig   `config:"config" json:"config"`
+	Fields    corporaFields   `config:"fields" json:"fields"`
 }
 
 type corporaTemplate struct {

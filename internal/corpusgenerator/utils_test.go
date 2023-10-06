@@ -43,5 +43,5 @@ func TestGeneratorEmitTotEvents(t *testing.T) {
 		totEvents += 1
 	}
 
-	assert.Equal(t, 1, totEvents, "expected 1 totEvents, got %d", totEvents)
+	assert.Equal(t, 7, totEvents, "expected 7 totEvents, got %d", totEvents)
 }

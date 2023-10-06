@@ -16,7 +16,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dustin/go-humanize"
 	"github.com/google/uuid"
 	"gopkg.in/yaml.v3"
 
@@ -429,10 +428,7 @@ func (r *runner) createPackagePolicy(pkgManifest *packages.PackageManifest, p *k
 }
 
 func (r *runner) initializeGenerator() (genlib.Generator, error) {
-	totSizeInBytes, err := humanize.ParseBytes(r.scenario.Corpora.Generator.Size)
-	if err != nil {
-		return nil, err
-	}
+	totEvents := r.scenario.Corpora.Generator.TotEvents
 
 	config, err := r.getGeneratorConfig()
 	if err != nil {
@@ -455,9 +451,9 @@ func (r *runner) initializeGenerator() (genlib.Generator, error) {
 		logger.Debugf("unknown generator template type %q, defaulting to \"placeholder\"", r.scenario.Corpora.Generator.Template.Type)
 		fallthrough
 	case "", "placeholder":
-		generator, err = genlib.NewGeneratorWithCustomTemplate(tpl, *config, fields, totSizeInBytes)
+		generator, err = genlib.NewGeneratorWithCustomTemplate(tpl, *config, fields, totEvents)
 	case "gotext":
-		generator, err = genlib.NewGeneratorWithTextTemplate(tpl, *config, fields, totSizeInBytes)
+		generator, err = genlib.NewGeneratorWithTextTemplate(tpl, *config, fields, totEvents)
 	}
 
 	if err != nil {
