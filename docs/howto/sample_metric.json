@@ -630,7 +630,7 @@
         },
         "parameter": {
             "package": "system_benchmarks",
-            "description": "Benchmark 20MiB of data ingested",
+            "description": "Benchmark 20000 events ingested",
             "version": "999.999.999",
             "policy_template": "testpo",
             "input": "filestream",

@@ -1,5 +1,5 @@
 ---
-description: Benchmark 20MiB of data ingested
+description: Benchmark 20000 events ingested
 input: filestream
 vars: ~
 data_stream.name: testds

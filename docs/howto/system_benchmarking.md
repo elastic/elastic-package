@@ -256,7 +256,7 @@ Example:
 `logs-benchmark.yml`
 ```yaml
 ---
-description: Benchmark 100MiB of data ingested
+description: Benchmark 100000 events ingested
 input: filestream
 vars: ~
 data_stream.name: test
@@ -322,7 +322,7 @@ elastic-package benchmark system --benchmark logs-benchmark -v
 │ info                                                │
 ├──────────────┬──────────────────────────────────────┤
 │ benchmark    │                       logs-benchmark │
-│ description  │    Benchmark 100MiB of data ingested │
+│ description  │     Benchmark 100000 events ingested │
 │ run ID       │ d2960c04-0028-42c9-bafc-35e599563cb1 │
 │ package      │                    system_benchmarks │
 │ start ts (s) │                           1682320355 │
