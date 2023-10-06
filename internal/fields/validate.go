@@ -35,8 +35,6 @@ var (
 	semver3_0_0 = semver.MustParse("3.0.0")
 
 	defaultExternal = "ecs"
-
-	errArrayOfObjects = errors.New("array of objects not used as nested type can lead to unexpected results")
 )
 
 // Validator is responsible for fields validation.
@@ -795,9 +793,6 @@ func (v *Validator) parseSingleElementValue(key string, definition FieldDefiniti
 				break
 			}
 			errs := v.validateMapElement(key, common.MapStr(val), doc)
-			if definition.Type == "group" {
-				errs = append(errs, errArrayOfObjects)
-			}
 			if len(errs) == 0 {
 				return nil
 			}

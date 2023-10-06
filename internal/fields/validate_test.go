@@ -646,9 +646,8 @@ func Test_parseElementValue(t *testing.T) {
 			fail:        true,
 			assertError: func(t *testing.T, err error) {
 				errs := err.(multierror.Error)
-				if assert.Len(t, errs, 2) {
+				if assert.Len(t, errs, 1) {
 					assert.Contains(t, errs[0].Error(), `"details.hostname" is undefined`)
-					assert.ErrorIs(t, errs[1], errArrayOfObjects)
 				}
 			},
 		},
