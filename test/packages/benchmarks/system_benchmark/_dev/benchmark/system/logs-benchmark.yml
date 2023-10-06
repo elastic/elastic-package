@@ -7,7 +7,6 @@ data_stream.vars.paths:
   - "{{SERVICE_LOGS_DIR}}/corpus-*"
 warmup_time_period: 10s
 wait_for_data_timeout: 10m
-corpora.generator.size: ignored # we forgot to make the field not required in package-spec :|
 corpora.generator.tot_events: 20000
 corpora.generator.template.path: ./logs-benchmark/template.log
 corpora.generator.config.path: ./logs-benchmark/config.yml
