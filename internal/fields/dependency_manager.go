@@ -201,7 +201,7 @@ func (dm *DependencyManager) injectFieldsWithOptions(defs []common.MapStr, optio
 				transformed.Delete("external")
 			}
 
-			// Set the type back to the one imported, unless it it one of the allowed overrides.
+			// Set the type back to the one imported, unless it is one of the allowed overrides.
 			if ttype, _ := transformed["type"].(string); !allowedTypeOverride(imported.Type, ttype) {
 				transformed["type"] = imported.Type
 			}
