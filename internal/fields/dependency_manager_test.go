@@ -707,7 +707,8 @@ func TestDependencyManagerWithECS(t *testing.T) {
 		{
 			title: "object type is imported",
 			defs: []common.MapStr{
-				{"name": "container.labels",
+				{
+					"name":     "container.labels",
 					"external": "ecs",
 				},
 			},
