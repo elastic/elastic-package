@@ -11,8 +11,8 @@ import (
 	"io/fs"
 	"os"
 
-	"github.com/elastic/package-spec/v2/code/go/pkg/specerrors"
-	"github.com/elastic/package-spec/v2/code/go/pkg/validator"
+	"github.com/elastic/package-spec/v3/code/go/pkg/specerrors"
+	"github.com/elastic/package-spec/v3/code/go/pkg/validator"
 )
 
 func ValidateFromPath(rootPath string) error {
