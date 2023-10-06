@@ -201,9 +201,8 @@ func (dm *DependencyManager) injectFieldsWithOptions(defs []common.MapStr, optio
 				transformed.Delete("external")
 			}
 
-			// Allow to override the type only from keyword to constant_keyword,
-			// to support the case of setting the value already in the mappings.
-			if ttype, _ := transformed["type"].(string); ttype != "constant_keyword" || imported.Type != "keyword" {
+			// Set the type back to the one imported, unless it it one of the allowed overrides.
+			if ttype, _ := transformed["type"].(string); !allowedTypeOverride(imported.Type, ttype) {
 				transformed["type"] = imported.Type
 			}
 
@@ -261,6 +260,31 @@ func skipField(def common.MapStr) bool {
 		}
 	}
 
+	return false
+}
+
+func allowedTypeOverride(fromType, toType string) bool {
+	allowed := []struct {
+		from string
+		to   string
+	}{
+		// Support the case of setting the value already in the mappings.
+		{"keyword", "constant_keyword"},
+
+		// Not sure why, but was allowed in legacy implementations.
+		{"long", "keyword"},
+
+		// Support objects in ECS where the developer must decide if using
+		// a group or nested object.
+		{"object", "group"},
+		{"object", "nested"},
+	}
+
+	for _, a := range allowed {
+		if a.from == fromType && a.to == toType {
+			return true
+		}
+	}
 	return false
 }
 
