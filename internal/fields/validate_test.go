@@ -642,7 +642,7 @@ func Test_parseElementValue(t *testing.T) {
 					},
 				},
 			},
-			specVersion: *semver3_0_0,
+			specVersion: *semver3_0_1,
 			fail:        true,
 			assertError: func(t *testing.T, err error) {
 				errs := err.(multierror.Error)
@@ -670,7 +670,7 @@ func Test_parseElementValue(t *testing.T) {
 					},
 				},
 			},
-			specVersion: *semver3_0_0,
+			specVersion: *semver3_0_1,
 			fail:        true,
 			assertError: func(t *testing.T, err error) {
 				errs := err.(multierror.Error)
