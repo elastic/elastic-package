@@ -679,6 +679,63 @@ func Test_parseElementValue(t *testing.T) {
 				}
 			},
 		},
+		// arrays of elements in nested objects
+		{
+			key: "good_array_of_nested",
+			value: []interface{}{
+				[]interface{}{
+					map[string]interface{}{
+						"id":       "somehost-id",
+						"hostname": "somehost",
+					},
+				},
+			},
+			definition: FieldDefinition{
+				Name: "good_array_of_nested",
+				Type: "nested",
+				Fields: []FieldDefinition{
+					{
+						Name: "id",
+						Type: "keyword",
+					},
+					{
+						Name: "hostname",
+						Type: "keyword",
+					},
+				},
+			},
+			specVersion: *semver3_0_1,
+		},
+		{
+			key: "array_of_nested",
+			value: []interface{}{
+				[]interface{}{
+					map[string]interface{}{
+						"id":       "somehost-id",
+						"hostname": "somehost",
+					},
+				},
+			},
+			definition: FieldDefinition{
+				Name: "array_of_nested",
+				Type: "nested",
+				Fields: []FieldDefinition{
+					{
+						Name: "id",
+						Type: "keyword",
+					},
+				},
+			},
+			specVersion: *semver3_0_1,
+			fail:        true,
+			assertError: func(t *testing.T, err error) {
+				var errs multierror.Error
+				require.ErrorAs(t, err, &errs)
+				if assert.Len(t, errs, 1) {
+					assert.Contains(t, errs[0].Error(), `"array_of_nested.hostname" is undefined`)
+				}
+			},
+		},
 	} {
 
 		t.Run(test.key, func(t *testing.T) {
