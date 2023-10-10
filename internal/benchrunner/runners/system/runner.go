@@ -554,8 +554,6 @@ func (r *runner) getGeneratorTemplate() ([]byte, error) {
 }
 
 func (r *runner) runGenerator(destDir string) error {
-	state := genlib.NewGenState()
-
 	f, err := os.CreateTemp(destDir, "corpus-*")
 	if err != nil {
 		return err
@@ -569,7 +567,7 @@ func (r *runner) runGenerator(destDir string) error {
 	buf := bytes.NewBufferString("")
 	var corpusDocsCount uint64
 	for {
-		err := r.generator.Emit(state, buf)
+		err := r.generator.Emit(buf)
 		if err == io.EOF {
 			break
 		}

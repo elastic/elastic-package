@@ -30,12 +30,10 @@ func TestGeneratorEmitTotEvents(t *testing.T) {
 	generator, err := NewGenerator(mockClient{}, "packageName", "dataSetName", 7)
 	assert.NoError(t, err)
 
-	state := genlib.NewGenState()
-
 	totEvents := 0
 	buf := bytes.NewBufferString("")
 	for {
-		err := generator.Emit(state, buf)
+		err := generator.Emit(buf)
 		if err == io.EOF {
 			break
 		}
