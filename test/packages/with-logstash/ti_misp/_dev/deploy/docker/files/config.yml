@@ -343,6 +343,150 @@ rules:
       - status_code: 200
         body: |-
           {
+            "response": [
+              {
+                "Event": {
+                  "Attribute": [
+                    {
+                      "Galaxy": [],
+                      "ShadowAttribute": [],
+                      "category": "Payload delivery",
+                      "comment": "filename content for test event 3",
+                      "deleted": false,
+                      "disable_correlation": false,
+                      "distribution": "5",
+                      "event_id": "3633",
+                      "first_seen": null,
+                      "id": "266263",
+                      "last_seen": null,
+                      "object_id": "0",
+                      "object_relation": null,
+                      "sharing_group_id": "0",
+                      "timestamp": "1621589229",
+                      "to_ids": false,
+                      "type": "filename",
+                      "uuid": "3b322e1a-1dd8-490c-ab96-12e1bc3ee6a3",
+                      "value": "thetestfile.txt"
+                    }
+                  ],
+                  "EventReport": [],
+                  "Galaxy": [],
+                  "Object": [
+                    {
+                      "Attribute": [
+                        {
+                          "Galaxy": [],
+                          "ShadowAttribute": [],
+                          "category": "Payload delivery",
+                          "comment": "",
+                          "deleted": false,
+                          "disable_correlation": false,
+                          "distribution": "5",
+                          "event_id": "3633",
+                          "first_seen": null,
+                          "id": "266265",
+                          "last_seen": null,
+                          "object_id": "18207",
+                          "object_relation": "sha256",
+                          "sharing_group_id": "0",
+                          "timestamp": "1621589548",
+                          "to_ids": true,
+                          "type": "sha256",
+                          "uuid": "657c5f2b-9d68-4ff7-a9ad-ab9e6a6c953e",
+                          "value": "f33c27745f2bd87344be790465ef984a972fd539dc83bd4f61d4242c607ef1ee"
+                        }
+                      ],
+                      "ObjectReference": [],
+                      "comment": "File object for event 3",
+                      "deleted": false,
+                      "description": "File object describing a file with meta-information",
+                      "distribution": "5",
+                      "event_id": "3633",
+                      "first_seen": null,
+                      "id": "18207",
+                      "last_seen": null,
+                      "meta-category": "file",
+                      "name": "file",
+                      "sharing_group_id": "0",
+                      "template_uuid": "688c46fb-5edb-40a3-8273-1af7923e2215",
+                      "template_version": "22",
+                      "timestamp": "1621589548",
+                      "uuid": "42a88ad4-6834-46a9-a18b-aff9e078a4ea"
+                    }
+                  ],
+                  "Org": {
+                    "id": "1",
+                    "local": true,
+                    "name": "ORGNAME",
+                    "uuid": "78acad2d-cc2d-4785-94d6-b428a0070488"
+                  },
+                  "Orgc": {
+                    "id": "1",
+                    "local": true,
+                    "name": "ORGNAME",
+                    "uuid": "78acad2d-cc2d-4785-94d6-b428a0070488"
+                  },
+                  "RelatedEvent": [
+                    {
+                      "Event": {
+                        "Org": {
+                          "id": "1",
+                          "name": "ORGNAME",
+                          "uuid": "78acad2d-cc2d-4785-94d6-b428a0070488"
+                        },
+                        "Orgc": {
+                          "id": "1",
+                          "name": "ORGNAME",
+                          "uuid": "78acad2d-cc2d-4785-94d6-b428a0070488"
+                        },
+                        "analysis": "0",
+                        "date": "2021-05-21",
+                        "distribution": "1",
+                        "id": "3631",
+                        "info": "Test event 1 just atrributes",
+                        "org_id": "1",
+                        "orgc_id": "1",
+                        "published": false,
+                        "threat_level_id": "1",
+                        "timestamp": "1621588162",
+                        "uuid": "8ca56ae9-3747-4172-93d2-808da1a4eaf3"
+                      }
+                    }
+                  ],
+                  "ShadowAttribute": [],
+                  "analysis": "0",
+                  "attribute_count": "6",
+                  "date": "2021-05-21",
+                  "disable_correlation": false,
+                  "distribution": "1",
+                  "event_creator_email": "admin@admin.test",
+                  "extends_uuid": "",
+                  "id": "3633",
+                  "info": "Test event 3 objects and attributes",
+                  "locked": false,
+                  "org_id": "1",
+                  "orgc_id": "1",
+                  "proposal_email_lock": false,
+                  "publish_timestamp": "0",
+                  "published": false,
+                  "sharing_group_id": "0",
+                  "threat_level_id": "1",
+                  "timestamp": "1621592532",
+                  "uuid": "4edb20c7-8175-484d-bdcd-fce6872c1ef3"
+                }
+              }
+            ]
+          }
+  - path: /events/restSearch
+    methods: ["POST"]
+    request_headers:
+      Authorization: "test"
+      Content-Type: application/json
+    request_body: /^{"limit":"10","page":"4","returnFormat":"json","timestamp":"\d+"/
+    responses:
+      - status_code: 200
+        body: |-
+          {
             "response": []
           }
   - path: /attributes/restSearch

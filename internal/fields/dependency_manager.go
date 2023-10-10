@@ -201,9 +201,8 @@ func (dm *DependencyManager) injectFieldsWithOptions(defs []common.MapStr, optio
 				transformed.Delete("external")
 			}
 
-			// Allow to override the type only from keyword to constant_keyword,
-			// to support the case of setting the value already in the mappings.
-			if ttype, _ := transformed["type"].(string); ttype != "constant_keyword" || imported.Type != "keyword" {
+			// Set the type back to the one imported, unless it is one of the allowed overrides.
+			if ttype, _ := transformed["type"].(string); !allowedTypeOverride(imported.Type, ttype) {
 				transformed["type"] = imported.Type
 			}
 
@@ -264,6 +263,28 @@ func skipField(def common.MapStr) bool {
 	return false
 }
 
+func allowedTypeOverride(fromType, toType string) bool {
+	allowed := []struct {
+		from string
+		to   string
+	}{
+		// Support the case of setting the value already in the mappings.
+		{"keyword", "constant_keyword"},
+
+		// Support objects in ECS where the developer must decide if using
+		// a group or nested object.
+		{"object", "group"},
+		{"object", "nested"},
+	}
+
+	for _, a := range allowed {
+		if a.from == fromType && a.to == toType {
+			return true
+		}
+	}
+	return false
+}
+
 // importField method resolves dependency on a single external field using available schemas.
 func (dm *DependencyManager) importField(schemaName, fieldPath string) (FieldDefinition, error) {
 	if dm == nil {
@@ -309,6 +330,10 @@ func transformImportedField(fd FieldDefinition, options InjectFieldsOptions) com
 	m := common.MapStr{
 		"name": fd.Name,
 		"type": fd.Type,
+	}
+
+	if fd.ObjectType != "" {
+		m["object_type"] = fd.ObjectType
 	}
 
 	// Multi-fields don't have descriptions.

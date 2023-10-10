@@ -32,11 +32,9 @@ import (
 var (
 	semver2_0_0 = semver.MustParse("2.0.0")
 	semver2_3_0 = semver.MustParse("2.3.0")
-	semver3_0_0 = semver.MustParse("3.0.0")
+	semver3_0_1 = semver.MustParse("3.0.1")
 
 	defaultExternal = "ecs"
-
-	errArrayOfObjects = errors.New("array of objects not used as nested type can lead to unexpected results")
 )
 
 // Validator is responsible for fields validation.
@@ -791,13 +789,10 @@ func (v *Validator) parseSingleElementValue(key string, definition FieldDefiniti
 		case map[string]interface{}:
 			// This is probably an element from an array of objects,
 			// even if not recommended, it should be validated.
-			if v.specVersion.LessThan(semver3_0_0) {
+			if v.specVersion.LessThan(semver3_0_1) {
 				break
 			}
 			errs := v.validateMapElement(key, common.MapStr(val), doc)
-			if definition.Type == "group" {
-				errs = append(errs, errArrayOfObjects)
-			}
 			if len(errs) == 0 {
 				return nil
 			}
