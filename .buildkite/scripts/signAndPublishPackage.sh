@@ -11,8 +11,11 @@ cleanup() {
     local error_code=$?
 
     if [ $error_code != 0 ] ; then
-        if [ -f ${GOOGLE_APPLICATION_CREDENTIALS} ]; then
-             google_cloud_logout_active_account
+        # if it is defined and the file exists
+        if [ -n "${GOOGLE_APPLICATION_CREDENTIALS+x}" ]; then
+            if [ -f ${GOOGLE_APPLICATION_CREDENTIALS} ]; then
+                 google_cloud_logout_active_account
+            fi
         fi
     fi
 
