@@ -61,7 +61,7 @@ google_cloud_logout_active_account() {
   else
     echo "No active GCP accounts found."
   fi
-  if [ -n ${GOOGLE_APPLICATION_CREDENTIALS+x} ]; then
+  if [ -n "${GOOGLE_APPLICATION_CREDENTIALS+x}" ]; then
     rm -rf ${GOOGLE_APPLICATION_CREDENTIALS}
     unset GOOGLE_APPLICATION_CREDENTIALS
   fi
