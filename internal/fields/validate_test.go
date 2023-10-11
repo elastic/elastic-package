@@ -736,6 +736,21 @@ func Test_parseElementValue(t *testing.T) {
 				}
 			},
 		},
+		{
+			key:   "null_array",
+			value: nil,
+			definition: FieldDefinition{
+				Name: "null_array",
+				Type: "group",
+				Fields: []FieldDefinition{
+					{
+						Name: "id",
+						Type: "keyword",
+					},
+				},
+			},
+			specVersion: *semver3_0_1,
+		},
 	} {
 
 		t.Run(test.key, func(t *testing.T) {
