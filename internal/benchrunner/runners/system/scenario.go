@@ -79,8 +79,13 @@ func defaultConfig() *scenario {
 	}
 }
 
-func readConfig(path, scenario string, ctxt servicedeployer.ServiceContext) (*scenario, error) {
-	configPath := filepath.Join(path, devPath, fmt.Sprintf("%s.yml", scenario))
+func readConfig(path, benchPath string, scenario string, ctxt servicedeployer.ServiceContext) (*scenario, error) {
+	var configPath string
+	if benchPath != "" {
+		configPath = filepath.Join(benchPath, fmt.Sprintf("%s.yml", scenario))
+	} else {
+		configPath = filepath.Join(path, devPath, fmt.Sprintf("%s.yml", scenario))
+	}
 	data, err := os.ReadFile(configPath)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {

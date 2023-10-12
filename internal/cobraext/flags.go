@@ -29,6 +29,9 @@ const (
 	AllowSnapshotFlagName    = "allow-snapshot"
 	AllowSnapshotDescription = "allow to export dashboards from a Elastic stack SNAPSHOT version"
 
+	BenchPathFlagName        = "path"
+	BenchPathFlagDescription = "path of the benchmark scenario to run"
+
 	BenchNameFlagName        = "benchmark"
 	BenchNameFlagDescription = "name of the benchmark scenario to run"
 
