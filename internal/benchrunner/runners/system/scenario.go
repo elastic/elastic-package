@@ -97,7 +97,6 @@ func readConfig(path, scenario string, ctxt servicedeployer.ServiceContext) (*sc
 	cfg, err := yaml.NewConfig(data, ucfg.PathSep("."))
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			configPath = filepath.Join(path, devPath, fmt.Sprintf("%s.yaml", scenario))
 			cfg, err = yaml.NewConfigWithFile(configPath)
 		}
 		if err != nil {
