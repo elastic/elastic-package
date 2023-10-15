@@ -797,6 +797,16 @@ func (v *Validator) parseSingleElementValue(key string, definition FieldDefiniti
 				return nil
 			}
 			return errs
+		case []interface{}:
+			// This can be an array of array of objects. Elasticsearh will probably
+			// flatten this. So even if this is quite unexpected, let's try to handle it.
+			if v.specVersion.LessThan(semver3_0_1) {
+				break
+			}
+			return forEachElementValue(key, definition, val, doc, v.parseSingleElementValue)
+		case nil:
+			// The document contains a null, let's consider this like an empty array.
+			return nil
 		default:
 			return fmt.Errorf("field %q is a group of fields, it cannot store values", key)
 		}
