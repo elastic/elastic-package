@@ -240,7 +240,7 @@ along with values for package and data stream-level variables. These are the ava
 | warmup_time_period              | duration   |  | Warmup time period. All data prior to this period will be ignored in the benchmark results.                                                                           |
 | benchmark_time_period           | duration   |  | Amount of time the benchmark needs to run for. If set the benchmark will stop after this period even though more data is still pending to be ingested.                |
 | wait_for_data_timeout           | duration   |  | Amount of time to wait for data to be present in Elasticsearch. Defaults to 10m.                                                                                      |
-| corpora.generator.tot_events    | uint64     |  | Number of total events to generate. Example: `20000`                                                                                                                  |
+| corpora.generator.total_events  | uint64     |  | Number of total events to generate. Example: `20000`                                                                                                                  |
 | corpora.generator.template.raw  | string     |  | Raw template for the corpus generator.                                                                                                                                |
 | corpora.generator.template.path | string     |  | Path to the template for the corpus generator. If a `path` is defined, it will override any `raw` template definition.                                                |
 | corpora.generator.template.type | string     |  | Type of the template for the corpus generator. Default `placeholder`.                                                                                                 |
@@ -263,7 +263,7 @@ data_stream.name: test
 data_stream.vars.paths:
   - "{{SERVICE_LOGS_DIR}}/corpus-*"
 warmup_time_period: 10s
-corpora.generator.tot_events: 100000
+corpora.generator.total_events: 100000
 corpora.generator.template.path: ./logs-benchmark/template.log
 corpora.generator.config.path: ./logs-benchmark/config.yml
 corpora.generator.fields.path: ./logs-benchmark/fields.yml
@@ -339,7 +339,7 @@ elastic-package benchmark system --benchmark logs-benchmark -v
 │ warmup time period              │                                 10s │
 │ benchmark time period           │                                  0s │
 │ wait for data timeout           │                                  0s │
-│ corpora.generator.tot_events    │                              100000 │
+│ corpora.generator.total_events  │                              100000 │
 │ corpora.generator.template.path │       ./logs-benchmark/template.log │
 │ corpora.generator.template.raw  │                                     │
 │ corpora.generator.template.type │                                     │

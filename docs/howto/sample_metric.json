@@ -648,7 +648,7 @@
             "wait_for_data_timeout": 60000000000,
             "corpora": {
                 "generator": {
-                    "tot_events": "20000",
+                    "total_events": "20000",
                     "template": {
                         "raw": "",
                         "path": "./logs-benchmark/template.log",

@@ -428,7 +428,7 @@ func (r *runner) createPackagePolicy(pkgManifest *packages.PackageManifest, p *k
 }
 
 func (r *runner) initializeGenerator() (genlib.Generator, error) {
-	totEvents := r.scenario.Corpora.Generator.TotEvents
+	totEvents := r.scenario.Corpora.Generator.TotalEvents
 
 	config, err := r.getGeneratorConfig()
 	if err != nil {
