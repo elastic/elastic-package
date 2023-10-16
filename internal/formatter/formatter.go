@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/Masterminds/semver/v3"
 
@@ -53,20 +52,15 @@ func Format(packageRoot string, failFast bool) error {
 		return fmt.Errorf("failed to parse package format version %q: %w", manifest.SpecVersion, err)
 	}
 
-	defaultActionOnKeysWithDot := KeysWithDotActionNested
-	if specVersion.LessThan(semver.MustParse("3.0.0")) {
-		defaultActionOnKeysWithDot = KeysWithDotActionNone
-	}
 	err = filepath.Walk(packageRoot, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 
 		options := formatterOptions{
-			specVersion:               *specVersion,
-			extension:                 filepath.Ext(info.Name()),
-			preferedKeysWithDotAction: defaultActionOnKeysWithDot,
-			failFast:                  failFast,
+			specVersion: *specVersion,
+			extension:   filepath.Ext(info.Name()),
+			failFast:    failFast,
 		}
 
 		if info.IsDir() && info.Name() == "ingest_pipeline" {
@@ -76,11 +70,11 @@ func Format(packageRoot string, failFast bool) error {
 			return nil
 		}
 
-		if filepath.Base(filepath.Dir(filepath.Dir(path))) == "transform" && info.Name() == "transform.yml" {
-			options.preferedKeysWithDotAction = KeysWithDotActionNone
-		}
-		if strings.HasPrefix(info.Name(), "test-") && strings.HasSuffix(info.Name(), "-config.yml") {
-			options.preferedKeysWithDotAction = KeysWithDotActionQuote
+		// Configure handling of keys with dots.
+		if !specVersion.LessThan(semver.MustParse("3.0.0")) {
+			if info.Name() == "manifest.yml" {
+				options.preferedKeysWithDotAction = KeysWithDotActionNested
+			}
 		}
 
 		err = formatFile(path, options)
