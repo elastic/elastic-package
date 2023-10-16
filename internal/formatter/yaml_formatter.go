@@ -9,18 +9,17 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Masterminds/semver/v3"
 	"gopkg.in/yaml.v3"
 )
 
 // YAMLFormatter is responsible for formatting the given YAML input.
 type YAMLFormatter struct {
-	specVersion semver.Version
+	keysWithDotsAction int
 }
 
-func NewYAMLFormatter(specVersion semver.Version) *YAMLFormatter {
+func NewYAMLFormatter(keysWithDotsAction int) *YAMLFormatter {
 	return &YAMLFormatter{
-		specVersion: specVersion,
+		keysWithDotsAction: keysWithDotsAction,
 	}
 }
 
@@ -33,9 +32,7 @@ func (f *YAMLFormatter) Format(content []byte) ([]byte, bool, error) {
 		return nil, false, fmt.Errorf("unmarshalling YAML file failed: %w", err)
 	}
 
-	if !f.specVersion.LessThan(semver.MustParse("3.0.0")) {
-		extendNestedObjects(&node)
-	}
+	applyActionOnKeysWithDots(&node, f.keysWithDotsAction)
 
 	var b bytes.Buffer
 	encoder := yaml.NewEncoder(&b)
@@ -53,6 +50,17 @@ func (f *YAMLFormatter) Format(content []byte) ([]byte, bool, error) {
 	}
 
 	return formatted, string(content) == string(formatted), nil
+}
+
+func applyActionOnKeysWithDots(node *yaml.Node, action int) {
+	switch action {
+	case KeysWithDotActionNested:
+		extendNestedObjects(node)
+	case KeysWithDotActionQuote:
+		quoteKeysWithDot(node)
+	case KeysWithDotActionNone:
+		// Nothing to do.
+	}
 }
 
 func extendNestedObjects(node *yaml.Node) {
@@ -125,4 +133,25 @@ func mergeNodes(node *yaml.Node) {
 	}
 
 	node.Content = node.Content[:k]
+}
+
+func quoteKeysWithDot(node *yaml.Node) {
+	if node.Kind == yaml.MappingNode {
+		quoteKeysInMap(node)
+	}
+	for _, child := range node.Content {
+		quoteKeysWithDot(child)
+	}
+}
+
+func quoteKeysInMap(node *yaml.Node) {
+	for i := 0; i < len(node.Content); i += 2 {
+		key := node.Content[i]
+		value := node.Content[i+1]
+
+		if key.Style == 0 && strings.Contains(key.Value, ".") {
+			key.Style = yaml.SingleQuotedStyle
+			quoteKeysWithDot(value)
+		}
+	}
 }

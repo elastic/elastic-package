@@ -8,20 +8,35 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/Masterminds/semver/v3"
 
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
+const (
+	KeysWithDotActionNone int = iota
+	KeysWithDotActionQuote
+	KeysWithDotActionNested
+)
+
+type formatterOptions struct {
+	extension                 string
+	specVersion               semver.Version
+	preferedKeysWithDotAction int
+
+	failFast bool
+}
+
 type formatter func(content []byte) ([]byte, bool, error)
 
-func newFormatter(specVersion semver.Version, ext string) formatter {
-	switch ext {
+func newFormatter(options formatterOptions) formatter {
+	switch options.extension {
 	case ".json":
-		return JSONFormatterBuilder(specVersion).Format
+		return JSONFormatterBuilder(options.specVersion).Format
 	case ".yaml", ".yml":
-		return NewYAMLFormatter(specVersion).Format
+		return NewYAMLFormatter(options.preferedKeysWithDotAction).Format
 	default:
 		return nil
 	}
@@ -37,9 +52,21 @@ func Format(packageRoot string, failFast bool) error {
 	if err != nil {
 		return fmt.Errorf("failed to parse package format version %q: %w", manifest.SpecVersion, err)
 	}
+
+	defaultActionOnKeysWithDot := KeysWithDotActionNested
+	if specVersion.LessThan(semver.MustParse("3.0.0")) {
+		defaultActionOnKeysWithDot = KeysWithDotActionNone
+	}
 	err = filepath.Walk(packageRoot, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
+		}
+
+		options := formatterOptions{
+			specVersion:               *specVersion,
+			extension:                 filepath.Ext(info.Name()),
+			preferedKeysWithDotAction: defaultActionOnKeysWithDot,
+			failFast:                  failFast,
 		}
 
 		if info.IsDir() && info.Name() == "ingest_pipeline" {
@@ -48,7 +75,15 @@ func Format(packageRoot string, failFast bool) error {
 		if info.IsDir() {
 			return nil
 		}
-		err = formatFile(path, failFast, *specVersion)
+
+		if filepath.Base(filepath.Dir(filepath.Dir(path))) == "transform" && info.Name() == "transform.yml" {
+			options.preferedKeysWithDotAction = KeysWithDotActionNone
+		}
+		if strings.HasPrefix(info.Name(), "test-") && strings.HasSuffix(info.Name(), "-config.yml") {
+			options.preferedKeysWithDotAction = KeysWithDotActionQuote
+		}
+
+		err = formatFile(path, options)
 		if err != nil {
 			return fmt.Errorf("formatting file failed (path: %s): %w", path, err)
 		}
@@ -61,14 +96,13 @@ func Format(packageRoot string, failFast bool) error {
 	return nil
 }
 
-func formatFile(path string, failFast bool, specVersion semver.Version) error {
+func formatFile(path string, options formatterOptions) error {
 	content, err := os.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("reading file content failed: %w", err)
 	}
 
-	ext := filepath.Ext(filepath.Base(path))
-	format := newFormatter(specVersion, ext)
+	format := newFormatter(options)
 	if format == nil {
 		return nil // no errors returned as we have few files that will be never formatted (png, svg, log, etc.)
 	}
@@ -82,7 +116,7 @@ func formatFile(path string, failFast bool, specVersion semver.Version) error {
 		return nil
 	}
 
-	if failFast {
+	if options.failFast {
 		return fmt.Errorf("file is not formatted (path: %s)", path)
 	}
 
