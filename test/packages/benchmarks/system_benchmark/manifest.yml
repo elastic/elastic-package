@@ -6,7 +6,8 @@ description: Test for system benchmark runner
 categories: ["network"]
 type: integration
 conditions:
-  kibana.version: '^8.0.0'
+  kibana:
+    version: '^8.0.0'
 policy_templates:
   - name: testpo
     title: Test
