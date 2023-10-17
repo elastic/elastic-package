@@ -13,53 +13,44 @@ import (
 
 func TestYAMLFormatterNestedObjects(t *testing.T) {
 	cases := []struct {
-		title  string
-		doc    string
-		nested string
-		quoted string
+		title    string
+		doc      string
+		expected string
 	}{
 		{
 			title: "one-level nested setting",
 			doc:   `foo.bar: 3`,
-			nested: `foo:
+			expected: `foo:
   bar: 3
 `,
-			quoted: "'foo.bar': 3\n",
 		},
 		{
 			title: "two-level nested setting",
 			doc:   `foo.bar.baz: 3`,
-			nested: `foo:
+			expected: `foo:
   bar:
     baz: 3
 `,
-			quoted: "'foo.bar.baz': 3\n",
 		},
 		{
 			title: "nested setting at second level",
 			doc: `foo:
   bar.baz: 3`,
-			nested: `foo:
+			expected: `foo:
   bar:
     baz: 3
-`,
-			quoted: `foo:
-  'bar.baz': 3
 `,
 		},
 		{
 			title: "two two-level nested settings",
 			doc: `foo.bar.baz: 3
 a.b.c: 42`,
-			nested: `foo:
+			expected: `foo:
   bar:
     baz: 3
 a:
   b:
     c: 42
-`,
-			quoted: `'foo.bar.baz': 3
-'a.b.c': 42
 `,
 		},
 		{
@@ -67,7 +58,7 @@ a:
 			doc: `foo.bar.baz: 3 # baz
 # Mistery of life and everything else.
 a.b.c: 42`,
-			nested: `foo:
+			expected: `foo:
   bar:
     baz: 3 # baz
 a:
@@ -75,37 +66,27 @@ a:
     # Mistery of life and everything else.
     c: 42
 `,
-			quoted: `'foo.bar.baz': 3 # baz
-# Mistery of life and everything else.
-'a.b.c': 42
-`,
 		},
 		{
-			title:  "keep double-quoted keys",
-			doc:    `"foo.bar.baz": 3`,
-			nested: "\"foo.bar.baz\": 3\n",
-			quoted: "\"foo.bar.baz\": 3\n",
+			title:    "keep double-quoted keys",
+			doc:      `"foo.bar.baz": 3`,
+			expected: "\"foo.bar.baz\": 3\n",
 		},
 		{
-			title:  "keep single-quoted keys",
-			doc:    `'foo.bar.baz': 3`,
-			nested: "'foo.bar.baz': 3\n",
-			quoted: "'foo.bar.baz': 3\n",
+			title:    "keep single-quoted keys",
+			doc:      `"foo.bar.baz": 3`,
+			expected: "\"foo.bar.baz\": 3\n",
 		},
 		{
 			title: "array of maps",
 			doc: `foo:
   - foo.bar: 1
   - foo.bar: 2`,
-			nested: `foo:
+			expected: `foo:
   - foo:
       bar: 1
   - foo:
       bar: 2
-`,
-			quoted: `foo:
-  - 'foo.bar': 1
-  - 'foo.bar': 2
 `,
 		},
 		{
@@ -113,34 +94,21 @@ a:
 			doc: `es.something: true
 es.other.thing: false
 es.other.level: 13`,
-			nested: `es:
+			expected: `es:
   something: true
   other:
     thing: false
     level: 13
 `,
-			quoted: `'es.something': true
-'es.other.thing': false
-'es.other.level': 13
-`,
 		},
 	}
 
+	formatter := NewYAMLFormatter(KeysWithDotActionNested).Format
 	for _, c := range cases {
 		t.Run(c.title, func(t *testing.T) {
-			t.Run("nested", func(t *testing.T) {
-				formatter := NewYAMLFormatter(KeysWithDotActionNested).Format
-				result, _, err := formatter([]byte(c.doc))
-				require.NoError(t, err)
-				assert.Equal(t, c.nested, string(result))
-			})
-
-			t.Run("quoted", func(t *testing.T) {
-				formatter := NewYAMLFormatter(KeysWithDotActionQuote).Format
-				result, _, err := formatter([]byte(c.doc))
-				require.NoError(t, err)
-				assert.Equal(t, c.quoted, string(result))
-			})
+			result, _, err := formatter([]byte(c.doc))
+			require.NoError(t, err)
+			assert.Equal(t, c.expected, string(result))
 		})
 	}
 

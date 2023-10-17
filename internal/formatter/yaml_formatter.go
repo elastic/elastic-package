@@ -56,8 +56,6 @@ func applyActionOnKeysWithDots(node *yaml.Node, action int) {
 	switch action {
 	case KeysWithDotActionNested:
 		extendNestedObjects(node)
-	case KeysWithDotActionQuote:
-		quoteKeysWithDot(node)
 	case KeysWithDotActionNone:
 		// Nothing to do.
 	}
@@ -133,25 +131,4 @@ func mergeNodes(node *yaml.Node) {
 	}
 
 	node.Content = node.Content[:k]
-}
-
-func quoteKeysWithDot(node *yaml.Node) {
-	if node.Kind == yaml.MappingNode {
-		quoteKeysInMap(node)
-	}
-	for _, child := range node.Content {
-		quoteKeysWithDot(child)
-	}
-}
-
-func quoteKeysInMap(node *yaml.Node) {
-	for i := 0; i < len(node.Content); i += 2 {
-		key := node.Content[i]
-		value := node.Content[i+1]
-
-		if key.Style == 0 && strings.Contains(key.Value, ".") {
-			key.Style = yaml.SingleQuotedStyle
-			quoteKeysWithDot(value)
-		}
-	}
 }

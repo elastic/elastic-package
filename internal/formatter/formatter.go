@@ -16,7 +16,6 @@ import (
 
 const (
 	KeysWithDotActionNone int = iota
-	KeysWithDotActionQuote
 	KeysWithDotActionNested
 )
 
