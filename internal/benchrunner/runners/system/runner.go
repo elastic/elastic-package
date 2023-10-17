@@ -16,7 +16,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dustin/go-humanize"
 	"github.com/google/uuid"
 	"gopkg.in/yaml.v3"
 
@@ -429,10 +428,7 @@ func (r *runner) createPackagePolicy(pkgManifest *packages.PackageManifest, p *k
 }
 
 func (r *runner) initializeGenerator() (genlib.Generator, error) {
-	totSizeInBytes, err := humanize.ParseBytes(r.scenario.Corpora.Generator.Size)
-	if err != nil {
-		return nil, err
-	}
+	totEvents := r.scenario.Corpora.Generator.TotalEvents
 
 	config, err := r.getGeneratorConfig()
 	if err != nil {
@@ -449,15 +445,18 @@ func (r *runner) initializeGenerator() (genlib.Generator, error) {
 		return nil, err
 	}
 
+	genlib.InitGeneratorTimeNow(time.Now())
+	genlib.InitGeneratorRandSeed(time.Now().UnixNano())
+
 	var generator genlib.Generator
 	switch r.scenario.Corpora.Generator.Template.Type {
 	default:
 		logger.Debugf("unknown generator template type %q, defaulting to \"placeholder\"", r.scenario.Corpora.Generator.Template.Type)
 		fallthrough
 	case "", "placeholder":
-		generator, err = genlib.NewGeneratorWithCustomTemplate(tpl, *config, fields, totSizeInBytes)
+		generator, err = genlib.NewGeneratorWithCustomTemplate(tpl, *config, fields, totEvents)
 	case "gotext":
-		generator, err = genlib.NewGeneratorWithTextTemplate(tpl, *config, fields, totSizeInBytes)
+		generator, err = genlib.NewGeneratorWithTextTemplate(tpl, *config, fields, totEvents)
 	}
 
 	if err != nil {
@@ -555,8 +554,6 @@ func (r *runner) getGeneratorTemplate() ([]byte, error) {
 }
 
 func (r *runner) runGenerator(destDir string) error {
-	state := genlib.NewGenState()
-
 	f, err := os.CreateTemp(destDir, "corpus-*")
 	if err != nil {
 		return err
@@ -570,7 +567,7 @@ func (r *runner) runGenerator(destDir string) error {
 	buf := bytes.NewBufferString("")
 	var corpusDocsCount uint64
 	for {
-		err := r.generator.Emit(state, buf)
+		err := r.generator.Emit(buf)
 		if err == io.EOF {
 			break
 		}
