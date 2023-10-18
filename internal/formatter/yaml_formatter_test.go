@@ -7,7 +7,6 @@ package formatter
 import (
 	"testing"
 
-	"github.com/Masterminds/semver/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -104,9 +103,7 @@ es.other.level: 13`,
 		},
 	}
 
-	sv := semver.MustParse("3.0.0")
-	formatter := NewYAMLFormatter(*sv).Format
-
+	formatter := NewYAMLFormatter(KeysWithDotActionNested).Format
 	for _, c := range cases {
 		t.Run(c.title, func(t *testing.T) {
 			result, _, err := formatter([]byte(c.doc))

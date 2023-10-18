@@ -9,18 +9,17 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Masterminds/semver/v3"
 	"gopkg.in/yaml.v3"
 )
 
 // YAMLFormatter is responsible for formatting the given YAML input.
 type YAMLFormatter struct {
-	specVersion semver.Version
+	keysWithDotsAction int
 }
 
-func NewYAMLFormatter(specVersion semver.Version) *YAMLFormatter {
+func NewYAMLFormatter(keysWithDotsAction int) *YAMLFormatter {
 	return &YAMLFormatter{
-		specVersion: specVersion,
+		keysWithDotsAction: keysWithDotsAction,
 	}
 }
 
@@ -33,9 +32,7 @@ func (f *YAMLFormatter) Format(content []byte) ([]byte, bool, error) {
 		return nil, false, fmt.Errorf("unmarshalling YAML file failed: %w", err)
 	}
 
-	if !f.specVersion.LessThan(semver.MustParse("3.0.0")) {
-		extendNestedObjects(&node)
-	}
+	applyActionOnKeysWithDots(&node, f.keysWithDotsAction)
 
 	var b bytes.Buffer
 	encoder := yaml.NewEncoder(&b)
@@ -53,6 +50,15 @@ func (f *YAMLFormatter) Format(content []byte) ([]byte, bool, error) {
 	}
 
 	return formatted, string(content) == string(formatted), nil
+}
+
+func applyActionOnKeysWithDots(node *yaml.Node, action int) {
+	switch action {
+	case KeysWithDotActionNested:
+		extendNestedObjects(node)
+	case KeysWithDotActionNone:
+		// Nothing to do.
+	}
 }
 
 func extendNestedObjects(node *yaml.Node) {
