@@ -227,43 +227,43 @@ want to benchmark. There can be multiple scenarios defined for the same package.
 The `<scenario>.yml` files allow you to define various settings for the benchmark scenario
 along with values for package and data stream-level variables. These are the available configuration options for system benchmarks.
 
-| Option | Type | Required | Description |
-|---|---|---|---|
-| package | string | | The name of the package. If omitted will pick the current package, this is to allow for future definition of benchmarks outside of the packages folders. |
-| description | string | | A description for the scenario. |
-| version | string | | The version of the package to benchmark. If omitted will pick the current version of the package. |
-| policy_template | string | | The policy template to test. If omitted will pick the first one. |
-| input | string | yes | Input type to test (e.g. logfile, httpjson, etc). Defaults to the input used by the first stream in the data stream manifest. |
-| vars | dictionary |  | Package level variables to set (i.e. declared in `$package_root/manifest.yml`). If not specified the defaults from the manifest are used. |
-| data_stream.name | string | yes | The data stream to benchmark. |
-| data_stream.vars | dictionary |  | Data stream level variables to set (i.e. declared in `package_root/data_stream/$data_stream/manifest.yml`). If not specified the defaults from the manifest are used. |
-| warmup_time_period | duration |  | Warmup time period. All data prior to this period will be ignored in the benchmark results. |
-| benchmark_time_period | duration |  | Amount of time the benchmark needs to run for. If set the benchmark will stop after this period even though more data is still pending to be ingested. |
-| wait_for_data_timeout | duration |  | Amount of time to wait for data to be present in Elasticsearch. Defaults to 10m. |
-| corpora.generator.size | string |  | String describing the amount of data to generate. Example: `20MiB` |
-| corpora.generator.template.raw | string |  | Raw template for the corpus generator. |
-| corpora.generator.template.path | string |  | Path to the template for the corpus generator. If a `path` is defined, it will override any `raw` template definition. |
-| corpora.generator.template.type | string |  | Type of the template for the corpus generator. Default `placeholder`. |
-| corpora.generator.config.raw | dictionary |  | Raw config for the corpus generator. |
-| corpora.generator.config.path | string |  | Path to the config for the corpus generator. If a `path` is defined, it will override any `raw` config definition. |
-| corpora.generator.fields.raw | dictionary |  | Raw fields for the corpus generator. |
-| corpora.generator.fields.path | string |  | Path to the fields for the corpus generator. If a `path` is defined, it will override any `raw` fields definition. |
-| corpora.input_service.name | string |  | Name of the input service to use (defined in the `deploy` folder). |
-| corpora.input_service.signal | string |  | Signal to send to the input service once the benchmark is ready to start. |
+| Option                          | Type       | Required | Description                                                                                                                                                           |
+|---------------------------------|------------|---|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| package                         | string     | | The name of the package. If omitted will pick the current package, this is to allow for future definition of benchmarks outside of the packages folders.              |
+| description                     | string     | | A description for the scenario.                                                                                                                                       |
+| version                         | string     | | The version of the package to benchmark. If omitted will pick the current version of the package.                                                                     |
+| policy_template                 | string     | | The policy template to test. If omitted will pick the first one.                                                                                                      |
+| input                           | string     | yes | Input type to test (e.g. logfile, httpjson, etc). Defaults to the input used by the first stream in the data stream manifest.                                         |
+| vars                            | dictionary |  | Package level variables to set (i.e. declared in `$package_root/manifest.yml`). If not specified the defaults from the manifest are used.                             |
+| data_stream.name                | string     | yes | The data stream to benchmark.                                                                                                                                         |
+| data_stream.vars                | dictionary |  | Data stream level variables to set (i.e. declared in `package_root/data_stream/$data_stream/manifest.yml`). If not specified the defaults from the manifest are used. |
+| warmup_time_period              | duration   |  | Warmup time period. All data prior to this period will be ignored in the benchmark results.                                                                           |
+| benchmark_time_period           | duration   |  | Amount of time the benchmark needs to run for. If set the benchmark will stop after this period even though more data is still pending to be ingested.                |
+| wait_for_data_timeout           | duration   |  | Amount of time to wait for data to be present in Elasticsearch. Defaults to 10m.                                                                                      |
+| corpora.generator.total_events  | uint64     |  | Number of total events to generate. Example: `20000`                                                                                                                  |
+| corpora.generator.template.raw  | string     |  | Raw template for the corpus generator.                                                                                                                                |
+| corpora.generator.template.path | string     |  | Path to the template for the corpus generator. If a `path` is defined, it will override any `raw` template definition.                                                |
+| corpora.generator.template.type | string     |  | Type of the template for the corpus generator. Default `placeholder`.                                                                                                 |
+| corpora.generator.config.raw    | dictionary |  | Raw config for the corpus generator.                                                                                                                                  |
+| corpora.generator.config.path   | string     |  | Path to the config for the corpus generator. If a `path` is defined, it will override any `raw` config definition.                                                    |
+| corpora.generator.fields.raw    | dictionary |  | Raw fields for the corpus generator.                                                                                                                                  |
+| corpora.generator.fields.path   | string     |  | Path to the fields for the corpus generator. If a `path` is defined, it will override any `raw` fields definition.                                                    |
+| corpora.input_service.name      | string     |  | Name of the input service to use (defined in the `deploy` folder).                                                                                                    |
+| corpora.input_service.signal    | string     |  | Signal to send to the input service once the benchmark is ready to start.                                                                                             |
 
 Example:
 
 `logs-benchmark.yml`
 ```yaml
 ---
-description: Benchmark 100MiB of data ingested
+description: Benchmark 100000 events ingested
 input: filestream
 vars: ~
 data_stream.name: test
 data_stream.vars.paths:
   - "{{SERVICE_LOGS_DIR}}/corpus-*"
 warmup_time_period: 10s
-corpora.generator.size: 100MiB
+corpora.generator.total_events: 100000
 corpora.generator.template.path: ./logs-benchmark/template.log
 corpora.generator.config.path: ./logs-benchmark/config.yml
 corpora.generator.fields.path: ./logs-benchmark/fields.yml
@@ -322,7 +322,7 @@ elastic-package benchmark system --benchmark logs-benchmark -v
 │ info                                                │
 ├──────────────┬──────────────────────────────────────┤
 │ benchmark    │                       logs-benchmark │
-│ description  │    Benchmark 100MiB of data ingested │
+│ description  │     Benchmark 100000 events ingested │
 │ run ID       │ d2960c04-0028-42c9-bafc-35e599563cb1 │
 │ package      │                    system_benchmarks │
 │ start ts (s) │                           1682320355 │
@@ -339,7 +339,7 @@ elastic-package benchmark system --benchmark logs-benchmark -v
 │ warmup time period              │                                 10s │
 │ benchmark time period           │                                  0s │
 │ wait for data timeout           │                                  0s │
-│ corpora.generator.size          │                              100MiB │
+│ corpora.generator.total_events  │                              100000 │
 │ corpora.generator.template.path │       ./logs-benchmark/template.log │
 │ corpora.generator.template.raw  │                                     │
 │ corpora.generator.template.type │                                     │
