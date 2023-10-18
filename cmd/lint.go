@@ -10,11 +10,11 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/elastic/package-spec/v2/code/go/pkg/validator"
-
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/docs"
+	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/internal/validation"
 )
 
 const lintLongDescription = `Use this command to validate the contents of a package using the package specification (see: https://github.com/elastic/package-spec).
@@ -69,10 +69,12 @@ func validateSourceCommandAction(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("locating package root failed: %w", err)
 	}
-	err = validator.ValidateFromPath(packageRootPath)
-	if err != nil {
-		return fmt.Errorf("linting package failed: %w", err)
+	errs, skipped := validation.ValidateAndFilterFromPath(packageRootPath)
+	if skipped != nil {
+		logger.Infof("Skipped errors: %v", skipped)
 	}
-
+	if errs != nil {
+		return fmt.Errorf("linting package failed: %w", errs)
+	}
 	return nil
 }

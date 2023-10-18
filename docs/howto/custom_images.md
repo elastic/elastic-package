@@ -20,6 +20,7 @@ The current images that could be overwritten are:
 | Elasticsearch | ELASTICSEARCH_IMAGE_REF_OVERRIDE | elasticsearch |
 | Kibana | KIBANA_IMAGE_REF_OVERRIDE | kibana |
 | Elastic Agent | ELASTIC_AGENT_IMAGE_REF_OVERRIDE | elastic-agent |
+| Logstash | LOGSTASH_IMAGE_REF_OVERRIDE | logstash |
 
 
 For the following two examples, it will be used as example overwriting elastic-agent image.

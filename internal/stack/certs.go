@@ -23,6 +23,7 @@ var tlsServices = []string{
 	"kibana",
 	"package-registry",
 	"fleet-server",
+	"logstash",
 }
 
 var (

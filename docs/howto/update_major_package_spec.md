@@ -42,8 +42,10 @@ setting was included with and withoud dotted notation.
 
 This is commonly found in `conditions` or in `elasticsearch` settings.
 
-To solve this, please use nested dotations. So if for example your package has
-something like the following:
+`elastic-package` `check` and `format` subcommands will try to fix this
+automatically. If you are still finding this issue, you will need to fix it
+manually. For that, please use nested dotations. So if for example your package
+has something like the following:
 ```
 conditions:
   elastic.subscription: basic
@@ -120,6 +122,24 @@ There are two variants of this error:
   filter. We want to make this filtering only in filters, for consistency
   between different dashboards, and to allow users to quickly filter using the
   query bar without affecting the provided filters.
+
+### "My Dashboard" contains legacy visualization: "My Visualization" (metric, TSVB)
+
+All visualizations must be created using [Lens](https://www.elastic.co/kibana/kibana-lens) or [Vega](https://www.elastic.co/guide/en/kibana/current/vega.html).
+
+The only exceptions are
+- Markdown panels created from the dashboard application. There are no plans to deprecate these.
+- TSVB markdown. Support will eventually be removed, but this is
+  currently allowed because we do not yet offer an alternative for
+  injecting analytics into markdown. Prefer the dashboard markdown
+  panels when possible.
+- The legacy dashboard controls ("input-control-vis"). These should be replaced
+  with the [new dashboard controls](https://www.elastic.co/guide/en/kibana/current/add-controls.html) but we are not currently
+  enforcing this with tooling.
+
+**Note:** most legacy visualizations can be converted by selecting "Convert to Lens"
+from the dashboard panel context menu or by clicking "Edit visualization in Lens"
+after opening the visualization in the editor.
 
 ## Troubleshooting upgrades to Package Spec v2
 

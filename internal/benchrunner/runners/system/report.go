@@ -135,7 +135,7 @@ func reportHumanFormat(r *report) []byte {
 
 	if r.Parameters.Corpora.Generator != nil {
 		pkvs = append(pkvs,
-			"corpora.generator.size", r.Parameters.Corpora.Generator.Size,
+			"corpora.generator.total_events", r.Parameters.Corpora.Generator.TotalEvents,
 			"corpora.generator.template.path", r.Parameters.Corpora.Generator.Template.Path,
 			"corpora.generator.template.raw", r.Parameters.Corpora.Generator.Template.Raw,
 			"corpora.generator.template.type", r.Parameters.Corpora.Generator.Template.Type,

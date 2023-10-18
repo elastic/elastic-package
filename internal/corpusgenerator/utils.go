@@ -14,8 +14,6 @@ import (
 )
 
 func RunGenerator(generator genlib.Generator, dataStream, rallyTrackOutputDir string) error {
-	state := genlib.NewGenState()
-
 	var f io.Writer
 	if len(rallyTrackOutputDir) == 0 {
 		f = os.Stdout
@@ -33,7 +31,7 @@ func RunGenerator(generator genlib.Generator, dataStream, rallyTrackOutputDir st
 	buf := bytes.NewBufferString("")
 	var corpusDocsCount uint64
 	for {
-		err := generator.Emit(state, buf)
+		err := generator.Emit(buf)
 		if err == io.EOF {
 			break
 		}
@@ -73,7 +71,7 @@ func RunGenerator(generator genlib.Generator, dataStream, rallyTrackOutputDir st
 	return generator.Close()
 }
 
-func NewGenerator(genLibClient GenLibClient, packageName, dataStreamName string, totSizeInBytes uint64) (genlib.Generator, error) {
+func NewGenerator(genLibClient GenLibClient, packageName, dataStreamName string, totEvents uint64) (genlib.Generator, error) {
 
 	config, err := genLibClient.GetConf(packageName, dataStreamName)
 	if err != nil {
@@ -89,7 +87,7 @@ func NewGenerator(genLibClient GenLibClient, packageName, dataStreamName string,
 		return nil, err
 	}
 
-	g, err := genlib.NewGeneratorWithTextTemplate(tpl, config, fields, totSizeInBytes)
+	g, err := genlib.NewGeneratorWithTextTemplate(tpl, config, fields, totEvents)
 	if err != nil {
 		return nil, err
 	}
