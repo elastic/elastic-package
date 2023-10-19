@@ -136,8 +136,8 @@ func (sp *serverlessProvider) currentProjectWithClientsAndFleetEndpoint(config C
 		return nil, err
 	}
 
-	fleetURL := config.Parameters[paramServerlessFleetURL]
-	if true {
+	fleetURL, found := config.Parameters[paramServerlessFleetURL]
+	if !found {
 		fleetURL, err = project.DefaultFleetServerURL(sp.kibanaClient)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get fleet URL: %w", err)
