@@ -21,7 +21,13 @@ type PackageStatus struct {
 	PendingChanges *changelog.Revision
 	Local          *packages.PackageManifest
 	Production     []packages.PackageManifest
-	Serverless     map[string][]packages.PackageManifest
+	Serverless     []ServerlessManifests
+}
+
+// ServerlessManifests contains the manifests for a package available in a serverless project type.
+type ServerlessManifests struct {
+	Name      string
+	Manifests []packages.PackageManifest
 }
 
 // LocalPackage returns the status of a given package including local development information

@@ -147,11 +147,11 @@ func getPackageStatus(packageName string, options registry.SearchOptions) (*stat
 	return status.LocalPackage(packageRootPath, options)
 }
 
-func getServerlessManifests(packageName string, options registry.SearchOptions) (map[string][]packages.PackageManifest, error) {
-	serverless := make(map[string][]packages.PackageManifest)
+func getServerlessManifests(packageName string, options registry.SearchOptions) ([]status.ServerlessManifests, error) {
 	if packageName == "" {
-		return serverless, nil
+		return nil, nil
 	}
+	var serverless []status.ServerlessManifests
 	projectTypes := status.GetServerlessProjectTypes(http.DefaultClient)
 	for _, projectType := range projectTypes {
 		if slices.Contains(projectType.ExcludePackages, packageName) {
@@ -165,7 +165,10 @@ func getServerlessManifests(packageName string, options registry.SearchOptions) 
 		if err != nil {
 			return nil, fmt.Errorf("failed to get packages available for serverless projects of type %s: %w", projectType.Name, err)
 		}
-		serverless[projectType.Name] = manifests
+		serverless = append(serverless, status.ServerlessManifests{
+			Name:      projectType.Name,
+			Manifests: manifests,
+		})
 	}
 	return serverless, nil
 }
@@ -223,8 +226,8 @@ func renderPackageVersions(p *status.PackageStatus, w io.Writer, extraParameters
 	data := formatManifests("Production", "-", p.Production, extraParameters)
 	environmentTable = append(environmentTable, data)
 
-	for serverless, manifests := range p.Serverless {
-		data := formatManifests("Production", serverless, manifests, extraParameters)
+	for _, projectType := range p.Serverless {
+		data := formatManifests("Production", projectType.Name, projectType.Manifests, extraParameters)
 		environmentTable = append(environmentTable, data)
 	}
 

@@ -157,12 +157,18 @@ func TestStatusFormatAndPrint(t *testing.T) {
 				Production: []packages.PackageManifest{
 					fooPackage("1.0.0", "^8.8.0"),
 				},
-				Serverless: map[string][]packages.PackageManifest{
-					"observability": []packages.PackageManifest{
-						fooPackage("1.0.0", "^8.8.0"),
+				Serverless: []status.ServerlessManifests{
+					{
+						Name: "observability",
+						Manifests: []packages.PackageManifest{
+							fooPackage("1.0.0", "^8.8.0"),
+						},
 					},
-					"security": []packages.PackageManifest{
-						fooPackage("1.0.0", "^8.8.0"),
+					{
+						Name: "security",
+						Manifests: []packages.PackageManifest{
+							fooPackage("1.0.0", "^8.8.0"),
+						},
 					},
 				},
 			},
