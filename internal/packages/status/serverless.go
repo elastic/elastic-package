@@ -18,29 +18,42 @@ var serverlessProjectTypes = []serverlessProjectType{
 	{
 		Name:      "observability",
 		ConfigURL: "https://raw.githubusercontent.com/elastic/kibana/main/config/serverless.oblt.yml",
-		FallbackCapabilities: []string{
-			"apm",
-			"observability",
+		Fallback: serverlessProjectTypeFallback{
+			Capabilities: []string{
+				"apm",
+				"observability",
+			},
+			SpecMin: "3.0",
+			SpecMax: "3.0",
 		},
 	},
 	{
 		Name:      "security",
 		ConfigURL: "https://raw.githubusercontent.com/elastic/kibana/main/config/serverless.security.yml",
-		FallbackCapabilities: []string{
-			"security",
+		Fallback: serverlessProjectTypeFallback{
+			Capabilities: []string{
+				"security",
+			},
+			SpecMin: "3.0",
+			SpecMax: "3.0",
 		},
 	},
 	{
-		Name:                  "elasticsearch",
-		ConfigURL:             "https://raw.githubusercontent.com/elastic/kibana/main/config/serverless.es.yml",
-		FallbackCapabilities:  []string{},
-		FallbackFleetDisabled: true,
+		Name:      "elasticsearch",
+		ConfigURL: "https://raw.githubusercontent.com/elastic/kibana/main/config/serverless.es.yml",
+		Fallback: serverlessProjectTypeFallback{
+			FleetDisabled: true,
+			Capabilities:  []string{},
+		},
 	},
 }
 
 type ServerlessProjectType struct {
-	Name         string
-	Capabilities []string
+	Name            string
+	Capabilities    []string
+	ExcludePackages []string
+	SpecMax         string
+	SpecMin         string
 }
 
 func GetServerlessProjectTypes(client *http.Client) []ServerlessProjectType {
@@ -50,10 +63,12 @@ func GetServerlessProjectTypes(client *http.Client) []ServerlessProjectType {
 		config, err := requestServerlessKibanaConfig(client, projectType.ConfigURL)
 		if err != nil {
 			logger.Debugf("failed to get serverless project type configuration from %q: %v", projectType.ConfigURL, err)
-			if !projectType.FallbackFleetDisabled {
+			if !projectType.Fallback.FleetDisabled {
 				projectTypes = append(projectTypes, ServerlessProjectType{
 					Name:         projectType.Name,
-					Capabilities: projectType.FallbackCapabilities,
+					Capabilities: projectType.Fallback.Capabilities,
+					SpecMax:      projectType.Fallback.SpecMax,
+					SpecMin:      projectType.Fallback.SpecMin,
 				})
 			}
 			continue
@@ -64,18 +79,27 @@ func GetServerlessProjectTypes(client *http.Client) []ServerlessProjectType {
 		}
 
 		projectTypes = append(projectTypes, ServerlessProjectType{
-			Name:         projectType.Name,
-			Capabilities: config.XPack.Fleet.Internal.Registry.Capabilities,
+			Name:            projectType.Name,
+			Capabilities:    config.XPack.Fleet.Internal.Registry.Capabilities,
+			ExcludePackages: config.XPack.Fleet.Internal.Registry.ExcludePackages,
+			SpecMax:         config.XPack.Fleet.Internal.Registry.Spec.Max,
+			SpecMin:         config.XPack.Fleet.Internal.Registry.Spec.Min,
 		})
 	}
 	return projectTypes
 }
 
 type serverlessProjectType struct {
-	Name                  string
-	ConfigURL             string
-	FallbackCapabilities  []string
-	FallbackFleetDisabled bool
+	Name      string
+	ConfigURL string
+	Fallback  serverlessProjectTypeFallback
+}
+
+type serverlessProjectTypeFallback struct {
+	FleetDisabled bool
+	Capabilities  []string
+	SpecMax       string
+	SpecMin       string
 }
 
 type kibanaConfig struct {
@@ -84,8 +108,9 @@ type kibanaConfig struct {
 			Enabled  *bool `config:"enabled"`
 			Internal struct {
 				Registry struct {
-					Capabilities []string `config:"capabilities"`
-					Spec         struct {
+					Capabilities    []string `config:"capabilities"`
+					ExcludePackages []string `config:"excludePackages"`
+					Spec            struct {
 						Max string `config:"max"`
 						Min string `config:"min"`
 					} `config:"spec"`

@@ -8,7 +8,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/Masterminds/semver/v3"
@@ -46,6 +48,7 @@ var (
 		kibanaVersionParameter,
 		categoriesParameter,
 		elasticsearchSubscriptionParameter,
+		serverlessProjectTypesParameter,
 	}
 )
 
@@ -101,6 +104,14 @@ func statusCommandAction(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+
+	if slices.Contains(extraParameters, serverlessProjectTypesParameter) {
+		packageStatus.Serverless, err = getServerlessManifests(packageName, options)
+		if err != nil {
+			return err
+		}
+	}
+
 	return print(packageStatus, os.Stdout, extraParameters)
 }
 
@@ -131,6 +142,27 @@ func getPackageStatus(packageName string, options registry.SearchOptions) (*stat
 		return nil, fmt.Errorf("locating package root failed: %w", err)
 	}
 	return status.LocalPackage(packageRootPath, options)
+}
+
+func getServerlessManifests(packageName string, options registry.SearchOptions) (map[string][]packages.PackageManifest, error) {
+	serverless := make(map[string][]packages.PackageManifest)
+	projectTypes := status.GetServerlessProjectTypes(http.DefaultClient)
+	for _, projectType := range projectTypes {
+		fmt.Printf("%+v\n", projectType)
+		if slices.Contains(projectType.ExcludePackages, packageName) {
+			continue
+		}
+		options := options
+		options.Capabilities = projectType.Capabilities
+		options.SpecMax = projectType.SpecMax
+		options.SpecMin = projectType.SpecMin
+		manifests, err := registry.Production.Revisions(packageName, options)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get packages available for serverless projects of type %s: %w", projectType.Name, err)
+		}
+		serverless[projectType.Name] = manifests
+	}
+	return serverless, nil
 }
 
 // print formats and prints package information into a table
