@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"slices"
 	"strings"
 
 	"github.com/Masterminds/semver/v3"
@@ -182,13 +181,15 @@ func renderPendingChanges(p *status.PackageStatus, w io.Writer) {
 func renderPackageVersions(p *status.PackageStatus, w io.Writer, extraParameters []string) {
 	var environmentTable [][]string
 	if p.Local != nil {
-		environmentTable = append(environmentTable, formatManifest("Local", *p.Local, nil, extraParameters))
+		environmentTable = append(environmentTable, formatManifest("Local", "-", *p.Local, nil, extraParameters))
 	}
-	data := formatManifests("Production", p.Production, extraParameters)
-	if slices.Contains(extraParameters, serverlessProjectTypesParameter) {
-		data = append(data, strings.Join(p.ServerlessProjectTypes, ", "))
-	}
+	data := formatManifests("Production", "-", p.Production, extraParameters)
 	environmentTable = append(environmentTable, data)
+
+	for serverless, manifests := range p.Serverless {
+		data := formatManifests("Production", serverless, manifests, extraParameters)
+		environmentTable = append(environmentTable, data)
+	}
 
 	bold.Fprintln(w, "Package Versions:")
 	table := tablewriter.NewWriter(w)
@@ -236,7 +237,7 @@ func formatChangelogEntry(change changelog.Entry) []string {
 }
 
 // formatManifests returns a row of data ffor a set of versioned packaged manifests
-func formatManifests(environment string, manifests []packages.PackageManifest, extraParameters []string) []string {
+func formatManifests(environment string, serverless string, manifests []packages.PackageManifest, extraParameters []string) []string {
 	if len(manifests) == 0 {
 		return []string{environment, "-", "-", "-", "-"}
 	}
@@ -246,11 +247,11 @@ func formatManifests(environment string, manifests []packages.PackageManifest, e
 			extraVersions = append(extraVersions, m.Version)
 		}
 	}
-	return formatManifest(environment, manifests[len(manifests)-1], extraVersions, extraParameters)
+	return formatManifest(environment, serverless, manifests[len(manifests)-1], extraVersions, extraParameters)
 }
 
 // formatManifest returns a row of data for a given package manifest
-func formatManifest(environment string, manifest packages.PackageManifest, extraVersions []string, extraParameters []string) []string {
+func formatManifest(environment string, serverless string, manifest packages.PackageManifest, extraVersions []string, extraParameters []string) []string {
 	version := manifest.Version
 	if len(extraVersions) > 0 {
 		version = fmt.Sprintf("%s (%s)", version, strings.Join(extraVersions, ", "))
@@ -266,6 +267,8 @@ func formatManifest(environment string, manifest packages.PackageManifest, extra
 			data = append(data, strings.Join(manifest.Categories, ","))
 		case elasticsearchSubscriptionParameter:
 			data = append(data, manifest.Conditions.Elastic.Subscription)
+		case serverlessProjectTypesParameter:
+			data = append(data, serverless)
 		}
 	}
 	return data

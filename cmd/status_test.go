@@ -152,13 +152,18 @@ func TestStatusFormatAndPrint(t *testing.T) {
 		{
 			title: "extra serverless parameter",
 			pkgStatus: &status.PackageStatus{
-				Name: "foo",
+				Name:  "foo",
+				Local: &localPackage,
 				Production: []packages.PackageManifest{
 					fooPackage("1.0.0", "^8.8.0"),
 				},
-				ServerlessProjectTypes: []string{
-					"observability",
-					"security",
+				Serverless: map[string][]packages.PackageManifest{
+					"observability": []packages.PackageManifest{
+						fooPackage("1.0.0", "^8.8.0"),
+					},
+					"security": []packages.PackageManifest{
+						fooPackage("1.0.0", "^8.8.0"),
+					},
 				},
 			},
 			extraParameters: []string{

@@ -16,12 +16,12 @@ import (
 
 // PackageStatus holds version and deployment information about a package
 type PackageStatus struct {
-	Name                   string
-	Changelog              []changelog.Revision
-	PendingChanges         *changelog.Revision
-	Local                  *packages.PackageManifest
-	Production             []packages.PackageManifest
-	ServerlessProjectTypes []string
+	Name           string
+	Changelog      []changelog.Revision
+	PendingChanges *changelog.Revision
+	Local          *packages.PackageManifest
+	Production     []packages.PackageManifest
+	Serverless     map[string][]packages.PackageManifest
 }
 
 // LocalPackage returns the status of a given package including local development information
