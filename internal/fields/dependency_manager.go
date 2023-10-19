@@ -85,7 +85,7 @@ func readECSFieldsSchemaFile(dep buildmanifest.ECSDependency) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error fetching profile path: %w", err)
 	}
-	cachedSchemaPath := filepath.Join(loc.FieldsCacheDir(), ecsSchemaName, gitReference, ecsSchemaFile)
+	cachedSchemaPath := filepath.Join(loc.CacheDir(locations.FieldsCacheName), ecsSchemaName, gitReference, ecsSchemaFile)
 	content, err := os.ReadFile(cachedSchemaPath)
 	if errors.Is(err, os.ErrNotExist) {
 		logger.Debugf("Pulling ECS dependency using reference: %s", dep.Reference)
