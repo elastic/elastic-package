@@ -106,6 +106,9 @@ func statusCommandAction(cmd *cobra.Command, args []string) error {
 	}
 
 	if slices.Contains(extraParameters, serverlessProjectTypesParameter) {
+		if packageName == "" && packageStatus.Local != nil {
+			packageName = packageStatus.Local.Name
+		}
 		packageStatus.Serverless, err = getServerlessManifests(packageName, options)
 		if err != nil {
 			return err
@@ -146,9 +149,11 @@ func getPackageStatus(packageName string, options registry.SearchOptions) (*stat
 
 func getServerlessManifests(packageName string, options registry.SearchOptions) (map[string][]packages.PackageManifest, error) {
 	serverless := make(map[string][]packages.PackageManifest)
+	if packageName == "" {
+		return serverless, nil
+	}
 	projectTypes := status.GetServerlessProjectTypes(http.DefaultClient)
 	for _, projectType := range projectTypes {
-		fmt.Printf("%+v\n", projectType)
 		if slices.Contains(projectType.ExcludePackages, packageName) {
 			continue
 		}
