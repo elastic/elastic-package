@@ -331,6 +331,14 @@ func (sp *serverlessProvider) TearDown(options Options) error {
 		return fmt.Errorf("failed to load configuration: %w", err)
 	}
 
+	var errs error
+
+	err = sp.destroyLocalAgent()
+	if err != nil {
+		logger.Errorf("failed to destroy local agent: %v", err)
+		errs = fmt.Errorf("failed to destroy local agent: %w", err)
+	}
+
 	project, err := sp.currentProject(config)
 	if err != nil {
 		return fmt.Errorf("failed to find current project: %w", err)
@@ -340,16 +348,13 @@ func (sp *serverlessProvider) TearDown(options Options) error {
 
 	err = sp.deleteProject(project, options)
 	if err != nil {
-		return fmt.Errorf("failed to delete project: %w", err)
+		logger.Errorf("failed to delete project: %v", err)
+		errs = errors.Join(errs, fmt.Errorf("failed to delete project: %w", err))
 	}
-
-	err = sp.destroyLocalAgent()
-	if err != nil {
-		return fmt.Errorf("failed to destroy local agent: %w", err)
-	}
+	logger.Infof("Project %s (%s) deleted", project.Name, project.ID)
 
 	// TODO: if GeoIP database is specified, remove the geoip Bundle (if needed)
-	return nil
+	return errs
 }
 
 func (sp *serverlessProvider) destroyLocalAgent() error {
