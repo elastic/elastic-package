@@ -125,6 +125,29 @@ func (sp *serverlessProvider) deleteProject(project *serverless.Project, options
 	return sp.client.DeleteProject(project)
 }
 
+func (sp *serverlessProvider) currentProjectWithClientsAndFleetEndpoint(config Config) (*serverless.Project, error) {
+	project, err := sp.currentProject(config)
+	if err != nil {
+		return nil, err
+	}
+
+	err = sp.createClients(project)
+	if err != nil {
+		return nil, err
+	}
+
+	fleetURL := config.Parameters[paramServerlessFleetURL]
+	if true {
+		fleetURL, err = project.DefaultFleetServerURL(sp.kibanaClient)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get fleet URL: %w", err)
+		}
+	}
+	project.Endpoints.Fleet = fleetURL
+
+	return project, nil
+}
+
 func (sp *serverlessProvider) currentProject(config Config) (*serverless.Project, error) {
 	projectID, found := config.Parameters[paramServerlessProjectID]
 	if !found {
@@ -146,20 +169,6 @@ func (sp *serverlessProvider) currentProject(config Config) (*serverless.Project
 
 	project.Credentials.Username = config.ElasticsearchUsername
 	project.Credentials.Password = config.ElasticsearchPassword
-
-	err = sp.createClients(project)
-	if err != nil {
-		return nil, err
-	}
-
-	fleetURL := config.Parameters[paramServerlessFleetURL]
-	if true {
-		fleetURL, err = project.DefaultFleetServerURL(sp.kibanaClient)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get fleet URL: %w", err)
-		}
-	}
-	project.Endpoints.Fleet = fleetURL
 
 	return project, nil
 }
@@ -246,14 +255,9 @@ func (sp *serverlessProvider) BootUp(options Options) error {
 			return fmt.Errorf("failed to create deployment: %w", err)
 		}
 
-		project, err = sp.currentProject(config)
+		project, err = sp.currentProjectWithClientsAndFleetEndpoint(config)
 		if err != nil {
 			return fmt.Errorf("failed to retrieve latest project created: %w", err)
-		}
-
-		err = sp.createClients(project)
-		if err != nil {
-			return err
 		}
 
 		logger.Infof("Creating agent policy")
@@ -327,11 +331,6 @@ func (sp *serverlessProvider) TearDown(options Options) error {
 		return fmt.Errorf("failed to load configuration: %w", err)
 	}
 
-	err = sp.destroyLocalAgent()
-	if err != nil {
-		return fmt.Errorf("failed to destroy local agent: %w", err)
-	}
-
 	project, err := sp.currentProject(config)
 	if err != nil {
 		return fmt.Errorf("failed to find current project: %w", err)
@@ -342,6 +341,11 @@ func (sp *serverlessProvider) TearDown(options Options) error {
 	err = sp.deleteProject(project, options)
 	if err != nil {
 		return fmt.Errorf("failed to delete project: %w", err)
+	}
+
+	err = sp.destroyLocalAgent()
+	if err != nil {
+		return fmt.Errorf("failed to destroy local agent: %w", err)
 	}
 
 	// TODO: if GeoIP database is specified, remove the geoip Bundle (if needed)
@@ -377,7 +381,7 @@ func (sp *serverlessProvider) Status(options Options) ([]ServiceStatus, error) {
 		return nil, fmt.Errorf("failed to load configuration: %w", err)
 	}
 
-	project, err := sp.currentProject(config)
+	project, err := sp.currentProjectWithClientsAndFleetEndpoint(config)
 	if errors.Is(serverless.ErrProjectNotExist, err) {
 		return nil, nil
 	}
