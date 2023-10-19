@@ -5,13 +5,20 @@
 package status
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"path/filepath"
+	"time"
 
-	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/go-ucfg"
 	"github.com/elastic/go-ucfg/yaml"
+
+	"github.com/elastic/elastic-package/internal/configuration/locations"
+	"github.com/elastic/elastic-package/internal/logger"
 )
 
 var serverlessProjectTypes = []serverlessProjectType{
@@ -57,7 +64,14 @@ type ServerlessProjectType struct {
 }
 
 func GetServerlessProjectTypes(client *http.Client) []ServerlessProjectType {
-	// TODO: Add local cache to avoid too many requests to Github.
+	cache, valid, err := loadCachedServerlessProjectTypes()
+	if err == nil && valid {
+		return cache
+	}
+	if err != nil {
+		logger.Debugf("failed to load serverless config cache: %v", err)
+	}
+
 	var projectTypes []ServerlessProjectType
 	for _, projectType := range serverlessProjectTypes {
 		config, err := requestServerlessKibanaConfig(client, projectType.ConfigURL)
@@ -86,6 +100,14 @@ func GetServerlessProjectTypes(client *http.Client) []ServerlessProjectType {
 			SpecMin:         config.XPack.Fleet.Internal.Registry.Spec.Min,
 		})
 	}
+
+	if len(projectTypes) > 0 {
+		err := saveCachedServerlessProjectTypes(projectTypes)
+		if err != nil {
+			logger.Debugf("failed to save serverless config cache: %v", err)
+		}
+	}
+
 	return projectTypes
 }
 
@@ -152,4 +174,73 @@ func requestServerlessKibanaConfig(client *http.Client, configURL string) (*kiba
 	}
 
 	return parseServerlessKibanaConfig(resp.Body)
+}
+
+const (
+	cachedServerlessProjectTypesFileName        = "serverless.json"
+	cachedServerlessProjectTypesCacheExpiration = 1 * time.Hour
+)
+
+type cachedServerlessProjectTypes struct {
+	Timestamp    time.Time
+	ProjectTypes []ServerlessProjectType
+}
+
+func loadCachedServerlessProjectTypes() ([]ServerlessProjectType, bool, error) {
+	locationManager, err := locations.NewLocationManager()
+	if err != nil {
+		return nil, false, err
+	}
+
+	cacheDir := locationManager.CacheDir(locations.KibanaConfigCacheName)
+	cacheFilePath := filepath.Join(cacheDir, cachedServerlessProjectTypesFileName)
+	d, err := os.ReadFile(cacheFilePath)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil, false, nil
+	}
+	if err != nil {
+		return nil, false, err
+	}
+
+	var cache cachedServerlessProjectTypes
+	err = json.Unmarshal(d, &cache)
+	if err != nil {
+		return nil, false, err
+	}
+
+	if time.Now().After(cache.Timestamp.Add(cachedServerlessProjectTypesCacheExpiration)) {
+		return cache.ProjectTypes, false, nil
+	}
+
+	return cache.ProjectTypes, true, nil
+}
+
+func saveCachedServerlessProjectTypes(projectTypes []ServerlessProjectType) error {
+	locationManager, err := locations.NewLocationManager()
+	if err != nil {
+		return err
+	}
+
+	cacheDir := locationManager.CacheDir(locations.KibanaConfigCacheName)
+	err = os.MkdirAll(cacheDir, 0755)
+	if err != nil {
+		return err
+	}
+
+	cache := cachedServerlessProjectTypes{
+		Timestamp:    time.Now(),
+		ProjectTypes: projectTypes,
+	}
+	d, err := json.Marshal(cache)
+	if err != nil {
+		return err
+	}
+
+	cacheFilePath := filepath.Join(cacheDir, cachedServerlessProjectTypesFileName)
+	err = os.WriteFile(cacheFilePath, d, 0644)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
