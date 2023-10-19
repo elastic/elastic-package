@@ -41,6 +41,9 @@ var geoIPKeys = []string{
 	"threat.enrichments.indicateor.geo",
 	"threat.indicateor.as",
 	"threat.indicateor.geo",
+	// packages using geo fields in nested objects
+	"netskope.alerts.user.geo",
+	"netskope.events.user.geo",
 }
 
 type testResult struct {
