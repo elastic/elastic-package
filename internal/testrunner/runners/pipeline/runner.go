@@ -19,6 +19,7 @@ import (
 
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/elasticsearch/ingest"
+	"github.com/elastic/elastic-package/internal/environment"
 	"github.com/elastic/elastic-package/internal/fields"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/multierror"
@@ -33,9 +34,15 @@ const (
 	TestType testrunner.TestType = "pipeline"
 )
 
+var (
+	serverlessEnableCompareResults = environment.WithElasticPackagePrefix("SERVERLESS_PIPELINE_TEST_ENABLE_COMPARE_RESULTS")
+)
+
 type runner struct {
 	options   testrunner.TestOptions
 	pipelines []ingest.Pipeline
+
+	runCompareResults bool
 }
 
 type IngestPipelineReroute struct {
@@ -61,6 +68,22 @@ func (r *runner) String() string {
 // Run runs the pipeline tests defined under the given folder
 func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, error) {
 	r.options = options
+
+	stackConfig, err := stack.LoadConfig(r.options.Profile)
+	if err != nil {
+		return nil, err
+	}
+
+	r.runCompareResults = true
+	if stackConfig.Provider == stack.ProviderServerless {
+		r.runCompareResults = false
+
+		v, ok := os.LookupEnv(serverlessEnableCompareResults)
+		if ok && strings.ToLower(v) != "false" {
+			r.runCompareResults = true
+		}
+	}
+
 	return r.run()
 }
 
@@ -303,20 +326,14 @@ func (r *runner) verifyResults(testCaseFile string, config *testConfig, result *
 	}
 
 	// TODO: currently GeoIP related fields are being removed when the serverless provider is used.
-	stackConfig, err := stack.LoadConfig(r.options.Profile)
-	if err != nil {
-		return err
-	}
-	skipGeoIP := false
-	if stackConfig.Provider == stack.ProviderServerless {
-		skipGeoIP = true
-	}
-	err = compareResults(testCasePath, config, result, skipGeoIP, *specVersion)
-	if _, ok := err.(testrunner.ErrTestCaseFailed); ok {
-		return err
-	}
-	if err != nil {
-		return fmt.Errorf("comparing test results failed: %w", err)
+	if r.runCompareResults {
+		err = compareResults(testCasePath, config, result, *specVersion)
+		if _, ok := err.(testrunner.ErrTestCaseFailed); ok {
+			return err
+		}
+		if err != nil {
+			return fmt.Errorf("comparing test results failed: %w", err)
+		}
 	}
 
 	result = stripEmptyTestResults(result)
