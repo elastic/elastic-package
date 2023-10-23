@@ -325,7 +325,7 @@ func (r *runner) verifyResults(testCaseFile string, config *testConfig, result *
 		}
 	}
 
-	// TODO: currently GeoIP related fields are being removed when the serverless provider is used.
+	// TODO: temporary workaround untill there could be implemented other approach for deterministic geoip in serverless.
 	if r.runCompareResults {
 		err = compareResults(testCasePath, config, result, *specVersion)
 		if _, ok := err.(testrunner.ErrTestCaseFailed); ok {
