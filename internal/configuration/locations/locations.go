@@ -30,6 +30,7 @@ var (
 	elasticPackageDataHome = environment.WithElasticPackagePrefix("DATA_HOME")
 
 	serviceLogsDir        = filepath.Join(temporaryDir, "service_logs")
+	rallyCorpusDir        = filepath.Join(temporaryDir, "rally_corpus")
 	kubernetesDeployerDir = filepath.Join(deployerDir, "kubernetes")
 	serviceOutputDir      = filepath.Join(temporaryDir, "output")
 )
@@ -83,6 +84,11 @@ func (loc LocationManager) PackagesDir() string {
 // KubernetesDeployerDir returns the Kubernetes Deployer directory location
 func (loc LocationManager) KubernetesDeployerDir() string {
 	return filepath.Join(loc.stackPath, kubernetesDeployerDir)
+}
+
+// RallyCorpusDir returns the rally coprus directory
+func (loc LocationManager) RallyCorpusDir() string {
+	return filepath.Join(loc.stackPath, rallyCorpusDir)
 }
 
 // ServiceLogDir returns the log directory
