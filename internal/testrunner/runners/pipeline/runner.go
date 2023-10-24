@@ -79,7 +79,7 @@ func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, e
 		r.runCompareResults = true
 
 		v, ok := os.LookupEnv(serverlessDisableCompareResults)
-		if ok && strings.ToLower(v) != "false" {
+		if ok && strings.ToLower(v) == "true" {
 			r.runCompareResults = false
 		}
 	}
