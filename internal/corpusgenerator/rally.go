@@ -49,7 +49,7 @@ const (
 `
 )
 
-func generateRallyTrack(dataStream string, corpusFile *os.File, corpusDocsCount uint64) ([]byte, error) {
+func GenerateRallyTrack(dataStream string, corpusFile *os.File, corpusDocsCount uint64) ([]byte, error) {
 	t := template.New("rallytrack")
 
 	parsedTpl, err := t.Delims("[[", "]]").Parse(rallyTrackTemplate)
