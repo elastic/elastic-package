@@ -18,7 +18,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/elastic/elastic-package/internal/benchrunner/runners/common"
 	"github.com/elastic/elastic-package/internal/corpusgenerator"
 	"github.com/elastic/elastic-package/internal/stack"
 
@@ -600,7 +599,7 @@ func (r *runner) runRally() ([]rallyStat, error) {
 		return nil, fmt.Errorf("failed to load config from profile: %w", err)
 	}
 
-	elasticsearchHost, found := os.LookupEnv(common.ESMetricstoreHostEnv)
+	elasticsearchHost, found := os.LookupEnv(stack.ElasticsearchHostEnv)
 	if !found {
 		status, err := stack.Status(stack.Options{Profile: r.options.Profile})
 		if err != nil {
