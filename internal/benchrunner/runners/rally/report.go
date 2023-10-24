@@ -129,6 +129,8 @@ func reportHumanFormat(r *report) []byte {
 		"warmup time period", r.Parameters.WarmupTimePeriod,
 	)
 
+	report.WriteString(renderBenchmarkTable("parameters", pkvs...) + "\n")
+
 	if r.Parameters.Corpora.Generator != nil {
 		pkvs = append(pkvs,
 			"corpora.generator.total_events", r.Parameters.Corpora.Generator.TotalEvents,

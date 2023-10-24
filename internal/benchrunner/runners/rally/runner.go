@@ -568,6 +568,9 @@ func (r *runner) runGenerator(destDir string) error {
 	}
 	r.trackFile = trackFile.Name()
 	rallyTrackContent, err := corpusgenerator.GenerateRallyTrack(r.runtimeDataStream, corporaFileForTrack, corpusDocsCount)
+	if err != nil {
+		return err
+	}
 	err = os.WriteFile(r.trackFile, rallyTrackContent, os.ModePerm)
 	if err != nil {
 		return err
