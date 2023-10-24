@@ -144,6 +144,8 @@ func reportHumanFormat(r *report) []byte {
 		)
 	}
 
+	report.WriteString(renderBenchmarkTable("parameters", pkvs...) + "\n")
+
 	report.WriteString(renderBenchmarkTable(
 		"cluster info",
 		"name", r.ClusterName,
