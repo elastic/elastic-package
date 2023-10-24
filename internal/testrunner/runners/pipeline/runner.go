@@ -35,7 +35,7 @@ const (
 )
 
 var (
-	serverlessEnableCompareResults = environment.WithElasticPackagePrefix("SERVERLESS_PIPELINE_TEST_ENABLE_COMPARE_RESULTS")
+	serverlessDisableCompareResults = environment.WithElasticPackagePrefix("SERVERLESS_PIPELINE_TEST_DISABLE_COMPARE_RESULTS")
 )
 
 type runner struct {
@@ -76,11 +76,11 @@ func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, e
 
 	r.runCompareResults = true
 	if stackConfig.Provider == stack.ProviderServerless {
-		r.runCompareResults = false
+		r.runCompareResults = true
 
-		v, ok := os.LookupEnv(serverlessEnableCompareResults)
+		v, ok := os.LookupEnv(serverlessDisableCompareResults)
 		if ok && strings.ToLower(v) != "false" {
-			r.runCompareResults = true
+			r.runCompareResults = false
 		}
 	}
 
