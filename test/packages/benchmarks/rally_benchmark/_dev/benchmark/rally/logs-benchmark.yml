@@ -8,7 +8,6 @@ data_stream:
     paths:
       - "dummy path"
 warmup_time_period: 10s
-wait_for_data_timeout: 10m
 corpora:
   generator:
     total_events: 20000
