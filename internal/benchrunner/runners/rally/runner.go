@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/magefile/mage/sh"
 	"io"
 	"os"
 	"os/exec"
@@ -44,11 +45,12 @@ const (
 	// RallyCorpusAgentDir is folder path where rally corporsa files produced by the service
 	// are stored on the Rally container's filesystem.
 	RallyCorpusAgentDir = "/tmp/rally_corpus"
-	devDeployDir        = "_dev/benchmark/rally/deploy"
 
-	// BenchType defining system benchmark
-	BenchType benchrunner.Type = "system"
+	// BenchType defining rally benchmark
+	BenchType benchrunner.Type = "rally"
 )
+
+var DryRunError = errors.New("dry run: rally benchmark not executed")
 
 type rallyStat struct {
 	Metric string
@@ -73,11 +75,11 @@ type runner struct {
 	reportFile  string
 
 	// Execution order of following handlers is defined in runner.TearDown() method.
-	deletePolicyHandler     func() error
-	resetAgentPolicyHandler func() error
-	shutdownServiceHandler  func() error
-	wipeDataStreamHandler   func() error
-	clearCorporaHandler     func() error
+	persistRallyTrackHandler func() error
+	deletePolicyHandler      func() error
+	shutdownServiceHandler   func() error
+	wipeDataStreamHandler    func() error
+	clearCorporaHandler      func() error
 }
 
 func NewRallyBenchmark(opts Options) benchrunner.Runner {
@@ -101,11 +103,11 @@ func (r *runner) TearDown() error {
 
 	var merr multierror.Error
 
-	if r.resetAgentPolicyHandler != nil {
-		if err := r.resetAgentPolicyHandler(); err != nil {
+	if r.persistRallyTrackHandler != nil {
+		if err := r.persistRallyTrackHandler(); err != nil {
 			merr = append(merr, err)
 		}
-		r.resetAgentPolicyHandler = nil
+		r.persistRallyTrackHandler = nil
 	}
 
 	if r.deletePolicyHandler != nil {
@@ -113,13 +115,6 @@ func (r *runner) TearDown() error {
 			merr = append(merr, err)
 		}
 		r.deletePolicyHandler = nil
-	}
-
-	if r.shutdownServiceHandler != nil {
-		if err := r.shutdownServiceHandler(); err != nil {
-			merr = append(merr, err)
-		}
-		r.shutdownServiceHandler = nil
 	}
 
 	if r.wipeDataStreamHandler != nil {
@@ -256,6 +251,11 @@ func (r *runner) run() (report reporters.Reportable, err error) {
 		if err := r.runGenerator(r.ctxt.Logs.Folder.Local); err != nil {
 			return nil, fmt.Errorf("can't generate benchmarks data corpus for data stream: %w", err)
 		}
+	}
+
+	if r.options.DryRun {
+		dummy := reporters.NewReport(r.scenario.Package, nil)
+		return dummy, DryRunError
 	}
 
 	rallyStats, err := r.runRally()
@@ -585,6 +585,30 @@ func (r *runner) runGenerator(destDir string) error {
 
 	r.reportFile = reportFile.Name()
 
+	if r.options.RallyTrackOutputDir != "" {
+		r.persistRallyTrackHandler = func() error {
+			err := os.MkdirAll(r.options.RallyTrackOutputDir, os.ModeDir)
+			if err != nil {
+				return err
+			}
+
+			persistedRallyTrack := filepath.Join(r.options.RallyTrackOutputDir, fmt.Sprintf("track-%s.json", r.runtimeDataStream))
+			err = sh.Copy(persistedRallyTrack, trackFile.Name())
+			if err != nil {
+				return err
+			}
+
+			persistedCorpus := filepath.Join(r.options.RallyTrackOutputDir, filepath.Base(corporaFile.Name()))
+			err = sh.Copy(persistedCorpus, corporaFile.Name())
+			if err != nil {
+				return errors.Join(os.Remove(persistedRallyTrack), err)
+			}
+
+			logger.Infof("rally track and corpus saved at: %s", r.options.RallyTrackOutputDir)
+			return nil
+		}
+	}
+
 	r.clearCorporaHandler = func() error {
 		return errors.Join(os.Remove(r.corporaFile), os.Remove(r.reportFile), os.Remove(r.trackFile))
 	}
@@ -622,14 +646,19 @@ func (r *runner) runRally() ([]rallyStat, error) {
 		elasticsearchUsername = profileConfig.ElasticsearchUsername
 	}
 
+	_, err = exec.LookPath("esrally")
+	if err != nil {
+		return nil, errors.New("could not run esrally track in path: esrally not found, please follow instruction at https://esrally.readthedocs.io/en/stable/install.html")
+	}
+
 	cmd := exec.Command("esrally", "race", "--race-id="+r.ctxt.Test.RunID, "--report-format=csv", fmt.Sprintf(`--report-file=%s`, r.reportFile), fmt.Sprintf(`--target-hosts={"default":["%s"]}`, elasticsearchHost), fmt.Sprintf(`--track-path=%s`, r.trackFile), fmt.Sprintf(`--client-options={"default":{"basic_auth_user":"%s","basic_auth_password":"%s","use_ssl":true,"verify_certs":false}}`, elasticsearchUsername, elasticsearchPassword), "--pipeline=benchmark-only")
 	errOutput := new(bytes.Buffer)
 	cmd.Stderr = errOutput
 
 	logger.Debugf("output command: %s", cmd)
-	_, err = cmd.Output()
+	output, err := cmd.Output()
 	if err != nil {
-		return nil, fmt.Errorf("could not run esrally track in path: %s (stderr=%q): %w", r.ctxt.Logs.Folder.Local, errOutput.String(), err)
+		return nil, fmt.Errorf("could not run esrally track in path: %s (stdout=%s): %w", r.ctxt.Logs.Folder.Local, output, err)
 	}
 
 	reportCSV, err := os.Open(r.reportFile)

@@ -238,6 +238,8 @@ func getRallyCommand() *cobra.Command {
 	cmd.Flags().DurationP(cobraext.BenchMetricsIntervalFlagName, "", time.Second, cobraext.BenchMetricsIntervalFlagDescription)
 	cmd.Flags().DurationP(cobraext.DeferCleanupFlagName, "", 0, cobraext.DeferCleanupFlagDescription)
 	cmd.Flags().String(cobraext.VariantFlagName, "", cobraext.VariantFlagDescription)
+	cmd.Flags().StringP(cobraext.BenchCorpusRallyTrackOutputDirFlagName, "", "", cobraext.BenchCorpusRallyTrackOutputDirFlagDescription)
+	cmd.Flags().BoolP(cobraext.BenchCorpusRallyDryRunFlagName, "", false, cobraext.BenchCorpusRallyDryRunFlagDescription)
 
 	return cmd
 }
@@ -268,6 +270,16 @@ func rallyCommandAction(cmd *cobra.Command, args []string) error {
 	dataReindex, err := cmd.Flags().GetBool(cobraext.BenchReindexToMetricstoreFlagName)
 	if err != nil {
 		return cobraext.FlagParsingError(err, cobraext.BenchReindexToMetricstoreFlagName)
+	}
+
+	rallyTrackOutputDir, err := cmd.Flags().GetString(cobraext.BenchCorpusRallyTrackOutputDirFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.BenchCorpusRallyTrackOutputDirFlagName)
+	}
+
+	rallyDryRun, err := cmd.Flags().GetBool(cobraext.BenchCorpusRallyDryRunFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.BenchCorpusRallyDryRunFlagName)
 	}
 
 	packageRootPath, found, err := packages.FindPackageRoot()
@@ -309,6 +321,8 @@ func rallyCommandAction(cmd *cobra.Command, args []string) error {
 		rally.WithESAPI(esClient.API),
 		rally.WithKibanaClient(kc),
 		rally.WithProfile(profile),
+		rally.WithRallyTrackOutputDir(rallyTrackOutputDir),
+		rally.WithRallyDryRun(rallyDryRun),
 	}
 
 	esMetricsClient, err := initializeESMetricsClient(cmd.Context())
@@ -322,6 +336,10 @@ func rallyCommandAction(cmd *cobra.Command, args []string) error {
 	runner := rally.NewRallyBenchmark(rally.NewOptions(withOpts...))
 
 	r, err := benchrunner.Run(runner)
+	if errors.Is(err, rally.DryRunError) {
+		return nil
+	}
+
 	if err != nil {
 		return fmt.Errorf("error running package rally benchmarks: %w", err)
 	}

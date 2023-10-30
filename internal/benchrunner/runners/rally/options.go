@@ -14,17 +14,18 @@ import (
 
 // Options contains benchmark runner options.
 type Options struct {
-	ESAPI              *elasticsearch.API
-	KibanaClient       *kibana.Client
-	DeferCleanup       time.Duration
-	MetricsInterval    time.Duration
-	ReindexData        bool
-	ESMetricsAPI       *elasticsearch.API
-	BenchName          string
-	PackageRootPath    string
-	Variant            string
-	Profile            *profile.Profile
-	RallyClientOptions ClientOptions
+	ESAPI               *elasticsearch.API
+	KibanaClient        *kibana.Client
+	DeferCleanup        time.Duration
+	MetricsInterval     time.Duration
+	ReindexData         bool
+	ESMetricsAPI        *elasticsearch.API
+	BenchName           string
+	PackageRootPath     string
+	Variant             string
+	Profile             *profile.Profile
+	RallyTrackOutputDir string
+	DryRun              bool
 }
 
 type ClientOptions struct {
@@ -99,5 +100,17 @@ func WithVariant(name string) OptionFunc {
 func WithProfile(p *profile.Profile) OptionFunc {
 	return func(opts *Options) {
 		opts.Profile = p
+	}
+}
+
+func WithRallyTrackOutputDir(r string) OptionFunc {
+	return func(opts *Options) {
+		opts.RallyTrackOutputDir = r
+	}
+}
+
+func WithRallyDryRun(d bool) OptionFunc {
+	return func(opts *Options) {
+		opts.DryRun = d
 	}
 }
