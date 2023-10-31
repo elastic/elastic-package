@@ -21,20 +21,16 @@ import (
 const devPath = "_dev/benchmark/rally"
 
 type scenario struct {
-	Package          string                 `config:"package" json:"package"`
-	Description      string                 `config:"description" json:"description"`
-	Version          string                 `config:"version" json:"version"`
-	PolicyTemplate   string                 `config:"policy_template" json:"policy_template"`
-	Input            string                 `config:"input" json:"input"`
-	Vars             map[string]interface{} `config:"vars" json:"vars"`
-	DataStream       dataStream             `config:"data_stream" json:"data_stream"`
-	WarmupTimePeriod time.Duration          `config:"warmup_time_period" json:"warmup_time_period"`
-	Corpora          corpora                `config:"corpora" json:"corpora"`
+	Package          string        `config:"package" json:"package"`
+	Description      string        `config:"description" json:"description"`
+	Version          string        `config:"version" json:"version"`
+	DataStream       dataStream    `config:"data_stream" json:"data_stream"`
+	WarmupTimePeriod time.Duration `config:"warmup_time_period" json:"warmup_time_period"`
+	Corpora          corpora       `config:"corpora" json:"corpora"`
 }
 
 type dataStream struct {
-	Name string                 `config:"name" json:"name"`
-	Vars map[string]interface{} `config:"vars" json:"vars"`
+	Name string `config:"name" json:"name"`
 }
 
 type corpora struct {

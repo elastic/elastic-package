@@ -4,9 +4,6 @@ input: filestream
 vars: ~
 data_stream:
   name: testds
-  vars:
-    paths:
-      - "dummy path"
 warmup_time_period: 10s
 corpora:
   generator:

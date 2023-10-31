@@ -34,7 +34,6 @@ import (
 	"github.com/elastic/elastic-package/internal/benchrunner/reporters"
 	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/elasticsearch"
-	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/multierror"
 	"github.com/elastic/elastic-package/internal/packages"
@@ -65,7 +64,6 @@ type runner struct {
 	scenario *scenario
 
 	ctxt              servicedeployer.ServiceContext
-	benchPolicy       *kibana.Policy
 	runtimeDataStream string
 	pipelinePrefix    string
 	generator         genlib.Generator
@@ -178,12 +176,6 @@ func (r *runner) setUp() error {
 		return fmt.Errorf("reading package manifest failed: %w", err)
 	}
 
-	policy, err := r.createBenchmarkPolicy(pkgManifest)
-	if err != nil {
-		return err
-	}
-	r.benchPolicy = policy
-
 	// Delete old data
 	logger.Debug("deleting old data in data stream...")
 	dataStreamManifest, err := packages.ReadDataStreamManifest(
@@ -197,11 +189,10 @@ func (r *runner) setUp() error {
 	}
 
 	r.runtimeDataStream = fmt.Sprintf(
-		"%s-%s.%s-%s",
+		"%s-%s.%s-ep",
 		dataStreamManifest.Type,
 		pkgManifest.Name,
 		dataStreamManifest.Name,
-		policy.Namespace,
 	)
 	r.pipelinePrefix = fmt.Sprintf(
 		"%s-%s.%s-%s",
@@ -303,93 +294,6 @@ func (r *runner) deleteDataStreamDocs(dataStream string) error {
 		return err
 	}
 	return nil
-}
-
-func (r *runner) createBenchmarkPolicy(pkgManifest *packages.PackageManifest) (*kibana.Policy, error) {
-	// Configure package (single data stream) via Ingest Manager APIs.
-	logger.Debug("creating benchmark policy...")
-	benchTime := time.Now().Format("20060102T15:04:05Z")
-	p := kibana.Policy{
-		Name:              fmt.Sprintf("ep-bench-%s-%s", r.options.BenchName, benchTime),
-		Description:       fmt.Sprintf("policy created by elastic-package for benchmark %s", r.options.BenchName),
-		Namespace:         "ep",
-		MonitoringEnabled: []string{"logs", "metrics"},
-	}
-
-	policy, err := r.options.KibanaClient.CreatePolicy(p)
-	if err != nil {
-		return nil, err
-	}
-
-	packagePolicy, err := r.createPackagePolicy(pkgManifest, policy)
-	if err != nil {
-		return nil, err
-	}
-
-	r.deletePolicyHandler = func() error {
-		var merr multierror.Error
-
-		logger.Debug("deleting benchmark package policy...")
-		if err := r.options.KibanaClient.DeletePackagePolicy(*packagePolicy); err != nil {
-			merr = append(merr, fmt.Errorf("error cleaning up benchmark package policy: %w", err))
-		}
-
-		logger.Debug("deleting benchmark policy...")
-		if err := r.options.KibanaClient.DeletePolicy(*policy); err != nil {
-			merr = append(merr, fmt.Errorf("error cleaning up benchmark policy: %w", err))
-		}
-
-		if len(merr) > 0 {
-			return merr
-		}
-
-		return nil
-	}
-
-	return policy, nil
-}
-
-func (r *runner) createPackagePolicy(pkgManifest *packages.PackageManifest, p *kibana.Policy) (*kibana.PackagePolicy, error) {
-	logger.Debug("creating package policy...")
-
-	if r.scenario.Version == "" {
-		r.scenario.Version = pkgManifest.Version
-	}
-
-	if r.scenario.Package == "" {
-		r.scenario.Package = pkgManifest.Name
-	}
-
-	if r.scenario.PolicyTemplate == "" {
-		r.scenario.PolicyTemplate = pkgManifest.PolicyTemplates[0].Name
-	}
-
-	pp := kibana.PackagePolicy{
-		Namespace: "ep",
-		PolicyID:  p.ID,
-		Force:     true,
-		Inputs: map[string]kibana.PackagePolicyInput{
-			fmt.Sprintf("%s-%s", r.scenario.PolicyTemplate, r.scenario.Input): {
-				Enabled: true,
-				Vars:    r.scenario.Vars,
-				Streams: map[string]kibana.PackagePolicyStream{
-					fmt.Sprintf("%s.%s", pkgManifest.Name, r.scenario.DataStream.Name): {
-						Enabled: true,
-						Vars:    r.scenario.DataStream.Vars,
-					},
-				},
-			},
-		},
-	}
-	pp.Package.Name = pkgManifest.Name
-	pp.Package.Version = r.scenario.Version
-
-	policy, err := r.options.KibanaClient.CreatePackagePolicy(pp)
-	if err != nil {
-		return nil, err
-	}
-
-	return policy, nil
 }
 
 func (r *runner) initializeGenerator() (genlib.Generator, error) {

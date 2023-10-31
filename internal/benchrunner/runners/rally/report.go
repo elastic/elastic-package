@@ -32,8 +32,6 @@ type report struct {
 	Parameters struct {
 		PackageVersion   string
 		DataStream       dataStream
-		Input            string
-		Vars             map[string]interface{}
 		WarmupTimePeriod time.Duration
 		Corpora          corpora
 	}
@@ -73,8 +71,6 @@ func newReport(benchName, corporaFile string, s *scenario, sum *metricsSummary, 
 	report.Info.Duration = time.Duration(sum.CollectionEndTs-sum.CollectionStartTs) * time.Second
 	report.Info.GeneratedCorporaFile = corporaFile
 	report.Parameters.PackageVersion = s.Version
-	report.Parameters.Input = s.Input
-	report.Parameters.Vars = s.Vars
 	report.Parameters.DataStream = s.DataStream
 	report.Parameters.WarmupTimePeriod = s.WarmupTimePeriod
 	report.Parameters.Corpora = s.Corpora
@@ -112,18 +108,9 @@ func reportHumanFormat(r *report) []byte {
 
 	pkvs := []interface{}{
 		"package version", r.Parameters.PackageVersion,
-		"input", r.Parameters.Input,
-	}
-
-	for k, v := range r.Parameters.Vars {
-		pkvs = append(pkvs, fmt.Sprintf("vars.%s", k), v)
 	}
 
 	pkvs = append(pkvs, "data_stream.name", r.Parameters.DataStream.Name)
-
-	for k, v := range r.Parameters.DataStream.Vars {
-		pkvs = append(pkvs, fmt.Sprintf("data_stream.vars.%s", k), v)
-	}
 
 	pkvs = append(pkvs,
 		"warmup time period", r.Parameters.WarmupTimePeriod,
