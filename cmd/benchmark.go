@@ -351,7 +351,7 @@ func rallyCommandAction(cmd *cobra.Command, args []string) error {
 
 	reports := multiReport.Split()
 	if len(reports) != 2 {
-		return fmt.Errorf("rally benchmark is expected to return a human an a file report")
+		return fmt.Errorf("rally benchmark is expected to return a human and a file report")
 	}
 
 	// human report will always be the first
