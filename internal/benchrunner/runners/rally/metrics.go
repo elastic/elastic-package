@@ -89,7 +89,7 @@ func newCollector(
 }
 
 func (c *collector) start() {
-	c.tick = time.NewTicker(c.interval)
+	tick := time.NewTicker(c.interval)
 	c.createMetricsIndex()
 	var once sync.Once
 
