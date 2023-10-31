@@ -25,7 +25,7 @@ import (
 	"github.com/elastic/elastic-package/internal/benchrunner"
 	"github.com/elastic/elastic-package/internal/benchrunner/reporters"
 	"github.com/elastic/elastic-package/internal/benchrunner/reporters/outputs"
-	bench_common "github.com/elastic/elastic-package/internal/benchrunner/runners/common"
+	benchcommon "github.com/elastic/elastic-package/internal/benchrunner/runners/common"
 	"github.com/elastic/elastic-package/internal/benchrunner/runners/pipeline"
 	"github.com/elastic/elastic-package/internal/benchrunner/runners/rally"
 	"github.com/elastic/elastic-package/internal/benchrunner/runners/system"
