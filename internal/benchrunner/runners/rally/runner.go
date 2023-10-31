@@ -783,8 +783,8 @@ func getTotalHits(esapi *elasticsearch.API, dataStream string) (int, error) {
 }
 
 func waitUntilTrue(fn func() (bool, error), timeout time.Duration) (bool, error) {
-	timeoutTicker := time.NewTicker(timeout)
-	defer timeoutTicker.Stop()
+	timeout := time.NewTimer(timeout)
+	defer timeout.Stop()
 
 	retryTicker := time.NewTicker(5 * time.Second)
 	defer retryTicker.Stop()
