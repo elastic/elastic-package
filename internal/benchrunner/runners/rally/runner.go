@@ -11,13 +11,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/magefile/mage/sh"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/magefile/mage/sh"
 
 	"github.com/elastic/elastic-package/internal/corpusgenerator"
 	"github.com/elastic/elastic-package/internal/stack"
@@ -50,7 +51,7 @@ const (
 	BenchType benchrunner.Type = "rally"
 )
 
-var DryRunError = errors.New("dry run: rally benchmark not executed")
+var ErrDryRun = errors.New("dry run: rally benchmark not executed")
 
 type rallyStat struct {
 	Metric string
@@ -77,7 +78,6 @@ type runner struct {
 	// Execution order of following handlers is defined in runner.TearDown() method.
 	persistRallyTrackHandler func() error
 	deletePolicyHandler      func() error
-	shutdownServiceHandler   func() error
 	wipeDataStreamHandler    func() error
 	clearCorporaHandler      func() error
 }
@@ -255,7 +255,7 @@ func (r *runner) run() (report reporters.Reportable, err error) {
 
 	if r.options.DryRun {
 		dummy := reporters.NewReport(r.scenario.Package, nil)
-		return dummy, DryRunError
+		return dummy, ErrDryRun
 	}
 
 	rallyStats, err := r.runRally()

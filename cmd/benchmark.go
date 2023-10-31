@@ -336,7 +336,7 @@ func rallyCommandAction(cmd *cobra.Command, args []string) error {
 	runner := rally.NewRallyBenchmark(rally.NewOptions(withOpts...))
 
 	r, err := benchrunner.Run(runner)
-	if errors.Is(err, rally.DryRunError) {
+	if errors.Is(err, rally.ErrDryRun) {
 		return nil
 	}
 
