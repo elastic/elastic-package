@@ -179,7 +179,7 @@ add_pr_comment() {
 
     retry 3 \
         gh pr comment ${source_pr_number} \
-        --body "Created or updated PR in integrations repostiory to test this vesrion. Check ${integrations_pr_link}" \
+        --body "Created or updated PR in integrations repostiory to test this version. Check ${integrations_pr_link}" \
         --repo ${GITHUB_PR_BASE_OWNER}/${GITHUB_PR_BASE_REPO}
 }
 
