@@ -319,7 +319,7 @@ func (c *collector) collectMetricsPreviousToStop() {
 func (c *collector) collectTotalHits() int {
 	totalHits, err := getTotalHits(c.esAPI, c.datastream)
 	if err != nil {
-		logger.Debugf("could not total hits: %w", err)
+		logger.Debugf("could not get total hits: %w", err)
 	}
 	return totalHits
 }
