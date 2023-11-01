@@ -34,7 +34,6 @@ type collector struct {
 	wg      sync.WaitGroup
 	stopped atomic.Bool
 	stopC   chan struct{}
-	tick    *time.Ticker
 
 	startIngestMetrics map[string]ingest.PipelineStatsMap
 	endIngestMetrics   map[string]ingest.PipelineStatsMap
