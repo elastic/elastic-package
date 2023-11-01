@@ -359,7 +359,7 @@ func (c *collector) createEventsFromMetrics(m metrics) [][]byte {
 	for _, e := range append(nEvents, dsEvent) {
 		b, err := json.Marshal(e)
 		if err != nil {
-			logger.Debugf("error marhsaling metrics event: %w", err)
+			logger.Debugf("error marshalling metrics event: %w", err)
 			continue
 		}
 		events = append(events, b)
