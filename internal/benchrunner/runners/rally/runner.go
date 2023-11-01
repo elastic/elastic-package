@@ -433,7 +433,7 @@ func (r *runner) runGenerator(destDir string) error {
 		return err
 	}
 
-	buf := bytes.NewBufferString("")
+	var buf bytes.Buffer
 	var corpusDocsCount uint64
 	for {
 		err := r.generator.Emit(buf)
