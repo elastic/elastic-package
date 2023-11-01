@@ -95,7 +95,8 @@ func (c *collector) start() {
 
 	c.wg.Add(1)
 	go func() {
-		defer c.tick.Stop()
+		tick := time.NewTicker(c.interval)
+		defer tick.Stop()
 		defer c.wg.Done()
 		for {
 			select {
