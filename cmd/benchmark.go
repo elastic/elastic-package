@@ -566,10 +566,10 @@ func generateDataStreamCorpusCommandAction(cmd *cobra.Command, _ []string) error
 }
 
 func initializeESMetricsClient(ctx context.Context) (*elasticsearch.Client, error) {
-	address := os.Getenv(bench_common.ESMetricstoreHostEnv)
-	user := os.Getenv(bench_common.ESMetricstoreUsernameEnv)
-	pass := os.Getenv(bench_common.ESMetricstorePasswordEnv)
-	cacert := os.Getenv(bench_common.ESMetricstoreCACertificateEnv)
+	address := os.Getenv(benchcommon.ESMetricstoreHostEnv)
+	user := os.Getenv(benchcommon.ESMetricstoreUsernameEnv)
+	pass := os.Getenv(benchcommon.ESMetricstorePasswordEnv)
+	cacert := os.Getenv(benchcommon.ESMetricstoreCACertificateEnv)
 	if address == "" || user == "" || pass == "" {
 		logger.Debugf("can't initialize metricstore, missing environment configuration")
 		return nil, nil

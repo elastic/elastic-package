@@ -11,11 +11,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/aymerick/raymond"
-	"github.com/elastic/go-ucfg"
 	"github.com/elastic/go-ucfg/yaml"
-
-	"github.com/elastic/elastic-package/internal/servicedeployer"
 )
 
 const devPath = "_dev/benchmark/rally"
@@ -64,52 +60,22 @@ func defaultConfig() *scenario {
 	return &scenario{}
 }
 
-func readConfig(path, scenario string, ctxt servicedeployer.ServiceContext) (*scenario, error) {
+func readConfig(path, scenario, packageName, packageVersion string) (*scenario, error) {
 	configPath := filepath.Join(path, devPath, fmt.Sprintf("%s.yml", scenario))
-	data, err := os.ReadFile(configPath)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return nil, fmt.Errorf("unable to find system benchmark configuration file: %s: %w", configPath, err)
-		}
-		return nil, fmt.Errorf("could not load system benchmark configuration file: %s: %w", configPath, err)
-	}
-
-	data, err = applyContext(data, ctxt)
-	if err != nil {
-		return nil, fmt.Errorf("could not apply context to benchmark configuration file: %s: %w", configPath, err)
-	}
-
-	cfg, err := yaml.NewConfig(data, ucfg.PathSep("."))
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			configPath = filepath.Join(path, devPath, fmt.Sprintf("%s.yaml", scenario))
-			cfg, err = yaml.NewConfigWithFile(configPath)
-		}
-		if err != nil {
-			return nil, fmt.Errorf("can't load scenario: %s: %w", configPath, err)
-		}
-	}
-
 	c := defaultConfig()
-	if err := cfg.Unpack(c); err != nil {
-		return nil, fmt.Errorf("can't unpack scenario configuration: %s: %w", configPath, err)
+	cfg, err := yaml.NewConfigWithFile(configPath)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return nil, fmt.Errorf("can't load benchmark configuration: %s: %w", configPath, err)
 	}
+
+	if err == nil {
+		if err := cfg.Unpack(c); err != nil {
+			return nil, fmt.Errorf("can't unpack benchmark configuration: %s: %w", configPath, err)
+		}
+	}
+
+	c.Package = packageName
+	c.Version = packageVersion
+
 	return c, nil
-}
-
-// applyContext takes the given system benchmark configuration (data) and replaces any placeholder variables in
-// it with values from the given context (ctxt). The context may be populated from various sources but usually the
-// most interesting context values will be set by a ServiceDeployer in its SetUp method.
-func applyContext(data []byte, ctxt servicedeployer.ServiceContext) ([]byte, error) {
-	tmpl, err := raymond.Parse(string(data))
-	if err != nil {
-		return data, fmt.Errorf("parsing template body failed: %w", err)
-	}
-	tmpl.RegisterHelpers(ctxt.Aliases())
-
-	result, err := tmpl.Exec(ctxt)
-	if err != nil {
-		return data, fmt.Errorf("could not render data with context: %w", err)
-	}
-	return []byte(result), nil
 }

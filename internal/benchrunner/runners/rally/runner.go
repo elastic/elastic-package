@@ -157,7 +157,12 @@ func (r *runner) setUp() error {
 		return fmt.Errorf("could not create local rally track dir %w", err)
 	}
 
-	scenario, err := readConfig(r.options.PackageRootPath, r.options.BenchName, r.ctxt)
+	pkgManifest, err := packages.ReadPackageManifestFromPackageRoot(r.options.PackageRootPath)
+	if err != nil {
+		return fmt.Errorf("reading package manifest failed: %w", err)
+	}
+
+	scenario, err := readConfig(r.options.PackageRootPath, r.options.BenchName, pkgManifest.Name, pkgManifest.Version)
 	if err != nil {
 		return err
 	}
@@ -169,11 +174,6 @@ func (r *runner) setUp() error {
 		if err != nil {
 			return fmt.Errorf("can't initialize generator: %w", err)
 		}
-	}
-
-	pkgManifest, err := packages.ReadPackageManifestFromPackageRoot(r.options.PackageRootPath)
-	if err != nil {
-		return fmt.Errorf("reading package manifest failed: %w", err)
 	}
 
 	// Delete old data
@@ -783,8 +783,8 @@ func getTotalHits(esapi *elasticsearch.API, dataStream string) (int, error) {
 }
 
 func waitUntilTrue(fn func() (bool, error), timeout time.Duration) (bool, error) {
-	timeout := time.NewTimer(timeout)
-	defer timeout.Stop()
+	timeoutTimer := time.NewTimer(timeout)
+	defer timeoutTimer.Stop()
 
 	retryTicker := time.NewTicker(5 * time.Second)
 	defer retryTicker.Stop()
@@ -801,7 +801,7 @@ func waitUntilTrue(fn func() (bool, error), timeout time.Duration) (bool, error)
 		select {
 		case <-retryTicker.C:
 			continue
-		case <-timeoutTicker.C:
+		case <-timeoutTimer.C:
 			return false, nil
 		}
 	}

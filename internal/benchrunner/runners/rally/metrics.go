@@ -89,15 +89,20 @@ func newCollector(
 }
 
 func (c *collector) start() {
-	tick := time.NewTicker(c.interval)
 	c.createMetricsIndex()
-	var once sync.Once
 
 	c.wg.Add(1)
 	go func() {
 		tick := time.NewTicker(c.interval)
 		defer tick.Stop()
 		defer c.wg.Done()
+
+		c.waitUntilReady()
+		c.startIngestMetrics = c.collectIngestMetrics()
+		c.startTotalHits = c.collectTotalHits()
+		c.startMetrics = c.collect()
+		c.publish(c.createEventsFromMetrics(c.startMetrics))
+
 		for {
 			select {
 			case <-c.stopC:
@@ -105,14 +110,7 @@ func (c *collector) start() {
 				c.collectMetricsPreviousToStop()
 				c.publish(c.createEventsFromMetrics(c.endMetrics))
 				return
-			case <-c.tick.C:
-				once.Do(func() {
-					c.waitUntilReady()
-					c.startIngestMetrics = c.collectIngestMetrics()
-					c.startTotalHits = c.collectTotalHits()
-					c.startMetrics = c.collect()
-					c.publish(c.createEventsFromMetrics(c.startMetrics))
-				})
+			case <-tick.C:
 				m := c.collect()
 				c.publish(c.createEventsFromMetrics(m))
 			}
