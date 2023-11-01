@@ -69,9 +69,9 @@ type runner struct {
 	generator         genlib.Generator
 	mcollector        *collector
 
-	corporaFile string
-	trackFile   string
-	reportFile  string
+	corpusFile string
+	trackFile  string
+	reportFile string
 
 	// Execution order of following handlers is defined in runner.TearDown() method.
 	persistRallyTrackHandler func() error
@@ -169,11 +169,11 @@ func (r *runner) setUp() error {
 	r.scenario = scenario
 
 	if r.scenario.Corpora.Generator != nil {
-		generator, err := r.initializeGenerator()
+		var err error
+		r.generator, err = r.initializeGenerator()
 		if err != nil {
 			return fmt.Errorf("can't initialize generator: %w", err)
 		}
-		r.generator = generator
 	}
 
 	// Delete old data
@@ -263,7 +263,7 @@ func (r *runner) run() (report reporters.Reportable, err error) {
 		return nil, fmt.Errorf("can't reindex data: %w", err)
 	}
 
-	return createReport(r.options.BenchName, r.corporaFile, r.scenario, msum, rallyStats)
+	return createReport(r.options.BenchName, r.corpusFile, r.scenario, msum, rallyStats)
 }
 
 func (r *runner) startMetricsColletion() {
@@ -384,9 +384,9 @@ func (r *runner) getGeneratorFields() (fields.Fields, error) {
 			return nil, fmt.Errorf("can't read fields file %s: %w", fieldsPath, err)
 		}
 	} else if len(r.scenario.Corpora.Generator.Fields.Raw) > 0 {
-		data, err = yaml.Marshal(r.scenario.Corpora.Generator.Config.Raw)
+		data, err = yaml.Marshal(r.scenario.Corpora.Generator.Fields.Raw)
 		if err != nil {
-			return nil, fmt.Errorf("can't parse raw generator config: %w", err)
+			return nil, fmt.Errorf("can't parse raw generator fields: %w", err)
 		}
 	}
 
@@ -423,17 +423,17 @@ func (r *runner) getGeneratorTemplate() ([]byte, error) {
 }
 
 func (r *runner) runGenerator(destDir string) error {
-	corporaFile, err := os.CreateTemp(destDir, "corpus-*")
+	corpusFile, err := os.CreateTemp(destDir, "corpus-*")
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot not create rally corpus file: %w", err)
 	}
-	defer corporaFile.Close()
+	defer corpusFile.Close()
 
-	if err := corporaFile.Chmod(os.ModePerm); err != nil {
-		return err
+	if err := corpusFile.Chmod(os.ModePerm); err != nil {
+		return fmt.Errorf("cannot not set permission to rally corpus file: %w", err)
 	}
 
-	var buf bytes.Buffer
+	buf := bytes.NewBufferString("")
 	var corpusDocsCount uint64
 	for {
 		err := r.generator.Emit(buf)
@@ -442,47 +442,43 @@ func (r *runner) runGenerator(destDir string) error {
 		}
 
 		if err != nil {
-			return err
+			return fmt.Errorf("error while generating content for the rally corpus file: %w", err)
 		}
 
 		// TODO: this should be taken care of by the corpus generator tool, once it will be done let's remove this
-		event := strings.Replace(buf.String(), "\n", "")
-		if _, err = corporaFile.Write([]byte(event)); err != nil {
-			return err
+		event := strings.Replace(buf.String(), "\n", "", -1)
+		if _, err = corpusFile.Write([]byte(event)); err != nil {
+			return fmt.Errorf("error while saving content to the rally corpus file: %w", err)
 		}
 
-		if _, err = corporaFile.Write([]byte("\n")); err != nil {
-			return err
+		if _, err = corpusFile.Write([]byte("\n")); err != nil {
+			return fmt.Errorf("error while saving newline to the rally corpus file: %w", err)
 		}
 
 		buf.Reset()
 		corpusDocsCount += 1
 	}
 
-	r.corporaFile = corporaFile.Name()
-	corporaFileForTrack, err := os.Open(r.corporaFile)
-	if err != nil {
-		return err
-	}
+	r.corpusFile = corpusFile.Name()
 
 	trackFile, err := os.CreateTemp(destDir, "track-*.json")
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot not create rally track file: %w", err)
 	}
 	r.trackFile = trackFile.Name()
-	rallyTrackContent, err := corpusgenerator.GenerateRallyTrack(r.runtimeDataStream, corporaFileForTrack, corpusDocsCount)
+	rallyTrackContent, err := corpusgenerator.GenerateRallyTrack(r.runtimeDataStream, corpusFile, corpusDocsCount)
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot not generate rally track content: %w", err)
 	}
 	err = os.WriteFile(r.trackFile, rallyTrackContent, os.ModePerm)
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot not save rally track content to file: %w", err)
 	}
 	defer trackFile.Close()
 
 	reportFile, err := os.CreateTemp(destDir, "report-*.csv")
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot not save rally report file: %w", err)
 	}
 	defer reportFile.Close()
 
@@ -492,18 +488,19 @@ func (r *runner) runGenerator(destDir string) error {
 		r.persistRallyTrackHandler = func() error {
 			err := os.MkdirAll(r.options.RallyTrackOutputDir, os.ModeDir)
 			if err != nil {
-				return err
+				return fmt.Errorf("cannot not create rally track output dir: %w", err)
 			}
 
 			persistedRallyTrack := filepath.Join(r.options.RallyTrackOutputDir, fmt.Sprintf("track-%s.json", r.runtimeDataStream))
 			err = sh.Copy(persistedRallyTrack, trackFile.Name())
 			if err != nil {
-				return err
+				return fmt.Errorf("cannot not copy rally track to file in output dir: %w", err)
 			}
 
-			persistedCorpus := filepath.Join(r.options.RallyTrackOutputDir, filepath.Base(corporaFile.Name()))
-			err = sh.Copy(persistedCorpus, corporaFile.Name())
+			persistedCorpus := filepath.Join(r.options.RallyTrackOutputDir, filepath.Base(corpusFile.Name()))
+			err = sh.Copy(persistedCorpus, corpusFile.Name())
 			if err != nil {
+				err = fmt.Errorf("cannot not copy rally corpus to file in output dir: %w", err)
 				return errors.Join(os.Remove(persistedRallyTrack), err)
 			}
 
@@ -513,7 +510,7 @@ func (r *runner) runGenerator(destDir string) error {
 	}
 
 	r.clearCorporaHandler = func() error {
-		return errors.Join(os.Remove(r.corporaFile), os.Remove(r.reportFile), os.Remove(r.trackFile))
+		return errors.Join(os.Remove(r.corpusFile), os.Remove(r.reportFile), os.Remove(r.trackFile))
 	}
 
 	return r.generator.Close()
@@ -554,7 +551,17 @@ func (r *runner) runRally() ([]rallyStat, error) {
 		return nil, errors.New("could not run esrally track in path: esrally not found, please follow instruction at https://esrally.readthedocs.io/en/stable/install.html")
 	}
 
-	cmd := exec.Command("esrally", "race", "--race-id="+r.ctxt.Test.RunID, "--report-format=csv", fmt.Sprintf(`--report-file=%s`, r.reportFile), fmt.Sprintf(`--target-hosts={"default":["%s"]}`, elasticsearchHost), fmt.Sprintf(`--track-path=%s`, r.trackFile), fmt.Sprintf(`--client-options={"default":{"basic_auth_user":"%s","basic_auth_password":"%s","use_ssl":true,"verify_certs":false}}`, elasticsearchUsername, elasticsearchPassword), "--pipeline=benchmark-only")
+	cmd := exec.Command(
+		"esrally",
+		"race",
+		"--race-id="+r.ctxt.Test.RunID,
+		"--report-format=csv",
+		fmt.Sprintf(`--report-file=%s`, r.reportFile),
+		fmt.Sprintf(`--target-hosts={"default":["%s"]}`, elasticsearchHost),
+		fmt.Sprintf(`--track-path=%s`, r.trackFile),
+		fmt.Sprintf(`--client-options={"default":{"basic_auth_user":"%s","basic_auth_password":"%s","use_ssl":true,"verify_certs":false}}`, elasticsearchUsername, elasticsearchPassword),
+		"--pipeline=benchmark-only",
+	)
 	errOutput := new(bytes.Buffer)
 	cmd.Stderr = errOutput
 

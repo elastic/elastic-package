@@ -6,6 +6,7 @@ package corpusgenerator
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
 	"text/template"
@@ -54,12 +55,12 @@ func GenerateRallyTrack(dataStream string, corpusFile *os.File, corpusDocsCount 
 
 	parsedTpl, err := t.Delims("[[", "]]").Parse(rallyTrackTemplate)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("erro while parsing rally track template: %w", err)
 	}
 
 	fi, err := corpusFile.Stat()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error with stat on rally corpus file: %w", err)
 	}
 
 	corpusSizeInBytes := fi.Size()
@@ -74,7 +75,7 @@ func GenerateRallyTrack(dataStream string, corpusFile *os.File, corpusDocsCount 
 
 	err = parsedTpl.Execute(buf, templateData)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error on parsin on rally track template: %w", err)
 	}
 
 	return buf.Bytes(), nil

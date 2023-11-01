@@ -185,7 +185,7 @@ Run pipeline benchmarks for the package.
 
 _Context: package_
 
-Run rally benchmarks for the package.
+Run rally benchmarks for the package (esrally needs to be installed in the path of the system).
 
 ### `elastic-package benchmark system`
 

@@ -8,14 +8,6 @@ type: integration
 conditions:
   kibana:
     version: '^8.0.0'
-policy_templates:
-  - name: testpo
-    title: Test
-    description: Description
-    inputs:
-      - type: filestream
-        title: Collect logs
-        description: Collecting logs
 owner:
   github: elastic/integrations
   type: elastic

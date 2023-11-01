@@ -228,7 +228,7 @@ func getRallyCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "rally",
 		Short: "Run rally benchmarks",
-		Long:  "Run rally benchmarks for the package",
+		Long:  "Run rally benchmarks for the package (esrally needs to be installed in the path of the system)",
 		Args:  cobra.NoArgs,
 		RunE:  rallyCommandAction,
 	}

@@ -264,7 +264,6 @@ func (c *collector) waitUntilReady() {
 	waitTick := time.NewTicker(time.Second)
 	defer waitTick.Stop()
 
-readyLoop:
 	for {
 		select {
 		case <-c.stopC:
