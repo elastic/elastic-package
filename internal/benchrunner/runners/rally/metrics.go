@@ -276,7 +276,7 @@ readyLoop:
 			logger.Debug(err)
 		}
 		if dsstats != nil {
-			break readyLoop
+			break
 		}
 	}
 
