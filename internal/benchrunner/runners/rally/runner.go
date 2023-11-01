@@ -75,7 +75,7 @@ type runner struct {
 
 	// Execution order of following handlers is defined in runner.TearDown() method.
 	persistRallyTrackHandler func() error
-	deletePolicyHandler      func() error
+	removePackageHandler     func() error
 	wipeDataStreamHandler    func() error
 	clearCorporaHandler      func() error
 }
@@ -108,11 +108,11 @@ func (r *runner) TearDown() error {
 		r.persistRallyTrackHandler = nil
 	}
 
-	if r.deletePolicyHandler != nil {
-		if err := r.deletePolicyHandler(); err != nil {
+	if r.removePackageHandler != nil {
+		if err := r.removePackageHandler(); err != nil {
 			merr = append(merr, err)
 		}
-		r.deletePolicyHandler = nil
+		r.removePackageHandler = nil
 	}
 
 	if r.wipeDataStreamHandler != nil {
@@ -135,6 +135,14 @@ func (r *runner) TearDown() error {
 	return merr
 }
 
+func (r *runner) createRallyTrackDir(locationManager *locations.LocationManager) error {
+	outputDir := filepath.Join(locationManager.RallyCorpusDir(), r.ctxt.Test.RunID)
+	if err := os.MkdirAll(outputDir, 0755); err != nil {
+		return fmt.Errorf("failed to create output directory: %w", err)
+	}
+	return nil
+}
+
 func (r *runner) setUp() error {
 	locationManager, err := locations.NewLocationManager()
 	if err != nil {
@@ -152,7 +160,7 @@ func (r *runner) setUp() error {
 	}
 	r.ctxt.OutputDir = outputDir
 
-	err = servicedeployer.CreateRallyTrackDir(locationManager, r.ctxt.Test.RunID)
+	err = r.createRallyTrackDir(locationManager)
 	if err != nil {
 		return fmt.Errorf("could not create local rally track dir %w", err)
 	}
@@ -167,6 +175,11 @@ func (r *runner) setUp() error {
 		return err
 	}
 	r.scenario = scenario
+
+	err = r.installPackage(r.scenario.Package, r.scenario.Version)
+	if err != nil {
+		return fmt.Errorf("error installing package: %w", err)
+	}
 
 	if r.scenario.Corpora.Generator != nil {
 		var err error
@@ -264,6 +277,26 @@ func (r *runner) run() (report reporters.Reportable, err error) {
 	}
 
 	return createReport(r.options.BenchName, r.corpusFile, r.scenario, msum, rallyStats)
+}
+
+func (r *runner) installPackage(packageName, packageVersion string) error {
+	// POST /epm/packages/{pkgName}/{pkgVersion}
+	// Configure package (single data stream) via Ingest Manager APIs.
+	logger.Debug("installing package...")
+	_, err := r.options.KibanaClient.InstallPackage(packageName, packageVersion)
+	if err != nil {
+		return fmt.Errorf("cannot install package %s@%s: %w", packageName, packageVersion, err)
+	}
+
+	r.removePackageHandler = func() error {
+		logger.Debug("removing benchmark package...")
+		if _, err := r.options.KibanaClient.RemovePackage(packageName, packageVersion); err != nil {
+			return fmt.Errorf("error removing benchmark package: %w", err)
+		}
+		return nil
+	}
+
+	return nil
 }
 
 func (r *runner) startMetricsColletion() {

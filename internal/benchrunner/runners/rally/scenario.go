@@ -36,24 +36,18 @@ type corpora struct {
 type generator struct {
 	TotalEvents uint64          `config:"total_events" json:"total_events"`
 	Template    corporaTemplate `config:"template" json:"template"`
-	Config      corporaConfig   `config:"config" json:"config"`
-	Fields      corporaFields   `config:"fields" json:"fields"`
+	Config      corporaAsset    `config:"config" json:"config"`
+	Fields      corporaAsset    `config:"fields" json:"fields"`
 }
 
+type corporaAsset struct {
+	Raw  map[string]interface{} `config:"raw" json:"raw"`
+	Path string                 `config:"path" json:"path"`
+}
 type corporaTemplate struct {
 	Raw  string `config:"raw" json:"raw"`
 	Path string `config:"path" json:"path"`
 	Type string `config:"type" json:"type"`
-}
-
-type corporaConfig struct {
-	Raw  map[string]interface{} `config:"raw" json:"raw"`
-	Path string                 `config:"path" json:"path"`
-}
-
-type corporaFields struct {
-	Raw  map[string]interface{} `config:"raw" json:"raw"`
-	Path string                 `config:"path" json:"path"`
 }
 
 func defaultConfig() *scenario {
