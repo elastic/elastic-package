@@ -169,11 +169,11 @@ func (r *runner) setUp() error {
 	r.scenario = scenario
 
 	if r.scenario.Corpora.Generator != nil {
-		var err error
-		r.generator, err = r.initializeGenerator()
+		generator, err := r.initializeGenerator()
 		if err != nil {
 			return fmt.Errorf("can't initialize generator: %w", err)
 		}
+		r.generator = generator
 	}
 
 	// Delete old data
