@@ -446,8 +446,7 @@ func (r *runner) runGenerator(destDir string) error {
 		}
 
 		// TODO: this should be taken care of by the corpus generator tool, once it will be done let's remove this
-		replacer := strings.NewReplacer("\n", "")
-		event := replacer.Replace(buf.String())
+		event := strings.Replace(buf.String(), "\n", "")
 		if _, err = corporaFile.Write([]byte(event)); err != nil {
 			return err
 		}
