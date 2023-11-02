@@ -41,6 +41,7 @@ func (c *Client) InstallZipPackage(zipFile string) ([]packages.Asset, error) {
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/zip")
+	req.Header.Add("elastic-api-version", "2023-10-31")
 
 	statusCode, respBody, err := c.doRequest(req)
 	if err != nil {
