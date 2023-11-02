@@ -110,8 +110,6 @@ func (c *collector) stop() {
 }
 
 func (c *collector) collectMetricsBeforeRallyRun() {
-	c.waitForWarmup()
-
 	_, err := c.esAPI.Indices.Refresh(c.esAPI.Indices.Refresh.WithIndex(c.datastream))
 	if err != nil {
 		logger.Errorf("unable to refresh data stream at the beginning of rally run")
@@ -260,18 +258,6 @@ func (c *collector) summarize() (*metricsSummary, error) {
 	}
 
 	return &sum, nil
-}
-
-func (c *collector) waitForWarmup() {
-	if c.scenario.WarmupTimePeriod > 0 {
-		logger.Debugf("waiting %s for warmup period", c.scenario.WarmupTimePeriod)
-		select {
-		case <-c.stopC:
-			return
-		case <-time.After(c.scenario.WarmupTimePeriod):
-		}
-	}
-	logger.Debug("metric collection starting...")
 }
 
 func (c *collector) collectIngestMetrics() map[string]ingest.PipelineStatsMap {

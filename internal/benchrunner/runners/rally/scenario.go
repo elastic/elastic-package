@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/elastic/go-ucfg/yaml"
 )
@@ -17,12 +16,11 @@ import (
 const devPath = "_dev/benchmark/rally"
 
 type scenario struct {
-	Package          string        `config:"package" json:"package"`
-	Description      string        `config:"description" json:"description"`
-	Version          string        `config:"version" json:"version"`
-	DataStream       dataStream    `config:"data_stream" json:"data_stream"`
-	WarmupTimePeriod time.Duration `config:"warmup_time_period" json:"warmup_time_period"`
-	Corpora          corpora       `config:"corpora" json:"corpora"`
+	Package     string     `config:"package" json:"package"`
+	Description string     `config:"description" json:"description"`
+	Version     string     `config:"version" json:"version"`
+	DataStream  dataStream `config:"data_stream" json:"data_stream"`
+	Corpora     corpora    `config:"corpora" json:"corpora"`
 }
 
 type dataStream struct {

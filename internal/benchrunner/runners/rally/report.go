@@ -30,10 +30,9 @@ type report struct {
 		GeneratedCorporaFile string
 	}
 	Parameters struct {
-		PackageVersion   string
-		DataStream       dataStream
-		WarmupTimePeriod time.Duration
-		Corpora          corpora
+		PackageVersion string
+		DataStream     dataStream
+		Corpora        corpora
 	}
 	ClusterName         string
 	Nodes               int
@@ -72,7 +71,6 @@ func newReport(benchName, corporaFile string, s *scenario, sum *metricsSummary, 
 	report.Info.GeneratedCorporaFile = corporaFile
 	report.Parameters.PackageVersion = s.Version
 	report.Parameters.DataStream = s.DataStream
-	report.Parameters.WarmupTimePeriod = s.WarmupTimePeriod
 	report.Parameters.Corpora = s.Corpora
 	report.ClusterName = sum.ClusterName
 	report.Nodes = sum.Nodes
@@ -111,10 +109,6 @@ func reportHumanFormat(r *report) []byte {
 	}
 
 	pkvs = append(pkvs, "data_stream.name", r.Parameters.DataStream.Name)
-
-	pkvs = append(pkvs,
-		"warmup time period", r.Parameters.WarmupTimePeriod,
-	)
 
 	if r.Parameters.Corpora.Generator != nil {
 		pkvs = append(pkvs,
