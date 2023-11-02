@@ -55,7 +55,7 @@ func GenerateRallyTrack(dataStream string, corpusFile *os.File, corpusDocsCount 
 
 	parsedTpl, err := t.Delims("[[", "]]").Parse(rallyTrackTemplate)
 	if err != nil {
-		return nil, fmt.Errorf("erro while parsing rally track template: %w", err)
+		return nil, fmt.Errorf("error while parsing rally track template: %w", err)
 	}
 
 	fi, err := corpusFile.Stat()
