@@ -18,6 +18,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/elastic/elastic-package/internal/packages/installer"
+
 	"github.com/magefile/mage/sh"
 
 	"github.com/elastic/elastic-package/internal/corpusgenerator"
@@ -176,7 +178,7 @@ func (r *runner) setUp() error {
 	}
 	r.scenario = scenario
 
-	err = r.installPackage(r.scenario.Package, r.scenario.Version)
+	err = r.installPackage()
 	if err != nil {
 		return fmt.Errorf("error installing package: %w", err)
 	}
@@ -279,20 +281,28 @@ func (r *runner) run() (report reporters.Reportable, err error) {
 	return createReport(r.options.BenchName, r.corpusFile, r.scenario, msum, rallyStats)
 }
 
-func (r *runner) installPackage(packageName, packageVersion string) error {
-	// POST /epm/packages/{pkgName}/{pkgVersion}
-	// Configure package (single data stream) via Ingest Manager APIs.
-	logger.Debug("installing package...")
-	_, err := r.options.KibanaClient.InstallPackage(packageName, packageVersion)
+func (r *runner) installPackage() error {
+	logger.Debug("Installing package...")
+	installer, err := installer.NewForPackage(installer.Options{
+		Kibana:         r.options.KibanaClient,
+		RootPath:       r.options.PackageRootPath,
+		SkipValidation: true,
+	})
+
 	if err != nil {
-		return fmt.Errorf("cannot install package %s@%s: %w", packageName, packageVersion, err)
+		return fmt.Errorf("failed to initialize package installer: %w", err)
+	}
+
+	_, err = installer.Install()
+	if err != nil {
+		return fmt.Errorf("failed to install package: %w", err)
 	}
 
 	r.removePackageHandler = func() error {
-		logger.Debug("removing benchmark package...")
-		if _, err := r.options.KibanaClient.RemovePackage(packageName, packageVersion); err != nil {
+		if err := installer.Uninstall(); err != nil {
 			return fmt.Errorf("error removing benchmark package: %w", err)
 		}
+
 		return nil
 	}
 
