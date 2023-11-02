@@ -90,30 +90,14 @@ func newCollector(
 func (c *collector) start() {
 	c.createMetricsIndex()
 
+	c.collectMetricsBeforeRallyRun()
+
 	c.wg.Add(1)
 	go func() {
-		tick := time.NewTicker(c.interval)
-		defer tick.Stop()
-		defer c.wg.Done()
-
-		c.waitUntilReady()
-		c.startIngestMetrics = c.collectIngestMetrics()
-		c.startTotalHits = c.collectTotalHits()
-		c.startMetrics = c.collect()
-		c.publish(c.createEventsFromMetrics(c.startMetrics))
-
-		for {
-			select {
-			case <-c.stopC:
-				// last collect before stopping
-				c.collectMetricsPreviousToStop()
-				c.publish(c.createEventsFromMetrics(c.endMetrics))
-				return
-			case <-tick.C:
-				m := c.collect()
-				c.publish(c.createEventsFromMetrics(m))
-			}
-		}
+		<-c.stopC
+		// last collect before stopping
+		c.collectMetricsAfterRallyRun()
+		c.publish(c.createEventsFromMetrics(c.endMetrics))
 	}()
 }
 
@@ -123,6 +107,21 @@ func (c *collector) stop() {
 	}
 	close(c.stopC)
 	c.wg.Wait()
+}
+
+func (c *collector) collectMetricsBeforeRallyRun() {
+	c.waitUntilReady()
+
+	_, err := c.esAPI.Indices.Refresh(c.esAPI.Indices.Refresh.WithIndex(c.datastream))
+	if err == nil {
+		c.startTotalHits = c.collectTotalHits()
+		c.startMetrics = c.collect()
+		c.diskUsage = c.collectDiskUsage()
+		c.startIngestMetrics = c.collectIngestMetrics()
+		c.publish(c.createEventsFromMetrics(c.startMetrics))
+	} else {
+		logger.Errorf("unable to refresh data stream at the beginning of rally run")
+	}
 }
 
 func (c *collector) collect() metrics {
@@ -310,11 +309,19 @@ func (c *collector) collectDiskUsage() map[string]ingest.DiskUsage {
 	return du
 }
 
-func (c *collector) collectMetricsPreviousToStop() {
-	c.endIngestMetrics = c.collectIngestMetrics()
+func (c *collector) collectMetricsAfterRallyRun() {
+	_, err := c.esAPI.Indices.Refresh(c.esAPI.Indices.Refresh.WithIndex(c.datastream))
+	if err != nil {
+		logger.Errorf("unable to refresh data stream at the end of rally run")
+		return
+	}
+
 	c.diskUsage = c.collectDiskUsage()
-	c.endTotalHits = c.collectTotalHits()
 	c.endMetrics = c.collect()
+	c.endIngestMetrics = c.collectIngestMetrics()
+	c.endTotalHits = c.collectTotalHits()
+
+	c.publish(c.createEventsFromMetrics(c.endMetrics))
 }
 
 func (c *collector) collectTotalHits() int {
