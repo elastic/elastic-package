@@ -110,18 +110,18 @@ func (c *collector) stop() {
 }
 
 func (c *collector) collectMetricsBeforeRallyRun() {
-	c.waitUntilReady()
+	c.waitForWarmup()
 
 	_, err := c.esAPI.Indices.Refresh(c.esAPI.Indices.Refresh.WithIndex(c.datastream))
-	if err == nil {
-		c.startTotalHits = c.collectTotalHits()
-		c.startMetrics = c.collect()
-		c.diskUsage = c.collectDiskUsage()
-		c.startIngestMetrics = c.collectIngestMetrics()
-		c.publish(c.createEventsFromMetrics(c.startMetrics))
-	} else {
+	if err != nil {
 		logger.Errorf("unable to refresh data stream at the beginning of rally run")
+		return
 	}
+
+	c.startTotalHits = c.collectTotalHits()
+	c.startMetrics = c.collect()
+	c.startIngestMetrics = c.collectIngestMetrics()
+	c.publish(c.createEventsFromMetrics(c.startMetrics))
 }
 
 func (c *collector) collect() metrics {
@@ -262,24 +262,7 @@ func (c *collector) summarize() (*metricsSummary, error) {
 	return &sum, nil
 }
 
-func (c *collector) waitUntilReady() {
-	logger.Debug("waiting for datastream to be created...")
-
-	waitTick := time.NewTicker(time.Second)
-	defer waitTick.Stop()
-
-	for {
-		select {
-		case <-c.stopC:
-			return
-		case <-waitTick.C:
-		}
-		dsstats, _ := ingest.GetDataStreamStats(c.esAPI, c.datastream)
-		if dsstats != nil {
-			break
-		}
-	}
-
+func (c *collector) waitForWarmup() {
 	if c.scenario.WarmupTimePeriod > 0 {
 		logger.Debugf("waiting %s for warmup period", c.scenario.WarmupTimePeriod)
 		select {
