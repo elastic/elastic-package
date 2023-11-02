@@ -151,23 +151,28 @@ func (c *collector) publish(events [][]byte) {
 	if c.metricsAPI == nil {
 		return
 	}
-	for _, e := range events {
-		reqBody := bytes.NewReader(e)
-		resp, err := c.metricsAPI.Index(c.indexName(), reqBody)
-		if err != nil {
-			logger.Debugf("error indexing event: %v", err)
-			continue
-		}
+	eventsForBulk := bytes.Join(events, []byte("\n"))
+	reqBody := bytes.NewReader(eventsForBulk)
+	resp, err := c.metricsAPI.Bulk(reqBody, c.metricsAPI.Bulk.WithIndex(c.indexName()))
+	if err != nil {
+		logger.Errorf("error indexing event in metricstore: %w", err)
+		return
+	}
 
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			logger.Errorf("failed to read index response body: %v", err)
-		}
-		resp.Body.Close()
+	if resp.Body == nil {
+		logger.Errorf("empty index response body from metricstore: %w", err)
+		return
+	}
 
-		if resp.StatusCode != 201 {
-			logger.Errorf("error indexing event (%d): %s: %v", resp.StatusCode, resp.Status(), elasticsearch.NewError(body))
-		}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		logger.Errorf("failed to read index response body from metricstore: %w", err)
+	}
+
+	resp.Body.Close()
+
+	if resp.StatusCode != 201 {
+		logger.Errorf("error indexing event in metricstore (%d): %s: %v", resp.StatusCode, resp.Status(), elasticsearch.NewError(body))
 	}
 }
 
@@ -188,13 +193,13 @@ func (c *collector) createMetricsIndex() {
 		c.metricsAPI.Indices.Create.WithBody(reader),
 	)
 	if err != nil {
-		logger.Debugf("could not create index: %v", err)
+		logger.Errorf("could not create index: %w", err)
 		return
 	}
 	createRes.Body.Close()
 
 	if createRes.IsError() {
-		logger.Debug("got a response error while creating index")
+		logger.Errorf("got a response error while creating index")
 	}
 }
 
@@ -270,10 +275,7 @@ func (c *collector) waitUntilReady() {
 			return
 		case <-waitTick.C:
 		}
-		dsstats, err := ingest.GetDataStreamStats(c.esAPI, c.datastream)
-		if err != nil {
-			logger.Debug(err)
-		}
+		dsstats, _ := ingest.GetDataStreamStats(c.esAPI, c.datastream)
 		if dsstats != nil {
 			break
 		}
@@ -318,7 +320,7 @@ func (c *collector) collectMetricsPreviousToStop() {
 func (c *collector) collectTotalHits() int {
 	totalHits, err := getTotalHits(c.esAPI, c.datastream)
 	if err != nil {
-		logger.Debugf("could not get total hits: %w", err)
+		logger.Debugf("could not get total hits: %v", err)
 	}
 	return totalHits
 }
@@ -358,7 +360,7 @@ func (c *collector) createEventsFromMetrics(m metrics) [][]byte {
 	for _, e := range append(nEvents, dsEvent) {
 		b, err := json.Marshal(e)
 		if err != nil {
-			logger.Debugf("error marshalling metrics event: %w", err)
+			logger.Debugf("error marshalling metrics event: %v", err)
 			continue
 		}
 		events = append(events, b)

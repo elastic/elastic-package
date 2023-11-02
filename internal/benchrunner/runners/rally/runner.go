@@ -191,8 +191,6 @@ func (r *runner) setUp() error {
 		}
 	}
 
-	// Delete old data
-	logger.Debug("deleting old data in data stream...")
 	dataStreamManifest, err := packages.ReadDataStreamManifest(
 		filepath.Join(
 			getDataStreamPath(r.options.PackageRootPath, r.scenario.DataStream.Name),
@@ -217,15 +215,7 @@ func (r *runner) setUp() error {
 		r.scenario.Version,
 	)
 
-	r.wipeDataStreamHandler = func() error {
-		logger.Debugf("deleting data in data stream...")
-		if err := r.deleteDataStreamDocs(r.runtimeDataStream); err != nil {
-			return fmt.Errorf("error deleting data in data stream: %w", err)
-		}
-		return nil
-	}
-
-	if err := r.deleteDataStreamDocs(r.runtimeDataStream); err != nil {
+	if err := r.wipeDataStreamOnSetup(); err != nil {
 		return fmt.Errorf("error deleting old data in data stream: %s: %w", r.runtimeDataStream, err)
 	}
 
@@ -245,6 +235,20 @@ func (r *runner) setUp() error {
 	}
 
 	return nil
+}
+
+func (r *runner) wipeDataStreamOnSetup() error {
+	// Delete old data
+	logger.Debug("deleting old data in data stream...")
+	r.wipeDataStreamHandler = func() error {
+		logger.Debugf("deleting data in data stream...")
+		if err := r.deleteDataStreamDocs(r.runtimeDataStream); err != nil {
+			return fmt.Errorf("error deleting data in data stream: %w", err)
+		}
+		return nil
+	}
+
+	return r.deleteDataStreamDocs(r.runtimeDataStream)
 }
 
 func (r *runner) run() (report reporters.Reportable, err error) {
