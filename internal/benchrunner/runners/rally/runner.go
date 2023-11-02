@@ -553,7 +553,11 @@ func (r *runner) runGenerator(destDir string) error {
 	}
 
 	r.clearCorporaHandler = func() error {
-		return errors.Join(os.Remove(r.corpusFile), os.Remove(r.reportFile), os.Remove(r.trackFile))
+		return errors.Join(
+			os.Remove(r.corpusFile),
+			os.Remove(r.reportFile),
+			os.Remove(r.trackFile),
+		)
 	}
 
 	return r.generator.Close()
