@@ -82,13 +82,15 @@ var (
 					excludes: []*regexp.Regexp{
 						// this regex is excluded to ensure that logs coming from the `system` package installed by default are not taken into account
 						regexp.MustCompile(`action \[indices:data\/write\/bulk\[s\]\] is unauthorized for API key id \[.*\] of user \[.*\] on indices \[.*\], this action is granted by the index privileges \[.*\]`),
-
-						// this regex is excluded to avoid a regresion in 8.11 that can make a component to pass to a degraded state during some seconds after reassigning or removing a policy
-						regexp.MustCompile(`Component state changed .* (HEALTHY->DEGRADED): Degraded: pid .* missed .* check-in`),
 					},
 				},
 				logsRegexp{
 					includes: regexp.MustCompile("->(FAILED|DEGRADED)"),
+
+					// this regex is excluded to avoid a regresion in 8.11 that can make a component to pass to a degraded state during some seconds after reassigning or removing a policy
+					excludes: []*regexp.Regexp{
+						regexp.MustCompile(`Component state changed .* \(HEALTHY->DEGRADED\): Degraded: pid .* missed .* check-in`),
+					},
 				},
 			},
 		},
