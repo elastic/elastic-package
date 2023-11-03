@@ -94,6 +94,8 @@ func (c *collector) start() {
 
 	c.wg.Add(1)
 	go func() {
+		defer c.wg.Done()
+
 		<-c.stopC
 		// last collect before stopping
 		c.collectMetricsAfterRallyRun()
@@ -213,11 +215,17 @@ func (c *collector) summarize() (*metricsSummary, error) {
 		TotalHits:           c.endTotalHits - c.startTotalHits,
 	}
 
-	sum.ClusterName = c.startMetrics.nMetrics.ClusterName
+	if c.startMetrics.nMetrics != nil {
+		sum.ClusterName = c.startMetrics.nMetrics.ClusterName
+	}
 	sum.CollectionStartTs = c.startMetrics.ts
 	sum.CollectionEndTs = c.endMetrics.ts
-	sum.DataStreamStats = c.endMetrics.dsMetrics
-	sum.Nodes = len(c.endMetrics.nMetrics.Nodes)
+	if c.endMetrics.dsMetrics != nil {
+		sum.DataStreamStats = c.endMetrics.dsMetrics
+	}
+	if c.endMetrics.nMetrics != nil {
+		sum.Nodes = len(c.endMetrics.nMetrics.Nodes)
+	}
 
 	for node, endPStats := range c.endIngestMetrics {
 		startPStats, found := c.startIngestMetrics[node]

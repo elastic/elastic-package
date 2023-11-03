@@ -265,4 +265,18 @@ Additionally, if the `reindex-to-metricstore` flag is used, the data generated d
 If the `rally-track-output-dir` flag is used, the track and the corpus generated during the benchmark will be saved in the directory passed as value of the flag.
 Additionally, if the `dry-run` flag is used, the command will exits before running `esrally`.
 If both the flags above are used at the same time, the command will just generate the track and corpus and save them, without running any benchmark.
-If the `dry-run` flag only is used, the command will just wipe the data stream returning no report. 
+If the `dry-run` flag only is used, the command will just wipe the data stream returning no report.
+
+## Replaying a persisted rally track
+In the directory of the `rally-track-output-dir` flag two files are saved:
+1. The rally track: `track-%data_stream.type%-%data_stream.dataset%-%data_stream.namespace%.json`
+2. The track corpus: `corpus-%unix_timestamp%`
+
+Both files are required to replay the rally benchmark. The first file references the second in its content.
+The command to run for replaying the track is the following:
+```shell
+rally --target-hosts='{"default":["%es_cluster_host:es_cluster_port%"]}' --track-path=%path/to/saved-track-json% --client-options='{"default":{"basic_auth_user":"%es_user%","basic_auth_password":"%es_user%","use_ssl":true,"verify_certs":false}}' --pipeline=benchmark-only 
+```
+
+Please refer to [esrally CLI reference](https://esrally.readthedocs.io/en/stable/command_line_reference.html) for more details.
+
