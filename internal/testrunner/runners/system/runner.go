@@ -86,6 +86,11 @@ var (
 				},
 				logsRegexp{
 					includes: regexp.MustCompile("->(FAILED|DEGRADED)"),
+
+					// this regex is excluded to avoid a regresion in 8.11 that can make a component to pass to a degraded state during some seconds after reassigning or removing a policy
+					excludes: []*regexp.Regexp{
+						regexp.MustCompile(`Component state changed .* \(HEALTHY->DEGRADED\): Degraded: pid .* missed .* check-in`),
+					},
 				},
 			},
 		},
