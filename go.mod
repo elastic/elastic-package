@@ -30,7 +30,7 @@ require (
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2
 	github.com/shirou/gopsutil/v3 v3.23.10
-	github.com/spf13/cobra v1.7.0
+	github.com/spf13/cobra v1.8.0
 	github.com/stretchr/testify v1.8.4
 	golang.org/x/tools v0.14.0
 	gopkg.in/yaml.v3 v3.0.1
