@@ -18,9 +18,12 @@ import (
 
 // SearchOptions specify the query parameters without the package name for the search API
 type SearchOptions struct {
-	Prerelease    bool   `url:"prerelease"`
-	All           bool   `url:"all"`
-	KibanaVersion string `url:"kibana.version,omitempty"`
+	All           bool     `url:"all"`
+	Capabilities  []string `url:"capabilities,omitempty"`
+	KibanaVersion string   `url:"kibana.version,omitempty"`
+	Prerelease    bool     `url:"prerelease"`
+	SpecMax       string   `url:"spec.max,omitempty"`
+	SpecMin       string   `url:"spec.min,omitempty"`
 
 	// Deprecated
 	Experimental bool `url:"experimental"`

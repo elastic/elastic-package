@@ -8,10 +8,21 @@ source .buildkite/scripts/install_deps.sh
 source .buildkite/scripts/tooling.sh
 
 cleanup() {
+    local error_code=$?
+
+    if [ $error_code != 0 ] ; then
+        # if variable is defined, run the logout
+        if [ -n "${GOOGLE_APPLICATION_CREDENTIALS+x}" ]; then
+             google_cloud_logout_active_account
+        fi
+    fi
+
     echo "Deleting temporal files..."
     cd ${WORKSPACE}
     rm -rf ${TMP_FOLDER_TEMPLATE_BASE}.*
     echo "Done."
+
+    exit $error_code
 }
 
 trap cleanup EXIT
@@ -55,32 +66,28 @@ PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH="gs://elastic-bekitzur-pac
 
 
 google_cloud_auth_signing() {
-    local gsUtilLocation=$(mktemp -d -p . -t ${TMP_FOLDER_TEMPLATE})
+    local gsUtilLocation=$(mktemp -d -p ${WORKSPACE} -t ${TMP_FOLDER_TEMPLATE})
 
     local secretFileLocation=${gsUtilLocation}/${GOOGLE_CREDENTIALS_FILENAME}
     echo "${SIGNING_PACKAGES_GCS_CREDENTIALS_SECRET}" > ${secretFileLocation}
 
     google_cloud_auth "${secretFileLocation}"
-
-    echo "${gsUtilLocation}"
 }
 
 google_cloud_auth_publishing() {
-    local gsUtilLocation=$(mktemp -d -p . -t ${TMP_FOLDER_TEMPLATE})
+    local gsUtilLocation=$(mktemp -d -p ${WORKSPACE} -t ${TMP_FOLDER_TEMPLATE})
 
     local secretFileLocation=${gsUtilLocation}/${GOOGLE_CREDENTIALS_FILENAME}
     echo "${PACKAGE_UPLOADER_GCS_CREDENTIALS_SECRET}" > ${secretFileLocation}
 
     google_cloud_auth "${secretFileLocation}"
-
-    echo "${gsUtilLocation}"
 }
 
 sign_package() {
     local package=${1}
     local packageZip=$(basename ${package})
 
-    local gsUtilLocation=$(google_cloud_auth_signing)
+    google_cloud_auth_signing
 
     # upload zip package (trailing forward slashes are required)
     echo "Upload package .zip file for signing ${package} to ${INFRA_SIGNING_BUCKET_ARTIFACTS_PATH}"
@@ -106,8 +113,7 @@ sign_package() {
 
     ls -l "${BUILD_PACKAGES_PATH}"
 
-    echo "Removing temporal location ${gsUtilLocation}"
-    rm -r "${gsUtilLocation}"
+    google_cloud_logout_active_account
 }
 
 publish_package() {
@@ -115,7 +121,7 @@ publish_package() {
     local packageZip=$(basename ${package})
 
     # create file with credentials
-    local gsUtilLocation=$(google_cloud_auth_publishing)
+    google_cloud_auth_publishing
 
     # upload files (trailing forward slashes are required)
     echo "Upload package .zip file ${package} to ${PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH}"
@@ -135,8 +141,7 @@ publish_package() {
 
     popd > /dev/null
 
-    echo "Removing temporal location ${gsUtilLocation}"
-    rm -r "${gsUtilLocation}"
+    google_cloud_logout_active_account
 }
 
 add_bin_path

@@ -8,7 +8,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/Masterminds/semver/v3"
@@ -32,8 +34,9 @@ package directory and reports its status.`
 
 const (
 	kibanaVersionParameter             = "kibana.version"
-	categoriesParamter                 = "categories"
+	categoriesParameter                = "categories"
 	elasticsearchSubscriptionParameter = "elastic.subscription"
+	serverlessProjectTypesParameter    = "serverless.project_types"
 )
 
 var (
@@ -43,8 +46,9 @@ var (
 
 	availableExtraInfoParameters = []string{
 		kibanaVersionParameter,
-		categoriesParamter,
+		categoriesParameter,
 		elasticsearchSubscriptionParameter,
+		serverlessProjectTypesParameter,
 	}
 )
 
@@ -100,6 +104,17 @@ func statusCommandAction(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+
+	if slices.Contains(extraParameters, serverlessProjectTypesParameter) {
+		if packageName == "" && packageStatus.Local != nil {
+			packageName = packageStatus.Local.Name
+		}
+		packageStatus.Serverless, err = getServerlessManifests(packageName, options)
+		if err != nil {
+			return err
+		}
+	}
+
 	return print(packageStatus, os.Stdout, extraParameters)
 }
 
@@ -130,6 +145,32 @@ func getPackageStatus(packageName string, options registry.SearchOptions) (*stat
 		return nil, fmt.Errorf("locating package root failed: %w", err)
 	}
 	return status.LocalPackage(packageRootPath, options)
+}
+
+func getServerlessManifests(packageName string, options registry.SearchOptions) ([]status.ServerlessManifests, error) {
+	if packageName == "" {
+		return nil, nil
+	}
+	var serverless []status.ServerlessManifests
+	projectTypes := status.GetServerlessProjectTypes(http.DefaultClient)
+	for _, projectType := range projectTypes {
+		if slices.Contains(projectType.ExcludePackages, packageName) {
+			continue
+		}
+		options := options
+		options.Capabilities = projectType.Capabilities
+		options.SpecMax = projectType.SpecMax
+		options.SpecMin = projectType.SpecMin
+		manifests, err := registry.Production.Revisions(packageName, options)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get packages available for serverless projects of type %s: %w", projectType.Name, err)
+		}
+		serverless = append(serverless, status.ServerlessManifests{
+			Name:      projectType.Name,
+			Manifests: manifests,
+		})
+	}
+	return serverless, nil
 }
 
 // print formats and prints package information into a table
@@ -180,9 +221,15 @@ func renderPendingChanges(p *status.PackageStatus, w io.Writer) {
 func renderPackageVersions(p *status.PackageStatus, w io.Writer, extraParameters []string) {
 	var environmentTable [][]string
 	if p.Local != nil {
-		environmentTable = append(environmentTable, formatManifest("Local", *p.Local, nil, extraParameters))
+		environmentTable = append(environmentTable, formatManifest("Local", "-", *p.Local, nil, extraParameters))
 	}
-	environmentTable = append(environmentTable, formatManifests("Production", p.Production, extraParameters))
+	data := formatManifests("Production", "-", p.Production, extraParameters)
+	environmentTable = append(environmentTable, data)
+
+	for _, projectType := range p.Serverless {
+		data := formatManifests("Production", projectType.Name, projectType.Manifests, extraParameters)
+		environmentTable = append(environmentTable, data)
+	}
 
 	bold.Fprintln(w, "Package Versions:")
 	table := tablewriter.NewWriter(w)
@@ -230,7 +277,7 @@ func formatChangelogEntry(change changelog.Entry) []string {
 }
 
 // formatManifests returns a row of data ffor a set of versioned packaged manifests
-func formatManifests(environment string, manifests []packages.PackageManifest, extraParameters []string) []string {
+func formatManifests(environment string, serverless string, manifests []packages.PackageManifest, extraParameters []string) []string {
 	if len(manifests) == 0 {
 		return []string{environment, "-", "-", "-", "-"}
 	}
@@ -240,11 +287,11 @@ func formatManifests(environment string, manifests []packages.PackageManifest, e
 			extraVersions = append(extraVersions, m.Version)
 		}
 	}
-	return formatManifest(environment, manifests[len(manifests)-1], extraVersions, extraParameters)
+	return formatManifest(environment, serverless, manifests[len(manifests)-1], extraVersions, extraParameters)
 }
 
 // formatManifest returns a row of data for a given package manifest
-func formatManifest(environment string, manifest packages.PackageManifest, extraVersions []string, extraParameters []string) []string {
+func formatManifest(environment string, serverless string, manifest packages.PackageManifest, extraVersions []string, extraParameters []string) []string {
 	version := manifest.Version
 	if len(extraVersions) > 0 {
 		version = fmt.Sprintf("%s (%s)", version, strings.Join(extraVersions, ", "))
@@ -256,10 +303,12 @@ func formatManifest(environment string, manifest packages.PackageManifest, extra
 		switch param {
 		case kibanaVersionParameter:
 			data = append(data, manifest.Conditions.Kibana.Version)
-		case categoriesParamter:
+		case categoriesParameter:
 			data = append(data, strings.Join(manifest.Categories, ","))
 		case elasticsearchSubscriptionParameter:
 			data = append(data, manifest.Conditions.Elastic.Subscription)
+		case serverlessProjectTypesParameter:
+			data = append(data, serverless)
 		}
 	}
 	return data

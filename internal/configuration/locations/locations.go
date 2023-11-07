@@ -22,7 +22,9 @@ const (
 	temporaryDir = "tmp"
 	deployerDir  = "deployer"
 
-	fieldsCachedDir = "cache/fields"
+	cacheDir              = "cache"
+	FieldsCacheName       = "fields"
+	KibanaConfigCacheName = "kibana_config"
 )
 
 var (
@@ -101,9 +103,9 @@ func (loc LocationManager) ServiceOutputDir() string {
 	return filepath.Join(loc.stackPath, serviceOutputDir)
 }
 
-// FieldsCacheDir returns the directory with cached fields
-func (loc LocationManager) FieldsCacheDir() string {
-	return filepath.Join(loc.stackPath, fieldsCachedDir)
+// CacheDir returns the directory with cached fields
+func (loc LocationManager) CacheDir(name string) string {
+	return filepath.Join(loc.stackPath, cacheDir, name)
 }
 
 // configurationDir returns the configuration directory location
