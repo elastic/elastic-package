@@ -60,6 +60,10 @@ func (s kubernetesDeployedService) Signal(_ string) error {
 	return errors.New("signal is not supported")
 }
 
+func (s kubernetesDeployedService) ExitCode(_ string) (bool, int, error) {
+	return false, -1, errors.New("exit code is not supported")
+}
+
 func (s kubernetesDeployedService) Context() ServiceContext {
 	return s.ctxt
 }

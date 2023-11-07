@@ -318,8 +318,7 @@ func (p *Project) Logs(opts CommandOptions) ([]byte, error) {
 func (p *Project) WaitForHealthy(opts CommandOptions) error {
 	// Read container IDs
 	args := p.baseArgs()
-	args = append(args, "ps")
-	args = append(args, "-q")
+	args = append(args, "ps", "-a", "-q")
 
 	var b bytes.Buffer
 	if err := p.runDockerComposeCmd(dockerComposeOptions{args: args, env: opts.Env, stdout: &b}); err != nil {
@@ -385,6 +384,40 @@ func (p *Project) WaitForHealthy(opts CommandOptions) error {
 	}
 
 	return nil
+}
+
+// ServiceExitCode returns true if the specified service is exited with an error.
+func (p *Project) ServiceExitCode(service string, opts CommandOptions) (bool, int, error) {
+	// Read container IDs
+	args := p.baseArgs()
+	args = append(args, "ps", "-a", "-q", service)
+
+	var b bytes.Buffer
+	if err := p.runDockerComposeCmd(dockerComposeOptions{args: args, env: opts.Env, stdout: &b}); err != nil {
+		return false, -1, err
+	}
+
+	containerIDs := strings.Fields(b.String())
+	if len(containerIDs) != 1 {
+		return false, -1, fmt.Errorf("expected to find one service container named: %s, found: %d", service, len(containerIDs))
+	}
+	containerID := containerIDs[0]
+
+	containerDescriptions, err := docker.InspectContainers(containerID)
+	if err != nil {
+		return false, -1, err
+	}
+	if len(containerDescriptions) != 1 {
+		return false, -1, fmt.Errorf("expected to get one service status, found: %d", len(containerIDs))
+	}
+	containerDescription := containerDescriptions[0]
+
+	// Container exited with code > 0
+	if containerDescription.State.Status == "exited" {
+		return true, containerDescription.State.ExitCode, nil
+	}
+
+	return false, -1, nil
 }
 
 func (p *Project) baseArgs() []string {

@@ -17,4 +17,7 @@ type DeployedService interface {
 
 	// SetContext sets the current context for the service.
 	SetContext(str ServiceContext) error
+
+	// ExitCode returns true if the service is exited and its exit code.
+	ExitCode(service string) (bool, int, error)
 }

@@ -1,0 +1,14 @@
+title: Test
+type: logs
+streams:
+  - input: logfile
+    enabled: false
+    title: Test
+    description: Test
+    vars:
+      - name: paths
+        type: text
+        title: Paths
+        multi: true
+        required: true
+        show_user: true
