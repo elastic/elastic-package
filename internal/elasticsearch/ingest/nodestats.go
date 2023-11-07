@@ -118,8 +118,10 @@ func GetPipelineStatsByPrefix(esClient *elasticsearch.API, pipelinePrefix string
 }
 
 func requestPipelineStats(esClient *elasticsearch.API) ([]byte, error) {
-	statsReq := esClient.Nodes.Stats.WithFilterPath("nodes.*.ingest.pipelines")
-	resp, err := esClient.Nodes.Stats(statsReq)
+	filterPathReq := esClient.Nodes.Stats.WithFilterPath("nodes.*.ingest.pipelines")
+	includeUnloadedSegmentReq := esClient.Nodes.Stats.WithIncludeUnloadedSegments(true)
+
+	resp, err := esClient.Nodes.Stats(filterPathReq, includeUnloadedSegmentReq)
 	if err != nil {
 		return nil, fmt.Errorf("node stats API call failed: %w", err)
 	}

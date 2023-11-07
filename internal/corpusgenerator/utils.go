@@ -56,7 +56,7 @@ func RunGenerator(generator genlib.Generator, dataStream, rallyTrackOutputDir st
 
 	if len(rallyTrackOutputDir) > 0 {
 		corpusFile := f.(*os.File)
-		rallyTrackContent, err := generateRallyTrack(dataStream, corpusFile, corpusDocsCount)
+		rallyTrackContent, err := GenerateRallyTrack(dataStream, corpusFile, corpusDocsCount)
 		if err != nil {
 			return err
 		}

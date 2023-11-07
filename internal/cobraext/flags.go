@@ -53,6 +53,12 @@ const (
 	BenchWithTestSamplesFlagName        = "use-test-samples"
 	BenchWithTestSamplesFlagDescription = "use test samples for the benchmarks"
 
+	BenchCorpusRallyTrackOutputDirFlagName        = "rally-track-output-dir"
+	BenchCorpusRallyTrackOutputDirFlagDescription = "output dir of the rally track: if present the command will save the generated rally track"
+
+	BenchCorpusRallyDryRunFlagName        = "dry-run"
+	BenchCorpusRallyDryRunFlagDescription = "Do not run rally but just generate the rally track"
+
 	BuildSkipValidationFlagName        = "skip-validation"
 	BuildSkipValidationFlagDescription = "skip validation of the built package, use only if all validation issues have been acknowledged"
 

@@ -25,7 +25,9 @@ import (
 	"github.com/elastic/elastic-package/internal/benchrunner"
 	"github.com/elastic/elastic-package/internal/benchrunner/reporters"
 	"github.com/elastic/elastic-package/internal/benchrunner/reporters/outputs"
+	benchcommon "github.com/elastic/elastic-package/internal/benchrunner/runners/common"
 	"github.com/elastic/elastic-package/internal/benchrunner/runners/pipeline"
+	"github.com/elastic/elastic-package/internal/benchrunner/runners/rally"
 	"github.com/elastic/elastic-package/internal/benchrunner/runners/system"
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/common"
@@ -48,6 +50,12 @@ These benchmarks allow you to benchmark any Ingest Node Pipelines defined by you
 
 For details on how to configure pipeline benchmarks for a package, review the [HOWTO guide](./docs/howto/pipeline_benchmarking.md).
 
+#### Rally Benchmarks
+
+These benchmarks allow you to benchmark an integration corpus with rally.
+
+For details on how to configure rally benchmarks for a package, review the [HOWTO guide](./docs/howto/rally_benchmarking.md).
+
 #### System Benchmarks
 
 These benchmarks allow you to benchmark an integration end to end.
@@ -65,6 +73,9 @@ func setupBenchmarkCommand() *cobraext.Command {
 
 	pipelineCmd := getPipelineCommand()
 	cmd.AddCommand(pipelineCmd)
+
+	rallyCmd := getRallyCommand()
+	cmd.AddCommand(rallyCmd)
 
 	systemCmd := getSystemCommand()
 	cmd.AddCommand(systemCmd)
@@ -208,6 +219,151 @@ func pipelineCommandAction(cmd *cobra.Command, args []string) error {
 		if err := reporters.WriteReportable(reporters.Output(reportOutput), report); err != nil {
 			return fmt.Errorf("error writing benchmark report: %w", err)
 		}
+	}
+
+	return nil
+}
+
+func getRallyCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "rally",
+		Short: "Run rally benchmarks",
+		Long:  "Run rally benchmarks for the package (esrally needs to be installed in the path of the system)",
+		Args:  cobra.NoArgs,
+		RunE:  rallyCommandAction,
+	}
+
+	cmd.Flags().StringP(cobraext.BenchNameFlagName, "", "", cobraext.BenchNameFlagDescription)
+	cmd.Flags().BoolP(cobraext.BenchReindexToMetricstoreFlagName, "", false, cobraext.BenchReindexToMetricstoreFlagDescription)
+	cmd.Flags().DurationP(cobraext.BenchMetricsIntervalFlagName, "", time.Second, cobraext.BenchMetricsIntervalFlagDescription)
+	cmd.Flags().DurationP(cobraext.DeferCleanupFlagName, "", 0, cobraext.DeferCleanupFlagDescription)
+	cmd.Flags().String(cobraext.VariantFlagName, "", cobraext.VariantFlagDescription)
+	cmd.Flags().StringP(cobraext.BenchCorpusRallyTrackOutputDirFlagName, "", "", cobraext.BenchCorpusRallyTrackOutputDirFlagDescription)
+	cmd.Flags().BoolP(cobraext.BenchCorpusRallyDryRunFlagName, "", false, cobraext.BenchCorpusRallyDryRunFlagDescription)
+
+	return cmd
+}
+
+func rallyCommandAction(cmd *cobra.Command, args []string) error {
+	cmd.Println("Run rally benchmarks for the package")
+
+	variant, err := cmd.Flags().GetString(cobraext.VariantFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.VariantFlagName)
+	}
+
+	benchName, err := cmd.Flags().GetString(cobraext.BenchNameFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.BenchNameFlagName)
+	}
+
+	deferCleanup, err := cmd.Flags().GetDuration(cobraext.DeferCleanupFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.DeferCleanupFlagName)
+	}
+
+	metricsInterval, err := cmd.Flags().GetDuration(cobraext.BenchMetricsIntervalFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.BenchMetricsIntervalFlagName)
+	}
+
+	dataReindex, err := cmd.Flags().GetBool(cobraext.BenchReindexToMetricstoreFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.BenchReindexToMetricstoreFlagName)
+	}
+
+	rallyTrackOutputDir, err := cmd.Flags().GetString(cobraext.BenchCorpusRallyTrackOutputDirFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.BenchCorpusRallyTrackOutputDirFlagName)
+	}
+
+	rallyDryRun, err := cmd.Flags().GetBool(cobraext.BenchCorpusRallyDryRunFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.BenchCorpusRallyDryRunFlagName)
+	}
+
+	packageRootPath, found, err := packages.FindPackageRoot()
+	if !found {
+		return errors.New("package root not found")
+	}
+	if err != nil {
+		return fmt.Errorf("locating package root failed: %w", err)
+	}
+
+	profile, err := cobraext.GetProfileFlag(cmd)
+	if err != nil {
+		return err
+	}
+
+	signal.Enable()
+
+	esClient, err := stack.NewElasticsearchClientFromProfile(profile)
+	if err != nil {
+		return fmt.Errorf("can't create Elasticsearch client: %w", err)
+	}
+	err = esClient.CheckHealth(cmd.Context())
+	if err != nil {
+		return err
+	}
+
+	kc, err := stack.NewKibanaClientFromProfile(profile)
+	if err != nil {
+		return fmt.Errorf("can't create Kibana client: %w", err)
+	}
+
+	withOpts := []rally.OptionFunc{
+		rally.WithVariant(variant),
+		rally.WithBenchmarkName(benchName),
+		rally.WithDeferCleanup(deferCleanup),
+		rally.WithMetricsInterval(metricsInterval),
+		rally.WithDataReindexing(dataReindex),
+		rally.WithPackageRootPath(packageRootPath),
+		rally.WithESAPI(esClient.API),
+		rally.WithKibanaClient(kc),
+		rally.WithProfile(profile),
+		rally.WithRallyTrackOutputDir(rallyTrackOutputDir),
+		rally.WithRallyDryRun(rallyDryRun),
+	}
+
+	esMetricsClient, err := initializeESMetricsClient(cmd.Context())
+	if err != nil {
+		return fmt.Errorf("can't create Elasticsearch metrics client: %w", err)
+	}
+	if esMetricsClient != nil {
+		withOpts = append(withOpts, rally.WithESMetricsAPI(esMetricsClient.API))
+	}
+
+	runner := rally.NewRallyBenchmark(rally.NewOptions(withOpts...))
+
+	r, err := benchrunner.Run(runner)
+	if errors.Is(err, rally.ErrDryRun) {
+		return nil
+	}
+
+	if err != nil {
+		return fmt.Errorf("error running package rally benchmarks: %w", err)
+	}
+
+	multiReport, ok := r.(reporters.MultiReportable)
+	if !ok {
+		return fmt.Errorf("rally benchmark is expected to return multiple reports")
+	}
+
+	reports := multiReport.Split()
+	if len(reports) != 2 {
+		return fmt.Errorf("rally benchmark is expected to return a human and a file report")
+	}
+
+	// human report will always be the first
+	human := reports[0]
+	if err := reporters.WriteReportable(reporters.Output(outputs.ReportOutputSTDOUT), human); err != nil {
+		return fmt.Errorf("error writing benchmark report: %w", err)
+	}
+
+	// file report will always be the second
+	file := reports[1]
+	if err := reporters.WriteReportable(reporters.Output(outputs.ReportOutputFile), file); err != nil {
+		return fmt.Errorf("error writing benchmark report: %w", err)
 	}
 
 	return nil
@@ -410,10 +566,10 @@ func generateDataStreamCorpusCommandAction(cmd *cobra.Command, _ []string) error
 }
 
 func initializeESMetricsClient(ctx context.Context) (*elasticsearch.Client, error) {
-	address := os.Getenv(system.ESMetricstoreHostEnv)
-	user := os.Getenv(system.ESMetricstoreUsernameEnv)
-	pass := os.Getenv(system.ESMetricstorePasswordEnv)
-	cacert := os.Getenv(system.ESMetricstoreCACertificateEnv)
+	address := os.Getenv(benchcommon.ESMetricstoreHostEnv)
+	user := os.Getenv(benchcommon.ESMetricstoreUsernameEnv)
+	pass := os.Getenv(benchcommon.ESMetricstorePasswordEnv)
+	cacert := os.Getenv(benchcommon.ESMetricstoreCACertificateEnv)
 	if address == "" || user == "" || pass == "" {
 		logger.Debugf("can't initialize metricstore, missing environment configuration")
 		return nil, nil

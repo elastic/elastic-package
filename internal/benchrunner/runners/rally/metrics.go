@@ -2,7 +2,7 @@
 // or more contributor license agreements. Licensed under the Elastic License;
 // you may not use this file except in compliance with the Elastic License.
 
-package system
+package rally
 
 import (
 	"bytes"
@@ -34,7 +34,6 @@ type collector struct {
 	wg      sync.WaitGroup
 	stopped atomic.Bool
 	stopC   chan struct{}
-	tick    *time.Ticker
 
 	startIngestMetrics map[string]ingest.PipelineStatsMap
 	endIngestMetrics   map[string]ingest.PipelineStatsMap
@@ -89,33 +88,18 @@ func newCollector(
 }
 
 func (c *collector) start() {
-	c.tick = time.NewTicker(c.interval)
 	c.createMetricsIndex()
-	var once sync.Once
+
+	c.collectMetricsBeforeRallyRun()
 
 	c.wg.Add(1)
 	go func() {
-		defer c.tick.Stop()
 		defer c.wg.Done()
-		for {
-			select {
-			case <-c.stopC:
-				// last collect before stopping
-				c.collectMetricsPreviousToStop()
-				c.publish(c.createEventsFromMetrics(c.endMetrics))
-				return
-			case <-c.tick.C:
-				once.Do(func() {
-					c.waitUntilReady()
-					c.startIngestMetrics = c.collectIngestMetrics()
-					c.startTotalHits = c.collectTotalHits()
-					c.startMetrics = c.collect()
-					c.publish(c.createEventsFromMetrics(c.startMetrics))
-				})
-				m := c.collect()
-				c.publish(c.createEventsFromMetrics(m))
-			}
-		}
+
+		<-c.stopC
+		// last collect before stopping
+		c.collectMetricsAfterRallyRun()
+		c.publish(c.createEventsFromMetrics(c.endMetrics))
 	}()
 }
 
@@ -125,6 +109,19 @@ func (c *collector) stop() {
 	}
 	close(c.stopC)
 	c.wg.Wait()
+}
+
+func (c *collector) collectMetricsBeforeRallyRun() {
+	_, err := c.esAPI.Indices.Refresh(c.esAPI.Indices.Refresh.WithIndex(c.datastream))
+	if err != nil {
+		logger.Errorf("unable to refresh data stream at the beginning of rally run")
+		return
+	}
+
+	c.startTotalHits = c.collectTotalHits()
+	c.startMetrics = c.collect()
+	c.startIngestMetrics = c.collectIngestMetrics()
+	c.publish(c.createEventsFromMetrics(c.startMetrics))
 }
 
 func (c *collector) collect() metrics {
@@ -153,23 +150,28 @@ func (c *collector) publish(events [][]byte) {
 	if c.metricsAPI == nil {
 		return
 	}
-	for _, e := range events {
-		reqBody := bytes.NewReader(e)
-		resp, err := c.metricsAPI.Index(c.indexName(), reqBody)
-		if err != nil {
-			logger.Debugf("error indexing event: %v", err)
-			continue
-		}
+	eventsForBulk := bytes.Join(events, []byte("\n"))
+	reqBody := bytes.NewReader(eventsForBulk)
+	resp, err := c.metricsAPI.Bulk(reqBody, c.metricsAPI.Bulk.WithIndex(c.indexName()))
+	if err != nil {
+		logger.Errorf("error indexing event in metricstore: %w", err)
+		return
+	}
 
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			logger.Errorf("failed to read index response body: %v", err)
-		}
-		resp.Body.Close()
+	if resp.Body == nil {
+		logger.Errorf("empty index response body from metricstore: %w", err)
+		return
+	}
 
-		if resp.StatusCode != 201 {
-			logger.Errorf("error indexing event (%d): %s: %v", resp.StatusCode, resp.Status(), elasticsearch.NewError(body))
-		}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		logger.Errorf("failed to read index response body from metricstore: %w", err)
+	}
+
+	resp.Body.Close()
+
+	if resp.StatusCode != 201 {
+		logger.Errorf("error indexing event in metricstore (%d): %s: %v", resp.StatusCode, resp.Status(), elasticsearch.NewError(body))
 	}
 }
 
@@ -190,13 +192,13 @@ func (c *collector) createMetricsIndex() {
 		c.metricsAPI.Indices.Create.WithBody(reader),
 	)
 	if err != nil {
-		logger.Debugf("could not create index: %v", err)
+		logger.Errorf("could not create index: %w", err)
 		return
 	}
 	createRes.Body.Close()
 
 	if createRes.IsError() {
-		logger.Debug("got a response error while creating index")
+		logger.Errorf("got a response error while creating index")
 	}
 }
 
@@ -213,11 +215,17 @@ func (c *collector) summarize() (*metricsSummary, error) {
 		TotalHits:           c.endTotalHits - c.startTotalHits,
 	}
 
-	sum.ClusterName = c.startMetrics.nMetrics.ClusterName
+	if c.startMetrics.nMetrics != nil {
+		sum.ClusterName = c.startMetrics.nMetrics.ClusterName
+	}
 	sum.CollectionStartTs = c.startMetrics.ts
 	sum.CollectionEndTs = c.endMetrics.ts
-	sum.DataStreamStats = c.endMetrics.dsMetrics
-	sum.Nodes = len(c.endMetrics.nMetrics.Nodes)
+	if c.endMetrics.dsMetrics != nil {
+		sum.DataStreamStats = c.endMetrics.dsMetrics
+	}
+	if c.endMetrics.nMetrics != nil {
+		sum.Nodes = len(c.endMetrics.nMetrics.Nodes)
+	}
 
 	for node, endPStats := range c.endIngestMetrics {
 		startPStats, found := c.startIngestMetrics[node]
@@ -260,39 +268,6 @@ func (c *collector) summarize() (*metricsSummary, error) {
 	return &sum, nil
 }
 
-func (c *collector) waitUntilReady() {
-	logger.Debug("waiting for datastream to be created...")
-
-	waitTick := time.NewTicker(time.Second)
-	defer waitTick.Stop()
-
-readyLoop:
-	for {
-		select {
-		case <-c.stopC:
-			return
-		case <-waitTick.C:
-		}
-		dsstats, err := ingest.GetDataStreamStats(c.esAPI, c.datastream)
-		if err != nil {
-			logger.Debug(err)
-		}
-		if dsstats != nil {
-			break readyLoop
-		}
-	}
-
-	if c.scenario.WarmupTimePeriod > 0 {
-		logger.Debugf("waiting %s for warmup period", c.scenario.WarmupTimePeriod)
-		select {
-		case <-c.stopC:
-			return
-		case <-time.After(c.scenario.WarmupTimePeriod):
-		}
-	}
-	logger.Debug("metric collection starting...")
-}
-
 func (c *collector) collectIngestMetrics() map[string]ingest.PipelineStatsMap {
 	ipMetrics, err := ingest.GetPipelineStatsByPrefix(c.esAPI, c.pipelinePrefix)
 	if err != nil {
@@ -311,17 +286,25 @@ func (c *collector) collectDiskUsage() map[string]ingest.DiskUsage {
 	return du
 }
 
-func (c *collector) collectMetricsPreviousToStop() {
-	c.endIngestMetrics = c.collectIngestMetrics()
+func (c *collector) collectMetricsAfterRallyRun() {
+	_, err := c.esAPI.Indices.Refresh(c.esAPI.Indices.Refresh.WithIndex(c.datastream))
+	if err != nil {
+		logger.Errorf("unable to refresh data stream at the end of rally run")
+		return
+	}
+
 	c.diskUsage = c.collectDiskUsage()
-	c.endTotalHits = c.collectTotalHits()
 	c.endMetrics = c.collect()
+	c.endIngestMetrics = c.collectIngestMetrics()
+	c.endTotalHits = c.collectTotalHits()
+
+	c.publish(c.createEventsFromMetrics(c.endMetrics))
 }
 
 func (c *collector) collectTotalHits() int {
 	totalHits, err := getTotalHits(c.esAPI, c.datastream)
 	if err != nil {
-		logger.Debugf("could not total hits: %w", err)
+		logger.Debugf("could not get total hits: %v", err)
 	}
 	return totalHits
 }
@@ -361,7 +344,7 @@ func (c *collector) createEventsFromMetrics(m metrics) [][]byte {
 	for _, e := range append(nEvents, dsEvent) {
 		b, err := json.Marshal(e)
 		if err != nil {
-			logger.Debugf("error marhsaling metrics event: %w", err)
+			logger.Debugf("error marshalling metrics event: %v", err)
 			continue
 		}
 		events = append(events, b)
