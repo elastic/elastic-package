@@ -753,7 +753,7 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 		return result.WithError(err)
 	}
 
-	if config.Service != "" && !config.MustIgnoreServiceError() {
+	if config.Service != "" && !config.IgnoreServiceError {
 		exited, code, err := service.ExitCode(config.Service)
 		if err != nil {
 			return result.WithError(err)
