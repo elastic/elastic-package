@@ -4,6 +4,10 @@
 
 package servicedeployer
 
+import "errors"
+
+var ErrNotSupported error = errors.New("not supported")
+
 // DeployedService defines the interface for interacting with a service that has been deployed.
 type DeployedService interface {
 	// TearDown implements the logic for tearing down a service.
