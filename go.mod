@@ -5,7 +5,7 @@ go 1.21.0
 require (
 	github.com/AlecAivazis/survey/v2 v2.3.7
 	github.com/Masterminds/semver/v3 v3.2.1
-	github.com/ProtonMail/gopenpgp/v2 v2.7.3
+	github.com/ProtonMail/gopenpgp/v2 v2.7.4
 	github.com/aymerick/raymond v2.0.2+incompatible
 	github.com/boumenot/gocover-cobertura v1.2.0
 	github.com/cbroglie/mustache v1.4.0
@@ -17,9 +17,9 @@ require (
 	github.com/elastic/go-resource v0.1.1
 	github.com/elastic/go-ucfg v0.8.6
 	github.com/elastic/package-spec/v3 v3.0.1
-	github.com/fatih/color v1.15.0
+	github.com/fatih/color v1.16.0
 	github.com/go-git/go-billy/v5 v5.5.0
-	github.com/go-git/go-git/v5 v5.9.0
+	github.com/go-git/go-git/v5 v5.10.0
 	github.com/google/go-cmp v0.6.0
 	github.com/google/go-github/v32 v32.1.0
 	github.com/google/go-querystring v1.1.0
@@ -110,7 +110,7 @@ require (
 	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
-	github.com/mattn/go-isatty v0.0.19 // indirect
+	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-runewidth v0.0.14 // indirect
 	github.com/mgutz/ansi v0.0.0-20200706080929-d51e80ef957d // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
@@ -157,7 +157,7 @@ require (
 	golang.org/x/net v0.17.0 // indirect
 	golang.org/x/oauth2 v0.12.0 // indirect
 	golang.org/x/sync v0.4.0 // indirect
-	golang.org/x/sys v0.13.0 // indirect
+	golang.org/x/sys v0.14.0 // indirect
 	golang.org/x/term v0.13.0 // indirect
 	golang.org/x/text v0.13.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
