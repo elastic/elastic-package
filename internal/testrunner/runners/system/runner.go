@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -1160,12 +1161,13 @@ func deleteDataStreamDocs(api *elasticsearch.API, dataStream string) error {
 	body := strings.NewReader(`{ "query": { "match_all": {} } }`)
 	resp, err := api.DeleteByQuery([]string{dataStream}, body)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to delete data stream docs: %w", err)
 	}
 	defer resp.Body.Close()
 
-	if resp.IsError() {
-		return fmt.Errorf("failed to delete data stream docs: %s", resp)
+	// Not found error is fine here, this means that data was already not there.
+	if resp.IsError() && resp.StatusCode != http.StatusNotFound {
+		return fmt.Errorf("failed to delete data stream docs for data stream %s: %s", dataStream, resp.String())
 	}
 
 	return nil

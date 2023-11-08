@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -341,9 +342,12 @@ func (r *runner) deleteDataStreamDocs(dataStream string) error {
 		return fmt.Errorf("failed to delete data stream docs for data stream %s: %w", dataStream, err)
 	}
 	defer resp.Body.Close()
-	if resp.IsError() {
+
+	// Not found error is fine here, this means that data was already not there.
+	if resp.IsError() && resp.StatusCode != http.StatusNotFound {
 		return fmt.Errorf("failed to delete data stream docs for data stream %s: %s", dataStream, resp.String())
 	}
+
 	return nil
 }
 
