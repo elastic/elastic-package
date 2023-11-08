@@ -16,9 +16,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/stack"
 	"github.com/elastic/elastic-package/internal/testrunner"
+	"github.com/elastic/elastic-package/pkg/packages"
 )
 
 func TestFindPolicyTemplateForInput(t *testing.T) {

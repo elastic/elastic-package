@@ -31,9 +31,9 @@ import (
 	"github.com/elastic/elastic-package/internal/benchrunner/runners/system"
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/common"
-	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/signal"
 	"github.com/elastic/elastic-package/internal/testrunner"
+	"github.com/elastic/elastic-package/pkg/packages"
 )
 
 const generateLongDescription = `

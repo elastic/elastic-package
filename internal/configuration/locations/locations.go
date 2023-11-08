@@ -18,6 +18,7 @@ const (
 	stackDir          = "stack"
 	packagesDir       = "development"
 	profilesDir       = "profiles"
+	pluginsDir        = "shell_plugins"
 
 	temporaryDir = "tmp"
 	deployerDir  = "deployer"
@@ -106,6 +107,11 @@ func (loc LocationManager) ServiceOutputDir() string {
 // CacheDir returns the directory with cached fields
 func (loc LocationManager) CacheDir(name string) string {
 	return filepath.Join(loc.stackPath, cacheDir, name)
+}
+
+// ShellPluginsDir returns the directory where the shell plugins will be stored.
+func (loc LocationManager) ShellPluginsDir() string {
+	return filepath.Join(loc.stackPath, pluginsDir)
 }
 
 // configurationDir returns the configuration directory location

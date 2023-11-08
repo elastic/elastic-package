@@ -15,7 +15,7 @@ import (
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
-	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/pkg/packages"
 )
 
 // Dashboards method exports selected dashboards with references objects. All Kibana objects are saved to local files

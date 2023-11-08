@@ -14,8 +14,8 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
-	"github.com/elastic/elastic-package/internal/packages"
-	"github.com/elastic/elastic-package/internal/packages/changelog"
+	"github.com/elastic/elastic-package/pkg/packages"
+	"github.com/elastic/elastic-package/pkg/packages/changelog"
 )
 
 const changelogLongDescription = `Use this command to work with the changelog of the package.

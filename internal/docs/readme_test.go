@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/pkg/packages"
 )
 
 func TestGenerateReadme(t *testing.T) {

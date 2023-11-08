@@ -13,9 +13,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/elastic/elastic-package/internal/packages"
-	"github.com/elastic/elastic-package/internal/packages/changelog"
-	"github.com/elastic/elastic-package/internal/packages/status"
+	"github.com/elastic/elastic-package/pkg/packages"
+	"github.com/elastic/elastic-package/pkg/packages/changelog"
+	"github.com/elastic/elastic-package/pkg/packages/status"
 )
 
 var generateFlag = flag.Bool("generate", false, "Write golden files")

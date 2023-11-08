@@ -15,8 +15,8 @@ import (
 	"github.com/elastic/elastic-package/internal/environment"
 	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/logger"
-	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/validation"
+	"github.com/elastic/elastic-package/pkg/packages"
 )
 
 const builtPackagesFolder = "packages"

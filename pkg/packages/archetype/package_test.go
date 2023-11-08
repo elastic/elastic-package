@@ -11,8 +11,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/validation"
+	"github.com/elastic/elastic-package/pkg/packages"
 )
 
 func TestPackage(t *testing.T) {

@@ -11,7 +11,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/pkg/packages"
 )
 
 func TestDataStream(t *testing.T) {

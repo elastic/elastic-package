@@ -73,6 +73,10 @@ func EnsureInstalled() error {
 		return fmt.Errorf("creating service logs directory failed: %w", err)
 	}
 
+	if err := createShellPluginsDir(elasticPackagePath); err != nil {
+		return fmt.Errorf("creating shell plugins directory failed: %w", err)
+	}
+
 	fmt.Fprintln(os.Stderr, "elastic-package has been installed.")
 	return nil
 }
@@ -143,6 +147,15 @@ func migrateConfigDirectory(elasticPackagePath *locations.LocationManager) error
 
 func createServiceLogsDir(elasticPackagePath *locations.LocationManager) error {
 	dirPath := elasticPackagePath.ServiceLogDir()
+	err := os.MkdirAll(dirPath, 0755)
+	if err != nil {
+		return fmt.Errorf("mkdir failed (path: %s): %w", dirPath, err)
+	}
+	return nil
+}
+
+func createShellPluginsDir(elasticPackagePath *locations.LocationManager) error {
+	dirPath := elasticPackagePath.ShellPluginsDir()
 	err := os.MkdirAll(dirPath, 0755)
 	if err != nil {
 		return fmt.Errorf("mkdir failed (path: %s): %w", dirPath, err)

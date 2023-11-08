@@ -13,8 +13,8 @@ import (
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/docs"
 	"github.com/elastic/elastic-package/internal/logger"
-	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/validation"
+	"github.com/elastic/elastic-package/pkg/packages"
 )
 
 const lintLongDescription = `Use this command to validate the contents of a package using the package specification (see: https://github.com/elastic/package-spec).

@@ -16,7 +16,7 @@ import (
 	"github.com/elastic/elastic-package/internal/docs"
 	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/logger"
-	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/pkg/packages"
 )
 
 const buildLongDescription = `Use this command to build a package. Currently it supports only the "integration" package type.

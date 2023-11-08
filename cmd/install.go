@@ -12,9 +12,9 @@ import (
 
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/install"
-	"github.com/elastic/elastic-package/internal/packages"
-	"github.com/elastic/elastic-package/internal/packages/installer"
 	"github.com/elastic/elastic-package/internal/stack"
+	"github.com/elastic/elastic-package/pkg/packages"
+	"github.com/elastic/elastic-package/pkg/packages/installer"
 )
 
 const installLongDescription = `Use this command to install the package in Kibana.

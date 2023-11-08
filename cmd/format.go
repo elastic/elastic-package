@@ -12,7 +12,7 @@ import (
 
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/formatter"
-	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/pkg/packages"
 )
 
 const formatLongDescription = `Use this command to format the package files.

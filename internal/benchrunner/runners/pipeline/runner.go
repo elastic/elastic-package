@@ -16,8 +16,8 @@ import (
 	"github.com/elastic/elastic-package/internal/benchrunner"
 	"github.com/elastic/elastic-package/internal/benchrunner/reporters"
 	"github.com/elastic/elastic-package/internal/elasticsearch/ingest"
-	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/testrunner"
+	"github.com/elastic/elastic-package/pkg/packages"
 )
 
 const (

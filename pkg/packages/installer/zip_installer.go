@@ -8,7 +8,7 @@ import (
 	"fmt"
 
 	"github.com/elastic/elastic-package/internal/kibana"
-	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/pkg/packages"
 )
 
 type zipInstaller struct {

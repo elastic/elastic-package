@@ -12,7 +12,7 @@ import (
 	"github.com/elastic/elastic-package/internal/formatter"
 	"github.com/elastic/elastic-package/internal/licenses"
 	"github.com/elastic/elastic-package/internal/logger"
-	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/pkg/packages"
 )
 
 // PackageDescriptor defines configurable properties of the package archetype

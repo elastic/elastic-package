@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 
 	"github.com/elastic/elastic-package/internal/configuration/locations"
-	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/pkg/packages"
 
 	"github.com/elastic/elastic-package/internal/logger"
 )

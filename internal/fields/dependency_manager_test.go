@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/elastic/elastic-package/internal/common"
-	"github.com/elastic/elastic-package/internal/packages/buildmanifest"
+	"github.com/elastic/elastic-package/pkg/packages/buildmanifest"
 )
 
 func TestDependencyManagerInjectExternalFields(t *testing.T) {

@@ -18,7 +18,7 @@ import (
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/logger"
-	"github.com/elastic/elastic-package/internal/packages/buildmanifest"
+	"github.com/elastic/elastic-package/pkg/packages/buildmanifest"
 )
 
 const (

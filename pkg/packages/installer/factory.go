@@ -13,8 +13,8 @@ import (
 	"github.com/elastic/elastic-package/internal/builder"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
-	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/validation"
+	"github.com/elastic/elastic-package/pkg/packages"
 )
 
 var semver8_7_0 = semver.MustParse("8.7.0")
