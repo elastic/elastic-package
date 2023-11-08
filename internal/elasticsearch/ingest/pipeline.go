@@ -117,11 +117,24 @@ func SimulatePipeline(api *elasticsearch.API, pipelineName string, events []json
 
 func UninstallPipelines(api *elasticsearch.API, pipelines []Pipeline) error {
 	for _, p := range pipelines {
-		resp, err := api.Ingest.DeletePipeline(p.Name)
+		err := uninstallPipeline(api, p.Name)
 		if err != nil {
-			return fmt.Errorf("delete pipeline API call failed (pipelineName: %s): %w", p.Name, err)
+			return err
 		}
-		resp.Body.Close()
 	}
+	return nil
+}
+
+func uninstallPipeline(api *elasticsearch.API, name string) error {
+	resp, err := api.Ingest.DeletePipeline(name)
+	if err != nil {
+		return fmt.Errorf("delete pipeline API call failed (pipelineName: %s): %w", name, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.IsError() {
+		return fmt.Errorf("failed to uninstall pipeline %s: %s", name, resp)
+	}
+
 	return nil
 }

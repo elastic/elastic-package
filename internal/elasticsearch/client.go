@@ -137,6 +137,10 @@ func (client *Client) CheckHealth(ctx context.Context) error {
 		return fmt.Errorf("error reading cluster health response: %w", err)
 	}
 
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed to check cluster health; API status code = %d; response body = %s", resp.StatusCode, string(body))
+	}
+
 	var clusterHealth struct {
 		Status string `json:"status"`
 	}
@@ -176,6 +180,10 @@ func (client *Client) redHealthCause(ctx context.Context) (string, error) {
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", fmt.Errorf("error reading internal health response: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("failed to get cause of red health; API status code = %d; response body = %s", resp.StatusCode, string(body))
 	}
 
 	var internalHealth struct {

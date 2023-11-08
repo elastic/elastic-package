@@ -62,6 +62,10 @@ func getILMPolicyByName(ctx context.Context, api *elasticsearch.API, policy stri
 		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
 
+	if resp.IsError() {
+		return nil, fmt.Errorf("failed to get policy %s: %s", policy, resp)
+	}
+
 	var policiesResponse getILMLifecycleResponse
 	err = json.Unmarshal(d, &policiesResponse)
 	if err != nil {

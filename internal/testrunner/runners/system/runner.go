@@ -331,6 +331,10 @@ func (r *runner) isSyntheticsEnabled(dataStream, componentTemplatePackage string
 	}
 	defer resp.Body.Close()
 
+	if resp.IsError() {
+		return false, fmt.Errorf("could not get component template from data stream %s: %s", dataStream, resp)
+	}
+
 	var results struct {
 		ComponentTemplates []struct {
 			Name              string `json:"name"`
@@ -395,6 +399,10 @@ func (r *runner) getDocs(dataStream string) (*hits, error) {
 		return nil, fmt.Errorf("could not search data stream: %w", err)
 	}
 	defer resp.Body.Close()
+
+	if resp.IsError() {
+		return nil, fmt.Errorf("failed to search docs for data stream %s: %s", dataStream, resp)
+	}
 
 	var results struct {
 		Hits struct {
@@ -1150,9 +1158,14 @@ func (r *runner) previewTransform(transformId string) ([]common.MapStr, error) {
 
 func deleteDataStreamDocs(api *elasticsearch.API, dataStream string) error {
 	body := strings.NewReader(`{ "query": { "match_all": {} } }`)
-	_, err := api.DeleteByQuery([]string{dataStream}, body)
+	resp, err := api.DeleteByQuery([]string{dataStream}, body)
 	if err != nil {
 		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.IsError() {
+		return fmt.Errorf("failed to delete data stream docs: %s", resp)
 	}
 
 	return nil

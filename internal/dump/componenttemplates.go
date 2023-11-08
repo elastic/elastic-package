@@ -71,6 +71,10 @@ func getComponentTemplatesByName(ctx context.Context, api *elasticsearch.API, na
 	}
 	defer resp.Body.Close()
 
+	if resp.IsError() {
+		return nil, fmt.Errorf("failed to get component template %s: %s", name, resp)
+	}
+
 	d, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response body: %w", err)

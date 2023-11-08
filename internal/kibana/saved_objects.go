@@ -7,6 +7,7 @@ package kibana
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"sort"
 	"strings"
 
@@ -93,6 +94,10 @@ func (c *Client) findDashboardsNextPage(page int) (*savedObjectsResponse, error)
 	statusCode, respBody, err := c.get(path)
 	if err != nil {
 		return nil, fmt.Errorf("could not find dashboards; API status code = %d; response body = %s: %w", statusCode, respBody, err)
+	}
+
+	if statusCode != http.StatusOK {
+		return nil, fmt.Errorf("could not find dashboards; API status code = %d; response body = %s", statusCode, respBody)
 	}
 
 	var r savedObjectsResponse

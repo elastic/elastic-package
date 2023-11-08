@@ -82,6 +82,10 @@ func getIndexTemplatesForPackage(ctx context.Context, api *elasticsearch.API, pa
 		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
 
+	if resp.IsError() {
+		return nil, fmt.Errorf("failed to get index templates: %s", resp)
+	}
+
 	var templateResponse getIndexTemplateResponse
 	err = json.Unmarshal(d, &templateResponse)
 	if err != nil {
