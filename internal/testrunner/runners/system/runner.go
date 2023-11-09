@@ -405,7 +405,7 @@ func (r *runner) getDocs(dataStream string) (*hits, error) {
 		// No docs yet.
 		return &hits{}, nil
 	}
-	if resp.StatusCode == http.StatusServiceUnavailable && strings.Contains(resp.String(), "no_shard_available_exception") {
+	if resp.StatusCode == http.StatusServiceUnavailable && strings.Contains(resp.String(), "no_shard_available_action_exception") {
 		// Index is being created, but no shards are available yet.
 		// See https://github.com/elastic/elasticsearch/issues/65846
 		return &hits{}, nil
