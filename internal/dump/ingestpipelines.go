@@ -72,7 +72,7 @@ func getIngestPipelineByID(ctx context.Context, api *elasticsearch.API, id strin
 	defer resp.Body.Close()
 
 	if resp.IsError() {
-		return nil, fmt.Errorf("failed to get ingest pipeline %s: %s", id, resp)
+		return nil, fmt.Errorf("failed to get ingest pipeline %s: %s", id, resp.String())
 	}
 
 	d, err := io.ReadAll(resp.Body)

@@ -864,7 +864,7 @@ func (r *runner) bulkMetrics(indexName string, sr searchResponse) error {
 	}
 	defer resp.Body.Close()
 	if resp.IsError() {
-		return fmt.Errorf("error performing the bulk index request: %s", resp)
+		return fmt.Errorf("error performing the bulk index request: %s", resp.String())
 	}
 
 	if sr.ScrollID == "" {
@@ -880,7 +880,7 @@ func (r *runner) bulkMetrics(indexName string, sr searchResponse) error {
 	}
 	defer resp.Body.Close()
 	if resp.IsError() {
-		return fmt.Errorf("error executing scroll: %s", resp)
+		return fmt.Errorf("error executing scroll: %s", resp.String())
 	}
 
 	return nil

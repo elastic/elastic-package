@@ -333,7 +333,7 @@ func (r *runner) isSyntheticsEnabled(dataStream, componentTemplatePackage string
 	defer resp.Body.Close()
 
 	if resp.IsError() {
-		return false, fmt.Errorf("could not get component template from data stream %s: %s", dataStream, resp)
+		return false, fmt.Errorf("could not get component template from data stream %s: %s", dataStream, resp.String())
 	}
 
 	var results struct {
@@ -402,7 +402,7 @@ func (r *runner) getDocs(dataStream string) (*hits, error) {
 	defer resp.Body.Close()
 
 	if resp.IsError() {
-		return nil, fmt.Errorf("failed to search docs for data stream %s: %s", dataStream, resp)
+		return nil, fmt.Errorf("failed to search docs for data stream %s: %s", dataStream, resp.String())
 	}
 
 	var results struct {

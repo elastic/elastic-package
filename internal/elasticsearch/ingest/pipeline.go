@@ -133,7 +133,7 @@ func uninstallPipeline(api *elasticsearch.API, name string) error {
 	defer resp.Body.Close()
 
 	if resp.IsError() {
-		return fmt.Errorf("failed to uninstall pipeline %s: %s", name, resp)
+		return fmt.Errorf("failed to uninstall pipeline %s: %s", name, resp.String())
 	}
 
 	return nil

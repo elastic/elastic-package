@@ -63,7 +63,7 @@ func getILMPolicyByName(ctx context.Context, api *elasticsearch.API, policy stri
 	}
 
 	if resp.IsError() {
-		return nil, fmt.Errorf("failed to get policy %s: %s", policy, resp)
+		return nil, fmt.Errorf("failed to get policy %s: %s", policy, resp.String())
 	}
 
 	var policiesResponse getILMLifecycleResponse

@@ -119,7 +119,7 @@ func (c *collector) collectMetricsBeforeRallyRun() {
 	}
 	defer resp.Body.Close()
 	if resp.IsError() {
-		logger.Errorf("unable to refresh data stream at the beginning of rally run: %s", resp)
+		logger.Errorf("unable to refresh data stream at the beginning of rally run: %s", resp.String())
 		return
 	}
 
@@ -197,7 +197,7 @@ func (c *collector) createMetricsIndex() {
 	defer resp.Body.Close()
 
 	if resp.IsError() {
-		logger.Errorf("got a response error while creating index: %s", resp)
+		logger.Errorf("got a response error while creating index: %s", resp.String())
 	}
 }
 
@@ -293,7 +293,7 @@ func (c *collector) collectMetricsAfterRallyRun() {
 	}
 	defer resp.Body.Close()
 	if resp.IsError() {
-		logger.Errorf("unable to refresh data stream at the end of rally run: %s", resp)
+		logger.Errorf("unable to refresh data stream at the end of rally run: %s", resp.String())
 		return
 	}
 
