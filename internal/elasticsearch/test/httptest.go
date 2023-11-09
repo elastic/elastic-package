@@ -47,7 +47,12 @@ func testElasticsearchServer(t *testing.T, mockServerDir string) *httptest.Serve
 	}))
 }
 
-var pathReplacer = strings.NewReplacer("/", "-", "*", "_")
+var pathReplacer = strings.NewReplacer(
+	"/", "-",
+	"*", "_",
+	"?", "_",
+	"=", "_",
+)
 
 func pathForURL(url string) string {
 	clean := strings.Trim(url, "/")
