@@ -401,6 +401,16 @@ func (r *runner) getDocs(dataStream string) (*hits, error) {
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode == http.StatusNotFound {
+		// No docs yet.
+		return &hits{}, nil
+	}
+	if resp.StatusCode == http.StatusServiceUnavailable && strings.Contains(resp.String(), "no_shard_available_exception") {
+		// Index is being created, but no shards are available yet.
+		// See https://github.com/elastic/elasticsearch/issues/65846
+		return &hits{}, nil
+	}
+
 	if resp.IsError() {
 		return nil, fmt.Errorf("failed to search docs for data stream %s: %s", dataStream, resp.String())
 	}
@@ -592,7 +602,10 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 		}
 
 		hits, err := r.getDocs(dataStream)
-		return hits.size() == 0, err
+		if err != nil {
+			return false, err
+		}
+		return hits.size() == 0, nil
 	}, 2*time.Minute)
 	if err != nil || !cleared {
 		if err == nil {
@@ -654,10 +667,13 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 
 		var err error
 		hits, err = r.getDocs(dataStream)
+		if err != nil {
+			return false, err
+		}
 
 		if config.Assert.HitCount > 0 {
 			if hits.size() < config.Assert.HitCount {
-				return false, err
+				return false, nil
 			}
 
 			ret := hits.size() == oldHits
@@ -666,9 +682,10 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 				time.Sleep(4 * time.Second)
 			}
 
-			return ret, err
+			return ret, nil
 		}
-		return hits.size() > 0, err
+
+		return hits.size() > 0, nil
 	}, waitForDataTimeout)
 
 	if err != nil {
