@@ -662,6 +662,17 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 		return hits.size() > 0, err
 	}, waitForDataTimeout)
 
+	if config.Service != "" && !config.IgnoreServiceError {
+		exited, code, err := service.ExitCode(config.Service)
+		if err != nil && !errors.Is(err, servicedeployer.ErrNotSupported) {
+			return result.WithError(err)
+		}
+		if exited && code > 0 {
+			result.FailureMsg = fmt.Sprintf("the test service %s unexpectedly exited with code %d", config.Service, code)
+			return result.WithError(fmt.Errorf("%s", result.FailureMsg))
+		}
+	}
+
 	if err != nil {
 		return result.WithError(err)
 	}
@@ -751,16 +762,6 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	// Check transforms if present
 	if err := r.checkTransforms(config, pkgManifest, ds, dataStream); err != nil {
 		return result.WithError(err)
-	}
-
-	if config.Service != "" && !config.IgnoreServiceError {
-		exited, code, err := service.ExitCode(config.Service)
-		if err != nil && !errors.Is(err, servicedeployer.ErrNotSupported) {
-			return result.WithError(err)
-		}
-		if exited && code > 0 {
-			result.FailureMsg = fmt.Sprintf("the test service %s unexpectedly exited with code %d", config.Service, code)
-		}
 	}
 
 	return result.WithSuccess()
