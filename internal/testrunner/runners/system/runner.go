@@ -395,22 +395,18 @@ func (r *runner) getDocs(dataStream string) (*hits, error) {
 		r.options.API.Search.WithSize(elasticsearchQuerySize),
 		r.options.API.Search.WithSource("true"),
 		r.options.API.Search.WithBody(strings.NewReader(allFieldsBody)),
+		r.options.API.Search.WithIgnoreUnavailable(true),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("could not search data stream: %w", err)
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode == http.StatusNotFound {
-		// No docs yet.
-		return &hits{}, nil
-	}
 	if resp.StatusCode == http.StatusServiceUnavailable && strings.Contains(resp.String(), "no_shard_available_action_exception") {
 		// Index is being created, but no shards are available yet.
 		// See https://github.com/elastic/elasticsearch/issues/65846
 		return &hits{}, nil
 	}
-
 	if resp.IsError() {
 		return nil, fmt.Errorf("failed to search docs for data stream %s: %s", dataStream, resp.String())
 	}
@@ -1186,14 +1182,16 @@ func (r *runner) previewTransform(transformId string) ([]common.MapStr, error) {
 
 func deleteDataStreamDocs(api *elasticsearch.API, dataStream string) error {
 	body := strings.NewReader(`{ "query": { "match_all": {} } }`)
-	resp, err := api.DeleteByQuery([]string{dataStream}, body)
+	resp, err := api.DeleteByQuery([]string{dataStream}, body,
+		// Unavailable index is ok, this means that data is already not there.
+		api.DeleteByQuery.WithIgnoreUnavailable(true),
+	)
 	if err != nil {
 		return fmt.Errorf("failed to delete data stream docs: %w", err)
 	}
 	defer resp.Body.Close()
 
-	// Not found error is fine here, this means that data was already not there.
-	if resp.IsError() && resp.StatusCode != http.StatusNotFound {
+	if resp.IsError() {
 		return fmt.Errorf("failed to delete data stream docs for data stream %s: %s", dataStream, resp.String())
 	}
 
