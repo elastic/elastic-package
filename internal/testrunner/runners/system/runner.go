@@ -638,7 +638,7 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	logger.Debug("checking for expected data in data stream...")
 	var hits *hits
 	oldHits := 0
-	passed, err := waitUntilTrue(func() (bool, error) {
+	passed, waitErr := waitUntilTrue(func() (bool, error) {
 		if signal.SIGINT() {
 			return true, errors.New("SIGINT: cancel waiting for policy assigned")
 		}
@@ -662,8 +662,18 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 		return hits.size() > 0, err
 	}, waitForDataTimeout)
 
-	if err != nil {
-		return result.WithError(err)
+	if config.Service != "" && !config.IgnoreServiceError {
+		exited, code, err := service.ExitCode(config.Service)
+		if err != nil && !errors.Is(err, servicedeployer.ErrNotSupported) {
+			return result.WithError(err)
+		}
+		if exited && code > 0 {
+			return result.WithError(testrunner.ErrTestCaseFailed{Reason: fmt.Sprintf("the test service %s unexpectedly exited with code %d", config.Service, code)})
+		}
+	}
+
+	if waitErr != nil {
+		return result.WithError(waitErr)
 	}
 
 	if !passed {
@@ -751,16 +761,6 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	// Check transforms if present
 	if err := r.checkTransforms(config, pkgManifest, ds, dataStream); err != nil {
 		return result.WithError(err)
-	}
-
-	if config.Service != "" && !config.IgnoreServiceError {
-		exited, code, err := service.ExitCode(config.Service)
-		if err != nil && !errors.Is(err, servicedeployer.ErrNotSupported) {
-			return result.WithError(err)
-		}
-		if exited && code > 0 {
-			result.FailureMsg = fmt.Sprintf("the test service %s unexpectedly exited with code %d", config.Service, code)
-		}
 	}
 
 	return result.WithSuccess()
