@@ -668,8 +668,7 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 			return result.WithError(err)
 		}
 		if exited && code > 0 {
-			result.FailureMsg = fmt.Sprintf("the test service %s unexpectedly exited with code %d", config.Service, code)
-			return result.WithError(fmt.Errorf("%s", result.FailureMsg))
+			return result.WithError(testrunner.ErrTestCaseFailed{Reason: fmt.Sprintf("the test service %s unexpectedly exited with code %d", config.Service, code)})
 		}
 	}
 
