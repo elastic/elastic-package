@@ -32,6 +32,7 @@ type testConfig struct {
 	PolicyTemplate      string        `config:"policy_template"` // Policy template associated with input. Required when multiple policy templates include the input being tested.
 	Service             string        `config:"service"`
 	ServiceNotifySignal string        `config:"service_notify_signal"` // Signal to send when the agent policy is applied.
+	IgnoreServiceError  bool          `config:"ignore_service_error"`
 	WaitForDataTimeout  time.Duration `config:"wait_for_data_timeout"`
 
 	Vars       common.MapStr `config:"vars"`

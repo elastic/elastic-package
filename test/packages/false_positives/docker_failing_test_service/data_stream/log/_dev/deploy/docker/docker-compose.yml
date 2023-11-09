@@ -1,0 +1,8 @@
+version: '2.3'
+services:
+  failing:
+    image: alpine
+    volumes:
+      - ./logs:/logs:ro
+      - ${SERVICE_LOGS_DIR}:/var/log
+    command: /bin/sh -c "echo \"Sleep 10s...\"; sleep 10; echo \"Copying files...\"; cp /logs/* /var/log/; echo \"Done.\"; sleep 5; exit 1"
