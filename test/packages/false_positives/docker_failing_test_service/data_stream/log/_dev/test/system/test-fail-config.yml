@@ -1,0 +1,9 @@
+input: logfile
+service: failing
+ignore_service_error: false
+data_stream:
+  vars:
+    paths:
+      - "{{SERVICE_LOGS_DIR}}/*.log"
+assert:
+  hit_count: 2

@@ -1,0 +1,22 @@
+format_version: 3.0.0
+name: docker_failing_test_service
+title: Test
+version: "999.999.999"
+description: Test
+type: integration
+categories:
+  - network
+conditions:
+  kibana:
+    version: "^8.7.1"
+policy_templates:
+  - name: test
+    title: Test
+    description: Test
+    inputs:
+      - type: logfile
+        title: Test
+        description: Test
+owner:
+  github: elastic/security-external-integrations
+  type: elastic

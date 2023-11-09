@@ -8,7 +8,6 @@ import (
 	"bytes"
 	_ "embed"
 	"encoding/base64"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -57,7 +56,11 @@ func (s kubernetesDeployedService) TearDown() error {
 }
 
 func (s kubernetesDeployedService) Signal(_ string) error {
-	return errors.New("signal is not supported")
+	return ErrNotSupported
+}
+
+func (s kubernetesDeployedService) ExitCode(_ string) (bool, int, error) {
+	return false, -1, ErrNotSupported
 }
 
 func (s kubernetesDeployedService) Context() ServiceContext {
