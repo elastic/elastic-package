@@ -638,7 +638,7 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	logger.Debug("checking for expected data in data stream...")
 	var hits *hits
 	oldHits := 0
-	passed, err := waitUntilTrue(func() (bool, error) {
+	passed, waitErr := waitUntilTrue(func() (bool, error) {
 		if signal.SIGINT() {
 			return true, errors.New("SIGINT: cancel waiting for policy assigned")
 		}
@@ -673,8 +673,8 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 		}
 	}
 
-	if err != nil {
-		return result.WithError(err)
+	if waitErr != nil {
+		return result.WithError(waitErr)
 	}
 
 	if !passed {
