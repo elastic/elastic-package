@@ -907,6 +907,7 @@ func (r *runner) enrichEventWithBenchmarkMetadata(e map[string]interface{}) map[
 func getTotalHits(esapi *elasticsearch.API, dataStream string) (int, error) {
 	resp, err := esapi.Count(
 		esapi.Count.WithIndex(dataStream),
+		esapi.Count.WithIgnoreUnavailable(true),
 	)
 	if err != nil {
 		return 0, fmt.Errorf("could not search data stream: %w", err)
