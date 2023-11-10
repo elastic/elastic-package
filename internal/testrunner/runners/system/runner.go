@@ -1188,15 +1188,16 @@ func (r *runner) previewTransform(transformId string) ([]common.MapStr, error) {
 
 func deleteDataStreamDocs(api *elasticsearch.API, dataStream string) error {
 	body := strings.NewReader(`{ "query": { "match_all": {} } }`)
-	resp, err := api.DeleteByQuery([]string{dataStream}, body,
-		// Unavailable index is ok, this means that data is already not there.
-		api.DeleteByQuery.WithIgnoreUnavailable(true),
-	)
+	resp, err := api.DeleteByQuery([]string{dataStream}, body)
 	if err != nil {
 		return fmt.Errorf("failed to delete data stream docs: %w", err)
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode == http.StatusNotFound {
+		// Unavailable index is ok, this means that data is already not there.
+		return nil
+	}
 	if resp.IsError() {
 		return fmt.Errorf("failed to delete data stream docs for data stream %s: %s", dataStream, resp.String())
 	}

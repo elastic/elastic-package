@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -336,15 +337,16 @@ func (r *runner) collectAndSummarizeMetrics() (*metricsSummary, error) {
 
 func (r *runner) deleteDataStreamDocs(dataStream string) error {
 	body := strings.NewReader(`{ "query": { "match_all": {} } }`)
-	resp, err := r.options.ESAPI.DeleteByQuery([]string{dataStream}, body,
-		// Unavailable index is ok, this means that data is already not there.
-		r.options.ESAPI.DeleteByQuery.WithIgnoreUnavailable(true),
-	)
+	resp, err := r.options.ESAPI.DeleteByQuery([]string{dataStream}, body)
 	if err != nil {
 		return fmt.Errorf("failed to delete data stream docs for data stream %s: %w", dataStream, err)
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode == http.StatusNotFound {
+		// Unavailable index is ok, this means that data is already not there.
+		return nil
+	}
 	if resp.IsError() {
 		return fmt.Errorf("failed to delete data stream docs for data stream %s: %s", dataStream, resp.String())
 	}
