@@ -811,10 +811,11 @@ func (r *runner) bulkMetrics(indexName string, sr searchResponse) error {
 	if err != nil {
 		return fmt.Errorf("error executing scroll: %s", err)
 	}
+	defer resp.Body.Close()
+
 	if resp.IsError() {
 		return fmt.Errorf("error executing scroll: %s", resp.String())
 	}
-	resp.Body.Close()
 
 	return nil
 }
