@@ -323,17 +323,22 @@ func createTestRunID() string {
 }
 
 func (r *runner) isSyntheticsEnabled(dataStream, componentTemplatePackage string) (bool, error) {
-	logger.Debugf("check whether or not synthetics is enabled (component template %s)...", componentTemplatePackage)
 	resp, err := r.options.API.Cluster.GetComponentTemplate(
 		r.options.API.Cluster.GetComponentTemplate.WithName(componentTemplatePackage),
 	)
 	if err != nil {
-		return false, fmt.Errorf("could not get component template from data stream %s: %w", dataStream, err)
+		return false, fmt.Errorf("could not get component template %s from data stream %s: %w", componentTemplatePackage, dataStream, err)
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode == http.StatusNotFound {
+		// @package component template doesn't exist before 8.2. On these versions synthetics was not supported
+		// in any case, so just return false.
+		logger.Debugf("no component template %s found for data stream %s", componentTemplatePackage, dataStream)
+		return false, nil
+	}
 	if resp.IsError() {
-		return false, fmt.Errorf("could not get component template from data stream %s: %s", dataStream, resp.String())
+		return false, fmt.Errorf("could not get component template %s for data stream %s: %s", componentTemplatePackage, dataStream, resp.String())
 	}
 
 	var results struct {
@@ -356,11 +361,11 @@ func (r *runner) isSyntheticsEnabled(dataStream, componentTemplatePackage string
 	}
 
 	if len(results.ComponentTemplates) == 0 {
-		logger.Debugf("no component template found for data stream %s", dataStream)
+		logger.Debugf("no component template %s found for data stream %s", componentTemplatePackage, dataStream)
 		return false, nil
 	}
 	if len(results.ComponentTemplates) != 1 {
-		return false, fmt.Errorf("unexpected response, not found component template")
+		return false, fmt.Errorf("ambiguous response, expected one component template for %s, found %d", componentTemplatePackage, len(results.ComponentTemplates))
 	}
 
 	template := results.ComponentTemplates[0]
@@ -693,6 +698,7 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 		return result.WithError(fmt.Errorf("%s", result.FailureMsg))
 	}
 
+	logger.Debugf("check whether or not synthetics is enabled (component template %s)...", componentTemplatePackage)
 	syntheticEnabled, err := r.isSyntheticsEnabled(dataStream, componentTemplatePackage)
 	if err != nil {
 		return result.WithError(fmt.Errorf("failed to check if synthetic source is enabled: %w", err))
