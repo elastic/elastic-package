@@ -165,16 +165,6 @@ These benchmarks allow you to benchmark an integration end to end.
 
 For details on how to configure system benchmarks for a package, review the [HOWTO guide](./docs/howto/system_benchmarking.md).
 
-### `elastic-package benchmark generate-corpus`
-
-_Context: package_
-
-
-*BEWARE*: this command is in beta and it's behaviour may change in the future.
-Use this command to generate benchmarks corpus data for a package.
-Currently, only data for what we have related assets on https://github.com/elastic/elastic-integration-corpus-generator-tool are supported.
-For details on how to run this command, review the [HOWTO guide](./docs/howto/generate_corpus.md).
-
 ### `elastic-package benchmark pipeline`
 
 _Context: package_

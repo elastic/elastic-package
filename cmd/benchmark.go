@@ -33,12 +33,6 @@ import (
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
 
-const generateLongDescription = `
-*BEWARE*: this command is in beta and it's behaviour may change in the future.
-Use this command to generate benchmarks corpus data for a package.
-Currently, only data for what we have related assets on https://github.com/elastic/elastic-integration-corpus-generator-tool are supported.
-For details on how to run this command, review the [HOWTO guide](./docs/howto/generate_corpus.md).`
-
 const benchLongDescription = `Use this command to run benchmarks on a package. Currently, the following types of benchmarks are available:
 
 #### Pipeline Benchmarks
