@@ -12,9 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dustin/go-humanize"
-
-	"github.com/elastic/elastic-package/internal/corpusgenerator"
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/logger"
@@ -79,9 +76,6 @@ func setupBenchmarkCommand() *cobraext.Command {
 
 	systemCmd := getSystemCommand()
 	cmd.AddCommand(systemCmd)
-
-	generateCorpusCmd := getGenerateCorpusCommand()
-	cmd.AddCommand(generateCorpusCmd)
 
 	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
 }
@@ -257,16 +251,6 @@ func rallyCommandAction(cmd *cobra.Command, args []string) error {
 		return cobraext.FlagParsingError(err, cobraext.BenchNameFlagName)
 	}
 
-	deferCleanup, err := cmd.Flags().GetDuration(cobraext.DeferCleanupFlagName)
-	if err != nil {
-		return cobraext.FlagParsingError(err, cobraext.DeferCleanupFlagName)
-	}
-
-	metricsInterval, err := cmd.Flags().GetDuration(cobraext.BenchMetricsIntervalFlagName)
-	if err != nil {
-		return cobraext.FlagParsingError(err, cobraext.BenchMetricsIntervalFlagName)
-	}
-
 	dataReindex, err := cmd.Flags().GetBool(cobraext.BenchReindexToMetricstoreFlagName)
 	if err != nil {
 		return cobraext.FlagParsingError(err, cobraext.BenchReindexToMetricstoreFlagName)
@@ -314,8 +298,6 @@ func rallyCommandAction(cmd *cobra.Command, args []string) error {
 	withOpts := []rally.OptionFunc{
 		rally.WithVariant(variant),
 		rally.WithBenchmarkName(benchName),
-		rally.WithDeferCleanup(deferCleanup),
-		rally.WithMetricsInterval(metricsInterval),
 		rally.WithDataReindexing(dataReindex),
 		rally.WithPackageRootPath(packageRootPath),
 		rally.WithESAPI(esClient.API),
@@ -491,75 +473,6 @@ func systemCommandAction(cmd *cobra.Command, args []string) error {
 	file := reports[1]
 	if err := reporters.WriteReportable(reporters.Output(outputs.ReportOutputFile), file); err != nil {
 		return fmt.Errorf("error writing benchmark report: %w", err)
-	}
-
-	return nil
-}
-
-func getGenerateCorpusCommand() *cobra.Command {
-	generateCorpusCmd := &cobra.Command{
-		Use:   "generate-corpus",
-		Short: "Generate benchmarks corpus data for the package",
-		Long:  generateLongDescription,
-		Args:  cobra.NoArgs,
-		RunE:  generateDataStreamCorpusCommandAction,
-	}
-
-	generateCorpusCmd.Flags().StringP(cobraext.PackageFlagName, cobraext.PackageFlagShorthand, "", cobraext.PackageFlagDescription)
-	generateCorpusCmd.Flags().StringP(cobraext.GenerateCorpusDataSetFlagName, cobraext.GenerateCorpusDataSetFlagShorthand, "", cobraext.GenerateCorpusDataSetFlagDescription)
-	generateCorpusCmd.Flags().StringP(cobraext.GenerateCorpusSizeFlagName, cobraext.GenerateCorpusSizeFlagShorthand, "", cobraext.GenerateCorpusSizeFlagDescription)
-	generateCorpusCmd.Flags().StringP(cobraext.GenerateCorpusCommitFlagName, cobraext.GenerateCorpusCommitFlagShorthand, "main", cobraext.GenerateCorpusCommitFlagDescription)
-	generateCorpusCmd.Flags().StringP(cobraext.GenerateCorpusRallyTrackOutputDirFlagName, cobraext.GenerateCorpusRallyTrackOutputDirFlagShorthand, "", cobraext.GenerateCorpusRallyTrackOutputDirFlagDescription)
-
-	return generateCorpusCmd
-}
-
-func generateDataStreamCorpusCommandAction(cmd *cobra.Command, _ []string) error {
-	packageName, err := cmd.Flags().GetString(cobraext.PackageFlagName)
-	if err != nil {
-		return cobraext.FlagParsingError(err, cobraext.PackageFlagName)
-	}
-
-	dataSetName, err := cmd.Flags().GetString(cobraext.GenerateCorpusDataSetFlagName)
-	if err != nil {
-		return cobraext.FlagParsingError(err, cobraext.GenerateCorpusDataSetFlagName)
-	}
-
-	totSize, err := cmd.Flags().GetString(cobraext.GenerateCorpusSizeFlagName)
-	if err != nil {
-		return cobraext.FlagParsingError(err, cobraext.GenerateCorpusSizeFlagName)
-	}
-
-	totSizeInBytes, err := humanize.ParseBytes(totSize)
-	if err != nil {
-		return cobraext.FlagParsingError(err, cobraext.GenerateCorpusSizeFlagName)
-	}
-
-	commit, err := cmd.Flags().GetString(cobraext.GenerateCorpusCommitFlagName)
-	if err != nil {
-		return cobraext.FlagParsingError(err, cobraext.GenerateCorpusCommitFlagName)
-	}
-
-	if len(commit) == 0 {
-		commit = "main"
-	}
-
-	rallyTrackOutputDir, err := cmd.Flags().GetString(cobraext.GenerateCorpusRallyTrackOutputDirFlagName)
-	if err != nil {
-		return cobraext.FlagParsingError(err, cobraext.GenerateCorpusRallyTrackOutputDirFlagName)
-	}
-
-	genLibClient := corpusgenerator.NewClient(commit)
-	generator, err := corpusgenerator.NewGenerator(genLibClient, packageName, dataSetName, totSizeInBytes)
-	if err != nil {
-		return fmt.Errorf("can't generate benchmarks data corpus for data stream: %w", err)
-	}
-
-	// TODO: we need a way to extract the type from the package and dataset, currently hardcode to `metrics`
-	dataStream := fmt.Sprintf("metrics-%s.%s-default", packageName, dataSetName)
-	err = corpusgenerator.RunGenerator(generator, dataStream, rallyTrackOutputDir)
-	if err != nil {
-		return fmt.Errorf("can't generate benchmarks data corpus for data stream: %w", err)
 	}
 
 	return nil
