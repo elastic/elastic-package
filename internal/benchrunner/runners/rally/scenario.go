@@ -7,7 +7,6 @@ package rally
 import (
 	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 
 	"github.com/elastic/go-ucfg/yaml"
@@ -56,7 +55,7 @@ func readConfig(path, scenario, packageName, packageVersion string) (*scenario, 
 	configPath := filepath.Join(path, devPath, fmt.Sprintf("%s.yml", scenario))
 	c := defaultConfig()
 	cfg, err := yaml.NewConfigWithFile(configPath)
-	if err != nil && !errors.Is(err, os.ErrNotExist) {
+	if err != nil {
 		return nil, fmt.Errorf("can't load benchmark configuration: %s: %w", configPath, err)
 	}
 
@@ -68,6 +67,10 @@ func readConfig(path, scenario, packageName, packageVersion string) (*scenario, 
 
 	c.Package = packageName
 	c.Version = packageVersion
+
+	if c.DataStream.Name == "" {
+		return nil, errors.New("can't read data stream name from benchmark configuration: empty")
+	}
 
 	return c, nil
 }

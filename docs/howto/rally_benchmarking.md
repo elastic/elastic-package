@@ -1,4 +1,4 @@
-# HOWTO: Writing system benchmarks for a package
+# HOWTO: Writing rally benchmarks for a package
 
 ## Introduction
 Elastic Packages are comprised of data streams. A rally benchmark runs `esrally` track with a corpus of data into an Elasticsearch data stream, and reports rally stats as well as retrieving performance metrics from the Elasticsearch nodes.
@@ -10,11 +10,11 @@ Conceptually, running a rally benchmark involves the following steps:
 1. Deploy the Elastic Stack, including Elasticsearch, Kibana, and the Elastic Agent(s). This step takes time so it should typically be done once as a pre-requisite to running a system benchmark scenario.
 1. Install a package that configures its assets for every data stream in the package.
 1. Metrics collections from the cluster starts. (**TODO**: record metrics from all Elastic Agents involved using the `system` integration.)
-1. Send the collected metrics to the ES Metricstore if set.
 1. Generate data (it uses the [corpus-generator-tool](https://github.com/elastic/elastic-integration-corpus-generator-tool))
 1. Run an `esrally` track with the corpus of generated data. `esrally` must be installed on the system where the `elastic-package` is run and available in the `PATH`. 
 1. Wait for the `esrally` track to be executed.
 1. Metrics collection ends and a summary report is created.
+1. Send the collected metrics to the ES Metricstore if set.
 1. Delete test artifacts.
 1. Optionally reindex all ingested data into the ES Metricstore for further analysis.
 1. **TODO**: Optionally compare results against another benchmark run.
@@ -60,7 +60,6 @@ Example:
 description: Benchmark 20000 events ingested
 data_stream:
    name: testds
-warmup_time_period: 10s
 corpora:
    generator:
       total_events: 900000
@@ -275,7 +274,7 @@ In the directory of the `rally-track-output-dir` flag two files are saved:
 Both files are required to replay the rally benchmark. The first file references the second in its content.
 The command to run for replaying the track is the following:
 ```shell
-rally --target-hosts='{"default":["%es_cluster_host:es_cluster_port%"]}' --track-path=%path/to/saved-track-json% --client-options='{"default":{"basic_auth_user":"%es_user%","basic_auth_password":"%es_user%","use_ssl":true,"verify_certs":false}}' --pipeline=benchmark-only 
+esrally --target-hosts='{"defauelt":["%es_cluster_host:es_cluster_port%"]}' --track-path=%path/to/saved-track-json% --client-options='{"default":{"basic_auth_user":"%es_user%","basic_auth_password":"%es_user%","use_ssl":true,"verify_certs":false}}' --pipeline=benchmark-only 
 ```
 
 Please refer to [esrally CLI reference](https://esrally.readthedocs.io/en/stable/command_line_reference.html) for more details.

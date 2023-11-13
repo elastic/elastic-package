@@ -67,18 +67,6 @@ func WithBenchmarkName(name string) OptionFunc {
 	}
 }
 
-func WithDeferCleanup(d time.Duration) OptionFunc {
-	return func(opts *Options) {
-		opts.DeferCleanup = d
-	}
-}
-
-func WithMetricsInterval(d time.Duration) OptionFunc {
-	return func(opts *Options) {
-		opts.MetricsInterval = d
-	}
-}
-
 func WithDataReindexing(b bool) OptionFunc {
 	return func(opts *Options) {
 		opts.ReindexData = b
