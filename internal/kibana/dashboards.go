@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 
 	"github.com/elastic/elastic-package/internal/common"
@@ -35,6 +36,10 @@ func (c *Client) Export(dashboardIDs []string) ([]common.MapStr, error) {
 	statusCode, respBody, err := c.get(path)
 	if err != nil {
 		return nil, fmt.Errorf("could not export dashboards; API status code = %d; response body = %s: %w", statusCode, respBody, err)
+	}
+
+	if statusCode != http.StatusOK {
+		return nil, fmt.Errorf("could not export dashboards; API status code = %d; response body = %s", statusCode, respBody)
 	}
 
 	var exported exportedType

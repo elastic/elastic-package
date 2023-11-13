@@ -196,7 +196,7 @@ func (c *collector) createMetricsIndex() {
 	createRes.Body.Close()
 
 	if createRes.IsError() {
-		logger.Debug("got a response error while creating index")
+		logger.Debug("got a response error while creating index: %s", createRes)
 	}
 }
 

@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -336,10 +337,20 @@ func (r *runner) collectAndSummarizeMetrics() (*metricsSummary, error) {
 
 func (r *runner) deleteDataStreamDocs(dataStream string) error {
 	body := strings.NewReader(`{ "query": { "match_all": {} } }`)
-	_, err := r.options.ESAPI.DeleteByQuery([]string{dataStream}, body)
+	resp, err := r.options.ESAPI.DeleteByQuery([]string{dataStream}, body)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to delete data stream docs for data stream %s: %w", dataStream, err)
 	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		// Unavailable index is ok, this means that data is already not there.
+		return nil
+	}
+	if resp.IsError() {
+		return fmt.Errorf("failed to delete data stream docs for data stream %s: %s", dataStream, resp.String())
+	}
+
 	return nil
 }
 
@@ -665,6 +676,9 @@ func (r *runner) reindexData() error {
 		return fmt.Errorf("error getting mapping: %w", err)
 	}
 	defer mappingRes.Body.Close()
+	if mappingRes.IsError() {
+		return fmt.Errorf("error getting mapping: %s", mappingRes)
+	}
 
 	body, err := io.ReadAll(mappingRes.Body)
 	if err != nil {
@@ -709,7 +723,7 @@ func (r *runner) reindexData() error {
 	defer createRes.Body.Close()
 
 	if createRes.IsError() {
-		return errors.New("got a response error while creating index")
+		return fmt.Errorf("got a response error while creating index: %s", createRes)
 	}
 
 	bodyReader := strings.NewReader(`{"query":{"match_all":{}}}`)
@@ -725,21 +739,13 @@ func (r *runner) reindexData() error {
 		return fmt.Errorf("error executing search: %w", err)
 	}
 	defer res.Body.Close()
-
-	type searchRes struct {
-		Error *struct {
-			Reason string `json:"reson"`
-		} `json:"error"`
-		ScrollID string `json:"_scroll_id"`
-		Hits     []struct {
-			ID     string                 `json:"_id"`
-			Source map[string]interface{} `json:"_source"`
-		} `json:"hits"`
+	if res.IsError() {
+		return fmt.Errorf("error executing search: %s", res)
 	}
 
 	// Iterate through the search results using the Scroll API
 	for {
-		var sr searchRes
+		var sr searchResponse
 		if err := json.NewDecoder(res.Body).Decode(&sr); err != nil {
 			return fmt.Errorf("error decoding search response: %w", err)
 		}
@@ -752,40 +758,67 @@ func (r *runner) reindexData() error {
 			break
 		}
 
-		var bulkBodyBuilder strings.Builder
-		for _, hit := range sr.Hits {
-			bulkBodyBuilder.WriteString(fmt.Sprintf("{\"index\":{\"_index\":\"%s\",\"_id\":\"%s\"}}\n", indexName, hit.ID))
-			enriched := r.enrichEventWithBenchmarkMetadata(hit.Source)
-			src, err := json.Marshal(enriched)
-			if err != nil {
-				return fmt.Errorf("error decoding _source: %w", err)
-			}
-			bulkBodyBuilder.WriteString(fmt.Sprintf("%s\n", string(src)))
-		}
-
-		logger.Debugf("bulk request of %d events...", len(sr.Hits))
-
-		bulkRes, err := r.options.ESMetricsAPI.Bulk(strings.NewReader(bulkBodyBuilder.String()))
+		err := r.bulkMetrics(indexName, sr)
 		if err != nil {
-			return fmt.Errorf("error performing the bulk index request: %w", err)
+			return err
 		}
-		bulkRes.Body.Close()
-
-		if sr.ScrollID == "" {
-			return errors.New("error getting scroll ID")
-		}
-
-		res, err = r.options.ESAPI.Scroll(
-			r.options.ESAPI.Scroll.WithScrollID(sr.ScrollID),
-			r.options.ESAPI.Scroll.WithScroll(time.Minute),
-		)
-		if err != nil {
-			return fmt.Errorf("error executing scroll: %s", err)
-		}
-		res.Body.Close()
 	}
 
 	logger.Debug("reindexing operation finished")
+	return nil
+}
+
+type searchResponse struct {
+	Error *struct {
+		Reason string `json:"reson"`
+	} `json:"error"`
+	ScrollID string `json:"_scroll_id"`
+	Hits     []struct {
+		ID     string                 `json:"_id"`
+		Source map[string]interface{} `json:"_source"`
+	} `json:"hits"`
+}
+
+func (r *runner) bulkMetrics(indexName string, sr searchResponse) error {
+	var bulkBodyBuilder strings.Builder
+	for _, hit := range sr.Hits {
+		bulkBodyBuilder.WriteString(fmt.Sprintf("{\"index\":{\"_index\":\"%s\",\"_id\":\"%s\"}}\n", indexName, hit.ID))
+		enriched := r.enrichEventWithBenchmarkMetadata(hit.Source)
+		src, err := json.Marshal(enriched)
+		if err != nil {
+			return fmt.Errorf("error decoding _source: %w", err)
+		}
+		bulkBodyBuilder.WriteString(fmt.Sprintf("%s\n", string(src)))
+	}
+
+	logger.Debugf("bulk request of %d events...", len(sr.Hits))
+
+	resp, err := r.options.ESMetricsAPI.Bulk(strings.NewReader(bulkBodyBuilder.String()))
+	if err != nil {
+		return fmt.Errorf("error performing the bulk index request: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.IsError() {
+		return fmt.Errorf("error performing the bulk index request: %s", resp.String())
+	}
+
+	if sr.ScrollID == "" {
+		return errors.New("error getting scroll ID")
+	}
+
+	resp, err = r.options.ESAPI.Scroll(
+		r.options.ESAPI.Scroll.WithScrollID(sr.ScrollID),
+		r.options.ESAPI.Scroll.WithScroll(time.Minute),
+	)
+	if err != nil {
+		return fmt.Errorf("error executing scroll: %s", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.IsError() {
+		return fmt.Errorf("error executing scroll: %s", resp.String())
+	}
+
 	return nil
 }
 
@@ -809,11 +842,16 @@ func (r *runner) enrichEventWithBenchmarkMetadata(e map[string]interface{}) map[
 func getTotalHits(esapi *elasticsearch.API, dataStream string) (int, error) {
 	resp, err := esapi.Count(
 		esapi.Count.WithIndex(dataStream),
+		esapi.Count.WithIgnoreUnavailable(true),
 	)
 	if err != nil {
 		return 0, fmt.Errorf("could not search data stream: %w", err)
 	}
 	defer resp.Body.Close()
+
+	if resp.IsError() {
+		return 0, fmt.Errorf("failed to get hits count: %s", resp.String())
+	}
 
 	var results struct {
 		Count int
