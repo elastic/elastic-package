@@ -57,6 +57,10 @@ func getILMPolicyByName(ctx context.Context, api *elasticsearch.API, policy stri
 	}
 	defer resp.Body.Close()
 
+	if resp.IsError() {
+		return nil, fmt.Errorf("failed to get policy %s: %s", policy, resp.String())
+	}
+
 	d, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response body: %w", err)

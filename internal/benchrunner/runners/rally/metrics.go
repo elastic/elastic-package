@@ -112,9 +112,14 @@ func (c *collector) stop() {
 }
 
 func (c *collector) collectMetricsBeforeRallyRun() {
-	_, err := c.esAPI.Indices.Refresh(c.esAPI.Indices.Refresh.WithIndex(c.datastream))
+	resp, err := c.esAPI.Indices.Refresh(c.esAPI.Indices.Refresh.WithIndex(c.datastream))
 	if err != nil {
-		logger.Errorf("unable to refresh data stream at the beginning of rally run")
+		logger.Errorf("unable to refresh data stream at the beginning of rally run: %s", err)
+		return
+	}
+	defer resp.Body.Close()
+	if resp.IsError() {
+		logger.Errorf("unable to refresh data stream at the beginning of rally run: %s", resp.String())
 		return
 	}
 
@@ -157,18 +162,12 @@ func (c *collector) publish(events [][]byte) {
 		logger.Errorf("error indexing event in metricstore: %w", err)
 		return
 	}
-
-	if resp.Body == nil {
-		logger.Errorf("empty index response body from metricstore: %w", err)
-		return
-	}
+	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		logger.Errorf("failed to read index response body from metricstore: %w", err)
 	}
-
-	resp.Body.Close()
 
 	if resp.StatusCode != 201 {
 		logger.Errorf("error indexing event in metricstore (%d): %s: %v", resp.StatusCode, resp.Status(), elasticsearch.NewError(body))
@@ -187,7 +186,7 @@ func (c *collector) createMetricsIndex() {
 
 	logger.Debugf("creating %s index in metricstore...", c.indexName())
 
-	createRes, err := c.metricsAPI.Indices.Create(
+	resp, err := c.metricsAPI.Indices.Create(
 		c.indexName(),
 		c.metricsAPI.Indices.Create.WithBody(reader),
 	)
@@ -195,10 +194,10 @@ func (c *collector) createMetricsIndex() {
 		logger.Errorf("could not create index: %w", err)
 		return
 	}
-	createRes.Body.Close()
+	defer resp.Body.Close()
 
-	if createRes.IsError() {
-		logger.Errorf("got a response error while creating index")
+	if resp.IsError() {
+		logger.Errorf("got a response error while creating index: %s", resp.String())
 	}
 }
 
@@ -287,9 +286,14 @@ func (c *collector) collectDiskUsage() map[string]ingest.DiskUsage {
 }
 
 func (c *collector) collectMetricsAfterRallyRun() {
-	_, err := c.esAPI.Indices.Refresh(c.esAPI.Indices.Refresh.WithIndex(c.datastream))
+	resp, err := c.esAPI.Indices.Refresh(c.esAPI.Indices.Refresh.WithIndex(c.datastream))
 	if err != nil {
-		logger.Errorf("unable to refresh data stream at the end of rally run")
+		logger.Errorf("unable to refresh data stream at the end of rally run: %s", err)
+		return
+	}
+	defer resp.Body.Close()
+	if resp.IsError() {
+		logger.Errorf("unable to refresh data stream at the end of rally run: %s", resp.String())
 		return
 	}
 
