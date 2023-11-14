@@ -151,14 +151,13 @@ type runner struct {
 	options  Options
 	scenario *scenario
 
-	ctxt               servicedeployer.ServiceContext
-	runtimeDataStream  string
-	composableTemplate string
-	indexTemplateBody  string
-	pipelinePrefix     string
-	isTSDB             bool
-	generator          genlib.Generator
-	mcollector         *collector
+	ctxt              servicedeployer.ServiceContext
+	runtimeDataStream string
+	indexTemplateBody string
+	pipelinePrefix    string
+	isTSDB            bool
+	generator         genlib.Generator
+	mcollector        *collector
 
 	corpusFile string
 	trackFile  string
