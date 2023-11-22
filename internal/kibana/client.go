@@ -18,6 +18,7 @@ import (
 	"github.com/elastic/elastic-package/internal/certs"
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/logger"
+	"github.com/elastic/elastic-package/internal/retry"
 )
 
 var ErrUndefinedHost = errors.New("missing kibana host")
@@ -33,6 +34,9 @@ type Client struct {
 
 	versionInfo VersionInfo
 	semver      *semver.Version
+
+	retryMax int
+	http     *http.Client
 }
 
 // ClientOption is functional option modifying Kibana client.
@@ -40,7 +44,9 @@ type ClientOption func(*Client)
 
 // NewClient creates a new instance of the client.
 func NewClient(opts ...ClientOption) (*Client, error) {
-	c := &Client{}
+	c := &Client{
+		retryMax: 10,
+	}
 	for _, opt := range opts {
 		opt(c)
 	}
@@ -48,6 +54,12 @@ func NewClient(opts ...ClientOption) (*Client, error) {
 	if c.host == "" {
 		return nil, ErrUndefinedHost
 	}
+
+	httpClient, err := c.newHttpClient()
+	if err != nil {
+		return nil, err
+	}
+	c.http = httpClient
 
 	// Allow to initialize version from tests.
 	var zeroVersion VersionInfo
@@ -92,6 +104,13 @@ func Username(username string) ClientOption {
 func Password(password string) ClientOption {
 	return func(c *Client) {
 		c.password = password
+	}
+}
+
+// RetryMax configures the number of retries before failing.
+func RetryMax(retryMax int) ClientOption {
+	return func(c *Client) {
+		c.retryMax = retryMax
 	}
 }
 
@@ -156,22 +175,7 @@ func (c *Client) newRequest(method, resourcePath string, reqBody io.Reader) (*ht
 }
 
 func (c *Client) doRequest(request *http.Request) (int, []byte, error) {
-	client := http.Client{}
-	if c.tlSkipVerify {
-		client.Transport = &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-		}
-	} else if c.certificateAuthority != "" {
-		rootCAs, err := certs.SystemPoolWithCACertificate(c.certificateAuthority)
-		if err != nil {
-			return 0, nil, fmt.Errorf("reading CA certificate: %w", err)
-		}
-		client.Transport = &http.Transport{
-			TLSClientConfig: &tls.Config{RootCAs: rootCAs},
-		}
-	}
-
-	resp, err := client.Do(request)
+	resp, err := c.http.Do(request)
 	if err != nil {
 		return 0, nil, fmt.Errorf("could not send request to Kibana API: %w", err)
 	}
@@ -183,4 +187,30 @@ func (c *Client) doRequest(request *http.Request) (int, []byte, error) {
 	}
 
 	return resp.StatusCode, body, nil
+}
+
+func (c *Client) newHttpClient() (*http.Client, error) {
+	client := &http.Client{}
+	if c.tlSkipVerify {
+		client.Transport = &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
+	} else if c.certificateAuthority != "" {
+		rootCAs, err := certs.SystemPoolWithCACertificate(c.certificateAuthority)
+		if err != nil {
+			return nil, fmt.Errorf("reading CA certificate: %w", err)
+		}
+		client.Transport = &http.Transport{
+			TLSClientConfig: &tls.Config{RootCAs: rootCAs},
+		}
+	}
+
+	if c.retryMax > 0 {
+		opts := retry.HTTPOptions{
+			RetryMax: c.retryMax,
+		}
+		client = retry.WrapHTTPClient(client, opts)
+	}
+
+	return client, nil
 }
