@@ -348,7 +348,7 @@ func (r *runner) extractSimulatedTemplate(indexTemplate string) (string, error) 
 	}
 	defer simulateTemplate.Body.Close()
 
-	if  simulateTemplate.IsError() {
+	if simulateTemplate.IsError() {
 		return "", fmt.Errorf("error simulating template from composable template: %s: %s", indexTemplate, simulateTemplate.String())
 	}
 	templateBody, err := io.ReadAll(simulateTemplate.Body)
