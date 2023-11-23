@@ -304,7 +304,10 @@ func (r *runner) setUp() error {
 		r.scenario.Version,
 	)
 
-	r.isTSDB = dataStreamManifest.Elasticsearch.IndexMode == "time_series"
+	if dataStreamManifest.Elasticsearch != nil {
+		r.isTSDB = dataStreamManifest.Elasticsearch.IndexMode == "time_series"
+	}
+
 	if r.isTSDB {
 		indexTemplate := fmt.Sprintf(
 			"%s-%s.%s",
