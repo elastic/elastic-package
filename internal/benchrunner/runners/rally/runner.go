@@ -45,48 +45,97 @@ import (
 )
 
 const (
-	// RallyCorpusAgentDir is folder path where rally corporsa files produced by the service
+	// RallyCorpusAgentDir is folder path where rally corpora files produced by the service
 	// are stored on the Rally container's filesystem.
 	RallyCorpusAgentDir = "/tmp/rally_corpus"
 
-	// BenchType defining rally benchmark
-	BenchType benchrunner.Type = "rally"
+	rallyTrackTemplateForTSDB = `{% import "rally.helpers" as rally with context %}
+{
+    "version": 2,
+    "description": "Track for [[.DataStream]]",
+    "datastream": [
+        {
+            "name": "[[.DataStream]]",
+            "body": "[[.CorpusFilename]]"
+        }
+    ],
+    "corpora": [
+        {
+            "name": "[[.CorpusFilename]]",
+            "documents": [
+                {
+                    "target-data-stream": "[[.DataStream]]",
+                    "source-file": "[[.CorpusFilename]]",
+                    "document-count": [[.CorpusDocsCount]],
+                    "uncompressed-bytes": [[.CorpusSizeInBytes]]
+                }
+            ]
+        }
+    ],
+    "schedule": [
+        {
+            "operation": {
+                "operation-type": "create-composable-template",
+                "template": "[[.ComposableTemplate]]",
+                "body": [[.IndexTemplate]]
+            },
+            "clients": 1
+        },
+        {
+            "operation": {
+                "operation-type": "bulk",
+                "bulk-size": {{bulk_size | default(5000)}},
+                "ingest-percentage": {{ingest_percentage | default(100)}}
+            },
+            "clients": {{bulk_indexing_clients | default(8)}}
+        },
+        {
+            "operation": {
+                "operation-type": "delete-composable-template",
+                "template": "[[.ComposableTemplate]]",
+                "only-if-exists": true,
+                "delete-matching-indices": false,
+                "index_patterns": ["[[.IndexPattern]]"]
+            },
+            "clients": 1
+        }
+    ]
+}`
 
 	rallyTrackTemplate = `{% import "rally.helpers" as rally with context %}
 {
-  "version": 2,
-  "description": "Track for [[.DataStream]]",
-  "datastream": [
-    {
-      "name": "[[.DataStream]]",
-      "body": "[[.CorpusFilename]]"
-    }
-  ],
-  "corpora": [
-    {
-      "name": "[[.CorpusFilename]]",
-      "documents": [
+    "version": 2,
+    "description": "Track for [[.DataStream]]",
+    "datastream": [
         {
-          "target-data-stream": "[[.DataStream]]",
-          "source-file": "[[.CorpusFilename]]",
-          "document-count": [[.CorpusDocsCount]],
-          "uncompressed-bytes": [[.CorpusSizeInBytes]]
+            "name": "[[.DataStream]]",
+            "body": "[[.CorpusFilename]]"
         }
-      ]
-    }
-  ],
-  "schedule": [
-    {
-      "operation": {
-        "operation-type": "bulk",
-        "bulk-size": {{bulk_size | default(5000)}},
-        "ingest-percentage": {{ingest_percentage | default(100)}}
-      },
-      "clients": {{bulk_indexing_clients | default(8)}}
-    }
-  ]
-}
-`
+    ],
+    "corpora": [
+        {
+            "name": "[[.CorpusFilename]]",
+            "documents": [
+                {
+                    "target-data-stream": "[[.DataStream]]",
+                    "source-file": "[[.CorpusFilename]]",
+                    "document-count": [[.CorpusDocsCount]],
+                    "uncompressed-bytes": [[.CorpusSizeInBytes]]
+                }
+            ]
+        }
+    ],
+    "schedule": [
+        {
+            "operation": {
+                "operation-type": "bulk",
+                "bulk-size": {{bulk_size | default(500)}},
+                "ingest-percentage": {{ingest_percentage | default(100)}}
+            },
+            "clients": {{bulk_indexing_clients | default(1)}}
+        }
+    ]
+}`
 )
 
 var ErrDryRun = errors.New("dry run: rally benchmark not executed")
@@ -104,7 +153,9 @@ type runner struct {
 
 	ctxt              servicedeployer.ServiceContext
 	runtimeDataStream string
+	indexTemplateBody string
 	pipelinePrefix    string
+	isTSDB            bool
 	generator         genlib.Generator
 	mcollector        *collector
 
@@ -244,6 +295,7 @@ func (r *runner) setUp() error {
 		pkgManifest.Name,
 		dataStreamManifest.Name,
 	)
+
 	r.pipelinePrefix = fmt.Sprintf(
 		"%s-%s.%s-%s",
 		dataStreamManifest.Type,
@@ -251,6 +303,24 @@ func (r *runner) setUp() error {
 		dataStreamManifest.Name,
 		r.scenario.Version,
 	)
+
+	if dataStreamManifest.Elasticsearch != nil {
+		r.isTSDB = dataStreamManifest.Elasticsearch.IndexMode == "time_series"
+	}
+
+	if r.isTSDB {
+		indexTemplate := fmt.Sprintf(
+			"%s-%s.%s",
+			dataStreamManifest.Type,
+			pkgManifest.Name,
+			dataStreamManifest.Name,
+		)
+
+		r.indexTemplateBody, err = r.extractSimulatedTemplate(indexTemplate)
+		if err != nil {
+			return fmt.Errorf("error extracting routing path: %s: %w", indexTemplate, err)
+		}
+	}
 
 	if err := r.wipeDataStreamOnSetup(); err != nil {
 		return fmt.Errorf("error deleting old data in data stream: %s: %w", r.runtimeDataStream, err)
@@ -272,6 +342,47 @@ func (r *runner) setUp() error {
 	}
 
 	return nil
+}
+
+func (r *runner) extractSimulatedTemplate(indexTemplate string) (string, error) {
+	simulateTemplate, err := r.options.ESAPI.Indices.SimulateTemplate(r.options.ESAPI.Indices.SimulateTemplate.WithName(indexTemplate))
+	if err != nil {
+		return "", fmt.Errorf("error simulating template from composable template: %s: %w", indexTemplate, err)
+	}
+	defer simulateTemplate.Body.Close()
+
+	if simulateTemplate.IsError() {
+		return "", fmt.Errorf("error simulating template from composable template: %s: %s", indexTemplate, simulateTemplate.String())
+	}
+	templateBody, err := io.ReadAll(simulateTemplate.Body)
+	if err != nil {
+		return "", fmt.Errorf("error reading simulated template from composable template: %s: %w", indexTemplate, err)
+	}
+
+	var simulatedTemplate map[string]interface{}
+	err = json.Unmarshal(templateBody, &simulatedTemplate)
+	if err != nil {
+		return "", fmt.Errorf("error unmarshaling simulated template from composable template: %s: %w", indexTemplate, err)
+	}
+
+	simulatedTemplate["priority"] = 1000
+	simulatedTemplate["index_patterns"] = []string{indexTemplate + "-ep"}
+
+	indexTimeSeries := map[string]interface{}{
+		"start_time": "2000-01-01T00:00:00Z",
+		"end_time":   "2099-12-31T23:59:59Z",
+	}
+
+	simulatedTemplate["template"].(map[string]interface{})["settings"].(map[string]interface{})["index"].(map[string]interface{})["time_series"] = indexTimeSeries
+
+	delete(simulatedTemplate, "overlapping")
+
+	newTemplate, err := json.Marshal(simulatedTemplate)
+	if err != nil {
+		return "", fmt.Errorf("error marshaling simulated template from composable template: %s: %w", indexTemplate, err)
+	}
+
+	return string(newTemplate), nil
 }
 
 func (r *runner) wipeDataStreamOnSetup() error {
@@ -560,7 +671,8 @@ func (r *runner) runGenerator(destDir string) error {
 		return fmt.Errorf("cannot not create rally track file: %w", err)
 	}
 	r.trackFile = trackFile.Name()
-	rallyTrackContent, err := generateRallyTrack(r.runtimeDataStream, corpusFile, corpusDocsCount)
+
+	rallyTrackContent, err := generateRallyTrack(r.runtimeDataStream, r.indexTemplateBody, corpusFile, corpusDocsCount, r.isTSDB)
 	if err != nil {
 		return fmt.Errorf("cannot not generate rally track content: %w", err)
 	}
@@ -659,6 +771,7 @@ func (r *runner) runRally() ([]rallyStat, error) {
 		fmt.Sprintf(`--track-path=%s`, r.trackFile),
 		fmt.Sprintf(`--client-options={"default":{"basic_auth_user":"%s","basic_auth_password":"%s","use_ssl":true,"verify_certs":false}}`, elasticsearchUsername, elasticsearchPassword),
 		"--pipeline=benchmark-only",
+		"--kill-running-processes",
 	)
 	errOutput := new(bytes.Buffer)
 	cmd.Stderr = errOutput
@@ -666,12 +779,12 @@ func (r *runner) runRally() ([]rallyStat, error) {
 	logger.Debugf("output command: %s", cmd)
 	output, err := cmd.Output()
 	if err != nil {
-		return nil, fmt.Errorf("could not run esrally track in path: %s (stdout=%s): %w", r.ctxt.Logs.Folder.Local, output, err)
+		return nil, fmt.Errorf("could not run esrally track in path: %s (stdout=%q, stderr=%q): %w", r.ctxt.Logs.Folder.Local, output, errOutput.String(), err)
 	}
 
 	reportCSV, err := os.Open(r.reportFile)
 	if err != nil {
-		return nil, fmt.Errorf("could not open esrally report in path: %s (stderr=%q): %w", r.ctxt.Logs.Folder.Local, errOutput.String(), err)
+		return nil, fmt.Errorf("could not open esrally report in path: %s: %w", r.ctxt.Logs.Folder.Local, err)
 	}
 
 	reader := csv.NewReader(reportCSV)
@@ -946,10 +1059,15 @@ func getDataStreamPath(packageRoot, dataStream string) string {
 	return filepath.Join(packageRoot, "data_stream", dataStream)
 }
 
-func generateRallyTrack(dataStream string, corpusFile *os.File, corpusDocsCount uint64) ([]byte, error) {
+func generateRallyTrack(dataStream, indexTemplateBody string, corpusFile *os.File, corpusDocsCount uint64, isTSDB bool) ([]byte, error) {
 	t := template.New("rallytrack")
 
-	parsedTpl, err := t.Delims("[[", "]]").Parse(rallyTrackTemplate)
+	templateToParse := rallyTrackTemplate
+	if isTSDB {
+		templateToParse = rallyTrackTemplateForTSDB
+	}
+
+	parsedTpl, err := t.Delims("[[", "]]").Parse(templateToParse)
 	if err != nil {
 		return nil, fmt.Errorf("error while parsing rally track template: %w", err)
 	}
@@ -961,14 +1079,17 @@ func generateRallyTrack(dataStream string, corpusFile *os.File, corpusDocsCount 
 
 	corpusSizeInBytes := fi.Size()
 
-	buf := new(bytes.Buffer)
 	templateData := map[string]any{
-		"DataStream":        dataStream,
-		"CorpusFilename":    filepath.Base(corpusFile.Name()),
-		"CorpusDocsCount":   corpusDocsCount,
-		"CorpusSizeInBytes": corpusSizeInBytes,
+		"DataStream":         dataStream,
+		"CorpusFilename":     filepath.Base(corpusFile.Name()),
+		"CorpusDocsCount":    corpusDocsCount,
+		"CorpusSizeInBytes":  corpusSizeInBytes,
+		"ComposableTemplate": dataStream,
+		"IndexPattern":       dataStream,
+		"IndexTemplate":      indexTemplateBody,
 	}
 
+	buf := new(bytes.Buffer)
 	err = parsedTpl.Execute(buf, templateData)
 	if err != nil {
 		return nil, fmt.Errorf("error on parsin on rally track template: %w", err)
