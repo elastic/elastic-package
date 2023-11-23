@@ -58,14 +58,14 @@ func WrapHTTPClient(client *http.Client, opts HTTPOptions) *http.Client {
 }
 
 var (
-	maxRedirects   = 10
-	redirectsError = fmt.Errorf("stopped after %d redirects", maxRedirects)
+	maxRedirects        = 10
+	errTooManyRedirects = fmt.Errorf("stopped after %d redirects", maxRedirects)
 )
 
 // checkRedirect reimplements default http redirect policy but returning a typed error.
 func checkRedirect(req *http.Request, via []*http.Request) error {
 	if len(via) >= maxRedirects {
-		return redirectsError
+		return errTooManyRedirects
 	}
 	return nil
 }
@@ -77,7 +77,7 @@ func checkRetry(ctx context.Context, resp *http.Response, err error) (bool, erro
 	}
 
 	if err != nil {
-		if errors.Is(err, redirectsError) {
+		if errors.Is(err, errTooManyRedirects) {
 			// Too many redirects, let's stop here.
 			return false, nil
 		}
