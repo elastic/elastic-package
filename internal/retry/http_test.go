@@ -5,9 +5,11 @@
 package retry
 
 import (
+	"crypto/x509"
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"sync"
 	"testing"
 	"time"
@@ -95,7 +97,8 @@ func TestUnrecoverableErrors(t *testing.T) {
 	t.Run("invalid URL", func(t *testing.T) {
 		client := WrapHTTPClient(&http.Client{}, opts)
 		_, err := client.Get("http::\\localhost")
-		assert.Error(t, err)
+		var urlError *url.Error
+		assert.ErrorAs(t, err, &urlError)
 	})
 
 	t.Run("infinite redirects", func(t *testing.T) {
@@ -104,7 +107,7 @@ func TestUnrecoverableErrors(t *testing.T) {
 		client := WrapHTTPClient(&http.Client{}, opts)
 
 		_, err := client.Get(server.URL)
-		assert.Error(t, err)
+		assert.ErrorIs(t, err, errTooManyRedirects)
 	})
 
 	t.Run("unknown CA", func(t *testing.T) {
@@ -113,16 +116,15 @@ func TestUnrecoverableErrors(t *testing.T) {
 		client := WrapHTTPClient(&http.Client{}, opts)
 
 		_, err := client.Get(server.URL)
-		assert.Error(t, err)
+		var caError x509.UnknownAuthorityError
+		assert.ErrorAs(t, err, &caError)
 	})
 
 	t.Run("invalid certificate", func(t *testing.T) {
-		t.Skip("TODO")
-	})
-
-	t.Run("network error", func(t *testing.T) {
+		// TODO: Actually produce an invalid certificate error with an actual server.
+		expectedErr := &x509.CertificateInvalidError{Reason: x509.Expired}
 		brokenClient := http.Client{
-			Transport: &brokenTransport{},
+			Transport: &brokenTransport{err: expectedErr},
 		}
 		client := WrapHTTPClient(&brokenClient, opts)
 
@@ -130,7 +132,21 @@ func TestUnrecoverableErrors(t *testing.T) {
 		defer server.Close()
 
 		_, err := client.Get(server.URL)
-		assert.Error(t, err)
+		assert.ErrorIs(t, err, expectedErr)
+	})
+
+	t.Run("consistent network error", func(t *testing.T) {
+		expectedErr := errors.New("network error")
+		brokenClient := http.Client{
+			Transport: &brokenTransport{err: expectedErr},
+		}
+		client := WrapHTTPClient(&brokenClient, opts)
+
+		server := httptest.NewServer(newStatusHandler("OK", http.StatusOK))
+		defer server.Close()
+
+		_, err := client.Get(server.URL)
+		assert.ErrorIs(t, err, expectedErr)
 	})
 }
 
@@ -183,8 +199,10 @@ func infiniteRedirectsHandler() http.Handler {
 	})
 }
 
-type brokenTransport struct{}
+type brokenTransport struct {
+	err error
+}
 
-func (*brokenTransport) RoundTrip(*http.Request) (*http.Response, error) {
-	return nil, errors.New("network error")
+func (t *brokenTransport) RoundTrip(*http.Request) (*http.Response, error) {
+	return nil, t.err
 }

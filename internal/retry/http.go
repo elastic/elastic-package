@@ -6,6 +6,7 @@ package retry
 
 import (
 	"context"
+	"crypto/tls"
 	"crypto/x509"
 	"errors"
 	"fmt"
@@ -88,19 +89,25 @@ func checkRetry(ctx context.Context, resp *http.Response, err error) (bool, erro
 			return false, nil
 		}
 
+		var certVerificationError *tls.CertificateVerificationError
+		if errors.As(err, &certVerificationError) {
+			// Something failed while verifying certificates.
+			return false, nil
+		}
+
 		var certError *x509.CertificateInvalidError
 		if errors.As(err, &certError) {
 			// Invalid certificate, not recoverable.
 			return false, nil
 		}
 
-		var caError *x509.UnknownAuthorityError
+		var caError x509.UnknownAuthorityError
 		if errors.As(err, &caError) {
 			// Unknown CA, not recoverable.
 			return false, nil
 		}
 
-		// Consider other errors as recoverable.
+		// Consider other errors as recoverable and retry.
 		return true, nil
 	}
 
