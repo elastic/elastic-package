@@ -131,14 +131,16 @@ func reportHumanFormat(r *report) []byte {
 		"nodes", r.Nodes,
 	) + "\n")
 
-	report.WriteString(renderBenchmarkTable(
-		"data stream stats",
-		"data stream", r.DataStreamStats.DataStream,
-		"approx total docs ingested", r.TotalHits,
-		"backing indices", r.DataStreamStats.BackingIndices,
-		"store size bytes", r.DataStreamStats.StoreSizeBytes,
-		"maximum ts (ms)", r.DataStreamStats.MaximumTimestamp,
-	) + "\n")
+	if r.DataStreamStats != nil {
+		report.WriteString(renderBenchmarkTable(
+			"data stream stats",
+			"data stream", r.DataStreamStats.DataStream,
+			"approx total docs ingested", r.TotalHits,
+			"backing indices", r.DataStreamStats.BackingIndices,
+			"store size bytes", r.DataStreamStats.StoreSizeBytes,
+			"maximum ts (ms)", r.DataStreamStats.MaximumTimestamp,
+		) + "\n")
+	}
 
 	for index, du := range r.DiskUsage {
 		adu := du.AllFields
