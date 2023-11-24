@@ -15,7 +15,7 @@ import (
 )
 
 var (
-	githubOwnerRegexp = regexp.MustCompile(`^(([a-zA-Z0-9-]+)|([a-zA-Z0-9-]+\/[a-zA-Z0-9-]+))$`)
+	githubOwnerRegexp = regexp.MustCompile(`^(([a-zA-Z0-9-_]+)|([a-zA-Z0-9-_]+\/[a-zA-Z0-9-_]+))$`)
 
 	packageNameRegexp    = regexp.MustCompile(`^[a-z0-9_]+$`)
 	dataStreamNameRegexp = regexp.MustCompile(`^([a-z0-9]{2}|[a-z0-9][a-z0-9_]+[a-z0-9])$`)
