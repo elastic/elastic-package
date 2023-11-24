@@ -10,6 +10,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"time"
@@ -55,6 +56,9 @@ func WrapHTTPClient(client *http.Client, opts HTTPOptions) *http.Client {
 	retryClient.RetryMax = opts.RetryMax
 	retryClient.RetryWaitMin = retryWaitMin
 	retryClient.RetryWaitMax = retryWaitMax
+
+	// It needs to be a logger with support for attributes as key-value pairs.
+	retryClient.Logger = slog.Default()
 	return retryClient.StandardClient()
 }
 
