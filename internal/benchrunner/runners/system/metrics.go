@@ -16,16 +16,8 @@ import (
 
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/elasticsearch/ingest"
-	"github.com/elastic/elastic-package/internal/environment"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/servicedeployer"
-)
-
-var (
-	ESMetricstoreHostEnv          = environment.WithElasticPackagePrefix("ESMETRICSTORE_HOST")
-	ESMetricstoreUsernameEnv      = environment.WithElasticPackagePrefix("ESMETRICSTORE_USERNAME")
-	ESMetricstorePasswordEnv      = environment.WithElasticPackagePrefix("ESMETRICSTORE_PASSWORD")
-	ESMetricstoreCACertificateEnv = environment.WithElasticPackagePrefix("ESMETRICSTORE_CA_CERT")
 )
 
 type collector struct {
@@ -204,7 +196,7 @@ func (c *collector) createMetricsIndex() {
 	createRes.Body.Close()
 
 	if createRes.IsError() {
-		logger.Debug("got a response error while creating index")
+		logger.Debug("got a response error while creating index: %s", createRes)
 	}
 }
 

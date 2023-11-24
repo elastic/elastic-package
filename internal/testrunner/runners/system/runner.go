@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -86,6 +87,11 @@ var (
 				},
 				logsRegexp{
 					includes: regexp.MustCompile("->(FAILED|DEGRADED)"),
+
+					// this regex is excluded to avoid a regresion in 8.11 that can make a component to pass to a degraded state during some seconds after reassigning or removing a policy
+					excludes: []*regexp.Regexp{
+						regexp.MustCompile(`Component state changed .* \(HEALTHY->DEGRADED\): Degraded: pid .* missed .* check-in`),
+					},
 				},
 			},
 		},
@@ -317,14 +323,23 @@ func createTestRunID() string {
 }
 
 func (r *runner) isSyntheticsEnabled(dataStream, componentTemplatePackage string) (bool, error) {
-	logger.Debugf("check whether or not synthetics is enabled (component template %s)...", componentTemplatePackage)
 	resp, err := r.options.API.Cluster.GetComponentTemplate(
 		r.options.API.Cluster.GetComponentTemplate.WithName(componentTemplatePackage),
 	)
 	if err != nil {
-		return false, fmt.Errorf("could not get component template from data stream %s: %w", dataStream, err)
+		return false, fmt.Errorf("could not get component template %s from data stream %s: %w", componentTemplatePackage, dataStream, err)
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		// @package component template doesn't exist before 8.2. On these versions synthetics was not supported
+		// in any case, so just return false.
+		logger.Debugf("no component template %s found for data stream %s", componentTemplatePackage, dataStream)
+		return false, nil
+	}
+	if resp.IsError() {
+		return false, fmt.Errorf("could not get component template %s for data stream %s: %s", componentTemplatePackage, dataStream, resp.String())
+	}
 
 	var results struct {
 		ComponentTemplates []struct {
@@ -346,11 +361,11 @@ func (r *runner) isSyntheticsEnabled(dataStream, componentTemplatePackage string
 	}
 
 	if len(results.ComponentTemplates) == 0 {
-		logger.Debugf("no component template found for data stream %s", dataStream)
+		logger.Debugf("no component template %s found for data stream %s", componentTemplatePackage, dataStream)
 		return false, nil
 	}
 	if len(results.ComponentTemplates) != 1 {
-		return false, fmt.Errorf("unexpected response, not found component template")
+		return false, fmt.Errorf("ambiguous response, expected one component template for %s, found %d", componentTemplatePackage, len(results.ComponentTemplates))
 	}
 
 	template := results.ComponentTemplates[0]
@@ -385,11 +400,21 @@ func (r *runner) getDocs(dataStream string) (*hits, error) {
 		r.options.API.Search.WithSize(elasticsearchQuerySize),
 		r.options.API.Search.WithSource("true"),
 		r.options.API.Search.WithBody(strings.NewReader(allFieldsBody)),
+		r.options.API.Search.WithIgnoreUnavailable(true),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("could not search data stream: %w", err)
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusServiceUnavailable && strings.Contains(resp.String(), "no_shard_available_action_exception") {
+		// Index is being created, but no shards are available yet.
+		// See https://github.com/elastic/elasticsearch/issues/65846
+		return &hits{}, nil
+	}
+	if resp.IsError() {
+		return nil, fmt.Errorf("failed to search docs for data stream %s: %s", dataStream, resp.String())
+	}
 
 	var results struct {
 		Hits struct {
@@ -578,7 +603,10 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 		}
 
 		hits, err := r.getDocs(dataStream)
-		return hits.size() == 0, err
+		if err != nil {
+			return false, err
+		}
+		return hits.size() == 0, nil
 	}, 2*time.Minute)
 	if err != nil || !cleared {
 		if err == nil {
@@ -633,17 +661,20 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	logger.Debug("checking for expected data in data stream...")
 	var hits *hits
 	oldHits := 0
-	passed, err := waitUntilTrue(func() (bool, error) {
+	passed, waitErr := waitUntilTrue(func() (bool, error) {
 		if signal.SIGINT() {
 			return true, errors.New("SIGINT: cancel waiting for policy assigned")
 		}
 
 		var err error
 		hits, err = r.getDocs(dataStream)
+		if err != nil {
+			return false, err
+		}
 
 		if config.Assert.HitCount > 0 {
 			if hits.size() < config.Assert.HitCount {
-				return false, err
+				return false, nil
 			}
 
 			ret := hits.size() == oldHits
@@ -652,13 +683,24 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 				time.Sleep(4 * time.Second)
 			}
 
-			return ret, err
+			return ret, nil
 		}
-		return hits.size() > 0, err
+
+		return hits.size() > 0, nil
 	}, waitForDataTimeout)
 
-	if err != nil {
-		return result.WithError(err)
+	if config.Service != "" && !config.IgnoreServiceError {
+		exited, code, err := service.ExitCode(config.Service)
+		if err != nil && !errors.Is(err, servicedeployer.ErrNotSupported) {
+			return result.WithError(err)
+		}
+		if exited && code > 0 {
+			return result.WithError(testrunner.ErrTestCaseFailed{Reason: fmt.Sprintf("the test service %s unexpectedly exited with code %d", config.Service, code)})
+		}
+	}
+
+	if waitErr != nil {
+		return result.WithError(waitErr)
 	}
 
 	if !passed {
@@ -666,6 +708,7 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 		return result.WithError(fmt.Errorf("%s", result.FailureMsg))
 	}
 
+	logger.Debugf("check whether or not synthetics is enabled (component template %s)...", componentTemplatePackage)
 	syntheticEnabled, err := r.isSyntheticsEnabled(dataStream, componentTemplatePackage)
 	if err != nil {
 		return result.WithError(fmt.Errorf("failed to check if synthetic source is enabled: %w", err))
@@ -1145,9 +1188,18 @@ func (r *runner) previewTransform(transformId string) ([]common.MapStr, error) {
 
 func deleteDataStreamDocs(api *elasticsearch.API, dataStream string) error {
 	body := strings.NewReader(`{ "query": { "match_all": {} } }`)
-	_, err := api.DeleteByQuery([]string{dataStream}, body)
+	resp, err := api.DeleteByQuery([]string{dataStream}, body)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to delete data stream docs: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		// Unavailable index is ok, this means that data is already not there.
+		return nil
+	}
+	if resp.IsError() {
+		return fmt.Errorf("failed to delete data stream docs for data stream %s: %s", dataStream, resp.String())
 	}
 
 	return nil

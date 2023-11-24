@@ -11,6 +11,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/elastic/elastic-package/internal/elasticsearch"
@@ -178,13 +179,13 @@ func (p *Project) getFleetHealth(ctx context.Context) error {
 
 func (p *Project) CreateAgentPolicy(stackVersion string, kibanaClient *kibana.Client) error {
 	systemPackages, err := registry.Production.Revisions("system", registry.SearchOptions{
-		KibanaVersion: stackVersion,
+		KibanaVersion: strings.TrimSuffix(stackVersion, kibana.SNAPSHOT_SUFFIX),
 	})
 	if err != nil {
-		return fmt.Errorf("could not get the system package version for kibana %v: %w", stackVersion, err)
+		return fmt.Errorf("could not get the system package version for Kibana %v: %w", stackVersion, err)
 	}
 	if len(systemPackages) != 1 {
-		return fmt.Errorf("unexpected number of system package versions - found %d expected 1", len(systemPackages))
+		return fmt.Errorf("unexpected number of system package versions for Kibana %s - found %d expected 1", stackVersion, len(systemPackages))
 	}
 	logger.Debugf("Found %s package - version %s", systemPackages[0].Name, systemPackages[0].Version)
 

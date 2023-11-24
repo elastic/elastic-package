@@ -1,0 +1,14 @@
+{{- $timestamp := generate "timestamp" -}}
+{
+"@timestamp": "{{ $timestamp.Format "2006-01-02T15:04:05.999999Z07:00" }}",
+"data_stream.type": "logs",
+"data_stream.dataset": "rally_benchmarks.testds",
+"data_stream.namespace": "ep",
+"container.id": "{{ generate "container.id" }}",
+"input.type": "filestream",
+"log.file.path": "{{ generate "log.file.path" }}",
+"log.flags": "{{ generate "log.flags" }}",
+"log.offset": {{ generate "log.offset" }},
+"tags": ["rally_benchmark.testds", "forwarded", "{{ generate "tags" }}" ],
+"message": "{{ generate "IP" }} - - [{{ $timestamp.Format "02/Jan/2006:15:04:05.999999 -0700" }}] \"GET /favicon.ico HTTP/1.1\" {{ generate "StatusCode" }} {{ generate "Size" }} \"http://{{ generate "Hostname" }}:{{ generate "Port" }}/\" \"skip-this-one/5.0 (Macintosh; Intel Mac OS X 10_12_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.59 Safari/537.36\""
+}

@@ -153,27 +153,29 @@ These benchmarks allow you to benchmark any Ingest Node Pipelines defined by you
 
 For details on how to configure pipeline benchmarks for a package, review the [HOWTO guide](./docs/howto/pipeline_benchmarking.md).
 
+#### Rally Benchmarks
+
+These benchmarks allow you to benchmark an integration corpus with rally.
+
+For details on how to configure rally benchmarks for a package, review the [HOWTO guide](./docs/howto/rally_benchmarking.md).
+
 #### System Benchmarks
 
 These benchmarks allow you to benchmark an integration end to end.
 
 For details on how to configure system benchmarks for a package, review the [HOWTO guide](./docs/howto/system_benchmarking.md).
 
-### `elastic-package benchmark generate-corpus`
-
-_Context: package_
-
-
-*BEWARE*: this command is in beta and it's behaviour may change in the future.
-Use this command to generate benchmarks corpus data for a package.
-Currently, only data for what we have related assets on https://github.com/elastic/elastic-integration-corpus-generator-tool are supported.
-For details on how to run this command, review the [HOWTO guide](./docs/howto/generate_corpus.md).
-
 ### `elastic-package benchmark pipeline`
 
 _Context: package_
 
 Run pipeline benchmarks for the package.
+
+### `elastic-package benchmark rally`
+
+_Context: package_
+
+Run rally benchmarks for the package (esrally needs to be installed in the path of the system).
 
 ### `elastic-package benchmark system`
 

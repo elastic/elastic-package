@@ -18,6 +18,7 @@ const (
 	ILMPoliciesDumpDir        = "ilm_policies"
 	IndexTemplatesDumpDir     = "index_templates"
 	IngestPipelinesDumpDir    = "ingest_pipelines"
+	MLModelsDumpDir           = "ml_models"
 )
 
 // InstalledObjectsDumper discovers and dumps objects installed in Elasticsearch for a given package.
@@ -29,6 +30,7 @@ type InstalledObjectsDumper struct {
 	ilmPolicies        []ILMPolicy
 	indexTemplates     []IndexTemplate
 	ingestPipelines    []IngestPipeline
+	mlModels           []MLModel
 }
 
 // NewInstalledObjectsDumper creates an InstalledObjectsDumper for a given package.
@@ -62,6 +64,12 @@ func (e *InstalledObjectsDumper) DumpAll(ctx context.Context, dir string) (count
 	n, err = e.dumpIngestPipelines(ctx, dir)
 	if err != nil {
 		return count, fmt.Errorf("failed to dump ingest pipelines: %w", err)
+	}
+	count += n
+
+	n, err = e.dumpMLModels(ctx, dir)
+	if err != nil {
+		return count, fmt.Errorf("failed to dumpl ML models: %w", err)
 	}
 	count += n
 
@@ -267,4 +275,32 @@ func getIngestPipelinesFromTemplates(templates []TemplateWithSettings) []string 
 		}
 	}
 	return pipelines
+}
+
+func (e *InstalledObjectsDumper) getMLModels(ctx context.Context) ([]MLModel, error) {
+	if len(e.mlModels) == 0 {
+		models, err := getMLModelsForPackage(ctx, e.client, e.packageName)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get ML models: %w", err)
+		}
+		e.mlModels = models
+	}
+
+	return e.mlModels, nil
+}
+
+func (e *InstalledObjectsDumper) dumpMLModels(ctx context.Context, dir string) (count int, err error) {
+	models, err := e.getMLModels(ctx)
+	if err != nil {
+		return count, fmt.Errorf("failed to get ML models: %w", err)
+	}
+
+	dir = filepath.Join(dir, MLModelsDumpDir)
+	for i, m := range models {
+		err := dumpJSONResource(dir, m)
+		if err != nil {
+			return i, fmt.Errorf("failed to dump model %s: %w", m.Name(), err)
+		}
+	}
+	return len(models), nil
 }

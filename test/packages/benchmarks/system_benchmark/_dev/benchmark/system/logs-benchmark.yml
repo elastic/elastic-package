@@ -1,13 +1,20 @@
 ---
-description: Benchmark 20MiB of data ingested
+description: Benchmark 20000 events ingested
 input: filestream
 vars: ~
-data_stream.name: testds
-data_stream.vars.paths:
-  - "{{SERVICE_LOGS_DIR}}/corpus-*"
+data_stream:
+  name: testds
+  vars:
+    paths:
+      - "{{SERVICE_LOGS_DIR}}/corpus-*"
 warmup_time_period: 10s
 wait_for_data_timeout: 10m
-corpora.generator.size: 20MiB
-corpora.generator.template.path: ./logs-benchmark/template.log
-corpora.generator.config.path: ./logs-benchmark/config.yml
-corpora.generator.fields.path: ./logs-benchmark/fields.yml
+corpora:
+  generator:
+    total_events: 20000
+    template:
+      path: ./logs-benchmark/template.log
+    config:
+      path: ./logs-benchmark/config.yml
+    fields:
+      path: ./logs-benchmark/fields.yml

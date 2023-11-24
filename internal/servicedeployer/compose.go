@@ -155,6 +155,22 @@ func (s *dockerComposeDeployedService) Signal(signal string) error {
 	return nil
 }
 
+// ExitCode returns true if the service is exited and its exit code.
+func (s *dockerComposeDeployedService) ExitCode(service string) (bool, int, error) {
+	p, err := compose.NewProject(s.project, s.ymlPaths...)
+	if err != nil {
+		return false, -1, fmt.Errorf("could not create Docker Compose project for service: %w", err)
+	}
+
+	opts := compose.CommandOptions{
+		Env: append(
+			s.env,
+			s.variant.Env...),
+	}
+
+	return p.ServiceExitCode(service, opts)
+}
+
 // TearDown tears down the service.
 func (s *dockerComposeDeployedService) TearDown() error {
 	logger.Debugf("tearing down service using Docker Compose runner")

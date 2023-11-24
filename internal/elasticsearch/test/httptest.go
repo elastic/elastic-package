@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -46,7 +47,12 @@ func testElasticsearchServer(t *testing.T, mockServerDir string) *httptest.Serve
 	}))
 }
 
-var pathReplacer = strings.NewReplacer("/", "-", "*", "_")
+var pathReplacer = strings.NewReplacer(
+	"/", "-",
+	"*", "_",
+	"?", "_",
+	"=", "_",
+)
 
 func pathForURL(url string) string {
 	clean := strings.Trim(url, "/")
@@ -61,7 +67,11 @@ func recordRequest(t *testing.T, r *http.Request, path string) {
 	require.NoError(t, err)
 
 	t.Logf("Recording %s in %s", r.URL.Path, path)
-	req, err := http.NewRequest(r.Method, r.URL.Path, nil)
+	var recordURL url.URL
+	recordURL.Path = r.URL.Path
+	recordURL.RawQuery = r.URL.RawQuery
+
+	req, err := http.NewRequest(r.Method, recordURL.String(), nil)
 	require.NoError(t, err)
 
 	resp, err := client.Perform(req)

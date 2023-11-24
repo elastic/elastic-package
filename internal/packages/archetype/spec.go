@@ -9,7 +9,7 @@ import (
 	"fmt"
 
 	"github.com/Masterminds/semver/v3"
-	spec "github.com/elastic/package-spec/v2"
+	spec "github.com/elastic/package-spec/v3"
 )
 
 func GetLatestStableSpecVersion() (semver.Version, error) {

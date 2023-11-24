@@ -101,6 +101,10 @@ func (c *Client) exportWithDashboardsAPI(dashboardIDs []string) ([]common.MapStr
 		return nil, fmt.Errorf("could not export dashboards; API status code = %d; response body = %s: %w", statusCode, respBody, err)
 	}
 
+	if statusCode != http.StatusOK {
+		return nil, fmt.Errorf("could not export dashboards; API status code = %d; response body = %s", statusCode, respBody)
+	}
+
 	var exported exportedType
 	err = json.Unmarshal(respBody, &exported)
 	if err != nil {

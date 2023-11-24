@@ -409,6 +409,7 @@ for system tests.
 | Option | Type | Required | Description |
 |---|---|---|---|
 | data_stream.vars | dictionary |  | Data stream level variables to set (i.e. declared in `package_root/data_stream/$data_stream/manifest.yml`). If not specified the defaults from the manifest are used. |
+| ignore_service_error | boolean | no | If `true`, it will ignore any failures in the deployed test services. Defaults to `false`. |
 | input | string | yes | Input type to test (e.g. logfile, httpjson, etc). Defaults to the input used by the first stream in the data stream manifest. |
 | numeric_keyword_fields | []string |  | List of fields to ignore during validation that are mapped as `keyword` in Elasticsearch, but their JSON data type is a number. |
 | policy_template | string |  | Name of policy template associated with the data stream and input. Required when multiple policy templates include the input being tested. |

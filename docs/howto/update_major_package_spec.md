@@ -42,8 +42,10 @@ setting was included with and withoud dotted notation.
 
 This is commonly found in `conditions` or in `elasticsearch` settings.
 
-To solve this, please use nested dotations. So if for example your package has
-something like the following:
+`elastic-package` `check` and `format` subcommands will try to fix this
+automatically. If you are still finding this issue, you will need to fix it
+manually. For that, please use nested dotations. So if for example your package
+has something like the following:
 ```
 conditions:
   elastic.subscription: basic

@@ -12,9 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dustin/go-humanize"
-
-	"github.com/elastic/elastic-package/internal/corpusgenerator"
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/logger"
@@ -25,7 +22,9 @@ import (
 	"github.com/elastic/elastic-package/internal/benchrunner"
 	"github.com/elastic/elastic-package/internal/benchrunner/reporters"
 	"github.com/elastic/elastic-package/internal/benchrunner/reporters/outputs"
+	benchcommon "github.com/elastic/elastic-package/internal/benchrunner/runners/common"
 	"github.com/elastic/elastic-package/internal/benchrunner/runners/pipeline"
+	"github.com/elastic/elastic-package/internal/benchrunner/runners/rally"
 	"github.com/elastic/elastic-package/internal/benchrunner/runners/system"
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/common"
@@ -34,12 +33,6 @@ import (
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
 
-const generateLongDescription = `
-*BEWARE*: this command is in beta and it's behaviour may change in the future.
-Use this command to generate benchmarks corpus data for a package.
-Currently, only data for what we have related assets on https://github.com/elastic/elastic-integration-corpus-generator-tool are supported.
-For details on how to run this command, review the [HOWTO guide](./docs/howto/generate_corpus.md).`
-
 const benchLongDescription = `Use this command to run benchmarks on a package. Currently, the following types of benchmarks are available:
 
 #### Pipeline Benchmarks
@@ -47,6 +40,12 @@ const benchLongDescription = `Use this command to run benchmarks on a package. C
 These benchmarks allow you to benchmark any Ingest Node Pipelines defined by your packages.
 
 For details on how to configure pipeline benchmarks for a package, review the [HOWTO guide](./docs/howto/pipeline_benchmarking.md).
+
+#### Rally Benchmarks
+
+These benchmarks allow you to benchmark an integration corpus with rally.
+
+For details on how to configure rally benchmarks for a package, review the [HOWTO guide](./docs/howto/rally_benchmarking.md).
 
 #### System Benchmarks
 
@@ -66,11 +65,11 @@ func setupBenchmarkCommand() *cobraext.Command {
 	pipelineCmd := getPipelineCommand()
 	cmd.AddCommand(pipelineCmd)
 
+	rallyCmd := getRallyCommand()
+	cmd.AddCommand(rallyCmd)
+
 	systemCmd := getSystemCommand()
 	cmd.AddCommand(systemCmd)
-
-	generateCorpusCmd := getGenerateCorpusCommand()
-	cmd.AddCommand(generateCorpusCmd)
 
 	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
 }
@@ -213,6 +212,139 @@ func pipelineCommandAction(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+func getRallyCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "rally",
+		Short: "Run rally benchmarks",
+		Long:  "Run rally benchmarks for the package (esrally needs to be installed in the path of the system)",
+		Args:  cobra.NoArgs,
+		RunE:  rallyCommandAction,
+	}
+
+	cmd.Flags().StringP(cobraext.BenchNameFlagName, "", "", cobraext.BenchNameFlagDescription)
+	cmd.Flags().BoolP(cobraext.BenchReindexToMetricstoreFlagName, "", false, cobraext.BenchReindexToMetricstoreFlagDescription)
+	cmd.Flags().DurationP(cobraext.BenchMetricsIntervalFlagName, "", time.Second, cobraext.BenchMetricsIntervalFlagDescription)
+	cmd.Flags().DurationP(cobraext.DeferCleanupFlagName, "", 0, cobraext.DeferCleanupFlagDescription)
+	cmd.Flags().String(cobraext.VariantFlagName, "", cobraext.VariantFlagDescription)
+	cmd.Flags().StringP(cobraext.BenchCorpusRallyTrackOutputDirFlagName, "", "", cobraext.BenchCorpusRallyTrackOutputDirFlagDescription)
+	cmd.Flags().BoolP(cobraext.BenchCorpusRallyDryRunFlagName, "", false, cobraext.BenchCorpusRallyDryRunFlagDescription)
+
+	return cmd
+}
+
+func rallyCommandAction(cmd *cobra.Command, args []string) error {
+	cmd.Println("Run rally benchmarks for the package")
+
+	variant, err := cmd.Flags().GetString(cobraext.VariantFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.VariantFlagName)
+	}
+
+	benchName, err := cmd.Flags().GetString(cobraext.BenchNameFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.BenchNameFlagName)
+	}
+
+	dataReindex, err := cmd.Flags().GetBool(cobraext.BenchReindexToMetricstoreFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.BenchReindexToMetricstoreFlagName)
+	}
+
+	rallyTrackOutputDir, err := cmd.Flags().GetString(cobraext.BenchCorpusRallyTrackOutputDirFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.BenchCorpusRallyTrackOutputDirFlagName)
+	}
+
+	rallyDryRun, err := cmd.Flags().GetBool(cobraext.BenchCorpusRallyDryRunFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.BenchCorpusRallyDryRunFlagName)
+	}
+
+	packageRootPath, found, err := packages.FindPackageRoot()
+	if !found {
+		return errors.New("package root not found")
+	}
+	if err != nil {
+		return fmt.Errorf("locating package root failed: %w", err)
+	}
+
+	profile, err := cobraext.GetProfileFlag(cmd)
+	if err != nil {
+		return err
+	}
+
+	signal.Enable()
+
+	esClient, err := stack.NewElasticsearchClientFromProfile(profile)
+	if err != nil {
+		return fmt.Errorf("can't create Elasticsearch client: %w", err)
+	}
+	err = esClient.CheckHealth(cmd.Context())
+	if err != nil {
+		return err
+	}
+
+	kc, err := stack.NewKibanaClientFromProfile(profile)
+	if err != nil {
+		return fmt.Errorf("can't create Kibana client: %w", err)
+	}
+
+	withOpts := []rally.OptionFunc{
+		rally.WithVariant(variant),
+		rally.WithBenchmarkName(benchName),
+		rally.WithDataReindexing(dataReindex),
+		rally.WithPackageRootPath(packageRootPath),
+		rally.WithESAPI(esClient.API),
+		rally.WithKibanaClient(kc),
+		rally.WithProfile(profile),
+		rally.WithRallyTrackOutputDir(rallyTrackOutputDir),
+		rally.WithRallyDryRun(rallyDryRun),
+	}
+
+	esMetricsClient, err := initializeESMetricsClient(cmd.Context())
+	if err != nil {
+		return fmt.Errorf("can't create Elasticsearch metrics client: %w", err)
+	}
+	if esMetricsClient != nil {
+		withOpts = append(withOpts, rally.WithESMetricsAPI(esMetricsClient.API))
+	}
+
+	runner := rally.NewRallyBenchmark(rally.NewOptions(withOpts...))
+
+	r, err := benchrunner.Run(runner)
+	if errors.Is(err, rally.ErrDryRun) {
+		return nil
+	}
+
+	if err != nil {
+		return fmt.Errorf("error running package rally benchmarks: %w", err)
+	}
+
+	multiReport, ok := r.(reporters.MultiReportable)
+	if !ok {
+		return fmt.Errorf("rally benchmark is expected to return multiple reports")
+	}
+
+	reports := multiReport.Split()
+	if len(reports) != 2 {
+		return fmt.Errorf("rally benchmark is expected to return a human and a file report")
+	}
+
+	// human report will always be the first
+	human := reports[0]
+	if err := reporters.WriteReportable(reporters.Output(outputs.ReportOutputSTDOUT), human); err != nil {
+		return fmt.Errorf("error writing benchmark report: %w", err)
+	}
+
+	// file report will always be the second
+	file := reports[1]
+	if err := reporters.WriteReportable(reporters.Output(outputs.ReportOutputFile), file); err != nil {
+		return fmt.Errorf("error writing benchmark report: %w", err)
+	}
+
+	return nil
+}
+
 func getSystemCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "system",
@@ -340,80 +472,11 @@ func systemCommandAction(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func getGenerateCorpusCommand() *cobra.Command {
-	generateCorpusCmd := &cobra.Command{
-		Use:   "generate-corpus",
-		Short: "Generate benchmarks corpus data for the package",
-		Long:  generateLongDescription,
-		Args:  cobra.NoArgs,
-		RunE:  generateDataStreamCorpusCommandAction,
-	}
-
-	generateCorpusCmd.Flags().StringP(cobraext.PackageFlagName, cobraext.PackageFlagShorthand, "", cobraext.PackageFlagDescription)
-	generateCorpusCmd.Flags().StringP(cobraext.GenerateCorpusDataSetFlagName, cobraext.GenerateCorpusDataSetFlagShorthand, "", cobraext.GenerateCorpusDataSetFlagDescription)
-	generateCorpusCmd.Flags().StringP(cobraext.GenerateCorpusSizeFlagName, cobraext.GenerateCorpusSizeFlagShorthand, "", cobraext.GenerateCorpusSizeFlagDescription)
-	generateCorpusCmd.Flags().StringP(cobraext.GenerateCorpusCommitFlagName, cobraext.GenerateCorpusCommitFlagShorthand, "main", cobraext.GenerateCorpusCommitFlagDescription)
-	generateCorpusCmd.Flags().StringP(cobraext.GenerateCorpusRallyTrackOutputDirFlagName, cobraext.GenerateCorpusRallyTrackOutputDirFlagShorthand, "", cobraext.GenerateCorpusRallyTrackOutputDirFlagDescription)
-
-	return generateCorpusCmd
-}
-
-func generateDataStreamCorpusCommandAction(cmd *cobra.Command, _ []string) error {
-	packageName, err := cmd.Flags().GetString(cobraext.PackageFlagName)
-	if err != nil {
-		return cobraext.FlagParsingError(err, cobraext.PackageFlagName)
-	}
-
-	dataSetName, err := cmd.Flags().GetString(cobraext.GenerateCorpusDataSetFlagName)
-	if err != nil {
-		return cobraext.FlagParsingError(err, cobraext.GenerateCorpusDataSetFlagName)
-	}
-
-	totSize, err := cmd.Flags().GetString(cobraext.GenerateCorpusSizeFlagName)
-	if err != nil {
-		return cobraext.FlagParsingError(err, cobraext.GenerateCorpusSizeFlagName)
-	}
-
-	totSizeInBytes, err := humanize.ParseBytes(totSize)
-	if err != nil {
-		return cobraext.FlagParsingError(err, cobraext.GenerateCorpusSizeFlagName)
-	}
-
-	commit, err := cmd.Flags().GetString(cobraext.GenerateCorpusCommitFlagName)
-	if err != nil {
-		return cobraext.FlagParsingError(err, cobraext.GenerateCorpusCommitFlagName)
-	}
-
-	if len(commit) == 0 {
-		commit = "main"
-	}
-
-	rallyTrackOutputDir, err := cmd.Flags().GetString(cobraext.GenerateCorpusRallyTrackOutputDirFlagName)
-	if err != nil {
-		return cobraext.FlagParsingError(err, cobraext.GenerateCorpusRallyTrackOutputDirFlagName)
-	}
-
-	genLibClient := corpusgenerator.NewClient(commit)
-	generator, err := corpusgenerator.NewGenerator(genLibClient, packageName, dataSetName, totSizeInBytes)
-	if err != nil {
-		return fmt.Errorf("can't generate benchmarks data corpus for data stream: %w", err)
-	}
-
-	// TODO: we need a way to extract the type from the package and dataset, currently hardcode to `metrics`
-	dataStream := fmt.Sprintf("metrics-%s.%s-default", packageName, dataSetName)
-	err = corpusgenerator.RunGenerator(generator, dataStream, rallyTrackOutputDir)
-	if err != nil {
-		return fmt.Errorf("can't generate benchmarks data corpus for data stream: %w", err)
-	}
-
-	return nil
-}
-
 func initializeESMetricsClient(ctx context.Context) (*elasticsearch.Client, error) {
-	address := os.Getenv(system.ESMetricstoreHostEnv)
-	user := os.Getenv(system.ESMetricstoreUsernameEnv)
-	pass := os.Getenv(system.ESMetricstorePasswordEnv)
-	cacert := os.Getenv(system.ESMetricstoreCACertificateEnv)
+	address := os.Getenv(benchcommon.ESMetricstoreHostEnv)
+	user := os.Getenv(benchcommon.ESMetricstoreUsernameEnv)
+	pass := os.Getenv(benchcommon.ESMetricstorePasswordEnv)
+	cacert := os.Getenv(benchcommon.ESMetricstoreCACertificateEnv)
 	if address == "" || user == "" || pass == "" {
 		logger.Debugf("can't initialize metricstore, missing environment configuration")
 		return nil, nil

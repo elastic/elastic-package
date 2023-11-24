@@ -11,10 +11,12 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/elastic/elastic-package/internal/common"
+	"github.com/elastic/elastic-package/internal/multierror"
 )
 
 type results struct {
@@ -309,10 +311,12 @@ func TestValidate_ExpectedDatasets(t *testing.T) {
 
 func Test_parseElementValue(t *testing.T) {
 	for _, test := range []struct {
-		key        string
-		value      interface{}
-		definition FieldDefinition
-		fail       bool
+		key         string
+		value       interface{}
+		definition  FieldDefinition
+		fail        bool
+		assertError func(t *testing.T, err error)
+		specVersion semver.Version
 	}{
 		// Arrays
 		{
@@ -619,17 +623,151 @@ func Test_parseElementValue(t *testing.T) {
 				},
 			},
 		},
+		// elements in arrays of objects should be validated
+		{
+			key: "details",
+			value: []interface{}{
+				map[string]interface{}{
+					"id":       "somehost-id",
+					"hostname": "somehost",
+				},
+			},
+			definition: FieldDefinition{
+				Name: "details",
+				Type: "group",
+				Fields: []FieldDefinition{
+					{
+						Name: "id",
+						Type: "keyword",
+					},
+				},
+			},
+			specVersion: *semver3_0_1,
+			fail:        true,
+			assertError: func(t *testing.T, err error) {
+				errs := err.(multierror.Error)
+				if assert.Len(t, errs, 1) {
+					assert.Contains(t, errs[0].Error(), `"details.hostname" is undefined`)
+				}
+			},
+		},
+		// elements in nested objects
+		{
+			key: "nested",
+			value: []interface{}{
+				map[string]interface{}{
+					"id":       "somehost-id",
+					"hostname": "somehost",
+				},
+			},
+			definition: FieldDefinition{
+				Name: "nested",
+				Type: "nested",
+				Fields: []FieldDefinition{
+					{
+						Name: "id",
+						Type: "keyword",
+					},
+				},
+			},
+			specVersion: *semver3_0_1,
+			fail:        true,
+			assertError: func(t *testing.T, err error) {
+				errs := err.(multierror.Error)
+				if assert.Len(t, errs, 1) {
+					assert.Contains(t, errs[0].Error(), `"nested.hostname" is undefined`)
+				}
+			},
+		},
+		// arrays of elements in nested objects
+		{
+			key: "good_array_of_nested",
+			value: []interface{}{
+				[]interface{}{
+					map[string]interface{}{
+						"id":       "somehost-id",
+						"hostname": "somehost",
+					},
+				},
+			},
+			definition: FieldDefinition{
+				Name: "good_array_of_nested",
+				Type: "nested",
+				Fields: []FieldDefinition{
+					{
+						Name: "id",
+						Type: "keyword",
+					},
+					{
+						Name: "hostname",
+						Type: "keyword",
+					},
+				},
+			},
+			specVersion: *semver3_0_1,
+		},
+		{
+			key: "array_of_nested",
+			value: []interface{}{
+				[]interface{}{
+					map[string]interface{}{
+						"id":       "somehost-id",
+						"hostname": "somehost",
+					},
+				},
+			},
+			definition: FieldDefinition{
+				Name: "array_of_nested",
+				Type: "nested",
+				Fields: []FieldDefinition{
+					{
+						Name: "id",
+						Type: "keyword",
+					},
+				},
+			},
+			specVersion: *semver3_0_1,
+			fail:        true,
+			assertError: func(t *testing.T, err error) {
+				var errs multierror.Error
+				require.ErrorAs(t, err, &errs)
+				if assert.Len(t, errs, 1) {
+					assert.Contains(t, errs[0].Error(), `"array_of_nested.hostname" is undefined`)
+				}
+			},
+		},
+		{
+			key:   "null_array",
+			value: nil,
+			definition: FieldDefinition{
+				Name: "null_array",
+				Type: "group",
+				Fields: []FieldDefinition{
+					{
+						Name: "id",
+						Type: "keyword",
+					},
+				},
+			},
+			specVersion: *semver3_0_1,
+		},
 	} {
-		v := Validator{
-			disabledDependencyManagement: true,
-			enabledAllowedIPCheck:        true,
-			allowedCIDRs:                 initializeAllowedCIDRsList(),
-		}
 
 		t.Run(test.key, func(t *testing.T) {
+			v := Validator{
+				Schema:                       []FieldDefinition{test.definition},
+				disabledDependencyManagement: true,
+				enabledAllowedIPCheck:        true,
+				allowedCIDRs:                 initializeAllowedCIDRsList(),
+				specVersion:                  test.specVersion,
+			}
+
 			err := v.parseElementValue(test.key, test.definition, test.value, common.MapStr{})
 			if test.fail {
 				require.Error(t, err)
+				if test.assertError != nil {
+					test.assertError(t, err)
+				}
 			} else {
 				require.NoError(t, err)
 			}

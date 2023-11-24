@@ -53,6 +53,12 @@ const (
 	BenchWithTestSamplesFlagName        = "use-test-samples"
 	BenchWithTestSamplesFlagDescription = "use test samples for the benchmarks"
 
+	BenchCorpusRallyTrackOutputDirFlagName        = "rally-track-output-dir"
+	BenchCorpusRallyTrackOutputDirFlagDescription = "output dir of the rally track: if present the command will save the generated rally track"
+
+	BenchCorpusRallyDryRunFlagName        = "dry-run"
+	BenchCorpusRallyDryRunFlagDescription = "Do not run rally but just generate the rally track"
+
 	BuildSkipValidationFlagName        = "skip-validation"
 	BuildSkipValidationFlagDescription = "skip validation of the built package, use only if all validation issues have been acknowledged"
 
@@ -98,25 +104,8 @@ const (
 	FailOnMissingFlagName        = "fail-on-missing"
 	FailOnMissingFlagDescription = "fail if tests are missing"
 
-	FailFastFlagName        = "fail-fast"
-	FailFastFlagDescription = "fail immediately if any file requires updates (do not overwrite)"
-
-	GenerateCorpusDataSetFlagName        = "dataset"
-	GenerateCorpusDataSetFlagShorthand   = "D"
-	GenerateCorpusDataSetFlagDescription = "dataset to generate benchmarks data corpus for"
-
-	GenerateCorpusCommitFlagName        = "commit"
-	GenerateCorpusCommitFlagShorthand   = "C"
-	GenerateCorpusCommitFlagDescription = "commit to fetch assets from the corpus generator tool repo from"
-
-	GenerateCorpusRallyTrackOutputDirFlagName        = "rally-track-output-dir"
-	GenerateCorpusRallyTrackOutputDirFlagShorthand   = "R"
-	GenerateCorpusRallyTrackOutputDirFlagDescription = "output dir of the rally track: if present the command will generate a rally track instead of writing the generated data to stdout"
-
-	GenerateCorpusSizeFlagName        = "size"
-	GenerateCorpusSizeFlagShorthand   = "S"
-	GenerateCorpusSizeFlagDescription = "size of benchmarks data corpus to generate"
-
+	FailFastFlagName                  = "fail-fast"
+	FailFastFlagDescription           = "fail immediately if any file requires updates (do not overwrite)"
 	GenerateTestResultFlagName        = "generate"
 	GenerateTestResultFlagDescription = "generate test result file"
 

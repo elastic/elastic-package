@@ -41,6 +41,11 @@ func TestDumpInstalledObjects(t *testing.T) {
 			RecordDir:   "./testdata/elasticsearch-8-mock-dump-apache",
 			DumpDir:     "./testdata/elasticsearch-8-apache-dump-all",
 		},
+		&installedObjectsDumpSuite{
+			PackageName: "dga",
+			RecordDir:   "./testdata/elasticsearch-8-mock-dump-dga",
+			DumpDir:     "./testdata/elasticsearch-8-dga-dump-all",
+		},
 	}
 
 	for _, s := range suites {
@@ -103,6 +108,7 @@ func (s *installedObjectsDumpSuite) TestDumpSome() {
 		ILMPoliciesDumpDir:        dumper.dumpILMPolicies,
 		IndexTemplatesDumpDir:     dumper.dumpIndexTemplates,
 		IngestPipelinesDumpDir:    dumper.dumpIngestPipelines,
+		MLModelsDumpDir:           dumper.dumpMLModels,
 	}
 
 	for dir, dumpFunction := range dumpers {
@@ -183,9 +189,14 @@ func subDir(t *testing.T, dir, name string) string {
 	tmpDir := t.TempDir()
 
 	dest := filepath.Join(tmpDir, name)
-	src := filepath.Join(dir, name)
-
 	os.MkdirAll(dest, 0755)
+
+	src := filepath.Join(dir, name)
+	if _, err := os.Stat(src); errors.Is(err, os.ErrNotExist) {
+		// Not all packages have all kinds of objects.
+		return tmpDir
+	}
+
 	err := files.CopyAll(src, dest)
 	require.NoError(t, err)
 

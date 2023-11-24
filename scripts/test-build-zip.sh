@@ -34,6 +34,8 @@ export ELASTIC_PACKAGE_SIGNER_PRIVATE_KEYFILE="$OLDPWD/scripts/gpg-private.asc"
 export ELASTIC_PACKAGE_SIGNER_PASSPHRASE=$(cat "$OLDPWD/scripts/gpg-pass.txt")
 export ELASTIC_PACKAGE_LINKS_FILE_PATH="$(pwd)/scripts/links_table.yml"
 
+go run ./scripts/gpgkey
+
 for d in test/packages/*/*/; do
   # Packages in false_positives can have issues.
   if [ "$(testype $d)" == "false_positives" ]; then

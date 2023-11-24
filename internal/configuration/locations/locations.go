@@ -22,7 +22,9 @@ const (
 	temporaryDir = "tmp"
 	deployerDir  = "deployer"
 
-	fieldsCachedDir = "cache/fields"
+	cacheDir              = "cache"
+	FieldsCacheName       = "fields"
+	KibanaConfigCacheName = "kibana_config"
 )
 
 var (
@@ -30,6 +32,7 @@ var (
 	elasticPackageDataHome = environment.WithElasticPackagePrefix("DATA_HOME")
 
 	serviceLogsDir        = filepath.Join(temporaryDir, "service_logs")
+	rallyCorpusDir        = filepath.Join(temporaryDir, "rally_corpus")
 	kubernetesDeployerDir = filepath.Join(deployerDir, "kubernetes")
 	serviceOutputDir      = filepath.Join(temporaryDir, "output")
 )
@@ -85,6 +88,11 @@ func (loc LocationManager) KubernetesDeployerDir() string {
 	return filepath.Join(loc.stackPath, kubernetesDeployerDir)
 }
 
+// RallyCorpusDir returns the rally coprus directory
+func (loc LocationManager) RallyCorpusDir() string {
+	return filepath.Join(loc.stackPath, rallyCorpusDir)
+}
+
 // ServiceLogDir returns the log directory
 func (loc LocationManager) ServiceLogDir() string {
 	return filepath.Join(loc.stackPath, serviceLogsDir)
@@ -95,9 +103,9 @@ func (loc LocationManager) ServiceOutputDir() string {
 	return filepath.Join(loc.stackPath, serviceOutputDir)
 }
 
-// FieldsCacheDir returns the directory with cached fields
-func (loc LocationManager) FieldsCacheDir() string {
-	return filepath.Join(loc.stackPath, fieldsCachedDir)
+// CacheDir returns the directory with cached fields
+func (loc LocationManager) CacheDir(name string) string {
+	return filepath.Join(loc.stackPath, cacheDir, name)
 }
 
 // configurationDir returns the configuration directory location
