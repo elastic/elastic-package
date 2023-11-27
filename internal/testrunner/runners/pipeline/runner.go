@@ -113,7 +113,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 	}
 
 	if r.options.API == nil {
-		return nil, errors.New("missing elasticsearch client")
+		return nil, errors.New("missing Elasticsearch client")
 	}
 
 	dataStreamPath, found, err := packages.FindDataStreamRootForPath(r.options.TestFolder.Path)

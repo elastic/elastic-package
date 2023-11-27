@@ -211,10 +211,10 @@ func (r *runner) run() (results []testrunner.TestResult, err error) {
 	}
 
 	if r.options.API == nil {
-		return result.WithError(errors.New("missing elasticsearch client"))
+		return result.WithError(errors.New("missing Elasticsearch client"))
 	}
 	if r.options.KibanaClient == nil {
-		return result.WithError(errors.New("missing kibana client"))
+		return result.WithError(errors.New("missing Kibana client"))
 	}
 
 	stackVersion, err := r.options.KibanaClient.Version()
