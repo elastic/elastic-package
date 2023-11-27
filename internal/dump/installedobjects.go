@@ -223,7 +223,7 @@ func (e *InstalledObjectsDumper) getIngestPipelines(ctx context.Context) ([]Inge
 		names := getIngestPipelinesFromTemplates(templates)
 		ingestPipelines, err := getIngestPipelines(ctx, e.client, names...)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get ingest pipelines: %w", err)
+			return nil, fmt.Errorf("failed to get ingest pipelines from templates: %w", err)
 		}
 		e.ingestPipelines = ingestPipelines
 	}

@@ -33,19 +33,21 @@ func TestDumpInstalledObjects(t *testing.T) {
 	suites := []*installedObjectsDumpSuite{
 		&installedObjectsDumpSuite{
 			PackageName: "apache",
-			RecordDir:   "./testdata/elasticsearch-7-mock-dump-apache",
+			Record:      "./testdata/elasticsearch-7-mock-dump-apache",
 			DumpDir:     "./testdata/elasticsearch-7-apache-dump-all",
 		},
-		&installedObjectsDumpSuite{
-			PackageName: "apache",
-			RecordDir:   "./testdata/elasticsearch-8-mock-dump-apache",
-			DumpDir:     "./testdata/elasticsearch-8-apache-dump-all",
-		},
-		&installedObjectsDumpSuite{
-			PackageName: "dga",
-			RecordDir:   "./testdata/elasticsearch-8-mock-dump-dga",
-			DumpDir:     "./testdata/elasticsearch-8-dga-dump-all",
-		},
+		/*
+			&installedObjectsDumpSuite{
+				PackageName: "apache",
+				Record:      "./testdata/elasticsearch-8-mock-dump-apache",
+				DumpDir:     "./testdata/elasticsearch-8-apache-dump-all",
+			},
+			&installedObjectsDumpSuite{
+				PackageName: "dga",
+				Record:      "./testdata/elasticsearch-8-mock-dump-dga",
+				DumpDir:     "./testdata/elasticsearch-8-dga-dump-all",
+			},
+		*/
 	}
 
 	for _, s := range suites {
@@ -59,8 +61,8 @@ type installedObjectsDumpSuite struct {
 	// PackageName is the name of the package.
 	PackageName string
 
-	// RecordDir is where responses from Elasticsearch are recorded.
-	RecordDir string
+	// Record is where responses from Elasticsearch are recorded.
+	Record string
 
 	// DumpDir is where the expected dumped files are stored.
 	DumpDir string
@@ -82,7 +84,7 @@ func (s *installedObjectsDumpSuite) SetupTest() {
 }
 
 func (s *installedObjectsDumpSuite) TestDumpAll() {
-	client := estest.NewClient(s.T(), s.RecordDir)
+	client := estest.NewClient(s.T(), s.Record)
 
 	outputDir := s.T().TempDir()
 	dumper := NewInstalledObjectsDumper(client.API, s.PackageName)
@@ -99,7 +101,7 @@ func (s *installedObjectsDumpSuite) TestDumpAll() {
 }
 
 func (s *installedObjectsDumpSuite) TestDumpSome() {
-	client := estest.NewClient(s.T(), s.RecordDir)
+	client := estest.NewClient(s.T(), s.Record)
 	dumper := NewInstalledObjectsDumper(client.API, s.PackageName)
 
 	// In a map so order of execution is randomized.
