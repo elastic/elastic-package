@@ -41,13 +41,11 @@ func TestDumpInstalledObjects(t *testing.T) {
 			Record:      "./testdata/elasticsearch-8-mock-dump-apache",
 			DumpDir:     "./testdata/elasticsearch-8-apache-dump-all",
 		},
-		/*
-			&installedObjectsDumpSuite{
-				PackageName: "dga",
-				Record:      "./testdata/elasticsearch-8-mock-dump-dga",
-				DumpDir:     "./testdata/elasticsearch-8-dga-dump-all",
-			},
-		*/
+		&installedObjectsDumpSuite{
+			PackageName: "dga",
+			Record:      "./testdata/elasticsearch-8-mock-dump-dga",
+			DumpDir:     "./testdata/elasticsearch-8-dga-dump-all",
+		},
 	}
 
 	for _, s := range suites {
