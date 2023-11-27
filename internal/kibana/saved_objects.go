@@ -5,8 +5,10 @@
 package kibana
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"mime/multipart"
 	"net/http"
 	"sort"
 	"strings"
@@ -93,11 +95,11 @@ func (c *Client) findDashboardsNextPage(page int) (*savedObjectsResponse, error)
 	path := fmt.Sprintf("%s/_find?type=dashboard&fields=title&per_page=%d&page=%d", SavedObjectsAPI, findDashboardsPerPage, page)
 	statusCode, respBody, err := c.get(path)
 	if err != nil {
-		return nil, fmt.Errorf("could not find dashboards; API status code = %d; response body = %s: %w", statusCode, respBody, err)
+		return nil, fmt.Errorf("could not find dashboards; API status code = %d; response body = %s: %w", statusCode, string(respBody), err)
 	}
 
 	if statusCode != http.StatusOK {
-		return nil, fmt.Errorf("could not find dashboards; API status code = %d; response body = %s", statusCode, respBody)
+		return nil, fmt.Errorf("could not find dashboards; API status code = %d; response body = %s", statusCode, string(respBody))
 	}
 
 	var r savedObjectsResponse
@@ -106,4 +108,147 @@ func (c *Client) findDashboardsNextPage(page int) (*savedObjectsResponse, error)
 		return nil, fmt.Errorf("unmarshalling response failed: %w", err)
 	}
 	return &r, nil
+}
+
+// SetManagedSavedObject method sets the managed property in a saved object.
+// For example managed dashboards cannot be edited, and setting managed to false will
+// allow to edit them.
+// Managed property cannot be directly changed, so we modify it by exporting the
+// saved object and importing it again, overwriting the original one.
+func (c *Client) SetManagedSavedObject(savedObjectType string, id string, managed bool) error {
+	exportRequest := ExportSavedObjectsRequest{
+		ExcludeExportDetails:  true,
+		IncludeReferencesDeep: false,
+		Objects: []ExportSavedObjectsRequestObject{
+			{
+				ID:   id,
+				Type: savedObjectType,
+			},
+		},
+	}
+	objects, err := c.ExportSavedObjects(exportRequest)
+	if err != nil {
+		return fmt.Errorf("failed to export %s %s: %w", savedObjectType, id, err)
+	}
+
+	for _, o := range objects {
+		o["managed"] = managed
+	}
+
+	importRequest := ImportSavedObjectsRequest{
+		Overwrite: true,
+		Objects:   objects,
+	}
+	_, err = c.ImportSavedObjects(importRequest)
+	if err != nil {
+		return fmt.Errorf("failed to import %s %s: %w", savedObjectType, id, err)
+	}
+
+	return nil
+}
+
+type ExportSavedObjectsRequest struct {
+	ExcludeExportDetails  bool                              `json:"excludeExportDetails"`
+	IncludeReferencesDeep bool                              `json:"includeReferencesDeep"`
+	Objects               []ExportSavedObjectsRequestObject `json:"objects"`
+}
+
+type ExportSavedObjectsRequestObject struct {
+	ID   string `json:"id"`
+	Type string `json:"type"`
+}
+
+func (c *Client) ExportSavedObjects(request ExportSavedObjectsRequest) ([]map[string]any, error) {
+	body, err := json.Marshal(request)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode request: %w", err)
+	}
+
+	path := SavedObjectsAPI + "/_export"
+	statusCode, respBody, err := c.SendRequest(http.MethodPost, path, body)
+	if err != nil {
+		return nil, fmt.Errorf("could not export saved objects; API status code = %d; response body = %s: %w", statusCode, string(respBody), err)
+	}
+	if statusCode != http.StatusOK {
+		return nil, fmt.Errorf("could not export saved objects; API status code = %d; response body = %s", statusCode, string(respBody))
+	}
+
+	var objects []map[string]any
+	decoder := json.NewDecoder(bytes.NewReader(respBody))
+	for decoder.More() {
+		var object map[string]any
+		err := decoder.Decode(&object)
+		if err != nil {
+			return nil, fmt.Errorf("unmarshalling response failed (body: \n%s): %w", string(respBody), err)
+		}
+
+		objects = append(objects, object)
+	}
+
+	return objects, nil
+}
+
+type ImportSavedObjectsRequest struct {
+	Overwrite bool
+	Objects   []map[string]any
+}
+
+type ImportSavedObjectsResponse struct {
+	Success bool           `json:"success"`
+	Count   int            `json:"successCount"`
+	Results []ImportResult `json:"successResults"`
+	Errors  []ImportResult `json:"errors"`
+}
+
+type ImportResult struct {
+	ID    string         `json:"id"`
+	Type  string         `json:"type"`
+	Title string         `json:"title"`
+	Error map[string]any `json:"error"`
+	Meta  map[string]any `json:"meta"`
+}
+
+func (c *Client) ImportSavedObjects(importRequest ImportSavedObjectsRequest) (*ImportSavedObjectsResponse, error) {
+	var body bytes.Buffer
+	multipartWriter := multipart.NewWriter(&body)
+	fileWriter, err := multipartWriter.CreateFormFile("file", "file.ndjson")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create multipart form file: %w", err)
+	}
+	enc := json.NewEncoder(fileWriter)
+	for _, object := range importRequest.Objects {
+		// Encode includes the newline delimiter.
+		err := enc.Encode(object)
+		if err != nil {
+			return nil, fmt.Errorf("failed to encode object as json: %w", err)
+		}
+	}
+	multipartWriter.Close()
+
+	path := SavedObjectsAPI + "/_import"
+	request, err := c.newRequest(http.MethodPost, path, &body)
+	if err != nil {
+		return nil, fmt.Errorf("cannot create new request: %w", err)
+	}
+	request.Header.Set("Content-Type", multipartWriter.FormDataContentType())
+	if importRequest.Overwrite {
+		q := request.URL.Query()
+		q.Set("overwrite", "true")
+		request.URL.RawQuery = q.Encode()
+	}
+
+	statusCode, respBody, err := c.doRequest(request)
+	if err != nil {
+		return nil, fmt.Errorf("could not import saved objects; API status code = %d; response body = %s: %w", statusCode, string(respBody), err)
+	}
+	if statusCode != http.StatusOK {
+		return nil, fmt.Errorf("could not import saved objects; API status code = %d; response body = %s", statusCode, string(respBody))
+	}
+
+	var results ImportSavedObjectsResponse
+	err = json.Unmarshal(respBody, &results)
+	if err != nil {
+		return nil, fmt.Errorf("could not decode response; response body: %s: %w", respBody, err)
+	}
+	return &results, nil
 }
