@@ -35,8 +35,9 @@ type Client struct {
 	versionInfo VersionInfo
 	semver      *semver.Version
 
-	retryMax int
-	http     *http.Client
+	retryMax        int
+	http            *http.Client
+	httpClientSetup func(*http.Client) *http.Client
 }
 
 // ClientOption is functional option modifying Kibana client.
@@ -118,6 +119,13 @@ func RetryMax(retryMax int) ClientOption {
 func CertificateAuthority(certificateAuthority string) ClientOption {
 	return func(c *Client) {
 		c.certificateAuthority = certificateAuthority
+	}
+}
+
+// HTTPClientSetup adds an initializing function for the http client.
+func HTTPClientSetup(setup func(*http.Client) *http.Client) ClientOption {
+	return func(c *Client) {
+		c.httpClientSetup = setup
 	}
 }
 
@@ -210,6 +218,10 @@ func (c *Client) newHttpClient() (*http.Client, error) {
 			RetryMax: c.retryMax,
 		}
 		client = retry.WrapHTTPClient(client, opts)
+	}
+
+	if c.httpClientSetup != nil {
+		client = c.httpClientSetup(client)
 	}
 
 	return client, nil

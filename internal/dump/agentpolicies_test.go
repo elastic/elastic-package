@@ -28,7 +28,7 @@ func TestDumpAgentPolicies(t *testing.T) {
 		&agentPoliciesDumpSuite{
 			AgentPolicy:        "499b5aa7-d214-5b5d-838b-3cd76469844e",
 			PackageName:        "nginx",
-			RecordDir:          "./testdata/fleet-7-mock-dump-all",
+			Record:             "./testdata/fleet-7-mock-dump-all",
 			DumpDirAll:         "./testdata/fleet-7-dump/all",
 			DumpDirPackage:     "./testdata/fleet-7-dump/package",
 			DumpDirAgentPolicy: "./testdata/fleet-7-dump/agentpolicy",
@@ -36,7 +36,7 @@ func TestDumpAgentPolicies(t *testing.T) {
 		&agentPoliciesDumpSuite{
 			AgentPolicy:        "fleet-server-policy",
 			PackageName:        "nginx",
-			RecordDir:          "./testdata/fleet-8-mock-dump-all",
+			Record:             "./testdata/fleet-8-mock-dump-all",
 			DumpDirAll:         "./testdata/fleet-8-dump/all",
 			DumpDirPackage:     "./testdata/fleet-8-dump/package",
 			DumpDirAgentPolicy: "./testdata/fleet-8-dump/agentpolicy",
@@ -57,8 +57,8 @@ type agentPoliciesDumpSuite struct {
 	// AgentPolicy is the name of the agent policy to look for.
 	PackageName string
 
-	// RecordDir is where responses from Kibana are recorded.
-	RecordDir string
+	// Record is where responses from Kibana are recorded.
+	Record string
 
 	// DumpDirAll is where the expected dumped files are stored when looking for all agent policies.
 	DumpDirAll string
@@ -111,7 +111,7 @@ func (s *agentPoliciesDumpSuite) SetupTest() {
 }
 
 func (s *agentPoliciesDumpSuite) TestDumpAll() {
-	client := kibanatest.NewClient(s.T(), s.RecordDir)
+	client := kibanatest.NewClient(s.T(), s.Record)
 
 	outputDir := s.T().TempDir()
 	dumper := NewAgentPoliciesDumper(client)
@@ -128,7 +128,7 @@ func (s *agentPoliciesDumpSuite) TestDumpAll() {
 }
 
 func (s *agentPoliciesDumpSuite) TestDumpByPackage() {
-	client := kibanatest.NewClient(s.T(), s.RecordDir)
+	client := kibanatest.NewClient(s.T(), s.Record)
 
 	outputDir := s.T().TempDir()
 	dumper := NewAgentPoliciesDumper(client)
@@ -145,7 +145,7 @@ func (s *agentPoliciesDumpSuite) TestDumpByPackage() {
 }
 
 func (s *agentPoliciesDumpSuite) TestDumpByName() {
-	client := kibanatest.NewClient(s.T(), s.RecordDir)
+	client := kibanatest.NewClient(s.T(), s.Record)
 
 	outputDir := s.T().TempDir()
 	dumper := NewAgentPoliciesDumper(client)
