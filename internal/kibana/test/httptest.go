@@ -24,7 +24,7 @@ func NewClient(t *testing.T, serverDataDir string) *kibana.Client {
 	setupHTTPClient := func(client *http.Client) *http.Client {
 		rec, err := recorder.NewWithOptions(&recorder.Options{
 			CassetteName:       serverDataDir,
-			Mode:               recorder.ModeReplayWithNewEpisodes,
+			Mode:               recorder.ModeRecordOnce,
 			SkipRequestLatency: true,
 			RealTransport:      client.Transport,
 		})
@@ -47,6 +47,7 @@ func NewClient(t *testing.T, serverDataDir string) *kibana.Client {
 		kibana.CertificateAuthority(os.Getenv(stack.CACertificateEnv)),
 
 		kibana.HTTPClientSetup(setupHTTPClient),
+		kibana.RetryMax(0),
 	)
 	require.NoError(t, err)
 

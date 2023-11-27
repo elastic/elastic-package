@@ -34,7 +34,7 @@ func NewClient(t *testing.T, serverDataDir string) *elasticsearch.Client {
 
 	rec, err := recorder.NewWithOptions(&recorder.Options{
 		CassetteName:       serverDataDir,
-		Mode:               recorder.ModeReplayWithNewEpisodes,
+		Mode:               recorder.ModeRecordOnce,
 		SkipRequestLatency: true,
 		RealTransport:      config.Transport,
 	})
