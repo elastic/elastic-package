@@ -16,6 +16,7 @@ import (
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/install"
+	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/signal"
 	"github.com/elastic/elastic-package/internal/stack"
@@ -224,9 +225,12 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 			return err
 		}
 
-		kibanaClient, err := stack.NewKibanaClientFromProfile(profile)
-		if err != nil {
-			return fmt.Errorf("can't create Kibana client: %w", err)
+		var kibanaClient *kibana.Client
+		if testType != "pipeline" {
+			kibanaClient, err = stack.NewKibanaClientFromProfile(profile)
+			if err != nil {
+				return fmt.Errorf("can't create Kibana client: %w", err)
+			}
 		}
 
 		var results []testrunner.TestResult
