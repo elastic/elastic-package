@@ -30,6 +30,7 @@ func NewClient(t *testing.T, serverDataDir string) *elasticsearch.Client {
 		elasticsearch.OptionWithUsername(os.Getenv(stack.ElasticsearchUsernameEnv)),
 		elasticsearch.OptionWithCertificateAuthority(os.Getenv(stack.CACertificateEnv)),
 	)
+	require.NoError(t, err)
 
 	rec, err := recorder.NewWithOptions(&recorder.Options{
 		CassetteName:       serverDataDir,
