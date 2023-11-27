@@ -16,6 +16,9 @@ import (
 )
 
 func TestSetManagedSavedObject(t *testing.T) {
+	// Recorded requests are not going to match the boundaries of
+	// multipart fields in requests, but we can ignore it by now as
+	// we are mostly interested on the bodies of the responses.
 	client := kibanatest.NewClient(t, "testdata/kibana-8-mock-set-managed")
 
 	id := preloadDashboard(t, client)
