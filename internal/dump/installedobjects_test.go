@@ -36,12 +36,12 @@ func TestDumpInstalledObjects(t *testing.T) {
 			Record:      "./testdata/elasticsearch-7-mock-dump-apache",
 			DumpDir:     "./testdata/elasticsearch-7-apache-dump-all",
 		},
+		&installedObjectsDumpSuite{
+			PackageName: "apache",
+			Record:      "./testdata/elasticsearch-8-mock-dump-apache",
+			DumpDir:     "./testdata/elasticsearch-8-apache-dump-all",
+		},
 		/*
-			&installedObjectsDumpSuite{
-				PackageName: "apache",
-				Record:      "./testdata/elasticsearch-8-mock-dump-apache",
-				DumpDir:     "./testdata/elasticsearch-8-apache-dump-all",
-			},
 			&installedObjectsDumpSuite{
 				PackageName: "dga",
 				Record:      "./testdata/elasticsearch-8-mock-dump-dga",

@@ -1,0 +1,15 @@
+{
+  "name": "metrics-apache.status@custom",
+  "component_template": {
+    "template": {
+      "settings": {}
+    },
+    "_meta": {
+      "package": {
+        "name": "apache"
+      },
+      "managed_by": "fleet",
+      "managed": true
+    }
+  }
+}
