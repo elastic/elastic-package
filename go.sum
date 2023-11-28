@@ -142,8 +142,8 @@ github.com/elastic/gojsonschema v1.2.1 h1:cUMbgsz0wyEB4x7xf3zUEvUVDl6WCz2RKcQPul
 github.com/elastic/gojsonschema v1.2.1/go.mod h1:biw5eBS2Z4T02wjATMRSfecfjCmwaDPvuaqf844gLrg=
 github.com/elastic/kbncontent v0.1.1 h1:X6ZXKPTW3MwFZPLMZcPAbpUIsKQhFImhBGKOd83+UFo=
 github.com/elastic/kbncontent v0.1.1/go.mod h1:kOPREITK9gSJsiw/WKe7QWSO+PRiZMyEFQCw+CMLAHI=
-github.com/elastic/package-spec/v3 v3.0.1 h1:bYEW9Kyrm4pQXnIX6IVmWgOVQV/bjIjUVN85+j5HsZE=
-github.com/elastic/package-spec/v3 v3.0.1/go.mod h1:proxSLyZsrgNOnWMqg01ROXcnU8b8DRa0OiY4T/dN90=
+github.com/elastic/package-spec/v3 v3.0.2 h1:5aVJlcaB5pUFDKZZyomCRsuqcXfpZT0baY/1vG7xUco=
+github.com/elastic/package-spec/v3 v3.0.2/go.mod h1:proxSLyZsrgNOnWMqg01ROXcnU8b8DRa0OiY4T/dN90=
 github.com/elazarl/goproxy v0.0.0-20230808193330-2592e75ae04a h1:mATvB/9r/3gvcejNsXKSkQ6lcIaNec2nyfOdlTBR2lU=
 github.com/elazarl/goproxy v0.0.0-20230808193330-2592e75ae04a/go.mod h1:Ro8st/ElPeALwNFlcTpWmkr6IoMFfkjXAvTHpevnDsM=
 github.com/emicklei/go-restful/v3 v3.10.1 h1:rc42Y5YTp7Am7CS630D7JmhRjq4UlEUuEKfrDac4bSQ=

@@ -16,7 +16,7 @@ require (
 	github.com/elastic/go-licenser v0.4.1
 	github.com/elastic/go-resource v0.1.1
 	github.com/elastic/go-ucfg v0.8.6
-	github.com/elastic/package-spec/v3 v3.0.1
+	github.com/elastic/package-spec/v3 v3.0.2
 	github.com/fatih/color v1.16.0
 	github.com/go-git/go-billy/v5 v5.5.0
 	github.com/go-git/go-git/v5 v5.10.1
