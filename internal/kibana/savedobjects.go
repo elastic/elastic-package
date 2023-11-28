@@ -223,7 +223,10 @@ func (c *Client) ImportSavedObjects(importRequest ImportSavedObjectsRequest) (*I
 			return nil, fmt.Errorf("failed to encode object as json: %w", err)
 		}
 	}
-	multipartWriter.Close()
+	err = multipartWriter.Close()
+	if err != nil {
+		return nil, fmt.Errorf("failed to finalize multipart message: %w", err)
+	}
 
 	path := SavedObjectsAPI + "/_import"
 	request, err := c.newRequest(http.MethodPost, path, &body)
