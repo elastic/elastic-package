@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"slices"
 
 	"github.com/elastic/elastic-package/internal/elasticsearch"
@@ -77,6 +78,10 @@ func getIndexTemplatesForPackage(ctx context.Context, api *elasticsearch.API, pa
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode == http.StatusNotFound {
+		// Some packages don't have index templates.
+		return nil, nil
+	}
 	if resp.IsError() {
 		return nil, fmt.Errorf("failed to get index templates: %s", resp.String())
 	}

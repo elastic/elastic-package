@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"slices"
 
 	"github.com/elastic/elastic-package/internal/elasticsearch"
@@ -71,6 +72,10 @@ func getIngestPipelineByID(ctx context.Context, api *elasticsearch.API, id strin
 	}
 	defer resp.Body.Close()
 
+	// Ingest templates referenced by other templates may not exist.
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, nil
+	}
 	if resp.IsError() {
 		return nil, fmt.Errorf("failed to get ingest pipeline %s: %s", id, resp.String())
 	}

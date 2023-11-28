@@ -89,13 +89,22 @@ type Client struct {
 
 // NewClient method creates new instance of the Elasticsearch client.
 func NewClient(customOptions ...ClientOption) (*Client, error) {
+	config, err := NewConfig(customOptions...)
+	if err != nil {
+		return nil, err
+	}
+
+	return NewClientWithConfig(config)
+}
+
+func NewConfig(customOptions ...ClientOption) (elasticsearch.Config, error) {
 	options := clientOptions{}
 	for _, option := range customOptions {
 		option(&options)
 	}
 
 	if options.address == "" {
-		return nil, ErrUndefinedAddress
+		return elasticsearch.Config{}, ErrUndefinedAddress
 	}
 
 	config := elasticsearch.Config{
@@ -110,13 +119,17 @@ func NewClient(customOptions ...ClientOption) (*Client, error) {
 	} else if options.certificateAuthority != "" {
 		rootCAs, err := certs.SystemPoolWithCACertificate(options.certificateAuthority)
 		if err != nil {
-			return nil, fmt.Errorf("reading CA certificate: %w", err)
+			return config, fmt.Errorf("reading CA certificate: %w", err)
 		}
 		config.Transport = &http.Transport{
 			TLSClientConfig: &tls.Config{RootCAs: rootCAs},
 		}
 	}
 
+	return config, nil
+}
+
+func NewClientWithConfig(config elasticsearch.Config) (*Client, error) {
 	client, err := elasticsearch.NewClient(config)
 	if err != nil {
 		return nil, fmt.Errorf("can't create instance: %w", err)

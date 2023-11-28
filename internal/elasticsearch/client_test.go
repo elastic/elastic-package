@@ -56,21 +56,25 @@ func TestClientWithTLS(t *testing.T) {
 
 func TestClusterHealth(t *testing.T) {
 	cases := []struct {
-		RecordDir string
-		Expected  string
+		Record   string
+		Expected string
 	}{
 		{
-			RecordDir: "./testdata/elasticsearch-8-5-healthy",
+			// To reproduce the scenario, just start the stack with 8.5 version.
+			Record: "./testdata/elasticsearch-8-5-healthy",
 		},
 		{
-			RecordDir: "./testdata/elasticsearch-8-5-red-out-of-disk",
-			Expected:  "cluster in unhealthy state: 33 indices reside on nodes that have run or are likely to run out of disk space, this can temporarily disable writing on these indices.",
+			// To reproduce the scenario, start the stack with 8.5 version and
+			// limited disk space. If difficult to reproduce, manually modify
+			// the recording using info from previous changesets.
+			Record:   "./testdata/elasticsearch-8-5-red-out-of-disk",
+			Expected: "cluster in unhealthy state: 33 indices reside on nodes that have run or are likely to run out of disk space, this can temporarily disable writing on these indices.",
 		},
 	}
 
 	for _, c := range cases {
-		t.Run(c.RecordDir, func(t *testing.T) {
-			client := test.NewClient(t, c.RecordDir)
+		t.Run(c.Record, func(t *testing.T) {
+			client := test.NewClient(t, c.Record)
 
 			err := client.CheckHealth(context.Background())
 			if c.Expected != "" {

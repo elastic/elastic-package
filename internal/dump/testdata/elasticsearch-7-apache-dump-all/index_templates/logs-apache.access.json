@@ -137,7 +137,8 @@
                     "properties": {
                       "name": {
                         "ignore_above": 1024,
-                        "type": "keyword"
+                        "type": "keyword",
+                        "fields": {}
                       }
                     }
                   }
@@ -267,7 +268,8 @@
             "properties": {
               "path": {
                 "ignore_above": 1024,
-                "type": "keyword"
+                "type": "keyword",
+                "fields": {}
               }
             }
           },
@@ -468,7 +470,8 @@
             "properties": {
               "name": {
                 "ignore_above": 1024,
-                "type": "keyword"
+                "type": "keyword",
+                "fields": {}
               }
             }
           },
@@ -476,13 +479,15 @@
             "properties": {
               "original": {
                 "ignore_above": 1024,
-                "type": "keyword"
+                "type": "keyword",
+                "fields": {}
               },
               "os": {
                 "properties": {
                   "name": {
                     "ignore_above": 1024,
-                    "type": "keyword"
+                    "type": "keyword",
+                    "fields": {}
                   },
                   "version": {
                     "ignore_above": 1024,
@@ -490,7 +495,8 @@
                   },
                   "full": {
                     "ignore_above": 1024,
-                    "type": "keyword"
+                    "type": "keyword",
+                    "fields": {}
                   }
                 }
               },

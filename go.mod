@@ -34,6 +34,7 @@ require (
 	github.com/spf13/cobra v1.8.0
 	github.com/stretchr/testify v1.8.4
 	golang.org/x/tools v0.15.0
+	gopkg.in/dnaeon/go-vcr.v3 v3.1.2
 	gopkg.in/yaml.v3 v3.0.1
 	gotest.tools/gotestsum v1.11.0
 	helm.sh/helm/v3 v3.13.2
