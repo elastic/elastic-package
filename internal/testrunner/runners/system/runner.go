@@ -210,6 +210,13 @@ func (r *runner) run() (results []testrunner.TestResult, err error) {
 		logger.Debug("Running system tests for package")
 	}
 
+	if r.options.API == nil {
+		return result.WithError(errors.New("missing Elasticsearch client"))
+	}
+	if r.options.KibanaClient == nil {
+		return result.WithError(errors.New("missing Kibana client"))
+	}
+
 	stackVersion, err := r.options.KibanaClient.Version()
 	if err != nil {
 		return result.WithError(fmt.Errorf("cannot request Kibana version: %w", err))

@@ -112,6 +112,10 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		return nil, fmt.Errorf("listing test case definitions failed: %w", err)
 	}
 
+	if r.options.API == nil {
+		return nil, errors.New("missing Elasticsearch client")
+	}
+
 	dataStreamPath, found, err := packages.FindDataStreamRootForPath(r.options.TestFolder.Path)
 	if err != nil {
 		return nil, fmt.Errorf("locating data_stream root failed: %w", err)

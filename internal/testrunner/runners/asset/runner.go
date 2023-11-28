@@ -5,6 +5,7 @@
 package asset
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -63,6 +64,10 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		TestType: TestType,
 		Package:  r.testFolder.Package,
 	})
+
+	if r.kibanaClient == nil {
+		return result.WithError(errors.New("missing Kibana client"))
+	}
 
 	testConfig, err := newConfig(r.testFolder.Path)
 	if err != nil {
