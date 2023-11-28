@@ -30,18 +30,33 @@ func TestDumpInstalledObjects(t *testing.T) {
 	// - Configure environment variables for this stack (eval "$(elastic-package stack shellinit)").
 	// - Run tests.
 	// - Check that recorded files make sense and commit them.
+	// To update a suite:
+	// - Reproduce the scenario as described in the comments.
+	// - Remove the files that you want to update.
+	// - Follow the same steps to create a new suite.
+	// - Check if the changes are the expected ones and commit them.
 	suites := []*installedObjectsDumpSuite{
 		&installedObjectsDumpSuite{
+			// To reproduce the scenario:
+			// - Start the stack with version 7.16.2.
+			// - Install apache package (1.3.4).
 			PackageName: "apache",
 			Record:      "./testdata/elasticsearch-7-mock-dump-apache",
 			DumpDir:     "./testdata/elasticsearch-7-apache-dump-all",
 		},
 		&installedObjectsDumpSuite{
+			// To reproduce the scenario:
+			// - Start the stack with version 8.1.0.
+			// - Install apache package (1.3.6).
 			PackageName: "apache",
 			Record:      "./testdata/elasticsearch-8-mock-dump-apache",
 			DumpDir:     "./testdata/elasticsearch-8-apache-dump-all",
 		},
 		&installedObjectsDumpSuite{
+			// To reproduce the scenario:
+			// - Start the stack with version 8.9.0.
+			// - Install dga package (2.1.0).
+			// - Manually replace the `compressed_definition` fields with "//REDACTED//".
 			PackageName: "dga",
 			Record:      "./testdata/elasticsearch-8-mock-dump-dga",
 			DumpDir:     "./testdata/elasticsearch-8-dga-dump-all",

@@ -19,6 +19,7 @@ func TestSetManagedSavedObject(t *testing.T) {
 	// Recorded requests are not going to match the boundaries of
 	// multipart fields in requests, but we can ignore it by now as
 	// we are mostly interested on the bodies of the responses.
+	// To update this test just remove the record file and run the test.
 	client := kibanatest.NewClient(t, "testdata/kibana-8-mock-set-managed")
 
 	id := preloadDashboard(t, client)

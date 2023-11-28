@@ -24,8 +24,16 @@ func TestDumpAgentPolicies(t *testing.T) {
 	// - Configure environment variables for this stack (eval "$(elastic-package stack shellinit)").
 	// - Run tests.
 	// - Check that recorded files make sense and commit them.
+	// To update the suite:
+	// - Reproduce the scenario as described in the comments.
+	// - Remove the files that you want to update.
+	// - Follow the same steps to create a new suite.
+	// - Check if the changes are the expected ones and commit them.
 	suites := []*agentPoliciesDumpSuite{
 		&agentPoliciesDumpSuite{
+			// To reproduce this scenario:
+			// - Start stack with version 7.17.0.
+			// - Install nginx package.
 			AgentPolicy:        "499b5aa7-d214-5b5d-838b-3cd76469844e",
 			PackageName:        "nginx",
 			Record:             "./testdata/fleet-7-mock-dump-all",
@@ -34,6 +42,9 @@ func TestDumpAgentPolicies(t *testing.T) {
 			DumpDirAgentPolicy: "./testdata/fleet-7-dump/agentpolicy",
 		},
 		&agentPoliciesDumpSuite{
+			// To reproduce this scenario:
+			// - Start stack with version 8.0.0.
+			// - Install nginx package.
 			AgentPolicy:        "fleet-server-policy",
 			PackageName:        "nginx",
 			Record:             "./testdata/fleet-8-mock-dump-all",
