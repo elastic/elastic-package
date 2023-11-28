@@ -20,10 +20,10 @@ import (
 // responses. If responses are not found, it forwards the query to the server started by
 // elastic-package stack, and records the response.
 // Responses are recorded in the directory indicated by serverDataDir.
-func NewClient(t *testing.T, serverDataDir string) *kibana.Client {
+func NewClient(t *testing.T, recordFileName string) *kibana.Client {
 	setupHTTPClient := func(client *http.Client) *http.Client {
 		rec, err := recorder.NewWithOptions(&recorder.Options{
-			CassetteName:       serverDataDir,
+			CassetteName:       recordFileName,
 			Mode:               recorder.ModeRecordOnce,
 			SkipRequestLatency: true,
 			RealTransport:      client.Transport,

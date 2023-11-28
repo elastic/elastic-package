@@ -19,7 +19,7 @@ import (
 // responses. If responses are not found, it forwards the query to the server started by
 // elastic-package stack, and records the response.
 // Responses are recorded in the directory indicated by serverDataDir.
-func NewClient(t *testing.T, serverDataDir string) *elasticsearch.Client {
+func NewClient(t *testing.T, recordFileName string) *elasticsearch.Client {
 	address := os.Getenv(stack.ElasticsearchHostEnv)
 	if address == "" {
 		address = "https://127.0.0.1:9200"
@@ -33,7 +33,7 @@ func NewClient(t *testing.T, serverDataDir string) *elasticsearch.Client {
 	require.NoError(t, err)
 
 	rec, err := recorder.NewWithOptions(&recorder.Options{
-		CassetteName:       serverDataDir,
+		CassetteName:       recordFileName,
 		Mode:               recorder.ModeRecordOnce,
 		SkipRequestLatency: true,
 		RealTransport:      config.Transport,
