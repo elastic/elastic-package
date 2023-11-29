@@ -299,7 +299,7 @@ _Context: package_
 
 Use this command to make dashboards editable.
 
-Pass a comma-separated list of dashboard ids to make managed dashboards editable in Kibana.
+Pass a comma-separated list of dashboard ids with -d or use the interactive prompt to make managed dashboards editable in Kibana.
 
 ### `elastic-package export`
 

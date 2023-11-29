@@ -20,7 +20,7 @@ const editLongDescription = `Use this command to edit assets relevant for the pa
 
 const editDashboardsLongDescription = `Use this command to make dashboards editable.
 
-Pass a comma-separated list of dashboard ids to make managed dashboards editable in Kibana.`
+Pass a comma-separated list of dashboard ids with -d or use the interactive prompt to make managed dashboards editable in Kibana.`
 
 func setupEditCommand() *cobraext.Command {
 	editDashboardsCmd := &cobra.Command{
