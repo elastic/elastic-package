@@ -20,7 +20,7 @@ const editLongDescription = `Use this command to edit assets relevant for the pa
 
 const editDashboardsLongDescription = `Use this command to make dashboards editable.
 
-This command re-imports the selected dashboards from Kibana after making them editable.`
+Pass a comma-separated list of dashboard ids to make managed dashboards editable in Kibana.`
 
 func setupEditCommand() *cobraext.Command {
 	editDashboardsCmd := &cobra.Command{
@@ -32,6 +32,7 @@ func setupEditCommand() *cobraext.Command {
 	}
 	editDashboardsCmd.Flags().StringSliceP(cobraext.DashboardIDsFlagName, "d", nil, cobraext.DashboardIDsFlagDescription)
 	editDashboardsCmd.Flags().Bool(cobraext.TLSSkipVerifyFlagName, false, cobraext.TLSSkipVerifyFlagDescription)
+	editDashboardsCmd.Flags().Bool(cobraext.AllowSnapshotFlagName, false, cobraext.AllowSnapshotDescription)
 
 	cmd := &cobra.Command{
 		Use:   "edit",
@@ -60,6 +61,11 @@ func editDashboardsCmd(cmd *cobra.Command, args []string) error {
 		opts = append(opts, kibana.TLSSkipVerify())
 	}
 
+	allowSnapshot, _ := cmd.Flags().GetBool(cobraext.AllowSnapshotFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.AllowSnapshotFlagName)
+	}
+
 	profile, err := cobraext.GetProfileFlag(cmd)
 	if err != nil {
 		return err
@@ -68,6 +74,19 @@ func editDashboardsCmd(cmd *cobra.Command, args []string) error {
 	kibanaClient, err := stack.NewKibanaClientFromProfile(profile, opts...)
 	if err != nil {
 		return fmt.Errorf("can't create Kibana client: %w", err)
+	}
+
+	kibanaVersion, err := kibanaClient.Version()
+	if err != nil {
+		return fmt.Errorf("can't get Kibana status information: %w", err)
+	}
+
+	if kibanaVersion.IsSnapshot() {
+		message := fmt.Sprintf("editing dashboards from a SNAPSHOT version of Kibana (%s) is discouraged. It could lead to invalid dashboards (for example if they use features that are reverted or modified before the final release)", kibanaVersion.Version())
+		if !allowSnapshot {
+			return fmt.Errorf("%s. --%s flag can be used to ignore this error", message, cobraext.AllowSnapshotFlagName)
+		}
+		fmt.Printf("Warning: %s\n", message)
 	}
 
 	if len(dashboardIDs) == 0 {
@@ -82,13 +101,17 @@ func editDashboardsCmd(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	kibanaHost := kibana.GetAddress(*kibanaClient)
+	urls := ""
 	for _, dashboardID := range dashboardIDs {
 		err = kibanaClient.SetManagedSavedObject("dashboard", dashboardID, false)
 		if err != nil {
 			return fmt.Errorf("failed to make dashboards editable: %w", err)
 		}
+		urls += fmt.Sprintf("\n%s/app/dashboards#/view/%s", kibanaHost, dashboardID)
 	}
 
 	cmd.Println("Done")
+	cmd.Println(fmt.Sprintf("Dashboards URLs:%s", urls))
 	return nil
 }

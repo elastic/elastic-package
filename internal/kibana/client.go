@@ -80,6 +80,11 @@ func NewClient(opts ...ClientOption) (*Client, error) {
 	return c, nil
 }
 
+// Get client host
+func GetAddress(c Client) string {
+	return c.host
+}
+
 // Address option sets the host to use to connect to Kibana.
 func Address(address string) ClientOption {
 	return func(c *Client) {
