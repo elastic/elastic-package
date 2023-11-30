@@ -815,10 +815,7 @@ func (r *runner) readCorpusData(corpusPath, destDir string) error {
 
 	existingCorpus, err := os.Open(corpusPath)
 	if err != nil {
-		if err != nil {
-			return fmt.Errorf("error while reading content for the existing rally corpus file: %w", err)
-		}
-
+		return fmt.Errorf("error while reading content for the existing rally corpus file: %w", err)
 	}
 
 	defer existingCorpus.Close()
