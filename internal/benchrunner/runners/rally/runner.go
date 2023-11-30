@@ -169,6 +169,7 @@ type runner struct {
 	removePackageHandler     func() error
 	wipeDataStreamHandler    func() error
 	clearCorporaHandler      func() error
+	clearTrackHandler        func() error
 }
 
 func NewRallyBenchmark(opts Options) benchrunner.Runner {
@@ -267,26 +268,8 @@ func (r *runner) setUp() error {
 	}
 	r.scenario = scenario
 
-	if len(r.options.PackageFromRegistry) > 0 {
-		packageData := strings.Split(r.options.PackageFromRegistry, "-")
-		if len(packageData) != 2 {
-			return fmt.Errorf("error installing package: package name and version from registry not valid (%s)", r.options.PackageFromRegistry)
-		}
-
-		packageName := packageData[0]
-		packageVersion := packageData[1]
-		err = r.installPackageFromRegistry(packageName, packageVersion)
-		if err != nil {
-			return fmt.Errorf("error installing package: %w", err)
-		}
-
-		r.scenario.Package = packageName
-		r.scenario.Version = packageVersion
-	} else {
-		err = r.installPackageFromPackageRoot()
-		if err != nil {
-			return fmt.Errorf("error installing package: %w", err)
-		}
+	if err = r.installPackage(); err != nil {
+		return fmt.Errorf("error installing package: %w", err)
 	}
 
 	if r.scenario.Corpora.Generator != nil && len(r.options.CorpusAtPath) == 0 {
@@ -421,19 +404,30 @@ func (r *runner) run() (report reporters.Reportable, err error) {
 	r.startMetricsColletion()
 	defer r.mcollector.stop()
 
+	var corpusDocCount uint64
 	// if there is a generator config, generate the data, unless a corpus path is set
 	if r.generator != nil && len(r.options.CorpusAtPath) == 0 {
 		logger.Debugf("generating corpus data to %s...", r.ctxt.Logs.Folder.Local)
-		if err := r.runGenerator(r.ctxt.Logs.Folder.Local); err != nil {
+		corpusDocCount, err = r.runGenerator(r.ctxt.Logs.Folder.Local)
+		if err != nil {
 			return nil, fmt.Errorf("can't generate benchmarks data corpus for data stream: %w", err)
 		}
 	}
 
 	if len(r.options.CorpusAtPath) > 0 {
 		logger.Debugf("reading corpus data from %s...", r.options.CorpusAtPath)
-		if err := r.readCorpusData(r.options.CorpusAtPath, r.ctxt.Logs.Folder.Local); err != nil {
-			return nil, fmt.Errorf("can't generate benchmarks data corpus for data stream: %w", err)
+		corpusDocCount, err = r.copyCorpusFile(r.options.CorpusAtPath, r.ctxt.Logs.Folder.Local)
+		if err != nil {
+			return nil, fmt.Errorf("can't read benchmarks data corpus for data stream: %w", err)
 		}
+	}
+
+	if corpusDocCount == 0 {
+		return nil, errors.New("can't find documents in the corpus for data stream")
+	}
+
+	if err := r.createRallyTrack(corpusDocCount, r.ctxt.Logs.Folder.Local); err != nil {
+		return nil, fmt.Errorf("can't create benchmarks data rally track for data stream: %w", err)
 	}
 
 	if r.options.DryRun {
@@ -456,6 +450,16 @@ func (r *runner) run() (report reporters.Reportable, err error) {
 	}
 
 	return createReport(r.options.BenchName, r.corpusFile, r.scenario, msum, rallyStats)
+}
+
+func (r *runner) installPackage() error {
+	if len(r.options.PackageVersion) > 0 {
+		r.scenario.Package = r.options.PackageName
+		r.scenario.Version = r.options.PackageVersion
+		return r.installPackageFromRegistry(r.options.PackageName, r.options.PackageVersion)
+	}
+
+	return r.installPackageFromPackageRoot()
 }
 
 func (r *runner) installPackageFromRegistry(packageName, packageVersion string) error {
@@ -672,15 +676,15 @@ func (r *runner) getGeneratorTemplate() ([]byte, error) {
 	return data, nil
 }
 
-func (r *runner) runGenerator(destDir string) error {
+func (r *runner) runGenerator(destDir string) (uint64, error) {
 	corpusFile, err := os.CreateTemp(destDir, "corpus-*")
 	if err != nil {
-		return fmt.Errorf("cannot not create rally corpus file: %w", err)
+		return 0, fmt.Errorf("cannot not create rally corpus file: %w", err)
 	}
 	defer corpusFile.Close()
 
 	if err := corpusFile.Chmod(os.ModePerm); err != nil {
-		return fmt.Errorf("cannot not set permission to rally corpus file: %w", err)
+		return 0, fmt.Errorf("cannot not set permission to rally corpus file: %w", err)
 	}
 
 	buf := bytes.NewBufferString("")
@@ -692,17 +696,17 @@ func (r *runner) runGenerator(destDir string) error {
 		}
 
 		if err != nil {
-			return fmt.Errorf("error while generating content for the rally corpus file: %w", err)
+			return 0, fmt.Errorf("error while generating content for the rally corpus file: %w", err)
 		}
 
 		// TODO: this should be taken care of by the corpus generator tool, once it will be done let's remove this
 		event := strings.Replace(buf.String(), "\n", "", -1)
 		if _, err = corpusFile.Write([]byte(event)); err != nil {
-			return fmt.Errorf("error while saving content to the rally corpus file: %w", err)
+			return 0, fmt.Errorf("error while saving content to the rally corpus file: %w", err)
 		}
 
 		if _, err = corpusFile.Write([]byte("\n")); err != nil {
-			return fmt.Errorf("error while saving newline to the rally corpus file: %w", err)
+			return 0, fmt.Errorf("error while saving newline to the rally corpus file: %w", err)
 		}
 
 		buf.Reset()
@@ -711,64 +715,13 @@ func (r *runner) runGenerator(destDir string) error {
 
 	r.corpusFile = corpusFile.Name()
 
-	trackFile, err := os.CreateTemp(destDir, "track-*.json")
-	if err != nil {
-		return fmt.Errorf("cannot not create rally track file: %w", err)
-	}
-	r.trackFile = trackFile.Name()
-
-	rallyTrackContent, err := generateRallyTrack(r.runtimeDataStream, r.indexTemplateBody, corpusFile, corpusDocsCount, r.isTSDB)
-	if err != nil {
-		return fmt.Errorf("cannot not generate rally track content: %w", err)
-	}
-	err = os.WriteFile(r.trackFile, rallyTrackContent, os.ModePerm)
-	if err != nil {
-		return fmt.Errorf("cannot not save rally track content to file: %w", err)
-	}
-	defer trackFile.Close()
-
-	reportFile, err := os.CreateTemp(destDir, "report-*.csv")
-	if err != nil {
-		return fmt.Errorf("cannot not save rally report file: %w", err)
-	}
-	defer reportFile.Close()
-
-	r.reportFile = reportFile.Name()
-
-	if r.options.RallyTrackOutputDir != "" {
-		r.persistRallyTrackHandler = func() error {
-			err := os.MkdirAll(r.options.RallyTrackOutputDir, os.ModeDir)
-			if err != nil {
-				return fmt.Errorf("cannot not create rally track output dir: %w", err)
-			}
-
-			persistedRallyTrack := filepath.Join(r.options.RallyTrackOutputDir, fmt.Sprintf("track-%s.json", r.runtimeDataStream))
-			err = sh.Copy(persistedRallyTrack, trackFile.Name())
-			if err != nil {
-				return fmt.Errorf("cannot not copy rally track to file in output dir: %w", err)
-			}
-
-			persistedCorpus := filepath.Join(r.options.RallyTrackOutputDir, filepath.Base(corpusFile.Name()))
-			err = sh.Copy(persistedCorpus, corpusFile.Name())
-			if err != nil {
-				err = fmt.Errorf("cannot not copy rally corpus to file in output dir: %w", err)
-				return errors.Join(os.Remove(persistedRallyTrack), err)
-			}
-
-			logger.Infof("rally track and corpus saved at: %s", r.options.RallyTrackOutputDir)
-			return nil
-		}
-	}
-
 	r.clearCorporaHandler = func() error {
 		return errors.Join(
 			os.Remove(r.corpusFile),
-			os.Remove(r.reportFile),
-			os.Remove(r.trackFile),
 		)
 	}
 
-	return r.generator.Close()
+	return corpusDocsCount, r.generator.Close()
 }
 
 func countLine(r io.Reader) (uint64, error) {
@@ -802,51 +755,14 @@ func countLine(r io.Reader) (uint64, error) {
 	return count, nil
 }
 
-func (r *runner) readCorpusData(corpusPath, destDir string) error {
-	corpusFile, err := os.CreateTemp(destDir, "corpus-*")
-	if err != nil {
-		return fmt.Errorf("cannot not create rally corpus file: %w", err)
-	}
-	defer corpusFile.Close()
-
-	if err := corpusFile.Chmod(os.ModePerm); err != nil {
-		return fmt.Errorf("cannot not set permission to rally corpus file: %w", err)
-	}
-
-	existingCorpus, err := os.Open(corpusPath)
-	if err != nil {
-		return fmt.Errorf("error while reading content for the existing rally corpus file: %w", err)
-	}
-
-	defer existingCorpus.Close()
-	corpusDocsCount, err := countLine(existingCorpus)
-	if err != nil {
-		return fmt.Errorf("error while counting docs for the existing rally corpus file: %w", err)
-	}
-
-	offset, err := existingCorpus.Seek(0, io.SeekStart)
-	if err != nil {
-		return fmt.Errorf("error while resetting content for the existing rally corpus file: %w", err)
-	}
-
-	if offset != 0 {
-		return errors.New("error while resetting content for the existing rally corpus file")
-	}
-
-	_, err = io.Copy(corpusFile, existingCorpus)
-	if err != nil {
-		return fmt.Errorf("error while coping content for the existing rally corpus file: %w", err)
-	}
-
-	r.corpusFile = corpusFile.Name()
-
+func (r *runner) createRallyTrack(corpusDocsCount uint64, destDir string) error {
 	trackFile, err := os.CreateTemp(destDir, "track-*.json")
 	if err != nil {
 		return fmt.Errorf("cannot not create rally track file: %w", err)
 	}
 	r.trackFile = trackFile.Name()
 
-	rallyTrackContent, err := generateRallyTrack(r.runtimeDataStream, r.indexTemplateBody, corpusFile, corpusDocsCount, r.isTSDB)
+	rallyTrackContent, err := generateRallyTrack(r.runtimeDataStream, r.indexTemplateBody, r.corpusFile, corpusDocsCount, r.isTSDB)
 	if err != nil {
 		return fmt.Errorf("cannot not generate rally track content: %w", err)
 	}
@@ -877,8 +793,8 @@ func (r *runner) readCorpusData(corpusPath, destDir string) error {
 				return fmt.Errorf("cannot not copy rally track to file in output dir: %w", err)
 			}
 
-			persistedCorpus := filepath.Join(r.options.RallyTrackOutputDir, filepath.Base(corpusFile.Name()))
-			err = sh.Copy(persistedCorpus, corpusFile.Name())
+			persistedCorpus := filepath.Join(r.options.RallyTrackOutputDir, filepath.Base(r.corpusFile))
+			err = sh.Copy(persistedCorpus, r.corpusFile)
 			if err != nil {
 				err = fmt.Errorf("cannot not copy rally corpus to file in output dir: %w", err)
 				return errors.Join(os.Remove(persistedRallyTrack), err)
@@ -889,15 +805,61 @@ func (r *runner) readCorpusData(corpusPath, destDir string) error {
 		}
 	}
 
-	r.clearCorporaHandler = func() error {
+	r.clearTrackHandler = func() error {
 		return errors.Join(
-			os.Remove(r.corpusFile),
-			os.Remove(r.reportFile),
 			os.Remove(r.trackFile),
+			os.Remove(r.reportFile),
 		)
 	}
 
 	return nil
+}
+
+func (r *runner) copyCorpusFile(corpusPath, destDir string) (uint64, error) {
+	corpusFile, err := os.CreateTemp(destDir, "corpus-*")
+	if err != nil {
+		return 0, fmt.Errorf("cannot not create rally corpus file: %w", err)
+	}
+	defer corpusFile.Close()
+
+	if err := corpusFile.Chmod(os.ModePerm); err != nil {
+		return 0, fmt.Errorf("cannot not set permission to rally corpus file: %w", err)
+	}
+
+	existingCorpus, err := os.Open(corpusPath)
+	if err != nil {
+		return 0, fmt.Errorf("error while reading content for the existing rally corpus file: %w", err)
+	}
+
+	defer existingCorpus.Close()
+	corpusDocsCount, err := countLine(existingCorpus)
+	if err != nil {
+		return 0, fmt.Errorf("error while counting docs for the existing rally corpus file: %w", err)
+	}
+
+	offset, err := existingCorpus.Seek(0, io.SeekStart)
+	if err != nil {
+		return 0, fmt.Errorf("error while resetting content for the existing rally corpus file: %w", err)
+	}
+
+	if offset != 0 {
+		return 0, errors.New("error while resetting content for the existing rally corpus file")
+	}
+
+	_, err = io.Copy(corpusFile, existingCorpus)
+	if err != nil {
+		return 0, fmt.Errorf("error while coping content for the existing rally corpus file: %w", err)
+	}
+
+	r.corpusFile = corpusFile.Name()
+
+	r.clearCorporaHandler = func() error {
+		return errors.Join(
+			os.Remove(r.corpusFile),
+		)
+	}
+
+	return corpusDocsCount, nil
 }
 
 func (r *runner) runRally() ([]rallyStat, error) {
@@ -1233,7 +1195,7 @@ func getDataStreamPath(packageRoot, dataStream string) string {
 	return filepath.Join(packageRoot, "data_stream", dataStream)
 }
 
-func generateRallyTrack(dataStream, indexTemplateBody string, corpusFile *os.File, corpusDocsCount uint64, isTSDB bool) ([]byte, error) {
+func generateRallyTrack(dataStream, indexTemplateBody, corpusFileName string, corpusDocsCount uint64, isTSDB bool) ([]byte, error) {
 	t := template.New("rallytrack")
 
 	templateToParse := rallyTrackTemplate
@@ -1245,6 +1207,12 @@ func generateRallyTrack(dataStream, indexTemplateBody string, corpusFile *os.Fil
 	if err != nil {
 		return nil, fmt.Errorf("error while parsing rally track template: %w", err)
 	}
+
+	corpusFile, err := os.Open(corpusFileName)
+	if err != nil {
+		return nil, fmt.Errorf("error while opening corpus file for rally track template: %w", err)
+	}
+	defer corpusFile.Close()
 
 	fi, err := corpusFile.Stat()
 	if err != nil {
@@ -1266,7 +1234,7 @@ func generateRallyTrack(dataStream, indexTemplateBody string, corpusFile *os.Fil
 	buf := new(bytes.Buffer)
 	err = parsedTpl.Execute(buf, templateData)
 	if err != nil {
-		return nil, fmt.Errorf("error on parsin on rally track template: %w", err)
+		return nil, fmt.Errorf("error on executing rally track template: %w", err)
 	}
 
 	return buf.Bytes(), nil

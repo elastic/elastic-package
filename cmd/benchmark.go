@@ -272,9 +272,14 @@ func rallyCommandAction(cmd *cobra.Command, args []string) error {
 		return cobraext.FlagParsingError(err, cobraext.BenchCorpusRallyPackageFromRegistryFlagName)
 	}
 
+	packageName, packageVersion, err := getPackageNameAndVersion(packageFromRegistry)
+	if err != nil {
+		return fmt.Errorf("getting package name and version failed: %w", err)
+	}
+
 	var packageRootPath string
 	var found bool
-	if len(packageFromRegistry) == 0 {
+	if len(packageName) == 0 {
 		packageRootPath, found, err = packages.FindPackageRoot()
 		if !found {
 			return errors.New("package root not found")
@@ -315,7 +320,8 @@ func rallyCommandAction(cmd *cobra.Command, args []string) error {
 		rally.WithProfile(profile),
 		rally.WithRallyTrackOutputDir(rallyTrackOutputDir),
 		rally.WithRallyDryRun(rallyDryRun),
-		rally.WithRallyPackageFromRegistry(packageFromRegistry),
+		rally.WithRallyPackageName(packageName),
+		rally.WithRallyPackageVersion(packageVersion),
 		rally.WithRallyCorpusAtPath(corpusAtPath),
 	}
 
@@ -361,6 +367,31 @@ func rallyCommandAction(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
+}
+
+func getPackageNameAndVersion(packageFromRegistry string) (string, string, error) {
+	packageFromRegistryReverse := make([]byte, 0, len(packageFromRegistry))
+	for i := len(packageFromRegistry) - 1; i > -1; i-- {
+		packageFromRegistryReverse = append(packageFromRegistryReverse, packageFromRegistry[i])
+	}
+
+	packageData := strings.SplitN(string(packageFromRegistryReverse), "-", 2)
+
+	packageName := make([]byte, 0, len(packageData[1]))
+	for i := len(packageData[1]) - 1; i > -1; i-- {
+		packageName = append(packageName, packageData[1][i])
+	}
+
+	packageVersion := make([]byte, 0, len(packageData[0]))
+	for i := len(packageData[0]) - 1; i > -1; i-- {
+		packageVersion = append(packageVersion, packageData[0][i])
+	}
+
+	if len(packageName) > 0 && len(packageVersion) == 0 {
+		return "", "", fmt.Errorf("package name and version from registry not valid (%s)", packageFromRegistry)
+	}
+
+	return string(packageName), string(packageVersion), nil
 }
 
 func getSystemCommand() *cobra.Command {

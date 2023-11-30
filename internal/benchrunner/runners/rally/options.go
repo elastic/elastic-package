@@ -26,7 +26,8 @@ type Options struct {
 	Profile             *profile.Profile
 	RallyTrackOutputDir string
 	DryRun              bool
-	PackageFromRegistry string
+	PackageName         string
+	PackageVersion      string
 	CorpusAtPath        string
 }
 
@@ -105,9 +106,15 @@ func WithRallyDryRun(d bool) OptionFunc {
 	}
 }
 
-func WithRallyPackageFromRegistry(p string) OptionFunc {
+func WithRallyPackageName(n string) OptionFunc {
 	return func(opts *Options) {
-		opts.PackageFromRegistry = p
+		opts.PackageName = n
+	}
+}
+
+func WithRallyPackageVersion(v string) OptionFunc {
+	return func(opts *Options) {
+		opts.PackageVersion = v
 	}
 }
 
