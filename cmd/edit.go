@@ -103,20 +103,17 @@ func editDashboardsCmd(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	var updatedDashboardIDs []string
-	var errMsgs []string
+	updatedDashboardIDs := make([]string, 0, len(dashboardIDs))
+	failedDashboardUpdates := make(map[string]string, len(dashboardIDs))
 	for _, dashboardID := range dashboardIDs {
 		err = kibanaClient.SetManagedSavedObject("dashboard", dashboardID, false)
 		if err != nil {
-			errMsgs = append(errMsgs, err.Error())
+			failedDashboardUpdates[dashboardID] = err.Error()
 		} else {
 			updatedDashboardIDs = append(updatedDashboardIDs, dashboardID)
 		}
 	}
 
-	if len(errMsgs) > 0 {
-		cmd.Println(fmt.Sprintf("\nFailed to make the following dashboards editable in Kibana:\n%s", strings.Join(errMsgs, "\n")))
-	}
 	if len(updatedDashboardIDs) > 0 {
 		urls, err := dashboardURLs(*kibanaClient, updatedDashboardIDs)
 		if err != nil {
@@ -126,6 +123,18 @@ func editDashboardsCmd(cmd *cobra.Command, args []string) error {
 			cmd.Println(fmt.Sprintf("\nThe following dashboards are now editable in Kibana:%s", urls))
 		}
 	}
+
+	if len(failedDashboardUpdates) > 0 {
+		errMsgs := make([]string, 0, len(failedDashboardUpdates))
+		for _, value := range failedDashboardUpdates {
+			errMsgs = append(errMsgs, value)
+		}
+		formattedErrMsgs := strings.Join(errMsgs, "\n")
+		fmt.Println("")
+		return fmt.Errorf("failed to make one or more dashboards editable: %s", formattedErrMsgs)
+	}
+
+	fmt.Println("\nDone")
 	return nil
 }
 
