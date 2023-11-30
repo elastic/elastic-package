@@ -287,7 +287,7 @@ If the `rally-track-output-dir` flag is used alongside the `use-corpus-at-path` 
 If the `package-from-registry` flag is used, the package installed in Kibana and its assets referenced in the track will be loaded from registry. The format of the flag value is `%packageName%-%packageVersion%`.
 You still need to run the command from the root of the local package in order to read the benchmark scenario (`benchmark` flag).
 
-## Running benchmark with the same corpus against different versions of the package
+## Running benchmark with the same corpus against different versions of a package
 If you use both the `use-corpus-at-path` flag and the `package-from-registry` flag multiple times, you can ran benchmark with the same corpus against different versions of the same package, just updating the package version in the relevant flag between executions.  
 If you add the `rally-track-output-dir` flag and the `dry-run` flag, you can persist multiple rally tracks with the same corpus for different package versions, using different values for the `rally-track-output-dir` flag. 
 
