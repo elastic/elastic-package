@@ -274,7 +274,7 @@ func rallyCommandAction(cmd *cobra.Command, args []string) error {
 
 	packageName, packageVersion, err := getPackageNameAndVersion(packageFromRegistry)
 	if err != nil {
-		return fmt.Errorf("getting package name and version failed: %w", err)
+		return fmt.Errorf("getting package name and version failed, expected format: %packageName%-%packgeVersion%: %w", err)
 	}
 
 	var packageRootPath string
