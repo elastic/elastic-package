@@ -5,6 +5,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 	"strings"
@@ -104,11 +105,11 @@ func editDashboardsCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	updatedDashboardIDs := make([]string, 0, len(dashboardIDs))
-	failedDashboardUpdates := make(map[string]string, len(dashboardIDs))
+	failedDashboardUpdates := make(map[string]error, len(dashboardIDs))
 	for _, dashboardID := range dashboardIDs {
 		err = kibanaClient.SetManagedSavedObject("dashboard", dashboardID, false)
 		if err != nil {
-			failedDashboardUpdates[dashboardID] = err.Error()
+			failedDashboardUpdates[dashboardID] = err
 		} else {
 			updatedDashboardIDs = append(updatedDashboardIDs, dashboardID)
 		}
@@ -125,13 +126,12 @@ func editDashboardsCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	if len(failedDashboardUpdates) > 0 {
-		errMsgs := make([]string, 0, len(failedDashboardUpdates))
-		for _, value := range failedDashboardUpdates {
-			errMsgs = append(errMsgs, value)
+		var combinedErr error
+		for _, err := range failedDashboardUpdates {
+			combinedErr = errors.Join(combinedErr, err)
 		}
-		formattedErrMsgs := strings.Join(errMsgs, "\n")
 		fmt.Println("")
-		return fmt.Errorf("failed to make one or more dashboards editable: %s", formattedErrMsgs)
+		return fmt.Errorf("failed to make one or more dashboards editable: %s", combinedErr.Error())
 	}
 
 	fmt.Println("\nDone")
