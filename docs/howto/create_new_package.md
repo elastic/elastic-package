@@ -41,3 +41,7 @@ _Enter the package directory. For nginx integration, it's: [packages/nginx/](htt
 3. Verify the package:
     1. Enter the package directory: `cd <new_package>`.
     2. Check package correctness: `elastic-package check`.
+
+### Edit package dashboards
+
+Once a package has been created, assets may need to be updated, e.g. make use of recently added features. Dashboards can be made editable by using the [`elastic-package edit dashboards` command](https://github.com/elastic/elastic-package/blob/main/docs/howto/make_dashboards_editable.md).
