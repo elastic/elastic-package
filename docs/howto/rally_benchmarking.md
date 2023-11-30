@@ -279,3 +279,15 @@ esrally --target-hosts='{"defauelt":["%es_cluster_host:es_cluster_port%"]}' --tr
 
 Please refer to [esrally CLI reference](https://esrally.readthedocs.io/en/stable/command_line_reference.html) for more details.
 
+## Replaying an existing corpus
+If the `use-corpus-at-path` flag is used, the corpus will not be generated but rather loaded from the file passed as value of the flag.
+If the `rally-track-output-dir` flag is used alongside the `use-corpus-at-path` flag, the persisted rally track will reference a copy of the existing corpus saved in the directory passed as value of the `rally-track-output-dir` flag.
+
+## Loading a package from registry
+If the `package-from-registry` flag is used, the package installed in Kibana and its assets referenced in the track will be loaded from registry. The format of the flag value is `%packageName%-%packageVersion%`.
+You still need to run the command from the root of the local package in order to read the benchmark scenario (`benchmark` flag).
+
+## Running benchmark with the same corpus against different versions of the package
+If you use both the `use-corpus-at-path` flag and the `package-from-registry` flag multiple times, you can ran benchmark with the same corpus against different versions of the same package, just updating the package version in the relevant flag between executions.  
+
+

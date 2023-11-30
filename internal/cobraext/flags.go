@@ -57,7 +57,13 @@ const (
 	BenchCorpusRallyTrackOutputDirFlagDescription = "output dir of the rally track: if present the command will save the generated rally track"
 
 	BenchCorpusRallyDryRunFlagName        = "dry-run"
-	BenchCorpusRallyDryRunFlagDescription = "Do not run rally but just generate the rally track"
+	BenchCorpusRallyDryRunFlagDescription = "do not run rally but just generate the rally track"
+
+	BenchCorpusRallyPackageFromRegistryFlagName        = "package-from-registry"
+	BenchCorpusRallyPackageFromRegistryFlagDescription = "fetch package from registry instead of local directory"
+
+	BenchCorpusRallyUseCorpusAtPathFlagName        = "use-corpus-at-path"
+	BenchCorpusRallyUseCorpusAtPathFlagDescription = "path of the corpus to use for the benchmark: if present no new corpus will be generated"
 
 	BuildSkipValidationFlagName        = "skip-validation"
 	BuildSkipValidationFlagDescription = "skip validation of the built package, use only if all validation issues have been acknowledged"

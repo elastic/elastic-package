@@ -228,6 +228,8 @@ func getRallyCommand() *cobra.Command {
 	cmd.Flags().String(cobraext.VariantFlagName, "", cobraext.VariantFlagDescription)
 	cmd.Flags().StringP(cobraext.BenchCorpusRallyTrackOutputDirFlagName, "", "", cobraext.BenchCorpusRallyTrackOutputDirFlagDescription)
 	cmd.Flags().BoolP(cobraext.BenchCorpusRallyDryRunFlagName, "", false, cobraext.BenchCorpusRallyDryRunFlagDescription)
+	cmd.Flags().StringP(cobraext.BenchCorpusRallyUseCorpusAtPathFlagName, "", "", cobraext.BenchCorpusRallyUseCorpusAtPathFlagDescription)
+	cmd.Flags().StringP(cobraext.BenchCorpusRallyPackageFromRegistryFlagName, "", "", cobraext.BenchCorpusRallyPackageFromRegistryFlagDescription)
 
 	return cmd
 }
@@ -260,12 +262,26 @@ func rallyCommandAction(cmd *cobra.Command, args []string) error {
 		return cobraext.FlagParsingError(err, cobraext.BenchCorpusRallyDryRunFlagName)
 	}
 
-	packageRootPath, found, err := packages.FindPackageRoot()
-	if !found {
-		return errors.New("package root not found")
-	}
+	corpusAtPath, err := cmd.Flags().GetString(cobraext.BenchCorpusRallyUseCorpusAtPathFlagName)
 	if err != nil {
-		return fmt.Errorf("locating package root failed: %w", err)
+		return cobraext.FlagParsingError(err, cobraext.BenchCorpusRallyUseCorpusAtPathFlagName)
+	}
+
+	packageFromRegistry, err := cmd.Flags().GetString(cobraext.BenchCorpusRallyPackageFromRegistryFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.BenchCorpusRallyPackageFromRegistryFlagName)
+	}
+
+	var packageRootPath string
+	var found bool
+	if len(packageFromRegistry) == 0 {
+		packageRootPath, found, err = packages.FindPackageRoot()
+		if !found {
+			return errors.New("package root not found")
+		}
+		if err != nil {
+			return fmt.Errorf("locating package root failed: %w", err)
+		}
 	}
 
 	profile, err := cobraext.GetProfileFlag(cmd)
@@ -299,6 +315,8 @@ func rallyCommandAction(cmd *cobra.Command, args []string) error {
 		rally.WithProfile(profile),
 		rally.WithRallyTrackOutputDir(rallyTrackOutputDir),
 		rally.WithRallyDryRun(rallyDryRun),
+		rally.WithRallyPackageFromRegistry(packageFromRegistry),
+		rally.WithRallyCorpusAtPath(corpusAtPath),
 	}
 
 	esMetricsClient, err := initializeESMetricsClient(cmd.Context())
