@@ -138,6 +138,7 @@ func dashboardURLs(kibanaClient kibana.Client, dashboardIDs []string) (string, e
 	var urls strings.Builder
 	for _, dashboardID := range dashboardIDs {
 		dashboardURL := *kibanaURL
+		dashboardURL.Path = "app/dashboards"
 		dashboardURL.Fragment = "/view/" + dashboardID
 		fmt.Fprintf(&urls, "\n%s", dashboardURL.String())
 	}
