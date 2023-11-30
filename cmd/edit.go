@@ -121,7 +121,7 @@ func editDashboardsCmd(cmd *cobra.Command, args []string) error {
 			cmd.Println(fmt.Sprintf("\nFailed to retrieve dashboard URLS: %s", err.Error()))
 			cmd.Println(fmt.Sprintf("The following dashboards are now editable in Kibana:\n%s", strings.Join(updatedDashboardIDs, "\n")))
 		} else {
-			cmd.Println(fmt.Sprintf("\nThe following dashboards are now editable in Kibana:%s", urls))
+			cmd.Println(fmt.Sprintf("\nThe following dashboards are now editable in Kibana:%s\n\nRemember to export modified dashboards with elastic-package export dashboards", urls))
 		}
 	}
 

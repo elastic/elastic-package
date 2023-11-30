@@ -6,7 +6,9 @@ As of 8.11, managed assets, including dashboards, are read-only in Kibana. This 
 
 ## Making a dashboard editable
 
-Dashboards can be made editable in Kibana by using the `elastic-package edit dashboards` command. This command can eiter be run interactively, allowing manual selection of dashboards, or be passed a comma-separated list of dashboard ids.
+Dashboards can be made editable in Kibana by using the `elastic-package edit dashboards` command. This command can either be run interactively, allowing manual selection of dashboards, or be passed a comma-separated list of dashboard ids.
+
+NB: after modifying dashboards, these need to be exported using `elastic-package export dashboards`.
 
 ### Using the interactive dashboard selection prompt
 
