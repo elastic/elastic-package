@@ -60,7 +60,7 @@ const (
 	BenchCorpusRallyDryRunFlagDescription = "do not run rally but just generate the rally track"
 
 	BenchCorpusRallyPackageFromRegistryFlagName        = "package-from-registry"
-	BenchCorpusRallyPackageFromRegistryFlagDescription = "fetch package from registry instead of local directory, expected format: %packageName%-%packgeVersion%"
+	BenchCorpusRallyPackageFromRegistryFlagDescription = "fetch package from registry instead of local directory, expected format: <package>-<version>"
 
 	BenchCorpusRallyUseCorpusAtPathFlagName        = "use-corpus-at-path"
 	BenchCorpusRallyUseCorpusAtPathFlagDescription = "path of the corpus to use for the benchmark: if present no new corpus will be generated"
