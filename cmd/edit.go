@@ -6,6 +6,8 @@ package cmd
 
 import (
 	"fmt"
+	"net/url"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -101,17 +103,43 @@ func editDashboardsCmd(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	kibanaHost := kibana.GetAddress(*kibanaClient)
-	urls := ""
+	var updatedDashboardIDs []string
+	var errMsgs []string
 	for _, dashboardID := range dashboardIDs {
 		err = kibanaClient.SetManagedSavedObject("dashboard", dashboardID, false)
 		if err != nil {
-			return fmt.Errorf("failed to make dashboards editable: %w", err)
+			errMsgs = append(errMsgs, err.Error())
+		} else {
+			updatedDashboardIDs = append(updatedDashboardIDs, dashboardID)
 		}
-		urls += fmt.Sprintf("\n%s/app/dashboards#/view/%s", kibanaHost, dashboardID)
 	}
 
-	cmd.Println("Done")
-	cmd.Println(fmt.Sprintf("Dashboards URLs:%s", urls))
+	if len(errMsgs) > 0 {
+		cmd.Println(fmt.Sprintf("\nFailed to make the following dashboards editable in Kibana:\n%s", strings.Join(errMsgs, "\n")))
+	}
+	if len(updatedDashboardIDs) > 0 {
+		urls, err := dashboardURLs(*kibanaClient, updatedDashboardIDs)
+		if err != nil {
+			cmd.Println(fmt.Sprintf("\nFailed to retrieve dashboard URLS: %s", err.Error()))
+			cmd.Println(fmt.Sprintf("The following dashboards are now editable in Kibana:\n%s", strings.Join(updatedDashboardIDs, "\n")))
+		} else {
+			cmd.Println(fmt.Sprintf("\nThe following dashboards are now editable in Kibana:%s", urls))
+		}
+	}
 	return nil
+}
+
+func dashboardURLs(kibanaClient kibana.Client, dashboardIDs []string) (string, error) {
+	kibanaHost := kibanaClient.Address()
+	kibanaURL, err := url.Parse(kibanaHost)
+	if err != nil {
+		return "", fmt.Errorf("failed to retrieve Kibana URL: %w", err)
+	}
+	var urls strings.Builder
+	for _, dashboardID := range dashboardIDs {
+		dashboardURL := *kibanaURL
+		dashboardURL.Fragment = "/view/" + dashboardID
+		fmt.Fprintf(&urls, "\n%s", dashboardURL.String())
+	}
+	return urls.String(), nil
 }

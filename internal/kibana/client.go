@@ -81,7 +81,7 @@ func NewClient(opts ...ClientOption) (*Client, error) {
 }
 
 // Get client host
-func GetAddress(c Client) string {
+func (c *Client) Address() string {
 	return c.host
 }
 
