@@ -320,8 +320,7 @@ func rallyCommandAction(cmd *cobra.Command, args []string) error {
 		rally.WithProfile(profile),
 		rally.WithRallyTrackOutputDir(rallyTrackOutputDir),
 		rally.WithRallyDryRun(rallyDryRun),
-		rally.WithRallyPackageName(packageName),
-		rally.WithRallyPackageVersion(packageVersion),
+		rally.WithRallyPackageFromRegistry(packageName, packageVersion),
 		rally.WithRallyCorpusAtPath(corpusAtPath),
 	}
 
@@ -370,28 +369,20 @@ func rallyCommandAction(cmd *cobra.Command, args []string) error {
 }
 
 func getPackageNameAndVersion(packageFromRegistry string) (string, string, error) {
-	packageFromRegistryReverse := make([]byte, 0, len(packageFromRegistry))
-	for i := len(packageFromRegistry) - 1; i > -1; i-- {
-		packageFromRegistryReverse = append(packageFromRegistryReverse, packageFromRegistry[i])
+	packageData := strings.SplitN(packageFromRegistry, "-", 2)
+
+	if len(packageData) != 2 {
+		return "", "", fmt.Errorf("package name and version from registry not valid (%s)", packageFromRegistry)
 	}
 
-	packageData := strings.SplitN(string(packageFromRegistryReverse), "-", 2)
-
-	packageName := make([]byte, 0, len(packageData[1]))
-	for i := len(packageData[1]) - 1; i > -1; i-- {
-		packageName = append(packageName, packageData[1][i])
-	}
-
-	packageVersion := make([]byte, 0, len(packageData[0]))
-	for i := len(packageData[0]) - 1; i > -1; i-- {
-		packageVersion = append(packageVersion, packageData[0][i])
-	}
+	packageName := packageData[0]
+	packageVersion := packageData[1]
 
 	if len(packageName) > 0 && len(packageVersion) == 0 {
 		return "", "", fmt.Errorf("package name and version from registry not valid (%s)", packageFromRegistry)
 	}
 
-	return string(packageName), string(packageVersion), nil
+	return packageName, packageVersion, nil
 }
 
 func getSystemCommand() *cobra.Command {

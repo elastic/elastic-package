@@ -106,14 +106,9 @@ func WithRallyDryRun(d bool) OptionFunc {
 	}
 }
 
-func WithRallyPackageName(n string) OptionFunc {
+func WithRallyPackageFromRegistry(n, v string) OptionFunc {
 	return func(opts *Options) {
 		opts.PackageName = n
-	}
-}
-
-func WithRallyPackageVersion(v string) OptionFunc {
-	return func(opts *Options) {
 		opts.PackageVersion = v
 	}
 }
