@@ -73,7 +73,7 @@ func parsePackageRequirements(keyValuePairs []string) (*packageRequirements, err
 			}
 			pr.kibana.version = &withoutPrerelease
 		default:
-			return nil, fmt.Errorf("unknown package requirement: %s", value)
+			return nil, fmt.Errorf("unknown package requirement: %s", key)
 		}
 	}
 	return &pr, nil
