@@ -49,7 +49,8 @@ func (c *Client) requestStatus() (statusType, error) {
 		return status, fmt.Errorf("could not reach status endpoint: %w", err)
 	}
 
-	if statusCode != http.StatusOK {
+	// Kibana can respond with 503 when it is unavailable, but its status response is valid.
+	if statusCode != http.StatusOK && statusCode != http.StatusServiceUnavailable {
 		return status, fmt.Errorf("could not get status data; API status code = %d; response body = %s", statusCode, respBody)
 	}
 
