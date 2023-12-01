@@ -692,7 +692,7 @@ func (r *runner) runGenerator(destDir string) error {
 
 	if r.options.RallyTrackOutputDir != "" {
 		r.persistRallyTrackHandler = func() error {
-			err := os.MkdirAll(r.options.RallyTrackOutputDir, os.ModePerm)
+			err := os.MkdirAll(r.options.RallyTrackOutputDir, 0755)
 			if err != nil {
 				return fmt.Errorf("cannot not create rally track output dir: %w", err)
 			}
