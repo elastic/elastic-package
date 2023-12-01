@@ -287,6 +287,20 @@ Use this command to dump objects installed by Fleet as part of a package.
 
 Use this command as an exploratory tool to dump objects as they are installed by Fleet when installing a package. Dumped objects are stored in files as they are returned by APIs of the stack, without any processing.
 
+### `elastic-package edit`
+
+_Context: package_
+
+Use this command to edit assets relevant for the package, e.g. Kibana dashboards.
+
+### `elastic-package edit dashboards`
+
+_Context: package_
+
+Use this command to make dashboards editable.
+
+Pass a comma-separated list of dashboard ids with -d or use the interactive prompt to make managed dashboards editable in Kibana.
+
 ### `elastic-package export`
 
 _Context: package_
