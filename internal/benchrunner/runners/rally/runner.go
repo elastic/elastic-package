@@ -724,6 +724,7 @@ func (r *runner) runGenerator(destDir string) (uint64, error) {
 	return corpusDocsCount, r.generator.Close()
 }
 
+// This seems to be the most performing way to calculate number of lines from an `io.Reader` (see: https://stackoverflow.com/a/52153000)
 func countLine(r io.Reader) (uint64, error) {
 
 	var count uint64
