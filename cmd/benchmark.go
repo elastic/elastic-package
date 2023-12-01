@@ -228,6 +228,8 @@ func getRallyCommand() *cobra.Command {
 	cmd.Flags().String(cobraext.VariantFlagName, "", cobraext.VariantFlagDescription)
 	cmd.Flags().StringP(cobraext.BenchCorpusRallyTrackOutputDirFlagName, "", "", cobraext.BenchCorpusRallyTrackOutputDirFlagDescription)
 	cmd.Flags().BoolP(cobraext.BenchCorpusRallyDryRunFlagName, "", false, cobraext.BenchCorpusRallyDryRunFlagDescription)
+	cmd.Flags().StringP(cobraext.BenchCorpusRallyUseCorpusAtPathFlagName, "", "", cobraext.BenchCorpusRallyUseCorpusAtPathFlagDescription)
+	cmd.Flags().StringP(cobraext.BenchCorpusRallyPackageFromRegistryFlagName, "", "", cobraext.BenchCorpusRallyPackageFromRegistryFlagDescription)
 
 	return cmd
 }
@@ -260,12 +262,31 @@ func rallyCommandAction(cmd *cobra.Command, args []string) error {
 		return cobraext.FlagParsingError(err, cobraext.BenchCorpusRallyDryRunFlagName)
 	}
 
-	packageRootPath, found, err := packages.FindPackageRoot()
-	if !found {
-		return errors.New("package root not found")
-	}
+	corpusAtPath, err := cmd.Flags().GetString(cobraext.BenchCorpusRallyUseCorpusAtPathFlagName)
 	if err != nil {
-		return fmt.Errorf("locating package root failed: %w", err)
+		return cobraext.FlagParsingError(err, cobraext.BenchCorpusRallyUseCorpusAtPathFlagName)
+	}
+
+	packageFromRegistry, err := cmd.Flags().GetString(cobraext.BenchCorpusRallyPackageFromRegistryFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.BenchCorpusRallyPackageFromRegistryFlagName)
+	}
+
+	packageName, packageVersion, err := getPackageNameAndVersion(packageFromRegistry)
+	if err != nil {
+		return fmt.Errorf("getting package name and version failed, expected format: <package>-<version>: %w", err)
+	}
+
+	var packageRootPath string
+	var found bool
+	if len(packageName) == 0 {
+		packageRootPath, found, err = packages.FindPackageRoot()
+		if !found {
+			return errors.New("package root not found")
+		}
+		if err != nil {
+			return fmt.Errorf("locating package root failed: %w", err)
+		}
 	}
 
 	profile, err := cobraext.GetProfileFlag(cmd)
@@ -299,6 +320,8 @@ func rallyCommandAction(cmd *cobra.Command, args []string) error {
 		rally.WithProfile(profile),
 		rally.WithRallyTrackOutputDir(rallyTrackOutputDir),
 		rally.WithRallyDryRun(rallyDryRun),
+		rally.WithRallyPackageFromRegistry(packageName, packageVersion),
+		rally.WithRallyCorpusAtPath(corpusAtPath),
 	}
 
 	esMetricsClient, err := initializeESMetricsClient(cmd.Context())
@@ -343,6 +366,23 @@ func rallyCommandAction(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
+}
+
+func getPackageNameAndVersion(packageFromRegistry string) (string, string, error) {
+	packageData := strings.SplitN(packageFromRegistry, "-", 2)
+
+	if len(packageData) != 2 {
+		return "", "", fmt.Errorf("package name and version from registry not valid (%s)", packageFromRegistry)
+	}
+
+	packageName := packageData[0]
+	packageVersion := packageData[1]
+
+	if len(packageName) > 0 && len(packageVersion) == 0 {
+		return "", "", fmt.Errorf("package name and version from registry not valid (%s)", packageFromRegistry)
+	}
+
+	return packageName, packageVersion, nil
 }
 
 func getSystemCommand() *cobra.Command {
