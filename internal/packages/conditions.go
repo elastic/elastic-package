@@ -51,14 +51,14 @@ func parsePackageRequirements(keyValuePairs []string) (*packageRequirements, err
 	var pr packageRequirements
 
 	for _, keyPair := range keyValuePairs {
-		s := strings.SplitN(keyPair, "=", 2)
-		if len(s) != 2 {
+		key, value, valid := strings.Cut(keyPair, "=")
+		if !valid {
 			return nil, fmt.Errorf("invalid key-value pair: %s", keyPair)
 		}
 
-		switch s[0] {
+		switch key {
 		case kibanaVersionRequirement:
-			ver, err := semver.NewVersion(s[1])
+			ver, err := semver.NewVersion(value)
 			if err != nil {
 				return nil, fmt.Errorf("can't parse kibana.version as valid semver: %w", err)
 			}
@@ -73,7 +73,7 @@ func parsePackageRequirements(keyValuePairs []string) (*packageRequirements, err
 			}
 			pr.kibana.version = &withoutPrerelease
 		default:
-			return nil, fmt.Errorf("unknown package requirement: %s", s[0])
+			return nil, fmt.Errorf("unknown package requirement: %s", value)
 		}
 	}
 	return &pr, nil
