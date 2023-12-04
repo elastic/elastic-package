@@ -114,11 +114,14 @@ func (p *portMapping) UnmarshalYAML(node *yaml.Node) error {
 	}
 
 	// First, parse out the protocol.
-	parts := strings.Split(str, "/")
-	p.Protocol = parts[1]
+	mapping, protocol, found := strings.Cut(str, "/")
+	if !found {
+		return errors.New("could not find protocol in port mapping")
+	}
+	p.Protocol = protocol
 
 	// Now, try to parse out external host, external IP, and internal port.
-	parts = strings.Split(parts[0], ":")
+	parts := strings.Split(mapping, ":")
 	var externalIP, internalPortStr, externalPortStr string
 	switch len(parts) {
 	case 1:

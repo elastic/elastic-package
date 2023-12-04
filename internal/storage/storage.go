@@ -110,14 +110,14 @@ func (prs PackageVersions) Strings() []string {
 func ParsePackageVersions(packageVersions []string) (PackageVersions, error) {
 	var parsed PackageVersions
 	for _, pv := range packageVersions {
-		s := strings.Split(pv, "-")
-		if len(s) != 2 {
+		name, version, valid := strings.Cut(pv, "-")
+		if !valid || name == "" || version == "" {
 			return nil, fmt.Errorf("invalid package revision format (expected: <package_name>-<version>): %s", pv)
 		}
 
-		revision, err := NewPackageVersion(s[0], s[1])
+		revision, err := NewPackageVersion(name, version)
 		if err != nil {
-			return nil, fmt.Errorf("can't create package version (%s): %w", s, err)
+			return nil, fmt.Errorf("can't create package version (name: %s, version: %s): %w", name, version, err)
 		}
 		parsed = append(parsed, *revision)
 	}

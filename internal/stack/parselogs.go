@@ -39,14 +39,11 @@ func ParseLogs(options ParseLogsOptions, process func(log LogLine) error) error 
 	for scanner.Scan() {
 		line := scanner.Text()
 
-		messageSlice := strings.SplitN(line, "|", 2)
-
-		if len(messageSlice) != 2 {
+		_, messageLog, valid := strings.Cut(line, "|")
+		if !valid {
 			logger.Debugf("skipped malformed docker-compose log line: %s", line)
 			continue
 		}
-
-		messageLog := messageSlice[1]
 
 		var log LogLine
 		err := json.Unmarshal([]byte(messageLog), &log)

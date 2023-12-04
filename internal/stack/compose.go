@@ -231,9 +231,9 @@ func newServiceStatus(description *docker.ContainerDescription) (*ServiceStatus,
 }
 
 func getVersionFromDockerImage(dockerImage string) string {
-	fields := strings.Split(dockerImage, ":")
-	if len(fields) == 2 {
-		return fields[1]
+	_, version, found := strings.Cut(dockerImage, ":")
+	if found {
+		return version
 	}
 	return "latest"
 }
