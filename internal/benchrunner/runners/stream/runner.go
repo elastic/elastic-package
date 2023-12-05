@@ -476,7 +476,7 @@ func (r *runner) performBulkRequest(bulkRequest string) error {
 
 func (r *runner) streamData() {
 	logger.Debug("streaming data...")
-	r.wg.Add(len(r.backFillGenerators) * 2)
+	r.wg.Add(len(r.backFillGenerators) + len(r.generators))
 	for scenarioName, generator := range r.generators {
 		go func(scenarioName string, generator genlib.Generator) {
 			defer r.wg.Done()
