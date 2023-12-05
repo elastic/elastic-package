@@ -25,6 +25,7 @@ import (
 	benchcommon "github.com/elastic/elastic-package/internal/benchrunner/runners/common"
 	"github.com/elastic/elastic-package/internal/benchrunner/runners/pipeline"
 	"github.com/elastic/elastic-package/internal/benchrunner/runners/rally"
+	"github.com/elastic/elastic-package/internal/benchrunner/runners/stream"
 	"github.com/elastic/elastic-package/internal/benchrunner/runners/system"
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/common"
@@ -47,6 +48,10 @@ These benchmarks allow you to benchmark an integration corpus with rally.
 
 For details on how to configure rally benchmarks for a package, review the [HOWTO guide](./docs/howto/rally_benchmarking.md).
 
+#### Stream Benchmarks
+
+These benchmarks allow you to benchmark ingesting real time data.
+
 #### System Benchmarks
 
 These benchmarks allow you to benchmark an integration end to end.
@@ -67,6 +72,9 @@ func setupBenchmarkCommand() *cobraext.Command {
 
 	rallyCmd := getRallyCommand()
 	cmd.AddCommand(rallyCmd)
+
+	streamCmd := getStreamCommand()
+	cmd.AddCommand(streamCmd)
 
 	systemCmd := getSystemCommand()
 	cmd.AddCommand(systemCmd)
@@ -383,6 +391,121 @@ func getPackageNameAndVersion(packageFromRegistry string) (string, string, error
 	}
 
 	return packageName, packageVersion, nil
+}
+
+func getStreamCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "stream",
+		Short: "Run stream benchmarks",
+		Long:  "Run stream benchmarks for the package",
+		Args:  cobra.NoArgs,
+		RunE:  streamCommandAction,
+	}
+
+	cmd.Flags().StringP(cobraext.BenchNameFlagName, "", "", cobraext.BenchNameFlagDescription)
+	cmd.Flags().String(cobraext.VariantFlagName, "", cobraext.VariantFlagDescription)
+	cmd.Flags().DurationP(cobraext.BenchStreamBackFillFlagName, "", 0, cobraext.BenchStreamBackFillFlagDescription)
+	cmd.Flags().Uint64P(cobraext.BenchStreamEventsPerTickerFlagName, "", 0, cobraext.BenchStreamEventsPerTickerFlagDescription)
+	cmd.Flags().DurationP(cobraext.BenchStreamTickerDurationFlagName, "", 0, cobraext.BenchStreamTickerDurationFlagDescription)
+	cmd.Flags().StringP(cobraext.BenchStreamTimestampFieldFlagName, "", "timestamp", cobraext.BenchStreamTimestampFieldFlagDescription)
+
+	return cmd
+}
+
+func streamCommandAction(cmd *cobra.Command, args []string) error {
+	cmd.Println("Run stream benchmarks for the package")
+
+	variant, err := cmd.Flags().GetString(cobraext.VariantFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.VariantFlagName)
+	}
+
+	benchName, err := cmd.Flags().GetString(cobraext.BenchNameFlagName)
+	if err != nil {
+		benchName = ""
+	}
+
+	backFill, err := cmd.Flags().GetDuration(cobraext.BenchStreamBackFillFlagName)
+	if err != nil {
+		backFill = 0 * time.Second
+	}
+	if backFill > 0 {
+		return cobraext.FlagParsingError(errors.New("cannot be a positive duration"), cobraext.BenchStreamBackFillFlagName)
+	}
+
+	eventsPerTicker, err := cmd.Flags().GetUint64(cobraext.BenchStreamEventsPerTickerFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.BenchStreamEventsPerTickerFlagName)
+	}
+
+	if eventsPerTicker <= 0 {
+		return cobraext.FlagParsingError(errors.New("cannot be zero or negative"), cobraext.BenchStreamEventsPerTickerFlagName)
+	}
+
+	tickerDuration, err := cmd.Flags().GetDuration(cobraext.BenchStreamTickerDurationFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.BenchStreamTickerDurationFlagName)
+	}
+
+	if tickerDuration < time.Nanosecond {
+		return cobraext.FlagParsingError(errors.New("cannot be a negative duration"), cobraext.BenchStreamTickerDurationFlagName)
+	}
+
+	timestampField, err := cmd.Flags().GetString(cobraext.BenchStreamTimestampFieldFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.BenchStreamTimestampFieldFlagName)
+	}
+
+	packageRootPath, found, err := packages.FindPackageRoot()
+	if !found {
+		return errors.New("package root not found")
+	}
+	if err != nil {
+		return fmt.Errorf("locating package root failed: %w", err)
+	}
+
+	profile, err := cobraext.GetProfileFlag(cmd)
+	if err != nil {
+		return err
+	}
+
+	signal.Enable()
+
+	esClient, err := stack.NewElasticsearchClientFromProfile(profile)
+	if err != nil {
+		return fmt.Errorf("can't create Elasticsearch client: %w", err)
+	}
+	err = esClient.CheckHealth(cmd.Context())
+	if err != nil {
+		return err
+	}
+
+	kc, err := stack.NewKibanaClientFromProfile(profile)
+	if err != nil {
+		return fmt.Errorf("can't create Kibana client: %w", err)
+	}
+
+	withOpts := []stream.OptionFunc{
+		stream.WithVariant(variant),
+		stream.WithBenchmarkName(benchName),
+		stream.WithBackFill(backFill),
+		stream.WithEventsPerTicker(eventsPerTicker),
+		stream.WithTickerDuration(tickerDuration),
+		stream.WithTimestampField(timestampField),
+		stream.WithPackageRootPath(packageRootPath),
+		stream.WithESAPI(esClient.API),
+		stream.WithKibanaClient(kc),
+		stream.WithProfile(profile),
+	}
+
+	runner := stream.NewStreamBenchmark(stream.NewOptions(withOpts...))
+
+	_, err = benchrunner.Run(runner)
+	if err != nil {
+		return fmt.Errorf("error running package stream benchmarks: %w", err)
+	}
+
+	return nil
 }
 
 func getSystemCommand() *cobra.Command {

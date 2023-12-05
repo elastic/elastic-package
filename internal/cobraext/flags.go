@@ -65,6 +65,18 @@ const (
 	BenchCorpusRallyUseCorpusAtPathFlagName        = "use-corpus-at-path"
 	BenchCorpusRallyUseCorpusAtPathFlagDescription = "path of the corpus to use for the benchmark: if present no new corpus will be generated"
 
+	BenchStreamBackFillFlagName        = "backfill"
+	BenchStreamBackFillFlagDescription = "amount of time to ingest events for since starting from now: expressed as a negative duration (ie: -15m)"
+
+	BenchStreamEventsPerTickerFlagName        = "events-per-ticker"
+	BenchStreamEventsPerTickerFlagDescription = "number of events to ingest at every ticker cycle"
+
+	BenchStreamTickerDurationFlagName        = "ticker-duration"
+	BenchStreamTickerDurationFlagDescription = "duration of the ticker: expressed as a positive duration (ie: 10s)"
+
+	BenchStreamTimestampFieldFlagName        = "timestamp-field"
+	BenchStreamTimestampFieldFlagDescription = "name of the field that's used in the generator config as `@timestamp` (default: \"timestamp\")"
+
 	BuildSkipValidationFlagName        = "skip-validation"
 	BuildSkipValidationFlagDescription = "skip validation of the built package, use only if all validation issues have been acknowledged"
 
