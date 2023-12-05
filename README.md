@@ -159,6 +159,10 @@ These benchmarks allow you to benchmark an integration corpus with rally.
 
 For details on how to configure rally benchmarks for a package, review the [HOWTO guide](./docs/howto/rally_benchmarking.md).
 
+#### Stream Benchmarks
+
+These benchmarks allow you to benchmark ingesting real time data.
+
 #### System Benchmarks
 
 These benchmarks allow you to benchmark an integration end to end.
@@ -176,6 +180,12 @@ Run pipeline benchmarks for the package.
 _Context: package_
 
 Run rally benchmarks for the package (esrally needs to be installed in the path of the system).
+
+### `elastic-package benchmark stream`
+
+_Context: package_
+
+Run stream benchmarks for the package.
 
 ### `elastic-package benchmark system`
 
