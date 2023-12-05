@@ -11,7 +11,7 @@ require (
 	github.com/cbroglie/mustache v1.4.0
 	github.com/cespare/xxhash/v2 v2.2.0
 	github.com/dustin/go-humanize v1.0.1
-	github.com/elastic/elastic-integration-corpus-generator-tool v0.8.1-0.20231205001302-4ffaa9abe060
+	github.com/elastic/elastic-integration-corpus-generator-tool v0.9.0
 	github.com/elastic/go-elasticsearch/v7 v7.17.10
 	github.com/elastic/go-licenser v0.4.1
 	github.com/elastic/go-resource v0.1.1
