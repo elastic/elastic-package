@@ -413,10 +413,6 @@ func (r *runner) getGeneratorTemplate(scenario *scenario) ([]byte, error) {
 
 func (r *runner) collectBulkRequestBody(indexName, scenarioName string, buf *bytes.Buffer, generator genlib.Generator, bulkBodyBuilder strings.Builder) (strings.Builder, error) {
 	err := generator.Emit(buf)
-	if err == io.EOF {
-		return bulkBodyBuilder, err
-	}
-
 	if err != nil {
 		return bulkBodyBuilder, err
 	}
