@@ -404,9 +404,10 @@ func getStreamCommand() *cobra.Command {
 
 	cmd.Flags().StringP(cobraext.BenchNameFlagName, "", "", cobraext.BenchNameFlagDescription)
 	cmd.Flags().String(cobraext.VariantFlagName, "", cobraext.VariantFlagDescription)
-	cmd.Flags().DurationP(cobraext.BenchStreamBackFillFlagName, "", 0, cobraext.BenchStreamBackFillFlagDescription)
-	cmd.Flags().Uint64P(cobraext.BenchStreamEventsPerTickerFlagName, "", 0, cobraext.BenchStreamEventsPerTickerFlagDescription)
-	cmd.Flags().DurationP(cobraext.BenchStreamTickerDurationFlagName, "", 0, cobraext.BenchStreamTickerDurationFlagDescription)
+	cmd.Flags().DurationP(cobraext.BenchStreamBackFillFlagName, "", -15*time.Minute, cobraext.BenchStreamBackFillFlagDescription)
+	cmd.Flags().Uint64P(cobraext.BenchStreamEventsPerPeriodFlagName, "", 10, cobraext.BenchStreamEventsPerPeriodFlagDescription)
+	cmd.Flags().DurationP(cobraext.BenchStreamPeriodDurationFlagName, "", time.Second, cobraext.BenchStreamPeriodDurationFlagDescription)
+	cmd.Flags().BoolP(cobraext.BenchStreamPerformCleanupFlagName, "", false, cobraext.BenchStreamPerformCleanupFlagDescription)
 	cmd.Flags().StringP(cobraext.BenchStreamTimestampFieldFlagName, "", "timestamp", cobraext.BenchStreamTimestampFieldFlagDescription)
 
 	return cmd
@@ -427,28 +428,34 @@ func streamCommandAction(cmd *cobra.Command, args []string) error {
 
 	backFill, err := cmd.Flags().GetDuration(cobraext.BenchStreamBackFillFlagName)
 	if err != nil {
-		backFill = 0 * time.Second
+		return cobraext.FlagParsingError(err, cobraext.BenchStreamBackFillFlagName)
 	}
+
 	if backFill > 0 {
 		return cobraext.FlagParsingError(errors.New("cannot be a positive duration"), cobraext.BenchStreamBackFillFlagName)
 	}
 
-	eventsPerTicker, err := cmd.Flags().GetUint64(cobraext.BenchStreamEventsPerTickerFlagName)
+	eventsPerPeriod, err := cmd.Flags().GetUint64(cobraext.BenchStreamEventsPerPeriodFlagName)
 	if err != nil {
-		return cobraext.FlagParsingError(err, cobraext.BenchStreamEventsPerTickerFlagName)
+		return cobraext.FlagParsingError(err, cobraext.BenchStreamEventsPerPeriodFlagName)
 	}
 
-	if eventsPerTicker <= 0 {
-		return cobraext.FlagParsingError(errors.New("cannot be zero or negative"), cobraext.BenchStreamEventsPerTickerFlagName)
+	if eventsPerPeriod <= 0 {
+		return cobraext.FlagParsingError(errors.New("cannot be zero or negative"), cobraext.BenchStreamEventsPerPeriodFlagName)
 	}
 
-	tickerDuration, err := cmd.Flags().GetDuration(cobraext.BenchStreamTickerDurationFlagName)
+	periodDuration, err := cmd.Flags().GetDuration(cobraext.BenchStreamPeriodDurationFlagName)
 	if err != nil {
-		return cobraext.FlagParsingError(err, cobraext.BenchStreamTickerDurationFlagName)
+		return cobraext.FlagParsingError(err, cobraext.BenchStreamPeriodDurationFlagName)
 	}
 
-	if tickerDuration < time.Nanosecond {
-		return cobraext.FlagParsingError(errors.New("cannot be a negative duration"), cobraext.BenchStreamTickerDurationFlagName)
+	if periodDuration < time.Nanosecond {
+		return cobraext.FlagParsingError(errors.New("cannot be a negative duration"), cobraext.BenchStreamPeriodDurationFlagName)
+	}
+
+	performCleanup, err := cmd.Flags().GetBool(cobraext.BenchStreamPerformCleanupFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.BenchStreamPerformCleanupFlagName)
 	}
 
 	timestampField, err := cmd.Flags().GetString(cobraext.BenchStreamTimestampFieldFlagName)
@@ -489,8 +496,9 @@ func streamCommandAction(cmd *cobra.Command, args []string) error {
 		stream.WithVariant(variant),
 		stream.WithBenchmarkName(benchName),
 		stream.WithBackFill(backFill),
-		stream.WithEventsPerTicker(eventsPerTicker),
-		stream.WithTickerDuration(tickerDuration),
+		stream.WithEventsPerPeriod(eventsPerPeriod),
+		stream.WithPeriodDuration(periodDuration),
+		stream.WithPerformCleanup(performCleanup),
 		stream.WithTimestampField(timestampField),
 		stream.WithPackageRootPath(packageRootPath),
 		stream.WithESAPI(esClient.API),

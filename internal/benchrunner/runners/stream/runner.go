@@ -71,6 +71,12 @@ func (r *runner) Run() (reporters.Reportable, error) {
 func (r *runner) TearDown() error {
 	r.wg.Wait()
 
+	if !r.options.PerformCleanup {
+		r.removePackageHandler = nil
+		r.wipeDataStreamHandler = nil
+		return nil
+	}
+
 	var merr multierror.Error
 
 	if r.removePackageHandler != nil {
@@ -142,8 +148,12 @@ func (r *runner) setUp() error {
 		)
 	}
 
+	if !r.options.PerformCleanup {
+		return nil
+	}
+
 	if err := r.wipeDataStreamsOnSetup(); err != nil {
-		return fmt.Errorf("error deleting old data in data stream: %v: %w", r.runtimeDataStreams, err)
+		return fmt.Errorf("error cleaning up old data in data streams: %w", err)
 	}
 
 	cleared, err := waitUntilTrue(func() (bool, error) {
@@ -310,8 +320,8 @@ func (r *runner) collectGenerators() error {
 			continue
 		}
 
-		// backfill is a negative duration, make it positive, find how many tickers in the backfill and multiply by events for ticker
-		totEvents := uint64((-1*r.options.BackFill)/r.options.TickerDuration) * r.options.EventsPerTicker
+		// backfill is a negative duration, make it positive, find how many periods in the backfill and multiply by events for periodk
+		totEvents := uint64((-1*r.options.BackFill)/r.options.PeriodDuration) * r.options.EventsPerPeriod
 
 		generator, err = r.initializeGenerator(tpl, *config, fields, scenario, r.options.BackFill, totEvents)
 		if err != nil {
@@ -476,17 +486,17 @@ func (r *runner) streamData() {
 	for scenarioName, generator := range r.generators {
 		go func(scenarioName string, generator genlib.Generator) {
 			defer r.wg.Done()
-			ticker := time.NewTicker(r.options.TickerDuration)
+			ticker := time.NewTicker(r.options.PeriodDuration)
 			indexName := r.runtimeDataStreams[scenarioName]
 			for {
 				select {
 				case <-r.done:
 					return
 				case <-ticker.C:
-					logger.Debugf("bulk request of %d events on %s...", r.options.EventsPerTicker, indexName)
+					logger.Debugf("bulk request of %d events on %s...", r.options.EventsPerPeriod, indexName)
 					var bulkBodyBuilder strings.Builder
 					buf := bytes.NewBufferString("")
-					for i := uint64(0); i < r.options.EventsPerTicker; i++ {
+					for i := uint64(0); i < r.options.EventsPerPeriod; i++ {
 						var err error
 						bulkBodyBuilder, err = r.collectBulkRequestBody(indexName, scenarioName, buf, generator, bulkBodyBuilder)
 						if err == io.EOF {

@@ -18,8 +18,9 @@ type Options struct {
 	KibanaClient    *kibana.Client
 	BenchName       string
 	BackFill        time.Duration
-	EventsPerTicker uint64
-	TickerDuration  time.Duration
+	EventsPerPeriod uint64
+	PeriodDuration  time.Duration
+	PerformCleanup  bool
 	TimestampField  string
 	PackageRootPath string
 	Variant         string
@@ -83,15 +84,21 @@ func WithBackFill(d time.Duration) OptionFunc {
 	}
 }
 
-func WithEventsPerTicker(e uint64) OptionFunc {
+func WithEventsPerPeriod(e uint64) OptionFunc {
 	return func(opts *Options) {
-		opts.EventsPerTicker = e
+		opts.EventsPerPeriod = e
 	}
 }
 
-func WithTickerDuration(d time.Duration) OptionFunc {
+func WithPeriodDuration(d time.Duration) OptionFunc {
 	return func(opts *Options) {
-		opts.TickerDuration = d
+		opts.PeriodDuration = d
+	}
+}
+
+func WithPerformCleanup(p bool) OptionFunc {
+	return func(opts *Options) {
+		opts.PerformCleanup = p
 	}
 }
 

@@ -54,7 +54,7 @@ func defaultConfig() *scenario {
 }
 
 func readConfig(path, scenarioName, packageName, packageVersion string) (*scenario, error) {
-	configPath := filepath.Join(path, devPath, scenarioName)
+	configPath := filepath.Join(path, devPath, fmt.Sprintf("%s.yml", scenarioName))
 	c := defaultConfig()
 	cfg, err := yaml.NewConfigWithFile(configPath)
 	if err != nil {
@@ -95,11 +95,12 @@ func readScenarios(path, scenarioName, packageName, packageVersion string) (map[
 			}
 
 			if strings.HasSuffix(info.Name(), "-benchmark.yml") {
-				scenario, err := readConfig(path, info.Name(), packageName, packageVersion)
+				scenarioName = strings.TrimSuffix(info.Name(), ".yml")
+				scenario, err := readConfig(path, scenarioName, packageName, packageVersion)
 				if err != nil {
 					return err
 				}
-				scenarios[info.Name()] = scenario
+				scenarios[scenarioName] = scenario
 			}
 
 			return nil
