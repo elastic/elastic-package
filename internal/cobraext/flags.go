@@ -66,19 +66,19 @@ const (
 	BenchCorpusRallyUseCorpusAtPathFlagDescription = "path of the corpus to use for the benchmark: if present no new corpus will be generated"
 
 	BenchStreamBackFillFlagName        = "backfill"
-	BenchStreamBackFillFlagDescription = "amount of time to ingest events for since starting from now: expressed as a negative duration (ie: -15m)"
+	BenchStreamBackFillFlagDescription = "amount of time to ingest events for since starting from now: expressed as a negative duration"
 
 	BenchStreamEventsPerPeriodFlagName        = "events-per-period"
 	BenchStreamEventsPerPeriodFlagDescription = "number of events to ingest at every ingestion cycle"
 
 	BenchStreamPeriodDurationFlagName        = "period-duration"
-	BenchStreamPeriodDurationFlagDescription = "duration of the period between each ingestion cycle: expressed as a positive duration (ie: 10s)"
+	BenchStreamPeriodDurationFlagDescription = "duration of the period between each ingestion cycle: expressed as a positive duration"
 
 	BenchStreamPerformCleanupFlagName        = "perform-cleanup"
 	BenchStreamPerformCleanupFlagDescription = "whether to perform cleanup at the beginning and after finishing streaming: default to false, if provided will delete data before and after streaming events and uninstall the package at the end"
 
 	BenchStreamTimestampFieldFlagName        = "timestamp-field"
-	BenchStreamTimestampFieldFlagDescription = "name of the field that's used in the generator config as `@timestamp` (default: \"timestamp\")"
+	BenchStreamTimestampFieldFlagDescription = "name of the field that's used in the generator config as `@timestamp`"
 
 	BuildSkipValidationFlagName        = "skip-validation"
 	BuildSkipValidationFlagDescription = "skip validation of the built package, use only if all validation issues have been acknowledged"

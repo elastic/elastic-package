@@ -406,7 +406,7 @@ func getStreamCommand() *cobra.Command {
 	cmd.Flags().String(cobraext.VariantFlagName, "", cobraext.VariantFlagDescription)
 	cmd.Flags().DurationP(cobraext.BenchStreamBackFillFlagName, "", -15*time.Minute, cobraext.BenchStreamBackFillFlagDescription)
 	cmd.Flags().Uint64P(cobraext.BenchStreamEventsPerPeriodFlagName, "", 10, cobraext.BenchStreamEventsPerPeriodFlagDescription)
-	cmd.Flags().DurationP(cobraext.BenchStreamPeriodDurationFlagName, "", time.Second, cobraext.BenchStreamPeriodDurationFlagDescription)
+	cmd.Flags().DurationP(cobraext.BenchStreamPeriodDurationFlagName, "", 10*time.Second, cobraext.BenchStreamPeriodDurationFlagDescription)
 	cmd.Flags().BoolP(cobraext.BenchStreamPerformCleanupFlagName, "", false, cobraext.BenchStreamPerformCleanupFlagDescription)
 	cmd.Flags().StringP(cobraext.BenchStreamTimestampFieldFlagName, "", "timestamp", cobraext.BenchStreamTimestampFieldFlagDescription)
 
