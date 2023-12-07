@@ -51,6 +51,12 @@ For details on how to configure rally benchmarks for a package, review the [HOWT
 #### Stream Benchmarks
 
 These benchmarks allow you to benchmark ingesting real time data.
+You can stream data to a remote ES cluster setting the following environment variables:
+
+ELASTIC_PACKAGE_ELASTICSEARCH_HOST=https://my-deployment.es.eu-central-1.aws.foundit.no
+ELASTIC_PACKAGE_ELASTICSEARCH_USERNAME=elastic
+ELASTIC_PACKAGE_ELASTICSEARCH_PASSWORD=changeme
+ELASTIC_PACKAGE_KIBANA_HOST=https://my-deployment.kb.eu-central-1.aws.foundit.no:9243
 
 #### System Benchmarks
 
