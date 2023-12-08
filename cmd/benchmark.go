@@ -429,7 +429,7 @@ func streamCommandAction(cmd *cobra.Command, args []string) error {
 
 	benchName, err := cmd.Flags().GetString(cobraext.BenchNameFlagName)
 	if err != nil {
-		benchName = ""
+		return cobraext.FlagParsingError(err, cobraext.VariantFlagName)
 	}
 
 	backFill, err := cmd.Flags().GetDuration(cobraext.BenchStreamBackFillFlagName)
