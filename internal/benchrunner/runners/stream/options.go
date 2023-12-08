@@ -80,7 +80,7 @@ func WithProfile(p *profile.Profile) OptionFunc {
 
 func WithBackFill(d time.Duration) OptionFunc {
 	return func(opts *Options) {
-		opts.BackFill = d
+		opts.BackFill = -1 * d
 	}
 }
 

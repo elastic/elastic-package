@@ -66,7 +66,7 @@ const (
 	BenchCorpusRallyUseCorpusAtPathFlagDescription = "path of the corpus to use for the benchmark: if present no new corpus will be generated"
 
 	BenchStreamBackFillFlagName        = "backfill"
-	BenchStreamBackFillFlagDescription = "amount of time to ingest events for since starting from now: expressed as a negative duration"
+	BenchStreamBackFillFlagDescription = "amount of time to ingest events for, starting before now: expressed as a positive duration"
 
 	BenchStreamEventsPerPeriodFlagName        = "events-per-period"
 	BenchStreamEventsPerPeriodFlagDescription = "number of events to ingest at every ingestion cycle"
