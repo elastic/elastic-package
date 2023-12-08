@@ -369,6 +369,10 @@ func rallyCommandAction(cmd *cobra.Command, args []string) error {
 }
 
 func getPackageNameAndVersion(packageFromRegistry string) (string, string, error) {
+	if len(packageFromRegistry) == 0 {
+		return "", "", nil
+	}
+
 	name, version, valid := strings.Cut(packageFromRegistry, "-")
 	if !valid || name == "" || version == "" {
 		return "", "", fmt.Errorf("package name and version from registry not valid (%s)", packageFromRegistry)
