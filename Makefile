@@ -68,7 +68,10 @@ test-stack-command-86:
 test-stack-command-8x:
 	./scripts/test-stack-command.sh 8.11.0-SNAPSHOT
 
-test-stack-command: test-stack-command-default test-stack-command-7x test-stack-command-800 test-stack-command-8x
+test-stack-command-with-apm-server:
+	APM_SERVER_ENABLED=true ./scripts/test-stack-command.sh
+
+test-stack-command: test-stack-command-default test-stack-command-7x test-stack-command-800 test-stack-command-8x test-stack-command-with-apm-server
 
 test-check-packages: test-check-packages-with-kind test-check-packages-other test-check-packages-parallel test-check-packages-with-custom-agent test-check-packages-benchmarks test-check-packages-false-positives test-check-packages-with-logstash
 
