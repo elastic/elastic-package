@@ -35,6 +35,7 @@ const (
 var (
 	DisableANSIComposeEnv             = environment.WithElasticPackagePrefix("COMPOSE_DISABLE_ANSI")
 	DisablePullProgressInformationEnv = environment.WithElasticPackagePrefix("COMPOSE_DISABLE_PULL_PROGRESS_INFORMATION")
+	EnableComposeStandaloneEnv        = environment.WithElasticPackagePrefix("COMPOSE_ENABLE_STANDALONE")
 )
 
 // Project represents a Docker Compose project.
@@ -43,6 +44,7 @@ type Project struct {
 	composeFilePaths []string
 
 	dockerComposeV1                bool
+	dockerComposeStandalone        bool
 	disableANSI                    bool
 	disablePullProgressInformation bool
 }
@@ -181,6 +183,13 @@ func NewProject(name string, paths ...string) (*Project, error) {
 	c.name = name
 	c.composeFilePaths = paths
 
+	v, ok := os.LookupEnv(EnableComposeStandaloneEnv)
+	if ok && strings.ToLower(v) != "false" {
+		c.dockerComposeStandalone = true
+	} else {
+		c.dockerComposeStandalone = c.dockerComposeStandaloneRequired()
+	}
+
 	ver, err := c.dockerComposeVersion()
 	if err != nil {
 		logger.Errorf("Unable to determine Docker Compose version: %v. Defaulting to 1.x", err)
@@ -195,7 +204,7 @@ func NewProject(name string, paths ...string) (*Project, error) {
 	}
 	logger.Debug(versionMessage)
 
-	v, ok := os.LookupEnv(DisableANSIComposeEnv)
+	v, ok = os.LookupEnv(DisableANSIComposeEnv)
 	if !c.dockerComposeV1 && ok && strings.ToLower(v) != "false" {
 		c.disableANSI = true
 	}
@@ -444,7 +453,10 @@ type dockerComposeOptions struct {
 }
 
 func (p *Project) runDockerComposeCmd(opts dockerComposeOptions) error {
-	cmd := exec.Command("docker-compose", opts.args...)
+	name, args := p.dockerComposeBaseCommand()
+	args = append(args, opts.args...)
+
+	cmd := exec.Command(name, args...)
 	cmd.Env = append(os.Environ(), opts.env...)
 
 	if logger.IsDebugMode() {
@@ -457,6 +469,24 @@ func (p *Project) runDockerComposeCmd(opts dockerComposeOptions) error {
 
 	logger.Debugf("running command: %s", cmd)
 	return cmd.Run()
+}
+
+func (p *Project) dockerComposeBaseCommand() (name string, args []string) {
+	if p.dockerComposeStandalone {
+		return "docker-compose", nil
+	}
+	return "docker", []string{"compose"}
+}
+
+func (p *Project) dockerComposeStandaloneRequired() bool {
+	output, err := exec.Command("docker", "compose", "version", "--short").CombinedOutput()
+	if err == nil {
+		return false
+	} else {
+		logger.Debugf("docker compose subcommand failed: %w: %s", err, output)
+	}
+
+	return true
 }
 
 func (p *Project) dockerComposeVersion() (*semver.Version, error) {
