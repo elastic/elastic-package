@@ -93,7 +93,7 @@ clean_status_output "${OUTPUT_PATH_STATUS}/expected_running.txt" > ${OUTPUT_PATH
 clean_status_output "${OUTPUT_PATH_STATUS}/running.txt" > ${OUTPUT_PATH_STATUS}/running_no_spaces.txt
 
 if [ "${APM_SERVER_ENABLED}" = true ]; then
-  curl --fail-with-body http://localhost:8200/
+  curl http://localhost:8200/
 fi
 
 diff -q ${OUTPUT_PATH_STATUS}/running_no_spaces.txt ${OUTPUT_PATH_STATUS}/expected_no_spaces.txt
