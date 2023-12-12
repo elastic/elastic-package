@@ -33,13 +33,6 @@ with_go() {
     export PATH="${PATH}:$(go env GOPATH)/bin"
 }
 
-with_docker_compose() {
-    mkdir -p ${WORKSPACE}/bin
-    retry 5 curl -SL -o ${WORKSPACE}/bin/docker-compose "https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-linux-x86_64"
-    chmod +x ${WORKSPACE}/bin/docker-compose
-    docker-compose version
-}
-
 with_github_cli() {
     mkdir -p ${WORKSPACE}/bin
     mkdir -p ${WORKSPACE}/tmp
