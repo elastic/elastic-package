@@ -48,6 +48,11 @@ func TestLoadProfileConfig(t *testing.T) {
 			found:    true,
 		},
 		{
+			name:     "stack.apm_server_enabled",
+			expected: "true",
+			found:    true,
+		},
+		{
 			name:     "stack.logstash_enabled",
 			expected: "true",
 			found:    true,

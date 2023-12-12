@@ -10,6 +10,10 @@
 # Region where the Serverless project is going to be created
 # stack.serverless.region: aws-us-east-1
 
+## Enable apm-server
+# Flag to enable apm-server in elastic-package stack profile config
+# stack.apm_server_enabled: true
+
 ## Enable logstash for testing
 # Flag to enable logstash in elastic-package stack profile config
 # stack.logstash_enabled: true

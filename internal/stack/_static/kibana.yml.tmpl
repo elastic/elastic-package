@@ -48,6 +48,11 @@ xpack.fleet.packages:
     version: latest
   - name: fleet_server
     version: latest
+  {{ $apm_server_enabled := fact "apm_server_enabled" }}
+  {{ if eq $apm_server_enabled "true" }}
+  - name: apm
+    version: latest
+  {{ end }}
 xpack.fleet.agentPolicies:
   - name: Elastic-Agent (elastic-package)
     id: elastic-agent-managed-ep
@@ -72,6 +77,19 @@ xpack.fleet.agentPolicies:
         id: default-fleet-server
         package:
           name: fleet_server
+      {{ $apm_server_enabled := fact "apm_server_enabled" }}
+      {{ if eq $apm_server_enabled "true" }}
+      - name: apm-1
+        package:
+          name: apm
+        inputs:
+          - type: apm
+            vars:
+              - name: host
+                value: "0.0.0.0:8200"
+              - name: secret_token
+                value: ""
+      {{ end }}
 xpack.fleet.outputs:
   - id: fleet-default-output
     name: default

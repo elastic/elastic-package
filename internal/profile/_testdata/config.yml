@@ -1,5 +1,6 @@
 # An expected setting.
 stack.geoip_dir: "/home/foo/Documents/ingest-geoip"
+stack.apm_server_enabled: true
 stack.logstash_enabled: true
 
 # An empty string, should exist, but return empty.
