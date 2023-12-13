@@ -112,6 +112,10 @@ services:
       - "../certs/fleet-server:/etc/ssl/elastic-agent"
     ports:
       - "127.0.0.1:8220:8220"
+      {{ $apm_server_enabled := fact "apm_server_enabled" }}
+      {{ if eq $apm_server_enabled "true" }}
+      - "127.0.0.1:8200:8200"
+      {{ end }}
 
   fleet-server_is_ready:
     image: tianon/true

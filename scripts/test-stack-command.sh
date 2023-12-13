@@ -3,6 +3,7 @@
 set -euxo pipefail
 
 VERSION=${1:-default}
+APM_SERVER_ENABLED=${APM_SERVER_ENABLED:-false}
 
 cleanup() {
   r=$?
@@ -12,6 +13,11 @@ cleanup() {
 
   # Take down the stack
   elastic-package stack down -v
+
+  if [ "${APM_SERVER_ENABLED}" = true ]; then
+    # Create an apm-server profile and use it
+    elastic-package profiles delete with-apm-server
+  fi
 
   exit $r
 }
@@ -34,7 +40,22 @@ if [ "${VERSION}" != "default" ]; then
   EXPECTED_VERSION=${VERSION}
 fi
 
+if [ "${APM_SERVER_ENABLED}" = true ]; then
+  # Create an apm-server profile and use it
+  profile=with-apm-server
+  elastic-package profiles create -v ${profile}
+  elastic-package profiles use ${profile}
+
+  # Create the config and enable apm-server
+  cat ~/.elastic-package/profiles/${profile}/config.yml.example - <<EOF > ~/.elastic-package/profiles/${profile}/config.yml
+stack.apm_server_enabled: true
+EOF
+fi
+
 OUTPUT_PATH_STATUS="build/elastic-stack-status/${VERSION}"
+if [ "${APM_SERVER_ENABLED}" = true ]; then
+  OUTPUT_PATH_STATUS="build/elastic-stack-status/${VERSION}_with_apm_server"
+fi
 mkdir -p ${OUTPUT_PATH_STATUS}
 
 # Initial status empty
@@ -70,5 +91,9 @@ elastic-package stack status -v 2> ${OUTPUT_PATH_STATUS}/running.txt
 # Remove spaces to avoid issues with spaces between columns
 clean_status_output "${OUTPUT_PATH_STATUS}/expected_running.txt" > ${OUTPUT_PATH_STATUS}/expected_no_spaces.txt
 clean_status_output "${OUTPUT_PATH_STATUS}/running.txt" > ${OUTPUT_PATH_STATUS}/running_no_spaces.txt
+
+if [ "${APM_SERVER_ENABLED}" = true ]; then
+  curl http://localhost:8200/
+fi
 
 diff -q ${OUTPUT_PATH_STATUS}/running_no_spaces.txt ${OUTPUT_PATH_STATUS}/expected_no_spaces.txt
