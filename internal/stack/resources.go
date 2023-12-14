@@ -129,9 +129,9 @@ func applyResources(profile *profile.Profile, stackVersion string) error {
 		"username": elasticsearchUsername,
 		"password": elasticsearchPassword,
 
-		"geoip_dir":          profile.Config("stack.geoip_dir", "./ingest-geoip"),
-		"apm_server_enabled": profile.Config("stack.apm_server_enabled", "false"),
-		"logstash_enabled":   profile.Config("stack.logstash_enabled", "false"),
+		"geoip_dir":        profile.Config("stack.geoip_dir", "./ingest-geoip"),
+		"apm_enabled":      profile.Config("stack.apm_enabled", "false"),
+		"logstash_enabled": profile.Config("stack.logstash_enabled", "false"),
 	})
 
 	os.MkdirAll(stackDir, 0755)

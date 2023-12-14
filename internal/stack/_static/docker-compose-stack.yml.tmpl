@@ -1,6 +1,6 @@
 {{ $username := fact "username" }}
 {{ $password := fact "password" }}
-{{ $apm_server_enabled := fact "apm_server_enabled" }}
+{{ $apm_enabled := fact "apm_enabled" }}
 version: '2.3'
 services:
   elasticsearch:
@@ -71,7 +71,7 @@ services:
       - "EPR_METRICS_ADDRESS=0.0.0.0:9000"
       - "EPR_TLS_KEY=/etc/ssl/package-registry/key.pem"
       - "EPR_TLS_CERT=/etc/ssl/package-registry/cert.pem"
-    {{ if eq $apm_server_enabled "true" }}
+    {{ if eq $apm_enabled "true" }}
       - "ELASTIC_APM_SERVER_URL=http://fleet-server:8200"
       - "ELASTIC_APM_ENVIRONMENT=dev"
     {{ end }}
@@ -117,7 +117,7 @@ services:
       - "../certs/fleet-server:/etc/ssl/elastic-agent"
     ports:
       - "127.0.0.1:8220:8220"
-      {{ if eq $apm_server_enabled "true" }}
+      {{ if eq $apm_enabled "true" }}
       - "127.0.0.1:8200:8200"
       {{ end }}
 

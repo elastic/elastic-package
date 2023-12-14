@@ -48,7 +48,7 @@ if [ "${APM_SERVER_ENABLED}" = true ]; then
 
   # Create the config and enable apm-server
   cat ~/.elastic-package/profiles/${profile}/config.yml.example - <<EOF > ~/.elastic-package/profiles/${profile}/config.yml
-stack.apm_server_enabled: true
+stack.apm_enabled: true
 EOF
 fi
 
