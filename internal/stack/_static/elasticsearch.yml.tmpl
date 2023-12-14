@@ -25,5 +25,6 @@ script.context.template.cache_max_size: 2000
 {{ $apm_server_enabled := fact "apm_server_enabled" }}
 {{ if eq $apm_server_enabled "true" }}
 tracing.apm.enabled: true
-tracing.apm.agent.server_url: http://fleet-server:8200
+tracing.apm.agent.server_url: "http://fleet-server:8200"
+tracing.apm.agent.environment: "dev"
 {{ end }}

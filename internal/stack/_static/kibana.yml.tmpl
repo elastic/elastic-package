@@ -13,6 +13,7 @@ elasticsearch.ssl.certificateAuthorities: "/usr/share/kibana/config/certs/ca-cer
 {{ if eq $apm_server_enabled "true" }}
 elastic.apm.active: true
 elastic.apm.serverUrl: "http://fleet-server:8200"
+elastic.apm.environment: "dev"
 {{ end }}
 
 {{ if semverLessThan $version "8.0.0" }}
@@ -88,8 +89,11 @@ xpack.fleet.agentPolicies:
             vars:
               - name: custom
                 value: |
-                  server.instrumentation.enabled: true
-                  server.instrumentation.hosts: ["http://fleet-server:8200"]
+                  server:
+                    instrumentation:
+                      enabled: true
+                      hosts: ["http://fleet-server:8200"]
+                      environment: "dev"
       - name: apm-1
         package:
           name: apm
