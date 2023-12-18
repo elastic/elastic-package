@@ -12,7 +12,7 @@
 
 ## Enable apm-server
 # Flag to enable apm-server in elastic-package stack profile config
-# stack.apm_server_enabled: true
+# stack.apm_enabled: true
 
 ## Enable logstash for testing
 # Flag to enable logstash in elastic-package stack profile config

@@ -9,6 +9,13 @@ server.ssl.certificateAuthorities: ["/usr/share/kibana/config/certs/ca-cert.pem"
 elasticsearch.hosts: [ "https://elasticsearch:9200" ]
 elasticsearch.ssl.certificateAuthorities: "/usr/share/kibana/config/certs/ca-cert.pem"
 
+{{ $apm_enabled := fact "apm_enabled" }}
+{{ if eq $apm_enabled "true" }}
+elastic.apm.active: true
+elastic.apm.serverUrl: "http://fleet-server:8200"
+elastic.apm.environment: "dev"
+{{ end }}
+
 {{ if semverLessThan $version "8.0.0" }}
 elasticsearch.username: {{ fact "username" }}
 elasticsearch.password: {{ fact "password" }}
@@ -48,8 +55,7 @@ xpack.fleet.packages:
     version: latest
   - name: fleet_server
     version: latest
-  {{ $apm_server_enabled := fact "apm_server_enabled" }}
-  {{ if eq $apm_server_enabled "true" }}
+  {{ if eq $apm_enabled "true" }}
   - name: apm
     version: latest
   {{ end }}
@@ -77,8 +83,17 @@ xpack.fleet.agentPolicies:
         id: default-fleet-server
         package:
           name: fleet_server
-      {{ $apm_server_enabled := fact "apm_server_enabled" }}
-      {{ if eq $apm_server_enabled "true" }}
+      {{ if eq $apm_enabled "true" }}
+        inputs:
+          - type: fleet-server
+            vars:
+              - name: custom
+                value: |
+                  server:
+                    instrumentation:
+                      enabled: true
+                      hosts: ["http://fleet-server:8200"]
+                      environment: "dev"
       - name: apm-1
         package:
           name: apm
