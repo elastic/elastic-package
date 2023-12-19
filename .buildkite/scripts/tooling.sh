@@ -13,8 +13,8 @@ repo_name() {
     # Example of URL: git@github.com:acme-inc/my-project.git
     local repoUrl=$1
 
-    orgAndRepo=$(echo $repoUrl | cut -d':' -f 2)
-    echo "$(basename ${orgAndRepo} .git)"
+    orgAndRepo=$(echo "$repoUrl" | cut -d':' -f 2)
+    basename "${orgAndRepo}" .git
 }
 
 buildkite_pr_branch_build_id() {
@@ -28,7 +28,7 @@ buildkite_pr_branch_build_id() {
 google_cloud_auth() {
     local keyFile=$1
 
-    gcloud auth activate-service-account --key-file ${keyFile} 2> /dev/null
+    gcloud auth activate-service-account --key-file "${keyFile}" 2> /dev/null
 
     export GOOGLE_APPLICATION_CREDENTIALS=${keyFile}
 }
@@ -54,15 +54,16 @@ retry() {
 }
 
 google_cloud_logout_active_account() {
-  local active_account=$(gcloud auth list --filter=status:ACTIVE --format="value(account)" 2>/dev/null)
+  local active_account
+  active_account=$(gcloud auth list --filter=status:ACTIVE --format="value(account)" 2>/dev/null || true)
   if [[ -n "$active_account" && -n "${GOOGLE_APPLICATION_CREDENTIALS+x}" ]]; then
     echo "Logging out from GCP for active account"
-    gcloud auth revoke $active_account > /dev/null 2>&1
+    gcloud auth revoke "$active_account" > /dev/null 2>&1
   else
     echo "No active GCP accounts found."
   fi
   if [ -n "${GOOGLE_APPLICATION_CREDENTIALS+x}" ]; then
-    rm -rf ${GOOGLE_APPLICATION_CREDENTIALS}
+    rm -rf "${GOOGLE_APPLICATION_CREDENTIALS}"
     unset GOOGLE_APPLICATION_CREDENTIALS
   fi
 }

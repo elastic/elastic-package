@@ -1,4 +1,8 @@
 #!/bin/bash
+
+source .buildkite/scripts/install_deps.sh
+source .buildkite/scripts/tooling.sh
+
 set -euo pipefail
 
 WORKSPACE="$(pwd)"
@@ -30,9 +34,6 @@ usage() {
     echo -e "\t-p <package>: Package (required for test-check-packages-parallel target)."
     echo -e "\t-h: Show this message"
 }
-
-source .buildkite/scripts/install_deps.sh
-source .buildkite/scripts/tooling.sh
 
 PARALLEL_TARGET="test-check-packages-parallel"
 FALSE_POSITIVES_TARGET="test-check-packages-false-positives"
@@ -78,10 +79,12 @@ if [[ "${TARGET}" == "" ]]; then
 fi
 
 google_cloud_auth_safe_logs() {
-    local gsUtilLocation=$(mktemp -d -p ${WORKSPACE} -t ${TMP_FOLDER_TEMPLATE})
+    local gsUtilLocation=""
+    gsUtilLocation=$(mktemp -d -p "${WORKSPACE}" -t "${TMP_FOLDER_TEMPLATE}")
+
     local secretFileLocation=${gsUtilLocation}/${GOOGLE_CREDENTIALS_FILENAME}
 
-    echo "${PRIVATE_CI_GCS_CREDENTIALS_SECRET}" > ${secretFileLocation}
+    echo "${PRIVATE_CI_GCS_CREDENTIALS_SECRET}" > "${secretFileLocation}"
 
     google_cloud_auth "${secretFileLocation}"
 }
@@ -119,7 +122,7 @@ if [[ "${TARGET}" == "${PARALLEL_TARGET}" ]] || [[ "${TARGET}" == "${FALSE_POSIT
 
     # allow to fail this command, to be able to upload safe logs
     set +e
-    make PACKAGE_UNDER_TEST=${PACKAGE} ${TARGET}
+    make PACKAGE_UNDER_TEST="${PACKAGE}" "${TARGET}"
     testReturnCode=$?
     set -e
 
@@ -150,4 +153,4 @@ if [[ "${TARGET}" == "${PARALLEL_TARGET}" ]] || [[ "${TARGET}" == "${FALSE_POSIT
     exit 0
 fi
 
-make install ${TARGET} check-git-clean
+make install "${TARGET}" check-git-clean
