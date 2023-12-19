@@ -527,7 +527,7 @@ func getSystemCommand() *cobra.Command {
 		RunE:  systemCommandAction,
 	}
 
-	cmd.Flags().StringP(cobraext.BenchPathFlagName, "", "", cobraext.BenchPathFlagDescription)
+	cmd.Flags().StringP(cobraext.BenchPathFlagName, "", "_dev/benchmark/system", cobraext.BenchPathFlagDescription)
 	cmd.Flags().StringP(cobraext.BenchNameFlagName, "", "", cobraext.BenchNameFlagDescription)
 	cmd.Flags().BoolP(cobraext.BenchReindexToMetricstoreFlagName, "", false, cobraext.BenchReindexToMetricstoreFlagDescription)
 	cmd.Flags().DurationP(cobraext.BenchMetricsIntervalFlagName, "", time.Second, cobraext.BenchMetricsIntervalFlagDescription)

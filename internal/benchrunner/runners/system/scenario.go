@@ -18,8 +18,6 @@ import (
 	"github.com/elastic/elastic-package/internal/servicedeployer"
 )
 
-const devPath = "_dev/benchmark/system"
-
 type scenario struct {
 	Package             string                 `config:"package" json:"package"`
 	Description         string                 `config:"description" json:"description"`
@@ -79,13 +77,8 @@ func defaultConfig() *scenario {
 	}
 }
 
-func readConfig(path, benchPath string, scenario string, ctxt servicedeployer.ServiceContext) (*scenario, error) {
-	var configPath string
-	if benchPath != "" {
-		configPath = filepath.Join(benchPath, fmt.Sprintf("%s.yml", scenario))
-	} else {
-		configPath = filepath.Join(path, devPath, fmt.Sprintf("%s.yml", scenario))
-	}
+func readConfig(benchPath string, scenario string, ctxt servicedeployer.ServiceContext) (*scenario, error) {
+	configPath := filepath.Clean(filepath.Join(benchPath, fmt.Sprintf("%s.yml", scenario)))
 	data, err := os.ReadFile(configPath)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
