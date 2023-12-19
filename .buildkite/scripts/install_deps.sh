@@ -54,7 +54,7 @@ with_go() {
     check_platform_architecture
 
     echo "GVM ${SETUP_GVM_VERSION} (platform ${platform_type_lowercase} arch ${arch_type}"
-    retry 5 curl -sL -o "${WORKSPACE}/bin/gvm"    "https://github.com/andrewkroh/gvm/releases/download/${SETUP_GVM_VERSION}/gvm-${platform_type_lowercase}-${arch_type}"
+    retry 5 curl -sL -o "${WORKSPACE}/bin/gvm" "https://github.com/andrewkroh/gvm/releases/download/${SETUP_GVM_VERSION}/gvm-${platform_type_lowercase}-${arch_type}"
 
     chmod +x "${WORKSPACE}/bin/gvm"
     eval "$(gvm "$(cat .go-version)")"
