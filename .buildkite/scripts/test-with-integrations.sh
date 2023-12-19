@@ -123,11 +123,11 @@ exists_branch() {
 }
 
 create_or_update_pull_request() {
+    local temp_path
+    temp_path=$(mktemp -d -p "${WORKSPACE}" -t "${TMP_FOLDER_TEMPLATE}")
     local repo_path="${temp_path}/elastic-integrations"
     local checkout_options=""
     local integrations_pr_number=""
-    local temp_path
-    temp_path=$(mktemp -d -p "${WORKSPACE}" -t "${TMP_FOLDER_TEMPLATE}")
 
     echo "Cloning repository"
     clone_repository "${repo_path}"
