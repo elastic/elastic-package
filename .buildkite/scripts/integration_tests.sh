@@ -40,7 +40,7 @@ KIND_TARGET="test-check-packages-with-kind"
 TMP_FOLDER_TEMPLATE="${TMP_FOLDER_TEMPLATE_BASE}.XXXXXXXXX"
 GOOGLE_CREDENTIALS_FILENAME="google-cloud-credentials.json"
 
-JOB_GCS_BUCKET_INTERNAL="fleet-ci-temp-internal"
+JOB_GCS_BUCKET_INTERNAL="ingest-bucket-ci"
 
 REPO_NAME=$(repo_name "${BUILDKITE_REPO}")
 REPO_BUILD_TAG="${REPO_NAME}/$(buildkite_pr_branch_build_id)"
