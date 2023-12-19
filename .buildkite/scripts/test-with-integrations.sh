@@ -1,4 +1,5 @@
 #!/bin/bash
+source .buildkite/scripts/install_deps.sh
 
 set -euo pipefail
 
@@ -9,13 +10,12 @@ TMP_FOLDER_TEMPLATE="${TMP_FOLDER_TEMPLATE_BASE}.XXXXXXXXX"
 
 cleanup() {
     echo "Deleting temporal files..."
-    cd ${WORKSPACE}
+    cd "${WORKSPACE}"
     rm -rf "${TMP_FOLDER_TEMPLATE_BASE}.*"
     echo "Done."
 }
 
 trap cleanup EXIT
-source .buildkite/scripts/install_deps.sh
 
 add_bin_path
 
@@ -67,7 +67,7 @@ git_push_with_auth() {
 
 clone_repository() {
     local target="$1"
-    retry 5 git clone https://github.com/elastic/integrations ${target}
+    retry 5 git clone https://github.com/elastic/integrations "${target}"
 }
 
 create_integrations_pull_request() {
@@ -76,7 +76,7 @@ create_integrations_pull_request() {
     temp_path=$(mktemp -d -p "${WORKSPACE}" -t "${TMP_FOLDER_TEMPLATE}")
     echo "Creating Pull Request"
     message="Update ${GITHUB_PR_BASE_REPO} reference to $(get_source_commit_link).\nAutomated by [Buildkite build](${BUILDKITE_BUILD_URL})\n\nRelates: $(get_source_pr_link)"
-    echo -e $message > "${temp_path}/body-pr.txt"
+    echo -e "$message" > "${temp_path}/body-pr.txt"
     retry 3 \
         gh pr create \
         --title "${INTEGRATIONS_PR_TITLE}" \
@@ -123,11 +123,11 @@ exists_branch() {
 }
 
 create_or_update_pull_request() {
-    local temp_path
-    temp_path=$(mktemp -d -p "${WORKSPACE}" -t "${TMP_FOLDER_TEMPLATE}")
     local repo_path="${temp_path}/elastic-integrations"
     local checkout_options=""
     local integrations_pr_number=""
+    local temp_path
+    temp_path=$(mktemp -d -p "${WORKSPACE}" -t "${TMP_FOLDER_TEMPLATE}")
 
     echo "Cloning repository"
     clone_repository "${repo_path}"
@@ -149,7 +149,7 @@ create_or_update_pull_request() {
         echo "Exists PR in integrations repository: ${integrations_pr_number}"
     fi
 
-    git checkout ${checkout_options} ${INTEGRATIONS_PR_BRANCH}
+    git checkout ${checkout_options} "${INTEGRATIONS_PR_BRANCH}"
 
     echo "--- Updating dependency :pushpin:"
     update_dependency

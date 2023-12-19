@@ -19,7 +19,7 @@ cleanup() {
     fi
 
     echo "Deleting temporal files..."
-    cd ${WORKSPACE}
+    cd "${WORKSPACE}"
     rm -rf "${TMP_FOLDER_TEMPLATE_BASE}.*"
     echo "Done."
 
