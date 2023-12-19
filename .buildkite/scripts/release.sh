@@ -3,7 +3,7 @@
 set -euo pipefail
 
 cleanup() {
-    rm -rf ${WORKSPACE}
+    rm -rf "${WORKSPACE}"
 }
 trap cleanup exit
 
