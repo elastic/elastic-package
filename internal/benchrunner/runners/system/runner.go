@@ -515,7 +515,7 @@ func (r *runner) getGeneratorFields() (fields.Fields, error) {
 	)
 
 	if r.scenario.Corpora.Generator.Fields.Path != "" {
-		fieldsPath := filepath.Clean(filepath.Join(r.options.BenchPath, r.scenario.Corpora.Generator.Config.Path))
+		fieldsPath := filepath.Clean(filepath.Join(r.options.BenchPath, r.scenario.Corpora.Generator.Fields.Path))
 		fieldsPath = os.ExpandEnv(fieldsPath)
 		if _, err := os.Stat(fieldsPath); err != nil {
 			return nil, fmt.Errorf("can't find fields file %s: %w", fieldsPath, err)
