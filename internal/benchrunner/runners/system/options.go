@@ -20,6 +20,7 @@ type Options struct {
 	MetricsInterval time.Duration
 	ReindexData     bool
 	ESMetricsAPI    *elasticsearch.API
+	BenchPath       string
 	BenchName       string
 	PackageRootPath string
 	Variant         string
@@ -51,6 +52,12 @@ func WithKibanaClient(c *kibana.Client) OptionFunc {
 func WithPackageRootPath(path string) OptionFunc {
 	return func(opts *Options) {
 		opts.PackageRootPath = path
+	}
+}
+
+func WithBenchmarkPath(path string) OptionFunc {
+	return func(opts *Options) {
+		opts.BenchPath = path
 	}
 }
 
