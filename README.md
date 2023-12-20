@@ -608,9 +608,22 @@ you can copy to start.
 
 The following settings are available per profile:
 
+* `stack.apm_enabled` can be set to true to start an APM server and configure instrumentation
+  in services managed by elastic-package. Traces for these services are available in the APM
+  UI of the kibana instance managed by elastic-package. Supported only by the compose provider.
+  Defaults to false.
+* `stack.elastic_cloud.host` can be used to override the address when connecting with
+  the Elastic Cloud APIs. It defaults to `https://cloud.elastic.co`.
 * `stack.geoip_dir` defines a directory with GeoIP databases that can be used by
   Elasticsearch in stacks managed by elastic-package. It is recommended to use
   an absolute path, out of the `.elastic-package` directory.
+* `stack.logstash_enabled` can be set to true to start Logstash and configure it as the
+  default output for tests using elastic-package. Supported only by the compose provider.
+  Defaults to false.
+* `stack.serverless.type` selects the type of serverless project to start when using
+  the serverless stack provider.
+* `stack.serverless.region` can be used to select the region to use when starting
+  serverless projects.
 
 ## Release process
 

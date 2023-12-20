@@ -1,11 +1,11 @@
 #!/bin/bash
+source .buildkite/scripts/install_deps.sh
+source .buildkite/scripts/tooling.sh
+
 set -euo pipefail
 
 WORKSPACE="$(pwd)"
 TMP_FOLDER_TEMPLATE_BASE="tmp.elastic-package"
-
-source .buildkite/scripts/install_deps.sh
-source .buildkite/scripts/tooling.sh
 
 cleanup() {
     local error_code=$?
@@ -18,7 +18,7 @@ cleanup() {
     fi
 
     echo "Deleting temporal files..."
-    cd ${WORKSPACE}
+    cd "${WORKSPACE}"
     rm -rf ${TMP_FOLDER_TEMPLATE_BASE}.*
     echo "Done."
 
@@ -30,7 +30,7 @@ trap cleanup EXIT
 is_already_published() {
     local packageZip=$1
 
-    if curl -s --head https://package-storage.elastic.co/artifacts/packages/${packageZip} | grep -q "HTTP/2 200" ; then
+    if curl -s --head "https://package-storage.elastic.co/artifacts/packages/${packageZip}" | grep -q "HTTP/2 200" ; then
         echo "- Already published ${packageZip}"
         return 0
     fi
@@ -66,39 +66,42 @@ PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH="gs://elastic-bekitzur-pac
 
 
 google_cloud_auth_signing() {
-    local gsUtilLocation=$(mktemp -d -p ${WORKSPACE} -t ${TMP_FOLDER_TEMPLATE})
+    local gsUtilLocation
+    gsUtilLocation=$(mktemp -d -p "${WORKSPACE}" -t "${TMP_FOLDER_TEMPLATE}")
 
     local secretFileLocation=${gsUtilLocation}/${GOOGLE_CREDENTIALS_FILENAME}
-    echo "${SIGNING_PACKAGES_GCS_CREDENTIALS_SECRET}" > ${secretFileLocation}
+    echo "${SIGNING_PACKAGES_GCS_CREDENTIALS_SECRET}" > "${secretFileLocation}"
 
     google_cloud_auth "${secretFileLocation}"
 }
 
 google_cloud_auth_publishing() {
-    local gsUtilLocation=$(mktemp -d -p ${WORKSPACE} -t ${TMP_FOLDER_TEMPLATE})
+    local gsUtilLocation
+    gsUtilLocation=$(mktemp -d -p "${WORKSPACE}" -t "${TMP_FOLDER_TEMPLATE}")
 
     local secretFileLocation=${gsUtilLocation}/${GOOGLE_CREDENTIALS_FILENAME}
-    echo "${PACKAGE_UPLOADER_GCS_CREDENTIALS_SECRET}" > ${secretFileLocation}
+    echo "${PACKAGE_UPLOADER_GCS_CREDENTIALS_SECRET}" > "${secretFileLocation}"
 
     google_cloud_auth "${secretFileLocation}"
 }
 
 sign_package() {
     local package=${1}
-    local packageZip=$(basename ${package})
+    local packageZip
+    packageZip=$(basename "${package}")
 
     google_cloud_auth_signing
 
     # upload zip package (trailing forward slashes are required)
     echo "Upload package .zip file for signing ${package} to ${INFRA_SIGNING_BUCKET_ARTIFACTS_PATH}"
-    gsutil cp ${package} "${INFRA_SIGNING_BUCKET_ARTIFACTS_PATH}/"
+    gsutil cp "${package}" "${INFRA_SIGNING_BUCKET_ARTIFACTS_PATH}/"
 
     echo "Trigger Jenkins job for signing package ${packageZip}"
     pushd ${JENKINS_TRIGGER_PATH} > /dev/null
 
     go run main.go \
         --jenkins-job sign \
-        --folder ${INFRA_SIGNING_BUCKET_ARTIFACTS_PATH}
+        --folder "${INFRA_SIGNING_BUCKET_ARTIFACTS_PATH}"
 
     popd > /dev/null
 
@@ -117,19 +120,20 @@ sign_package() {
 
 publish_package() {
     local package=$1
-    local packageZip=$(basename ${package})
+    local packageZip
+    packageZip=$(basename "${package}")
 
     # create file with credentials
     google_cloud_auth_publishing
 
     # upload files (trailing forward slashes are required)
     echo "Upload package .zip file ${package} to ${PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH}"
-    gsutil cp ${package} "${PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH}/"
+    gsutil cp "${package}" "${PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH}/"
     echo "Upload package .sig file ${package}.sig to ${PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH}"
-    gsutil cp ${package}.sig "${PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH}/"
+    gsutil cp "${package}.sig" "${PACKAGE_STORAGE_INTERNAL_BUCKET_QUEUE_PUBLISHING_PATH}/"
 
     echo "Trigger Jenkins job for publishing package ${packageZip}"
-    pushd ${JENKINS_TRIGGER_PATH} > /dev/null
+    pushd "${JENKINS_TRIGGER_PATH}" > /dev/null
 
     go run main.go \
         --jenkins-job publish \

@@ -3,7 +3,8 @@
 source .buildkite/scripts/tooling.sh
 set -euo pipefail
 
-export GO_VERSION=$(cat .go-version)
+GO_VERSION=$(cat .go-version)
+export GO_VERSION
 
 GCP_SERVICE_ACCOUNT_SECRET_PATH=secret/ci/elastic-elastic-package/gcp-service-account
 AWS_SERVICE_ACCOUNT_SECRET_PATH=kv/ci-shared/platform-ingest/aws_account_auth
@@ -17,12 +18,15 @@ PRIVATE_CI_GCS_CREDENTIALS_PATH=kv/ci-shared/platform-ingest/private_ci_artifact
 # https://buildkite.com/docs/pipelines/managing-log-output#redacted-environment-variables
 
 if [[ "$BUILDKITE_PIPELINE_SLUG" == "elastic-package" && ("$BUILDKITE_STEP_KEY" =~ ^integration-parallel || "$BUILDKITE_STEP_KEY" =~ ^integration-false_positives) ]]; then
-    export PRIVATE_CI_GCS_CREDENTIALS_SECRET=$(retry 5 vault kv get -field plaintext ${PRIVATE_CI_GCS_CREDENTIALS_PATH})
+    PRIVATE_CI_GCS_CREDENTIALS_SECRET=$(retry 5 vault kv get -field plaintext ${PRIVATE_CI_GCS_CREDENTIALS_PATH})
+    export PRIVATE_CI_GCS_CREDENTIALS_SECRET
 fi
 
 if [[ "$BUILDKITE_PIPELINE_SLUG" == "elastic-package" && "$BUILDKITE_STEP_KEY" == "integration-parallel-gcp" ]]; then
-    export ELASTIC_PACKAGE_GCP_PROJECT_SECRET=$(retry 5 vault read -field projectId ${GCP_SERVICE_ACCOUNT_SECRET_PATH})
-    export ELASTIC_PACKAGE_GCP_CREDENTIALS_SECRET=$(retry 5 vault read -field credentials ${GCP_SERVICE_ACCOUNT_SECRET_PATH})
+    ELASTIC_PACKAGE_GCP_PROJECT_SECRET=$(retry 5 vault read -field projectId ${GCP_SERVICE_ACCOUNT_SECRET_PATH})
+    export ELASTIC_PACKAGE_GCP_PROJECT_SECRET
+    ELASTIC_PACKAGE_GCP_CREDENTIALS_SECRET=$(retry 5 vault read -field credentials ${GCP_SERVICE_ACCOUNT_SECRET_PATH})
+    export ELASTIC_PACKAGE_GCP_CREDENTIALS_SECRET
 
     # Environment variables required by the service deployer
     export GOOGLE_CREDENTIALS=${ELASTIC_PACKAGE_GCP_CREDENTIALS_SECRET}
@@ -30,8 +34,10 @@ if [[ "$BUILDKITE_PIPELINE_SLUG" == "elastic-package" && "$BUILDKITE_STEP_KEY" =
 fi
 
 if [[ "$BUILDKITE_PIPELINE_SLUG" == "elastic-package" && ("$BUILDKITE_STEP_KEY" == "integration-parallel-aws" || "$BUILDKITE_STEP_KEY" == "integration-parallel-aws_logs") ]]; then
-    export ELASTIC_PACKAGE_AWS_SECRET_KEY=$(retry 5 vault kv get -field secret_key ${AWS_SERVICE_ACCOUNT_SECRET_PATH})
-    export ELASTIC_PACKAGE_AWS_ACCESS_KEY=$(retry 5 vault kv get -field access_key ${AWS_SERVICE_ACCOUNT_SECRET_PATH})
+    ELASTIC_PACKAGE_AWS_SECRET_KEY=$(retry 5 vault kv get -field secret_key ${AWS_SERVICE_ACCOUNT_SECRET_PATH})
+    export ELASTIC_PACKAGE_AWS_SECRET_KEY
+    ELASTIC_PACKAGE_AWS_ACCESS_KEY=$(retry 5 vault kv get -field access_key ${AWS_SERVICE_ACCOUNT_SECRET_PATH})
+    export ELASTIC_PACKAGE_AWS_ACCESS_KEY
 
     # Environment variables required by the service deployer
     export AWS_SECRET_ACCESS_KEY=${ELASTIC_PACKAGE_AWS_SECRET_KEY}
@@ -39,23 +45,32 @@ if [[ "$BUILDKITE_PIPELINE_SLUG" == "elastic-package" && ("$BUILDKITE_STEP_KEY" 
 fi
 
 if [[ "$BUILDKITE_PIPELINE_SLUG" == "elastic-package" && "$BUILDKITE_STEP_KEY" == "release" ]]; then
-    export GITHUB_TOKEN=$(retry 5 vault kv get -field token ${GITHUB_TOKEN_VAULT_PATH})
+    GITHUB_TOKEN=$(retry 5 vault kv get -field token ${GITHUB_TOKEN_VAULT_PATH})
+    export GITHUB_TOKEN
 fi
 
 if [[ "$BUILDKITE_PIPELINE_SLUG" == "elastic-package-package-storage-publish" && "$BUILDKITE_STEP_KEY" == "sign-publish" ]]; then
-    export JENKINS_USERNAME_SECRET=$(retry 5 vault kv get -field username ${JENKINS_API_TOKEN_PATH})
-    export JENKINS_HOST_SECRET=$(retry 5 vault kv get -field internal_ci_host ${JENKINS_API_TOKEN_PATH})
-    export JENKINS_TOKEN=$(retry 5 vault kv get -field internal_ci ${JENKINS_API_TOKEN_PATH})
+    JENKINS_USERNAME_SECRET=$(retry 5 vault kv get -field username ${JENKINS_API_TOKEN_PATH})
+    export JENKINS_USERNAME_SECRET
+    JENKINS_HOST_SECRET=$(retry 5 vault kv get -field internal_ci_host ${JENKINS_API_TOKEN_PATH})
+    export JENKINS_HOST_SECRET
+    JENKINS_TOKEN=$(retry 5 vault kv get -field internal_ci ${JENKINS_API_TOKEN_PATH})
+    export JENKINS_TOKEN
 
     # signing job
-    export SIGNING_PACKAGES_GCS_CREDENTIALS_SECRET=$(retry 5 vault kv get -field value ${SIGNING_PACKAGES_GCS_CREDENTIALS_PATH})
+    SIGNING_PACKAGES_GCS_CREDENTIALS_SECRET=$(retry 5 vault kv get -field value ${SIGNING_PACKAGES_GCS_CREDENTIALS_PATH})
+    export SIGNING_PACKAGES_GCS_CREDENTIALS_SECRET
 
     # publishing job
-    export PACKAGE_UPLOADER_GCS_CREDENTIALS_SECRET=$(retry 5 vault kv get -field value ${PACKAGE_UPLOADER_GCS_CREDENTIALS_PATH})
+    PACKAGE_UPLOADER_GCS_CREDENTIALS_SECRET=$(retry 5 vault kv get -field value ${PACKAGE_UPLOADER_GCS_CREDENTIALS_PATH})
+    export PACKAGE_UPLOADER_GCS_CREDENTIALS_SECRET
 fi
 
 if [[ "$BUILDKITE_PIPELINE_SLUG" == "elastic-package-test-with-integrations" && "$BUILDKITE_STEP_KEY" == "pr-integrations" ]]; then
-    export GITHUB_USERNAME_SECRET=$(retry 5 vault kv get -field username ${GITHUB_TOKEN_VAULT_PATH})
-    export GITHUB_EMAIL_SECRET=$(retry 5 vault kv get -field email ${GITHUB_TOKEN_VAULT_PATH})
-    export GITHUB_TOKEN=$(retry 5 vault kv get -field token ${GITHUB_TOKEN_VAULT_PATH})
+    GITHUB_USERNAME_SECRET=$(retry 5 vault kv get -field username ${GITHUB_TOKEN_VAULT_PATH})
+    export GITHUB_USERNAME_SECRET
+    GITHUB_EMAIL_SECRET=$(retry 5 vault kv get -field email ${GITHUB_TOKEN_VAULT_PATH})
+    export GITHUB_EMAIL_SECRET
+    GITHUB_TOKEN=$(retry 5 vault kv get -field token ${GITHUB_TOKEN_VAULT_PATH})
+    export GITHUB_TOKEN
 fi
