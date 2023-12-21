@@ -7,6 +7,7 @@ package rally
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/elastic/elastic-package/internal/benchrunner/runners/common"
 	"strings"
 	"time"
 
@@ -31,8 +32,8 @@ type report struct {
 	}
 	Parameters struct {
 		PackageVersion string
-		DataStream     dataStream
-		Corpora        corpora
+		DataStream     common.DataStream
+		Corpora        common.Corpora
 	}
 	ClusterName         string
 	Nodes               int
@@ -43,7 +44,7 @@ type report struct {
 	RallyStats          []rallyStat
 }
 
-func createReport(benchName, corporaFile string, s *scenario, sum *metricsSummary, stats []rallyStat) (reporters.Reportable, error) {
+func createReport(benchName, corporaFile string, s *common.Scenario, sum *metricsSummary, stats []rallyStat) (reporters.Reportable, error) {
 	r := newReport(benchName, corporaFile, s, sum, stats)
 	human := reporters.NewReport(s.Package, reportHumanFormat(r))
 
@@ -59,7 +60,7 @@ func createReport(benchName, corporaFile string, s *scenario, sum *metricsSummar
 	return mr, nil
 }
 
-func newReport(benchName, corporaFile string, s *scenario, sum *metricsSummary, stats []rallyStat) *report {
+func newReport(benchName, corporaFile string, s *common.Scenario, sum *metricsSummary, stats []rallyStat) *report {
 	var report report
 	report.Info.Benchmark = benchName
 	report.Info.Description = s.Description

@@ -9,6 +9,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"github.com/elastic/elastic-package/internal/benchrunner/runners/common"
 	"io"
 	"sync"
 	"sync/atomic"
@@ -23,7 +24,7 @@ import (
 type collector struct {
 	ctxt     servicedeployer.ServiceContext
 	metadata benchMeta
-	scenario scenario
+	scenario common.Scenario
 
 	interval       time.Duration
 	esAPI          *elasticsearch.API
@@ -66,7 +67,7 @@ type metricsSummary struct {
 func newCollector(
 	ctxt servicedeployer.ServiceContext,
 	benchName string,
-	scenario scenario,
+	scenario common.Scenario,
 	esAPI, metricsAPI *elasticsearch.API,
 	interval time.Duration,
 	datastream, pipelinePrefix string,

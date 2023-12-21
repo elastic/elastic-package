@@ -7,6 +7,7 @@ package system
 import (
 	"errors"
 	"fmt"
+	"github.com/elastic/elastic-package/internal/benchrunner/runners/common"
 	"os"
 	"path/filepath"
 	"time"
@@ -32,14 +33,15 @@ type scenario struct {
 	Corpora             corpora                `config:"corpora" json:"corpora"`
 }
 
+// TODO: Why is this and next one slightly different from the common fields?
 type dataStream struct {
 	Name string                 `config:"name" json:"name"`
 	Vars map[string]interface{} `config:"vars" json:"vars"`
 }
 
 type corpora struct {
-	Generator    *generator    `config:"generator" json:"generator"`
-	InputService *inputService `config:"input_service" json:"input_service"`
+	Generator    *common.Generator `config:"generator" json:"generator"`
+	InputService *inputService     `config:"input_service" json:"input_service"`
 }
 
 type inputService struct {
@@ -47,24 +49,13 @@ type inputService struct {
 	Signal string `config:"signal" json:"signal"`
 }
 
-type generator struct {
-	TotalEvents uint64          `config:"total_events" json:"total_events"`
-	Template    corporaTemplate `config:"template" json:"template"`
-	Config      corporaConfig   `config:"config" json:"config"`
-	Fields      corporaFields   `config:"fields" json:"fields"`
-}
-
-type corporaTemplate struct {
-	Raw  string `config:"raw" json:"raw"`
-	Path string `config:"path" json:"path"`
-	Type string `config:"type" json:"type"`
-}
-
+// TODO: This seems to be identical to CorporaAsset
 type corporaConfig struct {
 	Raw  map[string]interface{} `config:"raw" json:"raw"`
 	Path string                 `config:"path" json:"path"`
 }
 
+// TODO: This seems to be identical to CorporaAsset
 type corporaFields struct {
 	Raw  map[string]interface{} `config:"raw" json:"raw"`
 	Path string                 `config:"path" json:"path"`
