@@ -430,9 +430,8 @@ func (r *runner) collectBulkRequestBody(indexName, scenarioName string, buf *byt
 	var event map[string]any
 	err = json.Unmarshal(buf.Bytes(), &event)
 	if err != nil {
-		return bulkBodyBuilder, fmt.Errorf("problem unmarshaling json event: %s\n"+
-			"Outcome of template for scenario '%s' is invalid JSON. Check your benchmark template.",
-			buf.String(), scenarioName)
+		logger.Debugf("Problem found when unmarshalling document: %s", buf.String())
+		return bulkBodyBuilder, fmt.Errorf("failed to unmarshal json event, check your benchmark template for scenario %s: %w", scenarioName, err)
 	}
 	enriched := r.enrichEventWithBenchmarkMetadata(event)
 	src, err := json.Marshal(enriched)
