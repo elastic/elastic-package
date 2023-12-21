@@ -33,12 +33,13 @@ type scenario struct {
 	Corpora             corpora                `config:"corpora" json:"corpora"`
 }
 
-// TODO: Why is this and next one slightly different from the common fields?
+// TODO: Why is this slightly different from the common fields?
 type dataStream struct {
 	Name string                 `config:"name" json:"name"`
 	Vars map[string]interface{} `config:"vars" json:"vars"`
 }
 
+// TODO: Why is this slightly different from the common fields?
 type corpora struct {
 	Generator    *common.Generator `config:"generator" json:"generator"`
 	InputService *inputService     `config:"input_service" json:"input_service"`
