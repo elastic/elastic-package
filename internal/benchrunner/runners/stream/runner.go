@@ -430,7 +430,8 @@ func (r *runner) collectBulkRequestBody(indexName, scenarioName string, buf *byt
 	var event map[string]any
 	err = json.Unmarshal(buf.Bytes(), &event)
 	if err != nil {
-		return bulkBodyBuilder, err
+		logger.Debugf("Problem found when unmarshalling document: %s", buf.String())
+		return bulkBodyBuilder, fmt.Errorf("failed to unmarshal json event, check your benchmark template for scenario %s: %w", scenarioName, err)
 	}
 	enriched := r.enrichEventWithBenchmarkMetadata(event)
 	src, err := json.Marshal(enriched)
@@ -505,6 +506,7 @@ func (r *runner) streamData() {
 
 						if err != nil {
 							r.errChanGenerators <- fmt.Errorf("error while generating event for streaming: %w", err)
+							return
 						}
 					}
 
@@ -534,6 +536,7 @@ func (r *runner) streamData() {
 
 				if err != nil {
 					r.errChanGenerators <- fmt.Errorf("error while generating event for streaming: %w", err)
+					return
 				}
 			}
 
