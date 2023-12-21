@@ -49,18 +49,6 @@ type inputService struct {
 	Signal string `config:"signal" json:"signal"`
 }
 
-// TODO: This seems to be identical to CorporaAsset
-type corporaConfig struct {
-	Raw  map[string]interface{} `config:"raw" json:"raw"`
-	Path string                 `config:"path" json:"path"`
-}
-
-// TODO: This seems to be identical to CorporaAsset
-type corporaFields struct {
-	Raw  map[string]interface{} `config:"raw" json:"raw"`
-	Path string                 `config:"path" json:"path"`
-}
-
 func defaultConfig() *scenario {
 	timeout := 10 * time.Minute
 	return &scenario{
