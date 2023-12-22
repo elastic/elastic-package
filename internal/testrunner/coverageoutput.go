@@ -12,9 +12,11 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/elastic/elastic-package/internal/builder"
+	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/multierror"
 )
 
@@ -240,10 +242,21 @@ func WriteCoverage(packageRootPath, packageName string, testType TestType, resul
 		return fmt.Errorf("can't collect test coverage details: %w", err)
 	}
 
+	dir, err := files.FindRepositoryRootDirectory()
+	if err != nil {
+		return err
+	}
+
+	relativePath := strings.TrimPrefix(packageRootPath, dir)
+	if strings.HasPrefix(relativePath, "/") {
+		relativePath = relativePath[1:]
+	}
+	baseFolder := strings.TrimSuffix(relativePath, packageName)
+
 	// Use provided cobertura report, or generate a custom report if not available.
 	report := details.cobertura
 	if report == nil {
-		report = transformToCoberturaReport(details)
+		report = transformToCoberturaReport(details, baseFolder)
 	}
 
 	err = writeCoverageReportFile(report, packageName)
@@ -323,7 +336,7 @@ func verifyTestExpected(packageRootPath string, dataStreamName string, testType 
 	return true, nil
 }
 
-func transformToCoberturaReport(details *testCoverageDetails) *CoberturaCoverage {
+func transformToCoberturaReport(details *testCoverageDetails, baseFolder string) *CoberturaCoverage {
 	var classes []*CoberturaClass
 	for dataStream, testCases := range details.dataStreams {
 		if dataStream == "" {
@@ -346,7 +359,7 @@ func transformToCoberturaReport(details *testCoverageDetails) *CoberturaCoverage
 
 		aClass := &CoberturaClass{
 			Name:     string(details.testType),
-			Filename: path.Join(details.packageName, "data_stream", dataStream, "manifest.yml"),
+			Filename: path.Join(baseFolder, details.packageName, "data_stream", dataStream, "manifest.yml"),
 			Methods:  methods,
 		}
 		classes = append(classes, aClass)
