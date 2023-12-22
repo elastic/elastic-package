@@ -346,7 +346,7 @@ func transformToCoberturaReport(details *testCoverageDetails) *CoberturaCoverage
 
 		aClass := &CoberturaClass{
 			Name:     string(details.testType),
-			Filename: path.Join(details.packageName, "data_stream", dataStream),
+			Filename: path.Join(details.packageName, "data_stream", dataStream, "manifest.yml"),
 			Methods:  methods,
 		}
 		classes = append(classes, aClass)
