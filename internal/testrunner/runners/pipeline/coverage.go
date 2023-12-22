@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/elastic/elastic-package/internal/elasticsearch/ingest"
+	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
@@ -43,6 +44,13 @@ func GetPipelineCoverage(options testrunner.TestOptions, pipelines []ingest.Pipe
 	// different packages colliding (i.e. a lot of packages have a "log" datastream
 	// and a default.yml pipeline).
 	basePath := filepath.Dir(options.PackageRootPath)
+
+	dir, err := files.FindRepositoryRootDirectory()
+	if err != nil {
+		return nil, err
+	}
+
+	basePath = basePath[:len(dir)]
 
 	coverage := &testrunner.CoberturaCoverage{
 		Sources: []*testrunner.CoberturaSource{
