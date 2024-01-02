@@ -248,9 +248,7 @@ func WriteCoverage(packageRootPath, packageName string, testType TestType, resul
 	}
 
 	relativePath := strings.TrimPrefix(packageRootPath, dir)
-	if strings.HasPrefix(relativePath, "/") {
-		relativePath = relativePath[1:]
-	}
+	relativePath = strings.TrimPrefix(relativePath, "/")
 	baseFolder := strings.TrimSuffix(relativePath, packageName)
 
 	// Use provided cobertura report, or generate a custom report if not available.
