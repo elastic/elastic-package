@@ -362,6 +362,11 @@ func (r *runner) createBenchmarkPolicy(pkgManifest *packages.PackageManifest) (*
 		MonitoringEnabled: []string{"logs", "metrics"},
 	}
 
+	// Assign the data_output_id to the agent policy to configure the output to logstash. The value is inferred from stack/_static/kibana.yml.tmpl
+	if r.options.Profile.Config("stack.logstash_enabled", "false") == "true" {
+		p.DataOutputID = "fleet-logstash-output"
+	}
+
 	policy, err := r.options.KibanaClient.CreatePolicy(p)
 	if err != nil {
 		return nil, err
