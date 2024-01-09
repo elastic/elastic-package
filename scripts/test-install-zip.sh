@@ -18,7 +18,7 @@ cleanup() {
 
   for d in test/packages/*/*/; do
     (
-      cd $d
+      cd "$d"
       elastic-package clean -v
     )
   done
@@ -27,24 +27,25 @@ cleanup() {
 }
 
 testype() {
-  echo $(basename $(dirname $1))
+  basename "$(dirname "$1")"
 }
 
 trap cleanup EXIT
 
 installAndVerifyPackage() {
   local zipFile="$1"
-  local PACKAGE_NAME_VERSION=$(basename ${zipFile} .zip)
+  local PACKAGE_NAME_VERSION
+  PACKAGE_NAME_VERSION=$(basename "${zipFile}" .zip)
 
-  elastic-package install -v --zip ${zipFile}
+  elastic-package install -v --zip "${zipFile}"
 
   # check that the package is installed
   curl -s \
-    -u ${ELASTIC_PACKAGE_ELASTICSEARCH_USERNAME}:${ELASTIC_PACKAGE_ELASTICSEARCH_PASSWORD} \
-    --cacert ${ELASTIC_PACKAGE_CA_CERT} \
+    -u "${ELASTIC_PACKAGE_ELASTICSEARCH_USERNAME}:${ELASTIC_PACKAGE_ELASTICSEARCH_PASSWORD}" \
+    --cacert "${ELASTIC_PACKAGE_CA_CERT}" \
     -H 'content-type: application/json' \
     -H 'kbn-xsrf: true' \
-    -f ${ELASTIC_PACKAGE_KIBANA_HOST}/api/fleet/epm/packages/${PACKAGE_NAME_VERSION} | grep -q '"status":"installed"'
+    -f "${ELASTIC_PACKAGE_KIBANA_HOST}/api/fleet/epm/packages/${PACKAGE_NAME_VERSION}" | grep -q '"status":"installed"'
 }
 
 usage() {
@@ -95,21 +96,22 @@ elastic-package stack update -v ${ARG_VERSION}
 # Boot up the stack
 elastic-package stack up -d -v ${ARG_VERSION}
 
-export ELASTIC_PACKAGE_LINKS_FILE_PATH="$(pwd)/scripts/links_table.yml"
+ELASTIC_PACKAGE_LINKS_FILE_PATH="$(pwd)/scripts/links_table.yml"
+export ELASTIC_PACKAGE_LINKS_FILE_PATH
 OLDPWD=$PWD
 
 # Build packages
 for d in test/packages/*/*/; do
   # Packages in false_positives can have issues.
-  if [ "$(testype $d)" == "false_positives" ]; then
+  if [ "$(testype "$d")" == "false_positives" ]; then
     continue
   fi
   (
-    cd $d
+    cd "$d"
     elastic-package build
   )
 done
-cd $OLDPWD
+cd "$OLDPWD"
 
 # Remove unzipped built packages, leave .zip files
 rm -r build/packages/*/
@@ -124,5 +126,5 @@ else
 fi
 
 for zipFile in build/packages/*.zip; do
-  installAndVerifyPackage ${zipFile}
+  installAndVerifyPackage "${zipFile}"
 done
