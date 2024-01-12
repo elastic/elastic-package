@@ -57,11 +57,11 @@ func GetPipelineCoverage(options testrunner.TestOptions, pipelines []ingest.Pipe
 	}
 
 	coverage := &testrunner.CoberturaCoverage{
-		Sources: []*testrunner.CoberturaSource{
-			{
-				Path: basePath,
-			},
-		},
+		// Sources: []*testrunner.CoberturaSource{
+		// 	{
+		// 		Path: basePath,
+		// 	},
+		// },
 		Packages:  []*testrunner.CoberturaPackage{pkg},
 		Timestamp: time.Now().UnixNano(),
 	}
