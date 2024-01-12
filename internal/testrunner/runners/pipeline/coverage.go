@@ -128,7 +128,6 @@ func coverageForSinglePipeline(pipeline ingest.Pipeline, stats ingest.PipelineSt
 		}
 		method := testrunner.CoberturaMethod{
 			Name: srcProc.Type,
-			Hits: pstats.Processors[idx].Stats.Count,
 		}
 		for num := srcProc.FirstLine; num <= srcProc.LastLine; num++ {
 			line := &testrunner.CoberturaLine{

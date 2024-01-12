@@ -106,7 +106,6 @@ type CoberturaMethod struct {
 	LineRate   float32          `xml:"line-rate,attr"`
 	BranchRate float32          `xml:"branch-rate,attr"`
 	Complexity float32          `xml:"complexity,attr"`
-	Hits       int64            `xml:"hits,attr"`
 	Lines      []*CoberturaLine `xml:"lines>line"`
 }
 
@@ -150,7 +149,6 @@ func (c *CoberturaClass) merge(b *CoberturaClass) error {
 	}
 	// Update methods
 	for idx := range b.Methods {
-		c.Methods[idx].Hits += b.Methods[idx].Hits
 		for l := range b.Methods[idx].Lines {
 			c.Methods[idx].Lines[l].Hits += b.Methods[idx].Lines[l].Hits
 		}
