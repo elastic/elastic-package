@@ -247,7 +247,7 @@ func WriteCoverage(packageRootPath, packageName string, testType TestType, resul
 
 	relativePath := strings.TrimPrefix(packageRootPath, dir)
 	relativePath = strings.TrimPrefix(relativePath, "/")
-	baseFolder := strings.TrimSuffix(relativePath, packageName)
+	baseFolder := filepath.Dir(relativePath)
 
 	// Use provided cobertura report, or generate a custom report if not available.
 	report := details.cobertura
@@ -365,7 +365,7 @@ func transformToCoberturaReport(details *testCoverageDetails, baseFolder string)
 		Timestamp: time.Now().UnixNano(),
 		Packages: []*CoberturaPackage{
 			{
-				Name:    details.packageName,
+				Name:    strings.TrimSuffix(baseFolder, "/") + "." + details.packageName,
 				Classes: classes,
 			},
 		},

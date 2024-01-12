@@ -34,11 +34,6 @@ func GetPipelineCoverage(options testrunner.TestOptions, pipelines []ingest.Pipe
 		return nil, fmt.Errorf("error fetching pipeline stats for code coverage calculations: %w", err)
 	}
 
-	// Construct the Cobertura report.
-	pkg := &testrunner.CoberturaPackage{
-		Name: options.TestFolder.Package + "." + options.TestFolder.DataStream,
-	}
-
 	// Use the package's parent directory as base path, so that the relative paths
 	// for each class (pipeline) include the package name. This prevents paths for
 	// different packages colliding (i.e. a lot of packages have a "log" datastream
@@ -51,6 +46,15 @@ func GetPipelineCoverage(options testrunner.TestOptions, pipelines []ingest.Pipe
 	}
 
 	basePath = basePath[:len(dir)]
+
+	relativePath := strings.TrimPrefix(options.PackageRootPath, dir)
+	relativePath = strings.TrimPrefix(relativePath, "/")
+	baseFolder := filepath.Dir(relativePath)
+
+	// Construct the Cobertura report.
+	pkg := &testrunner.CoberturaPackage{
+		Name: baseFolder + "." + options.TestFolder.Package + "." + options.TestFolder.DataStream,
+	}
 
 	coverage := &testrunner.CoberturaCoverage{
 		Sources: []*testrunner.CoberturaSource{
