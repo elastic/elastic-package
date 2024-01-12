@@ -111,7 +111,6 @@ func TestCoberturaCoverage_Merge(t *testing.T) {
 								Methods: []*CoberturaMethod{
 									{
 										Name: "foo",
-										Hits: 2,
 										Lines: []*CoberturaLine{
 											{
 												Number: 13,
@@ -125,7 +124,6 @@ func TestCoberturaCoverage_Merge(t *testing.T) {
 									},
 									{
 										Name: "bar",
-										Hits: 1,
 										Lines: []*CoberturaLine{
 											{
 												Number: 24,
@@ -163,7 +161,6 @@ func TestCoberturaCoverage_Merge(t *testing.T) {
 								Methods: []*CoberturaMethod{
 									{
 										Name: "foo",
-										Hits: 1,
 										Lines: []*CoberturaLine{
 											{
 												Number: 13,
@@ -177,7 +174,6 @@ func TestCoberturaCoverage_Merge(t *testing.T) {
 									},
 									{
 										Name: "bar",
-										Hits: 1,
 										Lines: []*CoberturaLine{
 											{
 												Number: 24,
@@ -217,7 +213,6 @@ func TestCoberturaCoverage_Merge(t *testing.T) {
 								Methods: []*CoberturaMethod{
 									{
 										Name: "foo",
-										Hits: 3,
 										Lines: []*CoberturaLine{
 											{
 												Number: 13,
@@ -231,7 +226,6 @@ func TestCoberturaCoverage_Merge(t *testing.T) {
 									},
 									{
 										Name: "bar",
-										Hits: 2,
 										Lines: []*CoberturaLine{
 											{
 												Number: 24,
