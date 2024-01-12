@@ -334,6 +334,16 @@ func verifyTestExpected(packageRootPath string, dataStreamName string, testType 
 
 func transformToCoberturaReport(details *testCoverageDetails, baseFolder string) *CoberturaCoverage {
 	var classes []*CoberturaClass
+	var lineNumberPerTestType map[string]int = map[string]int{
+		"asset":    1,
+		"pipeline": 2,
+		"system":   3,
+		"static":   4,
+	}
+	lineNumber, ok := lineNumberPerTestType[string(details.testType)]
+	if !ok {
+		lineNumber = 5
+	}
 	for dataStream, testCases := range details.dataStreams {
 		if dataStream == "" {
 			continue // ignore tests running in the package context (not data stream), mostly referring to installed assets
@@ -344,12 +354,12 @@ func transformToCoberturaReport(details *testCoverageDetails, baseFolder string)
 		if len(testCases) == 0 {
 			methods = append(methods, &CoberturaMethod{
 				Name:  "Missing",
-				Lines: []*CoberturaLine{{Number: 1, Hits: 0}},
+				Lines: []*CoberturaLine{{Number: lineNumber, Hits: 0}},
 			})
 		} else {
 			methods = append(methods, &CoberturaMethod{
 				Name:  "OK",
-				Lines: []*CoberturaLine{{Number: 1, Hits: 1}},
+				Lines: []*CoberturaLine{{Number: lineNumber, Hits: 1}},
 			})
 		}
 
