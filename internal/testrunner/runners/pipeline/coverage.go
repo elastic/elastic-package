@@ -53,7 +53,7 @@ func GetPipelineCoverage(options testrunner.TestOptions, pipelines []ingest.Pipe
 
 	// Construct the Cobertura report.
 	pkg := &testrunner.CoberturaPackage{
-		Name: baseFolder + "." + options.TestFolder.Package + "." + options.TestFolder.DataStream,
+		Name: strings.Replace(baseFolder, "/", ".", -1) + "." + options.TestFolder.Package + "." + options.TestFolder.DataStream,
 	}
 
 	coverage := &testrunner.CoberturaCoverage{

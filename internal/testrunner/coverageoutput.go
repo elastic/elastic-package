@@ -379,7 +379,7 @@ func transformToCoberturaReport(details *testCoverageDetails, baseFolder string)
 		Timestamp: time.Now().UnixNano(),
 		Packages: []*CoberturaPackage{
 			{
-				Name:    strings.TrimSuffix(baseFolder, "/") + "." + details.packageName,
+				Name:    strings.Replace(strings.TrimSuffix(baseFolder, "/"), "/", ".", -1) + "." + details.packageName,
 				Classes: classes,
 			},
 		},
