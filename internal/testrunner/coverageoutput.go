@@ -350,23 +350,27 @@ func transformToCoberturaReport(details *testCoverageDetails, baseFolder string)
 		}
 
 		var methods []*CoberturaMethod
+		var lines []*CoberturaLine
 
 		if len(testCases) == 0 {
 			methods = append(methods, &CoberturaMethod{
 				Name:  "Missing",
 				Lines: []*CoberturaLine{{Number: lineNumber, Hits: 0}},
 			})
+			lines = append(lines, []*CoberturaLine{{Number: lineNumber, Hits: 0}}...)
 		} else {
 			methods = append(methods, &CoberturaMethod{
 				Name:  "OK",
 				Lines: []*CoberturaLine{{Number: lineNumber, Hits: 1}},
 			})
+			lines = append(lines, []*CoberturaLine{{Number: lineNumber, Hits: 1}}...)
 		}
 
 		aClass := &CoberturaClass{
 			Name:     string(details.testType),
 			Filename: path.Join(baseFolder, details.packageName, "data_stream", dataStream, "manifest.yml"),
 			Methods:  methods,
+			Lines:    lines,
 		}
 		classes = append(classes, aClass)
 	}
