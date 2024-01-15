@@ -7,10 +7,11 @@ package system
 import (
 	"errors"
 	"fmt"
-	"github.com/elastic/elastic-package/internal/benchrunner/runners/common"
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/elastic/elastic-package/internal/benchrunner/runners/common"
 
 	"github.com/aymerick/raymond"
 	"github.com/elastic/go-ucfg"

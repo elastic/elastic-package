@@ -10,7 +10,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/elastic/elastic-package/internal/benchrunner/runners/common"
 	"io"
 	"net/http"
 	"os"
@@ -18,6 +17,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/elastic/elastic-package/internal/benchrunner/runners/common"
 
 	"github.com/elastic/elastic-package/internal/packages/installer"
 

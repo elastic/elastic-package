@@ -7,9 +7,10 @@ package rally
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/elastic/elastic-package/internal/benchrunner/runners/common"
 	"strings"
 	"time"
+
+	"github.com/elastic/elastic-package/internal/benchrunner/runners/common"
 
 	"github.com/dustin/go-humanize"
 	"github.com/jedib0t/go-pretty/table"

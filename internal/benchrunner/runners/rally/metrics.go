@@ -9,11 +9,12 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
-	"github.com/elastic/elastic-package/internal/benchrunner/runners/common"
 	"io"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/elastic/elastic-package/internal/benchrunner/runners/common"
 
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/elasticsearch/ingest"
