@@ -14,7 +14,7 @@ cleanup() {
   # Clean used resources
   for d in test/packages/*/*/; do
     (
-      cd $d
+      cd "$d"
       elastic-package clean -v
     )
   done
@@ -23,7 +23,7 @@ cleanup() {
 }
 
 testype() {
-  echo $(basename $(dirname $1))
+  basename "$(dirname "$1")"
 }
 
 trap cleanup EXIT
@@ -31,8 +31,10 @@ trap cleanup EXIT
 OLDPWD=$PWD
 # Build packages
 export ELASTIC_PACKAGE_SIGNER_PRIVATE_KEYFILE="$OLDPWD/scripts/gpg-private.asc"
-export ELASTIC_PACKAGE_SIGNER_PASSPHRASE=$(cat "$OLDPWD/scripts/gpg-pass.txt")
-export ELASTIC_PACKAGE_LINKS_FILE_PATH="$(pwd)/scripts/links_table.yml"
+ELASTIC_PACKAGE_SIGNER_PASSPHRASE=$(cat "$OLDPWD/scripts/gpg-pass.txt")
+export ELASTIC_PACKAGE_SIGNER_PASSPHRASE
+ELASTIC_PACKAGE_LINKS_FILE_PATH="$(pwd)/scripts/links_table.yml"
+export ELASTIC_PACKAGE_LINKS_FILE_PATH
 
 go run ./scripts/gpgkey
 

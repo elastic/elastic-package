@@ -335,14 +335,16 @@ func (c *collector) createEventsFromMetrics(m metrics) [][]byte {
 
 	var nEvents []interface{}
 
-	for node, stats := range m.nMetrics.Nodes {
-		nEvents = append(nEvents, nEvent{
-			Ts:          m.ts * 1000, // ms to s
-			ClusterName: m.nMetrics.ClusterName,
-			NodeName:    node,
-			NodeStats:   &stats,
-			Meta:        c.metadata,
-		})
+	if c.startMetrics.nMetrics != nil {
+		for node, stats := range m.nMetrics.Nodes {
+			nEvents = append(nEvents, nEvent{
+				Ts:          m.ts * 1000, // ms to s
+				ClusterName: m.nMetrics.ClusterName,
+				NodeName:    node,
+				NodeStats:   &stats,
+				Meta:        c.metadata,
+			})
+		}
 	}
 
 	var events [][]byte

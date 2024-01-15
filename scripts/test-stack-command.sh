@@ -9,7 +9,7 @@ cleanup() {
   r=$?
 
   # Dump stack logs
-  elastic-package stack dump -v --output build/elastic-stack-dump/stack/${VERSION}
+  elastic-package stack dump -v --output "build/elastic-stack-dump/stack/${VERSION}"
 
   # Take down the stack
   elastic-package stack down -v
@@ -28,7 +28,7 @@ default_version() {
 
 clean_status_output() {
   local output_file="$1"
-  cat ${output_file} | grep "│" | tr -d ' '
+  cat "${output_file}" | grep "│" | tr -d ' '
 }
 
 trap cleanup EXIT
@@ -56,11 +56,11 @@ OUTPUT_PATH_STATUS="build/elastic-stack-status/${VERSION}"
 if [ "${APM_SERVER_ENABLED}" = true ]; then
   OUTPUT_PATH_STATUS="build/elastic-stack-status/${VERSION}_with_apm_server"
 fi
-mkdir -p ${OUTPUT_PATH_STATUS}
+mkdir -p "${OUTPUT_PATH_STATUS}"
 
 # Initial status empty
-elastic-package stack status 2> ${OUTPUT_PATH_STATUS}/initial.txt
-grep "\- No service running" ${OUTPUT_PATH_STATUS}/initial.txt
+elastic-package stack status 2> "${OUTPUT_PATH_STATUS}/initial.txt"
+grep "\- No service running" "${OUTPUT_PATH_STATUS}/initial.txt"
 
 # Update the stack
 elastic-package stack update -v ${ARG_VERSION}
@@ -70,10 +70,10 @@ elastic-package stack up -d -v ${ARG_VERSION}
 
 # Verify it's accessible
 eval "$(elastic-package stack shellinit)"
-curl --cacert ${ELASTIC_PACKAGE_CA_CERT} -f ${ELASTIC_PACKAGE_KIBANA_HOST}/login | grep kbn-injected-metadata >/dev/null # healthcheck
+curl --cacert "${ELASTIC_PACKAGE_CA_CERT}" -f "${ELASTIC_PACKAGE_KIBANA_HOST}/login" | grep kbn-injected-metadata >/dev/null # healthcheck
 
 # Check status with running services
-cat <<EOF > ${OUTPUT_PATH_STATUS}/expected_running.txt
+cat <<EOF > "${OUTPUT_PATH_STATUS}/expected_running.txt"
 Status of Elastic stack services:
 ╭──────────────────┬─────────┬───────────────────╮
 │ SERVICE          │ VERSION │ STATUS            │
@@ -86,14 +86,14 @@ Status of Elastic stack services:
 ╰──────────────────┴─────────┴───────────────────╯
 EOF
 
-elastic-package stack status -v 2> ${OUTPUT_PATH_STATUS}/running.txt
+elastic-package stack status -v 2> "${OUTPUT_PATH_STATUS}/running.txt"
 
 # Remove spaces to avoid issues with spaces between columns
-clean_status_output "${OUTPUT_PATH_STATUS}/expected_running.txt" > ${OUTPUT_PATH_STATUS}/expected_no_spaces.txt
-clean_status_output "${OUTPUT_PATH_STATUS}/running.txt" > ${OUTPUT_PATH_STATUS}/running_no_spaces.txt
+clean_status_output "${OUTPUT_PATH_STATUS}/expected_running.txt" > "${OUTPUT_PATH_STATUS}/expected_no_spaces.txt"
+clean_status_output "${OUTPUT_PATH_STATUS}/running.txt" > "${OUTPUT_PATH_STATUS}/running_no_spaces.txt"
 
 if [ "${APM_SERVER_ENABLED}" = true ]; then
   curl http://localhost:8200/
 fi
 
-diff -q ${OUTPUT_PATH_STATUS}/running_no_spaces.txt ${OUTPUT_PATH_STATUS}/expected_no_spaces.txt
+diff -q "${OUTPUT_PATH_STATUS}/running_no_spaces.txt" "${OUTPUT_PATH_STATUS}/expected_no_spaces.txt"
