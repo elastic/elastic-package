@@ -190,7 +190,10 @@ const (
 	StatusExtraInfoFlagDescription = "show additional information (comma-separated values: \"%s\")"
 
 	TestCoverageFlagName        = "test-coverage"
-	TestCoverageFlagDescription = "generate Cobertura test coverage reports"
+	TestCoverageFlagDescription = "enable test coverage reports"
+
+	TestCoverageFormatFlagName        = "coverage-format"
+	TestCoverageFormatFlagDescription = "set format for coverage reports: \"cobertura,generic\" (default cobertura)"
 
 	VariantFlagName        = "variant"
 	VariantFlagDescription = "service variant"

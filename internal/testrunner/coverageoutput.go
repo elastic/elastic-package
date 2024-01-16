@@ -20,13 +20,19 @@ import (
 	"github.com/elastic/elastic-package/internal/multierror"
 )
 
+type CoverageReport interface {
+	TimeStamp() int64
+	Merge(CoverageReport) error
+	Bytes() ([]byte, error)
+}
+
 const coverageDtd = `<!DOCTYPE coverage SYSTEM "http://cobertura.sourceforge.net/xml/coverage-04.dtd">`
 
 type testCoverageDetails struct {
 	packageName string
 	testType    TestType
 	dataStreams map[string][]string // <data_stream> : <test case 1, test case 2, ...>
-	cobertura   *CoberturaCoverage  // For tests to provide custom Cobertura results.
+	coverage    CoverageReport      // For tests to provide custom Cobertura results.
 	errors      multierror.Error
 }
 
@@ -47,12 +53,12 @@ func (tcd *testCoverageDetails) withTestResults(results []TestResult) *testCover
 			tcd.dataStreams[result.DataStream] = []string{}
 		}
 		tcd.dataStreams[result.DataStream] = append(tcd.dataStreams[result.DataStream], result.Name)
-		if tcd.cobertura != nil && result.Coverage != nil {
-			if err := tcd.cobertura.merge(result.Coverage); err != nil {
+		if tcd.coverage != nil && result.Coverage != nil {
+			if err := tcd.coverage.Merge(result.Coverage); err != nil {
 				tcd.errors = append(tcd.errors, fmt.Errorf("can't merge Cobertura coverage for test `%s`: %w", result.Name, err))
 			}
-		} else if tcd.cobertura == nil {
-			tcd.cobertura = result.Coverage
+		} else if tcd.coverage == nil {
+			tcd.coverage = result.Coverage
 		}
 	}
 	return tcd
@@ -115,10 +121,14 @@ type CoberturaLine struct {
 	Hits   int64 `xml:"hits,attr"`
 }
 
-func (c *CoberturaCoverage) bytes() ([]byte, error) {
+func (c *CoberturaCoverage) TimeStamp() int64 {
+	return c.Timestamp
+}
+
+func (c *CoberturaCoverage) Bytes() ([]byte, error) {
 	out, err := xml.MarshalIndent(&c, "", "  ")
 	if err != nil {
-		return nil, fmt.Errorf("unable to format test results as xUnit: %w", err)
+		return nil, fmt.Errorf("unable to format test results as Coverage: %w", err)
 	}
 
 	var buffer bytes.Buffer
@@ -184,7 +194,12 @@ func (p *CoberturaPackage) merge(b *CoberturaPackage) error {
 }
 
 // merge merges two coverage reports.
-func (c *CoberturaCoverage) merge(b *CoberturaCoverage) error {
+func (c *CoberturaCoverage) Merge(other CoverageReport) error {
+	b, ok := other.(*CoberturaCoverage)
+	if !ok {
+		return fmt.Errorf("not able to assert report to be merged as CoberturaCoverage")
+
+	}
 	// Merge source paths
 	for _, path := range b.Sources {
 		found := false
@@ -234,7 +249,7 @@ func (c *CoberturaCoverage) merge(b *CoberturaCoverage) error {
 
 // WriteCoverage function calculates test coverage for the given package.
 // It requires to execute tests for all data streams (same test type), so the coverage can be calculated properly.
-func WriteCoverage(packageRootPath, packageName string, testType TestType, results []TestResult) error {
+func WriteCoverage(packageRootPath, packageName string, testType TestType, results []TestResult, testCoverageType string) error {
 	details, err := collectTestCoverageDetails(packageRootPath, packageName, testType, results)
 	if err != nil {
 		return fmt.Errorf("can't collect test coverage details: %w", err)
@@ -250,9 +265,15 @@ func WriteCoverage(packageRootPath, packageName string, testType TestType, resul
 	baseFolder := filepath.Dir(relativePath)
 
 	// Use provided cobertura report, or generate a custom report if not available.
-	report := details.cobertura
+	report := details.coverage
 	if report == nil {
-		report = transformToCoberturaReport(details, baseFolder)
+		switch testCoverageType {
+		case "cobertura":
+			report = transformToCoberturaReport(details, baseFolder)
+		case "generic":
+			report = transformToGenericCoverageReport(details, baseFolder)
+		}
+
 	}
 
 	err = writeCoverageReportFile(report, packageName)
@@ -274,6 +295,7 @@ func collectTestCoverageDetails(packageRootPath, packageName string, testType Te
 	if len(details.errors) > 0 {
 		return nil, details.errors
 	}
+	fmt.Printf("Details for tests:\n%+v", details)
 	return details, nil
 }
 
@@ -386,7 +408,7 @@ func transformToCoberturaReport(details *testCoverageDetails, baseFolder string)
 	}
 }
 
-func writeCoverageReportFile(report *CoberturaCoverage, packageName string) error {
+func writeCoverageReportFile(report CoverageReport, packageName string) error {
 	dest, err := testCoverageReportsDir()
 	if err != nil {
 		return fmt.Errorf("could not determine test coverage reports folder: %w", err)
@@ -400,10 +422,10 @@ func writeCoverageReportFile(report *CoberturaCoverage, packageName string) erro
 		}
 	}
 
-	fileName := fmt.Sprintf("coverage-%s-%d-report.xml", packageName, report.Timestamp)
+	fileName := fmt.Sprintf("coverage-%s-%d-report.xml", packageName, report.TimeStamp())
 	filePath := filepath.Join(dest, fileName)
 
-	b, err := report.bytes()
+	b, err := report.Bytes()
 	if err != nil {
 		return fmt.Errorf("can't marshal test coverage report: %w", err)
 	}

@@ -257,7 +257,7 @@ func TestCoberturaCoverage_Merge(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := tt.rhs.merge(&tt.lhs)
+			err := tt.rhs.Merge(&tt.lhs)
 			if !tt.wantErr {
 				if !assert.NoError(t, err) {
 					t.Fatal(err)

@@ -71,6 +71,7 @@ func setupTestCommand() *cobraext.Command {
 	cmd.PersistentFlags().StringP(cobraext.ReportFormatFlagName, "", string(formats.ReportFormatHuman), cobraext.ReportFormatFlagDescription)
 	cmd.PersistentFlags().StringP(cobraext.ReportOutputFlagName, "", string(outputs.ReportOutputSTDOUT), cobraext.ReportOutputFlagDescription)
 	cmd.PersistentFlags().BoolP(cobraext.TestCoverageFlagName, "", false, cobraext.TestCoverageFlagDescription)
+	cmd.PersistentFlags().StringP(cobraext.TestCoverageFormatFlagName, "", "cobertura", cobraext.TestCoverageFormatFlagDescription)
 	cmd.PersistentFlags().DurationP(cobraext.DeferCleanupFlagName, "", 0, cobraext.DeferCleanupFlagDescription)
 	cmd.PersistentFlags().String(cobraext.VariantFlagName, "", cobraext.VariantFlagDescription)
 	cmd.PersistentFlags().StringP(cobraext.ProfileFlagName, "p", "", fmt.Sprintf(cobraext.ProfileFlagDescription, install.ProfileNameEnvVar))
@@ -125,6 +126,11 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 		testCoverage, err := cmd.Flags().GetBool(cobraext.TestCoverageFlagName)
 		if err != nil {
 			return cobraext.FlagParsingError(err, cobraext.TestCoverageFlagName)
+		}
+
+		testCoverageType, err := cmd.Flags().GetString(cobraext.TestCoverageFormatFlagName)
+		if err != nil {
+			return cobraext.FlagParsingError(err, cobraext.TestCoverageFormatFlagName)
 		}
 
 		packageRootPath, found, err := packages.FindPackageRoot()
@@ -246,6 +252,7 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 				DeferCleanup:       deferCleanup,
 				ServiceVariant:     variantFlag,
 				WithCoverage:       testCoverage,
+				CoverageType:       testCoverageType,
 			})
 
 			results = append(results, r...)
@@ -266,7 +273,7 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 		}
 
 		if testCoverage {
-			err := testrunner.WriteCoverage(packageRootPath, manifest.Name, runner.Type(), results)
+			err := testrunner.WriteCoverage(packageRootPath, manifest.Name, runner.Type(), results, testCoverageType)
 			if err != nil {
 				return fmt.Errorf("error writing test coverage: %w", err)
 			}

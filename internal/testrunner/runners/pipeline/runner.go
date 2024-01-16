@@ -116,6 +116,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		return nil, errors.New("missing Elasticsearch client")
 	}
 
+	fmt.Printf("TestFolder.Path: %s\n", r.options.TestFolder.Path)
 	dataStreamPath, found, err := packages.FindDataStreamRootForPath(r.options.TestFolder.Path)
 	if err != nil {
 		return nil, fmt.Errorf("locating data_stream root failed: %w", err)
@@ -135,6 +136,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		return nil, fmt.Errorf("failed to read manifest: %w", err)
 	}
 
+	fmt.Printf("TestFolder.DataStream: %s\n", r.options.TestFolder.DataStream)
 	dsManifest, err := packages.ReadDataStreamManifestFromPackageRoot(r.options.PackageRootPath, r.options.TestFolder.DataStream)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read data stream manifest: %w", err)
@@ -243,6 +245,8 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		}
 		results = append(results, tr)
 	}
+
+	// Add empty coverage for data Streams wihtout tests
 
 	return results, nil
 }
