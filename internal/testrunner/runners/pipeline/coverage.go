@@ -47,16 +47,9 @@ func GetPipelineCoverage(options testrunner.TestOptions, pipelines []ingest.Pipe
 
 	basePath = basePath[:len(dir)]
 
-	baseFolder, err := testrunner.GetBaseFolderPackageForCoverage(options.PackageRootPath)
-	if err != nil {
-		return nil, err
-	}
-
-	baseFolderAsPackage := strings.ReplaceAll(baseFolder, "/", ".")
-	baseFolderAsPackage = strings.ReplaceAll(baseFolderAsPackage, "\\", ".")
 	// Construct the Cobertura report.
 	pkg := &testrunner.CoberturaPackage{
-		Name: baseFolderAsPackage + "." + options.TestFolder.Package + "." + options.TestFolder.DataStream,
+		Name: options.TestFolder.Package + "." + options.TestFolder.DataStream,
 	}
 
 	if options.CoverageType == "cobertura" {

@@ -7,15 +7,9 @@ package testrunner
 import (
 	"bytes"
 	"encoding/xml"
-	"errors"
 	"fmt"
-	"os"
 	"path"
-	"path/filepath"
 	"sort"
-	"strings"
-
-	"github.com/elastic/elastic-package/internal/builder"
 )
 
 const coverageDtd = `<!DOCTYPE coverage SYSTEM "http://cobertura.sourceforge.net/xml/coverage-04.dtd">`
@@ -257,7 +251,7 @@ func transformToCoberturaReport(details *testCoverageDetails, baseFolder string,
 		Timestamp: timestamp,
 		Packages: []*CoberturaPackage{
 			{
-				Name:    strings.Replace(strings.TrimSuffix(baseFolder, "/"), "/", ".", -1) + "." + details.packageName,
+				Name:    details.packageName,
 				Classes: classes,
 			},
 		},
