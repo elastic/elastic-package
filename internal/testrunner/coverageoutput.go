@@ -250,30 +250,9 @@ func (c *CoberturaCoverage) Merge(other CoverageReport) error {
 // WriteCoverage function calculates test coverage for the given package.
 // It requires to execute tests for all data streams (same test type), so the coverage can be calculated properly.
 func WriteCoverage(packageRootPath, packageName string, testType TestType, results []TestResult, testCoverageType string) error {
-	details, err := collectTestCoverageDetails(packageRootPath, packageName, testType, results)
+	report, err := CreateCoverageReport(packageRootPath, packageName, testType, results, testCoverageType)
 	if err != nil {
-		return fmt.Errorf("can't collect test coverage details: %w", err)
-	}
-
-	dir, err := files.FindRepositoryRootDirectory()
-	if err != nil {
-		return err
-	}
-
-	relativePath := strings.TrimPrefix(packageRootPath, dir)
-	relativePath = strings.TrimPrefix(relativePath, "/")
-	baseFolder := filepath.Dir(relativePath)
-
-	// Use provided cobertura report, or generate a custom report if not available.
-	report := details.coverage
-	if report == nil {
-		switch testCoverageType {
-		case "cobertura":
-			report = transformToCoberturaReport(details, baseFolder)
-		case "generic":
-			report = transformToGenericCoverageReport(details, baseFolder)
-		}
-
+		return fmt.Errorf("can't create coverage report: %w", err)
 	}
 
 	err = writeCoverageReportFile(report, packageName)
@@ -281,6 +260,32 @@ func WriteCoverage(packageRootPath, packageName string, testType TestType, resul
 		return fmt.Errorf("can't write test coverage report file: %w", err)
 	}
 	return nil
+}
+
+func CreateCoverageReport(packageRootPath, packageName string, testType TestType, results []TestResult, CoverageFormat string) (CoverageReport, error) {
+	details, err := collectTestCoverageDetails(packageRootPath, packageName, testType, results)
+	if err != nil {
+		return nil, fmt.Errorf("can't collect test coverage details: %w", err)
+	}
+
+	if details.coverage != nil {
+		// Use provided cobertura report
+		return details.coverage, nil
+	}
+
+	// generate a custom report if not available
+	dir, err := files.FindRepositoryRootDirectory()
+	if err != nil {
+		return nil, err
+	}
+
+	relativePath := strings.TrimPrefix(packageRootPath, dir)
+	relativePath = strings.TrimPrefix(relativePath, "/")
+	baseFolder := filepath.Dir(relativePath)
+
+	report := transformToCoverageReport(details, baseFolder, CoverageFormat)
+
+	return report, nil
 }
 
 func collectTestCoverageDetails(packageRootPath, packageName string, testType TestType, results []TestResult) (*testCoverageDetails, error) {
@@ -352,6 +357,18 @@ func verifyTestExpected(packageRootPath string, dataStreamName string, testType 
 		return false, fmt.Errorf("can't stat path: %s: %w", ingestPipelinePath, err)
 	}
 	return true, nil
+}
+
+func transformToCoverageReport(details *testCoverageDetails, baseFolder, coverageFormat string) CoverageReport {
+	if coverageFormat == "cobertura" {
+		return transformToCoberturaReport(details, baseFolder)
+	}
+
+	if coverageFormat == "generic" {
+		return transformToGenericCoverageReport(details, baseFolder)
+	}
+
+	return nil
 }
 
 func transformToCoberturaReport(details *testCoverageDetails, baseFolder string) *CoberturaCoverage {
