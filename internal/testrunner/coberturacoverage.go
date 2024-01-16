@@ -7,7 +7,15 @@ package testrunner
 import (
 	"bytes"
 	"encoding/xml"
+	"errors"
 	"fmt"
+	"os"
+	"path"
+	"path/filepath"
+	"sort"
+	"strings"
+
+	"github.com/elastic/elastic-package/internal/builder"
 )
 
 const coverageDtd = `<!DOCTYPE coverage SYSTEM "http://cobertura.sourceforge.net/xml/coverage-04.dtd">`
@@ -193,4 +201,65 @@ func (c *CoberturaCoverage) Merge(other CoverageReport) error {
 		}
 	}
 	return nil
+}
+
+func transformToCoberturaReport(details *testCoverageDetails, baseFolder string, timestamp int64) *CoberturaCoverage {
+	var classes []*CoberturaClass
+	lineNumberTestType := lineNumberPerTestType(string(details.testType))
+
+	// sort data streams to ensure same ordering in coverage arrays
+	sortedDataStreams := make([]string, 0, len(details.dataStreams))
+	for dataStream := range details.dataStreams {
+		sortedDataStreams = append(sortedDataStreams, dataStream)
+	}
+	sort.Strings(sortedDataStreams)
+
+	for _, dataStream := range sortedDataStreams {
+		testCases := details.dataStreams[dataStream]
+
+		if dataStream == "" && details.packageType == "integration" {
+			continue // ignore tests running in the package context (not data stream), mostly referring to installed assets
+		}
+
+		var methods []*CoberturaMethod
+		var lines []*CoberturaLine
+
+		if len(testCases) == 0 {
+			methods = append(methods, &CoberturaMethod{
+				Name:  "Missing",
+				Lines: []*CoberturaLine{{Number: lineNumberTestType, Hits: 0}},
+			})
+			lines = append(lines, []*CoberturaLine{{Number: lineNumberTestType, Hits: 0}}...)
+		} else {
+			methods = append(methods, &CoberturaMethod{
+				Name:  "OK",
+				Lines: []*CoberturaLine{{Number: lineNumberTestType, Hits: 1}},
+			})
+			lines = append(lines, []*CoberturaLine{{Number: lineNumberTestType, Hits: 1}}...)
+		}
+
+		fileName := path.Join(baseFolder, details.packageName, "data_stream", dataStream, "manifest.yml")
+		if dataStream == "" {
+			// input package
+			fileName = path.Join(baseFolder, details.packageName, "manifest.yml")
+		}
+
+		aClass := &CoberturaClass{
+			Name:     string(details.testType),
+			Filename: fileName,
+			Methods:  methods,
+			Lines:    lines,
+		}
+		classes = append(classes, aClass)
+	}
+
+	return &CoberturaCoverage{
+		Timestamp: timestamp,
+		Packages: []*CoberturaPackage{
+			{
+				Name:    strings.Replace(strings.TrimSuffix(baseFolder, "/"), "/", ".", -1) + "." + details.packageName,
+				Classes: classes,
+			},
+		},
+	}
 }

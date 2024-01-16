@@ -8,9 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path"
 	"path/filepath"
-	"sort"
 	"strings"
 	"time"
 
@@ -104,18 +102,29 @@ func createCoverageReport(packageRootPath, packageName, packageType string, test
 	}
 
 	// generate a custom report if not available
-	dir, err := files.FindRepositoryRootDirectory()
+	baseFolder, err := GetBaseFolderPackageForCoverage(packageRootPath)
 	if err != nil {
 		return nil, err
 	}
 
-	relativePath := strings.TrimPrefix(packageRootPath, dir)
-	relativePath = strings.TrimPrefix(relativePath, "/")
-	baseFolder := filepath.Dir(relativePath)
-
 	report := transformToCoverageReport(details, baseFolder, CoverageFormat, timestamp)
 
 	return report, nil
+}
+
+func GetBaseFolderPackageForCoverage(packageRootPath string) (string, error) {
+	dir, err := files.FindRepositoryRootDirectory()
+	if err != nil {
+		return "", err
+	}
+
+	relativePath := strings.TrimPrefix(packageRootPath, dir)
+	relativePath = strings.TrimPrefix(relativePath, "/")  // linux
+	relativePath = strings.TrimPrefix(relativePath, "\\") // windows
+	baseFolder := filepath.Dir(relativePath)
+
+	// Force to show always "/" as file separator
+	return strings.ReplaceAll(baseFolder, "\\", "/"), nil
 }
 
 func collectTestCoverageDetails(packageRootPath, packageName, packageType string, testType TestType, results []TestResult) (*testCoverageDetails, error) {
@@ -198,67 +207,6 @@ func transformToCoverageReport(details *testCoverageDetails, baseFolder, coverag
 	}
 
 	return nil
-}
-
-func transformToCoberturaReport(details *testCoverageDetails, baseFolder string, timestamp int64) *CoberturaCoverage {
-	var classes []*CoberturaClass
-	lineNumberTestType := lineNumberPerTestType(string(details.testType))
-
-	// sort data streams to ensure same ordering in coverage arrays
-	sortedDataStreams := make([]string, 0, len(details.dataStreams))
-	for dataStream := range details.dataStreams {
-		sortedDataStreams = append(sortedDataStreams, dataStream)
-	}
-	sort.Strings(sortedDataStreams)
-
-	for _, dataStream := range sortedDataStreams {
-		testCases := details.dataStreams[dataStream]
-
-		if dataStream == "" && details.packageType == "integration" {
-			continue // ignore tests running in the package context (not data stream), mostly referring to installed assets
-		}
-
-		var methods []*CoberturaMethod
-		var lines []*CoberturaLine
-
-		if len(testCases) == 0 {
-			methods = append(methods, &CoberturaMethod{
-				Name:  "Missing",
-				Lines: []*CoberturaLine{{Number: lineNumberTestType, Hits: 0}},
-			})
-			lines = append(lines, []*CoberturaLine{{Number: lineNumberTestType, Hits: 0}}...)
-		} else {
-			methods = append(methods, &CoberturaMethod{
-				Name:  "OK",
-				Lines: []*CoberturaLine{{Number: lineNumberTestType, Hits: 1}},
-			})
-			lines = append(lines, []*CoberturaLine{{Number: lineNumberTestType, Hits: 1}}...)
-		}
-
-		fileName := path.Join(baseFolder, details.packageName, "data_stream", dataStream, "manifest.yml")
-		if dataStream == "" {
-			// input package
-			fileName = path.Join(baseFolder, details.packageName, "manifest.yml")
-		}
-
-		aClass := &CoberturaClass{
-			Name:     string(details.testType),
-			Filename: fileName,
-			Methods:  methods,
-			Lines:    lines,
-		}
-		classes = append(classes, aClass)
-	}
-
-	return &CoberturaCoverage{
-		Timestamp: timestamp,
-		Packages: []*CoberturaPackage{
-			{
-				Name:    strings.Replace(strings.TrimSuffix(baseFolder, "/"), "/", ".", -1) + "." + details.packageName,
-				Classes: classes,
-			},
-		},
-	}
 }
 
 func writeCoverageReportFile(report CoverageReport, packageName string) error {
