@@ -30,14 +30,15 @@ const coverageDtd = `<!DOCTYPE coverage SYSTEM "http://cobertura.sourceforge.net
 
 type testCoverageDetails struct {
 	packageName string
+	packageType string
 	testType    TestType
 	dataStreams map[string][]string // <data_stream> : <test case 1, test case 2, ...>
 	coverage    CoverageReport      // For tests to provide custom Cobertura results.
 	errors      multierror.Error
 }
 
-func newTestCoverageDetails(packageName string, testType TestType) *testCoverageDetails {
-	return &testCoverageDetails{packageName: packageName, testType: testType, dataStreams: map[string][]string{}}
+func newTestCoverageDetails(packageName, packageType string, testType TestType) *testCoverageDetails {
+	return &testCoverageDetails{packageName: packageName, packageType: packageType, testType: testType, dataStreams: map[string][]string{}}
 }
 
 func (tcd *testCoverageDetails) withUncoveredDataStreams(dataStreams []string) *testCoverageDetails {
@@ -249,8 +250,8 @@ func (c *CoberturaCoverage) Merge(other CoverageReport) error {
 
 // WriteCoverage function calculates test coverage for the given package.
 // It requires to execute tests for all data streams (same test type), so the coverage can be calculated properly.
-func WriteCoverage(packageRootPath, packageName string, testType TestType, results []TestResult, testCoverageType string) error {
-	report, err := CreateCoverageReport(packageRootPath, packageName, testType, results, testCoverageType)
+func WriteCoverage(packageRootPath, packageName, packageType string, testType TestType, results []TestResult, testCoverageType string) error {
+	report, err := createCoverageReport(packageRootPath, packageName, packageType, testType, results, testCoverageType)
 	if err != nil {
 		return fmt.Errorf("can't create coverage report: %w", err)
 	}
@@ -262,14 +263,14 @@ func WriteCoverage(packageRootPath, packageName string, testType TestType, resul
 	return nil
 }
 
-func CreateCoverageReport(packageRootPath, packageName string, testType TestType, results []TestResult, CoverageFormat string) (CoverageReport, error) {
-	details, err := collectTestCoverageDetails(packageRootPath, packageName, testType, results)
+func createCoverageReport(packageRootPath, packageName, packageType string, testType TestType, results []TestResult, CoverageFormat string) (CoverageReport, error) {
+	details, err := collectTestCoverageDetails(packageRootPath, packageName, packageType, testType, results)
 	if err != nil {
 		return nil, fmt.Errorf("can't collect test coverage details: %w", err)
 	}
 
 	if details.coverage != nil {
-		// Use provided cobertura report
+		// Use provided coverage report
 		return details.coverage, nil
 	}
 
@@ -288,19 +289,18 @@ func CreateCoverageReport(packageRootPath, packageName string, testType TestType
 	return report, nil
 }
 
-func collectTestCoverageDetails(packageRootPath, packageName string, testType TestType, results []TestResult) (*testCoverageDetails, error) {
+func collectTestCoverageDetails(packageRootPath, packageName, packageType string, testType TestType, results []TestResult) (*testCoverageDetails, error) {
 	withoutTests, err := findDataStreamsWithoutTests(packageRootPath, testType)
 	if err != nil {
 		return nil, fmt.Errorf("can't find data streams without tests: %w", err)
 	}
 
-	details := newTestCoverageDetails(packageName, testType).
+	details := newTestCoverageDetails(packageName, packageType, testType).
 		withUncoveredDataStreams(withoutTests).
 		withTestResults(results)
 	if len(details.errors) > 0 {
 		return nil, details.errors
 	}
-	fmt.Printf("Details for tests:\n%+v", details)
 	return details, nil
 }
 
@@ -383,8 +383,9 @@ func transformToCoberturaReport(details *testCoverageDetails, baseFolder string)
 	if !ok {
 		lineNumber = 5
 	}
+
 	for dataStream, testCases := range details.dataStreams {
-		if dataStream == "" {
+		if dataStream == "" && details.packageType == "integration" {
 			continue // ignore tests running in the package context (not data stream), mostly referring to installed assets
 		}
 
@@ -405,9 +406,15 @@ func transformToCoberturaReport(details *testCoverageDetails, baseFolder string)
 			lines = append(lines, []*CoberturaLine{{Number: lineNumber, Hits: 1}}...)
 		}
 
+		fileName := path.Join(baseFolder, details.packageName, "data_stream", dataStream, "manifest.yml")
+		if dataStream == "" {
+			// input package
+			fileName = path.Join(baseFolder, details.packageName, "manifest.yml")
+		}
+
 		aClass := &CoberturaClass{
 			Name:     string(details.testType),
-			Filename: path.Join(baseFolder, details.packageName, "data_stream", dataStream, "manifest.yml"),
+			Filename: fileName,
 			Methods:  methods,
 			Lines:    lines,
 		}

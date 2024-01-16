@@ -273,7 +273,7 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 		}
 
 		if testCoverage {
-			err := testrunner.WriteCoverage(packageRootPath, manifest.Name, runner.Type(), results, testCoverageType)
+			err := testrunner.WriteCoverage(packageRootPath, manifest.Name, manifest.Type, runner.Type(), results, testCoverageType)
 			if err != nil {
 				return fmt.Errorf("error writing test coverage: %w", err)
 			}
