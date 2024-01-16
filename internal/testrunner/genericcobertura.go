@@ -9,6 +9,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"path"
+	"sort"
 )
 
 // GenericCoverage is the root element for a Cobertura XML report.
@@ -93,21 +94,33 @@ func (c *GenericCoverage) Merge(other CoverageReport) error {
 func transformToGenericCoverageReport(details *testCoverageDetails, baseFolder string, timestamp int64) *GenericCoverage {
 	lineNumberTestType := lineNumberPerTestType(string(details.testType))
 	var files []*GenericFile
-	for dataStream, testCases := range details.dataStreams {
-		if dataStream == "" {
+	// sort data streams to ensure same ordering in coverage arrays
+	sortedDataStreams := make([]string, 0, len(details.dataStreams))
+	for dataStream := range details.dataStreams {
+		sortedDataStreams = append(sortedDataStreams, dataStream)
+	}
+	sort.Strings(sortedDataStreams)
+
+	for _, dataStream := range sortedDataStreams {
+		if dataStream == "" && details.packageType == "integration" {
 			continue // ignore tests running in the package context (not data stream), mostly referring to installed assets
 		}
+		testCases := details.dataStreams[dataStream]
 
-		dataStreamPath := path.Join(baseFolder, details.packageName, "data_stream", dataStream, "manifest.yml")
+		fileName := path.Join(baseFolder, details.packageName, "data_stream", dataStream, "manifest.yml")
+		if dataStream == "" {
+			// input package
+			fileName = path.Join(baseFolder, details.packageName, "manifest.yml")
+		}
 
 		if len(testCases) == 0 {
 			files = append(files, &GenericFile{
-				Path:  dataStreamPath,
+				Path:  fileName,
 				Lines: []*GenericLine{{LineNumber: int64(lineNumberTestType), Covered: false}},
 			})
 		} else {
 			files = append(files, &GenericFile{
-				Path:  dataStreamPath,
+				Path:  fileName,
 				Lines: []*GenericLine{{LineNumber: int64(lineNumberTestType), Covered: true}},
 			})
 		}

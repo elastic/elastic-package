@@ -57,7 +57,7 @@ func TestCreateCoverageReport(t *testing.T) {
 						Classes: []*CoberturaClass{
 							{
 								Name:     "system",
-								Filename: "my/path/package/data_stream/metrics/manifest.yml",
+								Filename: "my/path/package/data_stream/logs/manifest.yml",
 								Methods: []*CoberturaMethod{
 									{
 										Name:      "OK",
@@ -79,7 +79,7 @@ func TestCreateCoverageReport(t *testing.T) {
 							},
 							{
 								Name:     "system",
-								Filename: "my/path/package/data_stream/logs/manifest.yml",
+								Filename: "my/path/package/data_stream/metrics/manifest.yml",
 								Methods: []*CoberturaMethod{
 									{
 										Name:      "OK",
@@ -132,7 +132,7 @@ func TestCreateCoverageReport(t *testing.T) {
 				Version: 1,
 				Files: []*GenericFile{
 					{
-						Path: "my/path/package/data_stream/metrics/manifest.yml",
+						Path: "my/path/package/data_stream/logs/manifest.yml",
 						Lines: []*GenericLine{
 							{
 								LineNumber: 3,
@@ -141,7 +141,7 @@ func TestCreateCoverageReport(t *testing.T) {
 						},
 					},
 					{
-						Path: "my/path/package/data_stream/logs/manifest.yml",
+						Path: "my/path/package/data_stream/metrics/manifest.yml",
 						Lines: []*GenericLine{
 							{
 								LineNumber: 3,
@@ -243,6 +243,40 @@ func TestCreateCoverageReport(t *testing.T) {
 				},
 				TestType:  "Coverage for system test",
 				Timestamp: 20,
+			},
+		},
+		{
+			name:           "generic coverage for an input package",
+			testType:       "asset",
+			rootPath:       "/my/path/package",
+			packageName:    "package",
+			packageType:    "input",
+			coverageFormat: "generic",
+			timestamp:      10,
+			results: []TestResult{
+				{
+					Name:        "test1",
+					Package:     "package.myclass",
+					DataStream:  "",
+					TimeElapsed: 1 * time.Second,
+					Coverage:    nil,
+				},
+			},
+			expected: &GenericCoverage{
+				Version: 1,
+				Files: []*GenericFile{
+					{
+						Path: "my/path/package/manifest.yml",
+						Lines: []*GenericLine{
+							{
+								LineNumber: 1,
+								Covered:    true,
+							},
+						},
+					},
+				},
+				TestType:  "Coverage for asset test",
+				Timestamp: 10,
 			},
 		},
 	}

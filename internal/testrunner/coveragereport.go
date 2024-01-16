@@ -10,6 +10,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -203,7 +204,16 @@ func transformToCoberturaReport(details *testCoverageDetails, baseFolder string,
 	var classes []*CoberturaClass
 	lineNumberTestType := lineNumberPerTestType(string(details.testType))
 
-	for dataStream, testCases := range details.dataStreams {
+	// sort data streams to ensure same ordering in coverage arrays
+	sortedDataStreams := make([]string, 0, len(details.dataStreams))
+	for dataStream := range details.dataStreams {
+		sortedDataStreams = append(sortedDataStreams, dataStream)
+	}
+	sort.Strings(sortedDataStreams)
+
+	for _, dataStream := range sortedDataStreams {
+		testCases := details.dataStreams[dataStream]
+
 		if dataStream == "" && details.packageType == "integration" {
 			continue // ignore tests running in the package context (not data stream), mostly referring to installed assets
 		}
