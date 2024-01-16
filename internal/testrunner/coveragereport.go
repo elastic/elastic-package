@@ -118,9 +118,11 @@ func GetBaseFolderPackageForCoverage(packageRootPath string) (string, error) {
 		return "", err
 	}
 
-	relativePath := strings.TrimPrefix(packageRootPath, dir)
-	relativePath = strings.TrimPrefix(relativePath, "/")  // Trim prefix for linux
-	relativePath = strings.TrimPrefix(relativePath, "\\") // Trim prefix for windows
+	relativePath, err := filepath.Rel(dir, packageRootPath)
+	if err != nil {
+		return "", fmt.Errorf("cannot create relative path to package root path. Root directory: '%s', Package root path: '%s': %w", dir, packageRootPath, err)
+	}
+	// Remove latest folder (package) since coverage methods already add the package name in the paths
 	baseFolder := filepath.Dir(relativePath)
 
 	// Force to show always "/" as file separator in paths

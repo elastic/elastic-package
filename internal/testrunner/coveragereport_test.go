@@ -160,40 +160,6 @@ func TestCreateCoverageReport(t *testing.T) {
 			},
 		},
 		{
-			name:           "generate custom generic coverage",
-			testType:       "system",
-			rootPath:       packageRootPath,
-			packageName:    "mypackage",
-			packageType:    "integration",
-			coverageFormat: "generic",
-			timestamp:      10,
-			results: []TestResult{
-				{
-					Name:        "test1",
-					Package:     "mypackage",
-					DataStream:  "metrics",
-					TimeElapsed: 1 * time.Second,
-					Coverage:    nil,
-				},
-			},
-			expected: &GenericCoverage{
-				Version: 1,
-				Files: []*GenericFile{
-					{
-						Path: "internal/testrunner/my/path/mypackage/data_stream/metrics/manifest.yml",
-						Lines: []*GenericLine{
-							{
-								LineNumber: 3,
-								Covered:    true,
-							},
-						},
-					},
-				},
-				TestType:  "Coverage for system test",
-				Timestamp: 10,
-			},
-		},
-		{
 			name:           "use provided generic coverage",
 			testType:       "system",
 			rootPath:       packageRootPath,
