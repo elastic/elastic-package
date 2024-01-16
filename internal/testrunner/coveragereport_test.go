@@ -1,0 +1,257 @@
+// Copyright Elasticsearch B.V. and/or licensed to Elasticsearch B.V. under one
+// or more contributor license agreements. Licensed under the Elastic License;
+// you may not use this file except in compliance with the Elastic License.
+
+package testrunner
+
+import (
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func TestCreateCoverageReport(t *testing.T) {
+	tests := []struct {
+		name           string
+		rootPath       string
+		packageName    string
+		packageType    string
+		coverageFormat string
+		timestamp      int64
+		testType       TestType
+		results        []TestResult
+		expected       CoverageReport
+	}{
+		{
+			name:           "generate custom cobertura coverage",
+			testType:       "system",
+			rootPath:       "/my/path/package",
+			packageName:    "package",
+			packageType:    "integration",
+			coverageFormat: "cobertura",
+			timestamp:      10,
+			results: []TestResult{
+				{
+					Name:        "test1",
+					Package:     "package.myclass",
+					DataStream:  "metrics",
+					TimeElapsed: 1 * time.Second,
+					Coverage:    nil,
+				},
+				{
+					Name:        "test2",
+					Package:     "package.myclass",
+					DataStream:  "logs",
+					TimeElapsed: 2 * time.Second,
+					Coverage:    nil,
+				},
+			},
+			expected: &CoberturaCoverage{
+				Version:   "",
+				Timestamp: 10,
+				Packages: []*CoberturaPackage{
+					{
+						Name: "my.path.package",
+						Classes: []*CoberturaClass{
+							{
+								Name:     "system",
+								Filename: "my/path/package/data_stream/metrics/manifest.yml",
+								Methods: []*CoberturaMethod{
+									{
+										Name:      "OK",
+										Signature: "",
+										Lines: []*CoberturaLine{
+											{
+												Number: 3,
+												Hits:   1,
+											},
+										},
+									},
+								},
+								Lines: []*CoberturaLine{
+									{
+										Number: 3,
+										Hits:   1,
+									},
+								},
+							},
+							{
+								Name:     "system",
+								Filename: "my/path/package/data_stream/logs/manifest.yml",
+								Methods: []*CoberturaMethod{
+									{
+										Name:      "OK",
+										Signature: "",
+										Lines: []*CoberturaLine{
+											{
+												Number: 3,
+												Hits:   1,
+											},
+										},
+									},
+								},
+								Lines: []*CoberturaLine{
+									{
+										Number: 3,
+										Hits:   1,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name:           "generate custom generic coverage",
+			testType:       "system",
+			rootPath:       "/my/path/package",
+			packageName:    "package",
+			packageType:    "integration",
+			coverageFormat: "generic",
+			timestamp:      10,
+			results: []TestResult{
+				{
+					Name:        "test1",
+					Package:     "package.myclass",
+					DataStream:  "metrics",
+					TimeElapsed: 1 * time.Second,
+					Coverage:    nil,
+				},
+				{
+					Name:        "test2",
+					Package:     "package.myclass",
+					DataStream:  "logs",
+					TimeElapsed: 2 * time.Second,
+					Coverage:    nil,
+				},
+			},
+			expected: &GenericCoverage{
+				Version: 1,
+				Files: []*GenericFile{
+					{
+						Path: "my/path/package/data_stream/metrics/manifest.yml",
+						Lines: []*GenericLine{
+							{
+								LineNumber: 3,
+								Covered:    true,
+							},
+						},
+					},
+					{
+						Path: "my/path/package/data_stream/logs/manifest.yml",
+						Lines: []*GenericLine{
+							{
+								LineNumber: 3,
+								Covered:    true,
+							},
+						},
+					},
+				},
+				TestType:  "Coverage for system test",
+				Timestamp: 10,
+			},
+		},
+		{
+			name:           "generate custom generic coverage",
+			testType:       "system",
+			rootPath:       "/my/path/package",
+			packageName:    "package",
+			packageType:    "integration",
+			coverageFormat: "generic",
+			timestamp:      10,
+			results: []TestResult{
+				{
+					Name:        "test1",
+					Package:     "package.myclass",
+					DataStream:  "metrics",
+					TimeElapsed: 1 * time.Second,
+					Coverage:    nil,
+				},
+			},
+			expected: &GenericCoverage{
+				Version: 1,
+				Files: []*GenericFile{
+					{
+						Path: "my/path/package/data_stream/metrics/manifest.yml",
+						Lines: []*GenericLine{
+							{
+								LineNumber: 3,
+								Covered:    true,
+							},
+						},
+					},
+				},
+				TestType:  "Coverage for system test",
+				Timestamp: 10,
+			},
+		},
+		{
+			name:           "use provided generic coverage",
+			testType:       "system",
+			rootPath:       "/my/path/package",
+			packageName:    "package",
+			packageType:    "integration",
+			coverageFormat: "generic",
+			timestamp:      10,
+			results: []TestResult{
+				{
+					Name:        "test1",
+					Package:     "package.myclass",
+					DataStream:  "metrics",
+					TimeElapsed: 1 * time.Second,
+					Coverage: &GenericCoverage{
+						Version: 1,
+						Files: []*GenericFile{
+							{
+								Path: "my/path/package/data_stream/metrics/foo.yml",
+								Lines: []*GenericLine{
+									{
+										LineNumber: 1,
+										Covered:    true,
+									},
+									{
+										LineNumber: 2,
+										Covered:    true,
+									},
+								},
+							},
+						},
+						TestType:  "Coverage for system test",
+						Timestamp: 20,
+					},
+				},
+			},
+			expected: &GenericCoverage{
+				Version: 1,
+				Files: []*GenericFile{
+					{
+						Path: "my/path/package/data_stream/metrics/foo.yml",
+						Lines: []*GenericLine{
+							{
+								LineNumber: 1,
+								Covered:    true,
+							},
+							{
+								LineNumber: 2,
+								Covered:    true,
+							},
+						},
+					},
+				},
+				TestType:  "Coverage for system test",
+				Timestamp: 20,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			report, err := createCoverageReport(tt.rootPath, tt.packageName, tt.packageType, tt.testType, tt.results, tt.coverageFormat, tt.timestamp)
+			require.NoError(t, err)
+			assert.Equal(t, tt.expected, report)
+		})
+	}
+}

@@ -154,6 +154,7 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 		signal.Enable()
 
 		var testFolders []testrunner.TestFolder
+		// var dataStreamWithoutTests []testrunner.TestFolder
 		if hasDataStreams && runner.CanRunPerDataStream() {
 			var dataStreams []string
 			// We check for the existence of the data streams flag before trying to
@@ -240,6 +241,8 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 			}
 		}
 
+		// dataStreamsTested := map[string]bool{}
+
 		var results []testrunner.TestResult
 		for _, folder := range testFolders {
 			r, err := testrunner.Run(testType, testrunner.TestOptions{
@@ -255,12 +258,16 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 				CoverageType:       testCoverageType,
 			})
 
+			// dataStreamsTested[folder.DataStream] = true
+
 			results = append(results, r...)
 
 			if err != nil {
 				return fmt.Errorf("error running package %s tests: %w", testType, err)
 			}
 		}
+
+		// for dataStream := datastreams
 
 		format := testrunner.TestReportFormat(reportFormat)
 		report, err := testrunner.FormatReport(format, results)

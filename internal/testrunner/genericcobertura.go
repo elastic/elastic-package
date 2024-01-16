@@ -9,7 +9,6 @@ import (
 	"encoding/xml"
 	"fmt"
 	"path"
-	"time"
 )
 
 // GenericCoverage is the root element for a Cobertura XML report.
@@ -91,17 +90,8 @@ func (c *GenericCoverage) Merge(other CoverageReport) error {
 	return nil
 }
 
-func transformToGenericCoverageReport(details *testCoverageDetails, baseFolder string) *GenericCoverage {
-	var lineNumberPerTestType map[string]int64 = map[string]int64{
-		"asset":    1,
-		"pipeline": 2,
-		"system":   3,
-		"static":   4,
-	}
-	lineNumber, ok := lineNumberPerTestType[string(details.testType)]
-	if !ok {
-		lineNumber = 5
-	}
+func transformToGenericCoverageReport(details *testCoverageDetails, baseFolder string, timestamp int64) *GenericCoverage {
+	lineNumberTestType := lineNumberPerTestType(string(details.testType))
 	var files []*GenericFile
 	for dataStream, testCases := range details.dataStreams {
 		if dataStream == "" {
@@ -113,18 +103,18 @@ func transformToGenericCoverageReport(details *testCoverageDetails, baseFolder s
 		if len(testCases) == 0 {
 			files = append(files, &GenericFile{
 				Path:  dataStreamPath,
-				Lines: []*GenericLine{{LineNumber: lineNumber, Covered: false}},
+				Lines: []*GenericLine{{LineNumber: int64(lineNumberTestType), Covered: false}},
 			})
 		} else {
 			files = append(files, &GenericFile{
 				Path:  dataStreamPath,
-				Lines: []*GenericLine{{LineNumber: lineNumber, Covered: true}},
+				Lines: []*GenericLine{{LineNumber: int64(lineNumberTestType), Covered: true}},
 			})
 		}
 	}
 
 	return &GenericCoverage{
-		Timestamp: time.Now().UnixNano(),
+		Timestamp: timestamp,
 		Version:   1,
 		Files:     files,
 		TestType:  fmt.Sprintf("Coverage for %s test", details.testType),
