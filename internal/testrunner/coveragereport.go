@@ -119,11 +119,11 @@ func GetBaseFolderPackageForCoverage(packageRootPath string) (string, error) {
 	}
 
 	relativePath := strings.TrimPrefix(packageRootPath, dir)
-	relativePath = strings.TrimPrefix(relativePath, "/")  // linux
-	relativePath = strings.TrimPrefix(relativePath, "\\") // windows
+	relativePath = strings.TrimPrefix(relativePath, "/")  // Trim prefix for linux
+	relativePath = strings.TrimPrefix(relativePath, "\\") // Trim prefix for windows
 	baseFolder := filepath.Dir(relativePath)
 
-	// Force to show always "/" as file separator
+	// Force to show always "/" as file separator in paths
 	return strings.ReplaceAll(baseFolder, "\\", "/"), nil
 }
 

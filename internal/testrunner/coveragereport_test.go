@@ -5,6 +5,8 @@
 package testrunner
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -13,6 +15,9 @@ import (
 )
 
 func TestCreateCoverageReport(t *testing.T) {
+	workDir, err := os.Getwd()
+	require.NoError(t, err)
+	packageRootPath := filepath.Join(workDir, "my", "path", "package")
 	tests := []struct {
 		name           string
 		rootPath       string
@@ -27,22 +32,22 @@ func TestCreateCoverageReport(t *testing.T) {
 		{
 			name:           "generate custom cobertura coverage",
 			testType:       "system",
-			rootPath:       "/my/path/package",
-			packageName:    "package",
+			rootPath:       packageRootPath,
+			packageName:    "mypackage",
 			packageType:    "integration",
 			coverageFormat: "cobertura",
 			timestamp:      10,
 			results: []TestResult{
 				{
 					Name:        "test1",
-					Package:     "package.myclass",
+					Package:     "mypackage",
 					DataStream:  "metrics",
 					TimeElapsed: 1 * time.Second,
 					Coverage:    nil,
 				},
 				{
 					Name:        "test2",
-					Package:     "package.myclass",
+					Package:     "mypackage",
 					DataStream:  "logs",
 					TimeElapsed: 2 * time.Second,
 					Coverage:    nil,
@@ -53,11 +58,11 @@ func TestCreateCoverageReport(t *testing.T) {
 				Timestamp: 10,
 				Packages: []*CoberturaPackage{
 					{
-						Name: "my.path.package",
+						Name: "mypackage",
 						Classes: []*CoberturaClass{
 							{
 								Name:     "system",
-								Filename: "my/path/package/data_stream/logs/manifest.yml",
+								Filename: "internal/testrunner/my/path/mypackage/data_stream/logs/manifest.yml",
 								Methods: []*CoberturaMethod{
 									{
 										Name:      "OK",
@@ -79,7 +84,7 @@ func TestCreateCoverageReport(t *testing.T) {
 							},
 							{
 								Name:     "system",
-								Filename: "my/path/package/data_stream/metrics/manifest.yml",
+								Filename: "internal/testrunner/my/path/mypackage/data_stream/metrics/manifest.yml",
 								Methods: []*CoberturaMethod{
 									{
 										Name:      "OK",
@@ -107,22 +112,22 @@ func TestCreateCoverageReport(t *testing.T) {
 		{
 			name:           "generate custom generic coverage",
 			testType:       "system",
-			rootPath:       "/my/path/package",
-			packageName:    "package",
+			rootPath:       packageRootPath,
+			packageName:    "mypackage",
 			packageType:    "integration",
 			coverageFormat: "generic",
 			timestamp:      10,
 			results: []TestResult{
 				{
 					Name:        "test1",
-					Package:     "package.myclass",
+					Package:     "mypackage",
 					DataStream:  "metrics",
 					TimeElapsed: 1 * time.Second,
 					Coverage:    nil,
 				},
 				{
 					Name:        "test2",
-					Package:     "package.myclass",
+					Package:     "mypackage",
 					DataStream:  "logs",
 					TimeElapsed: 2 * time.Second,
 					Coverage:    nil,
@@ -132,7 +137,7 @@ func TestCreateCoverageReport(t *testing.T) {
 				Version: 1,
 				Files: []*GenericFile{
 					{
-						Path: "my/path/package/data_stream/logs/manifest.yml",
+						Path: "internal/testrunner/my/path/mypackage/data_stream/logs/manifest.yml",
 						Lines: []*GenericLine{
 							{
 								LineNumber: 3,
@@ -141,7 +146,7 @@ func TestCreateCoverageReport(t *testing.T) {
 						},
 					},
 					{
-						Path: "my/path/package/data_stream/metrics/manifest.yml",
+						Path: "internal/testrunner/my/path/mypackage/data_stream/metrics/manifest.yml",
 						Lines: []*GenericLine{
 							{
 								LineNumber: 3,
@@ -157,15 +162,15 @@ func TestCreateCoverageReport(t *testing.T) {
 		{
 			name:           "generate custom generic coverage",
 			testType:       "system",
-			rootPath:       "/my/path/package",
-			packageName:    "package",
+			rootPath:       packageRootPath,
+			packageName:    "mypackage",
 			packageType:    "integration",
 			coverageFormat: "generic",
 			timestamp:      10,
 			results: []TestResult{
 				{
 					Name:        "test1",
-					Package:     "package.myclass",
+					Package:     "mypackage",
 					DataStream:  "metrics",
 					TimeElapsed: 1 * time.Second,
 					Coverage:    nil,
@@ -175,7 +180,7 @@ func TestCreateCoverageReport(t *testing.T) {
 				Version: 1,
 				Files: []*GenericFile{
 					{
-						Path: "my/path/package/data_stream/metrics/manifest.yml",
+						Path: "internal/testrunner/my/path/mypackage/data_stream/metrics/manifest.yml",
 						Lines: []*GenericLine{
 							{
 								LineNumber: 3,
@@ -191,22 +196,22 @@ func TestCreateCoverageReport(t *testing.T) {
 		{
 			name:           "use provided generic coverage",
 			testType:       "system",
-			rootPath:       "/my/path/package",
-			packageName:    "package",
+			rootPath:       packageRootPath,
+			packageName:    "mypackage",
 			packageType:    "integration",
 			coverageFormat: "generic",
 			timestamp:      10,
 			results: []TestResult{
 				{
 					Name:        "test1",
-					Package:     "package.myclass",
+					Package:     "mypackage",
 					DataStream:  "metrics",
 					TimeElapsed: 1 * time.Second,
 					Coverage: &GenericCoverage{
 						Version: 1,
 						Files: []*GenericFile{
 							{
-								Path: "my/path/package/data_stream/metrics/foo.yml",
+								Path: "internal/testrunner/my/path/mypackage/data_stream/metrics/foo.yml",
 								Lines: []*GenericLine{
 									{
 										LineNumber: 1,
@@ -228,7 +233,7 @@ func TestCreateCoverageReport(t *testing.T) {
 				Version: 1,
 				Files: []*GenericFile{
 					{
-						Path: "my/path/package/data_stream/metrics/foo.yml",
+						Path: "internal/testrunner/my/path/mypackage/data_stream/metrics/foo.yml",
 						Lines: []*GenericLine{
 							{
 								LineNumber: 1,
@@ -248,15 +253,15 @@ func TestCreateCoverageReport(t *testing.T) {
 		{
 			name:           "generic coverage for an input package",
 			testType:       "asset",
-			rootPath:       "/my/path/package",
-			packageName:    "package",
+			rootPath:       packageRootPath,
+			packageName:    "mypackage",
 			packageType:    "input",
 			coverageFormat: "generic",
 			timestamp:      10,
 			results: []TestResult{
 				{
 					Name:        "test1",
-					Package:     "package.myclass",
+					Package:     "mypackage",
 					DataStream:  "",
 					TimeElapsed: 1 * time.Second,
 					Coverage:    nil,
@@ -266,7 +271,7 @@ func TestCreateCoverageReport(t *testing.T) {
 				Version: 1,
 				Files: []*GenericFile{
 					{
-						Path: "my/path/package/manifest.yml",
+						Path: "internal/testrunner/my/path/mypackage/manifest.yml",
 						Lines: []*GenericLine{
 							{
 								LineNumber: 1,
