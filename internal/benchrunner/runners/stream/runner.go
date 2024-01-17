@@ -470,6 +470,7 @@ func (r *runner) performBulkRequest(bulkRequest string) error {
 	}
 
 	if errors.Errors {
+		logger.Debug("Error in Elasticsearch bulk request: %s", string(body))
 		return fmt.Errorf("%d failed", len(errors.Items))
 	}
 
