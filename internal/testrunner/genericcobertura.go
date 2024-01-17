@@ -8,7 +8,7 @@ import (
 	"bytes"
 	"encoding/xml"
 	"fmt"
-	"path"
+	"path/filepath"
 	"sort"
 )
 
@@ -107,10 +107,10 @@ func transformToGenericCoverageReport(details *testCoverageDetails, baseFolder s
 		}
 		testCases := details.dataStreams[dataStream]
 
-		fileName := path.Join(baseFolder, details.packageName, "data_stream", dataStream, "manifest.yml")
+		fileName := filepath.Join(baseFolder, details.packageName, "data_stream", dataStream, "manifest.yml")
 		if dataStream == "" {
 			// input package
-			fileName = path.Join(baseFolder, details.packageName, "manifest.yml")
+			fileName = filepath.Join(baseFolder, details.packageName, "manifest.yml")
 		}
 
 		if len(testCases) == 0 {

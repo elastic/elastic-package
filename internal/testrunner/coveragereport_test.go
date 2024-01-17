@@ -62,7 +62,7 @@ func TestCreateCoverageReport(t *testing.T) {
 						Classes: []*CoberturaClass{
 							{
 								Name:     "system",
-								Filename: "internal/testrunner/my/path/mypackage/data_stream/logs/manifest.yml",
+								Filename: filepath.Join("internal", "testrunner", "my", "path", "mypackage", "data_stream", "logs", "manifest.yml"),
 								Methods: []*CoberturaMethod{
 									{
 										Name:      "OK",
@@ -84,7 +84,7 @@ func TestCreateCoverageReport(t *testing.T) {
 							},
 							{
 								Name:     "system",
-								Filename: "internal/testrunner/my/path/mypackage/data_stream/metrics/manifest.yml",
+								Filename: filepath.Join("internal", "testrunner", "my", "path", "mypackage", "data_stream", "metrics", "manifest.yml"),
 								Methods: []*CoberturaMethod{
 									{
 										Name:      "OK",
@@ -137,7 +137,7 @@ func TestCreateCoverageReport(t *testing.T) {
 				Version: 1,
 				Files: []*GenericFile{
 					{
-						Path: "internal/testrunner/my/path/mypackage/data_stream/logs/manifest.yml",
+						Path: filepath.Join("internal", "testrunner", "my", "path", "mypackage", "data_stream", "logs", "manifest.yml"),
 						Lines: []*GenericLine{
 							{
 								LineNumber: 3,
@@ -146,7 +146,7 @@ func TestCreateCoverageReport(t *testing.T) {
 						},
 					},
 					{
-						Path: "internal/testrunner/my/path/mypackage/data_stream/metrics/manifest.yml",
+						Path: filepath.Join("internal", "testrunner", "my", "path", "mypackage", "data_stream", "metrics", "manifest.yml"),
 						Lines: []*GenericLine{
 							{
 								LineNumber: 3,
@@ -177,7 +177,7 @@ func TestCreateCoverageReport(t *testing.T) {
 						Version: 1,
 						Files: []*GenericFile{
 							{
-								Path: "internal/testrunner/my/path/mypackage/data_stream/metrics/foo.yml",
+								Path: filepath.Join("internal", "testrunner", "my", "path", "mypackage", "data_stream", "metrics", "foo.yml"),
 								Lines: []*GenericLine{
 									{
 										LineNumber: 1,
@@ -199,7 +199,7 @@ func TestCreateCoverageReport(t *testing.T) {
 				Version: 1,
 				Files: []*GenericFile{
 					{
-						Path: "internal/testrunner/my/path/mypackage/data_stream/metrics/foo.yml",
+						Path: filepath.Join("internal", "testrunner", "my", "path", "mypackage", "data_stream", "metrics", "foo.yml"),
 						Lines: []*GenericLine{
 							{
 								LineNumber: 1,
@@ -237,7 +237,7 @@ func TestCreateCoverageReport(t *testing.T) {
 				Version: 1,
 				Files: []*GenericFile{
 					{
-						Path: "internal/testrunner/my/path/mypackage/manifest.yml",
+						Path: filepath.Join("internal", "testrunner", "my", "path", "mypackage", "manifest.yml"),
 						Lines: []*GenericLine{
 							{
 								LineNumber: 1,

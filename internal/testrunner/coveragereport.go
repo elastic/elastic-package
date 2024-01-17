@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/elastic/elastic-package/internal/builder"
@@ -125,8 +124,7 @@ func GetBaseFolderPackageForCoverage(packageRootPath string) (string, error) {
 	// Remove latest folder (package) since coverage methods already add the package name in the paths
 	baseFolder := filepath.Dir(relativePath)
 
-	// Force to show always "/" as file separator in paths
-	return strings.ReplaceAll(baseFolder, "\\", "/"), nil
+	return baseFolder, nil
 }
 
 func collectTestCoverageDetails(packageRootPath, packageName, packageType string, testType TestType, results []TestResult) (*testCoverageDetails, error) {

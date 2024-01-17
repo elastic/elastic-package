@@ -8,7 +8,7 @@ import (
 	"bytes"
 	"encoding/xml"
 	"fmt"
-	"path"
+	"path/filepath"
 	"sort"
 )
 
@@ -232,10 +232,10 @@ func transformToCoberturaReport(details *testCoverageDetails, baseFolder string,
 			lines = append(lines, []*CoberturaLine{{Number: lineNumberTestType, Hits: 1}}...)
 		}
 
-		fileName := path.Join(baseFolder, details.packageName, "data_stream", dataStream, "manifest.yml")
+		fileName := filepath.Join(baseFolder, details.packageName, "data_stream", dataStream, "manifest.yml")
 		if dataStream == "" {
 			// input package
-			fileName = path.Join(baseFolder, details.packageName, "manifest.yml")
+			fileName = filepath.Join(baseFolder, details.packageName, "manifest.yml")
 		}
 
 		aClass := &CoberturaClass{
