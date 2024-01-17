@@ -40,19 +40,16 @@ func GetPipelineCoverage(options testrunner.TestOptions, pipelines []ingest.Pipe
 	// and a default.yml pipeline).
 	basePath := filepath.Dir(options.PackageRootPath)
 
-	dir, err := files.FindRepositoryRootDirectory()
+	repositoryRootDir, err := files.FindRepositoryRootDirectory()
 	if err != nil {
 		return nil, err
 	}
 
-	basePath = basePath[:len(dir)]
-
-	// Construct the Cobertura report.
-	pkg := &testrunner.CoberturaPackage{
-		Name: options.TestFolder.Package + "." + options.TestFolder.DataStream,
-	}
-
 	if options.CoverageType == "cobertura" {
+		pkg := &testrunner.CoberturaPackage{
+			Name: options.TestFolder.Package + "." + options.TestFolder.DataStream,
+		}
+
 		cobertura := &testrunner.CoberturaCoverage{
 			Sources: []*testrunner.CoberturaSource{
 				{
@@ -65,7 +62,7 @@ func GetPipelineCoverage(options testrunner.TestOptions, pipelines []ingest.Pipe
 
 		// Calculate coverage for each pipeline
 		for _, pipeline := range pipelines {
-			pipelineName, pipelineRelPath, src, pstats, err := pipelineDataForCoverage(pipeline, stats, basePath, dataStreamPath)
+			pipelineName, pipelineRelPath, src, pstats, err := pipelineDataForCoverage(pipeline, stats, repositoryRootDir, dataStreamPath)
 			if err != nil {
 				return nil, err
 			}
@@ -88,7 +85,7 @@ func GetPipelineCoverage(options testrunner.TestOptions, pipelines []ingest.Pipe
 
 		// Calculate coverage for each pipeline
 		for _, pipeline := range pipelines {
-			_, pipelineRelPath, src, pstats, err := pipelineDataForCoverage(pipeline, stats, basePath, dataStreamPath)
+			_, pipelineRelPath, src, pstats, err := pipelineDataForCoverage(pipeline, stats, repositoryRootDir, dataStreamPath)
 			if err != nil {
 				return nil, err
 			}
