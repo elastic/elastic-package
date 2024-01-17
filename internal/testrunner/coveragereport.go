@@ -41,7 +41,7 @@ type testCoverageDetails struct {
 	packageType string
 	testType    TestType
 	dataStreams map[string][]string // <data_stream> : <test case 1, test case 2, ...>
-	coverage    CoverageReport      // For tests to provide custom Cobertura results.
+	coverage    CoverageReport      // For tests to provide custom Coverage results.
 	errors      multierror.Error
 }
 
@@ -64,7 +64,7 @@ func (tcd *testCoverageDetails) withTestResults(results []TestResult) *testCover
 		tcd.dataStreams[result.DataStream] = append(tcd.dataStreams[result.DataStream], result.Name)
 		if tcd.coverage != nil && result.Coverage != nil {
 			if err := tcd.coverage.Merge(result.Coverage); err != nil {
-				tcd.errors = append(tcd.errors, fmt.Errorf("can't merge Cobertura coverage for test `%s`: %w", result.Name, err))
+				tcd.errors = append(tcd.errors, fmt.Errorf("can't merge coverage for test `%s`: %w", result.Name, err))
 			}
 		} else if tcd.coverage == nil {
 			tcd.coverage = result.Coverage
