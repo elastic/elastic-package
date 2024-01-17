@@ -116,7 +116,6 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		return nil, errors.New("missing Elasticsearch client")
 	}
 
-	fmt.Printf("TestFolder.Path: %s\n", r.options.TestFolder.Path)
 	dataStreamPath, found, err := packages.FindDataStreamRootForPath(r.options.TestFolder.Path)
 	if err != nil {
 		return nil, fmt.Errorf("locating data_stream root failed: %w", err)
@@ -136,7 +135,6 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		return nil, fmt.Errorf("failed to read manifest: %w", err)
 	}
 
-	fmt.Printf("TestFolder.DataStream: %s\n", r.options.TestFolder.DataStream)
 	dsManifest, err := packages.ReadDataStreamManifestFromPackageRoot(r.options.PackageRootPath, r.options.TestFolder.DataStream)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read data stream manifest: %w", err)
@@ -247,31 +245,6 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 	}
 
 	return results, nil
-	// fmt.Printf(">>> testCaseFiles count (datastream %q): %d\n", r.options.TestFolder.DataStream, len(testCaseFiles))
-	// if len(testCaseFiles) > 0 {
-	// 	return results, nil
-	// }
-	// expected, err := testrunner.VerifyTestExpected(r.options.PackageRootPath, r.options.TestFolder.DataStream, r.Type())
-	// if err != nil {
-	// 	return nil, fmt.Errorf("can't verify if test is expected: %w", err)
-	// }
-	// if !expected {
-	// 	return results, nil
-	// }
-	// tr := testrunner.TestResult{
-	// 	TestType:   TestType,
-	// 	Package:    r.options.TestFolder.Package,
-	// 	DataStream: r.options.TestFolder.DataStream,
-	// 	Name:       r.options.TestFolder.DataStream,
-	// }
-	// startTime := time.Now()
-	// tr.TimeElapsed = time.Since(startTime)
-	// tr.Coverage, err = GetPipelineCoverage(r.options, r.pipelines)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("error calculating pipeline coverage: %w", err)
-	// }
-	// results = append(results, tr)
-	// return results, nil
 }
 
 func (r *runner) listTestCaseFiles() ([]string, error) {
