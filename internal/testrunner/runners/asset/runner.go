@@ -118,7 +118,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		return result.WithError(fmt.Errorf("could not load expected package assets: %w", err))
 	}
 
-	results := make([]testrunner.TestResult, 0, len(expectedAssets)+1)
+	results := make([]testrunner.TestResult, 0, len(expectedAssets))
 	for _, e := range expectedAssets {
 		rc := testrunner.NewResultComposer(testrunner.TestResult{
 			Name:       fmt.Sprintf("%s %s is loaded", e.Type, e.ID),
