@@ -82,7 +82,7 @@ func WriteCoverage(packageRootPath, packageName, packageType string, testType Te
 		return fmt.Errorf("can't create coverage report: %w", err)
 	}
 
-	err = writeCoverageReportFile(report, packageName)
+	err = writeCoverageReportFile(report, packageName, packageType)
 	if err != nil {
 		return fmt.Errorf("can't write test coverage report file: %w", err)
 	}
@@ -209,7 +209,7 @@ func transformToCoverageReport(details *testCoverageDetails, baseFolder, coverag
 	return nil
 }
 
-func writeCoverageReportFile(report CoverageReport, packageName string) error {
+func writeCoverageReportFile(report CoverageReport, packageName, packageType string) error {
 	dest, err := testCoverageReportsDir()
 	if err != nil {
 		return fmt.Errorf("could not determine test coverage reports folder: %w", err)
@@ -223,7 +223,7 @@ func writeCoverageReportFile(report CoverageReport, packageName string) error {
 		}
 	}
 
-	fileName := fmt.Sprintf("coverage-%s-%d-report.xml", packageName, report.TimeStamp())
+	fileName := fmt.Sprintf("coverage-%s-%s-%d-report.xml", packageName, packageType, report.TimeStamp())
 	filePath := filepath.Join(dest, fileName)
 
 	b, err := report.Bytes()
