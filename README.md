@@ -625,6 +625,22 @@ The following settings are available per profile:
 * `stack.serverless.region` can be used to select the region to use when starting
   serverless projects.
 
+## Useful environment variables
+
+There are available some environment variables to change some settings related:
+
+- Related to `docker-compose` / `docker compose` commands:
+    - `ELASTIC_PACKAGE_COMPOSE_DISABLE_ANSI`: If set to `true`, it disables the ANSI characaters from `docker-compose` commands adding `--ansi never`.
+    - `ELASTIC_PACKAGE_COMPOSE_DISABLE_PULL_PROGRESS_INFORMATION`: If set to `true`, it disables the pull progress information about `docker-compose up` commands adding `--quiet-pull`
+    - `ELASTIC_PACKAGE_COMPOSE_DISABLE_PROGRESS_OUTPUT`: If set to `true`, it disables the the progress output from `docker compose` commands adding `--progress never`. TBD
+
+- Related to build process:
+    - `ELASTIC_PACKAGE_REPOSITORY_LICENSE`: Path to the default repository license.
+    - `ELASTIC_PACKAGE_LINKS_FILE_PATH`: Path to the links table file (e.g. `links_table.yml`) to be used to while building packages to render links.
+
+- Related to tests:
+    - `ELASTIC_PACKAGE_SERVERLESS_PIPELINE_TEST_DISABLE_COMPARE_RESULTS`: If set to `true`, the results from pipeline tests are not compared to avoid errors from GeoIP.
+
 ## Release process
 
 This project uses [GoReleaser](https://goreleaser.com/) to release a new version of the application (semver). Release publishing
