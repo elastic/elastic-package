@@ -34,6 +34,7 @@ const (
 
 var (
 	DisableANSIComposeEnv             = environment.WithElasticPackagePrefix("COMPOSE_DISABLE_ANSI")
+	DisableProgressOutputComposeEnv   = environment.WithElasticPackagePrefix("COMPOSE_DISABLE_PROGRESS_OUTPUT")
 	DisablePullProgressInformationEnv = environment.WithElasticPackagePrefix("COMPOSE_DISABLE_PULL_PROGRESS_INFORMATION")
 	EnableComposeStandaloneEnv        = environment.WithElasticPackagePrefix("COMPOSE_ENABLE_STANDALONE")
 )
@@ -47,6 +48,7 @@ type Project struct {
 	dockerComposeStandalone        bool
 	disableANSI                    bool
 	disablePullProgressInformation bool
+	disableProgressOutput          bool
 }
 
 // Config represents a Docker Compose configuration file.
@@ -212,6 +214,11 @@ func NewProject(name string, paths ...string) (*Project, error) {
 	v, ok = os.LookupEnv(DisablePullProgressInformationEnv)
 	if ok && strings.ToLower(v) != "false" {
 		c.disablePullProgressInformation = true
+	}
+
+	v, ok = os.LookupEnv(DisableProgressOutputComposeEnv)
+	if !c.dockerComposeV1 && !c.dockerComposeStandalone && ok && strings.ToLower(v) != "false" {
+		c.disableProgressOutput = true
 	}
 
 	return &c, nil
@@ -439,13 +446,15 @@ func (p *Project) baseArgs() []string {
 	}
 
 	if p.disableANSI {
-		if !p.dockerComposeStandalone {
-			// --ansi never looks is ignored by "docker compose"
-			// adding --progress plain is a similar result
-			args = append(args, "--progress", "plain")
-		} else {
-			args = append(args, "--ansi", "never")
-		}
+		args = append(args, "--ansi", "never")
+	}
+
+	if p.disableProgressOutput {
+		// --ansi never looks is ignored by "docker compose"
+		// adding --progress plain is a similar result
+		// if set to "quiet" there is no output at all for docker compose commands
+		args = append(args, "--progress", "plain")
+
 	}
 
 	args = append(args, "-p", p.name)
