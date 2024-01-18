@@ -153,6 +153,8 @@ func loadElasticsearchAssets(pkgRootPath string) ([]Asset, error) {
 		}
 	}
 
+	// TODO add assets for input packages
+
 	return assets, nil
 }
 
