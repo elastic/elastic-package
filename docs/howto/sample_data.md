@@ -6,7 +6,7 @@
 
 ### Install elastic-package
 
-The first thing needed, is an installation of `elastic-package`. If you have go installed you can run `go install github.com/elastic/elastic-package@latest`. Otherwise you find [here](https://github.com/elastic/elastic-package/tree/main?tab=readme-ov-file#getting-started) different ways how to install `elastic-package.
+The first thing needed, is an installation of `elastic-package`, you can find [here](https://github.com/elastic/elastic-package/tree/main?tab=readme-ov-file#getting-started) different ways how to install it.
 
 ### Setup Elastic Stack
 
