@@ -453,7 +453,7 @@ func (p *Project) baseArgs() []string {
 		// --ansi never looks is ignored by "docker compose"
 		// adding --progress plain is a similar result as --ansi never
 		// if set to "--progress quiet", there is no output at all from docker compose commands
-		args = append(args, "--progress", "plain")
+		args = append(args, "--progress", "quiet")
 	}
 
 	args = append(args, "-p", p.name)
