@@ -439,7 +439,13 @@ func (p *Project) baseArgs() []string {
 	}
 
 	if p.disableANSI {
-		args = append(args, "--ansi", "never")
+		if !p.dockerComposeStandalone {
+			// --ansi never looks is ignored by "docker compose"
+			// adding --progress plain is a similar result
+			args = append(args, "--progress", "plain")
+		} else {
+			args = append(args, "--ansi", "never")
+		}
 	}
 
 	args = append(args, "-p", p.name)
