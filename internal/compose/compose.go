@@ -11,6 +11,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -34,9 +35,10 @@ const (
 
 var (
 	DisableANSIComposeEnv             = environment.WithElasticPackagePrefix("COMPOSE_DISABLE_ANSI")
-	DisableProgressOutputComposeEnv   = environment.WithElasticPackagePrefix("COMPOSE_DISABLE_PROGRESS_OUTPUT")
 	DisablePullProgressInformationEnv = environment.WithElasticPackagePrefix("COMPOSE_DISABLE_PULL_PROGRESS_INFORMATION")
 	EnableComposeStandaloneEnv        = environment.WithElasticPackagePrefix("COMPOSE_ENABLE_STANDALONE")
+	DisableProgressOutputComposeEnv   = environment.WithElasticPackagePrefix("COMPOSE_DISABLE_PROGRESS_OUTPUT")
+	ProgressOutputComposeEnv          = environment.WithElasticPackagePrefix("COMPOSE_PROGRESS_OUTPUT")
 )
 
 // Project represents a Docker Compose project.
@@ -49,6 +51,7 @@ type Project struct {
 	disableANSI                    bool
 	disablePullProgressInformation bool
 	disableProgressOutput          bool
+	progressOutput                 string
 }
 
 // Config represents a Docker Compose configuration file.
@@ -214,11 +217,20 @@ func NewProject(name string, paths ...string) (*Project, error) {
 	v, ok = os.LookupEnv(DisablePullProgressInformationEnv)
 	if ok && strings.ToLower(v) != "false" {
 		c.disablePullProgressInformation = true
+
 	}
 
 	v, ok = os.LookupEnv(DisableProgressOutputComposeEnv)
 	if !c.dockerComposeV1 && !c.dockerComposeStandalone && ok && strings.ToLower(v) != "false" {
 		c.disableProgressOutput = true
+	}
+
+	v, ok = os.LookupEnv(ProgressOutputComposeEnv)
+	if !c.dockerComposeV1 && !c.dockerComposeStandalone && ok {
+		if !slices.Contains([]string{"auto", "plain", "quiet"}, strings.ToLower(v)) {
+			return nil, fmt.Errorf("unexpected value for environment variable %s: %s", ProgressOutputComposeEnv, v)
+		}
+		c.progressOutput = strings.ToLower(v)
 	}
 
 	return &c, nil
@@ -454,6 +466,13 @@ func (p *Project) baseArgs() []string {
 		// adding --progress plain is a similar result as --ansi never
 		// if set to "--progress quiet", there is no output at all from docker compose commands
 		args = append(args, "--progress", "quiet")
+	}
+
+	if p.progressOutput != "" {
+		// --ansi never looks is ignored by "docker compose"
+		// adding --progress plain is a similar result as --ansi never
+		// if set to "--progress quiet", there is no output at all from docker compose commands
+		args = append(args, "--progress", p.progressOutput)
 	}
 
 	args = append(args, "-p", p.name)
