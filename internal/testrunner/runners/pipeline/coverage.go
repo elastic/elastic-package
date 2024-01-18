@@ -79,6 +79,7 @@ func GetPipelineCoverage(options testrunner.TestOptions, pipelines []ingest.Pipe
 
 	if options.CoverageType == "generic" {
 		coverage := &testrunner.GenericCoverage{
+			Version:   1,
 			Timestamp: time.Now().UnixNano(),
 			TestType:  "Cobertura for pipeline test",
 		}
