@@ -46,7 +46,7 @@ Inside the directory, run the following command with the `elastic-package` stack
 elastic-package benchmark stream -v
 ```
 
-If I run I run Kibana from source, I run the following command:
+When running Kibana from source, you can run the following command:
 
 ```
 ELASTIC_PACKAGE_ELASTICSEARCH_HOST=http://localhost:9200 ELASTIC_PACKAGE_ELASTICSEARCH_USERNAME=elastic ELASTIC_PACKAGE_ELASTICSEARCH_PASSWORD=changeme ELASTIC_PACKAGE_KIBANA_HOST=http://localhost:5601 elastic-package benchmark stream -v
