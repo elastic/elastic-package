@@ -451,10 +451,9 @@ func (p *Project) baseArgs() []string {
 
 	if p.disableProgressOutput {
 		// --ansi never looks is ignored by "docker compose"
-		// adding --progress plain is a similar result
-		// if set to "quiet" there is no output at all for docker compose commands
+		// adding --progress plain is a similar result as --ansi never
+		// if set to "--progress quiet", there is no output at all from docker compose commands
 		args = append(args, "--progress", "plain")
-
 	}
 
 	args = append(args, "-p", p.name)
