@@ -89,7 +89,7 @@ func WriteCoverage(packageRootPath, packageName, packageType string, testType Te
 	return nil
 }
 
-func createCoverageReport(packageRootPath, packageName, packageType string, testType TestType, results []TestResult, CoverageFormat string, timestamp int64) (CoverageReport, error) {
+func createCoverageReport(packageRootPath, packageName, packageType string, testType TestType, results []TestResult, coverageFormat string, timestamp int64) (CoverageReport, error) {
 	details, err := collectTestCoverageDetails(packageRootPath, packageName, packageType, testType, results)
 	if err != nil {
 		return nil, fmt.Errorf("can't collect test coverage details: %w", err)
@@ -106,7 +106,7 @@ func createCoverageReport(packageRootPath, packageName, packageType string, test
 		return nil, err
 	}
 
-	report := transformToCoverageReport(details, baseFolder, CoverageFormat, timestamp)
+	report := transformToCoverageReport(details, baseFolder, coverageFormat, timestamp)
 
 	return report, nil
 }

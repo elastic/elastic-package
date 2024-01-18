@@ -154,7 +154,6 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 		signal.Enable()
 
 		var testFolders []testrunner.TestFolder
-		// var dataStreamWithoutTests []testrunner.TestFolder
 		if hasDataStreams && runner.CanRunPerDataStream() {
 			var dataStreams []string
 			// We check for the existence of the data streams flag before trying to
