@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -71,7 +72,7 @@ func setupTestCommand() *cobraext.Command {
 	cmd.PersistentFlags().StringP(cobraext.ReportFormatFlagName, "", string(formats.ReportFormatHuman), cobraext.ReportFormatFlagDescription)
 	cmd.PersistentFlags().StringP(cobraext.ReportOutputFlagName, "", string(outputs.ReportOutputSTDOUT), cobraext.ReportOutputFlagDescription)
 	cmd.PersistentFlags().BoolP(cobraext.TestCoverageFlagName, "", false, cobraext.TestCoverageFlagDescription)
-	cmd.PersistentFlags().StringP(cobraext.TestCoverageFormatFlagName, "", "cobertura", cobraext.TestCoverageFormatFlagDescription)
+	cmd.PersistentFlags().StringP(cobraext.TestCoverageFormatFlagName, "", "cobertura", fmt.Sprintf(cobraext.TestCoverageFormatFlagDescription, strings.Join(testrunner.CoverageFormatsList(), ",")))
 	cmd.PersistentFlags().DurationP(cobraext.DeferCleanupFlagName, "", 0, cobraext.DeferCleanupFlagDescription)
 	cmd.PersistentFlags().String(cobraext.VariantFlagName, "", cobraext.VariantFlagDescription)
 	cmd.PersistentFlags().StringP(cobraext.ProfileFlagName, "p", "", fmt.Sprintf(cobraext.ProfileFlagDescription, install.ProfileNameEnvVar))
@@ -128,9 +129,13 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 			return cobraext.FlagParsingError(err, cobraext.TestCoverageFlagName)
 		}
 
-		testCoverageType, err := cmd.Flags().GetString(cobraext.TestCoverageFormatFlagName)
+		testCoverageFormat, err := cmd.Flags().GetString(cobraext.TestCoverageFormatFlagName)
 		if err != nil {
 			return cobraext.FlagParsingError(err, cobraext.TestCoverageFormatFlagName)
+		}
+
+		if !slices.Contains(testrunner.CoverageFormatsList(), testCoverageFormat) {
+			return cobraext.FlagParsingError(fmt.Errorf("coverage format not available: %s", testCoverageFormat), cobraext.TestCoverageFormatFlagName)
 		}
 
 		packageRootPath, found, err := packages.FindPackageRoot()
@@ -252,7 +257,7 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 				DeferCleanup:       deferCleanup,
 				ServiceVariant:     variantFlag,
 				WithCoverage:       testCoverage,
-				CoverageType:       testCoverageType,
+				CoverageType:       testCoverageFormat,
 			})
 
 			results = append(results, r...)
@@ -273,7 +278,7 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 		}
 
 		if testCoverage {
-			err := testrunner.WriteCoverage(packageRootPath, manifest.Name, manifest.Type, runner.Type(), results, testCoverageType)
+			err := testrunner.WriteCoverage(packageRootPath, manifest.Name, manifest.Type, runner.Type(), results, testCoverageFormat)
 			if err != nil {
 				return fmt.Errorf("error writing test coverage: %w", err)
 			}

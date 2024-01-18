@@ -22,6 +22,17 @@ type CoverageReport interface {
 	Bytes() ([]byte, error)
 }
 
+var coverageReportFormatters = []string{}
+
+// registerCoverageReporterFormat registers a test coverage report formatter.
+func registerCoverageReporterFormat(name string) {
+	coverageReportFormatters = append(coverageReportFormatters, name)
+}
+
+func CoverageFormatsList() []string {
+	return coverageReportFormatters
+}
+
 func lineNumberPerTestType(testType string) int {
 	var lineNumberPerTestType map[string]int = map[string]int{
 		"asset":    1,

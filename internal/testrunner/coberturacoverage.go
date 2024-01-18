@@ -12,6 +12,10 @@ import (
 	"sort"
 )
 
+func init() {
+	registerCoverageReporterFormat("cobertura")
+}
+
 const coverageDtd = `<!DOCTYPE coverage SYSTEM "http://cobertura.sourceforge.net/xml/coverage-04.dtd">`
 
 // CoberturaCoverage is the root element for a Cobertura XML report.

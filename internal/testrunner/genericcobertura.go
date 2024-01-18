@@ -12,6 +12,10 @@ import (
 	"sort"
 )
 
+func init() {
+	registerCoverageReporterFormat("generic")
+}
+
 // GenericCoverage is the root element for a Cobertura XML report.
 type GenericCoverage struct {
 	XMLName   xml.Name       `xml:"coverage"`

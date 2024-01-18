@@ -193,7 +193,7 @@ const (
 	TestCoverageFlagDescription = "enable test coverage reports"
 
 	TestCoverageFormatFlagName        = "coverage-format"
-	TestCoverageFormatFlagDescription = "set format for coverage reports: \"cobertura,generic\" (default cobertura)"
+	TestCoverageFormatFlagDescription = "set format for coverage reports: %s"
 
 	VariantFlagName        = "variant"
 	VariantFlagDescription = "service variant"
