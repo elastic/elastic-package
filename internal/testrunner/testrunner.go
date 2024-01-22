@@ -33,6 +33,7 @@ type TestOptions struct {
 	DeferCleanup   time.Duration
 	ServiceVariant string
 	WithCoverage   bool
+	CoverageType   string
 }
 
 // TestRunner is the interface all test runners must implement.
@@ -92,7 +93,7 @@ type TestResult struct {
 	Skipped *SkipConfig
 
 	// Coverage details in Cobertura format (optional).
-	Coverage *CoberturaCoverage
+	Coverage CoverageReport
 }
 
 // ResultComposer wraps a TestResult and provides convenience methods for

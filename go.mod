@@ -37,11 +37,11 @@ require (
 	gopkg.in/dnaeon/go-vcr.v3 v3.1.2
 	gopkg.in/yaml.v3 v3.0.1
 	gotest.tools/gotestsum v1.11.0
-	helm.sh/helm/v3 v3.13.3
+	helm.sh/helm/v3 v3.14.0
 	honnef.co/go/tools v0.4.6
-	k8s.io/apimachinery v0.29.0
-	k8s.io/cli-runtime v0.29.0
-	k8s.io/client-go v0.29.0
+	k8s.io/apimachinery v0.29.1
+	k8s.io/cli-runtime v0.29.1
+	k8s.io/client-go v0.29.1
 )
 
 require (
@@ -71,10 +71,10 @@ require (
 	github.com/elastic/kbncontent v0.1.1 // indirect
 	github.com/emicklei/go-restful/v3 v3.11.0 // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
-	github.com/evanphx/json-patch v5.6.0+incompatible // indirect
+	github.com/evanphx/json-patch v5.7.0+incompatible // indirect
 	github.com/evanphx/json-patch/v5 v5.7.0 // indirect
 	github.com/exponent-io/jsonpath v0.0.0-20210407135951-1de76d718b3f // indirect
-	github.com/fsnotify/fsnotify v1.6.0 // indirect
+	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/go-errors/errors v1.4.2 // indirect
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
 	github.com/go-logr/logr v1.3.0 // indirect
@@ -171,12 +171,12 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	k8s.io/api v0.29.0 // indirect
-	k8s.io/apiextensions-apiserver v0.28.4 // indirect
-	k8s.io/component-base v0.28.4 // indirect
+	k8s.io/api v0.29.1 // indirect
+	k8s.io/apiextensions-apiserver v0.29.0 // indirect
+	k8s.io/component-base v0.29.0 // indirect
 	k8s.io/klog/v2 v2.110.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20231010175941-2dd684a91f00 // indirect
-	k8s.io/kubectl v0.28.4 // indirect
+	k8s.io/kubectl v0.29.0 // indirect
 	k8s.io/utils v0.0.0-20230726121419-3b25d923346b // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
 	sigs.k8s.io/kustomize/api v0.13.5-0.20230601165947-6ce0bf390ce3 // indirect
