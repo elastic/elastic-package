@@ -24,6 +24,7 @@ for test in ${STACK_COMMAND_TESTS[@]}; do
     echo "        command: ./.buildkite/scripts/integration_tests.sh -t ${test}"
     echo "        agents:"
     echo "          provider: \"gcp\""
+    echo "          machineType: \"n1-standard-8\""
     echo "        artifact_paths:"
     echo "          - build/elastic-stack-dump/stack/*/logs/*.log"
     echo "          - build/elastic-stack-dump/stack/*/logs/fleet-server-internal/**/*"
@@ -42,6 +43,7 @@ for test in ${CHECK_PACKAGES_TESTS[@]}; do
     echo "        command: ./.buildkite/scripts/integration_tests.sh -t ${test}"
     echo "        agents:"
     echo "          provider: \"gcp\""
+    echo "          machineType: \"n1-standard-8\""
     echo "        artifact_paths:"
     echo "          - build/test-results/*.xml"
     echo "          - build/elastic-stack-dump/check-*/logs/*.log"
@@ -62,6 +64,7 @@ for package in $(find . -maxdepth 1 -mindepth 1 -type d) ; do
     echo "          UPLOAD_SAFE_LOGS: 1"
     echo "        agents:"
     echo "          provider: \"gcp\""
+    echo "          machineType: \"n1-standard-8\""
     echo "        artifact_paths:"
     echo "          - build/test-results/*.xml"
     echo "          - build/test-coverage/coverage-*.xml" # these files should not be used to compute the final coverage of elastic-package
@@ -79,6 +82,7 @@ for package in $(find . -maxdepth 1 -mindepth 1 -type d) ; do
     echo "          UPLOAD_SAFE_LOGS: 1"
     echo "        agents:"
     echo "          provider: \"gcp\""
+    echo "          machineType: \"n1-standard-8\""
     echo "        artifact_paths:"
     echo "          - build/test-results/*.xml"
     echo "          - build/test-coverage/coverage-*.xml" # these files should not be used to compute the final coverage of elastic-package
