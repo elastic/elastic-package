@@ -6,7 +6,7 @@
 
 ### Install elastic-package
 
-The first thing needed, is an installation of `elastic-package`. If you have go installed you can run `go install github.com/elastic/elastic-package@latest`. Otherwise you find [here](https://github.com/elastic/elastic-package/tree/main?tab=readme-ov-file#getting-started) different ways how to install `elastic-package.
+The first thing needed, is an installation of `elastic-package`, you can find [here](https://github.com/elastic/elastic-package/tree/main?tab=readme-ov-file#getting-started) different ways how to install it.
 
 ### Setup Elastic Stack
 
@@ -52,7 +52,7 @@ Inside the directory, run the following command with the `elastic-package` stack
 elastic-package benchmark stream -v
 ```
 
-If I run I run Kibana from source, I run the following command:
+When running Kibana from source, you can run the following command:
 
 ```
 ELASTIC_PACKAGE_ELASTICSEARCH_HOST=http://localhost:9200 ELASTIC_PACKAGE_ELASTICSEARCH_USERNAME=elastic ELASTIC_PACKAGE_ELASTICSEARCH_PASSWORD=changeme ELASTIC_PACKAGE_KIBANA_HOST=http://localhost:5601 elastic-package benchmark stream -v
