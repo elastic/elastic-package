@@ -38,7 +38,7 @@ function check_expected_errors() {
   rm -f ${result_tests}
   (
     cd "$package_root"
-    elastic-package test -v --report-format xUnit --report-output file --test-coverage --defer-cleanup 1s || true
+    elastic-package test -v --report-format xUnit --report-output file --test-coverage --coverage-format=generic --defer-cleanup 1s || true
   )
 
   cat ${result_tests} | tr -d '\n' > ${results_no_spaces}
