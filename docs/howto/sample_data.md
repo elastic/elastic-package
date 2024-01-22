@@ -22,7 +22,13 @@ ELASTIC_PACKAGE_KIBANA_HOST=http://localhost:5601
 #ELASTIC_PACKAGE_CA_CERT
 ```
 
-The same can be use to connect to your Elastic Cloud cluster. Unfortunately elastic-package currently does not support an API key to be used. 
+The same can be use to connect to your Elastic Cloud cluster. Unfortunately elastic-package currently does not support an API key to be used.
+
+If you are running Kibana from source and have a base path like `ciy`, use the following HOST for Kibana:
+
+```
+ELASTIC_PACKAGE_KIBANA_HOST=http://localhost:5601/ciy
+```
 
 ### Checkout integrations repository
 
