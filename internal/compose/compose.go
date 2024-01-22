@@ -214,6 +214,9 @@ func NewProject(name string, paths ...string) (*Project, error) {
 		if c.composeVersion.LessThan(semver.MustParse("2.19.0")) {
 			c.disableANSI = true
 		} else {
+			// --ansi never looks is ignored by "docker compose" and latest versions of "docker-compose"
+			// adding --progress plain is a similar result as --ansi never
+			// if set to "--progress quiet", there is no output at all from docker compose commands
 			c.progressOutput = defaultComposeProgressOutput
 		}
 		c.disablePullProgressInformation = true
@@ -448,9 +451,6 @@ func (p *Project) baseArgs() []string {
 	}
 
 	if p.progressOutput != "" {
-		// --ansi never looks is ignored by "docker compose" and latest versions of "docker-compose"
-		// adding --progress plain is a similar result as --ansi never
-		// if set to "--progress quiet", there is no output at all from docker compose commands
 		args = append(args, "--progress", p.progressOutput)
 	}
 
