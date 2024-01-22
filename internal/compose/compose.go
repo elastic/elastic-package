@@ -11,7 +11,6 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -34,11 +33,12 @@ const (
 )
 
 var (
-	DisableANSIComposeEnv             = environment.WithElasticPackagePrefix("COMPOSE_DISABLE_ANSI")
-	DisablePullProgressInformationEnv = environment.WithElasticPackagePrefix("COMPOSE_DISABLE_PULL_PROGRESS_INFORMATION")
-	EnableComposeStandaloneEnv        = environment.WithElasticPackagePrefix("COMPOSE_ENABLE_STANDALONE")
-	DisableProgressOutputComposeEnv   = environment.WithElasticPackagePrefix("COMPOSE_DISABLE_PROGRESS_OUTPUT")
-	ProgressOutputComposeEnv          = environment.WithElasticPackagePrefix("COMPOSE_PROGRESS_OUTPUT")
+	EnableComposeStandaloneEnv     = environment.WithElasticPackagePrefix("COMPOSE_ENABLE_STANDALONE")
+	DisableVerboseOutputComposeEnv = environment.WithElasticPackagePrefix("COMPOSE_DISABLE_VERBOSE_OUTPUT")
+)
+
+const (
+	defaultComposeProgressOutput = "plain"
 )
 
 // Project represents a Docker Compose project.
@@ -50,8 +50,8 @@ type Project struct {
 	dockerComposeStandalone        bool
 	disableANSI                    bool
 	disablePullProgressInformation bool
-	disableProgressOutput          bool
 	progressOutput                 string
+	composeVersion                 *semver.Version
 }
 
 // Config represents a Docker Compose configuration file.
@@ -209,28 +209,14 @@ func NewProject(name string, paths ...string) (*Project, error) {
 	}
 	logger.Debug(versionMessage)
 
-	v, ok = os.LookupEnv(DisableANSIComposeEnv)
+	v, ok = os.LookupEnv(DisableVerboseOutputComposeEnv)
 	if !c.dockerComposeV1 && ok && strings.ToLower(v) != "false" {
-		c.disableANSI = true
-	}
-
-	v, ok = os.LookupEnv(DisablePullProgressInformationEnv)
-	if ok && strings.ToLower(v) != "false" {
-		c.disablePullProgressInformation = true
-
-	}
-
-	v, ok = os.LookupEnv(DisableProgressOutputComposeEnv)
-	if !c.dockerComposeV1 && !c.dockerComposeStandalone && ok && strings.ToLower(v) != "false" {
-		c.disableProgressOutput = true
-	}
-
-	v, ok = os.LookupEnv(ProgressOutputComposeEnv)
-	if !c.dockerComposeV1 && !c.dockerComposeStandalone && ok {
-		if !slices.Contains([]string{"auto", "plain", "quiet"}, strings.ToLower(v)) {
-			return nil, fmt.Errorf("unexpected value for environment variable %s: %s", ProgressOutputComposeEnv, v)
+		if c.composeVersion.LessThan(semver.MustParse("2.19.0")) {
+			c.disableANSI = true
+		} else {
+			c.progressOutput = defaultComposeProgressOutput
 		}
-		c.progressOutput = strings.ToLower(v)
+		c.disablePullProgressInformation = true
 	}
 
 	return &c, nil
@@ -461,15 +447,8 @@ func (p *Project) baseArgs() []string {
 		args = append(args, "--ansi", "never")
 	}
 
-	if p.disableProgressOutput {
-		// --ansi never looks is ignored by "docker compose"
-		// adding --progress plain is a similar result as --ansi never
-		// if set to "--progress quiet", there is no output at all from docker compose commands
-		args = append(args, "--progress", "quiet")
-	}
-
 	if p.progressOutput != "" {
-		// --ansi never looks is ignored by "docker compose"
+		// --ansi never looks is ignored by "docker compose" and latest versions of "docker-compose"
 		// adding --progress plain is a similar result as --ansi never
 		// if set to "--progress quiet", there is no output at all from docker compose commands
 		args = append(args, "--progress", p.progressOutput)
@@ -537,6 +516,7 @@ func (p *Project) dockerComposeVersion() (*semver.Version, error) {
 	if err != nil {
 		return nil, fmt.Errorf("docker compose version is not a valid semver (value: %s): %w", dcVersion, err)
 	}
+	p.composeVersion = ver
 	return ver, nil
 }
 

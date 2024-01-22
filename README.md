@@ -631,9 +631,10 @@ There are available some environment variables that could be used to change some
 `elastic-package` settings:
 
 - Related to `docker-compose` / `docker compose` commands:
-    - `ELASTIC_PACKAGE_COMPOSE_DISABLE_ANSI`: If set to `true`, it disables the ANSI characaters from `docker-compose` commands adding `--ansi never`.
-    - `ELASTIC_PACKAGE_COMPOSE_DISABLE_PULL_PROGRESS_INFORMATION`: If set to `true`, it disables the pull progress information about `docker-compose up` commands adding `--quiet-pull`
-    - `ELASTIC_PACKAGE_COMPOSE_DISABLE_PROGRESS_OUTPUT`: If set to `true`, it disables the progress output from `docker compose` commands adding `--progress never`. TBD
+    - `ELASTIC_PACKAGE_COMPOSE_DISABLE_VERBOSE_OUTPUT`: If set to `true`, it disables the progress output from `docker compose`/`docker-compose` commands.
+        - For versions v2 `< 2.19.0`, it sets `--ansi never` flag.
+        - For versions v2 `>= 2.19.0`, it sets `--progress plain` flag and `--quiet-pull` for `up` sub-command`.
+
 
 - Related to global `elastic-package` settings:
     - `ELASTIC_PACKAGE_CHECK_UPDATE_DISABLED`: if set to `true`, `elastic-package` is not going to check
