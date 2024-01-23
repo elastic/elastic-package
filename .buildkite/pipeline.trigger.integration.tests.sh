@@ -3,6 +3,7 @@
 # exit immediately on failure, or if an undefined variable is used
 set -eu
 
+
 # begin the pipeline.yml file
 echo "steps:"
 echo "  - group: \":terminal: Integration test suite\""
@@ -110,13 +111,20 @@ echo "          - build/elastic-stack-dump/install-zip-shellinit/logs/*.log"
 
 echo "      - label: \":go: Running integration test: test-profiles-command\""
 echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-profiles-command"
+echo "        env:"
+echo "          DOCKER_COMPOSE_VERSION: \"false\""
+echo "          DOCKER_VERSION: \"false\""
 echo "        agents:"
-echo "          provider: \"gcp\""
+echo "          image: \"${LINUX_AGENT_IMAGE}\""
+echo "          cpu: \"8\""
+echo "          memory: \"4G\""
 
 echo "      - label: \":go: Running integration test: test-check-update-version\""
 echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-check-update-version"
 echo "        env:"
 echo "          DEFAULT_VERSION_TAG: v0.80.0"
+echo "          DOCKER_COMPOSE_VERSION: \"false\""
+echo "          DOCKER_VERSION: \"false\""
 echo "        agents:"
 echo "          image: \"${LINUX_AGENT_IMAGE}\""
 echo "          cpu: \"8\""
