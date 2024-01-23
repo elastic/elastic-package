@@ -34,6 +34,21 @@ add_bin_path(){
     export PATH="${WORKSPACE}/bin:${PATH}"
 }
 
+with_docker() {
+    local ubuntu_version=$(lsb_release -rs) # 20.04
+    local ubuntu_codename=$(lsb_release -sc) # focal
+    sudo apt-get install docker-ce=5:24.0.7-1~ubuntu.${ubuntu_version}~${ubuntu_codename}
+}
+
+with_docker_compose() {
+    create_bin_folder
+    check_platform_architecture
+
+    retry 5 curl -SL -o ${WORKSPACE}/bin/docker-compose "https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-${platform_type_lowercase}-${hw_type}"
+    chmod +x ${WORKSPACE}/bin/docker-compose
+    docker-compose version
+}
+
 with_kubernetes() {
     create_bin_folder
     check_platform_architecture
