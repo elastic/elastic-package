@@ -41,9 +41,12 @@ with_docker() {
     ubuntu_codename="$(lsb_release -sc)" # focal
     local debian_version="5:24.0.7-1~ubuntu.${ubuntu_version}~${ubuntu_codename}"
 
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+    echo "deb [arch=$ARCH signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu ${ubuntu_codename} stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
     sudo apt-get update
-    sudo apt-get install docker-ce=${debian_version}
-    sudo apt-get install docker-ce-cli=5:${debian_version}
+    sudo DEBIAN_FRONTEND=noninteractive apt-get install -y "docker-ce=${debian_version}"
+    sudo DEBIAN_FRONTEND=noninteractive apt-get install -y "docker-ce-cli=${debian_version}"
+    sudo systemctl start docker
 }
 
 with_docker_compose() {
