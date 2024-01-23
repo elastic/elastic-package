@@ -77,7 +77,6 @@ with_docker_compose_plugin() {
     create_bin_folder
     check_platform_architecture
 
-    k
     local DOCKER_CONFIG="$HOME/.docker/cli-plugins"
     mkdir -p "$DOCKER_CONFIG"
 
