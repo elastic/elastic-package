@@ -35,6 +35,10 @@ add_bin_path(){
 }
 
 with_docker() {
+    if [[ "${DOCKER_COMPOSE_VERSION:-"false"}" == "false" ]]; then
+        echo "Skip docker installation"
+        return
+    fi
     local ubuntu_version
     local ubuntu_codename
     local architecture
@@ -53,6 +57,10 @@ with_docker() {
 }
 
 with_docker_compose() {
+    if [[ "${DOCKER_COMPOSE_VERSION:-"false"}" == "false" ]]; then
+        echo "Skip docker installation"
+        return
+    fi
     create_bin_folder
     check_platform_architecture
 
