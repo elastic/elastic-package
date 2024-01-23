@@ -112,8 +112,8 @@ with_go
 echo "--- install docker"
 with_docker
 
-echo "--- install docker-compose"
-with_docker_compose
+echo "--- install docker-compose plugin"
+with_docker_compose_plugin
 
 if [[ "${TARGET}" == "${KIND_TARGET}" ]]; then
     echo "--- install kubectl & kind"

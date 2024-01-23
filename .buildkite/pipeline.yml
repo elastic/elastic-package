@@ -2,54 +2,53 @@ env:
   SETUP_GVM_VERSION: 'v0.5.1' # https://github.com/andrewkroh/gvm/issues/44#issuecomment-1013231151
   ELASTIC_PACKAGE_COMPOSE_DISABLE_ANSI: "true"
   ELASTIC_PACKAGE_COMPOSE_DISABLE_PULL_PROGRESS_INFORMATION: "true"
-  DOCKER_COMPOSE_VERSION: "v2.18.1"
-  DOCKER_VERSION: "5:24.0.7-1~ubuntu.20.04~jammy"
+  DOCKER_COMPOSE_VERSION: "v2.24.1"
   KIND_VERSION: 'v0.20.0'
   K8S_VERSION: 'v1.29.0'
   LINUX_AGENT_IMAGE: "golang:${GO_VERSION}"
   WINDOWS_AGENT_IMAGE: "family/ci-windows-2022"
 
 steps:
-  # - label: ":go: Run check-static"
-  #   key: check-static
-  #   command: "make check-static"
-  #   agents:
-  #     image: "${LINUX_AGENT_IMAGE}"
-  #     cpu: "8"
-  #     memory: "4G"
+  - label: ":go: Run check-static"
+    key: check-static
+    command: "make check-static"
+    agents:
+      image: "${LINUX_AGENT_IMAGE}"
+      cpu: "8"
+      memory: "4G"
 
-  # - label: ":go: :linux: Run unit tests"
-  #   key: unit-tests-linux
-  #   command: "make test-go-ci"
-  #   artifact_paths:
-  #     - "build/test-results/*.xml"
-  #     - "build/test-coverage/*.xml"
-  #   agents:
-  #     image: "${LINUX_AGENT_IMAGE}"
-  #     cpu: "8"
-  #     memory: "4G"
+  - label: ":go: :linux: Run unit tests"
+    key: unit-tests-linux
+    command: "make test-go-ci"
+    artifact_paths:
+      - "build/test-results/*.xml"
+      - "build/test-coverage/*.xml"
+    agents:
+      image: "${LINUX_AGENT_IMAGE}"
+      cpu: "8"
+      memory: "4G"
 
-  # - label: ":go: :windows: Run unit tests"
-  #   key: unit-tests-windows
-  #   command: ".buildkite/scripts/unit_tests_windows.ps1"
-  #   agents:
-  #     provider: "gcp"
-  #     image: "${WINDOWS_AGENT_IMAGE}"
-  #   artifact_paths:
-  #     - "TEST-unit.xml"
+  - label: ":go: :windows: Run unit tests"
+    key: unit-tests-windows
+    command: ".buildkite/scripts/unit_tests_windows.ps1"
+    agents:
+      provider: "gcp"
+      image: "${WINDOWS_AGENT_IMAGE}"
+    artifact_paths:
+      - "TEST-unit.xml"
 
-  # - wait: ~
-  #   continue_on_failure: true
+  - wait: ~
+    continue_on_failure: true
 
   - label: ":pipeline: Trigger Integration tests"
     command: ".buildkite/pipeline.trigger.integration.tests.sh | buildkite-agent pipeline upload"
-    # depends_on:
-    #   - step: check-static
-    #     allow_failure: false
-    #   - step: unit-tests-linux
-    #     allow_failure: false
-    #   - step: unit-tests-windows
-    #     allow_failure: false
+    depends_on:
+      - step: check-static
+        allow_failure: false
+      - step: unit-tests-linux
+        allow_failure: false
+      - step: unit-tests-windows
+        allow_failure: false
 
   - wait: ~
     continue_on_failure: true
