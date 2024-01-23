@@ -35,9 +35,15 @@ add_bin_path(){
 }
 
 with_docker() {
-    local ubuntu_version=$(lsb_release -rs) # 20.04
-    local ubuntu_codename=$(lsb_release -sc) # focal
-    sudo apt-get install docker-ce=5:24.0.7-1~ubuntu.${ubuntu_version}~${ubuntu_codename}
+    local ubuntu_version
+    local ubuntu_codename
+    ubuntu_version="$(lsb_release -rs)" # 20.04
+    ubuntu_codename="$(lsb_release -sc)" # focal
+    local debian_version="5:24.0.7-1~ubuntu.${ubuntu_version}~${ubuntu_codename}"
+
+    sudo apt-get update
+    sudo apt-get install docker-ce=${debian_version}
+    sudo apt-get install docker-ce-cli=5:${debian_version}
 }
 
 with_docker_compose() {
