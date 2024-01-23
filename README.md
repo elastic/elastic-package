@@ -625,6 +625,48 @@ The following settings are available per profile:
 * `stack.serverless.region` can be used to select the region to use when starting
   serverless projects.
 
+## Useful environment variables
+
+There are available some environment variables that could be used to change some of the
+`elastic-package` settings:
+
+- Related to `docker-compose` / `docker compose` commands:
+    - `ELASTIC_PACKAGE_COMPOSE_DISABLE_VERBOSE_OUTPUT`: If set to `true`, it disables the progress output from `docker compose`/`docker-compose` commands.
+        - For versions v2 `< 2.19.0`, it sets `--ansi never` flag.
+        - For versions v2 `>= 2.19.0`, it sets `--progress plain` flag and `--quiet-pull` for `up` sub-command`.
+
+
+- Related to global `elastic-package` settings:
+    - `ELASTIC_PACKAGE_CHECK_UPDATE_DISABLED`: if set to `true`, `elastic-package` is not going to check
+      for newer versions.
+    - `ELASTIC_PACKAGE_PROFILE`: Name of the profile to be using.
+    - `ELASTIC_PACKAGE_DATA_HOME`: Custom path to be used for `elastic-package` data directory. By default this is `~/.elastic-package`.
+
+- Related to the build process:
+    - `ELASTIC_PACKAGE_REPOSITORY_LICENSE`: Path to the default repository license.
+    - `ELASTIC_PACKAGE_LINKS_FILE_PATH`: Path to the links table file (e.g. `links_table.yml`) with the link definitions to be used in the build process of a package.
+
+- Related to signing packages:
+    - `ELASTIC_PACKAGE_SIGNER_PRIVATE_KEYFILE`: Path to the private key file to sign packages.
+    - `ELASTIC_PACKAGE_SIGNER_PASSPHRASE`: Passphrase to use the private key file.
+
+- Related to tests:
+    - `ELASTIC_PACKAGE_SERVERLESS_PIPELINE_TEST_DISABLE_COMPARE_RESULTS`: If set to `true`, the results from pipeline tests are not compared to avoid errors from GeoIP.
+
+- To configure the Elastic stack to be used by `elastic-package`:
+    - `ELASTIC_PACKAGE_ELASTICSEARCH_HOST`: Host of the elasticsearch (e.g. https://127.0.0.1:9200)
+    - `ELASTIC_PACKAGE_ELASTICSEARCH_USERNAME`: User name to connect to elasticsearch (e.g. elastic)
+    - `ELASTIC_PACKAGE_ELASTICSEARCH_PASSWORD`: Password of that user.
+    - `ELASTIC_PACKAGE_ELASTICSEARCH_KIBANA_HOST`: Kibana URL (e.g. https://127.0.0.1:5601)
+    - `ELASTIC_PACKAGE_ELASTICSEARCH_CA_CERT`: Path to the CA certificate to connect to the Elastic stack services.
+
+- To configure an external metricstore while running benchmarks (more info at [system benchmarking docs](https://github.com/elastic/elastic-package/blob/main/docs/howto/system_benchmarking.md#setting-up-an-external-metricstore) or [rally benchmarking docs](https://github.com/elastic/elastic-package/blob/main/docs/howto/rally_benchmarking.md#setting-up-an-external-metricstore)):
+    - `ELASTIC_PACKAGE_ESMETRICSTORE_HOST`: Host of the elasticsearch (e.g. https://127.0.0.1:9200)
+    - `ELASTIC_PACKAGE_ESMETRICSTORE_USERNAME`: Username to connect to elasticsearch (e.g. elastic)
+    - `ELASTIC_PACKAGE_ESMETRICSTORE_PASSWORD`: Password for the user.
+    - `ELASTIC_PACKAGE_ESMETRICSTORE_CA_CERT`: Path to the CA certificate to connect to the Elastic stack services.
+
+
 ## Release process
 
 This project uses [GoReleaser](https://goreleaser.com/) to release a new version of the application (semver). Release publishing
