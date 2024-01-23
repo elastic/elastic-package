@@ -56,19 +56,6 @@ with_docker() {
     sudo systemctl start docker
 }
 
-with_docker_compose() {
-    if [[ "${DOCKER_COMPOSE_VERSION:-"false"}" == "false" ]]; then
-        echo "Skip docker-compose installation"
-        return
-    fi
-    create_bin_folder
-    check_platform_architecture
-
-    retry 5 curl -SL -o ${WORKSPACE}/bin/docker-compose "https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-${platform_type_lowercase}-${hw_type}"
-    chmod +x ${WORKSPACE}/bin/docker-compose
-    docker-compose version
-}
-
 with_docker_compose_plugin() {
     if [[ "${DOCKER_COMPOSE_VERSION:-"false"}" == "false" ]]; then
         echo "Skip docker compose installation (plugin)"
