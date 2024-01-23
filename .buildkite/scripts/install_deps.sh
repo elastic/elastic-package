@@ -45,7 +45,7 @@ with_docker() {
     ubuntu_version="$(lsb_release -rs)" # 20.04
     ubuntu_codename="$(lsb_release -sc)" # focal
     architecture=$(dpkg --print-architecture)
-    local debian_version="5:24.0.7-1~ubuntu.${ubuntu_version}~${ubuntu_codename}"
+    local debian_version="5:${DOCKER_VERSION}-1~ubuntu.${ubuntu_version}~${ubuntu_codename}"
 
     sudo sudo mkdir -p /etc/apt/keyrings
     curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
