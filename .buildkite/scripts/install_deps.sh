@@ -35,7 +35,7 @@ add_bin_path(){
 }
 
 with_docker() {
-    if [[ "${DOCKER_COMPOSE_VERSION:-"false"}" == "false" ]]; then
+    if [[ "${DOCKER_VERSION:-"false"}" == "false" ]]; then
         echo "Skip docker installation"
         return
     fi
@@ -58,7 +58,7 @@ with_docker() {
 
 with_docker_compose() {
     if [[ "${DOCKER_COMPOSE_VERSION:-"false"}" == "false" ]]; then
-        echo "Skip docker installation"
+        echo "Skip docker-compose installation"
         return
     fi
     create_bin_folder
@@ -67,6 +67,23 @@ with_docker_compose() {
     retry 5 curl -SL -o ${WORKSPACE}/bin/docker-compose "https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-${platform_type_lowercase}-${hw_type}"
     chmod +x ${WORKSPACE}/bin/docker-compose
     docker-compose version
+}
+
+with_docker_compose_plugin() {
+    if [[ "${DOCKER_COMPOSE_VERSION:-"false"}" == "false" ]]; then
+        echo "Skip docker compose installation (plugin)"
+        return
+    fi
+    create_bin_folder
+    check_platform_architecture
+
+    k
+    local DOCKER_CONFIG="$HOME/.docker/cli-plugins"
+    mkdir -p "$DOCKER_CONFIG"
+
+    retry 5 curl -SL -o ${DOCKER_CONFIG}/docker-compose "https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-${platform_type_lowercase}-${hw_type}"
+    chmod +x ${DOCKER_CONFIG}/docker-compose
+    docker compose version
 }
 
 with_kubernetes() {
