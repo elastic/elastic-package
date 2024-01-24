@@ -35,6 +35,11 @@ add_bin_path(){
 }
 
 with_docker() {
+    if ! command -v docker &> /dev/null ; then
+        echo "Skip. Docker is not installed by default"
+        return
+    fi
+
     echo "--- Setting up the Docker environment..."
     echo "Current docker client version:"
     docker version -f json  | jq -r '.Client.Version'
