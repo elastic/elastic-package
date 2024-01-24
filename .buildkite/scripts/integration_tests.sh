@@ -109,6 +109,12 @@ add_bin_path
 echo "--- install go"
 with_go
 
+echo "--- install docker"
+with_docker
+
+echo "--- install docker-compose plugin"
+with_docker_compose_plugin
+
 if [[ "${TARGET}" == "${KIND_TARGET}" ]]; then
     echo "--- install kubectl & kind"
     with_kubernetes
