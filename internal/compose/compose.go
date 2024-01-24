@@ -33,9 +33,12 @@ const (
 )
 
 var (
-	DisableANSIComposeEnv             = environment.WithElasticPackagePrefix("COMPOSE_DISABLE_ANSI")
-	DisablePullProgressInformationEnv = environment.WithElasticPackagePrefix("COMPOSE_DISABLE_PULL_PROGRESS_INFORMATION")
-	EnableComposeStandaloneEnv        = environment.WithElasticPackagePrefix("COMPOSE_ENABLE_STANDALONE")
+	EnableComposeStandaloneEnv     = environment.WithElasticPackagePrefix("COMPOSE_ENABLE_STANDALONE")
+	DisableVerboseOutputComposeEnv = environment.WithElasticPackagePrefix("COMPOSE_DISABLE_VERBOSE_OUTPUT")
+)
+
+const (
+	defaultComposeProgressOutput = "plain"
 )
 
 // Project represents a Docker Compose project.
@@ -47,6 +50,8 @@ type Project struct {
 	dockerComposeStandalone        bool
 	disableANSI                    bool
 	disablePullProgressInformation bool
+	progressOutput                 string
+	composeVersion                 *semver.Version
 }
 
 // Config represents a Docker Compose configuration file.
@@ -204,13 +209,16 @@ func NewProject(name string, paths ...string) (*Project, error) {
 	}
 	logger.Debug(versionMessage)
 
-	v, ok = os.LookupEnv(DisableANSIComposeEnv)
+	v, ok = os.LookupEnv(DisableVerboseOutputComposeEnv)
 	if !c.dockerComposeV1 && ok && strings.ToLower(v) != "false" {
-		c.disableANSI = true
-	}
-
-	v, ok = os.LookupEnv(DisablePullProgressInformationEnv)
-	if ok && strings.ToLower(v) != "false" {
+		if c.composeVersion.LessThan(semver.MustParse("2.19.0")) {
+			c.disableANSI = true
+		} else {
+			// --ansi never looks is ignored by "docker compose" and latest versions of "docker-compose"
+			// adding --progress plain is a similar result as --ansi never
+			// if set to "--progress quiet", there is no output at all from docker compose commands
+			c.progressOutput = defaultComposeProgressOutput
+		}
 		c.disablePullProgressInformation = true
 	}
 
@@ -442,6 +450,10 @@ func (p *Project) baseArgs() []string {
 		args = append(args, "--ansi", "never")
 	}
 
+	if p.progressOutput != "" {
+		args = append(args, "--progress", p.progressOutput)
+	}
+
 	args = append(args, "-p", p.name)
 	return args
 }
@@ -504,6 +516,7 @@ func (p *Project) dockerComposeVersion() (*semver.Version, error) {
 	if err != nil {
 		return nil, fmt.Errorf("docker compose version is not a valid semver (value: %s): %w", dcVersion, err)
 	}
+	p.composeVersion = ver
 	return ver, nil
 }
 
