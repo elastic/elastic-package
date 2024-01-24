@@ -42,14 +42,6 @@ func (r runner) String() string {
 	return "static files"
 }
 
-func (r *runner) Configure(options testrunner.TestOptions) error {
-	return nil
-}
-
-func (r *runner) Setup(options testrunner.TestOptions) error {
-	return nil
-}
-
 func (r runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, error) {
 	r.options = options
 	return r.run()

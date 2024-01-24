@@ -53,14 +53,6 @@ func (r runner) CanRunPerDataStream() bool {
 	return false
 }
 
-func (r *runner) Configure(options testrunner.TestOptions) error {
-	return nil
-}
-
-func (r *runner) Setup(options testrunner.TestOptions) error {
-	return nil
-}
-
 // Run runs the asset loading tests
 func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, error) {
 	r.testFolder = options.TestFolder

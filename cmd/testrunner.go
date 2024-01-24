@@ -93,10 +93,12 @@ func setupTestCommand() *cobraext.Command {
 			testTypeCmd.Flags().StringSliceP(cobraext.DataStreamsFlagName, "d", nil, cobraext.DataStreamsFlagDescription)
 		}
 
-		testTypeCmd.Flags().String(cobraext.ConfigFileFlagName, "", cobraext.ConfigFileFlagDescription)
-		testTypeCmd.Flags().Bool(cobraext.SetupFlagName, false, cobraext.SetupFlagDescription)
-		testTypeCmd.Flags().Bool(cobraext.TearDownFlagName, false, cobraext.TearDownFlagDescription)
-		testTypeCmd.MarkFlagsMutuallyExclusive(cobraext.SetupFlagName, cobraext.TearDownFlagName)
+		if _, ok := runner.(testrunner.TestRunnerSetterUp); ok {
+			testTypeCmd.Flags().String(cobraext.ConfigFileFlagName, "", cobraext.ConfigFileFlagDescription)
+			testTypeCmd.Flags().Bool(cobraext.SetupFlagName, false, cobraext.SetupFlagDescription)
+			testTypeCmd.Flags().Bool(cobraext.TearDownFlagName, false, cobraext.TearDownFlagDescription)
+			testTypeCmd.MarkFlagsMutuallyExclusive(cobraext.SetupFlagName, cobraext.TearDownFlagName)
+		}
 
 		cmd.AddCommand(testTypeCmd)
 	}

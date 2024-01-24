@@ -46,12 +46,6 @@ type TestRunner interface {
 	// String returns the human-friendly name of the test runner.
 	String() string
 
-	// Configure installs package and starts the service
-	Configure(TestOptions) error
-
-	// Setup installs package and starts the service
-	Setup(TestOptions) error
-
 	// Run executes the test runner.
 	Run(TestOptions) ([]TestResult, error)
 
@@ -66,7 +60,7 @@ type TestRunner interface {
 
 // TODO
 type TestRunnerSetterUp interface {
-	// Setup installs package and starts the service
+	// Configure reads the required configuration for the test
 	Configure(TestOptions) error
 
 	// Setup installs package and starts the service
@@ -286,9 +280,17 @@ func Run(testType TestType, options TestOptions) ([]TestResult, error) {
 		return nil, fmt.Errorf("unregistered runner test: %s", testType)
 	}
 
-	err := runner.Setup(options)
-	if err != nil {
-		return nil, fmt.Errorf("could not setup test runner: %w", err)
+	runnerSetter, ok := runner.(TestRunnerSetterUp)
+	if ok {
+		var err error
+		err = runnerSetter.Configure(options)
+		if err != nil {
+			return nil, fmt.Errorf("could not configure test runner: %w", err)
+		}
+		err = runnerSetter.Setup(options)
+		if err != nil {
+			return nil, fmt.Errorf("could not setup test runner: %w", err)
+		}
 	}
 
 	results, err := runner.Run(options)
@@ -309,9 +311,12 @@ func Setup(testType TestType, options TestOptions) error {
 		return fmt.Errorf("unregistered runner test: %s", testType)
 	}
 
-	err := runner.Setup(options)
-	if err != nil {
-		return fmt.Errorf("could not setup test runner: %w", err)
+	runnerSetter, ok := runner.(TestRunnerSetterUp)
+	if ok {
+		err := runnerSetter.Setup(options)
+		if err != nil {
+			return fmt.Errorf("could not setup test runner: %w", err)
+		}
 	}
 	return nil
 }
@@ -323,9 +328,13 @@ func TearDown(testType TestType, options TestOptions) error {
 		return fmt.Errorf("unregistered runner test: %s", testType)
 	}
 
-	err := runner.Configure(options)
-	if err != nil {
-		return fmt.Errorf("could not setup test runner: %w", err)
+	var err error
+	runnerSetter, ok := runner.(TestRunnerSetterUp)
+	if ok {
+		err = runnerSetter.Configure(options)
+		if err != nil {
+			return fmt.Errorf("could not setup test runner: %w", err)
+		}
 	}
 	err = runner.TearDown()
 	if err != nil {

@@ -102,7 +102,7 @@ type runner struct {
 
 	dataStreamPath string
 	cfgFiles       []string
-	variantsFile   *servicedeployer.VariantsFile
+	variants       []string
 	stackVersion   kibana.VersionInfo
 
 	// Execution order of following handlers is defined in runner.TearDown() method.
@@ -138,11 +138,6 @@ func (r *runner) TestFolderRequired() bool {
 
 // Configure gets all the needed configuration to run the setup, run and teardown steps
 func (r *runner) Configure(options testrunner.TestOptions) error {
-	return nil
-}
-
-// Setup installs the packge and starts the service
-func (r *runner) Setup(options testrunner.TestOptions) error {
 	r.options = options
 	var found bool
 	var err error
@@ -185,10 +180,17 @@ func (r *runner) Setup(options testrunner.TestOptions) error {
 		return fmt.Errorf("failed listing test case config cfgFiles: %w", err)
 	}
 
-	r.variantsFile, err = servicedeployer.ReadVariantsFile(devDeployPath)
+	variantsFile, err := servicedeployer.ReadVariantsFile(devDeployPath)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return fmt.Errorf("can't read service variant: %w", err)
 	}
+
+	r.variants = r.selectVariants(variantsFile)
+	return nil
+}
+
+// Setup installs the packge and starts the service
+func (r *runner) Setup(options testrunner.TestOptions) error {
 	return nil
 }
 
@@ -265,7 +267,7 @@ func (r *runner) run() (results []testrunner.TestResult, err error) {
 
 	startTesting := time.Now()
 	for _, cfgFile := range r.cfgFiles {
-		for _, variantName := range r.selectVariants(r.variantsFile) {
+		for _, variantName := range r.variants {
 			partial, err := r.runTestPerVariant(result, locationManager, cfgFile, r.dataStreamPath, variantName, r.stackVersion.Version())
 			results = append(results, partial...)
 			if err != nil {

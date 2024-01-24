@@ -66,14 +66,6 @@ func (r *runner) String() string {
 	return "pipeline"
 }
 
-func (r *runner) Configure(options testrunner.TestOptions) error {
-	return nil
-}
-
-func (r *runner) Setup(options testrunner.TestOptions) error {
-	return nil
-}
-
 // Run runs the pipeline tests defined under the given folder
 func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, error) {
 	r.options = options
