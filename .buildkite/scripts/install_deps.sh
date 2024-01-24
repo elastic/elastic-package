@@ -35,6 +35,12 @@ add_bin_path(){
 }
 
 with_docker() {
+    echo "--- Setting up the Docker environment..."
+    echo "Current docker client version:"
+    docker version -f json  | jq -r '.Client.Version'
+    echo "Current docekr server version:"
+    docker version -f json  | jq -r '.Server.Version'
+
     if [[ "${DOCKER_VERSION:-"false"}" == "false" ]]; then
         echo "Skip docker installation"
         return
@@ -48,7 +54,9 @@ with_docker() {
     local debian_version="5:${DOCKER_VERSION}-1~ubuntu.${ubuntu_version}~${ubuntu_codename}"
 
     sudo sudo mkdir -p /etc/apt/keyrings
-    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+    if [ ! -f /etc/apt/keyrings/docker.gpg ]; then
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+    fi
     echo "deb [arch=${architecture} signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu ${ubuntu_codename} stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
     sudo apt-get update
     sudo DEBIAN_FRONTEND=noninteractive apt-get install --allow-downgrades -y "docker-ce=${debian_version}"
