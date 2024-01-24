@@ -40,10 +40,10 @@ with_docker() {
         return
     fi
 
-    echo "--- Setting up the Docker environment..."
-    echo "Current docker client version:"
+    echo "Setting up the Docker environment..."
+    echo "- Current docker client version:"
     docker version -f json  | jq -r '.Client.Version'
-    echo "Current docekr server version:"
+    echo "- Current docker server version:"
     docker version -f json  | jq -r '.Server.Version'
 
     if [[ "${DOCKER_VERSION:-"false"}" == "false" ]]; then
