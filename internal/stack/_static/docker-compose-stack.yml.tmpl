@@ -170,13 +170,14 @@ services:
       interval: 60s
       timeout: 50s
       retries: 5
-    command: bash -c "bin/logstash-plugin install logstash-filter-elastic_integration && logstash -f /usr/share/logstash/pipeline/logstash.conf"
+    command: bash -c 'if [[ ! $(bin/logstash-plugin list) == *"logstash-filter-elastic_integration"* ]]; then echo "Missing plugin logstash-filter-elastic_integration, installing now" && bin/logstash-plugin install logstash-filter-elastic_integration; fi && bin/logstash -f /usr/share/logstash/pipeline/logstash.conf'
     volumes:
       - "../certs/logstash:/usr/share/logstash/config/certs"
       - "../certs/elasticsearch/cert.pem:/usr/share/logstash/config/certs/elasticsearch.pem"
       - "./logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro"
     ports:
        - "127.0.0.1:5044:5044"
+       - "127.0.0.1:9600:9600"
     environment:
       - xpack.monitoring.enabled=false
       - ELASTIC_USER=elastic
