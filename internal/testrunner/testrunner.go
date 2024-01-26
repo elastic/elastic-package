@@ -36,6 +36,8 @@ type TestOptions struct {
 	CoverageType   string
 
 	ConfigFilePath string
+	RunSetup       bool
+	RunTearDown    bool
 }
 
 // TestRunner is the interface all test runners must implement.
@@ -249,12 +251,7 @@ func FindTestFolders(packageRootPath string, dataStreams []string, testType Test
 	folders := make([]TestFolder, len(paths))
 	_, pkg := filepath.Split(packageRootPath)
 	for idx, p := range paths {
-		relP := strings.TrimPrefix(p, packageRootPath)
-		parts := strings.Split(relP, string(filepath.Separator))
-		dataStream := ""
-		if len(parts) >= 3 && parts[1] == "data_stream" {
-			dataStream = parts[2]
-		}
+		dataStream := ExtractDataStreamFromPath(p, packageRootPath)
 
 		folder := TestFolder{
 			Path:       p,
@@ -266,6 +263,17 @@ func FindTestFolders(packageRootPath string, dataStreams []string, testType Test
 	}
 
 	return folders, nil
+}
+
+func ExtractDataStreamFromPath(fullPath, packageRootPath string) string {
+	relP := strings.TrimPrefix(fullPath, packageRootPath)
+	parts := strings.Split(relP, string(filepath.Separator))
+	dataStream := ""
+	if len(parts) >= 3 && parts[1] == "data_stream" {
+		dataStream = parts[2]
+	}
+
+	return dataStream
 }
 
 // RegisterRunner method registers the test runner.

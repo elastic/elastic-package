@@ -163,15 +163,24 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 			return fmt.Errorf("cannot determine if package has data streams: %w", err)
 		}
 
+		configFileFlag, _ := cmd.Flags().GetString(cobraext.ConfigFileFlagName)
+		runSetup, _ := cmd.Flags().GetBool(cobraext.SetupFlagName)
+		runTeardown, _ := cmd.Flags().GetBool(cobraext.TearDownFlagName)
+
 		signal.Enable()
 
 		var testFolders []testrunner.TestFolder
 		if hasDataStreams && runner.CanRunPerDataStream() {
 			var dataStreams []string
-			// We check for the existence of the data streams flag before trying to
-			// parse it because if the root test command is run instead of one of the
-			// subcommands of test, the data streams flag will not be defined.
-			if cmd.Flags().Lookup(cobraext.DataStreamsFlagName) != nil {
+
+			if configFileFlag != "" {
+				// find data stream from path
+				dataStream := testrunner.ExtractDataStreamFromPath(configFileFlag, packageRootPath)
+				dataStreams = append(dataStreams, dataStream)
+			} else if cmd.Flags().Lookup(cobraext.DataStreamsFlagName) != nil {
+				// We check for the existence of the data streams flag before trying to
+				// parse it because if the root test command is run instead of one of the
+				// subcommands of test, the data streams flag will not be defined.
 				dataStreams, err = cmd.Flags().GetStringSlice(cobraext.DataStreamsFlagName)
 				common.TrimStringSlice(dataStreams)
 				if err != nil {
@@ -234,8 +243,6 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 			return err
 		}
 
-		configFileFlag, _ := cmd.Flags().GetString(cobraext.ConfigFileFlagName)
-
 		esClient, err := stack.NewElasticsearchClientFromProfile(profile)
 		if err != nil {
 			return fmt.Errorf("can't create Elasticsearch client: %w", err)
@@ -254,8 +261,23 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 			}
 		}
 
+		if runSetup || runTeardown {
+			if configFileFlag == "" {
+				return fmt.Errorf("set setup but missing config file path")
+			}
+
+			if variantFlag == "" {
+				return fmt.Errorf("set setup/teardown but missing variant")
+			}
+
+			if len(testFolders) != 1 {
+				return fmt.Errorf("wrong number of test folders (expected 1): %d", len(testFolders))
+			}
+		}
+
 		var results []testrunner.TestResult
 		for _, folder := range testFolders {
+			fmt.Printf("Running for folder datastream: %s\n", folder.DataStream)
 			r, err := testrunner.Run(testType, testrunner.TestOptions{
 				Profile:            profile,
 				TestFolder:         folder,
@@ -268,6 +290,8 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 				WithCoverage:       testCoverage,
 				CoverageType:       testCoverageFormat,
 				ConfigFilePath:     configFileFlag,
+				RunSetup:           runSetup,
+				RunTearDown:        runTeardown,
 			})
 
 			results = append(results, r...)
