@@ -26,6 +26,14 @@ var (
 			Path:    ElasticAgentEnvFile,
 			Content: staticSource.Template("_static/elastic-agent.env.tmpl"),
 		},
+		&resource.File{
+			Path:    LogstashConfigFile,
+			Content: staticSource.Template("_static/logstash.conf.tmpl"),
+		},
+		&resource.File{
+			Path:    LogstashComposeFile,
+			Content: staticSource.Template("_static/serverless-logstash.yml.tmpl"),
+		},
 	}
 )
 
@@ -39,12 +47,13 @@ func applyServerlessResources(profile *profile.Profile, stackVersion string, con
 
 	resourceManager := resource.NewManager()
 	resourceManager.AddFacter(resource.StaticFacter{
-		"agent_version": stackVersion,
-		"agent_image":   appConfig.StackImageRefs(stackVersion).ElasticAgent,
-		"username":      config.ElasticsearchUsername,
-		"password":      config.ElasticsearchPassword,
-		"kibana_host":   config.KibanaHost,
-		"fleet_url":     config.Parameters[paramServerlessFleetURL],
+		"agent_version":    stackVersion,
+		"agent_image":      appConfig.StackImageRefs(stackVersion).ElasticAgent,
+		"username":         config.ElasticsearchUsername,
+		"password":         config.ElasticsearchPassword,
+		"kibana_host":      config.KibanaHost,
+		"fleet_url":        config.Parameters[paramServerlessFleetURL],
+		"logstash_enabled": profile.Config("stack.logstash_enabled", "false"),
 	})
 
 	os.MkdirAll(stackDir, 0755)

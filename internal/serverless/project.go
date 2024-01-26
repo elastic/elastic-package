@@ -131,6 +131,21 @@ func (p *Project) DefaultFleetServerURL(kibanaClient *kibana.Client) (string, er
 	return fleetURL, nil
 }
 
+func (p *Project) AddLogstashFleetOutput(kibanaClient *kibana.Client) error {
+	logstashFleetOutput := kibana.FleetOutput{
+		Name:  "logstash-output",
+		ID:    "logstash-fleet-output",
+		Type:  "logstash",
+		Hosts: []string{"logstash:5044"},
+	}
+
+	if err := kibanaClient.AddFleetOutput(logstashFleetOutput); err != nil {
+		return fmt.Errorf("failed to add logstash fleet output: %w", err)
+	}
+
+	return nil
+}
+
 func (p *Project) getESHealth(ctx context.Context, elasticsearchClient *elasticsearch.Client) error {
 	return elasticsearchClient.CheckHealth(ctx)
 }
@@ -177,7 +192,7 @@ func (p *Project) getFleetHealth(ctx context.Context) error {
 	return nil
 }
 
-func (p *Project) CreateAgentPolicy(stackVersion string, kibanaClient *kibana.Client) error {
+func (p *Project) CreateAgentPolicy(stackVersion string, kibanaClient *kibana.Client, logstashEnabled bool) error {
 	systemPackages, err := registry.Production.Revisions("system", registry.SearchOptions{
 		KibanaVersion: strings.TrimSuffix(stackVersion, kibana.SNAPSHOT_SUFFIX),
 	})
@@ -196,6 +211,11 @@ func (p *Project) CreateAgentPolicy(stackVersion string, kibanaClient *kibana.Cl
 		Namespace:         "default",
 		MonitoringEnabled: []string{"logs", "metrics"},
 	}
+
+	if logstashEnabled {
+		policy.DataOutputID = "fleet-logstash-output"
+	}
+
 	newPolicy, err := kibanaClient.CreatePolicy(policy)
 	if err != nil {
 		return fmt.Errorf("error while creating agent policy: %w", err)

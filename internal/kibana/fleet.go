@@ -11,6 +11,13 @@ import (
 	"net/http"
 )
 
+type FleetOutput struct {
+	ID    string   `json:"id,omitempty"`
+	Name  string   `json:"name,omitempty"`
+	Hosts []string `json:"hosts,omitempty"`
+	Type  string   `json:"type,omitempty"`
+}
+
 // DefaultFleetServerURL returns the default Fleet server configured in Kibana
 func (c *Client) DefaultFleetServerURL() (string, error) {
 	path := fmt.Sprintf("%s/fleet_server_hosts", FleetAPI)
@@ -42,4 +49,23 @@ func (c *Client) DefaultFleetServerURL() (string, error) {
 	}
 
 	return "", errors.New("could not find the fleet server URL for this project")
+}
+
+// AddFleetOutput adds an additional output to kibana eg., logstash
+func (c *Client) AddFleetOutput(fo FleetOutput) error {
+	reqBody, err := json.Marshal(fo)
+	if err != nil {
+		return fmt.Errorf("could not convert fleetOutput (request) to JSON: %w", err)
+	}
+
+	statusCode, respBody, err := c.post(fmt.Sprintf("%s/outputs", FleetAPI), reqBody)
+	if err != nil {
+		return fmt.Errorf("could not create fleet output: %w", err)
+	}
+
+	if statusCode != http.StatusOK {
+		return fmt.Errorf("could not get status data; API status code = %d; response body = %s", statusCode, respBody)
+	}
+
+	return nil
 }
