@@ -36,10 +36,11 @@ type pipelineIngestedDocument struct {
 
 // Pipeline represents a pipeline resource loaded from a file
 type Pipeline struct {
-	Path    string // Path of the file with the pipeline definition.
-	Name    string // Name of the pipeline.
-	Format  string // Format (extension) of the pipeline.
-	Content []byte // Content is the original file contents.
+	Path            string // Path of the file with the pipeline definition.
+	Name            string // Name of the pipeline.
+	Format          string // Format (extension) of the pipeline.
+	Content         []byte // Content is the pipeline file contents with reroute processors if any.
+	ContentOriginal []byte // Content is the original file contents.
 }
 
 // Filename returns the original filename associated with the pipeline.

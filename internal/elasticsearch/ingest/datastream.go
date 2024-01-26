@@ -98,17 +98,18 @@ func loadIngestPipelineFiles(dataStreamPath string, nonce int64) ([]Pipeline, er
 			return nil, err
 		}
 
-		c, err = addRerouteProcessors(c, dataStreamPath, path)
+		cWithRerouteProcessors, err := addRerouteProcessors(c, dataStreamPath, path)
 		if err != nil {
 			return nil, err
 		}
 
 		name := filepath.Base(path)
 		pipelines = append(pipelines, Pipeline{
-			Path:    path,
-			Name:    getPipelineNameWithNonce(name[:strings.Index(name, ".")], nonce),
-			Format:  filepath.Ext(path)[1:],
-			Content: c,
+			Path:            path,
+			Name:            getPipelineNameWithNonce(name[:strings.Index(name, ".")], nonce),
+			Format:          filepath.Ext(path)[1:],
+			Content:         cWithRerouteProcessors,
+			ContentOriginal: c,
 		})
 	}
 	return pipelines, nil
