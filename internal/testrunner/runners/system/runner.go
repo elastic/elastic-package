@@ -178,15 +178,22 @@ func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, e
 	}
 	ctxt.OutputDir = outputDir
 
-	testConfig, err := newConfig(filepath.Join(r.options.TestFolder.Path, r.options.ConfigFilePath), ctxt, r.options.ServiceVariant)
+	testConfig, err := newConfig(r.options.ConfigFilePath, ctxt, r.options.ServiceVariant)
 	if err != nil {
 		return result.WithError(fmt.Errorf("unable to load system test case file '%s': %w", r.options.ConfigFilePath, err))
 	}
 
-	_, err = r.prepareScenario(testConfig, ctxt, serviceOptions)
+	_, err = r.prepareScenario(testConfig, ctxt, serviceOptions, "setup")
 	if err != nil {
 		return result.WithError(err)
 	}
+
+	// TODO check how to run tear down after triggering setup
+	// if r.options.RunTearDown {
+	// 	if err := r.tearDownTest(); err != nil {
+	// 		return result.WithError(err)
+	// 	}
+	// }
 
 	return result.WithSuccess()
 }
@@ -540,7 +547,7 @@ type scenarioTest struct {
 	docs               []common.MapStr
 }
 
-func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.ServiceContext, serviceOptions servicedeployer.FactoryOptions) (*scenarioTest, error) {
+func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.ServiceContext, serviceOptions servicedeployer.FactoryOptions, policySuffix string) (*scenarioTest, error) {
 	pkgManifest, err := packages.ReadPackageManifestFromPackageRoot(r.options.PackageRootPath)
 	if err != nil {
 		return nil, fmt.Errorf("reading package manifest failed: %w", err)
@@ -624,10 +631,10 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 
 	// Configure package (single data stream) via Ingest Manager APIs.
 	logger.Debug("creating test policy...")
-	testTime := time.Now().Format("20060102T15:04:05Z")
+	// testTime := time.Now().Format("20060102T15:04:05Z")
 
 	p := kibana.Policy{
-		Name:        fmt.Sprintf("ep-test-system-%s-%s-%s", r.options.TestFolder.Package, r.options.TestFolder.DataStream, testTime),
+		Name:        fmt.Sprintf("ep-test-system-%s-%s-%s", r.options.TestFolder.Package, r.options.TestFolder.DataStream, policySuffix),
 		Description: fmt.Sprintf("test policy created by elastic-package test system for data stream %s/%s", r.options.TestFolder.Package, r.options.TestFolder.DataStream),
 		Namespace:   "ep",
 	}
@@ -818,7 +825,7 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext, serviceOptions servicedeployer.FactoryOptions) ([]testrunner.TestResult, error) {
 	result := r.newResult(config.Name())
 
-	scenario, err := r.prepareScenario(config, ctxt, serviceOptions)
+	scenario, err := r.prepareScenario(config, ctxt, serviceOptions, time.Now().Format("20060102T15:04:05Z"))
 	if err != nil {
 		return result.WithError(err)
 	}
