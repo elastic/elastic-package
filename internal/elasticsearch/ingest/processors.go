@@ -36,8 +36,8 @@ func (p Pipeline) Processors() (procs []Processor, err error) {
 	return procs, nil
 }
 
-// Processors return the original list of processors in an ingest pipeline.
-func (p Pipeline) ProcessorsWithoutReroute() (procs []Processor, err error) {
+// OriginalProcessors return the original list of processors in an ingest pipeline.
+func (p Pipeline) OriginalProcessors() (procs []Processor, err error) {
 	switch p.Format {
 	case "yaml", "yml", "json":
 		procs, err = processorsFromYAML(p.ContentOriginal)

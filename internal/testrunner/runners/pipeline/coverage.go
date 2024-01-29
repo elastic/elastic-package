@@ -105,7 +105,7 @@ func GetPipelineCoverage(options testrunner.TestOptions, pipelines []ingest.Pipe
 
 func pipelineDataForCoverage(pipeline ingest.Pipeline, stats ingest.PipelineStatsMap, basePath, dataStreamPath string) (string, string, []ingest.Processor, ingest.PipelineStats, error) {
 	// Load the list of main processors from the pipeline source code, annotated with line numbers.
-	src, err := pipeline.ProcessorsWithoutReroute()
+	src, err := pipeline.OriginalProcessors()
 	if err != nil {
 		return "", "", nil, ingest.PipelineStats{}, err
 	}
@@ -115,7 +115,7 @@ func pipelineDataForCoverage(pipeline ingest.Pipeline, stats ingest.PipelineStat
 		return "", "", nil, ingest.PipelineStats{}, fmt.Errorf("pipeline '%s' not installed in Elasticsearch", pipeline.Name)
 	}
 
-	// remove reroute processors if any so the pipeline has the same processors as in the file
+	// Remove reroute processors if any so the pipeline has the same processors as in the file
 	// reroute processors are added if there are any routing_rules file defined
 	var processors []ingest.ProcessorStats
 	for _, proc := range pstats.Processors {
