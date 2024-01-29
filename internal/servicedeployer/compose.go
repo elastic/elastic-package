@@ -25,6 +25,10 @@ type DockerComposeServiceDeployer struct {
 	profile  *profile.Profile
 	ymlPaths []string
 	variant  ServiceVariant
+
+	disableFullExecution bool
+	runSetup             bool
+	runTeardown          bool
 }
 
 type dockerComposeDeployedService struct {
@@ -37,11 +41,14 @@ type dockerComposeDeployedService struct {
 }
 
 // NewDockerComposeServiceDeployer returns a new instance of a DockerComposeServiceDeployer.
-func NewDockerComposeServiceDeployer(profile *profile.Profile, ymlPaths []string, sv ServiceVariant) (*DockerComposeServiceDeployer, error) {
+func NewDockerComposeServiceDeployer(profile *profile.Profile, ymlPaths []string, sv ServiceVariant, disableFullExecution, runSetup, runTeardown bool) (*DockerComposeServiceDeployer, error) {
 	return &DockerComposeServiceDeployer{
-		profile:  profile,
-		ymlPaths: ymlPaths,
-		variant:  sv,
+		profile:              profile,
+		ymlPaths:             ymlPaths,
+		variant:              sv,
+		disableFullExecution: disableFullExecution,
+		runSetup:             runSetup,
+		runTeardown:          runTeardown,
 	}, nil
 }
 
@@ -101,10 +108,15 @@ func (d *DockerComposeServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedSer
 	// Build service container name
 	outCtxt.Hostname = p.ContainerName(serviceName)
 
-	// Connect service network with stack network (for the purpose of metrics collection)
-	err = docker.ConnectToNetwork(p.ContainerName(serviceName), stack.Network(d.profile))
-	if err != nil {
-		return nil, fmt.Errorf("can't attach service container to the stack network: %w", err)
+	switch {
+	case d.disableFullExecution && d.runTeardown:
+		logger.Debug("Skipping connect container to network (tear down process)")
+	default:
+		// Connect service network with stack network (for the purpose of metrics collection)
+		err = docker.ConnectToNetwork(p.ContainerName(serviceName), stack.Network(d.profile))
+		if err != nil {
+			return nil, fmt.Errorf("can't attach service container to the stack network: %w", err)
+		}
 	}
 
 	logger.Debugf("adding service container %s internal ports to context", p.ContainerName(serviceName))

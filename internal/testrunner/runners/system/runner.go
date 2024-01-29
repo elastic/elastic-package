@@ -143,6 +143,15 @@ func (r *runner) CanRunSetupTeardownIndependent() bool {
 	return true
 }
 
+func createSetupServicesDir(elasticPackagePath *locations.LocationManager) error {
+	dirPath := elasticPackagePath.SetupServiceDir()
+	err := os.MkdirAll(dirPath, 0755)
+	if err != nil {
+		return fmt.Errorf("mkdir failed (path: %s): %w", dirPath, err)
+	}
+	return nil
+}
+
 // Run runs the system tests defined under the given folder
 func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, error) {
 	r.options = options
@@ -157,13 +166,16 @@ func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, e
 	}
 
 	serviceOptions := servicedeployer.FactoryOptions{
-		Profile:            r.options.Profile,
-		PackageRootPath:    r.options.PackageRootPath,
-		DataStreamRootPath: r.dataStreamPath,
-		DevDeployDir:       DevDeployDir,
-		Variant:            r.options.ServiceVariant,
-		Type:               servicedeployer.TypeTest,
-		StackVersion:       r.stackVersion.Version(),
+		Profile:              r.options.Profile,
+		PackageRootPath:      r.options.PackageRootPath,
+		DataStreamRootPath:   r.dataStreamPath,
+		DevDeployDir:         DevDeployDir,
+		Variant:              r.options.ServiceVariant,
+		Type:                 servicedeployer.TypeTest,
+		StackVersion:         r.stackVersion.Version(),
+		DisableFullExecution: true,
+		RunSetup:             r.options.RunSetup,
+		RunTearDown:          r.options.RunTearDown,
 	}
 
 	var ctxt servicedeployer.ServiceContext
@@ -189,11 +201,17 @@ func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, e
 	}
 
 	// TODO check how to run tear down after triggering setup
-	// if r.options.RunTearDown {
-	// 	if err := r.tearDownTest(); err != nil {
-	// 		return result.WithError(err)
-	// 	}
-	// }
+	if r.options.RunTearDown {
+		if err := r.tearDownTest(); err != nil {
+			return result.WithError(err)
+		}
+
+		// TODO clean serviceSetupDir
+		err := os.RemoveAll(r.locationManager.SetupServiceDir())
+		if err != nil {
+			return result.WithError(fmt.Errorf("failed to remove directory %q", r.locationManager.SetupServiceDir()))
+		}
+	}
 
 	return result.WithSuccess()
 }
@@ -548,25 +566,32 @@ type scenarioTest struct {
 }
 
 func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.ServiceContext, serviceOptions servicedeployer.FactoryOptions, policySuffix string) (*scenarioTest, error) {
-	pkgManifest, err := packages.ReadPackageManifestFromPackageRoot(r.options.PackageRootPath)
+	err := createSetupServicesDir(r.locationManager)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create setup services dir: %w", err)
+	}
+	scenario := scenarioTest{}
+
+	scenario.pkgManifest, err = packages.ReadPackageManifestFromPackageRoot(r.options.PackageRootPath)
 	if err != nil {
 		return nil, fmt.Errorf("reading package manifest failed: %w", err)
 	}
 
-	dataStreamManifest, err := packages.ReadDataStreamManifest(filepath.Join(serviceOptions.DataStreamRootPath, packages.DataStreamManifestFile))
+	scenario.dataStreamManifest, err = packages.ReadDataStreamManifest(filepath.Join(serviceOptions.DataStreamRootPath, packages.DataStreamManifestFile))
 	if err != nil {
 		return nil, fmt.Errorf("reading data stream manifest failed: %w", err)
 	}
 
 	policyTemplateName := config.PolicyTemplate
 	if policyTemplateName == "" {
-		policyTemplateName, err = findPolicyTemplateForInput(*pkgManifest, *dataStreamManifest, config.Input)
+		policyTemplateName, err = findPolicyTemplateForInput(*scenario.pkgManifest, *scenario.dataStreamManifest, config.Input)
 		if err != nil {
 			return nil, fmt.Errorf("failed to determine the associated policy_template: %w", err)
 		}
 	}
+	scenario.policyTemplateName = policyTemplateName
 
-	policyTemplate, err := selectPolicyTemplateByName(pkgManifest.PolicyTemplates, policyTemplateName)
+	policyTemplate, err := selectPolicyTemplateByName(scenario.pkgManifest.PolicyTemplates, scenario.policyTemplateName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find the selected policy_template: %w", err)
 	}
@@ -603,7 +628,7 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 
 	// Install the package before creating the policy, so we control exactly what is being
 	// installed.
-	logger.Debug("Installing package...")
+	logger.Debug("Initializing installer for package...")
 	installer, err := installer.NewForPackage(installer.Options{
 		Kibana:         r.options.KibanaClient,
 		RootPath:       r.options.PackageRootPath,
@@ -612,40 +637,63 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize package installer: %v", err)
 	}
-	_, err = installer.Install()
-	if err != nil {
-		return nil, fmt.Errorf("failed to install package: %v", err)
+
+	switch {
+	case serviceOptions.DisableFullExecution && serviceOptions.RunTearDown:
+		logger.Debug("Skip installing package")
+	default:
+		logger.Debug("Installing package...")
+		_, err = installer.Install()
+		if err != nil {
+			return nil, fmt.Errorf("failed to install package: %v", err)
+		}
 	}
 	r.deletePackageHandler = func() error {
 		err := installer.Uninstall()
 
 		// by default system package is part of an agent policy and it cannot be uninstalled
 		// https://github.com/elastic/elastic-package/blob/5f65dc29811c57454bc7142aaf73725b6d4dc8e6/internal/stack/_static/kibana.yml.tmpl#L62
-		if err != nil && pkgManifest.Name != "system" {
+		if err != nil && scenario.pkgManifest.Name != "system" {
 			// logging the error as a warning and not returning it since there could be other reasons that could make fail this process
 			// for instance being defined a test agent policy where this package is used for debugging purposes
-			logger.Warnf("failed to uninstall package %q: %s", pkgManifest.Name, err.Error())
+			logger.Warnf("failed to uninstall package %q: %s", scenario.pkgManifest.Name, err.Error())
 		}
 		return nil
 	}
 
-	// Configure package (single data stream) via Ingest Manager APIs.
-	logger.Debug("creating test policy...")
-	// testTime := time.Now().Format("20060102T15:04:05Z")
+	// Configure package (single data stream) via Fleet APIs.
+	var policy *kibana.Policy
+	switch {
+	case serviceOptions.DisableFullExecution && serviceOptions.RunTearDown:
+		policy = &kibana.Policy{}
+		policyPath := filepath.Join(r.locationManager.SetupServiceDir(), "policy-setup.json")
+		logger.Debug("Reading test policy from file %s", policyPath)
+		contents, err := os.ReadFile(policyPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read policy %q: %w", policyPath, err)
+		}
+		err = json.Unmarshal(contents, policy)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode policy %q: %w", policyPath, err)
+		}
+		logger.Debugf("Got policy from file: %q - %q", policy.Name, policy.ID)
+	default:
+		logger.Debug("creating test policy...")
+		// testTime := time.Now().Format("20060102T15:04:05Z")
 
-	p := kibana.Policy{
-		Name:        fmt.Sprintf("ep-test-system-%s-%s-%s", r.options.TestFolder.Package, r.options.TestFolder.DataStream, policySuffix),
-		Description: fmt.Sprintf("test policy created by elastic-package test system for data stream %s/%s", r.options.TestFolder.Package, r.options.TestFolder.DataStream),
-		Namespace:   "ep",
-	}
-	// Assign the data_output_id to the agent policy to configure the output to logstash. The value is inferred from stack/_static/kibana.yml.tmpl
-	if r.options.Profile.Config("stack.logstash_enabled", "false") == "true" {
-		p.DataOutputID = "fleet-logstash-output"
-	}
-
-	policy, err := r.options.KibanaClient.CreatePolicy(p)
-	if err != nil {
-		return nil, fmt.Errorf("could not create test policy: %w", err)
+		p := kibana.Policy{
+			Name:        fmt.Sprintf("ep-test-system-%s-%s-%s", r.options.TestFolder.Package, r.options.TestFolder.DataStream, policySuffix),
+			Description: fmt.Sprintf("test policy created by elastic-package test system for data stream %s/%s", r.options.TestFolder.Package, r.options.TestFolder.DataStream),
+			Namespace:   "ep",
+		}
+		// Assign the data_output_id to the agent policy to configure the output to logstash. The value is inferred from stack/_static/kibana.yml.tmpl
+		if r.options.Profile.Config("stack.logstash_enabled", "false") == "true" {
+			p.DataOutputID = "fleet-logstash-output"
+		}
+		policy, err = r.options.KibanaClient.CreatePolicy(p)
+		if err != nil {
+			return nil, fmt.Errorf("could not create test policy: %w", err)
+		}
 	}
 	r.deleteTestPolicyHandler = func() error {
 		logger.Debug("deleting test policy...")
@@ -656,14 +704,20 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 	}
 
 	logger.Debug("adding package data stream to test policy...")
-	ds := createPackageDatastream(*policy, *pkgManifest, policyTemplate, *dataStreamManifest, *config)
-	if err := r.options.KibanaClient.AddPackageDataStreamToPolicy(ds); err != nil {
-		return nil, fmt.Errorf("could not add data stream config to policy: %w", err)
+	ds := createPackageDatastream(*policy, *scenario.pkgManifest, policyTemplate, *scenario.dataStreamManifest, *config)
+	switch {
+	case serviceOptions.DisableFullExecution && serviceOptions.RunTearDown:
+		logger.Debug("Skip adding data stream config to policy")
+	default:
+		if err := r.options.KibanaClient.AddPackageDataStreamToPolicy(ds); err != nil {
+			return nil, fmt.Errorf("could not add data stream config to policy: %w", err)
+		}
 	}
+	scenario.kibanaDataStream = ds
 
 	// Delete old data
 	logger.Debug("deleting old data in data stream...")
-	dataStream := fmt.Sprintf(
+	scenario.dataStream = fmt.Sprintf(
 		"%s-%s-%s",
 		ds.Inputs[0].Streams[0].DataStream.Type,
 		ds.Inputs[0].Streams[0].DataStream.Dataset,
@@ -678,14 +732,14 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 
 	r.wipeDataStreamHandler = func() error {
 		logger.Debugf("deleting data in data stream...")
-		if err := deleteDataStreamDocs(r.options.API, dataStream); err != nil {
+		if err := deleteDataStreamDocs(r.options.API, scenario.dataStream); err != nil {
 			return fmt.Errorf("error deleting data in data stream: %w", err)
 		}
 		return nil
 	}
 
-	if err := deleteDataStreamDocs(r.options.API, dataStream); err != nil {
-		return nil, fmt.Errorf("error deleting old data in data stream: %s: %w", dataStream, err)
+	if err := deleteDataStreamDocs(r.options.API, scenario.dataStream); err != nil {
+		return nil, fmt.Errorf("error deleting old data in data stream: %s: %w", scenario.dataStream, err)
 	}
 
 	cleared, err := waitUntilTrue(func() (bool, error) {
@@ -693,7 +747,7 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 			return true, errors.New("SIGINT: cancel clearing data")
 		}
 
-		hits, err := r.getDocs(dataStream)
+		hits, err := r.getDocs(scenario.dataStream)
 		if err != nil {
 			return false, err
 		}
@@ -706,14 +760,31 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 		return nil, err
 	}
 
+	var origPolicy kibana.Policy
 	agents, err := checkEnrolledAgents(r.options.KibanaClient, ctxt)
 	if err != nil {
 		return nil, fmt.Errorf("can't check enrolled agents: %w", err)
 	}
 	agent := agents[0]
-	origPolicy := kibana.Policy{
-		ID:       agent.PolicyID,
-		Revision: agent.PolicyRevision,
+
+	switch {
+	case serviceOptions.DisableFullExecution && serviceOptions.RunTearDown:
+		policyPath := filepath.Join(r.locationManager.SetupServiceDir(), "orig-policy.json")
+		contents, err := os.ReadFile(policyPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read policy %q: %w", policyPath, err)
+		}
+		err = json.Unmarshal(contents, &origPolicy)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode policy %q: %w", policyPath, err)
+		}
+		logger.Debugf("Got orig policy from file: %q - %q", policy.Name, policy.ID)
+
+	default:
+		origPolicy = kibana.Policy{
+			ID:       agent.PolicyID,
+			Revision: agent.PolicyRevision,
+		}
 	}
 
 	// Assign policy to agent
@@ -725,14 +796,19 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 		return nil
 	}
 
-	policyWithDataStream, err := r.options.KibanaClient.GetPolicy(policy.ID)
-	if err != nil {
-		return nil, fmt.Errorf("could not read the policy with data stream: %w", err)
-	}
+	switch {
+	case serviceOptions.DisableFullExecution && serviceOptions.RunTearDown:
+		logger.Debug("Skip assiging package data stream to agent")
+	default:
+		policyWithDataStream, err := r.options.KibanaClient.GetPolicy(policy.ID)
+		if err != nil {
+			return nil, fmt.Errorf("could not read the policy with data stream: %w", err)
+		}
 
-	logger.Debug("assigning package data stream to agent...")
-	if err := r.options.KibanaClient.AssignPolicyToAgent(agent, *policyWithDataStream); err != nil {
-		return nil, fmt.Errorf("could not assign policy to agent: %w", err)
+		logger.Debug("assigning package data stream to agent...")
+		if err := r.options.KibanaClient.AssignPolicyToAgent(agent, *policyWithDataStream); err != nil {
+			return nil, fmt.Errorf("could not assign policy to agent: %w", err)
+		}
 	}
 
 	// Signal to the service that the agent is ready (policy is assigned).
@@ -740,6 +816,10 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 		if err = service.Signal(config.ServiceNotifySignal); err != nil {
 			return nil, fmt.Errorf("failed to notify test service: %w", err)
 		}
+	}
+
+	if serviceOptions.DisableFullExecution && serviceOptions.RunTearDown {
+		return &scenario, nil
 	}
 
 	// Use custom timeout if the service can't collect data immediately.
@@ -758,7 +838,7 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 		}
 
 		var err error
-		hits, err = r.getDocs(dataStream)
+		hits, err = r.getDocs(scenario.dataStream)
 		if err != nil {
 			return false, err
 		}
@@ -796,29 +876,39 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 	}
 
 	if !passed {
-		return nil, fmt.Errorf("could not find hits in %s data stream", dataStream)
+		return nil, fmt.Errorf("could not find hits in %s data stream", scenario.dataStream)
 		// result.FailureMsg = fmt.Sprintf("could not find hits in %s data stream", dataStream)
 		// return result.WithError(fmt.Errorf("%s", result.FailureMsg))
 	}
 
 	logger.Debugf("check whether or not synthetics is enabled (component template %s)...", componentTemplatePackage)
-	syntheticEnabled, err := r.isSyntheticsEnabled(dataStream, componentTemplatePackage)
+	scenario.syntheticEnabled, err = r.isSyntheticsEnabled(scenario.dataStream, componentTemplatePackage)
 	if err != nil {
 		return nil, fmt.Errorf("failed to check if synthetic source is enabled: %w", err)
 	}
-	logger.Debugf("data stream %s has synthetics enabled: %t", dataStream, syntheticEnabled)
+	logger.Debugf("data stream %s has synthetics enabled: %t", scenario.dataStream, scenario.syntheticEnabled)
 
-	docs := hits.getDocs(syntheticEnabled)
+	scenario.docs = hits.getDocs(scenario.syntheticEnabled)
 
-	scenario := scenarioTest{
-		dataStream:         dataStream,
-		policyTemplateName: policyTemplateName,
-		dataStreamManifest: dataStreamManifest,
-		pkgManifest:        pkgManifest,
-		kibanaDataStream:   ds,
-		syntheticEnabled:   syntheticEnabled,
-		docs:               docs,
+	policyBytes, err := json.Marshal(policy)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshall policy: %w", err)
 	}
+
+	origPolicyBytes, err := json.Marshal(origPolicy)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshall policy: %w", err)
+	}
+
+	err = os.WriteFile(filepath.Join(r.locationManager.SetupServiceDir(), "policy-setup.json"), policyBytes, 0644)
+	if err != nil {
+		return nil, fmt.Errorf("failed to write policy JSON: %w", err)
+	}
+	err = os.WriteFile(filepath.Join(r.locationManager.SetupServiceDir(), "orig-policy.json"), origPolicyBytes, 0644)
+	if err != nil {
+		return nil, fmt.Errorf("failed to write orign policy JSON: %w", err)
+	}
+
 	return &scenario, nil
 }
 

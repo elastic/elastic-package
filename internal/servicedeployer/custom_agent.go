@@ -35,14 +35,21 @@ type CustomAgentDeployer struct {
 	profile           *profile.Profile
 	dockerComposeFile string
 	stackVersion      string
+
+	disableFullExecution bool
+	runSetup             bool
+	runTeardown          bool
 }
 
 // NewCustomAgentDeployer returns a new instance of a deployedCustomAgent.
-func NewCustomAgentDeployer(profile *profile.Profile, dockerComposeFile string, stackVersion string) (*CustomAgentDeployer, error) {
+func NewCustomAgentDeployer(profile *profile.Profile, dockerComposeFile string, stackVersion string, disableFullExecution, runSetup, runTeardown bool) (*CustomAgentDeployer, error) {
 	return &CustomAgentDeployer{
-		profile:           profile,
-		dockerComposeFile: dockerComposeFile,
-		stackVersion:      stackVersion,
+		profile:              profile,
+		dockerComposeFile:    dockerComposeFile,
+		stackVersion:         stackVersion,
+		disableFullExecution: disableFullExecution,
+		runSetup:             runSetup,
+		runTeardown:          runTeardown,
 	}, nil
 }
 
@@ -115,10 +122,15 @@ func (d *CustomAgentDeployer) SetUp(inCtxt ServiceContext) (DeployedService, err
 		return nil, fmt.Errorf("could not boot up service using Docker Compose: %w", err)
 	}
 
-	// Connect service network with stack network (for the purpose of metrics collection)
-	err = docker.ConnectToNetwork(p.ContainerName(serviceName), stack.Network(d.profile))
-	if err != nil {
-		return nil, fmt.Errorf("can't attach service container to the stack network: %w", err)
+	switch {
+	case d.disableFullExecution && d.runTeardown:
+		logger.Debug("Skipping connect container to network (tear down process)")
+	default:
+		// Connect service network with stack network (for the purpose of metrics collection)
+		err = docker.ConnectToNetwork(p.ContainerName(serviceName), stack.Network(d.profile))
+		if err != nil {
+			return nil, fmt.Errorf("can't attach service container to the stack network: %w", err)
+		}
 	}
 
 	err = p.WaitForHealthy(opts)
