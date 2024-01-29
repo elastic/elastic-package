@@ -711,8 +711,7 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	}
 
 	if !passed {
-		result.FailureMsg = fmt.Sprintf("could not find hits in %s data stream", dataStream)
-		return result.WithError(fmt.Errorf("%s", result.FailureMsg))
+		return result.WithError(testrunner.ErrTestCaseFailed{Reason: fmt.Sprintf("could not find hits in %s data stream", dataStream)})
 	}
 
 	logger.Debugf("check whether or not synthetics is enabled (component template %s)...", componentTemplatePackage)
@@ -1341,7 +1340,6 @@ func (r *runner) generateTestResult(docs []common.MapStr, specVersion semver.Ver
 }
 
 func (r *runner) checkAgentLogs(dumpOptions stack.DumpOptions, startTesting time.Time, errorPatterns []logsByContainer) (results []testrunner.TestResult, err error) {
-
 	for _, patternsContainer := range errorPatterns {
 		startTime := time.Now()
 
