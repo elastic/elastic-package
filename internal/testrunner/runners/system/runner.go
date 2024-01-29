@@ -315,7 +315,7 @@ func (r *runner) run() (results []testrunner.TestResult, err error) {
 	startTesting := time.Now()
 	for _, cfgFile := range r.cfgFiles {
 		for _, variantName := range r.variants {
-			partial, err := r.runTestPerVariant(result, cfgFile, r.dataStreamPath, variantName, r.stackVersion.Version())
+			partial, err := r.runTestPerVariant(result, cfgFile, variantName)
 			results = append(results, partial...)
 			if err != nil {
 				return results, err
@@ -344,15 +344,15 @@ func (r *runner) run() (results []testrunner.TestResult, err error) {
 	return results, nil
 }
 
-func (r *runner) runTestPerVariant(result *testrunner.ResultComposer, cfgFile, dataStreamPath, variantName, stackVersion string) ([]testrunner.TestResult, error) {
+func (r *runner) runTestPerVariant(result *testrunner.ResultComposer, cfgFile, variantName string) ([]testrunner.TestResult, error) {
 	serviceOptions := servicedeployer.FactoryOptions{
 		Profile:            r.options.Profile,
 		PackageRootPath:    r.options.PackageRootPath,
-		DataStreamRootPath: dataStreamPath,
+		DataStreamRootPath: r.dataStreamPath,
 		DevDeployDir:       DevDeployDir,
 		Variant:            variantName,
 		Type:               servicedeployer.TypeTest,
-		StackVersion:       stackVersion,
+		StackVersion:       r.stackVersion.Version(),
 	}
 
 	var ctxt servicedeployer.ServiceContext
