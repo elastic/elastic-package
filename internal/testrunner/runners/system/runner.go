@@ -100,10 +100,11 @@ type runner struct {
 	options   testrunner.TestOptions
 	pipelines []ingest.Pipeline
 
-	dataStreamPath string
-	cfgFiles       []string
-	variants       []string
-	stackVersion   kibana.VersionInfo
+	dataStreamPath  string
+	cfgFiles        []string
+	variants        []string
+	stackVersion    kibana.VersionInfo
+	locationManager *locations.LocationManager
 
 	// Execution order of following handlers is defined in runner.TearDown() method.
 	deleteTestPolicyHandler func() error
@@ -142,72 +143,6 @@ func (r *runner) CanRunSetupTeardownIndependent() bool {
 	return true
 }
 
-// Configure gets all the needed configuration to run the setup, run and teardown steps
-func (r *runner) Configure(options testrunner.TestOptions) error {
-	logger.Debugf("> Running Configure system")
-	r.options = options
-	var found bool
-	var err error
-
-	logger.Debugf(">>> TestFolderPath %s", r.options.TestFolder.Path)
-	r.dataStreamPath, found, err = packages.FindDataStreamRootForPath(r.options.TestFolder.Path)
-	if err != nil {
-		return fmt.Errorf("locating data stream root failed: %w", err)
-	}
-	if found {
-		logger.Debug("Running system tests for data stream")
-	} else {
-		logger.Debug("Running system tests for package")
-	}
-
-	if r.options.API == nil {
-		return errors.New("missing Elasticsearch client")
-	}
-	if r.options.KibanaClient == nil {
-		return errors.New("missing Kibana client")
-	}
-
-	r.stackVersion, err = r.options.KibanaClient.Version()
-	if err != nil {
-		return fmt.Errorf("cannot request Kibana version: %w", err)
-	}
-
-	devDeployPath, err := servicedeployer.FindDevDeployPath(servicedeployer.FactoryOptions{
-		Profile:            r.options.Profile,
-		PackageRootPath:    r.options.PackageRootPath,
-		DataStreamRootPath: r.dataStreamPath,
-		DevDeployDir:       DevDeployDir,
-		StackVersion:       r.stackVersion.Version(),
-	})
-	if err != nil {
-		return fmt.Errorf("_dev/deploy directory not found: %w", err)
-	}
-
-	r.cfgFiles, err = listConfigFiles(r.options.TestFolder.Path)
-	if err != nil {
-		return fmt.Errorf("failed listing test case config cfgFiles: %w", err)
-	}
-
-	variantsFile, err := servicedeployer.ReadVariantsFile(devDeployPath)
-	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("can't read service variant: %w", err)
-	}
-
-	r.variants = r.selectVariants(variantsFile)
-
-	// FIXME use r.options.RunSetup or r.options.RunTearDown ?
-	if r.options.ConfigFilePath != "" && len(r.variants) > 1 {
-		return fmt.Errorf("invalid number of variants set if config-file set (%d)", len(r.variants))
-	}
-	return nil
-}
-
-// Setup installs the packge and starts the service
-func (r *runner) Setup(options testrunner.TestOptions) error {
-	logger.Debugf("> Running Setup system")
-	return nil
-}
-
 // Run runs the system tests defined under the given folder
 func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, error) {
 	r.options = options
@@ -217,9 +152,8 @@ func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, e
 	}
 
 	result := r.newResult("(setup/teardown)")
-	locationManager, err := locations.NewLocationManager()
-	if err != nil {
-		return result.WithError(fmt.Errorf("reading service logs directory failed: %w", err))
+	if err := r.initRun(); err != nil {
+		return result.WithError(err)
 	}
 
 	serviceOptions := servicedeployer.FactoryOptions{
@@ -234,11 +168,11 @@ func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, e
 
 	var ctxt servicedeployer.ServiceContext
 	ctxt.Name = r.options.TestFolder.Package
-	ctxt.Logs.Folder.Local = locationManager.ServiceLogDir()
+	ctxt.Logs.Folder.Local = r.locationManager.ServiceLogDir()
 	ctxt.Logs.Folder.Agent = ServiceLogsAgentDir
 	ctxt.Test.RunID = createTestRunID()
 
-	outputDir, err := servicedeployer.CreateOutputDir(locationManager, ctxt.Test.RunID)
+	outputDir, err := servicedeployer.CreateOutputDir(r.locationManager, ctxt.Test.RunID)
 	if err != nil {
 		return nil, fmt.Errorf("could not create output dir for terraform deployer %w", err)
 	}
@@ -315,17 +249,73 @@ func (r *runner) newResult(name string) *testrunner.ResultComposer {
 	})
 }
 
+func (r *runner) initRun() error {
+	var err error
+	var found bool
+
+	r.locationManager, err = locations.NewLocationManager()
+	if err != nil {
+		return fmt.Errorf("reading service logs directory failed: %w", err)
+	}
+
+	r.dataStreamPath, found, err = packages.FindDataStreamRootForPath(r.options.TestFolder.Path)
+	if err != nil {
+		return fmt.Errorf("locating data stream root failed: %w", err)
+	}
+	if found {
+		logger.Debug("Running system tests for data stream")
+	} else {
+		logger.Debug("Running system tests for package")
+	}
+
+	if r.options.API == nil {
+		return errors.New("missing Elasticsearch client")
+	}
+	if r.options.KibanaClient == nil {
+		return errors.New("missing Kibana client")
+	}
+
+	r.stackVersion, err = r.options.KibanaClient.Version()
+	if err != nil {
+		return fmt.Errorf("cannot request Kibana version: %w", err)
+	}
+
+	devDeployPath, err := servicedeployer.FindDevDeployPath(servicedeployer.FactoryOptions{
+		Profile:            r.options.Profile,
+		PackageRootPath:    r.options.PackageRootPath,
+		DataStreamRootPath: r.dataStreamPath,
+		DevDeployDir:       DevDeployDir,
+		StackVersion:       r.stackVersion.Version(),
+	})
+	if err != nil {
+		return fmt.Errorf("_dev/deploy directory not found: %w", err)
+	}
+
+	r.cfgFiles, err = listConfigFiles(r.options.TestFolder.Path)
+	if err != nil {
+		return fmt.Errorf("failed listing test case config cfgFiles: %w", err)
+	}
+
+	variantsFile, err := servicedeployer.ReadVariantsFile(devDeployPath)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("can't read service variant: %w", err)
+	}
+
+	r.variants = r.selectVariants(variantsFile)
+
+	return nil
+}
+
 func (r *runner) run() (results []testrunner.TestResult, err error) {
 	result := r.newResult("(init)")
-	locationManager, err := locations.NewLocationManager()
-	if err != nil {
-		return result.WithError(fmt.Errorf("reading service logs directory failed: %w", err))
+	if err := r.initRun(); err != nil {
+		return result.WithError(err)
 	}
 
 	startTesting := time.Now()
 	for _, cfgFile := range r.cfgFiles {
 		for _, variantName := range r.variants {
-			partial, err := r.runTestPerVariant(result, locationManager, cfgFile, r.dataStreamPath, variantName, r.stackVersion.Version())
+			partial, err := r.runTestPerVariant(result, cfgFile, r.dataStreamPath, variantName, r.stackVersion.Version())
 			results = append(results, partial...)
 			if err != nil {
 				return results, err
@@ -354,7 +344,7 @@ func (r *runner) run() (results []testrunner.TestResult, err error) {
 	return results, nil
 }
 
-func (r *runner) runTestPerVariant(result *testrunner.ResultComposer, locationManager *locations.LocationManager, cfgFile, dataStreamPath, variantName, stackVersion string) ([]testrunner.TestResult, error) {
+func (r *runner) runTestPerVariant(result *testrunner.ResultComposer, cfgFile, dataStreamPath, variantName, stackVersion string) ([]testrunner.TestResult, error) {
 	serviceOptions := servicedeployer.FactoryOptions{
 		Profile:            r.options.Profile,
 		PackageRootPath:    r.options.PackageRootPath,
@@ -367,11 +357,11 @@ func (r *runner) runTestPerVariant(result *testrunner.ResultComposer, locationMa
 
 	var ctxt servicedeployer.ServiceContext
 	ctxt.Name = r.options.TestFolder.Package
-	ctxt.Logs.Folder.Local = locationManager.ServiceLogDir()
+	ctxt.Logs.Folder.Local = r.locationManager.ServiceLogDir()
 	ctxt.Logs.Folder.Agent = ServiceLogsAgentDir
 	ctxt.Test.RunID = createTestRunID()
 
-	outputDir, err := servicedeployer.CreateOutputDir(locationManager, ctxt.Test.RunID)
+	outputDir, err := servicedeployer.CreateOutputDir(r.locationManager, ctxt.Test.RunID)
 	if err != nil {
 		return nil, fmt.Errorf("could not create output dir for terraform deployer %w", err)
 	}
