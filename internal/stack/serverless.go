@@ -150,11 +150,6 @@ func (sp *serverlessProvider) currentProjectWithClientsAndFleetEndpoint(config C
 	}
 	project.Endpoints.Fleet = fleetURL
 
-	err = project.AddLogstashFleetOutput(sp.kibanaClient)
-	if err != nil {
-		return nil, fmt.Errorf("failed to add logstash fleet output: %w", err)
-	}
-
 	return project, nil
 }
 
@@ -289,18 +284,10 @@ func (sp *serverlessProvider) BootUp(options Options) error {
 		printUserConfig(options.Printer, config)
 	}
 
-	logger.Infof("Starting local agent")
-	err = sp.startLocalAgent(options, config)
+	logger.Infof("Starting local services")
+	err = sp.startLocalServices(options, config)
 	if err != nil {
-		return fmt.Errorf("failed to start local agent: %w", err)
-	}
-
-	if logstashEnabled {
-		logger.Infof("Starting local logstash")
-		err = sp.startLocalLogstash(options, config)
-		if err != nil {
-			return fmt.Errorf("failed to start local logstash: %w", err)
-		}
+		return fmt.Errorf("failed to start local service: %w", err)
 	}
 
 	return nil
@@ -310,30 +297,25 @@ func (sp *serverlessProvider) composeProjectName() string {
 	return DockerComposeProjectName(sp.profile)
 }
 
-func (sp *serverlessProvider) localAgentComposeProject() (*compose.Project, error) {
+func (sp *serverlessProvider) localServiceComposeProject() (*compose.Project, error) {
 	composeFile := sp.profile.Path(profileStackPath, SnapshotFile)
 	return compose.NewProject(sp.composeProjectName(), composeFile)
 }
 
-func (sp *serverlessProvider) localLogstashComposeProject() (*compose.Project, error) {
-	composeFile := sp.profile.Path(profileStackPath, LogstashComposeFile)
-	return compose.NewProject(sp.composeProjectName(), composeFile)
-}
-
-func (sp *serverlessProvider) startLocalAgent(options Options, config Config) error {
+func (sp *serverlessProvider) startLocalServices(options Options, config Config) error {
 	err := applyServerlessResources(sp.profile, options.StackVersion, config)
 	if err != nil {
-		return fmt.Errorf("could not initialize compose files for local agent: %w", err)
+		return fmt.Errorf("could not initialize compose files for local service: %w", err)
 	}
 
-	project, err := sp.localAgentComposeProject()
+	project, err := sp.localServiceComposeProject()
 	if err != nil {
-		return fmt.Errorf("could not initialize local agent compose project")
+		return fmt.Errorf("could not initialize local service compose project")
 	}
 
 	err = project.Build(compose.CommandOptions{})
 	if err != nil {
-		return fmt.Errorf("failed to build images for local agent: %w", err)
+		return fmt.Errorf("failed to build images for local service: %w", err)
 	}
 
 	err = project.Up(compose.CommandOptions{ExtraArgs: []string{"-d"}})
@@ -354,30 +336,6 @@ func (sp *serverlessProvider) startLocalAgent(options Options, config Config) er
 	return nil
 }
 
-func (sp *serverlessProvider) startLocalLogstash(options Options, config Config) error {
-	err := applyServerlessResources(sp.profile, options.StackVersion, config)
-	if err != nil {
-		return fmt.Errorf("could not initialize compose files for local logstash: %w", err)
-	}
-
-	project, err := sp.localLogstashComposeProject()
-	if err != nil {
-		return fmt.Errorf("could not initialize local logstash compose project")
-	}
-
-	err = project.Build(compose.CommandOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to build images for local logstash: %w", err)
-	}
-
-	err = project.Up(compose.CommandOptions{ExtraArgs: []string{"-d"}})
-	if err != nil {
-		return fmt.Errorf("failed to start local logstash: %w", err)
-	}
-
-	return nil
-}
-
 func (sp *serverlessProvider) TearDown(options Options) error {
 	config, err := LoadConfig(sp.profile)
 	if err != nil {
@@ -386,16 +344,10 @@ func (sp *serverlessProvider) TearDown(options Options) error {
 
 	var errs error
 
-	err = sp.destroyLocalAgent()
+	err = sp.destroyLocalService()
 	if err != nil {
-		logger.Errorf("failed to destroy local agent: %v", err)
-		errs = fmt.Errorf("failed to destroy local agent: %w", err)
-	}
-
-	err = sp.destroyLocalLogstash()
-	if err != nil {
-		logger.Errorf("failed to destroy local logstash: %v", err)
-		errs = fmt.Errorf("failed to destroy local logstash: %w", err)
+		logger.Errorf("failed to destroy local service: %v", err)
+		errs = fmt.Errorf("failed to destroy local service: %w", err)
 	}
 
 	project, err := sp.currentProject(config)
@@ -416,29 +368,15 @@ func (sp *serverlessProvider) TearDown(options Options) error {
 	return errs
 }
 
-func (sp *serverlessProvider) destroyLocalAgent() error {
-	project, err := sp.localAgentComposeProject()
+func (sp *serverlessProvider) destroyLocalService() error {
+	project, err := sp.localServiceComposeProject()
 	if err != nil {
-		return fmt.Errorf("could not initialize local agent compose project")
+		return fmt.Errorf("could not initialize local services compose project")
 	}
 
 	err = project.Down(compose.CommandOptions{})
 	if err != nil {
-		return fmt.Errorf("failed to destroy local agent: %w", err)
-	}
-
-	return nil
-}
-
-func (sp *serverlessProvider) destroyLocalLogstash() error {
-	project, err := sp.localLogstashComposeProject()
-	if err != nil {
-		return fmt.Errorf("could not initialize local logstash compose project")
-	}
-
-	err = project.Down(compose.CommandOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to destroy local logstash: %w", err)
+		return fmt.Errorf("failed to destroy local services: %w", err)
 	}
 
 	return nil

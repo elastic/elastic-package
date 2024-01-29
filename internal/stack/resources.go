@@ -35,9 +35,6 @@ const (
 	// LogstashConfigFile is the logstash config file.
 	LogstashConfigFile = "logstash.conf"
 
-	// LogstashEnvFile is the logstash docker compose file
-	LogstashComposeFile = "logstash.yml"
-
 	// KibanaHealthcheckFile is the kibana healthcheck.
 	KibanaHealthcheckFile = "kibana_healthcheck.sh"
 

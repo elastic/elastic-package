@@ -20,7 +20,7 @@ var (
 	serverlessStackResources = []resource.Resource{
 		&resource.File{
 			Path:    SnapshotFile,
-			Content: staticSource.Template("_static/serverless-elastic-agent.yml.tmpl"),
+			Content: staticSource.Template("_static/serverless-docker-compose.yml.tmpl"),
 		},
 		&resource.File{
 			Path:    ElasticAgentEnvFile,
@@ -29,10 +29,6 @@ var (
 		&resource.File{
 			Path:    LogstashConfigFile,
 			Content: staticSource.Template("_static/logstash.conf.tmpl"),
-		},
-		&resource.File{
-			Path:    LogstashComposeFile,
-			Content: staticSource.Template("_static/serverless-logstash.yml.tmpl"),
 		},
 	}
 )
