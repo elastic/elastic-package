@@ -159,7 +159,7 @@ func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, e
 	serviceOptions := servicedeployer.FactoryOptions{
 		Profile:            r.options.Profile,
 		PackageRootPath:    r.options.PackageRootPath,
-		DataStreamRootPath: r.options.TestFolder.DataStream,
+		DataStreamRootPath: r.dataStreamPath,
 		DevDeployDir:       DevDeployDir,
 		Variant:            r.options.ServiceVariant,
 		Type:               servicedeployer.TypeTest,
