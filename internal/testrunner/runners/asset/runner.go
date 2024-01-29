@@ -53,6 +53,12 @@ func (r runner) CanRunPerDataStream() bool {
 	return false
 }
 
+// CanRunSetupTeardownIndependent returns whether this test runner can run setup or
+// teardown process independent.
+func (r *runner) CanRunSetupTeardownIndependent() bool {
+	return false
+}
+
 // Run runs the asset loading tests
 func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, error) {
 	r.testFolder = options.TestFolder

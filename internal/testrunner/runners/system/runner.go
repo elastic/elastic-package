@@ -136,6 +136,12 @@ func (r *runner) TestFolderRequired() bool {
 	return true
 }
 
+// CanRunSetupTeardownIndependent returns whether this test runner can run setup or
+// teardown process independent.
+func (r *runner) CanRunSetupTeardownIndependent() bool {
+	return true
+}
+
 // Configure gets all the needed configuration to run the setup, run and teardown steps
 func (r *runner) Configure(options testrunner.TestOptions) error {
 	logger.Debugf("> Running Configure system")

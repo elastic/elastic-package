@@ -93,7 +93,7 @@ func setupTestCommand() *cobraext.Command {
 			testTypeCmd.Flags().StringSliceP(cobraext.DataStreamsFlagName, "d", nil, cobraext.DataStreamsFlagDescription)
 		}
 
-		if _, ok := runner.(testrunner.TestRunnerSetterUp); ok {
+		if runner.CanRunSetupTeardownIndependent() {
 			testTypeCmd.Flags().String(cobraext.ConfigFileFlagName, "", cobraext.ConfigFileFlagDescription)
 			testTypeCmd.Flags().Bool(cobraext.SetupFlagName, false, cobraext.SetupFlagDescription)
 			testTypeCmd.Flags().Bool(cobraext.TearDownFlagName, false, cobraext.TearDownFlagDescription)
@@ -242,7 +242,6 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 		if err != nil {
 			return err
 		}
-
 		esClient, err := stack.NewElasticsearchClientFromProfile(profile)
 		if err != nil {
 			return fmt.Errorf("can't create Elasticsearch client: %w", err)

@@ -107,6 +107,12 @@ func (r *runner) CanRunPerDataStream() bool {
 	return true
 }
 
+// CanRunSetupTeardownIndependent returns whether this test runner can run setup or
+// teardown process independent.
+func (r *runner) CanRunSetupTeardownIndependent() bool {
+	return false
+}
+
 func (r *runner) run() ([]testrunner.TestResult, error) {
 	testCaseFiles, err := r.listTestCaseFiles()
 	if err != nil {

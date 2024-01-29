@@ -178,3 +178,9 @@ func (r runner) CanRunPerDataStream() bool {
 func (r *runner) TestFolderRequired() bool {
 	return false
 }
+
+// CanRunSetupTeardownIndependent returns whether this test runner can run setup or
+// teardown process independent.
+func (r *runner) CanRunSetupTeardownIndependent() bool {
+	return false
+}
