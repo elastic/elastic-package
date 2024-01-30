@@ -609,9 +609,12 @@ type scenarioTest struct {
 }
 
 func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.ServiceContext, serviceOptions servicedeployer.FactoryOptions) (*scenarioTest, error) {
-	err := createSetupServicesDir(r.locationManager)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create setup services dir: %w", err)
+	var err error
+	if serviceOptions.RunSetup {
+		err = createSetupServicesDir(r.locationManager)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create setup services dir: %w", err)
+		}
 	}
 	scenario := scenarioTest{}
 
@@ -948,13 +951,15 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 		return nil, fmt.Errorf("failed to marshall policy: %w", err)
 	}
 
-	err = os.WriteFile(filepath.Join(r.locationManager.SetupServiceDir(), setupNewPolicyFileName), policyBytes, 0644)
-	if err != nil {
-		return nil, fmt.Errorf("failed to write policy JSON: %w", err)
-	}
-	err = os.WriteFile(filepath.Join(r.locationManager.SetupServiceDir(), setupOrigPolicyFileName), origPolicyBytes, 0644)
-	if err != nil {
-		return nil, fmt.Errorf("failed to write orign policy JSON: %w", err)
+	if serviceOptions.RunSetup {
+		err = os.WriteFile(filepath.Join(r.locationManager.SetupServiceDir(), setupNewPolicyFileName), policyBytes, 0644)
+		if err != nil {
+			return nil, fmt.Errorf("failed to write policy JSON: %w", err)
+		}
+		err = os.WriteFile(filepath.Join(r.locationManager.SetupServiceDir(), setupOrigPolicyFileName), origPolicyBytes, 0644)
+		if err != nil {
+			return nil, fmt.Errorf("failed to write orign policy JSON: %w", err)
+		}
 	}
 
 	return &scenario, nil
