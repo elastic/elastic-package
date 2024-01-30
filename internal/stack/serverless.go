@@ -29,6 +29,7 @@ const (
 	configRegion          = "stack.serverless.region"
 	configProjectType     = "stack.serverless.type"
 	configElasticCloudURL = "stack.elastic_cloud.host"
+	configLogstashEnabled = "stack.logstash_enabled"
 
 	defaultRegion      = "aws-us-east-1"
 	defaultProjectType = "observability"
@@ -54,7 +55,8 @@ type projectSettings struct {
 	Region string
 	Type   string
 
-	StackVersion string
+	StackVersion    string
+	LogstashEnabled bool
 }
 
 func (sp *serverlessProvider) createProject(settings projectSettings, options Options, conf Config) (Config, error) {
@@ -203,10 +205,11 @@ func (sp *serverlessProvider) createClients(project *serverless.Project) error {
 
 func getProjectSettings(options Options) (projectSettings, error) {
 	s := projectSettings{
-		Name:         createProjectName(options),
-		Type:         options.Profile.Config(configProjectType, defaultProjectType),
-		Region:       options.Profile.Config(configRegion, defaultRegion),
-		StackVersion: options.StackVersion,
+		Name:            createProjectName(options),
+		Type:            options.Profile.Config(configProjectType, defaultProjectType),
+		Region:          options.Profile.Config(configRegion, defaultRegion),
+		StackVersion:    options.StackVersion,
+		LogstashEnabled: options.Profile.Config(configLogstashEnabled, "false") == "true",
 	}
 
 	return s, nil
@@ -247,11 +250,6 @@ func (sp *serverlessProvider) BootUp(options Options) error {
 		return fmt.Errorf("serverless project type not supported: %s", settings.Type)
 	}
 
-	logstashEnabled := false
-	if options.Profile.Config("stack.logstash_enabled", "false") == "true" {
-		logstashEnabled = true
-	}
-
 	var project *serverless.Project
 
 	project, err = sp.currentProject(config)
@@ -271,7 +269,7 @@ func (sp *serverlessProvider) BootUp(options Options) error {
 		}
 
 		logger.Infof("Creating agent policy")
-		err = project.CreateAgentPolicy(options.StackVersion, sp.kibanaClient, logstashEnabled)
+		err = project.CreateAgentPolicy(options.StackVersion, sp.kibanaClient, settings.LogstashEnabled)
 
 		if err != nil {
 			return fmt.Errorf("failed to create agent policy: %w", err)
