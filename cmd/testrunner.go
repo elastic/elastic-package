@@ -265,9 +265,7 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 				return fmt.Errorf("set setup but missing config file path")
 			}
 
-			if variantFlag == "" {
-				return fmt.Errorf("set setup/teardown but missing variant")
-			}
+			// variant flag is not checked here since there are packages that do not have variants
 
 			if len(testFolders) != 1 {
 				return fmt.Errorf("wrong number of test folders (expected 1): %d", len(testFolders))

@@ -165,6 +165,15 @@ func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, e
 		return result.WithError(err)
 	}
 
+	if len(r.variants) > 1 {
+		return result.WithError(fmt.Errorf("a variant must be selected or trigger the test in no-variant mode (available variants: %s)", strings.Join(r.variants, ", ")))
+	}
+	if len(r.variants) == 1 {
+		logger.Debugf("Using variant: %q", r.variants[0])
+	} else {
+		logger.Debugf("No variant mode")
+	}
+
 	serviceOptions := servicedeployer.FactoryOptions{
 		Profile:              r.options.Profile,
 		PackageRootPath:      r.options.PackageRootPath,
