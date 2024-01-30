@@ -177,6 +177,14 @@ func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, e
 		logger.Debug("No variant mode")
 	}
 
+	_, err := os.Stat(r.locationManager.SetupServiceDir())
+	if r.options.RunSetup && !os.IsNotExist(err) {
+		return result.WithError(fmt.Errorf("failed to run --setup, required to tear down previous setup: %s exists", r.locationManager.SetupServiceDir()))
+	}
+	if r.options.RunTearDown && os.IsNotExist(err) {
+		return result.WithError(fmt.Errorf("failed to run --tear-down, missing service setup folder: %s does not exist", r.locationManager.SetupServiceDir()))
+	}
+
 	serviceOptions := servicedeployer.FactoryOptions{
 		Profile:              r.options.Profile,
 		PackageRootPath:      r.options.PackageRootPath,
@@ -205,14 +213,6 @@ func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, e
 	testConfig, err := newConfig(r.options.ConfigFilePath, ctxt, r.options.ServiceVariant)
 	if err != nil {
 		return result.WithError(fmt.Errorf("unable to load system test case file '%s': %w", r.options.ConfigFilePath, err))
-	}
-
-	_, err = os.Stat(r.locationManager.SetupServiceDir())
-	if r.options.RunSetup && !os.IsNotExist(err) {
-		return result.WithError(fmt.Errorf("failed to run --setup, required to tear down previous setup: %s exists", r.locationManager.SetupServiceDir()))
-	}
-	if r.options.RunTearDown && os.IsNotExist(err) {
-		return result.WithError(fmt.Errorf("failed to run --tear-down, missing service setup folder: %s does not exist", r.locationManager.SetupServiceDir()))
 	}
 
 	_, err = r.prepareScenario(testConfig, ctxt, serviceOptions)
@@ -941,17 +941,17 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 
 	scenario.docs = hits.getDocs(scenario.syntheticEnabled)
 
-	policyBytes, err := json.Marshal(policy)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshall policy: %w", err)
-	}
-
-	origPolicyBytes, err := json.Marshal(origPolicy)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshall policy: %w", err)
-	}
-
 	if serviceOptions.RunSetup {
+		policyBytes, err := json.Marshal(policy)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshall policy: %w", err)
+		}
+
+		origPolicyBytes, err := json.Marshal(origPolicy)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshall policy: %w", err)
+		}
+
 		err = os.WriteFile(filepath.Join(r.locationManager.SetupServiceDir(), setupNewPolicyFileName), policyBytes, 0644)
 		if err != nil {
 			return nil, fmt.Errorf("failed to write policy JSON: %w", err)
