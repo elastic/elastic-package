@@ -36,7 +36,7 @@ var (
 	kubernetesDeployerDir = filepath.Join(deployerDir, "kubernetes")
 	serviceOutputDir      = filepath.Join(temporaryDir, "output")
 
-	setupServiceDir = filepath.Join(temporaryDir, "service_setup")
+	setupServiceDir = filepath.Join(stackDir, "service_setup")
 )
 
 // LocationManager maintains an instance of a config path location
