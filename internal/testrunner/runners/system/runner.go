@@ -210,7 +210,8 @@ func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, e
 	}
 	ctxt.OutputDir = outputDir
 
-	testConfig, err := newConfig(r.options.ConfigFilePath, ctxt, r.options.ServiceVariant)
+	// it could be used filepath.Join(r.options.TestFolder.Path, r.cfgFiles[0]) as first parameter
+	testConfig, err := newConfig(r.options.ConfigFilePath, ctxt, r.variants[0])
 	if err != nil {
 		return result.WithError(fmt.Errorf("unable to load system test case file '%s': %w", r.options.ConfigFilePath, err))
 	}
