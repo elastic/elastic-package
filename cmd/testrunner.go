@@ -164,6 +164,9 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 		}
 
 		configFileFlag, _ := cmd.Flags().GetString(cobraext.ConfigFileFlagName)
+		if configFileFlag != "" && !filepath.IsAbs(configFileFlag) {
+			return fmt.Errorf("config file path must be an absolute path: %s", configFileFlag)
+		}
 		runSetup, _ := cmd.Flags().GetBool(cobraext.SetupFlagName)
 		runTeardown, _ := cmd.Flags().GetBool(cobraext.TearDownFlagName)
 

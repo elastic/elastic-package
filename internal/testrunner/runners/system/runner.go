@@ -318,7 +318,7 @@ func (r *runner) initRun() error {
 		return fmt.Errorf("locating data stream root failed: %w", err)
 	}
 	if found {
-		logger.Debug("Running system tests for data stream")
+		logger.Debugf("Running system tests for data stream %q", filepath.Base(r.dataStreamPath))
 	} else {
 		logger.Debug("Running system tests for package")
 	}
@@ -346,9 +346,22 @@ func (r *runner) initRun() error {
 		return fmt.Errorf("_dev/deploy directory not found: %w", err)
 	}
 
-	r.cfgFiles, err = listConfigFiles(r.options.TestFolder.Path)
-	if err != nil {
-		return fmt.Errorf("failed listing test case config cfgFiles: %w", err)
+	if r.options.ConfigFilePath != "" {
+		allCfgFiles, err := listConfigFiles(filepath.Dir(r.options.ConfigFilePath))
+		if err != nil {
+			return fmt.Errorf("failed listing test case config cfgFiles: %w", err)
+		}
+		baseFile := filepath.Base(r.options.ConfigFilePath)
+		for _, cfg := range allCfgFiles {
+			if cfg == baseFile {
+				r.cfgFiles = append(r.cfgFiles, baseFile)
+			}
+		}
+	} else {
+		r.cfgFiles, err = listConfigFiles(r.options.TestFolder.Path)
+		if err != nil {
+			return fmt.Errorf("failed listing test case config cfgFiles: %w", err)
+		}
 	}
 
 	variantsFile, err := servicedeployer.ReadVariantsFile(devDeployPath)
