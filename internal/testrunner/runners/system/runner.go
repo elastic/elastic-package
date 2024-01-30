@@ -43,6 +43,9 @@ const (
 
 	allFieldsBody = `{"fields": ["*"]}`
 	DevDeployDir  = "_dev/deploy"
+
+	setupNewPolicyFileName  = "policy-setup.json"
+	setupOrigPolicyFileName = "orig-policy.json"
 )
 
 func init() {
@@ -685,7 +688,7 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 	switch {
 	case serviceOptions.DisableFullExecution && serviceOptions.RunTearDown:
 		policy = &kibana.Policy{}
-		policyPath := filepath.Join(r.locationManager.SetupServiceDir(), "policy-setup.json")
+		policyPath := filepath.Join(r.locationManager.SetupServiceDir(), setupNewPolicyFileName)
 		logger.Debug("Reading test policy from file %s", policyPath)
 		contents, err := os.ReadFile(policyPath)
 		if err != nil {
@@ -792,7 +795,7 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 
 	switch {
 	case serviceOptions.DisableFullExecution && serviceOptions.RunTearDown:
-		policyPath := filepath.Join(r.locationManager.SetupServiceDir(), "orig-policy.json")
+		policyPath := filepath.Join(r.locationManager.SetupServiceDir(), setupOrigPolicyFileName)
 		contents, err := os.ReadFile(policyPath)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read policy %q: %w", policyPath, err)
@@ -923,11 +926,11 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 		return nil, fmt.Errorf("failed to marshall policy: %w", err)
 	}
 
-	err = os.WriteFile(filepath.Join(r.locationManager.SetupServiceDir(), "policy-setup.json"), policyBytes, 0644)
+	err = os.WriteFile(filepath.Join(r.locationManager.SetupServiceDir(), setupNewPolicyFileName), policyBytes, 0644)
 	if err != nil {
 		return nil, fmt.Errorf("failed to write policy JSON: %w", err)
 	}
-	err = os.WriteFile(filepath.Join(r.locationManager.SetupServiceDir(), "orig-policy.json"), origPolicyBytes, 0644)
+	err = os.WriteFile(filepath.Join(r.locationManager.SetupServiceDir(), setupOrigPolicyFileName), origPolicyBytes, 0644)
 	if err != nil {
 		return nil, fmt.Errorf("failed to write orign policy JSON: %w", err)
 	}
