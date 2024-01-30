@@ -274,7 +274,6 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 
 		var results []testrunner.TestResult
 		for _, folder := range testFolders {
-			fmt.Printf("Running for folder datastream: %s\n", folder.DataStream)
 			r, err := testrunner.Run(testType, testrunner.TestOptions{
 				Profile:            profile,
 				TestFolder:         folder,

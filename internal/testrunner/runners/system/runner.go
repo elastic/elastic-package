@@ -174,7 +174,7 @@ func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, e
 	if len(r.variants) == 1 {
 		logger.Debugf("Using variant: %q", r.variants[0])
 	} else {
-		logger.Debugf("No variant mode")
+		logger.Debug("No variant mode")
 	}
 
 	serviceOptions := servicedeployer.FactoryOptions{
@@ -215,7 +215,7 @@ func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, e
 	if err != nil {
 		tdErr := r.tearDownTest()
 		if tdErr != nil {
-			logger.Errorf("failed to tear down runner: %w", tdErr)
+			logger.Errorf("failed to tear down runner: %s", tdErr.Error())
 		}
 
 		setupDirErr := os.RemoveAll(r.locationManager.SetupServiceDir())
@@ -693,7 +693,7 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 	case serviceOptions.DisableFullExecution && serviceOptions.RunTearDown:
 		policy = &kibana.Policy{}
 		policyPath := filepath.Join(r.locationManager.SetupServiceDir(), setupNewPolicyFileName)
-		logger.Debug("Reading test policy from file %s", policyPath)
+		logger.Debugf("Reading test policy from file %s", policyPath)
 		contents, err := os.ReadFile(policyPath)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read policy %q: %w", policyPath, err)
@@ -859,7 +859,7 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 	}
 
 	// (TODO in future) Optionally exercise service to generate load.
-	logger.Debug("checking for expected data in data stream (%s)...", waitForDataTimeout)
+	logger.Debugf("checking for expected data in data stream (%s)...", waitForDataTimeout)
 	var hits *hits
 	oldHits := 0
 	passed, waitErr := waitUntilTrue(func() (bool, error) {
