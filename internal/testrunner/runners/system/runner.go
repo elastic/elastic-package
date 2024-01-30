@@ -207,8 +207,12 @@ func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, e
 		return result.WithError(fmt.Errorf("unable to load system test case file '%s': %w", r.options.ConfigFilePath, err))
 	}
 
-	if _, err := os.Stat(r.locationManager.SetupServiceDir()); !os.IsNotExist(err) && r.options.RunSetup {
+	_, err = os.Stat(r.locationManager.SetupServiceDir())
+	if r.options.RunSetup && !os.IsNotExist(err) {
 		return result.WithError(fmt.Errorf("failed to run --setup, required to tear down previous setup: %s exists", r.locationManager.SetupServiceDir()))
+	}
+	if r.options.RunTearDown && os.IsNotExist(err) {
+		return result.WithError(fmt.Errorf("failed to run --tear-down, missing service setup folder: %s does not exist", r.locationManager.SetupServiceDir()))
 	}
 
 	_, err = r.prepareScenario(testConfig, ctxt, serviceOptions)
