@@ -204,7 +204,7 @@ func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, e
 		return result.WithError(fmt.Errorf("unable to load system test case file '%s': %w", r.options.ConfigFilePath, err))
 	}
 
-	_, err = r.prepareScenario(testConfig, ctxt, serviceOptions, "setup")
+	_, err = r.prepareScenario(testConfig, ctxt, serviceOptions)
 	if err != nil {
 		return result.WithError(err)
 	}
@@ -574,7 +574,7 @@ type scenarioTest struct {
 	docs               []common.MapStr
 }
 
-func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.ServiceContext, serviceOptions servicedeployer.FactoryOptions, policySuffix string) (*scenarioTest, error) {
+func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.ServiceContext, serviceOptions servicedeployer.FactoryOptions) (*scenarioTest, error) {
 	err := createSetupServicesDir(r.locationManager)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create setup services dir: %w", err)
@@ -688,10 +688,10 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 		logger.Debugf("Got policy from file: %q - %q", policy.Name, policy.ID)
 	default:
 		logger.Debug("creating test policy...")
-		// testTime := time.Now().Format("20060102T15:04:05Z")
+		testTime := time.Now().Format("20060102T15:04:05Z")
 
 		p := kibana.Policy{
-			Name:        fmt.Sprintf("ep-test-system-%s-%s-%s", r.options.TestFolder.Package, r.options.TestFolder.DataStream, policySuffix),
+			Name:        fmt.Sprintf("ep-test-system-%s-%s-%s", r.options.TestFolder.Package, r.options.TestFolder.DataStream, testTime),
 			Description: fmt.Sprintf("test policy created by elastic-package test system for data stream %s/%s", r.options.TestFolder.Package, r.options.TestFolder.DataStream),
 			Namespace:   "ep",
 		}
@@ -924,7 +924,7 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext, serviceOptions servicedeployer.FactoryOptions) ([]testrunner.TestResult, error) {
 	result := r.newResult(config.Name())
 
-	scenario, err := r.prepareScenario(config, ctxt, serviceOptions, time.Now().Format("20060102T15:04:05Z"))
+	scenario, err := r.prepareScenario(config, ctxt, serviceOptions)
 	if err != nil {
 		return result.WithError(err)
 	}
