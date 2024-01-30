@@ -859,7 +859,7 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 	}
 
 	// (TODO in future) Optionally exercise service to generate load.
-	logger.Debug("checking for expected data in data stream...")
+	logger.Debug("checking for expected data in data stream (%s)...", waitForDataTimeout)
 	var hits *hits
 	oldHits := 0
 	passed, waitErr := waitUntilTrue(func() (bool, error) {
