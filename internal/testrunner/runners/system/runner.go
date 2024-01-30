@@ -747,26 +747,30 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 		return nil
 	}
 
-	if err := deleteDataStreamDocs(r.options.API, scenario.dataStream); err != nil {
-		return nil, fmt.Errorf("error deleting old data in data stream: %s: %w", scenario.dataStream, err)
-	}
+	switch {
+	case serviceOptions.DisableFullExecution && serviceOptions.RunTearDown:
+		logger.Debugf("Skipped deleting old data in data stream %q", scenario.dataStream)
+	default:
+		if err := deleteDataStreamDocs(r.options.API, scenario.dataStream); err != nil {
+			return nil, fmt.Errorf("error deleting old data in data stream: %s: %w", scenario.dataStream, err)
+		}
+		cleared, err := waitUntilTrue(func() (bool, error) {
+			if signal.SIGINT() {
+				return true, errors.New("SIGINT: cancel clearing data")
+			}
 
-	cleared, err := waitUntilTrue(func() (bool, error) {
-		if signal.SIGINT() {
-			return true, errors.New("SIGINT: cancel clearing data")
+			hits, err := r.getDocs(scenario.dataStream)
+			if err != nil {
+				return false, err
+			}
+			return hits.size() == 0, nil
+		}, 2*time.Minute)
+		if err != nil || !cleared {
+			if err == nil {
+				err = errors.New("unable to clear previous data")
+			}
+			return nil, err
 		}
-
-		hits, err := r.getDocs(scenario.dataStream)
-		if err != nil {
-			return false, err
-		}
-		return hits.size() == 0, nil
-	}, 2*time.Minute)
-	if err != nil || !cleared {
-		if err == nil {
-			err = errors.New("unable to clear previous data")
-		}
-		return nil, err
 	}
 
 	var origPolicy kibana.Policy
