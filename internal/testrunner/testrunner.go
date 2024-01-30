@@ -281,19 +281,6 @@ func Run(testType TestType, options TestOptions) ([]TestResult, error) {
 		return nil, fmt.Errorf("unregistered runner test: %s", testType)
 	}
 
-	// runnerSetter, ok := runner.(TestRunnerSetterUp)
-	// if ok {
-	// 	var err error
-	// 	err = runnerSetter.Configure(options)
-	// 	if err != nil {
-	// 		return nil, fmt.Errorf("could not configure test runner: %w", err)
-	// 	}
-	// 	err = runnerSetter.Setup(options)
-	// 	if err != nil {
-	// 		return nil, fmt.Errorf("could not setup test runner: %w", err)
-	// 	}
-	// }
-
 	results, err := runner.Run(options)
 	tdErr := runner.TearDown()
 	if err != nil {
