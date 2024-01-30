@@ -206,6 +206,16 @@ func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, e
 
 	_, err = r.prepareScenario(testConfig, ctxt, serviceOptions)
 	if err != nil {
+		tdErr := r.tearDownTest()
+		if tdErr != nil {
+			logger.Errorf("failed to tear down runner: %w", tdErr)
+		}
+
+		err := os.RemoveAll(r.locationManager.SetupServiceDir())
+		if err != nil {
+			logger.Errorf("failed to remove directory %q", r.locationManager.SetupServiceDir())
+		}
+
 		return result.WithError(err)
 	}
 
