@@ -12,7 +12,7 @@ input {
 filter {
   elastic_integration {
     remove_field => ['@version']
-    hosts => ["https://elasticsearch:9200"]
+    hosts => [{{ fact "elasticsearch_host" }}]
     username => {{ fact "username" }}
     password => {{ fact "password" }}
     ssl_enabled => true
@@ -23,7 +23,7 @@ filter {
 
 output {
   elasticsearch {
-    hosts => ["https://elasticsearch:9200"]
+    hosts => [{{ fact "elasticsearch_host" }}]
     user => {{ fact "username" }}
     password => {{ fact "password" }}
     ssl_enabled => true

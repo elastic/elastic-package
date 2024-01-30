@@ -123,8 +123,9 @@ func applyResources(profile *profile.Profile, stackVersion string) error {
 		"kibana_version":        stackVersion,
 		"agent_version":         stackVersion,
 
-		"kibana_host": "https://kibana:5601",
-		"fleet_url":   "https://fleet-server:8220",
+		"kibana_host":        "https://kibana:5601",
+		"fleet_url":          "https://fleet-server:8220",
+		"elasticsearch_host": "https://elasticsearch:9200",
 
 		"username": elasticsearchUsername,
 		"password": elasticsearchPassword,

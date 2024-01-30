@@ -287,7 +287,7 @@ func (sp *serverlessProvider) BootUp(options Options) error {
 	logger.Infof("Starting local services")
 	err = sp.startLocalServices(options, config)
 	if err != nil {
-		return fmt.Errorf("failed to start local service: %w", err)
+		return fmt.Errorf("failed to start local services: %w", err)
 	}
 
 	return nil
@@ -297,7 +297,7 @@ func (sp *serverlessProvider) composeProjectName() string {
 	return DockerComposeProjectName(sp.profile)
 }
 
-func (sp *serverlessProvider) localServiceComposeProject() (*compose.Project, error) {
+func (sp *serverlessProvider) localServicesComposeProject() (*compose.Project, error) {
 	composeFile := sp.profile.Path(profileStackPath, SnapshotFile)
 	return compose.NewProject(sp.composeProjectName(), composeFile)
 }
@@ -305,17 +305,17 @@ func (sp *serverlessProvider) localServiceComposeProject() (*compose.Project, er
 func (sp *serverlessProvider) startLocalServices(options Options, config Config) error {
 	err := applyServerlessResources(sp.profile, options.StackVersion, config)
 	if err != nil {
-		return fmt.Errorf("could not initialize compose files for local service: %w", err)
+		return fmt.Errorf("could not initialize compose files for local services: %w", err)
 	}
 
-	project, err := sp.localServiceComposeProject()
+	project, err := sp.localServicesComposeProject()
 	if err != nil {
-		return fmt.Errorf("could not initialize local service compose project")
+		return fmt.Errorf("could not initialize local services compose project")
 	}
 
 	err = project.Build(compose.CommandOptions{})
 	if err != nil {
-		return fmt.Errorf("failed to build images for local service: %w", err)
+		return fmt.Errorf("failed to build images for local services: %w", err)
 	}
 
 	err = project.Up(compose.CommandOptions{ExtraArgs: []string{"-d"}})
@@ -344,10 +344,10 @@ func (sp *serverlessProvider) TearDown(options Options) error {
 
 	var errs error
 
-	err = sp.destroyLocalService()
+	err = sp.destroyLocalServices()
 	if err != nil {
-		logger.Errorf("failed to destroy local service: %v", err)
-		errs = fmt.Errorf("failed to destroy local service: %w", err)
+		logger.Errorf("failed to destroy local services: %v", err)
+		errs = fmt.Errorf("failed to destroy local services: %w", err)
 	}
 
 	project, err := sp.currentProject(config)
@@ -368,8 +368,8 @@ func (sp *serverlessProvider) TearDown(options Options) error {
 	return errs
 }
 
-func (sp *serverlessProvider) destroyLocalService() error {
-	project, err := sp.localServiceComposeProject()
+func (sp *serverlessProvider) destroyLocalServices() error {
+	project, err := sp.localServicesComposeProject()
 	if err != nil {
 		return fmt.Errorf("could not initialize local services compose project")
 	}

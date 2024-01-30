@@ -42,16 +42,16 @@ services:
     command: bash -c 'if [[ ! $(bin/logstash-plugin list) ==  *"logstash-filter-elastic_integration"* ]]; then echo "Missing plugin  logstash-filter-elastic_integration, installing now" && bin/logstash-plugin install  logstash-filter-elastic_integration; fi && bin/logstash -f /usr/share/logstashpipeline/  logstash.conf'
     volumes:
       - "../certs/logstash:/usr/share/logstash/config/certs"
-      - "../certs/elasticsearch/cert.pem:/usr/share/logstash/config/certs/elasticsearchpem"
+      - "../certs/elasticsearch/cert.pem:/usr/share/logstash/config/certs/elasticsearch.pem"
       - "./logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro"
     ports:
        - "127.0.0.1:5044:5044"
        - "127.0.0.1:9600:9600"
     environment:
       - xpack.monitoring.enabled=false
-      - ELASTIC_USER=elastic
-      - ELASTIC_PASSWORD=changeme
-      - ELASTIC_HOSTS=https://127.0.0.1:9200
+      - ELASTIC_USER={{ fact "username" }}
+      - ELASTIC_PASSWORD={{ fact "password" }}
+      - ELASTIC_HOSTS={{ fact "elasticsearch_host" }}
 
   logstash_is_ready:
     image: tianon/true
