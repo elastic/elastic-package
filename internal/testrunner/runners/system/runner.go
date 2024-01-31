@@ -179,7 +179,7 @@ func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, e
 
 	_, err := os.Stat(r.locationManager.SetupServiceDir())
 	if r.options.RunSetup && !os.IsNotExist(err) {
-		return result.WithError(fmt.Errorf("failed to run --setup, required to tear down previous setup: %s exists", r.locationManager.SetupServiceDir()))
+		return result.WithError(fmt.Errorf("failed to run --setup, required to tear down previous setup run: %s exists", r.locationManager.SetupServiceDir()))
 	}
 	if r.options.RunTearDown && os.IsNotExist(err) {
 		return result.WithError(fmt.Errorf("failed to run --tear-down, missing service setup folder: %s does not exist", r.locationManager.SetupServiceDir()))
@@ -231,13 +231,11 @@ func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, e
 		return result.WithError(err)
 	}
 
-	// TODO check how to run tear down after triggering setup
 	if r.options.RunTearDown {
 		if err := r.tearDownTest(); err != nil {
 			return result.WithError(err)
 		}
 
-		// TODO clean serviceSetupDir
 		err := os.RemoveAll(r.locationManager.SetupServiceDir())
 		if err != nil {
 			return result.WithError(fmt.Errorf("failed to remove directory %q", r.locationManager.SetupServiceDir()))
@@ -377,8 +375,12 @@ func (r *runner) initRun() error {
 
 func (r *runner) run() (results []testrunner.TestResult, err error) {
 	result := r.newResult("(init)")
-	if err := r.initRun(); err != nil {
+	if err = r.initRun(); err != nil {
 		return result.WithError(err)
+	}
+
+	if _, err = os.Stat(r.locationManager.SetupServiceDir()); !os.IsNotExist(err) {
+		return result.WithError(fmt.Errorf("failed to run tests, required to tear down previous setup run: %s exists", r.locationManager.SetupServiceDir()))
 	}
 
 	startTesting := time.Now()
