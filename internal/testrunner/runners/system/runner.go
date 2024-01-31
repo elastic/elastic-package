@@ -163,7 +163,7 @@ func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, e
 		return r.run()
 	}
 
-	result := r.newResult("(setup/teardown)")
+	result := r.newResult("(init)")
 	if err := r.initRun(); err != nil {
 		return result.WithError(err)
 	}
@@ -171,9 +171,7 @@ func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, e
 	if len(r.variants) > 1 {
 		return result.WithError(fmt.Errorf("a variant must be selected or trigger the test in no-variant mode (available variants: %s)", strings.Join(r.variants, ", ")))
 	}
-	if len(r.variants) == 1 {
-		logger.Debugf("Using variant: %q", r.variants[0])
-	} else {
+	if len(r.variants) == 0 {
 		logger.Debug("No variant mode")
 	}
 
@@ -194,6 +192,16 @@ func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, e
 	if err != nil {
 		return nil, fmt.Errorf("unable to load system test case file '%s': %w", r.options.ConfigFilePath, err)
 	}
+	logger.Debugf("Using config: %q", testConfig.Name())
+
+	resultName := ""
+	switch {
+	case r.options.RunSetup:
+		resultName = "setup"
+	case r.options.RunTearDown:
+		resultName = "teardown"
+	}
+	result = r.newResult(fmt.Sprintf("%s - %s", resultName, testConfig.Name()))
 
 	_, err = r.prepareScenario(testConfig, ctxt, serviceOptions)
 	if err != nil {
@@ -430,6 +438,7 @@ func (r *runner) runTestPerVariant(result *testrunner.ResultComposer, cfgFile, v
 	if err != nil {
 		return nil, fmt.Errorf("unable to load system test case file '%s': %w", configFile, err)
 	}
+	logger.Debugf("Using config: %q", testConfig.Name())
 
 	partial, err := r.runTest(testConfig, ctxt, serviceOptions)
 

@@ -176,8 +176,7 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 		if hasDataStreams && runner.CanRunPerDataStream() {
 			var dataStreams []string
 
-			if configFileFlag != "" {
-				// find data stream from path
+			if runner.CanRunSetupTeardownIndependent() && configFileFlag != "" {
 				dataStream := testrunner.ExtractDataStreamFromPath(configFileFlag, packageRootPath)
 				dataStreams = append(dataStreams, dataStream)
 			} else if cmd.Flags().Lookup(cobraext.DataStreamsFlagName) != nil {
