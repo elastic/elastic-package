@@ -147,7 +147,7 @@ func (r *runner) CanRunSetupTeardownIndependent() bool {
 }
 
 func createSetupServicesDir(elasticPackagePath *locations.LocationManager) error {
-	dirPath := elasticPackagePath.SetupServiceDir()
+	dirPath := elasticPackagePath.ServiceSetupDir()
 	err := os.MkdirAll(dirPath, 0755)
 	if err != nil {
 		return fmt.Errorf("mkdir failed (path: %s): %w", dirPath, err)
@@ -177,12 +177,12 @@ func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, e
 		logger.Debug("No variant mode")
 	}
 
-	_, err := os.Stat(r.locationManager.SetupServiceDir())
+	_, err := os.Stat(r.locationManager.ServiceSetupDir())
 	if r.options.RunSetup && !os.IsNotExist(err) {
-		return result.WithError(fmt.Errorf("failed to run --setup, required to tear down previous setup run: %s exists", r.locationManager.SetupServiceDir()))
+		return result.WithError(fmt.Errorf("failed to run --setup, required to tear down previous setup run: %s exists", r.locationManager.ServiceSetupDir()))
 	}
 	if r.options.RunTearDown && os.IsNotExist(err) {
-		return result.WithError(fmt.Errorf("failed to run --tear-down, missing service setup folder: %s does not exist", r.locationManager.SetupServiceDir()))
+		return result.WithError(fmt.Errorf("failed to run --tear-down, missing service setup folder: %s does not exist", r.locationManager.ServiceSetupDir()))
 	}
 
 	serviceOptions, ctxt, err := r.createConfigService(r.variants[0])
@@ -202,9 +202,9 @@ func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, e
 			logger.Errorf("failed to tear down runner: %s", tdErr.Error())
 		}
 
-		setupDirErr := os.RemoveAll(r.locationManager.SetupServiceDir())
+		setupDirErr := os.RemoveAll(r.locationManager.ServiceSetupDir())
 		if setupDirErr != nil {
-			logger.Errorf("failed to remove directory %q", r.locationManager.SetupServiceDir())
+			logger.Errorf("failed to remove directory %q", r.locationManager.ServiceSetupDir())
 		}
 
 		return result.WithError(err)
@@ -215,9 +215,9 @@ func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, e
 			return result.WithError(err)
 		}
 
-		err := os.RemoveAll(r.locationManager.SetupServiceDir())
+		err := os.RemoveAll(r.locationManager.ServiceSetupDir())
 		if err != nil {
-			return result.WithError(fmt.Errorf("failed to remove directory %q", r.locationManager.SetupServiceDir()))
+			return result.WithError(fmt.Errorf("failed to remove directory %q", r.locationManager.ServiceSetupDir()))
 		}
 	}
 
@@ -383,8 +383,8 @@ func (r *runner) run() (results []testrunner.TestResult, err error) {
 		return result.WithError(err)
 	}
 
-	if _, err = os.Stat(r.locationManager.SetupServiceDir()); !os.IsNotExist(err) {
-		return result.WithError(fmt.Errorf("failed to run tests, required to tear down previous setup run: %s exists", r.locationManager.SetupServiceDir()))
+	if _, err = os.Stat(r.locationManager.ServiceSetupDir()); !os.IsNotExist(err) {
+		return result.WithError(fmt.Errorf("failed to run tests, required to tear down previous setup run: %s exists", r.locationManager.ServiceSetupDir()))
 	}
 
 	startTesting := time.Now()
@@ -693,7 +693,7 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 	switch {
 	case r.options.RunTearDown:
 		policy = &kibana.Policy{}
-		policyPath := filepath.Join(r.locationManager.SetupServiceDir(), setupNewPolicyFileName)
+		policyPath := filepath.Join(r.locationManager.ServiceSetupDir(), setupNewPolicyFileName)
 		logger.Debugf("Reading test policy from file %s", policyPath)
 		contents, err := os.ReadFile(policyPath)
 		if err != nil {
@@ -800,7 +800,7 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 
 	switch {
 	case r.options.RunTearDown:
-		policyPath := filepath.Join(r.locationManager.SetupServiceDir(), setupOrigPolicyFileName)
+		policyPath := filepath.Join(r.locationManager.ServiceSetupDir(), setupOrigPolicyFileName)
 		contents, err := os.ReadFile(policyPath)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read policy %q: %w", policyPath, err)
@@ -933,11 +933,11 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 			return nil, fmt.Errorf("failed to marshall policy: %w", err)
 		}
 
-		err = os.WriteFile(filepath.Join(r.locationManager.SetupServiceDir(), setupNewPolicyFileName), policyBytes, 0644)
+		err = os.WriteFile(filepath.Join(r.locationManager.ServiceSetupDir(), setupNewPolicyFileName), policyBytes, 0644)
 		if err != nil {
 			return nil, fmt.Errorf("failed to write policy JSON: %w", err)
 		}
-		err = os.WriteFile(filepath.Join(r.locationManager.SetupServiceDir(), setupOrigPolicyFileName), origPolicyBytes, 0644)
+		err = os.WriteFile(filepath.Join(r.locationManager.ServiceSetupDir(), setupOrigPolicyFileName), origPolicyBytes, 0644)
 		if err != nil {
 			return nil, fmt.Errorf("failed to write orign policy JSON: %w", err)
 		}

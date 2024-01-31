@@ -36,7 +36,7 @@ var (
 	kubernetesDeployerDir = filepath.Join(deployerDir, "kubernetes")
 	serviceOutputDir      = filepath.Join(temporaryDir, "output")
 
-	setupServiceDir = filepath.Join(stackDir, "service_setup")
+	serviceSetupDir = filepath.Join(stackDir, "service_setup")
 )
 
 // LocationManager maintains an instance of a config path location
@@ -110,9 +110,9 @@ func (loc LocationManager) CacheDir(name string) string {
 	return filepath.Join(loc.stackPath, cacheDir, name)
 }
 
-// SetupServiceDir returns the directory to store resources to be re-used in setup or tear-down processes
-func (loc LocationManager) SetupServiceDir() string {
-	return filepath.Join(loc.stackPath, setupServiceDir)
+// ServiceSetupDir returns the directory to store resources to be re-used in setup or tear-down processes
+func (loc LocationManager) ServiceSetupDir() string {
+	return filepath.Join(loc.stackPath, serviceSetupDir)
 }
 
 // configurationDir returns the configuration directory location
