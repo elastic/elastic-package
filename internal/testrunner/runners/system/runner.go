@@ -443,17 +443,7 @@ func (r *runner) runTestPerVariant(result *testrunner.ResultComposer, cfgFile, v
 		return result.WithError(fmt.Errorf("unable to load system test case file '%s': %w", cfgFile, err))
 	}
 
-	var partial []testrunner.TestResult
-	if testConfig.Skip == nil {
-		logger.Debugf("running test with configuration '%s'", testConfig.Name())
-		partial, err = r.runTest(testConfig, ctxt, serviceOptions)
-	} else {
-		logger.Warnf("skipping %s test for %s/%s: %s (details: %s)",
-			TestType, r.options.TestFolder.Package, r.options.TestFolder.DataStream,
-			testConfig.Skip.Reason, testConfig.Skip.Link.String())
-		result := r.newResult(testConfig.Name())
-		partial, err = result.WithSkip(testConfig.Skip)
-	}
+	partial, err := r.runTest(testConfig, ctxt, serviceOptions)
 
 	tdErr := r.tearDownTest()
 	if err != nil {
@@ -970,6 +960,15 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 
 func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext, serviceOptions servicedeployer.FactoryOptions) ([]testrunner.TestResult, error) {
 	result := r.newResult(config.Name())
+
+	if config.Skip != nil {
+		logger.Warnf("skipping %s test for %s/%s: %s (details: %s)",
+			TestType, r.options.TestFolder.Package, r.options.TestFolder.DataStream,
+			config.Skip.Reason, config.Skip.Link.String())
+		return result.WithSkip(config.Skip)
+	}
+
+	logger.Debugf("running test with configuration '%s'", config.Name())
 
 	scenario, err := r.prepareScenario(config, ctxt, serviceOptions)
 	if err != nil {
