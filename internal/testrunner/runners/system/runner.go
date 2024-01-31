@@ -226,16 +226,14 @@ func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, e
 
 func (r *runner) createConfigService(variantName string) (servicedeployer.FactoryOptions, servicedeployer.ServiceContext, error) {
 	serviceOptions := servicedeployer.FactoryOptions{
-		Profile:              r.options.Profile,
-		PackageRootPath:      r.options.PackageRootPath,
-		DataStreamRootPath:   r.dataStreamPath,
-		DevDeployDir:         DevDeployDir,
-		Variant:              variantName,
-		Type:                 servicedeployer.TypeTest,
-		StackVersion:         r.stackVersion.Version(),
-		DisableFullExecution: r.options.RunSetup || r.options.RunTearDown,
-		RunSetup:             r.options.RunSetup,
-		RunTearDown:          r.options.RunTearDown,
+		Profile:            r.options.Profile,
+		PackageRootPath:    r.options.PackageRootPath,
+		DataStreamRootPath: r.dataStreamPath,
+		DevDeployDir:       DevDeployDir,
+		Variant:            variantName,
+		Type:               servicedeployer.TypeTest,
+		StackVersion:       r.stackVersion.Version(),
+		RunTearDown:        r.options.RunTearDown,
 	}
 
 	var ctxt servicedeployer.ServiceContext
@@ -593,7 +591,7 @@ type scenarioTest struct {
 
 func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.ServiceContext, serviceOptions servicedeployer.FactoryOptions) (*scenarioTest, error) {
 	var err error
-	if serviceOptions.RunSetup {
+	if r.options.RunSetup {
 		err = createSetupServicesDir(r.locationManager)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create setup services dir: %w", err)
@@ -668,7 +666,7 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 	}
 
 	switch {
-	case serviceOptions.DisableFullExecution && serviceOptions.RunTearDown:
+	case r.options.RunTearDown:
 		logger.Debug("Skip installing package")
 	default:
 		logger.Debug("Installing package...")
@@ -693,7 +691,7 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 	// Configure package (single data stream) via Fleet APIs.
 	var policy *kibana.Policy
 	switch {
-	case serviceOptions.DisableFullExecution && serviceOptions.RunTearDown:
+	case r.options.RunTearDown:
 		policy = &kibana.Policy{}
 		policyPath := filepath.Join(r.locationManager.SetupServiceDir(), setupNewPolicyFileName)
 		logger.Debugf("Reading test policy from file %s", policyPath)
@@ -735,7 +733,7 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 	logger.Debug("adding package data stream to test policy...")
 	ds := createPackageDatastream(*policy, *scenario.pkgManifest, policyTemplate, *scenario.dataStreamManifest, *config)
 	switch {
-	case serviceOptions.DisableFullExecution && serviceOptions.RunTearDown:
+	case r.options.RunTearDown:
 		logger.Debug("Skip adding data stream config to policy")
 	default:
 		if err := r.options.KibanaClient.AddPackageDataStreamToPolicy(ds); err != nil {
@@ -768,7 +766,7 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 	}
 
 	switch {
-	case serviceOptions.DisableFullExecution && serviceOptions.RunTearDown:
+	case r.options.RunTearDown:
 		logger.Debugf("Skipped deleting old data in data stream %q", scenario.dataStream)
 	default:
 		if err := deleteDataStreamDocs(r.options.API, scenario.dataStream); err != nil {
@@ -801,7 +799,7 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 	agent := agents[0]
 
 	switch {
-	case serviceOptions.DisableFullExecution && serviceOptions.RunTearDown:
+	case r.options.RunTearDown:
 		policyPath := filepath.Join(r.locationManager.SetupServiceDir(), setupOrigPolicyFileName)
 		contents, err := os.ReadFile(policyPath)
 		if err != nil {
@@ -830,7 +828,7 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 	}
 
 	switch {
-	case serviceOptions.DisableFullExecution && serviceOptions.RunTearDown:
+	case r.options.RunTearDown:
 		logger.Debug("Skip assiging package data stream to agent")
 	default:
 		policyWithDataStream, err := r.options.KibanaClient.GetPolicy(policy.ID)
@@ -851,7 +849,7 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 		}
 	}
 
-	if serviceOptions.DisableFullExecution && serviceOptions.RunTearDown {
+	if r.options.RunTearDown {
 		return &scenario, nil
 	}
 
@@ -924,7 +922,7 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 
 	scenario.docs = hits.getDocs(scenario.syntheticEnabled)
 
-	if serviceOptions.RunSetup {
+	if r.options.RunSetup {
 		policyBytes, err := json.Marshal(policy)
 		if err != nil {
 			return nil, fmt.Errorf("failed to marshall policy: %w", err)

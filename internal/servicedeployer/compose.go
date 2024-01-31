@@ -26,9 +26,7 @@ type DockerComposeServiceDeployer struct {
 	ymlPaths []string
 	variant  ServiceVariant
 
-	disableFullExecution bool
-	runSetup             bool
-	runTeardown          bool
+	runTeardown bool
 }
 
 type dockerComposeDeployedService struct {
@@ -41,14 +39,12 @@ type dockerComposeDeployedService struct {
 }
 
 // NewDockerComposeServiceDeployer returns a new instance of a DockerComposeServiceDeployer.
-func NewDockerComposeServiceDeployer(profile *profile.Profile, ymlPaths []string, sv ServiceVariant, disableFullExecution, runSetup, runTeardown bool) (*DockerComposeServiceDeployer, error) {
+func NewDockerComposeServiceDeployer(profile *profile.Profile, ymlPaths []string, sv ServiceVariant, runTeardown bool) (*DockerComposeServiceDeployer, error) {
 	return &DockerComposeServiceDeployer{
-		profile:              profile,
-		ymlPaths:             ymlPaths,
-		variant:              sv,
-		disableFullExecution: disableFullExecution,
-		runSetup:             runSetup,
-		runTeardown:          runTeardown,
+		profile:     profile,
+		ymlPaths:    ymlPaths,
+		variant:     sv,
+		runTeardown: runTeardown,
 	}, nil
 }
 
@@ -109,7 +105,7 @@ func (d *DockerComposeServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedSer
 	outCtxt.Hostname = p.ContainerName(serviceName)
 
 	switch {
-	case d.disableFullExecution && d.runTeardown:
+	case d.runTeardown:
 		logger.Debug("Skipping connect container to network (tear down process)")
 	default:
 		// Connect service network with stack network (for the purpose of metrics collection)

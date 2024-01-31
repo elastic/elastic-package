@@ -36,20 +36,16 @@ type CustomAgentDeployer struct {
 	dockerComposeFile string
 	stackVersion      string
 
-	disableFullExecution bool
-	runSetup             bool
-	runTeardown          bool
+	runTeardown bool
 }
 
 // NewCustomAgentDeployer returns a new instance of a deployedCustomAgent.
-func NewCustomAgentDeployer(profile *profile.Profile, dockerComposeFile string, stackVersion string, disableFullExecution, runSetup, runTeardown bool) (*CustomAgentDeployer, error) {
+func NewCustomAgentDeployer(profile *profile.Profile, dockerComposeFile string, stackVersion string, runTeardown bool) (*CustomAgentDeployer, error) {
 	return &CustomAgentDeployer{
-		profile:              profile,
-		dockerComposeFile:    dockerComposeFile,
-		stackVersion:         stackVersion,
-		disableFullExecution: disableFullExecution,
-		runSetup:             runSetup,
-		runTeardown:          runTeardown,
+		profile:           profile,
+		dockerComposeFile: dockerComposeFile,
+		stackVersion:      stackVersion,
+		runTeardown:       runTeardown,
 	}, nil
 }
 
@@ -123,7 +119,7 @@ func (d *CustomAgentDeployer) SetUp(inCtxt ServiceContext) (DeployedService, err
 	}
 
 	switch {
-	case d.disableFullExecution && d.runTeardown:
+	case d.runTeardown:
 		logger.Debug("Skipping connect container to network (tear down process)")
 	default:
 		// Connect service network with stack network (for the purpose of metrics collection)
