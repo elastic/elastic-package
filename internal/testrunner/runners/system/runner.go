@@ -185,35 +185,14 @@ func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, e
 		return result.WithError(fmt.Errorf("failed to run --tear-down, missing service setup folder: %s does not exist", r.locationManager.SetupServiceDir()))
 	}
 
-	serviceOptions := servicedeployer.FactoryOptions{
-		Profile:              r.options.Profile,
-		PackageRootPath:      r.options.PackageRootPath,
-		DataStreamRootPath:   r.dataStreamPath,
-		DevDeployDir:         DevDeployDir,
-		Variant:              r.options.ServiceVariant,
-		Type:                 servicedeployer.TypeTest,
-		StackVersion:         r.stackVersion.Version(),
-		DisableFullExecution: true,
-		RunSetup:             r.options.RunSetup,
-		RunTearDown:          r.options.RunTearDown,
-	}
-
-	var ctxt servicedeployer.ServiceContext
-	ctxt.Name = r.options.TestFolder.Package
-	ctxt.Logs.Folder.Local = r.locationManager.ServiceLogDir()
-	ctxt.Logs.Folder.Agent = ServiceLogsAgentDir
-	ctxt.Test.RunID = createTestRunID()
-
-	outputDir, err := servicedeployer.CreateOutputDir(r.locationManager, ctxt.Test.RunID)
+	serviceOptions, ctxt, err := r.createConfigService(r.variants[0])
 	if err != nil {
-		return nil, fmt.Errorf("could not create output dir for terraform deployer %w", err)
+		return result.WithError(err)
 	}
-	ctxt.OutputDir = outputDir
 
-	// it could be used filepath.Join(r.options.TestFolder.Path, r.cfgFiles[0]) as first parameter
 	testConfig, err := newConfig(r.options.ConfigFilePath, ctxt, r.variants[0])
 	if err != nil {
-		return result.WithError(fmt.Errorf("unable to load system test case file '%s': %w", r.options.ConfigFilePath, err))
+		return nil, fmt.Errorf("unable to load system test case file '%s': %w", r.options.ConfigFilePath, err)
 	}
 
 	_, err = r.prepareScenario(testConfig, ctxt, serviceOptions)
@@ -243,6 +222,35 @@ func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, e
 	}
 
 	return result.WithSuccess()
+}
+
+func (r *runner) createConfigService(variantName string) (servicedeployer.FactoryOptions, servicedeployer.ServiceContext, error) {
+	serviceOptions := servicedeployer.FactoryOptions{
+		Profile:              r.options.Profile,
+		PackageRootPath:      r.options.PackageRootPath,
+		DataStreamRootPath:   r.dataStreamPath,
+		DevDeployDir:         DevDeployDir,
+		Variant:              variantName,
+		Type:                 servicedeployer.TypeTest,
+		StackVersion:         r.stackVersion.Version(),
+		DisableFullExecution: r.options.RunSetup || r.options.RunTearDown,
+		RunSetup:             r.options.RunSetup,
+		RunTearDown:          r.options.RunTearDown,
+	}
+
+	var ctxt servicedeployer.ServiceContext
+	ctxt.Name = r.options.TestFolder.Package
+	ctxt.Logs.Folder.Local = r.locationManager.ServiceLogDir()
+	ctxt.Logs.Folder.Agent = ServiceLogsAgentDir
+	ctxt.Test.RunID = createTestRunID()
+
+	outputDir, err := servicedeployer.CreateOutputDir(r.locationManager, ctxt.Test.RunID)
+	if err != nil {
+		return servicedeployer.FactoryOptions{}, servicedeployer.ServiceContext{}, fmt.Errorf("could not create output dir for terraform deployer %w", err)
+	}
+	ctxt.OutputDir = outputDir
+
+	return serviceOptions, ctxt, nil
 }
 
 // TearDown method doesn't perform any global action as the "tear down" is executed per test case.
@@ -335,11 +343,9 @@ func (r *runner) initRun() error {
 	}
 
 	devDeployPath, err := servicedeployer.FindDevDeployPath(servicedeployer.FactoryOptions{
-		Profile:            r.options.Profile,
 		PackageRootPath:    r.options.PackageRootPath,
 		DataStreamRootPath: r.dataStreamPath,
 		DevDeployDir:       DevDeployDir,
-		StackVersion:       r.stackVersion.Version(),
 	})
 	if err != nil {
 		return fmt.Errorf("_dev/deploy directory not found: %w", err)
@@ -416,31 +422,15 @@ func (r *runner) run() (results []testrunner.TestResult, err error) {
 }
 
 func (r *runner) runTestPerVariant(result *testrunner.ResultComposer, cfgFile, variantName string) ([]testrunner.TestResult, error) {
-	serviceOptions := servicedeployer.FactoryOptions{
-		Profile:            r.options.Profile,
-		PackageRootPath:    r.options.PackageRootPath,
-		DataStreamRootPath: r.dataStreamPath,
-		DevDeployDir:       DevDeployDir,
-		Variant:            variantName,
-		Type:               servicedeployer.TypeTest,
-		StackVersion:       r.stackVersion.Version(),
+	serviceOptions, ctxt, err := r.createConfigService(variantName)
+	if err != nil {
+		return result.WithError(err)
 	}
 
-	var ctxt servicedeployer.ServiceContext
-	ctxt.Name = r.options.TestFolder.Package
-	ctxt.Logs.Folder.Local = r.locationManager.ServiceLogDir()
-	ctxt.Logs.Folder.Agent = ServiceLogsAgentDir
-	ctxt.Test.RunID = createTestRunID()
-
-	outputDir, err := servicedeployer.CreateOutputDir(r.locationManager, ctxt.Test.RunID)
+	configFile := filepath.Join(r.options.TestFolder.Path, cfgFile)
+	testConfig, err := newConfig(configFile, ctxt, variantName)
 	if err != nil {
-		return nil, fmt.Errorf("could not create output dir for terraform deployer %w", err)
-	}
-	ctxt.OutputDir = outputDir
-
-	testConfig, err := newConfig(filepath.Join(r.options.TestFolder.Path, cfgFile), ctxt, variantName)
-	if err != nil {
-		return result.WithError(fmt.Errorf("unable to load system test case file '%s': %w", cfgFile, err))
+		return nil, fmt.Errorf("unable to load system test case file '%s': %w", configFile, err)
 	}
 
 	partial, err := r.runTest(testConfig, ctxt, serviceOptions)
