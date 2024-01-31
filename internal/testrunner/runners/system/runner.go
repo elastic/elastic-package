@@ -323,7 +323,7 @@ func (r *runner) initRun() error {
 		return fmt.Errorf("locating data stream root failed: %w", err)
 	}
 	if found {
-		logger.Debugf("Running system tests for data stream %q", filepath.Base(r.dataStreamPath))
+		logger.Debugf("Running system tests for data stream %q", r.options.TestFolder.DataStream)
 	} else {
 		logger.Debug("Running system tests for package")
 	}
