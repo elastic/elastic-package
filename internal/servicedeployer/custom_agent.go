@@ -36,16 +36,18 @@ type CustomAgentDeployer struct {
 	dockerComposeFile string
 	stackVersion      string
 
-	runTeardown bool
+	runTeardown  bool
+	runTestsOnly bool
 }
 
 // NewCustomAgentDeployer returns a new instance of a deployedCustomAgent.
-func NewCustomAgentDeployer(profile *profile.Profile, dockerComposeFile string, stackVersion string, runTeardown bool) (*CustomAgentDeployer, error) {
+func NewCustomAgentDeployer(profile *profile.Profile, dockerComposeFile string, stackVersion string, runTeardown, runTestsOnly bool) (*CustomAgentDeployer, error) {
 	return &CustomAgentDeployer{
 		profile:           profile,
 		dockerComposeFile: dockerComposeFile,
 		stackVersion:      stackVersion,
 		runTeardown:       runTeardown,
+		runTestsOnly:      runTestsOnly,
 	}, nil
 }
 
@@ -102,9 +104,14 @@ func (d *CustomAgentDeployer) SetUp(inCtxt ServiceContext) (DeployedService, err
 	}
 
 	// Clean service logs
-	err = files.RemoveContent(outCtxt.Logs.Folder.Local)
-	if err != nil {
-		return nil, fmt.Errorf("removing service logs failed: %w", err)
+	switch {
+	case d.runTestsOnly:
+		logger.Debug("Skipping removing service logs folder folder %s", outCtxt.Logs.Folder.Local)
+	default:
+		err = files.RemoveContent(outCtxt.Logs.Folder.Local)
+		if err != nil {
+			return nil, fmt.Errorf("removing service logs failed: %w", err)
+		}
 	}
 
 	inCtxt.Name = dockerCustomAgentName
@@ -119,7 +126,7 @@ func (d *CustomAgentDeployer) SetUp(inCtxt ServiceContext) (DeployedService, err
 	}
 
 	switch {
-	case d.runTeardown:
+	case d.runTeardown || d.runTestsOnly:
 		logger.Debug("Skipping connect container to network (tear down process)")
 	default:
 		// Connect service network with stack network (for the purpose of metrics collection)

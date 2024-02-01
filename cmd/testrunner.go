@@ -97,7 +97,8 @@ func setupTestCommand() *cobraext.Command {
 			testTypeCmd.Flags().String(cobraext.ConfigFileFlagName, "", cobraext.ConfigFileFlagDescription)
 			testTypeCmd.Flags().Bool(cobraext.SetupFlagName, false, cobraext.SetupFlagDescription)
 			testTypeCmd.Flags().Bool(cobraext.TearDownFlagName, false, cobraext.TearDownFlagDescription)
-			testTypeCmd.MarkFlagsMutuallyExclusive(cobraext.SetupFlagName, cobraext.TearDownFlagName)
+			testTypeCmd.Flags().Bool(cobraext.NoProvisionFlagName, false, cobraext.NoProvisionFlagDescription)
+			testTypeCmd.MarkFlagsMutuallyExclusive(cobraext.SetupFlagName, cobraext.TearDownFlagName, cobraext.NoProvisionFlagName)
 		}
 
 		cmd.AddCommand(testTypeCmd)
@@ -169,6 +170,7 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 		}
 		runSetup, _ := cmd.Flags().GetBool(cobraext.SetupFlagName)
 		runTeardown, _ := cmd.Flags().GetBool(cobraext.TearDownFlagName)
+		runTestsOnly, _ := cmd.Flags().GetBool(cobraext.NoProvisionFlagName)
 
 		signal.Enable()
 
@@ -290,6 +292,7 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 				ConfigFilePath:     configFileFlag,
 				RunSetup:           runSetup,
 				RunTearDown:        runTeardown,
+				RunTestsOnly:       runTestsOnly,
 			})
 
 			results = append(results, r...)

@@ -207,6 +207,9 @@ const (
 	TearDownFlagName        = "tear-down"
 	TearDownFlagDescription = "trigger just the tear-down phase of testing"
 
+	NoProvisionFlagName        = "no-provision"
+	NoProvisionFlagDescription = "trigger just system tests wihout setup nor teardown"
+
 	ZipPackageFilePathFlagName        = "zip"
 	ZipPackageFilePathFlagShorthand   = "z"
 	ZipPackageFilePathFlagDescription = "path to the zip package file (*.zip)"

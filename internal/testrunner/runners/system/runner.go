@@ -159,7 +159,7 @@ func createSetupServicesDir(elasticPackagePath *locations.LocationManager) error
 func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, error) {
 	r.options = options
 
-	if !r.options.RunSetup && !r.options.RunTearDown {
+	if !r.options.RunSetup && !r.options.RunTearDown && !r.options.RunTestsOnly {
 		return r.run()
 	}
 
@@ -200,11 +200,13 @@ func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, e
 		resultName = "setup"
 	case r.options.RunTearDown:
 		resultName = "teardown"
+	case r.options.RunTestsOnly:
+		resultName = "tests"
 	}
 	result = r.newResult(fmt.Sprintf("%s - %s", resultName, testConfig.Name()))
 
-	_, err = r.prepareScenario(testConfig, ctxt, serviceOptions)
-	if err != nil {
+	scenario, err := r.prepareScenario(testConfig, ctxt, serviceOptions)
+	if r.options.RunSetup && err != nil {
 		tdErr := r.tearDownTest()
 		if tdErr != nil {
 			logger.Errorf("failed to tear down runner: %s", tdErr.Error())
@@ -218,7 +220,18 @@ func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, e
 		return result.WithError(err)
 	}
 
+	if r.options.RunTestsOnly {
+		if err != nil {
+			return result.WithError(fmt.Errorf("failed to prepare scenario: %w", err))
+		}
+		return r.validateTestScenario(result, scenario, testConfig, serviceOptions)
+	}
+
 	if r.options.RunTearDown {
+		if err != nil {
+			logger.Errorf("failed to prepare scenario: %s", err.Error())
+			logger.Errorf("continue with the tear down process")
+		}
 		if err := r.tearDownTest(); err != nil {
 			return result.WithError(err)
 		}
@@ -242,6 +255,7 @@ func (r *runner) createConfigService(variantName string) (servicedeployer.Factor
 		Type:               servicedeployer.TypeTest,
 		StackVersion:       r.stackVersion.Version(),
 		RunTearDown:        r.options.RunTearDown,
+		RunTestsOnly:       r.options.RunTestsOnly,
 	}
 
 	var ctxt servicedeployer.ServiceContext
@@ -700,7 +714,7 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 	// Configure package (single data stream) via Fleet APIs.
 	var policy *kibana.Policy
 	switch {
-	case r.options.RunTearDown:
+	case r.options.RunTearDown || r.options.RunTestsOnly:
 		policy = &kibana.Policy{}
 		policyPath := filepath.Join(r.locationManager.ServiceSetupDir(), setupNewPolicyFileName)
 		logger.Debugf("Reading test policy from file %s", policyPath)
@@ -742,7 +756,7 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 	logger.Debug("adding package data stream to test policy...")
 	ds := createPackageDatastream(*policy, *scenario.pkgManifest, policyTemplate, *scenario.dataStreamManifest, *config)
 	switch {
-	case r.options.RunTearDown:
+	case r.options.RunTearDown || r.options.RunTestsOnly:
 		logger.Debug("Skip adding data stream config to policy")
 	default:
 		if err := r.options.KibanaClient.AddPackageDataStreamToPolicy(ds); err != nil {
@@ -808,7 +822,7 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 	agent := agents[0]
 
 	switch {
-	case r.options.RunTearDown:
+	case r.options.RunTearDown || r.options.RunTestsOnly:
 		policyPath := filepath.Join(r.locationManager.ServiceSetupDir(), setupOrigPolicyFileName)
 		contents, err := os.ReadFile(policyPath)
 		if err != nil {
@@ -837,7 +851,7 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 	}
 
 	switch {
-	case r.options.RunTearDown:
+	case r.options.RunTearDown || r.options.RunTestsOnly:
 		logger.Debug("Skip assiging package data stream to agent")
 	default:
 		policyWithDataStream, err := r.options.KibanaClient.GetPolicy(policy.ID)
@@ -955,34 +969,13 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 	return &scenario, nil
 }
 
-func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext, serviceOptions servicedeployer.FactoryOptions) ([]testrunner.TestResult, error) {
-	result := r.newResult(config.Name())
-
-	if config.Skip != nil {
-		logger.Warnf("skipping %s test for %s/%s: %s (details: %s)",
-			TestType, r.options.TestFolder.Package, r.options.TestFolder.DataStream,
-			config.Skip.Reason, config.Skip.Link.String())
-		return result.WithSkip(config.Skip)
-	}
-
-	logger.Debugf("running test with configuration '%s'", config.Name())
-
-	scenario, err := r.prepareScenario(config, ctxt, serviceOptions)
-	if err != nil {
-		return result.WithError(err)
-	}
-
-	if r.options.RunSetup || r.options.RunTearDown {
-		// Do not run testsif setup or teardown are enabled
-		return result.WithSuccess()
-	}
-
+func (r *runner) validateTestScenario(result *testrunner.ResultComposer, scenario *scenarioTest, config *testConfig, serviceOptions servicedeployer.FactoryOptions) ([]testrunner.TestResult, error) {
 	// Validate fields in docs
 	// when reroute processors are used, expectedDatasets should be set depends on the processor config
 	var expectedDatasets []string
 	for _, pipeline := range r.pipelines {
 		var esIngestPipeline map[string]any
-		err = yaml.Unmarshal(pipeline.Content, &esIngestPipeline)
+		err := yaml.Unmarshal(pipeline.Content, &esIngestPipeline)
 		if err != nil {
 			return nil, fmt.Errorf("unmarshalling ingest pipeline content failed: %w", err)
 		}
@@ -1053,6 +1046,31 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	}
 
 	return result.WithSuccess()
+}
+
+func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext, serviceOptions servicedeployer.FactoryOptions) ([]testrunner.TestResult, error) {
+	result := r.newResult(config.Name())
+
+	if config.Skip != nil {
+		logger.Warnf("skipping %s test for %s/%s: %s (details: %s)",
+			TestType, r.options.TestFolder.Package, r.options.TestFolder.DataStream,
+			config.Skip.Reason, config.Skip.Link.String())
+		return result.WithSkip(config.Skip)
+	}
+
+	logger.Debugf("running test with configuration '%s'", config.Name())
+
+	scenario, err := r.prepareScenario(config, ctxt, serviceOptions)
+	if err != nil {
+		return result.WithError(err)
+	}
+
+	if r.options.RunSetup || r.options.RunTearDown {
+		// Do not run testsif setup or teardown are enabled
+		return result.WithSuccess()
+	}
+
+	return r.validateTestScenario(result, scenario, config, serviceOptions)
 }
 
 func checkEnrolledAgents(client *kibana.Client, ctxt servicedeployer.ServiceContext) ([]kibana.Agent, error) {

@@ -38,6 +38,7 @@ type TestOptions struct {
 	ConfigFilePath string
 	RunSetup       bool
 	RunTearDown    bool
+	RunTestsOnly   bool
 }
 
 // TestRunner is the interface all test runners must implement.

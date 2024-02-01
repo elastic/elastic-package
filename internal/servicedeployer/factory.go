@@ -30,7 +30,8 @@ type FactoryOptions struct {
 
 	Variant string
 
-	RunTearDown bool
+	RunTearDown  bool
+	RunTestsOnly bool
 }
 
 // Factory chooses the appropriate service runner for the given data stream, depending
@@ -60,7 +61,7 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 			if err != nil {
 				return nil, fmt.Errorf("can't use service variant: %w", err)
 			}
-			return NewDockerComposeServiceDeployer(options.Profile, []string{dockerComposeYMLPath}, sv, options.RunTearDown)
+			return NewDockerComposeServiceDeployer(options.Profile, []string{dockerComposeYMLPath}, sv, options.RunTearDown, options.RunTestsOnly)
 		}
 	case "agent":
 		if options.Type != TypeTest {
@@ -70,7 +71,7 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 		if _, err := os.Stat(customAgentCfgYMLPath); err != nil {
 			return nil, fmt.Errorf("can't find expected file custom-agent.yml: %w", err)
 		}
-		return NewCustomAgentDeployer(options.Profile, customAgentCfgYMLPath, options.StackVersion, options.RunTearDown)
+		return NewCustomAgentDeployer(options.Profile, customAgentCfgYMLPath, options.StackVersion, options.RunTearDown, options.RunTestsOnly)
 	case "tf":
 		if _, err := os.Stat(serviceDeployerPath); err == nil {
 			return NewTerraformServiceDeployer(serviceDeployerPath)
