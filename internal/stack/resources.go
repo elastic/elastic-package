@@ -145,7 +145,7 @@ func applyResources(profile *profile.Profile, stackVersion string) error {
 	resourceManager.RegisterProvider("certs", &resource.FileProvider{
 		Prefix: profile.ProfilePath,
 	})
-	certResources, err := initTLSCertificates("certs", profile.ProfilePath)
+	certResources, err := initTLSCertificates("certs", profile.ProfilePath, tlsServices)
 	if err != nil {
 		return fmt.Errorf("failed to create TLS files: %w", err)
 	}

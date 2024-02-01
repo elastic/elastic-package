@@ -18,6 +18,7 @@ services:
     - type: bind
       source: ../../../tmp/service_logs/
       target: /run/service_logs/
+    - "../certs/logstash/ca-cert.pem:/etc/ssl/certs/logstash.pem"
 
   elastic-agent_is_ready:
     image: tianon/true
@@ -28,21 +29,15 @@ services:
 {{ $logstash_enabled := fact "logstash_enabled" }}
 {{ if eq $logstash_enabled "true" }}
   logstash:
-    depends_on:
-      elasticsearch:
-        condition: service_healthy
-      kibana:
-        condition: service_healthy
-    image: ${LOGSTASH_IMAGE_REF}
+    image: "{{ fact "logstash_image" }}"
     healthcheck:
       test: bin/logstash -t
       interval: 60s
       timeout: 50s
       retries: 5
-    command: bash -c 'if [[ ! $(bin/logstash-plugin list) ==  *"logstash-filter-elastic_integration"* ]]; then echo "Missing plugin  logstash-filter-elastic_integration, installing now" && bin/logstash-plugin install  logstash-filter-elastic_integration; fi && bin/logstash -f /usr/share/logstashpipeline/  logstash.conf'
+    command: bash -c 'if [[ ! $(bin/logstash-plugin list) ==  *"logstash-filter-elastic_integration"* ]]; then echo "Missing plugin  logstash-filter-elastic_integration, installing now" && bin/logstash-plugin install  logstash-filter-elastic_integration; fi && bin/logstash -f /usr/share/logstash/pipeline/logstash.conf'
     volumes:
       - "../certs/logstash:/usr/share/logstash/config/certs"
-      - "../certs/elasticsearch/cert.pem:/usr/share/logstash/config/certs/elasticsearch.pem"
       - "./logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro"
     ports:
        - "127.0.0.1:5044:5044"

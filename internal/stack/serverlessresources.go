@@ -28,7 +28,7 @@ var (
 		},
 		&resource.File{
 			Path:    LogstashConfigFile,
-			Content: staticSource.Template("_static/logstash.conf.tmpl"),
+			Content: staticSource.Template("_static/serverless-logstash.conf.tmpl"),
 		},
 	}
 )
@@ -45,7 +45,8 @@ func applyServerlessResources(profile *profile.Profile, stackVersion string, con
 	resourceManager.AddFacter(resource.StaticFacter{
 		"agent_version":      stackVersion,
 		"agent_image":        appConfig.StackImageRefs(stackVersion).ElasticAgent,
-		"elasticsearch_host": config.ElasticsearchHost,
+		"logstash_image":     appConfig.StackImageRefs(stackVersion).Logstash,
+		"elasticsearch_host": esHostWithPort(config.ElasticsearchHost),
 		"username":           config.ElasticsearchUsername,
 		"password":           config.ElasticsearchPassword,
 		"kibana_host":        config.KibanaHost,
@@ -58,7 +59,19 @@ func applyServerlessResources(profile *profile.Profile, stackVersion string, con
 		Prefix: stackDir,
 	})
 
-	results, err := resourceManager.Apply(serverlessStackResources)
+	resources := append([]resource.Resource{}, serverlessStackResources...)
+
+	// Keeping certificates in the profile directory for backwards compatibility reasons.
+	resourceManager.RegisterProvider("certs", &resource.FileProvider{
+		Prefix: profile.ProfilePath,
+	})
+	certResources, err := initTLSCertificates("certs", profile.ProfilePath, tlsServicesServerless)
+	if err != nil {
+		return fmt.Errorf("failed to create TLS files: %w", err)
+	}
+	resources = append(resources, certResources...)
+
+	results, err := resourceManager.Apply(resources)
 	if err != nil {
 		var errors []string
 		for _, result := range results {
@@ -70,4 +83,17 @@ func applyServerlessResources(profile *profile.Profile, stackVersion string, con
 	}
 
 	return nil
+}
+
+// esHostWithPort checks if the es host has a port already added in the string , else adds 443
+// This is to mitigate a known issue in logstash - https://www.elastic.co/guide/en/logstash/current/plugins-outputs-elasticsearch.html#plugins-outputs-elasticsearch-serverless
+func esHostWithPort(host string) string {
+	// The ES host of the form https://esHost or https://esHost:port
+	splitHost := strings.Split(host, ":")
+
+	// https://esHost:port port already defined
+	if len(splitHost) > 2 {
+		return host
+	}
+	return host + ":443"
 }

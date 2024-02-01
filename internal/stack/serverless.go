@@ -77,7 +77,6 @@ func (sp *serverlessProvider) createProject(settings projectSettings, options Op
 		paramServerlessProjectID:   project.ID,
 		paramServerlessProjectType: project.Type,
 	}
-
 	config.ElasticsearchHost = project.Endpoints.Elasticsearch
 	config.KibanaHost = project.Endpoints.Kibana
 	config.ElasticsearchUsername = project.Credentials.Username
@@ -109,7 +108,7 @@ func (sp *serverlessProvider) createProject(settings projectSettings, options Op
 
 	err = project.AddLogstashFleetOutput(sp.kibanaClient)
 	if err != nil {
-		return Config{}, fmt.Errorf("failed to add logstash fleet output: %w", err)
+		return Config{}, err
 	}
 
 	printUserConfig(options.Printer, config)

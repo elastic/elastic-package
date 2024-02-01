@@ -213,7 +213,7 @@ func (p *Project) CreateAgentPolicy(stackVersion string, kibanaClient *kibana.Cl
 	}
 
 	if logstashEnabled {
-		policy.DataOutputID = "fleet-logstash-output"
+		policy.DataOutputID = "logstash-fleet-output"
 	}
 
 	newPolicy, err := kibanaClient.CreatePolicy(policy)

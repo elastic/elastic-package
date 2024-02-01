@@ -22,7 +22,7 @@ func TestTLSCertsInitialization(t *testing.T) {
 	assert.Error(t, verifyTLSCertificates(caCertFile, caCertFile, caKeyFile, ""))
 
 	providerName := "test-file"
-	resources, err := initTLSCertificates(providerName, profilePath)
+	resources, err := initTLSCertificates(providerName, profilePath, tlsServices)
 	require.NoError(t, err)
 
 	resourceManager := resource.NewManager()
@@ -54,7 +54,7 @@ func TestTLSCertsInitialization(t *testing.T) {
 		assert.Error(t, verifyTLSCertificates(caCertFile, serviceCertFile, serviceKeyFile, service))
 
 		// Check it is created again and is validated by the same CA.
-		resources, err := initTLSCertificates(providerName, profilePath)
+		resources, err := initTLSCertificates(providerName, profilePath, tlsServices)
 		require.NoError(t, err)
 		_, err = resourceManager.Apply(resources)
 		require.NoError(t, err)

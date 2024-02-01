@@ -26,6 +26,10 @@ var tlsServices = []string{
 	"logstash",
 }
 
+var tlsServicesServerless = []string{
+	"logstash",
+}
+
 var (
 	// CertificatesDirectory is the path to the certificates directory inside a profile.
 	CertificatesDirectory = "certs"
@@ -43,7 +47,7 @@ var (
 // initTLSCertificates initializes all the certificates needed to run the services
 // managed by elastic-package stack. It includes a CA, and a pair of keys and
 // certificates for each service.
-func initTLSCertificates(fileProvider string, profilePath string) ([]resource.Resource, error) {
+func initTLSCertificates(fileProvider string, profilePath string, tlsServices []string) ([]resource.Resource, error) {
 	certsDir := filepath.Join(profilePath, CertificatesDirectory)
 	caCertFile := filepath.Join(profilePath, string(CACertificateFile))
 	caKeyFile := filepath.Join(profilePath, string(CAKeyFile))
