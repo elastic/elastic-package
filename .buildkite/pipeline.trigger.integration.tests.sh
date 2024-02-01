@@ -109,6 +109,11 @@ echo "          provider: \"gcp\""
 echo "        artifact_paths:"
 echo "          - build/elastic-stack-dump/install-zip-shellinit/logs/*.log"
 
+echo "      - label: \":go: Running integration test: test-system-test-flags\""
+echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-system-test-flags"
+echo "        agents:"
+echo "          provider: \"gcp\""
+
 echo "      - label: \":go: Running integration test: test-profiles-command\""
 echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-profiles-command"
 echo "        env:"

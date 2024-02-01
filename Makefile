@@ -105,6 +105,9 @@ test-install-zip:
 test-install-zip-shellinit:
 	./scripts/test-install-zip.sh -s
 
+test-system-test-flags:
+	./scripts/test-system-test-flags.sh
+
 test-profiles-command:
 	./scripts/test-profiles-command.sh
 
