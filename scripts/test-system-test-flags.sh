@@ -34,8 +34,9 @@ elastic-package stack up -v -d
 pushd test/packages/parallel/nginx/ > /dev/null
 
 elastic-package test system -v \
---config-file "$(pwd)/data_stream/access/_dev/test/system/test-default-config.yml" \
---setup
+    --report-format xUnit --report-output file \
+    --config-file "$(pwd)/data_stream/access/_dev/test/system/test-default-config.yml" \
+    --setup
 
 FOLDER_NAME="service_setup"
 FOLDER_PATH="${HOME}/.elastic-package/stack/${FOLDER_NAME}"
@@ -63,8 +64,9 @@ fi
 # TODO  tests for --no-provision
 
 elastic-package test system -v \
---config-file "$(pwd)/data_stream/access/_dev/test/system/test-default-config.yml" \
---tear-down
+    --report-format xUnit --report-output file \
+    --config-file "$(pwd)/data_stream/access/_dev/test/system/test-default-config.yml" \
+    --tear-down
 
 if [ -d "$FOLDER_PATH" ]; then
     echo "Folder ${FOLDER_NAME} has not been deleted in --tear-down"
