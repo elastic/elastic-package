@@ -1,7 +1,7 @@
 input {
   elastic_agent {
     port => 5044
-    ssl_enabled => false
+    ssl_enabled => true
     ssl_certificate_authorities => ["/usr/share/logstash/config/certs/ca-cert.pem"]
     ssl_certificate => "/usr/share/logstash/config/certs/cert.pem"
     ssl_key => "/usr/share/logstash/config/certs/key.pem"
