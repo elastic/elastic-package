@@ -179,6 +179,9 @@ func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, e
 	if r.options.RunSetup && !os.IsNotExist(err) {
 		return result.WithError(fmt.Errorf("failed to run --setup, required to tear down previous setup run: %s exists", r.locationManager.ServiceSetupDir()))
 	}
+	if r.options.RunTestsOnly && os.IsNotExist(err) {
+		return result.WithError(fmt.Errorf("failed to run --no-provision, missing service setup folder: %s does not exist", r.locationManager.ServiceSetupDir()))
+	}
 	if r.options.RunTearDown && os.IsNotExist(err) {
 		return result.WithError(fmt.Errorf("failed to run --tear-down, missing service setup folder: %s does not exist", r.locationManager.ServiceSetupDir()))
 	}
