@@ -104,7 +104,7 @@ fi
 
 echo "--- Run tests without provisioning"
 for i in $(seq 3); do
-    echo "Iteration #${i} --no-provision"
+    echo "--- Iteration #${i} --no-provision"
     elastic-package test system -v \
         --report-format xUnit --report-output file \
         --config-file "$(pwd)/data_stream/access/_dev/test/system/test-default-config.yml" \
