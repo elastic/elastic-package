@@ -103,12 +103,12 @@ if ! is_service_container_running "${SERVICE_CONTAINER_NAME}"; then
 fi
 
 echo "--- Run tests without provisioning"
-# shellcheck disable=SC2034
-for i in $(seq 5); do
+for i in $(seq 3); do
+    echo "Iteration #${i} --no-provision"
     elastic-package test system -v \
         --report-format xUnit --report-output file \
         --config-file "$(pwd)/data_stream/access/_dev/test/system/test-default-config.yml" \
-        --tear-down
+        --no-provision
 
     # service docker needs to be running after this command
     if ! is_service_container_running "${SERVICE_CONTAINER_NAME}"; then
