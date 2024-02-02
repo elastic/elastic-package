@@ -1094,11 +1094,6 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 		return result.WithError(err)
 	}
 
-	if r.options.RunSetup || r.options.RunTearDown {
-		// Do not run testsif setup or teardown are enabled
-		return result.WithSuccess()
-	}
-
 	return r.validateTestScenario(result, scenario, config, serviceOptions)
 }
 
