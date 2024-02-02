@@ -599,6 +599,63 @@ A sample workflow would look like:
 - Run `elastic-package stack up -d -v`
 - Navigate to the package folder in integrations and run `elastic-package test system -v`
 
+### Running system tests without cleanup (WIP)
+
+By default, `elastic-package test system` command always does these steps:
+1. Setup:
+    - Start the service to be tested with a given configuration and variant.
+    - Build and install the package
+    - Create the required resources in Elasticsearch to configure the ingestion of data through the Elastic Agent.
+    - ...
+2. Run the tests (validate fields, check transforms, etc.)
+    - ...
+3. Tear Down:
+    - Rollback all the changes in Elasticsearch (e.g. agent policy assigned to the agent).
+    - Stop the service to be tested.
+    - ...
+
+It's possible also to run these steps independently. For that it is required to set which configuration file (`--config-file`)
+is going to be used to start the service and which variant, if any (`--variant`).
+
+Each step can be then run using these flags:
+- Run just the setup (`--setup`):
+    - Service container will be kept running after this command.
+    - After this command, Elastic Agent is going to be sending documents to Elasticsearch.
+- Run just the tests (`--no-provision`)
+    - Service container will not be stopped.
+    - Documents in the Data stream will be deleted, so the tests will use the latest documents sent.
+    - After this command, Elastic Agent is going to be sending documents to Elasticsearch.
+    - NOTE: This command can be run several times.
+- Run just the setup (`--tear-down`):
+    - Service contaienr is going to be stopped.
+    - All changes in Elasticsearch are rollback.
+    - Data stream of the tests is deleted.
+
+
+Examples:
+
+```shell
+# Start Elastic stack as usual
+elastic-package stack up -v -d
+
+# Testing a package using a configuration file and a variant (e.g. mysql)
+elastic-package test system -v --config-file $(pwd)/data_stream/status/_dev/test/system/test-default-config.yml --variant percona_8_0_36 --setup
+elastic-package test system -v --config-file $(pwd)/data_stream/status/_dev/test/system/test-default-config.yml --variant percona_8_0_36 --no-provision
+elastic-package test system -v --config-file $(pwd)/data_stream/status/_dev/test/system/test-default-config.yml --variant percona_8_0_36 --tear-down
+
+# Testing a package using a configuration file (no variants defined in the package)
+elastic-package test system -v  --config-file $(pwd)/data_stream/audit/_dev/test/system/test-tcp-config.yml --setup
+elastic-package test system -v  --config-file $(pwd)/data_stream/audit/_dev/test/system/test-tcp-config.yml --no-provision
+elastic-package test system -v  --config-file $(pwd)/data_stream/audit/_dev/test/system/test-tcp-config.yml --tear-down
+
+# Testing a input package using a configuration file (no variants defined in the package)
+elastic-package test system -v --config-file $(pwd)/_dev/test/system/test-mysql-config.yml --setup
+elastic-package test system -v --config-file $(pwd)/_dev/test/system/test-mysql-config.yml --no-provision
+elastic-package test system -v --config-file $(pwd)/_dev/test/system/test-mysql-config.yml --tear-down
+
+elastic-package stack down -v
+```
+
 ## Continuous Integration
 
 `elastic-package` runs a set of system tests on some [dummy packages](https://github.com/elastic/elastic-package/tree/main/test/packages) to ensure it's functionalities work as expected. This allows to test changes affecting package testing within `elastic-package` before merging and releasing the changes.
