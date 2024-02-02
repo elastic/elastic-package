@@ -264,9 +264,9 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 			}
 		}
 
-		if runSetup || runTeardown {
+		if runSetup || runTeardown || runTestsOnly {
 			if configFileFlag == "" {
-				return fmt.Errorf("set setup but missing config file path")
+				return fmt.Errorf("missing config file path: one of --setup , --no-provision or --tear-down flags is enabled")
 			}
 
 			// variant flag is not checked here since there are packages that do not have variants
