@@ -28,6 +28,7 @@ var tlsServices = []string{
 
 var tlsServicesServerless = []string{
 	"logstash",
+	"elastic-agent",
 }
 
 var (
@@ -144,9 +145,18 @@ func initServiceTLSCertificates(ca *certs.Issuer, caCertFile string, certFile, k
 		return certs.LoadCertificate(certFile, keyFile)
 	}
 
-	cert, err := ca.Issue(certs.WithName(service))
-	if err != nil {
-		return nil, fmt.Errorf("error initializing certificate for %q", service)
+	var cert *certs.Certificate
+	var err error
+	if service == "elastic-agent" {
+		cert, err = ca.IssueClient(certs.WithName(service))
+		if err != nil {
+			return nil, fmt.Errorf("error initializing certificate for %q", service)
+		}
+	} else {
+		cert, err = ca.Issue(certs.WithName(service))
+		if err != nil {
+			return nil, fmt.Errorf("error initializing certificate for %q", service)
+		}
 	}
 
 	return cert, nil

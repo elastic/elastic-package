@@ -35,7 +35,7 @@ services:
       interval: 60s
       timeout: 50s
       retries: 5
-    command: bash -c 'if [[ ! $(bin/logstash-plugin list) ==  *"logstash-filter-elastic_integration"* ]]; then echo "Missing plugin  logstash-filter-elastic_integration, installing now" && bin/logstash-plugin install  logstash-filter-elastic_integration; fi && bin/logstash -f /usr/share/logstash/pipeline/logstash.conf'
+    command: bash -c 'openssl pkcs8 -inform PEM -in /usr/share/logstash/config/certs/key.pem -topk8 -nocrypt -outform PEM -out /usr/share/logstash/config/certs/logstash.pkcs8.key && chmod 777 /usr/share/logstash/config/certs/logstash.pkcs8.key && if [[ ! $(bin/logstash-plugin list) ==  *"logstash-filter-elastic_integration"* ]]; then echo "Missing plugin  logstash-filter-elastic_integration, installing now" && bin/logstash-plugin install  logstash-filter-elastic_integration; fi && bin/logstash -f /usr/share/logstash/pipeline/logstash.conf'
     volumes:
       - "../certs/logstash:/usr/share/logstash/config/certs"
       - "./logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro"

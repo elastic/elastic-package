@@ -11,12 +11,15 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
+	"github.com/elastic/elastic-package/internal/profile"
 	"github.com/elastic/elastic-package/internal/registry"
 )
 
@@ -131,16 +134,48 @@ func (p *Project) DefaultFleetServerURL(kibanaClient *kibana.Client) (string, er
 	return fleetURL, nil
 }
 
-func (p *Project) AddLogstashFleetOutput(kibanaClient *kibana.Client) error {
+func (p *Project) AddLogstashFleetOutput(profile *profile.Profile, kibanaClient *kibana.Client) error {
 	logstashFleetOutput := kibana.FleetOutput{
 		Name:  "logstash-output",
-		ID:    "logstash-fleet-output",
+		ID:    "fleet-logstash-output",
 		Type:  "logstash",
 		Hosts: []string{"logstash:5044"},
 	}
 
 	if err := kibanaClient.AddFleetOutput(logstashFleetOutput); err != nil {
 		return fmt.Errorf("failed to add logstash fleet output: %w", err)
+	}
+
+	return nil
+}
+
+func (p *Project) UpdateLogstashFleetOutput(profile *profile.Profile, kibanaClient *kibana.Client) error {
+	certsDir := filepath.Join(profile.ProfilePath, "certs", "elastic-agent")
+
+	caFile, err := os.ReadFile(filepath.Join(certsDir, "ca-cert.pem"))
+	if err != nil {
+		return fmt.Errorf("failed to read ca certificate: %w", err)
+	}
+
+	certFile, err := os.ReadFile(filepath.Join(certsDir, "cert.pem"))
+	if err != nil {
+		return fmt.Errorf("failed to read client certificate: %w", err)
+	}
+
+	keyFile, err := os.ReadFile(filepath.Join(certsDir, "key.pem"))
+	if err != nil {
+		return fmt.Errorf("failed to read client certificate public key: %w", err)
+	}
+
+	logstashFleetOutput := kibana.FleetOutput{
+		SSL: &kibana.AgentSSL{
+			Ca_authorities: []string{string(caFile)},
+			Certificate:    string(certFile),
+			Key:            string(keyFile)},
+	}
+
+	if err := kibanaClient.UpdateFleetOutput(logstashFleetOutput, "fleet-logstash-output"); err != nil {
+		return fmt.Errorf("failed to update logstash fleet output: %w", err)
 	}
 
 	return nil
@@ -213,7 +248,7 @@ func (p *Project) CreateAgentPolicy(stackVersion string, kibanaClient *kibana.Cl
 	}
 
 	if logstashEnabled {
-		policy.DataOutputID = "logstash-fleet-output"
+		policy.DataOutputID = "fleet-logstash-output"
 	}
 
 	newPolicy, err := kibanaClient.CreatePolicy(policy)

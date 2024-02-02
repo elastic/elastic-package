@@ -106,7 +106,7 @@ func (sp *serverlessProvider) createProject(settings projectSettings, options Op
 	}
 	project.Endpoints.Fleet = config.Parameters[paramServerlessFleetURL]
 
-	err = project.AddLogstashFleetOutput(sp.kibanaClient)
+	err = project.AddLogstashFleetOutput(sp.profile, sp.kibanaClient)
 	if err != nil {
 		return Config{}, err
 	}
@@ -285,6 +285,12 @@ func (sp *serverlessProvider) BootUp(options Options) error {
 	err = sp.startLocalServices(options, config)
 	if err != nil {
 		return fmt.Errorf("failed to start local services: %w", err)
+	}
+
+	// Updating the output with ssl certificates created in startLocalServices
+	err = project.UpdateLogstashFleetOutput(sp.profile, sp.kibanaClient)
+	if err != nil {
+		return err
 	}
 
 	return nil
