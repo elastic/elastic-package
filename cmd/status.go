@@ -5,6 +5,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -37,6 +38,9 @@ const (
 	categoriesParameter                = "categories"
 	elasticsearchSubscriptionParameter = "elastic.subscription"
 	serverlessProjectTypesParameter    = "serverless.project_types"
+
+	statusTableFormat = "table"
+	statusJSONFormat  = "json"
 )
 
 var (
@@ -49,6 +53,11 @@ var (
 		categoriesParameter,
 		elasticsearchSubscriptionParameter,
 		serverlessProjectTypesParameter,
+	}
+
+	availableFormatsParameters = []string{
+		statusTableFormat,
+		statusJSONFormat,
 	}
 )
 
@@ -63,6 +72,7 @@ func setupStatusCommand() *cobraext.Command {
 	cmd.Flags().BoolP(cobraext.ShowAllFlagName, "a", false, cobraext.ShowAllFlagDescription)
 	cmd.Flags().String(cobraext.StatusKibanaVersionFlagName, "", cobraext.StatusKibanaVersionFlagDescription)
 	cmd.Flags().StringSlice(cobraext.StatusExtraInfoFlagName, nil, fmt.Sprintf(cobraext.StatusExtraInfoFlagDescription, strings.Join(availableExtraInfoParameters, ",")))
+	cmd.Flags().String(cobraext.StatusFormatFlagName, "table", fmt.Sprintf(cobraext.StatusFormatFlagDescription, strings.Join(availableFormatsParameters, ",")))
 
 	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
 }
@@ -85,6 +95,13 @@ func statusCommandAction(cmd *cobra.Command, args []string) error {
 	extraParameters, err := cmd.Flags().GetStringSlice(cobraext.StatusExtraInfoFlagName)
 	if err != nil {
 		return cobraext.FlagParsingError(err, cobraext.StatusExtraInfoFlagName)
+	}
+	format, err := cmd.Flags().GetString(cobraext.StatusFormatFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.StatusFormatFlagName)
+	}
+	if !slices.Contains(availableFormatsParameters, format) {
+		return cobraext.FlagParsingError(fmt.Errorf("unsupported format %q, supported formats: %s", format, strings.Join(availableFormatsParameters, ",")), cobraext.StatusFormatFlagName)
 	}
 
 	err = validateExtraInfoParameters(extraParameters)
@@ -115,7 +132,15 @@ func statusCommandAction(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	return print(packageStatus, os.Stdout, extraParameters)
+	switch format {
+	case "table":
+		return print(packageStatus, os.Stdout, extraParameters)
+	case "json":
+		return printJSON(packageStatus, os.Stdout, extraParameters)
+	default:
+		return errors.New("unknown format")
+	}
+
 }
 
 func validateExtraInfoParameters(extraParameters []string) error {
@@ -365,4 +390,85 @@ func releaseFromVersion(version string) string {
 	}
 
 	return defaultText
+}
+
+type statusJSON struct {
+	Package  string              `json:"package"`
+	Owner    string              `json:"owner,omitempty"`
+	Versions []statusJSONVersion `json:"versions,omitempty"`
+}
+
+type statusJSONVersion struct {
+	Environment string `json:"environment,omitempty"`
+	Version     string `json:"version"`
+	Release     string `json:"release,omitempty"`
+	Title       string `json:"title,omitempty"`
+	Description string `json:"description,omitempty"`
+
+	// Extra parameters
+	KibanaVersion         string   `json:"kibana_version,omitempty"`
+	Subscription          string   `json:"subscription,omitempty"`
+	Categories            []string `json:"categories,omitempty"`
+	ServerlessProjectType string   `json:"serverless_project_type,omitempty"`
+}
+
+func newStatusJSONVersion(environment string, manifest packages.PackageManifest, extraParameters []string) statusJSONVersion {
+	version := statusJSONVersion{
+		Environment: environment,
+		Version:     manifest.Version,
+		Release:     strings.ToLower(releaseFromVersion(manifest.Version)),
+		Title:       manifest.Title,
+		Description: manifest.Description,
+	}
+
+	for _, param := range extraParameters {
+		switch param {
+		case kibanaVersionParameter:
+			version.KibanaVersion = manifest.Conditions.Kibana.Version
+		case categoriesParameter:
+			version.Categories = manifest.Categories
+		case elasticsearchSubscriptionParameter:
+			version.Subscription = manifest.Conditions.Elastic.Subscription
+		}
+	}
+
+	return version
+}
+
+func printJSON(p *status.PackageStatus, w io.Writer, extraParameters []string) error {
+	enc := json.NewEncoder(w)
+	enc.SetEscapeHTML(false)
+	enc.SetIndent("", "  ")
+
+	owner := formatOwner(p)
+	if owner == "-" {
+		owner = ""
+	}
+
+	info := statusJSON{
+		Package: p.Name,
+		Owner:   owner,
+	}
+
+	if manifest := p.Local; manifest != nil {
+		version := newStatusJSONVersion("local", *manifest, extraParameters)
+		info.Versions = append(info.Versions, version)
+	}
+
+	for _, manifest := range p.Production {
+		version := newStatusJSONVersion("production", manifest, extraParameters)
+		info.Versions = append(info.Versions, version)
+	}
+
+	if slices.Contains(extraParameters, serverlessProjectTypesParameter) {
+		for _, projectType := range p.Serverless {
+			for _, manifest := range projectType.Manifests {
+				version := newStatusJSONVersion("production", manifest, extraParameters)
+				version.ServerlessProjectType = projectType.Name
+				info.Versions = append(info.Versions, version)
+			}
+		}
+	}
+
+	return enc.Encode(info)
 }

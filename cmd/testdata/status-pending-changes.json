@@ -1,0 +1,20 @@
+{
+  "package": "foo",
+  "owner": "team",
+  "versions": [
+    {
+      "environment": "local",
+      "version": "2.0.0-rc1",
+      "release": "release candidate",
+      "title": "Foo",
+      "description": "Foo integration"
+    },
+    {
+      "environment": "production",
+      "version": "1.0.0",
+      "release": "ga",
+      "title": "Foo",
+      "description": "Foo integration"
+    }
+  ]
+}

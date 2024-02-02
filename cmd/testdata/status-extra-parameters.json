@@ -1,0 +1,28 @@
+{
+  "package": "foo",
+  "owner": "team",
+  "versions": [
+    {
+      "environment": "local",
+      "version": "2.0.0-rc1",
+      "release": "release candidate",
+      "title": "Foo",
+      "description": "Foo integration",
+      "kibana_version": "^8.9.0",
+      "categories": [
+        "custom"
+      ]
+    },
+    {
+      "environment": "production",
+      "version": "1.0.0",
+      "release": "ga",
+      "title": "Foo",
+      "description": "Foo integration",
+      "kibana_version": "^8.8.0",
+      "categories": [
+        "custom"
+      ]
+    }
+  ]
+}
