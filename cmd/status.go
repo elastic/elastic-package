@@ -393,9 +393,10 @@ func releaseFromVersion(version string) string {
 }
 
 type statusJSON struct {
-	Package  string              `json:"package"`
-	Owner    string              `json:"owner,omitempty"`
-	Versions []statusJSONVersion `json:"versions,omitempty"`
+	Package        string              `json:"package"`
+	Owner          string              `json:"owner,omitempty"`
+	Versions       []statusJSONVersion `json:"versions,omitempty"`
+	PendingChanges *changelog.Revision `json:"pending_changes,omitempty"`
 }
 
 type statusJSONVersion struct {
@@ -453,6 +454,7 @@ func printJSON(p *status.PackageStatus, w io.Writer, extraParameters []string) e
 	if manifest := p.Local; manifest != nil {
 		version := newStatusJSONVersion("local", *manifest, extraParameters)
 		info.Versions = append(info.Versions, version)
+		info.PendingChanges = p.PendingChanges
 	}
 
 	for _, manifest := range p.Production {

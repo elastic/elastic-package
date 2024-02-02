@@ -16,5 +16,15 @@
       "title": "Foo",
       "description": "Foo integration"
     }
-  ]
+  ],
+  "pending_changes": {
+    "version": "2.0.0-rc2",
+    "changes": [
+      {
+        "description": "New feature",
+        "type": "enhancement",
+        "link": "http:github.com/org/repo/pull/2"
+      }
+    ]
+  }
 }
