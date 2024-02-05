@@ -362,7 +362,7 @@ There are some specific environment variables that should be leveraged to overco
 ### Kubernetes service deployer
 
 The Kubernetes service deployer requires the `_dev/deploy/k8s` directory to be present. It can include additional `*.yaml` files to deploy
-custom applications in the Kubernetes cluster (e.g. Nginx deployment). It is possible to use a `kustomization.yaml` file. 
+custom applications in the Kubernetes cluster (e.g. Nginx deployment). It is possible to use a `kustomization.yaml` file.
 If no resource definitions (`*.yaml` files ) are needed,
 the `_dev/deploy/k8s` directory must contain an `.empty` file (to preserve the `k8s` directory under version control).
 
@@ -466,10 +466,10 @@ data_stream:
     username: test
     password: test
     request_url: http://{{Hostname}}:{{Port}}/testexpectedhits/api
-    response_split: |- 
+    response_split: |-
       target: body.hits
       type: array
-      keep_parent: false     
+      keep_parent: false
 assert:
   hit_count: 3
 ```
@@ -495,7 +495,7 @@ Handlebar syntax in `httpjson.yml.hbs`
 
 ```yaml
 {{#if response_split}}
-response.split: 
+response.split:
   {{response_split}}
 {{/if}}
 ```
