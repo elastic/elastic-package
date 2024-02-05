@@ -599,37 +599,54 @@ A sample workflow would look like:
 - Run `elastic-package stack up -d -v`
 - Navigate to the package folder in integrations and run `elastic-package test system -v`
 
-### Running system tests without cleanup (WIP)
+### Running system tests without cleanup (technical preview)
 
-By default, `elastic-package test system` command always does these steps:
+**Disclaimer**: just tested with service deployer `docker`.
+
+By default, `elastic-package test system` command always performs these steps to run tests for a given package:
 1. Setup:
-    - Start the service to be tested with a given configuration and variant.
+    - Start the service to be tested with a given configuration (`data_stream/<name>/_dev/test/sytem/test-name-config.yml`) and variant (`_dev/deploy/variants.yml`).
     - Build and install the package
     - Create the required resources in Elasticsearch to configure the ingestion of data through the Elastic Agent.
-    - ...
+        - test policy
+        - add package data stream to the test policy
+    - Ensure agent is enrolled.
+    - Ensure that the data stream has no old documents.
+    - Assign policy to the agent.
+    - Ensure there are hits received in Elasticsearch in the package data stream.
 2. Run the tests (validate fields, check transforms, etc.)
-    - ...
+    - Validate fields (e.g. mappings)
+    - Assert number of hit counts.
+    - Check transforms.
 3. Tear Down:
-    - Rollback all the changes in Elasticsearch (e.g. agent policy assigned to the agent).
-    - Stop the service to be tested.
-    - ...
+    - Rollback all the changes in Elasticsearch:
+        - Restore previous policy to the agent.
+        - Delete the test policy.
+        - Uninstall the package.
+    - Stop the service (e.g. container) to be tested.
+    - Wipe all the documents of the data stream.
+
+This process is repeated:
+- for each data stream `D`, if the package is of `integration` type.
+- for each configuration file defined under `_dev/test/sytem` folder.
+- for each variant (`_dev/deploy/variants.yml`).
 
 It's possible also to run these steps independently. For that it is required to set which configuration file (`--config-file`)
-is going to be used to start the service and which variant, if any (`--variant`).
+and which variant (`--variant`), if any, is going to be used to start and configure the service for these tests.
 
-Each step can be then run using these flags:
-- Run just the setup (`--setup`):
-    - Service container will be kept running after this command.
-    - After this command, Elastic Agent is going to be sending documents to Elasticsearch.
-- Run just the tests (`--no-provision`)
+Then, each step can be run using one of these flags:
+- Run the setup (`--setup`), after this command is executed:
+    - Service container will be kept running.
+    - Elastic Agent is going to be sending documents to Elasticsearch.
+- Run just the tests (`--no-provision`), after this command is executed:
     - Service container will not be stopped.
     - Documents in the Data stream will be deleted, so the tests will use the latest documents sent.
-    - After this command, Elastic Agent is going to be sending documents to Elasticsearch.
+    - Elastic Agent is going to be sending documents to Elasticsearch.
     - NOTE: This command can be run several times.
-- Run just the setup (`--tear-down`):
-    - Service contaienr is going to be stopped.
+- Run just the setup (`--tear-down`), after this command:
+    - Service container is going to be stopped.
     - All changes in Elasticsearch are rollback.
-    - Data stream of the tests is deleted.
+    - Package Data stream is deleted.
 
 
 Examples:
