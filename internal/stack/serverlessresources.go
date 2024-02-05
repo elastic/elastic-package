@@ -6,6 +6,7 @@ package stack
 
 import (
 	"fmt"
+	"net"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -89,10 +90,14 @@ func applyServerlessResources(profile *profile.Profile, stackVersion string, con
 // esHostWithPort checks if the es host has a port already added in the string , else adds 443
 // This is to mitigate a known issue in logstash - https://www.elastic.co/guide/en/logstash/current/plugins-outputs-elasticsearch.html#plugins-outputs-elasticsearch-serverless
 func esHostWithPort(host string) string {
-	url, _ := url.Parse(host)
+	url, err := url.Parse(host)
+	if err != nil {
+		return host
+	}
 
 	if url.Port() == "" {
-		return host + ":443"
+		url.Host = net.JoinHostPort(url.Hostname(), "443")
+		return url.String()
 	}
 
 	return host

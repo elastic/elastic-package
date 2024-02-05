@@ -19,6 +19,8 @@ func TestEsHostWithPort(t *testing.T) {
 		{"host with differernt port", "https://hostname:9200", "https://hostname:9200"},
 		{"ipv6 host", "http://[2001:db8:1f70::999:de8:7648:6e8]:100/", "http://[2001:db8:1f70::999:de8:7648:6e8]:100/"},
 		{"ipv6 host without port", "http://[2001:db8:1f70::999:de8:7648:6e8]", "http://[2001:db8:1f70::999:de8:7648:6e8]:443"},
+		{"host with path", "https://hostname/xyz", "https://hostname:443/xyz"},
+		{"ipv6 host with path", "https://[::1]/xyz", "https://[::1]:443/xyz"},
 	}
 
 	for _, tt := range tests {
