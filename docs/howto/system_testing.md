@@ -626,10 +626,10 @@ By default, `elastic-package test system` command always performs these steps to
     - Stop the service (e.g. container) to be tested.
     - Wipe all the documents of the data stream.
 
-This process is repeated:
-- for each data stream `D`, if the package is of `integration` type.
-- for each configuration file defined under `_dev/test/sytem` folder.
-- for each variant (`_dev/deploy/variants.yml`).
+This process is repeated for each combination of:
+- data stream `D`, if the package is of `integration` type.
+- configuration file defined under `_dev/test/sytem` folder.
+- variant (`_dev/deploy/variants.yml`).
 
 It's possible also to run these steps independently. For that it is required to set which configuration file (`--config-file`)
 and which variant (`--variant`), if any, is going to be used to start and configure the service for these tests.
