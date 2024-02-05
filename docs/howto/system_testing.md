@@ -493,7 +493,7 @@ The `data_stream.vars.request_url` corresponds to a test-stub path in the `_dev/
 
 Handlebar syntax in `httpjson.yml.hbs`
 
-```yaml
+```handlebars
 {{#if response_split}}
 response.split:
   {{response_split}}
