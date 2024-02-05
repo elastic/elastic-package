@@ -1,0 +1,26 @@
+{
+  "package": "foo",
+  "versions": [
+    {
+      "environment": "production",
+      "version": "0.9.0",
+      "release": "technical preview",
+      "title": "Foo",
+      "description": "Foo integration"
+    },
+    {
+      "environment": "production",
+      "version": "1.0.0-preview1",
+      "release": "technical preview",
+      "title": "Foo",
+      "description": "Foo integration"
+    },
+    {
+      "environment": "production",
+      "version": "1.0.0-preview5",
+      "release": "technical preview",
+      "title": "Foo",
+      "description": "Foo integration"
+    }
+  ]
+}

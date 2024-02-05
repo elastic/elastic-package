@@ -189,6 +189,9 @@ const (
 	StatusExtraInfoFlagName        = "info"
 	StatusExtraInfoFlagDescription = "show additional information (comma-separated values: \"%s\")"
 
+	StatusFormatFlagName        = "format"
+	StatusFormatFlagDescription = "output format (\"%s\")"
+
 	TestCoverageFlagName        = "test-coverage"
 	TestCoverageFlagDescription = "enable test coverage reports"
 
