@@ -75,7 +75,7 @@ The `docker-compose.yml` file defines the integration service(s) for the package
 the log files from your package's integration service must be written to a volume. For example, the `apache` package has
 the following definition in it's integration service's `docker-compose.yml` file.
 
-```
+```yaml
 version: '2.3'
 services:
   apache:
@@ -94,7 +94,7 @@ For example docker images for MySQL include a volume for the data directory
 `/var/lib/mysql`. In order for `elastic-package` to clean up these volumes after
 tests are executed, a volume can be added to the `docker-compose.yml`:
 
-```
+```yaml
 version: '2.3'
 services:
   mysql:
@@ -117,7 +117,7 @@ This is useful if you need different capabilities than the provided by the
 `elastic-agent` used by the `elastic-package stack` command.
 
 `custom-agent.yml`
-```
+```yaml
 version: '2.3'
 services:
   docker-custom-agent:
@@ -130,7 +130,7 @@ services:
 
 This will result in an agent configuration such as:
 
-```
+```yaml
 version: '2.3'
 services:
   docker-custom-agent:
@@ -153,7 +153,7 @@ services:
 
 And in the test config:
 
-```
+```yaml
 data_stream:
   vars:
   # ...
