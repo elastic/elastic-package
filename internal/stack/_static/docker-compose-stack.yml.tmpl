@@ -142,7 +142,6 @@ services:
     env_file: "./elastic-agent.env"
     volumes:
     - "../certs/ca-cert.pem:/etc/ssl/certs/elastic-package.pem"
-    - "../certs/logstash/ca-cert.pem:/etc/ssl/certs/logstash.pem"
     - type: bind
       source: ../../../tmp/service_logs/
       target: /tmp/service_logs/

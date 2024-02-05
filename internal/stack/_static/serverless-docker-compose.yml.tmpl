@@ -18,7 +18,7 @@ services:
     - type: bind
       source: ../../../tmp/service_logs/
       target: /run/service_logs/
-    - "../certs/logstash/ca-cert.pem:/etc/ssl/certs/logstash.pem"
+    - "../certs/ca-cert.pem:/etc/ssl/certs/elastic-package.pem"
 
   elastic-agent_is_ready:
     image: tianon/true

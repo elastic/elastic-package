@@ -23,6 +23,10 @@ import (
 	"github.com/elastic/elastic-package/internal/registry"
 )
 
+const (
+	FLEET_LOGSTASH_OUTPUT = "fleet-logstash-output"
+)
+
 // Project represents a serverless project
 type Project struct {
 	url    string
@@ -137,7 +141,7 @@ func (p *Project) DefaultFleetServerURL(kibanaClient *kibana.Client) (string, er
 func (p *Project) AddLogstashFleetOutput(profile *profile.Profile, kibanaClient *kibana.Client) error {
 	logstashFleetOutput := kibana.FleetOutput{
 		Name:  "logstash-output",
-		ID:    "fleet-logstash-output",
+		ID:    FLEET_LOGSTASH_OUTPUT,
 		Type:  "logstash",
 		Hosts: []string{"logstash:5044"},
 	}
@@ -174,7 +178,7 @@ func (p *Project) UpdateLogstashFleetOutput(profile *profile.Profile, kibanaClie
 			Key:            string(keyFile)},
 	}
 
-	if err := kibanaClient.UpdateFleetOutput(logstashFleetOutput, "fleet-logstash-output"); err != nil {
+	if err := kibanaClient.UpdateFleetOutput(logstashFleetOutput, FLEET_LOGSTASH_OUTPUT); err != nil {
 		return fmt.Errorf("failed to update logstash fleet output: %w", err)
 	}
 
@@ -248,7 +252,7 @@ func (p *Project) CreateAgentPolicy(stackVersion string, kibanaClient *kibana.Cl
 	}
 
 	if logstashEnabled {
-		policy.DataOutputID = "fleet-logstash-output"
+		policy.DataOutputID = FLEET_LOGSTASH_OUTPUT
 	}
 
 	newPolicy, err := kibanaClient.CreatePolicy(policy)

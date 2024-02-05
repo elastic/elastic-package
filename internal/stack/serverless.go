@@ -287,17 +287,18 @@ func (sp *serverlessProvider) BootUp(options Options) error {
 		return fmt.Errorf("failed to start local services: %w", err)
 	}
 
-	//Re-create clients if running on an existing project
-	if sp.kibanaClient == nil {
-		if err = sp.createClients(project); err != nil {
+	if settings.LogstashEnabled {
+		//Re-create clients if running on an existing project
+		if sp.kibanaClient == nil {
+			if err = sp.createClients(project); err != nil {
+				return err
+			}
+		}
+		// Updating the output with ssl certificates created in startLocalServices
+		err = project.UpdateLogstashFleetOutput(sp.profile, sp.kibanaClient)
+		if err != nil {
 			return err
 		}
-	}
-
-	// Updating the output with ssl certificates created in startLocalServices
-	err = project.UpdateLogstashFleetOutput(sp.profile, sp.kibanaClient)
-	if err != nil {
-		return err
 	}
 
 	return nil
