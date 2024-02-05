@@ -186,7 +186,7 @@ or the data stream's level:
 ```
 
 An example for `Dockerfile` is as below
-```
+```Dockerfile
 FROM docker.elastic.co/elastic-agent/elastic-agent-complete:8.4.0
 USER root
 RUN apt-get update && apt-get -y install \
@@ -195,7 +195,7 @@ RUN apt-get update && apt-get -y install \
     unzip
 ```
 An example for `custom-agent.yml` in multi-service setup is as below
-```
+```yaml
 version: '2.3'
 services:
   docker-custom-agent:
@@ -234,7 +234,7 @@ resources using selected cloud provider and use them for testing (e.g. observe a
 
 Sample `main.tf` definition:
 
-```
+```hcl
 variable "TEST_RUN_ID" {
   default = "detached"
 }
@@ -269,7 +269,7 @@ For example, if a `SQS queue` is configured in terraform and if the `queue_url` 
 
 Sample Terraform definition
 
-```
+```hcl
 resource "aws_sqs_queue" "test" {
 
 }
@@ -281,7 +281,7 @@ output "queue_url"{
 
 Sample system test config
 
-``` yaml
+```yaml
 data_stream:
   vars:
     period: 5m
@@ -294,7 +294,7 @@ data_stream:
 
 For complex outputs from terraform you can use `{{TF_OUTPUT_root_key.nested_key}}`
 
-```
+```hcl
 output "root_key"{
   value = someoutput.nested_key_value
 }
@@ -315,7 +315,7 @@ output "root_key"{
   }
 }
 ```
-``` yaml
+```yaml
 data_stream:
   vars:
     queue_url: '{{TF_OUTPUT_root_key.nested_key}}'
@@ -457,7 +457,7 @@ stream declared in the manifest will be tested.
 
 To add an assertion on the number of hits in a given system test, consider this example from the `httpjson/generic` data stream's `test-expected-hit-count-config.yml`, shown below.
 
-```
+```yaml
 input: httpjson
 service: httpjson
 data_stream:
@@ -476,7 +476,7 @@ assert:
 
 The `data_stream.vars.request_url` corresponds to a test-stub path in the `_dev/deploy/docker/files/config.yml` file.
 
-```
+```yaml
   - path: /testexpectedhits/api
     methods: ["GET"]
     request_headers:
@@ -493,7 +493,7 @@ The `data_stream.vars.request_url` corresponds to a test-stub path in the `_dev/
 
 Handlebar syntax in `httpjson.yml.hbs`
 
-```
+```yaml
 {{#if response_split}}
 response.split: 
   {{response_split}}
@@ -527,7 +527,7 @@ Once the two levels of configurations are defined as described in the previous s
 
 First you must deploy the Elastic Stack. This corresponds to steps 1 and 2 as described in the [_Conceptual process_](#Conceptual-process) section.
 
-```
+```shell
 elastic-package stack up -d
 ```
 
@@ -537,19 +537,19 @@ Next, you must invoke the system tests runner. This corresponds to steps 3 throu
 
 If you want to run system tests for **all data streams** in a package, navigate to the package's root folder (or any sub-folder under it) and run the following command.
 
-```
+```shell
 elastic-package test system
 ```
 
 If you want to run system tests for **specific data streams** in a package, navigate to the package's root folder (or any sub-folder under it) and run the following command.
 
-```
+```shell
 elastic-package test system --data-streams <data stream 1>[,<data stream 2>,...]
 ```
 
 Finally, when you are done running all system tests, bring down the Elastic Stack. This corresponds to step 8 as described in the [_Conceptual process_](#Conceptual_process) section.
 
-```
+```shell
 elastic-package stack down
 ```
 
@@ -559,7 +559,7 @@ As the system tests exercise an integration end-to-end from running the integrat
 to indexing generated data from the integration's data streams into Elasticsearch, it is possible to generate
 `sample_event.json` files for each of the integration's data streams while running these tests.
 
-```
+```shell
 elastic-package test system --generate
 ```
 
