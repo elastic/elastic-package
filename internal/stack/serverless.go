@@ -106,11 +106,6 @@ func (sp *serverlessProvider) createProject(settings projectSettings, options Op
 	}
 	project.Endpoints.Fleet = config.Parameters[paramServerlessFleetURL]
 
-	err = project.AddLogstashFleetOutput(sp.profile, sp.kibanaClient)
-	if err != nil {
-		return Config{}, err
-	}
-
 	printUserConfig(options.Printer, config)
 
 	// update config with latest updates (e.g. fleet server url)
@@ -122,6 +117,11 @@ func (sp *serverlessProvider) createProject(settings projectSettings, options Op
 	err = project.EnsureHealthy(ctx, sp.elasticsearchClient, sp.kibanaClient)
 	if err != nil {
 		return Config{}, fmt.Errorf("not all services are healthy: %w", err)
+	}
+
+	err = project.AddLogstashFleetOutput(sp.profile, sp.kibanaClient)
+	if err != nil {
+		return Config{}, err
 	}
 
 	return config, nil
@@ -295,6 +295,8 @@ func (sp *serverlessProvider) BootUp(options Options) error {
 			}
 		}
 		// Updating the output with ssl certificates created in startLocalServices
+		// This is needed because the client ssl certificates are updated for every
+		// call to stack up even though the project is already setup.
 		err = project.UpdateLogstashFleetOutput(sp.profile, sp.kibanaClient)
 		if err != nil {
 			return err
