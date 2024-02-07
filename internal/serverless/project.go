@@ -24,7 +24,7 @@ import (
 )
 
 const (
-	FleetLogstshOutput = "fleet-logstash-output"
+	FleetLogstashOutput = "fleet-logstash-output"
 )
 
 // Project represents a serverless project
@@ -141,7 +141,7 @@ func (p *Project) DefaultFleetServerURL(kibanaClient *kibana.Client) (string, er
 func (p *Project) AddLogstashFleetOutput(profile *profile.Profile, kibanaClient *kibana.Client) error {
 	logstashFleetOutput := kibana.FleetOutput{
 		Name:  "logstash-output",
-		ID:    FleetLogstshOutput,
+		ID:    FleetLogstashOutput,
 		Type:  "logstash",
 		Hosts: []string{"logstash:5044"},
 	}
@@ -175,10 +175,11 @@ func (p *Project) UpdateLogstashFleetOutput(profile *profile.Profile, kibanaClie
 		SSL: &kibana.AgentSSL{
 			Ca_authorities: []string{string(caFile)},
 			Certificate:    string(certFile),
-			Key:            string(keyFile)},
+			Key:            string(keyFile),
+		},
 	}
 
-	if err := kibanaClient.UpdateFleetOutput(logstashFleetOutput, FleetLogstshOutput); err != nil {
+	if err := kibanaClient.UpdateFleetOutput(logstashFleetOutput, FleetLogstashOutput); err != nil {
 		return fmt.Errorf("failed to update logstash fleet output: %w", err)
 	}
 
@@ -252,7 +253,7 @@ func (p *Project) CreateAgentPolicy(stackVersion string, kibanaClient *kibana.Cl
 	}
 
 	if logstashEnabled {
-		policy.DataOutputID = FleetLogstshOutput
+		policy.DataOutputID = FleetLogstashOutput
 	}
 
 	newPolicy, err := kibanaClient.CreatePolicy(policy)
