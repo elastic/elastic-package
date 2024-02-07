@@ -24,7 +24,7 @@ import (
 )
 
 const (
-	FLEET_LOGSTASH_OUTPUT = "fleet-logstash-output"
+	FleetLogstshOutput = "fleet-logstash-output"
 )
 
 // Project represents a serverless project
@@ -141,7 +141,7 @@ func (p *Project) DefaultFleetServerURL(kibanaClient *kibana.Client) (string, er
 func (p *Project) AddLogstashFleetOutput(profile *profile.Profile, kibanaClient *kibana.Client) error {
 	logstashFleetOutput := kibana.FleetOutput{
 		Name:  "logstash-output",
-		ID:    FLEET_LOGSTASH_OUTPUT,
+		ID:    FleetLogstshOutput,
 		Type:  "logstash",
 		Hosts: []string{"logstash:5044"},
 	}
@@ -168,7 +168,7 @@ func (p *Project) UpdateLogstashFleetOutput(profile *profile.Profile, kibanaClie
 
 	keyFile, err := os.ReadFile(filepath.Join(certsDir, "key.pem"))
 	if err != nil {
-		return fmt.Errorf("failed to read client certificate public key: %w", err)
+		return fmt.Errorf("failed to read client certificate private key: %w", err)
 	}
 
 	logstashFleetOutput := kibana.FleetOutput{
@@ -178,7 +178,7 @@ func (p *Project) UpdateLogstashFleetOutput(profile *profile.Profile, kibanaClie
 			Key:            string(keyFile)},
 	}
 
-	if err := kibanaClient.UpdateFleetOutput(logstashFleetOutput, FLEET_LOGSTASH_OUTPUT); err != nil {
+	if err := kibanaClient.UpdateFleetOutput(logstashFleetOutput, FleetLogstshOutput); err != nil {
 		return fmt.Errorf("failed to update logstash fleet output: %w", err)
 	}
 
@@ -252,7 +252,7 @@ func (p *Project) CreateAgentPolicy(stackVersion string, kibanaClient *kibana.Cl
 	}
 
 	if logstashEnabled {
-		policy.DataOutputID = FLEET_LOGSTASH_OUTPUT
+		policy.DataOutputID = FleetLogstshOutput
 	}
 
 	newPolicy, err := kibanaClient.CreatePolicy(policy)

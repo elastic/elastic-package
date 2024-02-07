@@ -35,23 +35,23 @@ func TestTLSCertsInitialization(t *testing.T) {
 	assert.NoError(t, verifyTLSCertificates(caCertFile, caCertFile, caKeyFile, ""))
 
 	for _, service := range tlsServices {
-		t.Run(service, func(t *testing.T) {
-			serviceCertFile := filepath.Join(profilePath, "certs", service, "cert.pem")
-			serviceKeyFile := filepath.Join(profilePath, "certs", service, "key.pem")
-			assert.NoError(t, verifyTLSCertificates(caCertFile, serviceCertFile, serviceKeyFile, service))
+		t.Run(service.Name, func(t *testing.T) {
+			serviceCertFile := filepath.Join(profilePath, "certs", service.Name, "cert.pem")
+			serviceKeyFile := filepath.Join(profilePath, "certs", service.Name, "key.pem")
+			assert.NoError(t, verifyTLSCertificates(caCertFile, serviceCertFile, serviceKeyFile, service.Name))
 		})
 	}
 
 	t.Run("service certificate individually recreated", func(t *testing.T) {
 		service := tlsServices[0]
-		serviceCertFile := filepath.Join(profilePath, "certs", service, "cert.pem")
-		serviceKeyFile := filepath.Join(profilePath, "certs", service, "key.pem")
-		assert.NoError(t, verifyTLSCertificates(caCertFile, serviceCertFile, serviceKeyFile, service))
+		serviceCertFile := filepath.Join(profilePath, "certs", service.Name, "cert.pem")
+		serviceKeyFile := filepath.Join(profilePath, "certs", service.Name, "key.pem")
+		assert.NoError(t, verifyTLSCertificates(caCertFile, serviceCertFile, serviceKeyFile, service.Name))
 
 		// Remove the certificate.
 		os.Remove(serviceCertFile)
 		os.Remove(serviceKeyFile)
-		assert.Error(t, verifyTLSCertificates(caCertFile, serviceCertFile, serviceKeyFile, service))
+		assert.Error(t, verifyTLSCertificates(caCertFile, serviceCertFile, serviceKeyFile, service.Name))
 
 		// Check it is created again and is validated by the same CA.
 		resources, err := initTLSCertificates(providerName, profilePath, tlsServices)
@@ -59,6 +59,6 @@ func TestTLSCertsInitialization(t *testing.T) {
 		_, err = resourceManager.Apply(resources)
 		require.NoError(t, err)
 
-		assert.NoError(t, verifyTLSCertificates(caCertFile, serviceCertFile, serviceKeyFile, service))
+		assert.NoError(t, verifyTLSCertificates(caCertFile, serviceCertFile, serviceKeyFile, service.Name))
 	})
 }

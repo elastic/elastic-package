@@ -16,19 +16,24 @@ import (
 	"github.com/elastic/elastic-package/internal/certs"
 )
 
-// tlsServices is the list of server TLS certificates that will be
-// created in the given path.
-var tlsServices = []string{
-	"elasticsearch",
-	"kibana",
-	"package-registry",
-	"fleet-server",
-	"logstash",
+type tlsService struct {
+	Name     string
+	IsClient bool
 }
 
-var tlsServicesServerless = []string{
-	"logstash",
-	"elastic-agent",
+// tlsServices is the list of server TLS certificates that will be
+// created in the given path.
+var tlsServices = []tlsService{
+	{Name: "elasticsearch"},
+	{Name: "kibana"},
+	{Name: "package-registry"},
+	{Name: "fleet-server"},
+	{Name: "logstash"},
+}
+
+var tlsServicesServerless = []tlsService{
+	{Name: "logstash"},
+	{Name: "elastic-agent", IsClient: true},
 }
 
 var (
@@ -48,7 +53,7 @@ var (
 // initTLSCertificates initializes all the certificates needed to run the services
 // managed by elastic-package stack. It includes a CA, and a pair of keys and
 // certificates for each service.
-func initTLSCertificates(fileProvider string, profilePath string, tlsServices []string) ([]resource.Resource, error) {
+func initTLSCertificates(fileProvider string, profilePath string, tlsServices []tlsService) ([]resource.Resource, error) {
 	certsDir := filepath.Join(profilePath, CertificatesDirectory)
 	caCertFile := filepath.Join(profilePath, string(CACertificateFile))
 	caKeyFile := filepath.Join(profilePath, string(CAKeyFile))
@@ -74,7 +79,7 @@ func initTLSCertificates(fileProvider string, profilePath string, tlsServices []
 	}
 
 	for _, service := range tlsServices {
-		certsDir := filepath.Join(certsDir, service)
+		certsDir := filepath.Join(certsDir, service.Name)
 		caFile := filepath.Join(certsDir, "ca-cert.pem")
 		certFile := filepath.Join(certsDir, "cert.pem")
 		keyFile := filepath.Join(certsDir, "key.pem")
@@ -139,23 +144,23 @@ func initCA(certFile, keyFile string) (*certs.Issuer, error) {
 	return ca, nil
 }
 
-func initServiceTLSCertificates(ca *certs.Issuer, caCertFile string, certFile, keyFile, service string) (*certs.Certificate, error) {
-	if err := verifyTLSCertificates(caCertFile, certFile, keyFile, service); err == nil {
+func initServiceTLSCertificates(ca *certs.Issuer, caCertFile string, certFile, keyFile string, service tlsService) (*certs.Certificate, error) {
+	if err := verifyTLSCertificates(caCertFile, certFile, keyFile, service.Name); err == nil {
 		// Certificate already present and valid, load it.
 		return certs.LoadCertificate(certFile, keyFile)
 	}
 
 	var cert *certs.Certificate
 	var err error
-	if service == "elastic-agent" {
-		cert, err = ca.IssueClient(certs.WithName(service))
+	if service.IsClient {
+		cert, err = ca.IssueClient(certs.WithName(service.Name))
 		if err != nil {
-			return nil, fmt.Errorf("error initializing certificate for %q", service)
+			return nil, fmt.Errorf("error initializing certificate for %q", service.Name)
 		}
 	} else {
-		cert, err = ca.Issue(certs.WithName(service))
+		cert, err = ca.Issue(certs.WithName(service.Name))
 		if err != nil {
-			return nil, fmt.Errorf("error initializing certificate for %q", service)
+			return nil, fmt.Errorf("error initializing certificate for %q", service.Name)
 		}
 	}
 

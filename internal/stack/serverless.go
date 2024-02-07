@@ -119,9 +119,11 @@ func (sp *serverlessProvider) createProject(settings projectSettings, options Op
 		return Config{}, fmt.Errorf("not all services are healthy: %w", err)
 	}
 
-	err = project.AddLogstashFleetOutput(sp.profile, sp.kibanaClient)
-	if err != nil {
-		return Config{}, err
+	if settings.LogstashEnabled {
+		err = project.AddLogstashFleetOutput(sp.profile, sp.kibanaClient)
+		if err != nil {
+			return Config{}, err
+		}
 	}
 
 	return config, nil
