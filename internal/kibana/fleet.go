@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"time"
 )
 
 type FleetOutput struct {
@@ -94,5 +95,54 @@ func (c *Client) AddFleetOutput(fo FleetOutput) error {
 		return fmt.Errorf("could not add fleet output; API status code = %d; response body = %s", statusCode, respBody)
 	}
 
+	return nil
+}
+
+func (c *Client) SetAgentLogLevel(agentID, level string) error {
+	path := fmt.Sprintf("%s/agents/%s/actions", FleetAPI, agentID)
+
+	type fleetAction struct {
+		Action struct {
+			Type string `json:"type"`
+			Data struct {
+				LogLevel string `json:"log_level"`
+			} `json:"data"`
+		} `json:"action"`
+	}
+
+	action := fleetAction{}
+	action.Action.Type = "SETTINGS"
+	action.Action.Data.LogLevel = level
+
+	reqBody, err := json.Marshal(action)
+	if err != nil {
+		return fmt.Errorf("could not convert action settingr (request) to JSON: %w", err)
+	}
+
+	statusCode, respBody, err := c.post(path, reqBody)
+	if err != nil {
+		return fmt.Errorf("could not update agent settings: %w", err)
+	}
+
+	if statusCode != http.StatusOK {
+		return fmt.Errorf("could not set new log level; API status code = %d; response body = %s", statusCode, respBody)
+	}
+
+	type actionResponse struct {
+		ID        string    `json:"id"`
+		CreatedAt time.Time `json:"created_at"`
+		Type      string    `json:"type"`
+		Data      struct {
+			LogLevel string `json:"log_level"`
+		} `json:"data"`
+		Agents []string `json:"agents"`
+	}
+	var resp struct {
+		Item actionResponse `json:"item"`
+	}
+
+	if err := json.Unmarshal(respBody, &resp); err != nil {
+		return fmt.Errorf("could not convert actions agent (response) to JSON: %w", err)
+	}
 	return nil
 }
