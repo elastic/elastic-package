@@ -887,16 +887,30 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 		return nil
 	}
 
+	origAgent := agent
+	origLogLevel := ""
 	switch {
-	case r.options.RunTearDown || r.options.RunTestsOnly:
+	case r.options.RunTearDown:
 		logger.Debug("Skip assiging log level debut to agent")
+		agentFromFile := kibana.Agent{}
+		agentPath := filepath.Join(r.locationManager.ServiceSetupDir(), setupAgentFileName)
+		logger.Debugf("Reading agent from file %s", agentPath)
+		contents, err := os.ReadFile(agentPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read agent info %q: %w", agentPath, err)
+		}
+		err = json.Unmarshal(contents, &agentFromFile)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode agent %q: %w", agentPath, err)
+		}
+		logger.Debugf("Got agent from file: %q - %q", agentFromFile.ID, agentFromFile.LocalMetadata.Elastic.Agent.LogLevel)
+		origLogLevel = agentFromFile.LocalMetadata.Elastic.Agent.LogLevel
 	default:
 		logger.Debug("Set Debug log level to agent")
-		origAgent := agent
-		origLogLevel := agent.LocalMetadata.Elastic.Agent.LogLevel
+		origLogLevel = agent.LocalMetadata.Elastic.Agent.LogLevel
 		err = r.options.KibanaClient.SetAgentLogLevel(agent.ID, "debug")
 		if err != nil {
-			return result.WithError(fmt.Errorf("error setting log level debug for agent %s: %w", agent.ID, err))
+			return nil, fmt.Errorf("error setting log level debug for agent %s: %w", agent.ID, err)
 		}
 	}
 	r.resetAgentLogLevelHandler = func() error {
@@ -1027,7 +1041,7 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 		if err != nil {
 			return nil, fmt.Errorf("failed to write origin policy JSON: %w", err)
 		}
-		err = os.WriteFile(filepath.Join(r.locationManager.ServiceSetupDir(), setupAgentFileName), origPolicyBytes, 0644)
+		err = os.WriteFile(filepath.Join(r.locationManager.ServiceSetupDir(), setupAgentFileName), agentBytes, 0644)
 		if err != nil {
 			return nil, fmt.Errorf("failed to write orign agent JSON: %w", err)
 		}
