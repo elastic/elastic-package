@@ -46,6 +46,7 @@ const (
 
 	setupNewPolicyFileName  = "policy-setup.json"
 	setupOrigPolicyFileName = "orig-policy.json"
+	setupAgentFileName      = "agent.json"
 )
 
 func init() {
@@ -877,27 +878,32 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 			Revision: agent.PolicyRevision,
 		}
 	}
+	// Assign policy to agent
+	r.resetAgentPolicyHandler = func() error {
+		logger.Debug("reassigning original policy back to agent...")
+		if err := r.options.KibanaClient.AssignPolicyToAgent(agent, origPolicy); err != nil {
+			return fmt.Errorf("error reassigning original policy to agent: %w", err)
+		}
+		return nil
+	}
 
-	logger.Debug("Set Debug log level to agent")
-	origLogLevel := agent.LocalMetadata.Elastic.Agent.LogLevel
-	err = r.options.KibanaClient.SetAgentLogLevel(agent.ID, "debug")
-	if err != nil {
-		return result.WithError(fmt.Errorf("error setting log level debug for agent %s: %w", agent.ID, err))
+	switch {
+	case r.options.RunTearDown || r.options.RunTestsOnly:
+		logger.Debug("Skip assiging log level debut to agent")
+	default:
+		logger.Debug("Set Debug log level to agent")
+		origAgent := agent
+		origLogLevel := agent.LocalMetadata.Elastic.Agent.LogLevel
+		err = r.options.KibanaClient.SetAgentLogLevel(agent.ID, "debug")
+		if err != nil {
+			return result.WithError(fmt.Errorf("error setting log level debug for agent %s: %w", agent.ID, err))
+		}
 	}
 	r.resetAgentLogLevelHandler = func() error {
 		logger.Debugf("reassigning original log level %q back to agent...", origLogLevel)
 
 		if err := r.options.KibanaClient.SetAgentLogLevel(agent.ID, origLogLevel); err != nil {
 			return fmt.Errorf("error reassigning original log level to agent: %w", err)
-		}
-		return nil
-	}
-
-	// Assign policy to agent
-	r.resetAgentPolicyHandler = func() error {
-		logger.Debug("reassigning original policy back to agent...")
-		if err := r.options.KibanaClient.AssignPolicyToAgent(agent, origPolicy); err != nil {
-			return fmt.Errorf("error reassigning original policy to agent: %w", err)
 		}
 		return nil
 	}
@@ -1008,13 +1014,22 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 			return nil, fmt.Errorf("failed to marshall policy: %w", err)
 		}
 
+		agentBytes, err := json.Marshal(origAgent)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshall agent: %w", err)
+		}
+
 		err = os.WriteFile(filepath.Join(r.locationManager.ServiceSetupDir(), setupNewPolicyFileName), policyBytes, 0644)
 		if err != nil {
 			return nil, fmt.Errorf("failed to write policy JSON: %w", err)
 		}
 		err = os.WriteFile(filepath.Join(r.locationManager.ServiceSetupDir(), setupOrigPolicyFileName), origPolicyBytes, 0644)
 		if err != nil {
-			return nil, fmt.Errorf("failed to write orign policy JSON: %w", err)
+			return nil, fmt.Errorf("failed to write origin policy JSON: %w", err)
+		}
+		err = os.WriteFile(filepath.Join(r.locationManager.ServiceSetupDir(), setupAgentFileName), origPolicyBytes, 0644)
+		if err != nil {
+			return nil, fmt.Errorf("failed to write orign agent JSON: %w", err)
 		}
 	}
 
