@@ -45,7 +45,7 @@ func (c *Client) DefaultFleetServerURL() (string, error) {
 	return "", errors.New("could not find the fleet server URL for this project")
 }
 
-func (c *Client) SetLogLevelAgent(agentID, level string) error {
+func (c *Client) SetAgentLogLevel(agentID, level string) error {
 	path := fmt.Sprintf("%s/agents/%s/actions", FleetAPI, agentID)
 
 	type fleetAction struct {

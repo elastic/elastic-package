@@ -642,14 +642,14 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 
 	logger.Debug("Set Debug log level to agent")
 	origLogLevel := agent.LocalMetadata.Elastic.Agent.LogLevel
-	err = r.options.KibanaClient.SetLogLevelAgent(agent.ID, "debug")
+	err = r.options.KibanaClient.SetAgentLogLevel(agent.ID, "debug")
 	if err != nil {
 		return result.WithError(fmt.Errorf("error setting log level debug for agent %s: %w", agent.ID, err))
 	}
 	r.resetAgentLogLevelHandler = func() error {
 		logger.Debugf("reassigning original log level %q back to agent...", origLogLevel)
 
-		if err := r.options.KibanaClient.SetLogLevelAgent(agent.ID, origLogLevel); err != nil {
+		if err := r.options.KibanaClient.SetAgentLogLevel(agent.ID, origLogLevel); err != nil {
 			return fmt.Errorf("error reassigning original log level to agent: %w", err)
 		}
 		return nil
