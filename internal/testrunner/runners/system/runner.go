@@ -110,11 +110,12 @@ type runner struct {
 	locationManager *locations.LocationManager
 
 	// Execution order of following handlers is defined in runner.TearDown() method.
-	deleteTestPolicyHandler func() error
-	deletePackageHandler    func() error
-	resetAgentPolicyHandler func() error
-	shutdownServiceHandler  func() error
-	wipeDataStreamHandler   func() error
+	deleteTestPolicyHandler   func() error
+	deletePackageHandler      func() error
+	resetAgentPolicyHandler   func() error
+	resetAgentLogLevelHandler func() error
+	shutdownServiceHandler    func() error
+	wipeDataStreamHandler     func() error
 }
 
 // Ensures that runner implements testrunner.TestRunner interface
@@ -292,6 +293,13 @@ func (r *runner) tearDownTest() error {
 			return err
 		}
 		r.resetAgentPolicyHandler = nil
+	}
+
+	if r.resetAgentLogLevelHandler != nil {
+		if err := r.resetAgentLogLevelHandler(); err != nil {
+			return err
+		}
+		r.resetAgentLogLevelHandler = nil
 	}
 
 	if r.deleteTestPolicyHandler != nil {
@@ -868,6 +876,21 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 			ID:       agent.PolicyID,
 			Revision: agent.PolicyRevision,
 		}
+	}
+
+	logger.Debug("Set Debug log level to agent")
+	origLogLevel := agent.LocalMetadata.Elastic.Agent.LogLevel
+	err = r.options.KibanaClient.SetAgentLogLevel(agent.ID, "debug")
+	if err != nil {
+		return result.WithError(fmt.Errorf("error setting log level debug for agent %s: %w", agent.ID, err))
+	}
+	r.resetAgentLogLevelHandler = func() error {
+		logger.Debugf("reassigning original log level %q back to agent...", origLogLevel)
+
+		if err := r.options.KibanaClient.SetAgentLogLevel(agent.ID, origLogLevel); err != nil {
+			return fmt.Errorf("error reassigning original log level to agent: %w", err)
+		}
+		return nil
 	}
 
 	// Assign policy to agent

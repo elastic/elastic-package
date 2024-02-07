@@ -187,6 +187,14 @@ func TestStatusFormatAndPrint(t *testing.T) {
 
 			assertOutputWithFile(t, c.expected, buf.String())
 		})
+
+		t.Run(c.title+"/JSON", func(t *testing.T) {
+			var buf bytes.Buffer
+			err := printJSON(c.pkgStatus, &buf, c.extraParameters)
+			require.NoError(t, err)
+
+			assertOutputWithFile(t, c.expected+".json", buf.String())
+		})
 	}
 }
 
