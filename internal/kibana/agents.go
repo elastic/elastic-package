@@ -29,6 +29,11 @@ type Agent struct {
 		Host struct {
 			Name string `json:"name"`
 		} `json:"host"`
+		Elastic struct {
+			Agent struct {
+				LogLevel string `json:"log_level"`
+			} `json:"agent"`
+		} `json:"elastic"`
 	} `json:"local_metadata"`
 }
 
