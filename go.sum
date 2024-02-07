@@ -35,8 +35,8 @@ github.com/ProtonMail/go-crypto v0.0.0-20230828082145-3c4c8a2d2371 h1:kkhsdkhsCv
 github.com/ProtonMail/go-crypto v0.0.0-20230828082145-3c4c8a2d2371/go.mod h1:EjAoLdwvbIOoOQr3ihjnSoLZRtE8azugULFRteWMNc0=
 github.com/ProtonMail/go-mime v0.0.0-20230322103455-7d82a3887f2f h1:tCbYj7/299ekTTXpdwKYF8eBlsYsDVoggDAuAjoK66k=
 github.com/ProtonMail/go-mime v0.0.0-20230322103455-7d82a3887f2f/go.mod h1:gcr0kNtGBqin9zDW9GOHcVntrwnjrK+qdJ06mWYBybw=
-github.com/ProtonMail/gopenpgp/v2 v2.7.4 h1:Vz/8+HViFFnf2A6XX8JOvZMrA6F5puwNvvF21O1mRlo=
-github.com/ProtonMail/gopenpgp/v2 v2.7.4/go.mod h1:IhkNEDaxec6NyzSI0PlxapinnwPVIESk8/76da3Ct3g=
+github.com/ProtonMail/gopenpgp/v2 v2.7.5 h1:STOY3vgES59gNgoOt2w0nyHBjKViB/qSg7NjbQWPJkA=
+github.com/ProtonMail/gopenpgp/v2 v2.7.5/go.mod h1:IhkNEDaxec6NyzSI0PlxapinnwPVIESk8/76da3Ct3g=
 github.com/andybalholm/brotli v1.0.1/go.mod h1:loMXtMfwqflxFJPmdbJO0a3KNoPuLBgiu3qAvBg8x/Y=
 github.com/andybalholm/brotli v1.0.4 h1:V7DdXeJtZscaqfNuAdSRuRFzuiKlHSC/Zh3zl9qY3JY=
 github.com/andybalholm/brotli v1.0.4/go.mod h1:fO7iG3H7G2nSZ7m0zPUDn85XEX2GTukHGRSepvi9Eig=
