@@ -164,9 +164,19 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 			return fmt.Errorf("cannot determine if package has data streams: %w", err)
 		}
 
-		configFileFlag, _ := cmd.Flags().GetString(cobraext.ConfigFileFlagName)
-		if configFileFlag != "" && !filepath.IsAbs(configFileFlag) {
-			return fmt.Errorf("config file path must be an absolute path: %s", configFileFlag)
+		configFileFlag, err := cmd.Flags().GetString(cobraext.ConfigFileFlagName)
+		if err != nil {
+			return cobraext.FlagParsingError(err, cobraext.ConfigFileFlagName)
+		}
+		if configFileFlag != "" {
+			absPath, err := filepath.Abs(configFileFlag)
+			if err != nil {
+				return fmt.Errorf("cannot obtain the absolute path for config file path: %s", configFileFlag)
+			}
+			if _, err := os.Stat(absPath); err != nil {
+				return fmt.Errorf("can't find config file %s: %w", configFileFlag, err)
+			}
+			configFileFlag = absPath
 		}
 		runSetup, _ := cmd.Flags().GetBool(cobraext.SetupFlagName)
 		runTeardown, _ := cmd.Flags().GetBool(cobraext.TearDownFlagName)
