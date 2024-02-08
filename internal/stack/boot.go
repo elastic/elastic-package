@@ -93,7 +93,7 @@ func BootUp(options Options) error {
 		// elastic-agent failed.
 		if onlyElasticAgentFailed(options) {
 			sleepTime := 10 * time.Second
-			fmt.Println("Elastic Agent failed to start, trying again in %s.", sleepTime)
+			fmt.Printf("Elastic Agent failed to start, trying again in %s.\n", sleepTime)
 			time.Sleep(sleepTime)
 			err = dockerComposeUp(options)
 		}
