@@ -232,7 +232,7 @@ func (p *Project) getFleetHealth(ctx context.Context) error {
 	return nil
 }
 
-func (p *Project) CreateAgentPolicy(stackVersion string, kibanaClient *kibana.Client, logstashEnabled bool) error {
+func (p *Project) CreateAgentPolicy(stackVersion string, kibanaClient *kibana.Client, outputId string) error {
 	systemPackages, err := registry.Production.Revisions("system", registry.SearchOptions{
 		KibanaVersion: strings.TrimSuffix(stackVersion, kibana.SNAPSHOT_SUFFIX),
 	})
@@ -250,10 +250,7 @@ func (p *Project) CreateAgentPolicy(stackVersion string, kibanaClient *kibana.Cl
 		Description:       "Policy created by elastic-package",
 		Namespace:         "default",
 		MonitoringEnabled: []string{"logs", "metrics"},
-	}
-
-	if logstashEnabled {
-		policy.DataOutputID = FleetLogstashOutput
+		DataOutputID:      outputId,
 	}
 
 	newPolicy, err := kibanaClient.CreatePolicy(policy)

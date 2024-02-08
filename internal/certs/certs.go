@@ -328,8 +328,8 @@ func checkExpectedCertUsage(cert *x509.Certificate) error {
 	if !cert.IsCA {
 		// Required for Chrome in OSX to show the "Proceed anyway" link.
 		// https://stackoverflow.com/a/64309893/28855
-		if !containsExtKeyUsage(cert.ExtKeyUsage, x509.ExtKeyUsageServerAuth) {
-			return fmt.Errorf("missing server auth key usage in certificate")
+		if !(containsExtKeyUsage(cert.ExtKeyUsage, x509.ExtKeyUsageServerAuth) || containsExtKeyUsage(cert.ExtKeyUsage, x509.ExtKeyUsageClientAuth)) {
+			return fmt.Errorf("missing either of server/client auth key usage in certificate")
 		}
 	}
 

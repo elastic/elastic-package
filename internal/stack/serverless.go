@@ -269,8 +269,13 @@ func (sp *serverlessProvider) BootUp(options Options) error {
 			return fmt.Errorf("failed to retrieve latest project created: %w", err)
 		}
 
+		outputID := ""
+		if settings.LogstashEnabled {
+			outputID = serverless.FleetLogstashOutput
+		}
+
 		logger.Infof("Creating agent policy")
-		err = project.CreateAgentPolicy(options.StackVersion, sp.kibanaClient, settings.LogstashEnabled)
+		err = project.CreateAgentPolicy(options.StackVersion, sp.kibanaClient, outputID)
 
 		if err != nil {
 			return fmt.Errorf("failed to create agent policy: %w", err)
