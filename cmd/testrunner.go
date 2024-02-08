@@ -18,6 +18,7 @@ import (
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/kibana"
+	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/signal"
 	"github.com/elastic/elastic-package/internal/stack"
@@ -286,6 +287,11 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 			}
 
 			fmt.Printf("Running tests per stages (technical preview)\n")
+		}
+		if runTearDown || runTestsOnly {
+			if variantFlag != "" {
+				logger.Warnf("Variant information is retrieved from service setup folder, ignored this flag: %s", variantFlag)
+			}
 		}
 
 		var results []testrunner.TestResult

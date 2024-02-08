@@ -44,9 +44,10 @@ const (
 	allFieldsBody = `{"fields": ["*"]}`
 	DevDeployDir  = "_dev/deploy"
 
-	setupNewPolicyFileName  = "policy-setup.json"
-	setupOrigPolicyFileName = "orig-policy.json"
-	setupAgentFileName      = "agent.json"
+	setupNewPolicyFileName      = "policy-setup.json"
+	setupOrigPolicyFileName     = "orig-policy.json"
+	setupAgentFileName          = "agent.json"
+	setupServiceOptionsFileName = "service-options.json"
 )
 
 func init() {
@@ -170,11 +171,14 @@ func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, e
 		return result.WithError(err)
 	}
 
-	if len(r.variants) > 1 {
-		return result.WithError(fmt.Errorf("a variant must be selected or trigger the test in no-variant mode (available variants: %s)", strings.Join(r.variants, ", ")))
-	}
-	if len(r.variants) == 0 {
-		logger.Debug("No variant mode")
+	if r.options.RunSetup {
+		// variant information in runTestOnly or runTearDown modes is retrieved from serviceOptions (file in setup dir)
+		if len(r.variants) > 1 {
+			return result.WithError(fmt.Errorf("a variant must be selected or trigger the test in no-variant mode (available variants: %s)", strings.Join(r.variants, ", ")))
+		}
+		if len(r.variants) == 0 {
+			logger.Debug("No variant mode")
+		}
 	}
 
 	_, err := os.Stat(r.locationManager.ServiceSetupDir())
@@ -189,12 +193,34 @@ func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, e
 		return result.WithError(fmt.Errorf("failed to run --tear-down, setup not found"))
 	}
 
-	serviceOptions, ctxt, err := r.createConfigService(r.variants[0])
+	var serviceOptions servicedeployer.FactoryOptions
+	var ctxt servicedeployer.ServiceContext
+	switch {
+	case r.options.RunSetup:
+		serviceOptions = r.createServiceOptions(r.variants[0])
+	default:
+		serviceOptionsPath := filepath.Join(r.locationManager.ServiceSetupDir(), setupServiceOptionsFileName)
+		logger.Debugf("Reading service options from file %s", serviceOptionsPath)
+		contents, err := os.ReadFile(serviceOptionsPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to service options %q: %w", serviceOptionsPath, err)
+		}
+		err = json.Unmarshal(contents, &serviceOptions)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode service options %q: %w", serviceOptionsPath, err)
+		}
+		if serviceOptions.Variant != "" {
+			logger.Infof("Using variant set during setup: %s", serviceOptions.Variant)
+		}
+		serviceOptions.RunTearDown = r.options.RunTearDown
+		serviceOptions.RunTestsOnly = r.options.RunTestsOnly
+	}
+	ctxt, err = r.createServiceContext(serviceOptions)
 	if err != nil {
 		return result.WithError(err)
 	}
 
-	testConfig, err := newConfig(r.options.ConfigFilePath, ctxt, r.variants[0])
+	testConfig, err := newConfig(r.options.ConfigFilePath, ctxt, serviceOptions.Variant)
 	if err != nil {
 		return nil, fmt.Errorf("unable to load system test case file '%s': %w", r.options.ConfigFilePath, err)
 	}
@@ -251,8 +277,8 @@ func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, e
 	return result.WithSuccess()
 }
 
-func (r *runner) createConfigService(variantName string) (servicedeployer.FactoryOptions, servicedeployer.ServiceContext, error) {
-	serviceOptions := servicedeployer.FactoryOptions{
+func (r *runner) createServiceOptions(variantName string) servicedeployer.FactoryOptions {
+	return servicedeployer.FactoryOptions{
 		Profile:            r.options.Profile,
 		PackageRootPath:    r.options.PackageRootPath,
 		DataStreamRootPath: r.dataStreamPath,
@@ -263,7 +289,8 @@ func (r *runner) createConfigService(variantName string) (servicedeployer.Factor
 		RunTearDown:        r.options.RunTearDown,
 		RunTestsOnly:       r.options.RunTestsOnly,
 	}
-
+}
+func (r *runner) createServiceContext(serviceOptions servicedeployer.FactoryOptions) (servicedeployer.ServiceContext, error) {
 	var ctxt servicedeployer.ServiceContext
 	ctxt.Name = r.options.TestFolder.Package
 	ctxt.Logs.Folder.Local = r.locationManager.ServiceLogDir()
@@ -272,11 +299,11 @@ func (r *runner) createConfigService(variantName string) (servicedeployer.Factor
 
 	outputDir, err := servicedeployer.CreateOutputDir(r.locationManager, ctxt.Test.RunID)
 	if err != nil {
-		return servicedeployer.FactoryOptions{}, servicedeployer.ServiceContext{}, fmt.Errorf("could not create output dir for terraform deployer %w", err)
+		return servicedeployer.ServiceContext{}, fmt.Errorf("could not create output dir for terraform deployer %w", err)
 	}
 	ctxt.OutputDir = outputDir
 
-	return serviceOptions, ctxt, nil
+	return ctxt, nil
 }
 
 // TearDown method doesn't perform any global action as the "tear down" is executed per test case.
@@ -455,7 +482,8 @@ func (r *runner) run() (results []testrunner.TestResult, err error) {
 }
 
 func (r *runner) runTestPerVariant(result *testrunner.ResultComposer, cfgFile, variantName string) ([]testrunner.TestResult, error) {
-	serviceOptions, ctxt, err := r.createConfigService(variantName)
+	serviceOptions := r.createServiceOptions(variantName)
+	ctxt, err := r.createServiceContext(serviceOptions)
 	if err != nil {
 		return result.WithError(err)
 	}
@@ -1034,6 +1062,11 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 			return nil, fmt.Errorf("failed to marshall agent: %w", err)
 		}
 
+		serviceOptionBytes, err := json.Marshal(serviceOptions)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshall service options: %w", err)
+		}
+
 		err = os.WriteFile(filepath.Join(r.locationManager.ServiceSetupDir(), setupNewPolicyFileName), policyBytes, 0644)
 		if err != nil {
 			return nil, fmt.Errorf("failed to write policy JSON: %w", err)
@@ -1045,6 +1078,10 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 		err = os.WriteFile(filepath.Join(r.locationManager.ServiceSetupDir(), setupAgentFileName), agentBytes, 0644)
 		if err != nil {
 			return nil, fmt.Errorf("failed to write agent JSON: %w", err)
+		}
+		err = os.WriteFile(filepath.Join(r.locationManager.ServiceSetupDir(), setupServiceOptionsFileName), serviceOptionBytes, 0644)
+		if err != nil {
+			return nil, fmt.Errorf("failed to write service options JSON: %w", err)
 		}
 	}
 
