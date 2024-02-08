@@ -89,7 +89,6 @@ func setupTestCommand() *cobraext.Command {
 			Args:  cobra.NoArgs,
 			RunE:  action,
 		}
-
 		if runner.CanRunPerDataStream() {
 			testTypeCmd.Flags().StringSliceP(cobraext.DataStreamsFlagName, "d", nil, cobraext.DataStreamsFlagDescription)
 		}
@@ -165,23 +164,32 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 			return fmt.Errorf("cannot determine if package has data streams: %w", err)
 		}
 
-		configFileFlag, err := cmd.Flags().GetString(cobraext.ConfigFileFlagName)
-		if err != nil {
-			return cobraext.FlagParsingError(err, cobraext.ConfigFileFlagName)
-		}
-		if configFileFlag != "" {
-			absPath, err := filepath.Abs(configFileFlag)
+		configFileFlag := ""
+		runSetup := false
+		runTearDown := false
+		runTestsOnly := false
+
+		if runner.CanRunSetupTeardownIndependent() && cmd.Flags().Lookup(cobraext.ConfigFileFlagName) != nil {
+			// not all test types defined these flags
+			configFileFlag, err = cmd.Flags().GetString(cobraext.ConfigFileFlagName)
 			if err != nil {
-				return fmt.Errorf("cannot obtain the absolute path for config file path: %s", configFileFlag)
+				return cobraext.FlagParsingError(err, cobraext.ConfigFileFlagName)
 			}
-			if _, err := os.Stat(absPath); err != nil {
-				return fmt.Errorf("can't find config file %s: %w", configFileFlag, err)
+			if configFileFlag != "" {
+				absPath, err := filepath.Abs(configFileFlag)
+				if err != nil {
+					return fmt.Errorf("cannot obtain the absolute path for config file path: %s", configFileFlag)
+				}
+				if _, err := os.Stat(absPath); err != nil {
+					return fmt.Errorf("can't find config file %s: %w", configFileFlag, err)
+				}
+				configFileFlag = absPath
 			}
-			configFileFlag = absPath
+
+			runSetup, _ = cmd.Flags().GetBool(cobraext.SetupFlagName)
+			runTearDown, _ = cmd.Flags().GetBool(cobraext.TearDownFlagName)
+			runTestsOnly, _ = cmd.Flags().GetBool(cobraext.NoProvisionFlagName)
 		}
-		runSetup, _ := cmd.Flags().GetBool(cobraext.SetupFlagName)
-		runTearDown, _ := cmd.Flags().GetBool(cobraext.TearDownFlagName)
-		runTestsOnly, _ := cmd.Flags().GetBool(cobraext.NoProvisionFlagName)
 
 		signal.Enable()
 
