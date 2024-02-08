@@ -46,4 +46,8 @@ go run gotest.tools/gotestsum --junitfile "$(PWD)/TEST-unit.xml" -- -count=1 ./.
 $EXITCODE=$LASTEXITCODE
 $ErrorActionPreference = "Stop"
 
+mkdir -p build/test-results/
+
+cp "$(PWD)/TEST-unit.xml" build/test-results/TEST-unit.xml
+
 Exit $EXITCODE
