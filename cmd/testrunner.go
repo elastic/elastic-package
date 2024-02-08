@@ -179,7 +179,7 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 			configFileFlag = absPath
 		}
 		runSetup, _ := cmd.Flags().GetBool(cobraext.SetupFlagName)
-		runTeardown, _ := cmd.Flags().GetBool(cobraext.TearDownFlagName)
+		runTearDown, _ := cmd.Flags().GetBool(cobraext.TearDownFlagName)
 		runTestsOnly, _ := cmd.Flags().GetBool(cobraext.NoProvisionFlagName)
 
 		signal.Enable()
@@ -274,7 +274,7 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 			}
 		}
 
-		if runSetup || runTeardown || runTestsOnly {
+		if runSetup || runTearDown || runTestsOnly {
 			if configFileFlag == "" {
 				return fmt.Errorf("missing config file path: one of --setup , --no-provision or --tear-down flags is enabled")
 			}
@@ -303,7 +303,7 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 				CoverageType:       testCoverageFormat,
 				ConfigFilePath:     configFileFlag,
 				RunSetup:           runSetup,
-				RunTearDown:        runTeardown,
+				RunTearDown:        runTearDown,
 				RunTestsOnly:       runTestsOnly,
 			})
 
