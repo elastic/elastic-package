@@ -253,6 +253,7 @@ func (sp *serverlessProvider) BootUp(options Options) error {
 
 	var project *serverless.Project
 
+	isNewProject := false
 	project, err = sp.currentProject(config)
 	switch err {
 	default:
@@ -280,6 +281,7 @@ func (sp *serverlessProvider) BootUp(options Options) error {
 		if err != nil {
 			return fmt.Errorf("failed to create agent policy: %w", err)
 		}
+		isNewProject = true
 
 		// TODO: Ensuring a specific GeoIP database would make tests reproducible
 		// Currently geo ip files would be ignored when running pipeline tests
@@ -294,16 +296,9 @@ func (sp *serverlessProvider) BootUp(options Options) error {
 		return fmt.Errorf("failed to start local services: %w", err)
 	}
 
-	if settings.LogstashEnabled {
-		//Re-create clients if running on an existing project
-		if sp.kibanaClient == nil {
-			if err = sp.createClients(project); err != nil {
-				return err
-			}
-		}
-		// Updating the output with ssl certificates created in startLocalServices
-		// This is needed because the client ssl certificates are updated for every
-		// call to stack up even though the project is already setup.
+	// Updating the output with ssl certificates created in startLocalServices
+	// The certificates are updated only when a new project is created and logstash is enabled
+	if isNewProject && settings.LogstashEnabled {
 		err = project.UpdateLogstashFleetOutput(sp.profile, sp.kibanaClient)
 		if err != nil {
 			return err

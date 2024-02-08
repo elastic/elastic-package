@@ -129,7 +129,7 @@ func certWriteToResource(resources []resource.Resource, fileProvider string, pro
 }
 
 func initCA(certFile, keyFile string) (*certs.Issuer, error) {
-	if err := verifyTLSCertificates(certFile, certFile, keyFile, ""); err == nil {
+	if err := verifyTLSCertificates(certFile, certFile, keyFile, tlsService{}); err == nil {
 		// Valid CA is already present, load it to check service certificates.
 		ca, err := certs.LoadCA(certFile, keyFile)
 		if err != nil {
@@ -145,7 +145,7 @@ func initCA(certFile, keyFile string) (*certs.Issuer, error) {
 }
 
 func initServiceTLSCertificates(ca *certs.Issuer, caCertFile string, certFile, keyFile string, service tlsService) (*certs.Certificate, error) {
-	if err := verifyTLSCertificates(caCertFile, certFile, keyFile, service.Name); err == nil {
+	if err := verifyTLSCertificates(caCertFile, certFile, keyFile, service); err == nil {
 		// Certificate already present and valid, load it.
 		return certs.LoadCertificate(certFile, keyFile)
 	}
@@ -167,7 +167,7 @@ func initServiceTLSCertificates(ca *certs.Issuer, caCertFile string, certFile, k
 	return cert, nil
 }
 
-func verifyTLSCertificates(caFile, certFile, keyFile, name string) error {
+func verifyTLSCertificates(caFile, certFile, keyFile string, service tlsService) error {
 	cert, err := certs.LoadCertificate(certFile, keyFile)
 	if err != nil {
 		return err
@@ -180,9 +180,16 @@ func verifyTLSCertificates(caFile, certFile, keyFile, name string) error {
 	options := x509.VerifyOptions{
 		Roots: certPool,
 	}
-	if name != "" {
-		options.DNSName = name
+	if service.Name != "" {
+		options.DNSName = service.Name
 	}
+
+	// By default ExtKeyUsageServerAuth is add to KeyUsages
+	// See https://github.com/golang/go/blob/master/src/crypto/x509/verify.go#L193-L195
+	if service.IsClient {
+		options.KeyUsages = []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth}
+	}
+
 	err = cert.Verify(options)
 	if err != nil {
 		return err

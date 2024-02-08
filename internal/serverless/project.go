@@ -173,9 +173,9 @@ func (p *Project) UpdateLogstashFleetOutput(profile *profile.Profile, kibanaClie
 
 	logstashFleetOutput := kibana.FleetOutput{
 		SSL: &kibana.AgentSSL{
-			Ca_authorities: []string{string(caFile)},
-			Certificate:    string(certFile),
-			Key:            string(keyFile),
+			CertificateAuthorities: []string{string(caFile)},
+			Certificate:            string(certFile),
+			Key:                    string(keyFile),
 		},
 	}
 

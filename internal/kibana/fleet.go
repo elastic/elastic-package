@@ -21,9 +21,9 @@ type FleetOutput struct {
 }
 
 type AgentSSL struct {
-	Ca_authorities []string `json:"certificate_authorities,omitempty"`
-	Certificate    string   `json:"certificate,omitempty"`
-	Key            string   `json:"key,omitempty"`
+	CertificateAuthorities []string `json:"certificate_authorities,omitempty"`
+	Certificate            string   `json:"certificate,omitempty"`
+	Key                    string   `json:"key,omitempty"`
 }
 
 // DefaultFleetServerURL returns the default Fleet server configured in Kibana
