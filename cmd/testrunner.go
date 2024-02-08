@@ -284,6 +284,8 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 			if len(testFolders) != 1 {
 				return fmt.Errorf("wrong number of test folders (expected 1): %d", len(testFolders))
 			}
+
+			fmt.Printf("Running tests per stages (technical preview)\n")
 		}
 
 		var results []testrunner.TestResult
