@@ -26,6 +26,12 @@ import (
 	"time"
 )
 
+const (
+	IssueCertTypeCA = iota
+	IssueCertTypeService
+	IssueCertTypeClient
+)
+
 // Certificate contains the key and certificate for an issued certificate.
 type Certificate struct {
 	key    crypto.Signer
@@ -100,7 +106,7 @@ func LoadCA(certFile, keyFile string) (*Issuer, error) {
 }
 
 func newCA(parent *Issuer) (*Issuer, error) {
-	cert, err := New(true, false, parent)
+	cert, err := New(IssueCertTypeCA, parent)
 	if err != nil {
 		return nil, err
 	}
@@ -115,19 +121,19 @@ func (i *Issuer) IssueIntermediate() (*Issuer, error) {
 // Issue issues a certificate with the given options. This certificate
 // can be used to configure a TLS server.
 func (i *Issuer) Issue(opts ...Option) (*Certificate, error) {
-	return New(false, false, i, opts...)
+	return New(IssueCertTypeService, i, opts...)
 }
 
 // IssueClient issues a certificate with the given options. This certificate
 // can be used to configure a TLS client.
 func (i *Issuer) IssueClient(opts ...Option) (*Certificate, error) {
-	return New(false, true, i, opts...)
+	return New(IssueCertTypeClient, i, opts...)
 }
 
 // NewSelfSignedCert issues a self-signed certificate with the given options.
 // This certificate can be used to configure a TLS server.
 func NewSelfSignedCert(opts ...Option) (*Certificate, error) {
-	return New(false, false, nil, opts...)
+	return New(IssueCertTypeService, nil, opts...)
 }
 
 // Option is a function that can modify a certificate template. To be used
@@ -146,7 +152,7 @@ func WithName(name string) Option {
 
 // New is the main helper to create a certificate, it is recommended to
 // use the more specific ones for specific use cases.
-func New(isCA, isClient bool, issuer *Issuer, opts ...Option) (*Certificate, error) {
+func New(certType int, issuer *Issuer, opts ...Option) (*Certificate, error) {
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate key: %w", err)
@@ -169,7 +175,7 @@ func New(isCA, isClient bool, issuer *Issuer, opts ...Option) (*Certificate, err
 		BasicConstraintsValid: true,
 	}
 
-	if isCA {
+	if certType == IssueCertTypeCA {
 		template.IsCA = true
 		template.KeyUsage |= x509.KeyUsageCRLSign | x509.KeyUsageCertSign
 
@@ -179,7 +185,7 @@ func New(isCA, isClient bool, issuer *Issuer, opts ...Option) (*Certificate, err
 			template.Subject.CommonName = "intermediate elastic-package CA"
 		}
 		// If the requester is a client we set clientAuth instead
-	} else if isClient {
+	} else if certType == IssueCertTypeClient {
 		template.ExtKeyUsage = []x509.ExtKeyUsage{
 			x509.ExtKeyUsageClientAuth,
 		}
