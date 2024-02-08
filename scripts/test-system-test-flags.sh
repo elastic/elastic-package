@@ -90,6 +90,9 @@ run_tests_for_package() {
         variant_flag="--variant ${variant}"
     fi
 
+    # set global variable so it is accessible for cleanup function (trap)
+    SERVICE_CONTAINER_NAME="elastic-package-service-${package_name}"
+
     pushd "test/packages/parallel/${package_name}/" > /dev/null
 
     echo "--- [${package_name} - ${variant}] Setup service without tear-down"
@@ -98,9 +101,6 @@ run_tests_for_package() {
         --config-file "${config_file}" \
         ${variant_flag} \
         --setup
-
-    FOLDER_NAME="service_setup"
-    FOLDER_PATH="${HOME}/.elastic-package/stack/${FOLDER_NAME}"
 
     if ! temporal_files_exist ; then
         exit 1
@@ -149,8 +149,10 @@ run_tests_for_package() {
     popd > /dev/null
 }
 
-SERVICE_CONTAINER_NAME="elastic-package-service-nginx"
 SERVICE_NETWORK_NAME="elastic-package-service_default"
+# to be set the specific value in run_tests_for_package , required to be global
+# so cleanup function could delete the container if is still running
+SERVICE_CONTAINER_NAME="elastic-package-service-<package>"
 
 ELASTIC_PACKAGE_LINKS_FILE_PATH="$(pwd)/scripts/links_table.yml"
 export ELASTIC_PACKAGE_LINKS_FILE_PATH
@@ -158,6 +160,9 @@ export ELASTIC_PACKAGE_LINKS_FILE_PATH
 # Run default stack version
 echo "--- Start Elastic stack"
 elastic-package stack up -v -d
+
+FOLDER_NAME="service_setup"
+FOLDER_PATH="${HOME}/.elastic-package/stack/${FOLDER_NAME}"
 
 run_tests_for_package \
     "nginx" \
