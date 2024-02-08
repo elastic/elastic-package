@@ -1,0 +1,59 @@
+version: '2.3'
+services:
+  elastic-agent:
+    image: "{{ fact "agent_image" }}"
+    healthcheck:
+      test: "elastic-agent status"
+      timeout: 2s
+      start_period: 360s
+      retries: 180
+      interval: 5s
+    hostname: docker-fleet-agent
+    env_file: "./elastic-agent.env"
+    volumes:
+    - type: bind
+      source: ../../../tmp/service_logs/
+      target: /tmp/service_logs/
+    # Mount service_logs under /run too as a testing workaround for the journald input (see elastic-package#1235).
+    - type: bind
+      source: ../../../tmp/service_logs/
+      target: /run/service_logs/
+    - "../certs/ca-cert.pem:/etc/ssl/certs/elastic-package.pem"
+
+  elastic-agent_is_ready:
+    image: tianon/true
+    depends_on:
+      elastic-agent:
+        condition: service_healthy
+
+{{ $logstash_enabled := fact "logstash_enabled" }}
+{{ if eq $logstash_enabled "true" }}
+  logstash:
+    image: "{{ fact "logstash_image" }}"
+    healthcheck:
+      test: bin/logstash -t
+      interval: 60s
+      timeout: 50s
+      retries: 5
+    # logstash expects the key in pkcs8 format. Hence converting the key.pem to pkcs8 format using openssl.
+    # Also logstash-filter-elastic_integration plugin is installed by default to run ingest pipelines in logstash.
+    # elastic-package#1637 made improvements to enable logstash stats through port 9600.
+    command: bash -c 'openssl pkcs8 -inform PEM -in /usr/share/logstash/config/certs/key.pem -topk8 -nocrypt -outform PEM -out /usr/share/logstash/config/certs/logstash.pkcs8.key && chmod 777 /usr/share/logstash/config/certs/logstash.pkcs8.key && if [[ ! $(bin/logstash-plugin list) ==  *"logstash-filter-elastic_integration"* ]]; then echo "Missing plugin  logstash-filter-elastic_integration, installing now" && bin/logstash-plugin install  logstash-filter-elastic_integration; fi && bin/logstash -f /usr/share/logstash/pipeline/logstash.conf'
+    volumes:
+      - "../certs/logstash:/usr/share/logstash/config/certs"
+      - "./logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro"
+    ports:
+       - "127.0.0.1:5044:5044"
+       - "127.0.0.1:9600:9600"
+    environment:
+      - xpack.monitoring.enabled=false
+      - ELASTIC_USER={{ fact "username" }}
+      - ELASTIC_PASSWORD={{ fact "password" }}
+      - ELASTIC_HOSTS={{ fact "elasticsearch_host" }}
+
+  logstash_is_ready:
+    image: tianon/true
+    depends_on:
+      logstash:
+        condition: service_healthy
+{{ end }}
