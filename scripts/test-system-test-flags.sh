@@ -74,7 +74,7 @@ temporal_files_exist() {
         return 1
     fi
 
-    if [ ! -f "${FOLDER_PATH}/service-options.json" ]; then
+    if [ ! -f "${FOLDER_PATH}/test-config.json" ]; then
         echo "Missing policy-setup.json in ${FOLDER_NAME} folder"
         return 1
     fi
