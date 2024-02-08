@@ -178,14 +178,15 @@ func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, e
 	}
 
 	_, err := os.Stat(r.locationManager.ServiceSetupDir())
+	logger.Debugf("Service setup data exists in %s: %v", r.locationManager.ServiceSetupDir(), !os.IsNotExist(err))
 	if r.options.RunSetup && !os.IsNotExist(err) {
-		return result.WithError(fmt.Errorf("failed to run --setup, required to tear down previous setup run: %s exists", r.locationManager.ServiceSetupDir()))
+		return result.WithError(fmt.Errorf("failed to run --setup, required to tear down previous setup"))
 	}
 	if r.options.RunTestsOnly && os.IsNotExist(err) {
-		return result.WithError(fmt.Errorf("failed to run --no-provision, missing service setup folder: %s does not exist", r.locationManager.ServiceSetupDir()))
+		return result.WithError(fmt.Errorf("failed to run tests with --no-provision, setup first with --setup"))
 	}
 	if r.options.RunTearDown && os.IsNotExist(err) {
-		return result.WithError(fmt.Errorf("failed to run --tear-down, missing service setup folder: %s does not exist", r.locationManager.ServiceSetupDir()))
+		return result.WithError(fmt.Errorf("failed to run --tear-down, setup not found"))
 	}
 
 	serviceOptions, ctxt, err := r.createConfigService(r.variants[0])
