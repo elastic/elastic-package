@@ -1044,7 +1044,7 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 		}
 		err = os.WriteFile(filepath.Join(r.locationManager.ServiceSetupDir(), setupAgentFileName), agentBytes, 0644)
 		if err != nil {
-			return nil, fmt.Errorf("failed to write orign agent JSON: %w", err)
+			return nil, fmt.Errorf("failed to write agent JSON: %w", err)
 		}
 	}
 
