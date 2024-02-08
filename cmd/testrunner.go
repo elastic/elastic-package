@@ -18,7 +18,6 @@ import (
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/kibana"
-	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/signal"
 	"github.com/elastic/elastic-package/internal/stack"
@@ -99,6 +98,10 @@ func setupTestCommand() *cobraext.Command {
 			testTypeCmd.Flags().Bool(cobraext.TearDownFlagName, false, cobraext.TearDownFlagDescription)
 			testTypeCmd.Flags().Bool(cobraext.NoProvisionFlagName, false, cobraext.NoProvisionFlagDescription)
 			testTypeCmd.MarkFlagsMutuallyExclusive(cobraext.SetupFlagName, cobraext.TearDownFlagName, cobraext.NoProvisionFlagName)
+
+			// config file flag should not be used with tear-down or no-provision flags
+			testTypeCmd.MarkFlagsMutuallyExclusive(cobraext.ConfigFileFlagName, cobraext.TearDownFlagName)
+			testTypeCmd.MarkFlagsMutuallyExclusive(cobraext.ConfigFileFlagName, cobraext.NoProvisionFlagName)
 		}
 
 		cmd.AddCommand(testTypeCmd)
@@ -171,6 +174,10 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 
 		if runner.CanRunSetupTeardownIndependent() && cmd.Flags().Lookup(cobraext.ConfigFileFlagName) != nil {
 			// not all test types defined these flags
+			runSetup, _ = cmd.Flags().GetBool(cobraext.SetupFlagName)
+			runTearDown, _ = cmd.Flags().GetBool(cobraext.TearDownFlagName)
+			runTestsOnly, _ = cmd.Flags().GetBool(cobraext.NoProvisionFlagName)
+
 			configFileFlag, err = cmd.Flags().GetString(cobraext.ConfigFileFlagName)
 			if err != nil {
 				return cobraext.FlagParsingError(err, cobraext.ConfigFileFlagName)
@@ -185,10 +192,6 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 				}
 				configFileFlag = absPath
 			}
-
-			runSetup, _ = cmd.Flags().GetBool(cobraext.SetupFlagName)
-			runTearDown, _ = cmd.Flags().GetBool(cobraext.TearDownFlagName)
-			runTestsOnly, _ = cmd.Flags().GetBool(cobraext.NoProvisionFlagName)
 		}
 
 		signal.Enable()
@@ -197,7 +200,13 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 		if hasDataStreams && runner.CanRunPerDataStream() {
 			var dataStreams []string
 
-			if runner.CanRunSetupTeardownIndependent() && configFileFlag != "" {
+			if runner.CanRunSetupTeardownIndependent() && runSetup || runTearDown || runTestsOnly {
+				if runTearDown || runTestsOnly {
+					configFileFlag, err = runner.TestConfigFilePath()
+					if err != nil {
+						return fmt.Errorf("failed to get test config file path: %w", err)
+					}
+				}
 				dataStream := testrunner.ExtractDataStreamFromPath(configFileFlag, packageRootPath)
 				dataStreams = append(dataStreams, dataStream)
 			} else if cmd.Flags().Lookup(cobraext.DataStreamsFlagName) != nil {
@@ -283,23 +292,24 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 			}
 		}
 
-		if runSetup || runTearDown || runTestsOnly {
+		if runSetup {
 			if configFileFlag == "" {
-				return fmt.Errorf("missing config file path: one of --setup , --no-provision or --tear-down flags is enabled")
+				return fmt.Errorf("missing config file path as --setup has been set")
 			}
 
 			// variant flag is not checked here since there are packages that do not have variants
-
+		}
+		if runTearDown || runTestsOnly {
+			if variantFlag != "" {
+				return fmt.Errorf("variant flag cannot be set with --tear-down or --no-provision")
+			}
+		}
+		if runSetup || runTearDown || runTestsOnly {
 			if len(testFolders) != 1 {
 				return fmt.Errorf("wrong number of test folders (expected 1): %d", len(testFolders))
 			}
 
 			fmt.Printf("Running tests per stages (technical preview)\n")
-		}
-		if runTearDown || runTestsOnly {
-			if variantFlag != "" {
-				logger.Warnf("Variant information is retrieved from service setup folder, ignored this flag: %s", variantFlag)
-			}
 		}
 
 		var results []testrunner.TestResult

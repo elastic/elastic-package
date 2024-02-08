@@ -184,3 +184,8 @@ func (r *runner) TestFolderRequired() bool {
 func (r *runner) CanRunSetupTeardownIndependent() bool {
 	return false
 }
+
+// TestConfigFilePath returns the test configuration file path
+func (r *runner) TestConfigFilePath() (string, error) {
+	return "", fmt.Errorf("not implemented")
+}

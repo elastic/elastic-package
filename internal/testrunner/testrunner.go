@@ -61,6 +61,7 @@ type TestRunner interface {
 	TestFolderRequired() bool
 
 	CanRunSetupTeardownIndependent() bool
+	TestConfigFilePath() (string, error)
 }
 
 var runners = map[TestType]TestRunner{}
