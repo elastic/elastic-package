@@ -658,18 +658,18 @@ elastic-package stack up -v -d
 # Testing a package using a configuration file and a variant (e.g. mysql)
 # variant name is just required in --setup flag
 elastic-package test system -v --config-file data_stream/status/_dev/test/system/test-default-config.yml --variant percona_8_0_36 --setup
-elastic-package test system -v --config-file data_stream/status/_dev/test/system/test-default-config.yml --no-provision
-elastic-package test system -v --config-file data_stream/status/_dev/test/system/test-default-config.yml --tear-down
+elastic-package test system -v --no-provision
+elastic-package test system -v --tear-down
 
 # Testing a package using a configuration file (no variants defined in the package)
-elastic-package test system -v  --config-file data_stream/audit/_dev/test/system/test-tcp-config.yml --setup
-elastic-package test system -v  --config-file data_stream/audit/_dev/test/system/test-tcp-config.yml --no-provision
-elastic-package test system -v  --config-file data_stream/audit/_dev/test/system/test-tcp-config.yml --tear-down
+elastic-package test system -v --config-file data_stream/audit/_dev/test/system/test-tcp-config.yml --setup
+elastic-package test system -v --no-provision
+elastic-package test system -v --tear-down
 
 # Testing a input package using a configuration file (no variants defined in the package)
 elastic-package test system -v --config-file _dev/test/system/test-mysql-config.yml --setup
-elastic-package test system -v --config-file _dev/test/system/test-mysql-config.yml --no-provision
-elastic-package test system -v --config-file _dev/test/system/test-mysql-config.yml --tear-down
+elastic-package test system -v --no-provision
+elastic-package test system -v --tear-down
 
 elastic-package stack down -v
 ```

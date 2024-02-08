@@ -116,7 +116,6 @@ run_tests_for_package() {
         echo "--- Iteration #${i} --no-provision"
         elastic-package test system -v \
             --report-format xUnit --report-output file \
-            --config-file "${config_file}" \
             --no-provision
 
         # service docker needs to be running after this command
@@ -133,7 +132,6 @@ run_tests_for_package() {
     echo "--- [${package_name} - ${variant}] Run tear-down process"
     elastic-package test system -v \
         --report-format xUnit --report-output file \
-        --config-file "${config_file}" \
         --tear-down
 
     if service_setup_folder_exists; then
