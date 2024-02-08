@@ -31,6 +31,8 @@ cleanup() {
     exit $r
 }
 
+trap cleanup EXIT
+
 is_service_container_running() {
     local container="$1"
     local container_ids=""
@@ -66,10 +68,86 @@ temporal_files_exist() {
         echo "Missing policy-setup.json in ${FOLDER_NAME} folder"
         return 1
     fi
+
+    if [ ! -f "${FOLDER_PATH}/agent.json" ]; then
+        echo "Missing policy-setup.json in ${FOLDER_NAME} folder"
+        return 1
+    fi
+
+    if [ ! -f "${FOLDER_PATH}/service-options.json" ]; then
+        echo "Missing policy-setup.json in ${FOLDER_NAME} folder"
+        return 1
+    fi
     return 0
 }
 
-trap cleanup EXIT
+run_tests_for_package() {
+    local package_name="$1"
+    local config_file="$2"
+    local variant="$3"
+    local variant_flag=""
+    if [[ $variant != "no variant" ]]; then
+        variant_flag="--variant ${variant}"
+    fi
+
+    pushd "test/packages/parallel/${package_name}/" > /dev/null
+
+    echo "--- [${package_name} - ${variant}] Setup service without tear-down"
+    elastic-package test system -v \
+        --report-format xUnit --report-output file \
+        --config-file "${config_file}" \
+        ${variant_flag} \
+        --setup
+
+    FOLDER_NAME="service_setup"
+    FOLDER_PATH="${HOME}/.elastic-package/stack/${FOLDER_NAME}"
+
+    if ! temporal_files_exist ; then
+        exit 1
+    fi
+
+    if ! is_service_container_running "${SERVICE_CONTAINER_NAME}"; then
+        echo "Not find service docker container running after --setup process"
+        exit 1
+    fi
+
+    echo "--- [${package_name} - ${variant}] Run tests without provisioning"
+    for i in $(seq 3); do
+        echo "--- Iteration #${i} --no-provision"
+        elastic-package test system -v \
+            --report-format xUnit --report-output file \
+            --config-file "${config_file}" \
+            --no-provision
+
+        # service docker needs to be running after this command
+        if ! is_service_container_running "${SERVICE_CONTAINER_NAME}"; then
+            echo "Not find service docker container running after --no-provision process"
+            exit 1
+        fi
+
+        if ! temporal_files_exist ; then
+            exit 1
+        fi
+    done
+
+    echo "--- [${package_name} - ${variant}] Run tear-down process"
+    elastic-package test system -v \
+        --report-format xUnit --report-output file \
+        --config-file "${config_file}" \
+        --tear-down
+
+    if service_setup_folder_exists; then
+        echo "Folder ${FOLDER_NAME} has not been deleted in --tear-down"
+        exit 1
+    fi
+
+    if is_service_container_running "${SERVICE_CONTAINER_NAME}"; then
+        echo "Service docker container is still running after --tear-down process"
+        exit 1
+    fi
+
+    popd > /dev/null
+}
 
 SERVICE_CONTAINER_NAME="elastic-package-service-nginx"
 SERVICE_NETWORK_NAME="elastic-package-service_default"
@@ -81,60 +159,13 @@ export ELASTIC_PACKAGE_LINKS_FILE_PATH
 echo "--- Start Elastic stack"
 elastic-package stack up -v -d
 
+run_tests_for_package \
+    "nginx" \
+    "data_stream/access/_dev/test/system/test-default-config.yml" \
+    "no variant"
 
-pushd test/packages/parallel/nginx/ > /dev/null
+run_tests_for_package \
+    "sql_input" \
+    "_dev/test/system/test-default-config.yml" \
+    "mysql_8_0_13"
 
-echo "--- Setup service without tear-down"
-elastic-package test system -v \
-    --report-format xUnit --report-output file \
-    --config-file "$(pwd)/data_stream/access/_dev/test/system/test-default-config.yml" \
-    --setup
-
-FOLDER_NAME="service_setup"
-FOLDER_PATH="${HOME}/.elastic-package/stack/${FOLDER_NAME}"
-
-if ! temporal_files_exist ; then
-    exit 1
-fi
-
-if ! is_service_container_running "${SERVICE_CONTAINER_NAME}"; then
-    echo "Not find service docker container running after --setup process"
-    exit 1
-fi
-
-echo "--- Run tests without provisioning"
-for i in $(seq 3); do
-    echo "--- Iteration #${i} --no-provision"
-    elastic-package test system -v \
-        --report-format xUnit --report-output file \
-        --config-file "$(pwd)/data_stream/access/_dev/test/system/test-default-config.yml" \
-        --no-provision
-
-    # service docker needs to be running after this command
-    if ! is_service_container_running "${SERVICE_CONTAINER_NAME}"; then
-        echo "Not find service docker container running after --no-provision process"
-        exit 1
-    fi
-
-    if ! temporal_files_exist ; then
-        exit 1
-    fi
-done
-
-echo "--- Run tear-down process"
-elastic-package test system -v \
-    --report-format xUnit --report-output file \
-    --config-file "$(pwd)/data_stream/access/_dev/test/system/test-default-config.yml" \
-    --tear-down
-
-if service_setup_folder_exists; then
-    echo "Folder ${FOLDER_NAME} has not been deleted in --tear-down"
-    exit 1
-fi
-
-if is_service_container_running "${SERVICE_CONTAINER_NAME}"; then
-    echo "Service docker container is still running after --tear-down process"
-    exit 1
-fi
-
-popd > /dev/null
