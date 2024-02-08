@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/elastic/elastic-package/internal/builder"
 	"github.com/elastic/elastic-package/internal/configuration/locations"
@@ -91,7 +92,9 @@ func BootUp(options Options) error {
 		// As a workaround, try to give another chance to docker-compose if only
 		// elastic-agent failed.
 		if onlyElasticAgentFailed(options) {
-			fmt.Println("Elastic Agent failed to start, trying again.")
+			sleepTime := 10 * time.Second
+			fmt.Println("Elastic Agent failed to start, trying again in %s.", sleepTime)
+			time.Sleep(sleepTime)
 			err = dockerComposeUp(options)
 		}
 		if err != nil {
