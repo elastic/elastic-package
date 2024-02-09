@@ -120,5 +120,11 @@ xpack.fleet.outputs:
     name: logstash-output
     type: logstash
     hosts: [ logstash:5044 ]
+    ssl:
+      certificate: |
+        {{ fact "logstash_ssl_certificate" }}
+      key: |
+        {{ fact "logstash_ssl_key" }}
+
   {{ end }}
 {{ end }}

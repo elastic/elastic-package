@@ -1,10 +1,10 @@
 input {
   elastic_agent {
     port => 5044
-    ssl_enabled => false
+    ssl_enabled => true
     ssl_certificate_authorities => ["/usr/share/logstash/config/certs/ca-cert.pem"]
     ssl_certificate => "/usr/share/logstash/config/certs/cert.pem"
-    ssl_key => "/usr/share/logstash/config/certs/key.pem"
+    ssl_key => "/usr/share/logstash/config/certs/logstash.pkcs8.key"
   }
 }
 
@@ -28,7 +28,6 @@ output {
     password => {{ fact "password" }}
     ssl_enabled => true
     ssl_certificate_authorities => "/usr/share/logstash/config/certs/elasticsearch.pem"
-    data_stream => "true"
     document_id => "%{[@metadata][_ingest_document][id]}"
   }
 }

@@ -5,6 +5,7 @@
 package stack
 
 import (
+	"bytes"
 	"embed"
 	"fmt"
 	"html/template"
@@ -46,6 +47,10 @@ const (
 
 	// ElasticAgentEnvFile is the elastic agent environment variables file.
 	ElasticAgentEnvFile = "elastic-agent.env"
+
+	ElasticAgentFolder = "elastic-agent"
+
+	CertsFolder = "certs"
 
 	profileStackPath = "stack"
 
@@ -142,15 +147,22 @@ func applyResources(profile *profile.Profile, stackVersion string) error {
 	resources := append([]resource.Resource{}, stackResources...)
 
 	// Keeping certificates in the profile directory for backwards compatibility reasons.
-	resourceManager.RegisterProvider("certs", &resource.FileProvider{
+	resourceManager.RegisterProvider(CertsFolder, &resource.FileProvider{
 		Prefix: profile.ProfilePath,
 	})
-	certResources, err := initTLSCertificates("certs", profile.ProfilePath, tlsServices)
+	certResources, err := initTLSCertificates(CertsFolder, profile.ProfilePath, tlsServices)
 	if err != nil {
 		return fmt.Errorf("failed to create TLS files: %w", err)
 	}
-	resources = append(resources, certResources...)
 
+	// Add client certificates if logstash is enabled
+	if profile.Config("stack.logstash_enabled", "false") == "true" {
+		if err := addClientCertsToResources(resourceManager, certResources); err != nil {
+			return fmt.Errorf("Error adding client certificates: %w", err)
+		}
+	}
+
+	resources = append(resources, certResources...)
 	results, err := resourceManager.Apply(resources)
 	if err != nil {
 		var errors []string
@@ -162,6 +174,45 @@ func applyResources(profile *profile.Profile, stackVersion string) error {
 		return fmt.Errorf("%w: %s", err, strings.Join(errors, ", "))
 	}
 
+	return nil
+}
+
+func addClientCertsToResources(resourceManager *resource.Manager, certResources []resource.Resource) error {
+	certPath := filepath.Join(CertsFolder, ElasticAgentFolder, "cert.pem")
+	keyPath := filepath.Join(CertsFolder, ElasticAgentFolder, "key.pem")
+
+	var certFile, keyFile string
+	var err error
+	for _, r := range certResources {
+		res, _ := r.(*resource.File)
+
+		if strings.Contains(res.Path, ElasticAgentFolder) {
+			var buf bytes.Buffer
+			if res.Path == certPath {
+				err = res.Content(nil, &buf)
+				if err != nil {
+					return fmt.Errorf("failed to read client certificate: %w", err)
+				}
+				// Replace newlines with spaces to create proper indentation in the config
+				certFile = strings.Replace(buf.String(), "\n", "\n        ", 200)
+				continue
+			}
+			if res.Path == keyPath {
+				err = res.Content(nil, &buf)
+				if err != nil {
+					return fmt.Errorf("failed to read client key: %w", err)
+				}
+				// Replace newlines with spaces to create proper indentation in the config
+				keyFile = strings.Replace(buf.String(), "\n", "\n        ", 200)
+				continue
+			}
+		}
+	}
+
+	resourceManager.AddFacter(resource.StaticFacter{
+		"logstash_ssl_certificate": certFile,
+		"logstash_ssl_key":         keyFile,
+	})
 	return nil
 }
 
