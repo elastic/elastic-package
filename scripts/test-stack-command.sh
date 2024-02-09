@@ -20,7 +20,6 @@ cleanup() {
   fi
 
   if [ "${SELF_MONITOR_ENABLED}" = true ]; then
-    # Create an apm-server profile and use it
     elastic-package profiles delete with-self-monitor
   fi
 
@@ -67,7 +66,6 @@ if [ "${SELF_MONITOR_ENABLED}" = true ]; then
   elastic-package profiles create -v ${profile}
   elastic-package profiles use ${profile}
 
-  # Create the config and enable apm-server
   cat ~/.elastic-package/profiles/${profile}/config.yml.example - <<EOF > ~/.elastic-package/profiles/${profile}/config.yml
 stack.self_monitor_enabled: true
 EOF
