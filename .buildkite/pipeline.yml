@@ -55,9 +55,10 @@ steps:
 
   - label: ":junit: Transform windows paths to linux for Junit plugin"
     commands:
-      - buildkite-agent artifact download "build\\test-result\\TEST-unit-win.xml"
+      - buildkite-agent artifact download "build\\test-results\\TEST-unit-win.xml"
       - ls -l
-      - ls -l build/test-result
+      - ls -l build/
+      - ls -l build/test-results
     agents:
       image: "${LINUX_AGENT_IMAGE}"
       cpu: "8"
