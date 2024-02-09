@@ -4,6 +4,7 @@ set -euxo pipefail
 
 VERSION=${1:-default}
 APM_SERVER_ENABLED=${APM_SERVER_ENABLED:-false}
+SELF_MONITOR_ENABLED=${SELF_MONITOR_ENABLED:-false}
 
 cleanup() {
   r=$?
@@ -15,8 +16,12 @@ cleanup() {
   elastic-package stack down -v
 
   if [ "${APM_SERVER_ENABLED}" = true ]; then
-    # Create an apm-server profile and use it
     elastic-package profiles delete with-apm-server
+  fi
+
+  if [ "${SELF_MONITOR_ENABLED}" = true ]; then
+    # Create an apm-server profile and use it
+    elastic-package profiles delete with-self-monitor
   fi
 
   exit $r
@@ -40,7 +45,11 @@ if [ "${VERSION}" != "default" ]; then
   EXPECTED_VERSION=${VERSION}
 fi
 
+OUTPUT_PATH_STATUS="build/elastic-stack-status/${VERSION}"
+
 if [ "${APM_SERVER_ENABLED}" = true ]; then
+  OUTPUT_PATH_STATUS="build/elastic-stack-status/${VERSION}_with_apm_server"
+
   # Create an apm-server profile and use it
   profile=with-apm-server
   elastic-package profiles create -v ${profile}
@@ -52,10 +61,18 @@ stack.apm_enabled: true
 EOF
 fi
 
-OUTPUT_PATH_STATUS="build/elastic-stack-status/${VERSION}"
-if [ "${APM_SERVER_ENABLED}" = true ]; then
-  OUTPUT_PATH_STATUS="build/elastic-stack-status/${VERSION}_with_apm_server"
+if [ "${SELF_MONITOR_ENABLED}" = true ]; then
+  # Create an self-monitor profile and use it
+  profile=with-self-monitor
+  elastic-package profiles create -v ${profile}
+  elastic-package profiles use ${profile}
+
+  # Create the config and enable apm-server
+  cat ~/.elastic-package/profiles/${profile}/config.yml.example - <<EOF > ~/.elastic-package/profiles/${profile}/config.yml
+stack.self_monitor_enabled: true
+EOF
 fi
+
 mkdir -p "${OUTPUT_PATH_STATUS}"
 
 # Initial status empty
@@ -94,6 +111,14 @@ clean_status_output "${OUTPUT_PATH_STATUS}/running.txt" > "${OUTPUT_PATH_STATUS}
 
 if [ "${APM_SERVER_ENABLED}" = true ]; then
   curl http://localhost:8200/
+fi
+
+if [ "${SELF_MONITOR_ENABLED}" = true ]; then
+  # Check that there is some data in the system indexes.
+  curl -s -S --retry 5 --retry-all-errors --fail \
+    -u "${ELASTIC_PACKAGE_ELASTICSEARCH_USERNAME}:${ELASTIC_PACKAGE_ELASTICSEARCH_PASSWORD}" \
+    --cacert "${ELASTIC_PACKAGE_CA_CERT}" \
+    -f "${ELASTIC_PACKAGE_ELASTICSEARCH_HOST}/metrics-system.*/_search?allow_no_indices=false&size=0"
 fi
 
 diff -q "${OUTPUT_PATH_STATUS}/running_no_spaces.txt" "${OUTPUT_PATH_STATUS}/expected_no_spaces.txt"
