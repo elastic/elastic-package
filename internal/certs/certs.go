@@ -175,7 +175,8 @@ func New(certType int, issuer *Issuer, opts ...Option) (*Certificate, error) {
 		BasicConstraintsValid: true,
 	}
 
-	if certType == IssueCertTypeCA {
+	switch certType {
+	case IssueCertTypeCA:
 		template.IsCA = true
 		template.KeyUsage |= x509.KeyUsageCRLSign | x509.KeyUsageCertSign
 
@@ -184,25 +185,25 @@ func New(certType int, issuer *Issuer, opts ...Option) (*Certificate, error) {
 		} else {
 			template.Subject.CommonName = "intermediate elastic-package CA"
 		}
+	case IssueCertTypeClient:
 		// If the requester is a client we set clientAuth instead
-	} else if certType == IssueCertTypeClient {
 		template.ExtKeyUsage = []x509.ExtKeyUsage{
 			x509.ExtKeyUsageClientAuth,
 		}
-
 		// Include local hostname and ips as alternates in service certificates.
 		template.DNSNames = []string{"localhost"}
 		template.IPAddresses = []net.IP{net.ParseIP("127.0.0.1"), net.ParseIP("::1")}
-	} else {
+	case IssueCertTypeService:
 		template.ExtKeyUsage = []x509.ExtKeyUsage{
 			// Required for Chrome in OSX to show the "Proceed anyway" link.
 			// https://stackoverflow.com/a/64309893/28855
 			x509.ExtKeyUsageServerAuth,
 		}
-
 		// Include local hostname and ips as alternates in service certificates.
 		template.DNSNames = []string{"localhost"}
 		template.IPAddresses = []net.IP{net.ParseIP("127.0.0.1"), net.ParseIP("::1")}
+	default:
+		return nil, fmt.Errorf("unknown certificate type %d", certType)
 	}
 
 	for _, opt := range opts {
