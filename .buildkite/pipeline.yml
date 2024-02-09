@@ -55,7 +55,7 @@ steps:
 
   - label: ":junit: Transform windows paths to linux for Junit plugin"
     commands:
-      - buildkite-agent artifact download "*.xml" --step unit-test-windows
+      - buildkite-agent artifact download "*-windows.xml" . --step unit-test-windows
       - mkdir -p build/test-results
       - for file in $(ls *-windows.xml); do mv $$file build/test-results/; done
     agents:
