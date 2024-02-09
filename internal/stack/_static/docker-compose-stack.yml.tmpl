@@ -179,6 +179,7 @@ services:
       - "../certs/logstash/cert.pem:/usr/share/logstash/config/certs/cert.pem"
       - "../certs/logstash/ca-cert.pem:/usr/share/logstash/config/certs/ca-cert.pem"
       - "../certs/elasticsearch/cert.pem:/usr/share/logstash/config/certs/elasticsearch.pem"
+      - "./logstash.conf:/usr/share/logstash/pipeline/logstash.conf"
     ports:
        - "127.0.0.1:5044:5044"
        - "127.0.0.1:9600:9600"
