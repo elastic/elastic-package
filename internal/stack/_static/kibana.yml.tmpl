@@ -47,10 +47,13 @@ xpack.encryptedSavedObjects.encryptionKey: "12345678901234567890123456789012"
 xpack.cloudSecurityPosture.enabled: true
 {{ end }}
 
+{{ $self_monitor_enabled := fact "self_monitor_enabled" }}
 {{ if not (semverLessThan $version "8.0.0") }}
 xpack.fleet.packages:
+  {{ if eq $self_monitor_enabled "true" }}
   - name: system
     version: latest
+  {{ end }}
   - name: elastic_agent
     version: latest
   - name: fleet_server
@@ -65,6 +68,7 @@ xpack.fleet.agentPolicies:
     is_default: true
     is_managed: false
     namespace: default
+  {{ if eq $self_monitor_enabled "true" }}
     monitoring_enabled:
       - logs
       - metrics
@@ -73,6 +77,10 @@ xpack.fleet.agentPolicies:
         id: default-system
         package:
           name: system
+  {{ else }}
+    monitoring_enabled: []
+    package_policies: []
+  {{ end }}
   - name: Fleet Server (elastic-package)
     id: fleet-server-policy
     is_default_fleet_server: true

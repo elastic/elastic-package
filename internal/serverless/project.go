@@ -232,7 +232,35 @@ func (p *Project) getFleetHealth(ctx context.Context) error {
 	return nil
 }
 
-func (p *Project) CreateAgentPolicy(stackVersion string, kibanaClient *kibana.Client, outputId string) error {
+func (p *Project) CreateAgentPolicy(kibanaClient *kibana.Client, stackVersion string, outputId string, selfMonitor bool) error {
+	policy := kibana.Policy{
+		ID:                "elastic-agent-managed-ep",
+		Name:              "Elastic-Agent (elastic-package)",
+		Description:       "Policy created by elastic-package",
+		Namespace:         "default",
+		MonitoringEnabled: []string{},
+		DataOutputID:      outputId,
+	}
+	if selfMonitor {
+		policy.MonitoringEnabled = []string{"logs", "metrics"}
+	}
+
+	newPolicy, err := kibanaClient.CreatePolicy(policy)
+	if err != nil {
+		return fmt.Errorf("error while creating agent policy: %w", err)
+	}
+
+	if selfMonitor {
+		err := p.createSystemPackagePolicy(kibanaClient, stackVersion, newPolicy.ID, newPolicy.Namespace)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (p *Project) createSystemPackagePolicy(kibanaClient *kibana.Client, stackVersion, agentPolicyID, namespace string) error {
 	systemPackages, err := registry.Production.Revisions("system", registry.SearchOptions{
 		KibanaVersion: strings.TrimSuffix(stackVersion, kibana.SNAPSHOT_SUFFIX),
 	})
@@ -243,25 +271,10 @@ func (p *Project) CreateAgentPolicy(stackVersion string, kibanaClient *kibana.Cl
 		return fmt.Errorf("unexpected number of system package versions for Kibana %s - found %d expected 1", stackVersion, len(systemPackages))
 	}
 	logger.Debugf("Found %s package - version %s", systemPackages[0].Name, systemPackages[0].Version)
-
-	policy := kibana.Policy{
-		ID:                "elastic-agent-managed-ep",
-		Name:              "Elastic-Agent (elastic-package)",
-		Description:       "Policy created by elastic-package",
-		Namespace:         "default",
-		MonitoringEnabled: []string{"logs", "metrics"},
-		DataOutputID:      outputId,
-	}
-
-	newPolicy, err := kibanaClient.CreatePolicy(policy)
-	if err != nil {
-		return fmt.Errorf("error while creating agent policy: %w", err)
-	}
-
 	packagePolicy := kibana.PackagePolicy{
 		Name:      "system-1",
-		PolicyID:  newPolicy.ID,
-		Namespace: newPolicy.Namespace,
+		PolicyID:  agentPolicyID,
+		Namespace: namespace,
 	}
 	packagePolicy.Package.Name = "system"
 	packagePolicy.Package.Version = systemPackages[0].Version
