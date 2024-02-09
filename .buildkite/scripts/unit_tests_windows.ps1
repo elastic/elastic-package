@@ -42,12 +42,8 @@ go mod download -x
 echo "--- Running unit tests"
 go version
 $ErrorActionPreference = "Continue" # set +e
-go run gotest.tools/gotestsum --junitfile "$(PWD)/TEST-unit.xml" -- -count=1 ./...
+go run gotest.tools/gotestsum --junitfile "$(PWD)/TEST-unit-windows.xml" -- -count=1 ./...
 $EXITCODE=$LASTEXITCODE
 $ErrorActionPreference = "Stop"
-
-mkdir -p build/test-results/
-
-cp "$(PWD)/TEST-unit.xml" build/test-results/TEST-unit-win.xml
 
 Exit $EXITCODE
