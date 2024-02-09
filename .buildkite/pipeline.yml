@@ -35,7 +35,7 @@ steps:
       provider: "gcp"
       image: "${WINDOWS_AGENT_IMAGE}"
     artifact_paths:
-      - "TEST-unit.xml"
+      - "TEST-unit-windows.xml"
 
   - wait: ~
     continue_on_failure: true
@@ -53,10 +53,25 @@ steps:
   - wait: ~
     continue_on_failure: true
 
+  - label: ":junit: Transform windows paths to linux for Junit plugin"
+    commands:
+      - buildkite-agent artifact download "*-windows.xml" . --step unit-tests-windows
+      - mkdir -p build/test-results
+      - for file in $(ls *-windows.xml); do mv $$file build/test-results/; done
+    agents:
+      image: "${LINUX_AGENT_IMAGE}"
+      cpu: "8"
+      memory: "4G"
+    artifact_paths:
+      - "build/test-results/*.xml"
+
+  - wait: ~
+    continue_on_failure: true
+
   - label: ":junit: Junit annotate"
     plugins:
       - junit-annotate#v2.4.1:
-          artifacts: "*.xml"
+          artifacts: "build/test-results/*.xml"
     agents:
       provider: "gcp"  # junit plugin requires docker
 
