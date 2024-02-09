@@ -48,6 +48,6 @@ $ErrorActionPreference = "Stop"
 
 mkdir -p build/test-results/
 
-cp "$(PWD)/TEST-unit.xml" build/test-results/TEST-unit.xml
+cp "$(PWD)/TEST-unit.xml" build/test-results/TEST-unit-win.xml
 
 Exit $EXITCODE
