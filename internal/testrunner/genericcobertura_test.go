@@ -73,6 +73,71 @@ func TestGenericCoverage_Merge(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "merge files with same lines",
+			rhs: GenericCoverage{
+				Files: []*GenericFile{
+					{
+						Path: "/a",
+						Lines: []*GenericLine{
+							{LineNumber: 1, Covered: true},
+							{LineNumber: 2, Covered: false},
+							{LineNumber: 4, Covered: false},
+						},
+					},
+					{
+						Path: "/c",
+						Lines: []*GenericLine{
+							{LineNumber: 1, Covered: false},
+							{LineNumber: 2, Covered: true},
+							{LineNumber: 4, Covered: true},
+						},
+					},
+				},
+			},
+			lhs: GenericCoverage{
+				Files: []*GenericFile{
+					{
+						Path: "/a",
+						Lines: []*GenericLine{
+							{LineNumber: 1, Covered: true},
+							{LineNumber: 2, Covered: true},
+							{LineNumber: 3, Covered: false},
+						},
+					},
+					{
+						Path: "/c",
+						Lines: []*GenericLine{
+							{LineNumber: 1, Covered: false},
+							{LineNumber: 2, Covered: false},
+							{LineNumber: 3, Covered: true},
+						},
+					},
+				},
+			},
+			expected: GenericCoverage{
+				Files: []*GenericFile{
+					{
+						Path: "/a",
+						Lines: []*GenericLine{
+							{LineNumber: 1, Covered: true},
+							{LineNumber: 2, Covered: true},
+							{LineNumber: 4, Covered: false},
+							{LineNumber: 3, Covered: false},
+						},
+					},
+					{
+						Path: "/c",
+						Lines: []*GenericLine{
+							{LineNumber: 1, Covered: false},
+							{LineNumber: 2, Covered: true},
+							{LineNumber: 4, Covered: true},
+							{LineNumber: 3, Covered: true},
+						},
+					},
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
