@@ -27,6 +27,7 @@ output {
     user => '{{ fact "username" }}'
     password => '{{ fact "password" }}'
     ssl_enabled => true
+    ssl_verification_mode => "none"
     data_stream => "true"
   }
 }
