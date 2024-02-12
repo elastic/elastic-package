@@ -61,7 +61,7 @@ EOF
 fi
 
 if [ "${SELF_MONITOR_ENABLED}" = true ]; then
-  # Create an self-monitor profile and use it
+  # Create a self-monitor profile and use it
   profile=with-self-monitor
   elastic-package profiles create -v ${profile}
   elastic-package profiles use ${profile}
