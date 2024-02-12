@@ -34,16 +34,16 @@ type Client struct {
 type ClientOption func(*Client)
 
 var (
-	elasticCloudApiKeyEnv   = "EC_API_KEY"
+	elasticCloudAPIKeyEnv   = "EC_API_KEY"
 	elasticCloudEndpointEnv = "EC_HOST"
 
 	ErrProjectNotExist = errors.New("project does not exist")
 )
 
 func NewClient(opts ...ClientOption) (*Client, error) {
-	apiKey := os.Getenv(elasticCloudApiKeyEnv)
+	apiKey := os.Getenv(elasticCloudAPIKeyEnv)
 	if apiKey == "" {
-		return nil, fmt.Errorf("unable to obtain value from %s environment variable", elasticCloudApiKeyEnv)
+		return nil, fmt.Errorf("unable to obtain value from %s environment variable", elasticCloudAPIKeyEnv)
 	}
 	c := &Client{
 		host:   defaultHostURL,
@@ -158,7 +158,6 @@ func (c *Client) CreateProject(name, region, projectType string) (*Project, erro
 		return nil, fmt.Errorf("could not build the URL: %w", err)
 	}
 	statusCode, respBody, err := c.post(ctx, resourcePath, p)
-
 	if err != nil {
 		return nil, fmt.Errorf("error creating project: %w", err)
 	}
@@ -213,7 +212,6 @@ func (c *Client) StatusProject(ctx context.Context, project *Project) (string, e
 		return "", fmt.Errorf("could not build the URL: %w", err)
 	}
 	statusCode, respBody, err := c.get(ctx, resourcePath)
-
 	if err != nil {
 		return "", fmt.Errorf("error getting status project: %w", err)
 	}
@@ -234,12 +232,11 @@ func (c *Client) StatusProject(ctx context.Context, project *Project) (string, e
 }
 
 func (c *Client) ResetCredentials(ctx context.Context, project *Project) error {
-	resourcePath, err := url.JoinPath(c.host, projectsAPI, project.Type, project.ID, "_reset-credentials")
+	resourcePath, err := url.JoinPath(c.host, projectsAPI, project.Type, project.ID, "_reset-internal-credentials")
 	if err != nil {
 		return fmt.Errorf("could not build the URL: %w", err)
 	}
 	statusCode, respBody, err := c.post(ctx, resourcePath, nil)
-
 	if err != nil {
 		return fmt.Errorf("error creating project: %w", err)
 	}
