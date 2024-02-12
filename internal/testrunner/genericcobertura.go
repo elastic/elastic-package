@@ -56,14 +56,18 @@ func (c *GenericFile) merge(b *GenericFile) error {
 	// Merge files
 	for _, coverageLine := range b.Lines {
 		found := false
-		for _, existingLine := range c.Lines {
+		foundId := 0
+		for idx, existingLine := range c.Lines {
 			if existingLine.LineNumber == coverageLine.LineNumber {
 				found = true
+				foundId = idx
 				break
 			}
 		}
 		if !found {
 			c.Lines = append(c.Lines, coverageLine)
+		} else {
+			c.Lines[foundId].Covered = c.Lines[foundId].Covered || coverageLine.Covered
 		}
 	}
 	return nil
