@@ -29,7 +29,6 @@ const (
 	configRegion          = "stack.serverless.region"
 	configProjectType     = "stack.serverless.type"
 	configElasticCloudURL = "stack.elastic_cloud.host"
-	configLogstashEnabled = "stack.logstash_enabled"
 
 	defaultRegion      = "aws-us-east-1"
 	defaultProjectType = "observability"
@@ -57,6 +56,7 @@ type projectSettings struct {
 
 	StackVersion    string
 	LogstashEnabled bool
+	SelfMonitor     bool
 }
 
 func (sp *serverlessProvider) createProject(settings projectSettings, options Options, conf Config) (Config, error) {
@@ -211,6 +211,7 @@ func getProjectSettings(options Options) (projectSettings, error) {
 		Region:          options.Profile.Config(configRegion, defaultRegion),
 		StackVersion:    options.StackVersion,
 		LogstashEnabled: options.Profile.Config(configLogstashEnabled, "false") == "true",
+		SelfMonitor:     options.Profile.Config(configSelfMonitorEnabled, "false") == "true",
 	}
 
 	return s, nil
@@ -276,7 +277,7 @@ func (sp *serverlessProvider) BootUp(options Options) error {
 		}
 
 		logger.Infof("Creating agent policy")
-		err = project.CreateAgentPolicy(options.StackVersion, sp.kibanaClient, outputID)
+		err = project.CreateAgentPolicy(sp.kibanaClient, options.StackVersion, outputID, settings.SelfMonitor)
 
 		if err != nil {
 			return fmt.Errorf("failed to create agent policy: %w", err)
