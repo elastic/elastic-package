@@ -5,6 +5,7 @@
 package asset
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -53,7 +54,7 @@ func (r runner) CanRunPerDataStream() bool {
 }
 
 // Run runs the asset loading tests
-func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, error) {
+func (r *runner) Run(ctx context.Context, options testrunner.TestOptions) ([]testrunner.TestResult, error) {
 	r.testFolder = options.TestFolder
 	r.packageRootPath = options.PackageRootPath
 	r.kibanaClient = options.KibanaClient
@@ -167,7 +168,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 	return results, nil
 }
 
-func (r *runner) TearDown() error {
+func (r *runner) TearDown(ctx context.Context) error {
 	if r.removePackageHandler != nil {
 		if err := r.removePackageHandler(); err != nil {
 			return err

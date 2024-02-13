@@ -5,6 +5,7 @@
 package system
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -32,7 +33,6 @@ import (
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/packages/installer"
 	"github.com/elastic/elastic-package/internal/servicedeployer"
-	"github.com/elastic/elastic-package/internal/signal"
 	"github.com/elastic/elastic-package/internal/stack"
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
@@ -131,20 +131,23 @@ func (r *runner) TestFolderRequired() bool {
 }
 
 // Run runs the system tests defined under the given folder
-func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, error) {
+func (r *runner) Run(ctx context.Context, options testrunner.TestOptions) ([]testrunner.TestResult, error) {
 	r.options = options
-	return r.run()
+	return r.run(ctx)
 }
 
 // TearDown method doesn't perform any global action as the "tear down" is executed per test case.
-func (r *runner) TearDown() error {
+func (r *runner) TearDown(ctx context.Context) error {
 	return nil
 }
 
-func (r *runner) tearDownTest() error {
+func (r *runner) tearDownTest(ctx context.Context) error {
 	if r.options.DeferCleanup > 0 {
 		logger.Debugf("waiting for %s before tearing down...", r.options.DeferCleanup)
-		signal.Sleep(r.options.DeferCleanup)
+		select {
+		case <-time.After(r.options.DeferCleanup):
+		case <-ctx.Done():
+		}
 	}
 
 	if r.resetAgentPolicyHandler != nil {
@@ -201,7 +204,7 @@ func (r *runner) newResult(name string) *testrunner.ResultComposer {
 	})
 }
 
-func (r *runner) run() (results []testrunner.TestResult, err error) {
+func (r *runner) run(ctx context.Context) (results []testrunner.TestResult, err error) {
 	result := r.newResult("(init)")
 	locationManager, err := locations.NewLocationManager()
 	if err != nil {
@@ -254,7 +257,7 @@ func (r *runner) run() (results []testrunner.TestResult, err error) {
 	startTesting := time.Now()
 	for _, cfgFile := range cfgFiles {
 		for _, variantName := range r.selectVariants(variantsFile) {
-			partial, err := r.runTestPerVariant(result, locationManager, cfgFile, dataStreamPath, variantName, stackVersion.Version())
+			partial, err := r.runTestPerVariant(ctx, result, locationManager, cfgFile, dataStreamPath, variantName, stackVersion.Version())
 			results = append(results, partial...)
 			if err != nil {
 				return results, err
@@ -283,7 +286,7 @@ func (r *runner) run() (results []testrunner.TestResult, err error) {
 	return results, nil
 }
 
-func (r *runner) runTestPerVariant(result *testrunner.ResultComposer, locationManager *locations.LocationManager, cfgFile, dataStreamPath, variantName, stackVersion string) ([]testrunner.TestResult, error) {
+func (r *runner) runTestPerVariant(ctx context.Context, result *testrunner.ResultComposer, locationManager *locations.LocationManager, cfgFile, dataStreamPath, variantName, stackVersion string) ([]testrunner.TestResult, error) {
 	serviceOptions := servicedeployer.FactoryOptions{
 		Profile:            r.options.Profile,
 		PackageRootPath:    r.options.PackageRootPath,
@@ -314,7 +317,7 @@ func (r *runner) runTestPerVariant(result *testrunner.ResultComposer, locationMa
 	var partial []testrunner.TestResult
 	if testConfig.Skip == nil {
 		logger.Debugf("running test with configuration '%s'", testConfig.Name())
-		partial, err = r.runTest(testConfig, ctxt, serviceOptions)
+		partial, err = r.runTest(ctx, testConfig, ctxt, serviceOptions)
 	} else {
 		logger.Warnf("skipping %s test for %s/%s: %s (details: %s)",
 			TestType, r.options.TestFolder.Package, r.options.TestFolder.DataStream,
@@ -323,7 +326,7 @@ func (r *runner) runTestPerVariant(result *testrunner.ResultComposer, locationMa
 		partial, err = result.WithSkip(testConfig.Skip)
 	}
 
-	tdErr := r.tearDownTest()
+	tdErr := r.tearDownTest(ctx)
 	if err != nil {
 		return partial, err
 	}
@@ -469,7 +472,7 @@ func (r *runner) getDocs(dataStream string) (*hits, error) {
 	return &hits, nil
 }
 
-func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext, serviceOptions servicedeployer.FactoryOptions) ([]testrunner.TestResult, error) {
+func (r *runner) runTest(ctx context.Context, config *testConfig, serviceContext servicedeployer.ServiceContext, serviceOptions servicedeployer.FactoryOptions) ([]testrunner.TestResult, error) {
 	result := r.newResult(config.Name())
 
 	pkgManifest, err := packages.ReadPackageManifestFromPackageRoot(r.options.PackageRootPath)
@@ -503,13 +506,13 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	}
 
 	if config.Service != "" {
-		ctxt.Name = config.Service
+		serviceContext.Name = config.Service
 	}
-	service, err := serviceDeployer.SetUp(ctxt)
+	service, err := serviceDeployer.SetUp(ctx, serviceContext)
 	if err != nil {
 		return result.WithError(fmt.Errorf("could not setup service: %w", err))
 	}
-	ctxt = service.Context()
+	serviceContext = service.Context()
 	r.shutdownServiceHandler = func() error {
 		logger.Debug("tearing down service...")
 		if err := service.TearDown(); err != nil {
@@ -520,7 +523,7 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	}
 
 	// Reload test config with ctx variable substitution.
-	config, err = newConfig(config.Path, ctxt, serviceOptions.Variant)
+	config, err = newConfig(config.Path, serviceContext, serviceOptions.Variant)
 	if err != nil {
 		return result.WithError(fmt.Errorf("unable to reload system test case configuration: %w", err))
 	}
@@ -622,11 +625,7 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 		return result.WithError(fmt.Errorf("error deleting old data in data stream: %s: %w", dataStream, err))
 	}
 
-	cleared, err := waitUntilTrue(func() (bool, error) {
-		if signal.SIGINT() {
-			return true, errors.New("SIGINT: cancel clearing data")
-		}
-
+	cleared, err := waitUntilTrue(ctx, func(ctx context.Context) (bool, error) {
 		hits, err := r.getDocs(dataStream)
 		if err != nil {
 			return false, err
@@ -640,7 +639,7 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 		return result.WithError(err)
 	}
 
-	agents, err := checkEnrolledAgents(r.options.KibanaClient, ctxt)
+	agents, err := checkEnrolledAgents(ctx, r.options.KibanaClient, serviceContext)
 	if err != nil {
 		return result.WithError(fmt.Errorf("can't check enrolled agents: %w", err))
 	}
@@ -668,7 +667,7 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	// Assign policy to agent
 	r.resetAgentPolicyHandler = func() error {
 		logger.Debug("reassigning original policy back to agent...")
-		if err := r.options.KibanaClient.AssignPolicyToAgent(agent, origPolicy); err != nil {
+		if err := r.options.KibanaClient.AssignPolicyToAgent(ctx, agent, origPolicy); err != nil {
 			return fmt.Errorf("error reassigning original policy to agent: %w", err)
 		}
 		return nil
@@ -680,7 +679,7 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	}
 
 	logger.Debug("assigning package data stream to agent...")
-	if err := r.options.KibanaClient.AssignPolicyToAgent(agent, *policyWithDataStream); err != nil {
+	if err := r.options.KibanaClient.AssignPolicyToAgent(ctx, agent, *policyWithDataStream); err != nil {
 		return result.WithError(fmt.Errorf("could not assign policy to agent: %w", err))
 	}
 
@@ -701,11 +700,7 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	logger.Debug("checking for expected data in data stream...")
 	var hits *hits
 	oldHits := 0
-	passed, waitErr := waitUntilTrue(func() (bool, error) {
-		if signal.SIGINT() {
-			return true, errors.New("SIGINT: cancel waiting for policy assigned")
-		}
-
+	passed, waitErr := waitUntilTrue(ctx, func(ctx context.Context) (bool, error) {
 		var err error
 		hits, err = r.getDocs(dataStream)
 		if err != nil {
@@ -833,13 +828,9 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	return result.WithSuccess()
 }
 
-func checkEnrolledAgents(client *kibana.Client, ctxt servicedeployer.ServiceContext) ([]kibana.Agent, error) {
+func checkEnrolledAgents(ctx context.Context, client *kibana.Client, ctxt servicedeployer.ServiceContext) ([]kibana.Agent, error) {
 	var agents []kibana.Agent
-	enrolled, err := waitUntilTrue(func() (bool, error) {
-		if signal.SIGINT() {
-			return false, errors.New("SIGINT: cancel checking enrolled agents")
-		}
-
+	enrolled, err := waitUntilTrue(ctx, func(ctx context.Context) (bool, error) {
 		allAgents, err := client.ListAgents()
 		if err != nil {
 			return false, fmt.Errorf("could not list agents: %w", err)
@@ -1244,7 +1235,7 @@ func deleteDataStreamDocs(api *elasticsearch.API, dataStream string) error {
 	return nil
 }
 
-func waitUntilTrue(fn func() (bool, error), timeout time.Duration) (bool, error) {
+func waitUntilTrue(ctx context.Context, fn func(context.Context) (bool, error), timeout time.Duration) (bool, error) {
 	timeoutTicker := time.NewTicker(timeout)
 	defer timeoutTicker.Stop()
 
@@ -1252,7 +1243,7 @@ func waitUntilTrue(fn func() (bool, error), timeout time.Duration) (bool, error)
 	defer retryTicker.Stop()
 
 	for {
-		result, err := fn()
+		result, err := fn(ctx)
 		if err != nil {
 			return false, err
 		}
@@ -1263,6 +1254,8 @@ func waitUntilTrue(fn func() (bool, error), timeout time.Duration) (bool, error)
 		select {
 		case <-retryTicker.C:
 			continue
+		case <-ctx.Done():
+			return false, fmt.Errorf("context done: %w", ctx.Err())
 		case <-timeoutTicker.C:
 			return false, nil
 		}

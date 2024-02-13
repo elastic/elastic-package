@@ -5,6 +5,7 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/signal"
@@ -32,7 +33,7 @@ type Options struct {
 }
 
 // BootUp function boots up the service stack.
-func BootUp(options Options) error {
+func BootUp(ctx context.Context, options Options) error {
 	logger.Debugf("Create new instance of the service deployer")
 	serviceDeployer, err := servicedeployer.Factory(servicedeployer.FactoryOptions{
 		Profile:            options.Profile,
@@ -57,7 +58,7 @@ func BootUp(options Options) error {
 	serviceCtxt.Name = options.ServiceName
 	serviceCtxt.Logs.Folder.Agent = system.ServiceLogsAgentDir
 	serviceCtxt.Logs.Folder.Local = locationManager.ServiceLogDir()
-	deployed, err := serviceDeployer.SetUp(serviceCtxt)
+	deployed, err := serviceDeployer.SetUp(ctx, serviceCtxt)
 	if err != nil {
 		return fmt.Errorf("can't set up the service deployer: %w", err)
 	}

@@ -5,6 +5,7 @@
 package pipeline
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -24,7 +25,6 @@ import (
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/multierror"
 	"github.com/elastic/elastic-package/internal/packages"
-	"github.com/elastic/elastic-package/internal/signal"
 	"github.com/elastic/elastic-package/internal/stack"
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
@@ -66,7 +66,7 @@ func (r *runner) String() string {
 }
 
 // Run runs the pipeline tests defined under the given folder
-func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, error) {
+func (r *runner) Run(ctx context.Context, options testrunner.TestOptions) ([]testrunner.TestResult, error) {
 	r.options = options
 
 	stackConfig, err := stack.LoadConfig(r.options.Profile)
@@ -84,14 +84,17 @@ func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, e
 		}
 	}
 
-	return r.run()
+	return r.run(ctx)
 }
 
 // TearDown shuts down the pipeline test runner.
-func (r *runner) TearDown() error {
+func (r *runner) TearDown(ctx context.Context) error {
 	if r.options.DeferCleanup > 0 {
 		logger.Debugf("Waiting for %s before cleanup...", r.options.DeferCleanup)
-		signal.Sleep(r.options.DeferCleanup)
+		select {
+		case <-time.After(r.options.DeferCleanup):
+		case <-ctx.Done():
+		}
 	}
 
 	if err := ingest.UninstallPipelines(r.options.API, r.pipelines); err != nil {
@@ -106,7 +109,7 @@ func (r *runner) CanRunPerDataStream() bool {
 	return true
 }
 
-func (r *runner) run() ([]testrunner.TestResult, error) {
+func (r *runner) run(ctx context.Context) ([]testrunner.TestResult, error) {
 	testCaseFiles, err := r.listTestCaseFiles()
 	if err != nil {
 		return nil, fmt.Errorf("listing test case definitions failed: %w", err)

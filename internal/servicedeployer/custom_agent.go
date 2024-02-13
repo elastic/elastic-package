@@ -5,6 +5,7 @@
 package servicedeployer
 
 import (
+	"context"
 	_ "embed"
 	"fmt"
 	"os"
@@ -47,7 +48,7 @@ func NewCustomAgentDeployer(profile *profile.Profile, dockerComposeFile string, 
 }
 
 // SetUp sets up the service and returns any relevant information.
-func (d *CustomAgentDeployer) SetUp(inCtxt ServiceContext) (DeployedService, error) {
+func (d *CustomAgentDeployer) SetUp(ctx context.Context, inCtxt ServiceContext) (DeployedService, error) {
 	logger.Debug("setting up service using Docker Compose service deployer")
 
 	appConfig, err := install.Configuration()
@@ -121,7 +122,7 @@ func (d *CustomAgentDeployer) SetUp(inCtxt ServiceContext) (DeployedService, err
 		return nil, fmt.Errorf("can't attach service container to the stack network: %w", err)
 	}
 
-	err = p.WaitForHealthy(opts)
+	err = p.WaitForHealthy(ctx, opts)
 	if err != nil {
 		processServiceContainerLogs(p, compose.CommandOptions{
 			Env: opts.Env,

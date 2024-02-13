@@ -5,6 +5,7 @@
 package servicedeployer
 
 import (
+	"context"
 	_ "embed"
 	"encoding/json"
 	"fmt"
@@ -88,7 +89,7 @@ func NewTerraformServiceDeployer(definitionsDir string) (*TerraformServiceDeploy
 }
 
 // SetUp method boots up the Docker Compose with Terraform executor and mounted .tf definitions.
-func (tsd TerraformServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedService, error) {
+func (tsd TerraformServiceDeployer) SetUp(ctx context.Context, svcCtxt ServiceContext) (DeployedService, error) {
 	logger.Debug("setting up service using Terraform deployer")
 
 	configDir, err := tsd.installDockerfile()
@@ -103,14 +104,14 @@ func (tsd TerraformServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedServic
 		ymlPaths = append(ymlPaths, envYmlPath)
 	}
 
-	tfEnvironment := tsd.buildTerraformExecutorEnvironment(inCtxt)
+	tfEnvironment := tsd.buildTerraformExecutorEnvironment(svcCtxt)
 
 	service := dockerComposeDeployedService{
 		ymlPaths: ymlPaths,
 		project:  "elastic-package-service",
 		env:      tfEnvironment,
 	}
-	outCtxt := inCtxt
+	outCtxt := svcCtxt
 
 	p, err := compose.NewProject(service.project, service.ymlPaths...)
 	if err != nil {
@@ -146,7 +147,7 @@ func (tsd TerraformServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedServic
 		return nil, fmt.Errorf("could not boot up service using Docker Compose: %w", err)
 	}
 
-	err = p.WaitForHealthy(opts)
+	err = p.WaitForHealthy(ctx, opts)
 	if err != nil {
 		processServiceContainerLogs(p, compose.CommandOptions{
 			Env: opts.Env,

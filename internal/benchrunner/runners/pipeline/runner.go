@@ -5,6 +5,7 @@
 package pipeline
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -38,7 +39,7 @@ func NewPipelineBenchmark(opts Options) benchrunner.Runner {
 	return &runner{options: opts}
 }
 
-func (r *runner) SetUp() error {
+func (r *runner) SetUp(ctx context.Context) error {
 	dataStreamPath, found, err := packages.FindDataStreamRootForPath(r.options.Folder.Path)
 	if err != nil {
 		return fmt.Errorf("locating data_stream root failed: %w", err)
@@ -56,7 +57,7 @@ func (r *runner) SetUp() error {
 }
 
 // TearDown shuts down the pipeline benchmark runner.
-func (r *runner) TearDown() error {
+func (r *runner) TearDown(ctx context.Context) error {
 	if err := ingest.UninstallPipelines(r.options.API, r.pipelines); err != nil {
 		return fmt.Errorf("uninstalling ingest pipelines failed: %w", err)
 	}
@@ -64,7 +65,7 @@ func (r *runner) TearDown() error {
 }
 
 // Run runs the pipeline benchmarks defined under the given folder
-func (r *runner) Run() (reporters.Reportable, error) {
+func (r *runner) Run(ctx context.Context) (reporters.Reportable, error) {
 	return r.run()
 }
 

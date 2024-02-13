@@ -6,6 +6,7 @@ package compose
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -22,7 +23,6 @@ import (
 	"github.com/elastic/elastic-package/internal/docker"
 	"github.com/elastic/elastic-package/internal/environment"
 	"github.com/elastic/elastic-package/internal/logger"
-	"github.com/elastic/elastic-package/internal/signal"
 )
 
 const (
@@ -335,7 +335,7 @@ func (p *Project) Logs(opts CommandOptions) ([]byte, error) {
 }
 
 // WaitForHealthy method waits until all containers are healthy.
-func (p *Project) WaitForHealthy(opts CommandOptions) error {
+func (p *Project) WaitForHealthy(ctx context.Context, opts CommandOptions) error {
 	// Read container IDs
 	args := p.baseArgs()
 	args = append(args, "ps", "-a", "-q")
@@ -345,19 +345,11 @@ func (p *Project) WaitForHealthy(opts CommandOptions) error {
 		return err
 	}
 
-	startTime := time.Now()
-	timeout := startTime.Add(waitForHealthyTimeout)
+	ctx, stop := context.WithTimeout(ctx, waitForHealthyTimeout)
+	defer stop()
 
 	containerIDs := strings.Fields(b.String())
 	for {
-		if time.Now().After(timeout) {
-			return errors.New("timeout waiting for healthy container")
-		}
-
-		if signal.SIGINT() {
-			return errors.New("SIGINT: cancel waiting for policy assigned")
-		}
-
 		// NOTE: healthy must be reinitialized at each iteration
 		healthy := true
 
@@ -399,8 +391,12 @@ func (p *Project) WaitForHealthy(opts CommandOptions) error {
 			break
 		}
 
-		// NOTE: using sleep does not guarantee interval but it's ok for this use case
-		time.Sleep(waitForHealthyInterval)
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("context done: %w", ctx.Err())
+		// NOTE: using after does not guarantee interval but it's ok for this use case
+		case <-time.After(waitForHealthyInterval):
+		}
 	}
 
 	return nil

@@ -34,7 +34,6 @@ import (
 	"github.com/elastic/elastic-package/internal/multierror"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/servicedeployer"
-	"github.com/elastic/elastic-package/internal/signal"
 )
 
 type runner struct {
@@ -59,16 +58,16 @@ func NewStreamBenchmark(opts Options) benchrunner.Runner {
 	return &runner{options: opts}
 }
 
-func (r *runner) SetUp() error {
-	return r.setUp()
+func (r *runner) SetUp(ctx context.Context) error {
+	return r.setUp(ctx)
 }
 
 // Run runs the system benchmarks defined under the given folder
-func (r *runner) Run() (reporters.Reportable, error) {
-	return nil, r.run()
+func (r *runner) Run(ctx context.Context) (reporters.Reportable, error) {
+	return nil, r.run(ctx)
 }
 
-func (r *runner) TearDown() error {
+func (r *runner) TearDown(ctx context.Context) error {
 	r.wg.Wait()
 
 	if !r.options.PerformCleanup {
@@ -99,7 +98,7 @@ func (r *runner) TearDown() error {
 	return merr
 }
 
-func (r *runner) setUp() error {
+func (r *runner) setUp(ctx context.Context) error {
 	r.generators = make(map[string]genlib.Generator)
 	r.backFillGenerators = make(map[string]genlib.Generator)
 	r.errChanGenerators = make(chan error)
@@ -156,11 +155,7 @@ func (r *runner) setUp() error {
 		return fmt.Errorf("error cleaning up old data in data streams: %w", err)
 	}
 
-	cleared, err := waitUntilTrue(func() (bool, error) {
-		if signal.SIGINT() {
-			return true, errors.New("SIGINT: cancel clearing data")
-		}
-
+	cleared, err := waitUntilTrue(ctx, func(ctx context.Context) (bool, error) {
 		totalHits := 0
 		for _, runtimeDataStream := range r.runtimeDataStreams {
 			hits, err := getTotalHits(r.options.ESAPI, runtimeDataStream)
@@ -203,20 +198,16 @@ func (r *runner) wipeDataStreamsOnSetup() error {
 	return nil
 }
 
-func (r *runner) run() (err error) {
+func (r *runner) run(ctx context.Context) (err error) {
 	r.streamData()
 
-	for {
-		select {
-		case err = <-r.errChanGenerators:
-			close(r.done)
-			return err
-		default:
-			if signal.SIGINT() {
-				close(r.done)
-				return nil
-			}
-		}
+	select {
+	case err = <-r.errChanGenerators:
+		close(r.done)
+		return err
+	case <-ctx.Done():
+		close(r.done)
+		return nil
 	}
 }
 
@@ -603,7 +594,7 @@ func getTotalHits(esapi *elasticsearch.API, dataStream string) (int, error) {
 	return numHits, nil
 }
 
-func waitUntilTrue(fn func() (bool, error), timeout time.Duration) (bool, error) {
+func waitUntilTrue(ctx context.Context, fn func(ctx context.Context) (bool, error), timeout time.Duration) (bool, error) {
 	timeoutTimer := time.NewTimer(timeout)
 	defer timeoutTimer.Stop()
 
@@ -611,7 +602,7 @@ func waitUntilTrue(fn func() (bool, error), timeout time.Duration) (bool, error)
 	defer retryTicker.Stop()
 
 	for {
-		result, err := fn()
+		result, err := fn(ctx)
 		if err != nil {
 			return false, err
 		}
@@ -622,6 +613,8 @@ func waitUntilTrue(fn func() (bool, error), timeout time.Duration) (bool, error)
 		select {
 		case <-retryTicker.C:
 			continue
+		case <-ctx.Done():
+			return false, fmt.Errorf("context done: %w", ctx.Err())
 		case <-timeoutTimer.C:
 			return false, nil
 		}

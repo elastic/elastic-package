@@ -5,14 +5,13 @@
 package kibana
 
 import (
+	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/elastic/elastic-package/internal/logger"
-	"github.com/elastic/elastic-package/internal/signal"
 )
 
 var (
@@ -69,7 +68,7 @@ func (c *Client) ListAgents() ([]Agent, error) {
 }
 
 // AssignPolicyToAgent assigns the given Policy to the given Agent.
-func (c *Client) AssignPolicyToAgent(a Agent, p Policy) error {
+func (c *Client) AssignPolicyToAgent(ctx context.Context, a Agent, p Policy) error {
 	reqBody := `{ "policy_id": "` + p.ID + `" }`
 
 	path := fmt.Sprintf("%s/agents/%s/reassign", FleetAPI, a.ID)
@@ -82,24 +81,20 @@ func (c *Client) AssignPolicyToAgent(a Agent, p Policy) error {
 		return fmt.Errorf("could not assign policy to agent; API status code = %d; response body = %s", statusCode, respBody)
 	}
 
-	err = c.waitUntilPolicyAssigned(a, p)
+	err = c.waitUntilPolicyAssigned(ctx, a, p)
 	if err != nil {
 		return fmt.Errorf("error occurred while waiting for the policy to be assigned to all agents: %w", err)
 	}
 	return nil
 }
 
-func (c *Client) waitUntilPolicyAssigned(a Agent, p Policy) error {
-	timeout := time.NewTimer(waitForPolicyAssignedTimeout)
-	defer timeout.Stop()
+func (c *Client) waitUntilPolicyAssigned(ctx context.Context, a Agent, p Policy) error {
+	ctx, cancel := context.WithTimeout(ctx, waitForPolicyAssignedTimeout)
+	defer cancel()
 	ticker := time.NewTicker(waitForPolicyAssignedRetryPeriod)
 	defer ticker.Stop()
 
 	for {
-		if signal.SIGINT() {
-			return errors.New("SIGINT: cancel waiting for policy assigned")
-		}
-
 		agent, err := c.getAgent(a.ID)
 		if err != nil {
 			return fmt.Errorf("can't get the agent: %w", err)
@@ -113,8 +108,8 @@ func (c *Client) waitUntilPolicyAssigned(a Agent, p Policy) error {
 
 		logger.Debugf("Wait until the policy (ID: %s, revision: %d) is assigned to the agent (ID: %s)...", p.ID, p.Revision, a.ID)
 		select {
-		case <-timeout.C:
-			return errors.New("timeout: policy hasn't been assigned in time")
+		case <-ctx.Done():
+			return fmt.Errorf("context done: %w", ctx.Err())
 		case <-ticker.C:
 			continue
 		}

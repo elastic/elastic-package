@@ -5,8 +5,10 @@
 package main
 
 import (
+	"context"
 	"log"
 	"os"
+	"os/signal"
 
 	"github.com/elastic/elastic-package/cmd"
 	"github.com/elastic/elastic-package/internal/install"
@@ -20,7 +22,10 @@ func main() {
 		log.Fatalf("Validating installation failed: %v", err)
 	}
 
-	err = rootCmd.Execute()
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer cancel()
+
+	err = rootCmd.ExecuteContext(ctx)
 	if err != nil {
 		os.Exit(1)
 	}

@@ -6,6 +6,7 @@ package servicedeployer
 
 import (
 	"bytes"
+	"context"
 	_ "embed"
 	"encoding/base64"
 	"fmt"
@@ -85,7 +86,7 @@ func NewKubernetesServiceDeployer(profile *profile.Profile, definitionsPath stri
 
 // SetUp function links the kind container with elastic-package-stack network, installs Elastic-Agent and optionally
 // custom YAML definitions.
-func (ksd KubernetesServiceDeployer) SetUp(ctxt ServiceContext) (DeployedService, error) {
+func (ksd KubernetesServiceDeployer) SetUp(ctx context.Context, service ServiceContext) (DeployedService, error) {
 	err := kind.VerifyContext()
 	if err != nil {
 		return nil, fmt.Errorf("kind context verification failed: %w", err)
@@ -106,13 +107,13 @@ func (ksd KubernetesServiceDeployer) SetUp(ctxt ServiceContext) (DeployedService
 		return nil, fmt.Errorf("can't install custom definitions in the Kubernetes cluster: %w", err)
 	}
 
-	ctxt.Name = kind.ControlPlaneContainerName
-	ctxt.Hostname = kind.ControlPlaneContainerName
+	service.Name = kind.ControlPlaneContainerName
+	service.Hostname = kind.ControlPlaneContainerName
 	// kind-control-plane is the name of the kind host where Pod is running since we use hostNetwork setting
 	// to deploy Agent Pod. Because of this, hostname inside pod will be equal to the name of the k8s host.
-	ctxt.Agent.Host.NamePrefix = "kind-control-plane"
+	service.Agent.Host.NamePrefix = "kind-control-plane"
 	return &kubernetesDeployedService{
-		ctxt:           ctxt,
+		ctxt:           service,
 		definitionsDir: ksd.definitionsDir,
 	}, nil
 }

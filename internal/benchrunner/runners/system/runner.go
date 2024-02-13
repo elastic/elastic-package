@@ -33,7 +33,6 @@ import (
 	"github.com/elastic/elastic-package/internal/multierror"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/servicedeployer"
-	"github.com/elastic/elastic-package/internal/signal"
 )
 
 const (
@@ -69,19 +68,23 @@ func NewSystemBenchmark(opts Options) benchrunner.Runner {
 	return &runner{options: opts}
 }
 
-func (r *runner) SetUp() error {
-	return r.setUp()
+func (r *runner) SetUp(ctx context.Context) error {
+	return r.setUp(ctx)
 }
 
 // Run runs the system benchmarks defined under the given folder
-func (r *runner) Run() (reporters.Reportable, error) {
-	return r.run()
+func (r *runner) Run(ctx context.Context) (reporters.Reportable, error) {
+	return r.run(ctx)
 }
 
-func (r *runner) TearDown() error {
+func (r *runner) TearDown(ctx context.Context) error {
 	if r.options.DeferCleanup > 0 {
 		logger.Debugf("waiting for %s before tearing down...", r.options.DeferCleanup)
-		signal.Sleep(r.options.DeferCleanup)
+		select {
+		case <-time.After(r.options.DeferCleanup):
+		case <-ctx.Done():
+		}
+
 	}
 
 	var merr multierror.Error
@@ -127,7 +130,7 @@ func (r *runner) TearDown() error {
 	return merr
 }
 
-func (r *runner) setUp() error {
+func (r *runner) setUp(ctx context.Context) error {
 	locationManager, err := locations.NewLocationManager()
 	if err != nil {
 		return fmt.Errorf("reading service logs directory failed: %w", err)
@@ -208,11 +211,7 @@ func (r *runner) setUp() error {
 		return fmt.Errorf("error deleting old data in data stream: %s: %w", r.runtimeDataStream, err)
 	}
 
-	cleared, err := waitUntilTrue(func() (bool, error) {
-		if signal.SIGINT() {
-			return true, errors.New("SIGINT: cancel clearing data")
-		}
-
+	cleared, err := waitUntilTrue(ctx, func(ctx context.Context) (bool, error) {
 		hits, err := getTotalHits(r.options.ESAPI, r.runtimeDataStream)
 		return hits == 0, err
 	}, 2*time.Minute)
@@ -226,7 +225,7 @@ func (r *runner) setUp() error {
 	return nil
 }
 
-func (r *runner) run() (report reporters.Reportable, err error) {
+func (r *runner) run(ctx context.Context) (report reporters.Reportable, err error) {
 	var service servicedeployer.DeployedService
 	if r.scenario.Corpora.InputService != nil {
 		stackVersion, err := r.options.KibanaClient.Version()
@@ -252,7 +251,7 @@ func (r *runner) run() (report reporters.Reportable, err error) {
 		}
 
 		r.ctxt.Name = r.scenario.Corpora.InputService.Name
-		service, err = serviceDeployer.SetUp(r.ctxt)
+		service, err = serviceDeployer.SetUp(ctx, r.ctxt)
 		if err != nil {
 			return nil, fmt.Errorf("could not setup service: %w", err)
 		}
@@ -280,7 +279,7 @@ func (r *runner) run() (report reporters.Reportable, err error) {
 	}
 
 	// once data is generated, enroll agents and assign policy
-	if err := r.enrollAgents(); err != nil {
+	if err := r.enrollAgents(ctx); err != nil {
 		return nil, err
 	}
 
@@ -291,7 +290,7 @@ func (r *runner) run() (report reporters.Reportable, err error) {
 		}
 	}
 
-	finishedOnTime, err := r.waitUntilBenchmarkFinishes()
+	finishedOnTime, err := r.waitUntilBenchmarkFinishes(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -615,12 +614,9 @@ func (r *runner) runGenerator(destDir string) error {
 	return r.generator.Close()
 }
 
-func (r *runner) checkEnrolledAgents() ([]kibana.Agent, error) {
+func (r *runner) checkEnrolledAgents(ctx context.Context) ([]kibana.Agent, error) {
 	var agents []kibana.Agent
-	enrolled, err := waitUntilTrue(func() (bool, error) {
-		if signal.SIGINT() {
-			return false, errors.New("SIGINT: cancel checking enrolled agents")
-		}
+	enrolled, err := waitUntilTrue(ctx, func(ctx context.Context) (bool, error) {
 		allAgents, err := r.options.KibanaClient.ListAgents()
 		if err != nil {
 			return false, fmt.Errorf("could not list agents: %w", err)
@@ -642,7 +638,7 @@ func (r *runner) checkEnrolledAgents() ([]kibana.Agent, error) {
 	return agents, nil
 }
 
-func (r *runner) waitUntilBenchmarkFinishes() (bool, error) {
+func (r *runner) waitUntilBenchmarkFinishes(ctx context.Context) (bool, error) {
 	logger.Debug("checking for all data in data stream...")
 	var benchTime *time.Timer
 	if r.scenario.BenchmarkTimePeriod > 0 {
@@ -650,11 +646,7 @@ func (r *runner) waitUntilBenchmarkFinishes() (bool, error) {
 	}
 
 	oldHits := 0
-	return waitUntilTrue(func() (bool, error) {
-		if signal.SIGINT() {
-			return true, errors.New("SIGINT: cancel waiting for policy assigned")
-		}
-
+	return waitUntilTrue(ctx, func(ctx context.Context) (bool, error) {
 		var err error
 		hits, err := getTotalHits(r.options.ESAPI, r.runtimeDataStream)
 		if hits == 0 {
@@ -679,8 +671,8 @@ func (r *runner) waitUntilBenchmarkFinishes() (bool, error) {
 	}, *r.scenario.WaitForDataTimeout)
 }
 
-func (r *runner) enrollAgents() error {
-	agents, err := r.checkEnrolledAgents()
+func (r *runner) enrollAgents(ctx context.Context) error {
+	agents, err := r.checkEnrolledAgents(ctx)
 	if err != nil {
 		return fmt.Errorf("can't check enrolled agents: %w", err)
 	}
@@ -695,7 +687,7 @@ func (r *runner) enrollAgents() error {
 		// Assign policy to agent
 		handlers[i] = func() error {
 			logger.Debug("reassigning original policy back to agent...")
-			if err := r.options.KibanaClient.AssignPolicyToAgent(agent, origPolicy); err != nil {
+			if err := r.options.KibanaClient.AssignPolicyToAgent(ctx, agent, origPolicy); err != nil {
 				return fmt.Errorf("error reassigning original policy to agent %s: %w", agent.ID, err)
 			}
 			return nil
@@ -707,7 +699,7 @@ func (r *runner) enrollAgents() error {
 		}
 
 		logger.Debug("assigning package data stream to agent...")
-		if err := r.options.KibanaClient.AssignPolicyToAgent(agent, *policyWithDataStream); err != nil {
+		if err := r.options.KibanaClient.AssignPolicyToAgent(ctx, agent, *policyWithDataStream); err != nil {
 			return fmt.Errorf("could not assign policy to agent: %w", err)
 		}
 	}
@@ -970,7 +962,7 @@ func filterAgents(allAgents []kibana.Agent) []kibana.Agent {
 	return filtered
 }
 
-func waitUntilTrue(fn func() (bool, error), timeout time.Duration) (bool, error) {
+func waitUntilTrue(ctx context.Context, fn func(context.Context) (bool, error), timeout time.Duration) (bool, error) {
 	timeoutTicker := time.NewTicker(timeout)
 	defer timeoutTicker.Stop()
 
@@ -978,7 +970,7 @@ func waitUntilTrue(fn func() (bool, error), timeout time.Duration) (bool, error)
 	defer retryTicker.Stop()
 
 	for {
-		result, err := fn()
+		result, err := fn(ctx)
 		if err != nil {
 			return false, err
 		}
@@ -989,6 +981,8 @@ func waitUntilTrue(fn func() (bool, error), timeout time.Duration) (bool, error)
 		select {
 		case <-retryTicker.C:
 			continue
+		case <-ctx.Done():
+			return false, fmt.Errorf("context done: %w", ctx.Err())
 		case <-timeoutTicker.C:
 			return false, nil
 		}

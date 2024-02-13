@@ -42,7 +42,6 @@ import (
 	"github.com/elastic/elastic-package/internal/multierror"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/servicedeployer"
-	"github.com/elastic/elastic-package/internal/signal"
 )
 
 const (
@@ -176,19 +175,22 @@ func NewRallyBenchmark(opts Options) benchrunner.Runner {
 	return &runner{options: opts}
 }
 
-func (r *runner) SetUp() error {
-	return r.setUp()
+func (r *runner) SetUp(ctx context.Context) error {
+	return r.setUp(ctx)
 }
 
 // Run runs the system benchmarks defined under the given folder
-func (r *runner) Run() (reporters.Reportable, error) {
+func (r *runner) Run(ctx context.Context) (reporters.Reportable, error) {
 	return r.run()
 }
 
-func (r *runner) TearDown() error {
+func (r *runner) TearDown(ctx context.Context) error {
 	if r.options.DeferCleanup > 0 {
 		logger.Debugf("waiting for %s before tearing down...", r.options.DeferCleanup)
-		signal.Sleep(r.options.DeferCleanup)
+		select {
+		case <-time.After(r.options.DeferCleanup):
+		case <-ctx.Done():
+		}
 	}
 
 	var merr multierror.Error
@@ -235,7 +237,7 @@ func (r *runner) createRallyTrackDir(locationManager *locations.LocationManager)
 	return nil
 }
 
-func (r *runner) setUp() error {
+func (r *runner) setUp(ctx context.Context) error {
 	locationManager, err := locations.NewLocationManager()
 	if err != nil {
 		return fmt.Errorf("reading service logs directory failed: %w", err)
@@ -327,11 +329,7 @@ func (r *runner) setUp() error {
 		return fmt.Errorf("error deleting old data in data stream: %s: %w", r.runtimeDataStream, err)
 	}
 
-	cleared, err := waitUntilTrue(func() (bool, error) {
-		if signal.SIGINT() {
-			return true, errors.New("SIGINT: cancel clearing data")
-		}
-
+	cleared, err := waitUntilTrue(ctx, func(context.Context) (bool, error) {
 		hits, err := getTotalHits(r.options.ESAPI, r.runtimeDataStream)
 		return hits == 0, err
 	}, 2*time.Minute)
@@ -1163,7 +1161,7 @@ func getTotalHits(esapi *elasticsearch.API, dataStream string) (int, error) {
 	return numHits, nil
 }
 
-func waitUntilTrue(fn func() (bool, error), timeout time.Duration) (bool, error) {
+func waitUntilTrue(ctx context.Context, fn func(ctx context.Context) (bool, error), timeout time.Duration) (bool, error) {
 	timeoutTimer := time.NewTimer(timeout)
 	defer timeoutTimer.Stop()
 
@@ -1171,7 +1169,7 @@ func waitUntilTrue(fn func() (bool, error), timeout time.Duration) (bool, error)
 	defer retryTicker.Stop()
 
 	for {
-		result, err := fn()
+		result, err := fn(ctx)
 		if err != nil {
 			return false, err
 		}
@@ -1182,6 +1180,8 @@ func waitUntilTrue(fn func() (bool, error), timeout time.Duration) (bool, error)
 		select {
 		case <-retryTicker.C:
 			continue
+		case <-ctx.Done():
+			return false, fmt.Errorf("context done: %w", ctx.Err())
 		case <-timeoutTimer.C:
 			return false, nil
 		}

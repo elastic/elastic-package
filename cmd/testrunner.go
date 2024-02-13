@@ -5,6 +5,7 @@
 package cmd
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -19,7 +20,6 @@ import (
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/packages"
-	"github.com/elastic/elastic-package/internal/signal"
 	"github.com/elastic/elastic-package/internal/stack"
 	"github.com/elastic/elastic-package/internal/testrunner"
 	"github.com/elastic/elastic-package/internal/testrunner/reporters/formats"
@@ -78,7 +78,7 @@ func setupTestCommand() *cobraext.Command {
 	cmd.PersistentFlags().StringP(cobraext.ProfileFlagName, "p", "", fmt.Sprintf(cobraext.ProfileFlagDescription, install.ProfileNameEnvVar))
 
 	for testType, runner := range testrunner.TestRunners() {
-		action := testTypeCommandActionFactory(runner)
+		action := testTypeCommandActionFactory(cmd.Context(), runner)
 		testTypeCmdActions = append(testTypeCmdActions, action)
 
 		testTypeCmd := &cobra.Command{
@@ -99,7 +99,7 @@ func setupTestCommand() *cobraext.Command {
 	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
 }
 
-func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.CommandAction {
+func testTypeCommandActionFactory(ctx context.Context, runner testrunner.TestRunner) cobraext.CommandAction {
 	testType := runner.Type()
 	return func(cmd *cobra.Command, args []string) error {
 		cmd.Printf("Run %s tests for the package\n", testType)
@@ -155,8 +155,6 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 		if err != nil {
 			return fmt.Errorf("cannot determine if package has data streams: %w", err)
 		}
-
-		signal.Enable()
 
 		var testFolders []testrunner.TestFolder
 		if hasDataStreams && runner.CanRunPerDataStream() {
@@ -247,7 +245,7 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 
 		var results []testrunner.TestResult
 		for _, folder := range testFolders {
-			r, err := testrunner.Run(testType, testrunner.TestOptions{
+			r, err := testrunner.Run(ctx, testType, testrunner.TestOptions{
 				Profile:            profile,
 				TestFolder:         folder,
 				PackageRootPath:    packageRootPath,

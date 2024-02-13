@@ -5,6 +5,7 @@
 package servicedeployer
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -46,7 +47,7 @@ func NewDockerComposeServiceDeployer(profile *profile.Profile, ymlPaths []string
 }
 
 // SetUp sets up the service and returns any relevant information.
-func (d *DockerComposeServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedService, error) {
+func (d *DockerComposeServiceDeployer) SetUp(ctx context.Context, inCtxt ServiceContext) (DeployedService, error) {
 	logger.Debug("setting up service using Docker Compose service deployer")
 	service := dockerComposeDeployedService{
 		ymlPaths: d.ymlPaths,
@@ -90,7 +91,7 @@ func (d *DockerComposeServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedSer
 		return nil, fmt.Errorf("could not boot up service using Docker Compose: %w", err)
 	}
 
-	err = p.WaitForHealthy(opts)
+	err = p.WaitForHealthy(ctx, opts)
 	if err != nil {
 		processServiceContainerLogs(p, compose.CommandOptions{
 			Env: opts.Env,
