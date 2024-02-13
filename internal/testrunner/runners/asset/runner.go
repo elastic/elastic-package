@@ -113,6 +113,13 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		return nil
 	}
 
+	// No Elasticsearch asset is created when an Input package is installed through the API.
+	// This would require to create a Agent policy and add that input package to the Agent policy.
+	// As those input packages could have some required fields, it would also require to add
+	// configuration files as in system tests to fill those fields.
+	// In these tests, mainly it is required to test Kibana assets, therefore it is not added
+	// support for Elasticsearch assets in input packages.
+	// Related issue: https://github.com/elastic/elastic-package/issues/1623
 	expectedAssets, err := packages.LoadPackageAssets(r.packageRootPath)
 	if err != nil {
 		return result.WithError(fmt.Errorf("could not load expected package assets: %w", err))
