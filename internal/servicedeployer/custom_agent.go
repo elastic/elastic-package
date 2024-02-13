@@ -36,8 +36,11 @@ type CustomAgentDeployer struct {
 	dockerComposeFile string
 	stackVersion      string
 
+	runAllSteps bool
+
 	runTearDown  bool
 	runTestsOnly bool
+	runSetup     bool
 }
 
 type CustomAgentDeployerOptions struct {
@@ -47,6 +50,7 @@ type CustomAgentDeployerOptions struct {
 
 	RunTearDown  bool
 	RunTestsOnly bool
+	RunSetup     bool
 }
 
 // NewCustomAgentDeployer returns a new instance of a deployedCustomAgent.
@@ -57,6 +61,8 @@ func NewCustomAgentDeployer(options CustomAgentDeployerOptions) (*CustomAgentDep
 		stackVersion:      options.StackVersion,
 		runTearDown:       options.RunTearDown,
 		runTestsOnly:      options.RunTestsOnly,
+		runSetup:          options.RunSetup,
+		runAllSteps:       !(options.RunSetup || options.RunTearDown || options.RunTestsOnly),
 	}, nil
 }
 
@@ -113,10 +119,9 @@ func (d *CustomAgentDeployer) SetUp(inCtxt ServiceContext) (DeployedService, err
 	}
 
 	// Clean service logs
-	switch {
-	case d.runTestsOnly:
+	if d.runTestsOnly {
 		logger.Debug("Skipping removing service logs folder folder %s", outCtxt.Logs.Folder.Local)
-	default:
+	} else {
 		err = files.RemoveContent(outCtxt.Logs.Folder.Local)
 		if err != nil {
 			return nil, fmt.Errorf("removing service logs failed: %w", err)
@@ -125,24 +130,19 @@ func (d *CustomAgentDeployer) SetUp(inCtxt ServiceContext) (DeployedService, err
 
 	inCtxt.Name = dockerCustomAgentName
 	serviceName := inCtxt.Name
+
 	opts := compose.CommandOptions{
 		Env:       env,
 		ExtraArgs: []string{"--build", "-d"},
 	}
-	err = p.Up(opts)
-	if err != nil {
-		return nil, fmt.Errorf("could not boot up service using Docker Compose: %w", err)
-	}
 
-	switch {
-	case d.runTearDown || d.runTestsOnly:
-		logger.Debug("Skipping connect container to network (tear down process)")
-	default:
-		// Connect service network with stack network (for the purpose of metrics collection)
-		err = docker.ConnectToNetwork(p.ContainerName(serviceName), stack.Network(d.profile))
+	if d.runSetup || d.runAllSteps {
+		err = p.Up(opts)
 		if err != nil {
-			return nil, fmt.Errorf("can't attach service container to the stack network: %w", err)
+			return nil, fmt.Errorf("could not boot up service using Docker Compose: %w", err)
 		}
+	} else {
+		logger.Debug("Skipping bringing up docker-compose project")
 	}
 
 	err = p.WaitForHealthy(opts)
@@ -151,6 +151,16 @@ func (d *CustomAgentDeployer) SetUp(inCtxt ServiceContext) (DeployedService, err
 			Env: opts.Env,
 		}, outCtxt.Name)
 		return nil, fmt.Errorf("service is unhealthy: %w", err)
+	}
+
+	if d.runSetup || d.runAllSteps {
+		// Connect service network with stack network (for the purpose of metrics collection)
+		err = docker.ConnectToNetwork(p.ContainerName(serviceName), stack.Network(d.profile))
+		if err != nil {
+			return nil, fmt.Errorf("can't attach service container to the stack network: %w", err)
+		}
+	} else {
+		logger.Debug("Skipping connect container to network (tear down process)")
 	}
 
 	// Build service container name

@@ -319,8 +319,10 @@ func (r *runner) createServiceOptions(variantName string) servicedeployer.Factor
 		StackVersion:       r.stackVersion.Version(),
 		RunTearDown:        r.options.RunTearDown,
 		RunTestsOnly:       r.options.RunTestsOnly,
+		RunSetup:           r.options.RunSetup,
 	}
 }
+
 func (r *runner) createServiceContext(serviceOptions servicedeployer.FactoryOptions) (servicedeployer.ServiceContext, error) {
 	var ctxt servicedeployer.ServiceContext
 	ctxt.Name = r.options.TestFolder.Package

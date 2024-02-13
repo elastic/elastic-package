@@ -26,8 +26,11 @@ type DockerComposeServiceDeployer struct {
 	ymlPaths []string
 	variant  ServiceVariant
 
+	runAllSteps bool
+
 	runTearDown  bool
 	runTestsOnly bool
+	runSetup     bool
 }
 
 type DockerComposeServiceDeployerOptions struct {
@@ -36,6 +39,7 @@ type DockerComposeServiceDeployerOptions struct {
 	Variant      ServiceVariant
 	RunTearDown  bool
 	RunTestsOnly bool
+	RunSetup     bool
 }
 
 type dockerComposeDeployedService struct {
@@ -55,6 +59,8 @@ func NewDockerComposeServiceDeployer(options DockerComposeServiceDeployerOptions
 		variant:      options.Variant,
 		runTearDown:  options.RunTearDown,
 		runTestsOnly: options.RunTestsOnly,
+		runSetup:     options.RunSetup,
+		runAllSteps:  !(options.RunSetup || options.RunTearDown || options.RunTestsOnly),
 	}, nil
 }
 
@@ -96,37 +102,38 @@ func (d *DockerComposeServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedSer
 	}
 
 	serviceName := inCtxt.Name
-	opts := compose.CommandOptions{
-		Env: append(
-			service.env,
-			d.variant.Env...),
-		ExtraArgs: []string{"--build", "-d"},
-	}
-	err = p.Up(opts)
-	if err != nil {
-		return nil, fmt.Errorf("could not boot up service using Docker Compose: %w", err)
-	}
+	if d.runSetup || d.runAllSteps {
+		opts := compose.CommandOptions{
+			Env: append(
+				service.env,
+				d.variant.Env...),
+			ExtraArgs: []string{"--build", "-d"},
+		}
+		err = p.Up(opts)
+		if err != nil {
+			return nil, fmt.Errorf("could not boot up service using Docker Compose: %w", err)
+		}
 
-	err = p.WaitForHealthy(opts)
-	if err != nil {
-		processServiceContainerLogs(p, compose.CommandOptions{
-			Env: opts.Env,
-		}, outCtxt.Name)
-		return nil, fmt.Errorf("service is unhealthy: %w", err)
+		err = p.WaitForHealthy(opts)
+		if err != nil {
+			processServiceContainerLogs(p, compose.CommandOptions{
+				Env: opts.Env,
+			}, outCtxt.Name)
+			return nil, fmt.Errorf("service is unhealthy: %w", err)
+		}
 	}
 
 	// Build service container name
 	outCtxt.Hostname = p.ContainerName(serviceName)
 
-	switch {
-	case d.runTearDown || d.runTestsOnly:
-		logger.Debug("Skipping connect container to network (tear down process)")
-	default:
+	if d.runSetup || d.runAllSteps {
 		// Connect service network with stack network (for the purpose of metrics collection)
 		err = docker.ConnectToNetwork(p.ContainerName(serviceName), stack.Network(d.profile))
 		if err != nil {
 			return nil, fmt.Errorf("can't attach service container to the stack network: %w", err)
 		}
+	} else {
+		logger.Debug("Skipping connect container to network (tear down process)")
 	}
 
 	logger.Debugf("adding service container %s internal ports to context", p.ContainerName(serviceName))
