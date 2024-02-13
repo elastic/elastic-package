@@ -69,7 +69,7 @@ type FleetPackage struct {
 	Status string `json:"status"`
 }
 
-// GetPackage obtains information about an installed package.
+// GetPackage obtains information about a package from Fleet.
 func (c *Client) GetPackage(name string) (*FleetPackage, error) {
 	path := c.epmPackageUrl(name, "")
 	statusCode, respBody, err := c.get(path)
