@@ -18,7 +18,7 @@ overwrite_pipeline_config() {
   cat "$ls_pipeline_config_path/generated_logstash.conf" > "$ls_pipeline_config_path/logstash.conf"
 }
 
-# installs the `elastic_integration` plugin if not bundled
+# installs the given plugin if it is not installed
 install_plugin_if_missing() {
   plugin_name=$1
   if [[ ! $(bin/logstash-plugin list) == *"$plugin_name"* ]]; then
