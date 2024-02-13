@@ -84,13 +84,23 @@ func (c *Client) GetPackage(name string) (*FleetPackage, error) {
 	}
 
 	var response struct {
-		Item FleetPackage `json:"item"`
+		// Response is here when old packages API is used (before 8.0)
+		Response *FleetPackage `json:"response"`
+
+		// Response is here when new packages API is used (since 8.0)
+		Item *FleetPackage `json:"item"`
 	}
 	err = json.Unmarshal(respBody, &response)
-	if err != nil {
+	switch {
+	case err != nil:
 		return nil, fmt.Errorf("failed to decode package response: %w", err)
+	case response.Response != nil:
+		return response.Response, nil
+	case response.Item != nil:
+		return response.Item, nil
+	default:
+		return nil, fmt.Errorf("package %s not found in response: %s", name, string(respBody))
 	}
-	return &response.Item, err
 }
 
 func (c *Client) epmPackageUrl(name, version string) string {
