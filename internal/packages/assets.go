@@ -153,8 +153,7 @@ func loadElasticsearchAssets(pkgRootPath string) ([]Asset, error) {
 		}
 	}
 
-	// TODO add assets for input packages
-
+	// No Elasticsearch asset is created when an Input package is installed through the API.
 	return assets, nil
 }
 
