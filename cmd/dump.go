@@ -78,11 +78,9 @@ func dumpInstalledObjectsCmdAction(cmd *cobra.Command, args []string) error {
 		return cobraext.FlagParsingError(err, cobraext.DumpOutputFlagName)
 	}
 
-	tlsSkipVerify, _ := cmd.Flags().GetBool(cobraext.TLSSkipVerifyFlagName)
-
-	var clientOptions []elasticsearch.ClientOption
-	if tlsSkipVerify {
-		clientOptions = append(clientOptions, elasticsearch.OptionWithSkipTLSVerify())
+	tlsSkipVerify, err := cmd.Flags().GetBool(cobraext.TLSSkipVerifyFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.TLSSkipVerifyFlagName)
 	}
 
 	profile, err := cobraext.GetProfileFlag(cmd)
@@ -90,6 +88,27 @@ func dumpInstalledObjectsCmdAction(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	var kibanaOptions []kibana.ClientOption
+	if tlsSkipVerify {
+		kibanaOptions = append(kibanaOptions, kibana.TLSSkipVerify())
+	}
+	kibanaClient, err := stack.NewKibanaClientFromProfile(profile, kibanaOptions...)
+	if err != nil {
+		return fmt.Errorf("failed to initialize Kibana client: %w", err)
+	}
+	installedPackage, err := kibanaClient.GetPackage(packageName)
+	if err != nil {
+		return fmt.Errorf("failed to get package status: %w", err)
+	}
+	if installedPackage.Status == "not_installed" {
+		cmd.Printf("Package %s is not installed.\n", packageName)
+		return nil
+	}
+
+	var clientOptions []elasticsearch.ClientOption
+	if tlsSkipVerify {
+		clientOptions = append(clientOptions, elasticsearch.OptionWithSkipTLSVerify())
+	}
 	client, err := stack.NewElasticsearchClientFromProfile(profile, clientOptions...)
 	if err != nil {
 		return fmt.Errorf("failed to initialize Elasticsearch client: %w", err)
@@ -101,8 +120,11 @@ func dumpInstalledObjectsCmdAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("dump failed: %w", err)
 	}
 	if n == 0 {
-		cmd.Printf("No objects were dumped for package %s, is it installed?\n", packageName)
-		return nil
+		if installedPackage.Type == "input" {
+			cmd.Printf("No objects installed for input package %s unless a policy is created.\n", packageName)
+			return nil
+		}
+		return fmt.Errorf("no objects found for package %s", packageName)
 	}
 	cmd.Printf("Dumped %d installed objects for package %s to %s\n", n, packageName, outputPath)
 	return nil
