@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/Masterminds/semver/v3"
+
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
@@ -115,17 +117,39 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 			return fmt.Errorf("reading package manifest failed: %w", err)
 		}
 
+		kibanaVersion, err := r.kibanaClient.Version()
+		if err != nil {
+			return fmt.Errorf("failed to retrieve kibana version: %w", err)
+		}
+		stackVersion, err := semver.NewVersion(kibanaVersion.Version())
+		if err != nil {
+			return fmt.Errorf("failed to parse kibana version: %w", err)
+		}
+
+		if stackVersion.LessThan(semver.MustParse("8.0.0")) && pkgManifest.Name == "system" {
+			// in Elastic stack 7.* , system package is installed in the default Agent policy and it cannot be deleted
+			// error: system is installed by default and cannot be removed
+			logger.Debugf("skip uninstalling %s package", pkgManifest.Name)
+			return nil
+		}
+
 		logger.Debug("removing package...")
 		err = packageInstaller.Uninstall()
-
-		// by default system package is part of an agent policy and it cannot be uninstalled
-		// https://github.com/elastic/elastic-package/blob/5f65dc29811c57454bc7142aaf73725b6d4dc8e6/internal/stack/_static/kibana.yml.tmpl#L62
-		if err != nil && pkgManifest.Name != "system" {
+		if err != nil {
+			// logging the error as a warning and not returning it since there could be other reasons that could make fail this process
+			// for instance being defined a test agent policy where this package is used for debugging purposes
 			logger.Warnf("failed to uninstall package %q: %s", pkgManifest.Name, err.Error())
 		}
 		return nil
 	}
 
+	// No Elasticsearch asset is created when an Input package is installed through the API.
+	// This would require to create a Agent policy and add that input package to the Agent policy.
+	// As those input packages could have some required fields, it would also require to add
+	// configuration files as in system tests to fill those fields.
+	// In these tests, mainly it is required to test Kibana assets, therefore it is not added
+	// support for Elasticsearch assets in input packages.
+	// Related issue: https://github.com/elastic/elastic-package/issues/1623
 	expectedAssets, err := packages.LoadPackageAssets(r.packageRootPath)
 	if err != nil {
 		return result.WithError(fmt.Errorf("could not load expected package assets: %w", err))

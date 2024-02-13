@@ -16,14 +16,24 @@ import (
 	"github.com/elastic/elastic-package/internal/certs"
 )
 
+type tlsService struct {
+	Name     string
+	IsClient bool
+}
+
 // tlsServices is the list of server TLS certificates that will be
 // created in the given path.
-var tlsServices = []string{
-	"elasticsearch",
-	"kibana",
-	"package-registry",
-	"fleet-server",
-	"logstash",
+var tlsServices = []tlsService{
+	{Name: "elasticsearch"},
+	{Name: "kibana"},
+	{Name: "package-registry"},
+	{Name: "fleet-server"},
+	{Name: "logstash"},
+}
+
+var tlsServicesServerless = []tlsService{
+	{Name: "logstash"},
+	{Name: "elastic-agent", IsClient: true},
 }
 
 var (
@@ -43,7 +53,7 @@ var (
 // initTLSCertificates initializes all the certificates needed to run the services
 // managed by elastic-package stack. It includes a CA, and a pair of keys and
 // certificates for each service.
-func initTLSCertificates(fileProvider string, profilePath string) ([]resource.Resource, error) {
+func initTLSCertificates(fileProvider string, profilePath string, tlsServices []tlsService) ([]resource.Resource, error) {
 	certsDir := filepath.Join(profilePath, CertificatesDirectory)
 	caCertFile := filepath.Join(profilePath, string(CACertificateFile))
 	caKeyFile := filepath.Join(profilePath, string(CAKeyFile))
@@ -69,7 +79,7 @@ func initTLSCertificates(fileProvider string, profilePath string) ([]resource.Re
 	}
 
 	for _, service := range tlsServices {
-		certsDir := filepath.Join(certsDir, service)
+		certsDir := filepath.Join(certsDir, service.Name)
 		caFile := filepath.Join(certsDir, "ca-cert.pem")
 		certFile := filepath.Join(certsDir, "cert.pem")
 		keyFile := filepath.Join(certsDir, "key.pem")
@@ -119,7 +129,7 @@ func certWriteToResource(resources []resource.Resource, fileProvider string, pro
 }
 
 func initCA(certFile, keyFile string) (*certs.Issuer, error) {
-	if err := verifyTLSCertificates(certFile, certFile, keyFile, ""); err == nil {
+	if err := verifyTLSCertificates(certFile, certFile, keyFile, tlsService{}); err == nil {
 		// Valid CA is already present, load it to check service certificates.
 		ca, err := certs.LoadCA(certFile, keyFile)
 		if err != nil {
@@ -134,21 +144,30 @@ func initCA(certFile, keyFile string) (*certs.Issuer, error) {
 	return ca, nil
 }
 
-func initServiceTLSCertificates(ca *certs.Issuer, caCertFile string, certFile, keyFile, service string) (*certs.Certificate, error) {
+func initServiceTLSCertificates(ca *certs.Issuer, caCertFile string, certFile, keyFile string, service tlsService) (*certs.Certificate, error) {
 	if err := verifyTLSCertificates(caCertFile, certFile, keyFile, service); err == nil {
 		// Certificate already present and valid, load it.
 		return certs.LoadCertificate(certFile, keyFile)
 	}
 
-	cert, err := ca.Issue(certs.WithName(service))
-	if err != nil {
-		return nil, fmt.Errorf("error initializing certificate for %q", service)
+	var cert *certs.Certificate
+	var err error
+	if service.IsClient {
+		cert, err = ca.IssueClient(certs.WithName(service.Name))
+		if err != nil {
+			return nil, fmt.Errorf("error initializing certificate for %q", service.Name)
+		}
+	} else {
+		cert, err = ca.Issue(certs.WithName(service.Name))
+		if err != nil {
+			return nil, fmt.Errorf("error initializing certificate for %q", service.Name)
+		}
 	}
 
 	return cert, nil
 }
 
-func verifyTLSCertificates(caFile, certFile, keyFile, name string) error {
+func verifyTLSCertificates(caFile, certFile, keyFile string, service tlsService) error {
 	cert, err := certs.LoadCertificate(certFile, keyFile)
 	if err != nil {
 		return err
@@ -161,9 +180,16 @@ func verifyTLSCertificates(caFile, certFile, keyFile, name string) error {
 	options := x509.VerifyOptions{
 		Roots: certPool,
 	}
-	if name != "" {
-		options.DNSName = name
+	if service.Name != "" {
+		options.DNSName = service.Name
 	}
+
+	// By default ExtKeyUsageServerAuth is add to KeyUsages
+	// See https://github.com/golang/go/blob/master/src/crypto/x509/verify.go#L193-L195
+	if service.IsClient {
+		options.KeyUsages = []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth}
+	}
+
 	err = cert.Verify(options)
 	if err != nil {
 		return err

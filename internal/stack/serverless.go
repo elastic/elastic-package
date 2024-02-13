@@ -54,7 +54,9 @@ type projectSettings struct {
 	Region string
 	Type   string
 
-	StackVersion string
+	StackVersion    string
+	LogstashEnabled bool
+	SelfMonitor     bool
 }
 
 func (sp *serverlessProvider) createProject(settings projectSettings, options Options, conf Config) (Config, error) {
@@ -75,7 +77,6 @@ func (sp *serverlessProvider) createProject(settings projectSettings, options Op
 		paramServerlessProjectID:   project.ID,
 		paramServerlessProjectType: project.Type,
 	}
-
 	config.ElasticsearchHost = project.Endpoints.Elasticsearch
 	config.KibanaHost = project.Endpoints.Kibana
 	config.ElasticsearchUsername = project.Credentials.Username
@@ -116,6 +117,13 @@ func (sp *serverlessProvider) createProject(settings projectSettings, options Op
 	err = project.EnsureHealthy(ctx, sp.elasticsearchClient, sp.kibanaClient)
 	if err != nil {
 		return Config{}, fmt.Errorf("not all services are healthy: %w", err)
+	}
+
+	if settings.LogstashEnabled {
+		err = project.AddLogstashFleetOutput(sp.profile, sp.kibanaClient)
+		if err != nil {
+			return Config{}, err
+		}
 	}
 
 	return config, nil
@@ -198,10 +206,12 @@ func (sp *serverlessProvider) createClients(project *serverless.Project) error {
 
 func getProjectSettings(options Options) (projectSettings, error) {
 	s := projectSettings{
-		Name:         createProjectName(options),
-		Type:         options.Profile.Config(configProjectType, defaultProjectType),
-		Region:       options.Profile.Config(configRegion, defaultRegion),
-		StackVersion: options.StackVersion,
+		Name:            createProjectName(options),
+		Type:            options.Profile.Config(configProjectType, defaultProjectType),
+		Region:          options.Profile.Config(configRegion, defaultRegion),
+		StackVersion:    options.StackVersion,
+		LogstashEnabled: options.Profile.Config(configLogstashEnabled, "false") == "true",
+		SelfMonitor:     options.Profile.Config(configSelfMonitorEnabled, "false") == "true",
 	}
 
 	return s, nil
@@ -244,6 +254,7 @@ func (sp *serverlessProvider) BootUp(options Options) error {
 
 	var project *serverless.Project
 
+	isNewProject := false
 	project, err = sp.currentProject(config)
 	switch err {
 	default:
@@ -260,11 +271,18 @@ func (sp *serverlessProvider) BootUp(options Options) error {
 			return fmt.Errorf("failed to retrieve latest project created: %w", err)
 		}
 
+		outputID := ""
+		if settings.LogstashEnabled {
+			outputID = serverless.FleetLogstashOutput
+		}
+
 		logger.Infof("Creating agent policy")
-		err = project.CreateAgentPolicy(options.StackVersion, sp.kibanaClient)
+		err = project.CreateAgentPolicy(sp.kibanaClient, options.StackVersion, outputID, settings.SelfMonitor)
+
 		if err != nil {
 			return fmt.Errorf("failed to create agent policy: %w", err)
 		}
+		isNewProject = true
 
 		// TODO: Ensuring a specific GeoIP database would make tests reproducible
 		// Currently geo ip files would be ignored when running pipeline tests
@@ -273,10 +291,19 @@ func (sp *serverlessProvider) BootUp(options Options) error {
 		printUserConfig(options.Printer, config)
 	}
 
-	logger.Infof("Starting local agent")
-	err = sp.startLocalAgent(options, config)
+	logger.Infof("Starting local services")
+	err = sp.startLocalServices(options, config)
 	if err != nil {
-		return fmt.Errorf("failed to start local agent: %w", err)
+		return fmt.Errorf("failed to start local services: %w", err)
+	}
+
+	// Updating the output with ssl certificates created in startLocalServices
+	// The certificates are updated only when a new project is created and logstash is enabled
+	if isNewProject && settings.LogstashEnabled {
+		err = project.UpdateLogstashFleetOutput(sp.profile, sp.kibanaClient)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -286,25 +313,25 @@ func (sp *serverlessProvider) composeProjectName() string {
 	return DockerComposeProjectName(sp.profile)
 }
 
-func (sp *serverlessProvider) localAgentComposeProject() (*compose.Project, error) {
+func (sp *serverlessProvider) localServicesComposeProject() (*compose.Project, error) {
 	composeFile := sp.profile.Path(profileStackPath, SnapshotFile)
 	return compose.NewProject(sp.composeProjectName(), composeFile)
 }
 
-func (sp *serverlessProvider) startLocalAgent(options Options, config Config) error {
+func (sp *serverlessProvider) startLocalServices(options Options, config Config) error {
 	err := applyServerlessResources(sp.profile, options.StackVersion, config)
 	if err != nil {
-		return fmt.Errorf("could not initialize compose files for local agent: %w", err)
+		return fmt.Errorf("could not initialize compose files for local services: %w", err)
 	}
 
-	project, err := sp.localAgentComposeProject()
+	project, err := sp.localServicesComposeProject()
 	if err != nil {
-		return fmt.Errorf("could not initialize local agent compose project")
+		return fmt.Errorf("could not initialize local services compose project")
 	}
 
 	err = project.Build(compose.CommandOptions{})
 	if err != nil {
-		return fmt.Errorf("failed to build images for local agent: %w", err)
+		return fmt.Errorf("failed to build images for local services: %w", err)
 	}
 
 	err = project.Up(compose.CommandOptions{ExtraArgs: []string{"-d"}})
@@ -333,10 +360,10 @@ func (sp *serverlessProvider) TearDown(options Options) error {
 
 	var errs error
 
-	err = sp.destroyLocalAgent()
+	err = sp.destroyLocalServices()
 	if err != nil {
-		logger.Errorf("failed to destroy local agent: %v", err)
-		errs = fmt.Errorf("failed to destroy local agent: %w", err)
+		logger.Errorf("failed to destroy local services: %v", err)
+		errs = fmt.Errorf("failed to destroy local services: %w", err)
 	}
 
 	project, err := sp.currentProject(config)
@@ -357,15 +384,15 @@ func (sp *serverlessProvider) TearDown(options Options) error {
 	return errs
 }
 
-func (sp *serverlessProvider) destroyLocalAgent() error {
-	project, err := sp.localAgentComposeProject()
+func (sp *serverlessProvider) destroyLocalServices() error {
+	project, err := sp.localServicesComposeProject()
 	if err != nil {
-		return fmt.Errorf("could not initialize local agent compose project")
+		return fmt.Errorf("could not initialize local services compose project")
 	}
 
 	err = project.Down(compose.CommandOptions{})
 	if err != nil {
-		return fmt.Errorf("failed to destroy local agent: %w", err)
+		return fmt.Errorf("failed to destroy local services: %w", err)
 	}
 
 	return nil

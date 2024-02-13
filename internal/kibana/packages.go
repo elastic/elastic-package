@@ -62,7 +62,51 @@ func (c *Client) RemovePackage(name, version string) ([]packages.Asset, error) {
 	return processResults("remove", statusCode, respBody)
 }
 
+// FleetPackage contains information about a package in Fleet.
+type FleetPackage struct {
+	Name   string `json:"string"`
+	Type   string `json:"type"`
+	Status string `json:"status"`
+}
+
+// GetPackage obtains information about a package from Fleet.
+func (c *Client) GetPackage(name string) (*FleetPackage, error) {
+	path := c.epmPackageUrl(name, "")
+	statusCode, respBody, err := c.get(path)
+	if err != nil {
+		return nil, fmt.Errorf("could not get package: %w", err)
+	}
+	if statusCode == http.StatusNotFound {
+		return nil, fmt.Errorf("package %s not found", name)
+	}
+	if statusCode != http.StatusOK {
+		return nil, fmt.Errorf("could not get package; API status code = %d; response body = %s", statusCode, string(respBody))
+	}
+
+	var response struct {
+		// Response is here when old packages API is used (before 8.0)
+		Response *FleetPackage `json:"response"`
+
+		// Response is here when new packages API is used (since 8.0)
+		Item *FleetPackage `json:"item"`
+	}
+	err = json.Unmarshal(respBody, &response)
+	switch {
+	case err != nil:
+		return nil, fmt.Errorf("failed to decode package response: %w", err)
+	case response.Response != nil:
+		return response.Response, nil
+	case response.Item != nil:
+		return response.Item, nil
+	default:
+		return nil, fmt.Errorf("package %s not found in response: %s", name, string(respBody))
+	}
+}
+
 func (c *Client) epmPackageUrl(name, version string) string {
+	if version == "" {
+		return fmt.Sprintf("%s/epm/packages/%s", FleetAPI, name)
+	}
 	switch {
 	case c.semver.Major() < 8:
 		return fmt.Sprintf("%s/epm/packages/%s-%s", FleetAPI, name, version)

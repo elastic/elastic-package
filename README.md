@@ -620,6 +620,8 @@ The following settings are available per profile:
 * `stack.logstash_enabled` can be set to true to start Logstash and configure it as the
   default output for tests using elastic-package. Supported only by the compose provider.
   Defaults to false.
+* `stack.self_monitor_enabled` enables monitoring and the system package for the default
+  policy assigned to the managed Elastic Agent. Defaults to false.
 * `stack.serverless.type` selects the type of serverless project to start when using
   the serverless stack provider.
 * `stack.serverless.region` can be used to select the region to use when starting
