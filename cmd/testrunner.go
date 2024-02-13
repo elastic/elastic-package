@@ -98,10 +98,14 @@ func setupTestCommand() *cobraext.Command {
 			testTypeCmd.Flags().Bool(cobraext.TearDownFlagName, false, cobraext.TearDownFlagDescription)
 			testTypeCmd.Flags().Bool(cobraext.NoProvisionFlagName, false, cobraext.NoProvisionFlagDescription)
 			testTypeCmd.MarkFlagsMutuallyExclusive(cobraext.SetupFlagName, cobraext.TearDownFlagName, cobraext.NoProvisionFlagName)
+			testTypeCmd.MarkFlagsRequiredTogether(cobraext.ConfigFileFlagName, cobraext.SetupFlagName)
 
 			// config file flag should not be used with tear-down or no-provision flags
 			testTypeCmd.MarkFlagsMutuallyExclusive(cobraext.ConfigFileFlagName, cobraext.TearDownFlagName)
 			testTypeCmd.MarkFlagsMutuallyExclusive(cobraext.ConfigFileFlagName, cobraext.NoProvisionFlagName)
+
+			// variant flag should not be used with tear-down or no-provision flags
+			// cannot be defined here using MarkFlagsMutuallyExclusive as in --config-file
 		}
 
 		cmd.AddCommand(testTypeCmd)
@@ -292,19 +296,14 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 			}
 		}
 
-		if runSetup {
-			if configFileFlag == "" {
-				return fmt.Errorf("missing config file path as --setup has been set")
-			}
-
-			// variant flag is not checked here since there are packages that do not have variants
-		}
 		if runTearDown || runTestsOnly {
 			if variantFlag != "" {
 				return fmt.Errorf("variant flag cannot be set with --tear-down or --no-provision")
 			}
 		}
+
 		if runSetup || runTearDown || runTestsOnly {
+			// variant flag is not checked here since there are packages that do not have variants
 			if len(testFolders) != 1 {
 				return fmt.Errorf("wrong number of test folders (expected 1): %d", len(testFolders))
 			}
