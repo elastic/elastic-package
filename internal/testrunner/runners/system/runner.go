@@ -541,8 +541,20 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 		return result.WithError(fmt.Errorf("failed to install package: %v", err))
 	}
 	r.deletePackageHandler = func() error {
-		err := installer.Uninstall()
+		stackVersion, err := semver.NewVersion(serviceOptions.StackVersion)
+		if err != nil {
+			return fmt.Errorf("failed to parse stack version: %w", err)
+		}
 
+		if stackVersion.LessThan(semver.MustParse("8.0.0")) && pkgManifest.Name == "system" {
+			// in Elastic stack 7.* , system package is installed in the default Agent policy and it cannot be deleted
+			// error: system is installed by default and cannot be removed
+			logger.Debugf("skip uninstalling %s package", pkgManifest.Name)
+			return nil
+		}
+
+		logger.Debug("removing package...")
+		err = installer.Uninstall()
 		if err != nil {
 			// logging the error as a warning and not returning it since there could be other reasons that could make fail this process
 			// for instance being defined a test agent policy where this package is used for debugging purposes
