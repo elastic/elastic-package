@@ -61,7 +61,14 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 			if err != nil {
 				return nil, fmt.Errorf("can't use service variant: %w", err)
 			}
-			return NewDockerComposeServiceDeployer(options.Profile, []string{dockerComposeYMLPath}, sv, options.RunTearDown, options.RunTestsOnly)
+			opts := DockerComposeServiceDeployerOptions{
+				Profile:      options.Profile,
+				YmlPaths:     []string{dockerComposeYMLPath},
+				Variant:      sv,
+				RunTearDown:  options.RunTearDown,
+				RunTestsOnly: options.RunTestsOnly,
+			}
+			return NewDockerComposeServiceDeployer(opts)
 		}
 	case "agent":
 		if options.Type != TypeTest {
@@ -71,7 +78,14 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 		if _, err := os.Stat(customAgentCfgYMLPath); err != nil {
 			return nil, fmt.Errorf("can't find expected file custom-agent.yml: %w", err)
 		}
-		return NewCustomAgentDeployer(options.Profile, customAgentCfgYMLPath, options.StackVersion, options.RunTearDown, options.RunTestsOnly)
+		opts := CustomAgentDeployerOptions{
+			Profile:           options.Profile,
+			DockerComposeFile: customAgentCfgYMLPath,
+			StackVersion:      options.StackVersion,
+			RunTearDown:       options.RunTearDown,
+			RunTestsOnly:      options.RunTestsOnly,
+		}
+		return NewCustomAgentDeployer(opts)
 	case "tf":
 		if _, err := os.Stat(serviceDeployerPath); err == nil {
 			return NewTerraformServiceDeployer(serviceDeployerPath)

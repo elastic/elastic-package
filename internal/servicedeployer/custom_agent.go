@@ -40,14 +40,23 @@ type CustomAgentDeployer struct {
 	runTestsOnly bool
 }
 
+type CustomAgentDeployerOptions struct {
+	Profile           *profile.Profile
+	DockerComposeFile string
+	StackVersion      string
+
+	RunTearDown  bool
+	RunTestsOnly bool
+}
+
 // NewCustomAgentDeployer returns a new instance of a deployedCustomAgent.
-func NewCustomAgentDeployer(profile *profile.Profile, dockerComposeFile string, stackVersion string, runTearDown, runTestsOnly bool) (*CustomAgentDeployer, error) {
+func NewCustomAgentDeployer(options CustomAgentDeployerOptions) (*CustomAgentDeployer, error) {
 	return &CustomAgentDeployer{
-		profile:           profile,
-		dockerComposeFile: dockerComposeFile,
-		stackVersion:      stackVersion,
-		runTearDown:       runTearDown,
-		runTestsOnly:      runTestsOnly,
+		profile:           options.Profile,
+		dockerComposeFile: options.DockerComposeFile,
+		stackVersion:      options.StackVersion,
+		runTearDown:       options.RunTearDown,
+		runTestsOnly:      options.RunTestsOnly,
 	}, nil
 }
 

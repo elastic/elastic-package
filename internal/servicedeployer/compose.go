@@ -30,6 +30,14 @@ type DockerComposeServiceDeployer struct {
 	runTestsOnly bool
 }
 
+type DockerComposeServiceDeployerOptions struct {
+	Profile      *profile.Profile
+	YmlPaths     []string
+	Variant      ServiceVariant
+	RunTearDown  bool
+	RunTestsOnly bool
+}
+
 type dockerComposeDeployedService struct {
 	ctxt ServiceContext
 
@@ -40,13 +48,13 @@ type dockerComposeDeployedService struct {
 }
 
 // NewDockerComposeServiceDeployer returns a new instance of a DockerComposeServiceDeployer.
-func NewDockerComposeServiceDeployer(profile *profile.Profile, ymlPaths []string, sv ServiceVariant, runTearDown, runTestsOnly bool) (*DockerComposeServiceDeployer, error) {
+func NewDockerComposeServiceDeployer(options DockerComposeServiceDeployerOptions) (*DockerComposeServiceDeployer, error) {
 	return &DockerComposeServiceDeployer{
-		profile:      profile,
-		ymlPaths:     ymlPaths,
-		variant:      sv,
-		runTearDown:  runTearDown,
-		runTestsOnly: runTestsOnly,
+		profile:      options.Profile,
+		ymlPaths:     options.YmlPaths,
+		variant:      options.Variant,
+		runTearDown:  options.RunTearDown,
+		runTestsOnly: options.RunTestsOnly,
 	}, nil
 }
 
