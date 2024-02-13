@@ -11,6 +11,22 @@ AWS_SERVICE_ACCOUNT_SECRET_PATH=kv/ci-shared/platform-ingest/aws_account_auth
 GITHUB_TOKEN_VAULT_PATH=kv/ci-shared/platform-ingest/github_token
 PRIVATE_CI_GCS_CREDENTIALS_PATH=kv/ci-shared/platform-ingest/gcp-platform-ingest-ci-service-account
 
+# variables required for terraform
+export ENVIRONMENT="ci"
+REPO=$(repo_name "${BUILDKITE_REPO}")
+export REPO
+
+# From Jenkins
+# BRANCH_NAME_LOWER_CASE = "${env.BRANCH_NAME.toLowerCase().replaceAll('[^a-z0-9-]', '-')}"
+BRANCH_NAME_LOWER_CASE=$(echo "$BUILDKITE_BRANCH" | tr '[:upper:]' '[:lower:]' | tr '_/\: ' '-')
+export BRANCH_NAME_LOWER_CASE
+export BUILD_ID="${BUILDKITE_BUILD_ID}"
+# get current timestamp in milliseconds
+# From Jenkins
+# CREATED_DATE = "${new Date().getTime()}"
+CREATED_DATE=$(date +%s%3N)
+export CREATED_DATE
+
 # Secrets must be redacted
 # https://buildkite.com/docs/pipelines/managing-log-output#redacted-environment-variables
 
