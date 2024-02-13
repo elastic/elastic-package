@@ -73,10 +73,9 @@ func (d *DockerComposeServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedSer
 	}
 
 	// Clean service logs
-	switch {
-	case d.runTestsOnly:
+	if d.runTestsOnly {
 		logger.Debug("Skipping removing service logs folder folder %s", outCtxt.Logs.Folder.Local)
-	default:
+	} else {
 		err = files.RemoveContent(outCtxt.Logs.Folder.Local)
 		if err != nil {
 			return nil, fmt.Errorf("removing service logs failed: %w", err)
