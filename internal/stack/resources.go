@@ -236,8 +236,8 @@ func semverLessThan(a, b string) (bool, error) {
 	return sa.LessThan(sb), nil
 }
 
-// indent adds the padding to the right of input string.
+// indent appends the indent string to the right of input string.
 // Typically used for fixing yaml configs.
-func indent(input string, padding int) string {
-	return strings.Replace(input, "\n", fmt.Sprintf("%-*s", padding, "\n"), 200)
+func indent(input string, indent string) string {
+	return strings.ReplaceAll(input, "\n", "\n"+indent)
 }

@@ -132,8 +132,8 @@ xpack.fleet.outputs:
     hosts: [ logstash:5044 ]
     ssl:
       certificate: |
-        {{ indent $logstash_ssl_certificate 9 }}
+        {{ indent $logstash_ssl_certificate "        " }}
       key: |
-        {{ indent $logstash_ssl_key 9 }}
+        {{ indent $logstash_ssl_key "        " }}
   {{ end }}
 {{ end }}

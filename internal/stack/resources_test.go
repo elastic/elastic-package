@@ -92,7 +92,7 @@ BBgwFoAUw0L8p+5q7uZycR3T7xj5pyWOIU8wOwYDVR0RBDQwMoIJbG9jYWxob3N0
 gg1lbGFzdGljLWFnZW50hwR/AAABhxAAAAAAAAAAAAAAAAAAAAABMAoGCCqGSM49
 BAMCA0cAMEQCIFukH6qlkBvHkZAccsFZZtX4vHQ7foeNTQhursBMmynOAiA0wwwQ
 vvG/LwXVsGCXgSJahuOLkBPOaX2N+oDdYt267A==
------END CERTIFICATE-----`, 9)
+-----END CERTIFICATE-----`, "        ")
 
 	exp :=
 		`-----BEGIN CERTIFICATE-----
@@ -110,7 +110,7 @@ vvG/LwXVsGCXgSJahuOLkBPOaX2N+oDdYt267A==
 
 	assert.Equal(t, exp, s)
 
-	s = indent("\n", 9)
+	s = indent("\n", "        ")
 	exp = "\n        "
 	assert.Equal(t, exp, s)
 }
