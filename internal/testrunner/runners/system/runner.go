@@ -1049,7 +1049,6 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 			return nil, err
 		}
 		if exited && code > 0 {
-			// return result.WithError(testrunner.ErrTestCaseFailed{Reason: fmt.Sprintf("the test service %s unexpectedly exited with code %d", config.Service, code)})
 			return nil, testrunner.ErrTestCaseFailed{Reason: fmt.Sprintf("the test service %s unexpectedly exited with code %d", config.Service, code)}
 		}
 	}
@@ -1059,9 +1058,6 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 	}
 
 	if !passed {
-		// return nil, fmt.Errorf("could not find hits in %s data stream", scenario.dataStream)
-		// result.FailureMsg = fmt.Sprintf("could not find hits in %s data stream", dataStream)
-		// return result.WithError(fmt.Errorf("%s", result.FailureMsg))
 		return nil, testrunner.ErrTestCaseFailed{Reason: fmt.Sprintf("could not find hits in %s data stream", scenario.dataStream)}
 	}
 
