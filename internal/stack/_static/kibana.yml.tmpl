@@ -124,15 +124,16 @@ xpack.fleet.outputs:
 
   {{ $logstash_enabled := fact "logstash_enabled" }}
   {{ if eq $logstash_enabled "true" }}
+  {{ $logstash_ssl_certificate := fact "logstash_ssl_certificate" }}
+  {{ $logstash_ssl_key := fact "logstash_ssl_key" }}
   - id: fleet-logstash-output
     name: logstash-output
     type: logstash
     hosts: [ logstash:5044 ]
     ssl:
       certificate: |
-        {{ fact "logstash_ssl_certificate" }}
+        {{ indent $logstash_ssl_certificate 9 }}
       key: |
-        {{ fact "logstash_ssl_key" }}
-
+        {{ indent $logstash_ssl_key 9 }}
   {{ end }}
 {{ end }}

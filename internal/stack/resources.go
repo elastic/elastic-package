@@ -66,6 +66,7 @@ const (
 var (
 	templateFuncs = template.FuncMap{
 		"semverLessThan": semverLessThan,
+		"indent":         indent,
 	}
 	staticSource   = resource.NewSourceFS(static).WithTemplateFuncs(templateFuncs)
 	stackResources = []resource.Resource{
@@ -200,7 +201,7 @@ func addClientCertsToResources(resourceManager *resource.Manager, certResources 
 					return fmt.Errorf("failed to read client certificate: %w", err)
 				}
 				// Replace newlines with spaces to create proper indentation in the config
-				certFile = strings.Replace(buf.String(), "\n", "\n        ", 200)
+				certFile = buf.String()
 				continue
 			}
 			if res.Path == keyPath {
@@ -209,7 +210,7 @@ func addClientCertsToResources(resourceManager *resource.Manager, certResources 
 					return fmt.Errorf("failed to read client key: %w", err)
 				}
 				// Replace newlines with spaces to create proper indentation in the config
-				keyFile = strings.Replace(buf.String(), "\n", "\n        ", 200)
+				keyFile = buf.String()
 				continue
 			}
 		}
@@ -233,4 +234,10 @@ func semverLessThan(a, b string) (bool, error) {
 	}
 
 	return sa.LessThan(sb), nil
+}
+
+// indent adds the padding to the right of input string.
+// Typically used for fixing yaml configs.
+func indent(input string, padding int) string {
+	return strings.Replace(input, "\n", fmt.Sprintf("%-*s", padding, "\n"), 200)
 }
