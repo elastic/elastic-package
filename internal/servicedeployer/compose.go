@@ -26,20 +26,17 @@ type DockerComposeServiceDeployer struct {
 	ymlPaths []string
 	variant  ServiceVariant
 
-	runAllSteps bool
-
 	runTearDown  bool
 	runTestsOnly bool
-	runSetup     bool
 }
 
 type DockerComposeServiceDeployerOptions struct {
-	Profile      *profile.Profile
-	YmlPaths     []string
-	Variant      ServiceVariant
+	Profile  *profile.Profile
+	YmlPaths []string
+	Variant  ServiceVariant
+
 	RunTearDown  bool
 	RunTestsOnly bool
-	RunSetup     bool
 }
 
 type dockerComposeDeployedService struct {
@@ -59,8 +56,6 @@ func NewDockerComposeServiceDeployer(options DockerComposeServiceDeployerOptions
 		variant:      options.Variant,
 		runTearDown:  options.RunTearDown,
 		runTestsOnly: options.RunTestsOnly,
-		runSetup:     options.RunSetup,
-		runAllSteps:  !(options.RunSetup || options.RunTearDown || options.RunTestsOnly),
 	}, nil
 }
 
@@ -88,6 +83,9 @@ func (d *DockerComposeServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedSer
 
 	// Clean service logs
 	if d.runTestsOnly {
+		// service logs folder must no be deleted to avoid breaking log files written
+		// by the service. If this is required, those files should be rotated or truncated
+		// so the service can still write to them.
 		logger.Debug("Skipping removing service logs folder folder %s", outCtxt.Logs.Folder.Local)
 	} else {
 		err = files.RemoveContent(outCtxt.Logs.Folder.Local)
@@ -109,7 +107,9 @@ func (d *DockerComposeServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedSer
 	}
 
 	serviceName := inCtxt.Name
-	if d.runSetup || d.runAllSteps {
+	if d.runTearDown || d.runTestsOnly {
+		logger.Debug("Skipping bringing up docker-compose custom agent project")
+	} else {
 		err = p.Up(opts)
 		if err != nil {
 			return nil, fmt.Errorf("could not boot up service using Docker Compose: %w", err)
@@ -124,14 +124,14 @@ func (d *DockerComposeServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedSer
 		return nil, fmt.Errorf("service is unhealthy: %w", err)
 	}
 
-	if d.runSetup || d.runAllSteps {
+	if d.runTearDown || d.runTestsOnly {
+		logger.Debug("Skipping connect container to network (non setup steps)")
+	} else {
 		// Connect service network with stack network (for the purpose of metrics collection)
 		err = docker.ConnectToNetwork(p.ContainerName(serviceName), stack.Network(d.profile))
 		if err != nil {
 			return nil, fmt.Errorf("can't attach service container to the stack network: %w", err)
 		}
-	} else {
-		logger.Debug("Skipping connect container to network (tear down process)")
 	}
 
 	// Build service container name

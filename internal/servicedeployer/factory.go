@@ -68,7 +68,6 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 				Variant:      sv,
 				RunTearDown:  options.RunTearDown,
 				RunTestsOnly: options.RunTestsOnly,
-				RunSetup:     options.RunSetup,
 			}
 			return NewDockerComposeServiceDeployer(opts)
 		}
@@ -86,7 +85,6 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 			StackVersion:      options.StackVersion,
 			RunTearDown:       options.RunTearDown,
 			RunTestsOnly:      options.RunTestsOnly,
-			RunSetup:          options.RunSetup,
 		}
 		return NewCustomAgentDeployer(opts)
 	case "tf":

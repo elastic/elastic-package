@@ -36,11 +36,8 @@ type CustomAgentDeployer struct {
 	dockerComposeFile string
 	stackVersion      string
 
-	runAllSteps bool
-
 	runTearDown  bool
 	runTestsOnly bool
-	runSetup     bool
 }
 
 type CustomAgentDeployerOptions struct {
@@ -50,7 +47,6 @@ type CustomAgentDeployerOptions struct {
 
 	RunTearDown  bool
 	RunTestsOnly bool
-	RunSetup     bool
 }
 
 // NewCustomAgentDeployer returns a new instance of a deployedCustomAgent.
@@ -61,8 +57,6 @@ func NewCustomAgentDeployer(options CustomAgentDeployerOptions) (*CustomAgentDep
 		stackVersion:      options.StackVersion,
 		runTearDown:       options.RunTearDown,
 		runTestsOnly:      options.RunTestsOnly,
-		runSetup:          options.RunSetup,
-		runAllSteps:       !(options.RunSetup || options.RunTearDown || options.RunTestsOnly),
 	}, nil
 }
 
@@ -120,6 +114,9 @@ func (d *CustomAgentDeployer) SetUp(inCtxt ServiceContext) (DeployedService, err
 
 	// Clean service logs
 	if d.runTestsOnly {
+		// service logs folder must no be deleted to avoid breaking log files written
+		// by the service. If this is required, those files should be rotated or truncated
+		// so the service can still write to them.
 		logger.Debug("Skipping removing service logs folder folder %s", outCtxt.Logs.Folder.Local)
 	} else {
 		err = files.RemoveContent(outCtxt.Logs.Folder.Local)
@@ -136,7 +133,9 @@ func (d *CustomAgentDeployer) SetUp(inCtxt ServiceContext) (DeployedService, err
 		ExtraArgs: []string{"--build", "-d"},
 	}
 
-	if d.runSetup || d.runAllSteps {
+	if d.runTestsOnly || d.runTearDown {
+		logger.Debug("Skipping bringing up docker-compose project and connect container to network (non setup steps)")
+	} else {
 		err = p.Up(opts)
 		if err != nil {
 			return nil, fmt.Errorf("could not boot up service using Docker Compose: %w", err)
@@ -146,8 +145,6 @@ func (d *CustomAgentDeployer) SetUp(inCtxt ServiceContext) (DeployedService, err
 		if err != nil {
 			return nil, fmt.Errorf("can't attach service container to the stack network: %w", err)
 		}
-	} else {
-		logger.Debug("Skipping bringing up docker-compose project and connect container to network")
 	}
 
 	// requires to be connected the service to the stack network
