@@ -165,7 +165,7 @@ func applyResources(profile *profile.Profile, stackVersion string) error {
 	// Add client certificates if logstash is enabled
 	if profile.Config("stack.logstash_enabled", "false") == "true" {
 		if err := addClientCertsToResources(resourceManager, certResources); err != nil {
-			return fmt.Errorf("Error adding client certificates: %w", err)
+			return fmt.Errorf("error adding client certificates: %w", err)
 		}
 	}
 
@@ -217,8 +217,8 @@ func addClientCertsToResources(resourceManager *resource.Manager, certResources 
 	}
 
 	resourceManager.AddFacter(resource.StaticFacter{
-		"logstash_ssl_certificate": certFile,
-		"logstash_ssl_key":         keyFile,
+		"agent_certificate": certFile,
+		"agent_key":         keyFile,
 	})
 	return nil
 }
