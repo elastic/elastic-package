@@ -106,7 +106,6 @@ type runner struct {
 	stackVersion    kibana.VersionInfo
 	locationManager *locations.LocationManager
 
-	serviceStateFolder   string
 	serviceStateFilePath string
 
 	// Execution order of following handlers is defined in runner.TearDown() method.
@@ -365,8 +364,7 @@ func (r *runner) initRun() error {
 	if err != nil {
 		return fmt.Errorf("reading service logs directory failed: %w", err)
 	}
-	r.serviceStateFolder = testrunner.StateFolderPath(r.options.Profile.ProfilePath)
-	r.serviceStateFilePath = filepath.Join(r.serviceStateFolder, testrunner.ServiceStateFileName)
+	r.serviceStateFilePath = filepath.Join(testrunner.StateFolderPath(r.options.Profile.ProfilePath), testrunner.ServiceStateFileName)
 
 	r.dataStreamPath, found, err = packages.FindDataStreamRootForPath(r.options.TestFolder.Path)
 	if err != nil {
@@ -995,7 +993,7 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 }
 
 func (r *runner) removeServiceStateDir() error {
-	dirPath := r.serviceStateFolder
+	dirPath := filepath.Dir(r.serviceStateFilePath)
 	err := os.RemoveAll(dirPath)
 	if err != nil {
 		return fmt.Errorf("failed to remove directory %q: %w", dirPath, err)
@@ -1004,7 +1002,7 @@ func (r *runner) removeServiceStateDir() error {
 }
 
 func (r *runner) createServiceStateDir() error {
-	dirPath := r.serviceStateFolder
+	dirPath := filepath.Dir(r.serviceStateFilePath)
 	err := os.MkdirAll(dirPath, 0755)
 	if err != nil {
 		return fmt.Errorf("mkdir failed (path: %s): %w", dirPath, err)
