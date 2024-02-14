@@ -217,26 +217,10 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 
 			if runner.CanRunSetupTeardownIndependent() && runSetup || runTearDown || runTestsOnly {
 				if runTearDown || runTestsOnly {
-					locationManager, err := locations.NewLocationManager()
+					configFileFlag, err = readConfigFileFromState()
 					if err != nil {
-						return fmt.Errorf("can't read configuration directory")
+						return fmt.Errorf("failed to get config file from state: %w", err)
 					}
-
-					type setupData struct {
-						ConfigFilePath string `json:"config_file_path"`
-					}
-					var serviceSetupData setupData
-					setupDataPath := filepath.Join(locationManager.ServiceSetupDir(), testrunner.ServiceSetupDataFileName)
-					fmt.Printf("Reading service setup data from file: %s\n", setupDataPath)
-					contents, err := os.ReadFile(setupDataPath)
-					if err != nil {
-						return fmt.Errorf("failed to read service setup data %q: %w", setupDataPath, err)
-					}
-					err = json.Unmarshal(contents, &serviceSetupData)
-					if err != nil {
-						return fmt.Errorf("failed to decode service setup data %q: %w", setupDataPath, err)
-					}
-					configFileFlag = serviceSetupData.ConfigFilePath
 				}
 				dataStream := testrunner.ExtractDataStreamFromPath(configFileFlag, packageRootPath)
 				dataStreams = append(dataStreams, dataStream)
@@ -389,6 +373,29 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 		}
 		return nil
 	}
+}
+
+func readConfigFileFromState() (string, error) {
+	locationManager, err := locations.NewLocationManager()
+	if err != nil {
+		return "", fmt.Errorf("can't read configuration directory")
+	}
+
+	type setupData struct {
+		ConfigFilePath string `json:"config_file_path"`
+	}
+	var serviceSetupData setupData
+	setupDataPath := filepath.Join(locationManager.ServiceSetupDir(), testrunner.ServiceSetupDataFileName)
+	fmt.Printf("Reading service setup data from file: %s\n", setupDataPath)
+	contents, err := os.ReadFile(setupDataPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read service setup data %q: %w", setupDataPath, err)
+	}
+	err = json.Unmarshal(contents, &serviceSetupData)
+	if err != nil {
+		return "", fmt.Errorf("failed to decode service setup data %q: %w", setupDataPath, err)
+	}
+	return serviceSetupData.ConfigFilePath, nil
 }
 
 func packageHasDataStreams(manifest *packages.PackageManifest) (bool, error) {
