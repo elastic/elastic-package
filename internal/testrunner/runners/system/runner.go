@@ -778,11 +778,10 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 
 	// Configure package (single data stream) via Fleet APIs.
 	var policy *kibana.Policy
-	switch {
-	case r.options.RunTearDown || r.options.RunTestsOnly:
+	if r.options.RunTearDown || r.options.RunTestsOnly {
 		policy = &serviceSetupData.CurrentPolicy
 		logger.Debugf("Got policy from file: %q - %q", policy.Name, policy.ID)
-	default:
+	} else {
 		logger.Debug("creating test policy...")
 		testTime := time.Now().Format("20060102T15:04:05Z")
 
@@ -810,10 +809,9 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 
 	logger.Debug("adding package data stream to test policy...")
 	ds := createPackageDatastream(*policy, *scenario.pkgManifest, policyTemplate, *scenario.dataStreamManifest, *config)
-	switch {
-	case r.options.RunTearDown || r.options.RunTestsOnly:
+	if r.options.RunTearDown || r.options.RunTestsOnly {
 		logger.Debug("Skip adding data stream config to policy")
-	default:
+	} else {
 		if err := r.options.KibanaClient.AddPackageDataStreamToPolicy(ds); err != nil {
 			return nil, fmt.Errorf("could not add data stream config to policy: %w", err)
 		}
@@ -867,11 +865,10 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 	}
 	agent := agents[0]
 
-	switch {
-	case r.options.RunTearDown || r.options.RunTestsOnly:
+	if r.options.RunTearDown || r.options.RunTestsOnly {
 		origPolicy = serviceSetupData.OrigPolicy
 		logger.Debugf("Got orig policy from file: %q - %q", origPolicy.Name, origPolicy.ID)
-	default:
+	} else {
 		origPolicy = kibana.Policy{
 			ID:       agent.PolicyID,
 			Revision: agent.PolicyRevision,
