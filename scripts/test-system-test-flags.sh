@@ -86,21 +86,20 @@ run_tests_for_package() {
     local variant="$4"
     local custom_agent="$5"
     local variant_flag=""
-    if [[ $variant != "no variant" ]]; then
+    if [[ "$variant" != "no variant" ]]; then
         variant_flag="--variant ${variant}"
     fi
     local package_name=""
     package_name="$(basename "${package_folder}")"
 
     # set global variable so it is accessible for cleanup function (trap)
-    SERVICE_CONTAINER_NAME="elastic-package-service-${service_name}"
+    SERVICE_CONTAINER_NAME="${service_name}"
     AGENT_CONTAINER_NAME=""
     if [[ "${custom_agent}" == "true" ]]; then
-        SERVICE_CONTAINER_NAME="${service_name}"
         AGENT_CONTAINER_NAME="${DEFAULT_AGENT_CONTAINER_NAME}"
     fi
 
-    pushd "${package_folder}/" > /dev/null
+    pushd "${package_folder}" > /dev/null
 
     echo "--- [${package_name} - ${variant}] Setup service without tear-down"
     elastic-package test system -v \
@@ -188,15 +187,15 @@ elastic-package stack up -v -d
 FOLDER_PATH="${HOME}/.elastic-package/profiles/default/stack/state"
 
 run_tests_for_package \
-    "test/packages/parallel" \
-    "nginx" \
+    "test/packages/parallel/nginx" \
+    "elastic-package-service-nginx" \
     "data_stream/access/_dev/test/system/test-default-config.yml" \
     "no variant" \
     "false"
 
 run_tests_for_package \
-    "test/packages/parallel" \
-    "sql_input" \
+    "test/packages/parallel/sql_input" \
+    "elastic-package-service-sql_input" \
     "_dev/test/system/test-default-config.yml" \
     "mysql_8_0_13" \
     "false"
@@ -204,7 +203,7 @@ run_tests_for_package \
 # this package has no service, so we introduced as a service name the one from the custom agent docker-custom-agent"
 run_tests_for_package \
     "test/packages/with-custom-agent/auditd_manager" \
-    "docker-custom-agent" \
+    "elastic-package-service-docker-custom-agent" \
     "./data_stream/auditd/_dev/test/system/test-default-config.yml" \
     "no variant" \
     "true"
