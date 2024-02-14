@@ -8,8 +8,8 @@ LOGSTASH_HOME="/usr/share/logstash/"
 # Hence converting the key.pem to pkcs8 format using openssl.
 create_cert() {
   ls_cert_path="$LOGSTASH_HOME/config/certs"
-  openssl pkcs8 -inform PEM -in "$ls_cert_path/key.pem" -topk8 -nocrypt -outform PEM -out "$ls_cert_path/logstash.pkcs8.key"
-  chmod 777 $ls_cert_path/logstash.pkcs8.key
+  openssl pkcs8 -inform PEM -in "$ls_cert_path/key.pem" -topk8 -nocrypt -outform PEM -out "/tmp/logstash.pkcs8.key"
+  chmod 777 "/tmp/logstash.pkcs8.key"
 }
 
 # config copy is intentional that mounted volumes will be busy and cannot be overwritten
