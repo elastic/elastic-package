@@ -14,7 +14,8 @@ all versions >= 2.2.31 and >= 2.4.16 (independent from operating system).
 
 Access logs collects the Apache access logs.
 
-**Exported fields**
+<details>
+<summary><strong>Exported fields</strong></summary>
 
 | Field | Description | Type |
 |---|---|---|
@@ -115,13 +116,15 @@ Access logs collects the Apache access logs.
 | user_agent.os.name.text | Multi-field of `user_agent.os.name`. | match_only_text |
 | user_agent.os.version | Operating system version as a raw string. | keyword |
 | user_agent.version | Version of the user agent. | keyword |
+</details>
 
 
 ### Error Logs
 
 Error logs collects the Apache error logs.
 
-**Exported fields**
+<details>
+<summary><strong>Exported fields</strong></summary>
 
 | Field | Description | Type |
 |---|---|---|
@@ -210,6 +213,7 @@ Error logs collects the Apache error logs.
 | user_agent.original.text | Multi-field of `user_agent.original`. | match_only_text |
 | user_agent.os.name | Operating system name, without the version. | keyword |
 | user_agent.os.name.text | Multi-field of `user_agent.os.name`. | match_only_text |
+</details>
 
 
 ## Metrics
@@ -334,7 +338,8 @@ An example event for `status` looks as following:
 }
 ```
 
-**Exported fields**
+<details>
+<summary><strong>Exported fields</strong></summary>
 
 | Field | Description | Type | Unit | Metric Type |
 |---|---|---|---|---|
@@ -411,4 +416,5 @@ An example event for `status` looks as following:
 | host.type | Type of host. For Cloud providers this can be the machine type like `t2.medium`. If vm, this could be the container, for example, or other information meaningful in your environment. | keyword |  |  |
 | service.address | Address where data about this service was collected from. This should be a URI, network address (ipv4:port or [ipv6]:port) or a resource path (sockets). | keyword |  |  |
 | service.type | The type of the service data is collected from. The type can be used to group and correlate logs and metrics from one service type. Example: If logs or metrics are collected from Elasticsearch, `service.type` would be `elasticsearch`. | keyword |  |  |
+</details>
 

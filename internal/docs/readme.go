@@ -190,9 +190,16 @@ func renderReadme(fileName, packageRoot, templatePath string, linksMap linkMap) 
 		"fields": func(args ...string) (string, error) {
 			if len(args) > 0 {
 				dataStreamPath := filepath.Join(packageRoot, "data_stream", args[0])
-				return renderExportedFields(dataStreamPath)
+				return renderExportedFields(dataStreamPath, false)
 			}
-			return renderExportedFields(packageRoot)
+			return renderExportedFields(packageRoot, false)
+		},
+		"fields_collapsable": func(args ...string) (string, error) {
+			if len(args) > 0 {
+				dataStreamPath := filepath.Join(packageRoot, "data_stream", args[0])
+				return renderExportedFields(dataStreamPath, true)
+			}
+			return renderExportedFields(packageRoot, true)
 		},
 		"url": func(args ...string) (string, error) {
 			options := linkOptions{}

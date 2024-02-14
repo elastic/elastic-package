@@ -22,7 +22,7 @@ type fieldsTableRecord struct {
 
 var escaper = strings.NewReplacer("*", "\\*", "{", "\\{", "}", "\\}", "<", "\\<", ">", "\\>")
 
-func renderExportedFields(fieldsParentDir string) (string, error) {
+func renderExportedFields(fieldsParentDir string, collapsable bool) (string, error) {
 	injectOptions := fields.InjectFieldsOptions{
 		// Keep External parameter when rendering fields, so we can render
 		// documentation for empty groups imported from ECS, for backwards compatibility.
@@ -40,13 +40,23 @@ func renderExportedFields(fieldsParentDir string) (string, error) {
 	collected := collectFieldsFromDefinitions(validator)
 
 	var builder strings.Builder
-	builder.WriteString("**Exported fields**\n\n")
+	if collapsable {
+		builder.WriteString("<details>\n")
+		builder.WriteString("<summary><strong>Exported fields</strong></summary>\n\n")
+	} else {
+		builder.WriteString("**Exported fields**\n\n")
+	}
 
 	if len(collected) == 0 {
 		builder.WriteString("(no fields available)\n")
 		return builder.String(), nil
 	}
 	renderFieldsTable(&builder, collected)
+
+	if collapsable {
+		builder.WriteString("</details>\n")
+	}
+
 	return builder.String(), nil
 }
 
