@@ -757,10 +757,11 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 		return nil, fmt.Errorf("failed to initialize package installer: %v", err)
 	}
 
-	switch {
-	case r.options.RunTearDown:
+	if r.options.RunTearDown {
 		logger.Debug("Skip installing package")
-	default:
+	} else {
+		// Allowed to re-install the package in RunTestsOnly to be able to
+		// test new changes introduced in the package
 		logger.Debug("Installing package...")
 		_, err = installer.Install()
 		if err != nil {
