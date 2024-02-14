@@ -871,50 +871,15 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 	case r.options.RunTearDown:
 		logger.Debugf("Skipped deleting old data in data stream %q", scenario.dataStream)
 	case r.options.RunTestsOnly:
-		logger.Debugf("Delete previous documents in data stream %q", scenario.dataStream)
-		if err := deleteDataStreamDocs(r.options.API, scenario.dataStream); err != nil {
-			return nil, fmt.Errorf("error deleting old data in data stream: %s: %w", scenario.dataStream, err)
-		}
-		startHits, err := r.getDocs(scenario.dataStream)
+		// In this mode, service is still running and the agent is sending documents, so sometimes
+		// cannot be guaranteed to be zero documents
+		err := r.deleteOldDocumentsDataStreamAndWait(scenario.dataStream, false)
 		if err != nil {
 			return nil, err
 		}
-		cleared, err := waitUntilTrue(func() (bool, error) {
-			if signal.SIGINT() {
-				return true, errors.New("SIGINT: cancel clearing data")
-			}
-			hits, err := r.getDocs(scenario.dataStream)
-			if err != nil {
-				return false, err
-			}
-			// In this mode, service is still running and the agent is sending documents, so sometimes
-			// cannot be guaranteed to be zero documents
-			return startHits.size() > hits.size(), nil
-		}, 2*time.Minute)
-		if err != nil || !cleared {
-			if err == nil {
-				err = errors.New("unable to clear previous data")
-			}
-			return nil, err
-		}
 	default:
-		if err := deleteDataStreamDocs(r.options.API, scenario.dataStream); err != nil {
-			return nil, fmt.Errorf("error deleting old data in data stream: %s: %w", scenario.dataStream, err)
-		}
-		cleared, err := waitUntilTrue(func() (bool, error) {
-			if signal.SIGINT() {
-				return true, errors.New("SIGINT: cancel clearing data")
-			}
-			hits, err := r.getDocs(scenario.dataStream)
-			if err != nil {
-				return false, err
-			}
-			return hits.size() == 0, nil
-		}, 2*time.Minute)
-		if err != nil || !cleared {
-			if err == nil {
-				err = errors.New("unable to clear previous data")
-			}
+		err := r.deleteOldDocumentsDataStreamAndWait(scenario.dataStream, true)
+		if err != nil {
 			return nil, err
 		}
 	}
@@ -1120,6 +1085,38 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 	}
 
 	return &scenario, nil
+}
+
+func (r *runner) deleteOldDocumentsDataStreamAndWait(dataStream string, mustBeZero bool) error {
+	logger.Debugf("Delete previous documents in data stream %q", dataStream)
+	if err := deleteDataStreamDocs(r.options.API, dataStream); err != nil {
+		return fmt.Errorf("error deleting old data in data stream: %s: %w", dataStream, err)
+	}
+	startHits, err := r.getDocs(dataStream)
+	if err != nil {
+		return err
+	}
+	cleared, err := waitUntilTrue(func() (bool, error) {
+		if signal.SIGINT() {
+			return true, errors.New("SIGINT: cancel clearing data")
+		}
+		hits, err := r.getDocs(dataStream)
+		if err != nil {
+			return false, err
+		}
+
+		if mustBeZero {
+			return hits.size() == 0, nil
+		}
+		return startHits.size() > hits.size(), nil
+	}, 2*time.Minute)
+	if err != nil || !cleared {
+		if err == nil {
+			err = errors.New("unable to clear previous data")
+		}
+		return err
+	}
+	return nil
 }
 
 func (r *runner) validateTestScenario(result *testrunner.ResultComposer, scenario *scenarioTest, config *testConfig, serviceOptions servicedeployer.FactoryOptions) ([]testrunner.TestResult, error) {
