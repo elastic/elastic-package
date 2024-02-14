@@ -144,15 +144,6 @@ func (r *runner) CanRunSetupTeardownIndependent() bool {
 	return true
 }
 
-func createSetupServicesDir(elasticPackagePath *locations.LocationManager) error {
-	dirPath := elasticPackagePath.ServiceSetupDir()
-	err := os.MkdirAll(dirPath, 0755)
-	if err != nil {
-		return fmt.Errorf("mkdir failed (path: %s): %w", dirPath, err)
-	}
-	return nil
-}
-
 // Run runs the system tests defined under the given folder
 func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, error) {
 	r.options = options
@@ -242,11 +233,10 @@ func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, e
 			logger.Errorf("failed to tear down runner: %s", tdErr.Error())
 		}
 
-		setupDirErr := os.RemoveAll(r.locationManager.ServiceSetupDir())
+		setupDirErr := r.removeServiceSetupDir()
 		if setupDirErr != nil {
-			logger.Errorf("failed to remove directory %q", r.locationManager.ServiceSetupDir())
+			logger.Error(err.Error())
 		}
-
 		return result.WithError(err)
 	}
 
@@ -266,9 +256,9 @@ func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, e
 			return result.WithError(err)
 		}
 
-		err := os.RemoveAll(r.locationManager.ServiceSetupDir())
+		err := r.removeServiceSetupDir()
 		if err != nil {
-			return result.WithError(fmt.Errorf("failed to remove directory %q", r.locationManager.ServiceSetupDir()))
+			return result.WithError(err)
 		}
 	}
 
@@ -659,7 +649,7 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 	var err error
 	var serviceSetupData ServiceSetupData
 	if r.options.RunSetup {
-		err = createSetupServicesDir(r.locationManager)
+		err = r.createServiceSetupDir()
 		if err != nil {
 			return nil, fmt.Errorf("failed to create setup services dir: %w", err)
 		}
@@ -667,15 +657,9 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 	scenario := scenarioTest{}
 
 	if r.options.RunTearDown || r.options.RunTestsOnly {
-		serviceSetupPath := filepath.Join(r.locationManager.ServiceSetupDir(), testrunner.ServiceSetupDataFileName)
-		logger.Debugf("Reading test config from file %s", serviceSetupPath)
-		contents, err := os.ReadFile(serviceSetupPath)
+		serviceSetupData, err = r.readServiceSetupData()
 		if err != nil {
-			return nil, fmt.Errorf("failed to read test config %q: %w", serviceSetupPath, err)
-		}
-		err = json.Unmarshal(contents, &serviceSetupData)
-		if err != nil {
-			return nil, fmt.Errorf("failed to decode service options %q: %w", serviceSetupPath, err)
+			return nil, fmt.Errorf("failed to read service setup data: %w", err)
 		}
 	}
 
@@ -1009,6 +993,39 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 	}
 
 	return &scenario, nil
+}
+
+func (r *runner) removeServiceSetupDir() error {
+	dirPath := r.locationManager.ServiceSetupDir()
+	err := os.RemoveAll(dirPath)
+	if err != nil {
+		return fmt.Errorf("failed to remove directory %q: %w", dirPath, err)
+	}
+	return nil
+}
+
+func (r *runner) createServiceSetupDir() error {
+	dirPath := r.locationManager.ServiceSetupDir()
+	err := os.MkdirAll(dirPath, 0755)
+	if err != nil {
+		return fmt.Errorf("mkdir failed (path: %s): %w", dirPath, err)
+	}
+	return nil
+}
+
+func (r *runner) readServiceSetupData() (ServiceSetupData, error) {
+	var setupData ServiceSetupData
+	serviceSetupPath := filepath.Join(r.locationManager.ServiceSetupDir(), testrunner.ServiceSetupDataFileName)
+	logger.Debugf("Reading test config from file %s", serviceSetupPath)
+	contents, err := os.ReadFile(serviceSetupPath)
+	if err != nil {
+		return setupData, fmt.Errorf("failed to read test config %q: %w", serviceSetupPath, err)
+	}
+	err = json.Unmarshal(contents, &setupData)
+	if err != nil {
+		return setupData, fmt.Errorf("failed to decode service options %q: %w", serviceSetupPath, err)
+	}
+	return setupData, nil
 }
 
 type ServiceSetupData struct {
