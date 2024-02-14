@@ -1047,45 +1047,53 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 	scenario.docs = hits.getDocs(scenario.syntheticEnabled)
 
 	if r.options.RunSetup {
-		policyBytes, err := json.Marshal(policy)
+		err = r.writeScenarioSetup(policy, &origPolicy, config, origAgent)
 		if err != nil {
-			return nil, fmt.Errorf("failed to marshall policy: %w", err)
-		}
-
-		origPolicyBytes, err := json.Marshal(origPolicy)
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshall policy: %w", err)
-		}
-
-		agentBytes, err := json.Marshal(origAgent)
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshall agent: %w", err)
-		}
-
-		testConfigBytes, err := json.Marshal(config)
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshall test config options: %w", err)
-		}
-
-		err = os.WriteFile(filepath.Join(r.locationManager.ServiceSetupDir(), setupNewPolicyFileName), policyBytes, 0644)
-		if err != nil {
-			return nil, fmt.Errorf("failed to write policy JSON: %w", err)
-		}
-		err = os.WriteFile(filepath.Join(r.locationManager.ServiceSetupDir(), setupOrigPolicyFileName), origPolicyBytes, 0644)
-		if err != nil {
-			return nil, fmt.Errorf("failed to write origin policy JSON: %w", err)
-		}
-		err = os.WriteFile(filepath.Join(r.locationManager.ServiceSetupDir(), setupAgentFileName), agentBytes, 0644)
-		if err != nil {
-			return nil, fmt.Errorf("failed to write agent JSON: %w", err)
-		}
-		err = os.WriteFile(filepath.Join(r.locationManager.ServiceSetupDir(), setupTestConfigFileName), testConfigBytes, 0644)
-		if err != nil {
-			return nil, fmt.Errorf("failed to write test config JSON: %w", err)
+			return nil, err
 		}
 	}
 
 	return &scenario, nil
+}
+
+func (r *runner) writeScenarioSetup(currentPolicy, origPolicy *kibana.Policy, config *testConfig, agent kibana.Agent) error {
+	policyBytes, err := json.Marshal(currentPolicy)
+	if err != nil {
+		return fmt.Errorf("failed to marshall policy: %w", err)
+	}
+
+	origPolicyBytes, err := json.Marshal(origPolicy)
+	if err != nil {
+		return fmt.Errorf("failed to marshall policy: %w", err)
+	}
+
+	agentBytes, err := json.Marshal(agent)
+	if err != nil {
+		return fmt.Errorf("failed to marshall agent: %w", err)
+	}
+
+	testConfigBytes, err := json.Marshal(config)
+	if err != nil {
+		return fmt.Errorf("failed to marshall test config options: %w", err)
+	}
+
+	err = os.WriteFile(filepath.Join(r.locationManager.ServiceSetupDir(), setupNewPolicyFileName), policyBytes, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to write policy JSON: %w", err)
+	}
+	err = os.WriteFile(filepath.Join(r.locationManager.ServiceSetupDir(), setupOrigPolicyFileName), origPolicyBytes, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to write origin policy JSON: %w", err)
+	}
+	err = os.WriteFile(filepath.Join(r.locationManager.ServiceSetupDir(), setupAgentFileName), agentBytes, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to write agent JSON: %w", err)
+	}
+	err = os.WriteFile(filepath.Join(r.locationManager.ServiceSetupDir(), setupTestConfigFileName), testConfigBytes, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to write test config JSON: %w", err)
+	}
+	return nil
 }
 
 func (r *runner) deleteOldDocumentsDataStreamAndWait(dataStream string, mustBeZero bool) error {
