@@ -182,7 +182,7 @@ func (r *runner) TestConfigFilePath() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to decode service setup data %q: %w", setupDataPath, err)
 	}
-	return serviceSetupData.Config.Path, nil
+	return serviceSetupData.ConfigFilePath, nil
 }
 
 // Run runs the system tests defined under the given folder
@@ -237,8 +237,8 @@ func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, e
 	configFile := r.options.ConfigFilePath
 	variant := r.variants[0]
 	if r.options.RunTestsOnly || r.options.RunTearDown {
-		configFile = serviceSetupData.Config.Path
-		variant = serviceSetupData.Config.ServiceVariantName
+		configFile = serviceSetupData.ConfigFilePath
+		variant = serviceSetupData.VariantName
 
 		logger.Infof("Using test config file from setup dir: %s", configFile)
 		logger.Infof("Using variant from service setup dir: %s", variant)
@@ -1040,18 +1040,20 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 }
 
 type ServiceSetupData struct {
-	OrigPolicy    kibana.Policy `json:"orig_policy"`
-	CurrentPolicy kibana.Policy `json:"current_policy"`
-	Agent         kibana.Agent  `json:"agent"`
-	Config        testConfig    `json:"config"`
+	OrigPolicy     kibana.Policy `json:"orig_policy"`
+	CurrentPolicy  kibana.Policy `json:"current_policy"`
+	Agent          kibana.Agent  `json:"agent"`
+	ConfigFilePath string        `json:"config_file_path"`
+	VariantName    string        `json:"variant_name"`
 }
 
 func (r *runner) writeScenarioSetup(currentPolicy, origPolicy *kibana.Policy, config *testConfig, agent kibana.Agent) error {
 	data := ServiceSetupData{
-		OrigPolicy:    *origPolicy,
-		CurrentPolicy: *currentPolicy,
-		Agent:         agent,
-		Config:        *config,
+		OrigPolicy:     *origPolicy,
+		CurrentPolicy:  *currentPolicy,
+		Agent:          agent,
+		ConfigFilePath: config.Path,
+		VariantName:    config.ServiceVariantName,
 	}
 	dataBytes, err := json.Marshal(data)
 	if err != nil {
