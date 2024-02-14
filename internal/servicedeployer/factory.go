@@ -52,6 +52,9 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 
 	switch serviceDeployerName {
 	case "k8s":
+		if options.RunSetup || options.RunTearDown || options.RunTestsOnly {
+			return nil, errors.New("k8s service deployer not supported to run by steps")
+		}
 		if _, err := os.Stat(serviceDeployerPath); err == nil {
 			return NewKubernetesServiceDeployer(options.Profile, serviceDeployerPath, options.StackVersion)
 		}
@@ -88,6 +91,9 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 		}
 		return NewCustomAgentDeployer(opts)
 	case "tf":
+		if options.RunSetup || options.RunTearDown || options.RunTestsOnly {
+			return nil, errors.New("terraform service deployer not supported to run by steps")
+		}
 		if _, err := os.Stat(serviceDeployerPath); err == nil {
 			return NewTerraformServiceDeployer(serviceDeployerPath)
 		}

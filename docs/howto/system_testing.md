@@ -601,7 +601,6 @@ A sample workflow would look like:
 
 ### Running system tests without cleanup (technical preview)
 
-**Disclaimer**: just tested with service deployer `docker`.
 
 By default, `elastic-package test system` command always performs these steps to run tests for a given package:
 1. Setup:
@@ -633,6 +632,8 @@ This process is repeated for each combination of:
 
 It's possible also to run these steps independently. For that it is required to set which configuration file (`--config-file`)
 and which variant (`--variant`), if any, is going to be used to start and configure the service for these tests.
+
+**NOTE**: Currently, there is just support for packages using service deployer `docker` or `agent` (custom agents).
 
 Then, each step can be run using one of these flags:
 - Run the setup (`--setup`), after this command is executed:
