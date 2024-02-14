@@ -106,6 +106,9 @@ type runner struct {
 	stackVersion    kibana.VersionInfo
 	locationManager *locations.LocationManager
 
+	serviceStateFolder   string
+	serviceStateFilePath string
+
 	// Execution order of following handlers is defined in runner.TearDown() method.
 	deleteTestPolicyHandler   func() error
 	deletePackageHandler      func() error
@@ -167,8 +170,8 @@ func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, e
 		}
 	}
 
-	_, err := os.Stat(r.locationManager.ServiceSetupDir())
-	logger.Debugf("Service setup data exists in %s: %v", r.locationManager.ServiceSetupDir(), !os.IsNotExist(err))
+	_, err := os.Stat(r.serviceStateFilePath)
+	logger.Debugf("Service state data exists in %s: %v", r.serviceStateFilePath, !os.IsNotExist(err))
 	if r.options.RunSetup && !os.IsNotExist(err) {
 		return result.WithError(fmt.Errorf("failed to run --setup, required to tear down previous setup"))
 	}
@@ -362,6 +365,8 @@ func (r *runner) initRun() error {
 	if err != nil {
 		return fmt.Errorf("reading service logs directory failed: %w", err)
 	}
+	r.serviceStateFolder = testrunner.StateFolderPath(r.options.Profile.ProfilePath)
+	r.serviceStateFilePath = filepath.Join(r.serviceStateFolder, testrunner.ServiceStateFileName)
 
 	r.dataStreamPath, found, err = packages.FindDataStreamRootForPath(r.options.TestFolder.Path)
 	if err != nil {
@@ -431,8 +436,8 @@ func (r *runner) run() (results []testrunner.TestResult, err error) {
 		return result.WithError(err)
 	}
 
-	if _, err = os.Stat(r.locationManager.ServiceSetupDir()); !os.IsNotExist(err) {
-		return result.WithError(fmt.Errorf("failed to run tests, required to tear down previous setup run: %s exists", r.locationManager.ServiceSetupDir()))
+	if _, err = os.Stat(r.serviceStateFilePath); !os.IsNotExist(err) {
+		return result.WithError(fmt.Errorf("failed to run tests, required to tear down previous state run: %s exists", r.serviceStateFilePath))
 	}
 
 	startTesting := time.Now()
@@ -990,7 +995,7 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 }
 
 func (r *runner) removeServiceSetupDir() error {
-	dirPath := r.locationManager.ServiceSetupDir()
+	dirPath := r.serviceStateFolder
 	err := os.RemoveAll(dirPath)
 	if err != nil {
 		return fmt.Errorf("failed to remove directory %q: %w", dirPath, err)
@@ -999,7 +1004,7 @@ func (r *runner) removeServiceSetupDir() error {
 }
 
 func (r *runner) createServiceSetupDir() error {
-	dirPath := r.locationManager.ServiceSetupDir()
+	dirPath := r.serviceStateFolder
 	err := os.MkdirAll(dirPath, 0755)
 	if err != nil {
 		return fmt.Errorf("mkdir failed (path: %s): %w", dirPath, err)
@@ -1009,15 +1014,14 @@ func (r *runner) createServiceSetupDir() error {
 
 func (r *runner) readServiceSetupData() (ServiceSetupData, error) {
 	var setupData ServiceSetupData
-	serviceSetupPath := filepath.Join(r.locationManager.ServiceSetupDir(), testrunner.ServiceSetupDataFileName)
-	logger.Debugf("Reading test config from file %s", serviceSetupPath)
-	contents, err := os.ReadFile(serviceSetupPath)
+	logger.Debugf("Reading test config from file %s", r.serviceStateFilePath)
+	contents, err := os.ReadFile(r.serviceStateFilePath)
 	if err != nil {
-		return setupData, fmt.Errorf("failed to read test config %q: %w", serviceSetupPath, err)
+		return setupData, fmt.Errorf("failed to read test config %q: %w", r.serviceStateFilePath, err)
 	}
 	err = json.Unmarshal(contents, &setupData)
 	if err != nil {
-		return setupData, fmt.Errorf("failed to decode service options %q: %w", serviceSetupPath, err)
+		return setupData, fmt.Errorf("failed to decode service options %q: %w", r.serviceStateFilePath, err)
 	}
 	return setupData, nil
 }
@@ -1043,7 +1047,7 @@ func (r *runner) writeScenarioSetup(currentPolicy, origPolicy *kibana.Policy, co
 		return fmt.Errorf("failed to marshall service setup data: %w", err)
 	}
 
-	err = os.WriteFile(filepath.Join(r.locationManager.ServiceSetupDir(), testrunner.ServiceSetupDataFileName), dataBytes, 0644)
+	err = os.WriteFile(r.serviceStateFilePath, dataBytes, 0644)
 	if err != nil {
 		return fmt.Errorf("failed to write service setup JSON: %w", err)
 	}

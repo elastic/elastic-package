@@ -16,9 +16,13 @@ import (
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/profile"
+	"github.com/elastic/elastic-package/internal/stack"
 )
 
-const ServiceSetupDataFileName = "service-setup.json"
+const (
+	ServiceStateFileName = "service.json"
+	StateFolderName      = "state"
+)
 
 // TestType represents the various supported test types
 type TestType string
@@ -319,4 +323,8 @@ func findPackageTestFolderPaths(packageRootPath, testTypeGlob string) ([]string,
 		return nil, fmt.Errorf("error finding test folders: %w", err)
 	}
 	return paths, err
+}
+
+func StateFolderPath(profilePath string) string {
+	return filepath.Join(profilePath, stack.ProfileStackPath, StateFolderName)
 }

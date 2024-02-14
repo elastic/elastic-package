@@ -17,7 +17,6 @@ import (
 
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/common"
-	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/packages"
@@ -127,6 +126,11 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 	return func(cmd *cobra.Command, args []string) error {
 		cmd.Printf("Run %s tests for the package\n", testType)
 
+		profile, err := cobraext.GetProfileFlag(cmd)
+		if err != nil {
+			return err
+		}
+
 		failOnMissing, err := cmd.Flags().GetBool(cobraext.FailOnMissingFlagName)
 		if err != nil {
 			return cobraext.FlagParsingError(err, cobraext.FailOnMissingFlagName)
@@ -223,7 +227,7 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 
 			if runner.CanRunSetupTeardownIndependent() && runSetup || runTearDown || runTestsOnly {
 				if runTearDown || runTestsOnly {
-					configFileFlag, err = readConfigFileFromState()
+					configFileFlag, err = readConfigFileFromState(profile.ProfilePath)
 					if err != nil {
 						return fmt.Errorf("failed to get config file from state: %w", err)
 					}
@@ -291,10 +295,6 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 
 		variantFlag, _ := cmd.Flags().GetString(cobraext.VariantFlagName)
 
-		profile, err := cobraext.GetProfileFlag(cmd)
-		if err != nil {
-			return err
-		}
 		esClient, err := stack.NewElasticsearchClientFromProfile(profile)
 		if err != nil {
 			return fmt.Errorf("can't create Elasticsearch client: %w", err)
@@ -381,17 +381,12 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 	}
 }
 
-func readConfigFileFromState() (string, error) {
-	locationManager, err := locations.NewLocationManager()
-	if err != nil {
-		return "", fmt.Errorf("can't read configuration directory")
-	}
-
+func readConfigFileFromState(profilePath string) (string, error) {
 	type setupData struct {
 		ConfigFilePath string `json:"config_file_path"`
 	}
 	var serviceSetupData setupData
-	setupDataPath := filepath.Join(locationManager.ServiceSetupDir(), testrunner.ServiceSetupDataFileName)
+	setupDataPath := filepath.Join(testrunner.StateFolderPath(profilePath), testrunner.ServiceStateFileName)
 	fmt.Printf("Reading service setup data from file: %s\n", setupDataPath)
 	contents, err := os.ReadFile(setupDataPath)
 	if err != nil {

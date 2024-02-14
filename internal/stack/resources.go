@@ -47,7 +47,7 @@ const (
 	// ElasticAgentEnvFile is the elastic agent environment variables file.
 	ElasticAgentEnvFile = "elastic-agent.env"
 
-	profileStackPath = "stack"
+	ProfileStackPath = "stack"
 
 	elasticsearchUsername = "elastic"
 	elasticsearchPassword = "changeme"
@@ -119,7 +119,7 @@ var (
 )
 
 func applyResources(profile *profile.Profile, stackVersion string) error {
-	stackDir := filepath.Join(profile.ProfilePath, profileStackPath)
+	stackDir := filepath.Join(profile.ProfilePath, ProfileStackPath)
 
 	resourceManager := resource.NewManager()
 	resourceManager.AddFacter(resource.StaticFacter{
