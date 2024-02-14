@@ -110,6 +110,12 @@ func setupTestCommand() *cobraext.Command {
 			// cannot be defined here using MarkFlagsMutuallyExclusive as in --config-file
 		}
 
+		if runner.CanRunPerDataStream() && runner.CanRunSetupTeardownIndependent() {
+			testTypeCmd.MarkFlagsMutuallyExclusive(cobraext.DataStreamsFlagName, cobraext.SetupFlagName)
+			testTypeCmd.MarkFlagsMutuallyExclusive(cobraext.DataStreamsFlagName, cobraext.TearDownFlagName)
+			testTypeCmd.MarkFlagsMutuallyExclusive(cobraext.DataStreamsFlagName, cobraext.NoProvisionFlagName)
+		}
+
 		cmd.AddCommand(testTypeCmd)
 	}
 
