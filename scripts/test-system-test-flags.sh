@@ -59,7 +59,7 @@ temporal_files_exist() {
         return 1
     fi
 
-    if [ ! -f "${FOLDER_PATH}/setup-service.json" ]; then
+    if [ ! -f "${FOLDER_PATH}/service-setup.json" ]; then
         echo "Missing setup-service.json in ${FOLDER_NAME} folder"
         return 1
     fi
