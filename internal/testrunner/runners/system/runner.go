@@ -181,15 +181,9 @@ func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, e
 
 	var serviceSetupData ServiceSetupData
 	if !r.options.RunSetup {
-		serviceSetupPath := filepath.Join(r.locationManager.ServiceSetupDir(), testrunner.ServiceSetupDataFileName)
-		logger.Debugf("Reading test config from file %s", serviceSetupPath)
-		contents, err := os.ReadFile(serviceSetupPath)
+		serviceSetupData, err = r.readServiceSetupData()
 		if err != nil {
-			return result.WithError(fmt.Errorf("failed to read test config %q: %w", serviceSetupPath, err))
-		}
-		err = json.Unmarshal(contents, &serviceSetupData)
-		if err != nil {
-			return result.WithError(fmt.Errorf("failed to decode service options %q: %w", serviceSetupPath, err))
+			return result.WithError(fmt.Errorf("failed to read service state: %w", err))
 		}
 	}
 
