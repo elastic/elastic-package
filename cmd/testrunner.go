@@ -382,21 +382,21 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 }
 
 func readConfigFileFromState(profilePath string) (string, error) {
-	type setupData struct {
+	type stateData struct {
 		ConfigFilePath string `json:"config_file_path"`
 	}
-	var serviceSetupData setupData
+	var serviceStateData stateData
 	setupDataPath := filepath.Join(testrunner.StateFolderPath(profilePath), testrunner.ServiceStateFileName)
 	fmt.Printf("Reading service setup data from file: %s\n", setupDataPath)
 	contents, err := os.ReadFile(setupDataPath)
 	if err != nil {
 		return "", fmt.Errorf("failed to read service setup data %q: %w", setupDataPath, err)
 	}
-	err = json.Unmarshal(contents, &serviceSetupData)
+	err = json.Unmarshal(contents, &serviceStateData)
 	if err != nil {
 		return "", fmt.Errorf("failed to decode service setup data %q: %w", setupDataPath, err)
 	}
-	return serviceSetupData.ConfigFilePath, nil
+	return serviceStateData.ConfigFilePath, nil
 }
 
 func packageHasDataStreams(manifest *packages.PackageManifest) (bool, error) {

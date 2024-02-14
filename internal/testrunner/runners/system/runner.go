@@ -182,9 +182,9 @@ func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, e
 		return result.WithError(fmt.Errorf("failed to run --tear-down, setup not found"))
 	}
 
-	var serviceSetupData ServiceSetupData
+	var serviceStateData ServiceState
 	if !r.options.RunSetup {
-		serviceSetupData, err = r.readServiceSetupData()
+		serviceStateData, err = r.readServiceStateData()
 		if err != nil {
 			return result.WithError(fmt.Errorf("failed to read service state: %w", err))
 		}
@@ -193,8 +193,8 @@ func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, e
 	configFile := r.options.ConfigFilePath
 	variant := r.variants[0]
 	if r.options.RunTestsOnly || r.options.RunTearDown {
-		configFile = serviceSetupData.ConfigFilePath
-		variant = serviceSetupData.VariantName
+		configFile = serviceStateData.ConfigFilePath
+		variant = serviceStateData.VariantName
 
 		logger.Infof("Using test config file from setup dir: %s", configFile)
 		logger.Infof("Using variant from service setup dir: %s", variant)
@@ -230,7 +230,7 @@ func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, e
 			logger.Errorf("failed to tear down runner: %s", tdErr.Error())
 		}
 
-		setupDirErr := r.removeServiceSetupDir()
+		setupDirErr := r.removeServiceStateDir()
 		if setupDirErr != nil {
 			logger.Error(err.Error())
 		}
@@ -253,7 +253,7 @@ func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, e
 			return result.WithError(err)
 		}
 
-		err := r.removeServiceSetupDir()
+		err := r.removeServiceStateDir()
 		if err != nil {
 			return result.WithError(err)
 		}
@@ -646,9 +646,9 @@ type scenarioTest struct {
 
 func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.ServiceContext, serviceOptions servicedeployer.FactoryOptions) (*scenarioTest, error) {
 	var err error
-	var serviceSetupData ServiceSetupData
+	var serviceStateData ServiceState
 	if r.options.RunSetup {
-		err = r.createServiceSetupDir()
+		err = r.createServiceStateDir()
 		if err != nil {
 			return nil, fmt.Errorf("failed to create setup services dir: %w", err)
 		}
@@ -656,7 +656,7 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 	scenario := scenarioTest{}
 
 	if r.options.RunTearDown || r.options.RunTestsOnly {
-		serviceSetupData, err = r.readServiceSetupData()
+		serviceStateData, err = r.readServiceStateData()
 		if err != nil {
 			return nil, fmt.Errorf("failed to read service setup data: %w", err)
 		}
@@ -765,7 +765,7 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 	// Configure package (single data stream) via Fleet APIs.
 	var policy *kibana.Policy
 	if r.options.RunTearDown || r.options.RunTestsOnly {
-		policy = &serviceSetupData.CurrentPolicy
+		policy = &serviceStateData.CurrentPolicy
 		logger.Debugf("Got policy from file: %q - %q", policy.Name, policy.ID)
 	} else {
 		logger.Debug("creating test policy...")
@@ -852,7 +852,7 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 	agent := agents[0]
 
 	if r.options.RunTearDown || r.options.RunTestsOnly {
-		origPolicy = serviceSetupData.OrigPolicy
+		origPolicy = serviceStateData.OrigPolicy
 		logger.Debugf("Got orig policy from file: %q - %q", origPolicy.Name, origPolicy.ID)
 	} else {
 		origPolicy = kibana.Policy{
@@ -874,8 +874,8 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 	switch {
 	case r.options.RunTearDown:
 		logger.Debug("Skip assiging log level debut to agent")
-		logger.Debugf("Got agent from file: %q - %q", serviceSetupData.Agent.ID, serviceSetupData.Agent.LocalMetadata.Elastic.Agent.LogLevel)
-		origLogLevel = serviceSetupData.Agent.LocalMetadata.Elastic.Agent.LogLevel
+		logger.Debugf("Got agent from file: %q - %q", serviceStateData.Agent.ID, serviceStateData.Agent.LocalMetadata.Elastic.Agent.LogLevel)
+		origLogLevel = serviceStateData.Agent.LocalMetadata.Elastic.Agent.LogLevel
 	default:
 		logger.Debug("Set Debug log level to agent")
 		origLogLevel = agent.LocalMetadata.Elastic.Agent.LogLevel
@@ -985,7 +985,7 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 	scenario.docs = hits.getDocs(scenario.syntheticEnabled)
 
 	if r.options.RunSetup {
-		err = r.writeScenarioSetup(policy, &origPolicy, config, origAgent)
+		err = r.writeScenarioState(policy, &origPolicy, config, origAgent)
 		if err != nil {
 			return nil, err
 		}
@@ -994,7 +994,7 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 	return &scenario, nil
 }
 
-func (r *runner) removeServiceSetupDir() error {
+func (r *runner) removeServiceStateDir() error {
 	dirPath := r.serviceStateFolder
 	err := os.RemoveAll(dirPath)
 	if err != nil {
@@ -1003,7 +1003,7 @@ func (r *runner) removeServiceSetupDir() error {
 	return nil
 }
 
-func (r *runner) createServiceSetupDir() error {
+func (r *runner) createServiceStateDir() error {
 	dirPath := r.serviceStateFolder
 	err := os.MkdirAll(dirPath, 0755)
 	if err != nil {
@@ -1012,8 +1012,8 @@ func (r *runner) createServiceSetupDir() error {
 	return nil
 }
 
-func (r *runner) readServiceSetupData() (ServiceSetupData, error) {
-	var setupData ServiceSetupData
+func (r *runner) readServiceStateData() (ServiceState, error) {
+	var setupData ServiceState
 	logger.Debugf("Reading test config from file %s", r.serviceStateFilePath)
 	contents, err := os.ReadFile(r.serviceStateFilePath)
 	if err != nil {
@@ -1026,7 +1026,7 @@ func (r *runner) readServiceSetupData() (ServiceSetupData, error) {
 	return setupData, nil
 }
 
-type ServiceSetupData struct {
+type ServiceState struct {
 	OrigPolicy     kibana.Policy `json:"orig_policy"`
 	CurrentPolicy  kibana.Policy `json:"current_policy"`
 	Agent          kibana.Agent  `json:"agent"`
@@ -1034,8 +1034,8 @@ type ServiceSetupData struct {
 	VariantName    string        `json:"variant_name"`
 }
 
-func (r *runner) writeScenarioSetup(currentPolicy, origPolicy *kibana.Policy, config *testConfig, agent kibana.Agent) error {
-	data := ServiceSetupData{
+func (r *runner) writeScenarioState(currentPolicy, origPolicy *kibana.Policy, config *testConfig, agent kibana.Agent) error {
+	data := ServiceState{
 		OrigPolicy:     *origPolicy,
 		CurrentPolicy:  *currentPolicy,
 		Agent:          agent,
