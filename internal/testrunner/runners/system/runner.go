@@ -35,6 +35,7 @@ import (
 	"github.com/elastic/elastic-package/internal/servicedeployer"
 	"github.com/elastic/elastic-package/internal/stack"
 	"github.com/elastic/elastic-package/internal/testrunner"
+	"github.com/elastic/elastic-package/internal/wait"
 )
 
 const (
@@ -625,7 +626,7 @@ func (r *runner) runTest(ctx context.Context, config *testConfig, serviceContext
 		return result.WithError(fmt.Errorf("error deleting old data in data stream: %s: %w", dataStream, err))
 	}
 
-	cleared, err := waitUntilTrue(ctx, func(ctx context.Context) (bool, error) {
+	cleared, err := wait.UntilTrue(ctx, func(ctx context.Context) (bool, error) {
 		hits, err := r.getDocs(dataStream)
 		if err != nil {
 			return false, err
@@ -700,7 +701,7 @@ func (r *runner) runTest(ctx context.Context, config *testConfig, serviceContext
 	logger.Debug("checking for expected data in data stream...")
 	var hits *hits
 	oldHits := 0
-	passed, waitErr := waitUntilTrue(ctx, func(ctx context.Context) (bool, error) {
+	passed, waitErr := wait.UntilTrue(ctx, func(ctx context.Context) (bool, error) {
 		var err error
 		hits, err = r.getDocs(dataStream)
 		if err != nil {
@@ -830,7 +831,7 @@ func (r *runner) runTest(ctx context.Context, config *testConfig, serviceContext
 
 func checkEnrolledAgents(ctx context.Context, client *kibana.Client, ctxt servicedeployer.ServiceContext) ([]kibana.Agent, error) {
 	var agents []kibana.Agent
-	enrolled, err := waitUntilTrue(ctx, func(ctx context.Context) (bool, error) {
+	enrolled, err := wait.UntilTrue(ctx, func(ctx context.Context) (bool, error) {
 		allAgents, err := client.ListAgents()
 		if err != nil {
 			return false, fmt.Errorf("could not list agents: %w", err)
@@ -1233,33 +1234,6 @@ func deleteDataStreamDocs(api *elasticsearch.API, dataStream string) error {
 	}
 
 	return nil
-}
-
-func waitUntilTrue(ctx context.Context, fn func(context.Context) (bool, error), timeout time.Duration) (bool, error) {
-	timeoutTicker := time.NewTicker(timeout)
-	defer timeoutTicker.Stop()
-
-	retryTicker := time.NewTicker(1 * time.Second)
-	defer retryTicker.Stop()
-
-	for {
-		result, err := fn(ctx)
-		if err != nil {
-			return false, err
-		}
-		if result {
-			return true, nil
-		}
-
-		select {
-		case <-retryTicker.C:
-			continue
-		case <-ctx.Done():
-			return false, ctx.Err()
-		case <-timeoutTicker.C:
-			return false, nil
-		}
-	}
 }
 
 func filterAgents(allAgents []kibana.Agent, ctx servicedeployer.ServiceContext) []kibana.Agent {

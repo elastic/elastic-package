@@ -33,6 +33,7 @@ import (
 	"github.com/elastic/elastic-package/internal/multierror"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/servicedeployer"
+	"github.com/elastic/elastic-package/internal/wait"
 )
 
 const (
@@ -214,7 +215,7 @@ func (r *runner) setUp(ctx context.Context) error {
 		return fmt.Errorf("error deleting old data in data stream: %s: %w", r.runtimeDataStream, err)
 	}
 
-	cleared, err := waitUntilTrue(ctx, func(ctx context.Context) (bool, error) {
+	cleared, err := wait.UntilTrue(ctx, func(ctx context.Context) (bool, error) {
 		hits, err := getTotalHits(r.options.ESAPI, r.runtimeDataStream)
 		return hits == 0, err
 	}, 2*time.Minute)
@@ -619,7 +620,7 @@ func (r *runner) runGenerator(destDir string) error {
 
 func (r *runner) checkEnrolledAgents(ctx context.Context) ([]kibana.Agent, error) {
 	var agents []kibana.Agent
-	enrolled, err := waitUntilTrue(ctx, func(ctx context.Context) (bool, error) {
+	enrolled, err := wait.UntilTrue(ctx, func(ctx context.Context) (bool, error) {
 		allAgents, err := r.options.KibanaClient.ListAgents()
 		if err != nil {
 			return false, fmt.Errorf("could not list agents: %w", err)
@@ -649,7 +650,7 @@ func (r *runner) waitUntilBenchmarkFinishes(ctx context.Context) (bool, error) {
 	}
 
 	oldHits := 0
-	return waitUntilTrue(ctx, func(ctx context.Context) (bool, error) {
+	return wait.UntilTrue(ctx, func(ctx context.Context) (bool, error) {
 		var err error
 		hits, err := getTotalHits(r.options.ESAPI, r.runtimeDataStream)
 		if hits == 0 {
@@ -963,33 +964,6 @@ func filterAgents(allAgents []kibana.Agent) []kibana.Agent {
 		filtered = append(filtered, agent)
 	}
 	return filtered
-}
-
-func waitUntilTrue(ctx context.Context, fn func(context.Context) (bool, error), timeout time.Duration) (bool, error) {
-	timeoutTicker := time.NewTicker(timeout)
-	defer timeoutTicker.Stop()
-
-	retryTicker := time.NewTicker(5 * time.Second)
-	defer retryTicker.Stop()
-
-	for {
-		result, err := fn(ctx)
-		if err != nil {
-			return false, err
-		}
-		if result {
-			return true, nil
-		}
-
-		select {
-		case <-retryTicker.C:
-			continue
-		case <-ctx.Done():
-			return false, ctx.Err()
-		case <-timeoutTicker.C:
-			return false, nil
-		}
-	}
 }
 
 func createRunID() string {

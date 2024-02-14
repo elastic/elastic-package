@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/elastic/elastic-package/internal/packages/installer"
+	"github.com/elastic/elastic-package/internal/wait"
 
 	"github.com/google/uuid"
 	"gopkg.in/yaml.v3"
@@ -158,7 +159,7 @@ func (r *runner) setUp(ctx context.Context) error {
 		return fmt.Errorf("error cleaning up old data in data streams: %w", err)
 	}
 
-	cleared, err := waitUntilTrue(ctx, func(ctx context.Context) (bool, error) {
+	cleared, err := wait.UntilTrue(ctx, func(ctx context.Context) (bool, error) {
 		totalHits := 0
 		for _, runtimeDataStream := range r.runtimeDataStreams {
 			hits, err := getTotalHits(r.options.ESAPI, runtimeDataStream)
@@ -595,33 +596,6 @@ func getTotalHits(esapi *elasticsearch.API, dataStream string) (int, error) {
 	}
 
 	return numHits, nil
-}
-
-func waitUntilTrue(ctx context.Context, fn func(ctx context.Context) (bool, error), timeout time.Duration) (bool, error) {
-	timeoutTimer := time.NewTimer(timeout)
-	defer timeoutTimer.Stop()
-
-	retryTicker := time.NewTicker(5 * time.Second)
-	defer retryTicker.Stop()
-
-	for {
-		result, err := fn(ctx)
-		if err != nil {
-			return false, err
-		}
-		if result {
-			return true, nil
-		}
-
-		select {
-		case <-retryTicker.C:
-			continue
-		case <-ctx.Done():
-			return false, ctx.Err()
-		case <-timeoutTimer.C:
-			return false, nil
-		}
-	}
 }
 
 func createRunID() string {

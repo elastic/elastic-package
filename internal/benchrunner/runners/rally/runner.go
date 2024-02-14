@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/elastic/elastic-package/internal/packages/installer"
+	"github.com/elastic/elastic-package/internal/wait"
 
 	"github.com/magefile/mage/sh"
 
@@ -332,7 +333,7 @@ func (r *runner) setUp(ctx context.Context) error {
 		return fmt.Errorf("error deleting old data in data stream: %s: %w", r.runtimeDataStream, err)
 	}
 
-	cleared, err := waitUntilTrue(ctx, func(context.Context) (bool, error) {
+	cleared, err := wait.UntilTrue(ctx, func(context.Context) (bool, error) {
 		hits, err := getTotalHits(r.options.ESAPI, r.runtimeDataStream)
 		return hits == 0, err
 	}, 2*time.Minute)
@@ -1162,33 +1163,6 @@ func getTotalHits(esapi *elasticsearch.API, dataStream string) (int, error) {
 	}
 
 	return numHits, nil
-}
-
-func waitUntilTrue(ctx context.Context, fn func(ctx context.Context) (bool, error), timeout time.Duration) (bool, error) {
-	timeoutTimer := time.NewTimer(timeout)
-	defer timeoutTimer.Stop()
-
-	retryTicker := time.NewTicker(5 * time.Second)
-	defer retryTicker.Stop()
-
-	for {
-		result, err := fn(ctx)
-		if err != nil {
-			return false, err
-		}
-		if result {
-			return true, nil
-		}
-
-		select {
-		case <-retryTicker.C:
-			continue
-		case <-ctx.Done():
-			return false, ctx.Err()
-		case <-timeoutTimer.C:
-			return false, nil
-		}
-	}
 }
 
 func createRunID() string {
