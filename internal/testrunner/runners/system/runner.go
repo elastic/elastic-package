@@ -153,22 +153,6 @@ func createSetupServicesDir(elasticPackagePath *locations.LocationManager) error
 	return nil
 }
 
-func (r *runner) TestConfigFilePath() (string, error) {
-	var serviceSetupData ServiceSetupData
-
-	setupDataPath := filepath.Join(r.locationManager.ServiceSetupDir(), "service-setup.json")
-	logger.Debugf("Reading service setup data from file %s", setupDataPath)
-	contents, err := os.ReadFile(setupDataPath)
-	if err != nil {
-		return "", fmt.Errorf("failed to read service setup data %q: %w", setupDataPath, err)
-	}
-	err = json.Unmarshal(contents, &serviceSetupData)
-	if err != nil {
-		return "", fmt.Errorf("failed to decode service setup data %q: %w", setupDataPath, err)
-	}
-	return serviceSetupData.ConfigFilePath, nil
-}
-
 // Run runs the system tests defined under the given folder
 func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, error) {
 	r.options = options

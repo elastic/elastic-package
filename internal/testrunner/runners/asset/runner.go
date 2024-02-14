@@ -61,11 +61,6 @@ func (r *runner) CanRunSetupTeardownIndependent() bool {
 	return false
 }
 
-// TestConfigFilePath returns the test configuration file path
-func (r *runner) TestConfigFilePath() (string, error) {
-	return "", fmt.Errorf("not implemented")
-}
-
 // Run runs the asset loading tests
 func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, error) {
 	r.testFolder = options.TestFolder
