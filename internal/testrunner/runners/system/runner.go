@@ -434,6 +434,9 @@ func (r *runner) initRun() error {
 	}
 
 	r.variants = r.selectVariants(variantsFile)
+	if r.options.ServiceVariant != "" && len(r.variants) == 0 {
+		return fmt.Errorf("not found variant definition %q", r.options.ServiceVariant)
+	}
 
 	return nil
 }
