@@ -59,8 +59,8 @@ temporal_files_exist() {
         return 1
     fi
 
-    if [ ! -f "${FOLDER_PATH}/service-setup.json" ]; then
-        echo "Missing setup-service.json in ${FOLDER_NAME} folder"
+    if [ ! -f "${FOLDER_PATH}/service.json" ]; then
+        echo "Missing service.json in folder ${FOLDER_PATH}"
         return 1
     fi
 
@@ -121,7 +121,7 @@ run_tests_for_package() {
         --tear-down
 
     if service_setup_folder_exists; then
-        echo "Folder ${FOLDER_NAME} has not been deleted in --tear-down"
+        echo "State folder has not been deleted in --tear-down: ${FOLDER_PATH}"
         exit 1
     fi
 
@@ -145,8 +145,7 @@ export ELASTIC_PACKAGE_LINKS_FILE_PATH
 echo "--- Start Elastic stack"
 elastic-package stack up -v -d
 
-FOLDER_NAME="service_setup"
-FOLDER_PATH="${HOME}/.elastic-package/stack/${FOLDER_NAME}"
+FOLDER_PATH="${HOME}/.elastic-package/profiles/default/stack/state"
 
 run_tests_for_package \
     "nginx" \
