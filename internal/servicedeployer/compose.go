@@ -101,30 +101,28 @@ func (d *DockerComposeServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedSer
 		logger.Infof("Using service variant: %s", d.variant.String())
 	}
 
+	opts := compose.CommandOptions{
+		Env: append(
+			service.env,
+			d.variant.Env...),
+		ExtraArgs: []string{"--build", "-d"},
+	}
+
 	serviceName := inCtxt.Name
 	if d.runSetup || d.runAllSteps {
-		opts := compose.CommandOptions{
-			Env: append(
-				service.env,
-				d.variant.Env...),
-			ExtraArgs: []string{"--build", "-d"},
-		}
 		err = p.Up(opts)
 		if err != nil {
 			return nil, fmt.Errorf("could not boot up service using Docker Compose: %w", err)
 		}
-
-		err = p.WaitForHealthy(opts)
-		if err != nil {
-			processServiceContainerLogs(p, compose.CommandOptions{
-				Env: opts.Env,
-			}, outCtxt.Name)
-			return nil, fmt.Errorf("service is unhealthy: %w", err)
-		}
 	}
 
-	// Build service container name
-	outCtxt.Hostname = p.ContainerName(serviceName)
+	err = p.WaitForHealthy(opts)
+	if err != nil {
+		processServiceContainerLogs(p, compose.CommandOptions{
+			Env: opts.Env,
+		}, outCtxt.Name)
+		return nil, fmt.Errorf("service is unhealthy: %w", err)
+	}
 
 	if d.runSetup || d.runAllSteps {
 		// Connect service network with stack network (for the purpose of metrics collection)
@@ -135,6 +133,9 @@ func (d *DockerComposeServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedSer
 	} else {
 		logger.Debug("Skipping connect container to network (tear down process)")
 	}
+
+	// Build service container name
+	outCtxt.Hostname = p.ContainerName(serviceName)
 
 	logger.Debugf("adding service container %s internal ports to context", p.ContainerName(serviceName))
 	serviceComposeConfig, err := p.Config(compose.CommandOptions{
