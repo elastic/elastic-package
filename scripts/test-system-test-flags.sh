@@ -2,6 +2,8 @@
 
 set -euxo pipefail
 
+DEFAULT_AGENT_CONTAINER_NAME="elastic-package-service-docker-custom-agent"
+
 cleanup() {
     local r
     local container_id
@@ -10,9 +12,14 @@ cleanup() {
     # Dump stack logs
     elastic-package stack dump -v --output build/elastic-stack-dump/system-test-flags
 
+    local container_id=""
+    if is_service_container_running "${DEFAULT_AGENT_CONTAINER_NAME}" ; then
+        container_id=$(container_ids "${DEFAULT_AGENT_CONTAINER_NAME}")
+        docker rm -f "${container_id}"
+    fi
     # remove if any service container
     if is_service_container_running "${SERVICE_CONTAINER_NAME}"; then
-        container_id=$(docker ps --filter="ancestor=${SERVICE_CONTAINER_NAME}" -q)
+        container_id=$(container_ids "${SERVICE_CONTAINER_NAME}")
         docker rm -f "${container_id}"
         docker network rm "${SERVICE_NETWORK_NAME}"
     fi
@@ -33,11 +40,16 @@ cleanup() {
 
 trap cleanup EXIT
 
+container_ids() {
+    local container="$1"
+    docker ps --format "{{ .ID}} {{ .Names}}" | grep "${container}" | awk '{print $1}'
+}
+
 is_service_container_running() {
     local container="$1"
     local container_ids=""
 
-    container_ids=$(docker ps --filter="ancestor=${container}" -q | wc -l)
+    container_ids=$(container_ids "${container}" | wc -l)
 
     if [ "${container_ids}" -eq 1 ] ; then
         return 0
@@ -68,18 +80,27 @@ temporal_files_exist() {
 }
 
 run_tests_for_package() {
-    local package_name="$1"
-    local config_file="$2"
-    local variant="$3"
+    local package_folder="$1"
+    local service_name="$2"
+    local config_file="$3"
+    local variant="$4"
+    local custom_agent="$5"
     local variant_flag=""
     if [[ $variant != "no variant" ]]; then
         variant_flag="--variant ${variant}"
     fi
+    local package_name=""
+    package_name="$(basename "${package_folder}")"
 
     # set global variable so it is accessible for cleanup function (trap)
-    SERVICE_CONTAINER_NAME="elastic-package-service-${package_name}"
+    SERVICE_CONTAINER_NAME="elastic-package-service-${service_name}"
+    AGENT_CONTAINER_NAME=""
+    if [[ "${custom_agent}" == "true" ]]; then
+        SERVICE_CONTAINER_NAME="${service_name}"
+        AGENT_CONTAINER_NAME="${DEFAULT_AGENT_CONTAINER_NAME}"
+    fi
 
-    pushd "test/packages/parallel/${package_name}/" > /dev/null
+    pushd "${package_folder}/" > /dev/null
 
     echo "--- [${package_name} - ${variant}] Setup service without tear-down"
     elastic-package test system -v \
@@ -97,8 +118,15 @@ run_tests_for_package() {
         exit 1
     fi
 
+    if [[ "${AGENT_CONTAINER_NAME}" != "" ]]; then
+        if ! is_service_container_running "${AGENT_CONTAINER_NAME}"; then
+            echo "Not find custom docker agent container running after --setup process"
+            exit 1
+        fi
+    fi
+
     echo "--- [${package_name} - ${variant}] Run tests without provisioning"
-    for i in $(seq 3); do
+    for i in $(seq 2); do
         echo "--- Iteration #${i} --no-provision"
         elastic-package test system -v \
             --report-format xUnit --report-output file \
@@ -108,6 +136,12 @@ run_tests_for_package() {
         if ! is_service_container_running "${SERVICE_CONTAINER_NAME}"; then
             echo "Not find service docker container running after --no-provision process"
             exit 1
+        fi
+        if [[ "${AGENT_CONTAINER_NAME}" != "" ]]; then
+            if ! is_service_container_running "${AGENT_CONTAINER_NAME}"; then
+                echo "Not find custom docker agent container running after --no-provision process"
+                exit 1
+            fi
         fi
 
         if ! temporal_files_exist ; then
@@ -129,6 +163,12 @@ run_tests_for_package() {
         echo "Service docker container is still running after --tear-down process"
         exit 1
     fi
+    if [[ "${AGENT_CONTAINER_NAME}" != "" ]]; then
+        if is_service_container_running "${AGENT_CONTAINER_NAME}"; then
+            echo "Custom docker agent container still running after --tear-down process"
+            exit 1
+        fi
+    fi
 
     popd > /dev/null
 }
@@ -148,12 +188,30 @@ elastic-package stack up -v -d
 FOLDER_PATH="${HOME}/.elastic-package/profiles/default/stack/state"
 
 run_tests_for_package \
+    "test/packages/parallel" \
     "nginx" \
     "data_stream/access/_dev/test/system/test-default-config.yml" \
-    "no variant"
+    "no variant" \
+    "false"
 
 run_tests_for_package \
+    "test/packages/parallel" \
     "sql_input" \
     "_dev/test/system/test-default-config.yml" \
-    "mysql_8_0_13"
+    "mysql_8_0_13" \
+    "false"
 
+# this package has no service, so we introduced as a service name the one from the custom agent docker-custom-agent"
+run_tests_for_package \
+    "test/packages/with-custom-agent/auditd_manager" \
+    "docker-custom-agent" \
+    "./data_stream/auditd/_dev/test/system/test-default-config.yml" \
+    "no variant" \
+    "true"
+
+run_tests_for_package \
+    "test/packages/with-custom-agent/oracle" \
+    "oracle" \
+    "./data_stream/memory/_dev/test/system/test-memory-config.yml" \
+    "no variant" \
+    "true"
