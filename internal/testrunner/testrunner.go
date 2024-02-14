@@ -325,6 +325,7 @@ func findPackageTestFolderPaths(packageRootPath, testTypeGlob string) ([]string,
 	return paths, err
 }
 
+// StateFolderPath returns the folder where the state data is stored
 func StateFolderPath(profilePath string) string {
 	return filepath.Join(profilePath, stack.ProfileStackPath, StateFolderName)
 }
