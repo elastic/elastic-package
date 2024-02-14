@@ -170,9 +170,14 @@ services:
       interval: 60s
       timeout: 50s
       retries: 5
-    command: bash -c 'if [[ ! $(bin/logstash-plugin list) == *"logstash-filter-elastic_integration"* ]]; then echo "Missing plugin logstash-filter-elastic_integration, installing now" && bin/logstash-plugin install logstash-filter-elastic_integration; fi && bin/logstash -f /usr/share/logstash/pipeline/logstash.conf'
+    # logstash expects the key in pkcs8 format. Hence converting the key.pem to pkcs8 format using openssl.
+    # Also logstash-filter-elastic_integration plugin is installed by default to run ingest pipelines in logstash.
+    # elastic-package#1637 made improvements to enable logstash stats through port 9600.
+    command: bash -c 'openssl pkcs8 -inform PEM -in /usr/share/logstash/config/certs/key.pem -topk8 -nocrypt -outform PEM -out /tmp/logstash.pkcs8.key && chmod +x /tmp/logstash.pkcs8.key && if [[ ! $(bin/logstash-plugin list) ==  *"logstash-filter-elastic_integration"* ]]; then echo "Missing plugin  logstash-filter-elastic_integration, installing now" && bin/logstash-plugin install  logstash-filter-elastic_integration; fi && bin/logstash -f /usr/share/logstash/pipeline/logstash.conf'
     volumes:
-      - "../certs/logstash:/usr/share/logstash/config/certs"
+      - "../certs/logstash/key.pem:/usr/share/logstash/config/certs/key.pem"
+      - "../certs/logstash/cert.pem:/usr/share/logstash/config/certs/cert.pem"
+      - "../certs/logstash/ca-cert.pem:/usr/share/logstash/config/certs/ca-cert.pem"
       - "../certs/elasticsearch/cert.pem:/usr/share/logstash/config/certs/elasticsearch.pem"
       - "./logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro"
     ports:

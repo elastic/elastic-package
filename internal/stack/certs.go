@@ -29,6 +29,7 @@ var tlsServices = []tlsService{
 	{Name: "package-registry"},
 	{Name: "fleet-server"},
 	{Name: "logstash"},
+	{Name: "elastic-agent", IsClient: true},
 }
 
 var tlsServicesServerless = []tlsService{
