@@ -128,7 +128,7 @@ func (tsd TerraformServiceDeployer) SetUp(ctx context.Context, svcCtxt ServiceCo
 		Env: service.env,
 	}
 	// Set custom aliases, which may be used in agent policies.
-	serviceComposeConfig, err := p.Config(opts)
+	serviceComposeConfig, err := p.Config(ctx, opts)
 	if err != nil {
 		return nil, fmt.Errorf("could not get Docker Compose configuration for service: %w", err)
 	}
@@ -142,14 +142,14 @@ func (tsd TerraformServiceDeployer) SetUp(ctx context.Context, svcCtxt ServiceCo
 		Env:       service.env,
 		ExtraArgs: []string{"--build", "-d"},
 	}
-	err = p.Up(opts)
+	err = p.Up(ctx, opts)
 	if err != nil {
 		return nil, fmt.Errorf("could not boot up service using Docker Compose: %w", err)
 	}
 
 	err = p.WaitForHealthy(ctx, opts)
 	if err != nil {
-		processServiceContainerLogs(p, compose.CommandOptions{
+		processServiceContainerLogs(ctx, p, compose.CommandOptions{
 			Env: opts.Env,
 		}, outCtxt.Name)
 		//lint:ignore ST1005 error starting with product name can be capitalized

@@ -181,7 +181,7 @@ func (r *runner) SetUp(ctx context.Context) error {
 
 // Run runs the system benchmarks defined under the given folder
 func (r *runner) Run(ctx context.Context) (reporters.Reportable, error) {
-	return r.run()
+	return r.run(ctx)
 }
 
 func (r *runner) TearDown(ctx context.Context) error {
@@ -398,7 +398,7 @@ func (r *runner) wipeDataStreamOnSetup() error {
 	return r.deleteDataStreamDocs(r.runtimeDataStream)
 }
 
-func (r *runner) run() (report reporters.Reportable, err error) {
+func (r *runner) run(ctx context.Context) (report reporters.Reportable, err error) {
 	r.startMetricsColletion()
 	defer r.mcollector.stop()
 
@@ -433,7 +433,7 @@ func (r *runner) run() (report reporters.Reportable, err error) {
 		return dummy, ErrDryRun
 	}
 
-	rallyStats, err := r.runRally()
+	rallyStats, err := r.runRally(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -861,7 +861,7 @@ func (r *runner) copyCorpusFile(corpusPath, destDir string) (uint64, error) {
 	return corpusDocsCount, nil
 }
 
-func (r *runner) runRally() ([]rallyStat, error) {
+func (r *runner) runRally(ctx context.Context) ([]rallyStat, error) {
 	logger.Debug("running rally...")
 	profileConfig, err := stack.StackInitConfig(r.options.Profile)
 	if err != nil {
@@ -870,7 +870,7 @@ func (r *runner) runRally() ([]rallyStat, error) {
 
 	elasticsearchHost, found := os.LookupEnv(stack.ElasticsearchHostEnv)
 	if !found {
-		status, err := stack.Status(stack.Options{Profile: r.options.Profile})
+		status, err := stack.Status(ctx, stack.Options{Profile: r.options.Profile})
 		if err != nil {
 			return nil, fmt.Errorf("failed to check status of stack in current profile: %w", err)
 		}

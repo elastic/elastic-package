@@ -272,7 +272,7 @@ func (r *runner) run(ctx context.Context) (results []testrunner.TestResult, err 
 	defer os.RemoveAll(tempDir)
 
 	dumpOptions := stack.DumpOptions{Output: tempDir, Profile: r.options.Profile}
-	_, err = stack.Dump(dumpOptions)
+	_, err = stack.Dump(ctx, dumpOptions)
 	if err != nil {
 		return nil, fmt.Errorf("dump failed: %w", err)
 	}
@@ -515,7 +515,7 @@ func (r *runner) runTest(ctx context.Context, config *testConfig, serviceContext
 	serviceContext = service.Context()
 	r.shutdownServiceHandler = func() error {
 		logger.Debug("tearing down service...")
-		if err := service.TearDown(); err != nil {
+		if err := service.TearDown(ctx); err != nil {
 			return fmt.Errorf("error tearing down service: %w", err)
 		}
 
@@ -685,7 +685,7 @@ func (r *runner) runTest(ctx context.Context, config *testConfig, serviceContext
 
 	// Signal to the service that the agent is ready (policy is assigned).
 	if config.ServiceNotifySignal != "" {
-		if err = service.Signal(config.ServiceNotifySignal); err != nil {
+		if err = service.Signal(ctx, config.ServiceNotifySignal); err != nil {
 			return result.WithError(fmt.Errorf("failed to notify test service: %w", err))
 		}
 	}
@@ -725,7 +725,7 @@ func (r *runner) runTest(ctx context.Context, config *testConfig, serviceContext
 	}, waitForDataTimeout)
 
 	if config.Service != "" && !config.IgnoreServiceError {
-		exited, code, err := service.ExitCode(config.Service)
+		exited, code, err := service.ExitCode(ctx, config.Service)
 		if err != nil && !errors.Is(err, servicedeployer.ErrNotSupported) {
 			return result.WithError(err)
 		}

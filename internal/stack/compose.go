@@ -5,6 +5,7 @@
 package stack
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -51,7 +52,7 @@ func (eb *envBuilder) build() []string {
 	return eb.vars
 }
 
-func dockerComposeBuild(options Options) error {
+func dockerComposeBuild(ctx context.Context, options Options) error {
 	c, err := compose.NewProject(DockerComposeProjectName(options.Profile), options.Profile.Path(profileStackPath, SnapshotFile))
 	if err != nil {
 		return fmt.Errorf("could not create docker compose project: %w", err)
@@ -71,13 +72,13 @@ func dockerComposeBuild(options Options) error {
 		Services: withIsReadyServices(withDependentServices(options.Services)),
 	}
 
-	if err := c.Build(opts); err != nil {
+	if err := c.Build(ctx, opts); err != nil {
 		return fmt.Errorf("running command failed: %w", err)
 	}
 	return nil
 }
 
-func dockerComposePull(options Options) error {
+func dockerComposePull(ctx context.Context, options Options) error {
 	c, err := compose.NewProject(DockerComposeProjectName(options.Profile), options.Profile.Path(profileStackPath, SnapshotFile))
 	if err != nil {
 		return fmt.Errorf("could not create docker compose project: %w", err)
@@ -97,13 +98,13 @@ func dockerComposePull(options Options) error {
 		Services: withIsReadyServices(withDependentServices(options.Services)),
 	}
 
-	if err := c.Pull(opts); err != nil {
+	if err := c.Pull(ctx, opts); err != nil {
 		return fmt.Errorf("running command failed: %w", err)
 	}
 	return nil
 }
 
-func dockerComposeUp(options Options) error {
+func dockerComposeUp(ctx context.Context, options Options) error {
 	c, err := compose.NewProject(DockerComposeProjectName(options.Profile), options.Profile.Path(profileStackPath, SnapshotFile))
 	if err != nil {
 		return fmt.Errorf("could not create docker compose project: %w", err)
@@ -129,13 +130,13 @@ func dockerComposeUp(options Options) error {
 		Services:  withIsReadyServices(withDependentServices(options.Services)),
 	}
 
-	if err := c.Up(opts); err != nil {
+	if err := c.Up(ctx, opts); err != nil {
 		return fmt.Errorf("running command failed: %w", err)
 	}
 	return nil
 }
 
-func dockerComposeDown(options Options) error {
+func dockerComposeDown(ctx context.Context, options Options) error {
 	c, err := compose.NewProject(DockerComposeProjectName(options.Profile), options.Profile.Path(profileStackPath, SnapshotFile))
 	if err != nil {
 		return fmt.Errorf("could not create docker compose project: %w", err)
@@ -155,7 +156,7 @@ func dockerComposeDown(options Options) error {
 		// Remove associated volumes.
 		ExtraArgs: []string{"--volumes", "--remove-orphans"},
 	}
-	if err := c.Down(downOptions); err != nil {
+	if err := c.Down(ctx, downOptions); err != nil {
 		return fmt.Errorf("running command failed: %w", err)
 	}
 	return nil
@@ -182,7 +183,7 @@ func withIsReadyServices(services []string) []string {
 	return allServices
 }
 
-func dockerComposeStatus(options Options) ([]ServiceStatus, error) {
+func dockerComposeStatus(ctx context.Context, options Options) ([]ServiceStatus, error) {
 	var services []ServiceStatus
 	// query directly to docker to avoid load environment variables (e.g. STACK_VERSION_VARIANT) and profiles
 	containerIDs, err := docker.ContainerIDsWithLabel(projectLabelDockerCompose, DockerComposeProjectName(options.Profile))

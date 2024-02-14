@@ -57,11 +57,11 @@ type runner struct {
 	corporaFile       string
 
 	// Execution order of following handlers is defined in runner.TearDown() method.
-	deletePolicyHandler     func() error
-	resetAgentPolicyHandler func() error
-	shutdownServiceHandler  func() error
-	wipeDataStreamHandler   func() error
-	clearCorporaHandler     func() error
+	deletePolicyHandler     func(context.Context) error
+	resetAgentPolicyHandler func(context.Context) error
+	shutdownServiceHandler  func(context.Context) error
+	wipeDataStreamHandler   func(context.Context) error
+	clearCorporaHandler     func(context.Context) error
 }
 
 func NewSystemBenchmark(opts Options) benchrunner.Runner {
@@ -90,35 +90,35 @@ func (r *runner) TearDown(ctx context.Context) error {
 	var merr multierror.Error
 
 	if r.resetAgentPolicyHandler != nil {
-		if err := r.resetAgentPolicyHandler(); err != nil {
+		if err := r.resetAgentPolicyHandler(context.Background()); err != nil {
 			merr = append(merr, err)
 		}
 		r.resetAgentPolicyHandler = nil
 	}
 
 	if r.deletePolicyHandler != nil {
-		if err := r.deletePolicyHandler(); err != nil {
+		if err := r.deletePolicyHandler(context.Background()); err != nil {
 			merr = append(merr, err)
 		}
 		r.deletePolicyHandler = nil
 	}
 
 	if r.shutdownServiceHandler != nil {
-		if err := r.shutdownServiceHandler(); err != nil {
+		if err := r.shutdownServiceHandler(context.Background()); err != nil {
 			merr = append(merr, err)
 		}
 		r.shutdownServiceHandler = nil
 	}
 
 	if r.wipeDataStreamHandler != nil {
-		if err := r.wipeDataStreamHandler(); err != nil {
+		if err := r.wipeDataStreamHandler(context.Background()); err != nil {
 			merr = append(merr, err)
 		}
 		r.wipeDataStreamHandler = nil
 	}
 
 	if r.clearCorporaHandler != nil {
-		if err := r.clearCorporaHandler(); err != nil {
+		if err := r.clearCorporaHandler(context.Background()); err != nil {
 			merr = append(merr, err)
 		}
 		r.clearCorporaHandler = nil
@@ -199,7 +199,7 @@ func (r *runner) setUp(ctx context.Context) error {
 		r.scenario.Version,
 	)
 
-	r.wipeDataStreamHandler = func() error {
+	r.wipeDataStreamHandler = func(context.Context) error {
 		logger.Debugf("deleting data in data stream...")
 		if err := r.deleteDataStreamDocs(r.runtimeDataStream); err != nil {
 			return fmt.Errorf("error deleting data in data stream: %w", err)
@@ -257,9 +257,9 @@ func (r *runner) run(ctx context.Context) (report reporters.Reportable, err erro
 		}
 
 		r.ctxt = service.Context()
-		r.shutdownServiceHandler = func() error {
+		r.shutdownServiceHandler = func(ctx context.Context) error {
 			logger.Debug("tearing down service...")
-			if err := service.TearDown(); err != nil {
+			if err := service.TearDown(ctx); err != nil {
 				return fmt.Errorf("error tearing down service: %w", err)
 			}
 
@@ -285,7 +285,7 @@ func (r *runner) run(ctx context.Context) (report reporters.Reportable, err erro
 
 	// Signal to the service that the agent is ready (policy is assigned).
 	if r.scenario.Corpora.InputService != nil && r.scenario.Corpora.InputService.Signal != "" {
-		if err = service.Signal(r.scenario.Corpora.InputService.Signal); err != nil {
+		if err = service.Signal(ctx, r.scenario.Corpora.InputService.Signal); err != nil {
 			return nil, fmt.Errorf("failed to notify benchmark service: %w", err)
 		}
 	}
@@ -376,7 +376,7 @@ func (r *runner) createBenchmarkPolicy(pkgManifest *packages.PackageManifest) (*
 		return nil, err
 	}
 
-	r.deletePolicyHandler = func() error {
+	r.deletePolicyHandler = func(ctx context.Context) error {
 		var merr multierror.Error
 
 		logger.Debug("deleting benchmark package policy...")
@@ -607,7 +607,7 @@ func (r *runner) runGenerator(destDir string) error {
 	}
 
 	r.corporaFile = f.Name()
-	r.clearCorporaHandler = func() error {
+	r.clearCorporaHandler = func(context.Context) error {
 		return os.Remove(r.corporaFile)
 	}
 
@@ -677,7 +677,7 @@ func (r *runner) enrollAgents(ctx context.Context) error {
 		return fmt.Errorf("can't check enrolled agents: %w", err)
 	}
 
-	handlers := make([]func() error, len(agents))
+	handlers := make([]func(context.Context) error, len(agents))
 	for i, agent := range agents {
 		origPolicy := kibana.Policy{
 			ID:       agent.PolicyID,
@@ -685,7 +685,7 @@ func (r *runner) enrollAgents(ctx context.Context) error {
 		}
 
 		// Assign policy to agent
-		handlers[i] = func() error {
+		handlers[i] = func(ctx context.Context) error {
 			logger.Debug("reassigning original policy back to agent...")
 			if err := r.options.KibanaClient.AssignPolicyToAgent(ctx, agent, origPolicy); err != nil {
 				return fmt.Errorf("error reassigning original policy to agent %s: %w", agent.ID, err)
@@ -704,10 +704,10 @@ func (r *runner) enrollAgents(ctx context.Context) error {
 		}
 	}
 
-	r.resetAgentPolicyHandler = func() error {
+	r.resetAgentPolicyHandler = func(ctx context.Context) error {
 		var merr multierror.Error
 		for _, h := range handlers {
-			if err := h(); err != nil {
+			if err := h(ctx); err != nil {
 				merr = append(merr, err)
 			}
 		}

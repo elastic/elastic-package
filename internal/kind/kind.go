@@ -5,6 +5,7 @@
 package kind
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/elastic/elastic-package/internal/docker"
@@ -20,10 +21,10 @@ const ControlPlaneContainerName = "kind-control-plane"
 const kindContext = "kind-kind"
 
 // VerifyContext function ensures that the kind context is selected.
-func VerifyContext() error {
+func VerifyContext(ctx context.Context) error {
 	logger.Debug("ensure that kind context is selected")
 
-	currentContext, err := kubectl.CurrentContext()
+	currentContext, err := kubectl.CurrentContext(ctx)
 	if err != nil {
 		return fmt.Errorf("can't read current Kubernetes context: %w", err)
 	}

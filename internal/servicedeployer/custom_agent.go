@@ -111,7 +111,7 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, inCtxt ServiceContext) 
 		Env:       env,
 		ExtraArgs: []string{"--build", "-d"},
 	}
-	err = p.Up(opts)
+	err = p.Up(ctx, opts)
 	if err != nil {
 		return nil, fmt.Errorf("could not boot up service using Docker Compose: %w", err)
 	}
@@ -124,7 +124,7 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, inCtxt ServiceContext) 
 
 	err = p.WaitForHealthy(ctx, opts)
 	if err != nil {
-		processServiceContainerLogs(p, compose.CommandOptions{
+		processServiceContainerLogs(ctx, p, compose.CommandOptions{
 			Env: opts.Env,
 		}, outCtxt.Name)
 		return nil, fmt.Errorf("service is unhealthy: %w", err)
@@ -134,7 +134,7 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, inCtxt ServiceContext) 
 	outCtxt.Hostname = p.ContainerName(serviceName)
 
 	logger.Debugf("adding service container %s internal ports to context", p.ContainerName(serviceName))
-	serviceComposeConfig, err := p.Config(compose.CommandOptions{Env: env})
+	serviceComposeConfig, err := p.Config(ctx, compose.CommandOptions{Env: env})
 	if err != nil {
 		return nil, fmt.Errorf("could not get Docker Compose configuration for service: %w", err)
 	}

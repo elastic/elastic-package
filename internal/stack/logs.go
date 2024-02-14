@@ -5,6 +5,7 @@
 package stack
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 
@@ -14,7 +15,7 @@ import (
 	"github.com/elastic/elastic-package/internal/profile"
 )
 
-func dockerComposeLogs(serviceName string, profile *profile.Profile) ([]byte, error) {
+func dockerComposeLogs(ctx context.Context, serviceName string, profile *profile.Profile) ([]byte, error) {
 	appConfig, err := install.Configuration()
 	if err != nil {
 		return nil, fmt.Errorf("can't read application configuration: %w", err)
@@ -36,7 +37,7 @@ func dockerComposeLogs(serviceName string, profile *profile.Profile) ([]byte, er
 		Services: []string{serviceName},
 	}
 
-	out, err := p.Logs(opts)
+	out, err := p.Logs(ctx, opts)
 	if err != nil {
 		return nil, fmt.Errorf("running command failed: %w", err)
 	}

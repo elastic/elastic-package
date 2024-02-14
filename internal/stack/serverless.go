@@ -235,7 +235,7 @@ func newServerlessProvider(profile *profile.Profile) (*serverlessProvider, error
 	return &serverlessProvider{profile, client, nil, nil}, nil
 }
 
-func (sp *serverlessProvider) BootUp(options Options) error {
+func (sp *serverlessProvider) BootUp(ctx context.Context, options Options) error {
 	logger.Warn("Elastic Serverless provider is in technical preview")
 
 	config, err := LoadConfig(sp.profile)
@@ -292,7 +292,7 @@ func (sp *serverlessProvider) BootUp(options Options) error {
 	}
 
 	logger.Infof("Starting local services")
-	err = sp.startLocalServices(options, config)
+	err = sp.startLocalServices(ctx, options, config)
 	if err != nil {
 		return fmt.Errorf("failed to start local services: %w", err)
 	}
@@ -318,7 +318,7 @@ func (sp *serverlessProvider) localServicesComposeProject() (*compose.Project, e
 	return compose.NewProject(sp.composeProjectName(), composeFile)
 }
 
-func (sp *serverlessProvider) startLocalServices(options Options, config Config) error {
+func (sp *serverlessProvider) startLocalServices(ctx context.Context, options Options, config Config) error {
 	err := applyServerlessResources(sp.profile, options.StackVersion, config)
 	if err != nil {
 		return fmt.Errorf("could not initialize compose files for local services: %w", err)
@@ -329,12 +329,12 @@ func (sp *serverlessProvider) startLocalServices(options Options, config Config)
 		return fmt.Errorf("could not initialize local services compose project")
 	}
 
-	err = project.Build(compose.CommandOptions{})
+	err = project.Build(ctx, compose.CommandOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to build images for local services: %w", err)
 	}
 
-	err = project.Up(compose.CommandOptions{ExtraArgs: []string{"-d"}})
+	err = project.Up(ctx, compose.CommandOptions{ExtraArgs: []string{"-d"}})
 	if err != nil {
 		// At least starting on 8.6.0, fleet-server may be reconfigured or
 		// restarted after being healthy. If elastic-agent tries to enroll at
@@ -343,7 +343,7 @@ func (sp *serverlessProvider) startLocalServices(options Options, config Config)
 		// As a workaround, try to give another chance to docker-compose if only
 		// elastic-agent failed.
 		fmt.Println("Elastic Agent failed to start, trying again.")
-		err = project.Up(compose.CommandOptions{ExtraArgs: []string{"-d"}})
+		err = project.Up(ctx, compose.CommandOptions{ExtraArgs: []string{"-d"}})
 		if err != nil {
 			return fmt.Errorf("failed to start local agent: %w", err)
 		}
@@ -352,7 +352,7 @@ func (sp *serverlessProvider) startLocalServices(options Options, config Config)
 	return nil
 }
 
-func (sp *serverlessProvider) TearDown(options Options) error {
+func (sp *serverlessProvider) TearDown(ctx context.Context, options Options) error {
 	config, err := LoadConfig(sp.profile)
 	if err != nil {
 		return fmt.Errorf("failed to load configuration: %w", err)
@@ -360,7 +360,7 @@ func (sp *serverlessProvider) TearDown(options Options) error {
 
 	var errs error
 
-	err = sp.destroyLocalServices()
+	err = sp.destroyLocalServices(ctx)
 	if err != nil {
 		logger.Errorf("failed to destroy local services: %v", err)
 		errs = fmt.Errorf("failed to destroy local services: %w", err)
@@ -384,13 +384,13 @@ func (sp *serverlessProvider) TearDown(options Options) error {
 	return errs
 }
 
-func (sp *serverlessProvider) destroyLocalServices() error {
+func (sp *serverlessProvider) destroyLocalServices(ctx context.Context) error {
 	project, err := sp.localServicesComposeProject()
 	if err != nil {
 		return fmt.Errorf("could not initialize local services compose project")
 	}
 
-	err = project.Down(compose.CommandOptions{})
+	err = project.Down(ctx, compose.CommandOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to destroy local services: %w", err)
 	}
@@ -398,15 +398,15 @@ func (sp *serverlessProvider) destroyLocalServices() error {
 	return nil
 }
 
-func (sp *serverlessProvider) Update(options Options) error {
+func (sp *serverlessProvider) Update(ctx context.Context, options Options) error {
 	return fmt.Errorf("not implemented")
 }
 
-func (sp *serverlessProvider) Dump(options DumpOptions) (string, error) {
-	return Dump(options)
+func (sp *serverlessProvider) Dump(ctx context.Context, options DumpOptions) (string, error) {
+	return Dump(ctx, options)
 }
 
-func (sp *serverlessProvider) Status(options Options) ([]ServiceStatus, error) {
+func (sp *serverlessProvider) Status(ctx context.Context, options Options) ([]ServiceStatus, error) {
 	logger.Warn("Elastic Serverless provider is in technical preview")
 	config, err := LoadConfig(sp.profile)
 	if err != nil {
@@ -421,7 +421,6 @@ func (sp *serverlessProvider) Status(options Options) ([]ServiceStatus, error) {
 		return nil, err
 	}
 
-	ctx := context.TODO()
 	projectServiceStatus, err := project.Status(ctx, sp.elasticsearchClient, sp.kibanaClient)
 	if err != nil {
 		return nil, err

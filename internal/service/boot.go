@@ -70,7 +70,7 @@ func BootUp(ctx context.Context, options Options) error {
 
 	// Tear down the service
 	fmt.Println("Take down the service")
-	err = deployed.TearDown()
+	err = deployed.TearDown(ctx)
 	if err != nil {
 		return fmt.Errorf("can't tear down the service: %w", err)
 	}

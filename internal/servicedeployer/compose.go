@@ -86,14 +86,14 @@ func (d *DockerComposeServiceDeployer) SetUp(ctx context.Context, inCtxt Service
 			d.variant.Env...),
 		ExtraArgs: []string{"--build", "-d"},
 	}
-	err = p.Up(opts)
+	err = p.Up(ctx, opts)
 	if err != nil {
 		return nil, fmt.Errorf("could not boot up service using Docker Compose: %w", err)
 	}
 
 	err = p.WaitForHealthy(ctx, opts)
 	if err != nil {
-		processServiceContainerLogs(p, compose.CommandOptions{
+		processServiceContainerLogs(ctx, p, compose.CommandOptions{
 			Env: opts.Env,
 		}, outCtxt.Name)
 		return nil, fmt.Errorf("service is unhealthy: %w", err)
@@ -109,7 +109,7 @@ func (d *DockerComposeServiceDeployer) SetUp(ctx context.Context, inCtxt Service
 	}
 
 	logger.Debugf("adding service container %s internal ports to context", p.ContainerName(serviceName))
-	serviceComposeConfig, err := p.Config(compose.CommandOptions{
+	serviceComposeConfig, err := p.Config(ctx, compose.CommandOptions{
 		Env: []string{fmt.Sprintf("%s=%s", serviceLogsDirEnv, outCtxt.Logs.Folder.Local)},
 	})
 	if err != nil {
@@ -133,7 +133,7 @@ func (d *DockerComposeServiceDeployer) SetUp(ctx context.Context, inCtxt Service
 }
 
 // Signal sends a signal to the service.
-func (s *dockerComposeDeployedService) Signal(signal string) error {
+func (s *dockerComposeDeployedService) Signal(ctx context.Context, signal string) error {
 	p, err := compose.NewProject(s.project, s.ymlPaths...)
 	if err != nil {
 		return fmt.Errorf("could not create Docker Compose project for service: %w", err)
@@ -149,7 +149,7 @@ func (s *dockerComposeDeployedService) Signal(signal string) error {
 		opts.Services = append(opts.Services, s.ctxt.Name)
 	}
 
-	err = p.Kill(opts)
+	err = p.Kill(ctx, opts)
 	if err != nil {
 		return fmt.Errorf("could not send %q signal: %w", signal, err)
 	}
@@ -157,7 +157,7 @@ func (s *dockerComposeDeployedService) Signal(signal string) error {
 }
 
 // ExitCode returns true if the service is exited and its exit code.
-func (s *dockerComposeDeployedService) ExitCode(service string) (bool, int, error) {
+func (s *dockerComposeDeployedService) ExitCode(ctx context.Context, service string) (bool, int, error) {
 	p, err := compose.NewProject(s.project, s.ymlPaths...)
 	if err != nil {
 		return false, -1, fmt.Errorf("could not create Docker Compose project for service: %w", err)
@@ -169,11 +169,11 @@ func (s *dockerComposeDeployedService) ExitCode(service string) (bool, int, erro
 			s.variant.Env...),
 	}
 
-	return p.ServiceExitCode(service, opts)
+	return p.ServiceExitCode(ctx, service, opts)
 }
 
 // TearDown tears down the service.
-func (s *dockerComposeDeployedService) TearDown() error {
+func (s *dockerComposeDeployedService) TearDown(ctx context.Context) error {
 	logger.Debugf("tearing down service using Docker Compose runner")
 	defer func() {
 		err := files.RemoveContent(s.ctxt.Logs.Folder.Local)
@@ -196,9 +196,9 @@ func (s *dockerComposeDeployedService) TearDown() error {
 			s.env,
 			s.variant.Env...),
 	}
-	processServiceContainerLogs(p, opts, s.ctxt.Name)
+	processServiceContainerLogs(ctx, p, opts, s.ctxt.Name)
 
-	if err := p.Down(compose.CommandOptions{
+	if err := p.Down(ctx, compose.CommandOptions{
 		Env:       opts.Env,
 		ExtraArgs: []string{"--volumes"}, // Remove associated volumes.
 	}); err != nil {
@@ -218,8 +218,8 @@ func (s *dockerComposeDeployedService) SetContext(ctxt ServiceContext) error {
 	return nil
 }
 
-func processServiceContainerLogs(p *compose.Project, opts compose.CommandOptions, serviceName string) {
-	content, err := p.Logs(opts)
+func processServiceContainerLogs(ctx context.Context, p *compose.Project, opts compose.CommandOptions, serviceName string) {
+	content, err := p.Logs(ctx, opts)
 	if err != nil {
 		logger.Errorf("can't export service logs: %v", err)
 		return

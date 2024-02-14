@@ -6,6 +6,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log"
 	"os"
 	"os/signal"
@@ -26,7 +27,18 @@ func main() {
 	defer cancel()
 
 	err = rootCmd.ExecuteContext(ctx)
+	if errIsInterruption(err) {
+		os.Exit(130)
+	}
 	if err != nil {
 		os.Exit(1)
 	}
+}
+
+func errIsInterruption(err error) bool {
+	if errors.Is(err, context.Canceled) {
+		return true
+	}
+
+	return false
 }
