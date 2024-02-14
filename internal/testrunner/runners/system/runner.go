@@ -43,26 +43,10 @@ const (
 
 	allFieldsBody = `{"fields": ["*"]}`
 	DevDeployDir  = "_dev/deploy"
-
-	setupServiceFileName = "setup-service.json"
 )
 
 func init() {
-	runner, err := NewSystemTestRunner()
-	if err != nil {
-		panic(err)
-	}
-	testrunner.RegisterRunner(runner)
-}
-
-func NewSystemTestRunner() (testrunner.TestRunner, error) {
-	r := runner{}
-	var err error
-	r.locationManager, err = locations.NewLocationManager()
-	if err != nil {
-		return nil, err
-	}
-	return &r, nil
+	testrunner.RegisterRunner(&runner{})
 }
 
 const (
@@ -172,7 +156,7 @@ func createSetupServicesDir(elasticPackagePath *locations.LocationManager) error
 func (r *runner) TestConfigFilePath() (string, error) {
 	var serviceSetupData ServiceSetupData
 
-	setupDataPath := filepath.Join(r.locationManager.ServiceSetupDir(), setupServiceFileName)
+	setupDataPath := filepath.Join(r.locationManager.ServiceSetupDir(), "service-setup.json")
 	logger.Debugf("Reading service setup data from file %s", setupDataPath)
 	contents, err := os.ReadFile(setupDataPath)
 	if err != nil {
@@ -222,7 +206,7 @@ func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, e
 
 	var serviceSetupData ServiceSetupData
 	if !r.options.RunSetup {
-		serviceSetupPath := filepath.Join(r.locationManager.ServiceSetupDir(), setupServiceFileName)
+		serviceSetupPath := filepath.Join(r.locationManager.ServiceSetupDir(), testrunner.ServiceSetupDataFileName)
 		logger.Debugf("Reading test config from file %s", serviceSetupPath)
 		contents, err := os.ReadFile(serviceSetupPath)
 		if err != nil {
@@ -406,6 +390,10 @@ func (r *runner) newResult(name string) *testrunner.ResultComposer {
 func (r *runner) initRun() error {
 	var err error
 	var found bool
+	r.locationManager, err = locations.NewLocationManager()
+	if err != nil {
+		return fmt.Errorf("reading service logs directory failed: %w", err)
+	}
 
 	r.dataStreamPath, found, err = packages.FindDataStreamRootForPath(r.options.TestFolder.Path)
 	if err != nil {
@@ -692,7 +680,7 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 	scenario := scenarioTest{}
 
 	if r.options.RunTearDown || r.options.RunTestsOnly {
-		serviceSetupPath := filepath.Join(r.locationManager.ServiceSetupDir(), setupServiceFileName)
+		serviceSetupPath := filepath.Join(r.locationManager.ServiceSetupDir(), testrunner.ServiceSetupDataFileName)
 		logger.Debugf("Reading test config from file %s", serviceSetupPath)
 		contents, err := os.ReadFile(serviceSetupPath)
 		if err != nil {
@@ -1060,7 +1048,7 @@ func (r *runner) writeScenarioSetup(currentPolicy, origPolicy *kibana.Policy, co
 		return fmt.Errorf("failed to marshall service setup data: %w", err)
 	}
 
-	err = os.WriteFile(filepath.Join(r.locationManager.ServiceSetupDir(), setupServiceFileName), dataBytes, 0644)
+	err = os.WriteFile(filepath.Join(r.locationManager.ServiceSetupDir(), testrunner.ServiceSetupDataFileName), dataBytes, 0644)
 	if err != nil {
 		return fmt.Errorf("failed to write service setup JSON: %w", err)
 	}

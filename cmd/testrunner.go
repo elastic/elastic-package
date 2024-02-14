@@ -5,6 +5,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/common"
+	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/packages"
@@ -177,7 +179,7 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 		runTestsOnly := false
 
 		if runner.CanRunSetupTeardownIndependent() && cmd.Flags().Lookup(cobraext.ConfigFileFlagName) != nil {
-			// not all test types defined these flags
+			// not all test types define these flags
 			runSetup, _ = cmd.Flags().GetBool(cobraext.SetupFlagName)
 			runTearDown, _ = cmd.Flags().GetBool(cobraext.TearDownFlagName)
 			runTestsOnly, _ = cmd.Flags().GetBool(cobraext.NoProvisionFlagName)
@@ -206,10 +208,26 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 
 			if runner.CanRunSetupTeardownIndependent() && runSetup || runTearDown || runTestsOnly {
 				if runTearDown || runTestsOnly {
-					configFileFlag, err = runner.TestConfigFilePath()
+					locationManager, err := locations.NewLocationManager()
 					if err != nil {
-						return fmt.Errorf("failed to get test config file path: %w", err)
+						return fmt.Errorf("can't read configuration directory")
 					}
+
+					type setupData struct {
+						ConfigFilePath string `json:"config_file_path"`
+					}
+					var serviceSetupData setupData
+					setupDataPath := filepath.Join(locationManager.ServiceSetupDir(), testrunner.ServiceSetupDataFileName)
+					fmt.Printf("Reading service setup data from file: %s\n", setupDataPath)
+					contents, err := os.ReadFile(setupDataPath)
+					if err != nil {
+						return fmt.Errorf("failed to read service setup data %q: %w", setupDataPath, err)
+					}
+					err = json.Unmarshal(contents, &serviceSetupData)
+					if err != nil {
+						return fmt.Errorf("failed to decode service setup data %q: %w", setupDataPath, err)
+					}
+					configFileFlag = serviceSetupData.ConfigFilePath
 				}
 				dataStream := testrunner.ExtractDataStreamFromPath(configFileFlag, packageRootPath)
 				dataStreams = append(dataStreams, dataStream)

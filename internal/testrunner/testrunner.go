@@ -18,6 +18,8 @@ import (
 	"github.com/elastic/elastic-package/internal/profile"
 )
 
+const ServiceSetupDataFileName = "service-setup.json"
+
 // TestType represents the various supported test types
 type TestType string
 
