@@ -18,11 +18,14 @@ cleanup() {
         docker rm -f "${container_id}"
     fi
     # remove if any service container
-    if is_service_container_running "${SERVICE_CONTAINER_NAME}"; then
-        container_id=$(container_ids "${SERVICE_CONTAINER_NAME}")
-        docker rm -f "${container_id}"
-        docker network rm "${SERVICE_NETWORK_NAME}"
+    if [[ "${SERVICE_CONTAINER_NAME}" != "" ]]; then
+        if is_service_container_running "${SERVICE_CONTAINER_NAME}"; then
+            container_id=$(container_ids "${SERVICE_CONTAINER_NAME}")
+            docker rm -f "${container_id}"
+        fi
     fi
+
+    kind delete cluster || true
 
     # Take down the stack
     elastic-package stack down -v
@@ -43,6 +46,12 @@ trap cleanup EXIT
 container_ids() {
     local container="$1"
     docker ps --format "{{ .ID}} {{ .Names}}" | grep "${container}" | awk '{print $1}'
+}
+
+is_network_created() {
+    local network="$1"
+
+    docker network ls --format "{{ .Name }}" | grep -q "${network}"
 }
 
 is_service_container_running() {
@@ -79,12 +88,94 @@ temporal_files_exist() {
     return 0
 }
 
+tests_for_setup() {
+    local service_deployer_type=$1
+    local service_container=$2
+    local agent_container=$3
+
+    if ! temporal_files_exist ; then
+        return 1
+    fi
+    if [[ "${service_deployer_type}" == "kind" ]]; then
+        if ! is_network_created "kind" ; then
+            echo "Missing docker network to connect to kind cluster"
+            return 1
+        fi
+    fi
+
+    if [[ "${service_deployer_type}" == "docker" || "${service_deployer_type}" == "agent" ]] ; then
+        if ! is_service_container_running "${service_container}"; then
+            echo "Not find service docker container running after --setup process"
+            return 1
+        fi
+    fi
+
+    if [[ "${service_deployer_type}" == "agent" ]] ; then
+        if ! is_service_container_running "${agent_container}"; then
+            echo "Not find custom docker agent container running after --setup process"
+            return 1
+        fi
+    fi
+    return 0
+}
+
+tests_for_no_provisin() {
+    local service_deployer_type=$1
+    local service_container=$2
+    local agent_container=$3
+
+    # service docker needs to be running after this command
+    if [[ "${service_deployer_type}" == "docker" || "${service_deployer_type}" == "agent" ]] ; then
+        if ! is_service_container_running "${service_container}"; then
+            echo "Not find service docker container running after --no-provision process"
+            return 1
+        fi
+    fi
+    if [[ "${service_deployer_type}" == "agent" ]] ; then
+        if ! is_service_container_running "${agent_container}"; then
+            echo "Not find custom docker agent container running after --no-provision process"
+            return 1
+        fi
+    fi
+
+    if ! temporal_files_exist ; then
+        return 1
+    fi
+
+    return 0
+}
+
+tests_for_tear_down() {
+    local service_deployer_type=$1
+    local service_container=$2
+    local agent_container=$3
+
+    if service_setup_folder_exists; then
+        echo "State folder has not been deleted in --tear-down: ${FOLDER_PATH}"
+        return 1
+    fi
+
+    if [[ "${service_deployer_type}" == "docker" || "${service_deployer_type}" == "agent" ]] ; then
+        if is_service_container_running "${service_container}"; then
+            echo "Service docker container is still running after --tear-down process"
+            return 1
+        fi
+    fi
+    if [[ "${service_deployer_type}" == "agent" ]] ; then
+        if is_service_container_running "${agent_container}"; then
+            echo "Custom docker agent container still running after --tear-down process"
+            return 1
+        fi
+    fi
+    return 0
+}
+
 run_tests_for_package() {
     local package_folder="$1"
     local service_name="$2"
     local config_file="$3"
     local variant="$4"
-    local custom_agent="$5"
+    local service_deployer_type="$5"
     local variant_flag=""
     if [[ "$variant" != "no variant" ]]; then
         variant_flag="--variant ${variant}"
@@ -95,7 +186,7 @@ run_tests_for_package() {
     # set global variable so it is accessible for cleanup function (trap)
     SERVICE_CONTAINER_NAME="${service_name}"
     AGENT_CONTAINER_NAME=""
-    if [[ "${custom_agent}" == "true" ]]; then
+    if [[ "${service_deployer_type}" == "agent" ]]; then
         AGENT_CONTAINER_NAME="${DEFAULT_AGENT_CONTAINER_NAME}"
     fi
 
@@ -108,20 +199,12 @@ run_tests_for_package() {
         ${variant_flag} \
         --setup
 
-    if ! temporal_files_exist ; then
-        exit 1
-    fi
-
-    if ! is_service_container_running "${SERVICE_CONTAINER_NAME}"; then
-        echo "Not find service docker container running after --setup process"
-        exit 1
-    fi
-
-    if [[ "${AGENT_CONTAINER_NAME}" != "" ]]; then
-        if ! is_service_container_running "${AGENT_CONTAINER_NAME}"; then
-            echo "Not find custom docker agent container running after --setup process"
-            exit 1
-        fi
+    # Tests after --setup
+    if ! tests_for_setup \
+        "${service_deployer_type}" \
+        "${SERVICE_CONTAINER_NAME}" \
+        "${AGENT_CONTAINER_NAME}" ; then
+        return 1
     fi
 
     echo "--- [${package_name} - ${variant}] Run tests without provisioning"
@@ -131,20 +214,12 @@ run_tests_for_package() {
             --report-format xUnit --report-output file \
             --no-provision
 
-        # service docker needs to be running after this command
-        if ! is_service_container_running "${SERVICE_CONTAINER_NAME}"; then
-            echo "Not find service docker container running after --no-provision process"
-            exit 1
-        fi
-        if [[ "${AGENT_CONTAINER_NAME}" != "" ]]; then
-            if ! is_service_container_running "${AGENT_CONTAINER_NAME}"; then
-                echo "Not find custom docker agent container running after --no-provision process"
-                exit 1
-            fi
-        fi
-
-        if ! temporal_files_exist ; then
-            exit 1
+        # Tests after --no-provision
+        if ! tests_for_no_provision \
+            "${service_deployer_type}" \
+            "${SERVICE_CONTAINER_NAME}" \
+            "${AGENT_CONTAINER_NAME}" ; then
+            return 1
         fi
     done
 
@@ -153,29 +228,20 @@ run_tests_for_package() {
         --report-format xUnit --report-output file \
         --tear-down
 
-    if service_setup_folder_exists; then
-        echo "State folder has not been deleted in --tear-down: ${FOLDER_PATH}"
-        exit 1
-    fi
-
-    if is_service_container_running "${SERVICE_CONTAINER_NAME}"; then
-        echo "Service docker container is still running after --tear-down process"
-        exit 1
-    fi
-    if [[ "${AGENT_CONTAINER_NAME}" != "" ]]; then
-        if is_service_container_running "${AGENT_CONTAINER_NAME}"; then
-            echo "Custom docker agent container still running after --tear-down process"
-            exit 1
-        fi
+    if ! tests_for_tear_down \
+        "${service_deployer_type}" \
+        "${SERVICE_CONTAINER_NAME}" \
+        "${AGENT_CONTAINER_NAME}" ; then
+        return 1
     fi
 
     popd > /dev/null
 }
 
-SERVICE_NETWORK_NAME="elastic-package-service_default"
+
 # to be set the specific value in run_tests_for_package , required to be global
 # so cleanup function could delete the container if is still running
-SERVICE_CONTAINER_NAME="elastic-package-service-<package>"
+SERVICE_CONTAINER_NAME=""
 
 ELASTIC_PACKAGE_LINKS_FILE_PATH="$(pwd)/scripts/links_table.yml"
 export ELASTIC_PACKAGE_LINKS_FILE_PATH
@@ -184,33 +250,66 @@ export ELASTIC_PACKAGE_LINKS_FILE_PATH
 echo "--- Start Elastic stack"
 elastic-package stack up -v -d
 
+elastic-package stack status
+
 FOLDER_PATH="${HOME}/.elastic-package/profiles/default/stack/state"
 
-run_tests_for_package \
+# docker service deployer
+if ! run_tests_for_package \
     "test/packages/parallel/nginx" \
     "elastic-package-service-nginx" \
     "data_stream/access/_dev/test/system/test-default-config.yml" \
     "no variant" \
-    "false"
+    "docker" ; then
 
-run_tests_for_package \
+    exit 1
+fi
+
+if ! run_tests_for_package \
     "test/packages/parallel/sql_input" \
     "elastic-package-service-sql_input" \
     "_dev/test/system/test-default-config.yml" \
     "mysql_8_0_13" \
-    "false"
+    "docker" ; then
 
+    exit 1
+fi
+
+# Custom agents service deployer
 # this package has no service, so we introduced as a service name the one from the custom agent docker-custom-agent"
-run_tests_for_package \
+if ! run_tests_for_package \
     "test/packages/with-custom-agent/auditd_manager" \
     "elastic-package-service-docker-custom-agent" \
     "./data_stream/auditd/_dev/test/system/test-default-config.yml" \
     "no variant" \
-    "true"
+    "agent" ; then
 
-run_tests_for_package \
+    exit 1
+fi
+
+if ! run_tests_for_package \
     "test/packages/with-custom-agent/oracle" \
     "oracle" \
     "./data_stream/memory/_dev/test/system/test-memory-config.yml" \
     "no variant" \
-    "true"
+    "agent" ; then
+
+    exit 1
+fi
+
+# Kind service deployer
+echo "--- Create kind cluster"
+kind create cluster --config "$PWD/scripts/kind-config.yaml"
+
+if ! run_tests_for_k8s_package \
+    "test/packages/with-kind/kubernetes" \
+    "" \
+    "./data_stream/state_pod/_dev/test/system/test-default-config.yml" \
+    "no variant" \
+    "kind" ; then
+
+    exit 1
+fi
+
+echo "--- Delete kind cluster"
+kind delete cluster  || true

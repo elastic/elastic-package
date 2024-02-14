@@ -633,7 +633,7 @@ This process is repeated for each combination of:
 It's possible also to run these steps independently. For that it is required to set which configuration file (`--config-file`)
 and which variant (`--variant`), if any, is going to be used to start and configure the service for these tests.
 
-**NOTE**: Currently, there is just support for packages using service deployer `docker` or `agent` (custom agents).
+**NOTE**: Currently, there is just support for packages using the following service deployers: `docker`, `agent` (custom agents) and `k8s`.
 
 Then, each step can be run using one of these flags:
 - Run the setup (`--setup`), after this command is executed:

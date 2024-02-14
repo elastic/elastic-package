@@ -52,11 +52,16 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 
 	switch serviceDeployerName {
 	case "k8s":
-		if options.RunSetup || options.RunTearDown || options.RunTestsOnly {
-			return nil, errors.New("k8s service deployer not supported to run by steps")
-		}
 		if _, err := os.Stat(serviceDeployerPath); err == nil {
-			return NewKubernetesServiceDeployer(options.Profile, serviceDeployerPath, options.StackVersion)
+			opts := KubernetesServiceDeployerOptions{
+				Profile:        options.Profile,
+				DefinitionsDir: serviceDeployerPath,
+				StackVersion:   options.StackVersion,
+				RunSetup:       options.RunSetup,
+				RunTestsOnly:   options.RunTestsOnly,
+				RunTearDown:    options.RunTearDown,
+			}
+			return NewKubernetesServiceDeployer(opts)
 		}
 	case "docker":
 		dockerComposeYMLPath := filepath.Join(serviceDeployerPath, "docker-compose.yml")
