@@ -5,7 +5,6 @@
 package cmd
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -78,7 +77,7 @@ func setupTestCommand() *cobraext.Command {
 	cmd.PersistentFlags().StringP(cobraext.ProfileFlagName, "p", "", fmt.Sprintf(cobraext.ProfileFlagDescription, install.ProfileNameEnvVar))
 
 	for testType, runner := range testrunner.TestRunners() {
-		action := testTypeCommandActionFactory(cmd.Context(), runner)
+		action := testTypeCommandActionFactory(runner)
 		testTypeCmdActions = append(testTypeCmdActions, action)
 
 		testTypeCmd := &cobra.Command{
@@ -99,7 +98,7 @@ func setupTestCommand() *cobraext.Command {
 	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
 }
 
-func testTypeCommandActionFactory(ctx context.Context, runner testrunner.TestRunner) cobraext.CommandAction {
+func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.CommandAction {
 	testType := runner.Type()
 	return func(cmd *cobra.Command, args []string) error {
 		cmd.Printf("Run %s tests for the package\n", testType)
@@ -245,7 +244,7 @@ func testTypeCommandActionFactory(ctx context.Context, runner testrunner.TestRun
 
 		var results []testrunner.TestResult
 		for _, folder := range testFolders {
-			r, err := testrunner.Run(ctx, testType, testrunner.TestOptions{
+			r, err := testrunner.Run(cmd.Context(), testType, testrunner.TestOptions{
 				Profile:            profile,
 				TestFolder:         folder,
 				PackageRootPath:    packageRootPath,
