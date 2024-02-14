@@ -141,26 +141,22 @@ func (d *CustomAgentDeployer) SetUp(inCtxt ServiceContext) (DeployedService, err
 		if err != nil {
 			return nil, fmt.Errorf("could not boot up service using Docker Compose: %w", err)
 		}
-	} else {
-		logger.Debug("Skipping bringing up docker-compose project")
-	}
-
-	err = p.WaitForHealthy(opts)
-	if err != nil {
-		processServiceContainerLogs(p, compose.CommandOptions{
-			Env: opts.Env,
-		}, outCtxt.Name)
-		return nil, fmt.Errorf("service is unhealthy: %w", err)
-	}
-
-	if d.runSetup || d.runAllSteps {
 		// Connect service network with stack network (for the purpose of metrics collection)
 		err = docker.ConnectToNetwork(p.ContainerName(serviceName), stack.Network(d.profile))
 		if err != nil {
 			return nil, fmt.Errorf("can't attach service container to the stack network: %w", err)
 		}
 	} else {
-		logger.Debug("Skipping connect container to network (tear down process)")
+		logger.Debug("Skipping bringing up docker-compose project and connect container to network")
+	}
+
+	// requires to be connected the service to the stack network
+	err = p.WaitForHealthy(opts)
+	if err != nil {
+		processServiceContainerLogs(p, compose.CommandOptions{
+			Env: opts.Env,
+		}, outCtxt.Name)
+		return nil, fmt.Errorf("service is unhealthy: %w", err)
 	}
 
 	// Build service container name
