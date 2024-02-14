@@ -36,9 +36,5 @@ func main() {
 }
 
 func errIsInterruption(err error) bool {
-	if errors.Is(err, context.Canceled) {
-		return true
-	}
-
-	return false
+	return errors.Is(err, context.Canceled)
 }
