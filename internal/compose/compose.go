@@ -394,7 +394,7 @@ func (p *Project) WaitForHealthy(ctx context.Context, opts CommandOptions) error
 
 		select {
 		case <-ctx.Done():
-			return fmt.Errorf("context done: %w", ctx.Err())
+			return ctx.Err()
 		// NOTE: using after does not guarantee interval but it's ok for this use case
 		case <-time.After(waitForHealthyInterval):
 		}

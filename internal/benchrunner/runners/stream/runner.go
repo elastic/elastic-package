@@ -50,8 +50,8 @@ type runner struct {
 	done chan struct{}
 
 	// Execution order of following handlers is defined in runner.TearDown() method.
-	removePackageHandler  func() error
-	wipeDataStreamHandler func() error
+	removePackageHandler  func(context.Context) error
+	wipeDataStreamHandler func(context.Context) error
 }
 
 func NewStreamBenchmark(opts Options) benchrunner.Runner {
@@ -76,17 +76,20 @@ func (r *runner) TearDown(ctx context.Context) error {
 		return nil
 	}
 
+	// Using nil context to avoid interrupting cleanup operations.
+	cleanupCtx := context.Background()
+
 	var merr multierror.Error
 
 	if r.removePackageHandler != nil {
-		if err := r.removePackageHandler(); err != nil {
+		if err := r.removePackageHandler(cleanupCtx); err != nil {
 			merr = append(merr, err)
 		}
 		r.removePackageHandler = nil
 	}
 
 	if r.wipeDataStreamHandler != nil {
-		if err := r.wipeDataStreamHandler(); err != nil {
+		if err := r.wipeDataStreamHandler(cleanupCtx); err != nil {
 			merr = append(merr, err)
 		}
 		r.wipeDataStreamHandler = nil
@@ -179,7 +182,7 @@ func (r *runner) setUp(ctx context.Context) error {
 func (r *runner) wipeDataStreamsOnSetup() error {
 	// Delete old data
 	logger.Debug("deleting old data in data stream...")
-	r.wipeDataStreamHandler = func() error {
+	r.wipeDataStreamHandler = func(context.Context) error {
 		logger.Debugf("deleting data in data stream...")
 		for _, runtimeDataStream := range r.runtimeDataStreams {
 			if err := r.deleteDataStreamDocs(runtimeDataStream); err != nil {
@@ -232,7 +235,7 @@ func (r *runner) installPackageFromPackageRoot() error {
 		return fmt.Errorf("failed to install package: %w", err)
 	}
 
-	r.removePackageHandler = func() error {
+	r.removePackageHandler = func(context.Context) error {
 		if err := installer.Uninstall(); err != nil {
 			return fmt.Errorf("error removing benchmark package: %w", err)
 		}
@@ -614,7 +617,7 @@ func waitUntilTrue(ctx context.Context, fn func(ctx context.Context) (bool, erro
 		case <-retryTicker.C:
 			continue
 		case <-ctx.Done():
-			return false, fmt.Errorf("context done: %w", ctx.Err())
+			return false, ctx.Err()
 		case <-timeoutTimer.C:
 			return false, nil
 		}

@@ -59,13 +59,13 @@ type projectSettings struct {
 	SelfMonitor     bool
 }
 
-func (sp *serverlessProvider) createProject(settings projectSettings, options Options, conf Config) (Config, error) {
-	project, err := sp.client.CreateProject(settings.Name, settings.Region, settings.Type)
+func (sp *serverlessProvider) createProject(ctx context.Context, settings projectSettings, options Options, conf Config) (Config, error) {
+	project, err := sp.client.CreateProject(ctx, settings.Name, settings.Region, settings.Type)
 	if err != nil {
 		return Config{}, fmt.Errorf("failed to create %s project %s in %s: %w", settings.Type, settings.Name, settings.Region, err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.TODO(), time.Minute*30)
+	ctx, cancel := context.WithTimeout(ctx, time.Minute*30)
 	defer cancel()
 	if err := sp.client.EnsureEndpoints(ctx, project); err != nil {
 		return Config{}, fmt.Errorf("failed to ensure endpoints have been provisioned properly: %w", err)
@@ -129,12 +129,12 @@ func (sp *serverlessProvider) createProject(settings projectSettings, options Op
 	return config, nil
 }
 
-func (sp *serverlessProvider) deleteProject(project *serverless.Project, options Options) error {
-	return sp.client.DeleteProject(project)
+func (sp *serverlessProvider) deleteProject(ctx context.Context, project *serverless.Project, options Options) error {
+	return sp.client.DeleteProject(ctx, project)
 }
 
-func (sp *serverlessProvider) currentProjectWithClientsAndFleetEndpoint(config Config) (*serverless.Project, error) {
-	project, err := sp.currentProject(config)
+func (sp *serverlessProvider) currentProjectWithClientsAndFleetEndpoint(ctx context.Context, config Config) (*serverless.Project, error) {
+	project, err := sp.currentProject(ctx, config)
 	if err != nil {
 		return nil, err
 	}
@@ -156,7 +156,7 @@ func (sp *serverlessProvider) currentProjectWithClientsAndFleetEndpoint(config C
 	return project, nil
 }
 
-func (sp *serverlessProvider) currentProject(config Config) (*serverless.Project, error) {
+func (sp *serverlessProvider) currentProject(ctx context.Context, config Config) (*serverless.Project, error) {
 	projectID, found := config.Parameters[paramServerlessProjectID]
 	if !found {
 		return nil, serverless.ErrProjectNotExist
@@ -167,7 +167,7 @@ func (sp *serverlessProvider) currentProject(config Config) (*serverless.Project
 		return nil, serverless.ErrProjectNotExist
 	}
 
-	project, err := sp.client.GetProject(projectType, projectID)
+	project, err := sp.client.GetProject(ctx, projectType, projectID)
 	if errors.Is(serverless.ErrProjectNotExist, err) {
 		return nil, err
 	}
@@ -255,18 +255,18 @@ func (sp *serverlessProvider) BootUp(ctx context.Context, options Options) error
 	var project *serverless.Project
 
 	isNewProject := false
-	project, err = sp.currentProject(config)
+	project, err = sp.currentProject(ctx, config)
 	switch err {
 	default:
 		return err
 	case serverless.ErrProjectNotExist:
 		logger.Infof("Creating %s project: %q", settings.Type, settings.Name)
-		config, err = sp.createProject(settings, options, config)
+		config, err = sp.createProject(ctx, settings, options, config)
 		if err != nil {
 			return fmt.Errorf("failed to create deployment: %w", err)
 		}
 
-		project, err = sp.currentProjectWithClientsAndFleetEndpoint(config)
+		project, err = sp.currentProjectWithClientsAndFleetEndpoint(ctx, config)
 		if err != nil {
 			return fmt.Errorf("failed to retrieve latest project created: %w", err)
 		}
@@ -366,14 +366,14 @@ func (sp *serverlessProvider) TearDown(ctx context.Context, options Options) err
 		errs = fmt.Errorf("failed to destroy local services: %w", err)
 	}
 
-	project, err := sp.currentProject(config)
+	project, err := sp.currentProject(ctx, config)
 	if err != nil {
 		return fmt.Errorf("failed to find current project: %w", err)
 	}
 
 	logger.Debugf("Deleting project %q (%s)", project.Name, project.ID)
 
-	err = sp.deleteProject(project, options)
+	err = sp.deleteProject(ctx, project, options)
 	if err != nil {
 		logger.Errorf("failed to delete project: %v", err)
 		errs = errors.Join(errs, fmt.Errorf("failed to delete project: %w", err))
@@ -413,7 +413,7 @@ func (sp *serverlessProvider) Status(ctx context.Context, options Options) ([]Se
 		return nil, fmt.Errorf("failed to load configuration: %w", err)
 	}
 
-	project, err := sp.currentProjectWithClientsAndFleetEndpoint(config)
+	project, err := sp.currentProjectWithClientsAndFleetEndpoint(ctx, config)
 	if errors.Is(serverless.ErrProjectNotExist, err) {
 		return nil, nil
 	}

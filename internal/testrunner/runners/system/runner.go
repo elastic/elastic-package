@@ -1255,7 +1255,7 @@ func waitUntilTrue(ctx context.Context, fn func(context.Context) (bool, error), 
 		case <-retryTicker.C:
 			continue
 		case <-ctx.Done():
-			return false, fmt.Errorf("context done: %w", ctx.Err())
+			return false, ctx.Err()
 		case <-timeoutTicker.C:
 			return false, nil
 		}

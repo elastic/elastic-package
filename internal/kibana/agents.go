@@ -109,7 +109,7 @@ func (c *Client) waitUntilPolicyAssigned(ctx context.Context, a Agent, p Policy)
 		logger.Debugf("Wait until the policy (ID: %s, revision: %d) is assigned to the agent (ID: %s)...", p.ID, p.Revision, a.ID)
 		select {
 		case <-ctx.Done():
-			return fmt.Errorf("context done: %w", ctx.Err())
+			return ctx.Err()
 		case <-ticker.C:
 			continue
 		}

@@ -87,38 +87,41 @@ func (r *runner) TearDown(ctx context.Context) error {
 
 	}
 
+	// Using nil context to avoid interrupting cleanup operations.
+	cleanupCtx := context.Background()
+
 	var merr multierror.Error
 
 	if r.resetAgentPolicyHandler != nil {
-		if err := r.resetAgentPolicyHandler(context.Background()); err != nil {
+		if err := r.resetAgentPolicyHandler(cleanupCtx); err != nil {
 			merr = append(merr, err)
 		}
 		r.resetAgentPolicyHandler = nil
 	}
 
 	if r.deletePolicyHandler != nil {
-		if err := r.deletePolicyHandler(context.Background()); err != nil {
+		if err := r.deletePolicyHandler(cleanupCtx); err != nil {
 			merr = append(merr, err)
 		}
 		r.deletePolicyHandler = nil
 	}
 
 	if r.shutdownServiceHandler != nil {
-		if err := r.shutdownServiceHandler(context.Background()); err != nil {
+		if err := r.shutdownServiceHandler(cleanupCtx); err != nil {
 			merr = append(merr, err)
 		}
 		r.shutdownServiceHandler = nil
 	}
 
 	if r.wipeDataStreamHandler != nil {
-		if err := r.wipeDataStreamHandler(context.Background()); err != nil {
+		if err := r.wipeDataStreamHandler(cleanupCtx); err != nil {
 			merr = append(merr, err)
 		}
 		r.wipeDataStreamHandler = nil
 	}
 
 	if r.clearCorporaHandler != nil {
-		if err := r.clearCorporaHandler(context.Background()); err != nil {
+		if err := r.clearCorporaHandler(cleanupCtx); err != nil {
 			merr = append(merr, err)
 		}
 		r.clearCorporaHandler = nil
@@ -982,7 +985,7 @@ func waitUntilTrue(ctx context.Context, fn func(context.Context) (bool, error), 
 		case <-retryTicker.C:
 			continue
 		case <-ctx.Done():
-			return false, fmt.Errorf("context done: %w", ctx.Err())
+			return false, ctx.Err()
 		case <-timeoutTicker.C:
 			return false, nil
 		}

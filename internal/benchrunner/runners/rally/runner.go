@@ -164,11 +164,11 @@ type runner struct {
 	reportFile string
 
 	// Execution order of following handlers is defined in runner.TearDown() method.
-	persistRallyTrackHandler func() error
-	removePackageHandler     func() error
-	wipeDataStreamHandler    func() error
-	clearCorporaHandler      func() error
-	clearTrackHandler        func() error
+	persistRallyTrackHandler func(context.Context) error
+	removePackageHandler     func(context.Context) error
+	wipeDataStreamHandler    func(context.Context) error
+	clearCorporaHandler      func(context.Context) error
+	clearTrackHandler        func(context.Context) error
 }
 
 func NewRallyBenchmark(opts Options) benchrunner.Runner {
@@ -193,31 +193,34 @@ func (r *runner) TearDown(ctx context.Context) error {
 		}
 	}
 
+	// Using nil context to avoid interrupting cleanup operations.
+	cleanupCtx := context.Background()
+
 	var merr multierror.Error
 
 	if r.persistRallyTrackHandler != nil {
-		if err := r.persistRallyTrackHandler(); err != nil {
+		if err := r.persistRallyTrackHandler(cleanupCtx); err != nil {
 			merr = append(merr, err)
 		}
 		r.persistRallyTrackHandler = nil
 	}
 
 	if r.removePackageHandler != nil {
-		if err := r.removePackageHandler(); err != nil {
+		if err := r.removePackageHandler(cleanupCtx); err != nil {
 			merr = append(merr, err)
 		}
 		r.removePackageHandler = nil
 	}
 
 	if r.wipeDataStreamHandler != nil {
-		if err := r.wipeDataStreamHandler(); err != nil {
+		if err := r.wipeDataStreamHandler(cleanupCtx); err != nil {
 			merr = append(merr, err)
 		}
 		r.wipeDataStreamHandler = nil
 	}
 
 	if r.clearCorporaHandler != nil {
-		if err := r.clearCorporaHandler(); err != nil {
+		if err := r.clearCorporaHandler(cleanupCtx); err != nil {
 			merr = append(merr, err)
 		}
 		r.clearCorporaHandler = nil
@@ -387,7 +390,7 @@ func (r *runner) extractSimulatedTemplate(indexTemplate string) (string, error) 
 func (r *runner) wipeDataStreamOnSetup() error {
 	// Delete old data
 	logger.Debug("deleting old data in data stream...")
-	r.wipeDataStreamHandler = func() error {
+	r.wipeDataStreamHandler = func(context.Context) error {
 		logger.Debugf("deleting data in data stream...")
 		if err := r.deleteDataStreamDocs(r.runtimeDataStream); err != nil {
 			return fmt.Errorf("error deleting data in data stream: %w", err)
@@ -469,7 +472,7 @@ func (r *runner) installPackageFromRegistry(packageName, packageVersion string) 
 		return fmt.Errorf("cannot install package %s@%s: %w", packageName, packageVersion, err)
 	}
 
-	r.removePackageHandler = func() error {
+	r.removePackageHandler = func(context.Context) error {
 		logger.Debug("removing benchmark package...")
 		if _, err := r.options.KibanaClient.RemovePackage(packageName, packageVersion); err != nil {
 			return fmt.Errorf("error removing benchmark package: %w", err)
@@ -497,7 +500,7 @@ func (r *runner) installPackageFromPackageRoot() error {
 		return fmt.Errorf("failed to install package: %w", err)
 	}
 
-	r.removePackageHandler = func() error {
+	r.removePackageHandler = func(context.Context) error {
 		if err := installer.Uninstall(); err != nil {
 			return fmt.Errorf("error removing benchmark package: %w", err)
 		}
@@ -713,7 +716,7 @@ func (r *runner) runGenerator(destDir string) (uint64, error) {
 
 	r.corpusFile = corpusFile.Name()
 
-	r.clearCorporaHandler = func() error {
+	r.clearCorporaHandler = func(context.Context) error {
 		return errors.Join(
 			os.Remove(r.corpusFile),
 		)
@@ -780,7 +783,7 @@ func (r *runner) createRallyTrack(corpusDocsCount uint64, destDir string) error 
 	r.reportFile = reportFile.Name()
 
 	if r.options.RallyTrackOutputDir != "" {
-		r.persistRallyTrackHandler = func() error {
+		r.persistRallyTrackHandler = func(context.Context) error {
 			err := os.MkdirAll(r.options.RallyTrackOutputDir, 0755)
 			if err != nil {
 				return fmt.Errorf("cannot not create rally track output dir: %w", err)
@@ -804,7 +807,7 @@ func (r *runner) createRallyTrack(corpusDocsCount uint64, destDir string) error 
 		}
 	}
 
-	r.clearTrackHandler = func() error {
+	r.clearTrackHandler = func(context.Context) error {
 		return errors.Join(
 			os.Remove(r.trackFile),
 			os.Remove(r.reportFile),
@@ -852,7 +855,7 @@ func (r *runner) copyCorpusFile(corpusPath, destDir string) (uint64, error) {
 
 	r.corpusFile = corpusFile.Name()
 
-	r.clearCorporaHandler = func() error {
+	r.clearCorporaHandler = func(context.Context) error {
 		return errors.Join(
 			os.Remove(r.corpusFile),
 		)
@@ -1181,7 +1184,7 @@ func waitUntilTrue(ctx context.Context, fn func(ctx context.Context) (bool, erro
 		case <-retryTicker.C:
 			continue
 		case <-ctx.Done():
-			return false, fmt.Errorf("context done: %w", ctx.Err())
+			return false, ctx.Err()
 		case <-timeoutTimer.C:
 			return false, nil
 		}

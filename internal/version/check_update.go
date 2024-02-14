@@ -42,7 +42,7 @@ func (v versionLatest) String() string {
 }
 
 // CheckUpdate function checks using Github Release API if newer version is available.
-func CheckUpdate() {
+func CheckUpdate(ctx context.Context) {
 	if Tag == "" {
 		logger.Debugf("Distribution built without a version tag, can't determine release chronology. Please consider using official releases at " +
 			"https://github.com/elastic/elastic-package/releases")
@@ -72,7 +72,7 @@ func CheckUpdate() {
 	default:
 		logger.Debugf("checking latest release in Github")
 		githubClient := github.UnauthorizedClient()
-		githubRelease, err := githubClient.LatestRelease(context.TODO(), repositoryOwner, repositoryName)
+		githubRelease, err := githubClient.LatestRelease(ctx, repositoryOwner, repositoryName)
 		if err != nil {
 			logger.Debugf("Error: %v", err)
 			return
