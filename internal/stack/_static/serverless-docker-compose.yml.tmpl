@@ -38,7 +38,7 @@ services:
     command: bash /usr/share/logstash/startup.sh
     volumes:
       - "../certs/logstash:/usr/share/logstash/config/certs"
-      - "./logstash.conf:/usr/share/logstash/pipeline/generated_logstash.conf"
+      - "./logstash.conf:/usr/share/logstash/pipeline/generated_logstash.conf:ro"
       - "./logstash_startup.sh:/usr/share/logstash/startup.sh"
     ports:
        - "127.0.0.1:5044:5044"
