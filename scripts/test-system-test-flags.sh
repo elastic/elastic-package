@@ -59,25 +59,11 @@ temporal_files_exist() {
         return 1
     fi
 
-    if [ ! -f "${FOLDER_PATH}/orig-policy.json" ]; then
-        echo "Missing orig-policy.json in ${FOLDER_NAME} folder"
+    if [ ! -f "${FOLDER_PATH}/setup-service.json" ]; then
+        echo "Missing setup-service.json in ${FOLDER_NAME} folder"
         return 1
     fi
 
-    if [ ! -f "${FOLDER_PATH}/policy-setup.json" ]; then
-        echo "Missing policy-setup.json in ${FOLDER_NAME} folder"
-        return 1
-    fi
-
-    if [ ! -f "${FOLDER_PATH}/agent.json" ]; then
-        echo "Missing policy-setup.json in ${FOLDER_NAME} folder"
-        return 1
-    fi
-
-    if [ ! -f "${FOLDER_PATH}/test-config.json" ]; then
-        echo "Missing policy-setup.json in ${FOLDER_NAME} folder"
-        return 1
-    fi
     return 0
 }
 

@@ -44,10 +44,7 @@ const (
 	allFieldsBody = `{"fields": ["*"]}`
 	DevDeployDir  = "_dev/deploy"
 
-	setupNewPolicyFileName  = "policy-setup.json"
-	setupOrigPolicyFileName = "orig-policy.json"
-	setupAgentFileName      = "agent.json"
-	setupTestConfigFileName = "test-config.json"
+	setupServiceFileName = "setup-service.json"
 )
 
 func init() {
@@ -173,19 +170,19 @@ func createSetupServicesDir(elasticPackagePath *locations.LocationManager) error
 }
 
 func (r *runner) TestConfigFilePath() (string, error) {
-	var config testConfig
+	var serviceSetupData ServiceSetupData
 
-	configPath := filepath.Join(r.locationManager.ServiceSetupDir(), setupTestConfigFileName)
-	logger.Debugf("Reading test config from file %s", configPath)
-	contents, err := os.ReadFile(configPath)
+	setupDataPath := filepath.Join(r.locationManager.ServiceSetupDir(), setupServiceFileName)
+	logger.Debugf("Reading service setup data from file %s", setupDataPath)
+	contents, err := os.ReadFile(setupDataPath)
 	if err != nil {
-		return "", fmt.Errorf("failed to read test config%q: %w", configPath, err)
+		return "", fmt.Errorf("failed to read service setup data %q: %w", setupDataPath, err)
 	}
-	err = json.Unmarshal(contents, &config)
+	err = json.Unmarshal(contents, &serviceSetupData)
 	if err != nil {
-		return "", fmt.Errorf("failed to decode service options %q: %w", configPath, err)
+		return "", fmt.Errorf("failed to decode service setup data %q: %w", setupDataPath, err)
 	}
-	return config.Path, nil
+	return serviceSetupData.Config.Path, nil
 }
 
 // Run runs the system tests defined under the given folder
@@ -223,23 +220,25 @@ func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, e
 		return result.WithError(fmt.Errorf("failed to run --tear-down, setup not found"))
 	}
 
+	var serviceSetupData ServiceSetupData
+	if !r.options.RunSetup {
+		serviceSetupPath := filepath.Join(r.locationManager.ServiceSetupDir(), setupServiceFileName)
+		logger.Debugf("Reading test config from file %s", serviceSetupPath)
+		contents, err := os.ReadFile(serviceSetupPath)
+		if err != nil {
+			return result.WithError(fmt.Errorf("failed to read test config %q: %w", serviceSetupPath, err))
+		}
+		err = json.Unmarshal(contents, &serviceSetupData)
+		if err != nil {
+			return result.WithError(fmt.Errorf("failed to decode service options %q: %w", serviceSetupPath, err))
+		}
+	}
+
 	configFile := r.options.ConfigFilePath
 	variant := r.variants[0]
 	if r.options.RunTestsOnly || r.options.RunTearDown {
-		var tempConfig testConfig
-		testConfigPath := filepath.Join(r.locationManager.ServiceSetupDir(), setupTestConfigFileName)
-		logger.Debugf("Reading test config from file %s", testConfigPath)
-		contents, err := os.ReadFile(testConfigPath)
-		if err != nil {
-			return result.WithError(fmt.Errorf("failed to read test config %q: %w", testConfigPath, err))
-		}
-		err = json.Unmarshal(contents, &tempConfig)
-		if err != nil {
-			return result.WithError(fmt.Errorf("failed to decode service options %q: %w", testConfigPath, err))
-		}
-
-		configFile = tempConfig.Path
-		variant = tempConfig.ServiceVariantName
+		configFile = serviceSetupData.Config.Path
+		variant = serviceSetupData.Config.ServiceVariantName
 
 		logger.Infof("Using test config file from setup dir: %s", configFile)
 		logger.Infof("Using variant from service setup dir: %s", variant)
@@ -683,6 +682,7 @@ type scenarioTest struct {
 
 func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.ServiceContext, serviceOptions servicedeployer.FactoryOptions) (*scenarioTest, error) {
 	var err error
+	var serviceSetupData ServiceSetupData
 	if r.options.RunSetup {
 		err = createSetupServicesDir(r.locationManager)
 		if err != nil {
@@ -690,6 +690,19 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 		}
 	}
 	scenario := scenarioTest{}
+
+	if r.options.RunTearDown || r.options.RunTestsOnly {
+		serviceSetupPath := filepath.Join(r.locationManager.ServiceSetupDir(), setupServiceFileName)
+		logger.Debugf("Reading test config from file %s", serviceSetupPath)
+		contents, err := os.ReadFile(serviceSetupPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read test config %q: %w", serviceSetupPath, err)
+		}
+		err = json.Unmarshal(contents, &serviceSetupData)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode service options %q: %w", serviceSetupPath, err)
+		}
+	}
 
 	scenario.pkgManifest, err = packages.ReadPackageManifestFromPackageRoot(r.options.PackageRootPath)
 	if err != nil {
@@ -795,17 +808,7 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 	var policy *kibana.Policy
 	switch {
 	case r.options.RunTearDown || r.options.RunTestsOnly:
-		policy = &kibana.Policy{}
-		policyPath := filepath.Join(r.locationManager.ServiceSetupDir(), setupNewPolicyFileName)
-		logger.Debugf("Reading test policy from file %s", policyPath)
-		contents, err := os.ReadFile(policyPath)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read policy %q: %w", policyPath, err)
-		}
-		err = json.Unmarshal(contents, policy)
-		if err != nil {
-			return nil, fmt.Errorf("failed to decode policy %q: %w", policyPath, err)
-		}
+		policy = &serviceSetupData.CurrentPolicy
 		logger.Debugf("Got policy from file: %q - %q", policy.Name, policy.ID)
 	default:
 		logger.Debug("creating test policy...")
@@ -894,17 +897,8 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 
 	switch {
 	case r.options.RunTearDown || r.options.RunTestsOnly:
-		policyPath := filepath.Join(r.locationManager.ServiceSetupDir(), setupOrigPolicyFileName)
-		contents, err := os.ReadFile(policyPath)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read policy %q: %w", policyPath, err)
-		}
-		err = json.Unmarshal(contents, &origPolicy)
-		if err != nil {
-			return nil, fmt.Errorf("failed to decode policy %q: %w", policyPath, err)
-		}
-		logger.Debugf("Got orig policy from file: %q - %q", policy.Name, policy.ID)
-
+		origPolicy = serviceSetupData.OrigPolicy
+		logger.Debugf("Got orig policy from file: %q - %q", origPolicy.Name, origPolicy.ID)
 	default:
 		origPolicy = kibana.Policy{
 			ID:       agent.PolicyID,
@@ -925,19 +919,8 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 	switch {
 	case r.options.RunTearDown:
 		logger.Debug("Skip assiging log level debut to agent")
-		agentFromFile := kibana.Agent{}
-		agentPath := filepath.Join(r.locationManager.ServiceSetupDir(), setupAgentFileName)
-		logger.Debugf("Reading agent from file %s", agentPath)
-		contents, err := os.ReadFile(agentPath)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read agent info %q: %w", agentPath, err)
-		}
-		err = json.Unmarshal(contents, &agentFromFile)
-		if err != nil {
-			return nil, fmt.Errorf("failed to decode agent %q: %w", agentPath, err)
-		}
-		logger.Debugf("Got agent from file: %q - %q", agentFromFile.ID, agentFromFile.LocalMetadata.Elastic.Agent.LogLevel)
-		origLogLevel = agentFromFile.LocalMetadata.Elastic.Agent.LogLevel
+		logger.Debugf("Got agent from file: %q - %q", serviceSetupData.Agent.ID, serviceSetupData.Agent.LocalMetadata.Elastic.Agent.LogLevel)
+		origLogLevel = serviceSetupData.Agent.LocalMetadata.Elastic.Agent.LogLevel
 	default:
 		logger.Debug("Set Debug log level to agent")
 		origLogLevel = agent.LocalMetadata.Elastic.Agent.LogLevel
@@ -1056,42 +1039,28 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 	return &scenario, nil
 }
 
+type ServiceSetupData struct {
+	OrigPolicy    kibana.Policy `json:"orig_policy"`
+	CurrentPolicy kibana.Policy `json:"current_policy"`
+	Agent         kibana.Agent  `json:"agent"`
+	Config        testConfig    `json:"config"`
+}
+
 func (r *runner) writeScenarioSetup(currentPolicy, origPolicy *kibana.Policy, config *testConfig, agent kibana.Agent) error {
-	policyBytes, err := json.Marshal(currentPolicy)
+	data := ServiceSetupData{
+		OrigPolicy:    *origPolicy,
+		CurrentPolicy: *currentPolicy,
+		Agent:         agent,
+		Config:        *config,
+	}
+	dataBytes, err := json.Marshal(data)
 	if err != nil {
-		return fmt.Errorf("failed to marshall policy: %w", err)
+		return fmt.Errorf("failed to marshall service setup data: %w", err)
 	}
 
-	origPolicyBytes, err := json.Marshal(origPolicy)
+	err = os.WriteFile(filepath.Join(r.locationManager.ServiceSetupDir(), setupServiceFileName), dataBytes, 0644)
 	if err != nil {
-		return fmt.Errorf("failed to marshall policy: %w", err)
-	}
-
-	agentBytes, err := json.Marshal(agent)
-	if err != nil {
-		return fmt.Errorf("failed to marshall agent: %w", err)
-	}
-
-	testConfigBytes, err := json.Marshal(config)
-	if err != nil {
-		return fmt.Errorf("failed to marshall test config options: %w", err)
-	}
-
-	err = os.WriteFile(filepath.Join(r.locationManager.ServiceSetupDir(), setupNewPolicyFileName), policyBytes, 0644)
-	if err != nil {
-		return fmt.Errorf("failed to write policy JSON: %w", err)
-	}
-	err = os.WriteFile(filepath.Join(r.locationManager.ServiceSetupDir(), setupOrigPolicyFileName), origPolicyBytes, 0644)
-	if err != nil {
-		return fmt.Errorf("failed to write origin policy JSON: %w", err)
-	}
-	err = os.WriteFile(filepath.Join(r.locationManager.ServiceSetupDir(), setupAgentFileName), agentBytes, 0644)
-	if err != nil {
-		return fmt.Errorf("failed to write agent JSON: %w", err)
-	}
-	err = os.WriteFile(filepath.Join(r.locationManager.ServiceSetupDir(), setupTestConfigFileName), testConfigBytes, 0644)
-	if err != nil {
-		return fmt.Errorf("failed to write test config JSON: %w", err)
+		return fmt.Errorf("failed to write service setup JSON: %w", err)
 	}
 	return nil
 }
