@@ -180,9 +180,18 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 
 		if runner.CanRunSetupTeardownIndependent() && cmd.Flags().Lookup(cobraext.ConfigFileFlagName) != nil {
 			// not all test types define these flags
-			runSetup, _ = cmd.Flags().GetBool(cobraext.SetupFlagName)
-			runTearDown, _ = cmd.Flags().GetBool(cobraext.TearDownFlagName)
-			runTestsOnly, _ = cmd.Flags().GetBool(cobraext.NoProvisionFlagName)
+			runSetup, err = cmd.Flags().GetBool(cobraext.SetupFlagName)
+			if err != nil {
+				return cobraext.FlagParsingError(err, cobraext.SetupFlagName)
+			}
+			runTearDown, err = cmd.Flags().GetBool(cobraext.TearDownFlagName)
+			if err != nil {
+				return cobraext.FlagParsingError(err, cobraext.TearDownFlagName)
+			}
+			runTestsOnly, err = cmd.Flags().GetBool(cobraext.NoProvisionFlagName)
+			if err != nil {
+				return cobraext.FlagParsingError(err, cobraext.NoProvisionFlagName)
+			}
 
 			configFileFlag, err = cmd.Flags().GetString(cobraext.ConfigFileFlagName)
 			if err != nil {
