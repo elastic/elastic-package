@@ -170,10 +170,10 @@ services:
       interval: 60s
       timeout: 50s
       retries: 5
-    command: bash -c 'chmod +x /usr/share/logstash/startup.sh && /usr/share/logstash/startup.sh'
+    command: bash /usr/share/logstash/startup.sh
     volumes:
-      - "../certs/logstash:/usr/share/logstash/config/certs"
-      - "../certs/elasticsearch/cert.pem:/usr/share/logstash/config/certs/elasticsearch.pem"
+      - "../certs/logstash:/usr/share/logstash/config/certs:ro"
+      - "../certs/elasticsearch/cert.pem:/usr/share/logstash/config/certs/elasticsearch.pem:ro"
       - "./logstash.conf:/usr/share/logstash/pipeline/generated_logstash.conf:ro"
       - "./logstash_startup.sh:/usr/share/logstash/startup.sh"
     ports:
