@@ -105,8 +105,9 @@ func setupTestCommand() *cobraext.Command {
 			testTypeCmd.MarkFlagsMutuallyExclusive(cobraext.ConfigFileFlagName, cobraext.TearDownFlagName)
 			testTypeCmd.MarkFlagsMutuallyExclusive(cobraext.ConfigFileFlagName, cobraext.NoProvisionFlagName)
 
-			// variant flag should not be used with tear-down or no-provision flags
+			// variant flag should not be used with tear-down and no-provision flags
 			// cannot be defined here using MarkFlagsMutuallyExclusive as in --config-file
+			// this restriction has been managed later in the code when processing the flags
 		}
 
 		if runner.CanRunPerDataStream() && runner.CanRunSetupTeardownIndependent() {
