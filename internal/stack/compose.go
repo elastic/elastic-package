@@ -52,7 +52,7 @@ func (eb *envBuilder) build() []string {
 }
 
 func dockerComposeBuild(options Options) error {
-	c, err := compose.NewProject(DockerComposeProjectName(options.Profile), options.Profile.Path(profileStackPath, SnapshotFile))
+	c, err := compose.NewProject(DockerComposeProjectName(options.Profile), options.Profile.Path(ProfileStackPath, SnapshotFile))
 	if err != nil {
 		return fmt.Errorf("could not create docker compose project: %w", err)
 	}
@@ -78,7 +78,7 @@ func dockerComposeBuild(options Options) error {
 }
 
 func dockerComposePull(options Options) error {
-	c, err := compose.NewProject(DockerComposeProjectName(options.Profile), options.Profile.Path(profileStackPath, SnapshotFile))
+	c, err := compose.NewProject(DockerComposeProjectName(options.Profile), options.Profile.Path(ProfileStackPath, SnapshotFile))
 	if err != nil {
 		return fmt.Errorf("could not create docker compose project: %w", err)
 	}
@@ -104,7 +104,7 @@ func dockerComposePull(options Options) error {
 }
 
 func dockerComposeUp(options Options) error {
-	c, err := compose.NewProject(DockerComposeProjectName(options.Profile), options.Profile.Path(profileStackPath, SnapshotFile))
+	c, err := compose.NewProject(DockerComposeProjectName(options.Profile), options.Profile.Path(ProfileStackPath, SnapshotFile))
 	if err != nil {
 		return fmt.Errorf("could not create docker compose project: %w", err)
 	}
@@ -136,7 +136,7 @@ func dockerComposeUp(options Options) error {
 }
 
 func dockerComposeDown(options Options) error {
-	c, err := compose.NewProject(DockerComposeProjectName(options.Profile), options.Profile.Path(profileStackPath, SnapshotFile))
+	c, err := compose.NewProject(DockerComposeProjectName(options.Profile), options.Profile.Path(ProfileStackPath, SnapshotFile))
 	if err != nil {
 		return fmt.Errorf("could not create docker compose project: %w", err)
 	}

@@ -28,7 +28,7 @@ type Config struct {
 }
 
 func configPath(profile *profile.Profile) string {
-	return profile.Path(profileStackPath, configFileName)
+	return profile.Path(ProfileStackPath, configFileName)
 }
 
 func defaultConfig(profile *profile.Profile) Config {

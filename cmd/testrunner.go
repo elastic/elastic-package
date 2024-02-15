@@ -5,6 +5,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -88,9 +89,31 @@ func setupTestCommand() *cobraext.Command {
 			Args:  cobra.NoArgs,
 			RunE:  action,
 		}
-
 		if runner.CanRunPerDataStream() {
 			testTypeCmd.Flags().StringSliceP(cobraext.DataStreamsFlagName, "d", nil, cobraext.DataStreamsFlagDescription)
+		}
+
+		if runner.CanRunSetupTeardownIndependent() {
+			testTypeCmd.Flags().String(cobraext.ConfigFileFlagName, "", cobraext.ConfigFileFlagDescription)
+			testTypeCmd.Flags().Bool(cobraext.SetupFlagName, false, cobraext.SetupFlagDescription)
+			testTypeCmd.Flags().Bool(cobraext.TearDownFlagName, false, cobraext.TearDownFlagDescription)
+			testTypeCmd.Flags().Bool(cobraext.NoProvisionFlagName, false, cobraext.NoProvisionFlagDescription)
+			testTypeCmd.MarkFlagsMutuallyExclusive(cobraext.SetupFlagName, cobraext.TearDownFlagName, cobraext.NoProvisionFlagName)
+			testTypeCmd.MarkFlagsRequiredTogether(cobraext.ConfigFileFlagName, cobraext.SetupFlagName)
+
+			// config file flag should not be used with tear-down or no-provision flags
+			testTypeCmd.MarkFlagsMutuallyExclusive(cobraext.ConfigFileFlagName, cobraext.TearDownFlagName)
+			testTypeCmd.MarkFlagsMutuallyExclusive(cobraext.ConfigFileFlagName, cobraext.NoProvisionFlagName)
+
+			// variant flag should not be used with tear-down and no-provision flags
+			// cannot be defined here using MarkFlagsMutuallyExclusive as in --config-file
+			// this restriction has been managed later in the code when processing the flags
+		}
+
+		if runner.CanRunPerDataStream() && runner.CanRunSetupTeardownIndependent() {
+			testTypeCmd.MarkFlagsMutuallyExclusive(cobraext.DataStreamsFlagName, cobraext.SetupFlagName)
+			testTypeCmd.MarkFlagsMutuallyExclusive(cobraext.DataStreamsFlagName, cobraext.TearDownFlagName)
+			testTypeCmd.MarkFlagsMutuallyExclusive(cobraext.DataStreamsFlagName, cobraext.NoProvisionFlagName)
 		}
 
 		cmd.AddCommand(testTypeCmd)
@@ -103,6 +126,11 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 	testType := runner.Type()
 	return func(cmd *cobra.Command, args []string) error {
 		cmd.Printf("Run %s tests for the package\n", testType)
+
+		profile, err := cobraext.GetProfileFlag(cmd)
+		if err != nil {
+			return err
+		}
 
 		failOnMissing, err := cmd.Flags().GetBool(cobraext.FailOnMissingFlagName)
 		if err != nil {
@@ -156,15 +184,61 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 			return fmt.Errorf("cannot determine if package has data streams: %w", err)
 		}
 
+		configFileFlag := ""
+		runSetup := false
+		runTearDown := false
+		runTestsOnly := false
+
+		if runner.CanRunSetupTeardownIndependent() && cmd.Flags().Lookup(cobraext.ConfigFileFlagName) != nil {
+			// not all test types define these flags
+			runSetup, err = cmd.Flags().GetBool(cobraext.SetupFlagName)
+			if err != nil {
+				return cobraext.FlagParsingError(err, cobraext.SetupFlagName)
+			}
+			runTearDown, err = cmd.Flags().GetBool(cobraext.TearDownFlagName)
+			if err != nil {
+				return cobraext.FlagParsingError(err, cobraext.TearDownFlagName)
+			}
+			runTestsOnly, err = cmd.Flags().GetBool(cobraext.NoProvisionFlagName)
+			if err != nil {
+				return cobraext.FlagParsingError(err, cobraext.NoProvisionFlagName)
+			}
+
+			configFileFlag, err = cmd.Flags().GetString(cobraext.ConfigFileFlagName)
+			if err != nil {
+				return cobraext.FlagParsingError(err, cobraext.ConfigFileFlagName)
+			}
+			if configFileFlag != "" {
+				absPath, err := filepath.Abs(configFileFlag)
+				if err != nil {
+					return fmt.Errorf("cannot obtain the absolute path for config file path: %s", configFileFlag)
+				}
+				if _, err := os.Stat(absPath); err != nil {
+					return fmt.Errorf("can't find config file %s: %w", configFileFlag, err)
+				}
+				configFileFlag = absPath
+			}
+		}
+
 		signal.Enable()
 
 		var testFolders []testrunner.TestFolder
 		if hasDataStreams && runner.CanRunPerDataStream() {
 			var dataStreams []string
-			// We check for the existence of the data streams flag before trying to
-			// parse it because if the root test command is run instead of one of the
-			// subcommands of test, the data streams flag will not be defined.
-			if cmd.Flags().Lookup(cobraext.DataStreamsFlagName) != nil {
+
+			if runner.CanRunSetupTeardownIndependent() && runSetup || runTearDown || runTestsOnly {
+				if runTearDown || runTestsOnly {
+					configFileFlag, err = readConfigFileFromState(profile.ProfilePath)
+					if err != nil {
+						return fmt.Errorf("failed to get config file from state: %w", err)
+					}
+				}
+				dataStream := testrunner.ExtractDataStreamFromPath(configFileFlag, packageRootPath)
+				dataStreams = append(dataStreams, dataStream)
+			} else if cmd.Flags().Lookup(cobraext.DataStreamsFlagName) != nil {
+				// We check for the existence of the data streams flag before trying to
+				// parse it because if the root test command is run instead of one of the
+				// subcommands of test, the data streams flag will not be defined.
 				dataStreams, err = cmd.Flags().GetStringSlice(cobraext.DataStreamsFlagName)
 				common.TrimStringSlice(dataStreams)
 				if err != nil {
@@ -222,11 +296,6 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 
 		variantFlag, _ := cmd.Flags().GetString(cobraext.VariantFlagName)
 
-		profile, err := cobraext.GetProfileFlag(cmd)
-		if err != nil {
-			return err
-		}
-
 		esClient, err := stack.NewElasticsearchClientFromProfile(profile)
 		if err != nil {
 			return fmt.Errorf("can't create Elasticsearch client: %w", err)
@@ -245,6 +314,21 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 			}
 		}
 
+		if runTearDown || runTestsOnly {
+			if variantFlag != "" {
+				return fmt.Errorf("variant flag cannot be set with --tear-down or --no-provision")
+			}
+		}
+
+		if runSetup || runTearDown || runTestsOnly {
+			// variant flag is not checked here since there are packages that do not have variants
+			if len(testFolders) != 1 {
+				return fmt.Errorf("wrong number of test folders (expected 1): %d", len(testFolders))
+			}
+
+			fmt.Printf("Running tests per stages (technical preview)\n")
+		}
+
 		var results []testrunner.TestResult
 		for _, folder := range testFolders {
 			r, err := testrunner.Run(testType, testrunner.TestOptions{
@@ -258,6 +342,10 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 				ServiceVariant:     variantFlag,
 				WithCoverage:       testCoverage,
 				CoverageType:       testCoverageFormat,
+				ConfigFilePath:     configFileFlag,
+				RunSetup:           runSetup,
+				RunTearDown:        runTearDown,
+				RunTestsOnly:       runTestsOnly,
 			})
 
 			results = append(results, r...)
@@ -292,6 +380,24 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 		}
 		return nil
 	}
+}
+
+func readConfigFileFromState(profilePath string) (string, error) {
+	type stateData struct {
+		ConfigFilePath string `json:"config_file_path"`
+	}
+	var serviceStateData stateData
+	setupDataPath := filepath.Join(testrunner.StateFolderPath(profilePath), testrunner.ServiceStateFileName)
+	fmt.Printf("Reading service state data from file: %s\n", setupDataPath)
+	contents, err := os.ReadFile(setupDataPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read service state data %q: %w", setupDataPath, err)
+	}
+	err = json.Unmarshal(contents, &serviceStateData)
+	if err != nil {
+		return "", fmt.Errorf("failed to decode service state data %q: %w", setupDataPath, err)
+	}
+	return serviceStateData.ConfigFilePath, nil
 }
 
 func packageHasDataStreams(manifest *packages.PackageManifest) (bool, error) {

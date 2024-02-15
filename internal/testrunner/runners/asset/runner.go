@@ -36,6 +36,9 @@ type runner struct {
 	removePackageHandler func() error
 }
 
+// Ensures that runner implements testrunner.TestRunner interface
+var _ testrunner.TestRunner = new(runner)
+
 // Type returns the type of test that can be run by this test runner.
 func (r *runner) Type() testrunner.TestType {
 	return TestType
@@ -49,6 +52,12 @@ func (r runner) String() string {
 // CanRunPerDataStream returns whether this test runner can run on individual
 // data streams within the package.
 func (r runner) CanRunPerDataStream() bool {
+	return false
+}
+
+// CanRunSetupTeardownIndependent returns whether this test runner can run setup or
+// teardown process independent.
+func (r *runner) CanRunSetupTeardownIndependent() bool {
 	return false
 }
 
@@ -74,7 +83,6 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 	testConfig, err := newConfig(r.testFolder.Path)
 	if err != nil {
 		return result.WithError(fmt.Errorf("unable to load asset loading test config file: %w", err))
-
 	}
 
 	if testConfig != nil && testConfig.Skip != nil {

@@ -22,6 +22,7 @@ type runner struct {
 	options testrunner.TestOptions
 }
 
+// Ensures that runner implements testrunner.TestRunner interface
 var _ testrunner.TestRunner = new(runner)
 
 func init() {
@@ -175,5 +176,11 @@ func (r runner) CanRunPerDataStream() bool {
 }
 
 func (r *runner) TestFolderRequired() bool {
+	return false
+}
+
+// CanRunSetupTeardownIndependent returns whether this test runner can run setup or
+// teardown process independent.
+func (r *runner) CanRunSetupTeardownIndependent() bool {
 	return false
 }

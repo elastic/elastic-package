@@ -35,14 +35,28 @@ type CustomAgentDeployer struct {
 	profile           *profile.Profile
 	dockerComposeFile string
 	stackVersion      string
+
+	runTearDown  bool
+	runTestsOnly bool
+}
+
+type CustomAgentDeployerOptions struct {
+	Profile           *profile.Profile
+	DockerComposeFile string
+	StackVersion      string
+
+	RunTearDown  bool
+	RunTestsOnly bool
 }
 
 // NewCustomAgentDeployer returns a new instance of a deployedCustomAgent.
-func NewCustomAgentDeployer(profile *profile.Profile, dockerComposeFile string, stackVersion string) (*CustomAgentDeployer, error) {
+func NewCustomAgentDeployer(options CustomAgentDeployerOptions) (*CustomAgentDeployer, error) {
 	return &CustomAgentDeployer{
-		profile:           profile,
-		dockerComposeFile: dockerComposeFile,
-		stackVersion:      stackVersion,
+		profile:           options.Profile,
+		dockerComposeFile: options.DockerComposeFile,
+		stackVersion:      options.StackVersion,
+		runTearDown:       options.RunTearDown,
+		runTestsOnly:      options.RunTestsOnly,
 	}, nil
 }
 
@@ -99,28 +113,41 @@ func (d *CustomAgentDeployer) SetUp(inCtxt ServiceContext) (DeployedService, err
 	}
 
 	// Clean service logs
-	err = files.RemoveContent(outCtxt.Logs.Folder.Local)
-	if err != nil {
-		return nil, fmt.Errorf("removing service logs failed: %w", err)
+	if d.runTestsOnly {
+		// service logs folder must no be deleted to avoid breaking log files written
+		// by the service. If this is required, those files should be rotated or truncated
+		// so the service can still write to them.
+		logger.Debug("Skipping removing service logs folder folder %s", outCtxt.Logs.Folder.Local)
+	} else {
+		err = files.RemoveContent(outCtxt.Logs.Folder.Local)
+		if err != nil {
+			return nil, fmt.Errorf("removing service logs failed: %w", err)
+		}
 	}
 
 	inCtxt.Name = dockerCustomAgentName
 	serviceName := inCtxt.Name
+
 	opts := compose.CommandOptions{
 		Env:       env,
 		ExtraArgs: []string{"--build", "-d"},
 	}
-	err = p.Up(opts)
-	if err != nil {
-		return nil, fmt.Errorf("could not boot up service using Docker Compose: %w", err)
+
+	if d.runTestsOnly || d.runTearDown {
+		logger.Debug("Skipping bringing up docker-compose project and connect container to network (non setup steps)")
+	} else {
+		err = p.Up(opts)
+		if err != nil {
+			return nil, fmt.Errorf("could not boot up service using Docker Compose: %w", err)
+		}
+		// Connect service network with stack network (for the purpose of metrics collection)
+		err = docker.ConnectToNetwork(p.ContainerName(serviceName), stack.Network(d.profile))
+		if err != nil {
+			return nil, fmt.Errorf("can't attach service container to the stack network: %w", err)
+		}
 	}
 
-	// Connect service network with stack network (for the purpose of metrics collection)
-	err = docker.ConnectToNetwork(p.ContainerName(serviceName), stack.Network(d.profile))
-	if err != nil {
-		return nil, fmt.Errorf("can't attach service container to the stack network: %w", err)
-	}
-
+	// requires to be connected the service to the stack network
 	err = p.WaitForHealthy(opts)
 	if err != nil {
 		processServiceContainerLogs(p, compose.CommandOptions{

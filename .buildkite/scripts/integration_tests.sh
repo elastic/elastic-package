@@ -38,6 +38,7 @@ usage() {
 PARALLEL_TARGET="test-check-packages-parallel"
 FALSE_POSITIVES_TARGET="test-check-packages-false-positives"
 KIND_TARGET="test-check-packages-with-kind"
+SYSTEM_TEST_FLAGS_TARGET="test-system-test-flags"
 TMP_FOLDER_TEMPLATE="${TMP_FOLDER_TEMPLATE_BASE}.XXXXXXXXX"
 GOOGLE_CREDENTIALS_FILENAME="google-cloud-credentials.json"
 
@@ -115,7 +116,7 @@ with_docker
 echo "--- install docker-compose plugin"
 with_docker_compose_plugin
 
-if [[ "${TARGET}" == "${KIND_TARGET}" ]]; then
+if [[ "${TARGET}" == "${KIND_TARGET}" || "${TARGET}" == "${SYSTEM_TEST_FLAGS_TARGET}" ]]; then
     echo "--- install kubectl & kind"
     with_kubernetes
 fi

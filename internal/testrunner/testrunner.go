@@ -16,6 +16,12 @@ import (
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/profile"
+	"github.com/elastic/elastic-package/internal/stack"
+)
+
+const (
+	ServiceStateFileName = "service.json"
+	StateFolderName      = "state"
 )
 
 // TestType represents the various supported test types
@@ -34,6 +40,11 @@ type TestOptions struct {
 	ServiceVariant string
 	WithCoverage   bool
 	CoverageType   string
+
+	ConfigFilePath string
+	RunSetup       bool
+	RunTearDown    bool
+	RunTestsOnly   bool
 }
 
 // TestRunner is the interface all test runners must implement.
@@ -54,6 +65,8 @@ type TestRunner interface {
 	CanRunPerDataStream() bool
 
 	TestFolderRequired() bool
+
+	CanRunSetupTeardownIndependent() bool
 }
 
 var runners = map[TestType]TestRunner{}
@@ -238,12 +251,7 @@ func FindTestFolders(packageRootPath string, dataStreams []string, testType Test
 	folders := make([]TestFolder, len(paths))
 	_, pkg := filepath.Split(packageRootPath)
 	for idx, p := range paths {
-		relP := strings.TrimPrefix(p, packageRootPath)
-		parts := strings.Split(relP, string(filepath.Separator))
-		dataStream := ""
-		if len(parts) >= 3 && parts[1] == "data_stream" {
-			dataStream = parts[2]
-		}
+		dataStream := ExtractDataStreamFromPath(p, packageRootPath)
 
 		folder := TestFolder{
 			Path:       p,
@@ -255,6 +263,17 @@ func FindTestFolders(packageRootPath string, dataStreams []string, testType Test
 	}
 
 	return folders, nil
+}
+
+func ExtractDataStreamFromPath(fullPath, packageRootPath string) string {
+	relP := strings.TrimPrefix(fullPath, packageRootPath)
+	parts := strings.Split(relP, string(filepath.Separator))
+	dataStream := ""
+	if len(parts) >= 3 && parts[1] == "data_stream" {
+		dataStream = parts[2]
+	}
+
+	return dataStream
 }
 
 // RegisterRunner method registers the test runner.
@@ -304,4 +323,9 @@ func findPackageTestFolderPaths(packageRootPath, testTypeGlob string) ([]string,
 		return nil, fmt.Errorf("error finding test folders: %w", err)
 	}
 	return paths, err
+}
+
+// StateFolderPath returns the folder where the state data is stored
+func StateFolderPath(profilePath string) string {
+	return filepath.Join(profilePath, stack.ProfileStackPath, StateFolderName)
 }
