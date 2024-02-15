@@ -40,7 +40,7 @@ type runner struct {
 	options   Options
 	scenarios map[string]*scenario
 
-	ctxt               servicedeployer.ServiceContext
+	svcInfo            servicedeployer.ServiceInfo
 	runtimeDataStreams map[string]string
 	generators         map[string]genlib.Generator
 	backFillGenerators map[string]genlib.Generator
@@ -109,7 +109,7 @@ func (r *runner) setUp(ctx context.Context) error {
 
 	r.runtimeDataStreams = make(map[string]string)
 
-	r.ctxt.Test.RunID = createRunID()
+	r.svcInfo.Test.RunID = createRunID()
 
 	pkgManifest, err := packages.ReadPackageManifestFromPackageRoot(r.options.PackageRootPath)
 	if err != nil {
@@ -554,7 +554,7 @@ type benchMeta struct {
 func (r *runner) enrichEventWithBenchmarkMetadata(e map[string]any) map[string]interface{} {
 	var m benchMeta
 	m.Info.Benchmark = r.options.BenchName
-	m.Info.RunID = r.ctxt.Test.RunID
+	m.Info.RunID = r.svcInfo.Test.RunID
 	e["benchmark_metadata"] = m
 	return e
 }

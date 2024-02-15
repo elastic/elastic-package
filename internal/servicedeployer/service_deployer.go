@@ -11,5 +11,5 @@ import "context"
 type ServiceDeployer interface {
 	// SetUp implements the logic for setting up a service. It takes a context and returns a
 	// ServiceHandler.
-	SetUp(context.Context, ServiceContext) (DeployedService, error)
+	SetUp(context.Context, ServiceInfo) (DeployedService, error)
 }

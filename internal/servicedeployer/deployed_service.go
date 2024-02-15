@@ -19,11 +19,11 @@ type DeployedService interface {
 	// Signal sends a signal to the service.
 	Signal(ctx context.Context, signal string) error
 
-	// Context returns the current context from the service.
-	Context() ServiceContext
+	// Info returns the current information from the service.
+	Info() ServiceInfo
 
-	// SetContext sets the current context for the service.
-	SetContext(str ServiceContext) error
+	// SetInfo sets the current information about the service.
+	SetInfo(ServiceInfo) error
 
 	// ExitCode returns true if the service is exited and its exit code.
 	ExitCode(ctx context.Context, service string) (bool, int, error)

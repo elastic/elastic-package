@@ -49,7 +49,7 @@ type runner struct {
 	options  Options
 	scenario *scenario
 
-	ctxt              servicedeployer.ServiceContext
+	svcInfo           servicedeployer.ServiceInfo
 	benchPolicy       *kibana.Policy
 	runtimeDataStream string
 	pipelinePrefix    string
@@ -141,17 +141,17 @@ func (r *runner) setUp(ctx context.Context) error {
 	}
 
 	serviceLogsDir := locationManager.ServiceLogDir()
-	r.ctxt.Logs.Folder.Local = serviceLogsDir
-	r.ctxt.Logs.Folder.Agent = ServiceLogsAgentDir
-	r.ctxt.Test.RunID = createRunID()
+	r.svcInfo.Logs.Folder.Local = serviceLogsDir
+	r.svcInfo.Logs.Folder.Agent = ServiceLogsAgentDir
+	r.svcInfo.Test.RunID = createRunID()
 
-	outputDir, err := servicedeployer.CreateOutputDir(locationManager, r.ctxt.Test.RunID)
+	outputDir, err := servicedeployer.CreateOutputDir(locationManager, r.svcInfo.Test.RunID)
 	if err != nil {
 		return fmt.Errorf("could not create output dir for terraform deployer %w", err)
 	}
-	r.ctxt.OutputDir = outputDir
+	r.svcInfo.OutputDir = outputDir
 
-	scenario, err := readConfig(r.options.BenchPath, r.options.BenchName, r.ctxt)
+	scenario, err := readConfig(r.options.BenchPath, r.options.BenchName, r.svcInfo)
 	if err != nil {
 		return err
 	}
@@ -254,13 +254,13 @@ func (r *runner) run(ctx context.Context) (report reporters.Reportable, err erro
 			return nil, fmt.Errorf("could not create service runner: %w", err)
 		}
 
-		r.ctxt.Name = r.scenario.Corpora.InputService.Name
-		service, err = serviceDeployer.SetUp(ctx, r.ctxt)
+		r.svcInfo.Name = r.scenario.Corpora.InputService.Name
+		service, err = serviceDeployer.SetUp(ctx, r.svcInfo)
 		if err != nil {
 			return nil, fmt.Errorf("could not setup service: %w", err)
 		}
 
-		r.ctxt = service.Context()
+		r.svcInfo = service.Info()
 		r.shutdownServiceHandler = func(ctx context.Context) error {
 			logger.Debug("tearing down service...")
 			if err := service.TearDown(ctx); err != nil {
@@ -276,8 +276,8 @@ func (r *runner) run(ctx context.Context) (report reporters.Reportable, err erro
 
 	// if there is a generator config, generate the data
 	if r.generator != nil {
-		logger.Debugf("generating corpus data to %s...", r.ctxt.Logs.Folder.Local)
-		if err := r.runGenerator(r.ctxt.Logs.Folder.Local); err != nil {
+		logger.Debugf("generating corpus data to %s...", r.svcInfo.Logs.Folder.Local)
+		if err := r.runGenerator(r.svcInfo.Logs.Folder.Local); err != nil {
 			return nil, fmt.Errorf("can't generate benchmarks data corpus for data stream: %w", err)
 		}
 	}
@@ -317,7 +317,7 @@ func (r *runner) run(ctx context.Context) (report reporters.Reportable, err erro
 func (r *runner) startMetricsColletion() {
 	// TODO collect agent hosts metrics using system integration
 	r.mcollector = newCollector(
-		r.ctxt,
+		r.svcInfo,
 		r.options.BenchName,
 		*r.scenario,
 		r.options.ESAPI,
@@ -777,7 +777,7 @@ func (r *runner) reindexData() error {
 		}`, mapping)),
 	)
 
-	indexName := fmt.Sprintf("bench-reindex-%s-%s", r.runtimeDataStream, r.ctxt.Test.RunID)
+	indexName := fmt.Sprintf("bench-reindex-%s-%s", r.runtimeDataStream, r.svcInfo.Test.RunID)
 
 	logger.Debugf("creating %s index in metricstore...", indexName)
 
@@ -901,7 +901,7 @@ type benchMeta struct {
 func (r *runner) enrichEventWithBenchmarkMetadata(e map[string]interface{}) map[string]interface{} {
 	var m benchMeta
 	m.Info.Benchmark = r.options.BenchName
-	m.Info.RunID = r.ctxt.Test.RunID
+	m.Info.RunID = r.svcInfo.Test.RunID
 	m.Parameters = *r.scenario
 	e["benchmark_metadata"] = m
 	return e

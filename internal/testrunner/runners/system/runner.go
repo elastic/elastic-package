@@ -200,7 +200,7 @@ func (r *runner) Run(ctx context.Context, options testrunner.TestOptions) ([]tes
 	}
 
 	serviceOptions := r.createServiceOptions(variant)
-	serviceContext, err := r.createServiceContext(serviceOptions)
+	serviceContext, err := r.createServiceInfo(serviceOptions)
 	if err != nil {
 		return result.WithError(err)
 	}
@@ -276,20 +276,20 @@ func (r *runner) createServiceOptions(variantName string) servicedeployer.Factor
 	}
 }
 
-func (r *runner) createServiceContext(serviceOptions servicedeployer.FactoryOptions) (servicedeployer.ServiceContext, error) {
-	var serviceContext servicedeployer.ServiceContext
-	serviceContext.Name = r.options.TestFolder.Package
-	serviceContext.Logs.Folder.Local = r.locationManager.ServiceLogDir()
-	serviceContext.Logs.Folder.Agent = ServiceLogsAgentDir
-	serviceContext.Test.RunID = createTestRunID()
+func (r *runner) createServiceInfo(serviceOptions servicedeployer.FactoryOptions) (servicedeployer.ServiceInfo, error) {
+	var svcInfo servicedeployer.ServiceInfo
+	svcInfo.Name = r.options.TestFolder.Package
+	svcInfo.Logs.Folder.Local = r.locationManager.ServiceLogDir()
+	svcInfo.Logs.Folder.Agent = ServiceLogsAgentDir
+	svcInfo.Test.RunID = createTestRunID()
 
-	outputDir, err := servicedeployer.CreateOutputDir(r.locationManager, serviceContext.Test.RunID)
+	outputDir, err := servicedeployer.CreateOutputDir(r.locationManager, svcInfo.Test.RunID)
 	if err != nil {
-		return servicedeployer.ServiceContext{}, fmt.Errorf("could not create output dir for terraform deployer %w", err)
+		return servicedeployer.ServiceInfo{}, fmt.Errorf("could not create output dir for terraform deployer %w", err)
 	}
-	serviceContext.OutputDir = outputDir
+	svcInfo.OutputDir = outputDir
 
-	return serviceContext, nil
+	return svcInfo, nil
 }
 
 // TearDown method doesn't perform any global action as the "tear down" is executed per test case.
@@ -475,7 +475,7 @@ func (r *runner) run(ctx context.Context) (results []testrunner.TestResult, err 
 
 func (r *runner) runTestPerVariant(ctx context.Context, result *testrunner.ResultComposer, cfgFile, variantName string) ([]testrunner.TestResult, error) {
 	serviceOptions := r.createServiceOptions(variantName)
-	serviceContext, err := r.createServiceContext(serviceOptions)
+	serviceContext, err := r.createServiceInfo(serviceOptions)
 	if err != nil {
 		return result.WithError(err)
 	}
@@ -645,7 +645,7 @@ type scenarioTest struct {
 	docs               []common.MapStr
 }
 
-func (r *runner) prepareScenario(ctx context.Context, config *testConfig, serviceContext servicedeployer.ServiceContext, serviceOptions servicedeployer.FactoryOptions) (*scenarioTest, error) {
+func (r *runner) prepareScenario(ctx context.Context, config *testConfig, serviceContext servicedeployer.ServiceInfo, serviceOptions servicedeployer.FactoryOptions) (*scenarioTest, error) {
 	var err error
 	var serviceStateData ServiceState
 	if r.options.RunSetup {
@@ -701,7 +701,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, servic
 	if err != nil {
 		return nil, fmt.Errorf("could not setup service: %w", err)
 	}
-	serviceContext = service.Context()
+	serviceContext = service.Info()
 	r.shutdownServiceHandler = func() error {
 		logger.Debug("tearing down service...")
 		if err := service.TearDown(ctx); err != nil {
@@ -1158,7 +1158,7 @@ func (r *runner) validateTestScenario(result *testrunner.ResultComposer, scenari
 	return result.WithSuccess()
 }
 
-func (r *runner) runTest(ctx context.Context, config *testConfig, serviceContext servicedeployer.ServiceContext, serviceOptions servicedeployer.FactoryOptions) ([]testrunner.TestResult, error) {
+func (r *runner) runTest(ctx context.Context, config *testConfig, serviceContext servicedeployer.ServiceInfo, serviceOptions servicedeployer.FactoryOptions) ([]testrunner.TestResult, error) {
 	result := r.newResult(config.Name())
 
 	if config.Skip != nil {
@@ -1178,7 +1178,7 @@ func (r *runner) runTest(ctx context.Context, config *testConfig, serviceContext
 	return r.validateTestScenario(result, scenario, config, serviceOptions)
 }
 
-func checkEnrolledAgents(ctx context.Context, client *kibana.Client, serviceContext servicedeployer.ServiceContext) ([]kibana.Agent, error) {
+func checkEnrolledAgents(ctx context.Context, client *kibana.Client, serviceContext servicedeployer.ServiceInfo) ([]kibana.Agent, error) {
 	var agents []kibana.Agent
 	enrolled, err := wait.UntilTrue(ctx, func(ctx context.Context) (bool, error) {
 		allAgents, err := client.ListAgents()
@@ -1585,9 +1585,9 @@ func deleteDataStreamDocs(api *elasticsearch.API, dataStream string) error {
 	return nil
 }
 
-func filterAgents(allAgents []kibana.Agent, ctx servicedeployer.ServiceContext) []kibana.Agent {
-	if ctx.Agent.Host.NamePrefix != "" {
-		logger.Debugf("filter agents using criteria: NamePrefix=%s", ctx.Agent.Host.NamePrefix)
+func filterAgents(allAgents []kibana.Agent, svcInfo servicedeployer.ServiceInfo) []kibana.Agent {
+	if svcInfo.Agent.Host.NamePrefix != "" {
+		logger.Debugf("filter agents using criteria: NamePrefix=%s", svcInfo.Agent.Host.NamePrefix)
 	}
 
 	var filtered []kibana.Agent
@@ -1596,7 +1596,7 @@ func filterAgents(allAgents []kibana.Agent, ctx servicedeployer.ServiceContext) 
 			continue // For some reason Kibana doesn't always return a valid policy revision (eventually it will be present and valid)
 		}
 
-		if ctx.Agent.Host.NamePrefix != "" && !strings.HasPrefix(agent.LocalMetadata.Host.Name, ctx.Agent.Host.NamePrefix) {
+		if svcInfo.Agent.Host.NamePrefix != "" && !strings.HasPrefix(agent.LocalMetadata.Host.Name, svcInfo.Agent.Host.NamePrefix) {
 			continue
 		}
 		filtered = append(filtered, agent)

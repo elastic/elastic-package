@@ -54,11 +54,11 @@ func BootUp(ctx context.Context, options Options) error {
 		return fmt.Errorf("reading service logs directory failed: %w", err)
 	}
 
-	var serviceCtxt servicedeployer.ServiceContext
-	serviceCtxt.Name = options.ServiceName
-	serviceCtxt.Logs.Folder.Agent = system.ServiceLogsAgentDir
-	serviceCtxt.Logs.Folder.Local = locationManager.ServiceLogDir()
-	deployed, err := serviceDeployer.SetUp(ctx, serviceCtxt)
+	var svcInfo servicedeployer.ServiceInfo
+	svcInfo.Name = options.ServiceName
+	svcInfo.Logs.Folder.Agent = system.ServiceLogsAgentDir
+	svcInfo.Logs.Folder.Local = locationManager.ServiceLogDir()
+	deployed, err := serviceDeployer.SetUp(ctx, svcInfo)
 	if err != nil {
 		return fmt.Errorf("can't set up the service deployer: %w", err)
 	}

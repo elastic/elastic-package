@@ -21,7 +21,7 @@ import (
 )
 
 type collector struct {
-	ctxt     servicedeployer.ServiceContext
+	svcInfo  servicedeployer.ServiceInfo
 	metadata benchMeta
 	scenario scenario
 
@@ -64,7 +64,7 @@ type metricsSummary struct {
 }
 
 func newCollector(
-	ctxt servicedeployer.ServiceContext,
+	svcInfo servicedeployer.ServiceInfo,
 	benchName string,
 	scenario scenario,
 	esAPI, metricsAPI *elasticsearch.API,
@@ -73,9 +73,9 @@ func newCollector(
 ) *collector {
 	meta := benchMeta{Parameters: scenario}
 	meta.Info.Benchmark = benchName
-	meta.Info.RunID = ctxt.Test.RunID
+	meta.Info.RunID = svcInfo.Test.RunID
 	return &collector{
-		ctxt:           ctxt,
+		svcInfo:        svcInfo,
 		interval:       interval,
 		scenario:       scenario,
 		metadata:       meta,
@@ -202,12 +202,12 @@ func (c *collector) createMetricsIndex() {
 }
 
 func (c *collector) indexName() string {
-	return fmt.Sprintf("bench-metrics-%s-%s", c.datastream, c.ctxt.Test.RunID)
+	return fmt.Sprintf("bench-metrics-%s-%s", c.datastream, c.svcInfo.Test.RunID)
 }
 
 func (c *collector) summarize() (*metricsSummary, error) {
 	sum := metricsSummary{
-		RunID:               c.ctxt.Test.RunID,
+		RunID:               c.svcInfo.Test.RunID,
 		IngestPipelineStats: make(map[string]ingest.PipelineStatsMap),
 		NodesStats:          make(map[string]ingest.NodeStats),
 		DiskUsage:           c.diskUsage,

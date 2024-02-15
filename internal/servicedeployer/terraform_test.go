@@ -16,7 +16,7 @@ func TestAddTerraformOutputs(t *testing.T) {
 	var testCases = []struct {
 		testName      string
 		err           string
-		ctxt          ServiceContext
+		svcInfo       ServiceInfo
 		runId         string
 		content       []byte
 		expectedProps map[string]interface{}
@@ -25,7 +25,7 @@ func TestAddTerraformOutputs(t *testing.T) {
 		{
 			testName: "invalid_json_output",
 			runId:    "987987",
-			ctxt: ServiceContext{
+			svcInfo: ServiceInfo{
 				Test: struct{ RunID string }{"987987"},
 			},
 			content: []byte(
@@ -37,7 +37,7 @@ func TestAddTerraformOutputs(t *testing.T) {
 		{
 			testName: "empty_json_output",
 			runId:    "v",
-			ctxt: ServiceContext{
+			svcInfo: ServiceInfo{
 				Test: struct{ RunID string }{"9887"},
 			},
 			content: []byte(
@@ -48,7 +48,7 @@ func TestAddTerraformOutputs(t *testing.T) {
 		{
 			testName: "single_value_output",
 			runId:    "99999",
-			ctxt: ServiceContext{
+			svcInfo: ServiceInfo{
 				Test: struct{ RunID string }{"99999"},
 			},
 			content: []byte(
@@ -67,7 +67,7 @@ func TestAddTerraformOutputs(t *testing.T) {
 		{
 			testName: "multiple_value_output",
 			runId:    "23465",
-			ctxt: ServiceContext{
+			svcInfo: ServiceInfo{
 				Test: struct{ RunID string }{"23465"},
 			},
 			content: []byte(
@@ -92,7 +92,7 @@ func TestAddTerraformOutputs(t *testing.T) {
 		{
 			testName: "complex_value_output",
 			runId:    "078907890",
-			ctxt: ServiceContext{
+			svcInfo: ServiceInfo{
 				Test: struct{ RunID string }{"078907890"},
 			},
 			content: []byte(
@@ -138,21 +138,21 @@ func TestAddTerraformOutputs(t *testing.T) {
 	for _, tc := range testCases {
 
 		t.Run(tc.testName, func(t *testing.T) {
-			tc.ctxt.CustomProperties = make(map[string]interface{})
-			tc.ctxt.OutputDir = t.TempDir()
+			tc.svcInfo.CustomProperties = make(map[string]interface{})
+			tc.svcInfo.OutputDir = t.TempDir()
 
-			if err := os.WriteFile(tc.ctxt.OutputDir+"/tfOutputValues.json", tc.content, 0777); err != nil {
+			if err := os.WriteFile(tc.svcInfo.OutputDir+"/tfOutputValues.json", tc.content, 0777); err != nil {
 				t.Fatal(err)
 			}
 
 			// Test that the terraform output values are generated correctly
-			err := addTerraformOutputs(tc.ctxt)
+			err := addTerraformOutputs(tc.svcInfo)
 			if tc.expectedError {
 				require.Error(t, err)
 				return
 			}
 			require.NoError(t, err)
-			assert.Equal(t, tc.expectedProps, tc.ctxt.CustomProperties)
+			assert.Equal(t, tc.expectedProps, tc.svcInfo.CustomProperties)
 		})
 	}
 }

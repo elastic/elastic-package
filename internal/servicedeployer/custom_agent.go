@@ -62,7 +62,7 @@ func NewCustomAgentDeployer(options CustomAgentDeployerOptions) (*CustomAgentDep
 }
 
 // SetUp sets up the service and returns any relevant information.
-func (d *CustomAgentDeployer) SetUp(ctx context.Context, inCtxt ServiceContext) (DeployedService, error) {
+func (d *CustomAgentDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (DeployedService, error) {
 	logger.Debug("setting up service using Docker Compose service deployer")
 
 	appConfig, err := install.Configuration()
@@ -77,7 +77,7 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, inCtxt ServiceContext) 
 
 	env := append(
 		appConfig.StackImageRefs(d.stackVersion).AsEnv(),
-		fmt.Sprintf("%s=%s", serviceLogsDirEnv, inCtxt.Logs.Folder.Local),
+		fmt.Sprintf("%s=%s", serviceLogsDirEnv, svcInfo.Logs.Folder.Local),
 		fmt.Sprintf("%s=%s", localCACertEnv, caCertPath),
 	)
 
@@ -100,7 +100,7 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, inCtxt ServiceContext) 
 		},
 	}
 
-	outCtxt := inCtxt
+	outCtxt := svcInfo
 
 	p, err := compose.NewProject(service.project, service.ymlPaths...)
 	if err != nil {
@@ -126,8 +126,8 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, inCtxt ServiceContext) 
 		}
 	}
 
-	inCtxt.Name = dockerCustomAgentName
-	serviceName := inCtxt.Name
+	svcInfo.Name = dockerCustomAgentName
+	serviceName := svcInfo.Name
 
 	opts := compose.CommandOptions{
 		Env:       env,
@@ -177,8 +177,8 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, inCtxt ServiceContext) 
 		outCtxt.Port = outCtxt.Ports[0]
 	}
 
-	outCtxt.Agent.Host.NamePrefix = inCtxt.Name
-	service.ctxt = outCtxt
+	outCtxt.Agent.Host.NamePrefix = svcInfo.Name
+	service.svcInfo = outCtxt
 	return &service, nil
 }
 

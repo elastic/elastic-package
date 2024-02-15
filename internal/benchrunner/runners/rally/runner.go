@@ -149,7 +149,7 @@ type runner struct {
 	options  Options
 	scenario *scenario
 
-	ctxt              servicedeployer.ServiceContext
+	svcInfo           servicedeployer.ServiceInfo
 	runtimeDataStream string
 	indexTemplateBody string
 	pipelinePrefix    string
@@ -231,7 +231,7 @@ func (r *runner) TearDown(ctx context.Context) error {
 }
 
 func (r *runner) createRallyTrackDir(locationManager *locations.LocationManager) error {
-	outputDir := filepath.Join(locationManager.RallyCorpusDir(), r.ctxt.Test.RunID)
+	outputDir := filepath.Join(locationManager.RallyCorpusDir(), r.svcInfo.Test.RunID)
 	if err := os.MkdirAll(outputDir, 0755); err != nil {
 		return fmt.Errorf("failed to create output directory: %w", err)
 	}
@@ -245,15 +245,15 @@ func (r *runner) setUp(ctx context.Context) error {
 	}
 
 	rallyCorpusDir := locationManager.RallyCorpusDir()
-	r.ctxt.Logs.Folder.Local = rallyCorpusDir
-	r.ctxt.Logs.Folder.Agent = RallyCorpusAgentDir
-	r.ctxt.Test.RunID = createRunID()
+	r.svcInfo.Logs.Folder.Local = rallyCorpusDir
+	r.svcInfo.Logs.Folder.Agent = RallyCorpusAgentDir
+	r.svcInfo.Test.RunID = createRunID()
 
-	outputDir, err := servicedeployer.CreateOutputDir(locationManager, r.ctxt.Test.RunID)
+	outputDir, err := servicedeployer.CreateOutputDir(locationManager, r.svcInfo.Test.RunID)
 	if err != nil {
 		return fmt.Errorf("could not create output dir for terraform deployer %w", err)
 	}
-	r.ctxt.OutputDir = outputDir
+	r.svcInfo.OutputDir = outputDir
 
 	err = r.createRallyTrackDir(locationManager)
 	if err != nil {
@@ -406,8 +406,8 @@ func (r *runner) run(ctx context.Context) (report reporters.Reportable, err erro
 	var corpusDocCount uint64
 	// if there is a generator config, generate the data, unless a corpus path is set
 	if r.generator != nil && len(r.options.CorpusAtPath) == 0 {
-		logger.Debugf("generating corpus data to %s...", r.ctxt.Logs.Folder.Local)
-		corpusDocCount, err = r.runGenerator(r.ctxt.Logs.Folder.Local)
+		logger.Debugf("generating corpus data to %s...", r.svcInfo.Logs.Folder.Local)
+		corpusDocCount, err = r.runGenerator(r.svcInfo.Logs.Folder.Local)
 		if err != nil {
 			return nil, fmt.Errorf("can't generate benchmarks data corpus for data stream: %w", err)
 		}
@@ -415,7 +415,7 @@ func (r *runner) run(ctx context.Context) (report reporters.Reportable, err erro
 
 	if len(r.options.CorpusAtPath) > 0 {
 		logger.Debugf("reading corpus data from %s...", r.options.CorpusAtPath)
-		corpusDocCount, err = r.copyCorpusFile(r.options.CorpusAtPath, r.ctxt.Logs.Folder.Local)
+		corpusDocCount, err = r.copyCorpusFile(r.options.CorpusAtPath, r.svcInfo.Logs.Folder.Local)
 		if err != nil {
 			return nil, fmt.Errorf("can't read benchmarks data corpus for data stream: %w", err)
 		}
@@ -425,7 +425,7 @@ func (r *runner) run(ctx context.Context) (report reporters.Reportable, err erro
 		return nil, errors.New("can't find documents in the corpus for data stream")
 	}
 
-	if err := r.createRallyTrack(corpusDocCount, r.ctxt.Logs.Folder.Local); err != nil {
+	if err := r.createRallyTrack(corpusDocCount, r.svcInfo.Logs.Folder.Local); err != nil {
 		return nil, fmt.Errorf("can't create benchmarks data rally track for data stream: %w", err)
 	}
 
@@ -512,7 +512,7 @@ func (r *runner) installPackageFromPackageRoot() error {
 func (r *runner) startMetricsColletion() {
 	// TODO collect agent hosts metrics using system integration
 	r.mcollector = newCollector(
-		r.ctxt,
+		r.svcInfo,
 		r.options.BenchName,
 		*r.scenario,
 		r.options.ESAPI,
@@ -900,7 +900,7 @@ func (r *runner) runRally(ctx context.Context) ([]rallyStat, error) {
 	cmd := exec.Command(
 		"esrally",
 		"race",
-		"--race-id="+r.ctxt.Test.RunID,
+		"--race-id="+r.svcInfo.Test.RunID,
 		"--report-format=csv",
 		fmt.Sprintf(`--report-file=%s`, r.reportFile),
 		fmt.Sprintf(`--target-hosts={"default":["%s"]}`, elasticsearchHost),
@@ -915,12 +915,12 @@ func (r *runner) runRally(ctx context.Context) ([]rallyStat, error) {
 	logger.Debugf("output command: %s", cmd)
 	output, err := cmd.Output()
 	if err != nil {
-		return nil, fmt.Errorf("could not run esrally track in path: %s (stdout=%q, stderr=%q): %w", r.ctxt.Logs.Folder.Local, output, errOutput.String(), err)
+		return nil, fmt.Errorf("could not run esrally track in path: %s (stdout=%q, stderr=%q): %w", r.svcInfo.Logs.Folder.Local, output, errOutput.String(), err)
 	}
 
 	reportCSV, err := os.Open(r.reportFile)
 	if err != nil {
-		return nil, fmt.Errorf("could not open esrally report in path: %s: %w", r.ctxt.Logs.Folder.Local, err)
+		return nil, fmt.Errorf("could not open esrally report in path: %s: %w", r.svcInfo.Logs.Folder.Local, err)
 	}
 
 	reader := csv.NewReader(reportCSV)
@@ -932,7 +932,7 @@ func (r *runner) runRally(ctx context.Context) ([]rallyStat, error) {
 			break
 		}
 		if err != nil {
-			return nil, fmt.Errorf("could not read esrally report in path: %s (stderr=%q): %w", r.ctxt.Logs.Folder.Local, errOutput.String(), err)
+			return nil, fmt.Errorf("could not read esrally report in path: %s (stderr=%q): %w", r.svcInfo.Logs.Folder.Local, errOutput.String(), err)
 		}
 
 		stats = append(stats, rallyStat{Metric: record[0], Task: record[1], Value: record[2], Unit: record[3]})
@@ -994,7 +994,7 @@ func (r *runner) reindexData() error {
 		}`, mapping)),
 	)
 
-	indexName := fmt.Sprintf("bench-reindex-%s-%s", r.runtimeDataStream, r.ctxt.Test.RunID)
+	indexName := fmt.Sprintf("bench-reindex-%s-%s", r.runtimeDataStream, r.svcInfo.Test.RunID)
 
 	logger.Debugf("creating %s index in metricstore...", indexName)
 
@@ -1118,7 +1118,7 @@ type benchMeta struct {
 func (r *runner) enrichEventWithBenchmarkMetadata(e map[string]interface{}) map[string]interface{} {
 	var m benchMeta
 	m.Info.Benchmark = r.options.BenchName
-	m.Info.RunID = r.ctxt.Test.RunID
+	m.Info.RunID = r.svcInfo.Test.RunID
 	m.Parameters = *r.scenario
 	e["benchmark_metadata"] = m
 	return e

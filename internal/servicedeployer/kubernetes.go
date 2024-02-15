@@ -45,7 +45,7 @@ type KubernetesServiceDeployerOptions struct {
 }
 
 type kubernetesDeployedService struct {
-	ctxt ServiceContext
+	svcInfo ServiceInfo
 
 	definitionsDir string
 }
@@ -78,12 +78,12 @@ func (s kubernetesDeployedService) ExitCode(_ context.Context, _ string) (bool, 
 	return false, -1, ErrNotSupported
 }
 
-func (s kubernetesDeployedService) Context() ServiceContext {
-	return s.ctxt
+func (s kubernetesDeployedService) Info() ServiceInfo {
+	return s.svcInfo
 }
 
-func (s *kubernetesDeployedService) SetContext(sc ServiceContext) error {
-	s.ctxt = sc
+func (s *kubernetesDeployedService) SetInfo(sc ServiceInfo) error {
+	s.svcInfo = sc
 	return nil
 }
 
@@ -103,7 +103,7 @@ func NewKubernetesServiceDeployer(opts KubernetesServiceDeployerOptions) (*Kuber
 
 // SetUp function links the kind container with elastic-package-stack network, installs Elastic-Agent and optionally
 // custom YAML definitions.
-func (ksd KubernetesServiceDeployer) SetUp(ctx context.Context, service ServiceContext) (DeployedService, error) {
+func (ksd KubernetesServiceDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (DeployedService, error) {
 	err := kind.VerifyContext(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("kind context verification failed: %w", err)
@@ -134,13 +134,13 @@ func (ksd KubernetesServiceDeployer) SetUp(ctx context.Context, service ServiceC
 		}
 	}
 
-	service.Name = kind.ControlPlaneContainerName
-	service.Hostname = kind.ControlPlaneContainerName
+	svcInfo.Name = kind.ControlPlaneContainerName
+	svcInfo.Hostname = kind.ControlPlaneContainerName
 	// kind-control-plane is the name of the kind host where Pod is running since we use hostNetwork setting
 	// to deploy Agent Pod. Because of this, hostname inside pod will be equal to the name of the k8s host.
-	service.Agent.Host.NamePrefix = "kind-control-plane"
+	svcInfo.Agent.Host.NamePrefix = "kind-control-plane"
 	return &kubernetesDeployedService{
-		ctxt:           service,
+		svcInfo:        svcInfo,
 		definitionsDir: ksd.definitionsDir,
 	}, nil
 }
