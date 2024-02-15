@@ -96,6 +96,8 @@ tests_for_setup() {
     if ! temporal_files_exist ; then
         return 1
     fi
+
+    # TODO Add some other test for packages using kind
     if [[ "${service_deployer_type}" == "kind" ]]; then
         if ! is_network_created "kind" ; then
             echo "Missing docker network to connect to kind cluster"
@@ -119,10 +121,12 @@ tests_for_setup() {
     return 0
 }
 
-tests_for_no_provisin() {
+tests_for_no_provision() {
     local service_deployer_type=$1
     local service_container=$2
     local agent_container=$3
+
+    # TODO Add some other test for packages using kind
 
     # service docker needs to be running after this command
     if [[ "${service_deployer_type}" == "docker" || "${service_deployer_type}" == "agent" ]] ; then
@@ -149,6 +153,8 @@ tests_for_tear_down() {
     local service_deployer_type=$1
     local service_container=$2
     local agent_container=$3
+
+    # TODO Add some other test for packages using kind
 
     if service_setup_folder_exists; then
         echo "State folder has not been deleted in --tear-down: ${FOLDER_PATH}"
