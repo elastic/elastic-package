@@ -110,12 +110,12 @@ type runner struct {
 	serviceStateFilePath string
 
 	// Execution order of following handlers is defined in runner.TearDown() method.
-	deleteTestPolicyHandler   func() error
-	deletePackageHandler      func() error
-	resetAgentPolicyHandler   func() error
-	resetAgentLogLevelHandler func() error
-	shutdownServiceHandler    func() error
-	wipeDataStreamHandler     func() error
+	deleteTestPolicyHandler   func(context.Context) error
+	deletePackageHandler      func(context.Context) error
+	resetAgentPolicyHandler   func(context.Context) error
+	resetAgentLogLevelHandler func(context.Context) error
+	shutdownServiceHandler    func(context.Context) error
+	wipeDataStreamHandler     func(context.Context) error
 }
 
 // Ensures that runner implements testrunner.TestRunner interface
@@ -306,43 +306,46 @@ func (r *runner) tearDownTest(ctx context.Context) error {
 		}
 	}
 
+	// Avoid cancellations during cleanup.
+	cleanupCtx := context.WithoutCancel(ctx)
+
 	if r.resetAgentPolicyHandler != nil {
-		if err := r.resetAgentPolicyHandler(); err != nil {
+		if err := r.resetAgentPolicyHandler(cleanupCtx); err != nil {
 			return err
 		}
 		r.resetAgentPolicyHandler = nil
 	}
 
 	if r.resetAgentLogLevelHandler != nil {
-		if err := r.resetAgentLogLevelHandler(); err != nil {
+		if err := r.resetAgentLogLevelHandler(cleanupCtx); err != nil {
 			return err
 		}
 		r.resetAgentLogLevelHandler = nil
 	}
 
 	if r.deleteTestPolicyHandler != nil {
-		if err := r.deleteTestPolicyHandler(); err != nil {
+		if err := r.deleteTestPolicyHandler(cleanupCtx); err != nil {
 			return err
 		}
 		r.deleteTestPolicyHandler = nil
 	}
 
 	if r.deletePackageHandler != nil {
-		if err := r.deletePackageHandler(); err != nil {
+		if err := r.deletePackageHandler(cleanupCtx); err != nil {
 			return err
 		}
 		r.deletePackageHandler = nil
 	}
 
 	if r.shutdownServiceHandler != nil {
-		if err := r.shutdownServiceHandler(); err != nil {
+		if err := r.shutdownServiceHandler(cleanupCtx); err != nil {
 			return err
 		}
 		r.shutdownServiceHandler = nil
 	}
 
 	if r.wipeDataStreamHandler != nil {
-		if err := r.wipeDataStreamHandler(); err != nil {
+		if err := r.wipeDataStreamHandler(cleanupCtx); err != nil {
 			return err
 		}
 		r.wipeDataStreamHandler = nil
@@ -702,7 +705,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, servic
 		return nil, fmt.Errorf("could not setup service: %w", err)
 	}
 	serviceContext = service.Info()
-	r.shutdownServiceHandler = func() error {
+	r.shutdownServiceHandler = func(ctx context.Context) error {
 		logger.Debug("tearing down service...")
 		if err := service.TearDown(ctx); err != nil {
 			return fmt.Errorf("error tearing down service: %w", err)
@@ -740,7 +743,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, servic
 			return nil, fmt.Errorf("failed to install package: %v", err)
 		}
 	}
-	r.deletePackageHandler = func() error {
+	r.deletePackageHandler = func(ctx context.Context) error {
 		stackVersion, err := semver.NewVersion(serviceOptions.StackVersion)
 		if err != nil {
 			return fmt.Errorf("failed to parse stack version: %w", err)
@@ -786,7 +789,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, servic
 			return nil, fmt.Errorf("could not create test policy: %w", err)
 		}
 	}
-	r.deleteTestPolicyHandler = func() error {
+	r.deleteTestPolicyHandler = func(ctx context.Context) error {
 		logger.Debug("deleting test policy...")
 		if err := r.options.KibanaClient.DeletePolicy(*policy); err != nil {
 			return fmt.Errorf("error cleaning up test policy: %w", err)
@@ -820,7 +823,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, servic
 		ds.Inputs[0].Streams[0].DataStream.Dataset,
 	)
 
-	r.wipeDataStreamHandler = func() error {
+	r.wipeDataStreamHandler = func(ctx context.Context) error {
 		logger.Debugf("deleting data in data stream...")
 		if err := deleteDataStreamDocs(r.options.API, scenario.dataStream); err != nil {
 			return fmt.Errorf("error deleting data in data stream: %w", err)
@@ -862,7 +865,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, servic
 		}
 	}
 	// Assign policy to agent
-	r.resetAgentPolicyHandler = func() error {
+	r.resetAgentPolicyHandler = func(ctx context.Context) error {
 		logger.Debug("reassigning original policy back to agent...")
 		if err := r.options.KibanaClient.AssignPolicyToAgent(ctx, agent, origPolicy); err != nil {
 			return fmt.Errorf("error reassigning original policy to agent: %w", err)
@@ -885,7 +888,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, servic
 			return nil, fmt.Errorf("error setting log level debug for agent %s: %w", agent.ID, err)
 		}
 	}
-	r.resetAgentLogLevelHandler = func() error {
+	r.resetAgentLogLevelHandler = func(ctx context.Context) error {
 		logger.Debugf("reassigning original log level %q back to agent...", origLogLevel)
 
 		if err := r.options.KibanaClient.SetAgentLogLevel(agent.ID, origLogLevel); err != nil {
