@@ -168,8 +168,9 @@ services:
         condition: service_healthy
     healthcheck:
       test: bin/logstash -t
+      start_period: 120s
       interval: 60s
-      timeout: 50s
+      timeout: 60s
       retries: 5
     volumes:
       - "../certs/logstash:/usr/share/logstash/config/certs"

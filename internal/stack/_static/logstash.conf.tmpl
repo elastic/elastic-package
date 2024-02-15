@@ -8,26 +8,28 @@ input {
   }
 }
 
-
+{{ $elasticsearch_host := fact "elasticsearch_host" -}}
 filter {
   elastic_integration {
     remove_field => ['@version']
-    hosts => ["https://elasticsearch:9200"]
-    username => {{ fact "username" }}
-    password => {{ fact "password" }}
+    hosts => ["{{ $elasticsearch_host }}"]
+    username => '{{ fact "username" }}'
+    password => '{{ fact "password" }}'
     ssl_enabled => true
     ssl_verification_mode => "none"
   }
 }
 
-
 output {
   elasticsearch {
-    hosts => ["https://elasticsearch:9200"]
-    user => {{ fact "username" }}
-    password => {{ fact "password" }}
+    hosts => ["{{ $elasticsearch_host }}"]
+    user => '{{ fact "username" }}'
+    password => '{{ fact "password" }}'
     ssl_enabled => true
+{{- if eq $elasticsearch_host "https://elasticsearch:9200" }}
     ssl_certificate_authorities => "/usr/share/logstash/config/certs/ca-cert.pem"
+{{- end }}
+    data_stream => "true"
     document_id => "%{[@metadata][_ingest_document][id]}"
   }
 }
