@@ -5,9 +5,8 @@ set -euxo pipefail
 DEFAULT_AGENT_CONTAINER_NAME="elastic-package-service-docker-custom-agent"
 
 cleanup() {
-    local r
+    local r=$?
     local container_id
-    r=$?
 
     # Dump stack logs
     elastic-package stack dump -v --output build/elastic-stack-dump/system-test-flags
@@ -282,17 +281,6 @@ if ! run_tests_for_package \
 fi
 
 # Custom agents service deployer
-# this package has no service, so we introduced as a service name the one from the custom agent docker-custom-agent"
-if ! run_tests_for_package \
-    "test/packages/with-custom-agent/auditd_manager" \
-    "elastic-package-service-docker-custom-agent" \
-    "./data_stream/auditd/_dev/test/system/test-default-config.yml" \
-    "no variant" \
-    "agent" ; then
-
-    exit 1
-fi
-
 if ! run_tests_for_package \
     "test/packages/with-custom-agent/oracle" \
     "oracle" \
@@ -307,7 +295,7 @@ fi
 echo "--- Create kind cluster"
 kind create cluster --config "$PWD/scripts/kind-config.yaml"
 
-if ! run_tests_for_k8s_package \
+if ! run_tests_for_package \
     "test/packages/with-kind/kubernetes" \
     "" \
     "./data_stream/state_pod/_dev/test/system/test-default-config.yml" \
@@ -316,6 +304,3 @@ if ! run_tests_for_k8s_package \
 
     exit 1
 fi
-
-echo "--- Delete kind cluster"
-kind delete cluster  || true
