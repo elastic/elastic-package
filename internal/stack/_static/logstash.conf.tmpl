@@ -29,7 +29,6 @@ output {
 {{- if eq $elasticsearch_host "https://elasticsearch:9200" }}
     ssl_certificate_authorities => "/usr/share/logstash/config/certs/ca-cert.pem"
 {{- end }}
-    data_stream => "true"
     document_id => "%{[@metadata][_ingest_document][id]}"
   }
 }
