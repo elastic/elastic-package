@@ -77,8 +77,8 @@ func (r *runner) TearDown(ctx context.Context) error {
 		return nil
 	}
 
-	// Using nil context to avoid interrupting cleanup operations.
-	cleanupCtx := context.Background()
+	// Avoid cancellations during cleanup.
+	cleanupCtx := context.WithoutCancel(ctx)
 
 	var merr multierror.Error
 
@@ -127,7 +127,7 @@ func (r *runner) setUp(ctx context.Context) error {
 		return fmt.Errorf("error installing package: %w", err)
 	}
 
-	err = r.collectGenerators()
+	err = r.collectGenerators(ctx)
 	if err != nil {
 		return fmt.Errorf("can't initialize generator: %w", err)
 	}
@@ -284,14 +284,14 @@ func (r *runner) initializeGenerator(tpl []byte, config genlib.Config, fields ge
 		return genlib.NewGeneratorWithTextTemplate(tpl, config, fields, totEvents)
 	}
 }
-func (r *runner) collectGenerators() error {
+func (r *runner) collectGenerators(ctx context.Context) error {
 	for scenarioName, scenario := range r.scenarios {
 		config, err := r.getGeneratorConfig(scenario)
 		if err != nil {
 			return err
 		}
 
-		fields, err := r.getGeneratorFields(scenario)
+		fields, err := r.getGeneratorFields(ctx, scenario)
 		if err != nil {
 			return err
 		}
@@ -360,7 +360,7 @@ func (r *runner) getGeneratorConfig(scenario *scenario) (*config.Config, error) 
 	return &cfg, nil
 }
 
-func (r *runner) getGeneratorFields(scenario *scenario) (fields.Fields, error) {
+func (r *runner) getGeneratorFields(ctx context.Context, scenario *scenario) (fields.Fields, error) {
 	var (
 		data []byte
 		err  error
@@ -384,7 +384,7 @@ func (r *runner) getGeneratorFields(scenario *scenario) (fields.Fields, error) {
 		}
 	}
 
-	fields, err := fields.LoadFieldsWithTemplateFromString(context.Background(), string(data))
+	fields, err := fields.LoadFieldsWithTemplateFromString(ctx, string(data))
 	if err != nil {
 		return nil, fmt.Errorf("could not load fields yaml: %w", err)
 	}
