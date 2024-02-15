@@ -229,7 +229,7 @@ func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, e
 			logger.Errorf("failed to tear down runner: %s", tdErr.Error())
 		}
 
-		setupDirErr := r.removeServiceStateDir()
+		setupDirErr := r.removeServiceStateFile()
 		if setupDirErr != nil {
 			logger.Error(err.Error())
 		}
@@ -252,7 +252,7 @@ func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, e
 			return result.WithError(err)
 		}
 
-		err := r.removeServiceStateDir()
+		err := r.removeServiceStateFile()
 		if err != nil {
 			return result.WithError(err)
 		}
@@ -992,11 +992,10 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 	return &scenario, nil
 }
 
-func (r *runner) removeServiceStateDir() error {
-	dirPath := filepath.Dir(r.serviceStateFilePath)
-	err := os.RemoveAll(dirPath)
+func (r *runner) removeServiceStateFile() error {
+	err := os.Remove(r.serviceStateFilePath)
 	if err != nil {
-		return fmt.Errorf("failed to remove directory %q: %w", dirPath, err)
+		return fmt.Errorf("failed to remove file %q: %w", r.serviceStateFilePath, err)
 	}
 	return nil
 }

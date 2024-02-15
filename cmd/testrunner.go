@@ -387,14 +387,14 @@ func readConfigFileFromState(profilePath string) (string, error) {
 	}
 	var serviceStateData stateData
 	setupDataPath := filepath.Join(testrunner.StateFolderPath(profilePath), testrunner.ServiceStateFileName)
-	fmt.Printf("Reading service setup data from file: %s\n", setupDataPath)
+	fmt.Printf("Reading service state data from file: %s\n", setupDataPath)
 	contents, err := os.ReadFile(setupDataPath)
 	if err != nil {
-		return "", fmt.Errorf("failed to read service setup data %q: %w", setupDataPath, err)
+		return "", fmt.Errorf("failed to read service state data %q: %w", setupDataPath, err)
 	}
 	err = json.Unmarshal(contents, &serviceStateData)
 	if err != nil {
-		return "", fmt.Errorf("failed to decode service setup data %q: %w", setupDataPath, err)
+		return "", fmt.Errorf("failed to decode service state data %q: %w", setupDataPath, err)
 	}
 	return serviceStateData.ConfigFilePath, nil
 }

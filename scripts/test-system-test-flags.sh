@@ -65,7 +65,7 @@ is_service_container_running() {
     return 1
 }
 
-service_setup_folder_exists() {
+service_state_folder_exists() {
     if [ ! -d "$FOLDER_PATH" ]; then
         echo "Folder ${FOLDER_PATH} does not exist"
         return 1
@@ -75,7 +75,7 @@ service_setup_folder_exists() {
 
 
 temporal_files_exist() {
-    if ! service_setup_folder_exists ; then
+    if ! service_state_folder_exists ; then
         return 1
     fi
 
@@ -155,8 +155,14 @@ tests_for_tear_down() {
 
     # TODO Add some other test for packages using kind
 
-    if service_setup_folder_exists; then
-        echo "State folder has not been deleted in --tear-down: ${FOLDER_PATH}"
+    # state folder is kept after tear-down but there should not exist the service.json
+    if ! service_state_folder_exists; then
+        echo "State folder has been deleted in --tear-down: ${FOLDER_PATH}"
+        return 1
+    fi
+
+    if temporal_files_exist ; then
+        echo "Service state has not been deleted in --tear-down: ${FOLDER_PATH}"
         return 1
     fi
 
