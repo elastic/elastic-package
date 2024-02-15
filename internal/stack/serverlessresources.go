@@ -32,6 +32,12 @@ var (
 			Path:    LogstashConfigFile,
 			Content: staticSource.Template("_static/serverless-logstash.conf.tmpl"),
 		},
+		&resource.File{
+			Path:         "logstash_startup.sh",
+			CreateParent: true,
+			Content:      staticSource.Template("_static/logstash_startup.sh"),
+			Mode:         resource.FileMode(0755),
+		},
 	}
 )
 
