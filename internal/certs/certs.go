@@ -256,17 +256,7 @@ func (c *Certificate) WriteKey(w io.Writer) error {
 
 // WriteKeyFile writes the PEM-encoded key in the given file.
 func (c *Certificate) WriteKeyFile(path string) error {
-	err := os.MkdirAll(filepath.Dir(path), 0755)
-	if err != nil {
-		return fmt.Errorf("error creating directory for key file: %w", err)
-	}
-	f, err := os.Create(path)
-	if err != nil {
-		return fmt.Errorf("failed to create key file %q: %w", path, err)
-	}
-	defer f.Close()
-
-	return c.WriteKey(f)
+	return writeToFile("key", c.WriteKey, path)
 }
 
 // WriteCert writes the PEM-encoded certificate chain in the given writer.
@@ -299,17 +289,27 @@ func (c *Certificate) Fingerprint() []byte {
 
 // WriteCertFile writes the PEM-encoded certifiacte in the given file.
 func (c *Certificate) WriteCertFile(path string) error {
-	err := os.MkdirAll(filepath.Dir(path), 0755)
-	if err != nil {
-		return fmt.Errorf("error creating directory for certificate file: %w", err)
-	}
-	f, err := os.Create(path)
-	if err != nil {
-		return fmt.Errorf("failed to create cert file %q: %w", path, err)
-	}
-	defer f.Close()
+	return writeToFile("certificate", c.WriteCert, path)
+}
 
-	return c.WriteCert(f)
+// WritePKCS8 writes the PKCS8 encoded key in the given writer.
+func (c *Certificate) WritePKCS8(w io.Writer) error {
+	pkcs8Key, err := x509.MarshalPKCS8PrivateKey(c.key)
+	if err != nil {
+		return fmt.Errorf("failed to encode key in PKCS8 format: %w", err)
+	}
+
+	pemBlock := pem.Block{
+		Type:  "PRIVATE KEY",
+		Bytes: pkcs8Key,
+	}
+
+	return encodePem(w, &pemBlock)
+}
+
+// WritePKCS8File writes the PEM-encoded PKCS8 key in the given file.
+func (c *Certificate) WritePKCS8File(path string) error {
+	return writeToFile("PKCS8 key", c.WritePKCS8, path)
 }
 
 // Verify verifies a certificate with the given verification options.
@@ -394,4 +394,18 @@ func encodePem(w io.Writer, blocks ...*pem.Block) error {
 		}
 	}
 	return nil
+}
+
+func writeToFile(what string, write func(io.Writer) error, path string) error {
+	err := os.MkdirAll(filepath.Dir(path), 0755)
+	if err != nil {
+		return fmt.Errorf("error creating directory for %s file: %w", what, err)
+	}
+	f, err := os.Create(path)
+	if err != nil {
+		return fmt.Errorf("failed to create %s file %q: %w", what, path, err)
+	}
+	defer f.Close()
+
+	return write(f)
 }

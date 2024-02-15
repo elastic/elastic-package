@@ -122,10 +122,8 @@ var (
 			Content: staticSource.Template("_static/elastic-agent.env.tmpl"),
 		},
 		&resource.File{
-			Path:         "logstash_startup.sh",
-			CreateParent: true,
-			Content:      staticSource.Template("_static/logstash_startup.sh"),
-			Mode:         resource.FileMode(0755),
+			Path:    "Dockerfile.logstash",
+			Content: staticSource.File("_static/Dockerfile.logstash"),
 		},
 	}
 )

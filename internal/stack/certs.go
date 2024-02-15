@@ -17,8 +17,9 @@ import (
 )
 
 type tlsService struct {
-	Name     string
-	IsClient bool
+	Name          string
+	IsClient      bool
+	GeneratePKCS8 bool
 }
 
 // tlsServices is the list of server TLS certificates that will be
@@ -28,7 +29,7 @@ var tlsServices = []tlsService{
 	{Name: "kibana"},
 	{Name: "package-registry"},
 	{Name: "fleet-server"},
-	{Name: "logstash"},
+	{Name: "logstash", GeneratePKCS8: true},
 	{Name: "elastic-agent", IsClient: true},
 }
 
@@ -96,6 +97,14 @@ func initTLSCertificates(fileProvider string, profilePath string, tlsServices []
 		resources, err = certWriteToResource(resources, fileProvider, profilePath, keyFile, cert.WriteKey)
 		if err != nil {
 			return nil, err
+		}
+
+		if service.GeneratePKCS8 {
+			pkcs8File := filepath.Join(certsDir, "key-pkcs8.pem")
+			resources, err = certWriteToResource(resources, fileProvider, profilePath, pkcs8File, cert.WritePKCS8)
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		// Write the CA also in the service directory, so only a directory needs to be mounted
