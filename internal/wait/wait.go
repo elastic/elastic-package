@@ -14,7 +14,7 @@ func UntilTrue(ctx context.Context, fn func(ctx context.Context) (bool, error), 
 	timeoutTimer := time.NewTimer(timeout)
 	defer timeoutTimer.Stop()
 
-	retryTicker := time.NewTicker(5 * time.Second)
+	retryTicker := time.NewTicker(1 * time.Second)
 	defer retryTicker.Stop()
 
 	for {
