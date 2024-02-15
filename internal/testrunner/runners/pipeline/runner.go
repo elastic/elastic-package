@@ -34,9 +34,7 @@ const (
 	TestType testrunner.TestType = "pipeline"
 )
 
-var (
-	serverlessDisableCompareResults = environment.WithElasticPackagePrefix("SERVERLESS_PIPELINE_TEST_DISABLE_COMPARE_RESULTS")
-)
+var serverlessDisableCompareResults = environment.WithElasticPackagePrefix("SERVERLESS_PIPELINE_TEST_DISABLE_COMPARE_RESULTS")
 
 type runner struct {
 	options   testrunner.TestOptions
@@ -50,6 +48,9 @@ type IngestPipelineReroute struct {
 	Processors       []map[string]ingest.RerouteProcessor `yaml:"processors"`
 	AdditionalFields map[string]interface{}               `yaml:",inline"`
 }
+
+// Ensures that runner implements testrunner.TestRunner interface
+var _ testrunner.TestRunner = new(runner)
 
 func (r *runner) TestFolderRequired() bool {
 	return true
@@ -107,6 +108,12 @@ func (r *runner) TearDown(ctx context.Context) error {
 // data streams within the package.
 func (r *runner) CanRunPerDataStream() bool {
 	return true
+}
+
+// CanRunSetupTeardownIndependent returns whether this test runner can run setup or
+// teardown process independent.
+func (r *runner) CanRunSetupTeardownIndependent() bool {
+	return false
 }
 
 func (r *runner) run(ctx context.Context) ([]testrunner.TestResult, error) {

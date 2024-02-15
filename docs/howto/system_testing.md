@@ -75,7 +75,7 @@ The `docker-compose.yml` file defines the integration service(s) for the package
 the log files from your package's integration service must be written to a volume. For example, the `apache` package has
 the following definition in it's integration service's `docker-compose.yml` file.
 
-```
+```yaml
 version: '2.3'
 services:
   apache:
@@ -94,7 +94,7 @@ For example docker images for MySQL include a volume for the data directory
 `/var/lib/mysql`. In order for `elastic-package` to clean up these volumes after
 tests are executed, a volume can be added to the `docker-compose.yml`:
 
-```
+```yaml
 version: '2.3'
 services:
   mysql:
@@ -117,7 +117,7 @@ This is useful if you need different capabilities than the provided by the
 `elastic-agent` used by the `elastic-package stack` command.
 
 `custom-agent.yml`
-```
+```yaml
 version: '2.3'
 services:
   docker-custom-agent:
@@ -130,7 +130,7 @@ services:
 
 This will result in an agent configuration such as:
 
-```
+```yaml
 version: '2.3'
 services:
   docker-custom-agent:
@@ -153,7 +153,7 @@ services:
 
 And in the test config:
 
-```
+```yaml
 data_stream:
   vars:
   # ...
@@ -186,7 +186,7 @@ or the data stream's level:
 ```
 
 An example for `Dockerfile` is as below
-```
+```Dockerfile
 FROM docker.elastic.co/elastic-agent/elastic-agent-complete:8.4.0
 USER root
 RUN apt-get update && apt-get -y install \
@@ -195,7 +195,7 @@ RUN apt-get update && apt-get -y install \
     unzip
 ```
 An example for `custom-agent.yml` in multi-service setup is as below
-```
+```yaml
 version: '2.3'
 services:
   docker-custom-agent:
@@ -234,7 +234,7 @@ resources using selected cloud provider and use them for testing (e.g. observe a
 
 Sample `main.tf` definition:
 
-```
+```hcl
 variable "TEST_RUN_ID" {
   default = "detached"
 }
@@ -269,7 +269,7 @@ For example, if a `SQS queue` is configured in terraform and if the `queue_url` 
 
 Sample Terraform definition
 
-```
+```hcl
 resource "aws_sqs_queue" "test" {
 
 }
@@ -281,7 +281,7 @@ output "queue_url"{
 
 Sample system test config
 
-``` yaml
+```yaml
 data_stream:
   vars:
     period: 5m
@@ -294,7 +294,7 @@ data_stream:
 
 For complex outputs from terraform you can use `{{TF_OUTPUT_root_key.nested_key}}`
 
-```
+```hcl
 output "root_key"{
   value = someoutput.nested_key_value
 }
@@ -315,7 +315,7 @@ output "root_key"{
   }
 }
 ```
-``` yaml
+```yaml
 data_stream:
   vars:
     queue_url: '{{TF_OUTPUT_root_key.nested_key}}'
@@ -362,7 +362,7 @@ There are some specific environment variables that should be leveraged to overco
 ### Kubernetes service deployer
 
 The Kubernetes service deployer requires the `_dev/deploy/k8s` directory to be present. It can include additional `*.yaml` files to deploy
-custom applications in the Kubernetes cluster (e.g. Nginx deployment). It is possible to use a `kustomization.yaml` file. 
+custom applications in the Kubernetes cluster (e.g. Nginx deployment). It is possible to use a `kustomization.yaml` file.
 If no resource definitions (`*.yaml` files ) are needed,
 the `_dev/deploy/k8s` directory must contain an `.empty` file (to preserve the `k8s` directory under version control).
 
@@ -457,7 +457,7 @@ stream declared in the manifest will be tested.
 
 To add an assertion on the number of hits in a given system test, consider this example from the `httpjson/generic` data stream's `test-expected-hit-count-config.yml`, shown below.
 
-```
+```yaml
 input: httpjson
 service: httpjson
 data_stream:
@@ -466,17 +466,17 @@ data_stream:
     username: test
     password: test
     request_url: http://{{Hostname}}:{{Port}}/testexpectedhits/api
-    response_split: |- 
+    response_split: |-
       target: body.hits
       type: array
-      keep_parent: false     
+      keep_parent: false
 assert:
   hit_count: 3
 ```
 
 The `data_stream.vars.request_url` corresponds to a test-stub path in the `_dev/deploy/docker/files/config.yml` file.
 
-```
+```yaml
   - path: /testexpectedhits/api
     methods: ["GET"]
     request_headers:
@@ -493,9 +493,9 @@ The `data_stream.vars.request_url` corresponds to a test-stub path in the `_dev/
 
 Handlebar syntax in `httpjson.yml.hbs`
 
-```
+```handlebars
 {{#if response_split}}
-response.split: 
+response.split:
   {{response_split}}
 {{/if}}
 ```
@@ -527,7 +527,7 @@ Once the two levels of configurations are defined as described in the previous s
 
 First you must deploy the Elastic Stack. This corresponds to steps 1 and 2 as described in the [_Conceptual process_](#Conceptual-process) section.
 
-```
+```shell
 elastic-package stack up -d
 ```
 
@@ -537,19 +537,19 @@ Next, you must invoke the system tests runner. This corresponds to steps 3 throu
 
 If you want to run system tests for **all data streams** in a package, navigate to the package's root folder (or any sub-folder under it) and run the following command.
 
-```
+```shell
 elastic-package test system
 ```
 
 If you want to run system tests for **specific data streams** in a package, navigate to the package's root folder (or any sub-folder under it) and run the following command.
 
-```
+```shell
 elastic-package test system --data-streams <data stream 1>[,<data stream 2>,...]
 ```
 
 Finally, when you are done running all system tests, bring down the Elastic Stack. This corresponds to step 8 as described in the [_Conceptual process_](#Conceptual_process) section.
 
-```
+```shell
 elastic-package stack down
 ```
 
@@ -559,7 +559,7 @@ As the system tests exercise an integration end-to-end from running the integrat
 to indexing generated data from the integration's data streams into Elasticsearch, it is possible to generate
 `sample_event.json` files for each of the integration's data streams while running these tests.
 
-```
+```shell
 elastic-package test system --generate
 ```
 
@@ -598,6 +598,82 @@ A sample workflow would look like:
 - Add the following line (or uncomment if present) `stack.logstash_enabled: true`
 - Run `elastic-package stack up -d -v`
 - Navigate to the package folder in integrations and run `elastic-package test system -v`
+
+### Running system tests without cleanup (technical preview)
+
+
+By default, `elastic-package test system` command always performs these steps to run tests for a given package:
+1. Setup:
+    - Start the service to be tested with a given configuration (`data_stream/<name>/_dev/test/sytem/test-name-config.yml`) and variant (`_dev/deploy/variants.yml`).
+    - Build and install the package
+    - Create the required resources in Elasticsearch to configure the ingestion of data through the Elastic Agent.
+        - test policy
+        - add package data stream to the test policy
+    - Ensure agent is enrolled.
+    - Ensure that the data stream has no old documents.
+    - Assign policy to the agent.
+    - Ensure there are hits received in Elasticsearch in the package data stream.
+2. Run the tests (validate fields, check transforms, etc.)
+    - Validate fields (e.g. mappings)
+    - Assert number of hit counts.
+    - Check transforms.
+3. Tear Down:
+    - Rollback all the changes in Elasticsearch:
+        - Restore previous policy to the agent.
+        - Delete the test policy.
+        - Uninstall the package.
+    - Stop the service (e.g. container) to be tested.
+    - Wipe all the documents of the data stream.
+
+This process is repeated for each combination of:
+- data stream `D`, if the package is of `integration` type.
+- configuration file defined under `_dev/test/sytem` folder.
+- variant (`_dev/deploy/variants.yml`).
+
+It's possible also to run these steps independently. For that it is required to set which configuration file (`--config-file`)
+and which variant (`--variant`), if any, is going to be used to start and configure the service for these tests.
+
+**NOTE**: Currently, there is just support for packages using the following service deployers: `docker`, `agent` (custom agents) and `k8s`.
+
+Then, each step can be run using one of these flags:
+- Run the setup (`--setup`), after this command is executed:
+    - Service container will be kept running.
+    - Elastic Agent is going to be sending documents to Elasticsearch.
+- Run just the tests (`--no-provision`), after this command is executed:
+    - Service container will not be stopped.
+    - Documents in the Data stream will be deleted, so the tests will use the latest documents sent.
+    - Elastic Agent is going to be sending documents to Elasticsearch.
+    - NOTE: This command can be run several times.
+- Run just the setup (`--tear-down`), after this command:
+    - Service container is going to be stopped.
+    - All changes in Elasticsearch are rollback.
+    - Package Data stream is deleted.
+
+
+Examples:
+
+```shell
+# Start Elastic stack as usual
+elastic-package stack up -v -d
+
+# Testing a package using a configuration file and a variant (e.g. mysql)
+# variant name is just required in --setup flag
+elastic-package test system -v --config-file data_stream/status/_dev/test/system/test-default-config.yml --variant percona_8_0_36 --setup
+elastic-package test system -v --no-provision
+elastic-package test system -v --tear-down
+
+# Testing a package using a configuration file (no variants defined in the package)
+elastic-package test system -v --config-file data_stream/audit/_dev/test/system/test-tcp-config.yml --setup
+elastic-package test system -v --no-provision
+elastic-package test system -v --tear-down
+
+# Testing a input package using a configuration file (no variants defined in the package)
+elastic-package test system -v --config-file _dev/test/system/test-mysql-config.yml --setup
+elastic-package test system -v --no-provision
+elastic-package test system -v --tear-down
+
+elastic-package stack down -v
+```
 
 ## Continuous Integration
 

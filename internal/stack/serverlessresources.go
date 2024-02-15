@@ -41,7 +41,7 @@ func applyServerlessResources(profile *profile.Profile, stackVersion string, con
 		return fmt.Errorf("can't read application configuration: %w", err)
 	}
 
-	stackDir := filepath.Join(profile.ProfilePath, profileStackPath)
+	stackDir := filepath.Join(profile.ProfilePath, ProfileStackPath)
 
 	resourceManager := resource.NewManager()
 	resourceManager.AddFacter(resource.StaticFacter{

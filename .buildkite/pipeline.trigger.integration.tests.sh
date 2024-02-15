@@ -20,7 +20,7 @@ STACK_COMMAND_TESTS=(
     test-stack-command-with-apm-server
 )
 
-for test in ${STACK_COMMAND_TESTS[@]}; do
+for test in "${STACK_COMMAND_TESTS[@]}"; do
     echo "      - label: \":go: Running integration test: ${test}\""
     echo "        command: ./.buildkite/scripts/integration_tests.sh -t ${test}"
     echo "        agents:"
@@ -38,7 +38,7 @@ CHECK_PACKAGES_TESTS=(
     test-check-packages-benchmarks
     test-check-packages-with-logstash
 )
-for test in ${CHECK_PACKAGES_TESTS[@]}; do
+for test in "${CHECK_PACKAGES_TESTS[@]}"; do
     echo "      - label: \":go: Running integration test: ${test}\""
     echo "        command: ./.buildkite/scripts/integration_tests.sh -t ${test}"
     echo "        agents:"
@@ -55,7 +55,7 @@ done
 
 pushd test/packages/false_positives > /dev/null
 for package in $(find . -maxdepth 1 -mindepth 1 -type d) ; do
-    package_name=$(basename ${package})
+    package_name=$(basename "${package}")
     echo "      - label: \":go: Running integration test (false positive): ${package_name}\""
     echo "        key: \"integration-false_positives-${package_name}\""
     echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-check-packages-false-positives -p ${package_name}"
@@ -72,7 +72,7 @@ done
 
 pushd test/packages/parallel > /dev/null
 for package in $(find . -maxdepth 1 -mindepth 1 -type d) ; do
-    package_name=$(basename ${package})
+    package_name=$(basename "${package}")
     echo "      - label: \":go: Running integration test: ${package_name}\""
     echo "        key: \"integration-parallel-${package_name}\""
     echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-check-packages-parallel -p ${package_name}"
@@ -108,6 +108,11 @@ echo "        agents:"
 echo "          provider: \"gcp\""
 echo "        artifact_paths:"
 echo "          - build/elastic-stack-dump/install-zip-shellinit/logs/*.log"
+
+echo "      - label: \":go: Running integration test: test-system-test-flags\""
+echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-system-test-flags"
+echo "        agents:"
+echo "          provider: \"gcp\""
 
 echo "      - label: \":go: Running integration test: test-profiles-command\""
 echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-profiles-command"

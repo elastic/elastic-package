@@ -18,9 +18,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/elastic/elastic-package/internal/packages/installer"
-	"github.com/elastic/elastic-package/internal/wait"
-
 	"github.com/google/uuid"
 	"gopkg.in/yaml.v3"
 
@@ -34,7 +31,9 @@ import (
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/multierror"
 	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/internal/packages/installer"
 	"github.com/elastic/elastic-package/internal/servicedeployer"
+	"github.com/elastic/elastic-package/internal/wait"
 )
 
 type runner struct {

@@ -21,14 +21,8 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/elastic/elastic-package/internal/packages/installer"
-	"github.com/elastic/elastic-package/internal/wait"
-
-	"github.com/magefile/mage/sh"
-
-	"github.com/elastic/elastic-package/internal/stack"
-
 	"github.com/google/uuid"
+	"github.com/magefile/mage/sh"
 	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-integration-corpus-generator-tool/pkg/genlib"
@@ -42,7 +36,10 @@ import (
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/multierror"
 	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/internal/packages/installer"
 	"github.com/elastic/elastic-package/internal/servicedeployer"
+	"github.com/elastic/elastic-package/internal/stack"
+	"github.com/elastic/elastic-package/internal/wait"
 )
 
 const (

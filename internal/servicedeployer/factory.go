@@ -29,6 +29,10 @@ type FactoryOptions struct {
 	StackVersion       string
 
 	Variant string
+
+	RunTearDown  bool
+	RunTestsOnly bool
+	RunSetup     bool
 }
 
 // Factory chooses the appropriate service runner for the given data stream, depending
@@ -49,7 +53,15 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 	switch serviceDeployerName {
 	case "k8s":
 		if _, err := os.Stat(serviceDeployerPath); err == nil {
-			return NewKubernetesServiceDeployer(options.Profile, serviceDeployerPath, options.StackVersion)
+			opts := KubernetesServiceDeployerOptions{
+				Profile:        options.Profile,
+				DefinitionsDir: serviceDeployerPath,
+				StackVersion:   options.StackVersion,
+				RunSetup:       options.RunSetup,
+				RunTestsOnly:   options.RunTestsOnly,
+				RunTearDown:    options.RunTearDown,
+			}
+			return NewKubernetesServiceDeployer(opts)
 		}
 	case "docker":
 		dockerComposeYMLPath := filepath.Join(serviceDeployerPath, "docker-compose.yml")
@@ -58,7 +70,14 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 			if err != nil {
 				return nil, fmt.Errorf("can't use service variant: %w", err)
 			}
-			return NewDockerComposeServiceDeployer(options.Profile, []string{dockerComposeYMLPath}, sv)
+			opts := DockerComposeServiceDeployerOptions{
+				Profile:      options.Profile,
+				YmlPaths:     []string{dockerComposeYMLPath},
+				Variant:      sv,
+				RunTearDown:  options.RunTearDown,
+				RunTestsOnly: options.RunTestsOnly,
+			}
+			return NewDockerComposeServiceDeployer(opts)
 		}
 	case "agent":
 		if options.Type != TypeTest {
@@ -68,8 +87,18 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 		if _, err := os.Stat(customAgentCfgYMLPath); err != nil {
 			return nil, fmt.Errorf("can't find expected file custom-agent.yml: %w", err)
 		}
-		return NewCustomAgentDeployer(options.Profile, customAgentCfgYMLPath, options.StackVersion)
+		opts := CustomAgentDeployerOptions{
+			Profile:           options.Profile,
+			DockerComposeFile: customAgentCfgYMLPath,
+			StackVersion:      options.StackVersion,
+			RunTearDown:       options.RunTearDown,
+			RunTestsOnly:      options.RunTestsOnly,
+		}
+		return NewCustomAgentDeployer(opts)
 	case "tf":
+		if options.RunSetup || options.RunTearDown || options.RunTestsOnly {
+			return nil, errors.New("terraform service deployer not supported to run by steps")
+		}
 		if _, err := os.Stat(serviceDeployerPath); err == nil {
 			return NewTerraformServiceDeployer(serviceDeployerPath)
 		}
