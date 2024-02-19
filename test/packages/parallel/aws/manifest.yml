@@ -1,0 +1,112 @@
+format_version: 1.0.0
+name: aws
+title: AWS
+# version is set to something very large to so this test package can
+# be installed in the package registry regardless of the version of
+# the actual apache package in the registry at any given time.
+version: 999.999.999
+license: basic
+description: Collect logs and metrics from Amazon Web Services with Elastic Agent.
+type: integration
+categories:
+  - aws
+  - cloud
+release: ga
+conditions:
+  kibana.version: "^7.15.0 || ^8.0.0"
+screenshots:
+  - src: /img/metricbeat-aws-overview.png
+    title: metricbeat aws overview
+    size: 3848x2440
+    type: image/png
+icons:
+  - src: /img/logo_aws.svg
+    title: logo aws
+    size: 32x32
+    type: image/svg+xml
+vars:
+  - name: shared_credential_file
+    type: text
+    title: Shared Credential File
+    multi: false
+    required: false
+    show_user: false
+    description: Directory of the shared credentials file
+  - name: credential_profile_name
+    type: text
+    title: Credential Profile Name
+    multi: false
+    required: false
+    show_user: false
+  - name: access_key_id
+    type: text
+    title: Access Key ID
+    multi: false
+    required: false
+    show_user: true
+  - name: secret_access_key
+    type: text
+    title: Secret Access Key
+    multi: false
+    required: false
+    show_user: true
+  - name: session_token
+    type: text
+    title: Session Token
+    multi: false
+    required: false
+    show_user: true
+  - name: role_arn
+    type: text
+    title: Role ARN
+    multi: false
+    required: false
+    show_user: false
+  - name: endpoint
+    type: text
+    title: Endpoint
+    multi: false
+    required: false
+    show_user: false
+    default: "amazonaws.com"
+    description: URL of the entry point for an AWS web service
+  - name: proxy_url
+    type: text
+    title: Proxy URL
+    multi: false
+    required: false
+    show_user: false
+    description: URL to proxy connections in the form of http[s]://<user>:<password>@<server name/ip>:<port>
+policy_templates:
+  - name: ec2
+    title: AWS EC2
+    description: Collect logs and metrics from Amazon Elastic Compute Cloud service with Elastic Agent
+    data_streams:
+      - ec2_metrics
+    inputs:
+      - type: aws/metrics
+        title: Collect metrics from EC2 service
+        description: Collecting EC2 metrics using AWS CloudWatch
+        input_group: metrics
+    icons:
+      - src: /img/logo_ec2.svg
+        title: AWS EC2 logo
+        size: 32x32
+        type: image/svg+xml
+    screenshots:
+      - src: /img/metricbeat-aws-ec2-overview.png
+        title: metricbeat aws ec2 overview
+        size: 2640x2240
+        type: image/png
+  - name: elb
+    title: AWS ELB
+    description: Collect logs and metrics from Amazon Elastic Load Balancing service with Elastic Agent
+    data_streams:
+      - elb_logs
+  - name: sns
+    title: AWS SNS Metrics
+    description: Collect metrics from Amazon Simple Notification Service with Elastic Agent
+    data_streams:
+      - sns
+owner:
+  github: elastic/integrations

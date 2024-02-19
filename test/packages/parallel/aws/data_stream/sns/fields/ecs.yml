@@ -1,0 +1,8 @@
+- external: ecs
+  name: cloud
+- external: ecs
+  name: ecs.version
+- external: ecs
+  name: error
+- external: ecs
+  name: service.type
