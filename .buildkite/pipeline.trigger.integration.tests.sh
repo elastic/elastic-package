@@ -72,9 +72,6 @@ done
 
 pushd test/packages/parallel > /dev/null
 for package in $(find . -maxdepth 1 -mindepth 1 -type d) ; do
-    if [[ "$package" =~ aws ]]; then
-        continue
-    fi
     package_name=$(basename "${package}")
     echo "      - label: \":go: Running integration test: ${package_name}\""
     echo "        key: \"integration-parallel-${package_name}\""
