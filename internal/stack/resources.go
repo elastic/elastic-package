@@ -106,10 +106,6 @@ var (
 			Content: staticSource.Template("_static/kibana.yml.tmpl"),
 		},
 		&resource.File{
-			Path:    LogstashConfigFile,
-			Content: staticSource.Template("_static/logstash.conf.tmpl"),
-		},
-		&resource.File{
 			Path:    KibanaHealthcheckFile,
 			Content: staticSource.Template("_static/kibana_healthcheck.sh.tmpl"),
 		},
@@ -121,11 +117,16 @@ var (
 			Path:    ElasticAgentEnvFile,
 			Content: staticSource.Template("_static/elastic-agent.env.tmpl"),
 		},
+	}
+
+	logstashResources = []resource.Resource{
 		&resource.File{
-			Path:         "logstash_startup.sh",
-			CreateParent: true,
-			Content:      staticSource.Template("_static/logstash_startup.sh"),
-			Mode:         resource.FileMode(0755),
+			Path:    LogstashConfigFile,
+			Content: staticSource.Template("_static/logstash.conf.tmpl"),
+		},
+		&resource.File{
+			Path:    "Dockerfile.logstash",
+			Content: staticSource.File("_static/Dockerfile.logstash"),
 		},
 	}
 )
@@ -167,15 +168,16 @@ func applyResources(profile *profile.Profile, stackVersion string) error {
 	if err != nil {
 		return fmt.Errorf("failed to create TLS files: %w", err)
 	}
+	resources = append(resources, certResources...)
 
-	// Add client certificates if logstash is enabled
+	// Add related resources and client certificates if logstash is enabled.
 	if profile.Config("stack.logstash_enabled", "false") == "true" {
+		resources = append(resources, logstashResources...)
 		if err := addClientCertsToResources(resourceManager, certResources); err != nil {
 			return fmt.Errorf("error adding client certificates: %w", err)
 		}
 	}
 
-	resources = append(resources, certResources...)
 	results, err := resourceManager.Apply(resources)
 	if err != nil {
 		var errors []string
