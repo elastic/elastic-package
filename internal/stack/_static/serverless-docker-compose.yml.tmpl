@@ -21,7 +21,8 @@ services:
     - "../certs/ca-cert.pem:/etc/ssl/certs/elastic-package.pem"
 
   elastic-agent_is_ready:
-    image: tianon/true:multiarch
+    image: tianon/true
+    platform: linux/amd64
     depends_on:
       elastic-agent:
         condition: service_healthy
@@ -51,7 +52,8 @@ services:
       - ELASTIC_HOSTS={{ fact "elasticsearch_host" }}
 
   logstash_is_ready:
-    image: tianon/true:multiarch
+    image: tianon/true
+    platform: linux/amd64
     depends_on:
       logstash:
         condition: service_healthy
