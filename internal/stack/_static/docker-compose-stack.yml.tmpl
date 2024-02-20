@@ -21,7 +21,7 @@ services:
       - "127.0.0.1:9200:9200"
 
   elasticsearch_is_ready:
-    image: tianon/true
+    image: tianon/true:multiarch
     depends_on:
       elasticsearch:
         condition: service_healthy
@@ -50,7 +50,7 @@ services:
       - "127.0.0.1:5601:5601"
 
   kibana_is_ready:
-    image: tianon/true
+    image: tianon/true:multiarch
     depends_on:
       kibana:
         condition: service_healthy
@@ -82,7 +82,7 @@ services:
       - "127.0.0.1:9000:9000"
 
   package-registry_is_ready:
-    image: tianon/true
+    image: tianon/true:multiarch
     depends_on:
       package-registry:
         condition: service_healthy
@@ -122,7 +122,7 @@ services:
       {{ end }}
 
   fleet-server_is_ready:
-    image: tianon/true
+    image: tianon/true:multiarch
     depends_on:
       fleet-server:
         condition: service_healthy
@@ -151,7 +151,7 @@ services:
       target: /run/service_logs/
 
   elastic-agent_is_ready:
-    image: tianon/true
+    image: tianon/true:multiarch
     depends_on:
       elastic-agent:
         condition: service_healthy
@@ -184,7 +184,7 @@ services:
       - ELASTIC_HOSTS=https://127.0.0.1:9200
 
   logstash_is_ready:
-    image: tianon/true
+    image: tianon/true:multiarch
     depends_on:
       logstash:
         condition: service_healthy
