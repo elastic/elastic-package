@@ -159,23 +159,21 @@ services:
 {{ $logstash_enabled := fact "logstash_enabled" }}
 {{ if eq $logstash_enabled "true" }}
   logstash:
+    build:
+      dockerfile: "./Dockerfile.logstash"
+      args:
+        IMAGE: "${LOGSTASH_IMAGE_REF}"
     depends_on:
       elasticsearch:
         condition: service_healthy
-      kibana:
-        condition: service_healthy
-    image: ${LOGSTASH_IMAGE_REF}
     healthcheck:
       test: bin/logstash -t
+      start_period: 120s
       interval: 60s
-      timeout: 50s
+      timeout: 60s
       retries: 5
-    command: bash /usr/share/logstash/startup.sh
     volumes:
       - "../certs/logstash:/usr/share/logstash/config/certs"
-      - "../certs/elasticsearch/cert.pem:/usr/share/logstash/config/certs/elasticsearch.pem:ro"
-      - "./logstash.conf:/usr/share/logstash/pipeline/generated_logstash.conf:ro"
-      - "./logstash_startup.sh:/usr/share/logstash/startup.sh"
     ports:
        - "127.0.0.1:5044:5044"
        - "127.0.0.1:9600:9600"
