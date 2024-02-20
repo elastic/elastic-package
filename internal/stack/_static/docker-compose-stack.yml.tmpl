@@ -1,7 +1,7 @@
 {{ $username := fact "username" }}
 {{ $password := fact "password" }}
 {{ $apm_enabled := fact "apm_enabled" }}
-version: '2.3'
+version: '2.4'
 services:
   elasticsearch:
     image: "${ELASTICSEARCH_IMAGE_REF}"
@@ -22,6 +22,7 @@ services:
 
   elasticsearch_is_ready:
     image: tianon/true
+    platform: linux/amd64
     depends_on:
       elasticsearch:
         condition: service_healthy
@@ -51,6 +52,7 @@ services:
 
   kibana_is_ready:
     image: tianon/true
+    platform: linux/amd64
     depends_on:
       kibana:
         condition: service_healthy
@@ -83,6 +85,7 @@ services:
 
   package-registry_is_ready:
     image: tianon/true
+    platform: linux/amd64
     depends_on:
       package-registry:
         condition: service_healthy
@@ -123,6 +126,7 @@ services:
 
   fleet-server_is_ready:
     image: tianon/true
+    platform: linux/amd64
     depends_on:
       fleet-server:
         condition: service_healthy
@@ -152,6 +156,7 @@ services:
 
   elastic-agent_is_ready:
     image: tianon/true
+    platform: linux/amd64
     depends_on:
       elastic-agent:
         condition: service_healthy
@@ -185,6 +190,7 @@ services:
 
   logstash_is_ready:
     image: tianon/true
+    platform: linux/amd64
     depends_on:
       logstash:
         condition: service_healthy

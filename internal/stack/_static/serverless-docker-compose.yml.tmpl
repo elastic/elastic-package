@@ -1,4 +1,4 @@
-version: '2.3'
+version: '2.4'
 services:
   elastic-agent:
     image: "{{ fact "agent_image" }}"
@@ -22,6 +22,7 @@ services:
 
   elastic-agent_is_ready:
     image: tianon/true
+    platform: linux/amd64
     depends_on:
       elastic-agent:
         condition: service_healthy
@@ -52,6 +53,7 @@ services:
 
   logstash_is_ready:
     image: tianon/true
+    platform: linux/amd64
     depends_on:
       logstash:
         condition: service_healthy
