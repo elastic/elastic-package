@@ -242,6 +242,19 @@ func (p *Project) Up(opts CommandOptions) error {
 	return nil
 }
 
+// Stop stops a Docker Compose project.
+func (p *Project) Stop(opts CommandOptions) error {
+	args := p.baseArgs()
+	args = append(args, "stop")
+	args = append(args, opts.ExtraArgs...)
+
+	if err := p.runDockerComposeCmd(dockerComposeOptions{args: args, env: opts.Env}); err != nil {
+		return fmt.Errorf("running Docker Compose stop command failed: %w", err)
+	}
+
+	return nil
+}
+
 // Down tears down a Docker Compose project.
 func (p *Project) Down(opts CommandOptions) error {
 	args := p.baseArgs()
