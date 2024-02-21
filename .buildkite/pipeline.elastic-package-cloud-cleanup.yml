@@ -1,0 +1,9 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/buildkite/pipeline-schema/main/schema.json
+
+# Removes stale Cloud resources (AWS and GCP) having matching labels, name prefixes and older than 24 hours
+steps:
+  - label: "Cloud Cleanup"
+    key: "cloud-cleanup"
+    command: ".buildkite/scripts/cloud-cleanup.sh"
+    agents:
+      provider: "gcp"
