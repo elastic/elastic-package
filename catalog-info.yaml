@@ -114,7 +114,7 @@ spec:
 apiVersion: backstage.io/v1alpha1
 kind: Resource
 metadata:
-  name: buildkite-elastic-package-cloud-cleanup
+  name: buildkite-pipeline-elastic-package-cloud-cleanup
   description: Clean up stale cloud resources
   links:
     - title: Pipeline
@@ -141,11 +141,13 @@ spec:
         filter_enabled: true
         filter_condition: >-
           build.pull_request.id == null || (build.creator.name == 'elasticmachine' && build.pull_request.id != null)
+      cancel_intermediate_builds: false  # do not cancel any build to avoid inconsistent states
+      skip_intermediate_builds: true     # just need to run the latest commit
       repository: elastic/elastic-package
       schedules:
         Daily main:
           branch: main
-          cronline: "@daily"
+          cronline: "00 1 * * *"
           message: Daily Cloud cleanup
       teams:
         ingest-fp:

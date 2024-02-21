@@ -2,7 +2,8 @@
 
 set -euo pipefail
 
-export CREATION_DATE=$(date -Is -d "24 hours ago")
+# TODO: change to 24 hours ago
+export CREATION_DATE=$(date -Is -d "1 minute ago")
 
 echo "--- Cleaning up AWS resources..."
 docker run -v $(pwd)/.buildkite/misc/gce-cleanup.yml:/etc/cloud-reaper/config.yml \
