@@ -25,3 +25,18 @@ docker run -v $(pwd)/.buildkite/configs/cleanup.aws.yml:/etc/cloud-reaper/config
     --config /etc/cloud-reaper/config.yml \
     plan
 
+echo "--- Cleaning up other AWS resources"
+echo "--- Installing awscli"
+if ! which aws; then
+  curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+  unzip awscliv2.zip
+  sudo ./aws/install
+  rm -rf awscliv2.zip aws
+  aws --version
+fi
+
+export AWS_ACCESS_KEY_ID="${ELASTIC_PACKAGE_AWS_ACCESS_KEY}"
+export AWS_SECRET_ACCESS_KEY="${ELASTIC_PACKAGE_AWS_ACCESS_KEY}"
+export AWS_DEFAULT_REGION=us-east-1
+
+echo "--- Cleaning up Redshift resources"
