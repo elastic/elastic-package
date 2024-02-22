@@ -3,6 +3,9 @@
 # Removes stale Cloud resources (AWS and GCP) having matching labels, name prefixes and older than 24 hours
 name: elastic-package-cloud-cleanup
 
+env:
+  DOCKER_REGISTRY: docker.elastic.co
+
 steps:
   - label: "Cloud Cleanup"
     key: "cloud-cleanup"
