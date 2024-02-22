@@ -51,3 +51,22 @@ scanners:
           - type: "regex"
             pointer: "/name"
             param: "^elastic-package-(.*)"
+      - type: 'queue'
+        regions:
+          - us-east-1
+        filters:
+          - type: "<"
+            pointer: "/extra/tags/created_at"
+            param: "${CREATION_DATE}"
+            converters:
+              param: "date"
+              value: "date_epoch_ms"
+          - type: "regex"
+            pointer: "/extra/tags/repo"
+            param: "^(elastic-package|integrations)"
+          - type: "="
+            pointer: "/extra/tags/environment"
+            param: "ci"
+          - type: "regex"
+            pointer: "/id"
+            param: "^https://(.*)/elastic-package-(.*)"
