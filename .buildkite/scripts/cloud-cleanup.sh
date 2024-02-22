@@ -9,7 +9,7 @@ echo "--- Cleaning up AWS resources..."
 docker run -v $(pwd)/.buildkite/misc/gce-cleanup.yml:/etc/cloud-reaper/config.yml \
   -e ACCOUNT_SECRET="${ELASTIC_PACKAGE_AWS_SECRET_KEY}" \
   -e ACCOUNT_KEY="${ELASTIC_PACKAGE_AWS_ACCESS_KEY}" \
-  -e ACCOUNT_PROJECT="${ELASTIC_PACKAGE_AWS_USER_SECRET}"
+  -e ACCOUNT_PROJECT="${ELASTIC_PACKAGE_AWS_USER_SECRET}" \
   -e CREATION_DATE=${CREATION_DATE} \
   ${DOCKER_REGISTRY}/observability-ci/cloud-reaper:0.3.0 cloud-reaper \
     --config /etc/cloud-reaper/config.yml \
@@ -19,7 +19,7 @@ echo "--- Cleaning up GCP resources..."
 docker run -v $(pwd)/.buildkite/misc/gce-cleanup.yml:/etc/cloud-reaper/config.yml \
   -e ACCOUNT_SECRET="${ELASTIC_PACKAGE_GCP_KEY_SECRET}" \
   -e ACCOUNT_KEY="${ELASTIC_PACKAGE_GCP_EMAIL_SECRET}" \
-  -e ACCOUNT_PROJECT="${ELASTIC_PACKAGE_GCP_PROJECT_SECRET}"
+  -e ACCOUNT_PROJECT="${ELASTIC_PACKAGE_GCP_PROJECT_SECRET}" \
   -e CREATION_DATE=${CREATION_DATE} \
   ${DOCKER_REGISTRY}/observability-ci/cloud-reaper:0.3.0 cloud-reaper \
     --config /etc/cloud-reaper/config.yml \
