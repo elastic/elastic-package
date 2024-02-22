@@ -131,7 +131,7 @@ spec:
       name: elastic-package-cloud-cleanup
       description: Buildkite pipeline for cleaning stale resource in cloud providers
     spec:
-      pipeline_file: ".buildkite/pipeline.elastic-package-cloud-cleanup.yml"
+      pipeline_file: ".buildkite/pipeline.cloud-cleanup.yml"
       provider_settings:
         build_pull_request_forks: false
         build_pull_requests: false # requires filter_enabled and filter_condition settings as below when used with buildkite-pr-bot
