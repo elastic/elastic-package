@@ -31,6 +31,9 @@ scanners:
             param: "^elastic-package-(.*)"
           - type: "!="
             pointer: "/state"
+            param: "unknown"
+          - type: "!="
+            pointer: "/state"
             param: "terminated"
       - type: 'object_storage_bucket'
         regions:
