@@ -15,12 +15,12 @@ scanners:
         regions:
           - us-east-1
         filters:
-          - type: "<"
-            pointer: "/created_at"
-            param: "${CREATION_DATE}"
-            converters:
-              param: "date"
-              value: "date"
+          # - type: "<"
+          #   pointer: "/created_at"
+          #   param: "${CREATION_DATE}"
+          #   converters:
+          #     param: "date"
+          #     value: "date"
           - type: "regex"
             pointer: "/extra/tags/repo"
             param: "^(elastic-package|integrations)"
