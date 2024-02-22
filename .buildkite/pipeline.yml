@@ -40,6 +40,8 @@ steps:
   - label: "Cloud Cleanup"
     key: "cloud-cleanup"
     command: ".buildkite/scripts/cloud-cleanup.sh"
+    env:
+      DOCKER_REGISTRY: docker.elastic.co
     agents:
       provider: "gcp"
   # - wait: ~
