@@ -1,15 +1,14 @@
 #!/usr/bin/env bash
 
 source .buildkite/scripts/install_deps.sh
-source .buildkite/scripts/tooling.sh
 
 set -euo pipefail
 
 AWS_RESOURCES_FILE="aws.resources.txt"
 GCP_RESOURCES_FILE="gcp.resources.txt"
 
-# TODO: change to 24 hours ago
-export CREATION_DATE=$(date -Is -d "1 minute ago")
+RESOURCE_RETENTION_PERIOD="${RESOURCE_RETENTION_PERIOD:-"24 hours"}"
+export CREATION_DATE=$(date -Is -d "${RESOURCE_RETENTION_PERIOD} ago")
 
 resource_to_delete=0
 
@@ -84,6 +83,7 @@ if [ "${resource_to_delete}" -eq 1 ]; then
     exit 1
 fi
 
+# TODO: List and delete the required resources using aws cli
 echo "--- Cleaning up other AWS resources"
 echo "--- Installing awscli"
 with_aws_cli
@@ -92,4 +92,7 @@ export AWS_ACCESS_KEY_ID="${ELASTIC_PACKAGE_AWS_ACCESS_KEY}"
 export AWS_SECRET_ACCESS_KEY="${ELASTIC_PACKAGE_AWS_ACCESS_KEY}"
 export AWS_DEFAULT_REGION=us-east-1
 
-echo "--- Cleaning up Redshift resources"
+echo "+++ Cleaning up Redshift resources"
+echo "+++ Cleaning up IAM roles"
+echo "+++ Cleaning up IAM policies"
+echo "+++ Cleaning up Schedulers"
