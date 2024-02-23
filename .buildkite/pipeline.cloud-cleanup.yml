@@ -11,6 +11,9 @@ steps:
   - label: "Cloud Cleanup"
     key: "cloud-cleanup"
     command: ".buildkite/scripts/cloud-cleanup.sh"
+    env:
+      # TODO: change to "24 hours"
+      RESOURCE_RETENTION_PERIOD: "1 minute"
     agents:
       provider: "gcp"
 
