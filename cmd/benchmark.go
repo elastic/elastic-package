@@ -533,6 +533,7 @@ func getSystemCommand() *cobra.Command {
 	cmd.Flags().DurationP(cobraext.BenchMetricsIntervalFlagName, "", time.Second, cobraext.BenchMetricsIntervalFlagDescription)
 	cmd.Flags().DurationP(cobraext.DeferCleanupFlagName, "", 0, cobraext.DeferCleanupFlagDescription)
 	cmd.Flags().String(cobraext.VariantFlagName, "", cobraext.VariantFlagDescription)
+	cmd.MarkFlagRequired(cobraext.BenchNameFlagName)
 
 	return cmd
 }
