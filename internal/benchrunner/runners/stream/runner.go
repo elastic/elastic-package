@@ -44,10 +44,6 @@ type runner struct {
 	runtimeDataStreams map[string]string
 	generators         map[string]genlib.Generator
 	backFillGenerators map[string]genlib.Generator
-	errChanGenerators  chan error
-
-	wg   sync.WaitGroup
-	done chan struct{}
 
 	// Execution order of following handlers is defined in runner.TearDown() method.
 	removePackageHandler  func(context.Context) error
@@ -68,8 +64,6 @@ func (r *runner) Run(ctx context.Context) (reporters.Reportable, error) {
 }
 
 func (r *runner) TearDown(ctx context.Context) error {
-	r.wg.Wait()
-
 	if !r.options.PerformCleanup {
 		r.removePackageHandler = nil
 		r.wipeDataStreamHandler = nil
@@ -104,8 +98,6 @@ func (r *runner) TearDown(ctx context.Context) error {
 func (r *runner) setUp(ctx context.Context) error {
 	r.generators = make(map[string]genlib.Generator)
 	r.backFillGenerators = make(map[string]genlib.Generator)
-	r.errChanGenerators = make(chan error)
-	r.done = make(chan struct{})
 
 	r.runtimeDataStreams = make(map[string]string)
 
@@ -202,16 +194,7 @@ func (r *runner) wipeDataStreamsOnSetup() error {
 }
 
 func (r *runner) run(ctx context.Context) (err error) {
-	r.streamData()
-
-	select {
-	case err = <-r.errChanGenerators:
-		close(r.done)
-		return err
-	case <-ctx.Done():
-		close(r.done)
-		return ctx.Err()
-	}
+	return r.streamData(ctx)
 }
 
 func (r *runner) installPackage() error {
@@ -476,17 +459,26 @@ func (r *runner) performBulkRequest(bulkRequest string) error {
 	return nil
 }
 
-func (r *runner) streamData() {
+func (r *runner) streamData(ctx context.Context) error {
 	logger.Debug("streaming data...")
-	r.wg.Add(len(r.backFillGenerators) + len(r.generators))
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	errC := make(chan error)
+	defer close(errC)
+
+	var wg sync.WaitGroup
+	wg.Add(len(r.backFillGenerators) + len(r.generators))
+	defer wg.Wait()
+
 	for scenarioName, generator := range r.generators {
 		go func(scenarioName string, generator genlib.Generator) {
-			defer r.wg.Done()
+			defer wg.Done()
 			ticker := time.NewTicker(r.options.PeriodDuration)
 			indexName := r.runtimeDataStreams[scenarioName]
 			for {
 				select {
-				case <-r.done:
+				case <-ctx.Done():
 					return
 				case <-ticker.C:
 					logger.Debugf("bulk request of %d events on %s...", r.options.EventsPerPeriod, indexName)
@@ -500,14 +492,14 @@ func (r *runner) streamData() {
 						}
 
 						if err != nil {
-							r.errChanGenerators <- fmt.Errorf("error while generating event for streaming: %w", err)
+							errC <- fmt.Errorf("error while generating event for streaming: %w", err)
 							return
 						}
 					}
 
 					err := r.performBulkRequest(bulkBodyBuilder.String())
 					if err != nil {
-						r.errChanGenerators <- fmt.Errorf("error performing bulk request: %w", err)
+						errC <- fmt.Errorf("error performing bulk request: %w", err)
 						return
 					}
 				}
@@ -517,7 +509,7 @@ func (r *runner) streamData() {
 
 	for scenarioName, backFillGenerator := range r.backFillGenerators {
 		go func(scenarioName string, generator genlib.Generator) {
-			defer r.wg.Done()
+			defer wg.Done()
 			var bulkBodyBuilder strings.Builder
 			indexName := r.runtimeDataStreams[scenarioName]
 			logger.Debugf("bulk request of %s backfill events on %s...", r.options.BackFill.String(), indexName)
@@ -530,18 +522,32 @@ func (r *runner) streamData() {
 				}
 
 				if err != nil {
-					r.errChanGenerators <- fmt.Errorf("error while generating event for streaming: %w", err)
+					errC <- fmt.Errorf("error while generating event for streaming: %w", err)
 					return
 				}
 			}
 
 			err := r.performBulkRequest(bulkBodyBuilder.String())
 			if err != nil {
-				r.errChanGenerators <- fmt.Errorf("error performing bulk request: %w", err)
+				errC <- fmt.Errorf("error performing bulk request: %w", err)
 				return
 			}
 		}(scenarioName, backFillGenerator)
 	}
+
+	var err error
+	select {
+	case <-ctx.Done():
+		err = ctx.Err()
+	case err = <-errC:
+		// Ensure no other goroutine is blocked sending errors.
+		go func() {
+			for range errC {
+			}
+		}()
+		cancel()
+	}
+	return err
 }
 
 type benchMeta struct {
