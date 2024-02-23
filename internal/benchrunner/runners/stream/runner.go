@@ -210,7 +210,7 @@ func (r *runner) run(ctx context.Context) (err error) {
 		return err
 	case <-ctx.Done():
 		close(r.done)
-		return nil
+		return ctx.Err()
 	}
 }
 

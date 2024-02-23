@@ -13,6 +13,7 @@ import (
 
 	"github.com/elastic/elastic-package/cmd"
 	"github.com/elastic/elastic-package/internal/install"
+	"github.com/elastic/elastic-package/internal/logger"
 )
 
 func main() {
@@ -27,10 +28,12 @@ func main() {
 	defer cancel()
 
 	err = rootCmd.ExecuteContext(ctx)
-	if errIsInterruption(err) {
-		os.Exit(130)
-	}
 	if err != nil {
+		if errIsInterruption(err) {
+			logger.Info("Signal caught!")
+			os.Exit(130)
+		}
+		logger.Error(rootCmd.ErrPrefix(), err)
 		os.Exit(1)
 	}
 }
