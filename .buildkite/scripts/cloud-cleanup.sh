@@ -100,7 +100,7 @@ export AWS_ACCESS_KEY_ID="${ELASTIC_PACKAGE_AWS_ACCESS_KEY}"
 export AWS_SECRET_ACCESS_KEY="${ELASTIC_PACKAGE_AWS_ACCESS_KEY}"
 export AWS_DEFAULT_REGION=us-east-1
 
-echo "+++ Cleaning up Redshift clusters"
-echo "+++ Cleaning up IAM roles"
-echo "+++ Cleaning up IAM policies"
-echo "+++ Cleaning up Schedulers"
+echo "--- TODO: Cleaning up Redshift clusters"
+echo "--- TODO: Cleaning up IAM roles"
+echo "--- TODO: Cleaning up IAM policies"
+echo "--- TODO: Cleaning up Schedulers"
