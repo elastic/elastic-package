@@ -1,7 +1,7 @@
 {{ $username := fact "username" }}
 {{ $password := fact "password" }}
 {{ $apm_enabled := fact "apm_enabled" }}
-version: '2.3'
+version: '2.4'
 services:
   elasticsearch:
     image: "${ELASTICSEARCH_IMAGE_REF}"
@@ -22,6 +22,7 @@ services:
 
   elasticsearch_is_ready:
     image: tianon/true
+    platform: linux/amd64
     depends_on:
       elasticsearch:
         condition: service_healthy
@@ -51,6 +52,7 @@ services:
 
   kibana_is_ready:
     image: tianon/true
+    platform: linux/amd64
     depends_on:
       kibana:
         condition: service_healthy
@@ -83,6 +85,7 @@ services:
 
   package-registry_is_ready:
     image: tianon/true
+    platform: linux/amd64
     depends_on:
       package-registry:
         condition: service_healthy
@@ -123,6 +126,7 @@ services:
 
   fleet-server_is_ready:
     image: tianon/true
+    platform: linux/amd64
     depends_on:
       fleet-server:
         condition: service_healthy
@@ -152,6 +156,7 @@ services:
 
   elastic-agent_is_ready:
     image: tianon/true
+    platform: linux/amd64
     depends_on:
       elastic-agent:
         condition: service_healthy
@@ -159,27 +164,21 @@ services:
 {{ $logstash_enabled := fact "logstash_enabled" }}
 {{ if eq $logstash_enabled "true" }}
   logstash:
+    build:
+      dockerfile: "./Dockerfile.logstash"
+      args:
+        IMAGE: "${LOGSTASH_IMAGE_REF}"
     depends_on:
       elasticsearch:
         condition: service_healthy
-      kibana:
-        condition: service_healthy
-    image: ${LOGSTASH_IMAGE_REF}
     healthcheck:
       test: bin/logstash -t
+      start_period: 120s
       interval: 60s
-      timeout: 50s
+      timeout: 60s
       retries: 5
-    # logstash expects the key in pkcs8 format. Hence converting the key.pem to pkcs8 format using openssl.
-    # Also logstash-filter-elastic_integration plugin is installed by default to run ingest pipelines in logstash.
-    # elastic-package#1637 made improvements to enable logstash stats through port 9600.
-    command: bash -c 'openssl pkcs8 -inform PEM -in /usr/share/logstash/config/certs/key.pem -topk8 -nocrypt -outform PEM -out /tmp/logstash.pkcs8.key && chmod +x /tmp/logstash.pkcs8.key && if [[ ! $(bin/logstash-plugin list) ==  *"logstash-filter-elastic_integration"* ]]; then echo "Missing plugin  logstash-filter-elastic_integration, installing now" && bin/logstash-plugin install  logstash-filter-elastic_integration; fi && bin/logstash -f /usr/share/logstash/pipeline/logstash.conf'
     volumes:
-      - "../certs/logstash/key.pem:/usr/share/logstash/config/certs/key.pem"
-      - "../certs/logstash/cert.pem:/usr/share/logstash/config/certs/cert.pem"
-      - "../certs/logstash/ca-cert.pem:/usr/share/logstash/config/certs/ca-cert.pem"
-      - "../certs/elasticsearch/cert.pem:/usr/share/logstash/config/certs/elasticsearch.pem"
-      - "./logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro"
+      - "../certs/logstash:/usr/share/logstash/config/certs"
     ports:
        - "127.0.0.1:5044:5044"
        - "127.0.0.1:9600:9600"
@@ -191,6 +190,7 @@ services:
 
   logstash_is_ready:
     image: tianon/true
+    platform: linux/amd64
     depends_on:
       logstash:
         condition: service_healthy

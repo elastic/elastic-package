@@ -226,6 +226,13 @@ func (s *dockerComposeDeployedService) TearDown(ctx context.Context) error {
 			s.env,
 			s.variant.Env...),
 	}
+	if err := p.Stop(ctx, compose.CommandOptions{
+		Env:       opts.Env,
+		ExtraArgs: []string{"-t", "300"}, // default shutdown timeout 10 seconds
+	}); err != nil {
+		return fmt.Errorf("could not stop service using Docker Compose: %w", err)
+	}
+
 	processServiceContainerLogs(ctx, p, opts, s.svcInfo.Name)
 
 	if err := p.Down(ctx, compose.CommandOptions{

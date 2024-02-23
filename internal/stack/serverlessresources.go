@@ -28,10 +28,6 @@ var (
 			Path:    ElasticAgentEnvFile,
 			Content: staticSource.Template("_static/elastic-agent.env.tmpl"),
 		},
-		&resource.File{
-			Path:    LogstashConfigFile,
-			Content: staticSource.Template("_static/serverless-logstash.conf.tmpl"),
-		},
 	}
 )
 
@@ -72,6 +68,11 @@ func applyServerlessResources(profile *profile.Profile, stackVersion string, con
 		return fmt.Errorf("failed to create TLS files: %w", err)
 	}
 	resources = append(resources, certResources...)
+
+	// Add related resources and client certificates if logstash is enabled.
+	if profile.Config("stack.logstash_enabled", "false") == "true" {
+		resources = append(resources, logstashResources...)
+	}
 
 	results, err := resourceManager.Apply(resources)
 	if err != nil {

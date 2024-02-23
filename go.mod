@@ -11,12 +11,12 @@ require (
 	github.com/cbroglie/mustache v1.4.0
 	github.com/cespare/xxhash/v2 v2.2.0
 	github.com/dustin/go-humanize v1.0.1
-	github.com/elastic/elastic-integration-corpus-generator-tool v0.9.0
+	github.com/elastic/elastic-integration-corpus-generator-tool v0.10.0
 	github.com/elastic/go-elasticsearch/v7 v7.17.10
 	github.com/elastic/go-licenser v0.4.1
 	github.com/elastic/go-resource v0.1.1
 	github.com/elastic/go-ucfg v0.8.6
-	github.com/elastic/package-spec/v3 v3.1.1
+	github.com/elastic/package-spec/v3 v3.1.2
 	github.com/fatih/color v1.16.0
 	github.com/go-git/go-billy/v5 v5.5.0
 	github.com/go-git/go-git/v5 v5.11.0
@@ -37,11 +37,11 @@ require (
 	gopkg.in/dnaeon/go-vcr.v3 v3.1.2
 	gopkg.in/yaml.v3 v3.0.1
 	gotest.tools/gotestsum v1.11.0
-	helm.sh/helm/v3 v3.14.0
-	honnef.co/go/tools v0.4.6
-	k8s.io/apimachinery v0.29.1
-	k8s.io/cli-runtime v0.29.1
-	k8s.io/client-go v0.29.1
+	helm.sh/helm/v3 v3.14.2
+	honnef.co/go/tools v0.4.7
+	k8s.io/apimachinery v0.29.2
+	k8s.io/cli-runtime v0.29.2
+	k8s.io/client-go v0.29.2
 )
 
 require (
@@ -142,7 +142,7 @@ require (
 	github.com/shopspring/decimal v1.3.1 // indirect
 	github.com/skeema/knownhosts v1.2.1 // indirect
 	github.com/spf13/afero v1.11.0 // indirect
-	github.com/spf13/cast v1.5.1 // indirect
+	github.com/spf13/cast v1.6.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/stretchr/objx v0.5.1 // indirect
 	github.com/tklauser/go-sysconf v0.3.12 // indirect
@@ -171,7 +171,7 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	k8s.io/api v0.29.1 // indirect
+	k8s.io/api v0.29.2 // indirect
 	k8s.io/apiextensions-apiserver v0.29.0 // indirect
 	k8s.io/component-base v0.29.0 // indirect
 	k8s.io/klog/v2 v2.110.1 // indirect

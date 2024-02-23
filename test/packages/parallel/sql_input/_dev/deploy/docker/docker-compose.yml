@@ -1,4 +1,4 @@
-version: '2.3'
+version: '2.4'
 services:
   sql_input:
     build: .
@@ -9,6 +9,7 @@ services:
       - mysqldata:/var/lib/mysql
   sql_input_is_ready:
     image: tianon/true
+    platform: linux/amd64
     depends_on:
       sql_input:
         condition: service_healthy

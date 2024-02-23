@@ -243,6 +243,19 @@ func (p *Project) Up(ctx context.Context, opts CommandOptions) error {
 	return nil
 }
 
+// Stop stops a Docker Compose project.
+func (p *Project) Stop(ctx context.Context, opts CommandOptions) error {
+	args := p.baseArgs()
+	args = append(args, "stop")
+	args = append(args, opts.ExtraArgs...)
+
+	if err := p.runDockerComposeCmd(ctx, dockerComposeOptions{args: args, env: opts.Env}); err != nil {
+		return fmt.Errorf("running Docker Compose stop command failed: %w", err)
+	}
+
+	return nil
+}
+
 // Down tears down a Docker Compose project.
 func (p *Project) Down(ctx context.Context, opts CommandOptions) error {
 	args := p.baseArgs()
