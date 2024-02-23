@@ -193,10 +193,6 @@ func (r *runner) wipeDataStreamsOnSetup() error {
 	return nil
 }
 
-func (r *runner) run(ctx context.Context) (err error) {
-	return r.streamData(ctx)
-}
-
 func (r *runner) installPackage() error {
 	return r.installPackageFromPackageRoot()
 }
@@ -459,7 +455,7 @@ func (r *runner) performBulkRequest(bulkRequest string) error {
 	return nil
 }
 
-func (r *runner) streamData(ctx context.Context) error {
+func (r *runner) run(ctx context.Context) error {
 	logger.Debug("streaming data...")
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
