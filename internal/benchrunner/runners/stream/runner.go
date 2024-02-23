@@ -468,71 +468,28 @@ func (r *runner) streamData(ctx context.Context) error {
 	defer close(errC)
 
 	var wg sync.WaitGroup
-	wg.Add(len(r.backFillGenerators) + len(r.generators))
 	defer wg.Wait()
 
-	for scenarioName, generator := range r.generators {
-		go func(scenarioName string, generator genlib.Generator) {
+	for scenarioName := range r.generators {
+		wg.Add(1)
+		go func(scenarioName string) {
 			defer wg.Done()
-			ticker := time.NewTicker(r.options.PeriodDuration)
-			indexName := r.runtimeDataStreams[scenarioName]
-			for {
-				select {
-				case <-ctx.Done():
-					return
-				case <-ticker.C:
-					logger.Debugf("bulk request of %d events on %s...", r.options.EventsPerPeriod, indexName)
-					var bulkBodyBuilder strings.Builder
-					buf := bytes.NewBufferString("")
-					for i := uint64(0); i < r.options.EventsPerPeriod; i++ {
-						var err error
-						bulkBodyBuilder, err = r.collectBulkRequestBody(indexName, scenarioName, buf, generator, bulkBodyBuilder)
-						if err == io.EOF {
-							break
-						}
-
-						if err != nil {
-							errC <- fmt.Errorf("error while generating event for streaming: %w", err)
-							return
-						}
-					}
-
-					err := r.performBulkRequest(bulkBodyBuilder.String())
-					if err != nil {
-						errC <- fmt.Errorf("error performing bulk request: %w", err)
-						return
-					}
-				}
+			err := r.runStreamGenerator(ctx, scenarioName)
+			if err != nil {
+				errC <- err
 			}
-		}(scenarioName, generator)
+		}(scenarioName)
 	}
 
-	for scenarioName, backFillGenerator := range r.backFillGenerators {
-		go func(scenarioName string, generator genlib.Generator) {
+	for scenarioName := range r.backFillGenerators {
+		wg.Add(1)
+		go func(scenarioName string) {
 			defer wg.Done()
-			var bulkBodyBuilder strings.Builder
-			indexName := r.runtimeDataStreams[scenarioName]
-			logger.Debugf("bulk request of %s backfill events on %s...", r.options.BackFill.String(), indexName)
-			buf := bytes.NewBufferString("")
-			for {
-				var err error
-				bulkBodyBuilder, err = r.collectBulkRequestBody(indexName, scenarioName, buf, generator, bulkBodyBuilder)
-				if err == io.EOF {
-					break
-				}
-
-				if err != nil {
-					errC <- fmt.Errorf("error while generating event for streaming: %w", err)
-					return
-				}
-			}
-
-			err := r.performBulkRequest(bulkBodyBuilder.String())
+			err := r.runBackfillGenerator(ctx, scenarioName)
 			if err != nil {
-				errC <- fmt.Errorf("error performing bulk request: %w", err)
-				return
+				errC <- err
 			}
-		}(scenarioName, backFillGenerator)
+		}(scenarioName)
 	}
 
 	var err error
@@ -540,14 +497,78 @@ func (r *runner) streamData(ctx context.Context) error {
 	case <-ctx.Done():
 		err = ctx.Err()
 	case err = <-errC:
-		// Ensure no other goroutine is blocked sending errors.
-		go func() {
-			for range errC {
-			}
-		}()
 		cancel()
 	}
+	// Ensure no goroutine is blocked sending errors.
+	go func() {
+		for range errC {
+		}
+	}()
 	return err
+}
+
+func (r *runner) runStreamGenerator(ctx context.Context, scenarioName string) error {
+	generator := r.generators[scenarioName]
+	indexName := r.runtimeDataStreams[scenarioName]
+
+	ticker := time.NewTicker(r.options.PeriodDuration)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
+		}
+
+		logger.Debugf("bulk request of %d events on %s...", r.options.EventsPerPeriod, indexName)
+		var bulkBodyBuilder strings.Builder
+		buf := bytes.NewBufferString("")
+		for i := uint64(0); i < r.options.EventsPerPeriod; i++ {
+			var err error
+			bulkBodyBuilder, err = r.collectBulkRequestBody(indexName, scenarioName, buf, generator, bulkBodyBuilder)
+			if errors.Is(err, io.EOF) {
+				break
+			}
+
+			if err != nil {
+				return fmt.Errorf("error while generating event for streaming: %w", err)
+			}
+		}
+
+		err := r.performBulkRequest(bulkBodyBuilder.String())
+		if err != nil {
+			return fmt.Errorf("error performing bulk request: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func (r *runner) runBackfillGenerator(ctx context.Context, scenarioName string) error {
+	var bulkBodyBuilder strings.Builder
+	generator := r.backFillGenerators[scenarioName]
+	indexName := r.runtimeDataStreams[scenarioName]
+	logger.Debugf("bulk request of %s backfill events on %s...", r.options.BackFill.String(), indexName)
+	buf := bytes.NewBufferString("")
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
+		var err error
+		bulkBodyBuilder, err = r.collectBulkRequestBody(indexName, scenarioName, buf, generator, bulkBodyBuilder)
+		if errors.Is(err, io.EOF) {
+			break
+		}
+
+		if err != nil {
+			return fmt.Errorf("error while generating event for streaming: %w", err)
+		}
+	}
+
+	return r.performBulkRequest(bulkBodyBuilder.String())
 }
 
 type benchMeta struct {
