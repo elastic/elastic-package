@@ -13,10 +13,10 @@ steps:
     command: ".buildkite/scripts/cloud-cleanup.sh"
     env:
       RESOURCE_RETENTION_PERIOD: "24 hours"
+      DRY_RUN: "true"
     agents:
       provider: "gcp"
 
-# TODO: enable before merging
-# notify:
-#   - email: "$NOTIFY_TO"
-#     if: "build.state == 'failed' && build.env('BUILDKITE_PULL_REQUEST') == 'false'"
+notify:
+  - email: "$NOTIFY_TO"
+    if: "build.state == 'failed' && build.env('BUILDKITE_PULL_REQUEST') == 'false'"
