@@ -67,3 +67,10 @@ google_cloud_logout_active_account() {
     unset GOOGLE_APPLICATION_CREDENTIALS
   fi
 }
+
+running_on_buildkite() {
+    if [[ "${BUILDKITE:-"false"}" == "true" ]]; then
+        return 0
+    fi
+    return 1
+}
