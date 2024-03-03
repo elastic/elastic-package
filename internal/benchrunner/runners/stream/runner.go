@@ -18,6 +18,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/elastic/elastic-package/internal/benchrunner/runners/common"
+
 	"github.com/elastic/elastic-package/internal/packages/installer"
 
 	"github.com/google/uuid"
@@ -39,7 +41,7 @@ import (
 
 type runner struct {
 	options   Options
-	scenarios map[string]*scenario
+	scenarios map[string]*common.Scenario
 
 	ctxt               servicedeployer.ServiceContext
 	runtimeDataStreams map[string]string
@@ -114,7 +116,7 @@ func (r *runner) setUp() error {
 		return fmt.Errorf("reading package manifest failed: %w", err)
 	}
 
-	scenarios, err := readScenarios(r.options.PackageRootPath, r.options.BenchName, pkgManifest.Name, pkgManifest.Version)
+	scenarios, err := common.ReadScenarios(r.options.PackageRootPath, r.options.BenchName, pkgManifest.Name, pkgManifest.Version)
 	if err != nil {
 		return err
 	}
@@ -273,7 +275,7 @@ func (r *runner) deleteDataStreamDocs(dataStream string) error {
 	return nil
 }
 
-func (r *runner) initializeGenerator(tpl []byte, config genlib.Config, fields genlib.Fields, scenario *scenario, backFill time.Duration, totEvents uint64) (genlib.Generator, error) {
+func (r *runner) initializeGenerator(tpl []byte, config genlib.Config, fields genlib.Fields, scenario *common.Scenario, backFill time.Duration, totEvents uint64) (genlib.Generator, error) {
 	timestampConfig := genlib.ConfigField{Name: r.options.TimestampField}
 	if backFill < 0 {
 		timestampConfig.Period = backFill
@@ -336,14 +338,14 @@ func (r *runner) collectGenerators() error {
 	return nil
 }
 
-func (r *runner) getGeneratorConfig(scenario *scenario) (*config.Config, error) {
+func (r *runner) getGeneratorConfig(scenario *common.Scenario) (*config.Config, error) {
 	var (
 		data []byte
 		err  error
 	)
 
 	if scenario.Corpora.Generator.Config.Path != "" {
-		configPath := filepath.Clean(filepath.Join(devPath, scenario.Corpora.Generator.Config.Path))
+		configPath := filepath.Clean(filepath.Join(common.DevPath, scenario.Corpora.Generator.Config.Path))
 		configPath = os.ExpandEnv(configPath)
 		if _, err := os.Stat(configPath); err != nil {
 			return nil, fmt.Errorf("can't find config file %s: %w", configPath, err)
@@ -367,14 +369,14 @@ func (r *runner) getGeneratorConfig(scenario *scenario) (*config.Config, error) 
 	return &cfg, nil
 }
 
-func (r *runner) getGeneratorFields(scenario *scenario) (fields.Fields, error) {
+func (r *runner) getGeneratorFields(scenario *common.Scenario) (fields.Fields, error) {
 	var (
 		data []byte
 		err  error
 	)
 
 	if scenario.Corpora.Generator.Fields.Path != "" {
-		fieldsPath := filepath.Clean(filepath.Join(devPath, scenario.Corpora.Generator.Fields.Path))
+		fieldsPath := filepath.Clean(filepath.Join(common.DevPath, scenario.Corpora.Generator.Fields.Path))
 		fieldsPath = os.ExpandEnv(fieldsPath)
 		if _, err := os.Stat(fieldsPath); err != nil {
 			return nil, fmt.Errorf("can't find fields file %s: %w", fieldsPath, err)
@@ -399,14 +401,14 @@ func (r *runner) getGeneratorFields(scenario *scenario) (fields.Fields, error) {
 	return fields, nil
 }
 
-func (r *runner) getGeneratorTemplate(scenario *scenario) ([]byte, error) {
+func (r *runner) getGeneratorTemplate(scenario *common.Scenario) ([]byte, error) {
 	var (
 		data []byte
 		err  error
 	)
 
 	if scenario.Corpora.Generator.Template.Path != "" {
-		tplPath := filepath.Clean(filepath.Join(devPath, scenario.Corpora.Generator.Template.Path))
+		tplPath := filepath.Clean(filepath.Join(common.DevPath, scenario.Corpora.Generator.Template.Path))
 		tplPath = os.ExpandEnv(tplPath)
 		if _, err := os.Stat(tplPath); err != nil {
 			return nil, fmt.Errorf("can't find template file %s: %w", tplPath, err)

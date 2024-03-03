@@ -21,6 +21,8 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/elastic/elastic-package/internal/benchrunner/runners/common"
+
 	"github.com/elastic/elastic-package/internal/packages/installer"
 
 	"github.com/magefile/mage/sh"
@@ -150,7 +152,7 @@ type rallyStat struct {
 
 type runner struct {
 	options  Options
-	scenario *scenario
+	scenario *common.Scenario
 
 	ctxt              servicedeployer.ServiceContext
 	runtimeDataStream string
@@ -262,7 +264,7 @@ func (r *runner) setUp() error {
 		return fmt.Errorf("reading package manifest failed: %w", err)
 	}
 
-	scenario, err := readConfig(r.options.PackageRootPath, r.options.BenchName, pkgManifest.Name, pkgManifest.Version)
+	scenario, err := common.ReadConfig(r.options.PackageRootPath, r.options.BenchName, pkgManifest.Name, pkgManifest.Version)
 	if err != nil {
 		return err
 	}
@@ -596,7 +598,7 @@ func (r *runner) getGeneratorConfig() (*config.Config, error) {
 	)
 
 	if r.scenario.Corpora.Generator.Config.Path != "" {
-		configPath := filepath.Clean(filepath.Join(devPath, r.scenario.Corpora.Generator.Config.Path))
+		configPath := filepath.Clean(filepath.Join(common.DevPath, r.scenario.Corpora.Generator.Config.Path))
 		configPath = os.ExpandEnv(configPath)
 		if _, err := os.Stat(configPath); err != nil {
 			return nil, fmt.Errorf("can't find config file %s: %w", configPath, err)
@@ -627,7 +629,7 @@ func (r *runner) getGeneratorFields() (fields.Fields, error) {
 	)
 
 	if r.scenario.Corpora.Generator.Fields.Path != "" {
-		fieldsPath := filepath.Clean(filepath.Join(devPath, r.scenario.Corpora.Generator.Fields.Path))
+		fieldsPath := filepath.Clean(filepath.Join(common.DevPath, r.scenario.Corpora.Generator.Fields.Path))
 		fieldsPath = os.ExpandEnv(fieldsPath)
 		if _, err := os.Stat(fieldsPath); err != nil {
 			return nil, fmt.Errorf("can't find fields file %s: %w", fieldsPath, err)
@@ -659,7 +661,7 @@ func (r *runner) getGeneratorTemplate() ([]byte, error) {
 	)
 
 	if r.scenario.Corpora.Generator.Template.Path != "" {
-		tplPath := filepath.Clean(filepath.Join(devPath, r.scenario.Corpora.Generator.Template.Path))
+		tplPath := filepath.Clean(filepath.Join(common.DevPath, r.scenario.Corpora.Generator.Template.Path))
 		tplPath = os.ExpandEnv(tplPath)
 		if _, err := os.Stat(tplPath); err != nil {
 			return nil, fmt.Errorf("can't find template file %s: %w", tplPath, err)
@@ -1113,7 +1115,7 @@ type benchMeta struct {
 		Benchmark string `json:"benchmark"`
 		RunID     string `json:"run_id"`
 	} `json:"info"`
-	Parameters scenario `json:"parameter"`
+	Parameters common.Scenario `json:"parameter"`
 }
 
 func (r *runner) enrichEventWithBenchmarkMetadata(e map[string]interface{}) map[string]interface{} {

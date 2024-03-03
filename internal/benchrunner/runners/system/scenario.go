@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/elastic/elastic-package/internal/benchrunner/runners/common"
+
 	"github.com/aymerick/raymond"
 	"github.com/elastic/go-ucfg"
 	"github.com/elastic/go-ucfg/yaml"
@@ -38,36 +40,13 @@ type dataStream struct {
 }
 
 type corpora struct {
-	Generator    *generator    `config:"generator" json:"generator"`
-	InputService *inputService `config:"input_service" json:"input_service"`
+	Generator    *common.Generator `config:"generator" json:"generator"`
+	InputService *inputService     `config:"input_service" json:"input_service"`
 }
 
 type inputService struct {
 	Name   string `config:"name" json:"name"`
 	Signal string `config:"signal" json:"signal"`
-}
-
-type generator struct {
-	TotalEvents uint64          `config:"total_events" json:"total_events"`
-	Template    corporaTemplate `config:"template" json:"template"`
-	Config      corporaConfig   `config:"config" json:"config"`
-	Fields      corporaFields   `config:"fields" json:"fields"`
-}
-
-type corporaTemplate struct {
-	Raw  string `config:"raw" json:"raw"`
-	Path string `config:"path" json:"path"`
-	Type string `config:"type" json:"type"`
-}
-
-type corporaConfig struct {
-	Raw  map[string]interface{} `config:"raw" json:"raw"`
-	Path string                 `config:"path" json:"path"`
-}
-
-type corporaFields struct {
-	Raw  map[string]interface{} `config:"raw" json:"raw"`
-	Path string                 `config:"path" json:"path"`
 }
 
 func defaultConfig() *scenario {
