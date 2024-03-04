@@ -206,12 +206,14 @@ func (r *runner) wipeDataStreamsOnSetup() error {
 func (r *runner) run() (err error) {
 	r.streamData()
 
+	ticker := time.NewTicker(1 * time.Second)
+	defer ticker.Stop()
 	for {
 		select {
 		case err = <-r.errChanGenerators:
 			close(r.done)
 			return err
-		default:
+		case <-ticker.C:
 			if signal.SIGINT() {
 				close(r.done)
 				return nil
