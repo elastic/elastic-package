@@ -43,7 +43,7 @@ steps:
     command: ".buildkite/scripts/cloud-cleanup.sh"
     env:
       DOCKER_REGISTRY: docker.elastic.co
-      RESOURCE_RETENTION_PERIOD: "1 minute"
+      RESOURCE_RETENTION_PERIOD: "1 hour"
       DRY_RUN: "true"
     agents:
       provider: "gcp"
