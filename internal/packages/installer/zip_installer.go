@@ -5,6 +5,7 @@
 package installer
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/elastic/elastic-package/internal/kibana"
@@ -32,8 +33,8 @@ func CreateForZip(kibanaClient *kibana.Client, zipPath string) (*zipInstaller, e
 }
 
 // Install method installs the package using Kibana API.
-func (i *zipInstaller) Install() (*InstalledPackage, error) {
-	assets, err := i.kibanaClient.InstallZipPackage(i.zipPath)
+func (i *zipInstaller) Install(ctx context.Context) (*InstalledPackage, error) {
+	assets, err := i.kibanaClient.InstallZipPackage(ctx, i.zipPath)
 	if err != nil {
 		return nil, fmt.Errorf("can't install the package: %w", err)
 	}
@@ -46,8 +47,8 @@ func (i *zipInstaller) Install() (*InstalledPackage, error) {
 }
 
 // Uninstall method uninstalls the package using Kibana API.
-func (i *zipInstaller) Uninstall() error {
-	_, err := i.kibanaClient.RemovePackage(i.manifest.Name, i.manifest.Version)
+func (i *zipInstaller) Uninstall(ctx context.Context) error {
+	_, err := i.kibanaClient.RemovePackage(ctx, i.manifest.Name, i.manifest.Version)
 	if err != nil {
 		return fmt.Errorf("can't remove the package: %w", err)
 	}
@@ -55,6 +56,6 @@ func (i *zipInstaller) Uninstall() error {
 }
 
 // Manifest method returns the package manifest.
-func (i *zipInstaller) Manifest() (*packages.PackageManifest, error) {
+func (i *zipInstaller) Manifest(context.Context) (*packages.PackageManifest, error) {
 	return i.manifest, nil
 }

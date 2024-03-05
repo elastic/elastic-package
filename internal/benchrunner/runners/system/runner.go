@@ -170,7 +170,7 @@ func (r *runner) setUp(ctx context.Context) error {
 		return fmt.Errorf("reading package manifest failed: %w", err)
 	}
 
-	policy, err := r.createBenchmarkPolicy(pkgManifest)
+	policy, err := r.createBenchmarkPolicy(ctx, pkgManifest)
 	if err != nil {
 		return err
 	}
@@ -354,7 +354,7 @@ func (r *runner) deleteDataStreamDocs(dataStream string) error {
 	return nil
 }
 
-func (r *runner) createBenchmarkPolicy(pkgManifest *packages.PackageManifest) (*kibana.Policy, error) {
+func (r *runner) createBenchmarkPolicy(ctx context.Context, pkgManifest *packages.PackageManifest) (*kibana.Policy, error) {
 	// Configure package (single data stream) via Ingest Manager APIs.
 	logger.Debug("creating benchmark policy...")
 	benchTime := time.Now().Format("20060102T15:04:05Z")
@@ -370,12 +370,12 @@ func (r *runner) createBenchmarkPolicy(pkgManifest *packages.PackageManifest) (*
 		p.DataOutputID = "fleet-logstash-output"
 	}
 
-	policy, err := r.options.KibanaClient.CreatePolicy(p)
+	policy, err := r.options.KibanaClient.CreatePolicy(ctx, p)
 	if err != nil {
 		return nil, err
 	}
 
-	packagePolicy, err := r.createPackagePolicy(pkgManifest, policy)
+	packagePolicy, err := r.createPackagePolicy(ctx, pkgManifest, policy)
 	if err != nil {
 		return nil, err
 	}
@@ -384,12 +384,12 @@ func (r *runner) createBenchmarkPolicy(pkgManifest *packages.PackageManifest) (*
 		var merr multierror.Error
 
 		logger.Debug("deleting benchmark package policy...")
-		if err := r.options.KibanaClient.DeletePackagePolicy(*packagePolicy); err != nil {
+		if err := r.options.KibanaClient.DeletePackagePolicy(ctx, *packagePolicy); err != nil {
 			merr = append(merr, fmt.Errorf("error cleaning up benchmark package policy: %w", err))
 		}
 
 		logger.Debug("deleting benchmark policy...")
-		if err := r.options.KibanaClient.DeletePolicy(*policy); err != nil {
+		if err := r.options.KibanaClient.DeletePolicy(ctx, *policy); err != nil {
 			merr = append(merr, fmt.Errorf("error cleaning up benchmark policy: %w", err))
 		}
 
@@ -403,7 +403,7 @@ func (r *runner) createBenchmarkPolicy(pkgManifest *packages.PackageManifest) (*
 	return policy, nil
 }
 
-func (r *runner) createPackagePolicy(pkgManifest *packages.PackageManifest, p *kibana.Policy) (*kibana.PackagePolicy, error) {
+func (r *runner) createPackagePolicy(ctx context.Context, pkgManifest *packages.PackageManifest, p *kibana.Policy) (*kibana.PackagePolicy, error) {
 	logger.Debug("creating package policy...")
 
 	if r.scenario.Version == "" {
@@ -438,7 +438,7 @@ func (r *runner) createPackagePolicy(pkgManifest *packages.PackageManifest, p *k
 	pp.Package.Name = pkgManifest.Name
 	pp.Package.Version = r.scenario.Version
 
-	policy, err := r.options.KibanaClient.CreatePackagePolicy(pp)
+	policy, err := r.options.KibanaClient.CreatePackagePolicy(ctx, pp)
 	if err != nil {
 		return nil, err
 	}
@@ -621,7 +621,7 @@ func (r *runner) runGenerator(destDir string) error {
 func (r *runner) checkEnrolledAgents(ctx context.Context) ([]kibana.Agent, error) {
 	var agents []kibana.Agent
 	enrolled, err := wait.UntilTrue(ctx, func(ctx context.Context) (bool, error) {
-		allAgents, err := r.options.KibanaClient.ListAgents()
+		allAgents, err := r.options.KibanaClient.ListAgents(ctx)
 		if err != nil {
 			return false, fmt.Errorf("could not list agents: %w", err)
 		}
@@ -697,7 +697,7 @@ func (r *runner) enrollAgents(ctx context.Context) error {
 			return nil
 		}
 
-		policyWithDataStream, err := r.options.KibanaClient.GetPolicy(r.benchPolicy.ID)
+		policyWithDataStream, err := r.options.KibanaClient.GetPolicy(ctx, r.benchPolicy.ID)
 		if err != nil {
 			return fmt.Errorf("could not read the policy with data stream: %w", err)
 		}

@@ -68,10 +68,10 @@ func (r *runner) Run(ctx context.Context, options testrunner.TestOptions) ([]tes
 	r.packageRootPath = options.PackageRootPath
 	r.kibanaClient = options.KibanaClient
 
-	return r.run()
+	return r.run(ctx)
 }
 
-func (r *runner) run() ([]testrunner.TestResult, error) {
+func (r *runner) run(ctx context.Context) ([]testrunner.TestResult, error) {
 	result := testrunner.NewResultComposer(testrunner.TestResult{
 		TestType: TestType,
 		Package:  r.testFolder.Package,
@@ -102,7 +102,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 	if err != nil {
 		return result.WithError(fmt.Errorf("can't create the package installer: %w", err))
 	}
-	installedPackage, err := packageInstaller.Install()
+	installedPackage, err := packageInstaller.Install(ctx)
 	if err != nil {
 		return result.WithError(fmt.Errorf("can't install the package: %w", err))
 	}
@@ -130,7 +130,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		}
 
 		logger.Debug("removing package...")
-		err = packageInstaller.Uninstall()
+		err = packageInstaller.Uninstall(ctx)
 		if err != nil {
 			// logging the error as a warning and not returning it since there could be other reasons that could make fail this process
 			// for instance being defined a test agent policy where this package is used for debugging purposes

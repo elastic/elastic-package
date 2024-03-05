@@ -100,7 +100,7 @@ func (sp *serverlessProvider) createProject(ctx context.Context, settings projec
 		return Config{}, err
 	}
 
-	config.Parameters[paramServerlessFleetURL], err = project.DefaultFleetServerURL(sp.kibanaClient)
+	config.Parameters[paramServerlessFleetURL], err = project.DefaultFleetServerURL(ctx, sp.kibanaClient)
 	if err != nil {
 		return Config{}, fmt.Errorf("failed to get fleet URL: %w", err)
 	}
@@ -120,7 +120,7 @@ func (sp *serverlessProvider) createProject(ctx context.Context, settings projec
 	}
 
 	if settings.LogstashEnabled {
-		err = project.AddLogstashFleetOutput(sp.profile, sp.kibanaClient)
+		err = project.AddLogstashFleetOutput(ctx, sp.profile, sp.kibanaClient)
 		if err != nil {
 			return Config{}, err
 		}
@@ -146,7 +146,7 @@ func (sp *serverlessProvider) currentProjectWithClientsAndFleetEndpoint(ctx cont
 
 	fleetURL, found := config.Parameters[paramServerlessFleetURL]
 	if !found {
-		fleetURL, err = project.DefaultFleetServerURL(sp.kibanaClient)
+		fleetURL, err = project.DefaultFleetServerURL(ctx, sp.kibanaClient)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get fleet URL: %w", err)
 		}
@@ -277,7 +277,7 @@ func (sp *serverlessProvider) BootUp(ctx context.Context, options Options) error
 		}
 
 		logger.Infof("Creating agent policy")
-		err = project.CreateAgentPolicy(sp.kibanaClient, options.StackVersion, outputID, settings.SelfMonitor)
+		err = project.CreateAgentPolicy(ctx, sp.kibanaClient, options.StackVersion, outputID, settings.SelfMonitor)
 
 		if err != nil {
 			return fmt.Errorf("failed to create agent policy: %w", err)
@@ -300,7 +300,7 @@ func (sp *serverlessProvider) BootUp(ctx context.Context, options Options) error
 	// Updating the output with ssl certificates created in startLocalServices
 	// The certificates are updated only when a new project is created and logstash is enabled
 	if isNewProject && settings.LogstashEnabled {
-		err = project.UpdateLogstashFleetOutput(sp.profile, sp.kibanaClient)
+		err = project.UpdateLogstashFleetOutput(ctx, sp.profile, sp.kibanaClient)
 		if err != nil {
 			return err
 		}

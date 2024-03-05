@@ -740,7 +740,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, servic
 		// Allowed to re-install the package in RunTestsOnly to be able to
 		// test new changes introduced in the package
 		logger.Debug("Installing package...")
-		_, err = installer.Install()
+		_, err = installer.Install(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("failed to install package: %v", err)
 		}
@@ -759,7 +759,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, servic
 		}
 
 		logger.Debug("removing package...")
-		err = installer.Uninstall()
+		err = installer.Uninstall(ctx)
 		if err != nil {
 			// logging the error as a warning and not returning it since there could be other reasons that could make fail this process
 			// for instance being defined a test agent policy where this package is used for debugging purposes
@@ -786,14 +786,14 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, servic
 		if r.options.Profile.Config("stack.logstash_enabled", "false") == "true" {
 			p.DataOutputID = "fleet-logstash-output"
 		}
-		policy, err = r.options.KibanaClient.CreatePolicy(p)
+		policy, err = r.options.KibanaClient.CreatePolicy(ctx, p)
 		if err != nil {
 			return nil, fmt.Errorf("could not create test policy: %w", err)
 		}
 	}
 	r.deleteTestPolicyHandler = func(ctx context.Context) error {
 		logger.Debug("deleting test policy...")
-		if err := r.options.KibanaClient.DeletePolicy(*policy); err != nil {
+		if err := r.options.KibanaClient.DeletePolicy(ctx, *policy); err != nil {
 			return fmt.Errorf("error cleaning up test policy: %w", err)
 		}
 		return nil
@@ -804,7 +804,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, servic
 	if r.options.RunTearDown || r.options.RunTestsOnly {
 		logger.Debug("Skip adding data stream config to policy")
 	} else {
-		if err := r.options.KibanaClient.AddPackageDataStreamToPolicy(ds); err != nil {
+		if err := r.options.KibanaClient.AddPackageDataStreamToPolicy(ctx, ds); err != nil {
 			return nil, fmt.Errorf("could not add data stream config to policy: %w", err)
 		}
 	}
@@ -885,7 +885,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, servic
 	default:
 		logger.Debug("Set Debug log level to agent")
 		origLogLevel = agent.LocalMetadata.Elastic.Agent.LogLevel
-		err = r.options.KibanaClient.SetAgentLogLevel(agent.ID, "debug")
+		err = r.options.KibanaClient.SetAgentLogLevel(ctx, agent.ID, "debug")
 		if err != nil {
 			return nil, fmt.Errorf("error setting log level debug for agent %s: %w", agent.ID, err)
 		}
@@ -893,7 +893,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, servic
 	r.resetAgentLogLevelHandler = func(ctx context.Context) error {
 		logger.Debugf("reassigning original log level %q back to agent...", origLogLevel)
 
-		if err := r.options.KibanaClient.SetAgentLogLevel(agent.ID, origLogLevel); err != nil {
+		if err := r.options.KibanaClient.SetAgentLogLevel(ctx, agent.ID, origLogLevel); err != nil {
 			return fmt.Errorf("error reassigning original log level to agent: %w", err)
 		}
 		return nil
@@ -903,7 +903,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, servic
 	case r.options.RunTearDown || r.options.RunTestsOnly:
 		logger.Debug("Skip assiging package data stream to agent")
 	default:
-		policyWithDataStream, err := r.options.KibanaClient.GetPolicy(policy.ID)
+		policyWithDataStream, err := r.options.KibanaClient.GetPolicy(ctx, policy.ID)
 		if err != nil {
 			return nil, fmt.Errorf("could not read the policy with data stream: %w", err)
 		}
@@ -1186,7 +1186,7 @@ func (r *runner) runTest(ctx context.Context, config *testConfig, serviceContext
 func checkEnrolledAgents(ctx context.Context, client *kibana.Client, serviceContext servicedeployer.ServiceInfo) ([]kibana.Agent, error) {
 	var agents []kibana.Agent
 	enrolled, err := wait.UntilTrue(ctx, func(ctx context.Context) (bool, error) {
-		allAgents, err := client.ListAgents()
+		allAgents, err := client.ListAgents(ctx)
 		if err != nil {
 			return false, fmt.Errorf("could not list agents: %w", err)
 		}
