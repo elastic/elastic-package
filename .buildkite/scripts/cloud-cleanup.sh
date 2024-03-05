@@ -120,7 +120,7 @@ export AWS_ACCESS_KEY_ID="${ELASTIC_PACKAGE_AWS_ACCESS_KEY}"
 export AWS_SECRET_ACCESS_KEY="${ELASTIC_PACKAGE_AWS_SECRET_KEY}"
 export AWS_DEFAULT_REGION=us-east-1
 
-echo "--- Cleaning up Redshift clusters"
+echo "--- Checking if any Redshift cluster still created"
 resources_to_delete=0
 aws redshift describe-clusters \
     --tag-keys "environment" \
