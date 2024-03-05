@@ -89,7 +89,7 @@ fi
 echo "--- Cleaning up AWS resources older than ${DELETE_RESOURCES_BEFORE_DATE}..."
 cloud_reaper_aws
 
-if ! any_resources_to_delete "${AWS_RESOURCES_FILE}" ; then
+if any_resources_to_delete "${AWS_RESOURCES_FILE}" ; then
     resources_to_delete=1
 fi
 
