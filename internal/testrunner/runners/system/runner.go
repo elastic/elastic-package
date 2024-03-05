@@ -240,7 +240,7 @@ func (r *runner) Run(ctx context.Context, options testrunner.TestOptions) ([]tes
 		if err != nil {
 			return result.WithError(fmt.Errorf("failed to prepare scenario: %w", err))
 		}
-		return r.validateTestScenario(result, scenario, testConfig, serviceOptions)
+		return r.validateTestScenario(ctx, result, scenario, testConfig, serviceOptions)
 	}
 
 	if r.options.RunTearDown {
@@ -506,8 +506,9 @@ func createTestRunID() string {
 	return fmt.Sprintf("%d", rand.Intn(testRunMaxID-testRunMinID)+testRunMinID)
 }
 
-func (r *runner) isSyntheticsEnabled(dataStream, componentTemplatePackage string) (bool, error) {
+func (r *runner) isSyntheticsEnabled(ctx context.Context, dataStream, componentTemplatePackage string) (bool, error) {
 	resp, err := r.options.API.Cluster.GetComponentTemplate(
+		r.options.API.Cluster.GetComponentTemplate.WithContext(ctx),
 		r.options.API.Cluster.GetComponentTemplate.WithName(componentTemplatePackage),
 	)
 	if err != nil {
@@ -577,8 +578,9 @@ func (h hits) size() int {
 	return len(h.Source)
 }
 
-func (r *runner) getDocs(dataStream string) (*hits, error) {
+func (r *runner) getDocs(ctx context.Context, dataStream string) (*hits, error) {
 	resp, err := r.options.API.Search(
+		r.options.API.Search.WithContext(ctx),
 		r.options.API.Search.WithIndex(dataStream),
 		r.options.API.Search.WithSort("@timestamp:asc"),
 		r.options.API.Search.WithSize(elasticsearchQuerySize),
@@ -825,7 +827,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, servic
 
 	r.wipeDataStreamHandler = func(ctx context.Context) error {
 		logger.Debugf("deleting data in data stream...")
-		if err := deleteDataStreamDocs(r.options.API, scenario.dataStream); err != nil {
+		if err := deleteDataStreamDocs(ctx, r.options.API, scenario.dataStream); err != nil {
 			return fmt.Errorf("error deleting data in data stream: %w", err)
 		}
 		return nil
@@ -935,7 +937,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, servic
 	oldHits := 0
 	passed, waitErr := wait.UntilTrue(ctx, func(ctx context.Context) (bool, error) {
 		var err error
-		hits, err = r.getDocs(scenario.dataStream)
+		hits, err = r.getDocs(ctx, scenario.dataStream)
 		if err != nil {
 			return false, err
 		}
@@ -976,7 +978,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, servic
 	}
 
 	logger.Debugf("check whether or not synthetics is enabled (component template %s)...", componentTemplatePackage)
-	scenario.syntheticEnabled, err = r.isSyntheticsEnabled(scenario.dataStream, componentTemplatePackage)
+	scenario.syntheticEnabled, err = r.isSyntheticsEnabled(ctx, scenario.dataStream, componentTemplatePackage)
 	if err != nil {
 		return nil, fmt.Errorf("failed to check if synthetic source is enabled: %w", err)
 	}
@@ -1055,15 +1057,15 @@ func (r *runner) writeScenarioState(currentPolicy, origPolicy *kibana.Policy, co
 
 func (r *runner) deleteOldDocumentsDataStreamAndWait(ctx context.Context, dataStream string, mustBeZero bool) error {
 	logger.Debugf("Delete previous documents in data stream %q", dataStream)
-	if err := deleteDataStreamDocs(r.options.API, dataStream); err != nil {
+	if err := deleteDataStreamDocs(ctx, r.options.API, dataStream); err != nil {
 		return fmt.Errorf("error deleting old data in data stream: %s: %w", dataStream, err)
 	}
-	startHits, err := r.getDocs(dataStream)
+	startHits, err := r.getDocs(ctx, dataStream)
 	if err != nil {
 		return err
 	}
-	cleared, err := wait.UntilTrue(ctx, func(context.Context) (bool, error) {
-		hits, err := r.getDocs(dataStream)
+	cleared, err := wait.UntilTrue(ctx, func(ctx context.Context) (bool, error) {
+		hits, err := r.getDocs(ctx, dataStream)
 		if err != nil {
 			return false, err
 		}
@@ -1082,7 +1084,7 @@ func (r *runner) deleteOldDocumentsDataStreamAndWait(ctx context.Context, dataSt
 	return nil
 }
 
-func (r *runner) validateTestScenario(result *testrunner.ResultComposer, scenario *scenarioTest, config *testConfig, serviceOptions servicedeployer.FactoryOptions) ([]testrunner.TestResult, error) {
+func (r *runner) validateTestScenario(ctx context.Context, result *testrunner.ResultComposer, scenario *scenarioTest, config *testConfig, serviceOptions servicedeployer.FactoryOptions) ([]testrunner.TestResult, error) {
 	// Validate fields in docs
 	// when reroute processors are used, expectedDatasets should be set depends on the processor config
 	var expectedDatasets []string
@@ -1154,7 +1156,7 @@ func (r *runner) validateTestScenario(result *testrunner.ResultComposer, scenari
 	}
 
 	// Check transforms if present
-	if err := r.checkTransforms(config, scenario.pkgManifest, scenario.kibanaDataStream, scenario.dataStream); err != nil {
+	if err := r.checkTransforms(ctx, config, scenario.pkgManifest, scenario.kibanaDataStream, scenario.dataStream); err != nil {
 		return result.WithError(err)
 	}
 
@@ -1178,7 +1180,7 @@ func (r *runner) runTest(ctx context.Context, config *testConfig, serviceContext
 		return result.WithError(err)
 	}
 
-	return r.validateTestScenario(result, scenario, config, serviceOptions)
+	return r.validateTestScenario(ctx, result, scenario, config, serviceOptions)
 }
 
 func checkEnrolledAgents(ctx context.Context, client *kibana.Client, serviceContext servicedeployer.ServiceInfo) ([]kibana.Agent, error) {
@@ -1452,7 +1454,7 @@ func selectPolicyTemplateByName(policies []packages.PolicyTemplate, name string)
 	return packages.PolicyTemplate{}, fmt.Errorf("policy template %q not found", name)
 }
 
-func (r *runner) checkTransforms(config *testConfig, pkgManifest *packages.PackageManifest, ds kibana.PackageDataStream, dataStream string) error {
+func (r *runner) checkTransforms(ctx context.Context, config *testConfig, pkgManifest *packages.PackageManifest, ds kibana.PackageDataStream, dataStream string) error {
 	transforms, err := packages.ReadTransformsFromPackageRoot(r.options.PackageRootPath)
 	if err != nil {
 		return fmt.Errorf("loading transforms for package failed (root: %s): %w", r.options.PackageRootPath, err)
@@ -1477,7 +1479,7 @@ func (r *runner) checkTransforms(config *testConfig, pkgManifest *packages.Packa
 			transform.Name,
 			transform.Definition.Meta.FleetTransformVersion,
 		)
-		transformId, err := r.getTransformId(transformPattern)
+		transformId, err := r.getTransformId(ctx, transformPattern)
 		if err != nil {
 			return fmt.Errorf("failed to determine transform ID: %w", err)
 		}
@@ -1485,7 +1487,7 @@ func (r *runner) checkTransforms(config *testConfig, pkgManifest *packages.Packa
 		// Using the preview instead of checking the actual index because
 		// transforms with retention policies may be deleting the documents based
 		// on old fixtures as soon as they are indexed.
-		transformDocs, err := r.previewTransform(transformId)
+		transformDocs, err := r.previewTransform(ctx, transformId)
 		if err != nil {
 			return fmt.Errorf("failed to preview transform %q: %w", transformId, err)
 		}
@@ -1510,8 +1512,9 @@ func (r *runner) checkTransforms(config *testConfig, pkgManifest *packages.Packa
 	return nil
 }
 
-func (r *runner) getTransformId(transformPattern string) (string, error) {
+func (r *runner) getTransformId(ctx context.Context, transformPattern string) (string, error) {
 	resp, err := r.options.API.TransformGetTransform(
+		r.options.API.TransformGetTransform.WithContext(ctx),
 		r.options.API.TransformGetTransform.WithTransformID(transformPattern),
 	)
 	if err != nil {
@@ -1545,8 +1548,9 @@ func (r *runner) getTransformId(transformPattern string) (string, error) {
 	return id, nil
 }
 
-func (r *runner) previewTransform(transformId string) ([]common.MapStr, error) {
+func (r *runner) previewTransform(ctx context.Context, transformId string) ([]common.MapStr, error) {
 	resp, err := r.options.API.TransformPreviewTransform(
+		r.options.API.TransformPreviewTransform.WithContext(ctx),
 		r.options.API.TransformPreviewTransform.WithTransformID(transformId),
 	)
 	if err != nil {
@@ -1569,9 +1573,11 @@ func (r *runner) previewTransform(transformId string) ([]common.MapStr, error) {
 	return preview.Documents, nil
 }
 
-func deleteDataStreamDocs(api *elasticsearch.API, dataStream string) error {
+func deleteDataStreamDocs(ctx context.Context, api *elasticsearch.API, dataStream string) error {
 	body := strings.NewReader(`{ "query": { "match_all": {} } }`)
-	resp, err := api.DeleteByQuery([]string{dataStream}, body)
+	resp, err := api.DeleteByQuery([]string{dataStream}, body,
+		api.DeleteByQuery.WithContext(ctx),
+	)
 	if err != nil {
 		return fmt.Errorf("failed to delete data stream docs: %w", err)
 	}
