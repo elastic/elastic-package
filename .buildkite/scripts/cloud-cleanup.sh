@@ -12,7 +12,7 @@ export DELETE_RESOURCES_BEFORE_DATE=$(date -Is -d "${RESOURCE_RETENTION_PERIOD} 
 
 CLOUD_REAPER_IMAGE="${DOCKER_REGISTRY}/observability-ci/cloud-reaper:0.3.0"
 
-resource_to_delete=0
+resources_to_delete=0
 
 COMMAND="validate"
 if [[ "${DRY_RUN}" != "true" ]]; then
@@ -90,10 +90,10 @@ echo "--- Cleaning up AWS resources older than ${DELETE_RESOURCES_BEFORE_DATE}..
 cloud_reaper_aws
 
 if ! any_resources_to_delete "${AWS_RESOURCES_FILE}" ; then
-    resource_to_delete=1
+    resources_to_delete=1
 fi
 
-if [ "${resource_to_delete}" -eq 1 ]; then
+if [ "${resources_to_delete}" -eq 1 ]; then
     message="There are resources to be deleted"
     echo "${message}"
     if running_on_buildkite ; then
@@ -114,7 +114,65 @@ export AWS_ACCESS_KEY_ID="${ELASTIC_PACKAGE_AWS_ACCESS_KEY}"
 export AWS_SECRET_ACCESS_KEY="${ELASTIC_PACKAGE_AWS_ACCESS_KEY}"
 export AWS_DEFAULT_REGION=us-east-1
 
-echo "--- TODO: Cleaning up Redshift clusters"
+echo "--- Cleaning up Redshift clusters"
+resources_to_delete=0
+aws redshift describe-clusters \
+    --tag-keys "environment" \
+    --tag-values "ci" > redshift_clusters.json
+
+jq -c '.Clusters[]' redshift_clusters.json | while read i ; do
+    identifier=$(echo "$i" | jq -rc ".ClusterIdentifier")
+    # tags
+    repo=$(echo "$i" | jq -rc '.Tags[] | select(.Key == "repo").Value')
+    environment=$(echo "$i" | jq -rc '.Tags[] | select(.Key == "environment").Value')
+    # creation time tag in milliseconds
+    createdAt=$(echo "$i" | jq -rc '.Tags[] | select(.Key == "created_date").Value')
+    # epoch in milliseconds minus retention period
+    thresholdEpoch=$(date -d "${RESOURCE_RETENTION_PERIOD} ago" +"%s%3N")
+
+    if [[ ! "${identifier}" =~ ^elastic-package-test- ]]; then
+        echo "Skip cluster ${identifier}, do not match required identifiers."
+        continue
+    fi
+
+    if [[ "${repo}" != "integrations" && "${repo}" != "elastic-package" ]]; then
+        echo "Skip cluster ${identifier}, not from the expected repo: ${repo}."
+        continue
+    fi
+
+    if [[ "${environment}" != "ci" ]]; then
+        echo "Skip cluster ${identifier}, not from the expected environment: ${environment}."
+        continue
+    fi
+
+    if [ "${createdAt}" -gt "${thresholdEpoch}" ]; then
+        echo "Skip cluster $identifier. It was created < ${RESOURCE_RETENTION_PERIOD} ago"
+        continue
+    fi
+
+    echo "To be deleted cluster: $identifier. It was created > ${RESOURCE_RETENTION_PERIOD} ago"
+    resources_to_delete=1
+    if [ "${DRY_RUN}" == "false" ]; then
+        echo "Deleting: $identifier. It was created > ${RESOURCE_RETENTION_PERIOD} ago"
+        # aws redshift delete-cluster \
+        #   --cluster-identifier "${identifier}" \
+        #   --skip-final-cluster-snapshot
+        echo "Done."
+    fi
+done
+
+if [ "${resources_to_delete}" -eq 1 ]; then
+    message="There are redshift resources to be deleted"
+    echo "${message}"
+    if running_on_buildkite ; then
+         buildkite-agent annotate \
+             "${message}" \
+             --context "ctx-aws-readshift-error" \
+             --style "error"
+    fi
+    exit 1
+fi
+
 echo "--- TODO: Cleaning up IAM roles"
 echo "--- TODO: Cleaning up IAM policies"
 echo "--- TODO: Cleaning up Schedulers"
