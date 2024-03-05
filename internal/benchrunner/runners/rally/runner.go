@@ -333,7 +333,7 @@ func (r *runner) setUp(ctx context.Context) error {
 	cleared, err := wait.UntilTrue(ctx, func(context.Context) (bool, error) {
 		hits, err := getTotalHits(r.options.ESAPI, r.runtimeDataStream)
 		return hits == 0, err
-	}, 2*time.Minute)
+	}, 5*time.Second, 2*time.Minute)
 	if err != nil || !cleared {
 		if err == nil {
 			err = errors.New("unable to clear previous data")

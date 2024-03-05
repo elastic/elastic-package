@@ -218,7 +218,7 @@ func (r *runner) setUp(ctx context.Context) error {
 	cleared, err := wait.UntilTrue(ctx, func(ctx context.Context) (bool, error) {
 		hits, err := getTotalHits(r.options.ESAPI, r.runtimeDataStream)
 		return hits == 0, err
-	}, 2*time.Minute)
+	}, 5*time.Second, 2*time.Minute)
 	if err != nil || !cleared {
 		if err == nil {
 			err = errors.New("unable to clear previous data")
@@ -632,7 +632,7 @@ func (r *runner) checkEnrolledAgents(ctx context.Context) ([]kibana.Agent, error
 		}
 
 		return true, nil
-	}, 5*time.Minute)
+	}, 5*time.Second, 5*time.Minute)
 	if err != nil {
 		return nil, fmt.Errorf("agent enrollment failed: %w", err)
 	}
@@ -672,7 +672,7 @@ func (r *runner) waitUntilBenchmarkFinishes(ctx context.Context) (bool, error) {
 		}
 
 		return ret, err
-	}, *r.scenario.WaitForDataTimeout)
+	}, 5*time.Second, *r.scenario.WaitForDataTimeout)
 }
 
 func (r *runner) enrollAgents(ctx context.Context) error {

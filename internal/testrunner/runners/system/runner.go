@@ -955,7 +955,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, servic
 		}
 
 		return hits.size() > 0, nil
-	}, waitForDataTimeout)
+	}, 1*time.Second, waitForDataTimeout)
 
 	if config.Service != "" && !config.IgnoreServiceError {
 		exited, code, err := service.ExitCode(ctx, config.Service)
@@ -1072,7 +1072,7 @@ func (r *runner) deleteOldDocumentsDataStreamAndWait(ctx context.Context, dataSt
 			return hits.size() == 0, nil
 		}
 		return startHits.size() > hits.size(), nil
-	}, 2*time.Minute)
+	}, 1*time.Second, 2*time.Minute)
 	if err != nil || !cleared {
 		if err == nil {
 			err = errors.New("unable to clear previous data")
@@ -1195,7 +1195,7 @@ func checkEnrolledAgents(ctx context.Context, client *kibana.Client, serviceCont
 			return false, nil // selected agents are unavailable yet
 		}
 		return true, nil
-	}, 5*time.Minute)
+	}, 1*time.Second, 5*time.Minute)
 	if err != nil {
 		return nil, fmt.Errorf("agent enrollment failed: %w", err)
 	}

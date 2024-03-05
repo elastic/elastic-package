@@ -10,11 +10,11 @@ import (
 )
 
 // UntilTrue waits till the context is cancelled or the given function returns an error or true.
-func UntilTrue(ctx context.Context, fn func(ctx context.Context) (bool, error), timeout time.Duration) (bool, error) {
+func UntilTrue(ctx context.Context, fn func(ctx context.Context) (bool, error), period, timeout time.Duration) (bool, error) {
 	timeoutTimer := time.NewTimer(timeout)
 	defer timeoutTimer.Stop()
 
-	retryTicker := time.NewTicker(1 * time.Second)
+	retryTicker := time.NewTicker(period)
 	defer retryTicker.Stop()
 
 	for {

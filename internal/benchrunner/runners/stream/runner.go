@@ -160,7 +160,7 @@ func (r *runner) setUp(ctx context.Context) error {
 			totalHits += hits
 		}
 		return totalHits == 0, nil
-	}, 2*time.Minute)
+	}, 5*time.Second, 2*time.Minute)
 	if err != nil || !cleared {
 		if err == nil {
 			err = errors.New("unable to clear previous data")
