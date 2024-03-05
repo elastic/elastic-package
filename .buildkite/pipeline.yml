@@ -37,17 +37,6 @@ steps:
     artifact_paths:
       - "TEST-unit-windows.xml"
 
-  # TODO: remove step
-  - label: "Cloud Cleanup"
-    key: "cloud-cleanup"
-    command: ".buildkite/scripts/cloud-cleanup.sh"
-    env:
-      DOCKER_REGISTRY: docker.elastic.co
-      RESOURCE_RETENTION_PERIOD: "1 minute"
-      DRY_RUN: "true"
-    agents:
-      provider: "gcp"
-
   - wait: ~
     continue_on_failure: true
 
