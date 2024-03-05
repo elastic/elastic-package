@@ -17,23 +17,24 @@ import (
 )
 
 func main() {
-	rootCmd := cmd.RootCmd()
-
 	err := install.EnsureInstalled()
 	if err != nil {
 		log.Fatalf("Validating installation failed: %v", err)
 	}
 
+	rootCmd := cmd.RootCmd()
+	rootCmd.SilenceErrors = true // Silence errors so we handle them here.
+
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 
 	err = rootCmd.ExecuteContext(ctx)
+	if errIsInterruption(err) {
+		logger.Info("Signal caught!")
+		os.Exit(130)
+	}
 	if err != nil {
-		if errIsInterruption(err) {
-			logger.Info("Signal caught!")
-			os.Exit(130)
-		}
-		logger.Error(rootCmd.ErrPrefix(), err)
+		rootCmd.PrintErr(rootCmd.ErrPrefix(), err)
 		os.Exit(1)
 	}
 }

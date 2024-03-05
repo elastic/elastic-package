@@ -42,10 +42,9 @@ var commands = []*cobraext.Command{
 // RootCmd creates and returns root cmd for elastic-package
 func RootCmd() *cobra.Command {
 	rootCmd := &cobra.Command{
-		Use:           "elastic-package",
-		Short:         "elastic-package - Command line tool for developing Elastic Integrations",
-		SilenceUsage:  true,
-		SilenceErrors: true,
+		Use:          "elastic-package",
+		Short:        "elastic-package - Command line tool for developing Elastic Integrations",
+		SilenceUsage: true,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			return cobraext.ComposeCommandActions(cmd, args,
 				processPersistentFlags,
