@@ -126,6 +126,10 @@ aws redshift describe-clusters \
     --tag-keys "environment" \
     --tag-values "ci" > redshift_clusters.json
 
+clusters_num=$(jq -rc '.Clusters | length' redshift_clusters.json)
+
+echo "Number of clusters found: ${clusters_num}"
+
 jq -c '.Clusters[]' redshift_clusters.json | while read i ; do
     identifier=$(echo "$i" | jq -rc ".ClusterIdentifier")
     # tags
