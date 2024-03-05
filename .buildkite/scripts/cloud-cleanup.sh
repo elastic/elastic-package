@@ -12,7 +12,7 @@ export DELETE_RESOURCES_BEFORE_DATE=$(date -Is -d "${RESOURCE_RETENTION_PERIOD} 
 
 CLOUD_REAPER_IMAGE="${DOCKER_REGISTRY}/observability-ci/cloud-reaper:0.3.0"
 
-resource_to_delete=0
+resources_to_delete=0
 
 COMMAND="validate"
 if [[ "${DRY_RUN}" != "true" ]]; then
@@ -90,10 +90,10 @@ echo "--- Cleaning up AWS resources older than ${DELETE_RESOURCES_BEFORE_DATE}..
 cloud_reaper_aws
 
 if ! any_resources_to_delete "${AWS_RESOURCES_FILE}" ; then
-    resource_to_delete=1
+    resources_to_delete=1
 fi
 
-if [ "${resource_to_delete}" -eq 1 ]; then
+if [ "${resources_to_delete}" -eq 1 ]; then
     message="There are resources to be deleted"
     echo "${message}"
     if running_on_buildkite ; then
