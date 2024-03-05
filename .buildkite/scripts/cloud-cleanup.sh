@@ -24,7 +24,11 @@ fi
 any_resources_to_delete() {
     local file=$1
     local number=0
-    number=$(tail -n 4 "${file}" | wc -l)
+    # First three lines are like:
+    # ⇒ Loading configuration...
+    # ✓ Succeeded to load configuration
+    # Scanning resources... ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 0:00:00
+    number=$(tail -n +4 "${file}" | wc -l)
     if [ "${number}" -eq 0 ]; then
         return 1
     fi
