@@ -83,6 +83,7 @@ echo "--- Cleaning up GCP resources older than ${DELETE_RESOURCES_BEFORE_DATE}..
 cloud_reaper_gcp
 
 if any_resources_to_delete "${GCP_RESOURCES_FILE}"; then
+    echo "Pending GCP resources"
     resources_to_delete=1
 fi
 
@@ -90,6 +91,7 @@ echo "--- Cleaning up AWS resources older than ${DELETE_RESOURCES_BEFORE_DATE}..
 cloud_reaper_aws
 
 if any_resources_to_delete "${AWS_RESOURCES_FILE}" ; then
+    echo "Pending AWS resources"
     resources_to_delete=1
 fi
 
