@@ -28,6 +28,7 @@ var staticEcsMappings string
 const prefixMapping = "_embedded_ecs"
 
 var semver2_3_0 = semver.MustParse("2.3.0")
+var semver3_1_3 = semver.MustParse("3.1.3")
 
 type ecsTemplates struct {
 	Mappings struct {
@@ -75,7 +76,7 @@ func addDynamicMappings(packageRoot, destinationDir string) error {
 		if err != nil {
 			return err
 		}
-		os.WriteFile(packageManifest, contents, 0664)
+		err = os.WriteFile(packageManifest, contents, 0664)
 		if err != nil {
 			return err
 		}
@@ -100,6 +101,11 @@ func shouldImportEcsMappings(specVersion, packageRoot string) (bool, error) {
 	}
 	if !bm.ImportMappings() {
 		logger.Debug("Package doesn't have to import ECS mappings")
+		return false, nil
+	}
+
+	if !v.LessThan(semver3_1_3) {
+		logger.Debugf("Required spec version < %s to import ECS mappings", semver3_1_3.String())
 		return false, nil
 	}
 

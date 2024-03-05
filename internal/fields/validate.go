@@ -33,6 +33,7 @@ var (
 	semver2_0_0 = semver.MustParse("2.0.0")
 	semver2_3_0 = semver.MustParse("2.3.0")
 	semver3_0_1 = semver.MustParse("3.0.1")
+	semver3_1_3 = semver.MustParse("3.1.3")
 
 	defaultExternal = "ecs"
 )
@@ -216,7 +217,10 @@ func initDependencyManagement(packageRoot string, specVersion semver.Version, im
 	}
 
 	var schema []FieldDefinition
-	if buildManifest.ImportMappings() && !specVersion.LessThan(semver2_3_0) && importECSSchema {
+	//if buildManifest.ImportMappings() && !specVersion.LessThan(semver2_3_0) && importECSSchema {
+	if (buildManifest.ImportMappings() && !specVersion.LessThan(semver2_3_0) || !specVersion.LessThan(semver3_1_3)) && importECSSchema {
+		// Import all fields from external schema (most likely ECS) to
+		// validate the package fields against it.
 		ecsSchema, err := fdm.ImportAllFields(defaultExternal)
 		if err != nil {
 			return nil, nil, err
