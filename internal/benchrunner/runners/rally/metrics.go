@@ -6,6 +6,7 @@ package rally
 
 import (
 	"bytes"
+	"context"
 	_ "embed"
 	"encoding/json"
 	"fmt"
@@ -14,6 +15,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/elastic/elastic-package/internal/benchrunner/runners/common"
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/elasticsearch/ingest"
 	"github.com/elastic/elastic-package/internal/logger"
@@ -87,10 +89,10 @@ func newCollector(
 	}
 }
 
-func (c *collector) start() {
+func (c *collector) start(ctx context.Context) {
 	c.createMetricsIndex()
 
-	c.collectMetricsBeforeRallyRun()
+	c.collectMetricsBeforeRallyRun(ctx)
 
 	c.wg.Add(1)
 	go func() {
@@ -98,7 +100,7 @@ func (c *collector) start() {
 
 		<-c.stopC
 		// last collect before stopping
-		c.collectMetricsAfterRallyRun()
+		c.collectMetricsAfterRallyRun(ctx)
 		c.publish(c.createEventsFromMetrics(c.endMetrics))
 	}()
 }
@@ -111,7 +113,7 @@ func (c *collector) stop() {
 	c.wg.Wait()
 }
 
-func (c *collector) collectMetricsBeforeRallyRun() {
+func (c *collector) collectMetricsBeforeRallyRun(ctx context.Context) {
 	resp, err := c.esAPI.Indices.Refresh(c.esAPI.Indices.Refresh.WithIndex(c.datastream))
 	if err != nil {
 		logger.Errorf("unable to refresh data stream at the beginning of rally run: %s", err)
@@ -123,7 +125,7 @@ func (c *collector) collectMetricsBeforeRallyRun() {
 		return
 	}
 
-	c.startTotalHits = c.collectTotalHits()
+	c.startTotalHits = c.collectTotalHits(ctx)
 	c.startMetrics = c.collect()
 	c.startIngestMetrics = c.collectIngestMetrics()
 	c.publish(c.createEventsFromMetrics(c.startMetrics))
@@ -285,7 +287,7 @@ func (c *collector) collectDiskUsage() map[string]ingest.DiskUsage {
 	return du
 }
 
-func (c *collector) collectMetricsAfterRallyRun() {
+func (c *collector) collectMetricsAfterRallyRun(ctx context.Context) {
 	resp, err := c.esAPI.Indices.Refresh(c.esAPI.Indices.Refresh.WithIndex(c.datastream))
 	if err != nil {
 		logger.Errorf("unable to refresh data stream at the end of rally run: %s", err)
@@ -300,13 +302,13 @@ func (c *collector) collectMetricsAfterRallyRun() {
 	c.diskUsage = c.collectDiskUsage()
 	c.endMetrics = c.collect()
 	c.endIngestMetrics = c.collectIngestMetrics()
-	c.endTotalHits = c.collectTotalHits()
+	c.endTotalHits = c.collectTotalHits(ctx)
 
 	c.publish(c.createEventsFromMetrics(c.endMetrics))
 }
 
-func (c *collector) collectTotalHits() int {
-	totalHits, err := getTotalHits(c.esAPI, c.datastream)
+func (c *collector) collectTotalHits(ctx context.Context) int {
+	totalHits, err := common.CountDocsInDataStream(ctx, c.esAPI, c.datastream)
 	if err != nil {
 		logger.Debugf("could not get total hits: %v", err)
 	}

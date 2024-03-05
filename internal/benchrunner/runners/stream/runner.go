@@ -27,7 +27,7 @@ import (
 
 	"github.com/elastic/elastic-package/internal/benchrunner"
 	"github.com/elastic/elastic-package/internal/benchrunner/reporters"
-	"github.com/elastic/elastic-package/internal/elasticsearch"
+	"github.com/elastic/elastic-package/internal/benchrunner/runners/common"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/multierror"
 	"github.com/elastic/elastic-package/internal/packages"
@@ -153,7 +153,7 @@ func (r *runner) setUp(ctx context.Context) error {
 	cleared, err := wait.UntilTrue(ctx, func(ctx context.Context) (bool, error) {
 		totalHits := 0
 		for _, runtimeDataStream := range r.runtimeDataStreams {
-			hits, err := getTotalHits(r.options.ESAPI, runtimeDataStream)
+			hits, err := common.CountDocsInDataStream(ctx, r.options.ESAPI, runtimeDataStream)
 			if err != nil {
 				return false, err
 			}
@@ -580,44 +580,6 @@ func (r *runner) enrichEventWithBenchmarkMetadata(e map[string]any) map[string]i
 	m.Info.RunID = r.svcInfo.Test.RunID
 	e["benchmark_metadata"] = m
 	return e
-}
-
-func getTotalHits(esapi *elasticsearch.API, dataStream string) (int, error) {
-	resp, err := esapi.Count(
-		esapi.Count.WithIndex(dataStream),
-		esapi.Count.WithIgnoreUnavailable(true),
-	)
-	if err != nil {
-		return 0, fmt.Errorf("could not search data stream: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.IsError() {
-		return 0, fmt.Errorf("failed to get hits count: %s", resp.String())
-	}
-
-	var results struct {
-		Count int
-		Error *struct {
-			Type   string
-			Reason string
-		}
-		Status int
-	}
-
-	if err := json.NewDecoder(resp.Body).Decode(&results); err != nil {
-		return 0, fmt.Errorf("could not decode search results response: %w", err)
-	}
-
-	numHits := results.Count
-	if results.Error != nil {
-		logger.Debugf("found %d hits in %s data stream: %s: %s Status=%d",
-			numHits, dataStream, results.Error.Type, results.Error.Reason, results.Status)
-	} else {
-		logger.Debugf("found %d hits in %s data stream", numHits, dataStream)
-	}
-
-	return numHits, nil
 }
 
 func createRunID() string {
