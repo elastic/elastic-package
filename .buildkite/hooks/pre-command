@@ -88,7 +88,7 @@ if [[ "$BUILDKITE_PIPELINE_SLUG" == "elastic-package-test-with-integrations" && 
     export GITHUB_TOKEN
 fi
 
-if [[ "$BUILDKITE_PIPELINE_SLUG" == "elastic-package-cloud-cleanup" && "$BUILDKITE_STEP_KEY" == "cloud-cleanup" ]]; then
+if [[ "$BUILDKITE_PIPELINE_SLUG" == "elastic-package-cloud-cleanup" ]]; then
     ELASTIC_PACKAGE_AWS_SECRET_KEY=$(retry 5 vault kv get -field secret_key ${AWS_SERVICE_ACCOUNT_SECRET_PATH})
     export ELASTIC_PACKAGE_AWS_SECRET_KEY
     ELASTIC_PACKAGE_AWS_ACCESS_KEY=$(retry 5 vault kv get -field access_key ${AWS_SERVICE_ACCOUNT_SECRET_PATH})
@@ -106,3 +106,22 @@ if [[ "$BUILDKITE_PIPELINE_SLUG" == "elastic-package-cloud-cleanup" && "$BUILDKI
     export ELASTIC_PACKAGE_GCP_EMAIL_SECRET
 fi
 
+## TODO: Remove before merging
+if [[ "$BUILDKITE_PIPELINE_SLUG" == "elastic-package" && "$BUILDKITE_STEP_KEY" == "cloud-cleanup" ]]; then
+    ELASTIC_PACKAGE_AWS_SECRET_KEY=$(retry 5 vault kv get -field secret_key ${AWS_SERVICE_ACCOUNT_SECRET_PATH})
+    export ELASTIC_PACKAGE_AWS_SECRET_KEY
+    ELASTIC_PACKAGE_AWS_ACCESS_KEY=$(retry 5 vault kv get -field access_key ${AWS_SERVICE_ACCOUNT_SECRET_PATH})
+    export ELASTIC_PACKAGE_AWS_ACCESS_KEY
+    ELASTIC_PACKAGE_AWS_USER_SECRET=$(retry 5 vault kv get -field user ${AWS_SERVICE_ACCOUNT_SECRET_PATH})
+    export ELASTIC_PACKAGE_AWS_USER_SECRET
+
+    ELASTIC_PACKAGE_GCP_CREDENTIALS_SECRET=$(retry 5 vault read -field credentials ${GCP_SERVICE_ACCOUNT_SECRET_PATH} | jq -c)
+    export ELASTIC_PACKAGE_GCP_CREDENTIALS_SECRET
+    ELASTIC_PACKAGE_GCP_KEY_SECRET=$(echo "${ELASTIC_PACKAGE_GCP_CREDENTIALS_SECRET}" | jq -r '.private_key' | tr -d '\n')
+    export ELASTIC_PACKAGE_GCP_KEY_SECRET
+    ELASTIC_PACKAGE_GCP_PROJECT_SECRET=$(retry 5 vault read -field projectId ${GCP_SERVICE_ACCOUNT_SECRET_PATH})
+    export ELASTIC_PACKAGE_GCP_PROJECT_SECRET
+    ELASTIC_PACKAGE_GCP_EMAIL_SECRET=$(retry 5 vault read -field username ${GCP_SERVICE_ACCOUNT_SECRET_PATH})
+    export ELASTIC_PACKAGE_GCP_EMAIL_SECRET
+
+fi
