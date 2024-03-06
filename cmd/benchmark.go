@@ -12,12 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/elastic/elastic-package/internal/elasticsearch"
-	"github.com/elastic/elastic-package/internal/install"
-	"github.com/elastic/elastic-package/internal/logger"
-	"github.com/elastic/elastic-package/internal/signal"
-	"github.com/elastic/elastic-package/internal/stack"
-
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/benchrunner"
@@ -30,7 +24,12 @@ import (
 	"github.com/elastic/elastic-package/internal/benchrunner/runners/system"
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/common"
+	"github.com/elastic/elastic-package/internal/elasticsearch"
+	"github.com/elastic/elastic-package/internal/install"
+	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/internal/signal"
+	"github.com/elastic/elastic-package/internal/stack"
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
 
