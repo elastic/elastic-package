@@ -119,7 +119,7 @@ func (d *DockerComposeServiceDeployer) SetUp(ctx context.Context, inCtxt Service
 
 	err = p.WaitForHealthy(ctx, opts)
 	if err != nil {
-		processServiceContainerLogs(ctx, p, compose.CommandOptions{
+		processServiceContainerLogs(context.WithoutCancel(ctx), p, compose.CommandOptions{
 			Env: opts.Env,
 		}, outCtxt.Name)
 		return nil, fmt.Errorf("service is unhealthy: %w", err)
