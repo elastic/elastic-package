@@ -56,9 +56,6 @@ func setupTestCommand() *cobraext.Command {
 		Use:   "test",
 		Short: "Run test suite for the package",
 		Long:  testLongDescription,
-		Annotations: map[string]string{
-			"enable_signal_handling": "",
-		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.Println("Run test suite for the package")
 
@@ -69,6 +66,7 @@ func setupTestCommand() *cobraext.Command {
 			return cobraext.ComposeCommandActions(cmd, args, testTypeCmdActions...)
 		},
 	}
+	cobraext.EnableSignalHandling(cmd)
 
 	cmd.PersistentFlags().BoolP(cobraext.FailOnMissingFlagName, "m", false, cobraext.FailOnMissingFlagDescription)
 	cmd.PersistentFlags().BoolP(cobraext.GenerateTestResultFlagName, "g", false, cobraext.GenerateTestResultFlagDescription)
