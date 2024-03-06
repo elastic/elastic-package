@@ -112,7 +112,6 @@ if [ "${resources_to_delete}" -eq 1 ]; then
     fi
 fi
 
-# TODO: List and delete the required resources using aws cli
 echo "--- Cleaning up other AWS resources older than ${DELETE_RESOURCES_BEFORE_DATE}"
 echo "--- Installing awscli"
 with_aws_cli
@@ -183,6 +182,7 @@ if [ "${resources_to_delete}" -eq 1 ]; then
     fi
 fi
 
+# TODO: List and delete the required resources using aws cli or using cloud-reaper tool
 echo "--- TODO: Cleaning up IAM roles"
 echo "--- TODO: Cleaning up IAM policies"
 echo "--- TODO: Cleaning up Schedulers"
