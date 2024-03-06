@@ -28,7 +28,6 @@ var staticEcsMappings string
 const prefixMapping = "_embedded_ecs"
 
 var semver2_3_0 = semver.MustParse("2.3.0")
-var semver3_1_3 = semver.MustParse("3.1.3")
 
 type ecsTemplates struct {
 	Mappings struct {

@@ -217,7 +217,6 @@ func initDependencyManagement(packageRoot string, specVersion semver.Version, im
 	}
 
 	var schema []FieldDefinition
-	//if buildManifest.ImportMappings() && !specVersion.LessThan(semver2_3_0) && importECSSchema {
 	if (buildManifest.ImportMappings() && !specVersion.LessThan(semver2_3_0) || !specVersion.LessThan(semver3_1_3)) && importECSSchema {
 		// Import all fields from external schema (most likely ECS) to
 		// validate the package fields against it.
