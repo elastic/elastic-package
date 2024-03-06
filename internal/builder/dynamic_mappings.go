@@ -104,11 +104,6 @@ func shouldImportEcsMappings(specVersion, packageRoot string) (bool, error) {
 		return false, nil
 	}
 
-	if !v.LessThan(semver3_1_3) {
-		logger.Debugf("Required spec version < %s to import ECS mappings", semver3_1_3.String())
-		return false, nil
-	}
-
 	if v.LessThan(semver2_3_0) {
 		logger.Debugf("Required spec version >= %s to import ECS mappings", semver2_3_0.String())
 		return false, nil
