@@ -19,7 +19,7 @@ ELASTIC_PACKAGE_ELASTICSEARCH_HOST=http://localhost:9200
 ELASTIC_PACKAGE_ELASTICSEARCH_USERNAME=elastic
 ELASTIC_PACKAGE_ELASTICSEARCH_PASSWORD=changeme
 ELASTIC_PACKAGE_KIBANA_HOST=http://localhost:5601
-#ELASTIC_PACKAGE_CA_CERT
+ELASTIC_PACKAGE_CA_CERT=
 ```
 
 The same can be use to connect to your Elastic Cloud cluster. Unfortunately elastic-package currently does not support an API key to be used.
@@ -55,11 +55,11 @@ elastic-package benchmark stream -v
 When running Kibana from source with `--no-base-path`, you can run the following command:
 
 ```
-ELASTIC_PACKAGE_ELASTICSEARCH_HOST=http://localhost:9200 ELASTIC_PACKAGE_ELASTICSEARCH_USERNAME=elastic ELASTIC_PACKAGE_ELASTICSEARCH_PASSWORD=changeme ELASTIC_PACKAGE_KIBANA_HOST=http://localhost:5601 elastic-package benchmark stream -v
+ELASTIC_PACKAGE_ELASTICSEARCH_HOST=http://localhost:9200 ELASTIC_PACKAGE_ELASTICSEARCH_USERNAME=elastic ELASTIC_PACKAGE_ELASTICSEARCH_PASSWORD=changeme ELASTIC_PACKAGE_KIBANA_HOST=http://localhost:5601 ELASTIC_PACKAGE_CA_CERT= elastic-package benchmark stream -v
 ```
 
 
-The above command will backfill the last 15 minutes in your Elastic Stack with nginx metrics and logs and install the nginx integration. You can go to [https://localhost:5601/app/observability-log-explorer/](https://localhost:5601/app/observability-log-explorer/) and filter down on `Nginx -> Error Logs` to see the error logs that are ingested.
+The above command will backfill the last 15 minutes in your Elastic Stack with nginx metrics and logs and install the nginx integration. You can go to [http://localhost:5601/app/observability-log-explorer/](http://localhost:5601/app/observability-log-explorer/) and filter down on `Nginx -> Error Logs` to see the error logs that are ingested.
 
 
 
