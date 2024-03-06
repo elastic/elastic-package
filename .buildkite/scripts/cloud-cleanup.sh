@@ -108,7 +108,6 @@ if [ "${resources_to_delete}" -eq 1 ]; then
              --context "ctx-cloud-reaper-error" \
              --style "error"
     fi
-    exit 1
 fi
 
 # TODO: List and delete the required resources using aws cli
@@ -180,9 +179,12 @@ if [ "${resources_to_delete}" -eq 1 ]; then
              --context "ctx-aws-readshift-error" \
              --style "error"
     fi
-    exit 1
 fi
 
 echo "--- TODO: Cleaning up IAM roles"
 echo "--- TODO: Cleaning up IAM policies"
 echo "--- TODO: Cleaning up Schedulers"
+
+if [ "${resources_to_delete}" -eq 1 ]; then
+    exit 1
+fi
