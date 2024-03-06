@@ -121,7 +121,6 @@ export AWS_SECRET_ACCESS_KEY="${ELASTIC_PACKAGE_AWS_SECRET_KEY}"
 export AWS_DEFAULT_REGION=us-east-1
 
 echo "--- Checking if any Redshift cluster still created"
-resources_to_delete=0
 aws redshift describe-clusters \
     --tag-keys "environment" \
     --tag-values "ci" > redshift_clusters.json
