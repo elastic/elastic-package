@@ -1,0 +1,40 @@
+---
+version: "1.0"
+
+accounts:
+  - name: "${ACCOUNT_PROJECT}"
+    driver: "gce"
+    options:
+      key: "${ACCOUNT_KEY}"
+      secret: "${ACCOUNT_SECRET}"
+      project: "${ACCOUNT_PROJECT}"
+
+scanners:
+  - account_name: "${ACCOUNT_PROJECT}"
+    resources:
+      - type: "node"
+        regions:
+          - "us-east1"
+        filters:
+          - type: "<"
+            pointer: "/extra/creationTimestamp"
+            param: "${CREATION_DATE}"
+            converters:
+              param: "date"
+              value: "date"
+          - type: "="
+            pointer: "/extra/labels/repo"
+            param: "elastic-package"
+          - type: "="
+            pointer: "/extra/labels/environment"
+            param: "ci"
+          - type: "regex"
+            pointer: "/name"
+            param: "^elastic-package-(.*)"
+          - type: "!="
+            pointer: "/state"
+            param: "unknown"
+          - type: "!="
+            pointer: "/state"
+            param: "terminated"
+
