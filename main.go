@@ -22,15 +22,18 @@ func main() {
 		log.Fatalf("Validating installation failed: %v", err)
 	}
 
-	rootCmd := cmd.RootCmd()
-	rootCmd.SilenceErrors = true // Silence errors so we handle them here.
-
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
+	stop := context.AfterFunc(ctx, func() {
+		logger.Info("Signal caught!")
+	})
+	defer stop()
 
+	rootCmd := cmd.RootCmd()
+	rootCmd.SilenceErrors = true // Silence errors so we handle them here.
 	err = rootCmd.ExecuteContext(ctx)
 	if errIsInterruption(err) {
-		logger.Info("Signal caught!")
+		rootCmd.Println("interrupted")
 		os.Exit(130)
 	}
 	if err != nil {
