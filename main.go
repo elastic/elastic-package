@@ -9,35 +9,53 @@ import (
 	"errors"
 	"log"
 	"os"
+	"os/exec"
 	"os/signal"
 
 	"github.com/elastic/elastic-package/cmd"
+	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/logger"
 )
 
 func main() {
-	rootCmd := cmd.RootCmd()
-
 	err := install.EnsureInstalled()
 	if err != nil {
 		log.Fatalf("Validating installation failed: %v", err)
 	}
 
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
-	defer cancel()
-
-	err = rootCmd.ExecuteContext(ctx)
-	if err != nil {
-		if errIsInterruption(err) {
+	rootCmd := cmd.RootCmd()
+	rootCmd.SilenceErrors = true // Silence errors so we handle them here.
+	if cobraext.IsSignalHandingRequested(rootCmd) {
+		ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+		defer cancel()
+		stop := context.AfterFunc(ctx, func() {
 			logger.Info("Signal caught!")
-			os.Exit(130)
-		}
-		logger.Error(rootCmd.ErrPrefix(), err)
+		})
+		defer stop()
+		rootCmd.SetContext(ctx)
+	}
+
+	err = rootCmd.Execute()
+	if errIsInterruption(err) {
+		rootCmd.Println("interrupted")
+		os.Exit(130)
+	}
+	if err != nil {
+		rootCmd.PrintErrln(rootCmd.ErrPrefix(), err)
 		os.Exit(1)
 	}
 }
 
 func errIsInterruption(err error) bool {
-	return errors.Is(err, context.Canceled)
+	if errors.Is(err, context.Canceled) {
+		return true
+	}
+
+	var exitError *exec.ExitError
+	if errors.As(err, &exitError) && (*exitError).ProcessState.ExitCode() == 130 { // 130 -> subcommand killed by sigint
+		return true
+	}
+
+	return false
 }

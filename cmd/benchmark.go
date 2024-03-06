@@ -69,6 +69,7 @@ func setupBenchmarkCommand() *cobraext.Command {
 		Short: "Run benchmarks for the package",
 		Long:  benchLongDescription,
 	}
+	cobraext.EnableSignalHandling(cmd)
 
 	cmd.PersistentFlags().StringP(cobraext.ProfileFlagName, "p", "", fmt.Sprintf(cobraext.ProfileFlagDescription, install.ProfileNameEnvVar))
 

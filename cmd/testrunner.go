@@ -66,6 +66,7 @@ func setupTestCommand() *cobraext.Command {
 			return cobraext.ComposeCommandActions(cmd, args, testTypeCmdActions...)
 		},
 	}
+	cobraext.EnableSignalHandling(cmd)
 
 	cmd.PersistentFlags().BoolP(cobraext.FailOnMissingFlagName, "m", false, cobraext.FailOnMissingFlagDescription)
 	cmd.PersistentFlags().BoolP(cobraext.GenerateTestResultFlagName, "g", false, cobraext.GenerateTestResultFlagDescription)

@@ -31,8 +31,8 @@ import (
 
 	"github.com/elastic/elastic-package/internal/benchrunner"
 	"github.com/elastic/elastic-package/internal/benchrunner/reporters"
+	"github.com/elastic/elastic-package/internal/benchrunner/runners/common"
 	"github.com/elastic/elastic-package/internal/configuration/locations"
-	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/multierror"
 	"github.com/elastic/elastic-package/internal/packages"
@@ -330,8 +330,8 @@ func (r *runner) setUp(ctx context.Context) error {
 		return fmt.Errorf("error deleting old data in data stream: %s: %w", r.runtimeDataStream, err)
 	}
 
-	cleared, err := wait.UntilTrue(ctx, func(context.Context) (bool, error) {
-		hits, err := getTotalHits(r.options.ESAPI, r.runtimeDataStream)
+	cleared, err := wait.UntilTrue(ctx, func(ctx context.Context) (bool, error) {
+		hits, err := common.CountDocsInDataStream(ctx, r.options.ESAPI, r.runtimeDataStream)
 		return hits == 0, err
 	}, 5*time.Second, 2*time.Minute)
 	if err != nil || !cleared {
@@ -400,7 +400,7 @@ func (r *runner) wipeDataStreamOnSetup() error {
 }
 
 func (r *runner) run(ctx context.Context) (report reporters.Reportable, err error) {
-	r.startMetricsColletion()
+	r.startMetricsColletion(ctx)
 	defer r.mcollector.stop()
 
 	var corpusDocCount uint64
@@ -509,7 +509,7 @@ func (r *runner) installPackageFromPackageRoot(ctx context.Context) error {
 	return nil
 }
 
-func (r *runner) startMetricsColletion() {
+func (r *runner) startMetricsColletion(ctx context.Context) {
 	// TODO collect agent hosts metrics using system integration
 	r.mcollector = newCollector(
 		r.svcInfo,
@@ -521,7 +521,7 @@ func (r *runner) startMetricsColletion() {
 		r.runtimeDataStream,
 		r.pipelinePrefix,
 	)
-	r.mcollector.start()
+	r.mcollector.start(ctx)
 }
 
 func (r *runner) collectAndSummarizeMetrics() (*metricsSummary, error) {
@@ -1122,44 +1122,6 @@ func (r *runner) enrichEventWithBenchmarkMetadata(e map[string]interface{}) map[
 	m.Parameters = *r.scenario
 	e["benchmark_metadata"] = m
 	return e
-}
-
-func getTotalHits(esapi *elasticsearch.API, dataStream string) (int, error) {
-	resp, err := esapi.Count(
-		esapi.Count.WithIndex(dataStream),
-		esapi.Count.WithIgnoreUnavailable(true),
-	)
-	if err != nil {
-		return 0, fmt.Errorf("could not search data stream: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.IsError() {
-		return 0, fmt.Errorf("failed to get hits count: %s", resp.String())
-	}
-
-	var results struct {
-		Count int
-		Error *struct {
-			Type   string
-			Reason string
-		}
-		Status int
-	}
-
-	if err := json.NewDecoder(resp.Body).Decode(&results); err != nil {
-		return 0, fmt.Errorf("could not decode search results response: %w", err)
-	}
-
-	numHits := results.Count
-	if results.Error != nil {
-		logger.Debugf("found %d hits in %s data stream: %s: %s Status=%d",
-			numHits, dataStream, results.Error.Type, results.Error.Reason, results.Status)
-	} else {
-		logger.Debugf("found %d hits in %s data stream", numHits, dataStream)
-	}
-
-	return numHits, nil
 }
 
 func createRunID() string {

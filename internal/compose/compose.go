@@ -12,6 +12,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -479,6 +480,13 @@ func (p *Project) runDockerComposeCmd(ctx context.Context, opts dockerComposeOpt
 	args = append(args, opts.args...)
 
 	cmd := exec.CommandContext(ctx, name, args...)
+	cmd.Cancel = func() error {
+		if runtime.GOOS == "windows" {
+			// Interrupt is not implemented in Windows.
+			return cmd.Process.Kill()
+		}
+		return cmd.Process.Signal(os.Interrupt)
+	}
 	cmd.Env = append(os.Environ(), opts.env...)
 
 	if logger.IsDebugMode() {
