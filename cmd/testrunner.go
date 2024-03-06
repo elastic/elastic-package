@@ -17,6 +17,7 @@ import (
 
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/common"
+	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/packages"
@@ -296,13 +297,18 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 
 		variantFlag, _ := cmd.Flags().GetString(cobraext.VariantFlagName)
 
-		esClient, err := stack.NewElasticsearchClientFromProfile(profile)
-		if err != nil {
-			return fmt.Errorf("can't create Elasticsearch client: %w", err)
-		}
-		err = esClient.CheckHealth(cmd.Context())
-		if err != nil {
-			return err
+		var esAPI *elasticsearch.API
+		if testType != "static" {
+			// static tests do not need a running Elasticsearch
+			esClient, err := stack.NewElasticsearchClientFromProfile(profile)
+			if err != nil {
+				return fmt.Errorf("can't create Elasticsearch client: %w", err)
+			}
+			err = esClient.CheckHealth(cmd.Context())
+			if err != nil {
+				return err
+			}
+			esAPI = esClient.API
 		}
 
 		var kibanaClient *kibana.Client
@@ -336,7 +342,7 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 				TestFolder:         folder,
 				PackageRootPath:    packageRootPath,
 				GenerateTestResult: generateTestResult,
-				API:                esClient.API,
+				API:                esAPI,
 				KibanaClient:       kibanaClient,
 				DeferCleanup:       deferCleanup,
 				ServiceVariant:     variantFlag,
