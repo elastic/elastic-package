@@ -13,6 +13,9 @@ import (
 const signalHandlingAnnotation = "enable_signal_handling"
 
 func EnableSignalHandling(cmd *cobra.Command) {
+	if cmd.Annotations == nil {
+		cmd.Annotations = make(map[string]string)
+	}
 	cmd.Annotations[signalHandlingAnnotation] = ""
 }
 
