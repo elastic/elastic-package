@@ -56,6 +56,9 @@ func setupTestCommand() *cobraext.Command {
 		Use:   "test",
 		Short: "Run test suite for the package",
 		Long:  testLongDescription,
+		Annotations: map[string]string{
+			"enable_signal_handling": "",
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.Println("Run test suite for the package")
 

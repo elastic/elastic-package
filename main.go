@@ -12,6 +12,7 @@ import (
 	"os/signal"
 
 	"github.com/elastic/elastic-package/cmd"
+	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/logger"
 )
@@ -22,16 +23,19 @@ func main() {
 		log.Fatalf("Validating installation failed: %v", err)
 	}
 
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
-	defer cancel()
-	stop := context.AfterFunc(ctx, func() {
-		logger.Info("Signal caught!")
-	})
-	defer stop()
-
 	rootCmd := cmd.RootCmd()
 	rootCmd.SilenceErrors = true // Silence errors so we handle them here.
-	err = rootCmd.ExecuteContext(ctx)
+	if cobraext.IsSignalHandingRequested(rootCmd) {
+		ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+		defer cancel()
+		stop := context.AfterFunc(ctx, func() {
+			logger.Info("Signal caught!")
+		})
+		defer stop()
+		rootCmd.SetContext(ctx)
+	}
+
+	err = rootCmd.Execute()
 	if errIsInterruption(err) {
 		rootCmd.Println("interrupted")
 		os.Exit(130)
