@@ -20,7 +20,6 @@ import (
 
 	"github.com/elastic/elastic-package/internal/packages/installer"
 
-	"github.com/google/uuid"
 	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-integration-corpus-generator-tool/pkg/genlib"
@@ -29,6 +28,7 @@ import (
 
 	"github.com/elastic/elastic-package/internal/benchrunner"
 	"github.com/elastic/elastic-package/internal/benchrunner/reporters"
+	"github.com/elastic/elastic-package/internal/benchrunner/runners/common"
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/multierror"
@@ -107,7 +107,7 @@ func (r *runner) setUp() error {
 
 	r.runtimeDataStreams = make(map[string]string)
 
-	r.ctxt.Test.RunID = createRunID()
+	r.ctxt.Test.RunID = common.NewRunID()
 
 	pkgManifest, err := packages.ReadPackageManifestFromPackageRoot(r.options.PackageRootPath)
 	if err != nil {
@@ -133,7 +133,7 @@ func (r *runner) setUp() error {
 		var err error
 		dataStreamManifest, err := packages.ReadDataStreamManifest(
 			filepath.Join(
-				getDataStreamPath(r.options.PackageRootPath, scenario.DataStream.Name),
+				common.DataStreamPath(r.options.PackageRootPath, scenario.DataStream.Name),
 				packages.DataStreamManifestFile,
 			),
 		)
@@ -628,12 +628,4 @@ func waitUntilTrue(fn func() (bool, error), timeout time.Duration) (bool, error)
 			return false, nil
 		}
 	}
-}
-
-func createRunID() string {
-	return uuid.New().String()
-}
-
-func getDataStreamPath(packageRoot, dataStream string) string {
-	return filepath.Join(packageRoot, "data_stream", dataStream)
 }
