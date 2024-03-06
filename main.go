@@ -9,6 +9,7 @@ import (
 	"errors"
 	"log"
 	"os"
+	"os/exec"
 	"os/signal"
 
 	"github.com/elastic/elastic-package/cmd"
@@ -47,5 +48,14 @@ func main() {
 }
 
 func errIsInterruption(err error) bool {
-	return errors.Is(err, context.Canceled)
+	if errors.Is(err, context.Canceled) {
+		return true
+	}
+
+	var exitError *exec.ExitError
+	if errors.As(err, &exitError) && (*exitError).ProcessState.ExitCode() == 130 { // 130 -> subcommand killed by sigint
+		return true
+	}
+
+	return false
 }
