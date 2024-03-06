@@ -34,7 +34,7 @@ func main() {
 		os.Exit(130)
 	}
 	if err != nil {
-		rootCmd.PrintErr(rootCmd.ErrPrefix(), err)
+		rootCmd.PrintErrln(rootCmd.ErrPrefix(), err)
 		os.Exit(1)
 	}
 }
