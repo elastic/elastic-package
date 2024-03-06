@@ -19,7 +19,9 @@ import (
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/kibana"
+	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/internal/signal"
 	"github.com/elastic/elastic-package/internal/stack"
 	"github.com/elastic/elastic-package/internal/testrunner"
 	"github.com/elastic/elastic-package/internal/testrunner/reporters/formats"
@@ -66,7 +68,6 @@ func setupTestCommand() *cobraext.Command {
 			return cobraext.ComposeCommandActions(cmd, args, testTypeCmdActions...)
 		},
 	}
-	cobraext.EnableSignalHandling(cmd)
 
 	cmd.PersistentFlags().BoolP(cobraext.FailOnMissingFlagName, "m", false, cobraext.FailOnMissingFlagDescription)
 	cmd.PersistentFlags().BoolP(cobraext.GenerateTestResultFlagName, "g", false, cobraext.GenerateTestResultFlagDescription)
@@ -294,11 +295,14 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 
 		variantFlag, _ := cmd.Flags().GetString(cobraext.VariantFlagName)
 
+		ctx, stop := signal.Enable(cmd.Context(), logger.Info)
+		defer stop()
+
 		esClient, err := stack.NewElasticsearchClientFromProfile(profile)
 		if err != nil {
 			return fmt.Errorf("can't create Elasticsearch client: %w", err)
 		}
-		err = esClient.CheckHealth(cmd.Context())
+		err = esClient.CheckHealth(ctx)
 		if err != nil {
 			return err
 		}
@@ -329,7 +333,7 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 
 		var results []testrunner.TestResult
 		for _, folder := range testFolders {
-			r, err := testrunner.Run(cmd.Context(), testType, testrunner.TestOptions{
+			r, err := testrunner.Run(ctx, testType, testrunner.TestOptions{
 				Profile:            profile,
 				TestFolder:         folder,
 				PackageRootPath:    packageRootPath,

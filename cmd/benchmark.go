@@ -15,6 +15,7 @@ import (
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/logger"
+	"github.com/elastic/elastic-package/internal/signal"
 	"github.com/elastic/elastic-package/internal/stack"
 
 	"github.com/spf13/cobra"
@@ -69,7 +70,6 @@ func setupBenchmarkCommand() *cobraext.Command {
 		Short: "Run benchmarks for the package",
 		Long:  benchLongDescription,
 	}
-	cobraext.EnableSignalHandling(cmd)
 
 	cmd.PersistentFlags().StringP(cobraext.ProfileFlagName, "p", "", fmt.Sprintf(cobraext.ProfileFlagDescription, install.ProfileNameEnvVar))
 
@@ -156,6 +156,9 @@ func pipelineCommandAction(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	ctx, stop := signal.Enable(cmd.Context(), logger.Info)
+	defer stop()
+
 	benchFolders, err := pipeline.FindBenchmarkFolders(packageRootPath, dataStreams)
 	if err != nil {
 		return fmt.Errorf("unable to determine benchmark folder paths: %w", err)
@@ -185,7 +188,7 @@ func pipelineCommandAction(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("can't create Elasticsearch client: %w", err)
 	}
-	err = esClient.CheckHealth(cmd.Context())
+	err = esClient.CheckHealth(ctx)
 	if err != nil {
 		return err
 	}
@@ -202,7 +205,7 @@ func pipelineCommandAction(cmd *cobra.Command, args []string) error {
 		)
 		runner := pipeline.NewPipelineBenchmark(opts)
 
-		r, err := benchrunner.Run(cmd.Context(), runner)
+		r, err := benchrunner.Run(ctx, runner)
 
 		if err != nil {
 			return fmt.Errorf("error running package pipeline benchmarks: %w", err)
@@ -307,11 +310,14 @@ func rallyCommandAction(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	ctx, stop := signal.Enable(cmd.Context(), logger.Info)
+	defer stop()
+
 	esClient, err := stack.NewElasticsearchClientFromProfile(profile)
 	if err != nil {
 		return fmt.Errorf("can't create Elasticsearch client: %w", err)
 	}
-	err = esClient.CheckHealth(cmd.Context())
+	err = esClient.CheckHealth(ctx)
 	if err != nil {
 		return err
 	}
@@ -335,7 +341,7 @@ func rallyCommandAction(cmd *cobra.Command, args []string) error {
 		rally.WithRallyCorpusAtPath(corpusAtPath),
 	}
 
-	esMetricsClient, err := initializeESMetricsClient(cmd.Context())
+	esMetricsClient, err := initializeESMetricsClient(ctx)
 	if err != nil {
 		return fmt.Errorf("can't create Elasticsearch metrics client: %w", err)
 	}
@@ -345,7 +351,7 @@ func rallyCommandAction(cmd *cobra.Command, args []string) error {
 
 	runner := rally.NewRallyBenchmark(rally.NewOptions(withOpts...))
 
-	r, err := benchrunner.Run(cmd.Context(), runner)
+	r, err := benchrunner.Run(ctx, runner)
 	if errors.Is(err, rally.ErrDryRun) {
 		return nil
 	}
@@ -475,11 +481,14 @@ func streamCommandAction(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	ctx, stop := signal.Enable(cmd.Context(), logger.Info)
+	defer stop()
+
 	esClient, err := stack.NewElasticsearchClientFromProfile(profile)
 	if err != nil {
 		return fmt.Errorf("can't create Elasticsearch client: %w", err)
 	}
-	err = esClient.CheckHealth(cmd.Context())
+	err = esClient.CheckHealth(ctx)
 	if err != nil {
 		return err
 	}
@@ -505,7 +514,7 @@ func streamCommandAction(cmd *cobra.Command, args []string) error {
 
 	runner := stream.NewStreamBenchmark(stream.NewOptions(withOpts...))
 
-	_, err = benchrunner.Run(cmd.Context(), runner)
+	_, err = benchrunner.Run(ctx, runner)
 	if err != nil {
 		return fmt.Errorf("error running package stream benchmarks: %w", err)
 	}
@@ -579,11 +588,14 @@ func systemCommandAction(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	ctx, stop := signal.Enable(cmd.Context(), logger.Info)
+	defer stop()
+
 	esClient, err := stack.NewElasticsearchClientFromProfile(profile)
 	if err != nil {
 		return fmt.Errorf("can't create Elasticsearch client: %w", err)
 	}
-	err = esClient.CheckHealth(cmd.Context())
+	err = esClient.CheckHealth(ctx)
 	if err != nil {
 		return err
 	}
@@ -606,7 +618,7 @@ func systemCommandAction(cmd *cobra.Command, args []string) error {
 		system.WithProfile(profile),
 	}
 
-	esMetricsClient, err := initializeESMetricsClient(cmd.Context())
+	esMetricsClient, err := initializeESMetricsClient(ctx)
 	if err != nil {
 		return fmt.Errorf("can't create Elasticsearch metrics client: %w", err)
 	}
@@ -616,7 +628,7 @@ func systemCommandAction(cmd *cobra.Command, args []string) error {
 
 	runner := system.NewSystemBenchmark(system.NewOptions(withOpts...))
 
-	r, err := benchrunner.Run(cmd.Context(), runner)
+	r, err := benchrunner.Run(ctx, runner)
 	if err != nil {
 		return fmt.Errorf("error running package system benchmarks: %w", err)
 	}
