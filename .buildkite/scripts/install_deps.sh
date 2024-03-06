@@ -147,3 +147,17 @@ with_jq() {
     chmod +x "${WORKSPACE}/bin/jq"
     jq --version
 }
+
+with_aws_cli() {
+    check_platform_architecture
+
+    if ! which aws; then
+        curl -s "https://awscli.amazonaws.com/awscli-exe-${platform_type_lowercase}-${hw_type}.zip" -o "awscliv2.zip"
+        unzip -q awscliv2.zip
+        sudo ./aws/install
+        rm -rf awscliv2.zip aws
+        aws --version
+        return
+    fi
+    echo "\"aws\" already installed"
+}

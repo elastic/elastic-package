@@ -1,0 +1,75 @@
+---
+version: "1.0"
+
+accounts:
+  - name: "${ACCOUNT_PROJECT}"
+    driver: "aws"
+    options:
+      key: '${ACCOUNT_KEY}'
+      secret: '${ACCOUNT_SECRET}'
+
+scanners:
+  - account_name: "${ACCOUNT_PROJECT}"
+    resources:
+      - type: 'node'
+        regions:
+          - us-east-1
+        filters:
+          - type: "<"
+            pointer: "/created_at"
+            param: "${CREATION_DATE}"
+            converters:
+              param: "date"
+          - type: "regex"
+            pointer: "/extra/tags/repo"
+            param: "^(elastic-package|integrations)"
+          - type: "="
+            pointer: "/extra/tags/environment"
+            param: "ci"
+          - type: "regex"
+            pointer: "/name"
+            param: "^elastic-package-(.*)"
+          - type: "!="
+            pointer: "/state"
+            param: "unknown"
+          - type: "!="
+            pointer: "/state"
+            param: "terminated"
+      - type: 'object_storage_bucket'
+        regions:
+          - us-east-1
+        filters:
+          - type: "<"
+            pointer: "/created_at"
+            param: "${CREATION_DATE}"
+            converters:
+              param: "date"
+              value: "date"
+          - type: "regex"
+            pointer: "/extra/tags/repo"
+            param: "^(elastic-package|integrations)"
+          - type: "="
+            pointer: "/extra/tags/environment"
+            param: "ci"
+          - type: "regex"
+            pointer: "/name"
+            param: "^elastic-package-(.*)"
+      - type: 'queue'
+        regions:
+          - us-east-1
+        filters:
+          - type: "<"
+            pointer: "/extra/tags/created_at"
+            param: "${CREATION_DATE}"
+            converters:
+              param: "date"
+              value: "date_epoch_ms"
+          - type: "regex"
+            pointer: "/extra/tags/repo"
+            param: "^(elastic-package|integrations)"
+          - type: "="
+            pointer: "/extra/tags/environment"
+            param: "ci"
+          - type: "regex"
+            pointer: "/id"
+            param: "^https://(.*)/elastic-package-(.*)"
