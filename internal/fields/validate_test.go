@@ -963,7 +963,8 @@ func TestValidateExternalMultiField(t *testing.T) {
 
 func TestValidateStackVersionsWithEcsMappings(t *testing.T) {
 	// List of unique stack constraints extracted from the
-	// package manifest files in the elastic/integrations repository.
+	// package manifest files in the elastic/integrations
+	// repository.
 	constraints := []struct {
 		Constraints string
 		SupportEcs  bool
@@ -997,7 +998,8 @@ func TestValidateStackVersionsWithEcsMappings(t *testing.T) {
 		{"^8.8.1", false},
 		{"^8.8.2", false},
 		{"^8.9.0", false},
-		//{">= 8.0.0, < 8.10.0", false}, // FIXME: do we need to support this?
+		{">= 8.0.0, < 8.10.0", false},
+		{">= 8.0.0, < 8.0.1", false},
 	}
 
 	for _, c := range constraints {
@@ -1005,7 +1007,7 @@ func TestValidateStackVersionsWithEcsMappings(t *testing.T) {
 		if err != nil {
 			require.NoError(t, err)
 		}
-		require.Equal(t, c.SupportEcs, onlySupportsStackVersionsWithEcsMappings(constraint), "constraint: %s", c.Constraints)
+		require.Equal(t, c.SupportEcs, allVersionsIncludeECS(constraint), "constraint: %s", c.Constraints)
 	}
 }
 

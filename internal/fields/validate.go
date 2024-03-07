@@ -34,6 +34,8 @@ var (
 	semver2_3_0 = semver.MustParse("2.3.0")
 	semver3_0_1 = semver.MustParse("3.0.1")
 
+	firstStackVersionWithEcsMappings = semver.MustParse("8.13.0")
+
 	defaultExternal = "ecs"
 )
 
@@ -238,7 +240,7 @@ func initDependencyManagement(packageRoot string, specVersion semver.Version, im
 		if err != nil {
 			return nil, nil, fmt.Errorf("invalid constraint for Kibana: %w", err)
 		}
-		stackIncludesEcsMapping = onlySupportsStackVersionsWithEcsMappings(kibanaConstraints)
+		stackIncludesEcsMapping = allVersionsIncludeECS(kibanaConstraints)
 	}
 
 	// If the package embeds ECS mappings, or the stack version includes ECS mappings, then
@@ -257,40 +259,167 @@ func initDependencyManagement(packageRoot string, specVersion semver.Version, im
 	return fdm, schema, nil
 }
 
-func onlySupportsStackVersionsWithEcsMappings(kibanaConstraints *semver.Constraints) bool {
-	//versionsStr := []string{
-	//	"7.17.999",
-	//	"8.0.999",
-	//	"8.1.999",
-	//	"8.2.999",
-	//	"8.3.999",
-	//	"8.4.999",
-	//	"8.5.999",
-	//	"8.6.999",
-	//	"8.7.999",
-	//	"8.8.999",
-	//	"8.9.999",
-	//	"8.10.999",
-	//	"8.11.999",
-	//	"8.12.999",
-	//}
-	//var minVersion *semver.Version
-	//
-	//for _, vStr := range versionsStr {
-	//	v, err := semver.NewVersion(vStr)
-	//	if err != nil {
-	//		continue
-	//	}
-	//
-	//	if kibanaConstraints.Check(v) {
-	//		if minVersion == nil || v.LessThan(minVersion) {
-	//			minVersion = v
-	//		}
-	//	}
-	//}
-	//
-	//firstStackVersionWithEcsMappings := semver.MustParse("8.13.0")
-	//return minVersion == nil || minVersion.Compare(firstStackVersionWithEcsMappings) >= 0 // greater or equal
+// allVersionsIncludeECS Check if all the stack versions in the constraints include ECS mappings. Only the stack
+// versions 8.13.0 and above include ECS mappings.
+//
+// Returns true if all the stack versions in the constraints include ECS mappings, otherwise returns false.
+func allVersionsIncludeECS(kibanaConstraints *semver.Constraints) bool {
+	// List of Elasticsearch releases that do not include ECS mappings (all versions before 8.13.0).
+	versionsStr := []string{
+		"6.8.1",
+		"6.8.10",
+		"6.8.11",
+		"6.8.12",
+		"6.8.13",
+		"6.8.14",
+		"6.8.15",
+		"6.8.16",
+		"6.8.17",
+		"6.8.18",
+		"6.8.19",
+		"6.8.2",
+		"6.8.20",
+		"6.8.21",
+		"6.8.22",
+		"6.8.23",
+		"6.8.3",
+		"6.8.4",
+		"6.8.5",
+		"6.8.6",
+		"6.8.7",
+		"6.8.8",
+		"6.8.9",
+		"7.10.0",
+		"7.10.1",
+		"7.10.2",
+		"7.11.0",
+		"7.11.1",
+		"7.11.2",
+		"7.12.0",
+		"7.12.1",
+		"7.13.0",
+		"7.13.1",
+		"7.13.2",
+		"7.13.3",
+		"7.13.4",
+		"7.14.0",
+		"7.14.1",
+		"7.14.2",
+		"7.15.0",
+		"7.15.1",
+		"7.15.2",
+		"7.16.0",
+		"7.16.1",
+		"7.16.2",
+		"7.16.3",
+		"7.17.0",
+		"7.17.1",
+		"7.17.10",
+		"7.17.11",
+		"7.17.12",
+		"7.17.13",
+		"7.17.14",
+		"7.17.15",
+		"7.17.16",
+		"7.17.17",
+		"7.17.18",
+		"7.17.2",
+		"7.17.3",
+		"7.17.4",
+		"7.17.5",
+		"7.17.6",
+		"7.17.7",
+		"7.17.8",
+		"7.17.9",
+		"7.2.0",
+		"7.2.1",
+		"7.3.0",
+		"7.3.1",
+		"7.3.2",
+		"7.4.0",
+		"7.4.1",
+		"7.4.2",
+		"7.5.0",
+		"7.5.1",
+		"7.5.2",
+		"7.6.0",
+		"7.6.1",
+		"7.6.2",
+		"7.7.0",
+		"7.7.1",
+		"7.8.0",
+		"7.8.1",
+		"7.9.0",
+		"7.9.1",
+		"7.9.2",
+		"7.9.3",
+		"8.0.0",
+		"8.0.1",
+		"8.1.0",
+		"8.1.1",
+		"8.1.2",
+		"8.1.3",
+		"8.10.0",
+		"8.10.1",
+		"8.10.2",
+		"8.10.3",
+		"8.10.4",
+		"8.11.0",
+		"8.11.1",
+		"8.11.2",
+		"8.11.3",
+		"8.11.4",
+		"8.12.0",
+		"8.12.1",
+		"8.12.2",
+		"8.2.0",
+		"8.2.1",
+		"8.2.2",
+		"8.2.3",
+		"8.3.0",
+		"8.3.1",
+		"8.3.2",
+		"8.3.3",
+		"8.4.0",
+		"8.4.1",
+		"8.4.2",
+		"8.4.3",
+		"8.5.0",
+		"8.5.1",
+		"8.5.2",
+		"8.5.3",
+		"8.6.0",
+		"8.6.1",
+		"8.6.2",
+		"8.7.0",
+		"8.7.1",
+		"8.8.0",
+		"8.8.1",
+		"8.8.2",
+		"8.9.0",
+		"8.9.1",
+		"8.9.2",
+	}
+
+	// Looking for a version that satisfies the package constraints.
+	for _, vStr := range versionsStr {
+		v, err := semver.NewVersion(vStr)
+		if err != nil {
+			logger.Errorf("invalid stack version %q: %v", vStr, err)
+			continue
+		}
+
+		if kibanaConstraints.Check(v) {
+			// Found a version that satisfies the constraints,
+			// so at least this version does not include
+			// ECS mappings.
+			return false
+		}
+	}
+
+	// If no version satisfies the constraints, then all versions
+	// include ECS mappings.
+	return true
 
 	// This check works under the assumption the constraints are not limited
 	// upwards.
@@ -298,15 +427,15 @@ func onlySupportsStackVersionsWithEcsMappings(kibanaConstraints *semver.Constrai
 	// For example, if the constraint is `>= 8.12.0` and the stack version is
 	// `8.12.999`, the constraint will be satisfied.
 	//
-	// However, if the constraint is `= 8.0.0, < 8.10.0` the check will not
+	// However, if the constraint is `>= 8.0.0, < 8.10.0` the check will not
 	// return the right result.
 	//
 	// To support this, we would need to check the constraint against a larger
 	// set of versions, and check if the constraint is satisfied for all
 	// of them, like in the commented out example above.
 	//
-	lastStackVersionWithoutEcsMappings := semver.MustParse("8.12.999")
-	return !kibanaConstraints.Check(lastStackVersionWithoutEcsMappings)
+	// lastStackVersionWithoutEcsMappings := semver.MustParse("8.12.999")
+	// return !kibanaConstraints.Check(lastStackVersionWithoutEcsMappings)
 }
 
 //go:embed _static/allowed_geo_ips.txt
