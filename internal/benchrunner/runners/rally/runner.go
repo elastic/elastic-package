@@ -21,7 +21,6 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/magefile/mage/sh"
 	"gopkg.in/yaml.v3"
 
@@ -247,7 +246,7 @@ func (r *runner) setUp(ctx context.Context) error {
 	rallyCorpusDir := locationManager.RallyCorpusDir()
 	r.svcInfo.Logs.Folder.Local = rallyCorpusDir
 	r.svcInfo.Logs.Folder.Agent = RallyCorpusAgentDir
-	r.svcInfo.Test.RunID = createRunID()
+	r.svcInfo.Test.RunID = common.NewRunID()
 
 	outputDir, err := servicedeployer.CreateOutputDir(locationManager, r.svcInfo.Test.RunID)
 	if err != nil {
@@ -285,7 +284,7 @@ func (r *runner) setUp(ctx context.Context) error {
 
 	dataStreamManifest, err := packages.ReadDataStreamManifest(
 		filepath.Join(
-			getDataStreamPath(r.options.PackageRootPath, r.scenario.DataStream.Name),
+			common.DataStreamPath(r.options.PackageRootPath, r.scenario.DataStream.Name),
 			packages.DataStreamManifestFile,
 		),
 	)
@@ -1122,14 +1121,6 @@ func (r *runner) enrichEventWithBenchmarkMetadata(e map[string]interface{}) map[
 	m.Parameters = *r.scenario
 	e["benchmark_metadata"] = m
 	return e
-}
-
-func createRunID() string {
-	return uuid.New().String()
-}
-
-func getDataStreamPath(packageRoot, dataStream string) string {
-	return filepath.Join(packageRoot, "data_stream", dataStream)
 }
 
 func generateRallyTrack(dataStream, indexTemplateBody, corpusFileName string, corpusDocsCount uint64, isTSDB bool) ([]byte, error) {

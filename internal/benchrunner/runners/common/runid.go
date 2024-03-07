@@ -2,9 +2,10 @@
 // or more contributor license agreements. Licensed under the Elastic License;
 // you may not use this file except in compliance with the Elastic License.
 
-package install
+package common
 
-const (
-	// DefaultStackVersion is the default version of the stack
-	DefaultStackVersion = "8.12.2"
-)
+import "github.com/google/uuid"
+
+func NewRunID() string {
+	return uuid.New().String()
+}

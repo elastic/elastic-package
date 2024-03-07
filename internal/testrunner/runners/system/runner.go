@@ -462,7 +462,7 @@ func (r *runner) run(ctx context.Context) (results []testrunner.TestResult, err 
 	defer os.RemoveAll(tempDir)
 
 	dumpOptions := stack.DumpOptions{Output: tempDir, Profile: r.options.Profile}
-	_, err = stack.Dump(ctx, dumpOptions)
+	_, err = stack.Dump(context.WithoutCancel(ctx), dumpOptions)
 	if err != nil {
 		return nil, fmt.Errorf("dump failed: %w", err)
 	}
