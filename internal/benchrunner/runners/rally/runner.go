@@ -388,7 +388,7 @@ func (r *runner) extractSimulatedTemplate(indexTemplate string) (string, error) 
 func (r *runner) wipeDataStreamOnSetup() error {
 	// Delete old data
 	logger.Debug("deleting old data in data stream...")
-	r.wipeDataStreamHandler = func(context.Context) error {
+	r.wipeDataStreamHandler = func(ctx context.Context) error {
 		logger.Debugf("deleting data in data stream...")
 		if err := r.deleteDataStreamDocs(r.runtimeDataStream); err != nil {
 			return fmt.Errorf("error deleting data in data stream: %w", err)
@@ -470,7 +470,7 @@ func (r *runner) installPackageFromRegistry(packageName, packageVersion string) 
 		return fmt.Errorf("cannot install package %s@%s: %w", packageName, packageVersion, err)
 	}
 
-	r.removePackageHandler = func(context.Context) error {
+	r.removePackageHandler = func(ctx context.Context) error {
 		logger.Debug("removing benchmark package...")
 		if _, err := r.options.KibanaClient.RemovePackage(packageName, packageVersion); err != nil {
 			return fmt.Errorf("error removing benchmark package: %w", err)
@@ -498,7 +498,7 @@ func (r *runner) installPackageFromPackageRoot() error {
 		return fmt.Errorf("failed to install package: %w", err)
 	}
 
-	r.removePackageHandler = func(context.Context) error {
+	r.removePackageHandler = func(ctx context.Context) error {
 		if err := installer.Uninstall(); err != nil {
 			return fmt.Errorf("error removing benchmark package: %w", err)
 		}
@@ -714,7 +714,7 @@ func (r *runner) runGenerator(destDir string) (uint64, error) {
 
 	r.corpusFile = corpusFile.Name()
 
-	r.clearCorporaHandler = func(context.Context) error {
+	r.clearCorporaHandler = func(ctx context.Context) error {
 		return errors.Join(
 			os.Remove(r.corpusFile),
 		)
@@ -781,7 +781,7 @@ func (r *runner) createRallyTrack(corpusDocsCount uint64, destDir string) error 
 	r.reportFile = reportFile.Name()
 
 	if r.options.RallyTrackOutputDir != "" {
-		r.persistRallyTrackHandler = func(context.Context) error {
+		r.persistRallyTrackHandler = func(ctx context.Context) error {
 			err := os.MkdirAll(r.options.RallyTrackOutputDir, 0755)
 			if err != nil {
 				return fmt.Errorf("cannot not create rally track output dir: %w", err)
@@ -805,7 +805,7 @@ func (r *runner) createRallyTrack(corpusDocsCount uint64, destDir string) error 
 		}
 	}
 
-	r.clearTrackHandler = func(context.Context) error {
+	r.clearTrackHandler = func(ctx context.Context) error {
 		return errors.Join(
 			os.Remove(r.trackFile),
 			os.Remove(r.reportFile),
@@ -853,7 +853,7 @@ func (r *runner) copyCorpusFile(corpusPath, destDir string) (uint64, error) {
 
 	r.corpusFile = corpusFile.Name()
 
-	r.clearCorporaHandler = func(context.Context) error {
+	r.clearCorporaHandler = func(ctx context.Context) error {
 		return errors.Join(
 			os.Remove(r.corpusFile),
 		)

@@ -107,7 +107,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		return result.WithError(fmt.Errorf("can't install the package: %w", err))
 	}
 
-	r.removePackageHandler = func(context.Context) error {
+	r.removePackageHandler = func(ctx context.Context) error {
 		pkgManifest, err := packages.ReadPackageManifestFromPackageRoot(r.packageRootPath)
 		if err != nil {
 			return fmt.Errorf("reading package manifest failed: %w", err)

@@ -174,7 +174,7 @@ func (r *runner) setUp(ctx context.Context) error {
 func (r *runner) wipeDataStreamsOnSetup() error {
 	// Delete old data
 	logger.Debug("deleting old data in data stream...")
-	r.wipeDataStreamHandler = func(context.Context) error {
+	r.wipeDataStreamHandler = func(ctx context.Context) error {
 		logger.Debugf("deleting data in data stream...")
 		for _, runtimeDataStream := range r.runtimeDataStreams {
 			if err := r.deleteDataStreamDocs(runtimeDataStream); err != nil {
@@ -214,7 +214,7 @@ func (r *runner) installPackageFromPackageRoot() error {
 		return fmt.Errorf("failed to install package: %w", err)
 	}
 
-	r.removePackageHandler = func(context.Context) error {
+	r.removePackageHandler = func(ctx context.Context) error {
 		if err := installer.Uninstall(); err != nil {
 			return fmt.Errorf("error removing benchmark package: %w", err)
 		}

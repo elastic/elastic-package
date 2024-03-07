@@ -203,7 +203,7 @@ func (r *runner) setUp(ctx context.Context) error {
 		r.scenario.Version,
 	)
 
-	r.wipeDataStreamHandler = func(context.Context) error {
+	r.wipeDataStreamHandler = func(ctx context.Context) error {
 		logger.Debugf("deleting data in data stream...")
 		if err := r.deleteDataStreamDocs(r.runtimeDataStream); err != nil {
 			return fmt.Errorf("error deleting data in data stream: %w", err)
@@ -611,7 +611,7 @@ func (r *runner) runGenerator(destDir string) error {
 	}
 
 	r.corporaFile = f.Name()
-	r.clearCorporaHandler = func(context.Context) error {
+	r.clearCorporaHandler = func(ctx context.Context) error {
 		return os.Remove(r.corporaFile)
 	}
 
