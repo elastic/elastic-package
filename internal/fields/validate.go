@@ -34,8 +34,6 @@ var (
 	semver2_3_0 = semver.MustParse("2.3.0")
 	semver3_0_1 = semver.MustParse("3.0.1")
 
-	firstStackVersionWithEcsMappings = semver.MustParse("8.13.0")
-
 	defaultExternal = "ecs"
 )
 
