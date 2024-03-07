@@ -10,12 +10,9 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	"os/signal"
 
 	"github.com/elastic/elastic-package/cmd"
-	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/install"
-	"github.com/elastic/elastic-package/internal/logger"
 )
 
 func main() {
@@ -26,16 +23,6 @@ func main() {
 
 	rootCmd := cmd.RootCmd()
 	rootCmd.SilenceErrors = true // Silence errors so we handle them here.
-	if cobraext.IsSignalHandingRequested(rootCmd) {
-		ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
-		defer cancel()
-		stop := context.AfterFunc(ctx, func() {
-			logger.Info("Signal caught!")
-		})
-		defer stop()
-		rootCmd.SetContext(ctx)
-	}
-
 	err = rootCmd.Execute()
 	if errIsInterruption(err) {
 		rootCmd.Println("interrupted")
