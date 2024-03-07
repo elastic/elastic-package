@@ -27,7 +27,6 @@ import (
 
 	"github.com/elastic/elastic-package/internal/stack"
 
-	"github.com/google/uuid"
 	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-integration-corpus-generator-tool/pkg/genlib"
@@ -36,6 +35,7 @@ import (
 
 	"github.com/elastic/elastic-package/internal/benchrunner"
 	"github.com/elastic/elastic-package/internal/benchrunner/reporters"
+	"github.com/elastic/elastic-package/internal/benchrunner/runners/common"
 	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/logger"
@@ -244,7 +244,7 @@ func (r *runner) setUp() error {
 	rallyCorpusDir := locationManager.RallyCorpusDir()
 	r.ctxt.Logs.Folder.Local = rallyCorpusDir
 	r.ctxt.Logs.Folder.Agent = RallyCorpusAgentDir
-	r.ctxt.Test.RunID = createRunID()
+	r.ctxt.Test.RunID = common.NewRunID()
 
 	outputDir, err := servicedeployer.CreateOutputDir(locationManager, r.ctxt.Test.RunID)
 	if err != nil {
@@ -282,7 +282,7 @@ func (r *runner) setUp() error {
 
 	dataStreamManifest, err := packages.ReadDataStreamManifest(
 		filepath.Join(
-			getDataStreamPath(r.options.PackageRootPath, r.scenario.DataStream.Name),
+			common.DataStreamPath(r.options.PackageRootPath, r.scenario.DataStream.Name),
 			packages.DataStreamManifestFile,
 		),
 	)
@@ -1186,14 +1186,6 @@ func waitUntilTrue(fn func() (bool, error), timeout time.Duration) (bool, error)
 			return false, nil
 		}
 	}
-}
-
-func createRunID() string {
-	return uuid.New().String()
-}
-
-func getDataStreamPath(packageRoot, dataStream string) string {
-	return filepath.Join(packageRoot, "data_stream", dataStream)
 }
 
 func generateRallyTrack(dataStream, indexTemplateBody, corpusFileName string, corpusDocsCount uint64, isTSDB bool) ([]byte, error) {
