@@ -17,7 +17,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
 	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-integration-corpus-generator-tool/pkg/genlib"
@@ -143,7 +142,7 @@ func (r *runner) setUp(ctx context.Context) error {
 	serviceLogsDir := locationManager.ServiceLogDir()
 	r.svcInfo.Logs.Folder.Local = serviceLogsDir
 	r.svcInfo.Logs.Folder.Agent = ServiceLogsAgentDir
-	r.svcInfo.Test.RunID = createRunID()
+	r.svcInfo.Test.RunID = common.NewRunID()
 
 	outputDir, err := servicedeployer.CreateOutputDir(locationManager, r.svcInfo.Test.RunID)
 	if err != nil {
@@ -180,7 +179,7 @@ func (r *runner) setUp(ctx context.Context) error {
 	logger.Debug("deleting old data in data stream...")
 	dataStreamManifest, err := packages.ReadDataStreamManifest(
 		filepath.Join(
-			getDataStreamPath(r.options.PackageRootPath, r.scenario.DataStream.Name),
+			common.DataStreamPath(r.options.PackageRootPath, r.scenario.DataStream.Name),
 			packages.DataStreamManifestFile,
 		),
 	)
@@ -926,12 +925,4 @@ func filterAgents(allAgents []kibana.Agent) []kibana.Agent {
 		filtered = append(filtered, agent)
 	}
 	return filtered
-}
-
-func createRunID() string {
-	return uuid.New().String()
-}
-
-func getDataStreamPath(packageRoot, dataStream string) string {
-	return filepath.Join(packageRoot, "data_stream", dataStream)
 }

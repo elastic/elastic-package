@@ -18,7 +18,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/google/uuid"
 	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-integration-corpus-generator-tool/pkg/genlib"
@@ -101,7 +100,7 @@ func (r *runner) setUp(ctx context.Context) error {
 
 	r.runtimeDataStreams = make(map[string]string)
 
-	r.svcInfo.Test.RunID = createRunID()
+	r.svcInfo.Test.RunID = common.NewRunID()
 
 	pkgManifest, err := packages.ReadPackageManifestFromPackageRoot(r.options.PackageRootPath)
 	if err != nil {
@@ -127,7 +126,7 @@ func (r *runner) setUp(ctx context.Context) error {
 		var err error
 		dataStreamManifest, err := packages.ReadDataStreamManifest(
 			filepath.Join(
-				getDataStreamPath(r.options.PackageRootPath, scenario.DataStream.Name),
+				common.DataStreamPath(r.options.PackageRootPath, scenario.DataStream.Name),
 				packages.DataStreamManifestFile,
 			),
 		)
@@ -580,12 +579,4 @@ func (r *runner) enrichEventWithBenchmarkMetadata(e map[string]any) map[string]i
 	m.Info.RunID = r.svcInfo.Test.RunID
 	e["benchmark_metadata"] = m
 	return e
-}
-
-func createRunID() string {
-	return uuid.New().String()
-}
-
-func getDataStreamPath(packageRoot, dataStream string) string {
-	return filepath.Join(packageRoot, "data_stream", dataStream)
 }
