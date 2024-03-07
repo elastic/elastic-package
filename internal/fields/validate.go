@@ -33,7 +33,6 @@ var (
 	semver2_0_0 = semver.MustParse("2.0.0")
 	semver2_3_0 = semver.MustParse("2.3.0")
 	semver3_0_1 = semver.MustParse("3.0.1")
-	semver3_1_3 = semver.MustParse("3.1.3")
 
 	defaultExternal = "ecs"
 )
@@ -216,8 +215,36 @@ func initDependencyManagement(packageRoot string, specVersion semver.Version, im
 		return nil, nil, fmt.Errorf("can't create field dependency manager: %w", err)
 	}
 
+	//
+	// Check if the package embeds ECS mappings
+	//
+	packageEmbedsEcsMappings := buildManifest.ImportMappings() && !specVersion.LessThan(semver2_3_0)
+	if !packageEmbedsEcsMappings {
+		logger.Debugf("Package does not embed ECS mappings")
+	}
+
+	//
+	// Check if the stack version includes ECS mappings
+	//
+	stackIncludesEcsMapping := false
+
+	packageManifest, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
+	if err != nil {
+		return nil, nil, fmt.Errorf("can't read package manifest: %w", err)
+	}
+
+	if len(packageManifest.Conditions.Kibana.Version) > 0 {
+		kibanaConstraints, err := semver.NewConstraint(packageManifest.Conditions.Kibana.Version)
+		if err != nil {
+			return nil, nil, fmt.Errorf("invalid constraint for Kibana: %w", err)
+		}
+		stackIncludesEcsMapping = onlySupportsStackVersionsWithEcsMappings(kibanaConstraints)
+	}
+
+	// If the package embeds ECS mappings, or the stack version includes ECS mappings, then
+	// we should import the ECS schema to validate the package fields against it.
 	var schema []FieldDefinition
-	if (buildManifest.ImportMappings() && !specVersion.LessThan(semver2_3_0) || !specVersion.LessThan(semver3_1_3)) && importECSSchema {
+	if (packageEmbedsEcsMappings || stackIncludesEcsMapping) && importECSSchema {
 		// Import all fields from external schema (most likely ECS) to
 		// validate the package fields against it.
 		ecsSchema, err := fdm.ImportAllFields(defaultExternal)
@@ -228,6 +255,58 @@ func initDependencyManagement(packageRoot string, specVersion semver.Version, im
 	}
 
 	return fdm, schema, nil
+}
+
+func onlySupportsStackVersionsWithEcsMappings(kibanaConstraints *semver.Constraints) bool {
+	//versionsStr := []string{
+	//	"7.17.999",
+	//	"8.0.999",
+	//	"8.1.999",
+	//	"8.2.999",
+	//	"8.3.999",
+	//	"8.4.999",
+	//	"8.5.999",
+	//	"8.6.999",
+	//	"8.7.999",
+	//	"8.8.999",
+	//	"8.9.999",
+	//	"8.10.999",
+	//	"8.11.999",
+	//	"8.12.999",
+	//}
+	//var minVersion *semver.Version
+	//
+	//for _, vStr := range versionsStr {
+	//	v, err := semver.NewVersion(vStr)
+	//	if err != nil {
+	//		continue
+	//	}
+	//
+	//	if kibanaConstraints.Check(v) {
+	//		if minVersion == nil || v.LessThan(minVersion) {
+	//			minVersion = v
+	//		}
+	//	}
+	//}
+	//
+	//firstStackVersionWithEcsMappings := semver.MustParse("8.13.0")
+	//return minVersion == nil || minVersion.Compare(firstStackVersionWithEcsMappings) >= 0 // greater or equal
+
+	// This check works under the assumption the constraints are not limited
+	// upwards.
+	//
+	// For example, if the constraint is `>= 8.12.0` and the stack version is
+	// `8.12.999`, the constraint will be satisfied.
+	//
+	// However, if the constraint is `= 8.0.0, < 8.10.0` the check will not
+	// return the right result.
+	//
+	// To support this, we would need to check the constraint against a larger
+	// set of versions, and check if the constraint is satisfied for all
+	// of them, like in the commented out example above.
+	//
+	lastStackVersionWithoutEcsMappings := semver.MustParse("8.12.999")
+	return !kibanaConstraints.Check(lastStackVersionWithoutEcsMappings)
 }
 
 //go:embed _static/allowed_geo_ips.txt
