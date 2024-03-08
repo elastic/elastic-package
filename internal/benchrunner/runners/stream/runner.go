@@ -63,6 +63,16 @@ func (r *runner) SetUp() error {
 	return r.setUp()
 }
 
+func StaticValidation(opts Options) error {
+	runner := runner{options: opts}
+	err := runner.initialize()
+	if err != nil {
+		return err
+	}
+	err = runner.validateGenerators()
+	return err
+}
+
 // Run runs the system benchmarks defined under the given folder
 func (r *runner) Run() (reporters.Reportable, error) {
 	return nil, r.run()
@@ -99,15 +109,9 @@ func (r *runner) TearDown() error {
 	return merr
 }
 
-func (r *runner) setUp() error {
+func (r *runner) initialize() error {
 	r.generators = make(map[string]genlib.Generator)
 	r.backFillGenerators = make(map[string]genlib.Generator)
-	r.errChanGenerators = make(chan error)
-	r.done = make(chan struct{})
-
-	r.runtimeDataStreams = make(map[string]string)
-
-	r.ctxt.Test.RunID = common.NewRunID()
 
 	pkgManifest, err := packages.ReadPackageManifestFromPackageRoot(r.options.PackageRootPath)
 	if err != nil {
@@ -120,13 +124,53 @@ func (r *runner) setUp() error {
 	}
 	r.scenarios = scenarios
 
-	if err = r.installPackage(); err != nil {
-		return fmt.Errorf("error installing package: %w", err)
-	}
-
 	err = r.collectGenerators()
 	if err != nil {
 		return fmt.Errorf("can't initialize generator: %w", err)
+	}
+
+	return nil
+}
+
+const NumberOfEvents = 10
+
+func (r *runner) validateGenerators() error {
+	for scenarioName, generator := range r.generators {
+		// run for NumberOfEvents times and check whether the generated event is valid json
+		for i := 0; i < NumberOfEvents; i++ {
+			buf := bytes.NewBufferString("")
+			err := generator.Emit(buf)
+			if err != nil {
+				return fmt.Errorf("[%s] error while generating event: %w", scenarioName, err)
+			}
+			// check whether the generated event is valid json
+			var event map[string]any
+			err = json.Unmarshal(buf.Bytes(), &event)
+			if err != nil {
+				return fmt.Errorf("[%s] failed to unmarshal json event: %w, generated output: %s", scenarioName, err, buf.String())
+			}
+		}
+	}
+
+	return nil
+}
+
+func (r *runner) setUp() error {
+	r.initialize()
+	r.errChanGenerators = make(chan error)
+	r.done = make(chan struct{})
+
+	r.runtimeDataStreams = make(map[string]string)
+
+	r.ctxt.Test.RunID = common.NewRunID()
+
+	pkgManifest, err := packages.ReadPackageManifestFromPackageRoot(r.options.PackageRootPath)
+	if err != nil {
+		return fmt.Errorf("reading package manifest failed: %w", err)
+	}
+
+	if err = r.installPackage(); err != nil {
+		return fmt.Errorf("error installing package: %w", err)
 	}
 
 	for scenarioName, scenario := range r.scenarios {

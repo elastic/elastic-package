@@ -85,6 +85,9 @@ func setupBenchmarkCommand() *cobraext.Command {
 	systemCmd := getSystemCommand()
 	cmd.AddCommand(systemCmd)
 
+	validateCmd := getValidateCommand()
+	cmd.AddCommand(validateCmd)
+
 	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
 }
 
@@ -514,6 +517,50 @@ func streamCommandAction(cmd *cobra.Command, args []string) error {
 	_, err = benchrunner.Run(runner)
 	if err != nil {
 		return fmt.Errorf("error running package stream benchmarks: %w", err)
+	}
+
+	return nil
+}
+
+func getValidateCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "validate",
+		Short: "Validate benchmarks assets",
+		Long:  "Statically validate benchmarks assets for the package",
+		Args:  cobra.NoArgs,
+		RunE:  validateCommandAction,
+	}
+
+	// cmd.Flags().StringP(cobraext.BenchNameFlagName, "", "", cobraext.BenchNameFlagDescription)
+	// cmd.Flags().String(cobraext.VariantFlagName, "", cobraext.VariantFlagDescription)
+	// cmd.Flags().DurationP(cobraext.BenchStreamBackFillFlagName, "", 15*time.Minute, cobraext.BenchStreamBackFillFlagDescription)
+	// cmd.Flags().Uint64P(cobraext.BenchStreamEventsPerPeriodFlagName, "", 10, cobraext.BenchStreamEventsPerPeriodFlagDescription)
+	// cmd.Flags().DurationP(cobraext.BenchStreamPeriodDurationFlagName, "", 10*time.Second, cobraext.BenchStreamPeriodDurationFlagDescription)
+	// cmd.Flags().BoolP(cobraext.BenchStreamPerformCleanupFlagName, "", false, cobraext.BenchStreamPerformCleanupFlagDescription)
+	// cmd.Flags().StringP(cobraext.BenchStreamTimestampFieldFlagName, "", "timestamp", cobraext.BenchStreamTimestampFieldFlagDescription)
+
+	return cmd
+}
+
+func validateCommandAction(cmd *cobra.Command, args []string) error {
+	cmd.Println("Run benchmark asset validation")
+
+	packageRootPath, found, err := packages.FindPackageRoot()
+	if !found {
+		return errors.New("package root not found")
+	}
+	if err != nil {
+		return fmt.Errorf("error finding package root: %w", err)
+	}
+
+	withOpts := []stream.OptionFunc{
+		stream.WithPackageRootPath(packageRootPath),
+	}
+
+	err = stream.StaticValidation(stream.NewOptions(withOpts...))
+
+	if err != nil {
+		return fmt.Errorf("validation failed: %w", err)
 	}
 
 	return nil
