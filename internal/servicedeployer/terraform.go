@@ -26,7 +26,7 @@ const (
 	terraformDeployerDockerfile = "Dockerfile"
 	terraformDeployerRun        = "run.sh"
 	terraformOutputPrefix       = "TF_OUTPUT_"
-	terraformOutputJsonFile     = "tfOutputValues.json"
+	terraformOutputJSONFile     = "tfOutputValues.json"
 )
 
 //go:embed _static/terraform_deployer.yml
@@ -48,7 +48,7 @@ type TerraformServiceDeployer struct {
 // like `{{TF_OUTPUT_queue_url}}` where `queue_url` is the output configured
 func addTerraformOutputs(outCtxt ServiceContext) error {
 	// Read the `output.json` file where terraform outputs are generated
-	outputFile := filepath.Join(outCtxt.OutputDir, terraformOutputJsonFile)
+	outputFile := filepath.Join(outCtxt.OutputDir, terraformOutputJSONFile)
 	content, err := os.ReadFile(outputFile)
 	if err != nil {
 		return fmt.Errorf("failed to read terraform output file: %w", err)
@@ -210,8 +210,8 @@ func (tsd TerraformServiceDeployer) installDockerfile() (string, error) {
 	return tfDir, nil
 }
 
-func CreateOutputDir(locationManager *locations.LocationManager, runId string) (string, error) {
-	outputDir := filepath.Join(locationManager.ServiceOutputDir(), runId)
+func CreateOutputDir(locationManager *locations.LocationManager, runID string) (string, error) {
+	outputDir := filepath.Join(locationManager.ServiceOutputDir(), runID)
 	if err := os.MkdirAll(outputDir, 0755); err != nil {
 		return "", fmt.Errorf("failed to create output directory: %w", err)
 	}
