@@ -156,7 +156,10 @@ func (r *runner) validateGenerators() error {
 }
 
 func (r *runner) setUp() error {
-	r.initialize()
+	err := r.initialize()
+	if err != nil {
+		return err
+	}
 	r.errChanGenerators = make(chan error)
 	r.done = make(chan struct{})
 
