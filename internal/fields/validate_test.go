@@ -969,6 +969,7 @@ func TestValidateStackVersionsWithEcsMappings(t *testing.T) {
 		Constraints string
 		SupportEcs  bool
 	}{
+		{"^7.17.0", false},
 		{"^7.14.0 || ^8.0.0", false},
 		{"^7.14.1 || ^8.0.0", false},
 		{"^7.14.1 || ^8.8.0", false},
