@@ -199,6 +199,12 @@ _Context: package_
 
 Run system benchmarks for the package.
 
+### `elastic-package benchmark validate`
+
+_Context: package_
+
+Statically validate benchmarks assets for the package.
+
 ### `elastic-package build`
 
 _Context: package_
