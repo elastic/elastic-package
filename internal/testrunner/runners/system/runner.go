@@ -200,7 +200,7 @@ func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, e
 	}
 
 	serviceOptions := r.createServiceOptions(variant)
-	ctxt, err := r.createServiceContext(serviceOptions)
+	ctxt, err := r.createServiceContext()
 	if err != nil {
 		return result.WithError(err)
 	}
@@ -276,7 +276,7 @@ func (r *runner) createServiceOptions(variantName string) servicedeployer.Factor
 	}
 }
 
-func (r *runner) createServiceContext(serviceOptions servicedeployer.FactoryOptions) (servicedeployer.ServiceContext, error) {
+func (r *runner) createServiceContext() (servicedeployer.ServiceContext, error) {
 	var ctxt servicedeployer.ServiceContext
 	ctxt.Name = r.options.TestFolder.Package
 	ctxt.Logs.Folder.Local = r.locationManager.ServiceLogDir()
@@ -472,7 +472,7 @@ func (r *runner) run() (results []testrunner.TestResult, err error) {
 
 func (r *runner) runTestPerVariant(result *testrunner.ResultComposer, cfgFile, variantName string) ([]testrunner.TestResult, error) {
 	serviceOptions := r.createServiceOptions(variantName)
-	ctxt, err := r.createServiceContext(serviceOptions)
+	ctxt, err := r.createServiceContext()
 	if err != nil {
 		return result.WithError(err)
 	}
