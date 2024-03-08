@@ -215,9 +215,7 @@ func initDependencyManagement(packageRoot string, specVersion semver.Version, im
 		return nil, nil, fmt.Errorf("can't create field dependency manager: %w", err)
 	}
 
-	//
 	// Check if the package embeds ECS mappings
-	//
 	packageEmbedsEcsMappings := buildManifest.ImportMappings() && !specVersion.LessThan(semver2_3_0)
 	if !packageEmbedsEcsMappings {
 		logger.Debugf("Package does not embed ECS mappings")
