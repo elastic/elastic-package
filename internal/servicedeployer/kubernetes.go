@@ -192,7 +192,7 @@ func installElasticAgentInCluster(profile *profile.Profile, stackVersion string)
 	return nil
 }
 
-//go:embed elastic-agent-managed.yaml.tmpl
+//go:embed _static/elastic-agent-managed.yaml.tmpl
 var elasticAgentManagedYamlTmpl string
 
 func getElasticAgentYAML(profile *profile.Profile, stackVersion string) ([]byte, error) {
