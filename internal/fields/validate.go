@@ -36,7 +36,7 @@ var (
 
 	// List of stack releases that do not
 	// include ECS mappings (all versions before 8.13.0).
-	stackVersions = []*semver.Version{
+	stackVersionsWithoutECS = []*semver.Version{
 		semver.MustParse("8.12.2"),
 		semver.MustParse("8.12.1"),
 		semver.MustParse("8.12.0"),
@@ -302,27 +302,17 @@ func initDependencyManagement(packageRoot string, specVersion semver.Version, im
 	}
 
 	//
-	// Check if the stack version includes ECS mappings
+	// Check if all stack versions support ECS mappings
 	//
-	stackIncludesEcsMapping := false
-
-	packageManifest, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
+	stackSupportsEcsMapping, err := supportsECSMappings(packageRoot)
 	if err != nil {
-		return nil, nil, fmt.Errorf("can't read package manifest: %w", err)
-	}
-
-	if len(packageManifest.Conditions.Kibana.Version) > 0 {
-		kibanaConstraints, err := semver.NewConstraint(packageManifest.Conditions.Kibana.Version)
-		if err != nil {
-			return nil, nil, fmt.Errorf("invalid constraint for Kibana: %w", err)
-		}
-		stackIncludesEcsMapping = allVersionsIncludeECS(kibanaConstraints)
+		return nil, nil, fmt.Errorf("can't check if stack version includes ECS mappings: %w", err)
 	}
 
 	// If the package embeds ECS mappings, or the stack version includes ECS mappings, then
 	// we should import the ECS schema to validate the package fields against it.
 	var schema []FieldDefinition
-	if (packageEmbedsEcsMappings || stackIncludesEcsMapping) && importECSSchema {
+	if (packageEmbedsEcsMappings || stackSupportsEcsMapping) && importECSSchema {
 		// Import all fields from external schema (most likely ECS) to
 		// validate the package fields against it.
 		ecsSchema, err := fdm.ImportAllFields(defaultExternal)
@@ -335,13 +325,33 @@ func initDependencyManagement(packageRoot string, specVersion semver.Version, im
 	return fdm, schema, nil
 }
 
+// supportsECSMappings check if all the versions of the stack the package can run on support ECS mappings.
+func supportsECSMappings(packageRoot string) (bool, error) {
+	packageManifest, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
+	if err != nil {
+		return false, fmt.Errorf("can't read package manifest: %w", err)
+	}
+
+	if len(packageManifest.Conditions.Kibana.Version) == 0 {
+		logger.Debugf("No Kibana version constraint found in package manifest; assuming it does not support ECS mappings.")
+		return false, nil
+	}
+
+	kibanaConstraints, err := semver.NewConstraint(packageManifest.Conditions.Kibana.Version)
+	if err != nil {
+		return false, fmt.Errorf("invalid constraint for Kibana: %w", err)
+	}
+
+	return allVersionsIncludeECS(kibanaConstraints), nil
+}
+
 // allVersionsIncludeECS Check if all the stack versions in the constraints include ECS mappings. Only the stack
 // versions 8.13.0 and above include ECS mappings.
 //
 // Returns true if all the stack versions in the constraints include ECS mappings, otherwise returns false.
 func allVersionsIncludeECS(kibanaConstraints *semver.Constraints) bool {
 	// Looking for a version that satisfies the package constraints.
-	for _, v := range stackVersions {
+	for _, v := range stackVersionsWithoutECS {
 		if kibanaConstraints.Check(v) {
 			// Found a version that satisfies the constraints,
 			// so at least this version does not include
