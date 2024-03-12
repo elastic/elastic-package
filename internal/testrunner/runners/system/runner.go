@@ -266,7 +266,6 @@ func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, e
 func (r *runner) createAgentOptions(scenario scenarioTest) agentdeployer.FactoryOptions {
 	return agentdeployer.FactoryOptions{
 		Profile:            r.options.Profile,
-		API:                r.options.API,
 		PackageRootPath:    r.options.PackageRootPath,
 		DataStreamRootPath: r.dataStreamPath,
 		DevDeployDir:       DevDeployDir,

@@ -14,7 +14,6 @@ import (
 	"github.com/elastic/elastic-package/internal/compose"
 	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/docker"
-	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/logger"
@@ -41,8 +40,6 @@ type CustomAgentDeployer struct {
 
 	variant AgentVariant
 
-	API *elasticsearch.API
-
 	packageName string
 	dataStream  string
 
@@ -55,8 +52,6 @@ type CustomAgentDeployerOptions struct {
 	DockerComposeFile string
 	StackVersion      string
 	Variant           AgentVariant
-
-	API *elasticsearch.API
 
 	PackageName string
 	DataStream  string
@@ -73,7 +68,6 @@ func NewCustomAgentDeployer(options CustomAgentDeployerOptions) (*CustomAgentDep
 		stackVersion:      options.StackVersion,
 		packageName:       options.PackageName,
 		dataStream:        options.DataStream,
-		API:               options.API,
 		variant:           options.Variant,
 		runTearDown:       options.RunTearDown,
 		runTestsOnly:      options.RunTestsOnly,

@@ -10,7 +10,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/profile"
 )
 
@@ -22,8 +21,6 @@ const (
 // FactoryOptions defines options used to create an instance of a service deployer.
 type FactoryOptions struct {
 	Profile *profile.Profile
-
-	API *elasticsearch.API
 
 	PackageRootPath    string
 	DataStreamRootPath string
@@ -70,7 +67,6 @@ func Factory(options FactoryOptions) (AgentDeployer, error) {
 		customAgentCfgYMLPath := ""
 		opts := CustomAgentDeployerOptions{
 			Profile:           options.Profile,
-			API:               options.API,
 			DockerComposeFile: customAgentCfgYMLPath,
 			StackVersion:      options.StackVersion,
 			PackageName:       options.PackageName,
