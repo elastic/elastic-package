@@ -43,6 +43,8 @@ func NewDockerComposeAgentDeployer(profile *profile.Profile, ymlPaths []string) 
 	}, nil
 }
 
+var _ AgentDeployer = new(DockerComposeAgentDeployer)
+
 // SetUp sets up the service and returns any relevant information.
 func (d *DockerComposeAgentDeployer) SetUp(inCtxt AgentInfo) (DeployedAgent, error) {
 	logger.Debug("setting up agent using Docker Compose agent deployer")
@@ -223,6 +225,8 @@ func (s *dockerComposeDeployedAgent) SetContext(ctxt AgentInfo) error {
 	s.agentInfo = ctxt
 	return nil
 }
+
+var _ DeployedAgent = new(dockerComposeDeployedAgent)
 
 func processAgentContainerLogs(p *compose.Project, opts compose.CommandOptions, agentName string) {
 	content, err := p.Logs(opts)

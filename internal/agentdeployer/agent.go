@@ -6,7 +6,6 @@ package agentdeployer
 
 import (
 	_ "embed"
-	"encoding/base64"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -60,6 +59,8 @@ type CustomAgentDeployerOptions struct {
 	RunTestsOnly bool
 }
 
+var _ AgentDeployer = new(CustomAgentDeployer)
+
 // NewCustomAgentDeployer returns a new instance of a deployedCustomAgent.
 func NewCustomAgentDeployer(options CustomAgentDeployerOptions) (*CustomAgentDeployer, error) {
 	return &CustomAgentDeployer{
@@ -72,20 +73,6 @@ func NewCustomAgentDeployer(options CustomAgentDeployerOptions) (*CustomAgentDep
 		runTearDown:       options.RunTearDown,
 		runTestsOnly:      options.RunTestsOnly,
 	}, nil
-}
-
-func readCACertBase64(profile *profile.Profile) (string, error) {
-	caCertPath, err := stack.FindCACertificate(profile)
-	if err != nil {
-		return "", fmt.Errorf("can't locate CA certificate: %w", err)
-	}
-
-	d, err := os.ReadFile(caCertPath)
-	if err != nil {
-		return "", err
-	}
-
-	return base64.StdEncoding.EncodeToString(d), nil
 }
 
 // SetUp sets up the service and returns any relevant information.
