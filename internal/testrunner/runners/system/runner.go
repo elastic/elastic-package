@@ -295,11 +295,15 @@ func (r *runner) createServiceOptions(variantName string) servicedeployer.Factor
 	}
 }
 
-func (r *runner) createAgentInfo() (agentdeployer.AgentInfo, error) {
+func (r *runner) createAgentInfo(scenario scenarioTest) (agentdeployer.AgentInfo, error) {
 	var info agentdeployer.AgentInfo
 
+	dirPath, err := agentdeployer.CreateServiceLogsDir(r.locationManager, fmt.Sprintf("agent-%s-%s", scenario.pkgManifest.Name, scenario.dataStreamManifest.Name))
+	if err != nil {
+		return agentdeployer.AgentInfo{}, fmt.Errorf("failed to create service logs dir: %w", err)
+	}
 	info.Name = r.options.TestFolder.Package
-	info.Logs.Folder.Local = r.locationManager.ServiceLogDir()
+	info.Logs.Folder.Local = dirPath
 	info.Logs.Folder.Agent = ServiceLogsAgentDir
 	info.Test.RunID = createTestRunID()
 
@@ -720,6 +724,30 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 	if err != nil {
 		return nil, fmt.Errorf("failed to find the selected policy_template: %w", err)
 	}
+	// Setup agent
+	logger.Debug("setting up agent...")
+	agentOptions := r.createAgentOptions(scenario)
+	agentInfo, err := r.createAgentInfo(scenario)
+	if err != nil {
+		return nil, err
+	}
+
+	agentDeployer, err := agentdeployer.Factory(agentOptions)
+	if err != nil {
+		return nil, fmt.Errorf("could not create agent runner: %w", err)
+	}
+	agentDeployed, err := agentDeployer.SetUp(agentInfo)
+	if err != nil {
+		return nil, fmt.Errorf("could not setup agent: %w", err)
+	}
+	r.shutdownAgentHandler = func() error {
+		logger.Debug("tearing down agent...")
+		if err := agentDeployed.TearDown(); err != nil {
+			return fmt.Errorf("error tearing down agent: %w", err)
+		}
+
+		return nil
+	}
 
 	// Setup service.
 	logger.Debug("setting up service...")
@@ -728,6 +756,7 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 		return nil, fmt.Errorf("could not create service runner: %w", err)
 	}
 
+	ctxt.Logs.Folder.Local = agentInfo.Logs.Folder.Local
 	if config.Service != "" {
 		ctxt.Name = config.Service
 	}
@@ -877,31 +906,6 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 		if err != nil {
 			return nil, err
 		}
-	}
-
-	// Setup agent
-	logger.Debug("setting up agent...")
-	agentOptions := r.createAgentOptions(scenario)
-	agentInfo, err := r.createAgentInfo()
-	if err != nil {
-		return nil, err
-	}
-
-	agentDeployer, err := agentdeployer.Factory(agentOptions)
-	if err != nil {
-		return nil, fmt.Errorf("could not create agent runner: %w", err)
-	}
-	agentDeployed, err := agentDeployer.SetUp(agentInfo)
-	if err != nil {
-		return nil, fmt.Errorf("could not setup agent: %w", err)
-	}
-	r.shutdownAgentHandler = func() error {
-		logger.Debug("tearing down agent...")
-		if err := agentDeployed.TearDown(); err != nil {
-			return fmt.Errorf("error tearing down agent: %w", err)
-		}
-
-		return nil
 	}
 
 	var origPolicy kibana.Policy
@@ -1687,19 +1691,21 @@ func filterAgents(allAgents []kibana.Agent, ctx servicedeployer.ServiceContext, 
 		logger.Debugf("filter agents using criteria: NamePrefix=%s", ctx.Agent.Host.NamePrefix)
 	}
 
+	// filtered list of agents must contain all agents started by the stack
+	// they could be assigned the default policy (elastic-agent-managed-ep) or the test policy (ep-test-system-*)
 	var filtered []kibana.Agent
 	for _, agent := range allAgents {
 		if agent.PolicyRevision == 0 {
 			continue // For some reason Kibana doesn't always return a valid policy revision (eventually it will be present and valid)
 		}
 
-		if agent.PolicyID != "elastic-agent-managed-ep" {
-			logger.Debugf("filted agent %q", agent.ID)
+		if agent.PolicyID == "fleet-server-policy" {
+			logger.Debugf("filtered agent %q", agent.ID)
 			continue
 		}
 
 		if agent.Status != "online" {
-			logger.Debugf("filted agent %q", agent.ID)
+			logger.Debugf("filtered agent %q", agent.ID)
 			continue
 		}
 

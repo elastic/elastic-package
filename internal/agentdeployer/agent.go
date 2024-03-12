@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 
 	"github.com/elastic/elastic-package/internal/compose"
+	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/docker"
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/files"
@@ -247,4 +248,13 @@ func (d *CustomAgentDeployer) installDockerfile() (string, error) {
 	}
 
 	return customAgentDir, nil
+}
+
+func CreateServiceLogsDir(elasticPackagePath *locations.LocationManager, name string) (string, error) {
+	dirPath := elasticPackagePath.ServiceLogDirPerAgent(name)
+	err := os.MkdirAll(dirPath, 0755)
+	if err != nil {
+		return "", fmt.Errorf("mkdir failed (path: %s): %w", dirPath, err)
+	}
+	return dirPath, nil
 }
