@@ -20,6 +20,7 @@ import (
 	"github.com/Masterminds/semver/v3"
 	"gopkg.in/yaml.v3"
 
+	"github.com/elastic/elastic-package/internal/agentdeployer"
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/elasticsearch"
@@ -114,6 +115,7 @@ type runner struct {
 	resetAgentPolicyHandler   func() error
 	resetAgentLogLevelHandler func() error
 	shutdownServiceHandler    func() error
+	shutdownAgentHandler      func() error
 	wipeDataStreamHandler     func() error
 }
 
@@ -261,6 +263,23 @@ func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, e
 	return result.WithSuccess()
 }
 
+func (r *runner) createAgentOptions(scenario scenarioTest) agentdeployer.FactoryOptions {
+	return agentdeployer.FactoryOptions{
+		Profile:            r.options.Profile,
+		API:                r.options.API,
+		PackageRootPath:    r.options.PackageRootPath,
+		DataStreamRootPath: r.dataStreamPath,
+		DevDeployDir:       DevDeployDir,
+		Type:               agentdeployer.TypeTest,
+		StackVersion:       r.stackVersion.Version(),
+		PackageName:        scenario.pkgManifest.Name,
+		DataStream:         scenario.dataStreamManifest.Name,
+		RunTearDown:        r.options.RunTearDown,
+		RunTestsOnly:       r.options.RunTestsOnly,
+		RunSetup:           r.options.RunSetup,
+	}
+}
+
 func (r *runner) createServiceOptions(variantName string) servicedeployer.FactoryOptions {
 	return servicedeployer.FactoryOptions{
 		Profile:            r.options.Profile,
@@ -274,6 +293,17 @@ func (r *runner) createServiceOptions(variantName string) servicedeployer.Factor
 		RunTestsOnly:       r.options.RunTestsOnly,
 		RunSetup:           r.options.RunSetup,
 	}
+}
+
+func (r *runner) createAgentInfo() (agentdeployer.AgentInfo, error) {
+	var info agentdeployer.AgentInfo
+
+	info.Name = r.options.TestFolder.Package
+	info.Logs.Folder.Local = r.locationManager.ServiceLogDir()
+	info.Logs.Folder.Agent = ServiceLogsAgentDir
+	info.Test.RunID = createTestRunID()
+
+	return info, nil
 }
 
 func (r *runner) createServiceContext() (servicedeployer.ServiceContext, error) {
@@ -336,6 +366,13 @@ func (r *runner) tearDownTest() error {
 			return err
 		}
 		r.shutdownServiceHandler = nil
+	}
+
+	if r.shutdownAgentHandler != nil {
+		if err := r.shutdownAgentHandler(); err != nil {
+			return err
+		}
+		r.shutdownAgentHandler = nil
 	}
 
 	if r.wipeDataStreamHandler != nil {
@@ -842,11 +879,38 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 		}
 	}
 
+	// Setup agent
+	logger.Debug("setting up agent...")
+	agentOptions := r.createAgentOptions(scenario)
+	agentInfo, err := r.createAgentInfo()
+	if err != nil {
+		return nil, err
+	}
+
+	agentDeployer, err := agentdeployer.Factory(agentOptions)
+	if err != nil {
+		return nil, fmt.Errorf("could not create agent runner: %w", err)
+	}
+	agentDeployed, err := agentDeployer.SetUp(agentInfo)
+	if err != nil {
+		return nil, fmt.Errorf("could not setup agent: %w", err)
+	}
+	r.shutdownAgentHandler = func() error {
+		logger.Debug("tearing down agent...")
+		if err := agentDeployed.TearDown(); err != nil {
+			return fmt.Errorf("error tearing down agent: %w", err)
+		}
+
+		return nil
+	}
+
 	var origPolicy kibana.Policy
-	agents, err := checkEnrolledAgents(r.options.KibanaClient, ctxt)
+	agents, err := checkEnrolledAgents(r.options.KibanaClient, ctxt, agentInfo)
 	if err != nil {
 		return nil, fmt.Errorf("can't check enrolled agents: %w", err)
 	}
+	data, _ := json.Marshal(agents)
+	logger.Debugf("JSON Agents:\n%s", string(data))
 	agent := agents[0]
 
 	if r.options.RunTearDown || r.options.RunTestsOnly {
@@ -1002,7 +1066,7 @@ func (r *runner) removeServiceStateFile() error {
 
 func (r *runner) createServiceStateDir() error {
 	dirPath := filepath.Dir(r.serviceStateFilePath)
-	err := os.MkdirAll(dirPath, 0755)
+	err := os.MkdirAll(dirPath, 0o755)
 	if err != nil {
 		return fmt.Errorf("mkdir failed (path: %s): %w", dirPath, err)
 	}
@@ -1044,7 +1108,7 @@ func (r *runner) writeScenarioState(currentPolicy, origPolicy *kibana.Policy, co
 		return fmt.Errorf("failed to marshall service setup data: %w", err)
 	}
 
-	err = os.WriteFile(r.serviceStateFilePath, dataBytes, 0644)
+	err = os.WriteFile(r.serviceStateFilePath, dataBytes, 0o644)
 	if err != nil {
 		return fmt.Errorf("failed to write service setup JSON: %w", err)
 	}
@@ -1182,7 +1246,7 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	return r.validateTestScenario(result, scenario, config, serviceOptions)
 }
 
-func checkEnrolledAgents(client *kibana.Client, ctxt servicedeployer.ServiceContext) ([]kibana.Agent, error) {
+func checkEnrolledAgents(client *kibana.Client, ctxt servicedeployer.ServiceContext, agentInfo agentdeployer.AgentInfo) ([]kibana.Agent, error) {
 	var agents []kibana.Agent
 	enrolled, err := waitUntilTrue(func() (bool, error) {
 		if signal.SIGINT() {
@@ -1194,7 +1258,7 @@ func checkEnrolledAgents(client *kibana.Client, ctxt servicedeployer.ServiceCont
 			return false, fmt.Errorf("could not list agents: %w", err)
 		}
 
-		agents = filterAgents(allAgents, ctxt)
+		agents = filterAgents(allAgents, ctxt, agentInfo)
 		logger.Debugf("found %d enrolled agent(s)", len(agents))
 		if len(agents) == 0 {
 			return false, nil // selected agents are unavailable yet
@@ -1618,7 +1682,7 @@ func waitUntilTrue(fn func() (bool, error), timeout time.Duration) (bool, error)
 	}
 }
 
-func filterAgents(allAgents []kibana.Agent, ctx servicedeployer.ServiceContext) []kibana.Agent {
+func filterAgents(allAgents []kibana.Agent, ctx servicedeployer.ServiceContext, agentInfo agentdeployer.AgentInfo) []kibana.Agent {
 	if ctx.Agent.Host.NamePrefix != "" {
 		logger.Debugf("filter agents using criteria: NamePrefix=%s", ctx.Agent.Host.NamePrefix)
 	}
@@ -1629,7 +1693,10 @@ func filterAgents(allAgents []kibana.Agent, ctx servicedeployer.ServiceContext) 
 			continue // For some reason Kibana doesn't always return a valid policy revision (eventually it will be present and valid)
 		}
 
-		if ctx.Agent.Host.NamePrefix != "" && !strings.HasPrefix(agent.LocalMetadata.Host.Name, ctx.Agent.Host.NamePrefix) {
+		serviceHasPrefix := strings.HasPrefix(agent.LocalMetadata.Host.Name, ctx.Agent.Host.NamePrefix)
+		agentHasPrefix := strings.HasPrefix(agent.LocalMetadata.Host.Name, agentInfo.Agent.Host.NamePrefix)
+
+		if ctx.Agent.Host.NamePrefix != "" && !serviceHasPrefix && !agentHasPrefix {
 			continue
 		}
 		filtered = append(filtered, agent)
@@ -1644,7 +1711,7 @@ func writeSampleEvent(path string, doc common.MapStr, specVersion semver.Version
 		return fmt.Errorf("marshalling sample event failed: %w", err)
 	}
 
-	err = os.WriteFile(filepath.Join(path, "sample_event.json"), body, 0644)
+	err = os.WriteFile(filepath.Join(path, "sample_event.json"), body, 0o644)
 	if err != nil {
 		return fmt.Errorf("writing sample event failed: %w", err)
 	}
