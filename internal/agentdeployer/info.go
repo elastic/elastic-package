@@ -9,6 +9,7 @@ const (
 	serviceLogsDirEnv = "SERVICE_LOGS_DIR"
 	testRunIDEnv      = "TEST_RUN_ID"
 	fleetPolicyEnv    = "FLEET_TOKEN_POLICY_NAME"
+	agentHosnameEnv   = "AGENT_HOSTNAME"
 )
 
 // AgentInfo encapsulates context that is both available to a AgentDeployer and

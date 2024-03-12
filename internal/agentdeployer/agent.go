@@ -107,6 +107,7 @@ func (d *CustomAgentDeployer) SetUp(inCtxt AgentInfo) (DeployedAgent, error) {
 		fmt.Sprintf("%s=%s", serviceLogsDirEnv, inCtxt.Logs.Folder.Local),
 		fmt.Sprintf("%s=%s", localCACertEnv, caCertPath),
 		fmt.Sprintf("%s=%s", fleetPolicyEnv, defaultAgentPolicyName),
+		fmt.Sprintf("%s=docker-custom-agent-%s", agentHosnameEnv, d.agentName()),
 	)
 
 	configDir, err := d.installDockerfile()
