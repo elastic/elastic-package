@@ -49,6 +49,8 @@ type CustomAgentDeployerOptions struct {
 	RunTestsOnly bool
 }
 
+var _ ServiceDeployer = new(CustomAgentDeployer)
+
 // NewCustomAgentDeployer returns a new instance of a deployedCustomAgent.
 func NewCustomAgentDeployer(options CustomAgentDeployerOptions) (*CustomAgentDeployer, error) {
 	return &CustomAgentDeployer{

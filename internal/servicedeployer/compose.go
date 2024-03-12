@@ -48,6 +48,8 @@ type dockerComposeDeployedService struct {
 	env      []string
 }
 
+var _ ServiceDeployer = new(DockerComposeServiceDeployer)
+
 // NewDockerComposeServiceDeployer returns a new instance of a DockerComposeServiceDeployer.
 func NewDockerComposeServiceDeployer(options DockerComposeServiceDeployerOptions) (*DockerComposeServiceDeployer, error) {
 	return &DockerComposeServiceDeployer{
@@ -253,6 +255,8 @@ func (s *dockerComposeDeployedService) SetContext(ctxt ServiceContext) error {
 	s.ctxt = ctxt
 	return nil
 }
+
+var _ DeployedService = new(dockerComposeDeployedService)
 
 func processServiceContainerLogs(p *compose.Project, opts compose.CommandOptions, serviceName string) {
 	content, err := p.Logs(opts)
