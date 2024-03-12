@@ -20,13 +20,6 @@ services:
       target: /run/service_logs/
     - "../certs/ca-cert.pem:/etc/ssl/certs/elastic-package.pem"
 
-  elastic-agent_is_ready:
-    image: tianon/true
-    platform: linux/amd64
-    depends_on:
-      elastic-agent:
-        condition: service_healthy
-
 {{ $logstash_enabled := fact "logstash_enabled" }}
 {{ if eq $logstash_enabled "true" }}
   logstash:
@@ -50,11 +43,4 @@ services:
       - ELASTIC_USER={{ fact "username" }}
       - ELASTIC_PASSWORD={{ fact "password" }}
       - ELASTIC_HOSTS={{ fact "elasticsearch_host" }}
-
-  logstash_is_ready:
-    image: tianon/true
-    platform: linux/amd64
-    depends_on:
-      logstash:
-        condition: service_healthy
 {{ end }}

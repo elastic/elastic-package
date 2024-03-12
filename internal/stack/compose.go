@@ -69,7 +69,7 @@ func dockerComposeBuild(ctx context.Context, options Options) error {
 			withEnv(stackVariantAsEnv(options.StackVersion)).
 			withEnvs(options.Profile.ComposeEnvVars()).
 			build(),
-		Services: withIsReadyServices(withDependentServices(options.Services)),
+		Services: withDependentServices(options.Services),
 	}
 
 	if err := c.Build(ctx, opts); err != nil {
@@ -95,7 +95,7 @@ func dockerComposePull(ctx context.Context, options Options) error {
 			withEnv(stackVariantAsEnv(options.StackVersion)).
 			withEnvs(options.Profile.ComposeEnvVars()).
 			build(),
-		Services: withIsReadyServices(withDependentServices(options.Services)),
+		Services: withDependentServices(options.Services),
 	}
 
 	if err := c.Pull(ctx, opts); err != nil {
@@ -112,7 +112,7 @@ func dockerComposeUp(ctx context.Context, options Options) error {
 
 	var args []string
 	if options.DaemonMode {
-		args = append(args, "-d")
+		args = append(args, "-d", "--wait", "--wait-timeout", fmt.Sprintf("%d", 600))
 	}
 
 	appConfig, err := install.Configuration()
@@ -127,7 +127,7 @@ func dockerComposeUp(ctx context.Context, options Options) error {
 			withEnvs(options.Profile.ComposeEnvVars()).
 			build(),
 		ExtraArgs: args,
-		Services:  withIsReadyServices(withDependentServices(options.Services)),
+		Services:  withDependentServices(options.Services),
 	}
 
 	if err := c.Up(ctx, opts); err != nil {
@@ -169,18 +169,6 @@ func withDependentServices(services []string) []string {
 		}
 	}
 	return services
-}
-
-func withIsReadyServices(services []string) []string {
-	if len(services) == 0 {
-		return services // load all defined services
-	}
-
-	var allServices []string
-	for _, aService := range services {
-		allServices = append(allServices, aService, fmt.Sprintf("%s_%s", aService, readyServicesSuffix))
-	}
-	return allServices
 }
 
 func dockerComposeStatus(ctx context.Context, options Options) ([]ServiceStatus, error) {

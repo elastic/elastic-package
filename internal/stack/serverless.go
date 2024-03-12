@@ -336,7 +336,7 @@ func (sp *serverlessProvider) startLocalServices(ctx context.Context, options Op
 	}
 
 	if options.DaemonMode {
-		opts.ExtraArgs = append(opts.ExtraArgs, "-d")
+		opts.ExtraArgs = append(opts.ExtraArgs, "-d", "--wait", "--wait-timeout", fmt.Sprintf("%d", 600))
 	}
 	if err := project.Up(ctx, opts); err != nil {
 		// At least starting on 8.6.0, fleet-server may be reconfigured or
