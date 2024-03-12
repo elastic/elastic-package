@@ -35,6 +35,7 @@ type Agent struct {
 			} `json:"agent"`
 		} `json:"elastic"`
 	} `json:"local_metadata"`
+	Status string `json:"status"`
 }
 
 // String method returns string representation of an agent.

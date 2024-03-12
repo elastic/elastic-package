@@ -1693,10 +1693,21 @@ func filterAgents(allAgents []kibana.Agent, ctx servicedeployer.ServiceContext, 
 			continue // For some reason Kibana doesn't always return a valid policy revision (eventually it will be present and valid)
 		}
 
+		if agent.PolicyID != "elastic-agent-managed-ep" {
+			logger.Debugf("filted agent %q", agent.ID)
+			continue
+		}
+
+		if agent.Status != "online" {
+			logger.Debugf("filted agent %q", agent.ID)
+			continue
+		}
+
 		serviceHasPrefix := strings.HasPrefix(agent.LocalMetadata.Host.Name, ctx.Agent.Host.NamePrefix)
 		agentHasPrefix := strings.HasPrefix(agent.LocalMetadata.Host.Name, agentInfo.Agent.Host.NamePrefix)
 
 		if ctx.Agent.Host.NamePrefix != "" && !serviceHasPrefix && !agentHasPrefix {
+			logger.Debugf("filtered agent %q", agent.ID)
 			continue
 		}
 		filtered = append(filtered, agent)
