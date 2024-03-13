@@ -731,6 +731,7 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 		return nil, err
 	}
 
+	enrollingTime := time.Now()
 	agentDeployer, err := agentdeployer.Factory(agentOptions)
 	if err != nil {
 		return nil, fmt.Errorf("could not create agent runner: %w", err)
@@ -908,7 +909,7 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 	}
 
 	var origPolicy kibana.Policy
-	agents, err := checkEnrolledAgents(r.options.KibanaClient, ctxt, agentInfo)
+	agents, err := checkEnrolledAgents(r.options.KibanaClient, agentInfo, enrollingTime)
 	if err != nil {
 		return nil, fmt.Errorf("can't check enrolled agents: %w", err)
 	}
@@ -1249,8 +1250,9 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	return r.validateTestScenario(result, scenario, config, serviceOptions)
 }
 
-func checkEnrolledAgents(client *kibana.Client, ctxt servicedeployer.ServiceContext, agentInfo agentdeployer.AgentInfo) ([]kibana.Agent, error) {
+func checkEnrolledAgents(client *kibana.Client, agentInfo agentdeployer.AgentInfo, threshold time.Time) ([]kibana.Agent, error) {
 	var agents []kibana.Agent
+
 	enrolled, err := waitUntilTrue(func() (bool, error) {
 		if signal.SIGINT() {
 			return false, errors.New("SIGINT: cancel checking enrolled agents")
@@ -1261,7 +1263,7 @@ func checkEnrolledAgents(client *kibana.Client, ctxt servicedeployer.ServiceCont
 			return false, fmt.Errorf("could not list agents: %w", err)
 		}
 
-		agents = filterAgents(allAgents, agentInfo)
+		agents = filterAgents(allAgents, agentInfo, threshold)
 		logger.Debugf("found %d enrolled agent(s)", len(agents))
 		if len(agents) == 0 {
 			return false, nil // selected agents are unavailable yet
@@ -1685,7 +1687,7 @@ func waitUntilTrue(fn func() (bool, error), timeout time.Duration) (bool, error)
 	}
 }
 
-func filterAgents(allAgents []kibana.Agent, agentInfo agentdeployer.AgentInfo) []kibana.Agent {
+func filterAgents(allAgents []kibana.Agent, agentInfo agentdeployer.AgentInfo, threshold time.Time) []kibana.Agent {
 	if agentInfo.Agent.Host.NamePrefix != "" {
 		logger.Debugf("filter agents using criteria: NamePrefix=%s", agentInfo.Agent.Host.NamePrefix)
 	}
@@ -1699,19 +1701,25 @@ func filterAgents(allAgents []kibana.Agent, agentInfo agentdeployer.AgentInfo) [
 		}
 
 		if agent.PolicyID == "fleet-server-policy" {
-			logger.Debugf("filtered agent %q", agent.ID)
+			logger.Debugf("filtered agent %q", agent.ID) // TODO: remove
 			continue
 		}
 
 		if agent.Status != "online" {
-			logger.Debugf("filtered agent %q", agent.ID)
+			logger.Debugf("filtered agent (not online) %q", agent.ID) // TODO: remove
 			continue
 		}
 
+		if agent.EnrolledAt.Before(threshold) {
+			logger.Debugf("filtered agent (enrolling time) %q", agent.ID) // TODO: remove
+			continue
+		}
+
+		// FIXME: check for package and data stream name too ?
 		hasAgentPrefix := strings.HasPrefix(agent.LocalMetadata.Host.Name, agentInfo.Agent.Host.NamePrefix)
 
 		if agentInfo.Agent.Host.NamePrefix != "" && !hasAgentPrefix {
-			logger.Debugf("filtered agent %q", agent.ID)
+			logger.Debugf("filtered agent %q", agent.ID) // TODO: remove
 			continue
 		}
 		filtered = append(filtered, agent)

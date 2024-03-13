@@ -71,6 +71,13 @@ spec:
             requests:
               cpu: 100m
               memory: 200Mi
+          livenessProbe:
+            exec:
+              command:
+                - elastic-agent
+                - status
+            initialDelaySeconds: 10
+            periodSeconds: 10
           volumeMounts:
             - name: elastic-package-ca
               mountPath: /etc/ssl/elastic-package
