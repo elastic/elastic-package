@@ -15,6 +15,7 @@ import (
 	"github.com/elastic/elastic-package/internal/compose"
 	"github.com/elastic/elastic-package/internal/docker"
 	"github.com/elastic/elastic-package/internal/elasticsearch"
+	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/profile"
@@ -34,12 +35,10 @@ const (
 	defaultProjectType = "observability"
 )
 
-var (
-	allowedProjectTypes = []string{
-		"security",
-		"observability",
-	}
-)
+var allowedProjectTypes = []string{
+	"security",
+	"observability",
+}
 
 type serverlessProvider struct {
 	profile *profile.Profile
@@ -329,23 +328,31 @@ func (sp *serverlessProvider) startLocalServices(options Options, config Config)
 		return fmt.Errorf("could not initialize local services compose project")
 	}
 
-	err = project.Build(compose.CommandOptions{})
+	opts := compose.CommandOptions{
+		ExtraArgs: []string{},
+	}
+
+	err = project.Build(opts)
 	if err != nil {
 		return fmt.Errorf("failed to build images for local services: %w", err)
 	}
 
-	err = project.Up(compose.CommandOptions{ExtraArgs: []string{"-d"}})
-	if err != nil {
+	if options.DaemonMode {
+		opts.ExtraArgs = append(opts.ExtraArgs, "-d")
+	}
+
+	if err := project.Up(opts); err != nil {
 		// At least starting on 8.6.0, fleet-server may be reconfigured or
 		// restarted after being healthy. If elastic-agent tries to enroll at
 		// this moment, it fails inmediately, stopping and making `docker-compose up`
 		// to fail too.
 		// As a workaround, try to give another chance to docker-compose if only
 		// elastic-agent failed.
-		fmt.Println("Elastic Agent failed to start, trying again.")
-		err = project.Up(compose.CommandOptions{ExtraArgs: []string{"-d"}})
-		if err != nil {
-			return fmt.Errorf("failed to start local agent: %w", err)
+		if onlyElasticAgentFailed(options) {
+			fmt.Println("Elastic Agent failed to start, trying again.")
+			if err := project.Up(opts); err != nil {
+				return fmt.Errorf("failed to start local services: %w", err)
+			}
 		}
 	}
 
@@ -360,7 +367,7 @@ func (sp *serverlessProvider) TearDown(options Options) error {
 
 	var errs error
 
-	err = sp.destroyLocalServices()
+	err = sp.destroyLocalServices(options)
 	if err != nil {
 		logger.Errorf("failed to destroy local services: %v", err)
 		errs = fmt.Errorf("failed to destroy local services: %w", err)
@@ -384,13 +391,27 @@ func (sp *serverlessProvider) TearDown(options Options) error {
 	return errs
 }
 
-func (sp *serverlessProvider) destroyLocalServices() error {
+func (sp *serverlessProvider) destroyLocalServices(options Options) error {
 	project, err := sp.localServicesComposeProject()
 	if err != nil {
 		return fmt.Errorf("could not initialize local services compose project")
 	}
 
-	err = project.Down(compose.CommandOptions{})
+	appConfig, err := install.Configuration()
+	if err != nil {
+		return fmt.Errorf("can't read application configuration: %w", err)
+	}
+
+	opts := compose.CommandOptions{
+		Env: newEnvBuilder().
+			withEnvs(appConfig.StackImageRefs(options.StackVersion).AsEnv()).
+			withEnv(stackVariantAsEnv(options.StackVersion)).
+			withEnvs(options.Profile.ComposeEnvVars()).
+			build(),
+		// Remove associated volumes.
+		ExtraArgs: []string{"--volumes", "--remove-orphans"},
+	}
+	err = project.Down(opts)
 	if err != nil {
 		return fmt.Errorf("failed to destroy local services: %w", err)
 	}
