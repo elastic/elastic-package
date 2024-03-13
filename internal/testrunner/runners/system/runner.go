@@ -1716,6 +1716,7 @@ func filterAgents(allAgents []kibana.Agent, agentInfo agentdeployer.AgentInfo, t
 		}
 
 		// FIXME: check for package and data stream name too ?
+		// Current verson could be returning an unexpected agent if tests are parallelized
 		hasAgentPrefix := strings.HasPrefix(agent.LocalMetadata.Host.Name, agentInfo.Agent.Host.NamePrefix)
 
 		if agentInfo.Agent.Host.NamePrefix != "" && !hasAgentPrefix {
