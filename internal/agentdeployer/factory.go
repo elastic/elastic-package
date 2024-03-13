@@ -54,7 +54,7 @@ func Factory(options FactoryOptions) (AgentDeployer, error) {
 	}
 	// if package defines `_dev/deploy/docker` folder to start their services, it should be
 	// using the default agent deployer`
-	if agentDeployerName == "docker" {
+	if agentDeployerName == "docker" || agentDeployerName == "tf" {
 		agentDeployerName = "default"
 	}
 
