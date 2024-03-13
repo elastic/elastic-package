@@ -910,6 +910,7 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 		}
 	}
 
+	// FIXME: running per stages does not work when multiple agents are created
 	var origPolicy kibana.Policy
 	agents, err := checkEnrolledAgents(r.options.KibanaClient, agentInfo, enrollingTime)
 	if err != nil {
