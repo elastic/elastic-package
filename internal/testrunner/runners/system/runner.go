@@ -1261,7 +1261,7 @@ func checkEnrolledAgents(client *kibana.Client, ctxt servicedeployer.ServiceCont
 			return false, fmt.Errorf("could not list agents: %w", err)
 		}
 
-		agents = filterAgents(allAgents, ctxt, agentInfo)
+		agents = filterAgents(allAgents, agentInfo)
 		logger.Debugf("found %d enrolled agent(s)", len(agents))
 		if len(agents) == 0 {
 			return false, nil // selected agents are unavailable yet
@@ -1685,9 +1685,9 @@ func waitUntilTrue(fn func() (bool, error), timeout time.Duration) (bool, error)
 	}
 }
 
-func filterAgents(allAgents []kibana.Agent, ctx servicedeployer.ServiceContext, agentInfo agentdeployer.AgentInfo) []kibana.Agent {
-	if ctx.Agent.Host.NamePrefix != "" {
-		logger.Debugf("filter agents using criteria: NamePrefix=%s", ctx.Agent.Host.NamePrefix)
+func filterAgents(allAgents []kibana.Agent, agentInfo agentdeployer.AgentInfo) []kibana.Agent {
+	if agentInfo.Agent.Host.NamePrefix != "" {
+		logger.Debugf("filter agents using criteria: NamePrefix=%s", agentInfo.Agent.Host.NamePrefix)
 	}
 
 	// filtered list of agents must contain all agents started by the stack
@@ -1708,10 +1708,9 @@ func filterAgents(allAgents []kibana.Agent, ctx servicedeployer.ServiceContext, 
 			continue
 		}
 
-		serviceHasPrefix := strings.HasPrefix(agent.LocalMetadata.Host.Name, ctx.Agent.Host.NamePrefix)
-		agentHasPrefix := strings.HasPrefix(agent.LocalMetadata.Host.Name, agentInfo.Agent.Host.NamePrefix)
+		hasAgentPrefix := strings.HasPrefix(agent.LocalMetadata.Host.Name, agentInfo.Agent.Host.NamePrefix)
 
-		if ctx.Agent.Host.NamePrefix != "" && !serviceHasPrefix && !agentHasPrefix {
+		if agentInfo.Agent.Host.NamePrefix != "" && !hasAgentPrefix {
 			logger.Debugf("filtered agent %q", agent.ID)
 			continue
 		}
