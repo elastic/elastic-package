@@ -208,23 +208,27 @@ func (d *CustomAgentDeployer) SetUp(inCtxt AgentInfo) (DeployedAgent, error) {
 }
 
 func (d *CustomAgentDeployer) agentName() string {
+	name := d.packageName
 	if d.variant.Name != "" {
-		return fmt.Sprintf("%s-%s-%s", d.packageName, d.variant.Name, d.dataStream)
+		name = fmt.Sprintf("%s-%s", name, d.variant.Name)
 	}
-	return fmt.Sprintf("%s-%s", d.packageName, d.dataStream)
+	if d.dataStream != "" && d.dataStream != "." {
+		name = fmt.Sprintf("%s-%s", name, d.dataStream)
+	}
+	return name
 }
 
 // installDockerfile creates the files needed to run the custom elastic agent and returns
 // the directory with these files.
 func (d *CustomAgentDeployer) installDockerfile() (string, error) {
 	customAgentDir := filepath.Join(d.profile.ProfilePath, fmt.Sprintf("agent-%s", d.agentName()))
-	err := os.MkdirAll(customAgentDir, 0o755)
+	err := os.MkdirAll(customAgentDir, 0755)
 	if err != nil {
 		return "", fmt.Errorf("failed to create directory for custom agent files: %w", err)
 	}
 
 	customAgentDockerfile := filepath.Join(customAgentDir, dockerCustomAgentDockerCompose)
-	err = os.WriteFile(customAgentDockerfile, dockerAgentDockerComposeContent, 0o644)
+	err = os.WriteFile(customAgentDockerfile, dockerAgentDockerComposeContent, 0644)
 	if err != nil {
 		return "", fmt.Errorf("failed to create docker compose file for custom agent: %w", err)
 	}
