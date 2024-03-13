@@ -6,17 +6,13 @@ package servicedeployer
 
 import (
 	_ "embed"
-	"encoding/base64"
 	"fmt"
-	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/elastic/elastic-package/internal/kind"
 	"github.com/elastic/elastic-package/internal/kubectl"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/profile"
-	"github.com/elastic/elastic-package/internal/stack"
 )
 
 // KubernetesServiceDeployer is responsible for deploying resources in the Kubernetes cluster.
@@ -163,27 +159,4 @@ func findKubernetesDefinitions(definitionsDir string) ([]string, error) {
 	var definitionPaths []string
 	definitionPaths = append(definitionPaths, files...)
 	return definitionPaths, nil
-}
-
-func readCACertBase64(profile *profile.Profile) (string, error) {
-	caCertPath, err := stack.FindCACertificate(profile)
-	if err != nil {
-		return "", fmt.Errorf("can't locate CA certificate: %w", err)
-	}
-
-	d, err := os.ReadFile(caCertPath)
-	if err != nil {
-		return "", err
-	}
-
-	return base64.StdEncoding.EncodeToString(d), nil
-}
-
-// getTokenPolicyName function returns the policy name for the 8.x Elastic stack. The agent's policy
-// is predefined in the Kibana configuration file. The logic is not present in older stacks.
-func getTokenPolicyName(stackVersion string) string {
-	if strings.HasPrefix(stackVersion, "8.") {
-		return "Elastic-Agent (elastic-package)"
-	}
-	return ""
 }
