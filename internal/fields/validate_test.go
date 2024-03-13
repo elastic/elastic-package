@@ -1009,7 +1009,7 @@ func TestValidateStackVersionsWithEcsMappings(t *testing.T) {
 		if err != nil {
 			require.NoError(t, err)
 		}
-		require.Equal(t, c.SupportEcs, allVersionsIncludeECS(constraint), "constraint: %s", c.Constraints)
+		assert.Equal(t, c.SupportEcs, allVersionsIncludeECS(constraint), "constraint: %s", c.Constraints)
 	}
 }
 

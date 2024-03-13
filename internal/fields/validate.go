@@ -307,9 +307,7 @@ func initDependencyManagement(packageRoot string, specVersion semver.Version, im
 		logger.Debugf("Package does not embed ECS mappings")
 	}
 
-	//
 	// Check if all stack versions support ECS mappings
-	//
 	stackSupportsEcsMapping, err := supportsECSMappings(packageRoot)
 	if err != nil {
 		return nil, nil, fmt.Errorf("can't check if stack version includes ECS mappings: %w", err)
