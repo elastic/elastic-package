@@ -738,11 +738,17 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 	if err != nil {
 		return nil, fmt.Errorf("could not create agent runner: %w", err)
 	}
-	agentDeployed, err := agentDeployer.SetUp(agentInfo)
-	if err != nil {
-		return nil, fmt.Errorf("could not setup agent: %w", err)
+	var agentDeployed agentdeployer.DeployedAgent
+	if agentDeployer != nil {
+		agentDeployed, err = agentDeployer.SetUp(agentInfo)
+		if err != nil {
+			return nil, fmt.Errorf("could not setup agent: %w", err)
+		}
 	}
 	r.shutdownAgentHandler = func() error {
+		if agentDeployer == nil {
+			return nil
+		}
 		logger.Debug("tearing down agent...")
 		if err := agentDeployed.TearDown(); err != nil {
 			return fmt.Errorf("error tearing down agent: %w", err)

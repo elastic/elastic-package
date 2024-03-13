@@ -50,7 +50,7 @@ func Factory(options FactoryOptions) (AgentDeployer, error) {
 	agentDeployerName, err := findAgentDeployer(devDeployPath)
 	if err != nil {
 		logger.Debugf("Not found any agent deployer, using default one")
-		agentDeployerName = "agent"
+		agentDeployerName = "default"
 	}
 	// if package defines `_dev/deploy/docker` folder to start their services, it should be
 	// using the default agent deployer`
@@ -82,28 +82,30 @@ func Factory(options FactoryOptions) (AgentDeployer, error) {
 		return NewCustomAgentDeployer(opts)
 	case "agent":
 		// FIXME: should this be just carried out by service deployer?
-		if options.Type != TypeTest {
-			return nil, fmt.Errorf("agent deployer is not supported for type %s", options.Type)
-		}
-		customAgentCfgYMLPath := filepath.Join(agentDeployerPath, "custom-agent.yml")
-		if _, err := os.Stat(customAgentCfgYMLPath); err != nil {
-			return nil, fmt.Errorf("can't find expected file custom-agent.yml: %w", err)
-		}
-		sv, err := useAgentVariant(devDeployPath, options.Variant)
-		if err != nil {
-			return nil, fmt.Errorf("can't use service variant: %w", err)
-		}
-		opts := CustomAgentDeployerOptions{
-			Profile:           options.Profile,
-			DockerComposeFile: customAgentCfgYMLPath,
-			StackVersion:      options.StackVersion,
-			Variant:           sv,
-			PackageName:       options.PackageName,
-			DataStream:        options.DataStream,
-			RunTearDown:       options.RunTearDown,
-			RunTestsOnly:      options.RunTestsOnly,
-		}
-		return NewCustomAgentDeployer(opts)
+		// FIXME: this docker-compose scenario contains both agent and service
+		return nil, nil
+		// if options.Type != TypeTest {
+		// 	return nil, fmt.Errorf("agent deployer is not supported for type %s", options.Type)
+		// }
+		// customAgentCfgYMLPath := filepath.Join(agentDeployerPath, "custom-agent.yml")
+		// if _, err := os.Stat(customAgentCfgYMLPath); err != nil {
+		// 	return nil, fmt.Errorf("can't find expected file custom-agent.yml: %w", err)
+		// }
+		// sv, err := useAgentVariant(devDeployPath, options.Variant)
+		// if err != nil {
+		// 	return nil, fmt.Errorf("can't use service variant: %w", err)
+		// }
+		// opts := CustomAgentDeployerOptions{
+		// 	Profile:           options.Profile,
+		// 	DockerComposeFile: customAgentCfgYMLPath,
+		// 	StackVersion:      options.StackVersion,
+		// 	Variant:           sv,
+		// 	PackageName:       options.PackageName,
+		// 	DataStream:        options.DataStream,
+		// 	RunTearDown:       options.RunTearDown,
+		// 	RunTestsOnly:      options.RunTestsOnly,
+		// }
+		// return NewCustomAgentDeployer(opts)
 	case "k8s":
 		if _, err := os.Stat(agentDeployerPath); err == nil {
 			opts := KubernetesAgentDeployerOptions{

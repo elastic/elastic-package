@@ -80,6 +80,7 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 			return NewDockerComposeServiceDeployer(opts)
 		}
 	case "agent":
+		// FIXME: This docker-compose scenario contains also the definition of the elastic-agent container
 		if options.Type != TypeTest {
 			return nil, fmt.Errorf("agent deployer is not supported for type %s", options.Type)
 		}
