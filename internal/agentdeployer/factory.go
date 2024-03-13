@@ -52,6 +52,11 @@ func Factory(options FactoryOptions) (AgentDeployer, error) {
 		logger.Debugf("Not found any agent deployer, using default one")
 		agentDeployerName = "agent"
 	}
+	// if package defines `_dev/deploy/docker` folder to start their services, it should be
+	// using the default agent deployer`
+	if agentDeployerName == "docker" {
+		agentDeployerName = "default"
+	}
 
 	agentDeployerPath := filepath.Join(devDeployPath, agentDeployerName)
 
