@@ -15,7 +15,6 @@ import (
 	"github.com/elastic/elastic-package/internal/compose"
 	"github.com/elastic/elastic-package/internal/docker"
 	"github.com/elastic/elastic-package/internal/elasticsearch"
-	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/profile"
@@ -367,7 +366,7 @@ func (sp *serverlessProvider) TearDown(options Options) error {
 
 	var errs error
 
-	err = sp.destroyLocalServices(options)
+	err = sp.destroyLocalServices()
 	if err != nil {
 		logger.Errorf("failed to destroy local services: %v", err)
 		errs = fmt.Errorf("failed to destroy local services: %w", err)
@@ -391,23 +390,13 @@ func (sp *serverlessProvider) TearDown(options Options) error {
 	return errs
 }
 
-func (sp *serverlessProvider) destroyLocalServices(options Options) error {
+func (sp *serverlessProvider) destroyLocalServices() error {
 	project, err := sp.localServicesComposeProject()
 	if err != nil {
 		return fmt.Errorf("could not initialize local services compose project")
 	}
 
-	appConfig, err := install.Configuration()
-	if err != nil {
-		return fmt.Errorf("can't read application configuration: %w", err)
-	}
-
 	opts := compose.CommandOptions{
-		Env: newEnvBuilder().
-			withEnvs(appConfig.StackImageRefs(options.StackVersion).AsEnv()).
-			withEnv(stackVariantAsEnv(options.StackVersion)).
-			withEnvs(options.Profile.ComposeEnvVars()).
-			build(),
 		// Remove associated volumes.
 		ExtraArgs: []string{"--volumes", "--remove-orphans"},
 	}
