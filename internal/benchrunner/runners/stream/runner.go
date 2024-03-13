@@ -37,6 +37,8 @@ import (
 	"github.com/elastic/elastic-package/internal/signal"
 )
 
+const numberOfEvents = 10
+
 type runner struct {
 	options   Options
 	scenarios map[string]*scenario
@@ -132,12 +134,9 @@ func (r *runner) initialize() error {
 	return nil
 }
 
-const NumberOfEvents = 10
-
 func (r *runner) validateGenerators() error {
 	for scenarioName, generator := range r.generators {
-		// run for NumberOfEvents times and check whether the generated event is valid json
-		for i := 0; i < NumberOfEvents; i++ {
+		for i := 0; i < numberOfEvents; i++ {
 			buf := bytes.NewBufferString("")
 			err := generator.Emit(buf)
 			if err != nil {
@@ -342,17 +341,17 @@ func (r *runner) collectGenerators() error {
 	for scenarioName, scenario := range r.scenarios {
 		config, err := r.getGeneratorConfig(scenario)
 		if err != nil {
-			return err
+			return fmt.Errorf("[%s]: %w", scenarioName, err)
 		}
 
 		fields, err := r.getGeneratorFields(scenario)
 		if err != nil {
-			return err
+			return fmt.Errorf("[%s]: %w", scenarioName, err)
 		}
 
 		tpl, err := r.getGeneratorTemplate(scenario)
 		if err != nil {
-			return err
+			return fmt.Errorf("[%s]: %w", scenarioName, err)
 		}
 
 		genlib.InitGeneratorTimeNow(time.Now())
@@ -360,7 +359,7 @@ func (r *runner) collectGenerators() error {
 
 		generator, err := r.initializeGenerator(tpl, *config, fields, scenario, 0, 0)
 		if err != nil {
-			return err
+			return fmt.Errorf("[%s]: %w", scenarioName, err)
 		}
 
 		r.generators[scenarioName] = generator
@@ -374,7 +373,7 @@ func (r *runner) collectGenerators() error {
 
 		generator, err = r.initializeGenerator(tpl, *config, fields, scenario, r.options.BackFill, totEvents)
 		if err != nil {
-			return err
+			return fmt.Errorf("[%s]: %w", scenarioName, err)
 		}
 
 		r.backFillGenerators[scenarioName] = generator
