@@ -28,6 +28,9 @@ type FactoryOptions struct {
 	Type               string
 	StackVersion       string
 
+	PackageName string
+	DataStream  string
+
 	Variant string
 
 	RunTearDown  bool
@@ -88,12 +91,20 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 		if _, err := os.Stat(customAgentCfgYMLPath); err != nil {
 			return nil, fmt.Errorf("can't find expected file custom-agent.yml: %w", err)
 		}
+		sv, err := useServiceVariant(devDeployPath, options.Variant)
+		if err != nil {
+			return nil, fmt.Errorf("can't use service variant: %w", err)
+		}
 		opts := CustomAgentDeployerOptions{
 			Profile:           options.Profile,
 			DockerComposeFile: customAgentCfgYMLPath,
 			StackVersion:      options.StackVersion,
-			RunTearDown:       options.RunTearDown,
-			RunTestsOnly:      options.RunTestsOnly,
+			Variant:           sv,
+			PackageName:       options.PackageName,
+			DataStream:        options.DataStream,
+
+			RunTearDown:  options.RunTearDown,
+			RunTestsOnly: options.RunTestsOnly,
 		}
 		return NewCustomAgentDeployer(opts)
 	case "tf":

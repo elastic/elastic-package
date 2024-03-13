@@ -35,6 +35,9 @@ type CustomAgentDeployer struct {
 	profile           *profile.Profile
 	dockerComposeFile string
 	stackVersion      string
+	variant           ServiceVariant
+	packageName       string
+	dataStream        string
 
 	runTearDown  bool
 	runTestsOnly bool
@@ -44,6 +47,9 @@ type CustomAgentDeployerOptions struct {
 	Profile           *profile.Profile
 	DockerComposeFile string
 	StackVersion      string
+	Variant           ServiceVariant
+	PackageName       string
+	DataStream        string
 
 	RunTearDown  bool
 	RunTestsOnly bool
@@ -57,6 +63,9 @@ func NewCustomAgentDeployer(options CustomAgentDeployerOptions) (*CustomAgentDep
 		profile:           options.Profile,
 		dockerComposeFile: options.DockerComposeFile,
 		stackVersion:      options.StackVersion,
+		variant:           options.Variant,
+		packageName:       options.PackageName,
+		dataStream:        options.DataStream,
 		runTearDown:       options.RunTearDown,
 		runTestsOnly:      options.RunTestsOnly,
 	}, nil
@@ -80,6 +89,7 @@ func (d *CustomAgentDeployer) SetUp(inCtxt ServiceContext) (DeployedService, err
 		appConfig.StackImageRefs(d.stackVersion).AsEnv(),
 		fmt.Sprintf("%s=%s", serviceLogsDirEnv, inCtxt.Logs.Folder.Local),
 		fmt.Sprintf("%s=%s", localCACertEnv, caCertPath),
+		fmt.Sprintf("%s=%s-%s", agentHosnameEnv, dockerCustomAgentName, d.agentName()),
 	)
 
 	configDir, err := d.installDockerfile()
@@ -181,6 +191,13 @@ func (d *CustomAgentDeployer) SetUp(inCtxt ServiceContext) (DeployedService, err
 	outCtxt.Agent.Host.NamePrefix = inCtxt.Name
 	service.ctxt = outCtxt
 	return &service, nil
+}
+
+func (d *CustomAgentDeployer) agentName() string {
+	if d.variant.Name != "" {
+		return fmt.Sprintf("%s-%s-%s", d.packageName, d.variant.Name, d.dataStream)
+	}
+	return fmt.Sprintf("%s-%s", d.packageName, d.dataStream)
 }
 
 // installDockerfile creates the files needed to run the custom elastic agent and returns

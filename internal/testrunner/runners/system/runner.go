@@ -288,6 +288,8 @@ func (r *runner) createServiceOptions(variantName string) servicedeployer.Factor
 		Variant:            variantName,
 		Type:               servicedeployer.TypeTest,
 		StackVersion:       r.stackVersion.Version(),
+		PackageName:        "", // to be filled in prepareScenario
+		DataStream:         "", // to be filled in prepareScenario
 		RunTearDown:        r.options.RunTearDown,
 		RunTestsOnly:       r.options.RunTestsOnly,
 		RunSetup:           r.options.RunSetup,
@@ -759,6 +761,9 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 
 	// Setup service.
 	logger.Debug("setting up service...")
+	serviceOptions.PackageName = scenario.pkgManifest.Name
+	serviceOptions.DataStream = scenario.dataStreamManifest.Name
+
 	serviceDeployer, err := servicedeployer.Factory(serviceOptions)
 	if err != nil {
 		return nil, fmt.Errorf("could not create service runner: %w", err)

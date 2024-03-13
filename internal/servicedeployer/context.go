@@ -8,6 +8,7 @@ const (
 	localCACertEnv    = "LOCAL_CA_CERT"
 	serviceLogsDirEnv = "SERVICE_LOGS_DIR"
 	testRunIDEnv      = "TEST_RUN_ID"
+	agentHosnameEnv   = "AGENT_HOSTNAME"
 )
 
 // ServiceContext encapsulates context that is both available to a ServiceDeployer and
