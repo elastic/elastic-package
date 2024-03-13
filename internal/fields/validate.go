@@ -319,6 +319,7 @@ func initDependencyManagement(packageRoot string, specVersion semver.Version, im
 	if (packageEmbedsEcsMappings || stackSupportsEcsMapping) && importECSSchema {
 		// Import all fields from external schema (most likely ECS) to
 		// validate the package fields against it.
+		logger.Debug("Importing ECS fields definition from external schema to validate the package fields against it")
 		ecsSchema, err := fdm.ImportAllFields(defaultExternal)
 		if err != nil {
 			return nil, nil, err
