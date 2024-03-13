@@ -731,6 +731,8 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 		return nil, err
 	}
 
+	// FIXME: this should be stored in service state or not used in
+	// --no-provision and --tear-down stages
 	enrollingTime := time.Now()
 	agentDeployer, err := agentdeployer.Factory(agentOptions)
 	if err != nil {
@@ -1700,8 +1702,10 @@ func filterAgents(allAgents []kibana.Agent, agentInfo agentdeployer.AgentInfo, t
 			continue // For some reason Kibana doesn't always return a valid policy revision (eventually it will be present and valid)
 		}
 
+		// It cannot filtered by "elastic-agent-managed-ep" , since this is the default
+		// policy assigned to the agents when they first enroll
 		if agent.PolicyID == "fleet-server-policy" {
-			logger.Debugf("filtered agent %q", agent.ID) // TODO: remove
+			logger.Debugf("filtered agent (policy id) %q", agent.ID) // TODO: remove
 			continue
 		}
 
@@ -1718,9 +1722,13 @@ func filterAgents(allAgents []kibana.Agent, agentInfo agentdeployer.AgentInfo, t
 		// FIXME: check for package and data stream name too ?
 		// Current verson could be returning an unexpected agent if tests are parallelized
 		hasAgentPrefix := strings.HasPrefix(agent.LocalMetadata.Host.Name, agentInfo.Agent.Host.NamePrefix)
+		// hasServicePrefix := strings.HasPrefix(agent.LocalMetadata.Host.Name, ctxt.Agent.Host.NamePrefix)
 
+		// TODO: required for custom agents triggered from service deployers
+
+		// if agentInfo.Agent.Host.NamePrefix != "" && !hasAgentPrefix && !hasServicePrefix {
 		if agentInfo.Agent.Host.NamePrefix != "" && !hasAgentPrefix {
-			logger.Debugf("filtered agent %q", agent.ID) // TODO: remove
+			logger.Debugf("filtered agent (prefix) %q", agent.ID) // TODO: remove
 			continue
 		}
 		filtered = append(filtered, agent)
