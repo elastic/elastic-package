@@ -61,7 +61,7 @@ func modifyKubernetesResources(action string, definitionPaths []string) ([]byte,
 func applyKubernetesResourcesStdin(input []byte) ([]byte, error) {
 	// create kubectl apply command
 	kubectlCmd := exec.Command("kubectl", "apply", "-f", "-", "-o", "yaml")
-	//Stdin of kubectl command is the manifest provided
+	// Stdin of kubectl command is the manifest provided
 	kubectlCmd.Stdin = bytes.NewReader(input)
 	errOutput := new(bytes.Buffer)
 	kubectlCmd.Stderr = errOutput
@@ -70,6 +70,24 @@ func applyKubernetesResourcesStdin(input []byte) ([]byte, error) {
 	output, err := kubectlCmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("kubectl apply failed (stderr=%q): %w", errOutput.String(), err)
+	}
+	return output, nil
+}
+
+// deleteKubernetesResourcesStdin deletes a Kubernetes manifest provided as stdin.
+// It returns the resources deleted as output and an error
+func deleteKubernetesResourcesStdin(input []byte) ([]byte, error) {
+	// create kubectl apply command
+	kubectlCmd := exec.Command("kubectl", "delete", "-f", "-")
+	// Stdin of kubectl command is the manifest provided
+	kubectlCmd.Stdin = bytes.NewReader(input)
+	errOutput := new(bytes.Buffer)
+	kubectlCmd.Stderr = errOutput
+
+	logger.Debugf("run command: %s", kubectlCmd)
+	output, err := kubectlCmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("kubectl delete failed (stderr=%q): %w", errOutput.String(), err)
 	}
 	return output, nil
 }

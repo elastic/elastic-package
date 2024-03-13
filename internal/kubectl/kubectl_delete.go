@@ -4,8 +4,17 @@
 
 package kubectl
 
+import "github.com/elastic/elastic-package/internal/logger"
+
 // Delete function removes resources from the Kubernetes cluster based on provided definitions.
 func Delete(definitionsPath []string) error {
 	_, err := modifyKubernetesResources("delete", definitionsPath)
+	return err
+}
+
+// DeleteStdin function removes resources from the Kubernetes cluster based on provided definitions.
+func DeleteStdin(out []byte) error {
+	logger.Debugf("Delete Kubernetes stdin")
+	_, err := deleteKubernetesResourcesStdin(out)
 	return err
 }

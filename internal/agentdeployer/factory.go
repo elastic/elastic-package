@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/profile"
 )
 
@@ -41,30 +42,42 @@ type FactoryOptions struct {
 // Factory chooses the appropriate service runner for the given data stream, depending
 // on service configuration files defined in the package or data stream.
 func Factory(options FactoryOptions) (AgentDeployer, error) {
-	// devDeployPath, err := FindDevDeployPath(options)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("can't find \"%s\" directory: %w", options.DevDeployDir, err)
-	// }
+	devDeployPath, err := FindDevDeployPath(options)
+	if err != nil {
+		return nil, fmt.Errorf("can't find \"%s\" directory: %w", options.DevDeployDir, err)
+	}
 
-	// agentDeployerName, err := findAgentDeployer(devDeployPath)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("can't find any valid agent deployer: %w", err)
-	// }
+	agentDeployerName, err := findAgentDeployer(devDeployPath)
+	if err != nil {
+		logger.Debugf("Not found any agent deployer, using default one")
+		agentDeployerName = "agent"
+	}
 
-	// agentDeployerPath := filepath.Join(devDeployPath, agentDeployerName)
-	agentDeployerName := "agent"
+	agentDeployerPath := filepath.Join(devDeployPath, agentDeployerName)
 
 	switch agentDeployerName {
+	case "default":
+		if options.Type != TypeTest {
+			return nil, fmt.Errorf("agent deployer is not supported for type %s", options.Type)
+		}
+		opts := CustomAgentDeployerOptions{
+			Profile:           options.Profile,
+			DockerComposeFile: "",
+			StackVersion:      options.StackVersion,
+			PackageName:       options.PackageName,
+			DataStream:        options.DataStream,
+			RunTearDown:       options.RunTearDown,
+			RunTestsOnly:      options.RunTestsOnly,
+		}
+		return NewCustomAgentDeployer(opts)
 	case "agent":
 		if options.Type != TypeTest {
 			return nil, fmt.Errorf("agent deployer is not supported for type %s", options.Type)
 		}
-		// FIXME
-		// customAgentCfgYMLPath := filepath.Join(agentDeployerPath, "custom-agent.yml")
-		// if _, err := os.Stat(customAgentCfgYMLPath); err != nil {
-		// 	return nil, fmt.Errorf("can't find expected file custom-agent.yml: %w", err)
-		// }
-		customAgentCfgYMLPath := ""
+		customAgentCfgYMLPath := filepath.Join(agentDeployerPath, "custom-agent.yml")
+		if _, err := os.Stat(customAgentCfgYMLPath); err != nil {
+			return nil, fmt.Errorf("can't find expected file custom-agent.yml: %w", err)
+		}
 		opts := CustomAgentDeployerOptions{
 			Profile:           options.Profile,
 			DockerComposeFile: customAgentCfgYMLPath,
@@ -75,6 +88,18 @@ func Factory(options FactoryOptions) (AgentDeployer, error) {
 			RunTestsOnly:      options.RunTestsOnly,
 		}
 		return NewCustomAgentDeployer(opts)
+	case "k8s":
+		if _, err := os.Stat(agentDeployerPath); err == nil {
+			opts := KubernetesAgentDeployerOptions{
+				Profile:        options.Profile,
+				DefinitionsDir: agentDeployerPath,
+				StackVersion:   options.StackVersion,
+				RunSetup:       options.RunSetup,
+				RunTestsOnly:   options.RunTestsOnly,
+				RunTearDown:    options.RunTearDown,
+			}
+			return NewKubernetesAgentDeployer(opts)
+		}
 	}
 	return nil, fmt.Errorf("unsupported agent deployer (name: %s)", agentDeployerName)
 }
