@@ -42,6 +42,8 @@ type DockerComposeServiceDeployerOptions struct {
 type dockerComposeDeployedService struct {
 	ctxt ServiceContext
 
+	shutdownTimeout string // default shutdown timeout 10 seconds
+
 	ymlPaths []string
 	project  string
 	variant  ServiceVariant
@@ -225,6 +227,10 @@ func (s *dockerComposeDeployedService) TearDown() error {
 		return fmt.Errorf("could not create Docker Compose project for service: %w", err)
 	}
 
+	extraArgs := []string{}
+	if s.shutdownTimeout != "" {
+		extraArgs = append(extraArgs, "-t", s.shutdownTimeout)
+	}
 	opts := compose.CommandOptions{
 		Env: append(
 			s.env,
@@ -232,7 +238,7 @@ func (s *dockerComposeDeployedService) TearDown() error {
 	}
 	if err := p.Stop(compose.CommandOptions{
 		Env:       opts.Env,
-		ExtraArgs: []string{"-t", "300"}, // default shutdown timeout 10 seconds
+		ExtraArgs: extraArgs,
 	}); err != nil {
 		return fmt.Errorf("could not stop service using Docker Compose: %w", err)
 	}
