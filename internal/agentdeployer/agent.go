@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	dockerCustomAgentName          = "docker-custom-agent"
+	dockerCustomAgentNamePrefix    = "docker-custom-agent"
 	dockerCustomAgentDir           = "docker_custom_agent"
 	dockerCustomAgentDockerCompose = "docker-agent-base.yml"
 	defaultAgentPolicyName         = "Elastic-Agent (elastic-package)"
@@ -94,7 +94,7 @@ func (d *CustomAgentDeployer) SetUp(inCtxt AgentInfo) (DeployedAgent, error) {
 		fmt.Sprintf("%s=%s", serviceLogsDirEnv, inCtxt.Logs.Folder.Local),
 		fmt.Sprintf("%s=%s", localCACertEnv, caCertPath),
 		fmt.Sprintf("%s=%s", fleetPolicyEnv, defaultAgentPolicyName),
-		fmt.Sprintf("%s=docker-custom-agent-%s", agentHosnameEnv, d.agentName()),
+		fmt.Sprintf("%s=%s", agentHosnameEnv, d.agentHostname()),
 	)
 
 	configDir, err := d.installDockerfile()
@@ -118,7 +118,7 @@ func (d *CustomAgentDeployer) SetUp(inCtxt AgentInfo) (DeployedAgent, error) {
 		ymlPaths: ymlPaths,
 		project:  composeProjectName,
 		variant: AgentVariant{
-			Name: dockerCustomAgentName,
+			Name: dockerCustomAgentNamePrefix,
 			Env:  env,
 		},
 	}
@@ -151,7 +151,7 @@ func (d *CustomAgentDeployer) SetUp(inCtxt AgentInfo) (DeployedAgent, error) {
 	}
 
 	// Service name defined in the docker-compose file
-	inCtxt.Name = dockerCustomAgentName
+	inCtxt.Name = dockerCustomAgentNamePrefix
 	serviceName := inCtxt.Name
 
 	opts := compose.CommandOptions{
@@ -182,8 +182,9 @@ func (d *CustomAgentDeployer) SetUp(inCtxt AgentInfo) (DeployedAgent, error) {
 		return nil, fmt.Errorf("service is unhealthy: %w", err)
 	}
 
-	// Build service container name
-	outCtxt.Hostname = p.ContainerName(serviceName)
+	// Build agent container name
+	// outCtxt.Hostname = p.ContainerName(serviceName)
+	outCtxt.Hostname = d.agentHostname()
 
 	logger.Debugf("adding service container %s internal ports to context", p.ContainerName(serviceName))
 	serviceComposeConfig, err := p.Config(compose.CommandOptions{Env: env})
@@ -205,6 +206,10 @@ func (d *CustomAgentDeployer) SetUp(inCtxt AgentInfo) (DeployedAgent, error) {
 	outCtxt.Agent.Host.NamePrefix = inCtxt.Name
 	service.agentInfo = outCtxt
 	return &service, nil
+}
+
+func (d *CustomAgentDeployer) agentHostname() string {
+	return fmt.Sprintf("docker-custom-agent-%s", d.agentName())
 }
 
 func (d *CustomAgentDeployer) agentName() string {

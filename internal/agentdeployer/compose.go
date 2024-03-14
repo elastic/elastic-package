@@ -99,7 +99,7 @@ func (d *DockerComposeAgentDeployer) SetUp(inCtxt AgentInfo) (DeployedAgent, err
 		return nil, fmt.Errorf("service is unhealthy: %w", err)
 	}
 
-	// Build service container name
+	// Build agent container name
 	outCtxt.Hostname = p.ContainerName(agentName)
 
 	// Connect service network with stack network (for the purpose of metrics collection)
