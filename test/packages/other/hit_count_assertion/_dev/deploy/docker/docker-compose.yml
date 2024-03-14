@@ -4,4 +4,4 @@ services:
     image: akroh/stream:v0.0.1
     volumes:
       - ./logs:/logs:ro
-    command: log --start-signal=SIGHUP --delay=5s --addr docker-custom-agent-hit_count_assertion-test:9999 -p=tcp /logs/generated.log
+    command: log --start-signal=SIGHUP --delay=5s --addr ${AGENT_HOSTNAME}:9999 -p=tcp /logs/generated.log

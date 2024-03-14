@@ -68,7 +68,10 @@ func (d *DockerComposeServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedSer
 		ymlPaths: d.ymlPaths,
 		project:  "elastic-package-service",
 		variant:  d.variant,
-		env:      []string{fmt.Sprintf("%s=%s", serviceLogsDirEnv, inCtxt.Logs.Folder.Local)},
+		env: []string{
+			fmt.Sprintf("%s=%s", serviceLogsDirEnv, inCtxt.Logs.Folder.Local),
+			fmt.Sprintf("%s=%s", agentHosnameEnv, "docker-custom-agent-hit_count_assertion-test"),
+		},
 	}
 	outCtxt := inCtxt
 
@@ -141,7 +144,7 @@ func (d *DockerComposeServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedSer
 
 	logger.Debugf("adding service container %s internal ports to context", p.ContainerName(serviceName))
 	serviceComposeConfig, err := p.Config(compose.CommandOptions{
-		Env: []string{fmt.Sprintf("%s=%s", serviceLogsDirEnv, outCtxt.Logs.Folder.Local)},
+		Env: service.env,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("could not get Docker Compose configuration for service: %w", err)
