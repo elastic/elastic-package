@@ -770,8 +770,12 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 	}
 
 	ctxt.Logs.Folder.Local = agentInfo.Logs.Folder.Local
-	ctxt.AgentHostname = agentDeployed.Context().Hostname
-
+	if agentDeployed != nil {
+		// In case of CustomAgents from servicedeployer where agent and service
+		// are deployed in the same docker-compose scenario (servicedeployer),
+		// so there is no agentDeployed in that scenario
+		ctxt.AgentHostname = agentDeployed.Context().Hostname
+	}
 	if config.Service != "" {
 		ctxt.Name = config.Service
 	}
