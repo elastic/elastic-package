@@ -1053,6 +1053,8 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 
 	if !passed {
 		return nil, testrunner.ErrTestCaseFailed{Reason: fmt.Sprintf("could not find hits in %s data stream", scenario.dataStream)}
+	} else {
+		logger.Debugf(">>>>> Final hits found: %d", hits.size()) // TODO: to remove
 	}
 
 	logger.Debugf("check whether or not synthetics is enabled (component template %s)...", componentTemplatePackage)
