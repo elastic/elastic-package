@@ -63,6 +63,8 @@ services:
       dockerfile: "./profiles/${PROFILE_NAME}/stack/Dockerfile.package-registry"
       args:
         PROFILE: "${PROFILE_NAME}"
+      platforms:
+        - linux/amd64
     platform: linux/amd64
     healthcheck:
       test: ["CMD", "curl", "--cacert", "/etc/ssl/package-registry/ca-cert.pem", "-f", "https://localhost:8080"]
