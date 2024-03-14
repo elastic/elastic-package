@@ -770,6 +770,8 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 	}
 
 	ctxt.Logs.Folder.Local = agentInfo.Logs.Folder.Local
+	ctxt.AgentHostname = agentDeployed.Context().Hostname
+
 	if config.Service != "" {
 		ctxt.Name = config.Service
 	}

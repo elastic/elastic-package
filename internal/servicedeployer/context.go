@@ -22,6 +22,10 @@ type ServiceContext struct {
 	// the Agent container.
 	Hostname string
 
+	// AgentHostname is the host name of the agent, as addressable from
+	// the Service container .
+	AgentHostname string
+
 	// Ports is a list of ports that the service listens on, as addressable
 	// from the Agent container.
 	Ports []int

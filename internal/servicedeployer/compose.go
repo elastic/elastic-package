@@ -72,7 +72,7 @@ func (d *DockerComposeServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedSer
 		variant:  d.variant,
 		env: []string{
 			fmt.Sprintf("%s=%s", serviceLogsDirEnv, inCtxt.Logs.Folder.Local),
-			fmt.Sprintf("%s=%s", agentHosnameEnv, "docker-custom-agent-hit_count_assertion-test"),
+			fmt.Sprintf("%s=%s", agentHosnameEnv, inCtxt.AgentHostname),
 		},
 	}
 	outCtxt := inCtxt
