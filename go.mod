@@ -39,7 +39,7 @@ require (
 	gotest.tools/gotestsum v1.11.0
 	helm.sh/helm/v3 v3.14.3
 	honnef.co/go/tools v0.4.7
-	k8s.io/apimachinery v0.29.2
+	k8s.io/apimachinery v0.29.3
 	k8s.io/cli-runtime v0.29.2
 	k8s.io/client-go v0.29.2
 )
@@ -86,7 +86,7 @@ require (
 	github.com/go-openapi/swag v0.22.3 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
-	github.com/golang/protobuf v1.5.3 // indirect
+	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/btree v1.1.2 // indirect
 	github.com/google/gnostic-models v0.6.8 // indirect
