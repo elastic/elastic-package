@@ -75,7 +75,7 @@ func addDynamicMappings(packageRoot, destinationDir string) error {
 		if err != nil {
 			return err
 		}
-		os.WriteFile(packageManifest, contents, 0664)
+		err = os.WriteFile(packageManifest, contents, 0664)
 		if err != nil {
 			return err
 		}

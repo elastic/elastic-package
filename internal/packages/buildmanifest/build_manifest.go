@@ -35,7 +35,7 @@ func (bm *BuildManifest) HasDependencies() bool {
 	return bm.Dependencies.ECS.Reference != ""
 }
 
-// HasDependencies function checks if there are any dependencies defined.
+// ImportMappings function checks if there are any dependencies defined.
 func (bm *BuildManifest) ImportMappings() bool {
 	return bm.Dependencies.ECS.ImportMappings
 }
