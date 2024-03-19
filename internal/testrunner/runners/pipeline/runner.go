@@ -179,8 +179,6 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		}
 		startTime := time.Now()
 
-		// TODO: Add tests to cover regressive use of json.Unmarshal in loadTestCaseFile.
-		// See https://github.com/elastic/elastic-package/pull/717.
 		tc, err := r.loadTestCaseFile(testCaseFile)
 		if err != nil {
 			err := fmt.Errorf("loading test case failed: %w", err)
@@ -225,8 +223,6 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 			return nil, fmt.Errorf("creating fields validator for data stream failed (path: %s, test case file: %s): %w", dataStreamPath, testCaseFile, err)
 		}
 
-		// TODO: Add tests to cover regressive use of json.Unmarshal in verifyResults.
-		// See https://github.com/elastic/elastic-package/pull/717.
 		err = r.verifyResults(testCaseFile, tc.config, result, fieldsValidator)
 		if e, ok := err.(testrunner.ErrTestCaseFailed); ok {
 			tr.FailureMsg = e.Error()
@@ -328,8 +324,6 @@ func (r *runner) verifyResults(testCaseFile string, config *testConfig, result *
 	}
 
 	if r.options.GenerateTestResult {
-		// TODO: Add tests to cover regressive use of json.Unmarshal in writeTestResult.
-		// See https://github.com/elastic/elastic-package/pull/717.
 		err := writeTestResult(testCasePath, result, *specVersion)
 		if err != nil {
 			return fmt.Errorf("writing test result failed: %w", err)
