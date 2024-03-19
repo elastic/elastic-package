@@ -201,7 +201,7 @@ func (r *runner) runTestCase(testCaseFile string, dsPath string, dsType string, 
 
 	// TODO: Add tests to cover regressive use of json.Unmarshal in loadTestCaseFile.
 	// See https://github.com/elastic/elastic-package/pull/717.
-	tc, err := r.loadTestCaseFile(testCaseFile)
+	tc, err := loadTestCaseFile(r.options.TestFolder.Path, testCaseFile)
 	if err != nil {
 		err := fmt.Errorf("loading test case failed: %w", err)
 		tr.ErrorMsg = err.Error()
@@ -278,8 +278,8 @@ func (r *runner) listTestCaseFiles() ([]string, error) {
 	return files, nil
 }
 
-func (r *runner) loadTestCaseFile(testCaseFile string) (*testCase, error) {
-	testCasePath := filepath.Join(r.options.TestFolder.Path, testCaseFile)
+func loadTestCaseFile(testFolderPath, testCaseFile string) (*testCase, error) {
+	testCasePath := filepath.Join(testFolderPath, testCaseFile)
 	testCaseData, err := os.ReadFile(testCasePath)
 	if err != nil {
 		return nil, fmt.Errorf("reading input file failed (testCasePath: %s): %w", testCasePath, err)
