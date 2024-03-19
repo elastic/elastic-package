@@ -343,7 +343,7 @@ func (r *runner) verifyResults(testCaseFile string, config *testConfig, result *
 		}
 	}
 
-	// TODO: temporary workaround untill there could be implemented other approach for deterministic geoip in serverless.
+	// TODO: temporary workaround until other approach for deterministic geoip in serverless can be implemented.
 	if r.runCompareResults {
 		err = compareResults(testCasePath, config, result, *specVersion)
 		if _, ok := err.(testrunner.ErrTestCaseFailed); ok {
