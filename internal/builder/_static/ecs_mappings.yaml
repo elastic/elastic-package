@@ -198,6 +198,14 @@ mappings:
             mapping:
                 type: match_only_text
             path_match: message
+        - non_indexed_keyword:
+            mapping:
+                type: keyword
+                index: false
+                doc_values: false
+            path_match:
+              - 'event.original'
+              - '*.x509.public_key_exponent'
         - agent_name_to_keyword:
             mapping:
                 type: keyword
