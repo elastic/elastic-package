@@ -27,7 +27,7 @@ type testCaseDefinition struct {
 
 func readTestCaseEntriesForEvents(inputData []byte) ([]json.RawMessage, error) {
 	var tcd testCaseDefinition
-	err := jsonUnmarshalUsingNumber(inputData, &tcd)
+	err := common.JSONUnmarshalUsingNumber(inputData, &tcd)
 	if err != nil {
 		return nil, fmt.Errorf("unmarshalling input data failed: %w", err)
 	}
@@ -58,7 +58,7 @@ func createTestCase(filename string, entries []json.RawMessage, config *testConf
 	var events []json.RawMessage
 	for _, entry := range entries {
 		var m common.MapStr
-		err := jsonUnmarshalUsingNumber(entry, &m)
+		err := common.JSONUnmarshalUsingNumber(entry, &m)
 		if err != nil {
 			return nil, fmt.Errorf("can't unmarshal test case entry: %w", err)
 		}

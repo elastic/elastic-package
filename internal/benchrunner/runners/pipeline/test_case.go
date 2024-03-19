@@ -8,9 +8,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"io"
 	"strings"
 
 	"github.com/elastic/elastic-package/internal/common"
@@ -27,7 +25,7 @@ type benchmarkDefinition struct {
 
 func readBenchmarkEntriesForEvents(inputData []byte) ([]json.RawMessage, error) {
 	var tcd benchmarkDefinition
-	err := jsonUnmarshalUsingNumber(inputData, &tcd)
+	err := common.JSONUnmarshalUsingNumber(inputData, &tcd)
 	if err != nil {
 		return nil, fmt.Errorf("unmarshalling input data failed: %w", err)
 	}
@@ -58,7 +56,7 @@ func createBenchmark(entries []json.RawMessage, config *config) (*benchmark, err
 	var events []json.RawMessage
 	for _, entry := range entries {
 		var m common.MapStr
-		err := jsonUnmarshalUsingNumber(entry, &m)
+		err := common.JSONUnmarshalUsingNumber(entry, &m)
 		if err != nil {
 			return nil, fmt.Errorf("can't unmarshal benchmark entry: %w", err)
 		}
@@ -94,26 +92,4 @@ func readRawInputEntries(inputData []byte) ([]string, error) {
 		inputDataEntries = append(inputDataEntries, lastEntry)
 	}
 	return inputDataEntries, nil
-}
-
-// jsonUnmarshalUsingNumber is a drop-in replacement for json.Unmarshal that
-// does not default to unmarshaling numeric values to float64 in order to
-// prevent low bit truncation of values greater than 1<<53.
-// See https://golang.org/cl/6202068 for details.
-func jsonUnmarshalUsingNumber(data []byte, v interface{}) error {
-	dec := json.NewDecoder(bytes.NewReader(data))
-	dec.UseNumber()
-	err := dec.Decode(v)
-	if err != nil {
-		if err == io.EOF {
-			return errors.New("unexpected end of JSON input")
-		}
-		return err
-	}
-	// Make sure there is no more data after the message
-	// to approximate json.Unmarshal's behaviour.
-	if dec.More() {
-		return fmt.Errorf("more data after top-level value")
-	}
-	return nil
 }

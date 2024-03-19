@@ -382,7 +382,7 @@ func verifyDynamicFields(result *testResult, config *testConfig) error {
 	var multiErr multierror.Error
 	for _, event := range result.events {
 		var m common.MapStr
-		err := jsonUnmarshalUsingNumber(event, &m)
+		err := common.JSONUnmarshalUsingNumber(event, &m)
 		if err != nil {
 			return fmt.Errorf("can't unmarshal event: %w", err)
 		}
@@ -449,7 +449,7 @@ func checkErrorMessage(event json.RawMessage) error {
 			Message interface{}
 		}
 	}
-	err := jsonUnmarshalUsingNumber(event, &pipelineError)
+	err := common.JSONUnmarshalUsingNumber(event, &pipelineError)
 	if err != nil {
 		return fmt.Errorf("can't unmarshal event to check pipeline error: %#q: %w", event, err)
 	}

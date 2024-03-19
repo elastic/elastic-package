@@ -2,7 +2,7 @@
 // or more contributor license agreements. Licensed under the Elastic License;
 // you may not use this file except in compliance with the Elastic License.
 
-package pipeline
+package common
 
 import (
 	"encoding/json"
@@ -87,7 +87,7 @@ func TestJsonUnmarshalUsingNumberRoundTrip(t *testing.T) {
 	for _, test := range jsonUnmarshalUsingNumberTests {
 		t.Run(test.name, func(t *testing.T) {
 			var val interface{}
-			err := jsonUnmarshalUsingNumber([]byte(test.msg), &val)
+			err := JSONUnmarshalUsingNumber([]byte(test.msg), &val)
 
 			// Confirm that we get the same errors with jsonUnmarshalUsingNumber
 			// as are returned by json.Unmarshal.
