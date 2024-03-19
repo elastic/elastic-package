@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -172,86 +173,92 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 
 	results := make([]testrunner.TestResult, 0)
 	for _, testCaseFile := range testCaseFiles {
-		tr := testrunner.TestResult{
-			TestType:   TestType,
-			Package:    r.options.TestFolder.Package,
-			DataStream: r.options.TestFolder.DataStream,
-		}
-		startTime := time.Now()
-
-		// TODO: Add tests to cover regressive use of json.Unmarshal in loadTestCaseFile.
-		// See https://github.com/elastic/elastic-package/pull/717.
-		tc, err := r.loadTestCaseFile(testCaseFile)
-		if err != nil {
-			err := fmt.Errorf("loading test case failed: %w", err)
-			tr.ErrorMsg = err.Error()
-			results = append(results, tr)
-			continue
-		}
-		tr.Name = tc.name
-
-		if tc.config.Skip != nil {
-			logger.Warnf("skipping %s test for %s/%s: %s (details: %s)",
-				TestType, r.options.TestFolder.Package, r.options.TestFolder.DataStream,
-				tc.config.Skip.Reason, tc.config.Skip.Link.String())
-
-			tr.Skipped = tc.config.Skip
-			results = append(results, tr)
-			continue
-		}
-
-		simulateDataStream := dsManifest.Type + "-" + r.options.TestFolder.Package + "." + r.options.TestFolder.DataStream + "-default"
-		processedEvents, err := ingest.SimulatePipeline(r.options.API, entryPipeline, tc.events, simulateDataStream)
-		if err != nil {
-			err := fmt.Errorf("simulating pipeline processing failed: %w", err)
-			tr.ErrorMsg = err.Error()
-			results = append(results, tr)
-			continue
-		}
-
-		result := &testResult{events: processedEvents}
-
-		tr.TimeElapsed = time.Since(startTime)
-		fieldsValidator, err := fields.CreateValidatorForDirectory(dataStreamPath,
+		validatorOptions := []fields.ValidatorOption{
 			fields.WithSpecVersion(pkgManifest.SpecVersion),
-			fields.WithNumericKeywordFields(tc.config.NumericKeywordFields),
 			// explicitly enabled for pipeline tests only
 			// since system tests can have dynamic public IPs
 			fields.WithEnabledAllowedIPCheck(),
 			fields.WithExpectedDatasets(expectedDatasets),
 			fields.WithEnabledImportAllECSSChema(true),
-		)
+		}
+		result, err := r.runTestCase(testCaseFile, dataStreamPath, dsManifest.Type, entryPipeline, validatorOptions)
 		if err != nil {
-			return nil, fmt.Errorf("creating fields validator for data stream failed (path: %s, test case file: %s): %w", dataStreamPath, testCaseFile, err)
+			return nil, err
 		}
-
-		// TODO: Add tests to cover regressive use of json.Unmarshal in verifyResults.
-		// See https://github.com/elastic/elastic-package/pull/717.
-		err = r.verifyResults(testCaseFile, tc.config, result, fieldsValidator)
-		if e, ok := err.(testrunner.ErrTestCaseFailed); ok {
-			tr.FailureMsg = e.Error()
-			tr.FailureDetails = e.Details
-
-			results = append(results, tr)
-			continue
-		}
-		if err != nil {
-			err := fmt.Errorf("verifying test result failed: %w", err)
-			tr.ErrorMsg = err.Error()
-			results = append(results, tr)
-			continue
-		}
-
-		if r.options.WithCoverage {
-			tr.Coverage, err = GetPipelineCoverage(r.options, r.pipelines)
-			if err != nil {
-				return nil, fmt.Errorf("error calculating pipeline coverage: %w", err)
-			}
-		}
-		results = append(results, tr)
+		results = append(results, result)
 	}
 
 	return results, nil
+}
+
+func (r *runner) runTestCase(testCaseFile string, dsPath string, dsType string, pipeline string, validatorOptions []fields.ValidatorOption) (testrunner.TestResult, error) {
+	tr := testrunner.TestResult{
+		TestType:   TestType,
+		Package:    r.options.TestFolder.Package,
+		DataStream: r.options.TestFolder.DataStream,
+	}
+	startTime := time.Now()
+
+	// TODO: Add tests to cover regressive use of json.Unmarshal in loadTestCaseFile.
+	// See https://github.com/elastic/elastic-package/pull/717.
+	tc, err := r.loadTestCaseFile(testCaseFile)
+	if err != nil {
+		err := fmt.Errorf("loading test case failed: %w", err)
+		tr.ErrorMsg = err.Error()
+		return tr, nil
+	}
+	tr.Name = tc.name
+
+	if tc.config.Skip != nil {
+		logger.Warnf("skipping %s test for %s/%s: %s (details: %s)",
+			TestType, r.options.TestFolder.Package, r.options.TestFolder.DataStream,
+			tc.config.Skip.Reason, tc.config.Skip.Link.String())
+
+		tr.Skipped = tc.config.Skip
+		return tr, nil
+	}
+
+	simulateDataStream := dsType + "-" + r.options.TestFolder.Package + "." + r.options.TestFolder.DataStream + "-default"
+	processedEvents, err := ingest.SimulatePipeline(r.options.API, pipeline, tc.events, simulateDataStream)
+	if err != nil {
+		err := fmt.Errorf("simulating pipeline processing failed: %w", err)
+		tr.ErrorMsg = err.Error()
+		return tr, nil
+	}
+
+	result := &testResult{events: processedEvents}
+
+	tr.TimeElapsed = time.Since(startTime)
+	validatorOptions = append(slices.Clone(validatorOptions),
+		fields.WithNumericKeywordFields(tc.config.NumericKeywordFields),
+	)
+	fieldsValidator, err := fields.CreateValidatorForDirectory(dsPath, validatorOptions...)
+	if err != nil {
+		return tr, fmt.Errorf("creating fields validator for data stream failed (path: %s, test case file: %s): %w", dsPath, testCaseFile, err)
+	}
+
+	// TODO: Add tests to cover regressive use of json.Unmarshal in verifyResults.
+	// See https://github.com/elastic/elastic-package/pull/717.
+	err = r.verifyResults(testCaseFile, tc.config, result, fieldsValidator)
+	if e, ok := err.(testrunner.ErrTestCaseFailed); ok {
+		tr.FailureMsg = e.Error()
+		tr.FailureDetails = e.Details
+		return tr, nil
+	}
+	if err != nil {
+		err := fmt.Errorf("verifying test result failed: %w", err)
+		tr.ErrorMsg = err.Error()
+		return tr, nil
+	}
+
+	if r.options.WithCoverage {
+		tr.Coverage, err = GetPipelineCoverage(r.options, r.pipelines)
+		if err != nil {
+			return tr, fmt.Errorf("error calculating pipeline coverage: %w", err)
+		}
+	}
+
+	return tr, nil
 }
 
 func (r *runner) listTestCaseFiles() ([]string, error) {
