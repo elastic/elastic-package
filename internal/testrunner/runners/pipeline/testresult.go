@@ -105,11 +105,11 @@ func compareJsonNumbers(a, b json.Number) bool {
 
 func diffJson(want, got []byte, specVersion semver.Version) (string, error) {
 	var gotVal, wantVal interface{}
-	err := common.JSONUnmarshalUsingNumber(want, &wantVal)
+	err := formatter.JSONUnmarshalUsingNumber(want, &wantVal)
 	if err != nil {
 		return "", fmt.Errorf("invalid want value: %w", err)
 	}
-	err = common.JSONUnmarshalUsingNumber(got, &gotVal)
+	err = formatter.JSONUnmarshalUsingNumber(got, &gotVal)
 	if err != nil {
 		return "", fmt.Errorf("invalid got value: %w", err)
 	}
@@ -171,7 +171,7 @@ func adjustTestResult(result *testResult, config *testConfig) (*testResult, erro
 		}
 
 		var m common.MapStr
-		err := common.JSONUnmarshalUsingNumber(event, &m)
+		err := formatter.JSONUnmarshalUsingNumber(event, &m)
 		if err != nil {
 			return nil, fmt.Errorf("can't unmarshal event: %s: %w", string(event), err)
 		}
@@ -198,7 +198,7 @@ func adjustTestResult(result *testResult, config *testConfig) (*testResult, erro
 
 func unmarshalTestResult(body []byte) (*testResult, error) {
 	var trd testResultDefinition
-	err := common.JSONUnmarshalUsingNumber(body, &trd)
+	err := formatter.JSONUnmarshalUsingNumber(body, &trd)
 	if err != nil {
 		return nil, fmt.Errorf("unmarshalling test result failed: %w", err)
 	}
@@ -229,7 +229,7 @@ func marshalNormalizedJSON(v interface{}, specVersion semver.Version) ([]byte, e
 	}
 
 	var obj interface{}
-	err = common.JSONUnmarshalUsingNumber(msg, &obj)
+	err = formatter.JSONUnmarshalUsingNumber(msg, &obj)
 	if err != nil {
 		return msg, err
 	}

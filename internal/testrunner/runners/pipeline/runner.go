@@ -22,6 +22,7 @@ import (
 	"github.com/elastic/elastic-package/internal/elasticsearch/ingest"
 	"github.com/elastic/elastic-package/internal/environment"
 	"github.com/elastic/elastic-package/internal/fields"
+	"github.com/elastic/elastic-package/internal/formatter"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/multierror"
 	"github.com/elastic/elastic-package/internal/packages"
@@ -389,7 +390,7 @@ func verifyDynamicFields(result *testResult, config *testConfig) error {
 	var multiErr multierror.Error
 	for _, event := range result.events {
 		var m common.MapStr
-		err := common.JSONUnmarshalUsingNumber(event, &m)
+		err := formatter.JSONUnmarshalUsingNumber(event, &m)
 		if err != nil {
 			return fmt.Errorf("can't unmarshal event: %w", err)
 		}
@@ -456,7 +457,7 @@ func checkErrorMessage(event json.RawMessage) error {
 			Message interface{}
 		}
 	}
-	err := common.JSONUnmarshalUsingNumber(event, &pipelineError)
+	err := formatter.JSONUnmarshalUsingNumber(event, &pipelineError)
 	if err != nil {
 		return fmt.Errorf("can't unmarshal event to check pipeline error: %#q: %w", event, err)
 	}

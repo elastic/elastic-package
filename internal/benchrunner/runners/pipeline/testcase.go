@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/elastic/elastic-package/internal/common"
+	"github.com/elastic/elastic-package/internal/formatter"
 )
 
 type benchmark struct {
@@ -25,7 +26,7 @@ type benchmarkDefinition struct {
 
 func readBenchmarkEntriesForEvents(inputData []byte) ([]json.RawMessage, error) {
 	var tcd benchmarkDefinition
-	err := common.JSONUnmarshalUsingNumber(inputData, &tcd)
+	err := formatter.JSONUnmarshalUsingNumber(inputData, &tcd)
 	if err != nil {
 		return nil, fmt.Errorf("unmarshalling input data failed: %w", err)
 	}
@@ -56,7 +57,7 @@ func createBenchmark(entries []json.RawMessage, config *config) (*benchmark, err
 	var events []json.RawMessage
 	for _, entry := range entries {
 		var m common.MapStr
-		err := common.JSONUnmarshalUsingNumber(entry, &m)
+		err := formatter.JSONUnmarshalUsingNumber(entry, &m)
 		if err != nil {
 			return nil, fmt.Errorf("can't unmarshal benchmark entry: %w", err)
 		}
