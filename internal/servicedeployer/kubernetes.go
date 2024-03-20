@@ -5,14 +5,21 @@
 package servicedeployer
 
 import (
+	"bytes"
 	_ "embed"
+	"encoding/base64"
 	"fmt"
+	"os"
 	"path/filepath"
+	"strings"
+	"text/template"
 
+	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/kind"
 	"github.com/elastic/elastic-package/internal/kubectl"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/profile"
+	"github.com/elastic/elastic-package/internal/stack"
 )
 
 // KubernetesServiceDeployer is responsible for deploying resources in the Kubernetes cluster.
@@ -20,6 +27,8 @@ type KubernetesServiceDeployer struct {
 	profile        *profile.Profile
 	definitionsDir string
 	stackVersion   string
+
+	deployAgent bool
 
 	runSetup     bool
 	runTestsOnly bool
@@ -30,6 +39,8 @@ type KubernetesServiceDeployerOptions struct {
 	Profile        *profile.Profile
 	DefinitionsDir string
 	StackVersion   string
+
+	DeployAgent bool
 
 	RunSetup     bool
 	RunTestsOnly bool
@@ -90,6 +101,7 @@ func NewKubernetesServiceDeployer(opts KubernetesServiceDeployerOptions) (*Kuber
 		runSetup:       opts.RunSetup,
 		runTestsOnly:   opts.RunTestsOnly,
 		runTearDown:    opts.RunTearDown,
+		deployAgent:    opts.DeployAgent,
 	}, nil
 }
 
@@ -107,6 +119,15 @@ func (ksd KubernetesServiceDeployer) SetUp(ctxt ServiceContext) (DeployedService
 		err = kind.ConnectToElasticStackNetwork(ksd.profile)
 		if err != nil {
 			return nil, fmt.Errorf("can't connect control plane to Elastic stack network: %w", err)
+		}
+	}
+
+	if ksd.runTearDown || ksd.runTestsOnly || !ksd.deployAgent {
+		logger.Debug("Skip install Elastic Agent in cluster")
+	} else {
+		err = installElasticAgentInCluster(ksd.profile, ksd.stackVersion)
+		if err != nil {
+			return nil, fmt.Errorf("can't install Elastic-Agent in the Kubernetes cluster: %w", err)
 		}
 	}
 
@@ -159,4 +180,75 @@ func findKubernetesDefinitions(definitionsDir string) ([]string, error) {
 	var definitionPaths []string
 	definitionPaths = append(definitionPaths, files...)
 	return definitionPaths, nil
+}
+
+func installElasticAgentInCluster(profile *profile.Profile, stackVersion string) error {
+	logger.Debug("install Elastic Agent in the Kubernetes cluster")
+
+	elasticAgentManagedYaml, err := getElasticAgentYAML(profile, stackVersion)
+	if err != nil {
+		return fmt.Errorf("can't retrieve Kubernetes file for Elastic Agent: %w", err)
+	}
+
+	err = kubectl.ApplyStdin(elasticAgentManagedYaml)
+	if err != nil {
+		return fmt.Errorf("can't install Elastic-Agent in Kubernetes cluster: %w", err)
+	}
+	return nil
+}
+
+//go:embed _static/elastic-agent-managed.yaml.tmpl
+var elasticAgentManagedYamlTmpl string
+
+func getElasticAgentYAML(profile *profile.Profile, stackVersion string) ([]byte, error) {
+	logger.Debugf("Prepare YAML definition for Elastic Agent running in stack v%s", stackVersion)
+
+	appConfig, err := install.Configuration()
+	if err != nil {
+		return nil, fmt.Errorf("can't read application configuration: %w", err)
+	}
+
+	caCert, err := readCACertBase64(profile)
+	if err != nil {
+		return nil, fmt.Errorf("can't read certificate authority file: %w", err)
+	}
+
+	tmpl := template.Must(template.New("elastic-agent.yml").Parse(elasticAgentManagedYamlTmpl))
+
+	var elasticAgentYaml bytes.Buffer
+	err = tmpl.Execute(&elasticAgentYaml, map[string]string{
+		"fleetURL":                    "https://fleet-server:8220",
+		"kibanaURL":                   "https://kibana:5601",
+		"caCertPem":                   caCert,
+		"elasticAgentImage":           appConfig.StackImageRefs(stackVersion).ElasticAgent,
+		"elasticAgentTokenPolicyName": getTokenPolicyName(stackVersion),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("can't generate elastic agent manifest: %w", err)
+	}
+
+	return elasticAgentYaml.Bytes(), nil
+}
+
+func readCACertBase64(profile *profile.Profile) (string, error) {
+	caCertPath, err := stack.FindCACertificate(profile)
+	if err != nil {
+		return "", fmt.Errorf("can't locate CA certificate: %w", err)
+	}
+
+	d, err := os.ReadFile(caCertPath)
+	if err != nil {
+		return "", err
+	}
+
+	return base64.StdEncoding.EncodeToString(d), nil
+}
+
+// getTokenPolicyName function returns the policy name for the 8.x Elastic stack. The agent's policy
+// is predefined in the Kibana configuration file. The logic is not present in older stacks.
+func getTokenPolicyName(stackVersion string) string {
+	if strings.HasPrefix(stackVersion, "8.") {
+		return "Elastic-Agent (elastic-package)"
+	}
+	return ""
 }

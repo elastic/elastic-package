@@ -244,6 +244,7 @@ func (r *runner) run() (report reporters.Reportable, err error) {
 			Profile:         r.options.Profile,
 			Type:            servicedeployer.TypeBench,
 			StackVersion:    stackVersion.Version(),
+			DeployAgent:     true,
 		}
 		serviceDeployer, err := servicedeployer.Factory(opts)
 

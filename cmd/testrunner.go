@@ -78,6 +78,8 @@ func setupTestCommand() *cobraext.Command {
 	cmd.PersistentFlags().DurationP(cobraext.DeferCleanupFlagName, "", 0, cobraext.DeferCleanupFlagDescription)
 	cmd.PersistentFlags().String(cobraext.VariantFlagName, "", cobraext.VariantFlagDescription)
 	cmd.PersistentFlags().StringP(cobraext.ProfileFlagName, "p", "", fmt.Sprintf(cobraext.ProfileFlagDescription, install.ProfileNameEnvVar))
+	// By default, it keeps the same behaviour as previously
+	cmd.PersistentFlags().BoolP(cobraext.TestIndependentElasticAgentFlagName, "", false, cobraext.TestIndependentElasticAgentFlagDescription)
 
 	for testType, runner := range testrunner.TestRunners() {
 		action := testTypeCommandActionFactory(runner)
@@ -183,6 +185,11 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 		hasDataStreams, err := packageHasDataStreams(manifest)
 		if err != nil {
 			return fmt.Errorf("cannot determine if package has data streams: %w", err)
+		}
+
+		runIndependentElasticAgent, err := cmd.Flags().GetBool(cobraext.TestIndependentElasticAgentFlagName)
+		if err != nil {
+			return cobraext.FlagParsingError(err, cobraext.TestIndependentElasticAgentFlagName)
 		}
 
 		configFileFlag := ""
@@ -338,20 +345,21 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 		var results []testrunner.TestResult
 		for _, folder := range testFolders {
 			r, err := testrunner.Run(testType, testrunner.TestOptions{
-				Profile:            profile,
-				TestFolder:         folder,
-				PackageRootPath:    packageRootPath,
-				GenerateTestResult: generateTestResult,
-				API:                esAPI,
-				KibanaClient:       kibanaClient,
-				DeferCleanup:       deferCleanup,
-				ServiceVariant:     variantFlag,
-				WithCoverage:       testCoverage,
-				CoverageType:       testCoverageFormat,
-				ConfigFilePath:     configFileFlag,
-				RunSetup:           runSetup,
-				RunTearDown:        runTearDown,
-				RunTestsOnly:       runTestsOnly,
+				Profile:                    profile,
+				TestFolder:                 folder,
+				PackageRootPath:            packageRootPath,
+				GenerateTestResult:         generateTestResult,
+				API:                        esAPI,
+				KibanaClient:               kibanaClient,
+				DeferCleanup:               deferCleanup,
+				ServiceVariant:             variantFlag,
+				WithCoverage:               testCoverage,
+				CoverageType:               testCoverageFormat,
+				ConfigFilePath:             configFileFlag,
+				RunSetup:                   runSetup,
+				RunTearDown:                runTearDown,
+				RunTestsOnly:               runTestsOnly,
+				RunIndependentElasticAgent: runIndependentElasticAgent,
 			})
 
 			results = append(results, r...)

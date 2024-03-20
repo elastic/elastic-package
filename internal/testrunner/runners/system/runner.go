@@ -293,6 +293,7 @@ func (r *runner) createServiceOptions(variantName string) servicedeployer.Factor
 		RunTearDown:        r.options.RunTearDown,
 		RunTestsOnly:       r.options.RunTestsOnly,
 		RunSetup:           r.options.RunSetup,
+		DeployAgent:        r.options.RunIndependentElasticAgent,
 	}
 }
 
@@ -746,22 +747,24 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 		return nil, fmt.Errorf("could not create agent runner: %w", err)
 	}
 	var agentDeployed agentdeployer.DeployedAgent
-	if agentDeployer != nil {
-		agentDeployed, err = agentDeployer.SetUp(agentInfo)
-		if err != nil {
-			return nil, fmt.Errorf("could not setup agent: %w", err)
+	if r.options.RunIndependentElasticAgent {
+		if agentDeployer != nil {
+			agentDeployed, err = agentDeployer.SetUp(agentInfo)
+			if err != nil {
+				return nil, fmt.Errorf("could not setup agent: %w", err)
+			}
 		}
-	}
-	r.shutdownAgentHandler = func() error {
-		if agentDeployer == nil {
+		r.shutdownAgentHandler = func() error {
+			if agentDeployer == nil {
+				return nil
+			}
+			logger.Debug("tearing down agent...")
+			if err := agentDeployed.TearDown(); err != nil {
+				return fmt.Errorf("error tearing down agent: %w", err)
+			}
+
 			return nil
 		}
-		logger.Debug("tearing down agent...")
-		if err := agentDeployed.TearDown(); err != nil {
-			return fmt.Errorf("error tearing down agent: %w", err)
-		}
-
-		return nil
 	}
 
 	// Setup service.
@@ -774,12 +777,16 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 		return nil, fmt.Errorf("could not create service runner: %w", err)
 	}
 
-	ctxt.Logs.Folder.Local = agentInfo.Logs.Folder.Local
-	if agentDeployed != nil {
-		// In case of CustomAgents from servicedeployer where agent and service
-		// are deployed in the same docker-compose scenario (servicedeployer),
-		// so there is no agentDeployed in that scenario
-		ctxt.AgentHostname = agentDeployed.Context().Hostname
+	if r.options.RunIndependentElasticAgent {
+		ctxt.Logs.Folder.Local = agentInfo.Logs.Folder.Local
+		if agentDeployed != nil {
+			// In case of CustomAgents from servicedeployer where agent and service
+			// are deployed in the same docker-compose scenario (servicedeployer),
+			// so there is no agentDeployed in that scenario
+			ctxt.AgentHostname = agentDeployed.Context().Hostname
+		}
+	} else {
+		ctxt.AgentHostname = "elastic-agent"
 	}
 	if config.Service != "" {
 		ctxt.Name = config.Service
@@ -934,7 +941,7 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 
 	// FIXME: running per stages does not work when multiple agents are created
 	var origPolicy kibana.Policy
-	agents, err := checkEnrolledAgents(r.options.KibanaClient, agentInfo, enrollingTime)
+	agents, err := checkEnrolledAgents(r.options.KibanaClient, agentInfo, enrollingTime, ctxt, r.options.RunIndependentElasticAgent)
 	if err != nil {
 		return nil, fmt.Errorf("can't check enrolled agents: %w", err)
 	}
@@ -1064,8 +1071,6 @@ func (r *runner) prepareScenario(config *testConfig, ctxt servicedeployer.Servic
 
 	if !passed {
 		return nil, testrunner.ErrTestCaseFailed{Reason: fmt.Sprintf("could not find hits in %s data stream", scenario.dataStream)}
-	} else {
-		logger.Debugf(">>>>> Final hits found: %d", hits.size()) // TODO: to remove
 	}
 
 	logger.Debugf("check whether or not synthetics is enabled (component template %s)...", componentTemplatePackage)
@@ -1277,7 +1282,7 @@ func (r *runner) runTest(config *testConfig, ctxt servicedeployer.ServiceContext
 	return r.validateTestScenario(result, scenario, config, serviceOptions)
 }
 
-func checkEnrolledAgents(client *kibana.Client, agentInfo agentdeployer.AgentInfo, threshold time.Time) ([]kibana.Agent, error) {
+func checkEnrolledAgents(client *kibana.Client, agentInfo agentdeployer.AgentInfo, threshold time.Time, svcInfo servicedeployer.ServiceContext, runIndependentElasticAgent bool) ([]kibana.Agent, error) {
 	var agents []kibana.Agent
 
 	enrolled, err := waitUntilTrue(func() (bool, error) {
@@ -1290,7 +1295,7 @@ func checkEnrolledAgents(client *kibana.Client, agentInfo agentdeployer.AgentInf
 			return false, fmt.Errorf("could not list agents: %w", err)
 		}
 
-		agents = filterAgents(allAgents, agentInfo, threshold)
+		agents = filterAgents(allAgents, agentInfo, threshold, svcInfo, runIndependentElasticAgent)
 		logger.Debugf("found %d enrolled agent(s)", len(agents))
 		if len(agents) == 0 {
 			return false, nil // selected agents are unavailable yet
@@ -1714,7 +1719,7 @@ func waitUntilTrue(fn func() (bool, error), timeout time.Duration) (bool, error)
 	}
 }
 
-func filterAgents(allAgents []kibana.Agent, agentInfo agentdeployer.AgentInfo, threshold time.Time) []kibana.Agent {
+func filterAgents(allAgents []kibana.Agent, agentInfo agentdeployer.AgentInfo, threshold time.Time, svcInfo servicedeployer.ServiceContext, runIndependentElasticAgent bool) []kibana.Agent {
 	if agentInfo.Agent.Host.NamePrefix != "" {
 		logger.Debugf("filter agents using criteria: NamePrefix=%s", agentInfo.Agent.Host.NamePrefix)
 	}
@@ -1739,13 +1744,13 @@ func filterAgents(allAgents []kibana.Agent, agentInfo agentdeployer.AgentInfo, t
 			continue
 		}
 
-		if agent.EnrolledAt.Before(threshold) {
+		if runIndependentElasticAgent && agent.EnrolledAt.Before(threshold) {
 			logger.Debugf("filtered agent (enrolling time) %q", agent.ID) // TODO: remove
 			continue
 		}
 
 		// Tags are available starting in 8.3
-		if len(agent.Tags) > 0 {
+		if runIndependentElasticAgent && len(agent.Tags) > 0 {
 			logger.Debugf("Checking tags %s vs %s", strings.Join(agent.Tags, ","), strings.Join(agentInfo.Tags, ","))
 			foundAllTags := true
 			for _, tag := range agentInfo.Tags {
@@ -1760,17 +1765,23 @@ func filterAgents(allAgents []kibana.Agent, agentInfo agentdeployer.AgentInfo, t
 			}
 		}
 
-		// FIXME: check for package and data stream name too ?
-		// Current verson could be returning an unexpected agent if tests are parallelized
-		hasAgentPrefix := strings.HasPrefix(agent.LocalMetadata.Host.Name, agentInfo.Agent.Host.NamePrefix)
-		// hasServicePrefix := strings.HasPrefix(agent.LocalMetadata.Host.Name, ctxt.Agent.Host.NamePrefix)
+		if runIndependentElasticAgent {
+			// FIXME: check for package and data stream name too ?
+			// Current verson could be returning an unexpected agent if tests are parallelized
+			hasAgentPrefix := strings.HasPrefix(agent.LocalMetadata.Host.Name, agentInfo.Agent.Host.NamePrefix)
+			// if agentInfo.Agent.Host.NamePrefix != "" && !hasAgentPrefix && !hasServicePrefix {
+			if agentInfo.Agent.Host.NamePrefix != "" && !hasAgentPrefix {
+				logger.Debugf("filtered agent (prefix) %q", agent.ID) // TODO: remove
+				continue
+			}
+		} else {
+			// TODO: required for custom agents triggered from service deployers ?
+			hasServicePrefix := strings.HasPrefix(agent.LocalMetadata.Host.Name, svcInfo.Agent.Host.NamePrefix)
+			if svcInfo.Agent.Host.NamePrefix != "" && !hasServicePrefix {
+				logger.Debugf("filtered agent (prefix) %q", agent.ID) // TODO: remove
+				continue
+			}
 
-		// TODO: required for custom agents triggered from service deployers
-
-		// if agentInfo.Agent.Host.NamePrefix != "" && !hasAgentPrefix && !hasServicePrefix {
-		if agentInfo.Agent.Host.NamePrefix != "" && !hasAgentPrefix {
-			logger.Debugf("filtered agent (prefix) %q", agent.ID) // TODO: remove
-			continue
 		}
 		filtered = append(filtered, agent)
 	}

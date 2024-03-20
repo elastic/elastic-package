@@ -41,6 +41,7 @@ func BootUp(options Options) error {
 		DevDeployDir:       options.DevDeployDir,
 		Variant:            options.Variant,
 		StackVersion:       options.StackVersion,
+		DeployAgent:        true,
 	})
 	if err != nil {
 		return fmt.Errorf("can't create the service deployer instance: %w", err)

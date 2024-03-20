@@ -42,6 +42,12 @@ var terraformDeployerDockerfileContent string
 // TerraformServiceDeployer is responsible for deploying infrastructure described with Terraform definitions.
 type TerraformServiceDeployer struct {
 	definitionsDir string
+	deployAgent    bool
+}
+
+type TerraformServiceDeployerOptions struct {
+	DefinitionsDir string
+	DeployAgent    bool
 }
 
 // addTerraformOutputs method reads the terraform outputs generated in the json format and
@@ -82,9 +88,10 @@ func addTerraformOutputs(outCtxt ServiceContext) error {
 }
 
 // NewTerraformServiceDeployer creates an instance of TerraformServiceDeployer.
-func NewTerraformServiceDeployer(definitionsDir string) (*TerraformServiceDeployer, error) {
+func NewTerraformServiceDeployer(opts TerraformServiceDeployerOptions) (*TerraformServiceDeployer, error) {
 	return &TerraformServiceDeployer{
-		definitionsDir: definitionsDir,
+		definitionsDir: opts.DefinitionsDir,
+		deployAgent:    opts.DeployAgent,
 	}, nil
 }
 

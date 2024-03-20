@@ -27,6 +27,7 @@ type FactoryOptions struct {
 	DevDeployDir       string
 	Type               string
 	StackVersion       string
+	DeployAgent        bool
 
 	PackageName string
 	DataStream  string
@@ -63,6 +64,7 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 				RunSetup:       options.RunSetup,
 				RunTestsOnly:   options.RunTestsOnly,
 				RunTearDown:    options.RunTearDown,
+				DeployAgent:    options.DeployAgent,
 			}
 			return NewKubernetesServiceDeployer(opts)
 		}
@@ -112,7 +114,10 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 			return nil, errors.New("terraform service deployer not supported to run by steps")
 		}
 		if _, err := os.Stat(serviceDeployerPath); err == nil {
-			return NewTerraformServiceDeployer(serviceDeployerPath)
+			opts := TerraformServiceDeployerOptions{
+				DefinitionsDir: serviceDeployerPath,
+			}
+			return NewTerraformServiceDeployer(opts)
 		}
 	}
 	return nil, fmt.Errorf("unsupported service deployer (name: %s)", serviceDeployerName)
