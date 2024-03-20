@@ -232,8 +232,8 @@ func (s *dockerComposeDeployedService) TearDown() error {
 	extraArgs := []string{}
 	// if not set "-t" , default shutdown timeout is 10 seconds
 	// https://docs.docker.com/compose/faq/#why-do-my-services-take-10-seconds-to-recreate-or-stop
-	if s.shutdownTimeout.Seconds() > 0 {
-		extraArgs = append(extraArgs, "-t", fmt.Sprintf("%d", int(math.Round(s.shutdownTimeout.Seconds()))))
+	if seconds := s.shutdownTimeout.Seconds(); seconds > 0 {
+		extraArgs = append(extraArgs, "-t", fmt.Sprintf("%d", int(math.Round(seconds))))
 	}
 	if err := p.Stop(compose.CommandOptions{
 		Env:       opts.Env,
