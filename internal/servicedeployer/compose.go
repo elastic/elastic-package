@@ -6,6 +6,7 @@ package servicedeployer
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"time"
@@ -41,6 +42,8 @@ type DockerComposeServiceDeployerOptions struct {
 
 type dockerComposeDeployedService struct {
 	ctxt ServiceContext
+
+	shutdownTimeout time.Duration
 
 	ymlPaths []string
 	project  string
@@ -225,9 +228,16 @@ func (s *dockerComposeDeployedService) TearDown() error {
 			s.env,
 			s.variant.Env...),
 	}
+
+	extraArgs := []string{}
+	// if not set "-t" , default shutdown timeout is 10 seconds
+	// https://docs.docker.com/compose/faq/#why-do-my-services-take-10-seconds-to-recreate-or-stop
+	if seconds := s.shutdownTimeout.Seconds(); seconds > 0 {
+		extraArgs = append(extraArgs, "-t", fmt.Sprintf("%d", int(math.Round(seconds))))
+	}
 	if err := p.Stop(compose.CommandOptions{
 		Env:       opts.Env,
-		ExtraArgs: []string{"-t", "300"}, // default shutdown timeout 10 seconds
+		ExtraArgs: extraArgs,
 	}); err != nil {
 		return fmt.Errorf("could not stop service using Docker Compose: %w", err)
 	}
