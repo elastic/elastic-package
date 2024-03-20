@@ -5,6 +5,7 @@
 package asset
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -33,7 +34,7 @@ type runner struct {
 	kibanaClient    *kibana.Client
 
 	// Execution order of following handlers is defined in runner.tearDown() method.
-	removePackageHandler func() error
+	removePackageHandler func(context.Context) error
 }
 
 // Ensures that runner implements testrunner.TestRunner interface
@@ -62,7 +63,7 @@ func (r *runner) CanRunSetupTeardownIndependent() bool {
 }
 
 // Run runs the asset loading tests
-func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, error) {
+func (r *runner) Run(ctx context.Context, options testrunner.TestOptions) ([]testrunner.TestResult, error) {
 	r.testFolder = options.TestFolder
 	r.packageRootPath = options.PackageRootPath
 	r.kibanaClient = options.KibanaClient
@@ -106,7 +107,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		return result.WithError(fmt.Errorf("can't install the package: %w", err))
 	}
 
-	r.removePackageHandler = func() error {
+	r.removePackageHandler = func(ctx context.Context) error {
 		pkgManifest, err := packages.ReadPackageManifestFromPackageRoot(r.packageRootPath)
 		if err != nil {
 			return fmt.Errorf("reading package manifest failed: %w", err)
@@ -175,9 +176,9 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 	return results, nil
 }
 
-func (r *runner) TearDown() error {
+func (r *runner) TearDown(ctx context.Context) error {
 	if r.removePackageHandler != nil {
-		if err := r.removePackageHandler(); err != nil {
+		if err := r.removePackageHandler(ctx); err != nil {
 			return err
 		}
 	}

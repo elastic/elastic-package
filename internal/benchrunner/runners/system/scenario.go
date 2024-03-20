@@ -77,7 +77,7 @@ func defaultConfig() *scenario {
 	}
 }
 
-func readConfig(benchPath string, scenario string, ctxt servicedeployer.ServiceContext) (*scenario, error) {
+func readConfig(benchPath string, scenario string, svcInfo servicedeployer.ServiceInfo) (*scenario, error) {
 	configPath := filepath.Clean(filepath.Join(benchPath, fmt.Sprintf("%s.yml", scenario)))
 	data, err := os.ReadFile(configPath)
 	if err != nil {
@@ -87,7 +87,7 @@ func readConfig(benchPath string, scenario string, ctxt servicedeployer.ServiceC
 		return nil, fmt.Errorf("could not load system benchmark configuration file: %s: %w", configPath, err)
 	}
 
-	data, err = applyContext(data, ctxt)
+	data, err = applyServiceInfo(data, svcInfo)
 	if err != nil {
 		return nil, fmt.Errorf("could not apply context to benchmark configuration file: %s: %w", configPath, err)
 	}
@@ -109,17 +109,17 @@ func readConfig(benchPath string, scenario string, ctxt servicedeployer.ServiceC
 	return c, nil
 }
 
-// applyContext takes the given system benchmark configuration (data) and replaces any placeholder variables in
-// it with values from the given context (ctxt). The context may be populated from various sources but usually the
+// applyServiceInfo takes the given system benchmark configuration (data) and replaces any placeholder variables in
+// it with values from the given service information. The context may be populated from various sources but usually the
 // most interesting context values will be set by a ServiceDeployer in its SetUp method.
-func applyContext(data []byte, ctxt servicedeployer.ServiceContext) ([]byte, error) {
+func applyServiceInfo(data []byte, svcInfo servicedeployer.ServiceInfo) ([]byte, error) {
 	tmpl, err := raymond.Parse(string(data))
 	if err != nil {
 		return data, fmt.Errorf("parsing template body failed: %w", err)
 	}
-	tmpl.RegisterHelpers(ctxt.Aliases())
+	tmpl.RegisterHelpers(svcInfo.Aliases())
 
-	result, err := tmpl.Exec(ctxt)
+	result, err := tmpl.Exec(svcInfo)
 	if err != nil {
 		return data, fmt.Errorf("could not render data with context: %w", err)
 	}

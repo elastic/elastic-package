@@ -21,12 +21,7 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/elastic/elastic-package/internal/packages/installer"
-
 	"github.com/magefile/mage/sh"
-
-	"github.com/elastic/elastic-package/internal/stack"
-
 	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-integration-corpus-generator-tool/pkg/genlib"
@@ -37,12 +32,13 @@ import (
 	"github.com/elastic/elastic-package/internal/benchrunner/reporters"
 	"github.com/elastic/elastic-package/internal/benchrunner/runners/common"
 	"github.com/elastic/elastic-package/internal/configuration/locations"
-	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/multierror"
 	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/internal/packages/installer"
 	"github.com/elastic/elastic-package/internal/servicedeployer"
-	"github.com/elastic/elastic-package/internal/signal"
+	"github.com/elastic/elastic-package/internal/stack"
+	"github.com/elastic/elastic-package/internal/wait"
 )
 
 const (
@@ -152,7 +148,7 @@ type runner struct {
 	options  Options
 	scenario *scenario
 
-	ctxt              servicedeployer.ServiceContext
+	svcInfo           servicedeployer.ServiceInfo
 	runtimeDataStream string
 	indexTemplateBody string
 	pipelinePrefix    string
@@ -165,57 +161,63 @@ type runner struct {
 	reportFile string
 
 	// Execution order of following handlers is defined in runner.TearDown() method.
-	persistRallyTrackHandler func() error
-	removePackageHandler     func() error
-	wipeDataStreamHandler    func() error
-	clearCorporaHandler      func() error
-	clearTrackHandler        func() error
+	persistRallyTrackHandler func(context.Context) error
+	removePackageHandler     func(context.Context) error
+	wipeDataStreamHandler    func(context.Context) error
+	clearCorporaHandler      func(context.Context) error
+	clearTrackHandler        func(context.Context) error
 }
 
 func NewRallyBenchmark(opts Options) benchrunner.Runner {
 	return &runner{options: opts}
 }
 
-func (r *runner) SetUp() error {
-	return r.setUp()
+func (r *runner) SetUp(ctx context.Context) error {
+	return r.setUp(ctx)
 }
 
 // Run runs the system benchmarks defined under the given folder
-func (r *runner) Run() (reporters.Reportable, error) {
-	return r.run()
+func (r *runner) Run(ctx context.Context) (reporters.Reportable, error) {
+	return r.run(ctx)
 }
 
-func (r *runner) TearDown() error {
+func (r *runner) TearDown(ctx context.Context) error {
 	if r.options.DeferCleanup > 0 {
 		logger.Debugf("waiting for %s before tearing down...", r.options.DeferCleanup)
-		signal.Sleep(r.options.DeferCleanup)
+		select {
+		case <-time.After(r.options.DeferCleanup):
+		case <-ctx.Done():
+		}
 	}
+
+	// Avoid cancellations during cleanup.
+	cleanupCtx := context.WithoutCancel(ctx)
 
 	var merr multierror.Error
 
 	if r.persistRallyTrackHandler != nil {
-		if err := r.persistRallyTrackHandler(); err != nil {
+		if err := r.persistRallyTrackHandler(cleanupCtx); err != nil {
 			merr = append(merr, err)
 		}
 		r.persistRallyTrackHandler = nil
 	}
 
 	if r.removePackageHandler != nil {
-		if err := r.removePackageHandler(); err != nil {
+		if err := r.removePackageHandler(cleanupCtx); err != nil {
 			merr = append(merr, err)
 		}
 		r.removePackageHandler = nil
 	}
 
 	if r.wipeDataStreamHandler != nil {
-		if err := r.wipeDataStreamHandler(); err != nil {
+		if err := r.wipeDataStreamHandler(cleanupCtx); err != nil {
 			merr = append(merr, err)
 		}
 		r.wipeDataStreamHandler = nil
 	}
 
 	if r.clearCorporaHandler != nil {
-		if err := r.clearCorporaHandler(); err != nil {
+		if err := r.clearCorporaHandler(cleanupCtx); err != nil {
 			merr = append(merr, err)
 		}
 		r.clearCorporaHandler = nil
@@ -228,29 +230,29 @@ func (r *runner) TearDown() error {
 }
 
 func (r *runner) createRallyTrackDir(locationManager *locations.LocationManager) error {
-	outputDir := filepath.Join(locationManager.RallyCorpusDir(), r.ctxt.Test.RunID)
+	outputDir := filepath.Join(locationManager.RallyCorpusDir(), r.svcInfo.Test.RunID)
 	if err := os.MkdirAll(outputDir, 0755); err != nil {
 		return fmt.Errorf("failed to create output directory: %w", err)
 	}
 	return nil
 }
 
-func (r *runner) setUp() error {
+func (r *runner) setUp(ctx context.Context) error {
 	locationManager, err := locations.NewLocationManager()
 	if err != nil {
 		return fmt.Errorf("reading service logs directory failed: %w", err)
 	}
 
 	rallyCorpusDir := locationManager.RallyCorpusDir()
-	r.ctxt.Logs.Folder.Local = rallyCorpusDir
-	r.ctxt.Logs.Folder.Agent = RallyCorpusAgentDir
-	r.ctxt.Test.RunID = common.NewRunID()
+	r.svcInfo.Logs.Folder.Local = rallyCorpusDir
+	r.svcInfo.Logs.Folder.Agent = RallyCorpusAgentDir
+	r.svcInfo.Test.RunID = common.NewRunID()
 
-	outputDir, err := servicedeployer.CreateOutputDir(locationManager, r.ctxt.Test.RunID)
+	outputDir, err := servicedeployer.CreateOutputDir(locationManager, r.svcInfo.Test.RunID)
 	if err != nil {
 		return fmt.Errorf("could not create output dir for terraform deployer %w", err)
 	}
-	r.ctxt.OutputDir = outputDir
+	r.svcInfo.OutputDir = outputDir
 
 	err = r.createRallyTrackDir(locationManager)
 	if err != nil {
@@ -274,7 +276,7 @@ func (r *runner) setUp() error {
 
 	if r.scenario.Corpora.Generator != nil && len(r.options.CorpusAtPath) == 0 {
 		var err error
-		r.generator, err = r.initializeGenerator()
+		r.generator, err = r.initializeGenerator(ctx)
 		if err != nil {
 			return fmt.Errorf("can't initialize generator: %w", err)
 		}
@@ -327,14 +329,10 @@ func (r *runner) setUp() error {
 		return fmt.Errorf("error deleting old data in data stream: %s: %w", r.runtimeDataStream, err)
 	}
 
-	cleared, err := waitUntilTrue(func() (bool, error) {
-		if signal.SIGINT() {
-			return true, errors.New("SIGINT: cancel clearing data")
-		}
-
-		hits, err := getTotalHits(r.options.ESAPI, r.runtimeDataStream)
+	cleared, err := wait.UntilTrue(ctx, func(ctx context.Context) (bool, error) {
+		hits, err := common.CountDocsInDataStream(ctx, r.options.ESAPI, r.runtimeDataStream)
 		return hits == 0, err
-	}, 2*time.Minute)
+	}, 5*time.Second, 2*time.Minute)
 	if err != nil || !cleared {
 		if err == nil {
 			err = errors.New("unable to clear previous data")
@@ -389,7 +387,7 @@ func (r *runner) extractSimulatedTemplate(indexTemplate string) (string, error) 
 func (r *runner) wipeDataStreamOnSetup() error {
 	// Delete old data
 	logger.Debug("deleting old data in data stream...")
-	r.wipeDataStreamHandler = func() error {
+	r.wipeDataStreamHandler = func(ctx context.Context) error {
 		logger.Debugf("deleting data in data stream...")
 		if err := r.deleteDataStreamDocs(r.runtimeDataStream); err != nil {
 			return fmt.Errorf("error deleting data in data stream: %w", err)
@@ -400,15 +398,15 @@ func (r *runner) wipeDataStreamOnSetup() error {
 	return r.deleteDataStreamDocs(r.runtimeDataStream)
 }
 
-func (r *runner) run() (report reporters.Reportable, err error) {
-	r.startMetricsColletion()
+func (r *runner) run(ctx context.Context) (report reporters.Reportable, err error) {
+	r.startMetricsColletion(ctx)
 	defer r.mcollector.stop()
 
 	var corpusDocCount uint64
 	// if there is a generator config, generate the data, unless a corpus path is set
 	if r.generator != nil && len(r.options.CorpusAtPath) == 0 {
-		logger.Debugf("generating corpus data to %s...", r.ctxt.Logs.Folder.Local)
-		corpusDocCount, err = r.runGenerator(r.ctxt.Logs.Folder.Local)
+		logger.Debugf("generating corpus data to %s...", r.svcInfo.Logs.Folder.Local)
+		corpusDocCount, err = r.runGenerator(r.svcInfo.Logs.Folder.Local)
 		if err != nil {
 			return nil, fmt.Errorf("can't generate benchmarks data corpus for data stream: %w", err)
 		}
@@ -416,7 +414,7 @@ func (r *runner) run() (report reporters.Reportable, err error) {
 
 	if len(r.options.CorpusAtPath) > 0 {
 		logger.Debugf("reading corpus data from %s...", r.options.CorpusAtPath)
-		corpusDocCount, err = r.copyCorpusFile(r.options.CorpusAtPath, r.ctxt.Logs.Folder.Local)
+		corpusDocCount, err = r.copyCorpusFile(r.options.CorpusAtPath, r.svcInfo.Logs.Folder.Local)
 		if err != nil {
 			return nil, fmt.Errorf("can't read benchmarks data corpus for data stream: %w", err)
 		}
@@ -426,7 +424,7 @@ func (r *runner) run() (report reporters.Reportable, err error) {
 		return nil, errors.New("can't find documents in the corpus for data stream")
 	}
 
-	if err := r.createRallyTrack(corpusDocCount, r.ctxt.Logs.Folder.Local); err != nil {
+	if err := r.createRallyTrack(corpusDocCount, r.svcInfo.Logs.Folder.Local); err != nil {
 		return nil, fmt.Errorf("can't create benchmarks data rally track for data stream: %w", err)
 	}
 
@@ -435,7 +433,7 @@ func (r *runner) run() (report reporters.Reportable, err error) {
 		return dummy, ErrDryRun
 	}
 
-	rallyStats, err := r.runRally()
+	rallyStats, err := r.runRally(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -471,7 +469,7 @@ func (r *runner) installPackageFromRegistry(packageName, packageVersion string) 
 		return fmt.Errorf("cannot install package %s@%s: %w", packageName, packageVersion, err)
 	}
 
-	r.removePackageHandler = func() error {
+	r.removePackageHandler = func(ctx context.Context) error {
 		logger.Debug("removing benchmark package...")
 		if _, err := r.options.KibanaClient.RemovePackage(packageName, packageVersion); err != nil {
 			return fmt.Errorf("error removing benchmark package: %w", err)
@@ -499,7 +497,7 @@ func (r *runner) installPackageFromPackageRoot() error {
 		return fmt.Errorf("failed to install package: %w", err)
 	}
 
-	r.removePackageHandler = func() error {
+	r.removePackageHandler = func(ctx context.Context) error {
 		if err := installer.Uninstall(); err != nil {
 			return fmt.Errorf("error removing benchmark package: %w", err)
 		}
@@ -510,10 +508,10 @@ func (r *runner) installPackageFromPackageRoot() error {
 	return nil
 }
 
-func (r *runner) startMetricsColletion() {
+func (r *runner) startMetricsColletion(ctx context.Context) {
 	// TODO collect agent hosts metrics using system integration
 	r.mcollector = newCollector(
-		r.ctxt,
+		r.svcInfo,
 		r.options.BenchName,
 		*r.scenario,
 		r.options.ESAPI,
@@ -522,7 +520,7 @@ func (r *runner) startMetricsColletion() {
 		r.runtimeDataStream,
 		r.pipelinePrefix,
 	)
-	r.mcollector.start()
+	r.mcollector.start(ctx)
 }
 
 func (r *runner) collectAndSummarizeMetrics() (*metricsSummary, error) {
@@ -550,7 +548,7 @@ func (r *runner) deleteDataStreamDocs(dataStream string) error {
 	return nil
 }
 
-func (r *runner) initializeGenerator() (genlib.Generator, error) {
+func (r *runner) initializeGenerator(ctx context.Context) (genlib.Generator, error) {
 	totEvents := r.scenario.Corpora.Generator.TotalEvents
 
 	config, err := r.getGeneratorConfig()
@@ -558,7 +556,7 @@ func (r *runner) initializeGenerator() (genlib.Generator, error) {
 		return nil, err
 	}
 
-	fields, err := r.getGeneratorFields()
+	fields, err := r.getGeneratorFields(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -620,7 +618,7 @@ func (r *runner) getGeneratorConfig() (*config.Config, error) {
 	return &cfg, nil
 }
 
-func (r *runner) getGeneratorFields() (fields.Fields, error) {
+func (r *runner) getGeneratorFields(ctx context.Context) (fields.Fields, error) {
 	var (
 		data []byte
 		err  error
@@ -644,7 +642,7 @@ func (r *runner) getGeneratorFields() (fields.Fields, error) {
 		}
 	}
 
-	fields, err := fields.LoadFieldsWithTemplateFromString(context.Background(), string(data))
+	fields, err := fields.LoadFieldsWithTemplateFromString(ctx, string(data))
 	if err != nil {
 		return nil, fmt.Errorf("could not load fields yaml: %w", err)
 	}
@@ -715,7 +713,7 @@ func (r *runner) runGenerator(destDir string) (uint64, error) {
 
 	r.corpusFile = corpusFile.Name()
 
-	r.clearCorporaHandler = func() error {
+	r.clearCorporaHandler = func(ctx context.Context) error {
 		return errors.Join(
 			os.Remove(r.corpusFile),
 		)
@@ -782,7 +780,7 @@ func (r *runner) createRallyTrack(corpusDocsCount uint64, destDir string) error 
 	r.reportFile = reportFile.Name()
 
 	if r.options.RallyTrackOutputDir != "" {
-		r.persistRallyTrackHandler = func() error {
+		r.persistRallyTrackHandler = func(ctx context.Context) error {
 			err := os.MkdirAll(r.options.RallyTrackOutputDir, 0755)
 			if err != nil {
 				return fmt.Errorf("cannot not create rally track output dir: %w", err)
@@ -806,7 +804,7 @@ func (r *runner) createRallyTrack(corpusDocsCount uint64, destDir string) error 
 		}
 	}
 
-	r.clearTrackHandler = func() error {
+	r.clearTrackHandler = func(ctx context.Context) error {
 		return errors.Join(
 			os.Remove(r.trackFile),
 			os.Remove(r.reportFile),
@@ -854,7 +852,7 @@ func (r *runner) copyCorpusFile(corpusPath, destDir string) (uint64, error) {
 
 	r.corpusFile = corpusFile.Name()
 
-	r.clearCorporaHandler = func() error {
+	r.clearCorporaHandler = func(ctx context.Context) error {
 		return errors.Join(
 			os.Remove(r.corpusFile),
 		)
@@ -863,7 +861,7 @@ func (r *runner) copyCorpusFile(corpusPath, destDir string) (uint64, error) {
 	return corpusDocsCount, nil
 }
 
-func (r *runner) runRally() ([]rallyStat, error) {
+func (r *runner) runRally(ctx context.Context) ([]rallyStat, error) {
 	logger.Debug("running rally...")
 	profileConfig, err := stack.StackInitConfig(r.options.Profile)
 	if err != nil {
@@ -872,7 +870,7 @@ func (r *runner) runRally() ([]rallyStat, error) {
 
 	elasticsearchHost, found := os.LookupEnv(stack.ElasticsearchHostEnv)
 	if !found {
-		status, err := stack.Status(stack.Options{Profile: r.options.Profile})
+		status, err := stack.Status(ctx, stack.Options{Profile: r.options.Profile})
 		if err != nil {
 			return nil, fmt.Errorf("failed to check status of stack in current profile: %w", err)
 		}
@@ -901,7 +899,7 @@ func (r *runner) runRally() ([]rallyStat, error) {
 	cmd := exec.Command(
 		"esrally",
 		"race",
-		"--race-id="+r.ctxt.Test.RunID,
+		"--race-id="+r.svcInfo.Test.RunID,
 		"--report-format=csv",
 		fmt.Sprintf(`--report-file=%s`, r.reportFile),
 		fmt.Sprintf(`--target-hosts={"default":["%s"]}`, elasticsearchHost),
@@ -916,12 +914,12 @@ func (r *runner) runRally() ([]rallyStat, error) {
 	logger.Debugf("output command: %s", cmd)
 	output, err := cmd.Output()
 	if err != nil {
-		return nil, fmt.Errorf("could not run esrally track in path: %s (stdout=%q, stderr=%q): %w", r.ctxt.Logs.Folder.Local, output, errOutput.String(), err)
+		return nil, fmt.Errorf("could not run esrally track in path: %s (stdout=%q, stderr=%q): %w", r.svcInfo.Logs.Folder.Local, output, errOutput.String(), err)
 	}
 
 	reportCSV, err := os.Open(r.reportFile)
 	if err != nil {
-		return nil, fmt.Errorf("could not open esrally report in path: %s: %w", r.ctxt.Logs.Folder.Local, err)
+		return nil, fmt.Errorf("could not open esrally report in path: %s: %w", r.svcInfo.Logs.Folder.Local, err)
 	}
 
 	reader := csv.NewReader(reportCSV)
@@ -933,7 +931,7 @@ func (r *runner) runRally() ([]rallyStat, error) {
 			break
 		}
 		if err != nil {
-			return nil, fmt.Errorf("could not read esrally report in path: %s (stderr=%q): %w", r.ctxt.Logs.Folder.Local, errOutput.String(), err)
+			return nil, fmt.Errorf("could not read esrally report in path: %s (stderr=%q): %w", r.svcInfo.Logs.Folder.Local, errOutput.String(), err)
 		}
 
 		stats = append(stats, rallyStat{Metric: record[0], Task: record[1], Value: record[2], Unit: record[3]})
@@ -995,7 +993,7 @@ func (r *runner) reindexData() error {
 		}`, mapping)),
 	)
 
-	indexName := fmt.Sprintf("bench-reindex-%s-%s", r.runtimeDataStream, r.ctxt.Test.RunID)
+	indexName := fmt.Sprintf("bench-reindex-%s-%s", r.runtimeDataStream, r.svcInfo.Test.RunID)
 
 	logger.Debugf("creating %s index in metricstore...", indexName)
 
@@ -1119,73 +1117,10 @@ type benchMeta struct {
 func (r *runner) enrichEventWithBenchmarkMetadata(e map[string]interface{}) map[string]interface{} {
 	var m benchMeta
 	m.Info.Benchmark = r.options.BenchName
-	m.Info.RunID = r.ctxt.Test.RunID
+	m.Info.RunID = r.svcInfo.Test.RunID
 	m.Parameters = *r.scenario
 	e["benchmark_metadata"] = m
 	return e
-}
-
-func getTotalHits(esapi *elasticsearch.API, dataStream string) (int, error) {
-	resp, err := esapi.Count(
-		esapi.Count.WithIndex(dataStream),
-		esapi.Count.WithIgnoreUnavailable(true),
-	)
-	if err != nil {
-		return 0, fmt.Errorf("could not search data stream: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.IsError() {
-		return 0, fmt.Errorf("failed to get hits count: %s", resp.String())
-	}
-
-	var results struct {
-		Count int
-		Error *struct {
-			Type   string
-			Reason string
-		}
-		Status int
-	}
-
-	if err := json.NewDecoder(resp.Body).Decode(&results); err != nil {
-		return 0, fmt.Errorf("could not decode search results response: %w", err)
-	}
-
-	numHits := results.Count
-	if results.Error != nil {
-		logger.Debugf("found %d hits in %s data stream: %s: %s Status=%d",
-			numHits, dataStream, results.Error.Type, results.Error.Reason, results.Status)
-	} else {
-		logger.Debugf("found %d hits in %s data stream", numHits, dataStream)
-	}
-
-	return numHits, nil
-}
-
-func waitUntilTrue(fn func() (bool, error), timeout time.Duration) (bool, error) {
-	timeoutTimer := time.NewTimer(timeout)
-	defer timeoutTimer.Stop()
-
-	retryTicker := time.NewTicker(5 * time.Second)
-	defer retryTicker.Stop()
-
-	for {
-		result, err := fn()
-		if err != nil {
-			return false, err
-		}
-		if result {
-			return true, nil
-		}
-
-		select {
-		case <-retryTicker.C:
-			continue
-		case <-timeoutTimer.C:
-			return false, nil
-		}
-	}
 }
 
 func generateRallyTrack(dataStream, indexTemplateBody, corpusFileName string, corpusDocsCount uint64, isTSDB bool) ([]byte, error) {

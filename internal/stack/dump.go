@@ -5,6 +5,7 @@
 package stack
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -25,17 +26,17 @@ type DumpOptions struct {
 }
 
 // Dump function exports stack data and dumps them as local artifacts, which can be used for debug purposes.
-func Dump(options DumpOptions) (string, error) {
+func Dump(ctx context.Context, options DumpOptions) (string, error) {
 	logger.Debugf("Dump Elastic stack data")
 
-	err := dumpStackLogs(options)
+	err := dumpStackLogs(ctx, options)
 	if err != nil {
 		return "", fmt.Errorf("can't dump Elastic stack logs: %w", err)
 	}
 	return options.Output, nil
 }
 
-func dumpStackLogs(options DumpOptions) error {
+func dumpStackLogs(ctx context.Context, options DumpOptions) error {
 	logger.Debugf("Dump stack logs (location: %s)", options.Output)
 	err := os.RemoveAll(options.Output)
 	if err != nil {
@@ -56,7 +57,7 @@ func dumpStackLogs(options DumpOptions) error {
 	for _, serviceName := range services {
 		logger.Debugf("Dump stack logs for %s", serviceName)
 
-		content, err := dockerComposeLogs(serviceName, options.Profile)
+		content, err := dockerComposeLogs(ctx, serviceName, options.Profile)
 		if err != nil {
 			logger.Errorf("can't fetch service logs (service: %s): %v", serviceName, err)
 		} else {
