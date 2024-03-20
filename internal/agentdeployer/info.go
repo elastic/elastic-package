@@ -5,11 +5,12 @@
 package agentdeployer
 
 const (
-	localCACertEnv    = "LOCAL_CA_CERT"
-	serviceLogsDirEnv = "SERVICE_LOGS_DIR"
-	testRunIDEnv      = "TEST_RUN_ID"
-	fleetPolicyEnv    = "FLEET_TOKEN_POLICY_NAME"
-	agentHosnameEnv   = "AGENT_HOSTNAME"
+	localCACertEnv      = "LOCAL_CA_CERT"
+	serviceLogsDirEnv   = "SERVICE_LOGS_DIR"
+	testRunIDEnv        = "TEST_RUN_ID"
+	fleetPolicyEnv      = "FLEET_TOKEN_POLICY_NAME"
+	agentHosnameEnv     = "AGENT_HOSTNAME"
+	elasticAgentTagsEnv = "ELASTIC_AGENT_TAGS"
 )
 
 // AgentInfo encapsulates context that is both available to a AgentDeployer and
@@ -71,4 +72,7 @@ type AgentInfo struct {
 
 	// Service token
 	Token string
+
+	// Tags set in the agent
+	Tags []string
 }

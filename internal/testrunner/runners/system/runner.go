@@ -308,6 +308,11 @@ func (r *runner) createAgentInfo(scenario scenarioTest) (agentdeployer.AgentInfo
 	info.Logs.Folder.Agent = ServiceLogsAgentDir
 	info.Test.RunID = createTestRunID()
 
+	info.Tags = append(info.Tags, "test", "system", scenario.pkgManifest.Name, info.Test.RunID)
+	if scenario.dataStreamManifest != nil {
+		info.Tags = append(info.Tags, scenario.dataStreamManifest.Name)
+	}
+
 	return info, nil
 }
 
@@ -1737,6 +1742,22 @@ func filterAgents(allAgents []kibana.Agent, agentInfo agentdeployer.AgentInfo, t
 		if agent.EnrolledAt.Before(threshold) {
 			logger.Debugf("filtered agent (enrolling time) %q", agent.ID) // TODO: remove
 			continue
+		}
+
+		// Tags are available starting in 8.3
+		if len(agent.Tags) > 0 {
+			logger.Debugf("Checking tags %s vs %s", strings.Join(agent.Tags, ","), strings.Join(agentInfo.Tags, ","))
+			foundAllTags := true
+			for _, tag := range agentInfo.Tags {
+				if !slices.Contains(agent.Tags, tag) {
+					logger.Debugf("filtered agent (invalid tag found) %s -  %q vs %q", tag, strings.Join(agent.Tags, ","), strings.Join(agentInfo.Tags, ",")) // TODO: remove
+					foundAllTags = false
+					break
+				}
+			}
+			if !foundAllTags {
+				continue
+			}
 		}
 
 		// FIXME: check for package and data stream name too ?
