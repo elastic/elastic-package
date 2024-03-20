@@ -961,6 +961,58 @@ func TestValidateExternalMultiField(t *testing.T) {
 	require.Empty(t, errs)
 }
 
+func TestValidateStackVersionsWithEcsMappings(t *testing.T) {
+	// List of unique stack constraints extracted from the
+	// package manifest files in the elastic/integrations
+	// repository.
+	constraints := []struct {
+		Constraints string
+		SupportEcs  bool
+	}{
+		{"^7.17.0", false},
+		{"7.17.19 || > 8.13", false},
+		{"^7.14.0 || ^8.0.0", false},
+		{"^7.14.1 || ^8.0.0", false},
+		{"^7.14.1 || ^8.8.0", false},
+		{"^7.16.0 || ^8.0.0", false},
+		{"^7.17.0 || ^8.0.0", false},
+		{"^8.0.0", false},
+		{"^8.10.1", false},
+		{"^8.10.2", false},
+		{"^8.11.0", false},
+		{"^8.11.2", false},
+		{"^8.12.0", false},
+		{"^8.12.1", false},
+		{"^8.12.2", false},
+		{"^8.13.0", true},
+		{"^8.14.0", true},
+		{"^8.2.0", false},
+		{"^8.2.1", false},
+		{"^8.3.0", false},
+		{"^8.4.0", false},
+		{"^8.5.0", false},
+		{"^8.5.1", false},
+		{"^8.6.0", false},
+		{"^8.6.1", false},
+		{"^8.7.0", false},
+		{"^8.7.1", false},
+		{"^8.8.0", false},
+		{"^8.8.1", false},
+		{"^8.8.2", false},
+		{"^8.9.0", false},
+		{">= 8.0.0, < 8.10.0", false},
+		{">= 8.0.0, < 8.0.1", false},
+	}
+
+	for _, c := range constraints {
+		constraint, err := semver.NewConstraint(c.Constraints)
+		if err != nil {
+			require.NoError(t, err)
+		}
+		assert.Equal(t, c.SupportEcs, allVersionsIncludeECS(constraint), "constraint: %s", c.Constraints)
+	}
+}
+
 func readTestResults(t *testing.T, path string) (f results) {
 	c, err := os.ReadFile(path)
 	require.NoError(t, err)

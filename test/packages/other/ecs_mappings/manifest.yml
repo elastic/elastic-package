@@ -1,0 +1,22 @@
+format_version: 3.1.2
+name: ecs_mappings
+title: "ECS Mappings Tests"
+version: 0.0.1
+description: "These tests fields validation using ECS mappings."
+type: integration
+categories:
+  - custom
+conditions:
+  kibana:
+    version: "^8.13.0"
+policy_templates:
+  - name: sample
+    title: Sample logs
+    description: Collect sample logs
+    inputs:
+      - type: logfile
+        title: Collect sample logs from instances
+        description: Collecting sample logs
+owner:
+  github: elastic/integrations
+  type: elastic
