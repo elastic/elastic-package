@@ -34,6 +34,92 @@ var (
 	semver2_3_0 = semver.MustParse("2.3.0")
 	semver3_0_1 = semver.MustParse("3.0.1")
 
+	// List of stack releases that do not
+	// include ECS mappings (all versions before 8.13.0).
+	stackVersionsWithoutECS = []*semver.Version{
+		semver.MustParse("8.12.2"),
+		semver.MustParse("8.12.1"),
+		semver.MustParse("8.12.0"),
+		semver.MustParse("8.11.4"),
+		semver.MustParse("8.11.3"),
+		semver.MustParse("8.11.2"),
+		semver.MustParse("8.11.1"),
+		semver.MustParse("8.11.0"),
+		semver.MustParse("8.10.4"),
+		semver.MustParse("8.10.3"),
+		semver.MustParse("8.10.2"),
+		semver.MustParse("8.10.1"),
+		semver.MustParse("8.10.0"),
+		semver.MustParse("8.9.2"),
+		semver.MustParse("8.9.1"),
+		semver.MustParse("8.9.0"),
+		semver.MustParse("8.8.2"),
+		semver.MustParse("8.8.1"),
+		semver.MustParse("8.8.0"),
+		semver.MustParse("8.7.1"),
+		semver.MustParse("8.7.0"),
+		semver.MustParse("8.6.2"),
+		semver.MustParse("8.6.1"),
+		semver.MustParse("8.6.0"),
+		semver.MustParse("8.5.3"),
+		semver.MustParse("8.5.2"),
+		semver.MustParse("8.5.1"),
+		semver.MustParse("8.5.0"),
+		semver.MustParse("8.4.3"),
+		semver.MustParse("8.4.2"),
+		semver.MustParse("8.4.1"),
+		semver.MustParse("8.4.0"),
+		semver.MustParse("8.3.3"),
+		semver.MustParse("8.3.2"),
+		semver.MustParse("8.3.1"),
+		semver.MustParse("8.3.0"),
+		semver.MustParse("8.2.3"),
+		semver.MustParse("8.2.2"),
+		semver.MustParse("8.2.1"),
+		semver.MustParse("8.2.0"),
+		semver.MustParse("8.1.3"),
+		semver.MustParse("8.1.2"),
+		semver.MustParse("8.1.1"),
+		semver.MustParse("8.1.0"),
+		semver.MustParse("8.0.1"),
+		semver.MustParse("8.0.0"),
+		semver.MustParse("7.17.24"),
+		semver.MustParse("7.17.23"),
+		semver.MustParse("7.17.22"),
+		semver.MustParse("7.17.21"),
+		semver.MustParse("7.17.20"),
+		semver.MustParse("7.17.19"),
+		semver.MustParse("7.17.18"),
+		semver.MustParse("7.17.17"),
+		semver.MustParse("7.17.16"),
+		semver.MustParse("7.17.15"),
+		semver.MustParse("7.17.14"),
+		semver.MustParse("7.17.13"),
+		semver.MustParse("7.17.12"),
+		semver.MustParse("7.17.11"),
+		semver.MustParse("7.17.10"),
+		semver.MustParse("7.17.9"),
+		semver.MustParse("7.17.8"),
+		semver.MustParse("7.17.7"),
+		semver.MustParse("7.17.6"),
+		semver.MustParse("7.17.5"),
+		semver.MustParse("7.17.4"),
+		semver.MustParse("7.17.3"),
+		semver.MustParse("7.17.2"),
+		semver.MustParse("7.17.1"),
+		semver.MustParse("7.17.0"),
+		semver.MustParse("7.16.3"),
+		semver.MustParse("7.16.2"),
+		semver.MustParse("7.16.1"),
+		semver.MustParse("7.16.0"),
+		semver.MustParse("7.15.2"),
+		semver.MustParse("7.15.1"),
+		semver.MustParse("7.15.0"),
+		semver.MustParse("7.14.2"),
+		semver.MustParse("7.14.1"),
+		semver.MustParse("7.14.0"), // First version of Fleet in GA; there are no packages older than this version.
+	}
+
 	defaultExternal = "ecs"
 )
 
@@ -215,16 +301,89 @@ func initDependencyManagement(packageRoot string, specVersion semver.Version, im
 		return nil, nil, fmt.Errorf("can't create field dependency manager: %w", err)
 	}
 
+	// Check if the package embeds ECS mappings
+	packageEmbedsEcsMappings := buildManifest.ImportMappings() && !specVersion.LessThan(semver2_3_0)
+	if !packageEmbedsEcsMappings {
+		logger.Debugf("Package does not embed ECS mappings")
+	}
+
+	// Check if all stack versions support ECS mappings
+	stackSupportsEcsMapping, err := supportsECSMappings(packageRoot)
+	if err != nil {
+		return nil, nil, fmt.Errorf("can't check if stack version includes ECS mappings: %w", err)
+	}
+
+	// If the package embeds ECS mappings, or the stack version includes ECS mappings, then
+	// we should import the ECS schema to validate the package fields against it.
 	var schema []FieldDefinition
-	if buildManifest.ImportMappings() && !specVersion.LessThan(semver2_3_0) && importECSSchema {
+	if (packageEmbedsEcsMappings || stackSupportsEcsMapping) && importECSSchema {
+		// Import all fields from external schema (most likely ECS) to
+		// validate the package fields against it.
 		ecsSchema, err := fdm.ImportAllFields(defaultExternal)
 		if err != nil {
 			return nil, nil, err
 		}
+		logger.Debug("Imported ECS fields definition from external schema for validation")
 		schema = ecsSchema
 	}
 
 	return fdm, schema, nil
+}
+
+// supportsECSMappings check if all the versions of the stack the package can run on support ECS mappings.
+func supportsECSMappings(packageRoot string) (bool, error) {
+	packageManifest, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
+	if err != nil {
+		return false, fmt.Errorf("can't read package manifest: %w", err)
+	}
+
+	if len(packageManifest.Conditions.Kibana.Version) == 0 {
+		logger.Debugf("No Kibana version constraint found in package manifest; assuming it does not support ECS mappings.")
+		return false, nil
+	}
+
+	kibanaConstraints, err := semver.NewConstraint(packageManifest.Conditions.Kibana.Version)
+	if err != nil {
+		return false, fmt.Errorf("invalid constraint for Kibana: %w", err)
+	}
+
+	return allVersionsIncludeECS(kibanaConstraints), nil
+}
+
+// allVersionsIncludeECS Check if all the stack versions in the constraints include ECS mappings. Only the stack
+// versions 8.13.0 and above include ECS mappings.
+//
+// Returns true if all the stack versions in the constraints include ECS mappings, otherwise returns false.
+func allVersionsIncludeECS(kibanaConstraints *semver.Constraints) bool {
+	// Looking for a version that satisfies the package constraints.
+	for _, v := range stackVersionsWithoutECS {
+		if kibanaConstraints.Check(v) {
+			// Found a version that satisfies the constraints,
+			// so at least this version does not include
+			// ECS mappings.
+			return false
+		}
+	}
+
+	// If no version satisfies the constraints, then all versions
+	// include ECS mappings.
+	return true
+
+	// This check works under the assumption the constraints are not limited
+	// upwards.
+	//
+	// For example, if the constraint is `>= 8.12.0` and the stack version is
+	// `8.12.999`, the constraint will be satisfied.
+	//
+	// However, if the constraint is `>= 8.0.0, < 8.10.0` the check will not
+	// return the right result.
+	//
+	// To support this, we would need to check the constraint against a larger
+	// set of versions, and check if the constraint is satisfied for all
+	// of them, like in the commented out example above.
+	//
+	// lastStackVersionWithoutEcsMappings := semver.MustParse("8.12.999")
+	// return !kibanaConstraints.Check(lastStackVersionWithoutEcsMappings)
 }
 
 //go:embed _static/allowed_geo_ips.txt

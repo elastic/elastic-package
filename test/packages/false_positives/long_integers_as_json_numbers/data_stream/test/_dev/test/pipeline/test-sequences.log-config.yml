@@ -1,0 +1,2 @@
+fields:
+  "@warning": "The values in sequence_number must match the values in message."
