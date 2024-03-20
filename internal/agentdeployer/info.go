@@ -9,7 +9,7 @@ const (
 	serviceLogsDirEnv   = "SERVICE_LOGS_DIR"
 	testRunIDEnv        = "TEST_RUN_ID"
 	fleetPolicyEnv      = "FLEET_TOKEN_POLICY_NAME"
-	agentHosnameEnv     = "AGENT_HOSTNAME"
+	agentHostnameEnv    = "AGENT_HOSTNAME"
 	elasticAgentTagsEnv = "ELASTIC_AGENT_TAGS"
 )
 

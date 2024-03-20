@@ -89,7 +89,7 @@ func (d *CustomAgentDeployer) SetUp(inCtxt ServiceContext) (DeployedService, err
 		appConfig.StackImageRefs(d.stackVersion).AsEnv(),
 		fmt.Sprintf("%s=%s", serviceLogsDirEnv, inCtxt.Logs.Folder.Local),
 		fmt.Sprintf("%s=%s", localCACertEnv, caCertPath),
-		fmt.Sprintf("%s=%s-%s", agentHosnameEnv, dockerCustomAgentName, d.agentName()),
+		fmt.Sprintf("%s=%s-%s", agentHostnameEnv, dockerCustomAgentName, d.agentName()),
 	)
 
 	configDir, err := d.installDockerfile()

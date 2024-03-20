@@ -73,7 +73,7 @@ func (d *DockerComposeServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedSer
 		variant:  d.variant,
 		env: []string{
 			fmt.Sprintf("%s=%s", serviceLogsDirEnv, inCtxt.Logs.Folder.Local),
-			fmt.Sprintf("%s=%s", agentHosnameEnv, inCtxt.AgentHostname),
+			fmt.Sprintf("%s=%s", agentHostnameEnv, inCtxt.AgentHostname),
 		},
 	}
 	outCtxt := inCtxt

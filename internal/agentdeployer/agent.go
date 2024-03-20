@@ -95,7 +95,7 @@ func (d *CustomAgentDeployer) SetUp(inCtxt AgentInfo) (DeployedAgent, error) {
 		fmt.Sprintf("%s=%s", serviceLogsDirEnv, inCtxt.Logs.Folder.Local),
 		fmt.Sprintf("%s=%s", localCACertEnv, caCertPath),
 		fmt.Sprintf("%s=%s", fleetPolicyEnv, defaultAgentPolicyName),
-		fmt.Sprintf("%s=%s", agentHosnameEnv, d.agentHostname()),
+		fmt.Sprintf("%s=%s", agentHostnameEnv, d.agentHostname()),
 		fmt.Sprintf("%s=%s", elasticAgentTagsEnv, strings.Join(inCtxt.Tags, ",")),
 	)
 
