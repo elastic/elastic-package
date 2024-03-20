@@ -184,7 +184,7 @@ func TestJsonUnmarshalUsingNumberRoundTrip(t *testing.T) {
 	for _, test := range jsonUnmarshalUsingNumberTests {
 		t.Run(test.name, func(t *testing.T) {
 			var val interface{}
-			err := JSONUnmarshalUsingNumber([]byte(test.msg), &val)
+			err := formatter.JSONUnmarshalUsingNumber([]byte(test.msg), &val)
 
 			// Confirm that we get the same errors with jsonUnmarshalUsingNumber
 			// as are returned by json.Unmarshal.
