@@ -24,7 +24,7 @@ STACK_COMMAND_TESTS=(
 )
 
 for test in "${STACK_COMMAND_TESTS[@]}"; do
-    echo "      - label: \":go: Running integration test: ${test}\""
+    echo "      - label: \":go: Integration test: ${test}\""
     echo "        command: ./.buildkite/scripts/integration_tests.sh -t ${test}"
     echo "        agents:"
     echo "          provider: \"gcp\""
@@ -43,7 +43,7 @@ CHECK_PACKAGES_TESTS=(
 )
 for independent_agent in false true ; do
 for test in "${CHECK_PACKAGES_TESTS[@]}"; do
-    echo "      - label: \":go: Running integration test: ${test} - independent_agent ${independent_agent}\""
+    echo "      - label: \":go: Integration test: ${test} - independent_agent ${independent_agent}\""
     echo "        command: ./.buildkite/scripts/integration_tests.sh -t ${test}"
     echo "        agents:"
     echo "          provider: \"gcp\""
@@ -63,7 +63,7 @@ done
 pushd test/packages/false_positives > /dev/null
 for package in $(find . -maxdepth 1 -mindepth 1 -type d) ; do
     package_name=$(basename "${package}")
-    echo "      - label: \":go: Running integration test (false positive): ${package_name}\""
+    echo "      - label: \":go: Integration test (false positive): ${package_name}\""
     echo "        key: \"integration-false_positives-${package_name}\""
     echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-check-packages-false-positives -p ${package_name}"
     echo "        env:"
@@ -85,7 +85,7 @@ for package in $(find . -maxdepth 1 -mindepth 1 -type d) ; do
         echoerr "Skip temporarily ${package_name}"
         continue
     fi
-    echo "      - label: \":go: Running integration test: ${package_name} - independent_agent ${independent_agent}\""
+    echo "      - label: \":go: Integration test: ${package_name} - independent_agent ${independent_agent}\""
     echo "        key: \"integration-parallel-${package_name}-agent-${independent_agent}\""
     echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-check-packages-parallel -p ${package_name}"
     echo "        env:"
@@ -101,7 +101,7 @@ done
 
 popd > /dev/null
 
-echo "      - label: \":go: Running integration test: test-build-zip\""
+echo "      - label: \":go: Integration test: test-build-zip\""
 echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-build-zip"
 echo "        agents:"
 echo "          provider: \"gcp\""
@@ -109,14 +109,14 @@ echo "        artifact_paths:"
 echo "          - build/elastic-stack-dump/build-zip/logs/*.log"
 echo "          - build/packages/*.sig"
 
-echo "      - label: \":go: Running integration test: test-install-zip\""
+echo "      - label: \":go: Integration test: test-install-zip\""
 echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-install-zip"
 echo "        agents:"
 echo "          provider: \"gcp\""
 echo "        artifact_paths:"
 echo "          - build/elastic-stack-dump/install-zip/logs/*.log"
 
-echo "      - label: \":go: Running integration test: test-install-zip-shellinit\""
+echo "      - label: \":go: Integration test: test-install-zip-shellinit\""
 echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-install-zip-shellinit"
 echo "        agents:"
 echo "          provider: \"gcp\""
@@ -124,7 +124,7 @@ echo "        artifact_paths:"
 echo "          - build/elastic-stack-dump/install-zip-shellinit/logs/*.log"
 
 for independent_agent in false true; do
-echo "      - label: \":go: Running integration test: test-system-test-flags\""
+echo "      - label: \":go: Integration test: test-system-test-flags\""
 echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-system-test-flags"
 echo "        agents:"
 echo "          provider: \"gcp\""
@@ -132,7 +132,7 @@ echo "        env:"
 echo "          ELASTIC_PACKAGE_INDEPENDENT_AGENT: ${independent_agent}"
 done
 
-echo "      - label: \":go: Running integration test: test-profiles-command\""
+echo "      - label: \":go: Integration test: test-profiles-command\""
 echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-profiles-command"
 echo "        env:"
 echo "          DOCKER_COMPOSE_VERSION: \"false\""
@@ -142,7 +142,7 @@ echo "          image: \"${LINUX_AGENT_IMAGE}\""
 echo "          cpu: \"8\""
 echo "          memory: \"4G\""
 
-echo "      - label: \":go: Running integration test: test-check-update-version\""
+echo "      - label: \":go: Integration test: test-check-update-version\""
 echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-check-update-version"
 echo "        env:"
 echo "          DEFAULT_VERSION_TAG: v0.80.0"
