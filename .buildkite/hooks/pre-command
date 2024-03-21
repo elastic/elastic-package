@@ -48,12 +48,12 @@ export CREATED_DATE
 
 is_step_required_to_upload_safe_logs() {
     if [[ "$BUILDKITE_PIPELINE_SLUG" != "elastic-package" ]]; then
-        return false
+        return 1
     fi
     if [[ "$BUILDKITE_STEP_KEY" =~ ^integration-parallel || "$BUILDKITE_STEP_KEY" =~ ^integration-false_positives ]]; then
-        return true
+        return 0
     fi
-    return false
+    return 1
 }
 
 if is_step_required_to_upload_safe_logs; then
@@ -64,12 +64,12 @@ fi
 
 is_step_testing_gcp () {
     if [[ "$BUILDKITE_PIPELINE_SLUG" != "elastic-package" ]]; then
-        return false
+        return 1
     fi
     if [[ "$BUILDKITE_STEP_KEY" == "integration-parallel-gcp-agent-false" || "$BUILDKITE_STEP_KEY" == "integration-parallel-gcp-agent-true" ]]; then
-        return true
+        return 0
     fi
-    return false
+    return 1
 }
 
 if use_step_testing_gcp; then
@@ -85,16 +85,17 @@ fi
 
 is_step_testing_aws () {
     if [[ "$BUILDKITE_PIPELINE_SLUG" != "elastic-package" ]]; then
-        return false
+        return 1
     fi
     if [[ "$BUILDKITE_STEP_KEY" == "integration-parallel-aws-agent-false" || "$BUILDKITE_STEP_KEY" == "integration-parallel-aws-agent-true" ]]; then
-        return true
+        return 0
     fi
     if [[ "$BUILDKITE_STEP_KEY" == "integration-parallel-aws_logs-agent-false" || "$BUILDKITE_STEP_KEY" == "integration-parallel-aws_logs-agent-true" ]]; then
-        return true
+        return 0
     fi
-    return false
+    return 1
 }
+
 if use_step_testing_aws; then
     ELASTIC_PACKAGE_AWS_SECRET_KEY=$(retry 5 vault kv get -field secret_key ${AWS_SERVICE_ACCOUNT_SECRET_PATH})
     export ELASTIC_PACKAGE_AWS_SECRET_KEY
