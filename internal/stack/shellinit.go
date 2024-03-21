@@ -109,8 +109,16 @@ func helpText(shell string) string {
 
 func getShellName(exe string) string {
 	shell := filepath.Base(exe)
-	// NOTE: remove .exe extension from executable names present in Windows
-	shell = strings.TrimSuffix(shell, ".exe")
+	cleanSuffixes := []string{
+		// Remove .exe extension from executable names present in Windows.
+		".exe",
+		// Remove " (deleted)", that can appear here if the shell process has been
+		// replaced by an upgrade in Linux while the terminal was open.
+		" (deleted)",
+	}
+	for _, suffix := range cleanSuffixes {
+		shell = strings.TrimSuffix(shell, suffix)
+	}
 	return shell
 }
 
