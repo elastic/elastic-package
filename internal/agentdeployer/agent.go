@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"golang.org/x/net/context"
+
 	"github.com/elastic/elastic-package/internal/compose"
 	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/docker"
@@ -19,7 +21,6 @@ import (
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/profile"
 	"github.com/elastic/elastic-package/internal/stack"
-	"golang.org/x/net/context"
 )
 
 const (
@@ -117,7 +118,7 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, agentInfo AgentInfo) (D
 
 	composeProjectName := fmt.Sprintf("elastic-package-agent-%s", d.agentName())
 
-	service := dockerComposeDeployedAgent{
+	agent := dockerComposeDeployedAgent{
 		ymlPaths: ymlPaths,
 		project:  composeProjectName,
 		variant: AgentVariant{
@@ -126,10 +127,9 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, agentInfo AgentInfo) (D
 		},
 	}
 
-	outCtxt := agentInfo
-	outCtxt.ConfigDir = configDir
+	agentInfo.ConfigDir = configDir
 
-	p, err := compose.NewProject(service.project, service.ymlPaths...)
+	p, err := compose.NewProject(agent.project, agent.ymlPaths...)
 	if err != nil {
 		return nil, fmt.Errorf("could not create Docker Compose project for agent: %w", err)
 	}
@@ -145,9 +145,9 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, agentInfo AgentInfo) (D
 		// service logs folder must no be deleted to avoid breaking log files written
 		// by the service. If this is required, those files should be rotated or truncated
 		// so the service can still write to them.
-		logger.Debug("Skipping removing service logs folder folder %s", outCtxt.Logs.Folder.Local)
+		logger.Debug("Skipping removing service logs folder folder %s", agentInfo.Logs.Folder.Local)
 	} else {
-		err = files.RemoveContent(outCtxt.Logs.Folder.Local)
+		err = files.RemoveContent(agentInfo.Logs.Folder.Local)
 		if err != nil {
 			return nil, fmt.Errorf("removing service logs failed: %w", err)
 		}
@@ -155,7 +155,7 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, agentInfo AgentInfo) (D
 
 	// Service name defined in the docker-compose file
 	agentInfo.Name = dockerCustomAgentNamePrefix
-	serviceName := agentInfo.Name
+	agentName := agentInfo.Name
 
 	opts := compose.CommandOptions{
 		Env:       env,
@@ -170,7 +170,7 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, agentInfo AgentInfo) (D
 			return nil, fmt.Errorf("could not boot up agent using Docker Compose: %w", err)
 		}
 		// Connect service network with stack network (for the purpose of metrics collection)
-		err = docker.ConnectToNetwork(p.ContainerName(serviceName), stack.Network(d.profile))
+		err = docker.ConnectToNetwork(p.ContainerName(agentName), stack.Network(d.profile))
 		if err != nil {
 			return nil, fmt.Errorf("can't attach service container to the stack network: %w", err)
 		}
@@ -181,34 +181,34 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, agentInfo AgentInfo) (D
 	if err != nil {
 		processAgentContainerLogs(ctx, p, compose.CommandOptions{
 			Env: opts.Env,
-		}, outCtxt.Name)
+		}, agentName)
 		return nil, fmt.Errorf("service is unhealthy: %w", err)
 	}
 
 	// Build agent container name
-	// outCtxt.Hostname = p.ContainerName(serviceName)
-	outCtxt.Hostname = d.agentHostname()
+	// agentInfo.Hostname = p.ContainerName(serviceName)
+	agentInfo.Hostname = d.agentHostname()
 
-	logger.Debugf("adding service container %s internal ports to context", p.ContainerName(serviceName))
+	logger.Debugf("adding service container %s internal ports to context", p.ContainerName(agentName))
 	serviceComposeConfig, err := p.Config(ctx, compose.CommandOptions{Env: env})
 	if err != nil {
 		return nil, fmt.Errorf("could not get Docker Compose configuration for service: %w", err)
 	}
 
-	s := serviceComposeConfig.Services[serviceName]
-	outCtxt.Ports = make([]int, len(s.Ports))
+	s := serviceComposeConfig.Services[agentName]
+	agentInfo.Ports = make([]int, len(s.Ports))
 	for idx, port := range s.Ports {
-		outCtxt.Ports[idx] = port.InternalPort
+		agentInfo.Ports[idx] = port.InternalPort
 	}
 
 	// Shortcut to first port for convenience
-	if len(outCtxt.Ports) > 0 {
-		outCtxt.Port = outCtxt.Ports[0]
+	if len(agentInfo.Ports) > 0 {
+		agentInfo.Port = agentInfo.Ports[0]
 	}
 
-	outCtxt.Agent.Host.NamePrefix = agentInfo.Name
-	service.agentInfo = outCtxt
-	return &service, nil
+	agentInfo.Agent.Host.NamePrefix = agentInfo.Name
+	agent.agentInfo = agentInfo
+	return &agent, nil
 }
 
 func (d *CustomAgentDeployer) agentHostname() string {

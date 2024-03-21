@@ -791,7 +791,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, servic
 			// In case of CustomAgents from servicedeployer where agent and service
 			// are deployed in the same docker-compose scenario (servicedeployer),
 			// so there is no agentDeployed in that scenario
-			serviceContext.AgentHostname = agentDeployed.Context().Hostname
+			serviceContext.AgentHostname = agentDeployed.Info().Hostname
 		}
 	} else {
 		serviceContext.AgentHostname = "elastic-agent"

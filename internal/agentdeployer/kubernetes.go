@@ -13,13 +13,14 @@ import (
 	"strings"
 	"text/template"
 
+	"golang.org/x/net/context"
+
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/kind"
 	"github.com/elastic/elastic-package/internal/kubectl"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/profile"
 	"github.com/elastic/elastic-package/internal/stack"
-	"golang.org/x/net/context"
 )
 
 // KubernetesAgentDeployer is responsible for deploying resources in the Kubernetes cluster.
@@ -71,11 +72,11 @@ func (s kubernetesDeployedAgent) ExitCode(ctx context.Context, _ string) (bool, 
 	return false, -1, ErrNotSupported
 }
 
-func (s kubernetesDeployedAgent) Context() AgentInfo {
+func (s kubernetesDeployedAgent) Info() AgentInfo {
 	return s.agentInfo
 }
 
-func (s *kubernetesDeployedAgent) SetContext(sc AgentInfo) error {
+func (s *kubernetesDeployedAgent) SetInfo(sc AgentInfo) error {
 	s.agentInfo = sc
 	return nil
 }

@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"time"
 
+	"golang.org/x/net/context"
+
 	"github.com/elastic/elastic-package/internal/builder"
 	"github.com/elastic/elastic-package/internal/compose"
 	"github.com/elastic/elastic-package/internal/docker"
@@ -16,7 +18,6 @@ import (
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/profile"
 	"github.com/elastic/elastic-package/internal/stack"
-	"golang.org/x/net/context"
 )
 
 // DockerComposeServiceDeployer knows how to deploy a service defined via
@@ -55,7 +56,6 @@ func (d *DockerComposeAgentDeployer) SetUp(ctx context.Context, agentInfo AgentI
 		variant:  d.variant,
 		env:      []string{fmt.Sprintf("%s=%s", serviceLogsDirEnv, agentInfo.Logs.Folder.Local)},
 	}
-	outCtxt := agentInfo
 
 	p, err := compose.NewProject(agent.project, agent.ymlPaths...)
 	if err != nil {
@@ -69,7 +69,7 @@ func (d *DockerComposeAgentDeployer) SetUp(ctx context.Context, agentInfo AgentI
 	}
 
 	// Clean service logs
-	err = files.RemoveContent(outCtxt.Logs.Folder.Local)
+	err = files.RemoveContent(agentInfo.Logs.Folder.Local)
 	if err != nil {
 		return nil, fmt.Errorf("removing service logs failed: %w", err)
 	}
@@ -96,12 +96,12 @@ func (d *DockerComposeAgentDeployer) SetUp(ctx context.Context, agentInfo AgentI
 	if err != nil {
 		processAgentContainerLogs(ctx, p, compose.CommandOptions{
 			Env: opts.Env,
-		}, outCtxt.Name)
+		}, agentName)
 		return nil, fmt.Errorf("service is unhealthy: %w", err)
 	}
 
 	// Build agent container name
-	outCtxt.Hostname = p.ContainerName(agentName)
+	agentInfo.Hostname = p.ContainerName(agentName)
 
 	// Connect service network with stack network (for the purpose of metrics collection)
 	err = docker.ConnectToNetwork(p.ContainerName(agentName), stack.Network(d.profile))
@@ -111,25 +111,25 @@ func (d *DockerComposeAgentDeployer) SetUp(ctx context.Context, agentInfo AgentI
 
 	logger.Debugf("adding agent container %s internal ports to context", p.ContainerName(agentName))
 	agentComposeConfig, err := p.Config(ctx, compose.CommandOptions{
-		Env: []string{fmt.Sprintf("%s=%s", serviceLogsDirEnv, outCtxt.Logs.Folder.Local)},
+		Env: []string{fmt.Sprintf("%s=%s", serviceLogsDirEnv, agentInfo.Logs.Folder.Local)},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("could not get Docker Compose configuration for agent: %w", err)
 	}
 
 	s := agentComposeConfig.Services[agentName]
-	outCtxt.Ports = make([]int, len(s.Ports))
+	agentInfo.Ports = make([]int, len(s.Ports))
 	for idx, port := range s.Ports {
-		outCtxt.Ports[idx] = port.InternalPort
+		agentInfo.Ports[idx] = port.InternalPort
 	}
 
 	// Shortcut to first port for convenience
-	if len(outCtxt.Ports) > 0 {
-		outCtxt.Port = outCtxt.Ports[0]
+	if len(agentInfo.Ports) > 0 {
+		agentInfo.Port = agentInfo.Ports[0]
 	}
 
-	outCtxt.Agent.Host.NamePrefix = "docker-custom-agent"
-	agent.agentInfo = outCtxt
+	agentInfo.Agent.Host.NamePrefix = "docker-custom-agent"
+	agent.agentInfo = agentInfo
 	return &agent, nil
 }
 
@@ -216,13 +216,13 @@ func (s *dockerComposeDeployedAgent) TearDown(ctx context.Context) error {
 	return nil
 }
 
-// Context returns the current context for the agent.
-func (s *dockerComposeDeployedAgent) Context() AgentInfo {
+// Info returns the current context for the agent.
+func (s *dockerComposeDeployedAgent) Info() AgentInfo {
 	return s.agentInfo
 }
 
-// SetContext sets the current context for the agent.
-func (s *dockerComposeDeployedAgent) SetContext(ctxt AgentInfo) error {
+// SetInfo sets the current context for the agent.
+func (s *dockerComposeDeployedAgent) SetInfo(ctxt AgentInfo) error {
 	s.agentInfo = ctxt
 	return nil
 }

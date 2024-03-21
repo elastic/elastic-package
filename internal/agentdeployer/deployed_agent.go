@@ -20,11 +20,11 @@ type DeployedAgent interface {
 	// Signal sends a signal to the service.
 	Signal(ctx context.Context, signal string) error
 
-	// Context returns the current context from the service.
-	Context() AgentInfo
+	// Info returns the current context from the service.
+	Info() AgentInfo
 
-	// SetContext sets the current context for the service.
-	SetContext(str AgentInfo) error
+	// SetInfo sets the current context for the service.
+	SetInfo(str AgentInfo) error
 
 	// ExitCode returns true if the service is exited and its exit code.
 	ExitCode(ctx context.Context, service string) (bool, int, error)
