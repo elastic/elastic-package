@@ -202,12 +202,12 @@ func (r *runner) Run(ctx context.Context, options testrunner.TestOptions) ([]tes
 	}
 
 	serviceOptions := r.createServiceOptions(variant)
-	serviceContext, err := r.createServiceInfo()
+	svcInfo, err := r.createServiceInfo()
 	if err != nil {
 		return result.WithError(err)
 	}
 
-	testConfig, err := newConfig(configFile, serviceContext, variant)
+	testConfig, err := newConfig(configFile, svcInfo, variant)
 	if err != nil {
 		return nil, fmt.Errorf("unable to load system test case file '%s': %w", configFile, err)
 	}
@@ -224,7 +224,7 @@ func (r *runner) Run(ctx context.Context, options testrunner.TestOptions) ([]tes
 	}
 	result = r.newResult(fmt.Sprintf("%s - %s", resultName, testConfig.Name()))
 
-	scenario, err := r.prepareScenario(ctx, testConfig, serviceContext, serviceOptions)
+	scenario, err := r.prepareScenario(ctx, testConfig, svcInfo, serviceOptions)
 	if r.options.RunSetup && err != nil {
 		tdErr := r.tearDownTest(ctx)
 		if tdErr != nil {
@@ -535,19 +535,19 @@ func (r *runner) run(ctx context.Context) (results []testrunner.TestResult, err 
 
 func (r *runner) runTestPerVariant(ctx context.Context, result *testrunner.ResultComposer, cfgFile, variantName string) ([]testrunner.TestResult, error) {
 	serviceOptions := r.createServiceOptions(variantName)
-	serviceContext, err := r.createServiceInfo()
+	svcInfo, err := r.createServiceInfo()
 	if err != nil {
 		return result.WithError(err)
 	}
 
 	configFile := filepath.Join(r.options.TestFolder.Path, cfgFile)
-	testConfig, err := newConfig(configFile, serviceContext, variantName)
+	testConfig, err := newConfig(configFile, svcInfo, variantName)
 	if err != nil {
 		return nil, fmt.Errorf("unable to load system test case file '%s': %w", configFile, err)
 	}
 	logger.Debugf("Using config: %q", testConfig.Name())
 
-	partial, err := r.runTest(ctx, testConfig, serviceContext, serviceOptions)
+	partial, err := r.runTest(ctx, testConfig, svcInfo, serviceOptions)
 
 	tdErr := r.tearDownTest(ctx)
 	if err != nil {
@@ -707,7 +707,7 @@ type scenarioTest struct {
 	docs               []common.MapStr
 }
 
-func (r *runner) prepareScenario(ctx context.Context, config *testConfig, serviceContext servicedeployer.ServiceInfo, serviceOptions servicedeployer.FactoryOptions) (*scenarioTest, error) {
+func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInfo servicedeployer.ServiceInfo, serviceOptions servicedeployer.FactoryOptions) (*scenarioTest, error) {
 	var err error
 	var serviceStateData ServiceState
 	if r.options.RunSetup {
@@ -797,24 +797,24 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, servic
 	}
 
 	if r.options.RunIndependentElasticAgent {
-		serviceContext.Logs.Folder.Local = agentInfo.Logs.Folder.Local
+		svcInfo.Logs.Folder.Local = agentInfo.Logs.Folder.Local
 		if agentDeployed != nil {
 			// In case of CustomAgents from servicedeployer where agent and service
 			// are deployed in the same docker-compose scenario (servicedeployer),
 			// so there is no agentDeployed in that scenario
-			serviceContext.AgentHostname = agentDeployed.Info().Hostname
+			svcInfo.AgentHostname = agentDeployed.Info().Hostname
 		}
 	} else {
-		serviceContext.AgentHostname = "elastic-agent"
+		svcInfo.AgentHostname = "elastic-agent"
 	}
 	if config.Service != "" {
-		serviceContext.Name = config.Service
+		svcInfo.Name = config.Service
 	}
-	service, err := serviceDeployer.SetUp(ctx, serviceContext)
+	service, err := serviceDeployer.SetUp(ctx, svcInfo)
 	if err != nil {
 		return nil, fmt.Errorf("could not setup service: %w", err)
 	}
-	serviceContext = service.Info()
+	svcInfo = service.Info()
 	r.shutdownServiceHandler = func(ctx context.Context) error {
 		logger.Debug("tearing down service...")
 		if err := service.TearDown(ctx); err != nil {
@@ -825,7 +825,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, servic
 	}
 
 	// Reload test config with ctx variable substitution.
-	config, err = newConfig(config.Path, serviceContext, serviceOptions.Variant)
+	config, err = newConfig(config.Path, svcInfo, serviceOptions.Variant)
 	if err != nil {
 		return nil, fmt.Errorf("unable to reload system test case configuration: %w", err)
 	}
@@ -960,7 +960,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, servic
 
 	// FIXME: running per stages does not work when multiple agents are created
 	var origPolicy kibana.Policy
-	agents, err := checkEnrolledAgents(ctx, r.options.KibanaClient, agentInfo, enrollingTime, serviceContext, r.options.RunIndependentElasticAgent)
+	agents, err := checkEnrolledAgents(ctx, r.options.KibanaClient, agentInfo, enrollingTime, svcInfo, r.options.RunIndependentElasticAgent)
 	if err != nil {
 		return nil, fmt.Errorf("can't check enrolled agents: %w", err)
 	}
@@ -1276,7 +1276,7 @@ func (r *runner) validateTestScenario(ctx context.Context, result *testrunner.Re
 	return result.WithSuccess()
 }
 
-func (r *runner) runTest(ctx context.Context, config *testConfig, serviceContext servicedeployer.ServiceInfo, serviceOptions servicedeployer.FactoryOptions) ([]testrunner.TestResult, error) {
+func (r *runner) runTest(ctx context.Context, config *testConfig, svcInfo servicedeployer.ServiceInfo, serviceOptions servicedeployer.FactoryOptions) ([]testrunner.TestResult, error) {
 	result := r.newResult(config.Name())
 
 	if config.Skip != nil {
@@ -1288,7 +1288,7 @@ func (r *runner) runTest(ctx context.Context, config *testConfig, serviceContext
 
 	logger.Debugf("running test with configuration '%s'", config.Name())
 
-	scenario, err := r.prepareScenario(ctx, config, serviceContext, serviceOptions)
+	scenario, err := r.prepareScenario(ctx, config, svcInfo, serviceOptions)
 	if err != nil {
 		return result.WithError(err)
 	}
