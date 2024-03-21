@@ -47,7 +47,7 @@ for test in "${CHECK_PACKAGES_TESTS[@]}"; do
     echo "        command: ./.buildkite/scripts/integration_tests.sh -t ${test}"
     echo "        agents:"
     echo "          provider: \"gcp\""
-    echo "        environment:"
+    echo "        env:"
     echo "          ELASTIC_PACKAGE_INDEPENDENT_AGENT: ${independent_agent}"
     echo "        artifact_paths:"
     echo "          - build/test-results/*.xml"
