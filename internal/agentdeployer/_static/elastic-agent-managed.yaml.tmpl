@@ -63,6 +63,8 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
+            - name: ELASTIC_AGENT_TAGS
+              value: "{{ .elasticAgentTags }}"
           securityContext:
             runAsUser: 0
           resources:
