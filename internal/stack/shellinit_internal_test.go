@@ -5,6 +5,7 @@
 package stack
 
 import (
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -44,13 +45,22 @@ func Test_getShellName(t *testing.T) {
 	type args struct {
 		exe string
 	}
-	tests := []struct {
+	type testCase struct {
 		name string
 		args args
 		want string
-	}{
-		{"linux exec", args{exe: "bash"}, "bash"},
-		{"windows exec", args{exe: "cmd.exe"}, "cmd"},
+	}
+	var tests []testCase
+	if filepath.Separator == '\\' {
+		tests = []testCase{
+			{"windows exec", args{exe: `C:\Windows\System32\cmd.exe`}, "cmd"},
+		}
+	} else {
+		tests = []testCase{
+			{"linux exec", args{exe: "/usr/bin/bash"}, "bash"},
+			{"linux upgraded exec", args{exe: "/usr/bin/bash (deleted)"}, "bash"},
+			{"windows exec", args{exe: `C:/Windows/System32/cmd.exe`}, "cmd"},
+		}
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
