@@ -263,7 +263,7 @@ func (r *runner) Run(ctx context.Context, options testrunner.TestOptions) ([]tes
 	return result.WithSuccess()
 }
 
-func (r *runner) createAgentOptions(scenario scenarioTest) agentdeployer.FactoryOptions {
+func (r *runner) createAgentOptions(variantName string) agentdeployer.FactoryOptions {
 	return agentdeployer.FactoryOptions{
 		Profile:            r.options.Profile,
 		PackageRootPath:    r.options.PackageRootPath,
@@ -271,8 +271,9 @@ func (r *runner) createAgentOptions(scenario scenarioTest) agentdeployer.Factory
 		DevDeployDir:       DevDeployDir,
 		Type:               agentdeployer.TypeTest,
 		StackVersion:       r.stackVersion.Version(),
-		PackageName:        scenario.pkgManifest.Name,
-		DataStream:         scenario.dataStreamManifest.Name,
+		PackageName:        r.options.TestFolder.Package,
+		DataStream:         r.options.TestFolder.DataStream,
+		Variant:            variantName,
 		RunTearDown:        r.options.RunTearDown,
 		RunTestsOnly:       r.options.RunTestsOnly,
 		RunSetup:           r.options.RunSetup,
@@ -749,7 +750,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, servic
 	}
 	// Setup agent
 	logger.Debug("setting up agent...")
-	agentOptions := r.createAgentOptions(scenario)
+	agentOptions := r.createAgentOptions(serviceOptions.Variant)
 	agentInfo, err := r.createAgentInfo()
 	if err != nil {
 		return nil, err
