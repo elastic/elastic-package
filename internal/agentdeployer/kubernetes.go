@@ -19,6 +19,7 @@ import (
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/profile"
 	"github.com/elastic/elastic-package/internal/stack"
+	"golang.org/x/net/context"
 )
 
 // KubernetesAgentDeployer is responsible for deploying resources in the Kubernetes cluster.
@@ -43,39 +44,39 @@ type KubernetesAgentDeployerOptions struct {
 }
 
 type kubernetesDeployedAgent struct {
-	ctxt         AgentInfo
+	agentInfo    AgentInfo
 	profile      *profile.Profile
 	stackVersion string
 
 	definitionsDir string
 }
 
-func (s kubernetesDeployedAgent) TearDown() error {
+func (s kubernetesDeployedAgent) TearDown(ctx context.Context) error {
 	elasticAgentManagedYaml, err := getElasticAgentYAML(s.profile, s.stackVersion)
 	if err != nil {
 		return fmt.Errorf("can't retrieve Kubernetes file for Elastic Agent: %w", err)
 	}
-	err = kubectl.DeleteStdin(elasticAgentManagedYaml)
+	err = kubectl.DeleteStdin(ctx, elasticAgentManagedYaml)
 	if err != nil {
 		return fmt.Errorf("can't uninstall Kubernetes resources (path: %s): %w", s.definitionsDir, err)
 	}
 	return nil
 }
 
-func (s kubernetesDeployedAgent) Signal(_ string) error {
+func (s kubernetesDeployedAgent) Signal(ctx context.Context, _ string) error {
 	return ErrNotSupported
 }
 
-func (s kubernetesDeployedAgent) ExitCode(_ string) (bool, int, error) {
+func (s kubernetesDeployedAgent) ExitCode(ctx context.Context, _ string) (bool, int, error) {
 	return false, -1, ErrNotSupported
 }
 
 func (s kubernetesDeployedAgent) Context() AgentInfo {
-	return s.ctxt
+	return s.agentInfo
 }
 
 func (s *kubernetesDeployedAgent) SetContext(sc AgentInfo) error {
-	s.ctxt = sc
+	s.agentInfo = sc
 	return nil
 }
 
@@ -95,8 +96,8 @@ func NewKubernetesAgentDeployer(opts KubernetesAgentDeployerOptions) (*Kubernete
 
 // SetUp function links the kind container with elastic-package-stack network, installs Elastic-Agent and optionally
 // custom YAML definitions.
-func (ksd KubernetesAgentDeployer) SetUp(ctxt AgentInfo) (DeployedAgent, error) {
-	err := kind.VerifyContext()
+func (ksd KubernetesAgentDeployer) SetUp(ctx context.Context, agentInfo AgentInfo) (DeployedAgent, error) {
+	err := kind.VerifyContext(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("kind context verification failed: %w", err)
 	}
@@ -113,19 +114,19 @@ func (ksd KubernetesAgentDeployer) SetUp(ctxt AgentInfo) (DeployedAgent, error) 
 	if ksd.runTearDown || ksd.runTestsOnly {
 		logger.Debug("Skip install Elastic Agent in cluster")
 	} else {
-		err = installElasticAgentInCluster(ksd.profile, ksd.stackVersion)
+		err = installElasticAgentInCluster(ctx, ksd.profile, ksd.stackVersion)
 		if err != nil {
 			return nil, fmt.Errorf("can't install Elastic-Agent in the Kubernetes cluster: %w", err)
 		}
 	}
 
-	ctxt.Name = kind.ControlPlaneContainerName
-	ctxt.Hostname = kind.ControlPlaneContainerName
+	agentInfo.Name = kind.ControlPlaneContainerName
+	agentInfo.Hostname = kind.ControlPlaneContainerName
 	// kind-control-plane is the name of the kind host where Pod is running since we use hostNetwork setting
 	// to deploy Agent Pod. Because of this, hostname inside pod will be equal to the name of the k8s host.
-	ctxt.Agent.Host.NamePrefix = "kind-control-plane"
+	agentInfo.Agent.Host.NamePrefix = "kind-control-plane"
 	return &kubernetesDeployedAgent{
-		ctxt:           ctxt,
+		agentInfo:      agentInfo,
 		definitionsDir: ksd.definitionsDir,
 		profile:        ksd.profile,
 		stackVersion:   ksd.stackVersion,
@@ -134,7 +135,7 @@ func (ksd KubernetesAgentDeployer) SetUp(ctxt AgentInfo) (DeployedAgent, error) 
 
 var _ AgentDeployer = new(KubernetesAgentDeployer)
 
-func installElasticAgentInCluster(profile *profile.Profile, stackVersion string) error {
+func installElasticAgentInCluster(ctx context.Context, profile *profile.Profile, stackVersion string) error {
 	logger.Debug("install Elastic Agent in the Kubernetes cluster")
 
 	elasticAgentManagedYaml, err := getElasticAgentYAML(profile, stackVersion)
@@ -142,7 +143,7 @@ func installElasticAgentInCluster(profile *profile.Profile, stackVersion string)
 		return fmt.Errorf("can't retrieve Kubernetes file for Elastic Agent: %w", err)
 	}
 
-	err = kubectl.ApplyStdin(elasticAgentManagedYaml)
+	err = kubectl.ApplyStdin(ctx, elasticAgentManagedYaml)
 	if err != nil {
 		return fmt.Errorf("can't install Elastic-Agent in Kubernetes cluster: %w", err)
 	}

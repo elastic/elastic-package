@@ -20,6 +20,7 @@ import (
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/kibana"
+	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/signal"
 	"github.com/elastic/elastic-package/internal/stack"
@@ -228,8 +229,6 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 			}
 		}
 
-		signal.Enable()
-
 		var testFolders []testrunner.TestFolder
 		if hasDataStreams && runner.CanRunPerDataStream() {
 			var dataStreams []string
@@ -304,6 +303,9 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 
 		variantFlag, _ := cmd.Flags().GetString(cobraext.VariantFlagName)
 
+		ctx, stop := signal.Enable(cmd.Context(), logger.Info)
+		defer stop()
+
 		var esAPI *elasticsearch.API
 		if testType != "static" {
 			// static tests do not need a running Elasticsearch
@@ -311,7 +313,7 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 			if err != nil {
 				return fmt.Errorf("can't create Elasticsearch client: %w", err)
 			}
-			err = esClient.CheckHealth(cmd.Context())
+			err = esClient.CheckHealth(ctx)
 			if err != nil {
 				return err
 			}
@@ -344,7 +346,7 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 
 		var results []testrunner.TestResult
 		for _, folder := range testFolders {
-			r, err := testrunner.Run(testType, testrunner.TestOptions{
+			r, err := testrunner.Run(ctx, testType, testrunner.TestOptions{
 				Profile:                    profile,
 				TestFolder:                 folder,
 				PackageRootPath:            packageRootPath,

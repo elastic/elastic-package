@@ -6,6 +6,7 @@ package kubectl
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os/exec"
 	"path/filepath"
@@ -16,8 +17,8 @@ import (
 const kustomizationFile = "kustomization.yaml"
 
 // CurrentContext function returns the selected Kubernetes context.
-func CurrentContext() (string, error) {
-	cmd := exec.Command("kubectl", "config", "current-context")
+func CurrentContext(ctx context.Context) (string, error) {
+	cmd := exec.CommandContext(ctx, "kubectl", "config", "current-context")
 	errOutput := new(bytes.Buffer)
 	cmd.Stderr = errOutput
 
@@ -29,7 +30,7 @@ func CurrentContext() (string, error) {
 	return string(bytes.TrimSpace(output)), nil
 }
 
-func modifyKubernetesResources(action string, definitionPaths []string) ([]byte, error) {
+func modifyKubernetesResources(ctx context.Context, action string, definitionPaths []string) ([]byte, error) {
 	args := []string{action}
 	for _, definitionPath := range definitionPaths {
 		if filepath.Base(definitionPath) == kustomizationFile {
@@ -44,7 +45,7 @@ func modifyKubernetesResources(action string, definitionPaths []string) ([]byte,
 		args = append(args, "-o", "yaml")
 	}
 
-	cmd := exec.Command("kubectl", args...)
+	cmd := exec.CommandContext(ctx, "kubectl", args...)
 	errOutput := new(bytes.Buffer)
 	cmd.Stderr = errOutput
 
@@ -58,10 +59,10 @@ func modifyKubernetesResources(action string, definitionPaths []string) ([]byte,
 
 // applyKubernetesResourcesStdin applies a Kubernetes manifest provided as stdin.
 // It returns the resources created as output and an error
-func applyKubernetesResourcesStdin(input []byte) ([]byte, error) {
+func applyKubernetesResourcesStdin(ctx context.Context, input []byte) ([]byte, error) {
 	// create kubectl apply command
-	kubectlCmd := exec.Command("kubectl", "apply", "-f", "-", "-o", "yaml")
-	// Stdin of kubectl command is the manifest provided
+	kubectlCmd := exec.CommandContext(ctx, "kubectl", "apply", "-f", "-", "-o", "yaml")
+	//Stdin of kubectl command is the manifest provided
 	kubectlCmd.Stdin = bytes.NewReader(input)
 	errOutput := new(bytes.Buffer)
 	kubectlCmd.Stderr = errOutput
@@ -76,9 +77,9 @@ func applyKubernetesResourcesStdin(input []byte) ([]byte, error) {
 
 // deleteKubernetesResourcesStdin deletes a Kubernetes manifest provided as stdin.
 // It returns the resources deleted as output and an error
-func deleteKubernetesResourcesStdin(input []byte) ([]byte, error) {
+func deleteKubernetesResourcesStdin(ctx context.Context, input []byte) ([]byte, error) {
 	// create kubectl apply command
-	kubectlCmd := exec.Command("kubectl", "delete", "-f", "-")
+	kubectlCmd := exec.CommandContext(ctx, "kubectl", "delete", "-f", "-")
 	// Stdin of kubectl command is the manifest provided
 	kubectlCmd.Stdin = bytes.NewReader(input)
 	errOutput := new(bytes.Buffer)

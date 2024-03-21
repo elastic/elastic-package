@@ -4,10 +4,12 @@
 
 package agentdeployer
 
+import "golang.org/x/net/context"
+
 // AgentDeployer defines the interface for deploying an agent. It defines methods for
 // controlling the lifecycle of an agent.
 type AgentDeployer interface {
 	// SetUp implements the logic for setting up an agent. It takes a context and returns a
 	// AgentHandler.
-	SetUp(ctxt AgentInfo) (DeployedAgent, error)
+	SetUp(context.Context, AgentInfo) (DeployedAgent, error)
 }

@@ -78,7 +78,7 @@ func upCommandAction(cmd *cobra.Command, args []string) error {
 	}
 
 	_, serviceName := filepath.Split(packageRoot)
-	err = service.BootUp(service.Options{
+	err = service.BootUp(cmd.Context(), service.Options{
 		Profile:            profile,
 		ServiceName:        serviceName,
 		PackageRootPath:    packageRoot,

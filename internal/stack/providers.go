@@ -5,6 +5,7 @@
 package stack
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -34,19 +35,19 @@ type Printer interface {
 // Provider is the implementation of a stack provider.
 type Provider interface {
 	// BootUp starts a stack.
-	BootUp(Options) error
+	BootUp(context.Context, Options) error
 
 	// TearDown stops and/or removes a stack.
-	TearDown(Options) error
+	TearDown(context.Context, Options) error
 
 	// Update updates resources associated to a stack.
-	Update(Options) error
+	Update(context.Context, Options) error
 
 	// Dump dumps data for debug purpouses.
-	Dump(DumpOptions) (string, error)
+	Dump(context.Context, DumpOptions) (string, error)
 
 	// Status obtains status information of the stack.
-	Status(Options) ([]ServiceStatus, error)
+	Status(context.Context, Options) ([]ServiceStatus, error)
 }
 
 // BuildProvider returns the provider for the given name.
@@ -62,22 +63,22 @@ func BuildProvider(name string, profile *profile.Profile) (Provider, error) {
 
 type composeProvider struct{}
 
-func (*composeProvider) BootUp(options Options) error {
-	return BootUp(options)
+func (*composeProvider) BootUp(ctx context.Context, options Options) error {
+	return BootUp(ctx, options)
 }
 
-func (*composeProvider) TearDown(options Options) error {
-	return TearDown(options)
+func (*composeProvider) TearDown(ctx context.Context, options Options) error {
+	return TearDown(ctx, options)
 }
 
-func (*composeProvider) Update(options Options) error {
-	return Update(options)
+func (*composeProvider) Update(ctx context.Context, options Options) error {
+	return Update(ctx, options)
 }
 
-func (*composeProvider) Dump(options DumpOptions) (string, error) {
-	return Dump(options)
+func (*composeProvider) Dump(ctx context.Context, options DumpOptions) (string, error) {
+	return Dump(ctx, options)
 }
 
-func (*composeProvider) Status(options Options) ([]ServiceStatus, error) {
-	return Status(options)
+func (*composeProvider) Status(ctx context.Context, options Options) ([]ServiceStatus, error) {
+	return Status(ctx, options)
 }

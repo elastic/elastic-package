@@ -5,12 +5,14 @@
 package pipeline
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -21,10 +23,10 @@ import (
 	"github.com/elastic/elastic-package/internal/elasticsearch/ingest"
 	"github.com/elastic/elastic-package/internal/environment"
 	"github.com/elastic/elastic-package/internal/fields"
+	"github.com/elastic/elastic-package/internal/formatter"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/multierror"
 	"github.com/elastic/elastic-package/internal/packages"
-	"github.com/elastic/elastic-package/internal/signal"
 	"github.com/elastic/elastic-package/internal/stack"
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
@@ -67,7 +69,7 @@ func (r *runner) String() string {
 }
 
 // Run runs the pipeline tests defined under the given folder
-func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, error) {
+func (r *runner) Run(ctx context.Context, options testrunner.TestOptions) ([]testrunner.TestResult, error) {
 	r.options = options
 
 	stackConfig, err := stack.LoadConfig(r.options.Profile)
@@ -85,14 +87,17 @@ func (r *runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, e
 		}
 	}
 
-	return r.run()
+	return r.run(ctx)
 }
 
 // TearDown shuts down the pipeline test runner.
-func (r *runner) TearDown() error {
+func (r *runner) TearDown(ctx context.Context) error {
 	if r.options.DeferCleanup > 0 {
 		logger.Debugf("Waiting for %s before cleanup...", r.options.DeferCleanup)
-		signal.Sleep(r.options.DeferCleanup)
+		select {
+		case <-time.After(r.options.DeferCleanup):
+		case <-ctx.Done():
+		}
 	}
 
 	if err := ingest.UninstallPipelines(r.options.API, r.pipelines); err != nil {
@@ -113,7 +118,7 @@ func (r *runner) CanRunSetupTeardownIndependent() bool {
 	return false
 }
 
-func (r *runner) run() ([]testrunner.TestResult, error) {
+func (r *runner) run(ctx context.Context) ([]testrunner.TestResult, error) {
 	testCaseFiles, err := r.listTestCaseFiles()
 	if err != nil {
 		return nil, fmt.Errorf("listing test case definitions failed: %w", err)
@@ -172,82 +177,88 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 
 	results := make([]testrunner.TestResult, 0)
 	for _, testCaseFile := range testCaseFiles {
-		tr := testrunner.TestResult{
-			TestType:   TestType,
-			Package:    r.options.TestFolder.Package,
-			DataStream: r.options.TestFolder.DataStream,
-		}
-		startTime := time.Now()
-
-		tc, err := r.loadTestCaseFile(testCaseFile)
-		if err != nil {
-			err := fmt.Errorf("loading test case failed: %w", err)
-			tr.ErrorMsg = err.Error()
-			results = append(results, tr)
-			continue
-		}
-		tr.Name = tc.name
-
-		if tc.config.Skip != nil {
-			logger.Warnf("skipping %s test for %s/%s: %s (details: %s)",
-				TestType, r.options.TestFolder.Package, r.options.TestFolder.DataStream,
-				tc.config.Skip.Reason, tc.config.Skip.Link.String())
-
-			tr.Skipped = tc.config.Skip
-			results = append(results, tr)
-			continue
-		}
-
-		simulateDataStream := dsManifest.Type + "-" + r.options.TestFolder.Package + "." + r.options.TestFolder.DataStream + "-default"
-		processedEvents, err := ingest.SimulatePipeline(r.options.API, entryPipeline, tc.events, simulateDataStream)
-		if err != nil {
-			err := fmt.Errorf("simulating pipeline processing failed: %w", err)
-			tr.ErrorMsg = err.Error()
-			results = append(results, tr)
-			continue
-		}
-
-		result := &testResult{events: processedEvents}
-
-		tr.TimeElapsed = time.Since(startTime)
-		fieldsValidator, err := fields.CreateValidatorForDirectory(dataStreamPath,
+		validatorOptions := []fields.ValidatorOption{
 			fields.WithSpecVersion(pkgManifest.SpecVersion),
-			fields.WithNumericKeywordFields(tc.config.NumericKeywordFields),
 			// explicitly enabled for pipeline tests only
 			// since system tests can have dynamic public IPs
 			fields.WithEnabledAllowedIPCheck(),
 			fields.WithExpectedDatasets(expectedDatasets),
 			fields.WithEnabledImportAllECSSChema(true),
-		)
+		}
+		result, err := r.runTestCase(testCaseFile, dataStreamPath, dsManifest.Type, entryPipeline, validatorOptions)
 		if err != nil {
-			return nil, fmt.Errorf("creating fields validator for data stream failed (path: %s, test case file: %s): %w", dataStreamPath, testCaseFile, err)
+			return nil, err
 		}
-
-		err = r.verifyResults(testCaseFile, tc.config, result, fieldsValidator)
-		if e, ok := err.(testrunner.ErrTestCaseFailed); ok {
-			tr.FailureMsg = e.Error()
-			tr.FailureDetails = e.Details
-
-			results = append(results, tr)
-			continue
-		}
-		if err != nil {
-			err := fmt.Errorf("verifying test result failed: %w", err)
-			tr.ErrorMsg = err.Error()
-			results = append(results, tr)
-			continue
-		}
-
-		if r.options.WithCoverage {
-			tr.Coverage, err = GetPipelineCoverage(r.options, r.pipelines)
-			if err != nil {
-				return nil, fmt.Errorf("error calculating pipeline coverage: %w", err)
-			}
-		}
-		results = append(results, tr)
+		results = append(results, result)
 	}
 
 	return results, nil
+}
+
+func (r *runner) runTestCase(testCaseFile string, dsPath string, dsType string, pipeline string, validatorOptions []fields.ValidatorOption) (testrunner.TestResult, error) {
+	tr := testrunner.TestResult{
+		TestType:   TestType,
+		Package:    r.options.TestFolder.Package,
+		DataStream: r.options.TestFolder.DataStream,
+	}
+	startTime := time.Now()
+
+	tc, err := loadTestCaseFile(r.options.TestFolder.Path, testCaseFile)
+	if err != nil {
+		err := fmt.Errorf("loading test case failed: %w", err)
+		tr.ErrorMsg = err.Error()
+		return tr, nil
+	}
+	tr.Name = tc.name
+
+	if tc.config.Skip != nil {
+		logger.Warnf("skipping %s test for %s/%s: %s (details: %s)",
+			TestType, r.options.TestFolder.Package, r.options.TestFolder.DataStream,
+			tc.config.Skip.Reason, tc.config.Skip.Link.String())
+
+		tr.Skipped = tc.config.Skip
+		return tr, nil
+	}
+
+	simulateDataStream := dsType + "-" + r.options.TestFolder.Package + "." + r.options.TestFolder.DataStream + "-default"
+	processedEvents, err := ingest.SimulatePipeline(r.options.API, pipeline, tc.events, simulateDataStream)
+	if err != nil {
+		err := fmt.Errorf("simulating pipeline processing failed: %w", err)
+		tr.ErrorMsg = err.Error()
+		return tr, nil
+	}
+
+	result := &testResult{events: processedEvents}
+
+	tr.TimeElapsed = time.Since(startTime)
+	validatorOptions = append(slices.Clone(validatorOptions),
+		fields.WithNumericKeywordFields(tc.config.NumericKeywordFields),
+	)
+	fieldsValidator, err := fields.CreateValidatorForDirectory(dsPath, validatorOptions...)
+	if err != nil {
+		return tr, fmt.Errorf("creating fields validator for data stream failed (path: %s, test case file: %s): %w", dsPath, testCaseFile, err)
+	}
+
+	err = r.verifyResults(testCaseFile, tc.config, result, fieldsValidator)
+	if e, ok := err.(testrunner.ErrTestCaseFailed); ok {
+		tr.FailureMsg = e.Error()
+		tr.FailureDetails = e.Details
+		return tr, nil
+	}
+	if err != nil {
+		err := fmt.Errorf("verifying test result failed: %w", err)
+		tr.ErrorMsg = err.Error()
+		return tr, nil
+	}
+
+	if r.options.WithCoverage {
+		tr.Coverage, err = GetPipelineCoverage(r.options, r.pipelines)
+		if err != nil {
+			return tr, fmt.Errorf("error calculating pipeline coverage: %w", err)
+		}
+	}
+
+	return tr, nil
 }
 
 func (r *runner) listTestCaseFiles() ([]string, error) {
@@ -267,8 +278,8 @@ func (r *runner) listTestCaseFiles() ([]string, error) {
 	return files, nil
 }
 
-func (r *runner) loadTestCaseFile(testCaseFile string) (*testCase, error) {
-	testCasePath := filepath.Join(r.options.TestFolder.Path, testCaseFile)
+func loadTestCaseFile(testFolderPath, testCaseFile string) (*testCase, error) {
+	testCasePath := filepath.Join(testFolderPath, testCaseFile)
 	testCaseData, err := os.ReadFile(testCasePath)
 	if err != nil {
 		return nil, fmt.Errorf("reading input file failed (testCasePath: %s): %w", testCasePath, err)
@@ -330,7 +341,7 @@ func (r *runner) verifyResults(testCaseFile string, config *testConfig, result *
 		}
 	}
 
-	// TODO: temporary workaround untill there could be implemented other approach for deterministic geoip in serverless.
+	// TODO: temporary workaround until other approach for deterministic geoip in serverless can be implemented.
 	if r.runCompareResults {
 		err = compareResults(testCasePath, config, result, *specVersion)
 		if _, ok := err.(testrunner.ErrTestCaseFailed); ok {
@@ -376,7 +387,7 @@ func verifyDynamicFields(result *testResult, config *testConfig) error {
 	var multiErr multierror.Error
 	for _, event := range result.events {
 		var m common.MapStr
-		err := jsonUnmarshalUsingNumber(event, &m)
+		err := formatter.JSONUnmarshalUsingNumber(event, &m)
 		if err != nil {
 			return fmt.Errorf("can't unmarshal event: %w", err)
 		}
@@ -443,7 +454,7 @@ func checkErrorMessage(event json.RawMessage) error {
 			Message interface{}
 		}
 	}
-	err := jsonUnmarshalUsingNumber(event, &pipelineError)
+	err := formatter.JSONUnmarshalUsingNumber(event, &pipelineError)
 	if err != nil {
 		return fmt.Errorf("can't unmarshal event to check pipeline error: %#q: %w", event, err)
 	}

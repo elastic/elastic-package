@@ -6,6 +6,7 @@ package servicedeployer
 
 import (
 	"bytes"
+	"context"
 	_ "embed"
 	"encoding/base64"
 	"fmt"
@@ -48,12 +49,12 @@ type KubernetesServiceDeployerOptions struct {
 }
 
 type kubernetesDeployedService struct {
-	ctxt ServiceContext
+	svcInfo ServiceInfo
 
 	definitionsDir string
 }
 
-func (s kubernetesDeployedService) TearDown() error {
+func (s kubernetesDeployedService) TearDown(ctx context.Context) error {
 	logger.Debugf("uninstall custom Kubernetes definitions (directory: %s)", s.definitionsDir)
 
 	definitionPaths, err := findKubernetesDefinitions(s.definitionsDir)
@@ -66,27 +67,27 @@ func (s kubernetesDeployedService) TearDown() error {
 		return nil
 	}
 
-	err = kubectl.Delete(definitionPaths)
+	err = kubectl.Delete(ctx, definitionPaths)
 	if err != nil {
 		return fmt.Errorf("can't uninstall Kubernetes resources (path: %s): %w", s.definitionsDir, err)
 	}
 	return nil
 }
 
-func (s kubernetesDeployedService) Signal(_ string) error {
+func (s kubernetesDeployedService) Signal(_ context.Context, _ string) error {
 	return ErrNotSupported
 }
 
-func (s kubernetesDeployedService) ExitCode(_ string) (bool, int, error) {
+func (s kubernetesDeployedService) ExitCode(_ context.Context, _ string) (bool, int, error) {
 	return false, -1, ErrNotSupported
 }
 
-func (s kubernetesDeployedService) Context() ServiceContext {
-	return s.ctxt
+func (s kubernetesDeployedService) Info() ServiceInfo {
+	return s.svcInfo
 }
 
-func (s *kubernetesDeployedService) SetContext(sc ServiceContext) error {
-	s.ctxt = sc
+func (s *kubernetesDeployedService) SetInfo(sc ServiceInfo) error {
+	s.svcInfo = sc
 	return nil
 }
 
@@ -105,10 +106,10 @@ func NewKubernetesServiceDeployer(opts KubernetesServiceDeployerOptions) (*Kuber
 	}, nil
 }
 
-// SetUp function links the kind container with elastic-package-stack network, installs
-// custom YAML definitions if any.
-func (ksd KubernetesServiceDeployer) SetUp(ctxt ServiceContext) (DeployedService, error) {
-	err := kind.VerifyContext()
+// SetUp function links the kind container with elastic-package-stack network, installs Elastic-Agent and optionally
+// custom YAML definitions.
+func (ksd KubernetesServiceDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (DeployedService, error) {
+	err := kind.VerifyContext(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("kind context verification failed: %w", err)
 	}
@@ -125,31 +126,31 @@ func (ksd KubernetesServiceDeployer) SetUp(ctxt ServiceContext) (DeployedService
 	if ksd.runTearDown || ksd.runTestsOnly || !ksd.deployAgent {
 		logger.Debug("Skip install Elastic Agent in cluster")
 	} else {
-		err = installElasticAgentInCluster(ksd.profile, ksd.stackVersion)
+		err = installElasticAgentInCluster(ctx, ksd.profile, ksd.stackVersion)
 		if err != nil {
 			return nil, fmt.Errorf("can't install Elastic-Agent in the Kubernetes cluster: %w", err)
 		}
 	}
 
 	if !ksd.runTearDown {
-		err = ksd.installCustomDefinitions()
+		err = ksd.installCustomDefinitions(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("can't install custom definitions in the Kubernetes cluster: %w", err)
 		}
 	}
 
-	ctxt.Name = kind.ControlPlaneContainerName
-	ctxt.Hostname = kind.ControlPlaneContainerName
+	svcInfo.Name = kind.ControlPlaneContainerName
+	svcInfo.Hostname = kind.ControlPlaneContainerName
 	// kind-control-plane is the name of the kind host where Pod is running since we use hostNetwork setting
 	// to deploy Agent Pod. Because of this, hostname inside pod will be equal to the name of the k8s host.
-	ctxt.Agent.Host.NamePrefix = "kind-control-plane"
+	svcInfo.Agent.Host.NamePrefix = "kind-control-plane"
 	return &kubernetesDeployedService{
-		ctxt:           ctxt,
+		svcInfo:        svcInfo,
 		definitionsDir: ksd.definitionsDir,
 	}, nil
 }
 
-func (ksd KubernetesServiceDeployer) installCustomDefinitions() error {
+func (ksd KubernetesServiceDeployer) installCustomDefinitions(ctx context.Context) error {
 	logger.Debugf("install custom Kubernetes definitions (directory: %s)", ksd.definitionsDir)
 
 	definitionPaths, err := findKubernetesDefinitions(ksd.definitionsDir)
@@ -162,7 +163,7 @@ func (ksd KubernetesServiceDeployer) installCustomDefinitions() error {
 		return nil
 	}
 
-	err = kubectl.Apply(definitionPaths)
+	err = kubectl.Apply(ctx, definitionPaths)
 	if err != nil {
 		return fmt.Errorf("can't install custom definitions: %w", err)
 	}
@@ -182,7 +183,7 @@ func findKubernetesDefinitions(definitionsDir string) ([]string, error) {
 	return definitionPaths, nil
 }
 
-func installElasticAgentInCluster(profile *profile.Profile, stackVersion string) error {
+func installElasticAgentInCluster(ctx context.Context, profile *profile.Profile, stackVersion string) error {
 	logger.Debug("install Elastic Agent in the Kubernetes cluster")
 
 	elasticAgentManagedYaml, err := getElasticAgentYAML(profile, stackVersion)
@@ -190,7 +191,7 @@ func installElasticAgentInCluster(profile *profile.Profile, stackVersion string)
 		return fmt.Errorf("can't retrieve Kubernetes file for Elastic Agent: %w", err)
 	}
 
-	err = kubectl.ApplyStdin(elasticAgentManagedYaml)
+	err = kubectl.ApplyStdin(ctx, elasticAgentManagedYaml)
 	if err != nil {
 		return fmt.Errorf("can't install Elastic-Agent in Kubernetes cluster: %w", err)
 	}

@@ -5,6 +5,7 @@
 package static
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -42,12 +43,12 @@ func (r runner) String() string {
 	return "static files"
 }
 
-func (r runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, error) {
+func (r runner) Run(ctx context.Context, options testrunner.TestOptions) ([]testrunner.TestResult, error) {
 	r.options = options
-	return r.run()
+	return r.run(ctx)
 }
 
-func (r runner) run() ([]testrunner.TestResult, error) {
+func (r runner) run(ctx context.Context) ([]testrunner.TestResult, error) {
 	result := testrunner.NewResultComposer(testrunner.TestResult{
 		TestType:   TestType,
 		Package:    r.options.TestFolder.Package,
@@ -167,7 +168,7 @@ func (r runner) getExpectedDatasets(pkgManifest *packages.PackageManifest) ([]st
 	return []string{pkgManifest.Name + "." + dsName}, nil
 }
 
-func (r runner) TearDown() error {
+func (r runner) TearDown(ctx context.Context) error {
 	return nil // it's a static test runner, no state is stored
 }
 

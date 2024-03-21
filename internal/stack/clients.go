@@ -5,6 +5,7 @@
 package stack
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -45,7 +46,8 @@ func NewElasticsearchClientFromProfile(profile *profile.Profile, customOptions .
 
 	elasticsearchHost, found := os.LookupEnv(ElasticsearchHostEnv)
 	if !found {
-		status, err := Status(Options{Profile: profile})
+		// Using backgound context on initial call to avoid context cancellation.
+		status, err := Status(context.Background(), Options{Profile: profile})
 		if err != nil {
 			return nil, fmt.Errorf("failed to check status of stack in current profile: %w", err)
 		}
@@ -109,7 +111,8 @@ func NewKibanaClientFromProfile(profile *profile.Profile, customOptions ...kiban
 
 	kibanaHost, found := os.LookupEnv(KibanaHostEnv)
 	if !found {
-		status, err := Status(Options{Profile: profile})
+		// Using backgound context on initial call to avoid context cancellation.
+		status, err := Status(context.Background(), Options{Profile: profile})
 		if err != nil {
 			return nil, fmt.Errorf("failed to check status of stack in current profile: %w", err)
 		}

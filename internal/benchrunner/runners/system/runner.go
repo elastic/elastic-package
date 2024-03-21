@@ -27,13 +27,12 @@ import (
 	"github.com/elastic/elastic-package/internal/benchrunner/reporters"
 	"github.com/elastic/elastic-package/internal/benchrunner/runners/common"
 	"github.com/elastic/elastic-package/internal/configuration/locations"
-	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/multierror"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/servicedeployer"
-	"github.com/elastic/elastic-package/internal/signal"
+	"github.com/elastic/elastic-package/internal/wait"
 )
 
 const (
@@ -49,7 +48,7 @@ type runner struct {
 	options  Options
 	scenario *scenario
 
-	ctxt              servicedeployer.ServiceContext
+	svcInfo           servicedeployer.ServiceInfo
 	benchPolicy       *kibana.Policy
 	runtimeDataStream string
 	pipelinePrefix    string
@@ -58,64 +57,71 @@ type runner struct {
 	corporaFile       string
 
 	// Execution order of following handlers is defined in runner.TearDown() method.
-	deletePolicyHandler     func() error
-	resetAgentPolicyHandler func() error
-	shutdownServiceHandler  func() error
-	wipeDataStreamHandler   func() error
-	clearCorporaHandler     func() error
+	deletePolicyHandler     func(context.Context) error
+	resetAgentPolicyHandler func(context.Context) error
+	shutdownServiceHandler  func(context.Context) error
+	wipeDataStreamHandler   func(context.Context) error
+	clearCorporaHandler     func(context.Context) error
 }
 
 func NewSystemBenchmark(opts Options) benchrunner.Runner {
 	return &runner{options: opts}
 }
 
-func (r *runner) SetUp() error {
-	return r.setUp()
+func (r *runner) SetUp(ctx context.Context) error {
+	return r.setUp(ctx)
 }
 
 // Run runs the system benchmarks defined under the given folder
-func (r *runner) Run() (reporters.Reportable, error) {
-	return r.run()
+func (r *runner) Run(ctx context.Context) (reporters.Reportable, error) {
+	return r.run(ctx)
 }
 
-func (r *runner) TearDown() error {
+func (r *runner) TearDown(ctx context.Context) error {
 	if r.options.DeferCleanup > 0 {
 		logger.Debugf("waiting for %s before tearing down...", r.options.DeferCleanup)
-		signal.Sleep(r.options.DeferCleanup)
+		select {
+		case <-time.After(r.options.DeferCleanup):
+		case <-ctx.Done():
+		}
+
 	}
+
+	// Avoid cancellations during cleanup.
+	cleanupCtx := context.WithoutCancel(ctx)
 
 	var merr multierror.Error
 
 	if r.resetAgentPolicyHandler != nil {
-		if err := r.resetAgentPolicyHandler(); err != nil {
+		if err := r.resetAgentPolicyHandler(cleanupCtx); err != nil {
 			merr = append(merr, err)
 		}
 		r.resetAgentPolicyHandler = nil
 	}
 
 	if r.deletePolicyHandler != nil {
-		if err := r.deletePolicyHandler(); err != nil {
+		if err := r.deletePolicyHandler(cleanupCtx); err != nil {
 			merr = append(merr, err)
 		}
 		r.deletePolicyHandler = nil
 	}
 
 	if r.shutdownServiceHandler != nil {
-		if err := r.shutdownServiceHandler(); err != nil {
+		if err := r.shutdownServiceHandler(cleanupCtx); err != nil {
 			merr = append(merr, err)
 		}
 		r.shutdownServiceHandler = nil
 	}
 
 	if r.wipeDataStreamHandler != nil {
-		if err := r.wipeDataStreamHandler(); err != nil {
+		if err := r.wipeDataStreamHandler(cleanupCtx); err != nil {
 			merr = append(merr, err)
 		}
 		r.wipeDataStreamHandler = nil
 	}
 
 	if r.clearCorporaHandler != nil {
-		if err := r.clearCorporaHandler(); err != nil {
+		if err := r.clearCorporaHandler(cleanupCtx); err != nil {
 			merr = append(merr, err)
 		}
 		r.clearCorporaHandler = nil
@@ -127,24 +133,24 @@ func (r *runner) TearDown() error {
 	return merr
 }
 
-func (r *runner) setUp() error {
+func (r *runner) setUp(ctx context.Context) error {
 	locationManager, err := locations.NewLocationManager()
 	if err != nil {
 		return fmt.Errorf("reading service logs directory failed: %w", err)
 	}
 
 	serviceLogsDir := locationManager.ServiceLogDir()
-	r.ctxt.Logs.Folder.Local = serviceLogsDir
-	r.ctxt.Logs.Folder.Agent = ServiceLogsAgentDir
-	r.ctxt.Test.RunID = common.NewRunID()
+	r.svcInfo.Logs.Folder.Local = serviceLogsDir
+	r.svcInfo.Logs.Folder.Agent = ServiceLogsAgentDir
+	r.svcInfo.Test.RunID = common.NewRunID()
 
-	outputDir, err := servicedeployer.CreateOutputDir(locationManager, r.ctxt.Test.RunID)
+	outputDir, err := servicedeployer.CreateOutputDir(locationManager, r.svcInfo.Test.RunID)
 	if err != nil {
 		return fmt.Errorf("could not create output dir for terraform deployer %w", err)
 	}
-	r.ctxt.OutputDir = outputDir
+	r.svcInfo.OutputDir = outputDir
 
-	scenario, err := readConfig(r.options.BenchPath, r.options.BenchName, r.ctxt)
+	scenario, err := readConfig(r.options.BenchPath, r.options.BenchName, r.svcInfo)
 	if err != nil {
 		return err
 	}
@@ -152,7 +158,7 @@ func (r *runner) setUp() error {
 
 	if r.scenario.Corpora.Generator != nil {
 		var err error
-		r.generator, err = r.initializeGenerator()
+		r.generator, err = r.initializeGenerator(ctx)
 		if err != nil {
 			return fmt.Errorf("can't initialize generator: %w", err)
 		}
@@ -196,7 +202,7 @@ func (r *runner) setUp() error {
 		r.scenario.Version,
 	)
 
-	r.wipeDataStreamHandler = func() error {
+	r.wipeDataStreamHandler = func(ctx context.Context) error {
 		logger.Debugf("deleting data in data stream...")
 		if err := r.deleteDataStreamDocs(r.runtimeDataStream); err != nil {
 			return fmt.Errorf("error deleting data in data stream: %w", err)
@@ -208,14 +214,10 @@ func (r *runner) setUp() error {
 		return fmt.Errorf("error deleting old data in data stream: %s: %w", r.runtimeDataStream, err)
 	}
 
-	cleared, err := waitUntilTrue(func() (bool, error) {
-		if signal.SIGINT() {
-			return true, errors.New("SIGINT: cancel clearing data")
-		}
-
-		hits, err := getTotalHits(r.options.ESAPI, r.runtimeDataStream)
+	cleared, err := wait.UntilTrue(ctx, func(ctx context.Context) (bool, error) {
+		hits, err := common.CountDocsInDataStream(ctx, r.options.ESAPI, r.runtimeDataStream)
 		return hits == 0, err
-	}, 2*time.Minute)
+	}, 5*time.Second, 2*time.Minute)
 	if err != nil || !cleared {
 		if err == nil {
 			err = errors.New("unable to clear previous data")
@@ -226,7 +228,7 @@ func (r *runner) setUp() error {
 	return nil
 }
 
-func (r *runner) run() (report reporters.Reportable, err error) {
+func (r *runner) run(ctx context.Context) (report reporters.Reportable, err error) {
 	var service servicedeployer.DeployedService
 	if r.scenario.Corpora.InputService != nil {
 		stackVersion, err := r.options.KibanaClient.Version()
@@ -252,16 +254,16 @@ func (r *runner) run() (report reporters.Reportable, err error) {
 			return nil, fmt.Errorf("could not create service runner: %w", err)
 		}
 
-		r.ctxt.Name = r.scenario.Corpora.InputService.Name
-		service, err = serviceDeployer.SetUp(r.ctxt)
+		r.svcInfo.Name = r.scenario.Corpora.InputService.Name
+		service, err = serviceDeployer.SetUp(ctx, r.svcInfo)
 		if err != nil {
 			return nil, fmt.Errorf("could not setup service: %w", err)
 		}
 
-		r.ctxt = service.Context()
-		r.shutdownServiceHandler = func() error {
+		r.svcInfo = service.Info()
+		r.shutdownServiceHandler = func(ctx context.Context) error {
 			logger.Debug("tearing down service...")
-			if err := service.TearDown(); err != nil {
+			if err := service.TearDown(ctx); err != nil {
 				return fmt.Errorf("error tearing down service: %w", err)
 			}
 
@@ -269,30 +271,30 @@ func (r *runner) run() (report reporters.Reportable, err error) {
 		}
 	}
 
-	r.startMetricsColletion()
+	r.startMetricsColletion(ctx)
 	defer r.mcollector.stop()
 
 	// if there is a generator config, generate the data
 	if r.generator != nil {
-		logger.Debugf("generating corpus data to %s...", r.ctxt.Logs.Folder.Local)
-		if err := r.runGenerator(r.ctxt.Logs.Folder.Local); err != nil {
+		logger.Debugf("generating corpus data to %s...", r.svcInfo.Logs.Folder.Local)
+		if err := r.runGenerator(r.svcInfo.Logs.Folder.Local); err != nil {
 			return nil, fmt.Errorf("can't generate benchmarks data corpus for data stream: %w", err)
 		}
 	}
 
 	// once data is generated, enroll agents and assign policy
-	if err := r.enrollAgents(); err != nil {
+	if err := r.enrollAgents(ctx); err != nil {
 		return nil, err
 	}
 
 	// Signal to the service that the agent is ready (policy is assigned).
 	if r.scenario.Corpora.InputService != nil && r.scenario.Corpora.InputService.Signal != "" {
-		if err = service.Signal(r.scenario.Corpora.InputService.Signal); err != nil {
+		if err = service.Signal(ctx, r.scenario.Corpora.InputService.Signal); err != nil {
 			return nil, fmt.Errorf("failed to notify benchmark service: %w", err)
 		}
 	}
 
-	finishedOnTime, err := r.waitUntilBenchmarkFinishes()
+	finishedOnTime, err := r.waitUntilBenchmarkFinishes(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -312,10 +314,10 @@ func (r *runner) run() (report reporters.Reportable, err error) {
 	return createReport(r.options.BenchName, r.corporaFile, r.scenario, msum)
 }
 
-func (r *runner) startMetricsColletion() {
+func (r *runner) startMetricsColletion(ctx context.Context) {
 	// TODO collect agent hosts metrics using system integration
 	r.mcollector = newCollector(
-		r.ctxt,
+		r.svcInfo,
 		r.options.BenchName,
 		*r.scenario,
 		r.options.ESAPI,
@@ -324,7 +326,7 @@ func (r *runner) startMetricsColletion() {
 		r.runtimeDataStream,
 		r.pipelinePrefix,
 	)
-	r.mcollector.start()
+	r.mcollector.start(ctx)
 }
 
 func (r *runner) collectAndSummarizeMetrics() (*metricsSummary, error) {
@@ -378,7 +380,7 @@ func (r *runner) createBenchmarkPolicy(pkgManifest *packages.PackageManifest) (*
 		return nil, err
 	}
 
-	r.deletePolicyHandler = func() error {
+	r.deletePolicyHandler = func(ctx context.Context) error {
 		var merr multierror.Error
 
 		logger.Debug("deleting benchmark package policy...")
@@ -444,7 +446,7 @@ func (r *runner) createPackagePolicy(pkgManifest *packages.PackageManifest, p *k
 	return policy, nil
 }
 
-func (r *runner) initializeGenerator() (genlib.Generator, error) {
+func (r *runner) initializeGenerator(ctx context.Context) (genlib.Generator, error) {
 	totEvents := r.scenario.Corpora.Generator.TotalEvents
 
 	config, err := r.getGeneratorConfig()
@@ -452,7 +454,7 @@ func (r *runner) initializeGenerator() (genlib.Generator, error) {
 		return nil, err
 	}
 
-	fields, err := r.getGeneratorFields()
+	fields, err := r.getGeneratorFields(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -514,7 +516,7 @@ func (r *runner) getGeneratorConfig() (*config.Config, error) {
 	return &cfg, nil
 }
 
-func (r *runner) getGeneratorFields() (fields.Fields, error) {
+func (r *runner) getGeneratorFields(ctx context.Context) (fields.Fields, error) {
 	var (
 		data []byte
 		err  error
@@ -538,7 +540,7 @@ func (r *runner) getGeneratorFields() (fields.Fields, error) {
 		}
 	}
 
-	fields, err := fields.LoadFieldsWithTemplateFromString(context.Background(), string(data))
+	fields, err := fields.LoadFieldsWithTemplateFromString(ctx, string(data))
 	if err != nil {
 		return nil, fmt.Errorf("could not load fields yaml: %w", err)
 	}
@@ -609,19 +611,16 @@ func (r *runner) runGenerator(destDir string) error {
 	}
 
 	r.corporaFile = f.Name()
-	r.clearCorporaHandler = func() error {
+	r.clearCorporaHandler = func(ctx context.Context) error {
 		return os.Remove(r.corporaFile)
 	}
 
 	return r.generator.Close()
 }
 
-func (r *runner) checkEnrolledAgents() ([]kibana.Agent, error) {
+func (r *runner) checkEnrolledAgents(ctx context.Context) ([]kibana.Agent, error) {
 	var agents []kibana.Agent
-	enrolled, err := waitUntilTrue(func() (bool, error) {
-		if signal.SIGINT() {
-			return false, errors.New("SIGINT: cancel checking enrolled agents")
-		}
+	enrolled, err := wait.UntilTrue(ctx, func(ctx context.Context) (bool, error) {
 		allAgents, err := r.options.KibanaClient.ListAgents()
 		if err != nil {
 			return false, fmt.Errorf("could not list agents: %w", err)
@@ -633,7 +632,7 @@ func (r *runner) checkEnrolledAgents() ([]kibana.Agent, error) {
 		}
 
 		return true, nil
-	}, 5*time.Minute)
+	}, 5*time.Second, 5*time.Minute)
 	if err != nil {
 		return nil, fmt.Errorf("agent enrollment failed: %w", err)
 	}
@@ -643,7 +642,7 @@ func (r *runner) checkEnrolledAgents() ([]kibana.Agent, error) {
 	return agents, nil
 }
 
-func (r *runner) waitUntilBenchmarkFinishes() (bool, error) {
+func (r *runner) waitUntilBenchmarkFinishes(ctx context.Context) (bool, error) {
 	logger.Debug("checking for all data in data stream...")
 	var benchTime *time.Timer
 	if r.scenario.BenchmarkTimePeriod > 0 {
@@ -651,13 +650,9 @@ func (r *runner) waitUntilBenchmarkFinishes() (bool, error) {
 	}
 
 	oldHits := 0
-	return waitUntilTrue(func() (bool, error) {
-		if signal.SIGINT() {
-			return true, errors.New("SIGINT: cancel waiting for policy assigned")
-		}
-
+	return wait.UntilTrue(ctx, func(ctx context.Context) (bool, error) {
 		var err error
-		hits, err := getTotalHits(r.options.ESAPI, r.runtimeDataStream)
+		hits, err := common.CountDocsInDataStream(ctx, r.options.ESAPI, r.runtimeDataStream)
 		if hits == 0 {
 			return false, err
 		}
@@ -677,16 +672,16 @@ func (r *runner) waitUntilBenchmarkFinishes() (bool, error) {
 		}
 
 		return ret, err
-	}, *r.scenario.WaitForDataTimeout)
+	}, 5*time.Second, *r.scenario.WaitForDataTimeout)
 }
 
-func (r *runner) enrollAgents() error {
-	agents, err := r.checkEnrolledAgents()
+func (r *runner) enrollAgents(ctx context.Context) error {
+	agents, err := r.checkEnrolledAgents(ctx)
 	if err != nil {
 		return fmt.Errorf("can't check enrolled agents: %w", err)
 	}
 
-	handlers := make([]func() error, len(agents))
+	handlers := make([]func(context.Context) error, len(agents))
 	for i, agent := range agents {
 		origPolicy := kibana.Policy{
 			ID:       agent.PolicyID,
@@ -694,9 +689,9 @@ func (r *runner) enrollAgents() error {
 		}
 
 		// Assign policy to agent
-		handlers[i] = func() error {
+		handlers[i] = func(ctx context.Context) error {
 			logger.Debug("reassigning original policy back to agent...")
-			if err := r.options.KibanaClient.AssignPolicyToAgent(agent, origPolicy); err != nil {
+			if err := r.options.KibanaClient.AssignPolicyToAgent(ctx, agent, origPolicy); err != nil {
 				return fmt.Errorf("error reassigning original policy to agent %s: %w", agent.ID, err)
 			}
 			return nil
@@ -708,15 +703,15 @@ func (r *runner) enrollAgents() error {
 		}
 
 		logger.Debug("assigning package data stream to agent...")
-		if err := r.options.KibanaClient.AssignPolicyToAgent(agent, *policyWithDataStream); err != nil {
+		if err := r.options.KibanaClient.AssignPolicyToAgent(ctx, agent, *policyWithDataStream); err != nil {
 			return fmt.Errorf("could not assign policy to agent: %w", err)
 		}
 	}
 
-	r.resetAgentPolicyHandler = func() error {
+	r.resetAgentPolicyHandler = func(ctx context.Context) error {
 		var merr multierror.Error
 		for _, h := range handlers {
-			if err := h(); err != nil {
+			if err := h(ctx); err != nil {
 				merr = append(merr, err)
 			}
 		}
@@ -782,7 +777,7 @@ func (r *runner) reindexData() error {
 		}`, mapping)),
 	)
 
-	indexName := fmt.Sprintf("bench-reindex-%s-%s", r.runtimeDataStream, r.ctxt.Test.RunID)
+	indexName := fmt.Sprintf("bench-reindex-%s-%s", r.runtimeDataStream, r.svcInfo.Test.RunID)
 
 	logger.Debugf("creating %s index in metricstore...", indexName)
 
@@ -906,48 +901,10 @@ type benchMeta struct {
 func (r *runner) enrichEventWithBenchmarkMetadata(e map[string]interface{}) map[string]interface{} {
 	var m benchMeta
 	m.Info.Benchmark = r.options.BenchName
-	m.Info.RunID = r.ctxt.Test.RunID
+	m.Info.RunID = r.svcInfo.Test.RunID
 	m.Parameters = *r.scenario
 	e["benchmark_metadata"] = m
 	return e
-}
-
-func getTotalHits(esapi *elasticsearch.API, dataStream string) (int, error) {
-	resp, err := esapi.Count(
-		esapi.Count.WithIndex(dataStream),
-		esapi.Count.WithIgnoreUnavailable(true),
-	)
-	if err != nil {
-		return 0, fmt.Errorf("could not search data stream: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.IsError() {
-		return 0, fmt.Errorf("failed to get hits count: %s", resp.String())
-	}
-
-	var results struct {
-		Count int
-		Error *struct {
-			Type   string
-			Reason string
-		}
-		Status int
-	}
-
-	if err := json.NewDecoder(resp.Body).Decode(&results); err != nil {
-		return 0, fmt.Errorf("could not decode search results response: %w", err)
-	}
-
-	numHits := results.Count
-	if results.Error != nil {
-		logger.Debugf("found %d hits in %s data stream: %s: %s Status=%d",
-			numHits, dataStream, results.Error.Type, results.Error.Reason, results.Status)
-	} else {
-		logger.Debugf("found %d hits in %s data stream", numHits, dataStream)
-	}
-
-	return numHits, nil
 }
 
 func filterAgents(allAgents []kibana.Agent) []kibana.Agent {
@@ -969,29 +926,4 @@ func filterAgents(allAgents []kibana.Agent) []kibana.Agent {
 		filtered = append(filtered, agent)
 	}
 	return filtered
-}
-
-func waitUntilTrue(fn func() (bool, error), timeout time.Duration) (bool, error) {
-	timeoutTicker := time.NewTicker(timeout)
-	defer timeoutTicker.Stop()
-
-	retryTicker := time.NewTicker(5 * time.Second)
-	defer retryTicker.Stop()
-
-	for {
-		result, err := fn()
-		if err != nil {
-			return false, err
-		}
-		if result {
-			return true, nil
-		}
-
-		select {
-		case <-retryTicker.C:
-			continue
-		case <-timeoutTicker.C:
-			return false, nil
-		}
-	}
 }

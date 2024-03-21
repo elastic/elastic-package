@@ -5,41 +5,22 @@
 package signal
 
 import (
+	"context"
 	"os"
 	"os/signal"
-	"syscall"
-	"time"
-
-	"github.com/elastic/elastic-package/internal/logger"
 )
 
-var ch chan os.Signal
+// Enable returns a context configured to be cancelled if an interruption signal
+// is received.
+// Returned context can be cancelled explicitly with the returned function.
+func Enable(ctx context.Context, infoLogger func(a ...any)) (notifyCtx context.Context, stop func()) {
+	notifyCtx, stopNotify := signal.NotifyContext(ctx, os.Interrupt)
+	stopLogger := context.AfterFunc(notifyCtx, func() {
+		infoLogger("Signal caught!")
+	})
 
-// Enable function enables signal notifications.
-func Enable() {
-	ch = make(chan os.Signal, 1)
-	signal.Notify(ch, os.Interrupt, syscall.SIGTERM)
-}
-
-// SIGINT function returns true if ctrl+c was pressed
-func SIGINT() bool {
-	select {
-	case <-ch:
-		logger.Info("Signal caught!")
-		return true
-	default:
-		return false
-	}
-}
-
-// Sleep is the equivalent of time.Sleep with the exception
-// that is will end the sleep if ctrl+c is pressed.
-func Sleep(d time.Duration) {
-	timer := time.NewTimer(d)
-	select {
-	case <-ch:
-		logger.Info("Signal caught!")
-		timer.Stop()
-	case <-timer.C:
+	return notifyCtx, func() {
+		stopLogger()
+		stopNotify()
 	}
 }

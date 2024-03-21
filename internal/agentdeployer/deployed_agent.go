@@ -4,17 +4,21 @@
 
 package agentdeployer
 
-import "errors"
+import (
+	"errors"
+
+	"golang.org/x/net/context"
+)
 
 var ErrNotSupported error = errors.New("not supported")
 
 // DeployedAgent defines the interface for interacting with a service that has been deployed.
 type DeployedAgent interface {
 	// TearDown implements the logic for tearing down a service.
-	TearDown() error
+	TearDown(ctx context.Context) error
 
 	// Signal sends a signal to the service.
-	Signal(signal string) error
+	Signal(ctx context.Context, signal string) error
 
 	// Context returns the current context from the service.
 	Context() AgentInfo
@@ -23,5 +27,5 @@ type DeployedAgent interface {
 	SetContext(str AgentInfo) error
 
 	// ExitCode returns true if the service is exited and its exit code.
-	ExitCode(service string) (bool, int, error)
+	ExitCode(ctx context.Context, service string) (bool, int, error)
 }

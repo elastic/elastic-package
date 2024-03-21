@@ -19,6 +19,7 @@ import (
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/profile"
 	"github.com/elastic/elastic-package/internal/stack"
+	"golang.org/x/net/context"
 )
 
 const (
@@ -77,7 +78,7 @@ func NewCustomAgentDeployer(options CustomAgentDeployerOptions) (*CustomAgentDep
 }
 
 // SetUp sets up the service and returns any relevant information.
-func (d *CustomAgentDeployer) SetUp(inCtxt AgentInfo) (DeployedAgent, error) {
+func (d *CustomAgentDeployer) SetUp(ctx context.Context, agentInfo AgentInfo) (DeployedAgent, error) {
 	logger.Debug("setting up service using Docker Compose agent deployer")
 
 	appConfig, err := install.Configuration()
@@ -92,11 +93,11 @@ func (d *CustomAgentDeployer) SetUp(inCtxt AgentInfo) (DeployedAgent, error) {
 
 	env := append(
 		appConfig.StackImageRefs(d.stackVersion).AsEnv(),
-		fmt.Sprintf("%s=%s", serviceLogsDirEnv, inCtxt.Logs.Folder.Local),
+		fmt.Sprintf("%s=%s", serviceLogsDirEnv, agentInfo.Logs.Folder.Local),
 		fmt.Sprintf("%s=%s", localCACertEnv, caCertPath),
 		fmt.Sprintf("%s=%s", fleetPolicyEnv, defaultAgentPolicyName),
 		fmt.Sprintf("%s=%s", agentHostnameEnv, d.agentHostname()),
-		fmt.Sprintf("%s=%s", elasticAgentTagsEnv, strings.Join(inCtxt.Tags, ",")),
+		fmt.Sprintf("%s=%s", elasticAgentTagsEnv, strings.Join(agentInfo.Tags, ",")),
 	)
 
 	configDir, err := d.installDockerfile()
@@ -125,7 +126,7 @@ func (d *CustomAgentDeployer) SetUp(inCtxt AgentInfo) (DeployedAgent, error) {
 		},
 	}
 
-	outCtxt := inCtxt
+	outCtxt := agentInfo
 	outCtxt.ConfigDir = configDir
 
 	p, err := compose.NewProject(service.project, service.ymlPaths...)
@@ -153,8 +154,8 @@ func (d *CustomAgentDeployer) SetUp(inCtxt AgentInfo) (DeployedAgent, error) {
 	}
 
 	// Service name defined in the docker-compose file
-	inCtxt.Name = dockerCustomAgentNamePrefix
-	serviceName := inCtxt.Name
+	agentInfo.Name = dockerCustomAgentNamePrefix
+	serviceName := agentInfo.Name
 
 	opts := compose.CommandOptions{
 		Env:       env,
@@ -164,7 +165,7 @@ func (d *CustomAgentDeployer) SetUp(inCtxt AgentInfo) (DeployedAgent, error) {
 	if d.runTestsOnly || d.runTearDown {
 		logger.Debug("Skipping bringing up docker-compose project and connect container to network (non setup steps)")
 	} else {
-		err = p.Up(opts)
+		err = p.Up(ctx, opts)
 		if err != nil {
 			return nil, fmt.Errorf("could not boot up agent using Docker Compose: %w", err)
 		}
@@ -176,9 +177,9 @@ func (d *CustomAgentDeployer) SetUp(inCtxt AgentInfo) (DeployedAgent, error) {
 	}
 
 	// requires to be connected the service to the stack network
-	err = p.WaitForHealthy(opts)
+	err = p.WaitForHealthy(ctx, opts)
 	if err != nil {
-		processAgentContainerLogs(p, compose.CommandOptions{
+		processAgentContainerLogs(ctx, p, compose.CommandOptions{
 			Env: opts.Env,
 		}, outCtxt.Name)
 		return nil, fmt.Errorf("service is unhealthy: %w", err)
@@ -189,7 +190,7 @@ func (d *CustomAgentDeployer) SetUp(inCtxt AgentInfo) (DeployedAgent, error) {
 	outCtxt.Hostname = d.agentHostname()
 
 	logger.Debugf("adding service container %s internal ports to context", p.ContainerName(serviceName))
-	serviceComposeConfig, err := p.Config(compose.CommandOptions{Env: env})
+	serviceComposeConfig, err := p.Config(ctx, compose.CommandOptions{Env: env})
 	if err != nil {
 		return nil, fmt.Errorf("could not get Docker Compose configuration for service: %w", err)
 	}
@@ -205,7 +206,7 @@ func (d *CustomAgentDeployer) SetUp(inCtxt AgentInfo) (DeployedAgent, error) {
 		outCtxt.Port = outCtxt.Ports[0]
 	}
 
-	outCtxt.Agent.Host.NamePrefix = inCtxt.Name
+	outCtxt.Agent.Host.NamePrefix = agentInfo.Name
 	service.agentInfo = outCtxt
 	return &service, nil
 }

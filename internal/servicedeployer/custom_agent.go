@@ -5,6 +5,7 @@
 package servicedeployer
 
 import (
+	"context"
 	_ "embed"
 	"fmt"
 	"os"
@@ -72,7 +73,7 @@ func NewCustomAgentDeployer(options CustomAgentDeployerOptions) (*CustomAgentDep
 }
 
 // SetUp sets up the service and returns any relevant information.
-func (d *CustomAgentDeployer) SetUp(inCtxt ServiceContext) (DeployedService, error) {
+func (d *CustomAgentDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (DeployedService, error) {
 	logger.Debug("setting up service using Docker Compose service deployer")
 
 	appConfig, err := install.Configuration()
@@ -87,7 +88,7 @@ func (d *CustomAgentDeployer) SetUp(inCtxt ServiceContext) (DeployedService, err
 
 	env := append(
 		appConfig.StackImageRefs(d.stackVersion).AsEnv(),
-		fmt.Sprintf("%s=%s", serviceLogsDirEnv, inCtxt.Logs.Folder.Local),
+		fmt.Sprintf("%s=%s", serviceLogsDirEnv, svcInfo.Logs.Folder.Local),
 		fmt.Sprintf("%s=%s", localCACertEnv, caCertPath),
 		fmt.Sprintf("%s=%s-%s", agentHostnameEnv, dockerCustomAgentName, d.agentName()),
 	)
@@ -111,8 +112,6 @@ func (d *CustomAgentDeployer) SetUp(inCtxt ServiceContext) (DeployedService, err
 		},
 	}
 
-	outCtxt := inCtxt
-
 	p, err := compose.NewProject(service.project, service.ymlPaths...)
 	if err != nil {
 		return nil, fmt.Errorf("could not create Docker Compose project for service: %w", err)
@@ -129,16 +128,16 @@ func (d *CustomAgentDeployer) SetUp(inCtxt ServiceContext) (DeployedService, err
 		// service logs folder must no be deleted to avoid breaking log files written
 		// by the service. If this is required, those files should be rotated or truncated
 		// so the service can still write to them.
-		logger.Debug("Skipping removing service logs folder folder %s", outCtxt.Logs.Folder.Local)
+		logger.Debug("Skipping removing service logs folder folder %s", svcInfo.Logs.Folder.Local)
 	} else {
-		err = files.RemoveContent(outCtxt.Logs.Folder.Local)
+		err = files.RemoveContent(svcInfo.Logs.Folder.Local)
 		if err != nil {
 			return nil, fmt.Errorf("removing service logs failed: %w", err)
 		}
 	}
 
-	inCtxt.Name = dockerCustomAgentName
-	serviceName := inCtxt.Name
+	svcInfo.Name = dockerCustomAgentName
+	serviceName := svcInfo.Name
 
 	opts := compose.CommandOptions{
 		Env:       env,
@@ -148,7 +147,7 @@ func (d *CustomAgentDeployer) SetUp(inCtxt ServiceContext) (DeployedService, err
 	if d.runTestsOnly || d.runTearDown {
 		logger.Debug("Skipping bringing up docker-compose project and connect container to network (non setup steps)")
 	} else {
-		err = p.Up(opts)
+		err = p.Up(ctx, opts)
 		if err != nil {
 			return nil, fmt.Errorf("could not boot up service using Docker Compose: %w", err)
 		}
@@ -160,36 +159,36 @@ func (d *CustomAgentDeployer) SetUp(inCtxt ServiceContext) (DeployedService, err
 	}
 
 	// requires to be connected the service to the stack network
-	err = p.WaitForHealthy(opts)
+	err = p.WaitForHealthy(ctx, opts)
 	if err != nil {
-		processServiceContainerLogs(p, compose.CommandOptions{
+		processServiceContainerLogs(ctx, p, compose.CommandOptions{
 			Env: opts.Env,
-		}, outCtxt.Name)
+		}, svcInfo.Name)
 		return nil, fmt.Errorf("service is unhealthy: %w", err)
 	}
 
 	// Build service container name
-	outCtxt.Hostname = p.ContainerName(serviceName)
+	svcInfo.Hostname = p.ContainerName(serviceName)
 
 	logger.Debugf("adding service container %s internal ports to context", p.ContainerName(serviceName))
-	serviceComposeConfig, err := p.Config(compose.CommandOptions{Env: env})
+	serviceComposeConfig, err := p.Config(ctx, compose.CommandOptions{Env: env})
 	if err != nil {
 		return nil, fmt.Errorf("could not get Docker Compose configuration for service: %w", err)
 	}
 
 	s := serviceComposeConfig.Services[serviceName]
-	outCtxt.Ports = make([]int, len(s.Ports))
+	svcInfo.Ports = make([]int, len(s.Ports))
 	for idx, port := range s.Ports {
-		outCtxt.Ports[idx] = port.InternalPort
+		svcInfo.Ports[idx] = port.InternalPort
 	}
 
 	// Shortcut to first port for convenience
-	if len(outCtxt.Ports) > 0 {
-		outCtxt.Port = outCtxt.Ports[0]
+	if len(svcInfo.Ports) > 0 {
+		svcInfo.Port = svcInfo.Ports[0]
 	}
 
-	outCtxt.Agent.Host.NamePrefix = inCtxt.Name
-	service.ctxt = outCtxt
+	svcInfo.Agent.Host.NamePrefix = svcInfo.Name
+	service.svcInfo = svcInfo
 	return &service, nil
 }
 

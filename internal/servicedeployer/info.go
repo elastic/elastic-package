@@ -11,10 +11,10 @@ const (
 	agentHostnameEnv  = "AGENT_HOSTNAME"
 )
 
-// ServiceContext encapsulates context that is both available to a ServiceDeployer and
-// populated by a DeployedService. The fields in ServiceContext may be used in handlebars
+// ServiceInfo encapsulates context that is both available to a ServiceDeployer and
+// populated by a DeployedService. The fields in ServiceInfo may be used in handlebars
 // templates in system test configuration files, for example: {{ Hostname }}.
-type ServiceContext struct {
+type ServiceInfo struct {
 	// Name is the name of the service.
 	Name string
 
@@ -71,7 +71,7 @@ type ServiceContext struct {
 }
 
 // Aliases method returned aliases to properties of the service context.
-func (sc *ServiceContext) Aliases() map[string]interface{} {
+func (sc *ServiceInfo) Aliases() map[string]interface{} {
 	m := map[string]interface{}{
 		serviceLogsDirEnv: func() interface{} {
 			return sc.Logs.Folder.Agent

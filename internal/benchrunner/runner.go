@@ -5,6 +5,7 @@
 package benchrunner
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -16,29 +17,29 @@ import (
 type Type string
 
 type Runner interface {
-	SetUp() error
-	Run() (reporters.Reportable, error)
-	TearDown() error
+	SetUp(context.Context) error
+	Run(context.Context) (reporters.Reportable, error)
+	TearDown(context.Context) error
 }
 
 // Run method delegates execution to the benchmark runner.
-func Run(runner Runner) (reporters.Reportable, error) {
+func Run(ctx context.Context, runner Runner) (reporters.Reportable, error) {
 	if runner == nil {
 		return nil, errors.New("a runner is required")
 	}
 
 	defer func() {
-		tdErr := runner.TearDown()
+		tdErr := runner.TearDown(ctx)
 		if tdErr != nil {
 			logger.Errorf("could not teardown benchmark runner: %v", tdErr)
 		}
 	}()
 
-	if err := runner.SetUp(); err != nil {
+	if err := runner.SetUp(ctx); err != nil {
 		return nil, fmt.Errorf("could not set up benchmark runner: %w", err)
 	}
 
-	report, err := runner.Run()
+	report, err := runner.Run(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("could not complete benchmark run: %w", err)
 	}

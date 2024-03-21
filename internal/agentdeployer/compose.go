@@ -16,6 +16,7 @@ import (
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/profile"
 	"github.com/elastic/elastic-package/internal/stack"
+	"golang.org/x/net/context"
 )
 
 // DockerComposeServiceDeployer knows how to deploy a service defined via
@@ -46,15 +47,15 @@ func NewDockerComposeAgentDeployer(profile *profile.Profile, ymlPaths []string) 
 var _ AgentDeployer = new(DockerComposeAgentDeployer)
 
 // SetUp sets up the service and returns any relevant information.
-func (d *DockerComposeAgentDeployer) SetUp(inCtxt AgentInfo) (DeployedAgent, error) {
+func (d *DockerComposeAgentDeployer) SetUp(ctx context.Context, agentInfo AgentInfo) (DeployedAgent, error) {
 	logger.Debug("setting up agent using Docker Compose agent deployer")
 	agent := dockerComposeDeployedAgent{
 		ymlPaths: d.ymlPaths,
 		project:  "elastic-package-agent",
 		variant:  d.variant,
-		env:      []string{fmt.Sprintf("%s=%s", serviceLogsDirEnv, inCtxt.Logs.Folder.Local)},
+		env:      []string{fmt.Sprintf("%s=%s", serviceLogsDirEnv, agentInfo.Logs.Folder.Local)},
 	}
-	outCtxt := inCtxt
+	outCtxt := agentInfo
 
 	p, err := compose.NewProject(agent.project, agent.ymlPaths...)
 	if err != nil {
@@ -78,7 +79,7 @@ func (d *DockerComposeAgentDeployer) SetUp(inCtxt AgentInfo) (DeployedAgent, err
 		logger.Infof("Using service variant: %s", d.variant.String())
 	}
 
-	agentName := inCtxt.Name
+	agentName := agentInfo.Name
 	opts := compose.CommandOptions{
 		Env: append(
 			agent.env,
@@ -86,14 +87,14 @@ func (d *DockerComposeAgentDeployer) SetUp(inCtxt AgentInfo) (DeployedAgent, err
 		),
 		ExtraArgs: []string{"--build", "-d"},
 	}
-	err = p.Up(opts)
+	err = p.Up(ctx, opts)
 	if err != nil {
 		return nil, fmt.Errorf("could not boot up service using Docker Compose: %w", err)
 	}
 
-	err = p.WaitForHealthy(opts)
+	err = p.WaitForHealthy(ctx, opts)
 	if err != nil {
-		processAgentContainerLogs(p, compose.CommandOptions{
+		processAgentContainerLogs(ctx, p, compose.CommandOptions{
 			Env: opts.Env,
 		}, outCtxt.Name)
 		return nil, fmt.Errorf("service is unhealthy: %w", err)
@@ -109,7 +110,7 @@ func (d *DockerComposeAgentDeployer) SetUp(inCtxt AgentInfo) (DeployedAgent, err
 	}
 
 	logger.Debugf("adding agent container %s internal ports to context", p.ContainerName(agentName))
-	agentComposeConfig, err := p.Config(compose.CommandOptions{
+	agentComposeConfig, err := p.Config(ctx, compose.CommandOptions{
 		Env: []string{fmt.Sprintf("%s=%s", serviceLogsDirEnv, outCtxt.Logs.Folder.Local)},
 	})
 	if err != nil {
@@ -133,7 +134,7 @@ func (d *DockerComposeAgentDeployer) SetUp(inCtxt AgentInfo) (DeployedAgent, err
 }
 
 // Signal sends a signal to the agent.
-func (s *dockerComposeDeployedAgent) Signal(signal string) error {
+func (s *dockerComposeDeployedAgent) Signal(ctx context.Context, signal string) error {
 	p, err := compose.NewProject(s.project, s.ymlPaths...)
 	if err != nil {
 		return fmt.Errorf("could not create Docker Compose project for service: %w", err)
@@ -150,7 +151,7 @@ func (s *dockerComposeDeployedAgent) Signal(signal string) error {
 		opts.Services = append(opts.Services, s.agentInfo.Name)
 	}
 
-	err = p.Kill(opts)
+	err = p.Kill(ctx, opts)
 	if err != nil {
 		return fmt.Errorf("could not send %q signal: %w", signal, err)
 	}
@@ -158,7 +159,7 @@ func (s *dockerComposeDeployedAgent) Signal(signal string) error {
 }
 
 // ExitCode returns true if the agent is exited and its exit code.
-func (s *dockerComposeDeployedAgent) ExitCode(agent string) (bool, int, error) {
+func (s *dockerComposeDeployedAgent) ExitCode(ctx context.Context, agent string) (bool, int, error) {
 	p, err := compose.NewProject(s.project, s.ymlPaths...)
 	if err != nil {
 		return false, -1, fmt.Errorf("could not create Docker Compose project for agent: %w", err)
@@ -171,11 +172,11 @@ func (s *dockerComposeDeployedAgent) ExitCode(agent string) (bool, int, error) {
 		),
 	}
 
-	return p.ServiceExitCode(agent, opts)
+	return p.ServiceExitCode(ctx, agent, opts)
 }
 
 // TearDown tears down the agent.
-func (s *dockerComposeDeployedAgent) TearDown() error {
+func (s *dockerComposeDeployedAgent) TearDown(ctx context.Context) error {
 	logger.Debugf("tearing down agent using Docker Compose runner")
 	defer func() {
 		err := files.RemoveContent(s.agentInfo.Logs.Folder.Local)
@@ -204,9 +205,9 @@ func (s *dockerComposeDeployedAgent) TearDown() error {
 			s.variant.Env...,
 		),
 	}
-	processAgentContainerLogs(p, opts, s.agentInfo.Name)
+	processAgentContainerLogs(ctx, p, opts, s.agentInfo.Name)
 
-	if err := p.Down(compose.CommandOptions{
+	if err := p.Down(ctx, compose.CommandOptions{
 		Env:       opts.Env,
 		ExtraArgs: []string{"--volumes"}, // Remove associated volumes.
 	}); err != nil {
@@ -228,8 +229,8 @@ func (s *dockerComposeDeployedAgent) SetContext(ctxt AgentInfo) error {
 
 var _ DeployedAgent = new(dockerComposeDeployedAgent)
 
-func processAgentContainerLogs(p *compose.Project, opts compose.CommandOptions, agentName string) {
-	content, err := p.Logs(opts)
+func processAgentContainerLogs(ctx context.Context, p *compose.Project, opts compose.CommandOptions, agentName string) {
+	content, err := p.Logs(ctx, opts)
 	if err != nil {
 		logger.Errorf("can't export service logs: %v", err)
 		return
