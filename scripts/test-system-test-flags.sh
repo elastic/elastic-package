@@ -201,6 +201,11 @@ run_tests_for_package() {
         AGENT_CONTAINER_NAME="${DEFAULT_AGENT_CONTAINER_NAME}"
     fi
 
+    ELASTIC_PACKAGE_INDEPENDENT_AGENT=${ELASTIC_PACKAGE_INDEPENDENT_AGENT:-"false"}
+    ELASTIC_PACKAGE_TEST_OPTS=""
+    if [[ "${ELASTIC_PACKAGE_INDEPENDENT_AGENT}" == "true" ]] ; then
+        ELASTIC_PACKAGE_TEST_OPTS="--test-independent-agent"
+    fi
     pushd "${package_folder}" > /dev/null
 
     echo "--- [${package_name} - ${variant}] Setup service without tear-down"
@@ -208,6 +213,7 @@ run_tests_for_package() {
         --report-format xUnit --report-output file \
         --config-file "${config_file}" \
         ${variant_flag} \
+        ${ELASTIC_PACKAGE_TEST_OPTS} \
         --setup
 
     # Tests after --setup
@@ -223,6 +229,7 @@ run_tests_for_package() {
         echo "--- Iteration #${i} --no-provision"
         elastic-package test system -v \
             --report-format xUnit --report-output file \
+            ${ELASTIC_PACKAGE_TEST_OPTS} \
             --no-provision
 
         # Tests after --no-provision
@@ -237,6 +244,7 @@ run_tests_for_package() {
     echo "--- [${package_name} - ${variant}] Run tear-down process"
     elastic-package test system -v \
         --report-format xUnit --report-output file \
+        ${ELASTIC_PACKAGE_TEST_OPTS} \
         --tear-down
 
     if ! tests_for_tear_down \
