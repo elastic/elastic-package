@@ -281,19 +281,19 @@ func (r *runner) createAgentOptions(scenario scenarioTest) agentdeployer.Factory
 
 func (r *runner) createServiceOptions(variantName string) servicedeployer.FactoryOptions {
 	return servicedeployer.FactoryOptions{
-		Profile:            r.options.Profile,
-		PackageRootPath:    r.options.PackageRootPath,
-		DataStreamRootPath: r.dataStreamPath,
-		DevDeployDir:       DevDeployDir,
-		Variant:            variantName,
-		Type:               servicedeployer.TypeTest,
-		StackVersion:       r.stackVersion.Version(),
-		PackageName:        "", // to be filled in prepareScenario
-		DataStream:         "", // to be filled in prepareScenario
-		RunTearDown:        r.options.RunTearDown,
-		RunTestsOnly:       r.options.RunTestsOnly,
-		RunSetup:           r.options.RunSetup,
-		DeployAgent:        r.options.RunIndependentElasticAgent,
+		Profile:                r.options.Profile,
+		PackageRootPath:        r.options.PackageRootPath,
+		DataStreamRootPath:     r.dataStreamPath,
+		DevDeployDir:           DevDeployDir,
+		Variant:                variantName,
+		Type:                   servicedeployer.TypeTest,
+		StackVersion:           r.stackVersion.Version(),
+		PackageName:            "", // to be filled in prepareScenario
+		DataStream:             "", // to be filled in prepareScenario
+		RunTearDown:            r.options.RunTearDown,
+		RunTestsOnly:           r.options.RunTestsOnly,
+		RunSetup:               r.options.RunSetup,
+		DeployIndependentAgent: r.options.RunIndependentElasticAgent,
 	}
 }
 

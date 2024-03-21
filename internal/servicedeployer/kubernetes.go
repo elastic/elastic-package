@@ -29,7 +29,7 @@ type KubernetesServiceDeployer struct {
 	definitionsDir string
 	stackVersion   string
 
-	deployAgent bool
+	deployIndependentAgent bool
 
 	runSetup     bool
 	runTestsOnly bool
@@ -41,7 +41,7 @@ type KubernetesServiceDeployerOptions struct {
 	DefinitionsDir string
 	StackVersion   string
 
-	DeployAgent bool
+	DeployIndependentAgent bool
 
 	RunSetup     bool
 	RunTestsOnly bool
@@ -96,13 +96,13 @@ var _ DeployedService = new(kubernetesDeployedService)
 // NewKubernetesServiceDeployer function creates a new instance of KubernetesServiceDeployer.
 func NewKubernetesServiceDeployer(opts KubernetesServiceDeployerOptions) (*KubernetesServiceDeployer, error) {
 	return &KubernetesServiceDeployer{
-		profile:        opts.Profile,
-		definitionsDir: opts.DefinitionsDir,
-		stackVersion:   opts.StackVersion,
-		runSetup:       opts.RunSetup,
-		runTestsOnly:   opts.RunTestsOnly,
-		runTearDown:    opts.RunTearDown,
-		deployAgent:    opts.DeployAgent,
+		profile:                opts.Profile,
+		definitionsDir:         opts.DefinitionsDir,
+		stackVersion:           opts.StackVersion,
+		runSetup:               opts.RunSetup,
+		runTestsOnly:           opts.RunTestsOnly,
+		runTearDown:            opts.RunTearDown,
+		deployIndependentAgent: opts.DeployIndependentAgent,
 	}, nil
 }
 
@@ -123,7 +123,7 @@ func (ksd KubernetesServiceDeployer) SetUp(ctx context.Context, svcInfo ServiceI
 		}
 	}
 
-	if ksd.runTearDown || ksd.runTestsOnly || !ksd.deployAgent {
+	if ksd.runTearDown || ksd.runTestsOnly || ksd.deployIndependentAgent {
 		logger.Debug("Skip install Elastic Agent in cluster")
 	} else {
 		err = installElasticAgentInCluster(ctx, ksd.profile, ksd.stackVersion)

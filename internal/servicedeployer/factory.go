@@ -22,12 +22,12 @@ const (
 type FactoryOptions struct {
 	Profile *profile.Profile
 
-	PackageRootPath    string
-	DataStreamRootPath string
-	DevDeployDir       string
-	Type               string
-	StackVersion       string
-	DeployAgent        bool
+	PackageRootPath        string
+	DataStreamRootPath     string
+	DevDeployDir           string
+	Type                   string
+	StackVersion           string
+	DeployIndependentAgent bool
 
 	PackageName string
 	DataStream  string
@@ -58,13 +58,13 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 	case "k8s":
 		if _, err := os.Stat(serviceDeployerPath); err == nil {
 			opts := KubernetesServiceDeployerOptions{
-				Profile:        options.Profile,
-				DefinitionsDir: serviceDeployerPath,
-				StackVersion:   options.StackVersion,
-				RunSetup:       options.RunSetup,
-				RunTestsOnly:   options.RunTestsOnly,
-				RunTearDown:    options.RunTearDown,
-				DeployAgent:    options.DeployAgent,
+				Profile:                options.Profile,
+				DefinitionsDir:         serviceDeployerPath,
+				StackVersion:           options.StackVersion,
+				RunSetup:               options.RunSetup,
+				RunTestsOnly:           options.RunTestsOnly,
+				RunTearDown:            options.RunTearDown,
+				DeployIndependentAgent: options.DeployIndependentAgent,
 			}
 			return NewKubernetesServiceDeployer(opts)
 		}
