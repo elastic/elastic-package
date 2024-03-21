@@ -6,14 +6,13 @@ package agentdeployer
 
 import (
 	"bytes"
+	"context"
 	_ "embed"
 	"encoding/base64"
 	"fmt"
 	"os"
 	"strings"
 	"text/template"
-
-	"golang.org/x/net/context"
 
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/kind"

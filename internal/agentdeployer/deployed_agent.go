@@ -5,9 +5,8 @@
 package agentdeployer
 
 import (
+	"context"
 	"errors"
-
-	"golang.org/x/net/context"
 )
 
 var ErrNotSupported error = errors.New("not supported")

@@ -4,7 +4,7 @@
 
 package agentdeployer
 
-import "golang.org/x/net/context"
+import "context"
 
 // AgentDeployer defines the interface for deploying an agent. It defines methods for
 // controlling the lifecycle of an agent.

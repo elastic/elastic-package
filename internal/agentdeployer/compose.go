@@ -4,12 +4,11 @@
 package agentdeployer
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 	"time"
-
-	"golang.org/x/net/context"
 
 	"github.com/elastic/elastic-package/internal/builder"
 	"github.com/elastic/elastic-package/internal/compose"
