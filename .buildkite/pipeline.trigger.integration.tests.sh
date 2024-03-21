@@ -124,7 +124,7 @@ echo "        artifact_paths:"
 echo "          - build/elastic-stack-dump/install-zip-shellinit/logs/*.log"
 
 for independent_agent in false true; do
-echo "      - label: \":go: Integration test: test-system-test-flags\""
+echo "      - label: \":go: Integration test: test-system-test-flags - independent_agent ${independent_agent}\""
 echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-system-test-flags"
 echo "        agents:"
 echo "          provider: \"gcp\""
