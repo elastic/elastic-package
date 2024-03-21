@@ -747,9 +747,11 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, servic
 		return nil, err
 	}
 
-	// FIXME: this should be stored in service state or not used in
-	// --no-provision and --tear-down stages
 	enrollingTime := time.Now()
+	if r.options.RunTearDown || r.options.RunTestsOnly {
+		enrollingTime = serviceStateData.EnrollingAgentTime
+		agentInfo.Tags = serviceStateData.Agent.Tags
+	}
 	agentDeployer, err := agentdeployer.Factory(agentOptions)
 	if err != nil {
 		return nil, fmt.Errorf("could not create agent runner: %w", err)
@@ -1087,7 +1089,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, servic
 	scenario.docs = hits.getDocs(scenario.syntheticEnabled)
 
 	if r.options.RunSetup {
-		err = r.writeScenarioState(policy, &origPolicy, config, origAgent)
+		err = r.writeScenarioState(policy, &origPolicy, config, origAgent, enrollingTime)
 		if err != nil {
 			return nil, err
 		}
@@ -1128,20 +1130,22 @@ func (r *runner) readServiceStateData() (ServiceState, error) {
 }
 
 type ServiceState struct {
-	OrigPolicy     kibana.Policy `json:"orig_policy"`
-	CurrentPolicy  kibana.Policy `json:"current_policy"`
-	Agent          kibana.Agent  `json:"agent"`
-	ConfigFilePath string        `json:"config_file_path"`
-	VariantName    string        `json:"variant_name"`
+	OrigPolicy         kibana.Policy `json:"orig_policy"`
+	CurrentPolicy      kibana.Policy `json:"current_policy"`
+	Agent              kibana.Agent  `json:"agent"`
+	ConfigFilePath     string        `json:"config_file_path"`
+	VariantName        string        `json:"variant_name"`
+	EnrollingAgentTime time.Time     `json:"enrolling_agent_time"`
 }
 
-func (r *runner) writeScenarioState(currentPolicy, origPolicy *kibana.Policy, config *testConfig, agent kibana.Agent) error {
+func (r *runner) writeScenarioState(currentPolicy, origPolicy *kibana.Policy, config *testConfig, agent kibana.Agent, enrollingTime time.Time) error {
 	data := ServiceState{
-		OrigPolicy:     *origPolicy,
-		CurrentPolicy:  *currentPolicy,
-		Agent:          agent,
-		ConfigFilePath: config.Path,
-		VariantName:    config.ServiceVariantName,
+		OrigPolicy:         *origPolicy,
+		CurrentPolicy:      *currentPolicy,
+		Agent:              agent,
+		ConfigFilePath:     config.Path,
+		VariantName:        config.ServiceVariantName,
+		EnrollingAgentTime: enrollingTime,
 	}
 	dataBytes, err := json.Marshal(data)
 	if err != nil {
