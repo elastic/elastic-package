@@ -46,13 +46,33 @@ export CREATED_DATE
 # Secrets must be redacted
 # https://buildkite.com/docs/pipelines/managing-log-output#redacted-environment-variables
 
-if [[ "$BUILDKITE_PIPELINE_SLUG" == "elastic-package" && ("$BUILDKITE_STEP_KEY" =~ ^integration-parallel || "$BUILDKITE_STEP_KEY" =~ ^integration-false_positives) ]]; then
+is_step_required_to_upload_safe_logs() {
+    if [[ "$BUILDKITE_PIPELINE_SLUG" != "elastic-package" ]]; then
+        return false
+    fi
+    if [[ "$BUILDKITE_STEP_KEY" =~ ^integration-parallel || "$BUILDKITE_STEP_KEY" =~ ^integration-false_positives ]]; then
+        return true
+    fi
+    return false
+}
+
+if is_step_required_to_upload_safe_logs; then
     PRIVATE_CI_GCS_CREDENTIALS_SECRET=$(retry 5 vault kv get -field plaintext -format=json ${PRIVATE_CI_GCS_CREDENTIALS_PATH} | jq -c)
     export PRIVATE_CI_GCS_CREDENTIALS_SECRET
     export JOB_GCS_BUCKET_INTERNAL="ingest-buildkite-ci"
 fi
 
-if [[ "$BUILDKITE_PIPELINE_SLUG" == "elastic-package" && "$BUILDKITE_STEP_KEY" == "integration-parallel-gcp" ]]; then
+is_step_testing_gcp () {
+    if [[ "$BUILDKITE_PIPELINE_SLUG" != "elastic-package" ]]; then
+        return false
+    fi
+    if [[ "$BUILDKITE_STEP_KEY" == "integration-parallel-gcp-agent-false" || "$BUILDKITE_STEP_KEY" == "integration-parallel-gcp-agent-true" ]]; then
+        return true
+    fi
+    return false
+}
+
+if use_step_testing_gcp; then
     ELASTIC_PACKAGE_GCP_PROJECT_SECRET=$(retry 5 vault read -field projectId ${GCP_SERVICE_ACCOUNT_SECRET_PATH})
     export ELASTIC_PACKAGE_GCP_PROJECT_SECRET
     ELASTIC_PACKAGE_GCP_CREDENTIALS_SECRET=$(retry 5 vault read -field credentials ${GCP_SERVICE_ACCOUNT_SECRET_PATH} | jq -c)
@@ -63,7 +83,19 @@ if [[ "$BUILDKITE_PIPELINE_SLUG" == "elastic-package" && "$BUILDKITE_STEP_KEY" =
     export GCP_PROJECT_ID=${ELASTIC_PACKAGE_GCP_PROJECT_SECRET}
 fi
 
-if [[ "$BUILDKITE_PIPELINE_SLUG" == "elastic-package" && ("$BUILDKITE_STEP_KEY" == "integration-parallel-aws" || "$BUILDKITE_STEP_KEY" == "integration-parallel-aws_logs") ]]; then
+is_step_testing_aws () {
+    if [[ "$BUILDKITE_PIPELINE_SLUG" != "elastic-package" ]]; then
+        return false
+    fi
+    if [[ "$BUILDKITE_STEP_KEY" == "integration-parallel-aws-agent-false" || "$BUILDKITE_STEP_KEY" == "integration-parallel-aws-agent-true" ]]; then
+        return true
+    fi
+    if [[ "$BUILDKITE_STEP_KEY" == "integration-parallel-aws_logs-agent-false" || "$BUILDKITE_STEP_KEY" == "integration-parallel-aws_logs-agent-true" ]]; then
+        return true
+    fi
+    return false
+}
+if use_step_testing_aws; then
     ELASTIC_PACKAGE_AWS_SECRET_KEY=$(retry 5 vault kv get -field secret_key ${AWS_SERVICE_ACCOUNT_SECRET_PATH})
     export ELASTIC_PACKAGE_AWS_SECRET_KEY
     ELASTIC_PACKAGE_AWS_ACCESS_KEY=$(retry 5 vault kv get -field access_key ${AWS_SERVICE_ACCOUNT_SECRET_PATH})

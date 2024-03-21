@@ -41,11 +41,14 @@ CHECK_PACKAGES_TESTS=(
     test-check-packages-benchmarks
     test-check-packages-with-logstash
 )
+for independent_agent in false true ; do
 for test in "${CHECK_PACKAGES_TESTS[@]}"; do
-    echo "      - label: \":go: Running integration test: ${test}\""
+    echo "      - label: \":go: Running integration test: ${test} - independent_agent ${independent_agent}\""
     echo "        command: ./.buildkite/scripts/integration_tests.sh -t ${test}"
     echo "        agents:"
     echo "          provider: \"gcp\""
+    echo "        environment:"
+    echo "          ELASTIC_PACKAGE_INDEPENDENT_AGENT: ${independent_agent}"
     echo "        artifact_paths:"
     echo "          - build/test-results/*.xml"
     echo "          - build/elastic-stack-dump/check-*/logs/*.log"
@@ -54,6 +57,7 @@ for test in "${CHECK_PACKAGES_TESTS[@]}"; do
     if [[ $test =~ with-kind$ ]]; then
         echo "          - build/kubectl-dump.txt"
     fi
+done
 done
 
 pushd test/packages/false_positives > /dev/null
@@ -74,22 +78,25 @@ done
  popd > /dev/null
 
 pushd test/packages/parallel > /dev/null
+for independent_agent in false true; do
 for package in $(find . -maxdepth 1 -mindepth 1 -type d) ; do
     package_name=$(basename "${package}")
     if [[ "$package_name" == "aws" || "$package_name" == "aws_logs" || "$package_name" == "gcp" ]] ; then
         echoerr "Skip temporarily ${package_name}"
         continue
     fi
-    echo "      - label: \":go: Running integration test: ${package_name}\""
-    echo "        key: \"integration-parallel-${package_name}\""
+    echo "      - label: \":go: Running integration test: ${package_name}\" - independent_agent ${independent_agent}"
+    echo "        key: \"integration-parallel-${package_name}-agent-${independent_agent}\""
     echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-check-packages-parallel -p ${package_name}"
     echo "        env:"
     echo "          UPLOAD_SAFE_LOGS: 1"
+    echo "          ELASTIC_PACKAGE_INDEPENDENT_AGENT: ${independent_agent}"
     echo "        agents:"
     echo "          provider: \"gcp\""
     echo "        artifact_paths:"
     echo "          - build/test-results/*.xml"
     echo "          - build/test-coverage/coverage-*.xml" # these files should not be used to compute the final coverage of elastic-package
+done
 done
 
 popd > /dev/null
