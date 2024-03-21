@@ -7,6 +7,7 @@ package servicedeployer
 import (
 	"context"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"time"
@@ -43,6 +44,8 @@ type DockerComposeServiceDeployerOptions struct {
 type dockerComposeDeployedService struct {
 	svcInfo ServiceInfo
 
+	shutdownTimeout time.Duration
+
 	ymlPaths []string
 	project  string
 	variant  ServiceVariant
@@ -61,15 +64,14 @@ func NewDockerComposeServiceDeployer(options DockerComposeServiceDeployerOptions
 }
 
 // SetUp sets up the service and returns any relevant information.
-func (d *DockerComposeServiceDeployer) SetUp(ctx context.Context, inCtxt ServiceInfo) (DeployedService, error) {
+func (d *DockerComposeServiceDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (DeployedService, error) {
 	logger.Debug("setting up service using Docker Compose service deployer")
 	service := dockerComposeDeployedService{
 		ymlPaths: d.ymlPaths,
 		project:  "elastic-package-service",
 		variant:  d.variant,
-		env:      []string{fmt.Sprintf("%s=%s", serviceLogsDirEnv, inCtxt.Logs.Folder.Local)},
+		env:      []string{fmt.Sprintf("%s=%s", serviceLogsDirEnv, svcInfo.Logs.Folder.Local)},
 	}
-	outCtxt := inCtxt
 
 	p, err := compose.NewProject(service.project, service.ymlPaths...)
 	if err != nil {
@@ -87,9 +89,9 @@ func (d *DockerComposeServiceDeployer) SetUp(ctx context.Context, inCtxt Service
 		// service logs folder must no be deleted to avoid breaking log files written
 		// by the service. If this is required, those files should be rotated or truncated
 		// so the service can still write to them.
-		logger.Debug("Skipping removing service logs folder folder %s", outCtxt.Logs.Folder.Local)
+		logger.Debug("Skipping removing service logs folder folder %s", svcInfo.Logs.Folder.Local)
 	} else {
-		err = files.RemoveContent(outCtxt.Logs.Folder.Local)
+		err = files.RemoveContent(svcInfo.Logs.Folder.Local)
 		if err != nil {
 			return nil, fmt.Errorf("removing service logs failed: %w", err)
 		}
@@ -107,7 +109,7 @@ func (d *DockerComposeServiceDeployer) SetUp(ctx context.Context, inCtxt Service
 		ExtraArgs: []string{"--build", "-d"},
 	}
 
-	serviceName := inCtxt.Name
+	serviceName := svcInfo.Name
 	if d.runTearDown || d.runTestsOnly {
 		logger.Debug("Skipping bringing up docker-compose custom agent project")
 	} else {
@@ -121,7 +123,7 @@ func (d *DockerComposeServiceDeployer) SetUp(ctx context.Context, inCtxt Service
 	if err != nil {
 		processServiceContainerLogs(context.WithoutCancel(ctx), p, compose.CommandOptions{
 			Env: opts.Env,
-		}, outCtxt.Name)
+		}, svcInfo.Name)
 		return nil, fmt.Errorf("service is unhealthy: %w", err)
 	}
 
@@ -136,29 +138,29 @@ func (d *DockerComposeServiceDeployer) SetUp(ctx context.Context, inCtxt Service
 	}
 
 	// Build service container name
-	outCtxt.Hostname = p.ContainerName(serviceName)
+	svcInfo.Hostname = p.ContainerName(serviceName)
 
 	logger.Debugf("adding service container %s internal ports to context", p.ContainerName(serviceName))
 	serviceComposeConfig, err := p.Config(ctx, compose.CommandOptions{
-		Env: []string{fmt.Sprintf("%s=%s", serviceLogsDirEnv, outCtxt.Logs.Folder.Local)},
+		Env: []string{fmt.Sprintf("%s=%s", serviceLogsDirEnv, svcInfo.Logs.Folder.Local)},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("could not get Docker Compose configuration for service: %w", err)
 	}
 
 	s := serviceComposeConfig.Services[serviceName]
-	outCtxt.Ports = make([]int, len(s.Ports))
+	svcInfo.Ports = make([]int, len(s.Ports))
 	for idx, port := range s.Ports {
-		outCtxt.Ports[idx] = port.InternalPort
+		svcInfo.Ports[idx] = port.InternalPort
 	}
 
 	// Shortcut to first port for convenience
-	if len(outCtxt.Ports) > 0 {
-		outCtxt.Port = outCtxt.Ports[0]
+	if len(svcInfo.Ports) > 0 {
+		svcInfo.Port = svcInfo.Ports[0]
 	}
 
-	outCtxt.Agent.Host.NamePrefix = "docker-fleet-agent"
-	service.svcInfo = outCtxt
+	svcInfo.Agent.Host.NamePrefix = "docker-fleet-agent"
+	service.svcInfo = svcInfo
 	return &service, nil
 }
 
@@ -226,9 +228,16 @@ func (s *dockerComposeDeployedService) TearDown(ctx context.Context) error {
 			s.env,
 			s.variant.Env...),
 	}
+
+	extraArgs := []string{}
+	// if not set "-t" , default shutdown timeout is 10 seconds
+	// https://docs.docker.com/compose/faq/#why-do-my-services-take-10-seconds-to-recreate-or-stop
+	if seconds := s.shutdownTimeout.Seconds(); seconds > 0 {
+		extraArgs = append(extraArgs, "-t", fmt.Sprintf("%d", int(math.Round(seconds))))
+	}
 	if err := p.Stop(ctx, compose.CommandOptions{
 		Env:       opts.Env,
-		ExtraArgs: []string{"-t", "300"}, // default shutdown timeout 10 seconds
+		ExtraArgs: extraArgs,
 	}); err != nil {
 		return fmt.Errorf("could not stop service using Docker Compose: %w", err)
 	}

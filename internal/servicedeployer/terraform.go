@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/elastic/go-resource"
 
@@ -107,9 +108,10 @@ func (tsd TerraformServiceDeployer) SetUp(ctx context.Context, svcInfo ServiceIn
 	tfEnvironment := tsd.buildTerraformExecutorEnvironment(svcInfo)
 
 	service := dockerComposeDeployedService{
-		ymlPaths: ymlPaths,
-		project:  "elastic-package-service",
-		env:      tfEnvironment,
+		ymlPaths:        ymlPaths,
+		project:         "elastic-package-service",
+		env:             tfEnvironment,
+		shutdownTimeout: 300 * time.Second,
 	}
 	outCtxt := svcInfo
 

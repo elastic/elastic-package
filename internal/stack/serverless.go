@@ -34,12 +34,10 @@ const (
 	defaultProjectType = "observability"
 )
 
-var (
-	allowedProjectTypes = []string{
-		"security",
-		"observability",
-	}
-)
+var allowedProjectTypes = []string{
+	"security",
+	"observability",
+}
 
 type serverlessProvider struct {
 	profile *profile.Profile
@@ -329,23 +327,29 @@ func (sp *serverlessProvider) startLocalServices(ctx context.Context, options Op
 		return fmt.Errorf("could not initialize local services compose project")
 	}
 
-	err = project.Build(ctx, compose.CommandOptions{})
+	opts := compose.CommandOptions{
+		ExtraArgs: []string{},
+	}
+	err = project.Build(ctx, opts)
 	if err != nil {
 		return fmt.Errorf("failed to build images for local services: %w", err)
 	}
 
-	err = project.Up(ctx, compose.CommandOptions{ExtraArgs: []string{"-d"}})
-	if err != nil {
+	if options.DaemonMode {
+		opts.ExtraArgs = append(opts.ExtraArgs, "-d")
+	}
+	if err := project.Up(ctx, opts); err != nil {
 		// At least starting on 8.6.0, fleet-server may be reconfigured or
 		// restarted after being healthy. If elastic-agent tries to enroll at
 		// this moment, it fails inmediately, stopping and making `docker-compose up`
 		// to fail too.
 		// As a workaround, try to give another chance to docker-compose if only
 		// elastic-agent failed.
-		fmt.Println("Elastic Agent failed to start, trying again.")
-		err = project.Up(ctx, compose.CommandOptions{ExtraArgs: []string{"-d"}})
-		if err != nil {
-			return fmt.Errorf("failed to start local agent: %w", err)
+		if onlyElasticAgentFailed(ctx, options) && !errors.Is(err, context.Canceled) {
+			fmt.Println("Elastic Agent failed to start, trying again.")
+			if err := project.Up(ctx, opts); err != nil {
+				return fmt.Errorf("failed to start local services: %w", err)
+			}
 		}
 	}
 
@@ -390,7 +394,11 @@ func (sp *serverlessProvider) destroyLocalServices(ctx context.Context) error {
 		return fmt.Errorf("could not initialize local services compose project")
 	}
 
-	err = project.Down(ctx, compose.CommandOptions{})
+	opts := compose.CommandOptions{
+		// Remove associated volumes.
+		ExtraArgs: []string{"--volumes", "--remove-orphans"},
+	}
+	err = project.Down(ctx, opts)
 	if err != nil {
 		return fmt.Errorf("failed to destroy local services: %w", err)
 	}
