@@ -53,12 +53,14 @@ func Test_getShellName(t *testing.T) {
 	var tests []testCase
 	if filepath.Separator == '\\' {
 		tests = []testCase{
+			{"windows relative path", args{exe: `cmd.exe`}, "cmd"}, // Not sure if this case is real.
 			{"windows exec", args{exe: `C:\Windows\System32\cmd.exe`}, "cmd"},
 		}
 	} else {
 		tests = []testCase{
 			{"linux exec", args{exe: "/usr/bin/bash"}, "bash"},
 			{"linux upgraded exec", args{exe: "/usr/bin/bash (deleted)"}, "bash"},
+			{"windows relative path", args{exe: `cmd.exe`}, "cmd"}, // Not sure if this case is real.
 			{"windows exec", args{exe: `C:/Windows/System32/cmd.exe`}, "cmd"},
 		}
 	}
