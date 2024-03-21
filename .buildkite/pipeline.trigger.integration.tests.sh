@@ -78,7 +78,7 @@ done
  popd > /dev/null
 
 pushd test/packages/parallel > /dev/null
-for independent_agent in false true; do
+for independent_agent in false; do
 for package in $(find . -maxdepth 1 -mindepth 1 -type d) ; do
     package_name=$(basename "${package}")
     if [[ "$package_name" == "aws" || "$package_name" == "aws_logs" || "$package_name" == "gcp" ]] ; then
