@@ -300,6 +300,10 @@ func (r *runner) createServiceOptions(variantName string) servicedeployer.Factor
 func (r *runner) createAgentInfo() (agentdeployer.AgentInfo, error) {
 	var info agentdeployer.AgentInfo
 
+	info.Name = r.options.TestFolder.Package
+	info.Logs.Folder.Agent = ServiceLogsAgentDir
+	info.Test.RunID = createTestRunID()
+
 	info.Tags = append(info.Tags, "test", "system", info.Test.RunID, r.options.TestFolder.Package)
 	folderName := fmt.Sprintf("agent-%s", r.options.TestFolder.Package)
 
@@ -312,10 +316,7 @@ func (r *runner) createAgentInfo() (agentdeployer.AgentInfo, error) {
 	if err != nil {
 		return agentdeployer.AgentInfo{}, fmt.Errorf("failed to create service logs dir: %w", err)
 	}
-	info.Name = r.options.TestFolder.Package
 	info.Logs.Folder.Local = dirPath
-	info.Logs.Folder.Agent = ServiceLogsAgentDir
-	info.Test.RunID = createTestRunID()
 
 	return info, nil
 }
