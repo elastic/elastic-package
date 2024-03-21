@@ -297,10 +297,18 @@ func (r *runner) createServiceOptions(variantName string) servicedeployer.Factor
 	}
 }
 
-func (r *runner) createAgentInfo(scenario scenarioTest) (agentdeployer.AgentInfo, error) {
+func (r *runner) createAgentInfo() (agentdeployer.AgentInfo, error) {
 	var info agentdeployer.AgentInfo
 
-	dirPath, err := agentdeployer.CreateServiceLogsDir(r.locationManager, fmt.Sprintf("agent-%s-%s", scenario.pkgManifest.Name, scenario.dataStreamManifest.Name))
+	info.Tags = append(info.Tags, "test", "system", info.Test.RunID, r.options.TestFolder.Package)
+	folderName := fmt.Sprintf("agent-%s", r.options.TestFolder.Package)
+
+	if r.options.TestFolder.DataStream != "" {
+		folderName = fmt.Sprintf("%s-%s", folderName, r.options.TestFolder.DataStream)
+		info.Tags = append(info.Tags, r.options.TestFolder.DataStream)
+	}
+
+	dirPath, err := agentdeployer.CreateServiceLogsDir(r.locationManager, folderName)
 	if err != nil {
 		return agentdeployer.AgentInfo{}, fmt.Errorf("failed to create service logs dir: %w", err)
 	}
@@ -308,11 +316,6 @@ func (r *runner) createAgentInfo(scenario scenarioTest) (agentdeployer.AgentInfo
 	info.Logs.Folder.Local = dirPath
 	info.Logs.Folder.Agent = ServiceLogsAgentDir
 	info.Test.RunID = createTestRunID()
-
-	info.Tags = append(info.Tags, "test", "system", scenario.pkgManifest.Name, info.Test.RunID)
-	if scenario.dataStreamManifest != nil {
-		info.Tags = append(info.Tags, scenario.dataStreamManifest.Name)
-	}
 
 	return info, nil
 }
@@ -330,6 +333,10 @@ func (r *runner) createServiceInfo() (servicedeployer.ServiceInfo, error) {
 	}
 	svcInfo.OutputDir = outputDir
 
+	svcInfo.Tags = append(svcInfo.Tags, "test", "system", svcInfo.Test.RunID, r.options.TestFolder.Package)
+	if r.options.TestFolder.DataStream != "" {
+		svcInfo.Tags = append(svcInfo.Tags, r.options.TestFolder.DataStream)
+	}
 	return svcInfo, nil
 }
 
@@ -742,7 +749,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, servic
 	// Setup agent
 	logger.Debug("setting up agent...")
 	agentOptions := r.createAgentOptions(scenario)
-	agentInfo, err := r.createAgentInfo(scenario)
+	agentInfo, err := r.createAgentInfo()
 	if err != nil {
 		return nil, err
 	}
