@@ -1717,6 +1717,12 @@ func filterAgents(allAgents []kibana.Agent, agentInfo agentdeployer.AgentInfo, t
 		logger.Debugf("filter agents using service criteria: NamePrefix=%s", svcInfo.Agent.Host.NamePrefix)
 	}
 
+	expectedTags := agentInfo.Tags
+	if svcInfo.Agent.Host.NamePrefix == "docker-custom-agent" {
+		// custom agents are still started from servicedeployer, they are defined in the same docker compose scenario
+		expectedTags = svcInfo.Tags
+	}
+
 	// filtered list of agents must contain all agents started by the stack
 	// they could be assigned the default policy (elastic-agent-managed-ep) or the test policy (ep-test-system-*)
 	var filtered []kibana.Agent
@@ -1743,10 +1749,10 @@ func filterAgents(allAgents []kibana.Agent, agentInfo agentdeployer.AgentInfo, t
 		}
 
 		// Tags are available starting in 8.3
-		if runIndependentElasticAgent && len(agent.Tags) > 0 {
-			logger.Debugf("Checking tags %s vs %s", strings.Join(agent.Tags, ","), strings.Join(agentInfo.Tags, ","))
+		if runIndependentElasticAgent && len(expectedTags) > 0 && len(agent.Tags) > 0 {
+			logger.Debugf("Checking tags %s vs %s", strings.Join(agent.Tags, ","), strings.Join(expectedTags, ","))
 			foundAllTags := true
-			for _, tag := range agentInfo.Tags {
+			for _, tag := range expectedTags {
 				if !slices.Contains(agent.Tags, tag) {
 					logger.Debugf("filtered agent (invalid tag found) %s -  %q vs %q", tag, strings.Join(agent.Tags, ","), strings.Join(agentInfo.Tags, ",")) // TODO: remove
 					foundAllTags = false

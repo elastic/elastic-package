@@ -127,7 +127,7 @@ func (d *DockerComposeAgentDeployer) SetUp(ctx context.Context, agentInfo AgentI
 		agentInfo.Port = agentInfo.Ports[0]
 	}
 
-	agentInfo.Agent.Host.NamePrefix = "docker-custom-agent"
+	agentInfo.Agent.Host.NamePrefix = dockerTestAgentNamePrefix
 	agent.agentInfo = agentInfo
 	return &agent, nil
 }

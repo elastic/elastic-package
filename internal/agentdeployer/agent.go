@@ -23,10 +23,10 @@ import (
 )
 
 const (
-	dockerCustomAgentNamePrefix    = "docker-custom-agent"
-	dockerCustomAgentDir           = "docker_custom_agent"
-	dockerCustomAgentDockerCompose = "docker-agent-base.yml"
-	defaultAgentPolicyName         = "Elastic-Agent (elastic-package)"
+	dockerTestAgentNamePrefix    = "docker-test-agent"
+	dockerTestgentDir            = "docker_test_agent"
+	dockerTestAgentDockerCompose = "docker-agent-base.yml"
+	defaultAgentPolicyName       = "Elastic-Agent (elastic-package)"
 )
 
 //go:embed _static/docker-agent-base.yml
@@ -106,12 +106,12 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, agentInfo AgentInfo) (D
 	}
 
 	ymlPaths := []string{
-		filepath.Join(configDir, dockerCustomAgentDockerCompose),
+		filepath.Join(configDir, dockerTestAgentDockerCompose),
 	}
 	if d.dockerComposeFile != "" {
 		ymlPaths = []string{
 			d.dockerComposeFile,
-			filepath.Join(configDir, dockerCustomAgentDockerCompose),
+			filepath.Join(configDir, dockerTestAgentDockerCompose),
 		}
 	}
 
@@ -121,7 +121,7 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, agentInfo AgentInfo) (D
 		ymlPaths: ymlPaths,
 		project:  composeProjectName,
 		variant: AgentVariant{
-			Name: dockerCustomAgentNamePrefix,
+			Name: dockerTestAgentNamePrefix,
 			Env:  env,
 		},
 	}
@@ -153,7 +153,7 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, agentInfo AgentInfo) (D
 	}
 
 	// Service name defined in the docker-compose file
-	agentInfo.Name = dockerCustomAgentNamePrefix
+	agentInfo.Name = dockerTestAgentNamePrefix
 	agentName := agentInfo.Name
 
 	opts := compose.CommandOptions{
@@ -211,7 +211,7 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, agentInfo AgentInfo) (D
 }
 
 func (d *CustomAgentDeployer) agentHostname() string {
-	return fmt.Sprintf("docker-custom-agent-%s", d.agentName())
+	return fmt.Sprintf("%s-%s", dockerTestAgentNamePrefix, d.agentName())
 }
 
 func (d *CustomAgentDeployer) agentName() string {
@@ -234,7 +234,7 @@ func (d *CustomAgentDeployer) installDockerfile() (string, error) {
 		return "", fmt.Errorf("failed to create directory for custom agent files: %w", err)
 	}
 
-	customAgentDockerfile := filepath.Join(customAgentDir, dockerCustomAgentDockerCompose)
+	customAgentDockerfile := filepath.Join(customAgentDir, dockerTestAgentDockerCompose)
 	err = os.WriteFile(customAgentDockerfile, dockerAgentDockerComposeContent, 0644)
 	if err != nil {
 		return "", fmt.Errorf("failed to create docker compose file for custom agent: %w", err)
