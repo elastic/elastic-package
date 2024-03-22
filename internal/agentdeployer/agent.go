@@ -194,7 +194,9 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, agentInfo AgentInfo) (D
 	}
 
 	// Build agent container name
-	// agentInfo.Hostname = p.ContainerName(serviceName)
+	// For those packages that require to do requests to agent ports in their tests (e.g. ti_anomali),
+	// using the ContainerName of the agent (p.ContainerName(agentName)) as in servicedeployer does not work,
+	// probably because it is in another compose project in case of ti_anomali?.
 	agentInfo.Hostname = d.agentHostname()
 
 	logger.Debugf("adding service container %s internal ports to context", p.ContainerName(agentName))
