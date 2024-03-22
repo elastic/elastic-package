@@ -35,7 +35,7 @@ import (
 	"github.com/elastic/elastic-package/internal/wait"
 )
 
-const numberOfEvents = 10
+const numberOfEvents = 100
 
 type runner struct {
 	options   Options
