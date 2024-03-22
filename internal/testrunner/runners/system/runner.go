@@ -289,8 +289,8 @@ func (r *runner) createServiceOptions(variantName string) servicedeployer.Factor
 		Variant:                variantName,
 		Type:                   servicedeployer.TypeTest,
 		StackVersion:           r.stackVersion.Version(),
-		PackageName:            "", // to be filled in prepareScenario
-		DataStream:             "", // to be filled in prepareScenario
+		PackageName:            r.options.TestFolder.Package,
+		DataStream:             r.options.TestFolder.DataStream,
 		RunTearDown:            r.options.RunTearDown,
 		RunTestsOnly:           r.options.RunTestsOnly,
 		RunSetup:               r.options.RunSetup,
