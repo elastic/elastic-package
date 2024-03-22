@@ -761,8 +761,15 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	enrollingTime := time.Now()
 	if r.options.RunTearDown || r.options.RunTestsOnly {
 		enrollingTime = serviceStateData.EnrollingAgentTime
+
 		agentInfo.Tags = serviceStateData.Agent.Tags
+		agentInfo.Test.RunID = serviceStateData.AgentRunID
+		agentInfo.Hostname = serviceStateData.AgentHostname
+
 		svcInfo.Tags = serviceStateData.Agent.Tags
+		svcInfo.Test.RunID = serviceStateData.ServiceRunID
+		svcInfo.AgentHostname = serviceStateData.ServiceAgentHostname
+		svcInfo.Hostname = serviceStateData.ServiceAgentHostname
 	}
 	agentDeployer, err := agentdeployer.Factory(agentOptions)
 	if err != nil {
@@ -775,6 +782,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 			if err != nil {
 				return nil, fmt.Errorf("could not setup agent: %w", err)
 			}
+			agentInfo = agentDeployed.Info()
 		}
 		r.shutdownAgentHandler = func(ctx context.Context) error {
 			if agentDeployer == nil {
@@ -801,16 +809,15 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		return nil, fmt.Errorf("could not create service runner: %w", err)
 	}
 
+	svcInfo.AgentHostname = "elastic-agent"
 	if r.options.RunIndependentElasticAgent {
 		svcInfo.Logs.Folder.Local = agentInfo.Logs.Folder.Local
 		if agentDeployed != nil {
-			// In case of CustomAgents from servicedeployer where agent and service
-			// are deployed in the same docker-compose scenario (servicedeployer),
-			// so there is no agentDeployed in that scenario
+			// Not all agents are created from "agentdeployer", currently agent and
+			// service containers are created from "servicedeployer" package for
+			// CustomAgent scenario
 			svcInfo.AgentHostname = agentDeployed.Info().Hostname
 		}
-	} else {
-		svcInfo.AgentHostname = "elastic-agent"
 	}
 	if config.Service != "" {
 		svcInfo.Name = config.Service
@@ -1109,6 +1116,8 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 			config:        config,
 			agent:         origAgent,
 			enrollingTime: enrollingTime,
+			agentInfo:     agentInfo,
+			svcInfo:       svcInfo,
 		}
 		err = r.writeScenarioState(opts)
 		if err != nil {
@@ -1151,14 +1160,18 @@ func (r *runner) readServiceStateData() (ServiceState, error) {
 }
 
 type ServiceState struct {
-	OrigPolicy         kibana.Policy `json:"orig_policy"`
-	CurrentPolicy      kibana.Policy `json:"current_policy"`
-	Agent              kibana.Agent  `json:"agent"`
-	ConfigFilePath     string        `json:"config_file_path"`
-	VariantName        string        `json:"variant_name"`
-	EnrollingAgentTime time.Time     `json:"enrolling_agent_time"`
-	ServiceInfoTags    []string      `json:"service_info_tags,omitempty"`
-	AgentInfoTags      []string      `json:"agent_info_tags,omitempty"`
+	OrigPolicy           kibana.Policy `json:"orig_policy"`
+	CurrentPolicy        kibana.Policy `json:"current_policy"`
+	Agent                kibana.Agent  `json:"agent"`
+	ConfigFilePath       string        `json:"config_file_path"`
+	VariantName          string        `json:"variant_name"`
+	EnrollingAgentTime   time.Time     `json:"enrolling_agent_time"`
+	ServiceInfoTags      []string      `json:"service_info_tags,omitempty"`
+	AgentInfoTags        []string      `json:"agent_info_tags,omitempty"`
+	ServiceRunID         string        `json:"service_info_run_id"`
+	AgentRunID           string        `json:"agent_info_run_id"`
+	AgentHostname        string        `json:"agent_hostname"`
+	ServiceAgentHostname string        `json:"service_agent_hostnme"`
 }
 
 type scenarioStateOpts struct {
@@ -1167,16 +1180,22 @@ type scenarioStateOpts struct {
 	config        *testConfig
 	agent         kibana.Agent
 	enrollingTime time.Time
+	agentInfo     agentdeployer.AgentInfo
+	svcInfo       servicedeployer.ServiceInfo
 }
 
 func (r *runner) writeScenarioState(opts scenarioStateOpts) error {
 	data := ServiceState{
-		OrigPolicy:         *opts.origPolicy,
-		CurrentPolicy:      *opts.currentPolicy,
-		Agent:              opts.agent,
-		ConfigFilePath:     opts.config.Path,
-		VariantName:        opts.config.ServiceVariantName,
-		EnrollingAgentTime: opts.enrollingTime,
+		OrigPolicy:           *opts.origPolicy,
+		CurrentPolicy:        *opts.currentPolicy,
+		Agent:                opts.agent,
+		ConfigFilePath:       opts.config.Path,
+		VariantName:          opts.config.ServiceVariantName,
+		EnrollingAgentTime:   opts.enrollingTime,
+		ServiceRunID:         opts.svcInfo.Test.RunID,
+		AgentRunID:           opts.agentInfo.Test.RunID,
+		AgentHostname:        opts.agentInfo.Hostname,
+		ServiceAgentHostname: opts.svcInfo.AgentHostname,
 	}
 	dataBytes, err := json.Marshal(data)
 	if err != nil {
@@ -1749,10 +1768,10 @@ func filterAgents(allAgents []kibana.Agent, agentInfo agentdeployer.AgentInfo, t
 		logger.Debugf("filter agents using service criteria: NamePrefix=%s", svcInfo.Agent.Host.NamePrefix)
 	}
 
-	expectedTags := agentInfo.Tags
+	expectedHostname := agentInfo.Hostname
 	if svcInfo.Agent.Host.NamePrefix == "docker-custom-agent" {
 		// custom agents are still started from servicedeployer, they are defined in the same docker compose scenario
-		expectedTags = svcInfo.Tags
+		expectedHostname = svcInfo.AgentHostname
 	}
 
 	// filtered list of agents must contain all agents started by the stack
@@ -1780,21 +1799,28 @@ func filterAgents(allAgents []kibana.Agent, agentInfo agentdeployer.AgentInfo, t
 			continue
 		}
 
-		// Tags are available starting in 8.3
-		if runIndependentElasticAgent && len(expectedTags) > 0 && len(agent.Tags) > 0 {
-			logger.Debugf("Checking tags %s vs %s", strings.Join(agent.Tags, ","), strings.Join(expectedTags, ","))
-			foundAllTags := true
-			for _, tag := range expectedTags {
-				if !slices.Contains(agent.Tags, tag) {
-					logger.Debugf("filtered agent (invalid tag found) %s -  %q vs %q", tag, strings.Join(agent.Tags, ","), strings.Join(expectedTags, ",")) // TODO: remove
-					foundAllTags = false
-					break
-				}
-			}
-			if !foundAllTags {
+		if runIndependentElasticAgent && agent.LocalMetadata.Host.Name != "kind-control-plane" {
+			logger.Debugf("Checking hostname %s in agent hostname %s", expectedHostname, agent.LocalMetadata.Host.Name)
+			if expectedHostname != agent.LocalMetadata.Host.Name {
+				logger.Debugf("filtered agent (invalid hostname suffix) %s - %q: %s", expectedHostname, agent.LocalMetadata.Host.Name, agent.ID) // TODO: remove
 				continue
 			}
 		}
+		// // Tags are available starting in 8.3
+		// if runIndependentElasticAgent && len(expectedTags) > 0 && len(agent.Tags) > 0 {
+		// 	logger.Debugf("Checking tags %s vs %s", strings.Join(agent.Tags, ","), strings.Join(expectedTags, ","))
+		// 	foundAllTags := true
+		// 	for _, tag := range expectedTags {
+		// 		if !slices.Contains(agent.Tags, tag) {
+		// 			logger.Debugf("filtered agent (invalid tag found) %s -  %q vs %q", tag, strings.Join(agent.Tags, ","), strings.Join(expectedTags, ",")) // TODO: remove
+		// 			foundAllTags = false
+		// 			break
+		// 		}
+		// 	}
+		// 	if !foundAllTags {
+		// 		continue
+		// 	}
+		// }
 
 		if runIndependentElasticAgent {
 			// FIXME: check for package and data stream name too ?

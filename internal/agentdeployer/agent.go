@@ -41,6 +41,8 @@ type CustomAgentDeployer struct {
 
 	variant AgentVariant
 
+	agentRunID string
+
 	packageName string
 	dataStream  string
 
@@ -80,6 +82,7 @@ func NewCustomAgentDeployer(options CustomAgentDeployerOptions) (*CustomAgentDep
 // SetUp sets up the service and returns any relevant information.
 func (d *CustomAgentDeployer) SetUp(ctx context.Context, agentInfo AgentInfo) (DeployedAgent, error) {
 	logger.Debug("setting up service using Docker Compose agent deployer")
+	d.agentRunID = agentInfo.Test.RunID
 
 	appConfig, err := install.Configuration()
 	if err != nil {
@@ -222,7 +225,7 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, agentInfo AgentInfo) (D
 }
 
 func (d *CustomAgentDeployer) agentHostname() string {
-	return fmt.Sprintf("%s-%s", dockerTestAgentNamePrefix, d.agentName())
+	return fmt.Sprintf("%s-%s-%s", dockerTestAgentNamePrefix, d.agentName(), d.agentRunID)
 }
 
 func (d *CustomAgentDeployer) agentName() string {

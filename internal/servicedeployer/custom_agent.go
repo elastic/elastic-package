@@ -41,6 +41,8 @@ type CustomAgentDeployer struct {
 	packageName       string
 	dataStream        string
 
+	agentRunID string
+
 	runTearDown  bool
 	runTestsOnly bool
 }
@@ -76,6 +78,8 @@ func NewCustomAgentDeployer(options CustomAgentDeployerOptions) (*CustomAgentDep
 // SetUp sets up the service and returns any relevant information.
 func (d *CustomAgentDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (DeployedService, error) {
 	logger.Debug("setting up service using Docker Compose service deployer")
+
+	d.agentRunID = svcInfo.Test.RunID
 
 	appConfig, err := install.Configuration()
 	if err != nil {
@@ -170,7 +174,10 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (D
 	}
 
 	// Build service container name
-	svcInfo.Hostname = p.ContainerName(serviceName)
+	// Set the same hostname as in the docker-compose (environment variable)
+	//svcInfo.Hostname = p.ContainerName(serviceName)
+	svcInfo.Hostname = d.agentHostname()
+	svcInfo.AgentHostname = d.agentHostname()
 
 	logger.Debugf("adding service container %s internal ports to context", p.ContainerName(serviceName))
 	serviceComposeConfig, err := p.Config(ctx, compose.CommandOptions{Env: env})
@@ -206,7 +213,7 @@ func (d *CustomAgentDeployer) agentName() string {
 }
 
 func (d *CustomAgentDeployer) agentHostname() string {
-	return fmt.Sprintf("%s-%s", dockerCustomAgentName, d.agentName())
+	return fmt.Sprintf("%s-%s-%s", dockerCustomAgentName, d.agentName(), d.agentRunID)
 }
 
 // installDockerfile creates the files needed to run the custom elastic agent and returns
