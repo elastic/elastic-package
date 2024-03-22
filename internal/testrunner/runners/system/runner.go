@@ -762,6 +762,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	if r.options.RunTearDown || r.options.RunTestsOnly {
 		enrollingTime = serviceStateData.EnrollingAgentTime
 		agentInfo.Tags = serviceStateData.Agent.Tags
+		svcInfo.Tags = serviceStateData.Agent.Tags
 	}
 	agentDeployer, err := agentdeployer.Factory(agentOptions)
 	if err != nil {
@@ -1102,7 +1103,14 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	scenario.docs = hits.getDocs(scenario.syntheticEnabled)
 
 	if r.options.RunSetup {
-		err = r.writeScenarioState(policy, &origPolicy, config, origAgent, enrollingTime)
+		opts := scenarioStateOpts{
+			origPolicy:    &origPolicy,
+			currentPolicy: policy,
+			config:        config,
+			agent:         origAgent,
+			enrollingTime: enrollingTime,
+		}
+		err = r.writeScenarioState(opts)
 		if err != nil {
 			return nil, err
 		}
@@ -1149,16 +1157,26 @@ type ServiceState struct {
 	ConfigFilePath     string        `json:"config_file_path"`
 	VariantName        string        `json:"variant_name"`
 	EnrollingAgentTime time.Time     `json:"enrolling_agent_time"`
+	ServiceInfoTags    []string      `json:"service_info_tags,omitempty"`
+	AgentInfoTags      []string      `json:"agent_info_tags,omitempty"`
 }
 
-func (r *runner) writeScenarioState(currentPolicy, origPolicy *kibana.Policy, config *testConfig, agent kibana.Agent, enrollingTime time.Time) error {
+type scenarioStateOpts struct {
+	currentPolicy *kibana.Policy
+	origPolicy    *kibana.Policy
+	config        *testConfig
+	agent         kibana.Agent
+	enrollingTime time.Time
+}
+
+func (r *runner) writeScenarioState(opts scenarioStateOpts) error {
 	data := ServiceState{
-		OrigPolicy:         *origPolicy,
-		CurrentPolicy:      *currentPolicy,
-		Agent:              agent,
-		ConfigFilePath:     config.Path,
-		VariantName:        config.ServiceVariantName,
-		EnrollingAgentTime: enrollingTime,
+		OrigPolicy:         *opts.origPolicy,
+		CurrentPolicy:      *opts.currentPolicy,
+		Agent:              opts.agent,
+		ConfigFilePath:     opts.config.Path,
+		VariantName:        opts.config.ServiceVariantName,
+		EnrollingAgentTime: opts.enrollingTime,
 	}
 	dataBytes, err := json.Marshal(data)
 	if err != nil {
