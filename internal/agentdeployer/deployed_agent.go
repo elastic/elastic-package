@@ -7,6 +7,7 @@ package agentdeployer
 import (
 	"context"
 	"errors"
+	"time"
 )
 
 var ErrNotSupported error = errors.New("not supported")
@@ -27,4 +28,7 @@ type DeployedAgent interface {
 
 	// ExitCode returns true if the service is exited and its exit code.
 	ExitCode(ctx context.Context, service string) (bool, int, error)
+
+	// Logs returns the logs from the agent starting at the given time
+	Logs(ctx context.Context, t time.Time) ([]byte, error)
 }

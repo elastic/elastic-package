@@ -705,6 +705,8 @@ type scenarioTest struct {
 	kibanaDataStream   kibana.PackageDataStream
 	syntheticEnabled   bool
 	docs               []common.MapStr
+	agent              agentdeployer.DeployedAgent
+	enrollingTime      time.Time
 }
 
 func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInfo servicedeployer.ServiceInfo, serviceOptions servicedeployer.FactoryOptions) (*scenarioTest, error) {
@@ -784,6 +786,8 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 
 			return nil
 		}
+		scenario.agent = agentDeployed
+		scenario.enrollingTime = enrollingTime
 	}
 
 	// Setup service.
@@ -1273,6 +1277,16 @@ func (r *runner) validateTestScenario(ctx context.Context, result *testrunner.Re
 		return result.WithError(err)
 	}
 
+	if scenario.agent != nil {
+		logResults, err := r.checkNewAgentLogs(ctx, scenario.agent, scenario.enrollingTime, errorPatterns)
+		if err != nil {
+			return result.WithError(err)
+		}
+		if len(logResults) > 0 {
+			return logResults, nil
+		}
+	}
+
 	return result.WithSuccess()
 }
 
@@ -1754,7 +1768,7 @@ func filterAgents(allAgents []kibana.Agent, agentInfo agentdeployer.AgentInfo, t
 			foundAllTags := true
 			for _, tag := range expectedTags {
 				if !slices.Contains(agent.Tags, tag) {
-					logger.Debugf("filtered agent (invalid tag found) %s -  %q vs %q", tag, strings.Join(agent.Tags, ","), strings.Join(agentInfo.Tags, ",")) // TODO: remove
+					logger.Debugf("filtered agent (invalid tag found) %s -  %q vs %q", tag, strings.Join(agent.Tags, ","), strings.Join(expectedTags, ",")) // TODO: remove
 					foundAllTags = false
 					break
 				}
@@ -1869,6 +1883,58 @@ func (r *runner) generateTestResult(docs []common.MapStr, specVersion semver.Ver
 	}
 
 	return nil
+}
+
+func (r *runner) checkNewAgentLogs(ctx context.Context, agent agentdeployer.DeployedAgent, startTesting time.Time, errorPatterns []logsByContainer) (results []testrunner.TestResult, err error) {
+	if agent == nil {
+		return nil, nil
+	}
+
+	f, err := os.CreateTemp("", "elastic-agent.logs")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create temp file for logs: %w", err)
+	}
+	defer os.Remove(f.Name())
+
+	for _, patternsContainer := range errorPatterns {
+		if patternsContainer.containerName != "elastic-agent" {
+			continue
+		}
+
+		startTime := time.Now()
+
+		outputBytes, err := agent.Logs(ctx, startTesting)
+		if err != nil {
+			return nil, fmt.Errorf("check log messages failed: %s", err)
+		}
+		_, err = f.Write(outputBytes)
+		if err != nil {
+			return nil, fmt.Errorf("write log messages failed: %s", err)
+		}
+
+		err = r.anyErrorMessages(f.Name(), startTesting, patternsContainer.patterns)
+		if e, ok := err.(testrunner.ErrTestCaseFailed); ok {
+			tr := testrunner.TestResult{
+				TestType:   TestType,
+				Name:       fmt.Sprintf("(%s logs)", patternsContainer.containerName),
+				Package:    r.options.TestFolder.Package,
+				DataStream: r.options.TestFolder.DataStream,
+			}
+			tr.FailureMsg = e.Error()
+			tr.FailureDetails = e.Details
+			tr.TimeElapsed = time.Since(startTime)
+			results = append(results, tr)
+			// Just check elastic-agent
+			break
+		}
+
+		if err != nil {
+			return nil, fmt.Errorf("check log messages failed: %s", err)
+		}
+		// Just check elastic-agent
+		break
+	}
+	return results, nil
 }
 
 func (r *runner) checkAgentLogs(dumpOptions stack.DumpOptions, startTesting time.Time, errorPatterns []logsByContainer) (results []testrunner.TestResult, err error) {

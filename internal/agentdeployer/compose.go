@@ -174,6 +174,23 @@ func (s *dockerComposeDeployedAgent) ExitCode(ctx context.Context, agent string)
 	return p.ServiceExitCode(ctx, agent, opts)
 }
 
+// Logs returns the logs from the agent starting at the given time
+func (s *dockerComposeDeployedAgent) Logs(ctx context.Context, t time.Time) ([]byte, error) {
+	p, err := compose.NewProject(s.project, s.ymlPaths...)
+	if err != nil {
+		return nil, fmt.Errorf("could not create Docker Compose project for agent: %w", err)
+	}
+
+	opts := compose.CommandOptions{
+		Env: append(
+			s.env,
+			s.variant.Env...,
+		),
+	}
+
+	return p.Logs(ctx, opts)
+}
+
 // TearDown tears down the agent.
 func (s *dockerComposeDeployedAgent) TearDown(ctx context.Context) error {
 	logger.Debugf("tearing down agent using Docker Compose runner")

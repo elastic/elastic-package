@@ -13,6 +13,7 @@ import (
 	"os"
 	"strings"
 	"text/template"
+	"time"
 
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/kind"
@@ -78,6 +79,11 @@ func (s kubernetesDeployedAgent) Info() AgentInfo {
 func (s *kubernetesDeployedAgent) SetInfo(sc AgentInfo) error {
 	s.agentInfo = sc
 	return nil
+}
+
+// Logs returns the logs from the agent starting at the given time
+func (s *kubernetesDeployedAgent) Logs(ctx context.Context, t time.Time) ([]byte, error) {
+	return nil, nil
 }
 
 var _ DeployedAgent = new(kubernetesDeployedAgent)
