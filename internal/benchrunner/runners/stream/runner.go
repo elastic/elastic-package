@@ -35,6 +35,8 @@ import (
 	"github.com/elastic/elastic-package/internal/wait"
 )
 
+const numberOfEvents = 100
+
 type runner struct {
 	options   Options
 	scenarios map[string]*scenario
@@ -55,6 +57,16 @@ func NewStreamBenchmark(opts Options) benchrunner.Runner {
 
 func (r *runner) SetUp(ctx context.Context) error {
 	return r.setUp(ctx)
+}
+
+func StaticValidation(ctx context.Context, opts Options) error {
+	runner := runner{options: opts}
+	err := runner.initialize(ctx)
+	if err != nil {
+		return err
+	}
+	err = runner.validateGenerators()
+	return err
 }
 
 // Run runs the system benchmarks defined under the given folder
@@ -94,13 +106,9 @@ func (r *runner) TearDown(ctx context.Context) error {
 	return merr
 }
 
-func (r *runner) setUp(ctx context.Context) error {
+func (r *runner) initialize(ctx context.Context) error {
 	r.generators = make(map[string]genlib.Generator)
 	r.backFillGenerators = make(map[string]genlib.Generator)
-
-	r.runtimeDataStreams = make(map[string]string)
-
-	r.svcInfo.Test.RunID = common.NewRunID()
 
 	pkgManifest, err := packages.ReadPackageManifestFromPackageRoot(r.options.PackageRootPath)
 	if err != nil {
@@ -113,13 +121,51 @@ func (r *runner) setUp(ctx context.Context) error {
 	}
 	r.scenarios = scenarios
 
-	if err = r.installPackage(); err != nil {
-		return fmt.Errorf("error installing package: %w", err)
-	}
-
 	err = r.collectGenerators(ctx)
 	if err != nil {
 		return fmt.Errorf("can't initialize generator: %w", err)
+	}
+
+	return nil
+}
+
+func (r *runner) validateGenerators() error {
+	for scenarioName, generator := range r.generators {
+		for i := 0; i < numberOfEvents; i++ {
+			buf := bytes.NewBufferString("")
+			err := generator.Emit(buf)
+			if err != nil {
+				return fmt.Errorf("[%s] error while generating event: %w", scenarioName, err)
+			}
+			// check whether the generated event is valid json
+			var event map[string]any
+			err = json.Unmarshal(buf.Bytes(), &event)
+			if err != nil {
+				return fmt.Errorf("[%s] failed to unmarshal json event: %w, generated output: %s", scenarioName, err, buf.String())
+			}
+		}
+	}
+
+	return nil
+}
+
+func (r *runner) setUp(ctx context.Context) error {
+	err := r.initialize(ctx)
+	if err != nil {
+		return err
+	}
+
+	r.runtimeDataStreams = make(map[string]string)
+
+	r.svcInfo.Test.RunID = common.NewRunID()
+
+	pkgManifest, err := packages.ReadPackageManifestFromPackageRoot(r.options.PackageRootPath)
+	if err != nil {
+		return fmt.Errorf("reading package manifest failed: %w", err)
+	}
+
+	if err = r.installPackage(); err != nil {
+		return fmt.Errorf("error installing package: %w", err)
 	}
 
 	for scenarioName, scenario := range r.scenarios {
@@ -265,17 +311,17 @@ func (r *runner) collectGenerators(ctx context.Context) error {
 	for scenarioName, scenario := range r.scenarios {
 		config, err := r.getGeneratorConfig(scenario)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to obtain generator config for scenario %q: %w", scenarioName, err)
 		}
 
 		fields, err := r.getGeneratorFields(ctx, scenario)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to obtain fields from generator for scenario %q: %w", scenarioName, err)
 		}
 
 		tpl, err := r.getGeneratorTemplate(scenario)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to obtain template from for scenario %q: %w", scenarioName, err)
 		}
 
 		genlib.InitGeneratorTimeNow(time.Now())
@@ -283,7 +329,7 @@ func (r *runner) collectGenerators(ctx context.Context) error {
 
 		generator, err := r.initializeGenerator(tpl, *config, fields, scenario, 0, 0)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to initialize backfill generator for scenario %q: %w", scenarioName, err)
 		}
 
 		r.generators[scenarioName] = generator
@@ -297,7 +343,7 @@ func (r *runner) collectGenerators(ctx context.Context) error {
 
 		generator, err = r.initializeGenerator(tpl, *config, fields, scenario, r.options.BackFill, totEvents)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to initialize backfill generator for scenario %q: %w", scenarioName, err)
 		}
 
 		r.backFillGenerators[scenarioName] = generator
