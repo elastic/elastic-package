@@ -93,7 +93,7 @@ func NewCustomAgentDeployer(options DockerComposeAgentDeployerOptions) (*DockerC
 
 // SetUp sets up the service and returns any relevant information.
 func (d *DockerComposeAgentDeployer) SetUp(ctx context.Context, agentInfo AgentInfo) (DeployedAgent, error) {
-	logger.Debug("setting up service using Docker Compose agent deployer")
+	logger.Debug("setting up agent using Docker Compose agent deployer")
 	d.agentRunID = agentInfo.Test.RunID
 
 	appConfig, err := install.Configuration()
@@ -144,10 +144,8 @@ func (d *DockerComposeAgentDeployer) SetUp(ctx context.Context, agentInfo AgentI
 	agent := dockerComposeDeployedAgent{
 		ymlPaths: ymlPaths,
 		project:  composeProjectName,
-		variant: AgentVariant{
-			Name: dockerTestAgentNamePrefix,
-			Env:  env,
-		},
+		variant:  d.variant,
+		env:      env,
 	}
 
 	agentInfo.ConfigDir = configDir
@@ -179,6 +177,10 @@ func (d *DockerComposeAgentDeployer) SetUp(ctx context.Context, agentInfo AgentI
 	// Service name defined in the docker-compose file
 	agentInfo.Name = dockerTestAgentNamePrefix
 	agentName := agentInfo.Name
+
+	if d.variant.active() {
+		logger.Infof("Using variant: %s", d.variant.String())
+	}
 
 	opts := compose.CommandOptions{
 		Env:       env,

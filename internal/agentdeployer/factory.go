@@ -65,14 +65,14 @@ func Factory(options FactoryOptions) (AgentDeployer, error) {
 		if options.Type != TypeTest {
 			return nil, fmt.Errorf("agent deployer is not supported for type %s", options.Type)
 		}
-		sv, err := useAgentVariant(devDeployPath, options.Variant)
+		variant, err := useAgentVariant(devDeployPath, options.Variant)
 		if err != nil {
 			return nil, fmt.Errorf("can't use service variant: %w", err)
 		}
 		opts := DockerComposeAgentDeployerOptions{
 			Profile:           options.Profile,
 			DockerComposeFile: "",
-			Variant:           sv,
+			Variant:           variant,
 			StackVersion:      options.StackVersion,
 			PackageName:       options.PackageName,
 			DataStream:        options.DataStream,
