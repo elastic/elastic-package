@@ -91,7 +91,7 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (D
 		appConfig.StackImageRefs(d.stackVersion).AsEnv(),
 		fmt.Sprintf("%s=%s", serviceLogsDirEnv, svcInfo.Logs.Folder.Local),
 		fmt.Sprintf("%s=%s", localCACertEnv, caCertPath),
-		fmt.Sprintf("%s=%s-%s", agentHostnameEnv, dockerCustomAgentName, d.agentName()),
+		fmt.Sprintf("%s=%s", agentHostnameEnv, d.agentHostname()),
 		fmt.Sprintf("%s=%s", elasticAgentTagsEnv, strings.Join(svcInfo.Tags, ",")),
 	)
 
@@ -195,10 +195,18 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (D
 }
 
 func (d *CustomAgentDeployer) agentName() string {
+	name := d.packageName
 	if d.variant.Name != "" {
-		return fmt.Sprintf("%s-%s-%s", d.packageName, d.variant.Name, d.dataStream)
+		name = fmt.Sprintf("%s-%s", name, d.variant.Name)
 	}
-	return fmt.Sprintf("%s-%s", d.packageName, d.dataStream)
+	if d.dataStream != "" && d.dataStream != "." {
+		name = fmt.Sprintf("%s-%s", name, d.dataStream)
+	}
+	return name
+}
+
+func (d *CustomAgentDeployer) agentHostname() string {
+	return fmt.Sprintf("%s-%s", dockerCustomAgentName, d.agentName())
 }
 
 // installDockerfile creates the files needed to run the custom elastic agent and returns
