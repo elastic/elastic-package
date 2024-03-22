@@ -80,7 +80,7 @@ func (r runner) run(ctx context.Context) ([]testrunner.TestResult, error) {
 
 func (r runner) verifyStreamConfig(ctx context.Context, packageRootPath string) []testrunner.TestResult {
 	resultComposer := testrunner.NewResultComposer(testrunner.TestResult{
-		Name:       "Verify stream config",
+		Name:       "Verify benchmark config (if available)",
 		TestType:   TestType,
 		Package:    r.options.TestFolder.Package,
 		DataStream: r.options.TestFolder.DataStream,

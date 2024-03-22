@@ -85,6 +85,10 @@ func readScenarios(path, scenarioName, packageName, packageVersion string) (map[
 		}
 		scenarios[scenarioName] = scenario
 	} else {
+		if _, err := os.Stat(filepath.Join(path, devPath)); os.IsNotExist(err) {
+			// if the dev path doesn't exist, treat that as no scenarios found
+			return nil, nil
+		}
 		err := filepath.Walk(filepath.Join(path, devPath), func(_ string, info os.FileInfo, err error) error {
 			if err != nil {
 				return err

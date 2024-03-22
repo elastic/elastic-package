@@ -311,17 +311,17 @@ func (r *runner) collectGenerators(ctx context.Context) error {
 	for scenarioName, scenario := range r.scenarios {
 		config, err := r.getGeneratorConfig(scenario)
 		if err != nil {
-			return fmt.Errorf("[%s]: %w", scenarioName, err)
+			return fmt.Errorf("failed to obtain generator config for scenario %q: %w", scenarioName, err)
 		}
 
 		fields, err := r.getGeneratorFields(ctx, scenario)
 		if err != nil {
-			return fmt.Errorf("[%s]: %w", scenarioName, err)
+			return fmt.Errorf("failed to obtain fields from generator for scenario %q: %w", scenarioName, err)
 		}
 
 		tpl, err := r.getGeneratorTemplate(scenario)
 		if err != nil {
-			return fmt.Errorf("[%s]: %w", scenarioName, err)
+			return fmt.Errorf("failed to obtain template from for scenario %q: %w", scenarioName, err)
 		}
 
 		genlib.InitGeneratorTimeNow(time.Now())
@@ -329,7 +329,7 @@ func (r *runner) collectGenerators(ctx context.Context) error {
 
 		generator, err := r.initializeGenerator(tpl, *config, fields, scenario, 0, 0)
 		if err != nil {
-			return fmt.Errorf("[%s]: %w", scenarioName, err)
+			return fmt.Errorf("failed to initialize backfill generator for scenario %q: %w", scenarioName, err)
 		}
 
 		r.generators[scenarioName] = generator
@@ -343,7 +343,7 @@ func (r *runner) collectGenerators(ctx context.Context) error {
 
 		generator, err = r.initializeGenerator(tpl, *config, fields, scenario, r.options.BackFill, totEvents)
 		if err != nil {
-			return fmt.Errorf("[%s]: %w", scenarioName, err)
+			return fmt.Errorf("failed to initialize backfill generator for scenario %q: %w", scenarioName, err)
 		}
 
 		r.backFillGenerators[scenarioName] = generator
