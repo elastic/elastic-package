@@ -18,8 +18,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/elastic/elastic-package/internal/packages/installer"
-
 	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-integration-corpus-generator-tool/pkg/genlib"
@@ -29,12 +27,12 @@ import (
 	"github.com/elastic/elastic-package/internal/benchrunner"
 	"github.com/elastic/elastic-package/internal/benchrunner/reporters"
 	"github.com/elastic/elastic-package/internal/benchrunner/runners/common"
-	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/multierror"
 	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/internal/packages/installer"
 	"github.com/elastic/elastic-package/internal/servicedeployer"
-	"github.com/elastic/elastic-package/internal/signal"
+	"github.com/elastic/elastic-package/internal/wait"
 )
 
 const numberOfEvents = 10
@@ -43,31 +41,27 @@ type runner struct {
 	options   Options
 	scenarios map[string]*scenario
 
-	ctxt               servicedeployer.ServiceContext
+	svcInfo            servicedeployer.ServiceInfo
 	runtimeDataStreams map[string]string
 	generators         map[string]genlib.Generator
 	backFillGenerators map[string]genlib.Generator
-	errChanGenerators  chan error
-
-	wg   sync.WaitGroup
-	done chan struct{}
 
 	// Execution order of following handlers is defined in runner.TearDown() method.
-	removePackageHandler  func() error
-	wipeDataStreamHandler func() error
+	removePackageHandler  func(context.Context) error
+	wipeDataStreamHandler func(context.Context) error
 }
 
 func NewStreamBenchmark(opts Options) benchrunner.Runner {
 	return &runner{options: opts}
 }
 
-func (r *runner) SetUp() error {
-	return r.setUp()
+func (r *runner) SetUp(ctx context.Context) error {
+	return r.setUp(ctx)
 }
 
-func StaticValidation(opts Options) error {
+func StaticValidation(ctx context.Context, opts Options) error {
 	runner := runner{options: opts}
-	err := runner.initialize()
+	err := runner.initialize(ctx)
 	if err != nil {
 		return err
 	}
@@ -76,30 +70,31 @@ func StaticValidation(opts Options) error {
 }
 
 // Run runs the system benchmarks defined under the given folder
-func (r *runner) Run() (reporters.Reportable, error) {
-	return nil, r.run()
+func (r *runner) Run(ctx context.Context) (reporters.Reportable, error) {
+	return nil, r.run(ctx)
 }
 
-func (r *runner) TearDown() error {
-	r.wg.Wait()
-
+func (r *runner) TearDown(ctx context.Context) error {
 	if !r.options.PerformCleanup {
 		r.removePackageHandler = nil
 		r.wipeDataStreamHandler = nil
 		return nil
 	}
 
+	// Avoid cancellations during cleanup.
+	cleanupCtx := context.WithoutCancel(ctx)
+
 	var merr multierror.Error
 
 	if r.removePackageHandler != nil {
-		if err := r.removePackageHandler(); err != nil {
+		if err := r.removePackageHandler(cleanupCtx); err != nil {
 			merr = append(merr, err)
 		}
 		r.removePackageHandler = nil
 	}
 
 	if r.wipeDataStreamHandler != nil {
-		if err := r.wipeDataStreamHandler(); err != nil {
+		if err := r.wipeDataStreamHandler(cleanupCtx); err != nil {
 			merr = append(merr, err)
 		}
 		r.wipeDataStreamHandler = nil
@@ -111,7 +106,7 @@ func (r *runner) TearDown() error {
 	return merr
 }
 
-func (r *runner) initialize() error {
+func (r *runner) initialize(ctx context.Context) error {
 	r.generators = make(map[string]genlib.Generator)
 	r.backFillGenerators = make(map[string]genlib.Generator)
 
@@ -126,7 +121,7 @@ func (r *runner) initialize() error {
 	}
 	r.scenarios = scenarios
 
-	err = r.collectGenerators()
+	err = r.collectGenerators(ctx)
 	if err != nil {
 		return fmt.Errorf("can't initialize generator: %w", err)
 	}
@@ -154,17 +149,15 @@ func (r *runner) validateGenerators() error {
 	return nil
 }
 
-func (r *runner) setUp() error {
-	err := r.initialize()
+func (r *runner) setUp(ctx context.Context) error {
+	err := r.initialize(ctx)
 	if err != nil {
 		return err
 	}
-	r.errChanGenerators = make(chan error)
-	r.done = make(chan struct{})
 
 	r.runtimeDataStreams = make(map[string]string)
 
-	r.ctxt.Test.RunID = common.NewRunID()
+	r.svcInfo.Test.RunID = common.NewRunID()
 
 	pkgManifest, err := packages.ReadPackageManifestFromPackageRoot(r.options.PackageRootPath)
 	if err != nil {
@@ -202,21 +195,17 @@ func (r *runner) setUp() error {
 		return fmt.Errorf("error cleaning up old data in data streams: %w", err)
 	}
 
-	cleared, err := waitUntilTrue(func() (bool, error) {
-		if signal.SIGINT() {
-			return true, errors.New("SIGINT: cancel clearing data")
-		}
-
+	cleared, err := wait.UntilTrue(ctx, func(ctx context.Context) (bool, error) {
 		totalHits := 0
 		for _, runtimeDataStream := range r.runtimeDataStreams {
-			hits, err := getTotalHits(r.options.ESAPI, runtimeDataStream)
+			hits, err := common.CountDocsInDataStream(ctx, r.options.ESAPI, runtimeDataStream)
 			if err != nil {
 				return false, err
 			}
 			totalHits += hits
 		}
 		return totalHits == 0, nil
-	}, 2*time.Minute)
+	}, 5*time.Second, 2*time.Minute)
 	if err != nil || !cleared {
 		if err == nil {
 			err = errors.New("unable to clear previous data")
@@ -230,7 +219,7 @@ func (r *runner) setUp() error {
 func (r *runner) wipeDataStreamsOnSetup() error {
 	// Delete old data
 	logger.Debug("deleting old data in data stream...")
-	r.wipeDataStreamHandler = func() error {
+	r.wipeDataStreamHandler = func(ctx context.Context) error {
 		logger.Debugf("deleting data in data stream...")
 		for _, runtimeDataStream := range r.runtimeDataStreams {
 			if err := r.deleteDataStreamDocs(runtimeDataStream); err != nil {
@@ -247,25 +236,6 @@ func (r *runner) wipeDataStreamsOnSetup() error {
 	}
 
 	return nil
-}
-
-func (r *runner) run() (err error) {
-	r.streamData()
-
-	ticker := time.NewTicker(1 * time.Second)
-	defer ticker.Stop()
-	for {
-		select {
-		case err = <-r.errChanGenerators:
-			close(r.done)
-			return err
-		case <-ticker.C:
-			if signal.SIGINT() {
-				close(r.done)
-				return nil
-			}
-		}
-	}
 }
 
 func (r *runner) installPackage() error {
@@ -289,7 +259,7 @@ func (r *runner) installPackageFromPackageRoot() error {
 		return fmt.Errorf("failed to install package: %w", err)
 	}
 
-	r.removePackageHandler = func() error {
+	r.removePackageHandler = func(ctx context.Context) error {
 		if err := installer.Uninstall(); err != nil {
 			return fmt.Errorf("error removing benchmark package: %w", err)
 		}
@@ -337,14 +307,14 @@ func (r *runner) initializeGenerator(tpl []byte, config genlib.Config, fields ge
 		return genlib.NewGeneratorWithTextTemplate(tpl, config, fields, totEvents)
 	}
 }
-func (r *runner) collectGenerators() error {
+func (r *runner) collectGenerators(ctx context.Context) error {
 	for scenarioName, scenario := range r.scenarios {
 		config, err := r.getGeneratorConfig(scenario)
 		if err != nil {
 			return fmt.Errorf("[%s]: %w", scenarioName, err)
 		}
 
-		fields, err := r.getGeneratorFields(scenario)
+		fields, err := r.getGeneratorFields(ctx, scenario)
 		if err != nil {
 			return fmt.Errorf("[%s]: %w", scenarioName, err)
 		}
@@ -413,7 +383,7 @@ func (r *runner) getGeneratorConfig(scenario *scenario) (*config.Config, error) 
 	return &cfg, nil
 }
 
-func (r *runner) getGeneratorFields(scenario *scenario) (fields.Fields, error) {
+func (r *runner) getGeneratorFields(ctx context.Context, scenario *scenario) (fields.Fields, error) {
 	var (
 		data []byte
 		err  error
@@ -437,7 +407,7 @@ func (r *runner) getGeneratorFields(scenario *scenario) (fields.Fields, error) {
 		}
 	}
 
-	fields, err := fields.LoadFieldsWithTemplateFromString(context.Background(), string(data))
+	fields, err := fields.LoadFieldsWithTemplateFromString(ctx, string(data))
 	if err != nil {
 		return nil, fmt.Errorf("could not load fields yaml: %w", err)
 	}
@@ -530,72 +500,116 @@ func (r *runner) performBulkRequest(bulkRequest string) error {
 	return nil
 }
 
-func (r *runner) streamData() {
+func (r *runner) run(ctx context.Context) error {
 	logger.Debug("streaming data...")
-	r.wg.Add(len(r.backFillGenerators) + len(r.generators))
-	for scenarioName, generator := range r.generators {
-		go func(scenarioName string, generator genlib.Generator) {
-			defer r.wg.Done()
-			ticker := time.NewTicker(r.options.PeriodDuration)
-			indexName := r.runtimeDataStreams[scenarioName]
-			for {
-				select {
-				case <-r.done:
-					return
-				case <-ticker.C:
-					logger.Debugf("bulk request of %d events on %s...", r.options.EventsPerPeriod, indexName)
-					var bulkBodyBuilder strings.Builder
-					buf := bytes.NewBufferString("")
-					for i := uint64(0); i < r.options.EventsPerPeriod; i++ {
-						var err error
-						bulkBodyBuilder, err = r.collectBulkRequestBody(indexName, scenarioName, buf, generator, bulkBodyBuilder)
-						if err == io.EOF {
-							break
-						}
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 
-						if err != nil {
-							r.errChanGenerators <- fmt.Errorf("error while generating event for streaming: %w", err)
-							return
-						}
-					}
+	errC := make(chan error)
+	defer close(errC)
 
-					err := r.performBulkRequest(bulkBodyBuilder.String())
-					if err != nil {
-						r.errChanGenerators <- fmt.Errorf("error performing bulk request: %w", err)
-						return
-					}
-				}
-			}
-		}(scenarioName, generator)
-	}
+	var wg sync.WaitGroup
+	defer wg.Wait()
 
-	for scenarioName, backFillGenerator := range r.backFillGenerators {
-		go func(scenarioName string, generator genlib.Generator) {
-			defer r.wg.Done()
-			var bulkBodyBuilder strings.Builder
-			indexName := r.runtimeDataStreams[scenarioName]
-			logger.Debugf("bulk request of %s backfill events on %s...", r.options.BackFill.String(), indexName)
-			buf := bytes.NewBufferString("")
-			for {
-				var err error
-				bulkBodyBuilder, err = r.collectBulkRequestBody(indexName, scenarioName, buf, generator, bulkBodyBuilder)
-				if err == io.EOF {
-					break
-				}
-
-				if err != nil {
-					r.errChanGenerators <- fmt.Errorf("error while generating event for streaming: %w", err)
-					return
-				}
-			}
-
-			err := r.performBulkRequest(bulkBodyBuilder.String())
+	for scenarioName := range r.generators {
+		wg.Add(1)
+		go func(scenarioName string) {
+			defer wg.Done()
+			err := r.runStreamGenerator(ctx, scenarioName)
 			if err != nil {
-				r.errChanGenerators <- fmt.Errorf("error performing bulk request: %w", err)
-				return
+				errC <- err
 			}
-		}(scenarioName, backFillGenerator)
+		}(scenarioName)
 	}
+
+	for scenarioName := range r.backFillGenerators {
+		wg.Add(1)
+		go func(scenarioName string) {
+			defer wg.Done()
+			err := r.runBackfillGenerator(ctx, scenarioName)
+			if err != nil {
+				errC <- err
+			}
+		}(scenarioName)
+	}
+
+	var err error
+	select {
+	case <-ctx.Done():
+		err = ctx.Err()
+	case err = <-errC:
+		cancel()
+	}
+	// Ensure no goroutine is blocked sending errors.
+	go func() {
+		for range errC {
+		}
+	}()
+	return err
+}
+
+func (r *runner) runStreamGenerator(ctx context.Context, scenarioName string) error {
+	generator := r.generators[scenarioName]
+	indexName := r.runtimeDataStreams[scenarioName]
+
+	ticker := time.NewTicker(r.options.PeriodDuration)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
+		}
+
+		logger.Debugf("bulk request of %d events on %s...", r.options.EventsPerPeriod, indexName)
+		var bulkBodyBuilder strings.Builder
+		buf := bytes.NewBufferString("")
+		for i := uint64(0); i < r.options.EventsPerPeriod; i++ {
+			var err error
+			bulkBodyBuilder, err = r.collectBulkRequestBody(indexName, scenarioName, buf, generator, bulkBodyBuilder)
+			if errors.Is(err, io.EOF) {
+				break
+			}
+
+			if err != nil {
+				return fmt.Errorf("error while generating event for streaming: %w", err)
+			}
+		}
+
+		err := r.performBulkRequest(bulkBodyBuilder.String())
+		if err != nil {
+			return fmt.Errorf("error performing bulk request: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func (r *runner) runBackfillGenerator(ctx context.Context, scenarioName string) error {
+	var bulkBodyBuilder strings.Builder
+	generator := r.backFillGenerators[scenarioName]
+	indexName := r.runtimeDataStreams[scenarioName]
+	logger.Debugf("bulk request of %s backfill events on %s...", r.options.BackFill.String(), indexName)
+	buf := bytes.NewBufferString("")
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
+		var err error
+		bulkBodyBuilder, err = r.collectBulkRequestBody(indexName, scenarioName, buf, generator, bulkBodyBuilder)
+		if errors.Is(err, io.EOF) {
+			break
+		}
+
+		if err != nil {
+			return fmt.Errorf("error while generating event for streaming: %w", err)
+		}
+	}
+
+	return r.performBulkRequest(bulkBodyBuilder.String())
 }
 
 type benchMeta struct {
@@ -608,70 +622,7 @@ type benchMeta struct {
 func (r *runner) enrichEventWithBenchmarkMetadata(e map[string]any) map[string]interface{} {
 	var m benchMeta
 	m.Info.Benchmark = r.options.BenchName
-	m.Info.RunID = r.ctxt.Test.RunID
+	m.Info.RunID = r.svcInfo.Test.RunID
 	e["benchmark_metadata"] = m
 	return e
-}
-
-func getTotalHits(esapi *elasticsearch.API, dataStream string) (int, error) {
-	resp, err := esapi.Count(
-		esapi.Count.WithIndex(dataStream),
-		esapi.Count.WithIgnoreUnavailable(true),
-	)
-	if err != nil {
-		return 0, fmt.Errorf("could not search data stream: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.IsError() {
-		return 0, fmt.Errorf("failed to get hits count: %s", resp.String())
-	}
-
-	var results struct {
-		Count int
-		Error *struct {
-			Type   string
-			Reason string
-		}
-		Status int
-	}
-
-	if err := json.NewDecoder(resp.Body).Decode(&results); err != nil {
-		return 0, fmt.Errorf("could not decode search results response: %w", err)
-	}
-
-	numHits := results.Count
-	if results.Error != nil {
-		logger.Debugf("found %d hits in %s data stream: %s: %s Status=%d",
-			numHits, dataStream, results.Error.Type, results.Error.Reason, results.Status)
-	} else {
-		logger.Debugf("found %d hits in %s data stream", numHits, dataStream)
-	}
-
-	return numHits, nil
-}
-
-func waitUntilTrue(fn func() (bool, error), timeout time.Duration) (bool, error) {
-	timeoutTimer := time.NewTimer(timeout)
-	defer timeoutTimer.Stop()
-
-	retryTicker := time.NewTicker(5 * time.Second)
-	defer retryTicker.Stop()
-
-	for {
-		result, err := fn()
-		if err != nil {
-			return false, err
-		}
-		if result {
-			return true, nil
-		}
-
-		select {
-		case <-retryTicker.C:
-			continue
-		case <-timeoutTimer.C:
-			return false, nil
-		}
-	}
 }

@@ -140,7 +140,7 @@ func (c *Client) doRequest(request *http.Request) (int, []byte, error) {
 	return resp.StatusCode, body, nil
 }
 
-func (c *Client) CreateProject(name, region, projectType string) (*Project, error) {
+func (c *Client) CreateProject(ctx context.Context, name, region, projectType string) (*Project, error) {
 	ReqBody := struct {
 		Name     string `json:"name"`
 		RegionID string `json:"region_id"`
@@ -152,7 +152,6 @@ func (c *Client) CreateProject(name, region, projectType string) (*Project, erro
 	if err != nil {
 		return nil, err
 	}
-	ctx := context.TODO()
 	resourcePath, err := url.JoinPath(c.host, projectsAPI, projectType)
 	if err != nil {
 		return nil, fmt.Errorf("could not build the URL: %w", err)
@@ -259,8 +258,7 @@ func (c *Client) ResetCredentials(ctx context.Context, project *Project) error {
 	return nil
 }
 
-func (c *Client) DeleteProject(project *Project) error {
-	ctx := context.TODO()
+func (c *Client) DeleteProject(ctx context.Context, project *Project) error {
 	resourcePath, err := url.JoinPath(c.host, projectsAPI, project.Type, project.ID)
 	if err != nil {
 		return fmt.Errorf("could not build the URL: %w", err)
@@ -277,8 +275,7 @@ func (c *Client) DeleteProject(project *Project) error {
 	return nil
 }
 
-func (c *Client) GetProject(projectType, projectID string) (*Project, error) {
-	ctx := context.TODO()
+func (c *Client) GetProject(ctx context.Context, projectType, projectID string) (*Project, error) {
 	resourcePath, err := url.JoinPath(c.host, projectsAPI, projectType, projectID)
 	if err != nil {
 		return nil, fmt.Errorf("could not build the URL: %w", err)
@@ -311,7 +308,7 @@ func (c *Client) EnsureEndpoints(ctx context.Context, project *Project) error {
 	}
 
 	for {
-		newProject, err := c.GetProject(project.Type, project.ID)
+		newProject, err := c.GetProject(ctx, project.Type, project.ID)
 		switch {
 		case err != nil:
 			logger.Debugf("request error: %s", err.Error())

@@ -4,8 +4,10 @@
 
 package kubectl
 
+import "context"
+
 // Delete function removes resources from the Kubernetes cluster based on provided definitions.
-func Delete(definitionsPath []string) error {
-	_, err := modifyKubernetesResources("delete", definitionsPath)
+func Delete(ctx context.Context, definitionsPath []string) error {
+	_, err := modifyKubernetesResources(ctx, "delete", definitionsPath)
 	return err
 }

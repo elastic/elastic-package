@@ -5,14 +5,17 @@
 package static
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 
+	"github.com/elastic/elastic-package/internal/benchrunner/runners/stream"
 	"github.com/elastic/elastic-package/internal/fields"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/internal/signal"
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
 
@@ -42,12 +45,12 @@ func (r runner) String() string {
 	return "static files"
 }
 
-func (r runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, error) {
+func (r runner) Run(ctx context.Context, options testrunner.TestOptions) ([]testrunner.TestResult, error) {
 	r.options = options
-	return r.run()
+	return r.run(ctx)
 }
 
-func (r runner) run() ([]testrunner.TestResult, error) {
+func (r runner) run(ctx context.Context) ([]testrunner.TestResult, error) {
 	result := testrunner.NewResultComposer(testrunner.TestResult{
 		TestType:   TestType,
 		Package:    r.options.TestFolder.Package,
@@ -71,7 +74,33 @@ func (r runner) run() ([]testrunner.TestResult, error) {
 		return result.WithError(fmt.Errorf("failed to read manifest: %w", err))
 	}
 
-	return r.verifySampleEvent(pkgManifest), nil
+	// join together results from verifyStreamConfig and verifySampleEvent
+	return append(r.verifyStreamConfig(ctx, r.options.PackageRootPath), r.verifySampleEvent(pkgManifest)...), nil
+}
+
+func (r runner) verifyStreamConfig(ctx context.Context, packageRootPath string) []testrunner.TestResult {
+	resultComposer := testrunner.NewResultComposer(testrunner.TestResult{
+		Name:       "Verify stream config",
+		TestType:   TestType,
+		Package:    r.options.TestFolder.Package,
+		DataStream: r.options.TestFolder.DataStream,
+	})
+
+	withOpts := []stream.OptionFunc{
+		stream.WithPackageRootPath(packageRootPath),
+	}
+
+	ctx, stop := signal.Enable(ctx, logger.Info)
+	defer stop()
+
+	err := stream.StaticValidation(ctx, stream.NewOptions(withOpts...))
+	if err != nil {
+		results, _ := resultComposer.WithError(err)
+		return results
+	}
+
+	results, _ := resultComposer.WithSuccess()
+	return results
 }
 
 func (r runner) verifySampleEvent(pkgManifest *packages.PackageManifest) []testrunner.TestResult {
@@ -167,7 +196,7 @@ func (r runner) getExpectedDatasets(pkgManifest *packages.PackageManifest) ([]st
 	return []string{pkgManifest.Name + "." + dsName}, nil
 }
 
-func (r runner) TearDown() error {
+func (r runner) TearDown(ctx context.Context) error {
 	return nil // it's a static test runner, no state is stored
 }
 

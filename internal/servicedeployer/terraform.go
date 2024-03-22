@@ -5,12 +5,14 @@
 package servicedeployer
 
 import (
+	"context"
 	_ "embed"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/elastic/go-resource"
 
@@ -44,11 +46,11 @@ type TerraformServiceDeployer struct {
 }
 
 // addTerraformOutputs method reads the terraform outputs generated in the json format and
-// adds them to the custom properties of ServiceContext and can be used in the handlebars template
+// adds them to the custom properties of ServiceInfo and can be used in the handlebars template
 // like `{{TF_OUTPUT_queue_url}}` where `queue_url` is the output configured
-func addTerraformOutputs(outCtxt ServiceContext) error {
+func addTerraformOutputs(svcInfo ServiceInfo) error {
 	// Read the `output.json` file where terraform outputs are generated
-	outputFile := filepath.Join(outCtxt.OutputDir, terraformOutputJsonFile)
+	outputFile := filepath.Join(svcInfo.OutputDir, terraformOutputJsonFile)
 	content, err := os.ReadFile(outputFile)
 	if err != nil {
 		return fmt.Errorf("failed to read terraform output file: %w", err)
@@ -70,12 +72,12 @@ func addTerraformOutputs(outCtxt ServiceContext) error {
 		return nil
 	}
 
-	if outCtxt.CustomProperties == nil {
-		outCtxt.CustomProperties = make(map[string]any, len(terraformOutputs))
+	if svcInfo.CustomProperties == nil {
+		svcInfo.CustomProperties = make(map[string]any, len(terraformOutputs))
 	}
 	// Prefix variables names with TF_OUTPUT_
 	for k, outputs := range terraformOutputs {
-		outCtxt.CustomProperties[terraformOutputPrefix+k] = outputs.Value
+		svcInfo.CustomProperties[terraformOutputPrefix+k] = outputs.Value
 	}
 	return nil
 }
@@ -88,7 +90,7 @@ func NewTerraformServiceDeployer(definitionsDir string) (*TerraformServiceDeploy
 }
 
 // SetUp method boots up the Docker Compose with Terraform executor and mounted .tf definitions.
-func (tsd TerraformServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedService, error) {
+func (tsd TerraformServiceDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (DeployedService, error) {
 	logger.Debug("setting up service using Terraform deployer")
 
 	configDir, err := tsd.installDockerfile()
@@ -103,14 +105,15 @@ func (tsd TerraformServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedServic
 		ymlPaths = append(ymlPaths, envYmlPath)
 	}
 
-	tfEnvironment := tsd.buildTerraformExecutorEnvironment(inCtxt)
+	tfEnvironment := tsd.buildTerraformExecutorEnvironment(svcInfo)
 
 	service := dockerComposeDeployedService{
-		ymlPaths: ymlPaths,
-		project:  "elastic-package-service",
-		env:      tfEnvironment,
+		ymlPaths:        ymlPaths,
+		project:         "elastic-package-service",
+		env:             tfEnvironment,
+		shutdownTimeout: 300 * time.Second,
 	}
-	outCtxt := inCtxt
+	outCtxt := svcInfo
 
 	p, err := compose.NewProject(service.project, service.ymlPaths...)
 	if err != nil {
@@ -127,7 +130,7 @@ func (tsd TerraformServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedServic
 		Env: service.env,
 	}
 	// Set custom aliases, which may be used in agent policies.
-	serviceComposeConfig, err := p.Config(opts)
+	serviceComposeConfig, err := p.Config(ctx, opts)
 	if err != nil {
 		return nil, fmt.Errorf("could not get Docker Compose configuration for service: %w", err)
 	}
@@ -141,14 +144,14 @@ func (tsd TerraformServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedServic
 		Env:       service.env,
 		ExtraArgs: []string{"--build", "-d"},
 	}
-	err = p.Up(opts)
+	err = p.Up(ctx, opts)
 	if err != nil {
 		return nil, fmt.Errorf("could not boot up service using Docker Compose: %w", err)
 	}
 
-	err = p.WaitForHealthy(opts)
+	err = p.WaitForHealthy(ctx, opts)
 	if err != nil {
-		processServiceContainerLogs(p, compose.CommandOptions{
+		processServiceContainerLogs(ctx, p, compose.CommandOptions{
 			Env: opts.Env,
 		}, outCtxt.Name)
 		//lint:ignore ST1005 error starting with product name can be capitalized
@@ -161,7 +164,7 @@ func (tsd TerraformServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedServic
 	if err != nil {
 		return nil, fmt.Errorf("could not handle terraform output: %w", err)
 	}
-	service.ctxt = outCtxt
+	service.svcInfo = outCtxt
 	return &service, nil
 }
 

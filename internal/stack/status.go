@@ -5,13 +5,14 @@
 package stack
 
 import (
+	"context"
 	"sort"
 	"strings"
 )
 
 // Status shows the status for each service
-func Status(options Options) ([]ServiceStatus, error) {
-	servicesStatus, err := dockerComposeStatus(options)
+func Status(ctx context.Context, options Options) ([]ServiceStatus, error) {
+	servicesStatus, err := dockerComposeStatus(ctx, options)
 	if err != nil {
 		return nil, err
 	}

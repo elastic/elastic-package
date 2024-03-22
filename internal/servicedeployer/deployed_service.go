@@ -4,24 +4,27 @@
 
 package servicedeployer
 
-import "errors"
+import (
+	"context"
+	"errors"
+)
 
 var ErrNotSupported error = errors.New("not supported")
 
 // DeployedService defines the interface for interacting with a service that has been deployed.
 type DeployedService interface {
 	// TearDown implements the logic for tearing down a service.
-	TearDown() error
+	TearDown(context.Context) error
 
 	// Signal sends a signal to the service.
-	Signal(signal string) error
+	Signal(ctx context.Context, signal string) error
 
-	// Context returns the current context from the service.
-	Context() ServiceContext
+	// Info returns the current information from the service.
+	Info() ServiceInfo
 
-	// SetContext sets the current context for the service.
-	SetContext(str ServiceContext) error
+	// SetInfo sets the current information about the service.
+	SetInfo(ServiceInfo) error
 
 	// ExitCode returns true if the service is exited and its exit code.
-	ExitCode(service string) (bool, int, error)
+	ExitCode(ctx context.Context, service string) (bool, int, error)
 }
