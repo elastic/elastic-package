@@ -42,8 +42,8 @@ const (
 	testRunMaxID = 99999
 	testRunMinID = 10000
 
-	allFieldsBody = `{"fields": ["*"]}`
-	DevDeployDir  = "_dev/deploy"
+	checkFieldsBody = `{"fields": ["*"], "aggs": {"degraded": {"filter": {"exists": {"field": "_ignored"}}}}}`
+	DevDeployDir    = "_dev/deploy"
 )
 
 func init() {
@@ -563,8 +563,9 @@ func (r *runner) isSyntheticsEnabled(ctx context.Context, dataStream, componentT
 }
 
 type hits struct {
-	Source []common.MapStr `json:"_source"`
-	Fields []common.MapStr `json:"fields"`
+	Source           []common.MapStr `json:"_source"`
+	Fields           []common.MapStr `json:"fields"`
+	HasIgnoredFields bool
 }
 
 func (h hits) getDocs(syntheticsEnabled bool) []common.MapStr {
@@ -585,7 +586,7 @@ func (r *runner) getDocs(ctx context.Context, dataStream string) (*hits, error) 
 		r.options.API.Search.WithSort("@timestamp:asc"),
 		r.options.API.Search.WithSize(elasticsearchQuerySize),
 		r.options.API.Search.WithSource("true"),
-		r.options.API.Search.WithBody(strings.NewReader(allFieldsBody)),
+		r.options.API.Search.WithBody(strings.NewReader(checkFieldsBody)),
 		r.options.API.Search.WithIgnoreUnavailable(true),
 	)
 	if err != nil {
@@ -612,6 +613,11 @@ func (r *runner) getDocs(ctx context.Context, dataStream string) (*hits, error) 
 				Fields common.MapStr `json:"fields"`
 			}
 		}
+		Aggregations struct {
+			Degraded struct {
+				DocCount int `json:"doc_count"`
+			} `json:"degraded"`
+		} `json:"aggregations"`
 		Error *struct {
 			Type   string
 			Reason string
@@ -622,6 +628,7 @@ func (r *runner) getDocs(ctx context.Context, dataStream string) (*hits, error) 
 	if err := json.NewDecoder(resp.Body).Decode(&results); err != nil {
 		return nil, fmt.Errorf("could not decode search results response: %w", err)
 	}
+	logger.Debugf("result: %+v", results)
 
 	numHits := results.Hits.Total.Value
 	if results.Error != nil {
@@ -636,6 +643,7 @@ func (r *runner) getDocs(ctx context.Context, dataStream string) (*hits, error) 
 		hits.Source = append(hits.Source, hit.Source)
 		hits.Fields = append(hits.Fields, hit.Fields)
 	}
+	hits.HasIgnoredFields = results.Aggregations.Degraded.DocCount > 0
 
 	return &hits, nil
 }
@@ -648,6 +656,7 @@ type scenarioTest struct {
 	kibanaDataStream   kibana.PackageDataStream
 	syntheticEnabled   bool
 	docs               []common.MapStr
+	hasIgnoredFields   bool
 }
 
 func (r *runner) prepareScenario(ctx context.Context, config *testConfig, serviceContext servicedeployer.ServiceInfo, serviceOptions servicedeployer.FactoryOptions) (*scenarioTest, error) {
@@ -985,6 +994,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, servic
 	logger.Debugf("data stream %s has synthetics enabled: %t", scenario.dataStream, scenario.syntheticEnabled)
 
 	scenario.docs = hits.getDocs(scenario.syntheticEnabled)
+	scenario.hasIgnoredFields = hits.HasIgnoredFields
 
 	if r.options.RunSetup {
 		err = r.writeScenarioState(policy, &origPolicy, config, origAgent)
@@ -1130,6 +1140,9 @@ func (r *runner) validateTestScenario(ctx context.Context, result *testrunner.Re
 	}
 	if err := validateFields(scenario.docs, fieldsValidator, scenario.dataStream); err != nil {
 		return result.WithError(err)
+	}
+	if scenario.hasIgnoredFields {
+		return result.WithError(fmt.Errorf("found _ignored fields in data stream %s", scenario.dataStream))
 	}
 
 	docs := scenario.docs
