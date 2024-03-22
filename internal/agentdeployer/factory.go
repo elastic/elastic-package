@@ -69,7 +69,7 @@ func Factory(options FactoryOptions) (AgentDeployer, error) {
 		if err != nil {
 			return nil, fmt.Errorf("can't use service variant: %w", err)
 		}
-		opts := CustomAgentDeployerOptions{
+		opts := DockerComposeAgentDeployerOptions{
 			Profile:           options.Profile,
 			DockerComposeFile: "",
 			Variant:           sv,

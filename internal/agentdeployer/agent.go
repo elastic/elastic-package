@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/elastic/elastic-package/internal/compose"
 	"github.com/elastic/elastic-package/internal/configuration/locations"
@@ -34,7 +35,7 @@ var dockerAgentDockerComposeContent []byte
 
 // CustomAgentDeployer knows how to deploy a custom elastic-agent defined via
 // a Docker Compose file.
-type CustomAgentDeployer struct {
+type DockerComposeAgentDeployer struct {
 	profile           *profile.Profile
 	dockerComposeFile string
 	stackVersion      string
@@ -50,7 +51,7 @@ type CustomAgentDeployer struct {
 	runTestsOnly bool
 }
 
-type CustomAgentDeployerOptions struct {
+type DockerComposeAgentDeployerOptions struct {
 	Profile           *profile.Profile
 	DockerComposeFile string
 	StackVersion      string
@@ -63,11 +64,22 @@ type CustomAgentDeployerOptions struct {
 	RunTestsOnly bool
 }
 
-var _ AgentDeployer = new(CustomAgentDeployer)
+var _ AgentDeployer = new(DockerComposeAgentDeployer)
+
+type dockerComposeDeployedAgent struct {
+	agentInfo AgentInfo
+
+	ymlPaths []string
+	project  string
+	variant  AgentVariant
+	env      []string
+}
+
+var _ DeployedAgent = new(dockerComposeDeployedAgent)
 
 // NewCustomAgentDeployer returns a new instance of a deployedCustomAgent.
-func NewCustomAgentDeployer(options CustomAgentDeployerOptions) (*CustomAgentDeployer, error) {
-	return &CustomAgentDeployer{
+func NewCustomAgentDeployer(options DockerComposeAgentDeployerOptions) (*DockerComposeAgentDeployer, error) {
+	return &DockerComposeAgentDeployer{
 		profile:           options.Profile,
 		dockerComposeFile: options.DockerComposeFile,
 		stackVersion:      options.StackVersion,
@@ -80,7 +92,7 @@ func NewCustomAgentDeployer(options CustomAgentDeployerOptions) (*CustomAgentDep
 }
 
 // SetUp sets up the service and returns any relevant information.
-func (d *CustomAgentDeployer) SetUp(ctx context.Context, agentInfo AgentInfo) (DeployedAgent, error) {
+func (d *DockerComposeAgentDeployer) SetUp(ctx context.Context, agentInfo AgentInfo) (DeployedAgent, error) {
 	logger.Debug("setting up service using Docker Compose agent deployer")
 	d.agentRunID = agentInfo.Test.RunID
 
@@ -224,11 +236,11 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, agentInfo AgentInfo) (D
 	return &agent, nil
 }
 
-func (d *CustomAgentDeployer) agentHostname() string {
+func (d *DockerComposeAgentDeployer) agentHostname() string {
 	return fmt.Sprintf("%s-%s-%s", dockerTestAgentNamePrefix, d.agentName(), d.agentRunID)
 }
 
-func (d *CustomAgentDeployer) agentName() string {
+func (d *DockerComposeAgentDeployer) agentName() string {
 	name := d.packageName
 	if d.variant.Name != "" {
 		name = fmt.Sprintf("%s-%s", name, d.variant.Name)
@@ -241,7 +253,7 @@ func (d *CustomAgentDeployer) agentName() string {
 
 // installDockerfile creates the files needed to run the custom elastic agent and returns
 // the directory with these files.
-func (d *CustomAgentDeployer) installDockerfile() (string, error) {
+func (d *DockerComposeAgentDeployer) installDockerfile() (string, error) {
 	customAgentDir := filepath.Join(d.profile.ProfilePath, fmt.Sprintf("agent-%s", d.agentName()))
 	err := os.MkdirAll(customAgentDir, 0755)
 	if err != nil {
@@ -264,4 +276,115 @@ func CreateServiceLogsDir(elasticPackagePath *locations.LocationManager, name st
 		return "", fmt.Errorf("mkdir failed (path: %s): %w", dirPath, err)
 	}
 	return dirPath, nil
+}
+
+// Signal sends a signal to the agent.
+func (s *dockerComposeDeployedAgent) Signal(ctx context.Context, signal string) error {
+	p, err := compose.NewProject(s.project, s.ymlPaths...)
+	if err != nil {
+		return fmt.Errorf("could not create Docker Compose project for service: %w", err)
+	}
+
+	opts := compose.CommandOptions{
+		Env: append(
+			s.env,
+			s.variant.Env...,
+		),
+		ExtraArgs: []string{"-s", signal},
+	}
+	if s.agentInfo.Name != "" {
+		opts.Services = append(opts.Services, s.agentInfo.Name)
+	}
+
+	err = p.Kill(ctx, opts)
+	if err != nil {
+		return fmt.Errorf("could not send %q signal: %w", signal, err)
+	}
+	return nil
+}
+
+// ExitCode returns true if the agent is exited and its exit code.
+func (s *dockerComposeDeployedAgent) ExitCode(ctx context.Context, agent string) (bool, int, error) {
+	p, err := compose.NewProject(s.project, s.ymlPaths...)
+	if err != nil {
+		return false, -1, fmt.Errorf("could not create Docker Compose project for agent: %w", err)
+	}
+
+	opts := compose.CommandOptions{
+		Env: append(
+			s.env,
+			s.variant.Env...,
+		),
+	}
+
+	return p.ServiceExitCode(ctx, agent, opts)
+}
+
+// Logs returns the logs from the agent starting at the given time
+func (s *dockerComposeDeployedAgent) Logs(ctx context.Context, t time.Time) ([]byte, error) {
+	p, err := compose.NewProject(s.project, s.ymlPaths...)
+	if err != nil {
+		return nil, fmt.Errorf("could not create Docker Compose project for agent: %w", err)
+	}
+
+	opts := compose.CommandOptions{
+		Env: append(
+			s.env,
+			s.variant.Env...,
+		),
+	}
+
+	return p.Logs(ctx, opts)
+}
+
+// TearDown tears down the agent.
+func (s *dockerComposeDeployedAgent) TearDown(ctx context.Context) error {
+	logger.Debugf("tearing down agent using Docker Compose runner")
+	defer func() {
+		err := files.RemoveContent(s.agentInfo.Logs.Folder.Local)
+		if err != nil {
+			logger.Errorf("could not remove the agent logs (path: %s)", s.agentInfo.Logs.Folder.Local)
+		}
+		// Remove the outputs generated by the service container
+		if err = os.RemoveAll(s.agentInfo.OutputDir); err != nil {
+			logger.Errorf("could not remove the temporary output files %w", err)
+		}
+
+		// Remove the configuration dir (e.g. compose scenario files)
+		if err = os.RemoveAll(s.agentInfo.ConfigDir); err != nil {
+			logger.Errorf("could not remove the agent configuration directory %w", err)
+		}
+	}()
+
+	p, err := compose.NewProject(s.project, s.ymlPaths...)
+	if err != nil {
+		return fmt.Errorf("could not create Docker Compose project for service: %w", err)
+	}
+
+	opts := compose.CommandOptions{
+		Env: append(
+			s.env,
+			s.variant.Env...,
+		),
+	}
+	processAgentContainerLogs(ctx, p, opts, s.agentInfo.Name)
+
+	if err := p.Down(ctx, compose.CommandOptions{
+		Env:       opts.Env,
+		ExtraArgs: []string{"--volumes"}, // Remove associated volumes.
+	}); err != nil {
+		return fmt.Errorf("could not shut down agent using Docker Compose: %w", err)
+	}
+	return nil
+}
+
+// Info returns the current context for the agent.
+func (s *dockerComposeDeployedAgent) Info() AgentInfo {
+	return s.agentInfo
+}
+
+// SetInfo sets the current context for the agent.
+func (s *dockerComposeDeployedAgent) SetInfo(ctxt AgentInfo) error {
+	s.agentInfo = ctxt
+	return nil
 }
