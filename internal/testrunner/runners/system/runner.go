@@ -628,7 +628,6 @@ func (r *runner) getDocs(ctx context.Context, dataStream string) (*hits, error) 
 	if err := json.NewDecoder(resp.Body).Decode(&results); err != nil {
 		return nil, fmt.Errorf("could not decode search results response: %w", err)
 	}
-	logger.Debugf("result: %+v", results)
 
 	numHits := results.Hits.Total.Value
 	if results.Error != nil {
