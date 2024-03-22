@@ -752,7 +752,6 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	}
 	// Setup agent
 	logger.Debug("setting up agent...")
-	agentOptions := r.createAgentOptions(serviceOptions.Variant)
 	agentInfo, err := r.createAgentInfo()
 	if err != nil {
 		return nil, err
@@ -771,69 +770,22 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		svcInfo.AgentHostname = serviceStateData.ServiceAgentHostname
 		svcInfo.Hostname = serviceStateData.ServiceAgentHostname
 	}
-	agentDeployer, err := agentdeployer.Factory(agentOptions)
-	if err != nil {
-		return nil, fmt.Errorf("could not create agent runner: %w", err)
-	}
-	var agentDeployed agentdeployer.DeployedAgent
-	if r.options.RunIndependentElasticAgent {
-		if agentDeployer != nil {
-			agentDeployed, err = agentDeployer.SetUp(ctx, agentInfo)
-			if err != nil {
-				return nil, fmt.Errorf("could not setup agent: %w", err)
-			}
-			agentInfo = agentDeployed.Info()
-		}
-		r.shutdownAgentHandler = func(ctx context.Context) error {
-			if agentDeployer == nil {
-				return nil
-			}
-			logger.Debug("tearing down agent...")
-			if err := agentDeployed.TearDown(ctx); err != nil {
-				return fmt.Errorf("error tearing down agent: %w", err)
-			}
 
-			return nil
-		}
-		scenario.agent = agentDeployed
-		scenario.enrollingTime = enrollingTime
+	agentDeployed, agentInfo, err := r.setupAgent(ctx, serviceOptions.Variant, agentInfo)
+	if err != nil {
+		return nil, err
 	}
+	if agentDeployed != nil {
+		agentInfo = agentDeployed.Info()
+	}
+
+	scenario.enrollingTime = enrollingTime
+	scenario.agent = agentDeployed
 
 	// Setup service.
-	logger.Debug("setting up service...")
-	serviceOptions.PackageName = scenario.pkgManifest.Name
-	serviceOptions.DataStream = scenario.dataStreamManifest.Name
-
-	serviceDeployer, err := servicedeployer.Factory(serviceOptions)
+	service, svcInfo, err := r.setupService(ctx, config, serviceOptions, svcInfo, agentInfo, agentDeployed)
 	if err != nil {
-		return nil, fmt.Errorf("could not create service runner: %w", err)
-	}
-
-	svcInfo.AgentHostname = "elastic-agent"
-	if r.options.RunIndependentElasticAgent {
-		svcInfo.Logs.Folder.Local = agentInfo.Logs.Folder.Local
-		if agentDeployed != nil {
-			// Not all agents are created from "agentdeployer", currently agent and
-			// service containers are created from "servicedeployer" package for
-			// CustomAgent scenario
-			svcInfo.AgentHostname = agentDeployed.Info().Hostname
-		}
-	}
-	if config.Service != "" {
-		svcInfo.Name = config.Service
-	}
-	service, err := serviceDeployer.SetUp(ctx, svcInfo)
-	if err != nil {
-		return nil, fmt.Errorf("could not setup service: %w", err)
-	}
-	svcInfo = service.Info()
-	r.shutdownServiceHandler = func(ctx context.Context) error {
-		logger.Debug("tearing down service...")
-		if err := service.TearDown(ctx); err != nil {
-			return fmt.Errorf("error tearing down service: %w", err)
-		}
-
-		return nil
+		return nil, err
 	}
 
 	// Reload test config with ctx variable substitution.
@@ -1126,6 +1078,74 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	}
 
 	return &scenario, nil
+}
+
+func (r *runner) setupService(ctx context.Context, config *testConfig, serviceOptions servicedeployer.FactoryOptions, svcInfo servicedeployer.ServiceInfo, agentInfo agentdeployer.AgentInfo, agentDeployed agentdeployer.DeployedAgent) (servicedeployer.DeployedService, servicedeployer.ServiceInfo, error) {
+	logger.Debug("setting up service...")
+	serviceDeployer, err := servicedeployer.Factory(serviceOptions)
+	if err != nil {
+		return nil, svcInfo, fmt.Errorf("could not create service runner: %w", err)
+	}
+
+	svcInfo.AgentHostname = "elastic-agent"
+	if r.options.RunIndependentElasticAgent {
+		svcInfo.Logs.Folder.Local = agentInfo.Logs.Folder.Local
+		if agentDeployed != nil {
+			// Not all agents are created from "agentdeployer", currently agent and
+			// service containers are created from "servicedeployer" package for
+			// CustomAgent scenario
+			// And there are packages that require to run queries (requests) to the
+			// elastic agent container to inject logs (e.g. ti_anomali)
+			svcInfo.AgentHostname = agentDeployed.Info().Hostname
+		}
+	}
+	if config.Service != "" {
+		svcInfo.Name = config.Service
+	}
+	service, err := serviceDeployer.SetUp(ctx, svcInfo)
+	if err != nil {
+		return nil, svcInfo, fmt.Errorf("could not setup service: %w", err)
+	}
+
+	r.shutdownServiceHandler = func(ctx context.Context) error {
+		logger.Debug("tearing down service...")
+		if err := service.TearDown(ctx); err != nil {
+			return fmt.Errorf("error tearing down service: %w", err)
+		}
+
+		return nil
+	}
+	return service, service.Info(), nil
+}
+
+func (r *runner) setupAgent(ctx context.Context, variant string, agentInfo agentdeployer.AgentInfo) (agentdeployer.DeployedAgent, agentdeployer.AgentInfo, error) {
+	if !r.options.RunIndependentElasticAgent {
+		return nil, agentInfo, nil
+	}
+	agentOptions := r.createAgentOptions(variant)
+	agentDeployer, err := agentdeployer.Factory(agentOptions)
+	if err != nil {
+		return nil, agentInfo, fmt.Errorf("could not create agent runner: %w", err)
+	}
+	if agentDeployer == nil {
+		return nil, agentInfo, nil
+	}
+	agentDeployed, err := agentDeployer.SetUp(ctx, agentInfo)
+	if err != nil {
+		return nil, agentInfo, fmt.Errorf("could not setup agent: %w", err)
+	}
+	r.shutdownAgentHandler = func(ctx context.Context) error {
+		if agentDeployer == nil {
+			return nil
+		}
+		logger.Debug("tearing down agent...")
+		if err := agentDeployed.TearDown(ctx); err != nil {
+			return fmt.Errorf("error tearing down agent: %w", err)
+		}
+
+		return nil
+	}
+	return agentDeployed, agentDeployed.Info(), nil
 }
 
 func (r *runner) removeServiceStateFile() error {
