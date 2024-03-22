@@ -91,11 +91,20 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, agentInfo AgentInfo) (D
 		return nil, fmt.Errorf("can't locate CA certificate: %w", err)
 	}
 
+	// Local Elastic stacks have a default Agent Policy created,
+	// but Cloud or Serverless Projects could not have one
+	agentPolicyName := defaultAgentPolicyName
+	if strings.HasPrefix(d.stackVersion, "7.") {
+		// Local Elastic stacks 7.* have an Agent Policy that is set as default
+		// No need to set an Agent Policy Name
+		agentPolicyName = ""
+	}
+
 	env := append(
 		appConfig.StackImageRefs(d.stackVersion).AsEnv(),
 		fmt.Sprintf("%s=%s", serviceLogsDirEnv, agentInfo.Logs.Folder.Local),
 		fmt.Sprintf("%s=%s", localCACertEnv, caCertPath),
-		fmt.Sprintf("%s=%s", fleetPolicyEnv, defaultAgentPolicyName),
+		fmt.Sprintf("%s=%s", fleetPolicyEnv, agentPolicyName),
 		fmt.Sprintf("%s=%s", agentHostnameEnv, d.agentHostname()),
 		fmt.Sprintf("%s=%s", elasticAgentTagsEnv, strings.Join(agentInfo.Tags, ",")),
 	)
