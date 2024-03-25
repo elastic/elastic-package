@@ -72,7 +72,7 @@ is_step_testing_gcp () {
     return 1
 }
 
-if use_step_testing_gcp; then
+if is_step_testing_gcp; then
     ELASTIC_PACKAGE_GCP_PROJECT_SECRET=$(retry 5 vault read -field projectId ${GCP_SERVICE_ACCOUNT_SECRET_PATH})
     export ELASTIC_PACKAGE_GCP_PROJECT_SECRET
     ELASTIC_PACKAGE_GCP_CREDENTIALS_SECRET=$(retry 5 vault read -field credentials ${GCP_SERVICE_ACCOUNT_SECRET_PATH} | jq -c)
@@ -96,7 +96,7 @@ is_step_testing_aws () {
     return 1
 }
 
-if use_step_testing_aws; then
+if is_step_testing_aws; then
     ELASTIC_PACKAGE_AWS_SECRET_KEY=$(retry 5 vault kv get -field secret_key ${AWS_SERVICE_ACCOUNT_SECRET_PATH})
     export ELASTIC_PACKAGE_AWS_SECRET_KEY
     ELASTIC_PACKAGE_AWS_ACCESS_KEY=$(retry 5 vault kv get -field access_key ${AWS_SERVICE_ACCOUNT_SECRET_PATH})
