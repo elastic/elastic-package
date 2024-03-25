@@ -115,8 +115,7 @@ for d in test/packages/${PACKAGE_TEST_TYPE:-other}/${PACKAGE_UNDER_TEST:-*}/; do
           --report-output file \
           --defer-cleanup 1s \
           --test-coverage \
-          --coverage-format=generic \
-          ${ELASTIC_PACKAGE_TEST_OPTS}
+          --coverage-format=generic
     fi
   )
 cd -
