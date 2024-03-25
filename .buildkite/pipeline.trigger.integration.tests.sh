@@ -90,7 +90,7 @@ for package in $(find . -maxdepth 1 -mindepth 1 -type d) ; do
     echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-check-packages-parallel -p ${package_name}"
     echo "        env:"
     echo "          UPLOAD_SAFE_LOGS: 1"
-    echo "          ELASTIC_PACKAGE_ENABLE_INDEPENDENT_AGENT: ${independent_agent}"
+    echo "          ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT: ${independent_agent}"
     echo "        agents:"
     echo "          provider: \"gcp\""
     echo "        artifact_paths:"
@@ -129,7 +129,7 @@ echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-system-
 echo "        agents:"
 echo "          provider: \"gcp\""
 echo "        env:"
-echo "          ELASTIC_PACKAGE_ENABLE_INDEPENDENT_AGENT: ${independent_agent}"
+echo "          ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT: ${independent_agent}"
 done
 
 echo "      - label: \":go: Integration test: test-profiles-command\""
