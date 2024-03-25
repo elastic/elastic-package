@@ -115,7 +115,7 @@ func setupStackCommand() *cobraext.Command {
 			profile.RuntimeOverrides(userParameters)
 
 			cmd.Printf("Using profile %s.\n", profile.ProfilePath)
-			err = provider.BootUp(stack.Options{
+			err = provider.BootUp(cmd.Context(), stack.Options{
 				DaemonMode:   daemonMode,
 				StackVersion: stackVersion,
 				Services:     services,
@@ -154,7 +154,7 @@ func setupStackCommand() *cobraext.Command {
 				return err
 			}
 
-			err = provider.TearDown(stack.Options{
+			err = provider.TearDown(cmd.Context(), stack.Options{
 				Profile: profile,
 				Printer: cmd,
 			})
@@ -189,7 +189,7 @@ func setupStackCommand() *cobraext.Command {
 				return cobraext.FlagParsingError(err, cobraext.StackVersionFlagName)
 			}
 
-			err = provider.Update(stack.Options{
+			err = provider.Update(cmd.Context(), stack.Options{
 				StackVersion: stackVersion,
 				Profile:      profile,
 				Printer:      cmd,
@@ -255,7 +255,7 @@ func setupStackCommand() *cobraext.Command {
 				return err
 			}
 
-			target, err := provider.Dump(stack.DumpOptions{
+			target, err := provider.Dump(cmd.Context(), stack.DumpOptions{
 				Output:  output,
 				Profile: profile,
 			})
@@ -286,7 +286,7 @@ func setupStackCommand() *cobraext.Command {
 				return err
 			}
 
-			servicesStatus, err := provider.Status(stack.Options{
+			servicesStatus, err := provider.Status(cmd.Context(), stack.Options{
 				Profile: profile,
 				Printer: cmd,
 			})

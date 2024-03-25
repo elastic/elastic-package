@@ -5,6 +5,8 @@
 package stack
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -30,7 +32,7 @@ func DockerComposeProjectName(profile *profile.Profile) string {
 }
 
 // BootUp function boots up the Elastic stack.
-func BootUp(options Options) error {
+func BootUp(ctx context.Context, options Options) error {
 	// Print information before starting the stack, for cases where
 	// this is executed in the foreground, without daemon mode.
 	config := Config{
@@ -78,12 +80,12 @@ func BootUp(options Options) error {
 		return fmt.Errorf("creating stack files failed: %w", err)
 	}
 
-	err = dockerComposeBuild(options)
+	err = dockerComposeBuild(ctx, options)
 	if err != nil {
 		return fmt.Errorf("building docker images failed: %w", err)
 	}
 
-	err = dockerComposeUp(options)
+	err = dockerComposeUp(ctx, options)
 	if err != nil {
 		// At least starting on 8.6.0, fleet-server may be reconfigured or
 		// restarted after being healthy. If elastic-agent tries to enroll at
@@ -91,11 +93,11 @@ func BootUp(options Options) error {
 		// to fail too.
 		// As a workaround, try to give another chance to docker-compose if only
 		// elastic-agent failed.
-		if onlyElasticAgentFailed(options) {
+		if onlyElasticAgentFailed(ctx, options) && !errors.Is(err, context.Canceled) {
 			sleepTime := 10 * time.Second
 			fmt.Printf("Elastic Agent failed to start, trying again in %s.\n", sleepTime)
 			time.Sleep(sleepTime)
-			err = dockerComposeUp(options)
+			err = dockerComposeUp(ctx, options)
 		}
 		if err != nil {
 			return fmt.Errorf("running docker-compose failed: %w", err)
@@ -110,8 +112,8 @@ func BootUp(options Options) error {
 	return nil
 }
 
-func onlyElasticAgentFailed(options Options) bool {
-	status, err := Status(options)
+func onlyElasticAgentFailed(ctx context.Context, options Options) bool {
+	status, err := Status(ctx, options)
 	if err != nil {
 		fmt.Printf("Failed to check status of the stack after failure: %v\n", err)
 		return false
@@ -130,8 +132,8 @@ func onlyElasticAgentFailed(options Options) bool {
 }
 
 // TearDown function takes down the testing stack.
-func TearDown(options Options) error {
-	err := dockerComposeDown(options)
+func TearDown(ctx context.Context, options Options) error {
+	err := dockerComposeDown(ctx, options)
 	if err != nil {
 		return fmt.Errorf("stopping docker containers failed: %w", err)
 	}

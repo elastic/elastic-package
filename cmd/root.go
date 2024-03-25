@@ -82,6 +82,6 @@ func processPersistentFlags(cmd *cobra.Command, args []string) error {
 }
 
 func checkVersionUpdate(cmd *cobra.Command, args []string) error {
-	version.CheckUpdate()
+	version.CheckUpdate(cmd.Context())
 	return nil
 }
