@@ -11,6 +11,7 @@ services:
       - TF_VAR_BUILD_ID=${BUILD_ID:-unknown}
       - TF_VAR_ENVIRONMENT=${ENVIRONMENT:-unknown}
       - TF_VAR_REPO=${REPO:-unknown}
+      - AGENT_HOSTNAME=${AGENT_HOSTNAME:-elastic-agent}
     volumes:
       - ${TF_DIR}:/stage
       - ${TF_OUTPUT_DIR}:/output

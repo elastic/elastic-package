@@ -91,11 +91,17 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (D
 		return nil, fmt.Errorf("can't locate CA certificate: %w", err)
 	}
 
+	// Build service container name
+	// FIXME: Currently, this service deployer starts a new agent on its own and
+	// it cannot use directly the `svcInfo.AgentHostname` value
+	svcInfo.Hostname = d.agentHostname()
+	svcInfo.AgentHostname = d.agentHostname()
+
 	env := append(
 		appConfig.StackImageRefs(d.stackVersion).AsEnv(),
 		fmt.Sprintf("%s=%s", serviceLogsDirEnv, svcInfo.Logs.Folder.Local),
 		fmt.Sprintf("%s=%s", localCACertEnv, caCertPath),
-		fmt.Sprintf("%s=%s", agentHostnameEnv, d.agentHostname()),
+		fmt.Sprintf("%s=%s", agentHostnameEnv, svcInfo.AgentHostname),
 		fmt.Sprintf("%s=%s", elasticAgentTagsEnv, strings.Join(svcInfo.Tags, ",")),
 	)
 
@@ -172,12 +178,6 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (D
 		}, svcInfo.Name)
 		return nil, fmt.Errorf("service is unhealthy: %w", err)
 	}
-
-	// Build service container name
-	// Set the same hostname as in the docker-compose (environment variable)
-	//svcInfo.Hostname = p.ContainerName(serviceName)
-	svcInfo.Hostname = d.agentHostname()
-	svcInfo.AgentHostname = d.agentHostname()
 
 	logger.Debugf("adding service container %s internal ports to context", p.ContainerName(serviceName))
 	serviceComposeConfig, err := p.Config(ctx, compose.CommandOptions{Env: env})
