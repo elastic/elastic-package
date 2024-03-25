@@ -41,7 +41,7 @@ cleanup() {
 
 trap cleanup EXIT
 
-ELASTIC_PACKAGE_INDEPENDENT_AGENT=${ELASTIC_PACKAGE_INDEPENDENT_AGENT:-"false"}
+ELASTIC_PACKAGE_ENABLE_INDEPENDENT_AGENT=${ELASTIC_PACKAGE_ENABLE_INDEPENDENT_AGENT:-"false"}
 export ELASTIC_PACKAGE_INDEPENDENT_AGENT
 ELASTIC_PACKAGE_LINKS_FILE_PATH="$(pwd)/scripts/links_table.yml"
 export ELASTIC_PACKAGE_LINKS_FILE_PATH
@@ -109,10 +109,6 @@ for d in test/packages/${PACKAGE_TEST_TYPE:-other}/${PACKAGE_UNDER_TEST:-*}/; do
     elif [ "${PACKAGE_TEST_TYPE:-other}" == "with-logstash" ] && [ "${PACKAGE_UNDER_TEST:-*}" == "system_benchmark" ]; then
         elastic-package benchmark system --benchmark logs-benchmark -v --defer-cleanup 1s
     else
-      ELASTIC_PACKAGE_TEST_OPTS=""
-      if [[ "${ELASTIC_PACKAGE_INDEPENDENT_AGENT}" == "true" ]]; then
-          ELASTIC_PACKAGE_TEST_OPTS="--test-independent-agent"
-      fi
       # defer-cleanup is set to a short period to verify that the option is available
       elastic-package test -v \
           --report-format xUnit \

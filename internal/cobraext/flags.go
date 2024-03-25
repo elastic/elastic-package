@@ -233,7 +233,4 @@ const (
 
 	SkipPullRequestFlagName        = "skip-pull-request"
 	SkipPullRequestFlagDescription = "skip opening a new pull request"
-
-	TestIndependentElasticAgentFlagName        = "test-independent-agent"
-	TestIndependentElasticAgentFlagDescription = "enable testing each test with its own Elastic Agent (technical preview)"
 )

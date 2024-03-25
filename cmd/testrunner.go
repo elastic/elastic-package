@@ -18,6 +18,7 @@ import (
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/elasticsearch"
+	"github.com/elastic/elastic-package/internal/environment"
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
@@ -52,6 +53,8 @@ These tests allow you to test a package's ability to ingest data end-to-end.
 
 For details on how to configure amd run system tests, review the [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/system_testing.md).`
 
+var enableIndependentAgents = environment.WithElasticPackagePrefix("TEST_ENABLE_INDEPENDENT_AGENT")
+
 func setupTestCommand() *cobraext.Command {
 	var testTypeCmdActions []cobraext.CommandAction
 
@@ -79,8 +82,6 @@ func setupTestCommand() *cobraext.Command {
 	cmd.PersistentFlags().DurationP(cobraext.DeferCleanupFlagName, "", 0, cobraext.DeferCleanupFlagDescription)
 	cmd.PersistentFlags().String(cobraext.VariantFlagName, "", cobraext.VariantFlagDescription)
 	cmd.PersistentFlags().StringP(cobraext.ProfileFlagName, "p", "", fmt.Sprintf(cobraext.ProfileFlagDescription, install.ProfileNameEnvVar))
-	// By default, it keeps the same behaviour as previously
-	cmd.PersistentFlags().BoolP(cobraext.TestIndependentElasticAgentFlagName, "", false, cobraext.TestIndependentElasticAgentFlagDescription)
 
 	for testType, runner := range testrunner.TestRunners() {
 		action := testTypeCommandActionFactory(runner)
@@ -188,9 +189,10 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 			return fmt.Errorf("cannot determine if package has data streams: %w", err)
 		}
 
-		runIndependentElasticAgent, err := cmd.Flags().GetBool(cobraext.TestIndependentElasticAgentFlagName)
-		if err != nil {
-			return cobraext.FlagParsingError(err, cobraext.TestIndependentElasticAgentFlagName)
+		runIndependentElasticAgent := false
+		v, ok := os.LookupEnv(enableIndependentAgents)
+		if ok && strings.ToLower(v) != "false" {
+			runIndependentElasticAgent = true
 		}
 
 		configFileFlag := ""
