@@ -734,18 +734,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, servic
 		return nil, fmt.Errorf("failed to initialize package installer: %v", err)
 	}
 
-	if r.options.RunTearDown {
-		logger.Debug("Skip installing package")
-	} else {
-		// Allowed to re-install the package in RunTestsOnly to be able to
-		// test new changes introduced in the package
-		logger.Debug("Installing package...")
-		_, err = installer.Install(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("failed to install package: %v", err)
-		}
-	}
-	r.deletePackageHandler = func(ctx context.Context) error {
+	deletePackageHandler := func(ctx context.Context) error {
 		stackVersion, err := semver.NewVersion(serviceOptions.StackVersion)
 		if err != nil {
 			return fmt.Errorf("failed to parse stack version: %w", err)
@@ -767,6 +756,26 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, servic
 		}
 		return nil
 	}
+
+	if r.options.RunTearDown {
+		logger.Debug("Skip installing package")
+	} else {
+		// Allowed to re-install the package in RunTestsOnly to be able to
+		// test new changes introduced in the package
+		logger.Debug("Installing package...")
+		_, err = installer.Install(ctx)
+		if errors.Is(err, context.Canceled) {
+			// Installation interrupted, at this point the package may have been installed, try to remove it for cleanup.
+			err := deletePackageHandler(context.WithoutCancel(ctx))
+			if err != nil {
+				logger.Debugf("error while removing package after installation interrupted: %s", err)
+			}
+		}
+		if err != nil {
+			return nil, fmt.Errorf("failed to install package: %v", err)
+		}
+	}
+	r.deletePackageHandler = deletePackageHandler
 
 	// Configure package (single data stream) via Fleet APIs.
 	var policy *kibana.Policy
