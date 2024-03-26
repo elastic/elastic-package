@@ -6,6 +6,7 @@ package kibana
 
 import (
 	"bytes"
+	"context"
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
@@ -37,7 +38,7 @@ func TestClientWithTLS(t *testing.T) {
 		client, err := NewClient(version, Address(server.URL))
 		require.NoError(t, err)
 
-		_, _, err = client.get("/")
+		_, _, err = client.get(context.Background(), "/")
 		assert.Error(t, err)
 	})
 
@@ -45,7 +46,7 @@ func TestClientWithTLS(t *testing.T) {
 		client, err := NewClient(version, Address(server.URL), CertificateAuthority(caCertFile))
 		require.NoError(t, err)
 
-		_, _, err = client.get("/")
+		_, _, err = client.get(context.Background(), "/")
 		assert.NoError(t, err)
 	})
 
@@ -53,7 +54,7 @@ func TestClientWithTLS(t *testing.T) {
 		client, err := NewClient(version, Address(server.URL), TLSSkipVerify())
 		require.NoError(t, err)
 
-		_, _, err = client.get("/")
+		_, _, err = client.get(context.Background(), "/")
 		assert.NoError(t, err)
 	})
 }

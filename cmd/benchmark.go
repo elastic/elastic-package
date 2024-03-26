@@ -213,10 +213,6 @@ func pipelineCommandAction(cmd *cobra.Command, args []string) error {
 		results = append(results, r)
 	}
 
-	if err != nil {
-		return fmt.Errorf("error running package pipeline benchmarks: %w", err)
-	}
-
 	for _, report := range results {
 		if err := reporters.WriteReportable(reporters.Output(reportOutput), report); err != nil {
 			return fmt.Errorf("error writing benchmark report: %w", err)

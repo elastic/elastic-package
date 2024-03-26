@@ -5,6 +5,7 @@
 package kibana
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -14,11 +15,11 @@ import (
 )
 
 // InstallPackage installs the given package in Fleet.
-func (c *Client) InstallPackage(name, version string) ([]packages.Asset, error) {
+func (c *Client) InstallPackage(ctx context.Context, name, version string) ([]packages.Asset, error) {
 	path := c.epmPackageUrl(name, version)
 	reqBody := []byte(`{"force":true}`) // allows installing older versions of the package being tested
 
-	statusCode, respBody, err := c.post(path, reqBody)
+	statusCode, respBody, err := c.post(ctx, path, reqBody)
 	if err != nil {
 		return nil, fmt.Errorf("could not install package: %w", err)
 	}
@@ -27,7 +28,7 @@ func (c *Client) InstallPackage(name, version string) ([]packages.Asset, error) 
 }
 
 // InstallZipPackage installs the local zip package in Fleet.
-func (c *Client) InstallZipPackage(zipFile string) ([]packages.Asset, error) {
+func (c *Client) InstallZipPackage(ctx context.Context, zipFile string) ([]packages.Asset, error) {
 	path := fmt.Sprintf("%s/epm/packages", FleetAPI)
 
 	body, err := os.Open(zipFile)
@@ -36,7 +37,7 @@ func (c *Client) InstallZipPackage(zipFile string) ([]packages.Asset, error) {
 	}
 	defer body.Close()
 
-	req, err := c.newRequest(http.MethodPost, path, body)
+	req, err := c.newRequest(ctx, http.MethodPost, path, body)
 	if err != nil {
 		return nil, err
 	}
@@ -52,9 +53,9 @@ func (c *Client) InstallZipPackage(zipFile string) ([]packages.Asset, error) {
 }
 
 // RemovePackage removes the given package from Fleet.
-func (c *Client) RemovePackage(name, version string) ([]packages.Asset, error) {
+func (c *Client) RemovePackage(ctx context.Context, name, version string) ([]packages.Asset, error) {
 	path := c.epmPackageUrl(name, version)
-	statusCode, respBody, err := c.delete(path)
+	statusCode, respBody, err := c.delete(ctx, path)
 	if err != nil {
 		return nil, fmt.Errorf("could not delete package: %w", err)
 	}
@@ -70,9 +71,9 @@ type FleetPackage struct {
 }
 
 // GetPackage obtains information about a package from Fleet.
-func (c *Client) GetPackage(name string) (*FleetPackage, error) {
+func (c *Client) GetPackage(ctx context.Context, name string) (*FleetPackage, error) {
 	path := c.epmPackageUrl(name, "")
-	statusCode, respBody, err := c.get(path)
+	statusCode, respBody, err := c.get(ctx, path)
 	if err != nil {
 		return nil, fmt.Errorf("could not get package: %w", err)
 	}

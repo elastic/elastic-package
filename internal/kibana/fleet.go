@@ -5,6 +5,7 @@
 package kibana
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -27,10 +28,10 @@ type AgentSSL struct {
 }
 
 // DefaultFleetServerURL returns the default Fleet server configured in Kibana
-func (c *Client) DefaultFleetServerURL() (string, error) {
+func (c *Client) DefaultFleetServerURL(ctx context.Context) (string, error) {
 	path := fmt.Sprintf("%s/fleet_server_hosts", FleetAPI)
 
-	statusCode, respBody, err := c.get(path)
+	statusCode, respBody, err := c.get(ctx, path)
 	if err != nil {
 		return "", fmt.Errorf("could not reach fleet server hosts endpoint: %w", err)
 	}
@@ -61,13 +62,13 @@ func (c *Client) DefaultFleetServerURL() (string, error) {
 
 // UpdateFleetOutput updates an existing output to fleet
 // For example, to update ssl certificates etc.,
-func (c *Client) UpdateFleetOutput(fo FleetOutput, outputId string) error {
+func (c *Client) UpdateFleetOutput(ctx context.Context, fo FleetOutput, outputId string) error {
 	reqBody, err := json.Marshal(fo)
 	if err != nil {
 		return fmt.Errorf("could not convert fleetOutput (request) to JSON: %w", err)
 	}
 
-	statusCode, respBody, err := c.put(fmt.Sprintf("%s/outputs/%s", FleetAPI, outputId), reqBody)
+	statusCode, respBody, err := c.put(ctx, fmt.Sprintf("%s/outputs/%s", FleetAPI, outputId), reqBody)
 	if err != nil {
 		return fmt.Errorf("could not update fleet output: %w", err)
 	}
@@ -80,13 +81,13 @@ func (c *Client) UpdateFleetOutput(fo FleetOutput, outputId string) error {
 }
 
 // AddFleetOutput adds an additional output to fleet eg., logstash
-func (c *Client) AddFleetOutput(fo FleetOutput) error {
+func (c *Client) AddFleetOutput(ctx context.Context, fo FleetOutput) error {
 	reqBody, err := json.Marshal(fo)
 	if err != nil {
 		return fmt.Errorf("could not convert fleetOutput (request) to JSON: %w", err)
 	}
 
-	statusCode, respBody, err := c.post(fmt.Sprintf("%s/outputs", FleetAPI), reqBody)
+	statusCode, respBody, err := c.post(ctx, fmt.Sprintf("%s/outputs", FleetAPI), reqBody)
 	if err != nil {
 		return fmt.Errorf("could not create fleet output: %w", err)
 	}
@@ -98,7 +99,7 @@ func (c *Client) AddFleetOutput(fo FleetOutput) error {
 	return nil
 }
 
-func (c *Client) SetAgentLogLevel(agentID, level string) error {
+func (c *Client) SetAgentLogLevel(ctx context.Context, agentID, level string) error {
 	path := fmt.Sprintf("%s/agents/%s/actions", FleetAPI, agentID)
 
 	type fleetAction struct {
@@ -119,7 +120,7 @@ func (c *Client) SetAgentLogLevel(agentID, level string) error {
 		return fmt.Errorf("could not convert action settingr (request) to JSON: %w", err)
 	}
 
-	statusCode, respBody, err := c.post(path, reqBody)
+	statusCode, respBody, err := c.post(ctx, path, reqBody)
 	if err != nil {
 		return fmt.Errorf("could not update agent settings: %w", err)
 	}
