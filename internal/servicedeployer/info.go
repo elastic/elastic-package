@@ -27,6 +27,8 @@ type ServiceInfo struct {
 	// the Service container .
 	AgentHostname string
 
+	AgentNetworkName string
+
 	// Ports is a list of ports that the service listens on, as addressable
 	// from the Agent container.
 	Ports []int

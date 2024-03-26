@@ -76,11 +76,12 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 				return nil, fmt.Errorf("can't use service variant: %w", err)
 			}
 			opts := DockerComposeServiceDeployerOptions{
-				Profile:      options.Profile,
-				YmlPaths:     []string{dockerComposeYMLPath},
-				Variant:      sv,
-				RunTearDown:  options.RunTearDown,
-				RunTestsOnly: options.RunTestsOnly,
+				Profile:                options.Profile,
+				YmlPaths:               []string{dockerComposeYMLPath},
+				Variant:                sv,
+				RunTearDown:            options.RunTearDown,
+				RunTestsOnly:           options.RunTestsOnly,
+				DeployIndependentAgent: options.DeployIndependentAgent,
 			}
 			return NewDockerComposeServiceDeployer(opts)
 		}

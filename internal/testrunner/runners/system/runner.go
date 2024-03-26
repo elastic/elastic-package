@@ -769,6 +769,8 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		svcInfo.Test.RunID = serviceStateData.ServiceRunID
 		svcInfo.AgentHostname = serviceStateData.ServiceAgentHostname
 		svcInfo.Hostname = serviceStateData.ServiceAgentHostname
+		// By default using agent running in the Elastic stack
+		svcInfo.AgentNetworkName = stack.Network(r.options.Profile)
 	}
 
 	agentDeployed, agentInfo, err := r.setupAgent(ctx, serviceOptions.Variant, agentInfo)
@@ -777,6 +779,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	}
 	if agentDeployed != nil {
 		agentInfo = agentDeployed.Info()
+		svcInfo.AgentNetworkName = agentInfo.NetworkName
 	}
 
 	scenario.enrollingTime = enrollingTime
@@ -1087,17 +1090,12 @@ func (r *runner) setupService(ctx context.Context, config *testConfig, serviceOp
 		return nil, svcInfo, fmt.Errorf("could not create service runner: %w", err)
 	}
 
+	// Elastic Agent from stack and Elastic Agents started independently
+	// will have a network alias "elastic-agent" that services can use
+	// Docker custom agents would have another alias "docker-custom-agent"
 	svcInfo.AgentHostname = "elastic-agent"
 	if r.options.RunIndependentElasticAgent {
 		svcInfo.Logs.Folder.Local = agentInfo.Logs.Folder.Local
-		if agentDeployed != nil {
-			// Not all agents are created from "agentdeployer", currently agent and
-			// service containers are created from "servicedeployer" package for
-			// CustomAgent scenario
-			// And there are packages that require to run queries (requests) to the
-			// elastic agent container to inject logs (e.g. ti_anomali)
-			svcInfo.AgentHostname = agentDeployed.Info().Hostname
-		}
 	}
 	if config.Service != "" {
 		svcInfo.Name = config.Service
@@ -1191,7 +1189,7 @@ type ServiceState struct {
 	ServiceRunID         string        `json:"service_info_run_id"`
 	AgentRunID           string        `json:"agent_info_run_id"`
 	AgentHostname        string        `json:"agent_hostname"`
-	ServiceAgentHostname string        `json:"service_agent_hostnme"`
+	ServiceAgentHostname string        `json:"service_agent_hostname"`
 }
 
 type scenarioStateOpts struct {
@@ -1821,16 +1819,18 @@ func filterAgents(allAgents []kibana.Agent, agentInfo agentdeployer.AgentInfo, t
 			continue
 		}
 
-		if runIndependentElasticAgent && agent.LocalMetadata.Host.Name != "kind-control-plane" {
+		if (runIndependentElasticAgent && agent.LocalMetadata.Host.Name != "kind-control-plane") || svcInfo.Agent.Host.NamePrefix == "docker-custom-agent" {
+			// All agents created except the ones from Kubernetes should have a different hostname
 			logger.Debugf("Checking hostname %s in agent hostname %s", expectedHostname, agent.LocalMetadata.Host.Name)
 			if expectedHostname != agent.LocalMetadata.Host.Name {
 				logger.Debugf("filtered agent (invalid hostname suffix) %s - %q: %s", expectedHostname, agent.LocalMetadata.Host.Name, agent.ID) // TODO: remove
 				continue
 			}
 		}
+
 		// Tags are available starting in 8.3
 		// Kubernetes Agent cannot set a different hostname
-		// Using tags allow to detect the right agent from the list
+		// Using tags allow us to detect the right agent from the list
 		if runIndependentElasticAgent && len(expectedTags) > 0 && len(agent.Tags) > 0 {
 			logger.Debugf("Checking tags %s vs %s", strings.Join(agent.Tags, ","), strings.Join(expectedTags, ","))
 			foundAllTags := true

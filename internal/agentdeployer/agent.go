@@ -24,7 +24,7 @@ import (
 )
 
 const (
-	dockerTestAgentNamePrefix    = "docker-test-agent"
+	dockerTestAgentNamePrefix    = "elastic-agent"
 	dockerTestgentDir            = "docker_test_agent"
 	dockerTestAgentDockerCompose = "docker-agent-base.yml"
 	defaultAgentPolicyName       = "Elastic-Agent (elastic-package)"
@@ -149,6 +149,7 @@ func (d *DockerComposeAgentDeployer) SetUp(ctx context.Context, agentInfo AgentI
 	}
 
 	agentInfo.ConfigDir = configDir
+	agentInfo.NetworkName = fmt.Sprintf("%s_default", composeProjectName)
 
 	p, err := compose.NewProject(agent.project, agent.ymlPaths...)
 	if err != nil {
@@ -197,7 +198,7 @@ func (d *DockerComposeAgentDeployer) SetUp(ctx context.Context, agentInfo AgentI
 		// Connect service network with stack network (for the purpose of metrics collection)
 		err = docker.ConnectToNetwork(p.ContainerName(agentName), stack.Network(d.profile))
 		if err != nil {
-			return nil, fmt.Errorf("can't attach service container to the stack network: %w", err)
+			return nil, fmt.Errorf("can't attach agent container to the stack network: %w", err)
 		}
 	}
 

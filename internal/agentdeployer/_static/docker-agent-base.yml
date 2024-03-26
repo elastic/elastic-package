@@ -1,6 +1,6 @@
 version: "2.3"
 services:
-  docker-test-agent:
+  elastic-agent:
     hostname: ${AGENT_HOSTNAME}
     image: "${ELASTIC_AGENT_IMAGE_REF}"
     healthcheck:

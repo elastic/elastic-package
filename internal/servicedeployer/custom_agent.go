@@ -95,7 +95,7 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (D
 	// FIXME: Currently, this service deployer starts a new agent on its own and
 	// it cannot use directly the `svcInfo.AgentHostname` value
 	svcInfo.Hostname = d.agentHostname()
-	svcInfo.AgentHostname = d.agentHostname()
+	svcInfo.AgentHostname = dockerCustomAgentName // Alias for custom agent
 
 	env := append(
 		appConfig.StackImageRefs(d.stackVersion).AsEnv(),
@@ -163,6 +163,10 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (D
 		if err != nil {
 			return nil, fmt.Errorf("could not boot up service using Docker Compose: %w", err)
 		}
+
+		// TODO: if this agent is moved to "agentdeployer", this container should be connected
+		// to the network of the agent as done in servicedeployer/compose.go
+
 		// Connect service network with stack network (for the purpose of metrics collection)
 		err = docker.ConnectToNetwork(p.ContainerName(serviceName), stack.Network(d.profile))
 		if err != nil {
