@@ -8,8 +8,7 @@ services:
       - ${SERVICE_LOGS_DIR}/sql_input:/var/log/mysql
       - mysqldata:/var/lib/mysql
   sql_input_is_ready:
-    image: tianon/true
-    platform: linux/amd64
+    image: tianon/true:multiarch
     depends_on:
       sql_input:
         condition: service_healthy
