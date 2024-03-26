@@ -75,7 +75,7 @@ func (p *Project) Status(ctx context.Context, elasticsearchClient *elasticsearch
 
 	status = map[string]string{
 		"elasticsearch": healthStatus(p.getESHealth(ctx, elasticsearchClient)),
-		"kibana":        healthStatus(p.getKibanaHealth(kibanaClient)),
+		"kibana":        healthStatus(p.getKibanaHealth(ctx, kibanaClient)),
 		"fleet":         healthStatus(p.getFleetHealth(ctx)),
 	}
 	return status, nil
@@ -99,7 +99,7 @@ func (p *Project) ensureElasticsearchHealthy(ctx context.Context, elasticsearchC
 
 func (p *Project) ensureKibanaHealthy(ctx context.Context, kibanaClient *kibana.Client) error {
 	for {
-		err := kibanaClient.CheckHealth()
+		err := kibanaClient.CheckHealth(ctx)
 		if err == nil {
 			return nil
 		}
@@ -129,8 +129,8 @@ func (p *Project) ensureFleetHealthy(ctx context.Context) error {
 	}
 }
 
-func (p *Project) DefaultFleetServerURL(kibanaClient *kibana.Client) (string, error) {
-	fleetURL, err := kibanaClient.DefaultFleetServerURL()
+func (p *Project) DefaultFleetServerURL(ctx context.Context, kibanaClient *kibana.Client) (string, error) {
+	fleetURL, err := kibanaClient.DefaultFleetServerURL(ctx)
 	if err != nil {
 		return "", fmt.Errorf("failed to query fleet server hosts: %w", err)
 	}
@@ -138,7 +138,7 @@ func (p *Project) DefaultFleetServerURL(kibanaClient *kibana.Client) (string, er
 	return fleetURL, nil
 }
 
-func (p *Project) AddLogstashFleetOutput(profile *profile.Profile, kibanaClient *kibana.Client) error {
+func (p *Project) AddLogstashFleetOutput(ctx context.Context, profile *profile.Profile, kibanaClient *kibana.Client) error {
 	logstashFleetOutput := kibana.FleetOutput{
 		Name:  "logstash-output",
 		ID:    FleetLogstashOutput,
@@ -146,14 +146,14 @@ func (p *Project) AddLogstashFleetOutput(profile *profile.Profile, kibanaClient 
 		Hosts: []string{"logstash:5044"},
 	}
 
-	if err := kibanaClient.AddFleetOutput(logstashFleetOutput); err != nil {
+	if err := kibanaClient.AddFleetOutput(ctx, logstashFleetOutput); err != nil {
 		return fmt.Errorf("failed to add logstash fleet output: %w", err)
 	}
 
 	return nil
 }
 
-func (p *Project) UpdateLogstashFleetOutput(profile *profile.Profile, kibanaClient *kibana.Client) error {
+func (p *Project) UpdateLogstashFleetOutput(ctx context.Context, profile *profile.Profile, kibanaClient *kibana.Client) error {
 	certsDir := filepath.Join(profile.ProfilePath, "certs", "elastic-agent")
 
 	caFile, err := os.ReadFile(filepath.Join(certsDir, "ca-cert.pem"))
@@ -179,7 +179,7 @@ func (p *Project) UpdateLogstashFleetOutput(profile *profile.Profile, kibanaClie
 		},
 	}
 
-	if err := kibanaClient.UpdateFleetOutput(logstashFleetOutput, FleetLogstashOutput); err != nil {
+	if err := kibanaClient.UpdateFleetOutput(ctx, logstashFleetOutput, FleetLogstashOutput); err != nil {
 		return fmt.Errorf("failed to update logstash fleet output: %w", err)
 	}
 
@@ -190,8 +190,8 @@ func (p *Project) getESHealth(ctx context.Context, elasticsearchClient *elastics
 	return elasticsearchClient.CheckHealth(ctx)
 }
 
-func (p *Project) getKibanaHealth(kibanaClient *kibana.Client) error {
-	return kibanaClient.CheckHealth()
+func (p *Project) getKibanaHealth(ctx context.Context, kibanaClient *kibana.Client) error {
+	return kibanaClient.CheckHealth(ctx)
 }
 
 func (p *Project) getFleetHealth(ctx context.Context) error {
@@ -232,7 +232,7 @@ func (p *Project) getFleetHealth(ctx context.Context) error {
 	return nil
 }
 
-func (p *Project) CreateAgentPolicy(kibanaClient *kibana.Client, stackVersion string, outputId string, selfMonitor bool) error {
+func (p *Project) CreateAgentPolicy(ctx context.Context, kibanaClient *kibana.Client, stackVersion string, outputId string, selfMonitor bool) error {
 	policy := kibana.Policy{
 		ID:                "elastic-agent-managed-ep",
 		Name:              "Elastic-Agent (elastic-package)",
@@ -245,13 +245,13 @@ func (p *Project) CreateAgentPolicy(kibanaClient *kibana.Client, stackVersion st
 		policy.MonitoringEnabled = []string{"logs", "metrics"}
 	}
 
-	newPolicy, err := kibanaClient.CreatePolicy(policy)
+	newPolicy, err := kibanaClient.CreatePolicy(ctx, policy)
 	if err != nil {
 		return fmt.Errorf("error while creating agent policy: %w", err)
 	}
 
 	if selfMonitor {
-		err := p.createSystemPackagePolicy(kibanaClient, stackVersion, newPolicy.ID, newPolicy.Namespace)
+		err := p.createSystemPackagePolicy(ctx, kibanaClient, stackVersion, newPolicy.ID, newPolicy.Namespace)
 		if err != nil {
 			return err
 		}
@@ -260,7 +260,7 @@ func (p *Project) CreateAgentPolicy(kibanaClient *kibana.Client, stackVersion st
 	return nil
 }
 
-func (p *Project) createSystemPackagePolicy(kibanaClient *kibana.Client, stackVersion, agentPolicyID, namespace string) error {
+func (p *Project) createSystemPackagePolicy(ctx context.Context, kibanaClient *kibana.Client, stackVersion, agentPolicyID, namespace string) error {
 	systemPackages, err := registry.Production.Revisions("system", registry.SearchOptions{
 		KibanaVersion: strings.TrimSuffix(stackVersion, kibana.SNAPSHOT_SUFFIX),
 	})
@@ -279,7 +279,7 @@ func (p *Project) createSystemPackagePolicy(kibanaClient *kibana.Client, stackVe
 	packagePolicy.Package.Name = "system"
 	packagePolicy.Package.Version = systemPackages[0].Version
 
-	_, err = kibanaClient.CreatePackagePolicy(packagePolicy)
+	_, err = kibanaClient.CreatePackagePolicy(ctx, packagePolicy)
 	if err != nil {
 		return fmt.Errorf("error while creating package policy: %w", err)
 	}

@@ -6,6 +6,7 @@ package kibana
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"mime/multipart"
@@ -57,14 +58,14 @@ func (dso *DashboardSavedObject) String() string {
 }
 
 // FindDashboards method returns dashboards available in the Kibana instance.
-func (c *Client) FindDashboards() (DashboardSavedObjects, error) {
+func (c *Client) FindDashboards(ctx context.Context) (DashboardSavedObjects, error) {
 	logger.Debug("Find dashboards using the Saved Objects API")
 
 	var foundObjects DashboardSavedObjects
 	page := 1
 
 	for {
-		r, err := c.findDashboardsNextPage(page)
+		r, err := c.findDashboardsNextPage(ctx, page)
 		if err != nil {
 			return nil, fmt.Errorf("can't fetch page with results: %w", err)
 		}
@@ -91,9 +92,9 @@ func (c *Client) FindDashboards() (DashboardSavedObjects, error) {
 	return foundObjects, nil
 }
 
-func (c *Client) findDashboardsNextPage(page int) (*savedObjectsResponse, error) {
+func (c *Client) findDashboardsNextPage(ctx context.Context, page int) (*savedObjectsResponse, error) {
 	path := fmt.Sprintf("%s/_find?type=dashboard&fields=title&per_page=%d&page=%d", SavedObjectsAPI, findDashboardsPerPage, page)
-	statusCode, respBody, err := c.get(path)
+	statusCode, respBody, err := c.get(ctx, path)
 	if err != nil {
 		return nil, fmt.Errorf("could not find dashboards; API status code = %d; response body = %s: %w", statusCode, string(respBody), err)
 	}
@@ -115,7 +116,7 @@ func (c *Client) findDashboardsNextPage(page int) (*savedObjectsResponse, error)
 // allow to edit them.
 // Managed property cannot be directly changed, so we modify it by exporting the
 // saved object and importing it again, overwriting the original one.
-func (c *Client) SetManagedSavedObject(savedObjectType string, id string, managed bool) error {
+func (c *Client) SetManagedSavedObject(ctx context.Context, savedObjectType string, id string, managed bool) error {
 	exportRequest := ExportSavedObjectsRequest{
 		ExcludeExportDetails:  true,
 		IncludeReferencesDeep: false,
@@ -126,7 +127,7 @@ func (c *Client) SetManagedSavedObject(savedObjectType string, id string, manage
 			},
 		},
 	}
-	objects, err := c.ExportSavedObjects(exportRequest)
+	objects, err := c.ExportSavedObjects(ctx, exportRequest)
 	if err != nil {
 		return fmt.Errorf("failed to export %s %s: %w", savedObjectType, id, err)
 	}
@@ -139,7 +140,7 @@ func (c *Client) SetManagedSavedObject(savedObjectType string, id string, manage
 		Overwrite: true,
 		Objects:   objects,
 	}
-	_, err = c.ImportSavedObjects(importRequest)
+	_, err = c.ImportSavedObjects(ctx, importRequest)
 	if err != nil {
 		return fmt.Errorf("failed to import %s %s: %w", savedObjectType, id, err)
 	}
@@ -158,14 +159,14 @@ type ExportSavedObjectsRequestObject struct {
 	Type string `json:"type"`
 }
 
-func (c *Client) ExportSavedObjects(request ExportSavedObjectsRequest) ([]map[string]any, error) {
+func (c *Client) ExportSavedObjects(ctx context.Context, request ExportSavedObjectsRequest) ([]map[string]any, error) {
 	body, err := json.Marshal(request)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode request: %w", err)
 	}
 
 	path := SavedObjectsAPI + "/_export"
-	statusCode, respBody, err := c.SendRequest(http.MethodPost, path, body)
+	statusCode, respBody, err := c.SendRequest(ctx, http.MethodPost, path, body)
 	if err != nil {
 		return nil, fmt.Errorf("could not export saved objects; API status code = %d; response body = %s: %w", statusCode, string(respBody), err)
 	}
@@ -208,7 +209,7 @@ type ImportResult struct {
 	Meta  map[string]any `json:"meta"`
 }
 
-func (c *Client) ImportSavedObjects(importRequest ImportSavedObjectsRequest) (*ImportSavedObjectsResponse, error) {
+func (c *Client) ImportSavedObjects(ctx context.Context, importRequest ImportSavedObjectsRequest) (*ImportSavedObjectsResponse, error) {
 	var body bytes.Buffer
 	multipartWriter := multipart.NewWriter(&body)
 	fileWriter, err := multipartWriter.CreateFormFile("file", "file.ndjson")
@@ -229,7 +230,7 @@ func (c *Client) ImportSavedObjects(importRequest ImportSavedObjectsRequest) (*I
 	}
 
 	path := SavedObjectsAPI + "/_import"
-	request, err := c.newRequest(http.MethodPost, path, &body)
+	request, err := c.newRequest(ctx, http.MethodPost, path, &body)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create new request: %w", err)
 	}

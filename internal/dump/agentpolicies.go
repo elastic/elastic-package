@@ -42,7 +42,7 @@ func NewAgentPoliciesDumper(client *kibana.Client) *AgentPoliciesDumper {
 }
 
 func (d *AgentPoliciesDumper) getAgentPolicy(ctx context.Context, name string) (*AgentPolicy, error) {
-	policy, err := d.client.GetRawPolicy(name)
+	policy, err := d.client.GetRawPolicy(ctx, name)
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +86,7 @@ func getPackagesUsingAgentPolicy(packagePolicies []packagePolicy) []string {
 }
 
 func (d *AgentPoliciesDumper) getAgentPoliciesFilteredByPackage(ctx context.Context, packageName string) ([]AgentPolicy, error) {
-	rawPolicies, err := d.client.ListRawPolicies()
+	rawPolicies, err := d.client.ListRawPolicies(ctx)
 
 	if err != nil {
 		return nil, err

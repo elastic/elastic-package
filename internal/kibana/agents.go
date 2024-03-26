@@ -50,8 +50,8 @@ func (a *Agent) String() string {
 }
 
 // ListAgents returns the list of agents enrolled with Fleet.
-func (c *Client) ListAgents() ([]Agent, error) {
-	statusCode, respBody, err := c.get(fmt.Sprintf("%s/agents", FleetAPI))
+func (c *Client) ListAgents(ctx context.Context) ([]Agent, error) {
+	statusCode, respBody, err := c.get(ctx, fmt.Sprintf("%s/agents", FleetAPI))
 	if err != nil {
 		return nil, fmt.Errorf("could not list agents: %w", err)
 	}
@@ -76,7 +76,7 @@ func (c *Client) AssignPolicyToAgent(ctx context.Context, a Agent, p Policy) err
 	reqBody := `{ "policy_id": "` + p.ID + `" }`
 
 	path := fmt.Sprintf("%s/agents/%s/reassign", FleetAPI, a.ID)
-	statusCode, respBody, err := c.put(path, []byte(reqBody))
+	statusCode, respBody, err := c.put(ctx, path, []byte(reqBody))
 	if err != nil {
 		return fmt.Errorf("could not assign policy to agent: %w", err)
 	}
@@ -99,7 +99,7 @@ func (c *Client) waitUntilPolicyAssigned(ctx context.Context, a Agent, p Policy)
 	defer ticker.Stop()
 
 	for {
-		agent, err := c.getAgent(a.ID)
+		agent, err := c.getAgent(ctx, a.ID)
 		if err != nil {
 			return fmt.Errorf("can't get the agent: %w", err)
 		}
@@ -125,8 +125,8 @@ func (c *Client) waitUntilPolicyAssigned(ctx context.Context, a Agent, p Policy)
 	return nil
 }
 
-func (c *Client) getAgent(agentID string) (*Agent, error) {
-	statusCode, respBody, err := c.get(fmt.Sprintf("%s/agents/%s", FleetAPI, agentID))
+func (c *Client) getAgent(ctx context.Context, agentID string) (*Agent, error) {
+	statusCode, respBody, err := c.get(ctx, fmt.Sprintf("%s/agents/%s", FleetAPI, agentID))
 	if err != nil {
 		return nil, fmt.Errorf("could not list agents: %w", err)
 	}

@@ -5,6 +5,7 @@
 package kibana
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -21,7 +22,7 @@ type exportedType struct {
 }
 
 // Export method exports selected dashboards using the Kibana Export API.
-func (c *Client) Export(dashboardIDs []string) ([]common.MapStr, error) {
+func (c *Client) Export(ctx context.Context, dashboardIDs []string) ([]common.MapStr, error) {
 	logger.Debug("Export dashboards using the Kibana Export API")
 
 	var query strings.Builder
@@ -33,7 +34,7 @@ func (c *Client) Export(dashboardIDs []string) ([]common.MapStr, error) {
 	}
 
 	path := fmt.Sprintf("%s/dashboards/export%s", CoreAPI, query.String())
-	statusCode, respBody, err := c.get(path)
+	statusCode, respBody, err := c.get(ctx, path)
 	if err != nil {
 		return nil, fmt.Errorf("could not export dashboards; API status code = %d; response body = %s: %w", statusCode, respBody, err)
 	}

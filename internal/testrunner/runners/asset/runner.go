@@ -68,10 +68,10 @@ func (r *runner) Run(ctx context.Context, options testrunner.TestOptions) ([]tes
 	r.packageRootPath = options.PackageRootPath
 	r.kibanaClient = options.KibanaClient
 
-	return r.run()
+	return r.run(ctx)
 }
 
-func (r *runner) run() ([]testrunner.TestResult, error) {
+func (r *runner) run(ctx context.Context) ([]testrunner.TestResult, error) {
 	result := testrunner.NewResultComposer(testrunner.TestResult{
 		TestType: TestType,
 		Package:  r.testFolder.Package,
@@ -102,12 +102,8 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 	if err != nil {
 		return result.WithError(fmt.Errorf("can't create the package installer: %w", err))
 	}
-	installedPackage, err := packageInstaller.Install()
-	if err != nil {
-		return result.WithError(fmt.Errorf("can't install the package: %w", err))
-	}
 
-	r.removePackageHandler = func(ctx context.Context) error {
+	removePackageHandler := func(ctx context.Context) error {
 		pkgManifest, err := packages.ReadPackageManifestFromPackageRoot(r.packageRootPath)
 		if err != nil {
 			return fmt.Errorf("reading package manifest failed: %w", err)
@@ -130,7 +126,7 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		}
 
 		logger.Debug("removing package...")
-		err = packageInstaller.Uninstall()
+		err = packageInstaller.Uninstall(ctx)
 		if err != nil {
 			// logging the error as a warning and not returning it since there could be other reasons that could make fail this process
 			// for instance being defined a test agent policy where this package is used for debugging purposes
@@ -138,6 +134,20 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 		}
 		return nil
 	}
+
+	installedPackage, err := packageInstaller.Install(ctx)
+	if errors.Is(err, context.Canceled) {
+		// Installation interrupted, at this point the package may have been installed, try to remove it for cleanup.
+		err := removePackageHandler(context.WithoutCancel(ctx))
+		if err != nil {
+			logger.Debugf("error while removing package after installation interrupted: %s", err)
+		}
+	}
+	if err != nil {
+		return result.WithError(fmt.Errorf("can't install the package: %w", err))
+	}
+
+	r.removePackageHandler = removePackageHandler
 
 	// No Elasticsearch asset is created when an Input package is installed through the API.
 	// This would require to create a Agent policy and add that input package to the Agent policy.
@@ -177,10 +187,14 @@ func (r *runner) run() ([]testrunner.TestResult, error) {
 }
 
 func (r *runner) TearDown(ctx context.Context) error {
+	// Avoid cancellations during cleanup.
+	cleanupCtx := context.WithoutCancel(ctx)
+
 	if r.removePackageHandler != nil {
-		if err := r.removePackageHandler(ctx); err != nil {
+		if err := r.removePackageHandler(cleanupCtx); err != nil {
 			return err
 		}
+		r.removePackageHandler = nil
 	}
 
 	return nil
