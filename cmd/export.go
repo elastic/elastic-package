@@ -5,6 +5,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/AlecAivazis/survey/v2"
@@ -93,7 +94,7 @@ func exportDashboardsCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	if len(dashboardIDs) == 0 {
-		dashboardIDs, err = promptDashboardIDs(kibanaClient)
+		dashboardIDs, err = promptDashboardIDs(cmd.Context(), kibanaClient)
 		if err != nil {
 			return fmt.Errorf("prompt for dashboard selection failed: %w", err)
 		}
@@ -104,7 +105,7 @@ func exportDashboardsCmd(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	err = export.Dashboards(kibanaClient, dashboardIDs)
+	err = export.Dashboards(cmd.Context(), kibanaClient, dashboardIDs)
 	if err != nil {
 		return fmt.Errorf("dashboards export failed: %w", err)
 	}
@@ -113,8 +114,8 @@ func exportDashboardsCmd(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func promptDashboardIDs(kibanaClient *kibana.Client) ([]string, error) {
-	savedDashboards, err := kibanaClient.FindDashboards()
+func promptDashboardIDs(ctx context.Context, kibanaClient *kibana.Client) ([]string, error) {
+	savedDashboards, err := kibanaClient.FindDashboards(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("finding dashboards failed: %w", err)
 	}

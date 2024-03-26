@@ -6,6 +6,7 @@ package kibana
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"errors"
 	"fmt"
@@ -65,7 +66,8 @@ func NewClient(opts ...ClientOption) (*Client, error) {
 	// Allow to initialize version from tests.
 	var zeroVersion VersionInfo
 	if c.semver == nil || c.versionInfo == zeroVersion {
-		v, err := c.requestStatus()
+		// Passing a nil context here because we are on initialization.
+		v, err := c.requestStatus(context.Background())
 		if err != nil {
 			return nil, fmt.Errorf("failed to get Kibana version: %w", err)
 		}
@@ -134,24 +136,24 @@ func HTTPClientSetup(setup func(*http.Client) *http.Client) ClientOption {
 	}
 }
 
-func (c *Client) get(resourcePath string) (int, []byte, error) {
-	return c.SendRequest(http.MethodGet, resourcePath, nil)
+func (c *Client) get(ctx context.Context, resourcePath string) (int, []byte, error) {
+	return c.SendRequest(ctx, http.MethodGet, resourcePath, nil)
 }
 
-func (c *Client) post(resourcePath string, body []byte) (int, []byte, error) {
-	return c.SendRequest(http.MethodPost, resourcePath, body)
+func (c *Client) post(ctx context.Context, resourcePath string, body []byte) (int, []byte, error) {
+	return c.SendRequest(ctx, http.MethodPost, resourcePath, body)
 }
 
-func (c *Client) put(resourcePath string, body []byte) (int, []byte, error) {
-	return c.SendRequest(http.MethodPut, resourcePath, body)
+func (c *Client) put(ctx context.Context, resourcePath string, body []byte) (int, []byte, error) {
+	return c.SendRequest(ctx, http.MethodPut, resourcePath, body)
 }
 
-func (c *Client) delete(resourcePath string) (int, []byte, error) {
-	return c.SendRequest(http.MethodDelete, resourcePath, nil)
+func (c *Client) delete(ctx context.Context, resourcePath string) (int, []byte, error) {
+	return c.SendRequest(ctx, http.MethodDelete, resourcePath, nil)
 }
 
-func (c *Client) SendRequest(method, resourcePath string, body []byte) (int, []byte, error) {
-	request, err := c.newRequest(method, resourcePath, bytes.NewReader(body))
+func (c *Client) SendRequest(ctx context.Context, method, resourcePath string, body []byte) (int, []byte, error) {
+	request, err := c.newRequest(ctx, method, resourcePath, bytes.NewReader(body))
 	if err != nil {
 		return 0, nil, err
 	}
@@ -159,7 +161,7 @@ func (c *Client) SendRequest(method, resourcePath string, body []byte) (int, []b
 	return c.doRequest(request)
 }
 
-func (c *Client) newRequest(method, resourcePath string, reqBody io.Reader) (*http.Request, error) {
+func (c *Client) newRequest(ctx context.Context, method, resourcePath string, reqBody io.Reader) (*http.Request, error) {
 	base, err := url.Parse(c.host)
 	if err != nil {
 		return nil, fmt.Errorf("could not create base URL from host: %v: %w", c.host, err)
@@ -175,7 +177,7 @@ func (c *Client) newRequest(method, resourcePath string, reqBody io.Reader) (*ht
 
 	logger.Debugf("%s %s", method, u)
 
-	req, err := http.NewRequest(method, u.String(), reqBody)
+	req, err := http.NewRequestWithContext(ctx, method, u.String(), reqBody)
 	if err != nil {
 		return nil, fmt.Errorf("could not create %v request to Kibana API resource: %s: %w", method, resourcePath, err)
 	}

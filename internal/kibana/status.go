@@ -5,6 +5,7 @@
 package kibana
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -42,9 +43,9 @@ func (c *Client) Version() (VersionInfo, error) {
 	return c.versionInfo, nil
 }
 
-func (c *Client) requestStatus() (statusType, error) {
+func (c *Client) requestStatus(ctx context.Context) (statusType, error) {
 	var status statusType
-	statusCode, respBody, err := c.get(StatusAPI)
+	statusCode, respBody, err := c.get(ctx, StatusAPI)
 	if err != nil {
 		return status, fmt.Errorf("could not reach status endpoint: %w", err)
 	}
@@ -63,8 +64,8 @@ func (c *Client) requestStatus() (statusType, error) {
 }
 
 // CheckHealth checks the Kibana health
-func (c *Client) CheckHealth() error {
-	status, err := c.requestStatus()
+func (c *Client) CheckHealth(ctx context.Context) error {
+	status, err := c.requestStatus(ctx)
 	if err != nil {
 		return fmt.Errorf("could not reach status endpoint: %w", err)
 	}
