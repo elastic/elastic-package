@@ -37,6 +37,8 @@ type TestOptions struct {
 	API                *elasticsearch.API
 	KibanaClient       *kibana.Client
 
+	RunIndependentElasticAgent bool
+
 	DeferCleanup   time.Duration
 	ServiceVariant string
 	WithCoverage   bool

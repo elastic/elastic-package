@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/elastic/elastic-package/internal/compose"
 	"github.com/elastic/elastic-package/internal/configuration/locations"
@@ -36,6 +37,11 @@ type CustomAgentDeployer struct {
 	profile           *profile.Profile
 	dockerComposeFile string
 	stackVersion      string
+	variant           ServiceVariant
+	packageName       string
+	dataStream        string
+
+	agentRunID string
 
 	runTearDown  bool
 	runTestsOnly bool
@@ -45,10 +51,15 @@ type CustomAgentDeployerOptions struct {
 	Profile           *profile.Profile
 	DockerComposeFile string
 	StackVersion      string
+	Variant           ServiceVariant
+	PackageName       string
+	DataStream        string
 
 	RunTearDown  bool
 	RunTestsOnly bool
 }
+
+var _ ServiceDeployer = new(CustomAgentDeployer)
 
 // NewCustomAgentDeployer returns a new instance of a deployedCustomAgent.
 func NewCustomAgentDeployer(options CustomAgentDeployerOptions) (*CustomAgentDeployer, error) {
@@ -56,6 +67,9 @@ func NewCustomAgentDeployer(options CustomAgentDeployerOptions) (*CustomAgentDep
 		profile:           options.Profile,
 		dockerComposeFile: options.DockerComposeFile,
 		stackVersion:      options.StackVersion,
+		variant:           options.Variant,
+		packageName:       options.PackageName,
+		dataStream:        options.DataStream,
 		runTearDown:       options.RunTearDown,
 		runTestsOnly:      options.RunTestsOnly,
 	}, nil
@@ -64,6 +78,8 @@ func NewCustomAgentDeployer(options CustomAgentDeployerOptions) (*CustomAgentDep
 // SetUp sets up the service and returns any relevant information.
 func (d *CustomAgentDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (DeployedService, error) {
 	logger.Debug("setting up service using Docker Compose service deployer")
+
+	d.agentRunID = svcInfo.Test.RunID
 
 	appConfig, err := install.Configuration()
 	if err != nil {
@@ -75,10 +91,18 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (D
 		return nil, fmt.Errorf("can't locate CA certificate: %w", err)
 	}
 
+	// Build service container name
+	// FIXME: Currently, this service deployer starts a new agent on its own and
+	// it cannot use directly the `svcInfo.AgentHostname` value
+	svcInfo.Hostname = d.agentHostname()
+	svcInfo.AgentHostname = dockerCustomAgentName // Alias for custom agent
+
 	env := append(
 		appConfig.StackImageRefs(d.stackVersion).AsEnv(),
 		fmt.Sprintf("%s=%s", serviceLogsDirEnv, svcInfo.Logs.Folder.Local),
 		fmt.Sprintf("%s=%s", localCACertEnv, caCertPath),
+		fmt.Sprintf("%s=%s", agentHostnameEnv, svcInfo.AgentHostname),
+		fmt.Sprintf("%s=%s", elasticAgentTagsEnv, strings.Join(svcInfo.Tags, ",")),
 	)
 
 	configDir, err := d.installDockerfile()
@@ -139,6 +163,10 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (D
 		if err != nil {
 			return nil, fmt.Errorf("could not boot up service using Docker Compose: %w", err)
 		}
+
+		// TODO: if this agent is moved to "agentdeployer", this container should be connected
+		// to the network of the agent as done in servicedeployer/compose.go
+
 		// Connect service network with stack network (for the purpose of metrics collection)
 		err = docker.ConnectToNetwork(p.ContainerName(serviceName), stack.Network(d.profile))
 		if err != nil {
@@ -154,9 +182,6 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (D
 		}, svcInfo.Name)
 		return nil, fmt.Errorf("service is unhealthy: %w", err)
 	}
-
-	// Build service container name
-	svcInfo.Hostname = p.ContainerName(serviceName)
 
 	logger.Debugf("adding service container %s internal ports to context", p.ContainerName(serviceName))
 	serviceComposeConfig, err := p.Config(ctx, compose.CommandOptions{Env: env})
@@ -178,6 +203,21 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (D
 	svcInfo.Agent.Host.NamePrefix = svcInfo.Name
 	service.svcInfo = svcInfo
 	return &service, nil
+}
+
+func (d *CustomAgentDeployer) agentName() string {
+	name := d.packageName
+	if d.variant.Name != "" {
+		name = fmt.Sprintf("%s-%s", name, d.variant.Name)
+	}
+	if d.dataStream != "" && d.dataStream != "." {
+		name = fmt.Sprintf("%s-%s", name, d.dataStream)
+	}
+	return name
+}
+
+func (d *CustomAgentDeployer) agentHostname() string {
+	return fmt.Sprintf("%s-%s-%s", dockerCustomAgentName, d.agentName(), d.agentRunID)
 }
 
 // installDockerfile creates the files needed to run the custom elastic agent and returns

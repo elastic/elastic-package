@@ -21,6 +21,7 @@ import (
 	"github.com/Masterminds/semver/v3"
 	"gopkg.in/yaml.v3"
 
+	"github.com/elastic/elastic-package/internal/agentdeployer"
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/elasticsearch"
@@ -115,6 +116,7 @@ type runner struct {
 	resetAgentPolicyHandler   func(context.Context) error
 	resetAgentLogLevelHandler func(context.Context) error
 	shutdownServiceHandler    func(context.Context) error
+	shutdownAgentHandler      func(context.Context) error
 	wipeDataStreamHandler     func(context.Context) error
 }
 
@@ -200,12 +202,12 @@ func (r *runner) Run(ctx context.Context, options testrunner.TestOptions) ([]tes
 	}
 
 	serviceOptions := r.createServiceOptions(variant)
-	serviceContext, err := r.createServiceInfo(serviceOptions)
+	svcInfo, err := r.createServiceInfo()
 	if err != nil {
 		return result.WithError(err)
 	}
 
-	testConfig, err := newConfig(configFile, serviceContext, variant)
+	testConfig, err := newConfig(configFile, svcInfo, variant)
 	if err != nil {
 		return nil, fmt.Errorf("unable to load system test case file '%s': %w", configFile, err)
 	}
@@ -222,7 +224,7 @@ func (r *runner) Run(ctx context.Context, options testrunner.TestOptions) ([]tes
 	}
 	result = r.newResult(fmt.Sprintf("%s - %s", resultName, testConfig.Name()))
 
-	scenario, err := r.prepareScenario(ctx, testConfig, serviceContext, serviceOptions)
+	scenario, err := r.prepareScenario(ctx, testConfig, svcInfo, serviceOptions)
 	if r.options.RunSetup && err != nil {
 		tdErr := r.tearDownTest(ctx)
 		if tdErr != nil {
@@ -261,22 +263,66 @@ func (r *runner) Run(ctx context.Context, options testrunner.TestOptions) ([]tes
 	return result.WithSuccess()
 }
 
-func (r *runner) createServiceOptions(variantName string) servicedeployer.FactoryOptions {
-	return servicedeployer.FactoryOptions{
+func (r *runner) createAgentOptions(variantName string) agentdeployer.FactoryOptions {
+	return agentdeployer.FactoryOptions{
 		Profile:            r.options.Profile,
 		PackageRootPath:    r.options.PackageRootPath,
 		DataStreamRootPath: r.dataStreamPath,
 		DevDeployDir:       DevDeployDir,
-		Variant:            variantName,
-		Type:               servicedeployer.TypeTest,
+		Type:               agentdeployer.TypeTest,
 		StackVersion:       r.stackVersion.Version(),
+		PackageName:        r.options.TestFolder.Package,
+		DataStream:         r.options.TestFolder.DataStream,
+		Variant:            variantName,
 		RunTearDown:        r.options.RunTearDown,
 		RunTestsOnly:       r.options.RunTestsOnly,
 		RunSetup:           r.options.RunSetup,
 	}
 }
 
-func (r *runner) createServiceInfo(serviceOptions servicedeployer.FactoryOptions) (servicedeployer.ServiceInfo, error) {
+func (r *runner) createServiceOptions(variantName string) servicedeployer.FactoryOptions {
+	return servicedeployer.FactoryOptions{
+		Profile:                r.options.Profile,
+		PackageRootPath:        r.options.PackageRootPath,
+		DataStreamRootPath:     r.dataStreamPath,
+		DevDeployDir:           DevDeployDir,
+		Variant:                variantName,
+		Type:                   servicedeployer.TypeTest,
+		StackVersion:           r.stackVersion.Version(),
+		PackageName:            r.options.TestFolder.Package,
+		DataStream:             r.options.TestFolder.DataStream,
+		RunTearDown:            r.options.RunTearDown,
+		RunTestsOnly:           r.options.RunTestsOnly,
+		RunSetup:               r.options.RunSetup,
+		DeployIndependentAgent: r.options.RunIndependentElasticAgent,
+	}
+}
+
+func (r *runner) createAgentInfo() (agentdeployer.AgentInfo, error) {
+	var info agentdeployer.AgentInfo
+
+	info.Name = r.options.TestFolder.Package
+	info.Logs.Folder.Agent = ServiceLogsAgentDir
+	info.Test.RunID = createTestRunID()
+
+	info.Tags = append(info.Tags, "test", "system", info.Test.RunID, r.options.TestFolder.Package)
+	folderName := fmt.Sprintf("agent-%s", r.options.TestFolder.Package)
+
+	if r.options.TestFolder.DataStream != "" {
+		folderName = fmt.Sprintf("%s-%s", folderName, r.options.TestFolder.DataStream)
+		info.Tags = append(info.Tags, r.options.TestFolder.DataStream)
+	}
+
+	dirPath, err := agentdeployer.CreateServiceLogsDir(r.locationManager, folderName)
+	if err != nil {
+		return agentdeployer.AgentInfo{}, fmt.Errorf("failed to create service logs dir: %w", err)
+	}
+	info.Logs.Folder.Local = dirPath
+
+	return info, nil
+}
+
+func (r *runner) createServiceInfo() (servicedeployer.ServiceInfo, error) {
 	var svcInfo servicedeployer.ServiceInfo
 	svcInfo.Name = r.options.TestFolder.Package
 	svcInfo.Logs.Folder.Local = r.locationManager.ServiceLogDir()
@@ -289,6 +335,10 @@ func (r *runner) createServiceInfo(serviceOptions servicedeployer.FactoryOptions
 	}
 	svcInfo.OutputDir = outputDir
 
+	svcInfo.Tags = append(svcInfo.Tags, "test", "system", svcInfo.Test.RunID, r.options.TestFolder.Package)
+	if r.options.TestFolder.DataStream != "" {
+		svcInfo.Tags = append(svcInfo.Tags, r.options.TestFolder.DataStream)
+	}
 	return svcInfo, nil
 }
 
@@ -342,6 +392,13 @@ func (r *runner) tearDownTest(ctx context.Context) error {
 			return err
 		}
 		r.shutdownServiceHandler = nil
+	}
+
+	if r.shutdownAgentHandler != nil {
+		if err := r.shutdownAgentHandler(cleanupCtx); err != nil {
+			return err
+		}
+		r.shutdownAgentHandler = nil
 	}
 
 	if r.wipeDataStreamHandler != nil {
@@ -478,19 +535,19 @@ func (r *runner) run(ctx context.Context) (results []testrunner.TestResult, err 
 
 func (r *runner) runTestPerVariant(ctx context.Context, result *testrunner.ResultComposer, cfgFile, variantName string) ([]testrunner.TestResult, error) {
 	serviceOptions := r.createServiceOptions(variantName)
-	serviceContext, err := r.createServiceInfo(serviceOptions)
+	svcInfo, err := r.createServiceInfo()
 	if err != nil {
 		return result.WithError(err)
 	}
 
 	configFile := filepath.Join(r.options.TestFolder.Path, cfgFile)
-	testConfig, err := newConfig(configFile, serviceContext, variantName)
+	testConfig, err := newConfig(configFile, svcInfo, variantName)
 	if err != nil {
 		return nil, fmt.Errorf("unable to load system test case file '%s': %w", configFile, err)
 	}
 	logger.Debugf("Using config: %q", testConfig.Name())
 
-	partial, err := r.runTest(ctx, testConfig, serviceContext, serviceOptions)
+	partial, err := r.runTest(ctx, testConfig, svcInfo, serviceOptions)
 
 	tdErr := r.tearDownTest(ctx)
 	if err != nil {
@@ -648,9 +705,11 @@ type scenarioTest struct {
 	kibanaDataStream   kibana.PackageDataStream
 	syntheticEnabled   bool
 	docs               []common.MapStr
+	agent              agentdeployer.DeployedAgent
+	enrollingTime      time.Time
 }
 
-func (r *runner) prepareScenario(ctx context.Context, config *testConfig, serviceContext servicedeployer.ServiceInfo, serviceOptions servicedeployer.FactoryOptions) (*scenarioTest, error) {
+func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInfo servicedeployer.ServiceInfo, serviceOptions servicedeployer.FactoryOptions) (*scenarioTest, error) {
 	var err error
 	var serviceStateData ServiceState
 	if r.options.RunSetup {
@@ -691,33 +750,49 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, servic
 	if err != nil {
 		return nil, fmt.Errorf("failed to find the selected policy_template: %w", err)
 	}
+	// Setup agent
+	logger.Debug("setting up agent...")
+	agentInfo, err := r.createAgentInfo()
+	if err != nil {
+		return nil, err
+	}
+
+	enrollingTime := time.Now()
+	if r.options.RunTearDown || r.options.RunTestsOnly {
+		enrollingTime = serviceStateData.EnrollingAgentTime
+
+		agentInfo.Tags = serviceStateData.Agent.Tags
+		agentInfo.Test.RunID = serviceStateData.AgentRunID
+		agentInfo.Hostname = serviceStateData.AgentHostname
+
+		svcInfo.Tags = serviceStateData.Agent.Tags
+		svcInfo.Test.RunID = serviceStateData.ServiceRunID
+		svcInfo.AgentHostname = serviceStateData.ServiceAgentHostname
+		svcInfo.Hostname = serviceStateData.ServiceAgentHostname
+		// By default using agent running in the Elastic stack
+		svcInfo.AgentNetworkName = stack.Network(r.options.Profile)
+	}
+
+	agentDeployed, agentInfo, err := r.setupAgent(ctx, serviceOptions.Variant, agentInfo)
+	if err != nil {
+		return nil, err
+	}
+	if agentDeployed != nil {
+		agentInfo = agentDeployed.Info()
+		svcInfo.AgentNetworkName = agentInfo.NetworkName
+	}
+
+	scenario.enrollingTime = enrollingTime
+	scenario.agent = agentDeployed
 
 	// Setup service.
-	logger.Debug("setting up service...")
-	serviceDeployer, err := servicedeployer.Factory(serviceOptions)
+	service, svcInfo, err := r.setupService(ctx, config, serviceOptions, svcInfo, agentInfo, agentDeployed)
 	if err != nil {
-		return nil, fmt.Errorf("could not create service runner: %w", err)
-	}
-
-	if config.Service != "" {
-		serviceContext.Name = config.Service
-	}
-	service, err := serviceDeployer.SetUp(ctx, serviceContext)
-	if err != nil {
-		return nil, fmt.Errorf("could not setup service: %w", err)
-	}
-	serviceContext = service.Info()
-	r.shutdownServiceHandler = func(ctx context.Context) error {
-		logger.Debug("tearing down service...")
-		if err := service.TearDown(ctx); err != nil {
-			return fmt.Errorf("error tearing down service: %w", err)
-		}
-
-		return nil
+		return nil, err
 	}
 
 	// Reload test config with ctx variable substitution.
-	config, err = newConfig(config.Path, serviceContext, serviceOptions.Variant)
+	config, err = newConfig(config.Path, svcInfo, serviceOptions.Variant)
 	if err != nil {
 		return nil, fmt.Errorf("unable to reload system test case configuration: %w", err)
 	}
@@ -859,11 +934,14 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, servic
 		}
 	}
 
+	// FIXME: running per stages does not work when multiple agents are created
 	var origPolicy kibana.Policy
-	agents, err := checkEnrolledAgents(ctx, r.options.KibanaClient, serviceContext)
+	agents, err := checkEnrolledAgents(ctx, r.options.KibanaClient, agentInfo, enrollingTime, svcInfo, r.options.RunIndependentElasticAgent)
 	if err != nil {
 		return nil, fmt.Errorf("can't check enrolled agents: %w", err)
 	}
+	data, _ := json.Marshal(agents)
+	logger.Debugf("JSON Agents:\n%s", string(data))
 	agent := agents[0]
 
 	if r.options.RunTearDown || r.options.RunTestsOnly {
@@ -996,13 +1074,85 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, servic
 	scenario.docs = hits.getDocs(scenario.syntheticEnabled)
 
 	if r.options.RunSetup {
-		err = r.writeScenarioState(policy, &origPolicy, config, origAgent)
+		opts := scenarioStateOpts{
+			origPolicy:    &origPolicy,
+			currentPolicy: policy,
+			config:        config,
+			agent:         origAgent,
+			enrollingTime: enrollingTime,
+			agentInfo:     agentInfo,
+			svcInfo:       svcInfo,
+		}
+		err = r.writeScenarioState(opts)
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	return &scenario, nil
+}
+
+func (r *runner) setupService(ctx context.Context, config *testConfig, serviceOptions servicedeployer.FactoryOptions, svcInfo servicedeployer.ServiceInfo, agentInfo agentdeployer.AgentInfo, agentDeployed agentdeployer.DeployedAgent) (servicedeployer.DeployedService, servicedeployer.ServiceInfo, error) {
+	logger.Debug("setting up service...")
+	serviceDeployer, err := servicedeployer.Factory(serviceOptions)
+	if err != nil {
+		return nil, svcInfo, fmt.Errorf("could not create service runner: %w", err)
+	}
+
+	// Elastic Agent from stack and Elastic Agents started independently
+	// will have a network alias "elastic-agent" that services can use
+	// Docker custom agents would have another alias "docker-custom-agent"
+	svcInfo.AgentHostname = "elastic-agent"
+	if r.options.RunIndependentElasticAgent {
+		svcInfo.Logs.Folder.Local = agentInfo.Logs.Folder.Local
+	}
+	if config.Service != "" {
+		svcInfo.Name = config.Service
+	}
+	service, err := serviceDeployer.SetUp(ctx, svcInfo)
+	if err != nil {
+		return nil, svcInfo, fmt.Errorf("could not setup service: %w", err)
+	}
+
+	r.shutdownServiceHandler = func(ctx context.Context) error {
+		logger.Debug("tearing down service...")
+		if err := service.TearDown(ctx); err != nil {
+			return fmt.Errorf("error tearing down service: %w", err)
+		}
+
+		return nil
+	}
+	return service, service.Info(), nil
+}
+
+func (r *runner) setupAgent(ctx context.Context, variant string, agentInfo agentdeployer.AgentInfo) (agentdeployer.DeployedAgent, agentdeployer.AgentInfo, error) {
+	if !r.options.RunIndependentElasticAgent {
+		return nil, agentInfo, nil
+	}
+	agentOptions := r.createAgentOptions(variant)
+	agentDeployer, err := agentdeployer.Factory(agentOptions)
+	if err != nil {
+		return nil, agentInfo, fmt.Errorf("could not create agent runner: %w", err)
+	}
+	if agentDeployer == nil {
+		return nil, agentInfo, nil
+	}
+	agentDeployed, err := agentDeployer.SetUp(ctx, agentInfo)
+	if err != nil {
+		return nil, agentInfo, fmt.Errorf("could not setup agent: %w", err)
+	}
+	r.shutdownAgentHandler = func(ctx context.Context) error {
+		if agentDeployer == nil {
+			return nil
+		}
+		logger.Debug("tearing down agent...")
+		if err := agentDeployed.TearDown(ctx); err != nil {
+			return fmt.Errorf("error tearing down agent: %w", err)
+		}
+
+		return nil
+	}
+	return agentDeployed, agentDeployed.Info(), nil
 }
 
 func (r *runner) removeServiceStateFile() error {
@@ -1037,20 +1187,42 @@ func (r *runner) readServiceStateData() (ServiceState, error) {
 }
 
 type ServiceState struct {
-	OrigPolicy     kibana.Policy `json:"orig_policy"`
-	CurrentPolicy  kibana.Policy `json:"current_policy"`
-	Agent          kibana.Agent  `json:"agent"`
-	ConfigFilePath string        `json:"config_file_path"`
-	VariantName    string        `json:"variant_name"`
+	OrigPolicy           kibana.Policy `json:"orig_policy"`
+	CurrentPolicy        kibana.Policy `json:"current_policy"`
+	Agent                kibana.Agent  `json:"agent"`
+	ConfigFilePath       string        `json:"config_file_path"`
+	VariantName          string        `json:"variant_name"`
+	EnrollingAgentTime   time.Time     `json:"enrolling_agent_time"`
+	ServiceInfoTags      []string      `json:"service_info_tags,omitempty"`
+	AgentInfoTags        []string      `json:"agent_info_tags,omitempty"`
+	ServiceRunID         string        `json:"service_info_run_id"`
+	AgentRunID           string        `json:"agent_info_run_id"`
+	AgentHostname        string        `json:"agent_hostname"`
+	ServiceAgentHostname string        `json:"service_agent_hostname"`
 }
 
-func (r *runner) writeScenarioState(currentPolicy, origPolicy *kibana.Policy, config *testConfig, agent kibana.Agent) error {
+type scenarioStateOpts struct {
+	currentPolicy *kibana.Policy
+	origPolicy    *kibana.Policy
+	config        *testConfig
+	agent         kibana.Agent
+	enrollingTime time.Time
+	agentInfo     agentdeployer.AgentInfo
+	svcInfo       servicedeployer.ServiceInfo
+}
+
+func (r *runner) writeScenarioState(opts scenarioStateOpts) error {
 	data := ServiceState{
-		OrigPolicy:     *origPolicy,
-		CurrentPolicy:  *currentPolicy,
-		Agent:          agent,
-		ConfigFilePath: config.Path,
-		VariantName:    config.ServiceVariantName,
+		OrigPolicy:           *opts.origPolicy,
+		CurrentPolicy:        *opts.currentPolicy,
+		Agent:                opts.agent,
+		ConfigFilePath:       opts.config.Path,
+		VariantName:          opts.config.ServiceVariantName,
+		EnrollingAgentTime:   opts.enrollingTime,
+		ServiceRunID:         opts.svcInfo.Test.RunID,
+		AgentRunID:           opts.agentInfo.Test.RunID,
+		AgentHostname:        opts.agentInfo.Hostname,
+		ServiceAgentHostname: opts.svcInfo.AgentHostname,
 	}
 	dataBytes, err := json.Marshal(data)
 	if err != nil {
@@ -1169,10 +1341,20 @@ func (r *runner) validateTestScenario(ctx context.Context, result *testrunner.Re
 		return result.WithError(err)
 	}
 
+	if scenario.agent != nil {
+		logResults, err := r.checkNewAgentLogs(ctx, scenario.agent, scenario.enrollingTime, errorPatterns)
+		if err != nil {
+			return result.WithError(err)
+		}
+		if len(logResults) > 0 {
+			return logResults, nil
+		}
+	}
+
 	return result.WithSuccess()
 }
 
-func (r *runner) runTest(ctx context.Context, config *testConfig, serviceContext servicedeployer.ServiceInfo, serviceOptions servicedeployer.FactoryOptions) ([]testrunner.TestResult, error) {
+func (r *runner) runTest(ctx context.Context, config *testConfig, svcInfo servicedeployer.ServiceInfo, serviceOptions servicedeployer.FactoryOptions) ([]testrunner.TestResult, error) {
 	result := r.newResult(config.Name())
 
 	if config.Skip != nil {
@@ -1184,7 +1366,7 @@ func (r *runner) runTest(ctx context.Context, config *testConfig, serviceContext
 
 	logger.Debugf("running test with configuration '%s'", config.Name())
 
-	scenario, err := r.prepareScenario(ctx, config, serviceContext, serviceOptions)
+	scenario, err := r.prepareScenario(ctx, config, svcInfo, serviceOptions)
 	if err != nil {
 		return result.WithError(err)
 	}
@@ -1192,15 +1374,16 @@ func (r *runner) runTest(ctx context.Context, config *testConfig, serviceContext
 	return r.validateTestScenario(ctx, result, scenario, config, serviceOptions)
 }
 
-func checkEnrolledAgents(ctx context.Context, client *kibana.Client, serviceContext servicedeployer.ServiceInfo) ([]kibana.Agent, error) {
+func checkEnrolledAgents(ctx context.Context, client *kibana.Client, agentInfo agentdeployer.AgentInfo, threshold time.Time, svcInfo servicedeployer.ServiceInfo, runIndependentElasticAgent bool) ([]kibana.Agent, error) {
 	var agents []kibana.Agent
+
 	enrolled, err := wait.UntilTrue(ctx, func(ctx context.Context) (bool, error) {
 		allAgents, err := client.ListAgents(ctx)
 		if err != nil {
 			return false, fmt.Errorf("could not list agents: %w", err)
 		}
 
-		agents = filterAgents(allAgents, serviceContext)
+		agents = filterAgents(allAgents, agentInfo, threshold, svcInfo, runIndependentElasticAgent)
 		logger.Debugf("found %d enrolled agent(s)", len(agents))
 		if len(agents) == 0 {
 			return false, nil // selected agents are unavailable yet
@@ -1603,19 +1786,92 @@ func deleteDataStreamDocs(ctx context.Context, api *elasticsearch.API, dataStrea
 	return nil
 }
 
-func filterAgents(allAgents []kibana.Agent, svcInfo servicedeployer.ServiceInfo) []kibana.Agent {
-	if svcInfo.Agent.Host.NamePrefix != "" {
-		logger.Debugf("filter agents using criteria: NamePrefix=%s", svcInfo.Agent.Host.NamePrefix)
+func filterAgents(allAgents []kibana.Agent, agentInfo agentdeployer.AgentInfo, threshold time.Time, svcInfo servicedeployer.ServiceInfo, runIndependentElasticAgent bool) []kibana.Agent {
+	if agentInfo.Agent.Host.NamePrefix != "" {
+		logger.Debugf("filter agents using agent criteria: NamePrefix=%s", agentInfo.Agent.Host.NamePrefix)
 	}
 
+	if svcInfo.Agent.Host.NamePrefix != "" {
+		logger.Debugf("filter agents using service criteria: NamePrefix=%s", svcInfo.Agent.Host.NamePrefix)
+	}
+
+	expectedHostname := agentInfo.Hostname
+	expectedTags := agentInfo.Tags
+	if svcInfo.Agent.Host.NamePrefix == "docker-custom-agent" {
+		// custom agents are still started from servicedeployer, they are defined in the same docker compose scenario
+		expectedHostname = svcInfo.AgentHostname
+		expectedTags = svcInfo.Tags
+	}
+
+	// filtered list of agents must contain all agents started by the stack
+	// they could be assigned the default policy (elastic-agent-managed-ep) or the test policy (ep-test-system-*)
 	var filtered []kibana.Agent
 	for _, agent := range allAgents {
 		if agent.PolicyRevision == 0 {
 			continue // For some reason Kibana doesn't always return a valid policy revision (eventually it will be present and valid)
 		}
 
-		if svcInfo.Agent.Host.NamePrefix != "" && !strings.HasPrefix(agent.LocalMetadata.Host.Name, svcInfo.Agent.Host.NamePrefix) {
+		// It cannot filtered by "elastic-agent-managed-ep" , since this is the default
+		// policy assigned to the agents when they first enroll
+		if agent.PolicyID == "fleet-server-policy" {
+			logger.Debugf("filtered agent (policy id) %q", agent.ID) // TODO: remove
 			continue
+		}
+
+		if agent.Status != "online" {
+			logger.Debugf("filtered agent (not online) %q", agent.ID) // TODO: remove
+			continue
+		}
+
+		if runIndependentElasticAgent && agent.EnrolledAt.Before(threshold) {
+			logger.Debugf("filtered agent (enrolling time) %q", agent.ID) // TODO: remove
+			continue
+		}
+
+		if (runIndependentElasticAgent && agent.LocalMetadata.Host.Name != "kind-control-plane") || svcInfo.Agent.Host.NamePrefix == "docker-custom-agent" {
+			// All agents created except the ones from Kubernetes should have a different hostname
+			logger.Debugf("Checking hostname %s in agent hostname %s", expectedHostname, agent.LocalMetadata.Host.Name)
+			if expectedHostname != agent.LocalMetadata.Host.Name {
+				logger.Debugf("filtered agent (invalid hostname suffix) %s - %q: %s", expectedHostname, agent.LocalMetadata.Host.Name, agent.ID) // TODO: remove
+				continue
+			}
+		}
+
+		// Tags are available starting in 8.3
+		// Kubernetes Agent cannot set a different hostname
+		// Using tags allow us to detect the right agent from the list
+		if runIndependentElasticAgent && len(expectedTags) > 0 && len(agent.Tags) > 0 {
+			logger.Debugf("Checking tags %s vs %s", strings.Join(agent.Tags, ","), strings.Join(expectedTags, ","))
+			foundAllTags := true
+			for _, tag := range expectedTags {
+				if !slices.Contains(agent.Tags, tag) {
+					logger.Debugf("filtered agent (invalid tag found) %s -  %q vs %q", tag, strings.Join(agent.Tags, ","), strings.Join(expectedTags, ",")) // TODO: remove
+					foundAllTags = false
+					break
+				}
+			}
+			if !foundAllTags {
+				continue
+			}
+		}
+
+		if runIndependentElasticAgent {
+			// FIXME: check for package and data stream name too ?
+			// Current verson could be returning an unexpected agent if tests are parallelized
+			hasAgentPrefix := strings.HasPrefix(agent.LocalMetadata.Host.Name, agentInfo.Agent.Host.NamePrefix)
+			// if agentInfo.Agent.Host.NamePrefix != "" && !hasAgentPrefix && !hasServicePrefix {
+			if agentInfo.Agent.Host.NamePrefix != "" && !hasAgentPrefix {
+				logger.Debugf("filtered agent (prefix) %q", agent.ID) // TODO: remove
+				continue
+			}
+		} else {
+			// TODO: required for custom agents triggered from service deployers ?
+			hasServicePrefix := strings.HasPrefix(agent.LocalMetadata.Host.Name, svcInfo.Agent.Host.NamePrefix)
+			if svcInfo.Agent.Host.NamePrefix != "" && !hasServicePrefix {
+				logger.Debugf("filtered agent (prefix) %q", agent.ID) // TODO: remove
+				continue
+			}
+
 		}
 		filtered = append(filtered, agent)
 	}
@@ -1704,6 +1960,58 @@ func (r *runner) generateTestResult(docs []common.MapStr, specVersion semver.Ver
 	}
 
 	return nil
+}
+
+func (r *runner) checkNewAgentLogs(ctx context.Context, agent agentdeployer.DeployedAgent, startTesting time.Time, errorPatterns []logsByContainer) (results []testrunner.TestResult, err error) {
+	if agent == nil {
+		return nil, nil
+	}
+
+	f, err := os.CreateTemp("", "elastic-agent.logs")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create temp file for logs: %w", err)
+	}
+	defer os.Remove(f.Name())
+
+	for _, patternsContainer := range errorPatterns {
+		if patternsContainer.containerName != "elastic-agent" {
+			continue
+		}
+
+		startTime := time.Now()
+
+		outputBytes, err := agent.Logs(ctx, startTesting)
+		if err != nil {
+			return nil, fmt.Errorf("check log messages failed: %s", err)
+		}
+		_, err = f.Write(outputBytes)
+		if err != nil {
+			return nil, fmt.Errorf("write log messages failed: %s", err)
+		}
+
+		err = r.anyErrorMessages(f.Name(), startTesting, patternsContainer.patterns)
+		if e, ok := err.(testrunner.ErrTestCaseFailed); ok {
+			tr := testrunner.TestResult{
+				TestType:   TestType,
+				Name:       fmt.Sprintf("(%s logs)", patternsContainer.containerName),
+				Package:    r.options.TestFolder.Package,
+				DataStream: r.options.TestFolder.DataStream,
+			}
+			tr.FailureMsg = e.Error()
+			tr.FailureDetails = e.Details
+			tr.TimeElapsed = time.Since(startTime)
+			results = append(results, tr)
+			// Just check elastic-agent
+			break
+		}
+
+		if err != nil {
+			return nil, fmt.Errorf("check log messages failed: %s", err)
+		}
+		// Just check elastic-agent
+		break
+	}
+	return results, nil
 }
 
 func (r *runner) checkAgentLogs(dumpOptions stack.DumpOptions, startTesting time.Time, errorPatterns []logsByContainer) (results []testrunner.TestResult, err error) {

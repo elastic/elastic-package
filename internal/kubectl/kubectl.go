@@ -74,3 +74,21 @@ func applyKubernetesResourcesStdin(ctx context.Context, input []byte) ([]byte, e
 	}
 	return output, nil
 }
+
+// deleteKubernetesResourcesStdin deletes a Kubernetes manifest provided as stdin.
+// It returns the resources deleted as output and an error
+func deleteKubernetesResourcesStdin(ctx context.Context, input []byte) ([]byte, error) {
+	// create kubectl apply command
+	kubectlCmd := exec.CommandContext(ctx, "kubectl", "delete", "-f", "-")
+	// Stdin of kubectl command is the manifest provided
+	kubectlCmd.Stdin = bytes.NewReader(input)
+	errOutput := new(bytes.Buffer)
+	kubectlCmd.Stderr = errOutput
+
+	logger.Debugf("run command: %s", kubectlCmd)
+	output, err := kubectlCmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("kubectl delete failed (stderr=%q): %w", errOutput.String(), err)
+	}
+	return output, nil
+}
