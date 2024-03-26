@@ -3,10 +3,6 @@
 # exit immediately on failure, or if an undefined variable is used
 set -eu
 
-echoerr() {
-    echo "$@" 1>&2
-}
-
 # begin the pipeline.yml file
 echo "steps:"
 echo "  - group: \":terminal: Integration test suite\""
@@ -81,10 +77,6 @@ pushd test/packages/parallel > /dev/null
 for independent_agent in false true; do
 for package in $(find . -maxdepth 1 -mindepth 1 -type d) ; do
     package_name=$(basename "${package}")
-    if [[ "$package_name" == "aws_logs" ]] ; then
-        echoerr "Skip temporarily ${package_name}"
-        continue
-    fi
     echo "      - label: \":go: Integration test: ${package_name} - independent_agent ${independent_agent}\""
     echo "        key: \"integration-parallel-${package_name}-agent-${independent_agent}\""
     echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-check-packages-parallel -p ${package_name}"
