@@ -59,7 +59,7 @@ func uninstallCommandAction(cmd *cobra.Command, args []string) error {
 
 	// Uninstall the package
 	cmd.Println("Uninstall the package")
-	err = packageInstaller.Uninstall()
+	err = packageInstaller.Uninstall(cmd.Context())
 	if err != nil {
 		return fmt.Errorf("can't uninstall the package: %w", err)
 	}

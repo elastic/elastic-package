@@ -90,7 +90,7 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("can't process check-condition flag: %w", err)
 	}
 	if len(keyValuePairs) > 0 {
-		manifest, err := installer.Manifest()
+		manifest, err := installer.Manifest(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -105,6 +105,6 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 		return nil
 	}
 
-	_, err = installer.Install()
+	_, err = installer.Install(cmd.Context())
 	return err
 }

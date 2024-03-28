@@ -5,6 +5,7 @@
 package installer
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -21,10 +22,10 @@ var semver8_7_0 = semver.MustParse("8.7.0")
 
 // Installer is responsible for installation/uninstallation of the package.
 type Installer interface {
-	Install() (*InstalledPackage, error)
-	Uninstall() error
+	Install(context.Context) (*InstalledPackage, error)
+	Uninstall(context.Context) error
 
-	Manifest() (*packages.PackageManifest, error)
+	Manifest(context.Context) (*packages.PackageManifest, error)
 }
 
 // Options are the parameters used to build an installer.

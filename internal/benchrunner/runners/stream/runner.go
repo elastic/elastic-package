@@ -113,7 +113,7 @@ func (r *runner) setUp(ctx context.Context) error {
 	}
 	r.scenarios = scenarios
 
-	if err = r.installPackage(); err != nil {
+	if err = r.installPackage(ctx); err != nil {
 		return fmt.Errorf("error installing package: %w", err)
 	}
 
@@ -192,11 +192,11 @@ func (r *runner) wipeDataStreamsOnSetup() error {
 	return nil
 }
 
-func (r *runner) installPackage() error {
-	return r.installPackageFromPackageRoot()
+func (r *runner) installPackage(ctx context.Context) error {
+	return r.installPackageFromPackageRoot(ctx)
 }
 
-func (r *runner) installPackageFromPackageRoot() error {
+func (r *runner) installPackageFromPackageRoot(ctx context.Context) error {
 	logger.Debug("Installing package...")
 	installer, err := installer.NewForPackage(installer.Options{
 		Kibana:         r.options.KibanaClient,
@@ -208,13 +208,13 @@ func (r *runner) installPackageFromPackageRoot() error {
 		return fmt.Errorf("failed to initialize package installer: %w", err)
 	}
 
-	_, err = installer.Install()
+	_, err = installer.Install(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to install package: %w", err)
 	}
 
 	r.removePackageHandler = func(ctx context.Context) error {
-		if err := installer.Uninstall(); err != nil {
+		if err := installer.Uninstall(ctx); err != nil {
 			return fmt.Errorf("error removing benchmark package: %w", err)
 		}
 

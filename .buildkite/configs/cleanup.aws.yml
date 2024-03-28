@@ -40,17 +40,18 @@ scanners:
           - us-east-1
         filters:
           - type: "<"
-            pointer: "/created_at"
+            pointer: "/extra/creation_date"
             param: "${CREATION_DATE}"
             converters:
               param: "date"
               value: "date"
-          - type: "regex"
-            pointer: "/extra/tags/repo"
-            param: "^(elastic-package|integrations)"
-          - type: "="
-            pointer: "/extra/tags/environment"
-            param: "ci"
+          # It looks like tags are not reported by cloud-reaper for buckets
+          # - type: "regex"
+          #   pointer: "/extra/tags/repo"
+          #   param: "^(elastic-package|integrations)"
+          # - type: "="
+          #   pointer: "/extra/tags/environment"
+          #   param: "ci"
           - type: "regex"
             pointer: "/name"
             param: "^elastic-package-(.*)"
