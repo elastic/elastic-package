@@ -23,8 +23,8 @@ type DeployedAgent interface {
 	// SetInfo sets the current information about the agent.
 	SetInfo(AgentInfo)
 
-	// ExitCode returns true if the service is exited and its exit code.
-	ExitCode(ctx context.Context, service string) (bool, int, error)
+	// ExitCode returns true if the agent is exited and its exit code.
+	ExitCode(ctx context.Context) (bool, int, error)
 
 	// Logs returns the logs from the agent starting at the given time
 	Logs(ctx context.Context, t time.Time) ([]byte, error)

@@ -282,7 +282,7 @@ func CreateServiceLogsDir(elasticPackagePath *locations.LocationManager, name st
 }
 
 // ExitCode returns true if the agent is exited and its exit code.
-func (s *dockerComposeDeployedAgent) ExitCode(ctx context.Context, agent string) (bool, int, error) {
+func (s *dockerComposeDeployedAgent) ExitCode(ctx context.Context) (bool, int, error) {
 	p, err := compose.NewProject(s.project, s.ymlPaths...)
 	if err != nil {
 		return false, -1, fmt.Errorf("could not create Docker Compose project for agent: %w", err)
@@ -295,7 +295,7 @@ func (s *dockerComposeDeployedAgent) ExitCode(ctx context.Context, agent string)
 		),
 	}
 
-	return p.ServiceExitCode(ctx, agent, opts)
+	return p.ServiceExitCode(ctx, s.agentInfo.Name, opts)
 }
 
 // Logs returns the logs from the agent starting at the given time
