@@ -64,10 +64,6 @@ func (s kubernetesDeployedAgent) TearDown(ctx context.Context) error {
 	return nil
 }
 
-func (s kubernetesDeployedAgent) Signal(ctx context.Context, _ string) error {
-	return ErrNotSupported
-}
-
 func (s kubernetesDeployedAgent) ExitCode(ctx context.Context, _ string) (bool, int, error) {
 	return false, -1, ErrNotSupported
 }

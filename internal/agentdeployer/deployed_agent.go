@@ -17,9 +17,6 @@ type DeployedAgent interface {
 	// TearDown implements the logic for tearing down an agent.
 	TearDown(ctx context.Context) error
 
-	// Signal sends a signal to the agent.
-	Signal(ctx context.Context, signal string) error
-
 	// Info returns the current information from the agent.
 	Info() AgentInfo
 

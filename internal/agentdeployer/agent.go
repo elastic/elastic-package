@@ -281,31 +281,6 @@ func CreateServiceLogsDir(elasticPackagePath *locations.LocationManager, name st
 	return dirPath, nil
 }
 
-// Signal sends a signal to the agent.
-func (s *dockerComposeDeployedAgent) Signal(ctx context.Context, signal string) error {
-	p, err := compose.NewProject(s.project, s.ymlPaths...)
-	if err != nil {
-		return fmt.Errorf("could not create Docker Compose project for service: %w", err)
-	}
-
-	opts := compose.CommandOptions{
-		Env: append(
-			s.env,
-			s.variant.Env...,
-		),
-		ExtraArgs: []string{"-s", signal},
-	}
-	if s.agentInfo.Name != "" {
-		opts.Services = append(opts.Services, s.agentInfo.Name)
-	}
-
-	err = p.Kill(ctx, opts)
-	if err != nil {
-		return fmt.Errorf("could not send %q signal: %w", signal, err)
-	}
-	return nil
-}
-
 // ExitCode returns true if the agent is exited and its exit code.
 func (s *dockerComposeDeployedAgent) ExitCode(ctx context.Context, agent string) (bool, int, error) {
 	p, err := compose.NewProject(s.project, s.ymlPaths...)
