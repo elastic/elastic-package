@@ -12,19 +12,19 @@ import (
 
 var ErrNotSupported error = errors.New("not supported")
 
-// DeployedAgent defines the interface for interacting with a service that has been deployed.
+// DeployedAgent defines the interface for interacting with an agent that has been deployed.
 type DeployedAgent interface {
-	// TearDown implements the logic for tearing down a service.
+	// TearDown implements the logic for tearing down an agent.
 	TearDown(ctx context.Context) error
 
-	// Signal sends a signal to the service.
+	// Signal sends a signal to the agent.
 	Signal(ctx context.Context, signal string) error
 
-	// Info returns the current context from the service.
+	// Info returns the current information from the agent.
 	Info() AgentInfo
 
-	// SetInfo sets the current context for the service.
-	SetInfo(str AgentInfo) error
+	// SetInfo sets the current information about the agent.
+	SetInfo(AgentInfo)
 
 	// ExitCode returns true if the service is exited and its exit code.
 	ExitCode(ctx context.Context, service string) (bool, int, error)

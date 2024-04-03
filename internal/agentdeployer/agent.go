@@ -387,7 +387,6 @@ func (s *dockerComposeDeployedAgent) Info() AgentInfo {
 }
 
 // SetInfo sets the current context for the agent.
-func (s *dockerComposeDeployedAgent) SetInfo(ctxt AgentInfo) error {
-	s.agentInfo = ctxt
-	return nil
+func (s *dockerComposeDeployedAgent) SetInfo(info AgentInfo) {
+	s.agentInfo = info
 }

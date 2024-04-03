@@ -76,9 +76,8 @@ func (s kubernetesDeployedAgent) Info() AgentInfo {
 	return s.agentInfo
 }
 
-func (s *kubernetesDeployedAgent) SetInfo(sc AgentInfo) error {
-	s.agentInfo = sc
-	return nil
+func (s *kubernetesDeployedAgent) SetInfo(info AgentInfo) {
+	s.agentInfo = info
 }
 
 // Logs returns the logs from the agent starting at the given time
