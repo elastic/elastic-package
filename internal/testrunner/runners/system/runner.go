@@ -1383,7 +1383,11 @@ func checkEnrolledAgents(ctx context.Context, client *kibana.Client, agentInfo a
 			return false, fmt.Errorf("could not list agents: %w", err)
 		}
 
-		agents = filterAgents(allAgents, agentInfo, threshold, svcInfo, runIndependentElasticAgent)
+		if runIndependentElasticAgent {
+			agents = filterIndependentAgents(allAgents, agentInfo, threshold, svcInfo)
+		} else {
+			agents = filterAgents(allAgents, svcInfo)
+		}
 		logger.Debugf("found %d enrolled agent(s)", len(agents))
 		if len(agents) == 0 {
 			return false, nil // selected agents are unavailable yet
@@ -1786,7 +1790,39 @@ func deleteDataStreamDocs(ctx context.Context, api *elasticsearch.API, dataStrea
 	return nil
 }
 
-func filterAgents(allAgents []kibana.Agent, agentInfo agentdeployer.AgentInfo, threshold time.Time, svcInfo servicedeployer.ServiceInfo, runIndependentElasticAgent bool) []kibana.Agent {
+func filterAgents(allAgents []kibana.Agent, svcInfo servicedeployer.ServiceInfo) []kibana.Agent {
+	if svcInfo.Agent.Host.NamePrefix != "" {
+		logger.Debugf("filter agents using service criteria: NamePrefix=%s", svcInfo.Agent.Host.NamePrefix)
+	}
+
+	// filtered list of agents must contain all agents started by the stack
+	// they could be assigned the default policy (elastic-agent-managed-ep) or the test policy (ep-test-system-*)
+	var filtered []kibana.Agent
+	for _, agent := range allAgents {
+		if agent.PolicyRevision == 0 {
+			continue // For some reason Kibana doesn't always return a valid policy revision (eventually it will be present and valid)
+		}
+
+		// It cannot filtered by "elastic-agent-managed-ep" , since this is the default
+		// policy assigned to the agents when they first enroll
+		if agent.PolicyID == "fleet-server-policy" {
+			continue
+		}
+
+		if agent.Status != "online" {
+			continue
+		}
+
+		hasServicePrefix := strings.HasPrefix(agent.LocalMetadata.Host.Name, svcInfo.Agent.Host.NamePrefix)
+		if svcInfo.Agent.Host.NamePrefix != "" && !hasServicePrefix {
+			continue
+		}
+		filtered = append(filtered, agent)
+	}
+	return filtered
+}
+
+func filterIndependentAgents(allAgents []kibana.Agent, agentInfo agentdeployer.AgentInfo, threshold time.Time, svcInfo servicedeployer.ServiceInfo) []kibana.Agent {
 	if agentInfo.Agent.Host.NamePrefix != "" {
 		logger.Debugf("filter agents using agent criteria: NamePrefix=%s", agentInfo.Agent.Host.NamePrefix)
 	}
@@ -1823,12 +1859,12 @@ func filterAgents(allAgents []kibana.Agent, agentInfo agentdeployer.AgentInfo, t
 			continue
 		}
 
-		if runIndependentElasticAgent && agent.EnrolledAt.Before(threshold) {
+		if agent.EnrolledAt.Before(threshold) {
 			logger.Debugf("filtered agent (enrolling time) %q", agent.ID) // TODO: remove
 			continue
 		}
 
-		if (runIndependentElasticAgent && agent.LocalMetadata.Host.Name != "kind-control-plane") || svcInfo.Agent.Host.NamePrefix == "docker-custom-agent" {
+		if agent.LocalMetadata.Host.Name != "kind-control-plane" {
 			// All agents created except the ones from Kubernetes should have a different hostname
 			logger.Debugf("Checking hostname %s in agent hostname %s", expectedHostname, agent.LocalMetadata.Host.Name)
 			if expectedHostname != agent.LocalMetadata.Host.Name {
@@ -1840,7 +1876,7 @@ func filterAgents(allAgents []kibana.Agent, agentInfo agentdeployer.AgentInfo, t
 		// Tags are available starting in 8.3
 		// Kubernetes Agent cannot set a different hostname
 		// Using tags allow us to detect the right agent from the list
-		if runIndependentElasticAgent && len(expectedTags) > 0 && len(agent.Tags) > 0 {
+		if len(expectedTags) > 0 && len(agent.Tags) > 0 {
 			logger.Debugf("Checking tags %s vs %s", strings.Join(agent.Tags, ","), strings.Join(expectedTags, ","))
 			foundAllTags := true
 			for _, tag := range expectedTags {
@@ -1855,23 +1891,12 @@ func filterAgents(allAgents []kibana.Agent, agentInfo agentdeployer.AgentInfo, t
 			}
 		}
 
-		if runIndependentElasticAgent {
-			// FIXME: check for package and data stream name too ?
-			// Current verson could be returning an unexpected agent if tests are parallelized
-			hasAgentPrefix := strings.HasPrefix(agent.LocalMetadata.Host.Name, agentInfo.Agent.Host.NamePrefix)
-			// if agentInfo.Agent.Host.NamePrefix != "" && !hasAgentPrefix && !hasServicePrefix {
-			if agentInfo.Agent.Host.NamePrefix != "" && !hasAgentPrefix {
-				logger.Debugf("filtered agent (prefix) %q", agent.ID) // TODO: remove
-				continue
-			}
-		} else {
-			// TODO: required for custom agents triggered from service deployers ?
-			hasServicePrefix := strings.HasPrefix(agent.LocalMetadata.Host.Name, svcInfo.Agent.Host.NamePrefix)
-			if svcInfo.Agent.Host.NamePrefix != "" && !hasServicePrefix {
-				logger.Debugf("filtered agent (prefix) %q", agent.ID) // TODO: remove
-				continue
-			}
-
+		// FIXME: check for package and data stream name too ?
+		// Current version could be returning an unexpected agent if tests are parallelized
+		hasAgentPrefix := strings.HasPrefix(agent.LocalMetadata.Host.Name, agentInfo.Agent.Host.NamePrefix)
+		if agentInfo.Agent.Host.NamePrefix != "" && !hasAgentPrefix {
+			logger.Debugf("filtered agent (prefix) %q", agent.ID) // TODO: remove
+			continue
 		}
 		filtered = append(filtered, agent)
 	}
