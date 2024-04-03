@@ -24,6 +24,8 @@ type AgentInfo struct {
 	// the Agent container.
 	Hostname string
 
+	// NetworkName is the name of the docker network created for the agent,
+	// required to connect the Service with the agent.
 	NetworkName string
 
 	// Ports is a list of ports that the service listens on, as addressable
