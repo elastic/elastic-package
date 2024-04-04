@@ -52,7 +52,7 @@ type TerraformServiceDeployerOptions struct {
 // addTerraformOutputs method reads the terraform outputs generated in the json format and
 // adds them to the custom properties of ServiceInfo and can be used in the handlebars template
 // like `{{TF_OUTPUT_queue_url}}` where `queue_url` is the output configured
-func addTerraformOutputs(svcInfo ServiceInfo) error {
+func addTerraformOutputs(svcInfo *ServiceInfo) error {
 	// Read the `output.json` file where terraform outputs are generated
 	outputFile := filepath.Join(svcInfo.OutputDir, terraformOutputJSONFile)
 	content, err := os.ReadFile(outputFile)
@@ -163,7 +163,7 @@ func (tsd TerraformServiceDeployer) SetUp(ctx context.Context, svcInfo ServiceIn
 
 	svcInfo.Agent.Host.NamePrefix = "docker-fleet-agent"
 
-	err = addTerraformOutputs(svcInfo)
+	err = addTerraformOutputs(&svcInfo)
 	if err != nil {
 		return nil, fmt.Errorf("could not handle terraform output: %w", err)
 	}
