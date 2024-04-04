@@ -79,7 +79,7 @@ func (d *DockerComposeServiceDeployer) SetUp(ctx context.Context, svcInfo Servic
 		variant:  d.variant,
 		env: []string{
 			fmt.Sprintf("%s=%s", serviceLogsDirEnv, svcInfo.Logs.Folder.Local),
-			// Hostname envioronment varible is required since some packages require to run
+			// Hostname environment varible is required since some packages require to run
 			// queries to the elastic-agent container (e.g. ti_anomali)
 			fmt.Sprintf("%s=%s", agentHostnameEnv, svcInfo.AgentHostname),
 		},
@@ -142,17 +142,17 @@ func (d *DockerComposeServiceDeployer) SetUp(ctx context.Context, svcInfo Servic
 	if d.runTearDown || d.runTestsOnly {
 		logger.Debug("Skipping connect container to network (non setup steps)")
 	} else {
-		if !d.deployIndependentAgent {
-			// Connect service network with stack network (for the purpose of metrics collection)
-			err = docker.ConnectToNetwork(p.ContainerName(serviceName), stack.Network(d.profile))
-			if err != nil {
-				return nil, fmt.Errorf("can't attach service container to the stack network: %w", err)
-			}
-		} else {
+		if d.deployIndependentAgent {
 			// Connect service network with agent network
 			err = docker.ConnectToNetwork(p.ContainerName(serviceName), svcInfo.AgentNetworkName)
 			if err != nil {
 				return nil, fmt.Errorf("can't attach service container to the agent network: %w", err)
+			}
+		} else {
+			// Connect service network with stack network (for the purpose of metrics collection)
+			err = docker.ConnectToNetwork(p.ContainerName(serviceName), stack.Network(d.profile))
+			if err != nil {
+				return nil, fmt.Errorf("can't attach service container to the stack network: %w", err)
 			}
 		}
 	}
