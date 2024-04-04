@@ -787,41 +787,21 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		return nil
 	}
 
-	// Setup agent
-	logger.Debug("setting up agent...")
-	agentInfo, err := r.createAgentInfo(policy)
-	if err != nil {
-		return nil, err
-	}
-
 	enrollingTime := time.Now()
 	if r.options.RunTearDown || r.options.RunTestsOnly {
 		enrollingTime = serviceStateData.EnrollingAgentTime
-
-		agentInfo.Test.RunID = serviceStateData.AgentRunID
-		agentInfo.Hostname = serviceStateData.AgentHostname
-
-		svcInfo.Test.RunID = serviceStateData.ServiceRunID
-		svcInfo.AgentHostname = serviceStateData.ServiceAgentHostname
-		svcInfo.Hostname = serviceStateData.ServiceAgentHostname
-		// By default using agent running in the Elastic stack
-		svcInfo.AgentNetworkName = stack.Network(r.options.Profile)
 	}
 
-	agentDeployed, agentInfo, err := r.setupAgent(ctx, serviceOptions.Variant, agentInfo)
+	agentDeployed, agentInfo, err := r.setupAgent(ctx, serviceOptions.Variant, serviceStateData, policy)
 	if err != nil {
 		return nil, err
-	}
-	if agentDeployed != nil {
-		agentInfo = agentDeployed.Info()
-		svcInfo.AgentNetworkName = agentInfo.NetworkName
 	}
 
 	scenario.enrollingTime = enrollingTime
 	scenario.agent = agentDeployed
 
 	// Setup service.
-	service, svcInfo, err := r.setupService(ctx, config, serviceOptions, svcInfo, agentInfo, agentDeployed)
+	service, svcInfo, err := r.setupService(ctx, config, serviceOptions, svcInfo, agentInfo, agentDeployed, serviceStateData)
 	if err != nil {
 		return nil, err
 	}
@@ -1111,12 +1091,24 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	return &scenario, nil
 }
 
-func (r *runner) setupService(ctx context.Context, config *testConfig, serviceOptions servicedeployer.FactoryOptions, svcInfo servicedeployer.ServiceInfo, agentInfo agentdeployer.AgentInfo, agentDeployed agentdeployer.DeployedAgent) (servicedeployer.DeployedService, servicedeployer.ServiceInfo, error) {
+func (r *runner) setupService(ctx context.Context, config *testConfig, serviceOptions servicedeployer.FactoryOptions, svcInfo servicedeployer.ServiceInfo, agentInfo agentdeployer.AgentInfo, agentDeployed agentdeployer.DeployedAgent, state ServiceState) (servicedeployer.DeployedService, servicedeployer.ServiceInfo, error) {
 	logger.Debug("setting up service...")
+	if r.options.RunTearDown || r.options.RunTestsOnly {
+		svcInfo.Test.RunID = state.ServiceRunID
+		svcInfo.AgentHostname = state.ServiceAgentHostname
+		svcInfo.Hostname = state.ServiceAgentHostname
+	}
+
 	// Elastic Agent from stack and Elastic Agents started independently
 	// will have a network alias "elastic-agent" that services can use
 	// Docker custom agents would have another alias "docker-custom-agent"
 	svcInfo.AgentHostname = "elastic-agent"
+
+	// By default using agent running in the Elastic stack
+	svcInfo.AgentNetworkName = stack.Network(r.options.Profile)
+	if agentDeployed != nil {
+		svcInfo.AgentNetworkName = agentInfo.NetworkName
+	}
 
 	// Set the right folder for logs execpt for custom agents that are still deployed using "servicedeployer"
 	if r.options.RunIndependentElasticAgent && agentDeployed != nil {
@@ -1153,10 +1145,20 @@ func (r *runner) setupService(ctx context.Context, config *testConfig, serviceOp
 	return service, service.Info(), nil
 }
 
-func (r *runner) setupAgent(ctx context.Context, variant string, agentInfo agentdeployer.AgentInfo) (agentdeployer.DeployedAgent, agentdeployer.AgentInfo, error) {
+func (r *runner) setupAgent(ctx context.Context, variant string, state ServiceState, policy *kibana.Policy) (agentdeployer.DeployedAgent, agentdeployer.AgentInfo, error) {
 	if !r.options.RunIndependentElasticAgent {
-		return nil, agentInfo, nil
+		return nil, agentdeployer.AgentInfo{}, nil
 	}
+	logger.Debug("setting up agent...")
+	agentInfo, err := r.createAgentInfo(policy)
+	if err != nil {
+		return nil, agentdeployer.AgentInfo{}, err
+	}
+	if r.options.RunTearDown || r.options.RunTestsOnly {
+		agentInfo.Test.RunID = state.AgentRunID
+		agentInfo.Hostname = state.AgentHostname
+	}
+
 	agentOptions := r.createAgentOptions(variant, agentInfo.Policy.Name)
 	agentDeployer, err := agentdeployer.Factory(agentOptions)
 	if err != nil {
@@ -1165,6 +1167,7 @@ func (r *runner) setupAgent(ctx context.Context, variant string, agentInfo agent
 	if agentDeployer == nil {
 		return nil, agentInfo, nil
 	}
+
 	agentDeployed, err := agentDeployer.SetUp(ctx, agentInfo)
 	if err != nil {
 		return nil, agentInfo, fmt.Errorf("could not setup agent: %w", err)
