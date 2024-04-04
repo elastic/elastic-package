@@ -945,9 +945,8 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	if err != nil {
 		return nil, fmt.Errorf("can't check enrolled agents: %w", err)
 	}
-	data, _ := json.Marshal(agents)
-	logger.Debugf("JSON Agents:\n%s", string(data))
 	agent := agents[0]
+	logger.Debugf("Selected enrolled agent %q", agent.ID)
 
 	r.unenrollAgentHandler = func(ctx context.Context) error {
 		if !r.options.RunIndependentElasticAgent {
@@ -1850,17 +1849,14 @@ func filterIndependentAgents(allAgents []kibana.Agent, agentInfo agentdeployer.A
 		// It cannot filtered by "elastic-agent-managed-ep" , since this is the default
 		// policy assigned to the agents when they first enroll
 		if agent.PolicyID == "fleet-server-policy" {
-			logger.Debugf("filtered agent (policy id) %q", agent.ID) // TODO: remove
 			continue
 		}
 
 		if agent.Status != "online" {
-			logger.Debugf("filtered agent (not online) %q", agent.ID) // TODO: remove
 			continue
 		}
 
 		if agent.PolicyID != agentInfo.PolicyID {
-			logger.Debugf("filtered agent (not same policy) %q", agent.ID)
 			continue
 		}
 
