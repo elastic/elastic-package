@@ -1149,7 +1149,6 @@ func (r *runner) setupAgent(ctx context.Context, variant string, state ServiceSt
 	}
 	if r.options.RunTearDown || r.options.RunTestsOnly {
 		agentInfo.Test.RunID = state.AgentRunID
-		agentInfo.Hostname = state.AgentHostname
 	}
 
 	agentOptions := r.createAgentOptions(variant, agentInfo.Policy.Name)
@@ -1219,7 +1218,6 @@ type ServiceState struct {
 	EnrollingAgentTime time.Time     `json:"enrolling_agent_time"`
 	ServiceRunID       string        `json:"service_info_run_id"`
 	AgentRunID         string        `json:"agent_info_run_id"`
-	AgentHostname      string        `json:"agent_hostname"`
 }
 
 type scenarioStateOpts struct {
@@ -1242,7 +1240,6 @@ func (r *runner) writeScenarioState(opts scenarioStateOpts) error {
 		EnrollingAgentTime: opts.enrollingTime,
 		ServiceRunID:       opts.svcInfo.Test.RunID,
 		AgentRunID:         opts.agentInfo.Test.RunID,
-		AgentHostname:      opts.agentInfo.Hostname,
 	}
 	dataBytes, err := json.Marshal(data)
 	if err != nil {
