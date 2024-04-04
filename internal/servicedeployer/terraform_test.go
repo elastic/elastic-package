@@ -31,7 +31,7 @@ func TestAddTerraformOutputs(t *testing.T) {
 			content: []byte(
 				``,
 			),
-			expectedProps: map[string]interface{}{},
+			expectedProps: nil,
 			expectedError: true,
 		},
 		{
@@ -43,7 +43,7 @@ func TestAddTerraformOutputs(t *testing.T) {
 			content: []byte(
 				`{}`,
 			),
-			expectedProps: map[string]interface{}{},
+			expectedProps: nil,
 		},
 		{
 			testName: "single_value_output",
@@ -161,10 +161,6 @@ func TestAddTerraformOutputs(t *testing.T) {
 	for _, tc := range testCases {
 
 		t.Run(tc.testName, func(t *testing.T) {
-			if tc.svcInfo.CustomProperties == nil {
-				tc.svcInfo.CustomProperties = make(map[string]interface{})
-			}
-
 			tc.svcInfo.OutputDir = t.TempDir()
 
 			if err := os.WriteFile(tc.svcInfo.OutputDir+"/tfOutputValues.json", tc.content, 0777); err != nil {
