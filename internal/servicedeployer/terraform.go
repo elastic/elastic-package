@@ -113,7 +113,6 @@ func (tsd TerraformServiceDeployer) SetUp(ctx context.Context, svcInfo ServiceIn
 		env:             tfEnvironment,
 		shutdownTimeout: 300 * time.Second,
 	}
-	outCtxt := svcInfo
 
 	p, err := compose.NewProject(service.project, service.ymlPaths...)
 	if err != nil {
@@ -121,7 +120,7 @@ func (tsd TerraformServiceDeployer) SetUp(ctx context.Context, svcInfo ServiceIn
 	}
 
 	// Clean service logs
-	err = files.RemoveContent(outCtxt.Logs.Folder.Local)
+	err = files.RemoveContent(svcInfo.Logs.Folder.Local)
 	if err != nil {
 		return nil, fmt.Errorf("removing service logs failed: %w", err)
 	}
@@ -134,7 +133,7 @@ func (tsd TerraformServiceDeployer) SetUp(ctx context.Context, svcInfo ServiceIn
 	if err != nil {
 		return nil, fmt.Errorf("could not get Docker Compose configuration for service: %w", err)
 	}
-	outCtxt.CustomProperties, err = buildTerraformAliases(serviceComposeConfig)
+	svcInfo.CustomProperties, err = buildTerraformAliases(serviceComposeConfig)
 	if err != nil {
 		return nil, fmt.Errorf("can't build Terraform aliases: %w", err)
 	}
@@ -153,18 +152,18 @@ func (tsd TerraformServiceDeployer) SetUp(ctx context.Context, svcInfo ServiceIn
 	if err != nil {
 		processServiceContainerLogs(ctx, p, compose.CommandOptions{
 			Env: opts.Env,
-		}, outCtxt.Name)
+		}, svcInfo.Name)
 		//lint:ignore ST1005 error starting with product name can be capitalized
 		return nil, fmt.Errorf("Terraform deployer is unhealthy: %w", err)
 	}
 
-	outCtxt.Agent.Host.NamePrefix = "docker-fleet-agent"
+	svcInfo.Agent.Host.NamePrefix = "docker-fleet-agent"
 
-	err = addTerraformOutputs(outCtxt)
+	err = addTerraformOutputs(svcInfo)
 	if err != nil {
 		return nil, fmt.Errorf("could not handle terraform output: %w", err)
 	}
-	service.svcInfo = outCtxt
+	service.svcInfo = svcInfo
 	return &service, nil
 }
 
