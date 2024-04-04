@@ -307,12 +307,10 @@ func (r *runner) createAgentInfo(policy *kibana.Policy) (agentdeployer.AgentInfo
 	info.Logs.Folder.Agent = ServiceLogsAgentDir
 	info.Test.RunID = createTestRunID()
 
-	info.Tags = append(info.Tags, "test", "system", info.Test.RunID, r.options.TestFolder.Package)
 	folderName := fmt.Sprintf("agent-%s", r.options.TestFolder.Package)
 
 	if r.options.TestFolder.DataStream != "" {
 		folderName = fmt.Sprintf("%s-%s", folderName, r.options.TestFolder.DataStream)
-		info.Tags = append(info.Tags, r.options.TestFolder.DataStream)
 	}
 
 	dirPath, err := agentdeployer.CreateServiceLogsDir(r.locationManager, folderName)
@@ -340,10 +338,6 @@ func (r *runner) createServiceInfo() (servicedeployer.ServiceInfo, error) {
 	}
 	svcInfo.OutputDir = outputDir
 
-	svcInfo.Tags = append(svcInfo.Tags, "test", "system", svcInfo.Test.RunID, r.options.TestFolder.Package)
-	if r.options.TestFolder.DataStream != "" {
-		svcInfo.Tags = append(svcInfo.Tags, r.options.TestFolder.DataStream)
-	}
 	return svcInfo, nil
 }
 
@@ -805,11 +799,9 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	if r.options.RunTearDown || r.options.RunTestsOnly {
 		enrollingTime = serviceStateData.EnrollingAgentTime
 
-		agentInfo.Tags = serviceStateData.Agent.Tags
 		agentInfo.Test.RunID = serviceStateData.AgentRunID
 		agentInfo.Hostname = serviceStateData.AgentHostname
 
-		svcInfo.Tags = serviceStateData.Agent.Tags
 		svcInfo.Test.RunID = serviceStateData.ServiceRunID
 		svcInfo.AgentHostname = serviceStateData.ServiceAgentHostname
 		svcInfo.Hostname = serviceStateData.ServiceAgentHostname
@@ -1237,8 +1229,6 @@ type ServiceState struct {
 	ConfigFilePath       string        `json:"config_file_path"`
 	VariantName          string        `json:"variant_name"`
 	EnrollingAgentTime   time.Time     `json:"enrolling_agent_time"`
-	ServiceInfoTags      []string      `json:"service_info_tags,omitempty"`
-	AgentInfoTags        []string      `json:"agent_info_tags,omitempty"`
 	ServiceRunID         string        `json:"service_info_run_id"`
 	AgentRunID           string        `json:"agent_info_run_id"`
 	AgentHostname        string        `json:"agent_hostname"`

@@ -79,7 +79,4 @@ type AgentInfo struct {
 
 	// Service token
 	Token string
-
-	// Tags set in the agent
-	Tags []string
 }

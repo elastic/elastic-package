@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/elastic/elastic-package/internal/compose"
 	"github.com/elastic/elastic-package/internal/configuration/locations"
@@ -106,7 +105,6 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (D
 		fmt.Sprintf("%s=%s", localCACertEnv, caCertPath),
 		fmt.Sprintf("%s=%s", agentHostnameEnv, svcInfo.AgentHostname),
 		fmt.Sprintf("%s=%s", fleetPolicyEnv, d.policyName),
-		fmt.Sprintf("%s=%s", elasticAgentTagsEnv, strings.Join(svcInfo.Tags, ",")),
 	)
 
 	configDir, err := d.installDockerfile()

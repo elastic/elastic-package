@@ -74,9 +74,6 @@ type ServiceInfo struct {
 
 	// Directory to store any outputs generated
 	OutputDir string
-
-	// Tags assigned to the agent
-	Tags []string
 }
 
 // Aliases method returned aliases to properties of the service context.

@@ -124,7 +124,6 @@ func (d *DockerComposeAgentDeployer) SetUp(ctx context.Context, agentInfo AgentI
 		fmt.Sprintf("%s=%s", localCACertEnv, caCertPath),
 		fmt.Sprintf("%s=%s", fleetPolicyEnv, agentPolicyName),
 		fmt.Sprintf("%s=%s", agentHostnameEnv, d.agentHostname()),
-		fmt.Sprintf("%s=%s", elasticAgentTagsEnv, strings.Join(agentInfo.Tags, ",")),
 	)
 
 	configDir, err := d.installDockerfile()
