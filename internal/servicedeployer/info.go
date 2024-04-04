@@ -10,6 +10,9 @@ const (
 	testRunIDEnv        = "TEST_RUN_ID"
 	agentHostnameEnv    = "AGENT_HOSTNAME"
 	elasticAgentTagsEnv = "ELASTIC_AGENT_TAGS"
+	fleetPolicyEnv      = "FLEET_TOKEN_POLICY_NAME"
+
+	defaulFleetTokenPolicyName = "Elastic-Agent (elastic-package)"
 )
 
 // ServiceInfo encapsulates context that is both available to a ServiceDeployer and

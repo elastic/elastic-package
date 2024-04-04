@@ -222,7 +222,7 @@ func getElasticAgentYAML(profile *profile.Profile, stackVersion string) ([]byte,
 		"kibanaURL":                   "https://kibana:5601",
 		"caCertPem":                   caCert,
 		"elasticAgentImage":           appConfig.StackImageRefs(stackVersion).ElasticAgent,
-		"elasticAgentTokenPolicyName": getTokenPolicyName(stackVersion),
+		"elasticAgentTokenPolicyName": getTokenPolicyName(stackVersion, defaulFleetTokenPolicyName),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("can't generate elastic agent manifest: %w", err)
@@ -247,9 +247,9 @@ func readCACertBase64(profile *profile.Profile) (string, error) {
 
 // getTokenPolicyName function returns the policy name for the 8.x Elastic stack. The agent's policy
 // is predefined in the Kibana configuration file. The logic is not present in older stacks.
-func getTokenPolicyName(stackVersion string) string {
+func getTokenPolicyName(stackVersion, policyName string) string {
 	if strings.HasPrefix(stackVersion, "8.") {
-		return "Elastic-Agent (elastic-package)"
+		return policyName
 	}
 	return ""
 }

@@ -1129,11 +1129,6 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 
 func (r *runner) setupService(ctx context.Context, config *testConfig, serviceOptions servicedeployer.FactoryOptions, svcInfo servicedeployer.ServiceInfo, agentInfo agentdeployer.AgentInfo, agentDeployed agentdeployer.DeployedAgent) (servicedeployer.DeployedService, servicedeployer.ServiceInfo, error) {
 	logger.Debug("setting up service...")
-	serviceDeployer, err := servicedeployer.Factory(serviceOptions)
-	if err != nil {
-		return nil, svcInfo, fmt.Errorf("could not create service runner: %w", err)
-	}
-
 	// Elastic Agent from stack and Elastic Agents started independently
 	// will have a network alias "elastic-agent" that services can use
 	// Docker custom agents would have another alias "docker-custom-agent"
@@ -1143,9 +1138,21 @@ func (r *runner) setupService(ctx context.Context, config *testConfig, serviceOp
 	if r.options.RunIndependentElasticAgent && agentDeployed != nil {
 		svcInfo.Logs.Folder.Local = agentInfo.Logs.Folder.Local
 	}
+
+	// In case of custom agent, update serviceOptions to include test policy too
+	if r.options.RunIndependentElasticAgent {
+		serviceOptions.PolicyName = agentInfo.PolicyName
+	}
+
 	if config.Service != "" {
 		svcInfo.Name = config.Service
 	}
+
+	serviceDeployer, err := servicedeployer.Factory(serviceOptions)
+	if err != nil {
+		return nil, svcInfo, fmt.Errorf("could not create service runner: %w", err)
+	}
+
 	service, err := serviceDeployer.SetUp(ctx, svcInfo)
 	if err != nil {
 		return nil, svcInfo, fmt.Errorf("could not setup service: %w", err)

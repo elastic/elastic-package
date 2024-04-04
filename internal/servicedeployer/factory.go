@@ -29,6 +29,8 @@ type FactoryOptions struct {
 	StackVersion           string
 	DeployIndependentAgent bool
 
+	PolicyName string
+
 	PackageName string
 	DataStream  string
 
@@ -98,6 +100,8 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 		if err != nil {
 			return nil, fmt.Errorf("can't use service variant: %w", err)
 		}
+		policyName := getTokenPolicyName(options.StackVersion, options.PolicyName)
+
 		opts := CustomAgentDeployerOptions{
 			Profile:           options.Profile,
 			DockerComposeFile: customAgentCfgYMLPath,
@@ -105,6 +109,7 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 			Variant:           sv,
 			PackageName:       options.PackageName,
 			DataStream:        options.DataStream,
+			PolicyName:        policyName,
 
 			RunTearDown:  options.RunTearDown,
 			RunTestsOnly: options.RunTestsOnly,

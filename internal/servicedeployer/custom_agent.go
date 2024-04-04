@@ -40,6 +40,7 @@ type CustomAgentDeployer struct {
 	variant           ServiceVariant
 	packageName       string
 	dataStream        string
+	policyName        string
 
 	agentRunID string
 
@@ -54,6 +55,7 @@ type CustomAgentDeployerOptions struct {
 	Variant           ServiceVariant
 	PackageName       string
 	DataStream        string
+	PolicyName        string
 
 	RunTearDown  bool
 	RunTestsOnly bool
@@ -69,6 +71,7 @@ func NewCustomAgentDeployer(options CustomAgentDeployerOptions) (*CustomAgentDep
 		stackVersion:      options.StackVersion,
 		variant:           options.Variant,
 		packageName:       options.PackageName,
+		policyName:        options.PolicyName,
 		dataStream:        options.DataStream,
 		runTearDown:       options.RunTearDown,
 		runTestsOnly:      options.RunTestsOnly,
@@ -102,6 +105,7 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (D
 		fmt.Sprintf("%s=%s", serviceLogsDirEnv, svcInfo.Logs.Folder.Local),
 		fmt.Sprintf("%s=%s", localCACertEnv, caCertPath),
 		fmt.Sprintf("%s=%s", agentHostnameEnv, svcInfo.AgentHostname),
+		fmt.Sprintf("%s=%s", fleetPolicyEnv, d.policyName),
 		fmt.Sprintf("%s=%s", elasticAgentTagsEnv, strings.Join(svcInfo.Tags, ",")),
 	)
 
