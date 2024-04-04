@@ -72,7 +72,7 @@ func Factory(options FactoryOptions) (AgentDeployer, error) {
 		}
 		opts := DockerComposeAgentDeployerOptions{
 			Profile:           options.Profile,
-			DockerComposeFile: "",
+			DockerComposeFile: "", // TODO: Allow other docker-compose files to apply overrides
 			Variant:           variant,
 			StackVersion:      options.StackVersion,
 			PackageName:       options.PackageName,

@@ -96,19 +96,12 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 		if _, err := os.Stat(customAgentCfgYMLPath); err != nil {
 			return nil, fmt.Errorf("can't find expected file custom-agent.yml: %w", err)
 		}
-		sv, err := useServiceVariant(devDeployPath, options.Variant)
-		if err != nil {
-			return nil, fmt.Errorf("can't use service variant: %w", err)
-		}
 		policyName := getTokenPolicyName(options.StackVersion, options.PolicyName)
 
 		opts := CustomAgentDeployerOptions{
 			Profile:           options.Profile,
 			DockerComposeFile: customAgentCfgYMLPath,
 			StackVersion:      options.StackVersion,
-			Variant:           sv,
-			PackageName:       options.PackageName,
-			DataStream:        options.DataStream,
 			PolicyName:        policyName,
 
 			RunTearDown:  options.RunTearDown,

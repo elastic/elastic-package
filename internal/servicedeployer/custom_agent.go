@@ -36,12 +36,7 @@ type CustomAgentDeployer struct {
 	profile           *profile.Profile
 	dockerComposeFile string
 	stackVersion      string
-	variant           ServiceVariant
-	packageName       string
-	dataStream        string
 	policyName        string
-
-	agentRunID string
 
 	runTearDown  bool
 	runTestsOnly bool
@@ -51,9 +46,6 @@ type CustomAgentDeployerOptions struct {
 	Profile           *profile.Profile
 	DockerComposeFile string
 	StackVersion      string
-	Variant           ServiceVariant
-	PackageName       string
-	DataStream        string
 	PolicyName        string
 
 	RunTearDown  bool
@@ -68,10 +60,7 @@ func NewCustomAgentDeployer(options CustomAgentDeployerOptions) (*CustomAgentDep
 		profile:           options.Profile,
 		dockerComposeFile: options.DockerComposeFile,
 		stackVersion:      options.StackVersion,
-		variant:           options.Variant,
-		packageName:       options.PackageName,
 		policyName:        options.PolicyName,
-		dataStream:        options.DataStream,
 		runTearDown:       options.RunTearDown,
 		runTestsOnly:      options.RunTestsOnly,
 	}, nil
@@ -80,8 +69,6 @@ func NewCustomAgentDeployer(options CustomAgentDeployerOptions) (*CustomAgentDep
 // SetUp sets up the service and returns any relevant information.
 func (d *CustomAgentDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (DeployedService, error) {
 	logger.Debug("setting up service using Docker Compose service deployer")
-
-	d.agentRunID = svcInfo.Test.RunID
 
 	appConfig, err := install.Configuration()
 	if err != nil {
@@ -96,8 +83,10 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (D
 	// Build service container name
 	// FIXME: Currently, this service deployer starts a new agent on its own and
 	// it cannot use directly the `svcInfo.AgentHostname` value
-	svcInfo.Hostname = d.agentHostname()
-	svcInfo.AgentHostname = dockerCustomAgentName // Alias for custom agent
+
+	// Set alias for custom agent
+	svcInfo.Hostname = dockerCustomAgentName
+	svcInfo.AgentHostname = dockerCustomAgentName
 
 	env := append(
 		appConfig.StackImageRefs(d.stackVersion).AsEnv(),
@@ -205,21 +194,6 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (D
 	svcInfo.Agent.Host.NamePrefix = svcInfo.Name
 	service.svcInfo = svcInfo
 	return &service, nil
-}
-
-func (d *CustomAgentDeployer) agentName() string {
-	name := d.packageName
-	if d.variant.Name != "" {
-		name = fmt.Sprintf("%s-%s", name, d.variant.Name)
-	}
-	if d.dataStream != "" && d.dataStream != "." {
-		name = fmt.Sprintf("%s-%s", name, d.dataStream)
-	}
-	return name
-}
-
-func (d *CustomAgentDeployer) agentHostname() string {
-	return fmt.Sprintf("%s-%s-%s", dockerCustomAgentName, d.agentName(), d.agentRunID)
 }
 
 // installDockerfile creates the files needed to run the custom elastic agent and returns
