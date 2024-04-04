@@ -965,23 +965,17 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		origPolicy = serviceStateData.OrigPolicy
 		logger.Debugf("Got orig policy from file: %q - %q", origPolicy.Name, origPolicy.ID)
 	} else {
-		if r.options.RunIndependentElasticAgent {
-			// Get default policy to assign agents after testing is finished
-			defaultPolicy, err := r.options.KibanaClient.GetPolicy(ctx, "elastic-agent-managed-ep")
-			if err != nil {
-				return nil, fmt.Errorf("failed to get default policy")
-			}
-			origPolicy = *defaultPolicy
-		} else {
-			// Store previous agent policy assigned to the agent
-			origPolicy = kibana.Policy{
-				ID:       agent.PolicyID,
-				Revision: agent.PolicyRevision,
-			}
+		// Store previous agent policy assigned to the agent
+		origPolicy = kibana.Policy{
+			ID:       agent.PolicyID,
+			Revision: agent.PolicyRevision,
 		}
 	}
 	// Assign policy to agent
 	r.resetAgentPolicyHandler = func(ctx context.Context) error {
+		if r.options.RunIndependentElasticAgent {
+			return nil
+		}
 		logger.Debug("reassigning original policy back to agent...")
 		if err := r.options.KibanaClient.AssignPolicyToAgent(ctx, agent, origPolicy); err != nil {
 			return fmt.Errorf("error reassigning original policy to agent: %w", err)
