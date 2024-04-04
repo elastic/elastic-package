@@ -693,7 +693,20 @@ func createDocExpandingObjects(doc common.MapStr) (common.MapStr, error) {
 	return newDoc, nil
 }
 func isNumericKeyword(definition FieldDefinition, val interface{}) bool {
-	_, isNumber := val.(float64)
+	var isNumber bool
+	switch val := val.(type) {
+	case float64, []float64:
+		isNumber = true
+	case []interface{}:
+		isNumber = true
+		for _, v := range val {
+			_, ok := v.(float64)
+			if !ok {
+				isNumber = false
+				break
+			}
+		}
+	}
 	return isNumber && (definition.Type == "keyword" || definition.Type == "constant_keyword")
 }
 
