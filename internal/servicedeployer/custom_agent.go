@@ -86,13 +86,11 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (D
 
 	// Set alias for custom agent
 	svcInfo.Hostname = dockerCustomAgentName
-	svcInfo.AgentHostname = dockerCustomAgentName
 
 	env := append(
 		appConfig.StackImageRefs(d.stackVersion).AsEnv(),
 		fmt.Sprintf("%s=%s", serviceLogsDirEnv, svcInfo.Logs.Folder.Local),
 		fmt.Sprintf("%s=%s", localCACertEnv, caCertPath),
-		fmt.Sprintf("%s=%s", agentHostnameEnv, svcInfo.AgentHostname),
 		fmt.Sprintf("%s=%s", fleetPolicyEnv, d.policyName),
 	)
 

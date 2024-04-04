@@ -79,9 +79,6 @@ func (d *DockerComposeServiceDeployer) SetUp(ctx context.Context, svcInfo Servic
 		variant:  d.variant,
 		env: []string{
 			fmt.Sprintf("%s=%s", serviceLogsDirEnv, svcInfo.Logs.Folder.Local),
-			// Hostname environment varible is required since some packages require to run
-			// queries to the elastic-agent container (e.g. ti_anomali)
-			fmt.Sprintf("%s=%s", agentHostnameEnv, svcInfo.AgentHostname),
 		},
 	}
 

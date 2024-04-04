@@ -26,7 +26,6 @@ func (tsd TerraformServiceDeployer) buildTerraformExecutorEnvironment(info Servi
 	vars[tfTestRunID] = info.Test.RunID
 	vars[tfDir] = tsd.definitionsDir
 	vars[tfOutputDir] = info.OutputDir
-	vars[agentHostnameEnv] = info.AgentHostname
 
 	var pairs []string
 	for k, v := range vars {

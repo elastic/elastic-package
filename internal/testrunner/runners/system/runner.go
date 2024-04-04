@@ -1095,14 +1095,7 @@ func (r *runner) setupService(ctx context.Context, config *testConfig, serviceOp
 	logger.Debug("setting up service...")
 	if r.options.RunTearDown || r.options.RunTestsOnly {
 		svcInfo.Test.RunID = state.ServiceRunID
-		svcInfo.AgentHostname = state.ServiceAgentHostname
-		svcInfo.Hostname = state.ServiceAgentHostname
 	}
-
-	// Elastic Agent from stack and Elastic Agents started independently
-	// will have a network alias "elastic-agent" that services can use
-	// Docker custom agents would have another alias "docker-custom-agent"
-	svcInfo.AgentHostname = "elastic-agent"
 
 	// By default using agent running in the Elastic stack
 	svcInfo.AgentNetworkName = stack.Network(r.options.Profile)
@@ -1218,16 +1211,15 @@ func (r *runner) readServiceStateData() (ServiceState, error) {
 }
 
 type ServiceState struct {
-	OrigPolicy           kibana.Policy `json:"orig_policy"`
-	CurrentPolicy        kibana.Policy `json:"current_policy"`
-	Agent                kibana.Agent  `json:"agent"`
-	ConfigFilePath       string        `json:"config_file_path"`
-	VariantName          string        `json:"variant_name"`
-	EnrollingAgentTime   time.Time     `json:"enrolling_agent_time"`
-	ServiceRunID         string        `json:"service_info_run_id"`
-	AgentRunID           string        `json:"agent_info_run_id"`
-	AgentHostname        string        `json:"agent_hostname"`
-	ServiceAgentHostname string        `json:"service_agent_hostname"`
+	OrigPolicy         kibana.Policy `json:"orig_policy"`
+	CurrentPolicy      kibana.Policy `json:"current_policy"`
+	Agent              kibana.Agent  `json:"agent"`
+	ConfigFilePath     string        `json:"config_file_path"`
+	VariantName        string        `json:"variant_name"`
+	EnrollingAgentTime time.Time     `json:"enrolling_agent_time"`
+	ServiceRunID       string        `json:"service_info_run_id"`
+	AgentRunID         string        `json:"agent_info_run_id"`
+	AgentHostname      string        `json:"agent_hostname"`
 }
 
 type scenarioStateOpts struct {
@@ -1242,16 +1234,15 @@ type scenarioStateOpts struct {
 
 func (r *runner) writeScenarioState(opts scenarioStateOpts) error {
 	data := ServiceState{
-		OrigPolicy:           *opts.origPolicy,
-		CurrentPolicy:        *opts.currentPolicy,
-		Agent:                opts.agent,
-		ConfigFilePath:       opts.config.Path,
-		VariantName:          opts.config.ServiceVariantName,
-		EnrollingAgentTime:   opts.enrollingTime,
-		ServiceRunID:         opts.svcInfo.Test.RunID,
-		AgentRunID:           opts.agentInfo.Test.RunID,
-		AgentHostname:        opts.agentInfo.Hostname,
-		ServiceAgentHostname: opts.svcInfo.AgentHostname,
+		OrigPolicy:         *opts.origPolicy,
+		CurrentPolicy:      *opts.currentPolicy,
+		Agent:              opts.agent,
+		ConfigFilePath:     opts.config.Path,
+		VariantName:        opts.config.ServiceVariantName,
+		EnrollingAgentTime: opts.enrollingTime,
+		ServiceRunID:       opts.svcInfo.Test.RunID,
+		AgentRunID:         opts.agentInfo.Test.RunID,
+		AgentHostname:      opts.agentInfo.Hostname,
 	}
 	dataBytes, err := json.Marshal(data)
 	if err != nil {

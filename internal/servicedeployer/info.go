@@ -8,7 +8,6 @@ const (
 	localCACertEnv      = "LOCAL_CA_CERT"
 	serviceLogsDirEnv   = "SERVICE_LOGS_DIR"
 	testRunIDEnv        = "TEST_RUN_ID"
-	agentHostnameEnv    = "AGENT_HOSTNAME"
 	elasticAgentTagsEnv = "ELASTIC_AGENT_TAGS"
 	fleetPolicyEnv      = "FLEET_TOKEN_POLICY_NAME"
 
@@ -26,10 +25,7 @@ type ServiceInfo struct {
 	// the Agent container.
 	Hostname string
 
-	// AgentHostname is the host name of the agent, as addressable from
-	// the Service container .
-	AgentHostname string
-
+	// AgentNetworkName is the network name where the agent is running.
 	AgentNetworkName string
 
 	// Ports is a list of ports that the service listens on, as addressable

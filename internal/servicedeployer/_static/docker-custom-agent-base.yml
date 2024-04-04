@@ -6,7 +6,7 @@ services:
       test: "elastic-agent status"
       retries: 180
       interval: 1s
-    hostname: ${AGENT_HOSTNAME}
+    hostname: docker-custom-agent
     environment:
       - FLEET_ENROLL=1
       - FLEET_URL=https://fleet-server:8220
