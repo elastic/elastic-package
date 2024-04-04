@@ -28,6 +28,9 @@ type AgentInfo struct {
 	// required to connect the Service with the agent.
 	NetworkName string
 
+	PolicyName string
+	PolicyID   string
+
 	// Ports is a list of ports that the service listens on, as addressable
 	// from the Agent container.
 	Ports []int

@@ -111,6 +111,7 @@ type runner struct {
 	serviceStateFilePath string
 
 	// Execution order of following handlers is defined in runner.TearDown() method.
+	unenrollAgentHandler      func(context.Context) error
 	deleteTestPolicyHandler   func(context.Context) error
 	deletePackageHandler      func(context.Context) error
 	resetAgentPolicyHandler   func(context.Context) error
@@ -263,7 +264,7 @@ func (r *runner) Run(ctx context.Context, options testrunner.TestOptions) ([]tes
 	return result.WithSuccess()
 }
 
-func (r *runner) createAgentOptions(variantName string) agentdeployer.FactoryOptions {
+func (r *runner) createAgentOptions(variantName, policyName string) agentdeployer.FactoryOptions {
 	return agentdeployer.FactoryOptions{
 		Profile:            r.options.Profile,
 		PackageRootPath:    r.options.PackageRootPath,
@@ -273,6 +274,7 @@ func (r *runner) createAgentOptions(variantName string) agentdeployer.FactoryOpt
 		StackVersion:       r.stackVersion.Version(),
 		PackageName:        r.options.TestFolder.Package,
 		DataStream:         r.options.TestFolder.DataStream,
+		PolicyName:         policyName,
 		Variant:            variantName,
 		RunTearDown:        r.options.RunTearDown,
 		RunTestsOnly:       r.options.RunTestsOnly,
@@ -298,7 +300,7 @@ func (r *runner) createServiceOptions(variantName string) servicedeployer.Factor
 	}
 }
 
-func (r *runner) createAgentInfo() (agentdeployer.AgentInfo, error) {
+func (r *runner) createAgentInfo(policy *kibana.Policy) (agentdeployer.AgentInfo, error) {
 	var info agentdeployer.AgentInfo
 
 	info.Name = r.options.TestFolder.Package
@@ -318,6 +320,9 @@ func (r *runner) createAgentInfo() (agentdeployer.AgentInfo, error) {
 		return agentdeployer.AgentInfo{}, fmt.Errorf("failed to create service logs dir: %w", err)
 	}
 	info.Logs.Folder.Local = dirPath
+
+	info.PolicyName = policy.Name
+	info.PolicyID = policy.ID
 
 	return info, nil
 }
@@ -371,6 +376,13 @@ func (r *runner) tearDownTest(ctx context.Context) error {
 			return err
 		}
 		r.resetAgentLogLevelHandler = nil
+	}
+
+	if r.unenrollAgentHandler != nil {
+		if err := r.unenrollAgentHandler(cleanupCtx); err != nil {
+			return err
+		}
+		r.unenrollAgentHandler = nil
 	}
 
 	if r.deleteTestPolicyHandler != nil {
@@ -750,9 +762,41 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	if err != nil {
 		return nil, fmt.Errorf("failed to find the selected policy_template: %w", err)
 	}
+
+	// Configure package (single data stream) via Fleet APIs.
+	var policy *kibana.Policy
+	if r.options.RunTearDown || r.options.RunTestsOnly {
+		policy = &serviceStateData.CurrentPolicy
+		logger.Debugf("Got policy from file: %q - %q", policy.Name, policy.ID)
+	} else {
+		logger.Debug("creating test policy...")
+		testTime := time.Now().Format("20060102T15:04:05Z")
+
+		p := kibana.Policy{
+			Name:        fmt.Sprintf("ep-test-system-%s-%s-%s", r.options.TestFolder.Package, r.options.TestFolder.DataStream, testTime),
+			Description: fmt.Sprintf("test policy created by elastic-package test system for data stream %s/%s", r.options.TestFolder.Package, r.options.TestFolder.DataStream),
+			Namespace:   "ep",
+		}
+		// Assign the data_output_id to the agent policy to configure the output to logstash. The value is inferred from stack/_static/kibana.yml.tmpl
+		if r.options.Profile.Config("stack.logstash_enabled", "false") == "true" {
+			p.DataOutputID = "fleet-logstash-output"
+		}
+		policy, err = r.options.KibanaClient.CreatePolicy(ctx, p)
+		if err != nil {
+			return nil, fmt.Errorf("could not create test policy: %w", err)
+		}
+	}
+	r.deleteTestPolicyHandler = func(ctx context.Context) error {
+		logger.Debug("deleting test policy...")
+		if err := r.options.KibanaClient.DeletePolicy(ctx, *policy); err != nil {
+			return fmt.Errorf("error cleaning up test policy: %w", err)
+		}
+		return nil
+	}
+
 	// Setup agent
 	logger.Debug("setting up agent...")
-	agentInfo, err := r.createAgentInfo()
+	agentInfo, err := r.createAgentInfo(policy)
 	if err != nil {
 		return nil, err
 	}
@@ -852,37 +896,6 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	}
 	r.deletePackageHandler = deletePackageHandler
 
-	// Configure package (single data stream) via Fleet APIs.
-	var policy *kibana.Policy
-	if r.options.RunTearDown || r.options.RunTestsOnly {
-		policy = &serviceStateData.CurrentPolicy
-		logger.Debugf("Got policy from file: %q - %q", policy.Name, policy.ID)
-	} else {
-		logger.Debug("creating test policy...")
-		testTime := time.Now().Format("20060102T15:04:05Z")
-
-		p := kibana.Policy{
-			Name:        fmt.Sprintf("ep-test-system-%s-%s-%s", r.options.TestFolder.Package, r.options.TestFolder.DataStream, testTime),
-			Description: fmt.Sprintf("test policy created by elastic-package test system for data stream %s/%s", r.options.TestFolder.Package, r.options.TestFolder.DataStream),
-			Namespace:   "ep",
-		}
-		// Assign the data_output_id to the agent policy to configure the output to logstash. The value is inferred from stack/_static/kibana.yml.tmpl
-		if r.options.Profile.Config("stack.logstash_enabled", "false") == "true" {
-			p.DataOutputID = "fleet-logstash-output"
-		}
-		policy, err = r.options.KibanaClient.CreatePolicy(ctx, p)
-		if err != nil {
-			return nil, fmt.Errorf("could not create test policy: %w", err)
-		}
-	}
-	r.deleteTestPolicyHandler = func(ctx context.Context) error {
-		logger.Debug("deleting test policy...")
-		if err := r.options.KibanaClient.DeletePolicy(ctx, *policy); err != nil {
-			return fmt.Errorf("error cleaning up test policy: %w", err)
-		}
-		return nil
-	}
-
 	logger.Debug("adding package data stream to test policy...")
 	ds := createPackageDatastream(*policy, *scenario.pkgManifest, policyTemplate, *scenario.dataStreamManifest, *config)
 	if r.options.RunTearDown || r.options.RunTestsOnly {
@@ -944,13 +957,35 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	logger.Debugf("JSON Agents:\n%s", string(data))
 	agent := agents[0]
 
+	r.unenrollAgentHandler = func(ctx context.Context) error {
+		if !r.options.RunIndependentElasticAgent {
+			return nil
+		}
+		logger.Debug("unenrolling agent...")
+		err := r.options.KibanaClient.UnenrollAgent(ctx, agent)
+		if err != nil {
+			return fmt.Errorf("failed to unenroll agent %q: %w", agent.ID, err)
+		}
+		return nil
+	}
+
 	if r.options.RunTearDown || r.options.RunTestsOnly {
 		origPolicy = serviceStateData.OrigPolicy
 		logger.Debugf("Got orig policy from file: %q - %q", origPolicy.Name, origPolicy.ID)
 	} else {
-		origPolicy = kibana.Policy{
-			ID:       agent.PolicyID,
-			Revision: agent.PolicyRevision,
+		if r.options.RunIndependentElasticAgent {
+			// Get default policy to assign agents after testing is finished
+			defaultPolicy, err := r.options.KibanaClient.GetPolicy(ctx, "elastic-agent-managed-ep")
+			if err != nil {
+				return nil, fmt.Errorf("failed to get default policy")
+			}
+			origPolicy = *defaultPolicy
+		} else {
+			// Store previous agent policy assigned to the agent
+			origPolicy = kibana.Policy{
+				ID:       agent.PolicyID,
+				Revision: agent.PolicyRevision,
+			}
 		}
 	}
 	// Assign policy to agent
@@ -1103,7 +1138,9 @@ func (r *runner) setupService(ctx context.Context, config *testConfig, serviceOp
 	// will have a network alias "elastic-agent" that services can use
 	// Docker custom agents would have another alias "docker-custom-agent"
 	svcInfo.AgentHostname = "elastic-agent"
-	if r.options.RunIndependentElasticAgent {
+
+	// Set the right folder for logs execpt for custom agents that are still deployed using "servicedeployer"
+	if r.options.RunIndependentElasticAgent && agentDeployed != nil {
 		svcInfo.Logs.Folder.Local = agentInfo.Logs.Folder.Local
 	}
 	if config.Service != "" {
@@ -1129,7 +1166,7 @@ func (r *runner) setupAgent(ctx context.Context, variant string, agentInfo agent
 	if !r.options.RunIndependentElasticAgent {
 		return nil, agentInfo, nil
 	}
-	agentOptions := r.createAgentOptions(variant)
+	agentOptions := r.createAgentOptions(variant, agentInfo.PolicyName)
 	agentDeployer, err := agentdeployer.Factory(agentOptions)
 	if err != nil {
 		return nil, agentInfo, fmt.Errorf("could not create agent runner: %w", err)
@@ -1384,7 +1421,7 @@ func checkEnrolledAgents(ctx context.Context, client *kibana.Client, agentInfo a
 		}
 
 		if runIndependentElasticAgent {
-			agents = filterIndependentAgents(allAgents, agentInfo, threshold, svcInfo)
+			agents = filterIndependentAgents(allAgents, agentInfo, svcInfo)
 		} else {
 			agents = filterAgents(allAgents, svcInfo)
 		}
@@ -1822,23 +1859,7 @@ func filterAgents(allAgents []kibana.Agent, svcInfo servicedeployer.ServiceInfo)
 	return filtered
 }
 
-func filterIndependentAgents(allAgents []kibana.Agent, agentInfo agentdeployer.AgentInfo, threshold time.Time, svcInfo servicedeployer.ServiceInfo) []kibana.Agent {
-	if agentInfo.Agent.Host.NamePrefix != "" {
-		logger.Debugf("filter agents using agent criteria: NamePrefix=%s", agentInfo.Agent.Host.NamePrefix)
-	}
-
-	if svcInfo.Agent.Host.NamePrefix != "" {
-		logger.Debugf("filter agents using service criteria: NamePrefix=%s", svcInfo.Agent.Host.NamePrefix)
-	}
-
-	expectedHostname := agentInfo.Hostname
-	expectedTags := agentInfo.Tags
-	if svcInfo.Agent.Host.NamePrefix == "docker-custom-agent" {
-		// custom agents are still started from servicedeployer, they are defined in the same docker compose scenario
-		expectedHostname = svcInfo.AgentHostname
-		expectedTags = svcInfo.Tags
-	}
-
+func filterIndependentAgents(allAgents []kibana.Agent, agentInfo agentdeployer.AgentInfo, svcInfo servicedeployer.ServiceInfo) []kibana.Agent {
 	// filtered list of agents must contain all agents started by the stack
 	// they could be assigned the default policy (elastic-agent-managed-ep) or the test policy (ep-test-system-*)
 	var filtered []kibana.Agent
@@ -1859,45 +1880,11 @@ func filterIndependentAgents(allAgents []kibana.Agent, agentInfo agentdeployer.A
 			continue
 		}
 
-		if agent.EnrolledAt.Before(threshold) {
-			logger.Debugf("filtered agent (enrolling time) %q", agent.ID) // TODO: remove
+		if agent.PolicyID != agentInfo.PolicyID {
+			logger.Debugf("filtered agent (not same policy) %q", agent.ID)
 			continue
 		}
 
-		if agent.LocalMetadata.Host.Name != "kind-control-plane" {
-			// All agents created except the ones from Kubernetes should have a different hostname
-			logger.Debugf("Checking hostname %s in agent hostname %s", expectedHostname, agent.LocalMetadata.Host.Name)
-			if expectedHostname != agent.LocalMetadata.Host.Name {
-				logger.Debugf("filtered agent (invalid hostname suffix) %s - %q: %s", expectedHostname, agent.LocalMetadata.Host.Name, agent.ID) // TODO: remove
-				continue
-			}
-		}
-
-		// Tags are available starting in 8.3
-		// Kubernetes Agent cannot set a different hostname
-		// Using tags allow us to detect the right agent from the list
-		if len(expectedTags) > 0 && len(agent.Tags) > 0 {
-			logger.Debugf("Checking tags %s vs %s", strings.Join(agent.Tags, ","), strings.Join(expectedTags, ","))
-			foundAllTags := true
-			for _, tag := range expectedTags {
-				if !slices.Contains(agent.Tags, tag) {
-					logger.Debugf("filtered agent (invalid tag found) %s -  %q vs %q", tag, strings.Join(agent.Tags, ","), strings.Join(expectedTags, ",")) // TODO: remove
-					foundAllTags = false
-					break
-				}
-			}
-			if !foundAllTags {
-				continue
-			}
-		}
-
-		// FIXME: check for package and data stream name too ?
-		// Current version could be returning an unexpected agent if tests are parallelized
-		hasAgentPrefix := strings.HasPrefix(agent.LocalMetadata.Host.Name, agentInfo.Agent.Host.NamePrefix)
-		if agentInfo.Agent.Host.NamePrefix != "" && !hasAgentPrefix {
-			logger.Debugf("filtered agent (prefix) %q", agent.ID) // TODO: remove
-			continue
-		}
 		filtered = append(filtered, agent)
 	}
 	return filtered

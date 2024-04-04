@@ -28,6 +28,7 @@ type KubernetesAgentDeployer struct {
 	profile        *profile.Profile
 	definitionsDir string
 	stackVersion   string
+	policyName     string
 
 	runSetup     bool
 	runTestsOnly bool
@@ -38,6 +39,7 @@ type KubernetesAgentDeployerOptions struct {
 	Profile        *profile.Profile
 	DefinitionsDir string
 	StackVersion   string
+	PolicyName     string
 
 	RunSetup     bool
 	RunTestsOnly bool
@@ -53,7 +55,7 @@ type kubernetesDeployedAgent struct {
 }
 
 func (s kubernetesDeployedAgent) TearDown(ctx context.Context) error {
-	elasticAgentManagedYaml, err := getElasticAgentYAML(s.profile, s.stackVersion, s.agentInfo.Tags)
+	elasticAgentManagedYaml, err := getElasticAgentYAML(s.profile, s.stackVersion, s.agentInfo.PolicyName, s.agentInfo.Tags)
 	if err != nil {
 		return fmt.Errorf("can't retrieve Kubernetes file for Elastic Agent: %w", err)
 	}
@@ -89,6 +91,7 @@ func NewKubernetesAgentDeployer(opts KubernetesAgentDeployerOptions) (*Kubernete
 		profile:        opts.Profile,
 		definitionsDir: opts.DefinitionsDir,
 		stackVersion:   opts.StackVersion,
+		policyName:     opts.PolicyName,
 		runSetup:       opts.RunSetup,
 		runTestsOnly:   opts.RunTestsOnly,
 		runTearDown:    opts.RunTearDown,
@@ -115,7 +118,7 @@ func (ksd KubernetesAgentDeployer) SetUp(ctx context.Context, agentInfo AgentInf
 	if ksd.runTearDown || ksd.runTestsOnly {
 		logger.Debug("Skip install Elastic Agent in cluster")
 	} else {
-		err = installElasticAgentInCluster(ctx, ksd.profile, ksd.stackVersion, agentInfo.Tags)
+		err = installElasticAgentInCluster(ctx, ksd.profile, ksd.stackVersion, agentInfo.PolicyName, agentInfo.Tags)
 		if err != nil {
 			return nil, fmt.Errorf("can't install Elastic-Agent in the Kubernetes cluster: %w", err)
 		}
@@ -136,10 +139,10 @@ func (ksd KubernetesAgentDeployer) SetUp(ctx context.Context, agentInfo AgentInf
 
 var _ AgentDeployer = new(KubernetesAgentDeployer)
 
-func installElasticAgentInCluster(ctx context.Context, profile *profile.Profile, stackVersion string, tags []string) error {
+func installElasticAgentInCluster(ctx context.Context, profile *profile.Profile, stackVersion, policyName string, tags []string) error {
 	logger.Debug("install Elastic Agent in the Kubernetes cluster")
 
-	elasticAgentManagedYaml, err := getElasticAgentYAML(profile, stackVersion, tags)
+	elasticAgentManagedYaml, err := getElasticAgentYAML(profile, stackVersion, policyName, tags)
 	if err != nil {
 		return fmt.Errorf("can't retrieve Kubernetes file for Elastic Agent: %w", err)
 	}
@@ -157,7 +160,7 @@ func installElasticAgentInCluster(ctx context.Context, profile *profile.Profile,
 //go:embed _static/elastic-agent-managed.yaml.tmpl
 var elasticAgentManagedYamlTmpl string
 
-func getElasticAgentYAML(profile *profile.Profile, stackVersion string, tags []string) ([]byte, error) {
+func getElasticAgentYAML(profile *profile.Profile, stackVersion, policyName string, tags []string) ([]byte, error) {
 	logger.Debugf("Prepare YAML definition for Elastic Agent running in stack v%s", stackVersion)
 
 	appConfig, err := install.Configuration()
@@ -178,7 +181,7 @@ func getElasticAgentYAML(profile *profile.Profile, stackVersion string, tags []s
 		"kibanaURL":                   "https://kibana:5601",
 		"caCertPem":                   caCert,
 		"elasticAgentImage":           appConfig.StackImageRefs(stackVersion).ElasticAgent,
-		"elasticAgentTokenPolicyName": getTokenPolicyName(stackVersion),
+		"elasticAgentTokenPolicyName": getTokenPolicyName(stackVersion, policyName),
 		"elasticAgentTags":            strings.Join(tags, ","),
 	})
 	if err != nil {
@@ -204,9 +207,9 @@ func readCACertBase64(profile *profile.Profile) (string, error) {
 
 // getTokenPolicyName function returns the policy name for the 8.x Elastic stack. The agent's policy
 // is predefined in the Kibana configuration file. The logic is not present in older stacks.
-func getTokenPolicyName(stackVersion string) string {
+func getTokenPolicyName(stackVersion, policyName string) string {
 	if strings.HasPrefix(stackVersion, "8.") {
-		return "Elastic-Agent (elastic-package)"
+		return policyName
 	}
 	return ""
 }

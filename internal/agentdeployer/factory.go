@@ -28,6 +28,7 @@ type FactoryOptions struct {
 	DevDeployDir       string
 	Type               string
 	StackVersion       string
+	PolicyName         string
 
 	PackageName string
 	DataStream  string
@@ -75,6 +76,7 @@ func Factory(options FactoryOptions) (AgentDeployer, error) {
 			Variant:           variant,
 			StackVersion:      options.StackVersion,
 			PackageName:       options.PackageName,
+			PolicyName:        options.PolicyName,
 			DataStream:        options.DataStream,
 			RunTearDown:       options.RunTearDown,
 			RunTestsOnly:      options.RunTestsOnly,
@@ -112,6 +114,7 @@ func Factory(options FactoryOptions) (AgentDeployer, error) {
 				Profile:        options.Profile,
 				DefinitionsDir: agentDeployerPath,
 				StackVersion:   options.StackVersion,
+				PolicyName:     options.PolicyName,
 				RunSetup:       options.RunSetup,
 				RunTestsOnly:   options.RunTestsOnly,
 				RunTearDown:    options.RunTearDown,

@@ -40,7 +40,8 @@ type DockerComposeAgentDeployer struct {
 	dockerComposeFile string
 	stackVersion      string
 
-	variant AgentVariant
+	variant    AgentVariant
+	policyName string
 
 	agentRunID string
 
@@ -56,6 +57,7 @@ type DockerComposeAgentDeployerOptions struct {
 	DockerComposeFile string
 	StackVersion      string
 	Variant           AgentVariant
+	PolicyName        string
 
 	PackageName string
 	DataStream  string
@@ -85,6 +87,7 @@ func NewCustomAgentDeployer(options DockerComposeAgentDeployerOptions) (*DockerC
 		stackVersion:      options.StackVersion,
 		packageName:       options.PackageName,
 		dataStream:        options.DataStream,
+		policyName:        options.PolicyName,
 		variant:           options.Variant,
 		runTearDown:       options.RunTearDown,
 		runTestsOnly:      options.RunTestsOnly,
@@ -108,7 +111,7 @@ func (d *DockerComposeAgentDeployer) SetUp(ctx context.Context, agentInfo AgentI
 
 	// Local Elastic stacks have a default Agent Policy created,
 	// but Cloud or Serverless Projects could not have one
-	agentPolicyName := defaultAgentPolicyName
+	agentPolicyName := d.policyName
 	if strings.HasPrefix(d.stackVersion, "7.") {
 		// Local Elastic stacks 7.* have an Agent Policy that is set as default
 		// No need to set an Agent Policy Name

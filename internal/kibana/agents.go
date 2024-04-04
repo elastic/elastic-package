@@ -92,6 +92,23 @@ func (c *Client) AssignPolicyToAgent(ctx context.Context, a Agent, p Policy) err
 	return nil
 }
 
+// UnenrollAgent unenrolls the given agent
+func (c *Client) UnenrollAgent(ctx context.Context, a Agent) error {
+	reqBody := `{ "revoke": true, "force": true }`
+
+	path := fmt.Sprintf("%s/agents/%s/unenroll", FleetAPI, a.ID)
+	statusCode, respBody, err := c.post(ctx, path, []byte(reqBody))
+	if err != nil {
+		return fmt.Errorf("could not enroll agent: %w", err)
+	}
+
+	if statusCode != http.StatusOK {
+		return fmt.Errorf("could not enroll agent; API status code = %d; response body = %s", statusCode, respBody)
+	}
+
+	return nil
+}
+
 func (c *Client) waitUntilPolicyAssigned(ctx context.Context, a Agent, p Policy) error {
 	ctx, cancel := context.WithTimeout(ctx, waitForPolicyAssignedTimeout)
 	defer cancel()
