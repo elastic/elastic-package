@@ -949,7 +949,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 
 	// FIXME: running per stages does not work when multiple agents are created
 	var origPolicy kibana.Policy
-	agents, err := checkEnrolledAgents(ctx, r.options.KibanaClient, agentInfo, enrollingTime, svcInfo, r.options.RunIndependentElasticAgent)
+	agents, err := checkEnrolledAgents(ctx, r.options.KibanaClient, agentInfo, svcInfo, r.options.RunIndependentElasticAgent)
 	if err != nil {
 		return nil, fmt.Errorf("can't check enrolled agents: %w", err)
 	}
@@ -1418,7 +1418,7 @@ func (r *runner) runTest(ctx context.Context, config *testConfig, svcInfo servic
 	return r.validateTestScenario(ctx, result, scenario, config, serviceOptions)
 }
 
-func checkEnrolledAgents(ctx context.Context, client *kibana.Client, agentInfo agentdeployer.AgentInfo, threshold time.Time, svcInfo servicedeployer.ServiceInfo, runIndependentElasticAgent bool) ([]kibana.Agent, error) {
+func checkEnrolledAgents(ctx context.Context, client *kibana.Client, agentInfo agentdeployer.AgentInfo, svcInfo servicedeployer.ServiceInfo, runIndependentElasticAgent bool) ([]kibana.Agent, error) {
 	var agents []kibana.Agent
 
 	enrolled, err := wait.UntilTrue(ctx, func(ctx context.Context) (bool, error) {
@@ -1428,7 +1428,7 @@ func checkEnrolledAgents(ctx context.Context, client *kibana.Client, agentInfo a
 		}
 
 		if runIndependentElasticAgent {
-			agents = filterIndependentAgents(allAgents, agentInfo, svcInfo)
+			agents = filterIndependentAgents(allAgents, agentInfo)
 		} else {
 			agents = filterAgents(allAgents, svcInfo)
 		}
@@ -1866,7 +1866,7 @@ func filterAgents(allAgents []kibana.Agent, svcInfo servicedeployer.ServiceInfo)
 	return filtered
 }
 
-func filterIndependentAgents(allAgents []kibana.Agent, agentInfo agentdeployer.AgentInfo, svcInfo servicedeployer.ServiceInfo) []kibana.Agent {
+func filterIndependentAgents(allAgents []kibana.Agent, agentInfo agentdeployer.AgentInfo) []kibana.Agent {
 	// filtered list of agents must contain all agents started by the stack
 	// they could be assigned the default policy (elastic-agent-managed-ep) or the test policy (ep-test-system-*)
 	var filtered []kibana.Agent
