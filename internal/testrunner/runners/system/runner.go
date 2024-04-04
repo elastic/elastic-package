@@ -308,7 +308,6 @@ func (r *runner) createAgentInfo(policy *kibana.Policy) (agentdeployer.AgentInfo
 	info.Test.RunID = createTestRunID()
 
 	folderName := fmt.Sprintf("agent-%s", r.options.TestFolder.Package)
-
 	if r.options.TestFolder.DataStream != "" {
 		folderName = fmt.Sprintf("%s-%s", folderName, r.options.TestFolder.DataStream)
 	}

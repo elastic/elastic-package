@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/elastic/elastic-package/internal/compose"
@@ -109,20 +108,11 @@ func (d *DockerComposeAgentDeployer) SetUp(ctx context.Context, agentInfo AgentI
 		return nil, fmt.Errorf("can't locate CA certificate: %w", err)
 	}
 
-	// Local Elastic stacks have a default Agent Policy created,
-	// but Cloud or Serverless Projects could not have one
-	agentPolicyName := d.policyName
-	if strings.HasPrefix(d.stackVersion, "7.") {
-		// Local Elastic stacks 7.* have an Agent Policy that is set as default
-		// No need to set an Agent Policy Name
-		agentPolicyName = ""
-	}
-
 	env := append(
 		appConfig.StackImageRefs(d.stackVersion).AsEnv(),
 		fmt.Sprintf("%s=%s", serviceLogsDirEnv, agentInfo.Logs.Folder.Local),
 		fmt.Sprintf("%s=%s", localCACertEnv, caCertPath),
-		fmt.Sprintf("%s=%s", fleetPolicyEnv, agentPolicyName),
+		fmt.Sprintf("%s=%s", fleetPolicyEnv, d.policyName),
 		fmt.Sprintf("%s=%s", agentHostnameEnv, d.agentHostname()),
 	)
 
