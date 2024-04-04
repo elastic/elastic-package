@@ -44,7 +44,7 @@ for test in "${CHECK_PACKAGES_TESTS[@]}"; do
     echo "        agents:"
     echo "          provider: \"gcp\""
     echo "        env:"
-    echo "          ELASTIC_PACKAGE_INDEPENDENT_AGENT: ${independent_agent}"
+    echo "          ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT: ${independent_agent}"
     echo "        artifact_paths:"
     echo "          - build/test-results/*.xml"
     echo "          - build/elastic-stack-dump/check-*/logs/*.log"
