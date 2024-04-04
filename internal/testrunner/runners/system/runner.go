@@ -1845,12 +1845,6 @@ func filterIndependentAgents(allAgents []kibana.Agent, agentInfo agentdeployer.A
 			continue // For some reason Kibana doesn't always return a valid policy revision (eventually it will be present and valid)
 		}
 
-		// It cannot filtered by "elastic-agent-managed-ep" , since this is the default
-		// policy assigned to the agents when they first enroll
-		if agent.PolicyID == "fleet-server-policy" {
-			continue
-		}
-
 		if agent.Status != "online" {
 			continue
 		}
