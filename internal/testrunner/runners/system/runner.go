@@ -1826,25 +1826,13 @@ func deleteDataStreamDocs(ctx context.Context, api *elasticsearch.API, dataStrea
 
 func filterAgents(allAgents []kibana.Agent, svcInfo servicedeployer.ServiceInfo) []kibana.Agent {
 	if svcInfo.Agent.Host.NamePrefix != "" {
-		logger.Debugf("filter agents using service criteria: NamePrefix=%s", svcInfo.Agent.Host.NamePrefix)
+		logger.Debugf("filter agents using criteria: NamePrefix=%s", svcInfo.Agent.Host.NamePrefix)
 	}
 
-	// filtered list of agents must contain all agents started by the stack
-	// they could be assigned the default policy (elastic-agent-managed-ep) or the test policy (ep-test-system-*)
 	var filtered []kibana.Agent
 	for _, agent := range allAgents {
 		if agent.PolicyRevision == 0 {
 			continue // For some reason Kibana doesn't always return a valid policy revision (eventually it will be present and valid)
-		}
-
-		// It cannot filtered by "elastic-agent-managed-ep" , since this is the default
-		// policy assigned to the agents when they first enroll
-		if agent.PolicyID == "fleet-server-policy" {
-			continue
-		}
-
-		if agent.Status != "online" {
-			continue
 		}
 
 		hasServicePrefix := strings.HasPrefix(agent.LocalMetadata.Host.Name, svcInfo.Agent.Host.NamePrefix)
