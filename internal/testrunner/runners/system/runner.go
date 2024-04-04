@@ -331,11 +331,15 @@ func (r *runner) createServiceInfo() (servicedeployer.ServiceInfo, error) {
 	svcInfo.Logs.Folder.Agent = ServiceLogsAgentDir
 	svcInfo.Test.RunID = createTestRunID()
 
-	outputDir, err := servicedeployer.CreateOutputDir(r.locationManager, svcInfo.Test.RunID)
-	if err != nil {
-		return servicedeployer.ServiceInfo{}, fmt.Errorf("could not create output dir for terraform deployer %w", err)
+	if r.options.RunTearDown || r.options.RunTestsOnly {
+		logger.Debug("Skip creating output directory")
+	} else {
+		outputDir, err := servicedeployer.CreateOutputDir(r.locationManager, svcInfo.Test.RunID)
+		if err != nil {
+			return servicedeployer.ServiceInfo{}, fmt.Errorf("could not create output dir for terraform deployer %w", err)
+		}
+		svcInfo.OutputDir = outputDir
 	}
-	svcInfo.OutputDir = outputDir
 
 	return svcInfo, nil
 }
@@ -1095,6 +1099,7 @@ func (r *runner) setupService(ctx context.Context, config *testConfig, serviceOp
 	logger.Debug("setting up service...")
 	if r.options.RunTearDown || r.options.RunTestsOnly {
 		svcInfo.Test.RunID = state.ServiceRunID
+		svcInfo.OutputDir = state.ServiceOutputDir
 	}
 
 	// By default using agent running in the Elastic stack
@@ -1218,6 +1223,7 @@ type ServiceState struct {
 	EnrollingAgentTime time.Time     `json:"enrolling_agent_time"`
 	ServiceRunID       string        `json:"service_info_run_id"`
 	AgentRunID         string        `json:"agent_info_run_id"`
+	ServiceOutputDir   string        `json:"service_output_dir"`
 }
 
 type scenarioStateOpts struct {
@@ -1240,6 +1246,7 @@ func (r *runner) writeScenarioState(opts scenarioStateOpts) error {
 		EnrollingAgentTime: opts.enrollingTime,
 		ServiceRunID:       opts.svcInfo.Test.RunID,
 		AgentRunID:         opts.agentInfo.Test.RunID,
+		ServiceOutputDir:   opts.svcInfo.OutputDir,
 	}
 	dataBytes, err := json.Marshal(data)
 	if err != nil {
