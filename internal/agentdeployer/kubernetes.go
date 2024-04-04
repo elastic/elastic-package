@@ -55,7 +55,7 @@ type kubernetesDeployedAgent struct {
 }
 
 func (s kubernetesDeployedAgent) TearDown(ctx context.Context) error {
-	elasticAgentManagedYaml, err := getElasticAgentYAML(s.profile, s.stackVersion, s.agentInfo.PolicyName)
+	elasticAgentManagedYaml, err := getElasticAgentYAML(s.profile, s.stackVersion, s.agentInfo.Policy.Name)
 	if err != nil {
 		return fmt.Errorf("can't retrieve Kubernetes file for Elastic Agent: %w", err)
 	}
@@ -118,7 +118,7 @@ func (ksd KubernetesAgentDeployer) SetUp(ctx context.Context, agentInfo AgentInf
 	if ksd.runTearDown || ksd.runTestsOnly {
 		logger.Debug("Skip install Elastic Agent in cluster")
 	} else {
-		err = installElasticAgentInCluster(ctx, ksd.profile, ksd.stackVersion, agentInfo.PolicyName)
+		err = installElasticAgentInCluster(ctx, ksd.profile, ksd.stackVersion, agentInfo.Policy.Name)
 		if err != nil {
 			return nil, fmt.Errorf("can't install Elastic-Agent in the Kubernetes cluster: %w", err)
 		}

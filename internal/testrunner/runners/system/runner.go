@@ -318,8 +318,8 @@ func (r *runner) createAgentInfo(policy *kibana.Policy) (agentdeployer.AgentInfo
 	}
 	info.Logs.Folder.Local = dirPath
 
-	info.PolicyName = policy.Name
-	info.PolicyID = policy.ID
+	info.Policy.Name = policy.Name
+	info.Policy.ID = policy.ID
 
 	return info, nil
 }
@@ -1125,7 +1125,7 @@ func (r *runner) setupService(ctx context.Context, config *testConfig, serviceOp
 
 	// In case of custom agent, update serviceOptions to include test policy too
 	if r.options.RunIndependentElasticAgent {
-		serviceOptions.PolicyName = agentInfo.PolicyName
+		serviceOptions.PolicyName = agentInfo.Policy.Name
 	}
 
 	if config.Service != "" {
@@ -1157,7 +1157,7 @@ func (r *runner) setupAgent(ctx context.Context, variant string, agentInfo agent
 	if !r.options.RunIndependentElasticAgent {
 		return nil, agentInfo, nil
 	}
-	agentOptions := r.createAgentOptions(variant, agentInfo.PolicyName)
+	agentOptions := r.createAgentOptions(variant, agentInfo.Policy.Name)
 	agentDeployer, err := agentdeployer.Factory(agentOptions)
 	if err != nil {
 		return nil, agentInfo, fmt.Errorf("could not create agent runner: %w", err)
@@ -1849,7 +1849,7 @@ func filterIndependentAgents(allAgents []kibana.Agent, agentInfo agentdeployer.A
 			continue
 		}
 
-		if agent.PolicyID != agentInfo.PolicyID {
+		if agent.PolicyID != agentInfo.Policy.ID {
 			continue
 		}
 

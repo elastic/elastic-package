@@ -28,8 +28,13 @@ type AgentInfo struct {
 	// required to connect the Service with the agent.
 	NetworkName string
 
-	PolicyName string
-	PolicyID   string
+	// Agent Policy related properties
+	Policy struct {
+		// Name is the name of the test Agent Policy created for the given agent
+		Name string
+		// ID is the name of the test Agent Policy created for the given agent
+		ID string
+	}
 
 	// Ports is a list of ports that the service listens on, as addressable
 	// from the Agent container.
@@ -76,7 +81,4 @@ type AgentInfo struct {
 
 	// Directory to store agent configuration files
 	ConfigDir string
-
-	// Service token
-	Token string
 }
