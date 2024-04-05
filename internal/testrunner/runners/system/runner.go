@@ -1183,7 +1183,6 @@ func (r *runner) validateTestScenario(ctx context.Context, result *testrunner.Re
 	if err := validateFields(scenario.docs, fieldsValidator, scenario.dataStream); err != nil {
 		return result.WithError(err)
 	}
-	println("XXXXIgnored fields: ", scenario.ignoredFields)
 	if len(scenario.ignoredFields) > 0 {
 		return result.WithError(fmt.Errorf("found ignored fields in data stream %s: %v", scenario.dataStream, scenario.ignoredFields))
 	}
