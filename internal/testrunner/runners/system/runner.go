@@ -1109,7 +1109,7 @@ func (r *runner) setupService(ctx context.Context, config *testConfig, serviceOp
 		svcInfo.Logs.Folder.Local = agentInfo.Logs.Folder.Local
 	}
 
-	// In case of custom agent (servicedeployer), update serviceOptions to include test policy too
+	// In case of custom agent (servicedeployer) enabling independent agents, update serviceOptions to include test policy too
 	if r.options.RunIndependentElasticAgent {
 		serviceOptions.PolicyName = agentInfo.Policy.Name
 	}
