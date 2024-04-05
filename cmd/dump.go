@@ -96,7 +96,7 @@ func dumpInstalledObjectsCmdAction(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to initialize Kibana client: %w", err)
 	}
-	installedPackage, err := kibanaClient.GetPackage(packageName)
+	installedPackage, err := kibanaClient.GetPackage(cmd.Context(), packageName)
 	if err != nil {
 		return fmt.Errorf("failed to get package status: %w", err)
 	}

@@ -93,7 +93,7 @@ func editDashboardsCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	if len(dashboardIDs) == 0 {
-		dashboardIDs, err = promptDashboardIDs(kibanaClient)
+		dashboardIDs, err = promptDashboardIDs(cmd.Context(), kibanaClient)
 		if err != nil {
 			return fmt.Errorf("prompt for dashboard selection failed: %w", err)
 		}
@@ -107,7 +107,7 @@ func editDashboardsCmd(cmd *cobra.Command, args []string) error {
 	updatedDashboardIDs := make([]string, 0, len(dashboardIDs))
 	failedDashboardUpdates := make(map[string]error, len(dashboardIDs))
 	for _, dashboardID := range dashboardIDs {
-		err = kibanaClient.SetManagedSavedObject("dashboard", dashboardID, false)
+		err = kibanaClient.SetManagedSavedObject(cmd.Context(), "dashboard", dashboardID, false)
 		if err != nil {
 			failedDashboardUpdates[dashboardID] = err
 		} else {

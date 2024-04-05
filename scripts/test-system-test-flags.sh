@@ -204,11 +204,13 @@ run_tests_for_package() {
     pushd "${package_folder}" > /dev/null
 
     echo "--- [${package_name} - ${variant}] Setup service without tear-down"
-    elastic-package test system -v \
+    if ! elastic-package test system -v \
         --report-format xUnit --report-output file \
         --config-file "${config_file}" \
         ${variant_flag} \
-        --setup
+        --setup ; then
+        return 1
+    fi
 
     # Tests after --setup
     if ! tests_for_setup \
@@ -221,9 +223,11 @@ run_tests_for_package() {
     echo "--- [${package_name} - ${variant}] Run tests without provisioning"
     for i in $(seq 2); do
         echo "--- Iteration #${i} --no-provision"
-        elastic-package test system -v \
+        if ! elastic-package test system -v \
             --report-format xUnit --report-output file \
-            --no-provision
+            --no-provision ; then
+            return 1
+        fi
 
         # Tests after --no-provision
         if ! tests_for_no_provision \
@@ -235,9 +239,11 @@ run_tests_for_package() {
     done
 
     echo "--- [${package_name} - ${variant}] Run tear-down process"
-    elastic-package test system -v \
+    if ! elastic-package test system -v \
         --report-format xUnit --report-output file \
-        --tear-down
+        --tear-down ; then
+        return 1
+    fi
 
     if ! tests_for_tear_down \
         "${service_deployer_type}" \
