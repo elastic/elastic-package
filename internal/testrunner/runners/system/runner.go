@@ -804,7 +804,6 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	scenario.enrollingTime = enrollingTime
 	scenario.agent = agentDeployed
 
-	// Setup service.
 	service, svcInfo, err := r.setupService(ctx, config, serviceOptions, svcInfo, agentInfo, agentDeployed, serviceStateData)
 	if err != nil {
 		return nil, err
@@ -967,12 +966,10 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 
 	origAgent := agent
 	origLogLevel := ""
-	switch {
-	case r.options.RunTearDown:
-		logger.Debug("Skip assiging log level debut to agent")
-		logger.Debugf("Got agent from file: %q - %q", serviceStateData.Agent.ID, serviceStateData.Agent.LocalMetadata.Elastic.Agent.LogLevel)
+	if r.options.RunTearDown {
+		logger.Debug("Skip assiging log level debug to agent")
 		origLogLevel = serviceStateData.Agent.LocalMetadata.Elastic.Agent.LogLevel
-	default:
+	} else {
 		logger.Debug("Set Debug log level to agent")
 		origLogLevel = agent.LocalMetadata.Elastic.Agent.LogLevel
 		err = r.options.KibanaClient.SetAgentLogLevel(ctx, agent.ID, "debug")
@@ -989,10 +986,9 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		return nil
 	}
 
-	switch {
-	case r.options.RunTearDown || r.options.RunTestsOnly:
+	if r.options.RunTearDown || r.options.RunTestsOnly {
 		logger.Debug("Skip assiging package data stream to agent")
-	default:
+	} else {
 		policyWithDataStream, err := r.options.KibanaClient.GetPolicy(ctx, policy.ID)
 		if err != nil {
 			return nil, fmt.Errorf("could not read the policy with data stream: %w", err)
@@ -1113,7 +1109,7 @@ func (r *runner) setupService(ctx context.Context, config *testConfig, serviceOp
 		svcInfo.Logs.Folder.Local = agentInfo.Logs.Folder.Local
 	}
 
-	// In case of custom agent, update serviceOptions to include test policy too
+	// In case of custom agent (servicedeployer), update serviceOptions to include test policy too
 	if r.options.RunIndependentElasticAgent {
 		serviceOptions.PolicyName = agentInfo.Policy.Name
 	}
