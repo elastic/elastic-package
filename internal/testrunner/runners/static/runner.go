@@ -80,7 +80,7 @@ func (r runner) run(ctx context.Context) ([]testrunner.TestResult, error) {
 
 func (r runner) verifyStreamConfig(ctx context.Context, packageRootPath string) []testrunner.TestResult {
 	resultComposer := testrunner.NewResultComposer(testrunner.TestResult{
-		Name:       "Verify benchmark config (if available)",
+		Name:       "Verify benchmark config",
 		TestType:   TestType,
 		Package:    r.options.TestFolder.Package,
 		DataStream: r.options.TestFolder.DataStream,
@@ -93,10 +93,14 @@ func (r runner) verifyStreamConfig(ctx context.Context, packageRootPath string) 
 	ctx, stop := signal.Enable(ctx, logger.Info)
 	defer stop()
 
-	err := stream.StaticValidation(ctx, stream.NewOptions(withOpts...))
+	hasBenchmark, err := stream.StaticValidation(ctx, stream.NewOptions(withOpts...), r.options.TestFolder.DataStream)
 	if err != nil {
 		results, _ := resultComposer.WithError(err)
 		return results
+	}
+
+	if !hasBenchmark {
+		return []testrunner.TestResult{}
 	}
 
 	results, _ := resultComposer.WithSuccess()

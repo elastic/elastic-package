@@ -84,9 +84,6 @@ func setupBenchmarkCommand() *cobraext.Command {
 	systemCmd := getSystemCommand()
 	cmd.AddCommand(systemCmd)
 
-	validateCmd := getValidateCommand()
-	cmd.AddCommand(validateCmd)
-
 	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
 }
 
@@ -515,45 +512,6 @@ func streamCommandAction(cmd *cobra.Command, args []string) error {
 	_, err = benchrunner.Run(ctx, runner)
 	if err != nil {
 		return fmt.Errorf("error running package stream benchmarks: %w", err)
-	}
-
-	return nil
-}
-
-func getValidateCommand() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "validate",
-		Short: "Validate benchmarks assets",
-		Long:  "Statically validate benchmarks assets for the package",
-		Args:  cobra.NoArgs,
-		RunE:  validateCommandAction,
-	}
-
-	return cmd
-}
-
-func validateCommandAction(cmd *cobra.Command, args []string) error {
-	cmd.Println("Run benchmark asset validation")
-
-	packageRootPath, found, err := packages.FindPackageRoot()
-	if !found {
-		return errors.New("package root not found")
-	}
-	if err != nil {
-		return fmt.Errorf("error finding package root: %w", err)
-	}
-
-	withOpts := []stream.OptionFunc{
-		stream.WithPackageRootPath(packageRootPath),
-	}
-
-	ctx, stop := signal.Enable(cmd.Context(), logger.Info)
-	defer stop()
-
-	err = stream.StaticValidation(ctx, stream.NewOptions(withOpts...))
-
-	if err != nil {
-		return fmt.Errorf("validation failed: %w", err)
 	}
 
 	return nil
