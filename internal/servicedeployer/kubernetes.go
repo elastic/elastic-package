@@ -248,6 +248,9 @@ func readCACertBase64(profile *profile.Profile) (string, error) {
 // getTokenPolicyName function returns the policy name for the 8.x Elastic stack. The agent's policy
 // is predefined in the Kibana configuration file. The logic is not present in older stacks.
 func getTokenPolicyName(stackVersion, policyName string) string {
+	if policyName == "" {
+		policyName = defaulFleetTokenPolicyName
+	}
 	if strings.HasPrefix(stackVersion, "8.") {
 		return policyName
 	}
