@@ -31,7 +31,7 @@ func TestAddTerraformOutputs(t *testing.T) {
 			content: []byte(
 				``,
 			),
-			expectedProps: map[string]interface{}{},
+			expectedProps: nil,
 			expectedError: true,
 		},
 		{
@@ -43,7 +43,7 @@ func TestAddTerraformOutputs(t *testing.T) {
 			content: []byte(
 				`{}`,
 			),
-			expectedProps: map[string]interface{}{},
+			expectedProps: nil,
 		},
 		{
 			testName: "single_value_output",
@@ -62,6 +62,29 @@ func TestAddTerraformOutputs(t *testing.T) {
 			),
 			expectedProps: map[string]interface{}{
 				"TF_OUTPUT_queue_url": "https://sqs.us-east-1.amazonaws.com/1234654/elastic-package-aws-logs-queue-someId",
+			},
+		},
+		{
+			testName: "add_single_value_output",
+			runId:    "99999",
+			svcInfo: ServiceInfo{
+				Test: struct{ RunID string }{"99999"},
+				CustomProperties: map[string]interface{}{
+					"TF_foo": "bar",
+				},
+			},
+			content: []byte(
+				`{
+				"queue_url": {
+				  "sensitive": false,
+				  "type": "string",
+				  "value": "https://sqs.us-east-1.amazonaws.com/1234654/elastic-package-aws-logs-queue-someId"
+				}
+			   }`,
+			),
+			expectedProps: map[string]interface{}{
+				"TF_OUTPUT_queue_url": "https://sqs.us-east-1.amazonaws.com/1234654/elastic-package-aws-logs-queue-someId",
+				"TF_foo":              "bar",
 			},
 		},
 		{
@@ -138,7 +161,6 @@ func TestAddTerraformOutputs(t *testing.T) {
 	for _, tc := range testCases {
 
 		t.Run(tc.testName, func(t *testing.T) {
-			tc.svcInfo.CustomProperties = make(map[string]interface{})
 			tc.svcInfo.OutputDir = t.TempDir()
 
 			if err := os.WriteFile(tc.svcInfo.OutputDir+"/tfOutputValues.json", tc.content, 0777); err != nil {
@@ -146,7 +168,7 @@ func TestAddTerraformOutputs(t *testing.T) {
 			}
 
 			// Test that the terraform output values are generated correctly
-			err := addTerraformOutputs(tc.svcInfo)
+			err := addTerraformOutputs(&tc.svcInfo)
 			if tc.expectedError {
 				require.Error(t, err)
 				return
