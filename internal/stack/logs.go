@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"time"
 
 	"github.com/elastic/elastic-package/internal/compose"
 	"github.com/elastic/elastic-package/internal/docker"
@@ -16,6 +17,10 @@ import (
 )
 
 func dockerComposeLogs(ctx context.Context, serviceName string, profile *profile.Profile) ([]byte, error) {
+	return dockerComposeLogsSince(ctx, serviceName, profile, time.Time{})
+}
+
+func dockerComposeLogsSince(ctx context.Context, serviceName string, profile *profile.Profile, since time.Time) ([]byte, error) {
 	appConfig, err := install.Configuration()
 	if err != nil {
 		return nil, fmt.Errorf("can't read application configuration: %w", err)
@@ -35,6 +40,10 @@ func dockerComposeLogs(ctx context.Context, serviceName string, profile *profile
 			withEnvs(profile.ComposeEnvVars()).
 			build(),
 		Services: []string{serviceName},
+	}
+
+	if !since.IsZero() {
+		opts.ExtraArgs = append(opts.ExtraArgs, "--since", since.UTC().Format("2006-01-02T15:04:05Z"))
 	}
 
 	out, err := p.Logs(ctx, opts)

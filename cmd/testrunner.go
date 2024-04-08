@@ -74,6 +74,7 @@ func setupTestCommand() *cobraext.Command {
 	}
 
 	cmd.PersistentFlags().BoolP(cobraext.FailOnMissingFlagName, "m", false, cobraext.FailOnMissingFlagDescription)
+	cmd.PersistentFlags().BoolP(cobraext.FailOnIngestWarningsFlagName, "", false, cobraext.FailOnIngestWarningsFlagDescription)
 	cmd.PersistentFlags().BoolP(cobraext.GenerateTestResultFlagName, "g", false, cobraext.GenerateTestResultFlagDescription)
 	cmd.PersistentFlags().StringP(cobraext.ReportFormatFlagName, "", string(formats.ReportFormatHuman), cobraext.ReportFormatFlagDescription)
 	cmd.PersistentFlags().StringP(cobraext.ReportOutputFlagName, "", string(outputs.ReportOutputSTDOUT), cobraext.ReportOutputFlagDescription)
@@ -140,6 +141,11 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 		failOnMissing, err := cmd.Flags().GetBool(cobraext.FailOnMissingFlagName)
 		if err != nil {
 			return cobraext.FlagParsingError(err, cobraext.FailOnMissingFlagName)
+		}
+
+		failOnIngestWarnings, err := cmd.Flags().GetBool(cobraext.FailOnIngestWarningsFlagName)
+		if err != nil {
+			return cobraext.FlagParsingError(err, cobraext.FailOnIngestWarningsFlagName)
 		}
 
 		generateTestResult, err := cmd.Flags().GetBool(cobraext.GenerateTestResultFlagName)
@@ -358,6 +364,7 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 				DeferCleanup:               deferCleanup,
 				ServiceVariant:             variantFlag,
 				WithCoverage:               testCoverage,
+				WithFailOnPipelineWarnings: failOnIngestWarnings,
 				CoverageType:               testCoverageFormat,
 				ConfigFilePath:             configFileFlag,
 				RunSetup:                   runSetup,
@@ -365,12 +372,11 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 				RunTestsOnly:               runTestsOnly,
 				RunIndependentElasticAgent: runIndependentElasticAgent,
 			})
-
-			results = append(results, r...)
-
 			if err != nil {
 				return fmt.Errorf("error running package %s tests: %w", testType, err)
 			}
+
+			results = append(results, r...)
 		}
 
 		format := testrunner.TestReportFormat(reportFormat)

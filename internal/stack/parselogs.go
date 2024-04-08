@@ -7,6 +7,7 @@ package stack
 import (
 	"bufio"
 	"encoding/json"
+	"io"
 	"os"
 	"strings"
 	"time"
@@ -20,7 +21,7 @@ type ParseLogsOptions struct {
 }
 
 type LogLine struct {
-	LogLevel  string    `json:"log.lovel"`
+	LogLevel  string    `json:"log.level"`
 	Timestamp time.Time `json:"@timestamp"`
 	Message   string    `json:"message"`
 }
@@ -33,9 +34,13 @@ func ParseLogs(options ParseLogsOptions, process func(log LogLine) error) error 
 	}
 	defer file.Close()
 
+	return ParseLogsFromReader(file, options, process)
+}
+
+func ParseLogsFromReader(reader io.Reader, options ParseLogsOptions, process func(log LogLine) error) error {
 	startProcessing := false
 
-	scanner := bufio.NewScanner(file)
+	scanner := bufio.NewScanner(reader)
 	for scanner.Scan() {
 		line := scanner.Text()
 
@@ -55,7 +60,7 @@ func ParseLogs(options ParseLogsOptions, process func(log LogLine) error) error 
 		// There could be valid messages with just plain text without timestamp
 		// and therefore not processed, cannot be ensured in which timestamp they
 		// were generated
-		if !startProcessing && log.Timestamp.Before(options.StartTime) {
+		if !startProcessing && log.Timestamp.UTC().Before(options.StartTime.UTC()) {
 			continue
 		}
 		startProcessing = true
