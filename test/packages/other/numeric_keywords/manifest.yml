@@ -1,9 +1,9 @@
 format_version: 1.0.0
-name: number_formats
-title: "Number formats"
+name: numeric_keywords
+title: "Numeric keywords"
 version: 0.1.0
 license: basic
-description: "Package to test pipelines with documents with different formats of numbers"
+description: "Package to test pipelines with documents with numeric keyword fields"
 type: integration
 categories:
   - custom
