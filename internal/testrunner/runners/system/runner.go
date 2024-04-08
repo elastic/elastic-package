@@ -1183,9 +1183,17 @@ func (r *runner) validateTestScenario(ctx context.Context, result *testrunner.Re
 	if err := validateFields(scenario.docs, fieldsValidator, scenario.dataStream); err != nil {
 		return result.WithError(err)
 	}
-	println("XXXXIgnored fields: ", scenario.ignoredFields)
-	if len(scenario.ignoredFields) > 0 {
-		return result.WithError(fmt.Errorf("found ignored fields in data stream %s: %v", scenario.dataStream, scenario.ignoredFields))
+
+	// TODO: remove this once Elasticsearch will map event.original correctly (8.14)
+	ignoredFields := make([]string, 0, len(scenario.ignoredFields))
+	for _, field := range scenario.ignoredFields {
+		if field != "event.original" {
+			ignoredFields = append(ignoredFields, field)
+		}
+	}
+
+	if len(ignoredFields) > 0 {
+		return result.WithError(fmt.Errorf("found ignored fields in data stream %s: %v", scenario.dataStream, ignoredFields))
 	}
 
 	docs := scenario.docs
