@@ -73,7 +73,7 @@ func (f *FleetPackage) Get(ctx resource.Context) (current resource.ResourceState
 
 	fleetPackage, err := provider.Client.GetPackage(ctx, manifest.Name)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get current installation state for package %q", manifest.Name)
+		return nil, fmt.Errorf("failed to get current installation state for package %q: %w", manifest.Name, err)
 	}
 
 	kibanaVersion, err := provider.version()
