@@ -90,8 +90,8 @@ func (c *Client) AssignPolicyToAgent(ctx context.Context, a Agent, p Policy) err
 	return nil
 }
 
-// UnenrollAgent unenrolls the given agent
-func (c *Client) UnenrollAgent(ctx context.Context, a Agent) error {
+// RemoveAgent unenrolls the given agent
+func (c *Client) RemoveAgent(ctx context.Context, a Agent) error {
 	reqBody := `{ "revoke": true, "force": true }`
 
 	path := fmt.Sprintf("%s/agents/%s/unenroll", FleetAPI, a.ID)

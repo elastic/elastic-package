@@ -935,7 +935,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 			return nil
 		}
 		logger.Debug("unenrolling agent...")
-		err := r.options.KibanaClient.UnenrollAgent(ctx, agent)
+		err := r.options.KibanaClient.RemoveAgent(ctx, agent)
 		if err != nil {
 			return fmt.Errorf("failed to unenroll agent %q: %w", agent.ID, err)
 		}
