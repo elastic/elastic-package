@@ -11,9 +11,11 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/elastic/elastic-package/internal/benchrunner/runners/stream"
 	"github.com/elastic/elastic-package/internal/fields"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/internal/signal"
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
 
@@ -72,7 +74,37 @@ func (r runner) run(ctx context.Context) ([]testrunner.TestResult, error) {
 		return result.WithError(fmt.Errorf("failed to read manifest: %w", err))
 	}
 
-	return r.verifySampleEvent(pkgManifest), nil
+	// join together results from verifyStreamConfig and verifySampleEvent
+	return append(r.verifyStreamConfig(ctx, r.options.PackageRootPath), r.verifySampleEvent(pkgManifest)...), nil
+}
+
+func (r runner) verifyStreamConfig(ctx context.Context, packageRootPath string) []testrunner.TestResult {
+	resultComposer := testrunner.NewResultComposer(testrunner.TestResult{
+		Name:       "Verify benchmark config",
+		TestType:   TestType,
+		Package:    r.options.TestFolder.Package,
+		DataStream: r.options.TestFolder.DataStream,
+	})
+
+	withOpts := []stream.OptionFunc{
+		stream.WithPackageRootPath(packageRootPath),
+	}
+
+	ctx, stop := signal.Enable(ctx, logger.Info)
+	defer stop()
+
+	hasBenchmark, err := stream.StaticValidation(ctx, stream.NewOptions(withOpts...), r.options.TestFolder.DataStream)
+	if err != nil {
+		results, _ := resultComposer.WithError(err)
+		return results
+	}
+
+	if !hasBenchmark {
+		return []testrunner.TestResult{}
+	}
+
+	results, _ := resultComposer.WithSuccess()
+	return results
 }
 
 func (r runner) verifySampleEvent(pkgManifest *packages.PackageManifest) []testrunner.TestResult {

@@ -1,0 +1,14 @@
+---
+description: Benchmark 20000 events ingested
+data_stream:
+  name: testds
+corpora:
+  generator:
+    total_events: 20000
+    template:
+      type: gotext
+      path: ./logs-benchmark/template.ndjson
+    config:
+      path: ./logs-benchmark/config.yml
+    fields:
+      path: ./logs-benchmark/fields.yml
