@@ -84,6 +84,7 @@ func (f *FleetPackage) Get(ctx resource.Context) (current resource.ResourceState
 	return &FleetPackageState{
 		manifest:      manifest,
 		current:       fleetPackage,
+		expected:      !f.Absent,
 		kibanaVersion: kibanaVersion,
 	}, nil
 }
@@ -103,16 +104,20 @@ func (f *FleetPackage) Create(ctx resource.Context) error {
 }
 
 func (f *FleetPackage) uninstall(ctx resource.Context) error {
-	installer, err := f.installer(ctx)
+	provider, err := f.provider(ctx)
 	if err != nil {
 		return err
 	}
 
-	err = installer.Uninstall(ctx)
+	manifest, err := packages.ReadPackageManifestFromPackageRoot(f.RootPath)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to read manifest from %s: %w", f.RootPath, err)
 	}
 
+	_, err = provider.Client.RemovePackage(ctx, manifest.Name, manifest.Version)
+	if err != nil {
+		return fmt.Errorf("can't remove the package: %w", err)
+	}
 	return nil
 }
 
@@ -127,11 +132,12 @@ func (f *FleetPackage) Update(ctx resource.Context) error {
 type FleetPackageState struct {
 	manifest      *packages.PackageManifest
 	current       *kibana.FleetPackage
+	expected      bool
 	kibanaVersion *semver.Version
 }
 
 func (s *FleetPackageState) Found() bool {
-	return s.current.Status != "not_installed"
+	return s.current.Status != "not_installed" || !s.expected
 }
 
 func (s *FleetPackageState) NeedsUpdate(resource resource.Resource) (bool, error) {

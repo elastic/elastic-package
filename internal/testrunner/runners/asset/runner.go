@@ -104,21 +104,9 @@ func (r *runner) run(ctx context.Context) ([]testrunner.TestResult, error) {
 	}
 
 	logger.Debug("installing package...")
-	applyResult, err := r.resourcesManager.ApplyCtx(ctx, r.resources(true))
-	// FIXME: Apply doesn't wrap context errors.
-	if errors.Is(err, context.Canceled) {
-		// Installation interrupted, at this point the package may have been installed, try to remove it for cleanup.
-		_, err := r.resourcesManager.ApplyCtx(context.WithoutCancel(ctx), r.resources(false))
-		if err != nil {
-			logger.Debugf("error while removing package after installation interrupted: %s", err)
-		}
-	}
+	_, err = r.resourcesManager.ApplyCtx(ctx, r.resources(true))
 	if err != nil {
-		for _, result := range applyResult {
-			if result.Err() != nil {
-				logger.Debugf(result.Err().Error())
-			}
-		}
+		// FIXME: We won't detect here if this has been a cancelation, see https://github.com/elastic/go-resource/pull/2.
 		return result.WithError(fmt.Errorf("can't install the package: %w", err))
 	}
 
@@ -173,6 +161,7 @@ func (r *runner) TearDown(ctx context.Context) error {
 	// Avoid cancellations during cleanup.
 	cleanupCtx := context.WithoutCancel(ctx)
 
+	logger.Debug("removing package...")
 	_, err := r.resourcesManager.ApplyCtx(cleanupCtx, r.resources(false))
 	if err != nil {
 		return err
