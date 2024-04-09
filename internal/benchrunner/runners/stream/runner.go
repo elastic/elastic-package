@@ -59,13 +59,13 @@ func (r *runner) SetUp(ctx context.Context) error {
 	return r.setUp(ctx)
 }
 
-func StaticValidation(ctx context.Context, opts Options, scenarioName string) (bool, error) {
+func StaticValidation(ctx context.Context, opts Options, dataStreamName string) (bool, error) {
 	runner := runner{options: opts}
 	err := runner.initialize()
 	if err != nil {
 		return false, err
 	}
-	hasBenchmark, err := runner.validateScenario(ctx, scenarioName)
+	hasBenchmark, err := runner.validateScenario(ctx, dataStreamName)
 	return hasBenchmark, err
 }
 
@@ -124,10 +124,9 @@ func (r *runner) initialize() error {
 	return nil
 }
 
-func (r *runner) validateScenario(ctx context.Context, targetScenarioName string) (bool, error) {
+func (r *runner) validateScenario(ctx context.Context, dataStreamName string) (bool, error) {
 	for scenarioName, scenario := range r.scenarios {
-		println(scenarioName, targetScenarioName)
-		if scenario.DataStream.Name != targetScenarioName {
+		if scenario.DataStream.Name != dataStreamName {
 			continue
 		}
 		generator, _, err := r.createGenerator(ctx, scenarioName, scenario)
