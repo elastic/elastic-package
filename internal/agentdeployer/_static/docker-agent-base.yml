@@ -1,12 +1,12 @@
 version: "2.3"
 services:
-  docker-custom-agent:
+  elastic-agent:
+    hostname: ${AGENT_HOSTNAME}
     image: "${ELASTIC_AGENT_IMAGE_REF}"
     healthcheck:
       test: "elastic-agent status"
       retries: 180
       interval: 1s
-    hostname: docker-custom-agent
     environment:
       - FLEET_ENROLL=1
       - FLEET_URL=https://fleet-server:8220
@@ -15,3 +15,4 @@ services:
     volumes:
       - ${SERVICE_LOGS_DIR}:/tmp/service_logs/
       - ${LOCAL_CA_CERT}:/etc/ssl/certs/elastic-package.pem
+

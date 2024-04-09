@@ -2,22 +2,21 @@
 // or more contributor license agreements. Licensed under the Elastic License;
 // you may not use this file except in compliance with the Elastic License.
 
-package servicedeployer
+package agentdeployer
 
 const (
 	localCACertEnv      = "LOCAL_CA_CERT"
 	serviceLogsDirEnv   = "SERVICE_LOGS_DIR"
 	testRunIDEnv        = "TEST_RUN_ID"
-	elasticAgentTagsEnv = "ELASTIC_AGENT_TAGS"
 	fleetPolicyEnv      = "FLEET_TOKEN_POLICY_NAME"
-
-	defaulFleetTokenPolicyName = "Elastic-Agent (elastic-package)"
+	agentHostnameEnv    = "AGENT_HOSTNAME"
+	elasticAgentTagsEnv = "ELASTIC_AGENT_TAGS"
 )
 
-// ServiceInfo encapsulates context that is both available to a ServiceDeployer and
-// populated by a DeployedService. The fields in ServiceInfo may be used in handlebars
+// AgentInfo encapsulates context that is both available to a AgentDeployer and
+// populated by a DeployedAgent. The fields in AgentInfo may be used in handlebars
 // templates in system test configuration files, for example: {{ Hostname }}.
-type ServiceInfo struct {
+type AgentInfo struct {
 	// Name is the name of the service.
 	Name string
 
@@ -25,8 +24,17 @@ type ServiceInfo struct {
 	// the Agent container.
 	Hostname string
 
-	// AgentNetworkName is the network name where the agent is running.
-	AgentNetworkName string
+	// NetworkName is the name of the docker network created for the agent,
+	// required to connect the Service with the agent.
+	NetworkName string
+
+	// Agent Policy related properties
+	Policy struct {
+		// Name is the name of the test Agent Policy created for the given agent
+		Name string
+		// ID is the name of the test Agent Policy created for the given agent
+		ID string
+	}
 
 	// Ports is a list of ports that the service listens on, as addressable
 	// from the Agent container.
@@ -68,26 +76,6 @@ type ServiceInfo struct {
 	// CustomProperties store additional data used to boot up the service, e.g. AWS credentials.
 	CustomProperties map[string]interface{}
 
-	// Directory to store any outputs generated
-	OutputDir string
-}
-
-// Aliases method returned aliases to properties of the service context.
-func (sc *ServiceInfo) Aliases() map[string]interface{} {
-	m := map[string]interface{}{
-		serviceLogsDirEnv: func() interface{} {
-			return sc.Logs.Folder.Agent
-		},
-		testRunIDEnv: func() interface{} {
-			return sc.Test.RunID
-		},
-	}
-
-	for k, v := range sc.CustomProperties {
-		var that = v
-		m[k] = func() interface{} { // wrap as function
-			return that
-		}
-	}
-	return m
+	// Directory to store agent configuration files
+	ConfigDir string
 }

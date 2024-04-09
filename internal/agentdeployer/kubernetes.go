@@ -2,7 +2,7 @@
 // or more contributor license agreements. Licensed under the Elastic License;
 // you may not use this file except in compliance with the Elastic License.
 
-package servicedeployer
+package agentdeployer
 
 import (
 	"bytes"
@@ -11,9 +11,9 @@ import (
 	"encoding/base64"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	"text/template"
+	"time"
 
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/kind"
@@ -23,92 +23,84 @@ import (
 	"github.com/elastic/elastic-package/internal/stack"
 )
 
-// KubernetesServiceDeployer is responsible for deploying resources in the Kubernetes cluster.
-type KubernetesServiceDeployer struct {
+// KubernetesAgentDeployer is responsible for deploying resources in the Kubernetes cluster.
+type KubernetesAgentDeployer struct {
 	profile        *profile.Profile
 	definitionsDir string
 	stackVersion   string
-
-	deployIndependentAgent bool
+	policyName     string
 
 	runSetup     bool
 	runTestsOnly bool
 	runTearDown  bool
 }
 
-type KubernetesServiceDeployerOptions struct {
+type KubernetesAgentDeployerOptions struct {
 	Profile        *profile.Profile
 	DefinitionsDir string
 	StackVersion   string
-
-	DeployIndependentAgent bool
+	PolicyName     string
 
 	RunSetup     bool
 	RunTestsOnly bool
 	RunTearDown  bool
 }
 
-type kubernetesDeployedService struct {
-	svcInfo ServiceInfo
+type kubernetesDeployedAgent struct {
+	agentInfo    AgentInfo
+	profile      *profile.Profile
+	stackVersion string
 
 	definitionsDir string
 }
 
-func (s kubernetesDeployedService) TearDown(ctx context.Context) error {
-	logger.Debugf("uninstall custom Kubernetes definitions (directory: %s)", s.definitionsDir)
-
-	definitionPaths, err := findKubernetesDefinitions(s.definitionsDir)
+func (s kubernetesDeployedAgent) TearDown(ctx context.Context) error {
+	elasticAgentManagedYaml, err := getElasticAgentYAML(s.profile, s.stackVersion, s.agentInfo.Policy.Name)
 	if err != nil {
-		return fmt.Errorf("can't find Kubernetes definitions in given directory (path: %s): %w", s.definitionsDir, err)
+		return fmt.Errorf("can't retrieve Kubernetes file for Elastic Agent: %w", err)
 	}
-
-	if len(definitionPaths) == 0 {
-		logger.Debugf("no custom definitions found (directory: %s). Nothing will be uninstalled.", s.definitionsDir)
-		return nil
-	}
-
-	err = kubectl.Delete(ctx, definitionPaths)
+	err = kubectl.DeleteStdin(ctx, elasticAgentManagedYaml)
 	if err != nil {
 		return fmt.Errorf("can't uninstall Kubernetes resources (path: %s): %w", s.definitionsDir, err)
 	}
 	return nil
 }
 
-func (s kubernetesDeployedService) Signal(_ context.Context, _ string) error {
-	return ErrNotSupported
-}
-
-func (s kubernetesDeployedService) ExitCode(_ context.Context, _ string) (bool, int, error) {
+func (s kubernetesDeployedAgent) ExitCode(ctx context.Context) (bool, int, error) {
 	return false, -1, ErrNotSupported
 }
 
-func (s kubernetesDeployedService) Info() ServiceInfo {
-	return s.svcInfo
+func (s kubernetesDeployedAgent) Info() AgentInfo {
+	return s.agentInfo
 }
 
-func (s *kubernetesDeployedService) SetInfo(sc ServiceInfo) error {
-	s.svcInfo = sc
-	return nil
+func (s *kubernetesDeployedAgent) SetInfo(info AgentInfo) {
+	s.agentInfo = info
 }
 
-var _ DeployedService = new(kubernetesDeployedService)
+// Logs returns the logs from the agent starting at the given time
+func (s *kubernetesDeployedAgent) Logs(ctx context.Context, t time.Time) ([]byte, error) {
+	return nil, nil
+}
 
-// NewKubernetesServiceDeployer function creates a new instance of KubernetesServiceDeployer.
-func NewKubernetesServiceDeployer(opts KubernetesServiceDeployerOptions) (*KubernetesServiceDeployer, error) {
-	return &KubernetesServiceDeployer{
-		profile:                opts.Profile,
-		definitionsDir:         opts.DefinitionsDir,
-		stackVersion:           opts.StackVersion,
-		runSetup:               opts.RunSetup,
-		runTestsOnly:           opts.RunTestsOnly,
-		runTearDown:            opts.RunTearDown,
-		deployIndependentAgent: opts.DeployIndependentAgent,
+var _ DeployedAgent = new(kubernetesDeployedAgent)
+
+// NewKubernetesAgentDeployer function creates a new instance of KubernetesAgentDeployer.
+func NewKubernetesAgentDeployer(opts KubernetesAgentDeployerOptions) (*KubernetesAgentDeployer, error) {
+	return &KubernetesAgentDeployer{
+		profile:        opts.Profile,
+		definitionsDir: opts.DefinitionsDir,
+		stackVersion:   opts.StackVersion,
+		policyName:     opts.PolicyName,
+		runSetup:       opts.RunSetup,
+		runTestsOnly:   opts.RunTestsOnly,
+		runTearDown:    opts.RunTearDown,
 	}, nil
 }
 
 // SetUp function links the kind container with elastic-package-stack network, installs Elastic-Agent and optionally
 // custom YAML definitions.
-func (ksd KubernetesServiceDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (DeployedService, error) {
+func (ksd KubernetesAgentDeployer) SetUp(ctx context.Context, agentInfo AgentInfo) (DeployedAgent, error) {
 	err := kind.VerifyContext(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("kind context verification failed: %w", err)
@@ -123,70 +115,34 @@ func (ksd KubernetesServiceDeployer) SetUp(ctx context.Context, svcInfo ServiceI
 		}
 	}
 
-	if ksd.runTearDown || ksd.runTestsOnly || ksd.deployIndependentAgent {
+	if ksd.runTearDown || ksd.runTestsOnly {
 		logger.Debug("Skip install Elastic Agent in cluster")
 	} else {
-		err = installElasticAgentInCluster(ctx, ksd.profile, ksd.stackVersion)
+		err = installElasticAgentInCluster(ctx, ksd.profile, ksd.stackVersion, agentInfo.Policy.Name)
 		if err != nil {
 			return nil, fmt.Errorf("can't install Elastic-Agent in the Kubernetes cluster: %w", err)
 		}
 	}
 
-	if !ksd.runTearDown {
-		err = ksd.installCustomDefinitions(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("can't install custom definitions in the Kubernetes cluster: %w", err)
-		}
-	}
-
-	svcInfo.Name = kind.ControlPlaneContainerName
-	svcInfo.Hostname = kind.ControlPlaneContainerName
+	agentInfo.Name = kind.ControlPlaneContainerName
+	agentInfo.Hostname = kind.ControlPlaneContainerName
 	// kind-control-plane is the name of the kind host where Pod is running since we use hostNetwork setting
 	// to deploy Agent Pod. Because of this, hostname inside pod will be equal to the name of the k8s host.
-	svcInfo.Agent.Host.NamePrefix = "kind-control-plane"
-	return &kubernetesDeployedService{
-		svcInfo:        svcInfo,
+	agentInfo.Agent.Host.NamePrefix = "kind-control-plane"
+	return &kubernetesDeployedAgent{
+		agentInfo:      agentInfo,
 		definitionsDir: ksd.definitionsDir,
+		profile:        ksd.profile,
+		stackVersion:   ksd.stackVersion,
 	}, nil
 }
 
-func (ksd KubernetesServiceDeployer) installCustomDefinitions(ctx context.Context) error {
-	logger.Debugf("install custom Kubernetes definitions (directory: %s)", ksd.definitionsDir)
+var _ AgentDeployer = new(KubernetesAgentDeployer)
 
-	definitionPaths, err := findKubernetesDefinitions(ksd.definitionsDir)
-	if err != nil {
-		return fmt.Errorf("can't find Kubernetes definitions in given path: %s: %w", ksd.definitionsDir, err)
-	}
-
-	if len(definitionPaths) == 0 {
-		logger.Debugf("no custom definitions found (path: %s). Nothing else will be installed.", ksd.definitionsDir)
-		return nil
-	}
-
-	err = kubectl.Apply(ctx, definitionPaths)
-	if err != nil {
-		return fmt.Errorf("can't install custom definitions: %w", err)
-	}
-	return nil
-}
-
-var _ ServiceDeployer = new(KubernetesServiceDeployer)
-
-func findKubernetesDefinitions(definitionsDir string) ([]string, error) {
-	files, err := filepath.Glob(filepath.Join(definitionsDir, "*.yaml"))
-	if err != nil {
-		return nil, fmt.Errorf("can't read definitions directory (path: %s): %w", definitionsDir, err)
-	}
-
-	var definitionPaths []string
-	definitionPaths = append(definitionPaths, files...)
-	return definitionPaths, nil
-}
-
-func installElasticAgentInCluster(ctx context.Context, profile *profile.Profile, stackVersion string) error {
+func installElasticAgentInCluster(ctx context.Context, profile *profile.Profile, stackVersion, policyName string) error {
 	logger.Debug("install Elastic Agent in the Kubernetes cluster")
 
-	elasticAgentManagedYaml, err := getElasticAgentYAML(profile, stackVersion)
+	elasticAgentManagedYaml, err := getElasticAgentYAML(profile, stackVersion, policyName)
 	if err != nil {
 		return fmt.Errorf("can't retrieve Kubernetes file for Elastic Agent: %w", err)
 	}
@@ -195,13 +151,16 @@ func installElasticAgentInCluster(ctx context.Context, profile *profile.Profile,
 	if err != nil {
 		return fmt.Errorf("can't install Elastic-Agent in Kubernetes cluster: %w", err)
 	}
+
+	// DEBUG DaemonSet is not ready: kube-system/elastic-agent. 0 out of 1 expected pods have been scheduled
+
 	return nil
 }
 
 //go:embed _static/elastic-agent-managed.yaml.tmpl
 var elasticAgentManagedYamlTmpl string
 
-func getElasticAgentYAML(profile *profile.Profile, stackVersion string) ([]byte, error) {
+func getElasticAgentYAML(profile *profile.Profile, stackVersion, policyName string) ([]byte, error) {
 	logger.Debugf("Prepare YAML definition for Elastic Agent running in stack v%s", stackVersion)
 
 	appConfig, err := install.Configuration()
@@ -222,7 +181,7 @@ func getElasticAgentYAML(profile *profile.Profile, stackVersion string) ([]byte,
 		"kibanaURL":                   "https://kibana:5601",
 		"caCertPem":                   caCert,
 		"elasticAgentImage":           appConfig.StackImageRefs(stackVersion).ElasticAgent,
-		"elasticAgentTokenPolicyName": getTokenPolicyName(stackVersion, defaulFleetTokenPolicyName),
+		"elasticAgentTokenPolicyName": getTokenPolicyName(stackVersion, policyName),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("can't generate elastic agent manifest: %w", err)
@@ -248,9 +207,6 @@ func readCACertBase64(profile *profile.Profile) (string, error) {
 // getTokenPolicyName function returns the policy name for the 8.x Elastic stack. The agent's policy
 // is predefined in the Kibana configuration file. The logic is not present in older stacks.
 func getTokenPolicyName(stackVersion, policyName string) string {
-	if policyName == "" {
-		policyName = defaulFleetTokenPolicyName
-	}
 	if strings.HasPrefix(stackVersion, "8.") {
 		return policyName
 	}

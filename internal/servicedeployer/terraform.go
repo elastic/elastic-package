@@ -28,7 +28,7 @@ const (
 	terraformDeployerDockerfile = "Dockerfile"
 	terraformDeployerRun        = "run.sh"
 	terraformOutputPrefix       = "TF_OUTPUT_"
-	terraformOutputJsonFile     = "tfOutputValues.json"
+	terraformOutputJSONFile     = "tfOutputValues.json"
 )
 
 //go:embed _static/terraform_deployer.yml
@@ -45,12 +45,16 @@ type TerraformServiceDeployer struct {
 	definitionsDir string
 }
 
+type TerraformServiceDeployerOptions struct {
+	DefinitionsDir string
+}
+
 // addTerraformOutputs method reads the terraform outputs generated in the json format and
 // adds them to the custom properties of ServiceInfo and can be used in the handlebars template
 // like `{{TF_OUTPUT_queue_url}}` where `queue_url` is the output configured
 func addTerraformOutputs(svcInfo *ServiceInfo) error {
 	// Read the `output.json` file where terraform outputs are generated
-	outputFile := filepath.Join(svcInfo.OutputDir, terraformOutputJsonFile)
+	outputFile := filepath.Join(svcInfo.OutputDir, terraformOutputJSONFile)
 	content, err := os.ReadFile(outputFile)
 	if err != nil {
 		return fmt.Errorf("failed to read terraform output file: %w", err)
@@ -83,9 +87,9 @@ func addTerraformOutputs(svcInfo *ServiceInfo) error {
 }
 
 // NewTerraformServiceDeployer creates an instance of TerraformServiceDeployer.
-func NewTerraformServiceDeployer(definitionsDir string) (*TerraformServiceDeployer, error) {
+func NewTerraformServiceDeployer(opts TerraformServiceDeployerOptions) (*TerraformServiceDeployer, error) {
 	return &TerraformServiceDeployer{
-		definitionsDir: definitionsDir,
+		definitionsDir: opts.DefinitionsDir,
 	}, nil
 }
 
@@ -212,8 +216,8 @@ func (tsd TerraformServiceDeployer) installDockerfile() (string, error) {
 	return tfDir, nil
 }
 
-func CreateOutputDir(locationManager *locations.LocationManager, runId string) (string, error) {
-	outputDir := filepath.Join(locationManager.ServiceOutputDir(), runId)
+func CreateOutputDir(locationManager *locations.LocationManager, runID string) (string, error) {
+	outputDir := filepath.Join(locationManager.ServiceOutputDir(), runID)
 	if err := os.MkdirAll(outputDir, 0755); err != nil {
 		return "", fmt.Errorf("failed to create output directory: %w", err)
 	}
