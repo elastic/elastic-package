@@ -65,9 +65,10 @@ func (c *Client) RemovePackage(ctx context.Context, name, version string) ([]pac
 
 // FleetPackage contains information about a package in Fleet.
 type FleetPackage struct {
-	Name   string `json:"string"`
-	Type   string `json:"type"`
-	Status string `json:"status"`
+	Name    string `json:"name"`
+	Version string `json:"version"`
+	Type    string `json:"type"`
+	Status  string `json:"status"`
 }
 
 // GetPackage obtains information about a package from Fleet.
