@@ -1143,7 +1143,7 @@ func (r *runner) setupAgent(ctx context.Context, variant string, state ServiceSt
 	if !r.options.RunIndependentElasticAgent {
 		return nil, agentdeployer.AgentInfo{}, nil
 	}
-	logger.Debug("setting up agent...")
+	logger.Warn("setting up agent (technical preview)...")
 	agentInfo, err := r.createAgentInfo(policy)
 	if err != nil {
 		return nil, agentdeployer.AgentInfo{}, err
