@@ -8,7 +8,6 @@ import (
 	"fmt"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/elastic/go-resource"
 
 	"github.com/elastic/elastic-package/internal/kibana"
 )
@@ -17,10 +16,6 @@ const DefaultKibanaProviderName = "kibana"
 
 type KibanaProvider struct {
 	Client *kibana.Client
-}
-
-func RegisterKibanaProvider(manager *resource.Manager, name string, client *kibana.Client) {
-	manager.RegisterProvider(name, &KibanaProvider{Client: client})
 }
 
 func (p *KibanaProvider) version() (*semver.Version, error) {
