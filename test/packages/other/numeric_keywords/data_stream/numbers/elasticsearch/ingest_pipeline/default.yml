@@ -1,0 +1,97 @@
+---
+description: Pipeline for processing sample logs
+processors:
+- convert:
+    field: message
+    target_field: example.scalar.boolean
+    type: boolean
+    ignore_failure: true
+- convert:
+    field: message
+    target_field: example.scalar.double
+    type: double
+    ignore_failure: true
+- convert:
+    field: message
+    target_field: example.scalar.long
+    type: long
+    ignore_failure: true
+
+- split:
+    field: message
+    target_field: array
+    separator: ','
+    ignore_failure: true
+
+- set:
+    field: example.array.boolean
+    copy_from: array
+- foreach:
+    if: ctx.example?.array?.boolean != null
+    field: example.array.boolean
+    processor:
+      convert:
+        field: _ingest._value
+        target_field: _ingest._value
+        type: boolean
+        ignore_missing: true
+        on_failure:
+          - set:
+              field: remove_boolean_array
+              value: true
+- remove:
+    field: example.array.boolean
+    if: ctx.remove_boolean_array == true
+
+- set:
+    field: example.array.double
+    copy_from: array
+- foreach:
+    if: ctx.example?.array?.double != null
+    field: example.array.double
+    processor:
+      convert:
+        field: _ingest._value
+        target_field: _ingest._value
+        type: double
+        ignore_missing: true
+        on_failure:
+          - set:
+              field: remove_double_array
+              value: true
+- remove:
+    field: example.array.double
+    if: ctx.remove_double_array == true
+
+- set:
+    field: example.array.long
+    copy_from: array
+- foreach:
+    if: ctx.example?.array?.long != null
+    field: example.array.long
+    processor:
+      convert:
+        field: _ingest._value
+        target_field: _ingest._value
+        type: long
+        ignore_missing: true
+        on_failure:
+          - set:
+              field: remove_long_array
+              value: true
+- remove:
+    field: example.array.long
+    if: ctx.remove_long_array == true
+
+- remove:
+    field:
+      - array
+      - remove_boolean_array
+      - remove_double_array
+      - remove_long_array
+    ignore_missing: true
+
+on_failure:
+- set:
+    field: error.message
+    value: '{{ _ingest.on_failure_message }}'

@@ -1,0 +1,7 @@
+numeric_keyword_fields:
+  - example.scalar.boolean
+  - example.scalar.double
+  - example.scalar.long
+  - example.array.boolean
+  - example.array.double
+  - example.array.long
