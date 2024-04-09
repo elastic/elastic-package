@@ -65,10 +65,24 @@ func (c *Client) RemovePackage(ctx context.Context, name, version string) ([]pac
 
 // FleetPackage contains information about a package in Fleet.
 type FleetPackage struct {
-	Name    string `json:"name"`
-	Version string `json:"version"`
-	Type    string `json:"type"`
-	Status  string `json:"status"`
+	Name        string `json:"name"`
+	Version     string `json:"version"`
+	Type        string `json:"type"`
+	Status      string `json:"status"`
+	SavedObject struct {
+		Attributes struct {
+			InstalledElasticsearchAssets []packages.Asset `json:"installed_es"`
+			InstalledKibanaAssets        []packages.Asset `json:"installed_kibana"`
+			PackageAssets                []packages.Asset `json:"package_assets"`
+		} `json:"attributes"`
+	} `json:"savedObject"`
+}
+
+func (p *FleetPackage) Assets() []packages.Asset {
+	var assets []packages.Asset
+	assets = append(assets, p.SavedObject.Attributes.InstalledElasticsearchAssets...)
+	assets = append(assets, p.SavedObject.Attributes.InstalledKibanaAssets...)
+	return assets
 }
 
 // GetPackage obtains information about a package from Fleet.
