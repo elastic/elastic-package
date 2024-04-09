@@ -128,7 +128,7 @@ func (r *runner) run(ctx context.Context) ([]testrunner.TestResult, error) {
 	}
 	installedPackage, err := r.kibanaClient.GetPackage(ctx, manifest.Name)
 	if err != nil {
-		return result.WithError(fmt.Errorf("cannot get installed package %q", manifest.Name, err))
+		return result.WithError(fmt.Errorf("cannot get installed package %q: %w", manifest.Name, err))
 	}
 	installedAssets := installedPackage.Assets()
 
