@@ -128,8 +128,8 @@ const (
 	FailOnMissingFlagName        = "fail-on-missing"
 	FailOnMissingFlagDescription = "fail if tests are missing"
 
-	FailOnIngestWarningsFlagName        = "fail-on-ingest-warnings"
-	FailOnIngestWarningsFlagDescription = "fail if elastic search reports warnings while running pipeline tests"
+	SkipIngestWarningsFlagName        = "skip-ingest-warnings"
+	SkipIngestWarningsFlagDescription = "skip checking if elastic search reports warnings while running pipeline tests"
 
 	FailFastFlagName                  = "fail-fast"
 	FailFastFlagDescription           = "fail immediately if any file requires updates (do not overwrite)"

@@ -194,7 +194,7 @@ func (r *runner) run(ctx context.Context) ([]testrunner.TestResult, error) {
 		results = append(results, result)
 	}
 
-	if !r.options.WithFailOnPipelineWarnings {
+	if r.options.SkipCheckPipelineWarnings {
 		return results, nil
 	}
 

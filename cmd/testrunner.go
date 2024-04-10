@@ -74,7 +74,7 @@ func setupTestCommand() *cobraext.Command {
 	}
 
 	cmd.PersistentFlags().BoolP(cobraext.FailOnMissingFlagName, "m", false, cobraext.FailOnMissingFlagDescription)
-	cmd.PersistentFlags().BoolP(cobraext.FailOnIngestWarningsFlagName, "", false, cobraext.FailOnIngestWarningsFlagDescription)
+	cmd.PersistentFlags().BoolP(cobraext.SkipIngestWarningsFlagName, "", false, cobraext.SkipIngestWarningsFlagDescription)
 	cmd.PersistentFlags().BoolP(cobraext.GenerateTestResultFlagName, "g", false, cobraext.GenerateTestResultFlagDescription)
 	cmd.PersistentFlags().StringP(cobraext.ReportFormatFlagName, "", string(formats.ReportFormatHuman), cobraext.ReportFormatFlagDescription)
 	cmd.PersistentFlags().StringP(cobraext.ReportOutputFlagName, "", string(outputs.ReportOutputSTDOUT), cobraext.ReportOutputFlagDescription)
@@ -143,9 +143,9 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 			return cobraext.FlagParsingError(err, cobraext.FailOnMissingFlagName)
 		}
 
-		failOnIngestWarnings, err := cmd.Flags().GetBool(cobraext.FailOnIngestWarningsFlagName)
+		skipIngestWarnings, err := cmd.Flags().GetBool(cobraext.SkipIngestWarningsFlagName)
 		if err != nil {
-			return cobraext.FlagParsingError(err, cobraext.FailOnIngestWarningsFlagName)
+			return cobraext.FlagParsingError(err, cobraext.SkipIngestWarningsFlagName)
 		}
 
 		generateTestResult, err := cmd.Flags().GetBool(cobraext.GenerateTestResultFlagName)
@@ -364,7 +364,7 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 				DeferCleanup:               deferCleanup,
 				ServiceVariant:             variantFlag,
 				WithCoverage:               testCoverage,
-				WithFailOnPipelineWarnings: failOnIngestWarnings,
+				SkipCheckPipelineWarnings:  skipIngestWarnings,
 				CoverageType:               testCoverageFormat,
 				ConfigFilePath:             configFileFlag,
 				RunSetup:                   runSetup,
