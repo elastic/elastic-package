@@ -27,6 +27,13 @@ type LogLine struct {
 	Message   string    `json:"message"`
 }
 
+type LogLineWithType struct {
+	LogLevel  string    `json:"level"`
+	Timestamp time.Time `json:"timestamp"`
+	Component string    `json:"component"`
+	Message   string    `json:"message"`
+}
+
 // ParseLogs returns all the logs for a given service name
 func ParseLogs(options ParseLogsOptions, process func(log LogLine) error) error {
 	file, err := os.Open(options.LogsFilePath)
@@ -54,8 +61,16 @@ func ParseLogsFromReader(reader io.Reader, options ParseLogsOptions, process fun
 		var log LogLine
 		err := json.Unmarshal([]byte(messageLog), &log)
 		if err != nil {
-			// there are logs that are just plain text in these logs
 			log.Message = strings.TrimSpace(messageLog)
+		} else if log.Timestamp.IsZero() {
+			// this means that no log was unmarshalled, let's try with another format
+			var logWithType LogLineWithType
+			if err := json.Unmarshal([]byte(messageLog), &logWithType); err == nil {
+				log.Message = logWithType.Message
+				log.LogLevel = logWithType.LogLevel
+				log.Logger = logWithType.Component
+				log.Timestamp = logWithType.Timestamp
+			}
 		}
 
 		// There could be valid messages with just plain text without timestamp
