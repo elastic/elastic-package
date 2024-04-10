@@ -1184,7 +1184,7 @@ func (r *runner) validateTestScenario(ctx context.Context, result *testrunner.Re
 		return result.WithError(err)
 	}
 
-	// TODO: remove this once Elasticsearch will map event.original correctly (8.14)
+	// TODO: remove this once Elasticsearch will map event.original correctly (https://github.com/elastic/elasticsearch/pull/106714)
 	ignoredFields := make([]string, 0, len(scenario.ignoredFields))
 	for _, field := range scenario.ignoredFields {
 		if field != "event.original" {
