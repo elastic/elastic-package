@@ -85,6 +85,14 @@ func (p *FleetPackage) Assets() []packages.Asset {
 	return assets
 }
 
+type ErrPackageNotFound struct {
+	name string
+}
+
+func (e *ErrPackageNotFound) Error() string {
+	return fmt.Sprintf("package %s not found", e.name)
+}
+
 // GetPackage obtains information about a package from Fleet.
 func (c *Client) GetPackage(ctx context.Context, name string) (*FleetPackage, error) {
 	path := c.epmPackageUrl(name, "")
@@ -93,7 +101,7 @@ func (c *Client) GetPackage(ctx context.Context, name string) (*FleetPackage, er
 		return nil, fmt.Errorf("could not get package: %w", err)
 	}
 	if statusCode == http.StatusNotFound {
-		return nil, fmt.Errorf("package %s not found", name)
+		return nil, &ErrPackageNotFound{name: name}
 	}
 	if statusCode != http.StatusOK {
 		return nil, fmt.Errorf("could not get package; API status code = %d; response body = %s", statusCode, string(respBody))

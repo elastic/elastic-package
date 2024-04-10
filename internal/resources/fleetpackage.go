@@ -5,6 +5,7 @@
 package resources
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/Masterminds/semver/v3"
@@ -72,7 +73,13 @@ func (f *FleetPackage) Get(ctx resource.Context) (current resource.ResourceState
 	}
 
 	fleetPackage, err := provider.Client.GetPackage(ctx, manifest.Name)
-	if err != nil {
+	var notFoundError *kibana.ErrPackageNotFound
+	if errors.As(err, &notFoundError) {
+		fleetPackage = &kibana.FleetPackage{
+			Name:   manifest.Name,
+			Status: "not_installed",
+		}
+	} else if err != nil {
 		return nil, fmt.Errorf("failed to get current installation state for package %q: %w", manifest.Name, err)
 	}
 
@@ -137,7 +144,7 @@ type FleetPackageState struct {
 }
 
 func (s *FleetPackageState) Found() bool {
-	return s.current.Status != "not_installed" || !s.expected
+	return !s.expected || (s.current != nil && s.current.Status != "not_installed")
 }
 
 func (s *FleetPackageState) NeedsUpdate(resource resource.Resource) (bool, error) {

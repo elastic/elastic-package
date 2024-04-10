@@ -6,7 +6,9 @@ package resources
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"path/filepath"
 	"testing"
 
 	"github.com/elastic/go-resource"
@@ -29,24 +31,37 @@ func TestRequiredProvider(t *testing.T) {
 }
 
 func TestPackageLifecycle(t *testing.T) {
-	kibanaClient := kibanatest.NewClient(t, "testdata/kibana-8-mock-package-lifecycle-nginx")
-	if !assertPackageInstalled(t, kibanaClient, "not_installed", "nginx") {
-		t.FailNow()
+	cases := []struct {
+		title string
+		name  string
+	}{
+		{title: "nginx", name: "nginx"},
+		{title: "package not found", name: "sql_input"},
 	}
 
-	fleetPackage := FleetPackage{
-		RootPath: "../../test/packages/parallel/nginx",
-	}
-	manager := resource.NewManager()
-	manager.RegisterProvider(DefaultKibanaProviderName, &KibanaProvider{Client: kibanaClient})
-	_, err := manager.Apply(resource.Resources{&fleetPackage})
-	assert.NoError(t, err)
-	assertPackageInstalled(t, kibanaClient, "installed", "nginx")
+	for _, c := range cases {
+		t.Run(c.title, func(t *testing.T) {
+			recordPath := filepath.Join("testdata", "kibana-8-mock-package-lifecycle-"+c.name)
+			kibanaClient := kibanatest.NewClient(t, recordPath)
+			if !assertPackageInstalled(t, kibanaClient, "not_installed", c.name) {
+				t.FailNow()
+			}
 
-	fleetPackage.Absent = true
-	_, err = manager.Apply(resource.Resources{&fleetPackage})
-	assert.NoError(t, err)
-	assertPackageInstalled(t, kibanaClient, "not_installed", "nginx")
+			fleetPackage := FleetPackage{
+				RootPath: filepath.Join("..", "..", "test", "packages", "parallel", c.name),
+			}
+			manager := resource.NewManager()
+			manager.RegisterProvider(DefaultKibanaProviderName, &KibanaProvider{Client: kibanaClient})
+			_, err := manager.Apply(resource.Resources{&fleetPackage})
+			assert.NoError(t, err)
+			assertPackageInstalled(t, kibanaClient, "installed", c.name)
+
+			fleetPackage.Absent = true
+			_, err = manager.Apply(resource.Resources{&fleetPackage})
+			assert.NoError(t, err)
+			assertPackageInstalled(t, kibanaClient, "not_installed", c.name)
+		})
+	}
 }
 
 func TestSystemPackageIsNotRemoved(t *testing.T) {
@@ -78,7 +93,10 @@ func assertPackageInstalled(t *testing.T, client *kibana.Client, expected string
 	t.Helper()
 
 	p, err := client.GetPackage(context.Background(), packageName)
-	if !assert.NoError(t, err) {
+	var notFoundError *kibana.ErrPackageNotFound
+	if errors.As(err, &notFoundError) {
+		return assert.Equal(t, expected, "not_installed")
+	} else if !assert.NoError(t, err) {
 		return false
 	}
 	return assert.Equal(t, expected, p.Status)
