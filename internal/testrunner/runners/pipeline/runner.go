@@ -218,8 +218,8 @@ func (r *runner) checkElasticsearchLogs(ctx context.Context, startTesting time.T
 		return nil, fmt.Errorf("error at getting the logs of elasticsearch: %w", err)
 	}
 
-	totalWarnings := 0
 	seenWarnings := make(map[string]any)
+	var processorRelatedWarnings []string
 	err = stack.ParseLogsFromReader(bytes.NewReader(elasticsearchLogs), stack.ParseLogsOptions{
 		StartTime: testingTime,
 	}, func(log stack.LogLine) error {
@@ -227,14 +227,17 @@ func (r *runner) checkElasticsearchLogs(ctx context.Context, startTesting time.T
 			return nil
 		}
 
-		totalWarnings++
-
 		if _, exists := seenWarnings[log.Message]; exists {
 			return nil
 		}
 
 		seenWarnings[log.Message] = struct{}{}
-		logger.Warnf("total warnings: %s", log.Message)
+		logger.Warnf("elasticsearch warning: %s", log.Message)
+
+		// trying to catch warnings only related to processors but this is best-effort
+		if strings.Contains(strings.ToLower(log.Logger), "processor") {
+			processorRelatedWarnings = append(processorRelatedWarnings, log.Message)
+		}
 
 		return nil
 	})
@@ -251,8 +254,9 @@ func (r *runner) checkElasticsearchLogs(ctx context.Context, startTesting time.T
 		TimeElapsed: time.Since(startTime),
 	}
 
-	if len(seenWarnings) > 0 {
-		tr.FailureMsg = fmt.Sprintf("detected ingest pipeline warnings: %d", totalWarnings)
+	if totalProcessorWarnings := len(processorRelatedWarnings); totalProcessorWarnings > 0 {
+		tr.FailureMsg = fmt.Sprintf("detected ingest pipeline warnings: %d", totalProcessorWarnings)
+		tr.FailureDetails = strings.Join(processorRelatedWarnings, "\n")
 	}
 
 	return []testrunner.TestResult{tr}, nil

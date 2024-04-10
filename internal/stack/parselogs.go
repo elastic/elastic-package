@@ -23,6 +23,7 @@ type ParseLogsOptions struct {
 type LogLine struct {
 	LogLevel  string    `json:"log.level"`
 	Timestamp time.Time `json:"@timestamp"`
+	Logger    string    `json:"log.logger"`
 	Message   string    `json:"message"`
 }
 
