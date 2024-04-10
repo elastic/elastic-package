@@ -41,6 +41,7 @@ KIND_TARGET="test-check-packages-with-kind"
 SYSTEM_TEST_FLAGS_TARGET="test-system-test-flags"
 TMP_FOLDER_TEMPLATE="${TMP_FOLDER_TEMPLATE_BASE}.XXXXXXXXX"
 GOOGLE_CREDENTIALS_FILENAME="google-cloud-credentials.json"
+ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT=${ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT:-"false"}
 
 REPO_NAME=$(repo_name "${BUILDKITE_REPO}")
 REPO_BUILD_TAG="${REPO_NAME}/$(buildkite_pr_branch_build_id)"
@@ -132,21 +133,25 @@ if [[ "${TARGET}" == "${PARALLEL_TARGET}" ]] || [[ "${TARGET}" == "${FALSE_POSIT
     set -e
 
     if [[ "${UPLOAD_SAFE_LOGS}" -eq 1 ]] ; then
+        package_folder="${PACKAGE}"
+        if [[ "${ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT}" != "false" ]]; then
+            package_folder="${package_folder}-independent_agent"
+        fi
         upload_safe_logs \
             "${JOB_GCS_BUCKET_INTERNAL}" \
             "build/elastic-stack-dump/check-${PACKAGE}/logs/elastic-agent-internal/*.*" \
-            "insecure-logs/${PACKAGE}/elastic-agent-logs/"
+            "insecure-logs/${package_folder}/elastic-agent-logs/"
 
         # required for <8.6.0
         upload_safe_logs \
             "${JOB_GCS_BUCKET_INTERNAL}" \
             "build/elastic-stack-dump/check-${PACKAGE}/logs/elastic-agent-internal/default/*" \
-            "insecure-logs/${PACKAGE}/elastic-agent-logs/default/"
+            "insecure-logs/${package_folder}/elastic-agent-logs/default/"
 
         upload_safe_logs \
             "${JOB_GCS_BUCKET_INTERNAL}" \
             "build/container-logs/*.log" \
-            "insecure-logs/${PACKAGE}/container-logs/"
+            "insecure-logs/${package_folder}/container-logs/"
     fi
 
     if [ $testReturnCode != 0 ]; then

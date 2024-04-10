@@ -240,12 +240,13 @@ func (r *runner) run(ctx context.Context) (report reporters.Reportable, err erro
 		logger.Debug("setting up service...")
 		devDeployDir := filepath.Clean(filepath.Join(r.options.BenchPath, "deploy"))
 		opts := servicedeployer.FactoryOptions{
-			PackageRootPath: r.options.PackageRootPath,
-			DevDeployDir:    devDeployDir,
-			Variant:         r.options.Variant,
-			Profile:         r.options.Profile,
-			Type:            servicedeployer.TypeBench,
-			StackVersion:    stackVersion.Version(),
+			PackageRootPath:        r.options.PackageRootPath,
+			DevDeployDir:           devDeployDir,
+			Variant:                r.options.Variant,
+			Profile:                r.options.Profile,
+			Type:                   servicedeployer.TypeBench,
+			StackVersion:           stackVersion.Version(),
+			DeployIndependentAgent: false,
 		}
 		serviceDeployer, err := servicedeployer.Factory(opts)
 

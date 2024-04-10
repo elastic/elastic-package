@@ -695,15 +695,17 @@ func createDocExpandingObjects(doc common.MapStr) (common.MapStr, error) {
 func isNumericKeyword(definition FieldDefinition, val interface{}) bool {
 	var isNumber bool
 	switch val := val.(type) {
-	case float64, []float64:
+	case bool, []bool, float64, []float64:
 		isNumber = true
 	case []interface{}:
 		isNumber = true
+	loop:
 		for _, v := range val {
-			_, ok := v.(float64)
-			if !ok {
+			switch v.(type) {
+			case bool, float64:
+			default:
 				isNumber = false
-				break
+				break loop
 			}
 		}
 	}
