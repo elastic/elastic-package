@@ -106,7 +106,6 @@ func (r *runner) run(ctx context.Context) ([]testrunner.TestResult, error) {
 	logger.Debug("installing package...")
 	_, err = r.resourcesManager.ApplyCtx(ctx, r.resources(true))
 	if err != nil {
-		// FIXME: We won't detect here if this has been a cancelation, see https://github.com/elastic/go-resource/pull/2.
 		return result.WithError(fmt.Errorf("can't install the package: %w", err))
 	}
 

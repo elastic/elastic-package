@@ -35,6 +35,8 @@ import (
 	"github.com/elastic/elastic-package/internal/wait"
 )
 
+const numberOfEvents = 100
+
 type runner struct {
 	options   Options
 	scenarios map[string]*scenario
@@ -55,6 +57,16 @@ func NewStreamBenchmark(opts Options) benchrunner.Runner {
 
 func (r *runner) SetUp(ctx context.Context) error {
 	return r.setUp(ctx)
+}
+
+func StaticValidation(ctx context.Context, opts Options, dataStreamName string) (bool, error) {
+	runner := runner{options: opts}
+	err := runner.initialize()
+	if err != nil {
+		return false, err
+	}
+	hasBenchmark, err := runner.validateScenario(ctx, dataStreamName)
+	return hasBenchmark, err
 }
 
 // Run runs the system benchmarks defined under the given folder
@@ -94,13 +106,9 @@ func (r *runner) TearDown(ctx context.Context) error {
 	return merr
 }
 
-func (r *runner) setUp(ctx context.Context) error {
+func (r *runner) initialize() error {
 	r.generators = make(map[string]genlib.Generator)
 	r.backFillGenerators = make(map[string]genlib.Generator)
-
-	r.runtimeDataStreams = make(map[string]string)
-
-	r.svcInfo.Test.RunID = common.NewRunID()
 
 	pkgManifest, err := packages.ReadPackageManifestFromPackageRoot(r.options.PackageRootPath)
 	if err != nil {
@@ -113,13 +121,59 @@ func (r *runner) setUp(ctx context.Context) error {
 	}
 	r.scenarios = scenarios
 
-	if err = r.installPackage(ctx); err != nil {
-		return fmt.Errorf("error installing package: %w", err)
+	return nil
+}
+
+func (r *runner) validateScenario(ctx context.Context, dataStreamName string) (bool, error) {
+	for scenarioName, scenario := range r.scenarios {
+		if scenario.DataStream.Name != dataStreamName {
+			continue
+		}
+		generator, _, err := r.createGenerator(ctx, scenarioName, scenario)
+		if err != nil {
+			return true, err
+		}
+		for i := 0; i < numberOfEvents; i++ {
+			buf := bytes.NewBufferString("")
+			err := generator.Emit(buf)
+			if err != nil {
+				return true, fmt.Errorf("[%s] error while generating event: %w", scenarioName, err)
+			}
+			// check whether the generated event is valid json
+			var event map[string]any
+			err = json.Unmarshal(buf.Bytes(), &event)
+			if err != nil {
+				return true, fmt.Errorf("[%s] failed to unmarshal json event: %w, generated output: %s", scenarioName, err, buf.String())
+			}
+		}
+		return true, nil
+	}
+
+	return false, nil
+}
+
+func (r *runner) setUp(ctx context.Context) error {
+	err := r.initialize()
+	if err != nil {
+		return err
 	}
 
 	err = r.collectGenerators(ctx)
 	if err != nil {
 		return fmt.Errorf("can't initialize generator: %w", err)
+	}
+
+	r.runtimeDataStreams = make(map[string]string)
+
+	r.svcInfo.Test.RunID = common.NewRunID()
+
+	pkgManifest, err := packages.ReadPackageManifestFromPackageRoot(r.options.PackageRootPath)
+	if err != nil {
+		return fmt.Errorf("reading package manifest failed: %w", err)
+	}
+
+	if err = r.installPackage(ctx); err != nil {
+		return fmt.Errorf("error installing package: %w", err)
 	}
 
 	for scenarioName, scenario := range r.scenarios {
@@ -263,47 +317,58 @@ func (r *runner) initializeGenerator(tpl []byte, config genlib.Config, fields ge
 }
 func (r *runner) collectGenerators(ctx context.Context) error {
 	for scenarioName, scenario := range r.scenarios {
-		config, err := r.getGeneratorConfig(scenario)
-		if err != nil {
-			return err
-		}
-
-		fields, err := r.getGeneratorFields(ctx, scenario)
-		if err != nil {
-			return err
-		}
-
-		tpl, err := r.getGeneratorTemplate(scenario)
-		if err != nil {
-			return err
-		}
-
-		genlib.InitGeneratorTimeNow(time.Now())
-		genlib.InitGeneratorRandSeed(time.Now().UnixNano())
-
-		generator, err := r.initializeGenerator(tpl, *config, fields, scenario, 0, 0)
+		generator, backfillGenerator, err := r.createGenerator(ctx, scenarioName, scenario)
 		if err != nil {
 			return err
 		}
 
 		r.generators[scenarioName] = generator
 
-		if r.options.BackFill >= 0 {
-			continue
+		if backfillGenerator != nil {
+			r.backFillGenerators[scenarioName] = backfillGenerator
 		}
-
-		// backfill is a negative duration, make it positive, find how many periods in the backfill and multiply by events for periodk
-		totEvents := uint64((-1*r.options.BackFill)/r.options.PeriodDuration) * r.options.EventsPerPeriod
-
-		generator, err = r.initializeGenerator(tpl, *config, fields, scenario, r.options.BackFill, totEvents)
-		if err != nil {
-			return err
-		}
-
-		r.backFillGenerators[scenarioName] = generator
 	}
 
 	return nil
+}
+
+func (r *runner) createGenerator(ctx context.Context, scenarioName string, scenario *scenario) (genlib.Generator, genlib.Generator, error) {
+	config, err := r.getGeneratorConfig(scenario)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to obtain generator config for scenario %q: %w", scenarioName, err)
+	}
+
+	fields, err := r.getGeneratorFields(ctx, scenario)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to obtain fields from generator for scenario %q: %w", scenarioName, err)
+	}
+
+	tpl, err := r.getGeneratorTemplate(scenario)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to obtain template from for scenario %q: %w", scenarioName, err)
+	}
+
+	genlib.InitGeneratorTimeNow(time.Now())
+	genlib.InitGeneratorRandSeed(time.Now().UnixNano())
+
+	generator, err := r.initializeGenerator(tpl, *config, fields, scenario, 0, 0)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to initialize backfill generator for scenario %q: %w", scenarioName, err)
+	}
+
+	if r.options.BackFill >= 0 {
+		return generator, nil, nil
+	}
+
+	// backfill is a negative duration, make it positive, find how many periods in the backfill and multiply by events for periodk
+	totEvents := uint64((-1*r.options.BackFill)/r.options.PeriodDuration) * r.options.EventsPerPeriod
+
+	backFillGenerator, err := r.initializeGenerator(tpl, *config, fields, scenario, r.options.BackFill, totEvents)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to initialize backfill generator for scenario %q: %w", scenarioName, err)
+	}
+
+	return generator, backFillGenerator, nil
 }
 
 func (r *runner) getGeneratorConfig(scenario *scenario) (*config.Config, error) {

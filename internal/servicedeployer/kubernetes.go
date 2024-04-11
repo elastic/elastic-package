@@ -29,6 +29,8 @@ type KubernetesServiceDeployer struct {
 	definitionsDir string
 	stackVersion   string
 
+	deployIndependentAgent bool
+
 	runSetup     bool
 	runTestsOnly bool
 	runTearDown  bool
@@ -38,6 +40,8 @@ type KubernetesServiceDeployerOptions struct {
 	Profile        *profile.Profile
 	DefinitionsDir string
 	StackVersion   string
+
+	DeployIndependentAgent bool
 
 	RunSetup     bool
 	RunTestsOnly bool
@@ -92,12 +96,13 @@ var _ DeployedService = new(kubernetesDeployedService)
 // NewKubernetesServiceDeployer function creates a new instance of KubernetesServiceDeployer.
 func NewKubernetesServiceDeployer(opts KubernetesServiceDeployerOptions) (*KubernetesServiceDeployer, error) {
 	return &KubernetesServiceDeployer{
-		profile:        opts.Profile,
-		definitionsDir: opts.DefinitionsDir,
-		stackVersion:   opts.StackVersion,
-		runSetup:       opts.RunSetup,
-		runTestsOnly:   opts.RunTestsOnly,
-		runTearDown:    opts.RunTearDown,
+		profile:                opts.Profile,
+		definitionsDir:         opts.DefinitionsDir,
+		stackVersion:           opts.StackVersion,
+		runSetup:               opts.RunSetup,
+		runTestsOnly:           opts.RunTestsOnly,
+		runTearDown:            opts.RunTearDown,
+		deployIndependentAgent: opts.DeployIndependentAgent,
 	}, nil
 }
 
@@ -118,7 +123,7 @@ func (ksd KubernetesServiceDeployer) SetUp(ctx context.Context, svcInfo ServiceI
 		}
 	}
 
-	if ksd.runTearDown || ksd.runTestsOnly {
+	if ksd.runTearDown || ksd.runTestsOnly || ksd.deployIndependentAgent {
 		logger.Debug("Skip install Elastic Agent in cluster")
 	} else {
 		err = installElasticAgentInCluster(ctx, ksd.profile, ksd.stackVersion)
@@ -193,7 +198,7 @@ func installElasticAgentInCluster(ctx context.Context, profile *profile.Profile,
 	return nil
 }
 
-//go:embed elastic-agent-managed.yaml.tmpl
+//go:embed _static/elastic-agent-managed.yaml.tmpl
 var elasticAgentManagedYamlTmpl string
 
 func getElasticAgentYAML(profile *profile.Profile, stackVersion string) ([]byte, error) {
@@ -217,7 +222,7 @@ func getElasticAgentYAML(profile *profile.Profile, stackVersion string) ([]byte,
 		"kibanaURL":                   "https://kibana:5601",
 		"caCertPem":                   caCert,
 		"elasticAgentImage":           appConfig.StackImageRefs(stackVersion).ElasticAgent,
-		"elasticAgentTokenPolicyName": getTokenPolicyName(stackVersion),
+		"elasticAgentTokenPolicyName": getTokenPolicyName(stackVersion, defaulFleetTokenPolicyName),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("can't generate elastic agent manifest: %w", err)
@@ -242,9 +247,12 @@ func readCACertBase64(profile *profile.Profile) (string, error) {
 
 // getTokenPolicyName function returns the policy name for the 8.x Elastic stack. The agent's policy
 // is predefined in the Kibana configuration file. The logic is not present in older stacks.
-func getTokenPolicyName(stackVersion string) string {
+func getTokenPolicyName(stackVersion, policyName string) string {
+	if policyName == "" {
+		policyName = defaulFleetTokenPolicyName
+	}
 	if strings.HasPrefix(stackVersion, "8.") {
-		return "Elastic-Agent (elastic-package)"
+		return policyName
 	}
 	return ""
 }

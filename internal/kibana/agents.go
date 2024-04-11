@@ -35,6 +35,7 @@ type Agent struct {
 			} `json:"agent"`
 		} `json:"elastic"`
 	} `json:"local_metadata"`
+	Status string `json:"status"`
 }
 
 // String method returns string representation of an agent.
@@ -86,6 +87,23 @@ func (c *Client) AssignPolicyToAgent(ctx context.Context, a Agent, p Policy) err
 	if err != nil {
 		return fmt.Errorf("error occurred while waiting for the policy to be assigned to all agents: %w", err)
 	}
+	return nil
+}
+
+// RemoveAgent unenrolls the given agent
+func (c *Client) RemoveAgent(ctx context.Context, a Agent) error {
+	reqBody := `{ "revoke": true, "force": true }`
+
+	path := fmt.Sprintf("%s/agents/%s/unenroll", FleetAPI, a.ID)
+	statusCode, respBody, err := c.post(ctx, path, []byte(reqBody))
+	if err != nil {
+		return fmt.Errorf("could not enroll agent: %w", err)
+	}
+
+	if statusCode != http.StatusOK {
+		return fmt.Errorf("could not enroll agent; API status code = %d; response body = %s", statusCode, respBody)
+	}
+
 	return nil
 }
 

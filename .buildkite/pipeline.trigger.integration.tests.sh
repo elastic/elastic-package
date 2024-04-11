@@ -3,7 +3,6 @@
 # exit immediately on failure, or if an undefined variable is used
 set -eu
 
-
 # begin the pipeline.yml file
 echo "steps:"
 echo "  - group: \":terminal: Integration test suite\""
@@ -21,7 +20,7 @@ STACK_COMMAND_TESTS=(
 )
 
 for test in "${STACK_COMMAND_TESTS[@]}"; do
-    echo "      - label: \":go: Running integration test: ${test}\""
+    echo "      - label: \":go: Integration test: ${test}\""
     echo "        command: ./.buildkite/scripts/integration_tests.sh -t ${test}"
     echo "        agents:"
     echo "          provider: \"gcp\""
@@ -38,11 +37,14 @@ CHECK_PACKAGES_TESTS=(
     test-check-packages-benchmarks
     test-check-packages-with-logstash
 )
+for independent_agent in false true ; do
 for test in "${CHECK_PACKAGES_TESTS[@]}"; do
-    echo "      - label: \":go: Running integration test: ${test}\""
+    echo "      - label: \":go: Integration test: ${test} - independent_agent ${independent_agent}\""
     echo "        command: ./.buildkite/scripts/integration_tests.sh -t ${test}"
     echo "        agents:"
     echo "          provider: \"gcp\""
+    echo "        env:"
+    echo "          ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT: ${independent_agent}"
     echo "        artifact_paths:"
     echo "          - build/test-results/*.xml"
     echo "          - build/elastic-stack-dump/check-*/logs/*.log"
@@ -52,11 +54,12 @@ for test in "${CHECK_PACKAGES_TESTS[@]}"; do
         echo "          - build/kubectl-dump.txt"
     fi
 done
+done
 
 pushd test/packages/false_positives > /dev/null
 for package in $(find . -maxdepth 1 -mindepth 1 -type d) ; do
     package_name=$(basename "${package}")
-    echo "      - label: \":go: Running integration test (false positive): ${package_name}\""
+    echo "      - label: \":go: Integration test (false positive): ${package_name}\""
     echo "        key: \"integration-false_positives-${package_name}\""
     echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-check-packages-false-positives -p ${package_name}"
     echo "        env:"
@@ -71,23 +74,26 @@ done
  popd > /dev/null
 
 pushd test/packages/parallel > /dev/null
+for independent_agent in false true; do
 for package in $(find . -maxdepth 1 -mindepth 1 -type d) ; do
     package_name=$(basename "${package}")
-    echo "      - label: \":go: Running integration test: ${package_name}\""
-    echo "        key: \"integration-parallel-${package_name}\""
+    echo "      - label: \":go: Integration test: ${package_name} - independent_agent ${independent_agent}\""
+    echo "        key: \"integration-parallel-${package_name}-agent-${independent_agent}\""
     echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-check-packages-parallel -p ${package_name}"
     echo "        env:"
     echo "          UPLOAD_SAFE_LOGS: 1"
+    echo "          ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT: ${independent_agent}"
     echo "        agents:"
     echo "          provider: \"gcp\""
     echo "        artifact_paths:"
     echo "          - build/test-results/*.xml"
     echo "          - build/test-coverage/coverage-*.xml" # these files should not be used to compute the final coverage of elastic-package
 done
+done
 
 popd > /dev/null
 
-echo "      - label: \":go: Running integration test: test-build-zip\""
+echo "      - label: \":go: Integration test: test-build-zip\""
 echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-build-zip"
 echo "        agents:"
 echo "          provider: \"gcp\""
@@ -95,26 +101,30 @@ echo "        artifact_paths:"
 echo "          - build/elastic-stack-dump/build-zip/logs/*.log"
 echo "          - build/packages/*.sig"
 
-echo "      - label: \":go: Running integration test: test-install-zip\""
+echo "      - label: \":go: Integration test: test-install-zip\""
 echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-install-zip"
 echo "        agents:"
 echo "          provider: \"gcp\""
 echo "        artifact_paths:"
 echo "          - build/elastic-stack-dump/install-zip/logs/*.log"
 
-echo "      - label: \":go: Running integration test: test-install-zip-shellinit\""
+echo "      - label: \":go: Integration test: test-install-zip-shellinit\""
 echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-install-zip-shellinit"
 echo "        agents:"
 echo "          provider: \"gcp\""
 echo "        artifact_paths:"
 echo "          - build/elastic-stack-dump/install-zip-shellinit/logs/*.log"
 
-echo "      - label: \":go: Running integration test: test-system-test-flags\""
+for independent_agent in false true; do
+echo "      - label: \":go: Integration test: test-system-test-flags - independent_agent ${independent_agent}\""
 echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-system-test-flags"
 echo "        agents:"
 echo "          provider: \"gcp\""
+echo "        env:"
+echo "          ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT: ${independent_agent}"
+done
 
-echo "      - label: \":go: Running integration test: test-profiles-command\""
+echo "      - label: \":go: Integration test: test-profiles-command\""
 echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-profiles-command"
 echo "        env:"
 echo "          DOCKER_COMPOSE_VERSION: \"false\""
@@ -124,7 +134,7 @@ echo "          image: \"${LINUX_AGENT_IMAGE}\""
 echo "          cpu: \"8\""
 echo "          memory: \"4G\""
 
-echo "      - label: \":go: Running integration test: test-check-update-version\""
+echo "      - label: \":go: Integration test: test-check-update-version\""
 echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-check-update-version"
 echo "        env:"
 echo "          DEFAULT_VERSION_TAG: v0.80.0"

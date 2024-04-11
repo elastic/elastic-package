@@ -28,6 +28,8 @@ type DockerComposeServiceDeployer struct {
 	ymlPaths []string
 	variant  ServiceVariant
 
+	deployIndependentAgent bool
+
 	runTearDown  bool
 	runTestsOnly bool
 }
@@ -36,6 +38,8 @@ type DockerComposeServiceDeployerOptions struct {
 	Profile  *profile.Profile
 	YmlPaths []string
 	Variant  ServiceVariant
+
+	DeployIndependentAgent bool
 
 	RunTearDown  bool
 	RunTestsOnly bool
@@ -52,14 +56,17 @@ type dockerComposeDeployedService struct {
 	env      []string
 }
 
+var _ ServiceDeployer = new(DockerComposeServiceDeployer)
+
 // NewDockerComposeServiceDeployer returns a new instance of a DockerComposeServiceDeployer.
 func NewDockerComposeServiceDeployer(options DockerComposeServiceDeployerOptions) (*DockerComposeServiceDeployer, error) {
 	return &DockerComposeServiceDeployer{
-		profile:      options.Profile,
-		ymlPaths:     options.YmlPaths,
-		variant:      options.Variant,
-		runTearDown:  options.RunTearDown,
-		runTestsOnly: options.RunTestsOnly,
+		profile:                options.Profile,
+		ymlPaths:               options.YmlPaths,
+		variant:                options.Variant,
+		runTearDown:            options.RunTearDown,
+		runTestsOnly:           options.RunTestsOnly,
+		deployIndependentAgent: options.DeployIndependentAgent,
 	}, nil
 }
 
@@ -70,7 +77,9 @@ func (d *DockerComposeServiceDeployer) SetUp(ctx context.Context, svcInfo Servic
 		ymlPaths: d.ymlPaths,
 		project:  "elastic-package-service",
 		variant:  d.variant,
-		env:      []string{fmt.Sprintf("%s=%s", serviceLogsDirEnv, svcInfo.Logs.Folder.Local)},
+		env: []string{
+			fmt.Sprintf("%s=%s", serviceLogsDirEnv, svcInfo.Logs.Folder.Local),
+		},
 	}
 
 	p, err := compose.NewProject(service.project, service.ymlPaths...)
@@ -130,10 +139,18 @@ func (d *DockerComposeServiceDeployer) SetUp(ctx context.Context, svcInfo Servic
 	if d.runTearDown || d.runTestsOnly {
 		logger.Debug("Skipping connect container to network (non setup steps)")
 	} else {
-		// Connect service network with stack network (for the purpose of metrics collection)
-		err = docker.ConnectToNetwork(p.ContainerName(serviceName), stack.Network(d.profile))
-		if err != nil {
-			return nil, fmt.Errorf("can't attach service container to the stack network: %w", err)
+		if d.deployIndependentAgent {
+			// Connect service network with agent network
+			err = docker.ConnectToNetwork(p.ContainerName(serviceName), svcInfo.AgentNetworkName)
+			if err != nil {
+				return nil, fmt.Errorf("can't attach service container to the agent network: %w", err)
+			}
+		} else {
+			// Connect service network with stack network (for the purpose of metrics collection)
+			err = docker.ConnectToNetwork(p.ContainerName(serviceName), stack.Network(d.profile))
+			if err != nil {
+				return nil, fmt.Errorf("can't attach service container to the stack network: %w", err)
+			}
 		}
 	}
 
@@ -142,7 +159,7 @@ func (d *DockerComposeServiceDeployer) SetUp(ctx context.Context, svcInfo Servic
 
 	logger.Debugf("adding service container %s internal ports to context", p.ContainerName(serviceName))
 	serviceComposeConfig, err := p.Config(ctx, compose.CommandOptions{
-		Env: []string{fmt.Sprintf("%s=%s", serviceLogsDirEnv, svcInfo.Logs.Folder.Local)},
+		Env: service.env,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("could not get Docker Compose configuration for service: %w", err)

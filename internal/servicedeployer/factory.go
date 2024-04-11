@@ -22,11 +22,17 @@ const (
 type FactoryOptions struct {
 	Profile *profile.Profile
 
-	PackageRootPath    string
-	DataStreamRootPath string
-	DevDeployDir       string
-	Type               string
-	StackVersion       string
+	PackageRootPath        string
+	DataStreamRootPath     string
+	DevDeployDir           string
+	Type                   string
+	StackVersion           string
+	DeployIndependentAgent bool
+
+	PolicyName string
+
+	PackageName string
+	DataStream  string
 
 	Variant string
 
@@ -54,12 +60,13 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 	case "k8s":
 		if _, err := os.Stat(serviceDeployerPath); err == nil {
 			opts := KubernetesServiceDeployerOptions{
-				Profile:        options.Profile,
-				DefinitionsDir: serviceDeployerPath,
-				StackVersion:   options.StackVersion,
-				RunSetup:       options.RunSetup,
-				RunTestsOnly:   options.RunTestsOnly,
-				RunTearDown:    options.RunTearDown,
+				Profile:                options.Profile,
+				DefinitionsDir:         serviceDeployerPath,
+				StackVersion:           options.StackVersion,
+				RunSetup:               options.RunSetup,
+				RunTestsOnly:           options.RunTestsOnly,
+				RunTearDown:            options.RunTearDown,
+				DeployIndependentAgent: options.DeployIndependentAgent,
 			}
 			return NewKubernetesServiceDeployer(opts)
 		}
@@ -71,15 +78,17 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 				return nil, fmt.Errorf("can't use service variant: %w", err)
 			}
 			opts := DockerComposeServiceDeployerOptions{
-				Profile:      options.Profile,
-				YmlPaths:     []string{dockerComposeYMLPath},
-				Variant:      sv,
-				RunTearDown:  options.RunTearDown,
-				RunTestsOnly: options.RunTestsOnly,
+				Profile:                options.Profile,
+				YmlPaths:               []string{dockerComposeYMLPath},
+				Variant:                sv,
+				RunTearDown:            options.RunTearDown,
+				RunTestsOnly:           options.RunTestsOnly,
+				DeployIndependentAgent: options.DeployIndependentAgent,
 			}
 			return NewDockerComposeServiceDeployer(opts)
 		}
 	case "agent":
+		// FIXME: This docker-compose scenario contains also the definition of the elastic-agent container
 		if options.Type != TypeTest {
 			return nil, fmt.Errorf("agent deployer is not supported for type %s", options.Type)
 		}
@@ -87,12 +96,16 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 		if _, err := os.Stat(customAgentCfgYMLPath); err != nil {
 			return nil, fmt.Errorf("can't find expected file custom-agent.yml: %w", err)
 		}
+		policyName := getTokenPolicyName(options.StackVersion, options.PolicyName)
+
 		opts := CustomAgentDeployerOptions{
 			Profile:           options.Profile,
 			DockerComposeFile: customAgentCfgYMLPath,
 			StackVersion:      options.StackVersion,
-			RunTearDown:       options.RunTearDown,
-			RunTestsOnly:      options.RunTestsOnly,
+			PolicyName:        policyName,
+
+			RunTearDown:  options.RunTearDown,
+			RunTestsOnly: options.RunTestsOnly,
 		}
 		return NewCustomAgentDeployer(opts)
 	case "tf":
@@ -100,7 +113,10 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 			return nil, errors.New("terraform service deployer not supported to run by steps")
 		}
 		if _, err := os.Stat(serviceDeployerPath); err == nil {
-			return NewTerraformServiceDeployer(serviceDeployerPath)
+			opts := TerraformServiceDeployerOptions{
+				DefinitionsDir: serviceDeployerPath,
+			}
+			return NewTerraformServiceDeployer(opts)
 		}
 	}
 	return nil, fmt.Errorf("unsupported service deployer (name: %s)", serviceDeployerName)

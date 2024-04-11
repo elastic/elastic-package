@@ -36,12 +36,13 @@ type Options struct {
 func BootUp(ctx context.Context, options Options) error {
 	logger.Debugf("Create new instance of the service deployer")
 	serviceDeployer, err := servicedeployer.Factory(servicedeployer.FactoryOptions{
-		Profile:            options.Profile,
-		PackageRootPath:    options.DataStreamRootPath,
-		DataStreamRootPath: options.DataStreamRootPath,
-		DevDeployDir:       options.DevDeployDir,
-		Variant:            options.Variant,
-		StackVersion:       options.StackVersion,
+		Profile:                options.Profile,
+		PackageRootPath:        options.DataStreamRootPath,
+		DataStreamRootPath:     options.DataStreamRootPath,
+		DevDeployDir:           options.DevDeployDir,
+		Variant:                options.Variant,
+		StackVersion:           options.StackVersion,
+		DeployIndependentAgent: false,
 	})
 	if err != nil {
 		return fmt.Errorf("can't create the service deployer instance: %w", err)

@@ -5,9 +5,13 @@
 package servicedeployer
 
 const (
-	localCACertEnv    = "LOCAL_CA_CERT"
-	serviceLogsDirEnv = "SERVICE_LOGS_DIR"
-	testRunIDEnv      = "TEST_RUN_ID"
+	localCACertEnv      = "LOCAL_CA_CERT"
+	serviceLogsDirEnv   = "SERVICE_LOGS_DIR"
+	testRunIDEnv        = "TEST_RUN_ID"
+	elasticAgentTagsEnv = "ELASTIC_AGENT_TAGS"
+	fleetPolicyEnv      = "FLEET_TOKEN_POLICY_NAME"
+
+	defaulFleetTokenPolicyName = "Elastic-Agent (elastic-package)"
 )
 
 // ServiceInfo encapsulates context that is both available to a ServiceDeployer and
@@ -20,6 +24,9 @@ type ServiceInfo struct {
 	// Hostname is the host name of the service, as addressable from
 	// the Agent container.
 	Hostname string
+
+	// AgentNetworkName is the network name where the agent is running.
+	AgentNetworkName string
 
 	// Ports is a list of ports that the service listens on, as addressable
 	// from the Agent container.

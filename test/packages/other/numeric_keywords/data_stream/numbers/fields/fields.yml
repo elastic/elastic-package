@@ -1,0 +1,22 @@
+- name: example.scalar
+  type: group
+  fields:
+    - name: boolean
+      type: keyword
+    - name: double
+      type: keyword
+    - name: long
+      type: keyword
+    - name: array
+      type: keyword
+- name: example.array
+  type: group
+  fields:
+    - name: boolean
+      type: keyword
+    - name: double
+      type: keyword
+    - name: long
+      type: keyword
+    - name: array
+      type: keyword
