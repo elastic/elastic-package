@@ -835,16 +835,20 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		return nil, fmt.Errorf("unable to reload system test case configuration: %w", err)
 	}
 
-	// Install the package before creating the policy, so we control exactly what is being
-	// installed.
-	logger.Debug("Installing package...")
-	resourcesOptions := resourcesOptions{
-		// Install it unless we are running the tear down only.
-		installedPackage: !r.options.RunTearDown,
-	}
-	_, err = r.resourcesManager.ApplyCtx(ctx, r.resources(resourcesOptions))
-	if err != nil {
-		return nil, fmt.Errorf("can't install the package: %w", err)
+	if r.options.RunTearDown {
+		logger.Debug("Skip installing package")
+	} else {
+		// Install the package before creating the policy, so we control exactly what is being
+		// installed.
+		logger.Debug("Installing package...")
+		resourcesOptions := resourcesOptions{
+			// Install it unless we are running the tear down only.
+			installedPackage: !r.options.RunTearDown,
+		}
+		_, err = r.resourcesManager.ApplyCtx(ctx, r.resources(resourcesOptions))
+		if err != nil {
+			return nil, fmt.Errorf("can't install the package: %w", err)
+		}
 	}
 
 	logger.Debug("adding package data stream to test policy...")
