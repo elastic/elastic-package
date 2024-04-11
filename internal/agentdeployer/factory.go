@@ -115,6 +115,7 @@ func Factory(options FactoryOptions) (AgentDeployer, error) {
 				DefinitionsDir: agentDeployerPath,
 				StackVersion:   options.StackVersion,
 				PolicyName:     options.PolicyName,
+				DataStream:     options.DataStream,
 				RunSetup:       options.RunSetup,
 				RunTestsOnly:   options.RunTestsOnly,
 				RunTearDown:    options.RunTearDown,

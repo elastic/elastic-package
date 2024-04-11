@@ -29,6 +29,9 @@ type KubernetesAgentDeployer struct {
 	definitionsDir string
 	stackVersion   string
 	policyName     string
+	dataStream     string
+
+	agentRunID string
 
 	runSetup     bool
 	runTestsOnly bool
@@ -40,6 +43,7 @@ type KubernetesAgentDeployerOptions struct {
 	DefinitionsDir string
 	StackVersion   string
 	PolicyName     string
+	DataStream     string
 
 	RunSetup     bool
 	RunTestsOnly bool
@@ -51,11 +55,13 @@ type kubernetesDeployedAgent struct {
 	profile      *profile.Profile
 	stackVersion string
 
+	agentName string
+
 	definitionsDir string
 }
 
 func (s kubernetesDeployedAgent) TearDown(ctx context.Context) error {
-	elasticAgentManagedYaml, err := getElasticAgentYAML(s.profile, s.stackVersion, s.agentInfo.Policy.Name)
+	elasticAgentManagedYaml, err := getElasticAgentYAML(s.profile, s.stackVersion, s.agentInfo.Policy.Name, s.agentName)
 	if err != nil {
 		return fmt.Errorf("can't retrieve Kubernetes file for Elastic Agent: %w", err)
 	}
@@ -92,6 +98,7 @@ func NewKubernetesAgentDeployer(opts KubernetesAgentDeployerOptions) (*Kubernete
 		definitionsDir: opts.DefinitionsDir,
 		stackVersion:   opts.StackVersion,
 		policyName:     opts.PolicyName,
+		dataStream:     opts.DataStream,
 		runSetup:       opts.RunSetup,
 		runTestsOnly:   opts.RunTestsOnly,
 		runTearDown:    opts.RunTearDown,
@@ -100,7 +107,9 @@ func NewKubernetesAgentDeployer(opts KubernetesAgentDeployerOptions) (*Kubernete
 
 // SetUp function links the kind container with elastic-package-stack network, installs Elastic-Agent and optionally
 // custom YAML definitions.
-func (ksd KubernetesAgentDeployer) SetUp(ctx context.Context, agentInfo AgentInfo) (DeployedAgent, error) {
+func (ksd *KubernetesAgentDeployer) SetUp(ctx context.Context, agentInfo AgentInfo) (DeployedAgent, error) {
+	ksd.agentRunID = agentInfo.Test.RunID
+
 	err := kind.VerifyContext(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("kind context verification failed: %w", err)
@@ -115,10 +124,11 @@ func (ksd KubernetesAgentDeployer) SetUp(ctx context.Context, agentInfo AgentInf
 		}
 	}
 
+	agentName := ksd.agentName()
 	if ksd.runTearDown || ksd.runTestsOnly {
 		logger.Debug("Skip install Elastic Agent in cluster")
 	} else {
-		err = installElasticAgentInCluster(ctx, ksd.profile, ksd.stackVersion, agentInfo.Policy.Name)
+		err = installElasticAgentInCluster(ctx, ksd.profile, ksd.stackVersion, agentInfo.Policy.Name, agentName)
 		if err != nil {
 			return nil, fmt.Errorf("can't install Elastic-Agent in the Kubernetes cluster: %w", err)
 		}
@@ -134,15 +144,27 @@ func (ksd KubernetesAgentDeployer) SetUp(ctx context.Context, agentInfo AgentInf
 		definitionsDir: ksd.definitionsDir,
 		profile:        ksd.profile,
 		stackVersion:   ksd.stackVersion,
+		agentName:      agentName,
 	}, nil
+}
+
+func (ksd *KubernetesAgentDeployer) agentName() string {
+	name := "elastic-agent"
+	if ksd.dataStream != "" && ksd.dataStream != "." {
+		name = fmt.Sprintf("%s-%s", name, strings.ReplaceAll(ksd.dataStream, "_", "-"))
+	}
+	if ksd.agentRunID != "" {
+		name = fmt.Sprintf("%s-%s", name, ksd.agentRunID)
+	}
+	return name
 }
 
 var _ AgentDeployer = new(KubernetesAgentDeployer)
 
-func installElasticAgentInCluster(ctx context.Context, profile *profile.Profile, stackVersion, policyName string) error {
+func installElasticAgentInCluster(ctx context.Context, profile *profile.Profile, stackVersion, policyName, agentName string) error {
 	logger.Debug("install Elastic Agent in the Kubernetes cluster")
 
-	elasticAgentManagedYaml, err := getElasticAgentYAML(profile, stackVersion, policyName)
+	elasticAgentManagedYaml, err := getElasticAgentYAML(profile, stackVersion, policyName, agentName)
 	if err != nil {
 		return fmt.Errorf("can't retrieve Kubernetes file for Elastic Agent: %w", err)
 	}
@@ -160,7 +182,7 @@ func installElasticAgentInCluster(ctx context.Context, profile *profile.Profile,
 //go:embed _static/elastic-agent-managed.yaml.tmpl
 var elasticAgentManagedYamlTmpl string
 
-func getElasticAgentYAML(profile *profile.Profile, stackVersion, policyName string) ([]byte, error) {
+func getElasticAgentYAML(profile *profile.Profile, stackVersion, policyName, agentName string) ([]byte, error) {
 	logger.Debugf("Prepare YAML definition for Elastic Agent running in stack v%s", stackVersion)
 
 	appConfig, err := install.Configuration()
@@ -182,6 +204,7 @@ func getElasticAgentYAML(profile *profile.Profile, stackVersion, policyName stri
 		"caCertPem":                   caCert,
 		"elasticAgentImage":           appConfig.StackImageRefs(stackVersion).ElasticAgent,
 		"elasticAgentTokenPolicyName": getTokenPolicyName(stackVersion, policyName),
+		"agentName":                   agentName,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("can't generate elastic agent manifest: %w", err)
