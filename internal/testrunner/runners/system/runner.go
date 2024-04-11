@@ -273,7 +273,7 @@ func (r *runner) resources(opts resourcesOptions) resources.Resources {
 		&resources.FleetPackage{
 			RootPath: r.options.PackageRootPath,
 			Absent:   !opts.installedPackage,
-			Force:    true,
+			Force:    opts.installedPackage, // Force re-installation, in case there are code changes in the same package version.
 		},
 	}
 }
