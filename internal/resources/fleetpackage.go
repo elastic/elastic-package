@@ -5,6 +5,7 @@
 package resources
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -104,6 +105,18 @@ func (f *FleetPackage) Create(ctx resource.Context) error {
 
 	_, err = installer.Install(ctx)
 	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			provider, uninstallErr := f.provider(ctx)
+			if uninstallErr != nil {
+				return fmt.Errorf("failed to get client (%w) after installation failed: %w", uninstallErr, err)
+			}
+
+			// Using uninstallPachage instead of f.uninstall because we want to pass a context without cancellation.
+			uninstallErr = uninstallPackage(context.WithoutCancel(ctx), provider.Client, f.RootPath)
+			if uninstallErr != nil {
+				return fmt.Errorf("failed to uninstall package (%w) after installation failed: %w", uninstallErr, err)
+			}
+		}
 		return fmt.Errorf("installation failed: %w", err)
 	}
 
@@ -116,12 +129,16 @@ func (f *FleetPackage) uninstall(ctx resource.Context) error {
 		return err
 	}
 
-	manifest, err := packages.ReadPackageManifestFromPackageRoot(f.RootPath)
+	return uninstallPackage(ctx, provider.Client, f.RootPath)
+}
+
+func uninstallPackage(ctx context.Context, client *kibana.Client, rootPath string) error {
+	manifest, err := packages.ReadPackageManifestFromPackageRoot(rootPath)
 	if err != nil {
-		return fmt.Errorf("failed to read manifest from %s: %w", f.RootPath, err)
+		return fmt.Errorf("failed to read manifest from %s: %w", rootPath, err)
 	}
 
-	_, err = provider.Client.RemovePackage(ctx, manifest.Name, manifest.Version)
+	_, err = client.RemovePackage(ctx, manifest.Name, manifest.Version)
 	if err != nil {
 		return fmt.Errorf("can't remove the package: %w", err)
 	}
