@@ -464,8 +464,20 @@ func (r *runner) initRun() error {
 		DataStreamRootPath: r.dataStreamPath,
 		DevDeployDir:       DevDeployDir,
 	})
-	if err != nil {
-		return fmt.Errorf("_dev/deploy directory not found: %w", err)
+	switch {
+	case errors.Is(err, os.ErrNotExist):
+		r.variants = r.selectVariants(nil)
+	case err != nil:
+		return fmt.Errorf("failed fo find service deploy path: %w", err)
+	default:
+		variantsFile, err := servicedeployer.ReadVariantsFile(devDeployPath)
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("can't read service variant: %w", err)
+		}
+		r.variants = r.selectVariants(variantsFile)
+	}
+	if r.options.ServiceVariant != "" && len(r.variants) == 0 {
+		return fmt.Errorf("not found variant definition %q", r.options.ServiceVariant)
 	}
 
 	if r.options.ConfigFilePath != "" {
@@ -484,16 +496,6 @@ func (r *runner) initRun() error {
 		if err != nil {
 			return fmt.Errorf("failed listing test case config cfgFiles: %w", err)
 		}
-	}
-
-	variantsFile, err := servicedeployer.ReadVariantsFile(devDeployPath)
-	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("can't read service variant: %w", err)
-	}
-
-	r.variants = r.selectVariants(variantsFile)
-	if r.options.ServiceVariant != "" && len(r.variants) == 0 {
-		return fmt.Errorf("not found variant definition %q", r.options.ServiceVariant)
 	}
 
 	return nil
@@ -1000,7 +1002,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	}
 
 	// Signal to the service that the agent is ready (policy is assigned).
-	if config.ServiceNotifySignal != "" {
+	if service != nil && config.ServiceNotifySignal != "" {
 		if err = service.Signal(ctx, config.ServiceNotifySignal); err != nil {
 			return nil, fmt.Errorf("failed to notify test service: %w", err)
 		}
@@ -1044,7 +1046,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		return hits.size() > 0, nil
 	}, 1*time.Second, waitForDataTimeout)
 
-	if config.Service != "" && !config.IgnoreServiceError {
+	if service != nil && config.Service != "" && !config.IgnoreServiceError {
 		exited, code, err := service.ExitCode(ctx, config.Service)
 		if err != nil && !errors.Is(err, servicedeployer.ErrNotSupported) {
 			return nil, err
@@ -1118,7 +1120,10 @@ func (r *runner) setupService(ctx context.Context, config *testConfig, serviceOp
 	}
 
 	serviceDeployer, err := servicedeployer.Factory(serviceOptions)
-	if err != nil {
+	if errors.Is(err, os.ErrNotExist) {
+		return nil, svcInfo, nil
+	}
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return nil, svcInfo, fmt.Errorf("could not create service runner: %w", err)
 	}
 
