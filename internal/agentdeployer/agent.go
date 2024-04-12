@@ -25,7 +25,6 @@ import (
 
 const (
 	dockerTestAgentNamePrefix    = "elastic-agent"
-	dockerTestgentDir            = "docker_test_agent"
 	dockerTestAgentDockerCompose = "docker-agent-base.yml"
 	defaultAgentPolicyName       = "Elastic-Agent (elastic-package)"
 )
