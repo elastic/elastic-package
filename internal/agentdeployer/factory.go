@@ -57,8 +57,6 @@ func Factory(options FactoryOptions) (AgentDeployer, error) {
 		agentDeployerName = "default"
 	}
 
-	agentDeployerPath := filepath.Join(devDeployPath, agentDeployerName)
-
 	switch agentDeployerName {
 	case "default":
 		if options.Type != TypeTest {
@@ -80,19 +78,16 @@ func Factory(options FactoryOptions) (AgentDeployer, error) {
 		// FIXME: this docker-compose scenario contains both agent and service
 		return nil, nil
 	case "k8s":
-		if _, err := os.Stat(agentDeployerPath); err == nil {
-			opts := KubernetesAgentDeployerOptions{
-				Profile:        options.Profile,
-				DefinitionsDir: agentDeployerPath,
-				StackVersion:   options.StackVersion,
-				PolicyName:     options.PolicyName,
-				DataStream:     options.DataStream,
-				RunSetup:       options.RunSetup,
-				RunTestsOnly:   options.RunTestsOnly,
-				RunTearDown:    options.RunTearDown,
-			}
-			return NewKubernetesAgentDeployer(opts)
+		opts := KubernetesAgentDeployerOptions{
+			Profile:      options.Profile,
+			StackVersion: options.StackVersion,
+			PolicyName:   options.PolicyName,
+			DataStream:   options.DataStream,
+			RunSetup:     options.RunSetup,
+			RunTestsOnly: options.RunTestsOnly,
+			RunTearDown:  options.RunTearDown,
 		}
+		return NewKubernetesAgentDeployer(opts)
 	}
 	return nil, fmt.Errorf("unsupported agent deployer (name: %s)", agentDeployerName)
 }
