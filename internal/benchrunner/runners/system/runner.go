@@ -254,6 +254,10 @@ func (r *runner) run(ctx context.Context) (report reporters.Reportable, err erro
 			return nil, fmt.Errorf("could not create service runner: %w", err)
 		}
 
+		if serviceDeployer == nil {
+			return nil, nil
+		}
+
 		r.svcInfo.Name = r.scenario.Corpora.InputService.Name
 		service, err = serviceDeployer.SetUp(ctx, r.svcInfo)
 		if err != nil {

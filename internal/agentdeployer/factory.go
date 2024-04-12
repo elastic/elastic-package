@@ -41,19 +41,22 @@ type FactoryOptions struct {
 // on service configuration files defined in the package or data stream.
 func Factory(options FactoryOptions) (AgentDeployer, error) {
 	devDeployPath, err := FindDevDeployPath(options)
-	if err != nil {
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return nil, fmt.Errorf("can't find \"%s\" directory: %w", options.DevDeployDir, err)
 	}
 
-	agentDeployerName, err := findAgentDeployer(devDeployPath)
-	if err != nil {
-		return nil, fmt.Errorf("can't find any valid agent deployer: %w", err)
+	agentDeployerName := ""
+	if err == nil {
+		agentDeployerName, err = findAgentDeployer(devDeployPath)
+		if err != nil {
+			return nil, fmt.Errorf("can't find any valid agent deployer: %w", err)
+		}
 	}
 
+	// agentDeployerName could get as value empty string if there is no folder _dev/deploy
+	// in that case a Docker Compose agent is spin up
 	switch agentDeployerName {
-	// if package defines `docker`  folder to start their services, it should be
-	// using the default agent deployer`
-	case "docker", "tf", "none":
+	case "docker", "tf", "":
 		if options.Type != TypeTest {
 			return nil, fmt.Errorf("agent deployer is not supported for type %s", options.Type)
 		}
@@ -97,13 +100,16 @@ func FindDevDeployPath(options FactoryOptions) (string, error) {
 	}
 
 	packageDevDeployPath := filepath.Join(options.PackageRootPath, options.DevDeployDir)
-	if _, err := os.Stat(packageDevDeployPath); err == nil {
+	_, err := os.Stat(packageDevDeployPath)
+	if err == nil {
 		return packageDevDeployPath, nil
-	} else if !errors.Is(err, os.ErrNotExist) {
+	}
+
+	if !errors.Is(err, os.ErrNotExist) {
 		return "", fmt.Errorf("stat failed for package (path: %s): %w", packageDevDeployPath, err)
 	}
 
-	return "", fmt.Errorf("\"%s\" directory doesn't exist", options.DevDeployDir)
+	return "", fmt.Errorf("\"%s\" directory doesn't exist: %w", options.DevDeployDir, err)
 }
 
 func findAgentDeployer(devDeployPath string) (string, error) {

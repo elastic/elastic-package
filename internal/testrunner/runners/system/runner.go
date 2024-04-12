@@ -469,8 +469,11 @@ func (r *runner) initRun() error {
 		DataStreamRootPath: r.dataStreamPath,
 		DevDeployDir:       DevDeployDir,
 	})
-	if err != nil {
-		return fmt.Errorf("_dev/deploy directory not found: %w", err)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("failed to check _dev/deploy directory: %w", err)
+	}
+	if errors.Is(err, os.ErrNotExist) {
+		logger.Debug("No _dev/deploy/ folder found in package")
 	}
 
 	if r.options.ConfigFilePath != "" {

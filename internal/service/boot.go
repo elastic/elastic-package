@@ -48,6 +48,11 @@ func BootUp(ctx context.Context, options Options) error {
 		return fmt.Errorf("can't create the service deployer instance: %w", err)
 	}
 
+	if serviceDeployer == nil {
+		fmt.Println("No service defined")
+		return nil
+	}
+
 	// Boot up the service
 	logger.Debugf("Boot up the service instance")
 	locationManager, err := locations.NewLocationManager()
