@@ -66,6 +66,11 @@ const (
 				  "size": 100,
 				  "field": "my_ignored"
 				}
+			  },
+			  "ignored_docs": {
+				"top_hits": {
+				  "size": 5
+				}
 			  }
 			}
 		  }
@@ -658,6 +663,7 @@ type hits struct {
 	Source        []common.MapStr `json:"_source"`
 	Fields        []common.MapStr `json:"fields"`
 	IgnoredFields []string
+	DegradedDocs  []common.MapStr
 }
 
 func (h hits) getDocs(syntheticsEnabled bool) []common.MapStr {
@@ -713,6 +719,11 @@ func (r *runner) getDocs(ctx context.Context, dataStream string) (*hits, error) 
 						Key string `json:"key"`
 					} `json:"buckets"`
 				} `json:"ignored_fields"`
+				IgnoredDocs struct {
+					Hits struct {
+						Hits []common.MapStr `json:"hits"`
+					} `json:"hits"`
+				} `json:"ignored_docs"`
 			} `json:"all_ignored"`
 		} `json:"aggregations"`
 		Error *struct {
@@ -742,6 +753,7 @@ func (r *runner) getDocs(ctx context.Context, dataStream string) (*hits, error) 
 	for _, bucket := range results.Aggregations.AllIgnored.IgnoredFields.Buckets {
 		hits.IgnoredFields = append(hits.IgnoredFields, bucket.Key)
 	}
+	hits.DegradedDocs = results.Aggregations.AllIgnored.IgnoredDocs.Hits.Hits
 
 	return &hits, nil
 }
@@ -755,6 +767,7 @@ type scenarioTest struct {
 	syntheticEnabled   bool
 	docs               []common.MapStr
 	ignoredFields      []string
+	degradedDocs       []common.MapStr
 	agent              agentdeployer.DeployedAgent
 	enrollingTime      time.Time
 }
@@ -1113,6 +1126,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 
 	scenario.docs = hits.getDocs(scenario.syntheticEnabled)
 	scenario.ignoredFields = hits.IgnoredFields
+	scenario.degradedDocs = hits.DegradedDocs
 
 	if r.options.RunSetup {
 		opts := scenarioStateOpts{
@@ -1375,16 +1389,25 @@ func (r *runner) validateTestScenario(ctx context.Context, result *testrunner.Re
 		return result.WithError(err)
 	}
 
-	// TODO: remove this once Elasticsearch will map event.original correctly (8.14)
+	atLeast814, err := semver.NewConstraint(">=8.14")
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse version constraint: %w", err)
+	}
+	isAtLeast814 := atLeast814.Check(semver.MustParse(r.stackVersion.Number))
 	ignoredFields := make([]string, 0, len(scenario.ignoredFields))
 	for _, field := range scenario.ignoredFields {
-		if field != "event.original" {
+		if field != "event.original" || isAtLeast814 {
 			ignoredFields = append(ignoredFields, field)
 		}
 	}
 
 	if len(ignoredFields) > 0 {
-		return result.WithError(fmt.Errorf("found ignored fields in data stream %s: %v", scenario.dataStream, ignoredFields))
+		degradedDocsJSON, err := json.MarshalIndent(scenario.degradedDocs, "", "  ")
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal degraded docs to JSON: %w", err)
+		}
+
+		return result.WithError(fmt.Errorf("found ignored fields in data stream %s: %v. Affected documents: %s", scenario.dataStream, ignoredFields, degradedDocsJSON))
 	}
 
 	docs := scenario.docs
