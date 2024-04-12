@@ -264,7 +264,7 @@ func (r *runner) Run(ctx context.Context, options testrunner.TestOptions) ([]tes
 	return result.WithSuccess()
 }
 
-func (r *runner) createAgentOptions(variantName, policyName string) agentdeployer.FactoryOptions {
+func (r *runner) createAgentOptions(policyName string) agentdeployer.FactoryOptions {
 	return agentdeployer.FactoryOptions{
 		Profile:            r.options.Profile,
 		PackageRootPath:    r.options.PackageRootPath,
@@ -275,7 +275,6 @@ func (r *runner) createAgentOptions(variantName, policyName string) agentdeploye
 		PackageName:        r.options.TestFolder.Package,
 		DataStream:         r.options.TestFolder.DataStream,
 		PolicyName:         policyName,
-		Variant:            variantName,
 		RunTearDown:        r.options.RunTearDown,
 		RunTestsOnly:       r.options.RunTestsOnly,
 		RunSetup:           r.options.RunSetup,
@@ -796,7 +795,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		enrollingTime = serviceStateData.EnrollingAgentTime
 	}
 
-	agentDeployed, agentInfo, err := r.setupAgent(ctx, serviceOptions.Variant, serviceStateData, policy)
+	agentDeployed, agentInfo, err := r.setupAgent(ctx, serviceStateData, policy)
 	if err != nil {
 		return nil, err
 	}
@@ -1139,7 +1138,7 @@ func (r *runner) setupService(ctx context.Context, config *testConfig, serviceOp
 	return service, service.Info(), nil
 }
 
-func (r *runner) setupAgent(ctx context.Context, variant string, state ServiceState, policy *kibana.Policy) (agentdeployer.DeployedAgent, agentdeployer.AgentInfo, error) {
+func (r *runner) setupAgent(ctx context.Context, state ServiceState, policy *kibana.Policy) (agentdeployer.DeployedAgent, agentdeployer.AgentInfo, error) {
 	if !r.options.RunIndependentElasticAgent {
 		return nil, agentdeployer.AgentInfo{}, nil
 	}
@@ -1152,7 +1151,7 @@ func (r *runner) setupAgent(ctx context.Context, variant string, state ServiceSt
 		agentInfo.Test.RunID = state.AgentRunID
 	}
 
-	agentOptions := r.createAgentOptions(variant, agentInfo.Policy.Name)
+	agentOptions := r.createAgentOptions(agentInfo.Policy.Name)
 	agentDeployer, err := agentdeployer.Factory(agentOptions)
 	if err != nil {
 		return nil, agentInfo, fmt.Errorf("could not create agent runner: %w", err)
