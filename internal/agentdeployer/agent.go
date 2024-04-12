@@ -33,9 +33,6 @@ const (
 //go:embed _static/docker-agent-base.yml.tmpl
 var dockerTestAgentDockerComposeTemplate string
 
-//go:embed _static/docker-agent-base.yml
-var dockerAgentDockerComposeContent []byte
-
 // CustomAgentDeployer knows how to deploy a custom elastic-agent defined via
 // a Docker Compose file.
 type DockerComposeAgentDeployer struct {
