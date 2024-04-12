@@ -61,6 +61,7 @@ const (
 	configGeoIPDir           = "stack.geoip_dir"
 	configLogstashEnabled    = "stack.logstash_enabled"
 	configSelfMonitorEnabled = "stack.self_monitor_enabled"
+	configServerlessEnabled  = "stack.serverless_enabled"
 )
 
 var (
@@ -152,6 +153,7 @@ func applyResources(profile *profile.Profile, stackVersion string) error {
 		"geoip_dir":            profile.Config(configGeoIPDir, "./ingest-geoip"),
 		"logstash_enabled":     profile.Config(configLogstashEnabled, "false"),
 		"self_monitor_enabled": profile.Config(configSelfMonitorEnabled, "false"),
+		"serverless_enabled":   profile.Config(configServerlessEnabled, "false"),
 	})
 
 	os.MkdirAll(stackDir, 0755)
