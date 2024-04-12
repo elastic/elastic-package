@@ -9,6 +9,6 @@
 - name: message
   type: match_only_text
 - name: sample_field
-  type: long 
+  type: long
 - name: agent_custom
   type: text
