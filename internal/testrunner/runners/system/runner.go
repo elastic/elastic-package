@@ -299,7 +299,7 @@ func (r *runner) createServiceOptions(variantName string) servicedeployer.Factor
 	}
 }
 
-func (r *runner) createAgentInfo(policy *kibana.Policy) (agentdeployer.AgentInfo, error) {
+func (r *runner) createAgentInfo(policy *kibana.Policy, config *testConfig) (agentdeployer.AgentInfo, error) {
 	var info agentdeployer.AgentInfo
 
 	info.Name = r.options.TestFolder.Package
@@ -319,6 +319,11 @@ func (r *runner) createAgentInfo(policy *kibana.Policy) (agentdeployer.AgentInfo
 
 	info.Policy.Name = policy.Name
 	info.Policy.ID = policy.ID
+
+	info.Agent.User = config.Agent.User
+	info.Agent.Capabilities = config.Agent.Capabilities
+	info.Agent.Runtime = config.Agent.Runtime
+	info.Agent.PidMode = config.Agent.PidMode
 
 	return info, nil
 }
@@ -795,7 +800,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		enrollingTime = serviceStateData.EnrollingAgentTime
 	}
 
-	agentDeployed, agentInfo, err := r.setupAgent(ctx, serviceStateData, policy)
+	agentDeployed, agentInfo, err := r.setupAgent(ctx, config, serviceStateData, policy)
 	if err != nil {
 		return nil, err
 	}
@@ -1122,6 +1127,10 @@ func (r *runner) setupService(ctx context.Context, config *testConfig, serviceOp
 		return nil, svcInfo, fmt.Errorf("could not create service runner: %w", err)
 	}
 
+	if serviceDeployer == nil {
+		return nil, svcInfo, nil
+	}
+
 	service, err := serviceDeployer.SetUp(ctx, svcInfo)
 	if err != nil {
 		return nil, svcInfo, fmt.Errorf("could not setup service: %w", err)
@@ -1138,18 +1147,20 @@ func (r *runner) setupService(ctx context.Context, config *testConfig, serviceOp
 	return service, service.Info(), nil
 }
 
-func (r *runner) setupAgent(ctx context.Context, state ServiceState, policy *kibana.Policy) (agentdeployer.DeployedAgent, agentdeployer.AgentInfo, error) {
+func (r *runner) setupAgent(ctx context.Context, config *testConfig, state ServiceState, policy *kibana.Policy) (agentdeployer.DeployedAgent, agentdeployer.AgentInfo, error) {
 	if !r.options.RunIndependentElasticAgent {
 		return nil, agentdeployer.AgentInfo{}, nil
 	}
 	logger.Warn("setting up agent (technical preview)...")
-	agentInfo, err := r.createAgentInfo(policy)
+	agentInfo, err := r.createAgentInfo(policy, config)
 	if err != nil {
 		return nil, agentdeployer.AgentInfo{}, err
 	}
 	if r.options.RunTearDown || r.options.RunTestsOnly {
 		agentInfo.Test.RunID = state.AgentRunID
 	}
+
+	logger.Debugf(">>>>> Info from config: user %q capabilities %q", config.Agent.User, strings.Join(config.Agent.Capabilities, ","))
 
 	agentOptions := r.createAgentOptions(agentInfo.Policy.Name)
 	agentDeployer, err := agentdeployer.Factory(agentOptions)

@@ -51,6 +51,13 @@ type testConfig struct {
 
 	Path               string `config:",ignore"` // Path of config file.
 	ServiceVariantName string `config:",ignore"` // Name of test variant when using variants.yml.
+
+	Agent struct {
+		User         string   `config:"user"`
+		PidMode      string   `config:"pid_mode"`
+		Capabilities []string `config:"capabilities"`
+		Runtime      string   `config:"runtime"`
+	} `config:"agent"`
 }
 
 func (t testConfig) Name() string {

@@ -53,14 +53,14 @@ func Factory(options FactoryOptions) (AgentDeployer, error) {
 	}
 	// if package defines `_dev/deploy/docker` folder to start their services, it should be
 	// using the default agent deployer`
-	if agentDeployerName == "docker" || agentDeployerName == "tf" {
-		agentDeployerName = "default"
-	}
+	// if agentDeployerName == "docker" || agentDeployerName == "tf" || agentDeployerName == "none" {
+	// 	agentDeployerName = "default"
+	// }
 
 	agentDeployerPath := filepath.Join(devDeployPath, agentDeployerName)
 
 	switch agentDeployerName {
-	case "default":
+	case "docker", "default", "tf", "none":
 		if options.Type != TypeTest {
 			return nil, fmt.Errorf("agent deployer is not supported for type %s", options.Type)
 		}

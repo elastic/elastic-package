@@ -57,6 +57,8 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 	serviceDeployerPath := filepath.Join(devDeployPath, serviceDeployerName)
 
 	switch serviceDeployerName {
+	case "none":
+		return nil, nil
 	case "k8s":
 		if _, err := os.Stat(serviceDeployerPath); err == nil {
 			opts := KubernetesServiceDeployerOptions{
