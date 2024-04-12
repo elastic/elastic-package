@@ -52,6 +52,7 @@ type testConfig struct {
 	Path               string `config:",ignore"` // Path of config file.
 	ServiceVariantName string `config:",ignore"` // Name of test variant when using variants.yml.
 
+	// Agent related properties
 	Agent struct {
 		User         string   `config:"user"`
 		PidMode      string   `config:"pid_mode"`
