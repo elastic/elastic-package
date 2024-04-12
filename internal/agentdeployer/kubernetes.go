@@ -54,8 +54,6 @@ type kubernetesDeployedAgent struct {
 	stackVersion string
 
 	agentName string
-
-	definitionsDir string
 }
 
 func (s kubernetesDeployedAgent) TearDown(ctx context.Context) error {

@@ -245,6 +245,9 @@ func (d *DockerComposeAgentDeployer) installDockerfile(agentInfo AgentInfo) (str
 
 	customAgentDockerfile := filepath.Join(customAgentDir, dockerTestAgentDockerCompose)
 	file, err := os.Create(customAgentDockerfile)
+	if err != nil {
+		return "", fmt.Errorf("failed to create file (name %s): %w", customAgentDockerfile, err)
+	}
 	defer file.Close()
 
 	tmpl := template.Must(template.New(dockerTestAgentDockerCompose).Parse(dockerTestAgentDockerComposeTemplate))
@@ -254,6 +257,9 @@ func (d *DockerComposeAgentDeployer) installDockerfile(agentInfo AgentInfo) (str
 		"runtime":      agentInfo.Agent.Runtime,
 		"pidMode":      agentInfo.Agent.PidMode,
 	})
+	if err != nil {
+		return "", fmt.Errorf("failed to create contents of the docker-compose file %q: %w", customAgentDockerfile, err)
+	}
 
 	return customAgentDir, nil
 }
