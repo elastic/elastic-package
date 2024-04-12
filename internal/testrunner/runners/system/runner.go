@@ -767,7 +767,10 @@ type scenarioTest struct {
 	syntheticEnabled   bool
 	docs               []common.MapStr
 	ignoredFields      []string
+<<<<<<< HEAD
 	degradedDocs       []common.MapStr
+=======
+>>>>>>> 96cfe0b0c810b5b8f94285d2b720d529260baa16
 	agent              agentdeployer.DeployedAgent
 	enrollingTime      time.Time
 }
@@ -1389,11 +1392,15 @@ func (r *runner) validateTestScenario(ctx context.Context, result *testrunner.Re
 		return result.WithError(err)
 	}
 
+<<<<<<< HEAD
 	atLeast814, err := semver.NewConstraint(">=8.14")
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse version constraint: %w", err)
 	}
 	isAtLeast814 := atLeast814.Check(semver.MustParse(r.stackVersion.Number))
+=======
+	// TODO: remove this once Elasticsearch will map event.original correctly (https://github.com/elastic/elasticsearch/pull/106714)
+>>>>>>> 96cfe0b0c810b5b8f94285d2b720d529260baa16
 	ignoredFields := make([]string, 0, len(scenario.ignoredFields))
 	for _, field := range scenario.ignoredFields {
 		if field != "event.original" || isAtLeast814 {

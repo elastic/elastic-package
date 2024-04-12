@@ -675,6 +675,12 @@ elastic-package test system -v --tear-down
 elastic-package stack down -v
 ```
 
+### Detecting ignored fields
+
+As part of the system test, `elastic-package` checks whether any documents couldn't successfully map any fields. Common issues are the configured field limit being exceeded or keyword fields receiving values longer than `ignore_above`. You can learn more in the [Elasticsearch documentation](https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping-ignored-field.html).
+
+In this case, `elastic-package test system` will fail with an error and print a sample of affected documents. To fix the issue, check which fields got ignored and the `ignored_field_values` and either adapt the mapping or the ingest pipeline to accomodate for the problematic values.
+
 ## Continuous Integration
 
 `elastic-package` runs a set of system tests on some [dummy packages](https://github.com/elastic/elastic-package/tree/main/test/packages) to ensure it's functionalities work as expected. This allows to test changes affecting package testing within `elastic-package` before merging and releasing the changes.
