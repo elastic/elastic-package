@@ -1,0 +1,13 @@
+vars: ~
+input: logfile
+data_stream:
+  vars:
+    paths:
+      - "{{SERVICE_LOGS_DIR}}/with_agent.log"
+ 
+agent:
+  user: "root"
+  # shared_pid_address_space: true ?
+  capabilities:
+    - AUDIT_CONTROL
+    - AUDIT_READ

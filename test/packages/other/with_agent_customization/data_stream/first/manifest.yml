@@ -1,0 +1,15 @@
+title: "Service logs"
+type: logs
+streams:
+  - input: logfile
+    title: Sample logs
+    description: Collect sample logs
+    vars:
+      - name: paths
+        type: text
+        title: Paths
+        required: true
+        multi: true
+        show_user: true
+        default:
+          - /var/log/*.log

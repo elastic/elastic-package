@@ -1,0 +1,14 @@
+- name: input.type
+  type: keyword
+- name: log.file.path
+  type: keyword
+- name: log.offset
+  type: long
+- name: ecs.version
+  type: keyword
+- name: message
+  type: match_only_text
+- name: sample_field
+  type: long 
+- name: agent_custom
+  type: text

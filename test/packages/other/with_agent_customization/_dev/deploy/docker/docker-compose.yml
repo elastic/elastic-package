@@ -1,0 +1,7 @@
+version: '2.3'
+services:
+  with_agent_customization:
+    image: "alpine:3.16"
+    command: ["sh", "-c", "for i in $(seq 1 5); do echo '{\"agent_custom\": \"hello\"}' >> ./logs/with_agent.log; sleep 1; done"]
+    volumes:
+      - ${SERVICE_LOGS_DIR}:/logs
