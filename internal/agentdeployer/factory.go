@@ -41,23 +41,10 @@ type FactoryOptions struct {
 // Factory chooses the appropriate service runner for the given data stream, depending
 // on service configuration files defined in the package or data stream.
 func Factory(options FactoryOptions) (AgentDeployer, error) {
-	devDeployPath, err := FindDevDeployPath(options)
+	agentDeployerName, agentDeployerPath, err := selectAgentDeployerType(options)
 	if err != nil {
-		return nil, fmt.Errorf("can't find \"%s\" directory: %w", options.DevDeployDir, err)
+		return nil, fmt.Errorf("failed to select agent deployer type: %w", err)
 	}
-
-	agentDeployerName, err := findAgentDeployer(devDeployPath)
-	if err != nil {
-		logger.Debugf("Not found any agent deployer, using default one")
-		agentDeployerName = "default"
-	}
-	// if package defines `_dev/deploy/docker` folder to start their services, it should be
-	// using the default agent deployer`
-	if agentDeployerName == "docker" || agentDeployerName == "tf" {
-		agentDeployerName = "default"
-	}
-
-	agentDeployerPath := filepath.Join(devDeployPath, agentDeployerName)
 
 	switch agentDeployerName {
 	case "default":
@@ -80,21 +67,49 @@ func Factory(options FactoryOptions) (AgentDeployer, error) {
 		// FIXME: this docker-compose scenario contains both agent and service
 		return nil, nil
 	case "k8s":
-		if _, err := os.Stat(agentDeployerPath); err == nil {
-			opts := KubernetesAgentDeployerOptions{
-				Profile:        options.Profile,
-				DefinitionsDir: agentDeployerPath,
-				StackVersion:   options.StackVersion,
-				PolicyName:     options.PolicyName,
-				DataStream:     options.DataStream,
-				RunSetup:       options.RunSetup,
-				RunTestsOnly:   options.RunTestsOnly,
-				RunTearDown:    options.RunTearDown,
-			}
-			return NewKubernetesAgentDeployer(opts)
+		opts := KubernetesAgentDeployerOptions{
+			Profile:        options.Profile,
+			DefinitionsDir: agentDeployerPath,
+			StackVersion:   options.StackVersion,
+			PolicyName:     options.PolicyName,
+			DataStream:     options.DataStream,
+			RunSetup:       options.RunSetup,
+			RunTestsOnly:   options.RunTestsOnly,
+			RunTearDown:    options.RunTearDown,
 		}
+		return NewKubernetesAgentDeployer(opts)
 	}
 	return nil, fmt.Errorf("unsupported agent deployer (name: %s)", agentDeployerName)
+}
+
+func selectAgentDeployerType(options FactoryOptions) (string, string, error) {
+	devDeployPath, err := FindDevDeployPath(options)
+	if errors.Is(err, os.ErrNotExist) {
+		return "default", "", nil
+	}
+	if err != nil {
+		return "", "", fmt.Errorf("can't find \"%s\" directory: %w", options.DevDeployDir, err)
+	}
+
+	agentDeployerName, err := findAgentDeployer(devDeployPath)
+	if err != nil {
+		logger.Debugf("Not found any agent deployer, using default one")
+		return "default", "", nil
+	}
+	// if package defines `_dev/deploy/docker` folder to start their services, it should be
+	// using the default agent deployer`
+	if agentDeployerName == "docker" || agentDeployerName == "tf" {
+		return "default", "", nil
+	}
+
+	agentDeployerPath := filepath.Join(devDeployPath, agentDeployerName)
+	if info, err := os.Stat(agentDeployerPath); err != nil {
+		return "", "", fmt.Errorf("could not find deployer path for agent deployer %q: %w", agentDeployerName, err)
+	} else if errors.Is(err, os.ErrNotExist) || !info.IsDir() {
+		return "", "", fmt.Errorf("expected to find a directory in %s", agentDeployerPath)
+	}
+
+	return agentDeployerName, filepath.Join(devDeployPath, agentDeployerName), nil
 }
 
 // FindDevDeployPath function returns a path reference to the "_dev/deploy" directory.
@@ -113,7 +128,7 @@ func FindDevDeployPath(options FactoryOptions) (string, error) {
 		return "", fmt.Errorf("stat failed for package (path: %s): %w", packageDevDeployPath, err)
 	}
 
-	return "", fmt.Errorf("\"%s\" directory doesn't exist", options.DevDeployDir)
+	return "", fmt.Errorf("\"%s\" %w", options.DevDeployDir, os.ErrNotExist)
 }
 
 func findAgentDeployer(devDeployPath string) (string, error) {
