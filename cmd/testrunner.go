@@ -18,6 +18,7 @@ import (
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/elasticsearch"
+	"github.com/elastic/elastic-package/internal/environment"
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
@@ -51,6 +52,8 @@ For details on how to run static tests for a package, see the [HOWTO guide](http
 These tests allow you to test a package's ability to ingest data end-to-end.
 
 For details on how to configure amd run system tests, review the [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/system_testing.md).`
+
+var enableIndependentAgents = environment.WithElasticPackagePrefix("TEST_ENABLE_INDEPENDENT_AGENT")
 
 func setupTestCommand() *cobraext.Command {
 	var testTypeCmdActions []cobraext.CommandAction
@@ -184,6 +187,12 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 		hasDataStreams, err := packageHasDataStreams(manifest)
 		if err != nil {
 			return fmt.Errorf("cannot determine if package has data streams: %w", err)
+		}
+
+		runIndependentElasticAgent := false
+		v, ok := os.LookupEnv(enableIndependentAgents)
+		if ok && strings.ToLower(v) != "false" {
+			runIndependentElasticAgent = true
 		}
 
 		configFileFlag := ""
@@ -340,20 +349,21 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 		var results []testrunner.TestResult
 		for _, folder := range testFolders {
 			r, err := testrunner.Run(ctx, testType, testrunner.TestOptions{
-				Profile:            profile,
-				TestFolder:         folder,
-				PackageRootPath:    packageRootPath,
-				GenerateTestResult: generateTestResult,
-				API:                esAPI,
-				KibanaClient:       kibanaClient,
-				DeferCleanup:       deferCleanup,
-				ServiceVariant:     variantFlag,
-				WithCoverage:       testCoverage,
-				CoverageType:       testCoverageFormat,
-				ConfigFilePath:     configFileFlag,
-				RunSetup:           runSetup,
-				RunTearDown:        runTearDown,
-				RunTestsOnly:       runTestsOnly,
+				Profile:                    profile,
+				TestFolder:                 folder,
+				PackageRootPath:            packageRootPath,
+				GenerateTestResult:         generateTestResult,
+				API:                        esAPI,
+				KibanaClient:               kibanaClient,
+				DeferCleanup:               deferCleanup,
+				ServiceVariant:             variantFlag,
+				WithCoverage:               testCoverage,
+				CoverageType:               testCoverageFormat,
+				ConfigFilePath:             configFileFlag,
+				RunSetup:                   runSetup,
+				RunTearDown:                runTearDown,
+				RunTestsOnly:               runTestsOnly,
+				RunIndependentElasticAgent: runIndependentElasticAgent,
 			})
 
 			results = append(results, r...)

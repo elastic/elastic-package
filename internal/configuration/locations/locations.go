@@ -98,6 +98,11 @@ func (loc LocationManager) ServiceLogDir() string {
 	return filepath.Join(loc.stackPath, serviceLogsDir)
 }
 
+// ServiceLogDirPerAgent returns the log directory assigned to an specific agent
+func (loc LocationManager) ServiceLogDirPerAgent(name string) string {
+	return filepath.Join(loc.stackPath, serviceLogsDir, name)
+}
+
 // ServiceOutputDir returns the output directory
 func (loc LocationManager) ServiceOutputDir() string {
 	return filepath.Join(loc.stackPath, serviceOutputDir)

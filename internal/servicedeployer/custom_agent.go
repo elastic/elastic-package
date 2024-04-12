@@ -36,6 +36,7 @@ type CustomAgentDeployer struct {
 	profile           *profile.Profile
 	dockerComposeFile string
 	stackVersion      string
+	policyName        string
 
 	runTearDown  bool
 	runTestsOnly bool
@@ -45,10 +46,13 @@ type CustomAgentDeployerOptions struct {
 	Profile           *profile.Profile
 	DockerComposeFile string
 	StackVersion      string
+	PolicyName        string
 
 	RunTearDown  bool
 	RunTestsOnly bool
 }
+
+var _ ServiceDeployer = new(CustomAgentDeployer)
 
 // NewCustomAgentDeployer returns a new instance of a deployedCustomAgent.
 func NewCustomAgentDeployer(options CustomAgentDeployerOptions) (*CustomAgentDeployer, error) {
@@ -56,6 +60,7 @@ func NewCustomAgentDeployer(options CustomAgentDeployerOptions) (*CustomAgentDep
 		profile:           options.Profile,
 		dockerComposeFile: options.DockerComposeFile,
 		stackVersion:      options.StackVersion,
+		policyName:        options.PolicyName,
 		runTearDown:       options.RunTearDown,
 		runTestsOnly:      options.RunTestsOnly,
 	}, nil
@@ -75,10 +80,18 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (D
 		return nil, fmt.Errorf("can't locate CA certificate: %w", err)
 	}
 
+	// Build service container name
+	// FIXME: Currently, this service deployer starts a new agent on its own and
+	// it cannot use directly the `svcInfo.AgentHostname` value
+
+	// Set alias for custom agent
+	svcInfo.Hostname = dockerCustomAgentName
+
 	env := append(
 		appConfig.StackImageRefs(d.stackVersion).AsEnv(),
 		fmt.Sprintf("%s=%s", serviceLogsDirEnv, svcInfo.Logs.Folder.Local),
 		fmt.Sprintf("%s=%s", localCACertEnv, caCertPath),
+		fmt.Sprintf("%s=%s", fleetPolicyEnv, d.policyName),
 	)
 
 	configDir, err := d.installDockerfile()
@@ -139,6 +152,10 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (D
 		if err != nil {
 			return nil, fmt.Errorf("could not boot up service using Docker Compose: %w", err)
 		}
+
+		// TODO: if this agent is moved to "agentdeployer", this container should be connected
+		// to the network of the agent as done in servicedeployer/compose.go
+
 		// Connect service network with stack network (for the purpose of metrics collection)
 		err = docker.ConnectToNetwork(p.ContainerName(serviceName), stack.Network(d.profile))
 		if err != nil {
@@ -154,9 +171,6 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (D
 		}, svcInfo.Name)
 		return nil, fmt.Errorf("service is unhealthy: %w", err)
 	}
-
-	// Build service container name
-	svcInfo.Hostname = p.ContainerName(serviceName)
 
 	logger.Debugf("adding service container %s internal ports to context", p.ContainerName(serviceName))
 	serviceComposeConfig, err := p.Config(ctx, compose.CommandOptions{Env: env})

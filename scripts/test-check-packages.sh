@@ -6,7 +6,8 @@ cleanup() {
   r=$?
 
   # Dump stack logs
-  elastic-package stack dump -v --output "build/elastic-stack-dump/check-${PACKAGE_UNDER_TEST:-${PACKAGE_TEST_TYPE:-any}}"
+  elastic-package stack dump -v \
+      --output "build/elastic-stack-dump/check-${PACKAGE_UNDER_TEST:-${PACKAGE_TEST_TYPE:-any}}"
 
   if [ "${PACKAGE_TEST_TYPE:-other}" == "with-kind" ]; then
     # Dump kubectl details
@@ -40,6 +41,8 @@ cleanup() {
 
 trap cleanup EXIT
 
+ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT=${ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT:-"false"}
+export ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT
 ELASTIC_PACKAGE_LINKS_FILE_PATH="$(pwd)/scripts/links_table.yml"
 export ELASTIC_PACKAGE_LINKS_FILE_PATH
 
@@ -107,7 +110,12 @@ for d in test/packages/${PACKAGE_TEST_TYPE:-other}/${PACKAGE_UNDER_TEST:-*}/; do
         elastic-package benchmark system --benchmark logs-benchmark -v --defer-cleanup 1s
     else
       # defer-cleanup is set to a short period to verify that the option is available
-      elastic-package test -v --report-format xUnit --report-output file --defer-cleanup 1s --test-coverage --coverage-format=generic
+      elastic-package test -v \
+          --report-format xUnit \
+          --report-output file \
+          --defer-cleanup 1s \
+          --test-coverage \
+          --coverage-format=generic
     fi
   )
 cd -

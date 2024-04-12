@@ -178,7 +178,7 @@ services:
        - "127.0.0.1:5044:5044"
        - "127.0.0.1:9600:9600"
     environment:
-      - xpack.monitoring.enabled=false
+      - XPACK_MONITORING_ENABLED=false
       - ELASTIC_USER=elastic
       - ELASTIC_PASSWORD=changeme
       - ELASTIC_HOSTS=https://127.0.0.1:9200
