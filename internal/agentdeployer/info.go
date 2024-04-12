@@ -71,6 +71,11 @@ type AgentInfo struct {
 			// Name prefix for the host's name
 			NamePrefix string
 		}
+
+		User         string
+		PidMode      string
+		Runtime      string
+		Capabilities []string
 	}
 
 	// CustomProperties store additional data used to boot up the service, e.g. AWS credentials.

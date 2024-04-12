@@ -10,7 +10,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/profile"
 )
 
@@ -48,19 +47,13 @@ func Factory(options FactoryOptions) (AgentDeployer, error) {
 
 	agentDeployerName, err := findAgentDeployer(devDeployPath)
 	if err != nil {
-		logger.Debugf("Not found any agent deployer, using default one")
-		agentDeployerName = "default"
-	}
-	// if package defines `_dev/deploy/docker` folder to start their services, it should be
-	// using the default agent deployer`
-	if agentDeployerName == "docker" || agentDeployerName == "tf" {
-		agentDeployerName = "default"
+		return nil, fmt.Errorf("can't find any valid agent deployer: %w", err)
 	}
 
 	agentDeployerPath := filepath.Join(devDeployPath, agentDeployerName)
 
 	switch agentDeployerName {
-	case "default":
+	case "docker", "tf":
 		if options.Type != TypeTest {
 			return nil, fmt.Errorf("agent deployer is not supported for type %s", options.Type)
 		}
