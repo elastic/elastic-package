@@ -1160,8 +1160,6 @@ func (r *runner) setupAgent(ctx context.Context, config *testConfig, state Servi
 		agentInfo.Test.RunID = state.AgentRunID
 	}
 
-	logger.Debugf(">>>>> Info from config: user %q capabilities %q", config.Agent.User, strings.Join(config.Agent.Capabilities, ","))
-
 	agentOptions := r.createAgentOptions(agentInfo.Policy.Name)
 	agentDeployer, err := agentdeployer.Factory(agentOptions)
 	if err != nil {

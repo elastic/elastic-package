@@ -10,7 +10,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/profile"
 )
 
@@ -48,19 +47,13 @@ func Factory(options FactoryOptions) (AgentDeployer, error) {
 
 	agentDeployerName, err := findAgentDeployer(devDeployPath)
 	if err != nil {
-		logger.Debugf("Not found any agent deployer, using default one")
-		agentDeployerName = "default"
+		return nil, fmt.Errorf("can't find any valid agent deployer: %w", err)
 	}
-	// if package defines `_dev/deploy/docker` folder to start their services, it should be
-	// using the default agent deployer`
-	// if agentDeployerName == "docker" || agentDeployerName == "tf" || agentDeployerName == "none" {
-	// 	agentDeployerName = "default"
-	// }
-
-	agentDeployerPath := filepath.Join(devDeployPath, agentDeployerName)
 
 	switch agentDeployerName {
-	case "docker", "default", "tf", "none":
+	// if package defines `docker`  folder to start their services, it should be
+	// using the default agent deployer`
+	case "docker", "tf", "none":
 		if options.Type != TypeTest {
 			return nil, fmt.Errorf("agent deployer is not supported for type %s", options.Type)
 		}
@@ -80,6 +73,7 @@ func Factory(options FactoryOptions) (AgentDeployer, error) {
 		// FIXME: this docker-compose scenario contains both agent and service
 		return nil, nil
 	case "k8s":
+		agentDeployerPath := filepath.Join(devDeployPath, agentDeployerName)
 		if _, err := os.Stat(agentDeployerPath); err == nil {
 			opts := KubernetesAgentDeployerOptions{
 				Profile:        options.Profile,
