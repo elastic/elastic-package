@@ -806,7 +806,9 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	scenario.agent = agentDeployed
 
 	service, svcInfo, err := r.setupService(ctx, config, serviceOptions, svcInfo, agentInfo, agentDeployed, serviceStateData)
-	if err != nil {
+	if errors.Is(err, os.ErrNotExist) {
+		logger.Debugf("No service deployer defined for this test")
+	} else if err != nil {
 		return nil, err
 	}
 
@@ -1120,10 +1122,7 @@ func (r *runner) setupService(ctx context.Context, config *testConfig, serviceOp
 	}
 
 	serviceDeployer, err := servicedeployer.Factory(serviceOptions)
-	if errors.Is(err, os.ErrNotExist) {
-		return nil, svcInfo, nil
-	}
-	if err != nil && !errors.Is(err, os.ErrNotExist) {
+	if err != nil {
 		return nil, svcInfo, fmt.Errorf("could not create service runner: %w", err)
 	}
 
