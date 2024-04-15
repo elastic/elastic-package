@@ -6,6 +6,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
@@ -44,13 +45,12 @@ func BootUp(ctx context.Context, options Options) error {
 		StackVersion:           options.StackVersion,
 		DeployIndependentAgent: false,
 	})
+	if errors.Is(err, os.ErrNotExist) {
+		fmt.Println("No service defined.")
+		return nil
+	}
 	if err != nil {
 		return fmt.Errorf("can't create the service deployer instance: %w", err)
-	}
-
-	if serviceDeployer == nil {
-		fmt.Println("No service defined")
-		return nil
 	}
 
 	// Boot up the service
@@ -72,6 +72,7 @@ func BootUp(ctx context.Context, options Options) error {
 	fmt.Println("Service is up, please use ctrl+c to take it down")
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, os.Interrupt, syscall.SIGTERM)
+	defer signal.Stop(ch)
 	<-ch
 
 	// Tear down the service
