@@ -53,18 +53,22 @@ type kubernetesDeployedService struct {
 	stackVersion string
 	profile      *profile.Profile
 
+	deployIndependentAgent bool
+
 	definitionsDir string
 }
 
 func (s kubernetesDeployedService) TearDown(ctx context.Context) error {
-	logger.Debug("uninstall Elastic Agent Kubernetes")
-	elasticAgentManagedYaml, err := getElasticAgentYAML(s.profile, s.stackVersion)
-	if err != nil {
-		return fmt.Errorf("can't retrieve Kubernetes file for Elastic Agent: %w", err)
-	}
-	err = kubectl.DeleteStdin(ctx, elasticAgentManagedYaml)
-	if err != nil {
-		return fmt.Errorf("can't uninstall Elastic Agent Kubernetes resources (path: %s): %w", s.definitionsDir, err)
+	if !s.deployIndependentAgent {
+		logger.Debug("uninstall Elastic Agent Kubernetes")
+		elasticAgentManagedYaml, err := getElasticAgentYAML(s.profile, s.stackVersion)
+		if err != nil {
+			return fmt.Errorf("can't retrieve Kubernetes file for Elastic Agent: %w", err)
+		}
+		err = kubectl.DeleteStdin(ctx, elasticAgentManagedYaml)
+		if err != nil {
+			return fmt.Errorf("can't uninstall Elastic Agent Kubernetes resources (path: %s): %w", s.definitionsDir, err)
+		}
 	}
 
 	logger.Debugf("uninstall custom Kubernetes definitions (directory: %s)", s.definitionsDir)
@@ -157,10 +161,11 @@ func (ksd KubernetesServiceDeployer) SetUp(ctx context.Context, svcInfo ServiceI
 	// to deploy Agent Pod. Because of this, hostname inside pod will be equal to the name of the k8s host.
 	svcInfo.Agent.Host.NamePrefix = "kind-control-plane"
 	return &kubernetesDeployedService{
-		svcInfo:        svcInfo,
-		definitionsDir: ksd.definitionsDir,
-		stackVersion:   ksd.stackVersion,
-		profile:        ksd.profile,
+		svcInfo:                svcInfo,
+		definitionsDir:         ksd.definitionsDir,
+		stackVersion:           ksd.stackVersion,
+		profile:                ksd.profile,
+		deployIndependentAgent: ksd.deployIndependentAgent,
 	}, nil
 }
 
