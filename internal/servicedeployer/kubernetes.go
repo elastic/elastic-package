@@ -57,9 +57,17 @@ type kubernetesDeployedService struct {
 }
 
 func (s kubernetesDeployedService) TearDown(ctx context.Context) error {
-	logger.Debugf("uninstall custom Kubernetes definitions (directory: %s)", s.definitionsDir)
+	logger.Debug("uninstall Elastic Agent Kubernetes")
+	elasticAgentManagedYaml, err := getElasticAgentYAML(s.profile, s.stackVersion)
+	if err != nil {
+		return fmt.Errorf("can't retrieve Kubernetes file for Elastic Agent: %w", err)
+	}
+	err = kubectl.DeleteStdin(ctx, elasticAgentManagedYaml)
+	if err != nil {
+		return fmt.Errorf("can't uninstall Elastic Agent Kubernetes resources (path: %s): %w", s.definitionsDir, err)
+	}
 
-	// Remove service
+	logger.Debugf("uninstall custom Kubernetes definitions (directory: %s)", s.definitionsDir)
 	definitionPaths, err := findKubernetesDefinitions(s.definitionsDir)
 	if err != nil {
 		return fmt.Errorf("can't find Kubernetes definitions in given directory (path: %s): %w", s.definitionsDir, err)
@@ -73,16 +81,6 @@ func (s kubernetesDeployedService) TearDown(ctx context.Context) error {
 	err = kubectl.Delete(ctx, definitionPaths)
 	if err != nil {
 		return fmt.Errorf("can't uninstall Kubernetes resources (path: %s): %w", s.definitionsDir, err)
-	}
-
-	// Remove Elastic Agent
-	elasticAgentManagedYaml, err := getElasticAgentYAML(s.profile, s.stackVersion)
-	if err != nil {
-		return fmt.Errorf("can't retrieve Kubernetes file for Elastic Agent: %w", err)
-	}
-	err = kubectl.DeleteStdin(ctx, elasticAgentManagedYaml)
-	if err != nil {
-		return fmt.Errorf("can't uninstall Elastic Agent Kubernetes resources (path: %s): %w", s.definitionsDir, err)
 	}
 
 	return nil
