@@ -231,44 +231,13 @@ func (r *runner) setUp(ctx context.Context) error {
 func (r *runner) run(ctx context.Context) (report reporters.Reportable, err error) {
 	var service servicedeployer.DeployedService
 	if r.scenario.Corpora.InputService != nil {
-		stackVersion, err := r.options.KibanaClient.Version()
-		if err != nil {
-			return nil, fmt.Errorf("cannot request Kibana version: %w", err)
+		s, err := r.setupService(ctx)
+		if errors.Is(err, os.ErrNotExist) {
+			logger.Debugf("No service deployer defined for this benchmark")
+		} else if err != nil {
+			return nil, err
 		}
-
-		// Setup service.
-		logger.Debug("setting up service...")
-		devDeployDir := filepath.Clean(filepath.Join(r.options.BenchPath, "deploy"))
-		opts := servicedeployer.FactoryOptions{
-			PackageRootPath:        r.options.PackageRootPath,
-			DevDeployDir:           devDeployDir,
-			Variant:                r.options.Variant,
-			Profile:                r.options.Profile,
-			Type:                   servicedeployer.TypeBench,
-			StackVersion:           stackVersion.Version(),
-			DeployIndependentAgent: false,
-		}
-		serviceDeployer, err := servicedeployer.Factory(opts)
-
-		if err != nil {
-			return nil, fmt.Errorf("could not create service runner: %w", err)
-		}
-
-		r.svcInfo.Name = r.scenario.Corpora.InputService.Name
-		service, err = serviceDeployer.SetUp(ctx, r.svcInfo)
-		if err != nil {
-			return nil, fmt.Errorf("could not setup service: %w", err)
-		}
-
-		r.svcInfo = service.Info()
-		r.shutdownServiceHandler = func(ctx context.Context) error {
-			logger.Debug("tearing down service...")
-			if err := service.TearDown(ctx); err != nil {
-				return fmt.Errorf("error tearing down service: %w", err)
-			}
-
-			return nil
-		}
+		service = s
 	}
 
 	r.startMetricsColletion(ctx)
@@ -288,7 +257,7 @@ func (r *runner) run(ctx context.Context) (report reporters.Reportable, err erro
 	}
 
 	// Signal to the service that the agent is ready (policy is assigned).
-	if r.scenario.Corpora.InputService != nil && r.scenario.Corpora.InputService.Signal != "" {
+	if service != nil && r.scenario.Corpora.InputService != nil && r.scenario.Corpora.InputService.Signal != "" {
 		if err = service.Signal(ctx, r.scenario.Corpora.InputService.Signal); err != nil {
 			return nil, fmt.Errorf("failed to notify benchmark service: %w", err)
 		}
@@ -312,6 +281,48 @@ func (r *runner) run(ctx context.Context) (report reporters.Reportable, err erro
 	}
 
 	return createReport(r.options.BenchName, r.corporaFile, r.scenario, msum)
+}
+
+func (r *runner) setupService(ctx context.Context) (servicedeployer.DeployedService, error) {
+	stackVersion, err := r.options.KibanaClient.Version()
+	if err != nil {
+		return nil, fmt.Errorf("cannot request Kibana version: %w", err)
+	}
+
+	// Setup service.
+	logger.Debug("Setting up service...")
+	devDeployDir := filepath.Clean(filepath.Join(r.options.BenchPath, "deploy"))
+	opts := servicedeployer.FactoryOptions{
+		PackageRootPath:        r.options.PackageRootPath,
+		DevDeployDir:           devDeployDir,
+		Variant:                r.options.Variant,
+		Profile:                r.options.Profile,
+		Type:                   servicedeployer.TypeBench,
+		StackVersion:           stackVersion.Version(),
+		DeployIndependentAgent: false,
+	}
+	serviceDeployer, err := servicedeployer.Factory(opts)
+	if err != nil {
+		return nil, fmt.Errorf("could not create service runner: %w", err)
+	}
+
+	r.svcInfo.Name = r.scenario.Corpora.InputService.Name
+	service, err := serviceDeployer.SetUp(ctx, r.svcInfo)
+	if err != nil {
+		return nil, fmt.Errorf("could not setup service: %w", err)
+	}
+
+	r.svcInfo = service.Info()
+	r.shutdownServiceHandler = func(ctx context.Context) error {
+		logger.Debug("tearing down service...")
+		if err := service.TearDown(ctx); err != nil {
+			return fmt.Errorf("error tearing down service: %w", err)
+		}
+
+		return nil
+	}
+
+	return service, nil
 }
 
 func (r *runner) startMetricsColletion(ctx context.Context) {
