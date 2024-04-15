@@ -111,7 +111,7 @@ type runner struct {
 	serviceStateFilePath string
 
 	// Execution order of following handlers is defined in runner.TearDown() method.
-	unenrollAgentHandler      func(context.Context) error
+	removeAgentHandler        func(context.Context) error
 	deleteTestPolicyHandler   func(context.Context) error
 	deletePackageHandler      func(context.Context) error
 	resetAgentPolicyHandler   func(context.Context) error
@@ -374,11 +374,11 @@ func (r *runner) tearDownTest(ctx context.Context) error {
 		r.resetAgentLogLevelHandler = nil
 	}
 
-	if r.unenrollAgentHandler != nil {
-		if err := r.unenrollAgentHandler(cleanupCtx); err != nil {
+	if r.removeAgentHandler != nil {
+		if err := r.removeAgentHandler(cleanupCtx); err != nil {
 			return err
 		}
-		r.unenrollAgentHandler = nil
+		r.removeAgentHandler = nil
 	}
 
 	if r.deleteTestPolicyHandler != nil {
@@ -933,7 +933,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	agent := agents[0]
 	logger.Debugf("Selected enrolled agent %q", agent.ID)
 
-	r.unenrollAgentHandler = func(ctx context.Context) error {
+	r.removeAgentHandler = func(ctx context.Context) error {
 		// When not using independent agents, service deployers like kubernetes or custom agents create new Elastic Agent
 		createdNewAgent := svcInfo.Agent.Host.NamePrefix == "docker-custom-agent" || svcInfo.Agent.Host.NamePrefix == "kind-control-plane"
 		if !r.options.RunIndependentElasticAgent && !createdNewAgent {
