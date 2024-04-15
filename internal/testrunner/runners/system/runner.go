@@ -934,13 +934,15 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	logger.Debugf("Selected enrolled agent %q", agent.ID)
 
 	r.unenrollAgentHandler = func(ctx context.Context) error {
-		if !r.options.RunIndependentElasticAgent {
+		// When not using independent agents, service deployers like kubernetes or custom agents create new Elastic Agent
+		createdNewAgent := svcInfo.Agent.Host.NamePrefix == "docker-custom-agent" || svcInfo.Agent.Host.NamePrefix == "kind-control-plane"
+		if !r.options.RunIndependentElasticAgent && !createdNewAgent {
 			return nil
 		}
-		logger.Debug("unenrolling agent...")
+		logger.Debug("removing agent...")
 		err := r.options.KibanaClient.RemoveAgent(ctx, agent)
 		if err != nil {
-			return fmt.Errorf("failed to unenroll agent %q: %w", agent.ID, err)
+			return fmt.Errorf("failed to remove agent %q: %w", agent.ID, err)
 		}
 		return nil
 	}
