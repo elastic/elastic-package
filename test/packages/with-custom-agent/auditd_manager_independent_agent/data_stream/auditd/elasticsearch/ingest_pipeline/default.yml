@@ -22,6 +22,12 @@ processors:
       separator: "\n"
       target_field: error.message
       if: ctx?.auditd?.warnings != null && ctx.auditd.warnings instanceof List
+  # if it is not a list, rename it back to error.message
+  - set:
+      field: error.message
+      copy_from: auditd.warnings
+      ignore_empty_value: true
+      if: ctx?.auditd?.warnings != null && !(ctx.auditd.warnings instanceof List)
   - rename:
       field: source.path
       target_field: source.address
