@@ -14,7 +14,7 @@
 - name: event.dataset
   type: constant_keyword
   description: Event dataset
-  value: auditd_manager.auditd
+  value: auditd_manager_independent_agent.auditd
 - name: '@timestamp'
   external: ecs
 - name: tags
