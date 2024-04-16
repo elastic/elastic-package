@@ -5,6 +5,7 @@ data_stream:
     preserve_original_event: true
 agent:
   user: "root"
+  runtime: docker
   # shared_pid_address_space: true ?
   pid_mode: "host"
   capabilities:
