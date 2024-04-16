@@ -63,6 +63,7 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 				Profile:                options.Profile,
 				DefinitionsDir:         serviceDeployerPath,
 				StackVersion:           options.StackVersion,
+				PolicyName:             options.PolicyName,
 				RunSetup:               options.RunSetup,
 				RunTestsOnly:           options.RunTestsOnly,
 				RunTearDown:            options.RunTearDown,
