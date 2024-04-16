@@ -303,9 +303,6 @@ func initDependencyManagement(packageRoot string, specVersion semver.Version, im
 
 	// Check if the package embeds ECS mappings
 	packageEmbedsEcsMappings := buildManifest.ImportMappings() && !specVersion.LessThan(semver2_3_0)
-	if !packageEmbedsEcsMappings {
-		logger.Debugf("Package does not embed ECS mappings")
-	}
 
 	// Check if all stack versions support ECS mappings
 	stackSupportsEcsMapping, err := supportsECSMappings(packageRoot)
@@ -323,7 +320,7 @@ func initDependencyManagement(packageRoot string, specVersion semver.Version, im
 		if err != nil {
 			return nil, nil, err
 		}
-		logger.Debug("Imported ECS fields definition from external schema for validation")
+		logger.Debugf("Imported ECS fields definition from external schema for validation (embedded in package: %v, stack uses ecs@mappings template: %v)", packageEmbedsEcsMappings, stackSupportsEcsMapping)
 		schema = ecsSchema
 	}
 
