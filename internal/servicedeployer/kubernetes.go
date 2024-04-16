@@ -60,7 +60,7 @@ type kubernetesDeployedService struct {
 
 func (s kubernetesDeployedService) TearDown(ctx context.Context) error {
 	if !s.deployIndependentAgent {
-		logger.Debug("uninstall Elastic Agent Kubernetes")
+		logger.Debug("Uninstall Elastic Agent Kubernetes")
 		elasticAgentManagedYaml, err := getElasticAgentYAML(s.profile, s.stackVersion)
 		if err != nil {
 			return fmt.Errorf("can't retrieve Kubernetes file for Elastic Agent: %w", err)
@@ -71,7 +71,7 @@ func (s kubernetesDeployedService) TearDown(ctx context.Context) error {
 		}
 	}
 
-	logger.Debugf("uninstall custom Kubernetes definitions (directory: %s)", s.definitionsDir)
+	logger.Debugf("Uninstall custom Kubernetes definitions (directory: %s)", s.definitionsDir)
 	definitionPaths, err := findKubernetesDefinitions(s.definitionsDir)
 	if err != nil {
 		return fmt.Errorf("can't find Kubernetes definitions in given directory (path: %s): %w", s.definitionsDir, err)
