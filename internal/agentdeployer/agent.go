@@ -39,7 +39,6 @@ type DockerComposeAgentDeployer struct {
 	dockerComposeFile string
 	stackVersion      string
 
-	variant    AgentVariant
 	policyName string
 
 	agentRunID string
@@ -55,7 +54,6 @@ type DockerComposeAgentDeployerOptions struct {
 	Profile           *profile.Profile
 	DockerComposeFile string
 	StackVersion      string
-	Variant           AgentVariant
 	PolicyName        string
 
 	PackageName string
@@ -72,7 +70,6 @@ type dockerComposeDeployedAgent struct {
 
 	ymlPaths []string
 	project  string
-	variant  AgentVariant
 	env      []string
 }
 
@@ -87,7 +84,6 @@ func NewCustomAgentDeployer(options DockerComposeAgentDeployerOptions) (*DockerC
 		packageName:       options.PackageName,
 		dataStream:        options.DataStream,
 		policyName:        options.PolicyName,
-		variant:           options.Variant,
 		runTearDown:       options.RunTearDown,
 		runTestsOnly:      options.RunTestsOnly,
 	}, nil
@@ -136,7 +132,6 @@ func (d *DockerComposeAgentDeployer) SetUp(ctx context.Context, agentInfo AgentI
 	agent := dockerComposeDeployedAgent{
 		ymlPaths: ymlPaths,
 		project:  composeProjectName,
-		variant:  d.variant,
 		env:      env,
 	}
 
@@ -170,10 +165,6 @@ func (d *DockerComposeAgentDeployer) SetUp(ctx context.Context, agentInfo AgentI
 	// Service name defined in the docker-compose file
 	agentInfo.Name = dockerTestAgentNamePrefix
 	agentName := agentInfo.Name
-
-	if d.variant.active() {
-		logger.Infof("Using variant: %s", d.variant.String())
-	}
 
 	opts := compose.CommandOptions{
 		Env:       env,
@@ -237,9 +228,6 @@ func (d *DockerComposeAgentDeployer) agentHostname() string {
 
 func (d *DockerComposeAgentDeployer) agentName() string {
 	name := d.packageName
-	if d.variant.Name != "" {
-		name = fmt.Sprintf("%s-%s", name, d.variant.Name)
-	}
 	if d.dataStream != "" && d.dataStream != "." {
 		name = fmt.Sprintf("%s-%s", name, d.dataStream)
 	}
@@ -280,12 +268,7 @@ func (s *dockerComposeDeployedAgent) ExitCode(ctx context.Context) (bool, int, e
 		return false, -1, fmt.Errorf("could not create Docker Compose project for agent: %w", err)
 	}
 
-	opts := compose.CommandOptions{
-		Env: append(
-			s.env,
-			s.variant.Env...,
-		),
-	}
+	opts := compose.CommandOptions{Env: s.env}
 
 	return p.ServiceExitCode(ctx, s.agentInfo.Name, opts)
 }
@@ -297,12 +280,7 @@ func (s *dockerComposeDeployedAgent) Logs(ctx context.Context, t time.Time) ([]b
 		return nil, fmt.Errorf("could not create Docker Compose project for agent: %w", err)
 	}
 
-	opts := compose.CommandOptions{
-		Env: append(
-			s.env,
-			s.variant.Env...,
-		),
-	}
+	opts := compose.CommandOptions{Env: s.env}
 
 	return p.Logs(ctx, opts)
 }
@@ -327,12 +305,7 @@ func (s *dockerComposeDeployedAgent) TearDown(ctx context.Context) error {
 		return fmt.Errorf("could not create Docker Compose project for service: %w", err)
 	}
 
-	opts := compose.CommandOptions{
-		Env: append(
-			s.env,
-			s.variant.Env...,
-		),
-	}
+	opts := compose.CommandOptions{Env: s.env}
 	processAgentContainerLogs(ctx, p, opts, s.agentInfo.Name)
 
 	if err := p.Down(ctx, compose.CommandOptions{

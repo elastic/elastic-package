@@ -9,14 +9,14 @@ data:
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
-  name: elastic-agent
+  name: {{ .agentName }}
   namespace: kube-system
   labels:
-    app: elastic-agent
+    app:  {{ .agentName }}
 spec:
   selector:
     matchLabels:
-      app: elastic-agent
+      app: {{ .agentName }}
   updateStrategy:
     type: RollingUpdate
     rollingUpdate:
@@ -25,12 +25,12 @@ spec:
   template:
     metadata:
       labels:
-        app: elastic-agent
+        app: {{ .agentName }}
     spec:
       tolerations:
         - key: node-role.kubernetes.io/master
           effect: NoSchedule
-      serviceAccountName: elastic-agent
+      serviceAccountName: {{ .agentName }}
       hostNetwork: true
       dnsPolicy: ClusterFirstWithHostNet
       containers:
@@ -143,50 +143,50 @@ spec:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: elastic-agent
+  name: {{ .agentName }}
 subjects:
   - kind: ServiceAccount
-    name: elastic-agent
+    name: {{ .agentName }}
     namespace: kube-system
 roleRef:
   kind: ClusterRole
-  name: elastic-agent
+  name: {{ .agentName }}
   apiGroup: rbac.authorization.k8s.io
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   namespace: kube-system
-  name: elastic-agent
+  name: {{ .agentName }}
 subjects:
   - kind: ServiceAccount
-    name: elastic-agent
+    name: {{ .agentName }}
     namespace: kube-system
 roleRef:
   kind: Role
-  name: elastic-agent
+  name: {{ .agentName }}
   apiGroup: rbac.authorization.k8s.io
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: elastic-agent-kubeadm-config
+  name: {{ .agentName }}-kubeadm-config
   namespace: kube-system
 subjects:
   - kind: ServiceAccount
-    name: elastic-agent
+    name: {{ .agentName }}
     namespace: kube-system
 roleRef:
   kind: Role
-  name: elastic-agent-kubeadm-config
+  name: {{ .agentName }}-kubeadm-config
   apiGroup: rbac.authorization.k8s.io
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: elastic-agent
+  name: {{ .agentName }}
   labels:
-    k8s-app: elastic-agent
+    k8s-app: {{ .agentName }}
 rules:
   - apiGroups: [""]
     resources:
@@ -256,11 +256,11 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: elastic-agent
+  name: {{ .agentName }}
   # should be the namespace where elastic-agent is running
   namespace: kube-system
   labels:
-    k8s-app: elastic-agent
+    k8s-app: {{ .agentName }}
 rules:
   - apiGroups:
       - coordination.k8s.io
@@ -271,10 +271,10 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: elastic-agent-kubeadm-config
+  name: {{ .agentName }}-kubeadm-config
   namespace: kube-system
   labels:
-    k8s-app: elastic-agent
+    k8s-app: {{ .agentName }}
 rules:
   - apiGroups: [""]
     resources:
@@ -286,8 +286,8 @@ rules:
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: elastic-agent
+  name: {{ .agentName }}
   namespace: kube-system
   labels:
-    k8s-app: elastic-agent
+    k8s-app: {{ .agentName }}
 ---

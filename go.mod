@@ -1,6 +1,6 @@
 module github.com/elastic/elastic-package
 
-go 1.21.0
+go 1.22.0
 
 require (
 	github.com/AlecAivazis/survey/v2 v2.3.7
@@ -14,7 +14,7 @@ require (
 	github.com/elastic/elastic-integration-corpus-generator-tool v0.10.0
 	github.com/elastic/go-elasticsearch/v7 v7.17.10
 	github.com/elastic/go-licenser v0.4.1
-	github.com/elastic/go-resource v0.1.1
+	github.com/elastic/go-resource v0.2.0
 	github.com/elastic/go-ucfg v0.8.8
 	github.com/elastic/package-spec/v3 v3.1.3
 	github.com/fatih/color v1.16.0
@@ -37,7 +37,7 @@ require (
 	gopkg.in/dnaeon/go-vcr.v3 v3.2.0
 	gopkg.in/yaml.v3 v3.0.1
 	gotest.tools/gotestsum v1.11.0
-	helm.sh/helm/v3 v3.14.3
+	helm.sh/helm/v3 v3.14.4
 	honnef.co/go/tools v0.4.7
 	k8s.io/apimachinery v0.29.3
 	k8s.io/cli-runtime v0.29.3

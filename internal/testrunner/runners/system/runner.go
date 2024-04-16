@@ -264,7 +264,7 @@ func (r *runner) Run(ctx context.Context, options testrunner.TestOptions) ([]tes
 	return result.WithSuccess()
 }
 
-func (r *runner) createAgentOptions(variantName, policyName string) agentdeployer.FactoryOptions {
+func (r *runner) createAgentOptions(policyName string) agentdeployer.FactoryOptions {
 	return agentdeployer.FactoryOptions{
 		Profile:            r.options.Profile,
 		PackageRootPath:    r.options.PackageRootPath,
@@ -275,7 +275,6 @@ func (r *runner) createAgentOptions(variantName, policyName string) agentdeploye
 		PackageName:        r.options.TestFolder.Package,
 		DataStream:         r.options.TestFolder.DataStream,
 		PolicyName:         policyName,
-		Variant:            variantName,
 		RunTearDown:        r.options.RunTearDown,
 		RunTestsOnly:       r.options.RunTestsOnly,
 		RunSetup:           r.options.RunSetup,
@@ -465,8 +464,20 @@ func (r *runner) initRun() error {
 		DataStreamRootPath: r.dataStreamPath,
 		DevDeployDir:       DevDeployDir,
 	})
-	if err != nil {
-		return fmt.Errorf("_dev/deploy directory not found: %w", err)
+	switch {
+	case errors.Is(err, os.ErrNotExist):
+		r.variants = r.selectVariants(nil)
+	case err != nil:
+		return fmt.Errorf("failed fo find service deploy path: %w", err)
+	default:
+		variantsFile, err := servicedeployer.ReadVariantsFile(devDeployPath)
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("can't read service variant: %w", err)
+		}
+		r.variants = r.selectVariants(variantsFile)
+	}
+	if r.options.ServiceVariant != "" && len(r.variants) == 0 {
+		return fmt.Errorf("not found variant definition %q", r.options.ServiceVariant)
 	}
 
 	if r.options.ConfigFilePath != "" {
@@ -485,16 +496,6 @@ func (r *runner) initRun() error {
 		if err != nil {
 			return fmt.Errorf("failed listing test case config cfgFiles: %w", err)
 		}
-	}
-
-	variantsFile, err := servicedeployer.ReadVariantsFile(devDeployPath)
-	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("can't read service variant: %w", err)
-	}
-
-	r.variants = r.selectVariants(variantsFile)
-	if r.options.ServiceVariant != "" && len(r.variants) == 0 {
-		return fmt.Errorf("not found variant definition %q", r.options.ServiceVariant)
 	}
 
 	return nil
@@ -796,7 +797,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		enrollingTime = serviceStateData.EnrollingAgentTime
 	}
 
-	agentDeployed, agentInfo, err := r.setupAgent(ctx, serviceOptions.Variant, serviceStateData, policy)
+	agentDeployed, agentInfo, err := r.setupAgent(ctx, serviceStateData, policy)
 	if err != nil {
 		return nil, err
 	}
@@ -805,7 +806,9 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	scenario.agent = agentDeployed
 
 	service, svcInfo, err := r.setupService(ctx, config, serviceOptions, svcInfo, agentInfo, agentDeployed, serviceStateData)
-	if err != nil {
+	if errors.Is(err, os.ErrNotExist) {
+		logger.Debugf("No service deployer defined for this test")
+	} else if err != nil {
 		return nil, err
 	}
 
@@ -1001,7 +1004,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	}
 
 	// Signal to the service that the agent is ready (policy is assigned).
-	if config.ServiceNotifySignal != "" {
+	if service != nil && config.ServiceNotifySignal != "" {
 		if err = service.Signal(ctx, config.ServiceNotifySignal); err != nil {
 			return nil, fmt.Errorf("failed to notify test service: %w", err)
 		}
@@ -1045,7 +1048,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		return hits.size() > 0, nil
 	}, 1*time.Second, waitForDataTimeout)
 
-	if config.Service != "" && !config.IgnoreServiceError {
+	if service != nil && config.Service != "" && !config.IgnoreServiceError {
 		exited, code, err := service.ExitCode(ctx, config.Service)
 		if err != nil && !errors.Is(err, servicedeployer.ErrNotSupported) {
 			return nil, err
@@ -1139,7 +1142,7 @@ func (r *runner) setupService(ctx context.Context, config *testConfig, serviceOp
 	return service, service.Info(), nil
 }
 
-func (r *runner) setupAgent(ctx context.Context, variant string, state ServiceState, policy *kibana.Policy) (agentdeployer.DeployedAgent, agentdeployer.AgentInfo, error) {
+func (r *runner) setupAgent(ctx context.Context, state ServiceState, policy *kibana.Policy) (agentdeployer.DeployedAgent, agentdeployer.AgentInfo, error) {
 	if !r.options.RunIndependentElasticAgent {
 		return nil, agentdeployer.AgentInfo{}, nil
 	}
@@ -1152,7 +1155,7 @@ func (r *runner) setupAgent(ctx context.Context, variant string, state ServiceSt
 		agentInfo.Test.RunID = state.AgentRunID
 	}
 
-	agentOptions := r.createAgentOptions(variant, agentInfo.Policy.Name)
+	agentOptions := r.createAgentOptions(agentInfo.Policy.Name)
 	agentDeployer, err := agentdeployer.Factory(agentOptions)
 	if err != nil {
 		return nil, agentInfo, fmt.Errorf("could not create agent runner: %w", err)
