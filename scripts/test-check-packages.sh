@@ -85,10 +85,10 @@ fi
 for d in test/packages/${PACKAGE_TEST_TYPE:-other}/${PACKAGE_UNDER_TEST:-*}/; do
   (
     cd "$d"
+    package_to_test=$(basename "${d}")
 
     if [ "${PACKAGE_TEST_TYPE:-other}" == "benchmarks" ]; then
       # It is not used PACKAGE_UNDER_TEST, so all benchmark packages are run in the same loop
-      package_to_test=$(basename "${d}")
       if [ "${package_to_test}" == "pipeline_benchmark" ]; then
         rm -rf "${OLDPWD}/build/benchmark-results"
         elastic-package benchmark pipeline -v --report-format xUnit --report-output file --fail-on-missing
@@ -106,7 +106,7 @@ for d in test/packages/${PACKAGE_TEST_TYPE:-other}/${PACKAGE_UNDER_TEST:-*}/; do
       if [ "${package_to_test}" == "system_benchmark" ]; then
         elastic-package benchmark system --benchmark logs-benchmark -v --defer-cleanup 1s
       fi
-    elif [ "${PACKAGE_TEST_TYPE:-other}" == "with-logstash" ] && [ "${PACKAGE_UNDER_TEST:-*}" == "system_benchmark" ]; then
+    elif [ "${PACKAGE_TEST_TYPE:-other}" == "with-logstash" ] && [ "${package_to_test}" == "system_benchmark" ]; then
         elastic-package benchmark system --benchmark logs-benchmark -v --defer-cleanup 1s
     else
       # defer-cleanup is set to a short period to verify that the option is available
