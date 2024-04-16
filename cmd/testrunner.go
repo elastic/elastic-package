@@ -365,12 +365,11 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 				RunTestsOnly:               runTestsOnly,
 				RunIndependentElasticAgent: runIndependentElasticAgent,
 			})
-
-			results = append(results, r...)
-
 			if err != nil {
 				return fmt.Errorf("error running package %s tests: %w", testType, err)
 			}
+
+			results = append(results, r...)
 		}
 
 		format := testrunner.TestReportFormat(reportFormat)

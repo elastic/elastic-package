@@ -5,6 +5,7 @@
 package pipeline
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -175,6 +176,7 @@ func (r *runner) run(ctx context.Context) ([]testrunner.TestResult, error) {
 		expectedDatasets = []string{expectedDataset}
 	}
 
+	startTime := time.Now()
 	results := make([]testrunner.TestResult, 0)
 	for _, testCaseFile := range testCaseFiles {
 		validatorOptions := []fields.ValidatorOption{
@@ -192,7 +194,69 @@ func (r *runner) run(ctx context.Context) ([]testrunner.TestResult, error) {
 		results = append(results, result)
 	}
 
+	esLogs, err := r.checkElasticsearchLogs(ctx, startTime)
+	if err != nil {
+		return nil, err
+	}
+	results = append(results, esLogs...)
+
 	return results, nil
+}
+
+func (r *runner) checkElasticsearchLogs(ctx context.Context, startTesting time.Time) ([]testrunner.TestResult, error) {
+
+	startTime := time.Now()
+
+	testingTime := startTesting.Truncate(time.Second)
+
+	elasticsearchLogs, err := stack.GetServiceLogs(ctx, "elasticsearch", r.options.Profile, testingTime)
+	if err != nil {
+		return nil, fmt.Errorf("error at getting the logs of elasticsearch: %w", err)
+	}
+
+	seenWarnings := make(map[string]any)
+	var processorRelatedWarnings []string
+	err = stack.ParseLogsFromReader(bytes.NewReader(elasticsearchLogs), stack.ParseLogsOptions{
+		StartTime: testingTime,
+	}, func(log stack.LogLine) error {
+		if log.LogLevel != "WARN" {
+			return nil
+		}
+
+		if _, exists := seenWarnings[log.Message]; exists {
+			return nil
+		}
+
+		seenWarnings[log.Message] = struct{}{}
+		logger.Warnf("elasticsearch warning: %s", log.Message)
+
+		// trying to catch warnings only related to processors but this is best-effort
+		if strings.Contains(strings.ToLower(log.Logger), "processor") {
+			processorRelatedWarnings = append(processorRelatedWarnings, log.Message)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("error at parsing logs of elasticseach: %w", err)
+	}
+
+	tr := testrunner.TestResult{
+		TestType:    TestType,
+		Name:        "(ingest pipeline warnings)",
+		Package:     r.options.TestFolder.Package,
+		DataStream:  r.options.TestFolder.DataStream,
+		TimeElapsed: time.Since(startTime),
+	}
+
+	if totalProcessorWarnings := len(processorRelatedWarnings); totalProcessorWarnings > 0 {
+		tr.FailureMsg = fmt.Sprintf("detected ingest pipeline warnings: %d", totalProcessorWarnings)
+		tr.FailureDetails = strings.Join(processorRelatedWarnings, "\n")
+	}
+
+	return []testrunner.TestResult{tr}, nil
+
 }
 
 func (r *runner) runTestCase(testCaseFile string, dsPath string, dsType string, pipeline string, validatorOptions []fields.ValidatorOption) (testrunner.TestResult, error) {
