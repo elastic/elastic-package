@@ -111,7 +111,7 @@ for d in test/packages/${PACKAGE_TEST_TYPE:-other}/${PACKAGE_UNDER_TEST:-*}/; do
     else
       if [[ "${ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT}" == false && "${package_to_test}" == "auditd_manager_independent_agent" ]]; then
           echo "Package \"${package_to_test}\" skipped: not supported with Elastic Agent running in the stack (missing capabilities)."
-          continue
+          exit # as it is run in a subshell, it cannot be used "continue"
       fi
       # defer-cleanup is set to a short period to verify that the option is available
       elastic-package test -v \
