@@ -3,6 +3,10 @@
   fields:
     - name: code
       type: keyword
+    - name: pid
+      type: keyword
+    - name: ppid
+      type: keyword
     - name: flattened
       type: group
       fields:
@@ -78,3 +82,7 @@
   multi_fields:
     - name: text
       type: text
+- name: tags
+  type: keyword
+  normalize:
+    - array
