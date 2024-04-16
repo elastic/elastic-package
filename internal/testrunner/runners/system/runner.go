@@ -805,7 +805,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	scenario.enrollingTime = enrollingTime
 	scenario.agent = agentDeployed
 
-	service, svcInfo, err := r.setupService(ctx, config, serviceOptions, svcInfo, agentInfo, agentDeployed, serviceStateData)
+	service, svcInfo, err := r.setupService(ctx, config, serviceOptions, svcInfo, agentInfo, agentDeployed, policy, serviceStateData)
 	if errors.Is(err, os.ErrNotExist) {
 		logger.Debugf("No service deployer defined for this test")
 	} else if err != nil {
@@ -1096,7 +1096,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	return &scenario, nil
 }
 
-func (r *runner) setupService(ctx context.Context, config *testConfig, serviceOptions servicedeployer.FactoryOptions, svcInfo servicedeployer.ServiceInfo, agentInfo agentdeployer.AgentInfo, agentDeployed agentdeployer.DeployedAgent, state ServiceState) (servicedeployer.DeployedService, servicedeployer.ServiceInfo, error) {
+func (r *runner) setupService(ctx context.Context, config *testConfig, serviceOptions servicedeployer.FactoryOptions, svcInfo servicedeployer.ServiceInfo, agentInfo agentdeployer.AgentInfo, agentDeployed agentdeployer.DeployedAgent, policy *kibana.Policy, state ServiceState) (servicedeployer.DeployedService, servicedeployer.ServiceInfo, error) {
 	logger.Debug("setting up service...")
 	if r.options.RunTearDown || r.options.RunTestsOnly {
 		svcInfo.Test.RunID = state.ServiceRunID
@@ -1114,10 +1114,9 @@ func (r *runner) setupService(ctx context.Context, config *testConfig, serviceOp
 		svcInfo.Logs.Folder.Local = agentInfo.Logs.Folder.Local
 	}
 
-	// In case of custom agent (servicedeployer) enabling independent agents, update serviceOptions to include test policy too
-	if r.options.RunIndependentElasticAgent {
-		serviceOptions.PolicyName = agentInfo.Policy.Name
-	}
+	// In case of custom or kubernetes agents (servicedeployer) it is needed also the Agent Policy created
+	// for each test execution
+	serviceOptions.PolicyName = policy.Name
 
 	if config.Service != "" {
 		svcInfo.Name = config.Service
