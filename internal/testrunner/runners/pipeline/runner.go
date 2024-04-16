@@ -207,7 +207,7 @@ func (r *runner) checkElasticsearchLogs(ctx context.Context, startTesting time.T
 
 	startTime := time.Now()
 
-	testingTime := startTesting.Truncate(time.Second).Add(-1 * time.Second)
+	testingTime := startTesting.Truncate(time.Second)
 
 	elasticsearchLogs, err := stack.GetServiceLogs(ctx, "elasticsearch", r.options.Profile, testingTime)
 	if err != nil {
