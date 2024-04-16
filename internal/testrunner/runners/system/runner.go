@@ -32,7 +32,7 @@ import (
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/multierror"
 	"github.com/elastic/elastic-package/internal/packages"
-	"github.com/elastic/elastic-package/internal/packages/installer"
+	"github.com/elastic/elastic-package/internal/resources"
 	"github.com/elastic/elastic-package/internal/servicedeployer"
 	"github.com/elastic/elastic-package/internal/stack"
 	"github.com/elastic/elastic-package/internal/testrunner"
@@ -102,18 +102,18 @@ type runner struct {
 	options   testrunner.TestOptions
 	pipelines []ingest.Pipeline
 
-	dataStreamPath  string
-	cfgFiles        []string
-	variants        []string
-	stackVersion    kibana.VersionInfo
-	locationManager *locations.LocationManager
+	dataStreamPath   string
+	cfgFiles         []string
+	variants         []string
+	stackVersion     kibana.VersionInfo
+	locationManager  *locations.LocationManager
+	resourcesManager *resources.Manager
 
 	serviceStateFilePath string
 
 	// Execution order of following handlers is defined in runner.TearDown() method.
 	removeAgentHandler        func(context.Context) error
 	deleteTestPolicyHandler   func(context.Context) error
-	deletePackageHandler      func(context.Context) error
 	resetAgentPolicyHandler   func(context.Context) error
 	resetAgentLogLevelHandler func(context.Context) error
 	shutdownServiceHandler    func(context.Context) error
@@ -264,6 +264,20 @@ func (r *runner) Run(ctx context.Context, options testrunner.TestOptions) ([]tes
 	return result.WithSuccess()
 }
 
+type resourcesOptions struct {
+	installedPackage bool
+}
+
+func (r *runner) resources(opts resourcesOptions) resources.Resources {
+	return resources.Resources{
+		&resources.FleetPackage{
+			RootPath: r.options.PackageRootPath,
+			Absent:   !opts.installedPackage,
+			Force:    opts.installedPackage, // Force re-installation, in case there are code changes in the same package version.
+		},
+	}
+}
+
 func (r *runner) createAgentOptions(policyName string) agentdeployer.FactoryOptions {
 	return agentdeployer.FactoryOptions{
 		Profile:            r.options.Profile,
@@ -388,11 +402,13 @@ func (r *runner) tearDownTest(ctx context.Context) error {
 		r.deleteTestPolicyHandler = nil
 	}
 
-	if r.deletePackageHandler != nil {
-		if err := r.deletePackageHandler(cleanupCtx); err != nil {
-			return err
-		}
-		r.deletePackageHandler = nil
+	resourcesOptions := resourcesOptions{
+		// Keep it installed only if we were running setup, or tests only.
+		installedPackage: r.options.RunSetup || r.options.RunTestsOnly,
+	}
+	_, err := r.resourcesManager.ApplyCtx(cleanupCtx, r.resources(resourcesOptions))
+	if err != nil {
+		return err
 	}
 
 	if r.shutdownServiceHandler != nil {
@@ -435,6 +451,10 @@ func (r *runner) initRun() error {
 	if err != nil {
 		return fmt.Errorf("reading service logs directory failed: %w", err)
 	}
+
+	r.resourcesManager = resources.NewManager()
+	r.resourcesManager.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: r.options.KibanaClient})
+
 	r.serviceStateFilePath = filepath.Join(testrunner.StateFolderPath(r.options.Profile.ProfilePath), testrunner.ServiceStateFileName)
 
 	r.dataStreamPath, found, err = packages.FindDataStreamRootForPath(r.options.TestFolder.Path)
@@ -818,60 +838,21 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		return nil, fmt.Errorf("unable to reload system test case configuration: %w", err)
 	}
 
-	// Install the package before creating the policy, so we control exactly what is being
-	// installed.
-	logger.Debug("Initializing installer for package...")
-	installer, err := installer.NewForPackage(installer.Options{
-		Kibana:         r.options.KibanaClient,
-		RootPath:       r.options.PackageRootPath,
-		SkipValidation: true,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize package installer: %v", err)
-	}
-
-	deletePackageHandler := func(ctx context.Context) error {
-		stackVersion, err := semver.NewVersion(serviceOptions.StackVersion)
-		if err != nil {
-			return fmt.Errorf("failed to parse stack version: %w", err)
-		}
-
-		if stackVersion.LessThan(semver.MustParse("8.0.0")) && scenario.pkgManifest.Name == "system" {
-			// in Elastic stack 7.* , system package is installed in the default Agent policy and it cannot be deleted
-			// error: system is installed by default and cannot be removed
-			logger.Debugf("skip uninstalling %s package", scenario.pkgManifest.Name)
-			return nil
-		}
-
-		logger.Debug("removing package...")
-		err = installer.Uninstall(ctx)
-		if err != nil {
-			// logging the error as a warning and not returning it since there could be other reasons that could make fail this process
-			// for instance being defined a test agent policy where this package is used for debugging purposes
-			logger.Warnf("failed to uninstall package %q: %s", scenario.pkgManifest.Name, err.Error())
-		}
-		return nil
-	}
-
 	if r.options.RunTearDown {
 		logger.Debug("Skip installing package")
 	} else {
-		// Allowed to re-install the package in RunTestsOnly to be able to
-		// test new changes introduced in the package
+		// Install the package before creating the policy, so we control exactly what is being
+		// installed.
 		logger.Debug("Installing package...")
-		_, err = installer.Install(ctx)
-		if errors.Is(err, context.Canceled) {
-			// Installation interrupted, at this point the package may have been installed, try to remove it for cleanup.
-			err := deletePackageHandler(context.WithoutCancel(ctx))
-			if err != nil {
-				logger.Debugf("error while removing package after installation interrupted: %s", err)
-			}
+		resourcesOptions := resourcesOptions{
+			// Install it unless we are running the tear down only.
+			installedPackage: !r.options.RunTearDown,
 		}
+		_, err = r.resourcesManager.ApplyCtx(ctx, r.resources(resourcesOptions))
 		if err != nil {
-			return nil, fmt.Errorf("failed to install package: %v", err)
+			return nil, fmt.Errorf("can't install the package: %w", err)
 		}
 	}
-	r.deletePackageHandler = deletePackageHandler
 
 	logger.Debug("adding package data stream to test policy...")
 	ds := createPackageDatastream(*policy, *scenario.pkgManifest, policyTemplate, *scenario.dataStreamManifest, *config)
