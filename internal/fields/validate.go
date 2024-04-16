@@ -593,7 +593,7 @@ func (v *Validator) validateScalarElement(key string, val interface{}, doc commo
 	// Convert numeric keyword fields to string for validation.
 	_, found := v.numericKeywordFields[key]
 	if (found || v.defaultNumericConversion) && isNumericKeyword(*definition, val) {
-		val = fmt.Sprintf("%q", val)
+		val = convertNumericKeyword(val)
 	}
 
 	if !v.disabledNormalization {
@@ -692,12 +692,15 @@ func createDocExpandingObjects(doc common.MapStr) (common.MapStr, error) {
 	}
 	return newDoc, nil
 }
-func isNumericKeyword(definition FieldDefinition, val interface{}) bool {
+
+// isNumericKeyword is used to identify values that can be numbers in the documents, but are ingested
+// as keywords.
+func isNumericKeyword(definition FieldDefinition, val any) bool {
 	var isNumber bool
 	switch val := val.(type) {
 	case bool, []bool, float64, []float64:
 		isNumber = true
-	case []interface{}:
+	case []any:
 		isNumber = true
 	loop:
 		for _, v := range val {
@@ -710,6 +713,19 @@ func isNumericKeyword(definition FieldDefinition, val interface{}) bool {
 		}
 	}
 	return isNumber && (definition.Type == "keyword" || definition.Type == "constant_keyword")
+}
+
+func convertNumericKeyword(val any) any {
+	switch val := val.(type) {
+	case []any:
+		converted := make([]any, len(val))
+		for i, e := range val {
+			converted[i] = convertNumericKeyword(e)
+		}
+		return converted
+	default:
+		return fmt.Sprintf("%q", val)
+	}
 }
 
 // skipValidationForField skips field validation (field presence) of special fields. The special fields are present

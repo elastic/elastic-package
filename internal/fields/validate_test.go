@@ -66,7 +66,13 @@ func TestValidate_WithFlattenedFields(t *testing.T) {
 
 func TestValidate_WithNumericKeywordFields(t *testing.T) {
 	validator, err := CreateValidatorForDirectory("testdata",
-		WithNumericKeywordFields([]string{"foo.code"}),
+		WithNumericKeywordFields([]string{
+			"foo.code", // Contains a number.
+			"foo.pid",  // Contains an array of numbers.
+			"foo.ppid", // Contains an empty array.
+			"tags",     // Contains an empty array, and expects normalization as array.
+		}),
+		WithSpecVersion("2.3.0"), // Needed to validate normalization.
 		WithDisabledDependencyManagement())
 	require.NoError(t, err)
 	require.NotNil(t, validator)
