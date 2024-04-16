@@ -194,10 +194,6 @@ func (r *runner) run(ctx context.Context) ([]testrunner.TestResult, error) {
 		results = append(results, result)
 	}
 
-	if r.options.SkipCheckPipelineWarnings {
-		return results, nil
-	}
-
 	esLogs, err := r.checkElasticsearchLogs(ctx, startTime)
 	if err != nil {
 		return nil, err

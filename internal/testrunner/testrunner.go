@@ -39,11 +39,10 @@ type TestOptions struct {
 
 	RunIndependentElasticAgent bool
 
-	DeferCleanup              time.Duration
-	ServiceVariant            string
-	WithCoverage              bool
-	SkipCheckPipelineWarnings bool
-	CoverageType              string
+	DeferCleanup   time.Duration
+	ServiceVariant string
+	WithCoverage   bool
+	CoverageType   string
 
 	ConfigFilePath string
 	RunSetup       bool
