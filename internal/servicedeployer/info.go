@@ -63,6 +63,10 @@ type ServiceInfo struct {
 			// Name prefix for the host's name
 			NamePrefix string
 		}
+
+		// Independent indicates whether or not the Agent assigned to this service is set
+		// independently from the Elastic Agent running in the stack (elastic-package stack up)
+		Independent bool
 	}
 
 	// CustomProperties store additional data used to boot up the service, e.g. AWS credentials.

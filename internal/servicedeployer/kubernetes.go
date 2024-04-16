@@ -159,6 +159,7 @@ func (ksd KubernetesServiceDeployer) SetUp(ctx context.Context, svcInfo ServiceI
 		}
 	}
 
+	svcInfo.Agent.Independent = true
 	svcInfo.Name = kind.ControlPlaneContainerName
 	svcInfo.Hostname = kind.ControlPlaneContainerName
 	// kind-control-plane is the name of the kind host where Pod is running since we use hostNetwork setting
