@@ -320,7 +320,7 @@ func initDependencyManagement(packageRoot string, specVersion semver.Version, im
 		if err != nil {
 			return nil, nil, err
 		}
-		logger.Debug("Imported ECS fields definition from external schema for validation (package: %v, stack: %v)", packageEmbedsEcsMappings, stackSupportsEcsMapping)
+		logger.Debugf("Imported ECS fields definition from external schema for validation (package: %v, stack: %v)", packageEmbedsEcsMappings, stackSupportsEcsMapping)
 		schema = ecsSchema
 	}
 
