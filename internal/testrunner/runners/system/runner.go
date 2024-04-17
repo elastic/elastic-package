@@ -354,6 +354,8 @@ func (r *runner) createServiceInfo() (servicedeployer.ServiceInfo, error) {
 		svcInfo.OutputDir = outputDir
 	}
 
+	svcInfo.Agent.Independent = false
+
 	return svcInfo, nil
 }
 
@@ -916,8 +918,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 
 	r.removeAgentHandler = func(ctx context.Context) error {
 		// When not using independent agents, service deployers like kubernetes or custom agents create new Elastic Agent
-		createdNewAgent := svcInfo.Agent.Host.NamePrefix == "docker-custom-agent" || svcInfo.Agent.Host.NamePrefix == "kind-control-plane"
-		if !r.options.RunIndependentElasticAgent && !createdNewAgent {
+		if !r.options.RunIndependentElasticAgent && !svcInfo.Agent.Independent {
 			return nil
 		}
 		logger.Debug("removing agent...")
