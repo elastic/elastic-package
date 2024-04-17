@@ -721,7 +721,7 @@ type scenarioTest struct {
 	syntheticEnabled   bool
 	docs               []common.MapStr
 	agent              agentdeployer.DeployedAgent
-	enrollingTime      time.Time
+	startTestTime      time.Time
 }
 
 func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInfo servicedeployer.ServiceInfo, serviceOptions servicedeployer.FactoryOptions) (*scenarioTest, error) {
@@ -797,17 +797,11 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		return nil
 	}
 
-	enrollingTime := time.Now()
-	if r.options.RunTearDown || r.options.RunTestsOnly {
-		enrollingTime = serviceStateData.EnrollingAgentTime
-	}
-
 	agentDeployed, agentInfo, err := r.setupAgent(ctx, config, serviceStateData, policy)
 	if err != nil {
 		return nil, err
 	}
 
-	scenario.enrollingTime = enrollingTime
 	scenario.agent = agentDeployed
 
 	service, svcInfo, err := r.setupService(ctx, config, serviceOptions, svcInfo, agentInfo, agentDeployed, policy, serviceStateData)
@@ -877,6 +871,15 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		}
 	}
 	r.deletePackageHandler = deletePackageHandler
+
+	// store the time just before adding the Test Policy, this time will be used to check
+	// the agent logs from that time onwards to avoid possible previous errors present in logs
+	startTestTime := time.Now()
+	if r.options.RunTearDown || r.options.RunTestsOnly {
+		startTestTime = serviceStateData.StartTestTime
+	}
+
+	scenario.startTestTime = startTestTime
 
 	logger.Debug("adding package data stream to test policy...")
 	ds := createPackageDatastream(*policy, *scenario.pkgManifest, policyTemplate, *scenario.dataStreamManifest, *config)
@@ -1088,7 +1091,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 			currentPolicy: policy,
 			config:        config,
 			agent:         origAgent,
-			enrollingTime: enrollingTime,
+			startTestTime: startTestTime,
 			agentInfo:     agentInfo,
 			svcInfo:       svcInfo,
 		}
@@ -1221,15 +1224,15 @@ func (r *runner) readServiceStateData() (ServiceState, error) {
 }
 
 type ServiceState struct {
-	OrigPolicy         kibana.Policy `json:"orig_policy"`
-	CurrentPolicy      kibana.Policy `json:"current_policy"`
-	Agent              kibana.Agent  `json:"agent"`
-	ConfigFilePath     string        `json:"config_file_path"`
-	VariantName        string        `json:"variant_name"`
-	EnrollingAgentTime time.Time     `json:"enrolling_agent_time"`
-	ServiceRunID       string        `json:"service_info_run_id"`
-	AgentRunID         string        `json:"agent_info_run_id"`
-	ServiceOutputDir   string        `json:"service_output_dir"`
+	OrigPolicy       kibana.Policy `json:"orig_policy"`
+	CurrentPolicy    kibana.Policy `json:"current_policy"`
+	Agent            kibana.Agent  `json:"agent"`
+	ConfigFilePath   string        `json:"config_file_path"`
+	VariantName      string        `json:"variant_name"`
+	StartTestTime    time.Time     `json:"start_test_time"`
+	ServiceRunID     string        `json:"service_info_run_id"`
+	AgentRunID       string        `json:"agent_info_run_id"`
+	ServiceOutputDir string        `json:"service_output_dir"`
 }
 
 type scenarioStateOpts struct {
@@ -1237,22 +1240,22 @@ type scenarioStateOpts struct {
 	origPolicy    *kibana.Policy
 	config        *testConfig
 	agent         kibana.Agent
-	enrollingTime time.Time
+	startTestTime time.Time
 	agentInfo     agentdeployer.AgentInfo
 	svcInfo       servicedeployer.ServiceInfo
 }
 
 func (r *runner) writeScenarioState(opts scenarioStateOpts) error {
 	data := ServiceState{
-		OrigPolicy:         *opts.origPolicy,
-		CurrentPolicy:      *opts.currentPolicy,
-		Agent:              opts.agent,
-		ConfigFilePath:     opts.config.Path,
-		VariantName:        opts.config.ServiceVariantName,
-		EnrollingAgentTime: opts.enrollingTime,
-		ServiceRunID:       opts.svcInfo.Test.RunID,
-		AgentRunID:         opts.agentInfo.Test.RunID,
-		ServiceOutputDir:   opts.svcInfo.OutputDir,
+		OrigPolicy:       *opts.origPolicy,
+		CurrentPolicy:    *opts.currentPolicy,
+		Agent:            opts.agent,
+		ConfigFilePath:   opts.config.Path,
+		VariantName:      opts.config.ServiceVariantName,
+		StartTestTime:    opts.startTestTime,
+		ServiceRunID:     opts.svcInfo.Test.RunID,
+		AgentRunID:       opts.agentInfo.Test.RunID,
+		ServiceOutputDir: opts.svcInfo.OutputDir,
 	}
 	dataBytes, err := json.Marshal(data)
 	if err != nil {
@@ -1372,7 +1375,7 @@ func (r *runner) validateTestScenario(ctx context.Context, result *testrunner.Re
 	}
 
 	if scenario.agent != nil {
-		logResults, err := r.checkNewAgentLogs(ctx, scenario.agent, scenario.enrollingTime, errorPatterns)
+		logResults, err := r.checkNewAgentLogs(ctx, scenario.agent, scenario.startTestTime, errorPatterns)
 		if err != nil {
 			return result.WithError(err)
 		}
