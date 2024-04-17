@@ -1167,6 +1167,7 @@ func (r *runner) setupAgent(ctx context.Context, config *testConfig, state Servi
 		return nil, agentInfo, fmt.Errorf("could not create agent runner: %w", err)
 	}
 	if agentDeployer == nil {
+		logger.Debug("Not found agent deployer. Agent will be created along with the service.")
 		return nil, agentInfo, nil
 	}
 
