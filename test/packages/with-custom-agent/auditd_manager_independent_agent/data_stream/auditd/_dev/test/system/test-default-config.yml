@@ -7,6 +7,6 @@ agent:
   runtime: docker
   user: "root"
   pid_mode: "host"
-  capabilities:
+  linux_capabilities:
     - AUDIT_CONTROL
     - AUDIT_READ

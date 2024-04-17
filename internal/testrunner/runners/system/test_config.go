@@ -54,10 +54,10 @@ type testConfig struct {
 
 	// Agent related properties
 	Agent struct {
-		User         string   `config:"user"`
-		PidMode      string   `config:"pid_mode"`
-		Capabilities []string `config:"capabilities"`
-		Runtime      string   `config:"runtime"`
+		User              string   `config:"user"`
+		PidMode           string   `config:"pid_mode"`
+		LinuxCapabilities []string `config:"linux_capabilities"`
+		Runtime           string   `config:"runtime"`
 	} `config:"agent"`
 }
 
