@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 )
@@ -71,6 +72,10 @@ func getComponentTemplatesByName(ctx context.Context, api *elasticsearch.API, na
 	}
 	defer resp.Body.Close()
 
+	// Component templates referenced by other templates may not exist.
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, nil
+	}
 	if resp.IsError() {
 		return nil, fmt.Errorf("failed to get component template %s: %s", name, resp.String())
 	}
