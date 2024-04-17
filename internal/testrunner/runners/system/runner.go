@@ -874,12 +874,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 
 	// store the time just before adding the Test Policy, this time will be used to check
 	// the agent logs from that time onwards to avoid possible previous errors present in logs
-	startTestTime := time.Now()
-	if r.options.RunTearDown || r.options.RunTestsOnly {
-		startTestTime = serviceStateData.StartTestTime
-	}
-
-	scenario.startTestTime = startTestTime
+	scenario.startTestTime = time.Now()
 
 	logger.Debug("adding package data stream to test policy...")
 	ds := createPackageDatastream(*policy, *scenario.pkgManifest, policyTemplate, *scenario.dataStreamManifest, *config)
@@ -1091,7 +1086,6 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 			currentPolicy: policy,
 			config:        config,
 			agent:         origAgent,
-			startTestTime: startTestTime,
 			agentInfo:     agentInfo,
 			svcInfo:       svcInfo,
 		}
@@ -1229,7 +1223,6 @@ type ServiceState struct {
 	Agent            kibana.Agent  `json:"agent"`
 	ConfigFilePath   string        `json:"config_file_path"`
 	VariantName      string        `json:"variant_name"`
-	StartTestTime    time.Time     `json:"start_test_time"`
 	ServiceRunID     string        `json:"service_info_run_id"`
 	AgentRunID       string        `json:"agent_info_run_id"`
 	ServiceOutputDir string        `json:"service_output_dir"`
@@ -1240,7 +1233,6 @@ type scenarioStateOpts struct {
 	origPolicy    *kibana.Policy
 	config        *testConfig
 	agent         kibana.Agent
-	startTestTime time.Time
 	agentInfo     agentdeployer.AgentInfo
 	svcInfo       servicedeployer.ServiceInfo
 }
@@ -1252,7 +1244,6 @@ func (r *runner) writeScenarioState(opts scenarioStateOpts) error {
 		Agent:            opts.agent,
 		ConfigFilePath:   opts.config.Path,
 		VariantName:      opts.config.ServiceVariantName,
-		StartTestTime:    opts.startTestTime,
 		ServiceRunID:     opts.svcInfo.Test.RunID,
 		AgentRunID:       opts.agentInfo.Test.RunID,
 		ServiceOutputDir: opts.svcInfo.OutputDir,
