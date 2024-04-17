@@ -4,9 +4,8 @@ data_stream:
       - "-a always,exit -F arch=b64 -S execve,execveat -k exec"
     preserve_original_event: true
 agent:
-  user: "root"
   runtime: docker
-  # shared_pid_address_space: true ?
+  user: "root"
   pid_mode: "host"
   capabilities:
     - AUDIT_CONTROL
