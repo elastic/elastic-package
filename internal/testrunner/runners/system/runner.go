@@ -321,7 +321,7 @@ func (r *runner) createAgentInfo(policy *kibana.Policy, config *testConfig) (age
 	info.Policy.ID = policy.ID
 
 	info.Agent.User = config.Agent.User
-	info.Agent.Capabilities = config.Agent.Capabilities
+	info.Agent.LinuxCapabilities = config.Agent.Capabilities
 	info.Agent.Runtime = config.Agent.Runtime
 	info.Agent.PidMode = config.Agent.PidMode
 

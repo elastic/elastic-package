@@ -80,8 +80,8 @@ type AgentInfo struct {
 		PidMode string
 		// Runtime is the selected runtime to run the Elastic Agent process
 		Runtime string
-		// Capabilities is a list of the capabilities needed to run the Elastic Agent process
-		Capabilities []string
+		// LinuxCapabilities is a list of the capabilities needed to run the Elastic Agent process
+		LinuxCapabilities []string
 	}
 
 	// CustomProperties store additional data used to boot up the service, e.g. AWS credentials.

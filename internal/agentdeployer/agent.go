@@ -253,7 +253,7 @@ func (d *DockerComposeAgentDeployer) installDockerfile(agentInfo AgentInfo) (str
 	tmpl := template.Must(template.New(dockerTestAgentDockerCompose).Parse(dockerTestAgentDockerComposeTemplate))
 	err = tmpl.Execute(file, map[string]any{
 		"user":         agentInfo.Agent.User,
-		"capabilities": agentInfo.Agent.Capabilities,
+		"capabilities": agentInfo.Agent.LinuxCapabilities,
 		"runtime":      agentInfo.Agent.Runtime,
 		"pidMode":      agentInfo.Agent.PidMode,
 	})
