@@ -12,7 +12,6 @@ import (
 	"net/http"
 
 	"github.com/elastic/elastic-package/internal/elasticsearch"
-	"github.com/elastic/elastic-package/internal/logger"
 )
 
 // ComponentTemplate contains information related to a component template for exporting purpouses.
@@ -73,11 +72,10 @@ func getComponentTemplatesByName(ctx context.Context, api *elasticsearch.API, na
 	}
 	defer resp.Body.Close()
 
+	// Component templates referenced by other templates may not exist.
 	if resp.StatusCode == http.StatusNotFound {
-		logger.Debugf("No component template found for %q", name)
 		return nil, nil
 	}
-
 	if resp.IsError() {
 		return nil, fmt.Errorf("failed to get component template %s: %s", name, resp.String())
 	}
