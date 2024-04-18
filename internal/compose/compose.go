@@ -195,16 +195,13 @@ func NewProject(name string, paths ...string) (*Project, error) {
 		c.dockerComposeStandalone = c.dockerComposeStandaloneRequired()
 	}
 
-	if logger.IsDebugMode() {
-		// Passing a nil context here because we are on initialization.
-		ver, err := c.dockerComposeVersion(context.Background())
-		if err != nil {
-			logger.Errorf("Unable to determine Docker Compose version: %v", err)
-			return &c, nil
-		}
-		versionMessage := fmt.Sprintf("Determined Docker Compose version: %v", ver)
-		logger.Debug(versionMessage)
+	// Passing a nil context here because we are on initialization.
+	ver, err := c.dockerComposeVersion(context.Background())
+	if err != nil {
+		logger.Errorf("Unable to determine Docker Compose version: %v", err)
+		return &c, nil
 	}
+	logger.Debugf("Determined Docker Compose version: %v", ver)
 
 	v, ok = os.LookupEnv(DisableVerboseOutputComposeEnv)
 	if ok && strings.ToLower(v) != "false" {
