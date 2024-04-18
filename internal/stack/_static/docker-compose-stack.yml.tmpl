@@ -1,7 +1,6 @@
 {{ $username := fact "username" }}
 {{ $password := fact "password" }}
 {{ $apm_enabled := fact "apm_enabled" }}
-version: '2.4'
 services:
   elasticsearch:
     image: "${ELASTICSEARCH_IMAGE_REF}"

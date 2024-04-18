@@ -47,7 +47,6 @@ type Project struct {
 	name             string
 	composeFilePaths []string
 
-	dockerComposeV1                bool
 	dockerComposeStandalone        bool
 	disableANSI                    bool
 	disablePullProgressInformation bool
@@ -199,20 +198,15 @@ func NewProject(name string, paths ...string) (*Project, error) {
 	// Passing a nil context here because we are on initialization.
 	ver, err := c.dockerComposeVersion(context.Background())
 	if err != nil {
-		logger.Errorf("Unable to determine Docker Compose version: %v. Defaulting to 1.x", err)
-		c.dockerComposeV1 = true
-		return &c, nil
+		return nil, fmt.Errorf("unable to determine Docker Compose version: %w", err)
 	}
-
-	versionMessage := fmt.Sprintf("Determined Docker Compose version: %v", ver)
-	if ver.Major() == 1 {
-		versionMessage = fmt.Sprintf("%s, the tool will use Compose V1", versionMessage)
-		c.dockerComposeV1 = true
+	if ver.Major() < 2 {
+		return nil, fmt.Errorf("required Docker Compose v2, found %s", ver.String())
 	}
-	logger.Debug(versionMessage)
+	logger.Debugf("Determined Docker Compose version: %v", ver)
 
 	v, ok = os.LookupEnv(DisableVerboseOutputComposeEnv)
-	if !c.dockerComposeV1 && ok && strings.ToLower(v) != "false" {
+	if ok && strings.ToLower(v) != "false" {
 		if c.composeVersion.LessThan(semver.MustParse("2.19.0")) {
 			c.disableANSI = true
 		} else {
@@ -543,8 +537,5 @@ func (p *Project) dockerComposeVersion(ctx context.Context) (*semver.Version, er
 
 // ContainerName method the container name for the service.
 func (p *Project) ContainerName(serviceName string) string {
-	if p.dockerComposeV1 {
-		return fmt.Sprintf("%s_%s_1", p.name, serviceName)
-	}
 	return fmt.Sprintf("%s-%s-1", p.name, serviceName)
 }

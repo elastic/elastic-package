@@ -5,6 +5,7 @@
 package pipeline
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -75,9 +76,9 @@ func (p BenchmarkValue) String() (r string) {
 	return r
 }
 
-func (r *runner) benchmarkPipeline(b *benchmark, entryPipeline string) (*BenchmarkResult, error) {
+func (r *runner) benchmarkPipeline(ctx context.Context, b *benchmark, entryPipeline string) (*BenchmarkResult, error) {
 	// Run benchmark
-	bench, err := r.benchmarkIngest(b, entryPipeline)
+	bench, err := r.benchmarkIngest(ctx, b, entryPipeline)
 	if err != nil {
 		return nil, fmt.Errorf("failed running benchmark: %w", err)
 	}
@@ -196,9 +197,9 @@ type ingestResult struct {
 	numDocs   int
 }
 
-func (r *runner) benchmarkIngest(b *benchmark, entryPipeline string) (ingestResult, error) {
+func (r *runner) benchmarkIngest(ctx context.Context, b *benchmark, entryPipeline string) (ingestResult, error) {
 	baseDocs := resizeDocs(b.events, b.config.NumDocs)
-	return r.runSingleBenchmark(entryPipeline, baseDocs)
+	return r.runSingleBenchmark(ctx, entryPipeline, baseDocs)
 }
 
 type processorPerformance struct {
@@ -298,12 +299,12 @@ func (agg aggregation) collect(fn mapFn) ([]BenchmarkValue, error) {
 	return r, nil
 }
 
-func (r *runner) runSingleBenchmark(entryPipeline string, docs []json.RawMessage) (ingestResult, error) {
+func (r *runner) runSingleBenchmark(ctx context.Context, entryPipeline string, docs []json.RawMessage) (ingestResult, error) {
 	if len(docs) == 0 {
 		return ingestResult{}, errors.New("no docs supplied for benchmark")
 	}
 
-	if _, err := ingest.SimulatePipeline(r.options.API, entryPipeline, docs, "test-generic-default"); err != nil {
+	if _, err := ingest.SimulatePipeline(ctx, r.options.API, entryPipeline, docs, "test-generic-default"); err != nil {
 		return ingestResult{}, fmt.Errorf("simulate failed: %w", err)
 	}
 

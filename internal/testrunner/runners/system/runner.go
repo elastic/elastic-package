@@ -1251,6 +1251,10 @@ func (r *runner) deleteOldDocumentsDataStreamAndWait(ctx context.Context, dataSt
 	if err != nil {
 		return err
 	}
+	// First call already reports zero documents
+	if startHits.size() == 0 {
+		return nil
+	}
 	cleared, err := wait.UntilTrue(ctx, func(ctx context.Context) (bool, error) {
 		hits, err := r.getDocs(ctx, dataStream)
 		if err != nil {

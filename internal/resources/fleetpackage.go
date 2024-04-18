@@ -171,8 +171,12 @@ func (s *FleetPackageState) NeedsUpdate(resource resource.Resource) (bool, error
 			return fleetPackage.Force, nil
 		}
 		if s.manifest.Name == "system" && s.kibanaVersion.LessThan(semver.MustParse("8.0.0")) {
-			// in Elastic stack 7.* , system package is installed in the default Agent policy and it cannot be deleted
+			// In Elastic stack 7.* , system package is installed in the default Agent policy and it cannot be deleted.
 			// error: system is installed by default and cannot be removed
+			return false, nil
+		}
+		if s.manifest.Name == "fleet_server" {
+			// This package is always in use by the agent running Fleet Server.
 			return false, nil
 		}
 	} else {
