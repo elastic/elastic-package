@@ -58,7 +58,7 @@ func (r *runner) SetUp(ctx context.Context) error {
 
 // TearDown shuts down the pipeline benchmark runner.
 func (r *runner) TearDown(ctx context.Context) error {
-	if err := ingest.UninstallPipelines(r.options.API, r.pipelines); err != nil {
+	if err := ingest.UninstallPipelines(ctx, r.options.API, r.pipelines); err != nil {
 		return fmt.Errorf("uninstalling ingest pipelines failed: %w", err)
 	}
 	return nil
@@ -66,16 +66,16 @@ func (r *runner) TearDown(ctx context.Context) error {
 
 // Run runs the pipeline benchmarks defined under the given folder
 func (r *runner) Run(ctx context.Context) (reporters.Reportable, error) {
-	return r.run()
+	return r.run(ctx)
 }
 
-func (r *runner) run() (reporters.Reportable, error) {
+func (r *runner) run(ctx context.Context) (reporters.Reportable, error) {
 	b, err := r.loadBenchmark()
 	if err != nil {
 		return nil, fmt.Errorf("loading benchmark failed: %w", err)
 	}
 
-	benchmark, err := r.benchmarkPipeline(b, r.entryPipeline)
+	benchmark, err := r.benchmarkPipeline(ctx, b, r.entryPipeline)
 	if err != nil {
 		return nil, err
 	}
