@@ -59,7 +59,7 @@ test-stack-command-oldest:
 	./scripts/test-stack-command.sh 7.14.2
 
 test-stack-command-7x:
-	./scripts/test-stack-command.sh 7.17.18
+	./scripts/test-stack-command.sh 7.17.19
 
 # Keeping a test for 8.6 because it has an specific configuration file.
 test-stack-command-86:
