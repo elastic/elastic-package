@@ -7,6 +7,7 @@ package ingest
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -22,16 +23,20 @@ type simulatePipelineRequest struct {
 }
 
 type simulatePipelineResponse struct {
-	Docs []pipelineIngestedDocument `json:"docs"`
+	Docs []struct {
+		ProcessorResults []verboseProcessorResult `json:"processor_results"`
+	}
+}
+
+type verboseProcessorResult struct {
+	Processor string           `json:"processor_type"`
+	Status    string           `json:"status"`
+	Doc       pipelineDocument `json:"doc"`
 }
 
 type pipelineDocument struct {
 	Index  string          `json:"_index"`
 	Source json.RawMessage `json:"_source"`
-}
-
-type pipelineIngestedDocument struct {
-	Doc pipelineDocument `json:"doc"`
 }
 
 // Pipeline represents a pipeline resource loaded from a file
@@ -86,9 +91,10 @@ func SimulatePipeline(api *elasticsearch.API, pipelineName string, events []json
 		return nil, fmt.Errorf("marshalling simulate request failed: %w", err)
 	}
 
-	r, err := api.Ingest.Simulate(bytes.NewReader(requestBody), func(request *elasticsearch.IngestSimulateRequest) {
-		request.PipelineID = pipelineName
-	})
+	r, err := api.Ingest.Simulate(bytes.NewReader(requestBody),
+		api.Ingest.Simulate.WithPipelineID(pipelineName),
+		api.Ingest.Simulate.WithVerbose(true),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("simulate API call failed (pipelineName: %s): %w", pipelineName, err)
 	}
@@ -110,10 +116,29 @@ func SimulatePipeline(api *elasticsearch.API, pipelineName string, events []json
 	}
 
 	processedEvents := make([]json.RawMessage, len(response.Docs))
+	var errs []error
 	for i, doc := range response.Docs {
-		processedEvents[i] = doc.Doc.Source
+		var source json.RawMessage
+		failed := false
+		for _, result := range doc.ProcessorResults {
+			switch result.Status {
+			case "success":
+				// Keep last successful document.
+				source = result.Doc.Source
+			case "skipped":
+				continue
+			case "failed":
+				failed = true
+				errs = append(errs, fmt.Errorf("%q processor failed (status: %s)", result.Processor, result.Status))
+			}
+		}
+
+		if !failed {
+			processedEvents[i] = source
+		}
 	}
-	return processedEvents, nil
+
+	return processedEvents, errors.Join(errs...)
 }
 
 func UninstallPipelines(api *elasticsearch.API, pipelines []Pipeline) error {
