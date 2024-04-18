@@ -137,6 +137,7 @@ func (r *runner) run(ctx context.Context) ([]testrunner.TestResult, error) {
 		return nil, errors.New("data stream root not found")
 	}
 
+	startTime := time.Now()
 	var entryPipeline string
 	entryPipeline, r.pipelines, err = ingest.InstallDataStreamPipelines(r.options.API, dataStreamPath)
 	if err != nil {
@@ -176,7 +177,6 @@ func (r *runner) run(ctx context.Context) ([]testrunner.TestResult, error) {
 		expectedDatasets = []string{expectedDataset}
 	}
 
-	startTime := time.Now()
 	results := make([]testrunner.TestResult, 0)
 	for _, testCaseFile := range testCaseFiles {
 		validatorOptions := []fields.ValidatorOption{
