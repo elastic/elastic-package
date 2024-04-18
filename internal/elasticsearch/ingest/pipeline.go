@@ -16,6 +16,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/elasticsearch"
+	"github.com/elastic/elastic-package/internal/logger"
 )
 
 type simulatePipelineRequest struct {
@@ -29,9 +30,19 @@ type simulatePipelineResponse struct {
 }
 
 type verboseProcessorResult struct {
-	Processor string           `json:"processor_type"`
-	Status    string           `json:"status"`
-	Doc       pipelineDocument `json:"doc"`
+	Processor string                `json:"processor_type"`
+	Status    string                `json:"status"`
+	Doc       pipelineDocument      `json:"doc"`
+	Error     verboseProcessorError `json:"error"`
+	Ignored   struct {
+		Error verboseProcessorError `json:"error"`
+	} `json:"ignored_error"`
+}
+
+type verboseProcessorError struct {
+	Type      string          `json:"type"`
+	Reason    string          `json:"reason"`
+	RootCause json.RawMessage `json:"root_cause"`
 }
 
 type pipelineDocument struct {
@@ -94,6 +105,8 @@ func SimulatePipeline(api *elasticsearch.API, pipelineName string, events []json
 	r, err := api.Ingest.Simulate(bytes.NewReader(requestBody),
 		api.Ingest.Simulate.WithPipelineID(pipelineName),
 		api.Ingest.Simulate.WithVerbose(true),
+
+		api.Ingest.Simulate.WithPretty(),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("simulate API call failed (pipelineName: %s): %w", pipelineName, err)
@@ -129,11 +142,17 @@ func SimulatePipeline(api *elasticsearch.API, pipelineName string, events []json
 				source = nil
 			case "skipped":
 				continue
+			case "error_ignored":
+				logger.Debugf("error ignored for processor %s: [%s] %s", result.Processor, result.Ignored.Error.Type, result.Ignored.Error.Reason)
+				continue
+			case "error":
+				failed = true
+				errs = append(errs, fmt.Errorf("error in processor %s: [%s] %s", result.Processor, result.Error.Type, result.Error.Reason))
 			case "failed":
 				failed = true
-				errs = append(errs, fmt.Errorf("%q processor failed (status: %s)", result.Processor, result.Status))
+				errs = append(errs, fmt.Errorf("%q processor failed", result.Processor))
 			default:
-				errs = append(errs, fmt.Errorf("unexpected result status %s", result.Status))
+				errs = append(errs, fmt.Errorf("unexpected result status %q for processor %q", result.Status, result.Processor))
 			}
 		}
 
