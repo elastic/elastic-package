@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/elastic/elastic-package/internal/compose"
-	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/docker"
 	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/install"
@@ -237,8 +236,7 @@ func (d *DockerComposeAgentDeployer) agentName() string {
 // installDockerfile creates the files needed to run the custom elastic agent and returns
 // the directory with these files.
 func (d *DockerComposeAgentDeployer) installDockerfile(agentInfo AgentInfo) (string, error) {
-	customAgentDir := filepath.Join(d.profile.ProfilePath, fmt.Sprintf("agent-%s", d.agentName()))
-	err := os.MkdirAll(customAgentDir, 0755)
+	customAgentDir, err := CreateDeployerDir(d.profile, fmt.Sprintf("docker-agent-%s", d.agentName()))
 	if err != nil {
 		return "", fmt.Errorf("failed to create directory for custom agent files: %w", err)
 	}
@@ -262,15 +260,6 @@ func (d *DockerComposeAgentDeployer) installDockerfile(agentInfo AgentInfo) (str
 	}
 
 	return customAgentDir, nil
-}
-
-func CreateServiceLogsDir(elasticPackagePath *locations.LocationManager, name string) (string, error) {
-	dirPath := elasticPackagePath.ServiceLogDirPerAgent(name)
-	err := os.MkdirAll(dirPath, 0755)
-	if err != nil {
-		return "", fmt.Errorf("mkdir failed (path: %s): %w", dirPath, err)
-	}
-	return dirPath, nil
 }
 
 // ExitCode returns true if the agent is exited and its exit code.

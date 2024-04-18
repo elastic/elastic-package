@@ -325,7 +325,7 @@ func (r *runner) createAgentInfo(policy *kibana.Policy, config *testConfig) (age
 		folderName = fmt.Sprintf("%s-%s", folderName, r.options.TestFolder.DataStream)
 	}
 
-	dirPath, err := agentdeployer.CreateServiceLogsDir(r.locationManager, folderName)
+	dirPath, err := agentdeployer.CreateServiceLogsDir(r.options.Profile, folderName)
 	if err != nil {
 		return agentdeployer.AgentInfo{}, fmt.Errorf("failed to create service logs dir: %w", err)
 	}
