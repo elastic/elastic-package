@@ -5,6 +5,7 @@
 package profile
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -47,4 +48,25 @@ func (c *config) get(name string) (string, bool) {
 	default:
 		return fmt.Sprintf("%v", v), true
 	}
+}
+
+func (c *config) Unmarshal(name string, out any) error {
+	v, err := c.settings.GetValue(name)
+	if err != nil {
+		if errors.Is(err, common.ErrKeyNotFound) {
+			return nil
+		}
+		return err
+	}
+
+	data, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	if err := json.Unmarshal(data, out); err != nil {
+		return err
+	}
+
+	return nil
 }

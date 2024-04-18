@@ -139,6 +139,9 @@ services:
       interval: 5s
     hostname: docker-fleet-agent
     env_file: "./elastic-agent.env"
+    {{- if eq (fact "agent_has_publish_ports") "true" }}
+    ports: {{ fact "agent_publish_ports" }}
+    {{- end }}
     volumes:
     - "../certs/ca-cert.pem:/etc/ssl/certs/elastic-package.pem"
     - type: bind

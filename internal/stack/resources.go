@@ -135,7 +135,7 @@ func applyResources(profile *profile.Profile, stackVersion string) error {
 	stackDir := filepath.Join(profile.ProfilePath, ProfileStackPath)
 
 	resourceManager := resource.NewManager()
-	resourceManager.AddFacter(resource.StaticFacter{
+	facter := resource.StaticFacter{
 		"registry_base_image":   PackageRegistryBaseImage,
 		"elasticsearch_version": stackVersion,
 		"kibana_version":        stackVersion,
@@ -152,9 +152,25 @@ func applyResources(profile *profile.Profile, stackVersion string) error {
 		"geoip_dir":            profile.Config(configGeoIPDir, "./ingest-geoip"),
 		"logstash_enabled":     profile.Config(configLogstashEnabled, "false"),
 		"self_monitor_enabled": profile.Config(configSelfMonitorEnabled, "false"),
-	})
+	}
 
-	os.MkdirAll(stackDir, 0755)
+	var agentPorts []string
+	if err := profile.Unmarshal("stack.agent.ports", &agentPorts); err != nil {
+		return fmt.Errorf("failed to unmarshal stack.agent.ports: %w", err)
+	}
+
+	if len(agentPorts) > 0 {
+		facter["agent_has_publish_ports"] = "true"
+		facter["agent_publish_ports"] = fmt.Sprintf("[%s]", strings.Join(agentPorts, ","))
+	} else {
+		facter["agent_has_publish_ports"] = "false"
+	}
+
+	resourceManager.AddFacter(facter)
+
+	if err := os.MkdirAll(stackDir, 0755); err != nil {
+		return fmt.Errorf("failed to create stack directory: %w", err)
+	}
 	resourceManager.RegisterProvider("file", &resource.FileProvider{
 		Prefix: stackDir,
 	})
