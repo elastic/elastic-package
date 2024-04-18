@@ -32,7 +32,6 @@ policy_templates:
         description: Collecting auditd events
 owner:
   github: elastic/security-external-integrations
-
 agent:
   privileges:
     root: true
