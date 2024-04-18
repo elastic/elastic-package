@@ -87,8 +87,9 @@ func SimulatePipeline(ctx context.Context, api *elasticsearch.API, pipelineName 
 		return nil, fmt.Errorf("marshalling simulate request failed: %w", err)
 	}
 
-	r, err := api.Ingest.Simulate(bytes.NewReader(requestBody), api.Ingest.Simulate.WithContext(ctx), func(request *elasticsearch.IngestSimulateRequest) {
-		request.PipelineID = pipelineName
+	r, err := api.Ingest.Simulate(bytes.NewReader(requestBody),
+		api.Ingest.Simulate.WithContext(ctx),
+		api.Ingest.Simulate.WithPipelineID(pipelineName),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("simulate API call failed (pipelineName: %s): %w", pipelineName, err)
