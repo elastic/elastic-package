@@ -198,8 +198,10 @@ func NewProject(name string, paths ...string) (*Project, error) {
 	// Passing a nil context here because we are on initialization.
 	ver, err := c.dockerComposeVersion(context.Background())
 	if err != nil {
-		logger.Errorf("Unable to determine Docker Compose version: %v", err)
-		return &c, nil
+		return nil, fmt.Errorf("unable to determine Docker Compose version: %w", err)
+	}
+	if ver.Major() < 2 {
+		return nil, fmt.Errorf("required Docker Compose v2, found %s", ver.String())
 	}
 	logger.Debugf("Determined Docker Compose version: %v", ver)
 
