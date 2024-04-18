@@ -125,11 +125,15 @@ func SimulatePipeline(api *elasticsearch.API, pipelineName string, events []json
 			case "success":
 				// Keep last successful document.
 				source = result.Doc.Source
+			case "dropped":
+				source = nil
 			case "skipped":
 				continue
 			case "failed":
 				failed = true
 				errs = append(errs, fmt.Errorf("%q processor failed (status: %s)", result.Processor, result.Status))
+			default:
+				errs = append(errs, fmt.Errorf("unexpected result status %s", result.Status))
 			}
 		}
 
