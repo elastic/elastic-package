@@ -751,8 +751,8 @@ func (r *runner) reindexData(ctx context.Context) error {
 	logger.Debug("getting orignal mappings...")
 	// Get the mapping from the source data stream
 	mappingRes, err := r.options.ESAPI.Indices.GetMapping(
-		r.options.ESAPI.Indices.GetMapping.WithIndex(r.runtimeDataStream),
 		r.options.ESAPI.Indices.GetMapping.WithContext(ctx),
+		r.options.ESAPI.Indices.GetMapping.WithIndex(r.runtimeDataStream),
 	)
 	if err != nil {
 		return fmt.Errorf("error getting mapping: %w", err)
@@ -797,8 +797,8 @@ func (r *runner) reindexData(ctx context.Context) error {
 
 	createRes, err := r.options.ESMetricsAPI.Indices.Create(
 		indexName,
-		r.options.ESMetricsAPI.Indices.Create.WithBody(reader),
 		r.options.ESMetricsAPI.Indices.Create.WithContext(ctx),
+		r.options.ESMetricsAPI.Indices.Create.WithBody(reader),
 	)
 	if err != nil {
 		return fmt.Errorf("could not create index: %w", err)
@@ -813,11 +813,11 @@ func (r *runner) reindexData(ctx context.Context) error {
 
 	logger.Debug("starting scrolling of events...")
 	resp, err := r.options.ESAPI.Search(
+		r.options.ESAPI.Search.WithContext(ctx),
 		r.options.ESAPI.Search.WithIndex(r.runtimeDataStream),
 		r.options.ESAPI.Search.WithBody(bodyReader),
 		r.options.ESAPI.Search.WithScroll(time.Minute),
 		r.options.ESAPI.Search.WithSize(10000),
-		r.options.ESAPI.Search.WithContext(ctx),
 	)
 	if err != nil {
 		return fmt.Errorf("error executing search: %w", err)
@@ -895,9 +895,9 @@ func (r *runner) bulkMetrics(ctx context.Context, indexName string, sr searchRes
 	}
 
 	resp, err = r.options.ESAPI.Scroll(
+		r.options.ESAPI.Scroll.WithContext(ctx),
 		r.options.ESAPI.Scroll.WithScrollID(sr.ScrollID),
 		r.options.ESAPI.Scroll.WithScroll(time.Minute),
-		r.options.ESAPI.Scroll.WithContext(ctx),
 	)
 	if err != nil {
 		return fmt.Errorf("error executing scroll: %s", err)
