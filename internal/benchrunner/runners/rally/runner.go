@@ -1085,8 +1085,7 @@ func (r *runner) bulkMetrics(ctx context.Context, indexName string, sr searchRes
 
 	logger.Debugf("bulk request of %d events...", len(sr.Hits))
 
-	resp, err := r.options.ESMetricsAPI.Bulk(
-		strings.NewReader(bulkBodyBuilder.String()),
+	resp, err := r.options.ESMetricsAPI.Bulk(strings.NewReader(bulkBodyBuilder.String()),
 		r.options.ESMetricsAPI.Bulk.WithContext(ctx),
 	)
 	if err != nil {
