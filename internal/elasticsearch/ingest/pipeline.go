@@ -13,6 +13,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"gopkg.in/yaml.v3"
 
@@ -46,9 +47,24 @@ type verboseProcessorError struct {
 	RootCause json.RawMessage `json:"root_cause"`
 }
 
+func (e verboseProcessorError) Error() string {
+	return fmt.Sprintf("[%s] %s", e.Type, e.Reason)
+}
+
 type pipelineDocument struct {
-	Index  string          `json:"_index"`
-	Source json.RawMessage `json:"_source"`
+	Index  string                 `json:"_index"`
+	Source json.RawMessage        `json:"_source"`
+	Ingest verboseProcessorIngest `json:"_ingest"`
+}
+
+type verboseProcessorIngest struct {
+	Pipeline  string    `json:"pipeline"`
+	Timestamp time.Time `json:"timestamp"`
+
+	OnFailurePipeline      string `json:"on_failure_pipeline"`
+	OnFailureMessage       string `json:"on_failure_message"`
+	OnFailureProcessorTag  string `json:"on_failure_processor_tag"`
+	OnFailureProcessorType string `json:"on_failure_processor_type"`
 }
 
 // Pipeline represents a pipeline resource loaded from a file
@@ -128,12 +144,31 @@ func SimulatePipeline(ctx context.Context, api *elasticsearch.API, pipelineName 
 		return nil, fmt.Errorf("unmarshalling simulate request failed: %w", err)
 	}
 
+	handleErrors := func(ingest verboseProcessorIngest, errs []error) []error {
+		var filtered []error
+		for _, err := range errs {
+			var processorError verboseProcessorError
+			if errors.As(err, &processorError) && processorError.Reason == ingest.OnFailureMessage {
+				continue
+			}
+			filtered = append(filtered, err)
+		}
+		return filtered
+	}
+
 	processedEvents := make([]json.RawMessage, len(response.Docs))
 	var errs []error
 	for i, doc := range response.Docs {
 		var source json.RawMessage
 		failed := false
 		for _, result := range doc.ProcessorResults {
+			if result.Doc.Ingest.OnFailureMessage != "" {
+				// This processor is in an on_failure handler, filter out the handled errors
+				// and assume that processing is going on.
+				errs = handleErrors(result.Doc.Ingest, errs)
+				failed = false
+			}
+
 			switch result.Status {
 			case "success":
 				// Keep last successful document.
@@ -147,7 +182,7 @@ func SimulatePipeline(ctx context.Context, api *elasticsearch.API, pipelineName 
 				continue
 			case "error":
 				failed = true
-				errs = append(errs, fmt.Errorf("error in processor %s: [%s] %s", result.Processor, result.Error.Type, result.Error.Reason))
+				errs = append(errs, fmt.Errorf("error in pricessor %s: %w", result.Processor, result.Error))
 			case "failed":
 				failed = true
 				errs = append(errs, fmt.Errorf("%q processor failed", result.Processor))
