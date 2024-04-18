@@ -182,7 +182,7 @@ func SimulatePipeline(ctx context.Context, api *elasticsearch.API, pipelineName 
 				continue
 			case "error":
 				failed = true
-				errs = append(errs, fmt.Errorf("error in pricessor %s: %w", result.Processor, result.Error))
+				errs = append(errs, fmt.Errorf("error in processor %s: %w", result.Processor, result.Error))
 			case "failed":
 				failed = true
 				errs = append(errs, fmt.Errorf("%q processor failed", result.Processor))
