@@ -204,13 +204,13 @@ func (r *runner) setUp(ctx context.Context) error {
 
 	r.wipeDataStreamHandler = func(ctx context.Context) error {
 		logger.Debugf("deleting data in data stream...")
-		if err := r.deleteDataStreamDocs(r.runtimeDataStream); err != nil {
+		if err := r.deleteDataStreamDocs(ctx, r.runtimeDataStream); err != nil {
 			return fmt.Errorf("error deleting data in data stream: %w", err)
 		}
 		return nil
 	}
 
-	if err := r.deleteDataStreamDocs(r.runtimeDataStream); err != nil {
+	if err := r.deleteDataStreamDocs(ctx, r.runtimeDataStream); err != nil {
 		return fmt.Errorf("error deleting old data in data stream: %s: %w", r.runtimeDataStream, err)
 	}
 
@@ -276,7 +276,7 @@ func (r *runner) run(ctx context.Context) (report reporters.Reportable, err erro
 		return nil, fmt.Errorf("can't summarize metrics: %w", err)
 	}
 
-	if err := r.reindexData(); err != nil {
+	if err := r.reindexData(ctx); err != nil {
 		return nil, fmt.Errorf("can't reindex data: %w", err)
 	}
 
@@ -346,9 +346,11 @@ func (r *runner) collectAndSummarizeMetrics() (*metricsSummary, error) {
 	return sum, err
 }
 
-func (r *runner) deleteDataStreamDocs(dataStream string) error {
+func (r *runner) deleteDataStreamDocs(ctx context.Context, dataStream string) error {
 	body := strings.NewReader(`{ "query": { "match_all": {} } }`)
-	resp, err := r.options.ESAPI.DeleteByQuery([]string{dataStream}, body)
+	resp, err := r.options.ESAPI.DeleteByQuery([]string{dataStream}, body,
+		r.options.ESAPI.DeleteByQuery.WithContext(ctx),
+	)
 	if err != nil {
 		return fmt.Errorf("failed to delete docs for data stream %s: %w", dataStream, err)
 	}
@@ -736,7 +738,7 @@ func (r *runner) enrollAgents(ctx context.Context) error {
 }
 
 // reindexData will read all data generated during the benchmark and will reindex it to the metrisctore
-func (r *runner) reindexData() error {
+func (r *runner) reindexData(ctx context.Context) error {
 	if !r.options.ReindexData {
 		return nil
 	}
@@ -750,6 +752,7 @@ func (r *runner) reindexData() error {
 	// Get the mapping from the source data stream
 	mappingRes, err := r.options.ESAPI.Indices.GetMapping(
 		r.options.ESAPI.Indices.GetMapping.WithIndex(r.runtimeDataStream),
+		r.options.ESAPI.Indices.GetMapping.WithContext(ctx),
 	)
 	if err != nil {
 		return fmt.Errorf("error getting mapping: %w", err)
@@ -795,6 +798,7 @@ func (r *runner) reindexData() error {
 	createRes, err := r.options.ESMetricsAPI.Indices.Create(
 		indexName,
 		r.options.ESMetricsAPI.Indices.Create.WithBody(reader),
+		r.options.ESMetricsAPI.Indices.Create.WithContext(ctx),
 	)
 	if err != nil {
 		return fmt.Errorf("could not create index: %w", err)
@@ -813,6 +817,7 @@ func (r *runner) reindexData() error {
 		r.options.ESAPI.Search.WithBody(bodyReader),
 		r.options.ESAPI.Search.WithScroll(time.Minute),
 		r.options.ESAPI.Search.WithSize(10000),
+		r.options.ESAPI.Search.WithContext(ctx),
 	)
 	if err != nil {
 		return fmt.Errorf("error executing search: %w", err)
@@ -838,7 +843,7 @@ func (r *runner) reindexData() error {
 			break
 		}
 
-		err := r.bulkMetrics(indexName, sr)
+		err := r.bulkMetrics(ctx, indexName, sr)
 		if err != nil {
 			return err
 		}
@@ -859,7 +864,7 @@ type searchResponse struct {
 	} `json:"hits"`
 }
 
-func (r *runner) bulkMetrics(indexName string, sr searchResponse) error {
+func (r *runner) bulkMetrics(ctx context.Context, indexName string, sr searchResponse) error {
 	var bulkBodyBuilder strings.Builder
 	for _, hit := range sr.Hits {
 		bulkBodyBuilder.WriteString(fmt.Sprintf("{\"index\":{\"_index\":\"%s\",\"_id\":\"%s\"}}\n", indexName, hit.ID))
@@ -873,7 +878,10 @@ func (r *runner) bulkMetrics(indexName string, sr searchResponse) error {
 
 	logger.Debugf("bulk request of %d events...", len(sr.Hits))
 
-	resp, err := r.options.ESMetricsAPI.Bulk(strings.NewReader(bulkBodyBuilder.String()))
+	resp, err := r.options.ESMetricsAPI.Bulk(
+		strings.NewReader(bulkBodyBuilder.String()),
+		r.options.ESMetricsAPI.Bulk.WithContext(ctx),
+	)
 	if err != nil {
 		return fmt.Errorf("error performing the bulk index request: %w", err)
 	}
@@ -889,6 +897,7 @@ func (r *runner) bulkMetrics(indexName string, sr searchResponse) error {
 	resp, err = r.options.ESAPI.Scroll(
 		r.options.ESAPI.Scroll.WithScrollID(sr.ScrollID),
 		r.options.ESAPI.Scroll.WithScroll(time.Minute),
+		r.options.ESAPI.Scroll.WithContext(ctx),
 	)
 	if err != nil {
 		return fmt.Errorf("error executing scroll: %s", err)

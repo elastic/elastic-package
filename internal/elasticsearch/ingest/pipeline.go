@@ -6,6 +6,7 @@ package ingest
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -72,7 +73,7 @@ func (p *Pipeline) MarshalJSON() (asJSON []byte, err error) {
 	return asJSON, nil
 }
 
-func SimulatePipeline(api *elasticsearch.API, pipelineName string, events []json.RawMessage, simulateDataStream string) ([]json.RawMessage, error) {
+func SimulatePipeline(ctx context.Context, api *elasticsearch.API, pipelineName string, events []json.RawMessage, simulateDataStream string) ([]json.RawMessage, error) {
 	var request simulatePipelineRequest
 	for _, event := range events {
 		request.Docs = append(request.Docs, pipelineDocument{
@@ -86,7 +87,7 @@ func SimulatePipeline(api *elasticsearch.API, pipelineName string, events []json
 		return nil, fmt.Errorf("marshalling simulate request failed: %w", err)
 	}
 
-	r, err := api.Ingest.Simulate(bytes.NewReader(requestBody), func(request *elasticsearch.IngestSimulateRequest) {
+	r, err := api.Ingest.Simulate(bytes.NewReader(requestBody), api.Ingest.Simulate.WithContext(ctx), func(request *elasticsearch.IngestSimulateRequest) {
 		request.PipelineID = pipelineName
 	})
 	if err != nil {
@@ -116,9 +117,9 @@ func SimulatePipeline(api *elasticsearch.API, pipelineName string, events []json
 	return processedEvents, nil
 }
 
-func UninstallPipelines(api *elasticsearch.API, pipelines []Pipeline) error {
+func UninstallPipelines(ctx context.Context, api *elasticsearch.API, pipelines []Pipeline) error {
 	for _, p := range pipelines {
-		err := uninstallPipeline(api, p.Name)
+		err := uninstallPipeline(ctx, api, p.Name)
 		if err != nil {
 			return err
 		}
@@ -126,8 +127,8 @@ func UninstallPipelines(api *elasticsearch.API, pipelines []Pipeline) error {
 	return nil
 }
 
-func uninstallPipeline(api *elasticsearch.API, name string) error {
-	resp, err := api.Ingest.DeletePipeline(name)
+func uninstallPipeline(ctx context.Context, api *elasticsearch.API, name string) error {
+	resp, err := api.Ingest.DeletePipeline(name, api.Ingest.DeletePipeline.WithContext(ctx))
 	if err != nil {
 		return fmt.Errorf("delete pipeline API call failed (pipelineName: %s): %w", name, err)
 	}
