@@ -105,8 +105,6 @@ func SimulatePipeline(api *elasticsearch.API, pipelineName string, events []json
 	r, err := api.Ingest.Simulate(bytes.NewReader(requestBody),
 		api.Ingest.Simulate.WithPipelineID(pipelineName),
 		api.Ingest.Simulate.WithVerbose(true),
-
-		api.Ingest.Simulate.WithPretty(),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("simulate API call failed (pipelineName: %s): %w", pipelineName, err)
