@@ -1,4 +1,3 @@
-version: "2.3"
 services:
   docker-custom-agent:
     image: "${ELASTIC_AGENT_IMAGE_REF}"
