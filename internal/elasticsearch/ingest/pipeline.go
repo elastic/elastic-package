@@ -25,7 +25,7 @@ type simulatePipelineRequest struct {
 type simulatePipelineResponse struct {
 	Docs []struct {
 		ProcessorResults []verboseProcessorResult `json:"processor_results"`
-	}
+	} `json:"docs"`
 }
 
 type verboseProcessorResult struct {
