@@ -198,8 +198,8 @@ func (r *runner) Run(ctx context.Context, options testrunner.TestOptions) ([]tes
 		configFile = serviceStateData.ConfigFilePath
 		variant = serviceStateData.VariantName
 
-		logger.Infof("Using test config file from setup dir: %s", configFile)
-		logger.Infof("Using variant from service setup dir: %s", variant)
+		logger.Infof("Using test config file from setup dir: %q", configFile)
+		logger.Infof("Using variant from service setup dir: %q", variant)
 	}
 
 	serviceOptions := r.createServiceOptions(variant)
@@ -313,17 +313,18 @@ func (r *runner) createServiceOptions(variantName string) servicedeployer.Factor
 	}
 }
 
-func (r *runner) createAgentInfo(policy *kibana.Policy, config *testConfig) (agentdeployer.AgentInfo, error) {
+func (r *runner) createAgentInfo(policy *kibana.Policy, config *testConfig, runID string) (agentdeployer.AgentInfo, error) {
 	var info agentdeployer.AgentInfo
 
 	info.Name = r.options.TestFolder.Package
 	info.Logs.Folder.Agent = ServiceLogsAgentDir
-	info.Test.RunID = createTestRunID()
+	info.Test.RunID = runID
 
 	folderName := fmt.Sprintf("agent-%s", r.options.TestFolder.Package)
 	if r.options.TestFolder.DataStream != "" {
 		folderName = fmt.Sprintf("%s-%s", folderName, r.options.TestFolder.DataStream)
 	}
+	folderName = fmt.Sprintf("%s-%s", folderName, runID)
 
 	dirPath, err := agentdeployer.CreateServiceLogsDir(r.options.Profile, folderName)
 	if err != nil {
@@ -1131,13 +1132,14 @@ func (r *runner) setupAgent(ctx context.Context, config *testConfig, state Servi
 	if !r.options.RunIndependentElasticAgent {
 		return nil, agentdeployer.AgentInfo{}, nil
 	}
+	agentRunID := createTestRunID()
+	if r.options.RunTearDown || r.options.RunTestsOnly {
+		agentRunID = state.AgentRunID
+	}
 	logger.Warn("setting up agent (technical preview)...")
-	agentInfo, err := r.createAgentInfo(policy, config)
+	agentInfo, err := r.createAgentInfo(policy, config, agentRunID)
 	if err != nil {
 		return nil, agentdeployer.AgentInfo{}, err
-	}
-	if r.options.RunTearDown || r.options.RunTestsOnly {
-		agentInfo.Test.RunID = state.AgentRunID
 	}
 
 	agentOptions := r.createAgentOptions(agentInfo.Policy.Name)

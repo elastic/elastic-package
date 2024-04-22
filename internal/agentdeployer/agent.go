@@ -153,7 +153,7 @@ func (d *DockerComposeAgentDeployer) SetUp(ctx context.Context, agentInfo AgentI
 		// service logs folder must no be deleted to avoid breaking log files written
 		// by the service. If this is required, those files should be rotated or truncated
 		// so the service can still write to them.
-		logger.Debug("Skipping removing service logs folder folder %s", agentInfo.Logs.Folder.Local)
+		logger.Debugf("Skipping removing service logs folder %s", agentInfo.Logs.Folder.Local)
 	} else {
 		err = files.RemoveContent(agentInfo.Logs.Folder.Local)
 		if err != nil {
@@ -236,7 +236,7 @@ func (d *DockerComposeAgentDeployer) agentName() string {
 // installDockerfile creates the files needed to run the custom elastic agent and returns
 // the directory with these files.
 func (d *DockerComposeAgentDeployer) installDockerfile(agentInfo AgentInfo) (string, error) {
-	customAgentDir, err := CreateDeployerDir(d.profile, fmt.Sprintf("docker-agent-%s", d.agentName()))
+	customAgentDir, err := CreateDeployerDir(d.profile, fmt.Sprintf("docker-agent-%s-%s", d.agentName(), d.agentRunID))
 	if err != nil {
 		return "", fmt.Errorf("failed to create directory for custom agent files: %w", err)
 	}
