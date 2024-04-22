@@ -18,6 +18,8 @@ services:
       - {{ . }}
     {{- end }}
     {{ end }}
+    cap_drop:
+      - ALL
     environment:
       - FLEET_ENROLL=1
       - FLEET_URL=https://fleet-server:8220
