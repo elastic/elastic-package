@@ -313,7 +313,7 @@ func (r *runner) createServiceOptions(variantName string) servicedeployer.Factor
 	}
 }
 
-func (r *runner) createAgentInfo(policy *kibana.Policy, config *testConfig, packageManifest *packages.PackageManifest) (agentdeployer.AgentInfo, error) {
+func (r *runner) createAgentInfo(policy *kibana.Policy, config *testConfig, agentManifest packages.Agent) (agentdeployer.AgentInfo, error) {
 	var info agentdeployer.AgentInfo
 
 	info.Name = r.options.TestFolder.Package
@@ -341,7 +341,7 @@ func (r *runner) createAgentInfo(policy *kibana.Policy, config *testConfig, pack
 
 	// If user is defined in the configuration file, it has preference
 	// and it should not be overwritten by the value in the manifest
-	if info.Agent.User == "" && packageManifest.Agent.Privileges.Root {
+	if info.Agent.User == "" && agentManifest.Privileges.Root {
 		info.Agent.User = "root"
 	}
 
@@ -825,7 +825,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		return nil
 	}
 
-	agentDeployed, agentInfo, err := r.setupAgent(ctx, config, serviceStateData, policy, scenario.pkgManifest)
+	agentDeployed, agentInfo, err := r.setupAgent(ctx, config, serviceStateData, policy, scenario.pkgManifest.Agent)
 	if err != nil {
 		return nil, err
 	}
@@ -1133,12 +1133,12 @@ func (r *runner) setupService(ctx context.Context, config *testConfig, serviceOp
 	return service, service.Info(), nil
 }
 
-func (r *runner) setupAgent(ctx context.Context, config *testConfig, state ServiceState, policy *kibana.Policy, packageManifest *packages.PackageManifest) (agentdeployer.DeployedAgent, agentdeployer.AgentInfo, error) {
+func (r *runner) setupAgent(ctx context.Context, config *testConfig, state ServiceState, policy *kibana.Policy, agentManifest packages.Agent) (agentdeployer.DeployedAgent, agentdeployer.AgentInfo, error) {
 	if !r.options.RunIndependentElasticAgent {
 		return nil, agentdeployer.AgentInfo{}, nil
 	}
 	logger.Warn("setting up agent (technical preview)...")
-	agentInfo, err := r.createAgentInfo(policy, config, packageManifest)
+	agentInfo, err := r.createAgentInfo(policy, config, agentManifest)
 	if err != nil {
 		return nil, agentdeployer.AgentInfo{}, err
 	}
