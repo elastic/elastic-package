@@ -82,6 +82,8 @@ type AgentInfo struct {
 		Runtime string
 		// LinuxCapabilities is a list of the capabilities needed to run the Elastic Agent process
 		LinuxCapabilities []string
+		// ExposePorts is a list of ports to make them available to communicate to the Elastic Agent process
+		ExposePorts []string
 	}
 
 	// CustomProperties store additional data used to boot up the service, e.g. AWS credentials.

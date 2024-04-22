@@ -256,6 +256,7 @@ func (d *DockerComposeAgentDeployer) installDockerfile(agentInfo AgentInfo) (str
 		"capabilities": agentInfo.Agent.LinuxCapabilities,
 		"runtime":      agentInfo.Agent.Runtime,
 		"pidMode":      agentInfo.Agent.PidMode,
+		"exposePorts":  agentInfo.Agent.ExposePorts,
 	})
 	if err != nil {
 		return "", fmt.Errorf("failed to create contents of the docker-compose file %q: %w", customAgentDockerfile, err)
