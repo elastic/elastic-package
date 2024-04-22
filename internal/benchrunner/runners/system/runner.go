@@ -204,13 +204,13 @@ func (r *runner) setUp(ctx context.Context) error {
 
 	r.wipeDataStreamHandler = func(ctx context.Context) error {
 		logger.Debugf("deleting data in data stream...")
-		if err := r.deleteDataStreamDocs(r.runtimeDataStream); err != nil {
+		if err := r.deleteDataStreamDocs(ctx, r.runtimeDataStream); err != nil {
 			return fmt.Errorf("error deleting data in data stream: %w", err)
 		}
 		return nil
 	}
 
-	if err := r.deleteDataStreamDocs(r.runtimeDataStream); err != nil {
+	if err := r.deleteDataStreamDocs(ctx, r.runtimeDataStream); err != nil {
 		return fmt.Errorf("error deleting old data in data stream: %s: %w", r.runtimeDataStream, err)
 	}
 
@@ -231,44 +231,13 @@ func (r *runner) setUp(ctx context.Context) error {
 func (r *runner) run(ctx context.Context) (report reporters.Reportable, err error) {
 	var service servicedeployer.DeployedService
 	if r.scenario.Corpora.InputService != nil {
-		stackVersion, err := r.options.KibanaClient.Version()
-		if err != nil {
-			return nil, fmt.Errorf("cannot request Kibana version: %w", err)
+		s, err := r.setupService(ctx)
+		if errors.Is(err, os.ErrNotExist) {
+			logger.Debugf("No service deployer defined for this benchmark")
+		} else if err != nil {
+			return nil, err
 		}
-
-		// Setup service.
-		logger.Debug("setting up service...")
-		devDeployDir := filepath.Clean(filepath.Join(r.options.BenchPath, "deploy"))
-		opts := servicedeployer.FactoryOptions{
-			PackageRootPath:        r.options.PackageRootPath,
-			DevDeployDir:           devDeployDir,
-			Variant:                r.options.Variant,
-			Profile:                r.options.Profile,
-			Type:                   servicedeployer.TypeBench,
-			StackVersion:           stackVersion.Version(),
-			DeployIndependentAgent: false,
-		}
-		serviceDeployer, err := servicedeployer.Factory(opts)
-
-		if err != nil {
-			return nil, fmt.Errorf("could not create service runner: %w", err)
-		}
-
-		r.svcInfo.Name = r.scenario.Corpora.InputService.Name
-		service, err = serviceDeployer.SetUp(ctx, r.svcInfo)
-		if err != nil {
-			return nil, fmt.Errorf("could not setup service: %w", err)
-		}
-
-		r.svcInfo = service.Info()
-		r.shutdownServiceHandler = func(ctx context.Context) error {
-			logger.Debug("tearing down service...")
-			if err := service.TearDown(ctx); err != nil {
-				return fmt.Errorf("error tearing down service: %w", err)
-			}
-
-			return nil
-		}
+		service = s
 	}
 
 	r.startMetricsColletion(ctx)
@@ -288,7 +257,7 @@ func (r *runner) run(ctx context.Context) (report reporters.Reportable, err erro
 	}
 
 	// Signal to the service that the agent is ready (policy is assigned).
-	if r.scenario.Corpora.InputService != nil && r.scenario.Corpora.InputService.Signal != "" {
+	if service != nil && r.scenario.Corpora.InputService != nil && r.scenario.Corpora.InputService.Signal != "" {
 		if err = service.Signal(ctx, r.scenario.Corpora.InputService.Signal); err != nil {
 			return nil, fmt.Errorf("failed to notify benchmark service: %w", err)
 		}
@@ -307,11 +276,53 @@ func (r *runner) run(ctx context.Context) (report reporters.Reportable, err erro
 		return nil, fmt.Errorf("can't summarize metrics: %w", err)
 	}
 
-	if err := r.reindexData(); err != nil {
+	if err := r.reindexData(ctx); err != nil {
 		return nil, fmt.Errorf("can't reindex data: %w", err)
 	}
 
 	return createReport(r.options.BenchName, r.corporaFile, r.scenario, msum)
+}
+
+func (r *runner) setupService(ctx context.Context) (servicedeployer.DeployedService, error) {
+	stackVersion, err := r.options.KibanaClient.Version()
+	if err != nil {
+		return nil, fmt.Errorf("cannot request Kibana version: %w", err)
+	}
+
+	// Setup service.
+	logger.Debug("Setting up service...")
+	devDeployDir := filepath.Clean(filepath.Join(r.options.BenchPath, "deploy"))
+	opts := servicedeployer.FactoryOptions{
+		PackageRootPath:        r.options.PackageRootPath,
+		DevDeployDir:           devDeployDir,
+		Variant:                r.options.Variant,
+		Profile:                r.options.Profile,
+		Type:                   servicedeployer.TypeBench,
+		StackVersion:           stackVersion.Version(),
+		DeployIndependentAgent: false,
+	}
+	serviceDeployer, err := servicedeployer.Factory(opts)
+	if err != nil {
+		return nil, fmt.Errorf("could not create service runner: %w", err)
+	}
+
+	r.svcInfo.Name = r.scenario.Corpora.InputService.Name
+	service, err := serviceDeployer.SetUp(ctx, r.svcInfo)
+	if err != nil {
+		return nil, fmt.Errorf("could not setup service: %w", err)
+	}
+
+	r.svcInfo = service.Info()
+	r.shutdownServiceHandler = func(ctx context.Context) error {
+		logger.Debug("tearing down service...")
+		if err := service.TearDown(ctx); err != nil {
+			return fmt.Errorf("error tearing down service: %w", err)
+		}
+
+		return nil
+	}
+
+	return service, nil
 }
 
 func (r *runner) startMetricsColletion(ctx context.Context) {
@@ -335,9 +346,11 @@ func (r *runner) collectAndSummarizeMetrics() (*metricsSummary, error) {
 	return sum, err
 }
 
-func (r *runner) deleteDataStreamDocs(dataStream string) error {
+func (r *runner) deleteDataStreamDocs(ctx context.Context, dataStream string) error {
 	body := strings.NewReader(`{ "query": { "match_all": {} } }`)
-	resp, err := r.options.ESAPI.DeleteByQuery([]string{dataStream}, body)
+	resp, err := r.options.ESAPI.DeleteByQuery([]string{dataStream}, body,
+		r.options.ESAPI.DeleteByQuery.WithContext(ctx),
+	)
 	if err != nil {
 		return fmt.Errorf("failed to delete docs for data stream %s: %w", dataStream, err)
 	}
@@ -725,7 +738,7 @@ func (r *runner) enrollAgents(ctx context.Context) error {
 }
 
 // reindexData will read all data generated during the benchmark and will reindex it to the metrisctore
-func (r *runner) reindexData() error {
+func (r *runner) reindexData(ctx context.Context) error {
 	if !r.options.ReindexData {
 		return nil
 	}
@@ -738,6 +751,7 @@ func (r *runner) reindexData() error {
 	logger.Debug("getting orignal mappings...")
 	// Get the mapping from the source data stream
 	mappingRes, err := r.options.ESAPI.Indices.GetMapping(
+		r.options.ESAPI.Indices.GetMapping.WithContext(ctx),
 		r.options.ESAPI.Indices.GetMapping.WithIndex(r.runtimeDataStream),
 	)
 	if err != nil {
@@ -783,6 +797,7 @@ func (r *runner) reindexData() error {
 
 	createRes, err := r.options.ESMetricsAPI.Indices.Create(
 		indexName,
+		r.options.ESMetricsAPI.Indices.Create.WithContext(ctx),
 		r.options.ESMetricsAPI.Indices.Create.WithBody(reader),
 	)
 	if err != nil {
@@ -798,6 +813,7 @@ func (r *runner) reindexData() error {
 
 	logger.Debug("starting scrolling of events...")
 	resp, err := r.options.ESAPI.Search(
+		r.options.ESAPI.Search.WithContext(ctx),
 		r.options.ESAPI.Search.WithIndex(r.runtimeDataStream),
 		r.options.ESAPI.Search.WithBody(bodyReader),
 		r.options.ESAPI.Search.WithScroll(time.Minute),
@@ -827,7 +843,7 @@ func (r *runner) reindexData() error {
 			break
 		}
 
-		err := r.bulkMetrics(indexName, sr)
+		err := r.bulkMetrics(ctx, indexName, sr)
 		if err != nil {
 			return err
 		}
@@ -848,7 +864,7 @@ type searchResponse struct {
 	} `json:"hits"`
 }
 
-func (r *runner) bulkMetrics(indexName string, sr searchResponse) error {
+func (r *runner) bulkMetrics(ctx context.Context, indexName string, sr searchResponse) error {
 	var bulkBodyBuilder strings.Builder
 	for _, hit := range sr.Hits {
 		bulkBodyBuilder.WriteString(fmt.Sprintf("{\"index\":{\"_index\":\"%s\",\"_id\":\"%s\"}}\n", indexName, hit.ID))
@@ -862,7 +878,9 @@ func (r *runner) bulkMetrics(indexName string, sr searchResponse) error {
 
 	logger.Debugf("bulk request of %d events...", len(sr.Hits))
 
-	resp, err := r.options.ESMetricsAPI.Bulk(strings.NewReader(bulkBodyBuilder.String()))
+	resp, err := r.options.ESMetricsAPI.Bulk(strings.NewReader(bulkBodyBuilder.String()),
+		r.options.ESMetricsAPI.Bulk.WithContext(ctx),
+	)
 	if err != nil {
 		return fmt.Errorf("error performing the bulk index request: %w", err)
 	}
@@ -876,6 +894,7 @@ func (r *runner) bulkMetrics(indexName string, sr searchResponse) error {
 	}
 
 	resp, err = r.options.ESAPI.Scroll(
+		r.options.ESAPI.Scroll.WithContext(ctx),
 		r.options.ESAPI.Scroll.WithScrollID(sr.ScrollID),
 		r.options.ESAPI.Scroll.WithScroll(time.Minute),
 	)

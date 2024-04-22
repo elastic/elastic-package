@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"text/template"
 	"time"
 
 	"github.com/elastic/elastic-package/internal/compose"
@@ -24,13 +25,12 @@ import (
 
 const (
 	dockerTestAgentNamePrefix    = "elastic-agent"
-	dockerTestgentDir            = "docker_test_agent"
 	dockerTestAgentDockerCompose = "docker-agent-base.yml"
 	defaultAgentPolicyName       = "Elastic-Agent (elastic-package)"
 )
 
-//go:embed _static/docker-agent-base.yml
-var dockerAgentDockerComposeContent []byte
+//go:embed _static/docker-agent-base.yml.tmpl
+var dockerTestAgentDockerComposeTemplate string
 
 // CustomAgentDeployer knows how to deploy a custom elastic-agent defined via
 // a Docker Compose file.
@@ -112,7 +112,7 @@ func (d *DockerComposeAgentDeployer) SetUp(ctx context.Context, agentInfo AgentI
 		fmt.Sprintf("%s=%s", agentHostnameEnv, d.agentHostname()),
 	)
 
-	configDir, err := d.installDockerfile()
+	configDir, err := d.installDockerfile(agentInfo)
 	if err != nil {
 		return nil, fmt.Errorf("could not create resources for custom agent: %w", err)
 	}
@@ -236,7 +236,7 @@ func (d *DockerComposeAgentDeployer) agentName() string {
 
 // installDockerfile creates the files needed to run the custom elastic agent and returns
 // the directory with these files.
-func (d *DockerComposeAgentDeployer) installDockerfile() (string, error) {
+func (d *DockerComposeAgentDeployer) installDockerfile(agentInfo AgentInfo) (string, error) {
 	customAgentDir := filepath.Join(d.profile.ProfilePath, fmt.Sprintf("agent-%s", d.agentName()))
 	err := os.MkdirAll(customAgentDir, 0755)
 	if err != nil {
@@ -244,9 +244,21 @@ func (d *DockerComposeAgentDeployer) installDockerfile() (string, error) {
 	}
 
 	customAgentDockerfile := filepath.Join(customAgentDir, dockerTestAgentDockerCompose)
-	err = os.WriteFile(customAgentDockerfile, dockerAgentDockerComposeContent, 0644)
+	file, err := os.Create(customAgentDockerfile)
 	if err != nil {
-		return "", fmt.Errorf("failed to create docker compose file for custom agent: %w", err)
+		return "", fmt.Errorf("failed to create file (name %s): %w", customAgentDockerfile, err)
+	}
+	defer file.Close()
+
+	tmpl := template.Must(template.New(dockerTestAgentDockerCompose).Parse(dockerTestAgentDockerComposeTemplate))
+	err = tmpl.Execute(file, map[string]any{
+		"user":         agentInfo.Agent.User,
+		"capabilities": agentInfo.Agent.LinuxCapabilities,
+		"runtime":      agentInfo.Agent.Runtime,
+		"pidMode":      agentInfo.Agent.PidMode,
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to create contents of the docker-compose file %q: %w", customAgentDockerfile, err)
 	}
 
 	return customAgentDir, nil

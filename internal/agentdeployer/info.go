@@ -71,6 +71,17 @@ type AgentInfo struct {
 			// Name prefix for the host's name
 			NamePrefix string
 		}
+
+		// User user to run Elastic Agent process
+		User string
+		// PidMode selects the host PID mode
+		// (From docker-compose docs) Turns on sharing between container and the host
+		// operating system the PID address space
+		PidMode string
+		// Runtime is the selected runtime to run the Elastic Agent process
+		Runtime string
+		// LinuxCapabilities is a list of the capabilities needed to run the Elastic Agent process
+		LinuxCapabilities []string
 	}
 
 	// CustomProperties store additional data used to boot up the service, e.g. AWS credentials.

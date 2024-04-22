@@ -189,6 +189,7 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (D
 		svcInfo.Port = svcInfo.Ports[0]
 	}
 
+	svcInfo.Agent.Independent = true
 	svcInfo.Agent.Host.NamePrefix = svcInfo.Name
 	service.svcInfo = svcInfo
 	return &service, nil

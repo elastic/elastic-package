@@ -115,6 +115,12 @@ type Owner struct {
 	Type   string `config:"type" json:"type" yaml:"type"`
 }
 
+type Agent struct {
+	Privileges struct {
+		Root bool `config:"root" json:"root" yaml:"root"`
+	} `config:"privileges" json:"privileges" yaml:"privileges"`
+}
+
 // PackageManifest represents the basic structure of a package's manifest
 type PackageManifest struct {
 	SpecVersion     string           `config:"format_version" json:"format_version" yaml:"format_version"`
@@ -130,6 +136,7 @@ type PackageManifest struct {
 	Description     string           `config:"description" json:"description" yaml:"description"`
 	License         string           `config:"license" json:"license" yaml:"license"`
 	Categories      []string         `config:"categories" json:"categories" yaml:"categories"`
+	Agent           Agent            `config:"agent" json:"agent" yaml:"agent"`
 }
 
 type Elasticsearch struct {

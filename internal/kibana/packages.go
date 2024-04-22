@@ -65,9 +65,32 @@ func (c *Client) RemovePackage(ctx context.Context, name, version string) ([]pac
 
 // FleetPackage contains information about a package in Fleet.
 type FleetPackage struct {
-	Name   string `json:"string"`
-	Type   string `json:"type"`
-	Status string `json:"status"`
+	Name        string `json:"name"`
+	Version     string `json:"version"`
+	Type        string `json:"type"`
+	Status      string `json:"status"`
+	SavedObject struct {
+		Attributes struct {
+			InstalledElasticsearchAssets []packages.Asset `json:"installed_es"`
+			InstalledKibanaAssets        []packages.Asset `json:"installed_kibana"`
+			PackageAssets                []packages.Asset `json:"package_assets"`
+		} `json:"attributes"`
+	} `json:"savedObject"`
+}
+
+func (p *FleetPackage) Assets() []packages.Asset {
+	var assets []packages.Asset
+	assets = append(assets, p.SavedObject.Attributes.InstalledElasticsearchAssets...)
+	assets = append(assets, p.SavedObject.Attributes.InstalledKibanaAssets...)
+	return assets
+}
+
+type ErrPackageNotFound struct {
+	name string
+}
+
+func (e *ErrPackageNotFound) Error() string {
+	return fmt.Sprintf("package %s not found", e.name)
 }
 
 // GetPackage obtains information about a package from Fleet.
@@ -78,7 +101,7 @@ func (c *Client) GetPackage(ctx context.Context, name string) (*FleetPackage, er
 		return nil, fmt.Errorf("could not get package: %w", err)
 	}
 	if statusCode == http.StatusNotFound {
-		return nil, fmt.Errorf("package %s not found", name)
+		return nil, &ErrPackageNotFound{name: name}
 	}
 	if statusCode != http.StatusOK {
 		return nil, fmt.Errorf("could not get package; API status code = %d; response body = %s", statusCode, string(respBody))

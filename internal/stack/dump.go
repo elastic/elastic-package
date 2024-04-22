@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/profile"
@@ -23,6 +24,23 @@ const (
 type DumpOptions struct {
 	Output  string
 	Profile *profile.Profile
+}
+
+func GetServiceLogs(ctx context.Context, serviceName string, profile *profile.Profile, since time.Time) ([]byte, error) {
+	services, err := localServiceNames(DockerComposeProjectName(profile))
+	if err != nil {
+		return nil, fmt.Errorf("failed to get local services: %w", err)
+	}
+
+	for _, service := range services {
+		if service != serviceName {
+			continue
+		}
+
+		return dockerComposeLogsSince(ctx, serviceName, profile, since)
+	}
+
+	return nil, fmt.Errorf("service %s not found in local services", serviceName)
 }
 
 // Dump function exports stack data and dumps them as local artifacts, which can be used for debug purposes.

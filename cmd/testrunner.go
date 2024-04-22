@@ -366,11 +366,14 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 				RunIndependentElasticAgent: runIndependentElasticAgent,
 			})
 
+			// Results must be appended even if there is an error, since there could be
+			// tests (e.g. system tests) that return both error and results.
 			results = append(results, r...)
 
 			if err != nil {
 				return fmt.Errorf("error running package %s tests: %w", testType, err)
 			}
+
 		}
 
 		format := testrunner.TestReportFormat(reportFormat)

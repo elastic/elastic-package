@@ -1,0 +1,37 @@
+format_version: 2.12.0
+name: auditd_manager_independent_agent
+title: "Auditd Manager"
+version: 999.999.999
+description: "The Auditd Manager Integration receives audit events from the Linux Audit Framework that is a part of the Linux kernel."
+type: integration
+categories:
+  - os_system
+  - security
+conditions:
+  elastic:
+    subscription: basic
+  kibana:
+    version: "^8.2.0"
+screenshots:
+  - src: /img/sample-screenshot.png
+    title: Sample screenshot
+    size: 600x600
+    type: image/png
+icons:
+  - src: /img/linux.svg
+    title: linux
+    size: 299x354
+    type: image/svg+xml
+policy_templates:
+  - name: auditd
+    title: Auditd
+    description: Collect auditd events
+    inputs:
+      - type: audit/auditd
+        title: Collect auditd events
+        description: Collecting auditd events
+owner:
+  github: elastic/security-external-integrations
+agent:
+  privileges:
+    root: true

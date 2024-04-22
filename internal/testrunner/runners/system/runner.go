@@ -32,7 +32,7 @@ import (
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/multierror"
 	"github.com/elastic/elastic-package/internal/packages"
-	"github.com/elastic/elastic-package/internal/packages/installer"
+	"github.com/elastic/elastic-package/internal/resources"
 	"github.com/elastic/elastic-package/internal/servicedeployer"
 	"github.com/elastic/elastic-package/internal/stack"
 	"github.com/elastic/elastic-package/internal/testrunner"
@@ -134,18 +134,18 @@ type runner struct {
 	options   testrunner.TestOptions
 	pipelines []ingest.Pipeline
 
-	dataStreamPath  string
-	cfgFiles        []string
-	variants        []string
-	stackVersion    kibana.VersionInfo
-	locationManager *locations.LocationManager
+	dataStreamPath   string
+	cfgFiles         []string
+	variants         []string
+	stackVersion     kibana.VersionInfo
+	locationManager  *locations.LocationManager
+	resourcesManager *resources.Manager
 
 	serviceStateFilePath string
 
 	// Execution order of following handlers is defined in runner.TearDown() method.
-	unenrollAgentHandler      func(context.Context) error
+	removeAgentHandler        func(context.Context) error
 	deleteTestPolicyHandler   func(context.Context) error
-	deletePackageHandler      func(context.Context) error
 	resetAgentPolicyHandler   func(context.Context) error
 	resetAgentLogLevelHandler func(context.Context) error
 	shutdownServiceHandler    func(context.Context) error
@@ -296,6 +296,20 @@ func (r *runner) Run(ctx context.Context, options testrunner.TestOptions) ([]tes
 	return result.WithSuccess()
 }
 
+type resourcesOptions struct {
+	installedPackage bool
+}
+
+func (r *runner) resources(opts resourcesOptions) resources.Resources {
+	return resources.Resources{
+		&resources.FleetPackage{
+			RootPath: r.options.PackageRootPath,
+			Absent:   !opts.installedPackage,
+			Force:    opts.installedPackage, // Force re-installation, in case there are code changes in the same package version.
+		},
+	}
+}
+
 func (r *runner) createAgentOptions(policyName string) agentdeployer.FactoryOptions {
 	return agentdeployer.FactoryOptions{
 		Profile:            r.options.Profile,
@@ -331,7 +345,7 @@ func (r *runner) createServiceOptions(variantName string) servicedeployer.Factor
 	}
 }
 
-func (r *runner) createAgentInfo(policy *kibana.Policy) (agentdeployer.AgentInfo, error) {
+func (r *runner) createAgentInfo(policy *kibana.Policy, config *testConfig, agentManifest packages.Agent) (agentdeployer.AgentInfo, error) {
 	var info agentdeployer.AgentInfo
 
 	info.Name = r.options.TestFolder.Package
@@ -352,6 +366,17 @@ func (r *runner) createAgentInfo(policy *kibana.Policy) (agentdeployer.AgentInfo
 	info.Policy.Name = policy.Name
 	info.Policy.ID = policy.ID
 
+	info.Agent.User = config.Agent.User
+	info.Agent.LinuxCapabilities = config.Agent.LinuxCapabilities
+	info.Agent.Runtime = config.Agent.Runtime
+	info.Agent.PidMode = config.Agent.PidMode
+
+	// If user is defined in the configuration file, it has preference
+	// and it should not be overwritten by the value in the manifest
+	if info.Agent.User == "" && agentManifest.Privileges.Root {
+		info.Agent.User = "root"
+	}
+
 	return info, nil
 }
 
@@ -371,6 +396,8 @@ func (r *runner) createServiceInfo() (servicedeployer.ServiceInfo, error) {
 		}
 		svcInfo.OutputDir = outputDir
 	}
+
+	svcInfo.Agent.Independent = false
 
 	return svcInfo, nil
 }
@@ -406,11 +433,11 @@ func (r *runner) tearDownTest(ctx context.Context) error {
 		r.resetAgentLogLevelHandler = nil
 	}
 
-	if r.unenrollAgentHandler != nil {
-		if err := r.unenrollAgentHandler(cleanupCtx); err != nil {
+	if r.removeAgentHandler != nil {
+		if err := r.removeAgentHandler(cleanupCtx); err != nil {
 			return err
 		}
-		r.unenrollAgentHandler = nil
+		r.removeAgentHandler = nil
 	}
 
 	if r.deleteTestPolicyHandler != nil {
@@ -420,11 +447,13 @@ func (r *runner) tearDownTest(ctx context.Context) error {
 		r.deleteTestPolicyHandler = nil
 	}
 
-	if r.deletePackageHandler != nil {
-		if err := r.deletePackageHandler(cleanupCtx); err != nil {
-			return err
-		}
-		r.deletePackageHandler = nil
+	resourcesOptions := resourcesOptions{
+		// Keep it installed only if we were running setup, or tests only.
+		installedPackage: r.options.RunSetup || r.options.RunTestsOnly,
+	}
+	_, err := r.resourcesManager.ApplyCtx(cleanupCtx, r.resources(resourcesOptions))
+	if err != nil {
+		return err
 	}
 
 	if r.shutdownServiceHandler != nil {
@@ -467,6 +496,10 @@ func (r *runner) initRun() error {
 	if err != nil {
 		return fmt.Errorf("reading service logs directory failed: %w", err)
 	}
+
+	r.resourcesManager = resources.NewManager()
+	r.resourcesManager.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: r.options.KibanaClient})
+
 	r.serviceStateFilePath = filepath.Join(testrunner.StateFolderPath(r.options.Profile.ProfilePath), testrunner.ServiceStateFileName)
 
 	r.dataStreamPath, found, err = packages.FindDataStreamRootForPath(r.options.TestFolder.Path)
@@ -496,8 +529,20 @@ func (r *runner) initRun() error {
 		DataStreamRootPath: r.dataStreamPath,
 		DevDeployDir:       DevDeployDir,
 	})
-	if err != nil {
-		return fmt.Errorf("_dev/deploy directory not found: %w", err)
+	switch {
+	case errors.Is(err, os.ErrNotExist):
+		r.variants = r.selectVariants(nil)
+	case err != nil:
+		return fmt.Errorf("failed fo find service deploy path: %w", err)
+	default:
+		variantsFile, err := servicedeployer.ReadVariantsFile(devDeployPath)
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("can't read service variant: %w", err)
+		}
+		r.variants = r.selectVariants(variantsFile)
+	}
+	if r.options.ServiceVariant != "" && len(r.variants) == 0 {
+		return fmt.Errorf("not found variant definition %q", r.options.ServiceVariant)
 	}
 
 	if r.options.ConfigFilePath != "" {
@@ -516,16 +561,6 @@ func (r *runner) initRun() error {
 		if err != nil {
 			return fmt.Errorf("failed listing test case config cfgFiles: %w", err)
 		}
-	}
-
-	variantsFile, err := servicedeployer.ReadVariantsFile(devDeployPath)
-	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("can't read service variant: %w", err)
-	}
-
-	r.variants = r.selectVariants(variantsFile)
-	if r.options.ServiceVariant != "" && len(r.variants) == 0 {
-		return fmt.Errorf("not found variant definition %q", r.options.ServiceVariant)
 	}
 
 	return nil
@@ -769,7 +804,7 @@ type scenarioTest struct {
 	ignoredFields      []string
 	degradedDocs       []common.MapStr
 	agent              agentdeployer.DeployedAgent
-	enrollingTime      time.Time
+	startTestTime      time.Time
 }
 
 func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInfo servicedeployer.ServiceInfo, serviceOptions servicedeployer.FactoryOptions) (*scenarioTest, error) {
@@ -845,21 +880,17 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		return nil
 	}
 
-	enrollingTime := time.Now()
-	if r.options.RunTearDown || r.options.RunTestsOnly {
-		enrollingTime = serviceStateData.EnrollingAgentTime
-	}
-
-	agentDeployed, agentInfo, err := r.setupAgent(ctx, serviceStateData, policy)
+	agentDeployed, agentInfo, err := r.setupAgent(ctx, config, serviceStateData, policy, scenario.pkgManifest.Agent)
 	if err != nil {
 		return nil, err
 	}
 
-	scenario.enrollingTime = enrollingTime
 	scenario.agent = agentDeployed
 
-	service, svcInfo, err := r.setupService(ctx, config, serviceOptions, svcInfo, agentInfo, agentDeployed, serviceStateData)
-	if err != nil {
+	service, svcInfo, err := r.setupService(ctx, config, serviceOptions, svcInfo, agentInfo, agentDeployed, policy, serviceStateData)
+	if errors.Is(err, os.ErrNotExist) {
+		logger.Debugf("No service deployer defined for this test")
+	} else if err != nil {
 		return nil, err
 	}
 
@@ -869,60 +900,25 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		return nil, fmt.Errorf("unable to reload system test case configuration: %w", err)
 	}
 
-	// Install the package before creating the policy, so we control exactly what is being
-	// installed.
-	logger.Debug("Initializing installer for package...")
-	installer, err := installer.NewForPackage(installer.Options{
-		Kibana:         r.options.KibanaClient,
-		RootPath:       r.options.PackageRootPath,
-		SkipValidation: true,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize package installer: %v", err)
-	}
-
-	deletePackageHandler := func(ctx context.Context) error {
-		stackVersion, err := semver.NewVersion(serviceOptions.StackVersion)
-		if err != nil {
-			return fmt.Errorf("failed to parse stack version: %w", err)
-		}
-
-		if stackVersion.LessThan(semver.MustParse("8.0.0")) && scenario.pkgManifest.Name == "system" {
-			// in Elastic stack 7.* , system package is installed in the default Agent policy and it cannot be deleted
-			// error: system is installed by default and cannot be removed
-			logger.Debugf("skip uninstalling %s package", scenario.pkgManifest.Name)
-			return nil
-		}
-
-		logger.Debug("removing package...")
-		err = installer.Uninstall(ctx)
-		if err != nil {
-			// logging the error as a warning and not returning it since there could be other reasons that could make fail this process
-			// for instance being defined a test agent policy where this package is used for debugging purposes
-			logger.Warnf("failed to uninstall package %q: %s", scenario.pkgManifest.Name, err.Error())
-		}
-		return nil
-	}
-
 	if r.options.RunTearDown {
 		logger.Debug("Skip installing package")
 	} else {
-		// Allowed to re-install the package in RunTestsOnly to be able to
-		// test new changes introduced in the package
+		// Install the package before creating the policy, so we control exactly what is being
+		// installed.
 		logger.Debug("Installing package...")
-		_, err = installer.Install(ctx)
-		if errors.Is(err, context.Canceled) {
-			// Installation interrupted, at this point the package may have been installed, try to remove it for cleanup.
-			err := deletePackageHandler(context.WithoutCancel(ctx))
-			if err != nil {
-				logger.Debugf("error while removing package after installation interrupted: %s", err)
-			}
+		resourcesOptions := resourcesOptions{
+			// Install it unless we are running the tear down only.
+			installedPackage: !r.options.RunTearDown,
 		}
+		_, err = r.resourcesManager.ApplyCtx(ctx, r.resources(resourcesOptions))
 		if err != nil {
-			return nil, fmt.Errorf("failed to install package: %v", err)
+			return nil, fmt.Errorf("can't install the package: %w", err)
 		}
 	}
-	r.deletePackageHandler = deletePackageHandler
+
+	// store the time just before adding the Test Policy, this time will be used to check
+	// the agent logs from that time onwards to avoid possible previous errors present in logs
+	scenario.startTestTime = time.Now()
 
 	logger.Debug("adding package data stream to test policy...")
 	ds := createPackageDatastream(*policy, *scenario.pkgManifest, policyTemplate, *scenario.dataStreamManifest, *config)
@@ -984,14 +980,15 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	agent := agents[0]
 	logger.Debugf("Selected enrolled agent %q", agent.ID)
 
-	r.unenrollAgentHandler = func(ctx context.Context) error {
-		if !r.options.RunIndependentElasticAgent {
+	r.removeAgentHandler = func(ctx context.Context) error {
+		// When not using independent agents, service deployers like kubernetes or custom agents create new Elastic Agent
+		if !r.options.RunIndependentElasticAgent && !svcInfo.Agent.Independent {
 			return nil
 		}
-		logger.Debug("unenrolling agent...")
+		logger.Debug("removing agent...")
 		err := r.options.KibanaClient.RemoveAgent(ctx, agent)
 		if err != nil {
-			return fmt.Errorf("failed to unenroll agent %q: %w", agent.ID, err)
+			return fmt.Errorf("failed to remove agent %q: %w", agent.ID, err)
 		}
 		return nil
 	}
@@ -1055,7 +1052,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	}
 
 	// Signal to the service that the agent is ready (policy is assigned).
-	if config.ServiceNotifySignal != "" {
+	if service != nil && config.ServiceNotifySignal != "" {
 		if err = service.Signal(ctx, config.ServiceNotifySignal); err != nil {
 			return nil, fmt.Errorf("failed to notify test service: %w", err)
 		}
@@ -1099,7 +1096,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		return hits.size() > 0, nil
 	}, 1*time.Second, waitForDataTimeout)
 
-	if config.Service != "" && !config.IgnoreServiceError {
+	if service != nil && config.Service != "" && !config.IgnoreServiceError {
 		exited, code, err := service.ExitCode(ctx, config.Service)
 		if err != nil && !errors.Is(err, servicedeployer.ErrNotSupported) {
 			return nil, err
@@ -1134,7 +1131,6 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 			currentPolicy: policy,
 			config:        config,
 			agent:         origAgent,
-			enrollingTime: enrollingTime,
 			agentInfo:     agentInfo,
 			svcInfo:       svcInfo,
 		}
@@ -1147,7 +1143,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	return &scenario, nil
 }
 
-func (r *runner) setupService(ctx context.Context, config *testConfig, serviceOptions servicedeployer.FactoryOptions, svcInfo servicedeployer.ServiceInfo, agentInfo agentdeployer.AgentInfo, agentDeployed agentdeployer.DeployedAgent, state ServiceState) (servicedeployer.DeployedService, servicedeployer.ServiceInfo, error) {
+func (r *runner) setupService(ctx context.Context, config *testConfig, serviceOptions servicedeployer.FactoryOptions, svcInfo servicedeployer.ServiceInfo, agentInfo agentdeployer.AgentInfo, agentDeployed agentdeployer.DeployedAgent, policy *kibana.Policy, state ServiceState) (servicedeployer.DeployedService, servicedeployer.ServiceInfo, error) {
 	logger.Debug("setting up service...")
 	if r.options.RunTearDown || r.options.RunTestsOnly {
 		svcInfo.Test.RunID = state.ServiceRunID
@@ -1165,10 +1161,9 @@ func (r *runner) setupService(ctx context.Context, config *testConfig, serviceOp
 		svcInfo.Logs.Folder.Local = agentInfo.Logs.Folder.Local
 	}
 
-	// In case of custom agent (servicedeployer) enabling independent agents, update serviceOptions to include test policy too
-	if r.options.RunIndependentElasticAgent {
-		serviceOptions.PolicyName = agentInfo.Policy.Name
-	}
+	// In case of custom or kubernetes agents (servicedeployer) it is needed also the Agent Policy created
+	// for each test execution
+	serviceOptions.PolicyName = policy.Name
 
 	if config.Service != "" {
 		svcInfo.Name = config.Service
@@ -1195,12 +1190,12 @@ func (r *runner) setupService(ctx context.Context, config *testConfig, serviceOp
 	return service, service.Info(), nil
 }
 
-func (r *runner) setupAgent(ctx context.Context, state ServiceState, policy *kibana.Policy) (agentdeployer.DeployedAgent, agentdeployer.AgentInfo, error) {
+func (r *runner) setupAgent(ctx context.Context, config *testConfig, state ServiceState, policy *kibana.Policy, agentManifest packages.Agent) (agentdeployer.DeployedAgent, agentdeployer.AgentInfo, error) {
 	if !r.options.RunIndependentElasticAgent {
 		return nil, agentdeployer.AgentInfo{}, nil
 	}
 	logger.Warn("setting up agent (technical preview)...")
-	agentInfo, err := r.createAgentInfo(policy)
+	agentInfo, err := r.createAgentInfo(policy, config, agentManifest)
 	if err != nil {
 		return nil, agentdeployer.AgentInfo{}, err
 	}
@@ -1214,6 +1209,7 @@ func (r *runner) setupAgent(ctx context.Context, state ServiceState, policy *kib
 		return nil, agentInfo, fmt.Errorf("could not create agent runner: %w", err)
 	}
 	if agentDeployer == nil {
+		logger.Debug("Not found agent deployer. Agent will be created along with the service.")
 		return nil, agentInfo, nil
 	}
 
@@ -1267,15 +1263,14 @@ func (r *runner) readServiceStateData() (ServiceState, error) {
 }
 
 type ServiceState struct {
-	OrigPolicy         kibana.Policy `json:"orig_policy"`
-	CurrentPolicy      kibana.Policy `json:"current_policy"`
-	Agent              kibana.Agent  `json:"agent"`
-	ConfigFilePath     string        `json:"config_file_path"`
-	VariantName        string        `json:"variant_name"`
-	EnrollingAgentTime time.Time     `json:"enrolling_agent_time"`
-	ServiceRunID       string        `json:"service_info_run_id"`
-	AgentRunID         string        `json:"agent_info_run_id"`
-	ServiceOutputDir   string        `json:"service_output_dir"`
+	OrigPolicy       kibana.Policy `json:"orig_policy"`
+	CurrentPolicy    kibana.Policy `json:"current_policy"`
+	Agent            kibana.Agent  `json:"agent"`
+	ConfigFilePath   string        `json:"config_file_path"`
+	VariantName      string        `json:"variant_name"`
+	ServiceRunID     string        `json:"service_info_run_id"`
+	AgentRunID       string        `json:"agent_info_run_id"`
+	ServiceOutputDir string        `json:"service_output_dir"`
 }
 
 type scenarioStateOpts struct {
@@ -1283,22 +1278,20 @@ type scenarioStateOpts struct {
 	origPolicy    *kibana.Policy
 	config        *testConfig
 	agent         kibana.Agent
-	enrollingTime time.Time
 	agentInfo     agentdeployer.AgentInfo
 	svcInfo       servicedeployer.ServiceInfo
 }
 
 func (r *runner) writeScenarioState(opts scenarioStateOpts) error {
 	data := ServiceState{
-		OrigPolicy:         *opts.origPolicy,
-		CurrentPolicy:      *opts.currentPolicy,
-		Agent:              opts.agent,
-		ConfigFilePath:     opts.config.Path,
-		VariantName:        opts.config.ServiceVariantName,
-		EnrollingAgentTime: opts.enrollingTime,
-		ServiceRunID:       opts.svcInfo.Test.RunID,
-		AgentRunID:         opts.agentInfo.Test.RunID,
-		ServiceOutputDir:   opts.svcInfo.OutputDir,
+		OrigPolicy:       *opts.origPolicy,
+		CurrentPolicy:    *opts.currentPolicy,
+		Agent:            opts.agent,
+		ConfigFilePath:   opts.config.Path,
+		VariantName:      opts.config.ServiceVariantName,
+		ServiceRunID:     opts.svcInfo.Test.RunID,
+		AgentRunID:       opts.agentInfo.Test.RunID,
+		ServiceOutputDir: opts.svcInfo.OutputDir,
 	}
 	dataBytes, err := json.Marshal(data)
 	if err != nil {
@@ -1320,6 +1313,10 @@ func (r *runner) deleteOldDocumentsDataStreamAndWait(ctx context.Context, dataSt
 	startHits, err := r.getDocs(ctx, dataStream)
 	if err != nil {
 		return err
+	}
+	// First call already reports zero documents
+	if startHits.size() == 0 {
+		return nil
 	}
 	cleared, err := wait.UntilTrue(ctx, func(ctx context.Context) (bool, error) {
 		hits, err := r.getDocs(ctx, dataStream)
@@ -1454,7 +1451,7 @@ func (r *runner) validateTestScenario(ctx context.Context, result *testrunner.Re
 	}
 
 	if scenario.agent != nil {
-		logResults, err := r.checkNewAgentLogs(ctx, scenario.agent, scenario.enrollingTime, errorPatterns)
+		logResults, err := r.checkNewAgentLogs(ctx, scenario.agent, scenario.startTestTime, errorPatterns)
 		if err != nil {
 			return result.WithError(err)
 		}
