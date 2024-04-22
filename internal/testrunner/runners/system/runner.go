@@ -1403,7 +1403,21 @@ func (r *runner) validateTestScenario(ctx context.Context, result *testrunner.Re
 	}
 
 	if len(ignoredFields) > 0 {
-		degradedDocsJSON, err := json.MarshalIndent(scenario.degradedDocs, "", "  ")
+		issues := make([]struct {
+			ID            any `json:"_id"`
+			Timestamp     any `json:"@timestamp,omitempty"`
+			IgnoredFields any `json:"ignored_field_values"`
+		}, len(scenario.degradedDocs))
+		for i, d := range scenario.degradedDocs {
+			issues[i].ID = d["_id"]
+			if source, ok := d["_source"].(map[string]any); ok {
+				if ts, ok := source["@timestamp"]; ok {
+					issues[i].Timestamp = ts
+				}
+			}
+			issues[i].IgnoredFields = d["ignored_field_values"]
+		}
+		degradedDocsJSON, err := json.MarshalIndent(issues, "", "  ")
 		if err != nil {
 			return nil, fmt.Errorf("failed to marshal degraded docs to JSON: %w", err)
 		}
