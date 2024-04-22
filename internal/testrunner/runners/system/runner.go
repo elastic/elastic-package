@@ -339,7 +339,8 @@ func (r *runner) createAgentInfo(policy *kibana.Policy, config *testConfig, pack
 	info.Agent.Runtime = config.Agent.Runtime
 	info.Agent.PidMode = config.Agent.PidMode
 
-	// If user is defined in configuration file has preference ?
+	// If user is defined in the configuration file, it has preference
+	// and it should not be overwritten by the value in the manifest
 	if info.Agent.User == "" && packageManifest.Agent.Privileges.Root {
 		info.Agent.User = "root"
 	}
