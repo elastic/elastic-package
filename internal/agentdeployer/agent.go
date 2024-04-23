@@ -24,7 +24,8 @@ import (
 )
 
 const (
-	dockerTestAgentNamePrefix    = "elastic-agent"
+	dockerTestAgentNamePrefix    = "agent"
+	dockerTestAgentServiceName   = "elastic-agent"
 	dockerTestAgentDockerCompose = "docker-agent-base.yml"
 	defaultAgentPolicyName       = "Elastic-Agent (elastic-package)"
 )
@@ -163,7 +164,7 @@ func (d *DockerComposeAgentDeployer) SetUp(ctx context.Context, agentInfo AgentI
 	}
 
 	// Service name defined in the docker-compose file
-	agentInfo.Name = dockerTestAgentNamePrefix
+	agentInfo.Name = dockerTestAgentServiceName
 	agentName := agentInfo.Name
 
 	opts := compose.CommandOptions{
