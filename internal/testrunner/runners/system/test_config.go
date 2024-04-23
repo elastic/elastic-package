@@ -125,7 +125,7 @@ func listConfigFiles(systemTestFolderPath string) (files []string, err error) {
 		}
 	}
 	logger.Infof("files: %s", strings.Join(files, ","))
-	sort.Sort(sort.StringSlice(files))
+	sort.Strings(files)
 	logger.Infof("files: %s", strings.Join(files, ","))
 	return files, nil
 }
