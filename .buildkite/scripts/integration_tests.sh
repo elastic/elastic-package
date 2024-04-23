@@ -132,11 +132,18 @@ if [[ "${TARGET}" == "${PARALLEL_TARGET}" ]] || [[ "${TARGET}" == "${FALSE_POSIT
     testReturnCode=$?
     set -e
 
+    retry_count=${BUILDKITE_RETRY_COUNT:-"0"}
+
     if [[ "${UPLOAD_SAFE_LOGS}" -eq 1 ]] ; then
         package_folder="${PACKAGE}"
         if [[ "${ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT}" != "false" ]]; then
             package_folder="${package_folder}-independent_agent"
         fi
+
+        if [[ "${retry_count}" -ne 0 ]]; then
+            package_folder="${package_folder}_retry_${retry_count}"
+        fi
+
         upload_safe_logs \
             "${JOB_GCS_BUCKET_INTERNAL}" \
             "build/elastic-stack-dump/check-${PACKAGE}/logs/elastic-agent-internal/*.*" \
