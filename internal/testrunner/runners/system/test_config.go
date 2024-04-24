@@ -58,7 +58,7 @@ type testConfig struct {
 		PidMode           string   `config:"pid_mode"`
 		LinuxCapabilities []string `config:"linux_capabilities"`
 		Runtime           string   `config:"runtime"`
-		ExposePorts       []string `config:"expose_ports"`
+		Ports             []string `config:"ports"`
 	} `config:"agent"`
 }
 

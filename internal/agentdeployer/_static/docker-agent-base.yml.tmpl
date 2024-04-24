@@ -18,9 +18,9 @@ services:
       - {{ . }}
     {{- end }}
     {{ end }}
-    {{ if .exposePorts }}
+    {{ if .ports }}
     ports:
-    {{- range .exposePorts }}
+    {{- range .ports }}
       - "{{ . }}"
     {{- end }}
     {{ end }}
