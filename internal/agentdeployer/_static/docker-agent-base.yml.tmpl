@@ -1,7 +1,5 @@
 services:
   elastic-agent:
-    cpus: 1
-    mem_limit: 8000000000
     hostname: ${AGENT_HOSTNAME}
     image: "${ELASTIC_AGENT_IMAGE_REF}"
     healthcheck:
@@ -33,9 +31,9 @@ services:
       - type: bind
         source: ${SERVICE_LOGS_DIR}
         target: /tmp/service_logs/
-        read_write: true
+        read_only: false
       # Mount service_logs under /run too as a testing workaround for the journald input (see elastic-package#1235).
       - type: bind
         source: ${SERVICE_LOGS_DIR}
         target: /run/service_logs/
-        read_write: true
+        read_only: false
