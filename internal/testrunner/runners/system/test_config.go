@@ -10,7 +10,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
 	"strings"
 	"time"
 
@@ -20,7 +19,6 @@ import (
 	"github.com/elastic/go-ucfg/yaml"
 
 	"github.com/elastic/elastic-package/internal/common"
-	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/servicedeployer"
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
@@ -124,9 +122,6 @@ func listConfigFiles(systemTestFolderPath string) (files []string, err error) {
 			files = append(files, entry.Name())
 		}
 	}
-	logger.Infof("files: %s", strings.Join(files, ","))
-	sort.Strings(files)
-	logger.Infof("files: %s", strings.Join(files, ","))
 	return files, nil
 }
 
