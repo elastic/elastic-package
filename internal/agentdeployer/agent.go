@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/elastic/elastic-package/internal/compose"
-	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/docker"
 	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/install"
@@ -154,7 +153,7 @@ func (d *DockerComposeAgentDeployer) SetUp(ctx context.Context, agentInfo AgentI
 		// service logs folder must no be deleted to avoid breaking log files written
 		// by the service. If this is required, those files should be rotated or truncated
 		// so the service can still write to them.
-		logger.Debug("Skipping removing service logs folder folder %s", agentInfo.Logs.Folder.Local)
+		logger.Debugf("Skipping removing service logs folder %s", agentInfo.Logs.Folder.Local)
 	} else {
 		err = files.RemoveContent(agentInfo.Logs.Folder.Local)
 		if err != nil {
@@ -237,8 +236,7 @@ func (d *DockerComposeAgentDeployer) agentName() string {
 // installDockerfile creates the files needed to run the custom elastic agent and returns
 // the directory with these files.
 func (d *DockerComposeAgentDeployer) installDockerfile(agentInfo AgentInfo) (string, error) {
-	customAgentDir := filepath.Join(d.profile.ProfilePath, fmt.Sprintf("agent-%s", d.agentName()))
-	err := os.MkdirAll(customAgentDir, 0755)
+	customAgentDir, err := CreateDeployerDir(d.profile, fmt.Sprintf("docker-agent-%s-%s", d.agentName(), d.agentRunID))
 	if err != nil {
 		return "", fmt.Errorf("failed to create directory for custom agent files: %w", err)
 	}
@@ -262,15 +260,6 @@ func (d *DockerComposeAgentDeployer) installDockerfile(agentInfo AgentInfo) (str
 	}
 
 	return customAgentDir, nil
-}
-
-func CreateServiceLogsDir(elasticPackagePath *locations.LocationManager, name string) (string, error) {
-	dirPath := elasticPackagePath.ServiceLogDirPerAgent(name)
-	err := os.MkdirAll(dirPath, 0755)
-	if err != nil {
-		return "", fmt.Errorf("mkdir failed (path: %s): %w", dirPath, err)
-	}
-	return dirPath, nil
 }
 
 // ExitCode returns true if the agent is exited and its exit code.
@@ -301,14 +290,14 @@ func (s *dockerComposeDeployedAgent) Logs(ctx context.Context, t time.Time) ([]b
 func (s *dockerComposeDeployedAgent) TearDown(ctx context.Context) error {
 	logger.Debugf("tearing down agent using Docker Compose runner")
 	defer func() {
-		err := files.RemoveContent(s.agentInfo.Logs.Folder.Local)
-		if err != nil {
-			logger.Errorf("could not remove the agent logs (path: %s)", s.agentInfo.Logs.Folder.Local)
+		// Remove the service logs dir for this agent
+		if err := os.RemoveAll(s.agentInfo.Logs.Folder.Local); err != nil {
+			logger.Errorf("could not remove the agent logs (path: %s): %w", s.agentInfo.Logs.Folder.Local, err)
 		}
 
-		// Remove the configuration dir (e.g. compose scenario files)
-		if err = os.RemoveAll(s.agentInfo.ConfigDir); err != nil {
-			logger.Errorf("could not remove the agent configuration directory %w", err)
+		// Remove the configuration dir for this agent (e.g. compose scenario files)
+		if err := os.RemoveAll(s.agentInfo.ConfigDir); err != nil {
+			logger.Errorf("could not remove the agent configuration directory (path: %s) %w", s.agentInfo.ConfigDir, err)
 		}
 	}()
 
