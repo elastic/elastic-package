@@ -798,6 +798,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	var policyToTest, policyToEnroll *kibana.Policy
 	if r.options.RunTearDown || r.options.RunTestsOnly {
 		policyToTest = &serviceStateData.CurrentPolicy
+		policyToEnroll = &serviceStateData.EnrollPolicy
 		logger.Debugf("Got policy from file: %q - %q", policyToTest.Name, policyToTest.ID)
 	} else {
 		// Create two different policies, one for enrolling the agent and the other for testing.
@@ -841,14 +842,22 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		return nil
 	}
 
-	agentDeployed, agentInfo, err := r.setupAgent(ctx, config, serviceStateData, policyToEnroll, scenario.pkgManifest.Agent)
+	// policyToEnroll is used in both independent agents and agents created by servicedeployer (custom or kubernetes agents)
+	policy := policyToEnroll
+	if r.options.RunTearDown || r.options.RunTestsOnly {
+		// required in order to be able select the right agent in `checkEnrolledAgents` when
+		// using independent agents or custom/kubernetes agents since policy data is set into `agentInfo` variable`
+		policy = policyToTest
+	}
+
+	agentDeployed, agentInfo, err := r.setupAgent(ctx, config, serviceStateData, policy, scenario.pkgManifest.Agent)
 	if err != nil {
 		return nil, err
 	}
 
 	scenario.agent = agentDeployed
 
-	service, svcInfo, err := r.setupService(ctx, config, serviceOptions, svcInfo, agentInfo, agentDeployed, policyToEnroll, serviceStateData)
+	service, svcInfo, err := r.setupService(ctx, config, serviceOptions, svcInfo, agentInfo, agentDeployed, policy, serviceStateData)
 	if errors.Is(err, os.ErrNotExist) {
 		logger.Debugf("No service deployer defined for this test")
 	} else if err != nil {
@@ -1087,6 +1096,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	if r.options.RunSetup {
 		opts := scenarioStateOpts{
 			origPolicy:    &origPolicy,
+			enrollPolicy:  policyToEnroll,
 			currentPolicy: policyToTest,
 			config:        config,
 			agent:         origAgent,
@@ -1223,6 +1233,7 @@ func (r *runner) readServiceStateData() (ServiceState, error) {
 
 type ServiceState struct {
 	OrigPolicy       kibana.Policy `json:"orig_policy"`
+	EnrollPolicy     kibana.Policy `json:"enroll_policy"`
 	CurrentPolicy    kibana.Policy `json:"current_policy"`
 	Agent            kibana.Agent  `json:"agent"`
 	ConfigFilePath   string        `json:"config_file_path"`
@@ -1234,6 +1245,7 @@ type ServiceState struct {
 
 type scenarioStateOpts struct {
 	currentPolicy *kibana.Policy
+	enrollPolicy  *kibana.Policy
 	origPolicy    *kibana.Policy
 	config        *testConfig
 	agent         kibana.Agent
@@ -1244,6 +1256,7 @@ type scenarioStateOpts struct {
 func (r *runner) writeScenarioState(opts scenarioStateOpts) error {
 	data := ServiceState{
 		OrigPolicy:       *opts.origPolicy,
+		EnrollPolicy:     *opts.enrollPolicy,
 		CurrentPolicy:    *opts.currentPolicy,
 		Agent:            opts.agent,
 		ConfigFilePath:   opts.config.Path,
