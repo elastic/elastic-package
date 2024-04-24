@@ -24,7 +24,6 @@ import (
 )
 
 const (
-	dockerTestAgentNamePrefix    = "agent"
 	dockerTestAgentServiceName   = "elastic-agent"
 	dockerTestAgentDockerCompose = "docker-agent-base.yml"
 	defaultAgentPolicyName       = "Elastic-Agent (elastic-package)"
@@ -224,7 +223,7 @@ func (d *DockerComposeAgentDeployer) SetUp(ctx context.Context, agentInfo AgentI
 }
 
 func (d *DockerComposeAgentDeployer) agentHostname() string {
-	return fmt.Sprintf("%s-%s-%s", dockerTestAgentNamePrefix, d.agentName(), d.agentRunID)
+	return fmt.Sprintf("%s-%s", dockerTestAgentServiceName, d.agentRunID)
 }
 
 func (d *DockerComposeAgentDeployer) agentName() string {
