@@ -6,6 +6,8 @@ services:
       retries: 180
       interval: 1s
     hostname: docker-custom-agent
+    cap_drop:
+      - ALL
     environment:
       - FLEET_ENROLL=1
       - FLEET_URL=https://fleet-server:8220

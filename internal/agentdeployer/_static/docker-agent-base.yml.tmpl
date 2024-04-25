@@ -18,6 +18,8 @@ services:
       - {{ . }}
     {{- end }}
     {{ end }}
+    cap_drop:
+      - ALL
     {{ if .ports }}
     ports:
     {{- range .ports }}
