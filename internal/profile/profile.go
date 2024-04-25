@@ -141,13 +141,13 @@ type Profile struct {
 }
 
 // Path returns an absolute path to the given file
-func (profile *Profile) Path(names ...string) string {
+func (profile Profile) Path(names ...string) string {
 	elems := append([]string{profile.ProfilePath}, names...)
 	return filepath.Join(elems...)
 }
 
 // Config returns a configuration setting, or its default if setting not found
-func (profile *Profile) Config(name string, def string) string {
+func (profile Profile) Config(name string, def string) string {
 	v, found := profile.overrides[name]
 	if found {
 		return v
@@ -175,7 +175,7 @@ var ErrNotAProfile = errors.New("not a profile")
 
 // ComposeEnvVars returns a list of environment variables that can be passed
 // to docker-compose for the sake of filling out paths and names in the snapshot.yml file.
-func (profile *Profile) ComposeEnvVars() []string {
+func (profile Profile) ComposeEnvVars() []string {
 	return []string{
 		fmt.Sprintf("PROFILE_NAME=%s", profile.ProfileName),
 	}
