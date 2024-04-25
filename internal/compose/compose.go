@@ -17,11 +17,9 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/creack/pty"
 
 	"gopkg.in/yaml.v3"
 
@@ -490,34 +488,18 @@ func (p *Project) runDockerComposeCmd(ctx context.Context, opts dockerComposeOpt
 	}
 	cmd.Env = append(os.Environ(), opts.env...)
 
-	ptty, tty, err := pty.Open()
-	if err != nil {
-		return fmt.Errorf("failed to open pseudo-tty to capture stderr: %w", err)
-	}
-
 	var errBuffer bytes.Buffer
-	cmd.Stderr = tty
-	var stderr io.Writer = &errBuffer
+	cmd.Stderr = &errBuffer
 	if logger.IsDebugMode() {
 		cmd.Stdout = os.Stdout
-		stderr = io.MultiWriter(&errBuffer, os.Stderr)
+		cmd.Stderr = os.Stderr
 	}
 	if opts.stdout != nil {
 		cmd.Stdout = opts.stdout
 	}
 
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		io.Copy(stderr, ptty)
-	}()
-
 	logger.Debugf("running command: %s", cmd)
 	err = cmd.Run()
-	ptty.Close()
-	tty.Close()
-	wg.Wait()
 	if !logger.IsDebugMode() && err != nil {
 		if msg := cleanComposeError(errBuffer.String()); len(msg) > 0 {
 			return fmt.Errorf("%w: %s", err, msg)
@@ -528,8 +510,9 @@ func (p *Project) runDockerComposeCmd(ctx context.Context, opts dockerComposeOpt
 
 const daemonResponse = `Error response from daemon:`
 
-// This regexp must match prefixes like WARN[0000], which may include escape sequences for colored letters.
-var composeLoggerPrefix = regexp.MustCompile(`^[^\s]+\[[0-9]+\]`)
+// This regexp must match prefixes like WARN[0000], which may include escape sequences for colored letters,
+// or structured logs, starting with key=value pairs.
+var composeLoggerPrefix = regexp.MustCompile(`^([^\s]+\[[0-9]+\]|[a-z]+=)`)
 
 func cleanComposeError(msg string) string {
 	// If there is a daemon response, just return it.
@@ -537,7 +520,7 @@ func cleanComposeError(msg string) string {
 		return strings.TrimSpace(msg[i+len(daemonResponse):])
 	}
 
-	// Filter out lines starting with WARN[0000] and so on.
+	// Filter out lines coming from the docker compose structured logger.
 	var cleanError strings.Builder
 	scanner := bufio.NewScanner(strings.NewReader(msg))
 	for scanner.Scan() {
