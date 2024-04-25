@@ -5,7 +5,6 @@
 package profile
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -13,6 +12,8 @@ import (
 	"github.com/elastic/go-ucfg/yaml"
 
 	"github.com/elastic/elastic-package/internal/common"
+
+	"github.com/mitchellh/mapstructure"
 )
 
 type config struct {
@@ -50,7 +51,7 @@ func (c *config) get(name string) (string, bool) {
 	}
 }
 
-func (c *config) Unmarshal(name string, out any) error {
+func (c *config) Decode(name string, out any) error {
 	v, err := c.settings.GetValue(name)
 	if err != nil {
 		if errors.Is(err, common.ErrKeyNotFound) {
@@ -58,13 +59,7 @@ func (c *config) Unmarshal(name string, out any) error {
 		}
 		return err
 	}
-
-	data, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	if err := json.Unmarshal(data, out); err != nil {
+	if err := mapstructure.Decode(v, out); err != nil {
 		return err
 	}
 
