@@ -499,7 +499,7 @@ func (p *Project) runDockerComposeCmd(ctx context.Context, opts dockerComposeOpt
 	}
 
 	logger.Debugf("running command: %s", cmd)
-	err = cmd.Run()
+	err := cmd.Run()
 	if !logger.IsDebugMode() && err != nil {
 		if msg := cleanComposeError(errBuffer.String()); len(msg) > 0 {
 			return fmt.Errorf("%w: %s", err, msg)
