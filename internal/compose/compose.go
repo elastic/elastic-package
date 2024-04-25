@@ -500,7 +500,7 @@ func (p *Project) runDockerComposeCmd(ctx context.Context, opts dockerComposeOpt
 	err := cmd.Run()
 	if err != nil {
 		if errBuffer.Len() > 0 {
-			return fmt.Errorf("%w: %s", err, errBuffer.String())
+			return fmt.Errorf("%w: %s", err, strings.TrimSpace(errBuffer.String()))
 		}
 		return err
 	}
