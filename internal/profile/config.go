@@ -10,10 +10,9 @@ import (
 	"os"
 
 	"github.com/elastic/go-ucfg/yaml"
+	"github.com/mitchellh/mapstructure"
 
 	"github.com/elastic/elastic-package/internal/common"
-
-	"github.com/mitchellh/mapstructure"
 )
 
 type config struct {
