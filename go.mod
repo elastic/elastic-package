@@ -62,6 +62,7 @@ require (
 	github.com/bitfield/gotestdox v0.2.1 // indirect
 	github.com/chai2010/gettext-go v1.0.2 // indirect
 	github.com/cloudflare/circl v1.3.7 // indirect
+	github.com/creack/pty v1.1.21 // indirect
 	github.com/creasty/defaults v1.7.0 // indirect
 	github.com/cyphar/filepath-securejoin v0.2.4 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
