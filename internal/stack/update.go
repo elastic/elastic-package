@@ -25,7 +25,7 @@ func Update(ctx context.Context, options Options) error {
 
 	err = dockerComposePull(ctx, options)
 	if err != nil {
-		return fmt.Errorf("updating docker images failed: %w", err)
+		return fmt.Errorf("pulling docker images failed: %w", err)
 	}
 	return nil
 }
