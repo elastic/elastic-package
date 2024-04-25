@@ -141,6 +141,7 @@ services:
     env_file: "./elastic-agent.env"
     cap_drop:
     - ALL
+    ports: [{{ fact "agent_publish_ports" }}]
     volumes:
     - "../certs/ca-cert.pem:/etc/ssl/certs/elastic-package.pem"
     - type: bind
