@@ -518,7 +518,7 @@ func (p *Project) runDockerComposeCmd(ctx context.Context, opts dockerComposeOpt
 	ptty.Close()
 	tty.Close()
 	wg.Wait()
-	if !logger.IsDebugMode() && err != nil {
+	if err != nil {
 		if msg := cleanComposeError(errBuffer.String()); len(msg) > 0 {
 			return fmt.Errorf("%w: %s", err, msg)
 		}
