@@ -20,11 +20,28 @@ services:
     {{ end }}
     cap_drop:
       - ALL
+    {{ if .ports }}
+    ports:
+    {{- range .ports }}
+      - "{{ . }}"
+    {{- end }}
+    {{ end }}
     environment:
       - FLEET_ENROLL=1
       - FLEET_URL=https://fleet-server:8220
       - KIBANA_HOST=https://kibana:5601
       - FLEET_TOKEN_POLICY_NAME=${FLEET_TOKEN_POLICY_NAME}
     volumes:
-      - ${SERVICE_LOGS_DIR}:/tmp/service_logs/
-      - ${LOCAL_CA_CERT}:/etc/ssl/certs/elastic-package.pem
+      - type: bind
+        source: ${LOCAL_CA_CERT}
+        target: /etc/ssl/certs/elastic-package.pem
+        read_only: true
+      - type: bind
+        source: ${SERVICE_LOGS_DIR}
+        target: /tmp/service_logs/
+        read_only: false
+      # Mount service_logs under /run too as a testing workaround for the journald input (see elastic-package#1235).
+      - type: bind
+        source: ${SERVICE_LOGS_DIR}
+        target: /run/service_logs/
+        read_only: false
