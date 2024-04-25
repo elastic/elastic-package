@@ -486,16 +486,25 @@ func (p *Project) runDockerComposeCmd(ctx context.Context, opts dockerComposeOpt
 	}
 	cmd.Env = append(os.Environ(), opts.env...)
 
+	var errBuffer bytes.Buffer
+	cmd.Stderr = &errBuffer
 	if logger.IsDebugMode() {
 		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
+		cmd.Stderr = io.MultiWriter(&errBuffer, os.Stderr)
 	}
 	if opts.stdout != nil {
 		cmd.Stdout = opts.stdout
 	}
 
 	logger.Debugf("running command: %s", cmd)
-	return cmd.Run()
+	err := cmd.Run()
+	if err != nil {
+		if errBuffer.Len() > 0 {
+			return fmt.Errorf("%w: %s", err, errBuffer.String())
+		}
+		return err
+	}
+	return nil
 }
 
 func (p *Project) dockerComposeBaseCommand() (name string, args []string) {
