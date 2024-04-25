@@ -796,34 +796,59 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	}
 
 	// Configure package (single data stream) via Fleet APIs.
-	var policy *kibana.Policy
+	var policyToTest, policyToEnroll *kibana.Policy
 	if r.options.RunTearDown || r.options.RunTestsOnly {
-		policy = &serviceStateData.CurrentPolicy
-		logger.Debugf("Got policy from file: %q - %q", policy.Name, policy.ID)
+		policyToTest = &serviceStateData.CurrentPolicy
+		policyToEnroll = &serviceStateData.EnrollPolicy
+		logger.Debugf("Got policy from file: %q - %q", policyToTest.Name, policyToTest.ID)
 	} else {
-		logger.Debug("creating test policy...")
+		// Create two different policies, one for enrolling the agent and the other for testing.
+		// This allows us to ensure that the Agent Policy used for testing is
+		// assigned to the agent with all the required changes (e.g. Package DataStream)
+		logger.Debug("creating test policies...")
 		testTime := time.Now().Format("20060102T15:04:05Z")
 
-		p := kibana.Policy{
+		policyEnroll := kibana.Policy{
+			Name:        fmt.Sprintf("ep-test-system-enroll-%s-%s-%s", r.options.TestFolder.Package, r.options.TestFolder.DataStream, testTime),
+			Description: fmt.Sprintf("test policy created by elastic-package to enroll agent for data stream %s/%s", r.options.TestFolder.Package, r.options.TestFolder.DataStream),
+			Namespace:   "ep",
+		}
+
+		policyTest := kibana.Policy{
 			Name:        fmt.Sprintf("ep-test-system-%s-%s-%s", r.options.TestFolder.Package, r.options.TestFolder.DataStream, testTime),
 			Description: fmt.Sprintf("test policy created by elastic-package test system for data stream %s/%s", r.options.TestFolder.Package, r.options.TestFolder.DataStream),
 			Namespace:   "ep",
 		}
 		// Assign the data_output_id to the agent policy to configure the output to logstash. The value is inferred from stack/_static/kibana.yml.tmpl
 		if r.options.Profile.Config("stack.logstash_enabled", "false") == "true" {
-			p.DataOutputID = "fleet-logstash-output"
+			policyTest.DataOutputID = "fleet-logstash-output"
 		}
-		policy, err = r.options.KibanaClient.CreatePolicy(ctx, p)
+		policyToTest, err = r.options.KibanaClient.CreatePolicy(ctx, policyTest)
+		if err != nil {
+			return nil, fmt.Errorf("could not create test policy: %w", err)
+		}
+		policyToEnroll, err = r.options.KibanaClient.CreatePolicy(ctx, policyEnroll)
 		if err != nil {
 			return nil, fmt.Errorf("could not create test policy: %w", err)
 		}
 	}
 	r.deleteTestPolicyHandler = func(ctx context.Context) error {
-		logger.Debug("deleting test policy...")
-		if err := r.options.KibanaClient.DeletePolicy(ctx, *policy); err != nil {
+		logger.Debug("deleting test policies...")
+		if err := r.options.KibanaClient.DeletePolicy(ctx, *policyToTest); err != nil {
+			return fmt.Errorf("error cleaning up test policy: %w", err)
+		}
+		if err := r.options.KibanaClient.DeletePolicy(ctx, *policyToEnroll); err != nil {
 			return fmt.Errorf("error cleaning up test policy: %w", err)
 		}
 		return nil
+	}
+
+	// policyToEnroll is used in both independent agents and agents created by servicedeployer (custom or kubernetes agents)
+	policy := policyToEnroll
+	if r.options.RunTearDown || r.options.RunTestsOnly {
+		// required in order to be able select the right agent in `checkEnrolledAgents` when
+		// using independent agents or custom/kubernetes agents since policy data is set into `agentInfo` variable`
+		policy = policyToTest
 	}
 
 	agentDeployed, agentInfo, err := r.setupAgent(ctx, config, serviceStateData, policy, scenario.pkgManifest.Agent)
@@ -867,7 +892,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	scenario.startTestTime = time.Now()
 
 	logger.Debug("adding package data stream to test policy...")
-	ds := createPackageDatastream(*policy, *scenario.pkgManifest, policyTemplate, *scenario.dataStreamManifest, *config)
+	ds := createPackageDatastream(*policyToTest, *scenario.pkgManifest, policyTemplate, *scenario.dataStreamManifest, *config)
 	if r.options.RunTearDown || r.options.RunTestsOnly {
 		logger.Debug("Skip adding data stream config to policy")
 	} else {
@@ -986,7 +1011,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	if r.options.RunTearDown || r.options.RunTestsOnly {
 		logger.Debug("Skip assiging package data stream to agent")
 	} else {
-		policyWithDataStream, err := r.options.KibanaClient.GetPolicy(ctx, policy.ID)
+		policyWithDataStream, err := r.options.KibanaClient.GetPolicy(ctx, policyToTest.ID)
 		if err != nil {
 			return nil, fmt.Errorf("could not read the policy with data stream: %w", err)
 		}
@@ -1072,7 +1097,8 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	if r.options.RunSetup {
 		opts := scenarioStateOpts{
 			origPolicy:    &origPolicy,
-			currentPolicy: policy,
+			enrollPolicy:  policyToEnroll,
+			currentPolicy: policyToTest,
 			config:        config,
 			agent:         origAgent,
 			agentInfo:     agentInfo,
@@ -1209,6 +1235,7 @@ func (r *runner) readServiceStateData() (ServiceState, error) {
 
 type ServiceState struct {
 	OrigPolicy       kibana.Policy `json:"orig_policy"`
+	EnrollPolicy     kibana.Policy `json:"enroll_policy"`
 	CurrentPolicy    kibana.Policy `json:"current_policy"`
 	Agent            kibana.Agent  `json:"agent"`
 	ConfigFilePath   string        `json:"config_file_path"`
@@ -1220,6 +1247,7 @@ type ServiceState struct {
 
 type scenarioStateOpts struct {
 	currentPolicy *kibana.Policy
+	enrollPolicy  *kibana.Policy
 	origPolicy    *kibana.Policy
 	config        *testConfig
 	agent         kibana.Agent
@@ -1230,6 +1258,7 @@ type scenarioStateOpts struct {
 func (r *runner) writeScenarioState(opts scenarioStateOpts) error {
 	data := ServiceState{
 		OrigPolicy:       *opts.origPolicy,
+		EnrollPolicy:     *opts.enrollPolicy,
 		CurrentPolicy:    *opts.currentPolicy,
 		Agent:            opts.agent,
 		ConfigFilePath:   opts.config.Path,
