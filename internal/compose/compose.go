@@ -499,12 +499,21 @@ func (p *Project) runDockerComposeCmd(ctx context.Context, opts dockerComposeOpt
 	logger.Debugf("running command: %s", cmd)
 	err := cmd.Run()
 	if err != nil {
-		if errBuffer.Len() > 0 {
-			return fmt.Errorf("%w: %s", err, strings.TrimSpace(errBuffer.String()))
+		if msg := cleanComposeError(errBuffer.String()); len(msg) > 0 {
+			return fmt.Errorf("%w: %s", err, msg)
 		}
 		return err
 	}
 	return nil
+}
+
+func cleanComposeError(msg string) string {
+	msg = strings.TrimSpace(msg)
+	const daemonResponse = "Error response from daemon:"
+	if i := strings.Index(msg, daemonResponse); i >= 0 {
+		msg = msg[i+len(daemonResponse):]
+	}
+	return msg
 }
 
 func (p *Project) dockerComposeBaseCommand() (name string, args []string) {
