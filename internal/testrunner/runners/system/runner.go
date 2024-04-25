@@ -339,6 +339,7 @@ func (r *runner) createAgentInfo(policy *kibana.Policy, config *testConfig, runI
 	info.Agent.LinuxCapabilities = config.Agent.LinuxCapabilities
 	info.Agent.Runtime = config.Agent.Runtime
 	info.Agent.PidMode = config.Agent.PidMode
+	info.Agent.Ports = config.Agent.Ports
 
 	// If user is defined in the configuration file, it has preference
 	// and it should not be overwritten by the value in the manifest
