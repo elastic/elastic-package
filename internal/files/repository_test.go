@@ -13,32 +13,54 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestRepositoryDirectory(t *testing.T) {
-	tempDir := t.TempDir()
+func TestRepositoryGitDirectory(t *testing.T) {
+	cases := []struct {
+		name          string
+		createGit     bool
+		repoDir       string
+		expectedError string
+		valid         bool
+	}{
+		{
+			name:          "git folder present",
+			createGit:     true,
+			repoDir:       t.TempDir(),
+			expectedError: "",
+			valid:         true,
+		},
+		{
+			name:          "no git folder",
+			createGit:     false,
+			repoDir:       t.TempDir(),
+			expectedError: "file does not exist",
+			valid:         false,
+		},
+	}
 
-	gitDir := filepath.Join(tempDir, ".git")
-	otherDir := filepath.Join(tempDir, "other")
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			gitWorktreeFile := filepath.Join(c.repoDir, ".git")
+			otherDir := filepath.Join(c.repoDir, "other")
 
-	err := os.MkdirAll(gitDir, 0o755)
-	require.NoError(t, err)
-	err = os.MkdirAll(otherDir, 0o755)
-	require.NoError(t, err)
+			if c.createGit {
+				err := os.MkdirAll(gitWorktreeFile, 0o755)
+				require.NoError(t, err)
+			}
+			err := os.MkdirAll(otherDir, 0o755)
+			require.NoError(t, err)
 
-	err = os.Chdir(otherDir)
-	require.NoError(t, err)
+			err = os.Chdir(otherDir)
+			require.NoError(t, err)
 
-	dir, err := FindRepositoryRootDirectory()
-	require.NoError(t, err)
-	assert.Equal(t, tempDir, dir)
-
-	// test a non repository folder
-	nonGitDir := t.TempDir()
-
-	err = os.Chdir(nonGitDir)
-	require.NoError(t, err)
-
-	_, err = FindRepositoryRootDirectory()
-	assert.ErrorIs(t, err, os.ErrNotExist)
+			dir, err := FindRepositoryRootDirectory()
+			if c.valid {
+				require.NoError(t, err)
+				assert.Equal(t, c.repoDir, dir)
+			} else {
+				assert.ErrorContains(t, err, c.expectedError)
+			}
+		})
+	}
 }
 
 func TestRepositoryGitWorktree(t *testing.T) {
@@ -59,15 +81,31 @@ func TestRepositoryGitWorktree(t *testing.T) {
 			valid:         true,
 		},
 		{
-			name:          "invalid git worktree file",
+			name:          "git worktree file with more fields",
 			createGit:     true,
 			contents:      "gitdir: /path/to/repo/main\nfoo: bar",
 			repoDir:       t.TempDir(),
-			expectedError: "yaml: unmarshal errors:\n  line 2: field foo not found in type files.gitWorktree",
+			expectedError: "",
+			valid:         true,
+		},
+		{
+			name:          "no gitdir field",
+			createGit:     true,
+			contents:      "",
+			repoDir:       t.TempDir(),
+			expectedError: "file does not exist",
 			valid:         false,
 		},
 		{
-			name:          "invalid git worktree file",
+			name:          "empty gitdir field",
+			createGit:     true,
+			contents:      "gitdir: ''",
+			repoDir:       t.TempDir(),
+			expectedError: "file does not exist",
+			valid:         false,
+		},
+		{
+			name:          "no git file nor folder",
 			createGit:     false,
 			contents:      "",
 			repoDir:       t.TempDir(),
@@ -96,7 +134,7 @@ func TestRepositoryGitWorktree(t *testing.T) {
 				require.NoError(t, err)
 				assert.Equal(t, c.repoDir, dir)
 			} else {
-				assert.ErrorContains(t, err, "yaml: unmarshal errors:\n  line 2: field foo not found in type files.gitWorktree")
+				assert.ErrorContains(t, err, c.expectedError)
 			}
 		})
 	}
