@@ -47,7 +47,7 @@ spec:
         build_tags: true
         filter_enabled: true
         filter_condition: >-
-          build.pull_request.id == null || (build.creator.name == 'elasticmachine' && build.pull_request.id != null)
+          build.pull_request.id == null || (build.creator.name == 'elasticmachine' && build.pull_request.id != null && build.source == 'api')
       repository: elastic/elastic-package
       cancel_intermediate_builds: true
       cancel_intermediate_builds_branch_filter: '!main'
@@ -95,7 +95,7 @@ spec:
         build_pull_requests: true # requires filter_enabled and filter_condition settings as below when used with buildkite-pr-bot
         filter_enabled: true
         filter_condition: >-
-          build.pull_request.id == null || (build.creator.name == 'elasticmachine' && build.pull_request.id != null)
+          build.pull_request.id == null || (build.creator.name == 'elasticmachine' && build.pull_request.id != null && build.source == 'api')
       repository: elastic/elastic-package
       cancel_intermediate_builds: true
       cancel_intermediate_builds_branch_filter: '!main'
@@ -140,7 +140,7 @@ spec:
         build_branches: false
         filter_enabled: true
         filter_condition: >-
-          build.pull_request.id == null || (build.creator.name == 'elasticmachine' && build.pull_request.id != null)
+          build.pull_request.id == null || (build.creator.name == 'elasticmachine' && build.pull_request.id != null && build.source == 'api')
       cancel_intermediate_builds: false  # do not cancel any build to avoid inconsistent states
       skip_intermediate_builds: true     # just need to run the latest commit
       repository: elastic/elastic-package
