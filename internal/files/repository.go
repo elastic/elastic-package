@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 
 	"gopkg.in/yaml.v3"
+
+	"github.com/elastic/elastic-package/internal/logger"
 )
 
 func FindRepositoryRootDirectory() (string, error) {
@@ -18,7 +20,10 @@ func FindRepositoryRootDirectory() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("locating working directory failed: %w", err)
 	}
+	return findRepositoryRootDirectory(workDir)
+}
 
+func findRepositoryRootDirectory(workDir string) (string, error) {
 	// VolumeName() will return something like "C:" in Windows, and "" in other OSs
 	// rootDir will be something like "C:\" in Windows, and "/" everywhere else.
 	rootDir := filepath.VolumeName(workDir) + string(filepath.Separator)
@@ -30,6 +35,7 @@ func FindRepositoryRootDirectory() (string, error) {
 			return "", err
 		}
 		if gitRepo {
+			logger.Debugf("Found git repository directory: %q", dir)
 			return dir, nil
 		}
 		if dir == rootDir {
@@ -44,7 +50,7 @@ func FindRepositoryRootDirectory() (string, error) {
 func isGitRootDir(dir string) (bool, error) {
 	path := filepath.Join(dir, ".git")
 	fileInfo, err := os.Stat(path)
-	if err != nil && errors.Is(err, os.ErrNotExist) {
+	if errors.Is(err, os.ErrNotExist) {
 		return false, nil
 	}
 	if err != nil {
