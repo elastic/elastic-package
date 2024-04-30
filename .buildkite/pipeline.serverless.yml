@@ -55,7 +55,7 @@ steps:
   - wait: ~
     continue_on_failure: true
 
-  - label: ":pipeline: Test Serverless Integration tests"
+  - label: ":elastic: Serverless Integration tests"
     key: test-serverless
     command: ".buildkite/scripts/test_packages_with_serverless.sh"
     env:

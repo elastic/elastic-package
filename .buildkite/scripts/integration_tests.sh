@@ -80,8 +80,8 @@ if [[ "${TARGET}" == "${KIND_TARGET}" || "${TARGET}" == "${SYSTEM_TEST_FLAGS_TAR
 fi
 
 label="${TARGET}"
-if [ -n "${PACKAGE_UNDER_TEST}" ]; then
-    label="${LABEL} - ${PACKAGE_UNDER_TEST}"
+if [ -n "${PACKAGE}" ]; then
+    label="${LABEL} - ${PACKAGE}"
 fi
 echo "--- Run integration test ${TARGET}"
 if [[ "${TARGET}" == "${PARALLEL_TARGET}" ]] || [[ "${TARGET}" == "${FALSE_POSITIVES_TARGET}" ]]; then
