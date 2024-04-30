@@ -410,7 +410,15 @@ func (sp *serverlessProvider) Update(ctx context.Context, options Options) error
 	return fmt.Errorf("not implemented")
 }
 
-func (sp *serverlessProvider) Dump(ctx context.Context, options DumpOptions) (string, error) {
+func (sp *serverlessProvider) Dump(ctx context.Context, options DumpOptions) ([]DumpResult, error) {
+	for _, service := range options.Services {
+		if service != "elastic-agent" {
+			return nil, &ErrNotImplemented{
+				Operation: fmt.Sprintf("logs dump for service %s", service),
+				Provider:  ProviderServerless,
+			}
+		}
+	}
 	return Dump(ctx, options)
 }
 
@@ -452,17 +460,6 @@ func (sp *serverlessProvider) Status(ctx context.Context, options Options) ([]Se
 	serviceStatus = append(serviceStatus, agentStatus...)
 
 	return serviceStatus, nil
-}
-
-func (sp *serverlessProvider) GetServiceLogs(ctx context.Context, opts Options, serviceName string, since time.Time) ([]byte, error) {
-	switch serviceName {
-	case "elastic-agent":
-		return GetServiceLogs(ctx, serviceName, sp.profile, since)
-	}
-	return nil, &ErrNotImplemented{
-		Operation: "getting service logs from " + serviceName,
-		Provider:  ProviderServerless,
-	}
 }
 
 func (sp *serverlessProvider) localAgentStatus() ([]ServiceStatus, error) {

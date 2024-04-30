@@ -45,9 +45,7 @@ type runner struct {
 
 	runCompareResults bool
 
-	provider interface {
-		GetServiceLogs(ctx context.Context, opts stack.Options, serviceName string, since time.Time) ([]byte, error)
-	}
+	provider stack.Provider
 }
 
 type IngestPipelineReroute struct {
@@ -218,10 +216,12 @@ func (r *runner) checkElasticsearchLogs(ctx context.Context, startTesting time.T
 
 	testingTime := startTesting.Truncate(time.Second)
 
-	options := stack.Options{
-		Profile: r.options.Profile,
+	dumpOptions := stack.DumpOptions{
+		Profile:  r.options.Profile,
+		Services: []string{"elasticsearch"},
+		Since:    testingTime,
 	}
-	elasticsearchLogs, err := r.provider.GetServiceLogs(ctx, options, "elasticsearch", testingTime)
+	dump, err := r.provider.Dump(ctx, dumpOptions)
 	var notImplementedErr *stack.ErrNotImplemented
 	if errors.As(err, &notImplementedErr) {
 		logger.Debugf("Not checking Elasticsearch logs: %s", err)
@@ -230,6 +230,11 @@ func (r *runner) checkElasticsearchLogs(ctx context.Context, startTesting time.T
 	if err != nil {
 		return nil, fmt.Errorf("error at getting the logs of elasticsearch: %w", err)
 	}
+
+	if len(dump) != 1 || dump[0].ServiceName != "elasticsearch" {
+		return nil, errors.New("expected elasticsearch logs in dump")
+	}
+	elasticsearchLogs := dump[0].Logs
 
 	seenWarnings := make(map[string]any)
 	var processorRelatedWarnings []string
