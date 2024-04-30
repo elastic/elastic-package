@@ -43,7 +43,8 @@ type runner struct {
 	options   testrunner.TestOptions
 	pipelines []ingest.Pipeline
 
-	runCompareResults bool
+	runCompareResults         bool
+	runCheckElasticsearchLogs bool
 }
 
 type IngestPipelineReroute struct {
@@ -86,6 +87,10 @@ func (r *runner) Run(ctx context.Context, options testrunner.TestOptions) ([]tes
 		if ok && strings.ToLower(v) == "true" {
 			r.runCompareResults = false
 		}
+	}
+
+	if stackConfig.Provider == stack.ProviderCompose {
+		r.runCheckElasticsearchLogs = false
 	}
 
 	return r.run(ctx)
@@ -194,17 +199,18 @@ func (r *runner) run(ctx context.Context) ([]testrunner.TestResult, error) {
 		results = append(results, result)
 	}
 
-	esLogs, err := r.checkElasticsearchLogs(ctx, startTime)
-	if err != nil {
-		return nil, err
+	if r.runCheckElasticsearchLogs {
+		esLogs, err := r.checkElasticsearchLogs(ctx, startTime)
+		if err != nil {
+			return nil, err
+		}
+		results = append(results, esLogs...)
 	}
-	results = append(results, esLogs...)
 
 	return results, nil
 }
 
 func (r *runner) checkElasticsearchLogs(ctx context.Context, startTesting time.Time) ([]testrunner.TestResult, error) {
-
 	startTime := time.Now()
 
 	testingTime := startTesting.Truncate(time.Second)
