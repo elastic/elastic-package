@@ -26,23 +26,6 @@ type DumpOptions struct {
 	Profile *profile.Profile
 }
 
-func GetServiceLogs(ctx context.Context, serviceName string, profile *profile.Profile, since time.Time) ([]byte, error) {
-	services, err := localServiceNames(DockerComposeProjectName(profile))
-	if err != nil {
-		return nil, fmt.Errorf("failed to get local services: %w", err)
-	}
-
-	for _, service := range services {
-		if service != serviceName {
-			continue
-		}
-
-		return dockerComposeLogsSince(ctx, serviceName, profile, since)
-	}
-
-	return nil, fmt.Errorf("service %s not found in local services", serviceName)
-}
-
 // Dump function exports stack data and dumps them as local artifacts, which can be used for debug purposes.
 func Dump(ctx context.Context, options DumpOptions) (string, error) {
 	logger.Debugf("Dump Elastic stack data")
@@ -100,4 +83,21 @@ func writeLogFiles(logsPath, serviceName string, content []byte) {
 // DumpLogsFile returns the file path to the logs of a given service
 func DumpLogsFile(options DumpOptions, serviceName string) string {
 	return filepath.Join(options.Output, "logs", fmt.Sprintf("%s.log", serviceName))
+}
+
+func GetServiceLogs(ctx context.Context, serviceName string, profile *profile.Profile, since time.Time) ([]byte, error) {
+	services, err := localServiceNames(DockerComposeProjectName(profile))
+	if err != nil {
+		return nil, fmt.Errorf("failed to get local services: %w", err)
+	}
+
+	for _, service := range services {
+		if service != serviceName {
+			continue
+		}
+
+		return dockerComposeLogsSince(ctx, serviceName, profile, since)
+	}
+
+	return nil, fmt.Errorf("service %s not found in local services", serviceName)
 }

@@ -43,8 +43,11 @@ type runner struct {
 	options   testrunner.TestOptions
 	pipelines []ingest.Pipeline
 
-	runCompareResults         bool
-	runCheckElasticsearchLogs bool
+	runCompareResults bool
+
+	provider interface {
+		GetServiceLogs(ctx context.Context, opts stack.Options, serviceName string, since time.Time) ([]byte, error)
+	}
 }
 
 type IngestPipelineReroute struct {
@@ -79,6 +82,12 @@ func (r *runner) Run(ctx context.Context, options testrunner.TestOptions) ([]tes
 		return nil, err
 	}
 
+	provider, err := stack.BuildProvider(stackConfig.Provider, r.options.Profile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build stack provider: %w", err)
+	}
+	r.provider = provider
+
 	r.runCompareResults = true
 	if stackConfig.Provider == stack.ProviderServerless {
 		r.runCompareResults = true
@@ -87,10 +96,6 @@ func (r *runner) Run(ctx context.Context, options testrunner.TestOptions) ([]tes
 		if ok && strings.ToLower(v) == "true" {
 			r.runCompareResults = false
 		}
-	}
-
-	if stackConfig.Provider == stack.ProviderCompose {
-		r.runCheckElasticsearchLogs = false
 	}
 
 	return r.run(ctx)
@@ -199,13 +204,11 @@ func (r *runner) run(ctx context.Context) ([]testrunner.TestResult, error) {
 		results = append(results, result)
 	}
 
-	if r.runCheckElasticsearchLogs {
-		esLogs, err := r.checkElasticsearchLogs(ctx, startTime)
-		if err != nil {
-			return nil, err
-		}
-		results = append(results, esLogs...)
+	esLogs, err := r.checkElasticsearchLogs(ctx, startTime)
+	if err != nil {
+		return nil, err
 	}
+	results = append(results, esLogs...)
 
 	return results, nil
 }
@@ -215,7 +218,15 @@ func (r *runner) checkElasticsearchLogs(ctx context.Context, startTesting time.T
 
 	testingTime := startTesting.Truncate(time.Second)
 
-	elasticsearchLogs, err := stack.GetServiceLogs(ctx, "elasticsearch", r.options.Profile, testingTime)
+	options := stack.Options{
+		Profile: r.options.Profile,
+	}
+	elasticsearchLogs, err := r.provider.GetServiceLogs(ctx, options, "elasticsearch", testingTime)
+	var notImplementedErr *stack.ErrNotImplemented
+	if errors.As(err, &notImplementedErr) {
+		logger.Debugf("Not checking Elasticsearch logs: %s", err)
+		return nil, nil
+	}
 	if err != nil {
 		return nil, fmt.Errorf("error at getting the logs of elasticsearch: %w", err)
 	}

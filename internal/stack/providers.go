@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/elastic/elastic-package/internal/profile"
 )
@@ -48,6 +49,9 @@ type Provider interface {
 
 	// Status obtains status information of the stack.
 	Status(context.Context, Options) ([]ServiceStatus, error)
+
+	// GetServiceLogs obtains the logs of a service.
+	GetServiceLogs(ctx context.Context, opts Options, serviceName string, since time.Time) ([]byte, error)
 }
 
 // BuildProvider returns the provider for the given name.
@@ -81,4 +85,8 @@ func (*composeProvider) Dump(ctx context.Context, options DumpOptions) (string, 
 
 func (*composeProvider) Status(ctx context.Context, options Options) ([]ServiceStatus, error) {
 	return Status(ctx, options)
+}
+
+func (*composeProvider) GetServiceLogs(ctx context.Context, options Options, serviceName string, since time.Time) ([]byte, error) {
+	return GetServiceLogs(ctx, serviceName, options.Profile, since)
 }

@@ -454,6 +454,17 @@ func (sp *serverlessProvider) Status(ctx context.Context, options Options) ([]Se
 	return serviceStatus, nil
 }
 
+func (sp *serverlessProvider) GetServiceLogs(ctx context.Context, opts Options, serviceName string, since time.Time) ([]byte, error) {
+	switch serviceName {
+	case "elastic-agent":
+		return GetServiceLogs(ctx, serviceName, sp.profile, since)
+	}
+	return nil, &ErrNotImplemented{
+		Operation: "getting service logs from " + serviceName,
+		Provider:  ProviderServerless,
+	}
+}
+
 func (sp *serverlessProvider) localAgentStatus() ([]ServiceStatus, error) {
 	var services []ServiceStatus
 	serviceStatusFunc := func(description docker.ContainerDescription) error {
