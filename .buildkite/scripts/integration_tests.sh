@@ -81,9 +81,9 @@ fi
 
 label="${TARGET}"
 if [ -n "${PACKAGE}" ]; then
-    label="${LABEL} - ${PACKAGE}"
+    label="${label} - ${PACKAGE}"
 fi
-echo "--- Run integration test ${TARGET}"
+echo "--- Run integration test ${label}"
 if [[ "${TARGET}" == "${PARALLEL_TARGET}" ]] || [[ "${TARGET}" == "${FALSE_POSITIVES_TARGET}" ]]; then
     make install
 
