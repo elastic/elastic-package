@@ -15,7 +15,6 @@ fi
 
 echo "--- Cleanup"
 cleanup
-google_cloud_logout_active_account
 unset_secrets
 
 # integrations-parallel-gcp

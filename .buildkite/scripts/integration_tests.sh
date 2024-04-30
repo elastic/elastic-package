@@ -5,6 +5,20 @@ source .buildkite/scripts/tooling.sh
 
 set -euo pipefail
 
+ensure_logout() {
+    local error_code=$?
+
+    if [ $error_code != 0 ] ; then
+        # if variable is defined run the logout
+        if [ -n "${GOOGLE_APPLICATION_CREDENTIALS+x}" ]; then
+             google_cloud_logout_active_account
+        fi
+    fi
+
+    exit $error_code
+}
+trap ensure_logout EXIT
+
 usage() {
     echo "$0 [-t <target>] [-h]"
     echo "Trigger integration tests related to a target in Makefile"
