@@ -46,7 +46,6 @@ list_packages() {
 any_package_failing=0
 
 for package in $(list_packages); do
-    echo "--- Test package: ${package}"
     if ! .buildkite/scripts/integration_tests.sh -t test-check-packages-parallel -p "${package}" -s ; then
         echo "- ${package}" >> "${FAILED_PACKAGES_FILE_PATH}"
         any_package_failing=1

@@ -98,6 +98,10 @@ if [[ "${TARGET}" == "${KIND_TARGET}" || "${TARGET}" == "${SYSTEM_TEST_FLAGS_TAR
     with_kubernetes
 fi
 
+label="${TARGET}"
+if [ -n "${PACKAGE_UNDER_TEST}" ]; then
+    label="${LABEL} - ${PACKAGE_UNDER_TEST}"
+fi
 echo "--- Run integration test ${TARGET}"
 if [[ "${TARGET}" == "${PARALLEL_TARGET}" ]] || [[ "${TARGET}" == "${FALSE_POSITIVES_TARGET}" ]]; then
     make install
@@ -138,7 +142,7 @@ if [[ "${TARGET}" == "${PARALLEL_TARGET}" ]] || [[ "${TARGET}" == "${FALSE_POSIT
     fi
 
     if [ $testReturnCode != 0 ]; then
-        echo "make SERVERLESS=${SERVERLESS} PACKAGE_UDER_TEST=${PACKAGE} ${TARGET} failed with ${testReturnCode}"
+        echo "make SERVERLESS=${SERVERLESS} PACKAGE_UNDER_TEST=${PACKAGE} ${TARGET} failed with ${testReturnCode}"
         exit ${testReturnCode}
     fi
 
