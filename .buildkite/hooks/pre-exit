@@ -13,6 +13,8 @@ if [[ "${BUILDKITE_PIPELINE_SLUG}" == "elastic-package" && "${BUILDKITE_STEP_KEY
     EC_API_KEY="${EC_API_KEY_SECRET}" EC_HOST="${EC_HOST_SECRET}" "${HOME}"/go/bin/elastic-package stack down -v
 fi
 
+cleanup
+google_cloud_logout_active_account
 unset_secrets
 
 # integrations-parallel-gcp

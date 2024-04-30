@@ -3,15 +3,6 @@ source .buildkite/scripts/install_deps.sh
 
 set -euo pipefail
 
-cleanup() {
-    echo "Deleting temporal files..."
-    cd "${WORKSPACE}"
-    rm -rf "${TMP_FOLDER_TEMPLATE_BASE}.*"
-    echo "Done."
-}
-
-trap cleanup EXIT
-
 add_bin_path
 
 echo "--- install gh cli"
