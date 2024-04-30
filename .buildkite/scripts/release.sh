@@ -1,5 +1,8 @@
 #!/bin/bash
 
+source .buildkite/scripts/install_deps.sh
+source .buildkite/scripts/tooling.sh
+
 set -euo pipefail
 
 cleanup() {
@@ -7,11 +10,9 @@ cleanup() {
 }
 trap cleanup exit
 
-WORKSPACE="/tmp/bin-buildkite/"
+export WORKSPACE="/tmp/bin-buildkite/"
 
 VERSION=""
-source .buildkite/scripts/install_deps.sh
-source .buildkite/scripts/tooling.sh
 
 add_bin_path
 with_go

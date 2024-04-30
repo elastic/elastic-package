@@ -4,6 +4,15 @@ source .buildkite/scripts/tooling.sh
 
 set -euo pipefail
 
+# TODO: change pipeline slug
+if [[ "${BUILDKITE_PIPELINE_SLUG}" == "elastic-package" && "${BUILDKITE_STEP_KEY}" == "test-serverless" ]]; then
+    echo "--- Take down the Elastic stack"
+    # BUILDKITE resets PATH contents in pre-exit hook, but elastic-package
+    # is already installed in the test_serverless pipeline step, accessing
+    # directly to the binary
+    EC_API_KEY="${EC_API_KEY_SECRET}" EC_HOST="${EC_HOST_SECRET}" "${HOME}"/go/bin/elastic-package down -v
+fi
+
 unset_secrets
 
 # integrations-parallel-gcp
@@ -15,4 +24,3 @@ unset ELASTIC_PACKAGE_AWS_ACCESS_KEY
 unset ELASTIC_PACKAGE_AWS_SECRET_KEY
 unset AWS_ACCESS_KEY_ID
 unset AWS_SECRET_ACCESS_KEY
-

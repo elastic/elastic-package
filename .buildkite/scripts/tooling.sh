@@ -18,11 +18,17 @@ repo_name() {
 }
 
 buildkite_pr_branch_build_id() {
-    if [ "${BUILDKITE_PULL_REQUEST}" == "false" ]; then
+    if [ "${BUILDKITE_PULL_REQUEST}" != "false" ]; then
+        echo "PR-${BUILDKITE_PULL_REQUEST}-${BUILDKITE_BUILD_NUMBER}"
+        return
+    fi
+
+    if [[ "${BUILDKITE_PIPELINE_SLUG}" == "elastic-package" ]]; then
         echo "${BUILDKITE_BRANCH}-${BUILDKITE_BUILD_NUMBER}"
         return
     fi
-    echo "PR-${BUILDKITE_PULL_REQUEST}-${BUILDKITE_BUILD_NUMBER}"
+    # Other pipelines
+    echo "${BUILDKITE_BRANCH}-${BUILDKITE_PIPELINE_SLUG}-${BUILDKITE_BUILD_NUMBER}"
 }
 
 google_cloud_auth() {
@@ -73,4 +79,85 @@ running_on_buildkite() {
         return 0
     fi
     return 1
+}
+
+create_elastic_package_profile() {
+    local name="$1"
+    elastic-package profiles create "${name}"
+    elastic-package profiles use "${name}"
+}
+
+prepare_serverless_stack() {
+    echo "--- Prepare serverless stack"
+    local stack_version=${STACK_VERSION:-""}
+
+    local args="-v"
+    if [ -n "${stack_version}" ]; then
+        args="${args} --version ${stack_version}"
+    fi
+
+    # Currently, if STACK_VERSION is not defined, for serverless it will be
+    # used as Elastic stack version (for agents) the default version in elastic-package
+
+    # Creating a new profile allow to set a specific name for the serverless project
+    local profile_name="elastic-package-${BUILDKITE_PIPELINE_SLUG}-${BUILDKITE_BUILD_NUMBER}-${SERVERLESS_PROJECT}"
+    if [[ "${BUILDKITE_PULL_REQUEST}" != "false" ]]; then
+        profile_name="elastic-package-${BUILDKITE_PULL_REQUEST}-${BUILDKITE_BUILD_NUMBER}-${SERVERLESS_PROJECT}"
+    fi
+    create_elastic_package_profile "${profile_name}"
+
+    export EC_API_KEY=${EC_API_KEY_SECRET}
+    export EC_HOST=${EC_HOST_SECRET}
+
+    echo "Boot up the Elastic stack"
+    # grep command required to remove password from the output
+    if ! elastic-package stack up \
+        -d \
+        ${args} \
+        --provider serverless \
+        -U "stack.serverless.region=${EC_REGION_SECRET},stack.serverless.type=${SERVERLESS_PROJECT}" 2>&1 | grep -E -v "^Password: " ; then
+        return 1
+    fi
+    echo ""
+    elastic-package stack status
+    echo ""
+}
+
+google_cloud_auth_safe_logs() {
+    local gsUtilLocation=""
+    gsUtilLocation=$(mktemp -d -p "${WORKSPACE}" -t "${TMP_FOLDER_TEMPLATE}")
+
+    local secretFileLocation=${gsUtilLocation}/${GOOGLE_CREDENTIALS_FILENAME}
+
+    echo "${PRIVATE_CI_GCS_CREDENTIALS_SECRET}" > "${secretFileLocation}"
+
+    google_cloud_auth "${secretFileLocation}"
+}
+
+upload_safe_logs() {
+    local bucket="$1"
+    local source="$2"
+    local target="$3"
+
+    if ! ls ${source} 2>&1 > /dev/null ; then
+        echo "upload_safe_logs: artifacts files not found, nothing will be archived"
+        return
+    fi
+
+    google_cloud_auth_safe_logs
+
+    gsutil cp ${source} "gs://${bucket}/buildkite/${REPO_BUILD_TAG}/${target}"
+
+    google_cloud_logout_active_account
+}
+
+clean_safe_logs() {
+    rm -rf "${WORKSPACE}/build/elastic-stack-dump"
+    rm -rf "${WORKSPACE}/build/container-logs"
+}
+
+cleanup() {
+  echo "Deleting temporary files..."
+  rm -rf ${WORKSPACE}/${TMP_FOLDER_TEMPLATE_BASE}.*
+  echo "Done."
 }
