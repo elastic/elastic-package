@@ -26,10 +26,16 @@ const (
 
 // DumpOptions defines dumping options for Elatic stack data.
 type DumpOptions struct {
-	Output   string
-	Profile  *profile.Profile
+	Profile *profile.Profile
+
+	// Output is the path where the logs are copied. If not defined, logs are only returned as part of the dump results.
+	Output string
+
+	// Services is the list of services to get the logs from. If not defined, logs from all available services are dumped.
 	Services []string
-	Since    time.Time
+
+	// Since is the time to dump logs from.
+	Since time.Time
 }
 
 // DumpResult contains the result of a dump operation.
