@@ -20,6 +20,10 @@ cleanup() {
     kind delete cluster || true
   fi
 
+  # In case it is tested with Elatic serverless, there should be just one Elastic stack
+  # started to test all packages. In our CI, this Elastic serverless stack is started 
+  # at the beginning of the pipeline and must be running for all packages without stopping it between
+  # packages.
   if [[ "$SERVERLESS" != "true" ]]; then
       # Take down the stack
       elastic-package stack down -v
@@ -71,6 +75,9 @@ if [ "${PACKAGE_TEST_TYPE:-other}" == "with-logstash" ]; then
   echo "stack.logstash_enabled: true" >> ~/.elastic-package/profiles/logstash/config.yml
 fi
 
+# In case it is tested with Elatic serverless, there should be just one Elastic stack
+# started to test all packages. In our CI, this Elastic serverless stack is started 
+# at the beginning of the pipeline and must be running for all packages.
 if [[ "${SERVERLESS}" != "true" ]]; then
   # Update the stack
   elastic-package stack update -v
