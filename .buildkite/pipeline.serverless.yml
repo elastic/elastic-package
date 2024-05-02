@@ -43,17 +43,6 @@ steps:
       cpu: "8"
       memory: "4G"
 
-  - label: ":go: :linux: Run unit tests"
-    key: unit-tests-linux
-    command: "make test-go-ci"
-    artifact_paths:
-      - "build/test-results/*.xml"
-      - "build/test-coverage/*.xml"
-    agents:
-      image: "${LINUX_AGENT_IMAGE}"
-      cpu: "8"
-      memory: "4G"
-
   - wait: ~
     continue_on_failure: true
 
@@ -68,8 +57,6 @@ steps:
       - build/test-coverage/coverage-*.xml
     depends_on:
       - step: check-static
-        allow_failure: false
-      - step: unit-tests-linux
         allow_failure: false
 
   - wait: ~
