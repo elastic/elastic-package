@@ -44,7 +44,7 @@ type Provider interface {
 	Update(context.Context, Options) error
 
 	// Dump dumps data for debug purpouses.
-	Dump(context.Context, DumpOptions) (string, error)
+	Dump(context.Context, DumpOptions) ([]DumpResult, error)
 
 	// Status obtains status information of the stack.
 	Status(context.Context, Options) ([]ServiceStatus, error)
@@ -75,7 +75,7 @@ func (*composeProvider) Update(ctx context.Context, options Options) error {
 	return Update(ctx, options)
 }
 
-func (*composeProvider) Dump(ctx context.Context, options DumpOptions) (string, error) {
+func (*composeProvider) Dump(ctx context.Context, options DumpOptions) ([]DumpResult, error) {
 	return Dump(ctx, options)
 }
 

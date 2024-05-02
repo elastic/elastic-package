@@ -563,13 +563,26 @@ func (r *runner) run(ctx context.Context) (results []testrunner.TestResult, err 
 	}
 	defer os.RemoveAll(tempDir)
 
-	dumpOptions := stack.DumpOptions{Output: tempDir, Profile: r.options.Profile}
-	_, err = stack.Dump(context.WithoutCancel(ctx), dumpOptions)
+	stackConfig, err := stack.LoadConfig(r.options.Profile)
+	if err != nil {
+		return nil, err
+	}
+
+	provider, err := stack.BuildProvider(stackConfig.Provider, r.options.Profile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build stack provider: %w", err)
+	}
+
+	dumpOptions := stack.DumpOptions{
+		Output:  tempDir,
+		Profile: r.options.Profile,
+	}
+	dump, err := provider.Dump(context.WithoutCancel(ctx), dumpOptions)
 	if err != nil {
 		return nil, fmt.Errorf("dump failed: %w", err)
 	}
 
-	logResults, err := r.checkAgentLogs(dumpOptions, startTesting, errorPatterns)
+	logResults, err := r.checkAgentLogs(dump, startTesting, errorPatterns)
 	if err != nil {
 		return result.WithError(err)
 	}
@@ -2016,11 +2029,17 @@ func (r *runner) checkNewAgentLogs(ctx context.Context, agent agentdeployer.Depl
 	return results, nil
 }
 
-func (r *runner) checkAgentLogs(dumpOptions stack.DumpOptions, startTesting time.Time, errorPatterns []logsByContainer) (results []testrunner.TestResult, err error) {
+func (r *runner) checkAgentLogs(dump []stack.DumpResult, startTesting time.Time, errorPatterns []logsByContainer) (results []testrunner.TestResult, err error) {
 	for _, patternsContainer := range errorPatterns {
 		startTime := time.Now()
 
-		serviceLogsFile := stack.DumpLogsFile(dumpOptions, patternsContainer.containerName)
+		serviceDumpIndex := slices.IndexFunc(dump, func(d stack.DumpResult) bool {
+			return d.ServiceName == patternsContainer.containerName
+		})
+		if serviceDumpIndex < 0 {
+			return nil, fmt.Errorf("could not find logs dump for service %s", patternsContainer.containerName)
+		}
+		serviceLogsFile := dump[serviceDumpIndex].LogsFile
 
 		err = r.anyErrorMessages(serviceLogsFile, startTesting, patternsContainer.patterns)
 		if e, ok := err.(testrunner.ErrTestCaseFailed); ok {
