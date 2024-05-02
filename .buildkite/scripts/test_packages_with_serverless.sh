@@ -13,11 +13,22 @@ FAILED_PACKAGES_FILE_PATH="${WORKSPACE}/failed_packages.txt"
 export SERVERLESS="true"
 SERVERLESS_PROJECT=${SERVERLESS_PROJECT:-"observability"}
 
+add_pr_comment() {
+    local source_pr_number="$1"
+    local buildkite_build="$2"
+
+    add_github_comment \
+        "${GITHUB_PR_BASE_OWNER}/${GITHUB_PR_BASE_REPO}" \
+        "${source_pr_number}" \
+        "Triggered serverless pipeline: ${buildkite_build}"
+}
+
 echo "Running packages on Serverles project type: ${SERVERLESS_PROJECT}"
 if running_on_buildkite; then
     SERVERLESS_PROJECT="$(buildkite-agent meta-data get SERVERLESS_PROJECT --default ${SERVERLESS_PROJECT:-"observability"})"
     buildkite-agent annotate "Serverless Project: ${SERVERLESS_PROJECT}" --context "ctx-info-${SERVERLESS_PROJECT}" --style "info"
 fi
+
 
 add_bin_path
 
@@ -28,6 +39,13 @@ echo "--- Install docker"
 with_docker
 echo "--- Install docker-compose"
 with_docker_compose_plugin
+
+if [[ "${BUILDKITE_PULL_REQUEST}" != "false" ]]; then
+    echo "--- install gh cli"
+    with_github_cli
+
+    add_pr_comment "${BUILDKITE_PULL_REQUEST}" "${BUILDKITE_BUILD_URL}"
+fi
 
 echo "--- Install elastic-package"
 # Required to start the Serverless Elastic stack

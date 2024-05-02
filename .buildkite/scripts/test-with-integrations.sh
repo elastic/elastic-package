@@ -165,10 +165,10 @@ add_pr_comment() {
     local source_pr_number="$1"
     local integrations_pr_link="$2"
 
-    retry 3 \
-        gh pr comment "${source_pr_number}" \
-        --body "Created or updated PR in integrations repository to test this version. Check ${integrations_pr_link}" \
-        --repo "${GITHUB_PR_BASE_OWNER}/${GITHUB_PR_BASE_REPO}"
+    add_github_comment \
+        "${GITHUB_PR_BASE_OWNER}/${GITHUB_PR_BASE_REPO}" \
+        "${source_pr_number}" \
+        "Created or updated PR in integrations repository to test this version. Check ${integrations_pr_link}"
 }
 
 

@@ -178,3 +178,14 @@ create_collapsed_annotation() {
 
     rm -f ${annotation_file}
 }
+
+add_github_comment() {
+    local repository="$1"
+    local pr_id="$2"
+    local message="$3"
+
+    retry 3 \
+        gh pr comment "${pr_id}" \
+        --body "${message}" \
+        --repo "${repository}"
+}
