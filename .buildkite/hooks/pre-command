@@ -60,13 +60,17 @@ is_step_required_to_upload_safe_logs() {
     if [[ "$BUILDKITE_PIPELINE_SLUG" != "elastic-package" && "$BUILDKITE_PIPELINE_SLUG" != "elastic-package-test-serverless" ]]; then
         return 1
     fi
-    # steps from elastic-package
-    if [[ "$BUILDKITE_STEP_KEY" =~ ^integration-parallel || "$BUILDKITE_STEP_KEY" =~ ^integration-false_positives ]]; then
-        return 0
+
+    if [[ "$BUILDKITE_PIPELINE_SLUG" == "elastic-package" ]]; then
+        if [[ "$BUILDKITE_STEP_KEY" =~ ^integration-parallel || "$BUILDKITE_STEP_KEY" =~ ^integration-false_positives ]]; then
+            return 0
+        fi
     fi
-    # steps from elastic-package-test-serverless
-    if [[ "$BUILDKITE_STEP_KEY" == "test-serverless" ]]; then
-        return 0
+
+    if [[ "$BUILDKITE_PIPELINE_SLUG" == "elastic-package-test-serverless" ]]; then
+        if [[ "$BUILDKITE_STEP_KEY" == "test-serverless" ]]; then
+            return 0
+        fi
     fi
     return 1
 }
@@ -155,9 +159,7 @@ if [[ "$BUILDKITE_PIPELINE_SLUG" == "elastic-package-cloud-cleanup" && "$BUILDKI
 fi
 
 
-# TODO: Replace if condition
-# if [[ "${BUILDKITE_PIPELINE_SLUG}" == "elastic-package-test-serverless" ]]; then
-if [[ "${BUILDKITE_PIPELINE_SLUG}" == "elastic-package" ]]; then
+if [[ "${BUILDKITE_PIPELINE_SLUG}" == "elastic-package-test-serverless" ]]; then
     if [[ "${BUILDKITE_STEP_KEY}" == "test-serverless" ]]; then
         EC_API_KEY_SECRET=$(retry 5 vault kv get -field apiKey "${EC_TOKEN_PATH}")
         export EC_API_KEY_SECRET
