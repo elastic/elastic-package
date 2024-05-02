@@ -53,7 +53,7 @@ make install
 
 prepare_serverless_stack
 
-echo "Waiting time to avoid getaddrinfo ENOTFOUND errors..."
+echo "Waiting time to avoid getaddrinfo ENOTFOUND errors if any..."
 sleep 120
 echo "Done."
 
