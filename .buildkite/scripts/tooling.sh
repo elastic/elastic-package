@@ -89,15 +89,6 @@ create_elastic_package_profile() {
 
 prepare_serverless_stack() {
     echo "--- Prepare serverless stack"
-    local stack_version=${STACK_VERSION:-""}
-
-    local args="-v"
-    if [ -n "${stack_version}" ]; then
-        args="${args} --version ${stack_version}"
-    fi
-
-    # Currently, if STACK_VERSION is not defined, for serverless it will be
-    # used as Elastic stack version (for agents) the default version in elastic-package
 
     # Creating a new profile allow to set a specific name for the serverless project
     local profile_name="elastic-package-${BUILDKITE_PIPELINE_SLUG}-${BUILDKITE_BUILD_NUMBER}-${SERVERLESS_PROJECT}"
@@ -110,6 +101,14 @@ prepare_serverless_stack() {
     export EC_HOST=${EC_HOST_SECRET}
 
     echo "Boot up the Elastic stack"
+    # Currently, if STACK_VERSION is not defined, for serverless it will be
+    # used as Elastic stack version (for agents) the default version in elastic-package
+    local stack_version=${STACK_VERSION:-""}
+    local args="-v"
+    if [ -n "${stack_version}" ]; then
+        args="${args} --version ${stack_version}"
+    fi
+
     # grep command required to remove password from the output
     if ! elastic-package stack up \
         -d \
