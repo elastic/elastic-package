@@ -165,5 +165,8 @@ if [[ "${BUILDKITE_PIPELINE_SLUG}" == "elastic-package" ]]; then
         export EC_HOST_SECRET
         EC_REGION_SECRET=$(retry 5 vault read -field region_qa "${EC_DATA_PATH}")
         export EC_REGION_SECRET
+
+        GITHUB_TOKEN=$(retry 5 vault kv get -field token ${GITHUB_TOKEN_VAULT_PATH})
+        export GITHUB_TOKEN
     fi
 fi
