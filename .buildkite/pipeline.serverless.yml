@@ -38,6 +38,8 @@ steps:
   - label: ":elastic: Serverless Integration tests"
     key: test-serverless
     command: ".buildkite/scripts/test_packages_with_serverless.sh"
+    agents:
+      provider: "gcp"
     env:
       SERVERLESS_PROJECT: "${SERVERLESS_PROJECT:-observability}"
       UPLOAD_SAFE_LOGS: 1
