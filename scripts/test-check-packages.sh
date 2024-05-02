@@ -20,8 +20,14 @@ cleanup() {
     kind delete cluster || true
   fi
 
-  # Take down the stack
-  elastic-package stack down -v
+  # In case it is tested with Elatic serverless, there should be just one Elastic stack
+  # started to test all packages. In our CI, this Elastic serverless stack is started 
+  # at the beginning of the pipeline and must be running for all packages without stopping it between
+  # packages.
+  if [[ "$SERVERLESS" != "true" ]]; then
+      # Take down the stack
+      elastic-package stack down -v
+  fi
 
   if [ "${PACKAGE_TEST_TYPE:-other}" == "with-logstash" ]; then
     # Delete the logstash profile
@@ -45,6 +51,7 @@ ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT=${ELASTIC_PACKAGE_TEST_ENABLE_INDE
 export ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT
 ELASTIC_PACKAGE_LINKS_FILE_PATH="$(pwd)/scripts/links_table.yml"
 export ELASTIC_PACKAGE_LINKS_FILE_PATH
+export SERVERLESS=${SERVERLESS:-"false"}
 
 OLDPWD=$PWD
 # Build/check packages
@@ -68,13 +75,18 @@ if [ "${PACKAGE_TEST_TYPE:-other}" == "with-logstash" ]; then
   echo "stack.logstash_enabled: true" >> ~/.elastic-package/profiles/logstash/config.yml
 fi
 
-# Update the stack
-elastic-package stack update -v
+# In case it is tested with Elatic serverless, there should be just one Elastic stack
+# started to test all packages. In our CI, this Elastic serverless stack is started 
+# at the beginning of the pipeline and must be running for all packages.
+if [[ "${SERVERLESS}" != "true" ]]; then
+  # Update the stack
+  elastic-package stack update -v
 
-# Boot up the stack
-elastic-package stack up -d -v
+  # Boot up the stack
+  elastic-package stack up -d -v
 
-elastic-package stack status
+  elastic-package stack status
+fi
 
 if [ "${PACKAGE_TEST_TYPE:-other}" == "with-kind" ]; then
   # Boot up the kind cluster
@@ -113,13 +125,19 @@ for d in test/packages/${PACKAGE_TEST_TYPE:-other}/${PACKAGE_UNDER_TEST:-*}/; do
           echo "Package \"${package_to_test}\" skipped: not supported with Elastic Agent running in the stack (missing capabilities)."
           exit # as it is run in a subshell, it cannot be used "continue"
       fi
+
+      if [[ "${SERVERLESS}" == "true" ]]; then
+          # skip system tests
+          elastic-package test asset -v --report-format xUnit --report-output file --defer-cleanup 1s  --test-coverage --coverage-format=generic
+          elastic-package test static -v --report-format xUnit --report-output file --defer-cleanup 1s  --test-coverage --coverage-format=generic
+          # FIXME: adding test-coverage for serverless results in errors like this:
+          # Error: error running package pipeline tests: could not complete test run: error calculating pipeline coverage: error fetching pipeline stats for code coverage calculations: need exactly one ES node in stats response (got 4)
+          elastic-package test pipeline -v --report-format xUnit --report-output file --defer-cleanup 1s
+          exit # as it is run in a subshell, it cannot be used "continue"
+      fi
+      # Run all tests
       # defer-cleanup is set to a short period to verify that the option is available
-      elastic-package test -v \
-          --report-format xUnit \
-          --report-output file \
-          --defer-cleanup 1s \
-          --test-coverage \
-          --coverage-format=generic
+      elastic-package test -v --report-format xUnit --report-output file --defer-cleanup 1s --test-coverage --coverage-format=generic
     fi
   )
 cd -
