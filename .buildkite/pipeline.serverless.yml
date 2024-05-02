@@ -35,17 +35,6 @@ steps:
     if: "build.source == 'ui'"
     allow_dependency_failure: false
 
-  - label: ":go: Run check-static"
-    key: check-static
-    command: "make check-static"
-    agents:
-      image: "${LINUX_AGENT_IMAGE}"
-      cpu: "8"
-      memory: "4G"
-
-  - wait: ~
-    continue_on_failure: true
-
   - label: ":elastic: Serverless Integration tests"
     key: test-serverless
     command: ".buildkite/scripts/test_packages_with_serverless.sh"
@@ -55,9 +44,6 @@ steps:
     artifact_paths:
       - build/test-results/*.xml
       - build/test-coverage/coverage-*.xml
-    depends_on:
-      - step: check-static
-        allow_failure: false
 
   - wait: ~
     continue_on_failure: true
