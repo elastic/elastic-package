@@ -47,6 +47,7 @@ steps:
       provider: "gcp"
     env:
       SERVERLESS_PROJECT: observability
+      GH_CLI_VERSION: "2.29.0"
       UPLOAD_SAFE_LOGS: 1
     artifact_paths:
       - build/test-results/*.xml
