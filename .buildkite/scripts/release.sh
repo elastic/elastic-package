@@ -5,10 +5,10 @@ source .buildkite/scripts/tooling.sh
 
 set -euo pipefail
 
-cleanup() {
+cleanup_binaries() {
     rm -rf "${WORKSPACE}"
 }
-trap cleanup exit
+trap cleanup_binaries exit
 
 export WORKSPACE="/tmp/bin-buildkite/"
 
