@@ -189,7 +189,8 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 			return fmt.Errorf("cannot determine if package has data streams: %w", err)
 		}
 
-		// Enable independent agents if package defines that requires root privileges
+		// Temporarily until independent Elastic Agents are enabled by default,
+		// enable independent Elastic Agents if package defines that requires root privileges
 		runIndependentElasticAgent := manifest.Agent.Privileges.Root
 
 		// If the environment variable is present, it always has preference over the root
