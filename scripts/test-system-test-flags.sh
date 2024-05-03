@@ -8,6 +8,7 @@ cleanup() {
     local r=$?
     local container_id
     local agent_ids
+    local number_agents
 
     # Dump stack logs
     elastic-package stack dump -v --output build/elastic-stack-dump/system-test-flags
@@ -19,10 +20,12 @@ cleanup() {
     fi
 
     # remove independent Elastic Agents
-    agent_ids=$(container_ids "elastic-package-agent")
-    for agent_id in ${agent_ids}; do
-        docker rm -f "${agent_id}"
-    done
+    agent_ids=$(container_ids "elastic-package-agent" || echo "")
+    if [[ "${agent_ids}" != "" ]]; then
+        for agent_id in ${agent_ids}; do
+            docker rm -f "${agent_id}"
+        done
+    fi
     # remove if any service container
     if [[ "${SERVICE_CONTAINER_NAME}" != "" ]]; then
         if is_service_container_running "${SERVICE_CONTAINER_NAME}"; then
