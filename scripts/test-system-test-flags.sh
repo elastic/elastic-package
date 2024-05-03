@@ -201,8 +201,6 @@ run_tests_for_package() {
         AGENT_CONTAINER_NAME="${DEFAULT_AGENT_CONTAINER_NAME}"
     fi
 
-    ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT=${ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT:-"false"}
-    export ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT
     pushd "${package_folder}" > /dev/null
 
     echo "--- [${package_name} - ${variant}] Setup service without tear-down"
