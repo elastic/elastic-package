@@ -27,3 +27,13 @@ func UndefinedEnvError(envName string) error {
 
 // ErrUnavailableStack is an error about an unavailable Elastic stack.
 var ErrUnavailableStack = errors.New("the Elastic stack is unavailable, remember to start it with 'elastic-package stack up', or configure elastic-package with environment variables")
+
+// ErrNotImplemented is an error about a feature not implemented in a stack provider.
+type ErrNotImplemented struct {
+	Operation string
+	Provider  string
+}
+
+func (err *ErrNotImplemented) Error() string {
+	return fmt.Sprintf("operation not implemented in %q provider: %s", err.Provider, err.Operation)
+}

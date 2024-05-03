@@ -357,6 +357,7 @@ func TestCheckAgentLogs(t *testing.T) {
 			err = os.MkdirAll(filepath.Join(logsDirTemp, "logs"), 0755)
 			require.NoError(t, err)
 
+			var dump []stack.DumpResult
 			for service, logs := range tc.sampleLogs {
 				logsFile := filepath.Join(logsDirTemp, "logs", fmt.Sprintf("%s.log", service))
 				file, err := os.Create(logsFile)
@@ -365,6 +366,11 @@ func TestCheckAgentLogs(t *testing.T) {
 				_, err = file.WriteString(strings.Join(logs, "\n"))
 				require.NoError(t, err)
 				file.Close()
+
+				dump = append(dump, stack.DumpResult{
+					ServiceName: service,
+					LogsFile:    logsFile,
+				})
 			}
 
 			runner := runner{
@@ -375,13 +381,8 @@ func TestCheckAgentLogs(t *testing.T) {
 					},
 				},
 			}
-
-			dumpOptions := stack.DumpOptions{
-				Output: logsDirTemp,
-			}
-			results, err := runner.checkAgentLogs(dumpOptions, startTime, tc.errorPatterns)
+			results, err := runner.checkAgentLogs(dump, startTime, tc.errorPatterns)
 			require.NoError(t, err)
-
 			require.Len(t, results, tc.expectedErrors)
 
 			if tc.expectedErrors == 0 {

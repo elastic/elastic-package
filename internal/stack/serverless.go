@@ -410,7 +410,15 @@ func (sp *serverlessProvider) Update(ctx context.Context, options Options) error
 	return fmt.Errorf("not implemented")
 }
 
-func (sp *serverlessProvider) Dump(ctx context.Context, options DumpOptions) (string, error) {
+func (sp *serverlessProvider) Dump(ctx context.Context, options DumpOptions) ([]DumpResult, error) {
+	for _, service := range options.Services {
+		if service != "elastic-agent" {
+			return nil, &ErrNotImplemented{
+				Operation: fmt.Sprintf("logs dump for service %s", service),
+				Provider:  ProviderServerless,
+			}
+		}
+	}
 	return Dump(ctx, options)
 }
 

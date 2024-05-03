@@ -10,6 +10,7 @@ require (
 	github.com/boumenot/gocover-cobertura v1.2.0
 	github.com/cbroglie/mustache v1.4.0
 	github.com/cespare/xxhash/v2 v2.3.0
+	github.com/creack/pty v1.1.21
 	github.com/dustin/go-humanize v1.0.1
 	github.com/elastic/elastic-integration-corpus-generator-tool v0.10.0
 	github.com/elastic/go-elasticsearch/v7 v7.17.10
@@ -28,9 +29,10 @@ require (
 	github.com/jedib0t/go-pretty v4.3.0+incompatible
 	github.com/magefile/mage v1.15.0
 	github.com/mholt/archiver/v3 v3.5.1
+	github.com/mitchellh/mapstructure v1.5.0
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2
-	github.com/shirou/gopsutil/v3 v3.24.3
+	github.com/shirou/gopsutil/v3 v3.24.4
 	github.com/spf13/cobra v1.8.0
 	github.com/stretchr/testify v1.9.0
 	golang.org/x/tools v0.20.0
@@ -119,7 +121,6 @@ require (
 	github.com/mgutz/ansi v0.0.0-20200706080929-d51e80ef957d // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
-	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
 	github.com/moby/spdystream v0.2.0 // indirect
 	github.com/moby/term v0.5.0 // indirect

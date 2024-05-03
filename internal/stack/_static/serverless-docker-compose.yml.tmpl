@@ -9,6 +9,8 @@ services:
       interval: 5s
     hostname: docker-fleet-agent
     env_file: "./elastic-agent.env"
+    cap_drop:
+    - ALL
     volumes:
     - type: bind
       source: ../../../tmp/service_logs/

@@ -5,10 +5,7 @@ source .buildkite/scripts/tooling.sh
 
 set -euo pipefail
 
-WORKSPACE="$(pwd)"
-TMP_FOLDER_TEMPLATE_BASE="tmp.elastic-package"
-
-cleanup() {
+ensure_logout() {
     local error_code=$?
 
     if [ $error_code != 0 ] ; then
@@ -18,14 +15,9 @@ cleanup() {
         fi
     fi
 
-    echo "Deleting temporal files..."
-    cd "${WORKSPACE}"
-    rm -rf "${TMP_FOLDER_TEMPLATE_BASE}.*"
-    echo "Done."
-
     exit $error_code
 }
-trap cleanup EXIT
+trap ensure_logout EXIT
 
 usage() {
     echo "$0 [-t <target>] [-h]"
@@ -39,21 +31,24 @@ PARALLEL_TARGET="test-check-packages-parallel"
 FALSE_POSITIVES_TARGET="test-check-packages-false-positives"
 KIND_TARGET="test-check-packages-with-kind"
 SYSTEM_TEST_FLAGS_TARGET="test-system-test-flags"
-TMP_FOLDER_TEMPLATE="${TMP_FOLDER_TEMPLATE_BASE}.XXXXXXXXX"
 GOOGLE_CREDENTIALS_FILENAME="google-cloud-credentials.json"
 ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT=${ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT:-"false"}
 
 REPO_NAME=$(repo_name "${BUILDKITE_REPO}")
-REPO_BUILD_TAG="${REPO_NAME}/$(buildkite_pr_branch_build_id)"
+export REPO_BUILD_TAG="${REPO_NAME}/$(buildkite_pr_branch_build_id)"
 TARGET=""
 PACKAGE=""
-while getopts ":t:p:h" o; do
+SERVERLESS="false"
+while getopts ":t:p:sh" o; do
     case "${o}" in
         t)
             TARGET=${OPTARG}
             ;;
         p)
             PACKAGE=${OPTARG}
+            ;;
+        s)
+            SERVERLESS="true"
             ;;
         h)
             usage
@@ -78,65 +73,52 @@ if [[ "${TARGET}" == "" ]]; then
     exit 1
 fi
 
-google_cloud_auth_safe_logs() {
-    local gsUtilLocation=""
-    gsUtilLocation=$(mktemp -d -p "${WORKSPACE}" -t "${TMP_FOLDER_TEMPLATE}")
-
-    local secretFileLocation=${gsUtilLocation}/${GOOGLE_CREDENTIALS_FILENAME}
-
-    echo "${PRIVATE_CI_GCS_CREDENTIALS_SECRET}" > "${secretFileLocation}"
-
-    google_cloud_auth "${secretFileLocation}"
-}
-
-upload_safe_logs() {
-    local bucket="$1"
-    local source="$2"
-    local target="$3"
-
-    if ! ls ${source} 2>&1 > /dev/null ; then
-        echo "upload_safe_logs: artifacts files not found, nothing will be archived"
-        return
-    fi
-
-    google_cloud_auth_safe_logs
-
-    gsutil cp ${source} "gs://${bucket}/buildkite/${REPO_BUILD_TAG}/${target}"
-
-    google_cloud_logout_active_account
-}
-
 add_bin_path
 
-echo "--- install go"
-with_go
+if [[ "$SERVERLESS" == "false" ]]; then
+    # If packages are tested with Serverless, these action are already performed
+    # here: .buildkite/scripts/test_packages_with_serverless.sh
+    echo "--- install go"
+    with_go
 
-echo "--- install docker"
-with_docker
+    echo "--- install docker"
+    with_docker
 
-echo "--- install docker-compose plugin"
-with_docker_compose_plugin
+    echo "--- install docker-compose plugin"
+    with_docker_compose_plugin
+fi
 
 if [[ "${TARGET}" == "${KIND_TARGET}" || "${TARGET}" == "${SYSTEM_TEST_FLAGS_TARGET}" ]]; then
     echo "--- install kubectl & kind"
     with_kubernetes
 fi
 
-echo "--- Run integration test ${TARGET}"
+label="${TARGET}"
+if [ -n "${PACKAGE}" ]; then
+    label="${label} - ${PACKAGE}"
+fi
+echo "--- Run integration test ${label}"
 if [[ "${TARGET}" == "${PARALLEL_TARGET}" ]] || [[ "${TARGET}" == "${FALSE_POSITIVES_TARGET}" ]]; then
     make install
 
     # allow to fail this command, to be able to upload safe logs
     set +e
-    make PACKAGE_UNDER_TEST="${PACKAGE}" "${TARGET}"
+    make SERVERLESS="${SERVERLESS}" PACKAGE_UNDER_TEST="${PACKAGE}" "${TARGET}"
     testReturnCode=$?
     set -e
+
+    retry_count=${BUILDKITE_RETRY_COUNT:-"0"}
 
     if [[ "${UPLOAD_SAFE_LOGS}" -eq 1 ]] ; then
         package_folder="${PACKAGE}"
         if [[ "${ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT}" != "false" ]]; then
             package_folder="${package_folder}-independent_agent"
         fi
+
+        if [[ "${retry_count}" -ne 0 ]]; then
+            package_folder="${package_folder}_retry_${retry_count}"
+        fi
+
         upload_safe_logs \
             "${JOB_GCS_BUCKET_INTERNAL}" \
             "build/elastic-stack-dump/check-${PACKAGE}/logs/elastic-agent-internal/*.*" \
@@ -155,7 +137,7 @@ if [[ "${TARGET}" == "${PARALLEL_TARGET}" ]] || [[ "${TARGET}" == "${FALSE_POSIT
     fi
 
     if [ $testReturnCode != 0 ]; then
-        echo "make PACKAGE_UDER_TEST=${PACKAGE} ${TARGET} failed with ${testReturnCode}"
+        echo "make SERVERLESS=${SERVERLESS} PACKAGE_UNDER_TEST=${PACKAGE} ${TARGET} failed with ${testReturnCode}"
         exit ${testReturnCode}
     fi
 
