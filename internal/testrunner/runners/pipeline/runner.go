@@ -44,6 +44,8 @@ type runner struct {
 	pipelines []ingest.Pipeline
 
 	runCompareResults bool
+
+	provider stack.Provider
 }
 
 type IngestPipelineReroute struct {
@@ -77,6 +79,12 @@ func (r *runner) Run(ctx context.Context, options testrunner.TestOptions) ([]tes
 	if err != nil {
 		return nil, err
 	}
+
+	provider, err := stack.BuildProvider(stackConfig.Provider, r.options.Profile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build stack provider: %w", err)
+	}
+	r.provider = provider
 
 	r.runCompareResults = true
 	if stackConfig.Provider == stack.ProviderServerless {
@@ -137,6 +145,7 @@ func (r *runner) run(ctx context.Context) ([]testrunner.TestResult, error) {
 		return nil, errors.New("data stream root not found")
 	}
 
+	startTime := time.Now()
 	var entryPipeline string
 	entryPipeline, r.pipelines, err = ingest.InstallDataStreamPipelines(r.options.API, dataStreamPath)
 	if err != nil {
@@ -176,7 +185,6 @@ func (r *runner) run(ctx context.Context) ([]testrunner.TestResult, error) {
 		expectedDatasets = []string{expectedDataset}
 	}
 
-	startTime := time.Now()
 	results := make([]testrunner.TestResult, 0)
 	for _, testCaseFile := range testCaseFiles {
 		validatorOptions := []fields.ValidatorOption{
@@ -204,15 +212,29 @@ func (r *runner) run(ctx context.Context) ([]testrunner.TestResult, error) {
 }
 
 func (r *runner) checkElasticsearchLogs(ctx context.Context, startTesting time.Time) ([]testrunner.TestResult, error) {
-
 	startTime := time.Now()
 
 	testingTime := startTesting.Truncate(time.Second)
 
-	elasticsearchLogs, err := stack.GetServiceLogs(ctx, "elasticsearch", r.options.Profile, testingTime)
+	dumpOptions := stack.DumpOptions{
+		Profile:  r.options.Profile,
+		Services: []string{"elasticsearch"},
+		Since:    testingTime,
+	}
+	dump, err := r.provider.Dump(ctx, dumpOptions)
+	var notImplementedErr *stack.ErrNotImplemented
+	if errors.As(err, &notImplementedErr) {
+		logger.Debugf("Not checking Elasticsearch logs: %s", err)
+		return nil, nil
+	}
 	if err != nil {
 		return nil, fmt.Errorf("error at getting the logs of elasticsearch: %w", err)
 	}
+
+	if len(dump) != 1 || dump[0].ServiceName != "elasticsearch" {
+		return nil, errors.New("expected elasticsearch logs in dump")
+	}
+	elasticsearchLogs := dump[0].Logs
 
 	seenWarnings := make(map[string]any)
 	var processorRelatedWarnings []string

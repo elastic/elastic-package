@@ -18,3 +18,8 @@ other.float: 0.12345
 
 # A bool. Will be parsed as string.
 other.bool: false
+
+other.array:
+  - "entry1"
+  - "entry2"
+  - "entry3"

@@ -16,10 +16,6 @@ import (
 	"github.com/elastic/elastic-package/internal/profile"
 )
 
-func dockerComposeLogs(ctx context.Context, serviceName string, profile *profile.Profile) ([]byte, error) {
-	return dockerComposeLogsSince(ctx, serviceName, profile, time.Time{})
-}
-
 func dockerComposeLogsSince(ctx context.Context, serviceName string, profile *profile.Profile, since time.Time) ([]byte, error) {
 	appConfig, err := install.Configuration()
 	if err != nil {
@@ -53,23 +49,17 @@ func dockerComposeLogsSince(ctx context.Context, serviceName string, profile *pr
 	return out, nil
 }
 
-func copyDockerInternalLogs(serviceName, outputPath string, profile *profile.Profile) error {
-	switch serviceName {
-	case elasticAgentService, fleetServerService:
-	default:
-		return nil // we need to pull internal logs only from Elastic-Agent and Fleets Server container
-	}
-
+func copyDockerInternalLogs(serviceName, outputPath string, profile *profile.Profile) (string, error) {
 	p, err := compose.NewProject(DockerComposeProjectName(profile))
 	if err != nil {
-		return fmt.Errorf("could not create docker compose project: %w", err)
+		return "", fmt.Errorf("could not create docker compose project: %w", err)
 	}
 
 	outputPath = filepath.Join(outputPath, serviceName+"-internal")
 	serviceContainer := p.ContainerName(serviceName)
 	err = docker.Copy(serviceContainer, "/usr/share/elastic-agent/state/data/logs/", outputPath)
 	if err != nil {
-		return fmt.Errorf("docker copy failed: %w", err)
+		return "", fmt.Errorf("docker copy failed: %w", err)
 	}
-	return nil
+	return outputPath, nil
 }

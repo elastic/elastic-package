@@ -161,6 +161,10 @@ func (profile Profile) Config(name string, def string) string {
 	return def
 }
 
+func (profile *Profile) Decode(name string, dst any) error {
+	return profile.config.Decode(name, dst)
+}
+
 // RuntimeOverrides defines configuration overrides for the current session.
 func (profile *Profile) RuntimeOverrides(overrides map[string]string) {
 	profile.overrides = overrides

@@ -1,0 +1,58 @@
+env:
+  NOTIFY_TO: "ecosystem-team@elastic.co"
+  SETUP_GVM_VERSION: 'v0.5.2' # https://github.com/andrewkroh/gvm/issues/44#issuecomment-1013231151
+  DOCKER_COMPOSE_VERSION: "v2.24.1"
+  DOCKER_VERSION: "26.1.0"
+  KIND_VERSION: 'v0.20.0'
+  K8S_VERSION: 'v1.29.0'
+  LINUX_AGENT_IMAGE: "golang:${GO_VERSION}"
+  GH_CLI_VERSION: "2.29.0"
+  # Elastic package settings
+  # Manage docker output/logs
+  ELASTIC_PACKAGE_COMPOSE_DISABLE_VERBOSE_OUTPUT: "true"
+  # Disable comparison of results in pipeline tests to avoid errors related to GeoIP fields
+  ELASTIC_PACKAGE_SERVERLESS_PIPELINE_TEST_DISABLE_COMPARE_RESULTS: "true"
+
+steps:
+  - input: "Input values for the variables"
+    key: "input-variables"
+    fields:
+    - select: "SERVERLESS_PROJECT"
+      key: "SERVERLESS_PROJECT"
+      options:
+        - label: "observability"
+          value: "observability"
+        - label: "security"
+          value: "security"
+      default: "observability"
+    if: "build.source == 'ui'"
+
+  - wait: ~
+    if: "build.source == 'ui'"
+    allow_dependency_failure: false
+
+  - label: ":elastic: Serverless Integration tests"
+    key: test-serverless
+    command: ".buildkite/scripts/test_packages_with_serverless.sh"
+    agents:
+      provider: "gcp"
+    env:
+      SERVERLESS_PROJECT: "${SERVERLESS_PROJECT:-observability}"
+      UPLOAD_SAFE_LOGS: 1
+    artifact_paths:
+      - build/test-results/*.xml
+      - build/test-coverage/coverage-*.xml
+
+  - wait: ~
+    continue_on_failure: true
+
+  - label: ":junit: Junit annotate"
+    plugins:
+      - junit-annotate#v2.4.1:
+          artifacts: "build/test-results/*.xml"
+    agents:
+      provider: "gcp"  # junit plugin requires docker
+
+notify:
+  - email: "$NOTIFY_TO"
+    if: "build.state == 'failed' && build.env('BUILDKITE_PULL_REQUEST') == 'false'"
