@@ -121,11 +121,6 @@ for d in test/packages/${PACKAGE_TEST_TYPE:-other}/${PACKAGE_UNDER_TEST:-*}/; do
     elif [ "${PACKAGE_TEST_TYPE:-other}" == "with-logstash" ] && [ "${package_to_test}" == "system_benchmark" ]; then
         elastic-package benchmark system --benchmark logs-benchmark -v --defer-cleanup 1s
     else
-      if [[ "${ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT}" == "false" && "${package_to_test}" == "auditd_manager_independent_agent" ]]; then
-          echo "Package \"${package_to_test}\" skipped: not supported with Elastic Agent running in the stack (missing capabilities)."
-          exit # as it is run in a subshell, it cannot be used "continue"
-      fi
-
       if [[ "${SERVERLESS}" == "true" ]]; then
           # skip system tests
           elastic-package test asset -v --report-format xUnit --report-output file --defer-cleanup 1s  --test-coverage --coverage-format=generic
