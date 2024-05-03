@@ -211,7 +211,8 @@ run_tests_for_package() {
         AGENT_CONTAINER_NAME="${DEFAULT_AGENT_CONTAINER_NAME}"
     fi
 
-    if [[ "${ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT:-"false"}" == "true" ]]; then
+    # TODO: oracle package still uses custom agent deployer
+    if [[ "${package_name}" != "oracle" && "${ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT:-"false"}" == "true" ]]; then
         # set prefix of the independent Elastic Agents
         AGENT_CONTAINER_NAME="elastic-package-agent-${package_name}"
     fi
