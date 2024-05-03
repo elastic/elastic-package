@@ -7,6 +7,7 @@ DEFAULT_AGENT_CONTAINER_NAME="elastic-package-service-docker-custom-agent"
 cleanup() {
     local r=$?
     local container_id
+    local agent_ids
 
     # Dump stack logs
     elastic-package stack dump -v --output build/elastic-stack-dump/system-test-flags
@@ -16,6 +17,12 @@ cleanup() {
         container_id=$(container_ids "${DEFAULT_AGENT_CONTAINER_NAME}")
         docker rm -f "${container_id}"
     fi
+
+    # remove independent Elastic Agents
+    agent_ids=$(container_ids "elastic-package-agent")
+    for agent_id in ${agent_ids}; do
+        docker rm -f "${agent_id}"
+    done
     # remove if any service container
     if [[ "${SERVICE_CONTAINER_NAME}" != "" ]]; then
         if is_service_container_running "${SERVICE_CONTAINER_NAME}"; then
@@ -201,8 +208,11 @@ run_tests_for_package() {
         AGENT_CONTAINER_NAME="${DEFAULT_AGENT_CONTAINER_NAME}"
     fi
 
-    ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT=${ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT:-"false"}
-    export ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT
+    if [[ "${ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT:-"false"}" == "true" ]]; then
+        # set prefix of the independent Elastic Agents
+        AGENT_CONTAINER_NAME="elastic-package-agent-${package_name}"
+    fi
+
     pushd "${package_folder}" > /dev/null
 
     echo "--- [${package_name} - ${variant}] Setup service without tear-down"
@@ -273,13 +283,20 @@ elastic-package stack status
 
 FOLDER_PATH="${HOME}/.elastic-package/profiles/default/stack/state"
 
+# Check also if independent Elastic Agents are running too
+# depending on the environment variable
+service_deployer_type="docker"
+if [[ "${ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT:-"false"}" == "true" ]]; then
+    service_deployer_type="agent"
+fi
+
 # docker service deployer
 if ! run_tests_for_package \
     "test/packages/parallel/nginx" \
     "elastic-package-service-nginx" \
     "data_stream/access/_dev/test/system/test-default-config.yml" \
     "no variant" \
-    "docker" ; then
+    "${service_deployer_type}" ; then
 
     exit 1
 fi
@@ -289,7 +306,7 @@ if ! run_tests_for_package \
     "elastic-package-service-sql_input" \
     "_dev/test/system/test-default-config.yml" \
     "mysql_8_0_13" \
-    "docker" ; then
+    "${service_deployer_type}" ; then
 
     exit 1
 fi
