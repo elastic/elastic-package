@@ -2,7 +2,6 @@
 {{ $password := fact "password" }}
 {{ $apm_enabled := fact "apm_enabled" }}
 {{ $serverless_enabled := fact "serverless_enabled" }}
-{{ $serverless_project_type := fact "serverless_project_type" }}
 services:
   elasticsearch:
     image: "${ELASTICSEARCH_IMAGE_REF}"
