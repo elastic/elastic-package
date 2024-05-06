@@ -1,0 +1,47 @@
+services:
+  elastic-agent:
+    hostname: ${AGENT_HOSTNAME}
+    image: "${ELASTIC_AGENT_IMAGE_REF}"
+    healthcheck:
+      test: "elastic-agent status"
+      retries: 180
+      interval: 1s
+    {{ if ne .pidMode "" }}
+    pid: {{ .pidMode }}
+    {{ end }}
+    {{ if ne .user "" }}
+    user: {{ .user }}
+    {{ end }}
+    {{ if .capabilities }}
+    cap_add:
+    {{- range .capabilities }}
+      - {{ . }}
+    {{- end }}
+    {{ end }}
+    cap_drop:
+      - ALL
+    {{ if .ports }}
+    ports:
+    {{- range .ports }}
+      - "{{ . }}"
+    {{- end }}
+    {{ end }}
+    environment:
+      - FLEET_ENROLL=1
+      - FLEET_URL=https://fleet-server:8220
+      - KIBANA_HOST=https://kibana:5601
+      - FLEET_TOKEN_POLICY_NAME=${FLEET_TOKEN_POLICY_NAME}
+    volumes:
+      - type: bind
+        source: ${LOCAL_CA_CERT}
+        target: /etc/ssl/certs/elastic-package.pem
+        read_only: true
+      - type: bind
+        source: ${SERVICE_LOGS_DIR}
+        target: /tmp/service_logs/
+        read_only: false
+      # Mount service_logs under /run too as a testing workaround for the journald input (see elastic-package#1235).
+      - type: bind
+        source: ${SERVICE_LOGS_DIR}
+        target: /run/service_logs/
+        read_only: false

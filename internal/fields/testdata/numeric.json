@@ -1,11 +1,14 @@
 {
   "foo": {
     "code": 42,
+    "pid": [345, 678, 901],
+    "ppid": [],
     "flattened": {
       "request_parameters": {
         "userName": "Bob",
         "groupName": "admin"
       }
     }
-  }
+  },
+  "tags": []
 }

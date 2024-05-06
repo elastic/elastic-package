@@ -10,12 +10,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Masterminds/semver/v3"
-
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
-	"github.com/elastic/elastic-package/internal/packages/installer"
+	"github.com/elastic/elastic-package/internal/resources"
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
 
@@ -29,12 +27,10 @@ const (
 )
 
 type runner struct {
-	testFolder      testrunner.TestFolder
-	packageRootPath string
-	kibanaClient    *kibana.Client
-
-	// Execution order of following handlers is defined in runner.tearDown() method.
-	removePackageHandler func(context.Context) error
+	testFolder       testrunner.TestFolder
+	packageRootPath  string
+	kibanaClient     *kibana.Client
+	resourcesManager *resources.Manager
 }
 
 // Ensures that runner implements testrunner.TestRunner interface
@@ -68,7 +64,21 @@ func (r *runner) Run(ctx context.Context, options testrunner.TestOptions) ([]tes
 	r.packageRootPath = options.PackageRootPath
 	r.kibanaClient = options.KibanaClient
 
+	manager := resources.NewManager()
+	manager.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: r.kibanaClient})
+	r.resourcesManager = manager
+
 	return r.run(ctx)
+}
+
+func (r *runner) resources(installedPackage bool) resources.Resources {
+	return resources.Resources{
+		&resources.FleetPackage{
+			RootPath: r.packageRootPath,
+			Absent:   !installedPackage,
+			Force:    installedPackage, // Force re-installation, in case there are code changes in the same package version.
+		},
+	}
 }
 
 func (r *runner) run(ctx context.Context) ([]testrunner.TestResult, error) {
@@ -94,60 +104,20 @@ func (r *runner) run(ctx context.Context) ([]testrunner.TestResult, error) {
 	}
 
 	logger.Debug("installing package...")
-	packageInstaller, err := installer.NewForPackage(installer.Options{
-		Kibana:         r.kibanaClient,
-		RootPath:       r.packageRootPath,
-		SkipValidation: true,
-	})
-	if err != nil {
-		return result.WithError(fmt.Errorf("can't create the package installer: %w", err))
-	}
-
-	removePackageHandler := func(ctx context.Context) error {
-		pkgManifest, err := packages.ReadPackageManifestFromPackageRoot(r.packageRootPath)
-		if err != nil {
-			return fmt.Errorf("reading package manifest failed: %w", err)
-		}
-
-		kibanaVersion, err := r.kibanaClient.Version()
-		if err != nil {
-			return fmt.Errorf("failed to retrieve kibana version: %w", err)
-		}
-		stackVersion, err := semver.NewVersion(kibanaVersion.Version())
-		if err != nil {
-			return fmt.Errorf("failed to parse kibana version: %w", err)
-		}
-
-		if stackVersion.LessThan(semver.MustParse("8.0.0")) && pkgManifest.Name == "system" {
-			// in Elastic stack 7.* , system package is installed in the default Agent policy and it cannot be deleted
-			// error: system is installed by default and cannot be removed
-			logger.Debugf("skip uninstalling %s package", pkgManifest.Name)
-			return nil
-		}
-
-		logger.Debug("removing package...")
-		err = packageInstaller.Uninstall(ctx)
-		if err != nil {
-			// logging the error as a warning and not returning it since there could be other reasons that could make fail this process
-			// for instance being defined a test agent policy where this package is used for debugging purposes
-			logger.Warnf("failed to uninstall package %q: %s", pkgManifest.Name, err.Error())
-		}
-		return nil
-	}
-
-	installedPackage, err := packageInstaller.Install(ctx)
-	if errors.Is(err, context.Canceled) {
-		// Installation interrupted, at this point the package may have been installed, try to remove it for cleanup.
-		err := removePackageHandler(context.WithoutCancel(ctx))
-		if err != nil {
-			logger.Debugf("error while removing package after installation interrupted: %s", err)
-		}
-	}
+	_, err = r.resourcesManager.ApplyCtx(ctx, r.resources(true))
 	if err != nil {
 		return result.WithError(fmt.Errorf("can't install the package: %w", err))
 	}
 
-	r.removePackageHandler = removePackageHandler
+	manifest, err := packages.ReadPackageManifestFromPackageRoot(r.packageRootPath)
+	if err != nil {
+		return result.WithError(fmt.Errorf("cannot read the package manifest from %s: %w", r.packageRootPath, err))
+	}
+	installedPackage, err := r.kibanaClient.GetPackage(ctx, manifest.Name)
+	if err != nil {
+		return result.WithError(fmt.Errorf("cannot get installed package %q: %w", manifest.Name, err))
+	}
+	installedAssets := installedPackage.Assets()
 
 	// No Elasticsearch asset is created when an Input package is installed through the API.
 	// This would require to create a Agent policy and add that input package to the Agent policy.
@@ -171,10 +141,10 @@ func (r *runner) run(ctx context.Context) ([]testrunner.TestResult, error) {
 		})
 
 		var r []testrunner.TestResult
-		if !findActualAsset(installedPackage.Assets, e) {
+		if !findActualAsset(installedAssets, e) {
 			r, _ = rc.WithError(testrunner.ErrTestCaseFailed{
 				Reason:  "could not find expected asset",
-				Details: fmt.Sprintf("could not find %s asset \"%s\". Assets loaded:\n%s", e.Type, e.ID, formatAssetsAsString(installedPackage.Assets)),
+				Details: fmt.Sprintf("could not find %s asset \"%s\". Assets loaded:\n%s", e.Type, e.ID, formatAssetsAsString(installedAssets)),
 			})
 		} else {
 			r, _ = rc.WithSuccess()
@@ -190,11 +160,10 @@ func (r *runner) TearDown(ctx context.Context) error {
 	// Avoid cancellations during cleanup.
 	cleanupCtx := context.WithoutCancel(ctx)
 
-	if r.removePackageHandler != nil {
-		if err := r.removePackageHandler(cleanupCtx); err != nil {
-			return err
-		}
-		r.removePackageHandler = nil
+	logger.Debug("removing package...")
+	_, err := r.resourcesManager.ApplyCtx(cleanupCtx, r.resources(false))
+	if err != nil {
+		return err
 	}
 
 	return nil

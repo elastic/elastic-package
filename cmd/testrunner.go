@@ -189,10 +189,15 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 			return fmt.Errorf("cannot determine if package has data streams: %w", err)
 		}
 
-		runIndependentElasticAgent := false
+		// Temporarily until independent Elastic Agents are enabled by default,
+		// enable independent Elastic Agents if package defines that requires root privileges
+		runIndependentElasticAgent := manifest.Agent.Privileges.Root
+
+		// If the environment variable is present, it always has preference over the root
+		// privileges value (if any) defined in the manifest file
 		v, ok := os.LookupEnv(enableIndependentAgents)
-		if ok && strings.ToLower(v) != "false" {
-			runIndependentElasticAgent = true
+		if ok {
+			runIndependentElasticAgent = strings.ToLower(v) == "true"
 		}
 
 		configFileFlag := ""
@@ -366,11 +371,14 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 				RunIndependentElasticAgent: runIndependentElasticAgent,
 			})
 
+			// Results must be appended even if there is an error, since there could be
+			// tests (e.g. system tests) that return both error and results.
 			results = append(results, r...)
 
 			if err != nil {
 				return fmt.Errorf("error running package %s tests: %w", testType, err)
 			}
+
 		}
 
 		format := testrunner.TestReportFormat(reportFormat)

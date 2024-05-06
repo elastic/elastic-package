@@ -1,4 +1,3 @@
-version: '2.4'
 services:
   elastic-agent:
     image: "{{ fact "agent_image" }}"
@@ -10,6 +9,8 @@ services:
       interval: 5s
     hostname: docker-fleet-agent
     env_file: "./elastic-agent.env"
+    cap_drop:
+    - ALL
     volumes:
     - type: bind
       source: ../../../tmp/service_logs/

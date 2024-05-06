@@ -10,3 +10,7 @@ updates:
     reviewers:
       - "elastic/ecosystem"
     open-pull-requests-limit: 10
+    groups:
+      k8s:
+        patterns:
+          - "k8s.io/*"

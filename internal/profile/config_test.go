@@ -75,3 +75,30 @@ func TestLoadProfileConfig(t *testing.T) {
 		})
 	}
 }
+
+func TestConfigDecode(t *testing.T) {
+	cases := []struct {
+		name     string
+		expected any
+		output   any
+		found    bool
+	}{
+		{
+			name:     "other.array",
+			expected: []string{"entry1", "entry2", "entry3"},
+			output:   []string{},
+			found:    true,
+		},
+	}
+
+	config, err := loadProfileConfig("_testdata/config.yml")
+	require.NoError(t, err)
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			err := config.Decode(c.name, &c.output)
+			require.NoError(t, err)
+			assert.Equal(t, c.expected, c.output)
+		})
+	}
+}

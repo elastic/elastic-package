@@ -114,6 +114,26 @@ Usually, this process would require the following manual steps:
     - Creating this PR would automatically trigger a new Jenkins pipeline.
 
 
+### Testing with Elastic serverless
+
+While working on a branch, it might be interesting to test your changes using
+a project created in [Elastic serverless](https://docs.elastic.co/serverless), instead of spinning up a local
+Elastic stack. To do so, you can add a new comment while developing in your Pull request
+a comment like `test serverless`.
+
+Adding that comment in your Pull Request will create a new build of this
+[Buildkite pipeline](https://buildkite.com/elastic/elastic-package-test-serverless).
+This pipeline creates a new Serverless project and run some tests with the packages defined
+in the `test/packages/parallel` folder. Currently, there are some differences with respect to testing
+with a local Elastic stack:
+- System tests are not executed.
+- Disabled comparison of results in pipeline tests to avoid errors related to GeoIP fields
+- Pipeline tests cannot be executed with coverage flags.
+
+At the same time, this pipeline is going to be triggered daily to test the latest contents
+of the main branch with an Elastic serverless project.
+
+
 ## Commands
 
 `elastic-package` currently offers the commands listed below.
@@ -175,8 +195,10 @@ The following settings are available per profile:
   Defaults to false.
 * `stack.self_monitor_enabled` enables monitoring and the system package for the default
   policy assigned to the managed Elastic Agent. Defaults to false.
+* `stack.serverless_enabled` uses serverless configuration when possible on non serverless
+  stack providers.
 * `stack.serverless.type` selects the type of serverless project to start when using
-  the serverless stack provider.
+  the serverless stack provider or `stack.serverless_enabled`.
 * `stack.serverless.region` can be used to select the region to use when starting
   serverless projects.
 

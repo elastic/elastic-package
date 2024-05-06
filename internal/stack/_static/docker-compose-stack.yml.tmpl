@@ -2,7 +2,7 @@
 {{ $password := fact "password" }}
 {{ $apm_enabled := fact "apm_enabled" }}
 {{ $serverless_enabled := fact "serverless_enabled" }}
-version: '2.4'
+{{ $serverless_project_type := fact "serverless_project_type" }}
 services:
   elasticsearch:
     image: "${ELASTICSEARCH_IMAGE_REF}"
@@ -141,6 +141,9 @@ services:
       interval: 5s
     hostname: docker-fleet-agent
     env_file: "./elastic-agent.env"
+    cap_drop:
+    - ALL
+    ports: [{{ fact "agent_publish_ports" }}]
     volumes:
     - "../certs/ca-cert.pem:/etc/ssl/certs/elastic-package.pem"
     - type: bind

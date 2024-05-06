@@ -10,13 +10,14 @@ require (
 	github.com/boumenot/gocover-cobertura v1.2.0
 	github.com/cbroglie/mustache v1.4.0
 	github.com/cespare/xxhash/v2 v2.3.0
+	github.com/creack/pty v1.1.21
 	github.com/dustin/go-humanize v1.0.1
 	github.com/elastic/elastic-integration-corpus-generator-tool v0.10.0
 	github.com/elastic/go-elasticsearch/v7 v7.17.10
 	github.com/elastic/go-licenser v0.4.1
 	github.com/elastic/go-resource v0.2.0
 	github.com/elastic/go-ucfg v0.8.8
-	github.com/elastic/package-spec/v3 v3.1.3
+	github.com/elastic/package-spec/v3 v3.1.4
 	github.com/fatih/color v1.16.0
 	github.com/go-git/go-billy/v5 v5.5.0
 	github.com/go-git/go-git/v5 v5.12.0
@@ -28,9 +29,10 @@ require (
 	github.com/jedib0t/go-pretty v4.3.0+incompatible
 	github.com/magefile/mage v1.15.0
 	github.com/mholt/archiver/v3 v3.5.1
+	github.com/mitchellh/mapstructure v1.5.0
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2
-	github.com/shirou/gopsutil/v3 v3.24.3
+	github.com/shirou/gopsutil/v3 v3.24.4
 	github.com/spf13/cobra v1.8.0
 	github.com/stretchr/testify v1.9.0
 	golang.org/x/tools v0.20.0
@@ -39,9 +41,9 @@ require (
 	gotest.tools/gotestsum v1.11.0
 	helm.sh/helm/v3 v3.14.4
 	honnef.co/go/tools v0.4.7
-	k8s.io/apimachinery v0.29.3
-	k8s.io/cli-runtime v0.29.3
-	k8s.io/client-go v0.29.3
+	k8s.io/apimachinery v0.30.0
+	k8s.io/cli-runtime v0.30.0
+	k8s.io/client-go v0.30.0
 )
 
 require (
@@ -77,7 +79,7 @@ require (
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/go-errors/errors v1.4.2 // indirect
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
-	github.com/go-logr/logr v1.3.0 // indirect
+	github.com/go-logr/logr v1.4.1 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
 	github.com/go-openapi/errors v0.20.3 // indirect
 	github.com/go-openapi/jsonpointer v0.19.6 // indirect
@@ -119,7 +121,6 @@ require (
 	github.com/mgutz/ansi v0.0.0-20200706080929-d51e80ef957d // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
-	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
 	github.com/moby/spdystream v0.2.0 // indirect
 	github.com/moby/term v0.5.0 // indirect
@@ -171,11 +172,11 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	k8s.io/api v0.29.3 // indirect
+	k8s.io/api v0.30.0 // indirect
 	k8s.io/apiextensions-apiserver v0.29.0 // indirect
 	k8s.io/component-base v0.29.0 // indirect
-	k8s.io/klog/v2 v2.110.1 // indirect
-	k8s.io/kube-openapi v0.0.0-20231010175941-2dd684a91f00 // indirect
+	k8s.io/klog/v2 v2.120.1 // indirect
+	k8s.io/kube-openapi v0.0.0-20240228011516-70dd3763d340 // indirect
 	k8s.io/kubectl v0.29.0 // indirect
 	k8s.io/utils v0.0.0-20230726121419-3b25d923346b // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect

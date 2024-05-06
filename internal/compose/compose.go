@@ -5,6 +5,7 @@
 package compose
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"errors"
@@ -12,12 +13,15 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Masterminds/semver/v3"
+	"github.com/creack/pty"
 
 	"gopkg.in/yaml.v3"
 
@@ -47,7 +51,6 @@ type Project struct {
 	name             string
 	composeFilePaths []string
 
-	dockerComposeV1                bool
 	dockerComposeStandalone        bool
 	disableANSI                    bool
 	disablePullProgressInformation bool
@@ -199,20 +202,15 @@ func NewProject(name string, paths ...string) (*Project, error) {
 	// Passing a nil context here because we are on initialization.
 	ver, err := c.dockerComposeVersion(context.Background())
 	if err != nil {
-		logger.Errorf("Unable to determine Docker Compose version: %v. Defaulting to 1.x", err)
-		c.dockerComposeV1 = true
-		return &c, nil
+		return nil, fmt.Errorf("unable to determine Docker Compose version: %w", err)
 	}
-
-	versionMessage := fmt.Sprintf("Determined Docker Compose version: %v", ver)
-	if ver.Major() == 1 {
-		versionMessage = fmt.Sprintf("%s, the tool will use Compose V1", versionMessage)
-		c.dockerComposeV1 = true
+	if ver.Major() < 2 {
+		return nil, fmt.Errorf("required Docker Compose v2, found %s", ver.String())
 	}
-	logger.Debug(versionMessage)
+	logger.Debugf("Determined Docker Compose version: %v", ver)
 
 	v, ok = os.LookupEnv(DisableVerboseOutputComposeEnv)
-	if !c.dockerComposeV1 && ok && strings.ToLower(v) != "false" {
+	if ok && strings.ToLower(v) != "false" {
 		if c.composeVersion.LessThan(semver.MustParse("2.19.0")) {
 			c.disableANSI = true
 		} else {
@@ -492,16 +490,66 @@ func (p *Project) runDockerComposeCmd(ctx context.Context, opts dockerComposeOpt
 	}
 	cmd.Env = append(os.Environ(), opts.env...)
 
+	ptty, tty, err := pty.Open()
+	if err != nil {
+		return fmt.Errorf("failed to open pseudo-tty to capture stderr: %w", err)
+	}
+
+	var errBuffer bytes.Buffer
+	cmd.Stderr = tty
+	var stderr io.Writer = &errBuffer
 	if logger.IsDebugMode() {
 		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
+		stderr = io.MultiWriter(&errBuffer, os.Stderr)
 	}
 	if opts.stdout != nil {
 		cmd.Stdout = opts.stdout
 	}
 
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		io.Copy(stderr, ptty)
+	}()
+
 	logger.Debugf("running command: %s", cmd)
-	return cmd.Run()
+	err = cmd.Run()
+	ptty.Close()
+	tty.Close()
+	wg.Wait()
+	if err != nil {
+		if msg := cleanComposeError(errBuffer.String()); len(msg) > 0 {
+			return fmt.Errorf("%w: %s", err, msg)
+		}
+	}
+	return err
+}
+
+const daemonResponse = `Error response from daemon:`
+
+// This regexp must match prefixes like WARN[0000], which may include escape sequences for colored letters
+// or structured logs, starting with key=value pairs.
+var composeLoggerPrefix = regexp.MustCompile(`^[^\s]+\[[0-9]+\]`)
+
+func cleanComposeError(msg string) string {
+	// If there is a daemon response, just return it.
+	if i := strings.Index(msg, daemonResponse); i >= 0 {
+		return strings.TrimSpace(msg[i+len(daemonResponse):])
+	}
+
+	// Filter out lines coming from the docker compose structured logger.
+	var cleanError strings.Builder
+	scanner := bufio.NewScanner(strings.NewReader(msg))
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if composeLoggerPrefix.MatchString(line) {
+			continue
+		}
+		fmt.Fprintln(&cleanError, line)
+	}
+
+	return strings.TrimSpace(cleanError.String())
 }
 
 func (p *Project) dockerComposeBaseCommand() (name string, args []string) {
@@ -543,8 +591,5 @@ func (p *Project) dockerComposeVersion(ctx context.Context) (*semver.Version, er
 
 // ContainerName method the container name for the service.
 func (p *Project) ContainerName(serviceName string) string {
-	if p.dockerComposeV1 {
-		return fmt.Sprintf("%s_%s_1", p.name, serviceName)
-	}
 	return fmt.Sprintf("%s-%s-1", p.name, serviceName)
 }

@@ -63,6 +63,7 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 				Profile:                options.Profile,
 				DefinitionsDir:         serviceDeployerPath,
 				StackVersion:           options.StackVersion,
+				PolicyName:             options.PolicyName,
 				RunSetup:               options.RunSetup,
 				RunTestsOnly:           options.RunTestsOnly,
 				RunTearDown:            options.RunTearDown,
@@ -138,7 +139,7 @@ func FindDevDeployPath(options FactoryOptions) (string, error) {
 		return "", fmt.Errorf("stat failed for package (path: %s): %w", packageDevDeployPath, err)
 	}
 
-	return "", fmt.Errorf("\"%s\" directory doesn't exist", options.DevDeployDir)
+	return "", fmt.Errorf("\"%s\" %w", options.DevDeployDir, os.ErrNotExist)
 }
 
 func findServiceDeployer(devDeployPath string) (string, error) {

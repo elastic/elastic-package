@@ -57,11 +57,12 @@ const (
 	elasticsearchUsername = "elastic"
 	elasticsearchPassword = "changeme"
 
-	configAPMEnabled         = "stack.apm_enabled"
-	configGeoIPDir           = "stack.geoip_dir"
-	configLogstashEnabled    = "stack.logstash_enabled"
-	configSelfMonitorEnabled = "stack.self_monitor_enabled"
-	configServerlessEnabled  = "stack.serverless_enabled"
+	configAPMEnabled            = "stack.apm_enabled"
+	configGeoIPDir              = "stack.geoip_dir"
+	configLogstashEnabled       = "stack.logstash_enabled"
+	configSelfMonitorEnabled    = "stack.self_monitor_enabled"
+	configServerlessEnabled     = "stack.serverless_enabled"
+	configServerlessProjectType = "stack.serverless.type"
 )
 
 var (
@@ -135,6 +136,11 @@ var (
 func applyResources(profile *profile.Profile, stackVersion string) error {
 	stackDir := filepath.Join(profile.ProfilePath, ProfileStackPath)
 
+	var agentPorts []string
+	if err := profile.Decode("stack.agent.ports", &agentPorts); err != nil {
+		return fmt.Errorf("failed to unmarshal stack.agent.ports: %w", err)
+	}
+
 	resourceManager := resource.NewManager()
 	resourceManager.AddFacter(resource.StaticFacter{
 		"registry_base_image":   PackageRegistryBaseImage,
@@ -149,14 +155,19 @@ func applyResources(profile *profile.Profile, stackVersion string) error {
 		"username": elasticsearchUsername,
 		"password": elasticsearchPassword,
 
-		"apm_enabled":          profile.Config(configAPMEnabled, "false"),
-		"geoip_dir":            profile.Config(configGeoIPDir, "./ingest-geoip"),
-		"logstash_enabled":     profile.Config(configLogstashEnabled, "false"),
-		"self_monitor_enabled": profile.Config(configSelfMonitorEnabled, "false"),
-		"serverless_enabled":   profile.Config(configServerlessEnabled, "false"),
+		"apm_enabled":             profile.Config(configAPMEnabled, "false"),
+		"geoip_dir":               profile.Config(configGeoIPDir, "./ingest-geoip"),
+		"logstash_enabled":        profile.Config(configLogstashEnabled, "false"),
+		"self_monitor_enabled":    profile.Config(configSelfMonitorEnabled, "false"),
+		"serverless_enabled":      profile.Config(configServerlessEnabled, "false"),
+		"serverless_project_type": profile.Config(configServerlessProjectType, "observability"),
+
+		"agent_publish_ports": strings.Join(agentPorts, ","),
 	})
 
-	os.MkdirAll(stackDir, 0755)
+	if err := os.MkdirAll(stackDir, 0755); err != nil {
+		return fmt.Errorf("failed to create stack directory: %w", err)
+	}
 	resourceManager.RegisterProvider("file", &resource.FileProvider{
 		Prefix: stackDir,
 	})

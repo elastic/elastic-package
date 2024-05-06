@@ -5,6 +5,7 @@
 package pipeline
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -43,6 +44,8 @@ type runner struct {
 	pipelines []ingest.Pipeline
 
 	runCompareResults bool
+
+	provider stack.Provider
 }
 
 type IngestPipelineReroute struct {
@@ -77,6 +80,12 @@ func (r *runner) Run(ctx context.Context, options testrunner.TestOptions) ([]tes
 		return nil, err
 	}
 
+	provider, err := stack.BuildProvider(stackConfig.Provider, r.options.Profile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build stack provider: %w", err)
+	}
+	r.provider = provider
+
 	r.runCompareResults = true
 	if stackConfig.Provider == stack.ProviderServerless {
 		r.runCompareResults = true
@@ -100,7 +109,7 @@ func (r *runner) TearDown(ctx context.Context) error {
 		}
 	}
 
-	if err := ingest.UninstallPipelines(r.options.API, r.pipelines); err != nil {
+	if err := ingest.UninstallPipelines(ctx, r.options.API, r.pipelines); err != nil {
 		return fmt.Errorf("uninstalling ingest pipelines failed: %w", err)
 	}
 	return nil
@@ -136,6 +145,7 @@ func (r *runner) run(ctx context.Context) ([]testrunner.TestResult, error) {
 		return nil, errors.New("data stream root not found")
 	}
 
+	startTime := time.Now()
 	var entryPipeline string
 	entryPipeline, r.pipelines, err = ingest.InstallDataStreamPipelines(r.options.API, dataStreamPath)
 	if err != nil {
@@ -185,17 +195,93 @@ func (r *runner) run(ctx context.Context) ([]testrunner.TestResult, error) {
 			fields.WithExpectedDatasets(expectedDatasets),
 			fields.WithEnabledImportAllECSSChema(true),
 		}
-		result, err := r.runTestCase(testCaseFile, dataStreamPath, dsManifest.Type, entryPipeline, validatorOptions)
+		result, err := r.runTestCase(ctx, testCaseFile, dataStreamPath, dsManifest.Type, entryPipeline, validatorOptions)
 		if err != nil {
 			return nil, err
 		}
 		results = append(results, result)
 	}
 
+	esLogs, err := r.checkElasticsearchLogs(ctx, startTime)
+	if err != nil {
+		return nil, err
+	}
+	results = append(results, esLogs...)
+
 	return results, nil
 }
 
-func (r *runner) runTestCase(testCaseFile string, dsPath string, dsType string, pipeline string, validatorOptions []fields.ValidatorOption) (testrunner.TestResult, error) {
+func (r *runner) checkElasticsearchLogs(ctx context.Context, startTesting time.Time) ([]testrunner.TestResult, error) {
+	startTime := time.Now()
+
+	testingTime := startTesting.Truncate(time.Second)
+
+	dumpOptions := stack.DumpOptions{
+		Profile:  r.options.Profile,
+		Services: []string{"elasticsearch"},
+		Since:    testingTime,
+	}
+	dump, err := r.provider.Dump(ctx, dumpOptions)
+	var notImplementedErr *stack.ErrNotImplemented
+	if errors.As(err, &notImplementedErr) {
+		logger.Debugf("Not checking Elasticsearch logs: %s", err)
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("error at getting the logs of elasticsearch: %w", err)
+	}
+
+	if len(dump) != 1 || dump[0].ServiceName != "elasticsearch" {
+		return nil, errors.New("expected elasticsearch logs in dump")
+	}
+	elasticsearchLogs := dump[0].Logs
+
+	seenWarnings := make(map[string]any)
+	var processorRelatedWarnings []string
+	err = stack.ParseLogsFromReader(bytes.NewReader(elasticsearchLogs), stack.ParseLogsOptions{
+		StartTime: testingTime,
+	}, func(log stack.LogLine) error {
+		if log.LogLevel != "WARN" {
+			return nil
+		}
+
+		if _, exists := seenWarnings[log.Message]; exists {
+			return nil
+		}
+
+		seenWarnings[log.Message] = struct{}{}
+		logger.Warnf("elasticsearch warning: %s", log.Message)
+
+		// trying to catch warnings only related to processors but this is best-effort
+		if strings.Contains(strings.ToLower(log.Logger), "processor") {
+			processorRelatedWarnings = append(processorRelatedWarnings, log.Message)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("error at parsing logs of elasticseach: %w", err)
+	}
+
+	tr := testrunner.TestResult{
+		TestType:    TestType,
+		Name:        "(ingest pipeline warnings)",
+		Package:     r.options.TestFolder.Package,
+		DataStream:  r.options.TestFolder.DataStream,
+		TimeElapsed: time.Since(startTime),
+	}
+
+	if totalProcessorWarnings := len(processorRelatedWarnings); totalProcessorWarnings > 0 {
+		tr.FailureMsg = fmt.Sprintf("detected ingest pipeline warnings: %d", totalProcessorWarnings)
+		tr.FailureDetails = strings.Join(processorRelatedWarnings, "\n")
+	}
+
+	return []testrunner.TestResult{tr}, nil
+
+}
+
+func (r *runner) runTestCase(ctx context.Context, testCaseFile string, dsPath string, dsType string, pipeline string, validatorOptions []fields.ValidatorOption) (testrunner.TestResult, error) {
 	tr := testrunner.TestResult{
 		TestType:   TestType,
 		Package:    r.options.TestFolder.Package,
@@ -221,7 +307,7 @@ func (r *runner) runTestCase(testCaseFile string, dsPath string, dsType string, 
 	}
 
 	simulateDataStream := dsType + "-" + r.options.TestFolder.Package + "." + r.options.TestFolder.DataStream + "-default"
-	processedEvents, err := ingest.SimulatePipeline(r.options.API, pipeline, tc.events, simulateDataStream)
+	processedEvents, err := ingest.SimulatePipeline(ctx, r.options.API, pipeline, tc.events, simulateDataStream)
 	if err != nil {
 		err := fmt.Errorf("simulating pipeline processing failed: %w", err)
 		tr.ErrorMsg = err.Error()

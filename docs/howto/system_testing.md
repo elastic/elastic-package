@@ -76,7 +76,6 @@ the log files from your package's integration service must be written to a volum
 the following definition in it's integration service's `docker-compose.yml` file.
 
 ```yaml
-version: '2.3'
 services:
   apache:
     # Other properties such as build, ports, etc.
@@ -95,7 +94,6 @@ For example docker images for MySQL include a volume for the data directory
 tests are executed, a volume can be added to the `docker-compose.yml`:
 
 ```yaml
-version: '2.3'
 services:
   mysql:
     # Other properties such as build, ports, etc.
@@ -118,7 +116,6 @@ This is useful if you need different capabilities than the provided by the
 
 `custom-agent.yml`
 ```yaml
-version: '2.3'
 services:
   docker-custom-agent:
     pid: host
@@ -131,7 +128,6 @@ services:
 This will result in an agent configuration such as:
 
 ```yaml
-version: '2.3'
 services:
   docker-custom-agent:
     hostname: docker-custom-agent
@@ -196,7 +192,6 @@ RUN apt-get update && apt-get -y install \
 ```
 An example for `custom-agent.yml` in multi-service setup is as below
 ```yaml
-version: '2.3'
 services:
   docker-custom-agent:
     build:
@@ -328,7 +323,6 @@ To use environment variables within the Terraform service deployer a `env.yml` f
 The file should be structured like this:
 
 ```yaml
-version: '2.3'
 services:
   terraform:
     environment:

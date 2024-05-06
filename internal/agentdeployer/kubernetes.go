@@ -25,11 +25,10 @@ import (
 
 // KubernetesAgentDeployer is responsible for deploying resources in the Kubernetes cluster.
 type KubernetesAgentDeployer struct {
-	profile        *profile.Profile
-	definitionsDir string
-	stackVersion   string
-	policyName     string
-	dataStream     string
+	profile      *profile.Profile
+	stackVersion string
+	policyName   string
+	dataStream   string
 
 	agentRunID string
 
@@ -39,11 +38,10 @@ type KubernetesAgentDeployer struct {
 }
 
 type KubernetesAgentDeployerOptions struct {
-	Profile        *profile.Profile
-	DefinitionsDir string
-	StackVersion   string
-	PolicyName     string
-	DataStream     string
+	Profile      *profile.Profile
+	StackVersion string
+	PolicyName   string
+	DataStream   string
 
 	RunSetup     bool
 	RunTestsOnly bool
@@ -56,8 +54,6 @@ type kubernetesDeployedAgent struct {
 	stackVersion string
 
 	agentName string
-
-	definitionsDir string
 }
 
 func (s kubernetesDeployedAgent) TearDown(ctx context.Context) error {
@@ -67,7 +63,7 @@ func (s kubernetesDeployedAgent) TearDown(ctx context.Context) error {
 	}
 	err = kubectl.DeleteStdin(ctx, elasticAgentManagedYaml)
 	if err != nil {
-		return fmt.Errorf("can't uninstall Kubernetes resources (path: %s): %w", s.definitionsDir, err)
+		return fmt.Errorf("can't uninstall Kubernetes Elastic Agent resources: %w", err)
 	}
 	return nil
 }
@@ -94,14 +90,13 @@ var _ DeployedAgent = new(kubernetesDeployedAgent)
 // NewKubernetesAgentDeployer function creates a new instance of KubernetesAgentDeployer.
 func NewKubernetesAgentDeployer(opts KubernetesAgentDeployerOptions) (*KubernetesAgentDeployer, error) {
 	return &KubernetesAgentDeployer{
-		profile:        opts.Profile,
-		definitionsDir: opts.DefinitionsDir,
-		stackVersion:   opts.StackVersion,
-		policyName:     opts.PolicyName,
-		dataStream:     opts.DataStream,
-		runSetup:       opts.RunSetup,
-		runTestsOnly:   opts.RunTestsOnly,
-		runTearDown:    opts.RunTearDown,
+		profile:      opts.Profile,
+		stackVersion: opts.StackVersion,
+		policyName:   opts.PolicyName,
+		dataStream:   opts.DataStream,
+		runSetup:     opts.RunSetup,
+		runTestsOnly: opts.RunTestsOnly,
+		runTearDown:  opts.RunTearDown,
 	}, nil
 }
 
@@ -140,11 +135,10 @@ func (ksd *KubernetesAgentDeployer) SetUp(ctx context.Context, agentInfo AgentIn
 	// to deploy Agent Pod. Because of this, hostname inside pod will be equal to the name of the k8s host.
 	agentInfo.Agent.Host.NamePrefix = "kind-control-plane"
 	return &kubernetesDeployedAgent{
-		agentInfo:      agentInfo,
-		definitionsDir: ksd.definitionsDir,
-		profile:        ksd.profile,
-		stackVersion:   ksd.stackVersion,
-		agentName:      agentName,
+		agentInfo:    agentInfo,
+		profile:      ksd.profile,
+		stackVersion: ksd.stackVersion,
+		agentName:    agentName,
 	}, nil
 }
 

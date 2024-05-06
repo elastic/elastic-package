@@ -199,7 +199,7 @@ func (r *runner) setUp(ctx context.Context) error {
 		return nil
 	}
 
-	if err := r.wipeDataStreamsOnSetup(); err != nil {
+	if err := r.wipeDataStreamsOnSetup(ctx); err != nil {
 		return fmt.Errorf("error cleaning up old data in data streams: %w", err)
 	}
 
@@ -224,13 +224,13 @@ func (r *runner) setUp(ctx context.Context) error {
 	return nil
 }
 
-func (r *runner) wipeDataStreamsOnSetup() error {
+func (r *runner) wipeDataStreamsOnSetup(ctx context.Context) error {
 	// Delete old data
 	logger.Debug("deleting old data in data stream...")
 	r.wipeDataStreamHandler = func(ctx context.Context) error {
 		logger.Debugf("deleting data in data stream...")
 		for _, runtimeDataStream := range r.runtimeDataStreams {
-			if err := r.deleteDataStreamDocs(runtimeDataStream); err != nil {
+			if err := r.deleteDataStreamDocs(ctx, runtimeDataStream); err != nil {
 				return fmt.Errorf("error deleting data in data stream: %w", err)
 			}
 		}
@@ -238,7 +238,7 @@ func (r *runner) wipeDataStreamsOnSetup() error {
 	}
 
 	for _, runtimeDataStream := range r.runtimeDataStreams {
-		if err := r.deleteDataStreamDocs(runtimeDataStream); err != nil {
+		if err := r.deleteDataStreamDocs(ctx, runtimeDataStream); err != nil {
 			return fmt.Errorf("error deleting data in data stream: %w", err)
 		}
 	}
@@ -278,9 +278,11 @@ func (r *runner) installPackageFromPackageRoot(ctx context.Context) error {
 	return nil
 }
 
-func (r *runner) deleteDataStreamDocs(dataStream string) error {
+func (r *runner) deleteDataStreamDocs(ctx context.Context, dataStream string) error {
 	body := strings.NewReader(`{ "query": { "match_all": {} } }`)
-	resp, err := r.options.ESAPI.DeleteByQuery([]string{dataStream}, body)
+	resp, err := r.options.ESAPI.DeleteByQuery([]string{dataStream}, body,
+		r.options.ESAPI.DeleteByQuery.WithContext(ctx),
+	)
 	if err != nil {
 		return fmt.Errorf("failed to delete data stream docs for data stream %s: %w", dataStream, err)
 	}
@@ -484,8 +486,11 @@ func (r *runner) collectBulkRequestBody(indexName, scenarioName string, buf *byt
 	return bulkBodyBuilder, nil
 }
 
-func (r *runner) performBulkRequest(bulkRequest string) error {
-	resp, err := r.options.ESAPI.Bulk(strings.NewReader(bulkRequest))
+func (r *runner) performBulkRequest(ctx context.Context, bulkRequest string) error {
+	resp, err := r.options.ESAPI.Bulk(strings.NewReader(bulkRequest),
+		r.options.ESAPI.Bulk.WithContext(ctx),
+	)
+
 	if err != nil {
 		return err
 	}
@@ -595,7 +600,7 @@ func (r *runner) runStreamGenerator(ctx context.Context, scenarioName string) er
 			}
 		}
 
-		err := r.performBulkRequest(bulkBodyBuilder.String())
+		err := r.performBulkRequest(ctx, bulkBodyBuilder.String())
 		if err != nil {
 			return fmt.Errorf("error performing bulk request: %w", err)
 		}
@@ -628,7 +633,7 @@ func (r *runner) runBackfillGenerator(ctx context.Context, scenarioName string) 
 		}
 	}
 
-	return r.performBulkRequest(bulkBodyBuilder.String())
+	return r.performBulkRequest(ctx, bulkBodyBuilder.String())
 }
 
 type benchMeta struct {
