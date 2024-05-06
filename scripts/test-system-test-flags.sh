@@ -6,14 +6,12 @@ DEFAULT_AGENT_CONTAINER_NAME="elastic-package-service-docker-custom-agent"
 
 cleanup() {
     local r=$?
-    local container_id
+    local container_id=""
     local agent_ids
-    local number_agents
 
     # Dump stack logs
     elastic-package stack dump -v --output build/elastic-stack-dump/system-test-flags
 
-    local container_id=""
     if is_service_container_running "${DEFAULT_AGENT_CONTAINER_NAME}" ; then
         container_id=$(container_ids "${DEFAULT_AGENT_CONTAINER_NAME}")
         docker rm -f "${container_id}"
