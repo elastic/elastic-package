@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/olekukonko/tablewriter"
 
@@ -236,7 +235,8 @@ func profileToList(profiles []profile.Metadata, currentProfile string) [][]strin
 		if name == currentProfile {
 			name = name + " (current)"
 		}
-		profileList = append(profileList, []string{name, profile.DateCreated.Format(time.RFC3339), profile.User, profile.Version, profile.Path})
+		// TODO: Review date format.
+		profileList = append(profileList, []string{name, profile.DateCreated, profile.User, profile.Version, profile.Path})
 	}
 
 	return profileList

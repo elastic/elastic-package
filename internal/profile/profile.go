@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/elastic/go-resource"
 
@@ -90,8 +91,9 @@ func createProfile(options Options, resources []resource.Resource) error {
 
 	resourceManager := resource.NewManager()
 	resourceManager.AddFacter(resource.StaticFacter{
-		"profile_name": options.Name,
-		"profile_path": profileDir,
+		"creation_date": time.Now().UTC().String(),
+		"profile_name":  options.Name,
+		"profile_path":  profileDir,
 	})
 
 	os.MkdirAll(profileDir, 0755)
@@ -137,6 +139,7 @@ type Profile struct {
 	ProfileName string
 
 	config    config
+	metadata  Metadata
 	overrides map[string]string
 }
 
@@ -219,11 +222,7 @@ func FetchAllProfiles(elasticPackagePath string) ([]Metadata, error) {
 		if err != nil {
 			return profiles, fmt.Errorf("error loading profile %s: %w", item.Name(), err)
 		}
-		metadata, err := loadProfileMetadata(filepath.Join(profile.ProfilePath, PackageProfileMetaFile))
-		if err != nil {
-			return profiles, fmt.Errorf("error reading profile metadata: %w", err)
-		}
-		profiles = append(profiles, metadata)
+		profiles = append(profiles, profile.metadata)
 	}
 	return profiles, nil
 }
@@ -235,19 +234,29 @@ func LoadProfile(profileName string) (*Profile, error) {
 		return nil, fmt.Errorf("error finding stack dir location: %w", err)
 	}
 
-	return loadProfile(loc.ProfileDir(), profileName)
+	profile, err := loadProfile(loc.ProfileDir(), profileName)
+	if err != nil {
+		return nil, nil
+	}
+
+	err = profile.migrate(currentVersion)
+	if err != nil {
+		return nil, fmt.Errorf("error migrating profile to version %s: %w", currentVersion, err)
+	}
+
+	return profile, nil
 }
 
 // loadProfile loads an existing profile
 func loadProfile(elasticPackagePath string, profileName string) (*Profile, error) {
 	profilePath := filepath.Join(elasticPackagePath, profileName)
 
-	isValid, err := isProfileDir(profilePath)
-	if err != nil {
-		return nil, fmt.Errorf("error checking profile %q: %w", profileName, err)
-	}
-	if !isValid {
+	metadata, err := loadProfileMetadata(filepath.Join(profilePath, PackageProfileMetaFile))
+	if errors.Is(err, os.ErrNotExist) {
 		return nil, ErrNotAProfile
+	}
+	if err != nil {
+		return nil, fmt.Errorf("error reading profile metadata: %w", err)
 	}
 
 	configPath := filepath.Join(profilePath, PackageProfileConfigFile)
@@ -260,20 +269,8 @@ func loadProfile(elasticPackagePath string, profileName string) (*Profile, error
 		ProfileName: profileName,
 		ProfilePath: profilePath,
 		config:      config,
+		metadata:    metadata,
 	}
 
 	return &profile, nil
-}
-
-// isProfileDir checks to see if the given path points to a valid profile
-func isProfileDir(path string) (bool, error) {
-	metaPath := filepath.Join(path, string(PackageProfileMetaFile))
-	_, err := os.Stat(metaPath)
-	if errors.Is(err, os.ErrNotExist) {
-		return false, nil
-	}
-	if err != nil {
-		return false, fmt.Errorf("error stat: %s: %w", metaPath, err)
-	}
-	return true, nil
 }
