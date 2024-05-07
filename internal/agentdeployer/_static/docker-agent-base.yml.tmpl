@@ -6,7 +6,7 @@
 services:
   elastic-agent:
     hostname: ${AGENT_HOSTNAME}
-    {{ if eq $custom_script "true" }}
+    {{ if ne $custom_script "" }}
     image: "${ELASTIC_AGENT_IMAGE_REF}-custom"
     build:
       context: .
