@@ -3,6 +3,10 @@
 # exit immediately on failure, or if an undefined variable is used
 set -eu
 
+echoerr() {
+    echo "$@" 1>&2
+}
+
 # begin the pipeline.yml file
 echo "steps:"
 echo "  - group: \":terminal: Integration test suite\""
@@ -91,7 +95,7 @@ for package in $(find . -maxdepth 1 -mindepth 1 -type d) ; do
     package_name=$(basename "${package}")
 
     if [[ "$independent_agent" == "false" && "$package_name" == "oracle" ]]; then
-        echo "Package \"${package_name}\" skipped: not supported with Elastic Agent running in the stack (missing required software)."
+        echoerr "Package \"${package_name}\" skipped: not supported with Elastic Agent running in the stack (missing required software)."
         continue
     fi
 
