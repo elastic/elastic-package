@@ -13,6 +13,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/elastic/go-resource"
+
 	"github.com/elastic/elastic-package/internal/compose"
 	"github.com/elastic/elastic-package/internal/docker"
 	"github.com/elastic/elastic-package/internal/files"
@@ -20,7 +22,6 @@ import (
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/profile"
 	"github.com/elastic/elastic-package/internal/stack"
-	"github.com/elastic/go-resource"
 )
 
 const (
