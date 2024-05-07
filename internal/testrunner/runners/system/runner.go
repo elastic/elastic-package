@@ -340,6 +340,8 @@ func (r *runner) createAgentInfo(policy *kibana.Policy, config *testConfig, runI
 	info.Agent.Runtime = config.Agent.Runtime
 	info.Agent.PidMode = config.Agent.PidMode
 	info.Agent.Ports = config.Agent.Ports
+	info.Agent.CustomScript = config.Agent.CustomScript
+	info.Agent.PreStartScript = config.Agent.PreStartScript
 
 	// If user is defined in the configuration file, it has preference
 	// and it should not be overwritten by the value in the manifest
@@ -1226,7 +1228,7 @@ func (r *runner) removeServiceStateFile() error {
 
 func (r *runner) createServiceStateDir() error {
 	dirPath := filepath.Dir(r.serviceStateFilePath)
-	err := os.MkdirAll(dirPath, 0755)
+	err := os.MkdirAll(dirPath, 0o755)
 	if err != nil {
 		return fmt.Errorf("mkdir failed (path: %s): %w", dirPath, err)
 	}
@@ -1286,7 +1288,7 @@ func (r *runner) writeScenarioState(opts scenarioStateOpts) error {
 		return fmt.Errorf("failed to marshall service setup data: %w", err)
 	}
 
-	err = os.WriteFile(r.serviceStateFilePath, dataBytes, 0644)
+	err = os.WriteFile(r.serviceStateFilePath, dataBytes, 0o644)
 	if err != nil {
 		return fmt.Errorf("failed to write service setup JSON: %w", err)
 	}
@@ -1900,7 +1902,7 @@ func writeSampleEvent(path string, doc common.MapStr, specVersion semver.Version
 		return fmt.Errorf("marshalling sample event failed: %w", err)
 	}
 
-	err = os.WriteFile(filepath.Join(path, "sample_event.json"), body, 0644)
+	err = os.WriteFile(filepath.Join(path, "sample_event.json"), body, 0o644)
 	if err != nil {
 		return fmt.Errorf("writing sample event failed: %w", err)
 	}

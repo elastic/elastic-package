@@ -84,6 +84,9 @@ type AgentInfo struct {
 		LinuxCapabilities []string
 		// Ports is a list of ports to make them available to communicate to the Elastic Agent process
 		Ports []string
+		// CustomScript allows to define a script to update/modify Elastic Agent process (container, vm, ...)
+		CustomScript   string
+		PreStartScript string
 	}
 
 	// CustomProperties store additional data used to boot up the service, e.g. AWS credentials.

@@ -1,0 +1,6 @@
+#!/bin/sh
+
+{{ .preStartScript }}
+
+# Required to add "-s" since tini is not running as PID 1
+/usr/bin/tini -s -- /usr/local/bin/docker-entrypoint $@

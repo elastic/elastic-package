@@ -6,6 +6,7 @@ package agentdeployer
 
 import (
 	"context"
+	"embed"
 	_ "embed"
 	"fmt"
 	"os"
@@ -25,11 +26,21 @@ import (
 const (
 	dockerTestAgentServiceName   = "elastic-agent"
 	dockerTestAgentDockerCompose = "docker-agent-base.yml"
+	dockerTestAgentDockerfile    = "Dockerfile"
 	defaultAgentPolicyName       = "Elastic-Agent (elastic-package)"
 )
 
 //go:embed _static/docker-agent-base.yml.tmpl
 var dockerTestAgentDockerComposeTemplate string
+
+//go:embed _static/dockerfile.tmpl
+var dockerfileTemplate string
+
+//go:embed _static/custom-entrypoint.sh.tmpl
+var customEntrypointTemplate string
+
+// go.embed _static
+var static embed.FS
 
 // CustomAgentDeployer knows how to deploy a custom elastic-agent defined via
 // a Docker Compose file.
@@ -73,6 +84,16 @@ type dockerComposeDeployedAgent struct {
 }
 
 var _ DeployedAgent = new(dockerComposeDeployedAgent)
+
+// var (
+//     staticSource   = resource.NewSourceFS(static)
+//     agentResources = []resource.Resource{
+//         &resource.File{
+//             Path: "Dockerfile",
+//             Content: staticSource.Template("_static/dockerfile.tmpl"),
+//         }
+//     }
+// )
 
 // NewCustomAgentDeployer returns a new instance of a deployedCustomAgent.
 func NewCustomAgentDeployer(options DockerComposeAgentDeployerOptions) (*DockerComposeAgentDeployer, error) {
@@ -241,6 +262,38 @@ func (d *DockerComposeAgentDeployer) installDockerfile(agentInfo AgentInfo) (str
 		return "", fmt.Errorf("failed to create directory for custom agent files: %w", err)
 	}
 
+	customScriptFilePath := ""
+	if agentInfo.Agent.CustomScript != "" {
+		customScriptFilePath, err = deployCustomScript(customAgentDir, agentInfo.Agent.CustomScript, "script.sh")
+		if err != nil {
+			return "", fmt.Errorf("failed to deploy custom script: %w", err)
+		}
+	}
+
+	customPreScriptFilePath := ""
+	if agentInfo.Agent.PreStartScript != "" {
+		customPreScriptFilePath = filepath.Join(customAgentDir, "custom-entrypoint.sh")
+		file, err := os.Create(customPreScriptFilePath)
+		if err != nil {
+			return "", fmt.Errorf("failed to create file (name %s): %w", customPreScriptFilePath, err)
+		}
+		defer file.Close()
+
+		tmpl := template.Must(template.New("pre-script").Parse(customEntrypointTemplate))
+		err = tmpl.Execute(file, map[string]any{
+			"user":             agentInfo.Agent.User,
+			"capabilities":     agentInfo.Agent.LinuxCapabilities,
+			"runtime":          agentInfo.Agent.Runtime,
+			"pidMode":          agentInfo.Agent.PidMode,
+			"ports":            agentInfo.Agent.Ports,
+			"customScriptFile": customPreScriptFilePath,
+			"preStartScript":   agentInfo.Agent.PreStartScript,
+		})
+		if err != nil {
+			return "", fmt.Errorf("failed to create contents of the docker-compose file %q: %w", customPreScriptFilePath, err)
+		}
+	}
+
 	customAgentDockerfile := filepath.Join(customAgentDir, dockerTestAgentDockerCompose)
 	file, err := os.Create(customAgentDockerfile)
 	if err != nil {
@@ -250,17 +303,45 @@ func (d *DockerComposeAgentDeployer) installDockerfile(agentInfo AgentInfo) (str
 
 	tmpl := template.Must(template.New(dockerTestAgentDockerCompose).Parse(dockerTestAgentDockerComposeTemplate))
 	err = tmpl.Execute(file, map[string]any{
-		"user":         agentInfo.Agent.User,
-		"capabilities": agentInfo.Agent.LinuxCapabilities,
-		"runtime":      agentInfo.Agent.Runtime,
-		"pidMode":      agentInfo.Agent.PidMode,
-		"ports":        agentInfo.Agent.Ports,
+		"user":             agentInfo.Agent.User,
+		"capabilities":     agentInfo.Agent.LinuxCapabilities,
+		"runtime":          agentInfo.Agent.Runtime,
+		"pidMode":          agentInfo.Agent.PidMode,
+		"ports":            agentInfo.Agent.Ports,
+		"customScriptFile": customScriptFilePath,
+		"preStartScript":   customPreScriptFilePath,
 	})
 	if err != nil {
 		return "", fmt.Errorf("failed to create contents of the docker-compose file %q: %w", customAgentDockerfile, err)
 	}
 
 	return customAgentDir, nil
+}
+
+func deployCustomScript(directory, scriptContents, fileName string) (string, error) {
+	customScriptFilePath := filepath.Join(directory, fileName)
+	err := os.WriteFile(customScriptFilePath, []byte(scriptContents), 0o755)
+	if err != nil {
+		return "", fmt.Errorf("failed to write script %s: %w", fileName, err)
+	}
+
+	customAgentDockerfile := filepath.Join(directory, dockerTestAgentDockerfile)
+	file, err := os.Create(customAgentDockerfile)
+	if err != nil {
+		return "", fmt.Errorf("failed to create file (name %s): %w", customAgentDockerfile, err)
+	}
+	defer file.Close()
+
+	tmpl := template.Must(template.New(dockerTestAgentDockerfile).Parse(dockerfileTemplate))
+	err = tmpl.Execute(file, map[string]any{
+		"dockerfilePath":  dockerTestAgentDockerfile,
+		"scriptsFilePath": "script.sh",
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to create contents of the Dockerfile file %q: %w", customAgentDockerfile, err)
+	}
+
+	return customScriptFilePath, nil
 }
 
 // ExitCode returns true if the agent is exited and its exit code.

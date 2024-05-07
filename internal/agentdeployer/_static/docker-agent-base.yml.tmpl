@@ -1,7 +1,16 @@
 services:
   elastic-agent:
     hostname: ${AGENT_HOSTNAME}
+    {{ if ne .customScriptFile "" }}
+    image: "${ELASTIC_AGENT_IMAGE_REF}-custom"
+    build:
+      context: .
+      args:
+        ES_AGENT_IMAGE: "${ELASTIC_AGENT_IMAGE_REF}"
+      dockerfile: "Dockerfile"
+    {{ else }}
     image: "${ELASTIC_AGENT_IMAGE_REF}"
+    {{ end }}
     healthcheck:
       test: "elastic-agent status"
       retries: 180

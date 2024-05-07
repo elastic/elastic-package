@@ -1,0 +1,17 @@
+ARG ES_AGENT_IMAGE=docker.elastic.co/elastic-agent/elastic-agent-complete:latest
+FROM $ES_AGENT_IMAGE
+
+USER root
+COPY script.sh .
+RUN chmod u+x script.sh && ./{{ .scriptsFilePath }}
+{{ if ne .preStartScript "" }}
+COPY custom-entrypoint.sh /usr/local/bin/custom-entrypoint.sh
+RUN chmod a+x /usr/local/bin/custom-entrypoint.sh
+{{ end }}
+
+USER elastic-agent
+
+{{ if ne .preStartScript "" }}
+ENTRYPOINT ["/usr/local/bin/custom-entrypoint.sh"]
+CMD [""]
+{{ end }}

@@ -59,6 +59,8 @@ type testConfig struct {
 		LinuxCapabilities []string `config:"linux_capabilities"`
 		Runtime           string   `config:"runtime"`
 		Ports             []string `config:"ports"`
+		CustomScript      string   `config:"custom_script"`
+		PreStartScript    string   `config:"pre_start_script"`
 	} `config:"agent"`
 }
 
