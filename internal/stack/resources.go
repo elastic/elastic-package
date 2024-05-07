@@ -39,7 +39,7 @@ const (
 	// KibanaHealthcheckFile is the kibana healthcheck.
 	KibanaHealthcheckFile = "kibana-healthcheck.sh"
 
-	// FleetServerHealthcheckFile is the kibana healthcheck.
+	// FleetServerHealthcheckFile is the Fleet Server healthcheck.
 	FleetServerHealthcheckFile = "fleet-server-healthcheck.sh"
 
 	// PackageRegistryConfigFile is the config file for the Elastic Package registry
