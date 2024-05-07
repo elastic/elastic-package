@@ -24,8 +24,8 @@ import (
 var static embed.FS
 
 const (
-	// SnapshotFile is the docker-compose snapshot.yml file name.
-	SnapshotFile = "snapshot.yml"
+	// ComposeFile is the docker compose file.
+	ComposeFile = "docker-compose.yml"
 
 	// ElasticsearchConfigFile is the elasticsearch config file.
 	ElasticsearchConfigFile = "elasticsearch.yml"
@@ -37,7 +37,10 @@ const (
 	LogstashConfigFile = "logstash.conf"
 
 	// KibanaHealthcheckFile is the kibana healthcheck.
-	KibanaHealthcheckFile = "kibana_healthcheck.sh"
+	KibanaHealthcheckFile = "kibana-healthcheck.sh"
+
+	// FleetServerHealthcheckFile is the kibana healthcheck.
+	FleetServerHealthcheckFile = "fleet-server-healthcheck.sh"
 
 	// PackageRegistryConfigFile is the config file for the Elastic Package registry
 	PackageRegistryConfigFile = "package-registry.yml"
@@ -75,7 +78,7 @@ var (
 			Content: staticSource.Template("_static/Dockerfile.package-registry.tmpl"),
 		},
 		&resource.File{
-			Path:    SnapshotFile,
+			Path:    ComposeFile,
 			Content: staticSource.Template("_static/docker-compose-stack.yml.tmpl"),
 		},
 		&resource.File{
@@ -107,7 +110,11 @@ var (
 		},
 		&resource.File{
 			Path:    KibanaHealthcheckFile,
-			Content: staticSource.Template("_static/kibana_healthcheck.sh.tmpl"),
+			Content: staticSource.Template("_static/kibana-healthcheck.sh.tmpl"),
+		},
+		&resource.File{
+			Path:    FleetServerHealthcheckFile,
+			Content: staticSource.File("_static/fleet-server-healthcheck.sh"),
 		},
 		&resource.File{
 			Path:    PackageRegistryConfigFile,

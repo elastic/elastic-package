@@ -174,7 +174,7 @@ func (profile *Profile) RuntimeOverrides(overrides map[string]string) {
 var ErrNotAProfile = errors.New("not a profile")
 
 // ComposeEnvVars returns a list of environment variables that can be passed
-// to docker-compose for the sake of filling out paths and names in the snapshot.yml file.
+// to docker-compose for the sake of filling out paths and names in the docker compose file.
 func (profile Profile) ComposeEnvVars() []string {
 	return []string{
 		fmt.Sprintf("PROFILE_NAME=%s", profile.ProfileName),
