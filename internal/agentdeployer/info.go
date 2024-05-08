@@ -13,6 +13,27 @@ const (
 	elasticAgentTagsEnv = "ELASTIC_AGENT_TAGS"
 )
 
+type AgentSettings struct {
+	// User user to run Elastic Agent process
+	User string `config:"user"`
+	// PidMode selects the host PID mode
+	// (From docker-compose docs) Turns on sharing between container and the host
+	// operating system the PID address space
+	PidMode string `config:"pid_mode"`
+	// Runtime is the selected runtime to run the Elastic Agent process
+	Runtime string `config:"runtime"`
+	// LinuxCapabilities is a list of the capabilities needed to run the Elastic Agent process
+	LinuxCapabilities []string `config:"linux_capabilities"`
+	// Ports is a list of ports to make them available to communicate to the Elastic Agent process
+	Ports []string `config:"ports"`
+	// CustomScript allows to define a script to modify Elastic Agent environment with the required
+	// libraries or dependencies (container, vm, ...),
+	CustomScript string `config:"custom_script"`
+	// PreStartScript allows to define a script to update/modify Elastic Agent process (container, vm, ...)
+	// Example update environment variables like PATH
+	PreStartScript string `config:"pre_start_script"`
+}
+
 // AgentInfo encapsulates context that is both available to a AgentDeployer and
 // populated by a DeployedAgent. The fields in AgentInfo may be used in handlebars
 // templates in system test configuration files, for example: {{ Hostname }}.
@@ -72,24 +93,7 @@ type AgentInfo struct {
 			NamePrefix string
 		}
 
-		// User user to run Elastic Agent process
-		User string
-		// PidMode selects the host PID mode
-		// (From docker-compose docs) Turns on sharing between container and the host
-		// operating system the PID address space
-		PidMode string
-		// Runtime is the selected runtime to run the Elastic Agent process
-		Runtime string
-		// LinuxCapabilities is a list of the capabilities needed to run the Elastic Agent process
-		LinuxCapabilities []string
-		// Ports is a list of ports to make them available to communicate to the Elastic Agent process
-		Ports []string
-		// CustomScript allows to define a script to modify Elastic Agent environment with the required
-		// libraries or dependencies (container, vm, ...),
-		CustomScript string
-		// PreStartScript allows to define a script to update/modify Elastic Agent process (container, vm, ...)
-		// Example update environment variables like PATH
-		PreStartScript string
+		AgentSettings
 	}
 
 	// CustomProperties store additional data used to boot up the service, e.g. AWS credentials.

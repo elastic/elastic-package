@@ -18,6 +18,7 @@ import (
 	"github.com/elastic/go-ucfg"
 	"github.com/elastic/go-ucfg/yaml"
 
+	"github.com/elastic/elastic-package/internal/agentdeployer"
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/servicedeployer"
 	"github.com/elastic/elastic-package/internal/testrunner"
@@ -54,13 +55,7 @@ type testConfig struct {
 
 	// Agent related properties
 	Agent struct {
-		User              string   `config:"user"`
-		PidMode           string   `config:"pid_mode"`
-		LinuxCapabilities []string `config:"linux_capabilities"`
-		Runtime           string   `config:"runtime"`
-		Ports             []string `config:"ports"`
-		CustomScript      string   `config:"custom_script"`
-		PreStartScript    string   `config:"pre_start_script"`
+		agentdeployer.AgentSettings `config:",inline"`
 	} `config:"agent"`
 }
 
