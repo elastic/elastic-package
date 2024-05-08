@@ -1433,13 +1433,29 @@ func (r *runner) validateTestScenario(ctx context.Context, result *testrunner.Re
 
 	atLeast814, err := semver.NewConstraint(">=8.14")
 	if err != nil {
+		// Pre 8.14 Elasticsearch commonly has event.original not mapped correctly, exclude from check: https://github.com/elastic/elasticsearch/pull/106714
 		return nil, fmt.Errorf("failed to parse version constraint: %w", err)
 	}
+	skipIgnoredFields := append([]string(nil), config.SkipIgnoredFields...)
 	isAtLeast814 := atLeast814.Check(semver.MustParse(r.stackVersion.Number))
+	if !isAtLeast814 {
+		skipIgnoredFields = append(skipIgnoredFields, "event.original")
+	}
+
 	ignoredFields := make([]string, 0, len(scenario.ignoredFields))
+
 	for _, field := range scenario.ignoredFields {
-		// Pre 8.14 Elasticsearch commonly has event.original not mapped correctly, exclude from check: https://github.com/elastic/elasticsearch/pull/106714
-		if field != "event.original" || isAtLeast814 {
+		// check whether field name shows up in config.SkipIgnoredFields which is a list of fields
+		// that are expected to be ignored - we need to iterate over the list to find the field
+		shouldSkip := false
+		for _, skipField := range skipIgnoredFields {
+			if field == skipField {
+				shouldSkip = true
+				break
+			}
+		}
+
+		if !shouldSkip {
 			ignoredFields = append(ignoredFields, field)
 		}
 	}

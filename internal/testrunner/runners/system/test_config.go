@@ -34,6 +34,7 @@ type testConfig struct {
 	ServiceNotifySignal string        `config:"service_notify_signal"` // Signal to send when the agent policy is applied.
 	IgnoreServiceError  bool          `config:"ignore_service_error"`
 	WaitForDataTimeout  time.Duration `config:"wait_for_data_timeout"`
+	SkipIgnoredFields   []string      `config:"skip_ignored_fields"`
 
 	Vars       common.MapStr `config:"vars"`
 	DataStream struct {
