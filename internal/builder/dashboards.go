@@ -115,6 +115,11 @@ func encodeEmbeddedPanels(object common.MapStr) (common.MapStr, bool, error) {
 	if err != nil {
 		return nil, false, fmt.Errorf("retrieving embedded panels failed: %w", err)
 	}
+	_, isEncoded := embeddedPanelsValue.(string)
+	if isEncoded {
+		// This is already encoded, probably exported with an old version of elastic-package, do nothing.
+		return object, false, nil
+	}
 	embeddedPanels, ok := embeddedPanelsValue.([]any)
 	if !ok {
 		return nil, false, fmt.Errorf("expected list of panels, found %T", embeddedPanelsValue)
@@ -136,7 +141,7 @@ func encodeEmbeddedPanels(object common.MapStr) (common.MapStr, bool, error) {
 		}
 		embeddableConfig, embeddableChanged, err := encodeObjectMapStr(common.MapStr(embeddableConfig))
 		if err != nil {
-			return nil, false, fmt.Errorf("econdign embedded object failed: %w", err)
+			return nil, false, fmt.Errorf("econding embedded object failed: %w", err)
 		}
 		if embeddableChanged {
 			changed = true
