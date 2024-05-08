@@ -964,11 +964,6 @@
             "id": "logs-*",
             "name": "f33947eb-0ae3-436c-889a-bb8450143b57:kibanaSavedObjectMeta.searchSourceJSON.index",
             "type": "index-pattern"
-        },
-        {
-            "id": "system-security-solution-default",
-            "name": "tag-ref-security-solution-default",
-            "type": "tag"
         }
     ],
     "type": "dashboard",
