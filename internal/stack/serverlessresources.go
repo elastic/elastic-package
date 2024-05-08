@@ -21,7 +21,7 @@ import (
 var (
 	serverlessStackResources = []resource.Resource{
 		&resource.File{
-			Path:    ComposeFile,
+			Path:    SnapshotFile,
 			Content: staticSource.Template("_static/serverless-docker-compose.yml.tmpl"),
 		},
 		&resource.File{

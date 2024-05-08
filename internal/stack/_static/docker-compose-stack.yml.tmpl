@@ -44,7 +44,7 @@ services:
     volumes:
       - "./kibana.yml:/usr/share/kibana/config/kibana.yml"
       - "../certs/kibana:/usr/share/kibana/config/certs"
-      - "./kibana-healthcheck.sh:/usr/share/kibana/healthcheck.sh"
+      - "./kibana_healthcheck.sh:/usr/share/kibana/healthcheck.sh"
     ports:
       - "127.0.0.1:5601:5601"
 
