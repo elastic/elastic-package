@@ -94,7 +94,7 @@ services:
       kibana:
         condition: service_healthy
     healthcheck:
-      test: "curl --cacert /etc/ssl/elastic-agent/ca-cert.pem -f https://localhost:8220/api/status | grep -i healthy 2>&1 >/dev/null"
+      test: "bash /healthcheck.sh"
       start_period: 60s
       interval: 5s
     hostname: docker-fleet-server
@@ -112,8 +112,9 @@ services:
     - "KIBANA_FLEET_SETUP=1"
     - "KIBANA_HOST={{ fact "kibana_host" }}"
     volumes:
-      - "../certs/ca-cert.pem:/etc/ssl/certs/elastic-package.pem"
-      - "../certs/fleet-server:/etc/ssl/elastic-agent"
+      - "../certs/ca-cert.pem:/etc/ssl/certs/elastic-package.pem:ro"
+      - "../certs/fleet-server:/etc/ssl/elastic-agent:ro"
+      - "./fleet-server-healthcheck.sh:/healthcheck.sh:ro"
     ports:
       - "127.0.0.1:8220:8220"
       {{ if eq $apm_enabled "true" }}
