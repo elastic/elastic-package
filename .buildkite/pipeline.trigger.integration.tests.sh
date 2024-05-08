@@ -49,8 +49,6 @@ for test in "${CHECK_PACKAGES_TESTS[@]}"; do
     echo "        command: ./.buildkite/scripts/integration_tests.sh -t ${test}"
     echo "        agents:"
     echo "          provider: \"gcp\""
-    echo "        env:"
-    echo "          ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT: ${independent_agent}"
     echo "        artifact_paths:"
     echo "          - build/test-results/*.xml"
     echo "          - build/elastic-stack-dump/check-*/logs/*.log"
@@ -58,6 +56,10 @@ for test in "${CHECK_PACKAGES_TESTS[@]}"; do
     echo "          - build/test-coverage/coverage-*.xml" # these files should not be used to compute the final coverage of elastic-package
     if [[ $test =~ with-kind$ ]]; then
         echo "          - build/kubectl-dump.txt"
+    fi
+    if [[ "${independent_agent}" == "true" ]]; then
+        echo "        env:"
+        echo "          ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT: ${independent_agent}"
     fi
 done
 done
@@ -92,7 +94,9 @@ for package in $(find . -maxdepth 1 -mindepth 1 -type d) ; do
     echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-check-packages-parallel -p ${package_name}"
     echo "        env:"
     echo "          UPLOAD_SAFE_LOGS: 1"
-    echo "          ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT: ${independent_agent}"
+    if [[ "${independent_agent}" == "true" ]]; then
+        echo "          ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT: ${independent_agent}"
+    fi
     echo "        agents:"
     echo "          provider: \"gcp\""
     echo "        artifact_paths:"
