@@ -2,6 +2,7 @@ vars:
   hosts:
     - "oracle://sys:Oradoc_db1@elastic-package-service-oracle-1:1521/ORCLCDB.localdomain?sysdba=1"
 agent:
+  runtime: docker
   custom_script: |
     apt-get update && apt-get -y install libaio1 wget unzip
     mkdir -p /opt/oracle
