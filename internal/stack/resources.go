@@ -39,6 +39,9 @@ const (
 	// KibanaHealthcheckFile is the kibana healthcheck.
 	KibanaHealthcheckFile = "kibana_healthcheck.sh"
 
+	// FleetServerHealthcheckFile is the Fleet Server healthcheck.
+	FleetServerHealthcheckFile = "fleet-server-healthcheck.sh"
+
 	// PackageRegistryConfigFile is the config file for the Elastic Package registry
 	PackageRegistryConfigFile = "package-registry.yml"
 
@@ -107,7 +110,11 @@ var (
 		},
 		&resource.File{
 			Path:    KibanaHealthcheckFile,
-			Content: staticSource.Template("_static/kibana_healthcheck.sh.tmpl"),
+			Content: staticSource.Template("_static/kibana-healthcheck.sh.tmpl"),
+		},
+		&resource.File{
+			Path:    FleetServerHealthcheckFile,
+			Content: staticSource.File("_static/fleet-server-healthcheck.sh"),
 		},
 		&resource.File{
 			Path:    PackageRegistryConfigFile,
