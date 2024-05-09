@@ -1,4 +1,4 @@
-ARG ES_AGENT_IMAGE=docker.elastic.co/elastic-agent/elastic-agent-complete:latest
+ARG ES_AGENT_IMAGE
 FROM $ES_AGENT_IMAGE
 
 {{ $pre_start_script := fact "pre_start_script" }}
@@ -12,7 +12,7 @@ USER root
 
 {{ if ne $custom_script "" }}
 COPY {{ $custom_script_filename}} .
-RUN chmod u+x {{ $custom_script_filename }} && ./{{ $custom_script_filename }}
+RUN chmod u+x {{ $custom_script_filename }} && ./{{ $custom_script_filename }} && rm {{ $custom_script_filename }}
 {{ end }}
 
 {{ if ne $pre_start_script "" }}
