@@ -102,6 +102,20 @@ func newConfig(configFilePath string, svcInfo servicedeployer.ServiceInfo, servi
 	// Save path
 	c.Path = configFilePath
 	c.ServiceVariantName = serviceVariantName
+
+	// Default values for AgentSettings
+	if c.Agent.Runtime == "" {
+		c.Agent.Runtime = agentdeployer.DefaultAgentRuntime
+	}
+
+	if c.Agent.ProvisioningScript.Contents != "" && c.Agent.ProvisioningScript.Language == "" {
+		c.Agent.ProvisioningScript.Language = agentdeployer.DefaultAgentProgrammingLanguage
+	}
+
+	if c.Agent.PreStartScript.Contents != "" && c.Agent.PreStartScript.Language == "" {
+		c.Agent.PreStartScript.Language = agentdeployer.DefaultAgentProgrammingLanguage
+	}
+
 	return &c, nil
 }
 

@@ -11,7 +11,17 @@ const (
 	fleetPolicyEnv      = "FLEET_TOKEN_POLICY_NAME"
 	agentHostnameEnv    = "AGENT_HOSTNAME"
 	elasticAgentTagsEnv = "ELASTIC_AGENT_TAGS"
+
+	DefaultAgentRuntime             = "docker"
+	DefaultAgentProgrammingLanguage = "bash"
 )
+
+type AgentScript struct {
+	// Language defines the programming language used for the script.
+	Language string `config:"language"`
+	// Contents is the code script.
+	Contents string `config:"contents"`
+}
 
 type AgentSettings struct {
 	// User user to run Elastic Agent process
@@ -26,12 +36,12 @@ type AgentSettings struct {
 	LinuxCapabilities []string `config:"linux_capabilities"`
 	// Ports is a list of ports to make them available to communicate to the Elastic Agent process
 	Ports []string `config:"ports"`
-	// CustomScript allows to define a script to modify Elastic Agent environment with the required
+	// ProvisioningScript allows to define a script to modify Elastic Agent environment with the required
 	// libraries or dependencies (container, vm, ...),
-	CustomScript string `config:"custom_script"`
+	ProvisioningScript AgentScript `config:"provisioning_script"`
 	// PreStartScript allows to define a script to update/modify Elastic Agent process (container, vm, ...)
 	// Example update environment variables like PATH
-	PreStartScript string `config:"pre_start_script"`
+	PreStartScript AgentScript `config:"pre_start_script"`
 }
 
 // AgentInfo encapsulates context that is both available to a AgentDeployer and

@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -254,20 +255,22 @@ func (d *DockerComposeAgentDeployer) installDockerfile(agentInfo AgentInfo) (str
 			Content: staticSource.Template("_static/docker-agent-base.yml.tmpl"),
 		},
 	}
-	if agentInfo.Agent.CustomScript != "" || agentInfo.Agent.PreStartScript != "" {
+	enableDockerfileBuild := false
+	if agentInfo.Agent.ProvisioningScript.Contents != "" || agentInfo.Agent.PreStartScript.Contents != "" {
+		enableDockerfileBuild = true
 		agentResources = append(agentResources, &resource.File{
 			Path:    dockerTestAgentDockerfile,
 			Content: staticSource.Template("_static/dockerfile.tmpl"),
 		})
 	}
-	if agentInfo.Agent.CustomScript != "" {
+	if agentInfo.Agent.ProvisioningScript.Contents != "" {
 		agentResources = append(agentResources, &resource.File{
 			Path:    customScriptFilename,
 			Mode:    resource.FileMode(0o755),
-			Content: resource.FileContentLiteral(agentInfo.Agent.CustomScript),
+			Content: resource.FileContentLiteral(agentInfo.Agent.ProvisioningScript.Contents),
 		})
 	}
-	if agentInfo.Agent.PreStartScript != "" {
+	if agentInfo.Agent.PreStartScript.Contents != "" {
 		agentResources = append(agentResources, &resource.File{
 			Path:    customEntrypointFilename,
 			Mode:    resource.FileMode(0o755),
@@ -277,17 +280,20 @@ func (d *DockerComposeAgentDeployer) installDockerfile(agentInfo AgentInfo) (str
 
 	resourceManager := resource.NewManager()
 	resourceManager.AddFacter(resource.StaticFacter{
-		"user":                       agentInfo.Agent.User,
-		"capabilities":               strings.Join(agentInfo.Agent.LinuxCapabilities, ","),
-		"runtime":                    agentInfo.Agent.Runtime,
-		"pid_mode":                   agentInfo.Agent.PidMode,
-		"ports":                      strings.Join(agentInfo.Agent.Ports, ","),
-		"custom_script":              agentInfo.Agent.CustomScript,
-		"custom_script_filename":     customScriptFilename,
-		"pre_start_script":           agentInfo.Agent.PreStartScript,
-		"entrypoint_script_filename": customEntrypointFilename,
-		"kibana_host":                "https://kibana:5601",
-		"fleet_url":                  "https://fleet-server:8220",
+		"user":                         agentInfo.Agent.User,
+		"capabilities":                 strings.Join(agentInfo.Agent.LinuxCapabilities, ","),
+		"runtime":                      agentInfo.Agent.Runtime,
+		"pid_mode":                     agentInfo.Agent.PidMode,
+		"ports":                        strings.Join(agentInfo.Agent.Ports, ","),
+		"enable_dockerfile_build":      strconv.FormatBool(enableDockerfileBuild),
+		"provisioning_script_contents": agentInfo.Agent.ProvisioningScript.Contents,
+		"provisioning_script_language": agentInfo.Agent.ProvisioningScript.Language,
+		"provisioning_script_filename": customScriptFilename,
+		"pre_start_script_contents":    agentInfo.Agent.PreStartScript.Contents,
+		"pre_start_script_language":    agentInfo.Agent.PreStartScript.Language,
+		"entrypoint_script_filename":   customEntrypointFilename,
+		"kibana_host":                  "https://kibana:5601",
+		"fleet_url":                    "https://fleet-server:8220",
 	})
 
 	resourceManager.RegisterProvider("file", &resource.FileProvider{

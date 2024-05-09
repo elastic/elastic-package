@@ -2,11 +2,11 @@
 {{- $capabilities:= fact "capabilities" -}}
 {{- $pid_mode := fact "pid_mode" -}}
 {{- $ports := fact "ports" -}}
-{{- $custom_script:= fact "custom_script" -}}
+{{- $enable_dockerfile_build := fact "enable_dockerfile_build" -}}
 services:
   elastic-agent:
     hostname: ${AGENT_HOSTNAME}
-    {{ if ne $custom_script "" }}
+    {{ if eq $enable_dockerfile_build "true" }}
     image: "${ELASTIC_AGENT_IMAGE_REF}-custom"
     build:
       context: .
