@@ -1431,56 +1431,9 @@ func (r *runner) validateTestScenario(ctx context.Context, result *testrunner.Re
 		return result.WithError(err)
 	}
 
-	atLeast814, err := semver.NewConstraint(">=8.14")
+	err = validateIgnoredFields(r.stackVersion.Number, scenario, config)
 	if err != nil {
-		// Pre 8.14 Elasticsearch commonly has event.original not mapped correctly, exclude from check: https://github.com/elastic/elasticsearch/pull/106714
-		return nil, fmt.Errorf("failed to parse version constraint: %w", err)
-	}
-	skipIgnoredFields := append([]string(nil), config.SkipIgnoredFields...)
-	isAtLeast814 := atLeast814.Check(semver.MustParse(r.stackVersion.Number))
-	if !isAtLeast814 {
-		skipIgnoredFields = append(skipIgnoredFields, "event.original")
-	}
-
-	ignoredFields := make([]string, 0, len(scenario.ignoredFields))
-
-	for _, field := range scenario.ignoredFields {
-		// check whether field name shows up in config.SkipIgnoredFields which is a list of fields
-		// that are expected to be ignored - we need to iterate over the list to find the field
-		shouldSkip := false
-		for _, skipField := range skipIgnoredFields {
-			if field == skipField {
-				shouldSkip = true
-				break
-			}
-		}
-
-		if !shouldSkip {
-			ignoredFields = append(ignoredFields, field)
-		}
-	}
-
-	if len(ignoredFields) > 0 {
-		issues := make([]struct {
-			ID            any `json:"_id"`
-			Timestamp     any `json:"@timestamp,omitempty"`
-			IgnoredFields any `json:"ignored_field_values"`
-		}, len(scenario.degradedDocs))
-		for i, d := range scenario.degradedDocs {
-			issues[i].ID = d["_id"]
-			if source, ok := d["_source"].(map[string]any); ok {
-				if ts, ok := source["@timestamp"]; ok {
-					issues[i].Timestamp = ts
-				}
-			}
-			issues[i].IgnoredFields = d["ignored_field_values"]
-		}
-		degradedDocsJSON, err := json.MarshalIndent(issues, "", "  ")
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal degraded docs to JSON: %w", err)
-		}
-
-		return result.WithError(fmt.Errorf("found ignored fields in data stream %s: %v. Affected documents: %s", scenario.dataStream, ignoredFields, degradedDocsJSON))
+		return result.WithError(err)
 	}
 
 	docs := scenario.docs
@@ -2038,6 +1991,51 @@ func validateFields(docs []common.MapStr, fieldsValidator *fields.Validator, dat
 			Reason:  fmt.Sprintf("one or more errors found in documents stored in %s data stream", dataStream),
 			Details: multiErr.Error(),
 		}
+	}
+
+	return nil
+}
+
+func validateIgnoredFields(stackVersionString string, scenario *scenarioTest, config *testConfig) error {
+	skipIgnoredFields := append([]string(nil), config.SkipIgnoredFields...)
+	stackVersion, err := semver.NewVersion(stackVersionString)
+	if err != nil {
+		return fmt.Errorf("failed to parse stack version: %w", err)
+	}
+	if stackVersion.LessThan(semver.MustParse("8.14.0")) {
+		// Pre 8.14 Elasticsearch commonly has event.original not mapped correctly, exclude from check: https://github.com/elastic/elasticsearch/pull/106714
+		skipIgnoredFields = append(skipIgnoredFields, "event.original")
+	}
+
+	ignoredFields := make([]string, 0, len(scenario.ignoredFields))
+
+	for _, field := range scenario.ignoredFields {
+		if !slices.Contains(skipIgnoredFields, field) {
+			ignoredFields = append(ignoredFields, field)
+		}
+	}
+
+	if len(ignoredFields) > 0 {
+		issues := make([]struct {
+			ID            any `json:"_id"`
+			Timestamp     any `json:"@timestamp,omitempty"`
+			IgnoredFields any `json:"ignored_field_values"`
+		}, len(scenario.degradedDocs))
+		for i, d := range scenario.degradedDocs {
+			issues[i].ID = d["_id"]
+			if source, ok := d["_source"].(map[string]any); ok {
+				if ts, ok := source["@timestamp"]; ok {
+					issues[i].Timestamp = ts
+				}
+			}
+			issues[i].IgnoredFields = d["ignored_field_values"]
+		}
+		degradedDocsJSON, err := json.MarshalIndent(issues, "", "  ")
+		if err != nil {
+			return fmt.Errorf("failed to marshal degraded docs to JSON: %w", err)
+		}
+
+		return fmt.Errorf("found ignored fields in data stream %s: %v. Affected documents: %s", scenario.dataStream, ignoredFields, degradedDocsJSON)
 	}
 
 	return nil
