@@ -1,15 +1,16 @@
 #!/bin/sh
+{{ $script_path := "/tmp/pre_start" }}
 
 set -eu
 
 # Pre-start commands
-echo <<EOF > pre_start
+echo <<EOF > {{ $script_path }}
 {{ fact "pre_start_script_contents" }}
 EOF
 
-{{ fact "pre_start_script_language" }} pre_start
+{{ fact "pre_start_script_language" }} {{ $script_path }}
 
-rm pre_start
+rm {{ $script_path }}
 
 # Required to add "-s" since tini is not running as PID 1
 /usr/bin/tini -s -- /usr/local/bin/docker-entrypoint $@
