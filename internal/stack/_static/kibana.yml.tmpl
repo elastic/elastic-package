@@ -43,6 +43,10 @@ xpack.fleet.enableExperimental: ["experimentalDataStreamSettings"] # Enable expe
 
 xpack.encryptedSavedObjects.encryptionKey: "12345678901234567890123456789012"
 
+{{ if not (semverLessThan $version "8.2.0") }}
+xpack.cloudSecurityPosture.enabled: true
+{{ end }}
+
 {{ $self_monitor_enabled := fact "self_monitor_enabled" }}
 {{ if not (semverLessThan $version "8.0.0") }}
 xpack.fleet.packages:
@@ -138,180 +142,10 @@ xpack.fleet.outputs:
 {{ $serverless_project_type := fact "serverless_project_type" }}
 {{ if eq $serverless_enabled "true" }}
   {{ if eq $serverless_project_type "observability" }}
-# Observability Project config
-
-## Disable plugins
-enterpriseSearch.enabled: false
-xpack.cloudSecurityPosture.enabled: false
-xpack.infra.enabled: true
-xpack.securitySolution.enabled: false
-
-## Cloud settings
-xpack.cloud.serverless.project_type: observability
-
-## Enable the Serverless Observability plugin
-xpack.serverless.observability.enabled: true
-
-## Configure plugins
-
-## Set the home route
-uiSettings.overrides.defaultRoute: /app/observability/landing
-
-# Customize empty page state for analytics apps
-#no_data_page.analyticsNoDataPageFlavor: 'serverless_observability'
-
-## Set the dev project switch current type
-xpack.serverless.plugin.developer.projectSwitcher.currentType: 'observability'
-
-## Disable adding the component template `.fleet_agent_id_verification-1` to every index template for each datastream for each integration
-xpack.fleet.agentIdVerificationEnabled: false
-
-## Enable the capability for the observability feature ID in the serverless environment to take ownership of the rules.
-## The value need to be a featureId observability Or stackAlerts Or siem
-xpack.alerting.rules.overwriteProducer: 'observability'
-xpack.observability.createO11yGenericFeatureId: true
-
-## APM Serverless Onboarding flow
-#xpack.apm.serverlessOnboarding: true
-
-# Synthetics mTLS cert locations
-#xpack.uptime.service.tls.certificate: /mnt/elastic-internal/http-certs/tls.crt
-#xpack.uptime.service.tls.key: /mnt/elastic-internal/http-certs/tls.key
-
-# Fleet specific configuration
-xpack.fleet.internal.registry.capabilities: [
-  'apm',
-  'observability',
-  'uptime',
-]
-xpack.fleet.internal.registry.kibanaVersionCheckEnabled: false
-xpack.fleet.internal.registry.spec.max: '3.0'
-# Temporary until all packages implement new spec https://github.com/elastic/kibana/issues/166742
-xpack.fleet.internal.registry.spec.min: '1.0'
-xpack.fleet.internal.registry.excludePackages: [
-    # Security integrations
-    'endpoint',
-    'beaconing',
-    'osquery_manager',
-
-    # Removed in 8.11 integrations
-    'cisco',
-    'microsoft',
-    'symantec',
-    'cyberark',
-
-    # ML integrations
-    'dga',
-
-    # Profiling integrations
-    'profiler_agent',
-  ]
-
-## Required for force installation of integration packages
-#xpack.fleet.packages:
-#  # fleet_server package installed to publish agent metrics
-#  - name: fleet_server
-#    version: latest
-## Disable APM UI components and API calls
-#xpack.apm.featureFlags.agentConfigurationAvailable: false
-xpack.apm.featureFlags.agentConfigurationAvailable: true
-#xpack.apm.featureFlags.configurableIndicesAvailable: true
-xpack.apm.featureFlags.infrastructureTabAvailable: true
-xpack.apm.featureFlags.infraUiAvailable: true
-#xpack.apm.featureFlags.migrationToFleetAvailable: false
-xpack.apm.featureFlags.migrationToFleetAvailable: true
-#xpack.apm.featureFlags.sourcemapApiAvailable: false
-xpack.apm.featureFlags.sourcemapApiAvailable: true
-#xpack.apm.featureFlags.storageExplorerAvailable: false
-xpack.apm.featureFlags.storageExplorerAvailable: true
-
-# Specify in telemetry the project type
-#telemetry.labels.serverless: observability
-
-xpack.ml.ad.enabled: true
-xpack.ml.dfa.enabled: false
-xpack.ml.nlp.enabled: false
-xpack.ml.compatibleModuleType: 'observability'
-
-# Disable the embedded Dev Console
-console.ui.embeddedEnabled: false
+serverless: oblt
   {{ end }}
   {{ if eq $serverless_project_type "security" }}
-# Security Project config
-
-## Disable plugins
-enterpriseSearch.enabled: false
-xpack.apm.enabled: false
-xpack.infra.enabled: false
-xpack.observabilityLogsExplorer.enabled: false
-xpack.observability.enabled: false
-
-## Cloud settings
-xpack.cloud.serverless.project_type: security
-
-## Enable the Security Solution Serverless plugin
-xpack.securitySolutionServerless.enabled: true
-xpack.securitySolutionServerless.productTypes:
-  [
-    { product_line: 'security', product_tier: 'complete' },
-    { product_line: 'endpoint', product_tier: 'complete' },
-    { product_line: 'cloud', product_tier: 'complete' },
-  ]
-
-xpack.securitySolution.offeringSettings: {
-    sideNavEnabled: false, # Internal security side navigation disabled, the serverless global chrome navigation is used instead
-    ILMEnabled: false, # Index Lifecycle Management (ILM) functionalities disabled, not supported by serverless Elasticsearch
-    ESQLEnabled: false, # ES|QL disabled, not supported by serverless Elasticsearch
-  }
-
-newsfeed.enabled: true
-
-## Set the home route
-uiSettings.overrides.defaultRoute: /app/security/get_started
-
-## Set the dev project switcher current type
-xpack.serverless.plugin.developer.projectSwitcher.currentType: 'security'
-
-# Specify in telemetry the project type
-#telemetry.labels.serverless: security
-
-# Fleet specific configuration
-xpack.fleet.internal.registry.capabilities: ['security']
-xpack.fleet.internal.registry.spec.max: '3.0'
-xpack.fleet.internal.registry.kibanaVersionCheckEnabled: false
-# Temporary until all packages implement new spec https://github.com/elastic/kibana/issues/166742
-xpack.fleet.internal.registry.spec.min: '1.0'
-xpack.fleet.internal.registry.excludePackages: [
-    # Oblt integrations
-    'apm',
-    'synthetics',
-    'synthetics_dashboards',
-
-    # Removed in 8.11 integrations
-    'cisco',
-    'microsoft',
-    'symantec',
-    'cyberark',
-
-    # ML integrations
-    'dga',
-  ]
-# fleet_server package installed to publish agent metrics
-#xpack.fleet.packages:
-#  - name: fleet_server
-#    version: latest
-
-xpack.ml.ad.enabled: true
-xpack.ml.dfa.enabled: true
-xpack.ml.nlp.enabled: false
-xpack.ml.compatibleModuleType: 'security'
-
-# Disable the embedded Dev Console
-console.ui.embeddedEnabled: false
-  {{ end }}
-{{ else }}
-  {{ if not (semverLessThan $version "8.2.0") }}
-xpack.cloudSecurityPosture.enabled: true
+serverless: security
   {{ end }}
 {{ end }}
 

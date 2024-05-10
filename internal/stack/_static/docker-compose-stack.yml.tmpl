@@ -4,13 +4,17 @@
 {{ $serverless_enabled := fact "serverless_enabled" }}
 services:
   elasticsearch:
+{{ if eq $serverless_enabled "true" }}
+    image: "docker.elastic.co/kibana-ci/elasticsearch-serverless:latest-verified"
+{{ else }}
     image: "${ELASTICSEARCH_IMAGE_REF}"
+{{ end }}
     healthcheck:
       test: "curl -s --cacert /usr/share/elasticsearch/config/certs/ca-cert.pem -f -u {{ $username }}:{{ $password }} https://127.0.0.1:9200/_cat/health | cut -f4 -d' ' | grep -E '(green|yellow)'"
       start_period: 300s
       interval: 5s
     environment:
-      - "ES_JAVA_OPTS=-Xms1g -Xmx1g -Des.serverless={{ $serverless_enabled }}"
+      - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
       - "ELASTIC_PASSWORD={{ $password }}"
     volumes:
       - "./elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml"
@@ -27,7 +31,11 @@ services:
         condition: service_healthy
 
   kibana:
+{{ if eq $serverless_enabled "true" }}
+    image: "docker.elastic.co/kibana-ci/kibana-serverless:latest"
+{{ else }}
     image: "${KIBANA_IMAGE_REF}"
+{{ end }}
     depends_on:
       elasticsearch:
         condition: service_healthy
