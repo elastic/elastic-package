@@ -13,7 +13,7 @@ const (
 	elasticAgentTagsEnv = "ELASTIC_AGENT_TAGS"
 
 	DefaultAgentRuntime             = "docker"
-	DefaultAgentProgrammingLanguage = "bash"
+	DefaultAgentProgrammingLanguage = "sh"
 )
 
 type AgentScript struct {
