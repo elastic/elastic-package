@@ -13,7 +13,7 @@ agent:
       { "contents": "Message from file", "file": "logs.json"}
       EOF
   pre_start_script:
-    language: bash
+    language: sh
     contents: |
       export PATH=${PATH}:/custom/paths
       mkdir -p /tmp/other/path
