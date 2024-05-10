@@ -272,6 +272,7 @@ func (d *DockerComposeAgentDeployer) installDockerCompose(agentInfo AgentInfo) (
 		"kibana_host":     "https://kibana:5601",
 		"fleet_url":       "https://fleet-server:8220",
 		"dockerfile_hash": hex.EncodeToString(hashDockerfile),
+		"stack_version":   d.stackVersion,
 	})
 
 	resourceManager.RegisterProvider("file", &resource.FileProvider{
