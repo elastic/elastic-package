@@ -6,8 +6,9 @@ FROM $ES_AGENT_IMAGE
 {{- $provisioning_script_language := fact "provisioning_script_language" }}
 {{- $provisioning_script_contents := fact "provisioning_script_contents" }}
 {{- $entrypoint_script_filename := fact "entrypoint_script_filename" }}
+{{- $agent_name := fact "agent_name" }}
 
-{{- $entrypoint_path := "/usr/local/bin/custom-entrypoint.sh" }}
+{{- $entrypoint_path := (print "/usr/local/bin/" $agent_name "-entrypoint.sh") }}
 
 USER root
 

@@ -252,7 +252,7 @@ func (d *DockerComposeAgentDeployer) installDockerCompose(agentInfo AgentInfo) (
 
 	hashDockerfile := []byte{}
 	if agentInfo.Agent.ProvisioningScript.Contents != "" || agentInfo.Agent.PreStartScript.Contents != "" {
-		err = installDockerfileResources(agentInfo.Agent.AgentSettings, customAgentDir)
+		err = d.installDockerfileResources(agentInfo.Agent.AgentSettings, customAgentDir)
 		if err != nil {
 			return "", fmt.Errorf("failed to create dockerfile resources: %w", err)
 		}
@@ -292,7 +292,7 @@ func (d *DockerComposeAgentDeployer) installDockerCompose(agentInfo AgentInfo) (
 	return customAgentDir, nil
 }
 
-func installDockerfileResources(agentSettings AgentSettings, folder string) error {
+func (d *DockerComposeAgentDeployer) installDockerfileResources(agentSettings AgentSettings, folder string) error {
 	agentResources := []resource.Resource{
 		&resource.File{
 			Path:    dockerTestAgentDockerfile,
@@ -320,6 +320,7 @@ func installDockerfileResources(agentSettings AgentSettings, folder string) erro
 		"provisioning_script_filename": customScriptFilename,
 		"pre_start_script_contents":    agentSettings.PreStartScript.Contents,
 		"entrypoint_script_filename":   customEntrypointFilename,
+		"agent_name":                   d.agentName(),
 	})
 
 	resourceManager.RegisterProvider("file", &resource.FileProvider{
