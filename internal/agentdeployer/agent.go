@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
@@ -251,80 +250,86 @@ func (d *DockerComposeAgentDeployer) installDockerCompose(agentInfo AgentInfo) (
 		return "", fmt.Errorf("failed to create directory for custom agent files: %w", err)
 	}
 
-	agentResources := []resource.Resource{}
-	enableDockerfileBuild := false
+	hashDockerfile := []byte{}
 	if agentInfo.Agent.ProvisioningScript.Contents != "" || agentInfo.Agent.PreStartScript.Contents != "" {
-		enableDockerfileBuild = true
-		agentResources = append(agentResources, &resource.File{
-			Path:    dockerTestAgentDockerfile,
-			Content: staticSource.Template("_static/dockerfile.tmpl"),
-		})
-	}
-	if agentInfo.Agent.ProvisioningScript.Contents != "" {
-		agentResources = append(agentResources, &resource.File{
-			Path:    customScriptFilename,
-			Mode:    resource.FileMode(0o755),
-			Content: resource.FileContentLiteral(agentInfo.Agent.ProvisioningScript.Contents),
-		})
-	}
-	if agentInfo.Agent.PreStartScript.Contents != "" {
-		agentResources = append(agentResources, &resource.File{
-			Path:    customEntrypointFilename,
-			Mode:    resource.FileMode(0o755),
-			Content: staticSource.Template("_static/custom-entrypoint.sh.tmpl"),
-		})
+		err = installDockerfileResources(agentInfo.Agent.AgentSettings, customAgentDir)
+		if err != nil {
+			return "", fmt.Errorf("failed to create dockerfile resources: %w", err)
+		}
+		hashDockerfile, err = hashFile(filepath.Join(customAgentDir, dockerTestAgentDockerfile))
+		if err != nil {
+			return "", fmt.Errorf("failed to obtain has for Elastic Agent Dockerfile: %w", err)
+		}
 	}
 
 	resourceManager := resource.NewManager()
 	resourceManager.AddFacter(resource.StaticFacter{
-		"user":                         agentInfo.Agent.User,
-		"capabilities":                 strings.Join(agentInfo.Agent.LinuxCapabilities, ","),
-		"runtime":                      agentInfo.Agent.Runtime,
-		"pid_mode":                     agentInfo.Agent.PidMode,
-		"ports":                        strings.Join(agentInfo.Agent.Ports, ","),
-		"enable_dockerfile_build":      strconv.FormatBool(enableDockerfileBuild),
-		"provisioning_script_contents": agentInfo.Agent.ProvisioningScript.Contents,
-		"provisioning_script_language": agentInfo.Agent.ProvisioningScript.Language,
-		"provisioning_script_filename": customScriptFilename,
-		"pre_start_script_contents":    agentInfo.Agent.PreStartScript.Contents,
-		"pre_start_script_language":    agentInfo.Agent.PreStartScript.Language,
-		"entrypoint_script_filename":   customEntrypointFilename,
-		"kibana_host":                  "https://kibana:5601",
-		"fleet_url":                    "https://fleet-server:8220",
+		"user":            agentInfo.Agent.User,
+		"capabilities":    strings.Join(agentInfo.Agent.LinuxCapabilities, ","),
+		"runtime":         agentInfo.Agent.Runtime,
+		"pid_mode":        agentInfo.Agent.PidMode,
+		"ports":           strings.Join(agentInfo.Agent.Ports, ","),
+		"kibana_host":     "https://kibana:5601",
+		"fleet_url":       "https://fleet-server:8220",
+		"dockerfile_hash": hex.EncodeToString(hashDockerfile),
 	})
 
 	resourceManager.RegisterProvider("file", &resource.FileProvider{
 		Prefix: customAgentDir,
 	})
 
-	hashDockerfile := []byte{}
-	if enableDockerfileBuild {
-		results, err := resourceManager.Apply(agentResources)
-		if err != nil {
-			return "", fmt.Errorf("%w: %s", err, processApplyErrors(results))
-		}
-
-		hashDockerfile, err = hashFile(filepath.Join(customAgentDir, dockerTestAgentDockerfile))
-		if err != nil {
-			return "", fmt.Errorf("failed to obtain has for Elastic Agent Dockerfile: %w", err)
-
-		}
-	}
-	agentResources = []resource.Resource{
+	agentResources := []resource.Resource{
 		&resource.File{
 			Path:    dockerTestAgentDockerCompose,
 			Content: staticSource.Template("_static/docker-agent-base.yml.tmpl"),
 		},
 	}
-	resourceManager.AddFacter(resource.StaticFacter{
-		"dockerfile_hash": hex.EncodeToString(hashDockerfile),
-	})
 	results, err := resourceManager.Apply(agentResources)
 	if err != nil {
 		return "", fmt.Errorf("%w: %s", err, processApplyErrors(results))
 	}
 
 	return customAgentDir, nil
+}
+
+func installDockerfileResources(agentSettings AgentSettings, folder string) error {
+	agentResources := []resource.Resource{
+		&resource.File{
+			Path:    dockerTestAgentDockerfile,
+			Content: staticSource.Template("_static/dockerfile.tmpl"),
+		},
+	}
+	if agentSettings.ProvisioningScript.Contents != "" {
+		agentResources = append(agentResources, &resource.File{
+			Path:    customScriptFilename,
+			Mode:    resource.FileMode(0o755),
+			Content: resource.FileContentLiteral(agentSettings.ProvisioningScript.Contents),
+		})
+	}
+	if agentSettings.PreStartScript.Contents != "" {
+		agentResources = append(agentResources, &resource.File{
+			Path:    customEntrypointFilename,
+			Mode:    resource.FileMode(0o755),
+			Content: staticSource.Template("_static/custom-entrypoint.sh.tmpl"),
+		})
+	}
+	resourceManager := resource.NewManager()
+	resourceManager.AddFacter(resource.StaticFacter{
+		"provisioning_script_contents": agentSettings.ProvisioningScript.Contents,
+		"provisioning_script_language": agentSettings.ProvisioningScript.Language,
+		"provisioning_script_filename": customScriptFilename,
+		"pre_start_script_contents":    agentSettings.PreStartScript.Contents,
+		"entrypoint_script_filename":   customEntrypointFilename,
+	})
+
+	resourceManager.RegisterProvider("file", &resource.FileProvider{
+		Prefix: folder,
+	})
+	results, err := resourceManager.Apply(agentResources)
+	if err != nil {
+		return fmt.Errorf("%w: %s", err, processApplyErrors(results))
+	}
+	return nil
 }
 
 func hashFile(path string) ([]byte, error) {
