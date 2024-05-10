@@ -99,6 +99,11 @@ for package in $(find . -maxdepth 1 -mindepth 1 -type d) ; do
         continue
     fi
 
+    if [[ "$independent_agent" == "false" && "$package_name" == "custom_entrypoint" ]]; then
+        echoerr "Package \"${package_name}\" skipped: not supported with Elastic Agent running in the stack (missing required files deployed in provisioning)."
+        continue
+    fi
+
     echo "      - label: \":go: Integration test: ${package_name}${label_suffix}\""
     echo "        key: \"integration-parallel-${package_name}-agent-${independent_agent}\""
     echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-check-packages-parallel -p ${package_name}"
