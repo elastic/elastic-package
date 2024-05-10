@@ -6,7 +6,9 @@ package agentdeployer
 
 import (
 	"context"
+	"crypto/md5"
 	"embed"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -119,7 +121,7 @@ func (d *DockerComposeAgentDeployer) SetUp(ctx context.Context, agentInfo AgentI
 		fmt.Sprintf("%s=%s", agentHostnameEnv, d.agentHostname()),
 	)
 
-	configDir, err := d.installDockerfile(agentInfo)
+	configDir, err := d.installDockerCompose(agentInfo)
 	if err != nil {
 		return nil, fmt.Errorf("could not create resources for custom agent: %w", err)
 	}
@@ -241,20 +243,15 @@ func (d *DockerComposeAgentDeployer) agentName() string {
 	return name
 }
 
-// installDockerfile creates the files needed to run the custom elastic agent and returns
+// installDockerCompose creates the files needed to run the custom elastic agent and returns
 // the directory with these files.
-func (d *DockerComposeAgentDeployer) installDockerfile(agentInfo AgentInfo) (string, error) {
+func (d *DockerComposeAgentDeployer) installDockerCompose(agentInfo AgentInfo) (string, error) {
 	customAgentDir, err := CreateDeployerDir(d.profile, fmt.Sprintf("docker-agent-%s-%s", d.agentName(), d.agentRunID))
 	if err != nil {
 		return "", fmt.Errorf("failed to create directory for custom agent files: %w", err)
 	}
 
-	agentResources := []resource.Resource{
-		&resource.File{
-			Path:    dockerTestAgentDockerCompose,
-			Content: staticSource.Template("_static/docker-agent-base.yml.tmpl"),
-		},
-	}
+	agentResources := []resource.Resource{}
 	enableDockerfileBuild := false
 	if agentInfo.Agent.ProvisioningScript.Contents != "" || agentInfo.Agent.PreStartScript.Contents != "" {
 		enableDockerfileBuild = true
@@ -300,18 +297,53 @@ func (d *DockerComposeAgentDeployer) installDockerfile(agentInfo AgentInfo) (str
 		Prefix: customAgentDir,
 	})
 
+	hashDockerfile := []byte{}
+	if enableDockerfileBuild {
+		results, err := resourceManager.Apply(agentResources)
+		if err != nil {
+			return "", fmt.Errorf("%w: %s", err, processApplyErrors(results))
+		}
+
+		hashDockerfile, err = hashFile(filepath.Join(customAgentDir, dockerTestAgentDockerfile))
+		if err != nil {
+			return "", fmt.Errorf("failed to obtain has for Elastic Agent Dockerfile: %w", err)
+
+		}
+	}
+	agentResources = []resource.Resource{
+		&resource.File{
+			Path:    dockerTestAgentDockerCompose,
+			Content: staticSource.Template("_static/docker-agent-base.yml.tmpl"),
+		},
+	}
+	resourceManager.AddFacter(resource.StaticFacter{
+		"dockerfile_hash": hex.EncodeToString(hashDockerfile),
+	})
 	results, err := resourceManager.Apply(agentResources)
 	if err != nil {
-		var errors []string
-		for _, result := range results {
-			if err := result.Err(); err != nil {
-				errors = append(errors, err.Error())
-			}
-		}
-		return "", fmt.Errorf("%w: %s", err, strings.Join(errors, ", "))
+		return "", fmt.Errorf("%w: %s", err, processApplyErrors(results))
 	}
 
 	return customAgentDir, nil
+}
+
+func hashFile(path string) ([]byte, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return []byte{}, err
+	}
+	dockerfileMD5 := md5.Sum(data)
+	return dockerfileMD5[:], nil
+}
+
+func processApplyErrors(results resource.ApplyResults) string {
+	var errors []string
+	for _, result := range results {
+		if err := result.Err(); err != nil {
+			errors = append(errors, err.Error())
+		}
+	}
+	return strings.Join(errors, ", ")
 }
 
 // ExitCode returns true if the agent is exited and its exit code.

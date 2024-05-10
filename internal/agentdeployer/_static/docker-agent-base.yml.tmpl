@@ -3,11 +3,12 @@
 {{- $pid_mode := fact "pid_mode" -}}
 {{- $ports := fact "ports" -}}
 {{- $enable_dockerfile_build := fact "enable_dockerfile_build" -}}
+{{- $dockerfile_hash := fact "dockerfile_hash" -}}
 services:
   elastic-agent:
     hostname: ${AGENT_HOSTNAME}
     {{ if eq $enable_dockerfile_build "true" }}
-    image: "${ELASTIC_AGENT_IMAGE_REF}-custom"
+    image: "${ELASTIC_AGENT_IMAGE_REF}-{{ $dockerfile_hash }}"
     build:
       context: .
       args:
