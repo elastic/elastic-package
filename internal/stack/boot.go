@@ -94,10 +94,14 @@ func BootUp(ctx context.Context, options Options) error {
 		// As a workaround, try to give another chance to docker-compose if only
 		// elastic-agent failed.
 		if onlyElasticAgentFailed(ctx, options) && !errors.Is(err, context.Canceled) {
-			sleepTime := 10 * time.Second
+			sleepTime := 2 * time.Second
 			fmt.Printf("Elastic Agent failed to start, trying again in %s.\n", sleepTime)
-			time.Sleep(sleepTime)
-			err = dockerComposeUp(ctx, options)
+			select {
+			case <-time.After(sleepTime):
+				err = dockerComposeUp(ctx, options)
+			case <-ctx.Done():
+				err = ctx.Err()
+			}
 		}
 		if err != nil {
 			return fmt.Errorf("running docker-compose failed: %w", err)
