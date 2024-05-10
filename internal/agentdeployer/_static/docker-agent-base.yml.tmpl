@@ -7,7 +7,7 @@ services:
   elastic-agent:
     hostname: ${AGENT_HOSTNAME}
     {{ if ne $dockerfile_hash "" }}
-    image: "${ELASTIC_AGENT_IMAGE_REF}-{{ $dockerfile_hash }}"
+    image: "${ELASTIC_AGENT_IMAGE_REF}-ep-{{ $dockerfile_hash }}"
     build:
       context: .
       args:
