@@ -26,6 +26,8 @@ const (
 	paramServerlessProjectType = "serverless_project_type"
 	ParamServerlessFleetURL    = "serverless_fleet_url"
 
+	ParamServerlessLocalStackVersion = "serverless_local_stack_version"
+
 	configRegion          = "stack.serverless.region"
 	configProjectType     = "stack.serverless.type"
 	configElasticCloudURL = "stack.elastic_cloud.host"
@@ -79,6 +81,9 @@ func (sp *serverlessProvider) createProject(ctx context.Context, settings projec
 	config.KibanaHost = project.Endpoints.Kibana
 	config.ElasticsearchUsername = project.Credentials.Username
 	config.ElasticsearchPassword = project.Credentials.Password
+
+	// add stack version set in command line
+	config.Parameters[ParamServerlessLocalStackVersion] = options.StackVersion
 
 	// Store config now in case fails initialization or other requests,
 	// so it can be destroyed later

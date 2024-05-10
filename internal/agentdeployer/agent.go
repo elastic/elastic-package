@@ -268,20 +268,28 @@ func (d *DockerComposeAgentDeployer) installDockerCompose(agentInfo AgentInfo) (
 
 	fleetURL := "https://fleet-server:8220"
 	kibanaHost := "https://kibana:5601"
+	stackVersion := d.stackVersion
 	if config.Provider == stack.ProviderServerless {
 		fleetURL = config.Parameters[stack.ParamServerlessFleetURL]
 		kibanaHost = config.KibanaHost
+		stackVersion = config.Parameters[stack.ParamServerlessLocalStackVersion]
+	}
+
+	appConfig, err := install.Configuration()
+	if err != nil {
+		return "", fmt.Errorf("can't read application configuration: %w", err)
 	}
 
 	resourceManager := resource.NewManager()
 	resourceManager.AddFacter(resource.StaticFacter{
+		"agent_image":            appConfig.StackImageRefs(stackVersion).ElasticAgent,
 		"user":                   agentInfo.Agent.User,
 		"capabilities":           strings.Join(agentInfo.Agent.LinuxCapabilities, ","),
 		"runtime":                agentInfo.Agent.Runtime,
 		"pid_mode":               agentInfo.Agent.PidMode,
 		"ports":                  strings.Join(agentInfo.Agent.Ports, ","),
 		"dockerfile_hash":        hex.EncodeToString(hashDockerfile),
-		"stack_version":          d.stackVersion,
+		"stack_version":          stackVersion,
 		"fleet_url":              fleetURL,
 		"kibana_host":            kibanaHost,
 		"elasticsearch_username": config.ElasticsearchUsername,
