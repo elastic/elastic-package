@@ -40,6 +40,8 @@ services:
       - FLEET_URL={{ fact "fleet_url" }}
       - KIBANA_HOST={{ fact "kibana_host" }}
       - FLEET_TOKEN_POLICY_NAME=${FLEET_TOKEN_POLICY_NAME}
+      - ELASTICSEARCH_USERNAME={{ fact "elasticsearch_username" }}
+      - ELASTICSEARCH_PASSWORD={{ fact "elasticsearch_password" }}
     volumes:
       - type: bind
         source: ${LOCAL_CA_CERT}

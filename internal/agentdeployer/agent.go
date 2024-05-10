@@ -261,18 +261,31 @@ func (d *DockerComposeAgentDeployer) installDockerCompose(agentInfo AgentInfo) (
 			return "", fmt.Errorf("failed to obtain has for Elastic Agent Dockerfile: %w", err)
 		}
 	}
+	config, err := stack.LoadConfig(d.profile)
+	if err != nil {
+		return "", fmt.Errorf("failed to load config from profile: %w", err)
+	}
+
+	fleetURL := "https://fleet-server:8220"
+	kibanaHost := "https://kibana:5601"
+	if config.Provider == stack.ProviderServerless {
+		fleetURL = config.Parameters[stack.ParamServerlessFleetURL]
+		kibanaHost = config.KibanaHost
+	}
 
 	resourceManager := resource.NewManager()
 	resourceManager.AddFacter(resource.StaticFacter{
-		"user":            agentInfo.Agent.User,
-		"capabilities":    strings.Join(agentInfo.Agent.LinuxCapabilities, ","),
-		"runtime":         agentInfo.Agent.Runtime,
-		"pid_mode":        agentInfo.Agent.PidMode,
-		"ports":           strings.Join(agentInfo.Agent.Ports, ","),
-		"kibana_host":     "https://kibana:5601",
-		"fleet_url":       "https://fleet-server:8220",
-		"dockerfile_hash": hex.EncodeToString(hashDockerfile),
-		"stack_version":   d.stackVersion,
+		"user":                   agentInfo.Agent.User,
+		"capabilities":           strings.Join(agentInfo.Agent.LinuxCapabilities, ","),
+		"runtime":                agentInfo.Agent.Runtime,
+		"pid_mode":               agentInfo.Agent.PidMode,
+		"ports":                  strings.Join(agentInfo.Agent.Ports, ","),
+		"dockerfile_hash":        hex.EncodeToString(hashDockerfile),
+		"stack_version":          d.stackVersion,
+		"fleet_url":              fleetURL,
+		"kibana_host":            kibanaHost,
+		"elasticsearch_username": config.ElasticsearchUsername,
+		"elasticsearch_password": config.ElasticsearchPassword,
 	})
 
 	resourceManager.RegisterProvider("file", &resource.FileProvider{
