@@ -1,0 +1,32 @@
+ARG ES_AGENT_IMAGE
+FROM $ES_AGENT_IMAGE
+
+{{- $pre_start_script_contents := fact "pre_start_script_contents" }}
+{{- $provisioning_script_filename := fact "provisioning_script_filename" }}
+{{- $provisioning_script_language := fact "provisioning_script_language" }}
+{{- $provisioning_script_contents := fact "provisioning_script_contents" }}
+{{- $entrypoint_script_filename := fact "entrypoint_script_filename" }}
+{{- $agent_name := fact "agent_name" }}
+
+{{- $entrypoint_path := (print "/usr/local/bin/" $agent_name "-entrypoint.sh") }}
+
+USER root
+
+{{ if ne $provisioning_script_contents "" }}
+COPY {{ $provisioning_script_filename }} .
+RUN chmod u+x {{ $provisioning_script_filename }} && \
+  {{ $provisioning_script_language }} ./{{ $provisioning_script_filename }} && \
+  rm {{ $provisioning_script_filename }}
+{{ end }}
+
+{{ if ne $pre_start_script_contents "" }}
+COPY {{ $entrypoint_script_filename }} {{ $entrypoint_path }}
+RUN chmod a+x {{ $entrypoint_path }}
+{{ end }}
+
+USER elastic-agent
+
+{{ if ne $pre_start_script_contents "" }}
+ENTRYPOINT ["{{ $entrypoint_path }}"]
+CMD [""]
+{{ end }}

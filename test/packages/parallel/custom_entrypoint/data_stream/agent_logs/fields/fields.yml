@@ -1,0 +1,11 @@
+- name: input.type
+  type: keyword
+- name: log.offset
+  type: long
+- name: target
+  type: group
+  fields:
+    - name: contents
+      type: text
+    - name: file
+      type: keyword
