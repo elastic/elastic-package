@@ -1,0 +1,21 @@
+vars: ~
+data_stream:
+  vars:
+    paths:
+      - "/custom/paths/logs.json"
+agent:
+  provisioning_script:
+    language: bash
+    contents: |
+      mkdir -p /custom/paths
+      cd /custom/paths
+      cat <<EOF > logs.json
+      { "contents": "Message from file", "file": "logs.json"}
+      EOF
+  pre_start_script:
+    language: sh
+    contents: |
+      export PATH=${PATH}:/custom/paths
+      mkdir -p /tmp/other/path
+      cd /tmp/other/path
+      echo "Pre-start: Current directory $(pwd)"

@@ -367,11 +367,8 @@ func (r *runner) createAgentInfo(policy *kibana.Policy, config *testConfig, runI
 	info.Policy.Name = policy.Name
 	info.Policy.ID = policy.ID
 
-	info.Agent.User = config.Agent.User
-	info.Agent.LinuxCapabilities = config.Agent.LinuxCapabilities
-	info.Agent.Runtime = config.Agent.Runtime
-	info.Agent.PidMode = config.Agent.PidMode
-	info.Agent.Ports = config.Agent.Ports
+	// Copy all agent settings from the test configuration file
+	info.Agent.AgentSettings = config.Agent.AgentSettings
 
 	// If user is defined in the configuration file, it has preference
 	// and it should not be overwritten by the value in the manifest

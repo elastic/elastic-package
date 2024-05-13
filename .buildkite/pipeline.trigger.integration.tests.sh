@@ -3,6 +3,10 @@
 # exit immediately on failure, or if an undefined variable is used
 set -eu
 
+echoerr() {
+    echo "$@" 1>&2
+}
+
 # begin the pipeline.yml file
 echo "steps:"
 echo "  - group: \":terminal: Integration test suite\""
@@ -89,6 +93,17 @@ for package in $(find . -maxdepth 1 -mindepth 1 -type d) ; do
         label_suffix=" (independent agent)"
     fi
     package_name=$(basename "${package}")
+
+    if [[ "$independent_agent" == "false" && "$package_name" == "oracle" ]]; then
+        echoerr "Package \"${package_name}\" skipped: not supported with Elastic Agent running in the stack (missing required software)."
+        continue
+    fi
+
+    if [[ "$independent_agent" == "false" && "$package_name" == "custom_entrypoint" ]]; then
+        echoerr "Package \"${package_name}\" skipped: not supported with Elastic Agent running in the stack (missing required files deployed in provisioning)."
+        continue
+    fi
+
     echo "      - label: \":go: Integration test: ${package_name}${label_suffix}\""
     echo "        key: \"integration-parallel-${package_name}-agent-${independent_agent}\""
     echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-check-packages-parallel -p ${package_name}"

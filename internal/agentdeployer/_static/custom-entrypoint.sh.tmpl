@@ -1,0 +1,10 @@
+#!/bin/sh
+
+set -eu
+
+# Pre-start commands
+# Currently, these commands must be a "sh" script
+{{ fact "pre_start_script_contents" }}
+
+# Required to add "-s" since tini is not running as PID 1
+/usr/bin/tini -s -- /usr/local/bin/docker-entrypoint $@
