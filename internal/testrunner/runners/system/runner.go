@@ -43,8 +43,40 @@ const (
 	testRunMaxID = 99999
 	testRunMinID = 10000
 
-	allFieldsBody = `{"fields": ["*"]}`
-	DevDeployDir  = "_dev/deploy"
+	checkFieldsBody = `{
+		"fields": ["*"],
+		"runtime_mappings": {
+		  "my_ignored": {
+			"type": "keyword",
+			"script": {
+			  "source": "for (def v : params['_fields']._ignored.values) { emit(v); }"
+			}
+		  }
+		},
+		"aggs": {
+		  "all_ignored": {
+			"filter": {
+			  "exists": {
+				"field": "_ignored"
+			  }
+			},
+			"aggs": {
+			  "ignored_fields": {
+				"terms": {
+				  "size": 100,
+				  "field": "my_ignored"
+				}
+			  },
+			  "ignored_docs": {
+				"top_hits": {
+				  "size": 5
+				}
+			  }
+			}
+		  }
+		}
+	  }`
+	DevDeployDir = "_dev/deploy"
 )
 
 func init() {
@@ -678,8 +710,10 @@ func (r *runner) isSyntheticsEnabled(ctx context.Context, dataStream, componentT
 }
 
 type hits struct {
-	Source []common.MapStr `json:"_source"`
-	Fields []common.MapStr `json:"fields"`
+	Source        []common.MapStr `json:"_source"`
+	Fields        []common.MapStr `json:"fields"`
+	IgnoredFields []string
+	DegradedDocs  []common.MapStr
 }
 
 func (h hits) getDocs(syntheticsEnabled bool) []common.MapStr {
@@ -700,7 +734,7 @@ func (r *runner) getDocs(ctx context.Context, dataStream string) (*hits, error) 
 		r.options.API.Search.WithSort("@timestamp:asc"),
 		r.options.API.Search.WithSize(elasticsearchQuerySize),
 		r.options.API.Search.WithSource("true"),
-		r.options.API.Search.WithBody(strings.NewReader(allFieldsBody)),
+		r.options.API.Search.WithBody(strings.NewReader(checkFieldsBody)),
 		r.options.API.Search.WithIgnoreUnavailable(true),
 	)
 	if err != nil {
@@ -727,6 +761,21 @@ func (r *runner) getDocs(ctx context.Context, dataStream string) (*hits, error) 
 				Fields common.MapStr `json:"fields"`
 			}
 		}
+		Aggregations struct {
+			AllIgnored struct {
+				DocCount      int `json:"doc_count"`
+				IgnoredFields struct {
+					Buckets []struct {
+						Key string `json:"key"`
+					} `json:"buckets"`
+				} `json:"ignored_fields"`
+				IgnoredDocs struct {
+					Hits struct {
+						Hits []common.MapStr `json:"hits"`
+					} `json:"hits"`
+				} `json:"ignored_docs"`
+			} `json:"all_ignored"`
+		} `json:"aggregations"`
 		Error *struct {
 			Type   string
 			Reason string
@@ -751,6 +800,10 @@ func (r *runner) getDocs(ctx context.Context, dataStream string) (*hits, error) 
 		hits.Source = append(hits.Source, hit.Source)
 		hits.Fields = append(hits.Fields, hit.Fields)
 	}
+	for _, bucket := range results.Aggregations.AllIgnored.IgnoredFields.Buckets {
+		hits.IgnoredFields = append(hits.IgnoredFields, bucket.Key)
+	}
+	hits.DegradedDocs = results.Aggregations.AllIgnored.IgnoredDocs.Hits.Hits
 
 	return &hits, nil
 }
@@ -763,6 +816,8 @@ type scenarioTest struct {
 	kibanaDataStream   kibana.PackageDataStream
 	syntheticEnabled   bool
 	docs               []common.MapStr
+	ignoredFields      []string
+	degradedDocs       []common.MapStr
 	agent              agentdeployer.DeployedAgent
 	startTestTime      time.Time
 }
@@ -1107,6 +1162,8 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	logger.Debugf("data stream %s has synthetics enabled: %t", scenario.dataStream, scenario.syntheticEnabled)
 
 	scenario.docs = hits.getDocs(scenario.syntheticEnabled)
+	scenario.ignoredFields = hits.IgnoredFields
+	scenario.degradedDocs = hits.DegradedDocs
 
 	if r.options.RunSetup {
 		opts := scenarioStateOpts{
@@ -1371,6 +1428,11 @@ func (r *runner) validateTestScenario(ctx context.Context, result *testrunner.Re
 		return result.WithError(fmt.Errorf("creating fields validator for data stream failed (path: %s): %w", serviceOptions.DataStreamRootPath, err))
 	}
 	if err := validateFields(scenario.docs, fieldsValidator, scenario.dataStream); err != nil {
+		return result.WithError(err)
+	}
+
+	err = validateIgnoredFields(r.stackVersion.Number, scenario, config)
+	if err != nil {
 		return result.WithError(err)
 	}
 
@@ -1929,6 +1991,51 @@ func validateFields(docs []common.MapStr, fieldsValidator *fields.Validator, dat
 			Reason:  fmt.Sprintf("one or more errors found in documents stored in %s data stream", dataStream),
 			Details: multiErr.Error(),
 		}
+	}
+
+	return nil
+}
+
+func validateIgnoredFields(stackVersionString string, scenario *scenarioTest, config *testConfig) error {
+	skipIgnoredFields := append([]string(nil), config.SkipIgnoredFields...)
+	stackVersion, err := semver.NewVersion(stackVersionString)
+	if err != nil {
+		return fmt.Errorf("failed to parse stack version: %w", err)
+	}
+	if stackVersion.LessThan(semver.MustParse("8.14.0")) {
+		// Pre 8.14 Elasticsearch commonly has event.original not mapped correctly, exclude from check: https://github.com/elastic/elasticsearch/pull/106714
+		skipIgnoredFields = append(skipIgnoredFields, "event.original")
+	}
+
+	ignoredFields := make([]string, 0, len(scenario.ignoredFields))
+
+	for _, field := range scenario.ignoredFields {
+		if !slices.Contains(skipIgnoredFields, field) {
+			ignoredFields = append(ignoredFields, field)
+		}
+	}
+
+	if len(ignoredFields) > 0 {
+		issues := make([]struct {
+			ID            any `json:"_id"`
+			Timestamp     any `json:"@timestamp,omitempty"`
+			IgnoredFields any `json:"ignored_field_values"`
+		}, len(scenario.degradedDocs))
+		for i, d := range scenario.degradedDocs {
+			issues[i].ID = d["_id"]
+			if source, ok := d["_source"].(map[string]any); ok {
+				if ts, ok := source["@timestamp"]; ok {
+					issues[i].Timestamp = ts
+				}
+			}
+			issues[i].IgnoredFields = d["ignored_field_values"]
+		}
+		degradedDocsJSON, err := json.MarshalIndent(issues, "", "  ")
+		if err != nil {
+			return fmt.Errorf("failed to marshal degraded docs to JSON: %w", err)
+		}
+
+		return fmt.Errorf("found ignored fields in data stream %s: %v. Affected documents: %s", scenario.dataStream, ignoredFields, degradedDocsJSON)
 	}
 
 	return nil
