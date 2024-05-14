@@ -18,6 +18,7 @@ Conceptually, running a system test involves the following steps:
 1. Validate mappings are defined for the fields contained in the indexed documents.
 1. Validate that the JSON data types contained `_source` are compatible with
    mappings declared for the field.
+1. If it is not used the Elastic Agent from the stack, unenroll and remove the Elastic Agent as well as the test policies created.
 1. Delete test artifacts and tear down the instance of the package's integration service.
 1. Once all desired data streams have been system tested, tear down the Elastic Stack.
 
@@ -40,7 +41,9 @@ Packages have a specific folder structure (only relevant parts shown).
 
 To define a system test we must define configuration on at least one level: a package or a data stream's one.
 
-First, we must define the configuration for deploying a package's integration service. We can define it on either the package level:
+If the package does not require a service for testing, there is no need to define any service deployer.
+If the package requires a service, we must define the configuration for deploying a package's integration service.
+We can define it on either the package level:
 
 ```
 <package root>/
@@ -106,6 +109,10 @@ volumes:
 ```
 
 ### Agent service deployer
+
+**NOTE**: To be deprecated soon in favor of creating new Elastic Agents in each test (technical preview yet). These
+Elastic Agents can be customized through the test configuration files adding the required settings. The settings
+available are detailed in [this section](#test-case-definition).
 
 When using the Agent service deployer, the `elastic-agent` provided by the stack
 will not be used. An agent will be deployed as a Docker compose service named `docker-custom-agent`
@@ -337,13 +344,14 @@ To specify a default use this syntax: `AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-de
 
 #### Cloud Provider CI support
 
-Terraform is often used to interact with Cloud Providers. This require Cloud Provider credentials.
+Terraform is often used to interact with Cloud Providers. This requires Cloud Provider credentials.
 
-Injecting credentials can be achieved with functions from the [`apm-pipeline-library`](https://github.com/elastic/apm-pipeline-library/tree/main/vars) Jenkins library. For example look for `withAzureCredentials`, `withAWSEnv` or `withGCPEnv`.
+In CI, these credentials are already available through the CI vault instance.
 
 #### Tagging/labelling created Cloud Provider resources
 
 Leveraging Terraform to create cloud resources is useful but risks creating leftover resources that are difficult to remove.
+There is a CI pipeline in charge of looking for stale resources in the Cloud providers: https://buildkite.com/elastic/elastic-package-cloud-cleanup
 
 There are some specific environment variables that should be leveraged to overcome this issue; these variables are already injected to be used by Terraform (through `TF_VAR_`):
 - `TF_VAR_TEST_RUN_ID`: a unique identifier for the test run, allows to distinguish each run
@@ -402,6 +410,15 @@ for system tests.
 
 | Option | Type | Required | Description |
 |---|---|---|---|
+| agent.linux_capabilities | array string | | Linux Capabilities that must been enabled in the system to run the Elastic Agent process. |
+| agent.pid_mode | string | | Turns on sharing between container and the host operating system the PID address space. |
+| agent.ports | array string | | List of ports to be exposed to access to the Elastic Agent.|
+| agent.runtime | string | | Runtime to run Elastic Agent process. |
+| agent.pre_start_script.language | string | | Programming language of the provisioning script. Default: `bash`.|
+| agent.pre_start_script.contents | string | | Code to run as a provisioning script. |
+| agent.provisioning_script.language | string | | Programming language of the provisioning script. Currently, just supported `sh`. |
+| agent.provisioning_script.contents | string | | Code to run as a provisioning script. |
+| agent.user | string | | User that runs the Elastic Agent proces. |
 | data_stream.vars | dictionary |  | Data stream level variables to set (i.e. declared in `package_root/data_stream/$data_stream/manifest.yml`). If not specified the defaults from the manifest are used. |
 | ignore_service_error | boolean | no | If `true`, it will ignore any failures in the deployed test services. Defaults to `false`. |
 | input | string | yes | Input type to test (e.g. logfile, httpjson, etc). Defaults to the input used by the first stream in the data stream manifest. |
@@ -411,6 +428,7 @@ for system tests.
 | service_notify_signal | string |  | Signal name to send to 'service' when the test policy has been applied to the Agent. This can be used to trigger the service after the Agent is ready to receive data. |
 | skip.link | URL |  | URL linking to an issue about why the test is skipped. |
 | skip.reason | string |  | Reason to skip the test. If specified the test will not execute. |
+| skip_ignored_fields | array string |  | List of fields to be skipped when perfoing mapping validation. |
 | vars | dictionary |  | Package level variables to set (i.e. declared in `$package_root/manifest.yml`). If not specified the defaults from the manifest are used. |
 | wait_for_data_timeout | duration |  | Amount of time to wait for data to be present in Elasticsearch. Defaults to 10m. |
 
@@ -497,6 +515,27 @@ response.split:
 inserts the value of `response_split` from the test configuration into the integration, in this case, ensuring the `total.hits[]` array from the test-stub response yields 3 hits.
 
 Returning to `test-expected-hit-count-config.yml`, when `assert.hit_count` is defined and `> 0` the test will assert that the number of hits in the array matches that value and fail when this is not true.
+
+(Technical Preview) As an example to add settings to create a new Elastic Agent in a given test,
+the`auditd_manager/audtid` data stream's `test-default-config.yml` is shown below:
+
+```yaml
+data_stream:
+  vars:
+    audit_rules:
+      - "-a always,exit -F arch=b64 -S execve,execveat -k exec"
+    preserve_original_event: true
+agent:
+  runtime: docker
+  pid_mode: "host"
+  linux_capabilities:
+    - AUDIT_CONTROL
+    - AUDIT_READ
+```
+
+With this test configuration file, the Elastic Agent is running in a docker environment,
+turned on sharing between container and the host operating system the PID address space and
+those two Linux Capabilities have been enabled for that Elastic Agent.
 
 #### Placeholders
 
@@ -595,7 +634,6 @@ A sample workflow would look like:
 
 ### Running system tests without cleanup (technical preview)
 
-
 By default, `elastic-package test system` command always performs these steps to run tests for a given package:
 1. Setup:
     - Start the service to be tested with a given configuration (`data_stream/<name>/_dev/test/sytem/test-name-config.yml`) and variant (`_dev/deploy/variants.yml`).
@@ -668,6 +706,61 @@ elastic-package test system -v --tear-down
 
 elastic-package stack down -v
 ```
+
+### Running system tests with independent Elastic Agents in each test (technical preview)
+
+By default, running `elastic-package test system` command will use the Elastic Agent:
+- created and enrolled when the Elastic stack is started (running `elastic-package stack up`), or
+- created with other service deployers (kubernetes or custom agents deployers).
+
+Starting with elastic-package version `v0.100.0`, there is another mode in technical preview to
+run these Elastic Agents for the system tests.
+
+For each system test configuration file defined in each data stream, a new Elastic Agent is going
+to be started and enrolled in a given test Agent Policy in Fleet specifically to run those system tests.
+Once those tests have finished, this Elastic Agent is going to be unenrolled and removed from
+Fleet (along with the Agent Policies) and a new Elastic Agent will be created for the next test configuration
+file.
+
+These Elastic Agents can be customized adding the required settings for the tests in the test configuration file.
+For example, the `oracle/memory` data stream's `test-memory-config.yml` is shown below:
+```yaml
+vars:
+  hosts:
+    - "oracle://sys:Oradoc_db1@elastic-package-service-oracle-1:1521/ORCLCDB.localdomain?sysdba=1"
+agent:
+  runtime: docker
+  provisioning_script:
+    language: "bash"
+    contents: |
+      apt-get update && apt-get -y install libaio1 wget unzip
+      mkdir -p /opt/oracle
+      cd /opt/oracle
+      wget https://download.oracle.com/otn_software/linux/instantclient/214000/instantclient-basic-linux.x64-21.4.0.0.0dbru.zip && unzip -o instantclient-basic-linux.x64-21.4.0.0.0dbru.zip
+      wget https://download.oracle.com/otn_software/linux/instantclient/217000/instantclient-sqlplus-linux.x64-21.7.0.0.0dbru.zip && unzip -o instantclient-sqlplus-linux.x64-21.7.0.0.0dbru.zip
+      echo /opt/oracle/instantclient_21_4 > /etc/ld.so.conf.d/oracle-instantclient.conf && ldconfig
+      cp /opt/oracle/instantclient_21_7/glogin.sql /opt/oracle/instantclient_21_7/libsqlplus.so /opt/oracle/instantclient_21_7/libsqlplusic.so /opt/oracle/instantclient_21_7/sqlplus /opt/oracle/instantclient_21_4/
+  pre_start_script:
+    language: "sh"
+    contents: |
+      export LD_LIBRARY_PATH="${LD_LIBRARY_PATH:-""}:/opt/oracle/instantclient_21_4"
+      export PATH="${PATH}:/opt/oracle/instantclient_21_7:/opt/oracle/instantclient_21_4"
+      cd /opt/oracle/instantclient_21_4
+```
+
+Considerations for this mode of running Elastic Agents:
+- As this is in technical preview, it requires to define `ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT=true` environment variable to enable it.
+  ```shell
+  elastic-package stack up -v -d
+  cd /path/package
+  ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT=true elastic-package test system -v
+  elastic-package stack down -v
+  ```
+- Those packages that define in their manifest that require root privileges (`agent.privileges.root: true`) run these Elastic Agents.
+- If a package defines the `agent` folder of the Agent deployer, it will continue using the Elastic Agent as described in [section](#agent-service-deployer).
+- If a package that defines the agent service deployer (`agent` folder) wants to migrate to this mode of running Elastic Agents, these would be the steps:
+    - Create a new `_dev/deploy/docker` adding the service container if needed.
+    - Define the settings required for your Elastic Agents in all the test configuration files.
 
 ### Detecting ignored fields
 
