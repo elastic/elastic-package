@@ -24,7 +24,9 @@ import (
 const (
 	paramServerlessProjectID   = "serverless_project_id"
 	paramServerlessProjectType = "serverless_project_type"
-	paramServerlessFleetURL    = "serverless_fleet_url"
+	ParamServerlessFleetURL    = "serverless_fleet_url"
+
+	ParamServerlessLocalStackVersion = "serverless_local_stack_version"
 
 	configRegion          = "stack.serverless.region"
 	configProjectType     = "stack.serverless.type"
@@ -80,6 +82,9 @@ func (sp *serverlessProvider) createProject(ctx context.Context, settings projec
 	config.ElasticsearchUsername = project.Credentials.Username
 	config.ElasticsearchPassword = project.Credentials.Password
 
+	// add stack version set in command line
+	config.Parameters[ParamServerlessLocalStackVersion] = options.StackVersion
+
 	// Store config now in case fails initialization or other requests,
 	// so it can be destroyed later
 	err = storeConfig(sp.profile, config)
@@ -98,11 +103,11 @@ func (sp *serverlessProvider) createProject(ctx context.Context, settings projec
 		return Config{}, err
 	}
 
-	config.Parameters[paramServerlessFleetURL], err = project.DefaultFleetServerURL(ctx, sp.kibanaClient)
+	config.Parameters[ParamServerlessFleetURL], err = project.DefaultFleetServerURL(ctx, sp.kibanaClient)
 	if err != nil {
 		return Config{}, fmt.Errorf("failed to get fleet URL: %w", err)
 	}
-	project.Endpoints.Fleet = config.Parameters[paramServerlessFleetURL]
+	project.Endpoints.Fleet = config.Parameters[ParamServerlessFleetURL]
 
 	printUserConfig(options.Printer, config)
 
@@ -142,7 +147,7 @@ func (sp *serverlessProvider) currentProjectWithClientsAndFleetEndpoint(ctx cont
 		return nil, err
 	}
 
-	fleetURL, found := config.Parameters[paramServerlessFleetURL]
+	fleetURL, found := config.Parameters[ParamServerlessFleetURL]
 	if !found {
 		fleetURL, err = project.DefaultFleetServerURL(ctx, sp.kibanaClient)
 		if err != nil {
