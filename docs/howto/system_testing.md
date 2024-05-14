@@ -410,7 +410,7 @@ for system tests.
 | Option | Type | Required | Description |
 |---|---|---|---|
 | agent.linux_capabilities | array string | | Linux Capabilities that must be enabled in the system to run the Elastic Agent process. |
-| agent.pid_mode | string | | Turns on sharing between container and the host operating system the PID address space. |
+| agent.pid_mode | string | | Controls access to PID namespaces. When set to `host`, the agent will have access to the PID namespace of the host. |
 | agent.ports | array string | | List of ports to be exposed to access to the Elastic Agent.|
 | agent.runtime | string | | Runtime to run Elastic Agent process. |
 | agent.pre_start_script.language | string | | Programming language of the pre-start script, executed before starting the agent. Currently, just supported: `sh`.|
