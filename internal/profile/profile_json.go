@@ -11,20 +11,18 @@ import (
 	"io"
 	"os"
 	"os/user"
-	"time"
+	"strconv"
 
 	"github.com/elastic/go-resource"
-
-	"github.com/elastic/elastic-package/internal/version"
 )
 
 // Metadata stores the data associated with a given profile
 type Metadata struct {
-	Name        string    `json:"name"`
-	DateCreated time.Time `json:"date_created"`
-	User        string    `json:"user"`
-	Version     string    `json:"version"`
-	Path        string    `json:"path"`
+	Name        string `json:"name"`
+	DateCreated string `json:"date_created"`
+	User        string `json:"user"`
+	Version     string `json:"version"`
+	Path        string `json:"path"`
 }
 
 // profileMetadataContent generates the content of the profile.json file.
@@ -32,6 +30,11 @@ func profileMetadataContent(applyCtx resource.Context, w io.Writer) error {
 	currentUser, err := user.Current()
 	if err != nil {
 		return fmt.Errorf("error fetching current user: %w", err)
+	}
+
+	creationDate, found := applyCtx.Fact("creation_date")
+	if !found {
+		return errors.New("unknown creation date")
 	}
 
 	profileName, found := applyCtx.Fact("profile_name")
@@ -45,11 +48,11 @@ func profileMetadataContent(applyCtx resource.Context, w io.Writer) error {
 	}
 
 	profileData := Metadata{
-		profileName,
-		time.Now(),
-		currentUser.Username,
-		version.CommitHash,
-		profilePath,
+		Name:        profileName,
+		DateCreated: creationDate,
+		User:        currentUser.Username,
+		Version:     strconv.Itoa(currentVersion),
+		Path:        profilePath,
 	}
 
 	enc := json.NewEncoder(w)

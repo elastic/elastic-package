@@ -52,7 +52,7 @@ func TestApplyResourcesWithCustomGeoipDir(t *testing.T) {
 	err = applyResources(p, "8.6.1")
 	require.NoError(t, err)
 
-	d, err := os.ReadFile(p.Path(ProfileStackPath, SnapshotFile))
+	d, err := os.ReadFile(p.Path(ProfileStackPath, ComposeFile))
 	require.NoError(t, err)
 
 	var composeFile struct {
