@@ -18,7 +18,7 @@ Conceptually, running a system test involves the following steps:
 1. Validate mappings are defined for the fields contained in the indexed documents.
 1. Validate that the JSON data types contained `_source` are compatible with
    mappings declared for the field.
-1. If it is not used the Elastic Agent from the stack, unenroll and remove the Elastic Agent as well as the test policies created.
+1. If the Elastic Agent from the stack is not used, unenroll and remove the Elastic Agent as well as the test policies created.
 1. Delete test artifacts and tear down the instance of the package's integration service.
 1. Once all desired data streams have been system tested, tear down the Elastic Stack.
 
@@ -41,8 +41,7 @@ Packages have a specific folder structure (only relevant parts shown).
 
 To define a system test we must define configuration on at least one level: a package or a data stream's one.
 
-If the package does not require a service for testing, there is no need to define any service deployer.
-If the package requires a service, we must define the configuration for deploying a package's integration service.
+If the package collects information from a running service, we can define the configuration for deploying it during system tests.
 We can define it on either the package level:
 
 ```
@@ -410,15 +409,15 @@ for system tests.
 
 | Option | Type | Required | Description |
 |---|---|---|---|
-| agent.linux_capabilities | array string | | Linux Capabilities that must been enabled in the system to run the Elastic Agent process. |
+| agent.linux_capabilities | array string | | Linux Capabilities that must be enabled in the system to run the Elastic Agent process. |
 | agent.pid_mode | string | | Turns on sharing between container and the host operating system the PID address space. |
 | agent.ports | array string | | List of ports to be exposed to access to the Elastic Agent.|
 | agent.runtime | string | | Runtime to run Elastic Agent process. |
-| agent.pre_start_script.language | string | | Programming language of the provisioning script. Default: `bash`.|
-| agent.pre_start_script.contents | string | | Code to run as a provisioning script. |
+| agent.pre_start_script.language | string | | Programming language of the pre-start script, executed before starting the agent. Default: `bash`.|
+| agent.pre_start_script.contents | string | | Code to run before starting the agent. |
 | agent.provisioning_script.language | string | | Programming language of the provisioning script. Currently, just supported `sh`. |
-| agent.provisioning_script.contents | string | | Code to run as a provisioning script. |
-| agent.user | string | | User that runs the Elastic Agent proces. |
+| agent.provisioning_script.contents | string | | Code to run as a provisioning script to customize the system where the agent will be run. |
+| agent.user | string | | User that runs the Elastic Agent process. |
 | data_stream.vars | dictionary |  | Data stream level variables to set (i.e. declared in `package_root/data_stream/$data_stream/manifest.yml`). If not specified the defaults from the manifest are used. |
 | ignore_service_error | boolean | no | If `true`, it will ignore any failures in the deployed test services. Defaults to `false`. |
 | input | string | yes | Input type to test (e.g. logfile, httpjson, etc). Defaults to the input used by the first stream in the data stream manifest. |
@@ -428,7 +427,7 @@ for system tests.
 | service_notify_signal | string |  | Signal name to send to 'service' when the test policy has been applied to the Agent. This can be used to trigger the service after the Agent is ready to receive data. |
 | skip.link | URL |  | URL linking to an issue about why the test is skipped. |
 | skip.reason | string |  | Reason to skip the test. If specified the test will not execute. |
-| skip_ignored_fields | array string |  | List of fields to be skipped when perfoing mapping validation. |
+| skip_ignored_fields | array string |  | List of fields to be skipped when performing validation of fields ignored during ingestion. |
 | vars | dictionary |  | Package level variables to set (i.e. declared in `$package_root/manifest.yml`). If not specified the defaults from the manifest are used. |
 | wait_for_data_timeout | duration |  | Amount of time to wait for data to be present in Elasticsearch. Defaults to 10m. |
 
