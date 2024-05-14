@@ -713,8 +713,8 @@ By default, running `elastic-package test system` command will use the Elastic A
 - created and enrolled when the Elastic stack is started (running `elastic-package stack up`), or
 - created with other service deployers (kubernetes or custom agents deployers).
 
-Starting with elastic-package version `v0.100.0`, there is another mode in technical preview to
-run these Elastic Agents for the system tests.
+Starting with [elastic-package version `v0.100.0`](https://github.com/elastic/elastic-package/releases/tag/v0.100.0),
+there is another mode to run these Elastic Agents for the system tests in Technical Preview.
 
 For each system test configuration file defined in each data stream, a new Elastic Agent is going
 to be started and enrolled in a given test Agent Policy in Fleet specifically to run those system tests.
