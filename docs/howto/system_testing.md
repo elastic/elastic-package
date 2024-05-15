@@ -415,7 +415,7 @@ for system tests.
 | agent.runtime | string | | Runtime to run Elastic Agent process. |
 | agent.pre_start_script.language | string | | Programming language of the pre-start script, executed before starting the agent. Currently, only `sh` is supported.|
 | agent.pre_start_script.contents | string | | Code to run before starting the agent. |
-| agent.provisioning_script.language | string | | Programming language of the provisioning script. Default: `bash`. |
+| agent.provisioning_script.language | string | | Programming language of the provisioning script. Default: `sh`. |
 | agent.provisioning_script.contents | string | | Code to run as a provisioning script to customize the system where the agent will be run. |
 | agent.user | string | | User that runs the Elastic Agent process. |
 | data_stream.vars | dictionary |  | Data stream level variables to set (i.e. declared in `package_root/data_stream/$data_stream/manifest.yml`). If not specified the defaults from the manifest are used. |
