@@ -60,7 +60,7 @@ func EnsureInstalled() error {
 
 	// Create initial profile:
 	options := profile.Options{
-		PackagePath:       elasticPackagePath.ProfileDir(),
+		ProfilesDirPath:   elasticPackagePath.ProfileDir(),
 		Name:              profile.DefaultProfile,
 		OverwriteExisting: false,
 	}

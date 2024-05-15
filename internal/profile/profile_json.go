@@ -22,7 +22,6 @@ type Metadata struct {
 	DateCreated string `json:"date_created"`
 	User        string `json:"user"`
 	Version     string `json:"version"`
-	Path        string `json:"path"`
 }
 
 // profileMetadataContent generates the content of the profile.json file.
@@ -42,17 +41,11 @@ func profileMetadataContent(applyCtx resource.Context, w io.Writer) error {
 		return errors.New("unknown profile name")
 	}
 
-	profilePath, found := applyCtx.Fact("profile_path")
-	if !found {
-		return errors.New("unknown profile path")
-	}
-
 	profileData := Metadata{
 		Name:        profileName,
 		DateCreated: creationDate,
 		User:        currentUser.Username,
 		Version:     strconv.Itoa(currentVersion),
-		Path:        profilePath,
 	}
 
 	enc := json.NewEncoder(w)

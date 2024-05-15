@@ -48,19 +48,19 @@ var (
 )
 
 type Options struct {
-	PackagePath       string
+	ProfilesDirPath   string
 	Name              string
 	FromProfile       string
 	OverwriteExisting bool
 }
 
 func CreateProfile(options Options) error {
-	if options.PackagePath == "" {
+	if options.ProfilesDirPath == "" {
 		loc, err := locations.NewLocationManager()
 		if err != nil {
 			return fmt.Errorf("error finding profile dir location: %w", err)
 		}
-		options.PackagePath = loc.ProfileDir()
+		options.ProfilesDirPath = loc.ProfileDir()
 	}
 
 	if options.Name == "" {
@@ -68,11 +68,11 @@ func CreateProfile(options Options) error {
 	}
 
 	if !options.OverwriteExisting {
-		_, err := loadProfile(options.PackagePath, options.Name)
+		_, err := loadProfile(options.ProfilesDirPath, options.Name)
 		if err == nil {
 			return fmt.Errorf("profile %q already exists", options.Name)
 		}
-		if err != nil && err != ErrNotAProfile {
+		if err != nil && !errors.Is(err, ErrNotAProfile) {
 			return fmt.Errorf("failed to check if profile %q exists: %w", options.Name, err)
 		}
 	}
@@ -87,7 +87,7 @@ func CreateProfile(options Options) error {
 }
 
 func createProfile(options Options, resources []resource.Resource) error {
-	profileDir := filepath.Join(options.PackagePath, options.Name)
+	profileDir := filepath.Join(options.ProfilesDirPath, options.Name)
 
 	resourceManager := resource.NewManager()
 	resourceManager.AddFacter(resource.StaticFacter{
@@ -121,7 +121,7 @@ func createProfileFrom(options Options) error {
 		return fmt.Errorf("failed to load profile to copy %q: %w", options.FromProfile, err)
 	}
 
-	profileDir := filepath.Join(options.PackagePath, options.Name)
+	profileDir := filepath.Join(options.ProfilesDirPath, options.Name)
 	err = files.CopyAll(from.ProfilePath, profileDir)
 	if err != nil {
 		return fmt.Errorf("failed to copy files from profile %q to %q", options.FromProfile, options.Name)
@@ -200,13 +200,13 @@ func DeleteProfile(profileName string) error {
 }
 
 // FetchAllProfiles returns a list of profile values
-func FetchAllProfiles(elasticPackagePath string) ([]Metadata, error) {
-	dirList, err := os.ReadDir(elasticPackagePath)
+func FetchAllProfiles(profilesDirPath string) ([]Metadata, error) {
+	dirList, err := os.ReadDir(profilesDirPath)
 	if errors.Is(err, os.ErrNotExist) {
 		return []Metadata{}, nil
 	}
 	if err != nil {
-		return []Metadata{}, fmt.Errorf("error reading from directory %s: %w", elasticPackagePath, err)
+		return []Metadata{}, fmt.Errorf("error reading from directory %s: %w", profilesDirPath, err)
 	}
 
 	var profiles []Metadata
@@ -215,7 +215,7 @@ func FetchAllProfiles(elasticPackagePath string) ([]Metadata, error) {
 		if !item.IsDir() {
 			continue
 		}
-		profile, err := loadProfile(elasticPackagePath, item.Name())
+		profile, err := loadProfile(profilesDirPath, item.Name())
 		if errors.Is(err, ErrNotAProfile) {
 			continue
 		}
@@ -241,19 +241,19 @@ func LoadProfile(profileName string) (*Profile, error) {
 
 	err = profile.migrate(currentVersion)
 	if err != nil {
-		return nil, fmt.Errorf("error migrating profile to version %s: %w", currentVersion, err)
+		return nil, fmt.Errorf("error migrating profile to version %v: %w", currentVersion, err)
 	}
 
 	return profile, nil
 }
 
 // loadProfile loads an existing profile
-func loadProfile(elasticPackagePath string, profileName string) (*Profile, error) {
-	profilePath := filepath.Join(elasticPackagePath, profileName)
+func loadProfile(profilesDirPath string, profileName string) (*Profile, error) {
+	profilePath := filepath.Join(profilesDirPath, profileName)
 
 	metadata, err := loadProfileMetadata(filepath.Join(profilePath, PackageProfileMetaFile))
 	if errors.Is(err, os.ErrNotExist) {
-		return nil, ErrNotAProfile
+		return nil, fmt.Errorf("%w: %w", ErrNotAProfile, err)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("error reading profile metadata: %w", err)

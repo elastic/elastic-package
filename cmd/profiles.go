@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/olekukonko/tablewriter"
 
@@ -136,7 +137,7 @@ User profiles can be configured with a "config.yml" file in the profile director
 				if err != nil {
 					return fmt.Errorf("failed to load current configuration: %w", err)
 				}
-				return formatTable(profileList, config.CurrentProfile())
+				return formatTable(loc.ProfileDir(), profileList, config.CurrentProfile())
 			case jsonFormat:
 				return formatJSON(profileList)
 			default:
@@ -200,9 +201,9 @@ func formatJSON(profileList []profile.Metadata) error {
 	return nil
 }
 
-func formatTable(profileList []profile.Metadata, currentProfile string) error {
+func formatTable(profilesDir string, profileList []profile.Metadata, currentProfile string) error {
 	table := tablewriter.NewWriter(os.Stdout)
-	var profilesTable = profileToList(profileList, currentProfile)
+	var profilesTable = profileToList(profilesDir, profileList, currentProfile)
 
 	table.SetHeader([]string{"Name", "Date Created", "User", "Version", "Path"})
 	table.SetHeaderColor(
@@ -228,15 +229,15 @@ func formatTable(profileList []profile.Metadata, currentProfile string) error {
 	return nil
 }
 
-func profileToList(profiles []profile.Metadata, currentProfile string) [][]string {
+func profileToList(profilesDir string, profiles []profile.Metadata, currentProfile string) [][]string {
 	var profileList [][]string
 	for _, profile := range profiles {
 		name := profile.Name
 		if name == currentProfile {
 			name = name + " (current)"
 		}
-		// TODO: Review date format.
-		profileList = append(profileList, []string{name, profile.DateCreated, profile.User, profile.Version, profile.Path})
+		profilePath := filepath.Join(profilesDir, profile.Name)
+		profileList = append(profileList, []string{name, profile.DateCreated, profile.User, profile.Version, profilePath})
 	}
 
 	return profileList
