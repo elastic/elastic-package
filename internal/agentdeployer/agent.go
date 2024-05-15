@@ -43,9 +43,8 @@ var staticSource = resource.NewSourceFS(static)
 // CustomAgentDeployer knows how to deploy a custom elastic-agent defined via
 // a Docker Compose file.
 type DockerComposeAgentDeployer struct {
-	profile           *profile.Profile
-	dockerComposeFile string
-	stackVersion      string
+	profile      *profile.Profile
+	stackVersion string
 
 	policyName string
 
@@ -59,10 +58,9 @@ type DockerComposeAgentDeployer struct {
 }
 
 type DockerComposeAgentDeployerOptions struct {
-	Profile           *profile.Profile
-	DockerComposeFile string
-	StackVersion      string
-	PolicyName        string
+	Profile      *profile.Profile
+	StackVersion string
+	PolicyName   string
 
 	PackageName string
 	DataStream  string
@@ -86,14 +84,13 @@ var _ DeployedAgent = new(dockerComposeDeployedAgent)
 // NewCustomAgentDeployer returns a new instance of a deployedCustomAgent.
 func NewCustomAgentDeployer(options DockerComposeAgentDeployerOptions) (*DockerComposeAgentDeployer, error) {
 	return &DockerComposeAgentDeployer{
-		profile:           options.Profile,
-		dockerComposeFile: options.DockerComposeFile,
-		stackVersion:      options.StackVersion,
-		packageName:       options.PackageName,
-		dataStream:        options.DataStream,
-		policyName:        options.PolicyName,
-		runTearDown:       options.RunTearDown,
-		runTestsOnly:      options.RunTestsOnly,
+		profile:      options.Profile,
+		stackVersion: options.StackVersion,
+		packageName:  options.PackageName,
+		dataStream:   options.DataStream,
+		policyName:   options.PolicyName,
+		runTearDown:  options.RunTearDown,
+		runTestsOnly: options.RunTestsOnly,
 	}, nil
 }
 
@@ -125,20 +122,10 @@ func (d *DockerComposeAgentDeployer) SetUp(ctx context.Context, agentInfo AgentI
 		return nil, fmt.Errorf("could not create resources for custom agent: %w", err)
 	}
 
-	ymlPaths := []string{
-		filepath.Join(configDir, dockerTestAgentDockerCompose),
-	}
-	if d.dockerComposeFile != "" {
-		ymlPaths = []string{
-			d.dockerComposeFile,
-			filepath.Join(configDir, dockerTestAgentDockerCompose),
-		}
-	}
-
 	composeProjectName := fmt.Sprintf("elastic-package-agent-%s", d.agentName())
 
 	agent := dockerComposeDeployedAgent{
-		ymlPaths: ymlPaths,
+		ymlPaths: []string{filepath.Join(configDir, dockerTestAgentDockerCompose)},
 		project:  composeProjectName,
 		env:      env,
 	}

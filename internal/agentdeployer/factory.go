@@ -52,14 +52,13 @@ func Factory(options FactoryOptions) (AgentDeployer, error) {
 			return nil, fmt.Errorf("agent deployer is not supported for type %s", options.Type)
 		}
 		opts := DockerComposeAgentDeployerOptions{
-			Profile:           options.Profile,
-			DockerComposeFile: "", // TODO: Allow other docker-compose files to apply overrides
-			StackVersion:      options.StackVersion,
-			PackageName:       options.PackageName,
-			PolicyName:        options.PolicyName,
-			DataStream:        options.DataStream,
-			RunTearDown:       options.RunTearDown,
-			RunTestsOnly:      options.RunTestsOnly,
+			Profile:      options.Profile,
+			StackVersion: options.StackVersion,
+			PackageName:  options.PackageName,
+			PolicyName:   options.PolicyName,
+			DataStream:   options.DataStream,
+			RunTearDown:  options.RunTearDown,
+			RunTestsOnly: options.RunTestsOnly,
 		}
 		return NewCustomAgentDeployer(opts)
 	case "agent":
