@@ -12,16 +12,17 @@ import (
 	"os"
 	"os/user"
 	"strconv"
+	"time"
 
 	"github.com/elastic/go-resource"
 )
 
 // Metadata stores the data associated with a given profile
 type Metadata struct {
-	Name        string `json:"name"`
-	DateCreated string `json:"date_created"`
-	User        string `json:"user"`
-	Version     string `json:"version"`
+	Name        string    `json:"name"`
+	DateCreated time.Time `json:"date_created"`
+	User        string    `json:"user"`
+	Version     string    `json:"version"`
 }
 
 // profileMetadataContent generates the content of the profile.json file.
@@ -31,9 +32,13 @@ func profileMetadataContent(applyCtx resource.Context, w io.Writer) error {
 		return fmt.Errorf("error fetching current user: %w", err)
 	}
 
-	creationDate, found := applyCtx.Fact("creation_date")
+	creationDateFormated, found := applyCtx.Fact("creation_date")
 	if !found {
 		return errors.New("unknown creation date")
+	}
+	creationDate, err := time.Parse(time.RFC3339Nano, creationDateFormated)
+	if err != nil {
+		return fmt.Errorf("failed to parse creation date from fact (%v): %w", creationDateFormated, err)
 	}
 
 	profileName, found := applyCtx.Fact("profile_name")

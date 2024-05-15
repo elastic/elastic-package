@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/olekukonko/tablewriter"
 
@@ -237,7 +238,8 @@ func profileToList(profilesDir string, profiles []profile.Metadata, currentProfi
 			name = name + " (current)"
 		}
 		profilePath := filepath.Join(profilesDir, profile.Name)
-		profileList = append(profileList, []string{name, profile.DateCreated, profile.User, profile.Version, profilePath})
+		dateCreated := profile.DateCreated.Format(time.RFC3339)
+		profileList = append(profileList, []string{name, dateCreated, profile.User, profile.Version, profilePath})
 	}
 
 	return profileList

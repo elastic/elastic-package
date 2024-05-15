@@ -16,7 +16,7 @@ import (
 func (p *Profile) migrate(version uint) error {
 	resourceManager := resource.NewManager()
 	resourceManager.AddFacter(resource.StaticFacter{
-		"creation_date": p.metadata.DateCreated,
+		"creation_date": p.metadata.DateCreated.Format(dateFormat),
 		"profile_name":  p.ProfileName,
 		"profile_path":  p.ProfilePath,
 	})

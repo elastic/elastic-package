@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -32,9 +33,11 @@ func TestMigrationsFromLegacy(t *testing.T) {
 	t.Log(homeDir, profileName)
 	require.NoError(t, err)
 
+	dateCreated, err := time.Parse(dateFormat, "2024-05-15T12:18:58.505287578+02:00")
+	require.NoError(t, err)
 	expectedMeta := Metadata{
 		Name:        profileName,
-		DateCreated: "2024-05-15T12:18:58.505287578+02:00",
+		DateCreated: dateCreated,
 		User:        "jaime",
 		Version:     "undefined",
 	}

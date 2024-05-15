@@ -28,6 +28,9 @@ const (
 
 	// DefaultProfile is the name of the default profile.
 	DefaultProfile = "default"
+
+	// dateFormat is the format of the dates in the profile metadata.
+	dateFormat = time.RFC3339Nano
 )
 
 //go:embed _static
@@ -91,7 +94,7 @@ func createProfile(options Options, resources []resource.Resource) error {
 
 	resourceManager := resource.NewManager()
 	resourceManager.AddFacter(resource.StaticFacter{
-		"creation_date": time.Now().UTC().String(),
+		"creation_date": time.Now().UTC().Format(dateFormat),
 		"profile_name":  options.Name,
 		"profile_path":  profileDir,
 	})
