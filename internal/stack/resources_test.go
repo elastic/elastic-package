@@ -28,7 +28,6 @@ func TestApplyResourcesWithCustomGeoipDir(t *testing.T) {
 
 	// Create profile.
 	err := profile.CreateProfile(profile.Options{
-		// PackagePath is actually the profiles path, what is a bit counterintuitive.
 		ProfilesDirPath: profilesPath,
 		Name:            profileName,
 	})
