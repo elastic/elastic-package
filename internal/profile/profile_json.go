@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/user"
 	"strconv"
 	"time"
 
@@ -21,17 +20,11 @@ import (
 type Metadata struct {
 	Name        string    `json:"name"`
 	DateCreated time.Time `json:"date_created"`
-	User        string    `json:"user"`
 	Version     string    `json:"version"`
 }
 
 // profileMetadataContent generates the content of the profile.json file.
 func profileMetadataContent(applyCtx resource.Context, w io.Writer) error {
-	currentUser, err := user.Current()
-	if err != nil {
-		return fmt.Errorf("error fetching current user: %w", err)
-	}
-
 	creationDateFormated, found := applyCtx.Fact("creation_date")
 	if !found {
 		return errors.New("unknown creation date")
@@ -49,7 +42,6 @@ func profileMetadataContent(applyCtx resource.Context, w io.Writer) error {
 	profileData := Metadata{
 		Name:        profileName,
 		DateCreated: creationDate,
-		User:        currentUser.Username,
 		Version:     strconv.Itoa(currentVersion),
 	}
 

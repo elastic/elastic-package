@@ -38,7 +38,6 @@ func TestMigrationsFromLegacy(t *testing.T) {
 	expectedMeta := Metadata{
 		Name:        profileName,
 		DateCreated: dateCreated,
-		User:        "jaime",
 		Version:     "undefined",
 	}
 	assert.Equal(t, expectedMeta, profile.metadata)

@@ -206,9 +206,8 @@ func formatTable(profilesDir string, profileList []profile.Metadata, currentProf
 	table := tablewriter.NewWriter(os.Stdout)
 	var profilesTable = profileToList(profilesDir, profileList, currentProfile)
 
-	table.SetHeader([]string{"Name", "Date Created", "User", "Version", "Path"})
+	table.SetHeader([]string{"Name", "Date Created", "Version", "Path"})
 	table.SetHeaderColor(
-		twColor(tablewriter.Colors{tablewriter.Bold}),
 		twColor(tablewriter.Colors{tablewriter.Bold}),
 		twColor(tablewriter.Colors{tablewriter.Bold}),
 		twColor(tablewriter.Colors{tablewriter.Bold}),
@@ -239,7 +238,7 @@ func profileToList(profilesDir string, profiles []profile.Metadata, currentProfi
 		}
 		profilePath := filepath.Join(profilesDir, profile.Name)
 		dateCreated := profile.DateCreated.Format(time.RFC3339)
-		profileList = append(profileList, []string{name, dateCreated, profile.User, profile.Version, profilePath})
+		profileList = append(profileList, []string{name, dateCreated, profile.Version, profilePath})
 	}
 
 	return profileList
