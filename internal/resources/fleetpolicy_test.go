@@ -11,10 +11,11 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/elastic/elastic-package/internal/kibana"
-	kibanatest "github.com/elastic/elastic-package/internal/kibana/test"
 	"github.com/elastic/go-resource"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/elastic/elastic-package/internal/kibana"
+	kibanatest "github.com/elastic/elastic-package/internal/kibana/test"
 )
 
 func TestRequiredProviderFleetPolicy(t *testing.T) {
