@@ -900,10 +900,10 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	}
 	r.deleteTestPolicyHandler = func(ctx context.Context) error {
 		logger.Debug("deleting test policies...")
-		if err := r.options.KibanaClient.DeletePolicy(ctx, *policyToTest); err != nil {
+		if err := r.options.KibanaClient.DeletePolicy(ctx, policyToTest.ID); err != nil {
 			return fmt.Errorf("error cleaning up test policy: %w", err)
 		}
-		if err := r.options.KibanaClient.DeletePolicy(ctx, *policyToEnroll); err != nil {
+		if err := r.options.KibanaClient.DeletePolicy(ctx, policyToEnroll.ID); err != nil {
 			return fmt.Errorf("error cleaning up test policy: %w", err)
 		}
 		return nil
