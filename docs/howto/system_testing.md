@@ -413,7 +413,7 @@ for system tests.
 | agent.pid_mode | string | | Controls access to PID namespaces. When set to `host`, the agent will have access to the PID namespace of the host. |
 | agent.ports | array string | | List of ports to be exposed to access to the Elastic Agent.|
 | agent.runtime | string | | Runtime to run Elastic Agent process. |
-| agent.pre_start_script.language | string | | Programming language of the pre-start script, executed before starting the agent. Currently, just supported: `sh`.|
+| agent.pre_start_script.language | string | | Programming language of the pre-start script, executed before starting the agent. Currently, only `sh` is supported.|
 | agent.pre_start_script.contents | string | | Code to run before starting the agent. |
 | agent.provisioning_script.language | string | | Programming language of the provisioning script. Default: `bash`. |
 | agent.provisioning_script.contents | string | | Code to run as a provisioning script to customize the system where the agent will be run. |
