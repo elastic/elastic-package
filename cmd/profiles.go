@@ -218,7 +218,6 @@ func formatTable(profilesDir string, profileList []profile.Metadata, currentProf
 		tablewriter.Colors{},
 		tablewriter.Colors{},
 		tablewriter.Colors{},
-		tablewriter.Colors{},
 	)
 
 	table.SetAutoMergeCells(false)
@@ -237,7 +236,7 @@ func profileToList(profilesDir string, profiles []profile.Metadata, currentProfi
 			name = name + " (current)"
 		}
 		profilePath := filepath.Join(profilesDir, profile.Name)
-		dateCreated := profile.DateCreated.Format(time.RFC3339)
+		dateCreated := profile.DateCreated.Format(time.RFC822)
 		profileList = append(profileList, []string{name, dateCreated, profile.Version, profilePath})
 	}
 
