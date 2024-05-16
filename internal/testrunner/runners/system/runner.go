@@ -238,7 +238,6 @@ func (r *runner) Run(ctx context.Context, options testrunner.TestOptions) ([]tes
 		logger.Infof("Using variant from service setup dir: %q", variant)
 	}
 
-	serviceOptions := r.createServiceOptions(variant)
 	svcInfo, err := r.createServiceInfo()
 	if err != nil {
 		return result.WithError(err)
@@ -261,7 +260,7 @@ func (r *runner) Run(ctx context.Context, options testrunner.TestOptions) ([]tes
 	}
 	result = r.newResult(fmt.Sprintf("%s - %s", resultName, testConfig.Name()))
 
-	scenario, err := r.prepareScenario(ctx, testConfig, svcInfo, serviceOptions)
+	scenario, err := r.prepareScenario(ctx, testConfig, svcInfo)
 	if r.options.RunSetup && err != nil {
 		tdErr := r.tearDownTest(ctx)
 		if tdErr != nil {
@@ -279,7 +278,7 @@ func (r *runner) Run(ctx context.Context, options testrunner.TestOptions) ([]tes
 		if err != nil {
 			return result.WithError(fmt.Errorf("failed to prepare scenario: %w", err))
 		}
-		return r.validateTestScenario(ctx, result, scenario, testConfig, serviceOptions.DataStreamRootPath)
+		return r.validateTestScenario(ctx, result, scenario, testConfig, r.dataStreamPath)
 	}
 
 	if r.options.RunTearDown {
@@ -625,7 +624,6 @@ func (r *runner) run(ctx context.Context) (results []testrunner.TestResult, err 
 }
 
 func (r *runner) runTestPerVariant(ctx context.Context, result *testrunner.ResultComposer, cfgFile, variantName string) ([]testrunner.TestResult, error) {
-	serviceOptions := r.createServiceOptions(variantName)
 	svcInfo, err := r.createServiceInfo()
 	if err != nil {
 		return result.WithError(err)
@@ -638,7 +636,7 @@ func (r *runner) runTestPerVariant(ctx context.Context, result *testrunner.Resul
 	}
 	logger.Debugf("Using config: %q", testConfig.Name())
 
-	partial, err := r.runTest(ctx, testConfig, svcInfo, serviceOptions)
+	partial, err := r.runTest(ctx, testConfig, svcInfo)
 
 	tdErr := r.tearDownTest(ctx)
 	if err != nil {
@@ -823,7 +821,9 @@ type scenarioTest struct {
 	startTestTime      time.Time
 }
 
-func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInfo servicedeployer.ServiceInfo, serviceOptions servicedeployer.FactoryOptions) (*scenarioTest, error) {
+func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInfo servicedeployer.ServiceInfo) (*scenarioTest, error) {
+	serviceOptions := r.createServiceOptions(config.ServiceVariantName)
+
 	var err error
 	var serviceStateData ServiceState
 	if r.options.RunSetup {
@@ -1492,7 +1492,7 @@ func (r *runner) validateTestScenario(ctx context.Context, result *testrunner.Re
 	return result.WithSuccess()
 }
 
-func (r *runner) runTest(ctx context.Context, config *testConfig, svcInfo servicedeployer.ServiceInfo, serviceOptions servicedeployer.FactoryOptions) ([]testrunner.TestResult, error) {
+func (r *runner) runTest(ctx context.Context, config *testConfig, svcInfo servicedeployer.ServiceInfo) ([]testrunner.TestResult, error) {
 	result := r.newResult(config.Name())
 
 	if config.Skip != nil {
@@ -1504,12 +1504,12 @@ func (r *runner) runTest(ctx context.Context, config *testConfig, svcInfo servic
 
 	logger.Debugf("running test with configuration '%s'", config.Name())
 
-	scenario, err := r.prepareScenario(ctx, config, svcInfo, serviceOptions)
+	scenario, err := r.prepareScenario(ctx, config, svcInfo)
 	if err != nil {
 		return result.WithError(err)
 	}
 
-	return r.validateTestScenario(ctx, result, scenario, config, serviceOptions.DataStreamRootPath)
+	return r.validateTestScenario(ctx, result, scenario, config, r.dataStreamPath)
 }
 
 func checkEnrolledAgents(ctx context.Context, client *kibana.Client, agentInfo agentdeployer.AgentInfo, svcInfo servicedeployer.ServiceInfo, runIndependentElasticAgent bool) ([]kibana.Agent, error) {
