@@ -402,7 +402,7 @@ func (r *runner) createBenchmarkPolicy(ctx context.Context, pkgManifest *package
 		}
 
 		logger.Debug("deleting benchmark policy...")
-		if err := r.options.KibanaClient.DeletePolicy(ctx, *policy); err != nil {
+		if err := r.options.KibanaClient.DeletePolicy(ctx, policy.ID); err != nil {
 			merr = append(merr, fmt.Errorf("error cleaning up benchmark policy: %w", err))
 		}
 
