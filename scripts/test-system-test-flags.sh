@@ -288,10 +288,9 @@ FOLDER_PATH="${HOME}/.elastic-package/profiles/default/stack/state"
 # Check also if independent Elastic Agents are running too
 # depending on the environment variable
 service_deployer_type="docker"
-service_preffix="elastic-package-service"
+service_preffix='elastic-package-service-[0-9]{5}'
 if [[ "${ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT:-"false"}" == "true" ]]; then
     service_deployer_type="agent"
-    service_preffix='elastic-package-service-[0-9]{5}'
 fi
 
 # docker service deployer
