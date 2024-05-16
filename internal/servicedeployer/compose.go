@@ -141,7 +141,7 @@ func (d *DockerComposeServiceDeployer) SetUp(ctx context.Context, svcInfo Servic
 	} else {
 		if d.deployIndependentAgent {
 			// Connect service network with agent network
-			err = docker.ConnectToNetwork(p.ContainerName(serviceName), svcInfo.AgentNetworkName)
+			err = docker.ConnectToNetworkWithAlias(p.ContainerName(serviceName), svcInfo.AgentNetworkName, svcInfo.Name)
 			if err != nil {
 				return nil, fmt.Errorf("can't attach service container to the agent network: %w", err)
 			}
