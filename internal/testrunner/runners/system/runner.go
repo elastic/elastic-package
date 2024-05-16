@@ -853,7 +853,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 
 	// Temporarily until independent Elastic Agents are enabled by default,
 	// enable independent Elastic Agents if package defines that requires root privileges
-	if scenario.pkgManifest.Agent.Privileges.Root || scenario.dataStreamManifest.Agent.Privileges.Root {
+	if pkg, ds := scenario.pkgManifest, scenario.dataStreamManifest; pkg.Agent.Privileges.Root || (ds != nil && ds.Agent.Privileges.Root) {
 		r.options.RunIndependentElasticAgent = true
 	}
 
