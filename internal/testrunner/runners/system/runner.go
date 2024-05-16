@@ -279,7 +279,7 @@ func (r *runner) Run(ctx context.Context, options testrunner.TestOptions) ([]tes
 		if err != nil {
 			return result.WithError(fmt.Errorf("failed to prepare scenario: %w", err))
 		}
-		return r.validateTestScenario(ctx, result, scenario, testConfig, serviceOptions)
+		return r.validateTestScenario(ctx, result, scenario, testConfig, serviceOptions.DataStreamRootPath)
 	}
 
 	if r.options.RunTearDown {
@@ -863,6 +863,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	if ok {
 		r.options.RunIndependentElasticAgent = strings.ToLower(v) == "true"
 	}
+	serviceOptions.DeployIndependentAgent = r.options.RunIndependentElasticAgent
 
 	policyTemplateName := config.PolicyTemplate
 	if policyTemplateName == "" {
@@ -1397,7 +1398,7 @@ func (r *runner) deleteOldDocumentsDataStreamAndWait(ctx context.Context, dataSt
 	return nil
 }
 
-func (r *runner) validateTestScenario(ctx context.Context, result *testrunner.ResultComposer, scenario *scenarioTest, config *testConfig, serviceOptions servicedeployer.FactoryOptions) ([]testrunner.TestResult, error) {
+func (r *runner) validateTestScenario(ctx context.Context, result *testrunner.ResultComposer, scenario *scenarioTest, config *testConfig, dataStreamRootPath string) ([]testrunner.TestResult, error) {
 	// Validate fields in docs
 	// when reroute processors are used, expectedDatasets should be set depends on the processor config
 	var expectedDatasets []string
@@ -1431,7 +1432,7 @@ func (r *runner) validateTestScenario(ctx context.Context, result *testrunner.Re
 		expectedDatasets = []string{expectedDataset}
 	}
 
-	fieldsValidator, err := fields.CreateValidatorForDirectory(serviceOptions.DataStreamRootPath,
+	fieldsValidator, err := fields.CreateValidatorForDirectory(dataStreamRootPath,
 		fields.WithSpecVersion(scenario.pkgManifest.SpecVersion),
 		fields.WithNumericKeywordFields(config.NumericKeywordFields),
 		fields.WithExpectedDatasets(expectedDatasets),
@@ -1439,7 +1440,7 @@ func (r *runner) validateTestScenario(ctx context.Context, result *testrunner.Re
 		fields.WithDisableNormalization(scenario.syntheticEnabled),
 	)
 	if err != nil {
-		return result.WithError(fmt.Errorf("creating fields validator for data stream failed (path: %s): %w", serviceOptions.DataStreamRootPath, err))
+		return result.WithError(fmt.Errorf("creating fields validator for data stream failed (path: %s): %w", dataStreamRootPath, err))
 	}
 	if err := validateFields(scenario.docs, fieldsValidator, scenario.dataStream); err != nil {
 		return result.WithError(err)
@@ -1508,7 +1509,7 @@ func (r *runner) runTest(ctx context.Context, config *testConfig, svcInfo servic
 		return result.WithError(err)
 	}
 
-	return r.validateTestScenario(ctx, result, scenario, config, serviceOptions)
+	return r.validateTestScenario(ctx, result, scenario, config, serviceOptions.DataStreamRootPath)
 }
 
 func checkEnrolledAgents(ctx context.Context, client *kibana.Client, agentInfo agentdeployer.AgentInfo, svcInfo servicedeployer.ServiceInfo, runIndependentElasticAgent bool) ([]kibana.Agent, error) {
