@@ -853,7 +853,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 
 	// Temporarily until independent Elastic Agents are enabled by default,
 	// enable independent Elastic Agents if package defines that requires root privileges
-	if scenario.pkgManifest.Agent.Privileges.Root == true || scenario.dataStreamManifest.Agent.Privileges.Root == true {
+	if scenario.pkgManifest.Agent.Privileges.Root || scenario.dataStreamManifest.Agent.Privileges.Root {
 		r.options.RunIndependentElasticAgent = true
 	}
 
@@ -1297,7 +1297,7 @@ func (r *runner) removeServiceStateFile() error {
 
 func (r *runner) createServiceStateDir() error {
 	dirPath := filepath.Dir(r.serviceStateFilePath)
-	err := os.MkdirAll(dirPath, 0755)
+	err := os.MkdirAll(dirPath, 0o755)
 	if err != nil {
 		return fmt.Errorf("mkdir failed (path: %s): %w", dirPath, err)
 	}
@@ -1357,7 +1357,7 @@ func (r *runner) writeScenarioState(opts scenarioStateOpts) error {
 		return fmt.Errorf("failed to marshall service setup data: %w", err)
 	}
 
-	err = os.WriteFile(r.serviceStateFilePath, dataBytes, 0644)
+	err = os.WriteFile(r.serviceStateFilePath, dataBytes, 0o644)
 	if err != nil {
 		return fmt.Errorf("failed to write service setup JSON: %w", err)
 	}
@@ -1976,7 +1976,7 @@ func writeSampleEvent(path string, doc common.MapStr, specVersion semver.Version
 		return fmt.Errorf("marshalling sample event failed: %w", err)
 	}
 
-	err = os.WriteFile(filepath.Join(path, "sample_event.json"), body, 0644)
+	err = os.WriteFile(filepath.Join(path, "sample_event.json"), body, 0o644)
 	if err != nil {
 		return fmt.Errorf("writing sample event failed: %w", err)
 	}
