@@ -1530,10 +1530,11 @@ func createPackageDatastream(
 	ds packages.DataStreamManifest,
 	config testConfig,
 ) kibana.PackageDataStream {
+	suffix := createTestRunID()
 	if pkg.Type == "input" {
-		return createInputPackageDatastream(kibanaPolicy, pkg, policyTemplate, config)
+		return createInputPackageDatastream(kibanaPolicy, pkg, policyTemplate, config, suffix)
 	}
-	return createIntegrationPackageDatastream(kibanaPolicy, pkg, policyTemplate, ds, config)
+	return createIntegrationPackageDatastream(kibanaPolicy, pkg, policyTemplate, ds, config, suffix)
 }
 
 func createIntegrationPackageDatastream(
@@ -1542,9 +1543,10 @@ func createIntegrationPackageDatastream(
 	policyTemplate packages.PolicyTemplate,
 	ds packages.DataStreamManifest,
 	config testConfig,
+	suffix string,
 ) kibana.PackageDataStream {
 	r := kibana.PackageDataStream{
-		Name:      fmt.Sprintf("%s-%s", pkg.Name, ds.Name),
+		Name:      fmt.Sprintf("%s-%s-%s", pkg.Name, ds.Name, suffix),
 		Namespace: "ep",
 		PolicyID:  kibanaPolicy.ID,
 		Enabled:   true,
@@ -1595,9 +1597,10 @@ func createInputPackageDatastream(
 	pkg packages.PackageManifest,
 	policyTemplate packages.PolicyTemplate,
 	config testConfig,
+	suffix string,
 ) kibana.PackageDataStream {
 	r := kibana.PackageDataStream{
-		Name:      fmt.Sprintf("%s-%s", pkg.Name, policyTemplate.Name),
+		Name:      fmt.Sprintf("%s-%s-%s", pkg.Name, policyTemplate.Name, suffix),
 		Namespace: "ep",
 		PolicyID:  kibanaPolicy.ID,
 		Enabled:   true,
