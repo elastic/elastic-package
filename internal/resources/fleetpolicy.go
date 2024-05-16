@@ -357,7 +357,7 @@ func (s *FleetAgentPolicyState) Found() bool {
 
 func (s *FleetAgentPolicyState) NeedsUpdate(resource resource.Resource) (bool, error) {
 	policy := resource.(*FleetAgentPolicy)
-	return policy.Absent == (s.current == nil), nil
+	return policy.Absent == (s.current != nil), nil
 }
 
 // getDataStreamIndex returns the index of the data stream whose input name

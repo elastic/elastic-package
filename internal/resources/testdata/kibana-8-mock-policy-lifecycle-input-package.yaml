@@ -32,7 +32,7 @@ interactions:
         trailer: {}
         content_length: -1
         uncompressed: true
-        body: '{"name":"kibana","uuid":"f8f2e28b-50f2-4779-846d-79841b1b28b1","version":{"number":"8.13.4","build_hash":"f5dc24d1969f80e4aa3ced7cc375dd00554f8c0c","build_number":72211,"build_snapshot":false,"build_flavor":"traditional","build_date":"2024-05-07T06:06:39.204Z"},"status":{"overall":{"level":"available","summary":"All services and plugins are available"},"core":{"elasticsearch":{"level":"available","summary":"Elasticsearch is available","meta":{"warningNodes":[],"incompatibleNodes":[]}},"savedObjects":{"level":"available","summary":"SavedObjects service has completed migrations and is available","meta":{"migratedIndices":{"migrated":0,"skipped":0,"patched":6}}}},"plugins":{"alerting":{"level":"available","summary":"Alerting is (probably) ready","reported":true},"triggersActionsUi":{"level":"available","summary":"All services and plugins are available"},"discover":{"level":"available","summary":"All services and plugins are available"},"links":{"level":"available","summary":"All services and plugins are available"},"ruleRegistry":{"level":"available","summary":"All services and plugins are available"},"stackAlerts":{"level":"available","summary":"All services and plugins are available"},"stackConnectors":{"level":"available","summary":"All services and plugins are available"},"transform":{"level":"available","summary":"All services and plugins are available"},"cases":{"level":"available","summary":"All services and plugins are available"},"dataVisualizer":{"level":"available","summary":"All services and plugins are available"},"discoverEnhanced":{"level":"available","summary":"All services and plugins are available"},"reporting":{"level":"available","summary":"All services and plugins are available"},"aiops":{"level":"available","summary":"All services and plugins are available"},"canvas":{"level":"available","summary":"All services and plugins are available"},"cloudSecurityPosture":{"level":"available","summary":"All services and plugins are available"},"indexManagement":{"level":"available","summary":"All services and plugins are available"},"logsExplorer":{"level":"available","summary":"All services and plugins are available"},"observabilityShared":{"level":"available","summary":"All services and plugins are available"},"osquery":{"level":"available","summary":"All services and plugins are available"},"threatIntelligence":{"level":"available","summary":"All services and plugins are available"},"timelines":{"level":"available","summary":"All services and plugins are available"},"datasetQuality":{"level":"available","summary":"All services and plugins are available"},"indexLifecycleManagement":{"level":"available","summary":"All services and plugins are available"},"metricsDataAccess":{"level":"available","summary":"All services and plugins are available"},"ml":{"level":"available","summary":"All services and plugins are available"},"remoteClusters":{"level":"available","summary":"All services and plugins are available"},"rollup":{"level":"available","summary":"All services and plugins are available"},"sessionView":{"level":"available","summary":"All services and plugins are available"},"textBasedLanguages":{"level":"available","summary":"All services and plugins are available"},"assetManager":{"level":"available","summary":"All services and plugins are available"},"crossClusterReplication":{"level":"available","summary":"All services and plugins are available"},"elasticAssistant":{"level":"available","summary":"All services and plugins are available"},"kubernetesSecurity":{"level":"available","summary":"All services and plugins are available"},"observabilityAIAssistant":{"level":"available","summary":"All services and plugins are available"},"cloudDefend":{"level":"available","summary":"All services and plugins are available"},"exploratoryView":{"level":"available","summary":"All services and plugins are available"},"logsShared":{"level":"available","summary":"All services and plugins are available"},"enterpriseSearch":{"level":"available","summary":"All services and plugins are available"},"observability":{"level":"available","summary":"All services and plugins are available"},"observabilityLogsExplorer":{"level":"available","summary":"All services and plugins are available"},"securitySolution":{"level":"available","summary":"All services and plugins are available"},"aiAssistantManagementObservability":{"level":"available","summary":"All services and plugins are available"},"apm":{"level":"available","summary":"All services and plugins are available"},"infra":{"level":"available","summary":"All services and plugins are available"},"observabilityOnboarding":{"level":"available","summary":"All services and plugins are available"},"securitySolutionEss":{"level":"available","summary":"All services and plugins are available"},"synthetics":{"level":"available","summary":"All services and plugins are available"},"uptime":{"level":"available","summary":"All services and plugins are available"},"monitoring":{"level":"available","summary":"All services and plugins are available"},"upgradeAssistant":{"level":"available","summary":"All services and plugins are available"},"ux":{"level":"available","summary":"All services and plugins are available"},"logstash":{"level":"available","summary":"All services and plugins are available"},"fleet":{"level":"available","summary":"Fleet is available","reported":true},"bfetch":{"level":"available","summary":"All services are available"},"contentManagement":{"level":"available","summary":"All services are available"},"customIntegrations":{"level":"available","summary":"All services are available"},"esUiShared":{"level":"available","summary":"All services are available"},"expressions":{"level":"available","summary":"All services are available"},"fieldFormats":{"level":"available","summary":"All services are available"},"ftrApis":{"level":"available","summary":"All services are available"},"kibanaReact":{"level":"available","summary":"All services are available"},"kibanaUtils":{"level":"available","summary":"All services are available"},"licenseApiGuard":{"level":"available","summary":"All services are available"},"monitoringCollection":{"level":"available","summary":"All services are available"},"noDataPage":{"level":"available","summary":"All services are available"},"runtimeFields":{"level":"available","summary":"All services are available"},"savedObjectsFinder":{"level":"available","summary":"All services are available"},"screenshotMode":{"level":"available","summary":"All services are available"},"share":{"level":"available","summary":"All services are available"},"translations":{"level":"available","summary":"All services are available"},"uiActions":{"level":"available","summary":"All services are available"},"unifiedHistogram":{"level":"available","summary":"All services are available"},"urlForwarding":{"level":"available","summary":"All services are available"},"banners":{"level":"available","summary":"All services and plugins are available"},"customBranding":{"level":"available","summary":"All services and plugins are available"},"devTools":{"level":"available","summary":"All services and plugins are available"},"features":{"level":"available","summary":"All services and plugins are available"},"globalSearch":{"level":"available","summary":"All services and plugins are available"},"inspector":{"level":"available","summary":"All services and plugins are available"},"mapsEms":{"level":"available","summary":"All services and plugins are available"},"newsfeed":{"level":"available","summary":"All services and plugins are available"},"usageCollection":{"level":"available","summary":"All services and plugins are available"},"cloud":{"level":"available","summary":"All services and plugins are available"},"dataViews":{"level":"available","summary":"All services and plugins are available"},"globalSearchProviders":{"level":"available","summary":"All services and plugins are available"},"kibanaUsageCollection":{"level":"available","summary":"All services and plugins are available"},"telemetryCollectionManager":{"level":"available","summary":"All services and plugins are available"},"guidedOnboarding":{"level":"available","summary":"All services and plugins are available"},"screenshotting":{"level":"available","summary":"All services and plugins are available"},"telemetryCollectionXpack":{"level":"available","summary":"All services and plugins are available"},"home":{"level":"available","summary":"All services and plugins are available"},"console":{"level":"available","summary":"All services and plugins are available"},"grokdebugger":{"level":"available","summary":"All services and plugins are available"},"management":{"level":"available","summary":"All services and plugins are available"},"painlessLab":{"level":"available","summary":"All services and plugins are available"},"searchprofiler":{"level":"available","summary":"All services and plugins are available"},"advancedSettings":{"level":"available","summary":"All services and plugins are available"},"aiAssistantManagementSelection":{"level":"available","summary":"All services and plugins are available"},"cloudDataMigration":{"level":"available","summary":"All services and plugins are available"},"spaces":{"level":"available","summary":"All services and plugins are available"},"eventLog":{"level":"available","summary":"All services and plugins are available"},"security":{"level":"available","summary":"All services and plugins are available"},"cloudLinks":{"level":"available","summary":"All services and plugins are available"},"data":{"level":"available","summary":"All services and plugins are available"},"encryptedSavedObjects":{"level":"available","summary":"All services and plugins are available"},"files":{"level":"available","summary":"All services and plugins are available"},"lists":{"level":"available","summary":"All services and plugins are available"},"snapshotRestore":{"level":"available","summary":"All services and plugins are available"},"telemetry":{"level":"available","summary":"All services and plugins are available"},"actions":{"level":"available","summary":"All services and plugins are available"},"apmDataAccess":{"level":"available","summary":"All services and plugins are available"},"charts":{"level":"available","summary":"All services and plugins are available"},"dataViewEditor":{"level":"available","summary":"All services and plugins are available"},"dataViewFieldEditor":{"level":"available","summary":"All services and plugins are available"},"ecsDataQualityDashboard":{"level":"available","summary":"All services and plugins are available"},"fileUpload":{"level":"available","summary":"All services and plugins are available"},"filesManagement":{"level":"available","summary":"All services and plugins are available"},"licenseManagement":{"level":"available","summary":"All services and plugins are available"},"savedObjects":{"level":"available","summary":"All services and plugins are available"},"telemetryManagementSection":{"level":"available","summary":"All services and plugins are available"},"unifiedDocViewer":{"level":"available","summary":"All services and plugins are available"},"ingestPipelines":{"level":"available","summary":"All services and plugins are available"},"notifications":{"level":"available","summary":"All services and plugins are available"},"savedObjectsTaggingOss":{"level":"available","summary":"All services and plugins are available"},"watcher":{"level":"available","summary":"All services and plugins are available"},"savedObjectsManagement":{"level":"available","summary":"All services and plugins are available"},"savedObjectsTagging":{"level":"available","summary":"All services and plugins are available"},"embeddable":{"level":"available","summary":"All services and plugins are available"},"globalSearchBar":{"level":"available","summary":"All services and plugins are available"},"presentationPanel":{"level":"available","summary":"All services and plugins are available"},"unifiedSearch":{"level":"available","summary":"All services and plugins are available"},"dataViewManagement":{"level":"available","summary":"All services and plugins are available"},"imageEmbeddable":{"level":"available","summary":"All services and plugins are available"},"navigation":{"level":"available","summary":"All services and plugins are available"},"presentationUtil":{"level":"available","summary":"All services and plugins are available"},"savedSearch":{"level":"available","summary":"All services and plugins are available"},"uiActionsEnhanced":{"level":"available","summary":"All services and plugins are available"},"controls":{"level":"available","summary":"All services and plugins are available"},"embeddableEnhanced":{"level":"available","summary":"All services and plugins are available"},"expressionError":{"level":"available","summary":"All services and plugins are available"},"expressionImage":{"level":"available","summary":"All services and plugins are available"},"expressionMetric":{"level":"available","summary":"All services and plugins are available"},"expressionRepeatImage":{"level":"available","summary":"All services and plugins are available"},"expressionRevealImage":{"level":"available","summary":"All services and plugins are available"},"expressionShape":{"level":"available","summary":"All services and plugins are available"},"graph":{"level":"available","summary":"All services and plugins are available"},"kibanaOverview":{"level":"available","summary":"All services and plugins are available"},"urlDrilldown":{"level":"available","summary":"All services and plugins are available"},"visualizations":{"level":"available","summary":"All services and plugins are available"},"dashboard":{"level":"available","summary":"All services and plugins are available"},"eventAnnotation":{"level":"available","summary":"All services and plugins are available"},"expressionGauge":{"level":"available","summary":"All services and plugins are available"},"expressionHeatmap":{"level":"available","summary":"All services and plugins are available"},"expressionLegacyMetricVis":{"level":"available","summary":"All services and plugins are available"},"expressionMetricVis":{"level":"available","summary":"All services and plugins are available"},"expressionPartitionVis":{"level":"available","summary":"All services and plugins are available"},"expressionTagcloud":{"level":"available","summary":"All services and plugins are available"},"visDefaultEditor":{"level":"available","summary":"All services and plugins are available"},"visTypeHeatmap":{"level":"available","summary":"All services and plugins are available"},"visTypeMarkdown":{"level":"available","summary":"All services and plugins are available"},"visTypeMetric":{"level":"available","summary":"All services and plugins are available"},"visTypeTable":{"level":"available","summary":"All services and plugins are available"},"visTypeTagcloud":{"level":"available","summary":"All services and plugins are available"},"visTypeTimelion":{"level":"available","summary":"All services and plugins are available"},"visTypeTimeseries":{"level":"available","summary":"All services and plugins are available"},"visTypeVega":{"level":"available","summary":"All services and plugins are available"},"visTypeVislib":{"level":"available","summary":"All services and plugins are available"},"visTypeXy":{"level":"available","summary":"All services and plugins are available"},"dashboardEnhanced":{"level":"available","summary":"All services and plugins are available"},"expressionXY":{"level":"available","summary":"All services and plugins are available"},"inputControlVis":{"level":"available","summary":"All services and plugins are available"},"visTypeGauge":{"level":"available","summary":"All services and plugins are available"},"visTypePie":{"level":"available","summary":"All services and plugins are available"},"lens":{"level":"available","summary":"All services and plugins are available"},"eventAnnotationListing":{"level":"available","summary":"All services and plugins are available"},"maps":{"level":"available","summary":"All services and plugins are available"},"taskManager":{"level":"available","summary":"Task Manager is healthy","reported":true},"licensing":{"level":"available","summary":"License fetched","reported":true}}},"metrics":{"last_updated":"2024-05-16T10:02:52.211Z","collection_interval_in_millis":5000,"os":{"platform":"linux","platformRelease":"linux-5.19.0-50-generic","load":{"1m":3.21,"5m":2.97,"15m":2.48},"memory":{"total_in_bytes":33357811712,"free_in_bytes":18175066112,"used_in_bytes":15182745600},"uptime_in_millis":89729780,"distro":"Ubuntu","distroRelease":"Ubuntu-20.04","cpu":{"cfs_quota_micros":-1,"cfs_period_micros":100000,"control_group":"/","stat":{"number_of_elapsed_periods":0,"number_of_times_throttled":0,"time_throttled_nanos":0}},"cpuacct":{"control_group":"/","usage_nanos":65998737},"cgroup_memory":{"current_in_bytes":666906624,"swap_current_in_bytes":0}},"process":{"memory":{"heap":{"total_in_bytes":463163392,"used_in_bytes":388240968,"size_limit":4345298944},"resident_set_size_in_bytes":633409536,"array_buffers_in_bytes":43230813,"external_in_bytes":49377067},"pid":7,"event_loop_delay":10.164692114285716,"event_loop_delay_histogram":{"min":9.207808,"max":18.759679,"mean":10.164692114285716,"exceeds":0,"stddev":0.6806766457980207,"fromTimestamp":"2024-05-16T10:02:47.212Z","lastUpdatedAt":"2024-05-16T10:02:52.210Z","percentiles":{"50":10.190847,"75":10.526719,"95":10.887167,"99":11.026431}},"event_loop_utilization":{"active":227.48753400013084,"idle":4771.064585999993,"utilization":0.045510685602319016},"uptime_in_millis":268799.350238},"processes":[{"memory":{"heap":{"total_in_bytes":463163392,"used_in_bytes":388240968,"size_limit":4345298944},"resident_set_size_in_bytes":633409536,"array_buffers_in_bytes":43230813,"external_in_bytes":49377067},"pid":7,"event_loop_delay":10.164692114285716,"event_loop_delay_histogram":{"min":9.207808,"max":18.759679,"mean":10.164692114285716,"exceeds":0,"stddev":0.6806766457980207,"fromTimestamp":"2024-05-16T10:02:47.212Z","lastUpdatedAt":"2024-05-16T10:02:52.210Z","percentiles":{"50":10.190847,"75":10.526719,"95":10.887167,"99":11.026431}},"event_loop_utilization":{"active":227.48753400013084,"idle":4771.064585999993,"utilization":0.045510685602319016},"uptime_in_millis":268799.350238}],"response_times":{"avg_in_millis":1695.6666666666667,"max_in_millis":5036},"concurrent_connections":3,"requests":{"disconnects":0,"total":3,"statusCodes":{"200":3},"status_codes":{"200":3}},"elasticsearch_client":{"totalActiveSockets":1,"totalIdleSockets":33,"totalQueuedRequests":0}}}'
+        body: '{"name":"kibana","uuid":"f8f2e28b-50f2-4779-846d-79841b1b28b1","version":{"number":"8.13.4","build_hash":"f5dc24d1969f80e4aa3ced7cc375dd00554f8c0c","build_number":72211,"build_snapshot":false,"build_flavor":"traditional","build_date":"2024-05-07T06:06:39.204Z"},"status":{"overall":{"level":"available","summary":"All services and plugins are available"},"core":{"elasticsearch":{"level":"available","summary":"Elasticsearch is available","meta":{"warningNodes":[],"incompatibleNodes":[]}},"savedObjects":{"level":"available","summary":"SavedObjects service has completed migrations and is available","meta":{"migratedIndices":{"migrated":0,"skipped":0,"patched":6}}}},"plugins":{"alerting":{"level":"available","summary":"Alerting is (probably) ready","reported":true},"triggersActionsUi":{"level":"available","summary":"All services and plugins are available"},"discover":{"level":"available","summary":"All services and plugins are available"},"links":{"level":"available","summary":"All services and plugins are available"},"ruleRegistry":{"level":"available","summary":"All services and plugins are available"},"stackAlerts":{"level":"available","summary":"All services and plugins are available"},"stackConnectors":{"level":"available","summary":"All services and plugins are available"},"transform":{"level":"available","summary":"All services and plugins are available"},"cases":{"level":"available","summary":"All services and plugins are available"},"dataVisualizer":{"level":"available","summary":"All services and plugins are available"},"discoverEnhanced":{"level":"available","summary":"All services and plugins are available"},"reporting":{"level":"available","summary":"All services and plugins are available"},"aiops":{"level":"available","summary":"All services and plugins are available"},"canvas":{"level":"available","summary":"All services and plugins are available"},"cloudSecurityPosture":{"level":"available","summary":"All services and plugins are available"},"indexManagement":{"level":"available","summary":"All services and plugins are available"},"logsExplorer":{"level":"available","summary":"All services and plugins are available"},"observabilityShared":{"level":"available","summary":"All services and plugins are available"},"osquery":{"level":"available","summary":"All services and plugins are available"},"threatIntelligence":{"level":"available","summary":"All services and plugins are available"},"timelines":{"level":"available","summary":"All services and plugins are available"},"datasetQuality":{"level":"available","summary":"All services and plugins are available"},"indexLifecycleManagement":{"level":"available","summary":"All services and plugins are available"},"metricsDataAccess":{"level":"available","summary":"All services and plugins are available"},"ml":{"level":"available","summary":"All services and plugins are available"},"remoteClusters":{"level":"available","summary":"All services and plugins are available"},"rollup":{"level":"available","summary":"All services and plugins are available"},"sessionView":{"level":"available","summary":"All services and plugins are available"},"textBasedLanguages":{"level":"available","summary":"All services and plugins are available"},"assetManager":{"level":"available","summary":"All services and plugins are available"},"crossClusterReplication":{"level":"available","summary":"All services and plugins are available"},"elasticAssistant":{"level":"available","summary":"All services and plugins are available"},"kubernetesSecurity":{"level":"available","summary":"All services and plugins are available"},"observabilityAIAssistant":{"level":"available","summary":"All services and plugins are available"},"cloudDefend":{"level":"available","summary":"All services and plugins are available"},"exploratoryView":{"level":"available","summary":"All services and plugins are available"},"logsShared":{"level":"available","summary":"All services and plugins are available"},"enterpriseSearch":{"level":"available","summary":"All services and plugins are available"},"observability":{"level":"available","summary":"All services and plugins are available"},"observabilityLogsExplorer":{"level":"available","summary":"All services and plugins are available"},"securitySolution":{"level":"available","summary":"All services and plugins are available"},"aiAssistantManagementObservability":{"level":"available","summary":"All services and plugins are available"},"apm":{"level":"available","summary":"All services and plugins are available"},"infra":{"level":"available","summary":"All services and plugins are available"},"observabilityOnboarding":{"level":"available","summary":"All services and plugins are available"},"securitySolutionEss":{"level":"available","summary":"All services and plugins are available"},"synthetics":{"level":"available","summary":"All services and plugins are available"},"uptime":{"level":"available","summary":"All services and plugins are available"},"monitoring":{"level":"available","summary":"All services and plugins are available"},"upgradeAssistant":{"level":"available","summary":"All services and plugins are available"},"ux":{"level":"available","summary":"All services and plugins are available"},"logstash":{"level":"available","summary":"All services and plugins are available"},"fleet":{"level":"available","summary":"Fleet is available","reported":true},"bfetch":{"level":"available","summary":"All services are available"},"contentManagement":{"level":"available","summary":"All services are available"},"customIntegrations":{"level":"available","summary":"All services are available"},"esUiShared":{"level":"available","summary":"All services are available"},"expressions":{"level":"available","summary":"All services are available"},"fieldFormats":{"level":"available","summary":"All services are available"},"ftrApis":{"level":"available","summary":"All services are available"},"kibanaReact":{"level":"available","summary":"All services are available"},"kibanaUtils":{"level":"available","summary":"All services are available"},"licenseApiGuard":{"level":"available","summary":"All services are available"},"monitoringCollection":{"level":"available","summary":"All services are available"},"noDataPage":{"level":"available","summary":"All services are available"},"runtimeFields":{"level":"available","summary":"All services are available"},"savedObjectsFinder":{"level":"available","summary":"All services are available"},"screenshotMode":{"level":"available","summary":"All services are available"},"share":{"level":"available","summary":"All services are available"},"translations":{"level":"available","summary":"All services are available"},"uiActions":{"level":"available","summary":"All services are available"},"unifiedHistogram":{"level":"available","summary":"All services are available"},"urlForwarding":{"level":"available","summary":"All services are available"},"banners":{"level":"available","summary":"All services and plugins are available"},"customBranding":{"level":"available","summary":"All services and plugins are available"},"devTools":{"level":"available","summary":"All services and plugins are available"},"features":{"level":"available","summary":"All services and plugins are available"},"globalSearch":{"level":"available","summary":"All services and plugins are available"},"inspector":{"level":"available","summary":"All services and plugins are available"},"mapsEms":{"level":"available","summary":"All services and plugins are available"},"newsfeed":{"level":"available","summary":"All services and plugins are available"},"usageCollection":{"level":"available","summary":"All services and plugins are available"},"cloud":{"level":"available","summary":"All services and plugins are available"},"dataViews":{"level":"available","summary":"All services and plugins are available"},"globalSearchProviders":{"level":"available","summary":"All services and plugins are available"},"kibanaUsageCollection":{"level":"available","summary":"All services and plugins are available"},"telemetryCollectionManager":{"level":"available","summary":"All services and plugins are available"},"guidedOnboarding":{"level":"available","summary":"All services and plugins are available"},"screenshotting":{"level":"available","summary":"All services and plugins are available"},"telemetryCollectionXpack":{"level":"available","summary":"All services and plugins are available"},"home":{"level":"available","summary":"All services and plugins are available"},"console":{"level":"available","summary":"All services and plugins are available"},"grokdebugger":{"level":"available","summary":"All services and plugins are available"},"management":{"level":"available","summary":"All services and plugins are available"},"painlessLab":{"level":"available","summary":"All services and plugins are available"},"searchprofiler":{"level":"available","summary":"All services and plugins are available"},"advancedSettings":{"level":"available","summary":"All services and plugins are available"},"aiAssistantManagementSelection":{"level":"available","summary":"All services and plugins are available"},"cloudDataMigration":{"level":"available","summary":"All services and plugins are available"},"spaces":{"level":"available","summary":"All services and plugins are available"},"eventLog":{"level":"available","summary":"All services and plugins are available"},"security":{"level":"available","summary":"All services and plugins are available"},"cloudLinks":{"level":"available","summary":"All services and plugins are available"},"data":{"level":"available","summary":"All services and plugins are available"},"encryptedSavedObjects":{"level":"available","summary":"All services and plugins are available"},"files":{"level":"available","summary":"All services and plugins are available"},"lists":{"level":"available","summary":"All services and plugins are available"},"snapshotRestore":{"level":"available","summary":"All services and plugins are available"},"telemetry":{"level":"available","summary":"All services and plugins are available"},"actions":{"level":"available","summary":"All services and plugins are available"},"apmDataAccess":{"level":"available","summary":"All services and plugins are available"},"charts":{"level":"available","summary":"All services and plugins are available"},"dataViewEditor":{"level":"available","summary":"All services and plugins are available"},"dataViewFieldEditor":{"level":"available","summary":"All services and plugins are available"},"ecsDataQualityDashboard":{"level":"available","summary":"All services and plugins are available"},"fileUpload":{"level":"available","summary":"All services and plugins are available"},"filesManagement":{"level":"available","summary":"All services and plugins are available"},"licenseManagement":{"level":"available","summary":"All services and plugins are available"},"savedObjects":{"level":"available","summary":"All services and plugins are available"},"telemetryManagementSection":{"level":"available","summary":"All services and plugins are available"},"unifiedDocViewer":{"level":"available","summary":"All services and plugins are available"},"ingestPipelines":{"level":"available","summary":"All services and plugins are available"},"notifications":{"level":"available","summary":"All services and plugins are available"},"savedObjectsTaggingOss":{"level":"available","summary":"All services and plugins are available"},"watcher":{"level":"available","summary":"All services and plugins are available"},"savedObjectsManagement":{"level":"available","summary":"All services and plugins are available"},"savedObjectsTagging":{"level":"available","summary":"All services and plugins are available"},"embeddable":{"level":"available","summary":"All services and plugins are available"},"globalSearchBar":{"level":"available","summary":"All services and plugins are available"},"presentationPanel":{"level":"available","summary":"All services and plugins are available"},"unifiedSearch":{"level":"available","summary":"All services and plugins are available"},"dataViewManagement":{"level":"available","summary":"All services and plugins are available"},"imageEmbeddable":{"level":"available","summary":"All services and plugins are available"},"navigation":{"level":"available","summary":"All services and plugins are available"},"presentationUtil":{"level":"available","summary":"All services and plugins are available"},"savedSearch":{"level":"available","summary":"All services and plugins are available"},"uiActionsEnhanced":{"level":"available","summary":"All services and plugins are available"},"controls":{"level":"available","summary":"All services and plugins are available"},"embeddableEnhanced":{"level":"available","summary":"All services and plugins are available"},"expressionError":{"level":"available","summary":"All services and plugins are available"},"expressionImage":{"level":"available","summary":"All services and plugins are available"},"expressionMetric":{"level":"available","summary":"All services and plugins are available"},"expressionRepeatImage":{"level":"available","summary":"All services and plugins are available"},"expressionRevealImage":{"level":"available","summary":"All services and plugins are available"},"expressionShape":{"level":"available","summary":"All services and plugins are available"},"graph":{"level":"available","summary":"All services and plugins are available"},"kibanaOverview":{"level":"available","summary":"All services and plugins are available"},"urlDrilldown":{"level":"available","summary":"All services and plugins are available"},"visualizations":{"level":"available","summary":"All services and plugins are available"},"dashboard":{"level":"available","summary":"All services and plugins are available"},"eventAnnotation":{"level":"available","summary":"All services and plugins are available"},"expressionGauge":{"level":"available","summary":"All services and plugins are available"},"expressionHeatmap":{"level":"available","summary":"All services and plugins are available"},"expressionLegacyMetricVis":{"level":"available","summary":"All services and plugins are available"},"expressionMetricVis":{"level":"available","summary":"All services and plugins are available"},"expressionPartitionVis":{"level":"available","summary":"All services and plugins are available"},"expressionTagcloud":{"level":"available","summary":"All services and plugins are available"},"visDefaultEditor":{"level":"available","summary":"All services and plugins are available"},"visTypeHeatmap":{"level":"available","summary":"All services and plugins are available"},"visTypeMarkdown":{"level":"available","summary":"All services and plugins are available"},"visTypeMetric":{"level":"available","summary":"All services and plugins are available"},"visTypeTable":{"level":"available","summary":"All services and plugins are available"},"visTypeTagcloud":{"level":"available","summary":"All services and plugins are available"},"visTypeTimelion":{"level":"available","summary":"All services and plugins are available"},"visTypeTimeseries":{"level":"available","summary":"All services and plugins are available"},"visTypeVega":{"level":"available","summary":"All services and plugins are available"},"visTypeVislib":{"level":"available","summary":"All services and plugins are available"},"visTypeXy":{"level":"available","summary":"All services and plugins are available"},"dashboardEnhanced":{"level":"available","summary":"All services and plugins are available"},"expressionXY":{"level":"available","summary":"All services and plugins are available"},"inputControlVis":{"level":"available","summary":"All services and plugins are available"},"visTypeGauge":{"level":"available","summary":"All services and plugins are available"},"visTypePie":{"level":"available","summary":"All services and plugins are available"},"lens":{"level":"available","summary":"All services and plugins are available"},"eventAnnotationListing":{"level":"available","summary":"All services and plugins are available"},"maps":{"level":"available","summary":"All services and plugins are available"},"taskManager":{"level":"available","summary":"Task Manager is healthy","reported":true},"licensing":{"level":"available","summary":"License fetched","reported":true}}},"metrics":{"last_updated":"2024-05-16T10:06:32.217Z","collection_interval_in_millis":5000,"os":{"platform":"linux","platformRelease":"linux-5.19.0-50-generic","load":{"1m":2.42,"5m":2.63,"15m":2.43},"memory":{"total_in_bytes":33357811712,"free_in_bytes":18232061952,"used_in_bytes":15125749760},"uptime_in_millis":89949790,"distro":"Ubuntu","distroRelease":"Ubuntu-20.04","cpu":{"cfs_quota_micros":-1,"cfs_period_micros":100000,"control_group":"/","stat":{"number_of_elapsed_periods":0,"number_of_times_throttled":0,"time_throttled_nanos":0}},"cpuacct":{"control_group":"/","usage_nanos":84155489},"cgroup_memory":{"current_in_bytes":676737024,"swap_current_in_bytes":0}},"process":{"memory":{"heap":{"total_in_bytes":463282176,"used_in_bytes":378530440,"size_limit":4345298944},"resident_set_size_in_bytes":641400832,"array_buffers_in_bytes":35919784,"external_in_bytes":42065526},"pid":7,"event_loop_delay":10.699138746781117,"event_loop_delay_histogram":{"min":9.17504,"max":52.428799,"mean":10.699138746781117,"exceeds":0,"stddev":3.4234859096779076,"fromTimestamp":"2024-05-16T10:06:27.217Z","lastUpdatedAt":"2024-05-16T10:06:32.216Z","percentiles":{"50":10.035199,"75":10.641407,"95":12.435455,"99":28.131327}},"event_loop_utilization":{"active":999.0319339958951,"idle":4000.1838010000065,"utilization":0.19983773194711194},"uptime_in_millis":488805.047037},"processes":[{"memory":{"heap":{"total_in_bytes":463282176,"used_in_bytes":378530440,"size_limit":4345298944},"resident_set_size_in_bytes":641400832,"array_buffers_in_bytes":35919784,"external_in_bytes":42065526},"pid":7,"event_loop_delay":10.699138746781117,"event_loop_delay_histogram":{"min":9.17504,"max":52.428799,"mean":10.699138746781117,"exceeds":0,"stddev":3.4234859096779076,"fromTimestamp":"2024-05-16T10:06:27.217Z","lastUpdatedAt":"2024-05-16T10:06:32.216Z","percentiles":{"50":10.035199,"75":10.641407,"95":12.435455,"99":28.131327}},"event_loop_utilization":{"active":999.0319339958951,"idle":4000.1838010000065,"utilization":0.19983773194711194},"uptime_in_millis":488805.047037}],"response_times":{"avg_in_millis":552.5714285714286,"max_in_millis":1812},"concurrent_connections":3,"requests":{"disconnects":0,"total":7,"statusCodes":{"200":7},"status_codes":{"200":7}},"elasticsearch_client":{"totalActiveSockets":1,"totalIdleSockets":32,"totalQueuedRequests":0}}}'
         headers:
             Cache-Control:
                 - private, no-cache, no-store, must-revalidate
@@ -45,7 +45,7 @@ interactions:
             Cross-Origin-Opener-Policy:
                 - same-origin
             Date:
-                - Thu, 16 May 2024 10:02:55 GMT
+                - Thu, 16 May 2024 10:06:37 GMT
             Kbn-License-Sig:
                 - 9b993667fad3cbc5ebac755497fe0c0bd1e2cc85a9a9ac0cf453d3600b761580
             Kbn-Name:
@@ -62,7 +62,7 @@ interactions:
                 - nosniff
         status: 200 OK
         code: 200
-        duration: 7.250799ms
+        duration: 5.960582ms
     - id: 1
       request:
         proto: HTTP/1.1
@@ -108,7 +108,7 @@ interactions:
             Cross-Origin-Opener-Policy:
                 - same-origin
             Date:
-                - Thu, 16 May 2024 10:02:55 GMT
+                - Thu, 16 May 2024 10:06:37 GMT
             Elastic-Api-Version:
                 - "2023-10-31"
             Kbn-License-Sig:
@@ -125,7 +125,7 @@ interactions:
                 - nosniff
         status: 404 Not Found
         code: 404
-        duration: 43.74742ms
+        duration: 46.347668ms
     - id: 2
       request:
         proto: HTTP/1.1
@@ -138,9 +138,9 @@ interactions:
         remote_addr: ""
         request_uri: ""
         body: !!binary |
-            UEsDBBQAAAAAAFtQsFgAAAAAAAAAAAAAAAAQAAkAc3FsX2lucHV0LTAuMi4wL1VUBQABz9
-            lFZlBLAwQUAAgAAABbULBYAAAAAAAAAAAAAAAAGwAJAHNxbF9pbnB1dC0wLjIuMC9MSUNF
-            TlNFLnR4dFVUBQABz9lFZkVMQVNUSUMgTElDRU5TRSBBR1JFRU1FTlQKClBMRUFTRSBSRU
+            UEsDBBQAAAAAANJQsFgAAAAAAAAAAAAAAAAQAAkAc3FsX2lucHV0LTAuMi4wL1VUBQABrd
+            pFZlBLAwQUAAgAAADSULBYAAAAAAAAAAAAAAAAGwAJAHNxbF9pbnB1dC0wLjIuMC9MSUNF
+            TlNFLnR4dFVUBQABrdpFZkVMQVNUSUMgTElDRU5TRSBBR1JFRU1FTlQKClBMRUFTRSBSRU
             FEIENBUkVGVUxMWSBUSElTIEVMQVNUSUMgTElDRU5TRSBBR1JFRU1FTlQgKFRISVMgIkFH
             UkVFTUVOVCIpLCBXSElDSApDT05TVElUVVRFUyBBIExFR0FMTFkgQklORElORyBBR1JFRU
             1FTlQgQU5EIEdPVkVSTlMgQUxMIE9GIFlPVVIgVVNFIE9GIEFMTCBPRgpUSEUgRUxBU1RJ
@@ -401,22 +401,22 @@ interactions:
             biBzb3VyY2UsIGFuZCBjb25maWd1cmF0aW9uIGZpbGVzLgoKICA2LjExICJTdWJzY3JpcH
             Rpb24iIG1lYW5zIHRoZSByaWdodCB0byByZWNlaXZlIFN1cHBvcnQgU2VydmljZXMgYW5k
             IGEgTGljZW5zZQogIHRvIHRoZSBDb21tZXJjaWFsIFNvZnR3YXJlLgpQSwcISTsT8Ws1AA
-            BrNQAAUEsDBBQAAAAAAFtQsFgAAAAAAAAAAAAAAAAWAAkAc3FsX2lucHV0LTAuMi4wL2Fn
-            ZW50L1VUBQABz9lFZlBLAwQUAAAAAABbULBYAAAAAAAAAAAAAAAAHAAJAHNxbF9pbnB1dC
-            0wLjIuMC9hZ2VudC9pbnB1dC9VVAUAAc/ZRWZQSwMEFAAIAAAAW1CwWAAAAAAAAAAAAAAA
-            ACkACQBzcWxfaW5wdXQtMC4yLjAvYWdlbnQvaW5wdXQvaW5wdXQueW1sLmhic1VUBQABz9
-            lFZm1ldHJpY3NldHM6IFsicXVlcnkiXQpwZXJpb2Q6IHt7cGVyaW9kfX0KaG9zdHM6Cnt7
+            BrNQAAUEsDBBQAAAAAANJQsFgAAAAAAAAAAAAAAAAWAAkAc3FsX2lucHV0LTAuMi4wL2Fn
+            ZW50L1VUBQABrdpFZlBLAwQUAAAAAADSULBYAAAAAAAAAAAAAAAAHAAJAHNxbF9pbnB1dC
+            0wLjIuMC9hZ2VudC9pbnB1dC9VVAUAAa3aRWZQSwMEFAAIAAAA0lCwWAAAAAAAAAAAAAAA
+            ACkACQBzcWxfaW5wdXQtMC4yLjAvYWdlbnQvaW5wdXQvaW5wdXQueW1sLmhic1VUBQABrd
+            pFZm1ldHJpY3NldHM6IFsicXVlcnkiXQpwZXJpb2Q6IHt7cGVyaW9kfX0KaG9zdHM6Cnt7
             I2VhY2ggaG9zdHN9fQogIC0ge3t0aGlzfX0Ke3svZWFjaH19CmRyaXZlcjoge3tkcml2ZX
             J9fQpzcWxfcXVlcnk6IHt7c3FsX3F1ZXJ5fX0Kc3FsX3Jlc3BvbnNlX2Zvcm1hdDoge3tz
-            cWxfcmVzcG9uc2VfZm9ybWF0fX0KUEsHCDZzxdSwAAAAsAAAAFBLAwQUAAgAAABbULBYAA
-            AAAAAAAAAAAAAAHQAJAHNxbF9pbnB1dC0wLjIuMC9jaGFuZ2Vsb2cueW1sVVQFAAHP2UVm
+            cWxfcmVzcG9uc2VfZm9ybWF0fX0KUEsHCDZzxdSwAAAAsAAAAFBLAwQUAAgAAADSULBYAA
+            AAAAAAAAAAAAAAHQAJAHNxbF9pbnB1dC0wLjIuMC9jaGFuZ2Vsb2cueW1sVVQFAAGt2kVm
             IyBuZXdlciB2ZXJzaW9ucyBnbyBvbiB0b3AKLSB2ZXJzaW9uOiAiMC4yLjAiCiAgY2hhbm
             dlczoKICAgIC0gZGVzY3JpcHRpb246IEluaXRpYWwgZHJhZnQgb2YgdGhlIHBhY2thZ2UK
             ICAgICAgdHlwZTogZW5oYW5jZW1lbnQKICAgICAgbGluazogaHR0cHM6Ly9naXRodWIuY2
             9tL2VsYXN0aWMvcGFja2FnZS1zcGVjL3B1bGwvMzI1ClBLBwjjis7ovgAAAL4AAABQSwME
-            FAAAAAAAW1CwWAAAAAAAAAAAAAAAABUACQBzcWxfaW5wdXQtMC4yLjAvZG9jcy9VVAUAAc
-            /ZRWZQSwMEFAAIAAAAW1CwWAAAAAAAAAAAAAAAAB4ACQBzcWxfaW5wdXQtMC4yLjAvZG9j
-            cy9SRUFETUUubWRVVAUAAc/ZRWYjIFNRTCBJbnB1dAoKSGVsbG8gZnJvbSB0aGUgU1FMIG
+            FAAAAAAA0lCwWAAAAAAAAAAAAAAAABUACQBzcWxfaW5wdXQtMC4yLjAvZG9jcy9VVAUAAa
+            3aRWZQSwMEFAAIAAAA0lCwWAAAAAAAAAAAAAAAAB4ACQBzcWxfaW5wdXQtMC4yLjAvZG9j
+            cy9SRUFETUUubWRVVAUAAa3aRWYjIFNRTCBJbnB1dAoKSGVsbG8gZnJvbSB0aGUgU1FMIG
             lucHV0IHBhY2thZ2UhCgoqKkV4cG9ydGVkIGZpZWxkcyoqCgp8IEZpZWxkIHwgRGVzY3Jp
             cHRpb24gfCBUeXBlIHwKfC0tLXwtLS18LS0tfAp8IEB0aW1lc3RhbXAgfCBEYXRlL3RpbW
             Ugd2hlbiB0aGUgZXZlbnQgb3JpZ2luYXRlZC4gVGhpcyBpcyB0aGUgZGF0ZS90aW1lIGV4
@@ -1574,9 +1574,9 @@ interactions:
             B1c2VyX2FnZW50Lm9zLnZlcnNpb24gfCBPcGVyYXRpbmcgc3lzdGVtIHZlcnNpb24gYXMg
             YSByYXcgc3RyaW5nLiB8IGtleXdvcmQgfAp8IHVzZXJfYWdlbnQudmVyc2lvbiB8IFZlcn
             Npb24gb2YgdGhlIHVzZXIgYWdlbnQuIHwga2V5d29yZCB8ClBLBwhK9UxYVu0AAFbtAABQ
-            SwMEFAAAAAAAW1CwWAAAAAAAAAAAAAAAABcACQBzcWxfaW5wdXQtMC4yLjAvZmllbGRzL1
-            VUBQABz9lFZlBLAwQUAAgAAABbULBYAAAAAAAAAAAAAAAAHgAJAHNxbF9pbnB1dC0wLjIu
-            MC9maWVsZHMvZWNzLnltbFVUBQABz9lFZi0gZGVzY3JpcHRpb246IHwtCiAgICBEYXRlL3
+            SwMEFAAAAAAA0lCwWAAAAAAAAAAAAAAAABcACQBzcWxfaW5wdXQtMC4yLjAvZmllbGRzL1
+            VUBQABrdpFZlBLAwQUAAgAAADSULBYAAAAAAAAAAAAAAAAHgAJAHNxbF9pbnB1dC0wLjIu
+            MC9maWVsZHMvZWNzLnltbFVUBQABrdpFZi0gZGVzY3JpcHRpb246IHwtCiAgICBEYXRlL3
             RpbWUgd2hlbiB0aGUgZXZlbnQgb3JpZ2luYXRlZC4KICAgIFRoaXMgaXMgdGhlIGRhdGUv
             dGltZSBleHRyYWN0ZWQgZnJvbSB0aGUgZXZlbnQsIHR5cGljYWxseSByZXByZXNlbnRpbm
             cgd2hlbiB0aGUgZXZlbnQgd2FzIGdlbmVyYXRlZCBieSB0aGUgc291cmNlLgogICAgSWYg
@@ -2887,8 +2887,8 @@ interactions:
             dmVyc2lvbiBhcyBhIHJhdyBzdHJpbmcuCiAgbmFtZTogdXNlcl9hZ2VudC5vcy52ZXJzaW
             9uCiAgdHlwZToga2V5d29yZAotIGRlc2NyaXB0aW9uOiBWZXJzaW9uIG9mIHRoZSB1c2Vy
             IGFnZW50LgogIG5hbWU6IHVzZXJfYWdlbnQudmVyc2lvbgogIHR5cGU6IGtleXdvcmQKUE
-            sHCDRO2ELBDAEAwQwBAFBLAwQUAAgAAABbULBYAAAAAAAAAAAAAAAAIAAJAHNxbF9pbnB1
-            dC0wLjIuMC9maWVsZHMvaW5wdXQueW1sVVQFAAHP2UVmLSBkZXNjcmlwdGlvbjogU2FtcG
+            sHCDRO2ELBDAEAwQwBAFBLAwQUAAgAAADSULBYAAAAAAAAAAAAAAAAIAAJAHNxbF9pbnB1
+            dC0wLjIuMC9maWVsZHMvaW5wdXQueW1sVVQFAAGt2kVmLSBkZXNjcmlwdGlvbjogU2FtcG
             xlIGZpZWxkIHRvIGJlIGFkZGVkLgogIG5hbWU6IGlucHV0Lm5hbWUKICB0eXBlOiBjb25z
             dGFudF9rZXl3b3JkCiAgdmFsdWU6IHNxbAotIG5hbWU6IHNxbC5tZXRyaWNzLm51bWVyaW
             MuKgogIHR5cGU6IGRvdWJsZQotIG5hbWU6IHNxbC5tZXRyaWNzLnN0cmluZy4qCiAgdHlw
@@ -2924,10 +2924,10 @@ interactions:
             wgbmV0d29yayBhZGRyZXNzIChpcHY0OnBvcnQgb3IgW2lwdjZdOnBvcnQpIG9yIGEgcmVz
             b3VyY2UgcGF0aCAoc29ja2V0cykuCiAgbmFtZTogc2VydmljZS5hZGRyZXNzCiAgdHlwZT
             oga2V5d29yZAotIG5hbWU6IHNxbC5kcml2ZXIKICB0eXBlOiBrZXl3b3JkCi0gbmFtZTog
-            c3FsLnF1ZXJ5CiAgdHlwZToga2V5d29yZApQSwcIEvC6FVsHAABbBwAAUEsDBBQAAAAAAF
-            tQsFgAAAAAAAAAAAAAAAAUAAkAc3FsX2lucHV0LTAuMi4wL2ltZy9VVAUAAc/ZRWZQSwME
-            FAAIAAAAW1CwWAAAAAAAAAAAAAAAACMACQBzcWxfaW5wdXQtMC4yLjAvaW1nL3NhbXBsZS
-            1sb2dvLnN2Z1VUBQABz9lFZjxzdmcgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiBmaWxsPSJu
+            c3FsLnF1ZXJ5CiAgdHlwZToga2V5d29yZApQSwcIEvC6FVsHAABbBwAAUEsDBBQAAAAAAN
+            JQsFgAAAAAAAAAAAAAAAAUAAkAc3FsX2lucHV0LTAuMi4wL2ltZy9VVAUAAa3aRWZQSwME
+            FAAIAAAA0lCwWAAAAAAAAAAAAAAAACMACQBzcWxfaW5wdXQtMC4yLjAvaW1nL3NhbXBsZS
+            1sb2dvLnN2Z1VUBQABrdpFZjxzdmcgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiBmaWxsPSJu
             b25lIiB2aWV3Qm94PSIwIDAgMzIgMzIiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMD
             AwL3N2ZyIgY2xhc3M9ImV1aUljb24gZXVpSWNvbi0teHhMYXJnZSIgZm9jdXNhYmxlPSJm
             YWxzZSIgcm9sZT0iaW1nIiBhcmlhLWhpZGRlbj0idHJ1ZSI+PHBhdGggZmlsbD0iI0ZGRi
@@ -2962,8 +2962,8 @@ interactions:
             EuODQ4IDIwLjU2M2w1LjI4IDEuMjM4YTUuMzQgNS4zNCAwIDAwMi42MjItMS45MzggNS4z
             NyA1LjM3IDAgMDAxLjAxMy0zLjEwNiA1LjMxMiA1LjMxMiAwIDAwLS45MzYtMy4wMSA1Lj
             I4MyA1LjI4MyAwIDAwLTIuNDc1LTEuOTQ0bC02LjkwNCA2LjA3IDEuNCAyLjY5eiI+PC9w
-            YXRoPjwvc3ZnPlBLBwh4RcqZJgcAACYHAABQSwMEFAAIAAAAW1CwWAAAAAAAAAAAAAAAAC
-            kACQBzcWxfaW5wdXQtMC4yLjAvaW1nL3NhbXBsZS1zY3JlZW5zaG90LnBuZ1VUBQABz9lF
+            YXRoPjwvc3ZnPlBLBwh4RcqZJgcAACYHAABQSwMEFAAIAAAA0lCwWAAAAAAAAAAAAAAAAC
+            kACQBzcWxfaW5wdXQtMC4yLjAvaW1nL3NhbXBsZS1zY3JlZW5zaG90LnBuZ1VUBQABrdpF
             ZolQTkcNChoKAAAADUlIRFIAAAJYAAACWAgGAAAAvmaY3AAAAAlwSFlzAAALEgAACxIB0t
             1+/AAAIABJREFUeJzt3XuQVWeZ7/EXaC7h0mwIEMK1A7kCSpNRYcSETjQ6ai44MlXj1DGA
             pRP/MAM5M7HqnBkHcpLxVEVnhGT+ccYJEKeOUydxhEQdx5Sm2xgnJJ6k25ALKpcm3AIkTT
@@ -3323,8 +3323,8 @@ interactions:
             AgAAUEbAAgAAUEbAAgAAUEbAAgAAUEbAAgAAUEbAAgAAUEbAAgAAUEbAAgAAUEbAAgAAUE
             bAAgAAUEbAAgAAUEbAAgAAUEbAAgAAUEbAAgAAUEbAAgAAUEbAAgAAUEbAAgAAUEbAAgAA
             UEbAAgAAUEbAAgAAUEbAAgAAUEbAAgAAUEbAAgAA0GSM+f8ai3mgpHM0wQAAAABJRU5Erk
-            JgglBLBwjJmxHaoUkAAKFJAABQSwMEFAAIAAAAW1CwWAAAAAAAAAAAAAAAABwACQBzcWxf
-            aW5wdXQtMC4yLjAvbWFuaWZlc3QueW1sVVQFAAHP2UVmZm9ybWF0X3ZlcnNpb246IDIuMC
+            JgglBLBwjJmxHaoUkAAKFJAABQSwMEFAAIAAAA0lCwWAAAAAAAAAAAAAAAABwACQBzcWxf
+            aW5wdXQtMC4yLjAvbWFuaWZlc3QueW1sVVQFAAGt2kVmZm9ybWF0X3ZlcnNpb246IDIuMC
             4wCm5hbWU6IHNxbF9pbnB1dAp0aXRsZTogU1FMIElucHV0CmRlc2NyaXB0aW9uOiA+LQog
             IEV4ZWN1dGUgY3VzdG9tIHF1ZXJpZXMgYWdhaW5zdCBhbiBTUUwgZGF0YWJhc2UgYW5kIH
             N0b3JlIHRoZSByZXN1bHRzIGluIEVsYXN0aWNzZWFyY2guCnR5cGU6IGlucHV0CnZlcnNp
@@ -3356,8 +3356,8 @@ interactions:
             IKc2NyZWVuc2hvdHM6CiAgLSBzcmM6ICIvaW1nL3NhbXBsZS1zY3JlZW5zaG90LnBuZyIK
             ICAgIHRpdGxlOiAiU2FtcGxlIHNjcmVlbnNob3QiCiAgICBzaXplOiAiNjAweDYwMCIKIC
             AgIHR5cGU6ICJpbWFnZS9wbmciCm93bmVyOgogIGdpdGh1YjogZWxhc3RpYy9pbnRlZ3Jh
-            dGlvbnMKUEsHCMb0oU11BgAAdQYAAFBLAwQUAAgAAABbULBYAAAAAAAAAAAAAAAAIQAJAH
-            NxbF9pbnB1dC0wLjIuMC9zYW1wbGVfZXZlbnQuanNvblVUBQABz9lFZnsKICAgICJAdGlt
+            dGlvbnMKUEsHCMb0oU11BgAAdQYAAFBLAwQUAAgAAADSULBYAAAAAAAAAAAAAAAAIQAJAH
+            NxbF9pbnB1dC0wLjIuMC9zYW1wbGVfZXZlbnQuanNvblVUBQABrdpFZnsKICAgICJAdGlt
             ZXN0YW1wIjogIjIwMjItMTEtMTdUMTI6MTQ6MTIuODU0WiIsCiAgICAiYWdlbnQiOiB7Ci
             AgICAgICAgImVwaGVtZXJhbF9pZCI6ICI4NzY4NjlhMS1kY2I3LTQ0MTUtYjg5OS05NTU2
             YjNmODU5MTciLAogICAgICAgICJpZCI6ICI0NDVhNTIzMC02ZjRjLTQ3NWEtOWJkNC03NG
@@ -3397,32 +3397,32 @@ interactions:
             CiAgICAgICAgICAgICAgICAiaW5ub2RiX2RhdGFfd3JpdHRlbiI6IDYyNDY0MAogICAgIC
             AgICAgICB9CiAgICAgICAgfSwKICAgICAgICAicXVlcnkiOiAiU0hPVyBHTE9CQUwgU1RB
             VFVTIExJS0UgJ0lubm9kYl9kYXRhJSc7IgogICAgfQp9UEsHCEZ2Qe33BwAA9wcAAFBLAQ
-            IUAxQAAAAAAFtQsFgAAAAAAAAAAAAAAAAQAAkAAAAAAAAAEADtQQAAAABzcWxfaW5wdXQt
-            MC4yLjAvVVQFAAHP2UVmUEsBAhQDFAAIAAAAW1CwWEk7E/FrNQAAazUAABsACQAAAAAAAA
-            AAALSBNwAAAHNxbF9pbnB1dC0wLjIuMC9MSUNFTlNFLnR4dFVUBQABz9lFZlBLAQIUAxQA
-            AAAAAFtQsFgAAAAAAAAAAAAAAAAWAAkAAAAAAAAAEADtQfQ1AABzcWxfaW5wdXQtMC4yLj
-            AvYWdlbnQvVVQFAAHP2UVmUEsBAhQDFAAAAAAAW1CwWAAAAAAAAAAAAAAAABwACQAAAAAA
-            AAAQAO1BMTYAAHNxbF9pbnB1dC0wLjIuMC9hZ2VudC9pbnB1dC9VVAUAAc/ZRWZQSwECFA
-            MUAAgAAABbULBYNnPF1LAAAACwAAAAKQAJAAAAAAAAAAAAtIF0NgAAc3FsX2lucHV0LTAu
-            Mi4wL2FnZW50L2lucHV0L2lucHV0LnltbC5oYnNVVAUAAc/ZRWZQSwECFAMUAAgAAABbUL
+            IUAxQAAAAAANJQsFgAAAAAAAAAAAAAAAAQAAkAAAAAAAAAEADtQQAAAABzcWxfaW5wdXQt
+            MC4yLjAvVVQFAAGt2kVmUEsBAhQDFAAIAAAA0lCwWEk7E/FrNQAAazUAABsACQAAAAAAAA
+            AAALSBNwAAAHNxbF9pbnB1dC0wLjIuMC9MSUNFTlNFLnR4dFVUBQABrdpFZlBLAQIUAxQA
+            AAAAANJQsFgAAAAAAAAAAAAAAAAWAAkAAAAAAAAAEADtQfQ1AABzcWxfaW5wdXQtMC4yLj
+            AvYWdlbnQvVVQFAAGt2kVmUEsBAhQDFAAAAAAA0lCwWAAAAAAAAAAAAAAAABwACQAAAAAA
+            AAAQAO1BMTYAAHNxbF9pbnB1dC0wLjIuMC9hZ2VudC9pbnB1dC9VVAUAAa3aRWZQSwECFA
+            MUAAgAAADSULBYNnPF1LAAAACwAAAAKQAJAAAAAAAAAAAAtIF0NgAAc3FsX2lucHV0LTAu
+            Mi4wL2FnZW50L2lucHV0L2lucHV0LnltbC5oYnNVVAUAAa3aRWZQSwECFAMUAAgAAADSUL
             BY44rO6L4AAAC+AAAAHQAJAAAAAAAAAAAAtIGENwAAc3FsX2lucHV0LTAuMi4wL2NoYW5n
-            ZWxvZy55bWxVVAUAAc/ZRWZQSwECFAMUAAAAAABbULBYAAAAAAAAAAAAAAAAFQAJAAAAAA
-            AAABAA7UGWOAAAc3FsX2lucHV0LTAuMi4wL2RvY3MvVVQFAAHP2UVmUEsBAhQDFAAIAAAA
-            W1CwWEr1TFhW7QAAVu0AAB4ACQAAAAAAAAAAALSB0jgAAHNxbF9pbnB1dC0wLjIuMC9kb2
-            NzL1JFQURNRS5tZFVUBQABz9lFZlBLAQIUAxQAAAAAAFtQsFgAAAAAAAAAAAAAAAAXAAkA
-            AAAAAAAAEADtQX0mAQBzcWxfaW5wdXQtMC4yLjAvZmllbGRzL1VUBQABz9lFZlBLAQIUAx
-            QACAAAAFtQsFg0TthCwQwBAMEMAQAeAAkAAAAAAAAAAAC0gbsmAQBzcWxfaW5wdXQtMC4y
-            LjAvZmllbGRzL2Vjcy55bWxVVAUAAc/ZRWZQSwECFAMUAAgAAABbULBYEvC6FVsHAABbBw
+            ZWxvZy55bWxVVAUAAa3aRWZQSwECFAMUAAAAAADSULBYAAAAAAAAAAAAAAAAFQAJAAAAAA
+            AAABAA7UGWOAAAc3FsX2lucHV0LTAuMi4wL2RvY3MvVVQFAAGt2kVmUEsBAhQDFAAIAAAA
+            0lCwWEr1TFhW7QAAVu0AAB4ACQAAAAAAAAAAALSB0jgAAHNxbF9pbnB1dC0wLjIuMC9kb2
+            NzL1JFQURNRS5tZFVUBQABrdpFZlBLAQIUAxQAAAAAANJQsFgAAAAAAAAAAAAAAAAXAAkA
+            AAAAAAAAEADtQX0mAQBzcWxfaW5wdXQtMC4yLjAvZmllbGRzL1VUBQABrdpFZlBLAQIUAx
+            QACAAAANJQsFg0TthCwQwBAMEMAQAeAAkAAAAAAAAAAAC0gbsmAQBzcWxfaW5wdXQtMC4y
+            LjAvZmllbGRzL2Vjcy55bWxVVAUAAa3aRWZQSwECFAMUAAgAAADSULBYEvC6FVsHAABbBw
             AAIAAJAAAAAAAAAAAAtIHRMwIAc3FsX2lucHV0LTAuMi4wL2ZpZWxkcy9pbnB1dC55bWxV
-            VAUAAc/ZRWZQSwECFAMUAAAAAABbULBYAAAAAAAAAAAAAAAAFAAJAAAAAAAAABAA7UGDOw
-            IAc3FsX2lucHV0LTAuMi4wL2ltZy9VVAUAAc/ZRWZQSwECFAMUAAgAAABbULBYeEXKmSYH
+            VAUAAa3aRWZQSwECFAMUAAAAAADSULBYAAAAAAAAAAAAAAAAFAAJAAAAAAAAABAA7UGDOw
+            IAc3FsX2lucHV0LTAuMi4wL2ltZy9VVAUAAa3aRWZQSwECFAMUAAgAAADSULBYeEXKmSYH
             AAAmBwAAIwAJAAAAAAAAAAAAtIG+OwIAc3FsX2lucHV0LTAuMi4wL2ltZy9zYW1wbGUtbG
-            9nby5zdmdVVAUAAc/ZRWZQSwECFAMUAAgAAABbULBYyZsR2qFJAAChSQAAKQAJAAAAAAAA
+            9nby5zdmdVVAUAAa3aRWZQSwECFAMUAAgAAADSULBYyZsR2qFJAAChSQAAKQAJAAAAAAAA
             AAAAtIE+QwIAc3FsX2lucHV0LTAuMi4wL2ltZy9zYW1wbGUtc2NyZWVuc2hvdC5wbmdVVA
-            UAAc/ZRWZQSwECFAMUAAgAAABbULBYxvShTXUGAAB1BgAAHAAJAAAAAAAAAAAAtIE/jQIA
-            c3FsX2lucHV0LTAuMi4wL21hbmlmZXN0LnltbFVUBQABz9lFZlBLAQIUAxQACAAAAFtQsF
+            UAAa3aRWZQSwECFAMUAAgAAADSULBYxvShTXUGAAB1BgAAHAAJAAAAAAAAAAAAtIE/jQIA
+            c3FsX2lucHV0LTAuMi4wL21hbmlmZXN0LnltbFVUBQABrdpFZlBLAQIUAxQACAAAANJQsF
             hGdkHt9wcAAPcHAAAhAAkAAAAAAAAAAAC0gQeUAgBzcWxfaW5wdXQtMC4yLjAvc2FtcGxl
-            X2V2ZW50Lmpzb25VVAUAAc/ZRWZQSwUGAAAAABAAEAA4BQAAVpwCAAAA
+            X2V2ZW50Lmpzb25VVAUAAa3aRWZQSwUGAAAAABAAEAA4BQAAVpwCAAAA
         form: {}
         headers:
             Authorization:
@@ -3458,7 +3458,7 @@ interactions:
             Cross-Origin-Opener-Policy:
                 - same-origin
             Date:
-                - Thu, 16 May 2024 10:02:56 GMT
+                - Thu, 16 May 2024 10:06:39 GMT
             Elastic-Api-Version:
                 - "2023-10-31"
             Kbn-License-Sig:
@@ -3475,8 +3475,393 @@ interactions:
                 - nosniff
         status: 200 OK
         code: 200
-        duration: 1.330964917s
+        duration: 1.75363934s
     - id: 3
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        transfer_encoding: []
+        trailer: {}
+        host: 127.0.0.1:5601
+        remote_addr: ""
+        request_uri: ""
+        body: ""
+        form: {}
+        headers:
+            Authorization:
+                - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
+            Content-Type:
+                - application/json
+            Kbn-Xsrf:
+                - 8.13.4
+        url: https://127.0.0.1:5601/api/fleet/agent_policies/test-policy-3
+        method: GET
+      response:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        transfer_encoding: []
+        trailer: {}
+        content_length: 341
+        uncompressed: false
+        body: '{"item":{"id":"test-policy-3","name":"test-policy-3","description":"Test policy for input-package","namespace":"eptest","inactivity_timeout":1209600,"status":"active","is_managed":false,"revision":3,"updated_at":"2024-05-16T10:03:05.856Z","updated_by":"system","schema_version":"1.1.1","is_protected":false,"package_policies":[],"agents":0}}'
+        headers:
+            Accept-Ranges:
+                - bytes
+            Cache-Control:
+                - private, no-cache, no-store, must-revalidate
+            Connection:
+                - keep-alive
+            Content-Length:
+                - "341"
+            Content-Security-Policy:
+                - script-src 'report-sample' 'self'; worker-src 'report-sample' 'self' blob:; style-src 'report-sample' 'self' 'unsafe-inline'
+            Content-Type:
+                - application/json; charset=utf-8
+            Cross-Origin-Opener-Policy:
+                - same-origin
+            Date:
+                - Thu, 16 May 2024 10:06:39 GMT
+            Elastic-Api-Version:
+                - "2023-10-31"
+            Kbn-License-Sig:
+                - 9b993667fad3cbc5ebac755497fe0c0bd1e2cc85a9a9ac0cf453d3600b761580
+            Kbn-Name:
+                - kibana
+            Keep-Alive:
+                - timeout=120
+            Permissions-Policy:
+                - camera=(), display-capture=(), fullscreen=(self), geolocation=(), microphone=(), web-share=()
+            Referrer-Policy:
+                - strict-origin-when-cross-origin
+            X-Content-Type-Options:
+                - nosniff
+        status: 200 OK
+        code: 200
+        duration: 24.850395ms
+    - id: 4
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        transfer_encoding: []
+        trailer: {}
+        host: 127.0.0.1:5601
+        remote_addr: ""
+        request_uri: ""
+        body: ""
+        form: {}
+        headers:
+            Authorization:
+                - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
+            Content-Type:
+                - application/json
+            Kbn-Xsrf:
+                - 8.13.4
+        url: https://127.0.0.1:5601/api/fleet/agent_policies/test-policy-3
+        method: GET
+      response:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        transfer_encoding: []
+        trailer: {}
+        content_length: 341
+        uncompressed: false
+        body: '{"item":{"id":"test-policy-3","name":"test-policy-3","description":"Test policy for input-package","namespace":"eptest","inactivity_timeout":1209600,"status":"active","is_managed":false,"revision":3,"updated_at":"2024-05-16T10:03:05.856Z","updated_by":"system","schema_version":"1.1.1","is_protected":false,"package_policies":[],"agents":0}}'
+        headers:
+            Accept-Ranges:
+                - bytes
+            Cache-Control:
+                - private, no-cache, no-store, must-revalidate
+            Connection:
+                - keep-alive
+            Content-Length:
+                - "341"
+            Content-Security-Policy:
+                - script-src 'report-sample' 'self'; worker-src 'report-sample' 'self' blob:; style-src 'report-sample' 'self' 'unsafe-inline'
+            Content-Type:
+                - application/json; charset=utf-8
+            Cross-Origin-Opener-Policy:
+                - same-origin
+            Date:
+                - Thu, 16 May 2024 10:06:39 GMT
+            Elastic-Api-Version:
+                - "2023-10-31"
+            Kbn-License-Sig:
+                - 9b993667fad3cbc5ebac755497fe0c0bd1e2cc85a9a9ac0cf453d3600b761580
+            Kbn-Name:
+                - kibana
+            Keep-Alive:
+                - timeout=120
+            Permissions-Policy:
+                - camera=(), display-capture=(), fullscreen=(self), geolocation=(), microphone=(), web-share=()
+            Referrer-Policy:
+                - strict-origin-when-cross-origin
+            X-Content-Type-Options:
+                - nosniff
+        status: 200 OK
+        code: 200
+        duration: 24.52679ms
+    - id: 5
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        transfer_encoding: []
+        trailer: {}
+        host: 127.0.0.1:5601
+        remote_addr: ""
+        request_uri: ""
+        body: ""
+        form: {}
+        headers:
+            Authorization:
+                - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
+            Content-Type:
+                - application/json
+            Kbn-Xsrf:
+                - 8.13.4
+        url: https://127.0.0.1:5601/api/fleet/epm/packages/sql_input
+        method: GET
+      response:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        transfer_encoding:
+            - chunked
+        trailer: {}
+        content_length: -1
+        uncompressed: true
+        body: '{"item":{"name":"sql_input","version":"0.2.0","description":"Execute custom queries against an SQL database and store the results in Elasticsearch.","title":"SQL Input","format_version":"2.0.0","owner":{"github":"elastic/integrations"},"type":"input","categories":["custom","datastore"],"screenshots":[{"src":"/img/sample-screenshot.png","title":"Sample screenshot","size":"600x600","type":"image/png"}],"icons":[{"src":"/img/sample-logo.svg","type":"image/svg+xml"}],"policy_templates":[{"name":"sql_query","title":"SQL Query","description":"Query the database to capture metrics.","multiple":true,"input":"sql/metrics","type":"metrics","template_path":"input.yml.hbs","vars":[{"name":"hosts","type":"text","title":"Hosts","multi":true,"required":true,"show_user":true,"default":["http://127.0.0.1"]},{"name":"period","type":"text","title":"Period","multi":false,"required":true,"show_user":true,"default":"10s"},{"name":"driver","type":"text","title":"Driver","description":"Supported database drivers: mssql, mysql, oracle, postgres","multi":false,"required":true,"show_user":true,"default":"mysql"},{"name":"sql_query","type":"text","title":"Query","multi":false,"required":true,"show_user":true,"default":"SHOW GLOBAL STATUS LIKE ''Innodb_system%''"},{"name":"sql_response_format","type":"text","title":"Response format","description":"Supported response formats: variables, table","multi":false,"required":true,"show_user":false,"default":"variables"}]}],"readme":"/package/sql_input/0.2.0/docs/README.md","release":"beta","latestVersion":"0.2.0","assets":{},"licensePath":"/package/sql_input/0.2.0/LICENSE.txt","keepPoliciesUpToDate":false,"status":"installed","savedObject":{"id":"sql_input","type":"epm-packages","namespaces":[],"updated_at":"2024-05-16T10:06:38.155Z","created_at":"2024-05-16T10:06:37.386Z","version":"WzEyMTAsMV0=","attributes":{"installed_kibana":[],"installed_kibana_space_id":"default","installed_es":[],"package_assets":[{"id":"b995807b-1722-5cbc-aba6-14dc35da887d","type":"epm-packages-assets"},{"id":"38134a5b-e6a9-5b03-a977-56c1e301508f","type":"epm-packages-assets"},{"id":"8d881aa3-48ca-5edc-b952-49b9992640f7","type":"epm-packages-assets"},{"id":"7f9fd7d3-6fd8-5f18-81db-4d5a794c5145","type":"epm-packages-assets"},{"id":"ac604508-f522-5e09-967a-5270457693bf","type":"epm-packages-assets"},{"id":"b8ff9b72-057d-5937-95da-33e3247bc8ce","type":"epm-packages-assets"},{"id":"003eb218-b6b8-5142-a9c8-7161d309cace","type":"epm-packages-assets"},{"id":"873964ae-caa9-5515-bf74-bf0cf9fe2979","type":"epm-packages-assets"},{"id":"9e545970-e481-5feb-9a3a-5ecd51e8af23","type":"epm-packages-assets"},{"id":"dc3746ef-c8ac-5ea7-bf96-75d76a0a65d6","type":"epm-packages-assets"}],"es_index_patterns":{"generic":"metrics-generic-*"},"name":"sql_input","version":"0.2.0","install_version":"0.2.0","install_status":"installed","install_started_at":"2024-05-16T10:06:37.386Z","install_source":"upload","install_format_schema_version":"1.2.0","verification_status":"unknown","latest_install_failed_attempts":[]},"references":[],"managed":false,"coreMigrationVersion":"8.8.0","typeMigrationVersion":"10.1.0"},"installationInfo":{"created_at":"2024-05-16T10:06:37.386Z","updated_at":"2024-05-16T10:06:38.155Z","namespaces":[],"type":"epm-packages","installed_kibana":[],"installed_kibana_space_id":"default","installed_es":[],"install_status":"installed","install_source":"upload","name":"sql_input","version":"0.2.0","verification_status":"unknown","latest_install_failed_attempts":[]}},"response":{"name":"sql_input","version":"0.2.0","description":"Execute custom queries against an SQL database and store the results in Elasticsearch.","title":"SQL Input","format_version":"2.0.0","owner":{"github":"elastic/integrations"},"type":"input","categories":["custom","datastore"],"screenshots":[{"src":"/img/sample-screenshot.png","title":"Sample screenshot","size":"600x600","type":"image/png"}],"icons":[{"src":"/img/sample-logo.svg","type":"image/svg+xml"}],"policy_templates":[{"name":"sql_query","title":"SQL Query","description":"Query the database to capture metrics.","multiple":true,"input":"sql/metrics","type":"metrics","template_path":"input.yml.hbs","vars":[{"name":"hosts","type":"text","title":"Hosts","multi":true,"required":true,"show_user":true,"default":["http://127.0.0.1"]},{"name":"period","type":"text","title":"Period","multi":false,"required":true,"show_user":true,"default":"10s"},{"name":"driver","type":"text","title":"Driver","description":"Supported database drivers: mssql, mysql, oracle, postgres","multi":false,"required":true,"show_user":true,"default":"mysql"},{"name":"sql_query","type":"text","title":"Query","multi":false,"required":true,"show_user":true,"default":"SHOW GLOBAL STATUS LIKE ''Innodb_system%''"},{"name":"sql_response_format","type":"text","title":"Response format","description":"Supported response formats: variables, table","multi":false,"required":true,"show_user":false,"default":"variables"}]}],"readme":"/package/sql_input/0.2.0/docs/README.md","release":"beta","latestVersion":"0.2.0","assets":{},"licensePath":"/package/sql_input/0.2.0/LICENSE.txt","keepPoliciesUpToDate":false,"status":"installed","savedObject":{"id":"sql_input","type":"epm-packages","namespaces":[],"updated_at":"2024-05-16T10:06:38.155Z","created_at":"2024-05-16T10:06:37.386Z","version":"WzEyMTAsMV0=","attributes":{"installed_kibana":[],"installed_kibana_space_id":"default","installed_es":[],"package_assets":[{"id":"b995807b-1722-5cbc-aba6-14dc35da887d","type":"epm-packages-assets"},{"id":"38134a5b-e6a9-5b03-a977-56c1e301508f","type":"epm-packages-assets"},{"id":"8d881aa3-48ca-5edc-b952-49b9992640f7","type":"epm-packages-assets"},{"id":"7f9fd7d3-6fd8-5f18-81db-4d5a794c5145","type":"epm-packages-assets"},{"id":"ac604508-f522-5e09-967a-5270457693bf","type":"epm-packages-assets"},{"id":"b8ff9b72-057d-5937-95da-33e3247bc8ce","type":"epm-packages-assets"},{"id":"003eb218-b6b8-5142-a9c8-7161d309cace","type":"epm-packages-assets"},{"id":"873964ae-caa9-5515-bf74-bf0cf9fe2979","type":"epm-packages-assets"},{"id":"9e545970-e481-5feb-9a3a-5ecd51e8af23","type":"epm-packages-assets"},{"id":"dc3746ef-c8ac-5ea7-bf96-75d76a0a65d6","type":"epm-packages-assets"}],"es_index_patterns":{"generic":"metrics-generic-*"},"name":"sql_input","version":"0.2.0","install_version":"0.2.0","install_status":"installed","install_started_at":"2024-05-16T10:06:37.386Z","install_source":"upload","install_format_schema_version":"1.2.0","verification_status":"unknown","latest_install_failed_attempts":[]},"references":[],"managed":false,"coreMigrationVersion":"8.8.0","typeMigrationVersion":"10.1.0"},"installationInfo":{"created_at":"2024-05-16T10:06:37.386Z","updated_at":"2024-05-16T10:06:38.155Z","namespaces":[],"type":"epm-packages","installed_kibana":[],"installed_kibana_space_id":"default","installed_es":[],"install_status":"installed","install_source":"upload","name":"sql_input","version":"0.2.0","verification_status":"unknown","latest_install_failed_attempts":[]}}}'
+        headers:
+            Cache-Control:
+                - private, no-cache, no-store, must-revalidate
+            Connection:
+                - keep-alive
+            Content-Security-Policy:
+                - script-src 'report-sample' 'self'; worker-src 'report-sample' 'self' blob:; style-src 'report-sample' 'self' 'unsafe-inline'
+            Content-Type:
+                - application/json; charset=utf-8
+            Cross-Origin-Opener-Policy:
+                - same-origin
+            Date:
+                - Thu, 16 May 2024 10:06:39 GMT
+            Elastic-Api-Version:
+                - "2023-10-31"
+            Kbn-License-Sig:
+                - 9b993667fad3cbc5ebac755497fe0c0bd1e2cc85a9a9ac0cf453d3600b761580
+            Kbn-Name:
+                - kibana
+            Keep-Alive:
+                - timeout=120
+            Permissions-Policy:
+                - camera=(), display-capture=(), fullscreen=(self), geolocation=(), microphone=(), web-share=()
+            Referrer-Policy:
+                - strict-origin-when-cross-origin
+            Vary:
+                - accept-encoding
+            X-Content-Type-Options:
+                - nosniff
+        status: 200 OK
+        code: 200
+        duration: 45.386035ms
+    - id: 6
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        transfer_encoding: []
+        trailer: {}
+        host: 127.0.0.1:5601
+        remote_addr: ""
+        request_uri: ""
+        body: ""
+        form: {}
+        headers:
+            Authorization:
+                - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
+            Content-Type:
+                - application/json
+            Kbn-Xsrf:
+                - 8.13.4
+        url: https://127.0.0.1:5601/api/fleet/epm/packages/sql_input/0.2.0
+        method: DELETE
+      response:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        transfer_encoding: []
+        trailer: {}
+        content_length: 12
+        uncompressed: false
+        body: '{"items":[]}'
+        headers:
+            Cache-Control:
+                - private, no-cache, no-store, must-revalidate
+            Connection:
+                - keep-alive
+            Content-Length:
+                - "12"
+            Content-Security-Policy:
+                - script-src 'report-sample' 'self'; worker-src 'report-sample' 'self' blob:; style-src 'report-sample' 'self' 'unsafe-inline'
+            Content-Type:
+                - application/json; charset=utf-8
+            Cross-Origin-Opener-Policy:
+                - same-origin
+            Date:
+                - Thu, 16 May 2024 10:06:41 GMT
+            Elastic-Api-Version:
+                - "2023-10-31"
+            Kbn-License-Sig:
+                - 9b993667fad3cbc5ebac755497fe0c0bd1e2cc85a9a9ac0cf453d3600b761580
+            Kbn-Name:
+                - kibana
+            Keep-Alive:
+                - timeout=120
+            Permissions-Policy:
+                - camera=(), display-capture=(), fullscreen=(self), geolocation=(), microphone=(), web-share=()
+            Referrer-Policy:
+                - strict-origin-when-cross-origin
+            X-Content-Type-Options:
+                - nosniff
+        status: 200 OK
+        code: 200
+        duration: 1.909524112s
+    - id: 7
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        transfer_encoding: []
+        trailer: {}
+        host: 127.0.0.1:5601
+        remote_addr: ""
+        request_uri: ""
+        body: ""
+        form: {}
+        headers:
+            Authorization:
+                - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
+            Content-Type:
+                - application/json
+            Kbn-Xsrf:
+                - 8.13.4
+        url: https://127.0.0.1:5601/api/fleet/agent_policies/test-policy-3
+        method: GET
+      response:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        transfer_encoding: []
+        trailer: {}
+        content_length: 341
+        uncompressed: false
+        body: '{"item":{"id":"test-policy-3","name":"test-policy-3","description":"Test policy for input-package","namespace":"eptest","inactivity_timeout":1209600,"status":"active","is_managed":false,"revision":3,"updated_at":"2024-05-16T10:03:05.856Z","updated_by":"system","schema_version":"1.1.1","is_protected":false,"package_policies":[],"agents":0}}'
+        headers:
+            Accept-Ranges:
+                - bytes
+            Cache-Control:
+                - private, no-cache, no-store, must-revalidate
+            Connection:
+                - keep-alive
+            Content-Length:
+                - "341"
+            Content-Security-Policy:
+                - script-src 'report-sample' 'self'; worker-src 'report-sample' 'self' blob:; style-src 'report-sample' 'self' 'unsafe-inline'
+            Content-Type:
+                - application/json; charset=utf-8
+            Cross-Origin-Opener-Policy:
+                - same-origin
+            Date:
+                - Thu, 16 May 2024 10:06:41 GMT
+            Elastic-Api-Version:
+                - "2023-10-31"
+            Kbn-License-Sig:
+                - 9b993667fad3cbc5ebac755497fe0c0bd1e2cc85a9a9ac0cf453d3600b761580
+            Kbn-Name:
+                - kibana
+            Keep-Alive:
+                - timeout=120
+            Permissions-Policy:
+                - camera=(), display-capture=(), fullscreen=(self), geolocation=(), microphone=(), web-share=()
+            Referrer-Policy:
+                - strict-origin-when-cross-origin
+            X-Content-Type-Options:
+                - nosniff
+        status: 200 OK
+        code: 200
+        duration: 22.076485ms
+    - id: 8
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 36
+        transfer_encoding: []
+        trailer: {}
+        host: 127.0.0.1:5601
+        remote_addr: ""
+        request_uri: ""
+        body: '{ "agentPolicyId": "test-policy-3" }'
+        form: {}
+        headers:
+            Authorization:
+                - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
+            Content-Type:
+                - application/json
+            Kbn-Xsrf:
+                - 8.13.4
+        url: https://127.0.0.1:5601/api/fleet/agent_policies/delete
+        method: POST
+      response:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        transfer_encoding: []
+        trailer: {}
+        content_length: 45
+        uncompressed: false
+        body: '{"id":"test-policy-3","name":"test-policy-3"}'
+        headers:
+            Cache-Control:
+                - private, no-cache, no-store, must-revalidate
+            Connection:
+                - keep-alive
+            Content-Length:
+                - "45"
+            Content-Security-Policy:
+                - script-src 'report-sample' 'self'; worker-src 'report-sample' 'self' blob:; style-src 'report-sample' 'self' 'unsafe-inline'
+            Content-Type:
+                - application/json; charset=utf-8
+            Cross-Origin-Opener-Policy:
+                - same-origin
+            Date:
+                - Thu, 16 May 2024 10:06:42 GMT
+            Elastic-Api-Version:
+                - "2023-10-31"
+            Kbn-License-Sig:
+                - 9b993667fad3cbc5ebac755497fe0c0bd1e2cc85a9a9ac0cf453d3600b761580
+            Kbn-Name:
+                - kibana
+            Keep-Alive:
+                - timeout=120
+            Permissions-Policy:
+                - camera=(), display-capture=(), fullscreen=(self), geolocation=(), microphone=(), web-share=()
+            Referrer-Policy:
+                - strict-origin-when-cross-origin
+            X-Content-Type-Options:
+                - nosniff
+        status: 200 OK
+        code: 200
+        duration: 1.696107018s
+    - id: 9
       request:
         proto: HTTP/1.1
         proto_major: 1
@@ -3521,7 +3906,7 @@ interactions:
             Cross-Origin-Opener-Policy:
                 - same-origin
             Date:
-                - Thu, 16 May 2024 10:02:56 GMT
+                - Thu, 16 May 2024 10:06:42 GMT
             Elastic-Api-Version:
                 - "2023-10-31"
             Kbn-License-Sig:
@@ -3538,456 +3923,8 @@ interactions:
                 - nosniff
         status: 404 Not Found
         code: 404
-        duration: 13.356514ms
-    - id: 4
-      request:
-        proto: HTTP/1.1
-        proto_major: 1
-        proto_minor: 1
-        content_length: 112
-        transfer_encoding: []
-        trailer: {}
-        host: 127.0.0.1:5601
-        remote_addr: ""
-        request_uri: ""
-        body: '{"id":"test-policy-3","name":"test-policy-3","description":"Test policy for input-package","namespace":"eptest"}'
-        form: {}
-        headers:
-            Authorization:
-                - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
-            Content-Type:
-                - application/json
-            Kbn-Xsrf:
-                - 8.13.4
-        url: https://127.0.0.1:5601/api/fleet/agent_policies
-        method: POST
-      response:
-        proto: HTTP/1.1
-        proto_major: 1
-        proto_minor: 1
-        transfer_encoding: []
-        trailer: {}
-        content_length: 309
-        uncompressed: false
-        body: '{"item":{"id":"test-policy-3","name":"test-policy-3","description":"Test policy for input-package","namespace":"eptest","inactivity_timeout":1209600,"status":"active","is_managed":false,"revision":1,"updated_at":"2024-05-16T10:02:56.824Z","updated_by":"elastic","schema_version":"1.1.1","is_protected":false}}'
-        headers:
-            Cache-Control:
-                - private, no-cache, no-store, must-revalidate
-            Connection:
-                - keep-alive
-            Content-Length:
-                - "309"
-            Content-Security-Policy:
-                - script-src 'report-sample' 'self'; worker-src 'report-sample' 'self' blob:; style-src 'report-sample' 'self' 'unsafe-inline'
-            Content-Type:
-                - application/json; charset=utf-8
-            Cross-Origin-Opener-Policy:
-                - same-origin
-            Date:
-                - Thu, 16 May 2024 10:03:00 GMT
-            Elastic-Api-Version:
-                - "2023-10-31"
-            Kbn-License-Sig:
-                - 9b993667fad3cbc5ebac755497fe0c0bd1e2cc85a9a9ac0cf453d3600b761580
-            Kbn-Name:
-                - kibana
-            Keep-Alive:
-                - timeout=120
-            Permissions-Policy:
-                - camera=(), display-capture=(), fullscreen=(self), geolocation=(), microphone=(), web-share=()
-            Referrer-Policy:
-                - strict-origin-when-cross-origin
-            X-Content-Type-Options:
-                - nosniff
-        status: 200 OK
-        code: 200
-        duration: 3.832933309s
-    - id: 5
-      request:
-        proto: HTTP/1.1
-        proto_major: 1
-        proto_minor: 1
-        content_length: 742
-        transfer_encoding: []
-        trailer: {}
-        host: 127.0.0.1:5601
-        remote_addr: ""
-        request_uri: ""
-        body: '{"name":"input-1","description":"","namespace":"eptest","policy_id":"test-policy-3","enabled":true,"output_id":"","inputs":[{"policy_template":"sql_query","type":"sql/metrics","enabled":true,"streams":[{"id":"sql/metrics-sql_input.sql_query","enabled":true,"data_stream":{"type":"metrics","dataset":"sql_input.sql_query"},"vars":{"data_stream.dataset":{"value":"sql_input.sql_query","type":"text"},"driver":{"value":"mysql","type":"text"},"hosts":{"value":["http://127.0.0.1"],"type":"text"},"period":{"value":"10s","type":"text"},"sql_query":{"value":"SHOW GLOBAL STATUS LIKE ''Innodb_system%''","type":"text"},"sql_response_format":{"value":"variables","type":"text"}}}]}],"package":{"name":"sql_input","title":"SQL Input","version":"0.2.0"}}'
-        form: {}
-        headers:
-            Authorization:
-                - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
-            Content-Type:
-                - application/json
-            Kbn-Xsrf:
-                - 8.13.4
-        url: https://127.0.0.1:5601/api/fleet/package_policies
-        method: POST
-      response:
-        proto: HTTP/1.1
-        proto_major: 1
-        proto_minor: 1
-        transfer_encoding:
-            - chunked
-        trailer: {}
-        content_length: -1
-        uncompressed: true
-        body: '{"item":{"id":"6c4e3b3b-5c70-41ef-aa06-c67958f78b91","version":"Wzc2OSwxXQ==","name":"input-1","namespace":"eptest","description":"","package":{"name":"sql_input","title":"SQL Input","version":"0.2.0"},"enabled":true,"policy_id":"test-policy-3","inputs":[{"policy_template":"sql_query","type":"sql/metrics","enabled":true,"streams":[{"id":"sql/metrics-sql_input.sql_query-6c4e3b3b-5c70-41ef-aa06-c67958f78b91","enabled":true,"data_stream":{"type":"metrics","dataset":"sql_input.sql_query","elasticsearch":{"dynamic_dataset":true,"dynamic_namespace":true}},"vars":{"data_stream.dataset":{"value":"sql_input.sql_query","type":"text"},"driver":{"value":"mysql","type":"text"},"hosts":{"value":["http://127.0.0.1"],"type":"text"},"period":{"value":"10s","type":"text"},"sql_query":{"value":"SHOW GLOBAL STATUS LIKE ''Innodb_system%''","type":"text"},"sql_response_format":{"value":"variables","type":"text"}},"compiled_stream":{"metricsets":["query"],"period":"10s","hosts":["http://127.0.0.1"],"driver":"mysql","sql_query":"SHOW GLOBAL STATUS LIKE ''Innodb_system%''","sql_response_format":"variables"}}]}],"revision":1,"created_at":"2024-05-16T10:03:02.819Z","created_by":"system","updated_at":"2024-05-16T10:03:02.819Z","updated_by":"system"}}'
-        headers:
-            Cache-Control:
-                - private, no-cache, no-store, must-revalidate
-            Connection:
-                - keep-alive
-            Content-Security-Policy:
-                - script-src 'report-sample' 'self'; worker-src 'report-sample' 'self' blob:; style-src 'report-sample' 'self' 'unsafe-inline'
-            Content-Type:
-                - application/json; charset=utf-8
-            Cross-Origin-Opener-Policy:
-                - same-origin
-            Date:
-                - Thu, 16 May 2024 10:03:05 GMT
-            Elastic-Api-Version:
-                - "2023-10-31"
-            Kbn-License-Sig:
-                - 9b993667fad3cbc5ebac755497fe0c0bd1e2cc85a9a9ac0cf453d3600b761580
-            Kbn-Name:
-                - kibana
-            Keep-Alive:
-                - timeout=120
-            Permissions-Policy:
-                - camera=(), display-capture=(), fullscreen=(self), geolocation=(), microphone=(), web-share=()
-            Referrer-Policy:
-                - strict-origin-when-cross-origin
-            Vary:
-                - accept-encoding
-            X-Content-Type-Options:
-                - nosniff
-        status: 200 OK
-        code: 200
-        duration: 5.01345763s
-    - id: 6
-      request:
-        proto: HTTP/1.1
-        proto_major: 1
-        proto_minor: 1
-        content_length: 0
-        transfer_encoding: []
-        trailer: {}
-        host: 127.0.0.1:5601
-        remote_addr: ""
-        request_uri: ""
-        body: ""
-        form: {}
-        headers:
-            Authorization:
-                - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
-            Content-Type:
-                - application/json
-            Kbn-Xsrf:
-                - 8.13.4
-        url: https://127.0.0.1:5601/api/fleet/agent_policies/test-policy-3
-        method: GET
-      response:
-        proto: HTTP/1.1
-        proto_major: 1
-        proto_minor: 1
-        transfer_encoding:
-            - chunked
-        trailer: {}
-        content_length: -1
-        uncompressed: true
-        body: '{"item":{"id":"test-policy-3","name":"test-policy-3","description":"Test policy for input-package","namespace":"eptest","inactivity_timeout":1209600,"status":"active","is_managed":false,"revision":2,"updated_at":"2024-05-16T10:03:03.834Z","updated_by":"system","schema_version":"1.1.1","is_protected":false,"package_policies":[{"id":"6c4e3b3b-5c70-41ef-aa06-c67958f78b91","version":"Wzc2OSwxXQ==","name":"input-1","namespace":"eptest","description":"","package":{"name":"sql_input","title":"SQL Input","version":"0.2.0"},"enabled":true,"policy_id":"test-policy-3","inputs":[{"policy_template":"sql_query","type":"sql/metrics","enabled":true,"streams":[{"id":"sql/metrics-sql_input.sql_query-6c4e3b3b-5c70-41ef-aa06-c67958f78b91","enabled":true,"data_stream":{"type":"metrics","dataset":"sql_input.sql_query","elasticsearch":{"dynamic_dataset":true,"dynamic_namespace":true}},"vars":{"data_stream.dataset":{"value":"sql_input.sql_query","type":"text"},"driver":{"value":"mysql","type":"text"},"hosts":{"value":["http://127.0.0.1"],"type":"text"},"period":{"value":"10s","type":"text"},"sql_query":{"value":"SHOW GLOBAL STATUS LIKE ''Innodb_system%''","type":"text"},"sql_response_format":{"value":"variables","type":"text"}},"compiled_stream":{"metricsets":["query"],"period":"10s","hosts":["http://127.0.0.1"],"driver":"mysql","sql_query":"SHOW GLOBAL STATUS LIKE ''Innodb_system%''","sql_response_format":"variables"}}]}],"revision":1,"created_at":"2024-05-16T10:03:02.819Z","created_by":"system","updated_at":"2024-05-16T10:03:02.819Z","updated_by":"system"}],"agents":0}}'
-        headers:
-            Cache-Control:
-                - private, no-cache, no-store, must-revalidate
-            Connection:
-                - keep-alive
-            Content-Security-Policy:
-                - script-src 'report-sample' 'self'; worker-src 'report-sample' 'self' blob:; style-src 'report-sample' 'self' 'unsafe-inline'
-            Content-Type:
-                - application/json; charset=utf-8
-            Cross-Origin-Opener-Policy:
-                - same-origin
-            Date:
-                - Thu, 16 May 2024 10:03:05 GMT
-            Elastic-Api-Version:
-                - "2023-10-31"
-            Kbn-License-Sig:
-                - 9b993667fad3cbc5ebac755497fe0c0bd1e2cc85a9a9ac0cf453d3600b761580
-            Kbn-Name:
-                - kibana
-            Keep-Alive:
-                - timeout=120
-            Permissions-Policy:
-                - camera=(), display-capture=(), fullscreen=(self), geolocation=(), microphone=(), web-share=()
-            Referrer-Policy:
-                - strict-origin-when-cross-origin
-            Vary:
-                - accept-encoding
-            X-Content-Type-Options:
-                - nosniff
-        status: 200 OK
-        code: 200
-        duration: 29.798815ms
-    - id: 7
-      request:
-        proto: HTTP/1.1
-        proto_major: 1
-        proto_minor: 1
-        content_length: 0
-        transfer_encoding: []
-        trailer: {}
-        host: 127.0.0.1:5601
-        remote_addr: ""
-        request_uri: ""
-        body: ""
-        form: {}
-        headers:
-            Authorization:
-                - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
-            Content-Type:
-                - application/json
-            Kbn-Xsrf:
-                - 8.13.4
-        url: https://127.0.0.1:5601/api/fleet/epm/packages/sql_input
-        method: GET
-      response:
-        proto: HTTP/1.1
-        proto_major: 1
-        proto_minor: 1
-        transfer_encoding:
-            - chunked
-        trailer: {}
-        content_length: -1
-        uncompressed: true
-        body: '{"item":{"name":"sql_input","version":"0.2.0","description":"Execute custom queries against an SQL database and store the results in Elasticsearch.","title":"SQL Input","format_version":"2.0.0","owner":{"github":"elastic/integrations"},"type":"input","categories":["custom","datastore"],"screenshots":[{"src":"/img/sample-screenshot.png","title":"Sample screenshot","size":"600x600","type":"image/png"}],"icons":[{"src":"/img/sample-logo.svg","type":"image/svg+xml"}],"policy_templates":[{"name":"sql_query","title":"SQL Query","description":"Query the database to capture metrics.","multiple":true,"input":"sql/metrics","type":"metrics","template_path":"input.yml.hbs","vars":[{"name":"hosts","type":"text","title":"Hosts","multi":true,"required":true,"show_user":true,"default":["http://127.0.0.1"]},{"name":"period","type":"text","title":"Period","multi":false,"required":true,"show_user":true,"default":"10s"},{"name":"driver","type":"text","title":"Driver","description":"Supported database drivers: mssql, mysql, oracle, postgres","multi":false,"required":true,"show_user":true,"default":"mysql"},{"name":"sql_query","type":"text","title":"Query","multi":false,"required":true,"show_user":true,"default":"SHOW GLOBAL STATUS LIKE ''Innodb_system%''"},{"name":"sql_response_format","type":"text","title":"Response format","description":"Supported response formats: variables, table","multi":false,"required":true,"show_user":false,"default":"variables"}]}],"readme":"/package/sql_input/0.2.0/docs/README.md","release":"beta","latestVersion":"0.2.0","assets":{},"licensePath":"/package/sql_input/0.2.0/LICENSE.txt","keepPoliciesUpToDate":false,"status":"installed","savedObject":{"id":"sql_input","type":"epm-packages","namespaces":[],"updated_at":"2024-05-16T10:03:02.002Z","created_at":"2024-05-16T10:02:55.486Z","version":"Wzc2OCwxXQ==","attributes":{"installed_kibana":[],"installed_kibana_space_id":"default","installed_es":[{"id":"metrics-sql_input.sql_query-0.2.0","type":"ingest_pipeline"},{"id":"metrics-sql_input.sql_query","type":"index_template"},{"id":"metrics-sql_input.sql_query@package","type":"component_template"},{"id":"metrics-sql_input.sql_query@custom","type":"component_template"}],"package_assets":[{"id":"b995807b-1722-5cbc-aba6-14dc35da887d","type":"epm-packages-assets"},{"id":"38134a5b-e6a9-5b03-a977-56c1e301508f","type":"epm-packages-assets"},{"id":"8d881aa3-48ca-5edc-b952-49b9992640f7","type":"epm-packages-assets"},{"id":"7f9fd7d3-6fd8-5f18-81db-4d5a794c5145","type":"epm-packages-assets"},{"id":"ac604508-f522-5e09-967a-5270457693bf","type":"epm-packages-assets"},{"id":"b8ff9b72-057d-5937-95da-33e3247bc8ce","type":"epm-packages-assets"},{"id":"003eb218-b6b8-5142-a9c8-7161d309cace","type":"epm-packages-assets"},{"id":"873964ae-caa9-5515-bf74-bf0cf9fe2979","type":"epm-packages-assets"},{"id":"9e545970-e481-5feb-9a3a-5ecd51e8af23","type":"epm-packages-assets"},{"id":"dc3746ef-c8ac-5ea7-bf96-75d76a0a65d6","type":"epm-packages-assets"}],"es_index_patterns":{"generic":"metrics-generic-*","sql_input.sql_query":"metrics-sql_input.sql_query-*"},"name":"sql_input","version":"0.2.0","install_version":"0.2.0","install_status":"installed","install_started_at":"2024-05-16T10:02:55.486Z","install_source":"upload","install_format_schema_version":"1.2.0","verification_status":"unknown","latest_install_failed_attempts":[]},"references":[],"managed":false,"coreMigrationVersion":"8.8.0","typeMigrationVersion":"10.1.0"},"installationInfo":{"created_at":"2024-05-16T10:02:55.486Z","updated_at":"2024-05-16T10:03:02.002Z","namespaces":[],"type":"epm-packages","installed_kibana":[],"installed_kibana_space_id":"default","installed_es":[{"id":"metrics-sql_input.sql_query-0.2.0","type":"ingest_pipeline"},{"id":"metrics-sql_input.sql_query","type":"index_template"},{"id":"metrics-sql_input.sql_query@package","type":"component_template"},{"id":"metrics-sql_input.sql_query@custom","type":"component_template"}],"install_status":"installed","install_source":"upload","name":"sql_input","version":"0.2.0","verification_status":"unknown","latest_install_failed_attempts":[]}},"response":{"name":"sql_input","version":"0.2.0","description":"Execute custom queries against an SQL database and store the results in Elasticsearch.","title":"SQL Input","format_version":"2.0.0","owner":{"github":"elastic/integrations"},"type":"input","categories":["custom","datastore"],"screenshots":[{"src":"/img/sample-screenshot.png","title":"Sample screenshot","size":"600x600","type":"image/png"}],"icons":[{"src":"/img/sample-logo.svg","type":"image/svg+xml"}],"policy_templates":[{"name":"sql_query","title":"SQL Query","description":"Query the database to capture metrics.","multiple":true,"input":"sql/metrics","type":"metrics","template_path":"input.yml.hbs","vars":[{"name":"hosts","type":"text","title":"Hosts","multi":true,"required":true,"show_user":true,"default":["http://127.0.0.1"]},{"name":"period","type":"text","title":"Period","multi":false,"required":true,"show_user":true,"default":"10s"},{"name":"driver","type":"text","title":"Driver","description":"Supported database drivers: mssql, mysql, oracle, postgres","multi":false,"required":true,"show_user":true,"default":"mysql"},{"name":"sql_query","type":"text","title":"Query","multi":false,"required":true,"show_user":true,"default":"SHOW GLOBAL STATUS LIKE ''Innodb_system%''"},{"name":"sql_response_format","type":"text","title":"Response format","description":"Supported response formats: variables, table","multi":false,"required":true,"show_user":false,"default":"variables"}]}],"readme":"/package/sql_input/0.2.0/docs/README.md","release":"beta","latestVersion":"0.2.0","assets":{},"licensePath":"/package/sql_input/0.2.0/LICENSE.txt","keepPoliciesUpToDate":false,"status":"installed","savedObject":{"id":"sql_input","type":"epm-packages","namespaces":[],"updated_at":"2024-05-16T10:03:02.002Z","created_at":"2024-05-16T10:02:55.486Z","version":"Wzc2OCwxXQ==","attributes":{"installed_kibana":[],"installed_kibana_space_id":"default","installed_es":[{"id":"metrics-sql_input.sql_query-0.2.0","type":"ingest_pipeline"},{"id":"metrics-sql_input.sql_query","type":"index_template"},{"id":"metrics-sql_input.sql_query@package","type":"component_template"},{"id":"metrics-sql_input.sql_query@custom","type":"component_template"}],"package_assets":[{"id":"b995807b-1722-5cbc-aba6-14dc35da887d","type":"epm-packages-assets"},{"id":"38134a5b-e6a9-5b03-a977-56c1e301508f","type":"epm-packages-assets"},{"id":"8d881aa3-48ca-5edc-b952-49b9992640f7","type":"epm-packages-assets"},{"id":"7f9fd7d3-6fd8-5f18-81db-4d5a794c5145","type":"epm-packages-assets"},{"id":"ac604508-f522-5e09-967a-5270457693bf","type":"epm-packages-assets"},{"id":"b8ff9b72-057d-5937-95da-33e3247bc8ce","type":"epm-packages-assets"},{"id":"003eb218-b6b8-5142-a9c8-7161d309cace","type":"epm-packages-assets"},{"id":"873964ae-caa9-5515-bf74-bf0cf9fe2979","type":"epm-packages-assets"},{"id":"9e545970-e481-5feb-9a3a-5ecd51e8af23","type":"epm-packages-assets"},{"id":"dc3746ef-c8ac-5ea7-bf96-75d76a0a65d6","type":"epm-packages-assets"}],"es_index_patterns":{"generic":"metrics-generic-*","sql_input.sql_query":"metrics-sql_input.sql_query-*"},"name":"sql_input","version":"0.2.0","install_version":"0.2.0","install_status":"installed","install_started_at":"2024-05-16T10:02:55.486Z","install_source":"upload","install_format_schema_version":"1.2.0","verification_status":"unknown","latest_install_failed_attempts":[]},"references":[],"managed":false,"coreMigrationVersion":"8.8.0","typeMigrationVersion":"10.1.0"},"installationInfo":{"created_at":"2024-05-16T10:02:55.486Z","updated_at":"2024-05-16T10:03:02.002Z","namespaces":[],"type":"epm-packages","installed_kibana":[],"installed_kibana_space_id":"default","installed_es":[{"id":"metrics-sql_input.sql_query-0.2.0","type":"ingest_pipeline"},{"id":"metrics-sql_input.sql_query","type":"index_template"},{"id":"metrics-sql_input.sql_query@package","type":"component_template"},{"id":"metrics-sql_input.sql_query@custom","type":"component_template"}],"install_status":"installed","install_source":"upload","name":"sql_input","version":"0.2.0","verification_status":"unknown","latest_install_failed_attempts":[]}}}'
-        headers:
-            Cache-Control:
-                - private, no-cache, no-store, must-revalidate
-            Connection:
-                - keep-alive
-            Content-Security-Policy:
-                - script-src 'report-sample' 'self'; worker-src 'report-sample' 'self' blob:; style-src 'report-sample' 'self' 'unsafe-inline'
-            Content-Type:
-                - application/json; charset=utf-8
-            Cross-Origin-Opener-Policy:
-                - same-origin
-            Date:
-                - Thu, 16 May 2024 10:03:05 GMT
-            Elastic-Api-Version:
-                - "2023-10-31"
-            Kbn-License-Sig:
-                - 9b993667fad3cbc5ebac755497fe0c0bd1e2cc85a9a9ac0cf453d3600b761580
-            Kbn-Name:
-                - kibana
-            Keep-Alive:
-                - timeout=120
-            Permissions-Policy:
-                - camera=(), display-capture=(), fullscreen=(self), geolocation=(), microphone=(), web-share=()
-            Referrer-Policy:
-                - strict-origin-when-cross-origin
-            Vary:
-                - accept-encoding
-            X-Content-Type-Options:
-                - nosniff
-        status: 200 OK
-        code: 200
-        duration: 44.465447ms
-    - id: 8
-      request:
-        proto: HTTP/1.1
-        proto_major: 1
-        proto_minor: 1
-        content_length: 0
-        transfer_encoding: []
-        trailer: {}
-        host: 127.0.0.1:5601
-        remote_addr: ""
-        request_uri: ""
-        body: ""
-        form: {}
-        headers:
-            Authorization:
-                - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
-            Content-Type:
-                - application/json
-            Kbn-Xsrf:
-                - 8.13.4
-        url: https://127.0.0.1:5601/api/fleet/epm/packages/sql_input/0.2.0
-        method: DELETE
-      response:
-        proto: HTTP/1.1
-        proto_major: 1
-        proto_minor: 1
-        transfer_encoding: []
-        trailer: {}
-        content_length: 285
-        uncompressed: false
-        body: '{"items":[{"id":"metrics-sql_input.sql_query-0.2.0","type":"ingest_pipeline"},{"id":"metrics-sql_input.sql_query","type":"index_template"},{"id":"metrics-sql_input.sql_query@package","type":"component_template"},{"id":"metrics-sql_input.sql_query@custom","type":"component_template"}]}'
-        headers:
-            Cache-Control:
-                - private, no-cache, no-store, must-revalidate
-            Connection:
-                - keep-alive
-            Content-Length:
-                - "285"
-            Content-Security-Policy:
-                - script-src 'report-sample' 'self'; worker-src 'report-sample' 'self' blob:; style-src 'report-sample' 'self' 'unsafe-inline'
-            Content-Type:
-                - application/json; charset=utf-8
-            Cross-Origin-Opener-Policy:
-                - same-origin
-            Date:
-                - Thu, 16 May 2024 10:03:09 GMT
-            Elastic-Api-Version:
-                - "2023-10-31"
-            Kbn-License-Sig:
-                - 9b993667fad3cbc5ebac755497fe0c0bd1e2cc85a9a9ac0cf453d3600b761580
-            Kbn-Name:
-                - kibana
-            Keep-Alive:
-                - timeout=120
-            Permissions-Policy:
-                - camera=(), display-capture=(), fullscreen=(self), geolocation=(), microphone=(), web-share=()
-            Referrer-Policy:
-                - strict-origin-when-cross-origin
-            X-Content-Type-Options:
-                - nosniff
-        status: 200 OK
-        code: 200
-        duration: 4.134955392s
-    - id: 9
-      request:
-        proto: HTTP/1.1
-        proto_major: 1
-        proto_minor: 1
-        content_length: 0
-        transfer_encoding: []
-        trailer: {}
-        host: 127.0.0.1:5601
-        remote_addr: ""
-        request_uri: ""
-        body: ""
-        form: {}
-        headers:
-            Authorization:
-                - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
-            Content-Type:
-                - application/json
-            Kbn-Xsrf:
-                - 8.13.4
-        url: https://127.0.0.1:5601/api/fleet/agent_policies/test-policy-3
-        method: GET
-      response:
-        proto: HTTP/1.1
-        proto_major: 1
-        proto_minor: 1
-        transfer_encoding: []
-        trailer: {}
-        content_length: 341
-        uncompressed: false
-        body: '{"item":{"id":"test-policy-3","name":"test-policy-3","description":"Test policy for input-package","namespace":"eptest","inactivity_timeout":1209600,"status":"active","is_managed":false,"revision":3,"updated_at":"2024-05-16T10:03:05.856Z","updated_by":"system","schema_version":"1.1.1","is_protected":false,"package_policies":[],"agents":0}}'
-        headers:
-            Accept-Ranges:
-                - bytes
-            Cache-Control:
-                - private, no-cache, no-store, must-revalidate
-            Connection:
-                - keep-alive
-            Content-Length:
-                - "341"
-            Content-Security-Policy:
-                - script-src 'report-sample' 'self'; worker-src 'report-sample' 'self' blob:; style-src 'report-sample' 'self' 'unsafe-inline'
-            Content-Type:
-                - application/json; charset=utf-8
-            Cross-Origin-Opener-Policy:
-                - same-origin
-            Date:
-                - Thu, 16 May 2024 10:03:09 GMT
-            Elastic-Api-Version:
-                - "2023-10-31"
-            Kbn-License-Sig:
-                - 9b993667fad3cbc5ebac755497fe0c0bd1e2cc85a9a9ac0cf453d3600b761580
-            Kbn-Name:
-                - kibana
-            Keep-Alive:
-                - timeout=120
-            Permissions-Policy:
-                - camera=(), display-capture=(), fullscreen=(self), geolocation=(), microphone=(), web-share=()
-            Referrer-Policy:
-                - strict-origin-when-cross-origin
-            X-Content-Type-Options:
-                - nosniff
-        status: 200 OK
-        code: 200
-        duration: 27.949378ms
+        duration: 10.425708ms
     - id: 10
-      request:
-        proto: HTTP/1.1
-        proto_major: 1
-        proto_minor: 1
-        content_length: 0
-        transfer_encoding: []
-        trailer: {}
-        host: 127.0.0.1:5601
-        remote_addr: ""
-        request_uri: ""
-        body: ""
-        form: {}
-        headers:
-            Authorization:
-                - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
-            Content-Type:
-                - application/json
-            Kbn-Xsrf:
-                - 8.13.4
-        url: https://127.0.0.1:5601/api/fleet/agent_policies/test-policy-3
-        method: GET
-      response:
-        proto: HTTP/1.1
-        proto_major: 1
-        proto_minor: 1
-        transfer_encoding: []
-        trailer: {}
-        content_length: 341
-        uncompressed: false
-        body: '{"item":{"id":"test-policy-3","name":"test-policy-3","description":"Test policy for input-package","namespace":"eptest","inactivity_timeout":1209600,"status":"active","is_managed":false,"revision":3,"updated_at":"2024-05-16T10:03:05.856Z","updated_by":"system","schema_version":"1.1.1","is_protected":false,"package_policies":[],"agents":0}}'
-        headers:
-            Accept-Ranges:
-                - bytes
-            Cache-Control:
-                - private, no-cache, no-store, must-revalidate
-            Connection:
-                - keep-alive
-            Content-Length:
-                - "341"
-            Content-Security-Policy:
-                - script-src 'report-sample' 'self'; worker-src 'report-sample' 'self' blob:; style-src 'report-sample' 'self' 'unsafe-inline'
-            Content-Type:
-                - application/json; charset=utf-8
-            Cross-Origin-Opener-Policy:
-                - same-origin
-            Date:
-                - Thu, 16 May 2024 10:03:09 GMT
-            Elastic-Api-Version:
-                - "2023-10-31"
-            Kbn-License-Sig:
-                - 9b993667fad3cbc5ebac755497fe0c0bd1e2cc85a9a9ac0cf453d3600b761580
-            Kbn-Name:
-                - kibana
-            Keep-Alive:
-                - timeout=120
-            Permissions-Policy:
-                - camera=(), display-capture=(), fullscreen=(self), geolocation=(), microphone=(), web-share=()
-            Referrer-Policy:
-                - strict-origin-when-cross-origin
-            X-Content-Type-Options:
-                - nosniff
-        status: 200 OK
-        code: 200
-        duration: 29.736291ms
-    - id: 11
       request:
         proto: HTTP/1.1
         proto_major: 1
@@ -4032,7 +3969,7 @@ interactions:
             Cross-Origin-Opener-Policy:
                 - same-origin
             Date:
-                - Thu, 16 May 2024 10:03:09 GMT
+                - Thu, 16 May 2024 10:06:42 GMT
             Elastic-Api-Version:
                 - "2023-10-31"
             Kbn-License-Sig:
@@ -4049,8 +3986,8 @@ interactions:
                 - nosniff
         status: 404 Not Found
         code: 404
-        duration: 41.679124ms
-    - id: 12
+        duration: 42.826858ms
+    - id: 11
       request:
         proto: HTTP/1.1
         proto_major: 1
@@ -4078,18 +4015,16 @@ interactions:
         proto_minor: 1
         transfer_encoding: []
         trailer: {}
-        content_length: 341
+        content_length: 111
         uncompressed: false
-        body: '{"item":{"id":"test-policy-3","name":"test-policy-3","description":"Test policy for input-package","namespace":"eptest","inactivity_timeout":1209600,"status":"active","is_managed":false,"revision":3,"updated_at":"2024-05-16T10:03:05.856Z","updated_by":"system","schema_version":"1.1.1","is_protected":false,"package_policies":[],"agents":0}}'
+        body: '{"statusCode":404,"error":"Not Found","message":"Saved object [ingest-agent-policies/test-policy-3] not found"}'
         headers:
-            Accept-Ranges:
-                - bytes
             Cache-Control:
                 - private, no-cache, no-store, must-revalidate
             Connection:
                 - keep-alive
             Content-Length:
-                - "341"
+                - "111"
             Content-Security-Policy:
                 - script-src 'report-sample' 'self'; worker-src 'report-sample' 'self' blob:; style-src 'report-sample' 'self' 'unsafe-inline'
             Content-Type:
@@ -4097,7 +4032,7 @@ interactions:
             Cross-Origin-Opener-Policy:
                 - same-origin
             Date:
-                - Thu, 16 May 2024 10:03:10 GMT
+                - Thu, 16 May 2024 10:06:42 GMT
             Elastic-Api-Version:
                 - "2023-10-31"
             Kbn-License-Sig:
@@ -4112,6 +4047,6 @@ interactions:
                 - strict-origin-when-cross-origin
             X-Content-Type-Options:
                 - nosniff
-        status: 200 OK
-        code: 200
-        duration: 30.074724ms
+        status: 404 Not Found
+        code: 404
+        duration: 8.916745ms
