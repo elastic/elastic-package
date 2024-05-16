@@ -26,6 +26,7 @@ import (
 	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/elasticsearch/ingest"
+	"github.com/elastic/elastic-package/internal/environment"
 	"github.com/elastic/elastic-package/internal/fields"
 	"github.com/elastic/elastic-package/internal/formatter"
 	"github.com/elastic/elastic-package/internal/kibana"
@@ -107,28 +108,31 @@ type logsByContainer struct {
 	patterns      []logsRegexp
 }
 
-var errorPatterns = []logsByContainer{
-	{
-		containerName: "elastic-agent",
-		patterns: []logsRegexp{
-			{
-				includes: regexp.MustCompile("^Cannot index event publisher.Event"),
-				excludes: []*regexp.Regexp{
-					// this regex is excluded to ensure that logs coming from the `system` package installed by default are not taken into account
-					regexp.MustCompile(`action \[indices:data\/write\/bulk\[s\]\] is unauthorized for API key id \[.*\] of user \[.*\] on indices \[.*\], this action is granted by the index privileges \[.*\]`),
+var (
+	errorPatterns = []logsByContainer{
+		{
+			containerName: "elastic-agent",
+			patterns: []logsRegexp{
+				{
+					includes: regexp.MustCompile("^Cannot index event publisher.Event"),
+					excludes: []*regexp.Regexp{
+						// this regex is excluded to ensure that logs coming from the `system` package installed by default are not taken into account
+						regexp.MustCompile(`action \[indices:data\/write\/bulk\[s\]\] is unauthorized for API key id \[.*\] of user \[.*\] on indices \[.*\], this action is granted by the index privileges \[.*\]`),
+					},
 				},
-			},
-			{
-				includes: regexp.MustCompile("->(FAILED|DEGRADED)"),
+				{
+					includes: regexp.MustCompile("->(FAILED|DEGRADED)"),
 
-				// this regex is excluded to avoid a regresion in 8.11 that can make a component to pass to a degraded state during some seconds after reassigning or removing a policy
-				excludes: []*regexp.Regexp{
-					regexp.MustCompile(`Component state changed .* \(HEALTHY->DEGRADED\): Degraded: pid .* missed .* check-in`),
+					// this regex is excluded to avoid a regresion in 8.11 that can make a component to pass to a degraded state during some seconds after reassigning or removing a policy
+					excludes: []*regexp.Regexp{
+						regexp.MustCompile(`Component state changed .* \(HEALTHY->DEGRADED\): Degraded: pid .* missed .* check-in`),
+					},
 				},
 			},
 		},
-	},
-}
+	}
+	enableIndependentAgents = environment.WithElasticPackagePrefix("TEST_ENABLE_INDEPENDENT_AGENT")
+)
 
 type runner struct {
 	options   testrunner.TestOptions
@@ -845,6 +849,19 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	scenario.dataStreamManifest, err = packages.ReadDataStreamManifest(filepath.Join(serviceOptions.DataStreamRootPath, packages.DataStreamManifestFile))
 	if err != nil {
 		return nil, fmt.Errorf("reading data stream manifest failed: %w", err)
+	}
+
+	// Temporarily until independent Elastic Agents are enabled by default,
+	// enable independent Elastic Agents if package defines that requires root privileges
+	if scenario.pkgManifest.Agent.Privileges.Root == true || scenario.dataStreamManifest.Agent.Privileges.Root == true {
+		r.options.RunIndependentElasticAgent = true
+	}
+
+	// If the environment variable is present, it always has preference over the root
+	// privileges value (if any) defined in the manifest file
+	v, ok := os.LookupEnv(enableIndependentAgents)
+	if ok {
+		r.options.RunIndependentElasticAgent = strings.ToLower(v) == "true"
 	}
 
 	policyTemplateName := config.PolicyTemplate
