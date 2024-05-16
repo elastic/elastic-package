@@ -190,9 +190,6 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 		}
 
 		runIndependentElasticAgent := false
-
-		// If the environment variable is present, it always has preference over the root
-		// privileges value (if any) defined in the manifest file
 		v, ok := os.LookupEnv(enableIndependentAgents)
 		if ok {
 			runIndependentElasticAgent = strings.ToLower(v) == "true"
