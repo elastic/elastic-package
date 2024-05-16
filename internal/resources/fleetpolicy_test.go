@@ -76,12 +76,13 @@ func TestPolicyLifecycle(t *testing.T) {
 
 	for i, c := range cases {
 		t.Run(c.title, func(t *testing.T) {
-			recordPath := filepath.Join("testdata", "kibana-8-mock-package-lifecycle-"+c.title)
+			recordPath := filepath.Join("testdata", "kibana-8-mock-policy-lifecycle-"+c.title)
 			kibanaClient := kibanatest.NewClient(t, recordPath)
 
-			id := fmt.Sprintf("test-policy-%d", i)
-			t.Cleanup(func() { deletePolicy(t, kibanaClient, id) })
+			manager := resource.NewManager()
+			manager.RegisterProvider(DefaultKibanaProviderName, &KibanaProvider{Client: kibanaClient})
 
+			id := fmt.Sprintf("test-policy-%d", i)
 			agentPolicy := FleetAgentPolicy{
 				Name:            id,
 				ID:              id,
@@ -89,29 +90,28 @@ func TestPolicyLifecycle(t *testing.T) {
 				Namespace:       "eptest",
 				PackagePolicies: c.packagePolicies,
 			}
-			resources := preInstallPackages(&agentPolicy)
+			t.Cleanup(func() { deletePolicy(t, manager, agentPolicy) })
 
-			manager := resource.NewManager()
-			manager.RegisterProvider(DefaultKibanaProviderName, &KibanaProvider{Client: kibanaClient})
-			_, err := manager.Apply(resources)
+			_, err := manager.Apply(withPackageResources(&agentPolicy))
 			assert.NoError(t, err)
 			assertPolicyPresent(t, kibanaClient, true, agentPolicy.ID)
 
 			agentPolicy.Absent = true
-			_, err = manager.Apply(resources)
+			_, err = manager.Apply(withPackageResources(&agentPolicy))
 			assert.NoError(t, err)
 			assertPolicyPresent(t, kibanaClient, false, agentPolicy.ID)
 		})
 	}
 }
 
-// preInstallPackages prepares a list of resources that ensures that all required packages are installed
+// withPackageResources prepares a list of resources that ensures that all required packages are installed
 // before creating the policy.
-func preInstallPackages(agentPolicy *FleetAgentPolicy) resource.Resources {
+func withPackageResources(agentPolicy *FleetAgentPolicy) resource.Resources {
 	var resources resource.Resources
 	for _, policy := range agentPolicy.PackagePolicies {
 		resources = append(resources, &FleetPackage{
 			RootPath: policy.RootPath,
+			Absent:   agentPolicy.Absent,
 		})
 	}
 	return append(resources, agentPolicy)
@@ -132,11 +132,10 @@ func assertPolicyPresent(t *testing.T, client *kibana.Client, expected bool, pol
 	return false
 }
 
-func deletePolicy(t *testing.T, client *kibana.Client, policyID string) {
-	err := client.DeletePolicy(context.Background(), policyID)
-	var notFoundError *kibana.ErrPolicyNotFound
-	if errors.As(err, &notFoundError) {
-		return
-	}
-	assert.NoError(t, err)
+func deletePolicy(t *testing.T, manager *resource.Manager, agentPolicy FleetAgentPolicy) {
+	t.Helper()
+
+	agentPolicy.Absent = true
+	_, err := manager.Apply(withPackageResources(&agentPolicy))
+	assert.NoError(t, err, "cleanup execution")
 }
