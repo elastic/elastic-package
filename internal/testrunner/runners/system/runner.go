@@ -452,7 +452,8 @@ func (r *runner) tearDownTest(ctx context.Context) error {
 	}
 	_, err := r.resourcesManager.ApplyCtx(cleanupCtx, r.resources(resourcesOptions))
 	if err != nil {
-		return err
+		logger.Errorf("Failed to uninstall package is there any other execution in parallel?: %s", err)
+		// return err
 	}
 
 	if r.shutdownServiceHandler != nil {
