@@ -1,20 +1,20 @@
-{{ $username := fact "username" }}
-{{ $password := fact "password" }}
-{{ $apm_enabled := fact "apm_enabled" }}
+
+
+
 services:
   elasticsearch:
     image: "${ELASTICSEARCH_IMAGE_REF}"
     healthcheck:
-      test: "curl -s --cacert /usr/share/elasticsearch/config/certs/ca-cert.pem -f -u {{ $username }}:{{ $password }} https://127.0.0.1:9200/_cat/health | cut -f4 -d' ' | grep -E '(green|yellow)'"
+      test: "curl -s --cacert /usr/share/elasticsearch/config/certs/ca-cert.pem -f -u elastic:changeme https://127.0.0.1:9200/_cat/health | cut -f4 -d' ' | grep -E '(green|yellow)'"
       start_period: 300s
       interval: 5s
     environment:
       - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
-      - "ELASTIC_PASSWORD={{ $password }}"
+      - "ELASTIC_PASSWORD=changeme"
     volumes:
       - "./elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml"
       - "../certs/elasticsearch:/usr/share/elasticsearch/config/certs"
-      - "{{ fact "geoip_dir" }}:/usr/share/elasticsearch/config/ingest-geoip"
+      - "./ingest-geoip:/usr/share/elasticsearch/config/ingest-geoip"
       - "./service_tokens:/usr/share/elasticsearch/config/service_tokens"
     ports:
       - "127.0.0.1:9200:9200"
@@ -44,7 +44,7 @@ services:
     volumes:
       - "./kibana.yml:/usr/share/kibana/config/kibana.yml"
       - "../certs/kibana:/usr/share/kibana/config/certs"
-      - "./kibana-healthcheck.sh:/usr/share/kibana/healthcheck.sh"
+      - "./kibana_healthcheck.sh:/usr/share/kibana/healthcheck.sh"
     ports:
       - "127.0.0.1:5601:5601"
 
@@ -70,10 +70,7 @@ services:
       - "EPR_METRICS_ADDRESS=0.0.0.0:9000"
       - "EPR_TLS_KEY=/etc/ssl/package-registry/key.pem"
       - "EPR_TLS_CERT=/etc/ssl/package-registry/cert.pem"
-    {{ if eq $apm_enabled "true" }}
-      - "ELASTIC_APM_SERVER_URL=http://fleet-server:8200"
-      - "ELASTIC_APM_ENVIRONMENT=dev"
-    {{ end }}
+    
     volumes:
       - "../certs/package-registry:/etc/ssl/package-registry"
     ports:
@@ -94,7 +91,7 @@ services:
       kibana:
         condition: service_healthy
     healthcheck:
-      test: "bash /healthcheck.sh"
+      test: "curl --cacert /etc/ssl/elastic-agent/ca-cert.pem -f https://localhost:8220/api/status | grep -i healthy 2>&1 >/dev/null"
       start_period: 60s
       interval: 5s
     hostname: docker-fleet-server
@@ -106,20 +103,17 @@ services:
     - "FLEET_SERVER_ENABLE=1"
     - "FLEET_SERVER_HOST=0.0.0.0"
     - "FLEET_SERVER_SERVICE_TOKEN=AAEAAWVsYXN0aWMvZmxlZXQtc2VydmVyL2VsYXN0aWMtcGFja2FnZS1mbGVldC1zZXJ2ZXItdG9rZW46bmgtcFhoQzRRQ2FXbms2U0JySGlWQQ"
-    - "FLEET_URL={{ fact "fleet_url" }}"
-    - "KIBANA_FLEET_HOST={{ fact "kibana_host" }}"
+    - "FLEET_URL=https://fleet-server:8220"
+    - "KIBANA_FLEET_HOST=https://kibana:5601"
     - "KIBANA_FLEET_SERVICE_TOKEN=AAEAAWVsYXN0aWMvZmxlZXQtc2VydmVyL2VsYXN0aWMtcGFja2FnZS1mbGVldC1zZXJ2ZXItdG9rZW46bmgtcFhoQzRRQ2FXbms2U0JySGlWQQ"
     - "KIBANA_FLEET_SETUP=1"
-    - "KIBANA_HOST={{ fact "kibana_host" }}"
+    - "KIBANA_HOST=https://kibana:5601"
     volumes:
-      - "../certs/ca-cert.pem:/etc/ssl/certs/elastic-package.pem:ro"
-      - "../certs/fleet-server:/etc/ssl/elastic-agent:ro"
-      - "./fleet-server-healthcheck.sh:/healthcheck.sh:ro"
+      - "../certs/ca-cert.pem:/etc/ssl/certs/elastic-package.pem"
+      - "../certs/fleet-server:/etc/ssl/elastic-agent"
     ports:
       - "127.0.0.1:8220:8220"
-      {{ if eq $apm_enabled "true" }}
-      - "127.0.0.1:8200:8200"
-      {{ end }}
+      
 
   fleet-server_is_ready:
     image: tianon/true:multiarch
@@ -142,7 +136,7 @@ services:
     env_file: "./elastic-agent.env"
     cap_drop:
     - ALL
-    ports: [{{ fact "agent_publish_ports" }}]
+    ports: []
     volumes:
     - "../certs/ca-cert.pem:/etc/ssl/certs/elastic-package.pem"
     - type: bind
@@ -159,36 +153,5 @@ services:
       elastic-agent:
         condition: service_healthy
 
-{{ $logstash_enabled := fact "logstash_enabled" }}
-{{ if eq $logstash_enabled "true" }}
-  logstash:
-    build:
-      dockerfile: "./Dockerfile.logstash"
-      args:
-        IMAGE: "${LOGSTASH_IMAGE_REF}"
-    depends_on:
-      elasticsearch:
-        condition: service_healthy
-    healthcheck:
-      test: bin/logstash -t
-      start_period: 120s
-      interval: 60s
-      timeout: 60s
-      retries: 5
-    volumes:
-      - "../certs/logstash:/usr/share/logstash/config/certs"
-    ports:
-       - "127.0.0.1:5044:5044"
-       - "127.0.0.1:9600:9600"
-    environment:
-      - XPACK_MONITORING_ENABLED=false
-      - ELASTIC_USER=elastic
-      - ELASTIC_PASSWORD=changeme
-      - ELASTIC_HOSTS=https://127.0.0.1:9200
 
-  logstash_is_ready:
-    image: tianon/true:multiarch
-    depends_on:
-      logstash:
-        condition: service_healthy
-{{ end }}
+

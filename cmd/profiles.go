@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/olekukonko/tablewriter"
@@ -137,7 +138,7 @@ User profiles can be configured with a "config.yml" file in the profile director
 				if err != nil {
 					return fmt.Errorf("failed to load current configuration: %w", err)
 				}
-				return formatTable(profileList, config.CurrentProfile())
+				return formatTable(loc.ProfileDir(), profileList, config.CurrentProfile())
 			case jsonFormat:
 				return formatJSON(profileList)
 			default:
@@ -201,13 +202,12 @@ func formatJSON(profileList []profile.Metadata) error {
 	return nil
 }
 
-func formatTable(profileList []profile.Metadata, currentProfile string) error {
+func formatTable(profilesDir string, profileList []profile.Metadata, currentProfile string) error {
 	table := tablewriter.NewWriter(os.Stdout)
-	var profilesTable = profileToList(profileList, currentProfile)
+	var profilesTable = profileToList(profilesDir, profileList, currentProfile)
 
-	table.SetHeader([]string{"Name", "Date Created", "User", "Version", "Path"})
+	table.SetHeader([]string{"Name", "Date Created", "Version", "Path"})
 	table.SetHeaderColor(
-		twColor(tablewriter.Colors{tablewriter.Bold}),
 		twColor(tablewriter.Colors{tablewriter.Bold}),
 		twColor(tablewriter.Colors{tablewriter.Bold}),
 		twColor(tablewriter.Colors{tablewriter.Bold}),
@@ -215,7 +215,6 @@ func formatTable(profileList []profile.Metadata, currentProfile string) error {
 	)
 	table.SetColumnColor(
 		twColor(tablewriter.Colors{tablewriter.Bold, tablewriter.FgCyanColor}),
-		tablewriter.Colors{},
 		tablewriter.Colors{},
 		tablewriter.Colors{},
 		tablewriter.Colors{},
@@ -229,14 +228,16 @@ func formatTable(profileList []profile.Metadata, currentProfile string) error {
 	return nil
 }
 
-func profileToList(profiles []profile.Metadata, currentProfile string) [][]string {
+func profileToList(profilesDir string, profiles []profile.Metadata, currentProfile string) [][]string {
 	var profileList [][]string
 	for _, profile := range profiles {
 		name := profile.Name
 		if name == currentProfile {
 			name = name + " (current)"
 		}
-		profileList = append(profileList, []string{name, profile.DateCreated.Format(time.RFC3339), profile.User, profile.Version, profile.Path})
+		profilePath := filepath.Join(profilesDir, profile.Name)
+		dateCreated := profile.DateCreated.Format(time.RFC822)
+		profileList = append(profileList, []string{name, dateCreated, profile.Version, profilePath})
 	}
 
 	return profileList
