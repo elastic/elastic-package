@@ -162,6 +162,7 @@ type DataStreamManifest struct {
 		Input string     `config:"input" json:"input" yaml:"input"`
 		Vars  []Variable `config:"vars" json:"vars" yaml:"vars"`
 	} `config:"streams" json:"streams" yaml:"streams"`
+	Agent Agent `config:"agent" json:"agent" yaml:"agent"`
 }
 
 // Transform contains information about a transform included in a package.

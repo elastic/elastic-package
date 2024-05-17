@@ -1,0 +1,4 @@
+stack:
+    image_ref_overrides: {}
+profile:
+    current: default

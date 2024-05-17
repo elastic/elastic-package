@@ -52,13 +52,23 @@ func (c *Client) CreatePolicy(ctx context.Context, p Policy) (*Policy, error) {
 	return &resp.Item, nil
 }
 
+type ErrPolicyNotFound struct {
+	id string
+}
+
+func (e *ErrPolicyNotFound) Error() string {
+	return fmt.Sprintf("policy %s not found", e.id)
+}
+
 // GetPolicy fetches the given Policy in Fleet.
 func (c *Client) GetPolicy(ctx context.Context, policyID string) (*Policy, error) {
 	statusCode, respBody, err := c.get(ctx, fmt.Sprintf("%s/agent_policies/%s", FleetAPI, policyID))
 	if err != nil {
 		return nil, fmt.Errorf("could not get policy: %w", err)
 	}
-
+	if statusCode == http.StatusNotFound {
+		return nil, &ErrPolicyNotFound{id: policyID}
+	}
 	if statusCode != http.StatusOK {
 		return nil, fmt.Errorf("could not get policy; API status code = %d; response body = %s", statusCode, respBody)
 	}
@@ -80,7 +90,9 @@ func (c *Client) GetRawPolicy(ctx context.Context, policyID string) (json.RawMes
 	if err != nil {
 		return nil, fmt.Errorf("could not get policy: %w", err)
 	}
-
+	if statusCode == http.StatusNotFound {
+		return nil, &ErrPolicyNotFound{id: policyID}
+	}
 	if statusCode != http.StatusOK {
 		return nil, fmt.Errorf("could not get policy; API status code = %d; response body = %s", statusCode, respBody)
 	}
@@ -131,14 +143,17 @@ func (c *Client) ListRawPolicies(ctx context.Context) ([]json.RawMessage, error)
 }
 
 // DeletePolicy removes the given Policy from Fleet.
-func (c *Client) DeletePolicy(ctx context.Context, p Policy) error {
-	reqBody := `{ "agentPolicyId": "` + p.ID + `" }`
+func (c *Client) DeletePolicy(ctx context.Context, policyID string) error {
+	reqBody := `{ "agentPolicyId": "` + policyID + `" }`
 
 	statusCode, respBody, err := c.post(ctx, fmt.Sprintf("%s/agent_policies/delete", FleetAPI), []byte(reqBody))
 	if err != nil {
 		return fmt.Errorf("could not delete policy: %w", err)
 	}
 
+	if statusCode == http.StatusNotFound {
+		return &ErrPolicyNotFound{id: policyID}
+	}
 	if statusCode != http.StatusOK {
 		return fmt.Errorf("could not delete policy; API status code = %d; response body = %s", statusCode, respBody)
 	}
@@ -178,7 +193,7 @@ type Input struct {
 	Type           string   `json:"type"`
 	Enabled        bool     `json:"enabled"`
 	Streams        []Stream `json:"streams"`
-	Vars           Vars     `json:"vars"`
+	Vars           Vars     `json:"vars,omitempty"`
 }
 
 // PackageDataStream represents a request to add a single package's single data stream to a

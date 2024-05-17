@@ -1,0 +1,157 @@
+
+
+
+services:
+  elasticsearch:
+    image: "${ELASTICSEARCH_IMAGE_REF}"
+    healthcheck:
+      test: "curl -s --cacert /usr/share/elasticsearch/config/certs/ca-cert.pem -f -u elastic:changeme https://127.0.0.1:9200/_cat/health | cut -f4 -d' ' | grep -E '(green|yellow)'"
+      start_period: 300s
+      interval: 5s
+    environment:
+      - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
+      - "ELASTIC_PASSWORD=changeme"
+    volumes:
+      - "./elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml"
+      - "../certs/elasticsearch:/usr/share/elasticsearch/config/certs"
+      - "./ingest-geoip:/usr/share/elasticsearch/config/ingest-geoip"
+      - "./service_tokens:/usr/share/elasticsearch/config/service_tokens"
+    ports:
+      - "127.0.0.1:9200:9200"
+
+  elasticsearch_is_ready:
+    image: tianon/true:multiarch
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+
+  kibana:
+    image: "${KIBANA_IMAGE_REF}"
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+      package-registry:
+        condition: service_healthy
+    healthcheck:
+      test: "sh /usr/share/kibana/healthcheck.sh"
+      start_period: 600s
+      interval: 5s
+    env_file:
+      - "../certs/ca.env"
+    environment:
+      # Is there a better way to add certificates to Kibana/Fleet?
+      - "NODE_EXTRA_CA_CERTS=/usr/share/kibana/config/certs/ca-cert.pem"
+    volumes:
+      - "./kibana.yml:/usr/share/kibana/config/kibana.yml"
+      - "../certs/kibana:/usr/share/kibana/config/certs"
+      - "./kibana_healthcheck.sh:/usr/share/kibana/healthcheck.sh"
+    ports:
+      - "127.0.0.1:5601:5601"
+
+  kibana_is_ready:
+    image: tianon/true:multiarch
+    depends_on:
+      kibana:
+        condition: service_healthy
+
+  package-registry:
+    build:
+      context: ../../../
+      dockerfile: "./profiles/${PROFILE_NAME}/stack/Dockerfile.package-registry"
+      args:
+        PROFILE: "${PROFILE_NAME}"
+    healthcheck:
+      test: ["CMD", "curl", "--cacert", "/etc/ssl/package-registry/ca-cert.pem", "-f", "https://localhost:8080"]
+      start_period: 300s
+      interval: 5s
+    environment:
+      - "EPR_LOG_LEVEL=debug"
+      - "EPR_ADDRESS=0.0.0.0:8080"
+      - "EPR_METRICS_ADDRESS=0.0.0.0:9000"
+      - "EPR_TLS_KEY=/etc/ssl/package-registry/key.pem"
+      - "EPR_TLS_CERT=/etc/ssl/package-registry/cert.pem"
+    
+    volumes:
+      - "../certs/package-registry:/etc/ssl/package-registry"
+    ports:
+      - "127.0.0.1:8080:8080"
+      - "127.0.0.1:9000:9000"
+
+  package-registry_is_ready:
+    image: tianon/true:multiarch
+    depends_on:
+      package-registry:
+        condition: service_healthy
+
+  fleet-server:
+    image: "${ELASTIC_AGENT_IMAGE_REF}"
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+      kibana:
+        condition: service_healthy
+    healthcheck:
+      test: "curl --cacert /etc/ssl/elastic-agent/ca-cert.pem -f https://localhost:8220/api/status | grep -i healthy 2>&1 >/dev/null"
+      start_period: 60s
+      interval: 5s
+    hostname: docker-fleet-server
+    environment:
+    - "ELASTICSEARCH_HOST=https://elasticsearch:9200"
+    - "FLEET_SERVER_CERT=/etc/ssl/elastic-agent/cert.pem"
+    - "FLEET_SERVER_CERT_KEY=/etc/ssl/elastic-agent/key.pem"
+    - "FLEET_SERVER_ELASTICSEARCH_HOST=https://elasticsearch:9200"
+    - "FLEET_SERVER_ENABLE=1"
+    - "FLEET_SERVER_HOST=0.0.0.0"
+    - "FLEET_SERVER_SERVICE_TOKEN=AAEAAWVsYXN0aWMvZmxlZXQtc2VydmVyL2VsYXN0aWMtcGFja2FnZS1mbGVldC1zZXJ2ZXItdG9rZW46bmgtcFhoQzRRQ2FXbms2U0JySGlWQQ"
+    - "FLEET_URL=https://fleet-server:8220"
+    - "KIBANA_FLEET_HOST=https://kibana:5601"
+    - "KIBANA_FLEET_SERVICE_TOKEN=AAEAAWVsYXN0aWMvZmxlZXQtc2VydmVyL2VsYXN0aWMtcGFja2FnZS1mbGVldC1zZXJ2ZXItdG9rZW46bmgtcFhoQzRRQ2FXbms2U0JySGlWQQ"
+    - "KIBANA_FLEET_SETUP=1"
+    - "KIBANA_HOST=https://kibana:5601"
+    volumes:
+      - "../certs/ca-cert.pem:/etc/ssl/certs/elastic-package.pem"
+      - "../certs/fleet-server:/etc/ssl/elastic-agent"
+    ports:
+      - "127.0.0.1:8220:8220"
+      
+
+  fleet-server_is_ready:
+    image: tianon/true:multiarch
+    depends_on:
+      fleet-server:
+        condition: service_healthy
+
+  elastic-agent:
+    image: "${ELASTIC_AGENT_IMAGE_REF}"
+    depends_on:
+      fleet-server:
+        condition: service_healthy
+    healthcheck:
+      test: "elastic-agent status"
+      timeout: 2s
+      start_period: 360s
+      retries: 180
+      interval: 5s
+    hostname: docker-fleet-agent
+    env_file: "./elastic-agent.env"
+    cap_drop:
+    - ALL
+    ports: []
+    volumes:
+    - "../certs/ca-cert.pem:/etc/ssl/certs/elastic-package.pem"
+    - type: bind
+      source: ../../../tmp/service_logs/
+      target: /tmp/service_logs/
+    # Mount service_logs under /run too as a testing workaround for the journald input (see elastic-package#1235).
+    - type: bind
+      source: ../../../tmp/service_logs/
+      target: /run/service_logs/
+
+  elastic-agent_is_ready:
+    image: tianon/true:multiarch
+    depends_on:
+      elastic-agent:
+        condition: service_healthy
+
+
+

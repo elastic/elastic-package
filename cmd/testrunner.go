@@ -19,7 +19,6 @@ import (
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/elasticsearch"
-	"github.com/elastic/elastic-package/internal/environment"
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
@@ -53,8 +52,6 @@ For details on how to run static tests for a package, see the [HOWTO guide](http
 These tests allow you to test a package's ability to ingest data end-to-end.
 
 For details on how to configure amd run system tests, review the [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/system_testing.md).`
-
-var enableIndependentAgents = environment.WithElasticPackagePrefix("TEST_ENABLE_INDEPENDENT_AGENT")
 
 func setupTestCommand() *cobraext.Command {
 	var testTypeCmdActions []cobraext.CommandAction
@@ -188,17 +185,6 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 		hasDataStreams, err := packageHasDataStreams(manifest)
 		if err != nil {
 			return fmt.Errorf("cannot determine if package has data streams: %w", err)
-		}
-
-		// Temporarily until independent Elastic Agents are enabled by default,
-		// enable independent Elastic Agents if package defines that requires root privileges
-		runIndependentElasticAgent := manifest.Agent.Privileges.Root
-
-		// If the environment variable is present, it always has preference over the root
-		// privileges value (if any) defined in the manifest file
-		v, ok := os.LookupEnv(enableIndependentAgents)
-		if ok {
-			runIndependentElasticAgent = strings.ToLower(v) == "true"
 		}
 
 		configFileFlag := ""
@@ -386,7 +372,7 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 					RunSetup:                   runSetup,
 					RunTearDown:                runTearDown,
 					RunTestsOnly:               runTestsOnly,
-					RunIndependentElasticAgent: runIndependentElasticAgent,
+					RunIndependentElasticAgent: false,
 				})
 
 				chResults <- routineResult{r, err}
