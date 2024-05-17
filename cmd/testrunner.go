@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -19,6 +20,7 @@ import (
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/elasticsearch"
+	"github.com/elastic/elastic-package/internal/environment"
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
@@ -31,7 +33,10 @@ import (
 	_ "github.com/elastic/elastic-package/internal/testrunner/runners" // register all test runners
 )
 
-const testLongDescription = `Use this command to run tests on a package. Currently, the following types of tests are available:
+const (
+	DEFAULT_MAXIMUM_ROUTINES = 1
+
+	testLongDescription = `Use this command to run tests on a package. Currently, the following types of tests are available:
 
 #### Asset Loading Tests
 These tests ensure that all the Elasticsearch and Kibana assets defined by your package get loaded up as expected.
@@ -52,6 +57,9 @@ For details on how to run static tests for a package, see the [HOWTO guide](http
 These tests allow you to test a package's ability to ingest data end-to-end.
 
 For details on how to configure amd run system tests, review the [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/system_testing.md).`
+)
+
+var maximumNumberParallelTest = environment.WithElasticPackagePrefix("MAXIMUM_NUMBER_PARALLEL_TESTS")
 
 func setupTestCommand() *cobraext.Command {
 	var testTypeCmdActions []cobraext.CommandAction
@@ -346,8 +354,18 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 		chResults := make(chan routineResult, len(testFolders))
 		launcher := testrunner.RunnerLauncher{}
 
+		maxRoutines := DEFAULT_MAXIMUM_ROUTINES
+
+		v, ok := os.LookupEnv(maximumNumberParallelTest)
+		if ok {
+			maxRoutines, err = strconv.Atoi(v)
+			if err != nil {
+				return fmt.Errorf("failed to read number of maximum routines from environment variable: %w", err)
+			}
+		}
+		logger.Debugf(">>> Maximum routines: %d", maxRoutines)
 		// Use channel as a semaphore to limit the number of test executions in parallel
-		sem := make(chan int, 2)
+		sem := make(chan int, maxRoutines)
 
 		var results []testrunner.TestResult
 		for _, folder := range testFolders {
