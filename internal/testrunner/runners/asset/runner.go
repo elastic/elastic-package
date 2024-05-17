@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
@@ -43,6 +44,8 @@ var _ testrunner.TestRunner = new(runner)
 func (r *runner) Type() testrunner.TestType {
 	return TestType
 }
+
+func (r *runner) SetMutex(m *sync.Mutex) {}
 
 // String returns the name of the test runner.
 func (r runner) String() string {

@@ -16,6 +16,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Masterminds/semver/v3"
@@ -158,6 +159,8 @@ type runner struct {
 	shutdownServiceHandler    func(context.Context) error
 	shutdownAgentHandler      func(context.Context) error
 	wipeDataStreamHandler     func(context.Context) error
+
+	mutexInstallPackage *sync.Mutex
 }
 
 // Ensures that runner implements testrunner.TestRunner interface
@@ -171,6 +174,10 @@ func (r *runner) Type() testrunner.TestType {
 // String returns the human-friendly name of the test runner.
 func (r *runner) String() string {
 	return "system"
+}
+
+func (r *runner) SetMutex(m *sync.Mutex) {
+	r.mutexInstallPackage = m
 }
 
 // CanRunPerDataStream returns whether this test runner can run on individual
@@ -969,10 +976,13 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 			// Install it unless we are running the tear down only.
 			installedPackage: !r.options.RunTearDown,
 		}
+		r.mutexInstallPackage.Lock()
 		_, err = r.resourcesManager.ApplyCtx(ctx, r.resources(resourcesOptions))
 		if err != nil {
+			r.mutexInstallPackage.Unlock()
 			return nil, fmt.Errorf("can't install the package: %w", err)
 		}
+		r.mutexInstallPackage.Unlock()
 	}
 
 	// store the time just before adding the Test Policy, this time will be used to check

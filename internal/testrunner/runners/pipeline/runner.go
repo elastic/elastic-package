@@ -15,6 +15,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Masterminds/semver/v3"
@@ -60,6 +61,8 @@ var _ testrunner.TestRunner = new(runner)
 func (r *runner) TestFolderRequired() bool {
 	return true
 }
+
+func (r *runner) SetMutex(m *sync.Mutex) {}
 
 // Type returns the type of test that can be run by this test runner.
 func (r *runner) Type() testrunner.TestType {

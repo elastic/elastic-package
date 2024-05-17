@@ -71,6 +71,8 @@ type TestRunner interface {
 	TestFolderRequired() bool
 
 	CanRunSetupTeardownIndependent() bool
+
+	SetMutex(*sync.Mutex)
 }
 
 var runners = map[TestType]TestRunner{}
@@ -292,7 +294,8 @@ func RegisterRunnerFunc(testType TestType, factory func() TestRunner) {
 }
 
 type RunnerLauncher struct {
-	mutex sync.Mutex
+	mutex               sync.Mutex
+	mutexInstallPackage sync.Mutex
 }
 
 func (r *RunnerLauncher) newRunner(testType TestType) (TestRunner, error) {
@@ -304,7 +307,9 @@ func (r *RunnerLauncher) newRunner(testType TestType) (TestRunner, error) {
 		return nil, fmt.Errorf("unregistered runner test: %s", testType)
 	}
 
-	return factory(), nil
+	runner := factory()
+	runner.SetMutex(&r.mutexInstallPackage)
+	return runner, nil
 }
 
 // Run method delegates execution to the registered test runner, based on the test type.
