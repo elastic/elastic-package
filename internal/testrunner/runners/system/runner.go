@@ -26,6 +26,7 @@ import (
 	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/elasticsearch/ingest"
+	"github.com/elastic/elastic-package/internal/environment"
 	"github.com/elastic/elastic-package/internal/fields"
 	"github.com/elastic/elastic-package/internal/formatter"
 	"github.com/elastic/elastic-package/internal/kibana"
@@ -107,28 +108,31 @@ type logsByContainer struct {
 	patterns      []logsRegexp
 }
 
-var errorPatterns = []logsByContainer{
-	{
-		containerName: "elastic-agent",
-		patterns: []logsRegexp{
-			{
-				includes: regexp.MustCompile("^Cannot index event publisher.Event"),
-				excludes: []*regexp.Regexp{
-					// this regex is excluded to ensure that logs coming from the `system` package installed by default are not taken into account
-					regexp.MustCompile(`action \[indices:data\/write\/bulk\[s\]\] is unauthorized for API key id \[.*\] of user \[.*\] on indices \[.*\], this action is granted by the index privileges \[.*\]`),
+var (
+	errorPatterns = []logsByContainer{
+		{
+			containerName: "elastic-agent",
+			patterns: []logsRegexp{
+				{
+					includes: regexp.MustCompile("^Cannot index event publisher.Event"),
+					excludes: []*regexp.Regexp{
+						// this regex is excluded to ensure that logs coming from the `system` package installed by default are not taken into account
+						regexp.MustCompile(`action \[indices:data\/write\/bulk\[s\]\] is unauthorized for API key id \[.*\] of user \[.*\] on indices \[.*\], this action is granted by the index privileges \[.*\]`),
+					},
 				},
-			},
-			{
-				includes: regexp.MustCompile("->(FAILED|DEGRADED)"),
+				{
+					includes: regexp.MustCompile("->(FAILED|DEGRADED)"),
 
-				// this regex is excluded to avoid a regresion in 8.11 that can make a component to pass to a degraded state during some seconds after reassigning or removing a policy
-				excludes: []*regexp.Regexp{
-					regexp.MustCompile(`Component state changed .* \(HEALTHY->DEGRADED\): Degraded: pid .* missed .* check-in`),
+					// this regex is excluded to avoid a regresion in 8.11 that can make a component to pass to a degraded state during some seconds after reassigning or removing a policy
+					excludes: []*regexp.Regexp{
+						regexp.MustCompile(`Component state changed .* \(HEALTHY->DEGRADED\): Degraded: pid .* missed .* check-in`),
+					},
 				},
 			},
 		},
-	},
-}
+	}
+	enableIndependentAgents = environment.WithElasticPackagePrefix("TEST_ENABLE_INDEPENDENT_AGENT")
+)
 
 type runner struct {
 	options   testrunner.TestOptions
@@ -234,7 +238,6 @@ func (r *runner) Run(ctx context.Context, options testrunner.TestOptions) ([]tes
 		logger.Infof("Using variant from service setup dir: %q", variant)
 	}
 
-	serviceOptions := r.createServiceOptions(variant)
 	svcInfo, err := r.createServiceInfo()
 	if err != nil {
 		return result.WithError(err)
@@ -257,7 +260,7 @@ func (r *runner) Run(ctx context.Context, options testrunner.TestOptions) ([]tes
 	}
 	result = r.newResult(fmt.Sprintf("%s - %s", resultName, testConfig.Name()))
 
-	scenario, err := r.prepareScenario(ctx, testConfig, svcInfo, serviceOptions)
+	scenario, err := r.prepareScenario(ctx, testConfig, svcInfo)
 	if r.options.RunSetup && err != nil {
 		tdErr := r.tearDownTest(ctx)
 		if tdErr != nil {
@@ -275,7 +278,7 @@ func (r *runner) Run(ctx context.Context, options testrunner.TestOptions) ([]tes
 		if err != nil {
 			return result.WithError(fmt.Errorf("failed to prepare scenario: %w", err))
 		}
-		return r.validateTestScenario(ctx, result, scenario, testConfig, serviceOptions)
+		return r.validateTestScenario(ctx, result, scenario, testConfig)
 	}
 
 	if r.options.RunTearDown {
@@ -621,7 +624,6 @@ func (r *runner) run(ctx context.Context) (results []testrunner.TestResult, err 
 }
 
 func (r *runner) runTestPerVariant(ctx context.Context, result *testrunner.ResultComposer, cfgFile, variantName string) ([]testrunner.TestResult, error) {
-	serviceOptions := r.createServiceOptions(variantName)
 	svcInfo, err := r.createServiceInfo()
 	if err != nil {
 		return result.WithError(err)
@@ -634,7 +636,7 @@ func (r *runner) runTestPerVariant(ctx context.Context, result *testrunner.Resul
 	}
 	logger.Debugf("Using config: %q", testConfig.Name())
 
-	partial, err := r.runTest(ctx, testConfig, svcInfo, serviceOptions)
+	partial, err := r.runTest(ctx, testConfig, svcInfo)
 
 	tdErr := r.tearDownTest(ctx)
 	if err != nil {
@@ -819,7 +821,9 @@ type scenarioTest struct {
 	startTestTime      time.Time
 }
 
-func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInfo servicedeployer.ServiceInfo, serviceOptions servicedeployer.FactoryOptions) (*scenarioTest, error) {
+func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInfo servicedeployer.ServiceInfo) (*scenarioTest, error) {
+	serviceOptions := r.createServiceOptions(config.ServiceVariantName)
+
 	var err error
 	var serviceStateData ServiceState
 	if r.options.RunSetup {
@@ -842,10 +846,24 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		return nil, fmt.Errorf("reading package manifest failed: %w", err)
 	}
 
-	scenario.dataStreamManifest, err = packages.ReadDataStreamManifest(filepath.Join(serviceOptions.DataStreamRootPath, packages.DataStreamManifestFile))
+	scenario.dataStreamManifest, err = packages.ReadDataStreamManifest(filepath.Join(r.dataStreamPath, packages.DataStreamManifestFile))
 	if err != nil {
 		return nil, fmt.Errorf("reading data stream manifest failed: %w", err)
 	}
+
+	// Temporarily until independent Elastic Agents are enabled by default,
+	// enable independent Elastic Agents if package defines that requires root privileges
+	if pkg, ds := scenario.pkgManifest, scenario.dataStreamManifest; pkg.Agent.Privileges.Root || (ds != nil && ds.Agent.Privileges.Root) {
+		r.options.RunIndependentElasticAgent = true
+	}
+
+	// If the environment variable is present, it always has preference over the root
+	// privileges value (if any) defined in the manifest file
+	v, ok := os.LookupEnv(enableIndependentAgents)
+	if ok {
+		r.options.RunIndependentElasticAgent = strings.ToLower(v) == "true"
+	}
+	serviceOptions.DeployIndependentAgent = r.options.RunIndependentElasticAgent
 
 	policyTemplateName := config.PolicyTemplate
 	if policyTemplateName == "" {
@@ -1380,7 +1398,7 @@ func (r *runner) deleteOldDocumentsDataStreamAndWait(ctx context.Context, dataSt
 	return nil
 }
 
-func (r *runner) validateTestScenario(ctx context.Context, result *testrunner.ResultComposer, scenario *scenarioTest, config *testConfig, serviceOptions servicedeployer.FactoryOptions) ([]testrunner.TestResult, error) {
+func (r *runner) validateTestScenario(ctx context.Context, result *testrunner.ResultComposer, scenario *scenarioTest, config *testConfig) ([]testrunner.TestResult, error) {
 	// Validate fields in docs
 	// when reroute processors are used, expectedDatasets should be set depends on the processor config
 	var expectedDatasets []string
@@ -1414,7 +1432,7 @@ func (r *runner) validateTestScenario(ctx context.Context, result *testrunner.Re
 		expectedDatasets = []string{expectedDataset}
 	}
 
-	fieldsValidator, err := fields.CreateValidatorForDirectory(serviceOptions.DataStreamRootPath,
+	fieldsValidator, err := fields.CreateValidatorForDirectory(r.dataStreamPath,
 		fields.WithSpecVersion(scenario.pkgManifest.SpecVersion),
 		fields.WithNumericKeywordFields(config.NumericKeywordFields),
 		fields.WithExpectedDatasets(expectedDatasets),
@@ -1422,7 +1440,7 @@ func (r *runner) validateTestScenario(ctx context.Context, result *testrunner.Re
 		fields.WithDisableNormalization(scenario.syntheticEnabled),
 	)
 	if err != nil {
-		return result.WithError(fmt.Errorf("creating fields validator for data stream failed (path: %s): %w", serviceOptions.DataStreamRootPath, err))
+		return result.WithError(fmt.Errorf("creating fields validator for data stream failed (path: %s): %w", r.dataStreamPath, err))
 	}
 	if err := validateFields(scenario.docs, fieldsValidator, scenario.dataStream); err != nil {
 		return result.WithError(err)
@@ -1474,7 +1492,7 @@ func (r *runner) validateTestScenario(ctx context.Context, result *testrunner.Re
 	return result.WithSuccess()
 }
 
-func (r *runner) runTest(ctx context.Context, config *testConfig, svcInfo servicedeployer.ServiceInfo, serviceOptions servicedeployer.FactoryOptions) ([]testrunner.TestResult, error) {
+func (r *runner) runTest(ctx context.Context, config *testConfig, svcInfo servicedeployer.ServiceInfo) ([]testrunner.TestResult, error) {
 	result := r.newResult(config.Name())
 
 	if config.Skip != nil {
@@ -1486,12 +1504,12 @@ func (r *runner) runTest(ctx context.Context, config *testConfig, svcInfo servic
 
 	logger.Debugf("running test with configuration '%s'", config.Name())
 
-	scenario, err := r.prepareScenario(ctx, config, svcInfo, serviceOptions)
+	scenario, err := r.prepareScenario(ctx, config, svcInfo)
 	if err != nil {
 		return result.WithError(err)
 	}
 
-	return r.validateTestScenario(ctx, result, scenario, config, serviceOptions)
+	return r.validateTestScenario(ctx, result, scenario, config)
 }
 
 func checkEnrolledAgents(ctx context.Context, client *kibana.Client, agentInfo agentdeployer.AgentInfo, svcInfo servicedeployer.ServiceInfo, runIndependentElasticAgent bool) ([]kibana.Agent, error) {
