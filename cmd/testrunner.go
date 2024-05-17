@@ -399,14 +399,13 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 		}
 		wg.Wait()
 		for range testFolders {
-			select {
-			case testResults := <-chResults:
-				// Results must be appended even if there is an error, since there could be
-				// tests (e.g. system tests) that return both error and results.
-				results = append(results, testResults.results...)
-				if testResults.err != nil {
-					logger.Errorf("error running package %s tests: %s", testType, testResults.err)
-				}
+			testResults := <-chResults
+
+			// Results must be appended even if there is an error, since there could be
+			// tests (e.g. system tests) that return both error and results.
+			results = append(results, testResults.results...)
+			if testResults.err != nil {
+				logger.Errorf("error running package %s tests: %s", testType, testResults.err)
 			}
 		}
 		close(chResults)
