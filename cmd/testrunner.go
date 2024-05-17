@@ -361,7 +361,7 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 		launcher := testrunner.RunnerLauncher{}
 
 		// Use channel as a semaphore to limit the number of test executions in parallel
-		sem := make(chan int, 1)
+		sem := make(chan int, 2)
 
 		var results []testrunner.TestResult
 		for _, folder := range testFolders {
