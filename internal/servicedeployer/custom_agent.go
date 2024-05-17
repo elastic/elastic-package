@@ -111,6 +111,7 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (D
 			Name: dockerCustomAgentName,
 			Env:  env,
 		},
+		resourcePaths: []string{configDir},
 	}
 
 	p, err := compose.NewProject(service.project, service.ymlPaths...)
