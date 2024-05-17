@@ -567,4 +567,7 @@ func checkErrorMessage(event json.RawMessage) error {
 
 func init() {
 	testrunner.RegisterRunner(&runner{})
+	testrunner.RegisterRunnerFunc(TestType, func() testrunner.TestRunner {
+		return &runner{}
+	})
 }

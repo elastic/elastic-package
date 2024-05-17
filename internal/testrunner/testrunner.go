@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/elastic/elastic-package/internal/elasticsearch"
@@ -73,6 +74,7 @@ type TestRunner interface {
 }
 
 var runners = map[TestType]TestRunner{}
+var runnersFuncs = map[TestType]func() TestRunner{}
 
 // TestResult contains a single test's results
 type TestResult struct {
@@ -284,11 +286,32 @@ func RegisterRunner(runner TestRunner) {
 	runners[runner.Type()] = runner
 }
 
-// Run method delegates execution to the registered test runner, based on the test type.
-func Run(ctx context.Context, testType TestType, options TestOptions) ([]TestResult, error) {
-	runner, defined := runners[testType]
+// RegisterRunnerFuncs method registers the test runner.
+func RegisterRunnerFunc(testType TestType, factory func() TestRunner) {
+	runnersFuncs[testType] = factory
+}
+
+type RunnerLauncher struct {
+	mutex sync.Mutex
+}
+
+func (r *RunnerLauncher) newRunner(testType TestType) (TestRunner, error) {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
+	factory, defined := runnersFuncs[testType]
 	if !defined {
 		return nil, fmt.Errorf("unregistered runner test: %s", testType)
+	}
+
+	return factory(), nil
+}
+
+// Run method delegates execution to the registered test runner, based on the test type.
+func (r *RunnerLauncher) Run(ctx context.Context, testType TestType, options TestOptions) ([]TestResult, error) {
+	runner, err := r.newRunner(testType)
+	if err != nil {
+		return nil, err
 	}
 
 	results, err := runner.Run(ctx, options)

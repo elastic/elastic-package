@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 
 	"github.com/spf13/cobra"
 
@@ -351,34 +352,63 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 			fmt.Printf("Running tests per stages (technical preview)\n")
 		}
 
+		var wg sync.WaitGroup
+		type routineResult struct {
+			results []testrunner.TestResult
+			err     error
+		}
+		chResults := make(chan routineResult, len(testFolders))
+		launcher := testrunner.RunnerLauncher{}
+
+		// Use channel as a semaphore to limit the number of test executions in parallel
+		sem := make(chan int, 1)
+
 		var results []testrunner.TestResult
 		for _, folder := range testFolders {
-			r, err := testrunner.Run(ctx, testType, testrunner.TestOptions{
-				Profile:                    profile,
-				TestFolder:                 folder,
-				PackageRootPath:            packageRootPath,
-				GenerateTestResult:         generateTestResult,
-				API:                        esAPI,
-				KibanaClient:               kibanaClient,
-				DeferCleanup:               deferCleanup,
-				ServiceVariant:             variantFlag,
-				WithCoverage:               testCoverage,
-				CoverageType:               testCoverageFormat,
-				ConfigFilePath:             configFileFlag,
-				RunSetup:                   runSetup,
-				RunTearDown:                runTearDown,
-				RunTestsOnly:               runTestsOnly,
-				RunIndependentElasticAgent: runIndependentElasticAgent,
-			})
+			wg.Add(1)
+			testFolder := folder
+			sem <- 1
+			go func() {
+				logger.Infof("Testfolder in loop: %s", testFolder.Path)
+				defer wg.Done()
+				r, err := launcher.Run(ctx, testType, testrunner.TestOptions{
+					Profile:                    profile,
+					TestFolder:                 testFolder,
+					PackageRootPath:            packageRootPath,
+					GenerateTestResult:         generateTestResult,
+					API:                        esAPI,
+					KibanaClient:               kibanaClient,
+					DeferCleanup:               deferCleanup,
+					ServiceVariant:             variantFlag,
+					WithCoverage:               testCoverage,
+					CoverageType:               testCoverageFormat,
+					ConfigFilePath:             configFileFlag,
+					RunSetup:                   runSetup,
+					RunTearDown:                runTearDown,
+					RunTestsOnly:               runTestsOnly,
+					RunIndependentElasticAgent: runIndependentElasticAgent,
+				})
 
-			// Results must be appended even if there is an error, since there could be
-			// tests (e.g. system tests) that return both error and results.
-			results = append(results, r...)
-
-			if err != nil {
-				return fmt.Errorf("error running package %s tests: %w", testType, err)
+				chResults <- routineResult{r, err}
+				<-sem
+			}()
+		}
+		wg.Wait()
+		for range testFolders {
+			select {
+			case testResults := <-chResults:
+				// Results must be appended even if there is an error, since there could be
+				// tests (e.g. system tests) that return both error and results.
+				results = append(results, testResults.results...)
+				if testResults.err != nil {
+					logger.Errorf("error running package %s tests: %s", testType, testResults.err)
+				}
 			}
+		}
+		close(chResults)
 
+		if err != nil {
+			return fmt.Errorf("error running package %s tests: %w", testType, err)
 		}
 
 		format := testrunner.TestReportFormat(reportFormat)
