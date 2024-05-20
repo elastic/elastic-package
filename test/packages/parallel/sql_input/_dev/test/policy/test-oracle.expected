@@ -1,5 +1,5 @@
-id: c2126318-34d0-4d28-8696-fcb48598f0ff
-revision: 1
+id: 45df0007-6819-4425-b3a8-c7e56dd77138
+revision: 2
 outputs:
   default:
     type: elasticsearch
@@ -17,6 +17,13 @@ output_permissions:
     _elastic_agent_checks:
       cluster:
         - monitor
+    88fde96b-99da-4bd8-9da8-1fb69921fcae:
+      indices:
+        - names:
+            - metrics-*-*
+          privileges:
+            - auto_configure
+            - create_doc
 agent:
   download:
     sourceURI: 'https://artifacts.elastic.co/downloads/'
@@ -27,13 +34,41 @@ agent:
   features: {}
   protection:
     enabled: false
-    uninstall_token_hash: cXwsiU41b6exsBshWjFV/FFlHvH5Jvo6BSPDSC2df4c=
+    uninstall_token_hash: aLfT05MI9BwAMpWXoydhRZUd6aBZc3P4OK926tRtQFw=
     signing_key: >-
       MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEyg+MEbsPDKzOishrb40TR9DplCdVBCxAnqDSa0r+WMdJ2lTv9fMvQBJogAaltnz0xJ2l1RcN082sLsXJwgbHvg==
-inputs: []
+inputs:
+  - id: sql/metrics-sql_query-88fde96b-99da-4bd8-9da8-1fb69921fcae
+    name: test-oracle-sql_input
+    revision: 1
+    type: sql/metrics
+    use_output: default
+    meta:
+      package:
+        name: sql_input
+        version: 0.2.0
+    data_stream:
+      namespace: ep
+    package_policy_id: 88fde96b-99da-4bd8-9da8-1fb69921fcae
+    streams:
+      - id: sql/metrics-sql_input.sql_query-88fde96b-99da-4bd8-9da8-1fb69921fcae
+        data_stream:
+          dataset: sql_input.sql_query
+          type: metrics
+          elasticsearch:
+            dynamic_dataset: true
+            dynamic_namespace: true
+        metricsets:
+          - query
+        period: 10s
+        hosts:
+          - 'root:test@tcp(localhost)/'
+        driver: oracle
+        sql_query: SELECT * FROM sys.dba_data_files
+        sql_response_format: variables
 signed:
   data: >-
-    eyJpZCI6ImMyMTI2MzE4LTM0ZDAtNGQyOC04Njk2LWZjYjQ4NTk4ZjBmZiIsImFnZW50Ijp7ImZlYXR1cmVzIjp7fSwicHJvdGVjdGlvbiI6eyJlbmFibGVkIjpmYWxzZSwidW5pbnN0YWxsX3Rva2VuX2hhc2giOiJjWHdzaVU0MWI2ZXhzQnNoV2pGVi9GRmxIdkg1SnZvNkJTUERTQzJkZjRjPSIsInNpZ25pbmdfa2V5IjoiTUZrd0V3WUhLb1pJemowQ0FRWUlLb1pJemowREFRY0RRZ0FFeWcrTUVic1BES3pPaXNocmI0MFRSOURwbENkVkJDeEFucURTYTByK1dNZEoybFR2OWZNdlFCSm9nQWFsdG56MHhKMmwxUmNOMDgyc0xzWEp3Z2JIdmc9PSJ9fSwiaW5wdXRzIjpbXX0=
+    eyJpZCI6IjQ1ZGYwMDA3LTY4MTktNDQyNS1iM2E4LWM3ZTU2ZGQ3NzEzOCIsImFnZW50Ijp7ImZlYXR1cmVzIjp7fSwicHJvdGVjdGlvbiI6eyJlbmFibGVkIjpmYWxzZSwidW5pbnN0YWxsX3Rva2VuX2hhc2giOiJhTGZUMDVNSTlCd0FNcFdYb3lkaFJaVWQ2YUJaYzNQNE9LOTI2dFJ0UUZ3PSIsInNpZ25pbmdfa2V5IjoiTUZrd0V3WUhLb1pJemowQ0FRWUlLb1pJemowREFRY0RRZ0FFeWcrTUVic1BES3pPaXNocmI0MFRSOURwbENkVkJDeEFucURTYTByK1dNZEoybFR2OWZNdlFCSm9nQWFsdG56MHhKMmwxUmNOMDgyc0xzWEp3Z2JIdmc9PSJ9fSwiaW5wdXRzIjpbeyJpZCI6InNxbC9tZXRyaWNzLXNxbF9xdWVyeS04OGZkZTk2Yi05OWRhLTRiZDgtOWRhOC0xZmI2OTkyMWZjYWUiLCJuYW1lIjoidGVzdC1vcmFjbGUtc3FsX2lucHV0IiwicmV2aXNpb24iOjEsInR5cGUiOiJzcWwvbWV0cmljcyJ9XX0=
   signature: >-
-    MEUCIQDJUVhpyEe71iVvlwx+bXTIiJOSG2hmzJu/o5LmJGIaHwIgDywLHADCSTqF4t0ElOxJFBdMkG88ywDyn5Sx4jKRzLI=
+    MEUCIEPjVUNH/zjnYGUyc6wHc9TGVJ04wCBcO1MwcR9n0GDQAiEA2pQDSybT5T66o2HqN+zS6CuBTy9XxSbwnuSY1Ft1scU=
 secret_references: []
