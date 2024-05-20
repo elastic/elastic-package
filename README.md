@@ -582,6 +582,12 @@ _Context: package_
 
 Run pipeline tests for the package.
 
+### `elastic-package test policy`
+
+_Context: package_
+
+Run policy tests for the package.
+
 ### `elastic-package test static`
 
 _Context: package_

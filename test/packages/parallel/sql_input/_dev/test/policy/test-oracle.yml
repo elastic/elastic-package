@@ -1,0 +1,14 @@
+vars:
+  driver: "oracle"
+  hosts:
+    - root:test@tcp({{Hostname}}:{{Port}})/
+  sql_query: >
+    SELECT file_name,
+           file_id,
+           tablespace_name,
+           bytes,
+           status,
+           maxbytes,
+           user_bytes,
+           online_status
+    FROM   sys.dba_data_files

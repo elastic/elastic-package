@@ -1,0 +1,69 @@
+id: 15787302-9bc4-4131-8602-a6f2e461c3ee
+revision: 2
+outputs:
+  default:
+    type: elasticsearch
+    hosts:
+      - 'https://elasticsearch:9200'
+    ssl.ca_trusted_fingerprint: FC0CCF5EE0C727F4F170570554CAF1AC3AB4348AABE18624E9CC61ECCF667A33
+    preset: balanced
+fleet:
+  hosts:
+    - 'https://fleet-server:8220'
+output_permissions:
+  default:
+    _elastic_agent_monitoring:
+      indices: []
+    _elastic_agent_checks:
+      cluster:
+        - monitor
+    28b1d21f-08d7-4920-b238-26233e061244:
+      indices:
+        - names:
+            - metrics-apache.status-ep
+          privileges:
+            - auto_configure
+            - create_doc
+agent:
+  download:
+    sourceURI: 'https://artifacts.elastic.co/downloads/'
+  monitoring:
+    enabled: false
+    logs: false
+    metrics: false
+  features: {}
+  protection:
+    enabled: false
+    uninstall_token_hash: tirf4Ks6E6MYlLqPg7AQJe03LmUnBWoeY8PRSaUuoHA=
+    signing_key: >-
+      MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEyg+MEbsPDKzOishrb40TR9DplCdVBCxAnqDSa0r+WMdJ2lTv9fMvQBJogAaltnz0xJ2l1RcN082sLsXJwgbHvg==
+inputs:
+  - id: apache/metrics-apache-28b1d21f-08d7-4920-b238-26233e061244
+    name: test-default-apache
+    revision: 1
+    type: apache/metrics
+    use_output: default
+    meta:
+      package:
+        name: apache
+        version: 999.999.999
+    data_stream:
+      namespace: ep
+    package_policy_id: 28b1d21f-08d7-4920-b238-26233e061244
+    streams:
+      - id: apache/metrics-apache.status-28b1d21f-08d7-4920-b238-26233e061244
+        data_stream:
+          dataset: apache.status
+          type: metrics
+        metricsets:
+          - status
+        hosts:
+          - 'http://localhost:8080'
+        period: 30s
+        server_status_path: /server-status
+signed:
+  data: >-
+    eyJpZCI6IjE1Nzg3MzAyLTliYzQtNDEzMS04NjAyLWE2ZjJlNDYxYzNlZSIsImFnZW50Ijp7ImZlYXR1cmVzIjp7fSwicHJvdGVjdGlvbiI6eyJlbmFibGVkIjpmYWxzZSwidW5pbnN0YWxsX3Rva2VuX2hhc2giOiJ0aXJmNEtzNkU2TVlsTHFQZzdBUUplMDNMbVVuQldvZVk4UFJTYVV1b0hBPSIsInNpZ25pbmdfa2V5IjoiTUZrd0V3WUhLb1pJemowQ0FRWUlLb1pJemowREFRY0RRZ0FFeWcrTUVic1BES3pPaXNocmI0MFRSOURwbENkVkJDeEFucURTYTByK1dNZEoybFR2OWZNdlFCSm9nQWFsdG56MHhKMmwxUmNOMDgyc0xzWEp3Z2JIdmc9PSJ9fSwiaW5wdXRzIjpbeyJpZCI6ImFwYWNoZS9tZXRyaWNzLWFwYWNoZS0yOGIxZDIxZi0wOGQ3LTQ5MjAtYjIzOC0yNjIzM2UwNjEyNDQiLCJuYW1lIjoidGVzdC1kZWZhdWx0LWFwYWNoZSIsInJldmlzaW9uIjoxLCJ0eXBlIjoiYXBhY2hlL21ldHJpY3MifV19
+  signature: >-
+    MEYCIQCYkLzTsS9e7+cJ63/9DtFV8QJ5an4iXGARnGrSWO9PlAIhAPAhQDPgxw+UmJ0EpC3v7rBa+gPxiM7sS0U4m3Wmfdf6
+secret_references: []
