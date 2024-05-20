@@ -1415,23 +1415,26 @@ func (r *runner) deleteOldDocumentsDataStreamAndWait(ctx context.Context, dataSt
 		return err
 	}
 
-	timeBefore, _ := timestampFirstDoc(startHits, syntheticEnabled)
-	logger.Debugf("Timestamp before doc: %s", timeBefore)
+	timestampFound := true
+
+	timestampInitial, err := timestampFirstDoc(startHits, syntheticEnabled)
+	if err != nil {
+		logger.Warnf("Not found @timestamp in docs from data stream %s", dataStream)
+		timestampFound = false
+	}
+	logger.Debugf("Timestamp before doc: %s", timestampInitial)
 
 	if err := deleteDataStreamDocs(ctx, r.options.API, dataStream); err != nil {
 		return fmt.Errorf("error deleting old data in data stream: %s: %w", dataStream, err)
 	}
 
-	logger.Debugf("First check")
 	hits, err := r.getDocs(ctx, dataStream)
 	if err != nil {
 		return err
 	}
-	timeAfter, _ := timestampFirstDoc(hits, syntheticEnabled)
-	logger.Debugf("Timestamp after doc: %s", timeAfter)
 
 	// First call already reports zero documents
-	if hits.size() == 0 || (!mustBeZero && hits.size() < startHits.size()) {
+	if hits.size() == 0 {
 		return nil
 	}
 	logger.Debugf("Loop check")
@@ -1440,13 +1443,27 @@ func (r *runner) deleteOldDocumentsDataStreamAndWait(ctx context.Context, dataSt
 		if err != nil {
 			return false, err
 		}
-		timeLoop, _ := timestampFirstDoc(hits, syntheticEnabled)
-		logger.Debugf("Timestamp loop doc: %s", timeLoop)
+		timestampLoop, err := timestampFirstDoc(hits, syntheticEnabled)
+		if err != nil {
+			logger.Warnf("Not found @timestamp in docs from data stream %s", dataStream)
+		}
+		logger.Debugf("Timestamp loop doc: %s", timestampLoop)
 
 		if mustBeZero {
 			return hits.size() == 0, nil
 		}
-		return startHits.size() > hits.size(), nil
+		if startHits.size() > hits.size() {
+			return true, nil
+		}
+
+		if !timestampFound {
+			return false, nil
+		}
+
+		if timestampLoop.After(timestampInitial) {
+			logger.Debug(">>> Found first doc newer than the original")
+		}
+		return timestampLoop.After(timestampInitial), nil
 	}, 1*time.Second, 2*time.Minute)
 	if err != nil || !cleared {
 		if err == nil {
