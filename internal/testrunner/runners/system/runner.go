@@ -959,7 +959,8 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	scenario.startTestTime = time.Now()
 
 	logger.Debug("adding package data stream to test policy...")
-	ds := createPackageDatastream(*policyToTest, *scenario.pkgManifest, policyTemplate, *scenario.dataStreamManifest, *config)
+	testRunID := createTestRunID()
+	ds := createPackageDatastream(*policyToTest, *scenario.pkgManifest, policyTemplate, *scenario.dataStreamManifest, *config, testRunID)
 	if r.options.RunTearDown || r.options.RunTestsOnly {
 		logger.Debug("Skip adding data stream config to policy")
 	} else {
@@ -1530,8 +1531,8 @@ func createPackageDatastream(
 	policyTemplate packages.PolicyTemplate,
 	ds packages.DataStreamManifest,
 	config testConfig,
+	suffix string,
 ) kibana.PackageDataStream {
-	suffix := createTestRunID()
 	if pkg.Type == "input" {
 		return createInputPackageDatastream(kibanaPolicy, pkg, policyTemplate, config, suffix)
 	}
