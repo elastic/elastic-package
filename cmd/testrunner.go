@@ -367,7 +367,7 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 		var results []testrunner.TestResult
 		for _, folder := range testFolders {
 			runnerOptions.TestFolder = folder
-			r, err := testrunner.Run(ctx, testType, runnerOptions)
+			r, err := testrunner.Run(ctx, runner, runnerOptions)
 
 			// Results must be appended even if there is an error, since there could be
 			// tests (e.g. system tests) that return both error and results.

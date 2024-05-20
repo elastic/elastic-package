@@ -301,12 +301,7 @@ func NewRunner(testType TestType) (TestRunner, error) {
 }
 
 // Run method delegates execution to the registered test runner, based on the test type.
-func Run(ctx context.Context, testType TestType, options TestOptions) ([]TestResult, error) {
-	runner, defined := runners[testType]
-	if !defined {
-		return nil, fmt.Errorf("unregistered runner test: %s", testType)
-	}
-
+func Run(ctx context.Context, runner TestRunner, options TestOptions) ([]TestResult, error) {
 	results, err := runner.Run(ctx, options)
 	tdErr := runner.TearDown(ctx)
 	if err != nil {
