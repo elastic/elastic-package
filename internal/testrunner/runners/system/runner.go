@@ -194,7 +194,7 @@ func (r *runner) Run(ctx context.Context, options testrunner.TestOptions) ([]tes
 	}
 
 	result := r.newResult("(init)")
-	if err := r.initRun(); err != nil {
+	if err := r.initRun(ctx); err != nil {
 		return result.WithError(err)
 	}
 
@@ -406,6 +406,15 @@ func (r *runner) createServiceInfo() (servicedeployer.ServiceInfo, error) {
 
 // TearDown method doesn't perform any global action as the "tear down" is executed per test case.
 func (r *runner) TearDown(ctx context.Context) error {
+	logger.Debugf("Uninstalling package...")
+	resourcesOptions := resourcesOptions{
+		// Keep it installed only if we were running setup, or tests only.
+		installedPackage: r.options.RunSetup || r.options.RunTestsOnly,
+	}
+	_, err := r.resourcesManager.ApplyCtx(ctx, r.resources(resourcesOptions))
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -491,7 +500,7 @@ func (r *runner) newResult(name string) *testrunner.ResultComposer {
 	})
 }
 
-func (r *runner) initRun() error {
+func (r *runner) initRun(ctx context.Context) error {
 	var err error
 	var found bool
 	r.locationManager, err = locations.NewLocationManager()
@@ -565,12 +574,28 @@ func (r *runner) initRun() error {
 		}
 	}
 
+	if r.options.RunTearDown {
+		logger.Debug("Skip installing package")
+	} else {
+		// Install the package before creating the policy, so we control exactly what is being
+		// installed.
+		logger.Debug("Installing package...")
+		resourcesOptions := resourcesOptions{
+			// Install it unless we are running the tear down only.
+			installedPackage: !r.options.RunTearDown,
+		}
+		_, err = r.resourcesManager.ApplyCtx(ctx, r.resources(resourcesOptions))
+		if err != nil {
+			return fmt.Errorf("can't install the package: %w", err)
+		}
+	}
+
 	return nil
 }
 
 func (r *runner) run(ctx context.Context) (results []testrunner.TestResult, err error) {
 	result := r.newResult("(init)")
-	if err = r.initRun(); err != nil {
+	if err = r.initRun(ctx); err != nil {
 		return result.WithError(err)
 	}
 
@@ -953,22 +978,6 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	config, err = newConfig(config.Path, svcInfo, serviceOptions.Variant)
 	if err != nil {
 		return nil, fmt.Errorf("unable to reload system test case configuration: %w", err)
-	}
-
-	if r.options.RunTearDown {
-		logger.Debug("Skip installing package")
-	} else {
-		// Install the package before creating the policy, so we control exactly what is being
-		// installed.
-		logger.Debug("Installing package...")
-		resourcesOptions := resourcesOptions{
-			// Install it unless we are running the tear down only.
-			installedPackage: !r.options.RunTearDown,
-		}
-		_, err = r.resourcesManager.ApplyCtx(ctx, r.resources(resourcesOptions))
-		if err != nil {
-			return nil, fmt.Errorf("can't install the package: %w", err)
-		}
 	}
 
 	// store the time just before adding the Test Policy, this time will be used to check
