@@ -131,11 +131,11 @@ func ConnectToNetwork(containerID, network string) error {
 
 // ConnectToNetworkWithAlias function connects the container to the selected Docker network.
 func ConnectToNetworkWithAlias(containerID, network, alias string) error {
-	args := []string{"docker", "network", "connect", network, containerID}
+	args := []string{"network", "connect", network, containerID}
 	if alias != "" {
 		args = append(args, "--alias", alias)
 	}
-	cmd := exec.Command(args...)
+	cmd := exec.Command("docker", args...)
 	errOutput := new(bytes.Buffer)
 	cmd.Stderr = errOutput
 
