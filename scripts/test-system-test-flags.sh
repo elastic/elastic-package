@@ -52,7 +52,7 @@ trap cleanup EXIT
 
 container_ids() {
     local container="$1"
-    docker ps --format "{{ .ID}} {{ .Names}}" | grep "${container}" | awk '{print $1}'
+    docker ps --format "{{ .ID}} {{ .Names}}" | grep -E "${container}" | awk '{print $1}'
 }
 
 is_network_created() {
@@ -288,6 +288,7 @@ FOLDER_PATH="${HOME}/.elastic-package/profiles/default/stack/state"
 # Check also if independent Elastic Agents are running too
 # depending on the environment variable
 service_deployer_type="docker"
+service_preffix='elastic-package-service-[0-9]{5}'
 if [[ "${ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT:-"false"}" == "true" ]]; then
     service_deployer_type="agent"
 fi
@@ -295,7 +296,7 @@ fi
 # docker service deployer
 if ! run_tests_for_package \
     "test/packages/parallel/nginx" \
-    "elastic-package-service-nginx" \
+    "${service_preffix}-nginx" \
     "data_stream/access/_dev/test/system/test-default-config.yml" \
     "no variant" \
     "${service_deployer_type}" ; then
@@ -305,7 +306,7 @@ fi
 
 if ! run_tests_for_package \
     "test/packages/parallel/sql_input" \
-    "elastic-package-service-sql_input" \
+    "${service_preffix}-sql_input" \
     "_dev/test/system/test-default-config.yml" \
     "mysql_8_0_13" \
     "${service_deployer_type}" ; then

@@ -976,7 +976,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	scenario.startTestTime = time.Now()
 
 	logger.Debug("adding package data stream to test policy...")
-	ds := createPackageDatastream(*policyToTest, *scenario.pkgManifest, policyTemplate, *scenario.dataStreamManifest, *config)
+	ds := createPackageDatastream(*policyToTest, *scenario.pkgManifest, policyTemplate, *scenario.dataStreamManifest, *config, svcInfo.Test.RunID)
 	if r.options.RunTearDown || r.options.RunTestsOnly {
 		logger.Debug("Skip adding data stream config to policy")
 	} else {
@@ -1547,11 +1547,12 @@ func createPackageDatastream(
 	policyTemplate packages.PolicyTemplate,
 	ds packages.DataStreamManifest,
 	config testConfig,
+	suffix string,
 ) kibana.PackageDataStream {
 	if pkg.Type == "input" {
-		return createInputPackageDatastream(kibanaPolicy, pkg, policyTemplate, config)
+		return createInputPackageDatastream(kibanaPolicy, pkg, policyTemplate, config, suffix)
 	}
-	return createIntegrationPackageDatastream(kibanaPolicy, pkg, policyTemplate, ds, config)
+	return createIntegrationPackageDatastream(kibanaPolicy, pkg, policyTemplate, ds, config, suffix)
 }
 
 func createIntegrationPackageDatastream(
@@ -1560,9 +1561,10 @@ func createIntegrationPackageDatastream(
 	policyTemplate packages.PolicyTemplate,
 	ds packages.DataStreamManifest,
 	config testConfig,
+	suffix string,
 ) kibana.PackageDataStream {
 	r := kibana.PackageDataStream{
-		Name:      fmt.Sprintf("%s-%s", pkg.Name, ds.Name),
+		Name:      fmt.Sprintf("%s-%s-%s", pkg.Name, ds.Name, suffix),
 		Namespace: "ep",
 		PolicyID:  kibanaPolicy.ID,
 		Enabled:   true,
@@ -1613,9 +1615,10 @@ func createInputPackageDatastream(
 	pkg packages.PackageManifest,
 	policyTemplate packages.PolicyTemplate,
 	config testConfig,
+	suffix string,
 ) kibana.PackageDataStream {
 	r := kibana.PackageDataStream{
-		Name:      fmt.Sprintf("%s-%s", pkg.Name, policyTemplate.Name),
+		Name:      fmt.Sprintf("%s-%s-%s", pkg.Name, policyTemplate.Name, suffix),
 		Namespace: "ep",
 		PolicyID:  kibanaPolicy.ID,
 		Enabled:   true,
