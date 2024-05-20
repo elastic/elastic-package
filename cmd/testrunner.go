@@ -337,25 +337,37 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 			fmt.Printf("Running tests per stages (technical preview)\n")
 		}
 
+		runner, err := testrunner.NewRunner(testType)
+		if err != nil {
+			return fmt.Errorf("failed to get runner %s: %w", testType, err)
+		}
+
+		runnerOptions := testrunner.TestOptions{
+			Profile:                    profile,
+			PackageRootPath:            packageRootPath,
+			GenerateTestResult:         generateTestResult,
+			API:                        esAPI,
+			KibanaClient:               kibanaClient,
+			DeferCleanup:               deferCleanup,
+			ServiceVariant:             variantFlag,
+			WithCoverage:               testCoverage,
+			CoverageType:               testCoverageFormat,
+			ConfigFilePath:             configFileFlag,
+			RunSetup:                   runSetup,
+			RunTearDown:                runTearDown,
+			RunTestsOnly:               runTestsOnly,
+			RunIndependentElasticAgent: false,
+		}
+
+		err = runner.SetupRunner(ctx, runnerOptions)
+		if err != nil {
+			return fmt.Errorf("failed to run setup runner process: %w", err)
+		}
+
 		var results []testrunner.TestResult
 		for _, folder := range testFolders {
-			r, err := testrunner.Run(ctx, testType, testrunner.TestOptions{
-				Profile:                    profile,
-				TestFolder:                 folder,
-				PackageRootPath:            packageRootPath,
-				GenerateTestResult:         generateTestResult,
-				API:                        esAPI,
-				KibanaClient:               kibanaClient,
-				DeferCleanup:               deferCleanup,
-				ServiceVariant:             variantFlag,
-				WithCoverage:               testCoverage,
-				CoverageType:               testCoverageFormat,
-				ConfigFilePath:             configFileFlag,
-				RunSetup:                   runSetup,
-				RunTearDown:                runTearDown,
-				RunTestsOnly:               runTestsOnly,
-				RunIndependentElasticAgent: false,
-			})
+			runnerOptions.TestFolder = folder
+			r, err := testrunner.Run(ctx, testType, runnerOptions)
 
 			// Results must be appended even if there is an error, since there could be
 			// tests (e.g. system tests) that return both error and results.
@@ -365,6 +377,11 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 				return fmt.Errorf("error running package %s tests: %w", testType, err)
 			}
 
+		}
+
+		err = runner.TearDownRunner(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to run tear down runner process: %w", err)
 		}
 
 		format := testrunner.TestReportFormat(reportFormat)
@@ -390,6 +407,7 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 				return errors.New("one or more test cases failed")
 			}
 		}
+
 		return nil
 	}
 }

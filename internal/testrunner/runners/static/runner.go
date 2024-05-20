@@ -45,6 +45,17 @@ func (r runner) String() string {
 	return "static files"
 }
 
+// SetupRunner prepares global resources required by the test runner.
+func (r runner) SetupRunner(ctx context.Context, options testrunner.TestOptions) error {
+	return nil
+}
+
+// TearDownRunner cleans up any global test runner resources. It must be called
+// after the test runner has finished executing all its tests.
+func (r runner) TearDownRunner(ctx context.Context) error {
+	return nil
+}
+
 func (r runner) Run(ctx context.Context, options testrunner.TestOptions) ([]testrunner.TestResult, error) {
 	r.options = options
 	return r.run(ctx)

@@ -70,6 +70,13 @@ type TestRunner interface {
 	TestFolderRequired() bool
 
 	CanRunSetupTeardownIndependent() bool
+
+	// SetupRunner prepares global resources required by the test runner.
+	SetupRunner(context.Context, TestOptions) error
+
+	// TearDownRunner cleans up any global test runner resources. It must be called
+	// after the test runner has finished executing all its tests.
+	TearDownRunner(context.Context) error
 }
 
 var runners = map[TestType]TestRunner{}
@@ -282,6 +289,15 @@ func ExtractDataStreamFromPath(fullPath, packageRootPath string) string {
 // RegisterRunner method registers the test runner.
 func RegisterRunner(runner TestRunner) {
 	runners[runner.Type()] = runner
+}
+
+func NewRunner(testType TestType) (TestRunner, error) {
+	runner, defined := runners[testType]
+	if !defined {
+		return nil, fmt.Errorf("unregistered runner test: %s", testType)
+	}
+
+	return runner, nil
 }
 
 // Run method delegates execution to the registered test runner, based on the test type.

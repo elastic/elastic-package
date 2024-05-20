@@ -170,6 +170,47 @@ func (r *runner) String() string {
 	return "system"
 }
 
+// SetupRunner prepares global resources required by the test runner.
+func (r *runner) SetupRunner(ctx context.Context, options testrunner.TestOptions) error {
+	r.options = options
+
+	r.resourcesManager = resources.NewManager()
+	r.resourcesManager.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: r.options.KibanaClient})
+
+	if r.options.RunTearDown {
+		logger.Debug("Skip installing package")
+	} else {
+		// Install the package before creating the policy, so we control exactly what is being
+		// installed.
+		logger.Debug("Installing package...")
+		resourcesOptions := resourcesOptions{
+			// Install it unless we are running the tear down only.
+			installedPackage: !r.options.RunTearDown,
+		}
+		_, err := r.resourcesManager.ApplyCtx(ctx, r.resources(resourcesOptions))
+		if err != nil {
+			return fmt.Errorf("can't install the package: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// TearDownRunner cleans up any global test runner resources. It must be called
+// after the test runner has finished executing all its tests.
+func (r *runner) TearDownRunner(ctx context.Context) error {
+	logger.Debugf("Uninstalling package...")
+	resourcesOptions := resourcesOptions{
+		// Keep it installed only if we were running setup, or tests only.
+		installedPackage: r.options.RunSetup || r.options.RunTestsOnly,
+	}
+	_, err := r.resourcesManager.ApplyCtx(ctx, r.resources(resourcesOptions))
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // CanRunPerDataStream returns whether this test runner can run on individual
 // data streams within the package.
 func (r *runner) CanRunPerDataStream() bool {
@@ -406,15 +447,6 @@ func (r *runner) createServiceInfo() (servicedeployer.ServiceInfo, error) {
 
 // TearDown method doesn't perform any global action as the "tear down" is executed per test case.
 func (r *runner) TearDown(ctx context.Context) error {
-	logger.Debugf("Uninstalling package...")
-	resourcesOptions := resourcesOptions{
-		// Keep it installed only if we were running setup, or tests only.
-		installedPackage: r.options.RunSetup || r.options.RunTestsOnly,
-	}
-	_, err := r.resourcesManager.ApplyCtx(ctx, r.resources(resourcesOptions))
-	if err != nil {
-		return err
-	}
 	return nil
 }
 
@@ -508,9 +540,6 @@ func (r *runner) initRun(ctx context.Context) error {
 		return fmt.Errorf("reading service logs directory failed: %w", err)
 	}
 
-	r.resourcesManager = resources.NewManager()
-	r.resourcesManager.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: r.options.KibanaClient})
-
 	r.serviceStateFilePath = filepath.Join(testrunner.StateFolderPath(r.options.Profile.ProfilePath), testrunner.ServiceStateFileName)
 
 	r.dataStreamPath, found, err = packages.FindDataStreamRootForPath(r.options.TestFolder.Path)
@@ -571,22 +600,6 @@ func (r *runner) initRun(ctx context.Context) error {
 		r.cfgFiles, err = listConfigFiles(r.options.TestFolder.Path)
 		if err != nil {
 			return fmt.Errorf("failed listing test case config cfgFiles: %w", err)
-		}
-	}
-
-	if r.options.RunTearDown {
-		logger.Debug("Skip installing package")
-	} else {
-		// Install the package before creating the policy, so we control exactly what is being
-		// installed.
-		logger.Debug("Installing package...")
-		resourcesOptions := resourcesOptions{
-			// Install it unless we are running the tear down only.
-			installedPackage: !r.options.RunTearDown,
-		}
-		_, err = r.resourcesManager.ApplyCtx(ctx, r.resources(resourcesOptions))
-		if err != nil {
-			return fmt.Errorf("can't install the package: %w", err)
 		}
 	}
 
