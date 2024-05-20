@@ -27,6 +27,7 @@ func dumpExpectedAgentPolicy(ctx context.Context, options testrunner.TestOptions
 		return fmt.Errorf("failed to download policy %q: %w", policyID, err)
 	}
 
+	// TODO: Compare documents before writing and don't overwrite if it is equal.
 	err = os.WriteFile(expectedPathFor(testPath), policy, 0644)
 	if err != nil {
 		return fmt.Errorf("failed to write policy: %w", err)
@@ -49,6 +50,7 @@ func assertExpectedAgentPolicy(ctx context.Context, options testrunner.TestOptio
 }
 
 func comparePolicies(expected, found []byte) error {
+	// TODO: Instead of "cleaning", put in the expected document the values found, for the given keys.
 	want, err := cleanPolicy(expected)
 	if err != nil {
 		return fmt.Errorf("failed to prepare expected policy: %w", err)

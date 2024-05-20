@@ -5,16 +5,20 @@
 package resources
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/elastic/go-resource"
+	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/internal/wait"
 )
 
 type FleetAgentPolicy struct {
@@ -152,6 +156,25 @@ func (f *FleetAgentPolicy) Create(ctx resource.Context) error {
 		}
 	}
 
+	// Revision must be at least one, plus the number of package policies.
+	expectedRevision := 1 + len(f.PackagePolicies)
+	_, err = wait.UntilTrue(ctx, func(ctx context.Context) (bool, error) {
+		d, err := provider.Client.DownloadPolicy(ctx, policy.ID)
+		if err != nil {
+			return false, err
+		}
+		var p struct {
+			Revision int `yaml:"revision"`
+		}
+		err = yaml.Unmarshal(d, &p)
+		if err != nil {
+			return false, err
+		}
+		return p.Revision >= expectedRevision, nil
+	}, 1*time.Second, 30*time.Second)
+	if err != nil {
+		return fmt.Errorf("could not wait for expected revision: %w", err)
+	}
 	return nil
 }
 
