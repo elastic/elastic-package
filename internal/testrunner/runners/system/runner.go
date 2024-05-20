@@ -235,7 +235,7 @@ func (r *runner) Run(ctx context.Context, options testrunner.TestOptions) ([]tes
 	}
 
 	result := r.newResult("(init)")
-	if err := r.initRun(ctx); err != nil {
+	if err := r.initRun(); err != nil {
 		return result.WithError(err)
 	}
 
@@ -532,7 +532,7 @@ func (r *runner) newResult(name string) *testrunner.ResultComposer {
 	})
 }
 
-func (r *runner) initRun(ctx context.Context) error {
+func (r *runner) initRun() error {
 	var err error
 	var found bool
 	r.locationManager, err = locations.NewLocationManager()
@@ -608,7 +608,7 @@ func (r *runner) initRun(ctx context.Context) error {
 
 func (r *runner) run(ctx context.Context) (results []testrunner.TestResult, err error) {
 	result := r.newResult("(init)")
-	if err = r.initRun(ctx); err != nil {
+	if err = r.initRun(); err != nil {
 		return result.WithError(err)
 	}
 
