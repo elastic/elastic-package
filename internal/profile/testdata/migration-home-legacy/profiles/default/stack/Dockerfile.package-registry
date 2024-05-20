@@ -1,0 +1,12 @@
+FROM docker.elastic.co/package-registry/package-registry:v1.24.0
+
+ARG PROFILE
+
+# Disable package validation (already done).
+ENV EPR_DISABLE_PACKAGE_VALIDATION=true
+
+ENV EPR_FEATURE_PROXY_MODE=true
+ENV EPR_PROXY_TO=https://epr.elastic.co
+
+COPY profiles/${PROFILE}/stack/package-registry.yml /package-registry/config.yml
+COPY stack/development/ /packages/development

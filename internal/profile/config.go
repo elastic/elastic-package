@@ -15,6 +15,8 @@ import (
 	"github.com/elastic/elastic-package/internal/common"
 )
 
+const currentVersion = 1
+
 type config struct {
 	settings common.MapStr
 }

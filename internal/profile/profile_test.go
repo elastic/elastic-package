@@ -12,7 +12,7 @@ import (
 
 func TestCreateProfile(t *testing.T) {
 	options := Options{
-		PackagePath: t.TempDir(),
+		ProfilesDirPath: t.TempDir(),
 	}
 	err := CreateProfile(options)
 	require.NoError(t, err)

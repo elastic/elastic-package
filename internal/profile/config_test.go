@@ -63,7 +63,7 @@ func TestLoadProfileConfig(t *testing.T) {
 		},
 	}
 
-	config, err := loadProfileConfig("_testdata/config.yml")
+	config, err := loadProfileConfig("testdata/config.yml")
 	require.NoError(t, err)
 
 	for _, c := range cases {
@@ -91,7 +91,7 @@ func TestConfigDecode(t *testing.T) {
 		},
 	}
 
-	config, err := loadProfileConfig("_testdata/config.yml")
+	config, err := loadProfileConfig("testdata/config.yml")
 	require.NoError(t, err)
 
 	for _, c := range cases {
