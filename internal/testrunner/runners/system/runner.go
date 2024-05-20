@@ -1037,12 +1037,12 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	case r.options.RunTestsOnly:
 		// In this mode, service is still running and the agent is sending documents, so sometimes
 		// cannot be guaranteed to be zero documents
-		err := r.deleteOldDocumentsDataStreamAndWait(ctx, scenario.dataStream, false)
+		err := r.deleteOldDocumentsDataStreamAndWait(ctx, scenario.dataStream, false, scenario.syntheticEnabled)
 		if err != nil {
 			return nil, err
 		}
 	default:
-		err := r.deleteOldDocumentsDataStreamAndWait(ctx, scenario.dataStream, true)
+		err := r.deleteOldDocumentsDataStreamAndWait(ctx, scenario.dataStream, true, scenario.syntheticEnabled)
 		if err != nil {
 			return nil, err
 		}
@@ -1387,24 +1387,61 @@ func (r *runner) writeScenarioState(opts scenarioStateOpts) error {
 	return nil
 }
 
-func (r *runner) deleteOldDocumentsDataStreamAndWait(ctx context.Context, dataStream string, mustBeZero bool) error {
-	logger.Debugf("Delete previous documents in data stream %q", dataStream)
-	if err := deleteDataStreamDocs(ctx, r.options.API, dataStream); err != nil {
-		return fmt.Errorf("error deleting old data in data stream: %s: %w", dataStream, err)
+func timestampFirstDoc(docs *hits, syntheticEnabled bool) (time.Time, error) {
+	if docs.size() == 0 {
+		return time.Now().AddDate(0, 0, -1), nil
 	}
+	firstDoc := docs.getDocs(syntheticEnabled)[0]
+	field, err := firstDoc.GetValue("@timestamp")
+	if err != nil {
+		return time.Time{}, fmt.Errorf("failed to get @timestamp key: %w", err)
+	}
+	val, ok := field.(string)
+	if !ok {
+		return time.Time{}, fmt.Errorf("invalid timestamp: %t", ok)
+	}
+	timestampBefore, err := time.Parse(time.RFC3339, val)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("failed to parse timestamp %q: %w", val, err)
+	}
+	return timestampBefore, nil
+}
+
+func (r *runner) deleteOldDocumentsDataStreamAndWait(ctx context.Context, dataStream string, mustBeZero bool, syntheticEnabled bool) error {
+	logger.Debugf("Delete previous documents in data stream %q", dataStream)
+	logger.Debugf("First check")
 	startHits, err := r.getDocs(ctx, dataStream)
 	if err != nil {
 		return err
 	}
+
+	timeBefore, _ := timestampFirstDoc(startHits, syntheticEnabled)
+	logger.Debugf("Timestamp before doc: %s", timeBefore)
+
+	if err := deleteDataStreamDocs(ctx, r.options.API, dataStream); err != nil {
+		return fmt.Errorf("error deleting old data in data stream: %s: %w", dataStream, err)
+	}
+
+	logger.Debugf("First check")
+	hits, err := r.getDocs(ctx, dataStream)
+	if err != nil {
+		return err
+	}
+	timeAfter, _ := timestampFirstDoc(hits, syntheticEnabled)
+	logger.Debugf("Timestamp after doc: %s", timeAfter)
+
 	// First call already reports zero documents
-	if startHits.size() == 0 {
+	if hits.size() == 0 || (!mustBeZero && hits.size() < startHits.size()) {
 		return nil
 	}
+	logger.Debugf("Loop check")
 	cleared, err := wait.UntilTrue(ctx, func(ctx context.Context) (bool, error) {
 		hits, err := r.getDocs(ctx, dataStream)
 		if err != nil {
 			return false, err
 		}
+		timeLoop, _ := timestampFirstDoc(hits, syntheticEnabled)
+		logger.Debugf("Timestamp loop doc: %s", timeLoop)
 
 		if mustBeZero {
 			return hits.size() == 0, nil
@@ -1944,6 +1981,7 @@ func deleteDataStreamDocs(ctx context.Context, api *elasticsearch.API, dataStrea
 
 	if resp.StatusCode == http.StatusNotFound {
 		// Unavailable index is ok, this means that data is already not there.
+		logger.Debugf("Failed but ignored with status not found %s: %s", dataStream, resp.String())
 		return nil
 	}
 	if resp.IsError() {
