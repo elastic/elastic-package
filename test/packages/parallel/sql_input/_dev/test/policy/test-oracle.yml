@@ -1,7 +1,7 @@
 vars:
   driver: "oracle"
   hosts:
-    - root:test@tcp({{Hostname}}:{{Port}})/
+    - root:test@tcp(localhost)/
   sql_query: >
     SELECT file_name,
            file_id,

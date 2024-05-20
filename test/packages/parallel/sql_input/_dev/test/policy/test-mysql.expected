@@ -62,9 +62,9 @@ inputs:
           - query
         period: 10s
         hosts:
-          - 'root:test@tcp({{Hostname}}:{{Port}})/'
+          - 'root:test@tcp(localhost:3306)/'
         driver: mysql
-        sql_query: SHOW GLOBAL STATUS LIKE 'Innodb_data%';
+        sql_query: SHOW GLOBAL STATUS LIKE 'Innodb_%';
         sql_response_format: variables
 signed:
   data: >-
