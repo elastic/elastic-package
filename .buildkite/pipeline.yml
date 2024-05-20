@@ -7,6 +7,7 @@ env:
   K8S_VERSION: 'v1.29.0'
   LINUX_AGENT_IMAGE: "golang:${GO_VERSION}"
   WINDOWS_AGENT_IMAGE: "family/ci-windows-2022"
+  IMAGE_UBUNTU_X86_64: "family/core-ubuntu-2204"
 
 steps:
   - label: ":go: Run check-static"
