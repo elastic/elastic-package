@@ -130,6 +130,7 @@ clusters_num=$(jq -rc '.Clusters | length' redshift_clusters.json)
 
 echo "Number of clusters found: ${clusters_num}"
 
+redshift_clusters_to_delete=0
 while read -r i ; do
     identifier=$(echo "$i" | jq -rc ".ClusterIdentifier")
     # tags
@@ -161,23 +162,35 @@ while read -r i ; do
     fi
 
     echo "To be deleted cluster: $identifier. It was created > ${RESOURCE_RETENTION_PERIOD} ago"
-    resources_to_delete=1
-    if [ "${DRY_RUN}" == "false" ]; then
-        echo "Deleting: $identifier. It was created > ${RESOURCE_RETENTION_PERIOD} ago"
-        aws redshift delete-cluster \
-          --cluster-identifier "${identifier}" \
-          --skip-final-cluster-snapshot
+    if [ "${DRY_RUN}" != "false" ]; then
+        redshift_clusters_to_delete=1
+        continue
+    fi
+
+    echo "Deleting: $identifier. It was created > ${RESOURCE_RETENTION_PERIOD} ago"
+    if ! aws redshift delete-cluster \
+      --cluster-identifier "${identifier}" \
+      --skip-final-cluster-snapshot ; then
+
+        echo "Failed delete-cluster"
+        buildkite-agent annotate \
+            "Deleted redshift cluster: ${identifier}" \
+            --context "ctx-aws-readshift-deleted-error-${identifier}" \
+            --style "error"
+
+        redshift_clusters_to_delete=1
+    else
         echo "Done."
+        # if deletion works, no need to mark this one as to be deleted
         buildkite-agent annotate \
             "Deleted redshift cluster: ${identifier}" \
             --context "ctx-aws-readshift-deleted-${identifier}" \
             --style "success"
-
-        resources_to_delete=0
     fi
 done <<< "$(jq -c '.Clusters[]' redshift_clusters.json)"
 
-if [ "${resources_to_delete}" -eq 1 ]; then
+if [ "${redshift_clusters_to_delete}" -eq 1 ]; then
+    resources_to_delete=1
     message="There are redshift resources to be deleted"
     echo "${message}"
     if running_on_buildkite ; then
