@@ -13,16 +13,19 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/pmezard/go-difflib/difflib"
 	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/common"
+	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/testrunner"
+	"github.com/elastic/elastic-package/internal/wait"
 )
 
-func dumpExpectedAgentPolicy(ctx context.Context, options testrunner.TestOptions, testPath string, policyID string) error {
-	policy, err := options.KibanaClient.DownloadPolicy(ctx, policyID)
+func dumpExpectedAgentPolicy(ctx context.Context, options testrunner.TestOptions, testPath string, policyID string, expectedRevision int) error {
+	policy, err := downloadPolicy(ctx, options.KibanaClient, policyID, expectedRevision)
 	if err != nil {
 		return fmt.Errorf("failed to download policy %q: %w", policyID, err)
 	}
@@ -36,8 +39,8 @@ func dumpExpectedAgentPolicy(ctx context.Context, options testrunner.TestOptions
 	return nil
 }
 
-func assertExpectedAgentPolicy(ctx context.Context, options testrunner.TestOptions, testPath string, policyID string) error {
-	policy, err := options.KibanaClient.DownloadPolicy(ctx, policyID)
+func assertExpectedAgentPolicy(ctx context.Context, options testrunner.TestOptions, testPath string, policyID string, expectedRevision int) error {
+	policy, err := downloadPolicy(ctx, options.KibanaClient, policyID, expectedRevision)
 	if err != nil {
 		return fmt.Errorf("failed to download policy %q: %w", policyID, err)
 	}
@@ -49,6 +52,36 @@ func assertExpectedAgentPolicy(ctx context.Context, options testrunner.TestOptio
 	return comparePolicies(expectedPolicy, policy)
 }
 
+func downloadPolicy(ctx context.Context, client *kibana.Client, policyID string, expectedRevision int) (kibana.DownloadedPolicy, error) {
+	var policy kibana.DownloadedPolicy
+	_, err := wait.UntilTrue(ctx, func(ctx context.Context) (bool, error) {
+		d, err := client.DownloadPolicy(ctx, policyID)
+		if err != nil {
+			return false, err
+		}
+		var p struct {
+			Revision int `yaml:"revision"`
+		}
+		err = yaml.Unmarshal(d, &p)
+		if err != nil {
+			return false, err
+		}
+		if p.Revision >= expectedRevision {
+			policy = d
+			return true, nil
+		}
+		return false, nil
+	}, 1*time.Second, 30*time.Second) // TODO: Parameterize this.
+	if err != nil {
+		return nil, fmt.Errorf("could not wait for expected revision: %w", err)
+	}
+	if policy == nil {
+		return nil, fmt.Errorf("no policy found after waiting for revision %d", expectedRevision)
+	}
+	return policy, nil
+}
+
+// TODO: Refactor to return a explicit diff.
 func comparePolicies(expected, found []byte) error {
 	// TODO: Instead of "cleaning", put in the expected document the values found, for the given keys.
 	want, err := cleanPolicy(expected)

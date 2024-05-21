@@ -64,7 +64,7 @@ inputs:
         hosts:
           - 'root:test@tcp(localhost)/'
         driver: oracle
-        sql_query: SELECT * FROM sys.dba_data_files
+        sql_query: SELECT file_name, file_id, tablespace_name, bytes, status, maxbytes, user_bytes, online_status FROM sys.dba_data_files
         sql_response_format: variables
 signed:
   data: >-

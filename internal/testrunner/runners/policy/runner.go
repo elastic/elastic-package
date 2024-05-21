@@ -97,10 +97,14 @@ func (r *runner) runTest(ctx context.Context, manager *resources.Manager, option
 	resources := resource.Resources{&policy}
 	_, testErr := manager.ApplyCtx(ctx, resources)
 	if err == nil {
+		// Revision 1 on creation, plus one revision for each attached policy.
+		// In some cases the revision 2 with the agent policy disappears if there is some
+		// issue with the final policy.
+		expectedRevision := 1 + len(policy.PackagePolicies)
 		if options.GenerateTestResult {
-			testErr = dumpExpectedAgentPolicy(ctx, options, testPath, policy.ID)
+			testErr = dumpExpectedAgentPolicy(ctx, options, testPath, policy.ID, expectedRevision)
 		} else {
-			testErr = assertExpectedAgentPolicy(ctx, options, testPath, policy.ID)
+			testErr = assertExpectedAgentPolicy(ctx, options, testPath, policy.ID, expectedRevision)
 		}
 	}
 
