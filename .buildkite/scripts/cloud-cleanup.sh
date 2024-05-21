@@ -102,7 +102,6 @@ if any_resources_to_delete "${AWS_RESOURCES_FILE}" ; then
     resources_to_delete=1
 fi
 
-echo "Resources to delete: ${resources_to_delete}"
 if [ "${resources_to_delete}" -eq 1 ]; then
     message="There are resources to be deleted"
     echo "${message}"
@@ -131,7 +130,7 @@ clusters_num=$(jq -rc '.Clusters | length' redshift_clusters.json)
 
 echo "Number of clusters found: ${clusters_num}"
 
-jq -c '.Clusters[]' redshift_clusters.json | while read -r i ; do
+while read -r i ; do
     identifier=$(echo "$i" | jq -rc ".ClusterIdentifier")
     # tags
     repo=$(echo "$i" | jq -rc '.Tags[] | select(.Key == "repo").Value')
@@ -163,7 +162,6 @@ jq -c '.Clusters[]' redshift_clusters.json | while read -r i ; do
 
     echo "To be deleted cluster: $identifier. It was created > ${RESOURCE_RETENTION_PERIOD} ago"
     resources_to_delete=1
-    echo "Resources to delete: ${resources_to_delete}"
     if [ "${DRY_RUN}" == "false" ]; then
         echo "Deleting: $identifier. It was created > ${RESOURCE_RETENTION_PERIOD} ago"
         # aws redshift delete-cluster \
@@ -171,7 +169,7 @@ jq -c '.Clusters[]' redshift_clusters.json | while read -r i ; do
         #   --skip-final-cluster-snapshot
         echo "Done."
     fi
-done
+done <<< "$(jq -c '.Clusters[]' redshift_clusters.json)"
 
 echo "Resources to delete: ${resources_to_delete}"
 if [ "${resources_to_delete}" -eq 1 ]; then
