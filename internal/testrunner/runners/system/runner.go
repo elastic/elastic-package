@@ -1414,6 +1414,11 @@ func (r *runner) deleteOldDocumentsDataStreamAndWait(ctx context.Context, dataSt
 	if err != nil {
 		return err
 	}
+	waitingTime := 1 * time.Second
+	if r.options.RunTestsOnly {
+		// Service is already running and Elastic Agent is injecting the corresponding documents
+		waitingTime = 500 * time.Millisecond
+	}
 
 	timestampFound := true
 
@@ -1456,7 +1461,7 @@ func (r *runner) deleteOldDocumentsDataStreamAndWait(ctx context.Context, dataSt
 		}
 		return false, nil
 		// return timestampLoop.After(timestampInitial), nil
-	}, 500*time.Millisecond, 2*time.Minute)
+	}, waitingTime, 2*time.Minute)
 	if err != nil || !cleared {
 		if err == nil {
 			err = errors.New("unable to clear previous data")
