@@ -10,6 +10,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/elastic/elastic-package/internal/builder"
@@ -136,12 +137,24 @@ func (d *DockerComposeServiceDeployer) SetUp(ctx context.Context, svcInfo Servic
 		return nil, fmt.Errorf("service is unhealthy: %w", err)
 	}
 
+	// otherName := p.ContainerName(serviceName)[:55]
+	// otherName := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 	if d.runTearDown || d.runTestsOnly {
 		logger.Debug("Skipping connect container to network (non setup steps)")
 	} else {
 		if d.deployIndependentAgent {
 			// Connect service network with agent network
-			err = docker.ConnectToNetworkWithAlias(p.ContainerName(serviceName), svcInfo.AgentNetworkName, svcInfo.Name)
+			aliases := []string{
+				// p.ContainerName(serviceName)[:63],
+				svcInfo.Name,
+				p.ContainerName(serviceName),
+				// otherName,
+			}
+			// for i := 55; i <= 64; i++ {
+			// 	aliases = append(aliases, p.ContainerName(serviceName)[:i])
+			// }
+			err = docker.ConnectToNetworkWithAlias(p.ContainerName(serviceName), svcInfo.AgentNetworkName, aliases)
+
 			if err != nil {
 				return nil, fmt.Errorf("can't attach service container to the agent network: %w", err)
 			}
@@ -155,7 +168,10 @@ func (d *DockerComposeServiceDeployer) SetUp(ctx context.Context, svcInfo Servic
 	}
 
 	// Build service container name
-	svcInfo.Hostname = p.ContainerName(serviceName)
+	// svcInfo.Hostname = otherName
+	// svcInfo.Hostname = p.ContainerName(serviceName)[:63]
+	svcInfo.Hostname = strings.TrimPrefix(serviceName, "elastic-package-service-")
+	svcInfo.Hostname = serviceName
 
 	logger.Debugf("adding service container %s internal ports to context", p.ContainerName(serviceName))
 	serviceComposeConfig, err := p.Config(ctx, compose.CommandOptions{
