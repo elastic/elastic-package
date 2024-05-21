@@ -130,7 +130,7 @@ clusters_num=$(jq -rc '.Clusters | length' redshift_clusters.json)
 
 echo "Number of clusters found: ${clusters_num}"
 
-for i in $(jq -c '.Clusters[]' redshift_clusters.json); do
+while read -r i ; do
     identifier=$(echo "$i" | jq -rc ".ClusterIdentifier")
     # tags
     repo=$(echo "$i" | jq -rc '.Tags[] | select(.Key == "repo").Value')
@@ -170,7 +170,7 @@ for i in $(jq -c '.Clusters[]' redshift_clusters.json); do
         #   --skip-final-cluster-snapshot
         echo "Done."
     fi
-done
+done <<< "$(jq -c '.Clusters[]' redshift_clusters.json)"
 
 if [ "${resources_to_delete}" -eq 1 ]; then
     message="There are redshift resources to be deleted"
