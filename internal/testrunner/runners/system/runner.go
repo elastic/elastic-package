@@ -1428,15 +1428,6 @@ func (r *runner) deleteOldDocumentsDataStreamAndWait(ctx context.Context, dataSt
 		return fmt.Errorf("error deleting old data in data stream: %s: %w", dataStream, err)
 	}
 
-	hits, err := r.getDocs(ctx, dataStream)
-	if err != nil {
-		return err
-	}
-
-	// First call already reports zero documents
-	if hits.size() == 0 {
-		return nil
-	}
 	logger.Debugf("Loop check")
 	cleared, err := wait.UntilTrue(ctx, func(ctx context.Context) (bool, error) {
 		hits, err := r.getDocs(ctx, dataStream)
@@ -1463,8 +1454,9 @@ func (r *runner) deleteOldDocumentsDataStreamAndWait(ctx context.Context, dataSt
 		if timestampLoop.After(timestampInitial) {
 			logger.Debug(">>> Found first doc newer than the original")
 		}
-		return timestampLoop.After(timestampInitial), nil
-	}, 1*time.Second, 2*time.Minute)
+		return false, nil
+		// return timestampLoop.After(timestampInitial), nil
+	}, 500*time.Millisecond, 2*time.Minute)
 	if err != nil || !cleared {
 		if err == nil {
 			err = errors.New("unable to clear previous data")
