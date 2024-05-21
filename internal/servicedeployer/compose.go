@@ -10,7 +10,6 @@ import (
 	"math"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/elastic/elastic-package/internal/builder"
@@ -141,24 +140,14 @@ func (d *DockerComposeServiceDeployer) SetUp(ctx context.Context, svcInfo Servic
 		return nil, fmt.Errorf("service is unhealthy: %w", err)
 	}
 
-	serviceNameWithoutPrefix := strings.TrimPrefix(p.ContainerName(serviceName), "elastic-package-service-")
-	// otherName := p.ContainerName(serviceName)[:55]
-	// otherName := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 	if d.runTearDown || d.runTestsOnly {
 		logger.Debug("Skipping connect container to network (non setup steps)")
 	} else {
+		aliases := []string{
+			serviceName,
+		}
 		if d.deployIndependentAgent {
 			// Connect service network with agent network
-			aliases := []string{
-				// p.ContainerName(serviceName)[:63],
-				// svcInfo.Name,
-				serviceName,
-				serviceNameWithoutPrefix,
-				// otherName,
-			}
-			// for i := 55; i <= 64; i++ {
-			// 	aliases = append(aliases, p.ContainerName(serviceName)[:i])
-			// }
 			err = docker.ConnectToNetworkWithAlias(p.ContainerName(serviceName), svcInfo.AgentNetworkName, aliases)
 
 			if err != nil {
@@ -166,7 +155,7 @@ func (d *DockerComposeServiceDeployer) SetUp(ctx context.Context, svcInfo Servic
 			}
 		} else {
 			// Connect service network with stack network (for the purpose of metrics collection)
-			err = docker.ConnectToNetwork(p.ContainerName(serviceName), stack.Network(d.profile))
+			err = docker.ConnectToNetworkWithAlias(p.ContainerName(serviceName), stack.Network(d.profile), aliases)
 			if err != nil {
 				return nil, fmt.Errorf("can't attach service container to the stack network: %w", err)
 			}
@@ -174,14 +163,7 @@ func (d *DockerComposeServiceDeployer) SetUp(ctx context.Context, svcInfo Servic
 	}
 
 	// Build service container name
-	svcInfo.Hostname = p.ContainerName(serviceName)
-	if d.deployIndependentAgent {
-		svcInfo.Hostname = serviceNameWithoutPrefix
-		svcInfo.Hostname = serviceName
-	}
-	// svcInfo.Hostname = otherName
-	// svcInfo.Hostname = p.ContainerName(serviceName)[:63]
-	// svcInfo.Hostname = serviceName
+	svcInfo.Hostname = serviceName
 
 	logger.Debugf("adding service container %s internal ports to context", p.ContainerName(serviceName))
 	serviceComposeConfig, err := p.Config(ctx, compose.CommandOptions{
