@@ -14,7 +14,7 @@ steps:
     trigger: elastic-package-cloud-cleanup
     build:
       env:
-        DRY_RUN: false 
+        DRY_RUN: false
         BUILDKITE_REFSPEC: "refs/pull/${BUILDKITE_PULL_REQUEST}/merge"
         BUILDKITE_COMMIT: "${BUILDKITE_COMMIT}"
 
