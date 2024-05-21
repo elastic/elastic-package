@@ -164,6 +164,7 @@ while read -r i ; do
     resources_to_delete=1
     if [ "${DRY_RUN}" == "false" ]; then
         echo "Deleting: $identifier. It was created > ${RESOURCE_RETENTION_PERIOD} ago"
+        # This command has not been tested
         # aws redshift delete-cluster \
         #   --cluster-identifier "${identifier}" \
         #   --skip-final-cluster-snapshot
@@ -171,7 +172,6 @@ while read -r i ; do
     fi
 done <<< "$(jq -c '.Clusters[]' redshift_clusters.json)"
 
-echo "Resources to delete: ${resources_to_delete}"
 if [ "${resources_to_delete}" -eq 1 ]; then
     message="There are redshift resources to be deleted"
     echo "${message}"
