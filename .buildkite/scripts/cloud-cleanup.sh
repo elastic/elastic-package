@@ -8,11 +8,12 @@ AWS_RESOURCES_FILE="aws.resources.txt"
 GCP_RESOURCES_FILE="gcp.resources.txt"
 
 RESOURCE_RETENTION_PERIOD="${RESOURCE_RETENTION_PERIOD:-"24 hours"}"
-export DELETE_RESOURCES_BEFORE_DATE=$(date -Is -d "${RESOURCE_RETENTION_PERIOD} ago")
+DELETE_RESOURCES_BEFORE_DATE=$(date -Is -d "${RESOURCE_RETENTION_PERIOD} ago")
+export DELETE_RESOURCES_BEFORE_DATE
 
 CLOUD_REAPER_IMAGE="${DOCKER_REGISTRY}/observability-ci/cloud-reaper:0.3.0"
 
-DRY_RUN="$(buildkite-agent meta-data get DRY_RUN --default ${DRY_RUN:-"true"})"
+DRY_RUN="$(buildkite-agent meta-data get DRY_RUN --default "${DRY_RUN:-"true"}")"
 
 resources_to_delete=0
 
@@ -39,7 +40,7 @@ any_resources_to_delete() {
 
 cloud_reaper_aws() {
     echo "Validating configuration"
-    docker run --rm -v $(pwd)/.buildkite/configs/cleanup.aws.yml:/etc/cloud-reaper/config.yml \
+    docker run --rm -v "$(pwd)/.buildkite/configs/cleanup.aws.yml":/etc/cloud-reaper/config.yml \
       -e ACCOUNT_SECRET="${ELASTIC_PACKAGE_AWS_SECRET_KEY}" \
       -e ACCOUNT_KEY="${ELASTIC_PACKAGE_AWS_ACCESS_KEY}" \
       -e ACCOUNT_PROJECT="${ELASTIC_PACKAGE_AWS_USER_SECRET}" \
@@ -50,7 +51,7 @@ cloud_reaper_aws() {
           validate
 
     echo "Scanning resources"
-    docker run --rm -v $(pwd)/.buildkite/configs/cleanup.aws.yml:/etc/cloud-reaper/config.yml \
+    docker run --rm -v "$(pwd)/.buildkite/configs/cleanup.aws.yml":/etc/cloud-reaper/config.yml \
       -e ACCOUNT_SECRET="${ELASTIC_PACKAGE_AWS_SECRET_KEY}" \
       -e ACCOUNT_KEY="${ELASTIC_PACKAGE_AWS_ACCESS_KEY}" \
       -e ACCOUNT_PROJECT="${ELASTIC_PACKAGE_AWS_USER_SECRET}" \
@@ -63,7 +64,7 @@ cloud_reaper_aws() {
 
 cloud_reaper_gcp() {
     echo "Validating configuration"
-    docker run --rm -v $(pwd)/.buildkite/configs/cleanup.gcp.yml:/etc/cloud-reaper/config.yml \
+    docker run --rm -v "$(pwd)/.buildkite/configs/cleanup.gcp.yml":/etc/cloud-reaper/config.yml \
       -e ACCOUNT_SECRET="${ELASTIC_PACKAGE_GCP_KEY_SECRET}" \
       -e ACCOUNT_KEY="${ELASTIC_PACKAGE_GCP_EMAIL_SECRET}" \
       -e ACCOUNT_PROJECT="${ELASTIC_PACKAGE_GCP_PROJECT_SECRET}" \
@@ -74,7 +75,7 @@ cloud_reaper_gcp() {
           validate
 
     echo "Scanning resources"
-    docker run --rm -v $(pwd)/.buildkite/configs/cleanup.gcp.yml:/etc/cloud-reaper/config.yml \
+    docker run --rm -v "$(pwd)/.buildkite/configs/cleanup.gcp.yml":/etc/cloud-reaper/config.yml \
       -e ACCOUNT_SECRET="${ELASTIC_PACKAGE_GCP_KEY_SECRET}" \
       -e ACCOUNT_KEY="${ELASTIC_PACKAGE_GCP_EMAIL_SECRET}" \
       -e ACCOUNT_PROJECT="${ELASTIC_PACKAGE_GCP_PROJECT_SECRET}" \
@@ -130,7 +131,7 @@ clusters_num=$(jq -rc '.Clusters | length' redshift_clusters.json)
 
 echo "Number of clusters found: ${clusters_num}"
 
-jq -c '.Clusters[]' redshift_clusters.json | while read i ; do
+jq -c '.Clusters[]' redshift_clusters.json | while read -r i ; do
     identifier=$(echo "$i" | jq -rc ".ClusterIdentifier")
     # tags
     repo=$(echo "$i" | jq -rc '.Tags[] | select(.Key == "repo").Value')
