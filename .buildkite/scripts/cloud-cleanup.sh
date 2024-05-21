@@ -120,6 +120,8 @@ with_aws_cli
 export AWS_ACCESS_KEY_ID="${ELASTIC_PACKAGE_AWS_ACCESS_KEY}"
 export AWS_SECRET_ACCESS_KEY="${ELASTIC_PACKAGE_AWS_SECRET_KEY}"
 export AWS_DEFAULT_REGION=us-east-1
+# Avoid to send the output of the CLI to a pager
+export AWS_PAGER=""
 
 echo "--- Checking if any Redshift cluster still created"
 aws redshift describe-clusters \
