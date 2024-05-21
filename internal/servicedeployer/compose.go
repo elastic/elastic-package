@@ -140,11 +140,18 @@ func (d *DockerComposeServiceDeployer) SetUp(ctx context.Context, svcInfo Servic
 		return nil, fmt.Errorf("service is unhealthy: %w", err)
 	}
 
+	// Added a specific alias when connecting the service to the network.
+	// - There could be container names too long that could not be resolved by the local DNS
+	// - Not used serviceName directly as alias container, since there could be packages defining
+	//   kibana or elasticsearch services and those DNS names are already present in the Elastic stack.
+	//   This is mainly applicable when the Elastic Agent of the stack is used for testing.
+	// - Keep the same alias for both implementations for consistency
+	aliasContainer := fmt.Sprintf("svc-%s", serviceName)
 	if d.runTearDown || d.runTestsOnly {
 		logger.Debug("Skipping connect container to network (non setup steps)")
 	} else {
 		aliases := []string{
-			serviceName,
+			aliasContainer,
 		}
 		if d.deployIndependentAgent {
 			// Connect service network with agent network
@@ -163,7 +170,7 @@ func (d *DockerComposeServiceDeployer) SetUp(ctx context.Context, svcInfo Servic
 	}
 
 	// Build service container name
-	svcInfo.Hostname = serviceName
+	svcInfo.Hostname = aliasContainer
 
 	logger.Debugf("adding service container %s internal ports to context", p.ContainerName(serviceName))
 	serviceComposeConfig, err := p.Config(ctx, compose.CommandOptions{
