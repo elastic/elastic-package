@@ -1,4 +1,4 @@
-id: eb726b4a-446c-4266-8968-987d51c6e169
+id: 3ddded7f-b1be-4fc5-aab6-0d0c8f687b8c
 revision: 2
 outputs:
   default:
@@ -17,7 +17,7 @@ output_permissions:
     _elastic_agent_checks:
       cluster:
         - monitor
-    e0ee39b4-30ab-4bea-bccc-8ca11a4de9dc:
+    ae919f82-b981-4629-ae9e-94757de626dd:
       indices:
         - names:
             - logs-apache.error-ep
@@ -34,11 +34,11 @@ agent:
   features: {}
   protection:
     enabled: false
-    uninstall_token_hash: GFZ6HcfD4oDuz2WkGGk4P3qSRwKj6dV1/i4SMsNdEVU=
+    uninstall_token_hash: Lrgu8l3SD3+UdDEtFPafYU9IN27PpkxSWFZXooak7Hg=
     signing_key: >-
       MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEyg+MEbsPDKzOishrb40TR9DplCdVBCxAnqDSa0r+WMdJ2lTv9fMvQBJogAaltnz0xJ2l1RcN082sLsXJwgbHvg==
 inputs:
-  - id: logfile-apache-e0ee39b4-30ab-4bea-bccc-8ca11a4de9dc
+  - id: logfile-apache-ae919f82-b981-4629-ae9e-94757de626dd
     name: test-default-apache
     revision: 1
     type: logfile
@@ -49,15 +49,14 @@ inputs:
         version: 999.999.999
     data_stream:
       namespace: ep
-    package_policy_id: e0ee39b4-30ab-4bea-bccc-8ca11a4de9dc
+    package_policy_id: ae919f82-b981-4629-ae9e-94757de626dd
     streams:
-      - id: logfile-apache.error-e0ee39b4-30ab-4bea-bccc-8ca11a4de9dc
+      - id: logfile-apache.error-ae919f82-b981-4629-ae9e-94757de626dd
         data_stream:
           dataset: apache.error
           type: logs
         paths:
-          - /var/log/apache2/error.log*
-          - /var/log/httpd/error_log*
+          - /var/logs/apache/error.log*
         exclude_files:
           - .gz$
         tags:
@@ -66,7 +65,7 @@ inputs:
           - add_locale: null
 signed:
   data: >-
-    eyJpZCI6ImViNzI2YjRhLTQ0NmMtNDI2Ni04OTY4LTk4N2Q1MWM2ZTE2OSIsImFnZW50Ijp7ImZlYXR1cmVzIjp7fSwicHJvdGVjdGlvbiI6eyJlbmFibGVkIjpmYWxzZSwidW5pbnN0YWxsX3Rva2VuX2hhc2giOiJHRlo2SGNmRDRvRHV6MldrR0drNFAzcVNSd0tqNmRWMS9pNFNNc05kRVZVPSIsInNpZ25pbmdfa2V5IjoiTUZrd0V3WUhLb1pJemowQ0FRWUlLb1pJemowREFRY0RRZ0FFeWcrTUVic1BES3pPaXNocmI0MFRSOURwbENkVkJDeEFucURTYTByK1dNZEoybFR2OWZNdlFCSm9nQWFsdG56MHhKMmwxUmNOMDgyc0xzWEp3Z2JIdmc9PSJ9fSwiaW5wdXRzIjpbeyJpZCI6ImxvZ2ZpbGUtYXBhY2hlLWUwZWUzOWI0LTMwYWItNGJlYS1iY2NjLThjYTExYTRkZTlkYyIsIm5hbWUiOiJ0ZXN0LWRlZmF1bHQtYXBhY2hlIiwicmV2aXNpb24iOjEsInR5cGUiOiJsb2dmaWxlIn1dfQ==
+    eyJpZCI6IjNkZGRlZDdmLWIxYmUtNGZjNS1hYWI2LTBkMGM4ZjY4N2I4YyIsImFnZW50Ijp7ImZlYXR1cmVzIjp7fSwicHJvdGVjdGlvbiI6eyJlbmFibGVkIjpmYWxzZSwidW5pbnN0YWxsX3Rva2VuX2hhc2giOiJMcmd1OGwzU0QzK1VkREV0RlBhZllVOUlOMjdQcGt4U1dGWlhvb2FrN0hnPSIsInNpZ25pbmdfa2V5IjoiTUZrd0V3WUhLb1pJemowQ0FRWUlLb1pJemowREFRY0RRZ0FFeWcrTUVic1BES3pPaXNocmI0MFRSOURwbENkVkJDeEFucURTYTByK1dNZEoybFR2OWZNdlFCSm9nQWFsdG56MHhKMmwxUmNOMDgyc0xzWEp3Z2JIdmc9PSJ9fSwiaW5wdXRzIjpbeyJpZCI6ImxvZ2ZpbGUtYXBhY2hlLWFlOTE5ZjgyLWI5ODEtNDYyOS1hZTllLTk0NzU3ZGU2MjZkZCIsIm5hbWUiOiJ0ZXN0LWRlZmF1bHQtYXBhY2hlIiwicmV2aXNpb24iOjEsInR5cGUiOiJsb2dmaWxlIn1dfQ==
   signature: >-
-    MEYCIQDmULz0Lf+xaFXaUwhszRzko2TvxrdYhcFe9bjgthOTGgIhAMHhAJm7mBsUMKyjCQAjeuX6tvUmliVfsaMaex6ZLifX
+    MEQCIHJoAYIqMhvViN9sRHbxwC1fKgTJNWYj88XrvkG7a/UhAiB4PzgY2x3PL/7nVA8gVBApcFkTjCeHC7qYsC2Gd3EI6w==
 secret_references: []

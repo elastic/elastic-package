@@ -12,10 +12,10 @@ import (
 )
 
 type testConfig struct {
-	Vars       map[string]any `json:"vars,omitempty"`
+	Vars       map[string]any `yaml:"vars,omitempty"`
 	DataStream struct {
-		Vars map[string]any `json:"vars,omitempty"`
-	} `json:"data_stream"`
+		Vars map[string]any `yaml:"vars,omitempty"`
+	} `yaml:"data_stream"`
 }
 
 func readTestConfig(testPath string) (*testConfig, error) {
