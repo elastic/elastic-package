@@ -168,6 +168,12 @@ while read -r i ; do
           --cluster-identifier "${identifier}" \
           --skip-final-cluster-snapshot
         echo "Done."
+        buildkite-agent annotate \
+            "Deleted redshift cluster: ${identifier}" \
+            --context "ctx-aws-readshift-deleted-${identifier}" \
+            --style "success"
+
+        resources_to_delete=0
     fi
 done <<< "$(jq -c '.Clusters[]' redshift_clusters.json)"
 
