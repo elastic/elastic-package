@@ -101,6 +101,7 @@ if any_resources_to_delete "${AWS_RESOURCES_FILE}" ; then
     resources_to_delete=1
 fi
 
+echo "Resources to delete: ${resources_to_delete}"
 if [ "${resources_to_delete}" -eq 1 ]; then
     message="There are resources to be deleted"
     echo "${message}"
@@ -170,6 +171,7 @@ jq -c '.Clusters[]' redshift_clusters.json | while read i ; do
     fi
 done
 
+echo "Resources to delete: ${resources_to_delete}"
 if [ "${resources_to_delete}" -eq 1 ]; then
     message="There are redshift resources to be deleted"
     echo "${message}"
