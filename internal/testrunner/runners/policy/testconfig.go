@@ -12,6 +12,7 @@ import (
 )
 
 type testConfig struct {
+	Input      string         `yaml:"input,omitempty"`
 	Vars       map[string]any `yaml:"vars,omitempty"`
 	DataStream struct {
 		Vars map[string]any `yaml:"vars,omitempty"`

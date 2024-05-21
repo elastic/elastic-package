@@ -89,6 +89,7 @@ func (r *runner) runTest(ctx context.Context, manager *resources.Manager, option
 				Name:           testName + "-" + options.TestFolder.Package,
 				RootPath:       options.PackageRootPath,
 				DataStreamName: options.TestFolder.DataStream,
+				InputName:      testConfig.Input,
 				Vars:           testConfig.Vars,
 				DataStreamVars: testConfig.DataStream.Vars,
 			},

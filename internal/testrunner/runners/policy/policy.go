@@ -140,6 +140,9 @@ var policyEntryFilters = []policyEntryFilter{
 			{name: "id"},
 		}},
 	}},
+	{name: "secret_references", elementsEntries: []policyEntryFilter{
+		{name: "id"},
+	}},
 
 	// Avoid having to regenerate files every time the package version changes.
 	{name: "inputs", elementsEntries: []policyEntryFilter{
