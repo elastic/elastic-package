@@ -163,6 +163,7 @@ jq -c '.Clusters[]' redshift_clusters.json | while read -r i ; do
 
     echo "To be deleted cluster: $identifier. It was created > ${RESOURCE_RETENTION_PERIOD} ago"
     resources_to_delete=1
+    echo "Resources to delete: ${resources_to_delete}"
     if [ "${DRY_RUN}" == "false" ]; then
         echo "Deleting: $identifier. It was created > ${RESOURCE_RETENTION_PERIOD} ago"
         # aws redshift delete-cluster \
