@@ -2,7 +2,7 @@
 
 set -euxo pipefail
 
-DEFAULT_AGENT_CONTAINER_NAME="elastic-package-service-docker-custom-agent"
+DEFAULT_AGENT_CONTAINER_NAME="elastic-package-service-[0-9]{5}-docker-custom-agent"
 
 cleanup() {
     local r=$?

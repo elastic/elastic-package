@@ -106,7 +106,7 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (D
 
 	service := dockerComposeDeployedService{
 		ymlPaths: ymlPaths,
-		project:  "elastic-package-service",
+		project:  fmt.Sprintf("elastic-package-service-%s", svcInfo.Test.RunID),
 		variant: ServiceVariant{
 			Name: dockerCustomAgentName,
 			Env:  env,
