@@ -137,6 +137,7 @@ func (d *DockerComposeServiceDeployer) SetUp(ctx context.Context, svcInfo Servic
 		return nil, fmt.Errorf("service is unhealthy: %w", err)
 	}
 
+	serviceNameWithoutPrefix := strings.TrimPrefix(p.ContainerName(serviceName), "elastic-package-service-")
 	// otherName := p.ContainerName(serviceName)[:55]
 	// otherName := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 	if d.runTearDown || d.runTestsOnly {
@@ -146,8 +147,9 @@ func (d *DockerComposeServiceDeployer) SetUp(ctx context.Context, svcInfo Servic
 			// Connect service network with agent network
 			aliases := []string{
 				// p.ContainerName(serviceName)[:63],
-				svcInfo.Name,
-				p.ContainerName(serviceName),
+				// svcInfo.Name,
+				serviceName,
+				serviceNameWithoutPrefix,
 				// otherName,
 			}
 			// for i := 55; i <= 64; i++ {
@@ -168,10 +170,14 @@ func (d *DockerComposeServiceDeployer) SetUp(ctx context.Context, svcInfo Servic
 	}
 
 	// Build service container name
+	svcInfo.Hostname = p.ContainerName(serviceName)
+	if d.deployIndependentAgent {
+		svcInfo.Hostname = serviceNameWithoutPrefix
+		svcInfo.Hostname = serviceName
+	}
 	// svcInfo.Hostname = otherName
 	// svcInfo.Hostname = p.ContainerName(serviceName)[:63]
-	svcInfo.Hostname = strings.TrimPrefix(serviceName, "elastic-package-service-")
-	svcInfo.Hostname = serviceName
+	// svcInfo.Hostname = serviceName
 
 	logger.Debugf("adding service container %s internal ports to context", p.ContainerName(serviceName))
 	serviceComposeConfig, err := p.Config(ctx, compose.CommandOptions{
