@@ -1,74 +1,49 @@
-id: 2b83c9a4-a471-439c-9fa7-bd54c01111c6
-revision: 2
-outputs:
-  default:
-    type: elasticsearch
-    hosts:
-      - 'https://elasticsearch:9200'
-    ssl.ca_trusted_fingerprint: FC0CCF5EE0C727F4F170570554CAF1AC3AB4348AABE18624E9CC61ECCF667A33
-    preset: balanced
-fleet:
-  hosts:
-    - 'https://fleet-server:8220'
-output_permissions:
-  default:
-    _elastic_agent_monitoring:
-      indices: []
-    _elastic_agent_checks:
-      cluster:
-        - monitor
-    88d91268-7fba-487c-bb27-27a4ce230dcb:
-      indices:
-        - names:
-            - metrics-*-*
-          privileges:
-            - auto_configure
-            - create_doc
 agent:
-  download:
-    sourceURI: 'https://artifacts.elastic.co/downloads/'
-  monitoring:
-    enabled: false
-    logs: false
-    metrics: false
-  features: {}
-  protection:
-    enabled: false
-    uninstall_token_hash: tkafDiPkTOoLGQwp0LjzFq/eK/BzjSP3SlwFDj9YCSU=
-    signing_key: >-
-      MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEyg+MEbsPDKzOishrb40TR9DplCdVBCxAnqDSa0r+WMdJ2lTv9fMvQBJogAaltnz0xJ2l1RcN082sLsXJwgbHvg==
+    download:
+        sourceURI: https://artifacts.elastic.co/downloads/
+    features: {}
+    monitoring:
+        enabled: false
+        logs: false
+        metrics: false
+    protection:
+        enabled: false
 inputs:
-  - id: sql/metrics-sql_query-88d91268-7fba-487c-bb27-27a4ce230dcb
-    name: test-mysql-sql_input
-    revision: 1
-    type: sql/metrics
-    use_output: default
-    meta:
-      package:
-        name: sql_input
-        version: 0.2.0
-    data_stream:
-      namespace: ep
-    package_policy_id: 88d91268-7fba-487c-bb27-27a4ce230dcb
-    streams:
-      - id: sql/metrics-sql_input.sql_query-88d91268-7fba-487c-bb27-27a4ce230dcb
-        data_stream:
-          dataset: sql_input.sql_query
-          type: metrics
-          elasticsearch:
-            dynamic_dataset: true
-            dynamic_namespace: true
-        metricsets:
-          - query
-        period: 10s
-        hosts:
-          - 'root:test@tcp(localhost:3306)/'
-        driver: mysql
-        sql_query: SHOW GLOBAL STATUS LIKE 'Innodb_%';
-        sql_response_format: variables
-signed:
-  data: >-
-    eyJpZCI6IjJiODNjOWE0LWE0NzEtNDM5Yy05ZmE3LWJkNTRjMDExMTFjNiIsImFnZW50Ijp7ImZlYXR1cmVzIjp7fSwicHJvdGVjdGlvbiI6eyJlbmFibGVkIjpmYWxzZSwidW5pbnN0YWxsX3Rva2VuX2hhc2giOiJ0a2FmRGlQa1RPb0xHUXdwMExqekZxL2VLL0J6alNQM1Nsd0ZEajlZQ1NVPSIsInNpZ25pbmdfa2V5IjoiTUZrd0V3WUhLb1pJemowQ0FRWUlLb1pJemowREFRY0RRZ0FFeWcrTUVic1BES3pPaXNocmI0MFRSOURwbENkVkJDeEFucURTYTByK1dNZEoybFR2OWZNdlFCSm9nQWFsdG56MHhKMmwxUmNOMDgyc0xzWEp3Z2JIdmc9PSJ9fSwiaW5wdXRzIjpbeyJpZCI6InNxbC9tZXRyaWNzLXNxbF9xdWVyeS04OGQ5MTI2OC03ZmJhLTQ4N2MtYmIyNy0yN2E0Y2UyMzBkY2IiLCJuYW1lIjoidGVzdC1teXNxbC1zcWxfaW5wdXQiLCJyZXZpc2lvbiI6MSwidHlwZSI6InNxbC9tZXRyaWNzIn1dfQ==
-  signature: >-
-    MEQCICI1ZHVErBKQ+tQ4B14JoqasxQ8VizVhXQfFhoqwZgptAiBH7Dpdsv9wg0olnZ8M3FE+eadHvN6ZLM6/MO576tQC1w==
+    - data_stream:
+        namespace: ep
+      meta:
+        package:
+            name: sql_input
+      name: test-mysql-sql_input
+      streams:
+        - data_stream:
+            dataset: sql_input.sql_query
+            elasticsearch:
+                dynamic_dataset: true
+                dynamic_namespace: true
+            type: metrics
+          driver: mysql
+          hosts:
+            - root:test@tcp(localhost:3306)/
+          metricsets:
+            - query
+          period: 10s
+          sql_query: SHOW GLOBAL STATUS LIKE 'Innodb_%';
+          sql_response_format: variables
+      type: sql/metrics
+      use_output: default
+output_permissions:
+    default:
+        _elastic_agent_checks:
+            cluster:
+                - monitor
+        _elastic_agent_monitoring:
+            indices: []
+        uuid-for-permissions-on-related-indices:
+            indices:
+                - names:
+                    - metrics-*-*
+                  privileges:
+                    - auto_configure
+                    - create_doc
 secret_references: []

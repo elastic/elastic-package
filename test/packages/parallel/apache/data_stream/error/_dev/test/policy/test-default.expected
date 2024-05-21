@@ -1,71 +1,47 @@
-id: 3ddded7f-b1be-4fc5-aab6-0d0c8f687b8c
-revision: 2
-outputs:
-  default:
-    type: elasticsearch
-    hosts:
-      - 'https://elasticsearch:9200'
-    ssl.ca_trusted_fingerprint: FC0CCF5EE0C727F4F170570554CAF1AC3AB4348AABE18624E9CC61ECCF667A33
-    preset: balanced
-fleet:
-  hosts:
-    - 'https://fleet-server:8220'
-output_permissions:
-  default:
-    _elastic_agent_monitoring:
-      indices: []
-    _elastic_agent_checks:
-      cluster:
-        - monitor
-    ae919f82-b981-4629-ae9e-94757de626dd:
-      indices:
-        - names:
-            - logs-apache.error-ep
-          privileges:
-            - auto_configure
-            - create_doc
 agent:
-  download:
-    sourceURI: 'https://artifacts.elastic.co/downloads/'
-  monitoring:
-    enabled: false
-    logs: false
-    metrics: false
-  features: {}
-  protection:
-    enabled: false
-    uninstall_token_hash: Lrgu8l3SD3+UdDEtFPafYU9IN27PpkxSWFZXooak7Hg=
-    signing_key: >-
-      MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEyg+MEbsPDKzOishrb40TR9DplCdVBCxAnqDSa0r+WMdJ2lTv9fMvQBJogAaltnz0xJ2l1RcN082sLsXJwgbHvg==
+    download:
+        sourceURI: https://artifacts.elastic.co/downloads/
+    features: {}
+    monitoring:
+        enabled: false
+        logs: false
+        metrics: false
+    protection:
+        enabled: false
 inputs:
-  - id: logfile-apache-ae919f82-b981-4629-ae9e-94757de626dd
-    name: test-default-apache
-    revision: 1
-    type: logfile
-    use_output: default
-    meta:
-      package:
-        name: apache
-        version: 999.999.999
-    data_stream:
-      namespace: ep
-    package_policy_id: ae919f82-b981-4629-ae9e-94757de626dd
-    streams:
-      - id: logfile-apache.error-ae919f82-b981-4629-ae9e-94757de626dd
-        data_stream:
-          dataset: apache.error
-          type: logs
-        paths:
-          - /var/logs/apache/error.log*
-        exclude_files:
-          - .gz$
-        tags:
-          - apache-error
-        processors:
-          - add_locale: null
-signed:
-  data: >-
-    eyJpZCI6IjNkZGRlZDdmLWIxYmUtNGZjNS1hYWI2LTBkMGM4ZjY4N2I4YyIsImFnZW50Ijp7ImZlYXR1cmVzIjp7fSwicHJvdGVjdGlvbiI6eyJlbmFibGVkIjpmYWxzZSwidW5pbnN0YWxsX3Rva2VuX2hhc2giOiJMcmd1OGwzU0QzK1VkREV0RlBhZllVOUlOMjdQcGt4U1dGWlhvb2FrN0hnPSIsInNpZ25pbmdfa2V5IjoiTUZrd0V3WUhLb1pJemowQ0FRWUlLb1pJemowREFRY0RRZ0FFeWcrTUVic1BES3pPaXNocmI0MFRSOURwbENkVkJDeEFucURTYTByK1dNZEoybFR2OWZNdlFCSm9nQWFsdG56MHhKMmwxUmNOMDgyc0xzWEp3Z2JIdmc9PSJ9fSwiaW5wdXRzIjpbeyJpZCI6ImxvZ2ZpbGUtYXBhY2hlLWFlOTE5ZjgyLWI5ODEtNDYyOS1hZTllLTk0NzU3ZGU2MjZkZCIsIm5hbWUiOiJ0ZXN0LWRlZmF1bHQtYXBhY2hlIiwicmV2aXNpb24iOjEsInR5cGUiOiJsb2dmaWxlIn1dfQ==
-  signature: >-
-    MEQCIHJoAYIqMhvViN9sRHbxwC1fKgTJNWYj88XrvkG7a/UhAiB4PzgY2x3PL/7nVA8gVBApcFkTjCeHC7qYsC2Gd3EI6w==
+    - data_stream:
+        namespace: ep
+      meta:
+        package:
+            name: apache
+      name: test-default-apache
+      revision: 1
+      streams:
+        - data_stream:
+            dataset: apache.error
+            type: logs
+          exclude_files:
+            - .gz$
+          paths:
+            - /var/logs/apache/error.log*
+          processors:
+            - add_locale: null
+          tags:
+            - apache-error
+      type: logfile
+      use_output: default
+output_permissions:
+    default:
+        _elastic_agent_checks:
+            cluster:
+                - monitor
+        _elastic_agent_monitoring:
+            indices: []
+        uuid-for-permissions-on-related-indices:
+            indices:
+                - names:
+                    - logs-apache.error-ep
+                  privileges:
+                    - auto_configure
+                    - create_doc
 secret_references: []

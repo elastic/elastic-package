@@ -30,8 +30,12 @@ func dumpExpectedAgentPolicy(ctx context.Context, options testrunner.TestOptions
 		return fmt.Errorf("failed to download policy %q: %w", policyID, err)
 	}
 
-	// TODO: Compare documents before writing and don't overwrite if it is equal.
-	err = os.WriteFile(expectedPathFor(testPath), policy, 0644)
+	d, err := cleanPolicy(policy, policyEntryFilters)
+	if err != nil {
+		return fmt.Errorf("failed to prepare policy to store")
+	}
+
+	err = os.WriteFile(expectedPathFor(testPath), d, 0644)
 	if err != nil {
 		return fmt.Errorf("failed to write policy: %w", err)
 	}
@@ -83,12 +87,11 @@ func downloadPolicy(ctx context.Context, client *kibana.Client, policyID string,
 
 // TODO: Refactor to return a explicit diff.
 func comparePolicies(expected, found []byte) error {
-	// TODO: Instead of "cleaning", put in the expected document the values found, for the given keys.
-	want, err := cleanPolicy(expected)
+	want, err := cleanPolicy(expected, policyEntryFilters)
 	if err != nil {
 		return fmt.Errorf("failed to prepare expected policy: %w", err)
 	}
-	got, err := cleanPolicy(found)
+	got, err := cleanPolicy(found, policyEntryFilters)
 	if err != nil {
 		return fmt.Errorf("failed to prepare found policy: %w", err)
 	}
@@ -116,9 +119,9 @@ func expectedPathFor(testPath string) string {
 	return strings.TrimSuffix(testPath, ext) + ".expected"
 }
 
-type policyEntry struct {
+type policyEntryFilter struct {
 	name            string
-	elementsEntries []policyEntry
+	elementsEntries []policyEntryFilter
 	memberReplace   *policyEntryReplace
 }
 
@@ -127,37 +130,56 @@ type policyEntryReplace struct {
 	replace string
 }
 
-var policyEntriesToIgnore = []policyEntry{
+var policyEntryFilters = []policyEntryFilter{
+	// IDs are not relevant.
 	{name: "id"},
-	{name: "outputs.ssl.ca_trusted_fingerprint"},
-	{name: "agent.protection.uninstall_token_hash"},
-	{name: "agent.protection.signing_key"},
-	{name: "signed"},
-	{name: "inputs", elementsEntries: []policyEntry{
+	{name: "inputs", elementsEntries: []policyEntryFilter{
 		{name: "id"},
 		{name: "package_policy_id"},
-		{name: "streams", elementsEntries: []policyEntry{
+		{name: "streams", elementsEntries: []policyEntryFilter{
 			{name: "id"},
 		}},
 	}},
+
+	// Avoid having to regenerate files every time the package version changes.
+	{name: "inputs", elementsEntries: []policyEntryFilter{
+		{name: "meta.package.version"},
+	}},
+
+	// Revision is not relevant, it is usually the same.
+	{name: "revision"},
+	{name: "inputs", elementsEntries: []policyEntryFilter{
+		{name: "revision"},
+	}},
+
+	// Outputs and fleet can depend on the deployment.
+	{name: "outputs"},
+	{name: "fleet"},
+
+	// Signatures that change from installation to installation.
+	{name: "agent.protection.uninstall_token_hash"},
+	{name: "agent.protection.signing_key"},
+	{name: "signed"},
+
+	// We want to check permissions, but one is stored under a random UUID, replace it.
 	{name: "output_permissions.default", memberReplace: &policyEntryReplace{
 		// Match things that look like UUIDs.
 		regexp:  regexp.MustCompile(`^[a-z0-9]{4,}(-[a-z0-9]{4,})+$`),
-		replace: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeee",
+		replace: "uuid-for-permissions-on-related-indices",
 	}},
 }
 
 // cleanPolicy prepares a policy YAML as returned by the download API to be compared with other
 // policies. This preparation is based on removing contents that are generated, or replace them
 // by controlled values.
-func cleanPolicy(policy []byte) ([]byte, error) {
+func cleanPolicy(policy []byte, entriesToClean []policyEntryFilter) ([]byte, error) {
 	var policyMap common.MapStr
 	err := yaml.Unmarshal(policy, &policyMap)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode policy: %w", err)
 	}
 
-	policyMap, err = cleanPolicyMap(policyMap, policyEntriesToIgnore)
+	policyMap, err = cleanPolicyMap(policyMap, entriesToClean)
 	if err != nil {
 		return nil, err
 	}
@@ -165,7 +187,7 @@ func cleanPolicy(policy []byte) ([]byte, error) {
 	return yaml.Marshal(policyMap)
 }
 
-func cleanPolicyMap(policyMap common.MapStr, entries []policyEntry) (common.MapStr, error) {
+func cleanPolicyMap(policyMap common.MapStr, entries []policyEntryFilter) (common.MapStr, error) {
 	for _, entry := range entries {
 		switch {
 		case len(entry.elementsEntries) > 0:
