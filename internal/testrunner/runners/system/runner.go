@@ -1389,7 +1389,7 @@ func (r *runner) writeScenarioState(opts scenarioStateOpts) error {
 
 func timestampFirstDoc(docs *hits, syntheticEnabled bool) (time.Time, error) {
 	if docs.size() == 0 {
-		return time.Now().AddDate(0, 0, -1), nil
+		return time.Now().AddDate(0, 0, 1), nil
 	}
 	firstDoc := docs.getDocs(syntheticEnabled)[0]
 	field, err := firstDoc.GetValue("@timestamp")
@@ -1452,7 +1452,7 @@ func (r *runner) deleteOldDocumentsDataStreamAndWait(ctx context.Context, dataSt
 		if mustBeZero {
 			return hits.size() == 0, nil
 		}
-		if startHits.size() > hits.size() {
+		if hits.size() == 0 || startHits.size() > hits.size() {
 			return true, nil
 		}
 
