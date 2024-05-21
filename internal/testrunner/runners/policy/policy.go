@@ -130,6 +130,9 @@ type policyEntryReplace struct {
 	replace string
 }
 
+// policyEntryFilter includes a list of filters to do to the policy. These filters
+// are used to remove or control fields whose content is not relevant for the package
+// test.
 var policyEntryFilters = []policyEntryFilter{
 	// IDs are not relevant.
 	{name: "id"},
@@ -155,9 +158,10 @@ var policyEntryFilters = []policyEntryFilter{
 		{name: "revision"},
 	}},
 
-	// Outputs and fleet can depend on the deployment.
-	{name: "outputs"},
+	// Outputs, agent and fleet can depend on the deployment.
+	{name: "agent"},
 	{name: "fleet"},
+	{name: "outputs"},
 
 	// Signatures that change from installation to installation.
 	{name: "agent.protection.uninstall_token_hash"},

@@ -1,13 +1,3 @@
-agent:
-    download:
-        sourceURI: https://artifacts.elastic.co/downloads/
-    features: {}
-    monitoring:
-        enabled: false
-        logs: false
-        metrics: false
-    protection:
-        enabled: false
 inputs:
     - data_stream:
         namespace: ep
