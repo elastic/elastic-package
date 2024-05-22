@@ -57,7 +57,17 @@ func assertExpectedAgentPolicy(ctx context.Context, options testrunner.TestOptio
 }
 
 func downloadPolicy(ctx context.Context, client *kibana.Client, policyID string, expectedRevision int) (kibana.DownloadedPolicy, error) {
+	// This wait is needed because we have seen cases where the policy doesn't have the
+	// expected content inmediately after creating it, or where the policy does not have
+	// the revision with the attached package policy some time after having it.
+	// The latter seems to happen if Fleet reverts the policy after some internal failure,
+	// what can apparently happen in some cases even after returning a 200 when creating
+	// the package policy.
 	var policy kibana.DownloadedPolicy
+	const (
+		waitPeriod  = 1 * time.Second
+		waitTimeout = 15 * time.Second
+	)
 	_, err := wait.UntilTrue(ctx, func(ctx context.Context) (bool, error) {
 		d, err := client.DownloadPolicy(ctx, policyID)
 		if err != nil {
@@ -75,7 +85,7 @@ func downloadPolicy(ctx context.Context, client *kibana.Client, policyID string,
 			return true, nil
 		}
 		return false, nil
-	}, 1*time.Second, 30*time.Second) // TODO: Parameterize this.
+	}, waitPeriod, waitTimeout)
 	if err != nil {
 		return nil, fmt.Errorf("could not wait for expected revision: %w", err)
 	}
