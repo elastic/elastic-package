@@ -271,10 +271,9 @@ run_tests_for_package() {
 # Set variables depending on whether or not independent Elastic Agents are running
 DEFAULT_AGENT_CONTAINER_NAME="elastic-package-service-[0-9]{5}-docker-custom-agent"
 service_deployer_type="docker"
-service_preffix='elastic-package-service'
+service_prefix='elastic-package-service-[0-9]{5}'
 if [[ "${ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT:-"false"}" == "true" ]]; then
     service_deployer_type="agent"
-    service_preffix='elastic-package-service-[0-9]{5}'
 fi
 
 # to be set the specific value in run_tests_for_package , required to be global
@@ -295,7 +294,7 @@ FOLDER_PATH="${HOME}/.elastic-package/profiles/default/stack/state"
 # docker service deployer
 if ! run_tests_for_package \
     "test/packages/parallel/nginx" \
-    "${service_preffix}-nginx" \
+    "${service_prefix}-nginx" \
     "data_stream/access/_dev/test/system/test-default-config.yml" \
     "no variant" \
     "${service_deployer_type}" ; then
@@ -305,7 +304,7 @@ fi
 
 if ! run_tests_for_package \
     "test/packages/parallel/sql_input" \
-    "${service_preffix}-sql_input" \
+    "${service_prefix}-sql_input" \
     "_dev/test/system/test-default-config.yml" \
     "mysql_8_0_13" \
     "${service_deployer_type}" ; then
