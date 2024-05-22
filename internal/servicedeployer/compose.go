@@ -73,13 +73,9 @@ func NewDockerComposeServiceDeployer(options DockerComposeServiceDeployerOptions
 // SetUp sets up the service and returns any relevant information.
 func (d *DockerComposeServiceDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (DeployedService, error) {
 	logger.Debug("setting up service using Docker Compose service deployer")
-	composeProjectName := "elastic-package-service"
-	if d.deployIndependentAgent {
-		composeProjectName = fmt.Sprintf("%s-%s", composeProjectName, svcInfo.Test.RunID)
-	}
 	service := dockerComposeDeployedService{
 		ymlPaths: d.ymlPaths,
-		project:  composeProjectName,
+		project:  fmt.Sprintf("elastic-package-service-%s", svcInfo.Test.RunID),
 		variant:  d.variant,
 		env: []string{
 			fmt.Sprintf("%s=%s", serviceLogsDirEnv, svcInfo.Logs.Folder.Local),
