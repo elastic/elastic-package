@@ -190,7 +190,7 @@ while read -r i ; do
       --cluster-identifier "${identifier}" \
       --skip-final-cluster-snapshot \
       --output json \
-      --query "Clusters[*].{ClusterStatus:ClusterStatus,ClusterIdentifier:ClusterIdentifier}" ; then
+      --query "Cluster.{ClusterStatus:ClusterStatus,ClusterIdentifier:ClusterIdentifier}" ; then
 
         echo "Failed delete-cluster"
         buildkite-agent annotate \
