@@ -2,10 +2,24 @@
 
 source .buildkite/scripts/install_deps.sh
 
+cleanup_cloud_stale() {
+    local exit_code=$?
+
+    cd "$WORKSPACE"
+    rm -f "${AWS_RESOURCES_FILE}"
+    rm -f "${GCP_RESOURCES_FILE}"
+    rm -f "${AWS_REDSHIFT_RESOURCES_FILE}"
+
+    exit "$exit_code"
+}
+
+trap cleanup_cloud_stale EXIT
+
 set -euo pipefail
 
 AWS_RESOURCES_FILE="aws.resources.txt"
 GCP_RESOURCES_FILE="gcp.resources.txt"
+AWS_REDSHIFT_RESOURCES_FILE="redshift_clusters.json"
 
 RESOURCE_RETENTION_PERIOD="${RESOURCE_RETENTION_PERIOD:-"24 hours"}"
 DELETE_RESOURCES_BEFORE_DATE=$(date -Is -d "${RESOURCE_RETENTION_PERIOD} ago")
@@ -19,7 +33,9 @@ resources_to_delete=0
 
 COMMAND="validate"
 if [[ "${DRY_RUN}" != "true" ]]; then
-    COMMAND="plan" # TODO: to be changed to "destroy --confirm"
+    # TODO: to be changed to "destroy --confirm" once it can be tested
+    # that filters work as expected
+    COMMAND="plan"
 else
     COMMAND="plan"
 fi
@@ -126,9 +142,9 @@ export AWS_PAGER=""
 echo "--- Checking if any Redshift cluster still created"
 aws redshift describe-clusters \
     --tag-keys "environment" \
-    --tag-values "ci" > redshift_clusters.json
+    --tag-values "ci" > "${AWS_REDSHIFT_RESOURCES_FILE}"
 
-clusters_num=$(jq -rc '.Clusters | length' redshift_clusters.json)
+clusters_num=$(jq -rc '.Clusters | length' "${AWS_REDSHIFT_RESOURCES_FILE}")
 
 echo "Number of clusters found: ${clusters_num}"
 
@@ -172,7 +188,9 @@ while read -r i ; do
     echo "Deleting: $identifier. It was created > ${RESOURCE_RETENTION_PERIOD} ago"
     if ! aws redshift delete-cluster \
       --cluster-identifier "${identifier}" \
-      --skip-final-cluster-snapshot ; then
+      --skip-final-cluster-snapshot \
+      --output json \
+      --query "Clusters[*].{ClusterStatus:ClusterStatus,ClusterIdentifier:ClusterIdentifier}" ; then
 
         echo "Failed delete-cluster"
         buildkite-agent annotate \
@@ -189,7 +207,7 @@ while read -r i ; do
             --context "ctx-aws-readshift-deleted-${identifier}" \
             --style "success"
     fi
-done <<< "$(jq -c '.Clusters[]' redshift_clusters.json)"
+done <<< "$(jq -c '.Clusters[]' "${AWS_REDSHIFT_RESOURCES_FILE}")"
 
 if [ "${redshift_clusters_to_delete}" -eq 1 ]; then
     resources_to_delete=1
