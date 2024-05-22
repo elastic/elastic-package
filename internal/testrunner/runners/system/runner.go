@@ -988,17 +988,25 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 
 	// Delete old data
 	logger.Debug("deleting old data in data stream...")
+
+	// Input packages can set `data_stream.dataset` by convention to customize the dataset.
+	dataStreamDataset := ds.Inputs[0].Streams[0].DataStream.Dataset
+	if scenario.pkgManifest.Type == "input" {
+		v, _ := config.Vars.GetValue("data_stream.dataset")
+		if dataset, ok := v.(string); ok && dataset != "" {
+			dataStreamDataset = dataset
+		}
+	}
 	scenario.dataStream = fmt.Sprintf(
 		"%s-%s-%s",
 		ds.Inputs[0].Streams[0].DataStream.Type,
-		ds.Inputs[0].Streams[0].DataStream.Dataset,
+		dataStreamDataset,
 		ds.Namespace,
 	)
-
 	componentTemplatePackage := fmt.Sprintf(
 		"%s-%s@package",
 		ds.Inputs[0].Streams[0].DataStream.Type,
-		ds.Inputs[0].Streams[0].DataStream.Dataset,
+		dataStreamDataset,
 	)
 
 	r.wipeDataStreamHandler = func(ctx context.Context) error {
@@ -1431,6 +1439,12 @@ func (r *runner) validateTestScenario(ctx context.Context, result *testrunner.Re
 		}
 		expectedDatasets = []string{expectedDataset}
 	}
+	if scenario.pkgManifest.Type == "input" {
+		v, _ := config.Vars.GetValue("data_stream.dataset")
+		if dataset, ok := v.(string); ok && dataset != "" {
+			expectedDatasets = append(expectedDatasets, dataset)
+		}
+	}
 
 	fieldsValidator, err := fields.CreateValidatorForDirectory(r.dataStreamPath,
 		fields.WithSpecVersion(scenario.pkgManifest.SpecVersion),
@@ -1652,8 +1666,14 @@ func createInputPackageDatastream(
 	// Add policyTemplate-level vars.
 	vars := setKibanaVariables(policyTemplate.Vars, config.Vars)
 	if _, found := vars["data_stream.dataset"]; !found {
+		dataStreamDataset := dataset
+		v, _ := config.Vars.GetValue("data_stream.dataset")
+		if dataset, ok := v.(string); ok && dataset != "" {
+			dataStreamDataset = dataset
+		}
+
 		var value packages.VarValue
-		value.Unpack(dataset)
+		value.Unpack(dataStreamDataset)
 		vars["data_stream.dataset"] = kibana.Var{
 			Value: value,
 			Type:  "text",
