@@ -570,6 +570,11 @@ These tests allow you to test a package's ability to ingest data end-to-end.
 
 For details on how to configure amd run system tests, review the [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/system_testing.md).
 
+#### Policy Tests
+These tests allow you to test different configuration options and the policies they generate, without needing to run a full scenario.
+
+For details on how to configure amd run policy tests, review the [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/policy_testing.md).
+
 ### `elastic-package test asset`
 
 _Context: package_
