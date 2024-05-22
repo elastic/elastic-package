@@ -7,6 +7,8 @@ env:
   K8S_VERSION: 'v1.29.0'
   LINUX_AGENT_IMAGE: "golang:${GO_VERSION}"
   GH_CLI_VERSION: "2.29.0"
+  IMAGE_UBUNTU_X86_64: "family/core-ubuntu-2204"
+
   # Elastic package settings
   # Manage docker output/logs
   ELASTIC_PACKAGE_COMPOSE_DISABLE_VERBOSE_OUTPUT: "true"
@@ -36,6 +38,7 @@ steps:
     command: ".buildkite/scripts/test_packages_with_serverless.sh"
     agents:
       provider: "gcp"
+      image: "${IMAGE_UBUNTU_X86_64}"
     env:
       SERVERLESS_PROJECT: "${SERVERLESS_PROJECT:-observability}"
       UPLOAD_SAFE_LOGS: 1

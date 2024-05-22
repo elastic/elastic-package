@@ -976,7 +976,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	scenario.startTestTime = time.Now()
 
 	logger.Debug("adding package data stream to test policy...")
-	ds := createPackageDatastream(*policyToTest, *scenario.pkgManifest, policyTemplate, *scenario.dataStreamManifest, *config)
+	ds := createPackageDatastream(*policyToTest, *scenario.pkgManifest, policyTemplate, *scenario.dataStreamManifest, *config, svcInfo.Test.RunID)
 	if r.options.RunTearDown || r.options.RunTestsOnly {
 		logger.Debug("Skip adding data stream config to policy")
 	} else {
@@ -988,17 +988,25 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 
 	// Delete old data
 	logger.Debug("deleting old data in data stream...")
+
+	// Input packages can set `data_stream.dataset` by convention to customize the dataset.
+	dataStreamDataset := ds.Inputs[0].Streams[0].DataStream.Dataset
+	if scenario.pkgManifest.Type == "input" {
+		v, _ := config.Vars.GetValue("data_stream.dataset")
+		if dataset, ok := v.(string); ok && dataset != "" {
+			dataStreamDataset = dataset
+		}
+	}
 	scenario.dataStream = fmt.Sprintf(
 		"%s-%s-%s",
 		ds.Inputs[0].Streams[0].DataStream.Type,
-		ds.Inputs[0].Streams[0].DataStream.Dataset,
+		dataStreamDataset,
 		ds.Namespace,
 	)
-
 	componentTemplatePackage := fmt.Sprintf(
 		"%s-%s@package",
 		ds.Inputs[0].Streams[0].DataStream.Type,
-		ds.Inputs[0].Streams[0].DataStream.Dataset,
+		dataStreamDataset,
 	)
 
 	r.wipeDataStreamHandler = func(ctx context.Context) error {
@@ -1431,6 +1439,12 @@ func (r *runner) validateTestScenario(ctx context.Context, result *testrunner.Re
 		}
 		expectedDatasets = []string{expectedDataset}
 	}
+	if scenario.pkgManifest.Type == "input" {
+		v, _ := config.Vars.GetValue("data_stream.dataset")
+		if dataset, ok := v.(string); ok && dataset != "" {
+			expectedDatasets = append(expectedDatasets, dataset)
+		}
+	}
 
 	fieldsValidator, err := fields.CreateValidatorForDirectory(r.dataStreamPath,
 		fields.WithSpecVersion(scenario.pkgManifest.SpecVersion),
@@ -1547,11 +1561,12 @@ func createPackageDatastream(
 	policyTemplate packages.PolicyTemplate,
 	ds packages.DataStreamManifest,
 	config testConfig,
+	suffix string,
 ) kibana.PackageDataStream {
 	if pkg.Type == "input" {
-		return createInputPackageDatastream(kibanaPolicy, pkg, policyTemplate, config)
+		return createInputPackageDatastream(kibanaPolicy, pkg, policyTemplate, config, suffix)
 	}
-	return createIntegrationPackageDatastream(kibanaPolicy, pkg, policyTemplate, ds, config)
+	return createIntegrationPackageDatastream(kibanaPolicy, pkg, policyTemplate, ds, config, suffix)
 }
 
 func createIntegrationPackageDatastream(
@@ -1560,9 +1575,10 @@ func createIntegrationPackageDatastream(
 	policyTemplate packages.PolicyTemplate,
 	ds packages.DataStreamManifest,
 	config testConfig,
+	suffix string,
 ) kibana.PackageDataStream {
 	r := kibana.PackageDataStream{
-		Name:      fmt.Sprintf("%s-%s", pkg.Name, ds.Name),
+		Name:      fmt.Sprintf("%s-%s-%s", pkg.Name, ds.Name, suffix),
 		Namespace: "ep",
 		PolicyID:  kibanaPolicy.ID,
 		Enabled:   true,
@@ -1613,9 +1629,10 @@ func createInputPackageDatastream(
 	pkg packages.PackageManifest,
 	policyTemplate packages.PolicyTemplate,
 	config testConfig,
+	suffix string,
 ) kibana.PackageDataStream {
 	r := kibana.PackageDataStream{
-		Name:      fmt.Sprintf("%s-%s", pkg.Name, policyTemplate.Name),
+		Name:      fmt.Sprintf("%s-%s-%s", pkg.Name, policyTemplate.Name, suffix),
 		Namespace: "ep",
 		PolicyID:  kibanaPolicy.ID,
 		Enabled:   true,
@@ -1649,8 +1666,14 @@ func createInputPackageDatastream(
 	// Add policyTemplate-level vars.
 	vars := setKibanaVariables(policyTemplate.Vars, config.Vars)
 	if _, found := vars["data_stream.dataset"]; !found {
+		dataStreamDataset := dataset
+		v, _ := config.Vars.GetValue("data_stream.dataset")
+		if dataset, ok := v.(string); ok && dataset != "" {
+			dataStreamDataset = dataset
+		}
+
 		var value packages.VarValue
-		value.Unpack(dataset)
+		value.Unpack(dataStreamDataset)
 		vars["data_stream.dataset"] = kibana.Var{
 			Value: value,
 			Type:  "text",

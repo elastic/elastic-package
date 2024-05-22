@@ -126,7 +126,16 @@ func InspectNetwork(network string) ([]NetworkDescription, error) {
 
 // ConnectToNetwork function connects the container to the selected Docker network.
 func ConnectToNetwork(containerID, network string) error {
-	cmd := exec.Command("docker", "network", "connect", network, containerID)
+	return ConnectToNetworkWithAlias(containerID, network, "")
+}
+
+// ConnectToNetworkWithAlias function connects the container to the selected Docker network.
+func ConnectToNetworkWithAlias(containerID, network, alias string) error {
+	args := []string{"network", "connect", network, containerID}
+	if alias != "" {
+		args = append(args, "--alias", alias)
+	}
+	cmd := exec.Command("docker", args...)
 	errOutput := new(bytes.Buffer)
 	cmd.Stderr = errOutput
 

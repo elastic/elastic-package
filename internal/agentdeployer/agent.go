@@ -122,7 +122,7 @@ func (d *DockerComposeAgentDeployer) SetUp(ctx context.Context, agentInfo AgentI
 		return nil, fmt.Errorf("could not create resources for custom agent: %w", err)
 	}
 
-	composeProjectName := fmt.Sprintf("elastic-package-agent-%s", d.agentName())
+	composeProjectName := fmt.Sprintf("elastic-package-agent-%s-%s", d.agentName(), agentInfo.Test.RunID)
 
 	agent := dockerComposeDeployedAgent{
 		ymlPaths: []string{filepath.Join(configDir, dockerTestAgentDockerCompose)},
