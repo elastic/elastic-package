@@ -53,7 +53,15 @@ func assertExpectedAgentPolicy(ctx context.Context, options testrunner.TestOptio
 		return fmt.Errorf("failed to read expected policy: %w", err)
 	}
 
-	return comparePolicies(expectedPolicy, policy)
+	diff, err := comparePolicies(expectedPolicy, policy)
+	if err != nil {
+		return fmt.Errorf("failed to compare policies: %w", err)
+	}
+	if len(diff) > 0 {
+		return fmt.Errorf("unexpected content in policy: %s", diff)
+	}
+
+	return nil
 }
 
 func downloadPolicy(ctx context.Context, client *kibana.Client, policyID string, expectedRevision int) (kibana.DownloadedPolicy, error) {
@@ -95,19 +103,17 @@ func downloadPolicy(ctx context.Context, client *kibana.Client, policyID string,
 	return policy, nil
 }
 
-// TODO: Refactor to return a explicit diff.
-func comparePolicies(expected, found []byte) error {
+func comparePolicies(expected, found []byte) (string, error) {
 	want, err := cleanPolicy(expected, policyEntryFilters)
 	if err != nil {
-		return fmt.Errorf("failed to prepare expected policy: %w", err)
+		return "", fmt.Errorf("failed to prepare expected policy: %w", err)
 	}
 	got, err := cleanPolicy(found, policyEntryFilters)
 	if err != nil {
-		return fmt.Errorf("failed to prepare found policy: %w", err)
+		return "", fmt.Errorf("failed to prepare found policy: %w", err)
 	}
-
 	if bytes.Equal(want, got) {
-		return nil
+		return "", nil
 	}
 
 	var diff bytes.Buffer
@@ -119,9 +125,9 @@ func comparePolicies(expected, found []byte) error {
 		Context:  1,
 	})
 	if err != nil {
-		return fmt.Errorf("failed to compare policies: %w", err)
+		return "", fmt.Errorf("failed to compare policies: %w", err)
 	}
-	return fmt.Errorf("unexpected content in policy: %s", diff.String())
+	return diff.String(), nil
 }
 
 func expectedPathFor(testPath string) string {
