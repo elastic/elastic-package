@@ -30,7 +30,7 @@ steps:
     command: ".buildkite/scripts/cloud-cleanup.sh"
     env:
       RESOURCE_RETENTION_PERIOD: "24 hours"
-      DRY_RUN: "true"
+      DRY_RUN: "${DRY_RUN:-true}"
     agents:
       provider: "gcp" # this step requires docker
 
