@@ -4,6 +4,7 @@ pipelineid: 'bump-elastic-stack-7x-version'
 
 actions:
   default:
+    title: '[updatecli] Update 7.x snapshot to {{ source "latest7xSnapshot" }}'
     kind: github/pullrequest
     scmid: default
     spec:

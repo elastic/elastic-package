@@ -4,6 +4,7 @@ pipelineid: 'bump-elastic-stack-default-version'
 
 actions:
   default:
+    title: '[updatecli] Update default stack version to {{ source "latest8xVersion" }}'
     kind: github/pullrequest
     scmid: default
     spec:

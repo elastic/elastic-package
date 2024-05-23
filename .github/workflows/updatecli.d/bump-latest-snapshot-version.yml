@@ -4,6 +4,7 @@ pipelineid: 'bump-latest-elastic-stack-version'
 
 actions:
   default:
+    title: '[updatecli] Update latest snapshot to {{ source "latestSnapshot" }}'
     kind: github/pullrequest
     scmid: default
     spec:
