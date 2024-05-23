@@ -135,7 +135,6 @@ func ConnectToNetworkWithAlias(containerID, network string, aliases []string) er
 	if len(aliases) > 0 {
 		for _, alias := range aliases {
 			args = append(args, "--alias", alias)
-
 		}
 	}
 	cmd := exec.Command("docker", args...)
