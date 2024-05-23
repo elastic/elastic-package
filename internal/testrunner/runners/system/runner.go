@@ -1102,6 +1102,10 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		if err := r.options.KibanaClient.AssignPolicyToAgent(ctx, agent, origPolicy); err != nil {
 			return fmt.Errorf("error reassigning original policy to agent: %w", err)
 		}
+		if r.options.RunTestsOnly {
+			// Clean up policies created
+			return r.options.KibanaClient.DeletePolicy(ctx, policyToTest.ID)
+		}
 		return nil
 	}
 
