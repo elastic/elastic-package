@@ -278,7 +278,14 @@ func (r *runner) Run(ctx context.Context, options testrunner.TestOptions) ([]tes
 		if err != nil {
 			return result.WithError(fmt.Errorf("failed to prepare scenario: %w", err))
 		}
-		return r.validateTestScenario(ctx, result, scenario, testConfig)
+		results, err := r.validateTestScenario(ctx, result, scenario, testConfig)
+		// run re-assign policy
+		tdErr := r.resetAgentPolicyHandler(ctx)
+		if tdErr != nil {
+			logger.Errorf("failed to reassign policy: %s", tdErr)
+		}
+		return results, err
+
 	}
 
 	if r.options.RunTearDown {
@@ -1076,7 +1083,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		return nil
 	}
 
-	if r.options.RunTearDown || r.options.RunTestsOnly {
+	if r.options.RunTearDown {
 		origPolicy = serviceStateData.OrigPolicy
 		logger.Debugf("Got orig policy from file: %q - %q", origPolicy.Name, origPolicy.ID)
 	} else {
@@ -1088,7 +1095,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	}
 	// Assign policy to agent
 	r.resetAgentPolicyHandler = func(ctx context.Context) error {
-		if r.options.RunIndependentElasticAgent {
+		if r.options.RunIndependentElasticAgent && !r.options.RunTestsOnly {
 			return nil
 		}
 		logger.Debug("reassigning original policy back to agent...")
