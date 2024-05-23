@@ -28,4 +28,4 @@ jobs:
         # --experimental needed for commitusingapi option.
         run: updatecli --experimental apply --config .github/workflows/updatecli.d/bump-elastic-stack-version.yml --values .github/workflows/updatecli.d/scm.yml
         env:
-          GITHUB_TOKEN: ${{ secrets.ECOSYSTEM_USER_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
