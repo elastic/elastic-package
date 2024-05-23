@@ -4,7 +4,7 @@ name: Update versions of Elastic Stack dependencies
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 15 * * 1-5'
+    - cron: '0 1 * * 1-5'
 
 permissions:
   contents: read
