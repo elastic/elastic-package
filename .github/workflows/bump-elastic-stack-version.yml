@@ -26,6 +26,6 @@ jobs:
       - name: Run Updatecli in Apply mode
         # TODO: Change from diff to apply.
         # --experimental needed for commitusingapi option.
-        run: updatecli --experimental diff --config .github/workflows/updatecli.d/bump-elastic-stack-version.yml --values .github/workflows/updatecli.d/scm.yml
+        run: updatecli --experimental apply --config .github/workflows/updatecli.d/bump-elastic-stack-version.yml --values .github/workflows/updatecli.d/scm.yml
         env:
           GITHUB_TOKEN: ${{ secrets.ECOSYSTEM_USER_TOKEN }}
