@@ -24,6 +24,7 @@ jobs:
         uses: updatecli/updatecli-action@9a37c7e35598d7b37d8e7568b40ed9538112be01 # v0.76.1
 
       - name: Run Updatecli in Apply mode
-        run: updatecli --experimental apply --config .github/workflows/updatecli.d/bump-elastic-stack-version.yml --values .github/workflows/updatecli.d/scm.yml
+        # TODO: Change from diff to apply.
+        run: updatecli diff --config .github/workflows/updatecli.d/bump-elastic-stack-version.yml --values .github/workflows/updatecli.d/scm.yml
         env:
           GITHUB_TOKEN: ${{ secrets.ECOSYSTEM_USER_TOKEN }}
