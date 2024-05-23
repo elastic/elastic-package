@@ -971,13 +971,33 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		}
 	}
 
+	testTime := time.Now().Format("20060102T15:04:05Z")
+
+	policyTesting := kibana.Policy{
+		Name:        fmt.Sprintf("ep-one-test-system-%s-%s-%s", r.options.TestFolder.Package, r.options.TestFolder.DataStream, testTime),
+		Description: fmt.Sprintf("test policy created by elastic-package test system for data stream %s/%s", r.options.TestFolder.Package, r.options.TestFolder.DataStream),
+		Namespace:   createTestRunID(),
+	}
+	var policyForTesting *kibana.Policy
+	if r.options.RunTestsOnly {
+		policyForTesting, err = r.options.KibanaClient.CreatePolicy(ctx, policyTesting)
+		if err != nil {
+			return nil, fmt.Errorf("could not create test policy: %w", err)
+		}
+		policyToTest = policyForTesting
+	}
+
 	// store the time just before adding the Test Policy, this time will be used to check
 	// the agent logs from that time onwards to avoid possible previous errors present in logs
 	scenario.startTestTime = time.Now()
 
 	logger.Debug("adding package data stream to test policy...")
-	ds := createPackageDatastream(*policyToTest, *scenario.pkgManifest, policyTemplate, *scenario.dataStreamManifest, *config, svcInfo.Test.RunID)
-	if r.options.RunTearDown || r.options.RunTestsOnly {
+	suffixDatastream := svcInfo.Test.RunID
+	if r.options.RunTestsOnly {
+		suffixDatastream = policyTesting.Namespace
+	}
+	ds := createPackageDatastream(*policyToTest, *scenario.pkgManifest, policyTemplate, *scenario.dataStreamManifest, *config, suffixDatastream)
+	if r.options.RunTearDown {
 		logger.Debug("Skip adding data stream config to policy")
 	} else {
 		if err := r.options.KibanaClient.AddPackageDataStreamToPolicy(ctx, ds); err != nil {
@@ -1100,7 +1120,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		return nil
 	}
 
-	if r.options.RunTearDown || r.options.RunTestsOnly {
+	if r.options.RunTearDown {
 		logger.Debug("Skip assiging package data stream to agent")
 	} else {
 		policyWithDataStream, err := r.options.KibanaClient.GetPolicy(ctx, policyToTest.ID)
@@ -1579,7 +1599,7 @@ func createIntegrationPackageDatastream(
 ) kibana.PackageDataStream {
 	r := kibana.PackageDataStream{
 		Name:      fmt.Sprintf("%s-%s-%s", pkg.Name, ds.Name, suffix),
-		Namespace: "ep",
+		Namespace: kibanaPolicy.Namespace,
 		PolicyID:  kibanaPolicy.ID,
 		Enabled:   true,
 		Inputs: []kibana.Input{
@@ -1633,7 +1653,7 @@ func createInputPackageDatastream(
 ) kibana.PackageDataStream {
 	r := kibana.PackageDataStream{
 		Name:      fmt.Sprintf("%s-%s-%s", pkg.Name, policyTemplate.Name, suffix),
-		Namespace: "ep",
+		Namespace: kibanaPolicy.Namespace,
 		PolicyID:  kibanaPolicy.ID,
 		Enabled:   true,
 	}
