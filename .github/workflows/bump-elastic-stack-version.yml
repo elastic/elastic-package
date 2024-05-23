@@ -1,5 +1,5 @@
 ---
-name: bump-elastic-stack-version
+name: Update versions of Elastic Stack dependencies
 
 on:
   workflow_dispatch:
@@ -21,10 +21,11 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install Updatecli in the runner
-        uses: updatecli/updatecli-action@9a37c7e35598d7b37d8e7568b40ed9538112be01 # v0.76.1
+        uses: updatecli/updatecli-action@v2.58.0 # v0.77.0
 
       - name: Run Updatecli in Apply mode
         # TODO: Change from diff to apply.
-        run: updatecli diff --config .github/workflows/updatecli.d/bump-elastic-stack-version.yml --values .github/workflows/updatecli.d/scm.yml
+        # --experimental needed for commitusingapi option.
+        run: updatecli --experimental diff --config .github/workflows/updatecli.d/bump-elastic-stack-version.yml --values .github/workflows/updatecli.d/scm.yml
         env:
           GITHUB_TOKEN: ${{ secrets.ECOSYSTEM_USER_TOKEN }}
