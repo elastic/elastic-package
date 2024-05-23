@@ -15,7 +15,6 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
-    needs: [filter]
     strategy:
       fail-fast: false
     steps:

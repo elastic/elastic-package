@@ -11,9 +11,6 @@ actions:
       labels:
         - automation
         - dependency
-        - backport-skip
-        - build-monitoring
-        - Team:Beats-On-Call
 
 scms:
   default:
