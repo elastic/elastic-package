@@ -1,0 +1,94 @@
+---
+name: Bump elastic-stack versions
+pipelineid: 'bump-elastic-stack-version'
+
+actions:
+  default:
+    title: '[updatecli] update elastic stack version for testing {{ source "latestVersion" }}'
+    kind: github/pullrequest
+    scmid: default
+    spec:
+      labels:
+        - automation
+        - dependency
+        - backport-skip
+        - build-monitoring
+        - Team:Beats-On-Call
+
+scms:
+  default:
+    kind: github
+    spec:
+      owner: '{{ .scm.owner }}'
+      repository: '{{ .scm.repository }}'
+      user: '{{ requiredEnv "GITHUB_ACTOR" }}'
+      token: '{{ requiredEnv "GITHUB_TOKEN" }}'
+      commitusingapi: true
+
+sources:
+  latestSnapshot:
+    name: Get latest snapshot build
+    kind: json
+    spec:
+      file: https://storage.googleapis.com/artifacts-api/snapshots/main.json
+      key: .build_id
+  latest7xSnapshot:
+    name: Get latest 7.x snapshot build
+    kind: json
+    spec:
+      file: https://storage.googleapis.com/artifacts-api/snapshots/7.17.json
+      key: .build_id
+  latest8xVersion:
+    name: Get latest 8.x version
+    kind: file
+    transformers:
+      # Get only the version to avoid spaces and newlines.
+      - findsubmatch:
+          pattern: '([0-9\.]+)'
+          captureindex: 1
+    spec:
+      file: https://storage.googleapis.com/artifacts-api/releases/current/8
+  latestRegistryVersion:
+    name: Get latest Package Registry version
+    kind: json
+    spec:
+      file: https://api.github.com/repos/elastic/package-registry/releases/latest
+      key: .tag_name
+
+targets:
+  update-snapshot:
+    name: "Update snapshot"
+    kind: file
+    sourceid: latestSnapshot
+    scmid: default
+    spec:
+      file: Makefile
+      matchpattern: '(./scripts/test-stack-command.sh) 8\.[^\s]+-SNAPSHOT'
+      replacepattern: '$1 {{ source "latestSnapshot" }}-SNAPSHOT'
+  update-7x-version:
+    name: "Update 7.x version"
+    kind: file
+    sourceid: latest7xSnapshot
+    scmid: default
+    spec:
+      file: Makefile
+      matchpattern: '(./scripts/test-stack-command.sh) 7\.17\.[^\s]*'
+      replacepattern: '$1 {{ source "latest7xSnapshot" }}-SNAPSHOT'
+  update-default-version:
+    name: "Update default version"
+    kind: file
+    sourceid: latest8xVersion
+    scmid: default
+    spec:
+      file: internal/install/stack_version.go
+      matchpattern: '(DefaultStackVersion =) "[^"]+"'
+      replacepattern: '$1 "{{ source "latest8xVersion" }}"'
+  update-package-registry-base-image:
+    name: "Update Package Registry base image"
+    kind: file
+    sourceid: latestRegistryVersion
+    scmid: default
+    spec:
+      file: internal/stack/resources.go
+      matchpattern: '"(docker.elastic.co/package-registry/package-registry):v[0-9\.]+"'
+      replacepattern: '"$1:{{ source "latestRegistryVersion" }}"'

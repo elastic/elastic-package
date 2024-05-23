@@ -1,0 +1,30 @@
+---
+name: bump-elastic-stack-version
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 15 * * 1-5'
+
+permissions:
+  contents: read
+
+jobs:
+  bump-elastic-stack:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    needs: [filter]
+    strategy:
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Updatecli in the runner
+        uses: updatecli/updatecli-action@9a37c7e35598d7b37d8e7568b40ed9538112be01 # v0.76.1
+
+      - name: Run Updatecli in Apply mode
+        run: updatecli --experimental apply --config .github/workflows/updatecli.d/bump-elastic-stack-version.yml --values .github/workflows/updatecli.d/scm.yml
+        env:
+          GITHUB_TOKEN: ${{ secrets.ECOSYSTEM_USER_TOKEN }}
