@@ -1960,6 +1960,7 @@ func filterAgents(allAgents []kibana.Agent, svcInfo servicedeployer.ServiceInfo)
 	var filtered []kibana.Agent
 	for _, agent := range allAgents {
 		if agent.PolicyRevision == 0 {
+			logger.Debugf("Found agent with policy revision %d: %s", agent.PolicyRevision, agent.LocalMetadata.Host.Name)
 			continue // For some reason Kibana doesn't always return a valid policy revision (eventually it will be present and valid)
 		}
 
