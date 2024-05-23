@@ -1102,9 +1102,21 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		if err := r.options.KibanaClient.AssignPolicyToAgent(ctx, agent, origPolicy); err != nil {
 			return fmt.Errorf("error reassigning original policy to agent: %w", err)
 		}
-		if r.options.RunTestsOnly {
-			// Clean up policies created
-			return r.options.KibanaClient.DeletePolicy(ctx, policyToTest.ID)
+		if !r.options.RunTestsOnly {
+			return nil
+		}
+
+		logger.Debug("Deleting test policy...")
+		err = r.options.KibanaClient.DeletePolicy(ctx, policyToTest.ID)
+		if err != nil {
+			return fmt.Errorf("failed to delete policy %s: %w", policyToTest.Name, err)
+		}
+		logger.Debug("Deleting data stream for testing")
+		_, err := r.options.API.Indices.DeleteDataStream([]string{scenario.dataStream},
+			r.options.API.Indices.DeleteDataStream.WithContext(ctx),
+		)
+		if err != nil {
+			return fmt.Errorf("failed to delete data stream %s: %w", scenario.dataStream, err)
 		}
 		return nil
 	}
