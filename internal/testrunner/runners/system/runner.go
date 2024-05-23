@@ -1956,6 +1956,7 @@ func filterAgents(allAgents []kibana.Agent, svcInfo servicedeployer.ServiceInfo)
 		logger.Debugf("filter agents using criteria: NamePrefix=%s", svcInfo.Agent.Host.NamePrefix)
 	}
 
+	logger.Debugf("Number of available agents found (before filtering): %d", len(allAgents))
 	var filtered []kibana.Agent
 	for _, agent := range allAgents {
 		if agent.PolicyRevision == 0 {
