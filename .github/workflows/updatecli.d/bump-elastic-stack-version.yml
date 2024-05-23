@@ -54,7 +54,7 @@ sources:
 
 targets:
   update-snapshot:
-    name: 'Update latest snapshot to {{ source "latestSnapshot" }}'
+    name: '[updatecli] Update latest snapshot to {{ source "latestSnapshot" }}'
     kind: file
     sourceid: latestSnapshot
     scmid: default
@@ -63,8 +63,7 @@ targets:
       matchpattern: '(./scripts/test-stack-command.sh) 8\.[^\s]+-SNAPSHOT'
       replacepattern: '$1 {{ source "latestSnapshot" }}-SNAPSHOT'
   update-7x-version:
-    name: "Update 7.x version"
-    title: '[updatecli] Update 7.x snapshot to {{ source "latest7xSnapshot" }}'
+    name: '[updatecli] Update 7.x snapshot to {{ source "latest7xSnapshot" }}'
     kind: file
     sourceid: latest7xSnapshot
     scmid: default
@@ -73,8 +72,7 @@ targets:
       matchpattern: '(./scripts/test-stack-command.sh) 7\.17\.[^\s]*'
       replacepattern: '$1 {{ source "latest7xSnapshot" }}-SNAPSHOT'
   update-default-version:
-    name: "Update default version"
-    title: '[updatecli] Update default stack version to {{ source "latest8xVersion" }}'
+    name: '[updatecli] Update default stack version to {{ source "latest8xVersion" }}'
     kind: file
     sourceid: latest8xVersion
     scmid: default
@@ -83,8 +81,7 @@ targets:
       matchpattern: '(DefaultStackVersion =) "[^"]+"'
       replacepattern: '$1 "{{ source "latest8xVersion" }}"'
   update-package-registry-base-image:
-    name: "Update Package Registry base image"
-    title: '[updatecli] Update Package Registry base image to {{ source "latestRegistryVersion" }}'
+    name: '[updatecli] Update Package Registry base image to {{ source "latestRegistryVersion" }}'
     kind: file
     sourceid: latestRegistryVersion
     scmid: default
