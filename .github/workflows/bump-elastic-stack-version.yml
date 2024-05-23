@@ -23,9 +23,26 @@ jobs:
       - name: Install Updatecli in the runner
         uses: updatecli/updatecli-action@v2.58.0 # v0.77.0
 
-      - name: Run Updatecli in Apply mode
-        # TODO: Change from diff to apply.
+      - name: Update default stack version
         # --experimental needed for commitusingapi option.
         run: updatecli --experimental apply --config .github/workflows/updatecli.d/bump-elastic-stack-version.yml --values .github/workflows/updatecli.d/scm.yml
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update latest testing 7.x stack version
+        # --experimental needed for commitusingapi option.
+        run: updatecli --experimental apply --config .github/workflows/updatecli.d/bump-latest-7x-version.yml --values .github/workflows/updatecli.d/scm.yml
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update latest testing stack version
+        # --experimental needed for commitusingapi option.
+        run: updatecli --experimental apply --config .github/workflows/updatecli.d/bump-latest-snapshot-version.yml --values .github/workflows/updatecli.d/scm.yml
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update Package Registry version
+        # --experimental needed for commitusingapi option.
+        run: updatecli --experimental apply --config .github/workflows/updatecli.d/bump-package-registry-version.yml --values .github/workflows/updatecli.d/scm.yml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

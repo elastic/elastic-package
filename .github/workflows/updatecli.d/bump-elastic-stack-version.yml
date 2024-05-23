@@ -1,6 +1,6 @@
 ---
-name: Bump elastic-stack versions
-pipelineid: 'bump-elastic-stack-version'
+name: Bump elastic-stack default version
+pipelineid: 'bump-elastic-stack-default-version'
 
 actions:
   default:
@@ -23,18 +23,6 @@ scms:
       branch: main
 
 sources:
-  latestSnapshot:
-    name: Get latest snapshot build
-    kind: json
-    spec:
-      file: https://storage.googleapis.com/artifacts-api/snapshots/main.json
-      key: .build_id
-  latest7xSnapshot:
-    name: Get latest 7.x snapshot build
-    kind: json
-    spec:
-      file: https://storage.googleapis.com/artifacts-api/snapshots/7.17.json
-      key: .build_id
   latest8xVersion:
     name: Get latest 8.x version
     kind: file
@@ -45,32 +33,8 @@ sources:
           captureindex: 1
     spec:
       file: https://storage.googleapis.com/artifacts-api/releases/current/8
-  latestRegistryVersion:
-    name: Get latest Package Registry version
-    kind: json
-    spec:
-      file: https://api.github.com/repos/elastic/package-registry/releases/latest
-      key: .tag_name
 
 targets:
-  update-snapshot:
-    name: '[updatecli] Update latest snapshot to {{ source "latestSnapshot" }}'
-    kind: file
-    sourceid: latestSnapshot
-    scmid: default
-    spec:
-      file: Makefile
-      matchpattern: '(./scripts/test-stack-command.sh) 8\.[^\s]+-SNAPSHOT'
-      replacepattern: '$1 {{ source "latestSnapshot" }}-SNAPSHOT'
-  update-7x-version:
-    name: '[updatecli] Update 7.x snapshot to {{ source "latest7xSnapshot" }}'
-    kind: file
-    sourceid: latest7xSnapshot
-    scmid: default
-    spec:
-      file: Makefile
-      matchpattern: '(./scripts/test-stack-command.sh) 7\.17\.[^\s]*'
-      replacepattern: '$1 {{ source "latest7xSnapshot" }}-SNAPSHOT'
   update-default-version:
     name: '[updatecli] Update default stack version to {{ source "latest8xVersion" }}'
     kind: file
@@ -80,12 +44,3 @@ targets:
       file: internal/install/stack_version.go
       matchpattern: '(DefaultStackVersion =) "[^"]+"'
       replacepattern: '$1 "{{ source "latest8xVersion" }}"'
-  update-package-registry-base-image:
-    name: '[updatecli] Update Package Registry base image to {{ source "latestRegistryVersion" }}'
-    kind: file
-    sourceid: latestRegistryVersion
-    scmid: default
-    spec:
-      file: internal/stack/resources.go
-      matchpattern: '"(docker.elastic.co/package-registry/package-registry):v[0-9\.]+"'
-      replacepattern: '"$1:{{ source "latestRegistryVersion" }}"'
