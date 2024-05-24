@@ -13,19 +13,16 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-	"time"
 
 	"github.com/pmezard/go-difflib/difflib"
 	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/common"
-	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/testrunner"
-	"github.com/elastic/elastic-package/internal/wait"
 )
 
 func dumpExpectedAgentPolicy(ctx context.Context, options testrunner.TestOptions, testPath string, policyID string, expectedRevision int) error {
-	policy, err := downloadPolicy(ctx, options.KibanaClient, policyID, expectedRevision)
+	policy, err := options.KibanaClient.DownloadPolicy(ctx, policyID)
 	if err != nil {
 		return fmt.Errorf("failed to download policy %q: %w", policyID, err)
 	}
@@ -44,7 +41,7 @@ func dumpExpectedAgentPolicy(ctx context.Context, options testrunner.TestOptions
 }
 
 func assertExpectedAgentPolicy(ctx context.Context, options testrunner.TestOptions, testPath string, policyID string, expectedRevision int) error {
-	policy, err := downloadPolicy(ctx, options.KibanaClient, policyID, expectedRevision)
+	policy, err := options.KibanaClient.DownloadPolicy(ctx, policyID)
 	if err != nil {
 		return fmt.Errorf("failed to download policy %q: %w", policyID, err)
 	}
@@ -62,45 +59,6 @@ func assertExpectedAgentPolicy(ctx context.Context, options testrunner.TestOptio
 	}
 
 	return nil
-}
-
-func downloadPolicy(ctx context.Context, client *kibana.Client, policyID string, expectedRevision int) (kibana.DownloadedPolicy, error) {
-	// This wait is needed because we have seen cases where the policy doesn't have the
-	// expected content inmediately after creating it, or where the policy does not have
-	// the revision with the attached package policy some time after having it.
-	// The latter seems to happen if Fleet reverts the policy after some internal failure,
-	// what can apparently happen in some cases even after returning a 200 when creating
-	// the package policy.
-	var policy kibana.DownloadedPolicy
-	const (
-		waitPeriod  = 1 * time.Second
-		waitTimeout = 15 * time.Second
-	)
-	_, err := wait.UntilTrue(ctx, func(ctx context.Context) (bool, error) {
-		d, err := client.DownloadPolicy(ctx, policyID)
-		if err != nil {
-			return false, err
-		}
-		var p struct {
-			Revision int `yaml:"revision"`
-		}
-		err = yaml.Unmarshal(d, &p)
-		if err != nil {
-			return false, err
-		}
-		if p.Revision >= expectedRevision {
-			policy = d
-			return true, nil
-		}
-		return false, nil
-	}, waitPeriod, waitTimeout)
-	if err != nil {
-		return nil, fmt.Errorf("could not wait for expected revision: %w", err)
-	}
-	if policy == nil {
-		return nil, fmt.Errorf("no policy found after waiting for revision %d", expectedRevision)
-	}
-	return policy, nil
 }
 
 func comparePolicies(expected, found []byte) (string, error) {
