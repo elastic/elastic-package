@@ -8,9 +8,6 @@ inputs:
       streams:
         - data_stream:
             dataset: sql_input.sql_query
-            elasticsearch:
-                dynamic_dataset: true
-                dynamic_namespace: true
             type: metrics
           driver: mysql
           hosts:
