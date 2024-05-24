@@ -828,6 +828,37 @@ type scenarioTest struct {
 	startTestTime      time.Time
 }
 
+func (r *runner) shouldCreateNewAgentPolicyForTest() bool {
+	if r.options.RunTestsOnly {
+		// always that --no-provision is set, it should create new Agent Policies.
+		return true
+	}
+	if !r.options.RunIndependentElasticAgent {
+		// keep same behaviour as previously when Elastic Agent of the stack is used.
+		return false
+
+	}
+	// No need to create new Agent Policies for these stages
+	if r.options.RunSetup || r.options.RunTearDown {
+		return false
+	}
+	return true
+}
+
+func (r *runner) deleteDataStream(ctx context.Context, dataStream string) error {
+	resp, err := r.options.API.Indices.DeleteDataStream([]string{dataStream},
+		r.options.API.Indices.DeleteDataStream.WithContext(ctx),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to delete data stream %s: %w", dataStream, err)
+	}
+	defer resp.Body.Close()
+	if resp.IsError() {
+		return fmt.Errorf("could not get delete data stream %s: %s", dataStream, resp.String())
+	}
+	return nil
+}
+
 func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInfo servicedeployer.ServiceInfo) (*scenarioTest, error) {
 	serviceOptions := r.createServiceOptions(config.ServiceVariantName)
 
@@ -978,32 +1009,26 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		}
 	}
 
-	testTime := time.Now().Format("20060102T15:04:05Z")
-
-	policyTesting := kibana.Policy{
-		Name:        fmt.Sprintf("ep-one-test-system-%s-%s-%s", r.options.TestFolder.Package, r.options.TestFolder.DataStream, testTime),
-		Description: fmt.Sprintf("test policy created by elastic-package test system for data stream %s/%s", r.options.TestFolder.Package, r.options.TestFolder.DataStream),
-		Namespace:   createTestRunID(),
-	}
-	var policyForTesting *kibana.Policy
-	if r.options.RunTestsOnly {
-		policyForTesting, err = r.options.KibanaClient.CreatePolicy(ctx, policyTesting)
-		if err != nil {
-			return nil, fmt.Errorf("could not create test policy: %w", err)
-		}
-		policyToTest = policyForTesting
-	}
-
 	// store the time just before adding the Test Policy, this time will be used to check
 	// the agent logs from that time onwards to avoid possible previous errors present in logs
 	scenario.startTestTime = time.Now()
+	suffixDatastream := svcInfo.Test.RunID
 
 	logger.Debug("adding package data stream to test policy...")
-	suffixDatastream := svcInfo.Test.RunID
-	if r.options.RunTestsOnly {
+	policyTesting := kibana.Policy{
+		Name:        fmt.Sprintf("ep-one-test-system-%s-%s-%s", r.options.TestFolder.Package, r.options.TestFolder.DataStream, scenario.startTestTime.Format("20060102T15:04:05Z")),
+		Description: fmt.Sprintf("test policy created by elastic-package test system for data stream %s/%s", r.options.TestFolder.Package, r.options.TestFolder.DataStream),
+		Namespace:   createTestRunID(),
+	}
+	policyToAssignDatastreamTests := policyToTest
+	if r.shouldCreateNewAgentPolicyForTest() {
+		policyToAssignDatastreamTests, err = r.options.KibanaClient.CreatePolicy(ctx, policyTesting)
+		if err != nil {
+			return nil, fmt.Errorf("could not create test policy: %w", err)
+		}
 		suffixDatastream = policyTesting.Namespace
 	}
-	ds := createPackageDatastream(*policyToTest, *scenario.pkgManifest, policyTemplate, *scenario.dataStreamManifest, *config, suffixDatastream)
+	ds := createPackageDatastream(*policyToAssignDatastreamTests, *scenario.pkgManifest, policyTemplate, *scenario.dataStreamManifest, *config, suffixDatastream)
 	if r.options.RunTearDown {
 		logger.Debug("Skip adding data stream config to policy")
 	} else {
@@ -1095,26 +1120,25 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	}
 	// Assign policy to agent
 	r.resetAgentPolicyHandler = func(ctx context.Context) error {
-		if r.options.RunIndependentElasticAgent && !r.options.RunTestsOnly {
-			return nil
+		if !r.options.RunSetup || !r.options.RunTearDown {
+			// it should be kept the same policy just when system tests are
+			// triggered with the flags for just setup or just tear-down
+			logger.Debug("reassigning original policy back to agent...")
+			if err := r.options.KibanaClient.AssignPolicyToAgent(ctx, agent, origPolicy); err != nil {
+				return fmt.Errorf("error reassigning original policy to agent: %w", err)
+			}
 		}
-		logger.Debug("reassigning original policy back to agent...")
-		if err := r.options.KibanaClient.AssignPolicyToAgent(ctx, agent, origPolicy); err != nil {
-			return fmt.Errorf("error reassigning original policy to agent: %w", err)
-		}
-		if !r.options.RunTestsOnly {
+		if !r.shouldCreateNewAgentPolicyForTest() {
 			return nil
 		}
 
 		logger.Debug("Deleting test policy...")
-		err = r.options.KibanaClient.DeletePolicy(ctx, policyToTest.ID)
+		err = r.options.KibanaClient.DeletePolicy(ctx, policyToAssignDatastreamTests.ID)
 		if err != nil {
-			return fmt.Errorf("failed to delete policy %s: %w", policyToTest.Name, err)
+			return fmt.Errorf("failed to delete policy %s: %w", policyToAssignDatastreamTests.Name, err)
 		}
 		logger.Debug("Deleting data stream for testing")
-		_, err := r.options.API.Indices.DeleteDataStream([]string{scenario.dataStream},
-			r.options.API.Indices.DeleteDataStream.WithContext(ctx),
-		)
+		r.deleteDataStream(ctx, scenario.dataStream)
 		if err != nil {
 			return fmt.Errorf("failed to delete data stream %s: %w", scenario.dataStream, err)
 		}
@@ -1146,7 +1170,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	if r.options.RunTearDown {
 		logger.Debug("Skip assiging package data stream to agent")
 	} else {
-		policyWithDataStream, err := r.options.KibanaClient.GetPolicy(ctx, policyToTest.ID)
+		policyWithDataStream, err := r.options.KibanaClient.GetPolicy(ctx, policyToAssignDatastreamTests.ID)
 		if err != nil {
 			return nil, fmt.Errorf("could not read the policy with data stream: %w", err)
 		}
