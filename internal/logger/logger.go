@@ -14,37 +14,33 @@ var (
 	Logger   *slog.Logger
 	logLevel *slog.LevelVar
 
-	defaultLogger   *slog.Logger
+	DefaultLogger   *slog.Logger
 	defaultLogLevel *slog.LevelVar
 
 	isDebugMode bool
 )
 
-func SetupLogger() {
+func SetupLogger(debugMode bool) {
 	logLevel = new(slog.LevelVar)
 	options := slog.HandlerOptions{
-		Level: logLevel,
+		Level:     logLevel,
+		AddSource: debugMode,
 	}
 	Logger = slog.New(slog.NewJSONHandler(os.Stdout, &options))
 
 	// Update default logger to start using everywhere slog
 	defaultLogLevel = new(slog.LevelVar)
-	defaultLogger = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+	DefaultLogger = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 		Level: defaultLogLevel,
 	}))
 
-	slog.SetDefault(defaultLogger)
-}
-
-// EnableDebugMode method enables verbose logging.
-func EnableDebugMode() {
-	logLevel.Set(slog.LevelDebug)
-	defaultLogLevel.Set(slog.LevelDebug)
-
-	isDebugMode = true
-
-	Debug("Enable verbose logging")
-	Logger.Debug("Enable verbose logging")
+	slog.SetDefault(DefaultLogger)
+	if debugMode {
+		defaultLogLevel.Set(slog.LevelDebug)
+		logLevel.Set(slog.LevelDebug)
+		Logger.Debug("Enable verbose logging")
+		isDebugMode = true
+	}
 }
 
 // IsDebugMode method checks if the debug mode is enabled.
@@ -54,40 +50,40 @@ func IsDebugMode() bool {
 
 // Debug method logs message with "debug" level.
 func Debug(a ...interface{}) {
-	defaultLogger.Debug(fmt.Sprint(a...))
+	DefaultLogger.Debug(fmt.Sprint(a...))
 }
 
 // Debugf method logs message with "debug" level and formats it.
 func Debugf(format string, a ...interface{}) {
-	defaultLogger.Debug(fmt.Sprintf(format, a...))
+	DefaultLogger.Debug(fmt.Sprintf(format, a...))
 }
 
 // Info method logs message with "info" level.
 func Info(a ...interface{}) {
-	defaultLogger.Info(fmt.Sprint(a...))
+	DefaultLogger.Info(fmt.Sprint(a...))
 }
 
 // Infof method logs message with "info" level and formats it.
 func Infof(format string, a ...interface{}) {
-	defaultLogger.Info(fmt.Sprintf(format, a...))
+	DefaultLogger.Info(fmt.Sprintf(format, a...))
 }
 
 // Warn method logs message with "warn" level.
 func Warn(a ...interface{}) {
-	defaultLogger.Warn(fmt.Sprint(a...))
+	DefaultLogger.Warn(fmt.Sprint(a...))
 }
 
 // Warnf method logs message with "warn" level and formats it.
 func Warnf(format string, a ...interface{}) {
-	defaultLogger.Warn(fmt.Sprintf(format, a...))
+	DefaultLogger.Warn(fmt.Sprintf(format, a...))
 }
 
 // Error method logs message with "error" level.
 func Error(a ...interface{}) {
-	defaultLogger.Error(fmt.Sprint(a...))
+	DefaultLogger.Error(fmt.Sprint(a...))
 }
 
 // Errorf method logs message with "error" level and formats it.
 func Errorf(format string, a ...interface{}) {
-	defaultLogger.Error(fmt.Sprintf(format, a...))
+	DefaultLogger.Error(fmt.Sprintf(format, a...))
 }
