@@ -74,6 +74,7 @@ func processPersistentFlags(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return cobraext.FlagParsingError(err, cobraext.VerboseFlagName)
 	}
+	logger.SetupLogger()
 
 	if verbose {
 		logger.EnableDebugMode()
@@ -82,6 +83,6 @@ func processPersistentFlags(cmd *cobra.Command, args []string) error {
 }
 
 func checkVersionUpdate(cmd *cobra.Command, args []string) error {
-	version.CheckUpdate(cmd.Context())
+	version.CheckUpdate(cmd.Context(), logger.Logger)
 	return nil
 }

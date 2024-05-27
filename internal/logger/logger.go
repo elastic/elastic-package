@@ -7,15 +7,46 @@ package logger
 import (
 	"fmt"
 	"log"
+	"log/slog"
+	"os"
 )
 
-var isDebugMode bool
+var (
+	Logger   *slog.Logger
+	logLevel *slog.LevelVar
+
+	defaultLogger   *slog.Logger
+	defaultLogLevel *slog.LevelVar
+
+	isDebugMode bool
+)
+
+func SetupLogger() {
+	logLevel = new(slog.LevelVar)
+	options := slog.HandlerOptions{
+		Level: logLevel,
+	}
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &options))
+	Logger = logger
+
+	// Update default logger to start using everywhere slog
+	defaultLogLevel = new(slog.LevelVar)
+	defaultLogger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+		Level: defaultLogLevel,
+	}))
+
+	slog.SetDefault(defaultLogger)
+}
 
 // EnableDebugMode method enables verbose logging.
 func EnableDebugMode() {
+	logLevel.Set(slog.LevelDebug)
+	defaultLogLevel.Set(slog.LevelDebug)
+
 	isDebugMode = true
 
 	Debug("Enable verbose logging")
+	Logger.Debug("Enable verbose logging")
 }
 
 // Debug method logs message with "debug" level.
@@ -23,6 +54,7 @@ func Debug(a ...interface{}) {
 	if !IsDebugMode() {
 		return
 	}
+
 	logMessage("DEBUG", a...)
 }
 

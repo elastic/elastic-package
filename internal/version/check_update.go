@@ -1,4 +1,5 @@
 // Copyright Elasticsearch B.V. and/or licensed to Elasticsearch B.V. under one
+
 // or more contributor license agreements. Licensed under the Elastic License;
 // you may not use this file except in compliance with the Elastic License.
 
@@ -8,6 +9,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -42,9 +44,9 @@ func (v versionLatest) String() string {
 }
 
 // CheckUpdate function checks using Github Release API if newer version is available.
-func CheckUpdate(ctx context.Context) {
+func CheckUpdate(ctx context.Context, logger *slog.Logger) {
 	if Tag == "" {
-		logger.Debugf("Distribution built without a version tag, can't determine release chronology. Please consider using official releases at " +
+		logger.Debug("Distribution built without a version tag, can't determine release chronology. Please consider using official releases at " +
 			"https://github.com/elastic/elastic-package/releases")
 		return
 	}
@@ -59,7 +61,7 @@ func CheckUpdate(ctx context.Context) {
 	latestVersion, err := loadCacheLatestVersion()
 	switch {
 	case err != nil:
-		logger.Debugf("failed to load latest version from cache: %v", err.Error())
+		logger.Debug("failed to load latest version from cache", "error", err.Error())
 	default:
 		expired = checkCachedLatestVersion(latestVersion, defaultCacheDuration)
 	}
@@ -67,14 +69,14 @@ func CheckUpdate(ctx context.Context) {
 	var release *versionLatest
 	switch {
 	case !expired:
-		logger.Debugf("latest version (cached): %s", latestVersion.String())
+		logger.Debug("latest version (cached)", "version", latestVersion.String())
 		release = latestVersion
 	default:
-		logger.Debugf("checking latest release in Github")
+		logger.Debug("checking latest release in Github")
 		githubClient := github.UnauthorizedClient()
 		githubRelease, err := githubClient.LatestRelease(ctx, repositoryOwner, repositoryName)
 		if err != nil {
-			logger.Debugf("Error: %v", err)
+			logger.Debug("failed to get latest release", "error", err)
 			return
 		}
 		release = &versionLatest{
@@ -86,18 +88,18 @@ func CheckUpdate(ctx context.Context) {
 
 	currentVersion, err := semver.NewVersion(Tag[1:]) // strip "v" prefix
 	if err != nil {
-		logger.Debugf("Error: can't parse current version tag, %v", err)
+		logger.Debug("Error: can't parse current version tag", "tag", Tag, "error", err)
 		return
 	}
 
 	releaseVersion, err := semver.NewVersion(release.TagName[1:]) // strip "v" prefix
 	if err != nil {
-		logger.Debugf("Error: can't parse current version tag, %v", err)
+		logger.Debug("Error: can't parse current version tag", "tag", release.TagName, "error", err)
 		return
 	}
 
 	if currentVersion.LessThan(releaseVersion) {
-		logger.Infof("New version is available - %s. Download from: %s", release.TagName, release.HtmlURL)
+		logger.Info("New version is available", "current", Tag, "version", release.TagName, "download_url", release.HtmlURL)
 	}
 
 	// if version cached is not expired, do not write contents into file
@@ -106,7 +108,7 @@ func CheckUpdate(ctx context.Context) {
 	}
 
 	if err := writeLatestReleaseToCache(release); err != nil {
-		logger.Debugf("failed to write latest versoin to cache file: %v", err)
+		logger.Debug("failed to write latest versoin to cache file", "error", err)
 	}
 }
 
@@ -139,7 +141,7 @@ func loadCacheLatestVersion() (*versionLatest, error) {
 	latestVersionPath := filepath.Join(elasticPackagePath.RootDir(), latestVersionFile)
 	contents, err := os.ReadFile(latestVersionPath)
 	if err != nil {
-		logger.Warnf("reading version file failed: %v", err.Error())
+		logger.Logger.Warn("reading version file failed", "error", err.Error())
 		return nil, fmt.Errorf("reading version file failed: %w", err)
 	}
 
