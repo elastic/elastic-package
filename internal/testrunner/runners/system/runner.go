@@ -1956,15 +1956,12 @@ func filterAgents(allAgents []kibana.Agent, svcInfo servicedeployer.ServiceInfo)
 		logger.Debugf("filter agents using criteria: NamePrefix=%s", svcInfo.Agent.Host.NamePrefix)
 	}
 
-	logger.Debugf("Number of available agents found (before filtering): %d", len(allAgents))
 	var filtered []kibana.Agent
 	for _, agent := range allAgents {
 		if agent.PolicyRevision == 0 {
-			logger.Debugf("Found agent with policy revision %d: %s", agent.PolicyRevision, agent.LocalMetadata.Host.Name)
 			continue // For some reason Kibana doesn't always return a valid policy revision (eventually it will be present and valid)
 		}
 
-		logger.Debugf("Found agent with NamePrefix (looking for %s): %s", svcInfo.Agent.Host.NamePrefix, agent.LocalMetadata.Host.Name)
 		if svcInfo.Agent.Host.NamePrefix != "" && !strings.HasPrefix(agent.LocalMetadata.Host.Name, svcInfo.Agent.Host.NamePrefix) {
 			continue
 		}
