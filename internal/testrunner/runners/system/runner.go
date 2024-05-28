@@ -150,6 +150,7 @@ type runner struct {
 	// Execution order of following handlers is defined in runner.TearDown() method.
 	removeAgentHandler        func(context.Context) error
 	deleteTestPolicyHandler   func(context.Context) error
+	cleanTestScenarioHandler  func(context.Context) error
 	resetAgentPolicyHandler   func(context.Context) error
 	resetAgentLogLevelHandler func(context.Context) error
 	shutdownServiceHandler    func(context.Context) error
@@ -446,6 +447,13 @@ func (r *runner) tearDownTest(ctx context.Context) error {
 			return err
 		}
 		r.shutdownServiceHandler = nil
+	}
+
+	if r.cleanTestScenarioHandler != nil {
+		if err := r.cleanTestScenarioHandler(cleanupCtx); err != nil {
+			return err
+		}
+		r.cleanTestScenarioHandler = nil
 	}
 
 	if r.resetAgentLogLevelHandler != nil {
@@ -1075,6 +1083,24 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		return nil
 	}
 
+	r.cleanTestScenarioHandler = func(ctx context.Context) error {
+		if !r.shouldCreateNewAgentPolicyForTest() {
+			return nil
+		}
+
+		logger.Debug("Deleting test policy...")
+		err = r.options.KibanaClient.DeletePolicy(ctx, policyToAssignDatastreamTests.ID)
+		if err != nil {
+			return fmt.Errorf("failed to delete policy %s: %w", policyToAssignDatastreamTests.Name, err)
+		}
+		logger.Debug("Deleting data stream for testing")
+		r.deleteDataStream(ctx, scenario.dataStream)
+		if err != nil {
+			return fmt.Errorf("failed to delete data stream %s: %w", scenario.dataStream, err)
+		}
+		return nil
+	}
+
 	switch {
 	case r.options.RunTearDown:
 		logger.Debugf("Skipped deleting old data in data stream %q", scenario.dataStream)
@@ -1124,7 +1150,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 			Revision: agent.PolicyRevision,
 		}
 	}
-	// Assign policy to agent
+
 	r.resetAgentPolicyHandler = func(ctx context.Context) error {
 		if !r.options.RunSetup {
 			// it should be kept the same policy just when system tests are
@@ -1133,20 +1159,6 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 			if err := r.options.KibanaClient.AssignPolicyToAgent(ctx, agent, origPolicy); err != nil {
 				return fmt.Errorf("error reassigning original policy to agent: %w", err)
 			}
-		}
-		if !r.shouldCreateNewAgentPolicyForTest() {
-			return nil
-		}
-
-		logger.Debug("Deleting test policy...")
-		err = r.options.KibanaClient.DeletePolicy(ctx, policyToAssignDatastreamTests.ID)
-		if err != nil {
-			return fmt.Errorf("failed to delete policy %s: %w", policyToAssignDatastreamTests.Name, err)
-		}
-		logger.Debug("Deleting data stream for testing")
-		r.deleteDataStream(ctx, scenario.dataStream)
-		if err != nil {
-			return fmt.Errorf("failed to delete data stream %s: %w", scenario.dataStream, err)
 		}
 		return nil
 	}
