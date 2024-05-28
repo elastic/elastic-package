@@ -428,20 +428,24 @@ func (r *runner) tearDownTest(ctx context.Context) error {
 	// Avoid cancellations during cleanup.
 	cleanupCtx := context.WithoutCancel(ctx)
 
-	// Run service shutdown first to ensure that resources created
-	// by terraform are deleted avoiding errors in other handlers
-	if r.shutdownServiceHandler != nil {
-		if err := r.shutdownServiceHandler(cleanupCtx); err != nil {
-			return err
-		}
-		r.shutdownServiceHandler = nil
-	}
-
+	// This handler should be run before shutting down Elastic Agents (agent deployer)
+	// or services that could run agents like Custom Agents (service deployer)
+	// or Kind deployer.
 	if r.resetAgentPolicyHandler != nil {
 		if err := r.resetAgentPolicyHandler(cleanupCtx); err != nil {
 			return err
 		}
 		r.resetAgentPolicyHandler = nil
+	}
+
+	// Shutting down the service should be run one of the first actions
+	// to ensure that resources created by terraform are deleted even if other
+	// errors fail.
+	if r.shutdownServiceHandler != nil {
+		if err := r.shutdownServiceHandler(cleanupCtx); err != nil {
+			return err
+		}
+		r.shutdownServiceHandler = nil
 	}
 
 	if r.resetAgentLogLevelHandler != nil {
@@ -1122,7 +1126,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	}
 	// Assign policy to agent
 	r.resetAgentPolicyHandler = func(ctx context.Context) error {
-		if !r.options.RunSetup || !r.options.RunTearDown {
+		if !r.options.RunSetup {
 			// it should be kept the same policy just when system tests are
 			// triggered with the flags for just setup or just tear-down
 			logger.Debug("reassigning original policy back to agent...")
