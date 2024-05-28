@@ -12,6 +12,7 @@ import (
 
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/install"
+	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/packages/installer"
 	"github.com/elastic/elastic-package/internal/stack"
@@ -79,6 +80,7 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 		RootPath:       packageRootPath,
 		SkipValidation: skipValidation,
 		ZipPath:        zipPathFile,
+		Logger:         logger.Logger,
 	})
 	if err != nil {
 		return fmt.Errorf("package installation failed: %w", err)

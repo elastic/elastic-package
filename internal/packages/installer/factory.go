@@ -54,7 +54,6 @@ func NewForPackage(options Options) (Installer, error) {
 	if options.Logger != nil {
 		logger = options.Logger
 	}
-	logger = logger.With(slog.String("path", options.ZipPath))
 
 	version, err := kibanaVersion(options.Kibana)
 	if err != nil {
@@ -63,6 +62,7 @@ func NewForPackage(options Options) (Installer, error) {
 
 	supportsZip := !version.LessThan(semver8_7_0)
 	if options.ZipPath != "" {
+		logger = logger.With(slog.String("zip.path", options.ZipPath))
 		if !supportsZip {
 			return nil, fmt.Errorf("not supported uploading zip packages in Kibana %s (%s required)", version, semver8_7_0)
 		}
@@ -86,6 +86,7 @@ func NewForPackage(options Options) (Installer, error) {
 		CreateZip:      supportsZip,
 		SignPackage:    false,
 		SkipValidation: options.SkipValidation,
+		Logger:         logger,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to build package: %v", err)

@@ -320,6 +320,7 @@ func (r *runner) resources(opts resourcesOptions) resources.Resources {
 			RootPath: r.options.PackageRootPath,
 			Absent:   !opts.installedPackage,
 			Force:    opts.installedPackage, // Force re-installation, in case there are code changes in the same package version.
+			Logger:   r.logger,
 		},
 	}
 }

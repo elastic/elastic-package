@@ -74,6 +74,7 @@ func (r *runner) Run(ctx context.Context, options testrunner.TestOptions) ([]tes
 	r.packageRootPath = options.PackageRootPath
 	r.kibanaClient = options.KibanaClient
 
+	r.logger = r.logger.With(slog.String("package", options.TestFolder.Package))
 	manager := resources.NewManager()
 	manager.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: r.kibanaClient})
 	r.resourcesManager = manager
@@ -87,6 +88,7 @@ func (r *runner) resources(installedPackage bool) resources.Resources {
 			RootPath: r.packageRootPath,
 			Absent:   !installedPackage,
 			Force:    installedPackage, // Force re-installation, in case there are code changes in the same package version.
+			Logger:   r.logger,
 		},
 	}
 }

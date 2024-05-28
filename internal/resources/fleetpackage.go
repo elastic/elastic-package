@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/elastic/go-resource"
@@ -30,6 +31,8 @@ type FleetPackage struct {
 	// Force forces operations, as reinstalling a package that seems to
 	// be already installed.
 	Force bool
+
+	Logger *slog.Logger
 }
 
 func (f *FleetPackage) String() string {
@@ -55,10 +58,12 @@ func (f *FleetPackage) installer(ctx resource.Context) (installer.Installer, err
 		return nil, err
 	}
 
+	f.Logger.Debug("Test test test")
 	return installer.NewForPackage(installer.Options{
 		Kibana:         provider.Client,
 		RootPath:       f.RootPath,
 		SkipValidation: true,
+		Logger:         f.Logger,
 	})
 }
 
