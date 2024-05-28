@@ -117,7 +117,7 @@ func (r *runner) Run(ctx context.Context, options testrunner.TestOptions) ([]tes
 // TearDown shuts down the pipeline test runner.
 func (r *runner) TearDown(ctx context.Context) error {
 	if r.options.DeferCleanup > 0 {
-		r.logger.Debug("Waiting before cleanup...", slog.Int("seconds", int(r.options.DeferCleanup.Seconds())))
+		r.logger.Debug("Waiting before cleanup...", slog.Duration("duration", r.options.DeferCleanup))
 		select {
 		case <-time.After(r.options.DeferCleanup):
 		case <-ctx.Done():

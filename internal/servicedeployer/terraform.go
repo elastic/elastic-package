@@ -92,7 +92,7 @@ func addTerraformOutputs(svcInfo *ServiceInfo, l *slog.Logger) error {
 // NewTerraformServiceDeployer creates an instance of TerraformServiceDeployer.
 func NewTerraformServiceDeployer(opts TerraformServiceDeployerOptions) (*TerraformServiceDeployer, error) {
 	logger := logger.Logger
-	if logger != nil {
+	if opts.Logger != nil {
 		logger = opts.Logger
 	}
 	logger = logger.With(slog.String("service.deployer", "kind"))

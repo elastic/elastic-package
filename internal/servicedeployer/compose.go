@@ -67,11 +67,11 @@ var _ ServiceDeployer = new(DockerComposeServiceDeployer)
 
 // NewDockerComposeServiceDeployer returns a new instance of a DockerComposeServiceDeployer.
 func NewDockerComposeServiceDeployer(options DockerComposeServiceDeployerOptions) (*DockerComposeServiceDeployer, error) {
-	logger := logger.Logger
-	if logger != nil {
-		logger = options.Logger
+	log := logger.Logger
+	if options.Logger != nil {
+		log = options.Logger
 	}
-	logger = logger.With(slog.String("service.deployer", "compose"))
+	log = log.With(slog.String("service.deployer", "compose"))
 	return &DockerComposeServiceDeployer{
 		profile:                options.Profile,
 		ymlPaths:               options.YmlPaths,
@@ -79,7 +79,7 @@ func NewDockerComposeServiceDeployer(options DockerComposeServiceDeployerOptions
 		runTearDown:            options.RunTearDown,
 		runTestsOnly:           options.RunTestsOnly,
 		deployIndependentAgent: options.DeployIndependentAgent,
-		logger:                 logger,
+		logger:                 log,
 	}, nil
 }
 

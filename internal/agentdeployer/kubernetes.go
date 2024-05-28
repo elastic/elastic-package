@@ -10,6 +10,7 @@ import (
 	_ "embed"
 	"encoding/base64"
 	"fmt"
+	"log/slog"
 	"os"
 	"strings"
 	"text/template"
@@ -35,6 +36,8 @@ type KubernetesAgentDeployer struct {
 	runSetup     bool
 	runTestsOnly bool
 	runTearDown  bool
+
+	logger *slog.Logger
 }
 
 type KubernetesAgentDeployerOptions struct {
@@ -46,6 +49,8 @@ type KubernetesAgentDeployerOptions struct {
 	RunSetup     bool
 	RunTestsOnly bool
 	RunTearDown  bool
+
+	Logger *slog.Logger
 }
 
 type kubernetesDeployedAgent struct {
@@ -54,10 +59,12 @@ type kubernetesDeployedAgent struct {
 	stackVersion string
 
 	agentName string
+
+	logger *slog.Logger
 }
 
 func (s kubernetesDeployedAgent) TearDown(ctx context.Context) error {
-	elasticAgentManagedYaml, err := getElasticAgentYAML(s.profile, s.stackVersion, s.agentInfo.Policy.Name, s.agentName)
+	elasticAgentManagedYaml, err := getElasticAgentYAML(s.profile, s.stackVersion, s.agentInfo.Policy.Name, s.agentName, s.logger)
 	if err != nil {
 		return fmt.Errorf("can't retrieve Kubernetes file for Elastic Agent: %w", err)
 	}
@@ -89,6 +96,11 @@ var _ DeployedAgent = new(kubernetesDeployedAgent)
 
 // NewKubernetesAgentDeployer function creates a new instance of KubernetesAgentDeployer.
 func NewKubernetesAgentDeployer(opts KubernetesAgentDeployerOptions) (*KubernetesAgentDeployer, error) {
+	logger := logger.Logger
+	if opts.Logger != nil {
+		logger = opts.Logger
+	}
+	logger = logger.With(slog.String("agent.deployer", "kubernetes"))
 	return &KubernetesAgentDeployer{
 		profile:      opts.Profile,
 		stackVersion: opts.StackVersion,
@@ -97,6 +109,7 @@ func NewKubernetesAgentDeployer(opts KubernetesAgentDeployerOptions) (*Kubernete
 		runSetup:     opts.RunSetup,
 		runTestsOnly: opts.RunTestsOnly,
 		runTearDown:  opts.RunTearDown,
+		logger:       logger,
 	}, nil
 }
 
@@ -111,7 +124,7 @@ func (ksd *KubernetesAgentDeployer) SetUp(ctx context.Context, agentInfo AgentIn
 	}
 
 	if ksd.runTearDown || ksd.runTestsOnly {
-		logger.Debug("Skip connect kind to Elastic stack network")
+		ksd.logger.Debug("Skip connect kind to Elastic stack network")
 	} else {
 		err = kind.ConnectToElasticStackNetwork(ksd.profile)
 		if err != nil {
@@ -121,9 +134,9 @@ func (ksd *KubernetesAgentDeployer) SetUp(ctx context.Context, agentInfo AgentIn
 
 	agentName := ksd.agentName()
 	if ksd.runTearDown || ksd.runTestsOnly {
-		logger.Debug("Skip install Elastic Agent in cluster")
+		ksd.logger.Debug("Skip install Elastic Agent in cluster")
 	} else {
-		err = installElasticAgentInCluster(ctx, ksd.profile, ksd.stackVersion, agentInfo.Policy.Name, agentName)
+		err = installElasticAgentInCluster(ctx, ksd.profile, ksd.stackVersion, agentInfo.Policy.Name, agentName, ksd.logger)
 		if err != nil {
 			return nil, fmt.Errorf("can't install Elastic-Agent in the Kubernetes cluster: %w", err)
 		}
@@ -139,6 +152,7 @@ func (ksd *KubernetesAgentDeployer) SetUp(ctx context.Context, agentInfo AgentIn
 		profile:      ksd.profile,
 		stackVersion: ksd.stackVersion,
 		agentName:    agentName,
+		logger:       ksd.logger,
 	}, nil
 }
 
@@ -155,10 +169,10 @@ func (ksd *KubernetesAgentDeployer) agentName() string {
 
 var _ AgentDeployer = new(KubernetesAgentDeployer)
 
-func installElasticAgentInCluster(ctx context.Context, profile *profile.Profile, stackVersion, policyName, agentName string) error {
+func installElasticAgentInCluster(ctx context.Context, profile *profile.Profile, stackVersion, policyName, agentName string, logger *slog.Logger) error {
 	logger.Debug("install Elastic Agent in the Kubernetes cluster")
 
-	elasticAgentManagedYaml, err := getElasticAgentYAML(profile, stackVersion, policyName, agentName)
+	elasticAgentManagedYaml, err := getElasticAgentYAML(profile, stackVersion, policyName, agentName, logger)
 	if err != nil {
 		return fmt.Errorf("can't retrieve Kubernetes file for Elastic Agent: %w", err)
 	}
@@ -176,8 +190,8 @@ func installElasticAgentInCluster(ctx context.Context, profile *profile.Profile,
 //go:embed _static/elastic-agent-managed.yaml.tmpl
 var elasticAgentManagedYamlTmpl string
 
-func getElasticAgentYAML(profile *profile.Profile, stackVersion, policyName, agentName string) ([]byte, error) {
-	logger.Debugf("Prepare YAML definition for Elastic Agent running in stack v%s", stackVersion)
+func getElasticAgentYAML(profile *profile.Profile, stackVersion, policyName, agentName string, logger *slog.Logger) ([]byte, error) {
+	logger.Debug("Prepare YAML definition for Elastic Agent running in stack", slog.String("stack.version", stackVersion))
 
 	appConfig, err := install.Configuration()
 	if err != nil {

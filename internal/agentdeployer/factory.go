@@ -7,10 +7,10 @@ package agentdeployer
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 
-	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/profile"
 )
 
@@ -21,6 +21,8 @@ const (
 
 // FactoryOptions defines options used to create an instance of a service deployer.
 type FactoryOptions struct {
+	Logger *slog.Logger
+
 	Profile *profile.Profile
 
 	PackageRootPath    string
@@ -59,6 +61,7 @@ func Factory(options FactoryOptions) (AgentDeployer, error) {
 			DataStream:   options.DataStream,
 			RunTearDown:  options.RunTearDown,
 			RunTestsOnly: options.RunTestsOnly,
+			Logger:       options.Logger,
 		}
 		return NewCustomAgentDeployer(opts)
 	case "agent":
@@ -74,6 +77,7 @@ func Factory(options FactoryOptions) (AgentDeployer, error) {
 			RunSetup:     options.RunSetup,
 			RunTestsOnly: options.RunTestsOnly,
 			RunTearDown:  options.RunTearDown,
+			Logger:       options.Logger,
 		}
 		return NewKubernetesAgentDeployer(opts)
 	}
@@ -91,7 +95,7 @@ func selectAgentDeployerType(options FactoryOptions) (string, error) {
 
 	agentDeployerNames, err := findAgentDeployers(devDeployPath)
 	if errors.Is(err, os.ErrNotExist) || len(agentDeployerNames) == 0 {
-		logger.Debugf("Not agent deployer found, using default one")
+		options.Logger.Debug("Not agent deployer found, using default one")
 		return "default", nil
 	}
 	if err != nil {

@@ -122,7 +122,7 @@ var _ DeployedService = new(kubernetesDeployedService)
 // NewKubernetesServiceDeployer function creates a new instance of KubernetesServiceDeployer.
 func NewKubernetesServiceDeployer(opts KubernetesServiceDeployerOptions) (*KubernetesServiceDeployer, error) {
 	logger := logger.Logger
-	if logger != nil {
+	if opts.Logger != nil {
 		logger = opts.Logger
 	}
 	logger = logger.With(slog.String("service.deployer", "kubernetes"))

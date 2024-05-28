@@ -215,12 +215,12 @@ func (r *runner) Run(ctx context.Context, options testrunner.TestOptions) ([]tes
 			return result.WithError(fmt.Errorf("a variant must be selected or trigger the test in no-variant mode (available variants: %s)", strings.Join(r.variants, ", ")))
 		}
 		if len(r.variants) == 0 {
-			logger.Debug("No variant mode")
+			r.logger.Debug("No variant mode")
 		}
 	}
 
 	_, err := os.Stat(r.serviceStateFilePath)
-	logger.Debugf("Service state data exists in %s: %v", r.serviceStateFilePath, !os.IsNotExist(err))
+	r.logger.Debug("Service state data", slog.String("path", r.serviceStateFilePath), slog.Bool("exists", !os.IsNotExist(err)))
 	if r.options.RunSetup && !os.IsNotExist(err) {
 		return result.WithError(fmt.Errorf("failed to run --setup, required to tear down previous setup"))
 	}
@@ -245,8 +245,8 @@ func (r *runner) Run(ctx context.Context, options testrunner.TestOptions) ([]tes
 		configFile = serviceStateData.ConfigFilePath
 		variant = serviceStateData.VariantName
 
-		logger.Infof("Using test config file from setup dir: %q", configFile)
-		logger.Infof("Using variant from service setup dir: %q", variant)
+		r.logger.Info("Using test config file from setup dir", slog.String("config.file", configFile))
+		r.logger.Info("Using variant from service setup dir", slog.String("variant", variant))
 	}
 
 	svcInfo, err := r.createServiceInfo()
@@ -258,7 +258,7 @@ func (r *runner) Run(ctx context.Context, options testrunner.TestOptions) ([]tes
 	if err != nil {
 		return nil, fmt.Errorf("unable to load system test case file '%s': %w", configFile, err)
 	}
-	logger.Debugf("Using config: %q", testConfig.Name())
+	r.logger.Debug("Using config", slog.String("config", testConfig.Name()))
 
 	resultName := ""
 	switch {
@@ -275,12 +275,12 @@ func (r *runner) Run(ctx context.Context, options testrunner.TestOptions) ([]tes
 	if r.options.RunSetup && err != nil {
 		tdErr := r.tearDownTest(ctx)
 		if tdErr != nil {
-			logger.Errorf("failed to tear down runner: %s", tdErr.Error())
+			r.logger.Error("failed to tear down runner", slog.Any("error", tdErr.Error()))
 		}
 
 		setupDirErr := r.removeServiceStateFile()
 		if setupDirErr != nil {
-			logger.Error(err.Error())
+			r.logger.Error(err.Error())
 		}
 		return result.WithError(err)
 	}
@@ -294,8 +294,8 @@ func (r *runner) Run(ctx context.Context, options testrunner.TestOptions) ([]tes
 
 	if r.options.RunTearDown {
 		if err != nil {
-			logger.Errorf("failed to prepare scenario: %s", err.Error())
-			logger.Errorf("continue with the tear down process")
+			r.logger.Error("failed to prepare scenario", slog.Any("error", err.Error()))
+			r.logger.Error("continue with the tear down process")
 		}
 		if err := r.tearDownTest(ctx); err != nil {
 			return result.WithError(err)
@@ -338,6 +338,7 @@ func (r *runner) createAgentOptions(policyName string) agentdeployer.FactoryOpti
 		RunTearDown:        r.options.RunTearDown,
 		RunTestsOnly:       r.options.RunTestsOnly,
 		RunSetup:           r.options.RunSetup,
+		Logger:             r.logger,
 	}
 }
 
@@ -356,6 +357,7 @@ func (r *runner) createServiceOptions(variantName string) servicedeployer.Factor
 		RunTestsOnly:           r.options.RunTestsOnly,
 		RunSetup:               r.options.RunSetup,
 		DeployIndependentAgent: r.options.RunIndependentElasticAgent,
+		Logger:                 r.logger,
 	}
 }
 
@@ -401,7 +403,7 @@ func (r *runner) createServiceInfo() (servicedeployer.ServiceInfo, error) {
 	svcInfo.Test.RunID = createTestRunID()
 
 	if r.options.RunTearDown || r.options.RunTestsOnly {
-		logger.Debug("Skip creating output directory")
+		r.logger.Debug("Skip creating output directory")
 	} else {
 		outputDir, err := servicedeployer.CreateOutputDir(r.locationManager, svcInfo.Test.RunID)
 		if err != nil {
@@ -422,7 +424,7 @@ func (r *runner) TearDown(ctx context.Context) error {
 
 func (r *runner) tearDownTest(ctx context.Context) error {
 	if r.options.DeferCleanup > 0 {
-		logger.Debugf("waiting for %s before tearing down...", r.options.DeferCleanup)
+		r.logger.Debug("waiting before tearing down...", slog.Duration("duration", r.options.DeferCleanup))
 		select {
 		case <-time.After(r.options.DeferCleanup):
 		case <-ctx.Done():
@@ -520,9 +522,10 @@ func (r *runner) initRun() error {
 		return fmt.Errorf("locating data stream root failed: %w", err)
 	}
 	if found {
-		logger.Debugf("Running system tests for data stream %q", r.options.TestFolder.DataStream)
+		r.logger.Debug("Running system tests for data stream", slog.String("data_stream", r.options.TestFolder.DataStream))
+		r.logger = r.logger.With(slog.String("package.data_stream", r.options.TestFolder.DataStream))
 	} else {
-		logger.Debug("Running system tests for package")
+		r.logger.Debug("Running system tests for package")
 	}
 
 	if r.options.API == nil {
@@ -645,7 +648,8 @@ func (r *runner) runTestPerVariant(ctx context.Context, result *testrunner.Resul
 	if err != nil {
 		return nil, fmt.Errorf("unable to load system test case file '%s': %w", configFile, err)
 	}
-	logger.Debugf("Using config: %q", testConfig.Name())
+	r.logger = r.logger.With("test.config", testConfig.Name())
+	r.logger.Debug("Using config")
 
 	partial, err := r.runTest(ctx, testConfig, svcInfo)
 
@@ -676,7 +680,7 @@ func (r *runner) isSyntheticsEnabled(ctx context.Context, dataStream, componentT
 	if resp.StatusCode == http.StatusNotFound {
 		// @package component template doesn't exist before 8.2. On these versions synthetics was not supported
 		// in any case, so just return false.
-		logger.Debugf("no component template %s found for data stream %s", componentTemplatePackage, dataStream)
+		r.logger.Debug("no component template found for data stream", slog.String("component.template", componentTemplatePackage), slog.String("data.stream", dataStream))
 		return false, nil
 	}
 	if resp.IsError() {
@@ -703,7 +707,7 @@ func (r *runner) isSyntheticsEnabled(ctx context.Context, dataStream, componentT
 	}
 
 	if len(results.ComponentTemplates) == 0 {
-		logger.Debugf("no component template %s found for data stream %s", componentTemplatePackage, dataStream)
+		r.logger.Debug("no component template found for data stream", slog.String("component.template", componentTemplatePackage), slog.String("data.stream", dataStream))
 		return false, nil
 	}
 	if len(results.ComponentTemplates) != 1 {
@@ -799,10 +803,15 @@ func (r *runner) getDocs(ctx context.Context, dataStream string) (*hits, error) 
 
 	numHits := results.Hits.Total.Value
 	if results.Error != nil {
-		logger.Debugf("found %d hits in %s data stream: %s: %s Status=%d",
-			numHits, dataStream, results.Error.Type, results.Error.Reason, results.Status)
+		r.logger.Debug("found hits in data stream:",
+			slog.Int("hits", numHits),
+			slog.String("data.stream", dataStream),
+			slog.String("type", results.Error.Type),
+			slog.String("reason", results.Error.Reason),
+			slog.Int("status", results.Status),
+		)
 	} else {
-		logger.Debugf("found %d hits in %s data stream", numHits, dataStream)
+		r.logger.Debug("found hits in data stream", slog.Int("hits", numHits), slog.String("data.stream", dataStream))
 	}
 
 	var hits hits
@@ -895,12 +904,12 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	if r.options.RunTearDown || r.options.RunTestsOnly {
 		policyToTest = &serviceStateData.CurrentPolicy
 		policyToEnroll = &serviceStateData.EnrollPolicy
-		logger.Debugf("Got policy from file: %q - %q", policyToTest.Name, policyToTest.ID)
+		r.logger.Debug("Got policy from file", slog.String("policy.name", policyToTest.Name), slog.String("policy.id", policyToTest.ID))
 	} else {
 		// Create two different policies, one for enrolling the agent and the other for testing.
 		// This allows us to ensure that the Agent Policy used for testing is
 		// assigned to the agent with all the required changes (e.g. Package DataStream)
-		logger.Debug("creating test policies...")
+		r.logger.Debug("creating test policies...")
 		testTime := time.Now().Format("20060102T15:04:05Z")
 
 		policyEnroll := kibana.Policy{
@@ -928,7 +937,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		}
 	}
 	r.deleteTestPolicyHandler = func(ctx context.Context) error {
-		logger.Debug("deleting test policies...")
+		r.logger.Debug("deleting test policies...")
 		if err := r.options.KibanaClient.DeletePolicy(ctx, policyToTest.ID); err != nil {
 			return fmt.Errorf("error cleaning up test policy: %w", err)
 		}
@@ -955,7 +964,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 
 	service, svcInfo, err := r.setupService(ctx, config, serviceOptions, svcInfo, agentInfo, agentDeployed, policy, serviceStateData)
 	if errors.Is(err, os.ErrNotExist) {
-		logger.Debugf("No service deployer defined for this test")
+		r.logger.Debug("No service deployer defined for this test")
 	} else if err != nil {
 		return nil, err
 	}
@@ -967,11 +976,11 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	}
 
 	if r.options.RunTearDown {
-		logger.Debug("Skip installing package")
+		r.logger.Debug("Skip installing package")
 	} else {
 		// Install the package before creating the policy, so we control exactly what is being
 		// installed.
-		logger.Debug("Installing package...")
+		r.logger.Debug("Installing package...")
 		resourcesOptions := resourcesOptions{
 			// Install it unless we are running the tear down only.
 			installedPackage: !r.options.RunTearDown,
@@ -986,10 +995,10 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	// the agent logs from that time onwards to avoid possible previous errors present in logs
 	scenario.startTestTime = time.Now()
 
-	logger.Debug("adding package data stream to test policy...")
+	r.logger.Debug("adding package data stream to test policy...")
 	ds := createPackageDatastream(*policyToTest, *scenario.pkgManifest, policyTemplate, *scenario.dataStreamManifest, *config, svcInfo.Test.RunID)
 	if r.options.RunTearDown || r.options.RunTestsOnly {
-		logger.Debug("Skip adding data stream config to policy")
+		r.logger.Debug("Skip adding data stream config to policy")
 	} else {
 		if err := r.options.KibanaClient.AddPackageDataStreamToPolicy(ctx, ds); err != nil {
 			return nil, fmt.Errorf("could not add data stream config to policy: %w", err)
@@ -998,7 +1007,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	scenario.kibanaDataStream = ds
 
 	// Delete old data
-	logger.Debug("deleting old data in data stream...")
+	r.logger.Debug("deleting old data in data stream...")
 
 	// Input packages can set `data_stream.dataset` by convention to customize the dataset.
 	dataStreamDataset := ds.Inputs[0].Streams[0].DataStream.Dataset
@@ -1021,7 +1030,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	)
 
 	r.wipeDataStreamHandler = func(ctx context.Context) error {
-		logger.Debugf("deleting data in data stream...")
+		r.logger.Debug("deleting data in data stream...")
 		if err := deleteDataStreamDocs(ctx, r.options.API, scenario.dataStream); err != nil {
 			return fmt.Errorf("error deleting data in data stream: %w", err)
 		}
@@ -1030,7 +1039,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 
 	switch {
 	case r.options.RunTearDown:
-		logger.Debugf("Skipped deleting old data in data stream %q", scenario.dataStream)
+		r.logger.Debug("Skipped deleting old data in data stream", slog.String("data.stream", scenario.dataStream))
 	case r.options.RunTestsOnly:
 		// In this mode, service is still running and the agent is sending documents, so sometimes
 		// cannot be guaranteed to be zero documents
@@ -1052,14 +1061,14 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		return nil, fmt.Errorf("can't check enrolled agents: %w", err)
 	}
 	agent := agents[0]
-	logger.Debugf("Selected enrolled agent %q", agent.ID)
+	r.logger.Debug("Selected enrolled agent", slog.String("agent.id", agent.ID))
 
 	r.removeAgentHandler = func(ctx context.Context) error {
 		// When not using independent agents, service deployers like kubernetes or custom agents create new Elastic Agent
 		if !r.options.RunIndependentElasticAgent && !svcInfo.Agent.Independent {
 			return nil
 		}
-		logger.Debug("removing agent...")
+		r.logger.Debug("removing agent...")
 		err := r.options.KibanaClient.RemoveAgent(ctx, agent)
 		if err != nil {
 			return fmt.Errorf("failed to remove agent %q: %w", agent.ID, err)
@@ -1069,7 +1078,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 
 	if r.options.RunTearDown || r.options.RunTestsOnly {
 		origPolicy = serviceStateData.OrigPolicy
-		logger.Debugf("Got orig policy from file: %q - %q", origPolicy.Name, origPolicy.ID)
+		r.logger.Debug("Got orig policy from file", slog.String("policy.name", origPolicy.Name), slog.String("policy.id", origPolicy.ID))
 	} else {
 		// Store previous agent policy assigned to the agent
 		origPolicy = kibana.Policy{
@@ -1082,7 +1091,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		if r.options.RunIndependentElasticAgent {
 			return nil
 		}
-		logger.Debug("reassigning original policy back to agent...")
+		r.logger.Debug("reassigning original policy back to agent...")
 		if err := r.options.KibanaClient.AssignPolicyToAgent(ctx, agent, origPolicy); err != nil {
 			return fmt.Errorf("error reassigning original policy to agent: %w", err)
 		}
@@ -1092,10 +1101,10 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	origAgent := agent
 	origLogLevel := ""
 	if r.options.RunTearDown {
-		logger.Debug("Skip assiging log level debug to agent")
+		r.logger.Debug("Skip assiging log level debug to agent")
 		origLogLevel = serviceStateData.Agent.LocalMetadata.Elastic.Agent.LogLevel
 	} else {
-		logger.Debug("Set Debug log level to agent")
+		r.logger.Debug("Set Debug log level to agent")
 		origLogLevel = agent.LocalMetadata.Elastic.Agent.LogLevel
 		err = r.options.KibanaClient.SetAgentLogLevel(ctx, agent.ID, "debug")
 		if err != nil {
@@ -1103,7 +1112,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		}
 	}
 	r.resetAgentLogLevelHandler = func(ctx context.Context) error {
-		logger.Debugf("reassigning original log level %q back to agent...", origLogLevel)
+		r.logger.Debug("reassigning original log level back to agent...", slog.String("orig.logLevel", origLogLevel))
 
 		if err := r.options.KibanaClient.SetAgentLogLevel(ctx, agent.ID, origLogLevel); err != nil {
 			return fmt.Errorf("error reassigning original log level to agent: %w", err)
@@ -1112,14 +1121,14 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	}
 
 	if r.options.RunTearDown || r.options.RunTestsOnly {
-		logger.Debug("Skip assiging package data stream to agent")
+		r.logger.Debug("Skip assiging package data stream to agent")
 	} else {
 		policyWithDataStream, err := r.options.KibanaClient.GetPolicy(ctx, policyToTest.ID)
 		if err != nil {
 			return nil, fmt.Errorf("could not read the policy with data stream: %w", err)
 		}
 
-		logger.Debug("assigning package data stream to agent...")
+		r.logger.Debug("assigning package data stream to agent...")
 		if err := r.options.KibanaClient.AssignPolicyToAgent(ctx, agent, *policyWithDataStream); err != nil {
 			return nil, fmt.Errorf("could not assign policy to agent: %w", err)
 		}
@@ -1143,7 +1152,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	}
 
 	// (TODO in future) Optionally exercise service to generate load.
-	logger.Debugf("checking for expected data in data stream (%s)...", waitForDataTimeout)
+	r.logger.Debug("checking for expected data in data stream...", slog.Duration("duration", waitForDataTimeout))
 	var hits *hits
 	oldHits := 0
 	passed, waitErr := wait.UntilTrue(ctx, func(ctx context.Context) (bool, error) {
@@ -1188,12 +1197,12 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		return nil, testrunner.ErrTestCaseFailed{Reason: fmt.Sprintf("could not find hits in %s data stream", scenario.dataStream)}
 	}
 
-	logger.Debugf("check whether or not synthetics is enabled (component template %s)...", componentTemplatePackage)
+	r.logger.Debug("check whether or not synthetics is enabled...", slog.String("component.template", componentTemplatePackage))
 	scenario.syntheticEnabled, err = r.isSyntheticsEnabled(ctx, scenario.dataStream, componentTemplatePackage)
 	if err != nil {
 		return nil, fmt.Errorf("failed to check if synthetic source is enabled: %w", err)
 	}
-	logger.Debugf("data stream %s has synthetics enabled: %t", scenario.dataStream, scenario.syntheticEnabled)
+	r.logger.Debug("data stream has synthetics enabled: %t", slog.String("data.stream", scenario.dataStream), slog.Bool("enabled", scenario.syntheticEnabled))
 
 	scenario.docs = hits.getDocs(scenario.syntheticEnabled)
 	scenario.ignoredFields = hits.IgnoredFields
@@ -1219,7 +1228,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 }
 
 func (r *runner) setupService(ctx context.Context, config *testConfig, serviceOptions servicedeployer.FactoryOptions, svcInfo servicedeployer.ServiceInfo, agentInfo agentdeployer.AgentInfo, agentDeployed agentdeployer.DeployedAgent, policy *kibana.Policy, state ServiceState) (servicedeployer.DeployedService, servicedeployer.ServiceInfo, error) {
-	logger.Debug("setting up service...")
+	r.logger.Debug("setting up service...")
 	if r.options.RunTearDown || r.options.RunTestsOnly {
 		svcInfo.Test.RunID = state.ServiceRunID
 		svcInfo.OutputDir = state.ServiceOutputDir
@@ -1255,7 +1264,7 @@ func (r *runner) setupService(ctx context.Context, config *testConfig, serviceOp
 	}
 
 	r.shutdownServiceHandler = func(ctx context.Context) error {
-		logger.Debug("tearing down service...")
+		r.logger.Debug("tearing down service...")
 		if err := service.TearDown(ctx); err != nil {
 			return fmt.Errorf("error tearing down service: %w", err)
 		}
@@ -1273,7 +1282,7 @@ func (r *runner) setupAgent(ctx context.Context, config *testConfig, state Servi
 	if r.options.RunTearDown || r.options.RunTestsOnly {
 		agentRunID = state.AgentRunID
 	}
-	logger.Warn("setting up agent (technical preview)...")
+	r.logger.Warn("setting up agent (technical preview)...")
 	agentInfo, err := r.createAgentInfo(policy, config, agentRunID, agentManifest)
 	if err != nil {
 		return nil, agentdeployer.AgentInfo{}, err
@@ -1285,7 +1294,7 @@ func (r *runner) setupAgent(ctx context.Context, config *testConfig, state Servi
 		return nil, agentInfo, fmt.Errorf("could not create agent runner: %w", err)
 	}
 	if agentDeployer == nil {
-		logger.Debug("Not found agent deployer. Agent will be created along with the service.")
+		r.logger.Debug("Not found agent deployer. Agent will be created along with the service.")
 		return nil, agentInfo, nil
 	}
 
@@ -1297,7 +1306,7 @@ func (r *runner) setupAgent(ctx context.Context, config *testConfig, state Servi
 		if agentDeployer == nil {
 			return nil
 		}
-		logger.Debug("tearing down agent...")
+		r.logger.Debug("tearing down agent...")
 		if err := agentDeployed.TearDown(ctx); err != nil {
 			return fmt.Errorf("error tearing down agent: %w", err)
 		}
@@ -1326,7 +1335,7 @@ func (r *runner) createServiceStateDir() error {
 
 func (r *runner) readServiceStateData() (ServiceState, error) {
 	var setupData ServiceState
-	logger.Debugf("Reading test config from file %s", r.serviceStateFilePath)
+	r.logger.Debug("Reading test config from file", slog.String("state.file", r.serviceStateFilePath))
 	contents, err := os.ReadFile(r.serviceStateFilePath)
 	if err != nil {
 		return setupData, fmt.Errorf("failed to read test config %q: %w", r.serviceStateFilePath, err)
@@ -1385,7 +1394,7 @@ func (r *runner) writeScenarioState(opts scenarioStateOpts) error {
 }
 
 func (r *runner) deleteOldDocumentsDataStreamAndWait(ctx context.Context, dataStream string, mustBeZero bool) error {
-	logger.Debugf("Delete previous documents in data stream %q", dataStream)
+	r.logger.Debug("Delete previous documents in data stream", slog.String("data.stream", dataStream))
 	if err := deleteDataStreamDocs(ctx, r.options.API, dataStream); err != nil {
 		return fmt.Errorf("error deleting old data in data stream: %s: %w", dataStream, err)
 	}
@@ -1521,9 +1530,12 @@ func (r *runner) runTest(ctx context.Context, config *testConfig, svcInfo servic
 	result := r.newResult(config.Name())
 
 	if config.Skip != nil {
-		logger.Warnf("skipping %s test for %s/%s: %s (details: %s)",
-			TestType, r.options.TestFolder.Package, r.options.TestFolder.DataStream,
-			config.Skip.Reason, config.Skip.Link.String())
+		r.logger.Warn("skipping test",
+			slog.String("testType", string(TestType)),
+			slog.String("data-stream", r.options.TestFolder.DataStream),
+			slog.String("reason", config.Skip.Reason),
+			slog.String("details", config.Skip.Link.String()),
+		)
 		return result.WithSkip(config.Skip)
 	}
 

@@ -62,7 +62,7 @@ var _ ServiceDeployer = new(CustomAgentDeployer)
 // NewCustomAgentDeployer returns a new instance of a deployedCustomAgent.
 func NewCustomAgentDeployer(options CustomAgentDeployerOptions) (*CustomAgentDeployer, error) {
 	logger := logger.Logger
-	if logger != nil {
+	if options.Logger != nil {
 		logger = options.Logger
 	}
 	logger = logger.With(slog.String("service.deployer", "custom agent"))
