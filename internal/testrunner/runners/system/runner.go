@@ -428,6 +428,15 @@ func (r *runner) tearDownTest(ctx context.Context) error {
 	// Avoid cancellations during cleanup.
 	cleanupCtx := context.WithoutCancel(ctx)
 
+	// Run service shutdown first to ensure that resources created
+	// by terraform are deleted avoiding errors in other handlers
+	if r.shutdownServiceHandler != nil {
+		if err := r.shutdownServiceHandler(cleanupCtx); err != nil {
+			return err
+		}
+		r.shutdownServiceHandler = nil
+	}
+
 	if r.resetAgentPolicyHandler != nil {
 		if err := r.resetAgentPolicyHandler(cleanupCtx); err != nil {
 			return err
@@ -463,13 +472,6 @@ func (r *runner) tearDownTest(ctx context.Context) error {
 	_, err := r.resourcesManager.ApplyCtx(cleanupCtx, r.resources(resourcesOptions))
 	if err != nil {
 		return err
-	}
-
-	if r.shutdownServiceHandler != nil {
-		if err := r.shutdownServiceHandler(cleanupCtx); err != nil {
-			return err
-		}
-		r.shutdownServiceHandler = nil
 	}
 
 	if r.shutdownAgentHandler != nil {
