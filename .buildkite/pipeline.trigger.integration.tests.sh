@@ -96,7 +96,7 @@ for package in $(find . -maxdepth 1 -mindepth 1 -type d) ; do
         label_suffix=" (independent agent)"
     fi
     package_name=$(basename "${package}")
-    if [[ "${package_name}" == "gcp" ||  "${package_name}" == "aws" || "${package_name}" == "aws_logs" ]] ; then
+    if [[ "${package_name}" == "aws" || "${package_name}" == "aws_logs" ]] ; then
         echoerr "Skip package temporarily ${package_name}"
         continue
     fi
