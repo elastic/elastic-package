@@ -73,9 +73,12 @@ func (r runner) run(ctx context.Context) ([]testrunner.TestResult, error) {
 	}
 
 	if testConfig != nil && testConfig.Skip != nil {
-		logger.Warnf("skipping %s test for %s: %s (details: %s)",
-			TestType, r.options.TestFolder.Package,
-			testConfig.Skip.Reason, testConfig.Skip.Link.String())
+		r.logger.Warn("skipping test",
+			slog.String("type", string(TestType)),
+			slog.String("package", r.options.TestFolder.Package),
+			slog.String("reason", testConfig.Skip.Reason),
+			slog.String("details", testConfig.Skip.Link.String()),
+		)
 		return result.WithSkip(testConfig.Skip)
 	}
 
