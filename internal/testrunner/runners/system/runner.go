@@ -280,13 +280,9 @@ func (r *runner) Run(ctx context.Context, options testrunner.TestOptions) ([]tes
 			return result.WithError(fmt.Errorf("failed to prepare scenario: %w", err))
 		}
 		results, err := r.validateTestScenario(ctx, result, scenario, testConfig)
-		tdErr := r.resetAgentPolicyHandler(ctx)
+		tdErr := r.tearDownTest(ctx)
 		if tdErr != nil {
-			logger.Errorf("failed to reassign policy: %s", tdErr)
-		}
-		tdErr = r.cleanTestScenarioHandler(ctx)
-		if tdErr != nil {
-			logger.Errorf("failed to clean test scenario: %s", tdErr)
+			logger.Errorf("failed to tear down runner: %s", tdErr.Error())
 		}
 		return results, err
 
@@ -971,6 +967,9 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		}
 	}
 	r.deleteTestPolicyHandler = func(ctx context.Context) error {
+		if r.options.RunTestsOnly {
+			return nil
+		}
 		logger.Debug("deleting test policies...")
 		if err := r.options.KibanaClient.DeletePolicy(ctx, policyToTest.ID); err != nil {
 			return fmt.Errorf("error cleaning up test policy: %w", err)
@@ -1078,6 +1077,9 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	)
 
 	r.wipeDataStreamHandler = func(ctx context.Context) error {
+		if r.options.RunTestsOnly {
+			return nil
+		}
 		logger.Debugf("deleting data in data stream...")
 		if err := deleteDataStreamDocs(ctx, r.options.API, scenario.dataStream); err != nil {
 			return fmt.Errorf("error deleting data in data stream: %w", err)
@@ -1122,6 +1124,9 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	logger.Debugf("Selected enrolled agent %q", agent.ID)
 
 	r.removeAgentHandler = func(ctx context.Context) error {
+		if r.options.RunTestsOnly {
+			return nil
+		}
 		// When not using independent agents, service deployers like kubernetes or custom agents create new Elastic Agent
 		if !r.options.RunIndependentElasticAgent && !svcInfo.Agent.Independent {
 			return nil
@@ -1171,6 +1176,9 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		}
 	}
 	r.resetAgentLogLevelHandler = func(ctx context.Context) error {
+		if r.options.RunTestsOnly {
+			return nil
+		}
 		logger.Debugf("reassigning original log level %q back to agent...", origLogLevel)
 
 		if err := r.options.KibanaClient.SetAgentLogLevel(ctx, agent.ID, origLogLevel); err != nil {
@@ -1323,6 +1331,9 @@ func (r *runner) setupService(ctx context.Context, config *testConfig, serviceOp
 	}
 
 	r.shutdownServiceHandler = func(ctx context.Context) error {
+		if r.options.RunTestsOnly {
+			return nil
+		}
 		logger.Debug("tearing down service...")
 		if err := service.TearDown(ctx); err != nil {
 			return fmt.Errorf("error tearing down service: %w", err)
@@ -1362,6 +1373,9 @@ func (r *runner) setupAgent(ctx context.Context, config *testConfig, state Servi
 		return nil, agentInfo, fmt.Errorf("could not setup agent: %w", err)
 	}
 	r.shutdownAgentHandler = func(ctx context.Context) error {
+		if r.options.RunTestsOnly {
+			return nil
+		}
 		if agentDeployer == nil {
 			return nil
 		}
