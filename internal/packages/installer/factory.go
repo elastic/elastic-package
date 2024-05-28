@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 
 	"github.com/Masterminds/semver/v3"
 
@@ -34,6 +35,7 @@ type Options struct {
 	RootPath       string
 	ZipPath        string
 	SkipValidation bool
+	Logger         *slog.Logger
 }
 
 // NewForPackage creates a new installer for a package, given its root path, or its prebuilt zip.
@@ -48,6 +50,11 @@ func NewForPackage(options Options) (Installer, error) {
 	if options.RootPath == "" && options.ZipPath == "" {
 		return nil, errors.New("missing package root path or pre-built zip package")
 	}
+	logger := logger.Logger
+	if options.Logger != nil {
+		logger = options.Logger
+	}
+	logger = logger.With(slog.String("path", options.ZipPath))
 
 	version, err := kibanaVersion(options.Kibana)
 	if err != nil {
@@ -59,17 +66,18 @@ func NewForPackage(options Options) (Installer, error) {
 		if !supportsZip {
 			return nil, fmt.Errorf("not supported uploading zip packages in Kibana %s (%s required)", version, semver8_7_0)
 		}
-		if !options.SkipValidation {
-			logger.Debugf("Validating built .zip package (path: %s)", options.ZipPath)
+		if options.SkipValidation {
+			logger.Debug("Skip validation of the built .zip package")
+		} else {
+			logger.Debug("Validating built .zip package")
 			errs, skipped := validation.ValidateAndFilterFromZip(options.ZipPath)
 			if skipped != nil {
-				logger.Infof("Skipped errors: %v", skipped)
+				logger.Info("Skipped errors", slog.Any("skipped.errors", skipped))
 			}
 			if errs != nil {
 				return nil, fmt.Errorf("invalid content found in built zip package: %w", errs)
 			}
 		}
-		logger.Debug("Skip validation of the built .zip package")
 		return CreateForZip(options.Kibana, options.ZipPath)
 	}
 
