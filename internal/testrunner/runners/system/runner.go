@@ -1154,7 +1154,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	r.resetAgentPolicyHandler = func(ctx context.Context) error {
 		if !r.options.RunSetup {
 			// it should be kept the same policy just when system tests are
-			// triggered with the flags for just setup or just tear-down
+			// triggered with the flags for running setup stage (--setup)
 			logger.Debug("reassigning original policy back to agent...")
 			if err := r.options.KibanaClient.AssignPolicyToAgent(ctx, agent, origPolicy); err != nil {
 				return fmt.Errorf("error reassigning original policy to agent: %w", err)
