@@ -1447,6 +1447,8 @@ func (r *runner) deleteOldDocumentsDataStreamAndWait(ctx context.Context, dataSt
 	if err := deleteDataStreamDocs(ctx, r.options.API, dataStream); err != nil {
 		return fmt.Errorf("error deleting old data in data stream: %s: %w", dataStream, err)
 	}
+	// TODO: Review if this getDocs call can be deleted after creating
+	// a new Agent Policy in each test
 	startHits, err := r.getDocs(ctx, dataStream)
 	if err != nil {
 		return err
@@ -1464,7 +1466,7 @@ func (r *runner) deleteOldDocumentsDataStreamAndWait(ctx context.Context, dataSt
 		if mustBeZero {
 			return hits.size() == 0, nil
 		}
-		return startHits.size() > hits.size(), nil
+		return hits.size() == 0 || startHits.size() > hits.size(), nil
 	}, 1*time.Second, 2*time.Minute)
 	if err != nil || !cleared {
 		if err == nil {
