@@ -141,7 +141,8 @@ func NewKubernetesServiceDeployer(opts KubernetesServiceDeployerOptions) (*Kuber
 
 // SetUp function links the kind container with elastic-package-stack network, installs Elastic-Agent and optionally
 // custom YAML definitions.
-func (ksd KubernetesServiceDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (DeployedService, error) {
+func (ksd *KubernetesServiceDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (DeployedService, error) {
+	ksd.logger = ksd.logger.With(slog.String("service.name", svcInfo.Name))
 	err := kind.VerifyContext(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("kind context verification failed: %w", err)
@@ -189,7 +190,7 @@ func (ksd KubernetesServiceDeployer) SetUp(ctx context.Context, svcInfo ServiceI
 	}, nil
 }
 
-func (ksd KubernetesServiceDeployer) installCustomDefinitions(ctx context.Context) error {
+func (ksd *KubernetesServiceDeployer) installCustomDefinitions(ctx context.Context) error {
 	ksd.logger.Debug("install custom Kubernetes definitions", slog.String("directory", ksd.definitionsDir))
 
 	definitionPaths, err := findKubernetesDefinitions(ksd.definitionsDir)

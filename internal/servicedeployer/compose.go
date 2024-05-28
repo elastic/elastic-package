@@ -85,6 +85,7 @@ func NewDockerComposeServiceDeployer(options DockerComposeServiceDeployerOptions
 
 // SetUp sets up the service and returns any relevant information.
 func (d *DockerComposeServiceDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (DeployedService, error) {
+	d.logger = d.logger.With(slog.String("service.name", svcInfo.Name))
 	d.logger.Debug("setting up service using Docker Compose service deployer")
 	service := dockerComposeDeployedService{
 		ymlPaths: d.ymlPaths,

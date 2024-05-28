@@ -79,7 +79,8 @@ func NewCustomAgentDeployer(options CustomAgentDeployerOptions) (*CustomAgentDep
 
 // SetUp sets up the service and returns any relevant information.
 func (d *CustomAgentDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (DeployedService, error) {
-	logger.Debug("setting up service using Docker Compose service deployer")
+	d.logger = d.logger.With(slog.String("service.name", svcInfo.Name))
+	d.logger.Debug("setting up service using Docker Compose service deployer")
 
 	appConfig, err := install.Configuration()
 	if err != nil {
@@ -189,7 +190,7 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (D
 		return nil, fmt.Errorf("service is unhealthy: %w", err)
 	}
 
-	d.logger.Debug("adding service container internal ports to context", slog.String("service", p.ContainerName(serviceName)))
+	d.logger.Debug("adding service container internal ports to context", slog.String("container.name", p.ContainerName(serviceName)))
 	serviceComposeConfig, err := p.Config(ctx, compose.CommandOptions{Env: env})
 	if err != nil {
 		return nil, fmt.Errorf("could not get Docker Compose configuration for service: %w", err)
