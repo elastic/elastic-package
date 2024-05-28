@@ -89,6 +89,10 @@ func (r *runner) String() string {
 // Run runs the pipeline tests defined under the given folder
 func (r *runner) Run(ctx context.Context, options testrunner.TestOptions) ([]testrunner.TestResult, error) {
 	r.options = options
+	r.logger = r.logger.With(
+		slog.String("package", options.TestFolder.Package),
+		slog.String("data_stream", options.TestFolder.DataStream),
+	)
 
 	stackConfig, err := stack.LoadConfig(r.options.Profile)
 	if err != nil {
