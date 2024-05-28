@@ -404,7 +404,18 @@ func (p *Project) WaitForHealthy(ctx context.Context, opts CommandOptions) error
 		}
 
 		for _, containerDescription := range descriptions {
-			log.Debug("Container status", slog.String("status", containerDescription.String()))
+			healthStatus := "nil"
+			if containerDescription.State.Health != nil {
+				healthStatus = containerDescription.State.Health.Status
+			}
+			log.Debug("Container status",
+				// slog.String("status", containerDescription.String()),
+				slog.String("container.id", containerDescription.ID),
+				slog.String("container.image", containerDescription.Config.Image),
+				slog.String("container.status", containerDescription.State.Status),
+				slog.String("container.health.status", healthStatus),
+				slog.Int("container.exit_code", containerDescription.State.ExitCode),
+			)
 
 			// No healthcheck defined for service
 			if containerDescription.State.Status == "running" && containerDescription.State.Health == nil {
