@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"slices"
 	"strings"
 	"time"
@@ -47,6 +48,8 @@ type serverlessProvider struct {
 
 	elasticsearchClient *elasticsearch.Client
 	kibanaClient        *kibana.Client
+
+	logger *slog.Logger
 }
 
 type projectSettings struct {
@@ -92,7 +95,7 @@ func (sp *serverlessProvider) createProject(ctx context.Context, settings projec
 		return Config{}, fmt.Errorf("failed to store config: %w", err)
 	}
 
-	logger.Debug("Waiting for creation plan to be completed")
+	sp.logger.Debug("Waiting for creation plan to be completed")
 	err = sp.client.EnsureProjectInitialized(ctx, project)
 	if err != nil {
 		return Config{}, fmt.Errorf("project not initialized: %w", err)
@@ -235,7 +238,13 @@ func newServerlessProvider(profile *profile.Profile) (*serverlessProvider, error
 		return nil, fmt.Errorf("can't create serverless provider: %w", err)
 	}
 
-	return &serverlessProvider{profile, client, nil, nil}, nil
+	return &serverlessProvider{
+		profile:             profile,
+		client:              client,
+		elasticsearchClient: nil,
+		kibanaClient:        nil,
+		logger:              logger.Logger.With(slog.String("provider", "serverless")),
+	}, nil
 }
 
 func (*serverlessProvider) Name() string {
@@ -243,7 +252,7 @@ func (*serverlessProvider) Name() string {
 }
 
 func (sp *serverlessProvider) BootUp(ctx context.Context, options Options) error {
-	logger.Warn("Elastic Serverless provider is in technical preview")
+	sp.logger.Warn("Elastic Serverless provider is in technical preview")
 
 	config, err := LoadConfig(sp.profile)
 	if err != nil {
@@ -267,7 +276,9 @@ func (sp *serverlessProvider) BootUp(ctx context.Context, options Options) error
 	default:
 		return err
 	case serverless.ErrProjectNotExist:
-		logger.Infof("Creating %s project: %q", settings.Type, settings.Name)
+		sp.logger = sp.logger.With(slog.String("project.type", settings.Type), slog.String("project.name", settings.Name))
+
+		sp.logger.Info("Creating project")
 		config, err = sp.createProject(ctx, settings, options, config)
 		if err != nil {
 			return fmt.Errorf("failed to create deployment: %w", err)
@@ -283,7 +294,7 @@ func (sp *serverlessProvider) BootUp(ctx context.Context, options Options) error
 			outputID = serverless.FleetLogstashOutput
 		}
 
-		logger.Infof("Creating agent policy")
+		sp.logger.Info("Creating agent policy")
 		err = project.CreateAgentPolicy(ctx, sp.kibanaClient, options.StackVersion, outputID, settings.SelfMonitor)
 
 		if err != nil {
@@ -294,11 +305,12 @@ func (sp *serverlessProvider) BootUp(ctx context.Context, options Options) error
 		// TODO: Ensuring a specific GeoIP database would make tests reproducible
 		// Currently geo ip files would be ignored when running pipeline tests
 	case nil:
-		logger.Debugf("%s project existed: %s", project.Type, project.Name)
+		sp.logger = sp.logger.With(slog.String("project.type", project.Type), slog.String("project.name", project.Name))
+		sp.logger.Debug("Project existed")
 		printUserConfig(options.Printer, config)
 	}
 
-	logger.Infof("Starting local services")
+	sp.logger.Info("Starting local services")
 	err = sp.startLocalServices(ctx, options, config)
 	if err != nil {
 		return fmt.Errorf("failed to start local services: %w", err)
@@ -378,7 +390,7 @@ func (sp *serverlessProvider) TearDown(ctx context.Context, options Options) err
 
 	err = sp.destroyLocalServices(ctx)
 	if err != nil {
-		logger.Errorf("failed to destroy local services: %v", err)
+		sp.logger.Error("failed to destroy local services", slog.Any("error", err))
 		errs = fmt.Errorf("failed to destroy local services: %w", err)
 	}
 
@@ -387,14 +399,14 @@ func (sp *serverlessProvider) TearDown(ctx context.Context, options Options) err
 		return fmt.Errorf("failed to find current project: %w", err)
 	}
 
-	logger.Debugf("Deleting project %q (%s)", project.Name, project.ID)
+	sp.logger.Debug("Deleting project", slog.String("project.id", project.ID))
 
 	err = sp.deleteProject(ctx, project, options)
 	if err != nil {
-		logger.Errorf("failed to delete project: %v", err)
+		sp.logger.Error("failed to delete project", slog.Any("error", err))
 		errs = errors.Join(errs, fmt.Errorf("failed to delete project: %w", err))
 	}
-	logger.Infof("Project %s (%s) deleted", project.Name, project.ID)
+	sp.logger.Info("Project deleted", slog.String("project.id", project.ID))
 
 	// TODO: if GeoIP database is specified, remove the geoip Bundle (if needed)
 	return errs
@@ -435,7 +447,7 @@ func (sp *serverlessProvider) Dump(ctx context.Context, options DumpOptions) ([]
 }
 
 func (sp *serverlessProvider) Status(ctx context.Context, options Options) ([]ServiceStatus, error) {
-	logger.Warn("Elastic Serverless provider is in technical preview")
+	sp.logger.Warn("Elastic Serverless provider is in technical preview")
 	config, err := LoadConfig(sp.profile)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load configuration: %w", err)

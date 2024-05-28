@@ -400,12 +400,12 @@ func (s *dockerComposeDeployedAgent) TearDown(ctx context.Context) error {
 	defer func() {
 		// Remove the service logs dir for this agent
 		if err := os.RemoveAll(s.agentInfo.Logs.Folder.Local); err != nil {
-			logger.Errorf("could not remove the agent logs (path: %s): %w", s.agentInfo.Logs.Folder.Local, err)
+			logger.Errorf("could not remove the agent logs (path: %s): %s", s.agentInfo.Logs.Folder.Local, err)
 		}
 
 		// Remove the configuration dir for this agent (e.g. compose scenario files)
 		if err := os.RemoveAll(s.agentInfo.ConfigDir); err != nil {
-			logger.Errorf("could not remove the agent configuration directory (path: %s) %w", s.agentInfo.ConfigDir, err)
+			logger.Errorf("could not remove the agent configuration directory (path: %s) %s", s.agentInfo.ConfigDir, err)
 		}
 	}()
 
