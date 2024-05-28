@@ -1100,18 +1100,10 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		return nil
 	}
 
-	switch {
-	case r.options.RunTearDown:
+	if r.options.RunTearDown {
 		logger.Debugf("Skipped deleting old data in data stream %q", scenario.dataStream)
-	case r.options.RunTestsOnly:
-		// In this mode, service is still running and the agent is sending documents, so sometimes
-		// cannot be guaranteed to be zero documents
-		err := r.deleteOldDocumentsDataStreamAndWait(ctx, scenario.dataStream, false)
-		if err != nil {
-			return nil, err
-		}
-	default:
-		err := r.deleteOldDocumentsDataStreamAndWait(ctx, scenario.dataStream, true)
+	} else {
+		err := r.deleteOldDocumentsDataStreamAndWait(ctx, scenario.dataStream)
 		if err != nil {
 			return nil, err
 		}
@@ -1457,7 +1449,7 @@ func (r *runner) writeScenarioState(opts scenarioStateOpts) error {
 	return nil
 }
 
-func (r *runner) deleteOldDocumentsDataStreamAndWait(ctx context.Context, dataStream string, mustBeZero bool) error {
+func (r *runner) deleteOldDocumentsDataStreamAndWait(ctx context.Context, dataStream string) error {
 	logger.Debugf("Delete previous documents in data stream %q", dataStream)
 	if err := deleteDataStreamDocs(ctx, r.options.API, dataStream); err != nil {
 		return fmt.Errorf("error deleting old data in data stream: %s: %w", dataStream, err)
@@ -1468,9 +1460,6 @@ func (r *runner) deleteOldDocumentsDataStreamAndWait(ctx context.Context, dataSt
 			return false, err
 		}
 
-		if mustBeZero {
-			return hits.size() == 0, nil
-		}
 		return hits.size() == 0, nil
 	}, 1*time.Second, 2*time.Minute)
 	if err != nil || !cleared {
