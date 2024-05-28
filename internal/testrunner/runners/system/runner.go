@@ -850,7 +850,6 @@ func (r *runner) shouldCreateNewAgentPolicyForTest() bool {
 	if !r.options.RunIndependentElasticAgent {
 		// keep same behaviour as previously when Elastic Agent of the stack is used.
 		return false
-
 	}
 	// No need to create new Agent Policies for these stages
 	if r.options.RunSetup || r.options.RunTearDown {
