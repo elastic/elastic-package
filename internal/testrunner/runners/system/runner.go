@@ -280,10 +280,13 @@ func (r *runner) Run(ctx context.Context, options testrunner.TestOptions) ([]tes
 			return result.WithError(fmt.Errorf("failed to prepare scenario: %w", err))
 		}
 		results, err := r.validateTestScenario(ctx, result, scenario, testConfig)
-		// run re-assign policy
 		tdErr := r.resetAgentPolicyHandler(ctx)
 		if tdErr != nil {
 			logger.Errorf("failed to reassign policy: %s", tdErr)
+		}
+		tdErr = r.cleanTestScenarioHandler(ctx)
+		if tdErr != nil {
+			logger.Errorf("failed to clean test scenario: %s", tdErr)
 		}
 		return results, err
 
