@@ -13,6 +13,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"os"
 	"time"
 
 	"github.com/hashicorp/go-retryablehttp"
@@ -58,7 +59,11 @@ func WrapHTTPClient(client *http.Client, opts HTTPOptions) *http.Client {
 	retryClient.RetryWaitMax = retryWaitMax
 
 	// It needs to be a logger with support for attributes as key-value pairs.
-	retryClient.Logger = slog.Default()
+	retryClient.Logger = slog.New(
+		slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+			Level: slog.LevelInfo,
+		}),
+	)
 	return retryClient.StandardClient()
 }
 
