@@ -13,8 +13,6 @@ import (
 	"net/http"
 	"sort"
 	"strings"
-
-	"github.com/elastic/elastic-package/internal/logger"
 )
 
 const findDashboardsPerPage = 100
@@ -59,7 +57,7 @@ func (dso *DashboardSavedObject) String() string {
 
 // FindDashboards method returns dashboards available in the Kibana instance.
 func (c *Client) FindDashboards(ctx context.Context) (DashboardSavedObjects, error) {
-	logger.Debug("Find dashboards using the Saved Objects API")
+	c.logger.Debug("Find dashboards using the Saved Objects API")
 
 	var foundObjects DashboardSavedObjects
 	page := 1

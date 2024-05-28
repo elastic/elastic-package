@@ -9,10 +9,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"time"
-
-	"github.com/elastic/elastic-package/internal/logger"
 )
 
 var (
@@ -118,14 +117,25 @@ func (c *Client) waitUntilPolicyAssigned(ctx context.Context, a Agent, p Policy)
 		if err != nil {
 			return fmt.Errorf("can't get the agent: %w", err)
 		}
-		logger.Debugf("Agent data: %s", agent.String())
+		c.logger.Debug("Agent data",
+			slog.Group("agent",
+				slog.String("id", agent.ID),
+				slog.String("policy_id", agent.PolicyID),
+				slog.String("hostname", agent.LocalMetadata.Host.Name),
+				slog.String("loglevel", agent.LocalMetadata.Elastic.Agent.LogLevel),
+				slog.String("status", agent.Status),
+			),
+		)
 
 		if agent.PolicyID == p.ID && agent.PolicyRevision >= p.Revision {
-			logger.Debugf("Policy revision assigned to the agent (ID: %s)...", a.ID)
+			c.logger.Debug("Policy revision assigned to the agent (ID: %s)...", slog.String("agent", a.ID))
 			break
 		}
 
-		logger.Debugf("Wait until the policy (ID: %s, revision: %d) is assigned to the agent (ID: %s)...", p.ID, p.Revision, a.ID)
+		c.logger.Debug("Wait until the policy is assigned to the agent (ID: %s)...",
+			slog.Group("policy", slog.String("ID", p.ID), slog.Int("revision", p.Revision)),
+			slog.String("agent.id", a.ID),
+		)
 		select {
 		case <-ctx.Done():
 			if errors.Is(ctx.Err(), context.DeadlineExceeded) {

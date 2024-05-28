@@ -319,7 +319,9 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 		var kibanaClient *kibana.Client
 		if testType == "system" || testType == "asset" {
 			// pipeline and static tests do not require a kibana client to perform their required operations
-			kibanaClient, err = stack.NewKibanaClientFromProfile(profile)
+			kibanaClient, err = stack.NewKibanaClientFromProfile(profile,
+				kibana.Logger(testrunnerLogger),
+			)
 			if err != nil {
 				return fmt.Errorf("can't create Kibana client: %w", err)
 			}

@@ -12,6 +12,7 @@ import (
 
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/install"
+	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/packages/installer"
@@ -58,7 +59,11 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 
-	kibanaClient, err := stack.NewKibanaClientFromProfile(profile)
+	actionLogger := logger.Logger
+
+	kibanaClient, err := stack.NewKibanaClientFromProfile(profile,
+		kibana.Logger(actionLogger),
+	)
 	if err != nil {
 		return fmt.Errorf("could not create kibana client: %w", err)
 	}
@@ -80,7 +85,7 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 		RootPath:       packageRootPath,
 		SkipValidation: skipValidation,
 		ZipPath:        zipPathFile,
-		Logger:         logger.Logger,
+		Logger:         actionLogger,
 	})
 	if err != nil {
 		return fmt.Errorf("package installation failed: %w", err)

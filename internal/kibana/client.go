@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 
@@ -39,6 +40,8 @@ type Client struct {
 	retryMax        int
 	http            *http.Client
 	httpClientSetup func(*http.Client) *http.Client
+
+	logger *slog.Logger
 }
 
 // ClientOption is functional option modifying Kibana client.
@@ -48,6 +51,7 @@ type ClientOption func(*Client)
 func NewClient(opts ...ClientOption) (*Client, error) {
 	c := &Client{
 		retryMax: 10,
+		logger:   logger.Logger,
 	}
 	for _, opt := range opts {
 		opt(c)
@@ -136,6 +140,13 @@ func HTTPClientSetup(setup func(*http.Client) *http.Client) ClientOption {
 	}
 }
 
+// Logger configures the logger to be used in the client.
+func Logger(logger *slog.Logger) ClientOption {
+	return func(c *Client) {
+		c.logger = logger
+	}
+}
+
 func (c *Client) get(ctx context.Context, resourcePath string) (int, []byte, error) {
 	return c.SendRequest(ctx, http.MethodGet, resourcePath, nil)
 }
@@ -175,7 +186,7 @@ func (c *Client) newRequest(ctx context.Context, method, resourcePath string, re
 	u := base.JoinPath(rel.EscapedPath())
 	u.RawQuery = rel.RawQuery
 
-	logger.Debugf("%s %s", method, u)
+	c.logger.Debug("request", slog.String("method", method), slog.String("url", u.String()))
 
 	req, err := http.NewRequestWithContext(ctx, method, u.String(), reqBody)
 	if err != nil {

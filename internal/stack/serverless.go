@@ -202,6 +202,7 @@ func (sp *serverlessProvider) createClients(project *serverless.Project) error {
 		kibana.Address(project.Endpoints.Kibana),
 		kibana.Username(project.Credentials.Username),
 		kibana.Password(project.Credentials.Password),
+		kibana.Logger(sp.logger),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create kibana client: %w", err)
