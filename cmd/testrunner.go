@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"slices"
@@ -313,6 +314,8 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 			esAPI = esClient.API
 		}
 
+		testrunnerLogger := logger.Logger.With(slog.String("testrunner", string(testType)))
+
 		var kibanaClient *kibana.Client
 		if testType == "system" || testType == "asset" {
 			// pipeline and static tests do not require a kibana client to perform their required operations
@@ -337,7 +340,7 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 			fmt.Printf("Running tests per stages (technical preview)\n")
 		}
 
-		launcher := testrunner.NewRunnerLauncher(testrunner.WithLogger(logger.Logger))
+		launcher := testrunner.NewRunnerLauncher(testrunner.WithLogger(testrunnerLogger))
 		var results []testrunner.TestResult
 		for _, folder := range testFolders {
 			r, err := launcher.Run(ctx, testType, testrunner.TestOptions{

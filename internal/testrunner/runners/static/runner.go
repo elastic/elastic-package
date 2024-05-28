@@ -37,7 +37,6 @@ func init() {
 		if l != nil {
 			log = l
 		}
-		log = log.With(slog.String("testrunner", "static"))
 		return &runner{logger: log}
 	})
 }

@@ -64,7 +64,6 @@ func init() {
 		if l != nil {
 			log = l
 		}
-		log = log.With(slog.String("testrunner", "pipeline"))
 		return &runner{logger: log}
 	})
 }

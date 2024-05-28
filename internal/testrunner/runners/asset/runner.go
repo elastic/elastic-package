@@ -25,7 +25,6 @@ func init() {
 		if l != nil {
 			log = l
 		}
-		log = log.With(slog.String("testrunner", "asset"))
 		return &runner{logger: log}
 	})
 }

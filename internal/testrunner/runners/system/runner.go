@@ -88,7 +88,6 @@ func init() {
 		if l != nil {
 			log = l
 		}
-		log = log.With(slog.String("testrunner", "system"))
 		return &runner{logger: log}
 	})
 }
