@@ -117,7 +117,7 @@ func (r *runner) Run(ctx context.Context, options testrunner.TestOptions) ([]tes
 // TearDown shuts down the pipeline test runner.
 func (r *runner) TearDown(ctx context.Context) error {
 	if r.options.DeferCleanup > 0 {
-		logger.Debugf("Waiting for %s before cleanup...", r.options.DeferCleanup)
+		r.logger.Debug("Waiting before cleanup...", slog.Int("seconds", int(r.options.DeferCleanup.Seconds())))
 		select {
 		case <-time.After(r.options.DeferCleanup):
 		case <-ctx.Done():
@@ -239,7 +239,7 @@ func (r *runner) checkElasticsearchLogs(ctx context.Context, startTesting time.T
 	dump, err := r.provider.Dump(ctx, dumpOptions)
 	var notImplementedErr *stack.ErrNotImplemented
 	if errors.As(err, &notImplementedErr) {
-		logger.Debugf("Not checking Elasticsearch logs: %s", err)
+		r.logger.Debug("Not checking Elasticsearch logs", slog.Any("error", err))
 		return nil, nil
 	}
 	if err != nil {
@@ -265,7 +265,7 @@ func (r *runner) checkElasticsearchLogs(ctx context.Context, startTesting time.T
 		}
 
 		seenWarnings[log.Message] = struct{}{}
-		logger.Warnf("elasticsearch warning: %s", log.Message)
+		r.logger.Warn("elasticsearch warning", slog.String("message", log.Message))
 
 		// trying to catch warnings only related to processors but this is best-effort
 		if strings.Contains(strings.ToLower(log.Logger), "processor") {
@@ -313,9 +313,12 @@ func (r *runner) runTestCase(ctx context.Context, testCaseFile string, dsPath st
 	tr.Name = tc.name
 
 	if tc.config.Skip != nil {
-		logger.Warnf("skipping %s test for %s/%s: %s (details: %s)",
-			TestType, r.options.TestFolder.Package, r.options.TestFolder.DataStream,
-			tc.config.Skip.Reason, tc.config.Skip.Link.String())
+		r.logger.Warn("skipping test",
+			slog.String("testType", string(TestType)),
+			slog.String("data-stream", r.options.TestFolder.DataStream),
+			slog.String("reason", tc.config.Skip.Reason),
+			slog.String("details", tc.config.Skip.Link.String()),
+		)
 
 		tr.Skipped = tc.config.Skip
 		return tr, nil
